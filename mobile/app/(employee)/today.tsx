@@ -69,7 +69,7 @@ export default function EcranChantiersAujourdhui() {
             style={styles.ligne}
             onPress={() => router.push({ pathname: "/job/[id]", params: { id: item.intervention_id } })}
           >
-            <Text style={styles.ligneTitre}>{item.type_travaux}</Text>
+            <Text style={styles.ligneTitre}>{item.type_travaux ?? item.service}</Text>
             <Text style={styles.ligneStatut}>{t(`today.statut.${item.statut}`)}</Text>
           </Pressable>
         )}

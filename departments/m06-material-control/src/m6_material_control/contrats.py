@@ -15,10 +15,13 @@ CHAMPS_WCT = (
 
 # Champs optionnels du WCT prévus par le catalogue `m4.travaux_termines` (ceux dont M7 a besoin).
 # M6 ne les lit pas : il les accepte sans s'en servir, et refuse toujours une clé inconnue.
+# `type_travaux` (lead v1) et `service` (lead v2, PLAN T0.13-b) sont deux clés distinctes du WCT : M4
+# n'en porte jamais qu'une, et aucune n'est déduite de l'autre.
 # `tests/test_validation_entrees.py` garde cette liste alignée sur le catalogue.
 CHAMPS_WCT_OPTIONNELS = (
     "ville",
     "type_travaux",
+    "service",
     "photos",
     "description_factuelle",
     "consentement_marketing",

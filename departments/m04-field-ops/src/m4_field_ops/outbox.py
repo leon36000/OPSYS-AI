@@ -42,7 +42,9 @@ CHAMPS_WCT = (
 # appris à filtrer ces nouvelles clés optionnelles doit les recevoir seulement là où il sait
 # déjà les ignorer — cf. m10_memoire.outils._recevoir_travaux_termines, déjà écrit ainsi).
 # Présents SEULEMENT quand M4 les connaît réellement :
-#   - ``type_travaux`` : tiré de l'inscription (contrat LeadQualifie gelé), jamais deviné ;
+#   - ``type_travaux`` (lead v1, contrat gelé) OU ``service`` (lead v2, taxonomie du socle,
+#     PLAN T0.13-b) : tiré de l'inscription, jamais deviné, jamais les deux, jamais l'un déduit de
+#     l'autre — ``etats.travaux_de`` porte la règle ;
 #   - les quatre autres : des faits du CLIENT (Loi 25), acceptés par
 #     ``m4_completer_intervention`` SEULEMENT pendant un appel d'appareil (voir outils.py).
 # ``ville`` N'EST PAS dans ce tuple : M4 ne connaît la ville qu'au travers de
@@ -51,7 +53,8 @@ CHAMPS_WCT = (
 # dans le WCT, romprait cet invariant Loi 25 déjà prouvé ; le champ reste donc
 # structurellement absent, exactement comme le catalogue (optionnel) le permet.
 CHAMPS_WCT_OPTIONNELS = (
-    "type_travaux", "photos", "description_factuelle", "consentement_marketing", "client_satisfait",
+    "type_travaux", "service", "photos", "description_factuelle", "consentement_marketing",
+    "client_satisfait",
 )
 
 # Sentinelle interne : distincte de ``None``, qui est une valeur VALIDE pour
@@ -101,16 +104,19 @@ def _extraire_devis_id(registre_cible, intervention_id):
     return None
 
 
-def _extraire_type_travaux(registre_cible, intervention_id):
-    """Renvoie le ``type_travaux`` (T1.2-f) du maillon d'inscription, ou None si absent (un
-    registre écrit avant ce champ, ou une intervention introuvable) — jamais deviné, symétrique
-    à ``_extraire_devis_id``. Porté TEL QUEL par le WCT quand connu (catalogue, champ optionnel :
-    CHAMPS_WCT_OPTIONNELS)."""
+def _extraire_travaux(registre_cible, intervention_id):
+    """Renvoie la nature des travaux du maillon d'inscription : ``("type_travaux", v)`` (lead v1) ou
+    ``("service", v)`` (lead v2, PLAN T0.13-b), ou ``(None, None)`` si absente (un registre écrit avant
+    ce champ, ou une intervention introuvable) — jamais deviné, symétrique à ``_extraire_devis_id``.
+    Portée TELLE QUELLE par le WCT quand connue (catalogue, champs optionnels :
+    CHAMPS_WCT_OPTIONNELS) ; jamais l'une des deux clés déduite de l'autre (``etats.travaux_de``)."""
     for maillon in registre_cible.lire():
         if (maillon.get("type_entree") == etats.TYPE_INSCRIPTION
                 and maillon.get("intervention_id") == intervention_id):
-            return maillon.get("type_travaux")
-    return None
+            if etats.CLE_TYPE_TRAVAUX not in maillon and etats.CLE_SERVICE not in maillon:
+                return None, None
+            return etats.travaux_de(maillon)
+    return None, None
 
 
 def _dernier_depart(registre_cible, intervention_id):
@@ -430,8 +436,9 @@ def completer_intervention(
     # l'intervention a été inscrite sans devis (M3 n'alimente pas encore tous
     # les chemins d'entrée).
     devis_id = _extraire_devis_id(registre_cible, intervention_id)
-    # T1.2-f : porté TEL QUEL quand connu, jamais deviné — voir CHAMPS_WCT_OPTIONNELS.
-    type_travaux = _extraire_type_travaux(registre_cible, intervention_id)
+    # T1.2-f, T0.13-b : porté TEL QUEL quand connu (type_travaux v1 ou service v2), jamais deviné —
+    # voir CHAMPS_WCT_OPTIONNELS.
+    cle_travaux, valeur_travaux = _extraire_travaux(registre_cible, intervention_id)
 
     depart = _dernier_depart(registre_cible, intervention_id)
     if depart is None:
@@ -474,8 +481,8 @@ def completer_intervention(
     }
     # T1.2-f (CHAMPS_WCT_OPTIONNELS) : ajoutés SEULEMENT quand connus/fournis — jamais une clé
     # absente traitée comme null, jamais une clé null traitée comme absente (client_satisfait).
-    if type_travaux is not None:
-        wct["type_travaux"] = type_travaux
+    if valeur_travaux is not None:
+        wct[cle_travaux] = valeur_travaux
     if photos is not NON_FOURNI:
         wct["photos"] = photos
     if description_factuelle is not NON_FOURNI:
@@ -829,6 +836,8 @@ def verifier_invariants_outbox(registre_cible):
             cles_permises = set(CHAMPS_WCT) | set(CHAMPS_WCT_OPTIONNELS)
             if not set(CHAMPS_WCT) <= cles_wct or not cles_wct <= cles_permises:
                 return False, f"wct avec clés incorrectes: {cles_wct}"
+            if "type_travaux" in cles_wct and "service" in cles_wct:
+                return False, "wct porte type_travaux ET service (lead v1 ou v2, jamais les deux)"
             if wct["consommateurs_cibles"] != list(CONSOMMATEURS_CIBLES):
                 return False, "consommateurs_cibles du wct invalides"
             if wct["intervention_id"] != maillon.get("intervention_id"):

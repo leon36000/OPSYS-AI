@@ -172,11 +172,14 @@ assemble l'entrée du solveur, le fait résoudre et range le plan au registre. D
   `plan_id` deux fois n'écrit rien de plus (`deja_appliquee`) ; un technicien déjà assigné n'est pas ré-assigné
   (`effet: deja_assignee`). `confirme_par` est la personne authentifiée pour un appel d'appareil.
 
-Ce que M4 SAIT (jamais fourni) : les interventions à planifier, leur type de travaux, leur urgence déclarée, le
+Ce que M4 SAIT (jamais fourni) : les interventions à planifier, leur nature de travaux (`type_travaux` d'un lead v1
+ou `service` d'un lead v2, jamais l'un déduit de l'autre), leur urgence déclarée, le
 technicien déjà assigné, les coordonnées confirmées. Ce que M4 ne sait PAS encore (argument explicite, sinon UN
 verdict `REJ-CHAMP-MANQUANT` qui liste tout ce qu'il faut fournir, aucune valeur par défaut) : `equipes` (`id`,
 `competences`, `depot` : `id`, `latitude_microdegres`, `longitude_microdegres`, `quarts`), `durees_par_type_travaux`,
-`competences_par_type_travaux`, `chantiers` (une entrée par intervention : `fenetre` du client et `creneau_fige`,
+`competences_par_type_travaux` (leads v1 ; `{}` s'il n'y en a pas dans le lot), `durees_par_service` et
+`competences_par_service` (leads v2, exigés seulement si le lot en contient : une clé par service déclaré par
+l'entreprise), `chantiers` (une entrée par intervention : `fenetre` du client et `creneau_fige`,
 `null` seulement si aucun créneau n'est confirmé au client) et `parametres` (`facteur_detour_milliemes`,
 `vitesse_moyenne_kmh`, `marge_par_trajet_secondes`, `iterations`, `cout_non_cedule_m`). Seule exception, technique
 et non métier : la `graine` du solveur, 0 si omise (PyVRP est amorcé par l'empreinte de l'entrée de toute façon).

@@ -65,7 +65,11 @@
     },
     "type_travaux": {
       "type": "string",
-      "description": "M7-audit.md L117 : type de travaux (gouttières, revêtement, soffite-fascia, réparation), absent du WCT actuel."
+      "description": "Lead v1 (LeadQualifie gelé) : type de travaux de l'énuméré v1, porté tel quel depuis l'inscription (M7-audit.md L117). Un lead v2 porte `service` à la place, jamais `type_travaux` : aucune des deux clés n'est déduite de l'autre (PLAN T0.13-b)."
+    },
+    "service": {
+      "type": "string",
+      "description": "Lead v2 (LeadQualifie v2) : code du service, déclaré par le profil d'entreprise de l'instance (opsys.taxonomie ; gouttieres, revetement, soffite_fascia, reparation pour le premier client), porté tel quel depuis l'inscription. Clé additive : un lead v1 porte `type_travaux` à la place, jamais `service` (PLAN T0.13-b)."
     },
     "photos": {
       "type": "array",

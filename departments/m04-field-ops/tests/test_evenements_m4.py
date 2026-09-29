@@ -54,6 +54,15 @@ def _contrat(lead_id):
     }
 
 
+def _contrat_v2(lead_id, service="gouttieres"):
+    """LeadQualifie v2 (PLAN T0.13-b) : `schema_version` et `service` remplacent `type_travaux`."""
+    return {
+        "schema_version": 2, "lead_id": lead_id, "conversation_id": "C1", "service": service,
+        "ville": VILLE, "canal": "formulaire",
+        "contact": {"nom": "Client", "telephone": "0102030405"}, "urgence_declaree": False,
+    }
+
+
 def _marqueur(lead_id):
     return {
         "readiness_ok": True, "lead_id": lead_id, "hash_tete_registre": None,
@@ -71,9 +80,9 @@ def base_durable(tmp_path, monkeypatch):
     stockage.liberer()
 
 
-def _mener_a_sur_site(par_nom, lead_id):
+def _mener_a_sur_site(par_nom, lead_id, contrat=None):
     plan = executer_atomique(par_nom["m4_planifier_intervention"], {
-        "contrat": _contrat(lead_id), "marqueur": _marqueur(lead_id),
+        "contrat": _contrat(lead_id) if contrat is None else contrat, "marqueur": _marqueur(lead_id),
         "horodatage": "2025-06-02T08:00:00+00:00", "sel": SEL,
         "techniciens_disponibles": ["T1"], "fenetres_disponibles": [FENETRE],
     })
@@ -197,6 +206,66 @@ def test_completion_sans_ecart_connu_ne_signale_aucun_ecart_mais_reste_a_verifie
     assert (wct["statut"], wct["ecart_signale"], wct["revue_id"]) == ("completed_pending_review", False, None)
     statut = executer_atomique(par_nom["m4_statut_intervention"], {"intervention_id": i_id})
     assert statut["resultat"]["statut"] == "completed_pending_review"
+
+
+def test_completion_d_un_lead_v2_publie_service_et_jamais_type_travaux(
+    base_durable, deposer_photo_test, declarer_services,
+):
+    """PLAN T0.13-b : le WCT d'un lead v2 porte `service` (clé additive du catalogue), jamais `type_travaux`,
+    et l'accusé de la planification puis la liste des interventions parlent la même langue."""
+    declarer_services()
+    par_nom = {o.nom: o for o in outils()}
+    i_id = _mener_a_sur_site(par_nom, "L-EVT-V2", contrat=_contrat_v2("L-EVT-V2", "soffite_fascia"))
+
+    liste = executer_atomique(par_nom["m4_lister_interventions"], {})["resultat"]
+    [intervention] = [i for i in liste if i["intervention_id"] == i_id]
+    assert intervention["service"] == "soffite_fascia" and "type_travaux" not in intervention
+
+    completion = executer_atomique(par_nom["m4_completer_intervention"], {
+        "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
+        "preuves_completion": _preuves_ok(par_nom, deposer_photo_test),
+    })
+    assert completion["ok"] is True and completion["resultat"]["accepte"] is True, completion
+    _, charge = _charge_publiee("m4.travaux_termines")
+    assert set(charge) == set(CHAMPS_WCT) | {"service"}
+    assert charge["service"] == "soffite_fascia" and "type_travaux" not in charge
+    # Le catalogue du socle accepte cette forme : `service` y est déclaré, additif (jamais requis).
+    assert schemas.erreurs_charge("m4.travaux_termines", charge) == []
+    schema = evenements.schema("m4.travaux_termines")
+    assert "service" in schema["properties"] and "service" not in schema["required"]
+    assert _wct_pour(par_nom, i_id)["service"] == "soffite_fascia"
+
+
+def test_la_planification_d_un_lead_v2_rend_l_assignation_avec_service(base_durable, declarer_services):
+    declarer_services()
+    par_nom = {o.nom: o for o in outils()}
+    plan = executer_atomique(par_nom["m4_planifier_intervention"], {
+        "contrat": _contrat_v2("L-PLAN-V2"), "marqueur": _marqueur("L-PLAN-V2"),
+        "horodatage": "2025-06-02T08:00:00+00:00", "sel": SEL,
+        "techniciens_disponibles": ["T1"], "fenetres_disponibles": [FENETRE],
+    })
+    assert plan["ok"] is True and plan["resultat"]["etape"] == "complet", plan
+    assignation = plan["resultat"]["assignation"]
+    assert assignation["service"] == "gouttieres" and "type_travaux" not in assignation
+    assert assignation["technicien_id"] == "T1"
+
+
+def test_la_planification_d_un_lead_v2_dont_le_service_n_est_pas_declare_est_refusee(
+    base_durable, declarer_services,
+):
+    declarer_services("revetement")
+    par_nom = {o.nom: o for o in outils()}
+    plan = executer_atomique(par_nom["m4_planifier_intervention"], {
+        "contrat": _contrat_v2("L-PLAN-V2-REFUS"), "marqueur": _marqueur("L-PLAN-V2-REFUS"),
+        "horodatage": "2025-06-02T08:00:00+00:00", "sel": SEL,
+        "techniciens_disponibles": ["T1"], "fenetres_disponibles": [FENETRE],
+    })
+    assert plan["ok"] is True
+    assert plan["resultat"]["etape"] == "inscription" and plan["resultat"]["accepte"] is False
+    verdict = plan["resultat"]["verdict"]
+    assert verdict["code"] == "REJ-ENUM-INVALIDE" and "REJ-SERVICE-INCONNU" in verdict["detail"]
+    liste = executer_atomique(par_nom["m4_lister_interventions"], {})["resultat"]
+    assert liste == []  # rien n'a été inscrit
 
 
 def test_completion_refusee_ne_publie_rien(base_durable, deposer_photo_test):

@@ -262,3 +262,89 @@ def test_orchestrer_chantier_vers_social_statut_bloque_quand_non_autorise(
     assert publication_etape["statut"] == "BLOQUE"
     assert publication_etape["statut"] != "SUCCES"
     assert result["metriques"]["publications_bloquees_gated"] == 1
+
+
+# ------------------------------------------------------------------ PLAN T0.13-b : chantier v1 ou v2
+def _chantier_v2(tmp_path: Path, nom: str = "chantier-v2", **surcharges) -> Path:
+    contenu = {
+        "fictif": True,
+        "schema_version": 2,
+        "service": "gouttieres",
+        "ville": "Laval",
+        "date_fin": "2026-07-20",
+        "description_factuelle": "Pose de gouttières en aluminium sur une résidence (fictif).",
+        "photos": ["photos/apres.jpg"],
+    }
+    contenu.update(surcharges)
+    return _creer_fixture(tmp_path, nom, contenu)
+
+
+def _lancer(chemin: Path) -> dict:
+    approval.reset()
+    return chantier_social.orchestrer_chantier_vers_social(
+        str(chemin), TIMESTAMP, ACTEUR_PROPOSE, ACTEUR_APPROUVE
+    )
+
+
+class TestChantierV2:
+    def test_chantier_v2_traverse_la_chaine_avec_le_libelle_du_service(self, tmp_path, declarer_services):
+        """Un chantier v2 porte `service` (taxonomie du socle) : même chaîne en cinq étapes que le v1, le
+        titre vient du libellé fr-CA du service déclaré, jamais d'un `type_travaux` déduit."""
+        declarer_services()
+        resultat = _lancer(_chantier_v2(tmp_path))
+
+        assert [e["nom"] for e in resultat["etapes"]] == ["charge", "compose", "propose", "approuve", "publication"]
+        assert [e["statut"] for e in resultat["etapes"]][:4] == ["SUCCES"] * 4
+        assert resultat["etapes"][4]["statut"] == "BLOQUE"
+        assert "Gouttières et descentes à Laval" in resultat["etapes"][1]["detail"]["title"]
+
+    def test_chantier_v1_reste_accepte_sans_aucun_profil_d_entreprise(self):
+        """Le v1 (gelé) ne dépend pas du profil d'entreprise, réservé au v2."""
+        from opsys import taxonomie
+
+        assert not taxonomie.fichier_profil().exists()
+        resultat = _lancer(FIXTURE_VALIDE)
+        assert resultat["etapes"][1]["statut"] == "SUCCES"
+        assert "Renovation totale à Québec" in resultat["etapes"][1]["detail"]["title"]
+
+    def test_service_non_declare_refuse_avec_la_marche_a_suivre(self, tmp_path, declarer_services):
+        declarer_services("revetement")
+        with pytest.raises(ValueError, match=r"REJ-SERVICE-INCONNU.*revetement"):
+            _lancer(_chantier_v2(tmp_path, service="gouttieres"))
+
+    def test_sans_profil_un_chantier_v2_dit_quoi_configurer(self, tmp_path):
+        with pytest.raises(ValueError, match=r"REJ-SERVICE-NON-CONFIGURE.*entreprise\.yaml"):
+            _lancer(_chantier_v2(tmp_path))
+
+    @pytest.mark.parametrize("service", ["", None, 4, "autre"])
+    def test_service_absent_vide_ou_hors_taxonomie_refuse(self, tmp_path, declarer_services, service):
+        declarer_services()
+        with pytest.raises(ValueError, match="service invalide"):
+            _lancer(_chantier_v2(tmp_path, service=service))
+
+    @pytest.mark.parametrize("version", [1, 3, "2", 2.0, True, None])
+    def test_version_explicite_jamais_devinee(self, tmp_path, declarer_services, version):
+        declarer_services()
+        with pytest.raises(ValueError, match="schema_version invalide"):
+            _lancer(_chantier_v2(tmp_path, schema_version=version))
+
+    def test_chantier_v2_qui_porte_type_travaux_est_refuse(self, tmp_path, declarer_services):
+        declarer_services()
+        with pytest.raises(ValueError, match="type_travaux"):
+            _lancer(_chantier_v2(tmp_path, type_travaux="extension"))
+
+    def test_chantier_sans_version_qui_porte_service_n_est_pas_lu_comme_un_v2(self, tmp_path, declarer_services):
+        """`service` sans `schema_version` : refusé, pas deviné v2 — et pas lu v1 non plus."""
+        declarer_services()
+        contenu = {
+            "fictif": True, "service": "gouttieres", "ville": "Laval",
+            "description_factuelle": "Pose de gouttières (fictif).", "photos": [],
+        }
+        with pytest.raises(ValueError, match="service n'existe pas en v1"):
+            _lancer(_creer_fixture(tmp_path, "sans-version", contenu))
+
+    def test_un_type_v1_n_est_pas_un_service_v2(self, tmp_path, declarer_services):
+        """Le même code sous l'autre version est refusé : `extension` (v1) n'est pas un service déclaré."""
+        declarer_services()
+        with pytest.raises(ValueError, match="REJ-SERVICE-INCONNU"):
+            _lancer(_chantier_v2(tmp_path, service="extension"))

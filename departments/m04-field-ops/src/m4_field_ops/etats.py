@@ -112,6 +112,9 @@ __all__ = [
     "TYPE_INSCRIPTION",
     "TYPE_TRANSITION",
     "TYPE_ASSIGNATION",
+    "CLE_TYPE_TRAVAUX",
+    "CLE_SERVICE",
+    "travaux_de",
     "statut_courant",
     "inscrire_intervention",
     "assigner_technicien",
@@ -119,6 +122,32 @@ __all__ = [
     "transitionner",
     "lister_interventions",
 ]
+
+# PLAN T0.13-b : ce que l'inscription retient de la nature des travaux dépend de la version du
+# LeadQualifie qui l'a produite, lue dans le lead à l'inscription et jamais devinée. Un lead v1 (gelé)
+# porte `type_travaux` ; un lead v2 porte `service` (taxonomie du socle) et `schema_version`. L'un n'est
+# JAMAIS déduit de l'autre : une inscription porte exactement l'une des deux clés.
+CLE_TYPE_TRAVAUX = "type_travaux"
+CLE_SERVICE = "service"
+
+
+def travaux_de(inscription):
+    """`(clé, valeur)` de la nature des travaux d'une inscription : ``("type_travaux", v)`` pour un
+    lead v1, ``("service", v)`` pour un lead v2. Lève ``ValueError`` si l'inscription porte les deux
+    clés ou aucune (registre altéré : jamais l'une choisie ou déduite à la place de l'autre).
+
+    Toute lecture qui range ou rend la nature des travaux (liste des interventions, état d'une
+    cédule, WCT) passe par ici : la règle est écrite une seule fois."""
+    a_type = CLE_TYPE_TRAVAUX in inscription
+    a_service = CLE_SERVICE in inscription
+    if a_type == a_service:
+        raise ValueError(
+            "inscription incohérente : elle doit porter exactement l'une des clés "
+            f"{CLE_TYPE_TRAVAUX!r} (lead v1) ou {CLE_SERVICE!r} (lead v2)"
+        )
+    cle = CLE_SERVICE if a_service else CLE_TYPE_TRAVAUX
+    return cle, inscription[cle]
+
 
 # ---------------------------------------------------------------------------
 # Fonctions publiques
@@ -150,7 +179,8 @@ def inscrire_intervention(contrat, marqueur, registre_cible, horodatage_arg, sel
     Enregistre une nouvelle intervention (transition vide → planifiee).
 
     Args:
-        contrat: dict validé par contrats.valider_entree.
+        contrat: dict validé par contrats.valider_entree (LeadQualifie v1 ou v2,
+            selon la version qu'il déclare).
         marqueur: dict de readiness.
         registre_cible: instance de Registre.
         horodatage_arg: horodatage chaîne (RFC 3339 avec fuseau).
@@ -216,12 +246,22 @@ def inscrire_intervention(contrat, marqueur, registre_cible, horodatage_arg, sel
 
     # 5. Construction du maillon d’inscription
     # INTERDIT ABSOLU : ne jamais copier contrat["contact"] (données personnelles)
+    # PLAN T0.13-b : la nature des travaux suit la version DÉCLARÉE par le lead (contrats.py) : un lead
+    # v2 (`schema_version`) donne `service` et sa version, un lead v1 donne `type_travaux` (maillon
+    # inchangé, octet pour octet). Jamais l'un déduit de l'autre.
+    if "schema_version" in contrat:
+        travaux = {
+            "schema_version": copy.deepcopy(contrat["schema_version"]),
+            CLE_SERVICE: copy.deepcopy(contrat[CLE_SERVICE]),
+        }
+    else:
+        travaux = {CLE_TYPE_TRAVAUX: copy.deepcopy(contrat[CLE_TYPE_TRAVAUX])}
     maillon = {
         "type_entree": TYPE_INSCRIPTION,
         "intervention_id": intervention_id,
         "lead_id": copy.deepcopy(contrat["lead_id"]),
         "conversation_id": copy.deepcopy(contrat["conversation_id"]),
-        "type_travaux": copy.deepcopy(contrat["type_travaux"]),
+        **travaux,
         # Architecture §2 : l'entité Intervention porte la ville TOKENISÉE.
         # Le registre est immuable : une ville en clair y serait irrattrapable.
         "ville_tokenisee": cedule.tokeniser_ville(sel, contrat["ville"]),
@@ -539,7 +579,9 @@ def lister_interventions(registre_cible, statut=None):
     Returns:
         Liste de dicts {intervention_id, statut, lead_id, type_travaux,
         devis_id, technicien_assigne, fenetre_planifiee}, triée par
-        intervention_id pour un résultat déterministe.
+        intervention_id pour un résultat déterministe. PLAN T0.13-b : pour une
+        intervention issue d'un lead v2, la clé ``service`` REMPLACE ``type_travaux``
+        (jamais les deux, jamais l'un déduit de l'autre — ``travaux_de``).
 
     Raises:
         ValueError: si `statut` est fourni et n'appartient pas à ETATS.
@@ -560,11 +602,12 @@ def lister_interventions(registre_cible, statut=None):
         statut_iid = statut_courant(registre_cible, iid)
         if statut is not None and statut_iid != statut:
             continue
+        cle_travaux, valeur_travaux = travaux_de(inscription)
         resultat.append({
             "intervention_id": iid,
             "statut": statut_iid,
             "lead_id": inscription["lead_id"],
-            "type_travaux": inscription["type_travaux"],
+            cle_travaux: valeur_travaux,
             "devis_id": inscription.get("devis_id"),
             "technicien_assigne": technicien_assigne(registre_cible, iid),
             "fenetre_planifiee": None,

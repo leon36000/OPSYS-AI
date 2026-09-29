@@ -1,9 +1,10 @@
-"""PLAN T0.13 — un lead v2 traverse M1 → M2 → M3 avec les mêmes codes de service.
+"""PLAN T0.13 — un lead v2 traverse M1 → M2 → M3 et M4 avec les mêmes codes de service.
 
 M1 qualifie une demande de client (« gouttières »), M2 ingère le lead v2 et signe la readiness,
-M3 estime avec le poste du barème du même service. Aucune copie locale n'intervient : le service
-vient du profil d'entreprise de l'instance, lu par chaque département. Sans ce profil, la chaîne
-s'arrête à M1 et dit quoi configurer ; un service retiré du profil en cours de route arrête M2.
+M3 estime avec le poste du barème du même service, M4 (T0.13-b) inscrit l'intervention et la cédule
+avec ce même service. Aucune copie locale n'intervient : le service vient du profil d'entreprise de
+l'instance, lu par chaque département. Sans ce profil, la chaîne s'arrête à M1 et dit quoi configurer ;
+un service retiré du profil en cours de route arrête M2 (et M4).
 Fixtures fictives (aucune donnée réelle)."""
 
 from __future__ import annotations
@@ -13,8 +14,11 @@ from m1_front_office import outils as m1
 from m2_revenue_crm import outils as m2
 from m3_estimation import estimation
 from m3_estimation import registre as registre_m3
+from m4_field_ops import outils as m4
+from m4_field_ops import registre as registre_m4
 
 from opsys import taxonomie
+from opsys.outils import executer
 
 ZONE = ["Laval", "Québec"]
 PHOTOS = [{
@@ -76,6 +80,42 @@ def test_un_lead_de_gouttieres_traverse_m1_m2_m3_avec_le_meme_code():
     assert 600.0 <= intervalle["borne_basse"] <= intervalle["borne_haute"] <= 1100.0
 
 
+def _planifier_chez_m4(lead: dict, marqueur: dict, outils_m4) -> dict:
+    return executer(outils_m4["m4_planifier_intervention"], {
+        "contrat": lead, "marqueur": marqueur, "horodatage": "2026-09-28T11:00:00-04:00", "sel": "sel-fictif",
+        "techniciens_disponibles": ["T1"],
+        "fenetres_disponibles": [{"debut": "2026-09-29T08:00:00-04:00", "fin": "2026-09-29T17:00:00-04:00"}],
+    })
+
+
+def test_le_lead_v2_est_aussi_inscrit_et_cedule_par_m4_avec_le_meme_code():
+    lead = _qualifier()
+    marqueur = _lead_pret_pour_m3(lead)
+    outils_m4 = {o.nom: o for o in m4.outils(registre_m4.Registre())}
+
+    plan = _planifier_chez_m4(lead, marqueur, outils_m4)
+
+    assert plan["ok"] is True and plan["resultat"]["accepte"] is True, plan
+    assert plan["resultat"]["assignation"]["service"] == "gouttieres"
+    assert "type_travaux" not in plan["resultat"]["assignation"]
+    (intervention,) = executer(outils_m4["m4_lister_interventions"], {})["resultat"]
+    assert intervention["service"] == "gouttieres" and "type_travaux" not in intervention
+
+
+def test_m4_refuse_un_lead_v2_dont_le_service_n_est_plus_declare_et_dit_quoi_configurer(declarer_services):
+    lead = _qualifier()
+    marqueur = _lead_pret_pour_m3(lead)
+    declarer_services("revetement")  # l'entreprise n'offre plus les gouttières
+    outils_m4 = {o.nom: o for o in m4.outils(registre_m4.Registre())}
+
+    plan = _planifier_chez_m4(lead, marqueur, outils_m4)
+
+    assert plan["ok"] is True and plan["resultat"]["accepte"] is False
+    assert plan["resultat"]["etape"] == "inscription"
+    assert "REJ-SERVICE-INCONNU" in plan["resultat"]["verdict"]["detail"]
+    assert executer(outils_m4["m4_lister_interventions"], {})["resultat"] == []
+
+
 def test_le_bareme_d_un_autre_service_ne_repond_pas_pour_les_gouttieres():
     lead = _qualifier()
     marqueur = _lead_pret_pour_m3(lead)
@@ -112,7 +152,7 @@ def test_service_retire_du_profil_apres_l_ingestion_arrete_la_readiness_puis_m3(
     assert "REJ-SERVICE-INCONNU" in reponse["verdict"]["detail"]
 
 
-def test_le_lead_v1_historique_traverse_toujours_m2_et_m3_sans_profil():
+def test_le_lead_v1_historique_traverse_toujours_m2_m3_et_m4_sans_profil():
     """Compatibilité : un lead v1 déjà écrit ne dépend d'aucune configuration de services."""
     taxonomie.fichier_profil().unlink()
     lead = {
@@ -127,3 +167,8 @@ def test_le_lead_v1_historique_traverse_toujours_m2_et_m3_sans_profil():
         quantite=100, plancher_rentable=50, registre_cible=registre_m3.Registre(), graine=1,
     )
     assert reponse["accepte"] is True and reponse["etape"] == "complet", reponse
+    outils_m4 = {o.nom: o for o in m4.outils(registre_m4.Registre())}
+    plan = _planifier_chez_m4(lead, marqueur, outils_m4)
+    assert plan["ok"] is True and plan["resultat"]["accepte"] is True, plan
+    assert plan["resultat"]["assignation"]["type_travaux"] == "ravalement"
+    assert "service" not in plan["resultat"]["assignation"]

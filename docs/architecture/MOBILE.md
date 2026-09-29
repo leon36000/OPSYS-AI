@@ -713,7 +713,9 @@ commune à `today` et `checklist` plutôt que deux adaptateurs SQLite quasi iden
 
 **« Chantiers du jour » est un PROXY assumé, pas une vraie date — limite documentée, pas une
 invention.** `m4_lister_interventions` (lu dans `etats.py`, `lister_interventions`) ne renvoie
-QUE `{intervention_id, statut, lead_id, type_travaux, devis_id}` : ni date/fenêtre de cédule, ni
+QUE `{intervention_id, statut, lead_id, type_travaux, devis_id}` (depuis T0.13-b, `service` REMPLACE
+`type_travaux` pour une intervention issue d'un lead v2 : `estInterventionM4` en exige exactement une, jamais
+l'une déduite de l'autre) : ni date/fenêtre de cédule, ni
 `technicien_id` assigné, structurellement (même absence que les données de contact). Filtrer par
 « aujourd'hui » ou par « mes chantiers » exigerait un champ que le serveur n'expose pas — interdit
 d'inventer (AGENTS.md). `src/today/selection.ts::filtrerChantiersActifs` retient donc les

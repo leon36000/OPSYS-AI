@@ -2,6 +2,8 @@ from pathlib import Path
 
 import yaml
 
+from opsys import taxonomie
+
 from ..brand import profil_client as brand_profil_client
 from ..content import approval
 from ..content.factory import build_content_item
@@ -11,6 +13,44 @@ _HERE = Path(__file__).resolve().parent  # m7_marketing/workflows
 _PKG = _HERE.parent  # m7_marketing
 
 __all__ = ["orchestrer_chantier_vers_social"]
+
+# PLAN T0.13-b : un chantier porte la nature de ses travaux sous l'une de DEUX formes, comme le
+# LeadQualifie dont il vient. La version est EXPLICITE (jamais devinée) : sans `schema_version`, un chantier
+# v1 (`type_travaux`, énuméré ci-dessous, celui du contrat gelé sans `autre`) ; avec `schema_version: 2`, un
+# chantier v2 (`service`, code d'un service déclaré par le profil d'entreprise, `opsys.taxonomie`). Un
+# chantier sans version qui porte `service`, ou un chantier v2 qui porte `type_travaux`, est refusé :
+# aucune des deux clés n'est déduite de l'autre.
+TYPES_TRAVAUX_V1 = ("renovation_totale", "extension", "ravalement", "isolation_thermique")
+VERSION_CHANTIER_V2 = 2
+
+
+def _nature_des_travaux(chantier: dict) -> tuple[str, str]:
+    """`(libellé pour le titre, mot-clé)` de la nature des travaux du chantier, validée selon la version
+    qu'il déclare. Lève `ValueError` nommé (fail-closed) : jamais un repli sur une valeur par défaut."""
+    if "schema_version" not in chantier:
+        if "service" in chantier:
+            raise ValueError(
+                "service n'existe pas en v1 : déclare 'schema_version: 2' (chantier v2) ou remplace "
+                "'service' par 'type_travaux' (chantier v1) — la version n'est jamais devinée"
+            )
+        types_valides = set(TYPES_TRAVAUX_V1)
+        type_travaux = chantier.get("type_travaux")
+        if type_travaux not in types_valides:
+            raise ValueError(
+                f"type_travaux invalide : {type_travaux!r} "
+                f"(attendus : {', '.join(sorted(types_valides))})"
+            )
+        return type_travaux.replace("_", " ").capitalize(), type_travaux
+
+    version = chantier["schema_version"]
+    if type(version) is not int or version != VERSION_CHANTIER_V2:
+        raise ValueError(f"schema_version invalide : {version!r} (attendu : {VERSION_CHANTIER_V2})")
+    if "type_travaux" in chantier:
+        raise ValueError("un chantier v2 porte 'service', pas 'type_travaux' : aucune des deux clés n'est déduite")
+    service, verdict = taxonomie.valider_service(chantier.get("service"))
+    if verdict is not None:
+        raise ValueError(f"service invalide : {verdict['code']} : {verdict['detail']}")
+    return service.libelle, service.code
 
 
 def _charger_brand():
@@ -43,7 +83,8 @@ def orchestrer_chantier_vers_social(
         Un dictionnaire contenant chantier_slug, etapes et metriques.
 
     Raises:
-        ValueError: Si la fixture n'a pas ``fictif: true``.
+        ValueError: Si la fixture n'a pas ``fictif: true``, ou si la nature de ses travaux est
+            invalide pour la version qu'elle déclare (``type_travaux`` v1, ``service`` v2).
     """
     # ------------------------------------------------------------------
     # 1. Chargement et validation de la fixture
@@ -55,14 +96,8 @@ def orchestrer_chantier_vers_social(
     if not chantier.get("fictif"):
         raise ValueError("La fixture doit avoir 'fictif: true'")
 
-    # Validation de l'énumération type_travaux
-    types_valides = {"renovation_totale", "extension", "ravalement", "isolation_thermique"}
-    type_travaux = chantier.get("type_travaux")
-    if type_travaux not in types_valides:
-        raise ValueError(
-            f"type_travaux invalide : {type_travaux!r} "
-            f"(attendus : {', '.join(sorted(types_valides))})"
-        )
+    # Nature des travaux : type_travaux (chantier v1, énuméré fermé) ou service (chantier v2, taxonomie).
+    travaux_titre, travaux_mot_cle = _nature_des_travaux(chantier)
 
     slug = chemin.parent.name  # slug du chantier (ex: residence-quebec-2026)
 
@@ -93,9 +128,9 @@ def orchestrer_chantier_vers_social(
     try:
         brand = _charger_brand()
         sujet = {
-            "titre": f"{chantier['type_travaux'].replace('_', ' ').capitalize()} à {chantier['ville']}",
+            "titre": f"{travaux_titre} à {chantier['ville']}",
             "description": chantier["description_factuelle"],
-            "mots_cles": [chantier["type_travaux"], chantier["ville"]],
+            "mots_cles": [travaux_mot_cle, chantier["ville"]],
         }
         item = build_content_item(
             brand,

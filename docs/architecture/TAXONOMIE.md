@@ -61,22 +61,49 @@ reste acceptée.
 | M1 | Émet le v2. Détecte UN service par les mots-clés du profil ; plusieurs services évoqués, ou aucun : pas de lead, l'agent demande lequel. Sans profil : refus avant toute écriture. |
 | M2 | Accepte v1 et v2. Le service doit être déclaré au moment de l'ingestion ET de la readiness. Le marqueur signe la clé `service` (v2) ou `type_travaux` (v1, octets inchangés). |
 | M3 | Valide `service` par la taxonomie, jamais par un énuméré local. Le barème est indexé par service : un service sans poste bloque l'estimation (« barème du service X absent : à fournir »). |
+| M4 | Accepte v1 et v2 comme M2 (`contrats.py`, `cedule.py`). L'inscription porte `type_travaux` (v1, maillon inchangé) ou `service` et `schema_version` (v2). Voir « Nature des travaux dans M4 » plus bas. |
+| M7 | `chantier_social.py` accepte un chantier v1 (`type_travaux`, énuméré du contrat gelé sans `autre`) ou v2 (`schema_version: 2` et `service` : titre tiré du libellé du service déclaré). |
+
+## Nature des travaux dans M4 (PLAN T0.13-b)
+
+Règle unique : **v1 → `type_travaux`, v2 → `service`, jamais l'un déduit de l'autre.** La version est celle
+du lead, lue à l'inscription ; une intervention porte exactement l'une des deux clés
+(`etats.travaux_de`, seul endroit où la règle est écrite).
+
+| Où | v1 | v2 |
+|---|---|---|
+| Inscription (maillon) | `type_travaux` (inchangé, octet pour octet) | `service` et `schema_version: 2` |
+| `m4_lister_interventions` | `type_travaux` | `service` (l'app mobile accepte exactement l'une des deux) |
+| Cédule simple (`m4_planifier_intervention`) | `type_travaux` dans l'assignation | `service` dans l'assignation |
+| Cédule par tournées | `durees_par_type_travaux`, `competences_par_type_travaux` | `durees_par_service`, `competences_par_service` |
+| WCT et événement `m4.travaux_termines` | `type_travaux` | `service` (clé additive du catalogue) |
+
+- Les tables de la cédule par tournées ne sont exigées que pour la version présente dans le lot : un lot
+  mixte exige les deux jeux, et chaque intervention lit la table de SA version (un service propre peut porter
+  le code d'un type v1, aucune n'est prise pour l'autre). Les deux tables par type restent requises par le
+  schéma de l'outil (`{}` pour un lot sans lead v1).
+- Le WCT ne porte jamais les deux clés (`outbox.verifier_invariants_outbox` le refuse). Ses treize clés
+  requises ne changent pas ; `service` s'ajoute au catalogue du socle et à `CHAMPS_WCT_OPTIONNELS` de M4 et
+  de M6 (qui refuse toute clé inconnue). M10 n'en extrait que les douze clés de son contrat.
+- Limite connue : M7 lit encore `type_travaux` dans `m4.travaux_termines` pour ses demandes d'avis et son
+  contenu public ; pour un lead v2, ces textes n'ont donc pas de type de travaux tant que M7 ne lit pas
+  `service`.
 
 ## Garde de dérive
 
 - `opsys verifier` : profil valide s'il existe ; aucune source de département ni du socle ne recopie
   le catalogue (`taxonomie.copies_locales_du_catalogue`).
-- `tests/test_taxonomie_derive.py` : le YAML v2, M1, M2 et M3 portent les mêmes clés, la même
-  version et les mêmes sous-clés `utm` ; les copies de l'énuméré v1 de M1, M2 et M3 sont celles du
-  fichier gelé.
+- `tests/test_taxonomie_derive.py` : le YAML v2, M1, M2, M3 et M4 portent les mêmes clés, la même
+  version et les mêmes sous-clés `utm` ; les copies de l'énuméré v1 de M1, M2, M3 et M4 sont celles du
+  fichier gelé (celle de M7, l'énuméré sans `autre`) ; M4 et M7 valident `service` par
+  `opsys.taxonomie` ; le catalogue de `m4.travaux_termines` et M4 déclarent `type_travaux` et `service`.
 - Gate BMAD de M3 (`departments/m03-estimation/docs/bmad/verif_coherence.py`, contrôle 13 ter) :
   l'architecture de M3 décrit le contrat v2 que M2 accepte et cite le catalogue du socle.
 
 ## Reste à faire
 
-- M4 : `cedule.py` et `contrats.py` portent encore `TYPES_TRAVAUX` v1 ; M4 doit accepter le lead v2
-  et le `service` de la cédule.
-- M7 : `chantier_social.py` valide encore les types de travaux v1.
+- M7 : lire `service` dans `m4.travaux_termines` (demandes d'avis, contenu public) : elles ne lisent
+  que `type_travaux`.
 - Demande de chiffrage M1→M3 (`m1-demande-chiffrage.v1.yaml`) : v2 à publier.
 - Règle de précédence entre services (« réparation de gouttières ») : décision du propriétaire (T2.1).
 - Barèmes et estimateurs par service (T2.3, M3.8).

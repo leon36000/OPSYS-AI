@@ -63,8 +63,10 @@ _PORTEE_CLES_GPS = "m04-field-ops/gps"
 _DEPARTEMENT = "m04-field-ops"
 _NOM_REGISTRE = "principal"
 
-_CONTRAT = {"type": "object", "description": "LeadQualifie M2 : sept clés gelées (lead_id, "
-            "conversation_id, type_travaux, ville, canal, contact, urgence_declaree)."}
+_CONTRAT = {"type": "object", "description": "LeadQualifie M2, v1 ou v2 selon la version qu'il déclare "
+            "(jamais devinée) : v1, sept clés gelées (lead_id, conversation_id, type_travaux, ville, "
+            "canal, contact, urgence_declaree) ; v2, schema_version 2 et service (code déclaré par "
+            "l'entreprise) à la place de type_travaux."}
 _MARQUEUR = {"type": "object", "description": "Marqueur de readiness signé par M2 (cinq clés)."}
 _FIX_GPS = {
     "type": ["object", "null"],
@@ -205,10 +207,13 @@ def outils(
         )
         if verdict is not None:
             return {"etape": "inscription", "accepte": False, "verdict": verdict}
+        # PLAN T0.13-b : la cédule reçoit la nature des travaux sous la clé de la version du lead
+        # (v2 : `service`, sinon `type_travaux`), jamais l'une déduite de l'autre.
+        cle_travaux = etats.CLE_SERVICE if "schema_version" in contrat else etats.CLE_TYPE_TRAVAUX
         intervention_pour_cedule = {
             "intervention_id": accuse["intervention_id"],
             "lead_id": contrat["lead_id"],
-            "type_travaux": contrat["type_travaux"],
+            cle_travaux: contrat[cle_travaux],
             "ville": contrat["ville"],
         }
         cedule_resultat, verdict_cedule = cedule.generer_cedule(
@@ -753,6 +758,8 @@ def outils(
         horodatage: str, equipes: list[dict[str, Any]], durees_par_type_travaux: dict[str, Any],
         competences_par_type_travaux: dict[str, Any], chantiers: list[dict[str, Any]],
         parametres: dict[str, Any], intervention_ids: list[str] | None = None, moteur: str = "auto",
+        durees_par_service: dict[str, Any] | None = None,
+        competences_par_service: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Propose un plan de tournées et le range au registre (maillon ``cedule_proposee``) : un brouillon,
         aucune assignation. Tout ce que M4 ne sait pas encore est un argument ou un verdict « à fournir »."""
@@ -769,7 +776,9 @@ def outils(
             registre_courant(),
             {
                 "equipes": equipes, "durees_par_type_travaux": durees_par_type_travaux,
-                "competences_par_type_travaux": competences_par_type_travaux, "chantiers": chantiers,
+                "competences_par_type_travaux": competences_par_type_travaux,
+                "durees_par_service": durees_par_service,
+                "competences_par_service": competences_par_service, "chantiers": chantiers,
                 "parametres": parametres, "intervention_ids": intervention_ids,
             },
             lire_localisation_confirmee, horodatage_faisant_foi,
@@ -1227,8 +1236,8 @@ def outils(
         Outil(
             nom="m4_lister_interventions",
             description=(
-                "Liste les interventions connues (id, statut, lead, type de travaux, devis), "
-                "sans aucune donnée de contact. Filtre optionnel par statut. T1.4-e2 (écran "
+                "Liste les interventions connues (id, statut, lead, type de travaux ou service, "
+                "devis), sans aucune donnée de contact. Filtre optionnel par statut. T1.4-e2 (écran "
                 "« chantiers du jour ») : porte aussi technicien_assigne (dernier technicien_id "
                 "d'une transition en_route, ou celui de la cédule consignée par "
                 "m4_planifier_intervention s'il est plus récent, sinon null) et fenetre_planifiee "
@@ -1462,7 +1471,8 @@ def outils(
                 "aucune vérité écrite. Lit les interventions planifiees, leur urgence_declaree (règle écrite : "
                 "vrai vaut 1, sinon 0) et les coordonnées CONFIRMÉES ; un chantier sans coordonnées sort « "
                 "coordonnées manquantes : à confirmer ». Ce que M4 ne sait pas est un ARGUMENT, sinon un seul "
-                "verdict REJ-CHAMP-MANQUANT qui liste quoi fournir : jamais une valeur par défaut. Rend plan_id, "
+                "verdict REJ-CHAMP-MANQUANT qui liste quoi fournir : jamais une valeur par défaut (durées et "
+                "compétences par type de travaux pour un lead v1, par service pour un lead v2). Rend plan_id, "
                 "mode_distance, mode_bride (« mode bridé » : distances approximatives), les non_cedulees et "
                 "leurs raisons. Pour appliquer : m4_appliquer_cedule."
             ),
@@ -1481,11 +1491,32 @@ def outils(
                     },
                     "durees_par_type_travaux": {
                         "type": "object",
-                        "description": "{type_travaux: minutes entières}, un pour chaque type à planifier.",
+                        "description": (
+                            "{type_travaux: minutes entières}, un pour chaque type à planifier (leads v1). "
+                            "{} si aucune intervention à planifier ne vient d'un lead v1."
+                        ),
                     },
                     "competences_par_type_travaux": {
                         "type": "object",
-                        "description": "{type_travaux: [compétence]}, liste vide si aucune, pour chaque type.",
+                        "description": (
+                            "{type_travaux: [compétence]}, liste vide si aucune, pour chaque type (leads v1). "
+                            "{} si aucune intervention à planifier ne vient d'un lead v1."
+                        ),
+                    },
+                    "durees_par_service": {
+                        "type": "object",
+                        "description": (
+                            "{service: minutes entières}, un pour chaque service à planifier (code "
+                            "déclaré par l'entreprise). Exigé si une intervention à planifier vient "
+                            "d'un lead v2."
+                        ),
+                    },
+                    "competences_par_service": {
+                        "type": "object",
+                        "description": (
+                            "{service: [compétence]}, liste vide si aucune, pour chaque service. Exigé "
+                            "si une intervention à planifier vient d'un lead v2."
+                        ),
                     },
                     "chantiers": {
                         "type": "array",

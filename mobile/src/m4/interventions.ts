@@ -62,12 +62,18 @@ export const ETATS_TERMINAUX_M4: readonly StatutInterventionM4[] = [
 ];
 
 /** `m4_lister_interventions` : forme exacte d'un élément (`etats.lister_interventions`) —
- * jamais de donnée de contact (nom/téléphone/courriel), structurellement absente côté serveur. */
+ * jamais de donnée de contact (nom/téléphone/courriel), structurellement absente côté serveur.
+ *
+ * La nature des travaux suit la version du lead dont l'intervention vient (PLAN T0.13-b) : EXACTEMENT
+ * l'une des deux clés est présente, jamais les deux, et le mobile n'en déduit jamais l'une de l'autre.
+ * `type_travaux` : lead v1 (contrat gelé). `service` : lead v2 (code d'un service déclaré par l'entreprise,
+ * taxonomie du socle). */
 export interface InterventionM4 {
   readonly intervention_id: string;
   readonly statut: StatutInterventionM4;
   readonly lead_id: string;
-  readonly type_travaux: string;
+  readonly type_travaux?: string;
+  readonly service?: string;
   readonly devis_id: string | null;
 }
 
@@ -134,7 +140,9 @@ export function estInterventionM4(valeur: unknown): valeur is InterventionM4 {
     typeof valeur.intervention_id === "string" &&
     typeof valeur.statut === "string" &&
     typeof valeur.lead_id === "string" &&
-    typeof valeur.type_travaux === "string" &&
+    // Exactement une nature de travaux : `type_travaux` (lead v1) OU `service` (lead v2). Les deux, ou
+    // aucune, ne sont pas une intervention lisible (jamais l'une choisie ou déduite à la place de l'autre).
+    (typeof valeur.type_travaux === "string") !== (typeof valeur.service === "string") &&
     (typeof valeur.devis_id === "string" || valeur.devis_id === null)
   );
 }

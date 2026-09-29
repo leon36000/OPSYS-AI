@@ -6,15 +6,19 @@ de ce que M4 SAIT, le fait résoudre, et range le plan PROPOSÉ au registre. Le 
 vérité : seule ``appliquer`` fait assigner des techniciens, par ``etats.assigner_technicien``.
 
 Ce que M4 sait (lu au registre, jamais fourni par l'appelant)
-    * les interventions à planifier : celles au statut ``planifiee`` (``etats.statut_courant``), leur type de
-      travaux, leur ``lead_id``, leur ``urgence_declaree``, le technicien déjà assigné ;
+    * les interventions à planifier : celles au statut ``planifiee`` (``etats.statut_courant``), leur nature de
+      travaux (``type_travaux`` d'un lead v1 ou ``service`` d'un lead v2, jamais l'un déduit de l'autre :
+      ``etats.travaux_de``), leur ``lead_id``, leur ``urgence_declaree``, le technicien déjà assigné ;
     * les coordonnées CONFIRMÉES de chaque chantier (maillon ``localisation_chantier``, lues par
       ``lire_position``, que l'adaptateur relie à ``outils.lire_localisation_confirmee``).
 
 Ce que M4 ne sait pas encore (ARGUMENT explicite de l'appelant, ou un verdict « à fournir » qui liste tout)
-    équipes (compétences, dépôt, quarts), durée et compétences requises par type de travaux, fenêtre du client
-    et créneau déjà confirmé au client pour chaque intervention, paramètres d'entreprise (détour, vitesse,
-    marge, itérations, coût de non-cédule). Aucune valeur par défaut : un champ absent est un verdict.
+    équipes (compétences, dépôt, quarts), durée et compétences requises par type de travaux (leads v1) et par
+    service (leads v2 : ``durees_par_service``, ``competences_par_service``, une clé par service à planifier,
+    validée par la taxonomie du socle), fenêtre du client et créneau déjà confirmé au client pour chaque
+    intervention, paramètres d'entreprise (détour, vitesse, marge, itérations, coût de non-cédule). Les deux
+    jeux de tables ne sont exigés que si le lot contient des interventions de la version correspondante.
+    Aucune valeur par défaut : un champ absent est un verdict.
     Seule exception, technique et non métier : la ``graine`` du solveur, ``GRAINE_TECHNIQUE`` si elle est
     omise (PyVRP est de toute façon amorcé par l'empreinte de l'entrée, ``tournees._graine_derivee``).
 
@@ -98,8 +102,15 @@ __all__ = [
     "appliquer",
 ]
 
+# Arguments de la proposition, dans l'ordre où l'absence de chacun est rapportée (celui d'avant T0.13-b
+# pour un lot de leads v1). Les tables par nature de travaux ne sont exigées que pour la version présente
+# dans le lot (T0.13-b) : v1 -> `_CLES_ARGUMENTS_V1`, v2 -> `_CLES_ARGUMENTS_V2`.
+_CLES_ARGUMENTS_COMMUNES = ("equipes", "chantiers", "parametres")
+_CLES_ARGUMENTS_V1 = ("durees_par_type_travaux", "competences_par_type_travaux")
+_CLES_ARGUMENTS_V2 = ("durees_par_service", "competences_par_service")
 _CLES_ARGUMENTS = (
-    "equipes", "durees_par_type_travaux", "competences_par_type_travaux", "chantiers", "parametres",
+    "equipes", "durees_par_type_travaux", "competences_par_type_travaux",
+    "durees_par_service", "competences_par_service", "chantiers", "parametres",
 )
 _CLES_ARGUMENTS_OPTIONNELLES = ("intervention_ids",)
 _CLES_EQUIPE = ("id", "competences", "depot", "quarts")
@@ -113,6 +124,10 @@ _AIDE = {
                                "l'entreprise",
     "competences_par_type_travaux": "compétences requises par chaque type de travaux à planifier, liste vide "
                                     "s'il n'y en a aucune",
+    "durees_par_service": "durée en minutes entières de chaque service à planifier (interventions issues d'un "
+                          "lead v2), fournie par l'entreprise",
+    "competences_par_service": "compétences requises par chaque service à planifier (interventions issues d'un "
+                               "lead v2), liste vide s'il n'y en a aucune",
     "chantiers": "une entrée par intervention à planifier : intervention_id, fenetre du client "
                  "(jours, debut_min, fin_min) et creneau_fige (null, ou {equipe, jour, debut_min} si le créneau "
                  "est déjà confirmé au client)",
@@ -188,10 +203,11 @@ def _reference_localisation(instantane, lead_id):
 def _etat_intervention(instantane, inscription):
     """Ce dont la validité d'un plan dépend, pour une intervention, sans donnée personnelle."""
     identifiant = inscription["intervention_id"]
+    cle_travaux, valeur_travaux = etats.travaux_de(inscription)
     return {
         "intervention_id": identifiant,
         "lead_id": inscription["lead_id"],
-        "type_travaux": inscription["type_travaux"],
+        cle_travaux: valeur_travaux,
         "urgence_declaree": inscription.get("urgence_declaree"),
         "statut": etats.statut_courant(instantane, identifiant),
         "technicien_assigne": etats.technicien_assigne(instantane, identifiant),
@@ -332,27 +348,50 @@ def _lire_equipes(brut, problemes):
     return (equipes, depots) if bon else None
 
 
-def _lire_par_type(brut, cle, types_requis, valeur_valide, aide_valeur, problemes):
-    """``{type_travaux: valeur}`` pour les types requis ; les types inconnus ou absents sont rapportés."""
+def _lire_par_cle(brut, cle, requis, connus, libelle_connus, valeur_valide, aide_valeur, problemes):
+    """``{clé: valeur}`` pour les clés requises ; les clés inconnues ou absentes sont rapportées.
+
+    ``connus`` : les clés admises (types de travaux v1, ou services déclarés v2) ; ``libelle_connus`` : la
+    phrase qui les décrit dans le verdict."""
     if not isinstance(brut, dict):
-        problemes.invalides.append(f"{cle} : un objet est attendu (un type de travaux par clé)")
+        problemes.invalides.append(f"{cle} : un objet est attendu (une clé par nature de travaux)")
         return None
-    inconnus = sorted(str(type_travaux) for type_travaux in brut if type_travaux not in cedule.TYPES_TRAVAUX)
+    inconnus = sorted(str(nature) for nature in brut if nature not in connus)
     if inconnus:
-        problemes.invalides.append(
-            f"{cle} : types de travaux inconnus : {', '.join(inconnus)} (attendus : "
-            f"{', '.join(cedule.TYPES_TRAVAUX)})",
-        )
+        problemes.invalides.append(f"{cle} : {libelle_connus[0]} : {', '.join(inconnus)} ({libelle_connus[1]})")
     resultat = {}
-    for type_travaux in types_requis:
-        valeur = brut.get(type_travaux)
+    for nature in requis:
+        valeur = brut.get(nature)
         if valeur is None:
-            problemes.absents.append(f"{cle}.{type_travaux} manquant : {aide_valeur}")
+            problemes.absents.append(f"{cle}.{nature} manquant : {aide_valeur}")
         elif not valeur_valide(valeur):
-            problemes.invalides.append(f"{cle}.{type_travaux} : {aide_valeur}")
+            problemes.invalides.append(f"{cle}.{nature} : {aide_valeur}")
         else:
-            resultat[type_travaux] = valeur
+            resultat[nature] = valeur
     return resultat
+
+
+def _lire_par_type(brut, cle, types_requis, valeur_valide, aide_valeur, problemes):
+    """``{type_travaux: valeur}`` (leads v1) pour les types requis ; inconnus ou absents rapportés."""
+    return _lire_par_cle(
+        brut, cle, types_requis, cedule.TYPES_TRAVAUX,
+        ("types de travaux inconnus", f"attendus : {', '.join(cedule.TYPES_TRAVAUX)}"),
+        valeur_valide, aide_valeur, problemes,
+    )
+
+
+def _lire_par_service(brut, cle, services_requis, valeur_valide, aide_valeur, problemes):
+    """``{service: valeur}`` (leads v2) pour les services requis ; les clés qui ne sont pas des services
+    déclarés par le profil d'entreprise (taxonomie du socle), ou qui manquent, sont rapportées."""
+    declares, verdict = cedule.services_declares()
+    if verdict is not None:
+        problemes.invalides.append(f"{cle} : {verdict['code']} : {verdict['detail']}")
+        return None
+    return _lire_par_cle(
+        brut, cle, services_requis, declares,
+        ("services inconnus", f"déclarés : {', '.join(declares)}"),
+        valeur_valide, aide_valeur, problemes,
+    )
 
 
 def _liste_de_textes(valeur):
@@ -430,17 +469,25 @@ def _lire_arguments(arguments, inscriptions_a_planifier):
     )
     if en_trop:
         problemes.invalides.append(f"arguments : clés inconnues : {', '.join(en_trop)}")
+    # La nature des travaux de chaque intervention vient du registre (v1 : type_travaux, v2 : service). Les
+    # tables de durées et de compétences ne sont exigées que pour la version présente dans le lot ; celle
+    # d'une version absente est acceptée si elle est fournie (et validée), jamais exigée.
+    identifiants = [inscription["intervention_id"] for inscription in inscriptions_a_planifier]
+    natures = [etats.travaux_de(inscription) for inscription in inscriptions_a_planifier]
+    types_requis = sorted({valeur for cle, valeur in natures if cle == etats.CLE_TYPE_TRAVAUX})
+    services_requis = sorted({valeur for cle, valeur in natures if cle == etats.CLE_SERVICE})
+    requises = _CLES_ARGUMENTS_COMMUNES + (_CLES_ARGUMENTS_V1 if types_requis else ()) + (
+        _CLES_ARGUMENTS_V2 if services_requis else ())
     presents = {}
     for cle in _CLES_ARGUMENTS:
         if arguments.get(cle) is None:
-            problemes.absents.append(f"{cle} manquant : {_AIDE[cle]}")
+            if cle in requises:
+                problemes.absents.append(f"{cle} manquant : {_AIDE[cle]}")
         else:
             presents[cle] = arguments[cle]
 
-    identifiants = [inscription["intervention_id"] for inscription in inscriptions_a_planifier]
-    types_requis = sorted({inscription["type_travaux"] for inscription in inscriptions_a_planifier})
     equipes = _lire_equipes(presents["equipes"], problemes) if "equipes" in presents else None
-    durees = competences = fiches = parametres = None
+    durees = competences = durees_service = competences_service = fiches = parametres = None
     if "durees_par_type_travaux" in presents:
         durees = _lire_par_type(
             presents["durees_par_type_travaux"], "durees_par_type_travaux", types_requis, _est_entier,
@@ -450,6 +497,16 @@ def _lire_arguments(arguments, inscriptions_a_planifier):
         competences = _lire_par_type(
             presents["competences_par_type_travaux"], "competences_par_type_travaux", types_requis,
             _liste_de_textes, _AIDE["competences_par_type_travaux"], problemes,
+        )
+    if "durees_par_service" in presents:
+        durees_service = _lire_par_service(
+            presents["durees_par_service"], "durees_par_service", services_requis, _est_entier,
+            _AIDE["durees_par_service"], problemes,
+        )
+    if "competences_par_service" in presents:
+        competences_service = _lire_par_service(
+            presents["competences_par_service"], "competences_par_service", services_requis,
+            _liste_de_textes, _AIDE["competences_par_service"], problemes,
         )
     if "chantiers" in presents:
         fiches = _lire_chantiers(presents["chantiers"], set(identifiants), problemes)
@@ -468,12 +525,16 @@ def _lire_arguments(arguments, inscriptions_a_planifier):
             return None, _verdict(verdict["code"], f"intervention {identifiant!r} : {verdict['detail']}")
         urgences[identifiant] = urgence
         fiche = fiches[identifiant]
-        type_travaux = inscription["type_travaux"]
+        cle_travaux, nature = etats.travaux_de(inscription)
+        if cle_travaux == etats.CLE_SERVICE:
+            duree, requises_competences = durees_service[nature], competences_service[nature]
+        else:
+            duree, requises_competences = durees[nature], competences[nature]
         chantiers.append({
             "id": identifiant,
-            "duree_min": durees[type_travaux],
+            "duree_min": duree,
             "fenetre": copy.deepcopy(fiche["fenetre"]),
-            "competences_requises": list(competences[type_travaux]),
+            "competences_requises": list(requises_competences),
             "urgence": urgence,
             "creneau_fige": copy.deepcopy(fiche["creneau_fige"]),
         })

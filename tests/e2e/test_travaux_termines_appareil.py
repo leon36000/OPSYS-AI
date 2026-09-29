@@ -19,7 +19,8 @@ Ce que ces tests ne prouvent PAS : le core lui-même (poignée de main, jeton d'
 session MCP TypeScript) ; il reste à prouver en CI du core ou contre un core réel (MOBILE.md).
 
 Le lead est un LeadQualifie v1 (contrat gelé, `type_travaux`), comme T1.2-e : il ne dépend pas du profil
-d'entreprise de T0.13, réservé au contrat v2.
+d'entreprise de T0.13, réservé au contrat v2. Un scénario (`scenario_v2`) refait le trajet avec un lead v2
+(`service`), pour prouver que M4 et ses sept consommateurs le prennent comme le v1 (T0.13-b).
 
 PLAN T1.5-d (M6, stock bas) : la cascade « travaux terminés » ne s'arrête pas à la variance. Quand la
 déclaration de matériaux sort du stock, M6 évalue chaque article touché contre SON seuil de
@@ -189,13 +190,14 @@ def _registre_m6(nom: str) -> list[dict[str, Any]]:
 class _Scenario:
     """Le décor commun : chantier prêt, matériel reçu par l'admin, bus au repos."""
 
-    def __init__(self, moteur: Moteur, equipe: dict[str, Any], suffixe: str, jour: int) -> None:
+    def __init__(self, moteur: Moteur, equipe: dict[str, Any], suffixe: str, jour: int,
+                 version_lead: int = 1) -> None:
         self.moteur = moteur
         self.admin = equipe["admin"]
         self.employe = equipe["employe"]
         t0 = time.perf_counter()
         self.chantier = preparer_chantier(moteur.departements, suffixe=suffixe, technicien="etienne",
-                                          debut=debut_de_journee(jour))
+                                          debut=debut_de_journee(jour), version_lead=version_lead)
         moteur.horloge.maintenant = self.chantier.debut
         # Le devis accepté a été publié la veille : le répartiteur de fond l'a livré depuis longtemps (M6 en
         # tire le prévu de matériaux, sans lequel un employé ne peut pas déclarer, T1.4-k1).
@@ -253,6 +255,15 @@ def scenario_d(moteur, equipe, reappro):
 def scenario_e(moteur, equipe, reappro):
     reappro(SEUIL_FRANCHI_PAR_B)
     return _Scenario(moteur, equipe, "E-ECART-ET-STOCK-BAS", 21)
+
+
+@pytest.fixture
+def scenario_v2(moteur, equipe, declarer_services, reappro):
+    """Comme A, mais le lead est un LeadQualifie v2 (`service`, PLAN T0.13-b) : le profil d'entreprise de
+    l'instance déclare les services du catalogue de référence."""
+    declarer_services()
+    reappro(SEUIL_CONFORTABLE)  # comme A : un seuil que le stock ne franchit pas (T1.5-d)
+    return _Scenario(moteur, equipe, "V2-SERVICE", 22, version_lead=2)
 
 
 # =============================================================================================
@@ -380,6 +391,35 @@ def test_a_travaux_termines_normaux_par_la_porte_d_appareil(moteur, scenario_a):
                                           "tools/call": n}
         assert partie["requetes_http"] == 6 * n
     assert bilan["trajet"]["appels_app"] == len(s.app.appels) + 1  # les gestes, plus l'écran du jour
+
+
+@SQLITE_SEULEMENT
+def test_v2_un_lead_de_service_traverse_la_porte_d_appareil_jusqu_a_completed_verified(moteur, scenario_v2):
+    """PLAN T0.13-b : un lead v2 (`service`) est inscrit par M4, planifié, terminé par l'employé ; le WCT porte
+    `service` et jamais `type_travaux`, et les sept consommateurs le traitent comme celui d'un lead v1."""
+    s = scenario_v2
+    ch, app = s.chantier, s.app
+
+    # L'écran « chantiers du jour » de l'employé : la nature des travaux est le `service`, sans `type_travaux`.
+    (du_jour,) = app.chantiers_du_jour().resultat
+    assert du_jour["intervention_id"] == ch.intervention_id
+    assert du_jour["service"] == "gouttieres" and "type_travaux" not in du_jour
+
+    completion, declaration = s.terminer_puis_declarer(42.0)  # prévu 40 : +5 %
+
+    assert declaration.metier["accepte"] is True
+    (publie,) = _evenements("m4.travaux_termines")
+    assert (publie["service"], publie["statut"], publie["ecart_signale"]) == (
+        "gouttieres", "completed_pending_review", False)
+    assert "type_travaux" not in publie
+    assert _statuts_recus_non_traites() == []
+    consommateurs_wct = {"m02-revenue-crm", "m03-estimation", "m05-financecore", "m06-material-control",
+                         "m07-marketing", "m08-analytics", "m10-memoire"}
+    assert _recus(completion.resultat["wct_id"]) == dict.fromkeys(consommateurs_wct, "traite")
+    assert app.statut().resultat["statut"] == "completed_verified"
+    facture = _facture_active(ch.devis_id)
+    assert facture is not None and facture["statut"] == "BROUILLON"
+    assert _stock_m6(ch) == 158.0
 
 
 def test_a_rejouer_chaque_appel_avec_la_meme_cle_ne_change_rien(moteur, scenario_a):

@@ -66,9 +66,14 @@ def _ok(reponse: dict[str, Any]) -> dict[str, Any]:
     return reponse["resultat"]
 
 
-def preparer_chantier(deps: Any, *, suffixe: str, technicien: str, debut: dt.datetime) -> Chantier:
+def preparer_chantier(
+    deps: Any, *, suffixe: str, technicien: str, debut: dt.datetime, version_lead: int = 1,
+) -> Chantier:
     """Lead M2 qualifié -> devis M3 créé puis accepté (40 pi de gouttière prévus) -> intervention M4
-    planifiée et assignée à `technicien`. Rien n'est encore arrivé sur le terrain."""
+    planifiée et assignée à `technicien`. Rien n'est encore arrivé sur le terrain.
+
+    `version_lead` : 1 (LeadQualifie gelé, `type_travaux`) ou 2 (`schema_version` et `service` : le service
+    « gouttieres » doit être déclaré au profil d'entreprise de l'instance, PLAN T0.13-b)."""
     m2, m3, m4 = (_outils(deps, d) for d in ("m02-revenue-crm", "m03-estimation", "m04-field-ops"))
     lead_id, devis_id = f"LEAD-{suffixe}-fictif", f"DEVIS-{suffixe}-fictif"
     chantier_id = f"CH-{suffixe}-fictif"
@@ -76,8 +81,12 @@ def preparer_chantier(deps: Any, *, suffixe: str, technicien: str, debut: dt.dat
         "lead_id": lead_id, "conversation_id": f"conv-{lead_id}",
         "contact": {"nom": "Client Fictif", "telephone": "418-555-0100",
                     "courriel": f"{lead_id}@exemple-fictif.test"},
-        "type_travaux": "renovation_totale", "ville": VILLE, "urgence_declaree": False, "canal": "telephone",
+        "ville": VILLE, "urgence_declaree": False, "canal": "telephone",
     }
+    if version_lead == 2:
+        contrat.update({"schema_version": 2, "service": "gouttieres"})
+    else:
+        contrat["type_travaux"] = "renovation_totale"
 
     _ok(executer_atomique(m2["m2_ingerer_lead"], {"contrat": contrat, "horodatage": iso(debut, -86400)}))
     _ok(executer_atomique(m2["m2_transitionner_statut"], {

@@ -1,9 +1,44 @@
 import {
   construireArgumentsDemarrerRoute,
+  estInterventionM4,
   interpreterResultatDemarrerRoute,
   interpreterResultatListerInterventions,
   interpreterResultatStatutIntervention,
 } from "./interventions";
+
+describe("estInterventionM4 : nature des travaux selon la version du lead (PLAN T0.13-b)", () => {
+  const base = { intervention_id: "I1", statut: "planifiee", lead_id: "L1", devis_id: null };
+
+  test("lead v1 : `type_travaux` seul est lisible", () => {
+    expect(estInterventionM4({ ...base, type_travaux: "extension" })).toBe(true);
+  });
+
+  test("lead v2 : `service` seul est lisible (l'intervention n'est pas écartée de « chantiers du jour »)", () => {
+    expect(estInterventionM4({ ...base, service: "gouttieres" })).toBe(true);
+  });
+
+  test("les deux clés, ou aucune : pas une intervention lisible (jamais l'une déduite de l'autre)", () => {
+    expect(estInterventionM4({ ...base, type_travaux: "extension", service: "gouttieres" })).toBe(false);
+    expect(estInterventionM4({ ...base })).toBe(false);
+  });
+
+  test("une nature de travaux qui n'est pas une chaîne n'est pas lisible", () => {
+    expect(estInterventionM4({ ...base, service: 3 })).toBe(false);
+    expect(estInterventionM4({ ...base, type_travaux: null })).toBe(false);
+  });
+
+  test("la liste d'un employé garde les deux versions côte à côte", () => {
+    const brut = {
+      ok: true,
+      resultat: [
+        { ...base, intervention_id: "I1", type_travaux: "extension" },
+        { ...base, intervention_id: "I2", service: "revetement" },
+      ],
+    };
+    const resultat = interpreterResultatListerInterventions(brut);
+    expect(resultat).toEqual({ ok: true, interventions: brut.resultat });
+  });
+});
 
 describe("interpreterResultatListerInterventions", () => {
   test("enveloppe ok avec un tableau : renvoie les interventions telles quelles", () => {

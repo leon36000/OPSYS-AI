@@ -65,6 +65,13 @@ def test_valider_wct_accepte_les_champs_optionnels_du_catalogue(wct_valide):
     assert validation.valider_wct(wct_valide) == (True, None)
 
 
+def test_valider_wct_accepte_service_d_un_lead_v2_comme_cle_additive(wct_valide):
+    """PLAN T0.13-b : le WCT d'un lead v2 porte `service` à la place de `type_travaux` (jamais les deux,
+    côté M4) ; M6 l'accepte sans le lire, comme les autres champs optionnels du catalogue."""
+    wct_valide["service"] = "gouttieres"
+    assert validation.valider_wct(wct_valide) == (True, None)
+
+
 def test_champs_wct_optionnels_alignes_sur_le_catalogue():
     from m6_material_control import contrats
 

@@ -19,7 +19,11 @@ journée dès que les chantiers ont des coordonnées confirmées.
      `longitude_microdegres` : un lieu de l'entreprise), `quarts` (`jour`, `debut_min`, `fin_min`, en minutes
      depuis minuit). `jour` est un numéro que tu choisis et gardes cohérent (0, 1, 2 …).
    - `durees_par_type_travaux` et `competences_par_type_travaux` : une clé par type de travaux, pour CHAQUE
-     type à planifier (liste de compétences vide si aucune).
+     type à planifier (liste de compétences vide si aucune). Ils concernent les interventions d'un lead v1 ;
+     envoie `{}` si le lot n'en contient aucune.
+   - `durees_par_service` et `competences_par_service` : la même chose, une clé par SERVICE à planifier, pour les
+     interventions d'un lead v2 (`m4_lister_interventions` montre `service` au lieu de `type_travaux`). Ne
+     range jamais un service sous les tables par type de travaux, ni l'inverse : chaque version a ses tables.
    - `chantiers` : une entrée par intervention, avec la `fenetre` du client (`jours`, `debut_min`, `fin_min`) et
      `creneau_fige`. Écris `null` seulement si AUCUN créneau n'a été confirmé au client ; sinon
      `{equipe, jour, debut_min}` exactement comme promis : un créneau confirmé n'est jamais déplacé.
