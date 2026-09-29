@@ -19,10 +19,13 @@ import {
 import { checkOpsysContexteToolCall, OpsysContexteGuardStore } from "./opsys-contexte-garde.js";
 import { parsePaquet, renderPaquet } from "./opsys-contexte-paquet.js";
 import {
+  AFFAIRE_M10_OPPORTUNITE,
   CONFIG_M3,
   CONFIG_M3_ET_M1_SESSION,
+  emptyPaquet,
   ENVELOPE_PAQUET,
   PAQUET_M10,
+  PAQUET_M10_OPPORTUNITE,
   PAQUET_M10_SIGNAL_CLOS,
 } from "./opsys-contexte.test-support.js";
 
@@ -892,6 +895,14 @@ describe("the guard reads what the engine recorded, end to end", () => {
     expect(decide(h, "opsys_m3__m3_lire_devis")).toStrictEqual({ block: false });
     expect(decide(h, "m10_deposer_faits_candidats")).toStrictEqual({ block: false });
   });
+
+  it("does not block an N3 tool on a case M10 knows nothing about: that is the owner's decision (PLAN T4.18-b)", async () => {
+    // Blocking would stop every case that predates M10's consumers, which have no fact and never will.
+    const h = harness({ handler: async () => ({ ok: true, resultat: emptyPaquet("LEAD-INCONNU") }) });
+    await h.engine.assemble(assembleParams({ prompt: "Estime.\naffaire_id: LEAD-INCONNU" }));
+
+    expect(decide(h, "opsys_m3__m3_estimer_projet")).toStrictEqual({ block: false });
+  });
 });
 
 describe("OpsysContextEngine: the case comes from the session, never from the client's text", () => {
@@ -1082,5 +1093,68 @@ describe("OpsysContextEngine: the case comes from the session, never from the cl
       expect(logs.warn[0]).toContain("sans affaire identifiable");
       expect(logs.warn[0]).toContain("aucune affaire liée à cette session");
     });
+  });
+});
+
+describe("OpsysContextEngine: what M10 says of the case itself (PLAN T4.18-b)", () => {
+  it("asks for the opportunity M2 opens, named whole on the request line, and injects its packet", async () => {
+    const { engine, calls } = harness({
+      handler: async () => ({ ok: true, resultat: PAQUET_M10_OPPORTUNITE }),
+    });
+
+    const result = await engine.assemble(
+      assembleParams({ prompt: `Estime le chantier suivant.\naffaire_id: ${AFFAIRE_M10_OPPORTUNITE}` }),
+    );
+
+    expect(calls[0]?.args).toMatchObject({
+      affaire_id: AFFAIRE_M10_OPPORTUNITE,
+      agent: "m03-estimation",
+    });
+    expect(result.systemPromptAddition).toContain(`affaire ${AFFAIRE_M10_OPPORTUNITE}`);
+    expect(result.systemPromptAddition).toContain("ouverte par m2.client_associe");
+    expect(result.systemPromptAddition).not.toContain(MARKER);
+  });
+
+  it("says a case is unknown instead of showing empty layers, journals it, and lets the turn go on", async () => {
+    const { engine, logs, guardStore } = harness({
+      handler: async () => ({ ok: true, resultat: emptyPaquet("LEAD-INCONNU") }),
+    });
+
+    const result = await engine.assemble(
+      assembleParams({ prompt: "Estime.\naffaire_id: LEAD-INCONNU" }),
+    );
+
+    expect(result.systemPromptAddition).toContain(
+      "Affaire inconnue de la mémoire : aucun fait reçu pour l'identifiant LEAD-INCONNU.",
+    );
+    expect(result.systemPromptAddition).not.toContain(MARKER);
+    expect(
+      logs.info.some((line) => line.includes("affaire inconnue de la mémoire") && line.includes("LEAD-INCONNU")),
+    ).toBe(true);
+    expect(logs.warn).toStrictEqual([]);
+    expect(guardStore.get("agent:m03-estimation:main")).toMatchObject({
+      kind: "ready",
+      affaireId: "LEAD-INCONNU",
+      nbOuverts: 0,
+    });
+  });
+
+  it("journals nothing about a case M10 knows, even one whose opening step it never received", async () => {
+    const { engine, logs } = harness();
+
+    await engine.assemble(assembleParams());
+
+    expect(logs.info.filter((line) => line.includes("affaire inconnue"))).toStrictEqual([]);
+  });
+
+  it("refuses a packet that calls the case unknown while it carries its events, and says so", async () => {
+    const contradiction = { ...PAQUET_M10, affaire: emptyPaquet("LEAD-001").affaire };
+    const { engine, logs } = harness({ handler: async () => ({ ok: true, resultat: contradiction }) });
+
+    const result = await engine.assemble(assembleParams());
+
+    expect(result.systemPromptAddition).toContain(MARKER);
+    expect(result.systemPromptAddition).toContain("calls the case unknown but carries its events or signals");
+    expect(logs.warn.some((line) => line.includes("paquet inutilisable"))).toBe(true);
   });
 });

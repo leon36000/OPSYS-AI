@@ -97,6 +97,10 @@ La « RAM » d'ADR-0010 : un moteur de contexte du core (`core/src/context-engin
   le rendre ; il ne le tronque jamais.
 - **Fail-closed, sans blocage.** Moteur injoignable, trop lent (`delai_ms`), paquet invalide, aucune affaire :
   le tour continue sans paquet, avec le marqueur dans le contexte et une ligne du journal `opsys-contexte`.
+- **L'affaire elle-même** (T4.18-b). Une affaire est un lead ou l'opportunité `<lead>~opp~<wct_id>` que M2 ouvre : une forme
+  bornée, écrite dans M10 et dans le core, testée des deux côtés contre la même liste de cas. Le paquet porte, hors de ses quatre couches, un
+  bloc `affaire` (connue ou inconnue, étape d'origine reçue ou non, verdict) et un bloc `consolidation` (les jours omis à
+  consolider) ; le core les valide et les rend, sans changer le garde. Budget du paquet et décisions : ADR-0010, « T4.18-b ».
 - **Ce qui manque** est listé dans ADR-0010, « Mise en œuvre » (blocage `before_tool_call`, clôture des signaux
   critiques, affaire liée à la session, consolidation des candidats).
 

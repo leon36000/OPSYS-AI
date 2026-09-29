@@ -55,6 +55,32 @@ demande. (3) Le filtre de confidentialité du paquet (`confidentialite.py`) : le
 `CLIENT_PRIVATE` seulement vers M1 et M2 et seulement dans les couches de l'affaire, jamais les niveaux plus
 fermés ; le paquet compte ce qu'il retient sans le montrer.
 
+PLAN T4.18-b ajoute une forme d'affaire COMMUNE et deux blocs au paquet, sans toucher aux quatre couches.
+1. **Une seule forme d'affaire** (`affaire.py`). Une affaire est un lead, ou l'opportunité `<lead>~opp~<wct_id>` que M2 ouvre quand un
+   client revient. Forme bornée (64 + 5 + 128 = 197 caractères, lettres, chiffres et `._:-`), écrite mot pour mot dans M10 et dans le
+   core (`AFFAIRE_ID` et `AFFAIRE_LINE`, `opsys-contexte-paquet.ts`) ; le core (vitest) et M10 (pytest) rejouent la MÊME liste de cas
+   (`core/src/context-engine/opsys-contexte.affaires.json`). Le lien de session, le dépôt POSTFLIGHT, le paquet et les faits de
+   l'amont la partagent ; M1 garde la forme du lead seul (il ne publie jamais d'opportunité). Limite : une chaîne d'opportunités
+   (`<lead>~opp~a~opp~b`, que M2 pourrait suffixer à partir d'une opportunité) n'est pas admise ; le correctif est chez M2.
+2. **Le bloc `affaire`** du paquet : `{connue, origine_recue, origine, verdict}`. Une affaire dont M10 n'a reçu aucun fait est dite
+   INCONNUE (`AMONT-AFFAIRE-INCONNUE`) au lieu de quatre couches vides ; une affaire dont l'étape qui l'ouvre manque est dite sans origine
+   (`AMONT-ORIGINE-NON-RECUE`). L'étape qui ouvre un lead est le lead qualifié de M1, celle qui ouvre une opportunité le client associé de
+   M2 (`etapes.py`, champ `ouvre`). Vocabulaire fermé, sans renseignement personnel. Bloc additif plutôt qu'un outil
+   `m10_dossier_affaire` : les quatre couches et leur ordre, que le core valide, ne bougent pas ; un second appel par tour coûterait un
+   aller-retour de plus et pourrait échouer seul, alors que le verdict doit arriver avec les couches qu'il qualifie.
+3. **Le bloc `consolidation`** : quand la couche des événements omet des faits, les jours de ces faits qu'aucun fait durable ne résume,
+   au plus 10 jours (`NB_JOURS_A_CONSOLIDER_MAX`), les plus anciens d'abord, avec l'affaire : chaque entrée `{affaire_id, jour}` est l'argument exact de
+   `m10_consolider_affaire`, et le jour sort de la liste dès que l'outil l'a consolidé. `nb_a_consolider` dit le total. Un fait retenu par
+   confidentialité ne donne pas son jour.
+4. **Le budget du paquet** (`paquets.py`), tel que le code le calcule. Le paquet a 4 000 caractères (`BUDGET_CARACTERES_DEFAUT`) de
+   faits, partagés également entre les quatre couches : 1 000 caractères chacune (`budget_par_couche`), et au plus 5 faits par couche
+   (`NB_FAITS_MAX_PAR_COUCHE_DEFAUT`). Une couche garde ses faits du plus récent au plus ancien et s'arrête au premier plafond atteint ; son
+   premier fait est toujours gardé, même trop gros. Avec des identifiants de 64 caractères, un fait de l'historique pèse 180 à 270
+   caractères : quatre tiennent presque toujours (cinq avec les faits les plus courts), et c'est le plafond de caractères qui coupe.
+   Une affaire complète (lead, client, devis envoyé, accepté, sans réponse, travaux terminés, variance) compte six à huit faits
+   visibles selon l'agent et le nombre de devis : les plus anciens sont omis, et le plus ancien est son ORIGINE. Le cadrage (les deux
+   blocs, les titres du core) ne compte pas dans le budget.
+
 - `department.yaml` — manifeste (`m10_memoire.outils`, aucune dépendance — M10 est la fondation
   mémoire que M9 consomme).
 - `SOUL.md` — identité de l'agent.

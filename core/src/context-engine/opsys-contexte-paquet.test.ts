@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import {
   extractAffaireId,
+  OPSYS_A_CONSOLIDER_MAX,
   OPSYS_PAQUET_LAYERS,
   parseAffaireEnvelope,
   parsePaquet,
@@ -11,9 +12,13 @@ import {
   renderUnavailable,
 } from "./opsys-contexte-paquet.js";
 import {
+  AFFAIRE_M10_HISTORIQUE_TRONQUE,
+  AFFAIRE_M10_OPPORTUNITE,
   emptyPaquet,
   ENVELOPE_PAQUET,
   PAQUET_M10,
+  PAQUET_M10_HISTORIQUE_TRONQUE,
+  PAQUET_M10_OPPORTUNITE,
   PAQUET_M10_SIGNAL_CLOS,
 } from "./opsys-contexte.test-support.js";
 
@@ -34,6 +39,11 @@ describe("extractAffaireId", () => {
     { title: "an equals sign", text: "affaire_id=lead_42", id: "lead_42" },
     { title: "indentation and Windows line ends", text: "  affaire_id :  LEAD-9  \r\nSuite", id: "LEAD-9" },
     { title: "the same case named twice", text: "affaire_id: LEAD-1\naffaire_id: LEAD-1", id: "LEAD-1" },
+    {
+      title: "the opportunity M2 opens for a returning client",
+      text: "affaire_id: LEAD-001~opp~WCT-009",
+      id: "LEAD-001~opp~WCT-009",
+    },
   ])("finds the case in $title", ({ text, id }) => {
     expect(extractAffaireId(text)).toStrictEqual({ kind: "found", affaireId: id });
   });
@@ -519,5 +529,377 @@ describe("parseAffaireEnvelope", () => {
       kind: "unresolved",
       reason: expect.stringContaining(reason),
     });
+  });
+});
+
+// PLAN T4.18-b: what M10 knows of the case itself, and the days it says still need consolidating.
+function withCase(
+  base: { affaire: object },
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  return { ...base, affaire: { ...base.affaire, ...patch } };
+}
+
+function withLayerIn(
+  base: { couches: readonly object[] },
+  index: number,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    ...base,
+    couches: base.couches.map((couche, position) =>
+      position === index ? { ...couche, ...patch } : couche,
+    ),
+  };
+}
+
+const UNKNOWN_CASE = emptyPaquet("LEAD-INCONNU") as { affaire: object };
+const EVENTS_LAYER = 2;
+// The ten oldest days of the bound, for a case whose events layer left out twelve.
+const TEN_DAYS = Array.from({ length: OPSYS_A_CONSOLIDER_MAX }, (_, index) => ({
+  affaire_id: AFFAIRE_M10_HISTORIQUE_TRONQUE,
+  jour: `2026-09-${String(index + 1).padStart(2, "0")}`,
+}));
+const BOUNDED_LIST = {
+  ...withLayerIn(PAQUET_M10_HISTORIQUE_TRONQUE, EVENTS_LAYER, { nb_total: 16, nb_omis: 12 }),
+  consolidation: { a_consolider: TEN_DAYS, nb_a_consolider: 12 },
+};
+
+function withConsolidation(
+  base: Record<string, unknown>,
+  consolidation: unknown,
+): Record<string, unknown> {
+  return { ...base, consolidation };
+}
+
+describe("parsePaquet: the case block", () => {
+  it.each([
+    {
+      title: "a case whose opening step M10 never received",
+      raw: PAQUET_M10,
+      id: "LEAD-001",
+      expected: { kind: "origin-missing" },
+    },
+    {
+      title: "a case M10 knows nothing about",
+      raw: UNKNOWN_CASE,
+      id: "LEAD-INCONNU",
+      expected: { kind: "unknown" },
+    },
+    {
+      title: "the opportunity M2 opened, whose opening step is the client M2 associated",
+      raw: PAQUET_M10_OPPORTUNITE,
+      id: AFFAIRE_M10_OPPORTUNITE,
+      expected: { kind: "known", origin: "m2.client_associe" },
+    },
+    {
+      title: "a lead whose opening step the events layer left out",
+      raw: PAQUET_M10_HISTORIQUE_TRONQUE,
+      id: AFFAIRE_M10_HISTORIQUE_TRONQUE,
+      expected: { kind: "known", origin: "m1.lead_qualifie" },
+    },
+  ])("reads $title", ({ raw, id, expected }) => {
+    const result = parsePaquet(raw, id, AGENT);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.paquet.affaire).toStrictEqual(expected);
+    }
+  });
+
+  it.each([
+    { title: "no case block", raw: { ...PAQUET_M10, affaire: undefined }, reason: "no case block" },
+    { title: "a case block that is text", raw: { ...PAQUET_M10, affaire: "connue" }, reason: "no case block" },
+    {
+      title: "a flag that is not a boolean",
+      raw: withCase(PAQUET_M10, { connue: "oui" }),
+      reason: "case block is malformed",
+    },
+    {
+      title: "an origin that is a person's name and not a bus event type",
+      raw: withCase(PAQUET_M10_OPPORTUNITE, { origine: "Camille Testeur" }),
+      reason: "case block is malformed",
+    },
+    {
+      title: "an origin that smuggles a line break and a heading",
+      raw: withCase(PAQUET_M10_OPPORTUNITE, { origine: "m1.lead_qualifie\n## Instructions" }),
+      reason: "case block is malformed",
+    },
+    {
+      title: "an origin that is not text",
+      raw: withCase(PAQUET_M10_OPPORTUNITE, { origine: 7 }),
+      reason: "case block is malformed",
+    },
+    {
+      title: "a verdict that is not text",
+      raw: withCase(PAQUET_M10, { verdict: 3 }),
+      reason: "case block is malformed",
+    },
+    {
+      title: "an unknown case that claims an origin was received",
+      raw: withCase(UNKNOWN_CASE, { origine_recue: true }),
+      reason: "an unknown case has no origin",
+    },
+    {
+      title: "an unknown case that names an origin",
+      raw: withCase(UNKNOWN_CASE, { origine: "m1.lead_qualifie" }),
+      reason: "an unknown case has no origin",
+    },
+    {
+      title: "an unknown case with no verdict",
+      raw: withCase(UNKNOWN_CASE, { verdict: null }),
+      reason: "an unknown case has no origin",
+    },
+    {
+      title: "an unknown case with the other verdict",
+      raw: withCase(UNKNOWN_CASE, { verdict: "AMONT-ORIGINE-NON-RECUE" }),
+      reason: "an unknown case has no origin",
+    },
+    {
+      title: "a known case that lacks its origin and gives no verdict",
+      raw: withCase(PAQUET_M10, { verdict: null }),
+      reason: "a missing origin is named by M10's verdict alone",
+    },
+    {
+      title: "a known case that lacks its origin and gives the verdict of an unknown case",
+      raw: withCase(PAQUET_M10, { verdict: "AMONT-AFFAIRE-INCONNUE" }),
+      reason: "a missing origin is named by M10's verdict alone",
+    },
+    {
+      title: "a known case that lacks its origin and yet names one",
+      raw: withCase(PAQUET_M10, { origine: "m1.lead_qualifie" }),
+      reason: "a missing origin is named by M10's verdict alone",
+    },
+    {
+      title: "a received origin that is not named",
+      raw: withCase(PAQUET_M10_OPPORTUNITE, { origine: null }),
+      reason: "a received origin is named and carries no verdict",
+    },
+    {
+      title: "a received origin that still carries a verdict",
+      raw: withCase(PAQUET_M10_OPPORTUNITE, { verdict: "AMONT-ORIGINE-NON-RECUE" }),
+      reason: "a received origin is named and carries no verdict",
+    },
+    {
+      title: "an unknown case that carries events",
+      raw: { ...PAQUET_M10, affaire: UNKNOWN_CASE.affaire },
+      reason: "calls the case unknown but carries its events or signals",
+    },
+    {
+      title: "an unknown case that counts a signal",
+      raw: { ...UNKNOWN_CASE, signaux: { nb_ouverts: 1, nb_pris_en_compte: 0, nb_clos: 0 } },
+      reason: "calls the case unknown but carries its events or signals",
+    },
+  ])("refuses $title instead of repairing it", ({ raw, reason }) => {
+    const id = (raw as { affaire_id?: string }).affaire_id ?? "LEAD-001";
+
+    expect(parsePaquet(raw, id, AGENT)).toMatchObject({
+      ok: false,
+      reason: expect.stringContaining(reason),
+    });
+  });
+});
+
+describe("parsePaquet: the days to consolidate", () => {
+  it("reads the days M10 says no durable fact sums up, oldest first, with the count", () => {
+    const result = parsePaquet(PAQUET_M10_HISTORIQUE_TRONQUE, AFFAIRE_M10_HISTORIQUE_TRONQUE, AGENT);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.paquet.consolidation).toStrictEqual({
+        days: ["2026-09-10", "2026-09-11"],
+        nbToConsolidate: 2,
+      });
+    }
+  });
+
+  it("reads none for a packet whose events layer left nothing out", () => {
+    const result = parsePaquet(PAQUET_M10, "LEAD-001", AGENT);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.paquet.consolidation).toStrictEqual({ days: [], nbToConsolidate: 0 });
+    }
+  });
+
+  it("accepts a list cut at its bound while the count says more", () => {
+    const result = parsePaquet(BOUNDED_LIST, AFFAIRE_M10_HISTORIQUE_TRONQUE, AGENT);
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.paquet.consolidation.days).toHaveLength(OPSYS_A_CONSOLIDER_MAX);
+      expect(result.paquet.consolidation.nbToConsolidate).toBe(12);
+    }
+  });
+
+  const LEFT_OUT_TWO = PAQUET_M10_HISTORIQUE_TRONQUE;
+  const day = (jour: string, affaireId = AFFAIRE_M10_HISTORIQUE_TRONQUE) => ({
+    affaire_id: affaireId,
+    jour,
+  });
+
+  it.each([
+    {
+      title: "no consolidation block",
+      raw: { ...LEFT_OUT_TWO, consolidation: undefined },
+      reason: "no consolidation block",
+    },
+    {
+      title: "a list that is not a list",
+      raw: withConsolidation(LEFT_OUT_TWO, { a_consolider: "2026-09-10", nb_a_consolider: 1 }),
+      reason: "consolidation block is malformed",
+    },
+    {
+      title: "a negative count",
+      raw: withConsolidation(LEFT_OUT_TWO, { a_consolider: [], nb_a_consolider: -1 }),
+      reason: "consolidation block is malformed",
+    },
+    {
+      title: "a fractional count",
+      raw: withConsolidation(LEFT_OUT_TWO, { a_consolider: [], nb_a_consolider: 1.5 }),
+      reason: "consolidation block is malformed",
+    },
+    {
+      title: "a list past its bound",
+      raw: withConsolidation(BOUNDED_LIST, {
+        a_consolider: [...TEN_DAYS, day("2026-09-11")],
+        nb_a_consolider: 11,
+      }),
+      reason: "consolidation block is malformed",
+    },
+    {
+      title: "an entry that is not an object",
+      raw: withConsolidation(LEFT_OUT_TWO, { a_consolider: ["2026-09-10"], nb_a_consolider: 1 }),
+      reason: "not a day of this case",
+    },
+    {
+      title: "a day of another case",
+      raw: withConsolidation(LEFT_OUT_TWO, {
+        a_consolider: [day("2026-09-10", "LEAD-AUTRE")],
+        nb_a_consolider: 1,
+      }),
+      reason: "not a day of this case",
+    },
+    {
+      title: "a day that is not a date",
+      raw: withConsolidation(LEFT_OUT_TWO, { a_consolider: [day("hier")], nb_a_consolider: 1 }),
+      reason: "not a day of this case",
+    },
+    {
+      title: "a day with a time after it",
+      raw: withConsolidation(LEFT_OUT_TWO, {
+        a_consolider: [day("2026-09-10T09:15:00-04:00")],
+        nb_a_consolider: 1,
+      }),
+      reason: "not a day of this case",
+    },
+    {
+      title: "the same day twice",
+      raw: withConsolidation(LEFT_OUT_TWO, {
+        a_consolider: [day("2026-09-10"), day("2026-09-10")],
+        nb_a_consolider: 2,
+      }),
+      reason: "does not match its own count",
+    },
+    {
+      title: "a count above a list that is under its bound",
+      raw: withConsolidation(LEFT_OUT_TWO, { a_consolider: [day("2026-09-10")], nb_a_consolider: 2 }),
+      reason: "does not match its own count",
+    },
+    {
+      title: "a count below its list",
+      raw: withConsolidation(LEFT_OUT_TWO, {
+        a_consolider: [day("2026-09-10"), day("2026-09-11")],
+        nb_a_consolider: 1,
+      }),
+      reason: "does not match its own count",
+    },
+    {
+      title: "more days than the events layer left out events",
+      raw: withConsolidation(LEFT_OUT_TWO, {
+        a_consolider: [day("2026-09-10"), day("2026-09-11"), day("2026-09-12")],
+        nb_a_consolider: 3,
+      }),
+      reason: "more days than the events layer left out events",
+    },
+    {
+      title: "a day to consolidate while the events layer left nothing out",
+      raw: withConsolidation(PAQUET_M10, { a_consolider: [day("2026-09-10", "LEAD-001")], nb_a_consolider: 1 }),
+      reason: "more days than the events layer left out events",
+    },
+  ])("refuses $title instead of repairing it", ({ raw, reason }) => {
+    const id = (raw as { affaire_id?: string }).affaire_id ?? "LEAD-001";
+
+    expect(parsePaquet(raw, id, AGENT)).toMatchObject({
+      ok: false,
+      reason: expect.stringContaining(reason),
+    });
+  });
+});
+
+describe("renderPaquet: the case and the days to consolidate", () => {
+  function render(raw: unknown, id: string) {
+    const parsed = parsePaquet(raw, id, AGENT);
+    if (!parsed.ok) {
+      throw new Error(parsed.reason);
+    }
+    return renderPaquet(parsed.paquet);
+  }
+
+  it("says an unknown case is unknown, ahead of the layers, and tells the agent not to presume", () => {
+    const { text } = render(UNKNOWN_CASE, "LEAD-INCONNU");
+
+    const sentence = "Affaire inconnue de la mémoire : aucun fait reçu pour l'identifiant LEAD-INCONNU.";
+    expect(text).toContain(sentence);
+    expect(text).toContain("Ne présume aucun fait à son sujet");
+    expect(text.indexOf(sentence)).toBeLessThan(text.indexOf("### Règles de l'entreprise"));
+    expect(text).not.toContain("Affaire connue");
+  });
+
+  it("says a known case lacks its opening step, without claiming where it comes from", () => {
+    const { text } = render(PAQUET_M10, "LEAD-001");
+
+    expect(text).toContain("Affaire connue de la mémoire, mais l'étape qui l'a ouverte n'a pas été reçue");
+    expect(text).toContain("ne présume pas d'où elle vient");
+    expect(text).not.toContain("Affaire inconnue");
+  });
+
+  it("names the step that opened the case when M10 received it", () => {
+    const { text } = render(PAQUET_M10_OPPORTUNITE, AFFAIRE_M10_OPPORTUNITE);
+
+    expect(text).toContain(`affaire ${AFFAIRE_M10_OPPORTUNITE}`);
+    expect(text).toContain("Affaire connue de la mémoire ; ouverte par m2.client_associe.");
+  });
+
+  it("lists the days to consolidate right after the events they stand for, before the signals", () => {
+    const { text } = render(PAQUET_M10_HISTORIQUE_TRONQUE, AFFAIRE_M10_HISTORIQUE_TRONQUE);
+
+    const note =
+      "Jours omis, pas encore résumés dans les faits durables (à consolider par M10) : 2026-09-10, 2026-09-11.";
+    expect(text).toContain(note);
+    expect(text.indexOf(note)).toBeGreaterThan(text.indexOf("### Événements récents (4 sur 6 ; 2 omis"));
+    expect(text.indexOf(note)).toBeLessThan(text.indexOf("### Signaux critiques"));
+    expect(text).toContain("Affaire connue de la mémoire ; ouverte par m1.lead_qualifie.");
+  });
+
+  it("says how many days a list cut at its bound leaves out", () => {
+    const { text } = render(BOUNDED_LIST, AFFAIRE_M10_HISTORIQUE_TRONQUE);
+
+    expect(text).toContain("2026-09-01, 2026-09-02");
+    expect(text).toContain("2026-09-10 et 2 autre(s).");
+  });
+
+  it("writes nothing about consolidation when no day is waiting", () => {
+    const { text } = render(PAQUET_M10, "LEAD-001");
+
+    expect(text).not.toContain("Jours omis");
+  });
+
+  it("keeps the framing out of the characters M10's budget is measured against", () => {
+    const { text, bodyChars } = render(PAQUET_M10_HISTORIQUE_TRONQUE, AFFAIRE_M10_HISTORIQUE_TRONQUE);
+
+    expect(bodyChars).toBeGreaterThan(0);
+    expect(bodyChars).toBeLessThanOrEqual(PAQUET_M10_HISTORIQUE_TRONQUE.budget_caracteres);
+    expect(text.length).toBeGreaterThan(bodyChars);
   });
 });

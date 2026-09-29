@@ -241,11 +241,79 @@ Faite le 2026-09-29. M10 consomme `m1.lead_qualifie`, `m2.client_associe`, `m3.d
   même sous un autre `evenement_id`, ne crée rien ; un fait reçu avant celui qui le précède est gardé et ne bloque
   pas l'autre (même défaut que T1.5-d pour le WCT). Un lead inconnu n'est jamais inventé : le fait de l'amont d'un
   lead dont M10 n'a pas reçu le `m1.lead_qualifie` est gardé sous son `lead_id`, et le reçu du répartiteur dit
-  `origine_recue: false` et `verdict: AMONT-ORIGINE-NON-RECUE`. Le paquet, lui, ne porte pas ce verdict : sa forme est
-  épinglée contre les fixtures du core (`tests/test_openclaw_contexte.py`), qui se modifient en CI seulement.
+  `origine_recue: false` et `verdict: AMONT-ORIGINE-NON-RECUE`. Le paquet, lui, ne portait pas ce verdict : sa forme est
+  épinglée contre les fixtures du core (`tests/test_openclaw_contexte.py`), qui se modifient en CI seulement (levé par
+  T4.18-b, plus bas).
 - **Lecture.** Les faits de l'amont sont dans la couche `evenements_recents` : les quatre couches et leur ordre ne
   changent pas (le core les valide). Le paquet garde son budget : avec cinq faits ou plus, le plus ancien sort et
-  `nb_omis` le dit ; la consolidation nocturne (`faits_affaire`) garde le compte par jour.
+  `nb_omis` le dit ; la consolidation nocturne (`faits_affaire`) garde le compte par jour. (T4.18-b dit les jours à
+  consolider et chiffre le budget.)
 - **Audit.** `m10_auditer_non_oubli` attend un fait de l'amont par sa clé publique. Un consommateur retiré de
   `evenements.consomme` se voit à la trace absente d'un fait que le bus a publié ; `opsys-metier verifier` le voit aussi
   (fonction orpheline).
+
+### T4.18-b : l'affaire elle-même, une forme commune, le budget de l'historique (M10 `affaire.py`, `paquets.py` ; core)
+
+Faite le 2026-09-29 ; le TypeScript du core n'a pas été exécuté (la CI, `core.yml`, fait foi). Elle lève les trois limites
+de T4.18 : le paquet ne disait pas « affaire inconnue », l'historique se tronquait sans dire quoi consolider, et
+l'opportunité `<lead>~opp~<wct_id>` que M2 ouvre quand un client revient n'avait pas la forme d'une affaire du core.
+
+- **Une seule forme d'affaire** (`affaire.py`). Une affaire est un lead, ou l'opportunité de M2 ; le lead compte au plus 64
+  caractères, le `wct_id` au plus 128, soit 197 pour l'affaire entière ; seuls passent les lettres latines, les chiffres et
+  `._:-` (le tilde n'existe que dans `~opp~`) : ni espace, ni retour à la ligne, ni caractère de contrôle ou de sens d'écriture. La
+  forme est écrite deux fois, mot pour mot : dans M10 (`FORME_AFFAIRE`) et dans le core (`AFFAIRE_ID` pour un identifiant,
+  `AFFAIRE_LINE` pour la ligne `affaire_id: ...` d'une demande). Un test du socle compare le texte des deux motifs, et les
+  deux côtés rejouent la MÊME liste de cas, un fichier (`core/src/context-engine/opsys-contexte.affaires.json`) que
+  vitest (`opsys-contexte-affaire.test.ts`) et pytest (`test_affaire.py`) lisent tous deux. Côté M10, le lien de session, le
+  dépôt POSTFLIGHT, le paquet et les faits de l'amont (M2, M3) la partagent ; M1 garde la forme du lead seul, car il ne
+  publie jamais d'opportunité. Les anciennes copies (64 caractères, sans tilde) sont un sous-ensemble : rien de gardé ne devient invalide.
+- **Limite dite : un seul niveau d'opportunité.** M2 suffixe le lead du WCT (`_ouvrir_nouvelle_opportunite_pour_wct`), qui peut
+  déjà être une opportunité : `<lead>~opp~<wct 1>~opp~<wct 2>` serait refusée par M10 (quarantaine visible du consommateur) et
+  le core ne demanderait aucun paquet pour elle. Le cas est dans la liste partagée, parmi les refus. Le correctif est chez M2
+  (suffixer le lead d'origine), hors de cette tâche ; élargir la forme est l'autre issue, à décider.
+- **Le bloc `affaire`, additif dans le paquet.** `{connue, origine_recue, origine, verdict}` (`amont.situation`, déjà la
+  réponse du consommateur au reçu de chaque fait) : une affaire dont M10 n'a reçu aucun fait est INCONNUE
+  (`AMONT-AFFAIRE-INCONNUE`), au lieu de quatre couches vides qu'on lirait comme « rien à signaler » ; une affaire dont
+  l'étape qui l'ouvre n'a pas été reçue le dit (`AMONT-ORIGINE-NON-RECUE`). L'étape qui ouvre un lead est le lead qualifié de M1,
+  celle qui ouvre une opportunité est le client associé de M2 (`etapes.py`, champ `ouvre` de la table ; jusqu'ici l'origine d'une
+  opportunité n'était jamais « reçue »). Le bloc ne dépend pas de la troncature : l'origine est le fait le plus ancien, celui
+  que la couche omet en premier. Vocabulaire fermé (booléens, type d'événement du bus, code de verdict), aucun renseignement
+  personnel, le même pour tous les agents.
+  **Pourquoi un bloc et non un outil `m10_dossier_affaire`.** Le paquet n'est pas un contrat gelé : ses quatre couches et leur ordre,
+  que le core valide, ne changent pas, et une clé sœur additive est l'évolution permise. Un second appel par tour coûterait un
+  aller-retour MCP de plus (déjà quatre par appel, « Reste » de T3.3-suite, point 6), pourrait échouer seul, et séparerait le
+  verdict des couches qu'il qualifie.
+- **Ce que le core en fait.** Il valide le bloc sans le réparer : l'incohérence entre les drapeaux, l'origine et le verdict refuse
+  le paquet (une affaire inconnue n'a pas d'origine, ni d'événement ni de signal ; une origine reçue est nommée et sans verdict ; un
+  type d'origine n'est jamais un texte libre). Il le rend, dans ses propres mots, avant les couches : « Affaire inconnue de la
+  mémoire », « Affaire connue, l'étape qui l'a ouverte n'a pas été reçue », « ouverte par m2.client_associe ». Une affaire inconnue est
+  journalisée (`opsys-contexte`, niveau info). **Le garde ne change pas** : une affaire inconnue ne bloque pas un outil N3 ou
+  plus, comme avant. C'est un choix laissé au propriétaire, non tranché ici : les affaires d'avant T4.18 n'ont aucun fait chez
+  M10 (il n'y a pas de rattrapage), et les bloquer arrêterait tout travail sur elles. Aujourd'hui une faute de frappe dans
+  `affaire_id` donne un paquet « inconnue » et un garde sans signal ouvert : la phrase du prompt est la seule alerte.
+- **Le bloc `consolidation`, additif.** `{a_consolider, nb_a_consolider}` : quand la couche des événements omet des faits, les jours de
+  ces faits qu'aucun fait durable ne résume, au plus 10 jours (`NB_JOURS_A_CONSOLIDER_MAX`), les plus anciens d'abord, chacun avec
+  l'affaire. Une entrée `{affaire_id, jour}` est l'argument exact de `m10_consolider_affaire` et sort de la liste dès que
+  l'outil l'a consolidée (test en boucle fermée). Le jour est celui de l'événement tel qu'il est écrit, comme la consolidation
+  (`consolidation.jour_de`) ; « consolidé » a le critère de `consolider_affaire` (la clé `affaire:jour`). Seuls comptent les faits
+  que l'agent aurait pu voir : un fait retenu par confidentialité ne donne pas son jour. Le core refuse une liste au-delà de sa
+  borne, un jour d'une autre affaire, un doublon, un compte qui ne correspond pas à la liste, ou plus de jours que la couche
+  n'a omis de faits. Il écrit une ligne sous les faits des événements : « Jours omis, pas encore résumés dans les faits durables
+  (à consolider par M10) : ... ». Personne ne consomme encore la liste par du code (la consolidation nocturne ne traite que la
+  veille) : c'est la lecture d'un humain, ou d'un agent M10, qui sait désormais quoi consolider.
+- **Le budget du paquet, chiffré** (`paquets.py`, README de M10 ; un test lit ces deux textes et cette section). Le paquet a
+  4 000 caractères de faits (`BUDGET_CARACTERES_DEFAUT`), partagés également entre les quatre couches : 1 000 caractères chacune
+  (`budget_par_couche`), et au plus 5 faits par couche (`NB_FAITS_MAX_PAR_COUCHE_DEFAUT`). Une couche garde ses faits du plus
+  récent au plus ancien et s'arrête au premier plafond atteint ; son premier fait est toujours gardé, même trop gros. Un fait de
+  l'historique avec des identifiants de 64 caractères pèse 180 à 270 caractères (mesuré sur les charges réelles) : quatre tiennent
+  presque toujours, c'est le plafond de caractères qui coupe. Une affaire complète compte six à huit faits visibles selon l'agent
+  et le nombre de devis : le lead qualifié, son origine, et le client associé pour M1 et M2 sortent les premiers. Le cadrage (les deux blocs, les
+  titres du core) ne compte pas dans le budget. Les chiffres ne changent pas ; le bloc `affaire` et la liste des jours existent
+  parce qu'ils rendent cette perte lisible.
+- **Ce que seule la CI prouve.** `core.yml` : la construction, `opsys-contexte-affaire.test.ts` (la liste de cas côté core),
+  `opsys-contexte-paquet.test.ts` (validation et rendu des deux blocs, cinq paquets réels), `opsys-contexte-engine.test.ts`
+  (l'opportunité demandée en entier, l'affaire inconnue journalisée, le garde inchangé). `e2e-core.yml` ne joue aucun tour
+  d'agent : il ne voit pas cette tâche. Ici, le core est relu à la main, sa logique transcrite en Python, et les fixtures sont
+  comparées clé par clé à la sortie réelle de M10 (`tests/test_openclaw_contexte.py`).
+- **Reste.** Décider si une affaire inconnue bloque les actions N3 ou plus ; la chaîne d'opportunités (chez M2) ; un consommateur
+  du bloc `consolidation` qui consolide sans lecture humaine ; le rattrapage des affaires d'avant T4.18.

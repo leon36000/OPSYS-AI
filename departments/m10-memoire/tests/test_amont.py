@@ -472,7 +472,7 @@ def test_dans_n_importe_quel_ordre_chaque_fait_est_ecrit_une_fois(evenements_m10
     assert types == sorted([TYPE_LEAD, TYPE_CLIENT, TYPE_ACCEPTE, TYPE_MONTANTS, TYPE_SANS_REPONSE])
     assert evenements_m10.valider_chaine() == (True, "")
     situation = amont.situation(LEAD, evenements_m10.lire())
-    assert situation == {"connue": True, "origine_recue": True, "verdict": None}
+    assert situation == {"connue": True, "origine_recue": True, "origine": TYPE_LEAD, "verdict": None}
 
 
 def test_un_devis_recu_avant_son_lead_ne_fait_pas_croire_le_lead_memorise(evenements_m10):
@@ -502,17 +502,19 @@ def test_un_wct_recu_apres_l_amont_est_toujours_ecrit_et_l_amont_apres_un_wct_au
 
 def test_un_lead_inconnu_donne_un_verdict_clair_et_aucune_affaire_n_est_inventee(evenements_m10):
     inconnu = amont.situation("LEAD-JAMAIS-VU", evenements_m10.lire())
-    assert inconnu == {"connue": False, "origine_recue": False, "verdict": amont.AMONT_AFFAIRE_INCONNUE}
+    assert inconnu == {
+        "connue": False, "origine_recue": False, "origine": None, "verdict": amont.AMONT_AFFAIRE_INCONNUE}
 
     # Un devis accepté seul : le fait est gardé sous son lead_id, l'origine est dite non reçue, rien n'est fabriqué.
     resultat, _ = amont.memoriser(TYPE_ACCEPTE, _devis_accepte(), evenements_m10)
-    assert resultat["affaire"] == {"connue": True, "origine_recue": False, "verdict": amont.AMONT_ORIGINE_NON_RECUE}
+    assert resultat["affaire"] == {
+        "connue": True, "origine_recue": False, "origine": None, "verdict": amont.AMONT_ORIGINE_NON_RECUE}
     assert _de_type(evenements_m10, TYPE_LEAD) == [] and _de_type(evenements_m10, TYPE_CLIENT) == []
     assert amont.situation("LEAD-AUTRE", evenements_m10.lire())["verdict"] == amont.AMONT_AFFAIRE_INCONNUE
 
     # Le lead arrive : l'origine est reçue, le verdict s'efface.
     resultat, _ = amont.memoriser(TYPE_LEAD, _lead_qualifie(), evenements_m10)
-    assert resultat["affaire"] == {"connue": True, "origine_recue": True, "verdict": None}
+    assert resultat["affaire"] == {"connue": True, "origine_recue": True, "origine": TYPE_LEAD, "verdict": None}
 
 
 # =========================================================================================
@@ -654,9 +656,10 @@ def test_le_paquet_garde_ses_quatre_couches_et_dit_ce_qu_il_omet(registres):
     assert paquet["confidentialite"]["nb_retenus"] == 8  # un compagnon financier par devis
 
 
-def test_la_forme_du_paquet_ne_change_pas_et_un_lead_inconnu_donne_quatre_couches_vides(registres):
-    """La forme du paquet est épinglée contre les fixtures du core (`tests/test_openclaw_contexte.py`) : l'amont
-    n'y ajoute aucune clé. Un lead inconnu n'y a aucun fait, aucune retenue, et M10 n'en invente pas."""
+def test_la_forme_du_paquet_s_augmente_de_deux_blocs_et_un_lead_inconnu_le_dit(registres):
+    """La forme du paquet est épinglée contre les fixtures du core (`tests/test_openclaw_contexte.py`) : l'amont n'y
+    ajoute aucune clé ; T4.18-b y ajoute deux blocs (`affaire`, `consolidation`), sans toucher aux quatre couches. Un
+    lead inconnu n'a aucun fait, aucune retenue : M10 n'en invente pas, et le dit dans `affaire`."""
     registre_evenements, registre_affaires = registres
     _memoriser_tout(registre_evenements)
 
@@ -666,10 +669,13 @@ def test_la_forme_du_paquet_ne_change_pas_et_un_lead_inconnu_donne_quatre_couche
         "LEAD-JAMAIS-VU", HORODATAGE_PAQUET, registre_evenements, registre_affaires, agent="m03-estimation")
 
     forme = {"affaire_id", "horodatage", "budget_caracteres", "caracteres_utilises", "couches", "signaux",
-             "confidentialite"}
+             "confidentialite", "affaire", "consolidation"}
     assert set(connu) == forme and set(inconnu) == forme
     assert all(couche["vide"] for couche in inconnu["couches"])
     assert inconnu["confidentialite"]["nb_retenus"] == 0
+    assert connu["affaire"] == {"connue": True, "origine_recue": True, "origine": TYPE_LEAD, "verdict": None}
+    assert inconnu["affaire"] == {
+        "connue": False, "origine_recue": False, "origine": None, "verdict": amont.AMONT_AFFAIRE_INCONNUE}
     assert amont.situation("LEAD-JAMAIS-VU", registre_evenements.lire())["verdict"] == amont.AMONT_AFFAIRE_INCONNUE
 
 
@@ -978,6 +984,7 @@ def test_un_lead_inconnu_donne_un_paquet_vide_et_aucune_affaire_inventee_par_les
 
     assert all(couche["vide"] for couche in inconnu["couches"])
     assert inconnu["confidentialite"]["nb_retenus"] == 0
+    assert inconnu["affaire"]["verdict"] == amont.AMONT_AFFAIRE_INCONNUE and inconnu["affaire"]["connue"] is False
     assert consolide["ecrit"] is False and consolide["fait"] is None
     assert consolide["verdict"] == consolidation.REJ_CONSOLIDATION_AUCUN_EVENEMENT
     assert _types_ecrits() == [TYPE_LEAD]  # rien n'a été écrit pour l'affaire inconnue

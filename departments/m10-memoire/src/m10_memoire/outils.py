@@ -15,6 +15,9 @@ PLAN T4.18 ajoute la consommation de l'AMONT d'une affaire (`amont.py`, `etapes.
 et faits d'étape seulement ; le contact du lead n'est jamais copié ; le prix et le coût d'un devis accepté vont dans un
 maillon `FINANCIAL`, le client associé est `CLIENT_PRIVATE`). Les consommateurs sont produits par la table de
 `etapes.py` : une étape de plus (`m3.devis_envoye`) est une entrée de cette table et une ligne du manifeste.
+PLAN T4.18-b : l'affaire a UNE forme commune au core et à M10 (`affaire.py` : un lead, ou l'opportunité
+`<lead>~opp~<wct_id>` que M2 ouvre) ; le paquet de contexte porte, en plus de ses quatre couches, un bloc `affaire`
+(connue ou non, origine reçue, verdict) et un bloc `consolidation` (les jours omis à consolider).
 PLAN T3.3-suite ajoute `m10_deposer_faits_candidats` (`faits_candidats.py`) : le POSTFLIGHT du moteur de
 contexte du core y dépose ce que les outils ont fait pendant un tour d'agent ; `m10_paquet_contexte_affaire`
 en est la lecture (PREFLIGHT).
@@ -144,6 +147,13 @@ _IDENTIFIANT_ATTENDU = {
 }
 
 
+_AFFAIRE_ID = {
+    "type": "string",
+    "description": (
+        "L'affaire : le lead_id du lead, ou <lead>~opp~<wct_id> pour l'opportunité que M2 ouvre quand un client "
+        "revient (lettres, chiffres et ._:-, 197 caractères au plus)."
+    ),
+}
 _CONFIDENTIALITE = {
     "type": "string",
     "enum": sorted(regle_confidentialite.niveaux_connus()),
@@ -686,12 +696,16 @@ def outils() -> tuple[Outil, ...]:
                 "provenance) → signaux critiques (ouverts d'abord, puis les derniers clos avec qui et pourquoi). "
                 "Budget de caractères et troncature calculés par le code ; une couche vide est "
                 "déclarée vide, jamais absente en silence ; les éléments CLIENT_PRIVATE ne sortent "
-                "que vers les agents qui en ont besoin, et sont comptés quand ils sont retenus."
+                "que vers les agents qui en ont besoin, et sont comptés quand ils sont retenus. Hors des couches, "
+                "deux blocs : `affaire` (affaire connue ou inconnue, étape qui l'a ouverte reçue ou non, verdict : "
+                "une affaire inconnue n'est jamais rendue comme un paquet vide) et `consolidation` (les jours dont "
+                "l'historique a été omis par le budget et qu'aucun fait durable ne résume, chacun avec l'affaire : "
+                "les arguments de m10_consolider_affaire)."
             ),
             parametres={
                 "type": "object",
                 "properties": {
-                    "affaire_id": {"type": "string", "description": "lead_id de l'affaire."},
+                    "affaire_id": _AFFAIRE_ID,
                     "horodatage": {"type": "string"},
                     "agent": {
                         "type": "string",
@@ -718,7 +732,7 @@ def outils() -> tuple[Outil, ...]:
             parametres={
                 "type": "object",
                 "properties": {
-                    "affaire_id": {"type": "string", "description": "lead_id de l'affaire."},
+                    "affaire_id": _AFFAIRE_ID,
                     "jour": {"type": "string", "description": "AAAA-MM-JJ, jour consolidé."},
                     "horodatage": {"type": "string"},
                 },
@@ -740,7 +754,7 @@ def outils() -> tuple[Outil, ...]:
             parametres={
                 "type": "object",
                 "properties": {
-                    "affaire_id": {"type": "string", "description": "lead_id de l'affaire."},
+                    "affaire_id": _AFFAIRE_ID,
                     "departement": {"type": "string", "description": "Département source, ex. m03-estimation."},
                     "faits": {"type": "array", "items": _FAIT_CANDIDAT},
                     "horodatage": {"type": "string"},
@@ -830,7 +844,7 @@ def outils() -> tuple[Outil, ...]:
                 "type": "object",
                 "properties": {
                     "cle_session": {"type": "string", "description": "Clé de session, telle que le core la compose."},
-                    "affaire_id": {"type": "string", "description": "lead_id de l'affaire."},
+                    "affaire_id": _AFFAIRE_ID,
                     "motif": _MOTIF_HUMAIN,
                     "horodatage": {"type": "string"},
                 },

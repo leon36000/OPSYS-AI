@@ -20,13 +20,43 @@ et le DIT explicitement (``tronque``, ``nb_omis``). Une couche sans fait est dé
 (``vide: true``), jamais silencieusement absente. Chaque fait porte sa provenance : ``source``,
 ``horodatage``, ``identifiant`` — rien n'est inventé — et son niveau de ``confidentialite``.
 
-Deux blocs de synthèse, calculés sur TOUS les éléments, jamais sur ce que la troncature a laissé :
+Le BUDGET, tel que ce module le calcule (PLAN T4.18-b : il est documenté ici, dans le README de M10 et dans
+ADR-0010, et un test lit le README) :
+
+- le paquet a un budget de ``BUDGET_CARACTERES_DEFAUT`` = 4 000 caractères, partagé également entre les quatre couches
+  (``budget_par_couche`` : 1 000 chacune, division entière) ; une couche compte au plus
+  ``NB_FAITS_MAX_PAR_COUCHE_DEFAUT`` = 5 faits. Ce budget mesure les FAITS seuls : le cadrage (les blocs ci-dessous,
+  les titres que le core ajoute) n'en fait pas partie ;
+- une couche garde ses faits du PLUS RÉCENT au plus ancien, et s'arrête au premier des deux plafonds atteint (5 faits,
+  ou 1 000 caractères). Un fait pèse ce que pèse son JSON : 180 à 270 caractères pour un fait de l'historique avec des
+  identifiants de 64 caractères, donc quatre tiennent presque toujours (cinq seulement avec les faits les plus
+  courts) : c'est le plafond des caractères qui coupe, rarement celui des 5 faits ;
+- le PREMIER fait d'une couche est toujours gardé, même s'il dépasse le budget de sa couche : une couche n'est jamais
+  vide alors que des faits existent ;
+- ce qui ne tient pas est OMIS par le bout ANCIEN, compté (``nb_omis``) et jamais rendu. Dans la couche des événements,
+  c'est l'historique de l'affaire qui s'amenuise : une affaire complète (lead, client, devis envoyé, accepté, sans
+  réponse, travaux terminés, variance) compte six à huit faits visibles selon l'agent et le nombre de devis, et son
+  ORIGINE, le plus ancien, sort la première.
+  D'où les deux blocs ci-dessous, qui ne dépendent pas de la troncature.
+
+Blocs de synthèse, calculés sur TOUS les éléments, jamais sur ce que la troncature a laissé :
 - ``signaux`` : nombre de signaux ouverts, pris en compte, clos. Le core s'y fie pour bloquer une action
   N3 ou plus tant qu'un signal est ouvert, même si la couche a dû en omettre un ;
 - ``confidentialite`` : l'agent pour qui le paquet est assemblé, la version de la règle
   (``confidentialite.py``) et le NOMBRE d'éléments retenus faute de besoin d'en connaître. Un élément
   retenu n'est jamais rendu, ni son contenu ni son identifiant. Sans agent nommé, la vue est la plus
-  restrictive.
+  restrictive ;
+- ``affaire`` (PLAN T4.18-b) : ``{connue, origine_recue, origine, verdict}``, ce que M10 sait de l'affaire elle-même
+  (``amont.situation``). Une affaire dont il n'a reçu aucun fait est dite INCONNUE (``AMONT-AFFAIRE-INCONNUE``), au
+  lieu de quatre couches vides qu'on lirait comme « rien à signaler » ; une affaire dont il n'a pas reçu l'étape qui
+  l'ouvre est dite sans origine (``AMONT-ORIGINE-NON-RECUE``). Vocabulaire fermé, aucun renseignement personnel ;
+- ``consolidation`` (PLAN T4.18-b) : ``{a_consolider, nb_a_consolider}``. Quand la couche des événements omet des
+  faits, les jours de ces faits qu'aucun fait durable ne résume : au plus ``NB_JOURS_A_CONSOLIDER_MAX`` entrées
+  ``{affaire_id, jour}``, les plus anciennes d'abord, ``nb_a_consolider`` disant le total. Chaque entrée est
+  l'argument exact de ``m10_consolider_affaire``. Seuls comptent les faits que CET agent aurait pu voir : un fait
+  retenu par confidentialité ne donne pas son jour.
+
+Ces deux derniers blocs sont ADDITIFS : les quatre couches et leur ordre ne changent pas (le core les valide).
 
 Module pur (DA-M10-08) : aucun import d'``opsys``. Les deux registres sont injectés par
 l'appelant (``outils.py``), comme partout ailleurs dans ce paquet.
@@ -38,10 +68,11 @@ import json
 from datetime import datetime
 from typing import Any
 
-from . import affaire, classification, confidentialite, consolidation, decisions, etapes, signaux
+from . import affaire, amont, classification, confidentialite, consolidation, decisions, etapes, signaux
 
 BUDGET_CARACTERES_DEFAUT = 4000
 NB_FAITS_MAX_PAR_COUCHE_DEFAUT = 5
+NB_JOURS_A_CONSOLIDER_MAX = 10
 RESUME_MAX_CARACTERES = 200
 
 COUCHE_REGLES_ENTREPRISE = "regles_entreprise"
@@ -50,6 +81,12 @@ COUCHE_EVENEMENTS_RECENTS = "evenements_recents"
 COUCHE_SIGNAUX_NON_RESOLUS = "signaux_non_resolus"
 
 _COUCHES_ORDRE = (COUCHE_REGLES_ENTREPRISE, COUCHE_FAITS_AFFAIRE, COUCHE_EVENEMENTS_RECENTS, COUCHE_SIGNAUX_NON_RESOLUS)
+
+
+def budget_par_couche(budget_caracteres: int = BUDGET_CARACTERES_DEFAUT) -> int:
+    """Budget de caractères de CHAQUE couche : celui du paquet, partagé également entre les quatre couches (division
+    entière : 4 000 donnent 1 000, un reste n'est jamais dépensé)."""
+    return budget_caracteres // len(_COUCHES_ORDRE)
 
 
 def _resume_borne(texte: Any) -> str:
@@ -186,11 +223,29 @@ def _candidats_evenements_recents(affaire_id: str, maillons_evenements: list[dic
 
 def _couche(
     nom: str, agent: str | None, candidats: list[dict], budget: int, n_max: int
-) -> tuple[dict[str, Any], int]:
+) -> tuple[dict[str, Any], int, list[dict]]:
     """Filtre par confidentialité AVANT la troncature (un élément retenu ne prend pas la place d'un autre et
-    n'est pas compté comme omis par le budget), puis tronque. Rend ``(couche, nb_retenus)``."""
+    n'est pas compté comme omis par le budget), puis tronque. Rend ``(couche, nb_retenus, omis)`` : ``omis`` sont les
+    faits que le budget a coupés (la troncature garde un PRÉFIXE de la liste triée, le plus récent d'abord)."""
     admis, nb_retenus = confidentialite.filtrer(nom, agent, candidats)
-    return _tronquer_couche(nom, admis, budget, n_max), nb_retenus
+    couche = _tronquer_couche(nom, admis, budget, n_max)
+    return couche, nb_retenus, admis[couche["nb_inclus"] :]
+
+
+def _a_consolider(affaire_id: str, omis: list[dict], maillons_affaires: list[dict]) -> dict[str, Any]:
+    """Les jours dont la couche des événements a omis un fait et qu'aucun fait durable ne résume (PLAN T4.18-b).
+
+    Le jour est celui de l'événement tel qu'il est écrit (``consolidation.jour_de``), le critère de « consolidé » celui
+    de ``consolider_affaire`` : chaque entrée est un appel valide de ``m10_consolider_affaire``, et le jour sort de la
+    liste dès que l'appel est fait. Bornée à ``NB_JOURS_A_CONSOLIDER_MAX`` (les plus anciens d'abord) ; le total dit le
+    reste."""
+    jours = consolidation.jours_non_consolides(
+        affaire_id, [consolidation.jour_de(fait["horodatage"]) for fait in omis], maillons_affaires
+    )
+    return {
+        "a_consolider": [{"affaire_id": affaire_id, "jour": jour} for jour in jours[:NB_JOURS_A_CONSOLIDER_MAX]],
+        "nb_a_consolider": len(jours),
+    }
 
 
 def _valider_entrees(
@@ -226,8 +281,10 @@ def assembler_paquet_contexte(
     agent: str | None = None,
 ) -> dict[str, Any]:
     """Rend le paquet complet : ``{affaire_id, horodatage, budget_caracteres, caracteres_utilises,
-    couches: [4 couches ordonnées], signaux, confidentialite}``. Lève ``ValueError`` (refus_metier, via
-    ``outils.executer``) sur une entrée structurellement invalide — jamais une valeur inventée.
+    couches: [4 couches ordonnées], signaux, confidentialite, affaire, consolidation}``. Lève ``ValueError``
+    (refus_metier, via ``outils.executer``) sur une entrée structurellement invalide — jamais une valeur inventée.
+    ``affaire_id`` a la forme d'affaire commune au core et à M10 (``affaire.py``) : un lead, ou l'opportunité
+    ``<lead>~opp~<wct_id>`` que M2 ouvre.
 
     ``agent`` : le département qui recevra le paquet, fixé par la plateforme (le moteur de contexte du core
     le lit dans la clé de session), jamais par un texte. Absent : la vue la plus restrictive."""
@@ -237,7 +294,6 @@ def assembler_paquet_contexte(
     maillons_affaires = registre_affaires.lire()
     tous_les_signaux = signaux.signaux_de_laffaire(affaire_id, maillons_evenements, maillons_affaires)
 
-    budget_par_couche = budget_caracteres // len(_COUCHES_ORDRE)
     entrees = (
         (COUCHE_REGLES_ENTREPRISE, _candidats_regles_entreprise(registre_affaires)),
         (COUCHE_FAITS_AFFAIRE, _candidats_faits_affaire(affaire_id, maillons_affaires)),
@@ -246,10 +302,15 @@ def assembler_paquet_contexte(
     )
     couches: list[dict[str, Any]] = []
     nb_retenus = 0
+    omis_evenements: list[dict] = []
     for nom, candidats in entrees:
-        couche, retenus = _couche(nom, agent, candidats, budget_par_couche, n_faits_max_par_couche)
+        couche, retenus, omis = _couche(
+            nom, agent, candidats, budget_par_couche(budget_caracteres), n_faits_max_par_couche
+        )
         couches.append(couche)
         nb_retenus += retenus
+        if nom == COUCHE_EVENEMENTS_RECENTS:
+            omis_evenements = omis
     return {
         "affaire_id": affaire_id,
         "horodatage": horodatage,
@@ -262,4 +323,6 @@ def assembler_paquet_contexte(
             "regle": confidentialite.REGLE_VERSION,
             "nb_retenus": nb_retenus,
         },
+        "affaire": amont.situation(affaire_id, maillons_evenements),
+        "consolidation": _a_consolider(affaire_id, omis_evenements, maillons_affaires),
     }

@@ -284,6 +284,7 @@ dans la mémoire curée.
 | Poste | Budget | Mécanisme |
 |---|---|---|
 | Sortie de `opsys_memoire_rechercher` | ≤ 4 000 caractères de texte (≈ 1 000 à 1 300 tokens), k ≤ 10 (défaut 5), extrait ≤ 800 caractères, métadonnées compactes | Constantes de `outils.py`. La troncature `Capacites` (6 000 caractères) sert de filet. |
+| Paquet de contexte de l'affaire (M10, `m10_paquet_contexte_affaire`) | 4 000 caractères de faits, 1 000 par couche (quatre couches), au plus 5 faits par couche ; le plus ancien est omis d'abord et compté (`nb_omis`) | `paquets.py` (`BUDGET_CARACTERES_DEFAUT`, `budget_par_couche`) ; le core valide et ne tronque jamais. Détail et chiffres : ADR-0010, « T4.18-b » |
 | Voie 1 OpenClaw | 0 appel modèle ; `MEMORY.md` dans le budget bootstrap | Préfixe stable, donc cache de prompt |
 | PREFLIGHT M10 | 1 recherche par tâche (pas par tour), résultats réutilisés | Hook `before_prompt_build` |
 | Indexation phase 1 | 0 token LLM | Préfixe déterministe |

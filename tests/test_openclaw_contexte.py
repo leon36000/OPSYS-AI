@@ -17,9 +17,11 @@ from pathlib import Path
 import pytest
 from m10_memoire import (
     affaire,
+    amont,
     confidentialite,
     consolidation,
     decisions,
+    etapes,
     faits_candidats,
     paquets,
     registre,
@@ -485,7 +487,9 @@ def test_le_core_lit_les_champs_du_paquet_que_m10_produit():
     for cle in ("affaire_id", "budget_caracteres", "caracteres_utilises", "couches", "nom", "vide", "tronque",
                 "nb_total", "nb_inclus", "nb_omis", "caracteres", "faits", "identifiant", "horodatage",
                 "source", "resume", "signaux", "nb_ouverts", "nb_pris_en_compte", "nb_clos", "confidentialite",
-                "agent", "regle", "nb_retenus", "etat", "traite_par", "traite_le"):
+                "agent", "regle", "nb_retenus", "etat", "traite_par", "traite_le",
+                "affaire", "connue", "origine_recue", "origine", "verdict",
+                "consolidation", "a_consolider", "nb_a_consolider", "jour"):
         assert f".{cle}" in lecture or f"{cle}," in lecture or f"{cle}:" in lecture, cle
 
 
@@ -544,6 +548,41 @@ def test_les_etats_d_un_signal_sont_ceux_de_m10_dans_le_meme_ordre():
 
     assert _liste_ts(lecture, "SIGNAL_STATES") == [
         signaux.ETAT_OUVERT, signaux.ETAT_PRIS_EN_COMPTE, signaux.ETAT_CLOS]
+
+
+def test_le_core_dit_les_verdicts_sur_l_affaire_avec_les_codes_de_m10():
+    lecture = _source("opsys-contexte-paquet.ts")
+
+    inconnue = re.search(r'OPSYS_AFFAIRE_UNKNOWN = "(.*?)";', lecture)
+    sans_origine = re.search(r'OPSYS_AFFAIRE_ORIGIN_MISSING = "(.*?)";', lecture)
+    assert inconnue is not None and sans_origine is not None
+
+    assert inconnue.group(1) == amont.AMONT_AFFAIRE_INCONNUE
+    assert sans_origine.group(1) == amont.AMONT_ORIGINE_NON_RECUE
+
+
+def test_le_core_borne_la_liste_des_jours_a_consolider_comme_m10():
+    lecture = _source("opsys-contexte-paquet.ts")
+
+    borne = re.search(r"OPSYS_A_CONSOLIDER_MAX = (\d+);", lecture)
+    assert borne is not None
+
+    assert int(borne.group(1)) == paquets.NB_JOURS_A_CONSOLIDER_MAX
+
+
+def test_ce_que_m10_ecrit_dans_les_blocs_de_l_affaire_passe_les_motifs_du_core():
+    """Le type d'événement d'une origine et le jour d'une consolidation, tels que M10 les produit, ont la forme que le
+    core accepte (`EVENT_TYPE`, `DAY`) : un motif du core plus étroit refuserait tout paquet."""
+    lecture = _source("opsys-contexte-paquet.ts")
+    type_evenement = re.search(r"EVENT_TYPE = /(.*?)/u;", lecture)
+    jour = re.search(r"DAY = /(.*?)/u;", lecture)
+    assert type_evenement is not None and jour is not None
+
+    for genre in (affaire.GENRE_LEAD, affaire.GENRE_OPPORTUNITE):
+        origine = etapes.origine_de(genre)
+        assert origine is not None and re.fullmatch(type_evenement.group(1), origine), genre
+    assert re.fullmatch(jour.group(1), consolidation.jour_de("2026-09-15T23:30:00-04:00"))
+    assert etapes.origine_de(None) is None and etapes.origine_de("autre") is None
 
 
 def test_les_niveaux_n_du_core_sont_l_echelle_de_python_dans_l_ordre():
@@ -648,15 +687,63 @@ def _cas_des_fixtures_du_core():
     return evenements, affaires
 
 
-def _paquet_de_m10(evenements, affaires, affaire="LEAD-001"):
+def _paquet_de_m10(evenements, affaires, affaire_id="LEAD-001"):
     return paquets.assembler_paquet_contexte(
-        affaire, "2026-09-28T10:15:00+00:00", evenements, affaires, agent="m03-estimation")
+        affaire_id, "2026-09-28T10:15:00+00:00", evenements, affaires, agent="m03-estimation")
 
 
-def test_les_paquets_de_test_du_core_sont_la_sortie_reelle_de_m10():
-    """Si M10 change un champ, un compteur ou un hachage, les fixtures du core (copiées telles quelles) ne
-    sont plus sa sortie : ce test rougit au lieu de laisser le core vert contre une forme périmée."""
-    fixtures = _source("opsys-contexte.test-support.ts")
+# Un lead venu d'un SMS : l'empreinte de 64 caractères que M1 lui donne (fictive), et l'opportunité de M2.
+LEAD_LONG = "9f3a7c1e5b2d40868a1c3e5f7092b4d6e8f0a2c4e6081a3c5e7f9b1d3f5a7c9e"
+OPPORTUNITE = "LEAD-003~opp~WCT-009"
+
+
+def _cas_de_l_opportunite():
+    """Le client qui revient : M2 ouvre `LEAD-003~opp~WCT-009` (son client associé, CLIENT_PRIVATE, est retenu pour M3),
+    puis M3 fait accepter un devis (son compagnon FINANCIAL est retenu aussi)."""
+    evenements, affaires = registre.Registre(), registre.Registre()
+    amont.memoriser(etapes.TYPE_CLIENT_ASSOCIE, {
+        "lead_id": OPPORTUNITE, "client_id": "5c" * 32, "horodatage_association": "2026-09-20T10:00:00-04:00"},
+        evenements)
+    amont.memoriser(etapes.TYPE_DEVIS_ACCEPTE, {
+        "devis_id": "DEVIS-003", "lead_id": OPPORTUNITE, "chantier_id": "CH-003",
+        "horodatage_acceptation": "2026-09-22T16:00:00-04:00", "lignes": [],
+        "cout_total": "812.50", "prix_total": "1249.75", "taux_marge": "0.35"}, evenements)
+    return evenements, affaires
+
+
+def _cas_de_l_historique_tronque():
+    """Une affaire complète d'un lead venu d'un SMS : six faits, dont quatre tiennent dans la couche des événements.
+    L'origine (le lead qualifié) et le devis envoyé sont omis, et aucun fait durable ne les résume encore."""
+    evenements, affaires = registre.Registre(), registre.Registre()
+    amont.memoriser(etapes.TYPE_LEAD_QUALIFIE, {
+        "lead": {"lead_id": LEAD_LONG, "service": "gouttieres", "canal": "texte", "urgence_declaree": True},
+        "horodatage": "2026-09-10T09:15:00-04:00"}, evenements)
+    amont.memoriser(etapes.TYPE_DEVIS_ENVOYE, {
+        "lead_id": LEAD_LONG, "devis_id": "DEVIS-2026-0042", "chantier_id": None,
+        "horodatage_envoi": "2026-09-11T09:00:00-04:00"}, evenements)
+    amont.memoriser(etapes.TYPE_DEVIS_SANS_REPONSE, {
+        "lead_id": LEAD_LONG, "devis_id": "DEVIS-2026-0043", "chantier_id": None, "statut": "envoye",
+        "horodatage_devis": "2026-09-05T10:00:00-04:00", "horodatage_reference": "2026-09-12T08:00:00-04:00",
+        "delai_relance_jours": 7}, evenements)
+    amont.memoriser(etapes.TYPE_DEVIS_ACCEPTE, {
+        "devis_id": "DEVIS-2026-0042", "lead_id": LEAD_LONG, "chantier_id": "CH-2026-0042",
+        "horodatage_acceptation": "2026-09-14T16:00:00-04:00", "lignes": [],
+        "cout_total": "812.50", "prix_total": "1249.75", "taux_marge": "0.35"}, evenements)
+    wct.memoriser_wct({
+        "wct_id": "WCT-2026-0042", "intervention_id": "INT-2026-0042", "lead_id": LEAD_LONG,
+        "technicien_id": "TECH-001", "horodatage_completion": "2026-09-15T14:00:00-04:00",
+        "fix_gps_completion": {"latitude": 46.8, "longitude": -71.2}, "duree_reelle_minutes": 95,
+        "ecart_signale": False, "revue_id": None, "hash_maillon": "b" * 64, "consommateurs_cibles": ["M10"],
+        "devis_id": "DEVIS-2026-0042"}, evenements)
+    amont.memoriser(etapes.TYPE_DEVIS_SANS_REPONSE, {
+        "lead_id": LEAD_LONG, "devis_id": "DEVIS-2026-0044", "chantier_id": None, "statut": "envoye",
+        "horodatage_devis": "2026-09-06T10:00:00-04:00", "horodatage_reference": "2026-09-16T08:00:00-04:00",
+        "delai_relance_jours": 7}, evenements)
+    return evenements, affaires
+
+
+def _paquets_des_fixtures():
+    """Les cinq paquets des fixtures du core, tels que M10 les produit : nom de la constante TypeScript -> paquet."""
     evenements, affaires = _cas_des_fixtures_du_core()
     ouvert = _paquet_de_m10(evenements, affaires)
     signaux.traiter_signal(
@@ -665,11 +752,70 @@ def test_les_paquets_de_test_du_core_sont_la_sortie_reelle_de_m10():
     signaux.traiter_signal(
         signaux.ACTION_CLOTURE, "EVT-001", "amina.admin", "admin", "appareil",
         "Écart expliqué : gouttière refaite, facture corrigée.", "2026-09-18T16:00:00-04:00", evenements, affaires)
-    clos = _paquet_de_m10(evenements, affaires)
-    vide = _paquet_de_m10(registre.Registre(), registre.Registre(), affaire="LEAD-777")
+    return {
+        "PAQUET_M10": ouvert,
+        "PAQUET_M10_SIGNAL_CLOS": _paquet_de_m10(evenements, affaires),
+        "PAQUET_M10_VIDE": _paquet_de_m10(registre.Registre(), registre.Registre(), affaire_id="LEAD-777"),
+        "PAQUET_M10_OPPORTUNITE": _paquet_de_m10(*_cas_de_l_opportunite(), affaire_id=OPPORTUNITE),
+        "PAQUET_M10_HISTORIQUE_TRONQUE": _paquet_de_m10(*_cas_de_l_historique_tronque(), affaire_id=LEAD_LONG),
+    }
 
-    for nom, paquet in (("PAQUET_M10", ouvert), ("PAQUET_M10_SIGNAL_CLOS", clos), ("PAQUET_M10_VIDE", vide)):
-        bloc = re.search(rf"export const {nom} = \{{(.*?)\n\}};", fixtures, re.DOTALL)
-        assert bloc is not None, nom
+
+def _bloc_ts(fixtures, nom):
+    bloc = re.search(rf"export const {nom} = \{{(.*?)\n\}};", fixtures, re.DOTALL)
+    assert bloc is not None, nom
+    return bloc.group(1)
+
+
+def _litteral_ts(corps):
+    """Le corps d'un objet littéral des fixtures (clés sans guillemets, virgules finales), lu comme du JSON : les
+    fixtures n'ont que des textes, des nombres, des booléens, `null`, des objets et des tableaux."""
+    texte = re.sub(r"(?m)^(\s*)([A-Za-z_][A-Za-z0-9_]*):", r'\1"\2":', "{" + corps + "\n}")
+    return json.loads(re.sub(r",(\s*[}\]])", r"\1", texte))
+
+
+def test_les_paquets_de_test_du_core_sont_la_sortie_reelle_de_m10():
+    """Si M10 change un champ, un compteur ou un hachage, les fixtures du core (copiées telles quelles) ne
+    sont plus sa sortie : ce test rougit au lieu de laisser le core vert contre une forme périmée."""
+    fixtures = _source("opsys-contexte.test-support.ts")
+
+    for nom, paquet in _paquets_des_fixtures().items():
+        bloc = _bloc_ts(fixtures, nom)
         for valeur in _valeurs(paquet):
-            assert json.dumps(valeur, ensure_ascii=False) in bloc.group(1), (nom, valeur)
+            assert json.dumps(valeur, ensure_ascii=False) in bloc, (nom, valeur)
+
+
+def test_les_paquets_de_test_du_core_sont_exactement_la_sortie_de_m10_cle_par_cle():
+    """Plus strict que la lecture des valeurs : chaque fixture, lue comme un objet, EST le paquet de M10 (aucune clé
+    en trop ni en moins, à commencer par les blocs `affaire` et `consolidation`)."""
+    fixtures = _source("opsys-contexte.test-support.ts")
+
+    for nom, paquet in _paquets_des_fixtures().items():
+        assert _litteral_ts(_bloc_ts(fixtures, nom)) == paquet, nom
+
+
+def test_les_fixtures_disent_chacune_des_formes_de_l_affaire():
+    """Le core est éprouvé contre CHAQUE réponse de M10 sur l'affaire elle-même : inconnue, origine manquante, origine
+    reçue (lead, opportunité), historique tronqué avec ses jours à consolider."""
+    paquets_m10 = _paquets_des_fixtures()
+
+    assert paquets_m10["PAQUET_M10_VIDE"]["affaire"]["verdict"] == amont.AMONT_AFFAIRE_INCONNUE
+    assert paquets_m10["PAQUET_M10"]["affaire"]["verdict"] == amont.AMONT_ORIGINE_NON_RECUE
+    assert paquets_m10["PAQUET_M10_OPPORTUNITE"]["affaire"] == {
+        "connue": True, "origine_recue": True, "origine": etapes.TYPE_CLIENT_ASSOCIE, "verdict": None}
+    tronque = paquets_m10["PAQUET_M10_HISTORIQUE_TRONQUE"]
+    assert tronque["affaire"] == {
+        "connue": True, "origine_recue": True, "origine": etapes.TYPE_LEAD_QUALIFIE, "verdict": None}
+    assert tronque["consolidation"] == {
+        "a_consolider": [{"affaire_id": LEAD_LONG, "jour": "2026-09-10"},
+                         {"affaire_id": LEAD_LONG, "jour": "2026-09-11"}],
+        "nb_a_consolider": 2}
+    evenements = next(c for c in tronque["couches"] if c["nom"] == paquets.COUCHE_EVENEMENTS_RECENTS)
+    assert evenements["tronque"] is True and evenements["nb_omis"] == 2
+    assert all(len(p["affaire_id"]) <= affaire.LONGUEUR_AFFAIRE_MAX for p in paquets_m10.values())
+    assert affaire.est_opportunite(paquets_m10["PAQUET_M10_OPPORTUNITE"]["affaire_id"])
+    assert len(tronque["affaire_id"]) == 64
+    # les identifiants que les fixtures donnent au core sont ceux de M10
+    fixtures = _source("opsys-contexte.test-support.ts")
+    assert f'AFFAIRE_M10_OPPORTUNITE = "{OPPORTUNITE}"' in fixtures
+    assert f'AFFAIRE_M10_HISTORIQUE_TRONQUE = "{LEAD_LONG}"' in fixtures

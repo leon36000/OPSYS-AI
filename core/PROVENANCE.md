@@ -278,6 +278,32 @@ le bac à sable de développement : la CI (`tests` et `tests-opsys`) fait foi.
   M10 (`signaux.py`, `liaison.py`, `confidentialite.py`, `humain.py`).
 - Surface consommée : `opsys/contexte.json` porte en plus `niveaux`, `outil_affaire` et, par agent, `affaire`.
 
+### T4.18-b : forme d'affaire commune, blocs `affaire` et `consolidation` du paquet
+
+Trois ajouts au moteur de contexte, dans les mêmes fichiers. Rien n'est exécuté dans le bac à sable de développement :
+la CI (`tests` et `tests-opsys`) fait foi. Le TypeScript est relu à la main, sa logique est transcrite en Python
+pour vérifier les attentes des tests, et les fixtures sont comparées clé par clé à la sortie réelle de M10.
+- **Forme d'affaire** (`opsys-contexte-paquet.ts`). `AFFAIRE_ID` et `AFFAIRE_LINE` admettent l'opportunité
+  `<lead>~opp~<wct_id>` que M2 ouvre quand un client revient : 64 + 5 + 128 caractères au plus, lettres, chiffres et `._:-`
+  (le tilde n'existe que dans `~opp~`). Le motif est celui de M10 (`affaire.py`, `FORME_AFFAIRE`), mot pour mot ; un test
+  du socle compare les deux textes. `isOpsysAffaireId` est exporté. Les deux côtés rejouent la MÊME liste de cas, un
+  fichier JSON partagé (`opsys-contexte.affaires.json`). Une chaîne d'opportunités reste refusée (limite dite).
+- **Paquet vérifié, deux blocs additifs.** Le core valide `affaire` (`connue`, `origine_recue`, `origine`, `verdict` : un
+  vocabulaire fermé dont l'incohérence refuse le paquet, un type d'origine qui n'est jamais un texte libre, une affaire
+  inconnue sans événement ni signal) et `consolidation` (au plus dix jours de CETTE affaire, sans doublon, une liste qui
+  correspond à son compte, jamais plus de jours que d'événements omis par la couche). Il rend une phrase de sa plume sur l'affaire,
+  avant les couches, et une ligne sous les événements pour les jours à consolider ; le budget de M10 ne compte pas ce cadrage.
+  Les quatre couches et leur ordre ne changent pas.
+- **Moteur** (`opsys-contexte-engine.ts`). Une affaire inconnue est journalisée (`opsys-contexte`, niveau info). Le garde
+  ne change pas : une affaire inconnue ne bloque pas un outil N3 ou plus (décision laissée au propriétaire, ADR-0010).
+- Ajoutés : `src/context-engine/opsys-contexte-affaire.test.ts` et `src/context-engine/opsys-contexte.affaires.json`.
+- Modifiés : `src/context-engine/opsys-contexte-{paquet,engine}.ts` et leurs tests, `opsys-contexte.test-support.ts` (cinq
+  paquets, dont l'opportunité et un historique tronqué de lead venu d'un SMS), `test/opsys-tests-cibles.txt`.
+- Côté Python : `m10_memoire/affaire.py` (forme commune), `etapes.py` (l'étape qui ouvre une affaire), `amont.py`, `paquets.py`,
+  `consolidation.py`, `faits_candidats.py`, `liaison.py`, `outils.py` ; `tests/test_openclaw_contexte.py` épingle le contrat.
+- Ce que seule la CI prouve : la construction (`core.yml`, job `construction`), les trois fichiers de tests du core
+  (`tests-opsys`), et que `HookContext.sessionKey` reste la clé que reçoit `assemble()` (déjà à vérifier depuis T3.3-suite-b).
+
 ## Renommage, lot 1 : la marque visible devient OPSYS (T0.7)
 
 Décisions : [R14](../docs/research/R14-renommage-core.md). On renomme ce que l'utilisateur voit, jamais l'API interne

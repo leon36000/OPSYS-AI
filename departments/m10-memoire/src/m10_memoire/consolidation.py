@@ -30,10 +30,21 @@ def _cle_consolidation(affaire_id: str, jour: str) -> str:
     return f"{affaire_id}:{jour}"
 
 
-def _jour_de(horodatage: str) -> str:
+def jour_de(horodatage: str) -> str:
     """Les 10 premiers caractères d'un horodatage ISO 8601 déjà validé (``AAAA-MM-JJ``) — le
-    registre qui a écrit ce maillon a déjà refusé tout horodatage mal formé (``registre.py``)."""
+    registre qui a écrit ce maillon a déjà refusé tout horodatage mal formé (``registre.py``).
+
+    C'est la date TELLE QU'ELLE EST ÉCRITE, sans conversion de fuseau : 23 h 30 à l'heure de l'Est est encore ce jour-là
+    ici. La consolidation groupe par ce jour, et le paquet de contexte dit les jours à consolider avec la même règle."""
     return horodatage[:10]
+
+
+def jours_non_consolides(affaire_id: str, jours: list[str], maillons_affaires: list[dict[str, Any]]) -> list[str]:
+    """Parmi ``jours``, ceux pour lesquels AUCUN fait consolidé de cette affaire n'existe, sans doublon, du plus ancien
+    au plus récent. Le critère est celui de ``consolider_affaire`` (la clé ``affaire:jour``) : un jour listé ici est
+    un jour que l'outil sait consolider, et il cesse de l'être dès qu'il l'a fait."""
+    cles = {m.get("cle_consolidation") for m in maillons_affaires if m.get("type_entree") == TYPE_ENTREE_FAIT}
+    return sorted(jour for jour in set(jours) if _cle_consolidation(affaire_id, jour) not in cles)
 
 
 def _resumer(evenements_du_jour: list[dict]) -> str:
@@ -110,7 +121,7 @@ def consolider_affaire(
             return {"ecrit": False, "deja_consolide": True, "fait": maillon, "verdict": None}
 
     evenements_affaire = classification.evenements_de_laffaire(affaire_id, registre_evenements.lire())
-    evenements_du_jour = [e for e in evenements_affaire if _jour_de(e["horodatage"]) == jour]
+    evenements_du_jour = [e for e in evenements_affaire if jour_de(e["horodatage"]) == jour]
     if not evenements_du_jour:
         return {
             "ecrit": False,

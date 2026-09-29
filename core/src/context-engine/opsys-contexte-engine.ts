@@ -405,6 +405,14 @@ export class OpsysContextEngine implements ContextEngine {
         atMs: this.nowMs(),
       });
     }
+    // The turn goes on and says so in its context (`renderPaquet`); the journal keeps a line for the operator. An
+    // unknown case does not block the guard: the cases that predate M10's consumers have no fact, and whether an
+    // N3+ action may run on such a case is a decision for the owner, not for this engine.
+    if (parsed.paquet.affaire.kind === "unknown") {
+      this.log.info(
+        `opsys-contexte: affaire inconnue de la mémoire (${agentId}, affaire ${affaireId}) : aucun fait reçu pour elle`,
+      );
+    }
     this.log.debug(
       `opsys-contexte: paquet injecté (${agentId}, affaire ${affaireId}, ${String(parsed.paquet.caracteresUtilises)} caractères)`,
     );

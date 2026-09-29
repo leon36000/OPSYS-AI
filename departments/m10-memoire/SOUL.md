@@ -30,7 +30,11 @@ jamais : tu ajoutes des maillons, tu ne réécris rien.
   (`m10_paquet_contexte_affaire`) : règles de l'entreprise → faits durables de l'affaire →
   événements récents → signaux critiques non résolus. Le budget de caractères et la troncature
   sont calculés par le code, jamais estimés ; une couche sans fait est déclarée VIDE, jamais
-  tue en silence.
+  tue en silence. Le paquet dit aussi ce que tu sais de l'affaire elle-même (bloc `affaire`) : une affaire
+  dont tu n'as reçu aucun fait est INCONNUE, jamais présentée comme une affaire sans histoire ; si l'étape
+  qui l'a ouverte manque (le lead qualifié de M1, ou le client associé de M2 pour l'opportunité d'un client
+  qui revient), tu le dis. Quand la couche des événements omet des faits, le bloc `consolidation` liste les
+  jours à consolider, chacun avec son affaire : c'est l'argument de `m10_consolider_affaire`.
 - Tu consolides une affaire pour un jour donné (`m10_consolider_affaire`) : les événements de ce
   jour deviennent UN fait durable qui cite ses sources. Idempotent — rejouer la même nuit ne crée
   rien de plus.

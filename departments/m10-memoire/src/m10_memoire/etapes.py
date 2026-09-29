@@ -249,18 +249,26 @@ class Etape:
     # Compagnon FINANCIAL : ce que la charge porte de prix et de coût, en maillon à part.
     montants: Callable[[Mapping[str, Any]], dict[str, Any]] | None = None
     resumer_montants: Callable[[Mapping[str, Any]], str] | None = None
+    # Genres d'affaire (`affaire.GENRE_*`) que cette étape OUVRE : elle en est l'origine, celle dont M10 dit qu'il ne
+    # l'a pas reçue (`AMONT-ORIGINE-NON-RECUE`). Vide : l'étape suit l'ouverture d'une affaire, elle ne l'ouvre pas.
+    ouvre: tuple[str, ...] = ()
 
 
 # Ordre de l'entonnoir : c'est celui de la consolidation. Une étape absente d'ici n'est pas consommée.
 # `m3.devis_envoye` (T4.7) : l'envoi approuvé par le propriétaire, entre le client associé et l'acceptation.
+# Deux étapes OUVRENT une affaire (PLAN T4.18-b) : M1 qualifie un lead ; M2 ouvre l'opportunité d'un client qui revient
+# et publie alors son client associé. Le client associé d'un LEAD n'ouvre rien : M2 ingère un lead que M1 a ouvert, ou
+# que quelqu'un a saisi hors de M1, et M10 ne peut pas le savoir (il dit l'origine non reçue).
 _ETAPES = (
     Etape(
         TYPE_LEAD_QUALIFIE, "m01-front-office", "lead_id", "lead(s) qualifié(s)",
         confidentialite.NIVEAU_INTERNE, _extraire_lead_qualifie, _resume_lead_qualifie,
+        ouvre=(affaire.GENRE_LEAD,),
     ),
     Etape(
         TYPE_CLIENT_ASSOCIE, "m02-revenue-crm", "lead_id", "client(s) associé(s)",
         confidentialite.NIVEAU_CLIENT_PRIVE, _extraire_client_associe, _resume_client_associe,
+        ouvre=(affaire.GENRE_OPPORTUNITE,),
     ),
     Etape(
         TYPE_DEVIS_ENVOYE, "m03-estimation", "devis_id", "devis envoyé(s)",
@@ -285,6 +293,12 @@ def etapes_de_l_amont() -> tuple[Etape, ...]:
 def etape(type_evenement: Any) -> Etape | None:
     """L'étape d'un type d'événement du bus, ou ``None`` (type non consommé par cette table)."""
     return next((e for e in _ETAPES if e.type_evenement == type_evenement), None)
+
+
+def origine_de(genre_de_l_affaire: str | None) -> str | None:
+    """Le type du bus de l'étape qui OUVRE une affaire de ce genre (``affaire.genre``), ou ``None`` (genre inconnu :
+    rien n'est deviné). Le lead qualifié de M1 ouvre un lead ; le client associé de M2 ouvre une opportunité."""
+    return next((e.type_evenement for e in _ETAPES if genre_de_l_affaire in e.ouvre), None)
 
 
 def types_consommes() -> tuple[str, ...]:
