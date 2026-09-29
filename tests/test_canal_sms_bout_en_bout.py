@@ -1,4 +1,5 @@
-"""PLAN T2.1-a — un SMS de client traverse M1 puis M2 par le vrai bus, et sa session se lie à son affaire par un humain.
+"""PLAN T2.1-a puis T2.1-b — un SMS de client traverse M1 puis M2 par le vrai bus, et sa session se lie à son affaire
+par un humain.
 
 Trajet prouvé, sans réseau ni core (le core ne s'exécute pas ici) :
 
@@ -6,11 +7,12 @@ Trajet prouvé, sans réseau ni core (le core ne s'exécute pas ici) :
       -> `Capacites.appeler("m1_recevoir_message_canal")`   (vrai manifeste de M1, mode ombre, N2 : sans approbation)
       -> registre anti-perte de M1 + événement `m1.lead_qualifie` (même transaction)
       -> `evenements.repartir` (vrai répartiteur, idempotent)
-      -> `m2.ingerer_lead` (vraie fonction de M2 : contrat v2, Client 360, événement `m2.client_associe`)
+      -> `m2_revenue_crm.outils.consommateurs()["m1.lead_qualifie"]` (VRAI manifeste de M2, aucune greffe : contrat v2,
+         Client 360, événement `m2.client_associe`)
 
-M2 ne déclare pas encore qu'il consomme `m1.lead_qualifie` (M2 est hors de cette tranche) : le test greffe, sur le
-VRAI manifeste de M2, une fonction consommatrice de trois lignes qui appelle `m2.ingerer_lead`. C'est la greffe
-que M2 fera dans son manifeste (`evenements.consomme`) et son `consommateurs()` ; tout le reste est réel.
+Depuis T2.1-b, M2 déclare lui-même qu'il consomme `m1.lead_qualifie` (`evenements.consomme` de son manifeste et sa
+fonction dans `consommateurs()`) : rien n'est greffé dans ce test. Les scénarios de conversation, de rejeu, de retrait
+et de refus par M2 sont dans `test_canal_conversation.py`.
 
 Puis, avec les vrais outils de M10 : la clé de session que M1 a calculée est liée au `lead_id` par une décision
 humaine (approbation de nathan), jamais par le texte du client. Données fictives.
@@ -18,7 +20,6 @@ humaine (approbation de nathan), jamais par le texte du client. Données fictive
 
 from __future__ import annotations
 
-import dataclasses
 import datetime as dt
 
 import pytest
@@ -43,26 +44,9 @@ SMS = {
 MOTIF = "Le client a écrit par SMS : son affaire est le lead qui vient d'être qualifié."
 
 
-def _consommateur_lead_de_m1(charge: dict) -> dict:
-    """Ce que M2 branchera : le lead que M1 publie est ingéré par la VRAIE `m2_ingerer_lead`."""
-    resultat = m2.ingerer_lead(charge["lead"], charge["horodatage"])
-    if not resultat["accepte"]:
-        raise ValueError(f"M2 refuse le lead de M1 : {resultat['verdict']}")
-    return resultat
-
-
-class _M2QuiConsommeLeadsDeM1(Departement):
-    def charger_consommateurs(self):
-        return {**super().charger_consommateurs(), "m1.lead_qualifie": _consommateur_lead_de_m1}
-
-
 def _departements() -> dict[str, Departement]:
-    deps = charger_departements()
-    m2_reel = deps["m02-revenue-crm"]
-    champs = {f.name: getattr(m2_reel, f.name) for f in dataclasses.fields(m2_reel)}
-    champs["evenements_consomme"] = (*m2_reel.evenements_consomme, "m1.lead_qualifie")
-    deps["m02-revenue-crm"] = _M2QuiConsommeLeadsDeM1(**champs)
-    return deps
+    """Les vrais manifestes de `departments/` : M2 consomme `m1.lead_qualifie` de lui-même, rien n'est greffé."""
+    return charger_departements()
 
 
 @pytest.fixture
@@ -208,8 +192,12 @@ def test_la_session_du_client_se_lie_a_son_affaire_par_une_decision_humaine_avec
     assert (lue["lie"], lue["affaire_id"], lue["lie_par"]) == (True, lead_id, "nathan")
 
 
-def test_le_bus_est_coherent_avec_le_vrai_m1_qui_publie_le_lead_du_canal():
+def test_le_bus_est_coherent_avec_le_vrai_m1_qui_publie_le_lead_du_canal_et_le_vrai_m2_qui_le_consomme():
     deps = charger_departements()
     assert "m1.lead_qualifie" in evenements.types_connus()
     assert deps["m01-front-office"].evenements_publie == ("m1.lead_qualifie",)
+    m2_reel = deps["m02-revenue-crm"]
+    assert "m1.lead_qualifie" in m2_reel.evenements_consomme
+    assert type(m2_reel) is Departement, "le manifeste de M2 n'est pas une sous-classe greffée"
+    assert m2_reel.charger_consommateurs()["m1.lead_qualifie"] is m2.consommateurs()["m1.lead_qualifie"]
     assert evenements.verifier_coherence(deps) == []

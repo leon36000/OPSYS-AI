@@ -20,7 +20,8 @@ skills: [traiter-une-demande-entrante, mener-un-appel-vocal, recevoir-un-message
 # politiques ne sont pas fournis, une session par client, aucune réponse automatique, outils fermés. Conception :
 # docs/departements/M1-canaux.md. Outil d'accueil exigé : m1_recevoir_message_canal (N2 au plus).
 canaux: [sms]
-# M1 publie le lead qualifié ; M2 le consommera (`evenements.consomme` de M2 : à ajouter, avec sa fonction).
+# M1 publie le lead qualifié ; M2 le consomme (`evenements.consomme` de M2, PLAN T2.1-b : ingestion complète, un refus
+# lève et le répartiteur réessaie puis met en quarantaine).
 evenements:
   publie: [m1.lead_qualifie]
 planifications:

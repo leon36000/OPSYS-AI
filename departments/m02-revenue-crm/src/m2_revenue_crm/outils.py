@@ -40,6 +40,7 @@ from . import (
     contrats,
     digest,
     doublons,
+    encodage,
     ingestion,
     interactions,
     readiness,
@@ -852,11 +853,69 @@ def _recevoir_devis_sans_reponse(charge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------
+# Consommateur d'événements (ADR-0009 §3, PLAN T2.1-b) : m1.lead_qualifie
+# ---------------------------------------------------------------------------
+# Le lead qu'un canal du core a fait qualifier par M1 (`m1_recevoir_message_canal`) arrive ici par le bus, jamais par
+# un appel direct de M1 (document des canaux, `docs/departements/`, §1). M2 fait ce qu'elle fait de tout lead :
+# l'ingérer par la chaîne complète (`ingerer_lead` : contrat v2, frontières, unicité, doublons, Client 360,
+# `m2.client_associe`).
+
+
+class LeadRefuse(ValueError):
+    """m1.lead_qualifie : M2 refuse le lead — contrat invalide (service retiré du profil depuis la qualification,
+    par exemple), frontière de vérité violée, ou `lead_id` déjà ingéré avec un AUTRE contenu. Jamais une acceptation
+    silencieuse : le répartiteur réessaie, puis met l'événement en quarantaine, visible par un humain
+    (`opsys evenements etat`), sans qu'aucune écriture n'ait eu lieu."""
+
+
+def _recevoir_lead_qualifie(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme m1.lead_qualifie (ADR-0009 §3, PLAN T2.1-b) : ingère le lead v2 avec l'heure de réception que M1 a
+    reçue de la plateforme (`charge["horodatage"]`), jamais une horloge de M2.
+
+    Idempotent à deux niveaux, même patron que ``_recevoir_travaux_termines`` : le répartiteur n'appelle cette
+    fonction qu'une fois par (evenement_id, consommateur) traité avec succès (``EVENEMENTS_RECUS`` UNIQUE) ; et un
+    lead déjà ingéré (même ``lead_id``, même contenu : même empreinte de contrat) est reconnu ici — rien ne s'écrit
+    une seconde fois, ni lead, ni lien client, ni opportunité, ni événement ``m2.client_associe``, et aucune
+    quarantaine pour une redélivrance. Un ``lead_id`` connu mais d'un AUTRE contenu est une incohérence :
+    ``LeadRefuse``.
+
+    Refus de l'ingestion (``accepte: false``) : ``LeadRefuse``, avec le code et le détail du verdict. M2 ne
+    corrige rien et ne devine rien : le lead reste chez M1 (registre anti-perte), rien n'est perdu.
+    """
+    lead = charge["lead"]
+    lead_id = lead["lead_id"]
+    reg = _obtenir_registre()
+    existant = next(
+        (m for m in reg.lire() if m.get("type_entree") == ingestion.TYPE_ENTREE and m.get("lead_id") == lead_id), None
+    )
+    if existant is not None:
+        if existant.get("empreinte_contrat") != encodage.empreinte(lead):
+            raise LeadRefuse(
+                f"m1.lead_qualifie : le lead {lead_id!r} est déjà ingéré avec un contenu différent : "
+                "incohérence, aucune écriture (décision humaine requise)."
+            )
+        return {
+            "accepte": True,
+            "deja_applique": True,
+            "lead_id": lead_id,
+            "client_id": clients.client_de_lead(reg, lead_id),
+        }
+    resultat = ingerer_lead(lead, charge["horodatage"])
+    if not resultat["accepte"]:
+        verdict = resultat["verdict"]
+        raise LeadRefuse(
+            f"m1.lead_qualifie : M2 refuse le lead {lead_id!r} — {verdict['code']} : {verdict['detail']}"
+        )
+    return resultat
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
     """Types d'événements consommés par M2 (ADR-0009 §3) — voir `department.yaml/evenements`."""
     return {
         "m4.travaux_termines": _recevoir_travaux_termines,
         "m3.devis_sans_reponse": _recevoir_devis_sans_reponse,
+        "m1.lead_qualifie": _recevoir_lead_qualifie,
     }
 
 

@@ -12,3 +12,6 @@ services et zone du profil d'entreprise, expéditeur comme contact), l'inscrit a
 v2 au bus (`m1.lead_qualifie`, `source` = le canal). Le canal est désactivé tant que ses identifiants et la validation
 écrite des politiques ne sont pas fournis ; aucune réponse n'est envoyée au client sans approbation humaine.
 Conception, configuration générée, garde-fous et greffes du core à faire : [M1-canaux](../../docs/departements/M1-canaux.md).
+
+M2 consomme ce lead pour de vrai depuis T2.1-b (`evenements.consomme` de M2, sans greffe) : ingestion complète, idempotente ;
+un refus lève, le répartiteur réessaie puis met en quarantaine.

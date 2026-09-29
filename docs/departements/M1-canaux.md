@@ -3,6 +3,7 @@
 **Date :** 2026-09-29. **Portée de cette tranche :** un message SMS de client arrive à l'agent M1 par le canal du
 core, est qualifié par le code, et devient un lead v2 que M2 recevra par le bus. Rien n'est envoyé au client. Le
 courriel a son outil (même chemin) mais pas sa configuration ; la voix vient après.
+**Suite (T2.1-b, partie 1, 2026-09-29) :** M2 consomme vraiment `m1.lead_qualifie` (§7).
 **Références :** `DEFINITION-PRODUIT` §5, §6, §7 (M1.1, M1.3, M1.4, M1.7), `M1-audit.md`, ADR-0010 (T3.3-suite-b).
 **Le core ne s'exécute pas dans ce bac à sable.** Tout ce qui suit sur le core vient de la lecture de ses sources
 (`fichier:ligne` donnés) ; la CI (`e2e-core`, `openclaw config validate`) est l'autorité.
@@ -27,7 +28,7 @@ client ──SMS──> Twilio ──webhook──> extensions/sms (core)
         + événement m1.lead_qualifie, dans la même transaction        src/opsys/evenements/catalogue/m1.lead_qualifie.json
       │ bus (repartir, idempotent)
       ▼
-   M2 : m2_ingerer_lead (consommateur à greffer : §7)
+   M2 : consomme m1.lead_qualifie (T2.1-b, §7) : ingestion complète et idempotente ; un refus lève, puis quarantaine
 
    réponse au client : aucune. Le texte final de l'agent est retenu (sendPolicy) ; l'outil « message » du core lui est
    retiré ; seul m1_emettre_notification (N4) écrit à un client, et une personne doit l'approuver.
@@ -72,7 +73,7 @@ décrite au §7 (crochet `message_received` du core).
   pas d'affaire, serait refusé. Proposer une réponse (`m1_emettre_notification`, N4) attend le lien.
 - Pour activer la lecture par la session : `opsys openclaw configurer --contexte-entreprise m01-front-office
   --affaire-par-session m01-front-office` (aucun outil de M1 n'est déposé au POSTFLIGHT). Testé.
-- **Règle écrite (à faire, T2.1-b).** Le lien automatique à la création d'un lead demande trois choses : la clé de
+- **Règle écrite (à faire, décision du propriétaire).** Le lien automatique à la création d'un lead demande trois choses : la clé de
   session côté core (le crochet du §7 la donne), un producteur déterministe (un consommateur de `m1.lead_qualifie` dans
   M10), et une voie « règle » dans `m10_memoire/humain.py`, qui n'a aujourd'hui que `appareil` et `approbation`. C'est
   une décision de confidentialité du propriétaire : la clé contient le numéro, donc elle ne voyage pas dans l'événement
@@ -145,20 +146,29 @@ un canal partagé par deux départements, ou le mode `autonome`. Avec `--config-
 
 ## 6. Ce qui reste (tranches suivantes)
 
-1. **T2.1-b — retirer le modèle de la réception.** Crochet `message_received` (§7) ; lien automatique session -> affaire ;
-   qualification par conversation (elle est aujourd'hui message par message : le service dans un message et la ville dans
-   le suivant ne se rejoignent pas).
+1. **T2.1-b — retirer le modèle de la réception.** *Fait (partie 1) :* M2 consomme `m1.lead_qualifie` (§7). *Reste :* la
+   qualification par conversation (elle est encore message par message : le service dans un message et la ville dans le
+   suivant ne se rejoignent pas) ; le crochet `message_received` (§7) ; le lien automatique session -> affaire (décision de
+   confidentialité du propriétaire, §3).
 2. **T2.1-c — envoi réel après approbation** : adaptateur d'envoi par le canal, consentement opt-in, application du
    retrait, appel manqué (SMS de rappel seulement avec opt-in, tâche de rappel toujours).
 3. **T2.1-d — courriel** (`imap`) et **voix** (`voice-call`) : §7.
 
 ## 7. Limites du fork et greffes (le code de `core/` n'est pas touché ici)
 
-- **M2 ne consomme pas encore `m1.lead_qualifie`** (M2 est hors de cette tranche). Greffe, côté M2 : ajouter le type à
-  `evenements.consomme` de `departments/m02-revenue-crm/department.yaml` et sa fonction à `consommateurs()` :
-  `lambda charge: ingerer_lead(charge["lead"], charge["horodatage"])`, en levant si `accepte` est faux (le répartiteur
-  réessaie puis met en quarantaine). `tests/test_canal_sms_bout_en_bout.py` prouve le trajet avec cette fonction greffée
-  sur le vrai manifeste de M2.
+- **M2 consomme `m1.lead_qualifie` (T2.1-b, fait).** `evenements.consomme` de `departments/m02-revenue-crm/department.yaml`
+  déclare le type, et `consommateurs()` (`outils.py`) le branche à `_recevoir_lead_qualifie`, qui appelle l'ingestion
+  complète `ingerer_lead(charge["lead"], charge["horodatage"])` : contrat v2, frontières, unicité, doublons probables
+  signalés, Client 360, événement `m2.client_associe`. L'heure d'ingestion est celle de réception de la plateforme.
+  - **Refus** : un lead que M2 refuse (service retiré du profil depuis la qualification, contrat invalide) lève
+    `LeadRefuse`, avec le code et le détail du verdict. Le répartiteur réessaie (cinq fois, délai croissant), puis met
+    l'événement en quarantaine (`opsys evenements etat`), sans aucune écriture chez M2. Jamais d'acceptation silencieuse.
+    Le lead reste au registre de M1 : rien n'est perdu.
+  - **Idempotence** : le répartiteur livre une fois par (événement, consommateur). En plus, un lead déjà ingéré (même
+    `lead_id`, même empreinte de contrat) est reconnu (`deja_applique`) : ni second lead, ni seconde opportunité, ni
+    second `m2.client_associe`. Un `lead_id` connu avec un autre contenu lève `LeadRefuse` (décision humaine).
+  - **Preuve** : `tests/test_canal_sms_bout_en_bout.py` (vrai manifeste de M2, sans greffe) et
+    `departments/m02-revenue-crm/tests/test_consommer_lead_de_m1.py` (rejeu, quarantaine, refus).
 - **Le modèle recopie les champs de la plateforme.** Greffe : un crochet `message_received`, écrit par OPSYS dans
   `core/src/context-engine/` (où vit déjà le client MCP de M10, `opsys-contexte-mcp.ts`), qui appelle
   `m1_recevoir_message_canal` avant le tour de l'agent avec ce que le core lui donne : `from`, `content`, `timestamp`

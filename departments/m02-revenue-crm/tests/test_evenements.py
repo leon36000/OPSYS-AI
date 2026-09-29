@@ -163,12 +163,13 @@ def _deps_bus():
 
 
 class TestManifeste:
-    def test_m2_declare_consommer_travaux_termines_et_devis_sans_reponse(self):
+    def test_m2_declare_consommer_travaux_termines_devis_sans_reponse_et_lead_qualifie(self):
         dep = charger_departements()["m02-revenue-crm"]
-        assert dep.evenements_consomme == ("m4.travaux_termines", "m3.devis_sans_reponse")
+        assert dep.evenements_consomme == ("m4.travaux_termines", "m3.devis_sans_reponse", "m1.lead_qualifie")
         consommateurs = dep.charger_consommateurs()
         assert "m4.travaux_termines" in consommateurs
         assert "m3.devis_sans_reponse" in consommateurs
+        assert "m1.lead_qualifie" in consommateurs, "PLAN T2.1-b : le lead d'un canal arrive vraiment dans M2"
 
     def test_m2_declare_publier_client_associe_et_lead_assigne(self):
         """PLAN T2.2 (Client 360), puis PLAN T1.4-k2 (propriétaire du lead, lu par M3)."""

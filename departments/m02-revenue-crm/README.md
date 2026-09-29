@@ -18,3 +18,15 @@ qualification depuis un appareil exige que `owner` soit l'identifiant d'une pers
 admin) et publie `m2.lead_assigne`, que M3 relit. Sans identité d'appareil (agent, console, consommateurs
 d'événements) : comportement d'avant, `owner` en texte libre. Voir « Ce que T1.4-k2 laisse ouvert »
 (pas de réassignation, leads qualifiés avant ce changement).
+
+## Le lead d'un canal arrive par le bus (PLAN T2.1-b)
+
+M2 consomme `m1.lead_qualifie` (`evenements.consomme` de `department.yaml`, `_recevoir_lead_qualifie` dans
+`outils.py`) : le lead v2 que M1 qualifie à partir d'un message de canal du core (SMS) est ingéré par la chaîne complète
+(`ingerer_lead` : contrat, frontières, unicité, doublons probables signalés, Client 360, `m2.client_associe`), avec l'heure
+de réception de la plateforme. Un lead refusé (service retiré du profil depuis la qualification, contrat invalide) lève
+`LeadRefuse` : le répartiteur réessaie, puis met l'événement en quarantaine, sans écriture ; jamais d'acceptation silencieuse.
+Un événement rejoué, ou le même lead sous un autre identifiant d'événement, ne crée ni second lead ni seconde opportunité
+(`deja_applique`) ; le même `lead_id` avec un autre contenu lève aussi. Voir
+[M1-canaux](../../docs/departements/M1-canaux.md) §7, et `tests/test_consommer_lead_de_m1.py`.
+

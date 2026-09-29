@@ -60,6 +60,9 @@ kpis:
 # PLAN T1.4-k2 : M2 publie aussi m2.lead_assigne à chaque qualification (le propriétaire du lead, dans la
 # même transaction) — catalogue src/opsys/evenements/catalogue/m2.lead_assigne.json. M3 le relit à la
 # source du bus pour ne rendre à un vendeur que les devis de SES leads (sans importer M2, #109).
+# PLAN T2.1-b : M2 consomme m1.lead_qualifie, le lead que M1 qualifie à partir d'un message de canal du core (SMS) — voir
+# _recevoir_lead_qualifie dans outils.py : ingestion complète, idempotente, un refus lève (réessais, puis quarantaine).
+# Catalogue : src/opsys/evenements/catalogue/m1.lead_qualifie.json.
 evenements:
-  consomme: [m4.travaux_termines, m3.devis_sans_reponse]
+  consomme: [m4.travaux_termines, m3.devis_sans_reponse, m1.lead_qualifie]
   publie: [m2.client_associe, m2.lead_assigne]
