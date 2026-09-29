@@ -5,7 +5,8 @@
 > §4-§5. Les profils viennent de la [définition produit](../produit/DEFINITION-PRODUIT.md) §9.
 > La table ci-dessous est épinglée par `tests/test_portees_appareil.py` ; le contrôle d'accès par personne
 > et par intervention (T1.4-k) par `tests/test_acces_par_intervention.py` et les tests de M4 et de M6 ; la
-> vue financière de M5 (T1.4-k2) par `tests/test_acces_tresorerie.py` et les tests de M5.
+> vue financière de M5 (T1.4-k2) par `tests/test_acces_tresorerie.py` et les tests de M5 ; les leads de M2 et
+> les devis de M3 (T1.4-k2) par `tests/test_acces_par_proprietaire.py` et les tests de M2 et de M3.
 
 ## La règle
 
@@ -94,13 +95,13 @@ M10.
 
 | Outil | Pourquoi |
 |---|---|
-| `m2_obtenir_client_360`, `m2_trouver_client_de_lead` | §9.4 « Client 360 ». |
-| `m2_suggerer_prochaine_action` | §9.4 « prochaine meilleure action ». |
-| `m2_evaluer_readiness` | §9.4 M3 « lead prêt pour l'estimation ». |
-| `m2_transitionner_statut` | §9.4 « pipeline personnel » (perdu avec motif, converti). |
-| `m2_enregistrer_interaction` | §9.4 « notes ». |
-| `m3_lire_devis` | §9.4 M3 « voir risques et marge » ; « ne voit pas les coûts internes au-delà de sa soumission ». |
-| `m3_generer_soumission_brouillon` | §9.4 « soumissions ». Sans coût ni marge. |
+| `m2_obtenir_client_360`, `m2_trouver_client_de_lead` | §9.4 « Client 360 ». Ses leads seulement (T1.4-k2, plus bas). |
+| `m2_suggerer_prochaine_action` | §9.4 « prochaine meilleure action ». Ses leads seulement. |
+| `m2_evaluer_readiness` | §9.4 M3 « lead prêt pour l'estimation ». Ses leads seulement. |
+| `m2_transitionner_statut` | §9.4 « pipeline personnel » (perdu avec motif, converti). Ses leads seulement. |
+| `m2_enregistrer_interaction` | §9.4 « notes ». Ses leads seulement, sous son propre nom. |
+| `m3_lire_devis` | §9.4 M3 « voir risques et marge » ; « ne voit pas les coûts internes au-delà de sa soumission ». Les devis de ses leads seulement. |
+| `m3_generer_soumission_brouillon` | §9.4 « soumissions ». Sans coût ni marge. Les devis de ses leads seulement. |
 | `m3_qualifier_photos` | §9.4 « demander des photos au client » : ce qui manque. |
 
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
@@ -352,10 +353,8 @@ pour un appel d'appareil ; sans identité d'appareil, la liste, comme avant. La 
 
 ### Ce qui reste
 
-- **M2, M3** : `m2_enregistrer_interaction(auteur)` prend encore l'identité d'un argument ; pour
-  `m3_lire_devis`, `role` ne peut que restreindre la vue du rôle authentifié (T2.3-c) ; aucun filtre par
-  propriétaire de lead (vendeur, Client 360, M3). Même mécanisme à appliquer : lire `identite_appelante()`,
-  la confirmer en base, refuser l'argument qui la contredit. M5 est fait (section précédente).
+- **M2, M3** : faits (T1.4-k2, section suivante). `auteur` vient de la personne authentifiée, un vendeur ne
+  voit que ses leads et que les devis de ses leads.
 - **Aucun rattachement fichier -> intervention** : `m4_deposer_fichier` ne porte pas d'intervention (un
   fichier est adressé par son SHA-256), donc rien à contrôler au dépôt ; `m4_completer_intervention` accepte
   la référence de n'importe quel fichier complet et du bon type. Un employé qui connaît l'empreinte d'un
@@ -395,14 +394,117 @@ pour un appel d'appareil ; sans identité d'appareil, la liste, comme avant. La 
   fois approuvé, l'outil s'exécute sans identité d'appareil, donc sans ce contrôle : c'est la décision du
   propriétaire qui le couvre.
 
+## Les leads de M2 et les devis de M3 (T1.4-k2)
+
+Avant T1.4-k2, `m2_enregistrer_interaction(auteur)` prenait l'auteur de l'appelant : un vendeur pouvait
+signer une note du nom d'un collègue, ou de l'admin. Et les six outils M2 ouverts au vendeur, comme
+`m3_lire_devis` et `m3_generer_soumission_brouillon`, lui montraient les leads et les devis de tous les
+vendeurs. Même patron que M4 et M5 : la personne vient du jeton (`contexte.identite_appelante()`, jamais les
+arguments), confirmée en base à chaque appel (`approbations.signataire_valide`, T1.4-h), et chaque refus
+précède toute écriture.
+
+### La propriété d'un lead existait déjà : c'est `owner`
+
+`owner` est exigé par la transition `nouveau -> qualifie` (`REJ-OWNER-ABSENT` sinon), consigné dans son maillon,
+et déjà lu par la readiness et le digest. **Aucun maillon d'assignation n'est ajouté**, et le propriétaire n'est
+jamais déduit d'un autre champ (ni l'`auteur` des notes, ni le statut, ni l'ordre d'ingestion) :
+`m2_revenue_crm.acces.proprietaire_du_lead` relit ce seul maillon (le dernier `qualifie` qui porte un owner).
+
+- **Le lien personne -> propriétaire est le même que pour M4** : `owner` EST l'identifiant de la personne OPSYS
+  (`opsys.identite`, immuable). Pas de table de correspondance.
+- **Un lead `nouveau` n'est à personne** : invisible à un vendeur. C'est l'admin (ou l'agent, sur décision
+  humaine, SOUL de M2) qui l'assigne en le qualifiant. Un vendeur ne « prend » pas un lead.
+- **Depuis un appareil** (l'admin), `owner` doit être l'identifiant d'une personne ACTIVE qui peut posséder un lead
+  (rôle `seller` ou `admin`) : sinon `REJ-OWNER-INCONNU`, avant toute écriture. Le propriétaire n'est consigné
+  qu'une fois, un `owner` saisi de travers rendrait le lead invisible à tous les vendeurs, sans recours.
+- **Sans identité d'appareil** (agent, console), `owner` reste du texte libre, comme avant : voulu et documenté.
+  Un `owner` qui n'est l'identifiant d'aucune personne n'appartient à aucun vendeur (fail-closed) ; les
+  consignes de M2 disent de passer l'identifiant, pas le nom.
+- **La qualification publie `m2.lead_assigne`** (`{lead_id, proprietaire, horodatage_assignation}`), dans la même
+  transaction, avec l'`evenement_id` déterministe `m2-lead-assigne-<lead_id>` (un lead ne se qualifie qu'une
+  fois). C'est ce fait que M3 relit.
+
+### M2 : qui peut quoi (appel d'appareil)
+
+| Appelant | Règle |
+|---|---|
+| **`seller`** | Seulement les leads dont il est propriétaire. Un lead d'un autre, un lead sans propriétaire et un lead inconnu donnent le MÊME refus, `REJ-LEAD-NON-ASSIGNE` (rien ne dit à un vendeur quels leads existent). Client 360 : seulement ses opportunités (statut, prochaine action, interactions) ; un client dont aucune n'est à lui donne le même refus qu'un client inconnu. |
+| **`admin`** | Tous les leads. Il assigne en qualifiant (`owner` validé). |
+| **Sans identité d'appareil** (agent, console, consommateurs d'événements) | Comportement d'avant, aucun contrôle de personne (« Voie des agents »). |
+| **Identité non confirmée en base**, ou rôle hors portée de l'outil (employé, ou vendeur sur un outil d'admin) | `REJ-IDENTITE-APPAREIL-INVALIDE`, avant toute lecture ou écriture. Hors transaction (aucune base jointe) : le même refus. |
+
+| Outil (appel d'appareil) | `seller` | `admin` |
+|---|---|---|
+| `m2_transitionner_statut`, `m2_trouver_client_de_lead`, `m2_evaluer_readiness`, `m2_suggerer_prochaine_action` | son lead | tous |
+| `m2_enregistrer_interaction` | son lead, `auteur` = sa personne | tous les leads, `auteur` = sa personne |
+| `m2_obtenir_client_360` | ses opportunités du client | toutes |
+| `m2_produire_digest`, `m2_detecter_doublons`, `m2_signaler_doublon`, `m2_arbitrer_doublon` | hors portée : refusés aussi dans l'outil | oui |
+
+Ordre des contrôles : identité confirmée et rôle dans la portée, puis `auteur`, puis propriété du lead, puis
+`owner` (qualification seulement), toujours AVANT toute écriture. Chaque refus est prouvé sans écriture (toutes
+les tables de la base comparées avant et après).
+
+### `auteur` d'une interaction
+
+Pour tout appel d'appareil, **`admin` compris** (contrairement à `technicien_id` de M4 : l'admin qui dispatche
+agit pour autrui, mais il n'écrit pas une note au nom d'un vendeur) :
+
+| `auteur` fourni | Effet |
+|---|---|
+| absent ou nul | vaut la personne authentifiée |
+| égal à la personne (aux espaces près) | honoré |
+| différent (un collègue, un nom, `system:m3`, vide) | `REJ-IDENTITE-FOURNIE-DIFFERENTE`, jamais remplacé en silence |
+
+Sans identité d'appareil : `auteur` est celui de l'appelant et reste obligatoire. Son absence était un refus de
+schéma (`arguments_invalides`) ; c'est maintenant un verdict nommé, `REJ-CHAMP-VIDE`, comme pour M5
+(`REJ-AUTORISE-COUTS-REQUIS`). Aucune personne ne peut imiter une écriture système : un identifiant OPSYS ne
+contient pas de « : ».
+
+### M3 : les devis des leads du vendeur
+
+M3 ne reçoit jamais le propriétaire d'un lead de l'appelant, et n'en garde aucune copie : il le relit **à la
+source du bus** (`evenements.charge_publiee("m2.lead_assigne", "m2-lead-assigne-<lead_id>")`), comme M6 relit le
+WCT de M4 (T1.4-i), sans importer M2 (décision #109).
+
+| Appelant | `m3_lire_devis`, `m3_generer_soumission_brouillon` |
+|---|---|
+| **`seller`** | Seulement le devis dont le `lead_id` a pour propriétaire sa personne. Le devis d'un autre, celui d'un lead sans propriétaire connu et un devis inconnu donnent le MÊME refus, `REJ-DEVIS-INTROUVABLE` (même code, même détail). |
+| **`admin`** | Tous les devis. |
+| **`employee`** | Jamais de coût, de marge ni de prix (T2.3-d, inchangé) : `m3_lire_devis` rend la vue employé (`role=interne` : `REJ-ROLE-ELARGI`) ; le brouillon de soumission, qui porte les prix, lui est refusé (`REJ-IDENTITE-APPAREIL-INVALIDE`). Aucune portée du core sur ces outils. |
+| **Sans identité d'appareil** | Comme avant, aucun filtre. |
+
+`m3_lire_devis` garde le `role` restreignable de T2.3-c : il ne peut que restreindre. Le filtre par propriétaire
+s'ajoute, il ne remplace pas la vue. Un vendeur qui se restreint à `employe` sur son lead obtient la vue sans prix.
+
+### Ce que T1.4-k2 laisse ouvert (M2 et M3)
+
+- **Aucune réassignation.** `owner` est consigné une seule fois, à la qualification ; si un vendeur part, ses leads
+  ne se reprennent pas. Il faudrait un outil d'admin (maillon d'assignation) et un fait `m2.lead_assigne`
+  versionné (l'`evenement_id` déterministe ne porte aujourd'hui qu'un propriétaire par lead).
+- **À connaître avant la mise en service : les leads qualifiés avant T1.4-k2 n'ont pas de fait
+  `m2.lead_assigne`.** M2 les montre à leur vendeur si `owner` est l'identifiant de sa personne, mais M3 ne les
+  reconnaît pas (fail-closed : le vendeur ne voit pas leurs devis) jusqu'à ce que le fait soit republié. Aucun
+  outil ne le fait aujourd'hui. Même chose pour un `owner` en texte libre (un nom) : il n'est à aucun vendeur.
+- **Un lead réouvert (affaire répétée, M2.14) naît `nouveau`**, donc sans propriétaire : l'admin doit l'assigner
+  avant que le vendeur le voie.
+- **`m2_ingerer_lead`, `m2_marquer_chantier_termine` et les consommateurs d'événements** n'ont pas de portée
+  d'appareil : sans identité, sans contrôle de personne (voie des agents).
+- **Approbation différée.** Un appel d'appareil dont l'identité n'est plus valide part en file (T1.4-h) ; une fois
+  approuvé, l'outil s'exécute sans identité d'appareil, donc sans ces contrôles : la décision du propriétaire le
+  couvre (même remarque que plus haut).
+- **`_acteur_appareil` est copié dans M2, M4, M5 et M6** (`_declarant_appareil` dans M6), et M3 en a une variante
+  (`_vue_projection_effective`, qui relit `identite.personne_active` au lieu de `signataire_valide`) : cinq copies
+  d'une même règle, voulues tant que les départements n'importent rien les uns des autres (#109). Un seul helper du
+  socle serait plus sûr.
+
 ## Limites de la portée par outil (T1.4-j)
 
-La portée par outil ne dit toujours pas AU NOM DE QUI pour les départements qui n'ont pas encore
-été adaptés (M2 et M3 pour le propriétaire d'un lead, voir « Ce qui reste » ci-dessus ; M5 l'est depuis
-T1.4-k2). Pour M4 et M6, T1.4-k a fermé les deux
-limites que ce document listait : l'identité prise dans les arguments (`m4_pointer(technicien_id)`,
-`m4_lire_position_gps(accede_par)`, `m4_definir_consentement_gps(technicien_id)`) et la portée par
-instance (un employé voyait et agissait sur les interventions de tous).
+La portée par outil dit QUEL outil, pas AU NOM DE QUI ni SUR QUOI : c'est le contrôle par personne qui le dit
+(T1.4-k pour M4 et M6, T1.4-k2 pour M2, M3 et M5). Il a fermé les deux limites que ce document listait :
+l'identité prise dans les arguments (`m4_pointer(technicien_id)`, `m4_lire_position_gps(accede_par)`,
+`m4_definir_consentement_gps(technicien_id)`, `m2_enregistrer_interaction(auteur)`, `role` et `autorise_couts` de
+M5) et la portée par instance (un employé voyait et agissait sur les interventions de tous, un vendeur sur les leads
+et les devis de tous). Restent les limites de « Ce que T1.4-k2 laisse ouvert » et de « Ce qui reste » ci-dessus.
 
 ## Ce que §9 demande et qu'aucun outil sûr ne permet encore
 
