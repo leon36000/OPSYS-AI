@@ -191,6 +191,16 @@ identifiants du propriétaire, repli livré en attendant.
       - [ ] T0.11-d Jobs `installateur` sur les exécuteurs macOS (launchd) et Windows (`pwsh`) de
             GitHub Actions : aujourd'hui, `install.ps1` n'a que l'analyse syntaxique et macOS n'est
             exécuté nulle part.
+            Livré (0d60059, 4a7031c, b6ff671), à cocher au premier vert des deux jobs : `installation-macos`
+            (LaunchAgent `ai.openclaw.opsys`, BSD `stat`, `shasum`, bash 3.2) et
+            `installation-windows` (`bout_en_bout.ps1`, tâche planifiée « OpenClaw Gateway
+            (opsys) », sans droits admin, repli Démarrage signalé) ; diagnostics en lecture seule,
+            faux core, linter PowerShell, actionlint (MIT, INGREDIENTS). Défauts corrigés en lisant :
+            garde de dossier (`\` en dur), suppression avec reprises sur fichiers verrouillés,
+            environnement du processus pollué, secrets de `.env` qui fuyaient dans le `cmd.exe`
+            appelant (`opsys.cmd`), ACL de l'état et de l'export sous Windows (`icacls`). Socle 1377
+            (101 sautés sans `pwsh`), tests de l'installateur 231 avec `pwsh`. Constat du core : sous
+            Windows, `gateway.cmd` porte les valeurs de `.env` en clair (ACL propriétaire seul).
       Reste ensuite : macOS et Windows (T0.11-d) ; LiteLLM, PostgreSQL et console restent à
       Docker Compose.
 
