@@ -28,6 +28,17 @@ pas une vérité : il n'entre ni dans le paquet de contexte ni dans la consolida
 ultérieure). Tâche interne automatique (T1, N2), fermée aux appareils. La lecture du PREFLIGHT est
 `m10_paquet_contexte_affaire` (T0), appelée par le moteur de contexte du core (`core/src/context-engine/`).
 
+PLAN T3.3-suite-b ajoute trois choses. (1) Le cycle de vie des signaux critiques (`signaux.py`) : ouvert,
+pris en compte, clos ; seul un HUMAIN identifié (`humain.py`) passe d'un état à l'autre (`m10_prendre_en_compte_signal`,
+`m10_clore_signal`, N3, portée `admin`), jamais le modèle seul, même dans un mode sans file d'approbation ; une
+seule autre clôture, la règle écrite de réévaluation de M6, qui n'a pas encore de producteur. Le paquet montre
+les ouverts, puis les derniers clos avec qui et pourquoi, et porte un décompte (`signaux`) que la troncature ne
+touche pas. (2) L'affaire liée à la session (`liaison.py`, `m10_lier_session_affaire`,
+`m10_affaire_de_la_session`) : sur un canal client, l'affaire vient de la clé de session, jamais du texte de la
+demande. (3) Le filtre de confidentialité du paquet (`confidentialite.py`) : les sept niveaux de la définition,
+`CLIENT_PRIVATE` seulement vers M1 et M2 et seulement dans les couches de l'affaire, jamais les niveaux plus
+fermés ; le paquet compte ce qu'il retient sans le montrer.
+
 - `department.yaml` — manifeste (`m10_memoire.outils`, aucune dépendance — M10 est la fondation
   mémoire que M9 consomme).
 - `SOUL.md` — identité de l'agent.

@@ -2,7 +2,7 @@
 
 
 import pytest
-from m10_memoire import consolidation, decisions, paquets, registre, variance, wct
+from m10_memoire import consolidation, decisions, paquets, registre, signaux, variance, wct
 
 HORODATAGE = "2026-09-15T14:00:00-04:00"
 HORODATAGE_PAQUET = "2026-09-16T08:00:00-04:00"
@@ -174,7 +174,8 @@ def test_chaque_fait_porte_sa_provenance(registres):
 
     couche = _couche(paquet, paquets.COUCHE_EVENEMENTS_RECENTS)
     fait = couche["faits"][0]
-    assert set(fait) == {"identifiant", "horodatage", "source", "resume"}
+    assert set(fait) == {"identifiant", "horodatage", "source", "resume", "confidentialite"}
+    assert fait["confidentialite"] == "INTERNAL"
     assert fait["identifiant"] == "WCT-1"
     assert fait["horodatage"] == HORODATAGE
     assert fait["source"] == "m4.travaux_termines"
@@ -275,3 +276,110 @@ def test_resume_dune_decision_tres_longue_est_borne(registres):
     resume = _couche(paquet, paquets.COUCHE_REGLES_ENTREPRISE)["faits"][0]["resume"]
     assert len(resume) == paquets.RESUME_MAX_CARACTERES
     assert resume.endswith("…")
+
+
+# -- PLAN T3.3-suite-b : signaux avec cycle de vie, blocs de synthèse, agent --------------------------------
+def _humain(par="amina.admin", role="admin", source="appareil"):
+    return {"par": par, "role": role, "source_decision": source}
+
+
+def _signal_pris_en_compte_puis_clos(registre_evenements, registre_affaires, signal_id, jour):
+    for action, moment, motif in (
+        (signaux.ACTION_PRISE_EN_COMPTE, "2026-09-16T08:00:00-04:00", "Lu par l'admin, on vérifie sur place."),
+        (signaux.ACTION_CLOTURE, jour, "Écart expliqué, facture corrigée avec le client."),
+    ):
+        _, verdict = signaux.traiter_signal(
+            action, signal_id, "amina.admin", "admin", "appareil", motif, moment, registre_evenements, registre_affaires
+        )
+        assert verdict is None
+
+
+def test_couche_signaux_montre_les_ouverts_d_abord_puis_les_derniers_clos_avec_qui_et_pourquoi(registres):
+    registre_evenements, registre_affaires = registres
+    wct.memoriser_wct(_wct(wct_id="WCT-1", lead_id="LEAD-1"), registre_evenements)
+    for i in (1, 2, 3):
+        variance.memoriser_variance(_variance(evenement_id=f"EVT-{i}", wct_id="WCT-1"), registre_evenements)
+    _signal_pris_en_compte_puis_clos(registre_evenements, registre_affaires, "EVT-1", "2026-09-17T08:00:00-04:00")
+    signaux.traiter_signal(
+        signaux.ACTION_PRISE_EN_COMPTE, "EVT-2", "amina.admin", "admin", "appareil",
+        "Lu par l'admin, on vérifie sur place.", "2026-09-16T08:00:00-04:00", registre_evenements, registre_affaires,
+    )
+
+    paquet = paquets.assembler_paquet_contexte("LEAD-1", HORODATAGE_PAQUET, registre_evenements, registre_affaires)
+
+    couche = _couche(paquet, paquets.COUCHE_SIGNAUX_NON_RESOLUS)
+    assert [(f["identifiant"], f["etat"]) for f in couche["faits"]] == [
+        ("EVT-3", "ouvert"),
+        ("EVT-2", "pris_en_compte"),
+        ("EVT-1", "clos"),
+    ]
+    clos = couche["faits"][2]
+    assert clos["traite_par"] == "amina.admin" and clos["traite_le"] == "2026-09-17T08:00:00-04:00"
+    assert "Écart expliqué" in clos["resume"] and "amina.admin" in clos["resume"]
+    assert paquet["signaux"] == {"nb_ouverts": 1, "nb_pris_en_compte": 1, "nb_clos": 1}
+
+
+def test_le_decompte_des_signaux_ne_depend_pas_de_la_troncature_de_la_couche(registres):
+    registre_evenements, registre_affaires = registres
+    wct.memoriser_wct(_wct(wct_id="WCT-1", lead_id="LEAD-1"), registre_evenements)
+    for i in range(4):
+        variance.memoriser_variance(_variance(evenement_id=f"EVT-{i}", wct_id="WCT-1"), registre_evenements)
+
+    paquet = paquets.assembler_paquet_contexte(
+        "LEAD-1", HORODATAGE_PAQUET, registre_evenements, registre_affaires, n_faits_max_par_couche=1
+    )
+
+    couche = _couche(paquet, paquets.COUCHE_SIGNAUX_NON_RESOLUS)
+    assert couche["nb_inclus"] == 1 and couche["nb_omis"] == 3 and couche["tronque"] is True
+    assert paquet["signaux"]["nb_ouverts"] == 4  # le core bloque sur ce nombre, pas sur ce qui reste affiché
+
+
+def test_un_signal_d_une_autre_affaire_ne_compte_pas(registres):
+    registre_evenements, registre_affaires = registres
+    wct.memoriser_wct(_wct(wct_id="WCT-A", lead_id="LEAD-A"), registre_evenements)
+    wct.memoriser_wct(_wct(wct_id="WCT-B", lead_id="LEAD-B"), registre_evenements)
+    variance.memoriser_variance(_variance(evenement_id="EVT-B", wct_id="WCT-B"), registre_evenements)
+
+    paquet = paquets.assembler_paquet_contexte("LEAD-A", HORODATAGE_PAQUET, registre_evenements, registre_affaires)
+
+    assert paquet["signaux"] == {"nb_ouverts": 0, "nb_pris_en_compte": 0, "nb_clos": 0}
+    assert _couche(paquet, paquets.COUCHE_SIGNAUX_NON_RESOLUS)["vide"] is True
+
+
+def test_un_signal_clos_par_la_regle_de_reevaluation_apparait_clos_dans_le_paquet(registres):
+    registre_evenements, registre_affaires = registres
+    wct.memoriser_wct(_wct(wct_id="WCT-1", lead_id="LEAD-1"), registre_evenements)
+    variance.memoriser_variance(_variance(evenement_id="EVT-1", wct_id="WCT-1"), registre_evenements)
+    variance.memoriser_variance(
+        _variance(evenement_id="EVT-2", wct_id="WCT-1", signal_critique=False), registre_evenements
+    )
+
+    paquet = paquets.assembler_paquet_contexte("LEAD-1", HORODATAGE_PAQUET, registre_evenements, registre_affaires)
+
+    [fait] = _couche(paquet, paquets.COUCHE_SIGNAUX_NON_RESOLUS)["faits"]
+    assert fait["etat"] == "clos" and fait["traite_par"] == signaux.REGLE_VARIANCE_REEVALUEE
+    assert paquet["signaux"]["nb_ouverts"] == 0
+
+
+def test_le_paquet_porte_le_bloc_de_confidentialite_de_l_agent_demande(registres):
+    registre_evenements, registre_affaires = registres
+
+    paquet = paquets.assembler_paquet_contexte(
+        "LEAD-1", HORODATAGE_PAQUET, registre_evenements, registre_affaires, agent="m03-estimation"
+    )
+    sans_agent = paquets.assembler_paquet_contexte("LEAD-1", HORODATAGE_PAQUET, registre_evenements, registre_affaires)
+
+    assert paquet["confidentialite"] == {"agent": "m03-estimation", "regle": "v1", "nb_retenus": 0}
+    assert sans_agent["confidentialite"] == {"agent": None, "regle": "v1", "nb_retenus": 0}
+
+
+@pytest.mark.parametrize(
+    "agent", ["", "M03-ESTIMATION", "m11-inconnu", "m03_estimation", "m3-estimation", 3, ["m03-estimation"]]
+)
+def test_un_agent_qui_n_est_pas_un_departement_est_refuse(registres, agent):
+    registre_evenements, registre_affaires = registres
+
+    with pytest.raises(ValueError, match="agent invalide"):
+        paquets.assembler_paquet_contexte(
+            "LEAD-1", HORODATAGE_PAQUET, registre_evenements, registre_affaires, agent=agent
+        )

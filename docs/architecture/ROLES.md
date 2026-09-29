@@ -106,7 +106,7 @@ M10.
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (54 outils) : §9.5 + employé + vendeur
+### `admin` (58 outils) : §9.5 + employé + vendeur
 
 Les 11 outils de l'employé, les 9 du vendeur, et :
 
@@ -129,9 +129,23 @@ Les 11 outils de l'employé, les 9 du vendeur, et :
 | M9 | `m9_produire_briefing_matin`, `m9_lire_alertes_m8`, `m9_lire_etat_consolide` | §7 M9 mobile : « Admin/Nathan seulement ». |
 | M9 | `m9_lister_demandes_approbation` (T0), `m9_decider_demande_approbation` (T1, N2) | §9.2 « le propriétaire approuve tout depuis le téléphone », §9.5 « Approbations » (T1.4-f). Règles ci-dessous : `admin` ouvre l'outil, la PERSONNE doit être le propriétaire. |
 | M10 | `m10_statut_decision`, `m10_statut_revision`, `m10_arbitrer_revision`, `m10_paquet_contexte_affaire` | §7 M10 mobile : décisions à valider, contradictions, recherche dans la mémoire. |
+| M10 | `m10_lister_signaux` (T0), `m10_prendre_en_compte_signal`, `m10_clore_signal`, `m10_lier_session_affaire` (N3) | §9.5 « alertes critiques » (T3.3-suite-b). Les trois écritures sont des décisions HUMAINES : voir « Les écritures humaines de M10 » plus bas. |
 
 M8 n'a aucun outil d'appareil : ses outils ingèrent ou calculent à partir de données que l'appelant
 fournit ; aucun ne rend de valeurs pour le tableau de bord exécutif (§9.5).
+
+### Les écritures humaines de M10 (T3.3-suite-b)
+
+`m10_prendre_en_compte_signal`, `m10_clore_signal` et `m10_lier_session_affaire` sont ouverts à `admin` et à
+personne d'autre, et ne s'exécutent que pour un HUMAIN identifié : un signal critique n'est jamais pris en
+compte ni clos par le modèle seul, et une session n'est jamais liée à une affaire par un texte de client. Ce
+n'est pas seulement la portée du jeton : l'outil refuse lui-même (`REJ-HUMAIN-REQUIS`) tout appel qui n'est ni
+(1) un appel d'appareil dont l'identité est confirmée en base (personne active, rôle `admin`), ni (2)
+l'exécution d'une demande qu'un humain vient d'approuver dans la file. Un appel d'agent dans un département en
+mode `supervise` ou `autonome`, où un N3 s'exécute sans file, est donc refusé. L'écriture porte le nom de la
+personne, sa voie (`appareil` ou `approbation`), son rôle et son motif ; l'heure de réception du serveur fait
+foi pour un appel d'appareil. `m10_affaire_de_la_session` (lecture du lien) reste fermé à tous les appareils :
+le moteur de contexte du core est son seul appelant.
 
 ### Les deux outils d'approbation de l'app (T1.4-f, étape 6)
 

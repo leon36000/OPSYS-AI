@@ -56,6 +56,7 @@ ADMIN_SEUL = frozenset({
     "m9_decider_demande_approbation", "m9_lire_alertes_m8", "m9_lire_etat_consolide", "m9_lire_suite_briefing",
     "m9_lister_demandes_approbation", "m9_produire_briefing_matin", "m9_produire_lecture_strategique",
     "m10_arbitrer_revision", "m10_paquet_contexte_affaire", "m10_statut_decision", "m10_statut_revision",
+    "m10_lister_signaux", "m10_prendre_en_compte_signal", "m10_clore_signal", "m10_lier_session_affaire",
 })
 ADMIN = EMPLOYE | VENDEUR | ADMIN_SEUL
 
@@ -82,6 +83,7 @@ FERMES_A_TOUS = {
     "m9_etat_consolide": "ingère un snapshot fourni par l'appelant dans le registre consolidé",
     "m7_auditer_seo_site": "prend un chemin de dossier du serveur",
     "m7_calculer_roi": "prend des chemins de fichiers du serveur",
+    "m10_affaire_de_la_session": "lien session -> affaire : lu par le moteur de contexte du core seulement",
 }
 
 

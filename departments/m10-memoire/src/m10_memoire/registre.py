@@ -22,6 +22,8 @@ _TYPE_ENTREE_VALIDES = {
     "revision_signalee",
     "fait_consolide",  # PLAN T3.3 : consolidation.py, un fait durable qui cite ses sources
     "fait_candidat",  # PLAN T3.3-suite : faits_candidats.py, dépôt POSTFLIGHT du core, jamais une vérité
+    "signal_traite",  # PLAN T3.3-suite-b : signaux.py, passage d'un signal critique par un humain identifié
+    "session_affaire_liee",  # PLAN T3.3-suite-b : liaison.py, l'affaire d'une session, écrite par un humain
 }
 
 

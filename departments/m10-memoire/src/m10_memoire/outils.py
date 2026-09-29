@@ -11,6 +11,12 @@ la consommation de `m6.variance_chantier` (`variance.py`, même registre Événe
 PLAN T3.3-suite ajoute `m10_deposer_faits_candidats` (`faits_candidats.py`) : le POSTFLIGHT du moteur de
 contexte du core y dépose ce que les outils ont fait pendant un tour d'agent ; `m10_paquet_contexte_affaire`
 en est la lecture (PREFLIGHT).
+PLAN T3.3-suite-b ajoute cinq capacités : `m10_lister_signaux`, `m10_prendre_en_compte_signal` et
+`m10_clore_signal` (cycle de vie des signaux critiques, `signaux.py`), `m10_lier_session_affaire` et
+`m10_affaire_de_la_session` (l'affaire vient de la session, `liaison.py`). Les trois écritures (prise en
+compte, clôture, liaison) sont des décisions HUMAINES : `_acteur_humain` établit qui décide (jeton d'appareil
+confirmé en base, ou approbation humaine en cours d'exécution) et refuse tout le reste, y compris un appel
+direct d'agent dans un mode où l'approbation n'est pas requise.
 
 Deux registres DISTINCTS (CA-M10-06), chacun un singleton du processus de ce département, câblés
 sur le stockage durable de l'instance (ADR-0009 décision 2, ADR-0010 décision 2) via
@@ -24,11 +30,16 @@ ici, et seulement ici, que le paquet touche `opsys` (stockage et bus).
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from typing import Any
 
-from opsys import stockage
+from sqlalchemy import select
+
+from opsys import approbations, identite, stockage
+from opsys import contexte as contexte_appel
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
+from opsys.stockage.schema import APPROBATIONS
 
 from . import (
     audit,
@@ -37,12 +48,17 @@ from . import (
     contrats,
     decisions,
     faits_candidats,
+    humain,
+    liaison,
     paquets,
     registre,
     revision,
+    signaux,
+    validation,
     variance,
     wct,
 )
+from . import confidentialite as regle_confidentialite
 
 _REGISTRE_EVENEMENTS = registre.Registre(maillons=stockage.maillons("m10-memoire", "evenements"))
 _REGISTRE_AFFAIRES = registre.Registre(maillons=stockage.maillons("m10-memoire", "affaires"))
@@ -115,12 +131,29 @@ _IDENTIFIANT_ATTENDU = {
 }
 
 
-def journaliser_decision(decision: dict[str, Any], horodatage: str) -> dict[str, Any]:
+_CONFIDENTIALITE = {
+    "type": "string",
+    "enum": sorted(regle_confidentialite.niveaux_connus()),
+    "description": "Niveau de confidentialité de la décision (7 niveaux). Absent : INTERNAL.",
+}
+_MOTIF_HUMAIN = {
+    "type": "string",
+    "description": (
+        f"Pourquoi, {humain.MOTIF_MIN_CARACTERES} à {humain.MOTIF_MAX_CARACTERES} caractères. Obligatoire : "
+        "il est écrit avec le nom de la personne qui décide."
+    ),
+}
+
+
+def journaliser_decision(
+    decision: dict[str, Any], horodatage: str, confidentialite: str | None = None
+) -> dict[str, Any]:
     """Chaîne complète : validation (raison, statut) → écriture (registre Affaires) → référence.
 
-    N'écrit rien si la décision est refusée (raison absente, statut hors énuméré).
+    N'écrit rien si la décision est refusée (raison absente, statut hors énuméré, niveau de confidentialité
+    inconnu). `confidentialite` (PLAN T3.3-suite-b) marque la décision ; absent, elle se lit `INTERNAL`.
     """
-    maillon, code = decisions.enregistrer_decision(decision, _REGISTRE_AFFAIRES, horodatage)
+    maillon, code = decisions.enregistrer_decision(decision, _REGISTRE_AFFAIRES, horodatage, confidentialite)
     if maillon is None:
         return {"etape": "validation", "accepte": False, "verdict": code}
     reference = contexte.construire_reference(maillon, "affaires", _REGISTRE_AFFAIRES)
@@ -266,10 +299,16 @@ def verifier_reference(reference: dict[str, Any]) -> dict[str, Any]:
     return depuis_couple(contexte.verifier_reference(reference, registre_cible))
 
 
-def paquet_contexte_affaire(affaire_id: str, horodatage: str) -> dict[str, Any]:
+def paquet_contexte_affaire(affaire_id: str, horodatage: str, agent: str | None = None) -> dict[str, Any]:
     """Paquet de contexte en 4 couches ordonnées pour une affaire (PLAN T3.3, `paquets.py`) : budget
-    de caractères fixé par le code (non exposé à l'appelant — P11, économie de tokens)."""
-    return paquets.assembler_paquet_contexte(affaire_id, horodatage, _REGISTRE_EVENEMENTS, _REGISTRE_AFFAIRES)
+    de caractères fixé par le code (non exposé à l'appelant — P11, économie de tokens).
+
+    `agent` (PLAN T3.3-suite-b) : le département qui recevra le paquet, posé par le moteur de contexte du
+    core d'après la clé de session ; il règle le filtre de confidentialité (`confidentialite.py`). Absent :
+    la vue la plus restrictive, celle d'un humain qui lit sans agent."""
+    return paquets.assembler_paquet_contexte(
+        affaire_id, horodatage, _REGISTRE_EVENEMENTS, _REGISTRE_AFFAIRES, agent=agent
+    )
 
 
 def consolider_affaire(affaire_id: str, jour: str, horodatage: str) -> dict[str, Any]:
@@ -295,6 +334,161 @@ def auditer_non_oubli(identifiants_attendus: list[dict[str, str]]) -> dict[str, 
     return audit.auditer_non_oubli(identifiants_attendus, _REGISTRE_EVENEMENTS, _REGISTRE_AFFAIRES)
 
 
+# ---------------------------------------------------------------------------
+# Écritures HUMAINES (PLAN T3.3-suite-b) : qui décide ?
+# ---------------------------------------------------------------------------
+_DEPARTEMENT = "m10-memoire"
+
+
+def _verdict(code: str, detail: str) -> dict[str, Any]:
+    return {"accepte": False, "verdict": validation.construire_verdict(code, detail)}
+
+
+def _decision_approuvee_en_cours(
+    cnx: Any, nom_outil: str, arguments: dict[str, Any]
+) -> tuple[str, str] | None:
+    """`(personne, rôle)` de l'humain qui a APPROUVÉ la demande que cet appel exécute, sinon `None`.
+
+    `approbations.decider` réserve la demande (`en_attente` -> `en_cours`, avec `decide_par` et `decide_role`
+    : une personne active portant un rôle autorisé pour ce niveau dans ce département) puis exécute l'outil
+    avec les arguments EXACTS enregistrés, dans la même transaction. Cet appel EST donc une décision humaine
+    si et seulement si une demande `en_cours` de cet outil, de ce département, porte exactement ces
+    arguments et un approbateur de rôle humain toujours actif. Un agent ne peut pas fabriquer une telle ligne :
+    il ne peut que créer une demande `en_attente`. Lecture seule.
+
+    Le socle n'expose pas l'approbateur à l'outil (`approbations.decider` ne pose aucun contexte) : cette
+    lecture de la table du socle en tient lieu, en attendant qu'il le fasse.
+    """
+    if cnx is None:
+        return None
+    lignes = cnx.execute(
+        select(APPROBATIONS.c.arguments, APPROBATIONS.c.decide_par, APPROBATIONS.c.decide_role).where(
+            APPROBATIONS.c.statut == "en_cours",
+            APPROBATIONS.c.outil == nom_outil,
+            APPROBATIONS.c.departement == _DEPARTEMENT,
+        )
+    ).all()
+    for arguments_enregistres, decide_par, decide_role in lignes:
+        if not decide_par or decide_role not in humain.roles_humains():
+            continue
+        if json.loads(arguments_enregistres) != arguments:
+            continue
+        personne = identite.personne_active(cnx, decide_par)
+        if personne is not None and decide_role in personne.roles:
+            return decide_par, decide_role
+    return None
+
+
+def _acteur_humain(
+    nom_outil: str, arguments: dict[str, Any]
+) -> tuple[dict[str, str] | None, dict[str, Any] | None]:
+    """Qui décide : `({par, role, source}, None)` si c'est un humain identifié, sinon `(None, réponse de refus)`.
+
+    Deux voies, jamais une troisième, et jamais un texte de modèle ni un argument :
+    1. un appel d'appareil dont l'identité (posée par le core d'après un jeton vérifié, `_meta`) est
+       CONFIRMÉE en base à l'instant même (personne active portant encore ce rôle), de rôle `admin` ;
+    2. l'exécution d'une demande qu'un humain vient d'approuver dans la file d'approbation
+       (`_decision_approuvee_en_cours`).
+    Tout le reste est refusé : un appel d'agent qui n'a pas passé par l'approbation (un département en mode
+    `supervise` ou `autonome` exécute un N3 sans file), un appel en ligne de commande, un appel hors
+    transaction où rien n'est vérifiable. Ne lit JAMAIS les arguments comme identité."""
+    cnx = stockage.connexion_courante()
+    appelante = contexte_appel.identite_appelante()
+    if appelante is not None:
+        confirmee = approbations.signataire_valide(cnx, appelante) if cnx is not None else None
+        if confirmee is None:
+            return None, _verdict(
+                humain.REJ_HUMAIN_IDENTITE_INVALIDE,
+                f"personne {appelante.personne!r} inconnue, inactive, ou ne porte plus le rôle "
+                f"{appelante.role!r} du jeton d'appareil (ou identité non vérifiable hors transaction)",
+            )
+        if confirmee.role != humain.ROLE_ADMIN:
+            return None, _verdict(
+                humain.REJ_HUMAIN_ROLE_INSUFFISANT, "cette écriture est réservée au rôle admin depuis un appareil"
+            )
+        return {"par": confirmee.personne, "role": confirmee.role, "source": humain.SOURCE_APPAREIL}, None
+    approbateur = _decision_approuvee_en_cours(cnx, nom_outil, arguments)
+    if approbateur is not None:
+        return {"par": approbateur[0], "role": approbateur[1], "source": humain.SOURCE_APPROBATION}, None
+    return None, _verdict(
+        humain.REJ_HUMAIN_REQUIS,
+        "cette écriture est une décision humaine : un agent ne peut pas la faire seul. Fais-la depuis l'app "
+        "admin (jeton d'appareil), ou propose-la et attends qu'un humain approuve la demande dans la console "
+        "OPSYS (rôle admin ou propriétaire). Ne la présente pas comme faite.",
+    )
+
+
+def _horodatage_faisant_foi(horodatage: str) -> str:
+    """Pendant un appel d'appareil idempotent, l'heure de RÉCEPTION du serveur fait foi, jamais l'horloge de
+    l'appareil ni l'`horodatage` fourni (même patron que `m4_pointer`, T1.4-d)."""
+    reception = contexte_appel.horodatage_reception()
+    return reception.recu_le.isoformat() if reception is not None else horodatage
+
+
+def _traiter_signal(action: str, nom_outil: str, signal_id: str, motif: str, horodatage: str) -> dict[str, Any]:
+    acteur, refus = _acteur_humain(nom_outil, {"signal_id": signal_id, "motif": motif, "horodatage": horodatage})
+    if acteur is None:
+        return refus or _verdict(humain.REJ_HUMAIN_REQUIS, "acteur humain introuvable")
+    return depuis_couple(
+        signaux.traiter_signal(
+            action,
+            signal_id,
+            acteur["par"],
+            acteur["role"],
+            acteur["source"],
+            motif,
+            _horodatage_faisant_foi(horodatage),
+            _REGISTRE_EVENEMENTS,
+            _REGISTRE_AFFAIRES,
+        )
+    )
+
+
+def prendre_en_compte_signal(signal_id: str, motif: str, horodatage: str) -> dict[str, Any]:
+    """Un HUMAIN prend connaissance d'un signal critique (`ouvert` -> `pris_en_compte`), avec son motif."""
+    return _traiter_signal(
+        signaux.ACTION_PRISE_EN_COMPTE, "m10_prendre_en_compte_signal", signal_id, motif, horodatage
+    )
+
+
+def clore_signal(signal_id: str, motif: str, horodatage: str) -> dict[str, Any]:
+    """Un HUMAIN clôt un signal critique pris en compte (`pris_en_compte` -> `clos`), avec son motif."""
+    return _traiter_signal(signaux.ACTION_CLOTURE, "m10_clore_signal", signal_id, motif, horodatage)
+
+
+def lister_signaux(affaire_id: str | None = None) -> dict[str, Any]:
+    """Les signaux critiques (d'une affaire, ou de toutes), ouverts d'abord (PLAN T3.3-suite-b)."""
+    return signaux.lister(affaire_id, _REGISTRE_EVENEMENTS.lire(), _REGISTRE_AFFAIRES.lire())
+
+
+def lier_session_affaire(cle_session: str, affaire_id: str, motif: str, horodatage: str) -> dict[str, Any]:
+    """Un HUMAIN lie une session (clé composée par le core) à une affaire : ce que le moteur de contexte lira
+    à la place du texte de la demande (PLAN T3.3-suite-b, `liaison.py`)."""
+    acteur, refus = _acteur_humain(
+        "m10_lier_session_affaire",
+        {"cle_session": cle_session, "affaire_id": affaire_id, "motif": motif, "horodatage": horodatage},
+    )
+    if acteur is None:
+        return refus or _verdict(humain.REJ_HUMAIN_REQUIS, "acteur humain introuvable")
+    return depuis_couple(
+        liaison.lier_session_affaire(
+            cle_session,
+            affaire_id,
+            acteur["par"],
+            acteur["role"],
+            acteur["source"],
+            motif,
+            _horodatage_faisant_foi(horodatage),
+            _REGISTRE_AFFAIRES,
+        )
+    )
+
+
+def affaire_de_la_session(cle_session: str) -> dict[str, Any]:
+    """L'affaire liée à cette session, ou `{"lie": false}` : jamais une affaire par défaut (lecture)."""
+    return liaison.affaire_de_la_session(cle_session, _REGISTRE_AFFAIRES)
+
+
 def outils() -> tuple[Outil, ...]:
     """Capacités exposées aux agents (fonction : les constantes publiques du paquet sont des énumérés)."""
     return (
@@ -307,7 +501,11 @@ def outils() -> tuple[Outil, ...]:
             ),
             parametres={
                 "type": "object",
-                "properties": {"decision": _DECISION, "horodatage": {"type": "string"}},
+                "properties": {
+                    "decision": _DECISION,
+                    "horodatage": {"type": "string"},
+                    "confidentialite": _CONFIDENTIALITE,
+                },
                 "required": ["decision", "horodatage"],
                 "additionalProperties": False,
             },
@@ -436,14 +634,23 @@ def outils() -> tuple[Outil, ...]:
             description=(
                 "Paquet de contexte en 4 couches ORDONNÉES pour une affaire (lead/chantier) : "
                 "règles de l'entreprise → faits durables de l'affaire → événements récents → "
-                "signaux critiques non résolus. Budget de caractères et troncature calculés par "
-                "le code ; une couche vide est déclarée vide, jamais absente en silence."
+                "signaux critiques (ouverts d'abord, puis les derniers clos avec qui et pourquoi). "
+                "Budget de caractères et troncature calculés par le code ; une couche vide est "
+                "déclarée vide, jamais absente en silence ; les éléments CLIENT_PRIVATE ne sortent "
+                "que vers les agents qui en ont besoin, et sont comptés quand ils sont retenus."
             ),
             parametres={
                 "type": "object",
                 "properties": {
                     "affaire_id": {"type": "string", "description": "lead_id de l'affaire."},
                     "horodatage": {"type": "string"},
+                    "agent": {
+                        "type": "string",
+                        "description": (
+                            "Département qui recevra le paquet (ex. m03-estimation), posé par le moteur de "
+                            "contexte : règle le filtre de confidentialité. Absent : vue la plus restrictive."
+                        ),
+                    },
                 },
                 "required": ["affaire_id", "horodatage"],
                 "additionalProperties": False,
@@ -501,6 +708,103 @@ def outils() -> tuple[Outil, ...]:
             # candidat, absent du paquet de contexte et de la consolidation. Même choix que
             # `m4_deposer_fichier`. Aucun rôle d'appareil : réservé au core (jeton du moteur).
             niveau=Niveau.N2,
+        ),
+        Outil(
+            nom="m10_lister_signaux",
+            description=(
+                "Liste les signaux critiques (variances matériaux au-dessus du seuil) d'une affaire, ou "
+                "de toutes, avec leur état (ouvert, pris_en_compte, clos), qui les a traités et pourquoi. "
+                "Ouverts d'abord ; ce qui dépasse la limite est dit (nb_omis)."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"affaire_id": {"type": "string", "description": "lead_id ; absent : toutes."}},
+                "additionalProperties": False,
+            },
+            fonction=lister_signaux,
+            # §7 M10 mobile (admin : alertes critiques, contradictions) ; lecture.
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m10_prendre_en_compte_signal",
+            description=(
+                "DÉCISION HUMAINE : prend connaissance d'un signal critique ouvert (ouvert -> "
+                "pris_en_compte), avec le motif, au nom de la personne authentifiée. Un agent ne peut pas "
+                "la faire seul : depuis l'app admin, ou en attente d'approbation dans la console. Un signal "
+                "ouvert bloque les actions N3 ou plus de l'affaire dans le moteur de contexte."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "signal_id": {"type": "string", "description": "evenement_id du signal (m10_lister_signaux)."},
+                    "motif": _MOTIF_HUMAIN,
+                    "horodatage": {"type": "string"},
+                },
+                "required": ["signal_id", "motif", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=prendre_en_compte_signal,
+            autonomie=Autonomie.T1,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m10_clore_signal",
+            description=(
+                "DÉCISION HUMAINE : clôt un signal critique déjà pris en compte (pris_en_compte -> clos), "
+                "avec le motif, au nom de la personne authentifiée. Définitif : un signal clos ne se "
+                "rouvre pas. Un agent ne peut pas la faire seul : depuis l'app admin, ou en attente "
+                "d'approbation dans la console."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "signal_id": {"type": "string", "description": "evenement_id du signal (m10_lister_signaux)."},
+                    "motif": _MOTIF_HUMAIN,
+                    "horodatage": {"type": "string"},
+                },
+                "required": ["signal_id", "motif", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=clore_signal,
+            autonomie=Autonomie.T1,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m10_lier_session_affaire",
+            description=(
+                "DÉCISION HUMAINE : lie une session (clé composée par le core, "
+                "agent:<agent>:<canal>:direct:<pair>) à une affaire (lead_id). Le moteur de contexte lira "
+                "cette affaire à la place du texte de la demande, qu'un client peut écrire. Un agent ne "
+                "peut pas la faire seul : depuis l'app admin, ou en attente d'approbation dans la console."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "cle_session": {"type": "string", "description": "Clé de session, en minuscules."},
+                    "affaire_id": {"type": "string", "description": "lead_id de l'affaire."},
+                    "motif": _MOTIF_HUMAIN,
+                    "horodatage": {"type": "string"},
+                },
+                "required": ["cle_session", "affaire_id", "motif", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=lier_session_affaire,
+            autonomie=Autonomie.T1,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m10_affaire_de_la_session",
+            description=(
+                "Lecture : l'affaire liée à une session par un humain (m10_lier_session_affaire), ou "
+                "lie=false. Jamais une affaire par défaut. Appelée par le moteur de contexte du core."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"cle_session": {"type": "string", "description": "Clé de session, en minuscules."}},
+                "required": ["cle_session"],
+                "additionalProperties": False,
+            },
+            fonction=affaire_de_la_session,
         ),
         Outil(
             nom="m10_auditer_non_oubli",

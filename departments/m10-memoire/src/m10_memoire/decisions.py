@@ -1,4 +1,4 @@
-from . import validation
+from . import confidentialite, validation
 
 _TYPE_ENTREE_DECISION = "decision_enregistree"
 
@@ -33,10 +33,15 @@ def decisions_par_statut(registre_cible, statut):
     return [maillon for maillon in derniers.values() if maillon.get("statut") == statut]
 
 
-def enregistrer_decision(decision, registre_cible, horodatage):
+def enregistrer_decision(decision, registre_cible, horodatage, niveau_confidentialite=None):
+    """``niveau_confidentialite`` (PLAN T3.3-suite-b) : clé SŒUR additive du contrat gelé de la décision
+    (les quatre champs ne changent pas). Absent, le maillon est écrit exactement comme avant et se lit
+    ``INTERNAL`` ; présent, il doit être l'un des sept niveaux (``confidentialite.py``), sinon refus nommé."""
     valide, code = validation.valider_decision(decision)
     if not valide:
         return None, code
+    if niveau_confidentialite is not None and not confidentialite.niveau_connu(niveau_confidentialite):
+        return None, confidentialite.REJ_CONFIDENTIALITE_NIVEAU_INCONNU
 
     entree = {
         "decision_id": decision["decision_id"],
@@ -46,6 +51,8 @@ def enregistrer_decision(decision, registre_cible, horodatage):
         "type_entree": _TYPE_ENTREE_DECISION,
         "horodatage": horodatage,
     }
+    if niveau_confidentialite is not None:
+        entree["confidentialite"] = niveau_confidentialite
     ligne_id = registre_cible.ajouter(entree)
 
     for maillon in registre_cible.lire():
