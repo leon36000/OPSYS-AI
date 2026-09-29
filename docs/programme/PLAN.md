@@ -707,7 +707,11 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
     Reste : la fenêtre planifiée reste `null` (la cédule n'est pas persistée) ; ni rétention ni
     purge des fichiers ; aucune politique « photos » pour M4 ; ni contrôle d'accès par
     intervention, ni quota.
-  - [ ] T1.4-f « Terminer », qui lance la cascade §9.7, puis le formulaire des matériaux (étape 5).
+  - [x] T1.4-f « Terminer », qui lance la cascade §9.7, puis le formulaire des matériaux (étape 5).
+    Cochée : écrans et file sortante (Jest), outils du moteur, E2E moteur (T1.5 : « Terminer »,
+    matériaux, alerte et décision du propriétaire), et porte d'appareil du vrai core (T1.5-b).
+    Reste hors de cette case : le rendu des écrans n'est testé par rien (pas de tests de rendu) ;
+    `e2e-core` ne joue pas encore « Terminer » ni l'approbation (T1.5-f).
     Approbations côté propriétaire après T1.3 (étape 6).
 
     Avancement (fc8f269) : étape 5 côté mobile. Envoi des fichiers par blocs dans la file
@@ -845,7 +849,17 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         était pas), l'employé reçoit 403 ; boucle complète jusqu'à `completed_verified` après
         décision du propriétaire ;
       - journée de l'employé : 9 appels, 0,8 à 1,1 s en local ; aucune troncature.
-  - [ ] T1.5-b E2E avec le vrai core en CI : construire le core, démarrer le Gateway et le moteur
+  - [x] T1.5-b E2E avec le vrai core en CI (workflow `e2e-core`, run 4 sur 0edbc61, vert : « E2E
+        avec le vrai core : tout est vrai ») : core construit, configuration générée validée par
+        `openclaw config validate`, Gateway démarré, moteur lancé par le superviseur T0.10,
+        appairage comme l'app (Ed25519, approbation par `openclaw devices approve`), attribution par
+        `opsys appareils appairer`, puis 20 appels chronométrés : 403 avant attribution ;
+        `GET /opsys/identite` 200, 401 sans jeton ou faux jeton, 403 avec le secret partagé ;
+        `m4_lister_interventions`, consentement GPS, en route et pointage (200) ; rejeux sans effet ;
+        clé réutilisée pour autre chose refusée dans l'enveloppe ; 403 hors portée et pour le
+        `deviceId` d'un autre appareil ; médiane 38,5 ms, max 504 ms (faux jeton). Le premier
+        passage avait trouvé un vrai défaut (roster sans `ownership: "explicit"`, corrigé
+        0edbc61). Énoncé d'origine : construire le core, démarrer le Gateway et le moteur
         (superviseur T0.10), appairer un appareil de test (signature Ed25519), appeler
         `/tools/invoke` et `GET /opsys/identite` avec son jeton ; mesurer la latence réelle.
         Avancement (non coché : la CI du core n'a pas encore exécuté le scénario) : écrit dans
@@ -858,6 +872,8 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         prouvé dans la base du moteur, rejeu, conflit, refus hors portée ; latence de chaque appel dans le
         journal et le résumé du job. Répété sans core (`tests/e2e_core/test_repetition_sans_core.py`,
         passerelle factice) : ce test prouve le script, pas le core. À cocher quand la CI du core est verte.
+  - [ ] T1.5-f Étendre `e2e-core` (vrai core) à « Terminer », au formulaire des matériaux et à la
+        décision du propriétaire depuis un second appareil `admin`/`nathan_owner`.
   - [x] T1.5-c M4, défauts trouvés par l'E2E (65c8bc4 : heure de réception du serveur à la
         complétion, `wct_id` indépendant du téléphone ; `ecart_signale` vrai seulement si une
         demande d'écart métier est ouverte ; attente « formulaire de matériaux à venir » au lieu
