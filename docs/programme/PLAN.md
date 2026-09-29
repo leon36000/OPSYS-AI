@@ -601,9 +601,19 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
           Choix à confirmer (revue externe) : `opsys-mobile` n'entre PAS dans
           `isNativeAppUiClient` (cela élargirait la confiance sans bénéfice pour un téléphone),
           épinglé par `opsys-mobile-trust.test.ts`.
-    - [ ] T1.4-l Mobile : après un nouvel appairage, le vidangeur de la file sortante garde
+    - [x] T1.4-l Mobile : après un nouvel appairage, le vidangeur de la file sortante garde
           l'ancien jeton (`src/outbox/service.ts`) jusqu'au redémarrage de l'app ; le reconstruire
           au changement de jeton, avec test.
+          Preuve (b87bf63, d0e44a6 intégrés) : le vidangeur relit la session avant chaque envoi ;
+          chaque mutation porte sa personne (colonne `proprietaire`, migration au démarrage) ;
+          même personne → envoyée avec le nouveau jeton et la même clé ; autre personne ou
+          propriétaire inconnu → quarantaine visible, jamais envoyée ni supprimée ; refus
+          d'appareil (401, 403 `device_unknown`/`role_unknown`) → arrêt de la passe sans
+          tentative comptée, retour à l'écran d'identité ; corrige au passage un 401 qui rendait
+          chaque mutation perdue (`echec_permanent`) ; Jest 987, `tsc` propre, vrai SQL sur
+          `node:sqlite`.
+          Limites : raison du 403 lue dans le texte du message du core (un champ `reason`
+          structuré serait plus sûr) ; la quarantaine n'a pas d'écran de gestion.
       - [x] T1.4-c6 Core et mobile : noms d'outils de bout en bout.
           Preuve CI : core 23 (71471f9), job `tests-opsys` vert, 30 fichiers ciblés sur 30,
           dont `opsys-device-mcp-target` 16 tests, `tools-invoke-http.opsys-device-mcp` 9,
