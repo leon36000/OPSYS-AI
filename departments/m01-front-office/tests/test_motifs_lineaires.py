@@ -219,7 +219,8 @@ def _generes_prix() -> list[str]:
 def _generes_devises_devant() -> list[str]:
     """La devise ou le mot AVANT le nombre : « $ 5 », « €5 », « dollars 500 », « à partir de 500 »."""
     mots = ["$", "€", "dollars", "euros", "CAD", "cad", "Dollars", "à partir de", "À partir de", "a partir de",
-            "à partir", "partir de", "de", "à", "$$", "US$", "dollarſ", "à" + NBSP + "partir" + NBSP + "de"]
+            "à partir", "partir de", "de", "à", "$$", "US$", "dollarſ", "à" + NBSP + "partir" + NBSP + "de",
+            "àpartir de", "à partirde", "àpartirde", "à  partir  de"]
     liens = ["", " ", "  ", NBSP, "\n", "\t", "\u3000", "x", "-", ":", "\u200b"]
     nombres = ["5", "500", "5 000", "٣", "１", "5,5", ",5", ".5", "a5", "5a", " 5", ""]
     return [m + lien + n + ap for m, lien, n, ap in itertools.product(mots, liens, nombres, ["", " ", "$", "x"])]
@@ -477,6 +478,9 @@ PRIX_NON_REFUSES = [
     "à partir de",
     "à partir 500",
     "a partir de 500",
+    "àpartir de 500",  # au moins une espace entre les mots
+    "à partirde 500",
+    "à partir de500",
     "fourchette",
     "fourchette 100 à 200",
     "fourchette 100 - ",
