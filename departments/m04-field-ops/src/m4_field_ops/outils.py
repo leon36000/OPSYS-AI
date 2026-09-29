@@ -579,17 +579,42 @@ def outils(
         verdict = _verifier_preuves_fichiers(preuves_completion, signature_requise)
         if verdict is not None:
             return {"accepte": False, "verdict": verdict}
-        # Un agent ne peut pas affirmer l'absence d'écart : le matériel n'est pas encore comparé
-        # au prévu à ce stade. La complétion reste donc à revoir ; completed_verified viendra du
-        # code (variance M6 et preuves, PLAN T1.2) ou d'une décision humaine (T1.3).
+        # PLAN T1.5-c — même patron que m4_pointer et m4_demarrer_route (T1.4-d, R12 §4) : pendant
+        # un appel d'appareil, l'heure de RÉCEPTION DU SERVEUR date la complétion, jamais l'horloge
+        # (potentiellement déréglée) de l'appareil ni la valeur `horodatage` fournie. Le `wct_id`
+        # (empreinte de l'intervention et de cette heure) ne dépend donc plus du téléphone. L'heure
+        # d'appareil reste lisible À CÔTÉ, sur l'accusé, jamais consultée pour un calcul. Hors
+        # appel d'appareil (agent, console) : `horodatage` fait foi, comportement inchangé.
+        reception = contexte.horodatage_reception()
+        if reception is not None:
+            horodatage_faisant_foi = reception.recu_le.isoformat()
+            horodatage_appareil = reception.horodatage_appareil.isoformat()
+        else:
+            horodatage_faisant_foi = horodatage
+            horodatage_appareil = None
+
+        # PLAN T1.5-c — deux faits distincts, jamais confondus :
+        #  - la vérification n'est pas terminée : le matériel n'est pas encore comparé au prévu à ce
+        #    stade (le formulaire des matériaux suit, §9.7) et un agent ne peut pas affirmer que tout
+        #    est conforme. La complétion reste donc à revoir (DEFINITION-PRODUIT §6 : « s'il manque
+        #    quelque chose ») ; completed_verified viendra du code (variance M6 et preuves, PLAN T1.2)
+        #    ou d'une décision humaine (T1.3). C'est `verification_en_attente`, toujours vrai ici ;
+        #  - un écart MÉTIER est connu : une demande d'écart ouverte sur cette intervention, lue au
+        #    registre (`ecarts.ecart_metier_ouvert`). Seule source d'écart que M4 possède à cet
+        #    instant : la variance des matériaux, elle, n'existe pas encore (M6, après la complétion).
+        #    `wct.ecart_signale` ne vaut donc plus vrai « par précaution ».
         reg = registre_courant()
         accuse, verdict = outbox.completer_intervention(
-            intervention_id, horodatage, reg, ecart_detecte=True,
+            intervention_id, horodatage_faisant_foi, reg,
+            ecart_detecte=ecarts.ecart_metier_ouvert(reg, intervention_id),
+            verification_en_attente=True,
             photos=photos, description_factuelle=description_factuelle,
             consentement_marketing=consentement_marketing, client_satisfait=client_satisfait,
         )
         if verdict is not None:
             return {"accepte": False, "verdict": verdict}
+        if horodatage_appareil is not None:
+            accuse["horodatage_appareil"] = horodatage_appareil
         # T1.2-b : publie m4.travaux_termines DANS LA MÊME TRANSACTION que le WCT qui vient
         # d'être écrit ci-dessus — `evenements.publier` ouvre un POINT DE SAUVEGARDE sur la
         # transaction déjà ouverte par `executer_atomique` (ADR-0009), jamais une transaction
@@ -1098,15 +1123,16 @@ def outils(
                 "en une seule écriture atomique (CA-M4-11). Exige le dossier PreuvesCompletion "
                 "(checklist, photos après, notes, signature si requise, §6/§9.7) ; T1.4-e2 : "
                 "chaque référence photos_apres/signature doit désigner un fichier déposé et "
-                "complet (m4_deposer_fichier), sinon REJ-PREUVE-FICHIER-INTROUVABLE. Le statut est "
-                "toujours completed_pending_review : la vérification se fait ensuite, par la "
-                "variance des matériaux et une revue. Calcule la durée réelle depuis les "
-                "pointages, nette des pauses ; refuse fail-closed si indéterminable ou si les "
-                "preuves manquent. T1.2-f : consentement_marketing, client_satisfait, photos et "
+                "complet (m4_deposer_fichier), sinon REJ-PREUVE-FICHIER-INTROUVABLE. Statut "
+                "toujours completed_pending_review (vérification ensuite : variance M6, revue) ; "
+                "ecart_signale n'est vrai que si une demande d'écart métier est ouverte. T1.5-c : "
+                "en appel d'appareil, l'heure de réception du serveur date la complétion. Durée "
+                "réelle tirée des pointages, nette des pauses ; refus fail-closed si "
+                "indéterminable. T1.2-f : consentement_marketing, client_satisfait, photos et "
                 "description_factuelle sont des faits CLIENT (Loi 25), jamais affirmés par un "
-                "agent — acceptés SEULEMENT pendant un appel d'appareil (app mobile) ; les fournir "
-                "hors d'un appel est un refus nommé (REJ-CHAMPS-CLIENT-HORS-APPAREIL), rien écrit. "
-                "T1.4-k : un employé ne termine que SON intervention (REJ-INTERVENTION-NON-ASSIGNEE)."
+                "agent : acceptés SEULEMENT en appel d'appareil (sinon "
+                "REJ-CHAMPS-CLIENT-HORS-APPAREIL). T1.4-k : un employé ne termine que SON "
+                "intervention (REJ-INTERVENTION-NON-ASSIGNEE)."
             ),
             parametres={
                 "type": "object",
@@ -1710,7 +1736,20 @@ def attentes() -> list[dict[str, Any]]:
     un agent seul). Le résumé porte le signal de variance critique de M6 QUAND il existe
     (`outbox.dernier_signal_variance`, tracé par `_recevoir_variance_chantier` ci-dessus) — son
     absence est dite telle quelle (« pas encore de nouvelles »), jamais traitée comme « pas de
-    problème » (fail-closed)."""
+    problème » (fail-closed).
+
+    PLAN T1.5-c, décision écrite : entre « Terminer » et le formulaire des matériaux, la
+    complétion est DÉJÀ `completed_pending_review`, et c'est juste. DEFINITION-PRODUIT §6 : « s'il
+    manque quelque chose ou si le matériel diffère du prévu, le statut devient
+    completed_pending_review » — le matériel utilisé manque, et §9.7 ne le compare qu'à la
+    soumission du formulaire. L'information est donc VRAIE et reste dans « À voir » : la retirer
+    rendrait invisible une déclaration jamais faite, faute d'horloge (un département ne lit
+    jamais l'heure) pour distinguer « en cours » de « en retard ». Ce qui était FAUX, c'était de
+    la présenter comme une revue à trancher : tant que la variance de M6 n'est pas là (rien reçu,
+    ou `declaration_absente`), il n'y a rien à décider, et `verifiee` court-circuiterait la
+    comparaison de M6. Le résumé dit alors qu'on attend le formulaire, sans écart signalé, et le
+    geste proposé n'offre pas `verifiee`. L'alerte d'écart (§9.7, étape 5) reste celle du signal
+    critique de M6, inchangée."""
     reg = registre.Registre(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
     return [
         {
@@ -1719,10 +1758,7 @@ def attentes() -> list[dict[str, Any]]:
             "resume": _resume_completion_en_revue(reg, pendante["intervention_id"]),
             "niveau": Niveau.N4.value,
             "depuis": _depuis_pending_review(reg, pendante["intervention_id"]),
-            "action_proposee": (
-                "m4_resoudre_revue_completion : verifiee (confirme) ou correction (nomme le "
-                "problème)"
-            ),
+            "action_proposee": _geste_completion_en_revue(reg, pendante["intervention_id"]),
         }
         for pendante in etats.lister_interventions(reg, statut="completed_pending_review")
     ]
@@ -1744,11 +1780,60 @@ def _depuis_pending_review(reg: registre.Registre, intervention_id: str) -> str:
     return dernier
 
 
+_GESTE_REVUE = (
+    "m4_resoudre_revue_completion : verifiee (confirme) ou correction (nomme le "
+    "problème)"
+)
+_GESTE_ATTENTE_FORMULAIRE = (
+    "Rien à décider : la vérification suit le formulaire des matériaux de l'employé. S'il "
+    "n'arrive pas : m4_resoudre_revue_completion (correction)"
+)
+
+
+def _ecart_metier_signale_a_la_completion(reg: registre.Registre, intervention_id: str) -> bool:
+    """Le WCT de l'intervention dit-il qu'un écart métier était ouvert à la complétion ?
+    (`wct.ecart_signale`, T1.5-c : vrai seulement dans ce cas.)"""
+    return any(
+        wct["intervention_id"] == intervention_id and wct["ecart_signale"] is True
+        for _, wct in outbox.lire_outbox(reg)
+    )
+
+
+def _attend_le_formulaire(
+    reg: registre.Registre, intervention_id: str, signal: dict[str, Any] | None,
+) -> bool:
+    """Vrai tant qu'il n'y a rien à décider : aucun écart métier ouvert à la complétion, et la
+    variance de M6 n'a pas de quoi être évaluée du côté du terrain (aucun signal reçu, ou
+    `declaration_absente` : l'employé n'a pas encore rempli le formulaire). Les autres statuts
+    (`prevu_absent`, `seuil_absent`, `evaluee`) et tout écart métier demandent une personne."""
+    if _ecart_metier_signale_a_la_completion(reg, intervention_id):
+        return False
+    return signal is None or signal["statut_variance"] == "declaration_absente"
+
+
+def _geste_completion_en_revue(reg: registre.Registre, intervention_id: str) -> str:
+    signal = outbox.dernier_signal_variance(reg, intervention_id)
+    if _attend_le_formulaire(reg, intervention_id, signal):
+        return _GESTE_ATTENTE_FORMULAIRE
+    return _GESTE_REVUE
+
+
 def _resume_completion_en_revue(reg: registre.Registre, intervention_id: str) -> str:
     base = f"Complétion en revue ({intervention_id})"
     signal = outbox.dernier_signal_variance(reg, intervention_id)
+    # Jamais « aucun écart » quand le WCT dit le contraire : le constat vient du WCT lui-même.
+    constat = (
+        "écart métier ouvert à la complétion"
+        if _ecart_metier_signale_a_la_completion(reg, intervention_id)
+        else "aucun écart signalé"
+    )
     if signal is None:
-        return f"{base} — variance M6 non encore reçue"
+        return f"{base} — variance M6 non encore reçue, {constat} à ce stade"
+    if signal["statut_variance"] == "declaration_absente":
+        return (
+            f"{base} — variance M6 non finalisée (declaration_absente) : formulaire des matériaux "
+            f"de l'employé attendu, {constat}"
+        )
     if signal["statut_variance"] != "evaluee":
         return f"{base} — variance M6 non finalisée ({signal['statut_variance']})"
     if signal["signal_critique"] is True:

@@ -228,6 +228,26 @@ def lister_pending_review(registre_cible, type_demande=None):
     return result
 
 
+def ecart_metier_ouvert(registre_cible, intervention_id):
+    """Vrai si l'intervention porte une demande d'écart MÉTIER non résolue (PLAN T1.5-c).
+
+    C'est la source vraie de ``wct.ecart_signale`` au moment de la complétion par l'appareil : un
+    écart déclaré sur les faits (durée, périmètre, matériaux) que personne n'a encore arbitré. Une
+    demande résolue n'en est plus une (validée : la complétion est passée par ``resoudre_demande`` ;
+    rejetée : l'intervention est annulée). Une ``anomalie_pointage`` n'en est pas une : le module
+    garde les deux concepts séparés (``TYPES_DEMANDE``). La variance des matériaux, elle, vient de
+    M6 après la complétion (``m6.variance_chantier``) : elle n'existe pas encore ici, et ce
+    prédicat ne la devine pas.
+
+    Returns:
+        bool. Lecture pure du registre, aucune horloge.
+    """
+    return any(
+        demande.get("intervention_id") == intervention_id
+        for demande in lister_pending_review(registre_cible, type_demande="ecart_metier")
+    )
+
+
 def volumetrie_pending_review(registre_cible):
     """Comptage des demandes en attente par type.
 
@@ -388,6 +408,7 @@ __all__ = [
     "CLES_VERSION",
     "creer_demande_ecart",
     "lister_pending_review",
+    "ecart_metier_ouvert",
     "volumetrie_pending_review",
     "resoudre_demande",
 ]

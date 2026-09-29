@@ -274,6 +274,7 @@ def calculer_duree_reelle(registre_cible, intervention_id):
 
 def completer_intervention(
     intervention_id, horodatage_arg, registre_cible, *, ecart_detecte, revue_id=None,
+    verification_en_attente=False,
     photos=NON_FOURNI, description_factuelle=NON_FOURNI,
     consentement_marketing=NON_FOURNI, client_satisfait=NON_FOURNI,
 ):
@@ -289,8 +290,20 @@ def completer_intervention(
             (ex. la seule présence de ``revue_id``) : l'appelant décide, cette
             fonction applique. Détermine l'ISSUE de la complétion :
                 vrai  -> statut completed_pending_review
-                faux  -> statut completed_verified
+                faux  -> statut completed_verified (sauf ``verification_en_attente``)
             (DEFINITION-PRODUIT.md §6). Porté tel quel dans wct.ecart_signale.
+            PLAN T1.5-c : ``ecart_signale`` dit ce que M4 SAIT d'un écart MÉTIER
+            (une demande d'écart ouverte ou validée, module ``ecarts``) ; il ne dit
+            RIEN de la variance des matériaux, que M6 calcule plus tard et publie
+            dans ``m6.variance_chantier`` (``signal_critique``). Il ne vaut donc
+            jamais vrai « par précaution » : ce rôle est celui de
+            ``verification_en_attente``.
+        verification_en_attente: booléen (défaut faux = comportement historique).
+            Vrai : la complétion reste ``completed_pending_review`` MÊME sans écart
+            détecté, parce que la vérification n'est pas terminée (DEFINITION-PRODUIT
+            §6 : « s'il manque quelque chose » — ici le formulaire des matériaux
+            utilisés, que M6 compare ensuite au prévu). Aucune valeur de
+            ``ecart_signale`` n'est alors inventée pour forcer la revue.
         revue_id: éventuel identifiant de la demande de revue ayant déclenché
             la complétion. S'il est fourni, il DOIT correspondre à un écart
             métier déjà confirmé : ``ecart_detecte`` doit alors valoir vrai
@@ -322,7 +335,16 @@ def completer_intervention(
             "REJ-CONTRAT-INVALIDE",
             detail="ecart_detecte doit être un booléen explicite (jamais déduit)",
         )
-    statut_cible = "completed_pending_review" if ecart_detecte else "completed_verified"
+    # 2 (suite). verification_en_attente (T1.5-c) : booléen STRICT aussi, pour la même raison.
+    if type(verification_en_attente) is not bool:
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail="verification_en_attente doit être un booléen explicite (jamais déduit)",
+        )
+    statut_cible = (
+        "completed_pending_review" if (ecart_detecte or verification_en_attente)
+        else "completed_verified"
+    )
 
     # 2 bis. T1.2-f : forme des champs CLIENT optionnels, SI fournis (NON_FOURNI sinon) —
     # fail-closed, jamais une valeur mal typée acceptée silencieusement.

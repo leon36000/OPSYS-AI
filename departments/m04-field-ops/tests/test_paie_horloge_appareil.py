@@ -275,3 +275,98 @@ def test_demarrer_route_hors_appel_appareil_comportement_inchange(base_durable):
         )
     assert maillon["horodatage"] == h_route
     assert "horodatage_appareil" not in maillon
+
+
+# ==================================================================================
+# PLAN T1.5-c : m4_completer_intervention suit le MÊME patron que m4_pointer et
+# m4_demarrer_route — pendant un appel d'appareil, l'heure de RÉCEPTION DU SERVEUR date la
+# complétion, jamais l'horloge de l'appareil ni la valeur `horodatage` fournie. Le `wct_id`
+# (empreinte de l'intervention et de cette heure) ne dépend donc plus du téléphone. L'heure
+# d'appareil reste lisible À CÔTÉ, sur l'accusé SEULEMENT (ni le maillon ni le WCT ne la portent).
+# ==================================================================================
+def _pointer_arrivee_et_depart(par_nom, i_id, recu_arrivee, recu_depart):
+    for action, recu in (("arrivee", recu_arrivee), ("depart", recu_depart)):
+        with contexte.receptionne_de(_horodatage_appareil(recu)):
+            r = executer_atomique(par_nom["m4_pointer"], {
+                "intervention_id": i_id, "technicien_id": "T1", "action": action,
+                "horodatage": _HORLOGE_APPAREIL_DEREGLEE.isoformat(),
+                "fix_gps": FIX_GPS, "attestation": ATTESTATION, "fenetre_travail": FENETRE,
+                "referentiel_villes": _referentiel(), "ville": VILLE, "sel": SEL,
+            })
+        assert r["ok"] is True and r["resultat"]["accepte"] is True, r
+
+
+def _maillon_de_completion(i_id):
+    with stockage.transaction():
+        from m4_field_ops.registre import Registre
+        reg = Registre(stockage.maillons("m04-field-ops", "principal"))
+        return next(m for m in reg.lire() if m.get("intervention_id") == i_id and "wct" in m)
+
+
+def test_completion_appareil_horloge_dereglee_heure_serveur_date_la_completion_et_le_wct_id(
+    base_durable, deposer_photo_test,
+):
+    from m4_field_ops import encodage
+
+    par_nom = {o.nom: o for o in outils()}
+    i_id = _planifier_et_router(par_nom, "L-COMPLETION-T15C-DEREGLE")
+    recu_completion = dt.datetime(2025, 6, 2, 11, 40, 0, tzinfo=dt.UTC)
+    _pointer_arrivee_et_depart(
+        par_nom, i_id, dt.datetime(2025, 6, 2, 9, 0, 0, tzinfo=dt.UTC),
+        dt.datetime(2025, 6, 2, 11, 30, 0, tzinfo=dt.UTC))
+    preuves = {
+        "checklist_complete": True, "photos_apres": [deposer_photo_test(par_nom)],
+        "notes": "RAS.", "signature": None,
+    }
+
+    with contexte.receptionne_de(_horodatage_appareil(recu_completion)):
+        completion = executer_atomique(par_nom["m4_completer_intervention"], {
+            # Volontairement l'horloge déréglée : PROUVE qu'elle est ignorée (même patron que m4_pointer).
+            "intervention_id": i_id, "horodatage": _HORLOGE_APPAREIL_DEREGLEE.isoformat(),
+            "preuves_completion": preuves,
+        })
+    assert completion["ok"] is True and completion["resultat"]["accepte"] is True, completion
+    accuse = completion["resultat"]["resultat"]
+
+    attendu = encodage.empreinte("wct", i_id, recu_completion.isoformat())
+    assert accuse["wct_id"] == attendu
+    assert accuse["wct_id"] != encodage.empreinte("wct", i_id, _HORLOGE_APPAREIL_DEREGLEE.isoformat())
+    assert accuse["horodatage_appareil"] == _HORLOGE_APPAREIL_DEREGLEE.isoformat()
+
+    maillon = _maillon_de_completion(i_id)
+    assert maillon["horodatage"] == recu_completion.isoformat()
+    assert maillon["wct"]["wct_id"] == attendu
+    assert "horodatage_appareil" not in maillon and "horodatage_appareil" not in maillon["wct"]
+
+
+def test_completion_hors_appel_appareil_comportement_inchange(base_durable, deposer_photo_test):
+    """Sans `contexte.receptionne_de` actif : `horodatage` fait foi comme avant T1.5-c, le `wct_id` en
+    dépend, et aucune clé `horodatage_appareil` n'apparaît nulle part."""
+    from m4_field_ops import encodage
+
+    par_nom = {o.nom: o for o in outils()}
+    i_id = _planifier_et_router(par_nom, "L-COMPLETION-T15C-SANS-APPAREIL")
+    for action, horo in (("arrivee", "2025-06-02T09:00:00+00:00"), ("depart", "2025-06-02T11:30:00+00:00")):
+        r = executer_atomique(par_nom["m4_pointer"], {
+            "intervention_id": i_id, "technicien_id": "T1", "action": action, "horodatage": horo,
+            "fix_gps": FIX_GPS, "attestation": ATTESTATION, "fenetre_travail": FENETRE,
+            "referentiel_villes": _referentiel(), "ville": VILLE, "sel": SEL,
+        })
+        assert r["ok"] is True and r["resultat"]["accepte"] is True, r
+
+    h_completion = "2025-06-02T11:40:00+00:00"
+    completion = executer_atomique(par_nom["m4_completer_intervention"], {
+        "intervention_id": i_id, "horodatage": h_completion,
+        "preuves_completion": {
+            "checklist_complete": True, "photos_apres": [deposer_photo_test(par_nom)],
+            "notes": "RAS.", "signature": None,
+        },
+    })
+    assert completion["ok"] is True and completion["resultat"]["accepte"] is True, completion
+    accuse = completion["resultat"]["resultat"]
+    assert accuse["wct_id"] == encodage.empreinte("wct", i_id, h_completion)
+    assert "horodatage_appareil" not in accuse
+
+    maillon = _maillon_de_completion(i_id)
+    assert maillon["horodatage"] == h_completion
+    assert "horodatage_appareil" not in maillon

@@ -36,11 +36,11 @@
     },
     "ecart_signale": {
       "type": "boolean",
-      "description": "Booléen explicite de l'appelant (jamais déduit) ; détermine completed_pending_review (true) ou completed_verified (false)."
+      "description": "Écart MÉTIER connu de M4 à la complétion : une demande d'écart ouverte ou validée (outbox.py::completer_intervention, ecarts.py::ecart_metier_ouvert). Booléen explicite de l'appelant, jamais déduit ni vrai par précaution (PLAN T1.5-c). Ne dit RIEN de la variance des matériaux, que M6 publie ensuite dans m6.variance_chantier. true impose completed_pending_review ; false donne completed_verified, sauf vérification encore en attente (matériaux non comparés au prévu) qui garde completed_pending_review."
     },
     "revue_id": {
       "type": ["string", "null"],
-      "description": "Demande de revue ayant motivé la complétion, si ecart_signale est vrai ; sinon null."
+      "description": "Demande de revue ayant motivé la complétion, si ecart_signale est vrai et que la complétion découle de sa résolution (ecarts.py::resoudre_demande) ; sinon null, dont toute complétion venue de l'appareil."
     },
     "hash_maillon": {
       "type": "string",

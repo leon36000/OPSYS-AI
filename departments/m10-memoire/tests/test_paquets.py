@@ -134,6 +134,21 @@ def test_couche_evenements_recents_contient_wct_et_variance_triees_recent_dabord
     assert couche["faits"][1]["source"] == "m4.travaux_termines"
 
 
+def test_resume_du_wct_ne_dit_ecart_signale_que_si_m4_l_a_signale(registres):
+    """PLAN T1.5-c : M4 ne signale plus d'écart « par précaution » à chaque complétion d'appareil
+    (`ecart_signale` faux tant qu'aucune demande d'écart n'est ouverte) ; M10 ne grave donc « écart
+    signalé » que pour un écart réel, sans que son code change."""
+    registre_evenements, registre_affaires = registres
+    wct.memoriser_wct(_wct(wct_id="WCT-SANS", lead_id="LEAD-1", ecart_signale=False), registre_evenements)
+    wct.memoriser_wct(_wct(wct_id="WCT-AVEC", lead_id="LEAD-1", ecart_signale=True), registre_evenements)
+
+    paquet = paquets.assembler_paquet_contexte("LEAD-1", HORODATAGE_PAQUET, registre_evenements, registre_affaires)
+
+    resumes = {f["identifiant"]: f["resume"] for f in _couche(paquet, paquets.COUCHE_EVENEMENTS_RECENTS)["faits"]}
+    assert resumes["WCT-SANS"] == "WCT WCT-SANS : durée réelle 90 min"
+    assert resumes["WCT-AVEC"] == "WCT WCT-AVEC : durée réelle 90 min, écart signalé"
+
+
 def test_couche_signaux_non_resolus_ne_garde_que_les_variances_critiques(registres):
     registre_evenements, registre_affaires = registres
     wct.memoriser_wct(_wct(wct_id="WCT-1", lead_id="LEAD-1"), registre_evenements)

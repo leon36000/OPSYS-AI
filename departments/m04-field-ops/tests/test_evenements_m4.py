@@ -148,6 +148,55 @@ def test_completion_acceptee_publie_m4_travaux_termines_dans_la_meme_transaction
     # puisque _contrat() en porte un — jamais ville (Loi 25, tokenisée dans le registre M4).
     assert set(charge) == set(CHAMPS_WCT) | {"type_travaux"}
     assert charge["type_travaux"] == "renovation_totale"
+    # T1.5-c : aucun écart n'était connu de M4 ; le statut, lui, dit « pas encore vérifié ».
+    assert charge["ecart_signale"] is False
+
+
+def test_completion_avec_une_demande_d_ecart_ouverte_signale_l_ecart_dans_le_wct_et_l_evenement(
+    base_durable, deposer_photo_test,
+):
+    """T1.5-c : `ecart_signale` a une source vraie — une demande d'écart métier ouverte, lue au registre —
+    et jamais « vrai par précaution ». La complétion reste à vérifier dans les deux cas."""
+    par_nom = {o.nom: o for o in outils()}
+    i_id = _mener_a_sur_site(par_nom, "L-EVT-ECART-OUVERT")
+    demande = executer_atomique(par_nom["m4_creer_demande_ecart"], {
+        "intervention_id": i_id,
+        "version_prevue": {"duree_minutes": 120, "perimetre": "gouttières", "materiaux": ["gouttière"]},
+        "version_declaree": {"duree_minutes": 150, "perimetre": "gouttières et soffite",
+                             "materiaux": ["gouttière", "soffite"]},
+        "horodatage": "2025-06-02T11:32:00+00:00",
+    })
+    assert demande["ok"] is True and demande["resultat"]["accepte"] is True, demande
+
+    completion = executer_atomique(par_nom["m4_completer_intervention"], {
+        "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
+        "preuves_completion": _preuves_ok(par_nom, deposer_photo_test),
+    })
+    assert completion["ok"] is True and completion["resultat"]["accepte"] is True, completion
+    accuse = completion["resultat"]["resultat"]
+    assert (accuse["statut"], accuse["ecart_signale"]) == ("completed_pending_review", True)
+    _, charge = _charge_publiee("m4.travaux_termines")
+    assert (charge["statut"], charge["ecart_signale"]) == ("completed_pending_review", True)
+    assert _wct_pour(par_nom, i_id)["ecart_signale"] is True
+
+
+def test_completion_sans_ecart_connu_ne_signale_aucun_ecart_mais_reste_a_verifier(base_durable, deposer_photo_test):
+    """Le pendant : sans demande d'écart, le WCT ne prétend pas qu'un écart existe (`ecart_signale`
+    faux) ; la complétion reste pourtant `completed_pending_review`, parce que les matériaux ne sont
+    pas encore comparés au prévu (§6) — c'est le statut qui le dit, pas un écart inventé."""
+    par_nom = {o.nom: o for o in outils()}
+    i_id = _mener_a_sur_site(par_nom, "L-EVT-SANS-ECART")
+    completion = executer_atomique(par_nom["m4_completer_intervention"], {
+        "intervention_id": i_id, "horodatage": "2025-06-02T11:35:00+00:00",
+        "preuves_completion": _preuves_ok(par_nom, deposer_photo_test),
+    })
+    assert completion["ok"] is True and completion["resultat"]["accepte"] is True, completion
+    accuse = completion["resultat"]["resultat"]
+    assert (accuse["statut"], accuse["ecart_signale"]) == ("completed_pending_review", False)
+    wct = _wct_pour(par_nom, i_id)
+    assert (wct["statut"], wct["ecart_signale"], wct["revue_id"]) == ("completed_pending_review", False, None)
+    statut = executer_atomique(par_nom["m4_statut_intervention"], {"intervention_id": i_id})
+    assert statut["resultat"]["statut"] == "completed_pending_review"
 
 
 def test_completion_refusee_ne_publie_rien(base_durable, deposer_photo_test):

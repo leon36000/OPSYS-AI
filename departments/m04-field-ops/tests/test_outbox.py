@@ -320,6 +320,65 @@ def test_completer_ecart_detecte_false_donne_completed_verified():
     assert reg.lire()[-1][outbox_mod.CLE_WCT]["ecart_signale"] is False
 
 
+# ------------------------------------------------------------------ 8 ter. verification_en_attente (PLAN T1.5-c)
+def test_completer_verification_en_attente_sans_ecart_reste_pending_review_et_ecart_signale_faux():
+    """T1.5-c : « à vérifier » n'est pas « écart » — la complétion reste `completed_pending_review`
+    sans que `ecart_signale` ait à mentir : le WCT dit faux, le statut dit « pas encore vérifié »."""
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    accuse, verdict = outbox_mod.completer_intervention(
+        i_id, H_COMPLETION, reg, ecart_detecte=False, verification_en_attente=True)
+    assert accuse is not None, f"complétion refusée : {verdict}"
+    assert accuse["statut"] == "completed_pending_review"
+    assert accuse["ecart_signale"] is False
+    wct = reg.lire()[-1][outbox_mod.CLE_WCT]
+    assert (reg.lire()[-1]["statut"], wct["statut"], wct["ecart_signale"]) == (
+        "completed_pending_review", "completed_pending_review", False)
+    ok, message = outbox_mod.verifier_invariants_outbox(reg)
+    assert ok, message
+
+
+def test_completer_verification_en_attente_avec_ecart_donne_pending_review_et_ecart_vrai():
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    accuse, verdict = outbox_mod.completer_intervention(
+        i_id, H_COMPLETION, reg, ecart_detecte=True, verification_en_attente=True)
+    assert accuse is not None, f"complétion refusée : {verdict}"
+    assert (accuse["statut"], accuse["ecart_signale"]) == ("completed_pending_review", True)
+
+
+def test_completer_verification_en_attente_faux_par_defaut_ne_change_rien():
+    """Sans le mot-clé, le comportement historique reste : faux -> completed_verified."""
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    accuse, verdict = outbox_mod.completer_intervention(
+        i_id, H_COMPLETION, reg, ecart_detecte=False, verification_en_attente=False)
+    assert accuse is not None, f"complétion refusée : {verdict}"
+    assert accuse["statut"] == "completed_verified"
+
+
+@pytest.mark.parametrize("mauvais", [None, 1, 0, "true", "oui"])
+def test_completer_verification_en_attente_non_booleen_refuse(mauvais):
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    taille_avant = len(reg.lire())
+    accuse, verdict = outbox_mod.completer_intervention(
+        i_id, H_COMPLETION, reg, ecart_detecte=False, verification_en_attente=mauvais)
+    assert accuse is None
+    assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
+    assert "verification_en_attente" in verdict["detail"]
+    assert len(reg.lire()) == taille_avant
+
+
+def test_completer_verification_en_attente_ne_dispense_pas_revue_id_d_un_ecart():
+    """Une revue_id fournie sans écart détecté reste incohérente, même si la vérification est en attente."""
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    acc_demande, ver_demande = ecarts_mod.creer_demande_ecart(
+        i_id, _VERSION_PREVUE_OUTBOX, _VERSION_DECLAREE_OUTBOX, H_ANOMALIE, reg)
+    assert acc_demande is not None, f"demande d'écart refusée : {ver_demande}"
+    accuse, verdict = outbox_mod.completer_intervention(
+        i_id, H_COMPLETION, reg, ecart_detecte=False, verification_en_attente=True,
+        revue_id=acc_demande["demande_id"])
+    assert accuse is None
+    assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
+
+
 def test_completer_revue_id_sans_ecart_detecte_refuse():
     """Une revue_id fournie sans ecart_detecte=true est une incohérence fermée
     fail-closed : une demande d'écart métier validée EST un écart détecté."""

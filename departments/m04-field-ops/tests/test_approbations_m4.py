@@ -16,7 +16,7 @@ from m4_field_ops import cedule
 from m4_field_ops import registre as registre_mod
 from m4_field_ops.outils import consommateurs, outils
 
-from opsys import approbations, identite, stockage
+from opsys import approbations, approbations_appareil, identite, stockage
 from opsys.departements import lire_manifeste
 from opsys.outils import Niveau, executer_atomique
 
@@ -59,11 +59,12 @@ def _marqueur(lead_id):
     }
 
 
-def _completion_en_revue(par_nom, lead_id, deposer_photo_test):
+def _completion_en_revue(par_nom, lead_id, deposer_photo_test, avec_ecart_metier_ouvert=False):
     """Mène une intervention jusqu'à `completed_pending_review`, par les VRAIS outils (comme un
-    agent le ferait) : `m4_completer_intervention` fixe toujours `ecart_detecte=True` (T1.1-b),
-    jamais `completed_verified` directement — c'est exactement l'état que la revue humaine doit
-    ensuite trancher."""
+    agent le ferait) : `m4_completer_intervention` ne rend jamais `completed_verified`
+    directement (vérification en attente, T1.5-c) — c'est exactement l'état que la revue humaine
+    doit ensuite trancher. `avec_ecart_metier_ouvert` : une demande d'écart métier est ouverte
+    avant la complétion (le WCT dit alors `ecart_signale` vrai)."""
     plan = executer_atomique(par_nom["m4_planifier_intervention"], {
         "contrat": _contrat(lead_id), "marqueur": _marqueur(lead_id),
         "horodatage": "2025-06-02T08:00:00+00:00", "sel": SEL,
@@ -96,6 +97,15 @@ def _completion_en_revue(par_nom, lead_id, deposer_photo_test):
         })
         assert r["ok"] is True and r["resultat"]["accepte"] is True, r
 
+    if avec_ecart_metier_ouvert:
+        demande = executer_atomique(par_nom["m4_creer_demande_ecart"], {
+            "intervention_id": i_id,
+            "version_prevue": {"duree_minutes": 120, "perimetre": "gouttières", "materiaux": ["gouttière"]},
+            "version_declaree": {"duree_minutes": 150, "perimetre": "gouttières et soffite",
+                                 "materiaux": ["gouttière", "soffite"]},
+            "horodatage": "2025-06-02T11:32:00+00:00",
+        })
+        assert demande["ok"] is True and demande["resultat"]["accepte"] is True, demande
     preuves_ok = {
         "checklist_complete": True, "photos_apres": [deposer_photo_test(par_nom)],
         "notes": "RAS.", "signature": None,
@@ -223,6 +233,84 @@ def test_attentes_liste_la_completion_en_revue_avant_tout_signal_m6(base_durable
     assert item["niveau"] == "N4"
     assert set(item) == {"type", "id", "resume", "niveau", "depuis", "action_proposee", "departement"}
     assert "non encore reçue" in item["resume"]
+    # T1.5-c : rien n'est à décider avant la variance de M6, et aucun écart n'est signalé (le WCT dit faux).
+    assert "aucun écart signalé" in item["resume"]
+    assert item["action_proposee"].startswith("Rien à décider") and "verifiee" not in item["action_proposee"]
+
+
+def _attente_apres_signal(par_nom, dep, i_id, **signal):
+    boite = executer_atomique(par_nom["m4_lire_outbox"], {})
+    wct = next(e["wct"] for e in boite["resultat"] if e["wct"]["intervention_id"] == i_id)
+    with stockage.transaction():
+        consommateurs()["m6.variance_chantier"]({
+            "evenement_id": f"m6-variance-{signal['statut_variance']}", "wct_id": wct["wct_id"],
+            "intervention_id": i_id, "chantier_id": "C-TEST", "seuil_pourcentage": 0.30,
+            "horodatage_completion": wct["horodatage_completion"], **signal,
+        })
+    with stockage.transaction() as cnx:
+        file = approbations.file_proprietaire(cnx, {"m04-field-ops": dep})
+    [item] = [i for i in file if i["id"] == i_id]
+    return item
+
+
+def test_attentes_declaration_absente_dit_qu_on_attend_le_formulaire_sans_offrir_verifiee(
+    base_durable, deposer_photo_test,
+):
+    """T1.5-c, décision écrite (`outils.attentes`) : entre « Terminer » et le formulaire des matériaux,
+    la complétion en revue est une information juste (§6), pas une revue à trancher : « verifiee »
+    court-circuiterait la comparaison de M6."""
+    dep = _dep_m4()
+    par_nom = {o.nom: o for o in outils()}
+    i_id = _completion_en_revue(par_nom, "L-ATTENTE-DECLARATION", deposer_photo_test)
+
+    item = _attente_apres_signal(par_nom, dep, i_id, statut_variance="declaration_absente", signal_critique=None)
+
+    assert "variance M6 non finalisée (declaration_absente)" in item["resume"]
+    assert "formulaire des matériaux de l'employé attendu, aucun écart signalé" in item["resume"]
+    assert "CRITIQUE" not in item["resume"]
+    assert item["action_proposee"].startswith("Rien à décider")
+    assert "verifiee" not in item["action_proposee"] and "m4_resoudre_revue_completion" in item["action_proposee"]
+    # Bornes de l'écran de l'app : au-delà, le socle tronque le texte (`approbations_appareil`).
+    assert len(item["resume"]) <= approbations_appareil.LIMITE_RESUME_ATTENTE
+    assert len(item["action_proposee"]) <= approbations_appareil.LIMITE_ACTION_ATTENTE
+
+
+@pytest.mark.parametrize("signal", [
+    {"statut_variance": "prevu_absent", "signal_critique": None},
+    {"statut_variance": "seuil_absent", "signal_critique": None, "seuil_pourcentage": None},
+    {"statut_variance": "evaluee", "signal_critique": True},
+])
+def test_attentes_offre_la_revue_quand_une_personne_doit_intervenir(base_durable, deposer_photo_test, signal):
+    """Le prévu ou le seuil manquent, ou l'écart est critique : ce n'est pas l'employé qui bloque, une
+    personne doit intervenir — le geste proposé est la revue (`verifiee` ou `correction`)."""
+    dep = _dep_m4()
+    par_nom = {o.nom: o for o in outils()}
+    i_id = _completion_en_revue(par_nom, f"L-ATTENTE-{signal['statut_variance']}", deposer_photo_test)
+
+    item = _attente_apres_signal(par_nom, dep, i_id, **signal)
+
+    assert "verifiee" in item["action_proposee"] and "m4_resoudre_revue_completion" in item["action_proposee"]
+    assert not item["action_proposee"].startswith("Rien à décider")
+
+
+def test_attentes_un_ecart_metier_ouvert_a_la_completion_reste_a_trancher(base_durable, deposer_photo_test):
+    """Une demande d'écart ouverte à la complétion (`wct.ecart_signale` vrai) n'attend pas seulement le
+    formulaire : le résumé ne dit jamais « aucun écart » et la revue reste proposée."""
+    dep = _dep_m4()
+    par_nom = {o.nom: o for o in outils()}
+    i_id = _completion_en_revue(par_nom, "L-ATTENTE-ECART-OUVERT", deposer_photo_test, avec_ecart_metier_ouvert=True)
+    wct = next(e["wct"] for e in executer_atomique(par_nom["m4_lire_outbox"], {})["resultat"]
+               if e["wct"]["intervention_id"] == i_id)
+    assert wct["ecart_signale"] is True
+
+    with stockage.transaction() as cnx:
+        [item] = [i for i in approbations.file_proprietaire(cnx, {"m04-field-ops": dep}) if i["id"] == i_id]
+    assert "écart métier ouvert à la complétion" in item["resume"] and "aucun écart" not in item["resume"]
+    assert "verifiee" in item["action_proposee"]
+
+    item = _attente_apres_signal(par_nom, dep, i_id, statut_variance="declaration_absente", signal_critique=None)
+    assert "écart métier ouvert à la complétion" in item["resume"] and "aucun écart" not in item["resume"]
+    assert "verifiee" in item["action_proposee"]
 
 
 def test_attentes_signale_le_signal_critique_de_m6_une_fois_recu(base_durable, deposer_photo_test):

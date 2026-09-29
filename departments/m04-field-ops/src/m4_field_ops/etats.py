@@ -43,6 +43,11 @@ catalogue complet du produit, hors périmètre de cette tranche) :
                                   prévu, le statut devient
                                   completed_pending_review, pas
                                   completed_verified. »)
+                                  T1.5-c : ``outbox.completer_intervention`` garde
+                                  completed_pending_review même sans écart tant que
+                                  la vérification est en attente (les matériaux ne
+                                  sont pas encore comparés au prévu), sans inventer
+                                  un ``ecart_detecte`` vrai pour l'obtenir.
     annulee                   -> annulee (inchangé ; proche de cancelled)
 
 ``completed_pending_review``/``completed_verified`` restent, comme

@@ -76,7 +76,7 @@ Le contrat d'événement de cascade est nommé WorkCompletionTriggerV1. Ses cham
   > d'un pointage situé dans la fenêtre de travail déclarée. Aucune donnée de localisation hors
   > heures de travail n'entre jamais dans un WCT.
 - duree_reelle_minutes : durée effective en minutes calculée déterministement depuis les pointages d'arrivée et de départ.
-- ecart_signale : booléen indiquant si un écart a été détecté et validé par revue humaine.
+- ecart_signale : booléen indiquant si un écart métier est connu de M4 à la complétion : une demande d'écart ouverte, ou validée par revue humaine. Jamais vrai par précaution : la variance des matériaux vient de M6 après la complétion (événement m6.variance_chantier), et une complétion encore à vérifier reste completed_pending_review sans qu'un écart soit inventé (PLAN T1.5-c).
 - revue_id : référence vers la demande de revue si ecart_signale est vrai, champ nul sinon.
 - hash_maillon : empreinte sha256 du maillon de registre correspondant à la transition vers terminee.
 - consommateurs_cibles : liste énumérée des six modules aval (M6, M5, M2, M7, M8, M10).

@@ -31,6 +31,7 @@ franchit pas : M6 n'a rien à dire, et les assertions d'origine tiennent.
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import time
 from decimal import Decimal
@@ -53,6 +54,7 @@ from harnais_e2e_chantier import (
     receptionner_materiel_args,
 )
 from m2_revenue_crm import statuts as m2_statuts
+from m4_field_ops import encodage as m4_encodage
 from m6_material_control import registre as m6_registre
 from m6_material_control import stock as m6_stock
 from sqlalchemy import select
@@ -277,6 +279,19 @@ def test_a_travaux_termines_normaux_par_la_porte_d_appareil(moteur, scenario_a):
     assert resultat_arrivee["horodatage"] == "2026-09-15T12:00:00+00:00"  # 08:00 -04:00, horloge du serveur
     assert resultat_arrivee["horodatage_appareil"] == arrivee.horodatage_appareil != resultat_arrivee["horodatage"]
 
+    # -- T1.5-c : « Terminer » est daté comme le punch, par l'heure du serveur, jamais par le téléphone ---
+    terminer = next(a for a in app.appels if a.outil == "m4_completer_intervention")
+    recu_le = (dt.datetime.fromisoformat(terminer.horodatage_appareil)
+               - dt.timedelta(seconds=app.derive_appareil_s)).astimezone(dt.UTC)  # le serveur date en UTC
+    assert terminer.args["horodatage"] == terminer.horodatage_appareil != recu_le.isoformat()  # l'app envoie SON heure
+    accuse_completion = completion.resultat
+    assert accuse_completion["horodatage_appareil"] == terminer.horodatage_appareil  # lue à côté, jamais utilisée
+    assert accuse_completion["wct_id"] == m4_encodage.empreinte("wct", ch.intervention_id, recu_le.isoformat())
+    # Aucun écart n'était connu de M4 : `ecart_signale` ne vaut plus vrai par précaution ; la complétion reste
+    # pourtant à vérifier (les matériaux ne sont pas encore comparés au prévu), par son statut.
+    assert accuse_completion["ecart_signale"] is False
+    assert accuse_completion["statut"] == "completed_pending_review"
+
     # -- aucune approbation en attente pour les gestes de l'employé (T1.4-h) ----------------------------
     assert _demandes("en_attente") == []
     traces = _traces_au_depart()
@@ -293,6 +308,9 @@ def test_a_travaux_termines_normaux_par_la_porte_d_appareil(moteur, scenario_a):
     assert _statuts_recus_non_traites() == []
     wct_id = completion.resultat["wct_id"]
     assert [e["evenement_id"] for e in _evenements("m4.travaux_termines")] == [wct_id]
+    assert [(e["ecart_signale"], e["statut"], e["type_travaux"]) for e in _evenements("m4.travaux_termines")] == [
+        (False, "completed_pending_review", "renovation_totale")]  # lead v1 : `type_travaux`, jamais `service`
+    assert all("service" not in e for e in _evenements("m4.travaux_termines"))
     consommateurs_wct = {"m02-revenue-crm", "m03-estimation", "m05-financecore", "m06-material-control",
                          "m07-marketing", "m08-analytics", "m10-memoire"}
     assert _recus(wct_id) == dict.fromkeys(consommateurs_wct, "traite")
@@ -439,7 +457,7 @@ def test_b_ecart_de_quarante_pour_cent_reste_en_revue_et_alerte_l_admin(moteur, 
     en_revue = par_type["completion_en_revue"]
     assert en_revue["id"] == ch.intervention_id and en_revue["departement"] == "m04-field-ops"
     assert en_revue["niveau"] == "N4" and "écart matériaux CRITIQUE signalé par M6" in en_revue["resume"]
-    assert "m4_resoudre_revue_completion" in en_revue["action_proposee"]
+    assert "m4_resoudre_revue_completion" in en_revue["action_proposee"] and "verifiee" in en_revue["action_proposee"]
     a_reviser = par_type["chantier_a_reviser"]
     assert a_reviser["id"] == f"variance-{wct_id}" and a_reviser["departement"] == "m05-financecore"
     assert "Écart matériaux critique" in a_reviser["resume"] and ch.chantier_id in a_reviser["resume"]
@@ -467,8 +485,11 @@ def test_b_ecart_de_quarante_pour_cent_reste_en_revue_et_alerte_l_admin(moteur, 
 
 @SQLITE_SEULEMENT
 def test_b_avant_la_declaration_l_admin_voit_une_revue_dont_la_variance_n_est_pas_finalisee(moteur, scenario_b):
-    """Entre « Terminer » et le formulaire de matériaux, la complétion est déjà en revue (jamais vérifiée seule) :
-    l'admin le voit, et la file dit que la variance de M6 n'est pas encore là. Ce n'est PAS l'alerte d'écart."""
+    """T1.5-c, décision écrite dans `outils.attentes()` : entre « Terminer » et le formulaire de matériaux, la
+    complétion est déjà `completed_pending_review` (§6 : le matériel utilisé manque) et l'admin le voit : c'est
+    une information juste, pas du bruit. Mais ce n'est ni l'alerte d'écart ni une revue à trancher : la file dit
+    qu'on attend le formulaire de l'employé, qu'aucun écart n'est signalé, et n'offre pas de « verifiee »
+    (qui court-circuiterait la comparaison de M6)."""
     s = scenario_b
     s.app.journee_jusqu_a_la_completion()
     moteur.drainer_bus(moteur.horloge.maintenant)
@@ -477,9 +498,14 @@ def test_b_avant_la_declaration_l_admin_voit_une_revue_dont_la_variance_n_est_pa
 
     par_type = {a["type"]: a for a in telephone["attentes"]}
     assert set(par_type) == {"completion_en_revue", "facture_brouillon"}  # pas encore de chantier à réviser
-    assert "variance M6 non finalisée (declaration_absente)" in par_type["completion_en_revue"]["resume"]
-    assert "CRITIQUE" not in par_type["completion_en_revue"]["resume"]
+    en_revue = par_type["completion_en_revue"]
+    assert "variance M6 non finalisée (declaration_absente)" in en_revue["resume"]
+    assert "formulaire des matériaux de l'employé attendu, aucun écart signalé" in en_revue["resume"]
+    assert "CRITIQUE" not in en_revue["resume"]
+    assert en_revue["action_proposee"].startswith("Rien à décider")
+    assert "verifiee" not in en_revue["action_proposee"]
     assert _evenements("m6.variance_chantier")[-1]["statut_variance"] == "declaration_absente"
+    assert [e["ecart_signale"] for e in _evenements("m4.travaux_termines")] == [False]
 
 
 @SQLITE_SEULEMENT

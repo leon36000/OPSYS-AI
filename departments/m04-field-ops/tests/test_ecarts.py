@@ -449,6 +449,39 @@ def test_lister_retourne_copie():
     assert "falsified" not in pendings2[0]
 
 
+# ------------------------------------------------------------------ 11 bis. ecart_metier_ouvert (PLAN T1.5-c)
+def test_ecart_metier_ouvert_faux_sans_demande():
+    reg, i_id = _registre_sur_site()
+    assert ecarts_mod.ecart_metier_ouvert(reg, i_id) is False
+
+
+def test_ecart_metier_ouvert_vrai_apres_creation_de_la_demande():
+    reg, i_id = _registre_sur_site()
+    ecarts_mod.creer_demande_ecart(i_id, VERSION_PREVUE, VERSION_DECLAREE, H4, reg)
+    assert ecarts_mod.ecart_metier_ouvert(reg, i_id) is True
+
+
+def test_ecart_metier_ouvert_faux_une_fois_la_demande_resolue():
+    reg, i_id = _registre_sur_site()
+    acc, _ = ecarts_mod.creer_demande_ecart(i_id, VERSION_PREVUE, VERSION_DECLAREE, H4, reg)
+    ecarts_mod.resoudre_demande(acc["demande_id"], "validee", H5, reg)
+    assert ecarts_mod.ecart_metier_ouvert(reg, i_id) is False
+
+
+def test_ecart_metier_ouvert_ne_compte_pas_la_demande_d_une_autre_intervention():
+    reg, i_id = _registre_sur_site()
+    ecarts_mod.creer_demande_ecart(i_id, VERSION_PREVUE, VERSION_DECLAREE, H4, reg)
+    assert ecarts_mod.ecart_metier_ouvert(reg, "autre-intervention") is False
+
+
+def test_ecart_metier_ouvert_ne_compte_pas_une_anomalie_de_pointage():
+    """Deux concepts qui ne confluent jamais (TYPES_DEMANDE) : une anomalie de cohérence terrain
+    n'est pas un écart sur les faits déclarés."""
+    reg, i_id, _ = _registre_en_revue_par_anomalie()
+    assert len(ecarts_mod.lister_pending_review(reg, type_demande="anomalie_pointage")) == 1
+    assert ecarts_mod.ecart_metier_ouvert(reg, i_id) is False
+
+
 # ------------------------------------------------------------------ 12. Les deux types ne confluent jamais
 def test_types_ne_confluent_pas():
     reg, i_id = _registre_sur_site()
