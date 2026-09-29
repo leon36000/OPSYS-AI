@@ -877,6 +877,13 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         passerelle factice) : ce test prouve le script, pas le core. À cocher quand la CI du core est verte.
   - [ ] T1.5-f Étendre `e2e-core` (vrai core) à « Terminer », au formulaire des matériaux et à la
         décision du propriétaire depuis un second appareil `admin`/`nathan_owner`.
+        Livré (1972a6d intégré), à cocher sur `e2e-core` vert : photo en deux blocs, signature,
+        départ et « Terminer » datés par le serveur, matériaux +40 % (écart critique), second
+        appareil pour `nathan` qui lit l'alerte dans « À voir », ouvre la revue N4 et la décide ;
+        décision signée `nathan_owner` avec l'appareil au journal, `completed_verified`, rejeu sans
+        effet, seconde décision refusée, employé refusé (403) ; 43 appels chronométrés. Constat
+        corrigé : les attentes se triaient par ancienneté seule (revue critique hors de la
+        première page) ; elles se trient maintenant par niveau, puis par ancienneté.
         Avancement (non coché : la CI du core n'a pas encore exécuté la suite) : `tests/e2e_core/journee.py`
         et `moteur_e2e.py`. Un second appareil s'appaire pour `nathan` (`nathan_owner`, rôle `admin`) ; la
         photo est déposée en deux blocs, « Terminer » est daté par le serveur, le formulaire déclare 56 pi
