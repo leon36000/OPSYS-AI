@@ -81,6 +81,9 @@ identifiants du propriétaire, repli livré en attendant.
         Python (renommé `opsys-metier`) ; AGENTS.md et CI mis à jour.
   - [ ] Lot 3 : dossier d'instance `~/.opsys` (état du core dans `core/`), `opsys.json`, anciens noms
         relus par la migration Doctor existante.
+        Depuis T0.11-b, l'installateur utilise le profil `opsys` (`~/.openclaw-opsys`) : ce lot
+        rend `~/.opsys/core` canonique dans `resolveStateDir` et `resolveProfileStateDir`, et
+        migre `~/.openclaw-opsys` par Doctor.
   - [ ] Lot 4 : services système `opsys-gateway`, anciens noms nettoyés.
 - [x] T0.8 ADR-0009 socle métier (base de données, événements, workflows à validation humaine,
       RBAC, audit, observabilité) d'après R13. Doit unifier les échelles d'autonomie aujourd'hui
@@ -155,9 +158,16 @@ identifiants du propriétaire, repli livré en attendant.
       manquent : le jeton du moteur est bien lu) ; échec à `gateway install` : le core n'installe
       un service que pour le dossier d'état canonique d'un profil (`isDefaultInstallIdentity`),
       et l'installateur pose `OPENCLAW_STATE_DIR=$OPSYS_HOME/core`.
-      - [ ] T0.11-b Service par le profil `opsys` du core (`OPENCLAW_PROFILE`) : dossier d'état
-            canonique du profil, nom de service distinct du core d'origine ; export, restauration
-            et désinstallation suivent ce dossier ; job `installateur` vert.
+      - [ ] T0.11-b Service par le profil `opsys` du core : livré (b02f7a4, a0f3c95), à cocher sur le job
+            `installateur`. Le core tourne sous l'option racine `--profile opsys` (la variable seule
+            ne projette pas l'état : seul `applyCliProfileEnv` le fait) ; état canonique
+            `~/.openclaw-opsys` ; service `openclaw-gateway-opsys` (Linux), `ai.openclaw.opsys`
+            (macOS), « OpenClaw Gateway (opsys) » (Windows), distinct du core d'origine ; garde
+            « service étranger » retirée ; ancienne disposition `$OPSYS_HOME/core` refusée avec la
+            marche à suivre, jamais migrée en silence. Socle 1049 (43 sautés), shellcheck OK.
+            Écart assumé à R14 (décision 4) : l'état du core sort d'`OPSYS_HOME`, imposé par le
+            core ; le lot 3 de T0.7 rendra le dossier d'OPSYS canonique. Port 18789 partagé avec le
+            core d'origine : `OPSYS_PORT_GATEWAY` pour coexister.
       Reste ensuite : macOS et Windows par une exécution manuelle ; LiteLLM, PostgreSQL et console
       restent à Docker Compose.
 
