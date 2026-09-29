@@ -173,7 +173,8 @@ humain, ou réessayer quand le contexte est disponible).
   pour un agent que le fichier ne nomme pas.
 - Le moteur écrit, à chaque tour (`assemble()` avec prompt), l'état de son PREFLIGHT par clé de session (mémoire du
   processus, 512 sessions). Le réassemblage sans prompt que le lanceur fait après chaque résultat d'outil ne compose
-  rien et n'écrase pas cet état.
+  rien et n'écrase pas cet état. Une session qui n'a pas eu son propre tour évalué (un sous-agent, un redémarrage du
+  processus en plein tour) n'a pas d'état : ses appels N3+ sont refusés, fail-closed, jusqu'à son prochain tour.
 - **Un moteur de contexte ne peut pas bloquer un appel d'outil.** `before_tool_call` appartient au lanceur de hooks
   de plugins et aux politiques d'outils de confiance, que seuls des plugins enregistrent
   (`core/src/agents/agent-tools.before-tool-call.policy.ts`, `runBeforeToolCallHook`, ligne 103 ; hooks de plugins
