@@ -878,6 +878,19 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
           personne, à dire par Nathan) ; `admin` voit les coûts ; `aujourd_hui` fourni par
           l'appelant pour l'âge des créances ; défaut existant de `variance_recus.pour_wct_id`
           (un réessai `declaration_absente` écrase `evaluee`).
+    - [x] M8 et M9 (a2274b1, 911158e, 742f3b1) : huit métriques gouvernées
+          (`m8-metrics.v1.yaml`, Decimal, garde de devise CAD) remesurées à chaque arrivée de
+          `m4.travaux_termines`, `m3.devis_accepte` et `m6.variance_chantier` ; donnée absente →
+          « non calculable, manque X » ; seuils vides par défaut → rappel « seuil à configurer »,
+          jamais une alerte inventée ; seuil franchi → `m8.alerte_proposee` avec preuve chiffrée ;
+          performance d'équipe par technicien sans classement, nominative pour l'admin seul ;
+          M9 : briefing borné sous la limite de `Capacites` avec « N autres » et
+          `m9_lire_suite_briefing`, `file_proprietaire` ne perd plus les demandes au-delà de 100,
+          `m9_produire_lecture_strategique` cite les preuves sans décider ; bout en bout par le
+          vrai bus (M4 → M8 → M9) ; M8 339, M9 207, socle 782.
+          Reste pour M8 : M3 ne publie pas `duree_estimee_minutes` dans `m3.devis_accepte` (temps
+          prévu « non calculable ») ; aucun événement de M5 ne porte la marge réelle vers M8 ;
+          `m9_lire_alertes_m8` n'est pas borné.
     - [ ] Reste : M5 ne calcule ni coût réel, ni rentabilité, ni compte à recevoir ;
         M7 ne reçoit jamais de demande d'avis depuis l'app (les champs client ne sont pas
         envoyés) ; M8 ne garde ni prévu ni marge ; M9 ne réagit pas ; le briefing M9 est tronqué
