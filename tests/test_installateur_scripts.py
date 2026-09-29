@@ -4,14 +4,22 @@ Node, pnpm, uv et curl sont remplacés par de petits scripts qui journalisent le
 est le vrai (l'interpréteur « de l'environnement » est l'interpréteur des tests), donc `opsys instance initialiser`,
 les secrets, la configuration du core et l'export tournent pour de vrai dans un dossier temporaire.
 
+Le faux `node` joue le rôle du core sur ce qui a fait échouer la première exécution de la CI (PLAN T0.11-b) : il
+applique la règle du fork. `--profile <p>` est une option racine qui projette l'état canonique `~/.openclaw-<p>`
+(`applyCliProfileEnv`) ; `gateway install|uninstall` est refusé si l'état n'est pas ce dossier canonique ou si
+OPENCLAW_HOME est défini (`isDefaultInstallIdentity`) ; le nom du service vient du profil (`constants.ts`). Un
+installateur qui pose OPENCLAW_STATE_DIR à la main est donc refusé ici comme il l'est par le vrai core.
+
 Ce que ces tests prouvent : l'enchaînement des étapes et leur ordre, le fail-closed (prérequis, étape en échec,
-fichier étranger, décision manquante), l'idempotence (secrets et configuration inchangés), qu'aucun secret n'est
-affiché ni journalisé même quand une commande le crache, l'installation à distance depuis un dépôt git (y compris
-par `bash < script`, comme `curl | bash`), et que la désinstallation retire le logiciel sans jamais toucher aux
-données.
+fichier étranger, décision manquante, ancienne disposition), l'idempotence (secrets et configuration inchangés),
+qu'aucun secret n'est affiché ni journalisé même quand une commande le crache, l'installation à distance depuis un
+dépôt git (y compris par `bash < script`, comme `curl | bash`), que le core tourne toujours sous le profil `opsys`
+quel que soit l'environnement de l'appelant, que le service du core d'origine n'est jamais touché, et que la
+désinstallation retire le logiciel sans jamais toucher aux données ni à l'état du core.
 
 Ce qu'ils ne prouvent PAS, et que seul le job `installateur` de la CI prouve : que le vrai core se construit, accepte
-la configuration (`openclaw config validate`), démarre par le service et lance le moteur.
+la configuration (`openclaw config validate`), applique bien la règle qu'on lui prête (`openclaw config file`,
+`gateway install`), démarre par le service et lance le moteur.
 """
 
 from __future__ import annotations
@@ -29,6 +37,8 @@ from pathlib import Path
 
 import pytest
 
+from opsys import instance
+
 pytestmark = pytest.mark.skipif(os.name == "nt" or shutil.which("bash") is None,
                                 reason="scripts bash : Linux et macOS (Windows : install.ps1)")
 
@@ -38,6 +48,7 @@ RACINE = Path(__file__).resolve().parents[1]
 INSTALL = RACINE / "install" / "install.sh"
 UNINSTALL = RACINE / "install" / "uninstall.sh"
 PNPM = "12.4.0"
+PROFIL = "--profile opsys"  # l'option racine par laquelle le core projette son état canonique
 EMBEDDINGS = {"OPSYS_EMBEDDINGS_URL": "http://127.0.0.1:11434/v1", "OPSYS_EMBEDDINGS_MODELE": "bge-m3"}
 
 FAUX_NODE = r"""#!/usr/bin/env bash
@@ -47,11 +58,42 @@ case "${1:-}" in
 esac
 if [[ "${1:-}" == *openclaw.mjs ]]; then
     shift
-    echo "openclaw $*" >>"$FAUX_JOURNAL"
-    if [ "${FAUX_ECHEC:-}" = "openclaw $*" ]; then echo "echec simule de : $*" >&2; exit 1; fi
-    if [ "$1 ${2:-}" = "gateway install" ]; then
-        # Un core qui crache un secret : l'installateur ne doit ni l'afficher ni le journaliser.
-        echo "service installe, jeton du moteur : $(sed -n 's/^OPSYS_MCP_JETON=//p' "$OPENCLAW_STATE_DIR/.env")"
+    appel="openclaw $*"
+    # Option racine `--profile` : le core pose l'état et la configuration canoniques du profil, sauf si un état est
+    # déjà posé dans l'environnement (core/src/cli/profile.ts, applyCliProfileEnv).
+    if [ "${1:-}" = "--profile" ]; then
+        export OPENCLAW_PROFILE="$2"
+        shift 2
+        export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-$HOME/.openclaw-$OPENCLAW_PROFILE}"
+        export OPENCLAW_CONFIG_PATH="${OPENCLAW_CONFIG_PATH:-$OPENCLAW_STATE_DIR/openclaw.json}"
+    fi
+    echo "$appel" >>"$FAUX_JOURNAL"
+    echo "etat=${OPENCLAW_STATE_DIR:-} profil=${OPENCLAW_PROFILE:-} home=${OPENCLAW_HOME:-}" \
+        "config=${OPENCLAW_CONFIG_PATH:-}" >>"$FAUX_ETATS"
+    if [ "${FAUX_ECHEC:-}" = "$appel" ]; then echo "echec simule de : $*" >&2; exit 1; fi
+    if [ "$1" = "config" ] && [ "${2:-}" = "file" ]; then
+        if [ -n "${FAUX_CONFIG_AILLEURS:-}" ]; then echo "$FAUX_CONFIG_AILLEURS"; exit 0; fi
+        echo "${OPENCLAW_CONFIG_PATH:-$HOME/.openclaw/openclaw.json}"
+        exit 0
+    fi
+    if [ "$1" = "gateway" ] && { [ "${2:-}" = "install" ] || [ "${2:-}" = "uninstall" ]; }; then
+        # core/src/config/paths.ts, isDefaultInstallIdentity : l'état doit être le dossier canonique du profil.
+        canonique="$HOME/.openclaw${OPENCLAW_PROFILE:+-$OPENCLAW_PROFILE}"
+        if [ -n "${OPENCLAW_HOME:-}" ] || [ "${OPENCLAW_STATE_DIR:-$HOME/.openclaw}" != "$canonique" ] ||
+            { [ -n "${OPENCLAW_CONFIG_PATH:-}" ] && [ "$OPENCLAW_CONFIG_PATH" != "$canonique/openclaw.json" ]; }; then
+            echo "Gateway $2 blocked: Error: service management skipped: non-default state dir or config path." >&2
+            exit 1
+        fi
+        # core/src/daemon/constants.ts : le nom du service vient du profil.
+        unite="$HOME/.config/systemd/user/openclaw-gateway${OPENCLAW_PROFILE:+-$OPENCLAW_PROFILE}.service"
+        if [ "$2" = "install" ]; then
+            mkdir -p "$(dirname "$unite")"
+            printf '[Service]\nEnvironment="OPENCLAW_STATE_DIR=%s"\n' "$OPENCLAW_STATE_DIR" >"$unite"
+            # Un core qui crache un secret : l'installateur ne doit ni l'afficher ni le journaliser.
+            echo "service installe, jeton du moteur : $(sed -n 's/^OPSYS_MCP_JETON=//p' "$OPENCLAW_STATE_DIR/.env")"
+        else
+            rm -f "$unite"
+        fi
     fi
     exit 0
 fi
@@ -91,7 +133,9 @@ class Bac:
         self.bin = tmp_path / "commandes"
         self.faux = tmp_path / "faux"
         self.journal = tmp_path / "appels.log"
+        self.etats = tmp_path / "etats.log"
         self.depot = tmp_path / "depot"
+        self.etat_core = self.hote / ".openclaw-opsys"  # le dossier canonique du profil `opsys`, sous HOME
         self.hote.mkdir()
         self.faux.mkdir()
         for nom, corps in (("node", FAUX_NODE), ("pnpm", FAUX_PNPM), ("uv", FAUX_UV), ("curl", FAUX_CURL)):
@@ -99,6 +143,7 @@ class Bac:
             chemin.write_text(corps, encoding="utf-8")
             chemin.chmod(0o755)
         self.journal.write_text("", encoding="utf-8")
+        self.etats.write_text("", encoding="utf-8")
         self.env_supplementaire: dict[str, str] = {}
 
     # -- le dépôt fictif : le strict nécessaire pour l'installateur, dans un vrai dépôt git ---------------------------
@@ -137,7 +182,8 @@ class Bac:
             "HOME": str(self.hote), "PATH": chemin_path or f"{self.faux}:/usr/bin:/bin",
             "OPSYS_HOME": str(self.home), "OPSYS_LOGICIEL": str(self.logiciel), "OPSYS_BIN": str(self.bin),
             "PYTHONPATH": os.pathsep.join(chemins_python), "LANG": "C.UTF-8",
-            "FAUX_JOURNAL": str(self.journal), "FAUX_PNPM_VERSION": PNPM, "FAUX_PYTHON": sys.executable,
+            "FAUX_JOURNAL": str(self.journal), "FAUX_ETATS": str(self.etats), "FAUX_PNPM_VERSION": PNPM,
+            "FAUX_PYTHON": sys.executable,
         }
         env.update(self.env_supplementaire)
         return env
@@ -154,6 +200,16 @@ class Bac:
     def appels(self) -> list[str]:
         return self.journal.read_text(encoding="utf-8").splitlines()
 
+    def etats_du_core(self) -> list[dict[str, str]]:
+        """Ce que le faux core a reçu à chaque appel : état, profil, OPENCLAW_HOME, configuration."""
+        lignes = self.etats.read_text(encoding="utf-8").splitlines()
+        return [dict(champ.split("=", 1) for champ in ligne.split() if "=" in champ) | {"ligne": ligne}
+                for ligne in lignes]
+
+    def etats_vus_par_le_core(self) -> set[str]:
+        """Les dossiers d'état que le faux core a reçus, un par appel."""
+        return {appel["etat"] for appel in self.etats_du_core()}
+
     def preparer_decisions(self) -> None:
         """Les décisions que l'installateur n'invente pas : un palier de modèles et le service d'embeddings."""
         self.home.mkdir(parents=True, mode=0o700, exist_ok=True)
@@ -162,7 +218,7 @@ class Bac:
         self.env_supplementaire.update(EMBEDDINGS)
 
     def secrets(self) -> list[str]:
-        env = (self.home / "core" / ".env").read_text(encoding="utf-8")
+        env = (self.etat_core / ".env").read_text(encoding="utf-8")
         return [v for k, v in re.findall(r"^([A-Z0-9_]+)=(.*)$", env, flags=re.MULTILINE)
                 if re.search(r"JETON|TOKEN|CLE", k) and len(v) >= 12]
 
@@ -221,22 +277,23 @@ def test_installation_complete_dans_l_ordre_avec_les_bons_arguments(bac):
     assert resultat.returncode == 0, _sortie(resultat)
     assert "OPSYS est installé." in resultat.stdout
     appels = bac.appels()
-    attendu = ["pnpm install --frozen-lockfile", "pnpm build", "openclaw --version"]
+    attendu = ["pnpm install --frozen-lockfile", "pnpm build", f"openclaw {PROFIL} --version"]
     assert [a for a in appels if a in attendu] == attendu
     ordre = [next(i for i, a in enumerate(appels) if a.startswith(debut)) for debut in (
-        "pnpm install", "pnpm build", "uv venv", "uv pip install", "openclaw --version", "openclaw config validate",
-        "openclaw gateway install")]
+        "pnpm install", "pnpm build", "uv venv", "uv pip install", f"openclaw {PROFIL} --version",
+        f"openclaw {PROFIL} config file", f"openclaw {PROFIL} config validate", f"openclaw {PROFIL} gateway install")]
     assert ordre == sorted(ordre)
     assert f"uv venv --clear --python >=3.11 {bac.logiciel}/venv" in appels
     assert f"uv pip install --python {bac.logiciel}/venv/bin/python --editable {bac.depot}" in appels
-    assert "openclaw gateway install --force --port 18789" in appels
-    config = json.loads((bac.home / "core" / "openclaw.json").read_text(encoding="utf-8"))
+    assert f"openclaw {PROFIL} gateway install --force --port 18789" in appels
+    assert all(a.startswith(f"openclaw {PROFIL} ") for a in appels if a.startswith("openclaw "))  # jamais sans profil
+    config = json.loads((bac.etat_core / "openclaw.json").read_text(encoding="utf-8"))
     assert config["gateway"]["port"] == 18789
-    metier = json.loads((bac.home / "core" / "opsys" / "metier.json").read_text(encoding="utf-8"))
+    metier = json.loads((bac.etat_core / "opsys" / "metier.json").read_text(encoding="utf-8"))
     assert metier["actif"] is True and metier["dossier"] == str(bac.depot) and metier["port"] == 8765
     enregistrement = (bac.logiciel / "installation.env").read_text(encoding="utf-8")
     for ligne in (f"OPSYS_HOME={bac.home}", f"SOURCE={bac.depot}", "SOURCE_GEREE=0", "SERVICE=1", "PORT_GATEWAY=18789",
-                  "PORT_MOTEUR=8765"):
+                  "PORT_MOTEUR=8765", "PROFIL_CORE=opsys", f"DOSSIER_CORE={bac.etat_core}"):
         assert ligne in enregistrement.splitlines()
 
 
@@ -246,8 +303,8 @@ def test_les_ports_demandes_sont_ceux_du_service_et_du_moteur(bac):
     resultat = bac.installer(OPSYS_PORT_GATEWAY="18790", OPSYS_PORT_MOTEUR="8766")
 
     assert resultat.returncode == 0, _sortie(resultat)
-    assert "openclaw gateway install --force --port 18790" in bac.appels()
-    metier = json.loads((bac.home / "core" / "opsys" / "metier.json").read_text(encoding="utf-8"))
+    assert f"openclaw {PROFIL} gateway install --force --port 18790" in bac.appels()
+    metier = json.loads((bac.etat_core / "opsys" / "metier.json").read_text(encoding="utf-8"))
     assert metier["port"] == 8766 and metier["commande"][-1] == "8766"
     relance = bac.installer()  # les ports sont ceux de la dernière installation, sans qu'on les redonne
     assert relance.returncode == 0 and "PORT_GATEWAY=18790" in (bac.logiciel / "installation.env").read_text()
@@ -259,7 +316,7 @@ def test_le_secret_est_prive_jamais_affiche_et_masque_meme_quand_une_commande_le
     resultat = bac.installer(OPSYS_VERBOSE="1")
 
     assert resultat.returncode == 0, _sortie(resultat)
-    env = bac.home / "core" / ".env"
+    env = bac.etat_core / ".env"
     assert stat.S_IMODE(env.stat().st_mode) == 0o600
     secrets = bac.secrets()
     assert len(secrets) >= 12
@@ -275,15 +332,16 @@ def test_relancer_l_installateur_ne_change_ni_secret_ni_configuration_ni_donnee(
     bac.preparer_decisions()
     premier = bac.installer()
     assert premier.returncode == 0, _sortie(premier)
-    avant_core = bac.empreinte_du_dossier(bac.home / "core")
+    avant_core = bac.empreinte_du_dossier(bac.etat_core)
     avant_paliers = (bac.home / "paliers.yaml").read_bytes()
 
     second = bac.installer()
 
     assert second.returncode == 0, _sortie(second)
-    assert bac.empreinte_du_dossier(bac.home / "core") == avant_core  # .env, openclaw.json, fragments, metier.json
+    assert bac.empreinte_du_dossier(bac.etat_core) == avant_core  # .env, openclaw.json, fragments, metier.json
     assert (bac.home / "paliers.yaml").read_bytes() == avant_paliers
-    assert bac.appels().count("openclaw gateway install --force --port 18789") == 2  # le Gateway est redémarré
+    installation_du_service = f"openclaw {PROFIL} gateway install --force --port 18789"
+    assert bac.appels().count(installation_du_service) == 2  # le Gateway est redémarré
 
 
 def test_avec_l_option_sans_service_le_service_n_est_pas_installe(bac):
@@ -292,8 +350,8 @@ def test_avec_l_option_sans_service_le_service_n_est_pas_installe(bac):
     resultat = bac.installer("--sans-service")
 
     assert resultat.returncode == 0, _sortie(resultat)
-    assert not [a for a in bac.appels() if a.startswith("openclaw gateway")]
-    assert "openclaw config validate" in bac.appels()
+    assert not [a for a in bac.appels() if " gateway " in a]
+    assert f"openclaw {PROFIL} config validate" in bac.appels()
     assert "SERVICE=0" in (bac.logiciel / "installation.env").read_text(encoding="utf-8").splitlines()
     assert "openclaw gateway run" in resultat.stdout
 
@@ -302,8 +360,8 @@ def test_les_commandes_installees_portent_l_instance_et_lisent_env_sans_l_evalue
     bac.preparer_decisions()
     assert bac.installer("--sans-service").returncode == 0
     piege = bac.racine / "piege-execute"
-    (bac.home / "core" / ".env").write_text(
-        (bac.home / "core" / ".env").read_text(encoding="utf-8") + f"PIEGE=$(touch {piege})\n", encoding="utf-8")
+    (bac.etat_core / ".env").write_text(
+        (bac.etat_core / ".env").read_text(encoding="utf-8") + f"PIEGE=$(touch {piege})\n", encoding="utf-8")
     env = {k: v for k, v in bac.env().items() if k != "OPSYS_HOME"}  # la commande retrouve l'instance seule
 
     etat = subprocess.run([str(bac.bin / "opsys"), "base", "etat"], env=env, capture_output=True, text=True,
@@ -317,9 +375,14 @@ def test_les_commandes_installees_portent_l_instance_et_lisent_env_sans_l_evalue
     assert not piege.exists()  # la ligne du .env a été lue, jamais évaluée
     coeur = subprocess.run([str(bac.bin / "openclaw"), "config", "validate"], env=env, capture_output=True, text=True,
                            check=False)
-    assert coeur.returncode == 0 and "openclaw config validate" in bac.appels()
+    assert coeur.returncode == 0 and f"openclaw {PROFIL} config validate" in bac.appels()
     for commande in ("openclaw", "opsys"):
         assert os.access(bac.bin / commande, os.X_OK)
+    enveloppe_core = (bac.bin / "openclaw").read_text(encoding="utf-8")
+    assert f"--profile {instance.PROFIL_CORE} " in enveloppe_core  # le core d'OPSYS tourne sous son profil
+    assert "export OPENCLAW_STATE_DIR" not in enveloppe_core  # jamais un état posé à la main
+    assert f"unset {' '.join(instance.VARIABLES_ECARTEES)}" in enveloppe_core
+    assert f"DOSSIER_CORE={bac.etat_core}" in (bac.bin / "opsys").read_text(encoding="utf-8")
 
 
 # -- fail-closed : décision manquante, étape en échec, fichier étranger --------------------------------------
@@ -330,14 +393,15 @@ def test_sans_paliers_ni_embeddings_l_installation_s_arrete_en_attente_avec_le_c
     assert "À FAIRE : paliers de modèles" in resultat.stderr and "À FAIRE : service d'embeddings" in resultat.stderr
     assert "Ce n'est pas une erreur d'installation" in resultat.stdout
     appels = bac.appels()
-    assert "openclaw config validate" not in appels and not [a for a in appels if "gateway install" in a]
+    assert f"openclaw {PROFIL} config validate" not in appels and not [a for a in appels if "gateway install" in a]
+    assert f"openclaw {PROFIL} config file" in appels  # la vérification du dossier d'état a lieu même en attente
     assert (bac.bin / "openclaw").exists() and (bac.bin / "opsys").exists()  # de quoi fournir les décisions
-    assert (bac.home / "core" / ".env").is_file() and not (bac.home / "core" / "openclaw.json").exists()
+    assert (bac.etat_core / ".env").is_file() and not (bac.etat_core / "openclaw.json").exists()
 
     bac.preparer_decisions()
     reprise = bac.installer()  # la même commande, décisions fournies : tout se termine
     assert reprise.returncode == 0, _sortie(reprise)
-    assert "openclaw gateway install --force --port 18789" in bac.appels()
+    assert f"openclaw {PROFIL} gateway install --force --port 18789" in bac.appels()
 
 
 def test_une_etape_en_echec_arrete_tout_avec_la_fin_du_journal_et_quoi_faire(bac):
@@ -356,7 +420,7 @@ def test_une_etape_en_echec_arrete_tout_avec_la_fin_du_journal_et_quoi_faire(bac
 def test_une_configuration_refusee_par_le_core_arrete_avant_le_service(bac):
     bac.preparer_decisions()
 
-    resultat = bac.installer(FAUX_ECHEC="openclaw config validate")
+    resultat = bac.installer(FAUX_ECHEC=f"openclaw {PROFIL} config validate")
 
     assert resultat.returncode == 1 and "Validation de la configuration par le core" in resultat.stderr
     assert not [a for a in bac.appels() if "gateway install" in a]
@@ -365,7 +429,7 @@ def test_une_configuration_refusee_par_le_core_arrete_avant_le_service(bac):
 def test_un_service_impossible_dit_quoi_faire(bac):
     bac.preparer_decisions()
 
-    resultat = bac.installer(FAUX_ECHEC="openclaw gateway install --force --port 18789")
+    resultat = bac.installer(FAUX_ECHEC=f"openclaw {PROFIL} gateway install --force --port 18789")
 
     assert resultat.returncode == 1
     assert "--sans-service" in resultat.stderr and "openclaw gateway run" in resultat.stderr
@@ -392,44 +456,136 @@ def test_une_url_de_base_dans_l_environnement_est_refusee_avec_la_voie_docker(ba
     assert "Docker Compose" in _sortie(resultat) and "mot-de-passe-pg-fictif" not in _sortie(resultat)
 
 
-def _unite_systemd(bac: Bac) -> Path:
-    return bac.hote / ".config" / "systemd" / "user" / "openclaw-gateway.service"
+def _unite_du_core(bac: Bac, *, profil: str | None = "opsys") -> Path:
+    """L'unité systemd que le faux core pose : son nom vient du profil (`constants.ts`)."""
+    nom = f"openclaw-gateway-{profil}.service" if profil else "openclaw-gateway.service"
+    return bac.hote / ".config" / "systemd" / "user" / nom
 
 
-@pytest.mark.skipif(sys.platform != "linux", reason="chemin de l'unité systemd (Linux)")
-def test_le_service_d_une_autre_installation_n_est_jamais_remplace(bac):
+# -- le core tourne sous son profil : l'échec de la première exécution de la CI, reproduit puis évité -----------------
+def test_le_faux_core_refuse_comme_le_vrai_un_etat_qui_n_est_pas_le_dossier_canonique_du_profil(bac):
+    """Garde de l'outil de test : sans elle, les tests ci-dessous ne prouveraient rien."""
     bac.preparer_decisions()
-    unite = _unite_systemd(bac)
-    unite.parent.mkdir(parents=True)
-    etranger = "[Service]\nExecStart=/usr/bin/node /opt/openclaw/openclaw.mjs gateway --port 18789\n"
-    unite.write_text(etranger, encoding="utf-8")
+    # ce que posait l'ancien installateur : un état à lui, sous OPSYS_HOME
+    env = {**bac.env(), "OPENCLAW_STATE_DIR": str(bac.home / "core"), "OPENCLAW_PROFILE": "opsys"}
+
+    refus = subprocess.run([str(bac.faux / "node"), "core/openclaw.mjs", "gateway", "install"], env=env,
+                           capture_output=True, text=True, check=False)
+
+    assert refus.returncode == 1 and "non-default state dir or config path" in refus.stderr
+    sans_profil = subprocess.run(  # la variable OPENCLAW_PROFILE seule ne projette rien : l'état reste ~/.openclaw
+        [str(bac.faux / "node"), "core/openclaw.mjs", "gateway", "install"],
+        env={**bac.env(), "OPENCLAW_PROFILE": "opsys"}, capture_output=True, text=True, check=False)
+    assert sans_profil.returncode == 1 and "non-default state dir" in sans_profil.stderr
+    avec_home = subprocess.run(
+        [str(bac.faux / "node"), "core/openclaw.mjs", "--profile", "opsys", "gateway", "install"],
+        env={**bac.env(), "OPENCLAW_HOME": "/ailleurs"}, capture_output=True, text=True, check=False)
+    assert avec_home.returncode == 1 and "non-default state dir" in avec_home.stderr
+
+
+def test_le_core_recoit_toujours_le_profil_opsys_et_son_etat_est_le_dossier_canonique(bac):
+    bac.preparer_decisions()
+
+    resultat = bac.installer()
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    assert bac.etats_vus_par_le_core() == {str(bac.etat_core)}  # chaque appel du core : le même dossier d'état
+    appels_du_core = bac.etats_du_core()
+    assert len(appels_du_core) >= 4  # --version, config file, config validate, gateway install
+    assert {a["profil"] for a in appels_du_core} == {"opsys"} and {a.get("home", "") for a in appels_du_core} == {""}
+    assert {a["config"] for a in appels_du_core} == {str(bac.etat_core / "openclaw.json")}
+    assert (bac.etat_core / ".env").is_file() and (bac.etat_core / "openclaw.json").is_file()
+    assert (bac.etat_core / "opsys" / "metier.json").is_file()
+    assert not (bac.home / "core").exists()  # rien de l'état du core sous OPSYS_HOME
+    assert stat.S_IMODE(bac.etat_core.stat().st_mode) == 0o700
+    assert _unite_du_core(bac).is_file()  # le service du profil
+    assert f"OPENCLAW_STATE_DIR={bac.etat_core}" in _unite_du_core(bac).read_text(encoding="utf-8")
+    donnees = {p.name for p in bac.home.iterdir()}
+    assert {"opsys.db", "paliers.yaml"} <= donnees and "core" not in donnees  # les données restent dans OPSYS_HOME
+
+
+def test_un_environnement_qui_sortirait_l_etat_du_dossier_canonique_est_ecarte(bac):
+    bac.preparer_decisions()
+    pollue = {"OPENCLAW_STATE_DIR": str(bac.racine / "ailleurs"), "OPENCLAW_CONFIG_PATH": str(bac.racine / "c.json"),
+              "OPENCLAW_HOME": str(bac.racine / "home-du-core"), "OPENCLAW_PROFILE": "autre",
+              "OPENCLAW_SYSTEMD_UNIT": "autre.service", "OPENCLAW_LAUNCHD_LABEL": "autre",
+              "OPENCLAW_WINDOWS_TASK_NAME": "autre"}
+
+    resultat = bac.installer(**pollue)
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    assert bac.etats_vus_par_le_core() == {str(bac.etat_core)}
+    assert not (bac.racine / "ailleurs").exists() and not (bac.racine / "home-du-core").exists()
+    assert any("OPENCLAW_STATE_DIR" in ligne and "ignoré" in ligne for ligne in _sortie(resultat).splitlines())
+    # la commande `openclaw` installée écarte elle aussi l'environnement de l'appelant
+    bac.etats.write_text("", encoding="utf-8")
+    env = {k: v for k, v in bac.env().items() if k != "OPSYS_HOME"} | pollue
+    coeur = subprocess.run([str(bac.bin / "openclaw"), "config", "file"], env=env, capture_output=True, text=True,
+                           check=False)
+    assert coeur.returncode == 0 and coeur.stdout.strip() == str(bac.etat_core / "openclaw.json")
+    assert bac.etats_vus_par_le_core() == {str(bac.etat_core)}
+    assert {a["profil"] for a in bac.etats_du_core()} == {"opsys"}
+    assert {a.get("home", "") for a in bac.etats_du_core()} == {""}
+
+
+def test_le_core_qui_cherche_sa_configuration_ailleurs_arrete_tout_avant_le_service(bac):
+    """Si la règle de profil du fork change, l'installateur s'arrête : pas de Gateway sans la configuration générée."""
+    bac.preparer_decisions()
+
+    resultat = bac.installer(FAUX_CONFIG_AILLEURS="/ailleurs/openclaw.json")
+
+    assert resultat.returncode == 1
+    assert "/ailleurs/openclaw.json" in resultat.stderr and f"{bac.etat_core}/openclaw.json" in resultat.stderr
+    assert "core/src/cli/profile-utils.ts" in resultat.stderr and "rien n'est démarré" in resultat.stderr
+    assert not [a for a in bac.appels() if "gateway install" in a or "config validate" in a]
+    assert not (bac.bin / "openclaw").exists()  # arrêt avant l'installation des commandes
+
+
+def test_le_service_du_core_d_origine_n_est_jamais_touche_et_aucune_garde_ne_bloque(bac):
+    """Le profil donne un nom de service distinct : plus de garde « service d'une autre installation »."""
+    bac.preparer_decisions()
+    origine = _unite_du_core(bac, profil=None)
+    origine.parent.mkdir(parents=True)
+    contenu = "[Service]\nExecStart=/usr/bin/node /opt/openclaw/openclaw.mjs gateway --port 18789\n"
+    origine.write_text(contenu, encoding="utf-8")
+
+    resultat = bac.installer()
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    assert origine.read_text(encoding="utf-8") == contenu  # le service du core d'origine est intact
+    assert _unite_du_core(bac).is_file() and _unite_du_core(bac) != origine
+    relance = bac.installer()  # « gateway install --force » remplace le service du profil, pas celui d'origine
+    assert relance.returncode == 0, _sortie(relance)
+    assert origine.read_text(encoding="utf-8") == contenu
+    dossier = _telecharger(bac)
+    retrait = bac.lancer(dossier / "uninstall.sh")
+    assert retrait.returncode == 0, _sortie(retrait)
+    assert not _unite_du_core(bac).exists() and origine.read_text(encoding="utf-8") == contenu
+
+
+# -- l'ancienne disposition ($OPSYS_HOME/core) : signalée avec la marche à suivre, jamais migrée en silence ----------
+def test_une_installation_a_l_ancienne_disposition_est_signalee_et_rien_n_est_migre(bac):
+    bac.preparer_decisions()
+    ancien = bac.home / "core"
+    (ancien / "opsys").mkdir(parents=True)
+    (ancien / ".env").write_text("OPSYS_MCP_JETON=ancien-jeton-fictif-0123456789abcdef\n", encoding="utf-8")
+    avant = bac.empreinte_du_dossier(ancien)
 
     resultat = bac.installer()
 
     assert resultat.returncode == 1
-    assert "n'a pas été installé par cette installation d'OPSYS" in resultat.stderr and str(unite) in resultat.stderr
-    assert not [a for a in bac.appels() if a.startswith("pnpm")]  # refus AVANT toute construction
-    assert unite.read_text(encoding="utf-8") == etranger
+    assert "ancienne disposition détectée" in resultat.stderr and str(ancien) in resultat.stderr
+    assert str(bac.etat_core) in resultat.stderr and "Rien n'est migré en silence" in resultat.stderr
+    assert f"{ancien}.ancien" in resultat.stderr and "mv" in resultat.stderr
+    assert "ancien-jeton-fictif" not in _sortie(resultat)  # jamais un secret dans un message
+    assert bac.empreinte_du_dossier(ancien) == avant and not bac.etat_core.exists()
+    assert not [a for a in bac.appels() if "gateway" in a]  # aucun service, aucun redémarrage
+    assert not (bac.bin / "openclaw").exists() and not (bac.logiciel / "installation.env").exists()
 
-    sans_service = bac.installer("--sans-service")  # l'option est l'issue documentée
-    assert sans_service.returncode == 0, _sortie(sans_service)
-    assert unite.read_text(encoding="utf-8") == etranger
-
-
-@pytest.mark.skipif(sys.platform != "linux", reason="chemin de l'unité systemd (Linux)")
-def test_un_service_qui_nomme_notre_instance_ou_note_dans_l_enregistrement_est_remplace(bac):
-    bac.preparer_decisions()
-    unite = _unite_systemd(bac)
-    unite.parent.mkdir(parents=True)
-    unite.write_text(f'[Service]\nEnvironment="OPENCLAW_STATE_DIR={bac.home}/core"\n', encoding="utf-8")
-
-    premiere = bac.installer()  # première installation, définition qui nomme cette instance
-
-    assert premiere.returncode == 0, _sortie(premiere)
-    unite.write_text("[Service]\nExecStart=/ou/le/core/a/mis/son/chemin\n", encoding="utf-8")  # sans notre marque
-    relance = bac.installer()  # l'enregistrement dit SERVICE=1 : le service est le nôtre
-    assert relance.returncode == 0, _sortie(relance)
-    assert bac.appels().count("openclaw gateway install --force --port 18789") == 2
+    ancien.rename(bac.home / "core.ancien")  # la marche à suivre (2) : repartir à neuf
+    apres = bac.installer()
+    assert apres.returncode == 0, _sortie(apres)
+    assert bac.empreinte_du_dossier(bac.home / "core.ancien") == avant and (bac.etat_core / ".env").is_file()
 
 
 # -- installation à distance : clone d'un dépôt git, y compris `bash < script` (comme `curl | bash`) ---------
@@ -515,20 +671,27 @@ def _installer_a_distance(bac: Bac) -> Path:
 def test_la_desinstallation_retire_le_logiciel_et_ne_touche_jamais_aux_donnees(bac):
     dossier = _installer_a_distance(bac)
     donnees_avant = bac.empreinte_du_dossier(bac.home)
+    etat_avant = bac.empreinte_du_dossier(bac.etat_core)
     secrets = bac.secrets()
+    assert _unite_du_core(bac).is_file()
 
-    resultat = bac.lancer(dossier / "uninstall.sh")
+    # même avec un environnement qui sortirait l'état du dossier canonique : le service du profil est retiré
+    resultat = bac.lancer(dossier / "uninstall.sh", OPENCLAW_STATE_DIR=str(bac.racine / "ailleurs"),
+                          OPENCLAW_HOME=str(bac.racine / "home-du-core"))
 
     assert resultat.returncode == 0, _sortie(resultat)
-    assert "openclaw gateway uninstall" in bac.appels()
+    assert f"openclaw {PROFIL} gateway uninstall" in bac.appels()
+    assert not _unite_du_core(bac).exists()  # le service du profil est parti
+    assert bac.empreinte_du_dossier(bac.etat_core) == etat_avant  # l'état du core (secrets, Gateway) : jamais touché
     assert not (bac.bin / "openclaw").exists() and not (bac.bin / "opsys").exists()
     assert not bac.logiciel.exists()  # venv, clone géré, journal, enregistrement : tout est parti, dossier compris
     donnees_apres = bac.empreinte_du_dossier(bac.home)
     assert {nom: h for nom, h in donnees_apres.items() if not nom.startswith("opsys.db")} == \
            {nom: h for nom, h in donnees_avant.items() if not nom.startswith("opsys.db")}
-    assert (bac.home / "opsys.db").is_file() and (bac.home / "core" / ".env").is_file()
+    assert (bac.home / "opsys.db").is_file() and (bac.etat_core / ".env").is_file()
     assert bac.secrets() == secrets  # les secrets sont ceux d'avant
     assert "Données conservées" in resultat.stdout and str(bac.home) in resultat.stdout
+    assert "État du core conservé" in resultat.stdout and str(bac.etat_core) in resultat.stdout
 
     encore = bac.lancer(dossier / "uninstall.sh")  # relançable
     assert encore.returncode == 0, _sortie(encore)
@@ -567,7 +730,7 @@ def test_un_export_en_echec_n_est_suivi_d_aucun_retrait(bac):
 def test_un_service_qui_ne_se_retire_pas_arrete_la_desinstallation_avant_le_reste(bac):
     dossier = _installer_a_distance(bac)
 
-    resultat = bac.lancer(dossier / "uninstall.sh", FAUX_ECHEC="openclaw gateway uninstall")
+    resultat = bac.lancer(dossier / "uninstall.sh", FAUX_ECHEC=f"openclaw {PROFIL} gateway uninstall")
 
     assert resultat.returncode == 1 and "Rien d'autre n'a été retiré" in resultat.stderr
     assert (bac.logiciel / "venv").is_dir() and (bac.bin / "opsys").exists()
@@ -617,6 +780,21 @@ def test_la_desinstallation_refuse_de_supprimer_un_dossier_qui_contient_les_donn
     assert (bac.bin / "opsys").exists()  # le refus vient AVANT tout retrait
 
 
+def test_la_desinstallation_refuse_de_supprimer_un_dossier_qui_contient_l_etat_du_core(bac):
+    bac.preparer_decisions()
+    assert bac.installer("--sans-service").returncode == 0
+    dedans = bac.logiciel / "venv" / "etat-du-core"  # un état du core rangé DANS un dossier que le script supprime
+    shutil.move(str(bac.etat_core), str(dedans))
+    enregistrement = bac.logiciel / "installation.env"
+    enregistrement.write_text(enregistrement.read_text(encoding="utf-8").replace(
+        f"DOSSIER_CORE={bac.etat_core}", f"DOSSIER_CORE={dedans}"), encoding="utf-8")
+
+    resultat = bac.lancer(UNINSTALL)
+
+    assert resultat.returncode == 1 and "contient l'état du core" in resultat.stderr
+    assert (dedans / ".env").is_file() and (bac.bin / "opsys").exists()  # le refus vient AVANT tout retrait
+
+
 # -- les constantes que l'installateur recopie du fork -------------------------------------------------------
 def test_les_versions_que_l_installateur_annonce_sont_celles_du_fork():
     plancher = re.findall(r"major: (\d+), minor: (\d+), patch: (\d+)",
@@ -625,6 +803,21 @@ def test_les_versions_que_l_installateur_annonce_sont_celles_du_fork():
     for script in (INSTALL, RACINE / "install" / "install.ps1"):
         texte = script.read_text(encoding="utf-8")
         assert "24.16" in texte and "26.1" in texte, script.name
+
+
+def test_le_profil_les_variables_ecartees_et_les_noms_de_service_des_scripts_sont_ceux_du_moteur_et_du_fork():
+    constantes = (RACINE / "core/src/daemon/constants.ts").read_text(encoding="utf-8")
+    for script in (INSTALL, UNINSTALL):
+        texte = script.read_text(encoding="utf-8")
+        assert f'PROFIL_CORE="{instance.PROFIL_CORE}"' in texte, script.name
+        ecartees = re.search(r"^VARIABLES_ECARTEES=\((.*?)\)$", texte, flags=re.MULTILINE | re.DOTALL)
+        assert ecartees and ecartees.group(1).split() == list(instance.VARIABLES_ECARTEES), script.name
+        assert "OPENCLAW_STATE_DIR=" not in re.sub(r"#.*", "", texte), f"{script.name} ne doit rien poser à la main"
+    # noms de service que les messages des scripts donnent, dérivés comme le fait le fork
+    assert "`openclaw-gateway${suffix}`" in constantes and "`ai.openclaw.${normalized}`" in constantes
+    assert "openclaw-gateway-$PROFIL_CORE" in INSTALL.read_text(encoding="utf-8")  # Linux : journalctl du service
+    assert "openclaw-gateway-$PROFIL_CORE" in UNINSTALL.read_text(encoding="utf-8")  # Linux : retrait à la main
+    assert "ai.openclaw.$PROFIL_CORE" in UNINSTALL.read_text(encoding="utf-8")  # macOS : retrait à la main
 
 
 def test_l_installateur_lit_la_version_de_pnpm_dans_le_package_json_reel_du_core():

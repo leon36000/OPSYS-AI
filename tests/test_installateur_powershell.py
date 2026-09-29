@@ -14,6 +14,8 @@ from pathlib import Path
 
 import pytest
 
+from opsys import instance
+
 RACINE = Path(__file__).resolve().parents[1]
 INSTALL_PS1 = RACINE / "install" / "install.ps1"
 UNINSTALL_PS1 = RACINE / "install" / "uninstall.ps1"
@@ -130,9 +132,34 @@ def test_install_ps1_reflete_install_sh():
     for commun in ("instance initialiser", "config validate", "gateway install", "'--force'", "--frozen-lockfile",
                    "'build'", "isSupportedOpenClawNodeVersion", "/startupz", "/sante", "installation.env",
                    "SOURCE_GEREE", "--clear", "'>=3.11'", "--editable", "packageManager", "-SansService", "24.16",
-                   "26.1", "Test-ServiceEtranger"):
+                   "26.1", "instance dossier", "config', 'file'", "Test-DossierDuCore", "Initialize-DossierCore",
+                   "--profile $script:ProfilCore", "DOSSIER_CORE", "PROFIL_CORE"):
         assert commun in ps, commun
+    for commun in ("instance dossier", "verifier_dossier_du_core", "determiner_dossier_core", "DOSSIER_CORE",
+                   "PROFIL_CORE", '--profile "$PROFIL_CORE"'):
+        assert commun in sh, commun
     assert "CodeEnAttente = 3" in ps and "CODE_EN_ATTENTE=3" in sh
+
+
+def test_l_installateur_ne_garde_plus_le_service_d_une_autre_installation_et_ne_pose_aucun_etat_a_la_main():
+    """Sous le profil « opsys », le service a son propre nom : la garde d'avant T0.11-b n'a plus d'objet."""
+    for script in (INSTALL_PS1, UNINSTALL_PS1, INSTALL_SH, RACINE / "install" / "uninstall.sh"):
+        code = re.sub(r"(?m)^\s*#.*$", "", script.read_text(encoding="utf-8"))
+        assert "Test-ServiceEtranger" not in code and "verifier_service_etranger" not in code, script.name
+        assert "OPENCLAW_STATE_DIR = " not in code and "OPENCLAW_STATE_DIR=" not in code, script.name
+        assert "schtasks.exe /Query" not in code, script.name
+
+
+@pytest.mark.parametrize("script", SCRIPTS, ids=lambda p: p.name)
+def test_le_profil_et_les_variables_ecartees_de_powershell_sont_ceux_du_moteur(script):
+    texte = script.read_text(encoding="utf-8")
+
+    assert f"$script:ProfilCore = '{instance.PROFIL_CORE}'" in texte
+    liste = re.search(r"\$script:VariablesEcartees = @\((.*?)\)", texte)
+    assert liste and re.findall(r"'([A-Z_]+)'", liste.group(1)) == list(instance.VARIABLES_ECARTEES)
+    # le retrait de l'environnement se fait avant de lancer le core, et le core reçoit l'option racine du profil
+    assert "Remove-Item -LiteralPath \"Env:$nom\"" in texte
+    assert "--profile $script:ProfilCore" in texte
 
 
 def test_uninstall_ps1_reflete_uninstall_sh():
@@ -146,3 +173,6 @@ def test_uninstall_ps1_reflete_uninstall_sh():
     assert "--exporter-avant" in sh and "--simuler" in sh
     assert "Remove-Item -LiteralPath $script:OpsysHome" not in ps  # aucun chemin de suppression des données
     assert not re.search(r"Remove-Item[^\n]*OpsysHome", ps)
+    assert not re.search(r"Remove-Item[^\n]*DossierCore", ps)  # ni de l'état du core (secrets, état du Gateway)
+    assert "--profile $script:ProfilCore gateway uninstall" in ps and '--profile "$PROFIL_CORE" gateway uninstall' in sh
+    assert "Etat du core conserve" in ps and "État du core conservé" in sh

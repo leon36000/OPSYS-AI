@@ -5,14 +5,16 @@
 # Meme comportement que install/uninstall.sh (voir son en-tete) :
 #   1. avec -ExporterAvant : archive d'abord l'instance (`opsys instance exporter`, empreinte SHA-256 incluse) ; si
 #      l'export echoue, RIEN n'est retire ;
-#   2. arrete et retire le service du Gateway (`openclaw gateway uninstall`), si l'installateur l'avait installe ;
+#   2. arrete et retire le service du Gateway (`openclaw gateway uninstall`, sous le profil "opsys" du core : la tache
+#      du core d'origine n'est jamais touchee), si l'installateur l'avait installe ;
 #   3. retire openclaw.cmd et opsys.cmd (seulement ceux que l'installateur a ecrits), puis le dossier des commandes
 #      et son entree du PATH de l'utilisateur s'il est vide ;
 #   4. retire le logiciel : environnement Python, journal, et le clone gere par l'installateur. Un depot a vous n'est
 #      jamais touche.
 #
-# Ce script ne supprime JAMAIS les donnees de l'instance (%OPSYS_HOME% : base, reglages, secrets, etat du Gateway).
-# La suppression definitive est une decision humaine, hors de ce script (docs/exploitation/INSTALLATION.md).
+# Ce script ne supprime JAMAIS les donnees de l'instance : %OPSYS_HOME% (base, paliers, profil d'entreprise) ni l'etat
+# du core (dossier du profil "opsys", %USERPROFILE%\.openclaw-opsys : secrets .env, etat du Gateway). La suppression
+# definitive est une decision humaine, hors de ce script (docs/exploitation/INSTALLATION.md).
 # Relancable. Variables : OPSYS_HOME, OPSYS_LOGICIEL, OPSYS_BIN. Code de sortie : 0 fait ; 1 arrete avant tout retrait
 # irreversible, avec quoi faire.
 #
@@ -28,6 +30,9 @@ param(
 $ErrorActionPreference = 'Stop'
 $script:Marque = 'OPSYS-INSTALLATEUR : fichier gere par install.ps1, reecrit a chaque installation. Ne pas editer.'
 $script:Utf8 = New-Object System.Text.UTF8Encoding($false)
+# Comme install.ps1 : le profil du core et les variables qui sortiraient son etat du dossier canonique du profil.
+$script:ProfilCore = 'opsys'
+$script:VariablesEcartees = @('OPENCLAW_STATE_DIR', 'OPENCLAW_CONFIG_PATH', 'OPENCLAW_HOME', 'OPENCLAW_PROFILE', 'OPENCLAW_LAUNCHD_LABEL', 'OPENCLAW_SYSTEMD_UNIT', 'OPENCLAW_WINDOWS_TASK_NAME')
 
 function Write-Info {
     param([string]$Message)
@@ -78,7 +83,7 @@ function Get-CodeSortie {
     return $codeRetour
 }
 
-# Un dossier qui est ou contient les donnees de l'instance, ou le dossier personnel, ne se supprime jamais.
+# Un dossier qui est ou contient les donnees de l'instance ou l'etat du core, ou le dossier personnel, ne se supprime jamais.
 function Test-Garde {
     param([string]$Dossier)
     $dossierComplet = [System.IO.Path]::GetFullPath($Dossier).TrimEnd('\')
@@ -90,6 +95,13 @@ function Test-Garde {
     }
     if (($donnees + '\').StartsWith($dossierComplet + '\', $ignorer)) {
         Stop-Desinstall "refus de supprimer '$Dossier' : il contient les donnees de l'instance ($($script:OpsysHome)). Rien n'a ete retire."
+    }
+    $etatCore = [string]$script:Enregistre['DOSSIER_CORE']
+    if ($etatCore) {
+        $etat = [System.IO.Path]::GetFullPath($etatCore).TrimEnd('\')
+        if (($etat + '\').StartsWith($dossierComplet + '\', $ignorer)) {
+            Stop-Desinstall "refus de supprimer '$Dossier' : c'est l'etat du core ou il le contient ($etatCore). Rien n'a ete retire."
+        }
     }
 }
 
@@ -146,16 +158,16 @@ function Remove-ServiceGateway {
     }
     $coeur = Join-Path ([string]$script:Enregistre['SOURCE']) 'core\openclaw.mjs'
     if (-not (Test-Path -LiteralPath $coeur) -or -not (Get-Command node -ErrorAction SilentlyContinue)) {
-        Stop-Desinstall "le service est installe mais le core ($coeur) ou Node est introuvable : impossible de le retirer proprement. Retirez la tache planifiee du Gateway a la main (Planificateur de taches), puis relancez. Rien n'a ete retire."
+        Stop-Desinstall "le service est installe mais le core ($coeur) ou Node est introuvable : impossible de le retirer proprement. Retirez la tache planifiee 'OpenClaw Gateway ($($script:ProfilCore))' a la main (Planificateur de taches), puis relancez. Rien n'a ete retire."
     }
     if ($Simuler) {
         Write-Info "[simulation] arret et retrait du service du Gateway"
         return
     }
-    Write-Info "arret et retrait du service du Gateway"
+    Write-Info "arret et retrait du service du Gateway (profil $($script:ProfilCore))"
     $env:OPSYS_HOME = $script:OpsysHome
-    if (-not $env:OPENCLAW_STATE_DIR) { $env:OPENCLAW_STATE_DIR = Join-Path $script:OpsysHome 'core' }
-    $codeRetour = Get-CodeSortie { & node $coeur gateway uninstall }
+    foreach ($nom in $script:VariablesEcartees) { Remove-Item -LiteralPath "Env:$nom" -ErrorAction SilentlyContinue }
+    $codeRetour = Get-CodeSortie { & node $coeur --profile $script:ProfilCore gateway uninstall }
     if ($codeRetour -ne 0) { Stop-Desinstall "le service n'a pas pu etre retire (message ci-dessus). Rien d'autre n'a ete retire : corrigez, puis relancez." }
 }
 
@@ -216,7 +228,7 @@ function Invoke-Desinstallation {
         if (-not $script:Bin) { $script:Bin = Join-Path $env:LOCALAPPDATA 'OPSYS\bin' }
         $script:Venv = Join-Path $script:Logiciel 'venv'
         $script:VenvPy = Join-Path $script:Venv 'Scripts\python.exe'
-        Write-Info "desinstallation d'OPSYS (donnees conservees : $($script:OpsysHome))"
+        Write-Info "desinstallation d'OPSYS (donnees conservees : $($script:OpsysHome) et l'etat du core)"
         foreach ($dossier in (Get-DossiersDuLogiciel)) { Test-Garde $dossier }
         Invoke-ExportAvant
         Remove-ServiceGateway
@@ -224,7 +236,10 @@ function Invoke-Desinstallation {
         Remove-Logiciel
         Write-Host ''
         Write-Host 'OPSYS est retire.'
-        Write-Host "  Donnees conservees : $($script:OpsysHome) (base, reglages, secrets .env, etat du Gateway)."
+        Write-Host "  Donnees conservees : $($script:OpsysHome) (base, paliers, profil d'entreprise)."
+        $etatConserve = [string]$script:Enregistre['DOSSIER_CORE']
+        if (-not $etatConserve) { $etatConserve = "le dossier .openclaw-$($script:ProfilCore) de votre dossier personnel" }
+        Write-Host "  Etat du core conserve : $etatConserve (secrets .env, etat du Gateway)."
         if (-not $ExporterAvant) { Write-Host '  Aucun export demande (-ExporterAvant). Pour en faire un maintenant : reinstallez OPSYS, puis opsys instance exporter.' }
         Write-Host '  Les supprimer definitivement est une decision humaine : voir docs/exploitation/INSTALLATION.md.'
         return 0

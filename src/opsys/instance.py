@@ -5,20 +5,28 @@ donnée de l'instance est ici, en Python testé, pour que Linux, macOS et Window
 `opsys instance initialiser` est idempotent : on le relance à chaque mise à jour, et à la main après un
 changement de paliers ou de départements.
 
+Deux dossiers, deux rôles (PLAN T0.11-b) :
+- `$OPSYS_HOME` (`~/.opsys`) : les DONNÉES métier (`opsys.db`, `paliers.yaml`, `entreprise.yaml`) ;
+- l'ÉTAT DU CORE : le dossier canonique du profil `opsys` du core, `~/.openclaw-opsys` (`dossier_core`). Ce n'est
+  pas un choix d'OPSYS. Le core n'installe un service natif que pour le dossier d'état canonique de son profil
+  (`isDefaultInstallIdentity`, `core/src/config/paths.ts`) et donne à chaque profil son propre nom de service
+  (`core/src/daemon/constants.ts`) : celui du core d'origine n'est donc jamais touché.
+
 Ce que la commande fait, dans l'ordre :
-1. crée `$OPSYS_HOME` et `$OPSYS_HOME/core` (`OPENCLAW_STATE_DIR`, R14 décision 4), accessibles à leur
-   propriétaire seul ;
-2. migre la base de l'instance (SQLite, `$OPSYS_HOME/opsys.db`) ;
-3. pose `$OPSYS_HOME/core/.env`, 0600 : les secrets qui manquent (jeton du moteur `OPSYS_MCP_JETON`, jeton du
+1. refuse l'ancienne disposition (`$OPSYS_HOME/core`, d'avant T0.11-b) avec la marche à suivre : rien n'est migré
+   en silence ;
+2. crée `$OPSYS_HOME` et le dossier d'état du core, accessibles à leur propriétaire seul ;
+3. migre la base de l'instance (SQLite, `$OPSYS_HOME/opsys.db`) ;
+4. pose `<état du core>/.env`, 0600 : les secrets qui manquent (jeton du moteur `OPSYS_MCP_JETON`, jeton du
    Gateway, une clé virtuelle par département) et les réglages fournis (`OPSYS_EMBEDDINGS_*`,
    `OPSYS_PASSERELLE_URL`). Un secret présent n'est JAMAIS régénéré ; aucune valeur n'est rendue ni écrite dans
    une sortie ;
-4. vérifie que le core peut être configuré. Sinon (paliers de modèles, service d'embeddings) : verdict
+5. vérifie que le core peut être configuré. Sinon (paliers de modèles, service d'embeddings) : verdict
    `en_attente` qui dit quoi fournir, et RIEN d'autre n'est écrit. Fail-closed : aucune valeur inventée ;
-5. génère la configuration du core (`opsys openclaw configurer`), le bloc `gateway` de `openclaw.json` s'il
+6. génère la configuration du core (`opsys openclaw configurer`), le bloc `gateway` de `openclaw.json` s'il
    manque, et `opsys/metier.json` (le superviseur du core lance alors le moteur, PLAN T0.10).
 
-`$OPSYS_HOME/core/.env` est le fichier que le core lit lui-même au démarrage du Gateway, du service et de ses
+`<état du core>/.env` est le fichier que le core lit lui-même au démarrage du Gateway, du service et de ses
 commandes (`core/src/config/state-dir-dotenv.ts`) : `${OPSYS_MCP_JETON}` des fragments de configuration y est
 résolu sans autre mécanisme.
 """
@@ -41,7 +49,17 @@ from . import modeles, openclaw, stockage
 from .departements import Departement, charger_departements
 from .memoire.embeddings import ENV_CLE, ENV_LOCAL, ENV_MODELE, ENV_URL, ClientEmbeddings, ErreurEmbeddings
 
-SOUS_DOSSIER_CORE = "core"
+# Le profil du core et son dossier d'état : recopiés de `core/src/cli/profile-utils.ts::resolveProfileStateDir`
+# (`~/.openclaw-<profil>`) ; `tests/test_instance.py` les relit dans le fork.
+PROFIL_CORE = "opsys"
+PREFIXE_DOSSIER_PROFIL = ".openclaw-"
+ANCIEN_SOUS_DOSSIER_CORE = "core"  # disposition d'avant T0.11-b : `$OPSYS_HOME/core` (jamais migrée en silence)
+# Variables du core qui sortiraient l'état du dossier canonique ou changeraient l'identité du service
+# (`isDefaultInstallIdentity`, `resolveGatewayNativeServiceIdentityConflict`) : les commandes installées les écartent.
+VARIABLES_ECARTEES = (
+    "OPENCLAW_STATE_DIR", "OPENCLAW_CONFIG_PATH", "OPENCLAW_HOME", "OPENCLAW_PROFILE",
+    "OPENCLAW_LAUNCHD_LABEL", "OPENCLAW_SYSTEMD_UNIT", "OPENCLAW_WINDOWS_TASK_NAME",
+)
 NOM_ENV = ".env"
 ENV_JETON_MCP = "OPSYS_MCP_JETON"  # core/src/gateway/opsys-metier-config.ts::OPSYS_MCP_TOKEN_ENV
 ENV_JETON_GATEWAY = "OPENCLAW_GATEWAY_TOKEN"
@@ -91,6 +109,7 @@ class ResultatInitialisation:
     fichiers: Mapping[str, str]
     port_gateway: int
     port_moteur: int
+    dossier_core: Path
 
     def en_json(self) -> dict[str, Any]:
         return {
@@ -100,6 +119,7 @@ class ResultatInitialisation:
             "avertissements": list(self.avertissements),
             "port_gateway": self.port_gateway,
             "port_moteur": self.port_moteur,
+            "dossier_core": str(self.dossier_core),
             "env": {
                 "chemin": str(self.env.chemin),
                 "secrets_generes": list(self.env.generees),
@@ -111,19 +131,75 @@ class ResultatInitialisation:
 
 
 # -- dossiers ----------------------------------------------------------------------------------------------------
-def dossier_core(home: Path) -> Path:
-    return home / SOUS_DOSSIER_CORE
+def dossier_core(environ: Mapping[str, str] | None = None) -> Path:
+    """Le dossier d'état du profil `opsys` du core : `<dossier personnel>/.openclaw-opsys`.
+
+    Le core n'installe un service que si son état est à cet endroit (`isDefaultInstallIdentity`,
+    `core/src/config/paths.ts`) ; la règle est `resolveProfileStateDir` (`core/src/cli/profile-utils.ts`). Le
+    dossier personnel se lit comme le fait le core (`resolveEffectiveHomeDir`,
+    `core/packages/normalization-core/src/home-dir.ts`) : HOME, puis USERPROFILE, puis le dossier de l'utilisateur du
+    système. OPENCLAW_HOME est écarté : les commandes installées l'écartent aussi, et avec lui le core refuserait
+    tout service.
+
+    `environ=None` : l'environnement du processus, avec le repli sur le dossier de l'utilisateur du système. Un
+    `environ` fourni est pris tel quel ; sans HOME ni USERPROFILE, c'est un refus, jamais un dossier deviné.
+    """
+    if environ is None:
+        environ = os.environ
+        repli = str(Path.home())
+    else:
+        repli = ""
+    base = ""
+    for nom in ("HOME", "USERPROFILE"):
+        valeur = environ.get(nom, "").strip()
+        if valeur and valeur not in ("undefined", "null"):  # `normalizeHomeDirValue` du core
+            base = valeur
+            break
+    base = base or repli
+    if not base:
+        raise ErreurInstance(
+            "HOME et USERPROFILE sont absents : le dossier d'état du core (dossier personnel + "
+            f"{PREFIXE_DOSSIER_PROFIL}{PROFIL_CORE}) ne peut pas être déterminé. Définissez HOME, puis relancez."
+        )
+    return Path(os.path.abspath(base)) / f"{PREFIXE_DOSSIER_PROFIL}{PROFIL_CORE}"
 
 
-def chemin_env(home: Path) -> Path:
-    return dossier_core(home) / NOM_ENV
+def chemin_env(etat_core: Path) -> Path:
+    return etat_core / NOM_ENV
 
 
-def _preparer_dossiers(home: Path) -> list[str]:
-    """Crée `home` et `home/core` pour leur propriétaire seul. Un dossier existant n'est jamais modifié : s'il est
-    ouvert à d'autres comptes, on le signale (renseignements personnels, Loi 25)."""
+def ancienne_disposition(home: Path, etat_core: Path) -> Path | None:
+    """`$OPSYS_HOME/core` s'il porte encore l'état du core posé avant T0.11-b, sinon `None`.
+
+    Un dossier vide (créé par une installation interrompue) ou qui EST le dossier d'état du core (lien) n'est pas
+    l'ancienne disposition.
+    """
+    ancien = home / ANCIEN_SOUS_DOSSIER_CORE
+    if not ancien.is_dir():
+        return None
+    if ancien.resolve() == etat_core.resolve() or not any(ancien.iterdir()):
+        return None
+    return ancien
+
+
+def _refuser_ancienne_disposition(ancien: Path, etat_core: Path) -> ErreurInstance:
+    return ErreurInstance(
+        f"ancienne disposition détectée : {ancien} porte l'état du core posé par une version antérieure de "
+        f"l'installateur. Le core lit maintenant son état dans {etat_core} (profil « {PROFIL_CORE} » : le seul dossier "
+        "pour lequel il installe un service). Rien n'est migré en silence et rien n'a été modifié. Deux issues, "
+        "le service arrêté d'abord (`openclaw gateway stop`, s'il tourne). "
+        f"(1) Garder les secrets et les appareils appairés : déplacez {ancien} vers {etat_core} (`mv` ; "
+        "`Move-Item` sous Windows), à condition que ce dernier n'existe pas encore, puis relancez. "
+        f"(2) Repartir à neuf (nouveaux secrets, appareils à réappairer) : renommez {ancien} en {ancien}.ancien, puis "
+        "relancez. Le dossier mis de côté contient des secrets en clair : le détruire est une décision humaine."
+    )
+
+
+def _preparer_dossiers(home: Path, etat_core: Path) -> list[str]:
+    """Crée `home` et le dossier d'état du core pour leur propriétaire seul. Un dossier existant n'est jamais
+    modifié : s'il est ouvert à d'autres comptes, on le signale (renseignements personnels, Loi 25)."""
     avertissements: list[str] = []
-    for dossier in (home, dossier_core(home)):
+    for dossier in (home, etat_core):
         if dossier.exists():
             if os.name != "nt" and stat.S_IMODE(dossier.stat().st_mode) & 0o077:
                 avertissements.append(
@@ -301,14 +377,14 @@ def completer_racine(dossier: Path, port_gateway: int | None) -> tuple[bool, int
     return True, port
 
 
-def ecrire_metier(home: Path, *, source: Path, python: Path, port: int) -> Path:
-    """`core/opsys/metier.json` : active le superviseur du moteur (`core/src/gateway/opsys-metier-config.ts`).
+def ecrire_metier(etat_core: Path, *, home: Path, source: Path, python: Path, port: int) -> Path:
+    """`<état du core>/opsys/metier.json` : active le superviseur du moteur (`core/src/gateway/opsys-metier-config.ts`).
 
     La commande est l'interpréteur de l'environnement de l'installation, en chemin absolu : aucune résolution de
     dépendances ni accès réseau au démarrage, et `uv` n'a pas à être dans le PATH du service. Le fichier est celui
     de l'installateur : ses clés sont réécrites à chaque exécution, les autres clés sont conservées.
     """
-    chemin = dossier_core(home) / "opsys" / "metier.json"
+    chemin = etat_core / "opsys" / "metier.json"
     metier = _lire_objet_json(chemin) if chemin.is_file() else {}
     env = metier.get("env") if isinstance(metier.get("env"), dict) else {}
     metier.update({
@@ -365,8 +441,13 @@ def initialiser(
     port_moteur: int | None = None,
     environ: Mapping[str, str] | None = None,
     departements: Mapping[str, Departement] | None = None,
+    etat_core: Path | None = None,
 ) -> ResultatInitialisation:
-    """Prépare l'instance de `home`. Voir l'en-tête du module. Lève `ErreurInstance` quand rien ne peut continuer."""
+    """Prépare l'instance de `home`. Voir l'en-tête du module. Lève `ErreurInstance` quand rien ne peut continuer.
+
+    `etat_core` : dossier d'état du core, par défaut celui du profil `opsys` (`dossier_core`). Les tests le fixent.
+    """
+    environnement_du_processus = environ is None
     environ = os.environ if environ is None else environ
     if environ.get(ENV_BASE_URL, "").strip():
         raise ErreurInstance(
@@ -383,11 +464,22 @@ def initialiser(
     if not python.is_file():
         raise ErreurInstance(f"interpréteur introuvable : {python}")
 
-    avertissements = _preparer_dossiers(home)
+    if etat_core is None:
+        etat_core = dossier_core(None if environnement_du_processus else environ)
+    ancien = ancienne_disposition(home, etat_core)
+    if ancien is not None:
+        raise _refuser_ancienne_disposition(ancien, etat_core)
+    avertissements = _preparer_dossiers(home, etat_core)
+    ecartees = [nom for nom in VARIABLES_ECARTEES if environ.get(nom, "").strip()]
+    if ecartees:
+        avertissements.append(
+            f"{', '.join(ecartees)} : défini dans l'environnement, ignoré. Le core lit son état dans {etat_core} "
+            "(profil « opsys ») ; les commandes installées écartent ces variables."
+        )
     revision = stockage.migrer()
     deps = dict(departements) if departements is not None else charger_departements()
 
-    chemin = chemin_env(home)
+    chemin = chemin_env(etat_core)
     reglages = {nom: environ[nom].strip() for nom in REGLAGES_ACCEPTES if environ.get(nom, "").strip()}
     if ENV_PASSERELLE not in reglages and not lire_env(chemin).get(ENV_PASSERELLE):
         reglages[ENV_PASSERELLE] = URL_PASSERELLE_DEFAUT
@@ -401,23 +493,23 @@ def initialiser(
     if manque:
         return ResultatInitialisation(
             "en_attente", revision, tuple(manque), tuple(avertissements), rapport, fichiers,
-            port_gateway or PORT_GATEWAY_DEFAUT, port_effectif_moteur,
+            port_gateway or PORT_GATEWAY_DEFAUT, port_effectif_moteur, etat_core,
         )
 
-    dossier = dossier_core(home)
     openclaw.generer(
-        deps, dossier, paliers, url_mcp=f"http://{HOTE_LOCAL}:{port_effectif_moteur}/mcp",
+        deps, etat_core, paliers, url_mcp=f"http://{HOTE_LOCAL}:{port_effectif_moteur}/mcp",
         url_passerelle=env[ENV_PASSERELLE], environ=env,
     )
-    openclaw.racine_si_absente(dossier)
-    _, port_effectif_gateway = completer_racine(dossier, port_gateway)
+    openclaw.racine_si_absente(etat_core)
+    _, port_effectif_gateway = completer_racine(etat_core, port_gateway)
     if port_gateway and port_gateway != port_effectif_gateway:
         avertissements.append(
             f"gateway.port vaut {port_effectif_gateway} dans openclaw.json : le port {port_gateway} demandé est ignoré "
             f"(`openclaw config set gateway.port {port_gateway}` pour le changer)."
         )
-    metier = ecrire_metier(home, source=source, python=python, port=port_effectif_moteur)
-    fichiers.update({"openclaw": str(dossier / "openclaw.json"), "metier": str(metier)})
+    metier = ecrire_metier(etat_core, home=home, source=source, python=python, port=port_effectif_moteur)
+    fichiers.update({"openclaw": str(etat_core / "openclaw.json"), "metier": str(metier)})
     return ResultatInitialisation(
         "pret", revision, (), tuple(avertissements), rapport, fichiers, port_effectif_gateway, port_effectif_moteur,
+        etat_core,
     )

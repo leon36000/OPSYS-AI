@@ -8,10 +8,18 @@
 #   1. vérifie les prérequis : Node aux versions du fork, uv (qui fournit Python 3.11+), git (installation à distance)
 #   2. prépare le code : dépôt voisin ou OPSYS_SOURCE tel quel ; sinon clone de OPSYS_REPO_URL à OPSYS_REF
 #   3. construit OPSYS-CORE (pnpm à la version que fixe core/package.json) et installe le moteur Python par uv
-#   4. `opsys instance initialiser` : dossiers privés, base migrée, secrets dans $OPSYS_HOME/core/.env (0600, jamais
+#   4. `opsys instance initialiser` : dossiers privés, base migrée, secrets dans <état du core>/.env (0600, jamais
 #      régénérés, jamais affichés), configuration du core, superviseur du moteur (opsys/metier.json)
-#   5. `openclaw config validate`, puis service utilisateur du Gateway (`openclaw gateway install` : systemd --user,
-#      launchd), qui supervise le moteur ; attend que le Gateway et le moteur répondent
+#   5. vérifie que le core lit bien son état où l'on vient de le préparer (`openclaw config file`), `openclaw config
+#      validate`, puis service utilisateur du Gateway (`openclaw gateway install` : systemd --user, launchd), qui
+#      supervise le moteur ; attend que le Gateway et le moteur répondent
+#
+# Le core tourne sous son profil « opsys » (PLAN T0.11-b) : toute commande du core passe `--profile opsys`, jamais
+# OPENCLAW_STATE_DIR, OPENCLAW_CONFIG_PATH ni OPENCLAW_HOME. Son état est alors le dossier canonique du profil
+# (~/.openclaw-opsys), le seul pour lequel le core accepte d'installer un service (core/src/config/paths.ts,
+# isDefaultInstallIdentity), et le service porte un nom distinct de celui du core d'origine (Linux :
+# openclaw-gateway-opsys ; macOS : ai.openclaw.opsys). `opsys instance dossier` donne ce dossier. Une installation
+# faite avec l'ancienne disposition ($OPSYS_HOME/core) est signalée, avec la marche à suivre, jamais migrée en silence.
 #
 # Pourquoi construire depuis le dépôt et non installer une archive : aucune version n'est publiée (la publication est
 # une décision humaine, T3), et le paquet npm `openclaw` est le logiciel d'origine, pas ce fork. Le code du core et
@@ -26,7 +34,8 @@
 #   --ref REF        branche, étiquette ou commit à installer (comme OPSYS_REF ; défaut : main)
 #   --aide
 # Variables d'environnement
-#   OPSYS_HOME       données de l'instance, jamais supprimées par la désinstallation (défaut : ~/.opsys)
+#   OPSYS_HOME       données de l'instance (base, paliers, profil d'entreprise), jamais supprimées par la désinstallation
+#                    (défaut : ~/.opsys). L'état du core est ailleurs (voir plus haut), et lui non plus n'est jamais supprimé.
 #   OPSYS_LOGICIEL   logiciel : clone, environnement Python, journal (défaut : ~/.local/share/opsys)
 #   OPSYS_BIN        commandes `openclaw` et `opsys` (défaut : ~/.local/bin)
 #   OPSYS_SOURCE, OPSYS_REPO_URL, OPSYS_REF     provenance du code (voir plus haut)
@@ -45,6 +54,11 @@ set -euo pipefail
 
 MARQUE='# OPSYS-INSTALLATEUR : fichier géré par install.sh, réécrit à chaque installation. Ne pas éditer.'
 CODE_EN_ATTENTE=3
+# Profil du core (recopié de instance.PROFIL_CORE ; tests/test_installateur_scripts.py vérifie l'accord) et variables
+# qui sortiraient l'état du dossier canonique ou changeraient l'identité du service (instance.VARIABLES_ECARTEES).
+PROFIL_CORE="opsys"
+VARIABLES_ECARTEES=(OPENCLAW_STATE_DIR OPENCLAW_CONFIG_PATH OPENCLAW_HOME OPENCLAW_PROFILE OPENCLAW_LAUNCHD_LABEL
+    OPENCLAW_SYSTEMD_UNIT OPENCLAW_WINDOWS_TASK_NAME)
 NETTOYAGE=()
 JOURNAL=""
 FICHIER_MASQUE=""
@@ -61,7 +75,7 @@ AVEC_SERVICE=1
 EN_ATTENTE=0
 PORT_GATEWAY=""
 PORT_MOTEUR=""
-SERVICE_PRECEDENT=""
+DOSSIER_CORE=""
 
 info() { printf '[opsys] %s\n' "$*"; }
 avertir() { printf '[opsys] AVERTISSEMENT : %s\n' "$*" >&2; }
@@ -93,8 +107,8 @@ usage() {
 # La sortie de chaque étape va au journal ; tout ce qui ressemble à la valeur d'un secret de .env y est remplacé par ***
 # avant d'être écrit ou affiché. Aucune étape n'imprime un secret : ceci est la seconde barrière.
 preparer_masque() {
-    local env_file="$OPSYS_HOME/core/.env"
-    [ -f "$env_file" ] || return 0
+    local env_file="$DOSSIER_CORE/.env"
+    [ -n "$DOSSIER_CORE" ] && [ -f "$env_file" ] || return 0
     if [ -z "$FICHIER_MASQUE" ]; then
         FICHIER_MASQUE="$(mktemp "${TMPDIR:-/tmp}/opsys-masque.XXXXXX")"
         NETTOYAGE+=("$FICHIER_MASQUE")
@@ -152,7 +166,7 @@ lire_enregistrement() {
     [ -f "$fichier" ] || return 0
     while IFS='=' read -r cle valeur || [ -n "$cle" ]; do
         case "$cle" in
-            PORT_GATEWAY | PORT_MOTEUR | SOURCE | SOURCE_GEREE | SERVICE | OPSYS_HOME | OPSYS_BIN) printf -v "ENR_$cle" '%s' "$valeur" ;;
+            PORT_GATEWAY | PORT_MOTEUR | DOSSIER_CORE | OPSYS_HOME | OPSYS_BIN) printf -v "ENR_$cle" '%s' "$valeur" ;;
             *) ;;
         esac
     done <"$fichier"
@@ -211,9 +225,11 @@ resoudre_chemins() {
     VENV_PY="$VENV/bin/python"
 
     # Ports : la variable, sinon la valeur de la dernière installation, sinon la valeur par défaut du logiciel.
-    local ENR_PORT_GATEWAY="" ENR_PORT_MOTEUR="" ENR_SERVICE=""
+    # Le dossier d'état du core noté par la dernière installation ne sert qu'à masquer ses secrets dès l'ouverture du
+    # journal ; il est redéterminé (par le moteur Python) avant toute écriture.
+    local ENR_PORT_GATEWAY="" ENR_PORT_MOTEUR="" ENR_DOSSIER_CORE=""
     lire_enregistrement "$OPSYS_LOGICIEL/installation.env"
-    SERVICE_PRECEDENT="$ENR_SERVICE"
+    DOSSIER_CORE="$ENR_DOSSIER_CORE"
     PORT_GATEWAY="${OPSYS_PORT_GATEWAY:-$ENR_PORT_GATEWAY}"
     PORT_MOTEUR="${OPSYS_PORT_MOTEUR:-$ENR_PORT_MOTEUR}"
     if [ -n "$PORT_GATEWAY" ]; then verifier_port OPSYS_PORT_GATEWAY "$PORT_GATEWAY"; fi
@@ -237,23 +253,9 @@ verifier_prerequis() {
     NODE="$(command -v node)"
 }
 
-# Tant que le core porte le nom de service du core d'origine (PLAN T0.7, lot 4), `gateway install --force` remplacerait le
-# service d'une autre installation d'OpenClaw. On ne remplace donc qu'un service que cette installation a posé (noté dans
-# installation.env), ou dont la définition nomme notre instance.
-definition_de_service() {
-    case "$(uname -s)" in
-        Darwin) printf '%s' "$HOME/Library/LaunchAgents/ai.openclaw.gateway.plist" ;;
-        *) printf '%s' "${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/openclaw-gateway.service" ;;
-    esac
-}
-
-verifier_service_etranger() {
-    local fichier
-    fichier="$(definition_de_service)"
-    if [ -f "$fichier" ] && [ "$SERVICE_PRECEDENT" != "1" ] && ! grep -qF "$OPSYS_HOME" "$fichier" 2>/dev/null; then
-        die "un service du Gateway existe déjà ($fichier) et n'a pas été installé par cette installation d'OPSYS : le core d'origine porte le même nom de service, et le remplacer casserait l'autre installation. Retirez-le avec elle (openclaw gateway uninstall), ou relancez avec --sans-service."
-    fi
-}
+# Il n'y a plus de garde « ne jamais écraser le service d'une autre installation d'OpenClaw » : sous le profil « opsys »,
+# le service porte un nom qui n'est pas celui du core d'origine (core/src/daemon/constants.ts : openclaw-gateway-opsys,
+# ai.openclaw.opsys, « OpenClaw Gateway (opsys) »), et `gateway install --force` ne remplace que le service de son profil.
 
 # Le contrôle qui fait foi est celui du fork lui-même (core/node-version.mjs), lu une fois le code en place.
 verifier_version_node() {
@@ -369,9 +371,14 @@ pnpm_core() {
     (cd "$SOURCE/core" && CI=true COREPACK_ENABLE_DOWNLOAD_PROMPT=0 PATH="${PNPM_DIR:+$PNPM_DIR:}$PATH" "${PNPM[@]}" "$@")
 }
 
+# Toute commande du core passe par ici, sous son profil : `--profile` est l'option racine qui projette le dossier d'état
+# et le fichier de configuration canoniques du profil (core/src/cli/profile.ts, applyCliProfileEnv) ; la seule variable
+# OPENCLAW_PROFILE ne le fait pas. Les variables qui sortiraient l'état de ce dossier sont écartées : le core
+# refuserait alors tout service (core/src/config/paths.ts, isDefaultInstallIdentity).
 noyau() {
-    local etat="${OPENCLAW_STATE_DIR:-$OPSYS_HOME/core}"
-    OPSYS_HOME="$OPSYS_HOME" OPENCLAW_STATE_DIR="$etat" node "$SOURCE/core/openclaw.mjs" "$@"
+    local ecartees=() nom
+    for nom in "${VARIABLES_ECARTEES[@]}"; do ecartees+=(-u "$nom"); done
+    env "${ecartees[@]}" OPSYS_HOME="$OPSYS_HOME" node "$SOURCE/core/openclaw.mjs" --profile "$PROFIL_CORE" "$@"
 }
 
 construire_core() {
@@ -399,6 +406,18 @@ moteur_opsys() {
     OPSYS_HOME="$OPSYS_HOME" "$VENV_PY" -m opsys.cli "$@"
 }
 
+# Le dossier d'état du core est celui que le moteur Python calcule (instance.dossier_core : la règle du fork, une seule
+# implémentation pour Linux, macOS et Windows). Le script ne le devine pas ; `verifier_dossier_du_core` le confronte
+# ensuite à la réponse du core lui-même.
+determiner_dossier_core() {
+    local dossier
+    dossier="$(moteur_opsys instance dossier </dev/null)" ||
+        die "le dossier d'état du core est indéterminé (voir ci-dessus). HOME est-il défini ?"
+    chemin_absolu "le dossier d'état du core" "$dossier"
+    DOSSIER_CORE="$dossier"
+    preparer_masque
+}
+
 initialiser_instance() {
     local args sortie erreurs code=0
     args=(instance initialiser --source "$SOURCE")
@@ -406,7 +425,7 @@ initialiser_instance() {
     if [ -n "$PORT_MOTEUR" ]; then args+=(--port-moteur "$PORT_MOTEUR"); fi
     erreurs="$(mktemp "${TMPDIR:-/tmp}/opsys-erreurs.XXXXXX")"
     NETTOYAGE+=("$erreurs")
-    info "Initialisation de l'instance ($OPSYS_HOME)..."
+    info "Initialisation de l'instance ($OPSYS_HOME ; état du core : $DOSSIER_CORE)..."
     sortie="$(moteur_opsys "${args[@]}" 2>"$erreurs" </dev/null)" || code=$?
     preparer_masque
     { printf '\n== opsys instance initialiser (code %s)\n' "$code"; cat "$erreurs"; printf '%s\n' "$sortie"; } |
@@ -419,6 +438,26 @@ initialiser_instance() {
     esac
     PORT_GATEWAY="$(printf '%s' "$sortie" | "$VENV_PY" -c 'import json, sys; print(json.load(sys.stdin)["port_gateway"])')"
     PORT_MOTEUR="$(printf '%s' "$sortie" | "$VENV_PY" -c 'import json, sys; print(json.load(sys.stdin)["port_moteur"])')"
+}
+
+# Le dossier que l'installateur a préparé doit être celui que le core lira : le core dit lui-même où est sa configuration
+# (`openclaw config file`). Si la règle de profil du fork change, on s'arrête ici, avant de démarrer un Gateway qui
+# ignorerait la configuration générée.
+verifier_dossier_du_core() {
+    local sortie="" erreurs annonce code=0
+    info "Vérification du dossier d'état du core (openclaw config file)..."
+    erreurs="$(mktemp "${TMPDIR:-/tmp}/opsys-erreurs.XXXXXX")"
+    NETTOYAGE+=("$erreurs")
+    sortie="$(noyau config file 2>"$erreurs" </dev/null)" || code=$?
+    { printf '\n== openclaw config file (code %s)\n' "$code"; cat "$erreurs"; printf '%s\n' "$sortie"; } |
+        filtrer_secrets >>"$JOURNAL"
+    if [ "$code" -ne 0 ]; then
+        filtrer_secrets <"$erreurs" >&2
+        die "openclaw config file a échoué (code $code). Journal complet : $JOURNAL"
+    fi
+    annonce="$(printf '%s\n' "$sortie" | awk 'NF { ligne = $0 } END { print ligne }')"
+    [ "$annonce" = "$DOSSIER_CORE/openclaw.json" ] ||
+        die "le core cherche sa configuration dans '$annonce', mais l'installateur a préparé '$DOSSIER_CORE/openclaw.json'. La règle du profil « $PROFIL_CORE » a changé dans le core (core/src/cli/profile-utils.ts) : rien n'est démarré. Journal : $JOURNAL"
 }
 
 # -- Commandes `openclaw` (core) et `opsys` (moteur) --------------------------------------------------------------------------
@@ -441,10 +480,11 @@ contenu_commande_core() {
     printf '%s\n' '#!/usr/bin/env bash' "$MARQUE"
     printf 'DEFAUT=%q\n' "$OPSYS_HOME"
     printf '%s\n' 'OPSYS_HOME="${OPSYS_HOME:-$DEFAUT}"' 'export OPSYS_HOME' \
-        'export OPENCLAW_STATE_DIR="${OPENCLAW_STATE_DIR:-$OPSYS_HOME/core}"'
+        "# Le core d'OPSYS tourne sous son profil « $PROFIL_CORE » : son état est le dossier canonique du profil, jamais un autre." \
+        "unset ${VARIABLES_ECARTEES[*]}"
     printf 'NODE=%q\n' "$NODE"
     printf '%s\n' '[ -x "$NODE" ] || { echo "openclaw : Node est introuvable ($NODE) : relancez install.sh." >&2; exit 127; }'
-    printf 'exec "$NODE" %q "$@"\n' "$SOURCE/core/openclaw.mjs"
+    printf 'exec "$NODE" %q --profile %q "$@"\n' "$SOURCE/core/openclaw.mjs" "$PROFIL_CORE"
 }
 
 # shellcheck disable=SC2016
@@ -453,9 +493,10 @@ contenu_commande_moteur() {
     printf 'DEFAUT=%q\n' "$OPSYS_HOME"
     printf '%s\n' 'OPSYS_HOME="${OPSYS_HOME:-$DEFAUT}"' 'export OPSYS_HOME'
     printf 'PY=%q\n' "$VENV_PY"
+    printf 'DOSSIER_CORE=%q\n' "$DOSSIER_CORE"
     printf '%s\n' \
-        "# Réglages et secrets de l'instance (les mêmes que ceux du Gateway) : lus ligne à ligne, jamais évalués." \
-        'ENV_FILE="$OPSYS_HOME/core/.env"' \
+        "# Réglages et secrets de l'instance (les mêmes que ceux du Gateway, dans l'état du core) : lus ligne à ligne, jamais évalués." \
+        'ENV_FILE="$DOSSIER_CORE/.env"' \
         'if [ -r "$ENV_FILE" ]; then' \
         '    while IFS="=" read -r cle valeur || [ -n "$cle" ]; do' \
         '        case "$cle" in "" | "#"* | [0-9]* | *[!A-Za-z0-9_]*) continue ;; esac' \
@@ -487,7 +528,7 @@ attendre_http() {
 
 indice_journaux() {
     case "$(uname -s)" in
-        Linux) printf '%s' "journalctl --user -u openclaw-gateway -n 100 ; openclaw gateway status --deep" ;;
+        Linux) printf '%s' "journalctl --user -u openclaw-gateway-$PROFIL_CORE -n 100 ; openclaw gateway status --deep" ;;
         *) printf '%s' "openclaw gateway status --deep ; openclaw logs" ;;
     esac
 }
@@ -511,6 +552,8 @@ ecrire_enregistrement() {
     {
         printf 'OPSYS_HOME=%s\n' "$OPSYS_HOME"
         printf 'OPSYS_BIN=%s\n' "$OPSYS_BIN"
+        printf 'PROFIL_CORE=%s\n' "$PROFIL_CORE"
+        printf 'DOSSIER_CORE=%s\n' "$DOSSIER_CORE"
         printf 'SOURCE=%s\n' "$SOURCE"
         printf 'SOURCE_GEREE=%s\n' "$SOURCE_GEREE"
         printf 'SOURCE_COMMIT=%s\n' "$SOURCE_COMMIT"
@@ -538,14 +581,15 @@ afficher_bilan() {
         printf '%s\n' "OPSYS est installé."
     fi
     printf '  %-22s %s\n' "Données de l'instance" "$OPSYS_HOME  (jamais supprimées par la désinstallation)"
-    printf '  %-22s %s\n' "Réglages et secrets" "$OPSYS_HOME/core/.env  (0600 : ne jamais partager ni versionner)"
+    printf '  %-22s %s\n' "État du core" "$DOSSIER_CORE  (profil $PROFIL_CORE ; jamais supprimé par la désinstallation)"
+    printf '  %-22s %s\n' "Réglages et secrets" "$DOSSIER_CORE/.env  (0600 : ne jamais partager ni versionner)"
     printf '  %-22s %s\n' "Logiciel" "$OPSYS_LOGICIEL  (commit ${SOURCE_COMMIT:0:12})"
     printf '  %-22s %s\n' "Commandes" "$OPSYS_BIN/openclaw (core), $OPSYS_BIN/opsys (moteur)"
     if [ "$EN_ATTENTE" -eq 0 ]; then
         printf '  %-22s %s\n' "Gateway" "http://127.0.0.1:$PORT_GATEWAY  (moteur : 127.0.0.1:$PORT_MOTEUR)"
         printf '  %-22s %s\n' "Passerelle de modèles" "non installée par ce script : attendue à l'adresse OPSYS_PASSERELLE_URL de .env"
         if [ "$SERVICE_INSTALLE" -eq 1 ]; then
-            printf '  %-22s %s\n' "Service" "installé (utilisateur) ; état : openclaw gateway status"
+            printf '  %-22s %s\n' "Service" "installé (utilisateur, profil $PROFIL_CORE) ; état : openclaw gateway status"
         else
             printf '  %-22s %s\n' "Service" "non installé (--sans-service) ; démarrage : openclaw gateway run"
         fi
@@ -568,7 +612,6 @@ main() {
     analyser_arguments "$@"
     resoudre_chemins
     verifier_prerequis
-    if [ "$AVEC_SERVICE" -eq 1 ]; then verifier_service_etranger; fi
     ouvrir_journal
     info "OPSYS : installation (journal : $JOURNAL)"
     preparer_source
@@ -576,8 +619,10 @@ main() {
     preparer_pnpm
     construire_core
     installer_moteur
+    determiner_dossier_core
     initialiser_instance
     etape "Vérification du core (openclaw --version)" noyau --version
+    verifier_dossier_du_core
     installer_commandes
     if [ "$EN_ATTENTE" -eq 0 ]; then
         etape "Validation de la configuration par le core (openclaw config validate)" noyau config validate

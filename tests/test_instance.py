@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import stat
 import sys
 from pathlib import Path
@@ -36,6 +37,24 @@ def _valeurs_secretes(chemin: Path) -> list[str]:
 
 def _contenu_de_tout(dossier: Path) -> dict[str, bytes]:
     return {str(p.relative_to(dossier)): p.read_bytes() for p in sorted(dossier.rglob("*")) if p.is_file()}
+
+
+@pytest.fixture(autouse=True)
+def hote(tmp_path, monkeypatch) -> Path:
+    """Le dossier personnel du poste fictif : l'état du core (`~/.openclaw-opsys`) n'est JAMAIS celui de l'hôte."""
+    dossier = tmp_path / "hote"
+    dossier.mkdir()
+    monkeypatch.setenv("HOME", str(dossier))
+    monkeypatch.delenv("USERPROFILE", raising=False)
+    for nom in instance.VARIABLES_ECARTEES:
+        monkeypatch.delenv(nom, raising=False)
+    return dossier
+
+
+@pytest.fixture
+def etat_core(hote) -> Path:
+    """Le dossier d'état du profil `opsys` du core, tel que le core le calcule (`resolveProfileStateDir`)."""
+    return hote / ".openclaw-opsys"
 
 
 @pytest.fixture
@@ -145,30 +164,35 @@ def test_lire_env_comprend_guillemets_export_et_commentaires(tmp_path):
 
 # -- initialiser ------------------------------------------------------------------------------------------------------
 def _initialiser(opsys_home, **surcharge):
+    """`instance.initialiser` avec l'environnement d'un poste : HOME (l'hôte fictif) plus ce que le test fournit."""
+    environ = {"HOME": os.environ["HOME"], **surcharge.pop("environ", {})}
     reglages = {"source": RACINE, "python": Path(sys.executable), "port_gateway": None, "port_moteur": None,
-                "environ": {}}
+                "environ": environ}
     reglages.update(surcharge)
     return instance.initialiser(opsys_home, **reglages)
 
 
-def test_sans_paliers_ni_embeddings_le_verdict_dit_quoi_fournir_et_rien_d_autre_n_est_ecrit(opsys_home):
+def test_sans_paliers_ni_embeddings_le_verdict_dit_quoi_fournir_et_rien_d_autre_n_est_ecrit(opsys_home, etat_core):
     resultat = _initialiser(opsys_home)
 
     assert resultat.etat == "en_attente"
     assert len(resultat.manque) == 2
     assert any("opsys paliers definir" in ligne for ligne in resultat.manque)
     assert any("OPSYS_EMBEDDINGS_URL" in ligne and "OPSYS_EMBEDDINGS_MODELE" in ligne for ligne in resultat.manque)
-    assert (opsys_home / "core" / ".env").is_file()
-    assert not (opsys_home / "core" / "openclaw.json").exists()
-    assert not (opsys_home / "core" / "opsys").exists()
+    assert (etat_core / ".env").is_file()
+    assert not (etat_core / "openclaw.json").exists()
+    assert not (etat_core / "opsys").exists()
+    assert not (opsys_home / "core").exists()  # l'état du core n'est pas sous OPSYS_HOME
 
 
-def test_avec_paliers_et_embeddings_la_configuration_du_core_est_generee(opsys_home, palier_standard):
+def test_avec_paliers_et_embeddings_la_configuration_du_core_est_generee(opsys_home, etat_core, palier_standard):
     resultat = _initialiser(opsys_home, environ=EMBEDDINGS, port_gateway=18790, port_moteur=8766)
 
     assert resultat.etat == "pret" and resultat.manque == ()
     assert (resultat.port_gateway, resultat.port_moteur) == (18790, 8766)
-    core = opsys_home / "core"
+    assert resultat.dossier_core == etat_core and resultat.en_json()["dossier_core"] == str(etat_core)
+    assert not (opsys_home / "core").exists()
+    core = etat_core
     racine = json.loads((core / "openclaw.json").read_text(encoding="utf-8"))
     assert {"models", "agents", "mcp", "tools", "memory", "plugins"} <= set(racine)
     assert racine["gateway"] == {
@@ -187,36 +211,36 @@ def test_avec_paliers_et_embeddings_la_configuration_du_core_est_generee(opsys_h
     assert env["OPSYS_EMBEDDINGS_MODELE"] == "bge-m3" and env["OPSYS_PASSERELLE_URL"] == "http://127.0.0.1:4000/v1"
 
 
-def test_aucun_secret_dans_la_configuration_generee_ni_dans_la_sortie(opsys_home, palier_standard, monkeypatch,
-                                                                     capsys):
+def test_aucun_secret_dans_la_configuration_generee_ni_dans_la_sortie(opsys_home, etat_core, palier_standard,
+                                                                     monkeypatch, capsys):
     for nom, valeur in EMBEDDINGS.items():
         monkeypatch.setenv(nom, valeur)
 
     assert cli.main(["instance", "initialiser", "--source", str(RACINE)]) == 0
 
-    secrets_ecrits = _valeurs_secretes(opsys_home / "core" / ".env")
+    secrets_ecrits = _valeurs_secretes(etat_core / ".env")
     assert len(secrets_ecrits) >= 12  # jetons du moteur et du Gateway, dix clés de départements
 
-    for nom, contenu in _contenu_de_tout(opsys_home / "core").items():
+    for nom, contenu in _contenu_de_tout(etat_core).items():
         if nom == ".env":
             continue
         for secret in secrets_ecrits:
             assert secret.encode() not in contenu, f"un secret est écrit dans core/{nom}"
-    assert b"${OPSYS_MCP_JETON}" in (opsys_home / "core" / "opsys" / "mcp.json").read_bytes()
+    assert b"${OPSYS_MCP_JETON}" in (etat_core / "opsys" / "mcp.json").read_bytes()
     sortie = capsys.readouterr()
     for secret in secrets_ecrits:
         assert secret not in sortie.out + sortie.err
 
 
-def test_initialiser_est_idempotent_et_ne_regenere_aucun_secret(opsys_home, palier_standard):
+def test_initialiser_est_idempotent_et_ne_regenere_aucun_secret(opsys_home, etat_core, palier_standard):
     _initialiser(opsys_home, environ=EMBEDDINGS)
-    avant = _contenu_de_tout(opsys_home / "core")
+    avant = _contenu_de_tout(etat_core)
 
     resultat = _initialiser(opsys_home, environ=EMBEDDINGS)
 
     assert resultat.etat == "pret"
     assert resultat.env.generees == () and resultat.env.reglees == ()
-    assert _contenu_de_tout(opsys_home / "core") == avant
+    assert _contenu_de_tout(etat_core) == avant
 
 
 def test_les_reglages_gardes_dans_env_suffisent_a_la_relance(opsys_home, palier_standard):
@@ -227,9 +251,9 @@ def test_les_reglages_gardes_dans_env_suffisent_a_la_relance(opsys_home, palier_
     assert resultat.etat == "pret"
 
 
-def test_un_bloc_gateway_existant_n_est_jamais_modifie(opsys_home, palier_standard):
+def test_un_bloc_gateway_existant_n_est_jamais_modifie(opsys_home, etat_core, palier_standard):
     _initialiser(opsys_home, environ=EMBEDDINGS, port_gateway=18790)
-    racine = opsys_home / "core" / "openclaw.json"
+    racine = etat_core / "openclaw.json"
     config = json.loads(racine.read_text(encoding="utf-8"))
     config["gateway"]["port"] = 19999
     racine.write_text(json.dumps(config), encoding="utf-8")
@@ -241,9 +265,9 @@ def test_un_bloc_gateway_existant_n_est_jamais_modifie(opsys_home, palier_standa
     assert any("19999" in ligne and "18790" in ligne for ligne in resultat.avertissements)
 
 
-def test_metier_json_garde_les_cles_de_l_operateur_et_suit_le_port(opsys_home, palier_standard):
+def test_metier_json_garde_les_cles_de_l_operateur_et_suit_le_port(opsys_home, etat_core, palier_standard):
     _initialiser(opsys_home, environ=EMBEDDINGS, port_moteur=8766)
-    chemin = opsys_home / "core" / "opsys" / "metier.json"
+    chemin = etat_core / "opsys" / "metier.json"
     metier = json.loads(chemin.read_text(encoding="utf-8"))
     metier.update({"redemarrages_max": 3, "env": {"OPSYS_HOME": "/ancien", "MA_VARIABLE": "x"}})
     chemin.write_text(json.dumps(metier), encoding="utf-8")
@@ -267,16 +291,154 @@ def test_un_dossier_qui_n_est_pas_un_depot_est_refuse(opsys_home, tmp_path):
 
 
 def test_les_dossiers_crees_sont_prives_et_un_dossier_ouvert_est_signale(tmp_path):
-    neuf = tmp_path / "neuf"
-    assert instance._preparer_dossiers(neuf) == []
-    assert _mode(neuf) == 0o700 and _mode(neuf / "core") == 0o700
+    neuf, neuf_core = tmp_path / "neuf", tmp_path / "hote" / ".openclaw-opsys"
+    assert instance._preparer_dossiers(neuf, neuf_core) == []
+    assert _mode(neuf) == 0o700 and _mode(neuf_core) == 0o700
 
     ouvert = tmp_path / "ouvert"
     ouvert.mkdir(mode=0o755)
     ouvert.chmod(0o755)
-    avertissements = instance._preparer_dossiers(ouvert)
+    avertissements = instance._preparer_dossiers(ouvert, neuf_core)
     assert any(str(ouvert) in ligne and "chmod 700" in ligne for ligne in avertissements)
     assert _mode(ouvert) == 0o755  # un dossier existant n'est jamais modifié
+
+
+# -- le dossier d'état du core : celui du profil `opsys`, jamais sous OPSYS_HOME ---------------------------------
+def test_le_dossier_du_core_est_celui_du_profil_opsys_sous_le_dossier_personnel():
+    assert instance.dossier_core({"HOME": "/home/marie"}) == Path("/home/marie/.openclaw-opsys")
+    assert instance.dossier_core({"USERPROFILE": "/users/marie"}) == Path("/users/marie/.openclaw-opsys")
+    assert instance.dossier_core({"HOME": "/h/un", "USERPROFILE": "/h/deux"}) == Path("/h/un/.openclaw-opsys")
+    assert instance.dossier_core({"HOME": "/home/marie/../paul/"}) == Path("/home/paul/.openclaw-opsys")
+    # « undefined » et « null » se lisent comme absents, comme dans le core (`normalizeHomeDirValue`)
+    assert instance.dossier_core({"HOME": "undefined", "USERPROFILE": "/h/deux"}) == Path("/h/deux/.openclaw-opsys")
+
+
+def test_openclaw_home_est_ecarte_comme_le_font_les_commandes_installees():
+    environ = {"HOME": "/home/marie", "OPENCLAW_HOME": "/ailleurs", "OPENCLAW_STATE_DIR": "/autre/etat",
+               "OPENCLAW_PROFILE": "autre"}
+
+    assert instance.dossier_core(environ) == Path("/home/marie/.openclaw-opsys")
+
+
+def test_sans_dossier_personnel_le_dossier_du_core_est_refuse_jamais_devine():
+    with pytest.raises(instance.ErreurInstance, match="HOME"):
+        instance.dossier_core({"PATH": "/usr/bin"})
+    with pytest.raises(instance.ErreurInstance, match="HOME"):
+        instance.dossier_core({"HOME": "  ", "OPSYS_HOME": "/x"})
+
+
+def test_l_environnement_du_processus_donne_le_dossier_personnel_du_poste(hote):
+    assert instance.dossier_core() == hote / ".openclaw-opsys"
+    assert instance.dossier_core(None) == instance.dossier_core({"HOME": str(hote)})
+
+
+def test_l_etat_du_core_n_est_jamais_sous_opsys_home_et_le_dossier_est_prive(opsys_home, etat_core, palier_standard):
+    resultat = _initialiser(opsys_home, environ=EMBEDDINGS)
+
+    assert resultat.etat == "pret" and resultat.dossier_core == etat_core
+    assert not (opsys_home / "core").exists()
+    assert (etat_core / ".env").is_file() and (etat_core / "openclaw.json").is_file()
+    assert (etat_core / "opsys" / "metier.json").is_file()
+    assert _mode(etat_core) == 0o700 and _mode(etat_core / ".env") == 0o600
+    assert not [p for p in opsys_home.iterdir() if p.is_dir()]  # OPSYS_HOME ne garde que des fichiers de données
+
+
+def test_une_variable_du_core_qui_sortirait_l_etat_du_dossier_canonique_est_ecartee_et_signalee(
+        opsys_home, etat_core, palier_standard):
+    resultat = _initialiser(opsys_home, environ={**EMBEDDINGS, "OPENCLAW_STATE_DIR": "/ailleurs/etat",
+                                                 "OPENCLAW_PROFILE": "autre"})
+
+    assert resultat.dossier_core == etat_core and (etat_core / ".env").is_file()
+    assert not Path("/ailleurs/etat").exists()
+    assert any("OPENCLAW_STATE_DIR" in ligne and "OPENCLAW_PROFILE" in ligne and str(etat_core) in ligne
+               for ligne in resultat.avertissements)
+
+
+# -- l'ancienne disposition ($OPSYS_HOME/core) : signalée, jamais migrée en silence ----------------------------
+ANCIEN_JETON = "jeton-de-l-ancienne-installation-fictif-0123456789"
+
+
+def _poser_ancienne_disposition(opsys_home: Path) -> Path:
+    ancien = opsys_home / "core"
+    (ancien / "opsys").mkdir(parents=True)
+    (ancien / ".env").write_text(f"OPSYS_MCP_JETON={ANCIEN_JETON}\n", encoding="utf-8")
+    (ancien / "openclaw.json").write_text("{}\n", encoding="utf-8")
+    return ancien
+
+
+def test_l_ancienne_disposition_est_refusee_avec_la_marche_a_suivre_et_rien_n_est_modifie(
+        opsys_home, etat_core, palier_standard):
+    ancien = _poser_ancienne_disposition(opsys_home)
+    avant = _contenu_de_tout(ancien)
+
+    with pytest.raises(instance.ErreurInstance) as refus:
+        _initialiser(opsys_home, environ=EMBEDDINGS)
+
+    message = str(refus.value)
+    assert "ancienne disposition" in message and str(ancien) in message and str(etat_core) in message
+    assert "Rien n'est migré en silence" in message
+    assert "mv" in message and f"{ancien}.ancien" in message and "openclaw gateway stop" in message
+    assert ANCIEN_JETON not in message
+    assert _contenu_de_tout(ancien) == avant  # rien n'a bougé
+    assert not etat_core.exists() and not (opsys_home / "opsys.db").exists()  # rien n'a été écrit non plus
+
+
+def test_marche_a_suivre_1_deplacer_l_ancien_dossier_garde_les_secrets(opsys_home, etat_core, palier_standard):
+    ancien = _poser_ancienne_disposition(opsys_home)
+    with pytest.raises(instance.ErreurInstance):
+        _initialiser(opsys_home, environ=EMBEDDINGS)
+
+    shutil.move(str(ancien), str(etat_core))
+    resultat = _initialiser(opsys_home, environ=EMBEDDINGS)
+
+    assert resultat.etat == "pret"
+    assert "OPSYS_MCP_JETON" in resultat.env.conservees and "OPSYS_MCP_JETON" not in resultat.env.generees
+    assert instance.lire_env(etat_core / ".env")["OPSYS_MCP_JETON"] == ANCIEN_JETON
+    assert not (opsys_home / "core").exists()
+
+
+def test_marche_a_suivre_2_mettre_l_ancien_dossier_de_cote_repart_a_neuf(opsys_home, etat_core, palier_standard):
+    ancien = _poser_ancienne_disposition(opsys_home)
+    avant = _contenu_de_tout(ancien)
+    with pytest.raises(instance.ErreurInstance):
+        _initialiser(opsys_home, environ=EMBEDDINGS)
+
+    ancien.rename(opsys_home / "core.ancien")
+    resultat = _initialiser(opsys_home, environ=EMBEDDINGS)
+
+    assert resultat.etat == "pret" and "OPSYS_MCP_JETON" in resultat.env.generees
+    assert instance.lire_env(etat_core / ".env")["OPSYS_MCP_JETON"] != ANCIEN_JETON
+    assert _contenu_de_tout(opsys_home / "core.ancien") == avant  # l'ancien état est intact, à détruire par un humain
+
+
+def test_un_dossier_core_vide_ou_qui_est_l_etat_du_core_n_est_pas_l_ancienne_disposition(
+        opsys_home, etat_core, palier_standard):
+    (opsys_home / "core").mkdir(parents=True)  # laissé vide par une installation interrompue
+    assert instance.ancienne_disposition(opsys_home, etat_core) is None
+    assert _initialiser(opsys_home, environ=EMBEDDINGS).etat == "pret"
+
+    (opsys_home / "core").rmdir()
+    (opsys_home / "core").symlink_to(etat_core, target_is_directory=True)  # un lien vers l'état : déjà migré à la main
+    assert instance.ancienne_disposition(opsys_home, etat_core) is None
+    assert _initialiser(opsys_home, environ=EMBEDDINGS).etat == "pret"
+
+
+def test_la_cli_refuse_l_ancienne_disposition_avec_le_code_1_et_la_marche_a_suivre(opsys_home, palier_standard,
+                                                                                capsys, monkeypatch):
+    for nom, valeur in EMBEDDINGS.items():
+        monkeypatch.setenv(nom, valeur)
+    _poser_ancienne_disposition(opsys_home)
+
+    assert cli.main(["instance", "initialiser", "--source", str(RACINE)]) == 1
+
+    erreur = capsys.readouterr().err
+    assert erreur.startswith("ERREUR : ancienne disposition détectée") and "mv" in erreur
+
+
+def test_la_cli_dossier_ecrit_le_dossier_d_etat_du_core_et_rien_d_autre(etat_core, capsys):
+    assert cli.main(["instance", "dossier"]) == 0
+
+    assert capsys.readouterr().out == f"{etat_core}\n"
 
 
 # -- la CLI ------------------------------------------------------------------------------------------------------------
@@ -313,10 +475,64 @@ def test_les_constantes_recopiees_du_core_sont_celles_du_fork():
     assert f"DEFAULT_GATEWAY_PORT = {instance.PORT_GATEWAY_DEFAUT};" in chemins_ts
 
 
-def test_chaque_cle_de_metier_json_est_documentee_dans_le_fichier_de_config_du_core(opsys_home, palier_standard):
+def test_chaque_cle_de_metier_json_est_documentee_dans_le_fichier_de_config_du_core(opsys_home, etat_core,
+                                                                                    palier_standard):
     _initialiser(opsys_home, environ=EMBEDDINGS)
-    metier = json.loads((opsys_home / "core" / "opsys" / "metier.json").read_text(encoding="utf-8"))
+    metier = json.loads((etat_core / "opsys" / "metier.json").read_text(encoding="utf-8"))
     entete = (RACINE / "core/src/gateway/opsys-metier-config.ts").read_text(encoding="utf-8").split("import ")[0]
     documentees = set(re.findall(r'^//\s+"([a-z_]+)":', entete, flags=re.MULTILINE))
 
     assert set(metier) <= documentees, sorted(set(metier) - documentees)
+
+
+def test_le_profil_et_les_noms_de_service_recopies_du_fork_sont_les_siens():
+    """Le profil `opsys` n'est acceptable que si le fork le traite comme on le suppose : lu dans son code."""
+    profil = (RACINE / "core/src/cli/profile-utils.ts").read_text(encoding="utf-8")
+    chemins = (RACINE / "core/src/config/paths.ts").read_text(encoding="utf-8")
+    constantes = (RACINE / "core/src/daemon/constants.ts").read_text(encoding="utf-8")
+
+    # dossier d'état : `~/.openclaw-<profil>`
+    assert 'const suffix = normalizeLowercaseStringOrEmpty(trimmed) === "default" ? "" : `-${trimmed}`;' in profil
+    assert "`.openclaw${suffix}`" in profil
+    assert instance.PREFIXE_DOSSIER_PROFIL == ".openclaw-"
+    nom_valide = re.search(r"PROFILE_NAME_RE = /(.+?)/i;", profil)
+    assert nom_valide and re.fullmatch(nom_valide.group(1), instance.PROFIL_CORE, flags=re.IGNORECASE)
+    # ni un profil réservé (étiquettes launchd du core et du poste de travail d'origine), ni « default »
+    assert 'profile === "gateway" || profile === "node"' in chemins
+    assert instance.PROFIL_CORE not in ("gateway", "node", "default")
+    # le service porte un nom distinct de celui du core d'origine
+    assert "`openclaw-gateway${suffix}`" in constantes and '"openclaw-gateway"' in constantes
+    assert "`ai.openclaw.${normalized}`" in constantes and '"ai.openclaw.gateway"' in constantes
+    assert "`OpenClaw Gateway (${normalized})`" in constantes and '"OpenClaw Gateway"' in constantes
+
+
+def test_le_profil_ne_se_projette_que_par_l_option_racine_et_pas_par_la_seule_variable():
+    """Pourquoi les commandes du core passent `--profile opsys` et non `OPENCLAW_PROFILE=opsys` : lu dans le fork.
+
+    `resolveStateDir` (dossier d'état) ignore OPENCLAW_PROFILE ; seul `applyCliProfileEnv`, appelé pour l'option
+    racine `--profile`, pose OPENCLAW_STATE_DIR et OPENCLAW_CONFIG_PATH au dossier canonique du profil. Avec la seule
+    variable, l'état resterait `~/.openclaw` et `isDefaultInstallIdentity` refuserait le service.
+    """
+    etat = (RACINE / "core/src/config/state-dir.ts").read_text(encoding="utf-8")
+    profil = (RACINE / "core/src/cli/profile.ts").read_text(encoding="utf-8")
+    entree = (RACINE / "core/src/entry.ts").read_text(encoding="utf-8")
+    chemins = (RACINE / "core/src/config/paths.ts").read_text(encoding="utf-8")
+
+    assert "OPENCLAW_PROFILE" not in etat
+    assert "env.OPENCLAW_STATE_DIR = stateDir;" in profil
+    assert "env.OPENCLAW_CONFIG_PATH = path.join(stateDir, \"openclaw.json\");" in profil
+    assert "applyCliProfileEnv({ profile: earlyProfile.profile });" in entree
+    assert 'resolveProfileStateDir(env.OPENCLAW_PROFILE ?? "default", env, homedir)' in chemins
+    assert "resolveStateDir(env, envHomedir(env))" in chemins
+
+
+def test_le_dossier_personnel_se_lit_comme_dans_le_core():
+    """`dossier_core` lit HOME puis USERPROFILE, et écarte OPENCLAW_HOME : l'ordre du fork, relu ici."""
+    dossier_personnel = (RACINE / "core/packages/normalization-core/src/home-dir.ts").read_text(encoding="utf-8")
+
+    brut = dossier_personnel.split("function resolveRawOsHomeDir")[1].split("}")[0]
+    assert brut.index("env.HOME") < brut.index("env.USERPROFILE")
+    assert 'trimmed !== "undefined" && trimmed !== "null"' in dossier_personnel
+    assert "const explicitHome = normalizeHomeDirValue(env.OPENCLAW_HOME);" in dossier_personnel
+    chemins = (RACINE / "core/src/config/paths.ts").read_text(encoding="utf-8")
+    assert "if (normalizeHomeDirValue(env.OPENCLAW_HOME)) {\n    return false;" in chemins  # sinon aucun service

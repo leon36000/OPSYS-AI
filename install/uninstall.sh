@@ -6,13 +6,15 @@
 # Ce que fait ce script :
 #   1. avec --exporter-avant : archive d'abord l'instance (`opsys instance exporter`, empreinte SHA-256 incluse) ; si
 #      l'export échoue, RIEN n'est retiré ;
-#   2. arrête et retire le service du Gateway (`openclaw gateway uninstall`), si l'installateur l'avait installé ;
+#   2. arrête et retire le service du Gateway (`openclaw gateway uninstall`, sous le profil « opsys » du core : le
+#      service du core d'origine n'est jamais touché), si l'installateur l'avait installé ;
 #   3. retire les commandes `openclaw` et `opsys` de OPSYS_BIN (seulement celles que l'installateur a écrites) ;
 #   4. retire le logiciel : environnement Python, journal, et le clone géré par l'installateur. Un dépôt à vous
 #      (OPSYS_SOURCE, ou celui d'où vous avez lancé l'installateur) n'est jamais touché.
 #
-# Ce script ne supprime JAMAIS les données de l'instance ($OPSYS_HOME : base, réglages, secrets, état du Gateway).
-# La suppression définitive est une décision humaine, hors de ce script (docs/exploitation/INSTALLATION.md).
+# Ce script ne supprime JAMAIS les données de l'instance : $OPSYS_HOME (base, paliers, profil d'entreprise) ni l'état du
+# core (dossier du profil « opsys », ~/.openclaw-opsys : secrets .env, état du Gateway). La suppression définitive est
+# une décision humaine, hors de ce script (docs/exploitation/INSTALLATION.md).
 # Il est relançable : retirer ce qui est déjà retiré ne fait rien.
 #
 # Variables : OPSYS_HOME, OPSYS_LOGICIEL, OPSYS_BIN (mêmes défauts que l'installateur ; à défaut, la dernière
@@ -21,6 +23,10 @@
 set -euo pipefail
 
 MARQUE='# OPSYS-INSTALLATEUR : fichier géré par install.sh, réécrit à chaque installation. Ne pas éditer.'
+# Comme install.sh : le profil du core et les variables qui sortiraient son état du dossier canonique du profil.
+PROFIL_CORE="opsys"
+VARIABLES_ECARTEES=(OPENCLAW_STATE_DIR OPENCLAW_CONFIG_PATH OPENCLAW_HOME OPENCLAW_PROFILE OPENCLAW_LAUNCHD_LABEL
+    OPENCLAW_SYSTEMD_UNIT OPENCLAW_WINDOWS_TASK_NAME)
 SIMULER=0
 ARCHIVE=""
 ENR_OPSYS_HOME=""
@@ -28,6 +34,7 @@ ENR_OPSYS_BIN=""
 ENR_SOURCE=""
 ENR_SOURCE_GEREE="0"
 ENR_SERVICE="0"
+ENR_DOSSIER_CORE=""
 
 info() { printf '[opsys] %s\n' "$*"; }
 avertir() { printf '[opsys] AVERTISSEMENT : %s\n' "$*" >&2; }
@@ -51,7 +58,7 @@ lire_enregistrement() {
     [ -f "$fichier" ] || return 0
     while IFS='=' read -r cle valeur || [ -n "$cle" ]; do
         case "$cle" in
-            SOURCE | SOURCE_GEREE | SERVICE | OPSYS_HOME | OPSYS_BIN) printf -v "ENR_$cle" '%s' "$valeur" ;;
+            SOURCE | SOURCE_GEREE | SERVICE | DOSSIER_CORE | OPSYS_HOME | OPSYS_BIN) printf -v "ENR_$cle" '%s' "$valeur" ;;
             *) ;;
         esac
     done <"$fichier"
@@ -108,15 +115,23 @@ agir() {
     "$@"
 }
 
-# Un dossier qui est ou contient les données de l'instance, la racine ou le dossier personnel ne se supprime jamais.
+# Un dossier qui est ou contient les données de l'instance ou l'état du core, la racine ou le dossier personnel ne se
+# supprime jamais.
 garde_dossier() {
     local dossier="${1%/}"
     case "$dossier" in
         '' | "$HOME" | "$OPSYS_HOME") die "refus de supprimer '$dossier' : c'est le dossier personnel ou celui des données. Rien n'a été retiré." ;;
         *) ;;
     esac
+    if [ -n "$ENR_DOSSIER_CORE" ] && [ "$dossier" = "$ENR_DOSSIER_CORE" ]; then
+        die "refus de supprimer '$dossier' : c'est l'état du core (secrets, état du Gateway). Rien n'a été retiré."
+    fi
     case "$OPSYS_HOME/" in
         "$dossier"/*) die "refus de supprimer '$dossier' : il contient les données de l'instance ($OPSYS_HOME). Rien n'a été retiré." ;;
+        *) ;;
+    esac
+    case "${ENR_DOSSIER_CORE:-/}/" in
+        "$dossier"/*) die "refus de supprimer '$dossier' : il contient l'état du core ($ENR_DOSSIER_CORE). Rien n'a été retiré." ;;
         *) ;;
     esac
 }
@@ -169,11 +184,13 @@ retirer_service() {
         info "aucun service installé par l'installateur : rien à arrêter."
         return 0
     }
-    local coeur="$ENR_SOURCE/core/openclaw.mjs" etat="${OPENCLAW_STATE_DIR:-$OPSYS_HOME/core}"
+    local coeur="$ENR_SOURCE/core/openclaw.mjs" ecartees=() nom
     if [ ! -f "$coeur" ] || ! command -v node >/dev/null 2>&1; then
-        die "le service est installé mais le core ($coeur) ou Node est introuvable : impossible de le retirer proprement. Arrêtez-le à la main (Linux : systemctl --user disable --now openclaw-gateway ; macOS : launchctl bootout gui/\$(id -u)/ai.openclaw.gateway), puis relancez. Rien n'a été retiré."
+        die "le service est installé mais le core ($coeur) ou Node est introuvable : impossible de le retirer proprement. Arrêtez-le à la main (Linux : systemctl --user disable --now openclaw-gateway-$PROFIL_CORE ; macOS : launchctl bootout gui/\$(id -u)/ai.openclaw.$PROFIL_CORE), puis relancez. Rien n'a été retiré."
     fi
-    agir "arrêt et retrait du service du Gateway" env OPSYS_HOME="$OPSYS_HOME" OPENCLAW_STATE_DIR="$etat" node "$coeur" gateway uninstall </dev/null ||
+    for nom in "${VARIABLES_ECARTEES[@]}"; do ecartees+=(-u "$nom"); done
+    agir "arrêt et retrait du service du Gateway (profil $PROFIL_CORE)" \
+        env "${ecartees[@]}" OPSYS_HOME="$OPSYS_HOME" node "$coeur" --profile "$PROFIL_CORE" gateway uninstall </dev/null ||
         die "le service n'a pas pu être retiré (message ci-dessus). Rien d'autre n'a été retiré : corrigez, puis relancez."
 }
 
@@ -209,14 +226,15 @@ retirer_logiciel() {
 main() {
     analyser_arguments "$@"
     resoudre_chemins
-    info "désinstallation d'OPSYS (données conservées : $OPSYS_HOME)"
+    info "désinstallation d'OPSYS (données conservées : $OPSYS_HOME et l'état du core)"
     verifier_gardes
     exporter_avant
     retirer_service
     retirer_commandes
     retirer_logiciel
     printf '\n%s\n' "OPSYS est retiré."
-    printf '  %s\n' "Données conservées : $OPSYS_HOME (base, réglages, secrets .env, état du Gateway)."
+    printf '  %s\n' "Données conservées : $OPSYS_HOME (base, paliers, profil d'entreprise)."
+    printf '  %s\n' "État du core conservé : ${ENR_DOSSIER_CORE:-le dossier .openclaw-$PROFIL_CORE de votre dossier personnel} (secrets .env, état du Gateway)."
     if [ -z "$ARCHIVE" ]; then
         printf '  %s\n' "Aucun export demandé (--exporter-avant). Pour en faire un maintenant : réinstallez OPSYS, puis opsys instance exporter."
     fi

@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
 import sqlite3
 import stat
 import tarfile
@@ -18,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from opsys import cli, exportation, identite, stockage
+from opsys import cli, exportation, identite, instance, stockage
 
 FICTIF = True  # personnes et secrets ci-dessous sont fictifs (AGENTS.md)
 
@@ -26,8 +27,21 @@ MARQUEUR_SECRET = "MARQUEUR-SECRET-DU-ENV-FICTIF-0123456789"
 MOT_DE_PASSE = "un-mot-de-passe-solide-123"
 
 
+@pytest.fixture(autouse=True)
+def hote(tmp_path, monkeypatch) -> Path:
+    """Le dossier personnel du poste fictif, où vit l'état du core (`~/.openclaw-opsys`, PLAN T0.11-b)."""
+    dossier = tmp_path / "hote"
+    monkeypatch.setenv("HOME", str(dossier))
+    return dossier
+
+
+def _etat_core() -> Path:
+    return Path(os.environ["HOME"]) / ".openclaw-opsys"
+
+
 def _peupler(home: Path) -> None:
-    """Une instance : base migrée avec une personne, réglages de l'instance et un `.env` qui porte un secret."""
+    """Une instance : base migrée avec une personne, réglages de l'instance, et deux endroits qui portent un secret :
+    l'état du core (dossier du profil `opsys`, hors de `home`) et l'ancien `home/core` (avant T0.11-b)."""
     stockage.migrer()
     with stockage.transaction() as cnx:
         identite.creer_personne(cnx, "sylvie-fictif", "Sylvie Tremblay (fictif)", MOT_DE_PASSE, ["employee"])
@@ -36,6 +50,9 @@ def _peupler(home: Path) -> None:
     (home / "core").mkdir(exist_ok=True)
     (home / "core" / ".env").write_text(f"OPSYS_MCP_JETON={MARQUEUR_SECRET}\n", encoding="utf-8")
     (home / "core" / "etat-du-gateway.json").write_text(f'{{"jeton": "{MARQUEUR_SECRET}"}}', encoding="utf-8")
+    _etat_core().mkdir(parents=True, exist_ok=True)
+    (_etat_core() / ".env").write_text(f"OPSYS_MCP_JETON={MARQUEUR_SECRET}\n", encoding="utf-8")
+    (_etat_core() / "etat-du-gateway.json").write_text(f'{{"jeton": "{MARQUEUR_SECRET}"}}', encoding="utf-8")
 
 
 def _personnes() -> list[str]:
@@ -95,11 +112,25 @@ def test_l_archive_ne_contient_que_la_liste_blanche_et_jamais_un_secret(opsys_ho
     assert all(MARQUEUR_SECRET.encode() not in contenu for contenu in membres.values())
     manifeste = json.loads(membres["opsys-export/manifeste.json"])
     assert manifeste["format"] == exportation.FORMAT and manifeste["base"]["moteur"] == "sqlite"
-    assert {e["chemin"] for e in manifeste["exclus"]} >= {"core/.env", "core/"}
+    assert {e["chemin"] for e in manifeste["exclus"]} >= {"~/.openclaw-opsys/.env", "~/.openclaw-opsys/"}
+    assert str(_etat_core().parent) not in json.dumps(manifeste)  # aucun nom de compte du poste dans l'archive
     assert any("clés de chiffrement" in ligne for ligne in manifeste["avertissements"])
     for f in manifeste["fichiers"]:
         contenu = membres[f"opsys-export/{f['chemin']}"]
         assert (f["sha256"], f["octets"]) == (hashlib.sha256(contenu).hexdigest(), len(contenu))
+
+
+def test_les_exclusions_nomment_le_dossier_du_profil_du_core_et_jamais_un_secret_n_en_sort(opsys_home, tmp_path):
+    _peupler(opsys_home)
+    profil = f"{instance.PREFIXE_DOSSIER_PROFIL}{instance.PROFIL_CORE}"
+
+    resultat = exportation.exporter(opsys_home, tmp_path / "export.tar.gz", par="test")
+
+    assert [e["chemin"] for e in exportation.EXCLUS] == [f"~/{profil}/.env", f"~/{profil}/", "rqa/"]
+    for nom, contenu in _membres(resultat.archive).items():
+        assert MARQUEUR_SECRET.encode() not in contenu, nom
+        assert b"etat-du-gateway" not in contenu, nom
+    assert resultat.en_json()["exclus"] == [dict(e) for e in exportation.EXCLUS]
 
 
 def test_archive_et_empreinte_sont_privees_et_l_empreinte_se_verifie_avec_sha256sum(opsys_home, tmp_path):
@@ -187,6 +218,7 @@ def test_restaurer_dans_une_instance_neuve_redonne_les_donnees(opsys_home, tmp_p
     assert _personnes() == ["sylvie-fictif"]
     assert (neuve / "paliers.yaml").read_text(encoding="utf-8").startswith("paliers:")
     assert not (neuve / "core").exists()  # ni `.env` ni état du Gateway : l'installateur les régénère
+    assert (_etat_core() / ".env").read_text(encoding="utf-8") == f"OPSYS_MCP_JETON={MARQUEUR_SECRET}\n"  # intact
     from opsys import etat
 
     with etat.session() as cnx:
@@ -301,7 +333,7 @@ def test_la_cli_exporte_puis_restaure(opsys_home, tmp_path, monkeypatch, capsys)
     assert cli.main(["instance", "exporter", "--sortie", str(sortie), "--par", "poste:test"]) == 0
     export = json.loads(capsys.readouterr().out)
     assert export["sha256"] == hashlib.sha256(sortie.read_bytes()).hexdigest()
-    assert export["avertissements"] and {e["chemin"] for e in export["exclus"]} >= {"core/.env"}
+    assert export["avertissements"] and {e["chemin"] for e in export["exclus"]} >= {"~/.openclaw-opsys/.env"}
 
     _autre_instance(monkeypatch, tmp_path, "neuve")
     assert cli.main(["instance", "restaurer", str(sortie)]) == 0

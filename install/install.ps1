@@ -8,10 +8,18 @@
 #   1. prerequis : Node aux versions du fork, uv (qui fournit Python 3.11+), git (installation a distance), curl.exe
 #   2. le code : depot voisin ou -Source tel quel ; sinon clone de OPSYS_REPO_URL a OPSYS_REF
 #   3. construction d'OPSYS-CORE (pnpm a la version de core/package.json), moteur Python par uv
-#   4. `opsys instance initialiser` : dossiers, base migree, secrets dans %OPSYS_HOME%\core\.env (acces reserve a
+#   4. `opsys instance initialiser` : dossiers, base migree, secrets dans <etat du core>\.env (acces reserve a
 #      l'utilisateur, jamais regeneres, jamais affiches), configuration du core, superviseur du moteur
-#   5. `openclaw config validate`, puis service du Gateway (`openclaw gateway install` : tache planifiee de
-#      l'utilisateur), qui supervise le moteur ; attente que le Gateway et le moteur repondent
+#   5. verification que le core lit son etat la ou on vient de le preparer (`openclaw config file`), `openclaw
+#      config validate`, puis service du Gateway (`openclaw gateway install` : tache planifiee de l'utilisateur),
+#      qui supervise le moteur ; attente que le Gateway et le moteur repondent
+#
+# Le core tourne sous son profil "opsys" (PLAN T0.11-b) : toute commande du core passe `--profile opsys`, jamais
+# OPENCLAW_STATE_DIR, OPENCLAW_CONFIG_PATH ni OPENCLAW_HOME. Son etat est alors le dossier canonique du profil
+# (%USERPROFILE%\.openclaw-opsys), le seul pour lequel le core accepte d'installer un service, et le service porte
+# un nom distinct de celui du core d'origine (tache "OpenClaw Gateway (opsys)"). `opsys instance dossier` donne ce
+# dossier. Une installation faite avec l'ancienne disposition (%OPSYS_HOME%\core) est signalee, avec la marche a
+# suivre, jamais migree en silence.
 #
 # Relancable sans rien casser : c'est aussi la mise a jour. Les donnees de l'instance ne sont jamais touchees.
 #
@@ -52,8 +60,11 @@ $script:Node = ''
 $script:Pnpm = ''
 $script:PnpmDir = ''
 $script:ServiceInstalle = 0
-$script:ServicePrecedent = ''
 $script:EnAttente = $false
+# Profil du core et variables qui sortiraient son etat du dossier canonique (comme install.sh et instance.py).
+$script:ProfilCore = 'opsys'
+$script:VariablesEcartees = @('OPENCLAW_STATE_DIR', 'OPENCLAW_CONFIG_PATH', 'OPENCLAW_HOME', 'OPENCLAW_PROFILE', 'OPENCLAW_LAUNCHD_LABEL', 'OPENCLAW_SYSTEMD_UNIT', 'OPENCLAW_WINDOWS_TASK_NAME')
+$script:DossierCore = ''
 
 function Write-Info {
     param([string]$Message)
@@ -104,7 +115,8 @@ function Assert-CheminAbsolu {
 # -- Journal et masquage des secrets --------------------------------------------------------------------------------
 function Update-Masque {
     $script:Secrets = @()
-    $fichierEnv = Join-Path $script:OpsysHome 'core\.env'
+    if (-not $script:DossierCore) { return }
+    $fichierEnv = Join-Path $script:DossierCore '.env'
     if (-not (Test-Path -LiteralPath $fichierEnv)) { return }
     foreach ($ligne in [System.IO.File]::ReadAllLines($fichierEnv, $script:Utf8)) {
         if ($ligne -match '^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=(.*)$') {
@@ -182,16 +194,9 @@ function Test-Prerequis {
     $script:Node = (Get-Command node).Source
 }
 
-# Tant que le core porte le nom de service du core d'origine (PLAN T0.7, lot 4), `gateway install --force` remplacerait la
-# tache d'une autre installation d'OpenClaw : on ne remplace qu'une tache posee par cette installation (notee dans
-# installation.env) ou dont la definition nomme notre instance.
-function Test-ServiceEtranger {
-    if ($script:ServicePrecedent -eq '1') { return }
-    $r = Invoke-Capture { & schtasks.exe /Query /TN 'OpenClaw Gateway' /XML }
-    if (($r.Code -eq 0) -and (-not $r.Sortie.Contains($script:OpsysHome))) {
-        Stop-Install "une tache planifiee 'OpenClaw Gateway' existe deja et n'a pas ete installee par cette installation d'OPSYS : le core d'origine porte le meme nom, et la remplacer casserait l'autre installation. Retirez-la avec elle (openclaw gateway uninstall), ou relancez avec -SansService."
-    }
-}
+# Il n'y a plus de garde "ne jamais ecraser la tache d'une autre installation d'OpenClaw" : sous le profil "opsys", la
+# tache porte un nom qui n'est pas celui du core d'origine ("OpenClaw Gateway (opsys)", core/src/daemon/constants.ts), et
+# `gateway install --force` ne remplace que la tache de son profil.
 
 # Le controle qui fait foi est celui du fork lui-meme (core/node-version.mjs), lu une fois le code en place.
 function Test-VersionNode {
@@ -353,11 +358,15 @@ function Invoke-PnpmCore {
     }
 }
 
+# Toute commande du core passe par ici, sous son profil : `--profile` est l'option racine qui projette le dossier d'etat
+# et le fichier de configuration canoniques du profil (core/src/cli/profile.ts, applyCliProfileEnv) ; la seule variable
+# OPENCLAW_PROFILE ne le fait pas. Les variables qui sortiraient l'etat de ce dossier sont ecartees : le core refuserait
+# alors tout service (core/src/config/paths.ts, isDefaultInstallIdentity).
 function Invoke-Noyau {
     param([string[]]$Arguments)
     $env:OPSYS_HOME = $script:OpsysHome
-    if (-not $env:OPENCLAW_STATE_DIR) { $env:OPENCLAW_STATE_DIR = Join-Path $script:OpsysHome 'core' }
-    & node (Join-Path $script:Depot 'core\openclaw.mjs') @Arguments
+    foreach ($nom in $script:VariablesEcartees) { Remove-Item -LiteralPath "Env:$nom" -ErrorAction SilentlyContinue }
+    & node (Join-Path $script:Depot 'core\openclaw.mjs') --profile $script:ProfilCore @Arguments
 }
 
 function Build-Core {
@@ -380,6 +389,41 @@ function Install-Moteur {
 }
 
 # -- L'instance -----------------------------------------------------------------------------------------------------------------
+# Le dossier d'etat du core est celui que le moteur Python calcule (instance.dossier_core : la regle du fork, une seule
+# implementation pour Linux, macOS et Windows). Le script ne le devine pas ; Test-DossierDuCore le confronte ensuite a la
+# reponse du core lui-meme.
+function Initialize-DossierCore {
+    $env:OPSYS_HOME = $script:OpsysHome
+    $env:PYTHONUTF8 = '1'
+    $r = Invoke-Capture { & $script:VenvPy -m opsys.cli instance dossier }
+    $chemin = ''
+    $lignes = @($r.Sortie -split "`n" | Where-Object { $_.Trim() })
+    if ($lignes.Count -gt 0) { $chemin = "$($lignes[-1])".Trim() }
+    if (($r.Code -ne 0) -or (-not $chemin)) {
+        Stop-Install "le dossier d'etat du core est indetermine : $($r.Sortie) (USERPROFILE est-il defini ?)"
+    }
+    Assert-CheminAbsolu "le dossier d'etat du core" $chemin
+    $script:DossierCore = $chemin
+    Update-Masque
+}
+
+# Le dossier que l'installateur a prepare doit etre celui que le core lira : le core dit lui-meme ou est sa configuration
+# (`openclaw config file`). Si la regle de profil du fork change, on s'arrete ici, avant de demarrer un Gateway qui
+# ignorerait la configuration generee.
+function Test-DossierDuCore {
+    Write-Info "Verification du dossier d'etat du core (openclaw config file)..."
+    $r = Invoke-Capture { Invoke-Noyau @('config', 'file') }
+    Add-Journal "`n== openclaw config file (code $($r.Code))`n$(Hide-Secrets $r.Sortie)"
+    if ($r.Code -ne 0) { Stop-Install "openclaw config file a echoue (code $($r.Code)). Journal complet : $($script:Journal)" }
+    $annonce = ''
+    $lignes = @($r.Sortie -split "`n" | Where-Object { $_.Trim() })
+    if ($lignes.Count -gt 0) { $annonce = "$($lignes[-1])".Trim() }
+    $attendu = Join-Path $script:DossierCore 'openclaw.json'
+    if (-not [string]::Equals($annonce, $attendu, [System.StringComparison]::OrdinalIgnoreCase)) {
+        Stop-Install "le core cherche sa configuration dans '$annonce', mais l'installateur a prepare '$attendu'. La regle du profil '$($script:ProfilCore)' a change dans le core (core/src/cli/profile-utils.ts) : rien n'est demarre. Journal : $($script:Journal)"
+    }
+}
+
 function Initialize-Instance {
     $arguments = @('-m', 'opsys.cli', 'instance', 'initialiser', '--source', $script:Depot)
     if ($script:PortGateway) { $arguments += @('--port-gateway', $script:PortGateway) }
@@ -428,20 +472,20 @@ function Write-Enveloppe {
 }
 
 function Install-Commandes {
-    foreach ($chemin in @($script:OpsysHome, $script:Node, $script:Depot, $script:VenvPy)) { Assert-CheminCmd $chemin }
-    Write-Enveloppe (Join-Path $script:Bin 'openclaw.cmd') @(
-        '@echo off',
-        "rem $($script:Marque)",
-        "if not defined OPSYS_HOME set `"OPSYS_HOME=$($script:OpsysHome)`"",
-        'if not defined OPENCLAW_STATE_DIR set "OPENCLAW_STATE_DIR=%OPSYS_HOME%\core"',
-        "`"$($script:Node)`" `"$($script:Depot)\core\openclaw.mjs`" %*",
-        'exit /b %ERRORLEVEL%')
+    foreach ($chemin in @($script:OpsysHome, $script:DossierCore, $script:Node, $script:Depot, $script:VenvPy)) { Assert-CheminCmd $chemin }
+    # Le core d'OPSYS tourne sous son profil ; `setlocal` garde le retrait des variables hors de la session de l'appelant.
+    $lignesCore = @('@echo off', "rem $($script:Marque)", 'setlocal', "if not defined OPSYS_HOME set `"OPSYS_HOME=$($script:OpsysHome)`"")
+    foreach ($nom in $script:VariablesEcartees) { $lignesCore += "set `"$nom=`"" }
+    $lignesCore += "`"$($script:Node)`" `"$($script:Depot)\core\openclaw.mjs`" --profile $($script:ProfilCore) %*"
+    $lignesCore += 'exit /b %ERRORLEVEL%'
+    Write-Enveloppe (Join-Path $script:Bin 'openclaw.cmd') $lignesCore
     Write-Enveloppe (Join-Path $script:Bin 'opsys.cmd') @(
         '@echo off',
         "rem $($script:Marque)",
         "if not defined OPSYS_HOME set `"OPSYS_HOME=$($script:OpsysHome)`"",
-        'if exist "%OPSYS_HOME%\core\.env" (',
-        '  for /f "usebackq eol=# tokens=1,* delims==" %%a in ("%OPSYS_HOME%\core\.env") do (',
+        "set `"DOSSIER_CORE=$($script:DossierCore)`"",
+        'if exist "%DOSSIER_CORE%\.env" (',
+        '  for /f "usebackq eol=# tokens=1,* delims==" %%a in ("%DOSSIER_CORE%\.env") do (',
         '    if not defined %%a set "%%a=%%b"',
         '  )',
         ')',
@@ -487,6 +531,8 @@ function Write-Enregistrement {
     $lignes = @(
         "OPSYS_HOME=$($script:OpsysHome)",
         "OPSYS_BIN=$($script:Bin)",
+        "PROFIL_CORE=$($script:ProfilCore)",
+        "DOSSIER_CORE=$($script:DossierCore)",
         "SOURCE=$($script:Depot)",
         "SOURCE_GEREE=$($script:DepotGere)",
         "SOURCE_COMMIT=$($script:DepotCommit)",
@@ -507,13 +553,14 @@ function Write-Bilan {
         Write-Host 'OPSYS est installe.'
     }
     Write-Host "  Donnees de l'instance : $($script:OpsysHome)  (jamais supprimees par la desinstallation)"
-    Write-Host "  Reglages et secrets   : $($script:OpsysHome)\core\.env  (acces reserve a l'utilisateur ; ne jamais partager)"
+    Write-Host "  Etat du core          : $($script:DossierCore)  (profil $($script:ProfilCore) ; jamais supprime par la desinstallation)"
+    Write-Host "  Reglages et secrets   : $($script:DossierCore)\.env  (acces reserve a l'utilisateur ; ne jamais partager)"
     Write-Host "  Logiciel              : $($script:Logiciel)  (commit $($script:DepotCommit.Substring(0, [Math]::Min(12, $script:DepotCommit.Length))))"
     Write-Host "  Commandes             : $($script:Bin)\openclaw.cmd (core), $($script:Bin)\opsys.cmd (moteur)"
     if (-not $script:EnAttente) {
         Write-Host "  Gateway               : http://127.0.0.1:$($script:PortGateway)  (moteur : 127.0.0.1:$($script:PortMoteur))"
         Write-Host "  Passerelle de modeles : non installee par ce script : attendue a l'adresse OPSYS_PASSERELLE_URL de .env"
-        if ($script:ServiceInstalle -eq 1) { Write-Host '  Service               : installe (tache planifiee de l''utilisateur) ; etat : openclaw gateway status' }
+        if ($script:ServiceInstalle -eq 1) { Write-Host "  Service               : installe (tache planifiee de l'utilisateur, profil $($script:ProfilCore)) ; etat : openclaw gateway status" }
         else { Write-Host '  Service               : non installe (-SansService) ; demarrage : openclaw gateway run' }
         Write-Host ''
         Write-Host 'Prochaines etapes :'
@@ -554,9 +601,10 @@ function Invoke-Installation {
         if ($script:PortGateway) { Assert-Port 'OPSYS_PORT_GATEWAY' $script:PortGateway }
         if ($script:PortMoteur) { Assert-Port 'OPSYS_PORT_MOTEUR' $script:PortMoteur }
 
-        $script:ServicePrecedent = [string]$enregistre['SERVICE']
+        # Le dossier d'etat note par la derniere installation ne sert qu'a masquer ses secrets des l'ouverture du journal :
+        # il est redetermine (par le moteur Python) avant toute ecriture.
+        $script:DossierCore = [string]$enregistre['DOSSIER_CORE']
         Test-Prerequis
-        if ($script:AvecService) { Test-ServiceEtranger }
         Open-Journal
         Write-Info "OPSYS : installation (journal : $($script:Journal))"
         Initialize-Depot
@@ -564,7 +612,9 @@ function Invoke-Installation {
         Initialize-Pnpm
         Build-Core
         Install-Moteur
+        Initialize-DossierCore
         Initialize-Instance
+        Test-DossierDuCore
         Install-Commandes
         if (-not $script:EnAttente) {
             Invoke-Etape "Validation de la configuration par le core (openclaw config validate)" { Invoke-Noyau @('config', 'validate') }

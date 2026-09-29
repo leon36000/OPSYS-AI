@@ -10,10 +10,11 @@ Liste blanche (jamais une liste noire : un fichier inconnu ne sort pas par accid
 - `manifeste.json` : format, date, version du logiciel, révision de la base, SHA-256 et taille de chaque fichier,
   fichiers volontairement exclus et avertissements.
 
-Ne sortent JAMAIS : `core/.env` (secrets en clair), l'état du Gateway (`core/` : jetons d'appareils, sessions) ni
-l'index public d'adresses (`rqa/`). L'installateur régénère les secrets et la configuration du core ; les
-appareils sont à réappairer. L'archive est écrite 0600, sans jamais écraser un fichier ; son SHA-256 est aussi
-écrit dans `<archive>.sha256` (format `sha256sum`), que la restauration exige.
+Ne sortent JAMAIS : l'état du core, qui est le dossier du profil `opsys` du core (`~/.openclaw-opsys`, hors de
+`OPSYS_HOME` : PLAN T0.11-b) avec son `.env` (secrets en clair) et l'état du Gateway (jetons d'appareils, sessions),
+ni l'ancien `OPSYS_HOME/core`, ni l'index public d'adresses (`rqa/`). L'installateur régénère les secrets et la
+configuration du core ; les appareils sont à réappairer. L'archive est écrite 0600, sans jamais écraser un
+fichier ; son SHA-256 est aussi écrit dans `<archive>.sha256` (format `sha256sum`), que la restauration exige.
 
 Limite à connaître : la base contient les clés de chiffrement destructibles des données à effacement
 cryptographique (`opsys.cles_chiffrement`). Sans elles, une restauration perdrait ces données ; avec elles,
@@ -45,7 +46,7 @@ from typing import Any
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import SQLAlchemyError
 
-from . import __version__, etat, stockage
+from . import __version__, etat, instance, stockage
 
 FORMAT = "opsys-export/1"
 DOSSIER_ARCHIVE = "opsys-export"
@@ -56,10 +57,16 @@ TAILLE_MAX_MANIFESTE = 1_000_000
 _BLOC = 1024 * 1024
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
+# Chemins relatifs au dossier personnel (jamais absolus : aucun nom de compte du poste dans l'archive), sauf `rqa/`
+# qui est relatif à `OPSYS_HOME`.
+_ETAT_CORE = f"{instance.PREFIXE_DOSSIER_PROFIL}{instance.PROFIL_CORE}"
 EXCLUS = (
-    {"chemin": "core/.env", "raison": "secrets en clair (jetons, clés) : l'installateur en génère de nouveaux"},
-    {"chemin": "core/", "raison": "état du Gateway (jetons d'appareils, sessions) : configuration régénérée, "
-                                  "appareils à réappairer"},
+    {"chemin": f"~/{_ETAT_CORE}/.env",
+     "raison": "secrets en clair (jetons, clés), dans l'état du core hors de l'instance : l'installateur en génère "
+               "de nouveaux"},
+    {"chemin": f"~/{_ETAT_CORE}/",
+     "raison": "état du core et du Gateway (jetons d'appareils, sessions) : configuration régénérée, "
+               "appareils à réappairer"},
     {"chemin": "rqa/", "raison": "index public d'adresses, à télécharger de nouveau"},
 )
 AVERTISSEMENTS = (

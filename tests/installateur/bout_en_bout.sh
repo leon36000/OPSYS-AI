@@ -7,6 +7,14 @@
 # désinstallation retire le logiciel sans perdre une donnée. Chaque constat faux arrête le script, avec quoi
 # regarder. Aucune étape ne tolère l'échec, sauf l'absence de systemd --user sur le poste, signalée en clair.
 #
+# Le core tourne sous son profil « opsys » (PLAN T0.11-b). Ses attentes sont écrites ICI, en dur, d'après le code du
+# fork, et confrontées à ce que le vrai core et le moteur Python répondent :
+#   - dossier d'état : ~/.openclaw-opsys (core/src/cli/profile-utils.ts, resolveProfileStateDir) ;
+#   - service systemd utilisateur : openclaw-gateway-opsys.service (core/src/daemon/constants.ts), distinct de
+#     openclaw-gateway.service, celui du core d'origine.
+# Ce script INSTALLE puis DÉSINSTALLE : il refuse de tourner sur un poste qui a déjà un état du core d'OPSYS ou son
+# service (ne l'exécutez pas sur un poste réel ; la CI l'exécute sur une machine neuve).
+#
 # Usage (depuis la racine du dépôt, Node 24+, Python 3.11+, uv) : bash tests/installateur/bout_en_bout.sh
 # Variables : OPSYS_TRAVAIL (dossier de travail, défaut : un dossier temporaire), OPSYS_SANS_SERVICE=1 (saute la
 # phase du service).
@@ -24,6 +32,9 @@ export PATH="$OPSYS_BIN:$PATH"
 export HOME="${HOME:?}"
 PORT_GATEWAY=18789
 PORT_MOTEUR=8765
+ETAT_CORE="$HOME/.openclaw-opsys"
+UNITE_ATTENDUE="openclaw-gateway-opsys.service"
+UNITE_DU_CORE_D_ORIGINE="openclaw-gateway.service"
 GATEWAY_PID=""
 CONSTATS=()
 
@@ -71,7 +82,7 @@ attendre_http() { # url, délai (s), libellé
 
 valeurs_secretes() {
     sed -n -E 's/^[[:space:]]*(export[[:space:]]+)?[A-Z0-9_]*(JETON|TOKEN|_CLE|SECRET|PASSWORD)[A-Z0-9_]*=(.{12,})$/\3/p' \
-        "$OPSYS_HOME/core/.env"
+        "$ETAT_CORE/.env"
 }
 
 masquer_les_secrets() {
@@ -113,13 +124,10 @@ exiger_secrets_prives_au_repos() { # dossiers...
 # Les fichiers que l'installateur écrit ou garde : secrets, configuration du core, fragments OPSYS, réglages. Pas l'état
 # que le Gateway écrit lui-même (sessions, espaces de travail des agents).
 empreinte_des_fichiers_geres() {
-    (
-        cd "$OPSYS_HOME"
-        {
-            printf '%s\0' core/.env core/openclaw.json paliers.yaml
-            find core/opsys -maxdepth 1 -name '*.json' -print0
-        } | sort -z | xargs -0 sha256sum | sha256sum
-    )
+    {
+        printf '%s\0' "$ETAT_CORE/.env" "$ETAT_CORE/openclaw.json" "$OPSYS_HOME/paliers.yaml"
+        find "$ETAT_CORE/opsys" -maxdepth 1 -name '*.json' -print0
+    } | sort -z | xargs -0 sha256sum | sha256sum
 }
 
 installer() { # journal de sortie, options...
@@ -133,8 +141,16 @@ installer() { # journal de sortie, options...
     exiger_sans_secret "sortie de l'installateur" "$sortie" "$OPSYS_LOGICIEL/journaux/installation.log"
 }
 
-# -- 0. Les décisions --------------------------------------------------------------------------------------------------
-etape "0. Décision préalable : un palier de modèles (comme après une restauration ou un premier réglage)"
+# -- 0. Le poste ---------------------------------------------------------------------------------------------------------
+etape "0. Poste : ni état du core d'OPSYS ni son service ne doivent déjà exister (ce script installe puis désinstalle)"
+[ ! -e "$ETAT_CORE" ] ||
+    echec "$ETAT_CORE existe déjà : ce script installe puis désinstalle, il ne s'exécute pas sur un poste qui porte une instance OPSYS. Déplacez ce dossier, ou prenez un poste neuf."
+if command -v systemctl >/dev/null 2>&1 && [ -n "$(systemctl --user list-unit-files --no-legend "$UNITE_ATTENDUE" 2>/dev/null || true)" ]; then
+    echec "le service $UNITE_ATTENDUE existe déjà sur ce poste : ce script ne s'exécute pas sur un poste qui porte une instance OPSYS."
+fi
+constat "poste neuf : aucun état du core d'OPSYS ($ETAT_CORE) ni service $UNITE_ATTENDUE"
+
+etape "0 bis. Décision préalable : un palier de modèles (comme après une restauration ou un premier réglage)"
 mkdir -p "$OPSYS_HOME"
 chmod 700 "$OPSYS_HOME"
 printf 'paliers:\n  standard: {provider: anthropic, model: claude-sonnet-5}\n' >"$OPSYS_HOME/paliers.yaml"
@@ -143,13 +159,50 @@ printf 'paliers:\n  standard: {provider: anthropic, model: claude-sonnet-5}\n' >
 etape "1. Installation (sans service) : Node, pnpm, uv, construction du core, moteur, instance, configuration"
 installer "$TRAVAIL/installation-1.log" --sans-service
 if [ ! -x "$OPSYS_BIN/openclaw" ] || [ ! -x "$OPSYS_BIN/opsys" ]; then echec "les commandes openclaw et opsys ne sont pas installées"; fi
-[ "$(stat -c '%a' "$OPSYS_HOME/core/.env")" = "600" ] || echec ".env n'est pas en 0600"
-[ -f "$OPSYS_HOME/core/opsys/metier.json" ] || echec "opsys/metier.json absent"
-constat "installation terminée, .env en 0600, aucun secret dans la sortie ni dans le journal de l'installateur"
+[ "$(stat -c '%a' "$ETAT_CORE/.env")" = "600" ] || echec ".env n'est pas en 0600"
+[ "$(stat -c '%a' "$ETAT_CORE")" = "700" ] || echec "le dossier d'état du core n'est pas en 0700"
+[ -f "$ETAT_CORE/opsys/metier.json" ] || echec "opsys/metier.json absent de $ETAT_CORE"
+[ ! -e "$OPSYS_HOME/core" ] || echec "un dossier core est apparu sous OPSYS_HOME : l'état du core ne vit plus là (T0.11-b)"
+if [ ! -f "$OPSYS_HOME/opsys.db" ] || [ ! -f "$OPSYS_HOME/paliers.yaml" ]; then echec "les données métier ne sont plus sous OPSYS_HOME"; fi
+exiger_sans_secret "configuration du core" "$ETAT_CORE/openclaw.json" "$ETAT_CORE"/opsys/*.json
+constat "installation terminée : état du core dans $ETAT_CORE (0700, .env en 0600), données dans OPSYS_HOME, aucun secret dans la configuration, la sortie ni le journal de l'installateur"
 
-etape "1 bis. Le core accepte la configuration générée"
+etape "1 bis. Le dossier d'état : le moteur Python, le core et les attentes écrites d'après le fork s'accordent"
+[ "$(opsys instance dossier)" = "$ETAT_CORE" ] ||
+    echec "opsys instance dossier répond '$(opsys instance dossier)' au lieu de $ETAT_CORE"
+[ "$(openclaw config file | tail -n 1)" = "$ETAT_CORE/openclaw.json" ] ||
+    echec "le core cherche sa configuration dans '$(openclaw config file | tail -n 1)' au lieu de $ETAT_CORE/openclaw.json"
+polluee="$(OPENCLAW_STATE_DIR="$TRAVAIL/ailleurs" OPENCLAW_CONFIG_PATH="$TRAVAIL/ailleurs/openclaw.json" \
+    OPENCLAW_HOME="$TRAVAIL/home-du-core" OPENCLAW_PROFILE=autre openclaw config file | tail -n 1)"
+[ "$polluee" = "$ETAT_CORE/openclaw.json" ] ||
+    echec "un environnement OPENCLAW_* a déplacé le core : il lit '$polluee' (la commande installée doit l'écarter)"
+if [ -e "$TRAVAIL/ailleurs" ] || [ -e "$TRAVAIL/home-du-core" ]; then echec "un dossier a été créé d'après l'environnement de l'appelant"; fi
+constat "opsys instance dossier, openclaw config file et l'attente écrite d'après le fork donnent tous $ETAT_CORE ; l'environnement de l'appelant n'y change rien"
+
+etape "1 ter. Le core accepte la configuration générée"
 openclaw config validate
 constat "openclaw config validate accepte la configuration (dont \${OPSYS_MCP_JETON}, lue dans .env)"
+
+etape "1 quater. Ancienne disposition (\$OPSYS_HOME/core) : signalée avec la marche à suivre, jamais migrée en silence"
+mkdir -p "$OPSYS_HOME/core"
+printf 'MARQUEUR=ancien-etat-fictif\n' >"$OPSYS_HOME/core/.env"
+ancien_avant="$(empreinte "$OPSYS_HOME/core/.env")"
+geres_avant="$(empreinte_des_fichiers_geres)"
+if opsys instance initialiser >"$TRAVAIL/ancienne-disposition.json" 2>"$TRAVAIL/ancienne-disposition.err"; then
+    echec "opsys instance initialiser a accepté l'ancienne disposition"
+fi
+grep -q "ancienne disposition détectée" "$TRAVAIL/ancienne-disposition.err" ||
+    echec "l'ancienne disposition n'est pas signalée : $(cat "$TRAVAIL/ancienne-disposition.err")"
+grep -qF "$OPSYS_HOME/core" "$TRAVAIL/ancienne-disposition.err" || echec "le message ne nomme pas l'ancien dossier"
+grep -qF "$ETAT_CORE" "$TRAVAIL/ancienne-disposition.err" || echec "le message ne nomme pas le dossier d'état du core"
+grep -q "Rien n'est migré en silence" "$TRAVAIL/ancienne-disposition.err" || echec "le message ne dit pas que rien n'est migré"
+[ "$(empreinte "$OPSYS_HOME/core/.env")" = "$ancien_avant" ] || echec "l'ancien état a été modifié"
+[ "$(empreinte_des_fichiers_geres)" = "$geres_avant" ] || echec "l'état du core a changé pendant le refus"
+mv "$OPSYS_HOME/core" "$OPSYS_HOME/core.ancien" # la marche à suivre : repartir à neuf
+opsys instance initialiser >/dev/null
+[ "$(empreinte_des_fichiers_geres)" = "$geres_avant" ] || echec "la réinitialisation a changé un secret ou la configuration"
+[ "$(empreinte "$OPSYS_HOME/core.ancien/.env")" = "$ancien_avant" ] || echec "l'ancien état mis de côté a été modifié"
+constat "l'ancienne disposition est refusée avec la marche à suivre, sans rien modifier ; mise de côté, l'instance se réinitialise sans changer un secret"
 
 # -- 2. Gateway au premier plan et moteur supervisé ---------------------------------------------------------------------------
 etape "2. Gateway au premier plan : il lance le moteur (superviseur T0.10) avec le jeton de .env"
@@ -158,7 +211,7 @@ GATEWAY_PID=$!
 attendre_http "http://127.0.0.1:$PORT_GATEWAY/startupz" 300 "Gateway"
 attendre_http "http://127.0.0.1:$PORT_MOTEUR/sante" 240 "moteur"
 constat "GET /startupz du Gateway et GET /sante du moteur : 200"
-JETON="$(sed -n 's/^OPSYS_MCP_JETON=//p' "$OPSYS_HOME/core/.env")"
+JETON="$(sed -n 's/^OPSYS_MCP_JETON=//p' "$ETAT_CORE/.env")"
 [ "$(code_http "http://127.0.0.1:$PORT_MOTEUR/mcp")" = "401" ] || echec "le moteur accepte une requête sans jeton"
 [ "$(code_http -H 'Authorization: Bearer jeton-faux-0123456789abcdef' "http://127.0.0.1:$PORT_MOTEUR/mcp")" = "401" ] ||
     echec "le moteur accepte un mauvais jeton"
@@ -198,11 +251,16 @@ membres="$(tar -tzf "$TRAVAIL/export.tar.gz" | sort | tr '\n' ' ')"
 mkdir -p "$TRAVAIL/decompose"
 tar -xzf "$TRAVAIL/export.tar.gz" -C "$TRAVAIL/decompose"
 exiger_sans_secret "archive d'export" "$TRAVAIL"/decompose/opsys-export/*
-constat "export : membres = liste blanche, SHA-256 vérifié par sha256sum, 0600, aucun secret de .env"
+grep -qF '"~/.openclaw-opsys/.env"' "$TRAVAIL/decompose/opsys-export/manifeste.json" ||
+    echec "le manifeste ne nomme pas l'état du core (~/.openclaw-opsys) parmi les fichiers exclus"
+! grep -qF "$HOME" "$TRAVAIL/decompose/opsys-export/manifeste.json" || echec "le manifeste porte le dossier personnel du poste"
+constat "export : membres = liste blanche, SHA-256 vérifié par sha256sum, 0600, aucun secret de .env, état du core nommé parmi les exclus"
+etat_avant_restauration="$(empreinte_des_fichiers_geres)"
 OPSYS_HOME="$TRAVAIL/restaure" opsys instance restaurer "$TRAVAIL/export.tar.gz" >"$TRAVAIL/restauration.json"
 OPSYS_HOME="$TRAVAIL/restaure" opsys base etat >"$TRAVAIL/restaure-etat.json"
 grep -q '"revision"' "$TRAVAIL/restaure-etat.json" || echec "la base restaurée n'est pas lisible par opsys base etat"
 [ ! -e "$TRAVAIL/restaure/core" ] || echec "la restauration a posé un dossier core (secrets) : elle ne doit restaurer que les données"
+[ "$(empreinte_des_fichiers_geres)" = "$etat_avant_restauration" ] || echec "la restauration a touché l'état du core"
 constat "restauration dans une instance neuve : base lisible, aucun secret ni état du Gateway restauré"
 
 # -- 5. Service utilisateur ---------------------------------------------------------------------------------------------------------
@@ -227,9 +285,16 @@ if [ "${OPSYS_SANS_SERVICE:-0}" = "1" ]; then
     echo "::warning::phase du service sautée (OPSYS_SANS_SERVICE=1)"
 elif service_disponible; then
     installer "$TRAVAIL/installation-3.log"
-    UNITE="$(systemctl --user list-unit-files --no-legend 'openclaw-gateway.service' 'opsys-gateway.service' | awk 'NR==1 {print $1}')"
-    [ -n "$UNITE" ] || echec "aucune unité openclaw-gateway.service ou opsys-gateway.service après l'installation du service"
+    UNITE="$UNITE_ATTENDUE"
+    [ "$(systemctl --user list-unit-files --no-legend "$UNITE" | awk 'NR==1 {print $1}')" = "$UNITE" ] ||
+        echec "l'unité $UNITE n'existe pas après l'installation du service (nom du profil « opsys »)"
+    [ "$(systemctl --user list-unit-files --no-legend "$UNITE_DU_CORE_D_ORIGINE" | wc -l)" -eq 0 ] ||
+        echec "l'unité $UNITE_DU_CORE_D_ORIGINE, celle du core d'origine, existe : le nom du service n'est pas distinct"
     [ "$(systemctl --user is-active "$UNITE")" = "active" ] || echec "$UNITE n'est pas actif"
+    grep -qF "$ETAT_CORE" "$HOME/.config/systemd/user/$UNITE" ||
+        echec "l'unité ne désigne pas le dossier d'état canonique du profil ($ETAT_CORE)"
+    grep -qF "OPENCLAW_PROFILE=opsys" "$HOME/.config/systemd/user/$UNITE" || echec "l'unité ne porte pas le profil opsys"
+    ! grep -qF "$OPSYS_HOME/core" "$HOME/.config/systemd/user/$UNITE" || echec "l'unité désigne l'ancien état du core"
     [ "$(code_http "http://127.0.0.1:$PORT_MOTEUR/sante")" = "200" ] || echec "le moteur ne répond pas sous le service"
     journalctl --user -u "$UNITE" --no-pager >"$TRAVAIL/journal-service.log" 2>&1 || true
     exiger_sans_secret "journal du service" "$TRAVAIL/journal-service.log"
@@ -244,8 +309,9 @@ fi
 
 # -- 6. Désinstallation sans perte de données -----------------------------------------------------------------------------------------
 etape "6. Désinstallation avec export préalable : le logiciel part, les données restent"
-env_avant="$(empreinte "$OPSYS_HOME/core/.env")"
-config_avant="$(empreinte "$OPSYS_HOME/core/openclaw.json")"
+env_avant="$(empreinte "$ETAT_CORE/.env")"
+config_avant="$(empreinte "$ETAT_CORE/openclaw.json")"
+geres_avant_desinstallation="$(empreinte_des_fichiers_geres)"
 paliers_avant="$(empreinte "$OPSYS_HOME/paliers.yaml")"
 if ! bash "$RACINE/install/uninstall.sh" --exporter-avant "$TRAVAIL/avant-desinstallation.tar.gz" >"$TRAVAIL/desinstallation.log" 2>&1; then
     cat "$TRAVAIL/desinstallation.log"
@@ -255,8 +321,12 @@ fi
 if [ -e "$OPSYS_BIN/openclaw" ] || [ -e "$OPSYS_BIN/opsys" ]; then echec "les commandes sont encore là"; fi
 [ ! -e "$OPSYS_LOGICIEL" ] || echec "le logiciel est encore là : $(ls -A "$OPSYS_LOGICIEL")"
 [ -f "$RACINE/core/openclaw.mjs" ] || echec "le dépôt de l'utilisateur a été touché"
-[ "$(empreinte "$OPSYS_HOME/core/.env")" = "$env_avant" ] || echec ".env a changé pendant la désinstallation"
-[ "$(empreinte "$OPSYS_HOME/core/openclaw.json")" = "$config_avant" ] || echec "openclaw.json a changé pendant la désinstallation"
+[ "$(empreinte "$ETAT_CORE/.env")" = "$env_avant" ] || echec ".env a changé pendant la désinstallation"
+[ "$(empreinte "$ETAT_CORE/openclaw.json")" = "$config_avant" ] || echec "openclaw.json a changé pendant la désinstallation"
+[ "$(empreinte_des_fichiers_geres)" = "$geres_avant_desinstallation" ] || echec "un fichier géré a changé pendant la désinstallation"
+[ "$(empreinte "$OPSYS_HOME/core.ancien/.env")" = "$ancien_avant" ] || echec "l'ancien état mis de côté a changé pendant la désinstallation"
+grep -q "État du core conservé : $ETAT_CORE" "$TRAVAIL/desinstallation.log" ||
+    echec "la désinstallation ne dit pas où est l'état du core qu'elle conserve"
 [ "$(empreinte "$OPSYS_HOME/paliers.yaml")" = "$paliers_avant" ] || echec "paliers.yaml a changé pendant la désinstallation"
 python3 - "$OPSYS_HOME/opsys.db" <<'PYTHON'
 import sqlite3, sys
@@ -265,12 +335,12 @@ assert connexion.execute("PRAGMA integrity_check").fetchall() == [("ok",)], "bas
 assert connexion.execute("SELECT count(*) FROM alembic_version").fetchone()[0] == 1, "base non migrée"
 PYTHON
 if [ "$SERVICE_PROUVE" = "oui" ]; then
-    [ "$(systemctl --user list-unit-files --no-legend 'openclaw-gateway.service' 'opsys-gateway.service' | wc -l)" -eq 0 ] ||
+    [ "$(systemctl --user list-unit-files --no-legend "$UNITE_ATTENDUE" | wc -l)" -eq 0 ] ||
         echec "l'unité du service est encore installée"
     [ "$(code_http "http://127.0.0.1:$PORT_GATEWAY/startupz")" != "200" ] || echec "le Gateway répond encore après la désinstallation"
     [ "$(code_http "http://127.0.0.1:$PORT_MOTEUR/sante")" != "200" ] || echec "le moteur répond encore après la désinstallation"
 fi
-constat "désinstallation : logiciel et commandes retirés, .env, configuration, réglages et base intacts, export vérifié"
+constat "désinstallation : service, logiciel et commandes retirés ; .env, configuration, réglages, base, état du core et ancien état mis de côté intacts ; export vérifié"
 bash "$RACINE/install/uninstall.sh" >"$TRAVAIL/desinstallation-2.log" 2>&1 || echec "la désinstallation n'est pas relançable"
 constat "la désinstallation est relançable"
 
