@@ -134,6 +134,28 @@ identifiants du propriétaire, repli livré en attendant.
 - [ ] T0.13 Taxonomie métier partagée : M1, M2 et M3 utilisent un même `TYPES_TRAVAUX` qui ne
       contient aucun des 4 services réels (gouttières, revêtement, soffite-fascia, réparation). Une
       seule taxonomie, dans le socle, paramétrable par le profil d'entreprise (audits M1, M2, M3).
+  - [x] T0.13-a Socle, M1, M2, M3.
+        Preuve (022a61f à 37fbbe8, intégrés) :
+        - `opsys.taxonomie` : catalogue de référence (`gouttieres`, `revetement`,
+          `soffite_fascia`, `reparation`, libellés fr-CA, mots-clés) ; profil de l'instance
+          `$OPSYS_HOME/entreprise.yaml` (même mécanisme que `paliers.yaml`, écriture tracée) ;
+          `opsys services lister|declarer` ; sans profil, aucun service accepté (verdict qui dit
+          quoi configurer), jamais de repli sur `autre` ;
+        - contrat `LeadQualifie` v2 gelé (`service`, `schema_version: 2`, `source`, `utm`,
+          `campagne` optionnels), v1 intact (SHA épinglé) ; M1 émet le v2 ; M2 accepte v1 et v2
+          (version lue, jamais devinée) ; M3 valide `service` par la taxonomie, barème indexé par
+          service (« barème du service X absent : à fournir ») ;
+        - garde de dérive : `opsys verifier` (« taxonomie sans copie locale »),
+          `tests/test_taxonomie_derive.py`, contrôle 13 ter du gate BMAD de M3 ;
+        - socle 700, M1 414, M2 729, M3 908 (suite complète), M4 à M10 verts, verifier.
+
+        Choix : plusieurs services évoqués dans une demande → M1 ne qualifie pas et demande
+        lequel (la précédence est une décision du propriétaire).
+  - [ ] T0.13-b M4 et M7 : `cedule.py` et `contrats.py` de M4 portent encore la copie v1 de
+        `TYPES_TRAVAUX` et refusent un lead v2 ; l'événement `m4.travaux_termines` porte
+        `type_travaux` (version avec `service` à décider) ; `chantier_social.py` de M7 valide les
+        types v1 ; `m1-demande-chiffrage.v1.yaml` reste en v1. Une fois migrés, les ajouter à
+        `tests/test_taxonomie_derive.py` et au gate.
 
 ## T1 — « Travaux terminés » : la chorégraphie centrale (§6, §9.7)
 
@@ -503,9 +525,11 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       Exemple : `m3_lire_devis(role=...)` retire coût, marge et prix pour un employé, mais c'est
       aujourd'hui l'appelant qui choisit le rôle ;
     - appairage mobile, avec l'algorithme de signature lu dans le fork.
-    - [ ] T1.4-c1 Core : `/tools/invoke` transmet au moteur, dans le `_meta` MCP, la clé
+    - [x] T1.4-c1 Core : `/tools/invoke` transmet au moteur, dans le `_meta` MCP, la clé
           d'idempotence, l'appareil et son heure (`IDEMPOTENCE.md` §7).
-          DÉCOCHÉE une seconde fois (T1.4-c6) : la lecture du fork montre que `/tools/invoke` ne
+          Recochée avec T1.4-c6 (CI core 23, 71471f9) : la porte d'appareil appelle l'outil MCP
+          du département avec ce `_meta`, prouvé par deux vrais serveurs MCP stdio
+          (`opsys-device-mcp-target.test.ts`, 16 tests). Historique : décochée une seconde fois (T1.4-c6) : la lecture du fork montre que `/tools/invoke` ne
           voyait AUCUN outil MCP (sa liste vient de `createOpenClawTools` : core, plugins,
           canaux ; les outils de `mcp.servers` n'existent que pendant un tour d'agent). Les tests
           de c1, c2 et c4 remplaçaient cette liste par un faux outil : ils prouvaient le
@@ -563,9 +587,12 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
     - [ ] T1.4-c5 Core et mobile : le rôle nommé sur la poignée de main WebSocket (l'app ne
           l'apprend pas encore) ; `opsys-mobile` câblé dans l'app et dans la classification de
           confiance du core.
-      - [ ] T1.4-c6 Core et mobile : noms d'outils de bout en bout.
-          Livré (190bcc5, 1b7e14f, b9b1477), à cocher sur le job `tests-opsys` vert et après revue
-          externe :
+      - [x] T1.4-c6 Core et mobile : noms d'outils de bout en bout.
+          Preuve CI : core 23 (71471f9), job `tests-opsys` vert, 30 fichiers ciblés sur 30,
+          dont `opsys-device-mcp-target` 16 tests, `tools-invoke-http.opsys-device-mcp` 9,
+          `opsys-roles` 22, `device-token-auth` 8, `opsys-device-roles` 11. Revue externe : liste
+          plus bas (1b7e14f).
+          Livré (190bcc5, 1b7e14f, b9b1477) :
           - constat : aucun nom ne pouvait marcher ; sans `agentId`, une configuration à dix
             agents sans défaut refuse la requête (400) avant toute résolution d'outil ; les
             `tools.deny` par agent ne s'appliquent pas à un outil MCP ; l'enveloppe
