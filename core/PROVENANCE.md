@@ -256,6 +256,11 @@ le bac à sable de développement : la CI (`tests` et `tests-opsys`) fait foi.
   inactif). Coût : une lecture synchrone de `contexte.json` par appel d'outil. Les tests d'origine voisins
   (`agent-tools.before-tool-call.decision`, `.e2e`, `.embedded-mode`) sont dans `test/opsys-tests-cibles.txt`.
   À vérifier en CI : `HookContext.sessionKey` est la clé que reçoit `assemble()`.
+- **Preuve de la greffe** : `src/agents/agent-tools.before-tool-call.opsys-contexte.test.ts` appelle la vraie
+  `runBeforeToolCallHook` avec un vrai `contexte.json` et le vrai magasin d'état (veto sans état, avec signal
+  ouvert, indisponible ou périmé ; aucun veto avec un état sain, hors OPSYS, N0 à N2 ou sans `contexte.json`).
+  Routé vers `agents-core` (`src/agents/*.test.ts`) et listé dans `test/opsys-tests-cibles.txt` ; jamais exécuté
+  dans le bac à sable, la CI (`tests-opsys`) fait foi.
 - **Affaire lue dans la session** (`opsys-contexte-engine.ts`, `opsys-contexte-config.ts`). Un agent réglé
   `"affaire": "session"` dans `contexte.json` demande à M10 l'affaire liée à sa clé de session
   (`m10_affaire_de_la_session`), pour le paquet et pour le dépôt POSTFLIGHT, et ne lit jamais le texte de la demande.

@@ -76,6 +76,12 @@ src/context-engine/opsys-contexte-engine.test.ts
 src/context-engine/opsys-contexte.registration.test.ts
 src/context-engine/opsys-contexte-mcp.wire.test.ts
 src/context-engine/opsys-contexte-garde.test.ts
+
+# La greffe du garde dans runBeforeToolCallHook (src/agents/agent-tools.before-tool-call.policy.ts) a ses trois
+# tests d'origine voisins (decision, e2e, embedded-mode) et sa preuve propre, opsys-contexte : le vrai
+# runBeforeToolCallHook, un vrai contexte.json, le vrai magasin d'état. Ils vivent dans src/agents/*.test.ts :
+# `pnpm test <fichier>` les route vers le projet agents-core (test/vitest/vitest.agents-paths.mjs, `core`).
 src/agents/agent-tools.before-tool-call.decision.test.ts
 src/agents/agent-tools.before-tool-call.e2e.test.ts
 src/agents/agent-tools.before-tool-call.embedded-mode.test.ts
+src/agents/agent-tools.before-tool-call.opsys-contexte.test.ts
