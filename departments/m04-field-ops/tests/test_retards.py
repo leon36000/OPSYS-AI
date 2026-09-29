@@ -381,10 +381,13 @@ def test_ce_qui_ne_tient_pas_est_compte_et_l_outil_qui_le_rend_est_nomme():
         _ecart(registre, identifiant, f"2030-01-01T0{numero}:30:00+00:00")
     releve = _lire(registre, limite=2)
     assert (releve["reports"]["affiches"], releve["reports"]["reste"], releve["reports"]["total"]) == (2, 3, 5)
-    assert "3 de plus" in releve["reports"]["suite"] and "m4_lister_interventions" in releve["reports"]["suite"]
-    assert "reportee" in releve["reports"]["suite"]
+    assert releve["reports"]["suite"] == (
+        "3 de plus, du moins ancien au plus récent : m4_lister_interventions (statut reportee) les rend tous"
+    )
     assert (releve["incidents"]["affiches"], releve["incidents"]["reste"]) == (2, 3)
-    assert "3 de plus" in releve["incidents"]["suite"] and "m4_lister_pending_review" in releve["incidents"]["suite"]
+    assert releve["incidents"]["suite"] == (
+        "3 de plus, du moins ancien au plus récent : m4_lister_pending_review les rend tous"
+    )
     # les plus anciens d'abord : ce qui reste est le plus récent
     assert [ligne["depuis"][11:13] for ligne in releve["reports"]["liste"]] == ["00", "01"]
 
@@ -532,6 +535,7 @@ def test_le_presentateur_rend_le_releve_s_il_tient_sinon_refuse_avec_la_consigne
     assert verdict is None and vue is releve
     vue, verdict = retards.presenter(releve, lambda r: False)
     assert vue is None and verdict["code"] == "REJ-CONTRAT-INVALIDE"
+    assert "trop grand" in verdict["detail"]
     assert "m4_lister_pending_review" in verdict["detail"] and "reportee" in verdict["detail"]
     assert verdicts.est_verdict(verdict["code"])
 

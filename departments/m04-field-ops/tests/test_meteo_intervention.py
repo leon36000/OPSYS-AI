@@ -764,12 +764,54 @@ def test_un_plan_applique_apres_un_autre_le_remplace_pour_l_intervention():
     assert resultat["plan_id"] == second["plan_id"] and resultat["creneaux"][0]["jour"] == 1 - jour
 
 
+def test_un_plan_applique_dont_la_proposition_est_introuvable_ne_donne_aucun_creneau_jamais_un_creneau_devine():
+    """Un registre incohérent (une application sans la proposition qu'elle applique, que `m4_appliquer_cedule` ne peut
+    pas écrire) : la lecture ne devine ni jour ni minutes, elle dit qu'il n'y a aucun créneau."""
+    registre, ids, positions = _monde((("ch-01", "revetement"),))
+    registre.ajouter(
+        {
+            "type_entree": etats.TYPE_TRANSITION,
+            "intervention_id": ids["ch-01"],
+            "statut": "planifiee",
+            "horodatage": HORODATAGE,
+        }
+    )
+    registre.ajouter(
+        {
+            "type_entree": cedule_tournees.TYPE_APPLIQUEE,
+            "plan_id": "plan-sans-proposition",
+            "horodatage": HORODATAGE,
+            "assignations": [{"intervention_id": ids["ch-01"]}],
+        }
+    )
+    fournisseur = _calme()
+    resultat = _resultat(_lire(registre, ids["ch-01"], positions, fournisseur, "2026-10-05"))
+    assert resultat["statut_intervention"] == "planifiee"
+    assert resultat["creneaux"] == [] and resultat["plan_id"] is None and resultat["statut"] == meteo.STATUT_INCONNU
+    assert resultat["cause"]["code"] == "REJ-CHAMP-MANQUANT" and fournisseur.appels == []
+
+
 # =========================================================================================
 # 4. Refus : intervention inconnue ou hors des statuts d'avant le travail
 # =========================================================================================
 def test_une_intervention_inconnue_est_refusee():
     registre, _, positions = _monde()
     _refuse(_lire(registre, "intervention-fantome", positions, _calme()), "REJ-TRANSITION-ILLEGALE", "inexistante")
+
+
+def test_un_registre_sans_inscription_pour_cet_identifiant_est_refuse_meme_avec_une_transition():
+    """Un statut sans inscription (registre incohérent) ne fait pas une intervention : refus, jamais une exception."""
+    registre, _, positions = _monde()
+    registre.ajouter(
+        {
+            "type_entree": etats.TYPE_TRANSITION,
+            "intervention_id": "sans-inscription",
+            "statut": "planifiee",
+            "horodatage": HORODATAGE,
+        }
+    )
+    assert etats.statut_courant(registre, "sans-inscription") == "planifiee"
+    _refuse(_lire(registre, "sans-inscription", positions, _calme()), "REJ-TRANSITION-ILLEGALE", "inexistante")
 
 
 def test_la_date_est_validee_avant_la_lecture_du_registre():
