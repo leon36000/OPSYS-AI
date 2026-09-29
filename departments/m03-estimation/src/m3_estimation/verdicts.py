@@ -103,6 +103,10 @@ CODES_M3_LIST = [
     "REJ-REVUE-DEVIS-INVALIDE",
     "REJ-REVUE-CONTEXTE-INVALIDE",
     "REJ-ENVOI-SANS-APPROBATION",
+    # PLAN T4.11 (P50, P80, facteurs dominants et scénarios de prix, M3.11 et M3.12) : codes de scenarios.py. Le taux
+    # de marge d'un scénario est ABSENT (à déclarer) ou fourni de travers ; dans les deux cas, aucun prix.
+    "REJ-SCENARIOS-TAUX-ABSENT",
+    "REJ-SCENARIOS-TAUX-INVALIDE",
 ]
 CODES_M3 = set(CODES_M3_LIST)
 
