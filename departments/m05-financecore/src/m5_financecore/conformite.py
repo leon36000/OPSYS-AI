@@ -1,22 +1,21 @@
 """Contrôle statique transversal et déterministe du paquet M5.
 
-Ce module analyse exclusivement les arbres syntaxiques Python. `verifier_conformite`
-couvre CA-M5-15 (échappatoire D-032 sur les énumérés publics de domaine) et
-CA-M5-14 (quatre familles d'appels interdits aux sources d'ambiance, plus les
-littéraux numériques en contexte de coût ou de taux). `verifier_aucun_import_domaine`
-couvre CA-M5-16 (aucune fonction de M5 n'écrit dans le registre d'un autre module —
-garde structurelle : aucun import, absolu ou depuis, d'un paquet `mX_*` de domaine).
-`verifier_aucune_cause_signalee` renforce transversalement CA-M5-18 en interdisant
-tout champ de cause ou de responsabilité dans un littéral `dict`. `verifier_arrondi_monetaire_explicite`
-(PLAN T1.2-d, préalable arrondi monétaire) interdit tout appel `.quantize(` sans argument
-`rounding=` explicite : sans lui, `Decimal.quantize` prend le mode par défaut du module `decimal`
-(ROUND_HALF_EVEN, « arrondi du banquier ») plutôt que le ROUND_HALF_UP exigé par la loi pour les
-taxes (`taxes.py` — Agence du revenu du Canada, Revenu Québec) et par cohérence avec M3 pour les
-montants de ligne (`facturation.py`). `verifier_aucun_decaissement` (PLAN T4.15) prouve que le code des
-comptes à payer n'écrit jamais au registre des MOUVEMENTS : aucun DECAISSEMENT, aucune PROVISION, aucun
-ENCAISSEMENT n'en naît (payer un fournisseur est N5). Aucune de ces cinq gardes ne prouve l'absence de
-comportement dynamique, les imports construits à l'exécution, ni les coûts masqués sous des noms
-neutres.
+Ce module analyse exclusivement les arbres syntaxiques Python. `verifier_conformite` couvre CA-M5-15 (échappatoire
+D-032 sur les énumérés publics de domaine) et CA-M5-14 (quatre familles d'appels interdits aux sources d'ambiance,
+plus les littéraux numériques en contexte de coût ou de taux). `verifier_aucun_import_domaine` couvre CA-M5-16 (aucune
+fonction de M5 n'écrit dans le registre d'un autre module — garde structurelle : aucun import, absolu ou depuis, d'un
+paquet `mX_*` de domaine). `verifier_aucune_cause_signalee` renforce transversalement CA-M5-18 en interdisant tout
+champ de cause ou de responsabilité dans un littéral `dict`. `verifier_arrondi_monetaire_explicite` (PLAN T1.2-d,
+préalable arrondi monétaire) interdit tout appel `.quantize(` sans argument `rounding=` explicite : sans lui,
+`Decimal.quantize` prend le mode par défaut du module `decimal` (ROUND_HALF_EVEN, « arrondi du banquier ») plutôt que
+le ROUND_HALF_UP exigé par la loi pour les taxes (`taxes.py` — Agence du revenu du Canada, Revenu Québec) et par
+cohérence avec M3 pour les montants de ligne (`facturation.py`). `verifier_aucun_decaissement` (PLAN T4.15) prouve que
+le code des comptes à payer n'écrit jamais au registre des MOUVEMENTS : aucun DECAISSEMENT, aucune PROVISION, aucun
+ENCAISSEMENT n'en naît (payer un fournisseur est N5). PLAN T4.16 l'étend au calendrier fiscal et au cash libre : en
+STRICT (jamais un mot de mouvement) pour le code qui n'a aucune raison de lire le registre des mouvements, et en
+LECTURE SEULE (le registre se lit pour le solde, jamais aucune écriture, aucun paiement, aucune remise) pour le code
+qui le lit. Aucune de ces cinq gardes ne prouve l'absence de comportement dynamique, les imports construits à
+l'exécution, ni les coûts masqués sous des noms neutres.
 
 Les constantes ``CHAMPS_*`` sont volontairement exclues des énumérés de domaine :
 elles décrivent des noms de propriétés de contrat et non des valeurs métier parmi
@@ -815,12 +814,18 @@ def verifier_aucune_cause_signalee(repertoire: str | Path) -> tuple[bool, str]:
     return True, ""
 
 
-# PLAN T4.15 : ce que la garde surveille. `None` : le fichier ENTIER ; sinon, ces fonctions seulement (leur absence est
-# elle-même une violation : renommer une fonction ne doit pas désarmer la garde en silence). Les fonctions d'`outils.py`
-# sont celles du chemin des comptes à payer : consommateur du bus, saisie, lecture, et l'établissement de l'acteur
-# humain.
+# PLAN T4.15 : ce que la garde surveille. `None` : le fichier ENTIER ; sinon, ces fonctions seulement (leur absence
+# est elle-même une violation : renommer une fonction ne doit pas désarmer la garde en silence). Les fonctions
+# d'`outils.py` sont celles du chemin des comptes à payer : consommateur du bus, saisie, lecture, et l'établissement
+# de l'acteur humain. PLAN T4.16 y ajoute, en STRICT, le calendrier fiscal (ni `calendrier_fiscal.py`, ni
+# `cash_libre.py`, ni `analyse.py` n'ont de raison de toucher au registre des mouvements : le solde leur est apporté
+# déjà calculé) et les fonctions d'`outils.py` qui lisent le calendrier et les registres autres que celui des
+# mouvements.
 _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
     "comptes_a_payer": None,
+    "calendrier_fiscal": None,
+    "cash_libre": None,
+    "analyse": None,
     "outils": (
         "_registre_comptes_a_payer",
         "_recevoir_reception_enregistree",
@@ -828,7 +833,22 @@ _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
         "_decision_approuvee_en_cours",
         "saisir_facture_fournisseur",
         "lister_comptes_a_payer",
+        "_configuration_manifeste",
+        "_calendrier_fiscal",
+        "_taxes_par_echeance",
+        "lire_echeances_fiscales",
+        "_cash_libre",
     ),
+}
+# PLAN T4.16 : LECTURE SEULE. Le cash libre part du solde : le code qui OUVRE le registre des mouvements pour en tirer
+# le solde (`etat_tresorerie` et son adaptateur `_registre_mouvements`, `soldes.py`, `etat_financier.py`) le lit. Lire
+# n'est pas écrire : dans ces portées, le registre peut être nommé et lu, mais aucune fonction d'écriture ni de
+# transition de l'argent ne peut l'être (voir `_NOMS_ECRITURE_INTERDITS_EN_LECTURE`). `_cash_libre`, lui, reçoit le
+# registre déjà ouvert : il est en STRICT, plus haut.
+_SURVEILLE_EN_LECTURE_SEULE: dict[str, tuple[str, ...] | None] = {
+    "soldes": None,
+    "etat_financier": None,
+    "outils": ("etat_tresorerie",),
 }
 # Tout ce qui écrit ou nomme le registre des mouvements : sa fonction d'écriture, son adaptateur et son nom durable
 # (« principal »), les types de mouvement et la clé qui les porte.
@@ -841,6 +861,35 @@ _TEXTES_MOUVEMENTS_INTERDITS = frozenset(
         "principal",
     }
 )
+
+
+# Tout ce qui écrit dans un registre ou fait bouger de l'argent : les fonctions d'écriture des mouvements, des
+# paiements, des factures et des réceptions, et les méthodes d'écriture d'un registre (`ajouter`, `append`, `extend`,
+# `insert`, la liste interne `_chain`).
+_NOMS_ECRITURE_INTERDITS_EN_LECTURE = frozenset(
+    {
+        "enregistrer_mouvement", "enregistrer_paiement_facture", "marquer_facture_payee", "envoyer_facture",
+        "creer_facture_brouillon", "saisir_facture_fournisseur", "enregistrer_reception", "executer_atomique",
+        "ajouter", "append", "extend", "insert", "_chain",
+    }
+)
+
+
+def _violations_ecriture(portee: ast.AST, fichier: str, contexte: str) -> list[str]:
+    violations: list[str] = []
+    for noeud in ast.walk(portee):
+        ligne = getattr(noeud, "lineno", 0)
+        if isinstance(noeud, ast.Name) and noeud.id in _NOMS_ECRITURE_INTERDITS_EN_LECTURE:
+            violations.append(f"{fichier}:{ligne}: {contexte} nomme {noeud.id} (écriture ou mouvement d'argent)")
+        elif isinstance(noeud, ast.Attribute) and noeud.attr in _NOMS_ECRITURE_INTERDITS_EN_LECTURE:
+            violations.append(f"{fichier}:{ligne}: {contexte} nomme {noeud.attr} (écriture ou mouvement d'argent)")
+        elif isinstance(noeud, ast.ImportFrom):
+            for alias in noeud.names:
+                if alias.name in _NOMS_ECRITURE_INTERDITS_EN_LECTURE:
+                    violations.append(
+                        f"{fichier}:{ligne}: {contexte} importe {alias.name} (écriture ou mouvement d'argent)"
+                    )
+    return violations
 
 
 def _violations_decaissement(portee: ast.AST, fichier: str, contexte: str) -> list[str]:
@@ -867,27 +916,9 @@ def _violations_decaissement(portee: ast.AST, fichier: str, contexte: str) -> li
     return violations
 
 
-def verifier_aucun_decaissement(
-    repertoire: str | Path, surveille: dict[str, tuple[str, ...] | None] | None = None
-) -> tuple[bool, str]:
-    """Vérifie que le code des comptes à payer n'écrit jamais au registre des mouvements (PLAN T4.15).
-
-    Payer un fournisseur est de l'argent réel (N5, Nathan ET le CPA, ADR-0009 §5) : aucun chemin des comptes à payer
-    ne doit créer de DECAISSEMENT, ni de PROVISION ou d'ENCAISSEMENT. Garde purement syntaxique (AST, même patron
-    que `verifier_aucun_import_domaine`), sur ce que `_SURVEILLE_SANS_DECAISSEMENT` désigne : le module
-    `comptes_a_payer.py` en entier, et les fonctions d'`outils.py` de ce chemin. Est une violation, dans ces portées :
-    - importer `registre.py` (le module qui écrit les mouvements) ;
-    - nommer `enregistrer_mouvement`, l'adaptateur `_registre_mouvements`, `_etat_mouvements`, ou le nom durable du
-      registre (`_NOM_REGISTRE_MOUVEMENTS`, le texte « principal ») ;
-    - porter le texte d'un type de mouvement (DECAISSEMENT, ENCAISSEMENT, PROVISION, AJUSTEMENT), la clé
-      `type_mouvement` ou le type d'entrée `mouvement_enregistre` ;
-    - une fonction surveillée qui n'existe plus (la garde ne se désarme pas par un renommage).
-    Un texte plus long qui MENTIONNE ces mots (un docstring, un commentaire) n'est pas une violation : seule
-    l'égalité exacte d'une constante compte. Elle ne prouve pas l'absence d'écriture construite à l'exécution ni
-    passée par un autre module ; le test du registre des mouvements inchangé (base réelle) la complète."""
-    racine = Path(repertoire)
-    cibles = _SURVEILLE_SANS_DECAISSEMENT if surveille is None else surveille
-    violations: list[str] = []
+def _controler_portees(
+    racine: Path, cibles: dict[str, tuple[str, ...] | None], controle: Any, violations: list[str]
+) -> None:
     for module in sorted(cibles):
         chemin = racine / f"{module}.py"
         try:
@@ -897,7 +928,7 @@ def verifier_aucun_decaissement(
             continue
         fonctions = cibles[module]
         if fonctions is None:
-            violations.extend(_violations_decaissement(arbre, f"{module}.py", "le module"))
+            violations.extend(controle(arbre, f"{module}.py", "le module"))
             continue
         definies = {
             noeud.name: noeud
@@ -908,7 +939,50 @@ def verifier_aucun_decaissement(
             if nom not in definies:
                 violations.append(f"{module}.py: fonction surveillée introuvable : {nom}")
                 continue
-            violations.extend(_violations_decaissement(definies[nom], f"{module}.py", f"{nom}()"))
+            violations.extend(controle(definies[nom], f"{module}.py", f"{nom}()"))
+
+
+def verifier_aucun_decaissement(
+    repertoire: str | Path,
+    surveille: dict[str, tuple[str, ...] | None] | None = None,
+    lecture_seule: dict[str, tuple[str, ...] | None] | None = None,
+) -> tuple[bool, str]:
+    """Vérifie que le code des comptes à payer, du calendrier fiscal et du cash libre n'écrit jamais au registre des
+    mouvements et ne fait jamais bouger d'argent (PLAN T4.15, T4.16).
+
+    Payer un fournisseur, remettre une taxe ou verser une paie est de l'argent réel (N5, Nathan ET le CPA, ADR-0009
+    §5) : aucun de ces chemins ne doit créer de DECAISSEMENT, ni de PROVISION ou d'ENCAISSEMENT. Garde purement
+    syntaxique (AST, même patron que `verifier_aucun_import_domaine`), en deux régimes :
+
+    STRICT, sur ce que `_SURVEILLE_SANS_DECAISSEMENT` désigne (le module `comptes_a_payer.py` en entier, le calendrier
+    fiscal, le cash libre, la mention, et les fonctions d'`outils.py` de ces chemins) : est une violation
+    - importer `registre.py` (le module qui écrit les mouvements) ;
+    - nommer `enregistrer_mouvement`, l'adaptateur `_registre_mouvements`, `_etat_mouvements`, ou le nom durable du
+      registre (`_NOM_REGISTRE_MOUVEMENTS`, le texte « principal ») ;
+    - porter le texte d'un type de mouvement (DECAISSEMENT, ENCAISSEMENT, PROVISION, AJUSTEMENT), la clé
+      `type_mouvement` ou le type d'entrée `mouvement_enregistre` ;
+    - une fonction surveillée qui n'existe plus (la garde ne se désarme pas par un renommage).
+
+    LECTURE SEULE, sur ce que `_SURVEILLE_EN_LECTURE_SEULE` désigne (le solde et sa lecture : `soldes.py`,
+    `etat_financier.py` et `etat_tresorerie` d'`outils.py`) : le registre des mouvements peut être lu, mais est une
+    violation de nommer une écriture ou un mouvement d'argent (`_NOMS_ECRITURE_INTERDITS_EN_LECTURE` :
+    l'enregistrement d'un mouvement, d'un paiement, d'une facture, d'une réception, `ajouter`, `append`, `extend`,
+    `insert`, `_chain`), et une fonction surveillée qui n'existe plus l'est aussi.
+
+    Un texte plus long qui MENTIONNE ces mots (un docstring, un commentaire) n'est pas une violation : seule l'égalité
+    exacte d'une constante compte. Elle ne prouve pas l'absence d'écriture construite à l'exécution ni passée par un
+    autre module ; le test du registre des mouvements inchangé (base réelle) la complète.
+
+    Un appel qui donne `surveille` sans `lecture_seule` ne contrôle que le régime strict (les fichiers d'un test)."""
+    racine = Path(repertoire)
+    if surveille is None and lecture_seule is None:
+        cibles_strictes, cibles_lecture = _SURVEILLE_SANS_DECAISSEMENT, _SURVEILLE_EN_LECTURE_SEULE
+    else:
+        cibles_strictes = _SURVEILLE_SANS_DECAISSEMENT if surveille is None else surveille
+        cibles_lecture = {} if lecture_seule is None else lecture_seule
+    violations: list[str] = []
+    _controler_portees(racine, cibles_strictes, _violations_decaissement, violations)
+    _controler_portees(racine, cibles_lecture, _violations_ecriture, violations)
 
     if violations:
         return False, "; ".join(violations)

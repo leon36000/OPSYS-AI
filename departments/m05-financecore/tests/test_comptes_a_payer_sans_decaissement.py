@@ -117,8 +117,11 @@ def test_un_module_surveille_illisible_ou_absent_est_une_violation(tmp_path):
 
 
 def _sur_les_vrais_fichiers(tmp_path, modifier):
-    """Copie le vrai `comptes_a_payer.py` et le vrai `outils.py`, y applique `modifier`, rend le verdict de la garde."""
-    for nom in ("comptes_a_payer", "outils"):
+    """Copie les vrais modules que la garde surveille (`comptes_a_payer.py`, `outils.py`, et, depuis T4.16, le
+    calendrier fiscal, le cash libre, la mention et les modules du solde), y applique `modifier`, rend le verdict de
+    la garde."""
+    surveilles = set(conformite._SURVEILLE_SANS_DECAISSEMENT) | set(conformite._SURVEILLE_EN_LECTURE_SEULE)
+    for nom in sorted(surveilles):
         (tmp_path / f"{nom}.py").write_text(modifier(nom, (_PAQUET / f"{nom}.py").read_text(encoding="utf-8")),
                                             encoding="utf-8")
     return conformite.verifier_aucun_decaissement(tmp_path)
