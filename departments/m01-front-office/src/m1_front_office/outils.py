@@ -54,6 +54,8 @@ from . import (
     qualification,
     questions,
     reception,
+    score,
+    suivi,
 )
 from .phases_voix import TransitionInterdite
 from .registre import Registre
@@ -146,6 +148,65 @@ def _demandes_de_photos(etat: questions.EtatQuestions) -> tuple[dict[str, Any] |
     if verdict is not None:
         return {"statut": "fermee", "verdict": verdict, "questions": codes}, ()
     return {"statut": "ouverte", "questions": codes}, etat.photos
+
+
+def _qualifier_la_conversation(
+    reg: Registre,
+    *,
+    ouverte: conversation.ConversationOuverte,
+    fenetre_minutes: int,
+    canal: str,
+    source: str | None,
+    conversation_id: str,
+    signal_id: str,
+    horodatage: str,
+    etabli: dict[str, Any],
+    contenu: str,
+    libelles: dict[str, str],
+    lead_id: str | None,
+    nouveau_lead: bool,
+) -> dict[str, Any]:
+    """Ce que M1 ajoute à la réponse d'une conversation à fenêtre, par des règles (rien n'est laissé au modèle) :
+    les questions du service (profil), la demande de photos (fermée sans politique validée), le score (poids du
+    profil), le brouillon de ce qui reste à demander, et la PROCHAINE ACTION datée, inscrite au registre avec le score
+    (`suivi_conversation`, une ligne par message). Rien n'est envoyé.
+
+    `etabli` : ce que la conversation établit (`qualification.diagnostiquer`, ou celui du lead quand il existe).
+    `contenu` : tous les messages rassemblés. Tant qu'un champ du lead manque, le brouillon ne demande que celui-là ;
+    ensuite, les questions du service, puis les photos (seulement au message qui qualifie le lead, ou avec une
+    question encore sans réponse : jamais pour une demande photos seule qui reviendrait à chaque message).
+    """
+    etat_questions = _questions_du_service(etabli["service"], contenu)
+    bloc_photos, photos_ouvertes = _demandes_de_photos(etat_questions)
+    manque = qualification.champs_manquants(etabli)
+    fragments: dict[str, Any] = {"questions": etat_questions.bloc()}
+    if bloc_photos is not None:
+        fragments["photos"] = bloc_photos
+    if manque or etat_questions.restantes or (nouveau_lead and photos_ouvertes):
+        fragments.update(conversation.proposer_precisions(
+            etabli, libelles, ouverte.retire, etat_questions.restantes, photos_ouvertes))
+
+    poids, verdict_poids = taxonomie.charger_poids_score_lead()
+    if poids is None:
+        fragments["score"] = score.sans_poids(verdict_poids)
+    else:
+        repondues, attendues = len(etat_questions.repondues), len(etat_questions.repondues) + len(
+            etat_questions.restantes)
+        champs = len(qualification.CHAMPS_DU_LEAD)
+        fragments["score"] = score.calculer(
+            urgence=etabli["urgence_declaree"], zone=etabli["ville"] is not None,
+            elements_etablis=champs - len(manque) + repondues, elements_attendus=champs + attendues, poids=poids)
+
+    ouverture = conversation.instant_iso(ouverte.ouverture or horodatage)
+    action = suivi.prochaine_action(
+        manque, [q.code for q in etat_questions.restantes], ouverte.retire, horodatage,
+        conversation.expiration(ouverture, fenetre_minutes))
+    fragments["prochaine_action"] = action
+    fragments["suivi_ligne_id"] = reg.ajouter(suivi.ligne(
+        canal=canal, source=source, conversation_id=conversation_id, signal_id=signal_id, horodatage=horodatage,
+        ouverte_le=ouverture, connu=conversation.connu(etabli), champs_manquants=manque,
+        questions=fragments["questions"], score=fragments["score"], action=action, lead_id=lead_id))
+    return fragments
 
 
 # ---------------------------------------------------------------------------
@@ -312,8 +373,8 @@ def _traiter(
     #        rien n'est perdu) et rattaché au lead ; il n'en crée pas un second.
     if ouverte is not None and ouverte.lead is not None:
         return _complement_de_conversation(
-            ouverte, fenetre_minutes, ligne_id_signal, sain, contenu_filtre, signal_id, horodatage,
-            zone_desservie, services, contact_canal,
+            reg, ouverte, fenetre_minutes, ligne_id_signal, sain, contenu_filtre, canal, source, conversation_id,
+            signal_id, horodatage, zone_desservie, services, contact_canal,
         )
 
     # 3. Consentement : uniquement pertinent pour un canal vocal (M1-R-07).
@@ -352,17 +413,13 @@ def _traiter(
             "decision": "DEMANDER_PRECISIONS",
         }
         if ouverte is not None:
-            etat_questions = _questions_du_service(diagnostic["service"], contenu_a_qualifier)
-            bloc_photos, photos_ouvertes = _demandes_de_photos(etat_questions)
             reponse_precisions["conversation"] = conversation.decrire(
                 ouverte, horodatage, fenetre_minutes, signaux, diagnostic)
-            reponse_precisions["questions"] = etat_questions.bloc()
-            if bloc_photos is not None:
-                reponse_precisions["photos"] = bloc_photos
-            # Tant qu'il manque un champ du lead, on ne demande que celui-là : les questions du service viennent après.
-            reponse_precisions.update(conversation.proposer_precisions(
-                diagnostic, {un.code: un.libelle for un in services}, ouverte.retire,
-                etat_questions.restantes, photos_ouvertes))
+            reponse_precisions.update(_qualifier_la_conversation(
+                reg, ouverte=ouverte, fenetre_minutes=fenetre_minutes, canal=canal, source=source,
+                conversation_id=conversation_id, signal_id=signal_id, horodatage=horodatage, etabli=diagnostic,
+                contenu=contenu_a_qualifier, libelles={un.code: un.libelle for un in services}, lead_id=None,
+                nouveau_lead=False))
         return reponse_precisions
 
     # 5. Décision : lead conforme au contrat gelé M1->M2 v2 (vérification défensive :
@@ -400,25 +457,25 @@ def _traiter(
         reponse["cle_session"] = cle_session
     if ouverte is not None:
         reponse["conversation"] = conversation.decrire(ouverte, horodatage, fenetre_minutes, signaux, diagnostic)
-        etat_questions = _questions_du_service(resultat_qualif["service"], contenu_a_qualifier)
-        bloc_photos, photos_ouvertes = _demandes_de_photos(etat_questions)
-        reponse["questions"] = etat_questions.bloc()
-        if bloc_photos is not None:
-            reponse["photos"] = bloc_photos
-        if etat_questions.restantes or photos_ouvertes:
-            # Le lead est complet et part chez M2 ; ce que le service demande encore est un brouillon, jamais envoyé.
-            reponse.update(conversation.proposer_precisions(
-                diagnostic, {un.code: un.libelle for un in services}, ouverte.retire,
-                etat_questions.restantes, photos_ouvertes))
+        # Le lead est complet et part chez M2 ; ce que le service demande encore est un brouillon, jamais envoyé.
+        reponse.update(_qualifier_la_conversation(
+            reg, ouverte=ouverte, fenetre_minutes=fenetre_minutes, canal=canal, source=source,
+            conversation_id=conversation_id, signal_id=signal_id, horodatage=horodatage, etabli=diagnostic,
+            contenu=contenu_a_qualifier, libelles={un.code: un.libelle for un in services},
+            lead_id=resultat_qualif["lead_id"], nouveau_lead=True))
     return reponse
 
 
 def _complement_de_conversation(
+    reg: Registre,
     ouverte: conversation.ConversationOuverte,
     fenetre_minutes: int,
     ligne_id_signal: str,
     sain: bool,
     contenu_filtre: str,
+    canal: str,
+    source: str | None,
+    conversation_id: str,
     signal_id: str,
     horodatage: str,
     zone_desservie: list[str],
@@ -430,16 +487,20 @@ def _complement_de_conversation(
 
     L'urgence se cumule sur TOUS les messages de la conversation, avant et après le lead : `complement.urgence_declaree`
     est vraie quand la conversation la déclare et que le lead transmis ne la porte pas (le contrat v2 est gelé, il ne
-    se met pas à jour). `services_evoques` et `autre_service_evoque` disent ce que CE message évoque."""
+    se met pas à jour). `services_evoques` et `autre_service_evoque` disent ce que CE message évoque. Les questions du
+    service, le score et la prochaine action se recalculent sur toute la conversation (`_qualifier_la_conversation`)."""
     ligne_lead = ouverte.lead
+    lead = ligne_lead["lead"]
+    contenu = conversation.contenu_rassemble(ouverte, contenu_filtre)
     diagnostic = qualification.diagnostiquer(contenu_filtre, zone_desservie, services)
-    cumul = qualification.diagnostiquer(
-        conversation.contenu_rassemble(ouverte, contenu_filtre), zone_desservie, services, contact_canal)
-    autres = [code for code in diagnostic["services_evoques"] if code != ligne_lead["lead"]["service"]]
-    etat_questions = _questions_du_service(ligne_lead["lead"]["service"], conversation.contenu_rassemble(
-        ouverte, contenu_filtre))
-    bloc_photos, photos_ouvertes = _demandes_de_photos(etat_questions)
-    reponse = {
+    cumul = qualification.diagnostiquer(contenu, zone_desservie, services, contact_canal)
+    autres = [code for code in diagnostic["services_evoques"] if code != lead["service"]]
+    # Ce que la conversation établit, c'est ce que le lead transmis porte (service, ville, contact) ; l'urgence
+    # est cumulée.
+    etabli = {
+        **cumul, "service": lead["service"], "ville": lead["ville"], "contact": "canal" if contact_canal else "texte",
+    }
+    reponse: dict[str, Any] = {
         "etape": "conversation",
         "accepte": True,
         "signal_ligne_id": ligne_id_signal,
@@ -447,28 +508,26 @@ def _complement_de_conversation(
         "consentement": None,
         "qualifie": True,
         "nouveau_lead": False,
-        "lead": ligne_lead["lead"],
+        "lead": lead,
         "lead_ligne_id": ligne_lead["ligne_id"],
         "decision": "CONVERSATION_DEJA_QUALIFIEE",
         "complement": {
-            "urgence_declaree": cumul["urgence_declaree"] and not ligne_lead["lead"]["urgence_declaree"],
+            "urgence_declaree": cumul["urgence_declaree"] and not lead["urgence_declaree"],
             "services_evoques": diagnostic["services_evoques"],
             "autre_service_evoque": bool(autres),
         },
         "conversation": conversation.decrire(
-            ouverte, horodatage, fenetre_minutes, conversation.signaux_rassembles(ouverte, signal_id), cumul),
+            ouverte, horodatage, fenetre_minutes, conversation.signaux_rassembles(ouverte, signal_id), etabli),
         "consigne": (
             "La conversation est déjà qualifiée : ce message est inscrit et rattaché à son lead, aucun second lead "
             "n'est créé. Si `complement.urgence_declaree` ou `complement.autre_service_evoque` est vrai, dis-le à "
             "une personne dans ta réponse finale : le lead transmis à M2 ne le porte pas."
         ),
-        "questions": etat_questions.bloc(),
     }
-    if bloc_photos is not None:
-        reponse["photos"] = bloc_photos
-    if etat_questions.restantes:
-        reponse.update(conversation.proposer_precisions(
-            cumul, {un.code: un.libelle for un in services}, ouverte.retire, etat_questions.restantes, photos_ouvertes))
+    reponse.update(_qualifier_la_conversation(
+        reg, ouverte=ouverte, fenetre_minutes=fenetre_minutes, canal=canal, source=source,
+        conversation_id=conversation_id, signal_id=signal_id, horodatage=horodatage, etabli=etabli, contenu=contenu,
+        libelles={un.code: un.libelle for un in services}, lead_id=lead["lead_id"], nouveau_lead=False))
     return reponse
 
 
@@ -545,6 +604,12 @@ def _enregistrer_retrait(
         "signal_id": message.signal_id,
         "horodatage": message.horodatage,
     })
+    if ouverte is not None and ouverte.messages:
+        # La conversation ouverte se ferme : sans cette ligne, elle resterait « ouverte, à suivre » pour toujours.
+        reg.ajouter(suivi.ligne_de_fermeture(
+            canal=message.canal_contrat, source=message.canal, conversation_id=message.conversation_id,
+            signal_id=message.signal_id, horodatage=message.horodatage, ouverte_le=ouverte.ouverture,
+            motif=suivi.MOTIF_RETRAIT))
     reponse = {
         "etape": "consentement",
         "accepte": True,

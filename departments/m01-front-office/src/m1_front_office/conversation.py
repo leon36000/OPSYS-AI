@@ -109,6 +109,18 @@ def signaux_rassembles(conversation: ConversationOuverte, signal_courant: str) -
     return [m["signal_id"] for m in conversation.messages] + [signal_courant]
 
 
+def instant_iso(horodatage: str) -> str:
+    """L'heure en ISO-8601 sous sa forme canonique : une même heure s'écrit toujours pareil (`Z` et `+00:00` ne
+    donnent pas deux conversations)."""
+    return _instant(horodatage).isoformat()
+
+
+def expiration(ouverture: str, fenetre_minutes: int) -> str:
+    """La fin de la fenêtre d'une conversation ouverte à `ouverture` : `ouverture + fenetre`, l'échéance réelle (passé
+    ce moment, les messages suivants du client ne se rejoignent plus)."""
+    return (_instant(ouverture) + dt.timedelta(minutes=fenetre_minutes)).isoformat()
+
+
 def decrire(
     conversation: ConversationOuverte, horodatage: str, fenetre_minutes: int, signaux: Sequence[str],
     diagnostic: dict[str, Any] | None = None,
@@ -125,7 +137,7 @@ def decrire(
         "messages": len(signaux),
         "signaux": list(signaux),
         "ouverte_le": ouverture,
-        "expire_le": (_instant(ouverture) + dt.timedelta(minutes=fenetre_minutes)).isoformat(),
+        "expire_le": expiration(ouverture, fenetre_minutes),
         "hors_fenetre": conversation.hors_fenetre,
     }
     if diagnostic is not None:

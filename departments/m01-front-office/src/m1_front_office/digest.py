@@ -4,6 +4,9 @@ import collections
 
 CANAUX = ["telephone", "courriel", "formulaire", "texte"]
 TYPES = ["signal", "transition_phase", "lead_emis", "chiffrage_emis", "alerte"]
+# Le suivi des conversations ouvertes (PLAN T4.4, `suivi.py`) n'est pas un type de la grille canal x type : il a ses
+# propres lignes, écrites seulement quand le registre en porte.
+TYPE_SUIVI = "suivi_conversation"
 
 
 def _canal_de(entree: dict) -> str:
@@ -39,6 +42,37 @@ def _correspond_a_la_date(entree: dict, date_reference: str) -> bool:
     return horodatage[:10] == date_reference
 
 
+def _lignes_de_suivi(entrees: list[dict], date_reference: str) -> list[str]:
+    """Les conversations ouvertes, relues des lignes `suivi_conversation` (une par message, la dernière dit où en est la
+    conversation ; une conversation est identifiée par son client et son heure d'ouverture).
+
+    - « à suivre » : conversations écrites ce jour dont la dernière ligne demande encore une action ;
+    - « sans suivi » : conversations dont la fenêtre se termine ce jour (`a_faire_avant`) et dont la dernière ligne
+      demande toujours une action : le client n'a jamais eu de suite. Chacune n'apparaît que dans le digest du jour de
+      son échéance. Aucune horloge : la date de référence est fournie.
+
+    Aucune ligne de suivi dans le registre : rien n'est ajouté au digest (sortie inchangée)."""
+    derniere: dict[tuple, dict] = {}
+    ecrites_ce_jour: set[tuple] = set()
+    for entree in entrees:
+        if entree.get("type_entree") != TYPE_SUIVI:
+            continue
+        conversation = (entree.get("conversation_id"), entree.get("ouverte_le"))
+        derniere[conversation] = entree
+        if _correspond_a_la_date(entree, date_reference):
+            ecrites_ce_jour.add(conversation)
+    if not derniere:
+        return []
+    ouvertes = {c: e for c, e in derniere.items() if e.get("statut") == "ouverte" and e.get("prochaine_action")}
+    a_suivre = sum(1 for c in ouvertes if c in ecrites_ce_jour)
+    sans_suivi = sum(
+        1 for e in ouvertes.values() if str(e["prochaine_action"].get("a_faire_avant", ""))[:10] == date_reference)
+    return [
+        f"- conversations ouvertes à suivre : {a_suivre}",
+        f"- conversations sans suivi à l'échéance de leur fenêtre : {sans_suivi}",
+    ]
+
+
 def produire_digest(entrees: list[dict], date_reference: str) -> str:
     """Génère un rapport agrégé en français pour la période de référence.
 
@@ -50,6 +84,9 @@ def produire_digest(entrees: list[dict], date_reference: str) -> str:
       dans aucune case : date_reference filtre réellement la période.
     * Les entrées dont le canal ou le type_entree ne sont pas reconnus sont
       comptabilisées séparément sous la rubrique "entrées non classées".
+    * Les lignes `suivi_conversation` (conversations ouvertes, PLAN T4.4) ne sont jamais « non classées » : elles
+      donnent deux lignes de plus, seulement si le registre en porte (voir `_lignes_de_suivi`). Les compteurs restent
+      indépendants de l'ordre ; le suivi, lui, lit l'ordre du registre (la dernière ligne d'une conversation fait foi).
     """
     if not entrees:
         return f"Absence d'activité enregistrée pour la période de référence {date_reference}."
@@ -57,6 +94,8 @@ def produire_digest(entrees: list[dict], date_reference: str) -> str:
     compteur = collections.Counter()
     non_classes = 0
     for entree in entrees:
+        if entree.get("type_entree") == TYPE_SUIVI:
+            continue  # compté à part (`_lignes_de_suivi`), jamais parmi les « entrées non classées »
         if not _correspond_a_la_date(entree, date_reference):
             continue
         canal = _canal_de(entree)
@@ -71,5 +110,6 @@ def produire_digest(entrees: list[dict], date_reference: str) -> str:
         for type_ in TYPES:
             nb = compteur.get((canal, type_), 0)
             lignes.append(f"- {canal}: {type_}: {nb}")
+    lignes.extend(_lignes_de_suivi(entrees, date_reference))
     lignes.append(f"- entrées non classées : {non_classes}")
     return "\n".join(lignes)

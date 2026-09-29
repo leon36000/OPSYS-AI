@@ -12,6 +12,7 @@ _TYPES_ENTREE_VALIDES = {
     "lead_emis",
     "chiffrage_emis",
     "alerte",
+    "suivi_conversation",
 }
 
 _CANAUX_VALIDES = {"telephone", "courriel", "formulaire", "texte"}

@@ -380,3 +380,46 @@ def test_sans_questions_ni_poids_dans_le_profil_la_reception_le_dit_et_n_invente
     assert reponse["questions"]["verdict"]["code"] == "REJ-QUESTIONS-NON-CONFIGUREES"
     assert "brouillon_reponse" not in reponse
     assert _drainer(deps)["echecs"] == 0 and len(_leads_ingeres()) == 1
+
+
+def test_le_score_et_la_prochaine_action_restent_au_registre_durable_de_m1_pas_dans_l_evenement(instance):
+    """Le contrat `LeadQualifie` v2 est gelé : le score (règles, poids du profil) et la prochaine action datée restent
+    dans le registre de M1 ; ni l'événement du bus ni le lead ingéré par M2 ne les portent."""
+    deps, capacites = instance
+    taxonomie.enregistrer_fenetre_conversation(30)
+    _declarer_qualification()
+    capacites.appeler("m1_recevoir_message_canal", _sms("Mes gouttières fuient, c'est urgent.", "SM-1", 0))
+    second = capacites.appeler("m1_recevoir_message_canal", _sms("À Laval.", "SM-2", 4))["resultat"]
+    assert second["score"]["statut"] == "calcule" and second["score"]["score"] == 80
+    assert second["prochaine_action"]["a_faire_avant"] == (DEBUT + dt.timedelta(minutes=30)).isoformat()
+    assert second["prochaine_action"]["inscrite_le"] == (DEBUT + dt.timedelta(minutes=4)).isoformat()
+
+    with stockage.transaction():
+        lignes = [m for m in m1._obtenir_registre().lire() if m["type_entree"] == "suivi_conversation"]
+        assert m1._obtenir_registre().valider_chaine() == (True, None)
+    assert [ligne["score"]["score"] for ligne in lignes] == [50, 80]
+    assert lignes[-1]["prochaine_action"] == second["prochaine_action"]
+
+    with stockage.transaction() as cnx:
+        (charge,) = cnx.execute(select(EVENEMENTS_SORTANTS.c.charge).where(
+            EVENEMENTS_SORTANTS.c.type_evenement == "m1.lead_qualifie")).scalars().all()
+    publie = codec.decoder(charge)
+    assert set(publie) == {"lead", "horodatage", "signal_id"}, "l'événement n'a pas changé"
+    assert "score" not in publie["lead"] and set(publie["lead"]) <= {
+        "schema_version", "lead_id", "service", "ville", "urgence_declaree", "canal", "conversation_id", "contact",
+        "source", "utm", "campagne"}
+    assert _drainer(deps)["echecs"] == 0
+    (ingere,) = _leads_ingeres()
+    assert ingere["contrat"] == second["lead"] and "score" not in ingere["contrat"]
+
+
+def test_sans_poids_dans_le_profil_la_reception_le_dit_et_aucun_score_n_est_ecrit(instance):
+    deps, capacites = instance
+    taxonomie.enregistrer_fenetre_conversation(30)
+    reponse = capacites.appeler("m1_recevoir_message_canal", _sms("Mes gouttières fuient à Laval.", "SM-1", 0))
+    bloc = reponse["resultat"]["score"]
+    assert bloc["statut"] == "poids_a_configurer" and bloc["verdict"]["code"] == "REJ-POIDS-SCORE-NON-CONFIGURES"
+    with stockage.transaction():
+        (ligne,) = [m for m in m1._obtenir_registre().lire() if m["type_entree"] == "suivi_conversation"]
+    assert "score" not in ligne["score"] and ligne["score"]["statut"] == "poids_a_configurer"
+    assert _drainer(deps)["echecs"] == 0 and len(_leads_ingeres()) == 1, "le lead n'attend pas les poids"
