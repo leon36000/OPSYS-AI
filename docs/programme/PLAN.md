@@ -130,6 +130,18 @@ identifiants du propriétaire, repli livré en attendant.
         - M3 823 (outils de mutation compris).
 - [ ] T0.11 Installateur en une commande (dérivé de `install.sh` / `install.ps1`), désinstallation
       et export documentés ; Docker Compose en option serveur.
+      Avancement (non coché : le job `installateur` n'a pas encore tourné en CI) :
+      a045b08 (`opsys instance initialiser|exporter|restaurer`), be22f0c (`configurer` ne supprime
+      plus l'espace de travail des agents : `MEMORY.md` et `memory/` survivaient mal au rejeu de
+      300 s du VPS), bcdc611 (`install/install.sh` et `.ps1`, désinstallation, job `installateur`),
+      394238d (`docs/exploitation/INSTALLATION.md`). Socle 977 (86 nouveaux), shellcheck OK.
+      - Construit depuis le dépôt (aucune version publiée : T3) ; un secret existant n'est jamais
+        régénéré ni affiché ; exit 3 et quoi fournir si un palier ou le service d'embeddings manque.
+      - Export en liste blanche avec manifeste SHA-256 (sans `.env`) ; restauration vérifiée avant
+        toute écriture ; désinstallation sans jamais toucher aux données.
+      Reste : job `installateur` vert (le core lit-il `core/.env` ? unité `systemd --user` sans
+      secret ?), puis macOS et Windows par une exécution manuelle ; LiteLLM, PostgreSQL et console
+      restent à Docker Compose.
 
 - [x] T0.13 Taxonomie métier partagée : M1, M2 et M3 utilisent un même `TYPES_TRAVAUX` qui ne
       contient aucun des 4 services réels (gouttières, revêtement, soffite-fascia, réparation). Une
@@ -1149,7 +1161,9 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         affiche seulement) ; blocage `before_tool_call` d'une action N3 ou plus quand le contexte
         est insuffisant ; affaire liée à la session avant d'activer M1 ; filtre `CLIENT_PRIVATE`.
         Livré (b1206c3, 33e1789, 4ad239c, 3378650, a5b9537 intégrés, plus la greffe du garde dans
-        `runBeforeToolCallHook`), à cocher sur le job `tests-opsys` du core :
+        `runBeforeToolCallHook` et son test direct 9b0772e : vraie chaîne, vrai `contexte.json`,
+        chaque cas « laisse passer » doublé d'un contrôle refusé), à cocher sur le job
+        `tests-opsys` du core :
         - M10 : cycle ouvert → pris en compte → clos ; `m10_prendre_en_compte_signal` et
           `m10_clore_signal` (N3, `admin`, motif) refusent tout appel qui n'est ni un humain
           authentifié ni l'exécution d'une demande qu'un humain vient d'approuver ; le paquet
