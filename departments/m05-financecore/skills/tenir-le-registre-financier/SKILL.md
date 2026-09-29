@@ -1,6 +1,6 @@
 ---
 name: tenir-le-registre-financier
-description: Procédure pour consulter l'état financier (solde, argent disponible), calculer les taxes TPS/TVQ, et enregistrer un mouvement financier — sans jamais inventer un montant, un taux ou un solde.
+description: Procédure pour consulter l'état financier (solde, cash libre réel et sa décomposition), lire les échéances TPS/TVQ, calculer les taxes, et enregistrer un mouvement financier — sans jamais inventer un montant, un taux, un solde ou une date.
 ---
 
 # Tenir le registre financier
@@ -18,7 +18,33 @@ description: Procédure pour consulter l'état financier (solde, argent disponib
    disponible, ni taux : c'est le comportement attendu, pas une panne. Un verdict
    `REJ-AUTORISE-COUTS-REQUIS` dit que tu as oublié de le préciser : ajoute-le.
 4. Présente toujours `solde` ET `argent_disponible` séparément — jamais l'un pour
-   l'autre : l'argent disponible exclut les provisions.
+   l'autre : l'argent disponible exclut les provisions. Ne présente JAMAIS `argent_disponible`
+   sans le `cash_libre` qui l'accompagne (`argent_disponible_note` le rappelle).
+5. Lis le `cash_libre` (T4.16) : `cash_libre` est le solde moins les taxes à remettre, les paies, les DAS, les comptes à
+   payer, les dettes et les réserves. Présente la DÉCOMPOSITION : chaque composante avec son montant, sa `source` et sa
+   `fraicheur`. Si `calculable` est faux, `cash_libre` est nul : dis « non calculable », cite `manque` (ce qu'il faut
+   déclarer ou saisir), et n'invente aucun chiffre à la place. `au_plus` n'est qu'un repère (le solde moins ce qui est
+   connu) : ne le présente jamais comme de l'argent disponible. Dis les `hypotheses` et les `reserves` (sous réserve de
+   `REJ-AP-UNITE-PRIX-NON-CONFIRMEE` dès qu'un compte à payer y est). Un `en_deficit` vrai est un déficit réel.
+6. Ce qui manque le plus souvent : la fréquence de production TPS/TVQ et la date de dernière remise (au propriétaire),
+   les paies, les DAS et les dettes (déclarés par le propriétaire avec leur source et leur date, aucun module de paie
+   n'existe encore). Demande-les ; ne les estime pas.
+7. Toute analyse porte la `mention` obligatoire : ne la retire pas.
+
+## Lire les échéances fiscales (TPS/TVQ)
+
+1. Appelle `m5_lire_echeances_fiscales` avec `aujourd_hui` (AAAA-MM-JJ, d'une source sûre : M5 n'a pas d'horloge). Tu ne
+   fournis AUCUNE date limite, AUCUN montant ni taux : ils viennent du calendrier versionné et des registres.
+2. Un refus nomme ce qui manque : `REJ-FISCAL-FREQUENCE-A-DECLARER` (la fréquence de production est au propriétaire, GATE
+   NATHAN), `REJ-FISCAL-FIN-EXERCICE-A-DECLARER`, `REJ-FISCAL-STATUT-INSCRIT-A-DECLARER`, `REJ-CALENDRIER-ANNEE-NON-DECLAREE`
+   (l'année n'est pas au calendrier : ne la calcule pas, demande qu'elle soit ajoutée puis validée par le CPA).
+   Transmets la demande telle quelle ; ne suppose rien.
+3. Présente chaque échéance : période, limite de paiement, limite de production, jours restants, statut (`EN_RETARD` ou
+   `A_VENIR`) et la taxe nette de la période. `EN_RETARD` n'est dit que si la date de dernière remise est déclarée ; sans
+   elle, `manque` le signale : ne conclus pas que tout est à jour. Une période encore ouverte (`periode_terminee` faux) a un
+   chiffre partiel.
+4. Les dates viennent de Revenu Québec (sources citées) et sont à valider par le CPA. Aucune remise, aucune déclaration :
+   c'est N5 (Nathan et le CPA).
 
 ## Calculer une taxe TPS/TVQ
 

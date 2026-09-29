@@ -110,4 +110,52 @@ pour l'audit sans le changer ; (3) les taxes de l'attendu sont calculées une fo
 saisie : un cent de différence entre les deux, dû à l'arrondi de chaque facture, n'est pas un écart (le verdict se juge avant
 taxes) ; (4) ni correction ni annulation d'une facture saisie, ni facture sans PO reçu ; (5) rien n'est payé, donc rien n'est
 retranché du « à payer » : c'est dû tant qu'un paiement N5 n'est pas enregistré (à construire) ; (6) le solde et l'argent
-disponible ne retranchent pas encore les comptes à payer (T4.16, cash libre réel).
+disponible restent ceux d'avant (CA-M5-05, CA-M5-06) ; c'est le cash libre réel (T4.16, plus bas) qui retranche les comptes à
+payer.
+
+PLAN T4.16 (cash libre réel et calendrier fiscal vivant, M5.5, M5.7, M5.14, `cash_libre.py`, `calendrier_fiscal.py`) :
+« solde bancaire ≠ argent disponible ». `m5_etat_tresorerie` garde ses clés d'avant (`solde`, `argent_disponible`, `etat_id` :
+le contrat gelé de l'état financier n'a pas bougé) et y AJOUTE `cash_libre`, `argent_disponible_note` et `mention`.
+`argent_disponible` (solde moins les réserves) n'est plus jamais affiché sans le cash libre ni sans sa note ; un rôle sans droit
+de voir les coûts ne voit ni l'un ni l'autre.
+
+Cash libre = solde du registre - TPS/TVQ à remettre - paies - DAS - comptes à payer - dettes - réserves critiques. Chaque
+composante porte sa SOURCE (le registre lu, sa taille, la tête de sa chaîne, ou la déclaration du propriétaire) et sa FRAÎCHEUR
+(l'horodatage de la pièce la plus récente). Une composante inconnue donne « non calculable, manque X », JAMAIS zéro : le cash
+libre est alors nul, la réponse nomme ce qui manque et donne un `au_plus` (le solde moins ce qui est connu ; un repère, pas de
+l'argent disponible). Sans aucun mouvement au registre, le solde lui-même est inconnu. D'où vient chaque composante : le solde et
+les réserves, du registre des mouvements (les mouvements `PROVISION`) ; les taxes, de la taxe des factures clients envoyées
+(`ENVOYEE`, `PAYEE`) moins les crédits de taxes sur intrants des factures fournisseur SAISIES (T4.15), depuis la dernière remise ;
+les comptes à payer, du total de T4.15 ; les paies, DAS et dettes, de RIEN (M5.4, paie, est absent) : le propriétaire les DÉCLARE
+avec leur source et leur date dans `department.yaml` (`configuration.obligations_declarees`), sinon elles sont « à déclarer ». Un
+« 0.00 » déclaré est un zéro connu. Un déficit est rendu tel quel. Arrondi : `ROUND_HALF_UP`, une fois, au résultat.
+
+Calendrier fiscal : `contracts/calendrier_fiscal.v1.yaml`, sur le patron de `taux_fiscaux.v1.yaml` (année, sources officielles
+avec adresse et date de consultation, version). Les dates sont TRANSCRITES des calendriers de Revenu Québec (jours fériés et
+Fêtes compris), jamais calculées ; le chargeur en vérifie la cohérence. Deux années déclarées (2025, 2026) ; `A_VALIDER` par le
+CPA. `m5_lire_echeances_fiscales` (T0, `admin`) dit les prochaines échéances TPS/TVQ, les retards et la taxe nette de chaque
+période. Une année non déclarée est REFUSÉE (`REJ-CALENDRIER-ANNEE-NON-DECLAREE`). La fréquence de production (mensuelle,
+trimestrielle, annuelle), la fin d'exercice, le statut de particulier en affaires et la date de dernière remise sont des
+décisions ou des faits du propriétaire (GATE NATHAN, `configuration.fiscal` de `department.yaml`) : absents, le calendrier le dit
+et ne suppose rien. Hors du calendrier, faute de donnée : acomptes provisionnels, DAS, T4 et RL-1, CNESST.
+
+Mention obligatoire (`analyse.py`) : « Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision
+officielle ou action réelle. » (DEFINITION-PRODUIT §7 M5, §13.3) est portée par toute sortie acceptée d'un outil d'analyse
+(`m5_etat_tresorerie`, `m5_lire_echeances_fiscales`, `m5_lire_rentabilite_chantier`, `m5_lister_comptes_a_payer`,
+`m5_saisir_facture_fournisseur`) ; un test ferme le monde (chaque outil est classé) et lit la mention dans le document produit.
+
+AUCUNE REMISE, AUCUNE DÉCLARATION, AUCUN PAIEMENT. Le calendrier propose des dates ; remettre une taxe est N5 (Nathan ET le
+CPA). `conformite.verifier_aucun_decaissement` couvre le nouveau code : en régime strict (aucun mot de mouvement) pour le
+calendrier, le cash libre et la mention, en lecture seule pour le code qui ouvre le registre des mouvements pour en tirer le
+solde. Les seuls outils T3 de M5 sont les deux d'avant.
+
+Limites connues : (1) les crédits de taxes sur intrants sont supposés récupérables à 100 % (à valider par le CPA) ; TPS et TVQ ne
+se compensent pas entre elles et une taxe nette négative n'est jamais de l'argent (prudent) ; (2) aucune constatation de paiement
+fournisseur ni de remise : un fournisseur payé ou une taxe remise reste retranché tant que le registre l'ignore
+(`taxes_remises_jusqu_au` s'avance à la main, avec le CPA) : le cash libre est alors SOUS-estimé, jamais surestimé ; (3) une
+PROVISION posée pour un autre poste (taxes, paies) compte deux fois : aucune catégorie de réserve n'existe encore ; (4) paies, DAS
+et dettes sont déclarées à la main dans le manifeste, en attendant M5.4 et un registre des dettes ; (5) `aujourd_hui` est fourni
+par l'appelant (M5 n'a pas d'horloge, DA-M5-06) ; (6) la fréquence de production et les autres décisions sont absentes du
+manifeste livré : tant que Nathan ne les déclare pas, le cash libre est « non calculable » et le calendrier refuse de nommer une
+échéance ; (7) la prévision de trésorerie (M5.7 : projection, scénarios, tests de stress) n'est PAS livrée : le cash libre est
+l'état d'aujourd'hui, jamais une projection ; les catégories de réserve (M5.14, stratégie d'épargne) non plus.

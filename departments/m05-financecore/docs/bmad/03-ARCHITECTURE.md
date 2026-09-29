@@ -55,6 +55,9 @@ seulement les contrats génériques (`MouvementFinancier`) que l'appelant lui fo
 | `approbation.py` | `RegistreApprobations` (instanciation de la classe générique `registre.Registre`) ; `creer_demande`, `approuver`, `refuser`, `statut_courant` — patron `m2_revenue_crm/statuts.py` EXACT, garde F6/F7 intégrée à `approuver`. | S005 |
 | `etat_financier.py` | Assemble `EtatFinancier` (solde, argent disponible, taux utilisés, `etat_id`) ; **foyer UNIQUE du filtrage par rôle** (DA-M5-03) — binaire, jamais une liste fine comme M8. | S006 |
 | `cout_reel.py` | Coût réel et rentabilité d'un chantier (PLAN T1.5-d, DA-M5-10) : module pur, Decimal, `ROUND_HALF_UP`, manques nommés ; `facturation.comptes_a_recevoir` (vue des factures ENVOYEE) l'accompagne. | — |
+| `cash_libre.py` | Cash libre réel (PLAN T4.16, M5.5, M5.14) : module pur, Decimal, `ROUND_HALF_UP` une fois au résultat ; solde moins TPS/TVQ à remettre, paies, DAS, comptes à payer, dettes, réserves ; chaque composante porte sa source et sa fraîcheur, une composante inconnue est « non calculable, manque X », jamais zéro. Clé sœur de l'état financier gelé (`etat_id` inchangé). | — |
+| `calendrier_fiscal.py` | Calendrier fiscal versionné (PLAN T4.16, M5.5) : charge `contracts/calendrier_fiscal.v1.yaml` (sources officielles citées, dates transcrites de Revenu Québec, à valider par le CPA) ; année non déclarée refusée ; fréquence de production et dernière remise = décisions du propriétaire, jamais supposées. | — |
+| `analyse.py` | Mention obligatoire des analyses (PLAN T4.16, §13.3) et classement de chaque outil (analyse ou hors analyse). | — |
 | `conformite.py` | Contrôle statique AST transversal : copie-adaptation de `m8_analytics/conformite.py` + garde littéral de taux + garde anti-cause (R-020). | S007 |
 
 Aucun fichier `materiel.py`/orchestrateur unique équivalent à M6 : M5 a DEUX points d'écriture
