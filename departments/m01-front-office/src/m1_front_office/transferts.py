@@ -84,7 +84,8 @@ ACTION_PROPOSEE = "lire (m1_lire_transfert), agir auprès du client, puis clore 
 
 # Temps linéaire (PLAN T4.17-g). Un courriel se reconnaît à son « @ » : un caractère permis devant, un domaine derrière.
 # `search` ne rend que « oui » ou « non » : la partie locale n'a pas à être lue en entier. L'ancien `[\w.%+'-]+@…` la
-# relisait à chaque départ (une suite de lettres, de points ou de chiffres sans « @ » : 2,7 s pour 20 000 caractères).
+# relisait à chaque départ (une suite de lettres, de points ou de chiffres sans « @ » : de 1,1 à 1,5 s de calcul pour
+# 20 000 caractères).
 # Même verdict. `tests/test_motifs_lineaires.py` compare ce motif à l'ancien (recopié) et mesure des textes de 20 000 et
 # de 100 000 caractères.
 _COURRIEL = re.compile(r"[\w.%+'-]@[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}")

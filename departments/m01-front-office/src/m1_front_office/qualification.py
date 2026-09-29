@@ -45,9 +45,9 @@ _PHONE_REGEX = re.compile(
 
 # Temps linéaire (PLAN T4.17-g). Le texte du client n'a pas de plafond ici, et l'ancien motif
 # `\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b` repartait de chaque « \b » d'une même suite (un point ou un
-# tiret en ouvre un) en relisant la suite jusqu'au bout : 20 000 caractères « a. » coûtaient 0,7 s, 100 000 en coûtaient
-# 15. Ici la suite de caractères permis se lit d'un seul départ, sans retour arrière. Même sens que l'ancien motif, cas
-# limites compris :
+# tiret en ouvre un) en relisant la suite jusqu'au bout : 20 000 caractères « a. » coûtaient 0,5 s de calcul, 100 000 en
+# coûtaient 11. Ici la suite de caractères permis se lit d'un seul départ, sans retour arrière. Même sens que l'ancien
+# motif, cas limites compris :
 #   - le départ est le début de la suite (rien de permis devant), jamais un de ses caractères ;
 #   - on saute ensuite jusqu'à la première frontière de mot de la suite, là où l'ancien motif aurait commencé (derrière
 #     une lettre accentuée, « andré.tremblay@x.ca » donne « .tremblay@x.ca » comme avant, et « françois@x.ca » n'est

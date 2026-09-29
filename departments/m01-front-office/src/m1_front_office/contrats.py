@@ -33,11 +33,11 @@ _CLES_UTM = ("utm_source", "utm_medium", "utm_campaign", "utm_content")
 # un mot (`\d\s*\$`), et `search` ne rend que « oui » ou « non » : le nombre n'a aucune forme à respecter, seul son
 # dernier chiffre compte (« 5 000 $ », « 5,000$ » et « 5$ » finissent tous par un chiffre que la devise suit). L'ancien
 # motif décrivait le nombre (`\d+(?:[\s,.]\d+)*`) et le relançait à chaque chiffre : il relisait la suite de chiffres à
-# chaque départ, plus de 100 s pour 20 000 chiffres (la description d'un chiffrage est plafonnée à 500 caractères, le
-# motif ne l'est pas). Même verdict qu'avant. Seule la fourchette lit un nombre en entier (« 1 000 - 2 000 » : sa forme
-# compte), et ses séparateurs ne sont jamais des chiffres : chaque départ « fourchette » lit une seule fois ce qui
-# le suit. `tests/test_motifs_lineaires.py` compare ce motif à l'ancien (recopié) et mesure des textes de 20 000 et de
-# 100 000 caractères.
+# chaque départ, plus d'une minute de calcul pour 20 000 chiffres (la description d'un chiffrage est plafonnée à 500
+# caractères, le motif ne l'est pas). Même verdict qu'avant. Seule la fourchette lit un nombre en entier
+# (« 1 000 - 2 000 » : sa forme compte), et ses séparateurs ne sont jamais des chiffres : chaque départ « fourchette »
+# lit une seule fois ce qui le suit. `tests/test_motifs_lineaires.py` compare ce motif à l'ancien (recopié) et mesure
+# des textes de 20 000 et de 100 000 caractères.
 _PRIX_REGEX = re.compile(
     r"""
         \d\s*(?:\$|€|dollars|euros|CAD|/\s*(?:m[²2]|h|pi[²2]))  # 5 000 $ ; 5,000$ ; 500 dollars ; 50/m² ; 50/h
