@@ -868,9 +868,26 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         - M3 821 (outils de mutation compris, correction e3b910c incluse) ; socle, M5 et M6
           verts.
 
-        Reste de T2.3 : séparer coût et prix dans `m3_estimer_projet` ; contrat
-        `BesoinsMateriauxM3` vers M6 ; PDF ; `niveau_confiance` est un nombre dans le code et une
-        chaîne dans le PRD (à trancher) ; `signaux.py` (demande de photos) n'est jamais appelé.
+        Reste de T2.3 : PDF de la soumission ; `niveau_confiance` est un nombre dans le code et
+        une chaîne dans le PRD (à trancher : v2 ou clé sœur). Coût et prix séparés, et
+        `signaux.py` branché : T2.3-d. Contrat `BesoinsMateriauxM3` : T2.3-e.
+  - [x] T2.3-e Contrat `BesoinsMateriauxM3` (M3 → M6).
+        Preuve (f2e40bc, b6d5add, e8b9d40, 92a09ca intégrés) :
+        - module pur `besoins_materiaux.py` : lignes calculées par le code (quantité de l'ouvrage
+          × `quantite_par_unite` du barème, Decimal en texte, nettes) ; facteur de perte absent
+          → signalé, jamais inventé ; aucune clé de prix, coût ou marge admise ; `EstimationV1`
+          intact (clé sœur) ;
+        - événement `m3.besoins_materiaux` publié par `m3_estimer_projet` dans la même
+          transaction, versionné par estimation (rejeu sans effet, version périmée ignorée) ;
+        - M6 valide seul et range le prévu provisoire dans `besoins_prevus` existant ; le prévu
+          définitif du devis accepté l'emporte ; aucun bon de commande créé ;
+        - bout en bout par le vrai bus (`tests/test_cascade_besoins_materiaux.py`) ; gate M3
+          qui confronte les quatre descriptions du contrat ; M3 1173 (rapide, 1146 complet chez
+          l'agent), M6 638, M4 1559, socle 755, gates M3 et M6, verifier.
+
+        Questions ouvertes (architecture M3 §2.9) : qui fournit les `materiaux` du barème (livre
+        de prix M6 ou Nathan) ; M6 garde `facteur_perte` sans l'appliquer à la commande ; M6 n'a
+        pas de catalogue persisté pour vérifier un `sku`.
   - [x] T2.3-d M3 : vue d'un devis tirée de l'identité authentifiée, prix recommandé distinct du
         coût, signal de relance branché.
         Preuve (5767836) : pendant un appel d'appareil, la vue découle du rôle authentifié et
