@@ -6,11 +6,13 @@ T4.17-g, chacun relisait la même suite de caractères à chaque départ (temps 
 au courriel du client (11 s pour 100 000), plus d'une minute au prix, de 1,1 à 1,5 s au courriel d'un résumé. Ce
 fichier prouve quatre choses.
 
-1. Le sens n'a pas changé. Les motifs d'avant (recopiés ici, tels quels, comme oracle) et ceux de M1 donnent le même
-   verdict (et, pour le courriel du client, le même texte trouvé, car le lead le garde) sur toutes les suites de jetons
-   jusqu'à une longueur donnée, sur les textes de la fixture de M1, sur des textes tirés au hasard (graine fixe) et sur
-   une table de cas nommés. Les limites de l'ancien motif du courriel du client (une lettre accentuée devant,
-   « françois@x.ca ») sont gardées telles quelles : les changer serait une décision, pas un durcissement.
+1. Le sens. Le prix et le courriel d'un résumé n'ont pas changé : les motifs d'avant (recopiés ici, tels quels, comme
+   oracle) et ceux de M1 donnent le même verdict sur toutes les suites de jetons jusqu'à une longueur donnée, sur les
+   textes de la fixture de M1, sur des textes tirés au hasard (graine fixe) et sur une table de cas nommés. Le courriel
+   du client, lui, a changé de sens exprès (PLAN T4.17-g2) : il se lit en entier, lettres accentuées comprises, ou pas
+   du tout, jamais tronqué (le lead le garde et M2 en tire le `client_id`). Son oracle est une référence écrite lettre
+   à lettre, lente et évidente (`_courriel_de_reference`), comparée sur les mêmes textes ; la table de cas nommés dit,
+   pour chacun, ce que l'ancien motif lisait et ce que M1 lit maintenant.
 2. Le temps croît comme le texte : les textes hostiles de 20 000 et de 100 000 caractères passent sous une borne
    absolue généreuse, et le rapport des temps reste loin du carré (25 pour cinq fois plus de texte).
 3. Les fonctions de M1 qui lisent ces motifs (contact du texte du client, coordonnées d'un résumé) le font aussi.
@@ -27,7 +29,9 @@ import itertools
 import pkgutil
 import random
 import re
+import string
 import time
+import unicodedata
 from pathlib import Path
 
 import m1_front_office
@@ -41,7 +45,8 @@ NBSP, NNBSP = "\u00a0", "\u202f"
 _FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
 # ----------------------------------------------------------------------------------------------------------------------
-# L'oracle : les motifs tels qu'ils étaient avant T4.17-g (recopiés, jamais importés de M1).
+# L'oracle : les motifs tels qu'ils étaient avant T4.17-g (recopiés, jamais importés de M1). Celui du courriel du client
+# ne sert plus qu'à dire, dans la table des cas nommés, ce qui a changé avec T4.17-g2.
 # ----------------------------------------------------------------------------------------------------------------------
 EMAIL_AVANT = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b")
 COURRIEL_AVANT = re.compile(r"[\w.%+'-]+@[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}")
@@ -63,22 +68,82 @@ PRIX_AVANT = re.compile(
 )
 
 
-def _courriel_avant(texte: str) -> tuple[int, int] | None:
-    """Le texte trouvé par l'ancien motif du courriel du client : début et fin."""
+def _courriel_avant(texte: str) -> str | None:
+    """Le courriel que l'ancien motif lisait dans le texte du client (avant T4.17-g2), ou `None`."""
     trouve = EMAIL_AVANT.search(texte)
-    return None if trouve is None else trouve.span()
+    return None if trouve is None else trouve.group()
 
 
-def _courriel_apres(texte: str) -> tuple[int, int] | None:
-    """Le texte que le lead garde aujourd'hui : début et fin du groupe `courriel`."""
-    trouve = qualification._EMAIL_REGEX.search(texte)
-    return None if trouve is None else trouve.span("courriel")
+def _courriel_apres(texte: str) -> str | None:
+    """Le courriel que M1 lit aujourd'hui dans le texte du client (celui que le lead garde), ou `None`."""
+    return qualification._courriel_du_texte(texte)
 
 
 def _contact_apres(texte: str) -> str | None:
     """Le courriel que `qualification` extrait du texte du client, ou `None`."""
     contact = qualification.contact_du_texte(texte)
     return None if contact is None else contact.get("courriel")
+
+
+# Le courriel du client depuis T4.17-g2 : la référence, écrite lettre à lettre, lente et évidente. Elle ne partage
+# avec M1 que la règle : le texte en forme NFC ; un départ jamais juste après un caractère qui peut prolonger un mot ou
+# une adresse ; les signes qui ouvrent la suite sautés ; une partie locale qui commence par une lettre, un chiffre ou
+# `_` et se lit jusqu'au « @ » ; un domaine ASCII coupé après le dernier point suivi d'au moins deux lettres ASCII qui
+# finissent le mot. Le premier départ qui donne un courriel l'emporte.
+_SIGNES_LOCAUX = ".%+'-"
+_AUTRES_CARACTERES_RFC = "!#$&*/=?^`{|}~"
+_AUSSI_DANS_UN_MOT = "\u2010\u2011\u2019\u00b7"  # traits d'union Unicode, apostrophe typographique, point médian
+_LETTRES_ASCII = frozenset(string.ascii_letters)
+_DOMAINE_ASCII = frozenset(string.ascii_letters + string.digits + ".-")
+
+
+def _mot(caractere: str) -> bool:
+    return caractere.isalnum() or caractere == "_"
+
+
+def _peut_prolonger(caractere: str) -> bool:
+    """Vrai si `caractere` peut faire partie d'un mot ou d'une adresse : un courriel qui commencerait juste après
+    serait la fin d'un mot ou d'une adresse plus longue."""
+    categorie = unicodedata.category(caractere)
+    return (_mot(caractere) or caractere in _SIGNES_LOCAUX or caractere in _AUTRES_CARACTERES_RFC or caractere == "@"
+            or categorie[0] == "M" or categorie in ("Pc", "Cf") or caractere in _AUSSI_DANS_UN_MOT)
+
+
+def _fin_du_domaine(texte: str, debut: int) -> int | None:
+    """Où finit le domaine qui commence à `debut`, ou `None`."""
+    fin_de_suite = debut
+    while fin_de_suite < len(texte) and texte[fin_de_suite] in _DOMAINE_ASCII:
+        fin_de_suite += 1
+    for point in range(fin_de_suite - 1, debut, -1):  # du dernier point au premier, un caractère au moins devant
+        if texte[point] != ".":
+            continue
+        fin = point + 1
+        while fin < len(texte) and texte[fin] in _LETTRES_ASCII:
+            fin += 1
+        if fin - point > 2 and (fin == len(texte) or not _mot(texte[fin])):
+            return fin
+    return None
+
+
+def _courriel_de_reference(texte: str) -> str | None:
+    """Le courriel que le client a écrit, selon la règle de T4.17-g2, ou `None`."""
+    texte = unicodedata.normalize("NFC", texte)
+    for debut in range(len(texte)):
+        if debut > 0 and _peut_prolonger(texte[debut - 1]):
+            continue
+        local = debut
+        while local < len(texte) and texte[local] in _SIGNES_LOCAUX:
+            local += 1
+        if local == len(texte) or not _mot(texte[local]):
+            continue
+        arobase = local
+        while arobase < len(texte) and (_mot(texte[arobase]) or texte[arobase] in _SIGNES_LOCAUX):
+            arobase += 1
+        if arobase < len(texte) and texte[arobase] == "@":
+            fin = _fin_du_domaine(texte, arobase + 1)
+            if fin is not None:
+                return texte[local:fin]
+    return None
 
 
 def _prix_avant(texte: str) -> bool:
@@ -101,13 +166,15 @@ def _coordonnee_apres(texte: str) -> bool:
 # 1. Le sens n'a pas changé : toutes les suites de jetons, puis des textes générés
 # ----------------------------------------------------------------------------------------------------------------------
 # Chaque jeu vise des cas limites : (jetons, longueur maximale, préfixe commun). Courriel du client : une suite de
-# caractères permis, ce qui la précède (une lettre accentuée n'est pas permise mais fait un mot avec ce qui la suit),
-# une frontière de mot dedans (un point ou un tiret en ouvre ou en ferme une), le domaine et ce qui le suit.
+# caractères permis, lettres accentuées comprises, ce qui la précède (ce qui peut prolonger un mot ou une adresse
+# interdit le départ), les signes qui l'ouvrent, le domaine et ce qui le suit.
 JETONS_COURRIEL_CLIENT = {
     "caracteres_et_domaine": (["a", ".", "-", "_", "@", "é", " ", "x.ca", "1", "%"], 6, ""),
     "lettre_accentuee_devant": (["é", "a", ".", "@", "x.ca", "-", " "], 7, ""),
     "signes_de_la_partie_locale": (["a", "+", "%", ".", "-", "@", "b.cd", "É", "٣", "²"], 5, ""),
     "domaines": (["a", ".", "-", "_", "1", "cd", "C", "é", " ", "@"], 6, "a@"),
+    "dans_un_mot": (["a", "\u2019", "'", "\u0301", "e", "@", "x.ca", "\u00b7", "\u200b", " ", "\u2011"], 6, ""),
+    "caracteres_rfc_et_delimiteurs": (["a", "&", "/", "*", "=", "@", "x.ca", "<", ":", " "], 6, ""),
 }
 # Courriel d'un résumé : `\w` (lettres accentuées, chiffres, soulignement) et l'apostrophe devant le « @ ».
 JETONS_COURRIEL_RESUME = {
@@ -133,17 +200,17 @@ def _suites(jetons: list[str], longueur_max: int, prefixe: str):
 
 
 @pytest.mark.parametrize("jeu", JETONS_COURRIEL_CLIENT)
-def test_le_courriel_du_client_donne_le_meme_texte_que_l_ancien_motif_sur_toutes_les_suites_de_jetons(jeu):
+def test_le_courriel_du_client_donne_le_texte_de_la_reference_sur_toutes_les_suites_de_jetons(jeu):
     ecarts = []
     total = trouves = 0
     for texte in _suites(*JETONS_COURRIEL_CLIENT[jeu]):
-        avant, apres = _courriel_avant(texte), _courriel_apres(texte)
+        attendu, lu = _courriel_de_reference(texte), _courriel_apres(texte)
         total += 1
-        trouves += avant is not None
-        if avant != apres:
-            ecarts.append((texte, avant, apres))
+        trouves += attendu is not None
+        if attendu != lu:
+            ecarts.append((texte, attendu, lu))
     assert not ecarts[:5], f"{len(ecarts)} écarts sur {total} textes, dont {ecarts[:5]}"
-    assert trouves > 1000, "l'oracle doit trouver assez de courriels pour que la comparaison prouve quelque chose"
+    assert trouves > 1000, "la référence doit trouver assez de courriels pour que la comparaison prouve quelque chose"
 
 
 @pytest.mark.parametrize("jeu", JETONS_COURRIEL_RESUME)
@@ -175,11 +242,12 @@ def test_le_prix_d_un_chiffrage_donne_le_meme_verdict_que_l_ancien_motif_sur_tou
 
 
 def _ecarts_des_trois_motifs(textes) -> tuple[list[tuple[str, str]], int]:
-    """Les textes où un motif d'avant et le motif de M1 divergent, et combien de textes l'oracle a trouvés."""
+    """Les textes où M1 s'écarte de son oracle (la référence pour le courriel du client, le motif d'avant pour les deux
+    autres), et combien de textes les oracles ont trouvés."""
     ecarts = []
     positifs = 0
     for texte in textes:
-        client, resume, prix = _courriel_avant(texte), _coordonnee_avant(texte), _prix_avant(texte)
+        client, resume, prix = _courriel_de_reference(texte), _coordonnee_avant(texte), _prix_avant(texte)
         positifs += (client is not None) + resume + prix
         if client != _courriel_apres(texte):
             ecarts.append(("courriel du client", texte))
@@ -191,10 +259,11 @@ def _ecarts_des_trois_motifs(textes) -> tuple[list[tuple[str, str]], int]:
 
 
 LOCAUX = ["a", "A", "1", "_", ".", "-", "+", "%", "'", "a.b", "a..b", "-a", "é", "éa", "a.é", "andré.tremblay", "٣",
-          "a b"]
+          "a b", "d'arcy", "o\u2019neil", "andre\u0301", "q\u0301a", "jean&marie", "l\u00b7l"]
 DOMAINES = ["x.ca", "a.b.cc", "a.c", "a", "-a.ca", "a-.ca", "a..ca", ".ca", "a.CA", "a_b.ca", "é.ca", "a.cé", "a.ca1",
             "a.ca_", "a.ca-", "x.ca.", "x.ca.com", "٣.ca"]
-AVANT_COURRIEL = ["", " ", "(", "é", "_", "mailto:", "<", "a.", "-", ".", "'", NBSP, "a@", "é."]
+AVANT_COURRIEL = ["", " ", "(", "é", "_", "mailto:", "<", "a.", "-", ".", "'", NBSP, "a@", "é.", "\u2019", "&", "/",
+                  "=", "*", "\u0301", "\u200b", "\u00b7", "«", "\U0001F4E7", "\u2011", "e\u0301"]
 APRES_COURRIEL = ["", " ", ".", "é", "x", ")", "@a.bc", "1", "_", "-", ".ca"]
 
 NOMBRES = ["1", "12500", "12 500", "12" + NBSP + "500", "12" + NNBSP + "500", "9 999,99", "٣٤٥", "１２３", "1  500",
@@ -287,7 +356,8 @@ FRAGMENTS_AU_HASARD = [
     "(", ")", ",", "ca", "co.uk", "5 000 $", "12 500 $", "9 999,99 €", "500 dollars", "CAD 12", "à partir de 500",
     "fourchette 8-12", "fourchette 8 - 12", "fourchette 1..2-3", "50/m²", "50 / h", "12/pi2", "$ 5", "€5",
     "12" + NBSP + "500 $", "1" + NNBSP + "000 €", "dollars", "euros", "cad", "fourchette", "à partir de", "5", "12",
-    "1,5", "2.5", "0", "٣٤٥", "１２３", "x", "a", "Le prix est",
+    "1,5", "2.5", "0", "٣٤٥", "１２３", "x", "a", "Le prix est", "\u2019", "\u0301", "e\u0301", "&", "/", "*", "=",
+    "\u200b", "\u00b7", "o\u2019neil@exemple.ca", "d'arcy@exemple.ca", "josé.tremblay@exemple.ca", "«", "»",
 ]
 
 
@@ -302,62 +372,101 @@ def test_les_motifs_donnent_les_memes_verdicts_que_l_ancienne_ecriture_sur_des_t
 # ----------------------------------------------------------------------------------------------------------------------
 # 1. Le sens, en cas nommés
 # ----------------------------------------------------------------------------------------------------------------------
-COURRIELS_DU_CLIENT_LUS = [
-    ("Mon courriel : jean.tremblay@exemple-fictif.ca, merci", "jean.tremblay@exemple-fictif.ca"),
-    ("jean@exemple.ca", "jean@exemple.ca"),
-    ("JEAN_T+promo%2@Exemple.CA", "JEAN_T+promo%2@Exemple.CA"),
-    ("écrivez à a.b-c@d-e.f.gh.", "a.b-c@d-e.f.gh"),
-    ("<jean@exemple.ca>", "jean@exemple.ca"),
-    ("mailto:jean@exemple.ca", "jean@exemple.ca"),
-    ("premier a@b.cd, second e@f.gh", "a@b.cd"),  # le premier courriel
-    ("a..b@exemple.ca", "a..b@exemple.ca"),
-    ("x@y.co.uk", "x@y.co.uk"),
-    ("x@y.ca.", "x@y.ca"),  # le point final n'en fait pas partie
-    ("-abc@exemple.ca", "abc@exemple.ca"),  # la lecture part de la première frontière de mot de la suite
-    (".abc@exemple.ca", "abc@exemple.ca"),
-    ("+1.514@exemple.ca", "1.514@exemple.ca"),
-    ("a b@exemple.ca", "b@exemple.ca"),
-    # Limites de l'ancien motif, gardées telles quelles (les changer est une décision, pas un durcissement) :
-    ("andré.tremblay@exemple.ca", ".tremblay@exemple.ca"),  # la suite qui suit une lettre accentuée part de son point
-    ("José.Tremblay@exemple.ca", ".Tremblay@exemple.ca"),
-    ("éa.b@exemple.ca", ".b@exemple.ca"),
-    ("premier: françois@exemple.ca, second: jean@exemple.ca", "jean@exemple.ca"),
+# (texte du client, courriel que l'ancien motif lisait, courriel que M1 lit maintenant). L'ancien est vérifié sur sa
+# copie : la table dit ce que T4.17-g2 a changé, et seulement cela.
+COURRIELS_DU_CLIENT = [
+    ("Mon courriel : jean.tremblay@exemple-fictif.ca, merci", "jean.tremblay@exemple-fictif.ca",
+     "jean.tremblay@exemple-fictif.ca"),
+    ("jean@exemple.ca", "jean@exemple.ca", "jean@exemple.ca"),
+    ("JEAN_T+promo%2@Exemple.CA", "JEAN_T+promo%2@Exemple.CA", "JEAN_T+promo%2@Exemple.CA"),
+    ("écrivez à a.b-c@d-e.f.gh.", "a.b-c@d-e.f.gh", "a.b-c@d-e.f.gh"),
+    ("<jean@exemple.ca>", "jean@exemple.ca", "jean@exemple.ca"),
+    ("mailto:jean@exemple.ca", "jean@exemple.ca", "jean@exemple.ca"),
+    ("premier a@b.cd, second e@f.gh", "a@b.cd", "a@b.cd"),  # le premier courriel
+    ("a..b@exemple.ca", "a..b@exemple.ca", "a..b@exemple.ca"),
+    ("x@y.co.uk", "x@y.co.uk", "x@y.co.uk"),
+    ("x@y.ca.", "x@y.ca", "x@y.ca"),  # le point final n'en fait pas partie
+    ("-abc@exemple.ca", "abc@exemple.ca", "abc@exemple.ca"),  # les signes qui ouvrent la suite sont sautés
+    (".abc@exemple.ca", "abc@exemple.ca", "abc@exemple.ca"),
+    ("+1.514@exemple.ca", "1.514@exemple.ca", "1.514@exemple.ca"),
+    ("a b@exemple.ca", "b@exemple.ca", "b@exemple.ca"),
+    ("«jean@exemple.ca»", "jean@exemple.ca", "jean@exemple.ca"),
+    ("(jean@exemple.ca)", "jean@exemple.ca", "jean@exemple.ca"),
+    ("\U0001F4E7jean@exemple.ca", "jean@exemple.ca", "jean@exemple.ca"),
+    ("", None, None),
+    ("aucun courriel ici", None, None),
+    ("jean@", None, None),
+    ("@exemple.ca", None, None),
+    ("jean@exemple", None, None),
+    ("jean@exemple.c", None, None),
+    ("jean @exemple.ca", None, None),
+    ("jean@ exemple.ca", None, None),
+    ("jean@.ca", None, None),
+    ("jean@exemple.ca1", None, None),  # la fin du domaine doit finir le mot
+    ("jean@exemple.ca_", None, None),
+    ("jean@exemple.caé", None, None),
+    ("jean@exemple_fictif.ca", None, None),  # le soulignement n'est pas permis dans le domaine
+    ("jean@café.ca", None, None),  # un domaine accentué ne donne rien, jamais « jean@caf… »
+    # T4.17-g2 : la partie locale se lit en entier, lettres accentuées comprises ; l'ancien motif la tronquait.
+    ("andré.tremblay@exemple.ca", ".tremblay@exemple.ca", "andré.tremblay@exemple.ca"),
+    ("josé.tremblay@exemple.ca", ".tremblay@exemple.ca", "josé.tremblay@exemple.ca"),  # le même, avant : un client
+    ("José.Tremblay@exemple.ca", ".Tremblay@exemple.ca", "José.Tremblay@exemple.ca"),
+    ("éa.b@exemple.ca", ".b@exemple.ca", "éa.b@exemple.ca"),
+    ("frédéric-tremblay@exemple.ca", "-tremblay@exemple.ca", "frédéric-tremblay@exemple.ca"),
+    ("d'Arcy@exemple.ca", "Arcy@exemple.ca", "d'Arcy@exemple.ca"),
+    ("premier: françois@exemple.ca, second: jean@exemple.ca", "jean@exemple.ca", "françois@exemple.ca"),
+    ("françois@exemple.ca", None, "françois@exemple.ca"),
+    ("éric@exemple.ca", None, "éric@exemple.ca"),
+    ("a.é@exemple.ca", None, "a.é@exemple.ca"),
+    ("ça@exemple.ca", None, "ça@exemple.ca"),
+    ("٣@exemple.ca", None, "٣@exemple.ca"),
+    # Un accent tapé en deux caractères (NFD) : la même adresse, donc le même client, que l'accent composé.
+    ("andre\u0301.tremblay@exemple.ca", "tremblay@exemple.ca", "andré.tremblay@exemple.ca"),
+    ("rene\u0301@exemple.ca", None, "rené@exemple.ca"),
+    # T4.17-g2 : ce qui peut prolonger un mot ou une adresse interdit le départ ; rien plutôt que la fin d'une adresse.
+    ("o\u2019neil@exemple.ca", "neil@exemple.ca", None),  # apostrophe typographique
+    ("jean&marie@exemple.ca", "marie@exemple.ca", None),  # caractère permis par la RFC 5322
+    ("a/jean@exemple.ca", "jean@exemple.ca", None),
+    ("courriel=jean@exemple.ca", "jean@exemple.ca", None),
+    ("*jean@exemple.ca*", "jean@exemple.ca", None),
+    ("a@jean@exemple.ca", "jean@exemple.ca", None),
+    ("q\u0301a@exemple.ca", "a@exemple.ca", None),  # accent combinant sans forme composée
+    ("jean\u2011tremblay@exemple.ca", "tremblay@exemple.ca", None),  # trait d'union insécable
+    ("jean\u00adtremblay@exemple.ca", "tremblay@exemple.ca", None),  # trait d'union conditionnel
+    ("col\u00b7legi@exemple.ca", "legi@exemple.ca", None),  # point médian
+    ("\u200bjean@exemple.ca", "jean@exemple.ca", None),  # caractère de format devant l'adresse
+    ("jean\u2010tremblay@exemple.ca", "tremblay@exemple.ca", None),  # trait d'union Unicode
+    ("jean\uff3ftremblay@exemple.ca", "tremblay@exemple.ca", None),  # liaison (soulignement pleine chasse)
+    ("o\u2019neil@exemple.ca ou jean@exemple.ca", "neil@exemple.ca", "jean@exemple.ca"),  # le suivant reste lu
 ]
 
-COURRIELS_DU_CLIENT_NON_LUS = [
-    "",
-    "aucun courriel ici",
-    "jean@",
-    "@exemple.ca",
-    "jean@exemple",
-    "jean@exemple.c",
-    "jean @exemple.ca",
-    "jean@ exemple.ca",
-    "jean@.ca",
-    "jean@exemple.ca1",  # la fin du domaine doit finir le mot
-    "jean@exemple.ca_",
-    "jean@exemple.caé",
-    "jean@exemple_fictif.ca",  # le soulignement n'est pas permis dans le domaine
-    "françois@exemple.ca",  # l'ancien motif ne lit pas une partie locale qui suit une lettre accentuée
-    "éric@exemple.ca",
-    "a.é@exemple.ca",
-    "ça@exemple.ca",
-    "٣@exemple.ca",
-]
+
+@pytest.mark.parametrize(("texte", "avant", "maintenant"), COURRIELS_DU_CLIENT)
+def test_le_courriel_du_client_se_lit_en_entier_ou_pas_du_tout(texte, avant, maintenant):
+    assert _courriel_avant(texte) == avant, "l'ancien motif (recopié) lisait ce courriel"
+    assert _courriel_de_reference(texte) == maintenant
+    assert _courriel_apres(texte) == maintenant
+    assert qualification.contact_du_texte(texte) == (None if maintenant is None else {"courriel": maintenant})
 
 
-@pytest.mark.parametrize(("texte", "courriel"), COURRIELS_DU_CLIENT_LUS)
-def test_un_courriel_du_client_est_lu_comme_avant(texte, courriel):
-    avant = EMAIL_AVANT.search(texte)
-    assert avant is not None and avant.group(0) == courriel, "l'oracle (l'ancien motif) lisait ce courriel"
-    assert _contact_apres(texte) == courriel
-    assert qualification.contact_du_texte(texte) == {"courriel": courriel}
+@pytest.mark.parametrize("signe", sorted(_AUTRES_CARACTERES_RFC + "@"))
+def test_un_caractere_permis_dans_une_adresse_devant_la_suite_ne_laisse_rien_lire(signe):
+    """« a&jean@x.ca » est peut-être une adresse entière : l'ancien motif en lisait la fin, M1 ne lit rien."""
+    texte = f"a{signe}jean@exemple.ca"
+    assert _courriel_avant(texte) == "jean@exemple.ca"
+    assert _courriel_de_reference(texte) is None
+    assert _courriel_apres(texte) is None
 
 
-@pytest.mark.parametrize("texte", COURRIELS_DU_CLIENT_NON_LUS)
-def test_ce_que_le_courriel_du_client_ne_lisait_pas_n_est_toujours_pas_lu(texte):
-    assert EMAIL_AVANT.search(texte) is None, "l'oracle (l'ancien motif) ne lisait pas ce texte"
-    assert qualification.contact_du_texte(texte) is None
+def test_deux_clients_dont_l_adresse_differe_par_le_prenom_restent_deux_contacts():
+    """Le cas qui a ouvert T4.17-g2 : l'ancien motif lisait « .tremblay@exemple.ca » dans les deux textes."""
+    andre = qualification.contact_du_texte("andré.tremblay@exemple.ca")
+    jose = qualification.contact_du_texte("josé.tremblay@exemple.ca")
+    assert andre == {"courriel": "andré.tremblay@exemple.ca"}
+    assert jose == {"courriel": "josé.tremblay@exemple.ca"}
+    assert andre != jose
+    # Composé ou tapé en deux caractères, le même accent donne le même contact.
+    assert qualification.contact_du_texte("andre\u0301.tremblay@exemple.ca") == andre
 
 
 def test_le_courriel_et_le_telephone_du_client_se_lisent_ensemble_comme_avant():
@@ -609,6 +718,14 @@ TEXTES_HOSTILES_COURRIEL = {
     "lettres_puis_courriel": (lambda n: "a" * n + COURRIEL_AU_BOUT, lambda n: "a" * n + COURRIEL_AU_BOUT),
     "tirets_puis_courriel": (lambda n: "-" * n + "a" + COURRIEL_AU_BOUT, lambda n: "a" + COURRIEL_AU_BOUT),
     "espaces_puis_courriel": (lambda n: " " * n + "a" + COURRIEL_AU_BOUT, lambda n: "a" + COURRIEL_AU_BOUT),
+    # T4.17-g2 : la partie locale se lit en entier, ou rien n'est lu.
+    "accentuees_puis_courriel": (lambda n: "é" * n + COURRIEL_AU_BOUT, lambda n: "é" * n + COURRIEL_AU_BOUT),
+    "accents_combinants_puis_courriel": (
+        lambda n: "e\u0301" * (n // 2) + COURRIEL_AU_BOUT, lambda n: "é" * (n // 2) + COURRIEL_AU_BOUT),
+    "accents_sans_forme_composee": (lambda n: "q\u0301" * (n // 2) + "q" + COURRIEL_AU_BOUT, None),
+    "apostrophes_typographiques": (lambda n: "a\u2019" * (n // 2) + "a" + COURRIEL_AU_BOUT, None),
+    "caracteres_rfc": (lambda n: "a/" * (n // 2) + "a" + COURRIEL_AU_BOUT, None),
+    "courriels_refuses": (lambda n: "a\u2019b@x.ca " * (n // 10), None),
 }
 
 
@@ -621,11 +738,20 @@ def _courriel_attendu(nom: str, taille: int) -> str | None:
 def test_le_courriel_du_client_reste_lineaire_sur_un_texte_hostile(nom):
     fabrique = TEXTES_HOSTILES_COURRIEL[nom][0]
     assert _contact_apres(fabrique(PETIT)) == _courriel_attendu(nom, PETIT)
-    _lineaire(lambda texte: qualification._EMAIL_REGEX.search(texte), fabrique)
+    _lineaire(qualification._courriel_du_texte, fabrique)
 
 
 # Le courriel d'un résumé n'exige pas une fin de mot : une suite de lettres suivie d'un « 1 » finit un domaine valide.
-COORDONNEE_A_PART = {"arobase_puis_domaine_sans_fin": True}
+# Il ne regarde pas non plus ce qui précède : là où le courriel du client ne lit rien plutôt qu'une adresse tronquée, le
+# garde-fou du résumé refuse. Il lit le texte tel quel : un accent combinant juste devant le « @ » le cache (T4.17-g3).
+COORDONNEE_A_PART = {
+    "arobase_puis_domaine_sans_fin": True,
+    "accents_combinants_puis_courriel": False,
+    "accents_sans_forme_composee": True,
+    "apostrophes_typographiques": True,
+    "caracteres_rfc": True,
+    "courriels_refuses": True,
+}
 
 
 @pytest.mark.parametrize("nom", TEXTES_HOSTILES_COURRIEL)
@@ -698,7 +824,8 @@ def test_le_prix_d_un_chiffrage_reste_lineaire_sur_un_texte_hostile(nom):
 # ----------------------------------------------------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "nom", ["points", "tirets", "lettres", "tous_les_caracteres_d_une_partie_locale", "points_arobase_points",
-            "arobase_puis_points", "accentuee_puis_points", "espaces", "points_puis_courriel"])
+            "arobase_puis_points", "accentuee_puis_points", "espaces", "points_puis_courriel",
+            "accentuees_puis_courriel", "accents_combinants_puis_courriel", "apostrophes_typographiques"])
 def test_le_contact_du_texte_d_un_client_se_lit_en_temps_lineaire(nom):
     fabrique = TEXTES_HOSTILES_COURRIEL[nom][0]
     assert _contact_apres(fabrique(PETIT)) == _courriel_attendu(nom, PETIT)

@@ -43,23 +43,48 @@ _PHONE_REGEX = re.compile(
     re.VERBOSE
 )
 
-# Temps linéaire (PLAN T4.17-g). Le texte du client n'a pas de plafond ici, et l'ancien motif
-# `\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b` repartait de chaque « \b » d'une même suite (un point ou un
-# tiret en ouvre un) en relisant la suite jusqu'au bout : 20 000 caractères « a. » coûtaient 0,5 s de calcul, 100 000 en
-# coûtaient 11. Ici la suite de caractères permis se lit d'un seul départ, sans retour arrière. Même sens que l'ancien
-# motif, cas limites compris :
-#   - le départ est le début de la suite (rien de permis devant), jamais un de ses caractères ;
-#   - on saute ensuite jusqu'à la première frontière de mot de la suite, là où l'ancien motif aurait commencé (derrière
-#     une lettre accentuée, « andré.tremblay@x.ca » donne « .tremblay@x.ca » comme avant, et « françois@x.ca » n'est
-#     pas reconnu : limites de l'ancien motif, gardées telles quelles) ;
-#   - le courriel est le groupe `courriel`, l'ancien motif dont la partie locale ne revient pas en arrière : le saut
-#     n'en fait pas partie.
-# `tests/test_motifs_lineaires.py` compare ce motif à l'ancien (recopié) et mesure des textes de 20 000 et de 100 000
-# caractères.
+# Le courriel écrit par le client (PLAN T4.17-g2) : lu en entier, ou pas du tout. Un courriel tronqué est pire
+# qu'aucun : M2 tire le `client_id` du contact, et « .tremblay@x.ca », lu autrefois dans « andré.tremblay@x.ca » comme
+# dans « josé.tremblay@x.ca », aurait fait de deux personnes un seul client. Sans courriel, le rejet dit de redemander
+# le contact. Les règles :
+#   - la partie locale se lit jusqu'au « @ », lettres accentuées comprises (`\w` Unicode, `.`, `%`, `+`, `'`, `-`) ;
+#   - elle ne commence jamais juste après un caractère qui peut faire partie d'un mot ou d'une adresse : une lettre, un
+#     chiffre, `_`, `.`, `%`, `+`, `'`, `-`, `@`, les autres caractères permis par la RFC 5322 (`!#$&*/=?^`{|}~`),
+#     ni (`_dans_un_mot`) un accent combinant, un caractère de format, l'apostrophe typographique, le point médian ou
+#     un trait d'union Unicode : « o’neil@x.ca » et « jean&marie@x.ca » ne donnent rien, jamais « neil@x.ca » ni
+#     « marie@x.ca » ;
+#   - les signes qui ouvrent la suite (`.`, `%`, `+`, `'`, `-`) sont sautés : « -abc@x.ca » donne « abc@x.ca » ;
+#   - le domaine reste en ASCII et finit le mot : un domaine accentué ne donne rien ;
+#   - le texte est d'abord mis en forme composée (NFC) : un accent tapé en deux caractères donne la même adresse, donc
+#     le même client.
+# Temps linéaire (PLAN T4.17-g) : un départ n'a lieu qu'au début d'une suite, jamais en son milieu, et la suite se lit
+# d'un seul départ, sans retour arrière ; un candidat refusé est sauté en entier. `tests/test_motifs_lineaires.py`
+# compare la lecture à une référence écrite lettre à lettre et mesure des textes de 20 000 et de 100 000 caractères.
 _EMAIL_REGEX = re.compile(
-    r"(?<![A-Za-z0-9._%+-])(?:(?!\b)[A-Za-z0-9._%+-])*+"
-    r"(?P<courriel>\b[A-Za-z0-9._%+-]++@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b)"
+    r"(?<![\w.%+'!#$&*/=?^`{|}~@-])[.%+'-]*+"
+    r"(?P<courriel>(?=\w)[\w.%+'-]++@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b)"
 )
+# Hors de `\w`, ce qui peut encore faire partie d'un mot : trait d'union et trait d'union insécable Unicode,
+# apostrophe typographique, point médian (les accents combinants et les caractères de format sont lus par catégorie).
+_AUSSI_DANS_UN_MOT = "\u2010\u2011\u2019\u00b7"
+
+
+def _dans_un_mot(caractere: str) -> bool:
+    """Vrai si `caractere` peut faire partie d'un mot : lettre, chiffre, marque (accent combinant), `_` et autres
+    liaisons, caractère de format (trait d'union conditionnel, liant sans chasse) ou `_AUSSI_DANS_UN_MOT`."""
+    categorie = unicodedata.category(caractere)
+    return categorie[0] in "LMN" or categorie in ("Pc", "Cf") or caractere in _AUSSI_DANS_UN_MOT
+
+
+def _courriel_du_texte(contenu: str) -> str | None:
+    """Le premier courriel que le client a écrit, lu en entier (forme NFC), ou `None` (voir `_EMAIL_REGEX`)."""
+    texte = unicodedata.normalize("NFC", contenu)
+    for trouve in _EMAIL_REGEX.finditer(texte):
+        debut = trouve.start()
+        if debut and _dans_un_mot(texte[debut - 1]):
+            continue  # la fin d'un mot ou d'une adresse plus longue : jamais un courriel tronqué
+        return trouve.group("courriel")
+    return None
 
 
 def _rejet(detail: str | None = None, champs_manquants: list[str] | None = None):
@@ -221,9 +246,9 @@ def _extraire_contact(contenu: str) -> dict | None:
     phone_match = _PHONE_REGEX.search(contenu)
     if phone_match:
         contact["telephone"] = phone_match.group().strip()
-    email_match = _EMAIL_REGEX.search(contenu)
-    if email_match:
-        contact["courriel"] = email_match.group("courriel").strip()
+    courriel = _courriel_du_texte(contenu)
+    if courriel:
+        contact["courriel"] = courriel
     return contact if contact else None
 
 
