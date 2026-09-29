@@ -78,6 +78,28 @@ le stock bas. Limites : pas de réservation par chantier (M6.8) ni d'emplacement
 non « disponible » ; le digest quotidien et `m6_receptionner_commande` gardent leurs seuils fournis par
 l'appelant ; aucun événement de besoin de commande vers M8/M9 encore.
 
+PLAN T4.15 — pont finance vers M5 (M6.16) : `m6_receptionner_commande`, pour un bon de commande PERSISTÉ, publie
+`m6.reception_enregistree` dans la MÊME transaction que le stock et la transition du PO (`evenement_reception.py`
+construit la charge, `outils._publier_reception` la publie ; type au catalogue du socle, schéma fermé). Elle dit à
+M5 ce qui est arrivé CETTE fois-là (quantités commandées et reçues, prix unitaire du PO, prix résolu à la réception,
+écart de prix au-delà du seuil configuré), en texte décimal exact (`Decimal(str(x))`, jamais un float ni la
+notation scientifique) ; elle ne porte aucun montant, aucun total, aucune taxe : M5 est la source de vérité de
+l'argent. Identifiant déterministe `m6-reception-<po_id>-<16 premiers caractères du hash du dernier mouvement de
+stock>` : deux livraisons du même PO, deux événements ; rejouer la même réception, un no-op du bus. Rien n'est
+publié pour une réception « éphémère » (aucun PO persisté : pas de fournisseur, M5 n'aurait personne à qui devoir)
+ni pour une réception qui n'apparie aucune ligne. Refus AVANT toute écriture, pour un PO persisté : une quantité
+reçue négative ou non finie (`REJ-RECEPTION-QUANTITE-INVALIDE` ; zéro reste permis : ligne pas encore livrée) et un
+horodatage sans fuseau (`REJ-RECEPTION-HORODATAGE-INVALIDE`). Si la publication échoue, la réception entière est
+annulée (stock, PO, événement). M6 ne paie jamais.
+Limites connues : (1) l'unité des prix est une question ouverte (GATE NATHAN) : le livre de prix ne déclare pas
+l'unité d'un prix unitaire et le PO n'en déclare pas pour une quantité ; M6 ne convertit rien et n'invente aucune
+unité, et le dit dans le schéma (M5 le dit dans chacun de ses verdicts) ; (2) `reception.py` compare CHAQUE livraison
+à la commande entière : une livraison qui complète un PO déjà partiel reste `RECEPTION_INFERIEURE` (le PO ne passe
+à `received` que si une seule livraison couvre tout) ; M5 cumule les livraisons de son côté, sans dépendre de ce
+statut ; (3) les quantités et les prix restent des `float` dans les registres de M6 (contrat gelé) : la conversion
+en texte est la frontière ; (4) la validation des quantités reçues ne vaut que pour un PO persisté, la réception
+éphémère garde son comportement d'avant.
+
 Bugs corrigés (test rouge → vert) lors de cette passe :
 - `materiel.py` n'exposait que `consommer_materiaux`. `enregistrer_reception`
   et `soumettre_comptage`, prescrits par `docs/bmad/03-ARCHITECTURE.md`

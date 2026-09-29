@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m6.reception_enregistree",
+  "title": "M6 — Réception d'un bon de commande enregistrée (ce que M5 doit attendre de payer)",
+  "description": "Émis par M6 (departments/m06-material-control/src/m6_material_control/outils.py::receptionner_commande, PLAN T4.15, DEFINITION-PRODUIT M6.16 « pont finance vers M5 ») chaque fois qu'une réception est écrite au stock pour un bon de commande (PO) PERSISTÉ, dans la MÊME transaction que la réception : le stock, la transition du PO et l'événement réussissent ou échouent ensemble. Jamais pour une réception dont aucune ligne ne s'apparie au PO (rien n'est écrit au stock non plus), jamais pour une réception « éphémère » (un bon_demande qui ne référence aucun PO persisté : sans fournisseur, M5 n'aurait personne à qui devoir). Une réception PARTIELLE publie ce qui est arrivé cette fois-là, jamais le cumul : `quantite_recue` est la livraison, `quantite_demandee` la commande ; M5 cumule les livraisons d'un même PO. evenement_id déterministe f\"m6-reception-{po_id}-{16 premiers caractères de hash_maillon}\" : `hash_maillon` est celui du dernier mouvement de stock de CETTE réception (registre hash-chaîné de M6), donc deux livraisons d'un même PO ont deux identifiants distincts et republier la même réception est un no-op du bus. Consommé par M5 (comptes à payer : « à payer attendu » par PO reçu, rapprochement PO, réception et facture). M6 ne paie jamais et ne calcule aucun montant : le schéma ne porte que des quantités et des prix unitaires (textes décimaux, jamais un nombre JSON), M5 en tire les montants et les taxes. UNITÉ DES PRIX : le livre de prix de M6 ne déclare pas l'unité dans laquelle un prix unitaire est exprimé (GATE NATHAN, PLAN T4.15) ; M6 ne convertit rien et n'invente aucune unité — quiconque multiplie une quantité par un prix unitaire ici suppose un prix par unité de la quantité, et doit le dire (M5 le dit dans chacun de ses verdicts). Toutes les propriétés sont REQUISES même quand leur valeur est nulle : un consommateur ne doit jamais deviner qu'un champ absent équivaut à null.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "evenement_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifiant de CET événement (voir la description du type). Répété ici pour que le consommateur, qui ne reçoit que la charge, trace la base de sa décision."
+    },
+    "po_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Bon de commande PERSISTÉ de M6 (m6_creer_po_brouillon) réceptionné."
+    },
+    "fournisseur_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Fournisseur du PO (registre des fournisseurs de M6) : à qui l'entreprise devra de l'argent pour ce qui a été reçu."
+    },
+    "chantier_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Chantier du PO."
+    },
+    "horodatage_reception": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$",
+      "description": "Horodatage RFC 3339 avec fuseau de la réception, repris tel quel de `reception_po.horodatage` : M6 n'a pas d'horloge, l'événement ne date donc jamais de l'instant de publication."
+    },
+    "verdict_reception": {
+      "type": "string",
+      "enum": ["CONFORME", "RECEPTION_INFERIEURE", "RECEPTION_SUPERIEURE", "RECEPTION_MIXTE"],
+      "description": "Verdict de reception.py, tel que M6 l'a calculé pour CETTE livraison contre la commande entière. INDETERMINE n'est jamais publié : rien n'est reçu, rien n'est dû."
+    },
+    "statut_po": {
+      "type": "string",
+      "enum": ["received", "partially_received"],
+      "description": "Statut du PO après cette réception (bons_commande.enregistrer_reception_po)."
+    },
+    "hash_maillon": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Empreinte du dernier mouvement de stock de cette réception : lien vers la piste d'audit du stock de M6."
+    },
+    "seuil_ecart_prix_pourcentage": {
+      "type": ["number", "null"],
+      "description": "Seuil réellement utilisé pour `ecart_prix_critique` (department.yaml/configuration.seuil_ecart_prix_reception_pourcentage), tracé même quand il n'y a rien à évaluer ; null seulement si le seuil est absent ou invalide (fail-closed : aucune ligne n'est alors évaluée)."
+    },
+    "lignes": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Une ligne par matériau du PO (toutes les lignes du PO figurent dans chaque réception : reception.py refuse une réception qui en oublie une). Ordre du PO.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "materiau_id": {"type": "string", "minLength": 1},
+          "quantite_demandee": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "maxLength": 40,
+            "description": "Quantité commandée au PO, texte décimal (jamais un nombre JSON). Dans l'unité du matériau, que ni le PO ni le livre de prix ne déclarent."
+          },
+          "quantite_recue": {
+            "type": "string",
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "maxLength": 40,
+            "description": "Quantité arrivée CETTE fois-là, texte décimal, 0 pour une ligne pas encore livrée. Jamais négative : un retour au fournisseur n'est pas une réception."
+          },
+          "prix_unitaire_prevu": {
+            "type": ["string", "null"],
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "maxLength": 40,
+            "description": "Prix unitaire du PO (livre de prix au moment de sa création), texte décimal ; null si le livre n'en avait pas (verdict_prix_po INDETERMINE) — jamais un prix inventé."
+          },
+          "devise_prevue": {
+            "type": ["string", "null"],
+            "description": "Devise du prix du PO telle que le livre de prix la déclare ; null si prix_unitaire_prevu est null."
+          },
+          "verdict_prix_po": {
+            "type": "string",
+            "enum": ["PRIX_LIVRE", "INDETERMINE"],
+            "description": "Le prix du PO vient du livre de prix, ou reste à fournir."
+          },
+          "prix_unitaire_reception": {
+            "type": ["string", "null"],
+            "pattern": "^[0-9]+(\\.[0-9]+)?$",
+            "maxLength": 40,
+            "description": "Prix unitaire résolu à la réception (catalogue fourni à l'appel, sinon dernier prix de réception connu), texte décimal ; null si indéterminé ou illisible."
+          },
+          "verdict_prix_reception": {
+            "type": "string",
+            "enum": ["PRIX_CATALOGUE", "PRIX_HISTORIQUE_FALLBACK", "INDETERMINE"],
+            "description": "D'où vient prix_unitaire_reception (catalogue.py). PRIX_HISTORIQUE_FALLBACK n'est PAS un prix constaté chez le fournisseur : c'est le dernier prix vu au stock."
+          },
+          "ecart_prix_critique": {
+            "type": ["boolean", "null"],
+            "description": "true si le prix de réception s'écarte du prix du PO d'au moins seuil_ecart_prix_pourcentage (bons_commande.detecter_ecarts_prix, valeur absolue) ; false s'il ne s'écarte pas ; null si le seuil est absent ou si l'un des deux prix manque (jamais un booléen inventé)."
+          }
+        },
+        "required": [
+          "materiau_id",
+          "quantite_demandee",
+          "quantite_recue",
+          "prix_unitaire_prevu",
+          "devise_prevue",
+          "verdict_prix_po",
+          "prix_unitaire_reception",
+          "verdict_prix_reception",
+          "ecart_prix_critique"
+        ]
+      }
+    }
+  },
+  "required": [
+    "evenement_id",
+    "po_id",
+    "fournisseur_id",
+    "chantier_id",
+    "horodatage_reception",
+    "verdict_reception",
+    "statut_po",
+    "hash_maillon",
+    "seuil_ecart_prix_pourcentage",
+    "lignes"
+  ]
+}

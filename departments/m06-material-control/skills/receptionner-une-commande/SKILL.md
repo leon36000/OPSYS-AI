@@ -16,8 +16,14 @@ description: Procédure pour enregistrer la réception physique d'un bon de comm
 3. Lis `accuse_reception.verdict_reception` : `CONFORME`, `RECEPTION_INFERIEURE`,
    `RECEPTION_SUPERIEURE` ou `RECEPTION_MIXTE` — présente-le tel quel, sans
    l'arrondir à un seul mot.
-4. Si `signal_po_a_payer` n'est pas nul, transmets-le à M5 tel quel : c'est M5 qui
-   décide et exécute le règlement, jamais toi.
+4. Pour un bon de commande enregistré (`m6_creer_po_brouillon`), la réception publie
+   d'elle-même `m6.reception_enregistree` (`evenement_reception_id` dans la réponse) : c'est
+   ainsi que M5 apprend ce qu'il doit attendre de payer. Tu ne transmets rien à la main. Une
+   quantité reçue négative ou un horodatage sans fuseau est refusé avant d'écrire : corrige-le,
+   ne le contourne pas. Zéro est permis pour une ligne pas encore livrée. Si `signal_po_a_payer`
+   n'est pas nul, il reste une information : c'est M5 qui tient les comptes à payer et qui
+   décide, jamais toi. Aucune unité de prix n'est convertie : ne présente jamais un montant
+   comme certain.
 5. Si `signaux_reorder` contient des entrées, présente-les comme des suggestions —
    jamais comme une commande déjà passée.
 6. Conserve `registre_historique` renvoyé pour le prochain appel sur ce même

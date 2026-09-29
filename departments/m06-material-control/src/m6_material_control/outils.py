@@ -50,6 +50,14 @@ touché (`_constater_stock_des_articles`, règle écrite dans `reapprovisionneme
 par article dans `department.yaml/configuration`) : un besoin de commande si le stock est sous le seuil, un
 signal « seuil non configuré » si l'article n'a pas de paramètres utilisables — jamais un seuil deviné, jamais
 un bon de commande créé seul. `attentes()` rend l'état COURANT de ces constats à la file de l'admin.
+
+PLAN T4.15 (M6.16, pont finance vers M5) : `receptionner_commande`, pour un PO PERSISTÉ, publie
+`m6.reception_enregistree` dans la MÊME transaction que le stock et la transition du PO
+(`evenement_reception.py` construit la charge ; ici, la publication, seule). Une réception qui n'apparie aucune
+ligne, ou qui ne se rattache à aucun PO persisté (pas de fournisseur : M5 n'aurait personne à qui devoir), ne
+publie rien. Une quantité reçue négative ou non finie, ou un horodatage sans fuseau, est refusé AVANT toute
+écriture (`evenement_reception.verifier_reception`) : M5 en tire de l'argent à payer. M6 ne calcule aucun montant
+et ne paie rien ; il ne convertit aucune unité (le livre de prix n'en déclare pas : GATE NATHAN).
 """
 
 from __future__ import annotations
@@ -69,6 +77,7 @@ from . import (
     besoins_prevus,
     bons_commande,
     digest,
+    evenement_reception,
     fournisseurs,
     livre_prix,
     materiel,
@@ -667,7 +676,12 @@ def receptionner_commande(
     (REJ-PO-TRANSITION-ILLEGALE), PUIS écrit la réception (comme avant) et enfin transitionne le
     PO (`partially_received`/`received` selon le verdict déjà calculé — jamais recalculé) et
     signale tout écart de prix au-delà du seuil configuré (M6.7), vers M5 et M8 (signal retourné,
-    jamais transmis directement — même politique que `signal_po_a_payer`)."""
+    jamais transmis directement — même politique que `signal_po_a_payer`).
+
+    PLAN T4.15 : pour un PO persisté, dans une transaction, publie en plus `m6.reception_enregistree`
+    (`evenement_reception_id` dans la réponse) : c'est ainsi que M5 apprend ce que l'entreprise devra au
+    fournisseur pour ce qui vient d'arriver. Quantité reçue négative ou non finie, horodatage sans fuseau :
+    refus nommé, avant toute écriture."""
     bons_registre = _bons_commande_de_l_appel(bons_commande_historique)
     po_id = bon_demande.get("po_id") if isinstance(bon_demande, dict) else None
     po_existant = bons_commande.lire(bons_registre, po_id) if po_id else None
@@ -676,6 +690,11 @@ def receptionner_commande(
             return {"accepte": False, "verdict": {"code": "REJ-PO-BON-DEMANDE-INCOHERENT"}}
         if not bons_commande.peut_recevoir(po_existant["statut"]):
             return {"accepte": False, "verdict": {"code": "REJ-PO-TRANSITION-ILLEGALE"}}
+        # T4.15 : la réception d'un PO persisté devient de l'argent à payer chez M5. Ce qui ne peut pas être
+        # publié est refusé ICI, avant toute écriture au stock : après, il faudrait défaire ce qui est écrit.
+        verdict_publiable = evenement_reception.verifier_reception(reception_po)
+        if verdict_publiable is not None:
+            return {"accepte": False, "verdict": verdict_publiable}
 
     registre_cible = _registre_de_l_appel(registre_historique)
     resultat, code = materiel.enregistrer_reception(
@@ -705,7 +724,39 @@ def receptionner_commande(
         )
         if stockage.connexion_courante() is None:
             reponse["bons_commande_historique"] = list(bons_registre)
+        else:
+            reponse["evenement_reception_id"] = _publier_reception(
+                po_maj, resultat["accuse_reception"], reception_po, seuil_ecart_prix, reponse["signaux_ecart_prix"]
+            )
     return reponse
+
+
+def _publier_reception(
+    po: dict[str, Any],
+    accuse_reception: dict[str, Any],
+    reception_po: dict[str, Any],
+    seuil_ecart_prix: float | None,
+    signaux_ecart_prix: list[dict[str, Any]],
+) -> str | None:
+    """Publie `m6.reception_enregistree` pour la réception qui vient d'être écrite, dans la transaction courante
+    (`receptionner_commande`, seul appelant : le stock, la transition du PO et l'événement réussissent ou
+    échouent ensemble). Rend l'`evenement_id`, ou `None` quand il n'y a rien à publier (réception sans ligne
+    appariée : rien n'est écrit au stock non plus).
+
+    LÈVE si la charge ne peut pas être construite, ou si le catalogue du socle la refuse (`ChargeInvalide`,
+    schéma fermé compris) : ce serait un défaut du code, jamais une entrée (`verifier_reception` a déjà refusé
+    les entrées avant d'écrire). Mieux vaut annuler la réception entière que la laisser sans son événement, donc
+    sans son « à payer attendu » chez M5. L'identifiant est déterministe (`evenement_reception.evenement_id`) :
+    publier deux fois la même réception est un no-op du bus."""
+    charge, verdict = evenement_reception.construire_charge(
+        po, accuse_reception, reception_po, seuil_ecart_prix, signaux_ecart_prix
+    )
+    if verdict is not None:
+        raise RuntimeError(f"m6.reception_enregistree : réception déjà écrite mais non publiable : {verdict}")
+    if charge is None:
+        return None
+    evenements.publier(evenement_reception.TYPE_EVENEMENT, _DEPARTEMENT, charge, evenement_id=charge["evenement_id"])
+    return charge["evenement_id"]
 
 
 def consommer_materiaux(
@@ -1052,7 +1103,10 @@ def outils() -> tuple[Outil, ...]:
                 "Si bon_demande.po_id référence un PO persisté (m6_creer_po_brouillon), s'y rattache : "
                 "vérifie que bon_demande correspond exactement au PO, transitionne son statut "
                 "(partially_received/received selon le verdict déjà calculé) et signale tout écart de "
-                "prix au-delà du seuil configuré (M6.7), destiné à M5 et M8."
+                "prix au-delà du seuil configuré (M6.7), destiné à M5 et M8. Pour un PO persisté, publie aussi "
+                "m6.reception_enregistree (ce qui est arrivé cette fois-là, prix unitaires en texte décimal, "
+                "aucun montant calculé) dans la même transaction : M5 en tire son « à payer attendu ». Refuse, "
+                "avant d'écrire, une quantité reçue négative ou non finie et un horodatage sans fuseau."
             ),
             parametres={
                 "type": "object",
