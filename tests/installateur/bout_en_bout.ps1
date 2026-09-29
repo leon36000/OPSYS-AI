@@ -443,7 +443,13 @@ function Confirm-ServiceWindows {
         # schtasks ecrit son XML en UTF-16 : les octets nuls sont retires, comme le fait le core (schtasks-control.ts).
         $xml = (Invoke-Natif { & schtasks.exe /Query /TN $tache /XML }).Sortie.Replace([string][char]0, '')
         $texteTache = $xml
-        if ($xml -notmatch 'LeastPrivilege') { Stop-Preuve "la tache '$tache' ne demande pas le niveau LeastPrivilege : le core exigerait les droits d'administrateur" }
+        # Le Planificateur omet le niveau par defaut (LeastPrivilege) quand il exporte le XML (le core le sait :
+        # service-audit-schtasks.ts) : une absence de <RunLevel> n'est pas un echec, HighestAvailable en est un. Le niveau
+        # effectif est lu en plus par Get-ScheduledTask (Limited = LeastPrivilege) ; illisible, c'est un echec.
+        if ($xml -match '<RunLevel>\s*HighestAvailable\s*</RunLevel>') { Stop-Preuve "la tache '$tache' demande le niveau HighestAvailable : le core exigerait les droits d'administrateur" }
+        $niveau = ''
+        try { $niveau = [string](Get-ScheduledTask -TaskName $tache -ErrorAction Stop).Principal.RunLevel } catch { Stop-Preuve "niveau d'execution de la tache '$tache' illisible ($($_.Exception.Message))" }
+        if ($niveau -ne 'Limited') { Stop-Preuve "la tache '$tache' s'execute au niveau '$niveau' au lieu de Limited (LeastPrivilege) : le core exigerait les droits d'administrateur" }
         $etat = ''
         try { $etat = [string](Get-ScheduledTask -TaskName $tache -ErrorAction Stop).State } catch { $etat = "inconnu ($($_.Exception.Message))" }
         if ($etat -eq 'Running') {
