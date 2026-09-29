@@ -17,6 +17,15 @@ décision enregistre la personne (`decide_par`, un identifiant de `personnes`) E
 (`decide_role`). Une demande N5 exige en plus une attestation du professionnel (ADR-0009 §5) :
 sans elle, refus nommé.
 
+Qui a approuvé, pour l'outil (PLAN T4.15-c) : `decider` pose l'identifiant de la demande qu'il
+exécute (`contexte.executer_demande_approuvee`) autour de l'outil, et l'outil qui exige un HUMAIN
+demande `approbateur_en_cours` (avec son propre nom et son département) : le socle lit la demande en
+base et répond si elle tient (`en_cours`, de cet outil et de ce département, rôle ni d'agent ni de
+client, personne active portant encore ce rôle), sinon None. Un agent ne peut pas fabriquer cette
+situation : il ne crée qu'une demande `en_attente`, que seul `decider` fait avancer. Cela remplace
+la lecture de la table `approbations` que des départements recopiaient (M5 l'utilise ; M1 et M10 ont
+encore leur copie).
+
 Validation humaine au départ (ADR-0009 §4, addendum T1.4-h) : la file ci-dessus sert les actions
 qu'un AGENT propose. Quand la personne authentifiée d'un appareil lance elle-même une action N3, il
 n'y a rien à mettre en attente : `signataire_valide` revérifie son identité en base et
@@ -37,7 +46,7 @@ from typing import Any
 from sqlalchemy import Connection, func, insert, select, update
 
 from . import identite
-from .contexte import IdentiteAppelante, appeler_en_tant_que
+from .contexte import IdentiteAppelante, appeler_en_tant_que, demande_approuvee_en_cours, executer_demande_approuvee
 from .departements import DEFAUT_ROLES_NIVEAU, Departement
 from .etat import journaliser
 from .idempotence import empreinte_arguments
@@ -229,7 +238,9 @@ def decider(
     if reservation.rowcount != 1:
         raise ValueError(f"demande {ident} déjà prise en charge par une autre décision")
     try:
-        with appeler_en_tant_que(ligne["departement"]):
+        # L'outil peut demander QUI a approuvé la demande qu'il exécute (`approbateur_en_cours`) : la demande est posée
+        # ici et nulle part ailleurs, juste après sa réservation ci-dessus (`en_cours`, avec son approbateur).
+        with appeler_en_tant_que(ligne["departement"]), executer_demande_approuvee(ident):
             reponse = executer_atomique(outil, json.loads(ligne["arguments"]))
     except Exception as exc:  # noqa: BLE001 — toute panne clôt la demande, sans la rejouer
         reponse = {"ok": False, "erreur": "panne_execution", "details": f"{type(exc).__name__}: {exc}"}
@@ -267,6 +278,51 @@ def signataire_valide(cnx: Connection, appelante: IdentiteAppelante | None) -> I
     if personne is None or appelante.role not in personne.roles:
         return None
     return appelante
+
+
+# Rôles qui ne sont jamais « un humain qui approuve » : un agent et un client. Un manifeste peut nommer l'un d'eux
+# (le socle ne l'interdit pas à la lecture) ; l'outil qui exige un humain ne le reconnaît pas.
+ROLES_NON_HUMAINS = frozenset({identite.Role.SYSTEM_AGENT.value, identite.Role.CLIENT.value})
+
+
+def approbateur_en_cours(
+    cnx: Connection | None, outil: str, departement: str, *, roles: frozenset[str] | None = None
+) -> IdentiteAppelante | None:
+    """L'humain qui a APPROUVÉ la demande que l'outil `outil` de `departement` exécute EN CE MOMENT, sinon None.
+    Lecture seule. (T4.15-c ; remplace la lecture de la table `approbations` que M1, M5 et M10 recopiaient.)
+
+    `decider` réserve la demande (`en_attente` -> `en_cours`, avec `decide_par` et `decide_role`), pose son identifiant
+    (`contexte.executer_demande_approuvee`) puis exécute l'outil avec les arguments EXACTS enregistrés, dans la même
+    transaction. L'outil qui exige un humain appelle cette fonction avec son propre nom et son département : elle lit la
+    demande EN BASE, à l'instant de l'appel, et rend la personne et le rôle si, et seulement si :
+
+    1. une demande est en cours d'exécution (sinon : appel d'agent, d'appareil ou de la ligne de commande, jamais passé
+       par `decider`) ;
+    2. elle existe, est `en_cours`, et porte sur CET outil et CE département (une décision ne se réutilise pas pour un
+       autre outil) ;
+    3. le rôle sous lequel elle a été approuvée n'est pas celui d'un agent ni d'un client (`ROLES_NON_HUMAINS`), et, si
+       `roles` est donné, en fait partie (l'outil peut être plus strict que la politique du département) ;
+    4. la personne est ACTIVE et porte encore ce rôle (`signataire_valide`).
+
+    La personne et le rôle viennent de la ligne réservée par `decider`, jamais du contexte ni d'un argument. Un agent ne
+    peut pas fabriquer cette situation : il ne peut créer qu'une demande `en_attente`, que seul `decider` (une personne,
+    un rôle autorisé pour ce niveau dans ce département) fait passer à `en_cours`. `cnx` nul (hors transaction : rien
+    n'est vérifiable) : None, fermé."""
+    demande_id = demande_approuvee_en_cours()
+    if cnx is None or demande_id is None:
+        return None
+    ligne = cnx.execute(
+        select(APPROBATIONS.c.statut, APPROBATIONS.c.outil, APPROBATIONS.c.departement, APPROBATIONS.c.decide_par,
+               APPROBATIONS.c.decide_role).where(APPROBATIONS.c.id == demande_id)
+    ).one_or_none()
+    if ligne is None:
+        return None
+    statut, outil_demande, departement_demande, decide_par, decide_role = ligne
+    if (statut, outil_demande, departement_demande) != ("en_cours", outil, departement):
+        return None
+    if decide_role in ROLES_NON_HUMAINS or (roles is not None and decide_role not in roles):
+        return None
+    return signataire_valide(cnx, IdentiteAppelante(personne=decide_par, role=decide_role))
 
 
 def arguments_masques(arguments: Mapping[str, Any]) -> dict[str, Any]:

@@ -130,6 +130,32 @@ def identite_appelante() -> IdentiteAppelante | None:
     return _IDENTITE_APPELANTE.get()
 
 
+# -- demande approuvée en cours d'exécution (T4.15-c) --------------------------------------------
+
+_DEMANDE_APPROUVEE: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "opsys_demande_approuvee", default=None
+)
+
+
+@contextlib.contextmanager
+def executer_demande_approuvee(demande_id: str | None) -> Iterator[None]:
+    """Fixe l'identifiant de la demande d'approbation dont l'outil s'exécute dans ce contexte (None = aucune). Seul
+    `approbations.decider` l'appelle, après avoir réservé la demande (`en_cours`, avec son approbateur) : un agent ne
+    peut que créer une demande `en_attente` et n'entre jamais dans `decider`."""
+    jeton = _DEMANDE_APPROUVEE.set(demande_id)
+    try:
+        yield
+    finally:
+        _DEMANDE_APPROUVEE.reset(jeton)
+
+
+def demande_approuvee_en_cours() -> str | None:
+    """L'identifiant de la demande approuvée que l'outil en cours d'exécution accomplit, ou None hors de
+    `approbations.decider` (appel d'agent, d'appareil, de la ligne de commande). Ce n'est qu'un pointeur : la personne
+    et le rôle qui l'ont approuvée se lisent EN BASE, par `approbations.approbateur_en_cours`, que l'outil appelle."""
+    return _DEMANDE_APPROUVEE.get()
+
+
 def depuis_meta_mcp_identite(meta: Mapping[str, Any] | None) -> IdentiteAppelante | None:
     """Lit `opsys/personne`/`opsys/role` du `_meta` MCP (T1.4-c2, transmis par OPSYS-CORE) ; None si
     l'un des deux manque ou n'est pas une chaîne non vide.
