@@ -503,8 +503,13 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       Exemple : `m3_lire_devis(role=...)` retire coût, marge et prix pour un employé, mais c'est
       aujourd'hui l'appelant qui choisit le rôle ;
     - appairage mobile, avec l'algorithme de signature lu dans le fork.
-    - [x] T1.4-c1 Core : `/tools/invoke` transmet au moteur, dans le `_meta` MCP, la clé
+    - [ ] T1.4-c1 Core : `/tools/invoke` transmet au moteur, dans le `_meta` MCP, la clé
           d'idempotence, l'appareil et son heure (`IDEMPOTENCE.md` §7).
+          DÉCOCHÉE une seconde fois (T1.4-c6) : la lecture du fork montre que `/tools/invoke` ne
+          voyait AUCUN outil MCP (sa liste vient de `createOpenClawTools` : core, plugins,
+          canaux ; les outils de `mcp.servers` n'existent que pendant un tour d'agent). Les tests
+          de c1, c2 et c4 remplaçaient cette liste par un faux outil : ils prouvaient le
+          `_meta` d'un tour d'agent, pas celui d'un appel d'appareil. À recocher avec T1.4-c6.
           Livré (6dffd04) : contexte `AsyncLocalStorage` jusqu'au `tools/call`, tests vitest (dont
           un vrai sous-processus MCP).
           Correction : d'abord cochée sur la foi d'une CI du core verte, alors que
@@ -558,7 +563,23 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
     - [ ] T1.4-c5 Core et mobile : le rôle nommé sur la poignée de main WebSocket (l'app ne
           l'apprend pas encore) ; `opsys-mobile` câblé dans l'app et dans la classification de
           confiance du core.
-      - [ ] T1.4-c6 Core et mobile : noms d'outils de bout en bout. Le core matérialise un outil MCP
+      - [ ] T1.4-c6 Core et mobile : noms d'outils de bout en bout.
+          Livré (190bcc5, 1b7e14f, b9b1477), à cocher sur le job `tests-opsys` vert et après revue
+          externe :
+          - constat : aucun nom ne pouvait marcher ; sans `agentId`, une configuration à dix
+            agents sans défaut refuse la requête (400) avant toute résolution d'outil ; les
+            `tools.deny` par agent ne s'appliquent pas à un outil MCP ; l'enveloppe
+            `{ok, resultat|erreur, rejoue}` du moteur doit arriver telle quelle à l'app ;
+          - porte d'appareil dédiée (`opsys-device-mcp-target.ts`) : le nom nu partout ; le
+            serveur vient de `roles.json` (clé sœur `serveurs`), jamais de la requête ; session MCP
+            limitée à ce serveur, outil vérifié dans son catalogue, appel avec le `_meta`
+            (identité et idempotence) ; jamais un outil natif du core ; `gateway.tools.deny` et le
+            hook `before_tool_call` s'appliquent ; injoignable → 500 (l'app réessaie avec la même
+            clé), absent → 404, refus → 403 ;
+          - tests vitest : jeton d'appareil réel et vrais fragments de configuration, et deux
+            vrais serveurs MCP stdio dont un homonyme qui ne démarre jamais ; socle 646.
+          Limites : une session MCP par appel (à mesurer en T1.5) ; un défaut permanent du serveur
+          (500) est réessayé jusqu'à la limite de la file sortante. Le core matérialise un outil MCP
           sous `serveur__outil` (`agent-bundle-mcp-names.ts`, p. ex. `opsys_m4__m4_pointer`),
           alors que l'app appelle `/tools/invoke` avec le nom nu (`m4_pointer`) et que la portée
           par rôle (`opsys/roles.json`, `authorizeOpsysDeviceTool`) compare ce nom nu. Vérifier
@@ -1024,7 +1045,7 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
     688b1a4 ; portées d'outils par rôle d'appareil (T1.4-j) : a0e5150 ;
   - validation du bus : 4c9fbff ;
   - authentification de `/tools/invoke` par jeton d'appareil : 42bbf6a ; `_meta` MCP unique par
-    processus : d7d77d5 ;
+    processus : d7d77d5 ; porte d'appareil vers l'outil MCP du département (T1.4-c6) : 1b7e14f ;
   - chiffrement et purge des positions GPS : ff0c118 ; localisation chiffrée des chantiers et
     masquage de la trace (T4.1-a) : 4349de4 ;
   - commits plus anciens déjà listés dans les preuves de T1.0 et T1.1.
