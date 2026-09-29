@@ -52,12 +52,13 @@ _PHONE_REGEX = re.compile(
 #   - on saute ensuite jusqu'à la première frontière de mot de la suite, là où l'ancien motif aurait commencé (derrière
 #     une lettre accentuée, « andré.tremblay@x.ca » donne « .tremblay@x.ca » comme avant, et « françois@x.ca » n'est
 #     pas reconnu : limites de l'ancien motif, gardées telles quelles) ;
-#   - le courriel est le groupe `courriel` : le saut n'en fait pas partie.
+#   - le courriel est le groupe `courriel`, l'ancien motif dont la partie locale ne revient pas en arrière : le saut
+#     n'en fait pas partie.
 # `tests/test_motifs_lineaires.py` compare ce motif à l'ancien (recopié) et mesure des textes de 20 000 et de 100 000
 # caractères.
 _EMAIL_REGEX = re.compile(
     r"(?<![A-Za-z0-9._%+-])(?:(?!\b)[A-Za-z0-9._%+-])*+"
-    r"(?P<courriel>[A-Za-z0-9._%+-]++@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b)"
+    r"(?P<courriel>\b[A-Za-z0-9._%+-]++@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b)"
 )
 
 
