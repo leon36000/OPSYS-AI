@@ -2113,11 +2113,26 @@ météo et GPS M4, vision M3, conseil d'agents M9…
         `DEPARTEMENTS.md` pour toute nouvelle famille.
 - [ ] T4.17-f2 M1 et M7 : rattrapage des STOP inscrits avant T4.17-c (ils n'ont pas d'événement de
       retrait). GATE NATHAN : le rattrapage et sa forme.
-- [ ] T4.17-g M1 : trois expressions hors du garde-fou encore quadratiques, trouvées par T4.17-f :
+- [x] T4.17-g M1 : trois expressions hors du garde-fou encore quadratiques, trouvées par T4.17-f :
       `qualification._EMAIL_REGEX` sur le texte du client, non plafonné (0,9 s pour 20 000
       caractères) ; `contrats._PRIX_REGEX` (105 s pour 20 000 chiffres) et `transferts._COURRIEL`,
       plafonnés (500 et 1 200 caractères) mais à durcir de la même façon (départ restreint,
       comparateur différentiel comme filet).
+      Preuve (3f1dc58, 0118e02, 61a590a, 2da52f4, 0acb7cd, 8fb7d91, 263e800, 77c6bae) :
+      - 20 000 caractères hostiles : courriel du client 0,5 s → 0,3 ms (11 s pour 100 000) ; prix
+        67 s → 2 ms ; courriel d'un résumé 1,1 à 1,5 s → 0,4 ms ;
+      - même sens : comparateur ancien contre nouveau sur 22 617 107 textes par version de Python
+        (3.11, 3.12, 3.13), aucun écart ; fonctions publiques (`_extraire_contact`,
+        `contient_coordonnees`, `valider_chiffrage`) comparées sur 6 197 695 textes, aucun écart ;
+      - `tests/test_motifs_lineaires.py` (287 : oracle d'avant, suites exhaustives, textes hostiles de
+        20 000 et 100 000 caractères, balayage des 28 motifs de niveau module de M1) ; 95 mutants,
+        88 tués, 7 équivalents ; M1 1376 verts.
+- [ ] T4.17-g2 M1 : le courriel du client est tronqué devant une lettre accentuée
+      (« andré.tremblay@x.ca » donne « .tremblay@x.ca », dont M2 tire le `client_id`) et
+      « françois@x.ca » n'est pas reconnu (limite de l'ancien motif, gardée à l'identique par T4.17-g
+      et verrouillée par ses tests). Un courriel tronqué est pire qu'aucun : lire la partie locale
+      entière (lettres accentuées comprises) ou ne rien extraire et redemander le contact ; effet sur
+      les contacts reçus par M2 à vérifier (identité du client).
 - [ ] T4.17-d M7 : détecteur réel de visages et de plaques et stockage du média flouté (OpenCV,
       politique « photos » validée d'abord).
 - [x] T4.17-e M7 et M8 : boucle de mesure par `utm_content` (impressions, clics, leads par
