@@ -126,8 +126,13 @@ def test_le_controle_ruff_detecte_un_avertissement(tmp_path):
 def test_les_outils_de_preuve_de_m3_tournent_une_fois_et_une_seule():
     """Le job de M3 les écarte, `m03-preuves` les exécute : aucun des deux fichiers n'est oublié ni joué deux fois."""
     ci = _ci()
-    fichiers = ci["jobs"]["m03-preuves"]["strategy"]["matrix"]["fichier"]
-    assert sorted(fichiers) == ["test_gardes_des_outils.py", "test_outils_de_preuve.py"]
+    parts = ci["jobs"]["m03-preuves"]["strategy"]["matrix"]["include"]
+    fichiers = sorted({p["fichier"] for p in parts})
+    assert fichiers == ["test_gardes_des_outils.py", "test_outils_de_preuve.py"]
+    for fichier in fichiers:  # chaque part de 0 à parts-1 exactement une fois, un seul nombre de parts
+        du_fichier = [p for p in parts if p["fichier"] == fichier]
+        (total,) = {p["parts"] for p in du_fichier}
+        assert sorted(p["part"] for p in du_fichier) == list(range(total))
     for fichier in fichiers:
         assert (RACINE / "departments" / "m03-estimation" / "tests" / fichier).is_file()
     nom = "Tests du département ${{ matrix.dossier }}"
