@@ -147,6 +147,7 @@ __all__ = [
     "inscrire_intervention",
     "inscrire_depuis_devis",
     "intervention_du_devis",
+    "intervention_nee_du_bus_du_lead",
     "empreinte_preparation",
     "assigner_technicien",
     "technicien_assigne",
@@ -260,6 +261,13 @@ def inscrire_intervention(contrat, marqueur, registre_cible, horodatage_arg, sel
     except ValueError:
         return None, verdicts.construire_verdict("REJ-HORODATAGE-INVALIDE")
 
+    # 2 bis. PLAN T4.12 : un devis n'a qu'une intervention. `m3.devis_accepte` fait déjà naître une intervention
+    # `a_planifier` (``inscrire_depuis_devis``) : la planifier une seconde fois à la main en ferait deux pour le même
+    # chantier. Refusé ICI, à la source, pour tenir quel que soit l'appelant (même patron que la porte de préparation).
+    verdict_doublon = _refuser_le_doublon_du_bus(registre_cible, contrat["lead_id"], devis_id)
+    if verdict_doublon is not None:
+        return None, verdict_doublon
+
     # 3. Génération de l’identifiant d’intervention
     intervention_id = encodage.empreinte(
         "intervention", contrat["lead_id"], horodatage_arg
@@ -340,6 +348,56 @@ def intervention_du_devis(registre_cible, devis_id):
         if maillon["type_entree"] == TYPE_INSCRIPTION and maillon.get("devis_id") == devis_id:
             return maillon["intervention_id"]
     return None
+
+
+def intervention_nee_du_bus_du_lead(registre_cible, lead_id):
+    """``intervention_id`` de la première intervention ACTIVE (non annulée) née d'un devis accepté (``source``
+    ``m3.devis_accepte``) pour ce lead, ou ``None`` (PLAN T4.12). Lu au registre, jamais déduit.
+
+    Sert quand la planification à la main n'a pas de ``devis_id`` à comparer : une intervention encore à faire, née du
+    devis de CE lead, est presque sûrement le même chantier."""
+    for maillon in registre_cible.lire():
+        if (
+            maillon["type_entree"] == TYPE_INSCRIPTION
+            and maillon.get("source") == SOURCE_DEVIS_ACCEPTE
+            and maillon.get("lead_id") == lead_id
+            and statut_courant(registre_cible, maillon["intervention_id"]) != "annulee"
+        ):
+            return maillon["intervention_id"]
+    return None
+
+
+def _refuser_le_doublon_du_bus(registre_cible, lead_id, devis_id):
+    """Verdict de refus si planifier à la main ferait un doublon d'une intervention née du bus, sinon ``None``.
+
+    Avec ``devis_id`` : toute inscription qui porte ce devis compte, née du bus ou non, annulée ou non (un devis n'a
+    qu'une intervention, comme pour ``inscrire_depuis_devis``). Sans ``devis_id`` : une intervention active née du bus
+    pour le même lead compte ; fournir le ``devis_id`` (d'un autre devis du lead) lève le refus."""
+    if devis_id is not None:
+        existante = intervention_du_devis(registre_cible, devis_id)
+        if existante is None:
+            return None
+        return verdicts.construire_verdict(
+            "REJ-TRANSITION-ILLEGALE",
+            statut=statut_courant(registre_cible, existante),
+            detail=(
+                f"une intervention existe déjà pour le devis {devis_id!r} ({existante}, "
+                f"{statut_courant(registre_cible, existante)}) : un devis n'a qu'une intervention ; la préparer "
+                "(m4_verifier_preparation) et la céduler (m4_proposer_cedule) au lieu de la planifier une seconde fois"
+            ),
+        )
+    nee = intervention_nee_du_bus_du_lead(registre_cible, lead_id)
+    if nee is None:
+        return None
+    return verdicts.construire_verdict(
+        "REJ-TRANSITION-ILLEGALE",
+        statut=statut_courant(registre_cible, nee),
+        detail=(
+            f"une intervention née d'un devis accepté attend déjà pour ce lead ({nee}, "
+            f"{statut_courant(registre_cible, nee)}) : sans devis_id, cette planification en ferait un doublon ; "
+            "fournir le devis_id d'un AUTRE devis, ou préparer et céduler l'intervention existante"
+        ),
+    )
 
 
 def inscrire_depuis_devis(registre_cible, devis_id, lead, sel, horodatage_arg):

@@ -1,8 +1,9 @@
 """PLAN T4.10-b (M4.6) : `preparation.py`, pur, sur un registre EN MÉMOIRE et une lecture de position injectée.
 
-Le verdict NOMME ce qui manque, volet par volet, et n'est « prêt » que si TOUS les volets sont vérifiés. Les
-volets équipe, matériel et météo n'ont pas encore de source dans M4 (PLAN T4.12, T4.14, T4.13) : ils sont « non
-vérifiables », jamais « prêts ». Données fictives.
+Le verdict NOMME ce qui manque, volet par volet, et n'est « prêt » que si TOUS les volets sont vérifiés. Le volet
+équipe est vérifié depuis le profil des équipes (PLAN T4.12) : une équipe admissible, calculée par le code. Les volets
+matériel et météo n'ont pas encore de source dans M4 (PLAN T4.14, T4.13) : ils sont « non vérifiables », jamais
+« prêts ». Données fictives.
 """
 
 from __future__ import annotations
@@ -116,6 +117,155 @@ class TestVerdictNommeCeQuiManque:
         assert _volets(verdict_prep)["soumission"]["statut"] == preparation.STATUT_MANQUE
 
 
+def _profil(**surcharges):
+    profil = {
+        "liste": [{
+            "id": "eq-nord", "membres": ["luc.fictif"], "competences": ["gouttieres"],
+            "depot": {"id": "depot-fictif", "latitude_microdegres": 45735000, "longitude_microdegres": -73455000},
+            "quarts": [{"jour": 0, "debut_min": 480, "fin_min": 1020}],
+        }],
+        "services": {"gouttieres": {"duree_min": 90, "competences": ["gouttieres"]}},
+    }
+    profil.update(surcharges)
+    return profil
+
+
+def _lecteur(profil=None, verdict=None):
+    appels = []
+
+    def lire():
+        appels.append(1)
+        return profil, verdict
+
+    lire.appels = appels
+    return lire
+
+
+def _volets_futurs_ok(monkeypatch):
+    """Simule ce que T4.14 (matériel) et T4.13 (météo) livreront : deux volets vérifiés. Ne sert qu'à prouver la
+    plomberie ; aucun verdict réel n'est « prêt » tant que ces tâches n'existent pas."""
+    def ok(_registre, _inscription, _lire_position, _lire_equipes):
+        return {"statut": "ok", "manque": None, "detail": "simulé par le test"}
+
+    monkeypatch.setattr(preparation, "_VOLETS", tuple(
+        (nom, ok if nom in ("materiel", "meteo") else fonction) for nom, fonction in preparation._VOLETS))
+
+
+class TestVoletEquipe:
+    """PLAN T4.12 : le volet équipe se vérifie depuis le profil des équipes ; il ne « manque » que faute de profil."""
+
+    def test_une_equipe_admissible_rend_le_volet_ok_et_le_nomme(self, intervention):
+        reg, iid = intervention
+        lecteur = _lecteur(_profil())
+        verdict, refus = preparation.evaluer(reg, iid, _lire_position_ok, lecteur)
+        assert refus is None and lecteur.appels, "le volet lit le profil, il ne suppose rien"
+        equipe = _volets(verdict)["equipe"]
+        assert equipe["statut"] == preparation.STATUT_OK and equipe["manque"] is None
+        assert equipe["detail"] == "équipes admissibles pour gouttieres : eq-nord"
+        # matériel et météo restent non vérifiables : aucun verdict réel n'est prêt
+        assert verdict["statut"] == preparation.VERDICT_NON_VERIFIABLE and verdict["pret"] is False
+        assert [f["volet"] for f in verdict["a_fournir"]] == ["materiel", "meteo"]
+
+    def test_sans_lecture_du_profil_le_volet_reste_non_verifiable_jamais_ok(self, intervention):
+        reg, iid = intervention
+        equipe = _volets(preparation.evaluer(reg, iid, _lire_position_ok)[0])["equipe"]
+        assert equipe["statut"] == preparation.STATUT_NON_VERIFIABLE and "aucune n'a été fournie" in equipe["manque"]
+
+    def test_sans_profil_le_volet_manque_et_dit_quoi_declarer(self, intervention):
+        reg, iid = intervention
+        verdict_profil = {"code": "REJ-EQUIPES-NON-CONFIGUREES",
+                          "detail": "aucun profil des équipes déclaré : `opsys equipes declarer --depuis <fichier>`"}
+        verdict, _ = preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(None, verdict_profil))
+        equipe = _volets(verdict)["equipe"]
+        assert equipe["statut"] == preparation.STATUT_MANQUE and "opsys equipes declarer" in equipe["manque"]
+        assert equipe["detail"] == "REJ-EQUIPES-NON-CONFIGUREES"
+        assert verdict["statut"] == preparation.VERDICT_BLOQUE
+
+    def test_un_profil_invalide_manque_avec_son_code_jamais_lu_comme_ok(self, intervention):
+        reg, iid = intervention
+        verdict_profil = {"code": "REJ-PROFIL-INVALIDE", "detail": "profil d'entreprise invalide : quart mal formé"}
+        equipe = _volets(preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(None, verdict_profil))[0])["equipe"]
+        assert equipe["statut"] == preparation.STATUT_MANQUE and equipe["detail"] == "REJ-PROFIL-INVALIDE"
+        assert "quart mal formé" in equipe["manque"]
+
+    def test_un_service_sans_duree_au_profil_manque_et_est_nomme(self, intervention):
+        reg, iid = intervention
+        profil = _profil(services={"reparation": {"duree_min": 60, "competences": []}})
+        equipe = _volets(preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(profil))[0])["equipe"]
+        assert equipe["statut"] == preparation.STATUT_MANQUE and "'gouttieres'" in equipe["manque"]
+        assert equipe["detail"] == "REJ-CHAMP-MANQUANT"
+
+    def test_un_profil_sans_equipe_manque(self, intervention):
+        reg, iid = intervention
+        profil = _profil()
+        del profil["liste"]
+        equipe = _volets(preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(profil))[0])["equipe"]
+        assert equipe["statut"] == preparation.STATUT_MANQUE and "aucune équipe déclarée" in equipe["manque"]
+
+    def test_aucune_equipe_admissible_manque_et_dit_pourquoi_chacune(self, intervention):
+        reg, iid = intervention
+        profil = _profil()
+        profil["liste"][0]["competences"] = ["revetement"]
+        profil["liste"].append({**profil["liste"][0], "id": "eq-courte", "competences": ["gouttieres"],
+                                "quarts": [{"jour": 0, "debut_min": 480, "fin_min": 500}]})
+        verdict, _ = preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(profil))
+        equipe = _volets(verdict)["equipe"]
+        assert equipe["statut"] == preparation.STATUT_MANQUE
+        assert "aucune équipe admissible pour le service 'gouttieres'" in equipe["manque"]
+        assert "eq-courte : aucun quart d'au moins 90 minutes (le plus long : 20 minutes)" in equipe["manque"]
+        assert "eq-nord : compétence manquante : gouttieres" in equipe["manque"]
+        assert verdict["statut"] == preparation.VERDICT_BLOQUE
+
+    def test_une_intervention_v1_n_a_pas_de_service_donc_le_volet_est_non_verifiable(self, declarer_services):
+        declarer_services()
+        reg = registre.Registre()
+        contrat = {
+            "lead_id": "L-V1", "conversation_id": "C1", "type_travaux": "renovation_totale", "ville": "Montreal",
+            "canal": "telephone", "contact": {"nom": "Dupont", "telephone": "0102030405"}, "urgence_declaree": False,
+        }
+        marqueur = {"readiness_ok": True, "lead_id": "L-V1", "hash_tete_registre": None,
+                    "horodatage": "2025-06-01T12:00:00+00:00", "empreinte": "ab" * 32}
+        accuse, _ = etats.inscrire_intervention(contrat, marqueur, reg, "2025-06-02T08:00:00+00:00", SEL)
+        verdict, _ = preparation.evaluer(reg, accuse["intervention_id"], _lire_position_ok, _lecteur(_profil()))
+        equipe = _volets(verdict)["equipe"]
+        assert equipe["statut"] == preparation.STATUT_NON_VERIFIABLE and "lead v1" in equipe["manque"]
+        assert "renovation_totale" in equipe["manque"]
+
+    def test_l_empreinte_du_verdict_suit_le_profil(self, intervention):
+        reg, iid = intervention
+        un, _ = preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(_profil()))
+        meme, _ = preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(_profil()))
+        autre_profil = _profil()
+        autre_profil["liste"].append({**autre_profil["liste"][0], "id": "eq-sud"})
+        deux, _ = preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(autre_profil))
+        assert un["empreinte"] == meme["empreinte"] != deux["empreinte"]
+        assert _volets(deux)["equipe"]["detail"] == "équipes admissibles pour gouttieres : eq-nord, eq-sud"
+
+    def test_le_verdict_ne_nomme_aucun_membre_ni_ne_classe_les_equipes(self, intervention):
+        reg, iid = intervention
+        texte = json.dumps(preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(_profil()))[0], ensure_ascii=False)
+        for interdit in ("luc.fictif", "membres", "score", "note", "classement", "performance"):
+            assert interdit not in texte, interdit
+
+    def test_pret_seulement_quand_l_equipe_ET_le_materiel_ET_la_meteo_sont_verifies(self, intervention, monkeypatch):
+        reg, iid = intervention
+        # aujourd'hui : le profil ne suffit pas
+        assert preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(_profil()))[0]["pret"] is False
+        _volets_futurs_ok(monkeypatch)  # T4.14 et T4.13 simulés : la plomberie prouvée, pas le produit
+        pret, _ = preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(_profil()))
+        assert pret["pret"] is True and pret["statut"] == preparation.VERDICT_PRET and pret["a_fournir"] == []
+        # sans profil, ou avec une adresse non confirmée, ou sans équipe admissible : jamais prêt, même ainsi
+        sans_profil = preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(None, {"code": "X", "detail": "d"}))[0]
+        assert sans_profil["pret"] is False and sans_profil["statut"] == preparation.VERDICT_BLOQUE
+        assert preparation.evaluer(reg, iid, _lire_position_absente, _lecteur(_profil()))[0]["pret"] is False
+        inadmissible = _profil()
+        inadmissible["liste"][0]["competences"] = []
+        assert preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(inadmissible))[0]["pret"] is False
+        # le verdict prêt ouvre la porte de la machine à états (l'empreinte est celle de son contenu)
+        accuse, verdict = etats.transitionner(iid, "planifiee", reg, "2026-09-29T12:00:00-04:00", preparation=pret)
+        assert verdict is None and accuse["statut"] == "planifiee"
+
+
 class TestAgregation:
     """`verdict_des_volets` est une fonction pure : le seul endroit où « prêt » peut naître."""
 
@@ -214,7 +364,7 @@ def test_le_module_est_pur_sans_opsys_ni_horloge_ni_alea():
         if isinstance(noeud, ast.ImportFrom):
             assert noeud.module in autorises or noeud.level == 1, (noeud.module, noeud.level)
             if noeud.level == 1:
-                assert {a.name for a in noeud.names} <= {"etats", "verdicts"}
+                assert {a.name for a in noeud.names} <= {"admissibilite", "etats", "verdicts"}
         if isinstance(noeud, ast.Attribute):
             assert noeud.attr not in {"now", "utcnow", "today", "time", "random", "urandom", "monotonic"}
         if isinstance(noeud, ast.Name):

@@ -761,7 +761,8 @@ def test_le_module_est_pur_sans_horloge_ni_alea_ni_opsys():
             assert noeud.module in autorises or noeud.level == 1, (noeud.module, noeud.level)
             if noeud.level == 1:
                 assert {a.name for a in noeud.names} <= {
-                    "cedule", "distances", "encodage", "etats", "horodatage", "localisation", "tournees", "verdicts"}
+                    "admissibilite", "cedule", "distances", "encodage", "etats", "horodatage", "localisation",
+                    "preparation", "tournees", "verdicts"}
 
 
 def test_le_module_n_a_aucun_flottant_ni_division_ni_appel_d_horloge():

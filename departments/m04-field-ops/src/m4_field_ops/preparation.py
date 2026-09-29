@@ -19,12 +19,15 @@ acceptée, matériel connu, équipe admissible, météo »)
     ``soumission``  le devis accepté qui a fait naître l'intervention (``devis_id`` de l'inscription) ;
     ``adresse``     la position CONFIRMÉE du chantier, lue comme la lit la cédule par tournées
                     (``lire_position``, injectée par l'adaptateur : la clé de chiffrement vit dans le socle) ;
-    ``equipe``      non vérifiable : M4 ne tient pas encore le profil des équipes (équipes, compétences par
-                    service, dépôt, quarts, durée par service) — PLAN T4.12 ;
+    ``equipe``      une équipe ADMISSIBLE, calculée par le code (``admissibilite.py``) à partir du profil des
+                    équipes de l'entreprise (PLAN T4.12) : elle détient toutes les compétences du service et a un
+                    quart assez long pour sa durée. Sans profil, ou sans durée pour ce service : ``manque``, et le
+                    volet dit quoi déclarer. Un lead v1 (``type_travaux``) n'a pas de service : ``non_verifiable`` ;
     ``materiel``    non vérifiable : M4 ne lit pas encore ``m6.materiel_pret`` — PLAN T4.14 ;
     ``meteo``       non vérifiable : aucun fournisseur météo ni règle par service — PLAN T4.13.
-Chacun des trois derniers deviendra un volet vérifié quand sa tâche livrera sa source : il suffit de remplacer sa
-fonction dans ``_VOLETS``, la forme du verdict ne change pas.
+Chacun des deux derniers deviendra un volet vérifié quand sa tâche livrera sa source : il suffit de remplacer sa
+fonction dans ``_VOLETS``, la forme du verdict ne change pas. Tant que l'un des deux est ``non_verifiable``, aucun
+verdict n'est ``pret`` : la porte ``a_planifier -> planifiee`` reste fermée, et c'est voulu.
 
 Ce module ne promet aucune date ni aucun créneau : il ne parle pas du calendrier (frontière T3 du produit).
 Il ne lit ni ne rend aucune coordonnée, aucun contact, aucun prix.
@@ -32,7 +35,7 @@ Il ne lit ni ne rend aucune coordonnée, aucun contact, aucun prix.
 
 from __future__ import annotations
 
-from . import etats, verdicts
+from . import admissibilite, etats, verdicts
 
 # « ok » et « pret » sont définis par la machine à états (`etats.py`), qui refuse un passage à planifiee sans eux :
 # une seule source pour le mot que les deux modules doivent partager.
@@ -66,7 +69,7 @@ def _volet(statut, manque=None, detail=None):
     return {"statut": statut, "manque": manque, "detail": detail}
 
 
-def _volet_soumission(_registre, inscription, _lire_position):
+def _volet_soumission(_registre, inscription, _lire_position, _lire_equipes):
     devis_id = inscription.get("devis_id")
     if isinstance(devis_id, str) and devis_id != "":
         return _volet(STATUT_OK, detail=f"devis accepté {devis_id}")
@@ -76,31 +79,57 @@ def _volet_soumission(_registre, inscription, _lire_position):
     )
 
 
-def _volet_adresse(registre_cible, inscription, lire_position):
+def _volet_adresse(registre_cible, inscription, lire_position, _lire_equipes):
     position, verdict = lire_position(registre_cible, inscription["lead_id"])
     if verdict is not None:
         return _volet(STATUT_MANQUE, manque=verdict["detail"], detail=verdict["code"])
     return _volet(STATUT_OK, detail=f"coordonnées confirmées (version {position['version']})")
 
 
-def _volet_equipe(_registre, _inscription, _lire_position):
-    return _volet(
-        STATUT_NON_VERIFIABLE,
-        manque=(
-            "profil des équipes de l'entreprise (équipes, compétences par service, dépôt, quarts, durée par "
-            "service) : M4 ne le tient pas encore, l'admissibilité d'une équipe ne se calcule pas"
-        ),
-    )
+def _volet_equipe(_registre, inscription, _lire_position, lire_equipes):
+    if lire_equipes is None:
+        return _volet(
+            STATUT_NON_VERIFIABLE,
+            manque=(
+                "lecture du profil des équipes : aucune n'a été fournie à l'évaluation, l'admissibilité ne se "
+                "calcule pas"
+            ),
+        )
+    profil, verdict = lire_equipes()
+    if verdict is not None:
+        return _volet(STATUT_MANQUE, manque=verdict["detail"], detail=verdict["code"])
+    cle_travaux, service = etats.travaux_de(inscription)
+    if cle_travaux != etats.CLE_SERVICE:
+        return _volet(
+            STATUT_NON_VERIFIABLE,
+            manque=(
+                f"intervention issue d'un lead v1 (type_travaux {service!r}) : le profil des équipes est par service, "
+                "l'admissibilité d'une équipe ne se calcule pas pour un type de travaux"
+            ),
+        )
+    resultat, verdict = admissibilite.equipes_admissibles(profil, service)
+    if verdict is not None:
+        return _volet(STATUT_MANQUE, manque=verdict["detail"], detail=verdict["code"])
+    if not resultat["admissibles"]:
+        raisons = " ; ".join(f"{ligne['equipe']} : {ligne['detail']}" for ligne in resultat["ecartees"])
+        return _volet(
+            STATUT_MANQUE,
+            manque=(
+                f"aucune équipe admissible pour le service {service!r} ({raisons}) : ajuster les équipes, leurs "
+                "compétences ou leurs quarts dans le profil (`opsys equipes declarer`)"
+            ),
+        )
+    return _volet(STATUT_OK, detail=f"équipes admissibles pour {service} : {', '.join(resultat['admissibles'])}")
 
 
-def _volet_materiel(_registre, _inscription, _lire_position):
+def _volet_materiel(_registre, _inscription, _lire_position, _lire_equipes):
     return _volet(
         STATUT_NON_VERIFIABLE,
         manque="état « matériel prêt » de M6 pour ce chantier : M4 ne le reçoit pas encore",
     )
 
 
-def _volet_meteo(_registre, _inscription, _lire_position):
+def _volet_meteo(_registre, _inscription, _lire_position, _lire_equipes):
     return _volet(
         STATUT_NON_VERIFIABLE,
         manque="prévision météo et règles météo par service : aucun fournisseur ni seuil n'est configuré",
@@ -139,12 +168,16 @@ def _inscription(registre_cible, intervention_id):
     return None
 
 
-def evaluer(registre_cible, intervention_id, lire_position):
+def evaluer(registre_cible, intervention_id, lire_position, lire_equipes=None):
     """``(verdict, None)`` ou ``(None, refus)`` : la préparation de l'intervention, volet par volet.
 
     ``lire_position(registre, chantier_id)`` rend ``(position, None)`` ou ``(None, verdict)`` : la même lecture
     que la cédule par tournées (``outils.lire_localisation_confirmee``). Le chantier d'une intervention est
     identifié par son ``lead_id``, comme dans la cédule.
+
+    ``lire_equipes()`` rend ``(profil, None)`` ou ``(None, verdict)`` : le profil des équipes que l'adaptateur a lu
+    (``opsys.equipes.charger_equipes``). Sans elle (``None``), le volet équipe reste ``non_verifiable`` : jamais ``ok``
+    faute de lecture.
 
     Refus (``REJ-TRANSITION-ILLEGALE``, rien n'est écrit, la fonction n'écrit jamais) : intervention inconnue,
     ou statut hors de ``STATUTS_PREPARABLES``. Le verdict rendu ne porte ni coordonnée, ni contact, ni prix.
@@ -158,7 +191,7 @@ def evaluer(registre_cible, intervention_id, lire_position):
             detail=f"préparation sans objet : l'intervention est {statut} (attendu {', '.join(STATUTS_PREPARABLES)})",
         )
     inscription = _inscription(registre_cible, intervention_id)
-    volets = {nom: fonction(registre_cible, inscription, lire_position) for nom, fonction in _VOLETS}
+    volets = {nom: fonction(registre_cible, inscription, lire_position, lire_equipes) for nom, fonction in _VOLETS}
     statut_global = verdict_des_volets(volets)
     verdict = {
         "intervention_id": intervention_id,

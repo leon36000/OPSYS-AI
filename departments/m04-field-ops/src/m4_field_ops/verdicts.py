@@ -55,6 +55,9 @@ CODES_M4_LIST = [
     "REJ-CEDULE-INTERVENTION-NON-PLANIFIABLE",    # intervention inconnue ou plus au statut planifiee.
     "REJ-CEDULE-PLAN-INTROUVABLE",                # aucun plan proposé sous cet identifiant.
     "REJ-CEDULE-ENTREE-CHANGEE",                  # l'état a bougé depuis la proposition : proposer de nouveau.
+    # Groupe 9 — PLAN T4.12 : profil des équipes de l'entreprise et sortie de a_planifier par la cédule.
+    "REJ-PROFIL-INVALIDE",                        # le profil des équipes est illisible ou invalide : jamais « absent ».
+    "REJ-CEDULE-PREPARATION-NON-PRETE",           # une intervention a_planifier n'est pas prête : dit ce qui manque.
     # Groupe 3 — succès
     "OK",
 ]

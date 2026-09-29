@@ -34,6 +34,7 @@ from functools import partial
 from typing import Any
 
 from opsys import approbations, cles_chiffrement, contexte, evenements, fichiers, stockage
+from opsys import equipes as equipes_entreprise
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import (
@@ -157,6 +158,14 @@ def _acteur_appareil() -> tuple[acces.Acteur | None, dict[str, Any] | None]:
             ),
         )
     return acces.acteur_de(confirmee.personne, confirmee.role)
+
+
+def _lecteur_equipes() -> Callable[[], tuple[dict[str, Any] | None, dict[str, Any] | None]]:
+    """Lecture du profil des équipes de l'entreprise (PLAN T4.12), faite UNE fois par appel d'outil : la sélection des
+    interventions, la complétion des arguments, la préparation et l'application voient le même profil. Rend
+    ``(profil, None)`` ou ``(None, verdict)`` (absent ou invalide) ; ne lève jamais."""
+    lecture = equipes_entreprise.charger_equipes()
+    return lambda: lecture
 
 
 def _preuve_consentement_client(
@@ -838,14 +847,18 @@ def outils(
         return reponse
 
     def proposer_cedule(
-        horodatage: str, equipes: list[dict[str, Any]], durees_par_type_travaux: dict[str, Any],
-        competences_par_type_travaux: dict[str, Any], chantiers: list[dict[str, Any]],
-        parametres: dict[str, Any], intervention_ids: list[str] | None = None, moteur: str = "auto",
+        horodatage: str, equipes: list[dict[str, Any]] | None = None,
+        durees_par_type_travaux: dict[str, Any] | None = None,
+        competences_par_type_travaux: dict[str, Any] | None = None,
+        chantiers: list[dict[str, Any]] | None = None, parametres: dict[str, Any] | None = None,
+        intervention_ids: list[str] | None = None, moteur: str = "auto",
         durees_par_service: dict[str, Any] | None = None,
         competences_par_service: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Propose un plan de tournées et le range au registre (maillon ``cedule_proposee``) : un brouillon,
-        aucune assignation. Tout ce que M4 ne sait pas encore est un argument ou un verdict « à fournir »."""
+        aucune assignation. Équipes, dépôt, quarts, durées et réglages viennent du profil des équipes de
+        l'entreprise (PLAN T4.12) ; un argument donné le REMPLACE (surcharge tracée dans ``provenance``). Ce que ni le
+        profil ni un argument ne donne est un verdict « à fournir » qui dit aussi où le déclarer."""
         acteur, verdict_acteur = _acteur_appareil()
         if verdict_acteur is not None:
             return _refus(verdict_acteur)
@@ -866,7 +879,7 @@ def outils(
             },
             lire_localisation_confirmee, horodatage_faisant_foi,
             propose_par=None if acteur is None else acteur.personne,
-            fournisseur=fournisseur_matrice, moteur=moteur,
+            fournisseur=fournisseur_matrice, moteur=moteur, lire_equipes=_lecteur_equipes(),
         ))
         if reception is not None and reponse["accepte"]:
             reponse["resultat"]["horodatage_appareil"] = reception.horodatage_appareil.isoformat()
@@ -886,7 +899,7 @@ def outils(
         horodatage_faisant_foi = reception.recu_le.isoformat() if reception is not None else horodatage
         reponse = depuis_couple(cedule_tournees.appliquer(
             registre_courant(), plan_id, lire_localisation_confirmee, horodatage_faisant_foi, confirme_par,
-            fournisseur=fournisseur_matrice,
+            fournisseur=fournisseur_matrice, lire_equipes=_lecteur_equipes(),
         ))
         if reception is not None and reponse["accepte"]:
             reponse["resultat"]["horodatage_appareil"] = reception.horodatage_appareil.isoformat()
@@ -902,7 +915,9 @@ def outils(
         if verdict_role is not None:
             return _refus(verdict_role)
         return depuis_couple(
-            preparation.evaluer(registre_courant(), intervention_id, lire_localisation_confirmee)
+            preparation.evaluer(
+                registre_courant(), intervention_id, lire_localisation_confirmee, _lecteur_equipes(),
+            )
         )
 
     return (
@@ -1582,14 +1597,14 @@ def outils(
             description=(
                 "Propose une cédule par tournées (PyVRP, ou repli exact jusqu'à 12 chantiers) : regroupe les "
                 "chantiers proches, respecte fenêtres du client, quarts, durées, compétences et créneaux déjà "
-                "confirmés au client. Range le plan PROPOSÉ au registre : un brouillon, aucune assignation, "
-                "aucune vérité écrite. Lit les interventions planifiees, leur urgence_declaree (règle écrite : "
-                "vrai vaut 1, sinon 0) et les coordonnées CONFIRMÉES ; un chantier sans coordonnées sort « "
-                "coordonnées manquantes : à confirmer ». Ce que M4 ne sait pas est un ARGUMENT, sinon un seul "
-                "verdict REJ-CHAMP-MANQUANT qui liste quoi fournir : jamais une valeur par défaut (durées et "
-                "compétences par type de travaux pour un lead v1, par service pour un lead v2). Rend plan_id, "
-                "mode_distance, mode_bride (« mode bridé » : distances approximatives), les non_cedulees et "
-                "leurs raisons. Pour appliquer : m4_appliquer_cedule."
+                "confirmés. Range un plan PROPOSÉ : brouillon, aucune assignation. Sans argument, équipes, dépôt, "
+                "quarts, durées, compétences, réglages viennent du PROFIL DES ÉQUIPES de l'entreprise (opsys equipes "
+                "declarer) ; un argument donné le REMPLACE (surcharge) et la provenance de chaque valeur est rendue. "
+                "Lit les interventions planifiees et les a_planifier PRÊTES (m4_verifier_preparation ; les autres "
+                "sont rendues dans non_pretes), leur urgence_declaree (vrai vaut 1, sinon 0) et les coordonnées "
+                "CONFIRMÉES. Ni profil ni argument : un verdict REJ-CHAMP-MANQUANT qui dit quoi fournir et où le "
+                "déclarer, jamais une valeur par défaut. Rend plan_id, mode_bride, non_cedulees et leurs raisons. "
+                "Pour appliquer : m4_appliquer_cedule."
             ),
             parametres={
                 "type": "object",
@@ -1599,66 +1614,74 @@ def outils(
                         "type": "array",
                         "items": {"type": "object"},
                         "description": (
-                            "[{id (= technicien_id de l'assignation), competences: [string], depot: {id, "
-                            "latitude_microdegres, longitude_microdegres} (lieu de l'entreprise), quarts: "
-                            "[{jour, debut_min, fin_min}]}]. jour : numéro choisi par l'appelant."
+                            "Surcharge du profil. [{id (= technicien_id de l'assignation), competences: [string], "
+                            "depot: {id, latitude_microdegres, longitude_microdegres} (lieu de l'entreprise), "
+                            "quarts: [{jour, debut_min, fin_min}]}]. jour : numéro de journée de la cédule. Omis : "
+                            "les équipes du profil."
                         ),
                     },
                     "durees_par_type_travaux": {
                         "type": "object",
                         "description": (
-                            "{type_travaux: minutes entières}, un pour chaque type à planifier (leads v1). "
-                            "{} si aucune intervention à planifier ne vient d'un lead v1."
+                            "{type_travaux: minutes entières}, un pour chaque type à planifier (leads v1, sans "
+                            "équivalent dans le profil). Exigé seulement si une intervention à planifier vient "
+                            "d'un lead v1."
                         ),
                     },
                     "competences_par_type_travaux": {
                         "type": "object",
                         "description": (
-                            "{type_travaux: [compétence]}, liste vide si aucune, pour chaque type (leads v1). "
-                            "{} si aucune intervention à planifier ne vient d'un lead v1."
+                            "{type_travaux: [compétence]}, liste vide si aucune, pour chaque type (leads v1, sans "
+                            "équivalent dans le profil). Exigé seulement si une intervention à planifier vient "
+                            "d'un lead v1."
                         ),
                     },
                     "durees_par_service": {
                         "type": "object",
                         "description": (
-                            "{service: minutes entières}, un pour chaque service à planifier (code "
-                            "déclaré par l'entreprise). Exigé si une intervention à planifier vient "
-                            "d'un lead v2."
+                            "Surcharge du profil. {service: minutes entières}, un pour chaque service à planifier "
+                            "(code déclaré par l'entreprise). Omis : les durées du profil."
                         ),
                     },
                     "competences_par_service": {
                         "type": "object",
                         "description": (
-                            "{service: [compétence]}, liste vide si aucune, pour chaque service. Exigé "
-                            "si une intervention à planifier vient d'un lead v2."
+                            "Surcharge du profil. {service: [compétence]}, liste vide si aucune, pour chaque "
+                            "service. Omis : les compétences du profil."
                         ),
                     },
                     "chantiers": {
                         "type": "array",
                         "items": {"type": "object"},
                         "description": (
-                            "Une entrée par intervention à planifier : {intervention_id, fenetre: {jours: [int], "
-                            "debut_min, fin_min}, creneau_fige: null si aucun, sinon {equipe, jour, debut_min} "
-                            "(créneau déjà confirmé au client : jamais déplacé)}."
+                            "Une entrée par intervention : {intervention_id, fenetre: {jours: [int], debut_min, "
+                            "fin_min}, creneau_fige: null si aucun, sinon {equipe, jour, debut_min} (créneau déjà "
+                            "confirmé au client : jamais déplacé)}. Exigée pour une intervention planifiee. Une "
+                            "intervention a_planifier sans entrée prend la fenêtre par défaut du profil et aucun "
+                            "créneau figé (aucun créneau n'a pu être promis avant la cédule)."
                         ),
                     },
                     "parametres": {
                         "type": "object",
                         "description": (
-                            "Paramètres d'entreprise, tous obligatoires : facteur_detour_milliemes (1300 pour "
-                            "1,3), vitesse_moyenne_kmh, marge_par_trajet_secondes, iterations, "
-                            "cout_non_cedule_m. graine optionnelle (réglage technique)."
+                            "Surcharge du profil. Réglages de la cédule, tous obligatoires : "
+                            "facteur_detour_milliemes (1300 pour 1,3), vitesse_moyenne_kmh, "
+                            "marge_par_trajet_secondes, iterations, cout_non_cedule_m. graine optionnelle (réglage "
+                            "technique). Omis : les réglages du profil."
                         ),
                     },
                     "intervention_ids": {
                         "type": ["array", "null"],
                         "items": {"type": "string"},
-                        "description": "Restreint aux interventions nommées ; omis : toutes les planifiees.",
+                        "description": (
+                            "Restreint aux interventions nommées (une a_planifier non prête est refusée, "
+                            "REJ-CEDULE-PREPARATION-NON-PRETE) ; omis : toutes les planifiees et les a_planifier "
+                            "prêtes."
+                        ),
                     },
                     "moteur": {"type": "string", "enum": list(tournees.MOTEURS)},
                 },
-                "required": ["horodatage", "equipes", "durees_par_type_travaux",
-                             "competences_par_type_travaux", "chantiers", "parametres"],
+                "required": ["horodatage"],
                 "additionalProperties": False,
             },
             fonction=proposer_cedule,
@@ -1675,14 +1698,14 @@ def outils(
         Outil(
             nom="m4_appliquer_cedule",
             description=(
-                "APPLIQUE un plan proposé (plan_id de m4_proposer_cedule) : assigne chaque technicien par le "
-                "maillon assignation_technicien. Refuse, sans rien écrire, si l'état des interventions ou une "
-                "coordonnée confirmée a changé depuis la proposition (REJ-CEDULE-ENTREE-CHANGEE : proposer de "
-                "nouveau), ou si le plan ne repasse pas verifier_plan (REJ-TOURNEES-PLAN-INVALIDE). Un créneau "
-                "déjà confirmé au client n'est jamais déplacé. Idempotent : le même plan_id deux fois n'écrit "
-                "rien de plus ; un technicien déjà assigné n'est pas ré-assigné ; une non cédulée garde son "
-                "assignation antérieure. Pour un appel d'appareil, confirme_par doit être la personne "
-                "authentifiée (REJ-IDENTITE-FOURNIE-DIFFERENTE sinon)."
+                "APPLIQUE un plan proposé (plan_id de m4_proposer_cedule) : assigne chaque technicien. Une "
+                "intervention a_planifier que le plan place passe à planifiee (verdict de préparation « prêt » "
+                "recalculé, porte d'empreinte de T4.10) avant d'être assignée ; une autre reste a_planifier. "
+                "Refuse, sans rien écrire, si une préparation n'est plus prête, si l'état des interventions, le "
+                "profil des équipes ou une coordonnée confirmée a changé depuis la proposition "
+                "(REJ-CEDULE-ENTREE-CHANGEE : proposer de nouveau), ou si le plan échoue à verifier_plan. Un créneau "
+                "déjà confirmé n'est jamais déplacé. Idempotent : le même plan_id deux fois n'écrit rien de plus. "
+                "Pour un appel d'appareil, confirme_par doit être la personne authentifiée."
             ),
             parametres={
                 "type": "object",
@@ -1708,15 +1731,14 @@ def outils(
         Outil(
             nom="m4_verifier_preparation",
             description=(
-                "Lecture seule (PLAN T4.10-b, M4.6) : dit si une intervention peut être planifiée, VOLET PAR VOLET, et "
-                "NOMME ce qui manque. Volets : soumission (le devis accepté qui l'a fait naître), adresse (coordonnées "
-                "CONFIRMÉES du chantier, comme la cédule les lit), équipe admissible, matériel, météo. Chaque volet "
-                "est ok (lu à sa source), manque (attendu et absent : le champ manque dit quoi fournir) ou "
-                "non_verifiable (M4 n'a pas encore de quoi le lire : équipe, matériel et météo aujourd'hui). Le "
-                "verdict d'ensemble est pret SEULEMENT si tous les volets sont ok, sinon bloque ou non_verifiable : "
-                "jamais « prêt » par défaut. Ne rend ni coordonnée, ni contact, ni prix, et ne promet aucune date "
-                "ni aucun créneau. Refus (REJ-TRANSITION-ILLEGALE) : intervention inconnue, ou hors de a_planifier, "
-                "planifiee et reportee. Réservé à l'admin : l'état d'un chantier de client."
+                "Lecture seule (M4.6) : dit si une intervention peut être planifiée, VOLET PAR VOLET, et NOMME ce "
+                "qui manque. Volets : soumission (devis accepté), adresse (coordonnées CONFIRMÉES), équipe "
+                "admissible (calculée depuis le profil des équipes : compétences du service et quart assez long ; "
+                "sans profil, manque dit quoi déclarer), matériel, météo. Chaque volet est ok (lu à sa source), "
+                "manque (attendu et absent) ou non_verifiable (matériel et météo aujourd'hui : aucune intervention "
+                "n'est encore prête). pret SEULEMENT si tous les volets sont ok, jamais par défaut. Ne rend ni "
+                "coordonnée, ni contact, ni prix, et ne promet aucune date. Refus (REJ-TRANSITION-ILLEGALE) : "
+                "intervention inconnue, ou hors de a_planifier, planifiee et reportee. Réservé à l'admin."
             ),
             parametres={
                 "type": "object",

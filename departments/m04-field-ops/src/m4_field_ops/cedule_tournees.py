@@ -6,19 +6,27 @@ de ce que M4 SAIT, le fait résoudre, et range le plan PROPOSÉ au registre. Le 
 vérité : seule ``appliquer`` fait assigner des techniciens, par ``etats.assigner_technicien``.
 
 Ce que M4 sait (lu au registre, jamais fourni par l'appelant)
-    * les interventions à planifier : celles au statut ``planifiee`` (``etats.statut_courant``), leur nature de
+    * les interventions à planifier : celles au statut ``planifiee`` (``etats.statut_courant``), et celles au statut
+      ``a_planifier`` dont le verdict de préparation est « prêt » (``preparation.evaluer``, T4.12) ; leur nature de
       travaux (``type_travaux`` d'un lead v1 ou ``service`` d'un lead v2, jamais l'un déduit de l'autre :
       ``etats.travaux_de``), leur ``lead_id``, leur ``urgence_declaree``, le technicien déjà assigné ;
     * les coordonnées CONFIRMÉES de chaque chantier (maillon ``localisation_chantier``, lues par
       ``lire_position``, que l'adaptateur relie à ``outils.lire_localisation_confirmee``).
 
-Ce que M4 ne sait pas encore (ARGUMENT explicite de l'appelant, ou un verdict « à fournir » qui liste tout)
-    équipes (compétences, dépôt, quarts), durée et compétences requises par type de travaux (leads v1) et par
-    service (leads v2 : ``durees_par_service``, ``competences_par_service``, une clé par service à planifier,
-    validée par la taxonomie du socle), fenêtre du client et créneau déjà confirmé au client pour chaque
-    intervention, paramètres d'entreprise (détour, vitesse, marge, itérations, coût de non-cédule). Les deux
-    jeux de tables ne sont exigés que si le lot contient des interventions de la version correspondante.
-    Aucune valeur par défaut : un champ absent est un verdict.
+Ce que M4 lit dans le PROFIL DES ÉQUIPES de l'entreprise (T4.12 ; ``lire_equipes()``, que l'adaptateur relie à
+``opsys.equipes.charger_equipes``)
+    équipes (compétences, dépôt, quarts), durée et compétences requises par service (leads v2), réglages de la
+    cédule (détour, vitesse, marge, itérations, coût de non-cédule), et la fenêtre offerte à un chantier dont le
+    client n'en a donné aucune. Chaque valeur du profil est REMPLACÉE par l'argument de même nom quand l'appelant en
+    donne un : c'est une SURCHARGE, et le maillon du plan garde la provenance de chaque valeur (``provenance`` :
+    ``profil`` ou ``surcharge``) et l'empreinte du profil lu.
+
+Ce que M4 ne sait pas (ARGUMENT explicite de l'appelant, ou un verdict « à fournir » qui liste tout)
+    durée et compétences requises par type de travaux (leads v1, gelés : le profil est par service), fenêtre du client
+    et créneau déjà confirmé au client pour chaque intervention ``planifiee`` (le profil ne connaît que la fenêtre
+    par défaut d'un chantier ``a_planifier``, où aucun créneau n'a pu être promis : ``creneau_fige`` y vaut null),
+    et tout ce que le profil ne déclare pas. Aucune valeur par défaut : un champ absent est un verdict, qui dit aussi
+    comment le déclarer une fois pour toutes (``opsys equipes declarer``).
     Seule exception, technique et non métier : la ``graine`` du solveur, ``GRAINE_TECHNIQUE`` si elle est
     omise (PyVRP est de toute façon amorcé par l'empreinte de l'entrée, ``tournees._graine_derivee``).
 
@@ -30,12 +38,20 @@ Ce qui rend une application sûre
        chantier n'est jamais copiée : les positions se relisent chiffrées), l'état des interventions au moment
        de la proposition et trois empreintes : entrée, sortie, état.
     2. ``appliquer`` relit l'état ACTUEL des mêmes interventions (statut, type, urgence, technicien assigné,
-       version de la localisation confirmée) et refuse tout écart (``REJ-CEDULE-ENTREE-CHANGEE``) ; puis
-       reconstruit l'entrée du solveur avec les coordonnées d'AUJOURD'HUI et refuse si son empreinte n'est plus
-       celle de la proposition ; puis repasse ``tournees.verifier_plan`` (créneaux figés, fenêtres, quarts,
-       compétences) et refuse un plan qui échoue (``REJ-TOURNEES-PLAN-INVALIDE``).
+       version de la localisation, et pour une intervention ``a_planifier`` l'empreinte de son verdict de préparation)
+       et refuse tout écart (``REJ-CEDULE-ENTREE-CHANGEE``) ; refuse aussi un plan lu dans un profil des équipes qui a
+       changé depuis ; puis reconstruit l'entrée du solveur avec les coordonnées d'AUJOURD'HUI et refuse si son
+       empreinte n'est plus celle de la proposition ; puis repasse ``tournees.verifier_plan`` (créneaux figés, fenêtres,
+       quarts, compétences) et refuse un plan qui échoue (``REJ-TOURNEES-PLAN-INVALIDE``).
     3. Toutes les vérifications précèdent la première écriture. Appliquer deux fois le même plan n'écrit rien
        de plus (``deja_appliquee``) ; un technicien déjà assigné à la bonne intervention n'est pas ré-assigné.
+
+SORTIE DE ``a_planifier`` (T4.12) : appliquer un plan fait passer ``a_planifier -> planifiee`` chaque intervention
+qu'il place, par ``etats.transitionner`` et le verdict de préparation « prêt » recalculé au moment de l'application
+(la porte d'empreinte de T4.10 : aucun verdict truqué ni périmé ne passe), puis l'assigne. Une intervention non prête
+n'entre jamais dans le plan ; elle est rendue avec ce qui lui manque (``non_pretes``). Une intervention que le plan
+laisse de côté reste ``a_planifier``. Tant que les volets matériel et météo de ``preparation`` ne sont pas vérifiables
+(T4.14, T4.13), aucune n'est prête : la porte est câblée, elle reste fermée.
 
 Limites : ``jour`` est un numéro choisi par l'appelant (M4 ne tient pas encore de calendrier) ; le jour et
 l'heure d'une visite restent dans le maillon du plan, ils ne sont pas encore lus par l'écran « chantiers du
@@ -47,7 +63,8 @@ from __future__ import annotations
 
 import copy
 
-from . import cedule, distances, encodage, etats, horodatage, localisation, tournees, verdicts
+from . import admissibilite, cedule, distances, encodage, etats, horodatage, localisation, tournees, verdicts
+from . import preparation as preparation_intervention
 
 # ---------------------------------------------------------------------------
 # Constantes publiques
@@ -57,7 +74,12 @@ TYPE_APPLIQUEE = "cedule_appliquee"
 VERSION_PROPOSITION = "cedule-proposee-v1"
 
 STATUT_PLANIFIABLE = "planifiee"
+STATUT_A_PLANIFIER = "a_planifier"
 GRAINE_TECHNIQUE = 0
+
+SOURCE_PROFIL = "profil"
+SOURCE_SURCHARGE = "surcharge"
+TRANSITION_SORTIE_A_PLANIFIER = "a_planifier->planifiee"
 
 EFFET_ASSIGNEE = "assignee"
 EFFET_DEJA_ASSIGNEE = "deja_assignee"
@@ -89,7 +111,11 @@ __all__ = [
     "TYPE_APPLIQUEE",
     "VERSION_PROPOSITION",
     "STATUT_PLANIFIABLE",
+    "STATUT_A_PLANIFIER",
     "GRAINE_TECHNIQUE",
+    "SOURCE_PROFIL",
+    "SOURCE_SURCHARGE",
+    "TRANSITION_SORTIE_A_PLANIFIER",
     "EFFET_ASSIGNEE",
     "EFFET_DEJA_ASSIGNEE",
     "URGENCE_NORMALE",
@@ -130,7 +156,8 @@ _AIDE = {
                                "lead v2), liste vide s'il n'y en a aucune",
     "chantiers": "une entrée par intervention à planifier : intervention_id, fenetre du client "
                  "(jours, debut_min, fin_min) et creneau_fige (null, ou {equipe, jour, debut_min} si le créneau "
-                 "est déjà confirmé au client)",
+                 "est déjà confirmé au client) ; une intervention a_planifier sans entrée prend la fenetre_par_defaut "
+                 "du profil des équipes, et aucun créneau figé",
     "parametres": "paramètres d'entreprise : facteur_detour_milliemes, vitesse_moyenne_kmh, "
                   "marge_par_trajet_secondes, iterations, cout_non_cedule_m",
     "id": "identifiant non vide",
@@ -200,31 +227,92 @@ def _reference_localisation(instantane, lead_id):
     return {"version": resume["version"], "action": resume["action"], "ligne_id": resume["ligne_id"]}
 
 
-def _etat_intervention(instantane, inscription):
-    """Ce dont la validité d'un plan dépend, pour une intervention, sans donnée personnelle."""
+def _etat_intervention(instantane, inscription, preparations):
+    """Ce dont la validité d'un plan dépend, pour une intervention, sans donnée personnelle.
+
+    Une intervention ``a_planifier`` porte aussi l'empreinte de son verdict de préparation (``preparations`` :
+    ``{intervention_id: verdict}``) : un plan proposé sur un verdict « prêt » ne s'applique plus si ce verdict a bougé.
+    Les autres statuts n'ont pas cette clé : les plans d'avant T4.12 gardent leurs octets."""
     identifiant = inscription["intervention_id"]
     cle_travaux, valeur_travaux = etats.travaux_de(inscription)
-    return {
+    statut = etats.statut_courant(instantane, identifiant)
+    etat = {
         "intervention_id": identifiant,
         "lead_id": inscription["lead_id"],
         cle_travaux: valeur_travaux,
         "urgence_declaree": inscription.get("urgence_declaree"),
-        "statut": etats.statut_courant(instantane, identifiant),
+        "statut": statut,
         "technicien_assigne": etats.technicien_assigne(instantane, identifiant),
         "localisation": _reference_localisation(instantane, inscription["lead_id"]),
     }
+    if statut == STATUT_A_PLANIFIER:
+        verdict_preparation = preparations.get(identifiant)
+        etat["preparation"] = None if verdict_preparation is None else verdict_preparation["empreinte"]
+    return etat
 
 
 def _verdict(code, detail):
     return verdicts.construire_verdict(code, detail=detail)
 
 
-def _interventions_a_planifier(instantane, inscriptions, demandees):
-    """Interventions à planifier, triées : ``(liste d'inscriptions, None)`` ou ``(None, verdict)``."""
+def _non_prete(identifiant, verdict_preparation):
+    """Ligne « pas prête » d'une intervention ``a_planifier`` : ce qui lui manque, sans coordonnée ni contact."""
+    return {
+        "intervention_id": identifiant,
+        "statut_preparation": verdict_preparation["statut"],
+        "a_fournir": copy.deepcopy(verdict_preparation["a_fournir"]),
+    }
+
+
+# Volets qui ne dépendent pas d'un chantier : leur « à fournir » est le même pour toutes les interventions, on ne le dit
+# qu'une fois (l'adresse et la soumission, propres à chaque chantier, sont seulement nommées).
+_VOLETS_D_ENTREPRISE = ("equipe", "materiel", "meteo")
+
+
+def _resume_non_pretes(non_pretes):
+    """Une ligne par intervention non prête (ses volets manquants), puis ce que l'entreprise doit fournir, une fois."""
+    lignes = " ; ".join(
+        f"{ligne['intervention_id']!r} ({', '.join(f['volet'] for f in ligne['a_fournir'])})" for ligne in non_pretes
+    )
+    a_fournir = sorted({
+        f"{f['volet']} : {f['manque']}" for ligne in non_pretes for f in ligne["a_fournir"]
+        if f["volet"] in _VOLETS_D_ENTREPRISE
+    })
+    return lignes + (" ; à fournir : " + " ; ".join(a_fournir) if a_fournir else "")
+
+
+def _evaluer(instantane, identifiant, lire_position, lire_equipes):
+    verdict_preparation, refus = preparation_intervention.evaluer(instantane, identifiant, lire_position, lire_equipes)
+    if refus is not None:
+        # Statut préparable vérifié juste avant : un refus ici trahirait une incohérence interne.
+        raise RuntimeError(f"préparation refusée pour une intervention a_planifier : {refus['code']}")
+    return verdict_preparation
+
+
+def _interventions_a_planifier(instantane, inscriptions, demandees, lire_position, lire_equipes):
+    """Interventions à céduler : ``(sélection, None)`` ou ``(None, verdict)``.
+
+    La sélection porte ``inscriptions`` (triées), ``preparations`` (le verdict de préparation de chaque intervention
+    ``a_planifier`` retenue) et ``non_pretes`` (les ``a_planifier`` laissées de côté, avec ce qui leur manque). Une
+    intervention ``planifiee`` est retenue comme avant T4.12 ; une ``a_planifier`` l'est SEULEMENT si son verdict est
+    « prêt » (jamais présumé)."""
+    statuts = {iid: etats.statut_courant(instantane, iid) for iid in inscriptions}
+    preparations = {}
+    non_pretes = []
+
+    def preparer(iid):
+        verdict_preparation = _evaluer(instantane, iid, lire_position, lire_equipes)
+        if verdict_preparation["pret"]:
+            preparations[iid] = verdict_preparation
+            return True
+        non_pretes.append(_non_prete(iid, verdict_preparation))
+        return False
+
     if demandees is None:
-        identifiants = sorted(
-            iid for iid in inscriptions if etats.statut_courant(instantane, iid) == STATUT_PLANIFIABLE
-        )
+        identifiants = [
+            iid for iid in sorted(inscriptions)
+            if statuts[iid] == STATUT_PLANIFIABLE or (statuts[iid] == STATUT_A_PLANIFIER and preparer(iid))
+        ]
     else:
         if (
             not isinstance(demandees, list)
@@ -234,25 +322,40 @@ def _interventions_a_planifier(instantane, inscriptions, demandees):
             return None, _verdict(
                 "REJ-CONTRAT-INVALIDE",
                 "intervention_ids : liste non vide d'identifiants non vides, ou absent pour toutes les "
-                "interventions planifiees",
+                "interventions planifiees et prêtes",
             )
         if len(set(demandees)) != len(demandees):
             return None, _verdict("REJ-CONTRAT-INVALIDE", "intervention_ids : identifiant en double")
         refusees = [
             iid for iid in sorted(demandees)
-            if iid not in inscriptions or etats.statut_courant(instantane, iid) != STATUT_PLANIFIABLE
+            if iid not in inscriptions or statuts[iid] not in (STATUT_PLANIFIABLE, STATUT_A_PLANIFIER)
         ]
         if refusees:
             return None, _verdict(
                 "REJ-CEDULE-INTERVENTION-NON-PLANIFIABLE",
-                "intervention inconnue ou plus au statut planifiee : " + ", ".join(repr(iid) for iid in refusees),
+                "intervention inconnue ou plus au statut planifiee (ni a_planifier) : "
+                + ", ".join(repr(iid) for iid in refusees),
             )
         identifiants = sorted(demandees)
+        for iid in identifiants:
+            if statuts[iid] == STATUT_A_PLANIFIER:
+                preparer(iid)
+        if non_pretes:
+            return None, _verdict(
+                "REJ-CEDULE-PREPARATION-NON-PRETE",
+                "intervention a_planifier dont la préparation n'est pas prête : " + _resume_non_pretes(non_pretes)
+                + " (m4_verifier_preparation dit ce qui manque)",
+            )
     if not identifiants:
-        return None, _verdict(
-            "REJ-CEDULE-RIEN-A-PLANIFIER", "aucune intervention au statut planifiee : rien à céduler",
-        )
-    return [inscriptions[iid] for iid in identifiants], None
+        detail = "aucune intervention planifiee ni a_planifier prête : rien à céduler"
+        if non_pretes:
+            detail += " ; a_planifier non prêtes : " + _resume_non_pretes(non_pretes) + " (m4_verifier_preparation)"
+        return None, _verdict("REJ-CEDULE-RIEN-A-PLANIFIER", detail)
+    return {
+        "inscriptions": [inscriptions[iid] for iid in identifiants],
+        "preparations": preparations,
+        "non_pretes": non_pretes,
+    }, None
 
 
 # ---------------------------------------------------------------------------
@@ -461,6 +564,102 @@ def _lire_parametres(brut, problemes):
     return distance, solveur
 
 
+_CLES_EQUIPE_SOLVEUR = ("id", "competences", "depot", "quarts")
+
+
+def _equipes_du_profil(profil):
+    """Les équipes du profil au format du solveur : ``membres`` n'y entre pas (il sert à l'accès, pas aux tournées)."""
+    return [{cle: copy.deepcopy(equipe[cle]) for cle in _CLES_EQUIPE_SOLVEUR} for equipe in profil["liste"]]
+
+
+def _completer_par_le_profil(arguments, selection, lire_equipes):
+    """Les arguments EFFECTIFS : ceux de l'appelant, complétés par le profil des équipes pour ce qu'il n'a pas donné.
+
+    Rend ``(effectifs, provenance, empreinte_profil, verdict_profil)``. Un argument donné (non ``null``) REMPLACE la
+    clé entière du profil : c'est une surcharge, jamais une fusion. ``provenance`` dit, pour chaque clé utilisée,
+    ``profil`` ou ``surcharge`` (pour ``chantiers`` : une source par intervention). ``empreinte_profil`` n'est posée
+    que si au moins une valeur vient du profil. ``verdict_profil`` est le verdict de la lecture du profil (absent,
+    invalide) ou ``None`` : il sert à dire quoi déclarer quand des valeurs manquent, jamais à en inventer.
+    Sans ``lire_equipes``, rien n'est complété (comportement d'avant T4.12)."""
+    profil, verdict_profil = (None, None) if lire_equipes is None else lire_equipes()
+    natures = [etats.travaux_de(inscription) for inscription in selection["inscriptions"]]
+    services_requis = sorted({valeur for cle, valeur in natures if cle == etats.CLE_SERVICE})
+    types_requis = bool([valeur for cle, valeur in natures if cle == etats.CLE_TYPE_TRAVAUX])
+    effectifs = dict(arguments)
+    provenance = {}
+
+    def donne(cle):
+        return arguments.get(cle) is not None
+
+    if donne("equipes"):
+        provenance["equipes"] = SOURCE_SURCHARGE
+    elif profil is not None and "liste" in profil:
+        effectifs["equipes"] = _equipes_du_profil(profil)
+        provenance["equipes"] = SOURCE_PROFIL
+    if donne("parametres"):
+        provenance["parametres"] = SOURCE_SURCHARGE
+    elif profil is not None and "cedule" in profil:
+        effectifs["parametres"] = copy.deepcopy(profil["cedule"])
+        provenance["parametres"] = SOURCE_PROFIL
+    if services_requis:
+        for cle, champ in (("durees_par_service", "duree_min"), ("competences_par_service", "competences")):
+            services = None if profil is None else profil.get("services")
+            if donne(cle):
+                provenance[cle] = SOURCE_SURCHARGE
+            elif isinstance(services, dict) and any(service in services for service in services_requis):
+                effectifs[cle] = {
+                    service: copy.deepcopy(services[service][champ])
+                    for service in services_requis if service in services
+                }
+                provenance[cle] = SOURCE_PROFIL
+    if types_requis:  # leads v1 (gelés) : le profil est par service, ces tables restent des arguments
+        for cle in ("durees_par_type_travaux", "competences_par_type_travaux"):
+            if donne(cle):
+                provenance[cle] = SOURCE_SURCHARGE
+
+    # Chantiers : l'entrée donnée par l'appelant fait foi ; une intervention a_planifier qui n'en a pas prend la
+    # fenêtre par défaut du profil et AUCUN créneau figé (avant toute cédule, aucun créneau n'a pu être promis).
+    donnes = arguments.get("chantiers")
+    sources = {}
+    if isinstance(donnes, list):
+        for entree in donnes:
+            if isinstance(entree, dict) and isinstance(entree.get("intervention_id"), str):
+                sources[entree["intervention_id"]] = SOURCE_SURCHARGE
+    fenetre = None if profil is None else profil.get("fenetre_par_defaut")
+    if fenetre is not None and (donnes is None or isinstance(donnes, list)):
+        generes = [
+            {"intervention_id": identifiant, "fenetre": copy.deepcopy(fenetre), "creneau_fige": None}
+            for identifiant in sorted(selection["preparations"]) if identifiant not in sources
+        ]
+        if generes:
+            effectifs["chantiers"] = list(donnes or []) + generes
+            sources.update({entree["intervention_id"]: SOURCE_PROFIL for entree in generes})
+    if sources:
+        provenance["chantiers"] = dict(sorted(sources.items()))
+
+    utilise_le_profil = SOURCE_PROFIL in provenance.get("chantiers", {}).values() or any(
+        source == SOURCE_PROFIL for cle, source in provenance.items() if cle != "chantiers"
+    )
+    empreinte_profil = encodage.empreinte("profil-equipes", profil) if utilise_le_profil else None
+    return effectifs, provenance, empreinte_profil, verdict_profil
+
+
+_INVITATION_PROFIL = (
+    "à défaut d'argument, ces valeurs se déclarent une fois pour toutes dans le profil des équipes de l'entreprise "
+    "(`opsys equipes declarer`)"
+)
+
+
+def _verdict_avec_le_profil(verdict, verdict_profil, lire_equipes):
+    """Quand des valeurs manquent, le verdict dit aussi où les déclarer ; un profil invalide garde son code."""
+    if lire_equipes is None or verdict["code"] != "REJ-CHAMP-MANQUANT":
+        return verdict
+    if verdict_profil is None:
+        return _verdict(verdict["code"], f"{verdict['detail']} ; {_INVITATION_PROFIL}")
+    code = "REJ-PROFIL-INVALIDE" if verdict_profil["code"] == "REJ-PROFIL-INVALIDE" else verdict["code"]
+    return _verdict(code, f"{verdict['detail']} ; {verdict_profil['detail']}")
+
+
 def _lire_arguments(arguments, inscriptions_a_planifier):
     """Assemble les chantiers et les équipes du solveur. ``(dict, None)`` ou ``(None, verdict)``."""
     problemes = _Problemes()
@@ -635,7 +834,9 @@ def _avertissement(mode_bride):
     return AVERTISSEMENT_MODE_BRIDE if mode_bride else None
 
 
-def _resultat_proposition(maillon, deja):
+def _resultat_proposition(maillon, deja, provenance, non_pretes):
+    """Le plan rangé, tel que le maillon le garde ; ``provenance`` (d'où vient chaque valeur) et ``non_pretes`` (les
+    interventions a_planifier laissées de côté) sont ceux de CET appel, pas ceux d'un appel antérieur."""
     sortie = maillon["sortie"]
     meta = sortie["meta"]
     return {
@@ -656,22 +857,28 @@ def _resultat_proposition(maillon, deja):
         "non_cedulees": copy.deepcopy(sortie["non_cedulees"]),
         "horodatage": maillon["horodatage"],
         "propose_par": maillon["propose_par"],
+        "provenance": copy.deepcopy(provenance),
+        "non_pretes": copy.deepcopy(non_pretes),
         "a_appliquer_par": "m4_appliquer_cedule (N3, admin) avec ce plan_id ; rien n'est assigné avant",
     }
 
 
 def proposer(
     registre_cible, arguments, lire_position, horodatage_arg, propose_par=None, fournisseur=None, moteur="auto",
+    lire_equipes=None,
 ):
     """Propose un plan de tournées et le range au registre. Retourne ``(résultat, None)`` ou ``(None, verdict)``.
 
     Aucune vérité n'est écrite : le maillon ``cedule_proposee`` est un brouillon que ``appliquer`` peut
     transformer en assignations. Les arguments (``equipes``, ``durees_par_type_travaux``,
-    ``competences_par_type_travaux``, ``chantiers``, ``parametres``, ``intervention_ids`` optionnel) sont
-    décrits dans l'en-tête du module ; tout ce qui manque est rapporté en UN verdict. ``lire_position(
-    registre, lead_id)`` rend ``(position, None)`` ou ``(None, verdict)`` comme
-    ``outils.lire_localisation_confirmee``. ``fournisseur`` : port ``distances.FournisseurMatrice`` ou ``None``
-    (palier 0). Même entrées : même plan, même ``plan_id`` ; une proposition identique n'écrit rien de plus."""
+    ``competences_par_type_travaux``, ``durees_par_service``, ``competences_par_service``, ``chantiers``,
+    ``parametres``, ``intervention_ids`` optionnel) sont décrits dans l'en-tête du module ; tout ce qui manque est
+    rapporté en UN verdict. ``lire_position(registre, lead_id)`` rend ``(position, None)`` ou ``(None, verdict)``
+    comme ``outils.lire_localisation_confirmee``. ``lire_equipes()`` rend ``(profil, None)`` ou ``(None, verdict)``
+    (``opsys.equipes.charger_equipes``) : ce que le profil des équipes déclare complète les arguments absents, et un
+    argument donné le REMPLACE (surcharge, tracée dans ``provenance``). ``fournisseur`` : port
+    ``distances.FournisseurMatrice`` ou ``None`` (palier 0). Même entrées : même plan, même ``plan_id``, que les
+    valeurs viennent du profil ou d'arguments identiques ; une proposition identique n'écrit rien de plus."""
     try:
         horodatage.valider_horodatage(horodatage_arg)
     except ValueError:
@@ -683,12 +890,18 @@ def proposer(
 
     instantane = _Instantane(registre_cible.lire())
     inscriptions = _inscriptions(instantane)
-    a_planifier, verdict = _interventions_a_planifier(instantane, inscriptions, arguments.get("intervention_ids"))
+    selection, verdict = _interventions_a_planifier(
+        instantane, inscriptions, arguments.get("intervention_ids"), lire_position, lire_equipes,
+    )
     if verdict is not None:
         return None, verdict
-    preparation, verdict = _lire_arguments(arguments, a_planifier)
+    a_planifier = selection["inscriptions"]
+    effectifs, provenance, empreinte_profil, verdict_profil = _completer_par_le_profil(
+        arguments, selection, lire_equipes,
+    )
+    preparation, verdict = _lire_arguments(effectifs, a_planifier)
     if verdict is not None:
-        return None, verdict
+        return None, _verdict_avec_le_profil(verdict, verdict_profil, lire_equipes)
     leads = {inscription["intervention_id"]: inscription["lead_id"] for inscription in a_planifier}
     entree, verdict = _entree_solveur(preparation, leads, instantane, lire_position, fournisseur)
     if verdict is not None:
@@ -697,7 +910,7 @@ def proposer(
     if verdict is not None:
         return None, verdict
 
-    etat = [_etat_intervention(instantane, inscription) for inscription in a_planifier]
+    etat = [_etat_intervention(instantane, inscription, selection["preparations"]) for inscription in a_planifier]
     meta = sortie["meta"]
     empreinte_etat = encodage.empreinte(etat)
     plan_id = encodage.empreinte(
@@ -705,7 +918,7 @@ def proposer(
     )
     existant = _maillon_du_plan(instantane, TYPE_PROPOSEE, plan_id)
     if existant is not None:
-        return _resultat_proposition(existant, True), None
+        return _resultat_proposition(existant, True, provenance, selection["non_pretes"]), None
 
     maillon = {
         "type_entree": TYPE_PROPOSEE,
@@ -716,13 +929,15 @@ def proposer(
         "moteur": moteur,
         "entree": _entree_stockee(preparation),
         "etat": etat,
+        "provenance": provenance,
+        "empreinte_profil": empreinte_profil,
         "empreinte_entree": meta["empreinte_entree"],
         "empreinte_sortie": meta["empreinte_sortie"],
         "empreinte_etat": empreinte_etat,
         "sortie": sortie,
     }
     registre_cible.ajouter(maillon)
-    return _resultat_proposition(maillon, False), None
+    return _resultat_proposition(maillon, False, provenance, selection["non_pretes"]), None
 
 
 # ---------------------------------------------------------------------------
@@ -759,11 +974,50 @@ def _resultat_application(marqueur, proposee, deja):
     }
 
 
-def appliquer(registre_cible, plan_id, lire_position, horodatage_arg, appliquee_par, fournisseur=None):
+def _equipes_admissibles_pour_les_sorties(instantane, inscriptions, visites, preparations, lire_equipes):
+    """``None`` ou un verdict : l'équipe qui reçoit une intervention SORTANT de ``a_planifier`` est admissible selon le
+    profil des équipes (``admissibilite.py``), même si le plan a été proposé avec des équipes en surcharge.
+
+    Le volet équipe de la préparation certifie qu'une équipe du PROFIL peut faire le service ; sans ce contrôle, un plan
+    proposé avec d'autres équipes ferait sortir l'intervention sur un « prêt » qui ne parle pas de l'équipe assignée."""
+    sortantes = [(chantier, equipe) for chantier, equipe in visites if chantier in preparations]
+    if not sortantes:
+        return None
+    profil, verdict_profil = (None, None) if lire_equipes is None else lire_equipes()
+    refus = []
+    for chantier, equipe in sortantes:
+        _, service = etats.travaux_de(inscriptions[chantier])
+        if profil is None:
+            raison = "profil des équipes illisible" + ("" if verdict_profil is None else f" ({verdict_profil['code']})")
+        else:
+            resultat, verdict = admissibilite.equipes_admissibles(profil, service)
+            if verdict is not None:
+                raison = verdict["detail"]
+            elif equipe in resultat["admissibles"]:
+                continue
+            else:
+                raison = f"admissibles : {', '.join(resultat['admissibles']) or 'aucune'}"
+        refus.append(f"{chantier!r} ({service}) confiée à {equipe!r} : {raison}")
+    if not refus:
+        return None
+    return _verdict(
+        "REJ-TOURNEES-PLAN-INVALIDE",
+        "l'équipe assignée à une intervention qui sort de a_planifier n'est pas admissible selon le profil des "
+        "équipes : " + " ; ".join(refus[:_MAX_PROBLEMES]),
+    )
+
+
+def appliquer(
+    registre_cible, plan_id, lire_position, horodatage_arg, appliquee_par, fournisseur=None, lire_equipes=None,
+):
     """Applique un plan PROPOSÉ : assigne les techniciens. Retourne ``(résultat, None)`` ou ``(None, verdict)``.
 
-    Refus, sans rien écrire : plan inconnu (``REJ-CEDULE-PLAN-INTROUVABLE``) ; état des interventions ou
-    entrée du solveur changés depuis la proposition (``REJ-CEDULE-ENTREE-CHANGEE``) ; plan qui échoue à
+    Une intervention ``a_planifier`` que le plan place passe d'abord à ``planifiee`` (``etats.transitionner``, avec le
+    verdict de préparation « prêt » recalculé ICI : la porte d'empreinte de T4.10), puis reçoit son équipe.
+
+    Refus, sans rien écrire : plan inconnu (``REJ-CEDULE-PLAN-INTROUVABLE``) ; intervention ``a_planifier`` dont la
+    préparation n'est plus prête (``REJ-CEDULE-PREPARATION-NON-PRETE``) ; état des interventions, profil des équipes
+    ou entrée du solveur changés depuis la proposition (``REJ-CEDULE-ENTREE-CHANGEE``) ; plan qui échoue à
     ``tournees.verifier_plan`` (``REJ-TOURNEES-PLAN-INVALIDE``) ; plan sans visite
     (``REJ-CEDULE-RIEN-A-PLANIFIER``). Un plan déjà appliqué rend son application enregistrée
     (``deja_appliquee``) sans rien écrire. Un créneau figé qui ne serait pas tenu est un plan invalide : il
@@ -787,13 +1041,36 @@ def appliquer(registre_cible, plan_id, lire_position, horodatage_arg, appliquee_
 
     inscriptions = _inscriptions(instantane)
     avant = proposee["etat"]
-    apres = [_etat_intervention(instantane, inscriptions[ligne["intervention_id"]]) for ligne in avant]
+    # Le verdict de préparation d'AUJOURD'HUI de chaque intervention encore a_planifier : c'est lui, et lui seul, qui
+    # ouvre la porte a_planifier -> planifiee. Une préparation devenue non prête refuse tout, sans rien écrire.
+    preparations = {}
+    for ligne in avant:
+        identifiant = ligne["intervention_id"]
+        if etats.statut_courant(instantane, identifiant) == STATUT_A_PLANIFIER:
+            preparations[identifiant] = _evaluer(instantane, identifiant, lire_position, lire_equipes)
+    non_pretes = [_non_prete(iid, v) for iid, v in sorted(preparations.items()) if not v["pret"]]
+    if non_pretes:
+        return None, _verdict(
+            "REJ-CEDULE-PREPARATION-NON-PRETE",
+            "intervention a_planifier dont la préparation n'est plus prête : " + _resume_non_pretes(non_pretes)
+            + " (m4_verifier_preparation dit ce qui manque)",
+        )
+    apres = [_etat_intervention(instantane, inscriptions[ligne["intervention_id"]], preparations) for ligne in avant]
     if apres != avant:
         return None, _verdict(
             "REJ-CEDULE-ENTREE-CHANGEE",
             "l'état des interventions a changé depuis la proposition, proposer de nouveau : "
             + " ; ".join(_differences(avant, apres)[:_MAX_PROBLEMES]),
         )
+    if proposee.get("empreinte_profil") is not None:
+        profil, verdict_profil = (None, None) if lire_equipes is None else lire_equipes()
+        if profil is None or encodage.empreinte("profil-equipes", profil) != proposee["empreinte_profil"]:
+            detail = "" if verdict_profil is None else f" ({verdict_profil['detail']})"
+            return None, _verdict(
+                "REJ-CEDULE-ENTREE-CHANGEE",
+                "le profil des équipes a changé depuis la proposition, ou n'est plus lisible : proposer de nouveau"
+                + detail,
+            )
 
     preparation = _preparation_depuis_maillon(proposee)
     leads = {ligne["intervention_id"]: ligne["lead_id"] for ligne in avant}
@@ -827,9 +1104,22 @@ def appliquer(registre_cible, plan_id, lire_position, horodatage_arg, appliquee_
         return None, _verdict(
             "REJ-CEDULE-RIEN-A-PLANIFIER", "le plan ne place aucun chantier : rien à appliquer",
         )
+    verdict = _equipes_admissibles_pour_les_sorties(instantane, inscriptions, visites, preparations, lire_equipes)
+    if verdict is not None:
+        return None, verdict
 
     assignations = []
     for chantier, equipe in visites:
+        transition = None
+        if chantier in preparations:
+            _, verdict = etats.transitionner(
+                chantier, "planifiee", registre_cible, horodatage_arg, preparation=preparations[chantier],
+            )
+            if verdict is not None:
+                # Verdict « prêt » recalculé plus haut, statut a_planifier relu : un refus trahirait une
+                # incohérence interne. On lève pour que l'appel atomique annule tout ce qui a été écrit.
+                raise RuntimeError(f"sortie de a_planifier refusée après un contrôle valide : {verdict['code']}")
+            transition = TRANSITION_SORTIE_A_PLANIFIER
         if etats.technicien_assigne(instantane, chantier) == equipe:
             effet = EFFET_DEJA_ASSIGNEE
         else:
@@ -839,7 +1129,9 @@ def appliquer(registre_cible, plan_id, lire_position, horodatage_arg, appliquee_
                 # interne. On lève pour que l'appel atomique annule les assignations déjà écrites.
                 raise RuntimeError(f"assignation refusée après un contrôle valide : {verdict['code']}")
             effet = EFFET_ASSIGNEE
-        assignations.append({"intervention_id": chantier, "technicien_id": equipe, "effet": effet})
+        assignations.append({
+            "intervention_id": chantier, "technicien_id": equipe, "effet": effet, "transition": transition,
+        })
     conservees = {ligne["intervention_id"]: ligne["technicien_assigne"] for ligne in avant}
     marqueur = {
         "type_entree": TYPE_APPLIQUEE,

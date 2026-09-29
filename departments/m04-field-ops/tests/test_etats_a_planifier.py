@@ -213,9 +213,9 @@ class TestPorteAPlanifieeVersPlanifiee:
         assert "volets" not in maillon and "preparation" not in maillon, "l'empreinte, pas le verdict"
         # devenue planifiable : la cédule par tournées la voit désormais
         instantane = cedule_tournees._Instantane(reg.lire())
-        a_planifier, refus = cedule_tournees._interventions_a_planifier(
-            instantane, cedule_tournees._inscriptions(instantane), None)
-        assert refus is None and [i["intervention_id"] for i in a_planifier] == [iid]
+        selection, refus = cedule_tournees._interventions_a_planifier(
+            instantane, cedule_tournees._inscriptions(instantane), None, _lire_position_ok, None)
+        assert refus is None and [i["intervention_id"] for i in selection["inscriptions"]] == [iid]
 
     def test_le_verdict_reel_d_aujourd_hui_ne_l_ouvre_jamais(self, reg, inscrite):
         iid = inscrite["intervention_id"]
@@ -283,14 +283,131 @@ class TestPorteAPlanifieeVersPlanifiee:
         assert etats.transitionner(iid, "planifiee", reg, "2026-09-29T12:00:00-04:00")[1] is None
 
 
-class TestCeduleParTourneesInchangee:
-    def test_une_intervention_a_planifier_n_entre_pas_dans_la_cedule(self, reg, inscrite):
-        """L'état est additif : la cédule par tournées ne planifie toujours que `planifiee`."""
+class TestCeduleParTourneesSansPreparationPrete:
+    def test_une_intervention_a_planifier_non_prete_n_entre_pas_dans_la_cedule(self, reg, inscrite):
+        """T4.12 : la cédule par tournées ne prend une `a_planifier` que si sa préparation est « prête » ; sinon elle la
+        rend avec ce qui lui manque. Aucun verdict réel n'est prêt tant que matériel et météo sont non vérifiables."""
         instantane = cedule_tournees._Instantane(copy.deepcopy(reg.lire()))
         inscriptions = cedule_tournees._inscriptions(instantane)
-        rien, refus = cedule_tournees._interventions_a_planifier(instantane, inscriptions, None)
+        rien, refus = cedule_tournees._interventions_a_planifier(
+            instantane, inscriptions, None, _lire_position_ok, None)
         assert rien is None and refus["code"] == "REJ-CEDULE-RIEN-A-PLANIFIER"
+        assert inscrite["intervention_id"] in refus["detail"] and "m4_verifier_preparation" in refus["detail"]
         demandee, refus = cedule_tournees._interventions_a_planifier(
-            instantane, inscriptions, [inscrite["intervention_id"]])
-        assert demandee is None and refus["code"] == "REJ-CEDULE-INTERVENTION-NON-PLANIFIABLE"
+            instantane, inscriptions, [inscrite["intervention_id"]], _lire_position_ok, None)
+        assert demandee is None and refus["code"] == "REJ-CEDULE-PREPARATION-NON-PRETE"
         assert cedule_tournees.STATUT_PLANIFIABLE == "planifiee"
+        assert cedule_tournees.STATUT_A_PLANIFIER == "a_planifier"
+
+
+# ---------------------------------------------------------------------------------------------
+# PLAN T4.12 : plus de doublon possible entre l'intervention née du bus et la planification à la main
+# ---------------------------------------------------------------------------------------------
+def _contrat_main(lead_id="LEAD-T410"):
+    return {
+        "lead_id": lead_id, "conversation_id": "C-main", "type_travaux": "renovation_totale", "ville": VILLE,
+        "canal": "telephone", "contact": {"nom": "Dupont", "telephone": "0102030405"}, "urgence_declaree": False,
+    }
+
+
+def _marqueur_main(lead_id="LEAD-T410"):
+    return {"readiness_ok": True, "lead_id": lead_id, "hash_tete_registre": None,
+            "horodatage": "2026-09-28T12:00:00+00:00", "empreinte": "ab" * 32}
+
+
+def _planifier_a_la_main(reg, lead_id="LEAD-T410", devis_id=None, horodatage="2026-09-29T12:00:00-04:00"):
+    return etats.inscrire_intervention(
+        _contrat_main(lead_id), _marqueur_main(lead_id), reg, horodatage, SEL, devis_id=devis_id)
+
+
+class TestPasDeDoublonAvecLeBus:
+    def test_le_bus_d_abord_puis_la_main_avec_le_meme_devis_est_refuse_sans_rien_ecrire(self, reg, inscrite):
+        taille = len(reg.lire())
+        accuse, verdict = _planifier_a_la_main(reg, devis_id="DEVIS-T410")
+        assert accuse is None and verdict["code"] == "REJ-TRANSITION-ILLEGALE"
+        assert "DEVIS-T410" in verdict["detail"] and inscrite["intervention_id"] in verdict["detail"]
+        assert "un devis n'a qu'une intervention" in verdict["detail"] and "a_planifier" in verdict["detail"]
+        assert "m4_verifier_preparation" in verdict["detail"] and "m4_proposer_cedule" in verdict["detail"]
+        assert verdict["statut"] == "a_planifier"
+        assert len(reg.lire()) == taille
+        assert [i["intervention_id"] for i in etats.lister_interventions(reg)] == [inscrite["intervention_id"]]
+
+    def test_la_main_d_abord_puis_le_bus_avec_le_meme_devis_est_refuse_sans_rien_ecrire(self, reg):
+        legacy, verdict = _planifier_a_la_main(reg, devis_id="DEVIS-T410")
+        assert verdict is None
+        taille = len(reg.lire())
+        accuse, verdict = etats.inscrire_depuis_devis(reg, "DEVIS-T410", _lead(), SEL, HORO)
+        assert accuse is None and verdict["code"] == "REJ-TRANSITION-ILLEGALE"
+        assert len(reg.lire()) == taille
+        assert etats.intervention_du_devis(reg, "DEVIS-T410") == legacy["intervention_id"]
+
+    def test_deux_planifications_a_la_main_du_meme_devis_font_aussi_un_doublon(self, reg):
+        """DÉCISION : la règle est celle d'`inscrire_depuis_devis` (« toute inscription compte, quelle qu'en soit
+        l'origine ») : un devis n'a qu'une intervention, née du bus ou planifiée à la main. Replanifier un chantier se
+        fait par `reportee -> planifiee`, pas par une seconde inscription."""
+        premiere, verdict = _planifier_a_la_main(reg, devis_id="DEVIS-MAIN-2")
+        assert verdict is None
+        taille = len(reg.lire())
+        accuse, verdict = _planifier_a_la_main(reg, devis_id="DEVIS-MAIN-2", horodatage="2026-09-30T12:00:00-04:00")
+        assert accuse is None and verdict["code"] == "REJ-TRANSITION-ILLEGALE"
+        assert premiere["intervention_id"] in verdict["detail"] and len(reg.lire()) == taille
+        # et le report d'une planifiée la rend replanifiable, sans seconde inscription
+        iid = premiere["intervention_id"]
+        assert etats.transitionner(iid, "reportee", reg, HORO_APRES, motif="meteo")[1] is None
+        assert etats.transitionner(iid, "planifiee", reg, "2026-09-30T08:00:00-04:00")[1] is None
+
+    def test_apres_l_annulation_de_l_intervention_nee_du_bus_le_devis_reste_verrouille(self, reg, inscrite):
+        """Annulée, l'intervention compte encore : le client a renoncé à CE devis, pas de seconde intervention."""
+        assert etats.transitionner(inscrite["intervention_id"], "annulee", reg, HORO_APRES)[1] is None
+        accuse, verdict = _planifier_a_la_main(reg, devis_id="DEVIS-T410")
+        assert accuse is None and verdict["code"] == "REJ-TRANSITION-ILLEGALE" and verdict["statut"] == "annulee"
+
+    def test_un_autre_devis_du_meme_lead_n_est_pas_bloque(self, reg, inscrite):
+        accuse, verdict = _planifier_a_la_main(reg, devis_id="DEVIS-AUTRE")
+        assert verdict is None and accuse["statut"] == "planifiee"
+        assert len(etats.lister_interventions(reg)) == 2
+
+    def test_sans_devis_id_une_intervention_nee_du_bus_pour_le_meme_lead_est_un_doublon(self, reg, inscrite):
+        """`devis_id` est facultatif à la planification à la main : l'omettre ne contourne pas la garde."""
+        taille = len(reg.lire())
+        accuse, verdict = _planifier_a_la_main(reg, devis_id=None)
+        assert accuse is None and verdict["code"] == "REJ-TRANSITION-ILLEGALE"
+        assert "sans devis_id" in verdict["detail"] and inscrite["intervention_id"] in verdict["detail"]
+        assert "AUTRE devis" in verdict["detail"]
+        assert len(reg.lire()) == taille
+
+    def test_sans_devis_id_le_lead_d_un_autre_ou_une_intervention_annulee_ne_bloque_pas(self, reg, inscrite):
+        accuse, verdict = _planifier_a_la_main(reg, lead_id="LEAD-AUTRE", devis_id=None)
+        assert verdict is None and accuse["statut"] == "planifiee"
+        assert etats.transitionner(inscrite["intervention_id"], "annulee", reg, HORO_APRES)[1] is None
+        assert etats.intervention_nee_du_bus_du_lead(reg, "LEAD-T410") is None
+        accuse, verdict = _planifier_a_la_main(reg, devis_id=None, horodatage="2026-09-30T12:00:00-04:00")
+        assert verdict is None and accuse["statut"] == "planifiee"
+
+    def test_une_intervention_planifiee_a_la_main_n_est_pas_nee_du_bus(self, reg):
+        legacy, _ = _planifier_a_la_main(reg, devis_id="DEVIS-MAIN")
+        assert etats.intervention_nee_du_bus_du_lead(reg, "LEAD-T410") is None
+        assert etats.intervention_du_devis(reg, "DEVIS-MAIN") == legacy["intervention_id"]
+        # une seconde planification à la main, sans devis, reste permise : la garde ne vise que le bus
+        assert _planifier_a_la_main(reg, devis_id=None, horodatage="2026-09-30T12:00:00-04:00")[1] is None
+
+    def test_intervention_nee_du_bus_du_lead_lit_le_registre(self, reg, inscrite):
+        assert etats.intervention_nee_du_bus_du_lead(reg, "LEAD-T410") == inscrite["intervention_id"]
+        assert etats.intervention_nee_du_bus_du_lead(reg, "LEAD-AUTRE") is None
+        assert etats.intervention_nee_du_bus_du_lead(registre.Registre(), "LEAD-T410") is None
+
+    def test_la_garde_ne_change_pas_les_refus_d_un_contrat_invalide(self, reg, inscrite):
+        """Un contrat invalide garde son verdict : la garde du doublon passe APRÈS la validation."""
+        contrat = _contrat_main()
+        del contrat["ville"]
+        accuse, verdict = etats.inscrire_intervention(
+            contrat, _marqueur_main(), reg, HORO_APRES, SEL, devis_id="DEVIS-T410")
+        assert accuse is None and "existe déjà" not in verdict["detail"]
+
+    def test_limite_connue_la_main_sans_devis_puis_le_bus_n_est_pas_detectee(self, reg):
+        """LIMITE PINGLÉE (à ne pas prendre pour une garantie) : une planification à la main SANS devis_id, puis le
+        devis accepté du même lead, donnent deux interventions : rien ne dit que la première est celle du devis."""
+        assert _planifier_a_la_main(reg, devis_id=None)[1] is None
+        accuse, verdict = etats.inscrire_depuis_devis(reg, "DEVIS-T410", _lead(), SEL, HORO_APRES)
+        assert verdict is None and accuse["statut"] == "a_planifier"
+        assert len(etats.lister_interventions(reg)) == 2

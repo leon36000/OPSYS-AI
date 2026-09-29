@@ -21,6 +21,7 @@ from m4_field_ops.outils import outils
 from sqlalchemy import func, select
 
 from opsys import cles_chiffrement, contexte, evenements, identite, stockage
+from opsys import equipes as equipes_entreprise
 from opsys.departements import charger_departements
 from opsys.outils import executer_atomique
 from opsys.stockage import codec
@@ -393,7 +394,10 @@ class TestVerifierPreparation:
         assert volets["soumission"]["statut"] == "ok" and "DEVIS-P" in volets["soumission"]["detail"]
         assert volets["adresse"]["statut"] == "manque" and "à confirmer" in volets["adresse"]["manque"]
         assert volets["adresse"]["detail"] == "REJ-COORDONNEES-A-CONFIRMER"
-        for volet in ("equipe", "materiel", "meteo"):
+        # T4.12 : sans profil des équipes, l'équipe n'est plus « non vérifiable » (M4 sait la lire) : elle MANQUE, et le
+        # volet dit quoi déclarer. Matériel et météo restent non vérifiables (T4.14, T4.13).
+        assert volets["equipe"]["statut"] == "manque" and "opsys equipes declarer" in volets["equipe"]["manque"]
+        for volet in ("materiel", "meteo"):
             assert volets[volet]["statut"] == "non_verifiable" and volets[volet]["manque"], volet
         assert [f["volet"] for f in verdict["a_fournir"]] == ["adresse", "equipe", "materiel", "meteo"]
 
@@ -409,8 +413,22 @@ class TestVerifierPreparation:
         verdict = _ok(_appeler(par_nom, "m4_verifier_preparation", {"intervention_id": iid}, ADMIN))
         assert verdict["volets"]["adresse"]["statut"] == "ok"
         assert verdict["volets"]["adresse"]["detail"] == "coordonnées confirmées (version 1)"
-        assert verdict["statut"] == "non_verifiable" and verdict["pret"] is False
+        assert verdict["statut"] == "bloque" and verdict["pret"] is False, "sans profil, l'équipe manque"
         assert [f["volet"] for f in verdict["a_fournir"]] == ["equipe", "materiel", "meteo"]
+        # Le profil déclaré (gouttières : durée et compétence ; une équipe qui les a), l'équipe devient vérifiée ;
+        # matériel et météo n'ont toujours pas de source : le verdict n'est pas « prêt », jamais.
+        equipes_entreprise.enregistrer_equipes({
+            "liste": [{"id": "equipe-fictive", "membres": ["marc.fictif"], "competences": ["gouttieres"],
+                       "depot": {"id": "depot-fictif", "latitude_microdegres": 45735000,
+                                 "longitude_microdegres": -73455000},
+                       "quarts": [{"jour": 0, "debut_min": 480, "fin_min": 1020}]}],
+            "services": {"gouttieres": {"duree_min": 90, "competences": ["gouttieres"]}},
+        })
+        verdict = _ok(_appeler(par_nom, "m4_verifier_preparation", {"intervention_id": iid}, ADMIN))
+        assert verdict["volets"]["equipe"]["statut"] == "ok"
+        assert "equipe-fictive" in verdict["volets"]["equipe"]["detail"]
+        assert verdict["statut"] == "non_verifiable" and verdict["pret"] is False
+        assert [f["volet"] for f in verdict["a_fournir"]] == ["materiel", "meteo"]
         texte = json.dumps(verdict, ensure_ascii=False)
         for interdit in ("45741500", "-73450500", "latitude", "longitude", "Client Fictif", VILLE, PRIX_TOTAL):
             assert interdit not in texte, interdit

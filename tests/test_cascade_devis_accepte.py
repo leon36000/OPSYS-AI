@@ -307,6 +307,85 @@ class TestSoumissionAcceptee:
         assert _interventions(deps) == []
 
 
+def _contrat_main(lead_id: str) -> dict:
+    """Le contrat d'un lead planifié à la main (`m4_planifier_intervention`), le flux d'avant T4.10."""
+    return {
+        "lead_id": lead_id, "conversation_id": f"conv-main-{lead_id}", "type_travaux": "renovation_totale",
+        "ville": "Laval", "canal": "telephone", "contact": {"nom": "Client Fictif", "telephone": NUMERO},
+        "urgence_declaree": False,
+    }
+
+
+def _planifier_a_la_main(deps, lead_id: str, devis_id: str | None) -> dict:
+    return executer_atomique(_outils(deps, M4)["m4_planifier_intervention"], {
+        "contrat": _contrat_main(lead_id),
+        "marqueur": {"readiness_ok": True, "lead_id": lead_id, "hash_tete_registre": None,
+                     "horodatage": "2026-09-29T12:00:00+00:00", "empreinte": "ab" * 32},
+        "horodatage": "2026-10-01T08:00:00+00:00", "sel": "sel-fictif", "techniciens_disponibles": ["marc.fictif"],
+        "fenetres_disponibles": [{"debut": "2026-10-05T07:00:00+00:00", "fin": "2026-10-05T19:00:00+00:00"}],
+        "devis_id": devis_id})
+
+
+class TestPasDeDoublonPourM4:
+    """PLAN T4.12 : le bus et la planification à la main ne font jamais deux interventions pour le même devis, quel
+    que soit l'ordre. Le reste de la cascade (M2, M5, M6, M8) ne change pas."""
+
+    def test_apres_la_cascade_la_main_est_refusee_et_rien_ne_s_ecrit(self, instance):
+        deps = instance
+        lead = _lead_v2("LEAD-T412-A")
+        _publier_lead(lead)
+        _drainer(deps, DEBUT)
+        _qualifier(deps, lead["lead_id"])
+        _devis_accepte(deps, lead["lead_id"], "DEVIS-T412-A")
+        assert _drainer(deps, DEBUT + dt.timedelta(hours=1))["quarantaines"] == 0
+        (nee,) = _interventions(deps)
+        assert nee["statut"] == "a_planifier"
+        avant = _empreinte_etat()
+
+        refus = _planifier_a_la_main(deps, lead["lead_id"], "DEVIS-T412-A")
+        assert refus["ok"] is True and refus["resultat"]["accepte"] is False, refus
+        assert refus["resultat"]["verdict"]["code"] == "REJ-TRANSITION-ILLEGALE"
+        assert nee["intervention_id"] in refus["resultat"]["verdict"]["detail"]
+        assert _empreinte_etat() == avant, "aucun maillon de plus, dans aucun registre"
+        assert [i["intervention_id"] for i in _interventions(deps)] == [nee["intervention_id"]]
+
+    def test_la_main_avant_la_cascade_laisse_une_seule_intervention_et_la_cascade_intacte(self, instance):
+        deps = instance
+        lead = _lead_v2("LEAD-T412-B")
+        _publier_lead(lead)
+        _drainer(deps, DEBUT)
+        _qualifier(deps, lead["lead_id"])
+        main = _planifier_a_la_main(deps, lead["lead_id"], "DEVIS-T412-B")  # la main passe avant l'acceptation
+        assert main["ok"] is True and main["resultat"]["accepte"] is True, main
+        evenement_id = _devis_accepte(deps, lead["lead_id"], "DEVIS-T412-B")
+        total = _drainer(deps, DEBUT + dt.timedelta(hours=1))
+        assert total["echecs"] == 0 and total["quarantaines"] == 0, total
+
+        (seule,) = _interventions(deps)
+        assert seule["intervention_id"] == main["resultat"]["intervention_id"] and seule["statut"] == "planifiee"
+        assert seule["devis_id"] == "DEVIS-T412-B"
+        for consommateur in CONSOMMATEURS:
+            assert _recu(evenement_id, consommateur)["statut"] == "traite", consommateur
+        assert m2_statuts.statut_courant(m2_outils._obtenir_registre(), lead["lead_id"]) == "converti"
+        assert [m["devis_id"] for m in _maillons("m05-financecore", "devis_recus")] == ["DEVIS-T412-B"]
+        assert [m["devis_id"] for m in _maillons("m06-material-control", "besoins_prevus")] == ["DEVIS-T412-B"]
+        assert [m["devis_id"] for m in _maillons("m08-analytics", "faits_chantier")] == ["DEVIS-T412-B"]
+
+    def test_sans_devis_id_la_main_ne_contourne_pas_la_garde(self, instance):
+        deps = instance
+        lead = _lead_v2("LEAD-T412-C")
+        _publier_lead(lead)
+        _drainer(deps, DEBUT)
+        _qualifier(deps, lead["lead_id"])
+        _devis_accepte(deps, lead["lead_id"], "DEVIS-T412-C")
+        _drainer(deps, DEBUT + dt.timedelta(hours=1))
+        refus = _planifier_a_la_main(deps, lead["lead_id"], None)
+        assert refus["resultat"]["accepte"] is False
+        assert refus["resultat"]["verdict"]["code"] == "REJ-TRANSITION-ILLEGALE"
+        assert "sans devis_id" in refus["resultat"]["verdict"]["detail"]
+        assert len(_interventions(deps)) == 1
+
+
 def _charge_publiee(evenement_id: str) -> dict:
     with stockage.transaction():
         charge = evenements.charge_publiee("m3.devis_accepte", evenement_id)

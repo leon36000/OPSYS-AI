@@ -54,6 +54,9 @@ EXPECTED_CODES_M4_LIST = [
     "REJ-CEDULE-INTERVENTION-NON-PLANIFIABLE",
     "REJ-CEDULE-PLAN-INTROUVABLE",
     "REJ-CEDULE-ENTREE-CHANGEE",
+    # Groupe 9 — PLAN T4.12 : profil des équipes et sortie de a_planifier par la cédule
+    "REJ-PROFIL-INVALIDE",
+    "REJ-CEDULE-PREPARATION-NON-PRETE",
     # Groupe 3 — succès
     "OK",
 ]
