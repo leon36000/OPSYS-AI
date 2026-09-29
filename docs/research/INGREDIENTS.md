@@ -169,7 +169,9 @@ version réellement installée (toutes vérifiées une à une ci-dessus). Aucun 
 |---|---|---|---|---|---|
 | **OpenCV** (`opencv-python-headless`) | Apache-2.0 | Contrôle qualité photo réel (variance du Laplacien, histogramme) au lieu d'un `eclairage` déclaré | Dépendance pip, fonction pure | Phase 2 | R7 |
 | `random.Random.triangular` (stdlib) puis PERT maison sur `scipy.stats.beta` | stdlib : aucune dépendance · scipy : BSD-3-Clause | Remplace le tirage `uniform` actuel de `monte_carlo.py` par une vraie triangulaire/PERT, déterminisme bit-à-bit conservé | stdlib d'abord ; scipy en option seulement pour PERT | Phase 2 | R7 |
-| **WeasyPrint** | BSD-3-Clause | Génération du devis PDF depuis le contrat gelé `EstimationV1` (Jinja2→HTML→PDF) | Dépendance pip | Phase 2 | R7 |
+| **WeasyPrint** | BSD-3-Clause | Génération du devis PDF depuis le contrat gelé `EstimationV1` (Jinja2→HTML→PDF) | Dépendance pip ; exige Pango (bibliothèque système) : **écartée pour le PDF de la soumission brouillon de la v1** au profit de ReportLab ci-dessous, gardée en réserve pour un devis à mise en page riche | Phase 2 | R7 |
+| **ReportLab** | BSD-3-Clause (fichier `LICENSE` de la roue 4.5.1, lu le 2026-09-29). La roue embarque aussi des polices avec leurs propres licences, lues dans `reportlab/fonts/` : Bitstream Vera (permissive, redistribuable), DarkGarden (GPL-2 ou plus avec exception de police) ; **aucune n'est utilisée par nous** (Helvetica standard, non incorporée) ni modifiée : simple présence de fichiers de données dans la roue, à savoir pour la revue GPL d'AGENTS.md | Rend la soumission brouillon de M3 en PDF (`soumission_pdf.py`, PLAN T2.3-f) : mêmes champs que le HTML, aucun coût ni marge, montants `Decimal` mis en forme à la québécoise, mention BROUILLON sur toute page. Python pur, aucune bibliothèque système (ni Pango ni Cairo) : l'installateur et l'image l'installent avec pip seul. Mode `invariant` + date de création tirée de l'horodatage du devis : mêmes entrées, mêmes octets | Extra `soumission` de `pyproject.toml` (`reportlab==4.5.1`), import paresseux, version épinglée vérifiée à l'exécution (`pdf_installe`) ; roue 2 Mo, `py3-none-any` ; dépendances déclarées, licences lues le 2026-09-29 : Pillow (MIT-CMU, déjà tiré par d'autres briques, roue avec ses bibliothèques), charset-normalizer (MIT). Extra absent : verdict « installer l'extra soumission », jamais un HTML renommé ; job M3 de la CI et image Docker l'installent | **Intégré** (extra optionnel ; exercé par les tests de M3 quand il est installé, toujours en CI) | R7 · T2.3-f |
+| **pypdf** | BSD-3-Clause (fichier `LICENSE` de la roue 6.19.0, lu le 2026-09-29) | Relit les PDF produits par les tests de M3 (texte extrait) : on prouve ce qu'un lecteur y lit, pas que des octets existent | Extra `dev` de `pyproject.toml` (`pypdf==6.19.0`), jamais en exécution ; Python pur, aucune dépendance | **Intégré** (dépendance de test) | T2.3-f |
 | **SAM 2** (Meta) + **Grounding DINO** (via `transformers`) | SAM 2 : Apache-2.0 · Grounding DINO : Apache-2.0 | Mesure par objet de référence réelle (segmentation + localisation par texte), vérifie par le pixel ce qui n'était que déclaré | Sidecar Python (FastAPI interne), poids séparés | Phase 2 | R7 |
 | **Depth Anything V2** — checkpoint **Small** uniquement | Apache-2.0 (Small ; Base/Large/Giant en CC-BY-NC, voir Refusées) | Carte de profondeur relative → mesure métrique avec un point d'échelle | Sidecar Python | Phase 2 | R7 |
 | **SAM 3** (Meta) | Licence « SAM License » personnalisée (source-available, commercial autorisé mais clauses anti-rétro-ingénierie/riposte) | Segmentation par concept texte en un appel | Sidecar Python isolé, jamais redistribué | Phase 2, **signalé** (validation juridique requise avant usage) | R7 |
@@ -293,6 +295,7 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
 | RSMeans (Gordian) | M3 | Propriétaire (~2 268 $ US/an+), aucune alternative API ouverte équivalente trouvée | R7 |
 | `tadamcz/betapert` | M3 | Aucun fichier LICENSE détecté (tous droits réservés par défaut), 1 ★, dernier push 2024-01-05 | R7 |
 | Depth Anything V2 — checkpoints Base/Large/Giant | M3 | CC-BY-NC-4.0 : non-commercial (seul le checkpoint Small, Apache-2.0, est utilisable) | R7 |
+| fpdf2 (roue 2.8.8) | M3 | Licence LGPL-3.0 admise en dépendance dynamique (fichier `LICENSE` de la roue, lu le 2026-09-29) : le refus est technique. Ses polices de base n'encodent que le Latin-1 : « œ » (main-d'œuvre), « — » et « ’ » lèvent `FPDFUnicodeEncodingException` (mesuré), et la roue ne livre aucune police TrueType à incorporer. ReportLab (WinAnsi) les rend sans police à livrer | T2.3-f |
 | Field Service Management (Beveren, sur ERPNext) | M4 | AGPL-3.0 + suite lourde (Frappe/ERPNext+MariaDB), redondante avec le moteur M4 déjà bâti | R7 |
 | Akaunting | M5 | Business Source License 1.1 : plafond « 2 utilisateurs OU 1 entreprise OU 1000 factures », interdiction de revente en service hébergé | R8 |
 | Invoice Ninja | M5 | Elastic License 2.0 : interdit explicitement de fournir le logiciel à des tiers comme service hébergé/managé — bloque le modèle SaaS multi-PME visé | R8 |
@@ -329,7 +332,7 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
   + 0 refusée.
 - **M1** : 11 retenues (1 intégrée — code interne conservé —, 10 phase 2) + 2 refusées.
 - **M2** : 4 retenues (phase 2) + 2 refusées.
-- **M3** : 6 retenues (phase 2) + 3 refusées.
+- **M3** : 8 retenues (2 intégrées — ReportLab, extra `soumission`, et pypdf, dépendance de test —, 6 phase 2) + 4 refusées (fpdf2, T2.3-f).
 - **M4** : 7 retenues (1 intégrée — PyVRP, extra `tournees` —, 6 phase 2 ou référence, dont le patron haversine × détour, et OR-Tools en référence) + 3 refusées (R15).
 - **M5** : 8 retenues (7 phase 2, 1 référence) + 5 refusées.
 - **M6** : 4 retenues (phase 2) + 1 refusée.
@@ -338,7 +341,7 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
 - **M9** : 13 retenues (2 intégrées — format Agent Skills et patron `civ_review.py` —, 11 phase 2) + 4 refusées.
 - **M10** : renvoie au domaine Mémoire/RAG + 2 éléments propres (1 intégrée — modèle Département —, 1 phase 2).
 
-**Total : 140 briques/patrons retenus** (dont 32 déjà intégrés au code ou à la méthode : **OpenClaw**
+**Total : 142 briques/patrons retenus** (dont 34 déjà intégrés au code ou à la méthode : **OpenClaw**
 comme core par défaut, **Hermes Agent** comme adaptateur/runtime optionnel, **LiteLLM** comme
 passerelle de modèles par défaut, la discipline de cache-boundary (désormais native au runtime
 OpenClaw), `garde_fou.py` M1 conservé, le format Agent Skills, le patron
@@ -350,7 +353,7 @@ TypeScript — et les 4 briques du client d'appairage mobile — PLAN T1.4-c3 :
 `expo-secure-store`, `@noble/curves`, `@noble/hashes`, `@types/node` — et les 4 briques du
 chantier du jour/checklist/photos/signature — PLAN T1.4-e : `expo-camera`, `expo-file-system`,
 `react-native-signature-canvas`, `react-native-webview` — et PyVRP, le solveur de tournées de M4 —
-PLAN T4.1-c) **et 40 refusées
+PLAN T4.1-c — et ReportLab, le rendu PDF de la soumission de M3, avec pypdf qui le relit dans les tests — PLAN T2.3-f) **et 41 refusées
 explicitement**, sur les 10 rapports `docs/research/R1`–`R10` et
 R12 ; mise à jour du choix de core par
 [ADR-0007](../decisions/ADR-0007-core-openclaw.md), vérifiée directement dans le code, les tests et le

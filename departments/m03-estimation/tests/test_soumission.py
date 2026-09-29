@@ -117,3 +117,36 @@ def test_rien_nest_recalcule_les_montants_sont_repris_tels_quels():
     assert devis["prix_total"] == Decimal("405.00")
     assert "13.50" in html
     assert "405.00" in html
+
+
+# -- contenu_client : la porte commune du HTML et du PDF (PLAN T2.3-f) ------------------------------
+def test_contenu_client_ne_garde_que_la_liste_blanche_et_ne_touche_a_aucune_valeur():
+    devis = _devis_reel()
+    devis["cout_secret"] = "5150.99"
+    devis["lignes"][0]["cout_ligne_secret"] = "4242.42"
+    contenu, verdict = soumission.contenu_client(devis)
+    assert verdict is None
+    assert set(contenu) == {"devis_id", "statut", "horodatage", "lignes", "prix_total"}
+    assert set(contenu["lignes"][0]) == {
+        "reference_ligne", "description", "quantite", "unite", "prix_unitaire", "prix_ligne",
+    }
+    assert contenu["prix_total"] == devis["prix_total"] and isinstance(contenu["prix_total"], Decimal)
+    assert contenu["lignes"][0]["prix_unitaire"] == devis["lignes"][0]["prix_unitaire"]
+    assert "cout_unitaire" not in contenu["lignes"][0] and "taux_marge" not in contenu
+
+
+def test_contenu_client_rend_les_memes_verdicts_que_le_brouillon_html():
+    for devis_invalide in ({}, None, {"devis_id": "D1"}):
+        contenu, verdict = soumission.contenu_client(devis_invalide)
+        assert contenu is None and verdict["code"] == "REJ-CONTRAT-INVALIDE"
+    sans_lignes = _devis_reel(lignes=[])
+    assert soumission.contenu_client(sans_lignes)[1]["code"] == "REJ-DEVIS-LIGNES-VIDES"
+    ligne_pauvre = _devis_reel(lignes=[{"description": "seulement une description"}])
+    assert soumission.contenu_client(ligne_pauvre)[1]["code"] == "REJ-DEVIS-LIGNE-INVALIDE"
+
+
+def test_la_mention_brouillon_du_html_est_la_constante_partagee_avec_le_pdf():
+    html, verdict = soumission.generer_brouillon_html(_devis_reel())
+    assert verdict is None
+    assert soumission.MENTION_BROUILLON in html
+    assert soumission.MENTION_BROUILLON.startswith("BROUILLON")

@@ -82,6 +82,11 @@ jobs:
       - name: Extra tournées (PyVRP) pour M4
         if: matrix.dossier == 'm04-field-ops'
         run: python -m pip install --quiet -e ".[tournees]"
+      # ReportLab (extra `soumission`, PLAN T2.3-f) : seul M3 s'en sert (soumission brouillon en PDF) ; sans
+      # lui, ses tests PDF seraient sautés et le rendu ne serait jamais exercé.
+      - name: Extra soumission (ReportLab) pour M3
+        if: matrix.dossier == 'm03-estimation'
+        run: python -m pip install --quiet -e ".[soumission]"
       - name: Lint du département ${{ matrix.dossier }}
         if: contains(fromJSON(env.DEPARTEMENTS_LINT), matrix.dossier)
         run: ruff check "departments/${{ matrix.dossier }}"

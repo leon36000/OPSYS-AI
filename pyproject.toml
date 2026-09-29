@@ -20,7 +20,11 @@ dependencies = [
 postgres = ["psycopg[binary]==3.2.3"]
 console = ["fastapi==0.133.1", "uvicorn>=0.31.1,<1"]
 tournees = ["pyvrp==0.14.0"]  # solveur de tournées de M4 (PLAN T4.1-c) ; sans lui, repli exact jusqu'à 12 chantiers
-dev = ["pytest==9.1.1", "ruff>=0.6", "fastapi==0.133.1", "uvicorn>=0.31.1,<1", "psycopg[binary]==3.2.3"]
+soumission = ["reportlab==4.5.1"]  # soumission brouillon de M3 en PDF (PLAN T2.3-f) ; sans lui, un verdict dit d'installer l'extra
+dev = [
+    "pytest==9.1.1", "ruff>=0.6", "fastapi==0.133.1", "uvicorn>=0.31.1,<1", "psycopg[binary]==3.2.3",
+    "pypdf==6.19.0",  # relit les PDF produits par les tests de M3 (texte extrait) ; jamais en exécution
+]
 
 [project.scripts]
 opsys = "opsys.cli:main"

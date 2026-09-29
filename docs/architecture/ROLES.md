@@ -101,7 +101,7 @@ M10.
 | `m2_transitionner_statut` | §9.4 « pipeline personnel » (perdu avec motif, converti). Ses leads seulement. |
 | `m2_enregistrer_interaction` | §9.4 « notes ». Ses leads seulement, sous son propre nom. |
 | `m3_lire_devis` | §9.4 M3 « voir risques et marge » ; « ne voit pas les coûts internes au-delà de sa soumission ». Les devis de ses leads seulement. |
-| `m3_generer_soumission_brouillon` | §9.4 « soumissions ». Sans coût ni marge. Les devis de ses leads seulement. |
+| `m3_generer_soumission_brouillon` | §9.4 « soumissions ». HTML ou PDF (`format`), mêmes gardes. Sans coût ni marge. Les devis de ses leads seulement. |
 | `m3_qualifier_photos` | §9.4 « demander des photos au client » : ce qui manque. |
 
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix

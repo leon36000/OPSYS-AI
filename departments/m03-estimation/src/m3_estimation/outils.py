@@ -8,11 +8,15 @@ jamais calculé quand il doit être bloqué.
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import json
+import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from opsys import contexte, evenements, identite, stockage, taxonomie
+from opsys import contexte, evenements, identite, jetons, stockage, taxonomie
 from opsys.outils import Autonomie, Outil, depuis_couple
 
 from . import (
@@ -29,6 +33,7 @@ from . import (
     qualite_photos,
     registre,
     soumission,
+    soumission_pdf,
     verdicts,
 )
 
@@ -579,15 +584,54 @@ def detecter_devis_sans_reponse(horodatage_reference: str, delai_relance_jours: 
     return {"devis_verifies": len(tous), "relances_publiees": relances, "erreurs": erreurs}
 
 
-def generer_soumission_brouillon(devis_id: str) -> dict[str, Any]:
-    """Lit le devis durable par `devis_id` et rend un brouillon HTML lisible pour le client
-    (PLAN T2.3, `soumission.py`) — jamais un envoi (SOUL.md, T1.3 : l'envoi reste derrière les
-    approbations du socle).
+_FORMATS_SOUMISSION = ("html", "pdf")
+_HORS_NOM_DE_FICHIER = re.compile(r"[^A-Za-z0-9._-]")
+
+
+def _soumission_pdf(devis: dict[str, Any], devis_id: str) -> dict[str, Any]:
+    """Le brouillon en PDF, remis en base64 avec de quoi le vérifier (taille, SHA-256).
+
+    Un outil ne peut pas transmettre plus de `jetons.LIMITE_SORTIE_DEFAUT` caractères : au-delà,
+    `Capacites._tronquer` le remplacerait par un aperçu, et un PDF tronqué est un fichier corrompu
+    présenté comme un fichier. La même mesure que `_tronquer` est donc faite ICI, et un PDF trop gros
+    est un verdict nommé, jamais un contenu coupé. Aucun envoi : ce sont des octets rendus à l'appelant."""
+    octets, verdict = soumission_pdf.generer_brouillon_pdf(devis)
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    resultat = {
+        "format": "pdf",
+        "type_mime": soumission_pdf.TYPE_MIME,
+        "nom_fichier": "soumission-brouillon-" + _HORS_NOM_DE_FICHIER.sub("_", devis_id) + ".pdf",
+        "taille_octets": len(octets),
+        "empreinte_sha256": hashlib.sha256(octets).hexdigest(),
+        "contenu_base64": base64.b64encode(octets).decode("ascii"),
+    }
+    enveloppe = {"ok": True, "resultat": {"accepte": True, "resultat": resultat}}
+    caracteres = len(json.dumps(enveloppe, ensure_ascii=False))
+    if caracteres > jetons.LIMITE_SORTIE_DEFAUT:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-SOUMISSION-PDF-TROP-VOLUMINEUX",
+            detail=(
+                f"le PDF pèse {len(octets)} octets ({caracteres} caractères transmis) : un outil ne rend "
+                f"pas plus de {jetons.LIMITE_SORTIE_DEFAUT} caractères, il serait tronqué donc corrompu ; "
+                "réduire le nombre de lignes du devis (le dépôt de fichiers du socle ne prend pas encore le PDF)"
+            ),
+        )}
+    return {"accepte": True, "resultat": resultat}
+
+
+def generer_soumission_brouillon(devis_id: str, format: str = "html") -> dict[str, Any]:
+    """Lit le devis durable par `devis_id` et rend un brouillon lisible pour le client, en HTML (défaut)
+    ou en PDF (PLAN T2.3, `soumission.py`, `soumission_pdf.py`) — jamais un envoi (SOUL.md, T1.3 :
+    l'envoi reste derrière les approbations du socle).
 
     PLAN T1.4-k2 : pendant un appel d'appareil, l'identité est confirmée en base, le rôle doit être dans la
     portée de l'outil (vendeur ou admin : le brouillon porte les prix, jamais montrés à l'employé) et un
     vendeur n'obtient que le brouillon d'un lead dont il est le propriétaire (même refus que `lire_devis`
-    pour le devis d'un autre et pour un devis inconnu). Agent : comme avant."""
+    pour le devis d'un autre et pour un devis inconnu). Agent : comme avant. Les deux formats passent par
+    ces mêmes gardes : le PDF n'ouvre aucune porte de plus."""
+    if format not in _FORMATS_SOUMISSION:
+        raise ValueError(f"format inconnu : {format!r} (attendu : {', '.join(_FORMATS_SOUMISSION)})")
     vue = _vue_projection_effective(None)
     if not vue["accepte"]:
         return {"accepte": False, "verdict": vue["verdict"]}
@@ -601,6 +645,8 @@ def generer_soumission_brouillon(devis_id: str) -> dict[str, Any]:
         return {"accepte": False, "verdict": verdict}
     if _hors_portee_du_vendeur(vue, devis):
         return {"accepte": False, "verdict": _devis_inconnu(devis_id)}
+    if format == "pdf":
+        return _soumission_pdf(devis, devis_id)
     return depuis_couple(soumission.generer_brouillon_html(devis))
 
 
@@ -876,15 +922,21 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m3_generer_soumission_brouillon",
             description=(
-                "Génère un brouillon de soumission HTML lisible pour le client depuis un devis "
-                "durable existant (description, quantités, prix par ligne, prix total — jamais "
-                "coût ni marge). Brouillon seulement : aucun envoi, aucune approbation requise "
-                "pour le générer (l'envoi reste derrière les approbations du socle, T1.3). Un vendeur "
-                "authentifié n'obtient que le brouillon d'un devis dont le lead lui appartient (M2)."
+                "Génère un brouillon de soumission lisible pour le client depuis un devis durable "
+                "existant (description, quantités, prix par ligne, prix total — jamais coût ni marge), "
+                "marqué BROUILLON. format=html (défaut) : texte HTML. format=pdf : fichier PDF rendu en "
+                "base64 (contenu_base64, avec taille_octets et empreinte_sha256 pour le vérifier) ; sans "
+                "la brique PDF (extra soumission) ou si le PDF dépasse la sortie d'un outil, un verdict "
+                "dit quoi faire, jamais un faux PDF. Brouillon seulement : aucun envoi, aucune approbation "
+                "requise pour le générer (l'envoi reste derrière les approbations du socle, T1.3). Un "
+                "vendeur authentifié n'obtient que le brouillon d'un devis dont le lead lui appartient (M2)."
             ),
             parametres={
                 "type": "object",
-                "properties": {"devis_id": {"type": "string"}},
+                "properties": {
+                    "devis_id": {"type": "string"},
+                    "format": {"type": "string", "enum": list(_FORMATS_SOUMISSION)},
+                },
                 "required": ["devis_id"],
                 "additionalProperties": False,
             },

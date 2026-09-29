@@ -90,6 +90,14 @@ CODES_M3_LIST = [
     # PLAN T2.3-e (besoins matériaux M3 -> M6) : code du module besoins_materiaux.py, dont le
     # ``detail`` nomme la faute (bloc ``materiaux`` du barème, ou contrat de sortie).
     "REJ-BESOINS-MATERIAUX-INVALIDE",
+    # PLAN T2.3-f (soumission brouillon PDF) : codes du module soumission_pdf.py ; TROP-VOLUMINEUX
+    # est celui de l'adaptateur outils.py (le PDF dépasse la sortie qu'un outil peut transmettre).
+    "REJ-SOUMISSION-PDF-BRIQUE-ABSENTE",
+    "REJ-SOUMISSION-PDF-HORODATAGE-INVALIDE",
+    "REJ-SOUMISSION-PDF-MONTANT-INVALIDE",
+    "REJ-SOUMISSION-PDF-CARACTERE-NON-SUPPORTE",
+    "REJ-SOUMISSION-PDF-RENDU-IMPOSSIBLE",
+    "REJ-SOUMISSION-PDF-TROP-VOLUMINEUX",
 ]
 CODES_M3 = set(CODES_M3_LIST)
 
