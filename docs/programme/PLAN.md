@@ -1385,7 +1385,7 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       du consentement marketing (Loi 25) ; les consommateurs du bus ne voient pas l'`evenement_id`
       (contrat du répartiteur).
 
-- [ ] T4.4 M1 : qualification complète, sans conversation qui meurt à la porte (M1.3).
+- [x] T4.4 M1 : qualification complète, sans conversation qui meurt à la porte (M1.3).
       Écart (§7 M1.3 « M1 doit toujours demander l'information manquante » ; audit M1 §1, §4
       tâches 7-8). T2.1-b cumule déjà service et ville sur la conversation
       (`fenetre_conversation_minutes`) et rend `a_demander`. Reste :
@@ -1401,6 +1401,23 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       Dépend de : T2.1-b. GATE NATHAN : questions par service, poids du score (défauts
       `fictif: true`). T3 : l'envoi d'une question est T2.1-c (N4) ; la demande de photos reste
       fermée tant que la politique « photos » n'est pas validée.
+      Preuve (e8284af, 51290b4, 7156adf, fef1729, 35463a4, 2ea407c) :
+      - `opsys.taxonomie` : `questions_qualification` (par service) et `poids_score_lead` lus du
+        profil, écriture signée ; absents, le verdict le dit (`REJ-QUESTIONS-NON-CONFIGUREES`,
+        « poids à configurer ») ; invalides : `REJ-PROFIL-INVALIDE`, signalé par `opsys verifier` ;
+      - le rejet nomme chaque champ manquant (`champs_manquants`) ; le cumul couvre contact et
+        urgence ; questions du service en brouillon, chacune passée seule au garde-fou (corpus
+        adversarial rejoué comme questions : 44/44 retirées), `envoye: false` ; photos fermées
+        tant que la politique n'est pas `valide` (même lecture que M3, test de dérive) ;
+      - score par règles, fractions exactes, explicable ; sans poids, aucun score ; il reste au
+        registre de M1 (`LeadQualifie` v2 inchangé, prouvé par le vrai bus) ;
+      - prochaine action datée (`suivi_conversation`, heure de la plateforme, fin de fenêtre) ;
+        digest : conversations à suivre et sans suivi ;
+      - hors spécification (e40a0ea, isolé) : la réponse du client à « lequel des services ? »
+        lève l'ambiguïté (`services_ecartes`) ;
+      - M1 740 (562 avant), M2 826, M3 rapide 1226, socle 1117 (43 sautés), verifier 139 outils.
+      Limites : le code lit des mots, pas le sens (« pas de vinyle » répond à « vinyle ») ; un
+      profil de questions invalide n'arrête pas la réception ; docs BMAD de M1 à rafraîchir.
 - [ ] T4.5 M1 : plaintes, urgences et transfert humain avec résumé (M1.8, M1.12).
       Écart (§7 M1.8, M1.12 ; audit M1 §1 « ABSENT », §4 tâches 15-16 ; E2E « plainte » absent) :
       aucune détection de plainte ni de transfert ; une plainte est traitée comme une demande
@@ -1690,6 +1707,10 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 - **Fenêtre de conversation (T2.1-b)** : `fenetre_conversation_minutes` du profil d'entreprise
   (durée pendant laquelle les messages d'un client se rejoignent en un seul lead) ; absente, M1
   qualifie message par message.
+- **Qualification de M1 (T4.4)** : questions par service et leurs mots-clés ; poids du score de
+  lead ; validation de la politique « photos » ; règle « un message qui ne nomme qu'un service est
+  le choix du client » (e40a0ea) ; délai de relance d'une conversation (aujourd'hui : fin de la
+  fenêtre).
 - **Lien automatique session → affaire (T2.1-b)** : aujourd'hui, un humain lie la session d'un
   client à son lead (`m10_lier_session_affaire`, N3). Faut-il qu'une règle écrite le fasse à la
   création du lead ? La clé de session contient le numéro du client : elle ne voyage jamais dans
