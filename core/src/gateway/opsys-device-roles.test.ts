@@ -9,6 +9,7 @@ import { cleanupTempDirs, makeTempDir } from "../../test/helpers/temp-dir.js";
 import {
   authorizeOpsysDeviceTool,
   resetOpsysDeviceRolesCacheForTesting,
+  resolveOpsysDeviceIdentity,
 } from "./opsys-device-roles.js";
 
 const tempDirs: string[] = [];
@@ -214,5 +215,164 @@ describe("authorizeOpsysDeviceTool", () => {
       ok: false,
       reason: "device_unknown",
     });
+  });
+});
+
+describe("resolveOpsysDeviceIdentity (PLAN T1.4-c5)", () => {
+  function writeAttribution(dir: string, appareils: Record<string, unknown>): void {
+    writeFragments(dir, {
+      roles: {
+        roles: { employee: ["m4_pointer_entree"], seller: [], admin: ["m4_pointer_entree"] },
+        serveurs: { m4_pointer_entree: "opsys_m4" },
+      },
+      appareils: { appareils },
+    });
+  }
+
+  it("gives the person and the named role the fragments attribute to the device", () => {
+    const dir = makeTempDir(tempDirs, "opsys-device-identity-");
+    writeAttribution(dir, {
+      "tel-employe-42": { personne: "jdupont", role: "employee" },
+      "tel-admin-1": { personne: "nathan_owner", role: "admin" },
+    });
+
+    expect(resolveOpsysDeviceIdentity("tel-employe-42", dir)).toEqual({
+      ok: true,
+      personne: "jdupont",
+      role: "employee",
+    });
+    expect(resolveOpsysDeviceIdentity("tel-admin-1", dir)).toEqual({
+      ok: true,
+      personne: "nathan_owner",
+      role: "admin",
+    });
+  });
+
+  it("tells the app the same person and role the tool door applies — one code path, never two answers", () => {
+    const dir = makeTempDir(tempDirs, "opsys-device-identity-");
+    writeAttribution(dir, { "tel-employe-42": { personne: "jdupont", role: "employee" } });
+
+    const identity = resolveOpsysDeviceIdentity("tel-employe-42", dir);
+    const authorization = authorizeOpsysDeviceTool("tel-employe-42", "m4_pointer_entree", dir);
+
+    expect(identity.ok && authorization.ok).toBe(true);
+    if (identity.ok && authorization.ok) {
+      expect(authorization.personne).toBe(identity.personne);
+      expect(authorization.role).toBe(identity.role);
+    }
+  });
+
+  it("knows a role that declares no tool at all: an empty scope is a known role, not a missing one", () => {
+    const dir = makeTempDir(tempDirs, "opsys-device-identity-");
+    writeAttribution(dir, { "tel-vendeur-7": { personne: "mtremblay", role: "seller" } });
+
+    expect(resolveOpsysDeviceIdentity("tel-vendeur-7", dir)).toEqual({
+      ok: true,
+      personne: "mtremblay",
+      role: "seller",
+    });
+  });
+
+  it("gives no identity to a device with no attribution (never attributed, or revoked)", () => {
+    const dir = makeTempDir(tempDirs, "opsys-device-identity-");
+    writeAttribution(dir, { "tel-employe-42": { personne: "jdupont", role: "employee" } });
+
+    expect(resolveOpsysDeviceIdentity("tel-inconnu", dir)).toEqual({
+      ok: false,
+      reason: "device_unknown",
+    });
+  });
+
+  it("never reads an inherited Object.prototype member as a device, for the identity or the tool door", () => {
+    const dir = makeTempDir(tempDirs, "opsys-device-identity-");
+    writeAttribution(dir, { "tel-employe-42": { personne: "jdupont", role: "employee" } });
+
+    for (const deviceId of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+      expect(resolveOpsysDeviceIdentity(deviceId, dir), deviceId).toEqual({
+        ok: false,
+        reason: "device_unknown",
+      });
+      expect(authorizeOpsysDeviceTool(deviceId, "m4_pointer_entree", dir), deviceId).toEqual({
+        ok: false,
+        reason: "device_unknown",
+      });
+    }
+  });
+
+  it("gives no identity for a role roles.json does not declare, nor for one named like an Object.prototype member", () => {
+    const dir = makeTempDir(tempDirs, "opsys-device-identity-");
+    writeAttribution(dir, {
+      "tel-1": { personne: "jdupont", role: "orphan_role" },
+      "tel-2": { personne: "jdupont", role: "constructor" },
+    });
+
+    expect(resolveOpsysDeviceIdentity("tel-1", dir)).toEqual({ ok: false, reason: "role_unknown" });
+    expect(resolveOpsysDeviceIdentity("tel-2", dir)).toEqual({ ok: false, reason: "role_unknown" });
+  });
+
+  it("ignores an entry without a non-empty person and role, so it never yields a half identity", () => {
+    const dir = makeTempDir(tempDirs, "opsys-device-identity-");
+    writeAttribution(dir, {
+      "tel-sans-personne": { role: "employee" },
+      "tel-personne-vide": { personne: "", role: "employee" },
+      "tel-sans-role": { personne: "jdupont" },
+      "tel-role-numerique": { personne: "jdupont", role: 3 },
+    });
+
+    for (const deviceId of ["tel-sans-personne", "tel-personne-vide", "tel-sans-role", "tel-role-numerique"]) {
+      expect(resolveOpsysDeviceIdentity(deviceId, dir), deviceId).toEqual({
+        ok: false,
+        reason: "device_unknown",
+      });
+    }
+  });
+
+  it("gives no identity when the fragments are missing or malformed, and never throws", () => {
+    const missing = makeTempDir(tempDirs, "opsys-device-identity-empty-");
+    expect(resolveOpsysDeviceIdentity("tel-1", missing)).toEqual({
+      ok: false,
+      reason: "device_unknown",
+    });
+
+    const malformed = makeTempDir(tempDirs, "opsys-device-identity-bad-");
+    fs.writeFileSync(path.join(malformed, "roles.json"), "{not valid json");
+    fs.writeFileSync(
+      path.join(malformed, "appareils.json"),
+      JSON.stringify({ appareils: { "tel-1": { personne: "jdupont", role: "employee" } } }),
+    );
+    expect(() => resolveOpsysDeviceIdentity("tel-1", malformed)).not.toThrow();
+    expect(resolveOpsysDeviceIdentity("tel-1", malformed)).toEqual({
+      ok: false,
+      reason: "role_unknown",
+    });
+  });
+
+  it("follows the attribution on disk: attributed, re-attributed to another person, then revoked", () => {
+    const dir = makeTempDir(tempDirs, "opsys-device-identity-");
+    writeAttribution(dir, {});
+    expect(resolveOpsysDeviceIdentity("tel-1", dir)).toEqual({ ok: false, reason: "device_unknown" });
+
+    writeFragments(dir, {
+      appareils: { appareils: { "tel-1": { personne: "jdupont", role: "employee" } } },
+    });
+    expect(resolveOpsysDeviceIdentity("tel-1", dir)).toEqual({
+      ok: true,
+      personne: "jdupont",
+      role: "employee",
+    });
+
+    // Each rewrite changes the file size on purpose: the cache keys on mtime AND size, and a coarse
+    // filesystem clock could alias two same-size rewrites made within one tick.
+    writeFragments(dir, {
+      appareils: { appareils: { "tel-1": { personne: "mtremblay", role: "admin" } } },
+    });
+    expect(resolveOpsysDeviceIdentity("tel-1", dir)).toEqual({
+      ok: true,
+      personne: "mtremblay",
+      role: "admin",
+    });
+
+    writeFragments(dir, { appareils: { appareils: {} } });
+    expect(resolveOpsysDeviceIdentity("tel-1", dir)).toEqual({ ok: false, reason: "device_unknown" });
   });
 });

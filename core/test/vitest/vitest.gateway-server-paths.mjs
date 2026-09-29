@@ -83,6 +83,8 @@ export const gatewayDatabaseWorkerTestFiles = [
   "src/gateway/operator-approval-store.execution-identity.test.ts",
   "src/gateway/operator-approval-store.test.ts",
   "src/gateway/operator-approval-store.worker.test.ts",
+  // OPSYS (PLAN T1.4-c5) : lecture de l'identité par un appareil, appairage réel (broker SQLite de l'hôte).
+  "src/gateway/opsys-device-identity-http.test.ts",
   "src/gateway/probe.device-auth-scope.test.ts",
   "src/gateway/server-methods/agent.create-event.test.ts",
   "src/gateway/server-methods/chat-send-commentary-media.test.ts",

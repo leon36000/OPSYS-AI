@@ -77,6 +77,7 @@ import {
   getModelsHttpModule,
   getOpenAiHttpModule,
   getOpenResponsesHttpModule,
+  getOpsysDeviceIdentityHttpModule,
   getSessionHistoryHttpModule,
   getSessionKillHttpModule,
   getToolsInvokeHttpModule,
@@ -490,6 +491,16 @@ export function createGatewayHttpServer(opts: {
       );
       addAdmittedStage(scopedRequestPath === "/tools/invoke", async () =>
         (await getToolsInvokeHttpModule()).handleToolsInvokeHttpRequest(req, res, operatorAuth()),
+      );
+      // OPSYS (PLAN T1.4-c5): a paired device reads its own OPSYS person and named role. The path is
+      // `OPSYS_DEVICE_IDENTITY_PATH` (`opsys-device-identity-http.ts`), kept a literal here so the
+      // handler module stays lazily loaded.
+      addAdmittedStage(scopedRequestPath === "/opsys/identite", async () =>
+        (await getOpsysDeviceIdentityHttpModule()).handleOpsysDeviceIdentityHttpRequest(
+          req,
+          res,
+          routeAuth,
+        ),
       );
       addAdmittedStage(/^\/sessions\/[^/]+\/kill$/.test(scopedRequestPath), async () =>
         (await getSessionKillHttpModule()).handleSessionKillHttpRequest(req, res, routeAuth),

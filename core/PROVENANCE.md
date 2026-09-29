@@ -114,6 +114,37 @@ constat et limites : `docs/architecture/MOBILE.md`, « Nom d'un outil de l'app a
 - Routage vitest : `test/vitest/vitest.gateway-server-paths.mjs` (le test HTTP appaire un vrai appareil :
   projet `gateway-database-workers`), et `test/opsys-tests-cibles.txt`.
 
+### T1.4-c5 : l'app apprend sa personne et son rôle nommés (`GET /opsys/identite`)
+
+Un appareil appairé (jeton d'appareil, attribué à une personne OPSYS) lit sa personne et son rôle nommé
+(`admin`, `employee`, `seller`) par `GET /opsys/identite`. Le `deviceId` vient du jeton vérifié, par la même
+chaîne d'authentification que `/tools/invoke` ; la personne et le rôle viennent de `opsys/appareils.json`,
+par le même code que la porte d'outils (`resolveOpsysDeviceIdentity`). Rien de ce que l'app envoie n'est
+lu ; le secret partagé, un appareil sans attribution et un rôle que `roles.json` ne déclare pas n'ont
+aucune identité. Une route plutôt qu'un champ de `hello-ok` : l'attribution vient après l'approbation
+native, et la trame est gelée. Détail : `docs/architecture/MOBILE.md`, « Identité de l'appareil ».
+
+`opsys-mobile` (`GATEWAY_CLIENT_IDS.OPSYS_MOBILE`, T1.4-c4) est maintenant envoyé par l'app. Il n'est
+volontairement PAS dans `isNativeAppUiClient` : voir « Identifiant de client » dans `MOBILE.md`.
+
+- Ajoutés : `src/gateway/opsys-device-identity-http.ts` et ses tests `src/gateway/opsys-device-identity-http.test.ts`
+  (vrai appairage, vrais fragments), `src/gateway/server-http.opsys-device-identity.test.ts` (route montée),
+  `src/gateway/opsys-mobile-trust.test.ts` (identifiant valide, hors de la classe « app native »).
+- Modifiés :
+  - `src/gateway/opsys-device-roles.ts` : `resolveOpsysDeviceIdentity`, et une résolution commune
+    `resolveOpsysDevice` (l'appareil, puis le rôle connu) que la porte d'outils réutilise, sans changer ses
+    refus. Durcissement : un `deviceId` nommé comme un membre d'`Object.prototype` (`constructor`) ne lit plus
+    l'état hérité (`device_unknown`, avant : `role_unknown`) ;
+  - `src/gateway/server-http.ts`, `src/gateway/server-http-modules.ts` : une étape de route et un module
+    chargé à la demande ;
+  - `packages/gateway-protocol/src/client-info.ts` : commentaire seulement ;
+  - test d'origine complété : `src/gateway/opsys-device-roles.test.ts`.
+- Routage vitest : `test/vitest/vitest.gateway-server-paths.mjs` (`opsys-device-identity-http.test.ts` :
+  projet `gateway-database-workers`, appairage réel) et `test/opsys-tests-cibles.txt`. Les deux autres
+  fichiers neufs sont routés par leur nom : `server-http.opsys-device-identity.test.ts` vers
+  `gateway-server`, `opsys-mobile-trust.test.ts` vers `gateway-core` (sans « client » ni « server » dans le
+  nom).
+
 ### T0.10 : le core lance et surveille le moteur métier Python
 
 Le Gateway lance `uv run opsys-mcp --http` (`src/opsys/serveur_mcp.py`), sonde `GET /sante`, le
@@ -231,6 +262,6 @@ jour `src/opsys/openclaw.py` et ses tests dans le même commit.
 | Espace de travail : `SOUL.md`, `AGENTS.md`, `skills/` | identité, règles, procédures | `src/agents/` (amorçage de l'espace de travail) |
 | `opsys/metier.json` (hors schéma Zod) | active et règle le superviseur du moteur métier (T0.10) ; `openclaw.py` ne l'écrit pas encore | `src/gateway/opsys-metier-config.ts` |
 | `opsys/roles.json` (hors schéma Zod) | `roles` : outils permis par rôle d'appareil ; `serveurs` : le serveur MCP de chacun (T1.4-c6). Noms d'outils nus | `src/gateway/opsys-device-roles.ts` |
-| `opsys/appareils.json` (hors schéma Zod) | appareil -> personne et rôle OPSYS (T1.4-c2, c4) | `src/gateway/opsys-device-roles.ts` |
+| `opsys/appareils.json` (hors schéma Zod) | appareil -> personne et rôle OPSYS (T1.4-c2, c4) ; rendu aussi à l'appareil par `GET /opsys/identite` (T1.4-c5). Format inchangé | `src/gateway/opsys-device-roles.ts` |
 | `opsys/contexte.json` (hors schéma Zod) | active et règle le moteur de contexte OPSYS (T3.3-suite) ; écrit par `openclaw.py` (`contexte_entreprise`) | `src/context-engine/opsys-contexte-config.ts` |
 | `plugins.slots.contextEngine` | choisit le moteur `opsys` quand `contexte.json` est actif ; absent sinon (moteur « legacy ») | `src/config/zod-schema.root-shape.ts`, `src/context-engine/registry-selection.ts` |

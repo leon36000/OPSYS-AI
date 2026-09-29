@@ -34,6 +34,9 @@ export const getSessionKillHttpModule = createLazyRuntimeModule(
 export const getToolsInvokeHttpModule = createLazyRuntimeModule(
   () => import("./tools-invoke-http.js"),
 );
+export const getOpsysDeviceIdentityHttpModule = createLazyRuntimeModule(
+  () => import("./opsys-device-identity-http.js"),
+);
 export const getUserProfilesHttpModule = createLazyRuntimeModule(
   () => import("./user-profiles-http.js"),
 );

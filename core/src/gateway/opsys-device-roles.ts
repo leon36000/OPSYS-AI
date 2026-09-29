@@ -1,5 +1,7 @@
 // OPSYS named device roles (OPSYS-AI docs/architecture/IDEMPOTENCE.md §7 bis): resolves the OPSYS
 // person/role for a paired device, and whether that role's scope covers a given tool name.
+// `resolveOpsysDeviceIdentity` (PLAN T1.4-c5) gives the app the SAME person and role the tool door
+// applies, from the same code path: what the app is told it is, is what the door enforces.
 //
 // Reads two small JSON files OPSYS writes next to `openclaw.json` — `opsys/roles.json` (role name
 // -> allowed tool names, `src/opsys/openclaw.py::roles_outils`, and, PLAN T1.4-c6, tool name -> the
@@ -126,6 +128,48 @@ function parseAppareils(raw: unknown): Record<string, AppareilEntry> {
   return result;
 }
 
+type ResolvedOpsysDevice =
+  | {
+      ok: true;
+      appareil: AppareilEntry;
+      rolesFile: RolesFile;
+      /** The tool names the device's role declares (a role with an empty list is still a known role). */
+      allowedTools: readonly string[];
+    }
+  | { ok: false; reason: "device_unknown" | "role_unknown" };
+
+/**
+ * The one place a device id becomes an OPSYS person and a KNOWN role. An unrecognized device, and a
+ * role `roles.json` does not declare, are both a refusal; a role named like an `Object.prototype`
+ * member is never read as inherited state. Shared by the tool door and the identity read so the two
+ * can never disagree on who a device is.
+ */
+function resolveOpsysDevice(deviceId: string, opsysDir: string): ResolvedOpsysDevice {
+  const appareils = readJsonFileCached(
+    path.join(opsysDir, "appareils.json"),
+    appareilsCache,
+    parseAppareils,
+    {},
+  );
+  const appareil = Object.hasOwn(appareils, deviceId) ? appareils[deviceId] : undefined;
+  if (!appareil) {
+    return { ok: false, reason: "device_unknown" };
+  }
+  const rolesFile = readJsonFileCached(
+    path.join(opsysDir, "roles.json"),
+    rolesCache,
+    parseRolesFile,
+    EMPTY_ROLES_FILE,
+  );
+  const allowedTools = Object.hasOwn(rolesFile.roles, appareil.role)
+    ? rolesFile.roles[appareil.role]
+    : undefined;
+  if (!allowedTools) {
+    return { ok: false, reason: "role_unknown" };
+  }
+  return { ok: true, appareil, rolesFile, allowedTools };
+}
+
 export type OpsysDeviceAuthorization =
   | {
       ok: true;
@@ -152,38 +196,42 @@ export function authorizeOpsysDeviceTool(
   toolName: string,
   opsysDir: string = defaultOpsysDir(),
 ): OpsysDeviceAuthorization {
-  const appareils = readJsonFileCached(
-    path.join(opsysDir, "appareils.json"),
-    appareilsCache,
-    parseAppareils,
-    {},
-  );
-  const appareil = appareils[deviceId];
-  if (!appareil) {
-    return { ok: false, reason: "device_unknown" };
+  const device = resolveOpsysDevice(deviceId, opsysDir);
+  if (!device.ok) {
+    return { ok: false, reason: device.reason };
   }
-  const rolesFile = readJsonFileCached(
-    path.join(opsysDir, "roles.json"),
-    rolesCache,
-    parseRolesFile,
-    EMPTY_ROLES_FILE,
-  );
-  const allowedTools = Object.hasOwn(rolesFile.roles, appareil.role)
-    ? rolesFile.roles[appareil.role]
-    : undefined;
-  if (!allowedTools) {
-    return { ok: false, reason: "role_unknown" };
-  }
-  if (!allowedTools.includes(toolName)) {
+  if (!device.allowedTools.includes(toolName)) {
     return { ok: false, reason: "tool_out_of_scope" };
   }
-  const serveur = Object.hasOwn(rolesFile.serveurs, toolName)
-    ? rolesFile.serveurs[toolName]
+  const serveur = Object.hasOwn(device.rolesFile.serveurs, toolName)
+    ? device.rolesFile.serveurs[toolName]
     : undefined;
   if (!serveur) {
     return { ok: false, reason: "server_unknown" };
   }
-  return { ok: true, personne: appareil.personne, role: appareil.role, serveur };
+  return { ok: true, personne: device.appareil.personne, role: device.appareil.role, serveur };
+}
+
+export type OpsysDeviceIdentity =
+  | { ok: true; personne: string; role: string }
+  | { ok: false; reason: "device_unknown" | "role_unknown" };
+
+/**
+ * The OPSYS person and named role of `deviceId`, as `opsys/appareils.json` carries them (PLAN
+ * T1.4-c5). `deviceId` must come from a verified device token, never from a request body. Same
+ * refusals as `authorizeOpsysDeviceTool` for the device and its role: a device with no attribution
+ * (never attributed, or revoked) and a role `roles.json` does not declare have no identity at all,
+ * never a default one.
+ */
+export function resolveOpsysDeviceIdentity(
+  deviceId: string,
+  opsysDir: string = defaultOpsysDir(),
+): OpsysDeviceIdentity {
+  const device = resolveOpsysDevice(deviceId, opsysDir);
+  if (!device.ok) {
+    return { ok: false, reason: device.reason };
+  }
+  return { ok: true, personne: device.appareil.personne, role: device.appareil.role };
 }
 
 /** Test-only: drop cached file contents so a test's own fixture files are re-read from scratch. */

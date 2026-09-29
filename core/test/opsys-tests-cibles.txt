@@ -1,4 +1,4 @@
-# Tests des zones du core modifiées par OPSYS (T1.4-c1, T1.4-c2, T1.4-c4, T1.4-c6, T0.10, T3.3-suite).
+# Tests des zones du core modifiées par OPSYS (T1.4-c1, T1.4-c2, T1.4-c4, T1.4-c5, T1.4-c6, T0.10, T3.3-suite).
 #
 # `pnpm test:fast` (les six morceaux de la CI) exclut `src/gateway/**`, `src/agents/**` et
 # `packages/gateway-protocol/**` : ces tests appartiennent à d'autres projets vitest. Le job
@@ -41,6 +41,17 @@ src/gateway/http-utils.model-override.test.ts
 # T1.4-c4 : GATEWAY_CLIENT_IDS.OPSYS_MOBILE (packages/gateway-protocol/src/client-info.ts)
 src/gateway/gateway-misc.test.ts
 packages/gateway-protocol/src/schema/worker-admission.test.ts
+
+# T1.4-c5 : l'app apprend sa personne et son rôle nommés (GET /opsys/identite, src/gateway/opsys-device-identity-http.ts,
+# monté dans server-http.ts par server-http-modules.ts). opsys-device-identity-http : appairage réel (projet
+# gateway-database-workers, test/vitest/vitest.gateway-server-paths.mjs). opsys-mobile-trust : le client
+# `opsys-mobile` est valide et n'entre pas dans la classe « app native » (aucune voie d'approbation silencieuse).
+# server-http.security-headers : voisin d'origine de server-http.ts (une route inconnue reste un 404).
+# opsys-device-roles.test.ts (plus haut) couvre resolveOpsysDeviceIdentity.
+src/gateway/opsys-device-identity-http.test.ts
+src/gateway/server-http.opsys-device-identity.test.ts
+src/gateway/opsys-mobile-trust.test.ts
+src/gateway/server-http.security-headers.test.ts
 
 # T0.10 : superviseur du moteur métier Python (src/gateway/opsys-metier-*.ts). Les trois fichiers
 # neufs et les tests d'origine des fichiers modifiés : le sidecar de durée de vie
