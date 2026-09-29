@@ -14,7 +14,15 @@ dependances: []
 modeles:
   defaut: standard
   redaction: rapide
-skills: [traiter-une-demande-entrante, mener-un-appel-vocal]
+skills: [traiter-une-demande-entrante, mener-un-appel-vocal, recevoir-un-message-de-canal]
+# PLAN T2.1-a : M1 reçoit le public par le canal SMS du core (extension `sms`). Le socle en tire la configuration
+# d'OPSYS-CORE (`opsys openclaw configurer`) : canal désactivé tant que ses identifiants et la validation écrite des
+# politiques ne sont pas fournis, une session par client, aucune réponse automatique, outils fermés. Conception :
+# docs/departements/M1-canaux.md. Outil d'accueil exigé : m1_recevoir_message_canal (N2 au plus).
+canaux: [sms]
+# M1 publie le lead qualifié ; M2 le consommera (`evenements.consomme` de M2 : à ajouter, avec sa fonction).
+evenements:
+  publie: [m1.lead_qualifie]
 planifications:
   - nom: digest-front-office
     cron: "0 7 * * 1-5"

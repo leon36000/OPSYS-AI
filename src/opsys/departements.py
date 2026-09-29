@@ -22,6 +22,7 @@ from typing import Any
 import yaml
 
 from .appareils import ROLES_APPAREIL
+from .canaux import CANAUX
 from .identite import ROLES, Role
 from .outils import Niveau, Outil
 from .politiques import valider_mode
@@ -102,6 +103,8 @@ class Departement:
     evenements_publie: tuple[str, ...] = ()
     evenements_consomme: tuple[str, ...] = ()
     politique_approbation: PolitiqueApprobation = POLITIQUE_PAR_DEFAUT
+    # Canaux du core (`opsys.canaux`) par lesquels ce département reçoit le public (PLAN T2.1-a).
+    canaux: tuple[str, ...] = ()
 
     @property
     def prefixe_outils(self) -> str:
@@ -299,6 +302,12 @@ def lire_manifeste(dossier: Path) -> Departement:
         raise ValueError(f"{ctx} : evenements doit être un objet ({{publie, consomme}})")
     evenements_publie = _liste(evenements, "publie", ctx)
     evenements_consomme = _liste(evenements, "consomme", ctx)
+    canaux = _liste(donnees, "canaux", ctx)
+    for id_canal in canaux:
+        if id_canal not in CANAUX:
+            raise ValueError(f"{ctx} : canal inconnu {id_canal!r} (canaux connus : {', '.join(sorted(CANAUX))})")
+    if len(set(canaux)) != len(canaux):
+        raise ValueError(f"{ctx} : canaux en double : {list(canaux)}")
     kpis = []
     for brut in donnees.get("kpis", []) or []:
         if not isinstance(brut, dict):
@@ -327,6 +336,7 @@ def lire_manifeste(dossier: Path) -> Departement:
         evenements_publie=evenements_publie,
         evenements_consomme=evenements_consomme,
         politique_approbation=_politique_approbation(donnees, ctx),
+        canaux=canaux,
     )
 
 

@@ -152,6 +152,7 @@ def qualifier(
     source: str | None = None,
     utm: dict | None = None,
     campagne: str | None = None,
+    contact_canal: dict | None = None,
 ) -> dict:
     """
     Extrait les informations obligatoires d'un message filtré.
@@ -167,6 +168,10 @@ def qualifier(
         refuse (ValueError qui dit quoi configurer) plutôt que d'inventer un service.
     source, utm, campagne : provenance marketing, transmise telle que fournie par l'appelant ;
         jamais devinée, absente du lead si elle n'est pas fournie.
+    contact_canal : l'identité que la plateforme a vérifiée pour un message de canal (numéro E.164 d'un SMS,
+        adresse d'un courriel, `m1_front_office.reception`). Elle devient le contact du lead, seule : le texte
+        du client n'y ajoute rien et ne la remplace pas (M2 tire le `client_id` du contact entier). Absent, le
+        contact est cherché dans le texte, comme avant.
     """
     if not zone_desservie:
         raise ValueError(
@@ -191,9 +196,12 @@ def qualifier(
 
     urgence = _extraire_urgence(contenu)
 
-    contact = _extraire_contact(contenu)
-    if contact is None:
-        return _rejet()
+    if contact_canal:
+        contact = dict(contact_canal)
+    else:
+        contact = _extraire_contact(contenu)
+        if contact is None:
+            return _rejet()
 
     materiau = _materiau_lead_id(conversation_id, contenu)
     lead_id = hashlib.sha256(materiau.encode("utf-8")).hexdigest()

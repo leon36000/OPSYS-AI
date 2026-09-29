@@ -5,6 +5,10 @@ description: Procédure pour recevoir et qualifier une demande entrante (courrie
 
 # Traiter une demande entrante
 
+Pour un message qu'un canal du core te livre (SMS, courriel), utilise plutôt la skill
+`recevoir-un-message-de-canal` : la plateforme fournit l'identité et l'heure, tu ne les fournis pas.
+Cette procédure reste celle d'une voix transcrite ou d'une saisie manuelle.
+
 1. Réunis : le contenu brut du message, le canal (`telephone`, `courriel`, `formulaire` ou
    `texte`), un identifiant de conversation, l'horodatage (fourni par le système, jamais
    deviné) et la zone desservie (villes couvertes par l'entreprise — donnée de configuration,
