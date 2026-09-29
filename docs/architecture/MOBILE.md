@@ -1607,6 +1607,38 @@ rendu, comme les autres écrans).
   (outils du vendeur non câblés : `m2_transitionner_statut`, `m2_evaluer_readiness`, `m3_generer_soumission_brouillon`,
   `m3_qualifier_photos`). (7) Le trajet réel appareil -> core -> moteur reste à prouver contre un core réel.
 
+## Profil admin (`(admin)`, PLAN T4.20)
+
+Le propriétaire (DEFINITION-PRODUIT §9.5) a, au-delà des approbations, trois écrans de **lecture seule** : seul
+`approvals` décide, par la file sortante. Détail écran par écran : [`mobile/README.md`](../../mobile/README.md),
+section « Admin, le propriétaire ».
+
+| Écran | Ce qu'il montre | Outils (nom nu) |
+|---|---|---|
+| `admin.tsx` (« À voir ») | demandes d'approbation en attente et attentes des départements, liens vers `approvals`, `chiffres`, `chantiers` | `m9_lister_demandes_approbation` |
+| `chiffres.tsx` | trésorerie et cash libre, prévision semaine par semaine, échéances TPS/TVQ, vue d'ensemble de M8 | `m5_etat_tresorerie`, `m5_prevoir_tresorerie`, `m5_lire_echeances_fiscales`, `m8_lire_vue_executive` |
+| `chantiers.tsx` | interventions par statut, digest du jour, préparation d'une intervention à la demande | `m4_lister_interventions`, `m4_produire_digest`, `m4_verifier_preparation` |
+
+- **Aucun calcul dans l'app.** Aucun montant, pourcentage ni date n'y est calculé : chaque valeur est affichée telle que
+  le serveur la rend. Un « non calculable » ou un « à configurer » dit ce qui manque avec les mots du serveur, jamais un
+  zéro. Le « 0 » gelé d'un registre vide n'est jamais montré comme solde. La mention « Analyse préparatoire IA » de M5
+  suit la donnée.
+- **Lecture d'abord, cache marqué par personne.** Clé `admin:<personne>:<section>_v1`, rendue avec sa date et sa raison.
+  Un refus du serveur (401, 403, verdict de M5 ou de M4, personne désactivée) n'est **jamais** remplacé par le cache et
+  n'écrit rien. Le jour de référence de M5 et de M4 est le jour local de l'appareil.
+- **« Voir plus »** ne prolonge qu'une lecture faite à l'instant ; deux pages ne se recollent que si `prevision_id` est
+  le même.
+- **La météo d'un créneau n'est pas lue** : aucun outil ne la rend sans écrire (`m4_verifier_meteo_creneau` exige le
+  `plan_id` d'une cédule proposée). Le volet « météo » de la préparation dit seulement si les règles sont déclarées.
+- **Preuves.** `tests/e2e/test_admin_appareil.py` : les huit outils répondent à l'appareil `admin` par la vraie porte
+  (200, sans troncature, rien d'écrit) ; `seller` reçoit 403 sur les huit et `employee` sur sept
+  (`m4_lister_interventions` lui rend ses seules interventions) ; les réponses enregistrées dans
+  `mobile/src/admin/fixtures/` sont lues par Jest ; les catalogues de l'app sont égaux à ceux du serveur. Jest : 105
+  suites, 2 169 tests ; mutations faites à la main : 109 mutants, 109 tués.
+- **Reste.** Les autres outils de §9.5 que l'admin a déjà côté serveur (briefing de M9, comptes à recevoir et à payer
+  de M5, stock de M6, file de M7, signaux de M10, transferts de M1) et les outils qui manquent côté serveur : PLAN T4.21
+  à T4.27. Diffusion de l'app hors de l'équipe : T3.
+
 ## Ce qui n'est PAS encore fait
 
 **Côté core (hors périmètre de ce dépôt mobile, lecture seule) :** la poignée de main WebSocket

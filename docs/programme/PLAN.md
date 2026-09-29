@@ -111,6 +111,24 @@ identifiants du propriétaire, repli livré en attendant.
         Depuis T0.11-b, l'installateur utilise le profil `opsys` (`~/.openclaw-opsys`) : ce lot
         rend `~/.opsys/core` canonique dans `resolveStateDir` et `resolveProfileStateDir`, et
         migre `~/.openclaw-opsys` par Doctor.
+        Intégré (2b53535 à b15f3c8), en attente de la CI du vrai core :
+        - l'état du profil `opsys` vit dans `~/.opsys/core` ; sa config s'appelle `opsys.json`
+          (`openclaw.json` reste lu, jamais renommé) ;
+        - Doctor déplace un état `~/.openclaw-opsys` d'un seul `rename` : jamais copié ni supprimé,
+          lien laissé à l'ancien chemin (jonction sous Windows), vérification puis retour arrière
+          si elle échoue ; deux états non vides = arrêt avec la marche à suivre ; relançable ;
+        - le moteur Python refuse d'écrire sur l'ancien état et dit la marche à suivre ;
+        - installateurs, désinstallation, preuves de bout en bout (« 1 quinquies », « 5 bis »), faux
+          core et docs suivent ; 0700, `.env` 0600 et ACL Windows prouvés sur le nouveau chemin ; le
+          service garde son nom (lot 4).
+        Preuve ici : socle, ruff, verifier, shellcheck, `.ps1` rejoués contre le faux core. Reste la
+        CI : vitest du core (`core`), vrai Doctor, vrai service et vraies ACL (`e2e-core`,
+        `installateur` sur Linux, macOS et Windows).
+        GATE NATHAN (R14, addendum du lot 3) : renommer `openclaw.json` en `opsys.json` dans tout le
+        core (un lot à part) ; faire suivre `OPSYS_HOME` au dossier d'état (le core devrait la lire et
+        le service la porter) ; ordre des lots 3 et 4 pour les postes qui ont déjà un service (le lien
+        les couvre jusqu'à la réinstallation). T3 : supprimer un `~/.openclaw-opsys.old` mis de côté
+        (il contient des secrets en clair).
   - [ ] Lot 4 : services système `opsys-gateway`, anciens noms nettoyés.
 - [x] T0.8 ADR-0009 socle métier (base de données, événements, workflows à validation humaine,
       RBAC, audit, observabilité) d'après R13. Doit unifier les échelles d'autonomie aujourd'hui
@@ -2061,9 +2079,59 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       GATE NATHAN : seuils (`configuration.seuils_entonnoir`, vide = « à configurer »), période, et
       trois définitions : « lead qualifié » = qualification de M2, « devis envoyé » = envoi approuvé
       (la livraison n'est pas un fait du bus), « sans réponse » = constat de M3.
-- [ ] T4.19-b M5 et M8 : M5 publie le cash libre (événement au catalogue, montants de M5 seulement)
+- [x] T4.19-b M5 et M8 : M5 publie le cash libre (événement au catalogue, montants de M5 seulement)
       et M8 l'affiche dans la vue exécutive au lieu de « manque ». Code critique (argent).
-- [ ] T4.20 Mobile : profil admin du propriétaire, au-delà des approbations (§9.5).
+      Écart : M5 calculait le cash libre à chaque lecture (`m5_etat_tresorerie`) et n'en publiait rien.
+      - événement `m5.cash_libre_constate` : schéma fermé qui impose lui-même ses invariants (calculé : un
+        montant partout, aucun manque ; non calculable : aucun cash libre, au moins un manque, un repère
+        `au_plus_cad` seulement si le solde est connu) ; montants tels que `calculer_cash_libre` les rend, en
+        texte ; date de référence ; chaque composante avec sa source (l'origine du chiffre, jamais les mots du
+        propriétaire) et sa fraîcheur ; aucun renseignement personnel ;
+      - déclencheur : `m5_constater_cash_libre` (T1, N3, `admin`), jamais `m5_etat_tresorerie` (T0 : une lecture
+        n'écrit rien, et un T0 s'exécute sans approbation même en mode `ombre`) ; `aujourd_hui` requis ; un
+        constat par date de référence et par version des données ; l'identifiant porte le rang (A, B puis A
+        publie un événement distinct, le bus ne l'avale pas) ; la trace (`constats_cash_libre`) et l'événement
+        partent dans la même transaction ;
+      - M8 : consommateur idempotent (`faits_cash_libre`) ; `m8_lire_vue_executive(aujourd_hui=None)` montre le
+        DERNIER constat (plus grand `sequence`), tel quel, avec son âge (M8 n'a pas d'horloge) ; « non calculable »
+        passe tel quel et s'ajoute aux manques, jamais un zéro ; sans constat, « manque » comme avant ; aucun
+        calcul sur un montant de M5 (garde statique : ni `Decimal`, ni `float`, ni `round`, ni `sum`, une seule
+        soustraction, celle de deux dates).
+      Preuve (5648adb, 08838c0, d82e67c, f8c90a6, 56ba884) :
+      - pytest M5 1 987 verts (149 tests neufs du constat), M8 722 verts (150 neufs), socle 1 885 verts
+        (17 neufs, `tests/test_cascade_cash_libre_m5_m8.py`), gates BMAD M5 et M8, `opsys.cli verifier` (172
+        outils, 94 déclarés aux appareils), ruff ;
+      - bout en bout par le vrai bus et les vrais départements (l'admin lance le constat depuis son appareil) :
+        M8 montre les mêmes montants que `m5_etat_tresorerie`, à la cent près (27861.98) ; « non calculable » passe
+        tel quel, puis un constat calculé le remplace ; le rejeu ne fait aucun doublon (même clé d'appareil,
+        redire, republier le même événement) ; A, B puis A ; le constat vieillit d'un jour ; ni l'employé ni le
+        vendeur ; M8 ne publie rien ;
+      - défaut trouvé par ce test et corrigé : au tout premier jour (aucun solde, aucune déclaration, six manques)
+        la vue dépassait la borne de 5 900 caractères et se refusait. Elle reprend le constat sous une forme
+        compacte (rang et jour, manques en « composante : code », décomposition en table id -> montant) ; le
+        premier jour garde plus de 150 caractères de marge, décomposition comprise (test) ;
+      - garde anti-décaissement de M5 : le module pur et `_constater_cash_libre` en strict, `constater_cash_libre`
+        en lecture seule ; injections dans du code inventé et dans des copies des vrais fichiers ;
+      - 89 mutations ciblées dans une copie isolée (M5 : module pur, adaptateur, gardes, manifeste, schéma ; M8 :
+        module pur, vue, consommateur, manifeste) : 89 tuées ; un survivant trouvé (le nombre de constats reçus
+        comptait les faits), tué par un test de plus. Le test de bout en bout en tue 47 à lui seul, les tests de
+        M5 et de M8 les 42 autres.
+      Limites : personne ne déclenche le constat seul (le digest de 7 h ne l'appelle pas) ; aucun seuil de
+      péremption : la vue dit l'âge, elle n'en juge pas ; un seul constat est montré (le dernier) ; la vue ne
+      reprend ni la source et la fraîcheur de chaque composante ni les hypothèses (`non_repris` le dit ;
+      `m5_etat_tresorerie` les rend) ; si la vue dépasse la borne, les listes raccourcissent d'abord, puis la
+      décomposition part (comptée et dite), les montants jamais ; un constat exceptionnellement gros sur une
+      entreprise sans aucun fait, avec M6 illisible, fait refuser la vue (refus nommé, jamais une réponse
+      coupée) ; la section `cash_libre` de la vue change de forme (statut de section « lu », puis
+      `constat.statut` : une tâche mobile doit la lire) ; la date de référence est celle de l'appelant, et un
+      agent en mode `supervise` ou `autonome` exécute ce T1 sans file.
+      GATE NATHAN : qui fait constater le cash libre et à quelle fréquence (bouton du profil admin de T4.20 ?
+      digest ?) ; l'âge à partir duquel un constat est trop vieux ; les déclarations du propriétaire (fréquence
+      TPS/TVQ, paies, DAS, dettes, réserves) : sans elles le constat est « non calculable » ; le CPA valide les
+      crédits de taxes à 100 % (T4.16) ; l'unité des prix de M6 (`REJ-AP-UNITE-PRIX-NON-CONFIRMEE`).
+      Revue externe exigée avant `main` (code critique, argent) : par un humain ou par un modèle d'un autre
+      fournisseur que l'auteur.
+- [x] T4.20 Mobile : profil admin du propriétaire, au-delà des approbations (§9.5).
       Écart (§9.5) : le groupe `(admin)` de l'app n'a que l'accueil et les approbations ; la vue
       exécutive (T4.19), la trésorerie et sa prévision (T4.16, T4.16-d), le dispatch du jour (M4) et
       « À voir » existent côté serveur, jamais sur le téléphone du propriétaire.
@@ -2075,6 +2143,55 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       Preuve : Jest et `tsc` ; E2E moteur avec un appareil `admin` (chaque outil répond ; employé et
       vendeur reçoivent 403 ; forme des réponses = fixture lue par Jest) ; CI `mobile`.
       T3 : diffusion de l'app hors de l'équipe.
+      Livré (e6da41e à 1a1b53a) :
+      - écrans `admin` (« À voir »), `chiffres` et `chantiers`, en lecture seule (`approvals` reste
+        le seul qui décide) ; huit outils : `m9_lister_demandes_approbation`, `m5_etat_tresorerie`,
+        `m5_prevoir_tresorerie`, `m5_lire_echeances_fiscales`, `m8_lire_vue_executive`,
+        `m4_lister_interventions` (un appel par statut : la réponse n'a pas de pagination),
+        `m4_produire_digest`, `m4_verifier_preparation` ;
+      - cache SQLite marqué par personne (`admin:<personne>:<section>_v1`) ; un refus (401, 403,
+        verdict de M5 ou de M4, personne désactivée) n'est jamais remplacé par le cache ; aucun
+        montant, pourcentage ni date calculé par l'app ; mention « Analyse préparatoire IA » avec la
+        donnée ; textes fr-CA et en-CA par `Message` testé.
+      Preuve : `npx tsc --noEmit` propre, Jest 105 suites et 2 169 tests, mutations Jest 109 sur 109
+      tuées ; `tests/e2e/test_admin_appareil.py` (les huit outils répondent à `admin` sans rien
+      écrire, `seller` reçoit 403 sur les huit et `employee` sur sept, `m4_lister_interventions` ne
+      rend à l'employé que ses interventions, forme des réponses = fixture lue par Jest, catalogues
+      de l'app égaux à ceux du serveur) ; CI `mobile` verte (run 18) ; socle 1 908 passés et 141
+      sautés sur l'état intégré (T4.20, lot 3 et T4.17-g2).
+      Reste : la météo d'un créneau (aucun outil ne la rend sans écrire : T4.27), T3 diffusion.
+- [ ] T4.19-c Mobile : l'écran « Chiffres » lit le cash libre que M8 publie depuis T4.19-b (un
+      statut inconnu de l'app est affiché « inconnu », jamais un montant : fail-closed voulu).
+      Contrat (T4.19-b) : `m8_lire_vue_executive` prend `aujourd_hui` (« AAAA-MM-JJ », jour local de
+      l'appareil ; illisible = `REJ-VUE-AUJOURD-HUI-INVALIDE`) ; `vue.cash_libre.statut` vaut `manque`
+      (clés `source`, `statut`, `manque`, `a_lire`) ou `lu` (clés `source`, `statut`, `n_constats_recus`,
+      `constat`, `age`, `non_repris`, `a_lire`) ; `constat.statut` vaut `CALCULE` ou `NON_CALCULABLE` ;
+      `cash_libre_cad`, `au_plus_cad` (un repère, jamais de l'argent disponible) et les `composantes` sont
+      des textes décimaux ou `null` ; `composantes_omises` remplace `composantes` si la borne du socle
+      l'exige ; `mention` s'affiche toujours ; `age` vaut `{jours, aujourd_hui}` ou `{jours: null, raison}`.
+      Aucun calcul par l'app. Le bouton « constater le cash libre » (`m5_constater_cash_libre`, T1, N3)
+      attend la décision du propriétaire (GATE NATHAN de T4.19-b).
+- [ ] T4.21 Mobile admin : briefing du matin de M9 (`m9_produire_briefing_matin`,
+      `m9_lire_etat_consolide`, `m9_lire_alertes_m8`, `m9_lire_suite_briefing`).
+- [ ] T4.22 Mobile admin : à recevoir et à payer de M5 (`m5_lire_comptes_a_recevoir`,
+      `m5_lister_comptes_a_payer`, `m5_lister_attentes_facturation`).
+- [ ] T4.23 Mobile admin : stock de M6 (`m6_produire_digest`, `m6_lire_disponibilite`).
+- [ ] T4.24 Mobile admin : file de M7 (`m7_lister_file_approbation`, `m7_lister_demandes_avis`,
+      `m7_lister_contenus_chantier`) ; les décisions passent par la file sortante, sur le patron
+      d'`approvals`.
+- [ ] T4.25 Mobile admin : signaux de M10 (`m10_lister_signaux`, `m10_statut_decision`,
+      `m10_statut_revision`, `m10_arbitrer_revision`).
+- [ ] T4.26 Mobile admin : transferts de M1 (`m1_lire_transfert`, `m1_produire_digest`).
+- [ ] T4.27 Serveur : les outils de §9.5 qui manquent encore. M1 : boîte omnicanal, appels manqués
+      et rappels, « prendre en charge », « rappeler », « envoyer la réponse approuvée ». M4 : météo
+      d'un créneau en lecture pure, retards, incidents, pagination de `m4_lister_interventions`.
+      M5 : paiements reçus, anomalies, dossier CPA, rapport du contrôleur. M6 : pertes et bris,
+      alertes matériaux. M10 : recherche dans la mémoire et contradictions pour l'admin
+      (`opsys_memoire_chercher` est refusé à tout appareil).
+- [ ] T1.4-n Mobile : les constats de T4.20 hors de son périmètre (vendeur : un 401 ou un 403
+      retombe sur le cache ; employé : une réponse tronquée lue comme une liste vide, `a_planifier`
+      absent des statuts ; caches par personne non purgés à la révocation ni au ré-appairage ;
+      manques de M4 montrés avec un chemin du serveur).
 
 - [ ] T4.17-b M4 puis M7 : ville au niveau municipal dans le WCT, seulement avec le consentement
       marketing, pour un ancrage local des contenus. GATE NATHAN (Loi 25 : granularité publiée).
@@ -2127,12 +2244,37 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       - `tests/test_motifs_lineaires.py` (287 : oracle d'avant, suites exhaustives, textes hostiles de
         20 000 et 100 000 caractères, balayage des 28 motifs de niveau module de M1) ; 95 mutants,
         88 tués, 7 équivalents ; M1 1376 verts.
-- [ ] T4.17-g2 M1 : le courriel du client est tronqué devant une lettre accentuée
+- [x] T4.17-g2 M1 : le courriel du client est tronqué devant une lettre accentuée
       (« andré.tremblay@x.ca » donne « .tremblay@x.ca », dont M2 tire le `client_id`) et
       « françois@x.ca » n'est pas reconnu (limite de l'ancien motif, gardée à l'identique par T4.17-g
       et verrouillée par ses tests). Un courriel tronqué est pire qu'aucun : lire la partie locale
       entière (lettres accentuées comprises) ou ne rien extraire et redemander le contact ; effet sur
       les contacts reçus par M2 à vérifier (identité du client).
+      Preuve (b264c58, 7189c91) :
+      - la partie locale se lit jusqu'au « @ », lettres accentuées comprises ; elle ne commence
+        jamais juste après un caractère qui peut prolonger un mot ou une adresse (lettre, chiffre,
+        signes de la RFC 5322, « @ », accent combinant, caractère de format, apostrophe
+        typographique, traits d'union Unicode, point médian) : « o’neil@x.ca » ne donne rien, jamais
+        « neil@x.ca » ; le texte passe en NFC ; le domaine ne change pas ; temps linéaire ;
+      - `test_motifs_lineaires.py` : M1 égale une référence écrite lettre à lettre sur 6 353 955
+        suites de jetons, 123 552 textes générés, la fixture (868 textes) et 30 000 textes au hasard,
+        aucun écart ; table de 59 cas (ce que l'ancien motif lisait, ce que M1 lit) et les 15 signes
+        de la RFC ; textes hostiles de 20 000 et 100 000 caractères ; M1 1 432 passés ;
+      - mutations faites à la main (une chose changée, fichier restauré) : 54 mutants, 49 tués et
+        5 équivalents (quantificateurs possessifs, `(?=\w)` redondant, lettres et chiffres du contrôle
+        Python que le motif refuse déjà : même sens, même complexité) ;
+      - démonstration M1 → M2 : « andré.tremblay@exemple.ca » et « josé.tremblay@exemple.ca » donnent
+        deux `client_id` (un seul avant), l'accent composé et l'accent tapé en deux caractères le même,
+        « o’neil@exemple.ca » un rejet qui dit « demander comment joindre le client » ; M2 accepte ces
+        contacts (`contrats.valider_structure`).
+      Effet sur M2 : un lead déjà reçu avec une adresse tronquée garde son `client_id` (registre en
+      ajout seul) ; si ce client réécrit, son nouveau lead porte l'adresse entière et un autre
+      `client_id`, que rien ne relie à l'ancien.
+- [ ] T4.17-g3 M1 : le garde-fou des coordonnées d'un résumé (`transferts.contient_coordonnees`)
+      lit le texte tel quel : une partie locale qui finit par un accent combinant juste devant le
+      « @ » (accent tapé en deux caractères) n'est pas vue comme un courriel. Le garde-fou ne peut que
+      refuser plus : refuser dès que le caractère devant le « @ » peut faire partie d'un mot ou d'une
+      adresse (même règle que T4.17-g2), avec une référence écrite lettre à lettre pour oracle.
 - [ ] T4.17-d M7 : détecteur réel de visages et de plaques et stockage du média flouté (OpenCV,
       politique « photos » validée d'abord).
 - [x] T4.17-e M7 et M8 : boucle de mesure par `utm_content` (impressions, clics, leads par
@@ -2289,6 +2431,10 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   d'exercice ; statut de particulier en affaires ; date de la dernière remise ; paies, DAS, dettes
   et réserves (source et date). Le CPA valide les dates du calendrier, les crédits de taxes à
   100 % et l'absence de compensation TPS/TVQ (T3).
+- **Constat du cash libre (T4.19-b)** : qui le fait constater et à quelle fréquence (le digest de 7 h ne
+  l'appelle pas et n'écrit rien ; un bouton du profil admin, T4.20 ?) ; l'âge à partir duquel un constat est trop
+  vieux (M8 dit l'âge, n'en juge pas) ; un agent en mode `supervise` ou `autonome` exécute ce T1 sans file :
+  faut-il le passer en approbation ?
 - **Météo (T4.13)** : seuils par service ; forfait commercial Open-Meteo ou rester sur MSC GeoMet
   et la saisie de l'admin ; relecture juridique de la licence ECCC (lue en documentation).
 - **STOP et avis légal (T4.17-c)** : un résumé de transfert fourni par l'agent ne peut plus nommer
@@ -2324,6 +2470,7 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   - M1, M7 et M10 lisent l'approbateur par le socle, sans copie de la table des approbations (T4.15-d) :
     0d87631, 6cf96d8, b213977 ;
   - M5, prévision de trésorerie (T4.16-d) : cc75327, b79d7fd, 6f41f62, 53ae85d, f3f2ac2 ;
+  - M5 publie le constat du cash libre, M8 le consomme et le montre (T4.19-b) : 5648adb, 08838c0, d82e67c ;
   - envoi d'un devis par approbation N4 (T4.7) : 8fd15ce ;
   - clôture d'un transfert réservée à un humain (M1, T4.5) : dd56449 ;
   - canaux de M1 (politique d'approbation d'un message de client) : `src/opsys/canaux.py`, fc80869 ;
