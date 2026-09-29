@@ -1169,10 +1169,54 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
                   M10 589, socle 1021 (43 sautés), ruff OK, verifier 139 outils ; 5 mutations tuées.
                   Limite connue : sans fenêtre, deux messages de texte identique d'un même client
                   donnent le même `lead_id` (inchangé, pour ne pas changer l'identité des leads émis).
-            - [ ] Lien automatique session → affaire (GATE NATHAN ci-dessous).
-            - [ ] Crochet `message_received` du core (avec T2.1-c).
-      - [ ] T2.1-c Envoi réel au client (après approbation N4) ; greffe du crochet `message_received`.
-      - [ ] T2.1-d Appel manqué (`voice-call`) et courriel (`imap`).
+            - [ ] Lien automatique session → affaire (GATE NATHAN ci-dessous). ADR-0011 : possible sans
+                  modèle (clé de session de confiance) ; reste la décision de confidentialité.
+            - [ ] Crochet `message_received` du core : remplacé par T2.1-c1 à c3 (ADR-0011 : le core
+                  appelle lui-même la réception, avant le tour, sous la file durable du canal).
+      - [ ] T2.1-c Réception sans modèle et envoi réel au client après approbation N4
+            (`docs/decisions/ADR-0011-canaux-reception-envoi.md`, **Proposé** : rien ne se code avant la
+            décision du propriétaire). GATE NATHAN (12 points de l'ADR) : la voie, l'approbateur N4, la base
+            d'envoi (CASL, avec le juriste), les plages, la mention de retrait, les essais, la rétention, le
+            lien session → affaire, la voie du formulaire, le jeton Twilio hors du moteur. T3 : les cinq
+            variables Twilio, l'attestation des politiques, la mise en ligne, le premier envoi réel.
+            Constats du fork (ADR-0011) : le core réécrit le texte avant l'envoi SMS ; la requête Twilio n'a
+            pas de clé d'idempotence ; le jeton Twilio arrive dans l'environnement du moteur (préfixe
+            `OPSYS_`) ; aucune plage d'envoi n'existe dans le code ; le fork n'envoie aucun courriel.
+            - [ ] T2.1-c1 Moteur : clé de session de confiance, marqueur d'origine, `Outil.reserve_au_core`,
+                  ligne `reception`, `m1_lire_reception` (T0), MMS sans texte inscrit et visible « À voir ».
+                  Preuve : pytest M1 et socle par `Capacites` (relecture fidèle, rejeu sans ligne, clé
+                  divergente refusée, sans `_meta` fermé) ; ruff ; `opsys-metier verifier` ; mutations.
+            - [ ] T2.1-c2 Core : `opsys-reception.ts` dans `runChannelTurn`, avant le dispatch, attendu ;
+                  `callOpsysMcpTool` gagne `meta`. Preuve : vitest (champs, moteur en panne puis rejeu,
+                  refus permanent, configuration absente, `_meta` reçu par un vrai serveur MCP) ; jobs
+                  `tests` et `tests-opsys` de `core.yml` verts.
+            - [ ] T2.1-c3 Bout en bout de la réception, puis exigence du marqueur (faux Twilio dans
+                  `tests/e2e_core/`, `m1_recevoir_message_canal` réservé au core, skill et SOUL). Preuve :
+                  un SMS, un signal ; même `MessageSid`, une ligne ; moteur arrêté puis relancé, message
+                  présent en moins de 3 min ; STOP inscrit ; appel d'agent refusé.
+            - [ ] T2.1-c4 Moteur : registre des envois et garde, sans réseau (`m1_proposer_reponse`,
+                  `m1_envoyer_reponse`, `m1_lire_envoi`, `m1_resoudre_envoi`, profil `envoi_client`,
+                  chiffrement). Preuve : pytest par `Capacites` et `approbations.decider` (texte ou
+                  destinataire qui diffère, refusé ; STOP avant approbation, annulé ; profil absent, le
+                  verdict dit où déclarer ; une proposition ouverte par conversation) ; mutations.
+            - [ ] T2.1-c5 Moteur : outils du core (`m1_reserver_envoi`, `m1_noter_envoi`,
+                  `m1_noter_livraison`), machine à états, essais bornés, « À voir ». Preuve : pytest
+                  exhaustif des transitions ; un seul gagnant à la réservation ; un inconnu jamais réoffert.
+            - [ ] T2.1-c6 Core : `sendSmsExactText` et `opsys-envoi*.ts`. Preuve : vitest avec faux `fetch`
+                  (corps identique octet pour octet ; empreinte qui diffère, rien ; 4xx, rejeté ; coupure
+                  après le marqueur, inconnu et jamais un second POST).
+            - [ ] T2.1-c7 Accusés de livraison du core vers le moteur (`setSmsDeliveryObserver`). Preuve :
+                  vitest (doublon compris, 503 si le moteur est injoignable) ; pytest idempotent.
+            - [ ] T2.1-c8 Bout en bout de l'envoi (`e2e-core`, faux Twilio). Preuve : un POST au texte exact ;
+                  core arrêté après le marqueur, inconnu ; STOP avant l'envoi, aucun POST ; `delivered`,
+                  ligne `livraison` ; canal inactif, repli manuel.
+            - [ ] T2.1-c9 Durcissement : jeton Twilio hors de l'environnement du moteur. Preuve : vitest
+                  `opsys-metier-env.test.ts` ; pytest `test_openclaw_canaux.py`.
+      - [ ] T2.1-d Appel manqué (`voice-call`) et courriel (`imap`), par le même client de réception.
+            Note (ADR-0011) : `dispatchHookAgentTurn` refuse toute source externe autre que `email` ; la
+            voie voix de M1-canaux §7 ne vaut donc pas telle quelle.
+      - [ ] T2.1-e (plus tard) Courriel sortant : même registre des envois, exécuteur SMTP ; fournisseur,
+            DKIM, SPF et DMARC en T3.
 - [x] T2.2 M2 : lead structuré, Client 360, préparation à l'estimation, prochaine action.
       Preuve (commit « T2.2 » ci-dessous) :
       - Client 360 : identifiant stable tiré du contact seulement ; vue sans donnée inventée ;

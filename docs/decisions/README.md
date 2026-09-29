@@ -43,5 +43,5 @@ Deux nuances de statut à connaître en lisant les fichiers eux-mêmes :
   en-tête (« Remplace : le point 1 de l'ADR-0006 »). Lire le point remplacé exige donc de lire les deux
   fichiers, pas seulement le plus récent.
 
-Toute nouvelle décision d'architecture se numérote **ADR-0008** et suit le même principe : un fichier
-neuf, jamais une édition d'un ADR existant.
+Toute nouvelle décision d'architecture prend le numéro qui suit le plus grand ADR de ce dossier et suit le
+même principe : un fichier neuf, jamais une édition d'un ADR existant.
