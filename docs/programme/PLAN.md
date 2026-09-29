@@ -1573,7 +1573,7 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       Preuve : pytest M6, mutations, gate BMAD M6 ; E2E par le vrai bus : devis accepté, stock
       insuffisant, `a_commander` ; `opsys verifier`.
       Dépend de : T4.10. GATE NATHAN : seuils de réapprovisionnement. T3 : aucune commande envoyée.
-- [ ] T4.15 M6 et M5 : comptes à payer depuis les réceptions (M5.2, M6.16).
+- [x] T4.15 M6 et M5 : comptes à payer depuis les réceptions (M5.2, M6.16).
       Écart (§7 M5.2, M6.16 ; audit M5 M5.2 « ABSENT » ; audit M6 M6.16 « PARTIEL ») : M5 ne sait pas
       ce que l'entreprise doit aux fournisseurs.
       - M6 publie `m6.reception_enregistree` (PO, fournisseur, lignes reçues, écart de prix,
@@ -1586,6 +1586,30 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       saisie, doublon refusé ; aucun `DECAISSEMENT` créé ; revue externe (argent).
       Dépend de : rien. GATE NATHAN : unité des prix du livre de prix. T3 : payer un fournisseur est
       N5 (Nathan et CPA) ; OCR fermé, repli : saisie manuelle.
+      Preuve (d1697f6, a21b3c8, 7bfbe68) :
+      - M6 publie `m6.reception_enregistree` (schéma fermé, textes décimaux, aucun montant calculé)
+        dans la transaction de la réception d'un PO persisté ; refus avant écriture d'une quantité
+        négative ou non finie et d'un horodatage sans fuseau ;
+      - M5 : registre `comptes_a_payer`, « à payer attendu » par PO reçu (`ROUND_HALF_UP`, taxes
+        recalculées, livraisons cumulées) ; pièce absente : « non calculable », jamais 0 ;
+        `m5_saisir_facture_fournisseur` (T1, N3, `admin`, humain exigé par l'outil :
+        `REJ-AP-HUMAIN-REQUIS`) ; doublon refusé ; rapprochement proposé avec ses écarts, recalculé
+        à chaque lecture, jamais appliqué ; `m5_lister_comptes_a_payer` (T0, `admin`, paginé) ;
+      - `conformite.verifier_aucun_decaissement` (AST) : aucun décaissement possible sur ce chemin ;
+        registre des mouvements identique avant et après tout le parcours ;
+      - E2E `tests/e2e/test_comptes_a_payer_appareil.py` : réception partielle, à payer 344,93 $,
+        facture saisie, doublon refusé, rejeu, employé fermé, agent refusé ; M5 890 (613 avant), M6
+        837 (717), M4 1817, M8 367, M10 589, socle 1137 (44 sautés), gates BMAD M5 et M6, verifier
+        148 outils (72 déclarés) ; 84 mutations tuées.
+      Limites : unité des prix non déclarée (réserve `REJ-AP-UNITE-PRIX-NON-CONFIRMEE` sur tout
+      attendu, GATE NATHAN) ; ni correction ni annulation d'une facture saisie ; factures sans PO non
+      couvertes ; aucun paiement fournisseur (N5).
+- [ ] T4.15-b M6 : une livraison qui complète un PO déjà partiel reste `RECEPTION_INFERIEURE`
+      (`reception.py` compare chaque livraison à la commande entière) : cumuler les livraisons pour
+      atteindre `received` ; une réception éphémère accepte encore des quantités négatives.
+- [ ] T4.15-c M5 : correction ou annulation d'une facture fournisseur saisie (N4, motif, trace) ;
+      factures sans PO (carburant, outils) ; le socle expose l'approbateur d'une demande à l'outil
+      (`_decision_approuvee_en_cours` est copiée dans M5 et M10).
 - [ ] T4.16 M5 : cash libre réel et calendrier fiscal vivant (M5.5, M5.7, M5.14).
       Écart (§7 M5 « solde bancaire ≠ argent disponible » ; audit M5 M5.5, M5.14 « PARTIEL »,
       M5.7 « ABSENT ») : `soldes.py` ne retranche que les `PROVISION` ; aucun échéancier TPS/TVQ.
@@ -1758,6 +1782,9 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 - **Usine à contenu (T4.17, M7)** : `site_url` du profil (sans lui, aucun lien) ;
   `garanties_validees` ; `heures_publication` ; un client insatisfait ne donne aucun contenu (choix
   de l'agent, à confirmer) ; approbation réservée à `nathan_owner`.
+- **Comptes à payer (T4.15)** : doublon refusé sur (fournisseur, numéro, montant) ; même numéro
+  avec un autre montant accepté avec avertissement ; aucune tolérance d'écart (un cent est un
+  écart) ; unité des prix du livre de prix M6 (déjà attendue).
 - **Lien automatique session → affaire (T2.1-b)** : aujourd'hui, un humain lie la session d'un
   client à son lead (`m10_lier_session_affaire`, N3). Faut-il qu'une règle écrite le fasse à la
   création du lead ? La clé de session contient le numéro du client : elle ne voyage jamais dans
@@ -1777,6 +1804,7 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 - **Revue externe du code critique** (AGENTS.md), avant tout passage sur `main` :
   - M5 : 119a594, 23df6eb, T1.3-c ; vue financière d'un appel d'appareil (T1.4-k2) : 1ef9499 ;
     coût réel et rentabilité (T1.5-d) : b217aea ; marge réelle publiée vers M8 et M10 : 80aa355 ;
+  - comptes à payer et facture fournisseur saisie (T4.15) : d1697f6, a21b3c8, 7bfbe68 ;
   - canaux de M1 (politique d'approbation d'un message de client) : `src/opsys/canaux.py`, fc80869 ;
   - consentement du client et sa preuve posée par le serveur (M4, T1.5-d) : 358d2cc ;
   - idempotence du socle : 764c292, 2474cd1 ;
