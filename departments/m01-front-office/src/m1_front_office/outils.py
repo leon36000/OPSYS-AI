@@ -51,17 +51,13 @@ d'affaire liée). Aucune réponse n'est envoyée : le gabarit empathique est un 
 
 from __future__ import annotations
 
-import json
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import select
-
 from opsys import approbations, evenements, identite, stockage, taxonomie
 from opsys import contexte as contexte_appel
 from opsys.outils import Autonomie, Niveau, Outil
-from opsys.stockage.schema import APPROBATIONS
 
 from . import (
     adaptateurs,
@@ -814,46 +810,22 @@ def escalader_plainte(raison: str, canal: str, expediteur: str, resume: str | No
     return _ouvrir_pour_l_agent(plaintes.TYPE_PLAINTE, raison, canal, expediteur, resume)
 
 
-def _decision_approuvee_en_cours(cnx: Any, nom_outil: str, arguments: dict[str, Any]) -> tuple[str, str] | None:
-    """`(personne, rôle)` de l'humain qui a APPROUVÉ la demande que cet appel exécute, sinon `None`.
-
-    `approbations.decider` réserve la demande (`en_attente` -> `en_cours`, avec `decide_par` et `decide_role`) puis
-    exécute l'outil avec les arguments EXACTS enregistrés, dans la même transaction : cet appel EST une décision humaine
-    si et seulement si une demande `en_cours` de cet outil, de ce département, porte exactement ces arguments et un
-    approbateur de rôle humain toujours actif. Un agent ne peut pas fabriquer une telle ligne (il ne peut que créer une
-    demande `en_attente`). Même garde que M10 (`m10_clore_signal`). Lecture seule."""
-    if cnx is None:
-        return None
-    lignes = cnx.execute(
-        select(APPROBATIONS.c.arguments, APPROBATIONS.c.decide_par, APPROBATIONS.c.decide_role).where(
-            APPROBATIONS.c.statut == "en_cours",
-            APPROBATIONS.c.outil == nom_outil,
-            APPROBATIONS.c.departement == _DEPARTEMENT,
-        )
-    ).all()
-    for arguments_enregistres, decide_par, decide_role in lignes:
-        if not decide_par or decide_role not in _ROLES_HUMAINS:
-            continue
-        if json.loads(arguments_enregistres) != arguments:
-            continue
-        personne = identite.personne_active(cnx, decide_par)
-        if personne is not None and decide_role in personne.roles:
-            return decide_par, decide_role
-    return None
-
-
 def _verdict_refus(code: str, detail: str) -> dict[str, Any]:
     return {"accepte": False, "verdict": verdicts.construire_verdict(code, detail=detail)}
 
 
-def _acteur_humain(nom_outil: str, arguments: dict[str, Any]) -> tuple[dict[str, str] | None, dict[str, Any] | None]:
+def _acteur_humain(nom_outil: str) -> tuple[dict[str, str] | None, dict[str, Any] | None]:
     """Qui décide : `({par, role, voie}, None)` si c'est un humain identifié, sinon `(None, réponse de refus)`.
 
     Clore un transfert est une décision de personne : un agent ne l'a jamais seul (la file « À voir » ne se viderait
     plus d'elle-même). Deux voies, jamais une troisième, jamais un texte de modèle ni un argument :
     1. un appel d'appareil dont l'identité (posée par le core d'après un jeton vérifié) est CONFIRMÉE en base à
        l'instant même (personne active portant encore ce rôle), de rôle `admin` ;
-    2. l'exécution d'une demande qu'un humain vient d'approuver dans la file d'approbation.
+    2. l'exécution d'une demande qu'un humain vient d'approuver dans la file d'approbation : le SOCLE dit qui l'a
+       approuvée (`approbations.approbateur_en_cours`, PLAN T4.15-d ; demande relue en base, personne active portant
+       encore son rôle), et l'outil ne reconnaît que `admin` et `nathan_owner` (`_ROLES_HUMAINS`), même si la politique
+       du département s'élargit. Les arguments ne sont pas comparés : `decider` rejoue les arguments EXACTS
+       enregistrés et lui seul pose la demande en cours.
     Tout le reste est refusé, y compris un appel d'agent dans un mode où l'approbation n'est pas requise."""
     cnx = stockage.connexion_courante()
     appelante = contexte_appel.identite_appelante()
@@ -869,9 +841,9 @@ def _acteur_humain(nom_outil: str, arguments: dict[str, Any]) -> tuple[dict[str,
             return None, _verdict_refus(
                 "REJ-HUMAIN-ROLE-INSUFFISANT", "cette décision est réservée au rôle admin depuis un appareil")
         return {"par": confirmee.personne, "role": confirmee.role, "voie": _VOIE_APPAREIL}, None
-    approbateur = _decision_approuvee_en_cours(cnx, nom_outil, arguments)
+    approbateur = approbations.approbateur_en_cours(cnx, nom_outil, _DEPARTEMENT, roles=_ROLES_HUMAINS)
     if approbateur is not None:
-        return {"par": approbateur[0], "role": approbateur[1], "voie": _VOIE_APPROBATION}, None
+        return {"par": approbateur.personne, "role": approbateur.role, "voie": _VOIE_APPROBATION}, None
     return None, _verdict_refus(
         "REJ-HUMAIN-REQUIS",
         "clore un transfert est une décision humaine : un agent ne peut pas la prendre seul. Fais-la depuis l'app "
@@ -911,8 +883,7 @@ def lire_transfert(transfert_id: str) -> dict[str, Any]:
 def clore_transfert(transfert_id: str, motif: str, horodatage: str) -> dict[str, Any]:
     """Une PERSONNE clôt un transfert ouvert, avec son motif : il sort de la file « À voir ». Décision humaine : refusée
     à un agent qui n'a pas passé par l'approbation ou par un jeton d'appareil `admin`."""
-    acteur, refus = _acteur_humain(
-        "m1_clore_transfert", {"transfert_id": transfert_id, "motif": motif, "horodatage": horodatage})
+    acteur, refus = _acteur_humain("m1_clore_transfert")
     if acteur is None:
         return refus or _verdict_refus("REJ-HUMAIN-REQUIS", "acteur humain introuvable")
     reg = _obtenir_registre()

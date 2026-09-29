@@ -15,6 +15,7 @@ Données fictives (numéros en 555, personnes de test, vocabulaire `fictif: true
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 import json
 from pathlib import Path
@@ -22,11 +23,13 @@ from pathlib import Path
 import pytest
 from m1_front_office import outils as outils_m1
 from m1_front_office import plaintes, transferts
+from sqlalchemy import update
 
 from opsys import approbations, contexte, idempotence, identite, openclaw, stockage, taxonomie
 from opsys.capacites import Capacites, outils_executables
-from opsys.departements import lire_manifeste
-from opsys.stockage.schema import EVENEMENTS_SORTANTS
+from opsys.departements import PolitiqueApprobation, lire_manifeste
+from opsys.outils import Niveau, executer_atomique
+from opsys.stockage.schema import APPROBATIONS, EVENEMENTS_SORTANTS
 
 M1 = Path(__file__).resolve().parents[1]
 NUMERO = "+15145550142"
@@ -453,6 +456,87 @@ def test_un_employe_ne_peut_pas_approuver_la_cloture(capacites):
     with pytest.raises(ValueError, match="aucun rôle autorisé"):
         _approuver(capacites, reponse["demande_id"], "admin.fictif")  # la politique de M1 ne déclare que nathan_owner
     assert _cloture_de(tid) == [] and len(_attentes()) == 1
+
+
+# -- Ce que le SOCLE dit d'une approbation (T4.15-d : M1 ne lit plus la table des approbations) ---
+# `approbations.decider` pose la demande qu'il exécute et `approbations.approbateur_en_cours` dit qui l'a approuvée : la
+# matrice complète est dans `tests/test_approbateur_en_cours.py`. Ici : ce que M1 en fait, par le VRAI `decider`.
+
+
+def _approuver_sous_une_politique_elargie(dep, demande_id, par, roles_n3):
+    """Le VRAI `decider`, dans un département dont la politique N3 admet `roles_n3` (le manifeste de M1 ne déclare que
+    `nathan_owner`) : la file accepte alors ces rôles, et l'outil décide seul lesquels il reconnaît comme humains."""
+    elargi = dataclasses.replace(
+        dep, politique_approbation=PolitiqueApprobation(roles={Niveau.N3: frozenset(roles_n3)}))
+    departements = {elargi.id: elargi}
+    with stockage.transaction() as cnx:
+        return approbations.decider(
+            cnx, demande_id, True, par, outils_executables(departements, stockage.transaction), departements)
+
+
+def _proposer_une_cloture(capacites):
+    _sms(capacites, "Je suis très déçu du travail.")
+    tid = _attentes()[0]["id"]
+    return tid, capacites.appeler("m1_clore_transfert", _args_cloture(tid))["demande_id"]
+
+
+def test_une_ligne_en_cours_ecrite_a_la_main_ne_clot_rien_meme_bien_formee(capacites, dep):
+    """Ce que M1 acceptait avant T4.15-d (une demande `en_cours` de `m1_clore_transfert`, aux mêmes arguments, du
+    propriétaire actif) ne vaut plus rien sans que `decider` soit en train d'exécuter."""
+    _sms(capacites, "Je suis très déçu du travail.")
+    tid = _attentes()[0]["id"]
+    with stockage.transaction() as cnx:
+        ident = approbations.creer_demande(cnx, dep.id, "m1_clore_transfert", _args_cloture(tid), niveau=Niveau.N3)
+        cnx.execute(update(APPROBATIONS).where(APPROBATIONS.c.id == ident).values(
+            statut="en_cours", decide_par="nathan", decide_role="nathan_owner"))
+        forgee = outils_m1.clore_transfert(**_args_cloture(tid))
+
+    assert forgee["accepte"] is False and forgee["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
+    assert _cloture_de(tid) == [] and len(_attentes()) == 1
+
+
+def test_l_approbation_d_une_cloture_ne_sert_pas_a_clore_un_autre_transfert(capacites):
+    """Le socle ne dit qui a approuvé que PENDANT `decider` : un agent qui appelle l'outil ensuite, pour un AUTRE
+    transfert, ne récupère pas cette approbation."""
+    _sms(capacites, "Je suis très déçu du travail.", "SM-1", 0, expediteur=NUMERO)
+    _sms(capacites, "Je suis très déçu du travail.", "SM-2", 1, expediteur=AUTRE)
+    premier, second = sorted(attente["id"] for attente in _attentes())
+    demande = capacites.appeler("m1_clore_transfert", _args_cloture(premier))["demande_id"]
+    assert _approuver(capacites, demande)["statut"] == "executee"
+
+    outil = next(o for o in capacites.lister() if o.nom == "m1_clore_transfert")
+    apres = executer_atomique(outil, _args_cloture(second))
+
+    assert apres["ok"] is True and apres["resultat"]["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
+    assert len(_cloture_de(premier)) == 1 and _cloture_de(second) == []
+
+
+@pytest.mark.parametrize("par, role", [("gestion", "manager"), ("employe.fictif", "employee"),
+                                       ("robot", "system_agent")])
+def test_un_role_que_la_file_admet_mais_que_l_outil_ne_reconnait_pas_ne_clot_rien(capacites, dep, par, role):
+    """Le manifeste peut élargir la politique N3 : la file exécute alors la demande, mais l'outil n'admet comme
+    humains que `admin` et `nathan_owner`."""
+    with stockage.transaction() as cnx:
+        identite.creer_personne(cnx, "gestion", "Gestionnaire Fictive", "mot-de-passe-gestion-1234", ["manager"])
+        identite.creer_personne(cnx, "robot", "Agent Fictif", "mot-de-passe-robot-123456", ["system_agent"])
+    tid, demande = _proposer_une_cloture(capacites)
+
+    decision = _approuver_sous_une_politique_elargie(dep, demande, par, {role, "nathan_owner"})
+
+    assert decision["statut"] == "executee", decision
+    assert decision["reponse"]["resultat"]["accepte"] is False
+    assert decision["reponse"]["resultat"]["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
+    assert _cloture_de(tid) == [] and len(_attentes()) == 1
+
+
+def test_un_admin_que_la_file_admet_clot_sous_son_role_par_la_voie_approbation(capacites, dep):
+    tid, demande = _proposer_une_cloture(capacites)
+
+    decision = _approuver_sous_une_politique_elargie(dep, demande, "admin.fictif", {"admin", "nathan_owner"})
+
+    assert decision["reponse"]["resultat"]["accepte"] is True
+    (cloture,) = _cloture_de(tid)
+    assert (cloture["clos_par"], cloture["role"], cloture["voie"]) == ("admin.fictif", "admin", "approbation")
 
 
 @pytest.mark.parametrize("mode", ["supervise", "autonome"])
