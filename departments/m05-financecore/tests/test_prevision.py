@@ -35,8 +35,10 @@ de la réponse. Le branchement sur les vrais registres durables est dans test_pr
 
 from __future__ import annotations
 
+import copy
 import json
 import random
+import re
 from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
@@ -1470,3 +1472,452 @@ def test_les_limites_disent_ce_que_la_prevision_ne_sait_pas():
         assert morceau in textes, morceau
     prevision.limites().append("x")
     assert "x" not in prevision.limites(), "une copie : personne ne modifie les limites du module"
+
+
+# ================================= 12. les bornes que la mutation ciblée a montrées (chaque test tient une frontière)
+def _flux_inconnu(identifiant, jour, codes, *, montant=None, sens=prevision.SORTIE, detail="ce qui manque (fictif)"):
+    """Un flux dont le montant (ou la date) n'est pas connu : il porte les codes de ce qui manque."""
+    return {"id": identifiant, "sens": sens, "nature": "autre", "montant": None if montant is None else D(montant),
+            "date": jour, "regle_de_date": None if jour is None else "test", "source": "test",
+            "manque": [validation.construire_verdict(code, detail=detail) for code in codes], "reserves": []}
+
+
+def _taxes(tps, tvq):
+    return [{"id": "tps_federale", "montant": D(tps)}, {"id": "tvq_quebec", "montant": D(tvq)}]
+
+
+# ---------------------------------------------------------------------------------- l'arrondi et le texte d'un montant
+def test_un_montant_a_trois_decimales_est_arrondi_au_cent_demi_superieur_par_semaine():
+    resultat = _assembler([
+        _flux("a", prevision.SORTIE, "0.005", AUJOURD_HUI),
+        _flux("b", prevision.SORTIE, "0.025", AUJOURD_HUI + timedelta(days=7)),
+    ], solde=_solde("10.00"))
+
+    assert [s["sorties"] for s in resultat["semaines"][:2]] == [D("0.01"), D("0.03")]
+    assert _soldes(resultat)[:2] == [D("9.99"), D("9.96")]
+
+
+def test_un_montant_sans_decimales_est_rendu_au_cent_dans_la_vue():
+    resultat = _assembler([_flux("a", prevision.SORTIE, "5", AUJOURD_HUI)])
+
+    page = _semaine(resultat, 1)
+
+    assert page["lignes"][0]["montant"] == "5.00"
+
+
+@pytest.mark.parametrize("montant, lisible", [
+    ("999999999999.99", True), ("1000000000000.00", False), ("1E+12", False), ("1E+20", False)])
+def test_un_montant_de_douze_chiffres_est_lisible_un_de_treize_ne_l_est_pas(montant, lisible):
+    flux = prevision.flux_clients(
+        [{"facture_id": "F-G", "montant_apres_taxes": D(montant), "date_envoi": "2026-09-20T09:00:00-04:00"}], 30, None)
+
+    assert len(flux) == 1 and (flux[0]["montant"] is not None) == lisible
+    assert [m["code"] for m in flux[0]["manque"]] == ([] if lisible else ["REJ-CREANCES-MONTANT-ILLISIBLE"])
+
+
+def test_un_seuil_de_douze_chiffres_est_lu_un_de_treize_est_refuse():
+    seuil, verdict = prevision.lire_seuil({**SEUIL, "montant": "999999999999.99"})
+    assert verdict is None and seuil["montant"] == D("999999999999.99")
+
+    seuil, verdict = prevision.lire_seuil({**SEUIL, "montant": "1000000000000.00"})
+
+    assert seuil is None and verdict["code"] == "REJ-PREVISION-SEUIL-INVALIDE"
+
+
+def test_un_seuil_ne_se_lit_que_tel_qu_ecrit_sans_retour_a_la_ligne_et_toujours_au_cent():
+    seuil, verdict = prevision.lire_seuil({**SEUIL, "montant": "10.00\n"})
+    assert seuil is None and verdict["code"] == "REJ-PREVISION-SEUIL-INVALIDE"
+
+    for texte, attendu in (("10", "10.00"), ("16000.5", "16000.50"), ("0", "0.00")):
+        seuil, verdict = prevision.lire_seuil({**SEUIL, "montant": texte})
+        assert verdict is None and format(seuil["montant"], "f") == attendu
+        assert seuil["montant"].as_tuple().exponent == -2
+
+
+# ---------------------------------------------------------------------------------------- ce que la réponse abrège
+def test_un_identifiant_de_quarante_caracteres_est_dit_tel_quel_un_de_quarante_et_un_est_abrege():
+    quarante, quarante_et_un = "a" * 40, "b" * 41
+    resultat = _assembler([
+        _flux_inconnu(quarante, AUJOURD_HUI + timedelta(days=1), ["REJ-CASH-FACTURE-ILLISIBLE"]),
+        _flux_inconnu(quarante_et_un, AUJOURD_HUI + timedelta(days=2), ["REJ-CASH-FACTURE-ILLISIBLE"]),
+    ])
+
+    groupe = _vue(resultat)["manque"][0]
+
+    assert groupe["nombre"] == 2 and groupe["exemples"] == [quarante, "b" * 39 + "…"]
+    assert len(groupe["exemples"][1]) == 40
+
+
+def test_le_detail_d_un_manque_est_abrege_a_deux_cents_caracteres_pas_avant():
+    resultat = _assembler([
+        _flux_inconnu("a", AUJOURD_HUI + timedelta(days=1), ["REJ-CASH-FACTURE-ILLISIBLE"], detail="d" * 200),
+        _flux_inconnu("b", AUJOURD_HUI + timedelta(days=2), ["REJ-AP-MONTANT-ILLISIBLE"], detail="e" * 201),
+    ])
+
+    manque = {g["code"]: g["detail"] for g in _vue(resultat)["manque"]}
+
+    assert manque["REJ-CASH-FACTURE-ILLISIBLE"] == "d" * 200
+    assert manque["REJ-AP-MONTANT-ILLISIBLE"] == "e" * 199 + "…"
+
+
+@pytest.mark.parametrize("longueur, attendu", [(160, "s" * 160), (161, "s" * 159 + "…")])
+def test_le_detail_du_manque_de_l_alerte_est_abrege_a_cent_soixante_caracteres(longueur, attendu):
+    verdict = validation.construire_verdict("REJ-PREVISION-SEUIL-A-CONFIGURER", "s" * longueur)
+
+    page = _vue(_assembler([], verdict_seuil=verdict))
+
+    assert page["alerte"]["manque"] == {"code": "REJ-PREVISION-SEUIL-A-CONFIGURER", "detail": attendu}
+
+
+def test_un_manque_ne_cite_que_trois_exemples_mais_compte_tous_ses_flux():
+    flux = [_flux_inconnu(f"f-{k}", AUJOURD_HUI + timedelta(days=k), ["REJ-CASH-FACTURE-ILLISIBLE"])
+            for k in range(1, 6)]
+
+    groupe = _vue(_assembler(flux))["manque"][0]
+
+    assert groupe["nombre"] == 5 and groupe["exemples"] == ["f-1", "f-2", "f-3"]
+
+
+def test_les_encaissements_non_comptes_ne_citent_que_trois_exemples_mais_les_comptent_tous():
+    flux = [_flux(f"e-{k}", prevision.ENTREE, "1.00", AUJOURD_HUI - timedelta(days=k)) for k in range(1, 6)]
+
+    groupe = _vue(_assembler(flux))["encaissements_non_comptes"][0]
+
+    assert groupe["nombre"] == 5 and groupe["montant_connu"] == "5.00"
+    assert groupe["exemples"] == ["e-5", "e-4", "e-3"], "les plus anciens d'abord"
+
+
+def test_la_tete_du_registre_du_solde_est_abregee_a_seize_caracteres(taux, calendrier):
+    resultat = _prevoir(taux, calendrier)
+
+    tete = resultat["solde"]["source"]["registres"][0]["tete"]
+    vue = _vue(resultat)["solde_initial"]["registres"][0]
+
+    assert len(tete) == 64 and vue["tete"] == tete[:16] and len(vue["tete"]) == 16
+
+
+def test_la_taille_mesuree_est_celle_du_socle_un_accent_compte_pour_un_caractere():
+    objet = {"mention": "Analyse préparatoire IA — validation", "n": [1, 2]}
+
+    assert prevision._taille(objet) == len(json.dumps(objet, ensure_ascii=False))
+    assert prevision._taille(objet) < len(json.dumps(objet))
+
+
+def test_une_page_qui_tient_exactement_dans_le_budget_est_rendue_la_precedente_ne_l_est_pas(taux, calendrier):
+    resultat = _prevoir(taux, calendrier)
+    complete = _vue(resultat, budget_caracteres=100000)
+    exacte = len(json.dumps(complete, ensure_ascii=False))
+
+    juste = _vue(resultat, budget_caracteres=exacte)
+    un_de_moins = _vue(resultat, budget_caracteres=exacte - 1)
+
+    assert juste == complete and juste["affichees"] == 6 and juste["prochain_depart"] is None
+    assert un_de_moins["affichees"] == 5 and un_de_moins["prochain_depart"] == 5
+
+
+def test_les_lignes_d_une_semaine_qui_tiennent_exactement_dans_le_budget_sont_rendues_toutes(taux, calendrier):
+    resultat = _prevoir(taux, calendrier)
+    complete = _semaine(resultat, 3, budget_caracteres=100000)
+    exacte = len(json.dumps(complete, ensure_ascii=False))
+
+    assert _semaine(resultat, 3, budget_caracteres=exacte)["affichees"] == complete["affichees"] == 4
+    assert _semaine(resultat, 3, budget_caracteres=exacte - 1)["affichees"] == 3
+
+
+# ------------------------------------------------------------------------------------------ l'assemblage, aux bornes
+def test_le_cash_libre_prevu_est_absent_sans_le_resultat_du_cash_libre():
+    resultat = _assembler([_flux("a", prevision.ENTREE, "10.00", AUJOURD_HUI)])
+
+    assert resultat["cash_libre"] == {"montant": None, "manque": []}
+    assert [s["cash_libre_prevu"] for s in resultat["semaines"]] == [None, None, None]
+
+
+def test_un_solde_de_fin_de_semaine_a_zero_n_est_pas_un_deficit_un_cent_de_moins_l_est():
+    resultat = _assembler([_flux("a", prevision.SORTIE, "1000.00", AUJOURD_HUI)])
+
+    assert resultat["semaines"][0]["solde_fin"] == D("0.00") and resultat["semaines"][0]["en_deficit"] is False
+    assert resultat["premiere_semaine_en_deficit"] is None
+
+    resultat = _assembler([_flux("a", prevision.SORTIE, "1000.01", AUJOURD_HUI)])
+
+    assert resultat["semaines"][0]["en_deficit"] is True and resultat["premiere_semaine_en_deficit"] == 1
+
+
+def test_un_flux_de_zero_est_accepte_et_ne_change_pas_le_solde():
+    resultat = _assembler([_flux("z", prevision.SORTIE, "0.00", AUJOURD_HUI)])
+
+    assert resultat["semaines"][0]["sorties"] == D("0.00") and _soldes(resultat) == [D("1000.00")] * 3
+    assert [ligne["id"] for ligne in resultat["semaines"][0]["lignes"]] == ["z"]
+
+
+def test_seule_une_sortie_datee_avant_aujourd_hui_est_echue_une_entree_ne_l_est_jamais():
+    resultat = _assembler([
+        _flux("auj", prevision.SORTIE, "1.00", AUJOURD_HUI),
+        _flux("demain", prevision.SORTIE, "1.00", AUJOURD_HUI + timedelta(days=1)),
+        _flux("hier", prevision.SORTIE, "1.00", AUJOURD_HUI - timedelta(days=1)),
+        _flux("entree", prevision.ENTREE, "1.00", AUJOURD_HUI + timedelta(days=2)),
+    ])
+
+    assert {ligne["id"]: ligne["echu"] for ligne in resultat["semaines"][0]["lignes"]} == {
+        "hier": True, "auj": False, "demain": False, "entree": False}
+
+
+def test_un_encaissement_dont_le_montant_est_inconnu_n_est_pas_compte_meme_avec_sa_date():
+    resultat = _assembler([_flux_inconnu(
+        "e-1", AUJOURD_HUI + timedelta(days=1), ["REJ-CREANCES-MONTANT-ILLISIBLE"], sens=prevision.ENTREE)])
+
+    assert resultat["calculable"] is True and resultat["semaines"][0]["entrees"] == D("0.00")
+    assert [(g["code"], g["nombre"], g["montant_connu"]) for g in resultat["encaissements_non_comptes"]] == [
+        ("REJ-CREANCES-MONTANT-ILLISIBLE", 1, D("0.00"))]
+
+
+def test_les_encaissements_non_comptes_sont_groupes_par_code_dans_l_ordre_des_codes_sous_leur_premier_manque():
+    resultat = _assembler([
+        _flux("e-echu-1", prevision.ENTREE, "20.00", AUJOURD_HUI - timedelta(days=3)),
+        _flux("e-echu-2", prevision.ENTREE, "5.00", AUJOURD_HUI - timedelta(days=1)),
+        _flux_inconnu("e-illisible", AUJOURD_HUI + timedelta(days=1),
+                      ["REJ-CREANCES-MONTANT-ILLISIBLE", "REJ-CREANCES-DATE-ENVOI-INVALIDE"], sens=prevision.ENTREE),
+    ])
+
+    assert [(g["code"], g["nombre"], g["montant_connu"], g["flux"]) for g in resultat["encaissements_non_comptes"]] == [
+        ("REJ-CREANCES-MONTANT-ILLISIBLE", 1, D("0.00"), ["e-illisible"]),
+        ("REJ-PREVISION-ENCAISSEMENT-ECHU", 2, D("25.00"), ["e-echu-1", "e-echu-2"])]
+
+
+def test_un_flux_a_deux_manques_les_dit_tous_les_deux_une_seule_fois_par_flux():
+    resultat = _assembler([_flux_inconnu(
+        "x", AUJOURD_HUI + timedelta(days=8),
+        ["REJ-CASH-FACTURE-ILLISIBLE", "REJ-AP-MONTANT-ILLISIBLE", "REJ-AP-MONTANT-ILLISIBLE"])])
+
+    assert [(g["code"], g["a_partir_de_semaine"], g["flux"]) for g in resultat["manque"]] == [
+        ("REJ-AP-MONTANT-ILLISIBLE", 2, ["x"]), ("REJ-CASH-FACTURE-ILLISIBLE", 2, ["x"])]
+
+
+def test_un_manque_dit_sa_semaine_la_plus_precoce_et_les_manques_se_suivent_par_semaine_puis_par_code():
+    """Le flux sans date est traité en dernier (les dates inconnues sont à la fin) et bloque dès la semaine 1 : la
+    semaine d'un code est la plus précoce, pas la première vue ; deux codes de la même semaine se suivent par code."""
+    resultat = _assembler([
+        _flux_inconnu("a", AUJOURD_HUI + timedelta(days=15), ["REJ-CASH-DAS-A-DECLARER"]),
+        _flux_inconnu("b", None, ["REJ-CASH-DAS-A-DECLARER"], montant="5.00"),
+        _flux_inconnu("c", AUJOURD_HUI + timedelta(days=16), ["REJ-AP-MONTANT-ILLISIBLE"]),
+        _flux_inconnu("d", AUJOURD_HUI + timedelta(days=1), ["REJ-CASH-FACTURE-ILLISIBLE"]),
+    ])
+
+    assert [(g["code"], g["a_partir_de_semaine"], g["flux"]) for g in resultat["manque"]] == [
+        ("REJ-CASH-DAS-A-DECLARER", 1, ["a", "b"]), ("REJ-CASH-FACTURE-ILLISIBLE", 1, ["d"]),
+        ("REJ-AP-MONTANT-ILLISIBLE", 3, ["c"])]
+    assert resultat["non_calculable_a_partir_de"] == 1
+
+
+def test_un_flux_inconnu_apres_l_horizon_est_compte_a_part_et_ne_bloque_pas():
+    apres = AUJOURD_HUI + timedelta(days=21)
+    resultat = _assembler([
+        _flux("connu", prevision.SORTIE, "5.00", apres),
+        _flux_inconnu("inconnu", apres, ["REJ-CASH-FACTURE-ILLISIBLE"]),
+        _flux("entree", prevision.ENTREE, "7.00", apres),
+    ])
+
+    assert resultat["calculable"] is True and resultat["manque"] == []
+    assert resultat["au_dela_de_l_horizon"]["sorties"] == {"nombre": 2, "total": D("5.00"), "non_chiffres": 1}
+    assert resultat["au_dela_de_l_horizon"]["entrees"] == {"nombre": 1, "total": D("7.00"), "non_chiffres": 0}
+    assert _vue(resultat)["au_dela_de_l_horizon"] == {
+        "entrees": {"nombre": 1, "total": "7.00"}, "sorties": {"nombre": 2, "total": "5.00", "non_chiffres": 1}}
+
+
+def test_l_en_tete_dit_ce_qui_manque_au_cash_libre_d_aujourd_hui(taux, calendrier):
+    declarees = {k: v for k, v in DECLARATIONS.items() if k != "das"}
+
+    page = _vue(_prevoir(taux, calendrier, declarees=declarees))
+
+    assert page["cash_libre_aujourd_hui"] == {"montant": None, "manque": ["das : REJ-CASH-DAS-A-DECLARER"]}
+
+
+def test_l_empreinte_change_quand_seule_la_source_d_une_ligne_change():
+    def avec(source):
+        flux = _flux("a", prevision.SORTIE, "10.00", AUJOURD_HUI + timedelta(days=9))
+        flux["source"] = source
+        return _assembler([flux])["prevision_id"]
+
+    assert avec("facture du fournisseur X") == avec("facture du fournisseur X")
+    assert avec("facture du fournisseur X") != avec("facture du fournisseur Y")
+
+
+def test_un_flux_qui_n_est_pas_un_objet_est_une_erreur_du_code_meme_avec_toutes_les_cles():
+    with pytest.raises(ValueError, match="flux mal formé"):
+        _assembler([sorted(prevision._CLES_FLUX)])
+
+
+def test_les_reserves_d_un_flux_sont_uniques_et_triees():
+    dette = {"type": "FACTURE", "id": "apf-1", "po_id": "PO-1", "fournisseur_id": "gentek", "numero_facture": "F-1",
+             "date_base": "2026-09-14", "montant": D("10.00"), "manque": [], "reserves": ["REJ-Z", "REJ-A", "REJ-Z"]}
+
+    assert prevision.flux_fournisseurs([dette], 30, None)[0]["reserves"] == ["REJ-A", "REJ-Z"]
+
+
+def test_une_dette_dont_la_date_ou_le_montant_est_illisible_est_un_flux_inconnu_qui_dit_pourquoi():
+    base = {"type": "FACTURE", "po_id": "PO-1", "fournisseur_id": "gentek", "numero_facture": "F-1", "manque": [],
+            "reserves": []}
+
+    sans_date = prevision.flux_fournisseurs(
+        [{**base, "id": "apf-1", "date_base": "pas une date", "montant": D("10.00")}], 30, None)[0]
+    sans_montant = prevision.flux_fournisseurs(
+        [{**base, "id": "apf-2", "date_base": "2026-09-14", "montant": D("10.005")}], 30, None)[0]
+
+    assert (sans_date["date"], sans_date["montant"]) == (None, D("10.00"))
+    assert [m["code"] for m in sans_date["manque"]] == ["REJ-CASH-FACTURE-ILLISIBLE"]
+    assert (sans_montant["date"], sans_montant["montant"]) == (date(2026, 10, 14), None)
+    assert [m["code"] for m in sans_montant["manque"]] == ["REJ-AP-MONTANT-ILLISIBLE"]
+
+
+def test_une_obligation_declaree_a_zero_ne_sort_pas_et_n_exige_aucune_date():
+    declaree = {"montant": "0.00", "source": "déclaration fictive", "au": "2026-09-25"}
+    composantes = {cle: cash_libre.composante_declaree(cle, declaree) for cle in ("paies", "das", "dettes")}
+
+    assert prevision.flux_obligations(composantes, prevision.lire_echeances_obligations(None)) == []
+
+
+# ----------------------------------------------------------------------------- les taxes, aux bornes de leurs périodes
+def test_le_verdict_d_un_calendrier_illisible_est_celui_que_l_appelant_donne():
+    verdict = validation.construire_verdict("REJ-CALENDRIER-ANNEE-NON-DECLAREE", "année 2027 absente (fictif)")
+
+    flux = prevision.flux_taxes([], [], None, verdict, FISCAL, AUJOURD_HUI)
+
+    assert [(f["id"], f["manque"]) for f in flux] == [("taxes:calendrier", [verdict])]
+
+
+def test_une_remise_qui_finit_aujourd_hui_est_refusee_le_lendemain_elle_est_admise(calendrier):
+    flux = prevision.flux_taxes([], [], calendrier, None, FISCAL, date(2026, 6, 30))
+
+    assert [f["id"] for f in flux] == ["taxes:remise"]
+    assert flux[0]["manque"][0]["code"] == "REJ-FISCAL-CONFIGURATION-INVALIDE"
+    assert prevision.flux_taxes([], [], calendrier, None, FISCAL, date(2026, 7, 1)) == []
+
+
+def test_la_taxe_d_un_particulier_en_affaires_est_due_au_30_avril_pas_au_15_juin(calendrier):
+    clients = [{"facture_id": "F-1", "date_envoi": "2026-08-10T09:00:00-04:00", "statut": "ENVOYEE",
+                "taxes": _taxes("100.00", "199.50")}]
+    fiscal = {"frequence_tps_tvq": "annuelle", "mois_fin_exercice": 12, "particulier_en_affaires": True,
+              "taxes_remises_jusqu_au": "2025-12-31"}
+
+    flux = prevision.flux_taxes(clients, [], calendrier, None, fiscal, AUJOURD_HUI)
+
+    assert [(f["id"], f["montant"], f["date"]) for f in flux] == [
+        ("taxes:2026-01-01:2026-12-31", D("299.50"), date(2027, 4, 30))]
+
+
+def test_une_periode_a_cheval_sur_deux_annees_compte_sa_premiere_journee_et_cite_la_version_de_son_annee_de_fin(
+        calendrier):
+    """Trimestrielle avec un exercice qui finit en janvier : la période du 2025-11-01 au 2026-01-31 (limite de paiement
+    le 2026-03-02) est au calendrier de 2026, pas de 2025. La facture du 2025-11-01, le lendemain de la remise, y
+    compte. Le 2026-01-31 la période finit aujourd'hui : elle n'est pas terminée."""
+    fiscal = {"frequence_tps_tvq": "trimestrielle", "mois_fin_exercice": 1, "taxes_remises_jusqu_au": "2025-10-31"}
+    clients = [{"facture_id": "F-1", "date_envoi": "2025-11-01T09:00:00-05:00", "statut": "ENVOYEE",
+                "taxes": _taxes("100.00", "199.50")}]
+
+    flux = prevision.flux_taxes(clients, [], calendrier, None, fiscal, date(2026, 1, 31))
+
+    assert [(f["id"], f["montant"], f["date"], f["partielle"]) for f in flux] == [
+        ("taxes:2025-11-01:2026-01-31", D("299.50"), date(2026, 3, 2), True)]
+    assert "2026-v1" in flux[0]["regle_de_date"] and "2025-v1" not in flux[0]["regle_de_date"]
+    assert "période non terminée" in flux[0]["source"]
+    assert prevision.flux_taxes(clients, [], calendrier, None, fiscal, date(2026, 2, 1))[0]["partielle"] is False
+
+
+def test_des_factures_fournisseurs_apres_la_fin_du_calendrier_connu_bloquent_aussi(calendrier):
+    fournisseurs = [
+        {"facture_fournisseur_id": "apf-1", "date_facture": "2027-02-10", "taxes": _taxes("30.00", "59.85")}]
+    fiscal = {"frequence_tps_tvq": "annuelle", "mois_fin_exercice": 12, "particulier_en_affaires": False,
+              "taxes_remises_jusqu_au": "2025-12-31"}
+
+    flux = prevision.flux_taxes([], fournisseurs, calendrier, None, fiscal, date(2027, 3, 1))
+
+    assert [f["id"] for f in flux] == ["taxes:couverture"]
+    assert flux[0]["manque"][0]["code"] == "REJ-CALENDRIER-ANNEE-NON-DECLAREE"
+
+
+def test_un_trou_dans_le_calendrier_arrete_la_couverture_et_rien_apres_lui_n_est_date(calendrier):
+    """Le trimestre du 2026-07-01 au 2026-09-30 manque au calendrier alors que celui d'après y est : la couverture
+    s'arrête à la remise, le trimestre suivant n'est pas daté (sa taxe serait comptée à côté de ce qui manque)."""
+    trou = copy.deepcopy(calendrier)
+    trou[2026]["periodes"]["trimestrielle"] = [
+        p for p in trou[2026]["periodes"]["trimestrielle"] if p["fin"] != date(2026, 9, 30)]
+    clients = [
+        {"facture_id": "F-1", "date_envoi": "2026-08-10T09:00:00-04:00", "statut": "ENVOYEE",
+         "taxes": _taxes("100.00", "199.50")},
+        {"facture_id": "F-2", "date_envoi": "2026-11-10T09:00:00-05:00", "statut": "ENVOYEE",
+         "taxes": _taxes("50.00", "99.75")},
+    ]
+
+    flux = prevision.flux_taxes(clients, [], trou, None, FISCAL, AUJOURD_HUI)
+
+    assert [f["id"] for f in flux] == ["taxes:couverture"]
+    assert "2026-06-30" in flux[0]["manque"][0]["detail"]
+
+
+def test_la_couverture_du_calendrier_ne_continue_que_par_une_periode_qui_commence_le_lendemain():
+    def periode(debut, fin):
+        return {"debut": debut, "fin": fin}
+
+    remises = date(2026, 6, 30)
+    contigues = [periode(date(2026, 7, 1), date(2026, 9, 30)), periode(date(2026, 10, 1), date(2026, 12, 31))]
+
+    assert prevision._couvert_jusqu_au(contigues, remises) == date(2026, 12, 31)
+    assert prevision._couvert_jusqu_au([periode(date(2026, 6, 1), date(2026, 8, 31))], remises) == remises, (
+        "une période qui chevauche la remise ne prouve rien")
+    assert prevision._couvert_jusqu_au(
+        [contigues[0], periode(date(2026, 11, 1), date(2026, 12, 31))], remises) == date(2026, 9, 30)
+    assert prevision._couvert_jusqu_au([], remises) == remises
+
+
+# ------------------------------------------------------------------------------------- les dettes, dans leur ordre
+def test_l_attendu_d_un_po_recu_en_deux_fois_est_date_de_sa_premiere_reception(taux):
+    a_payer = _a_payer(taux, receptions=(("e-1", "PO-1", "30", "2026-09-15T09:00:00-04:00"),
+                                         ("e-2", "PO-1", "30", "2026-09-20T09:00:00-04:00")), factures=())
+
+    dettes, verdict = cap.dettes_datables(a_payer, taux)
+
+    assert verdict is None
+    assert [(d["type"], d["montant"], d["date_base"]) for d in dettes] == [
+        ("ATTENDU", D("344.93"), "2026-09-15T09:00:00-04:00")], "la plus prudente : la première, pas la dernière"
+
+
+def test_les_po_se_suivent_par_premiere_reception_puis_par_identifiant_a_egalite(taux):
+    a_payer = _a_payer(taux, receptions=(("e-1", "PO-A", "20", "2026-09-16T09:00:00-04:00"),
+                                         ("e-2", "PO-B", "20", "2026-09-15T09:00:00-04:00"),
+                                         ("e-3", "PO-D", "20", "2026-09-17T09:00:00-04:00"),
+                                         ("e-4", "PO-C", "20", "2026-09-17T09:00:00-04:00")), factures=())
+
+    dettes, _ = cap.dettes_datables(a_payer, taux)
+
+    assert [d["po_id"] for d in dettes] == ["PO-B", "PO-A", "PO-C", "PO-D"]
+
+
+def test_une_facture_sans_po_annulee_n_est_plus_une_dette(taux):
+    a_payer = _a_payer(taux, receptions=(), factures=())
+    _, verdict = cap.saisir_facture_sans_po(
+        fournisseur_id="Pétro-Nord (fictif)", categorie="carburant", numero_facture="C-1", date_facture="2026-09-25",
+        montant_avant_taxes="100.00", total_facture=None, saisi_par="nathan", voie="appareil",
+        horodatage="2026-09-26T10:00:00-04:00", dictionnaire_taux=taux, categories_configurees=("carburant",),
+        registre_cible=a_payer)
+    assert verdict is None, verdict
+    assert [d["montant"] for d in cap.dettes_datables(a_payer, taux)[0]] == [D("114.98")]
+    identifiant = cap.factures_saisies(a_payer)[0]["facture_fournisseur_id"]
+    _, verdict = cap.annuler_facture_fournisseur(
+        facture_fournisseur_id=identifiant, motif="saisie en double (fictif)", annule_par="nathan",
+        role="nathan_owner", voie="approbation", horodatage="2026-09-27T10:00:00-04:00", registre_cible=a_payer)
+    assert verdict is None, verdict
+
+    dettes, _ = cap.dettes_datables(a_payer, taux)
+    resume, _ = cap.resume_a_payer(a_payer, taux)
+
+    assert dettes == [] and resume["a_payer_apres_taxes"] == D("0.00")
+
+
+def test_tout_code_de_verdict_du_module_est_au_catalogue_ferme_de_m5():
+    """Un code que le module emmène dans une réponse sans passer par `construire_verdict` (l'encaissement échu) doit
+    quand même être au catalogue fermé : sinon aucun consommateur ne le connaît."""
+    source = (_RACINE_M5 / "src" / "m5_financecore" / "prevision.py").read_text(encoding="utf-8")
+    codes = set(re.findall(r"REJ-[A-Z0-9]+(?:-[A-Z0-9]+)*", source))
+
+    assert codes and codes <= set(validation.CODES_M5_LIST), sorted(codes - set(validation.CODES_M5_LIST))
+    assert prevision._CODE_ECHU in codes

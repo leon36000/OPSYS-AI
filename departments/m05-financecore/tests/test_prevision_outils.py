@@ -656,3 +656,82 @@ def test_la_premiere_page_de_26_semaines_dit_qu_il_en_reste_et_ou_reprendre(par_
 
     assert page["total"] == 26 and 0 < page["affichees"] < 26 and page["prochain_depart"] == page["affichees"]
     assert page["reste"] == 26 - page["affichees"] and f"depart={page['prochain_depart']}" in page["message"]
+
+
+# =========================================== 7. les bornes que la mutation ciblée a montrées (adaptateur de l'outil)
+def test_un_calendrier_fiscal_illisible_dit_le_motif_du_chargeur_pas_un_texte_de_repli(
+        par_nom, cas_fictif, monkeypatch, tmp_path):
+    calendrier = tmp_path / "calendrier.yaml"
+    calendrier.write_text("schema_version: 2\n", encoding="utf-8")
+    monkeypatch.setattr(m5_outils, "_CHEMIN_CALENDRIER_FISCAL", calendrier)
+
+    page = _prevision(par_nom)
+
+    groupe = next(g for g in page["manque"] if g["code"] == "REJ-CALENDRIER-INVALIDE")
+    assert groupe["detail"] and "n'a pas pu être lu" not in groupe["detail"]
+
+
+def test_les_lignes_d_une_semaine_se_lisent_page_par_page_sans_jamais_depasser_la_limite(par_nom, cas_fictif, taux):
+    """Trente factures envoyées le même jour tombent la même semaine que les quatre du cas : 34 lignes, trop pour une
+    réponse de 6 000 caractères."""
+    with stockage.transaction():
+        reg = m5_outils._registre_factures(None)
+        for k in range(30):
+            identifiant = f"X-{k:02d}"
+            _, verdict = facturation.creer_facture_brouillon(
+                identifiant, "CH-1", f"DX-{k:02d}", "C-1",
+                [{"description": "travaux (fictif)", "quantite": "1", "unite": "u", "prix_unitaire": "10.00",
+                  "reference_ligne_devis": "L-1"}], "2026-09-14T09:00:00-04:00", taux, reg)
+            assert verdict is None, verdict
+            assert facturation.envoyer_facture(identifiant, "2026-09-14T09:30:00-04:00", reg)[1] is None
+
+    lignes, pages, depart = [], 0, 0
+    while depart is not None:
+        reponse = _appeler(par_nom, {"semaine": 3, "depart": depart})
+        assert _taille(reponse) <= 6000
+        page = reponse["resultat"]["resultat"]
+        lignes.extend(page["lignes"])
+        depart = page["prochain_depart"]
+        pages += 1
+
+    assert pages > 1 and len(lignes) == 34 and len({ligne["id"] for ligne in lignes}) == 34
+
+
+def test_toute_la_prevision_part_d_un_seul_instantane_du_manifeste(par_nom, cas_fictif, monkeypatch):
+    """Le manifeste peut changer entre deux lectures : la prévision lit ce que le propriétaire a décidé UNE fois (le
+    seuil, l'horizon, les délais, les montants déclarés et la fiscalité viennent de la même version)."""
+    lectures = []
+
+    def lire_le_manifeste():
+        lectures.append(1)
+        return CONFIGURATION_COMPLETE if len(lectures) == 1 else {}
+
+    monkeypatch.setattr(m5_outils, "_configuration_manifeste", lire_le_manifeste)
+
+    page = _prevision(par_nom)
+
+    assert [s["solde_fin"] for s in page["semaines"]] == SOLDES_DU_CAS and page["alerte"]["statut"] == "ALERTE"
+    assert len(lectures) == 1
+
+
+def test_un_employe_n_apprend_rien_de_la_configuration_les_refus_d_identite_passent_avant(par_nom, cas_fictif, declare):
+    """Sans horizon déclaré, l'admin apprend quoi déclarer ; l'employé, le vendeur et un rôle usurpé n'apprennent que
+    leur refus : ni l'état de la configuration, ni la validité de leurs arguments ne sont dits avant l'identité."""
+    declare({**CONFIGURATION_COMPLETE, "prevision": {k: v for k, v in PREVISION.items() if k != "horizon_semaines"}})
+
+    assert _refus(_appeler(par_nom)) == "REJ-PREVISION-HORIZON-A-CONFIGURER"
+    assert _refus(_appeler(par_nom, identite_appelante=MARC)) == "REJ-IDENTITE-APPAREIL-INVALIDE"
+    assert _refus(_appeler(par_nom, {"aujourd_hui": "demain"}, VENDEUR)) == "REJ-IDENTITE-APPAREIL-INVALIDE"
+    assert _refus(_appeler(par_nom, {"role": "employee", "horizon_semaines": 99})) == (
+        "REJ-IDENTITE-FOURNIE-DIFFERENTE")
+
+
+def test_le_cash_libre_de_l_etat_nomme_les_registres_lus_par_composante(par_nom, cas_fictif):
+    etat = _appeler(par_nom, {"autorise_couts": True}, ADMIN, "m5_etat_tresorerie")
+    cash = etat["resultat"]["cash_libre"]
+
+    composantes = {c["id"]: [r["registre"] for r in c["source"].get("registres", [])] for c in cash["composantes"]}
+
+    assert composantes["comptes_a_payer"] == ["comptes_a_payer"]
+    assert composantes["taxes_a_remettre"] == ["factures", "comptes_a_payer"]
+    assert [r["registre"] for r in cash["solde"]["source"]["registres"]] == ["mouvements"]
