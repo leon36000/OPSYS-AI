@@ -1736,7 +1736,7 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       `m4_planifier_intervention`) ; `m4_planifier_intervention` ne détecte pas l'intervention née du
       bus pour le même devis (doublon possible, à fermer en T4.12) ; l'app ne connaît pas
       `a_planifier` (l'employé n'en voit jamais).
-- [ ] T4.11 M3 : P50, P80, facteurs dominants et trois scénarios de prix (M3.11, M3.12).
+- [x] T4.11 M3 : P50, P80, facteurs dominants et trois scénarios de prix (M3.11, M3.12).
       Écart (§7 M3.11, M3.12 ; audit M3 §1 « PARTIEL ») : un seul intervalle, tirage uniforme, ni
       P50 ni facteur dominant, un seul scénario de prix.
       - `scenarios.py` : P50 et P80 du coût (mêmes graine et tirages), facteurs dominants par
@@ -1747,6 +1747,25 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       Preuve : pytest M3, mutations, déterminisme bit à bit, gate BMAD M3 ; E2E « estimation
       risquée » ; aucun prix sans taux fourni.
       Dépend de : T4.7. GATE NATHAN : taux de marge par scénario, mode par poste du barème.
+      Preuve (64f4cc9 à 159e5b6, huit commits) :
+      - `monte_carlo.py` : quantiles lus sur les mêmes graine et tirages que l'intervalle (P80 = borne
+        haute de l'intervalle à 60 %) ; tirage PERT (bêta, `random.Random.betavariate`, sans scipy)
+        seulement si le poste porte `cout_unitaire_mode`, sinon uniforme (valeur d'or inchangée) ;
+      - `scenarios.py` pur : P50 et P80, facteurs dominants (variance exacte, déterministes), trois
+        scénarios = coût (P80 prudent, P50 normal, P50 agressif) × (1 + taux FOURNI) ; sans taux, aucun
+        prix et un verdict qui dit où le déclarer ; sous le minimum rentable de T4.7, alerte rouge et
+        le même motif de revue N4 ; la loi (uniforme ou PERT) est dite poste par poste ;
+      - `m3_estimer_projet` étendu, aucun nouvel outil : clés sœurs `distribution_cout`,
+        `facteurs_dominants`, `scenarios_prix` (EstimationV1 gelé, rien de plus au registre), argument
+        `taux_marge_scenarios` ; la vue de l'employé retire les trois clés ;
+      - gate BMAD de M3 : contrôle 22 ; `_cles_contrat` ne lisait que 11 clés sur 12, corrigé ;
+      - M3 2 148 tests (suite complète par parties dans le worktree, dont les 32 tests lourds) ; sur
+        l'état intégré : M3 rapide 2 124 passés, gate BMAD TOUT VERT, verifier 172 outils, socle touché 108 passés, lint de M3 inchangé (156, T5.1) ; 147 mutants posés, 140 tués, 7 équivalents dits avec leur raison ;
+        E2E « estimation risquée » ; déterminisme bit à bit ; P50 ≤ P80 sur 30 graines.
+      Limites : un poste par estimation ; scénarios non persistés ; l'app et le digest ne les voient
+      pas encore ; un taux négatif est refusé.
+      GATE NATHAN : taux de marge par scénario (`configuration.scenarios_prix.taux_marge`), mode de coût
+      par poste du barème, base de coût (P80, P50, P50) à confirmer, minimum rentable de T4.7.
 - [x] T4.12 M4 : équipes, dépôt, quarts et durées en configuration d'entreprise (M4.2, M4.3).
       Écart (§7 M4.2, M4.3, M4.7 ; audit M4 M4.2 « ABSENT » ; limite de T4.1-d « tout est
       argument ») : l'agent recopie équipes, dépôt et quarts à chaque cédule.
