@@ -20,18 +20,41 @@ Même patron pour le registre DURABLE des définitions de métriques (T3.1, `reg
 "definitions_metriques")` par défaut, une liste en mémoire dans les tests), utilisé par
 `m8_enregistrer_definition_metrique`, `m8_resoudre_definition_metrique` et
 `m8_evaluer_qualite_metrique`.
+
+Mesure d'un chantier terminé (PLAN T1.5-d, `mesures_chantier.py`) : M8 reçoit trois faits par le bus
+(`m4.travaux_termines`, `m3.devis_accepte`, `m6.variance_chantier`), les range dans le registre
+`faits_chantier` (idempotent, un fait par clé) et mesure le chantier à CHAQUE arrivée (l'ordre de
+livraison n'est pas garanti). Les métriques sont celles de `metrics/m8-metrics.v1.yaml` ; une entrée
+absente donne « non calculable, manque X ». Un seuil franchi (`department.yaml`,
+`configuration.seuils_alerte`) publie `m8.alerte_proposee` pour M9 ; sans seuil, un signal « seuil à
+configurer ». `m8_lire_mesures_chantier` et `m8_performance_equipe` sont T0 et réservés au rôle
+admin : marges et détail par technicien ne vont jamais à un employé.
 """
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
-from opsys import evenements, stockage
+import yaml
+
+from opsys import contexte, evenements, identite, stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
-from . import alertes, qualite, rapports, registre, registre_metriques, semantique, validation, xmr
+from . import (
+    alertes,
+    mesures_chantier,
+    qualite,
+    rapports,
+    registre,
+    registre_metriques,
+    semantique,
+    validation,
+    xmr,
+)
 from . import dictionnaire as dictionnaire_module
 from . import digest as digest_module
+from . import encodage as encodage_module
 
 _SNAPSHOT = {
     "type": "object",
@@ -139,41 +162,180 @@ def _valeurs_travaux_termines(charge: dict[str, Any]) -> dict[str, str]:
     return valeurs
 
 
-def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
-    """Consommateur `m4.travaux_termines` (ADR-0009 §3, DEPARTEMENTS.md « Événements ») :
-    enregistre au registre des snapshots (production : adossé au stockage durable de l'instance,
-    même table que `m8_rapport_metriques`) les faits mesurables du chantier terminé.
+# ---------------------------------------------------------------------------
+# Mesure d'un chantier terminé (PLAN T1.5-d) : faits reçus, mesures, seuils, alertes
+# ---------------------------------------------------------------------------
+_MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
+_NOM_REGISTRE_FAITS = "faits_chantier"
+_ROLE_ADMIN = identite.Role.ADMIN.value
 
-    Idempotent par `wct_id` : un maillon déjà enregistré pour ce wct_id (relivraison de
-    l'événement, ou `repartir()` rejoué) n'est jamais dupliqué — no-op qui rend
-    `deja_enregistre=True`.
-    """
-    registre_cible = registre.RegistreSnapshots(maillons=stockage.maillons("m08-analytics", "snapshots"))
-    wct_id = charge["wct_id"]
-    for maillon in registre_cible.lire():
-        deja_source_m4 = maillon["module_source"] == _MODULE_SOURCE_TRAVAUX
-        if deja_source_m4 and maillon["valeurs"].get("m4_wct_id") == wct_id:
-            return {"enregistre": False, "deja_enregistre": True, "wct_id": wct_id}
 
-    valeurs = _valeurs_travaux_termines(charge)
-    registre_cible.ajouter({
-        "module_source": _MODULE_SOURCE_TRAVAUX,
-        "horodatage": charge["horodatage_completion"],
-        "valeurs": valeurs,
-    })
+def _configuration() -> dict[str, Any]:
+    """`department.yaml/configuration` (même source que M6 pour ses seuils : le manifeste, que
+    l'admin peut éditer sans toucher au code). Absente : dictionnaire vide, jamais un défaut."""
+    donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8")) or {}
+    configuration = donnees.get("configuration")
+    return configuration if isinstance(configuration, dict) else {}
+
+
+def _seuils_alerte() -> dict[str, Any]:
+    """Seuils d'alerte configurés, `{metric_id: {sens, valeur}}` ; vide tant qu'aucun n'est fixé
+    (fail-closed : `mesures_chantier.evaluer_seuils` répond alors « seuil à configurer »)."""
+    seuils = _configuration().get("seuils_alerte")
+    return seuils if isinstance(seuils, dict) else {}
+
+
+def _chantiers_minimum() -> Any:
+    """Nombre minimal de chantiers mesurés pour qu'un écart par technicien soit dit suffisant ;
+    `None` tant qu'il n'est pas configuré (jamais un minimum supposé)."""
+    equipe = _configuration().get("performance_equipe")
+    return equipe.get("chantiers_minimum") if isinstance(equipe, dict) else None
+
+
+def _ajouter_fait_si_nouveau(faits_cible: Any, fait: dict[str, Any], cles: tuple[str, ...]) -> bool:
+    """Ajoute `fait` au registre s'il n'y figure pas déjà (mêmes valeurs pour `cles`, même type) :
+    une relivraison de l'événement ou un rejeu de `repartir()` n'ajoute jamais un second maillon."""
+    for existant in faits_cible:
+        if existant.get("type_entree") == fait["type_entree"] and all(
+            existant.get(cle) == fait.get(cle) for cle in cles
+        ):
+            return False
+    faits_cible.append(fait)
+    return True
+
+
+def _situation_chantier(wct_id: str, faits_cible: Any) -> dict[str, Any] | None:
+    """Mesures, situation face aux seuils et alertes à publier d'un chantier, d'après les faits
+    reçus jusqu'ici ; `None` si le chantier est inconnu (aucun `m4.travaux_termines` reçu).
+    Lecture pure : ne publie rien."""
+    faits = mesures_chantier.assembler_faits(wct_id, list(faits_cible))
+    if faits is None:
+        return None
+    definitions = mesures_chantier.charger_definitions()
+    mesures = mesures_chantier.mesurer_chantier(faits, definitions)
+    evaluations = mesures_chantier.evaluer_seuils(mesures, _seuils_alerte())
+    charges = mesures_chantier.charges_alertes(
+        wct_id, mesures, evaluations, definitions, faits["wct"]["horodatage_completion"]
+    )
+    return {"faits": faits, "mesures": mesures, "evaluations": evaluations, "charges": charges}
+
+
+def _publier_charges_mesure(charges: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Publie chaque alerte de mesure sur le bus (`m8.alerte_proposee`), dans la transaction du
+    consommateur qui vient de les produire. L'identifiant est déterministe : republier la même
+    alerte est un no-op de l'outbox (`nouvelle` le dit)."""
+    publiees = []
+    for charge in charges:
+        nouvelle = not evenements.deja_publie(charge["evenement_id"])
+        evenements.publier("m8.alerte_proposee", _DEPARTEMENT, charge, evenement_id=charge["evenement_id"])
+        publiees.append({
+            "evenement_id": charge["evenement_id"], "type_alerte": charge["type_alerte"],
+            "metric_id": charge["metric_id"], "nouvelle": nouvelle,
+        })
+    return publiees
+
+
+def _mesurer_et_publier(wct_id: str, faits_cible: Any) -> dict[str, Any]:
+    """Mesure le chantier avec les faits DÉJÀ reçus et publie ses alertes. Appelée à chaque fait
+    (WCT, devis, variance) : l'ordre de livraison du bus n'est pas garanti, et une mesure devenue
+    calculable ne doit jamais attendre un autre événement. Rend un petit résumé : ce qui est
+    calculé, ce qui manque (et où), les seuils à configurer et les alertes."""
+    situation = _situation_chantier(wct_id, faits_cible)
+    if situation is None:
+        return {
+            "wct_id": wct_id, "mesure": False,
+            "raison": "chantier inconnu : aucun m4.travaux_termines reçu pour ce wct_id",
+        }
+    mesures = situation["mesures"]
     return {
-        "enregistre": True,
-        "deja_enregistre": False,
         "wct_id": wct_id,
-        "duree_reelle_minutes": charge["duree_reelle_minutes"],
-        "type_travaux": charge.get("type_travaux"),
+        "mesure": True,
+        "calculees": [m["metric_id"] for m in mesures if m["statut"] == mesures_chantier.STATUT_CALCULEE],
+        "non_calculables": [
+            {"metric_id": m["metric_id"], "manque": [manque["champ"] for manque in m["manque"]]}
+            for m in mesures if m["statut"] == mesures_chantier.STATUT_NON_CALCULABLE
+        ],
+        "seuils_a_configurer": [
+            e["metric_id"] for e in situation["evaluations"]
+            if e["statut"] in (mesures_chantier.SEUIL_A_CONFIGURER, mesures_chantier.SEUIL_INVALIDE)
+        ],
+        "alertes": _publier_charges_mesure(situation["charges"]),
+    }
+
+
+def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m4.travaux_termines` (ADR-0009 §3, DEPARTEMENTS.md « Événements ») : deux
+    écritures indépendantes, chacune idempotente par `wct_id`, puis la mesure du chantier.
+
+    1. Le registre des snapshots (production : adossé au stockage durable de l'instance, même
+       table que `m8_rapport_metriques`) reçoit les faits mesurables du chantier terminé : durée
+       réelle, type de travaux. Un maillon déjà enregistré pour ce wct_id (relivraison, ou
+       `repartir()` rejoué) n'est jamais dupliqué (`deja_enregistre=True`). Aucun coût, aucune marge.
+    2. Le registre `faits_chantier` reçoit le fait `wct` (technicien, devis lié, durée réelle),
+       d'où M8 mesure le chantier (PLAN T1.5-d) : temps réel contre prévu, quand M3 a fourni la
+       durée estimée du devis accepté, sinon « non calculable, manque duree_estimee_minutes ».
+    """
+    registre_cible = registre.RegistreSnapshots(maillons=stockage.maillons(_DEPARTEMENT, "snapshots"))
+    wct_id = charge["wct_id"]
+    deja_enregistre = any(
+        maillon["module_source"] == _MODULE_SOURCE_TRAVAUX and maillon["valeurs"].get("m4_wct_id") == wct_id
+        for maillon in registre_cible.lire()
+    )
+    if not deja_enregistre:
+        registre_cible.ajouter({
+            "module_source": _MODULE_SOURCE_TRAVAUX,
+            "horodatage": charge["horodatage_completion"],
+            "valeurs": _valeurs_travaux_termines(charge),
+        })
+
+    faits_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FAITS)
+    _ajouter_fait_si_nouveau(faits_cible, mesures_chantier.fait_wct(charge), ("wct_id",))
+
+    resume: dict[str, Any] = {"enregistre": not deja_enregistre, "deja_enregistre": deja_enregistre, "wct_id": wct_id}
+    if not deja_enregistre:
+        resume["duree_reelle_minutes"] = charge["duree_reelle_minutes"]
+        resume["type_travaux"] = charge.get("type_travaux")
+    resume["mesures"] = _mesurer_et_publier(wct_id, faits_cible)
+    return resume
+
+
+def _recevoir_devis_accepte(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m3.devis_accepte` : le prévu du chantier (prix et coût arrêtés par M3, et la
+    durée estimée si M3 la fournit). Le devis précède normalement le chantier, mais le bus ne le
+    garantit pas : chaque chantier déjà terminé qui pointe vers ce devis est remesuré."""
+    devis_id = charge["devis_id"]
+    faits_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FAITS)
+    enregistre = _ajouter_fait_si_nouveau(faits_cible, mesures_chantier.fait_devis(charge), ("devis_id",))
+    chantiers = [
+        _mesurer_et_publier(wct_id, faits_cible)
+        for wct_id in mesures_chantier.wcts_du_devis(list(faits_cible), devis_id)
+    ]
+    return {"enregistre": enregistre, "deja_enregistre": not enregistre, "devis_id": devis_id, "chantiers": chantiers}
+
+
+def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m6.variance_chantier` : le verdict d'écart de matériaux de M6, repris tel quel
+    (M8 le mesure, ne le recalcule pas). M6 publie un événement par statut : chacun est enregistré
+    une fois ; `evaluee` est terminal et l'emporte à la mesure."""
+    wct_id = charge["wct_id"]
+    faits_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FAITS)
+    enregistre = _ajouter_fait_si_nouveau(
+        faits_cible, mesures_chantier.fait_variance(charge), ("wct_id", "statut_variance")
+    )
+    return {
+        "enregistre": enregistre, "deja_enregistre": not enregistre, "wct_id": wct_id,
+        "statut_variance": charge["statut_variance"], "mesures": _mesurer_et_publier(wct_id, faits_cible),
     }
 
 
 def consommateurs() -> dict[str, Any]:
     """Types d'événements consommés par M8 (ADR-0009 §3) — voir `department.yaml:evenements.consomme`
     et `docs/architecture/DEPARTEMENTS.md` § Événements."""
-    return {"m4.travaux_termines": _recevoir_travaux_termines}
+    return {
+        "m4.travaux_termines": _recevoir_travaux_termines,
+        "m3.devis_accepte": _recevoir_devis_accepte,
+        "m6.variance_chantier": _recevoir_variance_chantier,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -247,6 +409,7 @@ def _publier_alerte_proposee(metric_id: str, alerte: dict[str, Any], horodatage_
 def outils(
     registre_cible: registre.RegistreSnapshots | None = None,
     definitions_cible: Any = None,
+    faits_cible: Any = None,
 ) -> tuple[Outil, ...]:
     """Capacités exposées aux agents. Une instance de RegistreSnapshots par installation.
 
@@ -257,7 +420,13 @@ def outils(
     `definitions_cible` (T3.1) : même patron pour le registre durable des définitions de
     métriques — `None` (défaut) l'adosse à `opsys.stockage.maillons("m08-analytics",
     "definitions_metriques")` ; une `list` explicite (tests) reste en mémoire.
+
+    `faits_cible` (T1.5-d) : même patron pour le registre `faits_chantier` (faits reçus par le bus,
+    lus par `m8_lire_mesures_chantier` et `m8_performance_equipe`) — `None` (défaut) l'adosse à
+    `opsys.stockage.maillons("m08-analytics", "faits_chantier")`.
     """
+    if faits_cible is None:
+        faits_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FAITS)
     if registre_cible is None:
         registre_cible = registre.RegistreSnapshots(maillons=stockage.maillons("m08-analytics", "snapshots"))
     if definitions_cible is None:
@@ -477,6 +646,66 @@ def outils(
         `registre_metriques.lister` — jamais l'historique complet."""
         return registre_metriques.lister(definitions_cible, limite, curseur)
 
+    def lire_mesures_chantier(wct_id: str) -> dict[str, Any]:
+        """Mesures d'un chantier terminé d'après les faits déjà reçus (T1.5-d) : temps réel contre
+        prévu, marge prévue contre réelle, écart de matériaux, chacune calculée, ou « non
+        calculable » avec ce qui manque et sa source. Lecture pure : ne publie aucune alerte. Le
+        technicien n'y figure pas (détail nominatif : `m8_performance_equipe`, admin)."""
+        situation = _situation_chantier(wct_id, faits_cible)
+        if situation is None:
+            return {"wct_id": wct_id, "trouve": False, "verdict": f"REJ-CHANTIER-INCONNU:{wct_id}"}
+        wct = situation["faits"]["wct"]
+        return {
+            "wct_id": wct_id,
+            "trouve": True,
+            "devis_id": wct.get("devis_id"),
+            "horodatage_completion": wct["horodatage_completion"],
+            "mesures": situation["mesures"],
+            "seuils": situation["evaluations"],
+            "seuils_a_configurer": [
+                e["metric_id"] for e in situation["evaluations"]
+                if e["statut"] in (mesures_chantier.SEUIL_A_CONFIGURER, mesures_chantier.SEUIL_INVALIDE)
+            ],
+        }
+
+    def admin_authentifie() -> bool:
+        """Vrai seulement pour un appel d'appareil dont l'identité authentifiée est celle d'une
+        personne active portant encore le rôle `admin` (revérifiée en base, comme M3 pour sa vue par
+        rôle). Sans identité (agent, console, test) ou avec un autre rôle : faux, donc aucun détail
+        nominatif — fail-closed."""
+        appelante = contexte.identite_appelante()
+        if appelante is None or appelante.role != _ROLE_ADMIN:
+            return False
+        cnx = stockage.connexion_courante()
+        if cnx is None:
+            return False
+        personne = identite.personne_active(cnx, appelante.personne)
+        return personne is not None and appelante.role in personne.roles
+
+    def performance_equipe() -> dict[str, Any]:
+        """Écart de temps par technicien (T1.5-d), la plus petite métrique honnête : anonyme pour
+        l'équipe, nominatif seulement pour l'admin authentifié, jamais classé, jamais une alerte."""
+        resultat = mesures_chantier.performance_equipe(list(faits_cible), _chantiers_minimum())
+        definition = mesures_chantier.charger_definitions()[mesures_chantier.METRIQUE_EQUIPE]
+        nominatif = admin_authentifie()
+        reponse: dict[str, Any] = {
+            "metric_id": resultat["metric_id"],
+            "unite": definition["unite"],
+            "version_definition": encodage_module.empreinte(definition),
+            "equipe": resultat["equipe"],
+            "chantiers_minimum_a_configurer": resultat["chantiers_minimum_a_configurer"],
+            "detail_nominatif": "inclus" if nominatif else "reserve_admin",
+            "limites": [
+                "Le technicien d'un chantier est celui du dernier pointage de départ (M4) : un chantier à "
+                "plusieurs personnes est attribué à la dernière.",
+                "Seuls les chantiers avec durée réelle et durée estimée (M3) sont mesurés ; les autres sont comptés.",
+                "Indicateur non punitif : techniciens listés par identifiant, sans classement, sans alerte.",
+            ],
+        }
+        if nominatif:
+            reponse["techniciens"] = resultat["techniciens"]
+        return reponse
+
     return (
         Outil(
             nom="m8_rapport_metriques",
@@ -690,5 +919,39 @@ def outils(
                 "additionalProperties": False,
             },
             fonction=lister_definitions_metriques,
+        ),
+        Outil(
+            nom="m8_lire_mesures_chantier",
+            description=(
+                "Mesures d'un chantier terminé, d'après les faits déjà reçus par le bus : écart de durée "
+                "(réel M4 contre estimé M3), marge prévue (M3) et réelle (M5), plus grand écart de "
+                "matériaux (M6). Chaque mesure est calculée par le code avec la version de sa définition, "
+                "ou « non calculable » avec ce qui manque et de qui — jamais une valeur inventée. Dit aussi "
+                "où un seuil d'alerte reste à configurer. Lecture pure, aucune alerte publiée. Réservé à "
+                "l'admin : marges et coûts ne vont pas à un employé."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "wct_id": {"type": "string", "description": "Identifiant du WCT (m4.travaux_termines)."},
+                },
+                "required": ["wct_id"],
+                "additionalProperties": False,
+            },
+            fonction=lire_mesures_chantier,
+            roles_appareil=frozenset({_ROLE_ADMIN}),
+        ),
+        Outil(
+            nom="m8_performance_equipe",
+            description=(
+                "Écart de temps réel contre prévu de l'équipe sur les chantiers mesurés, et par technicien "
+                "SEULEMENT pour l'admin authentifié (sinon `detail_nominatif: reserve_admin`). Techniciens "
+                "listés par identifiant, sans classement ni alerte : indicateur non punitif. Dit le nombre "
+                "de chantiers mesurés et de ceux sans temps prévu ; le minimum d'échantillon vient de la "
+                "configuration, sinon `suffisant` reste nul."
+            ),
+            parametres={"type": "object", "properties": {}, "additionalProperties": False},
+            fonction=performance_equipe,
+            roles_appareil=frozenset({_ROLE_ADMIN}),
         ),
     )

@@ -82,6 +82,11 @@
       "type": "string",
       "description": "Texte décimal (ex. \"0.35\" pour 35 %) : taux de marge appliqué à ce devis, fourni explicitement à sa création — jamais codé en dur."
     },
+    "duree_estimee_minutes": {
+      "type": "string",
+      "pattern": "^[0-9]+(\\.[0-9]+)?$",
+      "description": "OPTIONNEL (PLAN T1.5-d) — durée de main-d'œuvre estimée du chantier, en minutes (texte décimal, estimation.py::duree_estimee_minutes = quantité × durée par unité du barème). M8 la compare à la durée réelle du WCT (m4.travaux_termines). Absente quand le barème ne fournit aucune durée : M8 répond alors « non calculable, manque duree_estimee_minutes », jamais une durée par défaut. Additive : toute charge valide avant reste valide."
+    },
     "horodatage_acceptation": {
       "type": "string",
       "description": "Horodatage fourni à m3_marquer_devis_accepte (jamais celui de la création ou d'un envoi antérieur du même devis)."

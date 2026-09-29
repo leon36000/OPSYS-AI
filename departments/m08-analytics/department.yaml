@@ -7,10 +7,14 @@ mission: >-
   lui rapporte : compiler le dictionnaire canonique de métriques, dériver leur valeur avec
   provenance complète (version, fraîcheur, n), détecter les signaux XmR hors limites
   naturelles et assembler des rapports filtrés par rôle — sans jamais calculer un chiffre par
-  LLM, ni inventer une métrique pour un module qui n'en déclare aucune.
+  LLM, ni inventer une métrique pour un module qui n'en déclare aucune. À « travaux terminés »,
+  mesure le chantier (temps réel contre prévu, marge prévue contre réelle, écart de matériaux,
+  écart de temps par technicien pour l'admin) avec des métriques gouvernées : une donnée absente
+  donne « non calculable, manque X », jamais une valeur inventée ; un seuil franchi propose une
+  alerte à M9, qui lit sans décider.
 outils: m8_analytics.outils
 mode: ombre
-dependances: [m07-marketing, m04-field-ops]
+dependances: [m03-estimation, m04-field-ops, m06-material-control, m07-marketing]
 modeles:
   defaut: standard
   digest: rapide
@@ -28,11 +32,29 @@ budget:
   tokens_mois: 4000000
   alerte_pct: 80
 memoire:
-  lecture: [dictionnaire_metriques, snapshots_modules, definitions_metriques]
-  ecriture: [snapshots_modules, definitions_metriques]
+  lecture: [dictionnaire_metriques, snapshots_modules, definitions_metriques, faits_chantier]
+  ecriture: [snapshots_modules, definitions_metriques, faits_chantier]
 evenements:
-  consomme: [m4.travaux_termines]
+  # PLAN T1.5-d : le WCT (durée réelle, technicien), le devis accepté (prix, coût, durée estimée si
+  # M3 la fournit) et la variance de matériaux de M6 (verdict repris sans recalcul). Catalogue :
+  # src/opsys/evenements/catalogue/*.json.
+  consomme: [m4.travaux_termines, m3.devis_accepte, m6.variance_chantier]
   publie: [m8.alerte_proposee]
+configuration:
+  # Seuils d'alerte des mesures d'un chantier terminé (PLAN T1.5-d ; DEFINITION-PRODUIT.md §13 point 11
+  # « seuils non chiffrés : chaque département doit les définir »). VIDES à dessein : aucun seuil
+  # n'est inventé. Tant qu'une métrique n'a pas de seuil valide, M8 ne l'alerte pas et publie le
+  # signal « seuil à configurer » (MESURE-SEUIL-A-CONFIGURER, visible dans le briefing de M9).
+  # Forme, par métrique surveillée (m8_ecart_duree_pct, m8_ecart_marge_pct,
+  # m8_ecart_materiaux_max_pct) :
+  #   m8_ecart_duree_pct: {sens: au_dessus, valeur: <nombre, en %>}   # atteint ou dépasse
+  #   m8_ecart_marge_pct: {sens: au_dessous, valeur: <nombre, en %>}  # atteint ou passe sous
+  # La valeur est dans l'unité de la métrique (pourcentage). Sens : au_dessus ou au_dessous.
+  seuils_alerte: {}
+  # Écart de temps par technicien (m8_performance_equipe) : nombre minimal de chantiers mesurés
+  # pour que l'écart d'un technicien soit dit suffisant. Absent : `suffisant` reste nul. Jamais une
+  # alerte ni un classement, quel que soit ce nombre.
+  performance_equipe: {}
 kpis:
   - id: taux_snapshots_rejetes
     description: Part des snapshots reçus rejetés par la validation d'entrée (structure, devise, valeurs non texte).
@@ -45,3 +67,12 @@ kpis:
       Nombre d'alertes de qualité (donnée absente, périmée, hors plage, doublon d'observation ou
       incohérence entre séries) proposées par m8_evaluer_qualite_metrique sur la période —
       jamais exécutées, seulement proposées.
+  - id: taux_metriques_chantier_non_calculables
+    description: >-
+      Part des mesures de chantier terminé rendues « non calculable » (durée estimée, marge réelle
+      ou variance de matériaux absentes) sur la période : mesure la complétude des sources, jamais
+      remplie par une valeur inventée.
+  - id: nb_alertes_mesure_proposees
+    description: >-
+      Nombre d'alertes de mesure de chantier proposées à M9 (seuil franchi, ou seuil à configurer)
+      sur la période — jamais exécutées, seulement proposées.

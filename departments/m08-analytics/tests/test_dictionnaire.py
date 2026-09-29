@@ -100,11 +100,40 @@ def test_compiler_dictionnaire_reel_depot_ignore_modules_sans_fichier_metrics():
         "M4-field-ops",
         "M5-financecore",
         "M6-material-control",
-        "M8-analytics",
         "M9-strategic-intelligence",
         "M10-memoire",
     }:
         assert module not in resultat
+
+
+def test_compiler_dictionnaire_reel_depot_contient_les_metriques_de_mesure_de_chantier_de_m8():
+    """PLAN T1.5-d : M8 a maintenant SON `metrics/m8-metrics.v1.yaml` (module `m08-analytics`), compilé
+    sans erreur par la même garde de devise que les autres ; les autres modules sans fichier
+    restent absents (test précédent)."""
+    resultat, erreurs = dictionnaire.compiler_dictionnaire(_MODULES_M)
+
+    assert not [erreur for erreur in erreurs if "m8-metrics" in erreur]
+    assert set(resultat["m08-analytics"]) == {
+        "m8_ecart_duree_minutes", "m8_ecart_duree_pct", "m8_marge_prevue_cad", "m8_marge_reelle_cad",
+        "m8_ecart_marge_cad", "m8_ecart_marge_pct", "m8_ecart_materiaux_max_pct",
+        "m8_ecart_duree_technicien_pct",
+    }
+    assert resultat["m08-analytics"]["m8_marge_prevue_cad"]["unite"] == "CAD"
+
+
+def test_compiler_fichier_compile_un_seul_fichier_avec_les_memes_gardes(tmp_path):
+    fichier = tmp_path / "m-test.yaml"
+    fichier.write_text(
+        "schema_version: 1\nmodule: m-test\nmetrics:\n"
+        "  - {id: m_ok, nom: N, definition: d, unite: CAD, source_donnees: s, frequence: f, consommateur: c}\n"
+        "  - {id: m_usd, nom: N, definition: d, unite: USD, source_donnees: s, frequence: f, consommateur: c}\n",
+        encoding="utf-8",
+    )
+
+    compile_, erreurs = dictionnaire.compiler_fichier(fichier)
+
+    assert set(compile_["m-test"]) == {"m_ok"}
+    assert len(erreurs) == 1 and "REJ-DEVISE-NON-AUTORISEE" in erreurs[0] and "m_usd" in erreurs[0]
 
 
 def test_compiler_dictionnaire_module_absent_est_silencieux(tmp_path):

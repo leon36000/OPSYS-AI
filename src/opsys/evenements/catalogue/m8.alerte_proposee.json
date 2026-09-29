@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "opsys.evenement/v1/m8.alerte_proposee",
   "title": "M8 — Alerte de qualité proposée",
-  "description": "Émis par M8 (departments/m08-analytics/src/m8_analytics/outils.py::_publier_alerte_proposee, appelé depuis m8_evaluer_qualite_metrique) pour chaque AlerteProposee que m8_analytics.alertes.proposer_action construit (DEFINITION-PRODUIT.md §7 M8.9 : « chaque alerte propose une action »). PLAN T3.2 (M9, briefing du matin) : préférence explicite pour un événement publié plutôt qu'une lecture directe du registre M8 par M9 — M8 ne décide toujours rien et n'exécute jamais l'action proposée ; il publie seulement le FAIT qu'une alerte a été proposée, à qui, et pourquoi. evenement_id est déterministe (metric_id + type_alerte + horodatage_reference) : une réévaluation identique (même métrique, même verdict, même horodatage_reference) republie le même id, donc un no-op de l'outbox (ADR-0009 §3) — jamais un doublon pour la même alerte le même jour de référence. Toutes les propriétés sont REQUISES même quand leur valeur est structurée : un consommateur ne doit jamais deviner un champ absent.",
+  "description": "Émis par M8 (departments/m08-analytics/src/m8_analytics/outils.py::_publier_alerte_proposee, appelé depuis m8_evaluer_qualite_metrique) pour chaque AlerteProposee que m8_analytics.alertes.proposer_action construit (DEFINITION-PRODUIT.md §7 M8.9 : « chaque alerte propose une action »). PLAN T3.2 (M9, briefing du matin) : préférence explicite pour un événement publié plutôt qu'une lecture directe du registre M8 par M9 — M8 ne décide toujours rien et n'exécute jamais l'action proposée ; il publie seulement le FAIT qu'une alerte a été proposée, à qui, et pourquoi. evenement_id est déterministe (metric_id + type_alerte + horodatage_reference) : une réévaluation identique (même métrique, même verdict, même horodatage_reference) republie le même id, donc un no-op de l'outbox (ADR-0009 §3) — jamais un doublon pour la même alerte le même jour de référence. Toutes les propriétés sont REQUISES même quand leur valeur est structurée (sauf action_proposee, optionnelle) : un consommateur ne doit jamais deviner un champ absent. PLAN T1.5-d (extension additive : toute charge valide avant reste valide) : deux types s'ajoutent, produits par les mesures de chantier de M8 (mesures_chantier.py) — MESURE-SEUIL-FRANCHI (une mesure d'un chantier terminé atteint le seuil configuré dans department.yaml de M8) et MESURE-SEUIL-A-CONFIGURER (une mesure calculée n'a aucun seuil valide : M8 n'alerte pas et dit quoi configurer). Pour ces deux types horodatage_reference est l'instant du chantier (horodatage_completion du WCT), pas celui d'une évaluation du jour.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -16,8 +16,8 @@
     },
     "type_alerte": {
       "type": "string",
-      "enum": ["REJ-QUALITE-DONNEE-ABSENTE", "REJ-QUALITE-DONNEE-PERIMEE", "REJ-QUALITE-HORS-PLAGE"],
-      "description": "Verdict m8_analytics.qualite.py à l'origine de l'alerte (VERDICT_DONNEE_ABSENTE, VERDICT_DONNEE_PERIMEE, VERDICT_HORS_PLAGE) — les trois seuls que m8_analytics.alertes.proposer_action sait transformer en action proposée."
+      "enum": ["REJ-QUALITE-DONNEE-ABSENTE", "REJ-QUALITE-DONNEE-PERIMEE", "REJ-QUALITE-HORS-PLAGE", "MESURE-SEUIL-FRANCHI", "MESURE-SEUIL-A-CONFIGURER"],
+      "description": "Verdict m8_analytics.qualite.py à l'origine de l'alerte (VERDICT_DONNEE_ABSENTE, VERDICT_DONNEE_PERIMEE, VERDICT_HORS_PLAGE) — les trois premiers sont les seuls que m8_analytics.alertes.proposer_action sait transformer en action proposée ; les deux derniers (T1.5-d) viennent de m8_analytics.mesures_chantier.charges_alertes."
     },
     "quoi": {
       "type": "string",
@@ -63,8 +63,37 @@
             "plage_min": {"type": ["number", "null"]},
             "plage_max": {"type": ["number", "null"]}
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metric_id", "wct_id", "valeur", "unite", "sens", "seuil", "version_definition"],
+          "description": "MESURE-SEUIL-FRANCHI (T1.5-d) : la mesure calculée d'un chantier et le seuil configuré qu'elle atteint. valeur et seuil sont des textes décimaux à deux décimales (jamais un nombre JSON), dans unite.",
+          "properties": {
+            "metric_id": {"type": "string"},
+            "wct_id": {"type": "string", "description": "Chantier mesuré (WCT de m4.travaux_termines)."},
+            "valeur": {"type": "string", "pattern": "^-?[0-9]+\\.[0-9]{2}$"},
+            "unite": {"type": "string"},
+            "sens": {"type": "string", "enum": ["au_dessus", "au_dessous"], "description": "au_dessus : la valeur atteint ou dépasse le seuil ; au_dessous : elle l'atteint ou passe sous."},
+            "seuil": {"type": "string", "pattern": "^-?[0-9]+\\.[0-9]{2}$"},
+            "version_definition": {"type": "string", "description": "Empreinte de la définition gouvernée de la métrique (metrics/m8-metrics.v1.yaml) qui a produit la valeur."}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metric_id", "manque"],
+          "description": "MESURE-SEUIL-A-CONFIGURER (T1.5-d) : ce qui manque pour qu'une alerte soit possible.",
+          "properties": {
+            "metric_id": {"type": "string"},
+            "manque": {"type": "string", "enum": ["seuil", "seuil_invalide"], "description": "seuil : aucun seuil configuré ; seuil_invalide : présent mais inutilisable (sens ou valeur)."}
+          }
         }
       ]
+    },
+    "action_proposee": {
+      "type": "string",
+      "description": "OPTIONNEL (T1.5-d) — l'action que M8 propose (DEFINITION-PRODUIT.md §7 M8.9 : « chaque alerte propose une action »), un texte de gabarit sans cause ni responsable. M8 ne l'exécute jamais et M9 la relaie sans la décider. Présente pour MESURE-SEUIL-FRANCHI et MESURE-SEUIL-A-CONFIGURER."
     },
     "source": {
       "type": "string",
