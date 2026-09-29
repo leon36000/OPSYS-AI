@@ -666,7 +666,10 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
           garde refuse. Le catalogue des clients du core n'a pas d'identifiant OPSYS. L'écran de
           pointage garde un identifiant d'appareil provisoire, à relier à la vraie identité.
 
-  - [ ] T1.4-d `punch.tsx` (M4.4) de bout en bout par la file sortante (R12 §5, étape 2).
+  - [x] T1.4-d `punch.tsx` (M4.4) de bout en bout par la file sortante (R12 §5, étape 2).
+    Cochée : le trajet réel est prouvé par `e2e-core` (T1.5-b, vrai core) : `m4_pointer` par la
+    porte d'appareil avec `idempotencyKey`, `deviceId` et `deviceTimestamp`, heure du serveur au
+    pointage, rejeu sans effet.
 
     Avancement :
     - mobile (b178178, bdd0ac8) : écran, vidangeur de la file (recul, reprise avec la même clé,
@@ -918,10 +921,9 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
           Reste pour M8 : M3 ne publie pas `duree_estimee_minutes` dans `m3.devis_accepte` (temps
           prévu « non calculable ») ; aucun événement de M5 ne porte la marge réelle vers M8 ;
           `m9_lire_alertes_m8` n'est pas borné.
-    - [ ] Reste : M5 ne calcule ni coût réel, ni rentabilité, ni compte à recevoir ;
-        M7 ne reçoit jamais de demande d'avis depuis l'app (les champs client ne sont pas
-        envoyés) ; M8 ne garde ni prévu ni marge ; M9 ne réagit pas ; le briefing M9 est tronqué
-        au-delà de 22 décisions en attente.
+    - [ ] Reste : M7 ne reçoit jamais de demande d'avis depuis l'app (les champs client ne sont
+        pas envoyés par `mobile/src/m4/completion.ts`, et M4 les refuse hors appareil) ; la
+        marge réelle de M5 vers M8 et M10 (agent en cours). M5, M6, M8 et M9 : faits ci-dessus.
   - [x] T1.5-e App du propriétaire : la section « À voir » est bornée à 1 500 caractères
         (`BUDGET_ATTENTES`, `approbations_appareil.py`) sans pagination : au-delà de trois alertes,
         les suivantes ne sont que comptées (`attentes_reste`). Paginer (décalage demandé par
