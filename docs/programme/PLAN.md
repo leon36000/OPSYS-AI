@@ -1452,7 +1452,7 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       - M1 740 (562 avant), M2 826, M3 rapide 1226, socle 1117 (43 sautés), verifier 139 outils.
       Limites : le code lit des mots, pas le sens (« pas de vinyle » répond à « vinyle ») ; un
       profil de questions invalide n'arrête pas la réception ; docs BMAD de M1 à rafraîchir.
-- [ ] T4.5 M1 : plaintes, urgences et transfert humain avec résumé (M1.8, M1.12).
+- [x] T4.5 M1 : plaintes, urgences et transfert humain avec résumé (M1.8, M1.12).
       Écart (§7 M1.8, M1.12 ; audit M1 §1 « ABSENT », §4 tâches 15-16 ; E2E « plainte » absent) :
       aucune détection de plainte ni de transfert ; une plainte est traitée comme une demande
       incomplète.
@@ -1469,6 +1469,23 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       `opsys verifier`.
       Dépend de : T4.4 (même `outils.py`). GATE NATHAN : qui reçoit chaque type de transfert ;
       ton du gabarit. T3 : l'envoi de la réponse est T2.1-c (N4).
+      Preuve (3d79e12, dd56449, 40fb09c) :
+      - `opsys.taxonomie` : `signaux_plainte` (cinq catégories fermées, mots du propriétaire) et
+        `destinataires_transfert` (type → rôle), écriture signée ; absents, le verdict le dit ;
+      - détection par règles avant la qualification : la plainte prime (jamais de lead, ni pendant
+        ni après le transfert) ; 48 plaintes et urgences fictives sur 48 escaladées ; 11 demandes
+        ordinaires sur 12 passent (faux positif documenté) ;
+      - `m1_transferer`, `m1_escalader_plainte` (N2 : le garde du core refuserait un N3 dans la
+        session d'un client sans affaire liée), `m1_lire_transfert` (admin), `m1_clore_transfert`
+        (admin, N3, humain exigé par l'outil) ; résumé obligatoire, composé ou contrôlé ;
+      - `attentes()` de M1 : N5 urgence de sécurité et menace juridique, N4 plainte, N3 le reste ;
+        l'urgence passe devant ; gabarit empathique en brouillon (`envoye: false`) ;
+      - E2E `tests/e2e/test_plainte_urgence_appareil.py` (admin voit, employé 403) ; M1 1012 (740
+        avant), M2 1169, M10 720, socle 1204 (49 sautés), verifier 153 outils (75 déclarés) ; 34
+        mutations tuées.
+      Limites : le code lit des mots, pas le sens ; le rôle destinataire est affiché, pas appliqué ;
+      `_acteur_humain` de M1 copie celui de M10 (revue externe conseillée) ; l'avis légal n'est
+      contrôlé que dans le gabarit, pas dans le garde-fou.
 - [x] T4.6 M2 : liste des leads par vendeur et 14 segments (M2.11 ; score M2.4 hors tâche).
       Écart (§7 M2.11 ; audit M2 §1.3 « 0/14 », reste de T2.2 ; §9.4-9.5 « ses leads », « leads
       chauds ») : aucun outil ne liste les leads, donc ni écran vendeur ni pipeline pour l'admin.
@@ -1700,7 +1717,7 @@ météo et GPS M4, vision M3, conseil d'agents M9…
         1133 (43 sautés), verifier 146 outils (70 déclarés) ; 24 mutations tuées.
       Limites : le WCT ne porte pas la ville (M4, Loi 25) : aucun ancrage local ; « mesure » non
       bouclée ; un prénom seul n'est pas reconnu (la revue du propriétaire reste la barrière).
-- [ ] T4.18 M10 : dossier d'affaire de l'amont, du lead au devis (P4 ; §6 « M10 reçoit de tous »).
+- [x] T4.18 M10 : dossier d'affaire de l'amont, du lead au devis (P4 ; §6 « M10 reçoit de tous »).
       Écart (§6, P4 ; audit M10 §1) : avant le chantier, l'affaire n'a rien en mémoire.
       - M10 consomme `m1.lead_qualifie`, `m3.devis_envoye`, `m3.devis_accepte`,
         `m3.devis_sans_reponse` et `m2.client_associe` : identifiants et faits d'étape seulement
@@ -1709,6 +1726,24 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       Preuve : pytest M10 ; test par le vrai bus : lead, devis envoyé, accepté, paquet lu ; rejeu
       sans doublon ; consommateur retiré : `m10_auditer_non_oubli` le détecte.
       Dépend de : T4.7. T3 : aucun texte brut de client en mémoire (Loi 25).
+      Preuve (71175dc, correctif 018021a) :
+      - M10 consomme `m1.lead_qualifie`, `m2.client_associe`, `m3.devis_accepte`,
+        `m3.devis_sans_reponse` (`etapes.py`, `amont.py`) : identifiants et faits d'étape en liste
+        blanche, jamais le contact, la ville ni un texte de client ; client associé
+        `CLIENT_PRIVATE` ; prix et coût dans un maillon compagnon `FINANCIAL`, hors paquet ; heure
+        de l'événement ; idempotent par type et clé publique, tous ordres d'arrivée ; lead inconnu
+        dit au reçu (`AMONT-ORIGINE-NON-RECUE`), jamais inventé ; consolidation et audit
+        non-oubli couvrent l'amont ; `m3.devis_envoye` = une entrée de `etapes.py` à T4.7 ;
+      - correctif à la fusion (018021a) : l'opportunité `<lead>~opp~<wct_id>` que M2 ouvre pour un
+        client connu était refusée (quarantaine de chaque client qui revient) ;
+      - M10 720 (589 avant), socle 1204 ; gate BMAD M10 ; 45 mutations tuées.
+      Limites : le paquet garde sa forme (épinglée contre les fixtures du core), donc pas de verdict
+      « lead inconnu » dedans ; l'historique se tronque au budget de la couche (`nb_omis`) ; une
+      opportunité `~opp~` n'a pas la forme d'une affaire du core (pas de paquet pour elle).
+- [ ] T4.18-b Paquet et core : bloc `affaire` (connue, origine reçue, verdict) ou outil
+      `m10_dossier_affaire` ; budget de la couche des événements ; liste des (affaire, jour) à
+      consolider ; forme d'affaire commune au core et à M10 qui admet l'opportunité de M2. Touche
+      `core/` (CI).
 - [ ] T4.19 M8 : entonnoir commercial et vue exécutive (M8.6, M8.10).
       Écart (§7 M8.6, M8.10 ; audit M8 « ABSENT ») : M8 ne mesure que les chantiers terminés.
       - métriques gouvernées : leads qualifiés, devis envoyés, acceptés, sans réponse, taux
@@ -1841,6 +1876,9 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 - **Segments de M2 (T4.6)** : seuils `jours_inactivite_dormant` et `jours_soumission_perimee` ;
   définitions (`hot_lead` inclut `nouveau` et `qualifie`, `past_customer` = opportunité au statut
   `avis`, `dormant_lead` ignore les interactions `system:*`).
+- **Plaintes et transferts (T4.5)** : vocabulaire des plaintes ; table type → rôle ; ton du
+  gabarit (excuse ? renvoi aux services d'urgence ? réponse à une menace juridique ?) ; niveaux
+  des attentes (N5 pour la sécurité).
 - **Lien automatique session → affaire (T2.1-b)** : aujourd'hui, un humain lie la session d'un
   client à son lead (`m10_lier_session_affaire`, N3). Faut-il qu'une règle écrite le fasse à la
   création du lead ? La clé de session contient le numéro du client : elle ne voyage jamais dans
@@ -1861,6 +1899,7 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   - M5 : 119a594, 23df6eb, T1.3-c ; vue financière d'un appel d'appareil (T1.4-k2) : 1ef9499 ;
     coût réel et rentabilité (T1.5-d) : b217aea ; marge réelle publiée vers M8 et M10 : 80aa355 ;
   - comptes à payer et facture fournisseur saisie (T4.15) : d1697f6, a21b3c8, 7bfbe68 ;
+  - clôture d'un transfert réservée à un humain (M1, T4.5) : dd56449 ;
   - canaux de M1 (politique d'approbation d'un message de client) : `src/opsys/canaux.py`, fc80869 ;
   - consentement du client et sa preuve posée par le serveur (M4, T1.5-d) : 358d2cc ;
   - idempotence du socle : 764c292, 2474cd1 ;
