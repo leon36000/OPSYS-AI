@@ -255,6 +255,37 @@ def test_file_proprietaire_agrege_demandes_et_attentes(session, departements_dem
     assert [item["id"] for item in file] == ["wct-1", ident]
 
 
+def test_attentes_departements_ordre_total_independant_de_l_ordre_des_departements(session, departements_demo):
+    """Deux départements déclarent des attentes du même instant : l'ordre (depuis, id, département, type) ne
+    dépend ni de l'ordre du dictionnaire des départements ni de celui de leurs listes (T1.5-e : la lecture
+    par pages de l'app en dépend)."""
+    demo = departements_demo["m09-demo"]
+    autre = dataclasses.replace(demo, id="m09-autre")
+    instant = "2026-09-16T15:00:00+00:00"
+    for ident, type_ in (("b", "z_type"), ("a", "z_type"), ("a", "a_type")):
+        demo_outils.ATTENTES_DEMO.append({
+            "type": type_, "id": ident, "resume": "r", "niveau": "N4", "depuis": instant,
+            "action_proposee": "voir",
+        })
+    demo_outils.ATTENTES_DEMO.append({
+        "type": "z_type", "id": "0", "resume": "r", "niveau": "N4", "depuis": "2026-09-20T00:00:00+00:00",
+        "action_proposee": "voir",
+    })
+
+    with session() as cnx:
+        direct, _ = approbations.attentes_departements(cnx, {"m09-demo": demo, "m09-autre": autre})
+        inverse, illisibles = approbations.attentes_departements(cnx, {"m09-autre": autre, "m09-demo": demo})
+
+    assert direct == inverse and illisibles == []
+    assert [(a["depuis"], a["id"], a["departement"], a["type"]) for a in direct] == [
+        (instant, "a", "m09-autre", "a_type"), (instant, "a", "m09-autre", "z_type"),
+        (instant, "a", "m09-demo", "a_type"), (instant, "a", "m09-demo", "z_type"),
+        (instant, "b", "m09-autre", "z_type"), (instant, "b", "m09-demo", "z_type"),
+        ("2026-09-20T00:00:00+00:00", "0", "m09-autre", "z_type"),
+        ("2026-09-20T00:00:00+00:00", "0", "m09-demo", "z_type"),
+    ]
+
+
 def test_file_proprietaire_ignore_un_departement_dont_attentes_plante(session, departements_demo):
     casse = dataclasses.replace(departements_demo["m09-demo"], module_outils="module_absent_opsys")
     with session() as cnx:

@@ -362,12 +362,28 @@ def _valider_attente(departement_id: str, brute: Mapping[str, Any]) -> dict[str,
     return {champ: brute[champ] for champ in CHAMPS_ATTENTE}
 
 
+def ordre_attente(attente: Mapping[str, Any]) -> tuple[str, str, str, str]:
+    """Clé de l'ordre stable des attentes : la plus ancienne d'abord (`depuis`, comparé comme texte : c'est
+    l'ordre du briefing du matin de M9, `(depuis, id)`), puis `id`, `departement` et `type` pour départager
+    deux attentes du même instant. Une attente est désignée par (`departement`, `type`, `id`) : deux
+    attentes de même désignation sont la même, et le tri stable garde alors l'ordre du département. Un champ
+    qui n'est pas un texte est lu par sa représentation, sans lever : une attente au `depuis` illisible reste
+    triée et montrée, elle n'interrompt pas la file."""
+    return (
+        str(attente["depuis"]), str(attente["id"]), str(attente["departement"]), str(attente["type"]),
+    )
+
+
 def attentes_departements(
     cnx: Connection, departements: Mapping[str, Departement]
 ) -> tuple[list[dict[str, Any]], list[str]]:
     """Les « attentes » que chaque département déclare par sa fonction `attentes()` optionnelle
-    (forme `CHAMPS_ATTENTE`, plus `departement`, l'origine), triées par `depuis` croissant, ET les
+    (forme `CHAMPS_ATTENTE`, plus `departement`, l'origine), dans l'ordre de `ordre_attente`, ET les
     identifiants des départements dont `attentes()` n'a pas pu être lue.
+
+    L'ordre est TOTAL et ne dépend ni de l'ordre des départements ni de celui de leurs listes : `depuis`
+    croissant, puis `id`, `departement` et `type`. Deux lectures d'un même état rendent donc la même suite,
+    ce dont la lecture par pages de l'app (`approbations_appareil.lister_demandes`) a besoin.
 
     Un département dont `attentes()` échoue ou renvoie une forme invalide est journalisé (avertissement)
     et sauté : il ne bloque jamais la file. Mais son silence ne veut pas dire « rien à signaler » : il est
@@ -392,7 +408,7 @@ def attentes_departements(
             illisibles.append(dep.id)
             continue
         items.extend(valides)
-    items.sort(key=lambda item: item["depuis"])
+    items.sort(key=ordre_attente)
     return items, illisibles
 
 

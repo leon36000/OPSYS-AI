@@ -490,7 +490,9 @@ def test_b_ecart_de_quarante_pour_cent_reste_en_revue_et_alerte_l_admin(moteur, 
     # Les noms de clés que lit l'app (`mobile/src/approbations/contrat.ts`) : le contrat, épinglé des deux côtés.
     assert set(telephone) == {
         "demandes", "total_en_attente", "affichees", "reste", "proprietaire",
-        "attentes", "total_attentes", "attentes_affichees", "attentes_reste", "attentes_illisibles"}
+        "attentes", "total_attentes", "attentes_affichees", "attentes_reste", "attentes_illisibles",
+        "attentes_decalage", "attentes_suivant"}  # les deux derniers : la lecture par pages (T1.5-e), additifs
+    assert (telephone["attentes_decalage"], telephone["attentes_suivant"]) == (0, None)  # tout tient : rien ne suit
     assert all(set(a) == {"type", "id", "departement", "departement_nom", "resume", "niveau", "depuis",
                           "action_proposee"} for a in telephone["attentes"])
     par_type = {a["type"]: a for a in telephone["attentes"]}
@@ -720,8 +722,9 @@ def test_e_ecart_de_quarante_pour_cent_et_stock_bas_quatre_alertes_dont_le_telep
     """Le cas de §6 : l'écart est important ET le stock est bas. La file du propriétaire (console) et le briefing
     du matin portent les quatre alertes ; la complétion reste en revue (M4) et le besoin n'y change rien.
     Constat de cette mesure : la liste de l'app (`m9_lister_demandes_approbation`) borne les attentes à
-    `BUDGET_ATTENTES` (1500 caractères) et n'en pagine aucune ; les trois premières y tiennent, la quatrième est
-    COMPTÉE (`attentes_reste`), jamais perdue en silence, mais l'admin ne la lit pas sur cet écran."""
+    `BUDGET_ATTENTES` (1500 caractères) PAR PAGE ; les trois premières tiennent dans la première, la quatrième est
+    COMPTÉE (`attentes_reste`), jamais perdue en silence. Elle se lit par la page suivante (`decalage_attentes`,
+    T1.5-e : `test_a_voir_pagination.py` lit ainsi huit attentes, chacune une seule fois)."""
     s = scenario_e
     ch = s.chantier
 

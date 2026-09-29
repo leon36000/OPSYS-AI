@@ -16,7 +16,9 @@ PLAN T1.4-f (étape 6) : `m9_lister_demandes_approbation` et `m9_decider_demande
 outils de l'app du propriétaire pour la file d'approbation du socle. M9 les PORTE (il lit déjà cette
 file, et son mobile est réservé à l'admin, §7 M9) ; la logique est dans `opsys.approbations_appareil`,
 qui décide par le chemin de la console. Ce ne sont pas des outils de l'agent M9, qui ne décide jamais :
-sans l'identité authentifiée d'un appareil, ils refusent.
+sans l'identité authentifiée d'un appareil, ils refusent. PLAN T1.5-e : la liste rend les attentes des
+départements par pages bornées (`decalage_attentes`, `attentes_suivant`), comme `m9_lire_suite_briefing`
+pour le briefing ; un rang est un entier, jamais une personne.
 
 PLAN T1.5-d : le briefing est BORNÉ par le code sous la limite de sortie de `Capacites`
 (`jetons.LIMITE_SORTIE_DEFAUT`) — ce qui ne tient pas est compté (« N autres éléments non affichés ») et
@@ -213,12 +215,16 @@ def outils(
             fenetre_alertes_jours=_fenetre_alertes_jours(), depart=depart, budget_caracteres=BUDGET_SORTIE,
         )
 
-    def lister_demandes_approbation(limite: int = approbations_appareil.LIMITE_LISTE_DEFAUT) -> dict[str, Any]:
+    def lister_demandes_approbation(
+        limite: int = approbations_appareil.LIMITE_LISTE_DEFAUT, decalage_attentes: int = 0,
+    ) -> dict[str, Any]:
         """Demandes d'approbation en attente, pour l'app du propriétaire (T1.4-f). L'identité vient du
-        contexte authentifié, jamais des arguments (`opsys.approbations_appareil`). Lecture seule."""
+        contexte authentifié, jamais des arguments (`opsys.approbations_appareil`). Lecture seule.
+        `decalage_attentes` : rang de la première attente rendue (T1.5-e), donné par `attentes_suivant`."""
         with stockage.transaction() as cnx:
             return depuis_couple(approbations_appareil.lister_demandes(
-                cnx, charger_departements(), contexte.identite_appelante(), limite=limite))
+                cnx, charger_departements(), contexte.identite_appelante(), limite=limite,
+                decalage_attentes=decalage_attentes))
 
     def decider_demande_approbation(demande_id: str, decision: str, motif: str = "") -> dict[str, Any]:
         """Approuve ou refuse une demande, au nom de la personne authentifiée de l'appareil (T1.4-f). Le
@@ -369,8 +375,10 @@ def outils(
                 "jamais d'un argument ; sans elle, refus. Un `admin` qui n'est pas le propriétaire "
                 "voit la file sans les arguments. Rend aussi les attentes des départements (complétion "
                 "en revue avec écart de matériaux critique, facture prête à envoyer, chantier à "
-                "réviser) : informatives, elles ne se décident pas ici. Réservé à l'humain : l'agent "
-                "M9 ne l'appelle pas."
+                "réviser, besoin de commande) : informatives, elles ne se décident pas ici. Elles se "
+                "lisent par pages bornées, la plus ancienne d'abord : quand `attentes_suivant` n'est pas "
+                "nul, le rappeler avec `decalage_attentes` égal à cette valeur. Réservé à l'humain : "
+                "l'agent M9 ne l'appelle pas."
             ),
             parametres={
                 "type": "object",
@@ -379,6 +387,12 @@ def outils(
                         "type": "integer", "minimum": 1, "maximum": approbations_appareil.LIMITE_LISTE_MAX,
                         "description": "Nombre maximal de demandes (défaut "
                                        f"{approbations_appareil.LIMITE_LISTE_DEFAUT}).",
+                    },
+                    "decalage_attentes": {
+                        "type": "integer", "minimum": 0,
+                        "description": "Rang de la première attente rendue (0 = la plus ancienne, défaut) : "
+                                       "reprendre à la valeur de `attentes_suivant` de la page précédente. "
+                                       "Au-delà de la fin : une page vide, jamais une erreur.",
                     },
                 },
                 "additionalProperties": False,

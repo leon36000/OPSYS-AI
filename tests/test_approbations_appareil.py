@@ -388,6 +388,193 @@ def test_la_liste_des_attentes_ne_decide_ni_n_ecrit_rien(session, personnes, dep
     assert _journal(session) == []
 
 
+# -- les attentes se lisent par pages (PLAN T1.5-e) ------------------------------------------------------
+LIMITE_TRONCATURE = 6000  # `jetons.LIMITE_SORTIE_DEFAUT`
+
+
+def _taille_reponse(resultat) -> int:
+    return len(json.dumps({"ok": True, "resultat": {"accepte": True, "resultat": resultat}}, ensure_ascii=False))
+
+
+def _lire_toutes_les_pages(session, departements, identite_appelante=PROPRIO, **kw):
+    """Comme l'app : page 0, puis `attentes_suivant` tant qu'il n'est pas nul. Rend les pages dans l'ordre."""
+    pages, decalage = [], 0
+    while decalage is not None:
+        resultat, verdict = _lister(session, departements, identite_appelante, decalage_attentes=decalage, **kw)
+        assert verdict is None, verdict
+        pages.append(resultat)
+        assert len(pages) <= 100, "la lecture ne progresse pas"
+        decalage = resultat["attentes_suivant"]
+    return pages
+
+
+def _pile_d_attentes(attentes_demo, nombre=12, taille=240):
+    for i in range(nombre):
+        attentes_demo.append(_attente(f"wct-{i:02d}", "x" * taille, f"2026-09-{i + 1:02d}T00:00:00+00:00"))
+
+
+def test_les_attentes_se_lisent_page_par_page_chacune_une_seule_fois_dans_l_ordre(
+    session, personnes, departements_demo, attentes_demo
+):
+    _pile_d_attentes(attentes_demo)
+
+    pages = _lire_toutes_les_pages(session, departements_demo)
+
+    assert len(pages) > 1  # la pile ne tient pas dans une page : c'est ce que T1.5-e sert à lire
+    lues = [a["id"] for page in pages for a in page["attentes"]]
+    assert lues == [f"wct-{i:02d}" for i in range(12)]  # toutes, une fois, la plus ancienne d'abord
+    rang = 0
+    for page in pages:
+        assert page["attentes_decalage"] == rang
+        assert page["total_attentes"] == 12
+        assert 1 <= page["attentes_affichees"] == len(page["attentes"])
+        rang += page["attentes_affichees"]
+        assert page["attentes_reste"] == 12 - rang
+        assert page["attentes_suivant"] == (rang if rang < 12 else None)
+    assert pages[-1]["attentes_suivant"] is None and pages[-1]["attentes_reste"] == 0
+    assert all(page["attentes_illisibles"] == [] for page in pages)
+
+
+def test_la_premiere_page_est_celle_d_avant_et_le_decalage_zero_est_le_defaut(
+    session, personnes, departements_demo, attentes_demo
+):
+    _pile_d_attentes(attentes_demo)
+
+    par_defaut, _ = _lister(session, departements_demo)
+    explicite, _ = _lister(session, departements_demo, decalage_attentes=0)
+
+    assert par_defaut == explicite
+    assert par_defaut["attentes_decalage"] == 0
+    assert par_defaut["attentes_reste"] == 12 - par_defaut["attentes_affichees"]  # ce qui n'est pas montré
+    assert par_defaut["attentes_suivant"] == par_defaut["attentes_affichees"]
+
+
+def test_chaque_page_reste_sous_la_troncature_et_garde_le_budget_des_demandes(
+    session, personnes, departements_demo, attentes_demo
+):
+    _pile_d_attentes(attentes_demo, taille=400)
+    with session() as cnx:
+        for i in range(8):
+            _demande(cnx, "m9_pointer", {"appareil": "y" * 1400}, depuis=f"2026-09-0{i + 1}T10:00:00+00:00")
+
+    pages = _lire_toutes_les_pages(session, departements_demo)
+
+    assert len(pages) > 1
+    for page in pages:
+        assert _taille_reponse(page) < LIMITE_TRONCATURE
+        poids = sum(len(json.dumps(a, ensure_ascii=False)) for a in page["attentes"])
+        assert poids <= approbations_appareil.BUDGET_ATTENTES  # le budget des attentes n'est pas relevé
+        assert page["affichees"] >= 1  # les demandes gardent leur place, page après page
+        assert page["reste"] == page["total_en_attente"] - page["affichees"]
+    assert [a["id"] for page in pages for a in page["attentes"]] == [f"wct-{i:02d}" for i in range(12)]
+
+
+@pytest.mark.parametrize("decalage", [12, 13, 500, 10**12])
+def test_un_decalage_hors_plage_rend_une_page_vide_sans_erreur_ni_invention(
+    session, personnes, departements_demo, attentes_demo, decalage
+):
+    _pile_d_attentes(attentes_demo)
+    with session() as cnx:
+        demande = _demande(cnx)
+
+    resultat, verdict = _lister(session, departements_demo, decalage_attentes=decalage)
+
+    assert verdict is None
+    assert resultat["attentes"] == [] and resultat["attentes_affichees"] == 0
+    assert resultat["attentes_suivant"] is None and resultat["attentes_reste"] == 0
+    assert resultat["attentes_decalage"] == decalage and resultat["total_attentes"] == 12
+    assert [d["id"] for d in resultat["demandes"]] == [demande]  # la liste des demandes n'en dépend pas
+
+
+def test_sans_attente_aucun_decalage_n_en_invente(session, personnes, departements_demo, attentes_demo):
+    for decalage in (0, 1, 7):
+        resultat, verdict = _lister(session, departements_demo, decalage_attentes=decalage)
+
+        assert verdict is None
+        assert resultat["attentes"] == [] and resultat["total_attentes"] == 0
+        assert (resultat["attentes_suivant"], resultat["attentes_reste"]) == (None, 0)
+
+
+@pytest.mark.parametrize("decalage", [-1, True, False, 1.5, "2", None, [0], {}])
+def test_un_decalage_qui_n_est_pas_un_entier_positif_ou_nul_est_refuse(
+    session, personnes, departements_demo, attentes_demo, decalage
+):
+    _pile_d_attentes(attentes_demo)
+
+    resultat, verdict = _lister(session, departements_demo, decalage_attentes=decalage)
+
+    assert resultat is None and verdict["code"] == "decalage_invalide"
+    assert "entier" in verdict["detail"]
+
+
+def test_l_ordre_est_total_a_egalite_de_depuis_et_ne_depend_pas_de_l_ordre_de_declaration(
+    session, personnes, departements_demo, attentes_demo
+):
+    instant = "2026-09-16T15:00:00+00:00"
+    declarees = [
+        _attente("fac-2", "Facture 2", instant, "facture_brouillon"),
+        _attente("variance-9", "Chantier 9", instant, "chantier_a_reviser"),
+        _attente("fac-1", "Facture 1", instant, "facture_brouillon"),
+        _attente("wct-0", "Plus ancienne", "2026-09-15T00:00:00+00:00", "completion_en_revue"),
+    ]
+    attentes_demo.extend(declarees)
+    avant = [a["id"] for page in _lire_toutes_les_pages(session, departements_demo) for a in page["attentes"]]
+
+    attentes_demo.reverse()
+    apres = [a["id"] for page in _lire_toutes_les_pages(session, departements_demo) for a in page["attentes"]]
+
+    assert avant == apres == ["wct-0", "fac-1", "fac-2", "variance-9"]  # depuis, puis id
+
+
+def test_une_attente_plus_grosse_que_le_budget_est_rendue_seule_et_la_lecture_progresse(
+    session, personnes, departements_demo, attentes_demo
+):
+    attentes_demo.append(_attente("g" * 1800, "premiere", "2026-09-01T00:00:00+00:00"))
+    attentes_demo.append(_attente("wct-2", "seconde", "2026-09-02T00:00:00+00:00"))
+
+    pages = _lire_toutes_les_pages(session, departements_demo)
+
+    assert [[a["resume"] for a in page["attentes"]] for page in pages] == [["premiere"], ["seconde"]]
+    assert _taille_reponse(pages[0]) < LIMITE_TRONCATURE
+
+
+@pytest.mark.parametrize(("appelante", "code"), [
+    (None, "identite_absente"),
+    (INACTIF, "identite_invalide"),
+    (EMPLOYE, "role_appareil_insuffisant"),
+])
+def test_chaque_page_exige_la_meme_identite_que_la_liste(
+    session, personnes, departements_demo, attentes_demo, appelante, code
+):
+    _pile_d_attentes(attentes_demo)
+
+    resultat, verdict = _lister(session, departements_demo, appelante, decalage_attentes=3)
+
+    assert resultat is None and verdict["code"] == code
+
+
+def test_l_admin_qui_n_est_pas_le_proprietaire_lit_aussi_les_pages_suivantes(
+    session, personnes, departements_demo, attentes_demo
+):
+    _pile_d_attentes(attentes_demo)
+
+    pages = _lire_toutes_les_pages(session, departements_demo, GESTIONNAIRE)
+
+    assert [a["id"] for page in pages for a in page["attentes"]] == [f"wct-{i:02d}" for i in range(12)]
+    assert all(page["proprietaire"] is False for page in pages)
+
+
+def test_lire_une_page_ne_decide_ni_n_ecrit_rien(session, personnes, departements_demo, attentes_demo):
+    _pile_d_attentes(attentes_demo)
+    with session() as cnx:
+        demande = _demande(cnx)
+
+    _lire_toutes_les_pages(session, departements_demo)
+
+    assert _statut(session, demande)["statut"] == "en_attente" and demo_outils.JOURNAL == []
+    assert _journal(session) == []
+
+
 # -- identité : sans elle, rien --------------------------------------------------------------------
 @pytest.mark.parametrize(("appelante", "code"), [
     (None, "identite_absente"),

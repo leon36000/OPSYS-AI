@@ -83,9 +83,10 @@ LIMITE_DESCRIPTION = 200
 LIMITE_MOTIF_DEMANDE = 300
 LIMITE_DETAIL_ISSUE = 300
 # Les « attentes » des départements (PLAN T1.5) : complétion en revue avec écart de matériaux critique (M4),
-# facture prête à envoyer ou chantier à réviser (M5). Elles partagent le budget de caractères de la liste,
-# dans la limite de `BUDGET_ATTENTES` : une alerte ne doit pas être noyée par une pile de demandes, ni
-# pousser la réponse au-delà de la troncature de `Capacites`.
+# facture prête à envoyer ou chantier à réviser (M5), besoin de commande (M6). Elles partagent le budget de
+# caractères de la liste, dans la limite de `BUDGET_ATTENTES` PAR PAGE : une alerte ne doit pas être noyée par
+# une pile de demandes, ni pousser la réponse au-delà de la troncature de `Capacites`. Le budget n'est pas
+# relevé pour en montrer plus : les suivantes se lisent page par page (`decalage_attentes`, PLAN T1.5-e).
 BUDGET_ATTENTES = 1500
 LIMITE_RESUME_ATTENTE = 240
 LIMITE_ACTION_ATTENTE = 160
@@ -107,6 +108,7 @@ ARGUMENTS_TROP_VOLUMINEUX = "arguments_trop_volumineux"
 DECISION_INVALIDE = "decision_invalide"
 MOTIF_INVALIDE = "motif_invalide"
 LIMITE_INVALIDE = "limite_invalide"
+DECALAGE_INVALIDE = "decalage_invalide"
 DECISION_REFUSEE = "decision_refusee"
 
 # Refus qui ne disent rien de plus qu'une erreur de saisie ou d'état : pas d'entrée d'audit.
@@ -282,7 +284,7 @@ def _item_attente(attente: Mapping[str, Any], departements: Mapping[str, Departe
 
 def lister_demandes(
     cnx: Connection, departements: Mapping[str, Departement], appelante: IdentiteAppelante | None,
-    *, limite: Any = LIMITE_LISTE_DEFAUT,
+    *, limite: Any = LIMITE_LISTE_DEFAUT, decalage_attentes: Any = 0,
 ) -> Reponse:
     """Les demandes EN ATTENTE, la plus ancienne d'abord (comme la file du propriétaire), chacune avec ce
     que l'app doit afficher et si elle peut la décider, puis les attentes déclarées par les départements.
@@ -293,16 +295,33 @@ def lister_demandes(
     est bornée par `limite` et par `BUDGET_LISTE`, et une demande non montrée est comptée, jamais omise
     en silence. `proprietaire` dit si la personne peut décider quoi que ce soit ici.
 
-    Les attentes (`attentes`, `total_attentes`, `attentes_affichees`, `attentes_reste`) sont l'autre moitié
-    de la file du propriétaire (`approbations.file_proprietaire`, ADR-0009 §5), celle que la console montre
-    déjà : sans elles, l'alerte « écart de matériaux critique » d'une complétion en revue existait dans la
-    file mais restait invisible de l'app (PLAN T1.5). Un département dont les attentes n'ont pas pu être
-    lues est nommé dans `attentes_illisibles` : son silence n'est jamais lu « rien à signaler ». Toute
-    personne de rôle `admin` les voit, comme le briefing du matin de M9 : ce sont des résumés, sans
-    argument ni donnée personnelle, et elles ne se décident pas ici.
+    Les attentes (`attentes`, `total_attentes`, `attentes_affichees`, `attentes_reste`, `attentes_decalage`,
+    `attentes_suivant`) sont l'autre moitié de la file du propriétaire (`approbations.file_proprietaire`,
+    ADR-0009 §5), celle que la console montre déjà : sans elles, l'alerte « écart de matériaux critique »
+    d'une complétion en revue existait dans la file mais restait invisible de l'app (PLAN T1.5). Un
+    département dont les attentes n'ont pas pu être lues est nommé dans `attentes_illisibles` : son silence
+    n'est jamais lu « rien à signaler ». Toute personne de rôle `admin` les voit, comme le briefing du matin
+    de M9 : ce sont des résumés, sans argument ni donnée personnelle, et elles ne se décident pas ici.
+
+    **Pages d'attentes (PLAN T1.5-e).** Les attentes se lisent par tranches. L'ordre est celui de
+    `approbations.ordre_attente` (le plus ancien d'abord, puis `id`, département, type : total, donc le même
+    d'une lecture à l'autre tant que l'état ne change pas). `decalage_attentes` (entier ≥ 0, 0 par défaut) est
+    le RANG de la première attente rendue dans cet ordre. Chaque page tient dans `BUDGET_ATTENTES` (une
+    attente au moins, sinon la lecture ne progresserait jamais) ; le budget des demandes est celui d'avant.
+    `attentes_decalage` répète le rang lu ; `attentes_suivant` est le rang à demander ensuite, `None` quand
+    rien ne suit ; `attentes_reste` compte ce qui vient APRÈS la page (pour le rang 0, comme avant : ce qui
+    n'est pas montré). Un rang au-delà de la fin (des attentes ont été traitées entre deux pages) rend une
+    page vide et `attentes_suivant: None`, jamais une erreur ni une attente inventée ; seul un rang qui n'est
+    pas un entier ≥ 0 est refusé (`decalage_invalide`). Un décalage est un rang : si l'état change entre deux
+    pages, une attente peut manquer ou se répéter, et `total_attentes` change : l'appelant relit depuis 0.
+    Aucun paramètre ne désigne une personne : la portée (`admin`) et l'identité confirmée sont celles de la
+    liste.
     """
     if isinstance(limite, bool) or not isinstance(limite, int) or not 1 <= limite <= LIMITE_LISTE_MAX:
         return None, _verdict(LIMITE_INVALIDE, f"limite : un entier de 1 à {LIMITE_LISTE_MAX} est attendu.")
+    if isinstance(decalage_attentes, bool) or not isinstance(decalage_attentes, int) or decalage_attentes < 0:
+        return None, _verdict(
+            DECALAGE_INVALIDE, "decalage_attentes : un entier supérieur ou égal à 0 est attendu.")
     signataire, verdict = _signataire(cnx, appelante)
     if signataire is None:
         return None, verdict
@@ -311,13 +330,14 @@ def lister_demandes(
     attentes, attentes_illisibles = approbations.attentes_departements(cnx, departements)
     items_attentes: list[dict[str, Any]] = []
     taille = 0
-    for attente in attentes:
+    for attente in attentes[decalage_attentes:]:
         item_attente = _item_attente(attente, departements)
         poids = len(json.dumps(item_attente, ensure_ascii=False))
         if items_attentes and taille + poids > BUDGET_ATTENTES:
             break
         items_attentes.append(item_attente)
         taille += poids
+    apres_la_page = min(len(attentes), decalage_attentes + len(items_attentes))
     items: list[dict[str, Any]] = []
     for demande in approbations.lister(cnx, "en_attente", limite, plus_anciennes_d_abord=True):
         item = _item(demande, signataire, departements, outils)
@@ -335,7 +355,9 @@ def lister_demandes(
         "attentes": items_attentes,
         "total_attentes": len(attentes),
         "attentes_affichees": len(items_attentes),
-        "attentes_reste": len(attentes) - len(items_attentes),
+        "attentes_reste": len(attentes) - apres_la_page,
+        "attentes_decalage": decalage_attentes,
+        "attentes_suivant": apres_la_page if apres_la_page < len(attentes) else None,
         "attentes_illisibles": attentes_illisibles,
     }, None
 
