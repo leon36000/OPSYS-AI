@@ -37,6 +37,7 @@ from . import (
     qualite_photos,
     registre,
     revue_devis,
+    scenarios,
     soumission,
     soumission_pdf,
     verdicts,
@@ -79,6 +80,8 @@ _BAREME = {
     "description": (
         "{version, unite, postes: {service (lead v2) ou type_travaux (lead v1) : {cout_unitaire_min, "
         "cout_unitaire_max, "
+        "cout_unitaire_mode (optionnel — coût unitaire le plus probable, entre min et max : tirage PERT ; "
+        "absent : tirage uniforme), "
         "duree_minutes_par_unite (optionnel — minutes de main-d'œuvre par unité de quantite ; "
         "absent : aucune durée n'est calculée), materiaux (optionnel — liste de {materiau, sku "
         "(optionnel), quantite_par_unite (texte décimal), unite, facteur_perte (optionnel, texte "
@@ -313,7 +316,9 @@ def _projeter_estimation_employe(reponse: dict[str, Any]) -> dict[str, Any]:
     EstimationV1, champ gelé) garde sa forme et son `niveau`, seules ses bornes chiffrées sont
     retirées — même convention que la voie `prix_bloque` de `blocage_prix.py` (None, jamais 0).
     `prix_recommande` (marge) est entièrement retiré. Rien d'autre ne change : verdicts, ids,
-    signal de relance, durée de main-d'œuvre ne sont ni de l'argent ni un risque de fuite."""
+    signal de relance, durée de main-d'œuvre ne sont ni de l'argent ni un risque de fuite. Depuis T4.11 :
+    `distribution_cout` (P50, P80), `facteurs_dominants` (amplitudes en dollars) et `scenarios_prix` (coûts, prix,
+    taux de marge) sont retirés aussi."""
     projection = dict(reponse)
     if isinstance(projection.get("estimation"), dict):
         intervalle = projection["estimation"].get("intervalle_confiance")
@@ -323,6 +328,9 @@ def _projeter_estimation_employe(reponse: dict[str, Any]) -> dict[str, Any]:
                 "intervalle_confiance": {**intervalle, "borne_basse": None, "borne_haute": None},
             }
     projection["prix_recommande"] = None
+    # PLAN T4.11 : P50 et P80 sont des coûts, les scénarios des prix et des marges : rien n'en reste pour l'employé.
+    for cle in scenarios.CHAMPS_SOEURS_ESTIMATION:
+        projection[cle] = None
     return projection
 
 
@@ -379,6 +387,7 @@ def estimer_projet(
     plancher_rentable: float,
     graine: int | None = None,
     taux_marge: str | None = None,
+    taux_marge_scenarios: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Point d'entrée agent (PLAN T2.3) : appelle l'orchestrateur pur
     `estimation.orchestrer_estimation` sur le registre DURABLE de production. Toute la logique
@@ -398,13 +407,20 @@ def estimer_projet(
     porte `materiaux`, prix non bloqué), le contrat `BesoinsMateriauxM3` est publié sur le bus
     (`m3.besoins_materiaux`) DANS la même transaction que l'inscription au registre : les deux
     réussissent ou échouent ensemble. Publié tel quel, sans projection : il ne porte ni coût, ni
-    prix, ni marge."""
+    prix, ni marge.
+
+    P50, P80, facteurs dominants et scénarios de prix (PLAN T4.11, `scenarios.py`) : clés sœurs de la réponse, sur la
+    voie non bloquée seulement. Les taux de marge des trois scénarios viennent de `taux_marge_scenarios` (l'appel
+    d'abord, scénario par scénario) puis de `department.yaml/configuration/scenarios_prix/taux_marge` ; le minimum
+    rentable est celui de `configuration/revue_devis` (T4.7). Les deux sont lus ICI, jamais par le module pur : vides à
+    dessein, ils rendent un verdict qui dit quoi déclarer, jamais un prix. Rien de tout cela n'entre au registre."""
     vue = _vue_projection_effective(None)
     if not vue["accepte"]:
         return {"etape": "identite_appareil", "accepte": False, "verdict": vue["verdict"]}
     resultat = estimation.orchestrer_estimation(
         contrat, marqueur, photos, seuils, bareme, quantite, plancher_rentable,
         registre_production(), graine, taux_marge,
+        taux_marge_scenarios, _taux_scenarios_configures(), _seuils_revue(),
     )
     if resultat.get("accepte") is True and resultat.get("besoins_materiaux") is not None:
         _publier_besoins_materiaux(resultat["besoins_materiaux"])
@@ -735,18 +751,40 @@ _CONTEXTE_REVUE = {
 }
 
 
+def _configuration_du_manifeste() -> Any:
+    """`configuration` de `department.yaml`, telle quelle : un objet, `None` (absente ou d'une autre forme), ou
+    `_CONFIGURATION_ILLISIBLE` (manifeste illisible). Lue à chaque appel, jamais mise en cache : le propriétaire peut
+    l'éditer, et les tests la remplacent par un manifeste jetable (`_MANIFESTE`)."""
+    try:
+        donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError):
+        return _CONFIGURATION_ILLISIBLE
+    configuration = donnees.get("configuration") if isinstance(donnees, dict) else None
+    return configuration if isinstance(configuration, dict) else None
+
+
 def _seuils_revue() -> Any:
     """`configuration.revue_devis` de `department.yaml`, tel quel (`None` s'il est absent) : les seuils de la
     revue, JAMAIS un nombre codé en dur ici ni dans `revue_devis.py`. Même source et même discipline que M6
     (`_seuil_variance_chantier`) : `revue_devis` juge chaque seuil vide ou invalide « seuil à configurer » ou
     « seuil invalide », jamais une valeur par défaut. Un manifeste illisible rend `_CONFIGURATION_ILLISIBLE`
     (que `revue_devis` refuse de lire comme des seuils) : la revue le dit, elle ne tombe pas."""
-    try:
-        donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8")) or {}
-    except (OSError, yaml.YAMLError):
+    configuration = _configuration_du_manifeste()
+    if configuration == _CONFIGURATION_ILLISIBLE:
         return _CONFIGURATION_ILLISIBLE
-    configuration = donnees.get("configuration") if isinstance(donnees, dict) else None
     return configuration.get("revue_devis") if isinstance(configuration, dict) else None
+
+
+def _taux_scenarios_configures() -> Any:
+    """`configuration.scenarios_prix.taux_marge` de `department.yaml`, tel quel (`None` s'il est absent) : les taux de
+    marge des trois scénarios (PLAN T4.11), JAMAIS un taux codé en dur ici ni dans `scenarios.py`. VIDES à dessein : un
+    taux vide est un taux à déclarer (verdict `REJ-SCENARIOS-TAUX-ABSENT`), jamais une marge inventée. Un manifeste
+    illisible rend `_CONFIGURATION_ILLISIBLE` (que `scenarios` refuse de lire comme des taux, scénario par scénario)."""
+    configuration = _configuration_du_manifeste()
+    if configuration == _CONFIGURATION_ILLISIBLE:
+        return _CONFIGURATION_ILLISIBLE
+    scenarios_prix = configuration.get("scenarios_prix") if isinstance(configuration, dict) else None
+    return scenarios_prix.get("taux_marge") if isinstance(scenarios_prix, dict) else None
 
 
 def _decision_approuvee_en_cours(cnx: Any, arguments: dict[str, Any]) -> tuple[str, str, str] | None:
@@ -917,19 +955,17 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m3_estimer_projet",
             description=(
-                "Estime un projet de bout en bout (PLAN T2.3) : valide le contrat LeadQualifie et le "
-                "marqueur de readiness M2, qualité des photos, hiérarchie d'échelle, blocage "
-                "anti-précision-inventée, Monte Carlo, plancher de rentabilité ; assemble le contrat "
-                "gelé EstimationV1, inscrit au registre durable. Bloque le prix si "
-                "photos ou référence d'échelle insuffisantes, liste ce qui manque et émet "
-                "signal_relance_m2. Signale sans bloquer REFERENCE_ECHELLE_ABSENTE. Calcule la durée de "
-                "main-d'œuvre si le barème porte duree_minutes_par_unite, et prix_recommande depuis le "
-                "coût si taux_marge est fourni (jamais codé en dur ; absent, elements_manquants le "
-                "dit). Si le poste du barème porte materiaux et que le prix n'est pas bloqué, calcule "
-                "les besoins matériaux (quantités nettes en texte décimal, sans prix ni coût), les rend "
-                "sous besoins_materiaux et les publie à M6 (m3.besoins_materiaux) ; un facteur_perte "
-                "absent reste absent et est signalé, jamais inventé. Rôle employee (appareil "
-                "authentifié) : coût et prix toujours retirés."
+                "Estime un projet de bout en bout : valide le contrat LeadQualifie et le marqueur M2, la qualité des "
+                "photos, la hiérarchie d'échelle, puis Monte Carlo et plancher de rentabilité ; assemble EstimationV1 "
+                "(gelé), inscrit au registre durable. Photos ou échelle insuffisantes : prix bloqué, "
+                "elements_manquants et signal_relance_m2. Sans bloquer : REFERENCE_ECHELLE_ABSENTE. Durée de "
+                "main-d'œuvre si le barème porte duree_minutes_par_unite ; prix_recommande si taux_marge est fourni "
+                "(jamais codé en dur). Voie non bloquée, clés sœurs d'EstimationV1 : distribution_cout (P50 et P80 "
+                "du coût ; PERT si cout_unitaire_mode, sinon uniforme), facteurs_dominants, "
+                "scenarios_prix (prudent, normal, agressif : coût x (1 + taux), taux de taux_marge_scenarios ou "
+                "de department.yaml ; sans taux : aucun prix, un verdict dit où le déclarer ; sous le minimum "
+                "rentable, alerte rouge). Si le poste porte materiaux : besoins_materiaux, "
+                "publiés à M6 (facteur_perte absent : signalé, jamais inventé). Rôle employee : coût et prix retirés."
             ),
             parametres={
                 "type": "object",
@@ -948,6 +984,19 @@ def outils() -> tuple[Outil, ...]:
                             "texte décimal, ex. \"0.35\" pour 35 % — jamais codé en dur ; absent "
                             "ou null : aucun prix_recommande calculé (coût seulement)"
                         ),
+                    },
+                    "taux_marge_scenarios": {
+                        "type": ["object", "null"],
+                        "description": (
+                            "taux de marge des scénarios, texte décimal (ex. \"0.35\"), jamais codé en dur ; un "
+                            "scénario absent ou null prend celui de department.yaml, sinon n'a aucun prix"
+                        ),
+                        "properties": {
+                            "prudent": {"type": ["string", "null"]},
+                            "normal": {"type": ["string", "null"]},
+                            "agressif": {"type": ["string", "null"]},
+                        },
+                        "additionalProperties": False,
                     },
                 },
                 "required": ["contrat", "marqueur", "photos", "seuils", "bareme", "quantite", "plancher_rentable"],

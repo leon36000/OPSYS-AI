@@ -60,4 +60,16 @@ configuration:
     montant_maximal_cad: null      # prix total au-dessus duquel le propriétaire relit (> 0)
     marge_minimale: null           # taux de marge sous lequel le propriétaire relit (0 ou plus)
     distance_maximale_km: null     # chantier plus loin que ça : revue (> 0)
-    minimum_rentable_cad: null     # prix total sous lequel le devis n'est pas rentable : ALERTE ROUGE (> 0)
+    minimum_rentable_cad: null     # prix total sous lequel le devis n'est pas rentable : ALERTE ROUGE (> 0) ;
+                                   # aussi le minimum que confrontent les trois scénarios de prix (T4.11)
+  # Taux de marge des trois scénarios de prix (PLAN T4.11, DEFINITION-PRODUIT §7 M3.11 : prudent, normal,
+  # agressif), lus par m3_estimer_projet. VIDES à dessein, comme les seuils ci-dessus : aucun taux n'est inventé,
+  # chacun est une décision de Nathan. Un taux vide est un taux à déclarer : le scénario n'a alors aucun prix et un
+  # verdict dit où le déclarer (scenarios.py) ; l'argument taux_marge_scenarios de l'outil l'emporte, scénario par
+  # scénario. Taux décimal, zéro ou plus (0.25 pour 25 %) : prix = coût x (1 + taux), le coût étant P80 pour le
+  # prudent et P50 pour les deux autres. Jamais négatif : vendre sous le coût n'est pas un scénario.
+  scenarios_prix:
+    taux_marge:
+      prudent: null
+      normal: null
+      agressif: null

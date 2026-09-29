@@ -322,3 +322,39 @@ def test_estimer_projet_hors_appel_dappareil_inchange(personnes):
     resultat = reponse["resultat"]
     assert resultat["estimation"]["intervalle_confiance"]["borne_basse"] is not None
     assert resultat["prix_recommande"] is not None
+
+
+# ------------------------------------------- P50, P80, facteurs dominants, scénarios (PLAN T4.11) : jamais à l'employé
+CLES_SOEURS_DE_MONTANTS = ("distribution_cout", "facteurs_dominants", "scenarios_prix")
+TAUX_DES_SCENARIOS = {"prudent": "0.40", "normal": "0.30", "agressif": "0.15"}
+
+
+def test_estimer_projet_appareil_employee_ne_voit_ni_p50_ni_facteurs_ni_scenarios(personnes):
+    """P50 et P80 sont des coûts, les scénarios des prix et des marges : `_projeter_estimation_employe` retire les trois
+    clés sœurs en entier (DEFINITION-PRODUIT §9.2, « l'employé ne voit jamais coûts, marges ni finances »)."""
+    reponse = _appeler_en_tant_quappareil(
+        "employe.un", "employee", "m3_estimer_projet", _estimer(taux_marge_scenarios=TAUX_DES_SCENARIOS)
+    )
+    assert reponse["ok"] is True, reponse
+    resultat = reponse["resultat"]
+    assert resultat["accepte"] is True
+    for cle in CLES_SOEURS_DE_MONTANTS:
+        assert resultat[cle] is None, cle
+    # rien d'un montant de scénario ne se cache ailleurs dans la réponse
+    texte = str(resultat)
+    assert "prudent" not in texte and "P80" not in texte
+    # le reste (verdict, ids) n'est ni un coût ni un prix : inchangé
+    assert resultat["estimation"]["verdict_estimation"] == "AUCUN_BLOCAGE"
+
+
+def test_estimer_projet_appareil_admin_et_agent_gardent_p50_facteurs_et_scenarios(personnes):
+    for reponse in (
+        _appeler_en_tant_quappareil(
+            "admin.un", "admin", "m3_estimer_projet", _estimer(taux_marge_scenarios=TAUX_DES_SCENARIOS)),
+        _appeler("m3_estimer_projet", _estimer(taux_marge_scenarios=TAUX_DES_SCENARIOS)),
+    ):
+        assert reponse["ok"] is True, reponse
+        resultat = reponse["resultat"]
+        for cle in CLES_SOEURS_DE_MONTANTS:
+            assert resultat[cle] is not None, cle
+        assert all(s["prix"] is not None for s in resultat["scenarios_prix"]["scenarios"])

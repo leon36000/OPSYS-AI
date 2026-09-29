@@ -120,6 +120,19 @@ main-d'œuvre). Trois issues, jamais une quatrième inventée :
   - ``taux_marge`` valide : ``prix_recommande = {borne_basse, borne_haute}``, chaque borne dérivée
     de la borne de COÛT correspondante par ``devis_durable.prix_depuis_cout``.
 
+P50, P80, facteurs dominants et scénarios de prix (PLAN T4.11, ``scenarios.py``, DEFINITION-PRODUIT §7 M3.11 et
+M3.12) : trois clés SŒURS de la réponse, ``distribution_cout``, ``facteurs_dominants`` et ``scenarios_prix`` — jamais
+dans ``EstimationV1`` (gelé : mêmes douze clés, mêmes valeurs, mêmes empreintes, que des scénarios soient demandés ou
+non). Calculées sur la voie NON bloquée seulement, comme le prix recommandé : des photos faibles ne donnent ni P50, ni
+prix. Elles ne dépendent que du barème, de la quantité et de la graine effective, donc des MÊMES tirages que
+l'intervalle (``monte_carlo.simuler_quantiles``), et ne touchent ni la charge du registre ni son ``hash_maillon`` : les
+taux de marge des scénarios sont rejoués à chaque appel, jamais figés dans la version d'une estimation. Les taux
+viennent de l'appelant (``taux_scenarios``) ou de la configuration (``taux_scenarios_configures``), le minimum rentable
+de la configuration de la revue (``seuils_revue``) : ce module ne lit aucun fichier, ``outils.py`` les lui passe. Sans
+taux : aucun prix et un verdict par scénario qui dit où le déclarer (``elements_manquants`` reste celui d'avant).
+``taux_scenarios`` mal formé : rejet nommé (étape ``scenarios``) AVANT toute écriture au registre ; un taux invalide,
+lui, ne donne pas de prix et n'empêche pas l'estimation. Voir ``scenarios.py`` pour les règles de calcul.
+
 Besoins matériaux vers M6 (PLAN T2.3-e, ``besoins_materiaux.py`` : contrat ``BesoinsMateriauxM3``) :
 quand le poste du barème porte une liste OPTIONNELLE ``materiaux`` (quantité de matériau par unité
 d'ouvrage, ``facteur_perte`` facultatif), la voie NON bloquée en tire les besoins (quantité x
@@ -153,6 +166,7 @@ from . import (
     monte_carlo,
     plancher,
     qualite_photos,
+    scenarios,
     signaux,
     validation,
     verdicts,
@@ -282,10 +296,17 @@ def orchestrer_estimation(
     registre_cible: Any,
     graine: int | None = None,
     taux_marge: str | None = None,
+    taux_scenarios: dict[str, Any] | None = None,
+    taux_scenarios_configures: dict[str, Any] | None = None,
+    seuils_revue: Any = None,
 ) -> dict[str, Any]:
     """Compose la chaîne complète d'estimation M3 — voir la docstring du module pour l'ordre et
     les décisions de conception. Chaque étape qui échoue rend un verdict NOMMÉ qui dit quoi
-    demander ; jamais une exception, jamais une valeur inventée."""
+    demander ; jamais une exception, jamais une valeur inventée.
+
+    ``taux_scenarios`` (``{prudent, normal, agressif}`` : texte décimal, ou ``None``), ``taux_scenarios_configures``
+    (même forme, lue dans ``department.yaml`` par ``outils.py``) et ``seuils_revue`` (``configuration.revue_devis``,
+    pour le minimum rentable) alimentent ``scenarios_prix`` ; voir ``scenarios.py``."""
     accuse, verdict = validation.valider_entrees(contrat, marqueur, photos)
     if verdict is not None:
         return {"etape": "validation", "accepte": False, "verdict": verdict}
@@ -331,6 +352,8 @@ def orchestrer_estimation(
     elements_manquants_prix: list[str] = []
     signal_relance_m2: dict[str, Any] | None = None
     besoins_calcules: dict[str, Any] | None = None
+    # Clés sœurs de PLAN T4.11 : toutes à None (voie bloquée), jamais un montant sans intervalle qui le porte.
+    incertitude: dict[str, Any] = dict.fromkeys(scenarios.CHAMPS_SOEURS_ESTIMATION)
     niveau_confiance_numerique = NIVEAUX_STATISTIQUES_PAR_CONFIANCE.get(
         niveau_hierarchie, blocage_prix.NIVEAU_CONFIANCE_NOMINAL
     )
@@ -385,6 +408,16 @@ def orchestrer_estimation(
             elements_manquants_prix.append(
                 "taux_marge non fourni : aucun prix recommandé calculé (coût seulement disponible)"
             )
+
+        # P50, P80, facteurs dominants et scénarios de prix (PLAN T4.11) : voie NON bloquée seulement, sur les MÊMES
+        # tirages que l'intervalle, et AVANT le registre (un refus n'a rien écrit). Un taux invalide n'est pas un
+        # refus : le scénario n'a pas de prix et le dit ; seule une demande mal formée l'est.
+        incertitude, verdict = scenarios.evaluer(
+            bareme, type_travaux, quantite, graine_effective, devis_id, taux_scenarios,
+            taux_scenarios_configures, seuils_revue, services=(type_travaux,) if est_lead_v2 else (),
+        )
+        if verdict is not None:
+            return {"etape": "scenarios", "accepte": False, "verdict": verdict}
 
         # Besoins matériaux (PLAN T2.3-e) : voie NON bloquée seulement, comme la durée et le prix.
         # Le contrat est assemblé une première fois à blanc, AVANT le registre : sa validation
@@ -474,4 +507,7 @@ def orchestrer_estimation(
         # bloquée ou quand le poste du barème ne porte pas de ``materiaux`` — voir la docstring du
         # module. ``outils.py`` le publie sur le bus ; ce module reste pur.
         "besoins_materiaux": contrat_besoins,
+        # P50/P80 du coût, facteurs dominants, trois scénarios de prix (scenarios.py, PLAN T4.11) : clés sœurs, jamais
+        # dans EstimationV1, toutes None sur la voie bloquée.
+        **incertitude,
     }
