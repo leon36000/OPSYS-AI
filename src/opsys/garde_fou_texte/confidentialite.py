@@ -40,7 +40,9 @@ _VOIE_NOMMEE = re.compile(
 )
 
 # -- coordonnées et liens (texte plié) -----------------------------------------------------------------------
-_COURRIEL = re.compile(r"[a-z0-9._%+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}")
+# La partie locale se lit d'un seul départ, au début de sa suite (sans précédent dans la classe), et sans retour
+# arrière : le temps reste linéaire sur une longue suite de lettres ou de chiffres, avec ou sans « @ ».
+_COURRIEL = re.compile(r"(?<![a-z0-9._%+-])[a-z0-9._%+-]++@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}")
 _TELEPHONE = re.compile(r"(?<!\d)(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}(?!\d)")
 _LIEN = re.compile(r"https?://|\bwww\.|(?<![@\w-])[a-z0-9-]+\.(?:com|ca|org|net)\b")
 

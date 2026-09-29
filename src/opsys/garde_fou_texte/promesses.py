@@ -24,10 +24,11 @@ _JOURS = r"(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)"
 
 # -- prix (texte plié) --------------------------------------------------------------------------------------------
 _PRIX = (
-    # Le départ d'un nombre seulement (ni au milieu d'un chiffre ni d'un groupe « 4 500 ») et un quantificateur
-    # possessif : le temps reste linéaire, même sur un texte fait uniquement de chiffres.
+    # Le départ d'une suite de chiffres et d'espaces seulement (précédée ni d'un chiffre ni d'une espace : jamais au
+    # milieu d'un nombre, d'un groupe « 4 500 » ou après plusieurs espaces, que le masque d'une marque laisse) et un
+    # quantificateur possessif : le temps reste linéaire, même sur un texte fait uniquement de chiffres et d'espaces.
     re.compile(
-        r"(?<!\d)(?<!\d )\d[\d ]*+(?:[.,]\d+)?\s*(?:\$|cad\b|dollars?\b|piastres?\b|€|euros?\b)"
+        r"(?<![\d ])[ ]*+\d[\d ]*+(?:[.,]\d+)?\s*(?:\$|cad\b|dollars?\b|piastres?\b|€|euros?\b)"
     ),
     re.compile(r"[$€]\s*\d"),
     re.compile(
