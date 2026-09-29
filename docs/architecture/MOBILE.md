@@ -1363,6 +1363,8 @@ fonctionnait.
   le code du fork : ce n'est pas le core.
 - Non prouvé : le trajet contre un core réel (poignée de main, jeton d'appareil, `mcp.servers` du core, session MCP
   TypeScript), et PostgreSQL pour ces scénarios tant qu'aucun démon docker ne répond (ils sont sautés, pas verts).
+  Le scénario qui le prouve est écrit (PLAN T1.5-b : `tests/e2e_core/`, job `e2e-core` de
+  `.github/workflows/e2e-core.yml`) mais n'a pas encore tourné contre le core : il mesurera aussi la latence réelle.
 
 ## Idempotence et identité d'appareil de bout en bout (T1.4-b, T1.4-c1, T1.4-c2, T1.4-c4)
 

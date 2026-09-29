@@ -830,6 +830,16 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
   - [ ] T1.5-b E2E avec le vrai core en CI : construire le core, démarrer le Gateway et le moteur
         (superviseur T0.10), appairer un appareil de test (signature Ed25519), appeler
         `/tools/invoke` et `GET /opsys/identite` avec son jeton ; mesurer la latence réelle.
+        Avancement (non coché : la CI du core n'a pas encore exécuté le scénario) : écrit dans
+        `tests/e2e_core/` (`scenario.py`, `trajet.py`, `appairer.mjs`, `README.md`) et job
+        `.github/workflows/e2e-core.yml` (construit le core, `--moteur superviseur` ou `direct`). Le
+        script joue le trajet réel : `opsys openclaw configurer`, `openclaw config validate`,
+        `openclaw gateway run` (le superviseur T0.10 lance le moteur), `openclaw qr`, poignée de main
+        de l'app en Node (`opsys-mobile`, charge v3, Ed25519), `openclaw devices approve`,
+        `opsys appareils appairer`, puis identité, lecture, trois écritures avec `idempotencyKey`, `_meta`
+        prouvé dans la base du moteur, rejeu, conflit, refus hors portée ; latence de chaque appel dans le
+        journal et le résumé du job. Répété sans core (`tests/e2e_core/test_repetition_sans_core.py`,
+        passerelle factice) : ce test prouve le script, pas le core. À cocher quand la CI du core est verte.
   - [ ] T1.5-c M4, défauts trouvés par l'E2E : `m4_completer_intervention` date avec l'heure de
         l'appareil (le `wct_id` en dépend) au lieu de l'heure de réception du serveur, contrairement
         à `m4_pointer` ; `ecart_signale` vaut toujours vrai pour un WCT venu de l'appareil ; entre
