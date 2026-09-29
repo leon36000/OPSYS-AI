@@ -1,4 +1,4 @@
-# Tests des zones du core modifiées par OPSYS (T1.4-c1, T1.4-c2, T1.4-c4).
+# Tests des zones du core modifiées par OPSYS (T1.4-c1, T1.4-c2, T1.4-c4, T1.4-c6).
 #
 # `pnpm test:fast` (les six morceaux de la CI) exclut `src/gateway/**`, `src/agents/**` et
 # `packages/gateway-protocol/**` : ces tests appartiennent à d'autres projets vitest. Le job
@@ -18,12 +18,17 @@ src/agents/agent-bundle-mcp-runtime-shared.test.ts
 src/agents/agent-bundle-mcp-runtime-config.test.ts
 src/agents/agent-bundle-mcp-runtime-config.cache.test.ts
 
-# T1.4-c1, T1.4-c2, T1.4-c4 : /tools/invoke, rôles OPSYS, jeton d'appareil
+# T1.4-c6 : la porte d'appareil vers le serveur MCP du département (src/agents/opsys-device-mcp-target.ts),
+# sur de vrais serveurs MCP stdio. Projet agents-core (src/agents/*.test.ts), comme le test du _meta.
+src/agents/opsys-device-mcp-target.test.ts
+
+# T1.4-c1, T1.4-c2, T1.4-c4, T1.4-c6 : /tools/invoke, rôles OPSYS, jeton d'appareil, porte d'appareil
 src/gateway/opsys-device-roles.test.ts
 src/gateway/tools-invoke-http.test.ts
 src/gateway/tools-invoke-http.device-identity.test.ts
 src/gateway/tools-invoke-http.opsys-roles.test.ts
 src/gateway/tools-invoke-http.device-token-auth.test.ts
+src/gateway/tools-invoke-http.opsys-device-mcp.test.ts
 src/gateway/tools-invoke-http.abort.test.ts
 src/gateway/tools-invoke-http.cron-regression.test.ts
 src/gateway/tools-invoke-authorization.test.ts

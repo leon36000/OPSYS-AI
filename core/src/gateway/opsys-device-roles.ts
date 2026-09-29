@@ -2,7 +2,8 @@
 // person/role for a paired device, and whether that role's scope covers a given tool name.
 //
 // Reads two small JSON files OPSYS writes next to `openclaw.json` — `opsys/roles.json` (role name
-// -> allowed tool names, `src/opsys/openclaw.py::roles_outils`) and `opsys/appareils.json` (device
+// -> allowed tool names, `src/opsys/openclaw.py::roles_outils`, and, PLAN T1.4-c6, tool name -> the
+// MCP server that carries it, `serveurs_outils`) and `opsys/appareils.json` (device
 // id -> {personne, role}, `src/opsys/openclaw.py::ecrire_appareils`, from the `appareils` table,
 // ADR-0009 §5) — GENERATED, never hand-written in the core. They are read directly from disk,
 // deliberately NOT through `$include`/the Zod-validated `OpenClawConfig` tree: the root schema is
@@ -28,7 +29,19 @@ type AppareilEntry = { personne: string; role: string };
 // still essentially free, staleness check.
 type CachedFile<T> = { mtimeMs: number; size: number; value: T };
 
-const rolesCache = new Map<string, CachedFile<Record<string, readonly string[]>>>();
+/**
+ * `roles.json`: the tools each role may call, and the MCP server carrying each of those tools. Both
+ * keys are keyed by the BARE tool name the app sends (`m4_pointer`), the name the department's MCP
+ * server knows: the scope check and the server lookup read the same string from the same file.
+ */
+type RolesFile = {
+  roles: Record<string, readonly string[]>;
+  serveurs: Record<string, string>;
+};
+
+const EMPTY_ROLES_FILE: RolesFile = { roles: {}, serveurs: {} };
+
+const rolesCache = new Map<string, CachedFile<RolesFile>>();
 const appareilsCache = new Map<string, CachedFile<Record<string, AppareilEntry>>>();
 
 /** The `<config dir>/opsys` directory OPSYS writes its fragments into, from the loaded config path. */
@@ -79,6 +92,24 @@ function parseRoles(raw: unknown): Record<string, readonly string[]> {
   return result;
 }
 
+function parseServeurs(raw: unknown): Record<string, string> {
+  const serveurs = (raw as { serveurs?: unknown } | null)?.serveurs;
+  if (!serveurs || typeof serveurs !== "object" || Array.isArray(serveurs)) {
+    return {};
+  }
+  const result: Record<string, string> = {};
+  for (const [tool, serveur] of Object.entries(serveurs as Record<string, unknown>)) {
+    if (typeof serveur === "string" && serveur) {
+      result[tool] = serveur;
+    }
+  }
+  return result;
+}
+
+function parseRolesFile(raw: unknown): RolesFile {
+  return { roles: parseRoles(raw), serveurs: parseServeurs(raw) };
+}
+
 function parseAppareils(raw: unknown): Record<string, AppareilEntry> {
   const appareils = (raw as { appareils?: unknown } | null)?.appareils;
   if (!appareils || typeof appareils !== "object" || Array.isArray(appareils)) {
@@ -96,12 +127,25 @@ function parseAppareils(raw: unknown): Record<string, AppareilEntry> {
 }
 
 export type OpsysDeviceAuthorization =
-  | { ok: true; personne: string; role: string }
-  | { ok: false; reason: "device_unknown" | "role_unknown" | "tool_out_of_scope" };
+  | {
+      ok: true;
+      personne: string;
+      role: string;
+      /** The `mcp.servers` key of the department server that carries `toolName` (PLAN T1.4-c6). */
+      serveur: string;
+    }
+  | {
+      ok: false;
+      reason: "device_unknown" | "role_unknown" | "tool_out_of_scope" | "server_unknown";
+    };
 
 /**
- * Resolves the OPSYS role/person for `deviceId` and whether `toolName` is in that role's scope.
- * `opsysDir` overrides the default `<config dir>/opsys` lookup (tests only; production omits it).
+ * Resolves the OPSYS role/person for `deviceId`, whether `toolName` is in that role's scope, and
+ * the one MCP server that carries `toolName`. The tool name is the BARE name the app sends: the
+ * scope check and the server lookup use the same string, so the name that is authorized is the name
+ * that is called (PLAN T1.4-c6). A tool in scope with no server entry is refused, never guessed
+ * from the name. `opsysDir` overrides the default `<config dir>/opsys` lookup (tests only;
+ * production omits it).
  */
 export function authorizeOpsysDeviceTool(
   deviceId: string,
@@ -118,15 +162,28 @@ export function authorizeOpsysDeviceTool(
   if (!appareil) {
     return { ok: false, reason: "device_unknown" };
   }
-  const roles = readJsonFileCached(path.join(opsysDir, "roles.json"), rolesCache, parseRoles, {});
-  const allowedTools = roles[appareil.role];
+  const rolesFile = readJsonFileCached(
+    path.join(opsysDir, "roles.json"),
+    rolesCache,
+    parseRolesFile,
+    EMPTY_ROLES_FILE,
+  );
+  const allowedTools = Object.hasOwn(rolesFile.roles, appareil.role)
+    ? rolesFile.roles[appareil.role]
+    : undefined;
   if (!allowedTools) {
     return { ok: false, reason: "role_unknown" };
   }
   if (!allowedTools.includes(toolName)) {
     return { ok: false, reason: "tool_out_of_scope" };
   }
-  return { ok: true, personne: appareil.personne, role: appareil.role };
+  const serveur = Object.hasOwn(rolesFile.serveurs, toolName)
+    ? rolesFile.serveurs[toolName]
+    : undefined;
+  if (!serveur) {
+    return { ok: false, reason: "server_unknown" };
+  }
+  return { ok: true, personne: appareil.personne, role: appareil.role, serveur };
 }
 
 /** Test-only: drop cached file contents so a test's own fixture files are re-read from scratch. */

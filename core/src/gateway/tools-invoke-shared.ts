@@ -8,12 +8,16 @@ import { runBeforeToolCallHook } from "../agents/agent-tools.before-tool-call.js
 import { resolveToolLoopDetectionConfig } from "../agents/agent-tools.js";
 import { getChannelAgentToolMeta } from "../agents/channel-tools.js";
 import { withMcpCallMeta } from "../agents/mcp-call-meta.js";
+import {
+  resolveOpsysDeviceMcpTarget,
+  type OpsysDeviceMcpResolution,
+} from "../agents/opsys-device-mcp-target.js";
 import { isKnownCoreToolId } from "../agents/tool-catalog.js";
 import {
   AUTOMATIONS_TOOL_NAME,
   isAutomationsToolName,
 } from "../agents/tools/automations-tool-name.js";
-import { ToolInputError, type AnyAgentTool } from "../agents/tools/common.js";
+import { asToolParamsRecord, ToolInputError, type AnyAgentTool } from "../agents/tools/common.js";
 import {
   normalizeConversationReadInvocationOrigin,
   type ConversationReadInvocationOrigin,
@@ -185,6 +189,42 @@ function resolveToolSource(tool: AnyAgentTool): "core" | "plugin" | "channel" {
   return "core";
 }
 
+function readInvokeArgs(argsRaw: unknown): Record<string, unknown> {
+  return argsRaw && typeof argsRaw === "object" && !Array.isArray(argsRaw)
+    ? (argsRaw as Record<string, unknown>)
+    : {};
+}
+
+/**
+ * OPSYS `_meta` MCP (IDEMPOTENCE.md §7, §7 bis), one place for every key name:
+ * `opsys/idempotencyKey`/`opsys/appareil`/`opsys/horodatageAppareil` only when an idempotency key is
+ * present (T1.4-c1); `opsys/personne`/`opsys/role` only when `identity` is given, which the caller
+ * does solely for a device authenticated by its own token (T1.4-c4). Empty when neither applies: the
+ * exact same `tools/call` as before either field existed.
+ */
+function buildOpsysMcpCallMeta(params: {
+  idempotencyKey?: string;
+  deviceId?: string;
+  deviceTimestamp?: string;
+  identity?: { personne: string; role: string };
+}): Record<string, unknown> {
+  const meta: Record<string, unknown> = {};
+  if (params.idempotencyKey !== undefined) {
+    meta["opsys/idempotencyKey"] = params.idempotencyKey;
+    if (params.deviceId !== undefined) {
+      meta["opsys/appareil"] = params.deviceId;
+    }
+    if (params.deviceTimestamp !== undefined) {
+      meta["opsys/horodatageAppareil"] = params.deviceTimestamp;
+    }
+  }
+  if (params.identity) {
+    meta["opsys/personne"] = params.identity.personne;
+    meta["opsys/role"] = params.identity.role;
+  }
+  return meta;
+}
+
 type InvokeGatewayToolParams = {
   cfg: OpenClawConfig;
   input: ToolsInvokeInput;
@@ -214,6 +254,126 @@ type InvokeGatewayToolParams = {
   signal?: AbortSignal;
   assertInvocationCurrent?: () => void;
 };
+
+/**
+ * The OPSYS device door (PLAN T1.4-c6, docs/architecture/MOBILE.md "Nom d'un outil de l'app au
+ * moteur"): a paired device, already authenticated by its own token and already authorized for the
+ * BARE `toolName` by its role, reaches that tool on the one department MCP server `identity.serveur`.
+ *
+ * Deliberately NOT the agent path. The agent tool list holds core, plugin and channel tools (never
+ * a configured MCP server's tools), a device call needs neither an owning agent nor a session (with
+ * several department agents and no default one, `resolveSessionTarget` refuses a body without
+ * `agentId`), and nothing a device sends may select a core tool or another department's server. So:
+ * - the role check, the server lookup and the MCP call all use the same bare name;
+ * - a native core tool can never answer, whatever its name;
+ * - per-agent `tools.deny` does not apply (it filters what a MODEL may call); the operator's
+ *   `gateway.tools.deny` does, on the bare name and on the `server__tool` form its globs use.
+ *
+ * Failure statuses follow the app's retry rule (`mobile/src/protocole/classification.ts`): a server
+ * that cannot be reached is a 500, retried under the same idempotency key; a missing tool or a
+ * denied one is a 4xx, permanent.
+ */
+async function invokeOpsysDeviceTool(params: {
+  invoke: InvokeGatewayToolParams & { signal: AbortSignal };
+  toolName: string;
+  identity: { personne: string; role: string; serveur: string };
+  deviceId: string | undefined;
+  conversationReadOrigin: ConversationReadInvocationOrigin;
+  assertInvocationCurrent: () => void;
+}): Promise<ToolsInvokeOutcome> {
+  const { invoke, toolName, identity, assertInvocationCurrent } = params;
+  const failure = (
+    status: 403 | 404 | 500,
+    type: ToolsInvokeErrorType,
+    message: string,
+  ): ToolsInvokeOutcome => ({ ok: false, status, toolName, error: { type, message } });
+
+  const gatewayDeny = invoke.cfg.gateway?.tools?.deny;
+  if (Array.isArray(gatewayDeny) && gatewayDeny.length > 0) {
+    const [{ createToolPolicyMatcher }, { TOOL_NAME_SEPARATOR }] = await Promise.all([
+      import("../agents/tool-policy-match.js"),
+      import("../agents/agent-bundle-mcp-names.js"),
+    ]);
+    const allowed = createToolPolicyMatcher({ deny: gatewayDeny });
+    if (!allowed(toolName) || !allowed(`${identity.serveur}${TOOL_NAME_SEPARATOR}${toolName}`)) {
+      return failure(403, "tool_call_blocked", `Tool "${toolName}" is denied by gateway.tools.deny.`);
+    }
+  }
+
+  const { resolveDefaultAgentWorkspaceDir } = await import("../agents/workspace-default-path.js");
+  const workspaceDir = resolveDefaultAgentWorkspaceDir();
+  let resolution: OpsysDeviceMcpResolution;
+  try {
+    resolution = await resolveOpsysDeviceMcpTarget({
+      cfg: invoke.cfg,
+      workspaceDir,
+      serverName: identity.serveur,
+      toolName,
+      signal: invoke.signal,
+    });
+  } catch (err) {
+    // A configuration the MCP layer cannot load is an outage to retry, not a crash of the request.
+    if (!invoke.signal.aborted) {
+      logWarn(`tools-invoke: OPSYS device tool could not be resolved: ${String(err)}`);
+    }
+    return failure(500, "tool_error", `OPSYS department server is unavailable for "${toolName}".`);
+  }
+  if (resolution.kind === "not_found") {
+    return failure(404, "not_found", `Tool not available: ${toolName}`);
+  }
+  if (resolution.kind === "unavailable") {
+    return failure(500, "tool_error", `OPSYS department server is unavailable for "${toolName}".`);
+  }
+  const target = resolution.target;
+
+  try {
+    const idempotencyKey = normalizeOptionalString(invoke.input.idempotencyKey);
+    const deviceTimestamp = normalizeOptionalString(invoke.input.deviceTimestamp);
+    const toolCallId = idempotencyKey
+      ? `${invoke.toolCallIdPrefix}-${params.conversationReadOrigin}-${idempotencyKey}`
+      : `${invoke.toolCallIdPrefix}-${params.conversationReadOrigin}-${Date.now()}`;
+    assertInvocationCurrent();
+    const hookResult = await runBeforeToolCallHook({
+      toolName,
+      params: readInvokeArgs(invoke.input.args),
+      toolCallId,
+      ctx: { config: invoke.cfg, workspaceDir },
+      signal: invoke.signal,
+      approvalMode: invoke.approvalMode,
+    });
+    if (hookResult.blocked) {
+      return {
+        ok: false,
+        status: 403,
+        toolName,
+        error: {
+          type: "tool_call_blocked",
+          message: hookResult.reason,
+          requiresApproval: hookResult.deniedReason === "plugin-approval",
+        },
+      };
+    }
+    const mcpCallMeta = buildOpsysMcpCallMeta({
+      idempotencyKey,
+      deviceId: params.deviceId,
+      deviceTimestamp,
+      identity,
+    });
+    assertInvocationCurrent();
+    const result = await withMcpCallMeta(
+      mcpCallMeta,
+      async () => await target.call(asToolParamsRecord(hookResult.params), invoke.signal),
+    );
+    return { ok: true, status: 200, toolName, source: "plugin", result };
+  } catch (err) {
+    if (!invoke.signal.aborted) {
+      logWarn(`tools-invoke: OPSYS device tool execution failed: ${String(err)}`);
+    }
+    return failure(500, "tool_error", "tool execution failed");
+  } finally {
+    await target.dispose();
+  }
+}
 
 async function invokeGatewayToolWithSignal(
   params: InvokeGatewayToolParams & { signal: AbortSignal },
@@ -275,7 +435,6 @@ async function invokeGatewayToolWithSignal(
   // also the more reliable of the two: unlike a client-generated `input.deviceId`, it cannot be
   // omitted by a buggy caller once a device token was actually presented).
   const deviceId = authenticatedDeviceId ?? bodyDeviceId;
-  let opsysDeviceIdentity: { personne: string; role: string } | undefined;
   if (authenticatedDeviceId !== undefined) {
     const authorization = authorizeOpsysDeviceTool(authenticatedDeviceId, toolName);
     if (!authorization.ok) {
@@ -289,7 +448,21 @@ async function invokeGatewayToolWithSignal(
         },
       };
     }
-    opsysDeviceIdentity = { personne: authorization.personne, role: authorization.role };
+    // PLAN T1.4-c6: an authorized device call never enters the agent tool list below. `toolName` is
+    // the BARE name the app sent; the role scope was just checked on it, and the SAME string is looked
+    // up in `roles.json` for the one department server that carries it and called on that server.
+    return await invokeOpsysDeviceTool({
+      invoke: params,
+      toolName,
+      identity: {
+        personne: authorization.personne,
+        role: authorization.role,
+        serveur: authorization.serveur,
+      },
+      deviceId,
+      conversationReadOrigin,
+      assertInvocationCurrent,
+    });
   }
 
   if (process.env.VITEST && MEMORY_TOOL_NAMES.has(toolName)) {
@@ -314,11 +487,7 @@ async function invokeGatewayToolWithSignal(
   const gatewayRequestedTools = knownCoreTool ? [] : [toolName];
 
   const action = normalizeOptionalString(params.input.action);
-  const argsRaw = params.input.args;
-  const args =
-    argsRaw && typeof argsRaw === "object" && !Array.isArray(argsRaw)
-      ? (argsRaw as Record<string, unknown>)
-      : {};
+  const args = readInvokeArgs(params.input.args);
   const sessionTarget = resolveSessionTarget({ cfg: params.cfg, input: params.input });
   if (!sessionTarget.ok) {
     return {
@@ -517,26 +686,10 @@ async function invokeGatewayToolWithSignal(
     }
     const executeGatewayTool = async () =>
       await gatewayTool.execute?.(toolCallId, hookResult.params, params.signal);
-    // OPSYS `_meta` MCP (IDEMPOTENCE.md §7, §7 bis): `opsys/idempotencyKey`/`opsys/appareil`/
-    // `opsys/horodatageAppareil` only when idempotencyKey is present (unchanged from T1.4-c1);
-    // `opsys/personne`/`opsys/role` whenever a device identity was resolved above, independently
-    // of idempotencyKey — a read-only lookup from a paired device carries no idempotencyKey but
-    // still needs its caller's identity for a role-based projection. A caller with neither gets no
-    // ambient `_meta` at all: the exact same `tools/call` as before either field existed.
-    const mcpCallMeta: Record<string, unknown> = {};
-    if (idempotencyKey !== undefined) {
-      mcpCallMeta["opsys/idempotencyKey"] = idempotencyKey;
-      if (deviceId !== undefined) {
-        mcpCallMeta["opsys/appareil"] = deviceId;
-      }
-      if (deviceTimestamp !== undefined) {
-        mcpCallMeta["opsys/horodatageAppareil"] = deviceTimestamp;
-      }
-    }
-    if (opsysDeviceIdentity) {
-      mcpCallMeta["opsys/personne"] = opsysDeviceIdentity.personne;
-      mcpCallMeta["opsys/role"] = opsysDeviceIdentity.role;
-    }
+    // No device identity here: an authenticated device never reaches this path (see the device
+    // door above), so `opsys/personne`/`opsys/role` are never attached for a shared-secret, CLI or
+    // dashboard caller, whatever its body says.
+    const mcpCallMeta = buildOpsysMcpCallMeta({ idempotencyKey, deviceId, deviceTimestamp });
     const hasMcpCallMeta = Object.keys(mcpCallMeta).length > 0;
     const result = await withOperatorToolGatewayAuthority(
       {

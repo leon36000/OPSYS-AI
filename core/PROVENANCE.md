@@ -94,6 +94,26 @@ de `.github/workflows/core.yml`).
   `src/gateway/http-utils.ts`, `src/gateway/tools-invoke-http.ts`,
   `src/gateway/tools-invoke-shared.ts`, `packages/gateway-protocol/src/client-info.ts`.
 
+### T1.4-c6 : la porte d'appareil vers le serveur MCP du département
+
+Un appareil appairé (jeton d'appareil, rôle OPSYS) n'appelle plus `/tools/invoke` par la liste d'outils
+d'un agent, qui ne contient aucun outil MCP. Le core lit le serveur de l'outil dans `opsys/roles.json`
+(clé `serveurs`, générée par `src/opsys/openclaw.py::serveurs_outils`), ouvre une session MCP privée
+limitée à ce serveur, y appelle l'outil sous son nom nu et rend l'enveloppe OPSYS telle quelle. Détail,
+constat et limites : `docs/architecture/MOBILE.md`, « Nom d'un outil de l'app au moteur ».
+
+- Ajouté : `src/agents/opsys-device-mcp-target.ts` et son test `src/agents/opsys-device-mcp-target.test.ts`
+  (deux vrais serveurs MCP stdio), `src/gateway/tools-invoke-http.opsys-device-mcp.test.ts`.
+- Modifiés :
+  - `src/gateway/opsys-device-roles.ts` : `serveur` dans l'autorisation, refus `server_unknown` ;
+  - `src/gateway/tools-invoke-shared.ts` : `invokeOpsysDeviceTool` (un appareil autorisé ne traverse plus
+    la liste d'outils du core), `buildOpsysMcpCallMeta` (les clés `_meta` en un seul endroit) ;
+  - tests d'origine complétés : `src/gateway/opsys-device-roles.test.ts`,
+    `src/gateway/tools-invoke-http.opsys-roles.test.ts`,
+    `src/gateway/tools-invoke-http.device-token-auth.test.ts`.
+- Routage vitest : `test/vitest/vitest.gateway-server-paths.mjs` (le test HTTP appaire un vrai appareil :
+  projet `gateway-database-workers`), et `test/opsys-tests-cibles.txt`.
+
 ### T0.10 : le core lance et surveille le moteur métier Python
 
 Le Gateway lance `uv run opsys-mcp --http` (`src/opsys/serveur_mcp.py`), sonde `GET /sante`, le
@@ -155,3 +175,5 @@ jour `src/opsys/openclaw.py` et ses tests dans le même commit.
 | `automations add --cron --tz --session isolated --agent --message` | planifications des départements | `src/cli/cron-cli.ts` |
 | Espace de travail : `SOUL.md`, `AGENTS.md`, `skills/` | identité, règles, procédures | `src/agents/` (amorçage de l'espace de travail) |
 | `opsys/metier.json` (hors schéma Zod) | active et règle le superviseur du moteur métier (T0.10) ; `openclaw.py` ne l'écrit pas encore | `src/gateway/opsys-metier-config.ts` |
+| `opsys/roles.json` (hors schéma Zod) | `roles` : outils permis par rôle d'appareil ; `serveurs` : le serveur MCP de chacun (T1.4-c6). Noms d'outils nus | `src/gateway/opsys-device-roles.ts` |
+| `opsys/appareils.json` (hors schéma Zod) | appareil -> personne et rôle OPSYS (T1.4-c2, c4) | `src/gateway/opsys-device-roles.ts` |

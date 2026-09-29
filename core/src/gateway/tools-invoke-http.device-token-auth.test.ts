@@ -6,6 +6,12 @@
 // `tools-invoke-http.cron-regression.test.ts`; `authorizeOpsysDeviceTool` itself is covered on its
 // own in `opsys-device-roles.test.ts`) is mandatory once a device token authenticates.
 //
+// PLAN T1.4-c6: an authorized device never enters the agent tool list. The department-server side
+// of the device door (`resolveOpsysDeviceMcpTarget`) is mocked here; the same door is proven over
+// HTTP with a real device token and the real roles/appareils fragments in
+// `tools-invoke-http.opsys-device-mcp.test.ts`, and over real stdio servers in
+// `src/agents/opsys-device-mcp-target.test.ts`.
+//
 // Auth is exercised for real: `requestDevicePairing`/`approveDevicePairing`/`ensureDeviceToken`/
 // `revokeDeviceToken` inside `withOpenClawTestState` per test (same pattern as
 // `http-auth-utils.paired-device.test.ts`, which provides the shared-state admission a vitest
@@ -46,7 +52,9 @@ const runBeforeToolCallHook = async (args: { params: unknown }) => ({
 let cfg: Record<string, unknown> = {};
 let capturedMeta: Record<string, unknown> | undefined;
 let authorization: OpsysDeviceAuthorization = { ok: false, reason: "device_unknown" };
+let coreToolResolutions = 0;
 const authorizeCalls: Array<{ deviceId: string; toolName: string }> = [];
+const resolveTargetCalls: Array<{ serverName: string; toolName: string }> = [];
 const disableDefaultMemorySlot = () => false;
 const noWarnLog = () => {};
 
@@ -93,27 +101,52 @@ vi.mock("./opsys-device-roles.js", () => ({
   },
 }));
 
-// Bypasses `security/dangerous-tools.ts`'s owner-only gateway tool deny-list (unrelated to this
-// PLAN: it applies to REAL core tools such as `automations`, and every device-token caller is a
-// non-owner HTTP caller by design) so a single fake OPSYS-shaped tool is always visible, exactly
-// like the real MCP-materialized tools `/tools/invoke` actually dispatches to in production.
+// The department-server side of the device door (PLAN T1.4-c6): captures the ambient `_meta` the
+// door sets, and answers with an OPSYS envelope.
+vi.mock("../agents/opsys-device-mcp-target.js", async () => {
+  const { currentMcpCallMeta } = await import("../agents/mcp-call-meta.js");
+  return {
+    resolveOpsysDeviceMcpTarget: async (args: { serverName: string; toolName: string }) => {
+      resolveTargetCalls.push({ serverName: args.serverName, toolName: args.toolName });
+      return {
+        kind: "resolved",
+        target: {
+          call: async () => {
+            capturedMeta = currentMcpCallMeta();
+            return { ok: true, resultat: { via: OPSYS_TOOL_NAME }, rejoue: false };
+          },
+          dispose: async () => {},
+        },
+      };
+    },
+  };
+});
+
+// Core tool resolution, for the trusted shared secret only (a device token never reaches it, which
+// the tests below count). Bypasses `security/dangerous-tools.ts`'s owner-only gateway tool
+// deny-list (it applies to REAL core tools such as `automations`, and every device-token caller is
+// a non-owner HTTP caller by design) so a single fake tool named like the OPSYS tool is visible.
+// This list is NOT what a device call is dispatched from: MCP servers' tools are never in it.
 vi.mock("./tool-resolution.js", async () => {
   const { currentMcpCallMeta } = await import("../agents/mcp-call-meta.js");
   return {
-    resolveGatewayScopedTools: () => ({
-      agentId: "main",
-      workspaceDir: "/tmp/opsys-tools-invoke-device-token-test",
-      tools: [
-        {
-          name: OPSYS_TOOL_NAME,
-          parameters: { type: "object", properties: {} },
-          execute: async () => {
-            capturedMeta = currentMcpCallMeta();
-            return { ok: true, via: OPSYS_TOOL_NAME };
+    resolveGatewayScopedTools: () => {
+      coreToolResolutions += 1;
+      return {
+        agentId: "main",
+        workspaceDir: "/tmp/opsys-tools-invoke-device-token-test",
+        tools: [
+          {
+            name: OPSYS_TOOL_NAME,
+            parameters: { type: "object", properties: {} },
+            execute: async () => {
+              capturedMeta = currentMcpCallMeta();
+              return { ok: true, via: OPSYS_TOOL_NAME };
+            },
           },
-        },
-      ],
-    }),
+        ],
+      };
+    },
   };
 });
 
@@ -161,9 +194,18 @@ afterAll(async () => {
 beforeEach(() => {
   cfg = {};
   capturedMeta = undefined;
+  coreToolResolutions = 0;
   authorizeCalls.length = 0;
+  resolveTargetCalls.length = 0;
   authorization = { ok: false, reason: "device_unknown" };
 });
+
+const EMPLOYEE_AUTHORIZATION: OpsysDeviceAuthorization = {
+  ok: true,
+  personne: "jdupont",
+  role: "employee",
+  serveur: "opsys_m4",
+};
 
 /** A real approved "operator"-role paired device, in an isolated OpenClaw test state, per PLAN
  * T1.4-c4 ("réutilise le mécanisme natif" — same pairing/token issuance the mobile appairage flow
@@ -225,7 +267,7 @@ async function invoke(token: string, body: Record<string, unknown> = {}) {
 
 describe("tools invoke HTTP device-token authentication", () => {
   it("authenticates a paired device by its own token; deviceId (and OPSYS identity) come from the verified token, not the body", async () => {
-    authorization = { ok: true, personne: "jdupont", role: "employee" };
+    authorization = EMPLOYEE_AUTHORIZATION;
     await withPairedDeviceToken("tel-employe-42", async (deviceToken) => {
       const res = await invoke(deviceToken);
 
@@ -235,8 +277,25 @@ describe("tools invoke HTTP device-token authentication", () => {
     });
   });
 
+  it("dispatches the bare tool name the app sends to the department server, never to the core tool list (PLAN T1.4-c6)", async () => {
+    authorization = EMPLOYEE_AUTHORIZATION;
+    await withPairedDeviceToken("tel-employe-47", async (deviceToken) => {
+      // The body an app really sends: the bare name, no agentId, no sessionKey.
+      const res = await invoke(deviceToken, { sessionKey: undefined });
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as { ok: boolean; result: unknown };
+      expect(body).toEqual({
+        ok: true,
+        result: { ok: true, resultat: { via: OPSYS_TOOL_NAME }, rejoue: false },
+      });
+      expect(resolveTargetCalls).toEqual([{ serverName: "opsys_m4", toolName: OPSYS_TOOL_NAME }]);
+      expect(coreToolResolutions).toBe(0);
+    });
+  });
+
   it("accepts a request body deviceId that matches the authenticated device", async () => {
-    authorization = { ok: true, personne: "jdupont", role: "employee" };
+    authorization = EMPLOYEE_AUTHORIZATION;
     await withPairedDeviceToken("tel-employe-43", async (deviceToken) => {
       const res = await invoke(deviceToken, { deviceId: "tel-employe-43" });
 
@@ -246,7 +305,7 @@ describe("tools invoke HTTP device-token authentication", () => {
   });
 
   it("refuses, closed, a request body deviceId that disagrees with the authenticated device — never silently preferring either one", async () => {
-    authorization = { ok: true, personne: "jdupont", role: "employee" };
+    authorization = EMPLOYEE_AUTHORIZATION;
     await withPairedDeviceToken("tel-employe-44", async (deviceToken) => {
       const res = await invoke(deviceToken, { deviceId: "tel-dun-autre-appareil" });
 
@@ -275,7 +334,7 @@ describe("tools invoke HTTP device-token authentication", () => {
   });
 
   it("rejects a revoked device token with 401, never falling back to shared-secret-style full access", async () => {
-    authorization = { ok: true, personne: "jdupont", role: "employee" };
+    authorization = EMPLOYEE_AUTHORIZATION;
     await withPairedDeviceToken("tel-employe-45", async (deviceToken, ctx) => {
       await ctx.revoke();
       const res = await invoke(deviceToken);
@@ -297,11 +356,14 @@ describe("tools invoke HTTP device-token authentication", () => {
   it("still authenticates the trusted shared secret, and never attaches an OPSYS identity for it, even with a plausible body deviceId", async () => {
     // The shared secret proves possession of the gateway operator secret, not a specific device's
     // identity: it can never "borrow" a real deviceId the way the pre-T1.4-c4 code allowed.
-    authorization = { ok: true, personne: "jdupont", role: "employee" };
+    authorization = EMPLOYEE_AUTHORIZATION;
     const res = await invoke(SHARED_GATEWAY_TOKEN, { deviceId: "tel-employe-42" });
 
     expect(res.status).toBe(200);
     expect(authorizeCalls).toEqual([]);
     expect(capturedMeta).toBeUndefined();
+    // The shared secret keeps the core tool list, and never the device door.
+    expect(coreToolResolutions).toBe(1);
+    expect(resolveTargetCalls).toEqual([]);
   });
 });
