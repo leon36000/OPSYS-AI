@@ -72,7 +72,8 @@ export function direLeManque(volet: ManqueAExprimer): ManqueDit {
   if (cle !== undefined) {
     return { texte: message(`admin.chantiers.manques.${cle}`), code: messageDuCode, connu: true };
   }
-  // Le code montré est celui du serveur s'il en donne un ; sinon le volet et son statut, jamais son texte.
-  const montre = code ?? `${jetonSur(volet.nom) ?? "?"}/${jetonSur(volet.statut) ?? "?"}`;
+  // Le code montré est celui du serveur s'il en donne un ; sinon le volet et son statut (`equipe.manque`), jamais son texte.
+  // Un point, pas une barre oblique : rien de ce que l'app montre ne ressemble à un chemin.
+  const montre = code ?? `${jetonSur(volet.nom) ?? "?"}.${jetonSur(volet.statut) ?? "?"}`;
   return { texte: message("admin.chantiers.manques.inconnu", { code: montre }), code: messageDuCode, connu: false };
 }

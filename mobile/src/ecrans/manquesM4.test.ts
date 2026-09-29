@@ -90,7 +90,7 @@ describe("direLeManque : ce qu'il faut faire, jamais le texte de M4", () => {
     const dit = direLeManque({ nom: "equipe", statut: "manque", detail: "aucune équipe admissible : compétences insuffisantes" });
     expect(dit.connu).toBe(false);
     expect(dit.code).toBeNull();
-    expect(dit.texte).toEqual({ cle: "admin.chantiers.manques.inconnu", params: { code: "equipe/manque" } });
+    expect(dit.texte).toEqual({ cle: "admin.chantiers.manques.inconnu", params: { code: "equipe.manque" } });
   });
 
   test("un code que la table ne connaît pas : « à configurer côté serveur » avec ce code", () => {
@@ -111,7 +111,7 @@ describe("direLeManque : ce qu'il faut faire, jamais le texte de M4", () => {
 
   test("un volet que l'app ne connaît pas, sans code : son nom et son statut, jamais son texte", () => {
     const dit = direLeManque({ nom: "assurance", statut: "manque", detail: null });
-    expect(dit.texte).toEqual({ cle: "admin.chantiers.manques.inconnu", params: { code: "assurance/manque" } });
+    expect(dit.texte).toEqual({ cle: "admin.chantiers.manques.inconnu", params: { code: "assurance.manque" } });
     expect(dit.code).toBeNull();
   });
 
@@ -130,7 +130,18 @@ describe("direLeManque : ce qu'il faut faire, jamais le texte de M4", () => {
 
   test("un nom ou un statut qui n'est pas un jeton est remplacé par « ? » : rien du serveur n'est répété tel quel", () => {
     const dit = direLeManque({ nom: "/srv/x", statut: "écris `cmd`", detail: null });
-    expect(dit.texte).toEqual({ cle: "admin.chantiers.manques.inconnu", params: { code: "?/?" } });
+    expect(dit.texte).toEqual({ cle: "admin.chantiers.manques.inconnu", params: { code: "?.?" } });
+  });
+
+  test("le code de repli est toujours sûr à montrer : jamais une barre oblique, quel que soit le volet ou le statut", () => {
+    const nomsEtStatuts = ["equipe", "assurance", "/srv/opsys/x.yaml", "a b", "", "a:b", "`cmd`", "opsys-metier"];
+    for (const nom of nomsEtStatuts) {
+      for (const statut of nomsEtStatuts) {
+        const dit = direLeManque({ nom, statut, detail: null });
+        const code = (dit.texte.params as { code: string }).code;
+        expect({ nom, statut, code, sur: texteSansChemin(code) === code }).toEqual({ nom, statut, code, sur: true });
+      }
+    }
   });
 
   test("un « : » dans le nom ou le statut ne se confond jamais avec une entrée de la table", () => {

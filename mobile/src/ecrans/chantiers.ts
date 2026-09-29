@@ -221,15 +221,15 @@ export function presenterPreparation(preparation: Preparation): VuePreparation {
     pret: preparation.pret,
     volets: preparation.volets.map(presenterVolet),
     // Un volet à fournir se dit par le code de SON volet (`a_fournir` ne porte que le texte de M4, que l'app ne montre pas).
-    // Sans volet du même nom, M4 se contredit : le détail « vide » (présent, pas un code) fait dire « à configurer côté serveur ».
-    aFournir: preparation.aFournir.map((entree) => ({
-      volet: libelleDeCatalogue("admin.chantiers.volets", entree.volet, VOLETS_DE_PREPARATION),
-      manque: direLeManque({
-        nom: entree.volet,
-        statut: entree.statut,
-        detail: preparation.volets.find((volet) => volet.nom === entree.volet)?.detail ?? "",
-      }).texte,
-    })),
+    aFournir: preparation.aFournir.map((entree) => {
+      const volet = preparation.volets.find((candidat) => candidat.nom === entree.volet);
+      return {
+        volet: libelleDeCatalogue("admin.chantiers.volets", entree.volet, VOLETS_DE_PREPARATION),
+        // Sans volet du même nom, M4 se contredit : un détail « vide » (présent, pas un code) fait dire « à configurer côté
+        // serveur ». Un volet SANS code (`detail` nul) est autre chose : « aucune équipe admissible » n'a pas de code.
+        manque: direLeManque({ nom: entree.volet, statut: entree.statut, detail: volet === undefined ? "" : volet.detail }).texte,
+      };
+    }),
   };
 }
 

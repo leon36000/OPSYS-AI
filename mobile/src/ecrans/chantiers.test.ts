@@ -322,13 +322,27 @@ describe("la préparation d'une intervention", () => {
     expect(JSON.stringify(vue)).not.toMatch(/nouveau\.yaml|opsys-metier|\/srv/);
   });
 
+  test("un manque SANS code (« aucune équipe admissible ») se dit pareil dans le volet et dans « à fournir »", () => {
+    const brut = reponse("preparation_lead_v2");
+    brut.resultat.resultat.volets.equipe = {
+      statut: "manque",
+      manque: "aucune équipe admissible pour le service 'gouttieres' : ajuster (`opsys-metier equipes declarer`)",
+      detail: null,
+    };
+    brut.resultat.resultat.a_fournir[1].manque = brut.resultat.resultat.volets.equipe.manque;
+    const vue = presenterPreparation(preparationDeBrut(brut));
+    const phrase = { cle: "admin.chantiers.manques.equipe.aucuneAdmissible" };
+    expect(vue.volets[2]).toMatchObject({ manque: phrase, code: null });
+    expect(vue.aFournir[1]).toEqual({ volet: { cle: "admin.chantiers.volets.equipe" }, manque: phrase });
+  });
+
   test("un volet à fournir que la liste des volets ne porte pas : M4 se contredit, « à configurer côté serveur » sans deviner", () => {
     const brut = reponse("preparation_lead_v2");
     brut.resultat.resultat.a_fournir[1] = { volet: "assurance", statut: "manque", manque: "écris /srv/opsys/assurance.yaml" };
     const vue = presenterPreparation(preparationDeBrut(brut));
     expect(vue.aFournir[1]).toEqual({
       volet: { cle: "admin.commun.inconnu", params: { valeur: "assurance" } },
-      manque: { cle: "admin.chantiers.manques.inconnu", params: { code: "assurance/manque" } },
+      manque: { cle: "admin.chantiers.manques.inconnu", params: { code: "assurance.manque" } },
     });
     expect(JSON.stringify(vue)).not.toMatch(/assurance\.yaml|\/srv/);
   });
@@ -337,7 +351,7 @@ describe("la préparation d'une intervention", () => {
     const brut = reponse("preparation_lead_v2");
     brut.resultat.resultat.volets.meteo.detail = "voir /srv/opsys/entreprise.yaml, clé 'meteo'";
     const vue = presenterPreparation(preparationDeBrut(brut));
-    expect(vue.volets[4].manque).toEqual({ cle: "admin.chantiers.manques.inconnu", params: { code: "meteo/manque" } });
+    expect(vue.volets[4].manque).toEqual({ cle: "admin.chantiers.manques.inconnu", params: { code: "meteo.manque" } });
     expect(vue.volets[4].code).toBeNull();
     expect(vue.volets[4].detail).toBeNull();
     expect(JSON.stringify(vue)).not.toMatch(/\/srv|entreprise\.yaml/);
