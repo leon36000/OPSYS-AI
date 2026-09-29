@@ -924,7 +924,7 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         l'appareil (le `wct_id` en dépend) au lieu de l'heure de réception du serveur, contrairement
         à `m4_pointer` ; `ecart_signale` vaut toujours vrai pour un WCT venu de l'appareil ; entre
         « Terminer » et le formulaire, la complétion paraît déjà « en revue » chez l'admin.
-  - [ ] T1.5-d Écarts à §6 dans la cascade.
+  - [x] T1.5-d Écarts à §6 dans la cascade.
     - [x] M6 : stock bas et besoin de commande à « travaux terminés » (bf35bf3, 4b77218) : règle
           pure `reapprovisionnement.py` (stock sous le seuil → besoin de `cible − stock`, décimal
           exact) ; seuil et cible par article dans `department.yaml` de M6, vides par défaut ;
@@ -958,7 +958,6 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
           `m9_lire_suite_briefing`, `file_proprietaire` ne perd plus les demandes au-delà de 100,
           `m9_produire_lecture_strategique` cite les preuves sans décider ; bout en bout par le
           vrai bus (M4 → M8 → M9) ; M8 339, M9 207, socle 782.
-          Reste pour M8 : `m9_lire_alertes_m8` n'est pas borné (les deux autres points : ci-dessous).
     - [x] M7 : demande d'avis depuis l'app (531d704, 358d2cc, 34b5f91, f69359e).
         - Deux consentements distincts (Loi 25) : `consentement_demande_avis` à côté de
           `consentement_marketing` (photos), clés additives de `m4.travaux_termines` ; M6 les admet
@@ -988,9 +987,15 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
           M6 717, M9 217, socle 994 ; gates BMAD M3, M5, M8 verts ; mutations tuées (garde de
           marge, rang, FINANCIAL, tri).
         - Revue externe (argent) : `cout_reel.charge_evenement` et le schéma conditionnel.
-    - [ ] Reste : borner `m9_lire_alertes_m8`. Limites connues : la marge d'une facture
-        BROUILLON n'est pas marquée « prix définitif » ; l'alerte de marge de M8 n'est pas
-        republiée si la marge change ; la durée prévue ne porte pas l'effectif.
+    - [x] M9 : `m9_lire_alertes_m8` borné (96ffcda) : `depart`, autant d'alertes que `BUDGET_SORTIE`
+        en laisse tenir (mécanisme de `m9_lire_suite_briefing`), `prochain_depart` nul à la fin,
+        `total` et `reste` ; le plus récent d'abord (instant, fuseaux compris), puis
+        `evenement_id`. Réponse en objet (clé `alertes`) : la liste nue n'était pas un contrat gelé
+        et aucun consommateur ne la lisait. Preuve : E2E par la porte d'appareil (20 alertes du bus
+        en 4 pages, employé refusé) ; M9 259, M8 367, E2E 29 ; gate BMAD M9 ; 8 mutations tuées.
+    Limites connues (hors T1.5-d) : la marge d'une facture BROUILLON n'est pas marquée « prix
+    définitif » ; l'alerte de marge de M8 n'est pas republiée si la marge change ; la durée
+    prévue ne porte pas l'effectif.
   - [x] T1.5-e App du propriétaire : la section « À voir » est bornée à 1 500 caractères
         (`BUDGET_ATTENTES`, `approbations_appareil.py`) sans pagination : au-delà de trois alertes,
         les suivantes ne sont que comptées (`attentes_reste`). Paginer (décalage demandé par
@@ -1022,8 +1027,19 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
             - Preuve : M1 524, M2 817, M10 566, socle 890 (43 sautés), ruff OK, verifier 138 outils
               (64 déclarés aux appareils).
             - Revue externe conseillée : `src/opsys/canaux.py` (politique d'approbation).
-      - [ ] T2.1-b M2 consomme `m1.lead_qualifie` ; lien session → affaire automatique (aujourd'hui par
-            une approbation humaine).
+      - [ ] T2.1-b Retirer le modèle de la réception.
+            - [x] Partie 1 (d68ee51, 0175f65) : M2 consomme `m1.lead_qualifie` pour de vrai
+                  (ingestion complète, idempotente par `lead_id` et empreinte ; refus → réessais →
+                  quarantaine ; greffe retirée du test de bout en bout) ; qualification par
+                  conversation : `fenetre_conversation_minutes` du profil (jamais par défaut ;
+                  absente : message par message, et le verdict le dit) ; un lead par conversation
+                  ouverte ; STOP ferme ; brouillon de question N4, rien envoyé.
+                  Preuve : `tests/test_canal_conversation.py` (9, vrai bus, vrai M2) ; M1 562, M2 826,
+                  M10 589, socle 1021 (43 sautés), ruff OK, verifier 139 outils ; 5 mutations tuées.
+                  Limite connue : sans fenêtre, deux messages de texte identique d'un même client
+                  donnent le même `lead_id` (inchangé, pour ne pas changer l'identité des leads émis).
+            - [ ] Lien automatique session → affaire (GATE NATHAN ci-dessous).
+            - [ ] Crochet `message_received` du core (avec T2.1-c).
       - [ ] T2.1-c Envoi réel au client (après approbation N4) ; greffe du crochet `message_received`.
       - [ ] T2.1-d Appel manqué (`voice-call`) et courriel (`imap`).
 - [x] T2.2 M2 : lead structuré, Client 360, préparation à l'estimation, prochaine action.
@@ -1346,6 +1362,221 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       du consentement marketing (Loi 25) ; les consommateurs du bus ne voient pas l'`evenement_id`
       (contrat du répartiteur).
 
+- [ ] T4.4 M1 : qualification complète, sans conversation qui meurt à la porte (M1.3).
+      Écart (§7 M1.3 « M1 doit toujours demander l'information manquante » ; audit M1 §1, §4
+      tâches 7-8). T2.1-b cumule déjà service et ville sur la conversation
+      (`fenetre_conversation_minutes`) et rend `a_demander`. Reste :
+      - étendre le cumul au contact et à l'urgence ; verdict qui nomme chaque champ manquant ;
+      - questions obligatoires par service lues du profil d'entreprise (`opsys.taxonomie`), jamais
+        dans le code ; demande de photos ; brouillon de question, jamais envoyé ;
+      - score de lead par règles (urgence, complétude, zone), explicable, dans le registre M1 : le
+        passer à M2 exige un `LeadQualifie` v3 (P5), hors tâche ;
+      - conversation ouverte = prochaine action datée au registre (digest M1.11 « sans suivi »).
+      Preuve : pytest M1 (trois SMS successifs donnent un lead v2 complet ; un message sans ville
+      rend `ville` manquante ; corpus adversarial du garde-fou inchangé, aucune question ne promet
+      prix ni date) ; `tests/test_canal_conversation.py` étendu par le vrai bus ; `opsys verifier`.
+      Dépend de : T2.1-b. GATE NATHAN : questions par service, poids du score (défauts
+      `fictif: true`). T3 : l'envoi d'une question est T2.1-c (N4) ; la demande de photos reste
+      fermée tant que la politique « photos » n'est pas validée.
+- [ ] T4.5 M1 : plaintes, urgences et transfert humain avec résumé (M1.8, M1.12).
+      Écart (§7 M1.8, M1.12 ; audit M1 §1 « ABSENT », §4 tâches 15-16 ; E2E « plainte » absent) :
+      aucune détection de plainte ni de transfert ; une plainte est traitée comme une demande
+      incomplète.
+      - détection par règles avant la qualification (insatisfaction, dégât, garantie, avocat,
+        urgence de sécurité), sur le texte filtré : la plainte prime ;
+      - `m1_transferer` : type fermé (ventes, estimation, admin, finance, plainte, urgence,
+        technique, propriétaire), résumé de conversation obligatoire (refus si vide) ;
+        `m1_escalader_plainte` ;
+      - l'escalade devient une attente lisible dans « À voir » (file du propriétaire) ;
+      - gabarit de réponse empathique en brouillon, passé par `garde_fou.verifier_sortie` : aucun
+        aveu, aucune promesse, aucun avis légal.
+      Preuve : fixtures fictives de plaintes escaladées à 100 % ; corpus adversarial vert ; E2E
+      « plainte » et « urgence » par `Capacites` (l'admin voit l'attente, l'employé reçoit 403) ;
+      `opsys verifier`.
+      Dépend de : T4.4 (même `outils.py`). GATE NATHAN : qui reçoit chaque type de transfert ;
+      ton du gabarit. T3 : l'envoi de la réponse est T2.1-c (N4).
+- [ ] T4.6 M2 : liste des leads par vendeur et 14 segments (M2.11 ; score M2.4 hors tâche).
+      Écart (§7 M2.11 ; audit M2 §1.3 « 0/14 », reste de T2.2 ; §9.4-9.5 « ses leads », « leads
+      chauds ») : aucun outil ne liste les leads, donc ni écran vendeur ni pipeline pour l'admin.
+      - `segments.py` pur : `segmenter(lead, faits, seuils)` rend les segments avec la règle citée.
+        Calculables des faits de M2 : `hot_lead`, `estimate_ready`, `quote_stale`,
+        `won_pending_schedule`, `active_job`, `invoice_pending`, `dormant_lead`, `past_customer`.
+        Les six autres : « non calculable, manque X », jamais devinés ;
+      - seuils (jours d'inactivité, délai d'une soumission périmée) dans `department.yaml`, vides :
+        « seuil à configurer » (patron de M6 et M8) ;
+      - `m2_lister_leads` (T0) : statut et segment en filtres, paginé (patron `attentes_decalage`),
+        aucun montant ; vendeur = ses leads (T1.4-k2), admin = tous.
+      Preuve : pytest M2 avec cas négatifs et mutations ; E2E : le vendeur A ne voit pas le lead de
+      B, pagination stable ; outil déclaré dans `ROLES.md` ; `opsys verifier`.
+      Dépend de : T4.10-a (même `outils.py` de M2). GATE NATHAN : seuils ; poids du score M2.4.
+- [ ] T4.7 M3 : revue et envoi de la soumission par approbation N4 (M3.14).
+      Écart (§7 M3.14 ; audit M3 §1) : `marquer_devis_envoye` existe mais aucun outil ne l'expose.
+      Un devis reste `brouillon`, aucun événement « devis envoyé », et la relance de M2 (T2.3-c)
+      dit encore « envoyer ou abandonner ».
+      - `revue_devis.py` pur : motifs de revue tirés de §7 (confiance sous le seuil, montant,
+        marge, photos insuffisantes, service complexe, client à risque, distance, prix sous le
+        minimum rentable, donnée fournisseur absente), chacun cite sa donnée ; seuils vides :
+        « seuil à configurer » ; sous le plancher : alerte rouge ;
+      - `m3_demander_envoi_devis` (N4, `nathan_owner`) : l'attente porte les motifs ; approuvée, le
+        devis passe `envoye` et `m3.devis_envoye` est publié (catalogue, id déterministe, sans coût
+        ni marge, patron T1.2-d) ;
+      - le devis approuvé ne part pas seul : la livraison au client est à M1 (T2.1-c).
+      Preuve : pytest M3 et mutations, gate BMAD M3 ; par `Capacites` : le vendeur crée l'attente,
+      un admin non propriétaire ne peut pas la décider, rejeu sans effet ; charge validée par son
+      JSON Schema.
+      Dépend de : T2.3-f (même `outils.py`). GATE NATHAN : seuils de revue, minimum rentable.
+      T3 : envoi réel (T2.1-c).
+- [ ] T4.8 Mobile : profil vendeur, leads, Client 360 et soumissions (§9.4 ; M2.2, M3.17).
+      Écart (§9.4 ; audit M2 §2.5 « vendeur ABSENT ») : `mobile/app/(seller)/seller.tsx` est un
+      gabarit ; le vendeur ne voit rien de ses leads ni de ses soumissions.
+      - écrans `leads` (liste paginée, filtre par segment), `lead/[id]` (Client 360, prochaine
+        action suggérée avec sa règle, historique) et `quotes` (`m3_lire_devis`) ;
+      - lecture d'abord, cache SQLite hors ligne ; une note (`m2_enregistrer_interaction`) part par
+        la file sortante avec sa clé d'idempotence ; ni coût ni marge par défaut.
+      Preuve : Jest et `tsc` (logique pure des écrans) ; E2E moteur avec un appareil `seller` : ses
+      leads seulement, 403 sur les outils admin, rejeu sans effet ; CI `mobile`.
+      Dépend de : T4.6 ; T4.7 pour le statut « envoyé ». GATE NATHAN : vue de devis du vendeur avec
+      ou sans coût et marge. T3 : diffusion de l'app hors de l'équipe.
+- [ ] T4.9 M2 : relances dues, avec consentement et fréquence limitée (M2.7, M2.13).
+      Écart (§7 M2.7, M2.13 ; audit M2 §1.3, §5 point 3 ; reste de T2.3-c) : les relances ne sont
+      visibles qu'au Client 360, sans consentement modélisé.
+      - M2 consomme `m3.devis_envoye` (T4.7) : l'échéance de relance part de l'envoi réel ;
+      - `relances.py` pur : relances dues tirées des segments (T4.6), règle citée, dernière
+        relance, prochaine date permise (fréquence maximale en configuration, vide : « à
+        configurer ») ;
+      - registre de consentement de contact (canal, énoncé versionné, preuve, retrait) ; M1 publie
+        le retrait (STOP) sur le bus, jamais le numéro en clair ; sans consentement actif :
+        relance « appel seulement », jamais SMS ni courriel ;
+      - `m2_lister_relances` (T0, paginé) et `m2_preparer_relance` (T1, texte fixe, aucune sortie).
+      Preuve : pytest M1 et M2, mutations (fréquence, consentement) ; E2E par le vrai bus : devis
+      envoyé, délai écoulé, relance listée ; STOP de M1, plus aucune relance SMS ; rejeu sans
+      doublon.
+      Dépend de : T4.6, T4.7, T4.4, T4.5. GATE NATHAN : délais, fréquence, validation de
+      `POLITIQUE-consentement-sms.md`. T3 : l'envoi est T2.1-c (N4).
+- [ ] T4.10 M2 et M4 : « soumission acceptée → M4 planifie » enfin câblé (M2.8, M4.5, M4.6).
+      Écart (§6 flux principal ; audit M4 M4.5 « PARTIEL », M4.6 « ABSENT » ; audit M2 M2.8) :
+      `m3.devis_accepte` est consommé par M5, M6 et M8, pas par M2 ni par M4. Le lead reste
+      `qualifie` ; M4 n'a aucun état avant `planifiee`.
+      - (a) M2 : `qualifie → converti` avec `reference_devis_m3`, prochaine action « planifier le
+        chantier » (règle citée), activité au Client 360 ; lead inconnu ou perdu : quarantaine ou
+        `lead_clos` (patron T2.3-c) ;
+      - (b) M4 : état initial `a_planifier` (additif, table de transitions testée en entier) ;
+        l'intervention naît du devis, service et ville lus à la source du bus, sans import entre
+        départements ; `preparation.py` (M4.6) rend un verdict qui nomme ce qui manque (adresse
+        confirmée, équipe admissible, matériel, météo), jamais « prêt » par défaut.
+      Preuve : `tests/test_cascade_devis_accepte.py` par le vrai bus (M2 `converti`, M4
+      `a_planifier`, M5, M6 et M8 comme avant) ; rejeu et ordre inversé sans doublon ; cascade
+      « travaux terminés » inchangée ; `opsys verifier`.
+      Dépend de : rien. T3 : aucune date ni créneau promis au client.
+- [ ] T4.11 M3 : P50, P80, facteurs dominants et trois scénarios de prix (M3.11, M3.12).
+      Écart (§7 M3.11, M3.12 ; audit M3 §1 « PARTIEL ») : un seul intervalle, tirage uniforme, ni
+      P50 ni facteur dominant, un seul scénario de prix.
+      - `scenarios.py` : P50 et P80 du coût (mêmes graine et tirages), facteurs dominants par
+        sensibilité, scénarios prudent, normal et agressif = coût × taux de marge FOURNIS ; chacun
+        confronté au plancher : sous le minimum rentable, alerte rouge et motif de revue N4 ;
+      - PERT seulement si le barème fournit un mode ; sinon uniforme, et la sortie le dit ;
+      - clés sœurs additives d'`EstimationV1` (v1 gelé).
+      Preuve : pytest M3, mutations, déterminisme bit à bit, gate BMAD M3 ; E2E « estimation
+      risquée » ; aucun prix sans taux fourni.
+      Dépend de : T4.7. GATE NATHAN : taux de marge par scénario, mode par poste du barème.
+- [ ] T4.12 M4 : équipes, dépôt, quarts et durées en configuration d'entreprise (M4.2, M4.3).
+      Écart (§7 M4.2, M4.3, M4.7 ; audit M4 M4.2 « ABSENT » ; limite de T4.1-d « tout est
+      argument ») : l'agent recopie équipes, dépôt et quarts à chaque cédule.
+      - profil `equipes` dans `entreprise.yaml` (patron `opsys.taxonomie`, écriture tracée) :
+        équipes et membres (personnes OPSYS, aucune donnée RH), compétences par service, dépôt,
+        quarts, durée par service ; `opsys equipes lister|declarer` ;
+      - `m4_proposer_cedule` lit le profil sans argument (surcharge tracée) ; admissibilité d'une
+        équipe calculée par le code ; sans profil, verdict qui dit quoi déclarer.
+      Preuve : pytest socle et M4 ; la démonstration Repentigny-Joliette de T4.1-d rejouée depuis le
+      profil seul donne les mêmes octets ; profil retiré : verdict, jamais un repli.
+      Dépend de : T4.10-b (même `outils.py` de M4). GATE NATHAN : équipes, quarts, compétences,
+      dépôt, durées. T3 : aucune donnée de santé ni évaluation d'employé.
+- [ ] T4.13 M4 : météo bloquante et report proposé (M4.10, M4.21).
+      Écart (§7 M4.10 ; audit M4 M4.10 « ABSENT » ; R7 §2) : `meteo` n'est qu'un motif de report.
+      - port `FournisseurMeteo` (patron `FournisseurMatrice`) ; adaptateurs MSC GeoMet, Open-Meteo
+        et saisie manuelle ; `meteo.py` pur : règles par service lues de la configuration ; sortie
+        `bloquant`, `validation_requise`, `ok` ou `inconnu`, prévision, source et heure citées ;
+      - `m4_verifier_meteo_creneau` (T0) ; créneau bloquant : report proposé et
+        `m4_proposer_cedule` relancé pour les jours restants, jamais appliqué seul.
+      Preuve : pytest sans réseau ; E2E « météo bloquante » : revêtement sous vent fort, report
+      proposé, l'admin l'applique (N3) ; panne du fournisseur : `inconnu`, jamais `ok`.
+      Dépend de : T4.10, T4.12. GATE NATHAN : seuils météo par service ; forfait d'Open-Meteo
+      (gratuit = non commercial) ; licence de MSC GeoMet à lire.
+- [ ] T4.14 M6 : réservation par chantier, emplacements et « matériel prêt » (M6.8, M6.9, M6.4).
+      Écart (§6 flux des matériaux ; audit M6 M6.8, M6.9 « ABSENT ») : rien ne réserve le matériel
+      d'un chantier, et M4 ne sait pas si l'équipe part avec ce qu'il faut.
+      - emplacements (dépôt, camion, remorque, chantier, employé, fournisseur, retour, rebut,
+        inconnu), transferts audités ;
+      - réservation depuis `besoins_prevus`, sans double réservation ; libération (N2) ;
+        `disponible = en main − réservé` alimente le réapprovisionnement ;
+      - M6 publie `m6.materiel_pret` (`pret`, `partiel`, `a_commander`, lignes manquantes) ; M4 le
+        lit dans `preparation.py` (T4.10). Aucun bon de commande créé seul.
+      Preuve : pytest M6, mutations, gate BMAD M6 ; E2E par le vrai bus : devis accepté, stock
+      insuffisant, `a_commander` ; `opsys verifier`.
+      Dépend de : T4.10. GATE NATHAN : seuils de réapprovisionnement. T3 : aucune commande envoyée.
+- [ ] T4.15 M6 et M5 : comptes à payer depuis les réceptions (M5.2, M6.16).
+      Écart (§7 M5.2, M6.16 ; audit M5 M5.2 « ABSENT » ; audit M6 M6.16 « PARTIEL ») : M5 ne sait pas
+      ce que l'entreprise doit aux fournisseurs.
+      - M6 publie `m6.reception_enregistree` (PO, fournisseur, lignes reçues, écart de prix,
+        chantier ; montants en texte Decimal) dans la transaction de la réception ;
+      - M5 : registre `comptes_a_payer` (patron `FactureBrouillonV1`) : « à payer attendu » par PO
+        reçu, puis facture fournisseur SAISIE (taxes recalculées avec taux versionnés,
+        `ROUND_HALF_UP`) ; doublon refusé ; rapprochement PO, réception et facture proposé avec ses
+        écarts ; `m5_lister_comptes_a_payer` (T0, `admin`).
+      Preuve : pytest M5 et M6 ; E2E par le vrai bus : réception partielle, à payer partiel, facture
+      saisie, doublon refusé ; aucun `DECAISSEMENT` créé ; revue externe (argent).
+      Dépend de : rien. GATE NATHAN : unité des prix du livre de prix. T3 : payer un fournisseur est
+      N5 (Nathan et CPA) ; OCR fermé, repli : saisie manuelle.
+- [ ] T4.16 M5 : cash libre réel et calendrier fiscal vivant (M5.5, M5.7, M5.14).
+      Écart (§7 M5 « solde bancaire ≠ argent disponible » ; audit M5 M5.5, M5.14 « PARTIEL »,
+      M5.7 « ABSENT ») : `soldes.py` ne retranche que les `PROVISION` ; aucun échéancier TPS/TVQ.
+      - `calendrier_fiscal.v1.yaml` (source officielle citée, version) ; `prochaines_echeances`
+        refuse une année non déclarée ;
+      - `calculer_cash_libre` : solde − taxes à remettre − paies − DAS − comptes à payer − dettes −
+        réserves ; chaque composante porte sa source ; une composante inconnue donne « non
+        calculable, manque X », jamais 0.
+      Preuve : pytest M5 et mutations ; cas fictif chiffré à la cent près ; année absente : refus ;
+      revue externe (argent).
+      Dépend de : T4.15. GATE NATHAN : fréquence de production TPS/TVQ, acomptes, réserves. T3 :
+      validation du calendrier par le CPA ; aucune remise ni déclaration.
+- [ ] T4.17 M7 : usine à contenu, un chantier donne cinq contenus et un paquet manuel (M7.3, M7.2).
+      Écart (§7 M7.3, M7.2 et E2E « gouttières à Repentigny → 5 contenus → approbation → export →
+      mesure » ; audit M7 §2.8) : un seul brouillon ; aucun paquet manuel ; aucun registre de
+      retrait du consentement (reste de T4.3, Loi 25).
+      - `m7_proposer_contenus_chantier(wct_id)` (T1) : un contenu par plateforme (Facebook,
+        Instagram, fiche Google, script de vidéo courte, demande de témoignage) depuis le WCT reçu ;
+      - contrôle en code de chaque texte : ni adresse ni nom du client, aucun prix, aucune garantie
+        non validée ; refus nommé ; lien UTM par variante ;
+      - registre de retrait du consentement marketing : un consentement retiré bloque la tâche ;
+      - paquet manuel (texte, mots-clics, médias floutés ou « à flouter à la main », heure
+        suggérée) ; approbation du propriétaire par « À voir » (N3).
+      Preuve : pytest M7 ; E2E : « Terminer » avec consentement, cinq contenus en attente, texte avec
+      prix refusé, approbation, paquet exporté ; sans consentement : rien.
+      Dépend de : rien. GATE NATHAN : nom commercial, voix de marque, énoncés de consentement. T3 :
+      jamais de publication par M7 ; export manuel.
+- [ ] T4.18 M10 : dossier d'affaire de l'amont, du lead au devis (P4 ; §6 « M10 reçoit de tous »).
+      Écart (§6, P4 ; audit M10 §1) : avant le chantier, l'affaire n'a rien en mémoire.
+      - M10 consomme `m1.lead_qualifie`, `m3.devis_envoye`, `m3.devis_accepte`,
+        `m3.devis_sans_reponse` et `m2.client_associe` : identifiants et faits d'étape seulement
+        (le contact n'est pas copié) ; prix et coût `FINANCIAL`, hors paquet ;
+      - le paquet de l'affaire montre l'historique des étapes avec provenance.
+      Preuve : pytest M10 ; test par le vrai bus : lead, devis envoyé, accepté, paquet lu ; rejeu
+      sans doublon ; consommateur retiré : `m10_auditer_non_oubli` le détecte.
+      Dépend de : T4.7. T3 : aucun texte brut de client en mémoire (Loi 25).
+- [ ] T4.19 M8 : entonnoir commercial et vue exécutive (M8.6, M8.10).
+      Écart (§7 M8.6, M8.10 ; audit M8 « ABSENT ») : M8 ne mesure que les chantiers terminés.
+      - métriques gouvernées : leads qualifiés, devis envoyés, acceptés, sans réponse, taux
+        d'acceptation, carnet signé, délai lead → acceptation ; donnée absente : « non calculable » ;
+      - `m8_lire_vue_executive` (T0, `admin`) : entonnoir, marge réelle de M5, stock à commander,
+        cash libre de T4.16 (sinon « manque ») ; M8 ne recalcule jamais M5.
+      Preuve : pytest M8 et gate BMAD ; `tests/test_cascade_mesure_m8_m9.py` étendu.
+      Dépend de : T4.7 ; T4.16 (non bloquant). GATE NATHAN : seuils de l'entonnoir.
+
+Non détaillé (porte fermée ou décision manquante) : voix M1 au-delà de T2.1-d (politique
+d'enregistrement d'appels), GPS continu et ETA client (politique GPS), vision M3 et détecteur M7
+(OpenCV absent, politique « photos »), conseil d'agents M9 (les 21 sections manquent), paie M5
+(tables officielles, CPA), ROI par canal M7.
+
 ## T5 — Durcissement et SaaS
 
 Secrets chiffrés, RBAC par métrique, Loi 25 (consentements, rétention, export, effacement),
@@ -1433,6 +1664,9 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   - les énoncés de consentement `consentement-client-fr-CA-v1` sont une proposition, à valider
     par Nathan ou un juriste (T3) ;
   - le retrait d'un consentement n'a encore aucun mécanisme dans le moteur.
+- **Fenêtre de conversation (T2.1-b)** : `fenetre_conversation_minutes` du profil d'entreprise
+  (durée pendant laquelle les messages d'un client se rejoignent en un seul lead) ; absente, M1
+  qualifie message par message.
 - **Lien automatique session → affaire (T2.1-b)** : aujourd'hui, un humain lie la session d'un
   client à son lead (`m10_lier_session_affaire`, N3). Faut-il qu'une règle écrite le fasse à la
   création du lead ? La clé de session contient le numéro du client : elle ne voyage jamais dans
