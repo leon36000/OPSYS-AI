@@ -62,10 +62,11 @@ Statuts (PLAN T2.3-a) : ``brouillon`` -> ``envoye`` -> ``accepte``. ``refuse``/`
 PAS ajoutés ici : DEFINITION-PRODUIT.md ne les justifie pas pour CE contrat (M2.8 parle de « raison
 de perte » côté pipeline CRM de M2, pas du document M3 lui-même) — à ajouter plus tard avec un
 mandat qui les justifie explicitement, jamais par anticipation. ``marquer_devis_accepte`` accepte un
-devis ``brouillon`` OU ``envoye`` (pas seulement ``envoye``) : l'ENVOI n'est pas exposé comme outil
-avant T1.3 (approbations du socle), donc exiger ``envoye`` rendrait ``m3_marquer_devis_accepte``
-inutilisable en pratique aujourd'hui — alors qu'un humain peut constater une acceptation réelle
-(signature, courriel, appel) même quand OPSYS n'a pas encore tracé l'envoi formel. Réaccepter un
+devis ``brouillon`` OU ``envoye`` (pas seulement ``envoye``) : un humain peut constater une acceptation
+réelle (signature, courriel, appel) même quand OPSYS n'a pas tracé l'envoi formel. Depuis PLAN T4.7,
+l'envoi est un outil (``m3_demander_envoi_devis``, N4, décision du propriétaire) ; la règle d'acceptation
+n'a pas changé pour autant : la livraison au client (M1, T2.1-c) n'existe pas encore, et exiger
+``envoye`` rendrait ``m3_marquer_devis_accepte`` inutilisable pour un devis livré hors d'OPSYS. Réaccepter un
 devis déjà ``accepte`` reste un rejet nommé (``REJ-DEVIS-TRANSITION-ILLEGALE``), comme les
 transitions de ``facturation.py`` (M5) : pas de no-op silencieux sur une transition, seule la
 CRÉATION est idempotente (PLAN T2.3-a ne demande l'idempotence que pour ``creer_devis``).
@@ -96,6 +97,7 @@ __all__ = [
     "STATUTS_DEVIS",
     "LigneDevis",
     "charge_evenement_devis_accepte",
+    "charge_evenement_devis_envoye",
     "creer_devis",
     "lire_devis",
     "lister_devis",
@@ -389,14 +391,31 @@ def lister_devis(registre_cible: Any) -> list[dict[str, Any]]:
 
 
 def marquer_devis_envoye(
-    devis_id: str, horodatage: str, registre_cible: Any
+    devis_id: str,
+    horodatage: str,
+    registre_cible: Any,
+    *,
+    approuve_par: str | None = None,
+    approuve_role: str | None = None,
+    revue: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any] | None, dict | None]:
-    """brouillon -> envoye. Pas d'outil agent exposé pour cette transition à ce stade (SOUL.md,
-    PLAN T2.3-a) : l'ENVOI réel au client est une action externe qui ira derrière les approbations
-    du socle en T1.3. Fonction gardée ici pour que la machine à états soit complète et testable
-    dès maintenant, comme ``facturation.envoyer_facture``/``marquer_facture_payee`` chez M5."""
+    """brouillon -> envoye. Depuis PLAN T4.7, l'outil ``m3_demander_envoi_devis`` (N4) est le seul à
+    l'appeler : l'ENVOI est une décision du propriétaire (file d'approbation du socle, ADR-0009 §4), et
+    ``outils.py`` ne l'exécute que sur cette décision. Le statut ``envoye`` dit « approuvé pour envoi » ;
+    la LIVRAISON au client est une autre étape (M1, PLAN T2.1-c), qui n'existe pas encore.
+
+    ``approuve_par`` et ``approuve_role`` (la personne et le rôle qui ont approuvé) et ``revue`` (la synthèse
+    de ``revue_devis.synthese`` : l'alerte et les codes de ce qui a été regardé) sont gardés dans le maillon
+    de transition, sous des clés propres (``envoi_approuve_par``, ``envoi_approuve_role``, ``revue_envoi``) :
+    ``approbateur`` reste celui de l'acceptation. Facultatifs, mais un nom fourni doit être un texte non
+    vide (``REJ-DEVIS-APPROBATEUR-ABSENT``), jamais une trace creuse."""
     if not _est_texte_non_vide(horodatage):
         return None, verdicts.construire_verdict("REJ-DEVIS-HORODATAGE-VIDE", detail="horodatage requis, non vide")
+    for nom, valeur in (("approuve_par", approuve_par), ("approuve_role", approuve_role)):
+        if valeur is not None and not _est_texte_non_vide(valeur):
+            return None, verdicts.construire_verdict(
+                "REJ-DEVIS-APPROBATEUR-ABSENT", detail=f"{nom} doit être un texte non vide quand il est fourni"
+            )
     etat = _etat_devis(registre_cible, devis_id)
     if etat is None:
         return None, verdicts.construire_verdict("REJ-DEVIS-INTROUVABLE", detail=f"devis inconnu : {devis_id!r}")
@@ -406,6 +425,12 @@ def marquer_devis_envoye(
             detail=f"devis {devis_id!r} au statut {etat['statut']!r}, {_STATUTS_AVANT_ENVOI} requis avant l'envoi",
         )
     entree = {"type_entree": "transition_devis", "devis_id": devis_id, "statut": "envoye", "horodatage": horodatage}
+    if approuve_par is not None:
+        entree["envoi_approuve_par"] = approuve_par
+    if approuve_role is not None:
+        entree["envoi_approuve_role"] = approuve_role
+    if revue is not None:
+        entree["revue_envoi"] = revue
     _ajouter(entree, registre_cible)
     # Rend l'état COURANT (fusion de tous les maillons, cf. _etats_courants), jamais le seul
     # maillon de transition qui vient d'être écrit : les champs posés à la création (lignes,
@@ -507,4 +532,22 @@ def charge_evenement_devis_accepte(devis: dict[str, Any]) -> dict[str, Any]:
         "prix_total": str(devis["prix_total"]),
         "taux_marge": str(devis["taux_marge"]),
         "horodatage_acceptation": devis["horodatage"],
+    }
+
+
+def charge_evenement_devis_envoye(devis: dict[str, Any]) -> dict[str, Any]:
+    """Construit la charge de l'événement ``m3.devis_envoye`` (catalogue
+    ``opsys.evenements.catalogue/m3.devis_envoye.json``, PLAN T4.7) depuis l'état courant d'un devis
+    déjà ENVOYE. Ne publie rien elle-même : ``outils.py`` seul appelle ``opsys.evenements.publier``,
+    dans la même transaction que la transition.
+
+    Un FAIT d'étape, sans montant : ni coût, ni prix, ni marge, ni ligne (le consommateur de M2 veut savoir
+    QUAND l'envoi a été approuvé, pas combien vaut le devis). ``horodatage_envoi`` est celui du dernier
+    maillon fusionné (voir ``_etats_courants``), donc TOUJOURS celui de la transition vers ``envoye``,
+    jamais celui de la création. Il date l'approbation d'envoi, pas la livraison au client (M1, T2.1-c)."""
+    return {
+        "devis_id": devis["devis_id"],
+        "lead_id": devis["lead_id"],
+        "chantier_id": devis.get("chantier_id"),
+        "horodatage_envoi": devis["horodatage"],
     }

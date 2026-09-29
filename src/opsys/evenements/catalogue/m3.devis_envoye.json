@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m3.devis_envoye",
+  "title": "M3 — Devis envoyé (approuvé pour envoi)",
+  "description": "Émis par M3 quand le propriétaire approuve l'envoi d'un devis et que celui-ci passe de brouillon à envoye (departments/m03-estimation/src/m3_estimation/devis_durable.py::marquer_devis_envoye, outil m3_demander_envoi_devis, N4, PLAN T4.7). Publié dans la MÊME transaction que la décision, et seulement à ce moment (jamais à la création du devis, jamais à la demande d'envoi qui attend encore une décision), sous un evenement_id déterministe (f\"m3-devis-envoye-{devis_id}\") : rejouer l'approbation d'un devis déjà envoyé n'écrit rien et ne republie rien. Fait d'étape, strictement descriptif, SANS MONTANT : ni coût, ni prix, ni marge, ni ligne de devis, ni motif de revue (un motif « marge sous le seuil » en dirait trop) ; le consommateur veut savoir QUAND l'envoi a été approuvé. horodatage_envoi date cette approbation, PAS la livraison au client : l'envoi réel passe par M1 (PLAN T2.1-c, N4) et n'existe pas encore. M2 en fera partir l'échéance de relance quand la livraison sera réelle (PLAN T4.9).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "devis_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifiant du devis approuvé pour envoi (devis_durable.py::creer_devis)."
+    },
+    "lead_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Lead M2 d'origine, porté tel quel depuis la création du devis."
+    },
+    "chantier_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Chantier M4, si déjà connu au moment de la création du devis ; null sinon."
+    },
+    "horodatage_envoi": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Instant de la décision du propriétaire qui approuve l'envoi (ISO-8601 avec fuseau, celui que le socle a écrit à la décision), jamais une heure fournie par l'appelant. N'est PAS l'heure de livraison au client."
+    }
+  },
+  "required": [
+    "devis_id",
+    "lead_id",
+    "chantier_id",
+    "horodatage_envoi"
+  ]
+}

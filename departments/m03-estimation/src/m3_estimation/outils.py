@@ -16,8 +16,12 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+import yaml
+from sqlalchemy import select
+
 from opsys import contexte, evenements, identite, jetons, stockage, taxonomie
-from opsys.outils import Autonomie, Outil, depuis_couple
+from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
+from opsys.stockage.schema import APPROBATIONS
 
 from . import (
     besoins_materiaux,
@@ -32,6 +36,7 @@ from . import (
     politique_photos,
     qualite_photos,
     registre,
+    revue_devis,
     soumission,
     soumission_pdf,
     verdicts,
@@ -674,6 +679,218 @@ def verifier_politique_photos() -> dict[str, Any]:
     return {"accepte": True, "resultat": {"statut_validation": politique_photos.lire_statut_validation(texte)}}
 
 
+# ---------------------------------------------------------------------------------------------
+# Revue et envoi du devis (PLAN T4.7, DEFINITION-PRODUIT §7 M3.14) : `m3_demander_envoi_devis`.
+#
+# L'outil est N4 : le socle (`Capacites._distribuer`) ne l'exécute JAMAIS sur l'appel d'un agent ni d'un
+# vendeur ; il met une demande dans la file du propriétaire (`approbations.creer_demande`, niveau N4 figé).
+# Seule une décision (`approbations.decider`) l'exécute, avec les arguments EXACTS enregistrés. Qui peut
+# décider : `department.yaml/approbations.n4` (nathan_owner seul) ; l'app d'approbation exige en plus que la
+# PERSONNE authentifiée porte `nathan_owner` (`approbations_appareil`, un `admin` qui ne l'est pas voit la
+# file en lecture seule). Aucune livraison au client : le statut `envoye` dit « approuvé pour envoi », la
+# livraison est à M1 (PLAN T2.1-c).
+# ---------------------------------------------------------------------------------------------
+_DEPARTEMENT = "m03-estimation"
+_OUTIL_ENVOI_DEVIS = "m3_demander_envoi_devis"
+_TYPE_EVENEMENT_DEVIS_ENVOYE = "m3.devis_envoye"
+_TYPE_ATTENTE_REVUE_ENVOI = "revue_envoi_devis"
+# Rôles dont une décision peut faire exécuter l'envoi : la même liste que `department.yaml/approbations.n4`
+# (un test les confronte). Relue à l'exécution, en défense en profondeur : un mode `autonome` ne met pas un
+# N4 en file, l'outil s'exécuterait alors sans humain ; il refuse donc de lui-même (voir ci-dessous).
+_ROLES_APPROBATEURS_ENVOI = frozenset({identite.Role.NATHAN_OWNER.value})
+_MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
+_CONFIGURATION_ILLISIBLE = "illisible"
+
+_CONTEXTE_REVUE = {
+    "type": ["object", "null"],
+    "description": (
+        "Faits que M3 ne détient pas, à recopier tels quels de la réponse de m3_estimer_projet "
+        "(niveau_confiance_hierarchie, estimation.verdict_estimation, estimation.alerte_plancher) ou à donner "
+        "s'ils sont connus. Chaque clé est facultative ; un fait absent est listé « non évaluable » dans la "
+        "revue, jamais deviné. null : aucun fait fourni."
+    ),
+    "properties": {
+        "niveau_confiance_hierarchie": {"type": "string", "enum": list(hierarchie_echelle.NIVEAUX_CONFIANCE)},
+        "verdict_estimation": {"type": "string", "enum": list(contrats.VERDICTS_ESTIMATION)},
+        "alerte_plancher": {"type": "boolean"},
+        "service_complexe": {"type": "boolean"},
+        "client_a_risque": {"type": "boolean"},
+        "distance_km": {"type": ["string", "number"], "description": "kilomètres, texte décimal ou nombre"},
+        "donnees_fournisseur_completes": {"type": "boolean"},
+    },
+    "additionalProperties": False,
+}
+
+
+def _seuils_revue() -> Any:
+    """`configuration.revue_devis` de `department.yaml`, tel quel (`None` s'il est absent) : les seuils de la
+    revue, JAMAIS un nombre codé en dur ici ni dans `revue_devis.py`. Même source et même discipline que M6
+    (`_seuil_variance_chantier`) : `revue_devis` juge chaque seuil vide ou invalide « seuil à configurer » ou
+    « seuil invalide », jamais une valeur par défaut. Un manifeste illisible rend `_CONFIGURATION_ILLISIBLE`
+    (que `revue_devis` refuse de lire comme des seuils) : la revue le dit, elle ne tombe pas."""
+    try:
+        donnees = yaml.safe_load(_MANIFESTE.read_text(encoding="utf-8")) or {}
+    except (OSError, yaml.YAMLError):
+        return _CONFIGURATION_ILLISIBLE
+    configuration = donnees.get("configuration") if isinstance(donnees, dict) else None
+    return configuration.get("revue_devis") if isinstance(configuration, dict) else None
+
+
+def _decision_approuvee_en_cours(cnx: Any, arguments: dict[str, Any]) -> tuple[str, str, str] | None:
+    """`(personne, rôle, instant)` de la décision qui fait exécuter CET appel, sinon `None`. Lecture seule.
+
+    `approbations.decider` réserve la demande (`en_attente` -> `en_cours`, avec `decide_par`, `decide_role` et
+    `decide_le`) puis exécute l'outil avec les arguments EXACTS enregistrés, dans la même transaction. Cet
+    appel EST donc l'exécution d'une décision si et seulement si une demande `en_cours` de cet outil, de ce
+    département, porte exactement ces arguments et un approbateur de rôle autorisé (`nathan_owner`) toujours
+    actif. Un agent ne peut pas fabriquer une telle ligne : il ne peut que créer une demande `en_attente`.
+    Le socle n'expose pas l'approbateur à l'outil : cette lecture de sa table en tient lieu (même patron que
+    M5 et M10). `decide_le` est l'horloge du socle au moment de la décision : M3 ne lit jamais l'heure."""
+    if cnx is None:
+        return None
+    lignes = cnx.execute(
+        select(APPROBATIONS.c.arguments, APPROBATIONS.c.decide_par, APPROBATIONS.c.decide_role,
+               APPROBATIONS.c.decide_le).where(
+            APPROBATIONS.c.statut == "en_cours",
+            APPROBATIONS.c.outil == _OUTIL_ENVOI_DEVIS,
+            APPROBATIONS.c.departement == _DEPARTEMENT,
+        )
+    ).all()
+    for enregistres, decide_par, decide_role, decide_le in lignes:
+        if not decide_par or not decide_le or decide_role not in _ROLES_APPROBATEURS_ENVOI:
+            continue
+        if json.loads(enregistres) != arguments:
+            continue
+        personne = identite.personne_active(cnx, decide_par)
+        if personne is not None and decide_role in personne.roles:
+            return decide_par, decide_role, decide_le
+    return None
+
+
+def demander_envoi_devis(devis_id: str, contexte_revue: dict[str, Any] | None) -> dict[str, Any]:
+    """L'outil `m3_demander_envoi_devis` (T2, N4) — ce corps s'exécute APRÈS la décision du propriétaire.
+
+    1. Il refuse de s'exécuter hors d'une décision approuvée (`REJ-ENVOI-SANS-APPROBATION`) : un mode
+       `autonome`, un appel en ligne de commande ou une transaction absente n'envoient jamais un devis.
+    2. Un devis déjà `envoye` est un rejeu : rien n'est écrit, rien n'est republié, la réponse le dit
+       (`deja_envoye`). Un devis `accepte` est refusé par la machine à états (transition illégale).
+    3. La revue est refaite sur le devis TEL QU'IL EST À LA DÉCISION (`revue_devis.evaluer_revue`), pas sur ce
+       qu'il était à la demande ; sa synthèse (alerte et codes, jamais les valeurs) est gardée au maillon de
+       transition avec l'approbateur. Une alerte rouge n'EMPÊCHE PAS l'envoi : c'est le propriétaire qui la
+       lit et qui décide (§7 M3.11).
+    4. Le devis passe `envoye` à l'instant de la décision et `m3.devis_envoye` est publié dans la MÊME
+       transaction, sous un identifiant déterministe : les deux réussissent ou échouent ensemble.
+
+    Les deux paramètres sont requis : la demande approuvée rejoue les arguments EXACTS enregistrés, et
+    `_decision_approuvee_en_cours` les compare tels quels."""
+    decision = _decision_approuvee_en_cours(
+        stockage.connexion_courante(), {"devis_id": devis_id, "contexte_revue": contexte_revue}
+    )
+    if decision is None:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-ENVOI-SANS-APPROBATION",
+            detail=(
+                "l'envoi d'un devis est un engagement (N4) : il ne s'exécute que sur la décision du propriétaire "
+                "dans la file d'approbation OPSYS. Ne le présente pas comme envoyé."
+            ),
+        )}
+    approuve_par, approuve_role, decide_le = decision
+    registre_devis = registre_devis_production()
+    devis, verdict = devis_durable.lire_devis(registre_devis, devis_id)
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    if devis["statut"] == "envoye":
+        return {"accepte": True, "resultat": {
+            "devis_id": devis_id, "statut": "envoye", "horodatage_envoi": devis["horodatage"], "deja_envoye": True,
+        }}
+    revue: dict[str, Any] | None = None
+    if devis["statut"] == "brouillon":
+        revue, verdict = revue_devis.evaluer_revue(devis, contexte_revue, _seuils_revue())
+        if verdict is not None:
+            return {"accepte": False, "verdict": verdict}
+    envoye, verdict = devis_durable.marquer_devis_envoye(
+        devis_id, decide_le, registre_devis, approuve_par=approuve_par, approuve_role=approuve_role,
+        revue=revue_devis.synthese(revue) if revue is not None else None,
+    )
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
+    evenements.publier(
+        _TYPE_EVENEMENT_DEVIS_ENVOYE, _DEPARTEMENT, devis_durable.charge_evenement_devis_envoye(envoye),
+        evenement_id=f"m3-devis-envoye-{devis_id}",
+    )
+    return {"accepte": True, "resultat": {
+        "devis_id": devis_id, "statut": "envoye", "horodatage_envoi": decide_le, "deja_envoye": False,
+        "revue": revue,
+    }}
+
+
+def _resume_demande_envoi(arguments: Any, registre_devis: Any, seuils: Any) -> str:
+    """Le texte d'UNE demande d'envoi en attente, tel que le propriétaire le lit : la revue du devis tel
+    qu'il est AUJOURD'HUI (`revue_devis.resume_attente`), ou, quand elle ne peut pas se faire, pourquoi.
+    Jamais un silence : une demande qu'on ne sait pas lire reste visible, avec la raison."""
+    limite = revue_devis.LIMITE_RESUME
+    devis_id = arguments.get("devis_id") if isinstance(arguments, dict) else None
+    if not isinstance(devis_id, str) or not devis_id.strip():
+        return revue_devis.abreger("Demande d'envoi illisible : aucun devis_id. À refuser.", limite)
+    devis, verdict = devis_durable.lire_devis(registre_devis, devis_id)
+    if verdict is not None:
+        return revue_devis.abreger(
+            f"Envoi du devis {devis_id} demandé, mais ce devis est introuvable. À refuser.", limite
+        )
+    if devis["statut"] != "brouillon":
+        return revue_devis.abreger(
+            f"Envoi du devis {devis_id} demandé, mais il est déjà {devis['statut']} : rien à approuver.", limite
+        )
+    revue, verdict = revue_devis.evaluer_revue(devis, arguments.get("contexte_revue"), seuils)
+    if verdict is not None:
+        return revue_devis.abreger(
+            f"Envoi du devis {devis_id} : revue impossible ({verdict['code']} : {verdict['detail']}). "
+            "À refuser ou à redemander.", limite,
+        )
+    return revue_devis.resume_attente(revue, limite)
+
+
+def attentes() -> list[dict[str, Any]]:
+    """L'attente de la file du propriétaire (ADR-0009 §5, PLAN T4.7) : une entrée par demande d'envoi de devis
+    en attente, dont le résumé PORTE LES MOTIFS de la revue (alerte rouge d'abord, critères non évaluables
+    comptés). Le vendeur crée la demande (le socle la met en file, l'outil ne s'exécute pas) ; cette fonction la
+    lit et refait la revue sur le devis d'aujourd'hui, avec les faits que la demande a enregistrés et les
+    seuils de `department.yaml`. L'entrée disparaît quand la demande est décidée. Lecture seule : ne crée
+    rien, ne décide de rien. Hors transaction (aucune connexion), rien n'est lisible : liste vide.
+
+    Ce n'est PAS la demande d'approbation (celle du socle, décidable) : c'est ce qui la rend lisible. Son `id`
+    est celui de la demande, pour les retrouver l'une à côté de l'autre."""
+    cnx = stockage.connexion_courante()
+    if cnx is None:
+        return []
+    demandes = cnx.execute(
+        select(APPROBATIONS.c.id, APPROBATIONS.c.arguments, APPROBATIONS.c.cree_le).where(
+            APPROBATIONS.c.statut == "en_attente",
+            APPROBATIONS.c.outil == _OUTIL_ENVOI_DEVIS,
+            APPROBATIONS.c.departement == _DEPARTEMENT,
+        ).order_by(APPROBATIONS.c.cree_le, APPROBATIONS.c.id)
+    ).all()
+    if not demandes:
+        return []
+    registre_devis = registre_devis_production()
+    seuils = _seuils_revue()
+    attentes_revue: list[dict[str, Any]] = []
+    for demande_id, brut, cree_le in demandes:
+        try:
+            arguments: Any = json.loads(brut)
+        except ValueError:
+            arguments = None
+        attentes_revue.append({
+            "type": _TYPE_ATTENTE_REVUE_ENVOI,
+            "id": demande_id,
+            "resume": _resume_demande_envoi(arguments, registre_devis, seuils),
+            "niveau": Niveau.N4.value,
+            "depuis": cree_le,
+            "action_proposee": "approuver ou refuser l'envoi (le propriétaire décide)",
+        })
+    return attentes_revue
+
+
 def consommateurs() -> dict[str, Callable[[dict[str, Any]], dict[str, Any]]]:
     return {
         "m4.travaux_termines": _recevoir_travaux_termines,
@@ -944,6 +1161,34 @@ def outils() -> tuple[Outil, ...]:
             autonomie=Autonomie.T0,
             # §9.4 (vendeur : soumissions de ses leads, T1.4-k2 : filtre par propriétaire) ; ne porte jamais
             # coût ni marge.
+            roles_appareil=frozenset({"seller", "admin"}),
+        ),
+        Outil(
+            nom=_OUTIL_ENVOI_DEVIS,
+            description=(
+                "Demande l'ENVOI d'un devis brouillon au client (M3.14) : engagement, N4. Cet appel n'envoie rien "
+                "et ne change rien : il met une demande dans la file du propriétaire, qui y lit la revue (motifs "
+                "tirés du devis, de contexte_revue et des seuils de department.yaml, jamais inventés) avant de "
+                "décider. Seul nathan_owner approuve. Approuvée, le devis passe à envoye (une seule fois, un rejeu "
+                "ne fait rien) et m3.devis_envoye est publié, sans coût ni marge. La livraison au client n'est pas "
+                "ici (M1). Recopie dans contexte_revue les faits de la réponse de m3_estimer_projet "
+                "(niveau_confiance_hierarchie, estimation.verdict_estimation, estimation.alerte_plancher) ; un "
+                "fait absent est listé « non évaluable », jamais deviné. Ne présente jamais le devis comme "
+                "envoyé : il attend une décision."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"devis_id": {"type": "string"}, "contexte_revue": _CONTEXTE_REVUE},
+                "required": ["devis_id", "contexte_revue"],
+                "additionalProperties": False,
+            },
+            fonction=demander_envoi_devis,
+            autonomie=Autonomie.T2,
+            niveau=Niveau.N4,
+            # §9.4 (vendeur : « soumissions » de ses leads) et §9.5 (admin : « approuve tout »). Le vendeur
+            # DEMANDE ; il ne décide jamais (N4 : nathan_owner). Le socle ne peut pas filtrer par propriétaire
+            # de lead à la demande (l'outil ne s'exécute qu'à la décision, sans l'identité de l'appareil) :
+            # le propriétaire lit le devis et la revue avant d'approuver.
             roles_appareil=frozenset({"seller", "admin"}),
         ),
         Outil(

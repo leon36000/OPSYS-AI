@@ -51,7 +51,10 @@ OUTILS_M2_DU_VENDEUR = {
     "m2_obtenir_client_360", "m2_trouver_client_de_lead", "m2_suggerer_prochaine_action", "m2_lister_leads",
     "m2_evaluer_readiness", "m2_transitionner_statut", "m2_enregistrer_interaction",
 }
-OUTILS_M3_DU_VENDEUR = {"m3_lire_devis", "m3_generer_soumission_brouillon", "m3_qualifier_photos"}
+OUTILS_M3_DU_VENDEUR = {
+    "m3_lire_devis", "m3_generer_soumission_brouillon", "m3_qualifier_photos",
+    "m3_demander_envoi_devis",  # DEMANDE l'envoi (N4, T4.7) : le propriétaire décide dans la file
+}
 OUTILS_M2_DE_L_ADMIN = {"m2_produire_digest", "m2_detecter_doublons", "m2_signaler_doublon", "m2_arbitrer_doublon"}
 
 

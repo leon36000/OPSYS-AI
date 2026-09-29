@@ -37,6 +37,7 @@ VENDEUR = frozenset({
     "m2_enregistrer_interaction", "m2_evaluer_readiness", "m2_lister_leads", "m2_obtenir_client_360",
     "m2_suggerer_prochaine_action", "m2_transitionner_statut", "m2_trouver_client_de_lead",
     "m3_generer_soumission_brouillon", "m3_lire_devis", "m3_qualifier_photos",
+    "m3_demander_envoi_devis",  # DEMANDE l'envoi d'un devis (N4, T4.7) : le propriétaire décide dans la file
 })
 
 # §9.5 (profil admin / propriétaire) : ce que fait l'employé et le vendeur, plus ce que le propriétaire

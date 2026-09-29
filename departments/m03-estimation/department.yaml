@@ -40,4 +40,24 @@ kpis:
     description: Part des demandes dont le prix est bloqué faute d'entrées suffisantes.
 evenements:
   consomme: [m4.travaux_termines, m6.variance_chantier]  # PLAN T1.2-d, estimé vs réel en second ordre
-  publie: [m3.devis_accepte, m3.devis_sans_reponse, m3.besoins_materiaux]  # PLAN T2.3 : relance vers M2 ; T2.3-e : besoins matériaux vers M6
+  # PLAN T2.3 : relance vers M2 ; T2.3-e : besoins matériaux vers M6 ; T4.7 : m3.devis_envoye, l'envoi approuvé
+  # par le propriétaire (sans montant ; M2 en fera partir la relance, T4.9)
+  publie: [m3.devis_accepte, m3.devis_sans_reponse, m3.besoins_materiaux, m3.devis_envoye]
+approbations:                      # ADR-0009 §5, PLAN T4.7
+  # N4 : l'envoi d'un devis au client (m3_demander_envoi_devis) est un engagement, décidé par le seul
+  # propriétaire. C'est aussi le défaut du socle (fail-closed) ; il est écrit ici pour qu'un élargissement soit un
+  # geste visible en revue, jamais un oubli. Un `admin` qui n'est pas `nathan_owner` ne décide pas : la file lui
+  # est lisible, sans les arguments (approbations_appareil).
+  n4: [nathan_owner]
+configuration:
+  # Seuils de la revue d'un devis avant son envoi (PLAN T4.7, DEFINITION-PRODUIT §7 M3.14 : « validation humaine
+  # obligatoire si… »). VIDES à dessein : aucun seuil n'est inventé, chacun est une décision de Nathan. Un seuil
+  # vide ou invalide rend son critère « seuil à configurer » dans la revue (revue_devis.py), jamais une valeur
+  # par défaut ; la revue sert à éclairer le propriétaire, elle ne bloque rien. Montants en dollars canadiens,
+  # avant taxes, comparés au prix total du devis ; marge en taux décimal (0.25 pour 25 %).
+  revue_devis:
+    confiance_minimale: null       # REFERENCE_ECHELLE, MULTI_VUES ou MONO_VUE_BORNES_LARGES : en dessous, revue
+    montant_maximal_cad: null      # prix total au-dessus duquel le propriétaire relit (> 0)
+    marge_minimale: null           # taux de marge sous lequel le propriétaire relit (0 ou plus)
+    distance_maximale_km: null     # chantier plus loin que ça : revue (> 0)
+    minimum_rentable_cad: null     # prix total sous lequel le devis n'est pas rentable : ALERTE ROUGE (> 0)
