@@ -75,6 +75,11 @@ jobs:
           python-version: "3.12"
       - name: Installation (socle + départements)
         run: python -m pip install --quiet -e ".[dev]"
+      # PyVRP (extra `tournees`, PLAN T4.1-c) : seul M4 s'en sert ; sans lui, ses tests PyVRP seraient
+      # sautés et seul le DP exact serait exercé.
+      - name: Extra tournées (PyVRP) pour M4
+        if: matrix.dossier == 'm04-field-ops'
+        run: python -m pip install --quiet -e ".[tournees]"
       - name: Lint du département ${{ matrix.dossier }}
         if: contains(fromJSON(env.DEPARTEMENTS_LINT), matrix.dossier)
         run: ruff check "departments/${{ matrix.dossier }}"

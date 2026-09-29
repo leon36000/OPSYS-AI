@@ -944,12 +944,32 @@ météo et GPS M4, vision M3, conseil d'agents M9…
         Reste pour T4.1-d : inscrire au catalogue de verdicts les trois codes propres à la
         matrice ; aucun vrai sidecar OSRM essayé ; la fixture d'étalonnage est fictive (30 paires
         réelles à mesurer avant de fixer le détour).
-  - [ ] T4.1-c Solveur et validateur : `tournees.py`, adaptateur PyVRP (extra `tournees`), DP exact
+  - [x] T4.1-c Solveur et validateur : `tournees.py`, adaptateur PyVRP (extra `tournees`), DP exact
         de repli et oracle, `verifier_plan`, raisons de non-cédule calculées par notre code ;
         mêmes octets d'une exécution à l'autre.
+        Preuve (b48530b) :
+        - `resoudre(entree, moteur)` : PyVRP 0.14.0 (import paresseux, `MaxIterations` seulement,
+          graine dérivée de l'empreinte d'entrée, compétences et jours par profils) ou DP exact
+          jusqu'à 12 chantiers ; sans PyVRP au-delà, verdict « installer l'extra tournees » ;
+        - toute donnée métier est une entrée (durée, fenêtre, compétences, dépôt, quarts, graine,
+          itérations, coût de non-cédule), sinon un seul verdict qui liste tout ; raisons de
+          non-cédule calculées et revérifiées par `verifier_plan` ; plan invalide → refus ;
+        - écart 0 avec le DP sur 6 instances fictives (8 à 12 chantiers) et 100 aléatoires ; le DP
+          égale une énumération exhaustive ; mêmes octets sous `PYTHONHASHSEED` 1, 2, 3, 4242 ;
+          compétence rare jamais donnée à une équipe non admissible ; 8 chantiers : DP 0,002 s,
+          PyVRP 0,08 s ; 9 mutations détectées ; M4 1455, ruff, gate BMAD ;
+        - CI : l'extra `tournees` est installé dans le job de M4 (sinon 20 tests seraient sautés).
+
+        Limites : PyVRP exécuté en Python 3.11 x86_64 seulement (la CI dira pour 3.12 ; arm64 non
+        essayé) ; un créneau figé sans coordonnées refuse toute l'entrée (choix réversible) ;
+        `urgence` est un entier 0 à 3 alors que LeadQualifie n'a qu'un booléen (conversion en
+        T4.1-d) ; les codes `REJ-TOURNEES-*` et `REJ-MATRICE-*` restent à inscrire au catalogue.
   - [ ] T4.1-d Outils et E2E : `m4_proposer_cedule` (brouillon) et `m4_appliquer_cedule` (N3,
         refus si l'entrée a changé) ; scénario fictif Repentigny–Joliette, kilomètres en baisse
         contre le tourniquet sur la même fixture.
+        À faire aussi : codes `REJ-MATRICE-*` et `REJ-TOURNEES-*` au catalogue de `verdicts.py` ;
+        conversion d'`urgence` ; extra `tournees` dans `deploy/Dockerfile` ; lecture des
+        coordonnées par `outils.lire_localisation_confirmee` (T4.1-a).
 - [x] T4.2 M4 : consentement et rétention du GPS (`POLITIQUE-geolocalisation.md`) non câblés dans
       le pointage (audit M4) ; bloquant avant tout GPS continu.
       Preuve (ff0c118, 7e5ccab) :
