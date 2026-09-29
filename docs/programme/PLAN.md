@@ -2250,7 +2250,36 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       d'un créneau en lecture pure, retards, incidents, pagination de `m4_lister_interventions`.
       M5 : paiements reçus, anomalies, dossier CPA, rapport du contrôleur. M6 : pertes et bris,
       alertes matériaux. M10 : recherche dans la mémoire et contradictions pour l'admin
-      (`opsys_memoire_chercher` est refusé à tout appareil).
+      (`opsys_memoire_chercher` est refusé à tout appareil). Découpée par département : T4.27-a (M4),
+      T4.27-b (M6, en cours), puis M1 (avec ADR-0011), M5 (après T4.16-b) et M10.
+  - [x] T4.27-a M4 : trois lectures pures pour le propriétaire (§9.5), sans rien écrire.
+        Preuve (94d6cad, 0a47c1e, ed3a098, 9070a1e, 48e7dd9) :
+        - `m4_lire_meteo_intervention` (T0, `admin` seul, refusé dans le code à tout autre rôle) : la
+          météo du créneau d'UNE intervention, sans `plan_id` ; le créneau est celui du dernier plan
+          APPLIQUÉ ; l'évaluation de T4.13 extraite de `verifier` sans changer son comportement (un test
+          les compare créneau par créneau) ; une donnée absente donne `inconnu`, jamais `ok` ; aucun
+          report ni cédule proposés ;
+        - `m4_lister_interventions` par pages : clés SŒURS `curseur` et `taille_page` (sans elles, la
+          liste v1) ; ordre `intervention_id`, page mesurée sous la borne du socle, `page.reste` et
+          `page.curseur_suivant` ; l'employé ne voit que ses interventions (filtre avant la page) ;
+        - `m4_lire_retards_incidents` (T0, `admin` seul) : reports en cours et demandes de revue ouvertes
+          avec leur âge, « bloquée » dès 24 h ; le retard sur la cédule est `non_mesurable` (M4 ne tient
+          aucun calendrier), jamais « aucun retard » ;
+        - M4 2 756 passés sur l'état intégré (266 nouveaux), gate BMAD TOUT VERT, ruff ; E2E
+          `tests/e2e/test_lectures_admin_m4_appareil.py` (admin 200 sans écrire, employé et vendeur 403,
+          45 interventions par pages sans troncature) ; compteurs de `ROLES.md` et E2E admin : 129
+          passés ; `verifier` 174 outils (96 aux appareils) ; mutations 130 sur 130 (4 survivants au
+          premier passage, fermés par 2 tests et 2 assertions).
+        Limites : l'heure d'un report et d'une demande d'écart est celle que l'appelant écrit (T4.27-a2) ;
+        une intervention planifiée par `m4_planifier_intervention` n'a pas de fenêtre au registre, donc
+        aucun créneau (`inconnu`) ; la liste v1 sans clé reste coupée au-delà d'une vingtaine de lignes.
+  - [ ] T4.27-a2 M4 : `m4_signaler_report` et `m4_creer_demande_ecart` lisent `recu_le` (l'heure du
+        serveur) au lieu de l'heure que l'appelant écrit, pour que l'âge d'un retard ne dépende plus de
+        l'appareil (changement d'écriture : contrat additif, tests de rejeu).
+  - [ ] T4.27-m Mobile : l'écran « Chantiers du jour » lit la météo d'une intervention, les retards et
+        incidents, et pagine la liste par `curseur` (contrat exact dans le rapport de T4.27-a, repris
+        dans `departments/m04-field-ops/README.md`) ; corriger les mentions « météo non lue » et « pas de
+        pagination » de `MOBILE.md`, `mobile/README.md`, `src/m4/dispatch.ts` et `tests/e2e/test_admin_appareil.py`.
 - [x] T1.4-n Mobile : les constats de T4.20 hors de son périmètre (vendeur : un 401 ou un 403
       retombe sur le cache ; employé : une réponse tronquée lue comme une liste vide, `a_planifier`
       absent des statuts ; caches par personne non purgés à la révocation ni au ré-appairage ;
