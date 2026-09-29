@@ -924,10 +924,27 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       transmet pas l'identité du décideur à l'outil) ; `mouvements_historique` encore accepté
       d'un appareil. `_acteur_appareil` est dupliqué dans M3, M4, M5 et M6 : un seul helper du
       socle serait plus sûr.
-  - [ ] T1.4-m Suites de T1.4-k : réassignation d'un lead (outil d'admin, fait `m2.lead_assigne`
+  - [x] T1.4-m Suites de T1.4-k : réassignation d'un lead (outil d'admin, fait `m2.lead_assigne`
         versionné) ; republication du fait pour les leads qualifiés avant T1.4-k2 (leurs devis
-        sont aujourd'hui refusés au vendeur) ; un seul contrôle d'identité d'appareil dans le socle
-        au lieu de cinq copies (M2, M3, M4, M5, M6).
+        sont aujourd'hui refusés au vendeur). Le contrôle d'identité unique : T1.4-m-b.
+        Livré : 5143de6 (M2), puis M3 qui suit la réassignation (intégration).
+        - `m2_reassigner_lead` (T1, N3, admin) : décision HUMAINE seulement (jeton d'appareil admin
+          confirmé en base, ou demande approuvée ; sinon `REJ-HUMAIN-REQUIS`, même en supervisé),
+          motif de 10 à 500 caractères, cible = vendeur actif ; maillon `reassignation` au registre,
+          qualification jamais modifiée ; le nouveau vendeur voit le lead, l'ancien non.
+        - `m2.lead_assigne` versionné de façon additive (`rang`, `proprietaire_precedent`) : rang 1
+          identique octet pour octet à T1.4-k2 ; rang n >= 2 publié dans la transaction du maillon.
+        - `m2_republier_assignations` (T1, N3, admin) : remet au bus le fait absent de chaque
+          assignation (même identifiant, même charge), idempotent, sans écriture au registre.
+        - M3 lit le plus grand rang publié (rang 1, puis 2, 3... jusqu'au premier absent ; lead et
+          rang vérifiés) : le devis suit le lead.
+        Preuve : M2 1302 verts, BMAD M2 vert ; mutations de M2 : 105 tuées sur 106, la survivante
+        (« compter les assignations au lieu du plus grand rang ») est équivalente, les rangs du
+        registre étant contigus (ajout seulement) ; M3 : `test_proprietaire_reassigne.py` (9) et
+        cinq mutations de la lecture par rang, toutes tuées ; chaîne réelle M2, bus, M3 :
+        `tests/test_reassignation_suit_m3.py`.
+  - [ ] T1.4-m-b Un seul contrôle d'identité d'appareil dans le socle au lieu de cinq copies (M2,
+        M3, M4, M5, M6) ; même comportement observable, code critique (revue externe).
 - [x] T1.5 E2E : travaux terminés normaux ; écart de 40 % → `completed_pending_review` et alerte
       sur le mobile de l'admin.
       Preuve (19de4bb, 16cd96f, 08d0b29 intégrés ; `tests/e2e/`, 7 verts, PostgreSQL sauté sans
