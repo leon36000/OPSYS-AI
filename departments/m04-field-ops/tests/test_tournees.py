@@ -276,14 +276,14 @@ def test_resoudre_ne_modifie_pas_l_entree_et_ignore_l_ordre_des_listes():
     assert _octets(_resoudre(melangee, "dp")) == _octets(sortie)
 
 
-def test_les_verdicts_de_tournees_ont_la_forme_des_verdicts_m4_et_restent_hors_du_catalogue_gele():
+def test_les_verdicts_de_tournees_ont_la_forme_des_verdicts_m4_et_sont_au_catalogue():
     assert tournees.verdict_tournees(tournees.CODE_PLAN_INVALIDE, "x") == {
         "code": tournees.CODE_PLAN_INVALIDE, "statut": "", "detail": "x",
     }
     with pytest.raises(verdicts.CodeVerdictInconnu):
         tournees.verdict_tournees("REJ-INVENTE")
     for code in tournees.CODES_TOURNEES:
-        assert not verdicts.est_verdict(code)  # T4.1-d les y inscrira
+        assert verdicts.est_verdict(code)  # inscrits au catalogue par T4.1-d
 
 
 # ---------------------------------------------------------------------------
@@ -1408,3 +1408,39 @@ def test_tournees_n_a_ni_horloge_ni_alea_ni_flottant():
 def test_les_gardes_du_paquet_passent_avec_le_nouveau_module():
     assert digest.garde_absence_horloge() == (True, "")
     assert digest.garde_conformite_r020() == (True, "")
+
+
+# ---------------------------------------------------------------------------
+# empreinte_entree (T4.1-d) : la même empreinte que le plan, sans relancer le solveur
+# ---------------------------------------------------------------------------
+def test_empreinte_entree_est_celle_que_le_plan_porte():
+    entree = _de_instance("journee-8-competence-rare")
+    sortie = _resoudre(entree)
+    empreinte, verdict = tournees.empreinte_entree(entree)
+    assert verdict is None and len(empreinte) == 64
+    assert empreinte == sortie["meta"]["empreinte_entree"]
+
+
+def test_empreinte_entree_ne_depend_pas_de_l_ordre_des_listes_mais_du_contenu():
+    entree = _de_instance("journee-8-competence-rare")
+    empreinte, _ = tournees.empreinte_entree(entree)
+    melangee = copy.deepcopy(entree)
+    melangee["equipes"].reverse()
+    melangee["chantiers"].reverse()
+    assert tournees.empreinte_entree(melangee)[0] == empreinte
+    modifiee = copy.deepcopy(entree)
+    modifiee["chantiers"][0]["duree_min"] += 5
+    assert tournees.empreinte_entree(modifiee)[0] != empreinte
+    autre_matrice = copy.deepcopy(entree)
+    autre_matrice["matrice"] = _matrice(
+        {e["depot"] for e in entree["equipes"]} | {c["id"] for c in entree["chantiers"]} - {"ch-06"})
+    assert tournees.empreinte_entree(autre_matrice)[0] != empreinte
+
+
+def test_empreinte_entree_refuse_une_entree_invalide_par_le_meme_verdict_que_resoudre():
+    entree = _de_instance("journee-8-competence-rare")
+    del entree["parametres"]["iterations"]
+    empreinte, verdict = tournees.empreinte_entree(entree)
+    assert empreinte is None and verdict["code"] == "REJ-CHAMP-MANQUANT" and "iterations" in verdict["detail"]
+    assert tournees.resoudre(entree, "dp")[1] == verdict
+    assert tournees.empreinte_entree("pas une entrée")[0] is None

@@ -40,6 +40,21 @@ CODES_M4_LIST = [
     "REJ-COORDONNEES-A-CONFIRMER",   # « coordonnées manquantes : à confirmer » : jamais une position inventée.
     "REJ-INDEX-RQA-ABSENT",          # l'index local du RQA n'est pas importé : dit quoi faire, pas « introuvable ».
     "REJ-LOCALISATION-DETRUITE",     # clé du chantier détruite : la position n'est plus lisible (voulu).
+    # Groupe 8 — PLAN T4.1-d : matrice de distances (distances.py), tournées (tournees.py) et cédule par
+    # tournées (cedule_tournees.py). Les huit premiers étaient déjà produits par T4.1-b et T4.1-c ;
+    # les quatre suivants sont propres aux deux outils m4_proposer_cedule et m4_appliquer_cedule.
+    "REJ-MATRICE-FOURNISSEUR-INDISPONIBLE",       # le fournisseur de routage ne répond pas (repli marqué).
+    "REJ-MATRICE-REPONSE-INVALIDE",               # sa réponse n'est pas une matrice d'entiers carrée.
+    "REJ-MATRICE-TRAJET-INTROUVABLE",             # aucune route entre deux points : donnée à corriger.
+    "REJ-TOURNEES-SOLVEUR-ABSENT",                # « installer l'extra tournees ».
+    "REJ-TOURNEES-DP-TROP-GRAND",                 # le repli exact n'accepte pas autant de chantiers.
+    "REJ-TOURNEES-CRENEAU-FIGE-INCOMPATIBLE",     # un créneau confirmé au client ne peut être tenu.
+    "REJ-TOURNEES-SOLVEUR-ECHEC",                 # le solveur a levé une exception ou rendu un plan absurde.
+    "REJ-TOURNEES-PLAN-INVALIDE",                 # le plan échoue à verifier_plan : jamais appliqué.
+    "REJ-CEDULE-RIEN-A-PLANIFIER",                # aucune intervention planifiable, ou un plan sans visite.
+    "REJ-CEDULE-INTERVENTION-NON-PLANIFIABLE",    # intervention inconnue ou plus au statut planifiee.
+    "REJ-CEDULE-PLAN-INTROUVABLE",                # aucun plan proposé sous cet identifiant.
+    "REJ-CEDULE-ENTREE-CHANGEE",                  # l'état a bougé depuis la proposition : proposer de nouveau.
     # Groupe 3 — succès
     "OK",
 ]

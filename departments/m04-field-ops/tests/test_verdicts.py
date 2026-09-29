@@ -1,5 +1,6 @@
 import m4_field_ops.verdicts as verdicts_mod
 import pytest
+from m4_field_ops import distances, tournees
 
 EXPECTED_CODES_M4_LIST = [
     # Groupe 1 — verdicts ratifiés par le PRD M4 (CA-M4-01 à CA-M4-21)
@@ -40,6 +41,19 @@ EXPECTED_CODES_M4_LIST = [
     "REJ-COORDONNEES-A-CONFIRMER",
     "REJ-INDEX-RQA-ABSENT",
     "REJ-LOCALISATION-DETRUITE",
+    # Groupe 8 — PLAN T4.1-d : matrice de distances, tournées et cédule par tournées
+    "REJ-MATRICE-FOURNISSEUR-INDISPONIBLE",
+    "REJ-MATRICE-REPONSE-INVALIDE",
+    "REJ-MATRICE-TRAJET-INTROUVABLE",
+    "REJ-TOURNEES-SOLVEUR-ABSENT",
+    "REJ-TOURNEES-DP-TROP-GRAND",
+    "REJ-TOURNEES-CRENEAU-FIGE-INCOMPATIBLE",
+    "REJ-TOURNEES-SOLVEUR-ECHEC",
+    "REJ-TOURNEES-PLAN-INVALIDE",
+    "REJ-CEDULE-RIEN-A-PLANIFIER",
+    "REJ-CEDULE-INTERVENTION-NON-PLANIFIABLE",
+    "REJ-CEDULE-PLAN-INTROUVABLE",
+    "REJ-CEDULE-ENTREE-CHANGEE",
     # Groupe 3 — succès
     "OK",
 ]
@@ -86,3 +100,13 @@ def test_construire_verdict_code_inconnu_leve_exception():
 
 def test_code_verdict_inconnu_herite_exception():
     assert issubclass(verdicts_mod.CodeVerdictInconnu, Exception)
+
+
+def test_les_codes_de_matrice_et_de_tournees_sont_au_catalogue():
+    """T4.1-d : les verdicts que ``distances.py`` et ``tournees.py`` produisent sont inscrits (ils ne
+    l'étaient pas quand aucun outil ne les exposait) ; un code ajouté à l'un sans l'autre est refusé ici."""
+    assert set(distances.CODES_MATRICE) <= verdicts_mod.CODES_M4
+    assert set(tournees.CODES_TOURNEES) <= verdicts_mod.CODES_M4
+    assert len(distances.CODES_MATRICE) == 3 and len(tournees.CODES_TOURNEES) == 5
+    for code in (*distances.CODES_MATRICE, *tournees.CODES_TOURNEES):
+        assert verdicts_mod.construire_verdict(code, detail="x")["code"] == code

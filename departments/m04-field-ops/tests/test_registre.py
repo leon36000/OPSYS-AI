@@ -307,6 +307,8 @@ def test_enumere_des_types_est_fige():
         "variance_m6_recue",  # T1.3-b : outbox.enregistrer_signal_variance
         "assignation_technicien",  # PLAN T1.4-k : etats.assigner_technicien
         "localisation_chantier",  # PLAN T4.1-a : localisation.confirmer (coordonnées chiffrées)
+        "cedule_proposee",  # PLAN T4.1-d : cedule_tournees.proposer (plan stocké, jamais une vérité)
+        "cedule_appliquee",  # PLAN T4.1-d : cedule_tournees.appliquer (via etats.assigner_technicien)
     }
     assert set(registre_mod._TYPE_ENTREE_VALIDES) == attendu, (
         f"énuméré modifié sans ratification : {set(registre_mod._TYPE_ENTREE_VALIDES) ^ attendu}"

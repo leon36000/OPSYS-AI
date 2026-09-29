@@ -83,8 +83,8 @@ _AIDE_PARAMETRES = {
     "marge_par_trajet_secondes": "marge fixe ajoutée à chaque trajet (stationnement, accès), en secondes entières",
 }
 
-# Verdicts propres à la matrice hors du catalogue gelé de ``verdicts.py`` (T4.1-d les y inscrira
-# quand un outil les exposera). Même forme que ``verdicts.construire_verdict``.
+# Verdicts propres à la matrice, inscrits au catalogue de ``verdicts.py`` par T4.1-d (un test le vérifie).
+# Même forme que ``verdicts.construire_verdict``.
 CODE_FOURNISSEUR_INDISPONIBLE = "REJ-MATRICE-FOURNISSEUR-INDISPONIBLE"
 CODE_REPONSE_INVALIDE = "REJ-MATRICE-REPONSE-INVALIDE"
 CODE_TRAJET_INTROUVABLE = "REJ-MATRICE-TRAJET-INTROUVABLE"

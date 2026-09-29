@@ -70,8 +70,8 @@ BORNE_GRAINE = (0, 2**32 - 1)
 BORNE_ITERATIONS = (1, 100_000)
 BORNE_COUT_NON_CEDULE_M = (1, 10**9)
 
-# Verdicts propres aux tournées, hors du catalogue gelé de ``verdicts.py`` (T4.1-d les y inscrira quand
-# un outil les exposera). Même forme que ``verdicts.construire_verdict``.
+# Verdicts propres aux tournées, inscrits au catalogue de ``verdicts.py`` par T4.1-d (un test le
+# vérifie). Même forme que ``verdicts.construire_verdict``.
 CODE_SOLVEUR_ABSENT = "REJ-TOURNEES-SOLVEUR-ABSENT"
 CODE_TAILLE_DP = "REJ-TOURNEES-DP-TROP-GRAND"
 CODE_CRENEAU_FIGE = "REJ-TOURNEES-CRENEAU-FIGE-INCOMPATIBLE"
@@ -115,6 +115,7 @@ __all__ = [
     "TEXTE_SOLVEUR_ABSENT",
     "verdict_tournees",
     "pyvrp_installe",
+    "empreinte_entree",
     "resoudre",
     "verifier_plan",
 ]
@@ -1084,6 +1085,19 @@ def _choisir_moteur(moteur, nombre):
         f"{TEXTE_SOLVEUR_ABSENT} ({raison} ; {nombre} chantiers entrés au solveur, "
         f"le repli exact en accepte au plus {MAX_CHANTIERS_DP})",
     )
+
+
+def empreinte_entree(entree):
+    """Empreinte SHA-256 de l'entrée telle que le solveur la lit. Retourne (empreinte, None) ou (None, verdict).
+
+    C'est le ``meta.empreinte_entree`` que ``resoudre`` inscrit au plan : équipes et chantiers triés,
+    matrice réduite à sa propre empreinte, donc indépendante de l'ordre des listes. Elle sert à savoir si
+    un plan mis de côté répond encore à la même entrée (par exemple après un changement de coordonnée), sans
+    relancer le solveur. Même validation que ``resoudre`` : une entrée invalide rend son verdict."""
+    problem, verdict = _preparer(entree)
+    if verdict is not None:
+        return None, verdict
+    return problem["empreinte_entree"], None
 
 
 def resoudre(entree, moteur="auto"):

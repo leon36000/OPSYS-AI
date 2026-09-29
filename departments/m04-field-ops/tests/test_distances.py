@@ -804,7 +804,7 @@ def test_verdict_matrice_refuse_un_code_hors_liste():
     with pytest.raises(verdicts.CodeVerdictInconnu):
         distances.verdict_matrice("REJ-INVENTE")
     for code in distances.CODES_MATRICE:
-        assert not verdicts.est_verdict(code)  # hors catalogue gelé : T4.1-d les y inscrira
+        assert verdicts.est_verdict(code)  # inscrits au catalogue par T4.1-d
 
 
 # ---------------------------------------------------------------------------

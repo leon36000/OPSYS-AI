@@ -48,6 +48,12 @@ _TYPE_ENTREE_VALIDES = {
     # chantier, effacement cryptographique), versionnée ; le dernier maillon gagne. Jamais l'adresse
     # en clair : seulement une empreinte HMAC (localisation.py).
     "localisation_chantier",
+    # PLAN T4.1-d (R15 §4) : un plan de tournées PROPOSÉ (entrée sans matrice, plan complet, empreintes
+    # d'entrée, de sortie et d'état) puis son APPLICATION (qui a fait assigner qui, par quel humain). La
+    # proposition n'écrit aucune vérité ; seule l'application passe par ``etats.assigner_technicien``. Jamais
+    # une coordonnée de chantier ici (celles-ci restent chiffrées dans ``localisation_chantier``).
+    "cedule_proposee",
+    "cedule_appliquee",
 }
 
 
