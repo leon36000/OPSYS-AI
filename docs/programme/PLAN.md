@@ -584,10 +584,12 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         non porté, révocation) ; vitest (7 et 11 tests), à exécuter par le job `tests-opsys`.
 
       Code critique : revue externe (liste plus bas). Le reste passe à T1.4-c5.
-    - [ ] T1.4-c5 Core et mobile : le rôle nommé sur la poignée de main WebSocket (l'app ne
+    - [x] T1.4-c5 Core et mobile : le rôle nommé sur la poignée de main WebSocket (l'app ne
           l'apprend pas encore) ; `opsys-mobile` câblé dans l'app et dans la classification de
           confiance du core.
-          Livré (cf5ac31, b7dd582, 677610e), à cocher sur le job `tests-opsys` du core :
+          Preuve CI : core 25 (b2838a3), job `tests-opsys` vert, 40 fichiers ciblés sur 40, dont
+          `opsys-device-identity-http`, `server-http.opsys-device-identity` et
+          `opsys-mobile-trust`. Livré (cf5ac31, b7dd582, 677610e) :
           - `GET /opsys/identite` plutôt que `hello-ok` (trame gelée, envoyée avant l'attribution
             de la personne, et l'app ne se reconnecte pas en WebSocket) : `deviceId` tiré du jeton
             vérifié, personne et rôle lus dans `appareils.json` par le même code que la porte
