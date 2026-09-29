@@ -101,6 +101,10 @@ Ce qui existe (activable pour tout agent nommé ; le cas visé est M3, avant `m3
 - **Désactivé par défaut.** `opsys/contexte.json` (`"actif": true`) et `plugins.slots.contextEngine: "opsys"`
   s'écrivent ensemble par `opsys openclaw configurer --contexte-entreprise AGENT[:OUTIL,OUTIL]`. Sans l'option,
   le fichier porte `{"actif": false}` et aucun moteur n'est choisi.
+- **Mémoire native conservée.** Le lanceur retire du prompt système la section mémoire de `memory-core` pour
+  tout moteur autre que « legacy ». Le moteur `opsys` la rajoute (`buildMemorySystemPromptAddition`) même
+  quand `contexte.json` est inactif ou ne nomme pas l'agent : choisir ce moteur ne prive aucun agent de sa
+  couche A. En prompt minimal (sous-agents), il la met aussi, ce que le lanceur ne ferait pas.
 - **Niveau du dépôt.** `m10_deposer_faits_candidats` est T1 mais **N2** (tâche interne automatique), comme
   `m4_deposer_fichier`. En N3, le mode `ombre` de M10 mettrait chaque tour d'agent en attente d'approbation ;
   `openclaw.generer` refuse d'activer le moteur si le dépôt en exigerait une. Le dépôt est append-only, ne

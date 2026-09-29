@@ -177,6 +177,11 @@ Réutilisé plutôt que réécrit :
 - `delegateCompactionToRuntime` (`delegate.ts`) : la compaction reste celle du lanceur ;
 - `resolveMcpTransport`, `connectMcpClient`, `disposeMcpClient` (`src/agents/mcp-*.ts`) : un appel MCP borné,
   avec l'URL et l'en-tête `Bearer ${OPSYS_MCP_JETON}` de `mcp.servers.opsys_m10` ;
+- `buildMemorySystemPromptAddition` (`delegate.ts`) : le lanceur retire la section mémoire (outils de
+  `memory-core`, citations) du prompt système pour tout moteur autre que « legacy » et attend que le moteur la
+  rajoute. Le moteur `opsys` la rajoute toujours, même sans `contexte.json` actif, pour que les agents gardent
+  leur mémoire native (ADR-0010, couche A). Écart connu : en mode de prompt minimal (sous-agents), le lanceur
+  ne l'aurait pas mise ; le moteur ne connaît pas le mode et la met ;
 - le mécanisme d'enregistrement `registerContextEngineForOwner` et le fournisseur de session
   `parseAgentSessionKey` ; le journal `createSubsystemLogger`.
 

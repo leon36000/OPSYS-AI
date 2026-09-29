@@ -2,8 +2,12 @@
 // `afterTurn()`. The call to the business engine is a fake driven by the test, and so is the timer:
 // no network, no real timer, no wait. Each failure mode must leave the turn running, marked, logged.
 import type { AgentMessage } from "openclaw/plugin-sdk/agent-core";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createDeferred } from "../../test/helpers/promise.js";
+import {
+  clearMemoryPluginState,
+  registerTestMemoryPromptBuilder,
+} from "../plugins/memory-state.test-fixtures.js";
 import { delegateCompactionToRuntime } from "./delegate.js";
 import type { OpsysContexteConfigResult } from "./opsys-contexte-config.js";
 import { depositKey } from "./opsys-contexte-depot.js";
@@ -117,6 +121,16 @@ function afterTurnParams(
     ...overrides,
   };
 }
+
+// The runner puts the memory guidance in the prompt for the legacy engine only: no other engine's
+// tests may see what an earlier test file left registered.
+beforeEach(() => {
+  clearMemoryPluginState();
+});
+
+afterEach(() => {
+  clearMemoryPluginState();
+});
 
 const ESTIMATION_OK = toolResultMessage("opsys_m3__m3_estimer_projet", "call_1", {
   ok: true,
@@ -597,5 +611,51 @@ describe("OpsysContextEngine afterTurn (POSTFLIGHT)", () => {
     ).resolves.toBeUndefined();
 
     expect(logs.warn).toHaveLength(1);
+  });
+});
+
+describe("OpsysContextEngine memory guidance", () => {
+  const GUIDANCE = "## Memory Recall\nuse memory_search first";
+
+  it("adds the memory guidance the runner leaves out for a non-legacy engine, before the packet", async () => {
+    registerTestMemoryPromptBuilder(() => ["## Memory Recall", "use memory_search first", ""]);
+    const { engine } = harness();
+
+    const result = await engine.assemble(assembleParams());
+
+    expect(result.systemPromptAddition?.startsWith(`${GUIDANCE}\n\n## Contexte d'entreprise`)).toBe(true);
+    expect(result.systemPromptAddition).toContain("Toujours confirmer la longueur des gouttières");
+  });
+
+  it.each([
+    { title: "no contexte.json", config: { kind: "absent" } as const, sessionKey: "agent:m03-estimation:main" },
+    { title: "a contexte.json that is not active", config: { kind: "disabled" } as const, sessionKey: "agent:m03-estimation:main" },
+    {
+      title: "an agent the file does not name",
+      config: { kind: "enabled", config: CONFIG_M3 } as const,
+      sessionKey: "agent:m01-front-office:main",
+    },
+  ])("keeps the native memory guidance, and only that, with $title", async ({ config, sessionKey }) => {
+    registerTestMemoryPromptBuilder(() => ["## Memory Recall", "use memory_search first", ""]);
+    const { engine, calls } = harness({ config });
+
+    const result = await engine.assemble(assembleParams({ sessionKey }));
+
+    expect(result.systemPromptAddition).toBe(GUIDANCE);
+    expect(calls).toStrictEqual([]);
+  });
+
+  it("never lets a failure of the memory path cost the turn its packet", async () => {
+    registerTestMemoryPromptBuilder(() => {
+      throw new Error("memory index unreadable");
+    });
+    const { engine, logs } = harness();
+
+    const result = await engine.assemble(assembleParams());
+
+    expect(result.systemPromptAddition).toContain("Toujours confirmer la longueur des gouttières");
+    expect(result.systemPromptAddition).not.toContain("Memory Recall");
+    expect(logs.warn).toHaveLength(1);
+    expect(logs.warn[0]).toContain("memory guidance unavailable");
   });
 });

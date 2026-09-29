@@ -11,6 +11,11 @@
 //     (`m10_deposer_faits_candidats`), never what the model wrote.
 // Compaction stays the runtime's (`delegateCompactionToRuntime`, same as the legacy engine).
 //
+// One thing a non-legacy engine owes the host: the runner leaves the memory guidance (memory-core
+// tools, citations) out of the system prompt for every engine but "legacy" and expects the engine to
+// add it (`buildMemorySystemPromptAddition`, see `delegate.ts`). This engine always does, so agents
+// keep the native memory of ADR-0010 layer A whatever `contexte.json` says.
+//
 // Fail-closed AND never blocking. Whatever goes wrong (engine unreachable, too slow, invalid or
 // oversized packet, no case in the request), the turn continues WITHOUT a packet, carries an
 // explicit "contexte d'entreprise indisponible" marker, and leaves one journal line. A packet is
@@ -27,7 +32,7 @@ import { formatErrorMessage } from "../infra/errors.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { parseAgentSessionKey } from "../routing/session-key.js";
 import { createLazyRuntimeModule } from "../shared/lazy-runtime.js";
-import { delegateCompactionToRuntime } from "./delegate.js";
+import { buildMemorySystemPromptAddition, delegateCompactionToRuntime } from "./delegate.js";
 import { LegacyContextEngine } from "./legacy.js";
 import {
   readOpsysContexteConfig,
@@ -143,15 +148,17 @@ export class OpsysContextEngine implements ContextEngine {
 
   async assemble(params: Parameters<Assemble>[0]): Promise<AssembleResult> {
     const assembled = await this.legacy.assemble(params);
-    let addition: string | undefined;
+    const memory = this.memoryGuidance(params);
+    let packet: string | undefined;
     try {
-      addition = await this.composeAddition(params);
+      packet = await this.composeAddition(params);
     } catch (error) {
       // Unreachable by construction; kept so no failure can ever cost the turn its assembly.
       this.log.warn(`opsys-contexte: unexpected failure in assemble: ${describeError(error)}`);
-      addition = renderUnavailable("erreur interne du moteur de contexte");
+      packet = renderUnavailable("erreur interne du moteur de contexte");
     }
-    return addition === undefined ? assembled : { ...assembled, systemPromptAddition: addition };
+    const addition = [memory, packet].filter((part) => part !== undefined).join("\n\n");
+    return addition === "" ? assembled : { ...assembled, systemPromptAddition: addition };
   }
 
   async afterTurn(params: Parameters<AfterTurn>[0]): Promise<void> {
@@ -159,6 +166,23 @@ export class OpsysContextEngine implements ContextEngine {
       await this.deposit(params);
     } catch (error) {
       this.log.warn(`opsys-contexte: POSTFLIGHT abandoned: ${describeError(error)}`);
+    }
+  }
+
+  /**
+   * The memory guidance the runner no longer puts in the system prompt for a non-legacy engine. It
+   * must never cost the turn its packet, nor the packet its turn: a failure here is only journaled.
+   */
+  private memoryGuidance(params: Parameters<Assemble>[0]): string | undefined {
+    try {
+      return buildMemorySystemPromptAddition({
+        availableTools: params.availableTools ?? new Set<string>(),
+        citationsMode: params.citationsMode,
+        agentSessionKey: params.sessionKey,
+      });
+    } catch (error) {
+      this.log.warn(`opsys-contexte: memory guidance unavailable: ${describeError(error)}`);
+      return undefined;
     }
   }
 
