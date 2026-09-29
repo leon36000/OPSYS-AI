@@ -140,7 +140,7 @@ describe("Talk client Gateway control owner", () => {
         sessionKey: sessionTarget.canonicalKey,
         active: true,
         aborted: true,
-        message: "Cancelled the active OpenClaw run.",
+        message: "Cancelled the active OPSYS run.",
         speak: true,
         show: true,
         suppress: false,
@@ -151,7 +151,7 @@ describe("Talk client Gateway control owner", () => {
           ok: false,
           active: false,
           aborted: false,
-          message: "There is no active OpenClaw run to cancel.",
+          message: "There is no active OPSYS run to cancel.",
         }))
         .mockResolvedValueOnce(cancelled);
       const runAgentConsult = vi.fn(async (_args: unknown, signal: AbortSignal) => {

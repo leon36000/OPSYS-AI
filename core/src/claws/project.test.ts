@@ -138,7 +138,7 @@ describe("Claw projects", () => {
     expect(validated.ok).toBe(true);
     if (validated.ok) {
       expect(validated.claw.manifest.agent.id).toBe("research-assistant");
-      expect(validated.claw.clawMarkdownBody?.toString()).toContain("purpose-built OpenClaw agent");
+      expect(validated.claw.clawMarkdownBody?.toString()).toContain("purpose-built OPSYS agent");
     }
   });
 

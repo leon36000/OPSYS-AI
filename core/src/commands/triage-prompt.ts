@@ -124,13 +124,13 @@ export function renderTriagePrompt(params: {
     return severity || left.checkId.localeCompare(right.checkId);
   });
   const lines = [
-    "You are repairing THIS machine's OpenClaw installation. Diagnose the root cause, apply the repair autonomously within your existing permissions, and verify the result. Preserve configuration, history, and databases. Use local `openclaw doctor`, `openclaw doctor --fix`, `openclaw status --all`, and `openclaw logs` as needed. Product documentation: https://docs.openclaw.ai.",
+    "You are repairing THIS machine's OPSYS installation. Diagnose the root cause, apply the repair autonomously within your existing permissions, and verify the result. Preserve configuration, history, and databases. Use local `openclaw doctor`, `openclaw doctor --fix`, `openclaw status --all`, and `openclaw logs` as needed. Product documentation: https://docs.openclaw.ai.",
     "",
     "## Environment",
     "",
-    `- OpenClaw: ${VERSION}`,
+    `- OPSYS: ${VERSION}`,
     `- Platform: ${process.platform}`,
-    `- Node.js: ${process.versions.node} (the runtime executing OpenClaw, which may differ from the shell default)`,
+    `- Node.js: ${process.versions.node} (the runtime executing OPSYS, which may differ from the shell default)`,
     "- Local shell commands inherit `OPENCLAW_STATE_DIR`, `OPENCLAW_CONFIG_PATH`, and `OPENCLAW_WORKSPACE_DIR` for the diagnosed installation and its default workspace; expand archive references in that shell. The diagnostic conversation is separate from the installation's saved sessions. The execution cwd is separate from the installation's default workspace. Do not substitute a remote or sandbox installation for this local target.",
   ];
   const failureIndex = lines.length;

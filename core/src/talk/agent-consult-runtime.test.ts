@@ -387,7 +387,7 @@ describe("realtime voice agent consult runtime", () => {
     expect(call.prompt).toBe(
       [
         "Live voice request from the caller during a live phone call.",
-        "Act as the configured OpenClaw agent on behalf of this user. Use available tools when the request asks you to do work.",
+        "Act as the configured OPSYS agent on behalf of this user. Use available tools when the request asks you to do work.",
         "When finished, return only the concise result the realtime voice agent should speak back.",
         "Do not include markdown, tool logs, or private reasoning. Include citations only when the spoken answer needs them.",
         "Recent voice transcript for context:\nCaller: Can you check this?",
@@ -396,7 +396,7 @@ describe("realtime voice agent consult runtime", () => {
       ].join("\n\n"),
     );
     expect(call.extraSystemPrompt).toBe(
-      "You are the configured OpenClaw agent receiving delegated requests from a live voice bridge. Act on behalf of the user, use available tools when appropriate, and return a brief speakable result.",
+      "You are the configured OPSYS agent receiving delegated requests from a live voice bridge. Act on behalf of the user, use available tools when appropriate, and return a brief speakable result.",
     );
   });
 

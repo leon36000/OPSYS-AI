@@ -204,7 +204,7 @@ describe("update.run current owner authority", () => {
         "hosting Gateway guidance",
       );
       const action = expectDefined(
-        guidance.match(/Update OpenClaw: `gateway` action ([\w.]+)/u)?.[1],
+        guidance.match(/Update OPSYS: `gateway` action ([\w.]+)/u)?.[1],
         "prompt-advertised update action",
       );
       const result = await tool.execute("update", {

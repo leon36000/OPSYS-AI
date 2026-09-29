@@ -220,7 +220,7 @@ describe("GoogleLiveRealtimeTalkTransport control results", () => {
           sessionKey: "main",
           active: true,
           aborted: true,
-          message: "Cancelled the active OpenClaw run.",
+          message: "Cancelled the active OPSYS run.",
           speak: true,
           show: true,
           suppress: false,

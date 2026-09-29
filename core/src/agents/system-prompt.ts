@@ -516,8 +516,8 @@ function buildDocsSection(params: {
     docsPath ? "Mirror: https://docs.openclaw.ai" : undefined,
     sourcePath ? `Source: ${sourcePath}` : "Source: https://github.com/openclaw/openclaw",
     docsPath
-      ? `OpenClaw behavior questions: docs first${params.readToolName ? ` via \`${params.readToolName}\`/local search` : " using available tools"}. AGENTS/project/workspace/profile/memory = instructions/user memory, not product design truth.`
-      : "OpenClaw behavior questions: docs mirror first when web exists. AGENTS/project/workspace/profile/memory = instructions/user memory, not product design truth.",
+      ? `OPSYS behavior questions: docs first${params.readToolName ? ` via \`${params.readToolName}\`/local search` : " using available tools"}. AGENTS/project/workspace/profile/memory = instructions/user memory, not product design truth.`
+      : "OPSYS behavior questions: docs mirror first when web exists. AGENTS/project/workspace/profile/memory = instructions/user memory, not product design truth.",
     params.hasGateway
       ? "Config field: use `gateway(config.schema.lookup)` with an exact path only when that action is exposed by the tool schema. Otherwise use `docs/gateway/configuration.md` and `docs/gateway/configuration-reference.md`."
       : "Configuration docs: `docs/gateway/configuration.md`, `docs/gateway/configuration-reference.md`.",
@@ -661,7 +661,7 @@ export function buildAgentSystemPrompt(params: {
   const runtimeInfo = params.runtimeInfo;
   const modelIdentityLine = buildModelIdentityPromptLine(runtimeInfo?.model);
   if (promptMode === "none") {
-    return ["You are a personal assistant running inside OpenClaw.", modelIdentityLine]
+    return ["You are a personal assistant running inside OPSYS.", modelIdentityLine]
       .filter(Boolean)
       .join("\n");
   }
@@ -910,7 +910,7 @@ export function buildAgentSystemPrompt(params: {
   });
   const stablePrefix = cacheStablePromptPrefix(stablePrefixCacheKey, () => {
     const lines = [
-      "You are a personal assistant running inside OpenClaw.",
+      "You are a personal assistant running inside OPSYS.",
       "",
       ...(includeToolGuidance
         ? [
@@ -1032,7 +1032,7 @@ export function buildAgentSystemPrompt(params: {
           `Only start a new \`${tool}\` call if the user clearly asks for different/new media.`,
         ]),
       "",
-      "## OpenClaw Control",
+      "## OPSYS Control",
       "Do not invent commands.",
       hasOpenClaw
         ? "Gateway restart, config, channels, plugins, agents, models/providers: ask `openclaw`."
@@ -1043,7 +1043,7 @@ export function buildAgentSystemPrompt(params: {
         "For the Gateway hosting this session:",
         "In a connected chat, the owner can send `/update` with commands.restart enabled (the default), regardless of the agent's tool profile.",
         hasGateway
-          ? "Update OpenClaw: `gateway` action update.run, only on an explicit owner request or an operator-scheduled update; the runtime coordinates restart and completion notices. If refused, explain why and relay the tool's exact recovery instructions; any manual update command is for the operator to run outside the Gateway service."
+          ? "Update OPSYS: `gateway` action update.run, only on an explicit owner request or an operator-scheduled update; the runtime coordinates restart and completion notices. If refused, explain why and relay the tool's exact recovery instructions; any manual update command is for the operator to run outside the Gateway service."
           : "For a chat update request, direct the user to `/update`. Outside chat, use the Control UI or ask the operator to run `openclaw update` in a terminal.",
         "Missing chat ownership needs owner setup in the Control UI or help from the Gateway operator.",
         "Never run openclaw update, npm install -g openclaw, swap installations, or stop/restart the gateway service via exec or detached jobs.",
@@ -1129,7 +1129,7 @@ export function buildAgentSystemPrompt(params: {
       params.sandboxInfo?.enabled ? "" : "",
       ...bootstrapSystemPromptSections,
       "## Workspace Files (injected)",
-      "User-editable; OpenClaw loads below as Project Context.",
+      "User-editable; OPSYS loads below as Project Context.",
       "",
     ];
 

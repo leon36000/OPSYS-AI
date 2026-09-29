@@ -1035,7 +1035,7 @@ export class RealtimeCallHandler {
       audioFormat: REALTIME_VOICE_AUDIO_FORMAT_G711_ULAW_8KHZ,
       interruptResponseOnInputAudio,
       instructions: handlesAgentConsult
-        ? `${instructions}\n\nUse native agent delegation for OpenClaw work. End-call and custom realtime function tools are unavailable in this session; the caller can hang up to end the call.`
+        ? `${instructions}\n\nUse native agent delegation for OPSYS work. End-call and custom realtime function tools are unavailable in this session; the caller can hang up to end the call.`
         : instructions,
       tools: handlesAgentConsult ? [] : this.config.tools,
       ...(handlesAgentConsult
@@ -2178,14 +2178,14 @@ export class RealtimeCallHandler {
         }
         return await submitFinalToolResult({
           status: "cancelled",
-          message: "OpenClaw cancelled this consult before completion. Do not restart it.",
+          message: "OPSYS cancelled this consult before completion. Do not restart it.",
         });
       }
       if (forcedConsult) {
         if (forcedConsult.completedAt || forcedMatch.kind === "already_delivered") {
           return await submitFinalToolResult({
             status: "already_delivered",
-            message: "OpenClaw already delivered this consult result internally. Do not repeat it.",
+            message: "OPSYS already delivered this consult result internally. Do not repeat it.",
           });
         }
         forcedConsult.sendSpeechPrompt = false;

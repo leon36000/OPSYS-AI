@@ -103,7 +103,7 @@ describe("buildCliAgentSystemPrompt", () => {
     expect(prompt).not.toContain("For long waits, avoid rapid poll loops");
     expect(prompt).not.toContain("Larger work: use `sessions_spawn`");
     expect(prompt).not.toContain("Do not poll `subagents list` / `sessions_list` in a loop");
-    expect(prompt).toContain("No OpenClaw tool list is injected");
+    expect(prompt).toContain("No OPSYS tool list is injected");
     expect(prompt).toContain("docs first via `read`");
     expect(prompt).not.toContain("exec approval-pending");
     expect(prompt).not.toContain("Config read: `gateway`");

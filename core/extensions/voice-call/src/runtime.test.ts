@@ -482,7 +482,7 @@ describe("createVoiceCallRuntime lifecycle", () => {
       from: "+15550001111",
       to: "+15550002222",
     });
-    expect(unknownRegistration.instructions).not.toContain("OpenClaw agent voice context:");
+    expect(unknownRegistration.instructions).not.toContain("OPSYS agent voice context:");
   });
 
   it("selects realtime provider readiness from the routed call owner", async () => {

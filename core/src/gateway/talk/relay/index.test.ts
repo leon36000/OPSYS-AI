@@ -2345,7 +2345,7 @@ describe("talk realtime gateway relay", () => {
         status: "working",
         tool: "openclaw_agent_consult",
         message:
-          "Tell the person briefly that you are checking, then wait for the final OpenClaw result before answering with the actual result.",
+          "Tell the person briefly that you are checking, then wait for the final OPSYS result before answering with the actual result.",
       },
       { willContinue: true },
     );
@@ -2854,7 +2854,7 @@ describe("talk realtime gateway relay", () => {
       options: { willContinue: true },
     });
     expect(bridge.sendUserMessage).toHaveBeenLastCalledWith(
-      "Briefly tell the person that you are checking with OpenClaw. Do not answer the request yet. Wait for the OpenClaw result before giving the actual answer.",
+      "Briefly tell the person that you are checking with OPSYS. Do not answer the request yet. Wait for the OPSYS result before giving the actual answer.",
     );
 
     bridgeRequest?.onToolCall?.({
@@ -2869,7 +2869,7 @@ describe("talk realtime gateway relay", () => {
         status: "working",
         tool: "openclaw_agent_consult",
         message:
-          "Tell the person briefly that you are checking, then wait for the final OpenClaw result before answering with the actual result.",
+          "Tell the person briefly that you are checking, then wait for the final OPSYS result before answering with the actual result.",
       },
       { willContinue: true },
     );
@@ -2891,13 +2891,13 @@ describe("talk realtime gateway relay", () => {
       "native-call",
       {
         status: "already_delivered",
-        message: "OpenClaw already delivered this consult result internally. Do not repeat it.",
+        message: "OPSYS already delivered this consult result internally. Do not repeat it.",
       },
       { suppressResponse: true },
     );
     expect(bridge.sendUserMessage).toHaveBeenLastCalledWith(
       [
-        "OpenClaw finished checking. Speak this result naturally and concisely.",
+        "OPSYS finished checking. Speak this result naturally and concisely.",
         "Do not mention tool calls, JSON, or internal routing.",
         "",
         "Here is the checked answer.",
@@ -2936,7 +2936,7 @@ describe("talk realtime gateway relay", () => {
         status: "working",
         tool: "openclaw_agent_consult",
         message:
-          "Tell the person briefly that you are checking, then wait for the final OpenClaw result before answering with the actual result.",
+          "Tell the person briefly that you are checking, then wait for the final OPSYS result before answering with the actual result.",
       },
       { willContinue: true },
     );
@@ -3248,7 +3248,7 @@ describe("talk realtime gateway relay", () => {
       "late-call",
       {
         status: "already_delivered",
-        message: "OpenClaw already delivered this consult result internally. Do not repeat it.",
+        message: "OPSYS already delivered this consult result internally. Do not repeat it.",
       },
       undefined,
     );
@@ -4405,7 +4405,7 @@ describe("talk realtime gateway relay", () => {
       "call-1",
       {
         status: "cancelled",
-        message: "OpenClaw cancelled this consult before completion. Do not restart it.",
+        message: "OPSYS cancelled this consult before completion. Do not restart it.",
       },
       { suppressResponse: true },
     );
@@ -4661,7 +4661,7 @@ describe("talk realtime gateway relay", () => {
       { phase: "first" },
       {
         status: "cancelled",
-        message: "OpenClaw cancelled this consult before completion. Do not restart it.",
+        message: "OPSYS cancelled this consult before completion. Do not restart it.",
       },
     ]);
     expect(submitToolResult.mock.calls[1]?.[2]).toEqual({ suppressResponse: true });
@@ -4728,7 +4728,7 @@ describe("talk realtime gateway relay", () => {
           { status: "working" },
           {
             status: "cancelled",
-            message: "OpenClaw cancelled this consult before completion. Do not restart it.",
+            message: "OPSYS cancelled this consult before completion. Do not restart it.",
           },
         ]);
         expect(submitToolResult.mock.calls[1]?.[2]).toBeUndefined();
@@ -4860,7 +4860,7 @@ describe("talk realtime gateway relay", () => {
       { answer: "stale" },
       {
         status: "cancelled",
-        message: "OpenClaw cancelled this consult before completion. Do not restart it.",
+        message: "OPSYS cancelled this consult before completion. Do not restart it.",
       },
     ]);
   });
@@ -5093,7 +5093,7 @@ describe("talk realtime gateway relay", () => {
       if (transition !== "disconnect") {
         await vi.waitFor(() =>
           expect(native ? respond : bridge.sendUserMessage).toHaveBeenCalledWith(
-            expect.stringContaining("There is no active OpenClaw run to cancel."),
+            expect.stringContaining("There is no active OPSYS run to cancel."),
           ),
         );
       } else {
@@ -5209,7 +5209,7 @@ describe("talk realtime gateway relay", () => {
         suppress: expectedSuppress,
         providerResult: {
           status: "cancelled",
-          message: "Cancelled the active OpenClaw run.",
+          message: "Cancelled the active OPSYS run.",
         },
       });
       expect(abortEmbeddedRun).toHaveBeenCalledTimes(1);
@@ -5217,7 +5217,7 @@ describe("talk realtime gateway relay", () => {
         "call-1",
         {
           status: "cancelled",
-          message: "Cancelled the active OpenClaw run.",
+          message: "Cancelled the active OPSYS run.",
         },
         expectedOptions,
       );
@@ -5427,7 +5427,7 @@ describe("talk realtime gateway relay", () => {
       mode: "cancel",
       providerResult: {
         status: "cancelled",
-        message: "Cancelled the active OpenClaw run.",
+        message: "Cancelled the active OPSYS run.",
       },
     });
     expect(abortEmbeddedRun).toHaveBeenCalledTimes(1);
@@ -5477,7 +5477,7 @@ describe("talk realtime gateway relay", () => {
     for (const call of fixture.submitToolResult.mock.calls) {
       expect(call[1]).toEqual({
         status: "cancelled",
-        message: "OpenClaw cancelled this consult before completion. Do not restart it.",
+        message: "OPSYS cancelled this consult before completion. Do not restart it.",
       });
       expect(call[2]).toBeUndefined();
     }
@@ -5498,7 +5498,7 @@ describe("talk realtime gateway relay", () => {
     expectRecordFields((terminal.talkEvent as Record<string, unknown>).payload, {
       result: {
         status: "cancelled",
-        message: "OpenClaw cancelled this consult before completion. Do not restart it.",
+        message: "OPSYS cancelled this consult before completion. Do not restart it.",
       },
       forced: true,
     });
@@ -5530,7 +5530,7 @@ describe("talk realtime gateway relay", () => {
       expect.objectContaining({ status: "working" }),
       {
         status: "cancelled",
-        message: "OpenClaw cancelled this consult before completion. Do not restart it.",
+        message: "OPSYS cancelled this consult before completion. Do not restart it.",
       },
     ]);
     expect(fixture.submitToolResult.mock.calls[1]?.[2]).toBeUndefined();
@@ -5574,7 +5574,7 @@ describe("talk realtime gateway relay", () => {
       { answer: "stale" },
       {
         status: "cancelled",
-        message: "OpenClaw cancelled this consult before completion. Do not restart it.",
+        message: "OPSYS cancelled this consult before completion. Do not restart it.",
       },
     ]);
   });
@@ -5675,7 +5675,7 @@ describe("talk realtime gateway relay", () => {
       "native-call",
       {
         status: "already_delivered",
-        message: "OpenClaw already delivered this consult result internally. Do not repeat it.",
+        message: "OPSYS already delivered this consult result internally. Do not repeat it.",
       },
       { suppressResponse: true },
     );
@@ -5686,11 +5686,11 @@ describe("talk realtime gateway relay", () => {
 
   it.each([
     ["status", false, false, "I'm not working on an active request right now."],
-    ["cancel", false, false, "There is no active OpenClaw run to cancel."],
+    ["cancel", false, false, "There is no active OPSYS run to cancel."],
     ["status", true, false, undefined],
     ["status", undefined, false, undefined],
     ["status", false, true, "I'm not working on an active request right now."],
-    ["cancel", false, true, "There is no active OpenClaw run to cancel."],
+    ["cancel", false, true, "There is no active OPSYS run to cancel."],
     ["cancel", true, false, undefined],
   ])(
     "routes idle %s (tools=%s, delegation=%s)",

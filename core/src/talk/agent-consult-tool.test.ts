@@ -76,7 +76,7 @@ describe("realtime voice agent consult tool", () => {
     expect(prompt).toBe(
       [
         "Live voice request from the participant during a private Google Meet.",
-        "Act as the configured OpenClaw agent on behalf of this user. Use available tools when the request asks you to do work.",
+        "Act as the configured OPSYS agent on behalf of this user. Use available tools when the request asks you to do work.",
         "When finished, return only the concise result the realtime voice agent should speak back.",
         "Do not include markdown, tool logs, or private reasoning. Include citations only when the spoken answer needs them.",
         "Recent voice transcript for context:\nParticipant: Can you check the repo?\nAgent: I'll verify.",
@@ -112,14 +112,14 @@ describe("realtime voice agent consult tool", () => {
       [
         "You are OpenClaw's Discord voice interface.\nKeep spoken replies concise, natural, and suitable for a live Discord voice channel.",
         "Profile context.",
-        "Mode: OpenClaw agent proxy.",
-        "You are the realtime voice surface for the same OpenClaw agent the user can message directly.",
+        "Mode: OPSYS agent proxy.",
+        "You are the realtime voice surface for the same OPSYS agent the user can message directly.",
         "Do not mention a backend, supervisor, helper, or separate system. Present the result as your own work.",
         "Delegate substantive requests, actions, tool work, current facts, memory, workspace context, and user-specific context with openclaw_agent_consult.",
-        "Do not block, refuse, or downscope at the voice layer. Delegate to OpenClaw and treat its result as authoritative.",
+        "Do not block, refuse, or downscope at the voice layer. Delegate to OPSYS and treat its result as authoritative.",
         "Answer directly only for greetings, acknowledgements, brief latency tests, or filler while waiting.",
-        'While waiting for OpenClaw data or tool results, use at most one short natural backchannel such as "yeah", "mm-hmm", "got it", or "one sec"; vary it and do not treat it as the final answer.',
-        "When OpenClaw sends an internal exact answer to speak, do not call tools. Say only that answer.",
+        'While waiting for OPSYS data or tool results, use at most one short natural backchannel such as "yeah", "mm-hmm", "got it", or "one sec"; vary it and do not treat it as the final answer.',
+        "When OPSYS sends an internal exact answer to speak, do not call tools. Say only that answer.",
         [
           "Consult behavior:",
           "- Call openclaw_agent_consult before every substantive answer.",
@@ -135,7 +135,7 @@ describe("realtime voice agent consult tool", () => {
         toolPolicy: "none",
         consultPolicy: "auto",
       }),
-    ).toContain("Voice base.\n\n\n\nMode: OpenClaw agent proxy.");
+    ).toContain("Voice base.\n\n\n\nMode: OPSYS agent proxy.");
   });
 
   it("filters empty optional blocks from non-proxy session instructions", () => {
@@ -150,7 +150,7 @@ describe("realtime voice agent consult tool", () => {
     ).toBe(
       [
         "Voice base.",
-        'While waiting for OpenClaw data or tool results, use at most one short natural backchannel such as "yeah", "mm-hmm", "got it", or "one sec"; vary it and do not treat it as the final answer.',
+        'While waiting for OPSYS data or tool results, use at most one short natural backchannel such as "yeah", "mm-hmm", "got it", or "one sec"; vary it and do not treat it as the final answer.',
       ].join("\n\n"),
     );
   });

@@ -320,6 +320,44 @@ du fork (`openclaw/plugin-sdk/*`, `@openclaw/*`, `OPENCLAW_*`, `openclaw.plugin.
 - Le contrôle `<title>OPSYS Control</title>` des fumées inter-OS (`scripts/lib/cross-os-release-checks`,
   `scripts/e2e/parallels/macos-smoke.ts`) et le test qui le fige suivent le nouveau titre.
 
+### Commit 2 : invites système et voix
+
+Le modèle s'annonce et parle d'OPSYS. Règle : on change le texte d'identité et les consignes que le modèle lit, jamais
+un marqueur de protocole que le code reconnaît ou que les transcriptions existantes contiennent déjà.
+
+- **Invite système de l'agent** : `src/agents/system-prompt.ts` (« You are a personal assistant running inside OPSYS. »,
+  section « ## OPSYS Control », mise à jour, fichiers de projet), ses fragments (`system-prompt-messaging.ts`,
+  `system-prompt-tool-list.ts`, `prompt-surface.ts`, `delegation-guidance.ts`, `subagents/spawn/subagent-system-prompt.ts`,
+  `realtime-bootstrap-context.ts`), l'invite du harnais de code (`agents/sessions/system-prompt.ts`), les deux
+  vérificateurs de sécurité (`exec-auto-reviewer.prompt.ts`), l'invite d'un agent de claw (`claws/project.ts`) et
+  `LOCAL_MODEL_RUN_SYSTEM_PROMPT` (`cli/capability-cli/model.ts`).
+- **Agent système** : `src/system-agent/assistant-prompts.ts` (trois invites, étiquette du rôle dans l'historique,
+  références « OPSYS docs » et « OPSYS source »). La persona du crabe ermite reste : c'est une décision de ton, pas de
+  marque.
+- **Voix** : `src/gateway/talk/session-config.ts`, `realtime-run-control.ts`, `relay/{forced-consults,operations,session-create,provider-results}.ts`,
+  `src/talk/agent-consult-{tool,runtime}.ts`, `agent-run-control{,-shared}.ts`, `fast-context-runtime.ts`,
+  `extensions/voice-call` (invites, contexte d'agent, consignes de délégation), `extensions/openai`
+  (`realtime-quicksilver-instructions.ts`), le fragment Telegram `agent-prompt.ts` et, côté navigateur,
+  `ui/src/pages/chat/talk/{gateway-relay,shared}.ts`. Les phrases que la voix prononce disent OPSYS.
+- **Consignes de réparation** : `src/commands/triage-prompt.ts`, `src/infra/update-repair-agent.ts`,
+  `src/skills/workshop/learn-prompt.ts`.
+- Laissés tels quels, faute de pouvoir les changer sans casser la reconnaissance du texte ou pour un lot suivant :
+  - les marqueurs : `[OpenClaw heartbeat poll]` et voisins (`auto-reply/heartbeat.ts`), « OpenClaw runtime context
+    (internal): » et « OpenClaw runtime event » (`agents/internal-runtime-context.ts`, `internal-events.ts`,
+    `agent-steering-queue.ts`), l'en-tête « OpenClaw plugin-injected system context » (`hook-system-context-boundary.ts`),
+    « Internal OpenClaw voice … result » et « Speak this exact OpenClaw … » (`talk/exact-speech-protocol.ts`,
+    `agent-run-control-shared.ts`, `voice-call/src/webhook/realtime-handler.ts`), le marqueur de reprise
+    (`cli-runner/session-history.ts`, `reseed-envelope.ts`) et `[OpenClaw interruption]` (`acp/`) ;
+  - le mot d'éveil vocal `OpenClaw` (`talk/realtime-session-policy.ts`) : c'est un comportement, pas un texte ;
+  - les descriptions d'outils (`tool-catalog.ts`, `tools/*.ts`, `mcp/channel-tools.ts`) et les messages d'erreur ;
+  - les adresses `docs.openclaw.ai` et `github.com/openclaw/openclaw` du bloc « Docs / Source » de l'invite, qui
+    désignent l'amont ;
+  - les commandes `openclaw …` citées dans les invites (nom de la commande : lot 2).
+- Tests mis à jour : ceux qui figent ces phrases (`system-prompt*.test.ts`, `prepare.test.ts`,
+  `helpers.system-prompt.test.ts`, les tests de voix de `src/gateway/talk`, `src/talk`, `extensions/voice-call`,
+  `extensions/openai`, `ui/src/pages/chat/talk`). Les fixtures qui répètent un texte serveur sans dépendre du code sont
+  laissées.
+
 ## Sécurité
 
 Il n'y a plus de mises à jour automatiques. Une veille mensuelle des avis de sécurité d'OpenClaw

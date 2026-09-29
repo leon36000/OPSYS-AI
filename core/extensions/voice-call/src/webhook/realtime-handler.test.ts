@@ -1863,7 +1863,7 @@ describe("RealtimeCallHandler path routing", () => {
   });
 
   describe.each(["forced", "native", "general"] as const)("%s host tool outcomes", (path) => {
-    const cancelled = { status: "cancelled", message: "Cancelled the active OpenClaw run." };
+    const cancelled = { status: "cancelled", message: "Cancelled the active OPSYS run." };
     const outcomes = [
       { label: "AbortSignal cancellation", error: AbortSignal.abort().reason, result: cancelled },
       {
@@ -2074,7 +2074,7 @@ describe("RealtimeCallHandler path routing", () => {
             "native-cancelled",
             {
               status: "cancelled",
-              message: "OpenClaw cancelled this consult before completion. Do not restart it.",
+              message: "OPSYS cancelled this consult before completion. Do not restart it.",
             },
             undefined,
           );

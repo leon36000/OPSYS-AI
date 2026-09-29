@@ -121,3 +121,37 @@ ui/src/pages/model-setup/view.test.ts
 ui/src/pages/plugins/catalog-detail.test.ts
 test/scripts/control-ui-performance.test.ts
 test/scripts/openclaw-cross-os-release-checks.test.ts
+
+# T0.7 lot 1, invites système et voix : le modèle s'annonce OPSYS. Ces fichiers figent les phrases des invites et
+# des messages de voix. Ni `src/agents`, `src/gateway`, `src/cli`, `extensions` ni `ui` ne sont dans `test:fast` ;
+# `src/talk`, `src/system-agent` et `src/claws` peuvent être rangés dans les voies « unit-fast » (contenu du test) :
+# on les liste pour être sûr qu'ils tournent quelque part.
+src/agents/system-prompt.test.ts
+src/agents/system-prompt-messaging.test.ts
+src/agents/delegation-guidance.test.ts
+src/agents/realtime-bootstrap-context.test.ts
+src/agents/embedded-agent-runner/system-prompt.test.ts
+src/agents/cli-runner/helpers.system-prompt.test.ts
+src/agents/cli-runner/prepare.test.ts
+src/agents/sessions/sdk.test.ts
+src/gateway/server-methods/update-owner.test.ts
+src/gateway/talk/client-gateway-control.test.ts
+src/gateway/talk/handlers/client-native-actions.test.ts
+src/gateway/talk/handlers/client-native-control.test.ts
+src/gateway/talk/relay/index.test.ts
+src/cli/capability-cli.test.ts
+src/system-agent/assistant.test.ts
+src/system-agent/greeting.test.ts
+src/talk/agent-consult-runtime.test.ts
+src/talk/agent-consult-tool.test.ts
+src/talk/agent-run-control.test.ts
+src/claws/project.test.ts
+extensions/openai/realtime-voice-provider-routing.test.ts
+extensions/voice-call/src/realtime-agent-context.test.ts
+extensions/voice-call/src/realtime-fast-context.test.ts
+extensions/voice-call/src/runtime.test.ts
+extensions/voice-call/src/webhook/realtime-handler.test.ts
+ui/src/pages/chat/talk/consult.test.ts
+ui/src/pages/chat/talk/gateway-relay.test.ts
+ui/src/pages/chat/talk/google-live-control.test.ts
+ui/src/pages/chat/talk/webrtc.test.ts
