@@ -28,6 +28,10 @@ _CHAMPS_LEAD_V2 = (
 )
 _CHAMPS_LEAD_V2_OPTIONNELS = ("source", "utm", "campagne")
 _CLES_UTM = ("utm_source", "utm_medium", "utm_campaign", "utm_content")
+# Canaux qui portent un `utm` (PLAN T4.17-e3). Un UTM est le paramètre d'un lien suivi dans un navigateur : seul un
+# formulaire de site le reçoit. Un SMS, un courriel ou un appel n'en ont pas ; un `utm` fourni pour eux ne peut venir
+# que d'une invention ou d'une déduction du texte, jamais de la plateforme : il est refusé, pas ignoré.
+CANAUX_AVEC_UTM = ("formulaire",)
 
 # Détection de prix affinée. Temps linéaire (PLAN T4.17-g) : un prix est un chiffre que touche une devise, un taux ou
 # un mot (`\d\s*\$`), et `search` ne rend que « oui » ou « non » : le nombre n'a aucune forme à respecter, seul son
@@ -145,19 +149,68 @@ def _valider_lead_v1(lead: dict) -> dict:
     return construire_verdict("EVT-CONTRAT-VALIDE", statut="", detail="Lead valide")
 
 
+def utm_invalide(utm: object) -> str | None:
+    """Ce qui empêche un `utm` FOURNI d'être porté par un lead, ou `None` s'il est conforme.
+
+    Les règles de M2 (`m2_revenue_crm.contrats`, `CLES_UTM`) et de M3, mot pour mot : un dictionnaire non vide, dont les
+    clés sont `utm_source`, `utm_medium`, `utm_campaign` ou `utm_content`, chaque valeur étant une chaîne non vide.
+    Aucune autre borne : ni longueur, ni alphabet, ni énuméré (ceux de M7 sont à M7, `utm-convention.v1.yaml`). M1
+    n'importe pas M2 ; `tests/test_utm_derive_m2.py` confronte les deux lectures sur les mêmes entrées. Un lead que M1
+    émet avec un `utm` est donc toujours un lead que M2 accepte. Une seule définition sert le contrat (ci-dessous) et
+    les outils de réception : jamais une seconde grammaire."""
+    if not isinstance(utm, dict) or not utm:
+        return "champ optionnel 'utm' : dictionnaire non vide exigé s'il est fourni"
+    for cle, valeur in utm.items():
+        if cle not in _CLES_UTM or not isinstance(valeur, str) or valeur == "":
+            return f"champ optionnel 'utm' : sous-clé {cle!r} hors de {list(_CLES_UTM)} ou valeur vide"
+    return None
+
+
 def _champ_optionnel_v2_invalide(lead: dict) -> str | None:
     """`source`, `campagne`, `utm` SI PRÉSENTS (mêmes règles que M2 et M3) ; None si conforme."""
     for champ in ("source", "campagne"):
         if champ in lead and (not isinstance(lead[champ], str) or lead[champ] == ""):
             return f"champ optionnel {champ!r} : chaîne non vide exigée s'il est fourni"
     if "utm" in lead:
-        utm = lead["utm"]
-        if not isinstance(utm, dict) or not utm:
-            return "champ optionnel 'utm' : dictionnaire non vide exigé s'il est fourni"
-        for cle, valeur in utm.items():
-            if cle not in _CLES_UTM or not isinstance(valeur, str) or valeur == "":
-                return f"champ optionnel 'utm' : sous-clé {cle!r} hors de {list(_CLES_UTM)} ou valeur vide"
+        return utm_invalide(lead["utm"])
     return None
+
+
+def verifier_utm(canal: str, utm: object) -> dict | None:
+    """Le verdict de refus d'un `utm` que l'appelant fournit pour ce canal, ou `None` s'il est absent ou portable.
+
+    `utm` absent (`None`) : rien à vérifier, le lead n'en portera pas (jamais une valeur par défaut). Fourni pour un
+    canal qui n'en a pas (`CANAUX_AVEC_UTM`) : `REJ-UTM-CANAL-SANS-SENS`. Fourni et hors des règles de `utm_invalide` :
+    `REJ-UTM-INVALIDE`. Dans les deux cas le détail dit quoi corriger, et l'appelant refuse AVANT toute écriture : un
+    lead ne perd jamais son UTM en silence, et un UTM inventé n'entre jamais dans un lead."""
+    if utm is None:
+        return None
+    if canal not in CANAUX_AVEC_UTM:
+        return construire_verdict(
+            "REJ-UTM-CANAL-SANS-SENS",
+            detail=(
+                f"utm fourni pour le canal {canal!r} : un UTM est le paramètre d'un lien suivi dans un navigateur, "
+                f"seul le formulaire d'un site en porte (canal {CANAUX_AVEC_UTM[0]!r}). Retire `utm` : il n'est jamais "
+                "déduit du texte du client. Rien n'est écrit."
+            ),
+        )
+    probleme = utm_invalide(utm)
+    if probleme is None:
+        return None
+    return construire_verdict(
+        "REJ-UTM-INVALIDE",
+        detail=(
+            f"{probleme}. Recopie les paramètres utm_* du lien tels quels (clés permises : {', '.join(_CLES_UTM)}), "
+            "sans valeur vide, ou omets `utm` quand le lien n'en portait aucun. Rien n'est écrit."
+        ),
+    )
+
+
+def exiger_utm(canal: str, utm: object) -> None:
+    """Refuse (`ValueError`, code et détail du verdict) un `utm` que `verifier_utm` refuse ; sinon ne fait rien."""
+    verdict = verifier_utm(canal, utm)
+    if verdict is not None:
+        raise ValueError(f"{verdict['code']}: {verdict['detail']}")
 
 
 def _valider_lead_v2(lead: dict, services) -> dict:

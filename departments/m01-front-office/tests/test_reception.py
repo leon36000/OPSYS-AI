@@ -48,8 +48,45 @@ def test_un_courriel_sans_adresse_valide_est_refuse(mauvais):
 
 
 def test_un_canal_inconnu_est_refuse_avec_la_liste_des_canaux():
-    with pytest.raises(ValueError, match=r"canal inconnu 'telephone' \(attendu : courriel, sms\)"):
+    with pytest.raises(ValueError, match=r"canal inconnu 'telephone' \(attendu : courriel, formulaire, sms\)"):
         correspondant_du_canal("telephone", NUMERO)
+
+
+# -- Le formulaire d'un site (PLAN T4.17-e3) : ce que le visiteur a écrit, non vérifié ----------------------------
+
+
+def test_un_formulaire_a_pour_correspondant_l_adresse_ou_le_numero_que_le_visiteur_a_ecrit():
+    assert correspondant_du_canal("formulaire", ADRESSE) == (ADRESSE, {"courriel": ADRESSE})
+    assert correspondant_du_canal("formulaire", '"Une Visiteuse (fictive)" <Client.Fictif@Exemple.TEST>') == (
+        ADRESSE, {"courriel": ADRESSE})
+    assert correspondant_du_canal("formulaire", f"  {NUMERO} ") == (NUMERO, {"telephone": NUMERO})
+
+
+@pytest.mark.parametrize("mauvais", ["client", "client@", "@exemple.test", "client@exemple", "514-555-0142",
+                                     "5145550142", "+1514", "", "   ", None, 15145550142])
+def test_un_formulaire_sans_adresse_ni_numero_e164_valide_est_refuse_et_dit_quoi_donner(mauvais):
+    with pytest.raises(ValueError, match="expediteur") as exc:
+        correspondant_du_canal("formulaire", mauvais)
+    if isinstance(mauvais, str) and mauvais.strip():
+        assert "adresse courriel valide" in str(exc.value) and "E.164" in str(exc.value)
+
+
+def test_une_arobase_dit_une_adresse_jamais_rabattue_sur_un_numero():
+    with pytest.raises(ValueError, match="adresse courriel valide"):
+        correspondant_du_canal("formulaire", "+15145550142@")
+
+
+def test_le_formulaire_est_un_canal_a_identite_declaree_sans_retrait_ni_session_par_correspondant():
+    assert frozenset({"formulaire"}) == reception.CANAUX_A_IDENTITE_DECLAREE
+    assert reception.CANAL_DU_CONTRAT["formulaire"] == "formulaire"
+    message = preparer("formulaire", ADRESSE, "F-0001", RECU_LE, "STOP")
+    assert message.retrait is False, "un mot de retrait n'a de sens que pour un SMS : ici, c'est un texte de client"
+    assert message.cle_session is None
+    assert message.canal_contrat == "formulaire" and message.contact == {"courriel": ADRESSE}
+    assert message.signal_id == "formulaire:F-0001"
+    assert message.conversation_id == identifiant_de_conversation("formulaire", ADRESSE)
+    assert message.conversation_id != identifiant_de_conversation("courriel", ADRESSE)
+    assert message.conversation_id.startswith("formulaire-") and ADRESSE.split("@")[0] not in message.conversation_id
 
 
 # -- La conversation -------------------------------------------------------------------------------------------

@@ -47,6 +47,14 @@ personne le clôt (`m1_clore_transfert`, décision humaine). `m1_transferer` et 
 l'agent (jugement, ou type hors plainte) ; ils écrivent la même chose, en N2 (tâche interne : jamais refusés faute
 d'affaire liée). Aucune réponse n'est envoyée : le gabarit empathique est un brouillon, l'envoi reste
 `m1_emettre_notification` (N4).
+
+Formulaire d'un site et UTM (PLAN T4.17-e3, `docs/departements/M1-canaux.md` §13) : `formulaire` est un canal de
+`m1_recevoir_message_canal` (l'adresse ou le numéro que le visiteur a écrit, jamais vérifiée) et le seul qui porte un
+`utm`, les paramètres du lien que le visiteur a suivi. Ils sont validés comme M2 les valide (`contrats.utm_invalide`),
+portés tels quels par le lead que le message fait naître, jamais devinés ni complétés. Un `utm` invalide, ou fourni
+pour un canal sans lien (SMS, courriel, appel), est refusé avant toute écriture, avec un verdict qui dit quoi corriger
+(`contrats.exiger_utm`). Quand un `utm` est fourni, la réponse dit s'il est porté par un lead (`utm.statut`) : un `utm`
+qu'aucun lead ne porte ne disparaît jamais en silence.
 """
 
 from __future__ import annotations
@@ -255,6 +263,66 @@ def _qualifier_la_conversation(
 
 
 # ---------------------------------------------------------------------------
+# Formulaire d'un site : le UTM et l'identité déclarée (PLAN T4.17-e3)
+# ---------------------------------------------------------------------------
+
+_DECISIONS_DE_TRANSFERT = frozenset({"ESCALADE_PLAINTE", "ESCALADE_URGENCE", "TRANSFERT_EN_COURS"})
+_UTM_NON_PORTE = {
+    "transfert_humain": (
+        "ce message est une plainte, une urgence, ou suit un transfert ouvert : aucun lead ne s'ouvre, donc aucun lead "
+        "ne porte cet utm. Dis-le à une personne."
+    ),
+    "lead_deja_emis": (
+        "la conversation a déjà son lead (contrat v2 gelé) et ce lead ne porte pas cet utm. Dis-le à une personne."
+    ),
+    "aucun_lead_ouvert": (
+        "ce message n'ouvre aucun lead (de quoi le qualifier manque) : aucun lead ne porte cet utm. Le lead qui naîtra "
+        "d'un message suivant portera l'utm de ce message-là, s'il en donne un. Dis-le à une personne."
+    ),
+}
+
+
+def _bloc_utm(reponse: dict[str, Any], utm: dict[str, str]) -> dict[str, Any]:
+    """Ce que devient un `utm` fourni, dit à l'agent : porté par le lead de la réponse, ou par aucun, et pourquoi.
+
+    Le verdict se lit sur la réponse finie, jamais sur une intention : `porte_par_le_lead` seulement quand le lead de la
+    réponse porte exactement cet `utm` (le lead qu'un rejeu rend, ou celui que ce message vient d'ouvrir). Sinon
+    `non_porte`, avec la raison : un transfert humain, un lead déjà émis (gelé) sans cet `utm`, ou aucun lead ouvert."""
+    lead = reponse.get("lead")
+    if isinstance(lead, dict) and lead.get("utm") == utm:
+        return {"statut": "porte_par_le_lead"}
+    if reponse.get("decision") in _DECISIONS_DE_TRANSFERT:
+        raison = "transfert_humain"
+    elif isinstance(lead, dict):
+        raison = "lead_deja_emis"
+    else:
+        raison = "aucun_lead_ouvert"
+    return {"statut": "non_porte", "raison": raison, "detail": _UTM_NON_PORTE[raison]}
+
+
+def _avec_bloc_utm(reponse: dict[str, Any], utm: dict[str, str] | None) -> dict[str, Any]:
+    """La réponse, avec le bloc `utm` quand l'appelant en a fourni un (`_bloc_utm`) ; sans `utm` fourni, inchangée."""
+    if utm is not None:
+        reponse["utm"] = _bloc_utm(reponse, utm)
+    return reponse
+
+
+def _etiquette_du_contact(canal: str, contact_canal: dict[str, str] | None) -> str:
+    """D'où vient le contact du lead, tel que la réponse le dit : `canal` (la plateforme a vérifié l'identité du
+    correspondant) ou `texte` (le client l'a écrite). Celle d'un formulaire est écrite par le visiteur, sans aucune
+    vérification (`reception.CANAUX_A_IDENTITE_DECLAREE`) : `texte`, même si le lead la porte comme champ du canal."""
+    return "canal" if contact_canal and canal not in reception.CANAUX_A_IDENTITE_DECLAREE else "texte"
+
+
+def _etiqueter_le_diagnostic(diagnostic: dict[str, Any], canal: str) -> dict[str, Any]:
+    """Le diagnostic d'une conversation, dont la source du contact suit `_etiquette_du_contact` : seule l'étiquette
+    change, jamais ce qui est établi ni ce qui manque."""
+    if diagnostic["contact"] == "canal" and canal in reception.CANAUX_A_IDENTITE_DECLAREE:
+        return {**diagnostic, "contact": "texte"}
+    return diagnostic
+
+
+# ---------------------------------------------------------------------------
 # Fonctions enveloppes — chacune appelle le code métier existant tel quel.
 # ---------------------------------------------------------------------------
 
@@ -273,9 +341,10 @@ def qualifier_signal(
     utm: dict[str, str] | None = None,
     campagne: str | None = None,
 ) -> dict[str, Any]:
+    contrats.exiger_utm(canal, utm)
     return qualification.qualifier(
         contenu_filtre, canal, conversation_id, zone_desservie,
-        source=source, utm=utm, campagne=campagne,
+        source=source, utm=None if utm is None else dict(utm), campagne=campagne,
     )
 
 
@@ -358,6 +427,10 @@ def traiter_demande_entrante(
     pas une demande à préciser. `source`, `utm`, `campagne` sont transmis tels que fournis.
     Ici, tous les champs viennent de l'appelant (voix transcrite, saisie manuelle) : pour un message
     qu'un canal du core livre, `recevoir_message_canal` les tire de la plateforme.
+
+    `utm` : seul le canal `formulaire` en porte un (`contrats.CANAUX_AVEC_UTM`), validé comme M2 le valide. Fourni pour
+    un appel, un SMS ou un courriel, ou invalide, il est refusé avant toute écriture (`ValueError`, verdict qui dit
+    quoi corriger) : jamais ignoré, jamais un lead sans lui en silence.
     """
     return _traiter(
         contenu_brut, canal, conversation_id, signal_id, horodatage, zone_desservie,
@@ -379,6 +452,33 @@ def _traiter(
     contact_canal: dict[str, str] | None = None,
     cle_session: str | None = None,
     fenetre_minutes: int | None = None,
+) -> dict[str, Any]:
+    """Le chemin d'une demande, de la provenance au lead. `utm` (PLAN T4.17-e3) est vérifié AVANT tout effet : refusé,
+    il n'écrit rien. Copié, il n'est jamais partagé avec l'appelant. Fourni, il est dit à l'agent (`utm.statut`), porté
+    ou non par un lead : la réponse ne le laisse jamais disparaître en silence."""
+    contrats.exiger_utm(canal, utm)
+    utm_recu = None if utm is None else dict(utm)
+    reponse = _traiter_le_signal(
+        contenu_brut, canal, conversation_id, signal_id, horodatage, zone_desservie, consentement_enregistrement,
+        source, utm_recu, campagne, contact_canal, cle_session, fenetre_minutes,
+    )
+    return _avec_bloc_utm(reponse, utm_recu)
+
+
+def _traiter_le_signal(
+    contenu_brut: str,
+    canal: str,
+    conversation_id: str,
+    signal_id: str,
+    horodatage: str,
+    zone_desservie: list[str],
+    consentement_enregistrement: str | None,
+    source: str | None,
+    utm: dict[str, str] | None,
+    campagne: str | None,
+    contact_canal: dict[str, str] | None,
+    cle_session: str | None,
+    fenetre_minutes: int | None,
 ) -> dict[str, Any]:
     # 0. Configuration avant tout effet : sans service déclaré par l'instance, on refuse ici,
     #    avant d'écrire au registre (fail-closed, le message dit quoi configurer).
@@ -416,7 +516,7 @@ def _traiter(
         return _transferer_le_message(
             reg, lignes, etats_transferts, detection, contenu_filtre=contenu_filtre, sain=sain, canal=canal,
             source=source, conversation_id=conversation_id, signal_id=signal_id, horodatage=horodatage,
-            contact_canal=contact_canal, cle_session=cle_session, fenetre_minutes=fenetre_minutes)
+            contact_canal=contact_canal, cle_session=cle_session, fenetre_minutes=fenetre_minutes, utm=utm)
 
     # 2. Registre anti-perte : une ligne immuable, qualifié ou non.
     signal: dict[str, Any] = {
@@ -430,6 +530,8 @@ def _traiter(
     }
     if source is not None:
         signal["source"] = source
+    if utm is not None:
+        signal["utm"] = utm  # ce que le visiteur a déclaré reste au registre, même quand aucun lead ne le porte
     if ouverte is not None and ouverte.lead is not None:
         signal["rattache_au_lead"] = ouverte.lead["lead"]["lead_id"]
     ligne_id_signal = reg.ajouter(signal)
@@ -465,7 +567,8 @@ def _traiter(
             [m["contenu_filtre"] for m in ouverte.messages] + [contenu_filtre], services)
         retenus = {un.code for un in services_lus}
         ecartes = [c for c in qualification.services_evoques(contenu_a_qualifier, services) if c not in retenus]
-        diagnostic = qualification.diagnostiquer(contenu_a_qualifier, zone_desservie, services_lus, contact_canal)
+        diagnostic = _etiqueter_le_diagnostic(
+            qualification.diagnostiquer(contenu_a_qualifier, zone_desservie, services_lus, contact_canal), canal)
     resultat_qualif = qualification.qualifier(
         contenu_a_qualifier, canal, conversation_id, zone_desservie,
         services=services_lus, source=source, utm=utm, campagne=campagne, contact_canal=contact_canal,
@@ -585,12 +688,13 @@ def _avec_detection(reponse: dict[str, Any], detection: plaintes.Detection) -> d
 
 
 def _contact_du_message(
-    contact_canal: dict[str, str] | None, contenu_filtre: str
+    canal: str, contact_canal: dict[str, str] | None, contenu_filtre: str
 ) -> tuple[dict[str, str] | None, str | None]:
     """`(contact, source)` : l'identité que la plateforme a vérifiée (`canal`), sinon ce que le client a écrit
-    (`texte`), sinon rien. Le transfert le porte à part : c'est ainsi que la personne sait qui rappeler."""
+    (`texte`, dont l'adresse ou le numéro d'un formulaire : rien ne l'a vérifiée), sinon rien. Le transfert le porte à
+    part : c'est ainsi que la personne sait qui rappeler."""
     if contact_canal:
-        return dict(contact_canal), "canal"
+        return dict(contact_canal), _etiquette_du_contact(canal, contact_canal)
     ecrit = qualification.contact_du_texte(contenu_filtre)
     return (ecrit, "texte") if ecrit else (None, None)
 
@@ -654,9 +758,11 @@ def _transferer_le_message(
     contact_canal: dict[str, str] | None,
     cle_session: str | None,
     fenetre_minutes: int | None,
+    utm: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Un message reconnu comme plainte ou urgence de sécurité, ou reçu dans une conversation dont un transfert est
-    encore ouvert : il est inscrit, rattaché à un transfert, et n'ouvre JAMAIS de lead (la plainte prime).
+    encore ouvert : il est inscrit, rattaché à un transfert, et n'ouvre JAMAIS de lead (la plainte prime). Un `utm`
+    qu'il porte reste sur la ligne de son signal : aucun lead ne s'ouvre pour le porter.
 
     - Reconnu, et aucun transfert ouvert de CE type : un transfert s'ouvre (`urgence` dès qu'une urgence de sécurité est
       reconnue, sinon `plainte`), résumé composé par le code, destinataire lu du profil (absent : « à configurer »).
@@ -669,7 +775,7 @@ def _transferer_le_message(
     du_type = [e for e in ouverts if e.ouverture["type_transfert"] == type_detecte] if type_detecte else []
     nouvelle: dict[str, Any] | None = None
     if type_detecte is not None and not du_type:
-        contact, contact_source = _contact_du_message(contact_canal, contenu_filtre)
+        contact, contact_source = _contact_du_message(canal, contact_canal, contenu_filtre)
         destinataire, verdict_destinataire = taxonomie.charger_destinataire_du_transfert(type_detecte)
         nouvelle, refus = transferts.preparer_ouverture(
             lignes, type_transfert=type_detecte, categories=detection.categories, termes=detection.termes,
@@ -695,6 +801,8 @@ def _transferer_le_message(
     }
     if source is not None:
         signal["source"] = source
+    if utm is not None:
+        signal["utm"] = utm
     ligne_id_signal = reg.ajouter(signal)
     ligne_id_transfert = reg.ajouter(nouvelle) if nouvelle is not None else None
     if nouvelle is not None:
@@ -771,7 +879,8 @@ def _ouvrir_pour_l_agent(
         lignes, type_transfert=type_transfert, categories=categories,
         termes={c: t for c, t in detection.termes.items() if c in categories},
         declenche_par=transferts.DECLENCHE_PAR_AGENT, canal=canal_contrat, source=canal,
-        conversation_id=conversation_id, message_courant=None, contact=contact, contact_source="canal",
+        conversation_id=conversation_id, message_courant=None, contact=contact,
+        contact_source=_etiquette_du_contact(canal, contact),
         destinataire=destinataire,
         verdict_destinataire=verdict_destinataire, fenetre_minutes=fenetre, resume_agent=resume,
         resume_fourni=resume is not None,
@@ -935,7 +1044,8 @@ def _complement_de_conversation(
     # Ce que la conversation établit, c'est ce que le lead transmis porte (service, ville, contact) ; l'urgence
     # est cumulée.
     etabli = {
-        **cumul, "service": lead["service"], "ville": lead["ville"], "contact": "canal" if contact_canal else "texte",
+        **cumul, "service": lead["service"], "ville": lead["ville"],
+        "contact": _etiquette_du_contact(canal, contact_canal),
     }
     reponse: dict[str, Any] = {
         "etape": "conversation",
@@ -1093,25 +1203,31 @@ def recevoir_message_canal(
     recu_le: str,
     texte: str,
     objet: str | None = None,
+    utm: dict[str, str] | None = None,
 ) -> dict[str, Any]:
-    """Un message qu'un canal du core (SMS, plus tard courriel) livre à l'agent M1, de bout en bout.
+    """Un message qu'un canal (SMS, courriel, ou le formulaire d'un site) livre à l'agent M1, de bout en bout.
 
     Les cinq premiers paramètres sont recopiés par l'agent des blocs que la plateforme génère ; `reception.py`
     en tire ce qui compte, jamais le texte du client : le correspondant validé, la conversation (empreinte, sans
     numéro), le signal (`<canal>:<message_id>`, qui rend la réception idempotente), le contact du lead (l'identité
     du canal, seule), la clé de session du core. La zone desservie vient du profil de l'instance : l'agent ne la
-    fournit pas. `source` du lead est le canal du core.
+    fournit pas. `source` du lead est le canal.
 
-    Refus (`ValueError`, rien d'écrit) : champ de plateforme invalide, service ou zone non déclarés par l'instance,
-    fenêtre de conversation déclarée mais invalide. Sinon : un retrait (STOP) est inscrit sans être qualifié ; un
-    message déjà reçu rend sa réponse sans rien écrire ; tout autre passe par `_traiter` (provenance → registre →
-    qualification → lead → bus).
+    `utm` (PLAN T4.17-e3) : les paramètres `utm_*` du lien que le visiteur d'un formulaire a suivi, tels que le
+    formulaire les a transmis. Le seul canal qui en porte un est `formulaire` ; validé comme M2 le valide, le lead que
+    ce message fait naître le porte tel quel, jamais complété ni deviné. Absent, le lead n'en porte pas.
+
+    Refus (`ValueError`, rien d'écrit) : champ de plateforme invalide, `utm` invalide ou fourni pour un canal qui n'en
+    a pas (SMS, courriel), service ou zone non déclarés par l'instance, fenêtre de conversation déclarée mais
+    invalide. Sinon : un retrait (STOP) est inscrit sans être qualifié ; un message déjà reçu rend sa réponse sans
+    rien écrire ; tout autre passe par `_traiter` (provenance → registre → qualification → lead → bus).
 
     Fenêtre de conversation (PLAN T2.1-b) : déclarée par le profil d'entreprise, elle rassemble les messages d'un même
     client (`conversation.py`) ; absente, la qualification reste message par message et `conversation.verdict` le dit,
     avec où la déclarer. Jamais une durée par défaut.
     """
     message = reception.preparer(canal, expediteur, message_id, recu_le, texte, objet)
+    contrats.exiger_utm(message.canal, utm)  # avant tout : un SMS ou un STOP qui porte un `utm` n'écrit rien
     zone, verdict_zone = taxonomie.charger_zone_desservie()
     if verdict_zone is not None:
         raise ValueError(f"{verdict_zone['code']}: {verdict_zone['detail']}")
@@ -1125,13 +1241,13 @@ def recevoir_message_canal(
     reg = _obtenir_registre()
     deja = _signal_deja_recu(reg, message.signal_id)
     if deja is not None:
-        return deja
+        return _avec_bloc_utm(deja, None if utm is None else dict(utm))
     if message.retrait:
         reponse = _enregistrer_retrait(reg, message, fenetre)
     else:
         reponse = _traiter(
             message.contenu, message.canal_contrat, message.conversation_id, message.signal_id, message.horodatage,
-            list(zone), None, message.canal, None, None,
+            list(zone), None, message.canal, utm, None,
             contact_canal=message.contact, cle_session=message.cle_session, fenetre_minutes=fenetre,
         )
     if fenetre is None:
@@ -1169,7 +1285,12 @@ _ZONE_DESSERVIE = {
 _SOURCE = {"type": ["string", "null"], "description": "Optionnel : canal d'acquisition déclaré, jamais deviné."}
 _UTM = {
     "type": ["object", "null"],
-    "description": "Optionnel : paramètres UTM tels que fournis (utm_source, utm_medium, utm_campaign, utm_content).",
+    "description": (
+        "Optionnel : paramètres UTM du lien que le visiteur a suivi, tels que le formulaire les a transmis "
+        "(utm_source, utm_medium, utm_campaign, utm_content ; aucune autre clé, aucune valeur vide). Seul le canal "
+        "`formulaire` en porte un : fourni pour un autre canal, ou invalide, il est refusé. Jamais composé ni déduit "
+        "du texte ; absent (null) quand le lien n'en portait aucun."
+    ),
 }
 _CAMPAGNE = {"type": ["string", "null"], "description": "Optionnel : campagne marketing déclarée, jamais devinée."}
 _CONVERSATION = {
@@ -1179,7 +1300,10 @@ _CONVERSATION = {
 _CANAL_DU_CORE = {
     "type": "string",
     "enum": sorted(reception.CANAL_DU_CONTRAT),
-    "description": "Canal du core, champ channel du bloc Message Context. Jamais deviné.",
+    "description": (
+        "Canal du core (champ channel du bloc Message Context : sms, courriel) ou `formulaire` (le formulaire du "
+        "site), tel que la plateforme le donne. Jamais deviné."
+    ),
 }
 _EXPEDITEUR = {
     "type": "string",
@@ -1234,15 +1358,16 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m1_recevoir_message_canal",
             description=(
-                "Reçoit un message qu'un canal du core (sms, courriel) livre à cet agent : recopie tel quel le canal, "
-                "l'expéditeur, l'identifiant et l'heure de réception que la plateforme donne, et le texte du client. "
-                "L'outil filtre la provenance, inscrit le signal au registre anti-perte (un message rejoué ne s'ajoute "
-                "pas), reconnaît un retrait (STOP), qualifie par règles (service, ville de la zone, expéditeur comme "
-                "contact) et transmet le lead à M2 par le bus. Avec une fenêtre de conversation déclarée, les messages "
-                "du même client se rassemblent : un seul lead par conversation. Le code ajoute, sans modèle : les "
-                "champs manquants, les questions du service écrites par l'entreprise, la demande de photos (fermée "
-                "sans politique validée), le score (poids de l'entreprise, sinon « poids à configurer »), la "
-                "prochaine action datée au registre, et un brouillon de ce qu'il reste à demander, jamais envoyé."
+                "Reçoit un message qu'un canal (sms, courriel, formulaire du site) livre à cet agent : recopie tel "
+                "quel le canal, l'expéditeur, l'identifiant et l'heure de réception que la plateforme donne, et le "
+                "texte du client. L'outil filtre la provenance, inscrit le signal au registre anti-perte (un message "
+                "rejoué ne s'ajoute pas), reconnaît un retrait (STOP), qualifie par règles (service, ville de la "
+                "zone, expéditeur comme contact) et transmet le lead à M2 par le bus. Avec une fenêtre de "
+                "conversation déclarée, les messages du même client se rassemblent : un seul lead par conversation. "
+                "Formulaire seulement : `utm`, les paramètres du lien suivi, que le lead porte tels quels (la "
+                "réponse le dit). Le code ajoute, sans modèle : les champs manquants, les questions du service, la "
+                "demande de photos (fermée sans politique validée), le score (poids de l'entreprise), la prochaine "
+                "action datée, et un brouillon de ce qu'il reste à demander, jamais envoyé."
             ),
             parametres={
                 "type": "object",
@@ -1250,11 +1375,17 @@ def outils() -> tuple[Outil, ...]:
                     "canal": {
                         "type": "string",
                         "enum": sorted(reception.CANAL_DU_CONTRAT),
-                        "description": "Canal du core, champ channel du bloc Message Context. Jamais deviné.",
+                        "description": (
+                            "Canal du core, champ channel du bloc Message Context (sms, courriel), ou `formulaire` "
+                            "pour le formulaire du site. Jamais deviné."
+                        ),
                     },
                     "expediteur": {
                         "type": "string",
-                        "description": "Numéro E.164 (sms) ou adresse (courriel) du bloc Conversation info (sender).",
+                        "description": (
+                            "Numéro E.164 (sms) ou adresse (courriel) du bloc Conversation info (sender) ; pour un "
+                            "formulaire, l'adresse courriel (ou le numéro E.164) écrite par le visiteur, non vérifiée."
+                        ),
                     },
                     "message_id": {
                         "type": "string",
@@ -1269,6 +1400,7 @@ def outils() -> tuple[Outil, ...]:
                     },
                     "texte": {"type": "string", "description": "Corps du message, tel que reçu, sans le résumer."},
                     "objet": {"type": ["string", "null"], "description": "Objet d'un courriel ; absent pour un SMS."},
+                    "utm": _UTM,
                 },
                 "required": ["canal", "expediteur", "message_id", "recu_le", "texte"],
                 "additionalProperties": False,

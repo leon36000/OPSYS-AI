@@ -228,9 +228,9 @@ def test_un_champ_de_plateforme_invalide_est_refuse_sans_rien_ecrire(surcharge):
     assert _lignes() == []
 
 
-def test_le_canal_de_l_outil_est_ferme_a_sms_et_courriel():
+def test_le_canal_de_l_outil_est_ferme_a_sms_courriel_et_formulaire():
     outil = next(o for o in outils() if o.nom == "m1_recevoir_message_canal")
-    assert outil.parametres["properties"]["canal"]["enum"] == ["courriel", "sms"]
+    assert outil.parametres["properties"]["canal"]["enum"] == ["courriel", "formulaire", "sms"]
     reponse = executer(outil, {"canal": "telephone", "expediteur": NUMERO, "message_id": "m", "recu_le": RECU_LE,
                                "texte": GOUTTIERES})
     assert reponse["ok"] is False and reponse["erreur"] == "arguments_invalides"

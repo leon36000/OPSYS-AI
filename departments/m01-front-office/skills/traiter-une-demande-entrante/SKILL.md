@@ -12,7 +12,9 @@ Cette procédure reste celle d'une voix transcrite ou d'une saisie manuelle.
 1. Réunis : le contenu brut du message, le canal (`telephone`, `courriel`, `formulaire` ou
    `texte`), un identifiant de conversation, l'horodatage (fourni par le système, jamais
    deviné) et la zone desservie (villes couvertes par l'entreprise — donnée de configuration,
-   jamais inventée). S'il en manque une, demande-la avant de continuer.
+   jamais inventée). S'il en manque une, demande-la avant de continuer. `utm` (les paramètres du lien suivi) n'existe que
+   pour un `formulaire`, tel que le formulaire l'a transmis : pour un appel, un SMS ou un courriel, ne le fournis jamais
+   (l'outil le refuse, rien n'est écrit).
 2. Appelle `m1_traiter_demande_entrante` une seule fois avec toutes ces données. L'outil
    filtre la provenance, inscrit le signal au registre anti-perte, vérifie le consentement si
    le canal est `telephone`, puis qualifie par règles déterministes.

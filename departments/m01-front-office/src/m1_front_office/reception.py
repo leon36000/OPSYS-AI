@@ -13,6 +13,12 @@ code, tout ce que l'agent ne doit pas inventer :
 - la clé de session du core, que M10 lie à l'affaire ;
 - le retrait de consentement (STOP), reconnu sur le message entier.
 
+Le formulaire d'un site (`formulaire`, PLAN T4.17-e3) arrive par la même porte, mais il n'est pas un canal du core :
+aucune extension ne le livre, et personne ne vérifie qui l'a rempli. Son « expéditeur » est ce que le visiteur a écrit
+dans le champ prévu (une adresse courriel, ou un numéro E.164), jamais une identité vérifiée : c'est la seule
+différence, et `CANAUX_A_IDENTITE_DECLAREE` la dit à qui étiquette le contact (un résumé de transfert ne prétend jamais
+qu'un canal l'a vérifié). Il n'a ni retrait (STOP) ni clé de session par correspondant.
+
 Module pur : aucune horloge, aucun accès à la base ni au réseau. Chaque refus est un `ValueError` qui dit
 quoi corriger ; rien n'a été écrit quand il est levé.
 """
@@ -32,9 +38,13 @@ from . import horodatage
 
 DEPARTEMENT = "m01-front-office"
 
-# Canal du core (celui que la plateforme donne à l'agent) -> valeur du champ `canal` du contrat M1 -> M2.
-# Un SMS est du « texte » ; `source` du lead garde, lui, l'identifiant du canal du core.
-CANAL_DU_CONTRAT = {"sms": "texte", "courriel": "courriel"}
+# Canal (celui que la plateforme donne à l'agent) -> valeur du champ `canal` du contrat M1 -> M2.
+# Un SMS est du « texte » ; `source` du lead garde, lui, l'identifiant du canal. `formulaire` est le formulaire d'un
+# site (PLAN T4.17-e3) : le seul canal qui porte un `utm` (`contrats.CANAUX_AVEC_UTM`).
+CANAL_DU_CONTRAT = {"sms": "texte", "courriel": "courriel", "formulaire": "formulaire"}
+# Canaux dont l'identité du correspondant est celle que la personne a ÉCRITE, sans qu'aucune plateforme la vérifie.
+# Le contact du lead reste ce champ (stable, jamais lu dans le texte), mais il s'étiquette « écrit par le client ».
+CANAUX_A_IDENTITE_DECLAREE = frozenset({"formulaire"})
 
 TAILLE_MAX_TEXTE = 20_000  # octets d'un courriel que l'extension imap transmet (`maxBytes`, 20 000 par défaut)
 TAILLE_MAX_IDENTIFIANT = 200
@@ -85,8 +95,22 @@ def est_retrait_de_consentement(texte: str) -> bool:
     return _RETRAIT.fullmatch(_sans_accent_minuscule(texte).strip()) is not None
 
 
+def _numero_e164(expediteur: str) -> tuple[str, dict[str, str]] | None:
+    """`(numéro, contact)` si `expediteur` est un numéro E.164, sinon `None`."""
+    numero = expediteur.strip()
+    return (numero, {"telephone": numero}) if _E164.fullmatch(numero) else None
+
+
+def _adresse_courriel(expediteur: str) -> tuple[str, dict[str, str]] | None:
+    """`(adresse en minuscules, contact)` si `expediteur` porte une adresse valide (« Nom <adresse> » admis), sinon
+    `None`."""
+    adresse = parseaddr(expediteur)[1].strip().lower()
+    return (adresse, {"courriel": adresse}) if _ADRESSE.fullmatch(adresse) else None
+
+
 def correspondant_du_canal(canal: str, expediteur: str) -> tuple[str, dict[str, str]]:
-    """`(correspondant normalisé, contact)` : le numéro E.164 d'un SMS, l'adresse d'un courriel.
+    """`(correspondant normalisé, contact)` : le numéro E.164 d'un SMS, l'adresse d'un courriel, l'adresse ou le numéro
+    que le visiteur d'un formulaire a écrit (`CANAUX_A_IDENTITE_DECLAREE` : non vérifié).
 
     Le contact ne porte que cette identité : pas de nom (celui d'un courriel est écrit par l'expéditeur), pas le
     numéro ou l'adresse que le texte pourrait mentionner. M2 tire le `client_id` du contact entier : un même
@@ -97,16 +121,25 @@ def correspondant_du_canal(canal: str, expediteur: str) -> tuple[str, dict[str, 
     if not isinstance(expediteur, str) or not expediteur.strip():
         raise ValueError("expediteur requis : recopie l'expéditeur du bloc « Conversation info » du message")
     if canal == "sms":
-        numero = expediteur.strip()
-        if not _E164.fullmatch(numero):
+        trouve = _numero_e164(expediteur)
+        if trouve is None:
             raise ValueError(
                 f"expediteur {expediteur!r} : un numéro au format E.164 est attendu pour un SMS (ex. +15145550142)"
             )
-        return numero, {"telephone": numero}
-    adresse = parseaddr(expediteur)[1].strip().lower()
-    if not _ADRESSE.fullmatch(adresse):
-        raise ValueError(f"expediteur {expediteur!r} : une adresse courriel valide est attendue")
-    return adresse, {"courriel": adresse}
+        return trouve
+    if canal == "courriel":
+        trouve = _adresse_courriel(expediteur)
+        if trouve is None:
+            raise ValueError(f"expediteur {expediteur!r} : une adresse courriel valide est attendue")
+        return trouve
+    # Un formulaire : ce que le visiteur a écrit. Une arobase veut dire « adresse » (jamais rabattue sur un numéro).
+    trouve = _adresse_courriel(expediteur) if "@" in expediteur else _numero_e164(expediteur)
+    if trouve is None:
+        raise ValueError(
+            f"expediteur {expediteur!r} : une adresse courriel valide, ou un numéro au format E.164 "
+            "(ex. +15145550142), est attendu pour un formulaire"
+        )
+    return trouve
 
 
 def identifiant_de_conversation(canal: str, correspondant: str) -> str:
