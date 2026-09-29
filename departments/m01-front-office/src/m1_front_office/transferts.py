@@ -82,7 +82,12 @@ TYPE_D_ATTENTE_GENERAL = "transfert_humain"
 
 ACTION_PROPOSEE = "lire (m1_lire_transfert), agir auprès du client, puis clore (m1_clore_transfert)"
 
-_COURRIEL = re.compile(r"[\w.%+'-]+@[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}")
+# Temps linéaire (PLAN T4.17-g). Un courriel se reconnaît à son « @ » : un caractère permis devant, un domaine derrière.
+# `search` ne rend que « oui » ou « non » : la partie locale n'a pas à être lue en entier. L'ancien `[\w.%+'-]+@…` la
+# relisait à chaque départ (une suite de lettres, de points ou de chiffres sans « @ » : 2,7 s pour 20 000 caractères).
+# Même verdict. `tests/test_motifs_lineaires.py` compare ce motif à l'ancien (recopié) et mesure des textes de 20 000 et
+# de 100 000 caractères.
+_COURRIEL = re.compile(r"[\w.%+'-]@[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}")
 _DATE_ISO = re.compile(r"\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:\d{2})?)?")
 _SUITE_DE_CHIFFRES = re.compile(r"\+?\d[\d\s().\-]{5,}\d")
 _CHIFFRES_D_UN_TELEPHONE = 7

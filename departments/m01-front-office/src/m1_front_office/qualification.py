@@ -43,7 +43,22 @@ _PHONE_REGEX = re.compile(
     re.VERBOSE
 )
 
-_EMAIL_REGEX = re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b')
+# Temps linéaire (PLAN T4.17-g). Le texte du client n'a pas de plafond ici, et l'ancien motif
+# `\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b` repartait de chaque « \b » d'une même suite (un point ou un
+# tiret en ouvre un) en relisant la suite jusqu'au bout : 20 000 caractères « a. » coûtaient 0,7 s, 100 000 en coûtaient
+# 15. Ici la suite de caractères permis se lit d'un seul départ, sans retour arrière. Même sens que l'ancien motif, cas
+# limites compris :
+#   - le départ est le début de la suite (rien de permis devant), jamais un de ses caractères ;
+#   - on saute ensuite jusqu'à la première frontière de mot de la suite, là où l'ancien motif aurait commencé (derrière
+#     une lettre accentuée, « andré.tremblay@x.ca » donne « .tremblay@x.ca » comme avant, et « françois@x.ca » n'est
+#     pas reconnu : limites de l'ancien motif, gardées telles quelles) ;
+#   - le courriel est le groupe `courriel` : le saut n'en fait pas partie.
+# `tests/test_motifs_lineaires.py` compare ce motif à l'ancien (recopié) et mesure des textes de 20 000 et de 100 000
+# caractères.
+_EMAIL_REGEX = re.compile(
+    r"(?<![A-Za-z0-9._%+-])(?:(?!\b)[A-Za-z0-9._%+-])*+"
+    r"(?P<courriel>[A-Za-z0-9._%+-]++@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b)"
+)
 
 
 def _rejet(detail: str | None = None, champs_manquants: list[str] | None = None):
@@ -207,7 +222,7 @@ def _extraire_contact(contenu: str) -> dict | None:
         contact["telephone"] = phone_match.group().strip()
     email_match = _EMAIL_REGEX.search(contenu)
     if email_match:
-        contact["courriel"] = email_match.group().strip()
+        contact["courriel"] = email_match.group("courriel").strip()
     return contact if contact else None
 
 
