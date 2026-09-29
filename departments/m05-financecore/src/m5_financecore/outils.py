@@ -102,6 +102,12 @@ factures) ne sont écrits. Le livre de prix de M6 est lu en lecture seule (`_liv
 département qui nomme un autre département. `m5_lire_rentabilite_chantier` et `m5_lire_comptes_a_recevoir` (T0,
 `admin` seulement, même contrôle d'identité et de droit de voir les coûts que `m5_etat_tresorerie`) les rendent
 à l'admin ; aucun montant, prix, taux, durée ni quantité ne se passe en argument.
+
+PLAN T1.5-d (la marge réelle atteint M8 et M10) : chaque fois que `_essayer_cout_reel` ajoute une trace (une
+nouvelle version des entrées), il publie `m5.rentabilite_chantier` dans la MÊME transaction (`_publier_rentabilite`,
+`cout_reel.charge_evenement`) : le coût réel (ou, s'il est partiel, ce qui manque), la marge réelle et prévue en
+texte décimal, `wct_id`, `devis_id` ; jamais un prix unitaire, un taux ni une donnée de client, et jamais une marge
+pour un coût partiel. C'est le seul événement que M5 publie. Aucune écriture comptable n'en découle.
 """
 
 from __future__ import annotations
@@ -113,7 +119,7 @@ from typing import Any
 
 import yaml
 
-from opsys import approbations, contexte, stockage
+from opsys import approbations, contexte, evenements, stockage
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import (
@@ -568,8 +574,10 @@ def _sources_cout_reel() -> dict[str, Any]:
     facture ACTIVE de chaque devis, le livre de prix de M6, le taux horaire configuré et le dernier état tracé de
     chaque devis. Lire une fois (et non à chaque devis) garde une liste de chantiers linéaire, pas quadratique."""
     traces: dict[str, dict[str, Any]] = {}
+    nombre_de_traces: dict[str, int] = {}
     for maillon in stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RENTABILITE):
         traces[maillon.get("devis_id")] = maillon  # le dernier écrit fait foi
+        nombre_de_traces[maillon.get("devis_id")] = nombre_de_traces.get(maillon.get("devis_id"), 0) + 1
     return {
         "devis": list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_DEVIS_RECUS)),
         "wct": list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS)),
@@ -578,6 +586,7 @@ def _sources_cout_reel() -> dict[str, Any]:
         "livre": _livre_de_prix_m6(),
         "taux": _taux_horaire_configure(),
         "traces": traces,
+        "nombre_de_traces": nombre_de_traces,
     }
 
 
@@ -625,8 +634,13 @@ def _essayer_cout_reel(devis_id: str) -> dict[str, Any]:
     un rejeu, ou une pièce qui ne change aucune entrée du calcul, n'ajoute aucun maillon ; une entrée qui change
     (prix du livre, taux, facture envoyée...) en ajoute un, l'historique restant intact.
 
+    Chaque maillon ajouté est publié dans la MÊME transaction (`m5.rentabilite_chantier`, `_publier_rentabilite`) :
+    M8 et M10 apprennent la marge réelle (ou ce qui manque pour la chiffrer) au moment où M5 la trace, pas avant,
+    pas ailleurs. Un rejeu (`deja_tracee`) ne publie rien.
+
     Ne lève pas sur une pièce mal formée (elle devient un manque du coût, voir `cout_reel.py`) : la création de
-    la facture, faite dans la même transaction, ne dépend jamais de ce calcul."""
+    la facture, faite dans la même transaction, ne dépend jamais de ce calcul. Seule la publication peut lever, et
+    seulement si la charge n'était pas conforme au catalogue du socle (un défaut du code, jamais une pièce)."""
     sources = _sources_cout_reel()
     etat = _etat_chantier(devis_id, sources)
     if etat["statut"] != "calculee":
@@ -638,7 +652,23 @@ def _essayer_cout_reel(devis_id: str) -> dict[str, Any]:
     stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_RENTABILITE).append(
         cout_reel.construire_trace(rentabilite, etat["horodatage"])
     )
+    _publier_rentabilite(rentabilite, sources["nombre_de_traces"].get(devis_id, 0) + 1, etat["horodatage"])
     return {"statut": "tracee"}
+
+
+def _publier_rentabilite(rentabilite: dict[str, Any], sequence: int, horodatage: Any) -> None:
+    """Publie `m5.rentabilite_chantier` pour la trace qui vient d'être ajoutée, dans la transaction courante (le
+    répartiteur, seul appelant de la cascade : la trace et l'événement réussissent ou échouent ensemble).
+
+    La charge est une liste blanche (`cout_reel.charge_evenement`) que le catalogue du socle valide à la
+    publication, schéma fermé compris : une charge qui n'y tient pas LÈVE (`ChargeInvalide`), le répartiteur
+    réessaie puis met en quarantaine, visible d'un humain. Mieux vaut cette panne qu'une marge publiée pour un
+    coût partiel. L'identifiant est déterministe (devis, rang de la trace, version des entrées) : republier la
+    même trace est un no-op du bus."""
+    charge = cout_reel.charge_evenement(rentabilite, sequence, horodatage)
+    evenements.publier(
+        cout_reel.TYPE_EVENEMENT_RENTABILITE, _DEPARTEMENT, charge, evenement_id=charge["evenement_id"]
+    )
 
 
 def _essayer_cout_reel_pour_wct(wct_id: str) -> dict[str, Any]:

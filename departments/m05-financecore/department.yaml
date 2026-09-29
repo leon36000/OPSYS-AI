@@ -12,6 +12,9 @@ mode: ombre
 dependances: [m02-revenue-crm, m03-estimation, m04-field-ops, m06-material-control]
 evenements:                                          # ADR-0009 §3, PLAN T1.2-d/T1.3-c/T2.2
   consomme: [m2.client_associe, m3.devis_accepte, m4.travaux_termines, m6.variance_chantier]  # client réel + brouillon + signal M6
+  # PLAN T1.5-d : la marge réelle du chantier (ou ce qui manque pour la chiffrer) atteint M8 et M10. Jamais
+  # un prix unitaire, un taux ni une donnée de client ; jamais une marge pour un coût partiel.
+  publie: [m5.rentabilite_chantier]
 approbations:                                         # ADR-0009 §5, PLAN T1.3-c point 5
   n3: [finance, nathan_owner]
   n4: [finance, nathan_owner]                        # envoi de facture (m5_envoyer_facture)

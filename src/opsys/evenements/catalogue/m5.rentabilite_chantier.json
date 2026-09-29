@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m5.rentabilite_chantier",
+  "title": "M5 — Rentabilité d'un chantier (coût réel et marge réelle)",
+  "description": "Émis par M5 (departments/m05-financecore/src/m5_financecore/outils.py::_essayer_cout_reel, PLAN T1.5-d) chaque fois que sa trace `rentabilite` d'un devis change, c'est-à-dire à chaque NOUVELLE version des entrées du calcul (cout_reel.py::calculer_rentabilite) : jamais pour un rejeu, jamais quand aucune entrée n'a changé. Publié dans la MÊME transaction que la trace. evenement_id déterministe f\"m5-rentabilite-{devis_id}-{sequence}-{16 premiers caractères de version_entrees}\" : `sequence` (rang de la trace pour ce devis, à partir de 1) fait qu'un retour à une version antérieure des entrées (un prix du livre de prix M6 remis à sa valeur d'avant, par exemple) publie un événement DISTINCT plutôt qu'un no-op du bus qui laisserait les consommateurs sur l'état précédent ; le consommateur retient, par wct_id, l'événement de plus grand `sequence`. Consommé par M8 (mesure « marge réelle » et ses écarts) et M10 (leçon d'écart de marge, mémorisée au niveau FINANCIAL, jamais rendue dans un paquet de contexte). RIEN de sensible : aucun prix unitaire, aucun taux horaire, aucune quantité, aucune ligne de matériau, aucune donnée de client, aucun lead_id ni facture_id ; seulement des totaux en CAD (textes décimaux) et des CODES de ce qui manque. Fail-closed : un coût réel PARTIEL ne porte JAMAIS de marge (ni réelle, ni écart) — le schéma l'impose, pas seulement le producteur ; ce que M5 chiffre déjà (`cout_connu_cad`) est un plancher, jamais un total. Toutes les propriétés sont REQUISES même quand leur valeur est nulle : un consommateur ne doit jamais deviner qu'un champ absent équivaut à null.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "evenement_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Identifiant de CET événement (voir la description du type). Répété ici pour que le consommateur, qui ne reçoit que la charge, trace la base de sa décision."
+    },
+    "devis_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Devis M3 dont la rentabilité est tracée (le modèle de M5 est un devis, un WCT, une facture)."
+    },
+    "chantier_id": {
+      "type": ["string", "null"],
+      "description": "Chantier tel que M5 le connaît (devis accepté, à défaut variance M6) ; null si ni l'un ni l'autre ne le porte — jamais deviné."
+    },
+    "wct_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Work Completion Trigger (m4.travaux_termines) dont la durée pointée a servi au coût réel : la clé de jointure des consommateurs."
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Rang de cette trace pour ce devis dans le registre `rentabilite` de M5 (1 pour la première). Le plus grand `sequence` d'un wct_id est l'état courant, quel que soit l'ordre de livraison du bus."
+    },
+    "version_entrees": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "Empreinte SHA-256 de ce que le calcul a réellement consommé (cout_reel.py::calculer_rentabilite) : deux traces d'un même devis n'ont jamais la même version l'une après l'autre."
+    },
+    "horodatage_completion": {
+      "type": "string",
+      "description": "Horodatage RFC 3339 du WCT, repris tel quel : M5 n'a pas d'horloge, l'événement ne date donc jamais de l'instant de publication."
+    },
+    "verdict": {
+      "type": "string",
+      "enum": ["CALCULEE", "PARTIELLE"],
+      "description": "CALCULEE : coût réel complet ET facture connue, la marge réelle est chiffrée. PARTIELLE : au moins une pièce manque (voir `manque`), aucune marge n'est portée."
+    },
+    "devise": {
+      "type": "string",
+      "const": "CAD",
+      "description": "Toutes les valeurs monétaires de la charge sont en dollars canadiens."
+    },
+    "cout_reel_complet": {
+      "type": "boolean",
+      "description": "Vrai seulement si les matériaux ET la main-d'oeuvre sont chiffrés (et qu'un seul WCT existe pour le devis)."
+    },
+    "cout_reel_cad": {
+      "type": ["string", "null"],
+      "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+      "description": "Coût réel total, texte décimal CAD. null quand le coût est partiel : jamais une somme partielle prise pour un total."
+    },
+    "cout_connu_cad": {
+      "type": "string",
+      "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+      "description": "Ce que M5 a pu chiffrer du coût, texte décimal CAD. Un PLANCHER quand le coût est partiel (ce qui manque n'y est pas ajouté), jamais un total ; égal à cout_reel_cad quand le coût est complet."
+    },
+    "marge_reelle_cad": {
+      "type": ["string", "null"],
+      "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+      "description": "Prix facturé avant taxes moins coût réel complet, texte décimal CAD (négatif = chantier en perte). null dès que le coût est partiel ou que la facture manque."
+    },
+    "marge_prevue_cad": {
+      "type": ["string", "null"],
+      "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+      "description": "Prix total moins coût total du devis accepté, tels que M3 les a arrêtés, texte décimal CAD. null si le devis reçu ne porte pas son coût prévu."
+    },
+    "ecart_marge_cad": {
+      "type": ["string", "null"],
+      "pattern": "^-?[0-9]+(\\.[0-9]+)?$",
+      "description": "Marge réelle moins marge prévue, texte décimal CAD (négatif = marge plus faible que prévu). null si l'une des deux manque."
+    },
+    "manque": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 32,
+      "items": {
+        "type": "string",
+        "pattern": "^REJ-[A-Z0-9-]+$"
+      },
+      "description": "Les CODES de verdict de ce qui empêche de conclure (REJ-COUT-*, REJ-RENTABILITE-*), dédoublés et triés. Aucun détail : un détail de manque peut citer un prix fournisseur, il reste dans la lecture de M5 réservée à l'admin (m5_lire_rentabilite_chantier). Peut être non vide même pour CALCULEE (marge prévue absente)."
+    }
+  },
+  "required": [
+    "evenement_id",
+    "devis_id",
+    "chantier_id",
+    "wct_id",
+    "sequence",
+    "version_entrees",
+    "horodatage_completion",
+    "verdict",
+    "devise",
+    "cout_reel_complet",
+    "cout_reel_cad",
+    "cout_connu_cad",
+    "marge_reelle_cad",
+    "marge_prevue_cad",
+    "ecart_marge_cad",
+    "manque"
+  ],
+  "allOf": [
+    {
+      "description": "CALCULEE : le coût est complet et la marge réelle est un texte ; PARTIELLE : aucune marge, ni réelle ni d'écart.",
+      "if": {
+        "properties": {"verdict": {"const": "CALCULEE"}},
+        "required": ["verdict"]
+      },
+      "then": {
+        "properties": {
+          "cout_reel_complet": {"const": true},
+          "cout_reel_cad": {"type": "string"},
+          "marge_reelle_cad": {"type": "string"}
+        }
+      },
+      "else": {
+        "properties": {
+          "marge_reelle_cad": {"type": "null"},
+          "ecart_marge_cad": {"type": "null"}
+        }
+      }
+    },
+    {
+      "description": "Un coût réel partiel ne porte JAMAIS de total ni de marge.",
+      "if": {
+        "properties": {"cout_reel_complet": {"const": true}},
+        "required": ["cout_reel_complet"]
+      },
+      "then": {
+        "properties": {
+          "cout_reel_cad": {"type": "string"}
+        }
+      },
+      "else": {
+        "properties": {
+          "verdict": {"const": "PARTIELLE"},
+          "cout_reel_cad": {"type": "null"},
+          "marge_reelle_cad": {"type": "null"},
+          "ecart_marge_cad": {"type": "null"}
+        }
+      }
+    },
+    {
+      "description": "L'écart de marge n'existe que si la marge réelle ET la marge prévue existent.",
+      "if": {
+        "properties": {"ecart_marge_cad": {"type": "string"}},
+        "required": ["ecart_marge_cad"]
+      },
+      "then": {
+        "properties": {
+          "marge_reelle_cad": {"type": "string"},
+          "marge_prevue_cad": {"type": "string"}
+        }
+      }
+    }
+  ]
+}

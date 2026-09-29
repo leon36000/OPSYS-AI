@@ -318,6 +318,16 @@ inventé, pas de taux par défaut (le manifeste livré n'en porte pas), pas de m
 résultat. **État** : tracé une fois par version des entrées dans le registre dérivé `rentabilite` (ni le grand
 livre, ni les factures) ; les comptes à recevoir sont une vue des factures ENVOYEE.
 
+**Événement `m5.rentabilite_chantier`** (PLAN T1.5-d, seul événement publié par M5) : chaque trace ajoutée est
+publiée dans la MÊME transaction (`outils._publier_rentabilite`, charge = liste blanche construite par
+`cout_reel.charge_evenement`, schéma fermé du catalogue du socle). Il porte le coût réel (ou, partiel, ce qui
+manque : des CODES `REJ-*`, jamais leur détail), la marge réelle et prévue en texte décimal, `wct_id` et
+`devis_id` ; jamais un prix unitaire, un taux, une ligne de matériau ni une donnée de client. Un coût partiel ne
+porte JAMAIS de marge (`cout_connu_cad` est un plancher, jamais un total) : le producteur le garantit et le
+schéma le refuse aussi. L'identifiant contient le rang de la trace (`sequence`), sinon un retour à une version
+antérieure des entrées serait un no-op du bus et M8 et M10 resteraient sur l'état précédent ; le consommateur
+retient le plus grand `sequence`. Consommé par M8 (marge réelle, écarts) et M10 (leçon `FINANCIAL`).
+
 **Justification** : DEFINITION-PRODUIT §6 (« M5 [...] calcule le coût réel [...] et la rentabilité du
 chantier », « M5 reçoit le coût réel ») ; principe « le code calcule, le LLM orchestre » ; P2 (aucun chiffre
 inventé). Limites dites dans chaque résultat (`hypotheses`) : le livre de prix M6 ne porte pas d'unité, et le WCT

@@ -34,6 +34,13 @@ annulée n'est pas une facture active (`facturation.facture_active_pour_devis`).
 
 `entrees` (et `version_entrees`, l'empreinte de ce que le calcul a réellement consommé) rendent le calcul
 rejouable et permettent à `outils.py` de tracer un état une seule fois par version des pièces.
+
+ÉVÉNEMENT `m5.rentabilite_chantier` (`charge_evenement`) : ce que M5 dit au bus quand sa trace change. C'est une
+LISTE BLANCHE de champs, construite à la main, jamais une copie de la rentabilité : totaux en CAD (textes
+décimaux), `wct_id`, `devis_id`, et les CODES de ce qui manque. Ni prix unitaire, ni taux horaire, ni quantité,
+ni ligne de matériau, ni donnée de client n'y entrent (le schéma du catalogue est fermé et le refuse aussi). Un
+coût PARTIEL ne porte JAMAIS de marge : ni réelle, ni écart ; ce que M5 chiffre déjà est un plancher
+(`cout_connu_cad`), jamais un total.
 """
 
 from __future__ import annotations
@@ -45,13 +52,19 @@ from typing import Any
 from . import encodage, validation
 
 __all__ = [
+    "TYPE_EVENEMENT_RENTABILITE",
     "calculer_cout_reel",
     "calculer_rentabilite",
+    "charge_evenement",
     "construire_trace",
     "masquer_montants",
     "resumer",
     "valider_taux_horaire",
 ]
+
+# Type du catalogue du socle (`src/opsys/evenements/catalogue/m5.rentabilite_chantier.json`) : M5 en est le
+# seul producteur. Le nom seulement : la publication (`opsys.evenements`) reste dans `outils.py`.
+TYPE_EVENEMENT_RENTABILITE = "m5.rentabilite_chantier"
 
 _CENT = Decimal("0.01")
 _QUATRE_DECIMALES = Decimal("0.0001")
@@ -478,6 +491,52 @@ def construire_trace(rentabilite: Mapping[str, Any], horodatage: Any) -> dict[st
                   if cle == "cout_reel" else valeur)
             for cle, valeur in rentabilite.items() if cle != "version_entrees"
         },
+    }
+
+
+def _texte_decimal(valeur: Decimal | None) -> str | None:
+    """Texte décimal exact d'un montant (jamais un nombre JSON, jamais un arrondi de plus), `None` si absent.
+    Un zéro est écrit sans signe (pas de « -0.00 »)."""
+    if valeur is None:
+        return None
+    return format(valeur.copy_abs() if valeur == 0 else valeur, "f")
+
+
+def charge_evenement(rentabilite: Mapping[str, Any], sequence: int, horodatage: Any) -> dict[str, Any]:
+    """La charge de `m5.rentabilite_chantier` pour un état qui vient d'être tracé (voir la docstring du module).
+
+    `sequence` : le rang de la trace pour ce devis (1 pour la première). Il entre dans l'identifiant : un retour
+    à une version antérieure des entrées ne doit pas être avalé par l'idempotence du bus, qui laisserait les
+    consommateurs sur l'état précédent. `horodatage` : celui du WCT (M5 n'a pas d'horloge).
+
+    Fail-closed, en plus de ce que le schéma impose : la marge réelle et l'écart ne sortent que pour un verdict
+    `CALCULEE` dont le coût est complet ; sinon ils sont `None`, même si `rentabilite` en portait une par erreur.
+    Ne lève pas sur une rentabilité produite par `calculer_rentabilite` (le catalogue valide la charge à la
+    publication)."""
+    cout = rentabilite["cout_reel"]
+    calculee = (
+        rentabilite["verdict"] == "CALCULEE" and cout["complet"] is True and rentabilite["marge_reelle"] is not None
+    )
+    marge_reelle = rentabilite["marge_reelle"] if calculee else None
+    ecart = rentabilite["ecart_marge"] if calculee else None
+    version = rentabilite["version_entrees"]
+    return {
+        "evenement_id": f"m5-rentabilite-{rentabilite['devis_id']}-{sequence}-{version[:16]}",
+        "devis_id": rentabilite["devis_id"],
+        "chantier_id": rentabilite["chantier_id"],
+        "wct_id": rentabilite["wct_id"],
+        "sequence": sequence,
+        "version_entrees": version,
+        "horodatage_completion": horodatage,
+        "verdict": "CALCULEE" if calculee else "PARTIELLE",
+        "devise": rentabilite["devise"],
+        "cout_reel_complet": cout["complet"] is True,
+        "cout_reel_cad": _texte_decimal(cout["cout_total"]) if cout["complet"] is True else None,
+        "cout_connu_cad": _texte_decimal(cout["cout_total_connu"]),
+        "marge_reelle_cad": _texte_decimal(marge_reelle),
+        "marge_prevue_cad": _texte_decimal(rentabilite["marge_prevue"]),
+        "ecart_marge_cad": _texte_decimal(ecart),
+        "manque": sorted({entree["code"] for entree in rentabilite["manque"]}),
     }
 
 
