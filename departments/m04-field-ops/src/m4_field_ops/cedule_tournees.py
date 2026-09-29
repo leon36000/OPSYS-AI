@@ -26,7 +26,7 @@ Ce que M4 ne sait pas (ARGUMENT explicite de l'appelant, ou un verdict « à fou
     et créneau déjà confirmé au client pour chaque intervention ``planifiee`` (le profil ne connaît que la fenêtre
     par défaut d'un chantier ``a_planifier``, où aucun créneau n'a pu être promis : ``creneau_fige`` y vaut null),
     et tout ce que le profil ne déclare pas. Aucune valeur par défaut : un champ absent est un verdict, qui dit aussi
-    comment le déclarer une fois pour toutes (``opsys equipes declarer``).
+    comment le déclarer une fois pour toutes (``opsys-metier equipes declarer``).
     Seule exception, technique et non métier : la ``graine`` du solveur, ``GRAINE_TECHNIQUE`` si elle est
     omise (PyVRP est de toute façon amorcé par l'empreinte de l'entrée, ``tournees._graine_derivee``).
 
@@ -670,7 +670,7 @@ def _completer_par_le_profil(arguments, selection, lire_equipes):
 
 _INVITATION_PROFIL = (
     "à défaut d'argument, ces valeurs se déclarent une fois pour toutes dans le profil des équipes de l'entreprise "
-    "(`opsys equipes declarer`)"
+    "(`opsys-metier equipes declarer`)"
 )
 
 

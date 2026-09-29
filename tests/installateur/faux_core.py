@@ -63,7 +63,7 @@ PASSAVANT_PREFIXES_CLI = ("LC_", "LITELLM_", "OPSYS_", "PYTHON", "UV_", "XDG_")
 # tests/test_commande_metier.py confronte cette liste à celle du core et au parseur du moteur.
 COMMANDES_DEPLACEES = (
     "departements", "verifier", "profils", "approbations", "personnes", "base", "evenements", "mode", "budgets",
-    "services", "equipes", "paliers", "openclaw", "appareils", "instance", "passerelle",
+    "services", "equipes", "meteo", "paliers", "openclaw", "appareils", "instance", "passerelle",
 )
 
 

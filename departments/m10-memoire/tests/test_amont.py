@@ -1035,7 +1035,7 @@ def test_un_consommateur_retire_du_manifeste_est_detecte_par_l_audit_non_oubli(b
     sans_le_type = dataclasses.replace(
         reel, evenements_consomme=tuple(t for t in reel.evenements_consomme if t != retire))
 
-    # `opsys verifier` voit déjà l'incohérence : une fonction de consommateurs() orpheline.
+    # `opsys-metier verifier` voit déjà l'incohérence : une fonction de consommateurs() orpheline.
     assert any(retire in probleme and "orpheline" in probleme
                for probleme in evenements.verifier_coherence({"m10-memoire": sans_le_type}))
 

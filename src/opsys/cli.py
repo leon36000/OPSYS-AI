@@ -426,7 +426,7 @@ def cmd_meteo(args: argparse.Namespace) -> int:
             print(f"ERREUR : {exc}", file=sys.stderr)
             return 1
         except SQLAlchemyError as exc:
-            print(f"ERREUR : base de l'instance inaccessible ({type(exc).__name__}) : `opsys base migrer` ?",
+            print(f"ERREUR : base de l'instance inaccessible ({type(exc).__name__}) : `opsys-metier base migrer` ?",
                   file=sys.stderr)
             return 1
         print(fichier)

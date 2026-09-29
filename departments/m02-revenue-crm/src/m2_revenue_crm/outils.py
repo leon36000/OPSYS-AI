@@ -575,7 +575,7 @@ class OpportuniteAmbigue(ValueError):
     déterminer, sans décision humaine, à laquelle rattacher ce WCT. Jamais un choix arbitraire
     (ex. la plus récente) : §7 M2 interdit toute transition sans décision humaine explicite. Le
     répartiteur réessaie puis met en quarantaine (ADR-0009 §3) — visible par un humain
-    (`opsys evenements etat`), qui arbitre manuellement (une interaction ou une transition
+    (`opsys-metier evenements etat`), qui arbitre manuellement (une interaction ou une transition
     explicite sur la bonne opportunité) puis, au besoin, republie le WCT."""
 
 
@@ -870,7 +870,7 @@ def _recevoir_devis_sans_reponse(charge: dict[str, Any]) -> dict[str, Any]:
 
     Lead introuvable : ``LeadIntrouvable`` (même erreur nommée que ``m4.travaux_termines`` —
     incohérence de données, jamais un refus métier normal) ; le répartiteur réessaie puis met en
-    quarantaine (ADR-0009 §3), visible par un humain (``opsys evenements etat``), sans qu'aucune
+    quarantaine (ADR-0009 §3), visible par un humain (``opsys-metier evenements etat``), sans qu'aucune
     écriture n'ait eu lieu.
 
     Lead perdu (``statuts.STATUTS_TERMINAUX``) : aucune relance n'est due ; le fait est gardé au
@@ -948,7 +948,7 @@ class LeadRefuse(ValueError):
     """m1.lead_qualifie : M2 refuse le lead — contrat invalide (service retiré du profil depuis la qualification,
     par exemple), frontière de vérité violée, ou `lead_id` déjà ingéré avec un AUTRE contenu. Jamais une acceptation
     silencieuse : le répartiteur réessaie, puis met l'événement en quarantaine, visible par un humain
-    (`opsys evenements etat`), sans qu'aucune écriture n'ait eu lieu."""
+    (`opsys-metier evenements etat`), sans qu'aucune écriture n'ait eu lieu."""
 
 
 def _recevoir_lead_qualifie(charge: dict[str, Any]) -> dict[str, Any]:
@@ -1008,7 +1008,7 @@ class AcceptationIncompatible(ValueError):
     lead jamais qualifié (`nouveau` : aucun propriétaire ni prochaine action, aucune transition n'est fabriquée
     pour lui), ou déjà converti par UN AUTRE devis (le devis accepté ne remplace pas la référence déjà
     consignée). Jamais un refus métier normal : le répartiteur réessaie puis met en quarantaine (ADR-0009 §3),
-    visible d'un humain (`opsys evenements etat`), sans qu'aucune écriture n'ait eu lieu."""
+    visible d'un humain (`opsys-metier evenements etat`), sans qu'aucune écriture n'ait eu lieu."""
 
 
 def _recevoir_devis_accepte(charge: dict[str, Any]) -> dict[str, Any]:

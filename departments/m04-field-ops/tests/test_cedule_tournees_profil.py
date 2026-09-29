@@ -219,7 +219,7 @@ def test_un_argument_remplace_la_cle_du_profil_et_le_dit(futurs_ok):
     partiel = {c: v for c, v in PARAMETRES.items() if c != "vitesse_moyenne_kmh"}
     verdict = _refuse(_proposer(registre, positions, {"parametres": partiel}), "REJ-CHAMP-MANQUANT",
                       "parametres.vitesse_moyenne_kmh")
-    assert "opsys equipes declarer" in verdict["detail"]
+    assert "opsys-metier equipes declarer" in verdict["detail"]
 
 
 def test_la_surcharge_de_durees_change_le_plan_donc_son_identifiant(futurs_ok):
@@ -247,7 +247,7 @@ def test_proposer_deux_fois_du_profil_ou_d_arguments_equivalents_n_ecrit_rien_de
 
 def test_un_service_du_profil_que_le_lot_n_utilise_pas_ne_gene_pas_la_cedule(futurs_ok):
     """Seules les durées et compétences des services À PLANIFIER passent au solveur : une durée écrite pour un service
-    retiré depuis du profil de services (que `opsys verifier` signale) ne bloque pas la cédule des autres."""
+    retiré depuis du profil de services (que `opsys-metier verifier` signale) ne bloque pas la cédule des autres."""
     registre, ids, positions = _monde()
     profil = _profil()
     profil["services"]["service_retire"] = {"duree_min": 45, "competences": ["gouttieres"]}
@@ -276,7 +276,7 @@ def test_les_membres_n_entrent_pas_dans_le_maillon_du_plan(futurs_ok):
 # =========================================================================================
 VERDICT_ABSENT = {
     "code": "REJ-EQUIPES-NON-CONFIGUREES",
-    "detail": "aucun profil des équipes déclaré : `opsys equipes declarer --depuis <fichier> --par <nom>`",
+    "detail": "aucun profil des équipes déclaré : `opsys-metier equipes declarer --depuis <fichier> --par <nom>`",
 }
 VERDICT_INVALIDE = {"code": "REJ-PROFIL-INVALIDE", "detail": "profil d'entreprise invalide : quart mal formé"}
 
@@ -303,7 +303,7 @@ def test_sans_profil_ni_argument_le_verdict_liste_tout_et_dit_ou_le_declarer():
     for cle in ("equipes manquant", "durees_par_type_travaux manquant", "competences_par_type_travaux manquant",
                 "chantiers manquant", "parametres manquant"):
         assert cle in verdict["detail"], verdict
-    assert "opsys equipes declarer --depuis" in verdict["detail"]
+    assert "opsys-metier equipes declarer --depuis" in verdict["detail"]
     assert registre.taille() == avant, "rien n'est écrit"
 
 
@@ -332,7 +332,8 @@ def test_un_profil_invalide_n_empeche_pas_des_arguments_complets():
 def test_sans_lecture_du_profil_le_comportement_d_avant_t4_12_est_intact():
     registre, ids, positions = _monde_v1()
     verdict = _refuse(cedule_tournees.proposer(registre, {}, positions, HORODATAGE, moteur="dp"), "REJ-CHAMP-MANQUANT")
-    assert "opsys equipes declarer" not in verdict["detail"], "aucun profil n'est en jeu : pas de renvoi au profil"
+    assert "opsys-metier equipes declarer" not in verdict["detail"], (
+        "aucun profil n'est en jeu : pas de renvoi au profil")
 
 
 def test_un_profil_sans_reglages_de_cedule_dit_ce_qui_manque_sans_rien_inventer(futurs_ok):
@@ -343,7 +344,7 @@ def test_un_profil_sans_reglages_de_cedule_dit_ce_qui_manque_sans_rien_inventer(
     verdict = _refuse(_proposer(registre, positions, profil=sans_reglages), "REJ-CHAMP-MANQUANT",
                       "parametres manquant")
     assert "equipes manquant" not in verdict["detail"] and "durees_par_service manquant" not in verdict["detail"]
-    assert "opsys equipes declarer" in verdict["detail"]
+    assert "opsys-metier equipes declarer" in verdict["detail"]
     assert registre.taille() == avant
     # ni un réglage d'un autre, ni un défaut : l'argument comble le trou, et la provenance le dit
     proposition = _reussi(_proposer(registre, positions, {"parametres": dict(PARAMETRES)}, profil=sans_reglages))
@@ -360,7 +361,7 @@ def test_un_service_absent_du_profil_rend_l_intervention_non_prete_et_le_dit(fut
     assert non_prete["intervention_id"] == ids["ch-10"]
     (a_fournir,) = non_prete["a_fournir"]
     assert a_fournir["volet"] == "equipe" and "'reparation'" in a_fournir["manque"]
-    assert "opsys equipes declarer" in a_fournir["manque"]
+    assert "opsys-metier equipes declarer" in a_fournir["manque"]
 
 
 def test_une_surcharge_incomplete_de_durees_nomme_le_service_oublie_jamais_repris_du_profil(futurs_ok):
@@ -460,7 +461,7 @@ def test_sans_profil_le_verdict_des_a_planifier_dit_quoi_declarer_une_seule_fois
     registre, ids, positions = _monde()
     verdict = _refuse(_proposer(registre, positions, profil=None, verdict_profil=VERDICT_ABSENT),
                       "REJ-CEDULE-RIEN-A-PLANIFIER", "à fournir : equipe : aucun profil des équipes déclaré")
-    assert verdict["detail"].count("opsys equipes declarer --depuis") == 1
+    assert verdict["detail"].count("opsys-metier equipes declarer --depuis") == 1
     assert all(iid in verdict["detail"] for iid in ids.values())
 
 

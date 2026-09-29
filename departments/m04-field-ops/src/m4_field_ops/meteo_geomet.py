@@ -1,7 +1,7 @@
 """Adaptateur MSC GeoMet du port ``FournisseurMeteo`` (PLAN T4.13, M4.10, R7 §2).
 
 FERMÉ par la configuration : jamais appelé tant que le profil météo de l'entreprise ne déclare pas
-``fournisseur: msc_geomet`` (`opsys meteo declarer`). Aucun réseau à l'import, aucune connexion à la création.
+``fournisseur: msc_geomet`` (`opsys-metier meteo declarer`). Aucun réseau à l'import, aucune connexion à la création.
 
 Source : MSC GeoMet-OGC-API d'Environnement et Changement climatique Canada (ECCC), collection
 ``citypageweather-realtime`` (« City Page Weather », marquée EXPÉRIMENTALE par ECCC) : la prévision de la page météo de

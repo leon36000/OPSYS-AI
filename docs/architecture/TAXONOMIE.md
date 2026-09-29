@@ -250,14 +250,14 @@ meteo:
 Cinq risques (vent, pluie, gel, verglas, chaleur). Pour chaque service, chacun est JUGÉ (au moins une mesure dans `seuils` :
 `vent_kmh`, `rafales_kmh` pour le vent ; `pluie_mm_h`, `pluie_probabilite_pct` pour la pluie ; `gel_c` ; `verglas` ;
 `chaleur_c`) ou déclaré `sans_objet` ; un risque sans décision n'est jamais « sans risque » : le verdict du créneau reste
-« inconnu » et dit « seuil à configurer ». `opsys meteo lister` montre le profil et ce qu'il reste à décider ; `opsys meteo
+« inconnu » et dit « seuil à configurer ». `opsys-metier meteo lister` montre le profil et ce qu'il reste à décider ; `opsys-metier meteo
 declarer --depuis meteo.yaml --par nathan` REMPLACE la clé entière par le contenu validé du fichier, signée au journal
 (services, fournisseur, empreinte : jamais la clé d'API).
 
 | Situation | Verdict |
 |---|---|
 | Aucun profil météo | `REJ-METEO-NON-CONFIGUREE` : dit quoi déclarer et la commande. Le volet « météo » de `m4_verifier_preparation` manque, et la cédule ne prend pas l'intervention. |
-| Profil écrit mais invalide (seuil mal ordonné, mesure inconnue, fournisseur inconnu, forfait non commercial…) | `REJ-PROFIL-INVALIDE` avec la raison, **jamais lu comme absent** ; `opsys verifier` le signale. |
+| Profil écrit mais invalide (seuil mal ordonné, mesure inconnue, fournisseur inconnu, forfait non commercial…) | `REJ-PROFIL-INVALIDE` avec la raison, **jamais lu comme absent** ; `opsys-metier verifier` le signale. |
 | Service sans règles, ou risque sans décision | Le volet « météo » de la préparation manque (« seuil à configurer pour le service … »). |
 
 **Le fournisseur est fermé par défaut** : sans clé `fournisseur`, aucune requête ne part jamais et l'admin saisit la

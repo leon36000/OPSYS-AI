@@ -605,7 +605,7 @@ def test_aucun_champ_n_a_de_valeur_par_defaut(par_nom, interventions):
         # T4.12 : le schéma n'exige plus que l'horodatage (le profil des équipes peut tout fournir) ; sans profil,
         # une valeur absente est un verdict qui la nomme ET dit où la déclarer, jamais une valeur par défaut.
         assert _code_refus(reponse) == "REJ-CHAMP-MANQUANT", cle
-        assert cle in _detail_refus(reponse) and "opsys equipes declarer" in _detail_refus(reponse), cle
+        assert cle in _detail_refus(reponse) and "opsys-metier equipes declarer" in _detail_refus(reponse), cle
     assert _appeler(par_nom, "m4_proposer_cedule", {}, ADMIN)["erreur"] == "arguments_invalides"  # horodatage requis
     for cle in ("facteur_detour_milliemes", "vitesse_moyenne_kmh", "marge_par_trajet_secondes", "iterations",
                 "cout_non_cedule_m"):

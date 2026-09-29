@@ -1190,7 +1190,7 @@ def outils(
                 "décision cite toujours pourquoi). Niveau N4 (écriture finale, ADR-0009 §4) : "
                 "cet appel passe par la file d'approbation du socle — il PROPOSE seulement ; "
                 "seule une personne dont le rôle figure dans department.yaml/approbations.n4 "
-                "peut l'exécuter (opsys approbations decider, signé personne + rôle)."
+                "peut l'exécuter (opsys-metier approbations decider, signé personne + rôle)."
             ),
             parametres={
                 "type": "object",
@@ -1674,8 +1674,9 @@ def outils(
                 "Propose une cédule par tournées (PyVRP, ou repli exact jusqu'à 12 chantiers) : regroupe les "
                 "chantiers proches, respecte fenêtres du client, quarts, durées, compétences et créneaux déjà "
                 "confirmés. Range un plan PROPOSÉ : brouillon, aucune assignation. Sans argument, équipes, dépôt, "
-                "quarts, durées, compétences, réglages viennent du PROFIL DES ÉQUIPES de l'entreprise (opsys equipes "
-                "declarer) ; un argument donné le REMPLACE (surcharge) et la provenance de chaque valeur est rendue. "
+                "quarts, durées, compétences, réglages viennent du PROFIL DES ÉQUIPES de l'entreprise "
+                "(opsys-metier equipes declarer) ; un argument donné le REMPLACE (surcharge) et la provenance de "
+                "chaque valeur est rendue. "
                 "Lit les interventions planifiees et les a_planifier PRÊTES (m4_verifier_preparation ; les autres "
                 "sont rendues dans non_pretes), leur urgence_declaree (vrai vaut 1, sinon 0) et les coordonnées "
                 "CONFIRMÉES. Ni profil ni argument : un verdict REJ-CHAMP-MANQUANT qui dit quoi fournir et où le "
@@ -1834,7 +1835,7 @@ def outils(
             nom="m4_verifier_meteo_creneau",
             description=(
                 "Lecture seule (M4.10, M4.21) : juge la MÉTÉO de chaque créneau d'un plan proposé (plan_id de "
-                "m4_proposer_cedule) contre les seuils du service (`opsys meteo declarer`) : bloquant, "
+                "m4_proposer_cedule) contre les seuils du service (`opsys-metier meteo declarer`) : bloquant, "
                 "validation_requise, ok ou inconnu, avec la prévision, sa source et son heure d'émission citées. "
                 "inconnu n'est JAMAIS ok (seuil à configurer, prévision absente ou incomplète, jour sans date, "
                 "fournisseur en panne). calendrier relie chaque jour numéroté à une date AAAA-MM-JJ. Prévision : "
@@ -2054,7 +2055,7 @@ def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
 # chantier. M4 ne les reçoit d'aucun appelant et ne les devine pas : il les relit À LA SOURCE DU BUS, dans le
 # `m1.lead_qualifie` que M1 a publié pour ce lead (`evenements.charge_publiee`, même patron que M3 pour
 # `m2.lead_assigne`). Un fait absent lève une erreur nommée qui dit ce qui manque : le répartiteur réessaie, puis
-# met l'événement en quarantaine, visible d'un humain (`opsys evenements etat`) ; le devis reste au bus.
+# met l'événement en quarantaine, visible d'un humain (`opsys-metier evenements etat`) ; le devis reste au bus.
 _TYPE_EVENEMENT_LEAD_QUALIFIE = "m1.lead_qualifie"
 # Sel de la ville tokenisée d'une intervention née du bus : aucun appelant n'en fournit (contrairement à
 # `m4_planifier_intervention`). Un secret par instance, dans le coffre du socle, jamais dans le code ni au registre.

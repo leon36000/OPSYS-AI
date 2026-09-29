@@ -189,7 +189,8 @@ def _creneau(base, date, regles, verdict_profil, previsions, verdict_fournisseur
         return inconnu(
             _cause(
                 "REJ-CHAMP-MANQUANT",
-                f"seuil à configurer : aucune règle météo pour le service {base['service']!r} (`opsys meteo declarer`)",
+                f"seuil à configurer : aucune règle météo pour le service {base['service']!r} "
+                "(`opsys-metier meteo declarer`)",
             )
         )
     if not meteo.regles_exigent_une_prevision(regles):
@@ -375,7 +376,7 @@ def verifier(
         verdict_fournisseur = verdict_fournisseur or _verdict(
             meteo.CODE_FOURNISSEUR_FERME,
             "aucun fournisseur météo n'est ouvert : saisir la prévision (previsions_saisies) ou déclarer un "
-            "fournisseur dans le profil météo (`opsys meteo declarer`, clé fournisseur)",
+            "fournisseur dans le profil météo (`opsys-metier meteo declarer`, clé fournisseur)",
         )
         previsions = None
     else:

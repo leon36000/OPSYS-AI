@@ -473,7 +473,7 @@ def test_sans_regles_meteo_declarees_la_cedule_ne_part_pas_et_le_dit(moteur, equ
     verdict = admin.appeler("m4_verifier_preparation", {"intervention_id": une}).resultat
     assert verdict["pret"] is False and verdict["volets"]["materiel"]["statut"] == "ok"
     assert verdict["volets"]["meteo"]["statut"] == "manque"
-    assert "opsys meteo declarer" in verdict["volets"]["meteo"]["manque"]
+    assert "opsys-metier meteo declarer" in verdict["volets"]["meteo"]["manque"]
     refus = admin.appeler(
         "m4_proposer_cedule",
         {"horodatage": iso(moteur.horloge.maintenant)},

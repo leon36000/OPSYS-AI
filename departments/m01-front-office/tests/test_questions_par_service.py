@@ -149,7 +149,7 @@ def test_un_profil_de_questions_invalide_ne_bloque_pas_la_reception_et_n_est_pas
     assert reponse["questions"]["statut"] == "profil_invalide"
     assert reponse["questions"]["verdict"]["code"] == "REJ-PROFIL-INVALIDE"
     assert "questions_qualification" in reponse["questions"]["verdict"]["detail"]
-    assert taxonomie.verifier_profil() != [], "opsys verifier le signale"
+    assert taxonomie.verifier_profil() != [], "opsys-metier verifier le signale"
 
 
 # -- Avec un profil : les questions du service, après ce qui manque au lead

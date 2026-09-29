@@ -40,7 +40,7 @@ def base_durable(tmp_path, monkeypatch):
 
 
 def _dep_m4():
-    """Le VRAI manifeste de M4 — pas une doublure — tel que `opsys verifier` le lirait."""
+    """Le VRAI manifeste de M4 — pas une doublure — tel que `opsys-metier verifier` le lirait."""
     return lire_manifeste(_M4_RACINE)
 
 

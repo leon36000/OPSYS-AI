@@ -1,5 +1,5 @@
-"""`opsys meteo lister|declarer` (PLAN T4.13) : le profil météo se déclare depuis un fichier, sous un nom, sans jamais
-ouvrir un fournisseur payant par défaut. Fixture FICTIVE (`fictif: true`)."""
+"""`opsys-metier meteo lister|declarer` (PLAN T4.13) : le profil météo se déclare depuis un fichier, sous un nom, sans
+jamais ouvrir un fournisseur payant par défaut. Fixture FICTIVE (`fictif: true`)."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ def test_lister_sans_profil_dit_qu_aucun_n_est_declare_et_quoi_declarer(session,
     sortie = json.loads(capsys.readouterr().out)
     assert sortie["declare"] is False and sortie["profil"] is None
     assert sortie["fichier"] == str(taxonomie.fichier_profil())
-    assert len(sortie["a_declarer"]) == 1 and "opsys meteo declarer" in sortie["a_declarer"][0]
+    assert len(sortie["a_declarer"]) == 1 and "opsys-metier meteo declarer" in sortie["a_declarer"][0]
 
 
 def test_declarer_ecrit_le_profil_signe_au_journal_et_lister_le_montre(session, tmp_path, capsys, declarer_services):

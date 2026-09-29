@@ -48,7 +48,7 @@ def base_durable(tmp_path, monkeypatch):
 def departements():
     """Manifestes réels de `departments/` (pas une fixture de démonstration) : preuve que
     `department.yaml:evenements.consomme` et `m9_strategic_intelligence.outils.consommateurs()`
-    s'accordent pour de vrai, exactement comme `opsys verifier` et `opsys evenements repartir` en
+    s'accordent pour de vrai, exactement comme `opsys-metier verifier` et `opsys-metier evenements repartir` en
     production. M8 (producteur) et M9 (consommateur) seulement : les autres consommateurs
     (aucun autre département ne consomme m8.alerte_proposee) ont leurs propres tests."""
     tous = charger_departements(_RACINE_DEPARTEMENTS)

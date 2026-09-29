@@ -359,7 +359,7 @@ charge perdue reste perdue jusqu'à la prochaine révision.
 DEFINITION-PRODUIT §6 (un chantier de revêtement sous un vent fort se reporte), §7 M4.10 (météo) et M4.21 (report). Avant,
 le volet `meteo` de la préparation était `non_verifiable` et rien ne jugeait la météo d'une cédule. Six pièces :
 
-- **Le profil météo** (`opsys.meteo`, socle ; clé `meteo` de `$OPSYS_HOME/entreprise.yaml` ; `opsys meteo lister|declarer` ;
+- **Le profil météo** (`opsys.meteo`, socle ; clé `meteo` de `$OPSYS_HOME/entreprise.yaml` ; `opsys-metier meteo lister|declarer` ;
   forme et règles dans `docs/architecture/TAXONOMIE.md`). Par service, des seuils (vent, rafales, pluie, probabilité de
   pluie, gel, verglas, chaleur) à deux niveaux (`validation`, `blocage`) ou le risque déclaré `sans_objet` ; le fuseau ; le
   fournisseur ouvert. **Aucune valeur par défaut** : le propriétaire décide (GATE NATHAN), sinon « seuil à configurer ».

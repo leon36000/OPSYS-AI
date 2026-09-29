@@ -712,7 +712,7 @@ def test_sans_fournisseur_ouvert_le_creneau_est_inconnu_et_dit_quoi_faire():
     assert resultat["statut"] == meteo.STATUT_INCONNU
     cause = resultat["creneaux"][0]["cause"]
     assert cause["code"] == "REJ-METEO-FOURNISSEUR-FERME"
-    assert "previsions_saisies" in cause["detail"] and "opsys meteo declarer" in cause["detail"]
+    assert "previsions_saisies" in cause["detail"] and "opsys-metier meteo declarer" in cause["detail"]
 
 
 def test_le_verdict_de_fermeture_du_fournisseur_est_repris_tel_quel_comme_cause():
@@ -731,7 +731,7 @@ def test_le_verdict_de_fermeture_du_fournisseur_est_repris_tel_quel_comme_cause(
 def test_sans_profil_meteo_le_creneau_est_inconnu_avec_le_verdict_du_profil_et_les_cinq_risques_a_configurer():
     registre, _, positions = _monde()
     plan = _plan(registre, positions)
-    absent = {"code": "REJ-METEO-NON-CONFIGUREE", "detail": "aucune règle météo déclarée : opsys meteo declarer"}
+    absent = {"code": "REJ-METEO-NON-CONFIGUREE", "detail": "aucune règle météo déclarée : opsys-metier meteo declarer"}
     fournisseur = _calme()
     resultat = _resultat(
         _verifier(registre, plan["plan_id"], positions, fournisseur, profil=None, verdict_profil=absent)

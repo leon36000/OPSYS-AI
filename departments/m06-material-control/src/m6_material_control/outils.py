@@ -2118,7 +2118,7 @@ def _recevoir_besoins_materiaux(charge: dict[str, Any]) -> dict[str, Any]:
 
     Validation du récepteur, indépendante de celle de M3 (`besoins_materiaux_recus.valider`, en plus
     du schéma du catalogue) : un contrat invalide LÈVE `ValueError` — le répartiteur réessaie puis le
-    met en QUARANTAINE, visible d'un humain (`opsys evenements etat`), sans qu'aucune écriture n'ait
+    met en QUARANTAINE, visible d'un humain (`opsys-metier evenements etat`), sans qu'aucune écriture n'ait
     eu lieu. Un rejet retourné comme résultat serait « traité » : la faute passerait pour un succès.
 
     Un contrat valide est rangé dans le registre des besoins prévus EXISTANT (`besoins_prevus.py`,

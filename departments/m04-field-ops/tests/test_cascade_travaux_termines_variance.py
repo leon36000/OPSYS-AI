@@ -64,7 +64,7 @@ def base_migree(tmp_path, monkeypatch):
 @pytest.fixture
 def deps():
     """Départements RÉELS (pas de fixture de démonstration) : preuve que la chaîne tourne
-    avec les manifestes livrés, exactement comme `opsys evenements repartir` en production."""
+    avec les manifestes livrés, exactement comme `opsys-metier evenements repartir` en production."""
     return departements.charger_departements()
 
 

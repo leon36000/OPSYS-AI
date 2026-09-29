@@ -398,9 +398,9 @@ class TestVerifierPreparation:
         # T4.12 : sans profil des équipes, l'équipe n'est plus « non vérifiable » (M4 sait la lire) : elle MANQUE, et le
         # volet dit quoi déclarer. T4.14-b : sans charge de M6, le matériel reste non vérifiable. T4.13 : sans profil
         # météo, la météo MANQUE (seuil à configurer) et dit quoi déclarer.
-        assert volets["equipe"]["statut"] == "manque" and "opsys equipes declarer" in volets["equipe"]["manque"]
+        assert volets["equipe"]["statut"] == "manque" and "opsys-metier equipes declarer" in volets["equipe"]["manque"]
         assert volets["materiel"]["statut"] == "non_verifiable" and volets["materiel"]["manque"]
-        assert volets["meteo"]["statut"] == "manque" and "opsys meteo declarer" in volets["meteo"]["manque"]
+        assert volets["meteo"]["statut"] == "manque" and "opsys-metier meteo declarer" in volets["meteo"]["manque"]
         assert volets["meteo"]["detail"] == "REJ-METEO-NON-CONFIGUREE"
         assert [f["volet"] for f in verdict["a_fournir"]] == ["adresse", "equipe", "materiel", "meteo"]
 

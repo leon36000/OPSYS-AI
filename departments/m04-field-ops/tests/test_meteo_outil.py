@@ -1,6 +1,6 @@
 """PLAN T4.13 : `m4_verifier_meteo_creneau`, de bout en bout, sur les VRAIS outils, le VRAI bus, les VRAIS fichiers
-`entreprise.yaml` (équipes et météo, déclarés par `opsys equipes declarer` et `opsys meteo declarer`) et une base SQLite
-migrée. Aucun réseau (sockets bloqués : un fournisseur est injecté ou aucun n'est ouvert).
+`entreprise.yaml` (équipes et météo, déclarés par `opsys-metier equipes declarer` et `opsys-metier meteo declarer`) et
+une base SQLite migrée. Aucun réseau (sockets bloqués : un fournisseur est injecté ou aucun n'est ouvert).
 
 Le trajet : trois devis acceptés (deux ravalements, une réparation « autre »), une charge de matériel prêt de M6 par
 devis, les adresses confirmées, un plan proposé par `m4_proposer_cedule` (deux jours de quart), puis la météo du plan :

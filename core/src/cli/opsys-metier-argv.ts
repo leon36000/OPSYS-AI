@@ -37,6 +37,7 @@ export const OPSYS_METIER_MOVED_COMMANDS: readonly string[] = [
   "budgets",
   "services",
   "equipes",
+  "meteo",
   "paliers",
   "openclaw",
   "appareils",

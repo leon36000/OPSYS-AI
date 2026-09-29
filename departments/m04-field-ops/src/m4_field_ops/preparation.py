@@ -124,7 +124,7 @@ def _volet_equipe(_registre, inscription, _lire_position, lire_equipes, _lire_me
             STATUT_MANQUE,
             manque=(
                 f"aucune équipe admissible pour le service {service!r} ({raisons}) : ajuster les équipes, leurs "
-                "compétences ou leurs quarts dans le profil (`opsys equipes declarer`)"
+                "compétences ou leurs quarts dans le profil (`opsys-metier equipes declarer`)"
             ),
         )
     return _volet(STATUT_OK, detail=f"équipes admissibles pour {service} : {', '.join(resultat['admissibles'])}")
@@ -193,7 +193,7 @@ def _volet_meteo(_registre, inscription, _lire_position, _lire_equipes, lire_met
             STATUT_MANQUE,
             manque=(
                 f"seuil à configurer pour le service {service!r} : {', '.join(a_decider)} (un seuil par risque jugé, "
-                "ou le risque déclaré sans objet : `opsys meteo declarer`) ; aucun seuil n'est jamais inventé"
+                "ou le risque déclaré sans objet : `opsys-metier meteo declarer`) ; aucun seuil n'est jamais inventé"
             ),
             detail="REJ-CHAMP-MANQUANT",
         )

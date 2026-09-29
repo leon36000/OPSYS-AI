@@ -56,7 +56,7 @@ def test_sans_profil_aucun_seuil_n_est_invente_et_le_verdict_dit_quoi_declarer(o
     assert profil is None
     assert verdict["code"] == meteo.VERDICT_METEO_NON_CONFIGUREE
     assert str(taxonomie.fichier_profil()) in verdict["detail"]
-    assert "opsys meteo declarer --depuis" in verdict["detail"] and "--par" in verdict["detail"]
+    assert "opsys-metier meteo declarer --depuis" in verdict["detail"] and "--par" in verdict["detail"]
     assert "seuil à configurer" in verdict["detail"]
     assert meteo.lire_meteo() is None
 
@@ -337,7 +337,7 @@ def test_risques_a_decider_ni_juges_ni_sans_objet():
 
 def test_a_declarer_sans_profil_dit_de_declarer_le_profil():
     (manque,) = meteo.a_declarer(None, ["gouttieres"])
-    assert "opsys meteo declarer" in manque
+    assert "opsys-metier meteo declarer" in manque
 
 
 def test_a_declarer_nomme_les_services_qui_ont_des_risques_sans_decision():
@@ -355,7 +355,7 @@ def test_le_fournisseur_n_est_jamais_un_manque():
 
 
 # ---------------------------------------------------------------------------
-# opsys verifier
+# opsys-metier verifier
 # ---------------------------------------------------------------------------
 def test_verifier_profil_un_profil_present_doit_parler_de_services_declares(opsys_home, declarer_services):
     declarer_services("gouttieres")

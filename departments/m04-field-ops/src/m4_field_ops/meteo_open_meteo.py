@@ -1,7 +1,8 @@
 """Adaptateur Open-Meteo du port ``FournisseurMeteo`` (PLAN T4.13, M4.10, R7 §2).
 
 FERMÉ par la configuration, et deux fois : le profil météo doit déclarer ``fournisseur: open_meteo`` ET un forfait
-COMMERCIAL (`opsys meteo declarer`), et la clé d'API doit être dans la variable d'environnement que le profil nomme.
+COMMERCIAL (`opsys-metier meteo declarer`), et la clé d'API doit être dans la variable d'environnement que le profil
+nomme.
 Sans forfait commercial, la création est REFUSÉE (``REJ-METEO-FOURNISSEUR-FERME``) : jamais une requête part.
 
 Pourquoi. Conditions d'utilisation lues le 2026-09-29 sur https://open-meteo.com/en/terms : l'API GRATUITE est réservée

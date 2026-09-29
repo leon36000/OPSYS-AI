@@ -137,12 +137,12 @@ class TestSansSource:
         resultat, verdict = admissibilite.equipes_admissibles(profil_vide, "ravalement")
         assert resultat is None and verdict["code"] == "REJ-CHAMP-MANQUANT"
         assert "durée et compétences par service non déclarées" in verdict["detail"]
-        assert "opsys equipes declarer" in verdict["detail"]
+        assert "opsys-metier equipes declarer" in verdict["detail"]
 
     def test_un_service_absent_du_profil_est_nomme_jamais_devine(self):
         resultat, verdict = admissibilite.equipes_admissibles(profil(), "soffite_fascia")
         assert resultat is None and verdict["code"] == "REJ-CHAMP-MANQUANT"
-        assert "'soffite_fascia'" in verdict["detail"] and "opsys equipes declarer" in verdict["detail"]
+        assert "'soffite_fascia'" in verdict["detail"] and "opsys-metier equipes declarer" in verdict["detail"]
 
     def test_sans_equipe_declaree_c_est_un_verdict_pas_une_liste_vide(self):
         brut = profil()

@@ -32,7 +32,7 @@ __all__ = [
     "equipes_admissibles",
 ]
 
-_DECLARER = "opsys equipes declarer"
+_DECLARER = "opsys-metier equipes declarer"
 
 
 def _verdict(detail):

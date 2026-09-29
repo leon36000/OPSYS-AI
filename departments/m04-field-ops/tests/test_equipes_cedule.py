@@ -1,5 +1,5 @@
 """PLAN T4.12 : le profil des équipes, la cédule et la sortie de `a_planifier`, par les VRAIS outils, le VRAI bus et le
-VRAI fichier `entreprise.yaml` (déclaré par `opsys equipes declarer`), sur une base SQLite migrée.
+VRAI fichier `entreprise.yaml` (déclaré par `opsys-metier equipes declarer`), sur une base SQLite migrée.
 
 La démonstration Repentigny à Joliette de T4.1-d (`fixtures/scenario_cedule_repentigny_joliette.json`) est rejouée ici
 comme PROFIL (`fixtures/equipes_repentigny_joliette.json`, `fictif: true`) : les six chantiers naissent de six devis
@@ -417,7 +417,7 @@ def test_aujourd_hui_la_porte_reste_fermee_faute_de_materiel_et_de_meteo(instanc
     assert [f["volet"] for f in verdict["a_fournir"]] == ["materiel", "meteo"]
     assert verdict["volets"]["materiel"]["statut"] == "non_verifiable"
     assert verdict["volets"]["meteo"]["statut"] == "manque"
-    assert "opsys meteo declarer" in verdict["volets"]["meteo"]["manque"]
+    assert "opsys-metier meteo declarer" in verdict["volets"]["meteo"]["manque"]
     assert verdict["volets"]["soumission"]["statut"] == verdict["volets"]["adresse"]["statut"] == "ok"
     assert verdict["volets"]["equipe"]["statut"] == "ok"
     avant = _etat()
@@ -438,10 +438,12 @@ def test_sans_profil_le_verdict_dit_quoi_declarer_jamais_un_repli(instance, par_
     assert verdict["pret"] is False and verdict["statut"] == "bloque"
     equipe = verdict["volets"]["equipe"]
     assert equipe["statut"] == "manque" and equipe["detail"] == "REJ-EQUIPES-NON-CONFIGUREES"
-    assert "opsys equipes declarer --depuis" in equipe["manque"] and str(taxonomie.fichier_profil()) in equipe["manque"]
+    assert "opsys-metier equipes declarer --depuis" in equipe["manque"]
+    assert str(taxonomie.fichier_profil()) in equipe["manque"]
     reponse = _proposer_depuis_le_profil(par_nom)
     assert _code_refus(reponse) == "REJ-CEDULE-RIEN-A-PLANIFIER" and "equipe" in _detail_refus(reponse)
-    assert "opsys equipes declarer --depuis" in _detail_refus(reponse), "le verdict dit quoi déclarer, et comment"
+    assert "opsys-metier equipes declarer --depuis" in _detail_refus(reponse), (
+        "le verdict dit quoi déclarer, et comment")
     assert _etat() == avant
 
 
@@ -473,7 +475,7 @@ def test_profil_retire_ou_casse_apres_la_proposition_verdict_jamais_un_repli(ins
     assert verdict["volets"]["equipe"]["statut"] == "manque"
     assert verdict["volets"]["equipe"]["detail"] == "REJ-PROFIL-INVALIDE"
     assert "clés inconnues" in verdict["volets"]["equipe"]["manque"]
-    assert cli.main(["verifier"]) == 1, "`opsys verifier` le signale aussi"
+    assert cli.main(["verifier"]) == 1, "`opsys-metier verifier` le signale aussi"
     assert _etat() == avant, "aucune écriture pendant tout cela"
     assert {_statut(i) for i in interventions.values()} == {"a_planifier"}
 

@@ -3,7 +3,7 @@
 Aucun réseau, aucune horloge : l'admin (ou l'agent qui l'assiste) saisit la prévision qu'il a lue quelque part (bulletin
 d'Environnement Canada, alerte reçue, appel au chantier) avec CE QUI PERMET DE LA CITER : qui l'a saisie, d'où elle
 vient et à quelle heure elle a été émise. C'est l'adaptateur qui existe toujours : un fournisseur réseau se ferme par la
-configuration (`opsys meteo declarer`), la saisie manuelle jamais.
+configuration (`opsys-metier meteo declarer`), la saisie manuelle jamais.
 
 Forme de la saisie (``previsions_saisies`` de ``m4_verifier_meteo_creneau``) ::
 

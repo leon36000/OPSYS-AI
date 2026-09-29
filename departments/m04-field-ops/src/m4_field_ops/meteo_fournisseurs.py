@@ -1,8 +1,9 @@
 """Le fournisseur météo que la configuration de l'entreprise OUVRE (PLAN T4.13, M4.10).
 
-Fermé par défaut : sans clé ``fournisseur`` dans le profil météo (`opsys meteo declarer`), aucun adaptateur réseau n'est
-créé et aucune requête ne part jamais ; la prévision se saisit à la main (``meteo_manuelle``). Ce module est le seul
-lien entre le profil (`opsys.meteo`, un dict que l'adaptateur d'outils a lu et validé) et les adaptateurs réseau :
+Fermé par défaut : sans clé ``fournisseur`` dans le profil météo (`opsys-metier meteo declarer`), aucun adaptateur
+réseau n'est créé et aucune requête ne part jamais ; la prévision se saisit à la main (``meteo_manuelle``). Ce module
+est le seul lien entre le profil (`opsys.meteo`, un dict que l'adaptateur d'outils a lu et validé) et les adaptateurs
+réseau :
 
     * ``msc_geomet``  -> ``meteo_geomet.creer_fournisseur_geomet`` (licence ECCC v2.1.1, usage commercial permis) ;
     * ``open_meteo``  -> ``meteo_open_meteo.creer_fournisseur_open_meteo``, seulement avec le forfait COMMERCIAL

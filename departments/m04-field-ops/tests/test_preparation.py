@@ -183,10 +183,11 @@ class TestVoletEquipe:
     def test_sans_profil_le_volet_manque_et_dit_quoi_declarer(self, intervention):
         reg, iid = intervention
         verdict_profil = {"code": "REJ-EQUIPES-NON-CONFIGUREES",
-                          "detail": "aucun profil des équipes déclaré : `opsys equipes declarer --depuis <fichier>`"}
+                          "detail": "aucun profil des équipes déclaré : "
+                                    "`opsys-metier equipes declarer --depuis <fichier>`"}
         verdict, _ = preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(None, verdict_profil))
         equipe = _volets(verdict)["equipe"]
-        assert equipe["statut"] == preparation.STATUT_MANQUE and "opsys equipes declarer" in equipe["manque"]
+        assert equipe["statut"] == preparation.STATUT_MANQUE and "opsys-metier equipes declarer" in equipe["manque"]
         assert equipe["detail"] == "REJ-EQUIPES-NON-CONFIGUREES"
         assert verdict["statut"] == preparation.VERDICT_BLOQUE
 
@@ -480,7 +481,8 @@ class TestVoletMeteo:
         volet, verdict = self._meteo(reg, iid, _lecteur_meteo(profil))
         assert volet["statut"] == preparation.STATUT_MANQUE and volet["detail"] == "REJ-CHAMP-MANQUANT"
         assert "seuil à configurer pour le service 'gouttieres'" in volet["manque"]
-        assert "vent, pluie, gel, verglas, chaleur" in volet["manque"] and "opsys meteo declarer" in volet["manque"]
+        assert "vent, pluie, gel, verglas, chaleur" in volet["manque"]
+        assert "opsys-metier meteo declarer" in volet["manque"]
         assert "jamais inventé" in volet["manque"]
         assert verdict["statut"] == preparation.VERDICT_BLOQUE
 
@@ -503,11 +505,11 @@ class TestVoletMeteo:
         reg, iid = intervention
         verdict_profil = {
             "code": "REJ-METEO-NON-CONFIGUREE",
-            "detail": "aucune règle météo déclarée : `opsys meteo declarer --depuis <fichier> --par <nom>`",
+            "detail": "aucune règle météo déclarée : `opsys-metier meteo declarer --depuis <fichier> --par <nom>`",
         }
         volet, verdict = self._meteo(reg, iid, lambda: (None, verdict_profil))
         assert volet["statut"] == preparation.STATUT_MANQUE and volet["detail"] == "REJ-METEO-NON-CONFIGUREE"
-        assert "opsys meteo declarer" in volet["manque"] and verdict["statut"] == preparation.VERDICT_BLOQUE
+        assert "opsys-metier meteo declarer" in volet["manque"] and verdict["statut"] == preparation.VERDICT_BLOQUE
 
     def test_un_profil_meteo_invalide_manque_avec_son_code_jamais_lu_comme_ok(self, intervention):
         reg, iid = intervention

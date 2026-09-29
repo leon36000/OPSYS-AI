@@ -101,7 +101,7 @@ def test_version_v2_copie_m2_ne_derive_pas():
 
 
 def test_m3_ne_garde_aucune_copie_de_la_liste_des_services():
-    """Le catalogue vit dans le socle : la garde de dérive de `opsys verifier` (une seule
+    """Le catalogue vit dans le socle : la garde de dérive de `opsys-metier verifier` (une seule
     implémentation, `taxonomie.copies_locales_du_catalogue`) ne trouve rien dans les sources de M3."""
     assert taxonomie.copies_locales_du_catalogue([_SRC_M3]) == []
 

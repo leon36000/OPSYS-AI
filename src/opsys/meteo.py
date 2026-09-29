@@ -396,8 +396,8 @@ def a_declarer(profil: Mapping[str, Any] | None, services_declares: Iterable[str
 
 
 def verifier_profil() -> list[str]:
-    """`opsys-metier verifier` : un profil météo présent doit être valide, et ne parler que de services déclarés. Un profil
-    absent n'est pas une erreur (l'instance n'a simplement pas encore déclaré sa météo)."""
+    """`opsys-metier verifier` : un profil météo présent doit être valide, et ne parler que de services déclarés. Un
+    profil absent n'est pas une erreur (l'instance n'a simplement pas encore déclaré sa météo)."""
     from . import taxonomie
 
     try:
