@@ -151,11 +151,12 @@ identifiée par son `evenement_id`, de l'affaire de son WCT. Trois états, un se
   département en mode `supervise` ou `autonome`, où un N3 s'exécute sans file. Le maillon garde la personne, son
   rôle, la voie (`appareil` ou `approbation`), le motif ; pour un appel d'appareil l'heure de réception du
   serveur fait foi.
-- Lecture de l'approbateur : le socle n'expose pas à l'outil qui a approuvé (`approbations.decider` ne pose aucun
-  contexte). L'outil lit donc, sans écrire, la demande `en_cours` de son propre nom, de son département, aux
+- Lecture de l'approbateur : le socle n'exposait pas à l'outil qui a approuvé (`approbations.decider` ne posait aucun
+  contexte). L'outil lisait donc, sans écrire, la demande `en_cours` de son propre nom, de son département, aux
   arguments exacts, avec un approbateur actif de rôle `admin` ou `nathan_owner`. Une contextvar posée par `decider`
-  la remplacerait proprement (changement du socle, non fait ici). Fait depuis, pour M5 seulement (PLAN T4.15-c) :
-  `approbations.approbateur_en_cours` ; M10 n'en a pas encore migré.
+  la remplaçait proprement (changement du socle, fait depuis en PLAN T4.15-c) : `approbations.approbateur_en_cours`.
+  M10 l'appelle depuis PLAN T4.15-d, avec les mêmes rôles (`humain.roles_humains()`) ; la lecture de la table décrite
+  ci-dessus n'existe plus. Le socle ne compare pas les arguments : `decider` rejoue les arguments exacts enregistrés.
 - Une seule autre cause de clôture, écrite et testée : M6 republie, pour le même `wct_id` et après le signal, une
   variance évaluée sans dépassement. La clôture se calcule à la lecture. **Elle n'a pas encore de producteur** :
   M6 traite `evaluee` comme terminal. Aujourd'hui, seul un humain clôt.

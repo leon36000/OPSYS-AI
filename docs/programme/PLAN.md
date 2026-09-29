@@ -1830,9 +1830,27 @@ météo et GPS M4, vision M3, conseil d'agents M9…
         fermée, vide : « catégories à configurer ») ; garde AST étendue ;
       - E2E `tests/e2e/test_correction_facture_appareil.py` (cash libre suivi à la cent près) ; M5
         1448 (1262 avant), gate BMAD M5 ; 95 mutations tuées.
-- [ ] T4.15-d M1, M7, M10 : remplacer leur copie de la lecture de l'approbateur par
+- [x] T4.15-d M1, M7, M10 : remplacer leur copie de la lecture de l'approbateur par
       `approbations.approbateur_en_cours` (les tests qui forgent une ligne `en_cours` passent par
       `decider`).
+      Preuve (2601834, 7f4bc52, ca62c17) :
+      - M1 (`_acteur_humain`, rôles `admin` et `nathan_owner`), M7 (`_proprietaire_qui_decide`, `nathan_owner`
+        seul) et M10 (`_acteur_humain`, `humain.roles_humains()`) appellent le socle avec leur propre liste de
+        rôles ; les trois copies de la lecture de la table `approbations` sont retirées, avec leurs imports et
+        l'argument `arguments` que leurs fonctions ne lisent plus ;
+      - le socle est plus strict : une ligne `en_cours` écrite à la main ne donne aucun droit, même bien formée.
+        Il ne compare pas les arguments, que les copies comparaient (M7 : contenu, décision, heure) : `decider`
+        rejoue les arguments exacts enregistrés (`tests/test_approbations_appareil.py`) et lui seul pose la demande
+        en cours, comme pour M5. La décision de M7 porte le rôle que le socle rend, plus un rôle codé en dur ;
+      - tests : les lignes forgées de M7 et de M10 passent par le vrai `decider` (rôle que la file admet mais que
+        l'outil refuse, `admin` admis et signé sous son rôle, demande d'un autre département, approbateur
+        désactivé après la réservation, approbation qui ne sert ni après elle ni à un autre outil ni à un autre
+        contenu) ; la ligne écrite à la main devient un test négatif dans les trois départements (M1 n'en
+        forgeait aucune : ses rôles admis sont épinglés) ; 18 mutations tuées (rôles, département, outil, nom
+        et rôle rendus) ;
+      - M1 1081 (1075 avant), M7 913 (910), M10 726 (721), socle 1620 (104 sautés), ruff, `opsys-metier verifier`
+        (163 outils), gates BMAD de M1 et de M10 (M7 n'en a pas).
+      Limite : M3 garde sa propre lecture de la table (`m3_estimation/outils.py`, hors de cette tâche).
 - [x] T4.16 M5 : cash libre réel et calendrier fiscal vivant (M5.5, M5.14 ; M5.7 : T4.16-d).
       Écart (§7 M5 « solde bancaire ≠ argent disponible » ; audit M5 M5.5, M5.14 « PARTIEL »,
       M5.7 « ABSENT ») : `soldes.py` ne retranche que les `PROVISION` ; aucun échéancier TPS/TVQ.
@@ -2116,6 +2134,8 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   - comptes à payer et facture fournisseur saisie (T4.15) : d1697f6, a21b3c8, 7bfbe68 ;
   - cash libre et calendrier fiscal (T4.16) : c507161, c74eb4a, 659aa64, 40b2470 ;
   - approbateur exposé par le socle, correction et annulation de facture (T4.15-c) : 01c336d, fae0521, 2a5b3ba ;
+  - M1, M7 et M10 lisent l'approbateur par le socle, sans copie de la table des approbations (T4.15-d) :
+    ca62c17, 7f4bc52, 2601834 ;
   - envoi d'un devis par approbation N4 (T4.7) : 8fd15ce ;
   - clôture d'un transfert réservée à un humain (M1, T4.5) : dd56449 ;
   - canaux de M1 (politique d'approbation d'un message de client) : `src/opsys/canaux.py`, fc80869 ;
