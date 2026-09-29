@@ -10,6 +10,8 @@ fictifs dans `tests/test_openclaw_roles.py`.
 from __future__ import annotations
 
 import json
+import re
+from pathlib import Path
 
 import pytest
 
@@ -186,7 +188,7 @@ def test_opsys_openclaw_configurer_ecrit_le_fragment_roles_json_reel(tmp_path, m
 
     capsys.readouterr()
     fragment = json.loads((config / "opsys" / "roles.json").read_text(encoding="utf-8"))
-    assert set(fragment) == {"roles"}
+    assert set(fragment) == {"roles", "serveurs"}
     roles = fragment["roles"]
     assert set(roles) == {"employee", "seller", "admin"}
     assert set(roles["employee"]) == EMPLOYE
@@ -197,3 +199,43 @@ def test_opsys_openclaw_configurer_ecrit_le_fragment_roles_json_reel(tmp_path, m
     tout = {nom for outils in roles.values() for nom in outils}
     assert not tout & {"m3_marquer_devis_accepte", "m4_purger_retention_gps", "m5_enregistrer_mouvement",
                        "m5_enregistrer_paiement_facture", "m7_publier_post_social"}
+
+    # T1.4-c6 : chaque outil d'un rôle porte son serveur, et ce serveur est déclaré dans `mcp.json`.
+    serveurs = fragment["serveurs"]
+    assert set(serveurs) == tout
+    declares = json.loads((config / "opsys" / "mcp.json").read_text(encoding="utf-8"))["servers"]
+    for outil, serveur in serveurs.items():
+        assert serveur == f"opsys_{outil.split('_', 1)[0]}", outil
+        assert serveur in declares, (outil, serveur)
+
+
+# -- Le nom que l'app envoie est celui du moteur (T1.4-c6) --------------------------------------
+
+RACINE = Path(__file__).resolve().parents[1]
+NOM_D_OUTIL = re.compile(r'"(m\d+_[a-z0-9_]+)"')
+
+
+def _noms_d_outils_de_l_app() -> set[str]:
+    """Chaque littéral `"mN_..."` des sources de l'app (hors tests) : les appels `/tools/invoke`."""
+    noms: set[str] = set()
+    for dossier in (RACINE / "mobile" / "src", RACINE / "mobile" / "app"):
+        for chemin in sorted(dossier.rglob("*")):
+            if chemin.suffix not in {".ts", ".tsx"} or ".test." in chemin.name:
+                continue
+            noms.update(NOM_D_OUTIL.findall(chemin.read_text(encoding="utf-8")))
+    return noms
+
+
+def test_les_noms_d_outils_de_l_app_sont_des_outils_du_moteur_que_le_core_sait_appeler(departements_reels):
+    """Un seul nom de l'app au moteur : le nom NU. Celui que l'app envoie existe dans un
+    département, est permis à au moins un rôle et a son serveur dans `roles.json`. Un nom fautif
+    (faute de frappe, préfixe de serveur `opsys_m4__`) serait sinon un 404 ou un 403 en production."""
+    index = tous_les_outils(departements_reels.values())
+    serveurs = openclaw.serveurs_outils(departements_reels)
+    de_l_app = _noms_d_outils_de_l_app()
+
+    # Le test ne passe pas à vide : les outils des écrans connus y sont.
+    assert {"m4_pointer", "m4_lister_interventions", "m9_decider_demande_approbation"} <= de_l_app
+    for nom in sorted(de_l_app):
+        assert nom in index, f"l'app appelle {nom}, qui n'est l'outil d'aucun département"
+        assert nom in serveurs, f"l'app appelle {nom}, qu'aucun rôle d'appareil ne peut appeler"

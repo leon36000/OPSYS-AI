@@ -191,6 +191,7 @@ def test_roles_ecrit_par_generer(departements_demo, tmp_path):
     fragment = json.loads(fichiers["roles"].read_text(encoding="utf-8"))
     assert fragment["roles"] == {role: list(outils) for role, outils in
                                  openclaw.roles_outils(departements_demo).items()}
+    assert fragment["serveurs"] == openclaw.serveurs_outils(departements_demo)
     # Pas de $include vers roles.json dans le squelette openclaw.json (lu directement par le core).
     racine = openclaw.racine_si_absente(tmp_path / "autre")
     assert "roles" not in json.loads(racine.read_text(encoding="utf-8"))
@@ -201,11 +202,19 @@ def test_generer_ecrit_la_table_declaree_dans_roles_json(racine_demo, tmp_path):
     fichiers = openclaw.generer(deps, tmp_path / "oc", PALIERS, environ=ENVIRON_EMBEDDINGS)
 
     fragment = json.loads(fichiers["roles"].read_text(encoding="utf-8"))
-    assert fragment == {"roles": {
-        "admin": ["m9_approuver", "m9_lire_client", "m9_pointer_terrain"],
-        "employee": ["m9_pointer_terrain"],
-        "seller": ["m9_lire_client"],
-    }}
+    assert fragment == {
+        "roles": {
+            "admin": ["m9_approuver", "m9_lire_client", "m9_pointer_terrain"],
+            "employee": ["m9_pointer_terrain"],
+            "seller": ["m9_lire_client"],
+        },
+        # T1.4-c6 : le serveur MCP qui porte chaque outil d'un rôle (clé de `mcp.servers`).
+        "serveurs": {
+            "m9_approuver": "opsys_m9",
+            "m9_lire_client": "opsys_m9",
+            "m9_pointer_terrain": "opsys_m9",
+        },
+    }
     # L'outil sans déclaration et l'outil T3 n'apparaissent dans aucun rôle.
     assert "m9_interne" not in json.dumps(fragment)
     assert "m9_payer" not in json.dumps(fragment)
@@ -250,6 +259,51 @@ def test_cli_openclaw_configurer_refuse_une_portee_invalide(racine_demo, tmp_pat
         cli.main(["openclaw", "configurer", "--config-dir", str(config)])
 
     assert not (config / "opsys").exists()
+
+
+# -- Le serveur qui porte chaque outil d'appareil (T1.4-c6) -------------------------------------
+
+
+def test_serveurs_outils_donne_le_serveur_du_departement_de_chaque_outil_d_un_role():
+    serveurs = openclaw.serveurs_outils(_departements_demo_roles())
+
+    assert serveurs == {
+        "m2_lire_leads": "opsys_m2",
+        "m3_lire_devis": "opsys_m3",
+        "m4_pointer_entree": "opsys_m4",
+        "m6_approuver_bon_commande": "opsys_m6",
+        "m6_soumettre_materiaux": "opsys_m6",
+    }
+
+
+def test_serveurs_outils_couvre_exactement_les_outils_des_roles():
+    """Ni un outil fermé, ni un outil T3, ni un outil de plus : le core ne sait appeler pour un
+    appareil que ce que `roles_outils` lui permet."""
+    deps = _departements_demo_roles()
+    roles = openclaw.roles_outils(deps)
+
+    serveurs = openclaw.serveurs_outils(deps)
+
+    assert set(serveurs) == {nom for noms in roles.values() for nom in noms}
+    for ferme in ("m4_lire_outbox_gps", "m2_exporter_tous_les_leads", "m4_payer_sous_traitant"):
+        assert ferme not in serveurs
+
+
+def test_serveurs_outils_vide_sans_declaration(departements_demo):
+    assert openclaw.serveurs_outils(departements_demo) == {}
+
+
+def test_le_serveur_d_un_outil_est_une_cle_de_mcp_json(racine_demo, tmp_path):
+    """Le nom de serveur écrit dans `roles.json` est bien celui de `mcp.servers` : le core ne peut
+    pas viser un serveur que sa propre configuration ne déclare pas."""
+    deps = charger_departements(_racine_avec_outils(racine_demo, tmp_path / "src", "demo_outils_portee_valide"))
+    fichiers = openclaw.generer(deps, tmp_path / "oc", PALIERS, environ=ENVIRON_EMBEDDINGS)
+
+    serveurs = json.loads(fichiers["roles"].read_text(encoding="utf-8"))["serveurs"]
+    declares = json.loads(fichiers["mcp"].read_text(encoding="utf-8"))["servers"]
+
+    assert serveurs
+    assert set(serveurs.values()) <= set(declares)
 
 
 # -- La table appareils.json (inchangée par T1.4-j) ---------------------------------------------

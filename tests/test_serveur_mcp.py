@@ -34,3 +34,28 @@ def test_protocole_mcp_liste_et_appel(departements_demo, session):
             assert refus.is_error is True
 
     anyio.run(scenario)
+
+
+def test_toute_reponse_est_un_seul_bloc_texte_portant_une_enveloppe_avec_ok_booleen(departements_demo, session):
+    """Ce sur quoi le core s'appuie pour un appel d'appareil (T1.4-c6, `readOpsysEnvelope`) : un seul bloc
+    texte, un JSON objet, une clé `ok` booléenne. Vrai pour un succès, un refus métier, une demande en
+    attente d'approbation et un outil inconnu ; le core refuse toute autre forme au lieu d'inventer."""
+    serveur = creer_serveur(Capacites(departements_demo, session))
+
+    async def scenario():
+        async with Client(serveur) as client:
+            appels = [
+                ("m9_additionner", {"a": 2, "b": 3}),
+                ("m9_refuser_si_negatif", {"valeur": -3}),
+                ("m9_payer", {"montant": 10}),
+                ("m9_outil_qui_n_existe_pas", {}),
+            ]
+            for nom, arguments in appels:
+                reponse = await client.call_tool(nom, arguments)
+                assert len(reponse.content) == 1, nom
+                assert reponse.content[0].type == "text", nom
+                enveloppe = json.loads(reponse.content[0].text)
+                assert isinstance(enveloppe, dict), nom
+                assert isinstance(enveloppe["ok"], bool), nom
+
+    anyio.run(scenario)

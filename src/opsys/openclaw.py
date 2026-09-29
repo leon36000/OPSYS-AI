@@ -22,7 +22,8 @@ Deux fragments supplémentaires (T1.4-c2, `docs/architecture/IDEMPOTENCE.md` §7
 `$include`s dans `openclaw.json` — comme `automatisations.sh` ci-dessous, ce sont des fichiers annexes
 qu'OPSYS-CORE lit lui-même directement (`core/src/gateway/opsys-device-roles.ts`), jamais à travers
 la configuration validée par son schéma Zod strict : `roles.json` (`roles_outils`, tiré des
-`Outil.roles_appareil` déclarés, écrit par `generer()`, aucune dépendance à la base) et
+`Outil.roles_appareil` déclarés, et `serveurs_outils`, le serveur MCP qui porte chacun de ces outils
+(T1.4-c6) ; écrit par `generer()`, aucune dépendance à la base) et
 `appareils.json` (`ecrire_appareils`, lit la table `appareils`, ADR-0009 §5 — appelé séparément, PAS
 par `generer()`/`opsys openclaw configurer`, tant qu'aucune surface d'appairage n'existe encore pour
 le déclencher automatiquement).
@@ -213,6 +214,23 @@ def roles_outils(departements: Mapping[str, Departement]) -> dict[str, tuple[str
     return {role: tuple(noms) for role, noms in portees.items()}
 
 
+def serveurs_outils(departements: Mapping[str, Departement]) -> dict[str, str]:
+    """Serveur MCP qui porte chaque outil qu'un rôle d'appareil peut appeler (T1.4-c6).
+
+    Clé : le nom NU de l'outil, celui que l'app envoie à `/tools/invoke`, que `roles_outils` compare
+    et que le serveur du département connaît. Valeur : la clé de `mcp.servers` (`serveur_mcp`). Le
+    core n'a ainsi aucune règle de nommage à deviner : il appelle CE serveur, sous CE nom, jamais un
+    nom fabriqué par le moteur d'agents (`serveur__outil`, tronqué ou suffixé au besoin) et jamais
+    l'outil d'un autre serveur. Les noms d'outils sont uniques (`tous_les_outils` le refuse sinon).
+
+    Seuls les outils présents dans au moins un rôle y figurent : ce que le core sait appeler pour un
+    appareil est exactement ce que `roles_outils` lui permet, rien de plus.
+    """
+    index = tous_les_outils(departements.values())
+    permis = {nom for noms in roles_outils(departements).values() for nom in noms}
+    return {nom: serveur_mcp(index[nom][0]) for nom in sorted(permis)}
+
+
 def ecrire_appareils(cnx: Connection, dossier_config: Path) -> Path:
     """Projette la table `appareils` (ADR-0009 §5) en `opsys/appareils.json`, lu directement par
     OPSYS-CORE (T1.4-c2, `docs/architecture/IDEMPOTENCE.md` §7 bis) — jamais via `$include`
@@ -337,7 +355,10 @@ def generer(
     _ecrire_json(fichiers["tools"], _configuration_outils())
     _ecrire_json(fichiers["memory"], memoire_config)
     _ecrire_json(fichiers["plugins"], _configuration_plugins(fuseau))
-    _ecrire_json(fichiers["roles"], {"roles": roles_outils(departements)})
+    _ecrire_json(fichiers["roles"], {
+        "roles": roles_outils(departements),
+        "serveurs": serveurs_outils(departements),
+    })
     fichiers["automatisations"].write_text(
         "#!/bin/sh\n# Généré par `opsys openclaw configurer` : automatisations des départements.\nset -e\n"
         + "\n".join(automatisations) + "\n",
