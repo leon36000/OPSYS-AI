@@ -117,6 +117,12 @@ pas ses propres motifs : le code partagé vit dans le socle, et **aucun départe
 - **Ajouter une famille** : un détecteur `(Formes, Contexte) -> détail | None` dans le module du sujet, une ligne du catalogue (nom,
   code de refus unique, libellé), un cas de refus et un cas accepté dans `tests/test_garde_fou_texte.py`. Les codes de refus
   existants ne changent pas : les corpus des départements en dépendent.
+- **Un motif se lit en temps linéaire** (T4.17-f). Le texte d'un client n'a pas de plafond (M1 lit les 20 000 octets que la
+  réception accepte) et un motif à retour arrière relit ce qu'il a déjà lu : 20 000 chiffres coûtaient 27 s. Pas de `.*`
+  derrière un déclencheur (`engagements._apres_sur_la_meme_ligne` borne l'écart au déclencheur suivant), pas de motif relancé à
+  chaque caractère d'une même suite (un nombre décrit par groupes de milliers, un `\s*` en tête). Une nouvelle famille ajoute son
+  texte hostile à `tests/test_garde_fou_texte_lineaire.py`, qui refuse tout `.*` et mesure des textes de 20 000 et de 100 000
+  caractères.
 - **Aujourd'hui** : M1 (`garde_fou.py`, cinq familles, verdict `REJ-INTERDIT-*`) et M7 (`usine/controle_texte.py`, douze familles,
   `REJ-*`). Un troisième département qui parle au public prend le même chemin.
 

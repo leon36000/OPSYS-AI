@@ -593,6 +593,13 @@ sur le gabarit de plainte. Le code partagé vit maintenant dans le socle : `opsy
 - **Les corpus de M1 sont inchangés** : 44 textes interdits (100 % bloqués, 100 % de la bonne famille), 22 légitimes (aucun
   faux positif). Les quatre familles d'origine donnent les mêmes verdicts qu'avant le déplacement (mesuré à la livraison contre l'ancien code,
   sur 60 341 textes, avec un script jetable : aucun écart) ; seule l'avis légal s'ajoute, sur des textes que M1 laissait passer.
+- **Le texte d'un client se lit en temps linéaire** (T4.17-f). Le profil de M1 n'a pas de plafond de longueur, et la réception
+  accepte 20 000 octets : un client pouvait bloquer M1 avec un seul message (20 000 chiffres : 29 s ; 20 000 espaces : 6 s).
+  Le montant se lit « un chiffre, puis une devise » (le nombre n'a aucune forme à respecter), les écarts « déclencheur … cible »
+  s'arrêtent au déclencheur suivant, et le découpage en segments ne relit plus les blancs. Mêmes verdicts qu'avant (comparés à
+  l'ancien code sur 1 414 548 textes et sur 176 millions de suites de jetons, avec un script jetable : aucun écart) ; 5 ms pour
+  20 000 chiffres. `tests/test_garde_fou_texte_lineaire.py` et un test de `test_garde_fou.py` (huit textes hostiles de 20 000
+  caractères) en gardent la preuve.
 - **L'avis légal vaut partout où M1 passe un texte** : brouillons de qualification (libellé de service compris), questions du
   profil (retirées et nommées), gabarits de plainte et d'urgence, résumés de transfert, outil `m1_verifier_garde_fou`.
 - **Conséquence connue** : un résumé de transfert fourni par l'agent ne peut pas nommer un avocat ou un tribunal
