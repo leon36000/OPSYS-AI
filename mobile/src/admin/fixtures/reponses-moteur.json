@@ -1,0 +1,2498 @@
+{
+ "fictif": true,
+ "appels": {
+  "a_voir_vide": {
+   "outil": "m9_lister_demandes_approbation",
+   "args": {}
+  },
+  "vue_executive_vide": {
+   "outil": "m8_lire_vue_executive",
+   "args": {}
+  },
+  "tresorerie_sans_solde": {
+   "outil": "m5_etat_tresorerie",
+   "args": {}
+  },
+  "prevision_horizon_a_declarer": {
+   "outil": "m5_prevoir_tresorerie",
+   "args": {
+    "aujourd_hui": "2026-09-29"
+   }
+  },
+  "echeances_frequence_a_declarer": {
+   "outil": "m5_lire_echeances_fiscales",
+   "args": {
+    "aujourd_hui": "2026-09-29"
+   }
+  },
+  "interventions_planifiee_vide": {
+   "outil": "m4_lister_interventions",
+   "args": {
+    "statut": "planifiee"
+   }
+  },
+  "digest_vide": {
+   "outil": "m4_produire_digest",
+   "args": {
+    "date_cible": "2026-09-21",
+    "horodatage_reference": "2026-09-21T18:00:00-04:00"
+   }
+  },
+  "preparation_inconnue": {
+   "outil": "m4_verifier_preparation",
+   "args": {
+    "intervention_id": "intervention-fantome"
+   }
+  },
+  "tresorerie": {
+   "outil": "m5_etat_tresorerie",
+   "args": {}
+  },
+  "prevision": {
+   "outil": "m5_prevoir_tresorerie",
+   "args": {
+    "aujourd_hui": "2026-09-29"
+   }
+  },
+  "echeances": {
+   "outil": "m5_lire_echeances_fiscales",
+   "args": {
+    "aujourd_hui": "2026-09-29"
+   }
+  },
+  "tresorerie_sans_paies": {
+   "outil": "m5_etat_tresorerie",
+   "args": {}
+  },
+  "prevision_sans_paies": {
+   "outil": "m5_prevoir_tresorerie",
+   "args": {
+    "aujourd_hui": "2026-09-29"
+   }
+  },
+  "prevision_longue_page_1": {
+   "outil": "m5_prevoir_tresorerie",
+   "args": {
+    "aujourd_hui": "2026-09-29"
+   }
+  },
+  "prevision_longue_page_2": {
+   "outil": "m5_prevoir_tresorerie",
+   "args": {
+    "aujourd_hui": "2026-09-29",
+    "depart": 19
+   }
+  },
+  "interventions_en_route": {
+   "outil": "m4_lister_interventions",
+   "args": {
+    "statut": "en_route"
+   }
+  },
+  "interventions_sur_site": {
+   "outil": "m4_lister_interventions",
+   "args": {
+    "statut": "sur_site"
+   }
+  },
+  "interventions_en_revue": {
+   "outil": "m4_lister_interventions",
+   "args": {
+    "statut": "en_revue"
+   }
+  },
+  "interventions_planifiee": {
+   "outil": "m4_lister_interventions",
+   "args": {
+    "statut": "planifiee"
+   }
+  },
+  "interventions_a_planifier": {
+   "outil": "m4_lister_interventions",
+   "args": {
+    "statut": "a_planifier"
+   }
+  },
+  "interventions_reportee": {
+   "outil": "m4_lister_interventions",
+   "args": {
+    "statut": "reportee"
+   }
+  },
+  "interventions_completed_pending_review": {
+   "outil": "m4_lister_interventions",
+   "args": {
+    "statut": "completed_pending_review"
+   }
+  },
+  "digest": {
+   "outil": "m4_produire_digest",
+   "args": {
+    "date_cible": "2026-09-21",
+    "horodatage_reference": "2026-09-21T18:00:00-04:00"
+   }
+  },
+  "preparation_lead_v2": {
+   "outil": "m4_verifier_preparation",
+   "args": {
+    "intervention_id": "bc40348bbff5df996888ea3e1fbb1de49a4858f3a8178120f937e0d7e2cd289d"
+   }
+  },
+  "preparation_lead_v1": {
+   "outil": "m4_verifier_preparation",
+   "args": {
+    "intervention_id": "b933c5c55afdb2c1e903895188cb89e6ee59439a045e27b83f9201a81c4438f6"
+   }
+  },
+  "preparation_a_planifier": {
+   "outil": "m4_verifier_preparation",
+   "args": {
+    "intervention_id": "9695d12439c01250e61c8992e881cf2db4176e00cceef5072a64635d9fd26c90"
+   }
+  },
+  "preparation_terminee": {
+   "outil": "m4_verifier_preparation",
+   "args": {
+    "intervention_id": "b1903e5166860713cd4116bf5905c4520e9bb99f17274c8f0026ff6b4e6330f7"
+   }
+  },
+  "a_voir": {
+   "outil": "m9_lister_demandes_approbation",
+   "args": {}
+  },
+  "a_voir_avec_demande": {
+   "outil": "m9_lister_demandes_approbation",
+   "args": {}
+  },
+  "vue_executive": {
+   "outil": "m8_lire_vue_executive",
+   "args": {}
+  },
+  "interventions_statut_inconnu": {
+   "outil": "m4_lister_interventions",
+   "args": {
+    "statut": "inconnu"
+   }
+  },
+  "refus_identite_vue_executive": {
+   "outil": "m8_lire_vue_executive",
+   "args": {}
+  },
+  "refus_identite_tresorerie": {
+   "outil": "m5_etat_tresorerie",
+   "args": {}
+  },
+  "refus_identite_interventions": {
+   "outil": "m4_lister_interventions",
+   "args": {
+    "statut": "planifiee"
+   }
+  }
+ },
+ "reponses": {
+  "a_voir_vide": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "demandes": [],
+     "total_en_attente": 0,
+     "affichees": 0,
+     "reste": 0,
+     "proprietaire": true,
+     "attentes": [],
+     "total_attentes": 0,
+     "attentes_affichees": 0,
+     "attentes_reste": 0,
+     "attentes_decalage": 0,
+     "attentes_suivant": null,
+     "attentes_illisibles": []
+    }
+   }
+  },
+  "vue_executive_vide": {
+   "ok": true,
+   "resultat": {
+    "vue": "executive",
+    "portee": "Tous les faits reçus par M8, sans fenêtre de période. M8 calcule l'entonnoir ; la marge réelle (M5) et le stock à commander (M6) sont repris tels que ces départements les publient, sans recalcul.",
+    "entonnoir": {
+     "mesures": [
+      {
+       "metric_id": "m8_leads_recus",
+       "nom": "Leads reçus",
+       "valeur": null,
+       "unite": "leads",
+       "statut": "non_calculable",
+       "proprietaire": "m02-revenue-crm",
+       "version_definition": "8ad34274c0c6fe29a0dfe7fedc1839ee8011bcdeb9635bfeb12ea8bd1f185377",
+       "manque": [
+        "m2.client_associe"
+       ]
+      },
+      {
+       "metric_id": "m8_leads_qualifies",
+       "nom": "Leads qualifiés",
+       "valeur": null,
+       "unite": "leads",
+       "statut": "non_calculable",
+       "proprietaire": "m02-revenue-crm",
+       "version_definition": "39b8d0932069407a5efbdd305a8abe153e4c3513a16b419b3b3a908cf2c6080d",
+       "manque": [
+        "m2.lead_assigne"
+       ]
+      },
+      {
+       "metric_id": "m8_devis_envoyes",
+       "nom": "Devis envoyés",
+       "valeur": null,
+       "unite": "devis",
+       "statut": "non_calculable",
+       "proprietaire": "m03-estimation",
+       "version_definition": "b5fc972a3a5196f721b8c88ad655cee287bbfc553a5e5a2f4055574d892fa5d7",
+       "manque": [
+        "m3.devis_envoye"
+       ]
+      },
+      {
+       "metric_id": "m8_devis_acceptes",
+       "nom": "Devis acceptés",
+       "valeur": null,
+       "unite": "devis",
+       "statut": "non_calculable",
+       "proprietaire": "m03-estimation",
+       "version_definition": "e4ab4c60e7c5a5f645b1ebe2690ad4c1f17a0a5d659f644bd3edd85fe5e39aac",
+       "manque": [
+        "m3.devis_accepte"
+       ]
+      },
+      {
+       "metric_id": "m8_devis_sans_reponse",
+       "nom": "Devis sans réponse",
+       "valeur": null,
+       "unite": "devis",
+       "statut": "non_calculable",
+       "proprietaire": "m03-estimation",
+       "version_definition": "34cbdca729aca0ccd1027eb39ac88e69d4512ce9626a42130c382d0f451c220e",
+       "manque": [
+        "m3.devis_sans_reponse"
+       ]
+      },
+      {
+       "metric_id": "m8_taux_acceptation_pct",
+       "nom": "Taux d'acceptation des devis",
+       "valeur": null,
+       "unite": "pourcentage",
+       "statut": "non_calculable",
+       "proprietaire": "m03-estimation",
+       "version_definition": "8c933aa9445cbf41cefec35288f388b4e126f286013af51d251ff4de0f23f734",
+       "manque": [
+        "m3.devis_envoye",
+        "m3.devis_accepte"
+       ]
+      },
+      {
+       "metric_id": "m8_delai_lead_acceptation_jours",
+       "nom": "Délai du lead à l'acceptation",
+       "valeur": null,
+       "unite": "jours",
+       "statut": "non_calculable",
+       "proprietaire": "m02-revenue-crm",
+       "version_definition": "76872c2b5f8ac1acb41c478cc8ca8ae1d9d6e83d9837105867051f72b4c9dcbe",
+       "manque": [
+        "m2.client_associe",
+        "m3.devis_accepte"
+       ]
+      },
+      {
+       "metric_id": "m8_carnet_signe_cad",
+       "nom": "Carnet signé",
+       "valeur": null,
+       "unite": "CAD",
+       "statut": "non_calculable",
+       "proprietaire": "m03-estimation",
+       "version_definition": "3ecb658bef2af8ea7890dcbcb28f20904500bebdca5af835344ddc3dd9545ba2",
+       "manque": [
+        "m3.devis_accepte"
+       ]
+      }
+     ],
+     "sources": [
+      {
+       "evenement": "m2.client_associe",
+       "n": 0,
+       "dernier_fait_le": null
+      },
+      {
+       "evenement": "m2.lead_assigne",
+       "n": 0,
+       "dernier_fait_le": null
+      },
+      {
+       "evenement": "m3.devis_envoye",
+       "n": 0,
+       "dernier_fait_le": null
+      },
+      {
+       "evenement": "m3.devis_accepte",
+       "n": 0,
+       "dernier_fait_le": null
+      },
+      {
+       "evenement": "m3.devis_sans_reponse",
+       "n": 0,
+       "dernier_fait_le": null
+      }
+     ],
+     "devis_en_attente": {
+      "sans_reponse": {
+       "n": 0,
+       "devis": [],
+       "reste": 0
+      },
+      "brouillons_en_retard": {
+       "n": 0,
+       "devis": [],
+       "reste": 0
+      }
+     },
+     "seuils": {
+      "a_configurer": [],
+      "invalides": [],
+      "ignores": [],
+      "evalues": []
+     }
+    },
+    "marge_reelle": {
+     "source": "M5 (m5.rentabilite_chantier), reprise sans aucun calcul",
+     "n_chantiers": 0,
+     "n_marge_connue": 0,
+     "n_non_calculable": 0,
+     "chantiers": [],
+     "reste": 0
+    },
+    "stock_a_commander": {
+     "source": "M6 (attentes du propriétaire, type besoin_commande)",
+     "statut": "lu",
+     "n_articles": 0,
+     "articles": [],
+     "reste": 0,
+     "seuils_a_configurer": false
+    },
+    "cash_libre": {
+     "source": "M5 (m5_etat_tresorerie, T4.16)",
+     "statut": "manque",
+     "manque": [
+      "cash_libre"
+     ],
+     "a_lire": "m5_etat_tresorerie (admin), avec la décomposition du cash libre"
+    },
+    "manques": [
+     {
+      "champ": "m2.client_associe",
+      "source": "M2 (m2.client_associe)",
+      "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+     },
+     {
+      "champ": "m2.lead_assigne",
+      "source": "M2 (m2.lead_assigne)",
+      "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+     },
+     {
+      "champ": "m3.devis_envoye",
+      "source": "M3 (m3.devis_envoye)",
+      "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+     },
+     {
+      "champ": "m3.devis_accepte",
+      "source": "M3 (m3.devis_accepte)",
+      "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+     },
+     {
+      "champ": "m3.devis_sans_reponse",
+      "source": "M3 (m3.devis_sans_reponse)",
+      "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+     },
+     {
+      "champ": "cash_libre",
+      "source": "M5 (m5_etat_tresorerie, T4.16)",
+      "raison": "M5 calcule le cash libre à chaque lecture de m5_etat_tresorerie et ne le publie sur aucun événement du bus : M8 ne peut ni le lire ni le recalculer, il ne fait pas la comptabilité"
+     }
+    ]
+   }
+  },
+  "tresorerie_sans_solde": {
+   "ok": true,
+   "resultat": {
+    "type": "ETAT_FINANCIER",
+    "role": "admin",
+    "solde": "0",
+    "argent_disponible": "0",
+    "taux_utilises": [],
+    "etat_id": "08c715bab58dc14809b48504fed79b078750da6b916f2bdf455221c2dcb3ab41",
+    "argent_disponible_note": "solde moins les réserves posées seulement : ce n'est PAS le cash libre, lire cash_libre",
+    "cash_libre": {
+     "type": "CASH_LIBRE",
+     "cash_libre": null,
+     "calculable": false,
+     "en_deficit": null,
+     "au_plus": null,
+     "lecture": "Cash libre non calculable : le solde n'est pas connu (voir manque). Aucun chiffre n'est donné.",
+     "solde": {
+      "id": "solde",
+      "statut": "NON_CALCULABLE",
+      "montant": null,
+      "source": {
+       "de": "registre des mouvements de M5 (somme signée, hors réserves)",
+       "registres": [
+        {
+         "registre": "mouvements",
+         "taille": 0,
+         "tete": null
+        }
+       ]
+      },
+      "fraicheur": {
+       "derniere_piece": null,
+       "pieces": 0
+      },
+      "manque": [
+       {
+        "code": "REJ-CASH-SOLDE-ABSENT",
+        "detail": "aucun mouvement au registre : le solde d'ouverture n'a pas été enregistré, le solde n'est pas connu"
+       }
+      ]
+     },
+     "composantes": [
+      {
+       "id": "taxes_a_remettre",
+       "statut": "NON_CALCULABLE",
+       "montant": null,
+       "source": {
+        "de": "factures clients ENVOYEE ou PAYEE et factures fournisseur saisies, taxes calculées à la création de chaque pièce (taux versionnés)",
+        "registres": [
+         {
+          "registre": "factures",
+          "taille": 0,
+          "tete": null
+         },
+         {
+          "registre": "comptes_a_payer",
+          "taille": 0,
+          "tete": null
+         }
+        ]
+       },
+       "fraicheur": {
+        "derniere_piece": null,
+        "pieces": 0
+       },
+       "manque": [
+        {
+         "code": "REJ-FISCAL-FREQUENCE-A-DECLARER",
+         "detail": "la fréquence de production TPS/TVQ (mensuelle, trimestrielle ou annuelle, celle de la confirmation d'inscription) est une décision du propriétaire (GATE NATHAN) : la déclarer dans configuration.fiscal.frequence_tps_tvq ; rien n'est supposé"
+        }
+       ]
+      },
+      {
+       "id": "paies",
+       "statut": "NON_CALCULABLE",
+       "montant": null,
+       "source": {
+        "de": "aucune source"
+       },
+       "fraicheur": {
+        "derniere_piece": null,
+        "pieces": 0
+       },
+       "manque": [
+        {
+         "code": "REJ-CASH-PAIE-A-DECLARER",
+         "detail": "aucun module de paie (M5.4 absent) : les paies dues ne se calculent pas. Déclarer configuration.obligations_declarees.paies (montant, source, au)."
+        }
+       ]
+      },
+      {
+       "id": "das",
+       "statut": "NON_CALCULABLE",
+       "montant": null,
+       "source": {
+        "de": "aucune source"
+       },
+       "fraicheur": {
+        "derniere_piece": null,
+        "pieces": 0
+       },
+       "manque": [
+        {
+         "code": "REJ-CASH-DAS-A-DECLARER",
+         "detail": "aucun module de paie (M5.4 absent) : les DAS dues ne se calculent pas. Déclarer configuration.obligations_declarees.das (montant, source, au)."
+        }
+       ]
+      },
+      {
+       "id": "comptes_a_payer",
+       "statut": "CALCULE",
+       "montant": "0.00",
+       "source": {
+        "de": "comptes à payer de M5 (réceptions de M6, factures fournisseur saisies), T4.15",
+        "registres": [
+         {
+          "registre": "comptes_a_payer",
+          "taille": 0,
+          "tete": null
+         }
+        ]
+       },
+       "fraicheur": {
+        "derniere_piece": null,
+        "pieces": 0
+       },
+       "detail": {
+        "nombre_po": 0
+       }
+      },
+      {
+       "id": "dettes",
+       "statut": "NON_CALCULABLE",
+       "montant": null,
+       "source": {
+        "de": "aucune source"
+       },
+       "fraicheur": {
+        "derniere_piece": null,
+        "pieces": 0
+       },
+       "manque": [
+        {
+         "code": "REJ-CASH-DETTES-A-DECLARER",
+         "detail": "aucun registre de dettes : les versements exigibles ne se calculent pas. Déclarer configuration.obligations_declarees.dettes (montant, source, au)."
+        }
+       ]
+      },
+      {
+       "id": "reserves",
+       "statut": "NON_CALCULABLE",
+       "montant": null,
+       "source": {
+        "de": "aucune source"
+       },
+       "fraicheur": {
+        "derniere_piece": null,
+        "pieces": 0
+       },
+       "manque": [
+        {
+         "code": "REJ-CASH-RESERVES-A-DECLARER",
+         "detail": "aucune réserve posée ni déclarée : la cible de réserve est une décision du propriétaire (GATE NATHAN). Déclarer configuration.obligations_declarees.reserves (montant, source, au)."
+        }
+       ]
+      }
+     ],
+     "manque": [
+      "solde : REJ-CASH-SOLDE-ABSENT",
+      "taxes_a_remettre : REJ-FISCAL-FREQUENCE-A-DECLARER",
+      "paies : REJ-CASH-PAIE-A-DECLARER",
+      "das : REJ-CASH-DAS-A-DECLARER",
+      "dettes : REJ-CASH-DETTES-A-DECLARER",
+      "reserves : REJ-CASH-RESERVES-A-DECLARER"
+     ],
+     "reserves": [],
+     "hypotheses": [
+      "taxes collectées : factures clients ENVOYEE ou PAYEE datées après la dernière remise, payées ou non (ARC)",
+      "crédits de taxes sur intrants : factures fournisseur SAISIES seulement, récupérables à 100 % (à valider par le CPA)",
+      "une taxe nette négative n'est jamais de l'argent ; TPS et TVQ ne se compensent pas (prudent, à confirmer)",
+      "les comptes à recevoir ne sont PAS ajoutés : leur argent n'est pas au solde",
+      "une réserve posée pour un autre poste (taxes, paies) compte deux fois : aucune catégorie de réserve (prudent)",
+      "un fournisseur payé ou une taxe remise reste retranché tant que le registre l'ignore (prudent : sous-estimé)"
+     ],
+     "cash_libre_id": "71ffce54ec05e2c0fb457b5ffdc91d57b04a7cd9c67975cda9a51a9c10bfccf3",
+     "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    },
+    "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+   }
+  },
+  "prevision_horizon_a_declarer": {
+   "ok": true,
+   "resultat": {
+    "accepte": false,
+    "verdict": {
+     "code": "REJ-PREVISION-HORIZON-A-CONFIGURER",
+     "detail": "l'horizon de la prévision (en semaines) est une décision du propriétaire (GATE NATHAN) : le déclarer dans configuration.prevision.horizon_semaines ou le fournir en argument ; aucun horizon n'est supposé"
+    }
+   }
+  },
+  "echeances_frequence_a_declarer": {
+   "ok": true,
+   "resultat": {
+    "accepte": false,
+    "verdict": {
+     "code": "REJ-FISCAL-FREQUENCE-A-DECLARER",
+     "detail": "la fréquence de production TPS/TVQ (mensuelle, trimestrielle ou annuelle, celle de la confirmation d'inscription) est une décision du propriétaire (GATE NATHAN) : la déclarer dans configuration.fiscal.frequence_tps_tvq ; rien n'est supposé"
+    }
+   }
+  },
+  "interventions_planifiee_vide": {
+   "ok": true,
+   "resultat": []
+  },
+  "digest_vide": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "date_cible": "2026-09-21",
+     "horodatage_reference": "2026-09-21T18:00:00-04:00",
+     "ancre_registre": null,
+     "interventions_terminees": [],
+     "interventions_en_revue": [],
+     "count_pending_review": 0,
+     "pending_par_type": {
+      "ecart_metier": 0,
+      "anomalie_pointage": 0
+     },
+     "interventions_bloquees_en_revue": [],
+     "empreinte": "f770d44d038328ebdae45226e5e10dd41f14ceba9f94a770a9fc054c94f93578"
+    }
+   }
+  },
+  "preparation_inconnue": {
+   "ok": true,
+   "resultat": {
+    "accepte": false,
+    "verdict": {
+     "code": "REJ-TRANSITION-ILLEGALE",
+     "statut": "",
+     "detail": "intervention inexistante"
+    }
+   }
+  },
+  "tresorerie": {
+   "ok": true,
+   "resultat": {
+    "type": "ETAT_FINANCIER",
+    "role": "admin",
+    "solde": "20000.00",
+    "argent_disponible": "19500.00",
+    "taux_utilises": [],
+    "etat_id": "d227e8fa94e5d2a66bbea77f9f8c9a7e6203e7fe759bca9c92c5843f56a083e9",
+    "argent_disponible_note": "solde moins les réserves posées seulement : ce n'est PAS le cash libre, lire cash_libre",
+    "cash_libre": {
+     "type": "CASH_LIBRE",
+     "cash_libre": "14106.32",
+     "calculable": true,
+     "en_deficit": false,
+     "au_plus": null,
+     "lecture": "Cash libre : 14106.32 $ (solde moins toutes les obligations ci-dessous). Sous réserve : REJ-AP-UNITE-PRIX-NON-CONFIRMEE.",
+     "solde": {
+      "id": "solde",
+      "statut": "CALCULE",
+      "montant": "20000.00",
+      "source": {
+       "de": "registre des mouvements de M5 (somme signée, hors réserves)",
+       "registres": [
+        {
+         "registre": "mouvements",
+         "taille": 2,
+         "tete": "cad4e1ad78b60f60"
+        }
+       ]
+      },
+      "fraicheur": {
+       "derniere_piece": "2026-09-10T12:00:00-04:00",
+       "pieces": 2
+      }
+     },
+     "composantes": [
+      {
+       "id": "taxes_a_remettre",
+       "statut": "CALCULE",
+       "montant": "748.75",
+       "source": {
+        "de": "factures clients ENVOYEE ou PAYEE et factures fournisseur saisies, taxes calculées à la création de chaque pièce (taux versionnés)",
+        "registres": [
+         {
+          "registre": "factures",
+          "taille": 2,
+          "tete": "6609087b331e0714"
+         },
+         {
+          "registre": "comptes_a_payer",
+          "taille": 1,
+          "tete": "492e23b9dff6235e"
+         }
+        ]
+       },
+       "fraicheur": {
+        "derniere_piece": "2026-09-14",
+        "pieces": 1
+       },
+       "detail": {
+        "depuis": "2026-07-01",
+        "a_remettre": "748.75",
+        "tps": {
+         "collectee": "250.00",
+         "credits_intrants": "0.00",
+         "nette": "250.00",
+         "a_remettre": "250.00"
+        },
+        "tvq": {
+         "collectee": "498.75",
+         "credits_intrants": "0.00",
+         "nette": "498.75",
+         "a_remettre": "498.75"
+        },
+        "factures_clients": 1,
+        "factures_fournisseurs": 0
+       }
+      },
+      {
+       "id": "paies",
+       "statut": "CALCULE",
+       "montant": "3000.00",
+       "source": {
+        "de": "déclaration du propriétaire (configuration.obligations_declarees.paies) : brouillon de paie (fictif)"
+       },
+       "fraicheur": {
+        "derniere_piece": "2026-09-25",
+        "pieces": 1
+       }
+      },
+      {
+       "id": "das",
+       "statut": "CALCULE",
+       "montant": "900.00",
+       "source": {
+        "de": "déclaration du propriétaire (configuration.obligations_declarees.das) : estimation du CPA (fictive)"
+       },
+       "fraicheur": {
+        "derniere_piece": "2026-09-25",
+        "pieces": 1
+       }
+      },
+      {
+       "id": "comptes_a_payer",
+       "statut": "CALCULE",
+       "montant": "344.93",
+       "source": {
+        "de": "comptes à payer de M5 (réceptions de M6, factures fournisseur saisies), T4.15",
+        "registres": [
+         {
+          "registre": "comptes_a_payer",
+          "taille": 1,
+          "tete": "492e23b9dff6235e"
+         }
+        ]
+       },
+       "fraicheur": {
+        "derniere_piece": "2026-09-14T09:00:00-04:00",
+        "pieces": 1
+       },
+       "reserves": [
+        "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+       ],
+       "detail": {
+        "nombre_po": 1
+       }
+      },
+      {
+       "id": "dettes",
+       "statut": "CALCULE",
+       "montant": "400.00",
+       "source": {
+        "de": "déclaration du propriétaire (configuration.obligations_declarees.dettes) : relevé du prêt camion (fictif)"
+       },
+       "fraicheur": {
+        "derniere_piece": "2026-09-01",
+        "pieces": 1
+       }
+      },
+      {
+       "id": "reserves",
+       "statut": "CALCULE",
+       "montant": "500.00",
+       "source": {
+        "de": "registre des mouvements de M5 (réserves déjà mises de côté, hors solde)",
+        "registres": [
+         {
+          "registre": "mouvements",
+          "taille": 2,
+          "tete": "cad4e1ad78b60f60"
+         }
+        ]
+       },
+       "fraicheur": {
+        "derniere_piece": "2026-09-10T12:00:00-04:00",
+        "pieces": 1
+       }
+      }
+     ],
+     "manque": [],
+     "reserves": [
+      "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+     ],
+     "hypotheses": [
+      "taxes collectées : factures clients ENVOYEE ou PAYEE datées après la dernière remise, payées ou non (ARC)",
+      "crédits de taxes sur intrants : factures fournisseur SAISIES seulement, récupérables à 100 % (à valider par le CPA)",
+      "une taxe nette négative n'est jamais de l'argent ; TPS et TVQ ne se compensent pas (prudent, à confirmer)",
+      "les comptes à recevoir ne sont PAS ajoutés : leur argent n'est pas au solde",
+      "une réserve posée pour un autre poste (taxes, paies) compte deux fois : aucune catégorie de réserve (prudent)",
+      "un fournisseur payé ou une taxe remise reste retranché tant que le registre l'ignore (prudent : sous-estimé)"
+     ],
+     "cash_libre_id": "ce25252de9c673a5a85b5745af20064f2b79edeb0b9337294a54fa9b08321845",
+     "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    },
+    "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+   }
+  },
+  "prevision": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "role": "admin",
+     "type": "PREVISION_TRESORERIE",
+     "lecture": "Solde prévu : 20000.00 $ aujourd'hui, 20355.07 $ à la fin de la semaine 6 ; le plus bas : 17000.00 $ (semaine 2). Alerte : sous le seuil de 18000.00 $ en semaine(s) 2.",
+     "aujourd_hui": "2026-09-29",
+     "horizon_semaines": 6,
+     "fin_horizon": "2026-11-09",
+     "calculable": true,
+     "non_calculable_a_partir_de": null,
+     "manque": [],
+     "alerte": {
+      "statut": "ALERTE",
+      "seuil": "18000.00",
+      "source_du_seuil": {
+       "source": "décision de Nathan (fictive)",
+       "au": "2026-09-25"
+      },
+      "semaines": [
+       2
+      ]
+     },
+     "plus_bas": {
+      "semaine": 2,
+      "solde": "17000.00"
+     },
+     "premiere_semaine_en_deficit": null,
+     "solde_initial": {
+      "montant": "20000.00",
+      "source": "registre des mouvements de M5 (somme signée, hors réserves)",
+      "registres": [
+       {
+        "registre": "mouvements",
+        "taille": 2,
+        "tete": "cad4e1ad78b60f60"
+       }
+      ],
+      "fraicheur": {
+       "derniere_piece": "2026-09-10T12:00:00-04:00",
+       "pieces": 2
+      }
+     },
+     "cash_libre_aujourd_hui": {
+      "montant": "14106.32",
+      "manque": []
+     },
+     "au_dela_de_l_horizon": {
+      "entrees": {
+       "nombre": 0,
+       "total": "0.00"
+      },
+      "sorties": {
+       "nombre": 0,
+       "total": "0.00"
+      }
+     },
+     "encaissements_non_comptes": [],
+     "reserves": [
+      "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+     ],
+     "prevision_id": "165e6fddd7dbc32168e24e8857a7c0542794b4ddc6aff733aad38d1f26f3a42a",
+     "limites": [
+      "seuls les flux connus et datés sont placés : aucune vente, dépense, paie ni taxe future n'est prévue, et aucune projection statistique n'est faite",
+      "le solde de départ est celui du registre des mouvements (T4.16) : un paiement ou un encaissement que le registre ignore n'y est pas",
+      "un encaissement est placé à son échéance, sans retard de paiement du client ; un encaissement échu ou sans date n'est pas compté (prudent)",
+      "un décaissement échu est placé en semaine 1 : le registre ne constate aucun paiement (prudent)",
+      "aucune échéance n'est enregistrée sur les factures : leur date vient d'un délai déclaré par le propriétaire",
+      "la taxe d'une période non terminée est celle des factures déjà émises ; un remboursement de taxes n'est jamais compté ; les dates du calendrier fiscal sont à valider par le CPA ; acomptes provisionnels et CNESST hors calendrier",
+      "le solde d'une semaine est celui de sa fin : un creux au milieu d'une semaine n'est pas vu"
+     ],
+     "total": 6,
+     "depart": 0,
+     "affichees": 6,
+     "reste": 0,
+     "prochain_depart": null,
+     "message": null,
+     "semaines": [
+      {
+       "semaine": 1,
+       "du": "2026-09-29",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20000.00",
+       "cash_libre_prevu": "14106.32",
+       "lignes": 0
+      },
+      {
+       "semaine": 2,
+       "du": "2026-10-06",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "3000.00",
+       "solde_fin": "17000.00",
+       "cash_libre_prevu": "14106.32",
+       "sous_seuil": true,
+       "lignes": 1
+      },
+      {
+       "semaine": 3,
+       "du": "2026-10-13",
+       "statut": "CALCULE",
+       "entrees": "5748.75",
+       "sorties": "1244.93",
+       "solde_fin": "21503.82",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 3
+      },
+      {
+       "semaine": 4,
+       "du": "2026-10-20",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "21503.82",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 5,
+       "du": "2026-10-27",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "1148.75",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 2
+      },
+      {
+       "semaine": 6,
+       "du": "2026-11-03",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      }
+     ],
+     "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    }
+   }
+  },
+  "echeances": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "role": "admin",
+     "type": "ECHEANCES_FISCALES",
+     "aujourd_hui": "2026-09-29",
+     "frequence": "trimestrielle",
+     "mois_fin_exercice": 12,
+     "particulier_en_affaires": null,
+     "taxes_remises_jusqu_au": "2026-06-30",
+     "echeances": [
+      {
+       "periode_debut": "2026-07-01",
+       "periode_fin": "2026-09-30",
+       "periode_terminee": false,
+       "limite_paiement": "2026-11-02",
+       "limite_production": "2026-11-02",
+       "jours_avant_paiement": 34,
+       "jours_avant_production": 34,
+       "statut": "A_VENIR",
+       "taxes_nettes": {
+        "a_remettre": "748.75",
+        "tps": {
+         "collectee": "250.00",
+         "credits_intrants": "0.00",
+         "nette": "250.00",
+         "a_remettre": "250.00"
+        },
+        "tvq": {
+         "collectee": "498.75",
+         "credits_intrants": "0.00",
+         "nette": "498.75",
+         "a_remettre": "498.75"
+        },
+        "factures_clients": 1,
+        "factures_fournisseurs": 0
+       }
+      },
+      {
+       "periode_debut": "2026-10-01",
+       "periode_fin": "2026-12-31",
+       "periode_terminee": false,
+       "limite_paiement": "2027-02-01",
+       "limite_production": "2027-02-01",
+       "jours_avant_paiement": 125,
+       "jours_avant_production": 125,
+       "statut": "A_VENIR",
+       "taxes_nettes": {
+        "a_remettre": "0.00",
+        "tps": {
+         "collectee": "0.00",
+         "credits_intrants": "0.00",
+         "nette": "0.00",
+         "a_remettre": "0.00"
+        },
+        "tvq": {
+         "collectee": "0.00",
+         "credits_intrants": "0.00",
+         "nette": "0.00",
+         "a_remettre": "0.00"
+        },
+        "factures_clients": 0,
+        "factures_fournisseurs": 0
+       }
+      }
+     ],
+     "non_affichees": 0,
+     "manque": [],
+     "annees_declarees": [
+      2025,
+      2026
+     ],
+     "connu_jusqu_au": "2027-02-01",
+     "avertissement_couverture": "aucune échéance n'est connue après le 2027-02-01 : l'année 2027 n'est pas déclarée dans le calendrier",
+     "versions": {
+      "2025": "2025-v1",
+      "2026": "2026-v1"
+     },
+     "validation_cpa": {
+      "2025": "A_VALIDER",
+      "2026": "A_VALIDER"
+     },
+     "sources": [
+      {
+       "organisme": "Revenu Québec",
+       "titre": "Calendriers TVQ et TPS/TVH (dates limites de paiement, périodes mensuelles, trimestrielles et annuelles)",
+       "url": "https://www.revenuquebec.ca/fr/calendriers-tvq-et-tpstvh-taxe-sur-les-primes-dassurance-taxe-sur-les-boissons-alcooliques-et-pneus-neufs/",
+       "consulte_le": "2026-09-29"
+      },
+      {
+       "organisme": "Revenu Québec",
+       "titre": "Périodes de déclaration (TPS/TVH et TVQ) : un mois après la période pour la fréquence mensuelle ou trimestrielle, trois mois pour l'annuelle, 30 avril et 15 juin pour un particulier en affaires",
+       "url": "https://www.revenuquebec.ca/fr/entreprises/taxes/tpstvh-et-tvq/declaration-de-la-tps-et-de-la-tvq/periodes-de-declaration/",
+       "consulte_le": "2026-09-29"
+      },
+      {
+       "organisme": "Agence du revenu du Canada",
+       "titre": "Reporting requirements and deadlines, File your GST/HST return (échéance reportée au jour ouvrable suivant un samedi, un dimanche ou un jour férié)",
+       "url": "https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/gst-hst-businesses/file-gst-hst-return/reporting-requirements-deadlines.html",
+       "consulte_le": "2026-09-29"
+      },
+      {
+       "organisme": "Agence du revenu du Canada",
+       "titre": "Remit (pay) the GST/HST you collected (la taxe d'une facture incluse dans la déclaration se remet même si elle n'est pas encore payée)",
+       "url": "https://www.canada.ca/en/revenue-agency/services/tax/businesses/topics/gst-hst-businesses/remit-pay-gst-hst-collected.html",
+       "consulte_le": "2026-09-29"
+      }
+     ],
+     "hors_perimetre": [
+      "acomptes provisionnels de TPS/TVQ d'un inscrit à période annuelle (quatre versements) : dates et montants à confirmer par le CPA",
+      "acomptes provisionnels d'impôt, DAS, T4, RL-1 et CNESST : aucune date n'est déclarée ici"
+     ],
+     "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    }
+   }
+  },
+  "tresorerie_sans_paies": {
+   "ok": true,
+   "resultat": {
+    "type": "ETAT_FINANCIER",
+    "role": "admin",
+    "solde": "20000.00",
+    "argent_disponible": "19500.00",
+    "taux_utilises": [],
+    "etat_id": "d227e8fa94e5d2a66bbea77f9f8c9a7e6203e7fe759bca9c92c5843f56a083e9",
+    "argent_disponible_note": "solde moins les réserves posées seulement : ce n'est PAS le cash libre, lire cash_libre",
+    "cash_libre": {
+     "type": "CASH_LIBRE",
+     "cash_libre": null,
+     "calculable": false,
+     "en_deficit": null,
+     "au_plus": "17106.32",
+     "lecture": "Cash libre non calculable : 1 manque(s) (voir manque). Au plus 17106.32 $ : le solde moins ce qui est connu ; ce qui manque ne peut que le réduire. Ce n'est PAS de l'argent disponible.",
+     "solde": {
+      "id": "solde",
+      "statut": "CALCULE",
+      "montant": "20000.00",
+      "source": {
+       "de": "registre des mouvements de M5 (somme signée, hors réserves)",
+       "registres": [
+        {
+         "registre": "mouvements",
+         "taille": 2,
+         "tete": "cad4e1ad78b60f60"
+        }
+       ]
+      },
+      "fraicheur": {
+       "derniere_piece": "2026-09-10T12:00:00-04:00",
+       "pieces": 2
+      }
+     },
+     "composantes": [
+      {
+       "id": "taxes_a_remettre",
+       "statut": "CALCULE",
+       "montant": "748.75",
+       "source": {
+        "de": "factures clients ENVOYEE ou PAYEE et factures fournisseur saisies, taxes calculées à la création de chaque pièce (taux versionnés)",
+        "registres": [
+         {
+          "registre": "factures",
+          "taille": 2,
+          "tete": "6609087b331e0714"
+         },
+         {
+          "registre": "comptes_a_payer",
+          "taille": 1,
+          "tete": "492e23b9dff6235e"
+         }
+        ]
+       },
+       "fraicheur": {
+        "derniere_piece": "2026-09-14",
+        "pieces": 1
+       },
+       "detail": {
+        "depuis": "2026-07-01",
+        "a_remettre": "748.75",
+        "tps": {
+         "collectee": "250.00",
+         "credits_intrants": "0.00",
+         "nette": "250.00",
+         "a_remettre": "250.00"
+        },
+        "tvq": {
+         "collectee": "498.75",
+         "credits_intrants": "0.00",
+         "nette": "498.75",
+         "a_remettre": "498.75"
+        },
+        "factures_clients": 1,
+        "factures_fournisseurs": 0
+       }
+      },
+      {
+       "id": "paies",
+       "statut": "NON_CALCULABLE",
+       "montant": null,
+       "source": {
+        "de": "aucune source"
+       },
+       "fraicheur": {
+        "derniere_piece": null,
+        "pieces": 0
+       },
+       "manque": [
+        {
+         "code": "REJ-CASH-PAIE-A-DECLARER",
+         "detail": "aucun module de paie (M5.4 absent) : les paies dues ne se calculent pas. Déclarer configuration.obligations_declarees.paies (montant, source, au)."
+        }
+       ]
+      },
+      {
+       "id": "das",
+       "statut": "CALCULE",
+       "montant": "900.00",
+       "source": {
+        "de": "déclaration du propriétaire (configuration.obligations_declarees.das) : estimation du CPA (fictive)"
+       },
+       "fraicheur": {
+        "derniere_piece": "2026-09-25",
+        "pieces": 1
+       }
+      },
+      {
+       "id": "comptes_a_payer",
+       "statut": "CALCULE",
+       "montant": "344.93",
+       "source": {
+        "de": "comptes à payer de M5 (réceptions de M6, factures fournisseur saisies), T4.15",
+        "registres": [
+         {
+          "registre": "comptes_a_payer",
+          "taille": 1,
+          "tete": "492e23b9dff6235e"
+         }
+        ]
+       },
+       "fraicheur": {
+        "derniere_piece": "2026-09-14T09:00:00-04:00",
+        "pieces": 1
+       },
+       "reserves": [
+        "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+       ],
+       "detail": {
+        "nombre_po": 1
+       }
+      },
+      {
+       "id": "dettes",
+       "statut": "CALCULE",
+       "montant": "400.00",
+       "source": {
+        "de": "déclaration du propriétaire (configuration.obligations_declarees.dettes) : relevé du prêt camion (fictif)"
+       },
+       "fraicheur": {
+        "derniere_piece": "2026-09-01",
+        "pieces": 1
+       }
+      },
+      {
+       "id": "reserves",
+       "statut": "CALCULE",
+       "montant": "500.00",
+       "source": {
+        "de": "registre des mouvements de M5 (réserves déjà mises de côté, hors solde)",
+        "registres": [
+         {
+          "registre": "mouvements",
+          "taille": 2,
+          "tete": "cad4e1ad78b60f60"
+         }
+        ]
+       },
+       "fraicheur": {
+        "derniere_piece": "2026-09-10T12:00:00-04:00",
+        "pieces": 1
+       }
+      }
+     ],
+     "manque": [
+      "paies : REJ-CASH-PAIE-A-DECLARER"
+     ],
+     "reserves": [
+      "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+     ],
+     "hypotheses": [
+      "taxes collectées : factures clients ENVOYEE ou PAYEE datées après la dernière remise, payées ou non (ARC)",
+      "crédits de taxes sur intrants : factures fournisseur SAISIES seulement, récupérables à 100 % (à valider par le CPA)",
+      "une taxe nette négative n'est jamais de l'argent ; TPS et TVQ ne se compensent pas (prudent, à confirmer)",
+      "les comptes à recevoir ne sont PAS ajoutés : leur argent n'est pas au solde",
+      "une réserve posée pour un autre poste (taxes, paies) compte deux fois : aucune catégorie de réserve (prudent)",
+      "un fournisseur payé ou une taxe remise reste retranché tant que le registre l'ignore (prudent : sous-estimé)"
+     ],
+     "cash_libre_id": "a3ee5e48b007784eae33966c6b14f39d7fae64668c10e414e3616f30f88f50e1",
+     "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    },
+    "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+   }
+  },
+  "prevision_sans_paies": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "role": "admin",
+     "type": "PREVISION_TRESORERIE",
+     "lecture": "Prévision non calculable à partir de la semaine 2 (voir manque) : les semaines 1 à 1 sont calculées. Aucune alerte parmi les semaines calculées ; à partir de la semaine 2, elle n'est pas évaluée.",
+     "aujourd_hui": "2026-09-29",
+     "horizon_semaines": 6,
+     "fin_horizon": "2026-11-09",
+     "calculable": false,
+     "non_calculable_a_partir_de": 2,
+     "manque": [
+      {
+       "code": "REJ-CASH-PAIE-A-DECLARER",
+       "a_partir_de_semaine": 2,
+       "nombre": 1,
+       "exemples": [
+        "obligation:paies"
+       ],
+       "detail": "aucun module de paie (M5.4 absent) : les paies dues ne se calculent pas. Déclarer configuration.obligations_declarees.paies (montant, source, au)."
+      }
+     ],
+     "alerte": {
+      "statut": "NON_EVALUEE",
+      "seuil": "18000.00",
+      "source_du_seuil": {
+       "source": "décision de Nathan (fictive)",
+       "au": "2026-09-25"
+      },
+      "non_evaluee_a_partir_de": 2
+     },
+     "plus_bas": {
+      "semaine": 1,
+      "solde": "20000.00"
+     },
+     "premiere_semaine_en_deficit": null,
+     "solde_initial": {
+      "montant": "20000.00",
+      "source": "registre des mouvements de M5 (somme signée, hors réserves)",
+      "registres": [
+       {
+        "registre": "mouvements",
+        "taille": 2,
+        "tete": "cad4e1ad78b60f60"
+       }
+      ],
+      "fraicheur": {
+       "derniere_piece": "2026-09-10T12:00:00-04:00",
+       "pieces": 2
+      }
+     },
+     "cash_libre_aujourd_hui": {
+      "montant": null,
+      "manque": [
+       "paies : REJ-CASH-PAIE-A-DECLARER"
+      ]
+     },
+     "au_dela_de_l_horizon": {
+      "entrees": {
+       "nombre": 0,
+       "total": "0.00"
+      },
+      "sorties": {
+       "nombre": 0,
+       "total": "0.00"
+      }
+     },
+     "encaissements_non_comptes": [],
+     "reserves": [
+      "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+     ],
+     "prevision_id": "cb5124aaaadc793ecf1d1ec3d3600e10def2f7fcd20cd23cbeab326bc79006a8",
+     "limites": [
+      "seuls les flux connus et datés sont placés : aucune vente, dépense, paie ni taxe future n'est prévue, et aucune projection statistique n'est faite",
+      "le solde de départ est celui du registre des mouvements (T4.16) : un paiement ou un encaissement que le registre ignore n'y est pas",
+      "un encaissement est placé à son échéance, sans retard de paiement du client ; un encaissement échu ou sans date n'est pas compté (prudent)",
+      "un décaissement échu est placé en semaine 1 : le registre ne constate aucun paiement (prudent)",
+      "aucune échéance n'est enregistrée sur les factures : leur date vient d'un délai déclaré par le propriétaire",
+      "la taxe d'une période non terminée est celle des factures déjà émises ; un remboursement de taxes n'est jamais compté ; les dates du calendrier fiscal sont à valider par le CPA ; acomptes provisionnels et CNESST hors calendrier",
+      "le solde d'une semaine est celui de sa fin : un creux au milieu d'une semaine n'est pas vu"
+     ],
+     "total": 6,
+     "depart": 0,
+     "affichees": 6,
+     "reste": 0,
+     "prochain_depart": null,
+     "message": null,
+     "semaines": [
+      {
+       "semaine": 1,
+       "du": "2026-09-29",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20000.00",
+       "cash_libre_prevu": null,
+       "lignes": 0
+      },
+      {
+       "semaine": 2,
+       "du": "2026-10-06",
+       "statut": "NON_CALCULABLE",
+       "lignes": 1
+      },
+      {
+       "semaine": 3,
+       "du": "2026-10-13",
+       "statut": "NON_CALCULABLE",
+       "lignes": 3
+      },
+      {
+       "semaine": 4,
+       "du": "2026-10-20",
+       "statut": "NON_CALCULABLE",
+       "lignes": 0
+      },
+      {
+       "semaine": 5,
+       "du": "2026-10-27",
+       "statut": "NON_CALCULABLE",
+       "lignes": 2
+      },
+      {
+       "semaine": 6,
+       "du": "2026-11-03",
+       "statut": "NON_CALCULABLE",
+       "lignes": 0
+      }
+     ],
+     "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    }
+   }
+  },
+  "prevision_longue_page_1": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "role": "admin",
+     "type": "PREVISION_TRESORERIE",
+     "lecture": "Solde prévu : 20000.00 $ aujourd'hui, 20355.07 $ à la fin de la semaine 26 ; le plus bas : 17000.00 $ (semaine 2). Alerte : sous le seuil de 18000.00 $ en semaine(s) 2.",
+     "aujourd_hui": "2026-09-29",
+     "horizon_semaines": 26,
+     "fin_horizon": "2027-03-29",
+     "calculable": true,
+     "non_calculable_a_partir_de": null,
+     "manque": [],
+     "alerte": {
+      "statut": "ALERTE",
+      "seuil": "18000.00",
+      "source_du_seuil": {
+       "source": "décision de Nathan (fictive)",
+       "au": "2026-09-25"
+      },
+      "semaines": [
+       2
+      ]
+     },
+     "plus_bas": {
+      "semaine": 2,
+      "solde": "17000.00"
+     },
+     "premiere_semaine_en_deficit": null,
+     "solde_initial": {
+      "montant": "20000.00",
+      "source": "registre des mouvements de M5 (somme signée, hors réserves)",
+      "registres": [
+       {
+        "registre": "mouvements",
+        "taille": 2,
+        "tete": "cad4e1ad78b60f60"
+       }
+      ],
+      "fraicheur": {
+       "derniere_piece": "2026-09-10T12:00:00-04:00",
+       "pieces": 2
+      }
+     },
+     "cash_libre_aujourd_hui": {
+      "montant": "14106.32",
+      "manque": []
+     },
+     "au_dela_de_l_horizon": {
+      "entrees": {
+       "nombre": 0,
+       "total": "0.00"
+      },
+      "sorties": {
+       "nombre": 0,
+       "total": "0.00"
+      }
+     },
+     "encaissements_non_comptes": [],
+     "reserves": [
+      "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+     ],
+     "prevision_id": "b0a048b47178ce8b0dcd432e4f6c7e91130b512fa412680ecc5acbbab6c9d86a",
+     "limites": [
+      "seuls les flux connus et datés sont placés : aucune vente, dépense, paie ni taxe future n'est prévue, et aucune projection statistique n'est faite",
+      "le solde de départ est celui du registre des mouvements (T4.16) : un paiement ou un encaissement que le registre ignore n'y est pas",
+      "un encaissement est placé à son échéance, sans retard de paiement du client ; un encaissement échu ou sans date n'est pas compté (prudent)",
+      "un décaissement échu est placé en semaine 1 : le registre ne constate aucun paiement (prudent)",
+      "aucune échéance n'est enregistrée sur les factures : leur date vient d'un délai déclaré par le propriétaire",
+      "la taxe d'une période non terminée est celle des factures déjà émises ; un remboursement de taxes n'est jamais compté ; les dates du calendrier fiscal sont à valider par le CPA ; acomptes provisionnels et CNESST hors calendrier",
+      "le solde d'une semaine est celui de sa fin : un creux au milieu d'une semaine n'est pas vu"
+     ],
+     "total": 26,
+     "depart": 0,
+     "affichees": 19,
+     "reste": 7,
+     "prochain_depart": 19,
+     "message": "7 semaine non affichée(s) : poursuivre avec depart=19.",
+     "semaines": [
+      {
+       "semaine": 1,
+       "du": "2026-09-29",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20000.00",
+       "cash_libre_prevu": "14106.32",
+       "lignes": 0
+      },
+      {
+       "semaine": 2,
+       "du": "2026-10-06",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "3000.00",
+       "solde_fin": "17000.00",
+       "cash_libre_prevu": "14106.32",
+       "sous_seuil": true,
+       "lignes": 1
+      },
+      {
+       "semaine": 3,
+       "du": "2026-10-13",
+       "statut": "CALCULE",
+       "entrees": "5748.75",
+       "sorties": "1244.93",
+       "solde_fin": "21503.82",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 3
+      },
+      {
+       "semaine": 4,
+       "du": "2026-10-20",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "21503.82",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 5,
+       "du": "2026-10-27",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "1148.75",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 2
+      },
+      {
+       "semaine": 6,
+       "du": "2026-11-03",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 7,
+       "du": "2026-11-10",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 8,
+       "du": "2026-11-17",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 9,
+       "du": "2026-11-24",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 10,
+       "du": "2026-12-01",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 11,
+       "du": "2026-12-08",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 12,
+       "du": "2026-12-15",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 13,
+       "du": "2026-12-22",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 14,
+       "du": "2026-12-29",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 15,
+       "du": "2027-01-05",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 16,
+       "du": "2027-01-12",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 17,
+       "du": "2027-01-19",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 18,
+       "du": "2027-01-26",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 19,
+       "du": "2027-02-02",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      }
+     ],
+     "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    }
+   }
+  },
+  "prevision_longue_page_2": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "role": "admin",
+     "type": "PREVISION_TRESORERIE",
+     "lecture": "Solde prévu : 20000.00 $ aujourd'hui, 20355.07 $ à la fin de la semaine 26 ; le plus bas : 17000.00 $ (semaine 2). Alerte : sous le seuil de 18000.00 $ en semaine(s) 2.",
+     "aujourd_hui": "2026-09-29",
+     "horizon_semaines": 26,
+     "fin_horizon": "2027-03-29",
+     "calculable": true,
+     "non_calculable_a_partir_de": null,
+     "manque": [],
+     "alerte": {
+      "statut": "ALERTE",
+      "seuil": "18000.00",
+      "source_du_seuil": {
+       "source": "décision de Nathan (fictive)",
+       "au": "2026-09-25"
+      },
+      "semaines": [
+       2
+      ]
+     },
+     "plus_bas": {
+      "semaine": 2,
+      "solde": "17000.00"
+     },
+     "premiere_semaine_en_deficit": null,
+     "solde_initial": {
+      "montant": "20000.00",
+      "source": "registre des mouvements de M5 (somme signée, hors réserves)",
+      "registres": [
+       {
+        "registre": "mouvements",
+        "taille": 2,
+        "tete": "cad4e1ad78b60f60"
+       }
+      ],
+      "fraicheur": {
+       "derniere_piece": "2026-09-10T12:00:00-04:00",
+       "pieces": 2
+      }
+     },
+     "cash_libre_aujourd_hui": {
+      "montant": "14106.32",
+      "manque": []
+     },
+     "au_dela_de_l_horizon": {
+      "entrees": {
+       "nombre": 0,
+       "total": "0.00"
+      },
+      "sorties": {
+       "nombre": 0,
+       "total": "0.00"
+      }
+     },
+     "encaissements_non_comptes": [],
+     "reserves": [
+      "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+     ],
+     "prevision_id": "b0a048b47178ce8b0dcd432e4f6c7e91130b512fa412680ecc5acbbab6c9d86a",
+     "limites": [
+      "seuls les flux connus et datés sont placés : aucune vente, dépense, paie ni taxe future n'est prévue, et aucune projection statistique n'est faite",
+      "le solde de départ est celui du registre des mouvements (T4.16) : un paiement ou un encaissement que le registre ignore n'y est pas",
+      "un encaissement est placé à son échéance, sans retard de paiement du client ; un encaissement échu ou sans date n'est pas compté (prudent)",
+      "un décaissement échu est placé en semaine 1 : le registre ne constate aucun paiement (prudent)",
+      "aucune échéance n'est enregistrée sur les factures : leur date vient d'un délai déclaré par le propriétaire",
+      "la taxe d'une période non terminée est celle des factures déjà émises ; un remboursement de taxes n'est jamais compté ; les dates du calendrier fiscal sont à valider par le CPA ; acomptes provisionnels et CNESST hors calendrier",
+      "le solde d'une semaine est celui de sa fin : un creux au milieu d'une semaine n'est pas vu"
+     ],
+     "total": 26,
+     "depart": 19,
+     "affichees": 7,
+     "reste": 0,
+     "prochain_depart": null,
+     "message": null,
+     "semaines": [
+      {
+       "semaine": 20,
+       "du": "2027-02-09",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 21,
+       "du": "2027-02-16",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 22,
+       "du": "2027-02-23",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 23,
+       "du": "2027-03-02",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 24,
+       "du": "2027-03-09",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 25,
+       "du": "2027-03-16",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      },
+      {
+       "semaine": 26,
+       "du": "2027-03-23",
+       "statut": "CALCULE",
+       "entrees": "0.00",
+       "sorties": "0.00",
+       "solde_fin": "20355.07",
+       "cash_libre_prevu": "19855.07",
+       "lignes": 0
+      }
+     ],
+     "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    }
+   }
+  },
+  "interventions_en_route": {
+   "ok": true,
+   "resultat": []
+  },
+  "interventions_sur_site": {
+   "ok": true,
+   "resultat": []
+  },
+  "interventions_en_revue": {
+   "ok": true,
+   "resultat": []
+  },
+  "interventions_planifiee": {
+   "ok": true,
+   "resultat": [
+    {
+     "intervention_id": "b933c5c55afdb2c1e903895188cb89e6ee59439a045e27b83f9201a81c4438f6",
+     "statut": "planifiee",
+     "lead_id": "LEAD-ADM-C-fictif",
+     "type_travaux": "renovation_totale",
+     "devis_id": "DEVIS-ADM-C-fictif",
+     "technicien_assigne": "etienne",
+     "fenetre_planifiee": null
+    },
+    {
+     "intervention_id": "bc40348bbff5df996888ea3e1fbb1de49a4858f3a8178120f937e0d7e2cd289d",
+     "statut": "planifiee",
+     "lead_id": "LEAD-ADM-B-fictif",
+     "service": "gouttieres",
+     "devis_id": "DEVIS-ADM-B-fictif",
+     "technicien_assigne": "etienne",
+     "fenetre_planifiee": null
+    }
+   ]
+  },
+  "interventions_a_planifier": {
+   "ok": true,
+   "resultat": [
+    {
+     "intervention_id": "9695d12439c01250e61c8992e881cf2db4176e00cceef5072a64635d9fd26c90",
+     "statut": "a_planifier",
+     "lead_id": "LEAD-ADM-D-fictif",
+     "service": "gouttieres",
+     "devis_id": "DEVIS-ADM-D-fictif",
+     "technicien_assigne": null,
+     "fenetre_planifiee": null
+    }
+   ]
+  },
+  "interventions_reportee": {
+   "ok": true,
+   "resultat": []
+  },
+  "interventions_completed_pending_review": {
+   "ok": true,
+   "resultat": [
+    {
+     "intervention_id": "b1903e5166860713cd4116bf5905c4520e9bb99f17274c8f0026ff6b4e6330f7",
+     "statut": "completed_pending_review",
+     "lead_id": "LEAD-ADM-A-fictif",
+     "type_travaux": "renovation_totale",
+     "devis_id": "DEVIS-ADM-A-fictif",
+     "technicien_assigne": "etienne",
+     "fenetre_planifiee": null
+    }
+   ]
+  },
+  "digest": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "date_cible": "2026-09-21",
+     "horodatage_reference": "2026-09-21T18:00:00-04:00",
+     "ancre_registre": "69e9818f58732566b778d0a758f16a1deae058e74ba5d64487ae6aebbde6a276",
+     "interventions_terminees": [
+      {
+       "intervention_id": "b1903e5166860713cd4116bf5905c4520e9bb99f17274c8f0026ff6b4e6330f7",
+       "wct_id": "24be933c9957a809a00b0fec00ad64193ae1e629b89c42de8676a220962b8b5c",
+       "duree_reelle_minutes": 180,
+       "ecart_signale": false
+      }
+     ],
+     "interventions_en_revue": [],
+     "count_pending_review": 0,
+     "pending_par_type": {
+      "ecart_metier": 0,
+      "anomalie_pointage": 0
+     },
+     "interventions_bloquees_en_revue": [],
+     "empreinte": "5542e4846454a868f7321590b33292526d2edff81eddeed04d99d58218416c47"
+    }
+   }
+  },
+  "preparation_lead_v2": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "intervention_id": "bc40348bbff5df996888ea3e1fbb1de49a4858f3a8178120f937e0d7e2cd289d",
+     "statut_intervention": "planifiee",
+     "statut": "bloque",
+     "pret": false,
+     "volets": {
+      "soumission": {
+       "statut": "ok",
+       "manque": null,
+       "detail": "devis accepté DEVIS-ADM-B-fictif"
+      },
+      "adresse": {
+       "statut": "manque",
+       "manque": "coordonnées manquantes : à confirmer. Aucune localisation confirmée.",
+       "detail": "REJ-COORDONNEES-A-CONFIRMER"
+      },
+      "equipe": {
+       "statut": "manque",
+       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé",
+       "detail": "REJ-EQUIPES-NON-CONFIGUREES"
+      },
+      "materiel": {
+       "statut": "ok",
+       "manque": null,
+       "detail": "matériel prêt et réservé (M6, révision 1)"
+      },
+      "meteo": {
+       "statut": "manque",
+       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)",
+       "detail": "REJ-METEO-NON-CONFIGUREE"
+      }
+     },
+     "a_fournir": [
+      {
+       "volet": "adresse",
+       "statut": "manque",
+       "manque": "coordonnées manquantes : à confirmer. Aucune localisation confirmée."
+      },
+      {
+       "volet": "equipe",
+       "statut": "manque",
+       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé"
+      },
+      {
+       "volet": "meteo",
+       "statut": "manque",
+       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
+      }
+     ],
+     "empreinte": "2a4a6ae349a073acce84f6160dae8a4e4e5b13ce9825f7db441a961ed81ae71b"
+    }
+   }
+  },
+  "preparation_lead_v1": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "intervention_id": "b933c5c55afdb2c1e903895188cb89e6ee59439a045e27b83f9201a81c4438f6",
+     "statut_intervention": "planifiee",
+     "statut": "bloque",
+     "pret": false,
+     "volets": {
+      "soumission": {
+       "statut": "ok",
+       "manque": null,
+       "detail": "devis accepté DEVIS-ADM-C-fictif"
+      },
+      "adresse": {
+       "statut": "manque",
+       "manque": "coordonnées manquantes : à confirmer. Aucune localisation confirmée.",
+       "detail": "REJ-COORDONNEES-A-CONFIRMER"
+      },
+      "equipe": {
+       "statut": "manque",
+       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé",
+       "detail": "REJ-EQUIPES-NON-CONFIGUREES"
+      },
+      "materiel": {
+       "statut": "ok",
+       "manque": null,
+       "detail": "matériel prêt et réservé (M6, révision 1)"
+      },
+      "meteo": {
+       "statut": "manque",
+       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)",
+       "detail": "REJ-METEO-NON-CONFIGUREE"
+      }
+     },
+     "a_fournir": [
+      {
+       "volet": "adresse",
+       "statut": "manque",
+       "manque": "coordonnées manquantes : à confirmer. Aucune localisation confirmée."
+      },
+      {
+       "volet": "equipe",
+       "statut": "manque",
+       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé"
+      },
+      {
+       "volet": "meteo",
+       "statut": "manque",
+       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
+      }
+     ],
+     "empreinte": "6d0c4350943f2ebf28e17965b60fcc34ab59ebf23b8daf6e0d3b3b1a2698534c"
+    }
+   }
+  },
+  "preparation_a_planifier": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "intervention_id": "9695d12439c01250e61c8992e881cf2db4176e00cceef5072a64635d9fd26c90",
+     "statut_intervention": "a_planifier",
+     "statut": "bloque",
+     "pret": false,
+     "volets": {
+      "soumission": {
+       "statut": "ok",
+       "manque": null,
+       "detail": "devis accepté DEVIS-ADM-D-fictif"
+      },
+      "adresse": {
+       "statut": "manque",
+       "manque": "coordonnées manquantes : à confirmer. Aucune localisation confirmée.",
+       "detail": "REJ-COORDONNEES-A-CONFIRMER"
+      },
+      "equipe": {
+       "statut": "manque",
+       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé",
+       "detail": "REJ-EQUIPES-NON-CONFIGUREES"
+      },
+      "materiel": {
+       "statut": "ok",
+       "manque": null,
+       "detail": "matériel prêt et réservé (M6, révision 1)"
+      },
+      "meteo": {
+       "statut": "manque",
+       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)",
+       "detail": "REJ-METEO-NON-CONFIGUREE"
+      }
+     },
+     "a_fournir": [
+      {
+       "volet": "adresse",
+       "statut": "manque",
+       "manque": "coordonnées manquantes : à confirmer. Aucune localisation confirmée."
+      },
+      {
+       "volet": "equipe",
+       "statut": "manque",
+       "manque": "aucun profil des équipes déclaré pour cette entreprise : déclare les équipes de l'entreprise : écris un fichier YAML (clés liste, services, cedule, fenetre_par_defaut) puis `opsys-metier equipes declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'equipes'), voir docs/architecture/TAXONOMIE.md ; aucune équipe, aucun dépôt, aucun quart et aucune durée n'est jamais inventé"
+      },
+      {
+       "volet": "meteo",
+       "statut": "manque",
+       "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
+      }
+     ],
+     "empreinte": "e38597727e36b21f70bb1552a74cafc1e335031736dcec5a3157024f38c75571"
+    }
+   }
+  },
+  "preparation_terminee": {
+   "ok": true,
+   "resultat": {
+    "accepte": false,
+    "verdict": {
+     "code": "REJ-TRANSITION-ILLEGALE",
+     "statut": "completed_pending_review",
+     "detail": "préparation sans objet : l'intervention est completed_pending_review (attendu a_planifier, planifiee, reportee)"
+    }
+   }
+  },
+  "a_voir": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "demandes": [],
+     "total_en_attente": 0,
+     "affichees": 0,
+     "reste": 0,
+     "proprietaire": true,
+     "attentes": [
+      {
+       "type": "facture_brouillon",
+       "id": "fac-DEVIS-ADM-A-fictif",
+       "departement": "m05-financecore",
+       "departement_nom": "FinanceCore",
+       "resume": "Facture fac-DEVIS-ADM-A-fictif prête à envoyer (689.85 $)",
+       "niveau": "N4",
+       "depuis": "2026-09-21T15:00:00+00:00",
+       "action_proposee": "envoyer"
+      },
+      {
+       "type": "chantier_a_reviser",
+       "id": "variance-24be933c9957a809a00b0fec00ad64193ae1e629b89c42de8676a220962b8b5c",
+       "departement": "m05-financecore",
+       "departement_nom": "FinanceCore",
+       "resume": "Écart matériaux critique sur le chantier CH-ADM-A-fictif (wct 24be933c9957a809a00b0fec00ad64193ae1e629b89c42de8676a220962b8b5c) — facture fac-DEVIS-ADM-A-fictif prête à envoyer quand même",
+       "niveau": "N4",
+       "depuis": "2026-09-21T15:00:00+00:00",
+       "action_proposee": "réviser"
+      },
+      {
+       "type": "completion_en_revue",
+       "id": "b1903e5166860713cd4116bf5905c4520e9bb99f17274c8f0026ff6b4e6330f7",
+       "departement": "m04-field-ops",
+       "departement_nom": "Field Ops",
+       "resume": "Complétion en revue (b1903e5166860713cd4116bf5905c4520e9bb99f17274c8f0026ff6b4e6330f7) — écart matériaux CRITIQUE signalé par M6 (seuil 0.3)",
+       "niveau": "N4",
+       "depuis": "2026-09-21T15:05:00+00:00",
+       "action_proposee": "m4_resoudre_revue_completion : verifiee (confirme) ou correction (nomme le problème)"
+      }
+     ],
+     "total_attentes": 7,
+     "attentes_affichees": 3,
+     "attentes_reste": 4,
+     "attentes_decalage": 0,
+     "attentes_suivant": 3,
+     "attentes_illisibles": []
+    }
+   }
+  },
+  "a_voir_avec_demande": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "demandes": [
+      {
+       "id": "2c7ef7d0cffe",
+       "departement": "m04-field-ops",
+       "departement_nom": "Field Ops",
+       "outil": "m4_resoudre_revue_completion",
+       "description_outil": "Revue HUMAINE d'une complétion completed_pending_review (PLAN T1.3-b), jamais un agent seul : decision=verifiee confirme (-> completed_verified, comme le ferait un signal M6 sans dépassement, mais dé…",
+       "niveau": "N4",
+       "depuis": "2026-09-29T13:30:11+00:00",
+       "motif_demande": null,
+       "arguments": {
+        "intervention_id": "b1903e5166860713cd4116bf5905c4520e9bb99f17274c8f0026ff6b4e6330f7",
+        "decision": "verifiee",
+        "horodatage": "2026-09-25T07:00:00-04:00",
+        "motif": "Bris de 16 pi constaté sur place et photographié : l'écart est expliqué (fictif)."
+       },
+       "decidable": true,
+       "lecture_seule": null
+      }
+     ],
+     "total_en_attente": 1,
+     "affichees": 1,
+     "reste": 0,
+     "proprietaire": true,
+     "attentes": [
+      {
+       "type": "facture_brouillon",
+       "id": "fac-DEVIS-ADM-A-fictif",
+       "departement": "m05-financecore",
+       "departement_nom": "FinanceCore",
+       "resume": "Facture fac-DEVIS-ADM-A-fictif prête à envoyer (689.85 $)",
+       "niveau": "N4",
+       "depuis": "2026-09-21T15:00:00+00:00",
+       "action_proposee": "envoyer"
+      },
+      {
+       "type": "chantier_a_reviser",
+       "id": "variance-24be933c9957a809a00b0fec00ad64193ae1e629b89c42de8676a220962b8b5c",
+       "departement": "m05-financecore",
+       "departement_nom": "FinanceCore",
+       "resume": "Écart matériaux critique sur le chantier CH-ADM-A-fictif (wct 24be933c9957a809a00b0fec00ad64193ae1e629b89c42de8676a220962b8b5c) — facture fac-DEVIS-ADM-A-fictif prête à envoyer quand même",
+       "niveau": "N4",
+       "depuis": "2026-09-21T15:00:00+00:00",
+       "action_proposee": "réviser"
+      },
+      {
+       "type": "completion_en_revue",
+       "id": "b1903e5166860713cd4116bf5905c4520e9bb99f17274c8f0026ff6b4e6330f7",
+       "departement": "m04-field-ops",
+       "departement_nom": "Field Ops",
+       "resume": "Complétion en revue (b1903e5166860713cd4116bf5905c4520e9bb99f17274c8f0026ff6b4e6330f7) — écart matériaux CRITIQUE signalé par M6 (seuil 0.3)",
+       "niveau": "N4",
+       "depuis": "2026-09-21T15:05:00+00:00",
+       "action_proposee": "m4_resoudre_revue_completion : verifiee (confirme) ou correction (nomme le problème)"
+      }
+     ],
+     "total_attentes": 7,
+     "attentes_affichees": 3,
+     "attentes_reste": 4,
+     "attentes_decalage": 0,
+     "attentes_suivant": 3,
+     "attentes_illisibles": []
+    }
+   }
+  },
+  "vue_executive": {
+   "ok": true,
+   "resultat": {
+    "vue": "executive",
+    "portee": "Tous les faits reçus par M8, sans fenêtre de période. M8 calcule l'entonnoir ; la marge réelle (M5) et le stock à commander (M6) sont repris tels que ces départements les publient, sans recalcul.",
+    "entonnoir": {
+     "mesures": [
+      {
+       "metric_id": "m8_leads_recus",
+       "nom": "Leads reçus",
+       "valeur": "4",
+       "unite": "leads",
+       "statut": "calculee",
+       "proprietaire": "m02-revenue-crm",
+       "version_definition": "8ad34274c0c6fe29a0dfe7fedc1839ee8011bcdeb9635bfeb12ea8bd1f185377"
+      },
+      {
+       "metric_id": "m8_leads_qualifies",
+       "nom": "Leads qualifiés",
+       "valeur": "4",
+       "unite": "leads",
+       "statut": "calculee",
+       "proprietaire": "m02-revenue-crm",
+       "version_definition": "39b8d0932069407a5efbdd305a8abe153e4c3513a16b419b3b3a908cf2c6080d"
+      },
+      {
+       "metric_id": "m8_devis_envoyes",
+       "nom": "Devis envoyés",
+       "valeur": "0",
+       "unite": "devis",
+       "statut": "calculee",
+       "proprietaire": "m03-estimation",
+       "version_definition": "b5fc972a3a5196f721b8c88ad655cee287bbfc553a5e5a2f4055574d892fa5d7"
+      },
+      {
+       "metric_id": "m8_devis_acceptes",
+       "nom": "Devis acceptés",
+       "valeur": "4",
+       "unite": "devis",
+       "statut": "calculee",
+       "proprietaire": "m03-estimation",
+       "version_definition": "e4ab4c60e7c5a5f645b1ebe2690ad4c1f17a0a5d659f644bd3edd85fe5e39aac"
+      },
+      {
+       "metric_id": "m8_devis_sans_reponse",
+       "nom": "Devis sans réponse",
+       "valeur": "0",
+       "unite": "devis",
+       "statut": "calculee",
+       "proprietaire": "m03-estimation",
+       "version_definition": "34cbdca729aca0ccd1027eb39ac88e69d4512ce9626a42130c382d0f451c220e",
+       "entrees": {
+        "n_constats_recus": 0,
+        "brouillons_en_retard": 0
+       }
+      },
+      {
+       "metric_id": "m8_taux_acceptation_pct",
+       "nom": "Taux d'acceptation des devis",
+       "valeur": null,
+       "unite": "pourcentage",
+       "statut": "non_calculable",
+       "proprietaire": "m03-estimation",
+       "version_definition": "8c933aa9445cbf41cefec35288f388b4e126f286013af51d251ff4de0f23f734",
+       "manque": [
+        "m3.devis_envoye"
+       ]
+      },
+      {
+       "metric_id": "m8_delai_lead_acceptation_jours",
+       "nom": "Délai du lead à l'acceptation",
+       "valeur": "0.00",
+       "unite": "jours",
+       "statut": "calculee",
+       "proprietaire": "m02-revenue-crm",
+       "version_definition": "76872c2b5f8ac1acb41c478cc8ca8ae1d9d6e83d9837105867051f72b4c9dcbe",
+       "entrees": {
+        "n_mesures": 4,
+        "n_sans_arrivee_du_lead": 0,
+        "n_instants_illisibles": 0,
+        "n_delais_negatifs": 0
+       }
+      },
+      {
+       "metric_id": "m8_carnet_signe_cad",
+       "nom": "Carnet signé",
+       "valeur": "1200.00",
+       "unite": "CAD",
+       "statut": "calculee",
+       "proprietaire": "m03-estimation",
+       "version_definition": "3ecb658bef2af8ea7890dcbcb28f20904500bebdca5af835344ddc3dd9545ba2",
+       "entrees": {
+        "n_devis_au_carnet": 2,
+        "n_devis_acceptes": 4,
+        "chantiers_termines_sans_devis_relie": 0
+       }
+      }
+     ],
+     "sources": [
+      {
+       "evenement": "m2.client_associe",
+       "n": 4,
+       "dernier_fait_le": "2026-09-23T07:00:00-04:00"
+      },
+      {
+       "evenement": "m2.lead_assigne",
+       "n": 4,
+       "dernier_fait_le": "2026-09-23T07:01:00-04:00"
+      },
+      {
+       "evenement": "m3.devis_envoye",
+       "n": 0,
+       "dernier_fait_le": null
+      },
+      {
+       "evenement": "m3.devis_accepte",
+       "n": 4,
+       "dernier_fait_le": "2026-09-23T07:06:40-04:00"
+      },
+      {
+       "evenement": "m3.devis_sans_reponse",
+       "n": 0,
+       "dernier_fait_le": null
+      }
+     ],
+     "devis_en_attente": {
+      "sans_reponse": {
+       "n": 0,
+       "devis": [],
+       "reste": 0
+      },
+      "brouillons_en_retard": {
+       "n": 0,
+       "devis": [],
+       "reste": 0
+      }
+     },
+     "seuils": {
+      "a_configurer": [
+       "m8_devis_sans_reponse",
+       "m8_delai_lead_acceptation_jours",
+       "m8_carnet_signe_cad"
+      ],
+      "invalides": [],
+      "ignores": [],
+      "evalues": [],
+      "configuration": "department.yaml de m08-analytics, configuration.seuils_entonnoir"
+     }
+    },
+    "marge_reelle": {
+     "source": "M5 (m5.rentabilite_chantier), reprise sans aucun calcul",
+     "n_chantiers": 2,
+     "n_marge_connue": 1,
+     "n_non_calculable": 1,
+     "chantiers": [
+      {
+       "wct_id": "60ea7ed59cd1fd3a4c5f15a89a7ffc415ab4c22eeece5d81b8aeb7e2937b3c48",
+       "devis_id": "DEVIS-ADM-E-fictif",
+       "horodatage_completion": "2026-09-22T15:00:00+00:00",
+       "statut": "calculee",
+       "marge_reelle_cad": "114.00"
+      },
+      {
+       "wct_id": "24be933c9957a809a00b0fec00ad64193ae1e629b89c42de8676a220962b8b5c",
+       "devis_id": "DEVIS-ADM-A-fictif",
+       "horodatage_completion": "2026-09-21T15:00:00+00:00",
+       "statut": "non_calculable",
+       "marge_reelle_cad": null,
+       "raison": "M5 n'a pas chiffré la marge réelle : REJ-COUT-PRIX-NON-DISPONIBLE, REJ-COUT-TAUX-HORAIRE-A-CONFIGURER"
+      }
+     ],
+     "reste": 0
+    },
+    "stock_a_commander": {
+     "source": "M6 (attentes du propriétaire, type besoin_commande)",
+     "statut": "lu",
+     "n_articles": 1,
+     "articles": [
+      {
+       "id": "besoin_commande:gouttiere-alu-5po-fictif",
+       "resume": "Stock bas : gouttiere-alu-5po-fictif — 302.0 pi en main dont 120 pi réservé(s) pour des chantiers, 182.0 pi disponible(s), sous le seuil de 450 pi ; besoin de commande : 418.0 pi pour atteindre 600 pi (chantier CH-ADM-E-fictif)",
+       "depuis": "2026-09-22T15:00:00+00:00",
+       "action_proposee": "Décider de commander : un bon de commande se demande en brouillon puis s'approuve, M6 n'en crée jamais seul"
+      }
+     ],
+     "reste": 0,
+     "seuils_a_configurer": false
+    },
+    "cash_libre": {
+     "source": "M5 (m5_etat_tresorerie, T4.16)",
+     "statut": "manque",
+     "manque": [
+      "cash_libre"
+     ],
+     "a_lire": "m5_etat_tresorerie (admin), avec la décomposition du cash libre"
+    },
+    "manques": [
+     {
+      "champ": "m3.devis_envoye",
+      "source": "M3 (m3.devis_envoye)",
+      "raison": "aucun devis envoyé reçu : le taux n'a pas de dénominateur"
+     },
+     {
+      "champ": "cash_libre",
+      "source": "M5 (m5_etat_tresorerie, T4.16)",
+      "raison": "M5 calcule le cash libre à chaque lecture de m5_etat_tresorerie et ne le publie sur aucun événement du bus : M8 ne peut ni le lire ni le recalculer, il ne fait pas la comptabilité"
+     }
+    ]
+   }
+  },
+  "interventions_statut_inconnu": {
+   "ok": false,
+   "erreur": "arguments_invalides",
+   "details": [
+    "statut : valeur hors liste ['planifiee', 'en_route', 'sur_site', 'en_revue', 'reportee', 'completed_pending_review', 'completed_verified', 'annulee', 'a_planifier', None]"
+   ]
+  },
+  "refus_identite_vue_executive": {
+   "ok": false,
+   "erreur": "refus_metier",
+   "details": "REJ-IDENTITE-APPAREIL-INVALIDE : la vue exécutive est réservée à l'admin authentifié (personne active portant encore le rôle admin) ; aucun autre rôle d'appareil n'y a accès"
+  },
+  "refus_identite_tresorerie": {
+   "ok": true,
+   "resultat": {
+    "accepte": false,
+    "verdict": {
+     "code": "REJ-IDENTITE-APPAREIL-INVALIDE",
+     "detail": "personne 'sophie' inconnue, inactive, ou ne porte plus le rôle 'admin' porté par le jeton d'appareil (ou identité non vérifiable hors transaction)"
+    }
+   }
+  },
+  "refus_identite_interventions": {
+   "ok": false,
+   "erreur": "refus_metier",
+   "details": "REJ-IDENTITE-APPAREIL-INVALIDE : personne 'sophie' inconnue, inactive, ou ne porte plus le rôle 'admin' porté par le jeton d'appareil (ou identité non vérifiable hors transaction)"
+  }
+ }
+}
