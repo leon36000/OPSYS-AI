@@ -5,10 +5,13 @@ nom: Field Ops
 mission: >-
   Planifier, cédules et suivre les interventions terrain — états de chantier, pointage
   horodaté et géolocalisé, écarts arbitrés, Work Completion Trigger — sans jamais porter
-  de prix, de date ferme imposée par le client ou de scoring des techniciens.
+  de prix, de date ferme imposée par le client ou de scoring des techniciens. Reçoit le devis
+  accepté (une intervention à planifier) et dit, volet par volet, ce qui manque avant de la cédule.
 outils: m4_field_ops.outils
 mode: ombre
-dependances: [m03-estimation]
+# m01-front-office : M4 relit à la source du bus le `m1.lead_qualifie` du lead d'un devis accepté (service, ville,
+# urgence du chantier) ; m03-estimation : il consomme `m3.devis_accepte`. Aucun import de l'un ni de l'autre.
+dependances: [m01-front-office, m03-estimation]
 modeles:
   defaut: standard
   extraction: rapide
@@ -34,7 +37,12 @@ kpis:
     description: Délai moyen entre l'ouverture d'une demande de revue et sa résolution.
 evenements:                        # ADR-0009 §3, PLAN T1.2-b
   publie: [m4.travaux_termines]    # même transaction que le WCT (outbox.completer_intervention)
-  consomme: [m6.variance_chantier] # confirme completed_verified (outbox.confirmer_verification)
+  # m6.variance_chantier : confirme completed_verified (outbox.confirmer_verification).
+  # m3.devis_accepte (PLAN T4.10-b, DEFINITION-PRODUIT §6 « soumission acceptée -> M4 planifie », M4.5) : une
+  # intervention a_planifier naît du devis ; service, ville et urgence sont relus à la source du bus
+  # (m1.lead_qualifie), jamais recopiés ; un fait absent lève (réessais, puis quarantaine) — voir
+  # _recevoir_devis_accepte dans outils.py. Catalogue : src/opsys/evenements/catalogue/m3.devis_accepte.json.
+  consomme: [m6.variance_chantier, m3.devis_accepte]
 approbations:                      # ADR-0009 §5, PLAN T1.3-b : rôles autorisés à décider N3/N4.
   # N3 : écritures internes courantes du terrain (pointer, compléter, arbitrer un écart) — le
   # manager ou l'admin de Field Ops n'a pas besoin du propriétaire pour ça au quotidien.

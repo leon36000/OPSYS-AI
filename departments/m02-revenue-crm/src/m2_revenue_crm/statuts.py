@@ -50,7 +50,8 @@ def _prochaine_action_invalide(prochaine_action):
     ISO-8601 avec fuseau. Retourne None si valide, sinon un détail (chaîne vide si la forme est
     absente/incorrecte, message précis si seule l'échéance est invalide — la distinction rend le
     digest d'erreurs actionnable). Factorisé pour être partagé par les deux chemins qui exigent
-    une prochaine_action : ("nouveau","qualifie") et ("chantier","facture")."""
+    une prochaine_action : ("nouveau","qualifie") et ("chantier","facture"), et par celui qui l'accepte
+    sans l'exiger : ("qualifie","converti") (PLAN T4.10-a)."""
     forme_correcte = (
         isinstance(prochaine_action, dict)
         and "description" in prochaine_action
@@ -74,6 +75,21 @@ def statut_courant(registre_cible, lead_id):
         if maillon.get("lead_id") == lead_id and maillon.get("type_entree") in ("lead_ingere", "transition_statut"):
             statut = maillon.get("statut")
     return statut
+
+
+def reference_devis(registre_cible, lead_id):
+    """``reference_devis_m3`` consignée par la transition ``qualifie -> converti`` de ce lead (PLAN T4.10-a), ou
+    None si le lead n'a jamais été converti. Lue au registre, jamais devinée : c'est le devis par lequel le
+    lead est devenu une affaire."""
+    reference = None
+    for maillon in registre_cible.lire():
+        if (
+            maillon.get("lead_id") == lead_id
+            and maillon.get("type_entree") == TYPE_ENTREE
+            and maillon.get("statut") == "converti"
+        ):
+            reference = maillon.get("reference_devis_m3")
+    return reference
 
 def transitionner(lead_id, statut_cible, registre_cible, horodatage,
                   owner=None, prochaine_action=None,
@@ -129,6 +145,13 @@ def transitionner(lead_id, statut_cible, registre_cible, horodatage,
         # reference_devis_m3 non vide
         if not isinstance(reference_devis_m3, str) or reference_devis_m3.strip() == "":
             return (None, verdicts.construire_verdict("REJ-DEVIS-ABSENT", statut=courant))
+        # PLAN T4.10-a : prochaine_action OPTIONNELLE à la conversion (la consommation de m3.devis_accepte y met
+        # « planifier le chantier »). Absente : le maillon reste celui d'avant, octet pour octet. Fournie mais
+        # mal formée : refus, jamais consignée telle quelle dans un registre immuable.
+        if prochaine_action is not None:
+            detail = _prochaine_action_invalide(prochaine_action)
+            if detail is not None:
+                return (None, verdicts.construire_verdict("REJ-ACTION-ABSENTE", statut=courant, detail=detail))
     elif transition == ("chantier", "facture"):
         # PLAN T1.1-a : l'outil m2_marquer_chantier_termine emprunte ce chemin. Règle dure
         # § 7 M2 « jamais... laisser un lead sans prochaine action » — vérifiée ici, à la
@@ -154,6 +177,8 @@ def transitionner(lead_id, statut_cible, registre_cible, horodatage,
         maillon["prochaine_action"] = copy.deepcopy(prochaine_action)
     elif transition == ("qualifie", "converti"):
         maillon["reference_devis_m3"] = copy.deepcopy(reference_devis_m3)
+        if prochaine_action is not None:
+            maillon["prochaine_action"] = copy.deepcopy(prochaine_action)
     elif transition == ("chantier", "facture"):
         maillon["prochaine_action"] = copy.deepcopy(prochaine_action)
     elif statut_cible == "perdu":

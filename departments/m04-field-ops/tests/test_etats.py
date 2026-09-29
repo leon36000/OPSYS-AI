@@ -2,6 +2,7 @@ import m4_field_ops.cedule as cedule_mod
 import m4_field_ops.etats as etats_mod
 import m4_field_ops.outbox as outbox_mod
 import m4_field_ops.pointage as pointage_mod
+import m4_field_ops.preparation as preparation_mod
 import m4_field_ops.registre as registre_mod
 import pytest
 
@@ -20,6 +21,57 @@ REFERENTIEL_TEST = {
 GPS_PROCHE_TEST = {"latitude": 45.5088, "longitude": -73.5878}
 ATTESTATION_TEST = {"fictif": True, "appareil_id": "APP-1"}
 FENETRE_TEST = {"debut": "2025-06-02T07:00:00+00:00", "fin": "2025-06-02T19:00:00+00:00"}
+
+
+# PLAN T4.10-b : `a_planifier` s'ajoute EN FIN de liste ; les huit états et les seize couples d'avant sont intacts.
+ETATS_D_AVANT = (
+    "planifiee", "en_route", "sur_site", "en_revue", "reportee",
+    "completed_pending_review", "completed_verified", "annulee",
+)
+TRANSITIONS_D_AVANT = (
+    ("planifiee", "en_route"),
+    ("planifiee", "reportee"),
+    ("planifiee", "annulee"),
+    ("en_route", "sur_site"),
+    ("en_route", "reportee"),
+    ("en_route", "annulee"),
+    ("sur_site", "en_revue"),
+    ("sur_site", "completed_pending_review"),
+    ("sur_site", "completed_verified"),
+    ("en_revue", "completed_pending_review"),
+    ("en_revue", "completed_verified"),
+    ("en_revue", "annulee"),
+    ("en_revue", "sur_site"),
+    ("en_route", "en_revue"),
+    ("reportee", "planifiee"),
+    ("reportee", "annulee"),
+)
+TRANSITIONS_AJOUTEES = (("a_planifier", "planifiee"), ("a_planifier", "annulee"))
+LEAD_V2 = {
+    "schema_version": 2, "lead_id": "L-DEVIS", "conversation_id": "C-DEVIS",
+    "contact": {"nom": "Dupont", "telephone": "0102030405"},
+    "service": "gouttieres", "ville": VILLE_TEST, "urgence_declaree": True, "canal": "texte",
+}
+
+
+@pytest.fixture(autouse=True)
+def _services_declares(declarer_services):
+    """`inscrire_depuis_devis` valide le service contre le profil d'entreprise de l'instance de test."""
+    declarer_services()
+
+
+def verdict_pret(intervention_id):
+    """Un verdict de préparation « pret » SYNTHÉTIQUE : aucun volet réel ne peut l'être aujourd'hui (équipe,
+    matériel et météo n'ont pas de source dans M4), mais la porte de `transitionner` doit s'ouvrir quand tous le
+    seront. Construit comme `preparation.evaluer` le construit, sans ses lectures."""
+    volets = {nom: {"statut": "ok", "manque": None, "detail": None} for nom in preparation_mod.VOLETS}
+    verdict = {
+        "intervention_id": intervention_id, "statut_intervention": "a_planifier",
+        "statut": preparation_mod.verdict_des_volets(volets), "pret": True, "volets": volets, "a_fournir": [],
+    }
+    verdict["empreinte"] = etats_mod.empreinte_preparation(verdict)
+    assert verdict["statut"] == "pret"
+    return verdict
 
 
 def _completer_par_outbox(registre, intervention_id, horodatage, ecart_detecte=False):
@@ -97,6 +149,11 @@ def ASSIGNATION_ETATS(intervention_id):
 def preparer_chemin(registre, contrat, marqueur, etat_cible, horodatage_inscription=H_VALIDE):
     """Inscrit une intervention puis applique les transitions jusqu'à etat_cible.
     Retourne l'intervention_id et le registre (modifié sur place)."""
+    if etat_cible == "a_planifier":
+        accuse, verdict = etats_mod.inscrire_depuis_devis(
+            registre, "DEVIS-ETATS-1", dict(LEAD_V2, ville=contrat["ville"]), SEL, horodatage_inscription)
+        assert accuse is not None, f"Échec d'inscription depuis un devis : {verdict}"
+        return accuse["intervention_id"], registre
     accuse, verdict = etats_mod.inscrire_intervention(
         contrat, marqueur, registre, horodatage_inscription
     , SEL)
@@ -133,10 +190,7 @@ def preparer_chemin(registre, contrat, marqueur, etat_cible, horodatage_inscript
 
 # 1. Épinglage des constantes
 def test_constantes_epinglage():
-    assert etats_mod.ETATS == (
-        "planifiee", "en_route", "sur_site", "en_revue", "reportee",
-        "completed_pending_review", "completed_verified", "annulee",
-    )
+    assert etats_mod.ETATS == ETATS_D_AVANT + ("a_planifier",)
     assert etats_mod.ETATS_TERMINAUX == (
         "completed_pending_review", "completed_verified", "annulee",
     )
@@ -158,9 +212,21 @@ def test_constantes_epinglage():
         ("en_route", "en_revue"),
         ("reportee", "planifiee"),
         ("reportee", "annulee"),
+        ("a_planifier", "planifiee"),
+        ("a_planifier", "annulee"),
     )
     assert etats_mod.TYPE_INSCRIPTION == "intervention_inscrite"
     assert etats_mod.TYPE_TRANSITION == "transition_statut"
+
+def test_a_planifier_est_additif_les_etats_et_les_transitions_d_avant_sont_intacts():
+    """PLAN T4.10-b : rien de ce qui existait ne change, ni l'ordre ni le contenu ; le nouvel état et ses deux
+    couples s'ajoutent en fin de liste, et il n'est ni terminal ni atteignable depuis un autre état."""
+    assert etats_mod.ETATS[:len(ETATS_D_AVANT)] == ETATS_D_AVANT
+    assert etats_mod.TRANSITIONS_AUTORISEES[:len(TRANSITIONS_D_AVANT)] == TRANSITIONS_D_AVANT
+    assert etats_mod.TRANSITIONS_AUTORISEES[len(TRANSITIONS_D_AVANT):] == TRANSITIONS_AJOUTEES
+    assert etats_mod.ETATS_TERMINAUX == ("completed_pending_review", "completed_verified", "annulee")
+    assert "a_planifier" not in etats_mod.ETATS_TERMINAUX
+    assert [couple for couple in etats_mod.TRANSITIONS_AUTORISEES if couple[1] == "a_planifier"] == []
 
 # 2. Cohérence structurelle de la table
 def test_coherence_table():
@@ -259,6 +325,8 @@ COUPLES_LEGAUX = [
     ("en_route", "en_revue"),
     ("reportee", "planifiee"),
     ("reportee", "annulee"),
+    ("a_planifier", "planifiee"),
+    ("a_planifier", "annulee"),
 ]
 
 @pytest.mark.parametrize("etat_courant, etat_cible", COUPLES_LEGAUX)
@@ -270,8 +338,9 @@ def test_transition_legale(contrat_valide, marqueur_valide, registre_vide, etat_
     # Effectuer la transition
     motif = "meteo" if etat_cible == "reportee" else None
     assignation = ASSIGNATION_ETATS(i_id) if etat_cible == "en_route" else None
+    preparation = verdict_pret(i_id) if (etat_courant, etat_cible) == ("a_planifier", "planifiee") else None
     accuse, verdict = etats_mod.transitionner(
-        i_id, etat_cible, reg, H_VALIDE3, motif=motif, assignation=assignation
+        i_id, etat_cible, reg, H_VALIDE3, motif=motif, assignation=assignation, preparation=preparation,
     )
     assert accuse is not None, f"La transition {etat_courant}->{etat_cible} a échoué : {verdict}"
     assert accuse["statut"] == etat_cible

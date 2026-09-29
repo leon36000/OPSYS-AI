@@ -28,7 +28,12 @@ from .readiness import emettre_marqueur
 from .statuts import STATUTS, STATUTS_TERMINAUX, statut_courant
 from .verdicts import construire_verdict
 
-__all__ = ["suggerer", "suggerer_relance_devis_sans_reponse"]
+__all__ = [
+    "REGLE_PLANIFIER_CHANTIER",
+    "prochaine_action_planifier_chantier",
+    "suggerer",
+    "suggerer_relance_devis_sans_reponse",
+]
 
 # Statuts couverts par chaque règle, dans l'ordre de priorité où la table est parcourue —
 # STATUTS_ATTENTE_CYCLE et STATUTS_POST_FACTURATION nommés pour que la table reste lisible et que
@@ -36,8 +41,19 @@ __all__ = ["suggerer", "suggerer_relance_devis_sans_reponse"]
 # terminaux connus de statuts.STATUTS (défense en profondeur : un neuvième statut ajouté un jour
 # à la FSM sans mise à jour de cette table lève, au lieu d'être décrit silencieusement comme
 # « avis »).
-_STATUTS_CHANTIER_EN_COURS = ("converti", "cedule", "chantier")
+_STATUTS_CHANTIER_EN_COURS = ("cedule", "chantier")
 _STATUTS_POST_FACTURATION = ("facture", "paiement")
+
+# PLAN T4.10-a : la soumission est acceptée, le chantier reste à planifier par M4. UNE seule règle, citée, pour la
+# prochaine action que la conversion consigne (`prochaine_action_planifier_chantier`) ET pour la suggestion d'un
+# lead `converti` (`suggerer`) : les deux ne peuvent pas diverger. Aucune date n'est promise au client (§7 M4 :
+# « Ne jamais promettre une date ni confirmer un chantier sans la confirmation de M4 »).
+REGLE_PLANIFIER_CHANTIER = "planifier_chantier"
+_CONSIGNE_PLANIFIER_CHANTIER = (
+    "Planifier le chantier avec M4 : la soumission est acceptée. "
+    "Aucune date ni aucun créneau n'est promis au client avant la confirmation de M4."
+)
+_MOTIF_PLANIFIER_CHANTIER = "Soumission acceptée, chantier à planifier (§6 flux principal, §7 M2.8)."
 
 
 def _doublon_en_attente_pour(registre_cible, lead_id: str) -> str | None:
@@ -80,9 +96,10 @@ def suggerer(registre_cible, lead_id: str, horodatage: str) -> tuple[dict | None
        produit par ``readiness.emettre_marqueur`` (jamais un second calcul divergent des mêmes
        conditions).
     6. Statut ``qualifie``, readiness satisfaite -> transmettre le dossier à M3 pour estimation.
-    7. Statut ``converti``/``cedule``/``chantier`` -> assurer le suivi du chantier jusqu'à M4.
-    8. Statut ``facture``/``paiement`` -> assurer le suivi jusqu'à l'encaissement (M2.8, lien M5).
-    9. Statut ``avis`` -> lancer la relance avis et référence (M2.7, M2.14).
+    7. Statut ``converti`` -> planifier le chantier avec M4 (règle ``planifier_chantier``, PLAN T4.10-a).
+    8. Statut ``cedule``/``chantier`` -> assurer le suivi du chantier jusqu'à sa complétion (M4).
+    9. Statut ``facture``/``paiement`` -> assurer le suivi jusqu'à l'encaissement (M2.8, lien M5).
+    10. Statut ``avis`` -> lancer la relance avis et référence (M2.7, M2.14).
 
     Fonction PURE (lecture seule, T0) : n'écrit jamais au registre, ne fixe jamais la
     ``prochaine_action`` réelle du lead — seul un humain le fait, via les outils d'écriture.
@@ -129,6 +146,11 @@ def suggerer(registre_cible, lead_id: str, horodatage: str) -> tuple[dict | None
             "Readiness M3 satisfaite (M2.5) : owner, type de travaux, ville, interaction post-qualification.",
         ), None
 
+    if statut == "converti":
+        return _suggestion(
+            lead_id, statut, REGLE_PLANIFIER_CHANTIER, _CONSIGNE_PLANIFIER_CHANTIER, _MOTIF_PLANIFIER_CHANTIER,
+        ), None
+
     if statut in _STATUTS_CHANTIER_EN_COURS:
         return _suggestion(
             lead_id, statut, "suivre_chantier",
@@ -157,6 +179,21 @@ def suggerer(registre_cible, lead_id: str, horodatage: str) -> tuple[dict | None
         f"prochaine_action.suggerer : statut {statut!r} de statuts.STATUTS {STATUTS!r} non couvert "
         "par la table de règles — mise à jour requise, jamais une suggestion par défaut."
     )
+
+
+def prochaine_action_planifier_chantier(devis_id: str, echeance: str) -> dict:
+    """Prochaine action que consigne la conversion d'un lead par un devis accepté (PLAN T4.10-a, règle
+    ``planifier_chantier``) : ``{description, echeance}``, la forme que ``statuts.transitionner`` exige. La
+    description est un texte FIXE (jamais un modèle) qui cite la règle ; ``echeance`` est l'heure RÉELLE de
+    l'acceptation, fournie par l'appelant : jamais une date inventée, calculée d'une horloge ambiante ni promise
+    au client (l'échéance dit « depuis quand c'est à faire »)."""
+    return {
+        "description": (
+            f"{_CONSIGNE_PLANIFIER_CHANTIER} Devis {devis_id} "
+            f"(règle {REGLE_PLANIFIER_CHANTIER}, DEFINITION-PRODUIT §6 flux principal, §7 M2.8)."
+        ),
+        "echeance": echeance,
+    }
 
 
 def suggerer_relance_devis_sans_reponse(charge: dict) -> dict:

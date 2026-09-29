@@ -59,6 +59,9 @@ _NOM_REGISTRE_WCT_RECUS = "wct_recus"
 # _NOM_REGISTRE_WCT_RECUS ci-dessus — un même devis republié sous un autre evenement_id est un
 # « déjà appliqué », jamais une quarantaine.
 _NOM_REGISTRE_RELANCES_DEVIS_RECUES = "relances_devis_recues"
+# Faits m3.devis_accepte déjà appliqués (clé métier : devis_id, PLAN T4.10-a) : même patron — un même devis
+# republié sous un autre evenement_id est un « déjà appliqué », jamais une seconde conversion ni une quarantaine.
+_NOM_REGISTRE_DEVIS_ACCEPTES_RECUS = "devis_acceptes_recus"
 _NOM_REGISTRE = "principal"
 
 _registre_memoire = Registre()
@@ -468,8 +471,9 @@ class LeadIntrouvable(LookupError):
     """lead_id absent du registre M2 — incohérence de données entre M2 et le département qui a
     publié l'événement (DEFINITION-PRODUIT §7 M2 : « Aucun lead sans statut, propriétaire,
     prochaine action ou historique »). Partagée par tous les consommateurs d'événements de ce
-    module qui exigent un lead déjà connu : m4.travaux_termines (M4) et m3.devis_sans_reponse
-    (M3, M2.7 — voir _recevoir_devis_sans_reponse plus bas). Jamais un refus métier normal : le
+    module qui exigent un lead déjà connu : m4.travaux_termines (M4), m3.devis_sans_reponse
+    (M3, M2.7 — voir _recevoir_devis_sans_reponse plus bas) et m3.devis_accepte (M3, PLAN T4.10-a —
+    voir _recevoir_devis_accepte). Jamais un refus métier normal : le
     répartiteur réessaie puis met en quarantaine (ADR-0009 §3), sans qu'aucune écriture n'ait eu
     lieu ; le fait lui-même reste dans evenements_sortants (jamais supprimé), donc disponible
     pour une arrivée tardive si un humain republie l'événement une fois le lead connu de M2."""
@@ -910,12 +914,121 @@ def _recevoir_lead_qualifie(charge: dict[str, Any]) -> dict[str, Any]:
     return resultat
 
 
+# ---------------------------------------------------------------------------
+# Consommateur d'événements (ADR-0009 §3, PLAN T4.10-a) : m3.devis_accepte
+# ---------------------------------------------------------------------------
+# DEFINITION-PRODUIT §6, flux principal : « soumission acceptée → M4 planifie, route, exécute » ; §7 M2.8 :
+# « Intelligence des soumissions [...] passage à M4 et M5 ». Jusqu'ici M2 ne savait pas qu'un devis avait été
+# accepté : le lead restait `qualifie`. M2 le sait maintenant par le bus, sans que personne ne le lui écrive :
+# `qualifie -> converti` (avec `reference_devis_m3`), la prochaine action « planifier le chantier » (règle
+# citée, `suggestions.prochaine_action_planifier_chantier`) et une activité au Client 360. M2 ne promet ni date
+# ni créneau : c'est M4 qui planifie (§7 M2, règles dures).
+
+
+class AcceptationIncompatible(ValueError):
+    """m3.devis_accepte : le lead existe mais l'acceptation ne peut pas s'y rattacher sans décision humaine :
+    lead jamais qualifié (`nouveau` : aucun propriétaire ni prochaine action, aucune transition n'est fabriquée
+    pour lui), ou déjà converti par UN AUTRE devis (le devis accepté ne remplace pas la référence déjà
+    consignée). Jamais un refus métier normal : le répartiteur réessaie puis met en quarantaine (ADR-0009 §3),
+    visible d'un humain (`opsys evenements etat`), sans qu'aucune écriture n'ait eu lieu."""
+
+
+def _recevoir_devis_accepte(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme m3.devis_accepte (ADR-0009 §3, PLAN T4.10-a) : `qualifie -> converti`.
+
+    - lead `qualifie` : transition `converti` avec `reference_devis_m3` = le devis, à l'heure de l'acceptation
+      (`horodatage_acceptation`, jamais une horloge de M2), la prochaine action « planifier le chantier »
+      (`suggestions.prochaine_action_planifier_chantier`, échéance = l'heure de l'acceptation : jamais une date
+      inventée ni promise) portée par la transition (le Client 360 la lit), et une interaction système
+      (auteur `system:m3`) qui rattache le fait au dossier ;
+    - lead déjà `converti` (ou plus loin) PAR CE DEVIS : rien à faire, `deja_converti` (un humain ou un
+      ancien flux l'avait converti avant l'acceptation) ;
+    - lead `perdu` : aucune conversion n'est possible, le fait est gardé (`ignore: "lead_clos"`), sans
+      interaction ni quarantaine (même patron que `m3.devis_sans_reponse`) ;
+    - lead inconnu : `LeadIntrouvable` ; lead `nouveau`, ou déjà converti par un AUTRE devis :
+      `AcceptationIncompatible`. Jamais une écriture partielle : le répartiteur livre chaque paire dans son
+      propre point de sauvegarde, il réessaie puis met en quarantaine (ADR-0009 §3).
+
+    Idempotent à deux niveaux, même patron que `_recevoir_devis_sans_reponse` : le répartiteur n'appelle cette
+    fonction qu'une fois par (evenement_id, consommateur) traité avec succès ; et un même devis republié sous
+    un autre `evenement_id` est reconnu par son `devis_id` (`_NOM_REGISTRE_DEVIS_ACCEPTES_RECUS`) : rien ne
+    s'écrit une seconde fois. Aucun montant n'est lu ni gardé : M2 n'est pas la source de vérité financière
+    (§7 M2).
+    """
+    devis_id = charge["devis_id"]
+    lead_id = charge["lead_id"]
+    horodatage = charge["horodatage_acceptation"]
+    recus = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_DEVIS_ACCEPTES_RECUS)
+    if any(recu.get("devis_id") == devis_id for recu in recus):
+        return {"traite": True, "lead_id": lead_id, "devis_id": devis_id, "deja_applique": True}
+
+    reg = _obtenir_registre()
+    statut = statuts.statut_courant(reg, lead_id)
+    if statut is None:
+        raise LeadIntrouvable(f"m3.devis_accepte : lead {lead_id!r} introuvable au registre M2")
+    client_id = clients.client_de_lead(reg, lead_id)
+    fait_recu = {"devis_id": devis_id, "lead_id": lead_id, "horodatage_acceptation": horodatage, "client_id": client_id}
+
+    if statut in statuts.STATUTS_TERMINAUX:
+        recus.append({**fait_recu, "ignore": "lead_clos"})
+        return {
+            "traite": True, "lead_id": lead_id, "devis_id": devis_id, "client_id": client_id, "converti": False,
+            "motif": f"lead {lead_id!r} au statut {statut!r} : dossier clos, aucune conversion",
+        }
+    if statut == "nouveau":
+        raise AcceptationIncompatible(
+            f"m3.devis_accepte : le devis {devis_id!r} est accepté mais le lead {lead_id!r} n'a jamais été "
+            "qualifié (statut 'nouveau') : aucun propriétaire ni prochaine action, aucune transition n'est "
+            "fabriquée. Décision humaine requise."
+        )
+    if statut != "qualifie":
+        reference = statuts.reference_devis(reg, lead_id)
+        if reference != devis_id:
+            raise AcceptationIncompatible(
+                f"m3.devis_accepte : le lead {lead_id!r} (statut {statut!r}) est déjà converti par le devis "
+                f"{reference!r} ; le devis accepté {devis_id!r} ne peut pas lui être rattaché sans décision humaine."
+            )
+        recus.append({**fait_recu, "deja_converti": True})
+        return {
+            "traite": True, "lead_id": lead_id, "devis_id": devis_id, "client_id": client_id,
+            "converti": False, "deja_converti": True, "statut": statut,
+        }
+
+    prochaine_action = suggestions.prochaine_action_planifier_chantier(devis_id, horodatage)
+    _, verdict = statuts.transitionner(
+        lead_id, "converti", reg, horodatage, reference_devis_m3=devis_id, prochaine_action=prochaine_action,
+    )
+    if verdict is not None:
+        raise AcceptationIncompatible(
+            f"m3.devis_accepte : la conversion du lead {lead_id!r} par le devis {devis_id!r} est refusée "
+            f"({verdict['code']} : {verdict['detail']}), aucune écriture."
+        )
+    resume = (
+        f"Soumission acceptée (devis {devis_id}) : le lead passe de qualifié à converti. "
+        f"Prochaine action : {prochaine_action['description']} (échéance {prochaine_action['echeance']})."
+    )
+    _, verdict_interaction = interactions.enregistrer(lead_id, "system:m3", resume, reg, horodatage)
+    if verdict_interaction is not None:
+        # Jamais attendu : le lead vient d'être converti (non clos), l'horodatage est déjà validé, l'auteur
+        # et le résumé ne sont pas vides. Défense en profondeur : lever annule aussi la transition.
+        raise RuntimeError(
+            "m3.devis_accepte : interaction système refusée juste après une conversion réussie "
+            f"(incohérence interne, pas un refus métier normal) : {verdict_interaction}"
+        )
+    recus.append(fait_recu)
+    return {
+        "traite": True, "lead_id": lead_id, "devis_id": devis_id, "client_id": client_id, "converti": True,
+        "statut": "converti", "prochaine_action": prochaine_action,
+    }
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
     """Types d'événements consommés par M2 (ADR-0009 §3) — voir `department.yaml/evenements`."""
     return {
         "m4.travaux_termines": _recevoir_travaux_termines,
         "m3.devis_sans_reponse": _recevoir_devis_sans_reponse,
         "m1.lead_qualifie": _recevoir_lead_qualifie,
+        "m3.devis_accepte": _recevoir_devis_accepte,
     }
 
 

@@ -212,3 +212,48 @@ reste ») ; aucun sidecar de routage : distances approximatives (« mode bridé 
 le dépôt est gardé en clair au maillon du plan (c'est un lieu de l'entreprise : ne pas y mettre un domicile) ; une
 adresse modifiée après la confirmation des coordonnées n'est pas vue par la cédule (M4 ne connaît pas l'adresse,
 seulement la version de la confirmation) ; un plan proposé n'expire pas, seul un changement d'état l'invalide.
+
+## Une soumission acceptée fait naître une intervention à planifier (PLAN T4.10-b)
+
+DEFINITION-PRODUIT §6 (« soumission acceptée → M4 planifie ») et §7 M4.5, M4.6. Avant, M4 n'avait aucun état avant
+`planifiee` et personne ne lui disait qu'un devis venait d'être accepté. Trois pièces :
+
+- **`a_planifier`, un état additif** (`etats.py`). Il s'ajoute EN FIN de `ETATS` ; les huit états et les seize couples
+  d'avant sont intacts (test d'épinglage), et la table complète, 18 couples, est balayée dans les deux sens
+  (`test_etats.py`). Deux couples s'ajoutent : `a_planifier → annulee` (sans condition) et `a_planifier → planifiee`,
+  qui exige un verdict de préparation `pret` (voir plus bas) : vérifié dans `etats.transitionner`, à la source, pour
+  tenir quel que soit l'outil (`empreinte_preparation` : un verdict modifié après coup ne passe pas). Une intervention
+  inscrite par `m4_planifier_intervention` naît toujours `planifiee`, inchangé ; la cédule par tournées ne planifie
+  toujours que `planifiee` (`STATUT_PLANIFIABLE`).
+- **Le consommateur de `m3.devis_accepte`** (`department.yaml`, `_recevoir_devis_accepte` dans `outils.py`, sans import de
+  M2 ni de M3). Le devis porte `devis_id` et `lead_id`, pas le service, la ville ni l'urgence : M4 les relit **à la source
+  du bus**, dans le `m1.lead_qualifie` de ce lead (`evenements.charge_publiee`, même patron que M3 pour
+  `m2.lead_assigne`), jamais d'un argument ni d'une valeur par défaut. `etats.inscrire_depuis_devis` valide ce lead comme
+  partout dans M4 (frontières, contrat v2, service déclaré au profil d'entreprise) et écrit le maillon
+  `intervention_inscrite` : `statut: a_planifier`, `source: m3.devis_accepte`, l'heure de l'acceptation (jamais une
+  horloge de M4), le service, l'urgence, la ville **tokenisée** avec un sel d'instance tenu au coffre du socle
+  (`opsys.cles_chiffrement`, portée `m04-field-ops/sel-ville`). Aucun contact, aucune ville en clair, aucun identifiant
+  de conversation, aucun prix, aucune date ni aucun créneau n'entrent au registre. Idempotent : une intervention qui porte
+  déjà ce `devis_id` (rejeu, autre `evenement_id`, ou intervention planifiée à la main avant) est reconnue avant toute
+  lecture, `deja_applique`. Un fait absent lève, le répartiteur réessaie puis met en quarantaine (`opsys evenements etat`) :
+  `FaitDeLeadManquant` (aucun `m1.lead_qualifie` pour ce lead : un lead saisi directement dans M2 se planifie par
+  `m4_planifier_intervention`, avec son contrat complet) ou `InscriptionDevisRefusee` (service retiré du profil, horodatage
+  invalide). Un lead qui arrive après le devis (ordre inversé) est repris au réessai, sans doublon.
+- **La préparation** (`preparation.py`, M4.6, pur, gardé par analyse du code) et son outil `m4_verifier_preparation` (T0,
+  admin seulement, lecture seule). Le verdict est une liste de volets : `soumission` (le devis qui a fait naître
+  l'intervention), `adresse` (coordonnées CONFIRMÉES, lues comme la cédule les lit : le chantier est le `lead_id`),
+  `equipe`, `materiel`, `meteo`. Chaque volet est `ok` (lu à sa source), `manque` (attendu et absent : le champ `manque`
+  dit quoi fournir) ou `non_verifiable` (M4 n'a pas encore de quoi le lire). **Équipe, matériel et météo sont
+  `non_verifiable` aujourd'hui** (profil des équipes : PLAN T4.12 ; `m6.materiel_pret` : T4.14 ; météo : T4.13) : le
+  verdict d'ensemble est `pret` SEULEMENT si tous les volets sont `ok`, sinon `bloque` ou `non_verifiable`, donc aucune
+  intervention n'est `pret` avant ces trois tâches et la porte `a_planifier → planifiee` reste fermée. Le verdict ne rend ni
+  coordonnée, ni contact, ni prix.
+
+Preuve : `tests/test_consommer_devis_accepte.py` (bus réel, M4 seul), `tests/test_etats_a_planifier.py`,
+`tests/test_preparation.py`, la table de `tests/test_etats.py`, et `tests/test_cascade_devis_accepte.py` du socle (M1 → M2
+→ M3, puis M2 converti, M4 à planifier, M5, M6 et M8 comme avant, rejeu et ordre inversé sans doublon).
+
+Limites connues : aucun outil ne fait passer une intervention de `a_planifier` à `planifiee` (la porte exige un verdict
+`pret`, inatteignable tant qu'un volet est non vérifiable) ; `m4_planifier_intervention` n'a pas de garde contre une
+intervention née du bus pour le même devis (il inscrit la sienne) ; le mobile (`StatutInterventionM4`) ne connaît pas
+`a_planifier` (un employé ne le voit jamais : rien ne lui est assigné).

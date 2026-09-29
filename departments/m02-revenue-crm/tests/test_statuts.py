@@ -310,6 +310,64 @@ class TestConditionsManquantes:
 
 
 # ---------------------------------------------------------------------------
+# TestConversionParDevisAccepte (PLAN T4.10-a) : prochaine_action OPTIONNELLE à la conversion
+# ---------------------------------------------------------------------------
+class TestConversionParDevisAccepte:
+    """`qualifie -> converti` accepte, sans l'exiger, la prochaine action « planifier le chantier » que consigne la
+    consommation de `m3.devis_accepte` ; sans elle, le maillon reste celui d'avant, octet pour octet."""
+
+    ACTION = {"description": "Planifier le chantier avec M4.", "echeance": "2026-03-02T09:00:00+01:00"}
+
+    def _maillon_converti(self, reg):
+        return [m for m in reg.lire() if m.get("statut") == "converti"][-1]
+
+    def test_sans_prochaine_action_le_maillon_n_en_porte_pas(self):
+        reg = registre_avec_lead("L-CV1")
+        amener_a(reg, "L-CV1", "qualifie")
+        accuse, verdict = statuts.transitionner(
+            "L-CV1", "converti", reg, "2026-03-02T09:00:00+01:00", reference_devis_m3="DEVIS-9")
+        assert verdict is None and accuse["statut"] == "converti"
+        assert "prochaine_action" not in self._maillon_converti(reg)
+
+    def test_avec_prochaine_action_elle_est_consignee_telle_quelle(self):
+        reg = registre_avec_lead("L-CV2")
+        amener_a(reg, "L-CV2", "qualifie")
+        accuse, verdict = statuts.transitionner(
+            "L-CV2", "converti", reg, "2026-03-02T09:00:00+01:00", reference_devis_m3="DEVIS-9",
+            prochaine_action=self.ACTION)
+        assert verdict is None
+        assert self._maillon_converti(reg)["prochaine_action"] == self.ACTION
+
+    @pytest.mark.parametrize("action", [
+        {"description": "", "echeance": "2026-03-02T09:00:00+01:00"},
+        {"description": "Planifier"},
+        {"description": "Planifier", "echeance": "2026-03-02T09:00:00"},
+        "planifier le chantier",
+    ], ids=["description-vide", "sans-echeance", "echeance-sans-fuseau", "pas-un-objet"])
+    def test_prochaine_action_mal_formee_est_refusee_sans_ecriture(self, action):
+        reg = registre_avec_lead("L-CV3")
+        amener_a(reg, "L-CV3", "qualifie")
+        taille = reg.taille()
+        accuse, verdict = statuts.transitionner(
+            "L-CV3", "converti", reg, "2026-03-02T09:00:00+01:00", reference_devis_m3="DEVIS-9",
+            prochaine_action=action)
+        assert accuse is None and verdict["code"] == "REJ-ACTION-ABSENTE"
+        assert reg.taille() == taille
+        assert statuts.statut_courant(reg, "L-CV3") == "qualifie"
+
+    def test_reference_devis_relit_le_devis_de_la_conversion(self):
+        reg = registre_avec_lead("L-CV4")
+        assert statuts.reference_devis(reg, "L-CV4") is None
+        amener_a(reg, "L-CV4", "qualifie")
+        assert statuts.reference_devis(reg, "L-CV4") is None, "qualifié n'est pas converti"
+        statuts.transitionner("L-CV4", "converti", reg, "2026-03-02T09:00:00+01:00", reference_devis_m3="DEVIS-42")
+        assert statuts.reference_devis(reg, "L-CV4") == "DEVIS-42"
+        statuts.transitionner("L-CV4", "cedule", reg, "2026-03-02T10:00:00+01:00")
+        assert statuts.reference_devis(reg, "L-CV4") == "DEVIS-42", "la référence survit aux statuts suivants"
+        assert statuts.reference_devis(reg, "AUTRE") is None
+
+
+# ---------------------------------------------------------------------------
 # TestEtatsTerminaux
 # ---------------------------------------------------------------------------
 class TestEtatsTerminaux:

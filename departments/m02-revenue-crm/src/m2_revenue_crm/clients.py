@@ -156,9 +156,9 @@ def lier_lead(registre_cible, lead_id: str, contrat: dict, horodatage: str) -> t
 
 
 def _derniere_prochaine_action(registre_cible, lead_id: str) -> dict | None:
-    """Le dernier ``prochaine_action`` porté par une transition de CE lead (les deux seuls
-    chemins qui en portent une : nouveau->qualifie et chantier->facture — statuts.py). None si
-    aucune n'a encore été fournie par un humain : jamais inventée ici."""
+    """Le dernier ``prochaine_action`` porté par une transition de CE lead (nouveau->qualifie et
+    chantier->facture l'exigent, qualifie->converti la porte quand la conversion vient d'un devis
+    accepté, PLAN T4.10-a — statuts.py). None si aucune n'a été consignée : jamais inventée ici."""
     trouve = None
     for m in registre_cible.lire():
         if (

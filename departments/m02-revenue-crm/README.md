@@ -30,3 +30,29 @@ Un événement rejoué, ou le même lead sous un autre identifiant d'événement
 (`deja_applique`) ; le même `lead_id` avec un autre contenu lève aussi. Voir
 [M1-canaux](../../docs/departements/M1-canaux.md) §7, et `tests/test_consommer_lead_de_m1.py`.
 
+## Une soumission acceptée convertit le lead par le bus (PLAN T4.10-a)
+
+M2 consomme `m3.devis_accepte` (`evenements.consomme` de `department.yaml`, `_recevoir_devis_accepte` dans
+`outils.py` ; DEFINITION-PRODUIT §6 « soumission acceptée → M4 planifie », §7 M2.8). Avant, le lead restait `qualifie`
+après l'acceptation. Maintenant, sans qu'un humain l'écrive :
+- lead `qualifie` : transition `qualifie → converti` avec `reference_devis_m3` = le devis, à l'heure de l'acceptation
+  fournie par M3 (jamais une horloge de M2) ; la **prochaine action** « planifier le chantier » (règle
+  `planifier_chantier`, `suggestions.prochaine_action_planifier_chantier`, texte fixe qui cite sa règle, échéance =
+  l'heure réelle de l'acceptation) est portée par la transition, donc lue par le Client 360 ; une **activité** système
+  (`system:m3`) rattache le fait au dossier. `m2_suggerer_prochaine_action` d'un lead `converti` rend la même règle.
+  Aucune date ni aucun créneau n'est promis au client : c'est M4 qui planifie (§7 M2, règles dures) ;
+- lead déjà `converti` (ou plus loin) par CE devis : rien à refaire (`deja_converti`), c'est le flux d'avant où un humain
+  convertissait avant l'acceptation ;
+- lead `perdu` : le fait est gardé (`ignore: lead_clos`), sans conversion, interaction ni quarantaine (patron de
+  `m3.devis_sans_reponse`) ;
+- lead inconnu : `LeadIntrouvable` ; lead jamais qualifié (`nouveau`), ou déjà converti par UN AUTRE devis :
+  `AcceptationIncompatible`. Le répartiteur réessaie, puis met l'événement en quarantaine, sans écriture, visible d'un
+  humain (`opsys evenements etat`) : aucune transition n'est fabriquée sans propriétaire ni décision.
+
+Un événement rejoué, ou le même devis sous un autre identifiant d'événement, ne convertit pas deux fois
+(registre `devis_acceptes_recus`, clé `devis_id`). La conversion et son activité sont dans la même transaction : si
+l'une échoue, l'autre est annulée. Aucun prix, coût ni marge du devis n'est lu ni gardé (M2 n'est pas la source de vérité
+financière). `statuts.transitionner` accepte désormais, sans l'exiger, une `prochaine_action` à la conversion ; sans
+elle le maillon reste celui d'avant, octet pour octet. Preuve : `tests/test_consommer_devis_accepte.py` (22 tests, dont
+le rejeu, l'ordre inversé et l'atomicité) et, avec M4, M5, M6 et M8 par le même bus, `tests/test_cascade_devis_accepte.py`
+du socle.

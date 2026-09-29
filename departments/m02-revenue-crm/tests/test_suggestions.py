@@ -139,7 +139,24 @@ class TestParStatut:
         assert v is None
         assert resultat["regle"] == "transmettre_m3"
 
-    @pytest.mark.parametrize("statut_cible", ["converti", "cedule", "chantier"])
+    def test_converti_suggere_planifier_le_chantier_sans_promettre_de_date(self):
+        """PLAN T4.10-a : la soumission est acceptée, le chantier reste à planifier par M4. Même règle que la
+        prochaine action que consigne la conversion (`prochaine_action_planifier_chantier`)."""
+        reg = registre.Registre()
+        _amener_a(reg, "C-converti", "converti")
+        resultat, v = suggestions.suggerer(reg, "C-converti", "2026-06-15T10:00:00+00:00")
+        assert v is None
+        assert resultat["regle"] == suggestions.REGLE_PLANIFIER_CHANTIER == "planifier_chantier"
+        assert resultat["statut"] == "converti"
+        assert "Planifier le chantier avec M4" in resultat["suggestion"]
+        assert "Aucune date ni aucun créneau n'est promis" in resultat["suggestion"]
+        action = suggestions.prochaine_action_planifier_chantier("DEVIS-1", "2026-06-15T10:00:00+00:00")
+        assert action["description"].startswith(resultat["suggestion"]), "une seule règle, pas deux textes"
+        assert "planifier_chantier" in action["description"] and "DEVIS-1" in action["description"]
+        assert action["echeance"] == "2026-06-15T10:00:00+00:00"
+        assert set(action) == {"description", "echeance"}
+
+    @pytest.mark.parametrize("statut_cible", ["cedule", "chantier"])
     def test_chantier_en_cours_suggere_suivre_chantier(self, statut_cible):
         reg = registre.Registre()
         _amener_a(reg, f"C-{statut_cible}", statut_cible)

@@ -47,6 +47,7 @@ from . import (
     localisation,
     outbox,
     pointage,
+    preparation,
     preuves,
     registre,
     retention,
@@ -891,6 +892,19 @@ def outils(
             reponse["resultat"]["horodatage_appareil"] = reception.horodatage_appareil.isoformat()
         return reponse
 
+    def verifier_preparation(intervention_id: str) -> dict[str, Any]:
+        """Lecture seule : la préparation d'une intervention (M4.6), volet par volet, avec ce qui manque. Rien n'est
+        écrit ; aucun volet non vérifié n'est présenté comme prêt."""
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        verdict_role = acces.controler_administrateur(acteur)
+        if verdict_role is not None:
+            return _refus(verdict_role)
+        return depuis_couple(
+            preparation.evaluer(registre_courant(), intervention_id, lire_localisation_confirmee)
+        )
+
     return (
         Outil(
             nom="m4_planifier_intervention",
@@ -1691,6 +1705,32 @@ def outils(
             # §9.5 (dispatch du jour) : réservé à l'admin ; l'employé ne dispatche pas.
             roles_appareil=frozenset({"admin"}),
         ),
+        Outil(
+            nom="m4_verifier_preparation",
+            description=(
+                "Lecture seule (PLAN T4.10-b, M4.6) : dit si une intervention peut être planifiée, VOLET PAR VOLET, et "
+                "NOMME ce qui manque. Volets : soumission (le devis accepté qui l'a fait naître), adresse (coordonnées "
+                "CONFIRMÉES du chantier, comme la cédule les lit), équipe admissible, matériel, météo. Chaque volet "
+                "est ok (lu à sa source), manque (attendu et absent : le champ manque dit quoi fournir) ou "
+                "non_verifiable (M4 n'a pas encore de quoi le lire : équipe, matériel et météo aujourd'hui). Le "
+                "verdict d'ensemble est pret SEULEMENT si tous les volets sont ok, sinon bloque ou non_verifiable : "
+                "jamais « prêt » par défaut. Ne rend ni coordonnée, ni contact, ni prix, et ne promet aucune date "
+                "ni aucun créneau. Refus (REJ-TRANSITION-ILLEGALE) : intervention inconnue, ou hors de a_planifier, "
+                "planifiee et reportee. Réservé à l'admin : l'état d'un chantier de client."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"intervention_id": {"type": "string"}},
+                "required": ["intervention_id"],
+                "additionalProperties": False,
+            },
+            fonction=verifier_preparation,
+            autonomie=Autonomie.T0,
+            # §9.5 M4 « dispatch du jour » : l'admin voit ce qui bloque un chantier avant de le cédule. Ni l'employé
+            # ni le vendeur : c'est l'état d'un chantier de client (adresse confirmée ou non). Refusé aussi dans
+            # l'outil (`acces.controler_administrateur`).
+            roles_appareil=frozenset({"admin"}),
+        ),
     )
 
 
@@ -1850,8 +1890,98 @@ def _recevoir_variance_chantier(charge: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# ---------------------------------------------------------------------------------------------
+# Consommateur `m3.devis_accepte` (ADR-0009 §3, PLAN T4.10-b) : « soumission acceptée -> M4 planifie »
+# ---------------------------------------------------------------------------------------------
+# DEFINITION-PRODUIT §6, flux principal, et §7 M4.5 « Réception d'un job depuis M2/M3 (soumission acceptée) » :
+# M4 n'avait aucun état avant `planifiee` et personne ne lui disait qu'un devis venait d'être accepté. Le devis
+# accepté fait maintenant naître une intervention `a_planifier`, sans import de M2 ni de M3 (décision #109).
+#
+# Ce que le devis porte : `devis_id` et `lead_id`. Ce qu'il ne porte pas : le service, la ville, l'urgence du
+# chantier. M4 ne les reçoit d'aucun appelant et ne les devine pas : il les relit À LA SOURCE DU BUS, dans le
+# `m1.lead_qualifie` que M1 a publié pour ce lead (`evenements.charge_publiee`, même patron que M3 pour
+# `m2.lead_assigne`). Un fait absent lève une erreur nommée qui dit ce qui manque : le répartiteur réessaie, puis
+# met l'événement en quarantaine, visible d'un humain (`opsys evenements etat`) ; le devis reste au bus.
+_TYPE_EVENEMENT_LEAD_QUALIFIE = "m1.lead_qualifie"
+# Sel de la ville tokenisée d'une intervention née du bus : aucun appelant n'en fournit (contrairement à
+# `m4_planifier_intervention`). Un secret par instance, dans le coffre du socle, jamais dans le code ni au registre.
+_PORTEE_SEL_VILLE = "m04-field-ops/sel-ville"
+_IDENTIFIANT_SEL_VILLE = "instance"
+
+
+class FaitDeLeadManquant(LookupError):
+    """m3.devis_accepte : le service, la ville et l'urgence du chantier n'ont pas de source au bus (aucun
+    `m1.lead_qualifie` publié pour ce `lead_id`, ou charge d'un autre lead). M4 n'invente ni service ni ville :
+    un lead qui n'est pas passé par M1 (saisi directement dans M2) se planifie par `m4_planifier_intervention`,
+    avec son contrat complet. Jamais un refus métier normal : le répartiteur réessaie puis met en quarantaine."""
+
+
+class InscriptionDevisRefusee(ValueError):
+    """m3.devis_accepte : le lead publié par M1 ou le devis ne passe pas la validation de M4 (service retiré du
+    profil d'entreprise depuis la qualification, contrat invalide, horodatage invalide). Aucune écriture."""
+
+
+def _lead_de_la_source(lead_id: str) -> dict[str, Any]:
+    """Le LeadQualifie v2 que M1 a publié pour ce lead, relu à la source du bus."""
+    charge = evenements.charge_publiee(_TYPE_EVENEMENT_LEAD_QUALIFIE, f"m1-lead-qualifie-{lead_id}")
+    lead = None if charge is None else charge.get("lead")
+    if not isinstance(lead, dict) or lead.get("lead_id") != lead_id:
+        raise FaitDeLeadManquant(
+            "m3.devis_accepte : service, ville et urgence du chantier introuvables : aucun "
+            f"{_TYPE_EVENEMENT_LEAD_QUALIFIE} publié pour le lead {lead_id!r} "
+            f"(attendu : evenement_id m1-lead-qualifie-{lead_id}). "
+            "M4 ne les devine pas : planifier par m4_planifier_intervention, ou republier l'événement une fois "
+            "le lead connu de M1."
+        )
+    return lead
+
+
+def _sel_de_la_ville(cree_le: str) -> str:
+    cnx = stockage.connexion_courante()
+    if cnx is None:
+        raise InscriptionDevisRefusee(
+            "m3.devis_accepte : aucune base jointe, le sel de tokenisation de la ville n'est pas lisible"
+        )
+    return cles_chiffrement.obtenir_ou_creer(cnx, _PORTEE_SEL_VILLE, _IDENTIFIANT_SEL_VILLE, cree_le).hex()
+
+
+def _recevoir_devis_accepte(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m3.devis_accepte` : inscrit l'intervention `a_planifier` qui naît du devis accepté.
+
+    Idempotent à deux niveaux : le répartiteur n'appelle cette fonction qu'une fois par (evenement_id,
+    consommateur) traité ; et une intervention qui porte déjà ce `devis_id` (le même devis republié sous un autre
+    `evenement_id`, ou une intervention inscrite avant par `m4_planifier_intervention`) est reconnue avant toute
+    lecture : `deja_applique`, aucune seconde intervention. Aucun prix, coût ni marge du devis n'est lu ni gardé
+    (`frontieres.py`) ; aucune date ni créneau n'est fixé : l'intervention attend sa préparation
+    (`preparation.py`) et sa cédule. Rien du contact du client n'entre au registre (la ville y est tokenisée)."""
+    devis_id = charge["devis_id"]
+    lead_id = charge["lead_id"]
+    reg = registre.Registre(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE))
+    existante = etats.intervention_du_devis(reg, devis_id)
+    if existante is not None:
+        return {
+            "traite": True, "devis_id": devis_id, "lead_id": lead_id,
+            "intervention_id": existante, "deja_applique": True,
+        }
+    lead = _lead_de_la_source(lead_id)
+    horodatage = charge["horodatage_acceptation"]
+    accuse, verdict = etats.inscrire_depuis_devis(reg, devis_id, lead, _sel_de_la_ville(horodatage), horodatage)
+    if verdict is not None:
+        raise InscriptionDevisRefusee(
+            f"m3.devis_accepte : intervention refusée pour le devis {devis_id!r} : "
+            f"{verdict['code']} : {verdict['detail']}"
+        )
+    return {
+        "traite": True, "devis_id": devis_id, "lead_id": lead_id,
+        "intervention_id": accuse["intervention_id"], "statut": accuse["statut"], "service": lead["service"],
+    }
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
-    return {"m6.variance_chantier": _recevoir_variance_chantier}
+    return {
+        "m6.variance_chantier": _recevoir_variance_chantier,
+        "m3.devis_accepte": _recevoir_devis_accepte,
+    }
 
 
 # ---------------------------------------------------------------------------------------------

@@ -5,6 +5,12 @@ description: Procédure pour planifier une intervention terrain depuis un lead M
 
 # Gérer une intervention
 
+0. Un devis accepté (M3) fait déjà naître une intervention `a_planifier` : `m4_lister_interventions` avec
+   `statut: a_planifier` la montre, avec son service lu à la source (M1), jamais deviné. Appelle
+   `m4_verifier_preparation` : le verdict nomme ce qui manque, volet par volet (soumission, adresse confirmée,
+   équipe, matériel, météo). Un volet `non_verifiable` n'est pas prêt ; ne dis jamais qu'une intervention est
+   prête tant que le verdict n'est pas `pret`, et ne promets ni date ni créneau au client (c'est M4 qui confirme).
+   Un lead saisi directement dans M2, sans passer par M1, n'a pas d'intervention née du devis : passe par l'étape 1.
 1. Vérifie que le lead vient de M2 avec un marqueur de readiness et le contrat gelé (sept clés).
    Sinon : demande-le, stop. N'invente jamais un champ manquant.
 2. Rassemble les techniciens et fenêtres horaires disponibles ce jour-là, puis appelle

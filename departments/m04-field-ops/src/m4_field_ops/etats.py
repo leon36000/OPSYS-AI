@@ -50,6 +50,19 @@ catalogue complet du produit, hors périmètre de cette tranche) :
                                   un ``ecart_detecte`` vrai pour l'obtenir.
     annulee                   -> annulee (inchangé ; proche de cancelled)
 
+AJOUT ADDITIF (PLAN T4.10-b, DEFINITION-PRODUIT §7 M4.5 « Réception d'un job depuis M2/M3 »)
+-------------------------------------------------------------------------------------------
+``a_planifier`` : l'état d'une intervention qui vient de naître d'un devis accepté (``m3.devis_accepte``,
+``inscrire_depuis_devis``), avant sa préparation (``preparation.py``, M4.6) et sa cédule. Il précède
+``planifiee`` (« regroupe » ready_to_schedule..assigned du produit) sans rien changer aux états ni aux
+transitions d'avant : les seize couples existants sont intacts, deux s'ajoutent en fin de table.
+    a_planifier -> planifiee   exige un verdict de préparation ``pret`` (``preparation.evaluer``), c'est-à-dire
+                               TOUS les volets vérifiés : tant que l'équipe, le matériel et la météo n'ont pas de
+                               source dans M4, aucun verdict n'est ``pret`` et cette porte reste fermée ;
+    a_planifier -> annulee     sans condition, comme planifiee -> annulee (le devis est retiré, le client renonce).
+Une intervention inscrite par ``inscrire_intervention`` (``m4_planifier_intervention``) naît toujours ``planifiee``,
+inchangé.
+
 ``completed_pending_review``/``completed_verified`` restent, comme
 ``terminee`` avant elles, refusées ICI comme cible directe de
 ``transitionner`` (voir plus bas) : seul ``outbox.completer_intervention``
@@ -59,7 +72,7 @@ de cible produit une transition illégale nommée (REJ-TRANSITION-ILLEGALE).
 
 import copy
 
-from . import cedule, contrats, encodage, horodatage, verdicts
+from . import cedule, contrats, encodage, frontieres, horodatage, verdicts
 
 # registre n’est pas importé en tant que module car on n’en utilise que les instances passées.
 
@@ -75,6 +88,7 @@ ETATS = (
     "completed_pending_review",
     "completed_verified",
     "annulee",
+    "a_planifier",  # PLAN T4.10-b : additif, en fin de liste, les huit d'avant gardent leur rang
 )
 ETATS_TERMINAUX = ("completed_pending_review", "completed_verified", "annulee")
 MOTIFS_REPORT = ("client_absent", "meteo", "decision_admin")
@@ -95,6 +109,9 @@ TRANSITIONS_AUTORISEES = (
     ("en_route", "en_revue"),
     ("reportee", "planifiee"),
     ("reportee", "annulee"),
+    # PLAN T4.10-b : additifs. a_planifier -> planifiee n'a de sens qu'avec un verdict de préparation « pret ».
+    ("a_planifier", "planifiee"),
+    ("a_planifier", "annulee"),
 )
 
 TYPE_INSCRIPTION = "intervention_inscrite"
@@ -103,6 +120,14 @@ TYPE_TRANSITION = "transition_statut"
 # (`m4_planifier_intervention` y consigne la cédule). Sans statut : il ne change pas l'état de
 # l'intervention, il dit seulement à qui elle est.
 TYPE_ASSIGNATION = "assignation_technicien"
+# PLAN T4.10-b : d'où vient une intervention née du bus (champ `source` du maillon d'inscription). Une inscription
+# faite par `inscrire_intervention` ne porte pas ce champ.
+SOURCE_DEVIS_ACCEPTE = "m3.devis_accepte"
+# Vocabulaire du verdict de préparation (`preparation.py`) que la machine à états doit reconnaître pour refuser un
+# passage à planifiee sans « pret » : définis ICI pour que `preparation.py` (qui importe `etats`) les reprenne
+# sans cycle d'import.
+VERDICT_PREPARATION_PRET = "pret"
+STATUT_VOLET_OK = "ok"
 
 __all__ = [
     "ETATS",
@@ -112,11 +137,17 @@ __all__ = [
     "TYPE_INSCRIPTION",
     "TYPE_TRANSITION",
     "TYPE_ASSIGNATION",
+    "SOURCE_DEVIS_ACCEPTE",
+    "VERDICT_PREPARATION_PRET",
+    "STATUT_VOLET_OK",
     "CLE_TYPE_TRAVAUX",
     "CLE_SERVICE",
     "travaux_de",
     "statut_courant",
     "inscrire_intervention",
+    "inscrire_depuis_devis",
+    "intervention_du_devis",
+    "empreinte_preparation",
     "assigner_technicien",
     "technicien_assigne",
     "transitionner",
@@ -297,6 +328,144 @@ def inscrire_intervention(contrat, marqueur, registre_cible, horodatage_arg, sel
     return accuse, None
 
 
+def intervention_du_devis(registre_cible, devis_id):
+    """``intervention_id`` de la première intervention qui porte ce ``devis_id``, ou ``None`` (PLAN T4.10-b).
+
+    Toute inscription compte, quelle qu'en soit l'origine (``inscrire_intervention`` avec un ``devis_id``, ou
+    ``inscrire_depuis_devis``) : un devis n'a qu'une intervention, jamais une seconde née du bus à côté d'une
+    intervention déjà planifiée à la main. Lu au registre, jamais déduit."""
+    if not isinstance(devis_id, str) or devis_id == "":
+        return None
+    for maillon in registre_cible.lire():
+        if maillon["type_entree"] == TYPE_INSCRIPTION and maillon.get("devis_id") == devis_id:
+            return maillon["intervention_id"]
+    return None
+
+
+def inscrire_depuis_devis(registre_cible, devis_id, lead, sel, horodatage_arg):
+    """
+    Inscrit l'intervention qui naît d'un devis accepté, au statut ``a_planifier`` (PLAN T4.10-b, M4.5).
+
+    Le devis (``m3.devis_accepte``) porte ``devis_id`` et ``lead_id`` ; il ne porte pas le service, la ville ni
+    l'urgence du chantier. Ceux-là viennent de ``lead`` : le LeadQualifie v2 que M1 a publié pour ce lead, relu à
+    la source du bus par l'adaptateur (``outils._recevoir_devis_accepte``), jamais fourni par un agent ni deviné.
+
+    Args:
+        devis_id: identifiant du devis M3 accepté (chaîne non vide).
+        lead: LeadQualifie v2, validé ICI comme partout dans M4 (frontières, puis structure v2 : le service doit
+            être un code déclaré par le profil d'entreprise de l'instance, ``opsys.taxonomie``).
+        sel: sel de la ville tokenisée (Architecture §2 : le registre est immuable, une ville en clair y serait
+            irrattrapable). Fourni par l'adaptateur, qui le tient du coffre du socle : une inscription née du bus
+            n'a pas d'appelant qui le donne.
+        horodatage_arg: heure de l'acceptation du devis (RFC 3339 avec fuseau), jamais une horloge de M4.
+
+    Refus, sans rien écrire (fail-closed) : frontière violée, lead qui n'est pas un v2 valide, ``devis_id`` ou
+    ``sel`` absent, horodatage invalide, intervention déjà inscrite pour ce devis (REJ-TRANSITION-ILLEGALE).
+
+    Le maillon ne porte AUCUN contact du client (ni nom, ni téléphone, ni courriel, ni empreinte de ceux-ci) ni
+    identifiant de conversation, ni prix : seulement ce que M4 planifie. Aucune date ni créneau n'est fixé.
+    Pas de marqueur de readiness : c'est celui de M2, M4 n'en a pas ; la preuve d'entrée est le devis accepté.
+
+    Returns:
+        (accusé, None) en cas de succès, ou (None, verdict) en cas d'échec.
+    """
+    if not isinstance(devis_id, str):
+        return None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE", detail="devis_id doit être une chaîne")
+    if devis_id == "":
+        return None, verdicts.construire_verdict("REJ-CHAMP-VIDE", detail="devis_id vide")
+
+    ok_front, verdict_front = frontieres.verifier_frontieres(lead)
+    if not ok_front:
+        return None, verdict_front
+    if not isinstance(lead, dict) or "schema_version" not in lead:
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail="LeadQualifie v2 attendu (schema_version) : c'est le contrat que M1 publie",
+        )
+    ok_struct, code_struct, detail_struct = contrats.valider_structure_avec_detail(lead)
+    if not ok_struct:
+        return None, verdicts.construire_verdict(code_struct, detail=detail_struct)
+
+    if not isinstance(sel, str) or sel == "":
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE", detail="sel de tokenisation absent"
+        )
+    try:
+        horodatage.valider_horodatage(horodatage_arg)
+    except ValueError:
+        return None, verdicts.construire_verdict("REJ-HORODATAGE-INVALIDE")
+
+    intervention_id = encodage.empreinte("intervention-devis", lead["lead_id"], devis_id)
+    if intervention_du_devis(registre_cible, devis_id) is not None:
+        return None, verdicts.construire_verdict(
+            "REJ-TRANSITION-ILLEGALE",
+            detail="une intervention existe déjà pour ce devis : un devis n'a qu'une intervention",
+        )
+
+    maillon = {
+        "type_entree": TYPE_INSCRIPTION,
+        "intervention_id": intervention_id,
+        "lead_id": copy.deepcopy(lead["lead_id"]),
+        "schema_version": copy.deepcopy(lead["schema_version"]),
+        CLE_SERVICE: copy.deepcopy(lead[CLE_SERVICE]),
+        "ville_tokenisee": cedule.tokeniser_ville(sel, lead["ville"]),
+        "urgence_declaree": copy.deepcopy(lead["urgence_declaree"]),
+        "devis_id": devis_id,
+        "source": SOURCE_DEVIS_ACCEPTE,
+        "statut": "a_planifier",
+        "horodatage": horodatage_arg,
+    }
+    ligne_id = registre_cible.ajouter(maillon)
+    maillon_relu = None
+    for m in registre_cible.lire():
+        if m.get("ligne_id") == ligne_id:
+            maillon_relu = m
+            break
+    if maillon_relu is None:
+        raise RuntimeError(
+            "Incohérence interne : l’entrée ajoutée est introuvable dans le registre."
+        )
+    return {
+        "intervention_id": intervention_id,
+        "ligne_id": ligne_id,
+        "statut": "a_planifier",
+        "empreinte_maillon": encodage.empreinte(maillon_relu),
+        "tete_chaine": registre_cible.tete(),
+        "horodatage": horodatage_arg,
+    }, None
+
+
+def empreinte_preparation(verdict):
+    """Empreinte SHA-256 canonique de ce qu'un verdict de préparation DIT (intervention, verdict d'ensemble, volets).
+
+    ``preparation.evaluer`` la pose sur son verdict ; ``transitionner`` la recalcule pour refuser un verdict
+    dont le contenu aurait été modifié après coup (un « pret » posé sur des volets qui n'ont pas été vérifiés)."""
+    return encodage.empreinte(
+        {cle: verdict[cle] for cle in ("intervention_id", "statut", "volets")}
+    )
+
+
+def _preparation_prete(preparation, intervention_id):
+    """Vrai seulement pour un verdict de préparation de CETTE intervention, ``pret``, dont tous les volets sont
+    ``ok`` et dont l'empreinte est celle de son contenu. Un dictionnaire quelconque ne passe jamais."""
+    if not isinstance(preparation, dict):
+        return False
+    volets = preparation.get("volets")
+    if not isinstance(volets, dict) or not volets:
+        return False
+    try:
+        empreinte_attendue = empreinte_preparation(preparation)
+    except (KeyError, TypeError, ValueError):
+        return False
+    return (
+        preparation.get("intervention_id") == intervention_id
+        and preparation.get("statut") == VERDICT_PREPARATION_PRET
+        and preparation.get("pret") is True
+        and all(isinstance(v, dict) and v.get("statut") == STATUT_VOLET_OK for v in volets.values())
+        and preparation.get("empreinte") == empreinte_attendue
+    )
+
+
 def assigner_technicien(intervention_id, technicien_id, registre_cible, horodatage_arg):
     """
     Consigne qu'un technicien est assigné à une intervention, AVANT son départ (PLAN T1.4-k).
@@ -383,7 +552,7 @@ def technicien_assigne(registre_cible, intervention_id):
 
 def transitionner(
     intervention_id, statut_cible, registre_cible, horodatage_arg, motif=None,
-    assignation=None,
+    assignation=None, preparation=None,
 ):
     """
     Effectue une transition d’état pour une intervention existante.
@@ -400,6 +569,10 @@ def transitionner(
             horodatage validé EST ce pointage de départ ; ``assignation``
             en fournit la seconde moitié, l’identité du technicien). Interdit
             pour toute autre cible, comme ``motif`` l’est hors report.
+        preparation: obligatoire pour a_planifier -> planifiee (PLAN T4.10-b) : le verdict de
+            ``preparation.evaluer``, ``pret`` avec TOUS ses volets ``ok`` et son empreinte intacte. Interdit pour
+            toute autre transition, comme ``assignation``. Tant qu'un volet n'est pas vérifiable, aucun verdict
+            n'est ``pret`` : la porte reste fermée, jamais ouverte par défaut.
 
     Returns:
         (accusé, None) en cas de succès, ou (None, verdict) en cas d’échec.
@@ -503,6 +676,25 @@ def transitionner(
                 detail="assignation réservée à la transition planifiee -> en_route",
             )
 
+    # 6 ter. a_planifier -> planifiee exige un verdict de préparation « pret » (PLAN T4.10-b, M4.6) : vérifié ICI, à la
+    # source, pour tenir quel que soit l'outil appelant (même patron que l'assignation ci-dessus).
+    if courant == "a_planifier" and statut_cible == "planifiee":
+        if not _preparation_prete(preparation, intervention_id):
+            return None, verdicts.construire_verdict(
+                "REJ-TRANSITION-ILLEGALE",
+                statut=courant,
+                detail=(
+                    "a_planifier -> planifiee exige un verdict de préparation « pret » de cette intervention "
+                    "(preparation.evaluer) : tous les volets doivent être vérifiés, aucun n'est présumé"
+                ),
+            )
+    elif preparation is not None:
+        return None, verdicts.construire_verdict(
+            "REJ-ENUM-INVALIDE",
+            statut=courant,
+            detail="preparation réservée à la transition a_planifier -> planifiee",
+        )
+
     # 7. Construction du maillon de transition
     maillon = {
         "type_entree": TYPE_TRANSITION,
@@ -518,6 +710,9 @@ def transitionner(
         # technicien qui pointe (arrivée/départ) contre CE champ, plutôt que
         # la seule déclaration non vérifiée de l'appelant (voir pointage.py).
         maillon["technicien_id"] = assignation["technicien_id"]
+    if courant == "a_planifier" and statut_cible == "planifiee":
+        # Ce sur quoi la transition s'appuie : l'empreinte du verdict de préparation, pas le verdict lui-même.
+        maillon["empreinte_preparation"] = preparation["empreinte"]
 
     # 8. Écriture, puis relecture PAR ligne_id (hash, pas un index)
     ligne_id = registre_cible.ajouter(maillon)

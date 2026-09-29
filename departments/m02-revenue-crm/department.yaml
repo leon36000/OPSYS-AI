@@ -13,7 +13,9 @@ mission: >-
   de vie (cédule, chantier, facture, paiement, avis) et marque le chantier terminé — activité
   et prochaine action, suggérée par une table de règles déterministe — quand M4 y met fin, y
   compris pour une affaire répétée d'un client déjà connu. Quand un devis M3 reste sans réponse
-  au-delà du délai de relance, en propose la suite (M2.7) — jamais appliquée seule.
+  au-delà du délai de relance, en propose la suite (M2.7) — jamais appliquée seule. Quand M3
+  annonce un devis accepté, le lead qualifié devient converti (référence du devis, prochaine
+  action « planifier le chantier », activité au Client 360) sans promettre de date au client.
 outils: m2_revenue_crm.outils
 mode: ombre
 # m04-field-ops : M2 consomme le signal de fin de chantier de M4 (DEFINITION-PRODUIT §6,
@@ -63,6 +65,11 @@ kpis:
 # PLAN T2.1-b : M2 consomme m1.lead_qualifie, le lead que M1 qualifie à partir d'un message de canal du core (SMS) — voir
 # _recevoir_lead_qualifie dans outils.py : ingestion complète, idempotente, un refus lève (réessais, puis quarantaine).
 # Catalogue : src/opsys/evenements/catalogue/m1.lead_qualifie.json.
+# PLAN T4.10-a : M2 consomme m3.devis_accepte (DEFINITION-PRODUIT §6, « soumission acceptée -> M4 planifie ») — voir
+# _recevoir_devis_accepte dans outils.py : qualifie -> converti avec reference_devis_m3, prochaine action « planifier le
+# chantier » (règle citée) et activité au Client 360 ; lead perdu : gardé sans conversion (lead_clos) ; lead inconnu,
+# jamais qualifié ou déjà converti par un autre devis : erreur nommée (réessais, puis quarantaine). Catalogue :
+# src/opsys/evenements/catalogue/m3.devis_accepte.json.
 evenements:
-  consomme: [m4.travaux_termines, m3.devis_sans_reponse, m1.lead_qualifie]
+  consomme: [m4.travaux_termines, m3.devis_sans_reponse, m1.lead_qualifie, m3.devis_accepte]
   publie: [m2.client_associe, m2.lead_assigne]

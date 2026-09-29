@@ -687,13 +687,23 @@ def test_consommateur_en_echec_m2_quarantaine_sans_bloquer_les_autres(base_durab
 
     t = base + dt.timedelta(hours=1)
     resume1 = evenements.repartir(deps, maintenant=_iso(t, 0))
-    assert resume1["echecs"] == 1, resume1
+    # PLAN T4.10-a : M2 consomme aussi `m3.devis_accepte` ; un lead qu'il ne connaît pas fait donc échouer M2
+    # deux fois au premier tour (le devis accepté ET le WCT), jamais M4 (l'intervention du devis existe déjà).
+    assert resume1["echecs"] == 2, resume1
     assert resume1["quarantaines"] == 0, resume1
 
     recu_m2_t1 = _recu(wct_id, "m02-revenue-crm")
     assert recu_m2_t1 is not None and recu_m2_t1["statut"] == "echec"
     assert recu_m2_t1["tentatives"] == 1
     assert "LeadIntrouvable" in recu_m2_t1["derniere_erreur"]
+    evenement_devis = f"m3-devis-accepte-{devis_id}"
+    recu_devis_m2_t1 = _recu(evenement_devis, "m02-revenue-crm")
+    assert recu_devis_m2_t1 is not None and recu_devis_m2_t1["statut"] == "echec"
+    assert "LeadIntrouvable" in recu_devis_m2_t1["derniere_erreur"]
+    recu_devis_m4 = _recu(evenement_devis, "m04-field-ops")
+    assert recu_devis_m4 is not None and recu_devis_m4["statut"] == "traite", (
+        "M4 reconnaît l'intervention planifiée avec ce devis_id : aucun double, aucun échec"
+    )
 
     # Dès ce PREMIER tour, tous les autres consommateurs ont déjà traité le même événement.
     for consommateur in (
@@ -714,10 +724,13 @@ def test_consommateur_en_echec_m2_quarantaine_sans_bloquer_les_autres(base_durab
     recu_m2_final = _recu(wct_id, "m02-revenue-crm")
     assert recu_m2_final is not None and recu_m2_final["statut"] == "quarantaine"
     assert recu_m2_final["tentatives"] == 5
+    assert _recu(evenement_devis, "m02-revenue-crm")["statut"] == "quarantaine"
 
     quarantaine = [ligne for ligne in evenements.etat()["quarantaine"] if ligne["consommateur"] == "m02-revenue-crm"]
-    assert len(quarantaine) == 1
-    assert quarantaine[0]["evenement_id"] == wct_id
+    assert sorted(ligne["evenement_id"] for ligne in quarantaine) == sorted([wct_id, evenement_devis])
+    assert [ligne["consommateur"] for ligne in evenements.etat()["quarantaine"]] == ["m02-revenue-crm"] * 2, (
+        "seul M2 est en quarantaine : rien d'autre n'est bloqué"
+    )
 
     # M2 n'a RIEN écrit (aucune écriture partielle, ADR-0009 §3).
     assert m2_statuts.statut_courant(_m2_registre(), lead_id) is None
