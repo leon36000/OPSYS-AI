@@ -38,7 +38,7 @@ from typing import Any
 
 import yaml
 
-from opsys import contexte, evenements, identite, stockage
+from opsys import contexte, evenements, identite, jetons, stockage
 from opsys.outils import Autonomie, Outil, depuis_couple
 
 from . import (
@@ -167,6 +167,9 @@ def _valeurs_travaux_termines(charge: dict[str, Any]) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 _MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
 _NOM_REGISTRE_FAITS = "faits_chantier"
+# `Capacites._tronquer` mesure `{"ok": true, "resultat": ...}` : 25 caractères d'enveloppe, plus une marge.
+# Sous ce budget (la limite de sortie du socle moins cette réserve), une réponse n'est jamais tronquée.
+BUDGET_SORTIE = jetons.LIMITE_SORTIE_DEFAUT - 100
 _ROLE_ADMIN = identite.Role.ADMIN.value
 
 
@@ -649,18 +652,22 @@ def outils(
     def lire_mesures_chantier(wct_id: str) -> dict[str, Any]:
         """Mesures d'un chantier terminé d'après les faits déjà reçus (T1.5-d) : temps réel contre
         prévu, marge prévue contre réelle, écart de matériaux, chacune calculée, ou « non
-        calculable » avec ce qui manque et sa source. Lecture pure : ne publie aucune alerte. Le
-        technicien n'y figure pas (détail nominatif : `m8_performance_equipe`, admin)."""
+        calculable » avec ce qui manque (`manque`, détaillé une fois dans `manques` : champ, source,
+        raison — forme compacte, la réponse ne doit jamais être tronquée par `Capacites`). Lecture
+        pure : ne publie aucune alerte. Le technicien n'y figure pas (détail nominatif :
+        `m8_performance_equipe`, admin)."""
         situation = _situation_chantier(wct_id, faits_cible)
         if situation is None:
             return {"wct_id": wct_id, "trouve": False, "verdict": f"REJ-CHANTIER-INCONNU:{wct_id}"}
         wct = situation["faits"]["wct"]
+        mesures, manques = mesures_chantier.compacter(situation["mesures"])
         return {
             "wct_id": wct_id,
             "trouve": True,
             "devis_id": wct.get("devis_id"),
             "horodatage_completion": wct["horodatage_completion"],
-            "mesures": situation["mesures"],
+            "mesures": mesures,
+            "manques": manques,
             "seuils": situation["evaluations"],
             "seuils_a_configurer": [
                 e["metric_id"] for e in situation["evaluations"]
@@ -682,13 +689,16 @@ def outils(
         personne = identite.personne_active(cnx, appelante.personne)
         return personne is not None and appelante.role in personne.roles
 
-    def performance_equipe() -> dict[str, Any]:
+    def performance_equipe(depart: int = 0) -> dict[str, Any]:
         """Écart de temps par technicien (T1.5-d), la plus petite métrique honnête : anonyme pour
-        l'équipe, nominatif seulement pour l'admin authentifié, jamais classé, jamais une alerte."""
+        l'équipe, nominatif seulement pour l'admin authentifié, jamais classé, jamais une alerte.
+
+        Le détail nominatif est BORNÉ sous la limite de sortie du socle : les techniciens, par
+        identifiant, tiennent page par page (`depart`, `affichage.prochain_depart`), jamais tronqués."""
         resultat = mesures_chantier.performance_equipe(list(faits_cible), _chantiers_minimum())
         definition = mesures_chantier.charger_definitions()[mesures_chantier.METRIQUE_EQUIPE]
         nominatif = admin_authentifie()
-        reponse: dict[str, Any] = {
+        socle: dict[str, Any] = {
             "metric_id": resultat["metric_id"],
             "unite": definition["unite"],
             "version_definition": encodage_module.empreinte(definition),
@@ -702,9 +712,23 @@ def outils(
                 "Indicateur non punitif : techniciens listés par identifiant, sans classement, sans alerte.",
             ],
         }
-        if nominatif:
-            reponse["techniciens"] = resultat["techniciens"]
-        return reponse
+        if not nominatif:
+            return socle
+        techniciens = resultat["techniciens"]
+
+        def construire(page: list[dict[str, Any]], prochain_depart: int | None) -> dict[str, Any]:
+            reste = len(techniciens) - depart - len(page)
+            message = f"{reste} technicien(s) non affiché(s) : poursuivre avec depart={prochain_depart}."
+            return {
+                **socle,
+                "techniciens": page,
+                "affichage": {
+                    "n_techniciens": len(techniciens), "depart": depart, "affiches": len(page), "reste": reste,
+                    "prochain_depart": prochain_depart, "message": message if reste else None,
+                },
+            }
+
+        return mesures_chantier.page_bornee(techniciens, depart, BUDGET_SORTIE, construire)
 
     return (
         Outil(
@@ -948,9 +972,19 @@ def outils(
                 "SEULEMENT pour l'admin authentifié (sinon `detail_nominatif: reserve_admin`). Techniciens "
                 "listés par identifiant, sans classement ni alerte : indicateur non punitif. Dit le nombre "
                 "de chantiers mesurés et de ceux sans temps prévu ; le minimum d'échantillon vient de la "
-                "configuration, sinon `suffisant` reste nul."
+                "configuration, sinon `suffisant` reste nul. Le détail nominatif est borné : `depart` reprend "
+                "à `affichage.prochain_depart` s'il y a plus de techniciens que la limite de sortie n'en laisse tenir."
             ),
-            parametres={"type": "object", "properties": {}, "additionalProperties": False},
+            parametres={
+                "type": "object",
+                "properties": {
+                    "depart": {
+                        "type": "integer",
+                        "description": "Indice du premier technicien rendu (0 = début) ; reprendre à prochain_depart.",
+                    },
+                },
+                "additionalProperties": False,
+            },
             fonction=performance_equipe,
             roles_appareil=frozenset({_ROLE_ADMIN}),
         ),

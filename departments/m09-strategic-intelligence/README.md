@@ -22,5 +22,10 @@ conformité statique.
   `SnapshotModule` est validé identiquement par M8 et M9 — une valeur numérique est rejetée
   par les deux, jamais acceptée par l'un et refusée par l'autre.
 
+- PLAN T1.5-d : le briefing du matin est borné par le code sous la limite de sortie du socle (« N autres
+  éléments non affichés », lus par `m9_lire_suite_briefing`) ; `m9_produire_lecture_strategique` lit les
+  alertes de mesure de chantier de M8 et cite leurs preuves, sans décider (la décision revient au
+  propriétaire). `department.yaml` : `configuration.fenetre_alertes_jours`.
+
 Council d'agents, Strategic Supervisor, scénarios narratifs et Decision Intelligence Engine
 restent GATED (hors périmètre v1, cf. `docs/bmad/02-PRD-PM.md` §3.2).

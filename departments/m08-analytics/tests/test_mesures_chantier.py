@@ -285,6 +285,50 @@ def test_aucun_materiau_avec_un_ecart_defini_rend_la_mesure_non_calculable():
 
 
 # ---------------------------------------------------------------------------
+# Forme compacte d'un outil de lecture : le détail d'un manque une seule fois
+# ---------------------------------------------------------------------------
+def _compactes(*entrees):
+    faits = mc.assembler_faits("wct-fictif-1", list(entrees))
+    return mc.compacter(mc.mesurer_chantier(faits, _DEFINITIONS))
+
+
+def test_la_forme_compacte_dedouble_le_detail_des_manques_sans_rien_perdre():
+    compactes, manques = _compactes(_wct())  # le WCT seul : tout manque
+
+    assert [m["metric_id"] for m in compactes] == [
+        m for m in _DEFINITIONS if m != mc.METRIQUE_EQUIPE
+    ]  # même ordre, même nombre : aucune mesure retirée
+    assert all(m["statut"] == mc.STATUT_NON_CALCULABLE and m["valeur"] is None for m in compactes)
+    assert all("detail" not in m and "entrees" not in m for m in compactes)  # non redit mesure par mesure
+    # Chaque nom de `manque` retrouve son détail, et chaque détail n'apparaît qu'une fois.
+    champs_detailles = {m["champ"] for m in manques}
+    assert {champ for m in compactes for champ in m["manque"]} <= champs_detailles
+    triplets = [(m["champ"], m["source"], m["raison"]) for m in manques]
+    assert len(triplets) == len(set(triplets))
+    assert sum(1 for m in manques if m["champ"] == "duree_estimee_minutes") == 1  # deux mesures, un détail
+
+
+def test_la_forme_compacte_garde_les_entrees_d_une_mesure_calculee_et_sa_version():
+    compactes, manques = _compactes(_wct(), _devis(), _variance(), _rentabilite())
+    par_id = {m["metric_id"]: m for m in compactes}
+
+    assert manques == []
+    assert par_id["m8_ecart_duree_pct"]["entrees"] == {
+        "duree_reelle_minutes": "120.00", "duree_estimee_minutes": "100.00",
+    }
+    assert par_id["m8_ecart_duree_pct"]["version_definition"] == encodage.empreinte(
+        _DEFINITIONS["m8_ecart_duree_pct"])
+    assert "manque" not in par_id["m8_ecart_duree_pct"]
+
+
+def test_la_forme_compacte_est_bien_plus_petite_que_la_forme_riche_au_pire_cas():
+    faits = mc.assembler_faits("wct-fictif-1", [_wct(devis_id="DEVIS-" + "cd" * 32)])
+    riche = mc.mesurer_chantier(faits, _DEFINITIONS)
+    compactes, manques = mc.compacter(riche)
+    assert len(json.dumps([compactes, manques])) < len(json.dumps(riche)) * 0.7
+
+
+# ---------------------------------------------------------------------------
 # Seuils : absent = pas d'alerte et un signal « seuil à configurer »
 # ---------------------------------------------------------------------------
 def _evaluations(seuils, *entrees):
@@ -529,3 +573,41 @@ def test_la_performance_d_equipe_ne_produit_jamais_de_charge_d_alerte():
     assert mc.METRIQUE_EQUIPE not in mc._DESTINATAIRE_ALERTE
     mesures = _mesures(_wct(), _devis())
     assert mc.METRIQUE_EQUIPE not in mesures  # pas une mesure de chantier
+
+
+# ---------------------------------------------------------------------------
+# Page bornée : autant d'éléments que la borne en laisse tenir, la suite à prochain_depart
+# ---------------------------------------------------------------------------
+def _construire(page, prochain_depart):
+    return {"lignes": page, "prochain_depart": prochain_depart}
+
+
+def _elements(n: int):
+    return [{"id": f"e-{numero:03d}", "texte": "x" * 60} for numero in range(n)]
+
+
+def test_page_bornee_sans_borne_rend_tout_d_un_coup():
+    reponse = mc.page_bornee(_elements(30), 0, None, _construire)
+    assert len(reponse["lignes"]) == 30 and reponse["prochain_depart"] is None
+
+
+def test_page_bornee_tient_sous_la_borne_et_les_pages_couvrent_tout_une_fois():
+    elements = _elements(100)
+    lus, depart = [], 0
+    while depart is not None:
+        reponse = mc.page_bornee(elements, depart, 1000, _construire)
+        assert len(json.dumps(reponse, ensure_ascii=False)) <= 1000
+        assert reponse["lignes"]  # jamais une page vide qui ne ferait pas avancer
+        lus.extend(e["id"] for e in reponse["lignes"])
+        depart = reponse["prochain_depart"]
+    assert lus == [e["id"] for e in elements]
+
+
+def test_page_bornee_refuse_ce_qui_ne_ferait_pas_avancer_la_lecture():
+    for depart in (-1, True, "0", 6):
+        with pytest.raises(ValueError):
+            mc.page_bornee(_elements(5), depart, 1000, _construire)
+    with pytest.raises(ValueError, match="un seul élément dépasse"):
+        mc.page_bornee(_elements(5), 0, 60, _construire)
+    fin = mc.page_bornee(_elements(5), 5, 1000, _construire)  # depart == fin : page vide qui le dit
+    assert fin == {"lignes": [], "prochain_depart": None}

@@ -52,8 +52,9 @@ ADMIN_SEUL = frozenset({
     "m6_annuler_po", "m6_approuver_po", "m6_evaluer_variance_chantier", "m6_produire_digest",
     "m6_receptionner_commande", "m6_soumettre_comptage",
     "m7_lister_file_approbation",
-    "m9_decider_demande_approbation", "m9_lire_alertes_m8", "m9_lire_etat_consolide",
-    "m9_lister_demandes_approbation", "m9_produire_briefing_matin",
+    "m8_lire_mesures_chantier", "m8_performance_equipe",
+    "m9_decider_demande_approbation", "m9_lire_alertes_m8", "m9_lire_etat_consolide", "m9_lire_suite_briefing",
+    "m9_lister_demandes_approbation", "m9_produire_briefing_matin", "m9_produire_lecture_strategique",
     "m10_arbitrer_revision", "m10_paquet_contexte_affaire", "m10_statut_decision", "m10_statut_revision",
 })
 ADMIN = EMPLOYE | VENDEUR | ADMIN_SEUL

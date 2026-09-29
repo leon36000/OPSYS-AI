@@ -10,6 +10,7 @@ posés dans un `department.yaml` temporaire (`_MANIFESTE`) : le vrai n'en fixe a
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -17,7 +18,8 @@ import yaml
 from m8_analytics import outils as m8_outils
 from sqlalchemy import select
 
-from opsys import evenements, stockage
+from opsys import evenements, jetons, stockage
+from opsys.capacites import Capacites
 from opsys.departements import charger_departements
 from opsys.outils import executer_atomique
 from opsys.stockage import codec
@@ -141,11 +143,17 @@ def test_le_wct_seul_donne_des_mesures_non_calculables_qui_nomment_ce_qui_manque
     assert _livrer(departements) == {"livres": 1, "traites": 1, "echecs": 0, "quarantaines": 0, "ignores": 0}
 
     assert [f["type_entree"] for f in _faits()] == ["wct"]
-    mesures = _par_metrique(_mesures())
+    resultat = _mesures()
+    mesures = _par_metrique(resultat)
     assert {m["statut"] for m in mesures.values()} == {"non_calculable"}
     assert all(m["valeur"] is None for m in mesures.values())  # jamais un zéro, jamais une moyenne
-    assert mesures["m8_ecart_duree_pct"]["manque"][0]["champ"] == "duree_estimee_minutes"
-    assert {c["champ"] for c in mesures["m8_marge_prevue_cad"]["manque"]} == {"prix_total", "cout_total"}
+    assert mesures["m8_ecart_duree_pct"]["manque"] == ["duree_estimee_minutes"]
+    assert set(mesures["m8_marge_prevue_cad"]["manque"]) == {"prix_total", "cout_total"}
+    # Le détail de ce qui manque (champ, source, raison) est rendu une fois, pour toutes les mesures.
+    detail = {m["champ"]: m for m in resultat["manques"]}
+    assert detail["duree_estimee_minutes"]["source"] == "M3 (m3.devis_accepte)"
+    assert detail["prix_total"]["raison"] == "aucun devis accepté reçu pour devis-m8-1"
+    assert len({(m["champ"], m["source"], m["raison"]) for m in resultat["manques"]}) == len(resultat["manques"])
     assert _alertes() == []  # rien de calculé, rien d'alerté
 
 
@@ -173,12 +181,18 @@ def test_le_devis_avant_le_wct_donne_le_temps_prevu_et_la_marge_prevue(base_dura
     _publier("m4.travaux_termines", "m04-field-ops", _wct())
     _livrer(departements)
 
-    mesures = _par_metrique(_mesures())
+    resultat = _mesures()
+    mesures = _par_metrique(resultat)
     assert mesures["m8_ecart_duree_minutes"]["valeur"] == "60.00"  # 120 - 60
     assert mesures["m8_ecart_duree_pct"]["valeur"] == "100.00"
     assert mesures["m8_marge_prevue_cad"]["valeur"] == "120.00"  # 600 - 480
     assert mesures["m8_marge_reelle_cad"]["statut"] == "non_calculable"  # M5 ne rapporte pas encore
-    assert mesures["m8_marge_reelle_cad"]["manque"][0]["source"] == "M5 (rentabilité du chantier)"
+    assert mesures["m8_marge_reelle_cad"]["manque"] == ["marge_reelle_cad"]
+    assert {
+        "champ": "marge_reelle_cad", "source": "M5 (rentabilité du chantier)",
+        "raison": "aucun fait reçu de cette source pour ce chantier",
+    } in resultat["manques"]
+    assert {m["champ"] for m in resultat["manques"]} == {"marge_reelle_cad", "variance_chantier"}  # le devis est là
 
 
 def test_le_devis_apres_le_wct_remesure_le_chantier_deja_termine(base_durable, departements):
@@ -203,9 +217,11 @@ def test_un_devis_sans_duree_estimee_laisse_le_temps_prevu_non_calculable_mais_d
     _publier("m4.travaux_termines", "m04-field-ops", _wct())
     _livrer(departements)
 
-    mesures = _par_metrique(_mesures())
+    resultat = _mesures()
+    mesures = _par_metrique(resultat)
     assert mesures["m8_ecart_duree_pct"]["statut"] == "non_calculable"
-    assert mesures["m8_ecart_duree_pct"]["manque"][0]["champ"] == "duree_estimee_minutes"
+    assert mesures["m8_ecart_duree_pct"]["manque"] == ["duree_estimee_minutes"]
+    assert resultat["manques"][0]["raison"] == "absent du fait reçu"
     assert mesures["m8_marge_prevue_cad"]["valeur"] == "120.00"
 
 
@@ -214,9 +230,9 @@ def test_un_wct_sans_devis_id_n_est_lie_a_aucun_devis(base_durable, departements
     _publier("m4.travaux_termines", "m04-field-ops", _wct(devis_id=None))
     _livrer(departements)
 
-    mesure = _par_metrique(_mesures())["m8_ecart_duree_pct"]
-    assert mesure["statut"] == "non_calculable"
-    assert "aucun devis" in mesure["manque"][0]["raison"]
+    resultat = _mesures()
+    assert _par_metrique(resultat)["m8_ecart_duree_pct"]["statut"] == "non_calculable"
+    assert any("aucun devis" in m["raison"] for m in resultat["manques"])
 
 
 # ---------------------------------------------------------------------------
@@ -237,9 +253,9 @@ def test_la_variance_en_attente_puis_evaluee_la_mesure_suit_le_statut(base_durab
     _publier("m4.travaux_termines", "m04-field-ops", _wct())
     _publier("m6.variance_chantier", "m06-material-control", _variance(statut="declaration_absente"))
     _livrer(departements)
-    en_attente = _par_metrique(_mesures())["m8_ecart_materiaux_max_pct"]
-    assert en_attente["statut"] == "non_calculable"
-    assert "declaration_absente" in en_attente["manque"][0]["raison"]
+    resultat = _mesures()
+    assert _par_metrique(resultat)["m8_ecart_materiaux_max_pct"]["statut"] == "non_calculable"
+    assert any("declaration_absente" in m["raison"] for m in resultat["manques"])
 
     _publier("m6.variance_chantier", "m06-material-control", _variance())
     _livrer(departements, "2026-09-28T18:05:00+00:00")
@@ -418,3 +434,25 @@ def test_le_catalogue_refuse_une_alerte_de_mesure_dont_la_preuve_est_incomplete(
     }
     with pytest.raises(evenements.ChargeInvalide):
         _publier("m8.alerte_proposee", "m08-analytics", charge, evenement_id="m8-alerte-test")
+
+
+# ---------------------------------------------------------------------------
+# La réponse de l'outil n'est jamais tronquée par Capacites, pire cas compris
+# ---------------------------------------------------------------------------
+def test_la_lecture_des_mesures_tient_sous_la_limite_du_socle_meme_au_pire_cas(base_durable, departements):
+    """Le pire cas : le WCT seul (huit mesures sur sept non calculables), avec des identifiants aussi longs
+    que ceux du réel (wct_id : empreinte de 64 caractères ; devis_id dérivé du lead et de l'empreinte du
+    marqueur de M2). Sans la forme compacte, le détail de chaque manque se répéterait mesure par mesure."""
+    wct_id = "ab" * 32
+    devis_id = "DEVIS-" + "cd" * 32
+    _publier("m4.travaux_termines", "m04-field-ops", _wct(wct_id=wct_id, devis_id=devis_id))
+    _livrer(departements)
+    capacites = Capacites(
+        charger_departements(_RACINE_DEPARTEMENTS), stockage.transaction, filtre={"m08-analytics"}, memoire=False,
+    )
+
+    reponse = capacites.appeler("m8_lire_mesures_chantier", {"wct_id": wct_id})
+
+    assert reponse["ok"] is True and "tronque" not in reponse
+    assert len(json.dumps(reponse, ensure_ascii=False)) < jetons.LIMITE_SORTIE_DEFAUT - 1500  # de la marge
+    assert {m["statut"] for m in reponse["resultat"]["mesures"]} == {"non_calculable"}

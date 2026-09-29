@@ -9,15 +9,20 @@ le fait OPSYS-CORE (`opsys.contexte.appele_par_appareil`).
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 from m8_analytics import outils as m8_outils
 from m8_analytics.outils import outils
 from m8_analytics.registre import RegistreSnapshots
 
-from opsys import contexte, identite, stockage
+from opsys import contexte, identite, jetons, stockage
+from opsys.capacites import Capacites
 from opsys.contexte import IdentiteAppelante
+from opsys.departements import charger_departements
 from opsys.outils import Autonomie, executer, executer_atomique
+
+_RACINE_DEPARTEMENTS = Path(__file__).resolve().parents[2]
 
 _TECHNICIENS = ("tech-fictif-a", "tech-fictif-b")
 
@@ -114,6 +119,9 @@ def test_l_admin_authentifie_recoit_le_detail_par_technicien_sans_classement(bas
     resultat = _equipe(_par_nom(), IdentiteAppelante("admin.fictif", "admin"))
 
     assert resultat["detail_nominatif"] == "inclus"
+    assert resultat["affichage"] == {
+        "n_techniciens": 2, "depart": 0, "affiches": 2, "reste": 0, "prochain_depart": None, "message": None,
+    }
     assert [t["technicien_id"] for t in resultat["techniciens"]] == list(_TECHNICIENS)  # par identifiant
     par_id = {t["technicien_id"]: t for t in resultat["techniciens"]}
     assert par_id["tech-fictif-a"]["ecart_pct"] == "-10.00"
@@ -161,3 +169,53 @@ def test_le_minimum_configure_rend_suffisant_vrai_ou_faux(base_avec_personnes, t
     assert par_id["tech-fictif-a"]["suffisant"] is False  # 1 chantier < 2
     assert par_id["tech-fictif-b"]["suffisant"] is True  # 2 chantiers >= 2
     assert resultat["chantiers_minimum_a_configurer"] is False
+
+
+# ---------------------------------------------------------------------------
+# Une grande équipe : le détail nominatif tient sous la limite du socle, page par page
+# ---------------------------------------------------------------------------
+def test_le_detail_nominatif_d_une_grande_equipe_n_est_jamais_tronque_et_se_lit_par_pages(base_avec_personnes):
+    """40 techniciens, un chantier chacun : plus que les 6 000 caractères de `Capacites` n'en laissent tenir.
+    La réponse dit où reprendre (`prochain_depart`) au lieu d'être coupée au milieu."""
+    identifiants = [f"tech-fictif-{numero:02d}" for numero in range(40)]
+    faits = stockage.maillons("m08-analytics", "faits_chantier")
+    with stockage.transaction():
+        for numero, technicien in enumerate(identifiants):
+            faits.append({
+                "type_entree": "wct", "wct_id": f"w{numero}", "intervention_id": f"i{numero}",
+                "devis_id": f"d{numero}", "technicien_id": technicien,
+                "horodatage_completion": "2026-09-28T14:00:00-04:00", "duree_reelle_minutes": 100 + numero,
+                "statut": "completed_verified",
+            })
+            faits.append({
+                "type_entree": "devis", "devis_id": f"d{numero}", "prix_total": "600.00", "cout_total": "480.00",
+                "duree_estimee_minutes": "100", "horodatage_acceptation": "2026-09-20T09:00:00-04:00",
+            })
+    capacites = Capacites(
+        charger_departements(_RACINE_DEPARTEMENTS), stockage.transaction, filtre={"m08-analytics"}, memoire=False,
+    )
+
+    vus, depart, pages = [], 0, 0
+    while depart is not None:
+        with contexte.appele_par_appareil(IdentiteAppelante("admin.fictif", "admin")):
+            reponse = capacites.appeler("m8_performance_equipe", {"depart": depart})
+        assert reponse["ok"] is True and "tronque" not in reponse, reponse
+        assert len(json.dumps(reponse, ensure_ascii=False)) <= jetons.LIMITE_SORTIE_DEFAUT
+        page = reponse["resultat"]
+        assert page["equipe"]["n_techniciens"] == 40  # l'équipe entière, quelle que soit la page
+        assert page["affichage"]["affiches"] == len(page["techniciens"]) > 0
+        vus.extend(t["technicien_id"] for t in page["techniciens"])
+        depart = page["affichage"]["prochain_depart"]
+        pages += 1
+        assert pages < 50
+
+    assert vus == identifiants  # les 40, une fois chacun, par identifiant
+    assert pages > 1
+
+
+def test_le_detail_nominatif_refuse_un_depart_invalide_ou_au_dela_de_la_fin(base_avec_personnes):
+    par_nom = _par_nom()
+    for depart in (-1, 3, True):
+        with contexte.appele_par_appareil(IdentiteAppelante("admin.fictif", "admin")):
+            reponse = executer_atomique(par_nom["m8_performance_equipe"], {"depart": depart})
+        assert reponse["ok"] is False, depart  # -1 et 3 : refus métier ; True : type refusé par le schéma

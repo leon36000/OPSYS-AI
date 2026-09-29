@@ -335,7 +335,7 @@ def test_a_travaux_termines_normaux_par_la_porte_d_appareil(moteur, scenario_a):
         "materiau": MATERIAU_ID, "unite": "pi", "quantite_prevue": "40.0", "quantite_reelle": "42.0",
         "ecart_pourcentage": "0.05", "critique": False}]
     assert _recus(evaluee["evenement_id"]) == dict.fromkeys(
-        {"m03-estimation", "m04-field-ops", "m05-financecore", "m10-memoire"}, "traite")
+        {"m03-estimation", "m04-field-ops", "m05-financecore", "m08-analytics", "m10-memoire"}, "traite")  # T1.5-d : M8
 
     # -- M4 : `completed_verified` (le statut réel du code, calculé par le code, jamais par l'agent) ---
     assert completion.resultat["statut"] == "completed_pending_review"  # l'app le voit d'abord : jamais vérifié seul

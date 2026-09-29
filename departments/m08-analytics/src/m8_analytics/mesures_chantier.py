@@ -34,6 +34,8 @@ Faits reçus (un dictionnaire par fait, ajoutés en lecture seule au registre ``
 
 from __future__ import annotations
 
+import json
+from collections.abc import Callable
 from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
@@ -394,6 +396,34 @@ def mesurer_chantier(faits: dict[str, Any], definitions: dict[str, dict[str, str
     return mesures
 
 
+def compacter(mesures: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+    """Forme COMPACTE des mesures pour un outil de lecture, dont la réponse ne doit jamais dépasser la
+    limite de sortie du socle (`Capacites` tronque au-delà de 6 000 caractères).
+
+    Une mesure non calculable ne porte que les NOMS de ce qui manque ; le détail (champ, source,
+    raison) est rendu UNE fois dans la liste ``manques``, dédupliquée : « pas de devis reçu » vaut
+    pour cinq métriques et ne se répète pas cinq fois. Rien n'est perdu : chaque nom de ``manque``
+    retrouve son détail dans ``manques``. Une mesure calculée garde ses entrées (la provenance du
+    chiffre) ; les entrées partielles d'une mesure non calculable, jamais un chiffre, sont omises."""
+    compactes: list[dict[str, Any]] = []
+    manques: list[dict[str, str]] = []
+    vus: set[tuple[str, str, str]] = set()
+    for mesure in mesures:
+        compacte: dict[str, Any] = {cle: mesure[cle] for cle in ("metric_id", "nom", "unite", "statut", "valeur")}
+        if mesure["statut"] == STATUT_NON_CALCULABLE:
+            compacte["manque"] = [m["champ"] for m in mesure["manque"]]
+            for m in mesure["manque"]:
+                cle = (m["champ"], m["source"], m["raison"])
+                if cle not in vus:
+                    vus.add(cle)
+                    manques.append(dict(m))
+        elif mesure["entrees"]:
+            compacte["entrees"] = mesure["entrees"]
+        compacte["version_definition"] = mesure["version_definition"]
+        compactes.append(compacte)
+    return compactes, manques
+
+
 # ---------------------------------------------------------------------------
 # Seuils : configurés ou pas d'alerte, et un signal qui dit quoi configurer
 # ---------------------------------------------------------------------------
@@ -597,6 +627,42 @@ def performance_equipe(entrees: list[dict[str, Any]], chantiers_minimum: Any) ->
     }
 
 
+def page_bornee(
+    elements: list[dict[str, Any]], depart: int, budget_caracteres: int | None,
+    construire: Callable[[list[dict[str, Any]], int | None], dict[str, Any]],
+) -> dict[str, Any]:
+    """Réponse d'un outil de lecture qui liste ``elements`` à partir de ``depart``, avec autant
+    d'éléments que la borne en laisse tenir : ``construire(page, prochain_depart)`` assemble la réponse
+    (``prochain_depart`` vaut ``None`` à la fin). La taille se mesure comme ``Capacites`` la mesure
+    (``json.dumps`` sans échappement ASCII) : la réponse n'est jamais tronquée, et ce qui n'y tient pas
+    est repris à ``prochain_depart``, jamais perdu. ``budget_caracteres`` ``None`` : tout d'un coup.
+    Fail-closed : ``depart`` invalide ou au-delà de la fin, ou un seul élément plus gros que la borne (une
+    page vide ne ferait pas progresser la lecture)."""
+    if isinstance(depart, bool) or not isinstance(depart, int) or depart < 0:
+        raise ValueError(f"depart : entier positif ou nul attendu, reçu {depart!r}")
+    if depart > len(elements):
+        raise ValueError(f"depart {depart} au-delà de la fin de la liste ({len(elements)} éléments)")
+
+    def reponse(nombre: int) -> dict[str, Any]:
+        fin = depart + nombre
+        return construire(elements[depart:fin], fin if fin < len(elements) else None)
+
+    nombre = len(elements) - depart
+    if budget_caracteres is not None:
+        nombre = 0
+        while depart + nombre < len(elements) and len(
+            json.dumps(reponse(nombre + 1), ensure_ascii=False)
+        ) <= budget_caracteres:
+            nombre += 1
+        if nombre == 0 and depart < len(elements):
+            raise ValueError(f"un seul élément dépasse la borne de {budget_caracteres} caractères")
+        if len(json.dumps(reponse(nombre), ensure_ascii=False)) > budget_caracteres:
+            raise ValueError(
+                f"le squelette de la réponse dépasse à lui seul la borne de {budget_caracteres} caractères"
+            )
+    return reponse(nombre)
+
+
 __all__ = [
     "METRIQUE_EQUIPE",
     "MODULE_DEFINITIONS",
@@ -611,11 +677,13 @@ __all__ = [
     "assembler_faits",
     "charger_definitions",
     "charges_alertes",
+    "compacter",
     "evaluer_seuils",
     "fait_devis",
     "fait_variance",
     "fait_wct",
     "mesurer_chantier",
+    "page_bornee",
     "performance_equipe",
     "wcts_du_devis",
 ]
