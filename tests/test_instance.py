@@ -12,6 +12,7 @@ import os
 import re
 import shutil
 import stat
+import subprocess
 import sys
 from pathlib import Path
 
@@ -536,3 +537,87 @@ def test_le_dossier_personnel_se_lit_comme_dans_le_core():
     assert "const explicitHome = normalizeHomeDirValue(env.OPENCLAW_HOME);" in dossier_personnel
     chemins = (RACINE / "core/src/config/paths.ts").read_text(encoding="utf-8")
     assert "if (normalizeHomeDirValue(env.OPENCLAW_HOME)) {\n    return false;" in chemins  # sinon aucun service
+
+
+# -- restreindre_acces : 0600 sous POSIX, icacls sous Windows --------------------------------------------------------
+def test_restreindre_acces_pose_0600_hors_de_windows(tmp_path):
+    fichier = tmp_path / "secret"
+    fichier.write_text("x", encoding="utf-8")
+    fichier.chmod(0o644)
+
+    instance.restreindre_acces(fichier)
+
+    assert _mode(fichier) == 0o600
+
+
+def test_restreindre_acces_sous_windows_coupe_l_heritage_et_ne_garde_que_l_utilisateur(tmp_path, monkeypatch):
+    appels: list[list[str]] = []
+
+    def faux(commande, **options):
+        appels.append(list(commande))
+        assert options["check"] is False and options["capture_output"] is True
+        return subprocess.CompletedProcess(commande, 0, "", "")
+
+    monkeypatch.setattr(instance, "_sous_windows", lambda: True)
+    monkeypatch.setattr(instance.subprocess, "run", faux)
+    monkeypatch.setenv("USERNAME", "sylvie-fictif")
+    fichier = tmp_path / ".env"
+    fichier.write_text("x", encoding="utf-8")
+    fichier.chmod(0o644)
+
+    instance.restreindre_acces(fichier)
+
+    assert appels == [["icacls", str(fichier), "/inheritance:r", "/grant:r", "sylvie-fictif:(F)"]]
+    assert _mode(fichier) == 0o644  # os.chmod ne sert à rien sous Windows : seul icacls agit
+
+
+def test_restreindre_acces_sous_windows_refuse_sans_utilisateur_et_sur_refus_d_icacls(tmp_path, monkeypatch):
+    fichier = tmp_path / ".env"
+    fichier.write_text("x", encoding="utf-8")
+    monkeypatch.setattr(instance, "_sous_windows", lambda: True)
+    monkeypatch.delenv("USERNAME", raising=False)
+
+    with pytest.raises(instance.ErreurInstance, match="USERNAME est absent"):
+        instance.restreindre_acces(fichier)
+
+    monkeypatch.setenv("USERNAME", "sylvie-fictif")
+    monkeypatch.setattr(instance.subprocess, "run",
+                        lambda commande, **_: subprocess.CompletedProcess(commande, 5, "", "Access is denied."))
+    with pytest.raises(instance.ErreurInstance, match="icacls a refusé de restreindre l'accès.*Access is denied"):
+        instance.restreindre_acces(fichier)
+
+
+def test_restreindre_dossier_pose_0700_hors_de_windows(tmp_path):
+    dossier = tmp_path / "etat"
+    dossier.mkdir()
+    dossier.chmod(0o755)
+
+    instance.restreindre_dossier(dossier)
+
+    assert _mode(dossier) == 0o700
+
+
+def test_sous_windows_les_dossiers_crees_ont_une_acl_heritee_reduite_a_l_utilisateur(tmp_path, hote, monkeypatch):
+    """Le service écrit ses propres fichiers dans l'état du core (`gateway.cmd` porte les valeurs de `.env`) : leur
+    protection est celle du dossier, que les fichiers hériteront (`(OI)(CI)`)."""
+    appels: list[list[str]] = []
+
+    def faux(commande, **_options):
+        appels.append(list(commande))
+        return subprocess.CompletedProcess(commande, 0, "", "")
+
+    monkeypatch.setattr(instance, "_sous_windows", lambda: True)
+    monkeypatch.setattr(instance.subprocess, "run", faux)
+    monkeypatch.setenv("USERNAME", "sylvie-fictif")
+    home, etat = tmp_path / "instance", hote / ".openclaw-opsys"
+    existant = tmp_path / "existant"
+    existant.mkdir()
+
+    instance._preparer_dossiers(home, etat)
+    instance._preparer_dossiers(existant, existant)  # un dossier existant n'est jamais modifié
+
+    assert appels == [
+        ["icacls", str(home), "/inheritance:r", "/grant:r", "sylvie-fictif:(OI)(CI)(F)"],
+        ["icacls", str(etat), "/inheritance:r", "/grant:r", "sylvie-fictif:(OI)(CI)(F)"],
+    ]
+    assert home.is_dir() and etat.is_dir()

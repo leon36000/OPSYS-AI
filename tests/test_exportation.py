@@ -14,6 +14,7 @@ import json
 import os
 import sqlite3
 import stat
+import subprocess
 import tarfile
 from pathlib import Path
 
@@ -143,6 +144,47 @@ def test_archive_et_empreinte_sont_privees_et_l_empreinte_se_verifie_avec_sha256
     assert resultat.empreinte.read_text(encoding="utf-8") == f"{resultat.sha256}  export.tar.gz\n"
     assert resultat.sha256 == hashlib.sha256(resultat.archive.read_bytes()).hexdigest()
     assert not [p for p in tmp_path.iterdir() if p.name.startswith(".opsys-export-")]  # aucun résidu
+
+
+def _faux_icacls(monkeypatch, *, code: int = 0, erreur: str = "") -> list[list[str]]:
+    """Sous Windows : `os.chmod` ne restreint rien, `icacls` réduit l'ACL. On joue Windows sur Linux : les appels
+    d'`icacls` sont notés (leur syntaxe est éprouvée sous Windows par la CI), pas exécutés."""
+    appels: list[list[str]] = []
+
+    def faux(commande, **_options):
+        appels.append(list(commande))
+        return subprocess.CompletedProcess(commande, code, "", erreur)
+
+    monkeypatch.setattr(instance, "_sous_windows", lambda: True)
+    monkeypatch.setattr(instance.subprocess, "run", faux)
+    monkeypatch.setenv("USERNAME", "sylvie-fictif")
+    return appels
+
+
+def test_sous_windows_l_archive_et_son_empreinte_ont_une_acl_reduite_a_l_utilisateur(opsys_home, tmp_path, monkeypatch):
+    _peupler(opsys_home)
+    appels = _faux_icacls(monkeypatch)
+
+    resultat = exportation.exporter(opsys_home, tmp_path / "export.tar.gz", par="test")
+
+    # une fois pour l'archive (avant sa première donnée), une fois pour son empreinte : jamais lisibles par un autre
+    # compte
+    assert appels == [
+        ["icacls", str(resultat.archive), "/inheritance:r", "/grant:r", "sylvie-fictif:(F)"],
+        ["icacls", str(resultat.empreinte), "/inheritance:r", "/grant:r", "sylvie-fictif:(F)"],
+    ]
+    assert resultat.sha256 == hashlib.sha256(resultat.archive.read_bytes()).hexdigest()
+
+
+def test_sous_windows_un_refus_d_icacls_arrete_l_export_sans_laisser_de_fichier(opsys_home, tmp_path, monkeypatch):
+    _peupler(opsys_home)
+    _faux_icacls(monkeypatch, code=5, erreur="Access is denied.")
+
+    with pytest.raises(instance.ErreurInstance, match="icacls a refusé de restreindre l'accès"):
+        exportation.exporter(opsys_home, tmp_path / "export.tar.gz", par="test")
+
+    assert not (tmp_path / "export.tar.gz").exists() and not (tmp_path / "export.tar.gz.sha256").exists()
+    assert not [p for p in tmp_path.iterdir() if p.name.startswith(".opsys-export-")]  # ni archive, ni résidu
 
 
 def test_la_copie_est_coherente_meme_quand_les_ecritures_sont_dans_le_journal_wal(opsys_home, tmp_path):

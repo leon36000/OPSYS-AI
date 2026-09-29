@@ -180,7 +180,8 @@ def _ajouter(tar: tarfile.TarFile, nom: str, chemin: Path) -> None:
 
 def _ecrire_empreinte(chemin: Path, sha256: str, nom_archive: str) -> None:
     descripteur = os.open(chemin, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(descripteur, "w", encoding="utf-8") as fichier:
+    with os.fdopen(descripteur, "w", encoding="utf-8") as fichier:  # fermé même si l'ACL est refusée (Windows)
+        instance.restreindre_acces(chemin)  # 0600 ; sous Windows, `os.open` ne restreint rien : l'ACL est réduite ici
         fichier.write(f"{sha256}  {nom_archive}\n")
 
 
@@ -228,10 +229,14 @@ def exporter(home: Path, sortie: Path, *, par: str) -> ResultatExport:
 
         descripteur = os.open(sortie, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
         try:
-            with os.fdopen(descripteur, "wb") as brut, tarfile.open(fileobj=brut, mode="w:gz") as tar:
-                _ajouter(tar, NOM_MANIFESTE, chemin_manifeste)
-                for nom, chemin in membres.items():
-                    _ajouter(tar, nom, chemin)
+            # Fermé même si l'ACL est refusée (sous Windows, on ne supprime pas un fichier ouvert), et restreint avant
+            # la première donnée : jamais, même un instant, lisible par un autre compte.
+            with os.fdopen(descripteur, "wb") as brut:
+                instance.restreindre_acces(sortie)
+                with tarfile.open(fileobj=brut, mode="w:gz") as tar:
+                    _ajouter(tar, NOM_MANIFESTE, chemin_manifeste)
+                    for nom, chemin in membres.items():
+                        _ajouter(tar, nom, chemin)
             sha256_archive, octets_archive = _sha256(sortie)
             _ecrire_empreinte(empreinte_chemin, sha256_archive, sortie.name)
             _journaliser(url, par, "instance.export", sortie.name, {

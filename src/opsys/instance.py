@@ -15,7 +15,8 @@ Deux dossiers, deux rôles (PLAN T0.11-b) :
 Ce que la commande fait, dans l'ordre :
 1. refuse l'ancienne disposition (`$OPSYS_HOME/core`, d'avant T0.11-b) avec la marche à suivre : rien n'est migré
    en silence ;
-2. crée `$OPSYS_HOME` et le dossier d'état du core, accessibles à leur propriétaire seul ;
+2. crée `$OPSYS_HOME` et le dossier d'état du core, accessibles à leur propriétaire seul (0700 ; sous Windows,
+   ACL réduite à l'utilisateur et héritée par ce que le service y écrit, `restreindre_dossier`) ;
 3. migre la base de l'instance (SQLite, `$OPSYS_HOME/opsys.db`) ;
 4. pose `<état du core>/.env`, 0600 : les secrets qui manquent (jeton du moteur `OPSYS_MCP_JETON`, jeton du
    Gateway, une clé virtuelle par département) et les réglages fournis (`OPSYS_EMBEDDINGS_*`,
@@ -207,25 +208,50 @@ def _preparer_dossiers(home: Path, etat_core: Path) -> list[str]:
                 )
             continue
         dossier.mkdir(mode=0o700, parents=True)
-        if os.name != "nt":
-            os.chmod(dossier, 0o700)  # le umask a pu retirer des droits, jamais en ajouter ; ceci fixe le résultat
+        restreindre_dossier(dossier)  # le umask a pu retirer des droits, jamais en ajouter ; ceci fixe le résultat
     return avertissements
 
 
-def _restreindre(chemin: Path) -> None:
-    """Le fichier n'est lisible que par son propriétaire (0600 ; ACL réduite à l'utilisateur sous Windows)."""
-    if os.name == "nt":
-        utilisateur = os.environ.get("USERNAME", "")
-        if not utilisateur:
-            raise ErreurInstance("USERNAME est absent : impossible de restreindre l'accès à .env (icacls).")
-        resultat = subprocess.run(
-            ["icacls", str(chemin), "/inheritance:r", "/grant:r", f"{utilisateur}:(F)"],
-            capture_output=True, text=True, check=False,
-        )
-        if resultat.returncode != 0:
-            raise ErreurInstance(f"icacls a refusé de restreindre l'accès à {chemin} : {resultat.stderr.strip()}")
+def _sous_windows() -> bool:
+    return os.name == "nt"
+
+
+def _icacls(chemin: Path, droit: str) -> None:
+    """Coupe l'héritage de l'ACL de `chemin` et n'y laisse que l'utilisateur (`droit` : `(F)`, ou `(OI)(CI)(F)` pour un
+    dossier, dont tout ce qu'il contiendra héritera)."""
+    utilisateur = os.environ.get("USERNAME", "")
+    if not utilisateur:
+        raise ErreurInstance(f"USERNAME est absent : impossible de restreindre l'accès à {chemin} (icacls).")
+    resultat = subprocess.run(
+        ["icacls", str(chemin), "/inheritance:r", "/grant:r", f"{utilisateur}:{droit}"],
+        capture_output=True, text=True, check=False,
+    )
+    if resultat.returncode != 0:
+        raise ErreurInstance(f"icacls a refusé de restreindre l'accès à {chemin} : {resultat.stderr.strip()}")
+
+
+def restreindre_acces(chemin: Path) -> None:
+    """Le fichier n'est lisible que par son propriétaire (0600 ; ACL réduite à l'utilisateur sous Windows).
+
+    Sous Windows, `os.chmod` ne touche pas les droits : l'ACL du fichier hérite de son dossier. `icacls` coupe
+    l'héritage et ne laisse que l'utilisateur. Sert à `.env` (secrets) et aux archives d'export (renseignements
+    personnels).
+    """
+    if _sous_windows():
+        _icacls(chemin, "(F)")
         return
     os.chmod(chemin, 0o600)
+
+
+def restreindre_dossier(chemin: Path) -> None:
+    """Le dossier n'est accessible qu'à son propriétaire (0700 ; ACL réduite à l'utilisateur sous Windows, héritée par
+    tout ce que le dossier contiendra ensuite). Sert à l'état du core, où le service écrit ses propres fichiers : le
+    script de la tâche planifiée (`gateway.cmd`) porte les valeurs de `.env` (l'environnement durable du service,
+    `core/src/commands/daemon-install-helpers.ts`), et n'a donc pas d'ACL propre."""
+    if _sous_windows():
+        _icacls(chemin, "(OI)(CI)(F)")
+        return
+    os.chmod(chemin, 0o700)
 
 
 # -- .env ----------------------------------------------------------------------------------------------------------
@@ -278,7 +304,7 @@ def _ecrire_prive(chemin: Path, lignes: Sequence[str]) -> None:
     try:
         with os.fdopen(descripteur, "w", encoding="utf-8", newline="\n") as sortie:
             sortie.write("\n".join(lignes) + "\n")
-        _restreindre(fichier_temporaire)
+        restreindre_acces(fichier_temporaire)
         os.replace(fichier_temporaire, chemin)
     except BaseException:
         fichier_temporaire.unlink(missing_ok=True)
@@ -331,7 +357,7 @@ def assurer_env(
     if generees or reglees or not existait:
         _ecrire_prive(chemin, lignes)
     else:
-        _restreindre(chemin)  # un fichier posé à la main avec des droits trop larges est resserré
+        restreindre_acces(chemin)  # un fichier posé à la main avec des droits trop larges est resserré
     return RapportEnv(chemin, tuple(generees), tuple(conservees), tuple(reglees))
 
 
