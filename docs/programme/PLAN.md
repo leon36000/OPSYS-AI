@@ -587,6 +587,23 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
     - [ ] T1.4-c5 Core et mobile : le rôle nommé sur la poignée de main WebSocket (l'app ne
           l'apprend pas encore) ; `opsys-mobile` câblé dans l'app et dans la classification de
           confiance du core.
+          Livré (cf5ac31, b7dd582, 677610e), à cocher sur le job `tests-opsys` du core :
+          - `GET /opsys/identite` plutôt que `hello-ok` (trame gelée, envoyée avant l'attribution
+            de la personne, et l'app ne se reconnecte pas en WebSocket) : `deviceId` tiré du jeton
+            vérifié, personne et rôle lus dans `appareils.json` par le même code que la porte
+            d'outils ; 401 jeton inconnu, 403 appareil sans attribution, rôle non déclaré ou
+            secret partagé ;
+          - mobile `src/identite/` : identité lue après l'appairage, au démarrage, au premier plan
+            et au retour du réseau, gardée dans `expo-secure-store` « à reconfirmer », effacée
+            dès un refus ; rôle inconnu → écran d'erreur, jamais un profil par défaut ; pointage,
+            chantier et consentement envoient la personne confirmée (plus de saisie à la main) ;
+            l'app s'annonce `opsys-mobile` ; Jest 874, `tsc` propre.
+          Choix à confirmer (revue externe) : `opsys-mobile` n'entre PAS dans
+          `isNativeAppUiClient` (cela élargirait la confiance sans bénéfice pour un téléphone),
+          épinglé par `opsys-mobile-trust.test.ts`.
+    - [ ] T1.4-l Mobile : après un nouvel appairage, le vidangeur de la file sortante garde
+          l'ancien jeton (`src/outbox/service.ts`) jusqu'au redémarrage de l'app ; le reconstruire
+          au changement de jeton, avec test.
       - [x] T1.4-c6 Core et mobile : noms d'outils de bout en bout.
           Preuve CI : core 23 (71471f9), job `tests-opsys` vert, 30 fichiers ciblés sur 30,
           dont `opsys-device-mcp-target` 16 tests, `tools-invoke-http.opsys-device-mcp` 9,
