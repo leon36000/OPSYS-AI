@@ -35,7 +35,8 @@ journée dès que les chantiers ont des coordonnées confirmées.
    - `REJ-CEDULE-RIEN-A-PLANIFIER` → aucune intervention `planifiee` ni `a_planifier` prête ; le détail nomme les
      `a_planifier` non prêtes et leurs volets manquants (`m4_verifier_preparation` dit quoi faire).
    - `REJ-CEDULE-PREPARATION-NON-PRETE` → une intervention demandée par `intervention_ids` n'est pas prête : dis ce
-     qui lui manque, ne la force pas. Matériel et météo n'ont pas de source aujourd'hui : aucune n'est prête.
+     qui lui manque, ne la force pas. Le matériel se lit chez M6 (`materiel` : prêt, partiel ou à commander) et la météo
+     dans les règles que le propriétaire a déclarées pour le service (`meteo` : « seuil à configurer ») : dis lequel manque.
    - `REJ-TOURNEES-CRENEAU-FIGE-INCOMPATIBLE` → un créneau confirmé ne peut pas être tenu (équipe sans
      quart ce jour, compétence manquante, fenêtre, conflit) : dis lequel à l'admin. Ne retire pas le créneau
      pour « faire passer » la cédule.
@@ -56,6 +57,21 @@ journée dès que les chantiers ont des coordonnées confirmées.
    déjà la bonne (`deja_assignee`) ; celles dont `transition` vaut `a_planifier->planifiee` viennent de sortir de
    `a_planifier` (une intervention que le plan laisse de côté reste `a_planifier`). Une intervention `non_cedulee` garde l'assignation qu'elle avait, s'il y en
    avait une (`assignation_conservee`) : signale-la à l'admin, aucun outil ne la retire.
-6. Un refus nomme la faute : corrige la saisie ou demande à l'humain, ne réessaie pas en changeant une valeur au
+6. La météo. Pour un plan proposé ou appliqué, appelle `m4_verifier_meteo_creneau` (lecture seule) avec le `plan_id`
+   et le `calendrier` `{jour: date AAAA-MM-JJ}` : M4 n'a pas de calendrier, demande à l'admin la date de chaque jour
+   numéroté, ne la devine jamais. Sans fournisseur de prévisions ouvert, l'admin te dicte la prévision : passe-la telle
+   quelle dans `previsions_saisies` (`saisi_par` : son nom, `source`, `emise_le`, `points` horaires) ; n'arrondis, ne
+   complète ni ne devine aucune mesure (une mesure absente reste absente).
+   - Rapporte chaque créneau : `bloquant`, `validation_requise`, `ok` ou `inconnu`, avec la valeur, le seuil, la source
+     et l'heure de la prévision que la réponse cite. `inconnu` n'est jamais un « ok » : dis ce qui manque (seuil à
+     configurer, prévision absente ou incomplète, jour sans date, fournisseur en panne).
+   - Un créneau `bloquant` donne un report PROPOSÉ (`reports_proposes`, motif `meteo`) et une nouvelle cédule pour les
+     jours restants (`cedule_relancee` : arguments et aperçu). Montre-les, l'admin décide ; tu n'appliques rien :
+     `m4_signaler_report` et `m4_appliquer_cedule` sont N3. Le report d'un chantier déjà confirmé au client se
+     prévient par M1, jamais d'ici.
+   - `plan_perime` : un autre plan appliqué tient déjà l'intervention (`perimes`, `tenu_par`) : vérifie ce plan-là.
+   - `detail_reduit` : la réponse a été résumée pour tenir dans un appareil ; refusée pour sa taille, redemande un
+     jour à la fois avec `jours`.
+7. Un refus nomme la faute : corrige la saisie ou demande à l'humain, ne réessaie pas en changeant une valeur au
    hasard. Le jour et l'heure de chaque visite sont dans le plan : ne les recopie pas comme une promesse au
    client (« ne jamais promettre une date sans la confirmation de M4 » : l'admin la confirme).

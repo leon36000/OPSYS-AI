@@ -57,6 +57,11 @@ EXPECTED_CODES_M4_LIST = [
     # Groupe 9 — PLAN T4.12 : profil des équipes et sortie de a_planifier par la cédule
     "REJ-PROFIL-INVALIDE",
     "REJ-CEDULE-PREPARATION-NON-PRETE",
+    # Groupe 10 — PLAN T4.13 : météo des créneaux (meteo.py, meteo_http.py, adaptateurs de prévisions)
+    "REJ-METEO-FOURNISSEUR-INDISPONIBLE",
+    "REJ-METEO-REPONSE-INVALIDE",
+    "REJ-METEO-FOURNISSEUR-FERME",
+    "REJ-METEO-LIEU-TROP-PRECIS",
     # Groupe 3 — succès
     "OK",
 ]

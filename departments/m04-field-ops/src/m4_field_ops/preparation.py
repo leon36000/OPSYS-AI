@@ -27,10 +27,15 @@ acceptée, matériel connu, équipe admissible, météo »)
                     (``materiel.py``, PLAN T4.14-b) : ``ok`` seulement si M6 dit ``pret`` ET que la réservation est
                     active ET qu'aucune ligne ne manque ; sinon ``manque`` (``partiel`` ou ``a_commander``, avec les
                     lignes manquantes) ; aucune charge reçue : ``non_verifiable`` (M6 n'a rien vérifié) ;
-    ``meteo``       non vérifiable : aucun fournisseur météo ni règle par service — PLAN T4.13.
-Le dernier deviendra un volet vérifié quand sa tâche livrera sa source : il suffit de remplacer sa fonction dans
-``_VOLETS``, la forme du verdict ne change pas. Tant qu'il est ``non_verifiable``, aucun verdict n'est ``pret`` : la
-porte ``a_planifier -> planifiee`` reste fermée, et c'est voulu.
+    ``meteo``       les RÈGLES météo du service, lues dans le profil de l'entreprise (``opsys.meteo``, PLAN T4.13) :
+                    ``ok`` seulement si chaque risque du service est jugé (un seuil) ou déclaré sans objet ; sinon
+                    ``manque`` (« seuil à configurer », avec les risques sans décision et où les déclarer). La
+                    préparation n'a pas de date : elle certifie que la météo SE JUGE (les règles existent), pas qu'il
+                    fera beau. La prévision d'un créneau se juge quand la cédule en propose un
+                    (``m4_verifier_meteo_creneau``, ``meteo_creneaux.py``). Un lead v1 n'a pas de service :
+                    ``non_verifiable``.
+Sans lecture du profil météo (``lire_meteo`` absente), le volet reste ``non_verifiable`` : la forme du verdict ne change
+pas, et aucun verdict n'est ``pret`` faute de lecture (la porte ``a_planifier -> planifiee`` reste fermée).
 
 Ce module ne promet aucune date ni aucun créneau : il ne parle pas du calendrier (frontière T3 du produit).
 Il ne lit ni ne rend aucune coordonnée, aucun contact, aucun prix.
@@ -38,7 +43,7 @@ Il ne lit ni ne rend aucune coordonnée, aucun contact, aucun prix.
 
 from __future__ import annotations
 
-from . import admissibilite, etats, materiel, verdicts
+from . import admissibilite, etats, materiel, meteo, verdicts
 
 # « ok » et « pret » sont définis par la machine à états (`etats.py`), qui refuse un passage à planifiee sans eux :
 # une seule source pour le mot que les deux modules doivent partager.
@@ -72,7 +77,7 @@ def _volet(statut, manque=None, detail=None):
     return {"statut": statut, "manque": manque, "detail": detail}
 
 
-def _volet_soumission(_registre, inscription, _lire_position, _lire_equipes):
+def _volet_soumission(_registre, inscription, _lire_position, _lire_equipes, _lire_meteo):
     devis_id = inscription.get("devis_id")
     if isinstance(devis_id, str) and devis_id != "":
         return _volet(STATUT_OK, detail=f"devis accepté {devis_id}")
@@ -82,14 +87,14 @@ def _volet_soumission(_registre, inscription, _lire_position, _lire_equipes):
     )
 
 
-def _volet_adresse(registre_cible, inscription, lire_position, _lire_equipes):
+def _volet_adresse(registre_cible, inscription, lire_position, _lire_equipes, _lire_meteo):
     position, verdict = lire_position(registre_cible, inscription["lead_id"])
     if verdict is not None:
         return _volet(STATUT_MANQUE, manque=verdict["detail"], detail=verdict["code"])
     return _volet(STATUT_OK, detail=f"coordonnées confirmées (version {position['version']})")
 
 
-def _volet_equipe(_registre, inscription, _lire_position, lire_equipes):
+def _volet_equipe(_registre, inscription, _lire_position, lire_equipes, _lire_meteo):
     if lire_equipes is None:
         return _volet(
             STATUT_NON_VERIFIABLE,
@@ -125,7 +130,7 @@ def _volet_equipe(_registre, inscription, _lire_position, lire_equipes):
     return _volet(STATUT_OK, detail=f"équipes admissibles pour {service} : {', '.join(resultat['admissibles'])}")
 
 
-def _volet_materiel(registre_cible, inscription, _lire_position, _lire_equipes):
+def _volet_materiel(registre_cible, inscription, _lire_position, _lire_equipes, _lire_meteo):
     devis_id = inscription.get("devis_id")
     if not isinstance(devis_id, str) or devis_id == "":
         return _volet(
@@ -160,10 +165,46 @@ def _volet_materiel(registre_cible, inscription, _lire_position, _lire_equipes):
     )
 
 
-def _volet_meteo(_registre, _inscription, _lire_position, _lire_equipes):
+def _volet_meteo(_registre, inscription, _lire_position, _lire_equipes, lire_meteo):
+    if lire_meteo is None:
+        return _volet(
+            STATUT_NON_VERIFIABLE,
+            manque=(
+                "lecture du profil météo : aucune n'a été fournie à l'évaluation, les règles météo du service ne "
+                "se lisent pas"
+            ),
+        )
+    profil, verdict = lire_meteo()
+    if verdict is not None:
+        return _volet(STATUT_MANQUE, manque=verdict["detail"], detail=verdict["code"])
+    cle_travaux, service = etats.travaux_de(inscription)
+    if cle_travaux != etats.CLE_SERVICE:
+        return _volet(
+            STATUT_NON_VERIFIABLE,
+            manque=(
+                f"intervention issue d'un lead v1 (type_travaux {service!r}) : les règles météo sont par service, "
+                "aucune ne s'applique à un type de travaux"
+            ),
+        )
+    regles = profil.get("services", {}).get(service)
+    a_decider = meteo.risques_a_decider(regles)
+    if a_decider:
+        return _volet(
+            STATUT_MANQUE,
+            manque=(
+                f"seuil à configurer pour le service {service!r} : {', '.join(a_decider)} (un seuil par risque jugé, "
+                "ou le risque déclaré sans objet : `opsys meteo declarer`) ; aucun seuil n'est jamais inventé"
+            ),
+            detail="REJ-CHAMP-MANQUANT",
+        )
+    jugees = ", ".join(regles.get("seuils", {})) or "aucune"
+    sans_objet = ", ".join(regles.get("sans_objet", ())) or "aucun"
     return _volet(
-        STATUT_NON_VERIFIABLE,
-        manque="prévision météo et règles météo par service : aucun fournisseur ni seuil n'est configuré",
+        STATUT_OK,
+        detail=(
+            f"règles météo déclarées pour {service} : mesures jugées {jugees} ; risques sans objet {sans_objet} ; la "
+            "prévision d'un créneau se juge par m4_verifier_meteo_creneau, la préparation n'a pas de date"
+        ),
     )
 
 
@@ -199,7 +240,7 @@ def _inscription(registre_cible, intervention_id):
     return None
 
 
-def evaluer(registre_cible, intervention_id, lire_position, lire_equipes=None):
+def evaluer(registre_cible, intervention_id, lire_position, lire_equipes=None, lire_meteo=None):
     """``(verdict, None)`` ou ``(None, refus)`` : la préparation de l'intervention, volet par volet.
 
     ``lire_position(registre, chantier_id)`` rend ``(position, None)`` ou ``(None, verdict)`` : la même lecture
@@ -209,6 +250,10 @@ def evaluer(registre_cible, intervention_id, lire_position, lire_equipes=None):
     ``lire_equipes()`` rend ``(profil, None)`` ou ``(None, verdict)`` : le profil des équipes que l'adaptateur a lu
     (``opsys.equipes.charger_equipes``). Sans elle (``None``), le volet équipe reste ``non_verifiable`` : jamais ``ok``
     faute de lecture.
+
+    ``lire_meteo()`` rend ``(profil, None)`` ou ``(None, verdict)`` : le profil météo que l'adaptateur a lu
+    (``opsys.meteo.charger_meteo``). Sans elle (``None``), le volet météo reste ``non_verifiable`` : jamais ``ok`` faute
+    de lecture.
 
     Refus (``REJ-TRANSITION-ILLEGALE``, rien n'est écrit, la fonction n'écrit jamais) : intervention inconnue,
     ou statut hors de ``STATUTS_PREPARABLES``. Le verdict rendu ne porte ni coordonnée, ni contact, ni prix.
@@ -222,7 +267,9 @@ def evaluer(registre_cible, intervention_id, lire_position, lire_equipes=None):
             detail=f"préparation sans objet : l'intervention est {statut} (attendu {', '.join(STATUTS_PREPARABLES)})",
         )
     inscription = _inscription(registre_cible, intervention_id)
-    volets = {nom: fonction(registre_cible, inscription, lire_position, lire_equipes) for nom, fonction in _VOLETS}
+    volets = {
+        nom: fonction(registre_cible, inscription, lire_position, lire_equipes, lire_meteo) for nom, fonction in _VOLETS
+    }
     statut_global = verdict_des_volets(volets)
     verdict = {
         "intervention_id": intervention_id,

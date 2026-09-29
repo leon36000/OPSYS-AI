@@ -6,9 +6,13 @@ comme PROFIL (`fixtures/equipes_repentigny_joliette.json`, `fictif: true`) : les
 acceptés (`m3.devis_accepte`, intervention `a_planifier`), les équipes, durées et réglages viennent du profil seul, et
 le plan a les mêmes octets que celui proposé avec les mêmes valeurs en arguments, y compris sur une seconde instance.
 
-Les volets matériel et météo de la préparation n'ont pas de source (T4.14, T4.13) : aucune intervention n'est « prête »
-en vrai. Les tests de sortie les SIMULENT (`futurs_ok`) pour prouver la plomberie ; `test_aujourd_hui_...` prouve que
-la porte reste fermée sans eux.
+Les volets matériel (charge `m6.materiel_pret`, T4.14-b) et météo (profil météo, T4.13) se lisent désormais à leur
+source ;
+leurs preuves de bout en bout sont `test_materiel_pret_recu.py`, `test_meteo_outil.py` et
+`tests/e2e/test_meteo_bloquante_appareil.py`.
+Les tests de sortie de ce module les SIMULENT (`futurs_ok`) pour ne prouver ici que la plomberie de la cédule, sans
+monter
+un M6 ni un profil météo ; `test_aujourd_hui_...` prouve que la porte reste fermée sans eux.
 """
 
 from __future__ import annotations
@@ -79,8 +83,10 @@ def par_nom(instance):
 
 @pytest.fixture
 def futurs_ok(monkeypatch):
-    """Simule T4.14 (matériel) et T4.13 (météo) : deux volets vérifiés. Prouve la plomberie, jamais le produit."""
-    def ok(_registre, _inscription, _lire_position, _lire_equipes):
+    """Simule le matériel (T4.14-b) et la météo (T4.13) : deux volets vérifiés. Prouve la plomberie de la cédule ; les
+    vrais
+    volets sont prouvés ailleurs (voir le docstring du module)."""
+    def ok(_registre, _inscription, _lire_position, _lire_equipes, _lire_meteo):
         return {"statut": "ok", "manque": None, "detail": "simulé par le test"}
 
     monkeypatch.setattr(preparation, "_VOLETS", tuple(
@@ -400,13 +406,18 @@ def test_les_membres_d_une_equipe_voient_et_prennent_les_chantiers_que_la_cedule
 
 
 def test_aujourd_hui_la_porte_reste_fermee_faute_de_materiel_et_de_meteo(instance, par_nom, capsys):
-    """Sans les volets futurs simulés : le profil et l'adresse suffisent à ce qu'ils vérifient, pas à « prêt »."""
+    """Sans les volets simulés : le profil et l'adresse suffisent à ce qu'ils vérifient, pas à « prêt ». Sans charge de
+    M6
+    (T4.14-b) le matériel est non vérifiable ; sans règles météo (T4.13) la météo manque."""
     _declarer_le_profil(instance / "a", capsys=capsys)
     interventions = _naitre()
     _confirmer_les_positions(par_nom)
     verdict = _resultat(_appeler(par_nom, "m4_verifier_preparation", {"intervention_id": interventions["L-E2E-01"]}))
-    assert verdict["pret"] is False and verdict["statut"] == "non_verifiable"
+    assert verdict["pret"] is False and verdict["statut"] == "bloque"
     assert [f["volet"] for f in verdict["a_fournir"]] == ["materiel", "meteo"]
+    assert verdict["volets"]["materiel"]["statut"] == "non_verifiable"
+    assert verdict["volets"]["meteo"]["statut"] == "manque"
+    assert "opsys meteo declarer" in verdict["volets"]["meteo"]["manque"]
     assert verdict["volets"]["soumission"]["statut"] == verdict["volets"]["adresse"]["statut"] == "ok"
     assert verdict["volets"]["equipe"]["statut"] == "ok"
     avant = _etat()

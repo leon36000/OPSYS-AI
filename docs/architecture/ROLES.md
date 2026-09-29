@@ -68,7 +68,7 @@ qui travaille sur un toit, un gestionnaire qui reprend un dossier).
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 80 outils sur 158 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 81 outils sur 159 sont déclarés.
 
 ### `employee` (11 outils) : §9.3, le terrain
 
@@ -109,7 +109,7 @@ M10.
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (80 outils) : §9.5 + employé + vendeur
+### `admin` (81 outils) : §9.5 + employé + vendeur
 
 Les 11 outils de l'employé, les 10 du vendeur, et :
 
@@ -125,6 +125,7 @@ Les 11 outils de l'employé, les 10 du vendeur, et :
 | M4 | `m4_proposer_localisation`, `m4_confirmer_localisation` (N3) | §9.5 M4 « dispatch du jour » (T4.1-a, R15 §3) : l'admin voit la proposition de coordonnées d'un chantier (index RQA local) puis la confirme ; `confirme_par` doit être sa propre personne. Réservés à l'admin : c'est l'adresse d'un client, et une coordonnée confirmée décide d'une tournée. L'employé n'a aucun besoin de géocoder une adresse ; le vendeur non plus. Les deux outils refusent aussi, dans le code, tout rôle d'appareil autre qu'`admin`. |
 | M4 | `m4_proposer_cedule` (N1), `m4_appliquer_cedule` (N3) | §9.5 M4 « dispatch du jour » (T4.1-d, R15 §4 ; T4.12) : l'admin fait proposer une cédule par tournées depuis son téléphone (brouillon : aucune assignation, aucune vérité écrite), la lit (mode bridé, non cédulées et leurs raisons, provenance de chaque valeur : profil des équipes ou surcharge) puis l'applique ; appliquer fait sortir de `a_planifier` les interventions prêtes que le plan place ; `confirme_par` doit être sa propre personne. Réservés à l'admin : une tournée regroupe des chantiers de clients (adresses, coordonnées confirmées), et l'application décide qui voit quelles interventions. Le brouillon lui-même écrit un maillon au registre : l'ouvrir à l'employé ou au vendeur permettrait d'y déposer des plans à volonté. Les deux outils refusent aussi, dans le code, tout rôle d'appareil autre qu'`admin`. |
 | M4 | `m4_verifier_preparation` (T0) | §9.5 M4 « dispatch du jour » (T4.10-b, M4.6) : l'admin lit, pour une intervention née d'un devis accepté, si elle peut être planifiée, volet par volet, et ce qui manque (soumission, adresse confirmée, équipe, matériel, météo). Lecture pure : rien n'est écrit, aucun volet non vérifiable n'est présenté comme prêt, aucune date ni aucun créneau n'est promis. Réservé à l'admin : c'est l'état d'un chantier de client (adresse confirmée ou non). L'outil refuse aussi, dans le code, tout rôle d'appareil autre qu'`admin`. |
+| M4 | `m4_verifier_meteo_creneau` (T0) | §9.5 M4 « dispatch du jour » (T4.13, M4.10, M4.21) : l'admin lit, pour un plan de cédule proposé, la météo de chaque créneau (bloquant, validation requise, ok ou inconnu, avec la prévision, sa source et son heure d'émission) contre les seuils que le propriétaire a déclarés (`opsys meteo declarer`) ; un créneau bloquant donne un report proposé (motif `meteo`) et une nouvelle cédule pour les jours restants. Lecture pure : rien n'est écrit, aucune intervention ne change d'état, aucune cédule n'est rangée ni appliquée ; le report d'une intervention planifiée reste `m4_signaler_report` et l'application d'une cédule `m4_appliquer_cedule` (N3). Une donnée absente (seuil, prévision, date, fournisseur en panne) donne `inconnu`, jamais `ok`. Réservé à l'admin : un plan regroupe des chantiers de clients (adresses confirmées, tournées). L'outil refuse aussi, dans le code, tout rôle d'appareil autre qu'`admin`. |
 | M5 | `m5_etat_tresorerie`, `m5_lister_attentes_facturation` | §9.5 M5 : trésorerie, cash libre réel, factures à approuver. Identité confirmée en base ; la vue vient du rôle authentifié, jamais des arguments (T1.4-k2, plus bas). T4.16 : `m5_etat_tresorerie` AJOUTE `cash_libre` (avec sa décomposition), `argent_disponible_note` et `mention` sans changer ses clés d'avant ; le cash libre suit la même vue : un rôle sans droit de voir les coûts ne le voit pas. |
 | M5 | `m5_lire_echeances_fiscales` (T0) | §7 M5.5 « calendrier fiscal vivant » (T4.16) : les prochaines échéances TPS/TVQ, les retards et la taxe nette de chaque période. Lecture pure, même règle d'accès que la trésorerie (identité confirmée en base, la vue vient du rôle, `autorise_couts` ne peut que restreindre : sans droit, les dates sans aucun montant). La fréquence de production, la fin d'exercice et la date de dernière remise sont au propriétaire (`department.yaml`, GATE NATHAN) : absentes, refus nommé qui dit quoi déclarer ; une année non déclarée au calendrier est refusée. `aujourd_hui` est un argument requis (M5 n'a pas d'horloge) ; aucun montant ni date limite ne se passe en argument. Ni remise, ni déclaration, ni paiement : le calendrier propose (N5, Nathan et le CPA). |
 | M5 | `m5_lire_rentabilite_chantier`, `m5_lire_comptes_a_recevoir` | §6 « travaux terminés », §9.5 M5 : coût réel et marge par chantier, comptes à recevoir (factures envoyées). Lecture pure, même règle d'accès que la trésorerie (T1.5-d) : coûts, marges et créances sont des finances, jamais pour l'employé ni le vendeur (§9.2, §9.4) ; aucun montant, prix ni taux ne se passe en argument. |
@@ -327,6 +328,7 @@ envoie un autre technicien, c'est lui qui a l'intervention. Une intervention que
 | `m4_proposer_localisation`, `m4_confirmer_localisation` | hors portée (T4.1-a) ; refusés aussi dans l'outil (`REJ-IDENTITE-APPAREIL-INVALIDE`) | `confirme_par` = sa personne, sinon `REJ-IDENTITE-FOURNIE-DIFFERENTE` ; l'heure du serveur fait foi |
 | `m4_proposer_cedule`, `m4_appliquer_cedule` | hors portée (T4.1-d) ; refusés aussi dans l'outil (`REJ-IDENTITE-APPAREIL-INVALIDE`) | `confirme_par` = sa personne pour l'application, sinon `REJ-IDENTITE-FOURNIE-DIFFERENTE` ; l'heure du serveur fait foi |
 | `m4_verifier_preparation` | hors portée (T4.10-b) ; refusé aussi dans l'outil (`REJ-IDENTITE-APPAREIL-INVALIDE`) | lecture seule, aucune personne à nommer |
+| `m4_verifier_meteo_creneau` | hors portée (T4.13) ; refusé aussi dans l'outil (`REJ-IDENTITE-APPAREIL-INVALIDE`) | lecture seule ; une prévision saisie à la main (`previsions_saisies.saisi_par`) nomme sa propre personne, sinon `REJ-IDENTITE-FOURNIE-DIFFERENTE` |
 | `m4_deposer_fichier`, `m4_etat_fichier` | identité confirmée seulement | idem |
 | `m6_declarer_materiaux_utilises` | le WCT doit porter son `technicien_id` | tous les WCT |
 
@@ -498,12 +500,21 @@ pour un appel d'appareil ; sans identité d'appareil, la liste, comme avant. La 
   décision : ils empêchent d'appliquer un plan périmé, pas un plan qu'un agent aurait mal paramétré.
 - **Sortie de `a_planifier` (T4.12).** `m4_appliquer_cedule` (N3) fait aussi passer `a_planifier -> planifiee` chaque
   intervention que le plan place, avec un verdict de préparation « prêt » recalculé à l'application (la porte
-  d'empreinte de T4.10 : `etats.transitionner`). Tant que le volet météo de `preparation` est non vérifiable (T4.13 ;
-  le matériel se lit depuis T4.14-b, `m6.materiel_pret`), aucun verdict n'est « prêt » : la porte est câblée et reste
-  fermée, aucune intervention née du bus ne peut en sortir, et `m4_planifier_intervention` refuse désormais le devis dont
-  l'intervention existe déjà (un devis n'a qu'une intervention). Décision à prendre par le propriétaire si
-  l'exploitation ne peut pas attendre cette tâche : une attestation humaine nommée et motivée d'un volet non
-  vérifiable (aucune n'existe).
+  d'empreinte de T4.10 : `etats.transitionner`). Le matériel se lit depuis T4.14-b (`m6.materiel_pret`) et la météo depuis
+  T4.13 (règles du service dans le profil météo) : une intervention n'est « prête » que si M6 la dit prête et si le
+  propriétaire a décidé ses règles météo pour son service ; sinon la porte reste fermée et le refus dit ce qui manque.
+  `m4_planifier_intervention` refuse le devis dont l'intervention existe déjà (un devis n'a qu'une intervention).
+  Décision à prendre par le propriétaire si l'exploitation ne peut pas attendre un volet : une attestation humaine
+  nommée et motivée d'un volet non vérifiable (aucune n'existe).
+- **Météo des créneaux (T4.13).** `m4_verifier_meteo_creneau` est T0 : il ne juge que la météo d'un plan déjà proposé et
+  ne fait que proposer (un report `m4_signaler_report`, une nouvelle proposition de cédule dont l'aperçu est calculé sur
+  une copie du registre) ; rien n'est appliqué sans un geste N3 de l'admin. Le fournisseur de prévisions est fermé par
+  défaut : sans clé `fournisseur` dans le profil météo, aucune requête ne part et la prévision se saisit à la main
+  (`previsions_saisies`). Open-Meteo (API gratuite non commerciale) n'est ouvrable qu'avec un forfait commercial déclaré et
+  une clé d'API dans l'environnement : décision du propriétaire (GATE NATHAN). Seule la position générale d'un chantier
+  (dixième de degré) quitte le serveur. La réponse d'un appareil est bornée (6 000 caractères) : elle est résumée
+  (`detail_reduit`), puis refusée avec la consigne `jours`, jamais tronquée. Un plan périmé pour une intervention (un
+  autre plan appliqué la tient) ne compte ni dans le statut, ni dans les reports.
   Les surcharges d'arguments de `m4_proposer_cedule` sont tracées (`provenance`) mais permises : le profil reste juge de
   l'équipe qui reçoit une intervention sortant de `a_planifier` (`REJ-TOURNEES-PLAN-INVALIDE` sinon).
 - **Voie des agents.** Le secret partagé de la passerelle garde l'accès complet aux outils (documenté,

@@ -28,13 +28,16 @@ pour les cas où seule une étape est nécessaire (ex. un pointage isolé).
 
 from __future__ import annotations
 
+import json
+import os
 import re
 from collections.abc import Callable
 from functools import partial
 from typing import Any
 
-from opsys import approbations, cles_chiffrement, contexte, evenements, fichiers, stockage
+from opsys import approbations, cles_chiffrement, contexte, evenements, fichiers, jetons, stockage
 from opsys import equipes as equipes_entreprise
+from opsys import meteo as meteo_entreprise
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import (
@@ -47,6 +50,9 @@ from . import (
     etats,
     localisation,
     materiel,
+    meteo_creneaux,
+    meteo_fournisseurs,
+    meteo_manuelle,
     outbox,
     pointage,
     preparation,
@@ -173,6 +179,26 @@ def _lecteur_equipes() -> Callable[[], tuple[dict[str, Any] | None, dict[str, An
     return lambda: lecture
 
 
+# La réponse d'un outil rendue à un appareil est coupée au-delà de `jetons.LIMITE_SORTIE_DEFAUT` caractères : une
+# réponse
+# coupée cacherait des créneaux. Marge pour l'enveloppe `{ok, resultat: {accepte, resultat}}`.
+_LIMITE_REPONSE_METEO = jetons.LIMITE_SORTIE_DEFAUT - 500
+
+
+def _tient_dans_une_reponse(vue: dict[str, Any]) -> bool:
+    enveloppe = {"ok": True, "resultat": {"accepte": True, "resultat": vue}}
+    return len(json.dumps(enveloppe, ensure_ascii=False)) <= _LIMITE_REPONSE_METEO
+
+
+def _lecteur_meteo() -> Callable[[], tuple[dict[str, Any] | None, dict[str, Any] | None]]:
+    """Lecture du profil météo de l'entreprise (PLAN T4.13), faite UNE fois par appel d'outil : la préparation, la
+    cédule
+    et la vérification d'un créneau voient les mêmes règles. Rend ``(profil, None)`` ou ``(None, verdict)`` (absent ou
+    invalide) ; ne lève jamais."""
+    lecture = meteo_entreprise.charger_meteo()
+    return lambda: lecture
+
+
 def _preuve_consentement_client(
     acteur: acces.Acteur | None, consentement_marketing: Any, consentement_demande_avis: Any,
     version_texte: Any,
@@ -240,7 +266,7 @@ def _refus(verdict: dict[str, Any]) -> dict[str, Any]:
 
 
 def outils(
-    registre_cible: registre.Registre | None = None, fournisseur_matrice: Any = None,
+    registre_cible: registre.Registre | None = None, fournisseur_matrice: Any = None, fournisseur_meteo: Any = None,
 ) -> tuple[Outil, ...]:
     """Capacités exposées aux agents, qui partagent le registre du département.
 
@@ -252,6 +278,13 @@ def outils(
     tournées consulte ; `None` (défaut, production tant qu'aucun sidecar de routage n'est déployé) donne le
     palier 0, distances approximatives affichées « mode bridé ». Jamais un argument d'outil : l'adresse du
     service ne vient pas d'un agent.
+
+    `fournisseur_meteo` : port `meteo.FournisseurMeteo` que `m4_verifier_meteo_creneau` consulte ; `None` (défaut,
+    production)
+    donne celui que le PROFIL MÉTÉO de l'entreprise ouvre (`meteo_fournisseurs`), ou aucun : sans fournisseur ouvert,
+    aucune
+    requête réseau ne part jamais et la prévision se saisit à la main. Jamais un argument d'outil : l'adresse d'un
+    fournisseur ne vient pas d'un agent, et aucun lieu de chantier n'est envoyé plus fin qu'au dixième de degré.
     """
     if registre_cible is None:
         def registre_courant() -> registre.Registre:
@@ -885,6 +918,7 @@ def outils(
             lire_localisation_confirmee, horodatage_faisant_foi,
             propose_par=None if acteur is None else acteur.personne,
             fournisseur=fournisseur_matrice, moteur=moteur, lire_equipes=_lecteur_equipes(),
+            lire_meteo=_lecteur_meteo(),
         ))
         if reception is not None and reponse["accepte"]:
             reponse["resultat"]["horodatage_appareil"] = reception.horodatage_appareil.isoformat()
@@ -904,7 +938,7 @@ def outils(
         horodatage_faisant_foi = reception.recu_le.isoformat() if reception is not None else horodatage
         reponse = depuis_couple(cedule_tournees.appliquer(
             registre_courant(), plan_id, lire_localisation_confirmee, horodatage_faisant_foi, confirme_par,
-            fournisseur=fournisseur_matrice, lire_equipes=_lecteur_equipes(),
+            fournisseur=fournisseur_matrice, lire_equipes=_lecteur_equipes(), lire_meteo=_lecteur_meteo(),
         ))
         if reception is not None and reponse["accepte"]:
             reponse["resultat"]["horodatage_appareil"] = reception.horodatage_appareil.isoformat()
@@ -921,9 +955,46 @@ def outils(
             return _refus(verdict_role)
         return depuis_couple(
             preparation.evaluer(
-                registre_courant(), intervention_id, lire_localisation_confirmee, _lecteur_equipes(),
+                registre_courant(), intervention_id, lire_localisation_confirmee, _lecteur_equipes(), _lecteur_meteo(),
             )
         )
+
+    def verifier_meteo_creneau(
+        plan_id: str, calendrier: dict[str, Any], previsions_saisies: dict[str, Any] | None = None,
+        jours: list[int] | None = None,
+    ) -> dict[str, Any]:
+        """Lecture seule : la météo de chaque créneau d'un plan proposé, et le report proposé. Rien n'est écrit, aucun
+        statut ne change, aucune cédule n'est rangée ni appliquée (T0)."""
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        verdict_role = acces.controler_administrateur(acteur)
+        if verdict_role is not None:
+            return _refus(verdict_role)
+        lire_meteo = _lecteur_meteo()
+        profil, verdict_profil = lire_meteo()
+        verdict_fournisseur = None
+        if previsions_saisies is not None:
+            # La prévision saisie à la main l'emporte sur le fournisseur ouvert : elle nomme qui l'a lue et quand.
+            auteur = previsions_saisies.get("saisi_par") if isinstance(previsions_saisies, dict) else None
+            verdict_auteur = acces.controler_saisisseur(acteur, auteur)
+            if verdict_auteur is not None:
+                return _refus(verdict_auteur)
+            fournisseur, verdict = meteo_manuelle.creer_fournisseur_manuel(previsions_saisies)
+            if verdict is not None:
+                return _refus(verdict)
+        elif fournisseur_meteo is not None:
+            fournisseur = fournisseur_meteo
+        else:
+            fournisseur, verdict_fournisseur = meteo_fournisseurs.fournisseur_depuis_le_profil(profil, os.environ)
+        resultat, verdict = meteo_creneaux.verifier(
+            registre_courant(), plan_id, calendrier, lire_localisation_confirmee, profil, verdict_profil, fournisseur,
+            verdict_fournisseur, lire_equipes=_lecteur_equipes(), lire_meteo=lire_meteo,
+            fournisseur_matrice=fournisseur_matrice, jours=jours,
+        )
+        if verdict is not None:
+            return _refus(verdict)
+        return depuis_couple(meteo_creneaux.presenter(resultat, _tient_dans_une_reponse))
 
     return (
         Outil(
@@ -1737,16 +1808,14 @@ def outils(
             nom="m4_verifier_preparation",
             description=(
                 "Lecture seule (M4.6) : dit si une intervention peut être planifiée, VOLET PAR VOLET, et NOMME ce "
-                "qui manque. Volets : soumission (devis accepté), adresse (coordonnées CONFIRMÉES), équipe "
-                "admissible (calculée depuis le profil des équipes : compétences du service et quart assez long ; "
-                "sans profil, manque dit quoi déclarer), matériel (état « matériel prêt » de M6 reçu par le bus : ok "
-                "seulement si M6 dit pret, réservation active et aucune ligne manquante ; sinon manque, partiel ou "
-                "a_commander avec les lignes manquantes ; aucune charge reçue : non_verifiable), météo. Chaque volet "
-                "est ok (lu à sa source), manque (attendu et absent) ou non_verifiable (météo aujourd'hui : aucune "
-                "intervention n'est encore prête). pret SEULEMENT si tous les volets sont ok, jamais par défaut. "
-                "Ne rend ni "
-                "coordonnée, ni contact, ni prix, et ne promet aucune date. Refus (REJ-TRANSITION-ILLEGALE) : "
-                "intervention inconnue, ou hors de a_planifier, planifiee et reportee. Réservé à l'admin."
+                "qui manque. Volets : soumission (devis accepté), adresse (coordonnées CONFIRMÉES), équipe admissible "
+                "(profil des équipes), matériel (état de M6 reçu par le bus : ok seulement si prêt, réservé et sans "
+                "ligne manquante ; sinon manque, partiel ou a_commander avec les lignes ; aucune charge : "
+                "non_verifiable), météo (règles du service : chaque risque a un seuil ou est sans objet, sinon « seuil "
+                "à configurer » ; la prévision se juge par créneau, m4_verifier_meteo_creneau). Chaque volet est ok, "
+                "manque ou non_verifiable. pret SEULEMENT si tous sont ok, jamais par défaut. Ne rend ni coordonnée, "
+                "ni contact, ni prix, et ne promet aucune date. Refus (REJ-TRANSITION-ILLEGALE) : intervention "
+                "inconnue, ou hors de a_planifier, planifiee et reportee. Réservé à l'admin."
             ),
             parametres={
                 "type": "object",
@@ -1758,6 +1827,60 @@ def outils(
             autonomie=Autonomie.T0,
             # §9.5 M4 « dispatch du jour » : l'admin voit ce qui bloque un chantier avant de le cédule. Ni l'employé
             # ni le vendeur : c'est l'état d'un chantier de client (adresse confirmée ou non). Refusé aussi dans
+            # l'outil (`acces.controler_administrateur`).
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_verifier_meteo_creneau",
+            description=(
+                "Lecture seule (M4.10, M4.21) : juge la MÉTÉO de chaque créneau d'un plan proposé (plan_id de "
+                "m4_proposer_cedule) contre les seuils du service (`opsys meteo declarer`) : bloquant, "
+                "validation_requise, ok ou inconnu, avec la prévision, sa source et son heure d'émission citées. "
+                "inconnu n'est JAMAIS ok (seuil à configurer, prévision absente ou incomplète, jour sans date, "
+                "fournisseur en panne). calendrier relie chaque jour numéroté à une date AAAA-MM-JJ. Prévision : "
+                "fournisseur ouvert par le profil (aucun par défaut, aucun réseau) ou previsions_saisies (saisie à la "
+                "main, prioritaire). Un créneau bloquant donne un report proposé (motif meteo, jamais appliqué) et une "
+                "nouvelle proposition de cédule pour les jours restants : arguments de m4_proposer_cedule et aperçu, "
+                "rien n'est rangé ni appliqué (m4_appliquer_cedule reste N3). Réponse résumée si le plan est grand "
+                "(jours : un jour à la fois). Aucune coordonnée, aucun prix. Réservé à l'admin."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "plan_id": {"type": "string", "description": "Identifiant rendu par m4_proposer_cedule."},
+                    "calendrier": {
+                        "type": "object",
+                        "description": (
+                            "{jour: date}, la date civile AAAA-MM-JJ de chaque jour numéroté du plan (M4 ne tient pas "
+                            "de calendrier). Un jour sans date est jugé inconnu, jamais deviné."
+                        ),
+                    },
+                    "jours": {
+                        "type": "array", "items": {"type": "integer", "minimum": 0},
+                        "description": (
+                            "Facultatif. Ne juger que ces jours du plan (un plan de plusieurs semaines ne tient pas "
+                            "dans une réponse : la réponse est résumée, puis refusée si elle ne tient toujours pas)."
+                        ),
+                    },
+                    "previsions_saisies": {
+                        "type": "object",
+                        "description": (
+                            "Facultatif. Prévision saisie à la main : {saisi_par (votre nom), source (texte : d'où "
+                            "vient la prévision), emise_le (heure d'émission ISO 8601 avec fuseau), points: [{heure "
+                            "AAAA-MM-JJTHH:MM (heure locale du chantier, minutes à zéro), temperature_c, vent_kmh, "
+                            "rafales_kmh, precipitation_mm_h (mm sur l'heure), probabilite_precipitation_pct, verglas "
+                            "(true ou false)}]}. Une mesure absente vaut null : la règle qui la demande reste inconnue."
+                        ),
+                    },
+                },
+                "required": ["plan_id", "calendrier"],
+                "additionalProperties": False,
+            },
+            fonction=verifier_meteo_creneau,
+            autonomie=Autonomie.T0,
+            # §9.5 M4 « dispatch du jour » : l'admin sait, avant d'appliquer une cédule, si la météo tient. Ni
+            # l'employé ni
+            # le vendeur : un plan regroupe des chantiers de clients (adresses confirmées, tournées). Refusé aussi dans
             # l'outil (`acces.controler_administrateur`).
             roles_appareil=frozenset({"admin"}),
         ),

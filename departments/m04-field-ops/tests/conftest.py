@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import socket
 import struct
 import zlib
 
@@ -60,3 +61,23 @@ def deposer_photo_test():
         return r["resultat"]["resultat"]["reference"]
 
     return _deposer
+
+
+@pytest.fixture
+def sockets_bloques(monkeypatch):
+    """Aucun accès réseau (PLAN T4.1-a, repris par T4.13) : tout socket, toute résolution de nom lève une erreur.
+
+    Un test qui l'utilise prouve que son chemin de code n'ouvre jamais de connexion : les adaptateurs météo reçoivent un
+    `transport` fictif, et le vrai transport n'atteint jamais le réseau."""
+    def interdit(*_args, **_kwargs):
+        raise AssertionError("accès réseau interdit dans ce test")
+
+    class SocketInterdit:
+        def __init__(self, *_args, **_kwargs):
+            interdit()
+
+    monkeypatch.setattr(socket, "socket", SocketInterdit)
+    monkeypatch.setattr(socket, "create_connection", interdit)
+    monkeypatch.setattr(socket, "getaddrinfo", interdit)
+    monkeypatch.setattr(socket, "gethostbyname", interdit)
+    monkeypatch.setattr(socket, "socketpair", interdit)

@@ -1,5 +1,5 @@
 """CLI `opsys` : vérifier, générer les profils, piloter approbations, modes, budgets, paliers, services, équipes,
-identité."""
+météo, identité."""
 
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ from . import (
     identite,
     instance,
     jetons,
+    meteo,
     modeles,
     openclaw,
     passerelle,
@@ -98,13 +99,16 @@ def cmd_verifier(args: argparse.Namespace) -> int:
     problemes_taxonomie = list(dict.fromkeys(
         taxonomie.verifier_profil()
         + equipes.verifier_profil()
+        + meteo.verifier_profil()
         + taxonomie.copies_locales_du_catalogue(
             [Path(__file__).resolve().parent, *(dep.racine / "src" for dep in deps.values())]
         )
     ))
     if problemes_taxonomie:
-        print("ERREUR : taxonomie métier incohérente (profil d'entreprise, équipes, copie locale du catalogue) :",
-              file=sys.stderr)
+        print(
+            "ERREUR : taxonomie métier incohérente (profil d'entreprise, équipes, météo, copie locale du catalogue) :",
+            file=sys.stderr,
+        )
         for probleme in problemes_taxonomie:
             print(f"  - {probleme}", file=sys.stderr)
         return 1
@@ -403,6 +407,41 @@ def cmd_equipes(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_meteo(args: argparse.Namespace) -> int:
+    """Profil d'entreprise (PLAN T4.13) : les seuils météo par service que M4 utilise pour juger un créneau, et le
+    fournisseur de prévisions que l'entreprise ouvre (aucun par défaut : la prévision se saisit à la main).
+
+    `lister` montre le fichier, le profil déclaré et ce qui reste à décider. `declarer --depuis FICHIER --par NOM`
+    REMPLACE la clé `meteo` par le contenu validé du fichier, signée au journal d'audit. L'API gratuite d'Open-Meteo est
+    non commerciale : le forfait `commercial` est le seul accepté, et la clé d'API reste dans l'environnement.
+    """
+    if args.action == "declarer":
+        try:
+            fichier = meteo.enregistrer_meteo(_lire_declaration_equipes(args.depuis), par=args.par)
+        except (OSError, ValueError) as exc:  # `ProfilInvalide` est une `ValueError`
+            print(f"ERREUR : {exc}", file=sys.stderr)
+            return 1
+        except SQLAlchemyError as exc:
+            print(f"ERREUR : base de l'instance inaccessible ({type(exc).__name__}) : `opsys base migrer` ?",
+                  file=sys.stderr)
+            return 1
+        print(fichier)
+        return 0
+    try:
+        profil = meteo.lire_meteo()
+        declares = [service.code for service in taxonomie.lire_services()]
+    except taxonomie.ProfilInvalide as exc:
+        print(f"ERREUR : {exc}", file=sys.stderr)
+        return 1
+    _afficher({
+        "fichier": str(taxonomie.fichier_profil()),
+        "declare": profil is not None,
+        "profil": profil,
+        "a_declarer": meteo.a_declarer(profil, declares),
+    })
+    return 0
+
+
 def cmd_paliers(args: argparse.Namespace) -> int:
     paliers = modeles.charger_paliers()
     if args.action == "lister":
@@ -594,6 +633,14 @@ def construire_parseur() -> argparse.ArgumentParser:
     eq.add_argument("--depuis", help="declarer : fichier YAML ou JSON du profil (clés liste, services, cedule, ...)")
     eq.add_argument("--par", help="declarer : qui déclare (journal d'audit)")
     eq.set_defaults(fn=cmd_equipes)
+    me = sous.add_parser(
+        "meteo", help="profil d'entreprise : seuils météo par service et fournisseur de prévisions (M4, créneaux)")
+    me.add_argument("action", choices=["lister", "declarer"])
+    me.add_argument(
+        "--depuis", help="declarer : fichier YAML ou JSON du profil (clés fuseau, fournisseur, services, ...)"
+    )
+    me.add_argument("--par", help="declarer : qui déclare (journal d'audit)")
+    me.set_defaults(fn=cmd_meteo)
     pa = sous.add_parser("paliers", help="associer les paliers de modèles à des fournisseurs")
     pa.add_argument("action", choices=["lister", "definir"])
     pa.add_argument("palier", nargs="?", choices=["local", "rapide", "standard", "fort"])
@@ -665,6 +712,9 @@ def main(argv: list[str] | None = None) -> int:
         print("au moins un code de service et --par requis", file=sys.stderr)
         return 2
     if args.commande == "equipes" and args.action == "declarer" and not (args.depuis and args.par):
+        print("--depuis (fichier du profil) et --par requis", file=sys.stderr)
+        return 2
+    if args.commande == "meteo" and args.action == "declarer" and not (args.depuis and args.par):
         print("--depuis (fichier du profil) et --par requis", file=sys.stderr)
         return 2
     if args.commande == "instance" and args.action == "restaurer" and not args.archive:

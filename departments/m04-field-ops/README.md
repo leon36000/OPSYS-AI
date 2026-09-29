@@ -245,10 +245,10 @@ DEFINITION-PRODUIT §6 (« soumission acceptée → M4 planifie ») et §7 M4.5,
   admin seulement, lecture seule). Le verdict est une liste de volets : `soumission` (le devis qui a fait naître
   l'intervention), `adresse` (coordonnées CONFIRMÉES, lues comme la cédule les lit : le chantier est le `lead_id`),
   `equipe`, `materiel`, `meteo`. Chaque volet est `ok` (lu à sa source), `manque` (attendu et absent : le champ `manque`
-  dit quoi fournir) ou `non_verifiable` (M4 n'a pas encore de quoi le lire). **La météo est `non_verifiable`
-  aujourd'hui** (T4.13 ; l'équipe l'était avant T4.12, le matériel avant T4.14-b) : le
-  verdict d'ensemble est `pret` SEULEMENT si tous les volets sont `ok`, sinon `bloque` ou `non_verifiable`, donc aucune
-  intervention n'est `pret` avant T4.13 et la porte `a_planifier → planifiee` reste fermée. Le verdict ne rend ni
+  dit quoi fournir) ou `non_verifiable` (M4 n'a pas de quoi le lire). Depuis T4.13, aucun volet n'est plus sans source
+  (l'équipe l'était avant T4.12, le matériel avant T4.14-b, la météo avant T4.13) : le verdict d'ensemble est `pret`
+  SEULEMENT si tous les volets sont `ok`, sinon `bloque` ou `non_verifiable` ; la porte `a_planifier → planifiee` s'ouvre
+  pour une intervention dont M6 dit le matériel prêt et dont le service a ses règles météo. Le verdict ne rend ni
   coordonnée, ni contact, ni prix.
 
 Preuve : `tests/test_consommer_devis_accepte.py` (bus réel, M4 seul), `tests/test_etats_a_planifier.py`,
@@ -276,8 +276,8 @@ dépôt, quarts et durées à chaque cédule. Quatre pièces :
   pourquoi. C'est une condition nécessaire : le solveur ajoute trajets, fenêtre du client et charge des journées. Elle
   devient le volet `equipe` de `preparation.py` : `ok` (les équipes admissibles sont nommées), `manque` (sans profil, avec
   un profil invalide, sans durée pour ce service, sans équipe admissible : le volet dit quoi déclarer ou ajuster), ou
-  `non_verifiable` pour un lead v1 (le profil est par service). Le matériel se lit depuis T4.14-b (section suivante) ;
-  la météo reste `non_verifiable`.
+  `non_verifiable` pour un lead v1 (le profil est par service). Le matériel se lit depuis T4.14-b et la météo depuis
+  T4.13 (sections suivantes).
 - **`m4_proposer_cedule` lit le profil sans argument.** Un argument donné REMPLACE la clé entière du profil (jamais une
   fusion) : c'est une surcharge, tracée (`provenance` : `profil` ou `surcharge`, par clé et, pour `chantiers`, par
   intervention ; `empreinte_profil` au maillon). Une intervention `a_planifier` sans entrée dans `chantiers` prend la
@@ -313,10 +313,10 @@ mêmes octets de plan que les mêmes valeurs en arguments, y compris sur une sec
 Le fixture `tests/fixtures/equipes_repentigny_joliette.json` est FICTIF (`fictif: true`) et un test vérifie qu'aucun
 chiffre n'a dérivé du scénario de T4.1-d.
 
-Limites connues : **la météo reste non vérifiable (T4.13) : aucune intervention n'est « prête » en vrai, donc aucune
-intervention née du bus ne sort de `a_planifier` aujourd'hui** (le matériel se lit depuis T4.14-b) ; les tests de sortie
-SIMULENT ce volet pour prouver la plomberie, un test prouve que la porte reste fermée sans lui. Et comme un devis n'a qu'une
-intervention, le repli `m4_planifier_intervention` est fermé pour un devis dont l'intervention existe : le propriétaire
+Limites connues : à l'époque de T4.12, **matériel et météo étaient sans source : aucune intervention née du bus ne sortait de
+`a_planifier`** (levé par T4.14-b et T4.13, sections suivantes) ; les tests de sortie de `test_equipes_cedule.py` SIMULENT
+encore ces deux volets pour ne prouver que la plomberie de la cédule, un test prouve que la porte reste fermée sans eux. Et
+comme un devis n'a qu'une intervention, le repli `m4_planifier_intervention` est fermé pour un devis dont l'intervention existe : le propriétaire
 tranche s'il veut une attestation humaine d'un volet non vérifiable (aucune n'existe). `jour` est le numéro de journée du
 solveur : pas de calendrier, pas de quarts par jour de la semaine ; les bornes des réglages de la cédule sont vérifiées par
 M4 à l'usage, pas à la déclaration ; une planification à la main SANS `devis_id`, faite avant le devis accepté du même lead,
@@ -353,3 +353,65 @@ fictives, puis M4 et le VRAI M6 : devis accepté → `a_commander`, réception p
 Limites connues : le stock de M6 ne déclare pas d'unité (M6 recopie celle du prévu) ; un prévu vide ne publie rien (M6
 « ne dit rien plutôt que prêt ») donc le volet reste `non_verifiable` ; M4 ne re-publie ni ne demande jamais l'état à M6 : une
 charge perdue reste perdue jusqu'à la prochaine révision.
+
+## Météo des créneaux (PLAN T4.13)
+
+DEFINITION-PRODUIT §6 (un chantier de revêtement sous un vent fort se reporte), §7 M4.10 (météo) et M4.21 (report). Avant,
+le volet `meteo` de la préparation était `non_verifiable` et rien ne jugeait la météo d'une cédule. Six pièces :
+
+- **Le profil météo** (`opsys.meteo`, socle ; clé `meteo` de `$OPSYS_HOME/entreprise.yaml` ; `opsys meteo lister|declarer` ;
+  forme et règles dans `docs/architecture/TAXONOMIE.md`). Par service, des seuils (vent, rafales, pluie, probabilité de
+  pluie, gel, verglas, chaleur) à deux niveaux (`validation`, `blocage`) ou le risque déclaré `sans_objet` ; le fuseau ; le
+  fournisseur ouvert. **Aucune valeur par défaut** : le propriétaire décide (GATE NATHAN), sinon « seuil à configurer ».
+- **`meteo.py`** (pur, gardé par analyse du code : ni `opsys`, ni horloge, ni aléa, ni flottant, ni réseau) : le port
+  `FournisseurMeteo` (sur le patron de `FournisseurMatrice` : des points de prévision horaires, une citation), et
+  `evaluer_creneau`, qui juge un créneau contre les règles du service. Résultat : `bloquant` (un seuil de blocage franchi),
+  `validation_requise` (un seuil de validation franchi), `ok`, ou `inconnu` (règle sans décision, mesure absente ou heure
+  sans donnée : « inconnu » n'est **jamais** « ok »). Un blocage observé l'emporte même sur une prévision incomplète. Le
+  résultat cite la valeur, l'heure, le seuil, la source et **l'heure d'émission de la prévision** (jamais l'horloge de M4).
+- **Les fournisseurs** (fermés par défaut) : `meteo_manuelle.py` (l'admin saisit la prévision, avec sa source et son heure
+  d'émission ; toujours disponible, prioritaire), `meteo_geomet.py` (MSC GeoMet, ECCC : usage commercial permis, attribution
+  rendue ; ne donne ni rafales, ni quantité de pluie, ni verglas fiable : ces règles restent `inconnu`),
+  `meteo_open_meteo.py` (API gratuite non commerciale : **fermé deux fois**, forfait commercial déclaré ET clé d'API dans
+  l'environnement : décision du propriétaire) ; `meteo_fournisseurs.py` les ouvre selon le profil ; `meteo_http.py` est le
+  seul module qui parle au réseau (hôtes d'une liste fermée, sans redirection, sans URL ni message d'exception dans les
+  verdicts). Seule la position générale d'un chantier (dixième de degré) quitte le serveur (Loi 25). Licences et conditions
+  lues le 2026-09-29 : `docs/research/INGREDIENTS.md`.
+- **`meteo_creneaux.py`** (pur) : la météo de chaque créneau d'un plan proposé (`cedule_proposee`) : le jour numéroté de la
+  cédule est relié à une date par le `calendrier` que l'appelant fournit (M4 ne tient pas de calendrier : un jour sans date
+  est `inconnu`, jamais deviné). Un créneau `bloquant` donne un **report proposé** (motif `meteo`, jamais appliqué : le geste
+  `m4_signaler_report` pour une intervention planifiée, ou le retrait du jour de la fenêtre pour une `a_planifier`) et une
+  **nouvelle proposition de cédule** pour les jours restants (arguments de `m4_proposer_cedule` et aperçu calculé sur une
+  copie du registre : les mêmes arguments donnent le même `plan_id`). Un jour fermé pour un service l'est pour tous les
+  chantiers de ce service ; un créneau confirmé au client ne se déplace jamais tout seul. Un plan **périmé** pour une
+  intervention (un autre plan appliqué la tient) est jugé mais ne compte ni dans le statut, ni dans les reports.
+- **L'outil `m4_verifier_meteo_creneau`** (T0, admin seulement, lecture seule ; `plan_id`, `calendrier`, `previsions_saisies`
+  facultatif, `jours` facultatif) : n'écrit rien, ne change aucun statut, ne range ni n'applique rien (`m4_appliquer_cedule`
+  reste N3). Sans prévision ni fournisseur ouvert : `inconnu`, sans réseau. `previsions_saisies.saisi_par` nomme la personne
+  authentifiée (sinon `REJ-IDENTITE-FOURNIE-DIFFERENTE`). La réponse d'un appareil est bornée (6 000 caractères) : elle est
+  résumée (`detail_reduit` : créneaux `ok` sans détail, puis par jour), puis refusée avec la consigne `jours`, jamais
+  tronquée. Aucune coordonnée, aucun prix.
+- **Le volet `meteo` de `preparation.py`** : `ok` si le service a ses règles (chaque risque jugé ou sans objet) ; `manque`
+  sinon (« seuil à configurer pour le service … », avec la commande) ; `non_verifiable` pour un lead v1 (les règles sont par
+  service). **La préparation n'a pas de date : ce volet certifie que la météo SE JUGE, jamais qu'il fera beau** ; la
+  prévision d'un créneau se juge avec l'outil ci-dessus.
+
+Preuve : `tests/test_meteo.py` et `tests/test_cli_meteo.py` du socle (profil et commande), `test_meteo.py`,
+`test_meteo_manuelle.py`, `test_meteo_http.py`, `test_meteo_geomet.py`, `test_meteo_open_meteo.py`,
+`test_meteo_fournisseurs.py` (adaptateurs : sockets bloqués, transport fictif, réponses `fictif: true`),
+`test_meteo_creneaux.py` (module pur), `test_preparation.py` (`TestVoletMeteo`), `test_meteo_outil.py` (vrais outils, vrai
+bus, vrais fichiers de profil : sans prévision `inconnu`, vent fort bloquant, report proposé, cédule relancée au même
+`plan_id`, lecture seule, panne d'un fournisseur, refus d'identité) et `tests/e2e/test_meteo_bloquante_appareil.py` (par la
+porte d'appareil, avec le VRAI M6 pour le matériel : devis accepté, matériel à commander, réception, prêt, plan, vent
+fort, report proposé, cédule relancée appliquée par l'admin en N3, report N3 d'une intervention planifiée, plan périmé,
+réseau coupé, employé refusé). Les fixtures sont FICTIVES (`fictif: true`).
+
+Limites connues : la préparation n'a pas de date, donc son volet météo ne promet rien sur le temps qu'il fera ; **M4 ne
+tient pas de calendrier** (le `calendrier` est un argument) ; la vérification est une lecture : **elle n'est pas rangée au
+registre** (aucun outil T1 ne garde « météo vérifiée pour ce plan » ; un plan appliqué se revérifie à la demande) ; MSC GeoMet
+ne donne ni rafales, ni quantité de pluie, ni verglas fiable (ces règles restent `inconnu` tant que l'admin ne saisit pas la
+prévision ou que le propriétaire n'ouvre pas Open-Meteo avec un forfait commercial) ; les alertes météo d'ECCC ne sont pas
+reproduites ; la licence MSC GeoMet a été lue dans la documentation en ligne d'ECCC (aucun fichier `LICENSE` à lire), sans
+relecture juridique ; la transition `reportee → planifiee` existe dans la machine à états, mais aucun outil ni aucune cédule ne la porte
+(un report appliqué n'a pas de replanification outillée) ; le report d'une `a_planifier` n'a pas de geste (le jour est retiré de sa fenêtre dans la nouvelle proposition) ;
+un client déjà informé d'un créneau se prévient par M1, jamais d'ici (frontière T3).

@@ -226,10 +226,56 @@ au moins un quart assez long pour sa durée : `admissibilite.py`) et devient le 
 ([ROLES](ROLES.md), « Les équipes du profil de l'entreprise »). Les leads v1 (gelés) n'ont pas de service : leurs durées et
 compétences par type de travaux restent des arguments. Détail : README de M4.
 
+## Règles météo, fuseau et fournisseur de prévisions (PLAN T4.13)
+
+Le même profil porte la météo : `opsys.meteo` (module frère de `opsys.equipes`, même fichier, même écriture signée au
+journal d'audit). Les SEUILS ne sont pas ceux du code : un revêtement ne craint pas le vent comme une gouttière, et c'est
+le propriétaire qui décide (GATE NATHAN) ; **aucune valeur par défaut**.
+
+```yaml
+meteo:
+  fuseau: America/Toronto        # fuseau des créneaux ; requis dès qu'un fournisseur est ouvert
+  fournisseur: msc_geomet        # msc_geomet ou open_meteo ; absent : prévision saisie à la main SEULEMENT (défaut)
+  services:                      # par code de service DÉCLARÉ
+    revetement:
+      seuils:                    # mesure -> {validation, blocage} ; au moins l'un des deux ; nombres entiers
+        vent_kmh: {validation: 30, blocage: 45}          # vent moyen horaire, >= seuil
+        pluie_mm_h: {blocage: 3}                         # précipitations horaires (mm), >= seuil
+        gel_c: {blocage: 0}                              # température minimale, <= seuil
+        verglas: {blocage: true}                         # précipitations verglaçantes prévues
+        chaleur_c: {blocage: 35}                         # température maximale, >= seuil
+      sans_objet: []             # risques que l'entreprise déclare SANS OBJET pour ce service
+```
+
+Cinq risques (vent, pluie, gel, verglas, chaleur). Pour chaque service, chacun est JUGÉ (au moins une mesure dans `seuils` :
+`vent_kmh`, `rafales_kmh` pour le vent ; `pluie_mm_h`, `pluie_probabilite_pct` pour la pluie ; `gel_c` ; `verglas` ;
+`chaleur_c`) ou déclaré `sans_objet` ; un risque sans décision n'est jamais « sans risque » : le verdict du créneau reste
+« inconnu » et dit « seuil à configurer ». `opsys meteo lister` montre le profil et ce qu'il reste à décider ; `opsys meteo
+declarer --depuis meteo.yaml --par nathan` REMPLACE la clé entière par le contenu validé du fichier, signée au journal
+(services, fournisseur, empreinte : jamais la clé d'API).
+
+| Situation | Verdict |
+|---|---|
+| Aucun profil météo | `REJ-METEO-NON-CONFIGUREE` : dit quoi déclarer et la commande. Le volet « météo » de `m4_verifier_preparation` manque, et la cédule ne prend pas l'intervention. |
+| Profil écrit mais invalide (seuil mal ordonné, mesure inconnue, fournisseur inconnu, forfait non commercial…) | `REJ-PROFIL-INVALIDE` avec la raison, **jamais lu comme absent** ; `opsys verifier` le signale. |
+| Service sans règles, ou risque sans décision | Le volet « météo » de la préparation manque (« seuil à configurer pour le service … »). |
+
+**Le fournisseur est fermé par défaut** : sans clé `fournisseur`, aucune requête ne part jamais et l'admin saisit la
+prévision (`previsions_saisies` de `m4_verifier_meteo_creneau`, sa source et son heure citées). MSC GeoMet (licence de
+données ECCC v2.1.1, usage commercial permis, attribution rendue à chaque résultat) s'ouvre par `fournisseur: msc_geomet` ;
+il ne donne ni rafales, ni quantité de précipitations, ni verglas fiable : les règles qui les demandent restent « inconnu ».
+Open-Meteo (API gratuite réservée à un usage non commercial) ne s'ouvre qu'avec `open_meteo: {forfait: commercial, cle_env:
+NOM_DE_VARIABLE}` ET la clé d'API dans cette variable d'environnement : décision du propriétaire. Conditions lues le
+2026-09-29 : `docs/research/INGREDIENTS.md`. Seule la position générale d'un chantier (dixième de degré) quitte le serveur
+(Loi 25). M4 s'en sert pour le volet « météo » de la préparation (les règles du service existent : la préparation n'a pas
+de date, elle ne promet pas le beau temps) et pour `m4_verifier_meteo_creneau` (la prévision d'un créneau contre les
+seuils). Détail : README de M4.
+
 ## Reste à faire
 
 - Demande de chiffrage M1→M3 (`m1-demande-chiffrage.v1.yaml`) : v2 à publier.
 - Règle de précédence entre services (« réparation de gouttières ») : décision du propriétaire (T2.1).
 - Barèmes et estimateurs par service (T2.3, M3.8).
 - Quarts par jour de la semaine et calendrier : le profil des équipes garde le `jour` numéroté du solveur (M4 ne tient
-  pas encore de calendrier) ; véhicules et équipements ne sont pas modélisés.
+  pas encore de calendrier : `m4_verifier_meteo_creneau` reçoit `{jour: date}` de l'appelant) ; véhicules et équipements
+  ne sont pas modélisés.

@@ -3,7 +3,9 @@
 Le verdict NOMME ce qui manque, volet par volet, et n'est « prêt » que si TOUS les volets sont vérifiés. Le volet
 équipe est vérifié depuis le profil des équipes (PLAN T4.12) : une équipe admissible, calculée par le code. Le volet
 matériel est vérifié depuis la charge `m6.materiel_pret` la plus récente du devis (PLAN T4.14-b) ; sans charge, il reste
-« non vérifiable ». Le volet météo n'a pas encore de source dans M4 (PLAN T4.13) : « non vérifiable », jamais « prêt ».
+« non vérifiable ». Le volet météo est vérifié depuis les règles du service dans le profil météo de l'entreprise (PLAN
+T4.13) :
+la préparation n'a pas de date, donc il certifie que la météo SE JUGE, pas qu'il fera beau. Aucun volet n'est simulé.
 Données fictives.
 """
 
@@ -16,6 +18,8 @@ from pathlib import Path
 
 import pytest
 from m4_field_ops import etats, materiel, preparation, registre, verdicts
+
+from opsys import meteo as meteo_entreprise
 
 _SRC = Path(preparation.__file__).resolve()
 
@@ -131,6 +135,20 @@ def _profil(**surcharges):
     return profil
 
 
+RISQUES = meteo_entreprise.RISQUES
+# gouttières : les cinq risques sont décidés (quatre jugés, la chaleur sans objet) ; chiffres FICTIFS
+METEO = meteo_entreprise.normaliser_meteo({
+    "fuseau": "America/Toronto",
+    "services": {"gouttieres": {"seuils": {
+        "vent_kmh": {"validation": 35, "blocage": 50}, "pluie_mm_h": {"blocage": 5}, "gel_c": {"blocage": 0},
+        "verglas": {"blocage": True}}, "sans_objet": ["chaleur"]}}})
+
+
+def _lecteur_meteo(profil=None, verdict=None):
+    lecture = (METEO if profil is None and verdict is None else profil, verdict)
+    return lambda: lecture
+
+
 def _lecteur(profil=None, verdict=None):
     appels = []
 
@@ -140,17 +158,6 @@ def _lecteur(profil=None, verdict=None):
 
     lire.appels = appels
     return lire
-
-
-def _volets_futurs_ok(monkeypatch):
-    """Simule ce que T4.13 (météo) livrera : un volet vérifié. Ne sert qu'à prouver la plomberie ; aucun verdict réel
-    n'est « prêt » tant que cette tâche n'existe pas. Le matériel (T4.14-b) n'est PAS simulé : il se lit d'une vraie
-    charge."""
-    def ok(_registre, _inscription, _lire_position, _lire_equipes):
-        return {"statut": "ok", "manque": None, "detail": "simulé par le test"}
-
-    monkeypatch.setattr(preparation, "_VOLETS", tuple(
-        (nom, ok if nom == "meteo" else fonction) for nom, fonction in preparation._VOLETS))
 
 
 class TestVoletEquipe:
@@ -249,24 +256,34 @@ class TestVoletEquipe:
         for interdit in ("luc.fictif", "membres", "score", "note", "classement", "performance"):
             assert interdit not in texte, interdit
 
-    def test_pret_seulement_quand_l_equipe_ET_le_materiel_ET_la_meteo_sont_verifies(self, intervention, monkeypatch):
+    def test_pret_seulement_quand_l_equipe_ET_le_materiel_ET_la_meteo_sont_verifies(self, intervention):
         reg, iid = intervention
-        # aujourd'hui : le profil ne suffit pas
+        # le profil des équipes ne suffit pas
         assert preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(_profil()))[0]["pret"] is False
-        _volets_futurs_ok(monkeypatch)  # T4.13 simulé : la plomberie prouvée, pas le produit
-        # sans charge de M6, le matériel n'est pas vérifiable : jamais prêt, même avec la météo simulée
-        sans_materiel, _ = preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(_profil()))
+        # sans charge de M6, le matériel n'est pas vérifiable : jamais prêt, même avec des règles météo
+        sans_materiel, _ = preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(_profil()), _lecteur_meteo())
         assert sans_materiel["pret"] is False and [f["volet"] for f in sans_materiel["a_fournir"]] == ["materiel"]
+        # sans règles météo lues, la météo n'est pas vérifiable : jamais prêt, même avec le matériel
         _recevoir(reg, _charge_materiel(3, "pret"))  # T4.14-b : une vraie charge, pas une simulation
-        pret, _ = preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(_profil()))
+        sans_meteo, _ = preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(_profil()))
+        assert sans_meteo["pret"] is False and [f["volet"] for f in sans_meteo["a_fournir"]] == ["meteo"]
+        # T4.13 : de vraies règles, et AUCUN volet simulé : la préparation est prête
+        pret, _ = preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(_profil()), _lecteur_meteo())
         assert pret["pret"] is True and pret["statut"] == preparation.VERDICT_PRET and pret["a_fournir"] == []
         # sans profil, ou avec une adresse non confirmée, ou sans équipe admissible : jamais prêt, même ainsi
-        sans_profil = preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(None, {"code": "X", "detail": "d"}))[0]
+        sans_profil = preparation.evaluer(
+            reg, iid, _lire_position_ok, _lecteur(None, {"code": "X", "detail": "d"}), _lecteur_meteo())[0]
         assert sans_profil["pret"] is False and sans_profil["statut"] == preparation.VERDICT_BLOQUE
-        assert preparation.evaluer(reg, iid, _lire_position_absente, _lecteur(_profil()))[0]["pret"] is False
+        assert preparation.evaluer(
+            reg, iid, _lire_position_absente, _lecteur(_profil()), _lecteur_meteo())[0]["pret"] is False
         inadmissible = _profil()
         inadmissible["liste"][0]["competences"] = []
-        assert preparation.evaluer(reg, iid, _lire_position_ok, _lecteur(inadmissible))[0]["pret"] is False
+        assert preparation.evaluer(
+            reg, iid, _lire_position_ok, _lecteur(inadmissible), _lecteur_meteo())[0]["pret"] is False
+        # un service sans règle météo : jamais prêt
+        sans_regle = meteo_entreprise.normaliser_meteo({"services": {"reparation": {"sans_objet": list(RISQUES)}}})
+        assert preparation.evaluer(
+            reg, iid, _lire_position_ok, _lecteur(_profil()), _lecteur_meteo(sans_regle))[0]["pret"] is False
         # le verdict prêt ouvre la porte de la machine à états (l'empreinte est celle de son contenu)
         accuse, verdict = etats.transitionner(iid, "planifiee", reg, "2026-09-29T12:00:00-04:00", preparation=pret)
         assert verdict is None and accuse["statut"] == "planifiee"
@@ -424,6 +441,129 @@ class TestVoletMateriel:
         assert verdict["pret"] is False and [f["volet"] for f in verdict["a_fournir"]] == ["meteo"]
 
 
+class TestVoletMeteo:
+    """PLAN T4.13 : le volet météo se lit dans le profil météo de l'entreprise ; la préparation n'a pas de date, donc il
+    certifie que la météo SE JUGE (les règles du service existent), pas qu'il fera beau."""
+
+    def _meteo(self, reg, iid, lire_meteo):
+        verdict, refus = preparation.evaluer(reg, iid, _lire_position_ok, None, lire_meteo)
+        assert refus is None
+        return _volets(verdict)["meteo"], verdict
+
+    def test_sans_lecture_du_profil_meteo_le_volet_est_non_verifiable_jamais_ok(self, intervention):
+        reg, iid = intervention
+        volet, verdict = self._meteo(reg, iid, None)
+        assert volet["statut"] == preparation.STATUT_NON_VERIFIABLE and "aucune n'a été fournie" in volet["manque"]
+        assert verdict["pret"] is False
+
+    def test_des_regles_decidees_pour_le_service_rendent_le_volet_ok_et_le_disent(self, intervention):
+        reg, iid = intervention
+        volet, _ = self._meteo(reg, iid, _lecteur_meteo())
+        assert volet["statut"] == preparation.STATUT_OK and volet["manque"] is None
+        assert volet["detail"] == (
+            "règles météo déclarées pour gouttieres : mesures jugées vent_kmh, pluie_mm_h, gel_c, verglas ; risques "
+            "sans objet chaleur ; la prévision d'un créneau se juge par m4_verifier_meteo_creneau, la préparation n'a "
+            "pas de date"
+        )
+
+    def test_le_volet_ok_ne_promet_pas_le_beau_temps(self, intervention):
+        reg, iid = intervention
+        volet, _ = self._meteo(reg, iid, _lecteur_meteo())
+        assert "la préparation n'a pas de date" in volet["detail"]
+        texte = json.dumps(volet, ensure_ascii=False)
+        for interdit in ("km/h", "prévu", "prévision météo :"):
+            assert interdit not in texte, interdit
+
+    def test_un_service_sans_regles_manque_et_dit_seuil_a_configurer_avec_les_cinq_risques(self, intervention):
+        reg, iid = intervention
+        profil = meteo_entreprise.normaliser_meteo({"services": {"revetement": {"sans_objet": list(RISQUES)}}})
+        volet, verdict = self._meteo(reg, iid, _lecteur_meteo(profil))
+        assert volet["statut"] == preparation.STATUT_MANQUE and volet["detail"] == "REJ-CHAMP-MANQUANT"
+        assert "seuil à configurer pour le service 'gouttieres'" in volet["manque"]
+        assert "vent, pluie, gel, verglas, chaleur" in volet["manque"] and "opsys meteo declarer" in volet["manque"]
+        assert "jamais inventé" in volet["manque"]
+        assert verdict["statut"] == preparation.VERDICT_BLOQUE
+
+    def test_un_risque_sans_decision_manque_et_est_nomme(self, intervention):
+        reg, iid = intervention
+        profil = meteo_entreprise.normaliser_meteo({"services": {"gouttieres": {
+            "seuils": {"vent_kmh": {"blocage": 50}, "verglas": {"blocage": True}}, "sans_objet": ["chaleur"]}}})
+        volet, _ = self._meteo(reg, iid, _lecteur_meteo(profil))
+        assert volet["statut"] == preparation.STATUT_MANQUE and "pluie, gel" in volet["manque"]
+        assert "vent" not in volet["manque"].split(":")[1].split("(")[0]
+
+    def test_tous_les_risques_sans_objet_rendent_le_volet_ok(self, intervention):
+        reg, iid = intervention
+        profil = meteo_entreprise.normaliser_meteo({"services": {"gouttieres": {"sans_objet": list(RISQUES)}}})
+        volet, _ = self._meteo(reg, iid, _lecteur_meteo(profil))
+        assert volet["statut"] == preparation.STATUT_OK
+        assert "mesures jugées aucune" in volet["detail"] and "chaleur" in volet["detail"]
+
+    def test_sans_profil_meteo_le_volet_manque_avec_le_code_et_la_consigne(self, intervention):
+        reg, iid = intervention
+        verdict_profil = {
+            "code": "REJ-METEO-NON-CONFIGUREE",
+            "detail": "aucune règle météo déclarée : `opsys meteo declarer --depuis <fichier> --par <nom>`",
+        }
+        volet, verdict = self._meteo(reg, iid, lambda: (None, verdict_profil))
+        assert volet["statut"] == preparation.STATUT_MANQUE and volet["detail"] == "REJ-METEO-NON-CONFIGUREE"
+        assert "opsys meteo declarer" in volet["manque"] and verdict["statut"] == preparation.VERDICT_BLOQUE
+
+    def test_un_profil_meteo_invalide_manque_avec_son_code_jamais_lu_comme_ok(self, intervention):
+        reg, iid = intervention
+        verdict_profil = {"code": "REJ-PROFIL-INVALIDE", "detail": "profil d'entreprise invalide : seuil mal ordonné"}
+        volet, _ = self._meteo(reg, iid, lambda: (None, verdict_profil))
+        assert volet["statut"] == preparation.STATUT_MANQUE and volet["detail"] == "REJ-PROFIL-INVALIDE"
+        assert "seuil mal ordonné" in volet["manque"]
+
+    def test_une_intervention_v1_n_a_pas_de_service_donc_le_volet_est_non_verifiable(self, declarer_services):
+        declarer_services()
+        reg = registre.Registre()
+        contrat = {
+            "lead_id": "L-V1-METEO", "conversation_id": "C1", "type_travaux": "renovation_totale", "ville": "Montreal",
+            "canal": "telephone", "contact": {"nom": "Dupont", "telephone": "0102030405"}, "urgence_declaree": False,
+        }
+        marqueur = {"readiness_ok": True, "lead_id": "L-V1-METEO", "hash_tete_registre": None,
+                    "horodatage": "2025-06-01T12:00:00+00:00", "empreinte": "ab" * 32}
+        accuse, _ = etats.inscrire_intervention(contrat, marqueur, reg, "2025-06-02T08:00:00+00:00", SEL)
+        volet, _ = self._meteo(reg, accuse["intervention_id"], _lecteur_meteo())
+        assert volet["statut"] == preparation.STATUT_NON_VERIFIABLE
+        assert "lead v1" in volet["manque"] and "renovation_totale" in volet["manque"]
+
+    def test_le_profil_est_lu_a_chaque_evaluation_jamais_garde(self, intervention):
+        reg, iid = intervention
+        appels = []
+
+        def lire():
+            appels.append(1)
+            return METEO, None
+
+        self._meteo(reg, iid, lire)
+        self._meteo(reg, iid, lire)
+        assert len(appels) == 2
+
+    def test_le_verdict_ne_porte_ni_coordonnee_ni_prix_ni_membre(self, intervention):
+        reg, iid = intervention
+        _, verdict = self._meteo(reg, iid, _lecteur_meteo())
+        texte = json.dumps(verdict, ensure_ascii=False)
+        for interdit in ("45740117", "latitude", "longitude", "Client Fictif", "Repentigny", "prix", "montant"):
+            assert interdit not in texte, interdit
+
+    def test_l_empreinte_du_verdict_suit_les_regles_meteo_declarees(self, intervention):
+        reg, iid = intervention
+        autre = meteo_entreprise.normaliser_meteo({"services": {"gouttieres": {"sans_objet": list(RISQUES)}}})
+        _, un = self._meteo(reg, iid, _lecteur_meteo())
+        _, meme = self._meteo(reg, iid, _lecteur_meteo())
+        _, deux = self._meteo(reg, iid, _lecteur_meteo(autre))
+        assert un["empreinte"] == meme["empreinte"] != deux["empreinte"]
+
+    def test_lire_la_meteo_n_ecrit_rien(self, intervention):
+        reg, iid = intervention
+        avant = copy.deepcopy(reg.lire())
+        self._meteo(reg, iid, _lecteur_meteo())
+        assert reg.lire() == avant
+
+
 class TestAgregation:
     """`verdict_des_volets` est une fonction pure : le seul endroit où « prêt » peut naître."""
 
@@ -522,7 +662,7 @@ def test_le_module_est_pur_sans_opsys_ni_horloge_ni_alea():
         if isinstance(noeud, ast.ImportFrom):
             assert noeud.module in autorises or noeud.level == 1, (noeud.module, noeud.level)
             if noeud.level == 1:
-                assert {a.name for a in noeud.names} <= {"admissibilite", "etats", "materiel", "verdicts"}
+                assert {a.name for a in noeud.names} <= {"admissibilite", "etats", "materiel", "meteo", "verdicts"}
         if isinstance(noeud, ast.Attribute):
             assert noeud.attr not in {"now", "utcnow", "today", "time", "random", "urandom", "monotonic"}
         if isinstance(noeud, ast.Name):

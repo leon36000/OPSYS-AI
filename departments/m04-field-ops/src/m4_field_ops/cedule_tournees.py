@@ -50,8 +50,10 @@ SORTIE DE ``a_planifier`` (T4.12) : appliquer un plan fait passer ``a_planifier 
 qu'il place, par ``etats.transitionner`` et le verdict de préparation « prêt » recalculé au moment de l'application
 (la porte d'empreinte de T4.10 : aucun verdict truqué ni périmé ne passe), puis l'assigne. Une intervention non prête
 n'entre jamais dans le plan ; elle est rendue avec ce qui lui manque (``non_pretes``). Une intervention que le plan
-laisse de côté reste ``a_planifier``. Tant que le volet météo de ``preparation`` n'est pas vérifiable (T4.13 ; le
-matériel se lit depuis T4.14-b), aucune n'est prête : la porte est câblée, elle reste fermée.
+laisse de côté reste ``a_planifier``. Les volets matériel (T4.14-b, ``m6.materiel_pret``) et météo (T4.13, règles du
+service dans le profil météo) se lisent à leur source : une intervention n'est prête que si M6 la dit prête et si
+l'entreprise
+a décidé ses règles météo pour son service ; sinon la porte reste fermée, et le refus dit ce qui manque.
 
 Limites : ``jour`` est un numéro choisi par l'appelant (M4 ne tient pas encore de calendrier) ; le jour et
 l'heure d'une visite restent dans le maillon du plan, ils ne sont pas encore lus par l'écran « chantiers du
@@ -124,6 +126,9 @@ __all__ = [
     "AVERTISSEMENT_MODE_BRIDE",
     "CLES_PARAMETRES_REQUISES",
     "urgence_depuis_declaration",
+    "instantane_du_registre",
+    "plan_propose",
+    "inscriptions_du_registre",
     "proposer",
     "appliquer",
 ]
@@ -210,6 +215,22 @@ class _Instantane:
         return self._maillons
 
 
+def instantane_du_registre(registre_cible):
+    """Copie de lecture du registre (une seule lecture pour tout le calcul), pour les modules qui jugent un plan
+    proposé sans le modifier (``meteo_creneaux``). Ne modifie jamais le registre."""
+    return _Instantane(registre_cible.lire())
+
+
+def plan_propose(instantane, plan_id):
+    """Le maillon ``cedule_proposee`` de ce plan (appliqué ou non), ou ``None``. Lecture seule."""
+    return _maillon_du_plan(instantane, TYPE_PROPOSEE, plan_id)
+
+
+def inscriptions_du_registre(instantane):
+    """``{intervention_id: maillon d'inscription}`` d'un instantané (voir ``instantane_du_registre``)."""
+    return _inscriptions(instantane)
+
+
 def _inscriptions(instantane):
     """``{intervention_id: maillon d'inscription}`` (la première inscription fait foi, comme ``etats``)."""
     resultat = {}
@@ -282,15 +303,17 @@ def _resume_non_pretes(non_pretes):
     return lignes + (" ; à fournir : " + " ; ".join(a_fournir) if a_fournir else "")
 
 
-def _evaluer(instantane, identifiant, lire_position, lire_equipes):
-    verdict_preparation, refus = preparation_intervention.evaluer(instantane, identifiant, lire_position, lire_equipes)
+def _evaluer(instantane, identifiant, lire_position, lire_equipes, lire_meteo=None):
+    verdict_preparation, refus = preparation_intervention.evaluer(
+        instantane, identifiant, lire_position, lire_equipes, lire_meteo,
+    )
     if refus is not None:
         # Statut préparable vérifié juste avant : un refus ici trahirait une incohérence interne.
         raise RuntimeError(f"préparation refusée pour une intervention a_planifier : {refus['code']}")
     return verdict_preparation
 
 
-def _interventions_a_planifier(instantane, inscriptions, demandees, lire_position, lire_equipes):
+def _interventions_a_planifier(instantane, inscriptions, demandees, lire_position, lire_equipes, lire_meteo=None):
     """Interventions à céduler : ``(sélection, None)`` ou ``(None, verdict)``.
 
     La sélection porte ``inscriptions`` (triées), ``preparations`` (le verdict de préparation de chaque intervention
@@ -302,7 +325,7 @@ def _interventions_a_planifier(instantane, inscriptions, demandees, lire_positio
     non_pretes = []
 
     def preparer(iid):
-        verdict_preparation = _evaluer(instantane, iid, lire_position, lire_equipes)
+        verdict_preparation = _evaluer(instantane, iid, lire_position, lire_equipes, lire_meteo)
         if verdict_preparation["pret"]:
             preparations[iid] = verdict_preparation
             return True
@@ -866,7 +889,7 @@ def _resultat_proposition(maillon, deja, provenance, non_pretes):
 
 def proposer(
     registre_cible, arguments, lire_position, horodatage_arg, propose_par=None, fournisseur=None, moteur="auto",
-    lire_equipes=None,
+    lire_equipes=None, lire_meteo=None,
 ):
     """Propose un plan de tournées et le range au registre. Retourne ``(résultat, None)`` ou ``(None, verdict)``.
 
@@ -879,7 +902,11 @@ def proposer(
     (``opsys.equipes.charger_equipes``) : ce que le profil des équipes déclare complète les arguments absents, et un
     argument donné le REMPLACE (surcharge, tracée dans ``provenance``). ``fournisseur`` : port
     ``distances.FournisseurMatrice`` ou ``None`` (palier 0). Même entrées : même plan, même ``plan_id``, que les
-    valeurs viennent du profil ou d'arguments identiques ; une proposition identique n'écrit rien de plus."""
+    valeurs viennent du profil ou d'arguments identiques ; une proposition identique n'écrit rien de plus.
+    ``lire_meteo()`` rend ``(profil météo, None)`` ou ``(None, verdict)`` (``opsys.meteo.charger_meteo``) : le volet
+    météo de la préparation (T4.13) : les règles du service ; sans cette lecture, ce volet reste « non vérifiable » et
+    aucune
+    intervention a_planifier n'est prête."""
     try:
         horodatage.valider_horodatage(horodatage_arg)
     except ValueError:
@@ -892,7 +919,7 @@ def proposer(
     instantane = _Instantane(registre_cible.lire())
     inscriptions = _inscriptions(instantane)
     selection, verdict = _interventions_a_planifier(
-        instantane, inscriptions, arguments.get("intervention_ids"), lire_position, lire_equipes,
+        instantane, inscriptions, arguments.get("intervention_ids"), lire_position, lire_equipes, lire_meteo,
     )
     if verdict is not None:
         return None, verdict
@@ -1010,6 +1037,7 @@ def _equipes_admissibles_pour_les_sorties(instantane, inscriptions, visites, pre
 
 def appliquer(
     registre_cible, plan_id, lire_position, horodatage_arg, appliquee_par, fournisseur=None, lire_equipes=None,
+    lire_meteo=None,
 ):
     """Applique un plan PROPOSÉ : assigne les techniciens. Retourne ``(résultat, None)`` ou ``(None, verdict)``.
 
@@ -1048,7 +1076,7 @@ def appliquer(
     for ligne in avant:
         identifiant = ligne["intervention_id"]
         if etats.statut_courant(instantane, identifiant) == STATUT_A_PLANIFIER:
-            preparations[identifiant] = _evaluer(instantane, identifiant, lire_position, lire_equipes)
+            preparations[identifiant] = _evaluer(instantane, identifiant, lire_position, lire_equipes, lire_meteo)
     non_pretes = [_non_prete(iid, v) for iid, v in sorted(preparations.items()) if not v["pret"]]
     if non_pretes:
         return None, _verdict(

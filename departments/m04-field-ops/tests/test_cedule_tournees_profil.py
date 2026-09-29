@@ -5,9 +5,10 @@ aucune base, aucune clé de chiffrement. Le scénario par les vrais outils, le v
 dans `test_equipes_cedule.py`. Tout est fictif (`fictif: true`) : Repentigny à Joliette, coordonnées approximatives
 (`fixtures/tournees_repentigny_joliette.json`).
 
-Les volets matériel et météo de la préparation n'ont pas encore de source (T4.14, T4.13) : aucune intervention n'est
-« prête » en vrai. Les tests de sortie SIMULENT ces deux volets (`futurs_ok`) pour prouver la plomberie ; le test
-« sans les volets futurs » prouve que la porte reste fermée aujourd'hui.
+Les volets matériel (T4.14-b) et météo (T4.13) se lisent à leur source (`test_materiel_pret_recu.py`,
+`test_meteo_outil.py`) ; ce module SIMULE ces deux volets (`futurs_ok`) pour ne prouver que la plomberie de la cédule,
+et le
+test « sans les volets » prouve que la porte reste fermée quand ils ne sont pas vérifiés.
 """
 
 from __future__ import annotations
@@ -37,8 +38,9 @@ def _services(declarer_services):
 
 @pytest.fixture
 def futurs_ok(monkeypatch):
-    """Simule T4.14 (matériel) et T4.13 (météo) : deux volets vérifiés. Prouve la plomberie, jamais le produit."""
-    def ok(_registre, _inscription, _lire_position, _lire_equipes):
+    """Simule le matériel (T4.14-b) et la météo (T4.13) : deux volets vérifiés. Prouve la plomberie, jamais le
+    produit."""
+    def ok(_registre, _inscription, _lire_position, _lire_equipes, _lire_meteo):
         return {"statut": "ok", "manque": None, "detail": "simulé par le test"}
 
     monkeypatch.setattr(preparation, "_VOLETS", tuple(

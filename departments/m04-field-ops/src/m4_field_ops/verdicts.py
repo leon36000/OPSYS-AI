@@ -58,6 +58,11 @@ CODES_M4_LIST = [
     # Groupe 9 — PLAN T4.12 : profil des équipes de l'entreprise et sortie de a_planifier par la cédule.
     "REJ-PROFIL-INVALIDE",                        # le profil des équipes est illisible ou invalide : jamais « absent ».
     "REJ-CEDULE-PREPARATION-NON-PRETE",           # une intervention a_planifier n'est pas prête : dit ce qui manque.
+    # Groupe 10 — PLAN T4.13 : météo des créneaux (meteo.py, meteo_http.py, adaptateurs de prévisions).
+    "REJ-METEO-FOURNISSEUR-INDISPONIBLE",         # le fournisseur ne répond pas : créneau « inconnu », jamais « ok ».
+    "REJ-METEO-REPONSE-INVALIDE",                 # sa réponse n'a pas la forme du port : rien n'est jugé dessus.
+    "REJ-METEO-FOURNISSEUR-FERME",                # aucun fournisseur ouvert, ou ouvert sans droit (forfait gratuit).
+    "REJ-METEO-LIEU-TROP-PRECIS",                 # un lieu de chantier plus fin que le dixième de degré : jamais envoyé
     # Groupe 3 — succès
     "OK",
 ]

@@ -1,0 +1,30 @@
+{
+  "fictif": true,
+  "avertissement": "Données FICTIVES (T4.13) : seuils météo, services et fuseau inventés pour les tests du profil météo ; aucune entreprise réelle, aucun seuil recommandé. Chaque seuil est celui que le propriétaire choisira.",
+  "profil": {
+    "fuseau": "America/Toronto",
+    "services": {
+      "gouttieres": {
+        "seuils": {
+          "vent_kmh": {"validation": 35, "blocage": 50},
+          "rafales_kmh": {"validation": 55, "blocage": 70},
+          "pluie_mm_h": {"validation": 2, "blocage": 5},
+          "gel_c": {"validation": 2, "blocage": 0},
+          "verglas": {"blocage": true}
+        },
+        "sans_objet": ["chaleur"]
+      },
+      "revetement": {
+        "seuils": {
+          "vent_kmh": {"validation": 25, "blocage": 40},
+          "rafales_kmh": {"validation": 45, "blocage": 60},
+          "pluie_mm_h": {"validation": 1, "blocage": 3},
+          "pluie_probabilite_pct": {"validation": 40, "blocage": 70},
+          "gel_c": {"validation": 5, "blocage": 2},
+          "verglas": {"blocage": true},
+          "chaleur_c": {"validation": 30, "blocage": 35}
+        }
+      }
+    }
+  }
+}

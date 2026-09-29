@@ -48,6 +48,7 @@ ADMIN_SEUL = frozenset({
     "m4_appliquer_cedule", "m4_confirmer_localisation", "m4_lire_position_gps", "m4_lister_pending_review",
     "m4_produire_brouillon_temps", "m4_produire_digest", "m4_proposer_cedule", "m4_proposer_localisation",
     "m4_resoudre_demande", "m4_resoudre_revue_completion", "m4_verifier_preparation",  # préparation (T4.10-b)
+    "m4_verifier_meteo_creneau",  # la météo d'un plan de cédule : dispatch de l'admin (T4.13)
     "m4_volumetrie_pending_review",
     "m5_etat_tresorerie", "m5_lister_attentes_facturation",
     "m5_lire_rentabilite_chantier", "m5_lire_comptes_a_recevoir",  # coût réel, marge, créances (T1.5-d)
@@ -159,6 +160,7 @@ def test_outils_qui_lisent_ou_approuvent_pour_les_autres_absents_de_l_employe(ro
     "m4_confirmer_localisation", "m4_proposer_localisation",  # l'adresse d'un client : jamais l'employé (T4.1-a)
     "m4_proposer_cedule", "m4_appliquer_cedule",  # la cédule par tournées : dispatch de l'admin (T4.1-d)
     "m4_verifier_preparation",  # l'état d'un chantier de client : dispatch de l'admin (T4.10-b)
+    "m4_verifier_meteo_creneau",  # les créneaux d'un plan (chantiers de clients) : dispatch de l'admin (T4.13)
     "m6_reserver_materiel", "m6_liberer_reservation",  # réservation par chantier (T4.14)
     "m6_transferer_stock", "m6_lire_disponibilite",  # emplacements et stock réservé et disponible (T4.14)
 ])
@@ -171,8 +173,8 @@ def test_l_employe_ne_lit_ni_n_approuve_rien_des_autres(roles_reels, outil):
     "m6_produire_digest", "m6_enregistrer_prix", "m3_lire_ecarts_estime_reel", "m3_creer_devis",
     "m3_estimer_projet", "m4_lire_outbox", "m9_produire_briefing_matin", "m8_rapport_metriques",
     "m4_confirmer_localisation", "m4_proposer_localisation", "m4_proposer_cedule", "m4_appliquer_cedule",
-    "m4_verifier_preparation", "m6_reserver_materiel", "m6_liberer_reservation", "m6_transferer_stock",
-    "m6_lire_disponibilite",
+    "m4_verifier_preparation", "m4_verifier_meteo_creneau", "m6_reserver_materiel", "m6_liberer_reservation",
+    "m6_transferer_stock", "m6_lire_disponibilite",
 ])
 def test_le_vendeur_n_a_ni_finances_ni_couts_du_proprietaire(roles_reels, outil):
     assert outil not in roles_reels["seller"]

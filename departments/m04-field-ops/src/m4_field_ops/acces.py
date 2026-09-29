@@ -55,6 +55,7 @@ __all__ = [
     "controler_consultant",
     "controler_administrateur",
     "controler_confirmant",
+    "controler_saisisseur",
     "controler_intervention",
     "interventions_visibles",
 ]
@@ -167,6 +168,29 @@ def controler_confirmant(acteur, confirme_par):
             detail=(
                 "confirme_par ne correspond pas à la personne authentifiée : la confirmation d'une "
                 "localisation nomme celui qui la fait, pas un autre"
+            ),
+        )
+    return None
+
+
+def controler_saisisseur(acteur, saisi_par):
+    """``None`` si ``saisi_par`` (qui a saisi une prévision météo à la main, PLAN T4.13) est admis pour cet acteur,
+    sinon
+    un verdict.
+
+    Même règle que ``controler_confirmant`` : pour tout appel d'appareil, la saisie nomme la personne AUTHENTIFIÉE ; un
+    autre nom est refusé, jamais remplacé en silence (une prévision citée sous un autre nom ne prouverait plus qui l'a
+    lue).
+    Sans acteur (agent, console) : l'argument reste celui de l'appelant."""
+    if acteur is None:
+        return None
+    if saisi_par != acteur.personne:
+        return verdicts.construire_verdict(
+            "REJ-IDENTITE-FOURNIE-DIFFERENTE",
+            detail=(
+                "saisi_par ne correspond pas à la personne authentifiée : la prévision saisie à la main nomme celui "
+                "qui "
+                "l'a saisie, pas un autre"
             ),
         )
     return None
