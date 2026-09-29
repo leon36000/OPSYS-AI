@@ -138,6 +138,22 @@ def test_table_de_l_admin_epinglee(roles_reels):
     assert set(roles_reels["admin"]) == ADMIN
 
 
+def test_les_compteurs_ecrits_dans_roles_md_suivent_les_manifestes(departements_reels, roles_reels):
+    """« N outils sur M sont déclarés » et « ### `role` (K outils) » de ROLES.md suivent les manifestes. Deux
+    intégrations qui ajoutent chacune un outil écrivent la MÊME ligne : git les fusionne sans conflit et laisse un
+    compte faux (arrivé avec T4.19 et T4.16-d). Ce test le voit."""
+    texte = (Path(__file__).resolve().parents[1] / "docs" / "architecture" / "ROLES.md").read_text(encoding="utf-8")
+    index = tous_les_outils(departements_reels.values())
+    declares = sum(1 for _dep, outil in index.values() if outil.roles_appareil)
+    entete = re.search(r"(\d+) outils sur (\d+) sont déclarés\.", texte)
+    assert entete is not None, "ROLES.md : la phrase « N outils sur M sont déclarés. » a disparu"
+    assert (int(entete.group(1)), int(entete.group(2))) == (declares, len(index))
+    for role, outils in roles_reels.items():
+        titre = re.search(rf"^### `{role}` \((\d+) outils\)", texte, re.MULTILINE)
+        assert titre is not None, f"ROLES.md : pas de section « ### `{role}` (K outils) »"
+        assert int(titre.group(1)) == len(outils), role
+
+
 def test_l_usine_a_contenu_est_au_proprietaire_et_l_agent_seul_ecrit_les_brouillons(roles_reels, departements_reels):
     assert set(roles_reels["admin"]) >= USINE_A_CONTENU_ADMIN
     for role in ("employee", "seller"):

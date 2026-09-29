@@ -70,7 +70,7 @@ qui travaille sur un toit, un gestionnaire qui reprend un dossier).
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 88 outils sur 166 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 89 outils sur 167 sont déclarés.
 
 ### `employee` (11 outils) : §9.3, le terrain
 
@@ -112,7 +112,7 @@ M10.
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (88 outils) : §9.5 + employé + vendeur
+### `admin` (89 outils) : §9.5 + employé + vendeur
 
 Les 11 outils de l'employé, les 11 du vendeur, et :
 
