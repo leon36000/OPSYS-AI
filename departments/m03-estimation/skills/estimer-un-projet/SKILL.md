@@ -20,7 +20,13 @@ description: Procédure pour estimer un projet de rénovation extérieure à par
 4. Lis la réponse :
    - `prix_bloque: true` → rédige une demande courte au client avec `elements_manquants`.
    - `alerte_plancher: true` → signale à un humain que le projet est sous le seuil de rentabilité.
-   - sinon → présente l'intervalle `borne_basse`–`borne_haute` en CAD, avant taxes.
+   - sinon → présente l'intervalle `borne_basse`–`borne_haute` en CAD, avant taxes, avec `distribution_cout` (P50, P80
+     du coût) et sa loi par poste (PERT ou uniforme : dis-la telle quelle).
+   - `scenarios_prix` : chaque scénario a un `prix` (coût de base x (1 + taux)), ou un `verdict` qui dit où déclarer
+     son taux (`taux_marge_scenarios`, ou `department.yaml`) : demande le taux à un humain, ne propose aucun prix et
+     n'en devine jamais un. `alerte_rouge: true` (prix sous le minimum rentable) : signale-la à Nathan, avec le motif ;
+     `null` : le minimum rentable n'est pas déclaré (`non_evaluables` le dit), ne dis pas « pas d'alerte ».
+     `facteurs_dominants` : le poste qui fait le plus varier le coût et sa part.
 5. Si `besoins_materiaux` n'est pas nul, M6 les a déjà reçus (quantités nettes calculées par le code) :
    ne les recalcule ni ne les répète. Si `besoins_materiaux.facteurs_perte_absents` n'est pas vide, dis-le à un humain :
    le barème ne fournit pas leur facteur de perte, ne le devine pas.

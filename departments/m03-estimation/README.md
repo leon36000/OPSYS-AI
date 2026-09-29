@@ -73,3 +73,37 @@ envoi », la livraison au client est à M1 (T2.1-c) et n'existe pas encore. Aucu
 - **Limite connue.** L'outil ne s'exécute qu'à la décision, sans l'identité de l'appareil du vendeur : le filtre par
   propriétaire de lead (T1.4-k2) ne peut pas s'y appliquer. Un vendeur peut donc demander l'envoi du devis d'un lead
   qui n'est pas le sien ; il n'apprend rien, et le propriétaire lit le devis, la revue et les faits avant d'approuver.
+
+P50, P80, facteurs dominants et trois scénarios de prix (PLAN T4.11, M3.11 et M3.12, `scenarios.py`) : `m3_estimer_projet`
+rend, à côté du contrat gelé `EstimationV1` (qui ne change pas : mêmes douze clés, mêmes valeurs, même `hash_maillon`), trois
+clés SŒURS sur la voie non bloquée (architecture §2.10, DA-M3-14). Photos faibles, prix bloqué : les trois valent `null`.
+- **`distribution_cout`** : P50 et P80 du COÛT (`Decimal` au cent), lus sur les MÊMES graine et tirages que l'intervalle
+  (`monte_carlo.simuler_quantiles` : P80 est la borne haute de l'intervalle à 60 %), et la loi de chaque poste. Le tirage
+  est PERT si le poste du barème porte `cout_unitaire_mode` (le coût unitaire le plus probable, entre ses bornes), sinon
+  UNIFORME : la sortie le dit poste par poste, avec sa raison. Le mode change aussi la loi de l'intervalle, pour que P50, P80
+  et bornes ne se contredisent jamais ; un mode hors des bornes est refusé, jamais ignoré. Mêmes entrées, mêmes montants.
+- **`facteurs_dominants`** : quels postes font le plus varier le coût, par sensibilité de premier ordre, calcul EXACT (part de
+  variance de chaque poste, postes indépendants), classés par part puis par nom, sans seuil de « dominance » inventé.
+  Limite : une estimation porte UN poste (le service demandé), donc une part de 1 ; la fonction sait déjà en classer plusieurs.
+- **`scenarios_prix`** : prudent (base de coût P80), normal et agressif (base P50) = coût de base x (1 + taux de marge), avec
+  `devis_durable.prix_depuis_cout`. Le taux est FOURNI, jamais inventé : l'argument `taux_marge_scenarios` de l'outil (texte
+  décimal), sinon `department.yaml` (`configuration.scenarios_prix.taux_marge`), scénario par scénario. VIDES à dessein : sans
+  taux, le scénario n'a aucun prix et son `verdict` (`REJ-SCENARIOS-TAUX-ABSENT`) dit où le déclarer ; un taux de travers
+  (non décimal, négatif) donne `REJ-SCENARIOS-TAUX-INVALIDE` et aucun prix, sans retomber sur l'autre source ; une demande mal
+  formée est refusée avant toute écriture au registre.
+- **Le minimum rentable.** Chaque prix est confronté au minimum de la revue de T4.7 (`configuration.revue_devis.
+  minimum_rentable_cad`) par `revue_devis.evaluer_revue`, appelée telle quelle : sous le minimum, `alerte_rouge` et le motif
+  `PRIX_SOUS_MINIMUM_RENTABLE` (rouge) que la revue N4 montrera à l'envoi du devis réel, mêmes code, donnée et seuil ; un prix
+  exactement au minimum ne déclenche rien. Minimum vide ou invalide : `alerte_rouge` vaut `null` (non évaluable, jamais
+  `false`) et `non_evaluables` dit quoi déclarer, une fois. Le montant maximal et la marge minimale se jugent sur le devis réel.
+  L'alerte de plancher de l'estimation (`alerte_plancher`, borne basse du coût sous `plancher_rentable`) est inchangée.
+- **Rien n'est figé au registre** : ni taux, ni montant de scénario ; les taux sont rejoués à chaque appel et ne changent pas
+  l'`estimation_id`. Rien n'est publié, rien n'est envoyé : un scénario est une proposition, le prix d'un devis reste un
+  engagement N4 (`m3_demander_envoi_devis`). La vue employé retire les trois clés (P50 est un coût, un scénario un prix).
+- **Preuve** : `test_monte_carlo_quantiles.py`, `test_scenarios.py` (réponse connue d'avance sur un barème fictif à trois postes),
+  `test_estimation_scenarios.py`, `test_outils_scenarios.py`, `test_gate_cles_soeurs.py` (contrôle 22 du gate BMAD) et
+  l'E2E `test_estimation_risquee.py` : un devis créé au prix de chaque scénario reçoit de la revue de T4.7 la même alerte que le
+  scénario, le même motif mot pour mot.
+- **À décider par Nathan (GATE)** : le taux de marge de chaque scénario, le mode de coût de chaque poste du barème
+  (`cout_unitaire_mode`), la base de coût de chaque scénario (P80, P50, P50 : une politique énoncée, pas une mesure) et le
+  minimum rentable (T4.7) qui rend les alertes évaluables. Tant que les taux sont vides, les prix ne sont pas chiffrés.
