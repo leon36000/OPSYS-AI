@@ -20,7 +20,9 @@ from . import (
     canaux,
     etat,
     evenements,
+    exportation,
     identite,
+    instance,
     jetons,
     modeles,
     openclaw,
@@ -243,6 +245,41 @@ def cmd_base(args: argparse.Namespace) -> int:
     _afficher({"base": _url_masquee(url), "moteur": stockage.moteur(url).dialect.name,
                "revision": stockage.revision_courante(url), "registres": registres})
     return 0
+
+
+def _source_du_logiciel(source: str | None) -> Path:
+    """Le dépôt du logiciel : `--source`, sinon celui du paquet installé en mode éditable (racine du dépôt)."""
+    if source:
+        return Path(source).resolve()
+    return Path(__file__).resolve().parents[2]
+
+
+def cmd_instance(args: argparse.Namespace) -> int:
+    """Instance locale (PLAN T0.11) : préparation par l'installateur, export et restauration. Voir `opsys.instance`
+    et `opsys.exportation`. Le code de sortie 3 de `initialiser` veut dire : installé, mais il manque une décision."""
+    home = stockage.dossier_opsys()
+    par = args.par or f"poste:{getpass.getuser()}"
+    try:
+        if args.action == "initialiser":
+            resultat = instance.initialiser(
+                home, source=_source_du_logiciel(args.source), python=Path(sys.executable),
+                port_gateway=args.port_gateway, port_moteur=args.port_moteur)
+            _afficher(resultat.en_json())
+            for ligne in resultat.manque:
+                print(f"À FAIRE : {ligne}", file=sys.stderr)
+            for ligne in resultat.avertissements:
+                print(f"AVERTISSEMENT : {ligne}", file=sys.stderr)
+            return 0 if resultat.etat == "pret" else instance.CODE_EN_ATTENTE
+        if args.action == "exporter":
+            sortie = Path(args.sortie) if args.sortie else Path(f"opsys-export-{exportation.horodatage()}.tar.gz")
+            _afficher(exportation.exporter(home, sortie, par=par).en_json())
+            return 0
+        _afficher(exportation.restaurer(
+            Path(args.archive), home, par=par, remplacer=args.remplacer, empreinte=args.empreinte).en_json())
+        return 0
+    except (instance.ErreurInstance, exportation.ErreurExportation, ValueError) as erreur:
+        print(f"ERREUR : {erreur}", file=sys.stderr)
+        return 1
 
 
 def cmd_evenements(args: argparse.Namespace) -> int:
@@ -526,6 +563,20 @@ def construire_parseur() -> argparse.ArgumentParser:
                     help="dossier de openclaw.json (volume partagé) : où régénérer opsys/appareils.json")
     ap.set_defaults(fn=cmd_appareils)
 
+    ins = sous.add_parser(
+        "instance", help="instance locale : initialisation (installateur), export et restauration (PLAN T0.11)")
+    ins.add_argument("action", choices=["initialiser", "exporter", "restaurer"])
+    ins.add_argument("archive", nargs="?", help="restaurer : archive produite par `exporter`")
+    ins.add_argument("--sortie", help="exporter : archive à écrire (défaut : ./opsys-export-<horodatage>.tar.gz)")
+    ins.add_argument("--par", help="exporter, restaurer : qui agit, pour le journal d'audit (défaut : poste:<compte>)")
+    ins.add_argument("--remplacer", action="store_true",
+                     help="restaurer : mettre de côté les fichiers actuels (jamais supprimés) et les remplacer")
+    ins.add_argument("--empreinte", help="restaurer : SHA-256 attendu de l'archive (défaut : <archive>.sha256)")
+    ins.add_argument("--source", help="initialiser : dépôt du logiciel (défaut : celui du paquet installé)")
+    ins.add_argument("--port-gateway", type=int, help="initialiser : port du Gateway (défaut : 18789)")
+    ins.add_argument("--port-moteur", type=int, help="initialiser : port du moteur métier (défaut : 8765)")
+    ins.set_defaults(fn=cmd_instance)
+
     pg = sous.add_parser("passerelle", help="passerelle LiteLLM : configuration et clés par département")
     pg.add_argument("action", choices=["config", "cles", "synchroniser"])
     pg.add_argument("--sortie", default="litellm.yaml")
@@ -543,6 +594,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     if args.commande == "services" and args.action == "declarer" and not (args.codes and args.par):
         print("au moins un code de service et --par requis", file=sys.stderr)
+        return 2
+    if args.commande == "instance" and args.action == "restaurer" and not args.archive:
+        print("archive requise : opsys instance restaurer <archive.tar.gz>", file=sys.stderr)
         return 2
     if args.commande == "paliers" and args.action == "definir" and not (args.palier and args.provider and args.model):
         print("palier, --provider et --model requis", file=sys.stderr)

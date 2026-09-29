@@ -1,0 +1,318 @@
+"""Export et restauration de l'instance locale (PLAN T0.11) : `opsys.exportation`, `opsys instance exporter|restaurer`.
+
+Ce que ces tests prouvent : l'archive ne contient que la liste blanche (jamais le `.env`), la copie de la base est
+cohérente même avec un journal WAL non recopié dans le fichier, l'empreinte est exigée, une archive altérée ou
+piégée est refusée AVANT toute écriture, et rien n'est écrasé ni supprimé sans `--remplacer` (les fichiers actuels
+sont alors mis de côté).
+"""
+
+from __future__ import annotations
+
+import hashlib
+import io
+import json
+import sqlite3
+import stat
+import tarfile
+from pathlib import Path
+
+import pytest
+
+from opsys import cli, exportation, identite, stockage
+
+FICTIF = True  # personnes et secrets ci-dessous sont fictifs (AGENTS.md)
+
+MARQUEUR_SECRET = "MARQUEUR-SECRET-DU-ENV-FICTIF-0123456789"
+MOT_DE_PASSE = "un-mot-de-passe-solide-123"
+
+
+def _peupler(home: Path) -> None:
+    """Une instance : base migrée avec une personne, réglages de l'instance et un `.env` qui porte un secret."""
+    stockage.migrer()
+    with stockage.transaction() as cnx:
+        identite.creer_personne(cnx, "sylvie-fictif", "Sylvie Tremblay (fictif)", MOT_DE_PASSE, ["employee"])
+    (home / "paliers.yaml").write_text("paliers: {standard: {provider: anthropic, model: claude-sonnet-5}}\n",
+                                       encoding="utf-8")
+    (home / "core").mkdir(exist_ok=True)
+    (home / "core" / ".env").write_text(f"OPSYS_MCP_JETON={MARQUEUR_SECRET}\n", encoding="utf-8")
+    (home / "core" / "etat-du-gateway.json").write_text(f'{{"jeton": "{MARQUEUR_SECRET}"}}', encoding="utf-8")
+
+
+def _personnes() -> list[str]:
+    with stockage.transaction() as cnx:
+        return [p.identifiant for p in identite.lister(cnx)]
+
+
+def _autre_instance(monkeypatch, tmp_path: Path, nom: str) -> Path:
+    stockage.liberer()
+    home = tmp_path / nom
+    monkeypatch.setenv("OPSYS_HOME", str(home))
+    return home
+
+
+def _membres(archive: Path) -> dict[str, bytes]:
+    with tarfile.open(archive, "r:gz") as tar:
+        return {m.name: tar.extractfile(m).read() for m in tar.getmembers() if m.isfile()}  # type: ignore[union-attr]
+
+
+def _archive_sur_mesure(dest: Path, base: bytes, *, revision: str = "0008", extras: dict[str, bytes] | None = None,
+                        symlink: bool = False) -> Path:
+    """Une archive au bon format, avec une base et un manifeste fournis : pour les refus. Écrit aussi `.sha256`."""
+    manifeste = {"format": exportation.FORMAT, "base": {"moteur": "sqlite", "revision": revision},
+                 "fichiers": [{"chemin": "opsys.db", "sha256": hashlib.sha256(base).hexdigest(), "octets": len(base)}]}
+    membres = {"manifeste.json": json.dumps(manifeste).encode(), "opsys.db": base, **(extras or {})}
+    with tarfile.open(dest, "w:gz") as tar:
+        for nom, contenu in membres.items():
+            info = tarfile.TarInfo(nom if nom.startswith(("..", "/")) else f"opsys-export/{nom}")
+            info.size = len(contenu)
+            tar.addfile(info, io.BytesIO(contenu))
+        if symlink:
+            lien = tarfile.TarInfo("opsys-export/paliers.yaml")
+            lien.type, lien.linkname = tarfile.SYMTYPE, "/etc/passwd"
+            tar.addfile(lien)
+    dest.with_name(dest.name + ".sha256").write_text(
+        f"{hashlib.sha256(dest.read_bytes()).hexdigest()}  {dest.name}\n", encoding="utf-8")
+    return dest
+
+
+def _base_valide(tmp_path: Path) -> bytes:
+    chemin = tmp_path / "modele.db"
+    connexion = sqlite3.connect(chemin)
+    connexion.execute("CREATE TABLE alembic_version (version_num TEXT)")
+    connexion.commit()
+    connexion.close()
+    return chemin.read_bytes()
+
+
+# -- export ------------------------------------------------------------------------------------------------------------
+def test_l_archive_ne_contient_que_la_liste_blanche_et_jamais_un_secret(opsys_home, tmp_path):
+    _peupler(opsys_home)
+
+    resultat = exportation.exporter(opsys_home, tmp_path / "sortie" / "export.tar.gz", par="test")
+
+    membres = _membres(resultat.archive)
+    assert sorted(membres) == ["opsys-export/manifeste.json", "opsys-export/opsys.db", "opsys-export/paliers.yaml"]
+    assert all(MARQUEUR_SECRET.encode() not in contenu for contenu in membres.values())
+    manifeste = json.loads(membres["opsys-export/manifeste.json"])
+    assert manifeste["format"] == exportation.FORMAT and manifeste["base"]["moteur"] == "sqlite"
+    assert {e["chemin"] for e in manifeste["exclus"]} >= {"core/.env", "core/"}
+    assert any("clés de chiffrement" in ligne for ligne in manifeste["avertissements"])
+    for f in manifeste["fichiers"]:
+        contenu = membres[f"opsys-export/{f['chemin']}"]
+        assert (f["sha256"], f["octets"]) == (hashlib.sha256(contenu).hexdigest(), len(contenu))
+
+
+def test_archive_et_empreinte_sont_privees_et_l_empreinte_se_verifie_avec_sha256sum(opsys_home, tmp_path):
+    _peupler(opsys_home)
+
+    resultat = exportation.exporter(opsys_home, tmp_path / "export.tar.gz", par="test")
+
+    assert stat.S_IMODE(resultat.archive.stat().st_mode) == 0o600
+    assert stat.S_IMODE(resultat.empreinte.stat().st_mode) == 0o600
+    assert resultat.empreinte.read_text(encoding="utf-8") == f"{resultat.sha256}  export.tar.gz\n"
+    assert resultat.sha256 == hashlib.sha256(resultat.archive.read_bytes()).hexdigest()
+    assert not [p for p in tmp_path.iterdir() if p.name.startswith(".opsys-export-")]  # aucun résidu
+
+
+def test_la_copie_est_coherente_meme_quand_les_ecritures_sont_dans_le_journal_wal(opsys_home, tmp_path):
+    _peupler(opsys_home)
+    wal = opsys_home / "opsys.db-wal"
+    assert wal.is_file() and wal.stat().st_size > 0  # précondition : une copie du seul fichier .db perdrait ces lignes
+
+    resultat = exportation.exporter(opsys_home, tmp_path / "export.tar.gz", par="test")
+
+    copie = tmp_path / "copie.db"
+    copie.write_bytes(_membres(resultat.archive)["opsys-export/opsys.db"])
+    lignes = sqlite3.connect(copie).execute("SELECT identifiant FROM personnes").fetchall()
+    assert lignes == [("sylvie-fictif",)]
+    assert sqlite3.connect(copie).execute("PRAGMA journal_mode").fetchone() == ("delete",)
+
+
+def test_l_export_est_inscrit_au_journal_d_audit_avec_l_empreinte(opsys_home, tmp_path):
+    _peupler(opsys_home)
+
+    resultat = exportation.exporter(opsys_home, tmp_path / "export.tar.gz", par="poste:administrateur")
+
+    from opsys import etat
+
+    with etat.session() as cnx:
+        entrees = [e for e in etat.lire_journal(cnx) if e["action"] == "instance.export"]
+    assert len(entrees) == 1
+    assert entrees[0]["par"] == "poste:administrateur" and entrees[0]["cible"] == "export.tar.gz"
+    assert entrees[0]["details"]["sha256"] == resultat.sha256
+
+
+def test_un_export_n_ecrase_jamais_un_fichier(opsys_home, tmp_path):
+    _peupler(opsys_home)
+    sortie = tmp_path / "export.tar.gz"
+    exportation.exporter(opsys_home, sortie, par="test")
+    octets = sortie.read_bytes()
+
+    with pytest.raises(exportation.ErreurExportation, match="existe déjà"):
+        exportation.exporter(opsys_home, sortie, par="test")
+
+    assert sortie.read_bytes() == octets
+
+
+def test_sans_base_ou_avec_une_base_non_migree_l_export_est_refuse(opsys_home, tmp_path):
+    with pytest.raises(exportation.ErreurExportation, match="aucune base"):
+        exportation.exporter(opsys_home, tmp_path / "a.tar.gz", par="test")
+    assert not (tmp_path / "a.tar.gz").exists()
+
+    opsys_home.mkdir(parents=True, exist_ok=True)
+    sqlite3.connect(opsys_home / "opsys.db").close()
+    with pytest.raises(exportation.ErreurExportation, match="pas migrée"):
+        exportation.exporter(opsys_home, tmp_path / "b.tar.gz", par="test")
+    assert not (tmp_path / "b.tar.gz").exists() and not (tmp_path / "b.tar.gz.sha256").exists()
+
+
+def test_postgresql_est_refuse_avec_la_voie_docker_et_sans_le_mot_de_passe(opsys_home, tmp_path, monkeypatch):
+    monkeypatch.setenv("OPSYS_BASE_URL", "postgresql+psycopg://opsys:mot-de-passe-pg-fictif@hote/opsys")
+
+    with pytest.raises(exportation.ErreurExportation) as refus:
+        exportation.exporter(opsys_home, tmp_path / "export.tar.gz", par="test")
+
+    assert "deploy/backup.sh" in str(refus.value) and "mot-de-passe-pg-fictif" not in str(refus.value)
+
+
+# -- restauration ------------------------------------------------------------------------------------------------------
+def test_restaurer_dans_une_instance_neuve_redonne_les_donnees(opsys_home, tmp_path, monkeypatch):
+    _peupler(opsys_home)
+    resultat = exportation.exporter(opsys_home, tmp_path / "export.tar.gz", par="test")
+    neuve = _autre_instance(monkeypatch, tmp_path, "neuve")
+
+    restauration = exportation.restaurer(resultat.archive, neuve, par="poste:admin")
+
+    assert restauration.restaures == ("opsys.db", "paliers.yaml") and restauration.mis_de_cote == ()
+    assert _personnes() == ["sylvie-fictif"]
+    assert (neuve / "paliers.yaml").read_text(encoding="utf-8").startswith("paliers:")
+    assert not (neuve / "core").exists()  # ni `.env` ni état du Gateway : l'installateur les régénère
+    from opsys import etat
+
+    with etat.session() as cnx:
+        actions = [e["action"] for e in etat.lire_journal(cnx)]
+    # l'export est inscrit dans l'instance d'origine APRÈS l'archive : l'archive ne porte pas sa propre entrée
+    assert actions == ["instance.restauration"]
+
+
+def test_restaurer_sur_une_instance_existante_exige_remplacer_puis_met_de_cote(opsys_home, tmp_path, monkeypatch):
+    _peupler(opsys_home)
+    archive = exportation.exporter(opsys_home, tmp_path / "export.tar.gz", par="test").archive
+    autre = _autre_instance(monkeypatch, tmp_path, "autre")
+    stockage.migrer()
+    with stockage.transaction() as cnx:
+        identite.creer_personne(cnx, "marc-fictif", "Marc (fictif)", MOT_DE_PASSE, ["employee"])
+    actuel = (autre / "opsys.db").read_bytes()
+
+    with pytest.raises(exportation.ErreurExportation, match="--remplacer"):
+        exportation.restaurer(archive, autre, par="test")
+    assert _personnes() == ["marc-fictif"]  # rien n'a bougé
+
+    restauration = exportation.restaurer(archive, autre, par="test", remplacer=True)
+
+    assert _personnes() == ["sylvie-fictif"]
+    assert len(restauration.mis_de_cote) >= 1
+    ecartes = [Path(p) for p in restauration.mis_de_cote if Path(p).name.startswith("opsys.db.avant-restauration-")]
+    assert len(ecartes) == 1 and ecartes[0].is_file()
+    copie = tmp_path / "ancienne.db"
+    copie.write_bytes(ecartes[0].read_bytes())
+    assert sqlite3.connect(copie).execute("SELECT identifiant FROM personnes").fetchall() == [("marc-fictif",)]
+    assert actuel  # la base d'avant existait bel et bien
+
+
+def test_une_archive_sans_empreinte_n_est_jamais_restauree(opsys_home, tmp_path, monkeypatch):
+    _peupler(opsys_home)
+    resultat = exportation.exporter(opsys_home, tmp_path / "export.tar.gz", par="test")
+    resultat.empreinte.unlink()
+    neuve = _autre_instance(monkeypatch, tmp_path, "neuve")
+
+    with pytest.raises(exportation.ErreurExportation, match="aucune empreinte"):
+        exportation.restaurer(resultat.archive, neuve, par="test")
+    assert not (neuve / "opsys.db").exists()
+
+    exportation.restaurer(resultat.archive, neuve, par="test", empreinte=resultat.sha256.upper())  # explicite : ok
+    assert _personnes() == ["sylvie-fictif"]
+
+
+def test_une_archive_alteree_est_refusee_avant_toute_ecriture(opsys_home, tmp_path, monkeypatch):
+    _peupler(opsys_home)
+    resultat = exportation.exporter(opsys_home, tmp_path / "export.tar.gz", par="test")
+    octets = bytearray(resultat.archive.read_bytes())
+    octets[len(octets) // 2] ^= 0xFF
+    resultat.archive.write_bytes(bytes(octets))
+    neuve = _autre_instance(monkeypatch, tmp_path, "neuve")
+
+    with pytest.raises(exportation.ErreurExportation, match="empreinte"):
+        exportation.restaurer(resultat.archive, neuve, par="test")
+
+    assert not (neuve / "opsys.db").exists()
+
+
+def test_un_membre_hors_liste_blanche_ou_un_lien_est_refuse(opsys_home, tmp_path, monkeypatch):
+    base = _base_valide(tmp_path)
+    neuve = _autre_instance(monkeypatch, tmp_path, "neuve")
+    piege = _archive_sur_mesure(tmp_path / "piege.tar.gz", base, extras={"../evasion.txt": b"x"})
+    lien = _archive_sur_mesure(tmp_path / "lien.tar.gz", base, symlink=True)
+    ajout = _archive_sur_mesure(tmp_path / "ajout.tar.gz", base, extras={"core/.env": b"OPSYS_MCP_JETON=x"})
+
+    for archive in (piege, lien, ajout):
+        with pytest.raises(exportation.ErreurExportation, match="membre inattendu"):
+            exportation.restaurer(archive, neuve, par="test")
+
+    assert not (tmp_path / "evasion.txt").exists() and not (neuve / "opsys.db").exists()
+
+
+def test_une_base_illisible_ou_d_une_version_plus_recente_est_refusee(opsys_home, tmp_path, monkeypatch):
+    neuve = _autre_instance(monkeypatch, tmp_path, "neuve")
+    illisible = _archive_sur_mesure(tmp_path / "illisible.tar.gz", b"ceci n'est pas une base SQLite" * 50)
+    future = _archive_sur_mesure(tmp_path / "future.tar.gz", _base_valide(tmp_path), revision="9999")
+
+    with pytest.raises(exportation.ErreurExportation, match="illisible|integrity_check"):
+        exportation.restaurer(illisible, neuve, par="test")
+    with pytest.raises(exportation.ErreurExportation, match="version plus récente"):
+        exportation.restaurer(future, neuve, par="test")
+
+    assert not (neuve / "opsys.db").exists()
+
+
+def test_un_manifeste_qui_ment_est_refuse(opsys_home, tmp_path, monkeypatch):
+    base = _base_valide(tmp_path)
+    archive = tmp_path / "menteuse.tar.gz"
+    manifeste = {"format": exportation.FORMAT, "base": {"moteur": "sqlite", "revision": "0008"},
+                 "fichiers": [{"chemin": "opsys.db", "sha256": "0" * 64, "octets": len(base)}]}
+    with tarfile.open(archive, "w:gz") as tar:
+        for nom, contenu in {"manifeste.json": json.dumps(manifeste).encode(), "opsys.db": base}.items():
+            info = tarfile.TarInfo(f"opsys-export/{nom}")
+            info.size = len(contenu)
+            tar.addfile(info, io.BytesIO(contenu))
+    archive.with_name(archive.name + ".sha256").write_text(
+        f"{hashlib.sha256(archive.read_bytes()).hexdigest()}  {archive.name}\n", encoding="utf-8")
+    neuve = _autre_instance(monkeypatch, tmp_path, "neuve")
+
+    with pytest.raises(exportation.ErreurExportation, match="SHA-256 du manifeste"):
+        exportation.restaurer(archive, neuve, par="test")
+
+
+# -- la CLI ------------------------------------------------------------------------------------------------------------
+def test_la_cli_exporte_puis_restaure(opsys_home, tmp_path, monkeypatch, capsys):
+    _peupler(opsys_home)
+    sortie = tmp_path / "cli.tar.gz"
+
+    assert cli.main(["instance", "exporter", "--sortie", str(sortie), "--par", "poste:test"]) == 0
+    export = json.loads(capsys.readouterr().out)
+    assert export["sha256"] == hashlib.sha256(sortie.read_bytes()).hexdigest()
+    assert export["avertissements"] and {e["chemin"] for e in export["exclus"]} >= {"core/.env"}
+
+    _autre_instance(monkeypatch, tmp_path, "neuve")
+    assert cli.main(["instance", "restaurer", str(sortie)]) == 0
+    assert json.loads(capsys.readouterr().out)["restaures"] == ["opsys.db", "paliers.yaml"]
+    assert _personnes() == ["sylvie-fictif"]
+
+
+def test_la_cli_refuse_sans_archive_et_traduit_un_refus_en_code_1(opsys_home, tmp_path, capsys):
+    assert cli.main(["instance", "restaurer"]) == 2
+    assert "archive requise" in capsys.readouterr().err
+
+    assert cli.main(["instance", "exporter", "--sortie", str(tmp_path / "x.tar.gz")]) == 1
+    assert "ERREUR : aucune base à exporter" in capsys.readouterr().err
+    assert [p.name for p in tmp_path.iterdir() if p.name != "opsys-home"] == []  # ni archive ni résidu

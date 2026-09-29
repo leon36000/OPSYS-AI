@@ -18,7 +18,7 @@ from .moteur import ENV_URL, connexion_courante, dossier_opsys, inserer, liberer
 
 __all__ = [
     "ENV_URL", "EcritureConcurrente", "MaillonsDurables", "connexion_courante", "dossier_opsys", "inserer",
-    "liberer", "maillons", "migrer", "moteur", "revision_courante", "transaction", "url_base",
+    "liberer", "maillons", "migrer", "moteur", "revision_connue", "revision_courante", "transaction", "url_base",
 ]
 
 _MIGRATIONS = Path(__file__).parent / "migrations"
@@ -48,3 +48,15 @@ def revision_courante(url: str | None = None) -> str:
 
     with moteur(url).connect() as connexion:
         return MigrationContext.configure(connexion).get_current_revision() or "aucune"
+
+
+def revision_connue(revision: str) -> bool:
+    """`True` si cette révision de migration existe dans CE logiciel. Une base (ou une archive d'export) d'une version
+    plus récente porte une révision inconnue : elle ne se restaure pas sous un logiciel plus ancien."""
+    from alembic.script import ScriptDirectory
+    from alembic.util import CommandError
+
+    try:
+        return ScriptDirectory.from_config(_config()).get_revision(revision) is not None
+    except CommandError:
+        return False
