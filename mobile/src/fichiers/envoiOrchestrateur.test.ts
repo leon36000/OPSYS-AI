@@ -190,6 +190,7 @@ describe("preparerEnvoiFichier — refus fail-closed, jamais d'envoi", () => {
       tentatives: 3,
       createdAtLocal: "2026-09-28T08:00:00-04:00",
       prochaineTentativeA: null,
+      proprietaire: null,
     };
 
     const resultat = await preparerEnvoiFichier(config, FICHIER_1600_OCTETS, [mutationEnEchec]);

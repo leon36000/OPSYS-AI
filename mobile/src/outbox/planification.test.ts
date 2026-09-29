@@ -24,6 +24,7 @@ function m(partiel: Partial<MutationOutbox> & Pick<MutationOutbox, "id">): Mutat
     tentatives: 0,
     createdAtLocal: "2026-01-15T08:00:00-05:00",
     prochaineTentativeA: null,
+    proprietaire: null,
     ...partiel,
   };
 }

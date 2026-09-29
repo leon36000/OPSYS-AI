@@ -59,7 +59,9 @@ export function formaterHorodatageLocal(horloge: HorlogeAppareil): string {
  * ici : en production c'est `src/outbox/id.ts` (expo-crypto `randomUUID`, appareil, avant tout
  * réseau — R12 §4) ; dans les tests, un générateur déterministe. Cela garde ce module pur.
  * `sequence` reste `null` tant que le dépôt n'a pas inséré la mutation (voir `depot.ts`) ;
- * `prochaineTentativeA` reste `null` : elle n'a encore jamais échoué.
+ * `prochaineTentativeA` reste `null` : elle n'a encore jamais échoué ; `proprietaire` reste `null` :
+ * c'est le dépôt de l'app (`src/outbox/proprietaire.ts`) qui le pose à l'insertion, d'après la personne
+ * confirmée par le serveur — jamais l'appelant, qui pourrait se tromper de personne.
  */
 export function creerMutation(
   params: ParametresCreationMutation,
@@ -77,6 +79,7 @@ export function creerMutation(
     tentatives: 0,
     createdAtLocal: formaterHorodatageLocal(horloge),
     prochaineTentativeA: null,
+    proprietaire: null,
   };
 }
 
@@ -121,4 +124,21 @@ export function marquerEchecReessayable(mutation: MutationOutbox, maintenant: Da
 export function marquerEchecPermanent(mutation: MutationOutbox): MutationOutbox {
   transitionnerOuLever(mutation, "echec_permanent");
   return { ...mutation, statut: "echec_permanent" };
+}
+
+/**
+ * `envoi` -> `en_attente` SANS faute de la mutation : ni tentative comptée, ni recul. Pour ce qui n'est pas
+ * son échec — le serveur refuse l'APPAREIL (jeton révoqué, attribution retirée), ou la session a changé
+ * pendant l'envoi. Elle repartira, avec la même `id` (donc la même clé d'idempotence), dès qu'une
+ * session valide pour sa personne existera : la marquer `echec_permanent` la rendrait définitive alors
+ * qu'elle n'a rien de faux.
+ */
+export function remettreEnAttenteSansFaute(mutation: MutationOutbox): MutationOutbox {
+  // Le graphe permet aussi `brouillon` -> `en_attente` (la soumission par l'employé) : cette remise ne
+  // doit JAMAIS soumettre un brouillon. Seule une mutation en `envoi` peut être remise en file ainsi.
+  if (mutation.statut !== "envoi") {
+    throw new ErreurTransitionInterdite(mutation.statut, "en_attente");
+  }
+  transitionnerOuLever(mutation, "en_attente");
+  return { ...mutation, statut: "en_attente" };
 }

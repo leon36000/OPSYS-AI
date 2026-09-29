@@ -29,6 +29,11 @@ describe.each(LANGUES)("textes d'identité (%s)", (_langue, ressources) => {
     expect(ressources.identite.erreur.appareil).toContain("{{appareilId}}");
   });
 
+  test("la quarantaine de la file sortante est dite, avec son nombre, et l'écran d'erreur rassure sur les envois gardés (T1.4-l)", () => {
+    expect(ressources.identite.bandeau.quarantaine).toContain("{{nombre}}");
+    expect(ressources.identite.erreur.envoisConserves.trim()).not.toBe("");
+  });
+
   test("aucun champ de saisie d'identifiant d'employé ne subsiste", () => {
     expect(ressources.pointage).not.toHaveProperty("champTechnicien");
     expect(ressources.consentementGps).not.toHaveProperty("champTechnicien");

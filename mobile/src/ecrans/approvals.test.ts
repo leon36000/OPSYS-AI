@@ -79,7 +79,7 @@ describe("evaluerOffre — ce que l'écran offre", () => {
 });
 
 function mutationDecision(id: string, statut: MutationOutbox["statut"], payload: Record<string, unknown>, type: MutationOutbox["type"] = "approval_decision"): MutationOutbox {
-  return { id, sequence: 1, type, chantierId: CHANTIER_ID_APPROBATIONS, payload, dependsOn: null, statut, tentatives: 0, createdAtLocal: "2026-09-28T14:32:00-04:00", prochaineTentativeA: null };
+  return { id, sequence: 1, type, chantierId: CHANTIER_ID_APPROBATIONS, payload, dependsOn: null, statut, tentatives: 0, createdAtLocal: "2026-09-28T14:32:00-04:00", prochaineTentativeA: null, proprietaire: "proprio.fictif" };
 }
 
 describe("decisionsEnFile", () => {
@@ -166,15 +166,21 @@ describe("la décision passe par la file sortante, avec sa clé d'idempotence", 
   const reponseHttp = (corps: unknown): Response => ({ ok: true, status: 200, json: async () => corps }) as unknown as Response;
   const accepte = () => reponseHttp({ ok: true, result: { ok: true, resultat: { accepte: true, resultat: ACCUSE }, rejoue: false } });
 
+  /** Les décisions sont créées sous la personne confirmée de l'appareil (PLAN T1.4-l) : la file ne les envoie que pour elle. */
+  const deposer = (depot: DepotOutboxMemoire, mutation: MutationOutbox) => depot.inserer({ ...mutation, proprietaire: "proprio.fictif" });
+
   function vidangeurDe(depot: DepotOutboxMemoire, fetchImpl: jest.Mock, maintenant: () => Date = () => HORLOGE.maintenant) {
     return creerVidangeur({
       depot,
       descripteurs: DESCRIPTEURS_MUTATION,
       appelerOutil: invoquerOutil,
       fetchImpl: fetchImpl as unknown as typeof fetch,
-      urlBase: "https://grs.exemple.ca",
-      jeton: "jeton-test",
-      appareilId: "APPAREIL-PROPRIO",
+      session: () => ({
+        urlBase: "https://grs.exemple.ca",
+        jeton: "jeton-test",
+        appareilId: "APPAREIL-PROPRIO",
+        personne: "proprio.fictif",
+      }),
       maintenant,
     });
   }
@@ -183,7 +189,7 @@ describe("la décision passe par la file sortante, avec sa clé d'idempotence", 
 
   test("envoi : outil m9_decider_demande_approbation, idempotencyKey = id de la mutation, args exacts, accusé lu", async () => {
     const depot = new DepotOutboxMemoire();
-    const persistee = await depot.inserer(creerMutationDecision("d1", "approuver", "Vu.", idDeterministe, HORLOGE));
+    const persistee = await deposer(depot, creerMutationDecision("d1", "approuver", "Vu.", idDeterministe, HORLOGE));
     const fetchImpl = jest.fn().mockResolvedValue(accepte());
 
     const rapport = await vidangeurDe(depot, fetchImpl).vidangerFileSortante();
@@ -203,7 +209,7 @@ describe("la décision passe par la file sortante, avec sa clé d'idempotence", 
 
   test("réponse perdue : le renvoi porte LA MÊME clé (le serveur ne l'applique qu'une fois)", async () => {
     const depot = new DepotOutboxMemoire();
-    const persistee = await depot.inserer(creerMutationDecision("d1", "approuver", "", idDeterministe, HORLOGE));
+    const persistee = await deposer(depot, creerMutationDecision("d1", "approuver", "", idDeterministe, HORLOGE));
     let maintenant = new Date(HORLOGE.maintenant);
     const fetchImpl = jest.fn().mockRejectedValueOnce(new TypeError("Network request failed")).mockResolvedValueOnce(accepte());
     const vidangeur = vidangeurDe(depot, fetchImpl, () => maintenant);
@@ -221,7 +227,7 @@ describe("la décision passe par la file sortante, avec sa clé d'idempotence", 
 
   test("le serveur refuse (déjà décidée) : échec permanent avec SON verdict, jamais un succès", async () => {
     const depot = new DepotOutboxMemoire();
-    const persistee = await depot.inserer(creerMutationDecision("d1", "approuver", "", idDeterministe, HORLOGE));
+    const persistee = await deposer(depot, creerMutationDecision("d1", "approuver", "", idDeterministe, HORLOGE));
     const verdict = { code: "deja_decidee", detail: "La demande d1 est déjà traitée (executee) : rien n'a été refait.", statut: "executee" };
     const fetchImpl = jest.fn().mockResolvedValue(reponseHttp({ ok: true, result: { ok: true, resultat: { accepte: false, verdict }, rejoue: false } }));
 
@@ -234,7 +240,7 @@ describe("la décision passe par la file sortante, avec sa clé d'idempotence", 
 
   test("accusé illisible : échec permanent qui dit de revérifier la liste, jamais un succès", async () => {
     const depot = new DepotOutboxMemoire();
-    const persistee = await depot.inserer(creerMutationDecision("d1", "approuver", "", idDeterministe, HORLOGE));
+    const persistee = await deposer(depot, creerMutationDecision("d1", "approuver", "", idDeterministe, HORLOGE));
     const fetchImpl = jest.fn().mockResolvedValue(reponseHttp({ ok: true, result: { ok: true, resultat: { accepte: true, resultat: { statut: "?" } } } }));
 
     const rapport = await vidangeurDe(depot, fetchImpl).vidangerFileSortante();
@@ -246,7 +252,7 @@ describe("la décision passe par la file sortante, avec sa clé d'idempotence", 
 
   test("une décision en file empêche d'en proposer une seconde pour la même demande", async () => {
     const depot = new DepotOutboxMemoire();
-    await depot.inserer(creerMutationDecision("d1", "refuser", "", idDeterministe, HORLOGE));
+    await deposer(depot, creerMutationDecision("d1", "refuser", "", idDeterministe, HORLOGE));
 
     const enFile = decisionsEnFile(await depot.lister());
 

@@ -70,4 +70,13 @@ export interface MutationOutbox {
    * jamais appliqué à la sélection — corrigé en relecture après PLAN T1.4-a.
    */
   readonly prochaineTentativeA: string | null;
+  /**
+   * La personne (`personnes.identifiant`, celle que le serveur a confirmée pour l'appareil) sous laquelle
+   * cette mutation a été créée (PLAN T1.4-l) — posée UNE fois, à l'insertion, par `src/outbox/proprietaire.ts`,
+   * puis jamais modifiée. La file sortante n'envoie une mutation que sous cette personne : après un nouvel
+   * appairage pour quelqu'un d'autre, elle reste en file, en quarantaine visible, jamais supprimée ni
+   * envoyée sous la nouvelle identité. `null` : propriétaire inconnu (ligne d'avant T1.4-l, ou mutation pas
+   * encore insérée) — même traitement, fail-closed : jamais envoyée.
+   */
+  readonly proprietaire: string | null;
 }

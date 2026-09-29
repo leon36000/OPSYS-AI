@@ -35,6 +35,8 @@ const enCA: RessourcesCommunes = {
     bandeau: {
       connecte: "{{personne}} — {{role}}",
       aReconfirmer: "To be reconfirmed: identity kept from the last connection, the server could not be reached.",
+      quarantaine:
+        "{{nombre}} pending send(s) belong to another person: kept, they will never be sent under your identity.",
     },
     roles: {
       admin: "Administrator",
@@ -47,6 +49,7 @@ const enCA: RessourcesCommunes = {
       reessayer: "Try again",
       reessayerEnCours: "Checking…",
       reappairer: "Pair again",
+      envoisConserves: "Pending sends on this device are kept: nothing is deleted.",
       motifs: {
         appareil_non_attribue:
           "This device is paired, but not yet assigned to a person. Give the ID below to the owner so they " +

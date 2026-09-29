@@ -18,6 +18,8 @@ import type { MutationOutbox, StatutMutation, TypeMutation } from "./types";
  * concurrentes.
  * `prochaine_tentative_a` : instant UTC avant lequel un renvoi ne doit pas être tenté (`NULL` =
  * due immédiatement) — posé par `marquerEchecReessayable` (src/outbox/mutation.ts).
+ * `proprietaire` (PLAN T1.4-l) : la personne sous laquelle la mutation a été créée, posée à l'insertion
+ * et jamais réécrite ; `NULL` pour une ligne d'avant cette colonne (voir `initialiserSchemaOutbox`).
  */
 export const DDL_OUTBOX = `
 CREATE TABLE IF NOT EXISTS outbox (
@@ -30,12 +32,23 @@ CREATE TABLE IF NOT EXISTS outbox (
   statut TEXT NOT NULL,
   tentatives INTEGER NOT NULL DEFAULT 0,
   created_at_local TEXT NOT NULL,
-  prochaine_tentative_a TEXT
+  prochaine_tentative_a TEXT,
+  proprietaire TEXT
 );
 `.trim();
 
+/**
+ * Crée la table si elle manque, puis ajoute la colonne `proprietaire` à une table créée avant PLAN
+ * T1.4-l (`CREATE TABLE IF NOT EXISTS` ne modifie jamais une table existante). Les lignes déjà là gardent
+ * `NULL` : propriétaire inconnu, donc en quarantaine (jamais envoyées sous une identité devinée, jamais
+ * supprimées). Idempotent : la colonne n'est ajoutée qu'une fois.
+ */
 export async function initialiserSchemaOutbox(db: SQLiteDatabase): Promise<void> {
   await db.execAsync(DDL_OUTBOX);
+  const colonnes = await db.getAllAsync<{ name: string }>("PRAGMA table_info(outbox)");
+  if (!colonnes.some((colonne) => colonne.name === "proprietaire")) {
+    await db.execAsync("ALTER TABLE outbox ADD COLUMN proprietaire TEXT");
+  }
 }
 
 interface LigneOutboxBrute {
@@ -49,6 +62,7 @@ interface LigneOutboxBrute {
   tentatives: number;
   created_at_local: string;
   prochaine_tentative_a: string | null;
+  proprietaire: string | null;
 }
 
 function versMutation(ligne: LigneOutboxBrute): MutationOutbox {
@@ -63,15 +77,16 @@ function versMutation(ligne: LigneOutboxBrute): MutationOutbox {
     tentatives: ligne.tentatives,
     createdAtLocal: ligne.created_at_local,
     prochaineTentativeA: ligne.prochaine_tentative_a,
+    proprietaire: ligne.proprietaire,
   };
 }
 
 /**
- * Adaptateur `expo-sqlite` de `DepotOutbox` (R12 §4). Non exercé par les tests unitaires :
- * SQLite natif n'existe pas dans l'environnement Jest, et la logique elle-même est déjà
- * couverte à 100 % via `DepotOutboxMemoire` (mission T1.4-a item 4) — ce fichier ne fait que
- * la traduction SQL <-> `MutationOutbox`, appelable une fois un vrai appareil/simulateur
- * disponible (hors périmètre de ce squelette).
+ * Adaptateur `expo-sqlite` de `DepotOutbox` (R12 §4). SQLite natif n'existe pas dans l'environnement
+ * Jest ; la logique est couverte via `DepotOutboxMemoire` (mission T1.4-a item 4) et, depuis PLAN
+ * T1.4-l, le SQL lui-même l'est par `depot.sqlite.test.ts`, qui fait tourner CE fichier sur un vrai
+ * moteur SQLite (`node:sqlite`) derrière la même petite interface — la migration de la colonne `proprietaire` en particulier. Reste hors
+ * preuve : le pont natif d'`expo-sqlite` (appareil ou simulateur).
  */
 export function creerDepotOutboxSqlite(db: SQLiteDatabase): DepotOutbox {
   return {
@@ -93,9 +108,10 @@ export function creerDepotOutboxSqlite(db: SQLiteDatabase): DepotOutbox {
       // exacte assignée par la base, pas une valeur recalculée côté JS.
       const ligne = await db.getFirstAsync<{ sequence: number }>(
         `INSERT INTO outbox
-           (id, sequence, type, chantier_id, payload, depends_on, statut, tentatives, created_at_local, prochaine_tentative_a)
+           (id, sequence, type, chantier_id, payload, depends_on, statut, tentatives, created_at_local,
+            prochaine_tentative_a, proprietaire)
          VALUES
-           (?, (SELECT COALESCE(MAX(sequence), 0) + 1 FROM outbox), ?, ?, ?, ?, ?, ?, ?, ?)
+           (?, (SELECT COALESCE(MAX(sequence), 0) + 1 FROM outbox), ?, ?, ?, ?, ?, ?, ?, ?, ?)
          RETURNING sequence`,
         [
           mutation.id,
@@ -107,6 +123,7 @@ export function creerDepotOutboxSqlite(db: SQLiteDatabase): DepotOutbox {
           mutation.tentatives,
           mutation.createdAtLocal,
           mutation.prochaineTentativeA,
+          mutation.proprietaire,
         ],
       );
       if (!ligne) {
@@ -116,7 +133,8 @@ export function creerDepotOutboxSqlite(db: SQLiteDatabase): DepotOutbox {
     },
 
     async mettreAJour(mutation) {
-      // `sequence` n'est jamais réécrite ici : assignée une fois à l'insertion, immuable ensuite.
+      // `sequence` et `proprietaire` ne sont jamais réécrites ici : assignées une fois à l'insertion,
+      // immuables ensuite (un statut qui change ne change pas à qui appartient la mutation).
       await db.runAsync(
         `UPDATE outbox
          SET type = ?, chantier_id = ?, payload = ?, depends_on = ?, statut = ?, tentatives = ?,

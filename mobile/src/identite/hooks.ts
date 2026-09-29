@@ -6,7 +6,9 @@ import {
   obtenirConfigurationAppel,
   type ConfigurationAppel,
 } from "../protocole/configuration";
+import type { EtatIdentite } from "./etat";
 import { lireEtMemoriserIdentite, oublierIdentiteMemorisee, restaurerSession } from "./service";
+import { synchroniserPersonneConfirmee } from "./sessionEnvoi";
 
 export interface CycleIdentite {
   /** Relit le coffre (session et dernière identité confirmée), puis l'identité auprès du serveur. */
@@ -38,8 +40,18 @@ function memeSession(a: ConfigurationAppel | null, b: ConfigurationAppel): boole
  * l'ancienne.
  */
 export function useCycleIdentite(): CycleIdentite {
-  const definirEtat = useDefinirEtatIdentite();
+  const definirEtatApp = useDefinirEtatIdentite();
   const enCours = useRef<LectureEnCours | null>(null);
+
+  // Chaque changement d'état de l'identité est aussi dit à la file sortante (PLAN T1.4-l) : elle n'envoie
+  // que pour la personne confirmée POUR LE JETON de la configuration à laquelle cet état se rapporte.
+  const definirEtat = useCallback(
+    (etat: EtatIdentite, configuration: ConfigurationAppel | null): void => {
+      synchroniserPersonneConfirmee(etat, configuration);
+      definirEtatApp(etat);
+    },
+    [definirEtatApp],
+  );
 
   const rafraichir = useCallback((): Promise<void> => {
     const configuration = obtenirConfigurationAppel();
@@ -56,7 +68,7 @@ export function useCycleIdentite(): CycleIdentite {
       }
       const etat = await lireEtMemoriserIdentite({ configuration });
       if (memeSession(obtenirConfigurationAppel(), configuration)) {
-        definirEtat(etat);
+        definirEtat(etat, configuration);
       }
     })();
     const lecture: LectureEnCours = { configuration, promesse };
@@ -75,7 +87,9 @@ export function useCycleIdentite(): CycleIdentite {
     if (etat.genre !== "erreur") {
       definirConfigurationAppel(configuration);
     }
-    definirEtat(etat);
+    // La configuration EN MÉMOIRE après ce point : celle qui vient d'être posée, ou, si le coffre est
+    // illisible, celle qui y était déjà.
+    definirEtat(etat, obtenirConfigurationAppel());
     if (configuration) {
       await rafraichir();
     }
@@ -84,7 +98,7 @@ export function useCycleIdentite(): CycleIdentite {
   const apresAppairage = useCallback(async (): Promise<void> => {
     // L'état d'abord, de façon synchrone : l'appelant navigue vers l'aiguilleur tout de suite après, qui ne
     // doit pas lire l'état d'avant l'appairage (« non appairé ») et renvoyer la personne à l'appairage.
-    definirEtat({ genre: "en_lecture" });
+    definirEtat({ genre: "en_lecture" }, obtenirConfigurationAppel());
     await oublierIdentiteMemorisee();
     await rafraichir();
   }, [definirEtat, rafraichir]);

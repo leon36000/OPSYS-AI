@@ -3,6 +3,7 @@ import { DESCRIPTEURS_MUTATION } from "./descripteurs";
 import { creerMutation, soumettreMutation } from "./mutation";
 import { creerVidangeur } from "./vidangeur";
 import { invoquerOutil } from "../protocole/client";
+import type { SessionEnvoi } from "../protocole/configuration";
 import type { MutationOutbox } from "./types";
 
 const HORLOGE = { maintenant: new Date("2026-09-28T18:32:00.000Z"), decalageMinutesUTC: -240 }; // 14 h 32 EDT
@@ -26,20 +27,32 @@ function reponseRejetee(code: string, detail = "détail"): Response {
   return reponseHttp(200, { ok: true, result: { ok: true, resultat: { accepte: false, verdict: { code, statut: "", detail } }, rejoue: false } });
 }
 
-async function inserer(depot: DepotOutboxMemoire, params: Parameters<typeof creerMutation>[0]): Promise<MutationOutbox> {
+const PERSONNE = "jdupont";
+const URL_BASE = "https://grs.exemple.ca";
+const SESSION_DE_TEST: SessionEnvoi = { urlBase: URL_BASE, jeton: "jeton-test", appareilId: "APPAREIL-1", personne: PERSONNE };
+
+/** Insère une mutation `en_attente`, créée sous `proprietaire` (par défaut la personne de la session de test). */
+async function inserer(
+  depot: DepotOutboxMemoire,
+  params: Parameters<typeof creerMutation>[0],
+  proprietaire: string | null = PERSONNE,
+): Promise<MutationOutbox> {
   const mutation = soumettreMutation(creerMutation(params, idDeterministe, HORLOGE));
-  return depot.inserer(mutation);
+  return depot.inserer({ ...mutation, proprietaire });
 }
 
-function creerConfig(depot: DepotOutboxMemoire, fetchImpl: typeof fetch, maintenant: () => Date) {
+function creerConfig(
+  depot: DepotOutboxMemoire,
+  fetchImpl: typeof fetch,
+  maintenant: () => Date,
+  session: () => SessionEnvoi | null = () => SESSION_DE_TEST,
+) {
   return {
     depot,
     descripteurs: DESCRIPTEURS_MUTATION,
     appelerOutil: invoquerOutil,
     fetchImpl,
-    urlBase: "https://grs.exemple.ca",
-    jeton: "jeton-test",
-    appareilId: "APPAREIL-1",
+    session,
     maintenant,
   };
 }
@@ -137,7 +150,7 @@ describe("vidangeur — idempotence du socle", () => {
   test("reprise au démarrage (statut envoi retrouvé en base) : renvoyée avec la MÊME id, jamais recréée", async () => {
     const depot = new DepotOutboxMemoire();
     const brouillon = creerMutation({ type: "punch_in", chantierId: "interv-1", payload: { action: "arrivee" } }, idDeterministe, HORLOGE);
-    const persistee = await depot.inserer(brouillon);
+    const persistee = await depot.inserer({ ...brouillon, proprietaire: PERSONNE });
     // Simule une ligne retrouvée `envoi` après un crash en plein envoi (jamais via marquerEnvoi
     // ici : c'est l'état trouvé tel quel dans le dépôt au démarrage, pas une transition qu'on
     // rejoue nous-mêmes).
@@ -306,5 +319,336 @@ describe("vidangeur — verrou simple", () => {
     expect(rapportSuivant.ignoreeVerrouActif).toBe(false);
     expect(rapportSuivant.envoyees).toEqual([]); // plus rien à envoyer, mais la passe a bien eu lieu
     expect((await depot.obtenir(mutation.id))?.statut).toBe("envoyee");
+  });
+});
+
+/** L'en-tête `authorization` de l'appel numéro `i` : le jeton réellement envoyé. */
+function autorisationEnvoyee(fetchImpl: jest.Mock, appelIndex = 0): string {
+  const init = fetchImpl.mock.calls[appelIndex][1] as RequestInit;
+  return (init.headers as Record<string, string>).authorization;
+}
+
+const SESSION_JETON_1: SessionEnvoi = { urlBase: URL_BASE, jeton: "jeton-1", appareilId: "APPAREIL-1", personne: "jdupont" };
+const SESSION_JETON_2: SessionEnvoi = { ...SESSION_JETON_1, jeton: "jeton-2" };
+const SESSION_AUTRE_PERSONNE: SessionEnvoi = { ...SESSION_JETON_2, personne: "mtremblay" };
+
+const PUNCH = { type: "punch_in", chantierId: "interv-1", payload: { action: "arrivee" } } as const;
+const PUNCH_OUT = { type: "punch_out", chantierId: "interv-1", payload: { action: "depart" } } as const;
+
+describe("vidangeur — la file suit le jeton courant (PLAN T1.4-l)", () => {
+  test("le jeton est relu avant CHAQUE envoi : un changement en cours de vidange est suivi dès la mutation suivante", async () => {
+    const depot = new DepotOutboxMemoire();
+    const m1 = await inserer(depot, PUNCH);
+    const m2 = await inserer(depot, PUNCH_OUT);
+
+    let session = SESSION_JETON_1;
+    // Le nouvel appairage a lieu pendant que la première mutation est en vol.
+    const fetchImpl = jest
+      .fn()
+      .mockImplementationOnce(async () => {
+        session = SESSION_JETON_2;
+        return reponseAcceptee();
+      })
+      .mockResolvedValueOnce(reponseAcceptee());
+    const vidangeur = creerVidangeur(creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant, () => session));
+
+    const rapport = await vidangeur.vidangerFileSortante();
+
+    expect(rapport.envoyees).toEqual([m1.id, m2.id]);
+    expect(autorisationEnvoyee(fetchImpl, 0)).toBe("Bearer jeton-1");
+    expect(autorisationEnvoyee(fetchImpl, 1)).toBe("Bearer jeton-2");
+    expect(rapport.arret).toBeNull();
+  });
+
+  test("le vidangeur ne garde aucun jeton d'une passe à l'autre : jamais l'ancien après un nouvel appairage", async () => {
+    const depot = new DepotOutboxMemoire();
+    await inserer(depot, PUNCH);
+    await inserer(depot, PUNCH_OUT);
+
+    let session = SESSION_JETON_1;
+    const fetchImpl = jest.fn().mockResolvedValue(reponseAcceptee());
+    const vidangeur = creerVidangeur(creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant, () => session));
+
+    await vidangeur.vidangerFileSortante(); // les deux partent avec jeton-1
+    await inserer(depot, PUNCH);
+    session = SESSION_JETON_2; // nouvel appairage, même vidangeur
+    await vidangeur.vidangerFileSortante();
+
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect([0, 1, 2].map((i) => autorisationEnvoyee(fetchImpl, i))).toEqual(["Bearer jeton-1", "Bearer jeton-1", "Bearer jeton-2"]);
+  });
+
+  test("réappairage de la MÊME personne : la mutation restée en file part avec le nouveau jeton, même id, même clé d'idempotence", async () => {
+    const depot = new DepotOutboxMemoire();
+    const mutation = await inserer(depot, PUNCH);
+    let session = SESSION_JETON_1;
+    let maintenant = new Date(HORLOGE.maintenant);
+    const fetchImpl = jest
+      .fn()
+      .mockRejectedValueOnce(new TypeError("Network request failed"))
+      .mockResolvedValueOnce(reponseAcceptee());
+    const vidangeur = creerVidangeur(creerConfig(depot, fetchImpl as unknown as typeof fetch, () => maintenant, () => session));
+
+    await vidangeur.vidangerFileSortante(); // hors ligne : reste en file avec l'ancien jeton
+    const apresEchec = await depot.obtenir(mutation.id);
+    expect(apresEchec?.statut).toBe("en_attente");
+
+    session = SESSION_JETON_2; // même personne, nouveau jeton
+    maintenant = new Date(new Date(apresEchec!.prochaineTentativeA!).getTime() + 1);
+    const rapport = await vidangeur.vidangerFileSortante();
+
+    expect(rapport.envoyees).toEqual([mutation.id]);
+    expect(rapport.quarantaine).toEqual([]);
+    expect(autorisationEnvoyee(fetchImpl, 0)).toBe("Bearer jeton-1");
+    expect(autorisationEnvoyee(fetchImpl, 1)).toBe("Bearer jeton-2");
+    expect(corpsEnvoye(fetchImpl, 1).idempotencyKey).toBe(mutation.id);
+    expect(corpsEnvoye(fetchImpl, 1).idempotencyKey).toBe(corpsEnvoye(fetchImpl, 0).idempotencyKey);
+    expect((await depot.obtenir(mutation.id))?.statut).toBe("envoyee");
+  });
+
+  test("réappairage d'une AUTRE personne : ses mutations ne partent jamais, restent intactes, en quarantaine visible", async () => {
+    const depot = new DepotOutboxMemoire();
+    const deA1 = await inserer(depot, PUNCH, "jdupont");
+    const deA2 = await inserer(depot, PUNCH_OUT, "jdupont");
+    const avant = await depot.lister();
+    const fetchImpl = jest.fn().mockResolvedValue(reponseAcceptee());
+    const vidangeur = creerVidangeur(
+      creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant, () => SESSION_AUTRE_PERSONNE),
+    );
+
+    const rapport = await vidangeur.vidangerFileSortante();
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(rapport.envoyees).toEqual([]);
+    expect(rapport.remisesEnAttente).toEqual([]);
+    expect(rapport.echecsPermanents).toEqual([]);
+    expect(rapport.quarantaine).toEqual([deA1.id, deA2.id]);
+    expect(rapport.arret).toBeNull();
+    // Rien n'est supprimé, rien ne change : la file est identique octet pour octet.
+    expect(await depot.lister()).toEqual(avant);
+  });
+
+  test("autre personne : SES mutations partent, celles de l'ancienne restent, dans la même passe", async () => {
+    const depot = new DepotOutboxMemoire();
+    const deA = await inserer(depot, PUNCH, "jdupont");
+    const deB = await inserer(depot, PUNCH_OUT, "mtremblay");
+    const fetchImpl = jest.fn().mockResolvedValue(reponseAcceptee());
+    const vidangeur = creerVidangeur(
+      creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant, () => SESSION_AUTRE_PERSONNE),
+    );
+
+    const rapport = await vidangeur.vidangerFileSortante();
+
+    expect(rapport.envoyees).toEqual([deB.id]);
+    expect(rapport.quarantaine).toEqual([deA.id]);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(corpsEnvoye(fetchImpl).idempotencyKey).toBe(deB.id);
+    expect((await depot.obtenir(deA.id))?.statut).toBe("en_attente");
+  });
+
+  test("l'ancienne personne revient : sa quarantaine repart, avec la même id", async () => {
+    const depot = new DepotOutboxMemoire();
+    const deA = await inserer(depot, PUNCH, "jdupont");
+    let session: SessionEnvoi = SESSION_AUTRE_PERSONNE;
+    const fetchImpl = jest.fn().mockResolvedValue(reponseAcceptee());
+    const vidangeur = creerVidangeur(creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant, () => session));
+
+    await vidangeur.vidangerFileSortante();
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    session = SESSION_JETON_2; // l'appareil est de nouveau appairé pour jdupont
+    const rapport = await vidangeur.vidangerFileSortante();
+    expect(rapport.envoyees).toEqual([deA.id]);
+    expect(corpsEnvoye(fetchImpl).idempotencyKey).toBe(deA.id);
+    expect(rapport.quarantaine).toEqual([]);
+  });
+
+  test("propriétaire inconnu (ligne d'avant T1.4-l) : quarantaine, jamais envoyée sous une identité devinée", async () => {
+    const depot = new DepotOutboxMemoire();
+    const orpheline = await inserer(depot, PUNCH, null);
+    const fetchImpl = jest.fn().mockResolvedValue(reponseAcceptee());
+    const vidangeur = creerVidangeur(creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant));
+
+    const rapport = await vidangeur.vidangerFileSortante();
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(rapport.quarantaine).toEqual([orpheline.id]);
+    expect((await depot.obtenir(orpheline.id))?.statut).toBe("en_attente");
+  });
+
+  test("une reprise (`envoi` après un crash) d'une autre personne n'est pas reprise sous la nouvelle identité", async () => {
+    const depot = new DepotOutboxMemoire();
+    const deA = await inserer(depot, PUNCH, "jdupont");
+    await depot.mettreAJour({ ...deA, statut: "envoi" });
+    const fetchImpl = jest.fn().mockResolvedValue(reponseAcceptee());
+    const vidangeur = creerVidangeur(
+      creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant, () => SESSION_AUTRE_PERSONNE),
+    );
+
+    const rapport = await vidangeur.vidangerFileSortante();
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(rapport.quarantaine).toEqual([deA.id]);
+    expect((await depot.obtenir(deA.id))?.statut).toBe("envoi");
+  });
+
+  test("sans session (pas apparié, ou personne pas encore confirmée pour ce jeton) : rien ne part, rien ne bouge", async () => {
+    const depot = new DepotOutboxMemoire();
+    await inserer(depot, PUNCH);
+    const avant = await depot.lister();
+    const fetchImpl = jest.fn().mockResolvedValue(reponseAcceptee());
+    const vidangeur = creerVidangeur(creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant, () => null));
+
+    const rapport = await vidangeur.vidangerFileSortante();
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(rapport.arret).toEqual({ genre: "sans_session" });
+    expect(rapport.envoyees).toEqual([]);
+    expect(await depot.lister()).toEqual(avant);
+  });
+
+  test("la personne de la session change EN COURS de vidange : la mutation suivante ne part pas, elle redevient en_attente intacte", async () => {
+    const depot = new DepotOutboxMemoire();
+    const m1 = await inserer(depot, PUNCH, "jdupont");
+    const m2 = await inserer(depot, PUNCH_OUT, "jdupont");
+    let session: SessionEnvoi = SESSION_JETON_1;
+    const fetchImpl = jest.fn().mockImplementationOnce(async () => {
+      session = SESSION_AUTRE_PERSONNE; // un autre appairage se termine pendant le premier envoi
+      return reponseAcceptee();
+    });
+    const vidangeur = creerVidangeur(creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant, () => session));
+
+    const rapport = await vidangeur.vidangerFileSortante();
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(rapport.envoyees).toEqual([m1.id]);
+    expect(rapport.arret).toEqual({ genre: "session_changee" });
+    const restee = await depot.obtenir(m2.id);
+    expect(restee?.statut).toBe("en_attente");
+    expect(restee?.tentatives).toBe(0);
+    expect(restee?.prochaineTentativeA).toBeNull();
+    expect(rapport.quarantaine).toEqual([m2.id]); // désormais celle d'une autre personne
+  });
+});
+
+describe("vidangeur — l'appareil est refusé : révocation (PLAN T1.4-l)", () => {
+  const corps401 = { error: { message: "Unauthorized", type: "unauthorized" } };
+  const corps403 = (raison: string) => ({
+    ok: false,
+    error: { type: "tool_call_blocked", message: `OPSYS device is not authorized to call "m4_pointer" (${raison}).` },
+  });
+
+  test("401 : la vidange s'ARRÊTE au premier refus, la mutation reste intacte en file, aucun échec permanent fabriqué", async () => {
+    const depot = new DepotOutboxMemoire();
+    const m1 = await inserer(depot, PUNCH);
+    const m2 = await inserer(depot, PUNCH_OUT);
+    const fetchImpl = jest.fn().mockResolvedValue(reponseHttp(401, corps401));
+    const vidangeur = creerVidangeur(creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant));
+
+    const rapport = await vidangeur.vidangerFileSortante();
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1); // pas de boucle, pas de deuxième mutation tentée
+    expect(rapport.arret).toEqual({
+      genre: "appareil_refuse",
+      mutationId: m1.id,
+      status: 401,
+      message: "réponse HTTP 401 inattendue",
+    });
+    expect(rapport.echecsPermanents).toEqual([]);
+    expect(rapport.remisesEnAttente).toEqual([]);
+    expect(rapport.envoyees).toEqual([]);
+    for (const id of [m1.id, m2.id]) {
+      const restee = await depot.obtenir(id);
+      expect(restee?.statut).toBe("en_attente");
+      expect(restee?.tentatives).toBe(0); // pas sa faute : aucune tentative comptée
+      expect(restee?.prochaineTentativeA).toBeNull(); // pas de recul : elle repartira dès qu'une session valide existera
+    }
+  });
+
+  test.each(["device_unknown", "role_unknown"])("403 %s (attribution retirée) : même arrêt, mutation intacte", async (raison) => {
+    const depot = new DepotOutboxMemoire();
+    const m1 = await inserer(depot, PUNCH);
+    await inserer(depot, PUNCH_OUT);
+    const fetchImpl = jest.fn().mockResolvedValue(reponseHttp(403, corps403(raison)));
+    const vidangeur = creerVidangeur(creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant));
+
+    const rapport = await vidangeur.vidangerFileSortante();
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(rapport.arret?.genre).toBe("appareil_refuse");
+    expect(rapport.echecsPermanents).toEqual([]);
+    expect((await depot.obtenir(m1.id))?.statut).toBe("en_attente");
+  });
+
+  test("403 tool_out_of_scope : c'est la MUTATION qui est refusée, pas l'appareil — échec permanent, et la file continue", async () => {
+    const depot = new DepotOutboxMemoire();
+    const refusee = await inserer(depot, PUNCH);
+    const suivante = await inserer(depot, PUNCH_OUT, PERSONNE);
+    const fetchImpl = jest
+      .fn()
+      .mockResolvedValueOnce(reponseHttp(403, corps403("tool_out_of_scope")))
+      .mockResolvedValueOnce(reponseAcceptee());
+    const vidangeur = creerVidangeur(creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant));
+
+    const rapport = await vidangeur.vidangerFileSortante();
+
+    expect(rapport.arret).toBeNull();
+    expect(rapport.echecsPermanents.map((e) => e.id)).toEqual([refusee.id]);
+    expect(rapport.envoyees).toEqual([suivante.id]);
+    expect((await depot.obtenir(refusee.id))?.statut).toBe("echec_permanent");
+  });
+
+  test("chaque passe fait UN seul essai puis s'arrête : un déclencheur ordinaire ne fait jamais boucler la file", async () => {
+    const depot = new DepotOutboxMemoire();
+    await inserer(depot, PUNCH);
+    const fetchImpl = jest.fn().mockResolvedValue(reponseHttp(401, corps401));
+    const vidangeur = creerVidangeur(creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant));
+
+    await vidangeur.vidangerFileSortante();
+    await vidangeur.vidangerFileSortante();
+    await vidangeur.vidangerFileSortante();
+
+    expect(fetchImpl).toHaveBeenCalledTimes(3); // un essai par passe, jamais plus
+  });
+
+  test("après le refus, un nouvel appairage (même personne) : la MÊME mutation part avec le nouveau jeton", async () => {
+    const depot = new DepotOutboxMemoire();
+    const mutation = await inserer(depot, PUNCH);
+    let session = SESSION_JETON_1;
+    const fetchImpl = jest
+      .fn()
+      .mockResolvedValueOnce(reponseHttp(401, corps401))
+      .mockResolvedValueOnce(reponseAcceptee());
+    const vidangeur = creerVidangeur(creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant, () => session));
+
+    const refus = await vidangeur.vidangerFileSortante();
+    expect(refus.arret?.genre).toBe("appareil_refuse");
+
+    session = SESSION_JETON_2;
+    const rapport = await vidangeur.vidangerFileSortante();
+
+    expect(rapport.envoyees).toEqual([mutation.id]);
+    expect(autorisationEnvoyee(fetchImpl, 0)).toBe("Bearer jeton-1");
+    expect(autorisationEnvoyee(fetchImpl, 1)).toBe("Bearer jeton-2");
+    expect(corpsEnvoye(fetchImpl, 1).idempotencyKey).toBe(mutation.id);
+    expect((await depot.obtenir(mutation.id))?.statut).toBe("envoyee");
+  });
+
+  test("le refus d'un ANCIEN jeton, arrivé après un nouvel appairage, n'est pas un refus d'appareil", async () => {
+    const depot = new DepotOutboxMemoire();
+    const mutation = await inserer(depot, PUNCH);
+    let session = SESSION_JETON_1;
+    const fetchImpl = jest.fn().mockImplementationOnce(async () => {
+      session = SESSION_JETON_2; // le nouvel appairage a invalidé l'ancien jeton pendant l'appel
+      return reponseHttp(401, corps401);
+    });
+    const vidangeur = creerVidangeur(creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant, () => session));
+
+    const rapport = await vidangeur.vidangerFileSortante();
+
+    expect(rapport.arret).toEqual({ genre: "session_changee" });
+    const restee = await depot.obtenir(mutation.id);
+    expect(restee?.statut).toBe("en_attente");
+    expect(restee?.tentatives).toBe(0);
   });
 });

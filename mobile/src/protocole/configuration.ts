@@ -43,3 +43,47 @@ export function obtenirConfigurationAppel(): ConfigurationAppel | null {
 export function definirConfigurationAppel(configuration: ConfigurationAppel | null): void {
   configurationActuelle = configuration;
 }
+
+/**
+ * La personne que le serveur a confirmée (ou dont la dernière confirmation est gardée hors ligne) POUR CE
+ * JETON (PLAN T1.4-l). Elle est liée au jeton et à l'appareil, pas seulement à la personne : après un
+ * nouvel appairage le jeton change, cette identité ne s'applique plus, et la file sortante n'envoie rien
+ * tant que le serveur n'a pas dit, pour le NOUVEAU jeton, qui est cette personne.
+ */
+export interface PersonneConfirmee {
+  readonly jeton: string;
+  readonly appareilId: string;
+  readonly personne: string;
+}
+
+let personneConfirmee: PersonneConfirmee | null = null;
+
+/** Posé par le cycle d'identité (`src/identite/sessionEnvoi.ts`) ; `null` quand aucune personne n'est confirmée. */
+export function definirPersonneConfirmee(confirmee: PersonneConfirmee | null): void {
+  personneConfirmee = confirmee;
+}
+
+/** Tout ce qu'il faut pour envoyer UNE mutation : où, avec quel jeton, et pour quelle personne. */
+export interface SessionEnvoi extends ConfigurationAppel {
+  readonly personne: string;
+}
+
+/**
+ * Ce que la file sortante lit AVANT CHAQUE envoi (PLAN T1.4-l) : jamais un jeton gardé d'avant. `null`
+ * (rien ne part) tant que l'appareil n'est pas apparié, ou que la personne confirmée n'est pas celle DU
+ * JETON COURANT — le cas juste après un nouvel appairage, jusqu'à la première lecture de l'identité.
+ * Synchrone, comme `obtenirConfigurationAppel`.
+ */
+export function obtenirSessionEnvoi(): SessionEnvoi | null {
+  const configuration = configurationActuelle;
+  const confirmee = personneConfirmee;
+  if (
+    !configuration ||
+    !confirmee ||
+    confirmee.jeton !== configuration.jeton ||
+    confirmee.appareilId !== configuration.appareilId
+  ) {
+    return null;
+  }
+  return { ...configuration, personne: confirmee.personne };
+}

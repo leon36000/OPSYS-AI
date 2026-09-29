@@ -1,8 +1,17 @@
-import { marquerEchecPermanent, marquerEchecReessayable, marquerEnvoi, marquerEnvoyee } from "./mutation";
+import {
+  marquerEchecPermanent,
+  marquerEchecReessayable,
+  marquerEnvoi,
+  marquerEnvoyee,
+  remettreEnAttenteSansFaute,
+} from "./mutation";
 import { identifierMutationsBloqueesParEchecPermanent, selectionnerProchainesEnvoyables } from "./planification";
+import { identifierEnQuarantaine } from "./proprietaire";
 import type { DepotOutbox } from "./depot";
 import type { MutationOutbox, TypeMutation } from "./types";
+import { estRefusAppareil } from "../protocole/classification";
 import type { ParametresAppelOutil, ResultatAppelOutil } from "../protocole/client";
+import type { SessionEnvoi } from "../protocole/configuration";
 
 /** Verdict serveur affichable (code + détail) — forme partagée par tout outil qui suit le
  * patron fail-closed `depuis_couple` (`src/opsys/outils.py`, IDEMPOTENCE.md §3.2), pas
@@ -35,12 +44,15 @@ export interface ConfigurationVidangeur {
    * faux transport ; en production, `invoquerOutil` de src/protocole/client.ts. */
   readonly appelerOutil: (params: ParametresAppelOutil) => Promise<ResultatAppelOutil>;
   readonly fetchImpl: typeof fetch;
-  readonly urlBase: string;
-  readonly jeton: string;
-  /** = `opsys/appareil` / `deviceId` (src/protocole/types.ts) — voir la limite documentée dans
-   * `src/m4/contextePointageProvisoire.ts` (`genererAppareilIdProvisoire`) tant que T1.4-c
-   * n'existe pas. */
-  readonly appareilId: string;
+  /**
+   * Où envoyer, avec quel jeton et pour quelle personne (PLAN T1.4-l) — LU AVANT CHAQUE ENVOI, jamais
+   * gardé d'une passe à l'autre : un nouvel appairage change le jeton, et la file doit suivre sans
+   * redémarrage. `null` : rien ne part (pas apparié, ou personne pas encore confirmée pour le jeton
+   * courant). En production, `obtenirSessionEnvoi` de `src/protocole/configuration.ts` ; dans les tests,
+   * une fonction qui rend le jeton voulu. `appareilId` de la session = `opsys/appareil` / `deviceId`
+   * (src/protocole/types.ts). Une mutation ne part que si `session.personne` est SON propriétaire.
+   */
+  readonly session: () => SessionEnvoi | null;
   /** Injecté plutôt que lu via `Date.now()` (fonction pure, même principe que `recul.ts` et
    * `selectionnerProchainesEnvoyables`). */
   readonly maintenant: () => Date;
@@ -65,6 +77,31 @@ export interface MutationAcceptee {
   readonly resume: unknown;
 }
 
+/**
+ * Pourquoi une passe s'est arrêtée avant la fin de la file (PLAN T1.4-l). Aucune de ces raisons n'est
+ * un échec de mutation : la mutation en cours est remise `en_attente`, intacte (ni tentative comptée, ni
+ * recul, même `id`), et le reste de la file n'est pas touché.
+ */
+export type ArretVidange =
+  /** Rien à envoyer avec : pas apparié, ou la personne n'est pas confirmée pour le jeton courant. */
+  | { readonly genre: "sans_session" }
+  /** Le jeton ou la personne ont changé pendant la passe (nouvel appairage) : la suivante repart avec la
+   * session courante. Le refus d'un ANCIEN jeton, qui arrive après ce changement, n'est pas un refus
+   * d'appareil : il tombe ici. */
+  | { readonly genre: "session_changee" }
+  /**
+   * Le serveur refuse l'APPAREIL (401 jeton révoqué ; 403 `device_unknown`/`role_unknown`, voir
+   * `estRefusAppareil`) : rien d'autre ne passerait, la passe s'arrête tout de suite — jamais une boucle
+   * de réessais, jamais un `echec_permanent` fabriqué pour une mutation qui n'a rien de faux. L'app relit
+   * alors l'identité, ce qui la renvoie à l'écran d'identité ou d'appairage.
+   */
+  | {
+      readonly genre: "appareil_refuse";
+      readonly mutationId: string;
+      readonly status: number | null;
+      readonly message: string;
+    };
+
 export interface RapportVidange {
   readonly envoyees: readonly string[];
   /**
@@ -85,6 +122,15 @@ export interface RapportVidange {
    * jamais perdre silencieusement un événement mis en file ») — pour affichage/alerte, jamais
    * utilisé pour décider quoi que ce soit ici (la sélection l'exclut déjà correctement). */
   readonly bloquees: readonly string[];
+  /**
+   * La QUARANTAINE (PLAN T1.4-l), calculée après la passe : les mutations qui attendent un envoi mais
+   * n'appartiennent pas à la personne de la session courante (autre personne, ou propriétaire inconnu).
+   * Elles ne partent jamais sous cette identité et ne sont jamais supprimées ; l'app les compte et les
+   * montre. Voir `src/outbox/proprietaire.ts`.
+   */
+  readonly quarantaine: readonly string[];
+  /** Pourquoi la passe s'est arrêtée avant la fin de la file ; `null` : elle est allée au bout. */
+  readonly arret: ArretVidange | null;
   /** `true` quand cet appel n'a rien fait car une vidange était déjà en cours (verrou simple,
    * mission item 1) — PAS une erreur : le prochain déclencheur (premier plan, retour réseau)
    * reprendra ce qui reste en file. */
@@ -97,7 +143,20 @@ const RAPPORT_VERROU_ACTIF: RapportVidange = {
   remisesEnAttente: [],
   echecsPermanents: [],
   bloquees: [],
+  quarantaine: [],
+  arret: null,
   ignoreeVerrouActif: true,
+};
+
+const RAPPORT_SANS_SESSION: RapportVidange = {
+  envoyees: [],
+  resultatsAcceptes: [],
+  remisesEnAttente: [],
+  echecsPermanents: [],
+  bloquees: [],
+  quarantaine: [],
+  arret: { genre: "sans_session" },
+  ignoreeVerrouActif: false,
 };
 
 export interface Vidangeur {
@@ -112,7 +171,14 @@ export interface Vidangeur {
 type IssueEnvoi =
   | { readonly genre: "envoyee"; readonly resume: unknown }
   | { readonly genre: "remise_en_attente" }
-  | { readonly genre: "echec_permanent"; readonly verdict: VerdictServeur };
+  | { readonly genre: "echec_permanent"; readonly verdict: VerdictServeur }
+  | { readonly genre: "arret"; readonly arret: ArretVidange };
+
+/** Le refus d'un jeton n'est un refus d'APPAREIL que si ce jeton est encore celui de la session : un
+ * refus qui arrive après un nouvel appairage vise l'ancien jeton, pas l'appareil tel qu'il est maintenant. */
+function memeSession(a: SessionEnvoi, b: SessionEnvoi | null): boolean {
+  return b !== null && a.jeton === b.jeton && a.appareilId === b.appareilId && a.personne === b.personne;
+}
 
 /** Normalise un échec HTTP/réseau (classification.ts) vers la même forme `{code, detail}`
  * qu'un rejet business — ni l'un ni l'autre n'est privilégié, l'écran affiche l'un ou l'autre
@@ -152,20 +218,47 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
       throw new Error(`aucun descripteur enregistré pour le type de mutation « ${mutation.type} »`);
     }
 
+    // La session est lue AU DERNIER MOMENT, juste avant l'appel : le jeton envoyé est le jeton courant, et
+    // il est confirmé pour la personne de CETTE mutation. Le jeton et la personne viennent du même
+    // instantané, jamais de deux lectures : la mutation d'une personne ne part jamais avec le jeton d'une
+    // autre. Si la session a changé depuis la sélection, la mutation redevient `en_attente`, intacte.
+    const session = config.session();
+    if (session === null || session.personne !== mutation.proprietaire) {
+      await config.depot.mettreAJour(remettreEnAttenteSansFaute(enEnvoi));
+      return { genre: "arret", arret: { genre: "session_changee" } };
+    }
+
     const resultatAppel = await config.appelerOutil({
       fetchImpl: config.fetchImpl,
-      urlBase: config.urlBase,
-      jeton: config.jeton,
+      urlBase: session.urlBase,
+      jeton: session.jeton,
       requete: {
         tool: descripteur.tool,
         args: { ...mutation.payload },
         idempotencyKey: mutation.id,
-        deviceId: config.appareilId,
+        deviceId: session.appareilId,
         deviceTimestamp: mutation.createdAtLocal,
       },
     });
 
     if (!resultatAppel.ok) {
+      if (estRefusAppareil(resultatAppel.echec)) {
+        // Ce n'est pas la faute de la mutation : elle reste intacte, en file, et repartira avec la même
+        // `id` quand une session valide existera. Rien ne passerait derrière elle : la passe s'arrête.
+        await config.depot.mettreAJour(remettreEnAttenteSansFaute(enEnvoi));
+        if (!memeSession(session, config.session())) {
+          return { genre: "arret", arret: { genre: "session_changee" } };
+        }
+        return {
+          genre: "arret",
+          arret: {
+            genre: "appareil_refuse",
+            mutationId: mutation.id,
+            status: resultatAppel.echec.status ?? null,
+            message: verdictDepuisEchecHttp(resultatAppel.echec).detail,
+          },
+        };
+      }
       if (resultatAppel.echec.reessayable) {
         await config.depot.mettreAJour(marquerEchecReessayable(enEnvoi, config.maintenant()));
         return { genre: "remise_en_attente" };
@@ -187,19 +280,34 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
   }
 
   async function vidangerUneFois(): Promise<RapportVidange> {
+    const sessionDebut = config.session();
+    if (sessionDebut === null) {
+      return RAPPORT_SANS_SESSION;
+    }
+
     const toutes = await config.depot.lister();
-    const envoyables = selectionnerProchainesEnvoyables(toutes, config.maintenant());
+    // La sélection regarde TOUTE la file (l'ordre et les parents `dependsOn` n'ont de sens que sur
+    // l'ensemble) ; seules les mutations de la personne de la session partent. Les autres attendent :
+    // c'est la quarantaine, comptée plus bas.
+    const envoyables = selectionnerProchainesEnvoyables(toutes, config.maintenant()).filter(
+      (m) => m.proprietaire === sessionDebut.personne,
+    );
 
     const envoyees: string[] = [];
     const resultatsAcceptes: MutationAcceptee[] = [];
     const remisesEnAttente: string[] = [];
     const echecsPermanents: EchecMutation[] = [];
+    let arret: ArretVidange | null = null;
 
     // Séquentiel, jamais Promise.all : l'ordre chantier/sequence de selectionnerProchainesEnvoyables
     // n'a de sens que si les envois se succèdent, et deux appels concurrents pour la MÊME mutation
     // (reprise) briseraient le verrou simple visé par la mission.
     for (const mutation of envoyables) {
       const issue = await envoyerUneMutation(mutation);
+      if (issue.genre === "arret") {
+        arret = issue.arret;
+        break;
+      }
       if (issue.genre === "envoyee") {
         envoyees.push(mutation.id);
         resultatsAcceptes.push({ id: mutation.id, resume: issue.resume });
@@ -212,8 +320,19 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
 
     const toutesApres = await config.depot.lister();
     const bloquees = identifierMutationsBloqueesParEchecPermanent(toutesApres).map((m) => m.id);
+    const personneFin = config.session()?.personne ?? sessionDebut.personne;
+    const quarantaine = identifierEnQuarantaine(toutesApres, personneFin).map((m) => m.id);
 
-    return { envoyees, resultatsAcceptes, remisesEnAttente, echecsPermanents, bloquees, ignoreeVerrouActif: false };
+    return {
+      envoyees,
+      resultatsAcceptes,
+      remisesEnAttente,
+      echecsPermanents,
+      bloquees,
+      quarantaine,
+      arret,
+      ignoreeVerrouActif: false,
+    };
   }
 
   return {

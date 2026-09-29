@@ -7,6 +7,7 @@ import {
   marquerEchecReessayable,
   marquerEnvoi,
   marquerEnvoyee,
+  remettreEnAttenteSansFaute,
   soumettreMutation,
 } from "./mutation";
 import type { MutationOutbox } from "./types";
@@ -79,6 +80,7 @@ describe("creerMutation", () => {
       tentatives: 0,
       createdAtLocal: "2026-01-15T11:32:00-05:00",
       prochaineTentativeA: null,
+      proprietaire: null,
     });
   });
 
@@ -117,6 +119,7 @@ function mutationDansStatut(
     tentatives,
     createdAtLocal: "2026-01-15T11:32:00-05:00",
     prochaineTentativeA: null,
+    proprietaire: null,
     ...extra,
   };
 }
@@ -215,4 +218,26 @@ test("les fonctions de transition ne modifient pas la mutation reçue (immuabili
   const copie = { ...original };
   soumettreMutation(original);
   expect(original).toEqual(copie);
+});
+
+describe("remettreEnAttenteSansFaute (PLAN T1.4-l : refus d'appareil, session changée)", () => {
+  test("envoi -> en_attente : ni tentative comptée, ni recul, mêmes id et propriétaire", () => {
+    const enEnvoi = mutationDansStatut("envoi", 2, { prochaineTentativeA: null });
+    const remise = remettreEnAttenteSansFaute({ ...enEnvoi, proprietaire: "jdupont" });
+    expect(remise).toEqual({ ...enEnvoi, proprietaire: "jdupont", statut: "en_attente" });
+    expect(remise.tentatives).toBe(2);
+    expect(remise.prochaineTentativeA).toBeNull();
+  });
+
+  test.each(["brouillon", "en_attente", "envoyee", "echec_permanent"] as const)(
+    "depuis %s : refusé, le graphe fermé des transitions ne s'ouvre pas",
+    (statut) => {
+      expect(() => remettreEnAttenteSansFaute(mutationDansStatut(statut))).toThrow(ErreurTransitionInterdite);
+    },
+  );
+
+  test("creerMutation ne pose aucun propriétaire : c'est le dépôt de l'app qui le pose à l'insertion", () => {
+    const mutation = creerMutation({ type: "punch_in", chantierId: "c1", payload: {} }, idDeterministe, HORLOGE_MONTREAL_EN_HIVER);
+    expect(mutation.proprietaire).toBeNull();
+  });
 });

@@ -54,7 +54,18 @@ describe("aiguillage par le rôle nommé", () => {
   test("la racine relit l'identité au démarrage, au premier plan et au retour du réseau", () => {
     const source = lireEcran("_layout.tsx");
     expect(source).toContain("restaurer()");
-    expect(source).toContain("demarrerDeclencheursVidange({ declencher: rafraichir })");
+    expect(source).toContain("demarrerDeclencheursVidange(");
+    expect(source).toMatch(/await rafraichir\(\);\s*await declencherVidange\(\);/);
+  });
+
+  test("la racine relit l'identité quand la file se fait refuser l'appareil, sans relancer de vidange (T1.4-l)", () => {
+    const source = lireEcran("_layout.tsx");
+    expect(source).toMatch(/ecouterRefusAppareil\(\(\) => \{\s*void rafraichir\(\);\s*\}\)/);
+  });
+
+  test("après un appairage réussi, la file repart avec le nouveau jeton une fois l'identité lue (T1.4-l)", () => {
+    const source = lireEcran("pairing/index.tsx");
+    expect(source).toContain("apresAppairage().then(vidangerEnArrierePlan)");
   });
 
   test("chaque groupe garde ses écrans par la garde de routes", () => {

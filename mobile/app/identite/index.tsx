@@ -51,6 +51,7 @@ export default function EcranIdentite() {
     <View style={styles.conteneur}>
       <Text style={styles.titre}>{t("identite.erreur.titre")}</Text>
       <Text style={styles.message}>{t(`identite.erreur.motifs.${etat.motif}`)}</Text>
+      <Text style={styles.message}>{t("identite.erreur.envoisConserves")}</Text>
       {appareilId ? <Text selectable style={styles.appareil}>{t("identite.erreur.appareil", { appareilId })}</Text> : null}
 
       <Pressable

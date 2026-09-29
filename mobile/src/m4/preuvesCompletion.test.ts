@@ -17,6 +17,7 @@ function mutation(partiel: Partial<MutationOutbox> & { readonly type: TypeMutati
     tentatives: 0,
     createdAtLocal: "2026-09-28T08:00:00-04:00",
     prochaineTentativeA: null,
+    proprietaire: null,
     ...partiel,
   };
 }

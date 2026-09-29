@@ -119,6 +119,7 @@ describe("ordre dans la file sortante", () => {
       tentatives: 0,
       createdAtLocal: "2026-09-28T10:00:00-04:00",
       prochaineTentativeA: null,
+      proprietaire: null,
     });
     // Pointages créés AVANT le retrait (séquences 1 à 4), dont des identifiants qui se trient avant « c ».
     const pointages = [

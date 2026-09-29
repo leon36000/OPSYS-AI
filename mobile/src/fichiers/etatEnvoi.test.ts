@@ -16,6 +16,7 @@ function blocMutation(index: number, statut: StatutMutation, overrides: Partial<
     tentatives: 0,
     createdAtLocal: "2026-09-28T08:00:00-04:00",
     prochaineTentativeA: null,
+    proprietaire: null,
     ...overrides,
   };
 }
@@ -88,6 +89,7 @@ describe("calculerEtatEnvoiFichier", () => {
         tentatives: 0,
         createdAtLocal: "2026-09-28T08:00:00-04:00",
         prochaineTentativeA: null,
+        proprietaire: null,
       },
     ];
     expect(calculerEtatEnvoiFichier(mutations, "I1", SHA).nombreBlocs).toBe(3);

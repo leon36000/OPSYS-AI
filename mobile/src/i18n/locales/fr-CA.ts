@@ -33,6 +33,7 @@ export interface RessourcesCommunes {
     bandeau: {
       connecte: string;
       aReconfirmer: string;
+      quarantaine: string;
     };
     roles: {
       admin: string;
@@ -45,6 +46,7 @@ export interface RessourcesCommunes {
       reessayer: string;
       reessayerEnCours: string;
       reappairer: string;
+      envoisConserves: string;
       motifs: {
         appareil_non_attribue: string;
         role_inconnu: string;
@@ -338,6 +340,9 @@ const frCA: RessourcesCommunes = {
     bandeau: {
       connecte: "{{personne}} — {{role}}",
       aReconfirmer: "À reconfirmer : identité gardée de la dernière connexion, le serveur n'a pas pu être joint.",
+      quarantaine:
+        "{{nombre}} envoi(s) en attente appartiennent à une autre personne : conservés, ils ne partiront jamais " +
+        "sous votre identité.",
     },
     roles: {
       admin: "Administrateur",
@@ -350,6 +355,7 @@ const frCA: RessourcesCommunes = {
       reessayer: "Réessayer",
       reessayerEnCours: "Vérification…",
       reappairer: "Appairer de nouveau",
+      envoisConserves: "Les envois en attente sur cet appareil sont conservés : rien n'est supprimé.",
       motifs: {
         appareil_non_attribue:
           "Cet appareil est apparié, mais n'est pas encore attribué à une personne. Donnez l'identifiant " +

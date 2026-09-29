@@ -10,6 +10,7 @@ import { resoudreInfoClientAppairage } from "@/appairage/clientInfo";
 import { chargerOuCreerIdentite, sauvegarderSession } from "@/appairage/stockage";
 import type { EtatAppairage, MotifEchecAppairage, SocketAppairageLike } from "@/appairage/types";
 import { useCycleIdentite } from "@/identite/hooks";
+import { vidangerEnArrierePlan } from "@/outbox/service";
 import { definirConfigurationAppel } from "@/protocole/configuration";
 
 /**
@@ -76,7 +77,9 @@ export default function EcranAppairage() {
       // employé, vendeur) vient de l'identité que le serveur donne à l'appareil (`GET /opsys/identite`, PLAN
       // T1.4-c5). `apresAppairage` oublie l'identité gardée d'un appairage précédent, puis la lit ; l'aiguilleur
       // `app/index.tsx` attend cette lecture, puis ouvre le groupe du rôle nommé ou l'écran d'erreur.
-      void apresAppairage();
+      // Une fois l'identité lue, la file sortante repart avec le NOUVEAU jeton (PLAN T1.4-l) : les mutations
+      // de la même personne partent, celles d'une autre restent en quarantaine (`src/outbox/proprietaire.ts`).
+      void apresAppairage().then(vidangerEnArrierePlan);
       router.replace("/");
     } finally {
       setEnCours(false);
