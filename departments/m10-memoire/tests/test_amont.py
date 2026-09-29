@@ -324,6 +324,11 @@ REFUS = [
     (TYPE_SANS_REPONSE, ("delai_relance_jours",), 0, etapes.REJ_AMONT_CHAMP_INVALIDE),
     (TYPE_SANS_REPONSE, ("delai_relance_jours",), True, etapes.REJ_AMONT_CHAMP_INVALIDE),
     (TYPE_SANS_REPONSE, ("horodatage_reference",), "2026-09-12", etapes.REJ_AMONT_HORODATAGE_INVALIDE),
+    # L'opportunité de M2 a UNE forme ; M1 n'en émet jamais.
+    (TYPE_LEAD, ("lead", "lead_id"), "LEAD-1~opp~wct-1", etapes.REJ_AMONT_CHAMP_INVALIDE),
+    (TYPE_CLIENT, ("lead_id",), "LEAD-1~opp~", etapes.REJ_AMONT_CHAMP_INVALIDE),
+    (TYPE_CLIENT, ("lead_id",), "LEAD-1~autre~wct-1", etapes.REJ_AMONT_CHAMP_INVALIDE),
+    (TYPE_CLIENT, ("lead_id",), "LEAD-1~opp~wct 1", etapes.REJ_AMONT_CHAMP_INVALIDE),
 ]
 
 
@@ -1060,3 +1065,19 @@ def test_les_consommateurs_du_manifeste_de_m10_sont_ceux_de_la_table_et_du_chant
     assert [t for t in dep.evenements_consomme if t in TYPES_DE_L_AMONT] == list(TYPES_DE_L_AMONT)
     for type_evenement in TYPES_DE_L_AMONT:
         assert callable(fonctions[type_evenement])
+
+
+@pytest.mark.parametrize("type_evenement", [TYPE_CLIENT, TYPE_ACCEPTE, TYPE_SANS_REPONSE])
+def test_l_opportunite_que_m2_ouvre_pour_un_client_connu_est_gardee(evenements_m10, type_evenement):
+    """M2 ouvre `<lead>~opp~<wct_id>` pour un nouveau chantier d'un client connu et publie ce lead_id tel quel
+    (`m2.client_associe`, puis les devis de M3). Un lead d'origine SMS fait déjà 64 caractères : l'opportunité
+    dépasse la forme d'une affaire, et la refuser mettrait chaque client qui revient en quarantaine chez M10."""
+    opportunite = "a" * 64 + "~opp~wct-2026-0042"
+    charge = _avec(CHARGES[type_evenement](), ("lead_id",), opportunite)
+
+    resultat, verdict = amont.memoriser(type_evenement, charge, evenements_m10)
+
+    assert verdict is None
+    assert resultat is not None and resultat["deja_memorise"] is False
+    assert opportunite in json.dumps(resultat["maillon"])
+    assert len(evenements_m10.lire()) >= 1
