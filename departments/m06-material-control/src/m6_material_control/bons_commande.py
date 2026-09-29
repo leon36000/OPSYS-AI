@@ -50,6 +50,14 @@ Réception : ``enregistrer_reception_po`` NE RECALCULE RIEN — elle reçoit le 
 déjà calculé par ``reception.py``/``materiel.enregistrer_reception`` (réutilisés SANS
 modification, audit M6 §5 Phase 1 tâche 9) et se contente d'y attacher la transition de statut du
 PO persisté (reçue partielle ou complète, PLAN T2.5 point 4).
+
+Livraisons (PLAN T4.15-b) : le verdict qu'on lui donne est le CUMUL des livraisons du PO (`reception.evaluer_cumul`),
+pas celui de la dernière livraison contre la commande entière — sans quoi la livraison qui complète un PO déjà
+partiel resterait `RECEPTION_INFERIEURE` et le PO ne serait jamais `received`. Chaque transition de réception
+garde donc SA livraison (`livraison` : empreinte, horodatage, quantités reçues en texte décimal) : le cumul se
+relit dans le registre append-only, jamais dans un total recopié qui pourrait s'en écarter. Rejouer une livraison
+déjà enregistrée (même PO, même horodatage, mêmes quantités) est refusé : additionnée deux fois, une livraison
+partielle ferait passer le PO à `received` alors que la moitié seulement est arrivée.
 """
 
 from __future__ import annotations
@@ -58,7 +66,7 @@ import math
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from . import contrats, fournisseurs, frontieres, livre_prix, stock, verdicts
+from . import contrats, encodage, evenement_reception, fournisseurs, frontieres, livre_prix, stock, verdicts
 
 __all__ = [
     "calculer_lignes_a_commander",
@@ -69,6 +77,10 @@ __all__ = [
     "generer_courriel",
     "marquer_envoye",
     "enregistrer_reception_po",
+    "construire_livraison",
+    "livraison_deja_enregistree",
+    "livraisons",
+    "livraisons_sans_detail",
     "peut_recevoir",
     "detecter_ecarts_prix",
     "lire",
@@ -398,13 +410,18 @@ def peut_recevoir(statut_actuel: Any) -> bool:
 
 
 def enregistrer_reception_po(
-    po_id: Any, verdict_reception: Any, horodatage: Any, registre_po: Any
+    po_id: Any, verdict_reception: Any, horodatage: Any, registre_po: Any, livraison: Mapping[str, Any] | None = None
 ) -> tuple[dict[str, Any] | None, dict | None]:
     """Attache le verdict DÉJÀ CALCULÉ par ``reception.py``/``materiel.enregistrer_reception``
     (réutilisés sans modification) au PO persisté (PLAN T2.5 point 4) :
     CONFORME/RECEPTION_SUPERIEURE -> ``received`` ; RECEPTION_INFERIEURE/RECEPTION_MIXTE ->
     ``partially_received`` ; INDETERMINE -> aucune transition (rien n'a été écrit au stock non
-    plus, DA-M6-12 d'origine, inchangée pour ce cas), rend l'état actuel sans erreur."""
+    plus, DA-M6-12 d'origine, inchangée pour ce cas), rend l'état actuel sans erreur.
+
+    T4.15-b : ``verdict_reception`` est le verdict CUMULÉ des livraisons du PO (``reception.evaluer_cumul``),
+    et ``livraison`` (``construire_livraison``) la livraison qui vient d'arriver : elle est rangée sur la
+    transition, pour que la suivante la retrouve. Sans ``livraison`` (appelant d'avant), la transition est
+    celle d'avant, sans détail de livraison."""
     etat = lire(registre_po, po_id)
     if etat is None:
         return None, verdicts.construire_verdict("REJ-PO-INTROUVABLE", detail=f"PO inconnu : {po_id!r}")
@@ -426,7 +443,83 @@ def enregistrer_reception_po(
         nouveau_statut = "partially_received"
     else:  # INDETERMINE : rien écrit au stock, rien à transitionner ici non plus.
         return etat, None
-    return _transitionner(registre_po, po_id, nouveau_statut, horodatage, verdict_reception=verdict_reception)
+    supplementaires: dict[str, Any] = {"verdict_reception": verdict_reception}
+    if livraison is not None:
+        supplementaires["livraison"] = dict(livraison)
+    return _transitionner(registre_po, po_id, nouveau_statut, horodatage, **supplementaires)
+
+
+def construire_livraison(po: Mapping[str, Any], reception_po: Mapping[str, Any]) -> dict[str, Any] | None:
+    """La livraison que `reception_po` apporte au PO persisté `po`, telle qu'elle se range sur sa transition
+    (PLAN T4.15-b) : `{"empreinte", "horodatage", "lignes": [{"materiau_id", "quantite_recue"}]}`, une ligne par
+    ligne du PO dans l'ordre du PO, quantités en TEXTE décimal exact (jamais un flottant, `Decimal(str(x))`).
+
+    `None` quand cette réception n'apparie pas le PO — autre `po_id`, autre chantier, ou une ligne du PO absente
+    de la réception : c'est le cas `INDETERMINE` de ``reception.traiter_reception``, où rien n'est écrit au stock,
+    donc aucune livraison. Un matériau reçu qui n'est pas au PO est ignoré, comme ``traiter_reception`` l'ignore ;
+    un matériau écrit deux fois compte pour sa DERNIÈRE ligne, comme lui. Suppose `verifier_quantites` déjà passé :
+    une quantité illisible rend aussi `None`, jamais une livraison à demi construite.
+
+    L'`empreinte` (PO, horodatage, quantités) est ce qui reconnaît un rejeu : voir `livraison_deja_enregistree`."""
+    if reception_po.get("po_id") != po["po_id"] or reception_po.get("chantier_id") != po["chantier_id"]:
+        return None
+    lignes_recues = reception_po.get("lignes_recues")
+    if not isinstance(lignes_recues, list):
+        return None
+    recues = {
+        ligne.get("materiau_id"): ligne.get("quantite_recue") for ligne in lignes_recues if isinstance(ligne, Mapping)
+    }
+    lignes: list[dict[str, str]] = []
+    for ligne_po in po["lignes"]:
+        materiau_id = ligne_po["materiau_id"]
+        if materiau_id not in recues:
+            return None
+        texte = evenement_reception.texte_decimal(recues[materiau_id])
+        if texte is None:
+            return None
+        lignes.append({"materiau_id": materiau_id, "quantite_recue": texte})
+    horodatage = reception_po.get("horodatage")
+    quantites = [[ligne["materiau_id"], ligne["quantite_recue"]] for ligne in lignes]
+    empreinte = encodage.empreinte(po["po_id"], horodatage, quantites)
+    return {"empreinte": empreinte, "horodatage": horodatage, "lignes": lignes}
+
+
+def _transitions_de_reception(registre_po: Iterable[Mapping[str, Any]], po_id: Any) -> list[Mapping[str, Any]]:
+    """Les transitions du PO qui portent une réception (celles qui ont un `verdict_reception`), dans l'ordre du
+    registre append-only."""
+    return [
+        maillon for maillon in registre_po
+        if maillon.get("type_entree") == "transition_po"
+        and maillon.get("po_id") == po_id
+        and "verdict_reception" in maillon
+    ]
+
+
+def livraisons(registre_po: Iterable[Mapping[str, Any]], po_id: Any) -> list[dict[str, Any]]:
+    """Les livraisons déjà enregistrées pour ce PO, dans l'ordre : chaque transition de réception qui a rangé sa
+    `livraison` (PLAN T4.15-b). Le cumul se calcule sur cette liste, jamais sur un total recopié."""
+    return [
+        dict(maillon["livraison"]) for maillon in _transitions_de_reception(registre_po, po_id)
+        if isinstance(maillon.get("livraison"), Mapping)
+    ]
+
+
+def livraisons_sans_detail(registre_po: Iterable[Mapping[str, Any]], po_id: Any) -> int:
+    """Combien de réceptions de ce PO ont été enregistrées SANS le détail de leur livraison (avant T4.15-b) : leurs
+    quantités ne se retrouvent nulle part (le stock ne porte pas le `po_id`), donc le cumul du PO n'est pas
+    fiable. `0` : le cumul est exact."""
+    return sum(
+        1 for maillon in _transitions_de_reception(registre_po, po_id)
+        if not isinstance(maillon.get("livraison"), Mapping)
+    )
+
+
+def livraison_deja_enregistree(
+    registre_po: Iterable[Mapping[str, Any]], po_id: Any, livraison: Mapping[str, Any]
+) -> bool:
+    """Vrai si une livraison de même empreinte (même PO, même horodatage, mêmes quantités) est déjà rangée sur ce
+    PO : un rejeu, à refuser avant toute écriture (voir la docstring du module)."""
+    return any(ancienne.get("empreinte") == livraison["empreinte"] for ancienne in livraisons(registre_po, po_id))
 
 
 def detecter_ecarts_prix(

@@ -34,12 +34,12 @@
     "verdict_reception": {
       "type": "string",
       "enum": ["CONFORME", "RECEPTION_INFERIEURE", "RECEPTION_SUPERIEURE", "RECEPTION_MIXTE"],
-      "description": "Verdict de reception.py, tel que M6 l'a calculé pour CETTE livraison contre la commande entière. INDETERMINE n'est jamais publié : rien n'est reçu, rien n'est dû."
+      "description": "Verdict de reception.py, tel que M6 l'a calculé pour CETTE livraison contre la commande entière : ce n'est PAS le cumul du PO (pour savoir si le PO est complet, lire `statut_po`). INDETERMINE n'est jamais publié : rien n'est reçu, rien n'est dû."
     },
     "statut_po": {
       "type": "string",
       "enum": ["received", "partially_received"],
-      "description": "Statut du PO après cette réception (bons_commande.enregistrer_reception_po)."
+      "description": "Statut du PO après cette réception (bons_commande.enregistrer_reception_po), décidé sur le CUMUL des livraisons du PO (PLAN T4.15-b, reception.evaluer_cumul) : la livraison qui complète un PO déjà partiel donne `received`, alors que son `verdict_reception` reste RECEPTION_INFERIEURE. Un PO d'avant T4.15-b dont une réception n'a pas gardé sa livraison ne peut pas affirmer son cumul : son statut suit alors le verdict de la livraison seule."
     },
     "hash_maillon": {
       "type": "string",

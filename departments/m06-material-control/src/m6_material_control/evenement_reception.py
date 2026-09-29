@@ -18,7 +18,8 @@ déclare pas celle d'une quantité. Ce module ne convertit RIEN et n'invente auc
 recopiées telles quelles, et le schéma du catalogue le dit.
 
 FAIL-CLOSED. Une quantité reçue négative, non finie ou non numérique n'est pas une livraison : elle est refusée
-AVANT toute écriture au stock (`verifier_reception`, appelé par `outils.receptionner_commande` avant
+AVANT toute écriture au stock (`verifier_reception` pour un PO persisté, `verifier_quantites` pour toute
+réception, éphémère comprise depuis T4.15-b ; appelés par `outils.receptionner_commande` avant
 `materiel.enregistrer_reception`). Un prix illisible devient `null` (inconnu), jamais un nombre inventé. Un
 écart de prix est évalué seulement si le seuil ET les deux prix sont connus, sinon `null`.
 """
@@ -38,6 +39,7 @@ __all__ = [
     "construire_charge",
     "evenement_id",
     "texte_decimal",
+    "verifier_quantites",
     "verifier_reception",
 ]
 
@@ -92,24 +94,17 @@ def _quantite_valide(valeur: Any) -> bool:
     return texte_decimal(valeur) is not None and valeur >= 0
 
 
-def verifier_reception(reception_po: Any) -> dict[str, Any] | None:
-    """`None` si cette réception peut devenir un fait publiable, sinon le verdict du premier défaut.
+def verifier_quantites(reception_po: Any) -> dict[str, Any] | None:
+    """`None` si chaque `quantite_recue` présente est un nombre fini, zéro ou plus ; sinon le verdict de la
+    première fautive (PLAN T4.15-b : pour TOUTE réception, éphémère ou rattachée à un PO persisté).
 
-    À appeler AVANT d'écrire quoi que ce soit au stock, pour une réception rattachée à un PO persisté : un
-    défaut découvert après l'écriture forcerait à défaire un stock déjà écrit. Tolérant sur la FORME
-    (`reception_po` qui n'est pas un objet, `lignes_recues` qui n'est pas une liste, une ligne sans
-    `quantite_recue`) : ces défauts-là appartiennent à `validation.valider_reception_po`, qui les refuse avec
-    son propre code juste après. Ici ne sont jugées que les VALEURS, quand elles sont là :
-    - `horodatage` : RFC 3339 avec fuseau (M5 en fait la date de sa piste d'audit et n'a pas d'horloge) ;
-    - `quantite_recue` de chaque ligne : nombre fini, jamais négatif (zéro : ligne pas encore livrée)."""
+    Zéro est permis : c'est une ligne pas encore livrée. Une quantité négative n'est pas une réception (un retour
+    au fournisseur est un autre geste), et une quantité non finie, booléenne, textuelle ou de plus de
+    `_LONGUEUR_TEXTE_MAX` caractères ne se stocke ni ne se cumule. Tolérant sur la FORME (`reception_po` qui n'est
+    pas un objet, `lignes_recues` qui n'est pas une liste, une ligne sans `quantite_recue`) : ces défauts-là
+    appartiennent à `validation.valider_reception_po`, qui les refuse avec son propre code juste après."""
     if not isinstance(reception_po, Mapping):
         return None
-    horodatage = reception_po.get("horodatage")
-    if "horodatage" in reception_po and (not isinstance(horodatage, str) or _RFC_3339.fullmatch(horodatage) is None):
-        return verdicts.construire_verdict(
-            "REJ-RECEPTION-HORODATAGE-INVALIDE",
-            detail="horodatage de la réception : RFC 3339 avec fuseau requis (ex. 2026-09-29T09:15:00-04:00)",
-        )
     lignes = reception_po.get("lignes_recues")
     if not isinstance(lignes, list):
         return None
@@ -123,6 +118,26 @@ def verifier_reception(reception_po: Any) -> dict[str, Any] | None:
                 ),
             )
     return None
+
+
+def verifier_reception(reception_po: Any) -> dict[str, Any] | None:
+    """`None` si cette réception peut devenir un fait publiable, sinon le verdict du premier défaut.
+
+    À appeler AVANT d'écrire quoi que ce soit au stock, pour une réception rattachée à un PO persisté : un
+    défaut découvert après l'écriture forcerait à défaire un stock déjà écrit. Deux contrôles, dans cet ordre :
+    - `horodatage` : RFC 3339 avec fuseau (M5 en fait la date de sa piste d'audit et n'a pas d'horloge) ;
+    - `verifier_quantites` : chaque `quantite_recue` est un nombre fini, jamais négatif. Ce second contrôle vaut
+      aussi pour une réception éphémère (`outils.receptionner_commande` l'appelle seul dans ce cas) ; l'horodatage,
+      lui, ne se vérifie que pour un PO persisté, parce que c'est lui que M5 date."""
+    if not isinstance(reception_po, Mapping):
+        return None
+    horodatage = reception_po.get("horodatage")
+    if "horodatage" in reception_po and (not isinstance(horodatage, str) or _RFC_3339.fullmatch(horodatage) is None):
+        return verdicts.construire_verdict(
+            "REJ-RECEPTION-HORODATAGE-INVALIDE",
+            detail="horodatage de la réception : RFC 3339 avec fuseau requis (ex. 2026-09-29T09:15:00-04:00)",
+        )
+    return verifier_quantites(reception_po)
 
 
 def evenement_id(po_id: str, hash_maillon: str) -> str:

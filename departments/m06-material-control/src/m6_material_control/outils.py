@@ -82,6 +82,7 @@ from . import (
     livre_prix,
     materiel,
     reapprovisionnement,
+    reception,
     stock,
     validation,
     variance_chantier,
@@ -681,10 +682,20 @@ def receptionner_commande(
     PLAN T4.15 : pour un PO persisté, dans une transaction, publie en plus `m6.reception_enregistree`
     (`evenement_reception_id` dans la réponse) : c'est ainsi que M5 apprend ce que l'entreprise devra au
     fournisseur pour ce qui vient d'arriver. Quantité reçue négative ou non finie, horodatage sans fuseau :
-    refus nommé, avant toute écriture."""
+    refus nommé, avant toute écriture.
+
+    PLAN T4.15-b : (1) les livraisons d'un PO persisté se CUMULENT. Le statut du PO (`received` ou
+    `partially_received`) découle du cumul (`reception.evaluer_cumul`, décimal exact), non de la seule dernière
+    livraison contre la commande entière : la livraison qui complète un PO partiel le fait passer à `received`.
+    `resultat.accuse_reception` (et `verdict_reception` de l'événement) reste le verdict de CETTE livraison ;
+    `reception_cumulee` dit le cumul. (2) Une livraison déjà enregistrée (même PO, même horodatage, mêmes
+    quantités) est refusée (`REJ-RECEPTION-DEJA-ENREGISTREE`) : additionnée deux fois, une livraison partielle
+    ferait passer le PO à `received`. (3) Une quantité négative ou non finie est refusée AVANT toute écriture
+    aussi pour une réception éphémère (PO non persisté)."""
     bons_registre = _bons_commande_de_l_appel(bons_commande_historique)
     po_id = bon_demande.get("po_id") if isinstance(bon_demande, dict) else None
     po_existant = bons_commande.lire(bons_registre, po_id) if po_id else None
+    livraison = None
     if po_existant is not None:
         if not bons_commande.bon_demande_correspond(po_existant, bon_demande):
             return {"accepte": False, "verdict": {"code": "REJ-PO-BON-DEMANDE-INCOHERENT"}}
@@ -695,6 +706,23 @@ def receptionner_commande(
         verdict_publiable = evenement_reception.verifier_reception(reception_po)
         if verdict_publiable is not None:
             return {"accepte": False, "verdict": verdict_publiable}
+        # T4.15-b : les livraisons d'un PO se CUMULENT. Une livraison déjà enregistrée (même PO, même horodatage,
+        # mêmes quantités) qu'on rejouerait serait additionnée deux fois : refusée, avant toute écriture.
+        if isinstance(reception_po, dict):
+            livraison = bons_commande.construire_livraison(po_existant, reception_po)
+        if livraison is not None and bons_commande.livraison_deja_enregistree(bons_registre, po_id, livraison):
+            return {"accepte": False, "verdict": verdicts.construire_verdict(
+                "REJ-RECEPTION-DEJA-ENREGISTREE",
+                detail=(
+                    f"la livraison du PO {po_id!r} horodatée {livraison['horodatage']!r}, aux mêmes quantités, "
+                    "est déjà enregistrée : rien n'est réécrit, rien n'est additionné deux fois"
+                ),
+            )}
+    else:
+        # T4.15-b : une quantité négative ou non finie n'est pas une réception, PO persisté ou non.
+        verdict_quantites = evenement_reception.verifier_quantites(reception_po)
+        if verdict_quantites is not None:
+            return {"accepte": False, "verdict": verdict_quantites}
 
     registre_cible = _registre_de_l_appel(registre_historique)
     resultat, code = materiel.enregistrer_reception(
@@ -705,9 +733,10 @@ def receptionner_commande(
     reponse = {"accepte": True, "resultat": resultat, **_etat_registre(registre_cible)}
 
     if po_existant is not None:
-        verdict_reception = resultat["accuse_reception"]["verdict_reception"]
+        accuse = resultat["accuse_reception"]
+        verdict_po, cumul = _verdict_cumule_du_po(po_existant, accuse, livraison, bons_registre)
         po_maj, code_po = bons_commande.enregistrer_reception_po(
-            po_id, verdict_reception, reception_po["horodatage"], bons_registre
+            po_id, verdict_po, reception_po["horodatage"], bons_registre, livraison=livraison
         )
         if code_po is not None:
             # peut_recevoir a déjà validé le statut ci-dessus : un refus ici trahirait une
@@ -715,10 +744,11 @@ def receptionner_commande(
             # _essayer_facture_brouillon de M5 face à une entrée déjà validée).
             raise RuntimeError(f"enregistrer_reception_po a refusé une transition déjà validée : {code_po}")
         reponse["po"] = po_maj
+        reponse["reception_cumulee"] = cumul
         seuil_ecart_prix = _seuil_ecart_prix_reception()
         reponse["seuil_ecart_prix_pourcentage"] = seuil_ecart_prix
         reponse["signaux_ecart_prix"] = (
-            bons_commande.detecter_ecarts_prix(po_maj, resultat["accuse_reception"]["lignes"], seuil_ecart_prix)
+            bons_commande.detecter_ecarts_prix(po_maj, accuse["lignes"], seuil_ecart_prix)
             if seuil_ecart_prix is not None
             else []
         )
@@ -726,9 +756,48 @@ def receptionner_commande(
             reponse["bons_commande_historique"] = list(bons_registre)
         else:
             reponse["evenement_reception_id"] = _publier_reception(
-                po_maj, resultat["accuse_reception"], reception_po, seuil_ecart_prix, reponse["signaux_ecart_prix"]
+                po_maj, accuse, reception_po, seuil_ecart_prix, reponse["signaux_ecart_prix"]
             )
     return reponse
+
+
+def _verdict_cumule_du_po(
+    po: dict[str, Any], accuse: dict[str, Any], livraison: dict[str, Any] | None, bons_registre: Any
+) -> tuple[str, dict[str, Any]]:
+    """Le verdict qui décide du statut du PO après cette livraison, et ce qu'il dit de son cumul (PLAN T4.15-b).
+
+    Accusé `INDETERMINE` (rien n'apparie, rien n'est écrit) : ce verdict, sans transition, et `fiable` nul (aucun
+    cumul n'est calculé). Sinon, verdict de `reception.evaluer_cumul` sur les livraisons antérieures du PO PLUS
+    celle-ci : c'est ce cumul, non la seule livraison, qui atteint `received`. Si une réception antérieure du PO
+    n'a pas gardé le détail de sa livraison (avant T4.15-b), le cumul n'est pas fiable : le verdict reste celui de
+    CETTE livraison contre la commande entière (le comportement d'avant, jamais un « reçu » deviné), et `fiable` est
+    faux."""
+    verdict_livraison = accuse["verdict_reception"]
+    if livraison is None or not accuse["lignes"]:
+        return verdict_livraison, {
+            "fiable": None,
+            "verdict_reception": verdict_livraison,
+            "lignes": [],
+            "raison": "aucune ligne ne s'apparie au PO : rien n'est reçu, rien n'est additionné",
+        }
+    anterieures = bons_commande.livraisons(bons_registre, po["po_id"])
+    sans_detail = bons_commande.livraisons_sans_detail(bons_registre, po["po_id"])
+    cumul = reception.evaluer_cumul(
+        po["lignes"], [ancienne["lignes"] for ancienne in anterieures] + [livraison["lignes"]]
+    )
+    if cumul is None or sans_detail:
+        return verdict_livraison, {
+            "fiable": False,
+            "verdict_reception": verdict_livraison,
+            "lignes": [],
+            "raison": (
+                f"{sans_detail} réception(s) antérieure(s) sans détail de livraison : le cumul est inconnu, le "
+                "verdict reste celui de cette livraison contre la commande entière"
+                if sans_detail
+                else "quantité illisible : le cumul n'est pas calculable"
+            ),
+        }
+    return cumul["verdict_reception"], {"fiable": True, **cumul}
 
 
 def _publier_reception(
@@ -1096,17 +1165,14 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m6_receptionner_commande",
             description=(
-                "Réceptionne une commande de bout en bout : résout le prix par ligne (catalogue -> "
-                "historique -> indéterminé), écrit le stock reçu, calcule le verdict de réception "
-                "(conforme/inférieure/supérieure/mixte), émet un signal à M5 si un montant est dû "
-                "(jamais si indéterminé) et des suggestions de réapprovisionnement si un seuil est fourni. "
-                "Si bon_demande.po_id référence un PO persisté (m6_creer_po_brouillon), s'y rattache : "
-                "vérifie que bon_demande correspond exactement au PO, transitionne son statut "
-                "(partially_received/received selon le verdict déjà calculé) et signale tout écart de "
-                "prix au-delà du seuil configuré (M6.7), destiné à M5 et M8. Pour un PO persisté, publie aussi "
-                "m6.reception_enregistree (ce qui est arrivé cette fois-là, prix unitaires en texte décimal, "
-                "aucun montant calculé) dans la même transaction : M5 en tire son « à payer attendu ». Refuse, "
-                "avant d'écrire, une quantité reçue négative ou non finie et un horodatage sans fuseau."
+                "Réceptionne une commande de bout en bout : résout le prix par ligne (catalogue -> historique -> "
+                "indéterminé), écrit le stock reçu, donne le verdict de la livraison, un signal à M5 si un montant "
+                "est dû et des suggestions de réapprovisionnement si un seuil est fourni. Si bon_demande.po_id "
+                "référence un PO persisté (m6_creer_po_brouillon) : bon_demande doit correspondre au PO, les "
+                "livraisons se CUMULENT (la livraison qui complète un PO partiel le passe à received), un écart de "
+                "prix au-delà du seuil est signalé, et m6.reception_enregistree (ce qui est arrivé cette fois-là, "
+                "aucun montant) est publié dans la même transaction. Refuse, avant d'écrire : quantité négative ou "
+                "non finie (aussi hors PO), horodatage sans fuseau, livraison déjà enregistrée."
             ),
             parametres={
                 "type": "object",

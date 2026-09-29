@@ -94,11 +94,27 @@ annulée (stock, PO, événement). M6 ne paie jamais.
 Limites connues : (1) l'unité des prix est une question ouverte (GATE NATHAN) : le livre de prix ne déclare pas
 l'unité d'un prix unitaire et le PO n'en déclare pas pour une quantité ; M6 ne convertit rien et n'invente aucune
 unité, et le dit dans le schéma (M5 le dit dans chacun de ses verdicts) ; (2) `reception.py` compare CHAQUE livraison
-à la commande entière : une livraison qui complète un PO déjà partiel reste `RECEPTION_INFERIEURE` (le PO ne passe
-à `received` que si une seule livraison couvre tout) ; M5 cumule les livraisons de son côté, sans dépendre de ce
-statut ; (3) les quantités et les prix restent des `float` dans les registres de M6 (contrat gelé) : la conversion
-en texte est la frontière ; (4) la validation des quantités reçues ne vaut que pour un PO persisté, la réception
-éphémère garde son comportement d'avant.
+à la commande entière : c'est le verdict de la LIVRAISON (celui de `verdict_reception` dans l'événement) ; le
+statut du PO, lui, suit le cumul depuis T4.15-b (ci-dessous) ; (3) les quantités et les prix restent des `float`
+dans les registres de M6 (contrat gelé) : la conversion en texte est la frontière ; (4) [levée par T4.15-b] la
+validation des quantités reçues valait pour un PO persisté seulement.
+
+PLAN T4.15-b — les livraisons d'un PO se CUMULENT (M6.7). Avant : la livraison qui complétait un PO déjà partiel
+restait `RECEPTION_INFERIEURE` et le PO ne passait jamais à `received`. Maintenant `m6_receptionner_commande`, pour
+un PO persisté, additionne les livraisons (`reception.evaluer_cumul`, décimal exact : 0,1 + 0,2 vaut 0,3) et
+décide du statut sur ce cumul : `received` quand chaque ligne a atteint sa commande (`CONFORME` ou
+`RECEPTION_SUPERIEURE`), `partially_received` tant qu'une ligne manque (même si une autre est en excédent :
+`RECEPTION_MIXTE`). Chaque transition de réception garde SA livraison (`livraison` : empreinte, horodatage,
+quantités en texte décimal) dans le registre append-only du PO : le cumul se relit, il n'est jamais un total
+recopié. La réponse porte `reception_cumulee` (verdict, quantité reçue cumulée et écart par ligne, `fiable`) ;
+`resultat.accuse_reception` et le `verdict_reception` de l'événement restent ceux de CETTE livraison (contrat
+gelé, schéma du catalogue inchangé : seul `statut_po` change de valeur). Deux garde-fous : une livraison déjà
+enregistrée (même PO, même horodatage, mêmes quantités) est refusée avant toute écriture
+(`REJ-RECEPTION-DEJA-ENREGISTREE`) — additionnée deux fois, la moitié d'un PO ferait passer le PO à `received` ; et
+un PO dont une réception d'AVANT T4.15-b n'a pas gardé sa livraison (le stock ne porte pas le `po_id`) ne devine pas
+son cumul : `fiable` est faux, le verdict reste celui de la livraison seule. Enfin, une quantité négative ou non
+finie est refusée avant toute écriture aussi pour une réception ÉPHÉMÈRE (`REJ-RECEPTION-QUANTITE-INVALIDE`) ;
+l'horodatage sans fuseau reste permis hors PO persisté.
 
 Bugs corrigés (test rouge → vert) lors de cette passe :
 - `materiel.py` n'exposait que `consommer_materiaux`. `enregistrer_reception`
