@@ -198,8 +198,12 @@ présent, se charge (`opsys.departements.verifier_attentes`) ; un département d
 l'usage est journalisé et sauté, jamais bloquant pour les autres. M4 (complétions en revue), M5
 (factures prêtes à envoyer, écarts) et M6 (besoins de commande, seuils à configurer) implémentent
 `attentes()` ; l'app du propriétaire les lit par `m9_lister_demandes_approbation` (section « À voir »,
-PLAN T1.5). Le département de démonstration des tests du socle (`tests/fixtures/demo_outils.py`)
-exerce aussi le mécanisme.
+PLAN T1.5), page par page (`decalage_attentes`, T1.5-e). L'ordre des attentes est total et ne dépend pas de la
+façon dont `attentes()` les énumère : `depuis`, puis `id`, `departement`, `type`
+(`approbations.ordre_attente`). Une `attentes()` peut donc renvoyer ses éléments dans n'importe quel ordre, mais
+chaque attente garde un `id` stable : l'app la reconnaît à (`departement`, `type`, `id`) d'une page à l'autre.
+Le département de démonstration des tests du socle (`tests/fixtures/demo_outils.py`) exerce aussi le
+mécanisme.
 
 ## SOUL.md
 

@@ -1463,7 +1463,24 @@ demandes d'approbation du socle. La logique est dans `src/ecrans/approvals.ts` e
   (rien n'est reclassé « critique » ou « urgent » côté app), avec le geste qu'il propose. Une attente illisible est
   comptée, un département dont les attentes n'ont pas pu être lues est nommé (son silence n'est pas « rien à
   signaler »), un moteur qui ne donne pas la clé `attentes` n'est pas lu « aucune » (`vueAttentes`).
-- **Limites.** Écran non testé en rendu (comme les autres) ; le trajet réel appareil → core → moteur reste à
+- **« Voir plus » : les attentes se lisent par pages (T1.5-e).** Une page tient dans 1 500 caractères (trois
+  attentes environ) ; au-delà d'elle, les suivantes n'étaient que comptées et l'admin ne les lisait pas sur son
+  téléphone. La réponse dit maintenant `attentes_decalage` (le rang de la page) et `attentes_suivant` (le rang à
+  demander, `null` quand rien ne suit) ; tant que `suivant` n'est pas `null`, la section montre un bouton « Voir
+  plus (N autres attentes) » qui demande `decalage_attentes = suivant` (un rang, jamais une personne) et recolle la
+  page à la suite (`chargerSuiteAttentes`, `fusionnerPageAttentes`, testés). Règles :
+  - **Pas de cache**, comme la liste : hors ligne, la suite n'est pas inventée ; l'échec est dit (code et détail
+    du serveur), les attentes déjà lues restent affichées et le bouton reste offert pour réessayer.
+  - **Une page n'est recollée que si tout s'accorde** : c'est la page demandée (`decalage` = `suivant`), le total
+    n'a pas changé, aucune de ses attentes n'est déjà affichée, et elle fait progresser la lecture. Sinon (une
+    attente a été traitée ou est apparue entre-temps : le rang a glissé), la liste est **relue depuis le début** et
+    l'écran le dit. Une liste qui aurait l'air complète sans l'être est pire qu'une relecture.
+  - **Les demandes ne bougent pas** : le serveur les renvoie avec chaque page, l'écran garde celles de la
+    première et ne recolle que les attentes.
+  - Un moteur plus ancien, qui ne donne ni `attentes_decalage` ni `attentes_suivant`, se lit comme avant : pas de
+    bouton, seulement le compte « N autres attentes non affichées : à voir à la console » (`suivant` vaut `null`).
+    Un rang ou un suivant présent mais illisible rend toute la réponse illisible (`reponse_illisible`).
+- **Limites.** Écran non testé en rendu (comme les autres ; la logique de « Voir plus » l'est) ; le trajet réel appareil → core → moteur reste à
   prouver contre un core réel (T1.4-c5) ; l'attente d'un département n'a pas de bouton : la revue d'une
   complétion se fait par `m4_resoudre_revue_completion` (outil N4, décidé ensuite par le propriétaire dans la
   liste des demandes), sans écran dédié.

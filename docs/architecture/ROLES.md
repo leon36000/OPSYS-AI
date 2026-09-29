@@ -172,11 +172,34 @@ ligne dit ce qui est déclaré et pourquoi.
 | L'outil approuvé s'exécute sans l'identité ni les horloges de l'appareil | Comme depuis la console. Sinon `m4_pointer`, qui prend l'heure de réception de l'appareil courant, daterait le pointage d'un tiers à l'heure de l'approbation. |
 | Refus d'une personne authentifiée : entrée d'audit `approbation.refus_appareil` | Une tentative de décider hors de ses droits (un gestionnaire, un N5) se voit. Pas d'audit pour une demande inconnue ou déjà décidée. |
 | Rejeu : réponse enregistrée ; autre clé : `deja_decidee` | L'idempotence est celle du transport. La même clé rend la même réponse sans rien refaire ; une autre clé pour une demande déjà décidée reçoit un verdict clair. |
-| La liste est bornée (`limite`, 4 600 caractères, attentes comprises : 1 500 au plus) | `Capacites` tronque au-delà de 6 000 caractères, et le téléphone ne lirait pas la suite. `reste` et `attentes_reste` comptent ce qui n'est pas montré. À titre de comparaison, `m9_produire_briefing_matin` n'est pas borné : mesuré en T1.5 avec des demandes N4 courtes, il tient à 22 décisions en attente (5 989 caractères) et dépasse 6 000 à 23 (un aperçu tronqué remplace alors la réponse). |
+| La liste est bornée (`limite`, 4 600 caractères, attentes comprises : 1 500 au plus par page) | `Capacites` tronque au-delà de 6 000 caractères, et le téléphone ne lirait pas la suite. `reste` compte les demandes non montrées ; `attentes_reste` compte les attentes qui suivent la page. À titre de comparaison, `m9_produire_briefing_matin` n'est pas borné : mesuré en T1.5 avec des demandes N4 courtes, il tient à 22 décisions en attente (5 989 caractères) et dépasse 6 000 à 23 (un aperçu tronqué remplace alors la réponse). |
+| Les attentes se lisent par pages : `decalage_attentes` (T1.5-e) | Au-delà d'environ trois attentes, les suivantes n'étaient que comptées : l'admin ne les lisait pas sur son téléphone. Le budget de 1 500 caractères n'est pas relevé (il garde la place des demandes sous la troncature) : la suite se demande. `decalage_attentes` est un **rang** (entier ≥ 0, 0 par défaut), jamais une personne : la portée `admin` et l'identité confirmée en base sont celles de la liste, et `additionalProperties: false` refuse tout autre paramètre. La réponse dit `attentes_decalage` (le rang lu) et `attentes_suivant` (le rang à demander, `null` quand rien ne suit). Voir « Pages d'attentes » ci-dessous. |
 
 Décision attendue de Nathan : un `admin` qui n'est pas le propriétaire (un gestionnaire) ne décide rien depuis
 l'app, même un N3 que le manifeste de son département lui laisse décider à la console (M4, M6). Le laisser
 décider N3 depuis l'app est un changement de `approbations_appareil._lecture_seule` et un amendement d'ADR-0009 §4.
+
+#### Pages d'attentes (T1.5-e)
+
+- **Ordre stable.** `approbations.ordre_attente` : `depuis` croissant (le plus ancien d'abord, comparé comme texte,
+  comme le briefing du matin de M9), puis `id`, `departement`, `type`. L'ordre est total : il ne dépend ni de
+  l'ordre des départements ni de celui de leurs listes. Deux lectures du même état rendent la même suite ; la
+  console (`file_proprietaire`) et l'app le partagent.
+- **Une page.** Les attentes du rang `decalage_attentes` jusqu'à `BUDGET_ATTENTES` (1 500 caractères) ; une
+  attente au moins, sinon la lecture ne progresserait jamais. Les demandes gardent leur budget (4 600 caractères
+  pour la liste entière) : chaque page reste sous les 6 000 de `Capacites` (mesuré : E2E, huit attentes réelles,
+  pages de 3, 3 et 2 attentes, 1 257 / 1 257 / 812 caractères d'attentes, jamais tronquées).
+- **La liste des demandes accompagne chaque page** (mêmes règles, même `limite`), pour que la réponse garde une
+  seule forme. Ses éléments peuvent différer d'une page à l'autre (la place qu'y laissent les attentes varie) :
+  l'écran garde ceux de la première page et n'en recolle que les attentes.
+- **Rang hors plage.** Au-delà de la fin : page vide, `attentes_suivant: null`, `attentes_reste: 0`, jamais une
+  erreur ni une attente inventée. Seul un rang qui n'est pas un entier ≥ 0 est refusé (verdict
+  `decalage_invalide`) ; un type faux (texte, décimal, booléen) l'est déjà par le schéma (`arguments_invalides`).
+- **Pas de curseur.** Un rang glisse si une attente apparaît ou est traitée entre deux pages : elle peut manquer ou
+  se répéter. Le signal est `total_attentes`, qui change. L'écran ne recolle une page que si elle est celle qu'il
+  a demandée, que le total est inchangé et qu'aucune de ses attentes n'est déjà affichée ; sinon il relit depuis
+  le début et le dit (MOBILE.md). Une attente nouvelle est presque toujours la plus récente, donc en fin de liste :
+  elle ne déplace rien.
 
 ### Fermés à tous les appareils
 
