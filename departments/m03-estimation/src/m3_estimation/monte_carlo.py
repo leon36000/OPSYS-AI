@@ -11,6 +11,19 @@ Le déterminisme est bit-à-bit : le générateur pseudo-aléatoire est
 ``random.Random(graine)``, instancié LOCALEMENT à chaque appel, et le
 nombre de tirages est une constante fixe. Deux appels identiques rendent
 donc des bornes EXACTEMENT égales, quel que soit l'ordre des appels.
+
+PLAN T4.11 (M3.12, DEFINITION-PRODUIT « P50, P80 ») — deux ajouts, qui ne
+changent rien à ce que ce module rendait avant :
+
+- ``simuler_quantiles`` lit d'autres rangs du MÊME échantillon que
+  ``simuler_intervalle`` : même générateur local, même graine, même loi, même
+  tri, même convention de rang que la borne haute de l'intervalle
+  (``ceil(p x (n - 1))``). Ce n'est pas une seconde simulation qui pourrait
+  dériver de la première : les deux fonctions appellent ``_echantillon_trie``.
+- un poste du barème qui porte ``cout_unitaire_mode`` est tiré en PERT (loi
+  bêta d'un mode fourni) ; sans mode, le tirage reste UNIFORME, bit à bit comme
+  avant. Le mode est une donnée du barème, jamais inventée : fourni de travers
+  (hors des bornes, non numérique), il est refusé, jamais ignoré.
 """
 
 import math
@@ -18,7 +31,7 @@ import random
 
 from . import contrats, verdicts
 
-__all__ = ["NOMBRE_TIRAGES", "simuler_intervalle"]
+__all__ = ["NOMBRE_TIRAGES", "POIDS_DU_MODE_PERT", "lire_poste", "simuler_intervalle", "simuler_quantiles"]
 
 
 # Nombre de tirages de la simulation. Cette valeur est FIXE et n'est PAS
@@ -27,6 +40,12 @@ __all__ = ["NOMBRE_TIRAGES", "simuler_intervalle"]
 # l'intervalle dépendrait alors d'un réglage et non plus seulement du
 # barème et de la graine.
 NOMBRE_TIRAGES = 10000
+
+# Poids du mode dans la loi PERT : moyenne = (min + 4 x mode + max) / 6, et
+# les deux paramètres de la bêta valent 1 + 4 x (distance au mode) / étendue.
+# 4 est la définition de la loi PERT, pas un réglage : un autre poids
+# donnerait une autre loi que celle que le barème annonce en parlant de PERT.
+POIDS_DU_MODE_PERT = 4.0
 
 
 def _est_nombre_fini(valeur):
@@ -44,30 +63,53 @@ def _est_nombre_fini(valeur):
     return math.isfinite(valeur)
 
 
-def simuler_intervalle(bareme, type_travaux, quantite, graine, niveau, services=()):
-    """Simule un intervalle de coût déterministe pour un type de travaux ou un service.
+def _echantillon_trie(parametres, quantite, graine):
+    """L'échantillon trié des coûts, tiré UNE seule fois pour toute la simulation.
 
-    Paramètres :
-        bareme        dict ``{"version", "unite", "postes"}`` ; ``postes``
-                      associe à chaque type de travaux couvert un poste
-                      ``{"cout_unitaire_min", "cout_unitaire_max"}``.
-        type_travaux  type demandé ; doit appartenir au contrat ET être
-                      couvert par le barème. Un type de travaux v1 est reconnu
-                      par l'énuméré gelé ; un SERVICE (lead v2, PLAN T0.13) l'est
-                      seulement s'il figure dans ``services`` : l'appelant (qui a
-                      validé le lead contre la taxonomie du socle) les fournit, ce
-                      module ne lit aucun profil et reste pur et déterministe.
-        services      codes de service déjà validés par l'appelant (défaut : aucun).
-        quantite      nombre strictement positif (booléens refusés).
-        graine        entier (booléens refusés) seedant le générateur.
-        niveau        flottant strictement entre 0 et 1, bornes exclues.
+    ``simuler_intervalle`` et ``simuler_quantiles`` l'appellent toutes les deux : ce sont les MÊMES tirages, par
+    construction, jamais deux boucles qui pourraient dériver l'une de l'autre. Loi UNIFORME sans mode (comme avant,
+    bit à bit), loi PERT avec le mode du poste.
+    """
+    cout_min = parametres["cout_min"]
+    cout_max = parametres["cout_max"]
+    mode = parametres["mode"]
 
-    Retour :
-        ``(intervalle, None)`` où ``intervalle`` porte EXACTEMENT les trois
-        clés ``borne_basse`` (float), ``borne_haute`` (float) et ``niveau``
-        (float, EXACTEMENT celui fourni) ; ou ``(None, verdict)`` avec un
-        code du catalogue fermé M3 si une entrée est invalide. Aucune
-        exception ne s'échappe : le contrat est fail-closed.
+    # Les deux paramètres de la bêta PERT. Un coût fixe (étendue nulle) n'a pas de forme à donner : (1, 1), et le
+    # tirage vaut alors exactement cout_min.
+    etendue = cout_max - cout_min
+    if mode is None or etendue == 0:
+        alpha = beta = 1.0
+    else:
+        alpha = 1.0 + POIDS_DU_MODE_PERT * (mode - cout_min) / etendue
+        beta = 1.0 + POIDS_DU_MODE_PERT * (cout_max - mode) / etendue
+
+    # Le générateur est instancié LOCALEMENT à chaque appel : c'est ce qui
+    # garantit que deux appels identiques rendent des résultats égaux BIT À
+    # BIT et qu'un appel intercalé avec une autre graine ne contamine pas
+    # le suivant. Un générateur au niveau du module casserait cette
+    # propriété en silence : son état avancerait à chaque appel et l'ordre
+    # des appels fuiterait dans les résultats.
+    generateur = random.Random(graine)
+
+    echantillon = []
+    for _ in range(NOMBRE_TIRAGES):
+        if mode is None:
+            cout_unitaire = generateur.uniform(cout_min, cout_max)
+        else:
+            cout_unitaire = cout_min + etendue * generateur.betavariate(alpha, beta)
+        echantillon.append(cout_unitaire * quantite)
+    echantillon.sort()
+    return echantillon
+
+
+def lire_poste(bareme, type_travaux, services=()):
+    """Lit et valide le poste du barème d'un type de travaux ou d'un service.
+
+    Rend ``(parametres, None)`` où ``parametres`` porte EXACTEMENT ``cout_min``, ``cout_max`` et ``mode`` (``None``
+    quand le barème ne fournit pas de ``cout_unitaire_mode`` : jamais une valeur par défaut) ; ou ``(None, verdict)``
+    avec un code du catalogue fermé M3. C'est la validation que ``simuler_intervalle`` et ``simuler_quantiles``
+    partagent et que les autres modules appellent pour lire un poste sans la récrire (``scenarios.py``). Même barème,
+    mêmes ``services`` : mêmes refus, dans le même ordre. Aucune exception ne s'échappe.
     """
     # --- 1. Structure du barème ----------------------------------------
     # Empêche : un barème absent, non dictionnaire ou amputé de l'une de
@@ -141,6 +183,36 @@ def simuler_intervalle(bareme, type_travaux, quantite, graine, niveau, services=
             "bornes incohérentes : cout_unitaire_min > cout_unitaire_max",
         )
 
+    # --- 3 bis. Mode du poste (optionnel) -------------------------------
+    # Empêche : un mode fourni de travers d'être ignoré en silence — le
+    # tirage retomberait sur l'uniforme alors que le barème croit parler de
+    # PERT — ou de produire une bêta de paramètres négatifs, donc un tirage
+    # hors des bornes du barème, c'est-à-dire un coût inventé. Le mode est
+    # OPTIONNEL : absent, le poste reste tiré en uniforme ; PRÉSENT, il doit
+    # être valide (même discipline que duree_minutes_par_unite ailleurs dans
+    # ce paquet). Un null explicite est un mode fourni de travers.
+    mode = None
+    if "cout_unitaire_mode" in poste:
+        mode = poste["cout_unitaire_mode"]
+        if not _est_nombre_fini(mode):
+            return None, verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE",
+                "cout_unitaire_mode non numérique, booléen ou non fini",
+            )
+        if not cout_min <= mode <= cout_max:
+            return None, verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE",
+                "cout_unitaire_mode hors des bornes : cout_unitaire_min <= mode <= cout_unitaire_max exigé",
+            )
+    return {"cout_min": cout_min, "cout_max": cout_max, "mode": mode}, None
+
+
+def _preparer(bareme, type_travaux, quantite, graine, services):
+    """Étapes 1 à 5 des deux simulations : le poste, la quantité, la graine (le niveau, propre à l'intervalle, suit)."""
+    parametres, verdict = lire_poste(bareme, type_travaux, services)
+    if verdict is not None:
+        return None, verdict
+
     # --- 4. Quantité ----------------------------------------------------
     # Empêche : zéro écrasant l'intervalle à 0, un négatif l'inversant, un
     # booléen passant pour un entier (isinstance(True, int) est vrai), ou
@@ -163,6 +235,40 @@ def simuler_intervalle(bareme, type_travaux, quantite, graine, niveau, services=
             "graine invalide : entier non booléen exigé",
         )
 
+    return parametres, None
+
+
+def simuler_intervalle(bareme, type_travaux, quantite, graine, niveau, services=()):
+    """Simule un intervalle de coût déterministe pour un type de travaux ou un service.
+
+    Paramètres :
+        bareme        dict ``{"version", "unite", "postes"}`` ; ``postes``
+                      associe à chaque type de travaux couvert un poste
+                      ``{"cout_unitaire_min", "cout_unitaire_max"}`` et, en
+                      option, ``cout_unitaire_mode`` (tirage PERT ; absent,
+                      tirage uniforme).
+        type_travaux  type demandé ; doit appartenir au contrat ET être
+                      couvert par le barème. Un type de travaux v1 est reconnu
+                      par l'énuméré gelé ; un SERVICE (lead v2, PLAN T0.13) l'est
+                      seulement s'il figure dans ``services`` : l'appelant (qui a
+                      validé le lead contre la taxonomie du socle) les fournit, ce
+                      module ne lit aucun profil et reste pur et déterministe.
+        services      codes de service déjà validés par l'appelant (défaut : aucun).
+        quantite      nombre strictement positif (booléens refusés).
+        graine        entier (booléens refusés) seedant le générateur.
+        niveau        flottant strictement entre 0 et 1, bornes exclues.
+
+    Retour :
+        ``(intervalle, None)`` où ``intervalle`` porte EXACTEMENT les trois
+        clés ``borne_basse`` (float), ``borne_haute`` (float) et ``niveau``
+        (float, EXACTEMENT celui fourni) ; ou ``(None, verdict)`` avec un
+        code du catalogue fermé M3 si une entrée est invalide. Aucune
+        exception ne s'échappe : le contrat est fail-closed.
+    """
+    parametres, verdict = _preparer(bareme, type_travaux, quantite, graine, services)
+    if verdict is not None:
+        return None, verdict
+
     # --- 6. Niveau -------------------------------------------------------
     # Empêche : un niveau à 0 ou 1, qui produirait un intervalle dégénéré
     # présenté comme un taux de confiance, un niveau hors de ]0, 1[, qui
@@ -178,19 +284,11 @@ def simuler_intervalle(bareme, type_travaux, quantite, graine, niveau, services=
         )
 
     # --- Simulation ------------------------------------------------------
-    # Le générateur est instancié LOCALEMENT à chaque appel : c'est ce qui
-    # garantit que deux appels identiques rendent des bornes égales BIT À
-    # BIT et qu'un appel intercalé avec une autre graine ne contamine pas
-    # le suivant. Un générateur au niveau du module casserait cette
-    # propriété en silence : son état avancerait à chaque appel et l'ordre
-    # des appels fuiterait dans les résultats.
-    generateur = random.Random(graine)
-
-    echantillon = []
-    for _ in range(NOMBRE_TIRAGES):
-        cout_unitaire = generateur.uniform(cout_min, cout_max)
-        echantillon.append(cout_unitaire * quantite)
-    echantillon.sort()
+    # L'échantillon est celui que ``simuler_quantiles`` lit aussi (voir
+    # ``_echantillon_trie`` : générateur local, graine fournie, tri).
+    echantillon = _echantillon_trie(parametres, quantite, graine)
+    cout_min = parametres["cout_min"]
+    cout_max = parametres["cout_max"]
 
     # Intervalle symétrique : les queues basse et haute laissent chacune
     # (1 - niveau) / 2 de l'échantillon à l'extérieur.
@@ -225,3 +323,48 @@ def simuler_intervalle(bareme, type_travaux, quantite, graine, niveau, services=
         "niveau": float(niveau),
     }
     return intervalle, None
+
+
+def simuler_quantiles(bareme, type_travaux, quantite, graine, probabilites, services=()):
+    """Quantiles du coût sur les MÊMES tirages que ``simuler_intervalle`` (PLAN T4.11, P50 et P80).
+
+    Paramètres : ceux de ``simuler_intervalle`` sauf ``probabilites`` (à la place de ``niveau``) : liste ou tuple
+    NON VIDE de flottants strictement entre 0 et 1, bornes exclues, booléens et entiers refusés — par exemple
+    ``(0.5, 0.8)`` pour P50 et P80.
+
+    Retour : ``(valeurs, None)`` où ``valeurs`` est un tuple de floats, dans l'ordre des probabilités demandées ; ou
+    ``(None, verdict)`` avec un code du catalogue fermé M3. Aucune exception ne s'échappe.
+
+    Le rang lu est ``ceil(p x (n - 1))``, celui de la borne haute de l'intervalle : le quantile de probabilité
+    ``1 - (1 - niveau) / 2`` égale donc EXACTEMENT la borne haute de l'intervalle de ce niveau (P80 est la borne haute
+    de l'intervalle à 60 %). Les valeurs restent dans les bornes du barème, comme celles de l'intervalle.
+    """
+    parametres, verdict = _preparer(bareme, type_travaux, quantite, graine, services)
+    if verdict is not None:
+        return None, verdict
+
+    # --- Probabilités ----------------------------------------------------
+    # Empêche : une liste vide (aucune réponse, présentée comme un succès), une probabilité à 0 ou à 1 (le minimum
+    # ou le maximum du barème présenté comme un quantile), hors de ]0, 1[, NaN, booléenne ou entière (même règle
+    # que le niveau de l'intervalle : un entier ne se confond pas avec un flottant), et un scalaire ou un texte
+    # pris pour une liste de probabilités.
+    if (
+        not isinstance(probabilites, (list, tuple))
+        or not probabilites
+        or any(isinstance(p, bool) or not isinstance(p, float) or not 0.0 < p < 1.0 for p in probabilites)
+    ):
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            "probabilites invalides : liste non vide de flottants strictement entre 0 et 1 exigée",
+        )
+
+    echantillon = _echantillon_trie(parametres, quantite, graine)
+    indice_max = NOMBRE_TIRAGES - 1
+    plancher = parametres["cout_min"] * quantite
+    plafond = parametres["cout_max"] * quantite
+    valeurs = []
+    for probabilite in probabilites:
+        indice = min(max(math.ceil(probabilite * indice_max), 0), indice_max)
+        # Même bornage au barème que l'intervalle : un quantile hors des bornes inventerait un coût.
+        valeurs.append(float(min(max(echantillon[indice], plancher), plafond)))
+    return tuple(valeurs), None
