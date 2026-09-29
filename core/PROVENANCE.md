@@ -286,6 +286,12 @@ du fork (`openclaw/plugin-sdk/*`, `@openclaw/*`, `OPENCLAW_*`, `openclaw.plugin.
 `THIRD_PARTY_NOTICES.md` et ce fichier ne changent pas (avis MIT). Rien ne s'exécute dans le bac à sable : la CI
 (`tests` et `tests-opsys`) fait foi. Le lot se livre en trois commits.
 
+Correction après la CI core 28 : `test/scripts/openclaw-cross-os-release-checks.test.ts` entre dans les cibles du lot
+(son script lit la bannière). Un seul de ses 311 cas échouait : « keeps release cross-OS OpenAI smoke on GPT-5.6 Luna »
+lisait `.github/workflows/openclaw-cross-os-release-checks-reusable.yml` et `openclaw-release-checks.yml`, deux workflows
+de publication de l'amont retirés avec `.github/` à l'élagage (plus haut). Ce cas vérifiait un fichier absent du fork
+et ne pouvait pas passer : il est retiré, les 310 autres restent.
+
 ### Commit 1 : interface et locales
 
 - Modifiés : `ui/index.html` (titre « OPSYS Control », écran de secours), `ui/public/manifest.webmanifest`, les 114
