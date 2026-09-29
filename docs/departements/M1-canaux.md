@@ -610,14 +610,30 @@ sur le gabarit de plainte. Le code partagé vit maintenant dans le socle : `opsy
   courriel d'un résumé se reconnaît à un caractère permis devant le « @ », et celui du client part du début de sa suite de
   caractères permis, saute jusqu'à la première frontière de mot, puis se lit d'un seul jet. Mêmes verdicts qu'avant, et même
   texte de courriel (comparés à l'ancien code sur 22 617 107 textes par version de Python, 3.11, 3.12 et 3.13, avec un
-  script jetable : aucun écart ; les fonctions qui lisent ces motifs le sont aussi, sur 6 197 695 textes).
+  script jetable : aucun écart ; les fonctions qui lisent ces motifs le sont aussi, sur 6 197 695 textes). Le courriel du
+  client a ensuite changé de sens exprès (T4.17-g2, ci-dessous).
   `tests/test_motifs_lineaires.py` en garde la preuve (oracle recopié, textes hostiles de 20 000 et de 100 000 caractères,
   balayage de tous les motifs de M1) ; 95 mutants : 88 tués, 7 équivalents (même sens, même complexité).
-- **Limites du courriel écrit par un client, gardées telles quelles** (T4.17-g ; à décider) : derrière une lettre accentuée,
-  la lecture repart du premier point (« andré.tremblay@x.ca » : le lead garde « .tremblay@x.ca », dont M2 tire le
-  `client_id`) ; une partie locale qui suit une lettre accentuée n'est pas reconnue (« françois@x.ca » : le rejet dit
-  « aucun téléphone ni courriel » et l'agent redemande un contact). Changer cela change les contacts que reçoit M2 : c'est
-  une décision, pas un durcissement.
+- **Le courriel écrit par un client se lit en entier, ou pas du tout** (T4.17-g2). L'ancien motif, gardé tel quel par
+  T4.17-g, repartait de la première frontière de mot : « andré.tremblay@x.ca » et « josé.tremblay@x.ca » donnaient tous deux
+  « .tremblay@x.ca », dont M2 tire le `client_id` (deux personnes, un seul client) ; « françois@x.ca » n'était pas reconnu ;
+  « o’neil@x.ca » donnait « neil@x.ca ». Un courriel tronqué est pire qu'aucun. Les règles :
+  - la partie locale se lit jusqu'au « @ », lettres accentuées comprises ;
+  - elle ne commence jamais juste après un caractère qui peut prolonger un mot ou une adresse : lettre, chiffre, signes
+    permis par la RFC 5322, « @ », accent combinant, caractère de format, apostrophe typographique, traits d'union
+    Unicode, point médian. « o’neil@x.ca » ou « jean&marie@x.ca » ne donnent rien, et le rejet dit « aucun téléphone ni
+    courriel : demander comment joindre le client » ;
+  - le texte passe d'abord en forme NFC : un accent tapé en deux caractères donne la même adresse, donc le même client ;
+  - le domaine ne change pas : ASCII, et un domaine accentué ne donne rien.
+
+  Effet sur M2 : M2 accepte ces contacts tels quels, et deux adresses qui ne diffèrent que par le prénom font deux clients.
+  Un lead déjà reçu avec une adresse tronquée garde son `client_id` (registre en ajout seul) : si ce client réécrit, son
+  nouveau lead porte l'adresse entière, donc un autre `client_id`, que rien ne relie à l'ancien.
+  `tests/test_motifs_lineaires.py` compare la lecture à une référence écrite lettre à lettre (suites de jetons, textes
+  générés, fixture, hasard) et garde la table de ce qui a changé, cas par cas, par rapport à l'ancien motif.
+- **Limite connue du garde-fou d'un résumé** (T4.17-g3) : il lit le texte tel quel ; une partie locale qui finit par un
+  accent tapé en deux caractères (un « e » suivi de l'accent aigu combinant U+0301, juste devant le « @ ») n'y est pas
+  reconnue comme un courriel.
 - **L'avis légal vaut partout où M1 passe un texte** : brouillons de qualification (libellé de service compris), questions du
   profil (retirées et nommées), gabarits de plainte et d'urgence, résumés de transfert, outil `m1_verifier_garde_fou`.
 - **Conséquence connue** : un résumé de transfert fourni par l'agent ne peut pas nommer un avocat ou un tribunal
