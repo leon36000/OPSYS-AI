@@ -958,9 +958,7 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
           `m9_lire_suite_briefing`, `file_proprietaire` ne perd plus les demandes au-delà de 100,
           `m9_produire_lecture_strategique` cite les preuves sans décider ; bout en bout par le
           vrai bus (M4 → M8 → M9) ; M8 339, M9 207, socle 782.
-          Reste pour M8 : M3 ne publie pas `duree_estimee_minutes` dans `m3.devis_accepte` (temps
-          prévu « non calculable ») ; aucun événement de M5 ne porte la marge réelle vers M8 ;
-          `m9_lire_alertes_m8` n'est pas borné.
+          Reste pour M8 : `m9_lire_alertes_m8` n'est pas borné (les deux autres points : ci-dessous).
     - [x] M7 : demande d'avis depuis l'app (531d704, 358d2cc, 34b5f91, f69359e).
         - Deux consentements distincts (Loi 25) : `consentement_demande_avis` à côté de
           `consentement_marketing` (photos), clés additives de `m4.travaux_termines` ; M6 les admet
@@ -974,8 +972,25 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         - Preuve : E2E `tests/e2e/test_demande_d_avis_appareil.py` (7 tests, vraie porte
           d'appareil) ; M4 1711, M6 717, M7 625, socle 991 (43 sautés), Jest 1058, tsc OK, gate
           BMAD de M4 vert, verifier 139 outils (65 déclarés).
-    - [ ] Reste : la marge réelle de M5 vers M8 et M10 (agent en cours). M5, M6, M7, M8 et M9 :
-        faits ci-dessus.
+    - [x] Marge réelle de M5 vers M8 et M10, temps prévu de M3 (80aa355, 194b1db, 070f1fa, 0f077ca, 088bb9d).
+        - `m5.rentabilite_chantier` (schéma fermé, 16 champs) publié dans la transaction de chaque
+          nouvelle trace `rentabilite` ; liste blanche (`cout_reel.charge_evenement`) : totaux CAD
+          en texte, codes `REJ-*` ; un coût partiel ne porte jamais de marge (producteur et schéma
+          `if/then`) ; identifiant avec le rang, pour qu'un retour de version ne soit pas avalé.
+        - M8 remesure : marge réelle et écarts quand M5 a chiffré, sinon « non calculable » avec
+          les codes de M5 ; le plus grand rang fait foi.
+        - M10 mémorise la charge marquée FINANCIAL (jamais dans un paquet) ; défaut corrigé :
+          une variance reçue avant son WCT empêchait pour toujours de mémoriser ce WCT.
+        - M3 publie `duree_estimee_minutes` dans `m3.devis_accepte` (clé omise si inconnue).
+        - Preuve : bout en bout par le vrai bus (`tests/test_cascade_marge_m5_m8_m10.py` : marge
+          52,00 $ contre 120,00 $ prévus, 90 min prévues contre 120) ; M5 613, M8 367, M10 589,
+          M3 1231 (suite complète, 48 min, avant fusion ; 1226 rapides après), M2 817, M4 1711,
+          M6 717, M9 217, socle 994 ; gates BMAD M3, M5, M8 verts ; mutations tuées (garde de
+          marge, rang, FINANCIAL, tri).
+        - Revue externe (argent) : `cout_reel.charge_evenement` et le schéma conditionnel.
+    - [ ] Reste : borner `m9_lire_alertes_m8`. Limites connues : la marge d'une facture
+        BROUILLON n'est pas marquée « prix définitif » ; l'alerte de marge de M8 n'est pas
+        republiée si la marge change ; la durée prévue ne porte pas l'effectif.
   - [x] T1.5-e App du propriétaire : la section « À voir » est bornée à 1 500 caractères
         (`BUDGET_ATTENTES`, `approbations_appareil.py`) sans pagination : au-delà de trois alertes,
         les suivantes ne sont que comptées (`attentes_reste`). Paginer (décalage demandé par
@@ -1436,7 +1451,9 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
     N3.
 - **Revue externe du code critique** (AGENTS.md), avant tout passage sur `main` :
   - M5 : 119a594, 23df6eb, T1.3-c ; vue financière d'un appel d'appareil (T1.4-k2) : 1ef9499 ;
-    coût réel et rentabilité (T1.5-d) : b217aea ;
+    coût réel et rentabilité (T1.5-d) : b217aea ; marge réelle publiée vers M8 et M10 : 80aa355 ;
+  - canaux de M1 (politique d'approbation d'un message de client) : `src/opsys/canaux.py`, fc80869 ;
+  - consentement du client et sa preuve posée par le serveur (M4, T1.5-d) : 358d2cc ;
   - idempotence du socle : 764c292, 2474cd1 ;
   - approbations : 718b9bb ; décision depuis l'appareil du propriétaire (T1.4-f étape 6) : ed0af65 ; exécution directe des actions d'un humain authentifié (T1.4-h) :
     688b1a4 ; portées d'outils par rôle d'appareil (T1.4-j) : a0e5150 ;
