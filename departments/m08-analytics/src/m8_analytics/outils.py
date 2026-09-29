@@ -451,7 +451,13 @@ def _recevoir_client_associe(charge: dict[str, Any]) -> dict[str, Any]:
 
 
 def _recevoir_lead_assigne(charge: dict[str, Any]) -> dict[str, Any]:
-    """Consommateur `m2.lead_assigne` (PLAN T4.19) : M2 a qualifié le lead. Le propriétaire du lead n'est pas gardé."""
+    """Consommateur `m2.lead_assigne` (PLAN T4.19) : M2 a qualifié le lead. Le propriétaire du lead n'est pas gardé.
+
+    Seul le rang 1 est une qualification. Un fait qui porte `rang` (2 ou plus, schéma du catalogue) est une
+    RÉASSIGNATION (PLAN T1.4-m) : il est reçu et ignoré, même s'il arrive avant le rang 1 (lead qualifié avant
+    T1.4-k2, réassigné, puis republié), pour que l'instant de qualification ne soit jamais celui d'une réassignation."""
+    if "rang" in charge:
+        return {"enregistre": False, "reassignation_ignoree": True, "lead_id": charge["lead_id"]}
     return _recevoir_fait_entonnoir(entonnoir.fait_lead_qualifie(charge))
 
 

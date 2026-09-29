@@ -66,6 +66,14 @@ def _lead_assigne(lead_id="lead-1-fictif", quand="2026-09-29T11:00:00-04:00"):
     }
 
 
+def _lead_reassigne(lead_id="lead-1-fictif", rang=2, quand="2026-09-29T10:00:00-04:00"):
+    """Réassignation (PLAN T1.4-m), au format que M2 publie : rang n >= 2 sous sa propre famille d'identifiant."""
+    return "m2.lead_assigne", "m02-revenue-crm", f"m2-lead-reassigne-{rang}-{lead_id}", {
+        "lead_id": lead_id, "proprietaire": "vendeur-deux-fictif", "horodatage_assignation": quand, "rang": rang,
+        "proprietaire_precedent": _PROPRIETAIRE,
+    }
+
+
 def _devis_envoye(devis_id="devis-1-fictif", lead_id="lead-1-fictif", quand="2026-09-29T15:00:00-04:00"):
     return "m3.devis_envoye", "m03-estimation", f"m3-devis-envoye-{devis_id}", {
         "devis_id": devis_id, "lead_id": lead_id, "chantier_id": None, "horodatage_envoi": quand,
@@ -369,3 +377,21 @@ def test_les_types_de_fait_de_l_entonnoir_sont_ceux_des_cinq_evenements():
         entonnoir.TYPE_LEAD_RECU, entonnoir.TYPE_LEAD_QUALIFIE, entonnoir.TYPE_DEVIS_ENVOYE,
         entonnoir.TYPE_DEVIS_ACCEPTE, entonnoir.TYPE_DEVIS_SANS_REPONSE,
     ]
+
+
+def test_une_reassignation_n_est_jamais_une_qualification_meme_arrivee_la_premiere(base_durable, departements):
+    """Lead qualifié avant T1.4-k2, réassigné (rang 2), puis republié (rang 1) : M8 garde l'instant de la
+    qualification, jamais celui de la réassignation, et ne compte le lead qu'une fois."""
+    _publier(_lead_reassigne())
+    _livrer(departements)
+    assert [f for f in _faits_entonnoir() if f["type_entree"] == "lead_qualifie"] == []  # rien avant le rang 1
+
+    _publier(_lead_assigne())
+    _publier(_lead_reassigne(rang=3, quand="2026-09-30T10:00:00-04:00"))
+    total = _livrer(departements)
+
+    assert total["echecs"] == 0 and total["quarantaines"] == 0
+    faits = [f for f in _faits_entonnoir() if f["type_entree"] == "lead_qualifie"]
+    assert len(faits) == 1 and faits[0]["horodatage"] == "2026-09-29T11:00:00-04:00"  # l'instant du rang 1
+    assert _par_metrique()["m8_leads_qualifies"]["valeur"] == "1"
+
