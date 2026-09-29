@@ -922,10 +922,16 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         M7 ne reçoit jamais de demande d'avis depuis l'app (les champs client ne sont pas
         envoyés) ; M8 ne garde ni prévu ni marge ; M9 ne réagit pas ; le briefing M9 est tronqué
         au-delà de 22 décisions en attente.
-  - [ ] T1.5-e App du propriétaire : la section « À voir » est bornée à 1 500 caractères
+  - [x] T1.5-e App du propriétaire : la section « À voir » est bornée à 1 500 caractères
         (`BUDGET_ATTENTES`, `approbations_appareil.py`) sans pagination : au-delà de trois alertes,
         les suivantes ne sont que comptées (`attentes_reste`). Paginer (décalage demandé par
         l'app) plutôt que relever le budget, sous la limite de 6 000 caractères de `Capacites`.
+        Preuve (c8727e4, 27f1938, 51304ad) : `decalage_attentes` (rang, jamais une personne),
+        `attentes_decalage` et `attentes_suivant` ; ordre stable (`depuis`, puis `id`, département,
+        type), hérité par la console ; rang hors plage → page vide ; bouton « Voir plus » dans
+        l'app (un changement du total fait tout relire) ; E2E : huit attentes réelles (M4, M5, M6)
+        lues en trois pages, chacune une seule fois, sans troncature ni écriture ; socle 838,
+        M9 217, Jest 1029.
 
 ## T2 — Du lead à la soumission (§6, flux principal)
 
