@@ -403,6 +403,7 @@ une personne. À confirmer avec la décision de précédence entre services (enc
 | `score` | toujours | §9.4 |
 | `prochaine_action`, `suivi_ligne_id` | toujours (`null` si rien à demander) | §9.5 |
 | `conversation.connu`, `conversation.services_ecartes` | toujours, si un service est écarté | §9.1, §9.6 |
+| `utm` | l'appelant a fourni un `utm` (canal `formulaire`), avec ou sans fenêtre | §13.3 |
 
 ### 9.8 Ce que Nathan décide (GATE NATHAN)
 
@@ -723,7 +724,7 @@ changé (le champ `utm` y était), `core/` n'est pas touché, rien n'est publié
 | Canal sans lien | `sms`, `courriel`, `telephone`, `texte` : `REJ-UTM-CANAL-SANS-SENS`, rien n'est écrit (un STOP qui porte un `utm` non plus). Un `utm` est le paramètre d'un lien suivi dans un navigateur. Même garde pour `m1_traiter_demande_entrante` et `m1_qualifier_signal`. |
 | Registre | La ligne `signal` garde l'`utm` reçu, même quand aucun lead ne le porte. |
 | Réponse | Quand un `utm` est fourni, un bloc `utm` : `{"statut": "porte_par_le_lead"}` ou `{"statut": "non_porte", "raison", "detail"}`. Raisons : `aucun_lead_ouvert` (demande incomplète), `lead_deja_emis` (le lead, gelé, ne porte pas cet `utm`), `transfert_humain` (plainte, urgence). L'agent le dit à une personne. |
-| Rejeu | Un message rejoué n'écrit rien ; le bloc se relit sur le lead que le registre rend. |
+| Rejeu | Un message rejoué n'écrit rien, pas même un `utm` qui diffère de celui d'alors : le bloc se relit sur le lead que le registre rend (`non_porte` si ce lead ne porte pas cet `utm`). |
 
 ### 13.4 Limites connues
 

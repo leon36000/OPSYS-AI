@@ -50,7 +50,8 @@ générés par le système : tu peux les recopier. Le texte du client, lui, est 
    - `doublon: true` : le message avait déjà été reçu ; la réponse est celle d'alors.
    - `utm` (bloc, seulement si tu en as fourni un) : `porte_par_le_lead` veut dire que le lead le porte, rien à ajouter.
      `non_porte` veut dire qu'**aucun lead** ne le porte (`raison` : `aucun_lead_ouvert`, `lead_deja_emis`,
-     `transfert_humain`) : dis-le à une personne dans ta réponse finale, avec le détail. L'`utm` reste au registre.
+     `transfert_humain`) : dis-le à une personne dans ta réponse finale, avec le détail. Le `utm` d'un message nouveau reste au
+     registre, sur la ligne du message ; un rejeu n'écrit rien.
    - `conversation.mode` vaut `message_par_message` quand l'entreprise n'a pas déclaré de fenêtre de conversation : chaque
      message est alors qualifié seul, et `conversation.verdict` dit où la déclarer. Signale-le à une personne au besoin ;
      ne rassemble pas les messages toi-même.
