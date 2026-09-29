@@ -6,6 +6,9 @@ que le PDF rendu par l'outil se relit, que les mêmes gardes que le HTML s'appli
 sortie ne dépasse jamais ce qu'un outil peut transmettre (un PDF tronqué serait un fichier corrompu) et que
 l'extra absent donne un verdict, jamais un HTML renommé. Aucun outil d'envoi n'est ajouté (N4, humain seul).
 Données fictives (AGENTS.md).
+
+Peu de tests, chacun sur son propre devis : chaque test qui touche la base migre un SQLite neuf (~0,2 s), et
+les outils de mutation de M3 rejouent toute la suite du département à chaque mutant.
 """
 
 from __future__ import annotations
@@ -96,7 +99,7 @@ def _lead_assigne(lead_id, proprietaire):
         )
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def base_durable(tmp_path, monkeypatch):
     """Base SQLite temporaire migrée, comme au démarrage de l'instance (ADR-0009)."""
     url = f"sqlite:///{tmp_path / 'opsys-m3-pdf.db'}"
@@ -143,9 +146,14 @@ def _texte_du_pdf(octets):
     return " ".join(" ".join(page.extract_text().split()) for page in PdfReader(io.BytesIO(octets)).pages)
 
 
+def _pdf(arguments_devis_id, appelant=None):
+    return _appeler(NOM, {"devis_id": arguments_devis_id, "format": "pdf"}, appelant)
+
+
 # -- le PDF rendu par l'outil ----------------------------------------------------------------------
-def test_l_outil_rend_un_pdf_relisible_avec_de_quoi_le_verifier(brique, scenario):
-    fichier = _accepte(_appeler(NOM, {"devis_id": DEVIS_UN, "format": "pdf"}))
+def test_l_outil_rend_un_pdf_relisible_stable_sans_cout_ni_marge_et_le_html_reste_le_defaut(brique, scenario):
+    reponse = _pdf(DEVIS_UN)
+    fichier = _accepte(reponse)
     assert set(fichier) == {"format", "type_mime", "nom_fichier", "taille_octets", "empreinte_sha256",
                             "contenu_base64"}
     assert fichier["format"] == "pdf" and fichier["type_mime"] == "application/pdf"
@@ -154,40 +162,24 @@ def test_l_outil_rend_un_pdf_relisible_avec_de_quoi_le_verifier(brique, scenario
     assert octets.startswith(b"%PDF-") and octets.rstrip().endswith(b"%%EOF")
     assert fichier["taille_octets"] == len(octets)
     assert fichier["empreinte_sha256"] == hashlib.sha256(octets).hexdigest()
+
     texte = _texte_du_pdf(octets)
     assert DEVIS_UN in texte and "BROUILLON" in texte and "main-d'œuvre incluse" in texte
     assert "Prix total" in texte and "Taxes (TPS/TVQ) en sus" in texte
-
-
-def test_le_pdf_de_l_outil_est_le_meme_a_chaque_appel(brique, scenario):
-    premier = _accepte(_appeler(NOM, {"devis_id": DEVIS_UN, "format": "pdf"}))
-    second = _accepte(_appeler(NOM, {"devis_id": DEVIS_UN, "format": "pdf"}))
-    assert premier == second
-
-
-def test_le_pdf_de_l_outil_ne_dit_ni_cout_ni_marge(brique, scenario):
-    octets = base64.b64decode(_accepte(_appeler(NOM, {"devis_id": DEVIS_UN, "format": "pdf"}))["contenu_base64"])
-    texte = _texte_du_pdf(octets).lower()
     # coût unitaire 10,00 et 11,37 ; taux de marge 0,20 : le prix (12,00 et 13,64) est le seul chiffre à paraître
     for interdit in ("10,00", "11,37", "0,20", "20 %", "marge", "coût"):
-        assert interdit not in texte, interdit
+        assert interdit not in texte.lower(), interdit
     assert "12,00" in texte and "13,64" in texte
 
-
-def test_la_sortie_de_l_outil_ne_depasse_pas_ce_que_capacites_ne_tronque_pas(brique, scenario):
-    reponse = _appeler(NOM, {"devis_id": DEVIS_UN, "format": "pdf"})
+    assert _accepte(_pdf(DEVIS_UN)) == fichier, "mêmes entrées, mêmes octets, d'un appel à l'autre"
     assert len(json.dumps(reponse, ensure_ascii=False)) <= jetons.LIMITE_SORTIE_DEFAUT
 
-
-# -- html reste le défaut, le format est fermé -----------------------------------------------------
-def test_sans_format_l_outil_rend_toujours_le_html(scenario):
     par_defaut = _accepte(_appeler(NOM, {"devis_id": DEVIS_UN}))
-    explicite = _accepte(_appeler(NOM, {"devis_id": DEVIS_UN, "format": "html"}))
     assert isinstance(par_defaut, str) and par_defaut.startswith("<!doctype html>")
-    assert explicite == par_defaut
+    assert _accepte(_appeler(NOM, {"devis_id": DEVIS_UN, "format": "html"})) == par_defaut
 
 
-def test_un_format_inconnu_est_refuse_au_schema_puis_par_la_fonction(scenario):
+def test_un_format_inconnu_est_refuse_au_schema_puis_par_la_fonction():
     reponse = executer(_outil(NOM), {"devis_id": DEVIS_UN, "format": "docx"})
     assert reponse["ok"] is False and reponse["erreur"] == "arguments_invalides"
     with pytest.raises(ValueError, match="format inconnu"):
@@ -206,29 +198,22 @@ def test_aucun_outil_d_envoi_n_est_ajoute_et_la_portee_de_l_outil_est_inchangee(
 
 
 # -- mêmes gardes que le HTML ----------------------------------------------------------------------
-def test_le_vendeur_obtient_le_pdf_de_son_lead_l_admin_et_l_agent_aussi(brique, scenario):
+def test_le_pdf_passe_par_les_memes_gardes_de_role_et_de_proprietaire_que_le_html(brique, scenario):
     for appelant in (VENDEUR_UN, ADMIN, None):
-        fichier = _accepte(_appeler(NOM, {"devis_id": DEVIS_UN, "format": "pdf"}, appelant))
+        fichier = _accepte(_pdf(DEVIS_UN, appelant))
         assert base64.b64decode(fichier["contenu_base64"]).startswith(b"%PDF-")
 
-
-def test_le_vendeur_n_obtient_pas_le_pdf_du_lead_d_un_autre_meme_refus_que_le_html(brique, scenario):
-    en_pdf = _verdict(_appeler(NOM, {"devis_id": DEVIS_DEUX, "format": "pdf"}, VENDEUR_UN))
+    # le lead d'un autre vendeur, et un devis qui n'existe pas : le même refus, en PDF comme en HTML
+    en_pdf = _verdict(_pdf(DEVIS_DEUX, VENDEUR_UN))
     en_html = _verdict(_appeler(NOM, {"devis_id": DEVIS_DEUX, "format": "html"}, VENDEUR_UN))
-    inconnu = _verdict(_appeler(NOM, {"devis_id": "M3-DEVIS-fantome", "format": "pdf"}, VENDEUR_UN))
-    assert en_pdf["code"] == "REJ-DEVIS-INTROUVABLE"
-    assert en_pdf == en_html
-    assert inconnu["code"] == "REJ-DEVIS-INTROUVABLE"
+    assert en_pdf["code"] == "REJ-DEVIS-INTROUVABLE" and en_pdf == en_html
+    assert _verdict(_pdf("M3-DEVIS-fantome", VENDEUR_UN))["code"] == "REJ-DEVIS-INTROUVABLE"
+    assert _verdict(_pdf("M3-DEVIS-fantome"))["code"] == "REJ-DEVIS-INTROUVABLE"
 
-
-def test_l_employe_n_obtient_pas_le_pdf_qui_porte_les_prix(brique, scenario):
-    verdict = _verdict(_appeler(NOM, {"devis_id": DEVIS_UN, "format": "pdf"}, EMPLOYE))
-    assert verdict["code"] == "REJ-IDENTITE-APPAREIL-INVALIDE"
-    assert _verdict(_appeler(NOM, {"devis_id": DEVIS_UN, "format": "html"}, EMPLOYE)) == verdict
-
-
-def test_un_devis_introuvable_donne_le_meme_verdict_en_pdf(brique, scenario):
-    assert _verdict(_appeler(NOM, {"devis_id": "M3-DEVIS-inconnu", "format": "pdf"}))["code"] == "REJ-DEVIS-INTROUVABLE"
+    # l'employé ne voit jamais un prix
+    refus = _verdict(_pdf(DEVIS_UN, EMPLOYE))
+    assert refus["code"] == "REJ-IDENTITE-APPAREIL-INVALIDE"
+    assert _verdict(_appeler(NOM, {"devis_id": DEVIS_UN, "format": "html"}, EMPLOYE)) == refus
 
 
 # -- l'extra est absent : un verdict, jamais un HTML renommé ---------------------------------------
@@ -237,7 +222,7 @@ def test_sans_la_brique_l_outil_refuse_le_pdf_avec_un_verdict_et_ne_rend_aucun_c
         raise soumission_pdf.metadata.PackageNotFoundError(nom)
 
     monkeypatch.setattr(soumission_pdf.metadata, "version", introuvable)
-    reponse = _appeler(NOM, {"devis_id": DEVIS_UN, "format": "pdf"})
+    reponse = _pdf(DEVIS_UN)
     assert reponse["ok"] is True and reponse["resultat"]["accepte"] is False
     assert set(reponse["resultat"]) == {"accepte", "verdict"}, "aucun contenu, ni HTML ni PDF"
     verdict = reponse["resultat"]["verdict"]
@@ -246,48 +231,44 @@ def test_sans_la_brique_l_outil_refuse_le_pdf_avec_un_verdict_et_ne_rend_aucun_c
 
 
 # -- la limite de sortie d'un outil ----------------------------------------------------------------
-def test_un_pdf_trop_gros_est_un_verdict_jamais_un_contenu_tronque(brique, scenario):
+def test_un_pdf_trop_gros_est_un_verdict_jamais_un_contenu_tronque(brique, scenario, monkeypatch):
     """80 lignes : le PDF fait plus de 6000 caractères une fois en base64, `Capacites._tronquer` le
-    remplacerait par un aperçu — donc un fichier corrompu. L'outil le refuse, et dit pourquoi."""
+    remplacerait par un aperçu, donc un fichier corrompu. L'outil le refuse, et dit pourquoi."""
     _creer_devis("M3-DEVIS-pdf-gros", "lead-un", lignes=_lignes(80))
-    reponse = _appeler(NOM, {"devis_id": "M3-DEVIS-pdf-gros", "format": "pdf"})
+    reponse = _pdf("M3-DEVIS-pdf-gros")
     verdict = _verdict(reponse)
     assert verdict["code"] == "REJ-SOUMISSION-PDF-TROP-VOLUMINEUX"
     assert str(jetons.LIMITE_SORTIE_DEFAUT) in verdict["detail"] and "octets" in verdict["detail"]
     assert "contenu_base64" not in json.dumps(reponse)
     assert verdicts.est_verdict(verdict["code"])
-    # le HTML du même devis, lui, n'est pas concerné par cette limite du PDF
+    # le HTML du même devis n'est pas concerné par cette limite du PDF
     assert "M3-DEVIS-pdf-gros" in _accepte(_appeler(NOM, {"devis_id": "M3-DEVIS-pdf-gros", "format": "html"}))
 
-
-def test_la_limite_est_mesuree_comme_capacites_le_fait_au_caractere_pres(brique, scenario, monkeypatch):
-    mesure = len(json.dumps(_appeler(NOM, {"devis_id": DEVIS_UN, "format": "pdf"}), ensure_ascii=False))
+    # la limite est mesurée comme `Capacites._tronquer` le fait, au caractère près
+    mesure = len(json.dumps(_pdf(DEVIS_UN), ensure_ascii=False))
     monkeypatch.setattr(outils_m3.jetons, "LIMITE_SORTIE_DEFAUT", mesure)
-    assert _accepte(_appeler(NOM, {"devis_id": DEVIS_UN, "format": "pdf"}))["format"] == "pdf"
+    assert _accepte(_pdf(DEVIS_UN))["format"] == "pdf"
     monkeypatch.setattr(outils_m3.jetons, "LIMITE_SORTIE_DEFAUT", mesure - 1)
-    verdict = _verdict(_appeler(NOM, {"devis_id": DEVIS_UN, "format": "pdf"}))
-    assert verdict["code"] == "REJ-SOUMISSION-PDF-TROP-VOLUMINEUX"
-
-
-def test_le_pdf_d_un_devis_ordinaire_de_quinze_lignes_passe_la_limite(brique, scenario):
-    _creer_devis("M3-DEVIS-pdf-quinze", "lead-un", lignes=_lignes(15))
-    fichier = _accepte(_appeler(NOM, {"devis_id": "M3-DEVIS-pdf-quinze", "format": "pdf"}))
-    assert "poste 14" in _texte_du_pdf(base64.b64decode(fichier["contenu_base64"]))
+    assert _verdict(_pdf(DEVIS_UN))["code"] == "REJ-SOUMISSION-PDF-TROP-VOLUMINEUX"
 
 
 def test_par_capacites_le_pdf_arrive_entier_et_le_trop_gros_ne_devient_jamais_un_apercu(brique, scenario):
     """Le vrai point de passage (`Capacites.appeler`, qui tronque au-delà de la limite) : le PDF d'un devis
     ordinaire arrive sans `tronque` et se relit ; celui d'un devis trop gros est un verdict, pas un aperçu."""
+    _creer_devis("M3-DEVIS-pdf-quinze", "lead-un", lignes=_lignes(15))
     _creer_devis("M3-DEVIS-pdf-gros", "lead-un", lignes=_lignes(80))
     capacites = Capacites(charger_departements(_RACINE / "departments"), stockage.transaction,
                           filtre={"m03-estimation"}, memoire=False)
 
-    ordinaire = capacites.appeler(NOM, {"devis_id": DEVIS_UN, "format": "pdf"})
-    assert "tronque" not in ordinaire and ordinaire["ok"] is True, ordinaire
-    fichier = ordinaire["resultat"]["resultat"]
-    octets = base64.b64decode(fichier["contenu_base64"], validate=True)
-    assert hashlib.sha256(octets).hexdigest() == fichier["empreinte_sha256"]
-    assert DEVIS_UN in _texte_du_pdf(octets)
+    for devis_id, dernier_poste in ((DEVIS_UN, None), ("M3-DEVIS-pdf-quinze", "poste 14")):
+        ordinaire = capacites.appeler(NOM, {"devis_id": devis_id, "format": "pdf"})
+        assert "tronque" not in ordinaire and ordinaire["ok"] is True, ordinaire
+        fichier = ordinaire["resultat"]["resultat"]
+        octets = base64.b64decode(fichier["contenu_base64"], validate=True)
+        assert hashlib.sha256(octets).hexdigest() == fichier["empreinte_sha256"]
+        assert devis_id in _texte_du_pdf(octets)
+        if dernier_poste is not None:
+            assert dernier_poste in _texte_du_pdf(octets)
 
     gros = capacites.appeler(NOM, {"devis_id": "M3-DEVIS-pdf-gros", "format": "pdf"})
     assert "tronque" not in gros and gros["ok"] is True, gros
