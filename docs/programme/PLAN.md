@@ -1730,7 +1730,7 @@ météo et GPS M4, vision M3, conseil d'agents M9…
 - [ ] T4.15-c M5 : correction ou annulation d'une facture fournisseur saisie (N4, motif, trace) ;
       factures sans PO (carburant, outils) ; le socle expose l'approbateur d'une demande à l'outil
       (`_decision_approuvee_en_cours` est copiée dans M5 et M10).
-- [ ] T4.16 M5 : cash libre réel et calendrier fiscal vivant (M5.5, M5.7, M5.14).
+- [x] T4.16 M5 : cash libre réel et calendrier fiscal vivant (M5.5, M5.14 ; M5.7 : T4.16-d).
       Écart (§7 M5 « solde bancaire ≠ argent disponible » ; audit M5 M5.5, M5.14 « PARTIEL »,
       M5.7 « ABSENT ») : `soldes.py` ne retranche que les `PROVISION` ; aucun échéancier TPS/TVQ.
       - `calendrier_fiscal.v1.yaml` (source officielle citée, version) ; `prochaines_echeances`
@@ -1742,6 +1742,28 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       revue externe (argent).
       Dépend de : T4.15. GATE NATHAN : fréquence de production TPS/TVQ, acomptes, réserves. T3 :
       validation du calendrier par le CPA ; aucune remise ni déclaration.
+      Preuve (659aa64, c507161, c74eb4a, 40b2470, ff8ddb5) :
+      - `contracts/calendrier_fiscal.v1.yaml` (2025 et 2026, sources de Revenu Québec et de l'ARC
+        citées, consultées le 2026-09-29, dates transcrites et non calculées, `A_VALIDER` par le
+        CPA) ; `prochaines_echeances` refuse une année non déclarée et, sans fréquence de
+        production ni fin d'exercice, dit quoi déclarer ;
+      - `cash_libre.py` pur, `Decimal` : solde − taxes à remettre (TPS et TVQ séparées, crédits des
+        factures fournisseurs de T4.15) − paies − DAS − comptes à payer − dettes − réserves ; chaque
+        composante porte sa source et sa fraîcheur ; une inconnue donne « non calculable, manque
+        X », jamais 0 ; cas fictif à la cent près (27 861,98 $) ;
+      - `m5_etat_tresorerie` garde ses 5 clés gelées et ajoute `cash_libre` ; nouvel outil
+        `m5_lire_echeances_fiscales` (T0, admin) ; la mention « Analyse préparatoire IA » est testée
+        sur toute sortie d'analyse ; la garde AST anti-décaissement couvre le nouveau code ;
+      - M5 1262 (890 avant), M8 367, M6 1108, gate BMAD M5, verifier 158 outils (80 déclarés) ;
+        205 mutations tuées, 2 équivalentes justifiées.
+      Limites : paies, DAS, dettes et réserves déclarées à la main (sans registre) ; aucun paiement
+      fournisseur ni remise constaté (cash libre sous-estimé, jamais surestimé) ; `aujourd_hui` fourni
+      par l'appelant.
+- [ ] T4.16-b M5 : registre des remises et des paiements fournisseur, obligations déclarées,
+      catégories de réserve (M5.14), paie (M5.4 : paies, DAS) : remplace les déclarations YAML.
+- [ ] T4.16-c M5 : calendrier 2027 et validation par le CPA ; acomptes provisionnels TPS/TVQ et
+      d'impôt.
+- [ ] T4.16-d M5 : prévision de trésorerie (M5.7), sur le cash libre de T4.16.
 - [x] T4.17 M7 : usine à contenu, un chantier donne cinq contenus et un paquet manuel (M7.3, M7.2).
       Écart (§7 M7.3, M7.2 et E2E « gouttières à Repentigny → 5 contenus → approbation → export →
       mesure » ; audit M7 §2.8) : un seul brouillon ; aucun paquet manuel ; aucun registre de
@@ -1939,6 +1961,10 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   réglages de la cédule, fenêtre par défaut ; une attestation humaine (nommée, motivée) peut-elle
   remplacer un volet « non vérifiable » de la préparation ? ; règle du doublon (toute inscription du
   devis compte, même annulée) ; accès des membres d'une équipe à ses chantiers (c21bd07).
+- **Cash libre et calendrier fiscal (T4.16)** : fréquence de production TPS/TVQ ; mois de fin
+  d'exercice ; statut de particulier en affaires ; date de la dernière remise ; paies, DAS, dettes
+  et réserves (source et date). Le CPA valide les dates du calendrier, les crédits de taxes à
+  100 % et l'absence de compensation TPS/TVQ (T3).
 - **Lien automatique session → affaire (T2.1-b)** : aujourd'hui, un humain lie la session d'un
   client à son lead (`m10_lier_session_affaire`, N3). Faut-il qu'une règle écrite le fasse à la
   création du lead ? La clé de session contient le numéro du client : elle ne voyage jamais dans
@@ -1959,6 +1985,7 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   - M5 : 119a594, 23df6eb, T1.3-c ; vue financière d'un appel d'appareil (T1.4-k2) : 1ef9499 ;
     coût réel et rentabilité (T1.5-d) : b217aea ; marge réelle publiée vers M8 et M10 : 80aa355 ;
   - comptes à payer et facture fournisseur saisie (T4.15) : d1697f6, a21b3c8, 7bfbe68 ;
+  - cash libre et calendrier fiscal (T4.16) : c507161, c74eb4a, 659aa64, 40b2470 ;
   - clôture d'un transfert réservée à un humain (M1, T4.5) : dd56449 ;
   - canaux de M1 (politique d'approbation d'un message de client) : `src/opsys/canaux.py`, fc80869 ;
   - consentement du client et sa preuve posée par le serveur (M4, T1.5-d) : 358d2cc ;
