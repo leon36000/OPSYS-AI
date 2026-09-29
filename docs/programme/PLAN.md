@@ -1869,8 +1869,24 @@ météo et GPS M4, vision M3, conseil d'agents M9…
 
 - [ ] T4.17-b M4 puis M7 : ville au niveau municipal dans le WCT, seulement avec le consentement
       marketing, pour un ancrage local des contenus. GATE NATHAN (Loi 25 : granularité publiée).
-- [ ] T4.17-c Socle, M1 et M7 : garde-fou de texte partagé dans le socle (M1 et M7 ont chacun le
+- [x] T4.17-c Socle, M1 et M7 : garde-fou de texte partagé dans le socle (M1 et M7 ont chacun le
       leur) ; STOP de M1 publié comme retrait de consentement que M7 consomme.
+      Preuve (9231096, db61ac8) :
+      - `opsys.garde_fou_texte` (module pur) : 17 familles nommées, un code de refus par famille,
+        profil choisi par département (M1 : 5, dont « avis légal » ; M7 : 12), aucun import entre
+        départements ; corpus de M1 (44 interdits, 22 légitimes) et tests de M7 inchangés et verts ;
+        comparé à l'ancien code sur 60 341 textes : aucun écart hors les nouveaux refus d'avis légal ;
+      - l'avis légal vaut partout dans M1 (questions, brouillons, gabarits, résumés) ;
+      - `m1.retrait_consentement` (schéma fermé : `lead_ids`, canal, horodatage, `signal_id` ; jamais
+        un contact ni le `conversation_id`) ; M7 l'inscrit au registre des retraits : proposer,
+        décider, exporter bloqués, paquet exporté et opportunités `~opp~` compris ;
+      - `tests/test_stop_retire_consentement_marketing.py` (8, vrai bus : SMS, lead, « Terminer »,
+        5 contenus, approbation, export, STOP, tout bloqué) ; 112 mutations tuées.
+      Limites : un autre numéro est un autre correspondant ; les STOP d'avant n'ont pas d'événement ;
+      la demande d'avis de M7 (consentement distinct) n'est pas touchée par le STOP.
+- [ ] T4.17-f M1 : `MONTANT_MONETAIRE` du garde-fou est quadratique sur une longue suite de
+      chiffres (27 s pour 20 000) : le durcir comme le prix de M7, avec le comparateur de 60 000
+      textes comme filet ; rattrapage des STOP inscrits avant T4.17-c (décision du propriétaire).
 - [ ] T4.17-d M7 : détecteur réel de visages et de plaques et stockage du média flouté (OpenCV,
       politique « photos » validée d'abord).
 - [ ] T4.17-e M7 et M8 : boucle de mesure par `utm_content` (impressions, clics, leads par
@@ -2003,6 +2019,9 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   100 % et l'absence de compensation TPS/TVQ (T3).
 - **Météo (T4.13)** : seuils par service ; forfait commercial Open-Meteo ou rester sur MSC GeoMet
   et la saisie de l'admin ; relecture juridique de la licence ECCC (lue en documentation).
+- **STOP et avis légal (T4.17-c)** : un résumé de transfert fourni par l'agent ne peut plus nommer
+  un avocat (le code compose alors le sien) ; le STOP retire-t-il aussi la demande d'avis de M7 ? ;
+  rattraper les STOP inscrits avant la livraison ?
 - **Lien automatique session → affaire (T2.1-b)** : aujourd'hui, un humain lie la session d'un
   client à son lead (`m10_lier_session_affaire`, N3). Faut-il qu'une règle écrite le fasse à la
   création du lead ? La clé de session contient le numéro du client : elle ne voyage jamais dans
