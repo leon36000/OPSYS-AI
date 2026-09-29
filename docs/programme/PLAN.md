@@ -834,11 +834,24 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
         l'appareil (le `wct_id` en dépend) au lieu de l'heure de réception du serveur, contrairement
         à `m4_pointer` ; `ecart_signale` vaut toujours vrai pour un WCT venu de l'appareil ; entre
         « Terminer » et le formulaire, la complétion paraît déjà « en revue » chez l'admin.
-  - [ ] T1.5-d Écarts à §6 dans la cascade : M6 ne déclenche ni stock bas ni besoin de commande à
-        « travaux terminés » ; M5 ne calcule ni coût réel, ni rentabilité, ni compte à recevoir ;
+  - [ ] T1.5-d Écarts à §6 dans la cascade.
+    - [x] M6 : stock bas et besoin de commande à « travaux terminés » (bf35bf3, 4b77218) : règle
+          pure `reapprovisionnement.py` (stock sous le seuil → besoin de `cible − stock`, décimal
+          exact) ; seuil et cible par article dans `department.yaml` de M6, vides par défaut ;
+          seuil absent → constat « seuil à configurer », jamais un seuil inventé ; constat
+          idempotent par article et WCT ; visible par `attentes()` (app admin, file du
+          propriétaire, briefing) ; aucun bon de commande ni mouvement créé (tests, AST) ;
+          M6 715, E2E moteur 10 (scénarios C, D, E), socle 758, gate BMAD de M6.
+          Limite : stock évalué « en main » par article, pas « disponible » (ni dépôt ni
+          réservation dans M6).
+    - [ ] Reste : M5 ne calcule ni coût réel, ni rentabilité, ni compte à recevoir ;
         M7 ne reçoit jamais de demande d'avis depuis l'app (les champs client ne sont pas
         envoyés) ; M8 ne garde ni prévu ni marge ; M9 ne réagit pas ; le briefing M9 est tronqué
         au-delà de 22 décisions en attente.
+  - [ ] T1.5-e App du propriétaire : la section « À voir » est bornée à 1 500 caractères
+        (`BUDGET_ATTENTES`, `approbations_appareil.py`) sans pagination : au-delà de trois alertes,
+        les suivantes ne sont que comptées (`attentes_reste`). Paginer (décalage demandé par
+        l'app) plutôt que relever le budget, sous la limite de 6 000 caractères de `Capacites`.
 
 ## T2 — Du lead à la soumission (§6, flux principal)
 
