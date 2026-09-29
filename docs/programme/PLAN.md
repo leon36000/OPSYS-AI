@@ -2270,11 +2270,23 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       Effet sur M2 : un lead déjà reçu avec une adresse tronquée garde son `client_id` (registre en
       ajout seul) ; si ce client réécrit, son nouveau lead porte l'adresse entière et un autre
       `client_id`, que rien ne relie à l'ancien.
-- [ ] T4.17-g3 M1 : le garde-fou des coordonnées d'un résumé (`transferts.contient_coordonnees`)
+- [x] T4.17-g3 M1 : le garde-fou des coordonnées d'un résumé (`transferts.contient_coordonnees`)
       lit le texte tel quel : une partie locale qui finit par un accent combinant juste devant le
       « @ » (accent tapé en deux caractères) n'est pas vue comme un courriel. Le garde-fou ne peut que
       refuser plus : refuser dès que le caractère devant le « @ » peut faire partie d'un mot ou d'une
       adresse (même règle que T4.17-g2), avec une référence écrite lettre à lettre pour oracle.
+      Preuve (c7d25c6, ff974d0, puis la doc) :
+      - un « @ » suivi d'un domaine est un courriel dès que le caractère devant peut faire partie d'une
+        adresse ou d'un mot (lettre, chiffre, `_`, signes de la RFC 5322, accent combinant, caractère
+        de format, apostrophe typographique, trait d'union Unicode, point médian :
+        `qualification.dans_un_mot`) ; un départ par « @ », temps linéaire ;
+      - `test_motifs_lineaires.py` : le garde-fou égale une référence écrite lettre à lettre et ne
+        refuse jamais moins que l'ancien motif, sur 765 012 suites de jetons, 123 552 textes générés
+        (3 484 refusés de plus qu'avant), la fixture et 30 000 textes au hasard ; 8 cas nommés et les
+        14 signes de la RFC, refusés depuis T4.17-g3 ; textes hostiles de 20 000 et 100 000
+        caractères ; M1 1 457 passés, socle touché par les transferts de M1 346 passés, ruff ;
+      - mutations faites à la main : 30 mutants ; 11 survivants au premier passage (un signe de la RFC
+        retiré sans qu'aucun test le voie), tués par un test par signe : 30 sur 30.
 - [ ] T4.17-d M7 : détecteur réel de visages et de plaques et stockage du média flouté (OpenCV,
       politique « photos » validée d'abord).
 - [x] T4.17-e M7 et M8 : boucle de mesure par `utm_content` (impressions, clics, leads par

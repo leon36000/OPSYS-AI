@@ -631,9 +631,13 @@ sur le gabarit de plainte. Le code partagé vit maintenant dans le socle : `opsy
   nouveau lead porte l'adresse entière, donc un autre `client_id`, que rien ne relie à l'ancien.
   `tests/test_motifs_lineaires.py` compare la lecture à une référence écrite lettre à lettre (suites de jetons, textes
   générés, fixture, hasard) et garde la table de ce qui a changé, cas par cas, par rapport à l'ancien motif.
-- **Limite connue du garde-fou d'un résumé** (T4.17-g3) : il lit le texte tel quel ; une partie locale qui finit par un
-  accent tapé en deux caractères (un « e » suivi de l'accent aigu combinant U+0301, juste devant le « @ ») n'y est pas
-  reconnue comme un courriel.
+- **Le garde-fou d'un résumé voit aussi un courriel derrière un accent combinant** (T4.17-g3). L'ancien motif exigeait
+  une lettre, un chiffre ou `.%+'-` juste devant le « @ » : une partie locale qui finit par un accent tapé en deux
+  caractères (un « e » suivi de l'accent aigu combinant U+0301), par une apostrophe typographique ou par un signe de la
+  RFC 5322 (`jean#@x.ca`) passait, et le résumé portait le courriel en clair. Le garde-fou refuse maintenant dès que le
+  caractère devant un « @ » suivi d'un domaine peut faire partie d'une adresse ou d'un mot (même règle que le courriel
+  du client). Il refuse plus, jamais moins : `tests/test_motifs_lineaires.py` le compare à une référence écrite lettre
+  à lettre et vérifie qu'aucun texte que l'ancien motif refusait ne passe.
 - **L'avis légal vaut partout où M1 passe un texte** : brouillons de qualification (libellé de service compris), questions du
   profil (retirées et nommées), gabarits de plainte et d'urgence, résumés de transfert, outil `m1_verifier_garde_fou`.
 - **Conséquence connue** : un résumé de transfert fourni par l'agent ne peut pas nommer un avocat ou un tribunal
