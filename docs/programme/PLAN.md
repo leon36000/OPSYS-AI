@@ -1600,7 +1600,7 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       Preuve : pytest M3, mutations, déterminisme bit à bit, gate BMAD M3 ; E2E « estimation
       risquée » ; aucun prix sans taux fourni.
       Dépend de : T4.7. GATE NATHAN : taux de marge par scénario, mode par poste du barème.
-- [ ] T4.12 M4 : équipes, dépôt, quarts et durées en configuration d'entreprise (M4.2, M4.3).
+- [x] T4.12 M4 : équipes, dépôt, quarts et durées en configuration d'entreprise (M4.2, M4.3).
       Écart (§7 M4.2, M4.3, M4.7 ; audit M4 M4.2 « ABSENT » ; limite de T4.1-d « tout est
       argument ») : l'agent recopie équipes, dépôt et quarts à chaque cédule.
       - profil `equipes` dans `entreprise.yaml` (patron `opsys.taxonomie`, écriture tracée) :
@@ -1614,6 +1614,23 @@ météo et GPS M4, vision M3, conseil d'agents M9…
         `m4_planifier_intervention` refuse un devis qui a déjà son intervention née du bus.
       Dépend de : T4.10 (fait). GATE NATHAN : équipes, quarts, compétences, dépôt, durées. T3 :
       aucune donnée de santé ni évaluation d'employé.
+      Preuve (0cd7852, 9e509e6, 7fb413d, 0c5b733) :
+      - socle : `opsys.equipes` (clé `equipes` d'`entreprise.yaml`, écriture signée sans nommer les
+        membres) ; `opsys equipes lister|declarer` (membres = personnes OPSYS actives) ; schéma
+        fermé (aucune donnée RH, santé ni évaluation) ; sans profil ou invalide : verdict ;
+      - M4 : `admissibilite.py` pur (compétences du service, quart assez long) = volet « équipe » de
+        `preparation.py` ; `m4_proposer_cedule` lit le profil sans argument (surcharge tracée) ;
+        Repentigny-Joliette rejouée depuis le profil seul : mêmes octets de plan, 26 785 m ;
+      - sortie de `a_planifier` par `m4_appliquer_cedule` (préparation « prête » recalculée, porte
+        d'empreinte T4.10, équipe admissible) ; `m4_planifier_intervention` refuse un devis qui a
+        déjà son intervention, dans les deux ordres, par le vrai bus ;
+      - hors spécification (c21bd07 intégré, isolé) : les membres d'une équipe agissent sur ses
+        interventions ;
+      - M4 1940 (1817 avant), M2 1169, M6 837, socle 1299 (49 sautés), gate BMAD M4, verifier 153
+        outils ; 54 mutations tuées.
+      Limites : matériel et météo non vérifiables tant que T4.14 n'est pas lu par M4 et que T4.13
+      manque : aucune intervention née du bus ne sort de `a_planifier` en vrai ; `jour` numéroté,
+      sans calendrier ; l'app ne connaît pas `a_planifier`.
 - [ ] T4.13 M4 : météo bloquante et report proposé (M4.10, M4.21).
       Écart (§7 M4.10 ; audit M4 M4.10 « ABSENT » ; R7 §2) : `meteo` n'est qu'un motif de report.
       - port `FournisseurMeteo` (patron `FournisseurMatrice`) ; adaptateurs MSC GeoMet, Open-Meteo
@@ -1879,6 +1896,10 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 - **Plaintes et transferts (T4.5)** : vocabulaire des plaintes ; table type → rôle ; ton du
   gabarit (excuse ? renvoi aux services d'urgence ? réponse à une menace juridique ?) ; niveaux
   des attentes (N5 pour la sécurité).
+- **Équipes et cédule (T4.12)** : équipes, quarts, compétences, dépôt, durées par service,
+  réglages de la cédule, fenêtre par défaut ; une attestation humaine (nommée, motivée) peut-elle
+  remplacer un volet « non vérifiable » de la préparation ? ; règle du doublon (toute inscription du
+  devis compte, même annulée) ; accès des membres d'une équipe à ses chantiers (c21bd07).
 - **Lien automatique session → affaire (T2.1-b)** : aujourd'hui, un humain lie la session d'un
   client à son lead (`m10_lier_session_affaire`, N3). Faut-il qu'une règle écrite le fasse à la
   création du lead ? La clé de session contient le numéro du client : elle ne voyage jamais dans
