@@ -58,7 +58,7 @@ confirmation de l'app admin doit l'afficher là où l'adresse est validée.
 PLAN T4.1-b (conception : `docs/research/R15-cedule-vrp.md` §2 et §4). `distances.py` (pur) fabrique la
 matrice de trajets entre chantiers que le solveur de tournées recevra en entrée (T4.1-c) : carrée, triée par
 identifiant, en mètres et en secondes ENTIERS, hachée avec ses paramètres (`empreinte`, SHA-256 canonique,
-`version` `matrice-distances-v1`). Aucun outil MCP ici : T4.1-d les ajoutera.
+`version` `matrice-distances-v1`). Aucun outil ne l'expose seul : `m4_proposer_cedule` (T4.1-d) la fabrique.
 
 - **Palier 0, par défaut** : haversine entière × détour. Les coordonnées sont des microdegrés entiers
   (45,742° = `45742000`). Le calcul est en virgule fixe sur des entiers Python, sans flottant : même matrice et
@@ -83,17 +83,18 @@ identifiant, en mètres et en secondes ENTIERS, hachée avec ses paramètres (`e
   d'écart attendu près d'un cours d'eau. Le vrai détour se calibre sur au moins 30 paires réelles mesurées avec
   OSRM (R15 §2).
 
-Limites connues : les verdicts `REJ-MATRICE-*` sont hors du catalogue gelé de `verdicts.py` (T4.1-d les y
-inscrira) ; l'adaptateur n'a été testé que contre un faux serveur (forme de réponse d'après la documentation
-d'OSRM, à confirmer sur un vrai sidecar) ; la distance entre un point et la route où OSRM l'accroche n'est pas
-contrôlée.
+Les verdicts `REJ-MATRICE-*` sont inscrits au catalogue de `verdicts.py` (T4.1-d). Limites connues :
+l'adaptateur n'a été testé que contre un faux serveur (forme de réponse d'après la documentation d'OSRM, à
+confirmer sur un vrai sidecar) ; aucun sidecar n'est déployé, donc `m4_proposer_cedule` reste au palier 0 (mode
+bridé) tant que `outils(fournisseur_matrice=...)` ne reçoit pas un fournisseur ; la distance entre un point et la
+route où OSRM l'accroche n'est pas contrôlée.
 
 ## Tournées
 
 PLAN T4.1-c (conception : `docs/research/R15-cedule-vrp.md` §1 et §4). `tournees.py` (pur, sans horloge ni
 aléa) propose un plan de tournées à partir des équipes, des chantiers et de la matrice de T4.1-b. Le solveur
-PROPOSE ; il n'écrit pas la vérité. Aucun outil MCP ici : T4.1-d ajoutera `m4_proposer_cedule` et
-`m4_appliquer_cedule`. `cedule.py` reste le repli « sans coordonnées ».
+PROPOSE ; il n'écrit pas la vérité. Les outils `m4_proposer_cedule` et `m4_appliquer_cedule` (T4.1-d, section
+suivante) l'appellent. `cedule.py` reste le repli « sans coordonnées ».
 
 - **Interface** : `resoudre(entree, moteur="auto")` rend `(sortie, None)` ou `(None, verdict)`. Tout est entier
   (minutes depuis minuit, mètres). L'entrée porte `version` (`tournees-entree-v1`), `equipes` (`id`,
@@ -140,10 +141,71 @@ Preuve : sur six instances fictives de 8 à 12 chantiers (Repentigny à Joliette
 instances aléatoires ; 8 chantiers se résolvent en moins d'une seconde (mesuré : 0,002 s au DP ; PyVRP 0,15 s au
 premier appel, import compris, puis 0,08 s) ; une compétence rare n'est jamais donnée à une équipe non admissible.
 
-Limites connues : les verdicts `REJ-TOURNEES-*` sont hors du catalogue gelé de `verdicts.py` (T4.1-d les y
-inscrira) ; les chantiers de plusieurs jours, la météo, les capacités de véhicule et l'ETA client restent hors
-périmètre (R15 §4) ; la cédule n'est pas encore branchée sur les coordonnées confirmées (T4.1-a) ni sur un outil ;
-PyVRP n'a été exécuté qu'en Python 3.11 sur x86_64 (l'égalité entre plateformes n'est pas vérifiée) ; le DP est
-exponentiel : pire cas mesuré à 12 chantiers de 30 à 45 min sur 8 véhicules, environ 2 s ; au-delà de 12 chantiers,
-PyVRP est requis. La CI (`ci.yml`, job `departement`) n'installe que `.[dev]` : tant que `.[dev,tournees]` n'y figure pas,
-les tests de PyVRP y sont sautés et seul le DP est exercé.
+Les verdicts `REJ-TOURNEES-*` sont inscrits au catalogue de `verdicts.py` (T4.1-d). `empreinte_entree(entree)`
+rend l'empreinte que le plan porte, sans relancer le solveur (l'application d'un plan s'en sert). Limites connues :
+les chantiers de plusieurs jours, la météo, les capacités de véhicule et l'ETA client restent hors périmètre (R15
+§4) ; PyVRP n'a été exécuté qu'en Python 3.11 sur x86_64 (l'égalité entre plateformes n'est pas vérifiée) ; le DP
+est exponentiel : pire cas mesuré à 12 chantiers de 30 à 45 min sur 8 véhicules, environ 2 s ; au-delà de 12
+chantiers, PyVRP est requis. La CI (`ci.yml`, job `departement`) installe l'extra `tournees` pour M4, et l'image
+(`deploy/Dockerfile`) aussi.
+
+## Cédule par tournées
+
+PLAN T4.1-d (conception : `docs/research/R15-cedule-vrp.md` §4 ; skill `optimiser-la-cedule`).
+`cedule_tournees.py` (pur : ni `opsys`, ni horloge, ni aléa, ni flottant, ni réseau, gardé par analyse du code)
+assemble l'entrée du solveur, le fait résoudre et range le plan au registre. Deux outils, réservés à l'`admin`
+(portée : `docs/architecture/ROLES.md`) :
+- `m4_proposer_cedule` (T1, niveau N1 : un brouillon, automatique) : lit au registre les interventions au statut
+  `planifiee`, leur `urgence_declaree` et les coordonnées CONFIRMÉES (`outils.lire_localisation_confirmee`), et
+  demande tout le reste en arguments. Range le maillon `cedule_proposee` (plan complet, entrée sans matrice donc
+  sans coordonnée de chantier, état des interventions, trois empreintes : entrée, sortie, état) et rend `plan_id`,
+  `mode_distance`, `mode_bride` et un `avertissement` « mode bridé » quand les distances sont approximatives, les
+  `non_cedulees` et leurs raisons. Aucune assignation. Même entrée : même plan, même `plan_id`, rien d'écrit de
+  plus (`deja_proposee`).
+- `m4_appliquer_cedule` (T1, N3 : voir le commentaire de l'outil) : applique un plan par son `plan_id` avec
+  `etats.assigner_technicien` (maillon `assignation_technicien`), puis écrit `cedule_appliquee`. Toutes les
+  vérifications précèdent la première écriture : (1) l'état actuel des interventions (statut, type, urgence,
+  technicien assigné, version de la localisation) doit être celui de la proposition ; (2) l'entrée du solveur,
+  reconstruite avec les coordonnées d'AUJOURD'HUI, doit avoir la même empreinte ; (3) `tournees.verifier_plan`
+  doit accepter le plan (fenêtres, quarts, compétences, créneaux figés). Sinon `REJ-CEDULE-ENTREE-CHANGEE` (le
+  détail nomme ce qui a bougé : proposer de nouveau) ou `REJ-TOURNEES-PLAN-INVALIDE`. Idempotent : le même
+  `plan_id` deux fois n'écrit rien de plus (`deja_appliquee`) ; un technicien déjà assigné n'est pas ré-assigné
+  (`effet: deja_assignee`). `confirme_par` est la personne authentifiée pour un appel d'appareil.
+
+Ce que M4 SAIT (jamais fourni) : les interventions à planifier, leur type de travaux, leur urgence déclarée, le
+technicien déjà assigné, les coordonnées confirmées. Ce que M4 ne sait PAS encore (argument explicite, sinon UN
+verdict `REJ-CHAMP-MANQUANT` qui liste tout ce qu'il faut fournir, aucune valeur par défaut) : `equipes` (`id`,
+`competences`, `depot` : `id`, `latitude_microdegres`, `longitude_microdegres`, `quarts`), `durees_par_type_travaux`,
+`competences_par_type_travaux`, `chantiers` (une entrée par intervention : `fenetre` du client et `creneau_fige`,
+`null` seulement si aucun créneau n'est confirmé au client) et `parametres` (`facteur_detour_milliemes`,
+`vitesse_moyenne_kmh`, `marge_par_trajet_secondes`, `iterations`, `cout_non_cedule_m`). Seule exception, technique
+et non métier : la `graine` du solveur, 0 si omise (PyVRP est amorcé par l'empreinte de l'entrée de toute façon).
+L'`id` d'une équipe EST le `technicien_id` de l'assignation ; `jour` est un numéro choisi par l'appelant.
+
+**Urgence.** `urgence_declaree` (booléen du LeadQualifie) devient l'entier 0 à 3 du solveur par une règle écrite,
+`cedule_tournees.REGLE_URGENCE` : vrai vaut 1, faux vaut 0, source absente ou non booléenne est un verdict. Un chantier
+urgent coûte le double à laisser de côté (`cout_non_cedule_m` x (1 + urgence)). Un test relit les sources citées
+(DEFINITION-PRODUIT M4.7, audit M4 risque 10, `contrats.py`, R15 §4, `tournees.py`). Les crans 2 et 3 restent libres
+pour une source plus fine (score d'urgence de M1) : aucun n'est inventé. Le champ n'était lu par personne avant.
+
+**Créneau figé.** Un créneau déjà confirmé au client (`creneau_fige`) est tenu à la minute, ou l'entrée est
+refusée (`REJ-TOURNEES-CRENEAU-FIGE-INCOMPATIBLE`) : il n'est jamais déplacé. Le solveur, puis `verifier_plan` à
+l'application, le contrôlent.
+
+Preuve (scénario fictif de Repentigny à Joliette, `tests/fixtures/scenario_cedule_repentigny_joliette.json`, six
+chantiers, deux équipes qui partent de leur dépôt, positions confirmées par `m4_confirmer_localisation`) : le plan
+proposé fait 26 785 m (11 794 m pour l'équipe de Repentigny, 14 991 m pour celle de Joliette) contre 187 601 m pour le
+tourniquet de `cedule.py` avec le sel de référence, sur la même matrice, soit 85 % de moins. Sur treize sels, le
+tourniquet va de 28 806 m (le hasard forme les mêmes grappes, dans un autre ordre) à 343 133 m, en moyenne 199 422 m :
+le plan est meilleur pour chacun. Deux chantiers proches vont à la même équipe, l'un après l'autre ; un créneau figé à
+10 h chez l'équipe de Joliette est tenu (mais coûte : un chantier de plus reste non cédulé, « journées pleines ») ;
+une coordonnée modifiée entre la proposition et l'application refuse l'application sans rien écrire ; un appel
+d'appareil `employee` est hors portée.
+
+Limites connues : le jour et l'heure de chaque visite restent dans le maillon du plan, l'écran « chantiers du jour »
+ne les lit pas encore (`fenetre_planifiee` reste `null`) ; une intervention non cédulée garde l'assignation qu'elle
+avait (aucun outil de désassignation) ; en `supervise` et `autonome`, un N3 s'exécute sans file (`ROLES.md`, « Ce qui
+reste ») ; aucun sidecar de routage : distances approximatives (« mode bridé »), à calibrer sur 30 paires réelles ;
+le dépôt est gardé en clair au maillon du plan (c'est un lieu de l'entreprise : ne pas y mettre un domicile) ; une
+adresse modifiée après la confirmation des coordonnées n'est pas vue par la cédule (M4 ne connaît pas l'adresse,
+seulement la version de la confirmation) ; un plan proposé n'expire pas, seul un changement d'état l'invalide.

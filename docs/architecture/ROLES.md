@@ -66,7 +66,7 @@ qui travaille sur un toit, un gestionnaire qui reprend un dossier).
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 52 outils sur 123 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 54 outils sur 125 sont déclarés.
 
 ### `employee` (11 outils) : §9.3, le terrain
 
@@ -106,7 +106,7 @@ M10.
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (50 outils) : §9.5 + employé + vendeur
+### `admin` (54 outils) : §9.5 + employé + vendeur
 
 Les 11 outils de l'employé, les 9 du vendeur, et :
 
@@ -119,6 +119,7 @@ Les 11 outils de l'employé, les 9 du vendeur, et :
 | M4 | `m4_produire_brouillon_temps` | §9.3 : brouillon de feuille de temps envoyé à M5. |
 | M4 | `m4_lire_position_gps` | §9.2 « accès admin journalisé » ; POLITIQUE-geolocalisation §6. `accede_par` doit être sa propre personne (T1.4-k). |
 | M4 | `m4_proposer_localisation`, `m4_confirmer_localisation` (N3) | §9.5 M4 « dispatch du jour » (T4.1-a, R15 §3) : l'admin voit la proposition de coordonnées d'un chantier (index RQA local) puis la confirme ; `confirme_par` doit être sa propre personne. Réservés à l'admin : c'est l'adresse d'un client, et une coordonnée confirmée décide d'une tournée. L'employé n'a aucun besoin de géocoder une adresse ; le vendeur non plus. Les deux outils refusent aussi, dans le code, tout rôle d'appareil autre qu'`admin`. |
+| M4 | `m4_proposer_cedule` (N1), `m4_appliquer_cedule` (N3) | §9.5 M4 « dispatch du jour » (T4.1-d, R15 §4) : l'admin fait proposer une cédule par tournées depuis son téléphone (brouillon : aucune assignation, aucune vérité écrite), la lit (mode bridé, non cédulées et leurs raisons) puis l'applique ; `confirme_par` doit être sa propre personne. Réservés à l'admin : une tournée regroupe des chantiers de clients (adresses, coordonnées confirmées), et l'application décide qui voit quelles interventions. Le brouillon lui-même écrit un maillon au registre : l'ouvrir à l'employé ou au vendeur permettrait d'y déposer des plans à volonté. Les deux outils refusent aussi, dans le code, tout rôle d'appareil autre qu'`admin`. |
 | M5 | `m5_etat_tresorerie`, `m5_lister_attentes_facturation` | §9.5 M5 : trésorerie, cash libre réel, factures à approuver. Identité confirmée en base ; la vue vient du rôle authentifié, jamais des arguments (T1.4-k2, plus bas). |
 | M6 | `m6_approuver_po`, `m6_annuler_po` | §9.2 « le propriétaire approuve les bons de commande » ; §9.5 « PO à approuver ». |
 | M6 | `m6_receptionner_commande`, `m6_soumettre_comptage` | §9.5 « réception rapide » ; §9 « inventaire ». |
@@ -222,6 +223,7 @@ envoie un autre technicien, c'est lui qui a l'intervention. Une intervention que
 | `m4_definir_consentement_gps` | `technicien_id` = sa personne (donne ou retire) | libre : consigne un consentement « par écrit » |
 | `m4_lire_position_gps` | hors portée (T1.4-j) | `accede_par` = sa personne |
 | `m4_proposer_localisation`, `m4_confirmer_localisation` | hors portée (T4.1-a) ; refusés aussi dans l'outil (`REJ-IDENTITE-APPAREIL-INVALIDE`) | `confirme_par` = sa personne, sinon `REJ-IDENTITE-FOURNIE-DIFFERENTE` ; l'heure du serveur fait foi |
+| `m4_proposer_cedule`, `m4_appliquer_cedule` | hors portée (T4.1-d) ; refusés aussi dans l'outil (`REJ-IDENTITE-APPAREIL-INVALIDE`) | `confirme_par` = sa personne pour l'application, sinon `REJ-IDENTITE-FOURNIE-DIFFERENTE` ; l'heure du serveur fait foi |
 | `m4_deposer_fichier`, `m4_etat_fichier` | identité confirmée seulement | idem |
 | `m6_declarer_materiaux_utilises` | le WCT doit porter son `technicien_id` | tous les WCT |
 
@@ -363,6 +365,14 @@ pour un appel d'appareil ; sans identité d'appareil, la liste, comme avant. La 
   Décision à prendre avant de promouvoir M4 : garder N3, ou exiger une identité d'appareil (ou passer N4).
   Aussi, l'`adresse` et les coordonnées saisies d'un appel d'agent restent en clair dans la file
   d'approbation (`approbations.arguments`) : seule la trace « valider au départ » les masque.
+- **Cédule par tournées (T4.1-d).** `m4_appliquer_cedule` est N3, comme `m4_confirmer_localisation` : en mode
+  `ombre`, l'appel d'un agent attend une personne ; en `supervise` et `autonome`, un N3 s'exécute sans file, et « une
+  personne a appliqué » ne repose plus que sur `confirme_par` pour un appel sans identité d'appareil. Décision à
+  prendre avant de promouvoir M4 : garder N3, ou exiger une identité d'appareil (ou passer N4, l'assignation
+  décidant de ce que voit chaque employé). `m4_proposer_cedule` est N1 (brouillon, automatique) : elle écrit un
+  maillon `cedule_proposee`, jamais une assignation. Les deux gardes de l'application (état des interventions,
+  entrée du solveur reconstruite avec les coordonnées d'aujourd'hui) et `verifier_plan` ne remplacent pas cette
+  décision : ils empêchent d'appliquer un plan périmé, pas un plan qu'un agent aurait mal paramétré.
 - **Voie des agents.** Le secret partagé de la passerelle garde l'accès complet aux outils (documenté,
   voulu) : seule la voie du jeton d'appareil passe par `roles.json`, donc par ces contrôles.
 - **Approbation différée.** Un appel d'appareil dont l'identité n'est pas valide part en file (T1.4-h) ; une
