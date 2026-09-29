@@ -67,7 +67,7 @@ qui travaille sur un toit, un gestionnaire qui reprend un dossier).
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 64 outils sur 137 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 64 outils sur 138 sont déclarés.
 
 ### `employee` (11 outils) : §9.3, le terrain
 

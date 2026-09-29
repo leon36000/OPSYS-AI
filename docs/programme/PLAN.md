@@ -959,6 +959,23 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
       voix ; taxonomie des 4 services réels (gouttières, revêtement, soffite-fascia, réparation) ; contrat
       M1→M2 avec `source`, `utm`, `campagne` ; tests qui passent par `Capacites` (approbations réelles)
       (audit M1).
+      - [x] T2.1-a Canal SMS du fork vers M1 (020d4fd, fc80869, b945582). Conception :
+            `docs/departements/M1-canaux.md`.
+            - `m1_recevoir_message_canal` (N2) : correspondant, conversation, idempotence, contact et
+              heure tirés de la plateforme par le code ; `source` = canal ; STOP inscrit comme retrait ;
+              lead v2 publié à `m1.lead_qualifie` dans la même transaction que le registre.
+            - `zone_desservie` lue dans `entreprise.yaml`, jamais passée par l'agent.
+            - `opsys openclaw configurer` : canal `sms` éteint tant que les 4 identifiants Twilio et
+              l'attestation des politiques SMS et photos manquent ; session par client
+              (`per-channel-peer`) ; `session.sendPolicy` refuse toute réponse automatique ; outil
+              `message` du core retiré à l'agent (un message sortant reste `m1_emettre_notification`, N4).
+            - Preuve : M1 524, M2 817, M10 566, socle 890 (43 sautés), ruff OK, verifier 138 outils
+              (64 déclarés aux appareils).
+            - Revue externe conseillée : `src/opsys/canaux.py` (politique d'approbation).
+      - [ ] T2.1-b M2 consomme `m1.lead_qualifie` ; lien session → affaire automatique (aujourd'hui par
+            une approbation humaine).
+      - [ ] T2.1-c Envoi réel au client (après approbation N4) ; greffe du crochet `message_received`.
+      - [ ] T2.1-d Appel manqué (`voice-call`) et courriel (`imap`).
 - [x] T2.2 M2 : lead structuré, Client 360, préparation à l'estimation, prochaine action.
       Preuve (commit « T2.2 » ci-dessous) :
       - Client 360 : identifiant stable tiré du contact seulement ; vue sans donnée inventée ;
