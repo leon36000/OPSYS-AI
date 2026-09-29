@@ -161,7 +161,7 @@ export function validateGatewayPasswordInput(value: unknown): string | undefined
   return undefined;
 }
 
-/** Prints the onboarding banner: pixel mascot beside the OPENCLAW wordmark. */
+/** Prints the onboarding banner: pixel mascot beside the OPSYS wordmark. */
 export async function printWizardHeader(runtime: RuntimeEnv): Promise<void> {
   await printClawBanner(runtime);
 }

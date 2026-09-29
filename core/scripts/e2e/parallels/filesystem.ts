@@ -5,7 +5,8 @@ import path from "node:path";
 import { repoRoot } from "./host-command.ts";
 
 const TEXT_FILE_TAIL_BYTES = 4 * 1024 * 1024;
-const OPENCLAW_VERSION_PATTERN = /OpenClaw\s+([0-9][^\s]*)/gi;
+// The banner says OPSYS since T0.7; a guest that still runs an older build says OpenClaw.
+const OPENCLAW_VERSION_PATTERN = /(?:OpenClaw|OPSYS)\s+([0-9][^\s]*)/gi;
 
 export async function exists(filePath: string): Promise<boolean> {
   try {

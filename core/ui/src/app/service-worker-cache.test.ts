@@ -636,6 +636,15 @@ describe("Control UI service worker notification scope", () => {
     },
   );
 
+  it("titles a push without a title after OPSYS", async () => {
+    const worker = createNotificationServiceWorker(nestedScope, []);
+
+    const notification = await worker.dispatchPush({ title: "", body: "Untitled notification" });
+
+    expect(notification.title).toBe("OPSYS");
+    expect(notification.options.body).toBe("Untitled notification");
+  });
+
   it("preserves a quiet shared tag for approval terminal replacements", async () => {
     const worker = createNotificationServiceWorker(nestedScope, []);
     const tag = "openclaw-approval-exec:replacement";

@@ -42,7 +42,11 @@ const tempDirs = useAutoCleanupTempDirTracker((cleanupDirectories) => {
 const leaseId = "cbx_bootstrap_test";
 const setupCode = "synthetic-enrollment-credential";
 
-async function packageFixture(build: string, postinstall = ""): Promise<Buffer> {
+async function packageFixture(
+  build: string,
+  postinstall = "",
+  banner = "OPSYS 2026.8.1",
+): Promise<Buffer> {
   const root = tempDirs.make("crabbox-bootstrap-package-");
   const packageRoot = path.join(root, "package");
   fs.mkdirSync(packageRoot);
@@ -65,7 +69,7 @@ import path from "node:path";
 const args = process.argv.slice(2);
 const state = process.env.OPENCLAW_STATE_DIR;
 if (args[0] === "--version") {
-  console.log("OpenClaw 2026.8.1");
+  console.log(${JSON.stringify(banner)});
 } else if (args[0] === "plugins" && args[1] === "enable") {
   fs.appendFileSync(path.join(state, "activation.jsonl"), JSON.stringify({ runtimePublished: fs.existsSync(path.join(state, "runtime")) }) + "\\n");
   if (${JSON.stringify(build)} === "activation-failed") process.exit(1);
@@ -520,6 +524,27 @@ describe.skipIf(process.platform === "win32")("source node bootstrap", () => {
       runtimePublished: false,
     });
   });
+
+  it.each([
+    { banner: "OPSYS 2026.8.1", accepted: true },
+    { banner: "OPSYS 2026.8.1 (abcdef0)", accepted: true },
+    { banner: "OpenClaw 2026.8.1", accepted: true },
+    { banner: "OPSYS 2026.8.2", accepted: false },
+    { banner: "Other 2026.8.1", accepted: false },
+  ])(
+    "checks the version banner $banner against the Gateway before activating plugins",
+    async ({ banner, accepted }) => {
+      const { home } = testHome();
+      const { nodeBootstrap } = await serveArtifact(
+        await packageFixture("activation-failed", "", banner),
+      );
+      const result = await enroll(home, nodeBootstrap);
+      expect(result.code).toBe(1);
+      expect(result.output).toContain(
+        accepted ? "could not enable plugin" : "could not verify its Gateway version",
+      );
+    },
+  );
 
   it("rejects malformed forwarded credentials without disclosing their value", async () => {
     const { home } = testHome();

@@ -547,6 +547,10 @@ describe("Parallels smoke model selection", () => {
 
     writeFileSync(logPath, "\nOpenClaw 2026.6.6\nOpenClaw 2026.6.7", { flag: "a" });
     await expect(extractLastOpenClawVersionFromLog(logPath)).resolves.toBe("2026.6.7");
+
+    // The banner reads OPSYS from T0.7 on; an older guest build still says OpenClaw.
+    writeFileSync(logPath, "\nOPSYS 2026.9.8 (abcdef0)", { flag: "a" });
+    await expect(extractLastOpenClawVersionFromLog(logPath)).resolves.toBe("2026.9.8");
   });
 
   it("keeps the public shell entrypoints as thin TypeScript launchers", () => {

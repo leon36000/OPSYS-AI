@@ -7,7 +7,7 @@ const getTailnetHostname = vi.hoisted(() => vi.fn());
 
 vi.mock("../infra/tailscale.js", () => ({ getTailnetHostname }));
 
-import { resolveTailnetDnsHint } from "./server-discovery.js";
+import { formatBonjourInstanceName, resolveTailnetDnsHint } from "./server-discovery.js";
 
 describe("resolveTailnetDnsHint", () => {
   const prevTailnetDns = { value: undefined as string | undefined };
@@ -44,5 +44,23 @@ describe("resolveTailnetDnsHint", () => {
     const value = await resolveTailnetDnsHint({ enabled: true });
     expect(value).toBe("host.tailnet.ts.net");
     expect(getTailnetHostname).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("formatBonjourInstanceName", () => {
+  test("names an unnamed machine OPSYS", () => {
+    expect(formatBonjourInstanceName("   ")).toBe("OPSYS");
+  });
+
+  test("suffixes the machine name with the OPSYS brand", () => {
+    expect(formatBonjourInstanceName("  Mac Studio ")).toBe("Mac Studio (OPSYS)");
+  });
+
+  test("keeps a name that already carries the OPSYS brand", () => {
+    expect(formatBonjourInstanceName("Atelier OPSYS")).toBe("Atelier OPSYS");
+  });
+
+  test("keeps a user-provided name that already carries the OpenClaw brand", () => {
+    expect(formatBonjourInstanceName("OpenClaw du bureau")).toBe("OpenClaw du bureau");
   });
 });

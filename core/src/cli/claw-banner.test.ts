@@ -32,6 +32,12 @@ async function runStatic() {
     .filter((row) => row.length > 0);
 }
 
+const EXPECTED_WORDMARK = [
+  "█▀▀▀█ █▀▀▀█ █▀▀▀▀ █   █ █▀▀▀▀",
+  "█   █ █▀▀▀▀ ▀▀▀▀█  ▀█▀  ▀▀▀▀█",
+  "▀▀▀▀▀ ▀     ▀▀▀▀▀   ▀   ▀▀▀▀▀",
+] as const;
+
 const EXPECTED_MASCOT = [
   " •●●:.        .:●●•",
   ":●●●●:        :●●●●:",
@@ -52,7 +58,8 @@ describe("printClawBanner", () => {
     const output = stripAnsi(String(log.mock.calls[0]?.[0]));
     const rows = output.split("\n").filter((row) => row.length > 0);
     expect(rows.map((row) => row.slice(0, 20).trimEnd())).toEqual(EXPECTED_MASCOT);
-    expect(output).toContain("█▀▀▀█ █▀▀▀█ █▀▀▀▀ █▄  █");
+    expect(rows.slice(3, 6).map((row) => row.slice(23))).toEqual(EXPECTED_WORDMARK);
+    expect(output).not.toContain("OPENCLAW");
   });
 
   it("stays static under CI even on a rich TTY", async () => {
@@ -65,8 +72,19 @@ describe("printClawBanner", () => {
     const { runtime, log } = runtimeStub();
     await printClawBanner(runtime, { columns: 50, isTty: true, rich: true, env: {} });
     const output = String(log.mock.calls[0]?.[0]);
-    expect(output).toContain("OPENCLAW");
+    expect(output).toContain("OPSYS");
+    expect(output).not.toContain("OPENCLAW");
     expect(output).not.toContain("█");
+  });
+
+  it("switches to the plain title one column below the width of the art", async () => {
+    const wide = runtimeStub();
+    await printClawBanner(wide.runtime, { columns: 53, isTty: false, env: {} });
+    expect(String(wide.log.mock.calls[0]?.[0])).toContain("█");
+
+    const narrow = runtimeStub();
+    await printClawBanner(narrow.runtime, { columns: 52, isTty: false, env: {} });
+    expect(String(narrow.log.mock.calls[0]?.[0])).not.toContain("█");
   });
 
   it("animates on a rich TTY and settles on the exact static banner", async () => {

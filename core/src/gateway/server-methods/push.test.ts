@@ -306,6 +306,21 @@ describe("push.test handler", () => {
     expectSuccessfulPushTestResponse(respond);
   });
 
+  it("titles the APNs test push OPSYS unless the caller names one", async () => {
+    vi.mocked(loadApnsRegistration).mockResolvedValue(directRegistration());
+    mockDirectAuth();
+    vi.mocked(normalizeApnsEnvironment).mockReturnValue(null);
+    vi.mocked(sendApnsAlert).mockResolvedValue(apnsResult({}));
+
+    const { invoke } = createInvokeParams({ nodeId: "ios-node-1" });
+    await invoke();
+
+    expect(vi.mocked(sendApnsAlert).mock.calls[0]?.[0]).toMatchObject({
+      title: "OPSYS",
+      body: "Push test for node ios-node-1",
+    });
+  });
+
   it("sends push test through relay registrations", async () => {
     mocks.getRuntimeConfig.mockReturnValue({
       gateway: {
@@ -491,6 +506,20 @@ describe("push.web.test handler", () => {
     expect(call?.[1]).toBeUndefined();
     expect(call?.[2]?.code).toBe(ErrorCodes.UNAVAILABLE);
     expect(call?.[2]?.details).toEqual({ results });
+  });
+
+  it("titles the web push test OPSYS unless the caller names one", async () => {
+    vi.mocked(broadcastWebPush).mockResolvedValue([]);
+
+    const { invoke } = createWebPushTestInvokeParams();
+    await invoke();
+    const { invoke: invokeNamed } = createWebPushTestInvokeParams({ title: "Wake" });
+    await invokeNamed();
+
+    expect(vi.mocked(broadcastWebPush).mock.calls).toEqual([
+      [{ title: "OPSYS", body: "Web push test notification" }],
+      [{ title: "Wake", body: "Web push test notification" }],
+    ]);
   });
 
   it("returns all delivery results when at least one attempt succeeds", async () => {

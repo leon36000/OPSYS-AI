@@ -130,7 +130,7 @@ async function replay(options: ReplayOptions = {}) {
   });
   const spawnSync = vi.fn((binary: string, args: string[], opts: { env: NodeJS.ProcessEnv }) => {
     if (binary === node && args[0] === cli) {
-      return { status: 0, stdout: args[1] === "--version" ? "OpenClaw 2026.8.1" : "" };
+      return { status: 0, stdout: args[1] === "--version" ? "OPSYS 2026.8.1" : "" };
     }
     if (options.desktop && args.includes("-File")) {
       expect(processFixture.env).not.toHaveProperty("CRABBOX_WORKER_BOOTSTRAP_TOKEN");

@@ -11,6 +11,14 @@ describe("renderTelegramMiniAppPage", () => {
     expect(html).not.toContain("const controlUiUrl =");
   });
 
+  it("shows the OPSYS brand in the page title and heading", () => {
+    const html = renderTelegramMiniAppPage({ accountId: "ops", scriptNonce: "nonce" });
+
+    expect(html).toContain("<title>OPSYS</title>");
+    expect(html).toContain("<h1>OPSYS</h1>");
+    expect(html).not.toContain("OpenClaw");
+  });
+
   it("escapes the nonce for its quoted HTML attribute", () => {
     const html = renderTelegramMiniAppPage({ accountId: "ops", scriptNonce: `&<>"'` });
 

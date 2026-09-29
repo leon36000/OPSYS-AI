@@ -1,4 +1,4 @@
-// Shared OpenClaw banner: the dot-matrix lobster mascot beside the OPENCLAW
+// Shared OPSYS banner: the dot-matrix lobster mascot beside the OPSYS
 // wordmark, with a short startup animation on rich interactive terminals.
 // Used by the wizard flows (doctor/onboard/configure) and the foreground
 // gateway run; non-TTY and CI paths always get the plain static banner.
@@ -31,12 +31,14 @@ const MASCOT_WIDTH = 20;
 const WORDMARK_ROW_OFFSET = 3;
 
 const WORDMARK_ART = [
-  "█▀▀▀█ █▀▀▀█ █▀▀▀▀ █▄  █ █▀▀▀▀ █     █▀▀▀█ █   █",
-  "█   █ █▀▀▀▀ █▀▀▀  █ ▀▄█ █     █     █▀▀▀█ █▄▀▄█",
-  "▀▀▀▀▀ ▀     ▀▀▀▀▀ ▀   ▀ ▀▀▀▀▀ ▀▀▀▀▀ ▀   ▀ ▀   ▀",
+  "█▀▀▀█ █▀▀▀█ █▀▀▀▀ █   █ █▀▀▀▀",
+  "█   █ █▀▀▀▀ ▀▀▀▀█  ▀█▀  ▀▀▀▀█",
+  "▀▀▀▀▀ ▀     ▀▀▀▀▀   ▀   ▀▀▀▀▀",
 ] as const;
 const GAP = 3;
-const BANNER_WIDTH = MASCOT_WIDTH + GAP + 48;
+// One spare column after the widest wordmark row, so the wipe animation clears it entirely.
+const WORDMARK_WIDTH = Math.max(...WORDMARK_ART.map((row) => row.length)) + 1;
+const BANNER_WIDTH = MASCOT_WIDTH + GAP + WORDMARK_WIDTH;
 const ROWS = MASCOT_ART.length;
 
 type ClawBannerOptions = {
@@ -94,7 +96,7 @@ function staticBannerLines(): string[] {
 
 function plainTitleLine(): string {
   const icon = decorativeEmoji("🦞");
-  return supportsDecorativeEmoji() && icon ? `${icon} OPENCLAW ${icon}` : "OPENCLAW";
+  return supportsDecorativeEmoji() && icon ? `${icon} OPSYS ${icon}` : "OPSYS";
 }
 
 const defaultSleep = (ms: number) =>
@@ -212,7 +214,7 @@ async function animateBanner(opts: {
 }
 
 /**
- * Prints the OpenClaw banner: animated on rich interactive terminals, static
+ * Prints the OPSYS banner: animated on rich interactive terminals, static
  * otherwise, plain title on terminals too narrow for the art.
  */
 export async function printClawBanner(

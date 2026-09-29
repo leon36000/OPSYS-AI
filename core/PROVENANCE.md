@@ -358,6 +358,46 @@ un marqueur de protocole que le code reconnaît ou que les transcriptions exista
   `extensions/openai`, `ui/src/pages/chat/talk`). Les fixtures qui répètent un texte serveur sans dépendre du code sont
   laissées.
 
+### Commit 3 : bannière, notifications et pages partagées
+
+Ce que l'utilisateur lit sur son terminal, sur son téléphone et dans un lien partagé dit OPSYS. Le nom de la commande
+reste `openclaw` (lot 2) : la bannière ne le contient pas.
+
+- **Bannière et `--version`** : `src/cli/banner.ts`, `claw-banner.ts` (mot-symbole OPSYS, largeurs recalculées),
+  `tagline.ts` (accroche par défaut et les phrases qui nomment la marque), `program/help.ts`, `src/entry.version-fast-path.ts`,
+  `openclaw.mjs` (lanceur), `src/status/status-message.ts` (ligne de version). La sortie de `--version` devient
+  `OPSYS <version> (<commit>)`.
+- **Lecteurs de la bannière** : la ligne de version est analysée par des scripts. Ils acceptent désormais `OpenClaw`
+  (ancienne version encore installée) ET `OPSYS` : le contrôle de version de l'enrôlement d'un nœud
+  (`extensions/crabbox/src/crabbox-worker-node-enrollment.ts`) et les expressions des fumées Parallels
+  (`scripts/e2e/parallels/{filesystem,windows-smoke,smoke-common,powershell}.ts`). Un invité qui n'a pas été reconstruit
+  ne fait donc pas échouer la fumée.
+- **Notifications** : titres et corps des notifications Web Push (`ui/public/sw.js`, `gateway/server-methods/push.ts`,
+  `approval-web-push.ts`, `event-web-push.ts`), du réveil de nœud (`server-methods/nodes.wake.ts`), de l'alerte
+  d'approbation iOS (`infra/push-apns-payloads.ts`) et de la commande `nodes push` (`cli/nodes-cli/register.push.ts`).
+- **Pages partagées** : `gateway/control-ui-share.ts` (titre, description, `og:site_name`, carte d'aperçu),
+  `control-ui-public-session-render.ts` (titre, en-tête, étiquette de l'assistant, `og:site_name`),
+  `portals/portal-http-proxy.ts` (page « portail privé »), `mcp-app-standalone.ts` (titre de la page).
+- **Mini-app Telegram** : description de la commande `/dashboard`, réponse et page de la mini-app
+  (`extensions/telegram/src/miniapp/{command,page}.ts`).
+- **Nom de découverte** : `formatBonjourInstanceName` (`gateway/server-discovery.ts`) annonce « OPSYS » ou
+  « <machine> (OPSYS) » ; un nom qui contient déjà `opsys` ou `openclaw` reste tel quel (nom choisi par l'utilisateur).
+  Le type de service `_openclaw-gw._tcp` est un protocole : il ne change pas.
+- Laissés tels quels :
+  - le texte alternatif « OpenClaw logo and lobster mascot » de la carte d'aperçu : l'image est encore le logo de
+    l'amont (à remplacer avec le lot des icônes, pas dans ce lot) ;
+  - le bouton Slack « Open in OpenClaw » (`extensions/slack/src/progress-blocks.ts`) : il mène à `team.openclaw.ai`, un
+    service de l'amont ; les pages de l'extension navigateur (`extensions/browser/chrome-extension/*.html`,
+    `bridge-server.ts`) : leurs tests tournent dans Chromium, hors de portée ici ; les deux vont à un lot d'extensions ;
+  - les fixtures de tests qui répètent un texte serveur sans dépendre du code (`widearea-dns.test.ts`,
+    `server-discovery-runtime.test.ts`, qui simule `formatBonjourInstanceName`) ;
+  - les noms de variables, de fonctions et de types (`OpenClawConfig`, `runOpenClaw…`), l'API interne.
+- Tests mis à jour ou ajoutés : bannière, accroches, aide, ligne de version, lanceur (`openclaw-launcher-version.e2e`),
+  gabarits Parallels, enrôlement crabbox (nouveau cas : ancienne bannière acceptée), notifications (nouveaux cas dans
+  `push.test.ts` et `service-worker-cache.test.ts`), pages partagées et nom de découverte (nouveaux cas). Les fichiers
+  hors `test:fast` rejoignent `test/opsys-tests-cibles.txt` ; `test/openclaw-launcher.e2e.test.ts` (une expression
+  élargie) suit la voie e2e.
+
 ## Sécurité
 
 Il n'y a plus de mises à jour automatiques. Une veille mensuelle des avis de sécurité d'OpenClaw

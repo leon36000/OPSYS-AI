@@ -780,7 +780,11 @@ if (-not $agentOk) { throw 'openclaw agent finished without OK response' }`,
   }
 
   private async extractLastVersion(phaseName: string): Promise<string> {
-    return await extractLastOpenClawVersion(this.runDir, phaseName, /OpenClaw\s+([0-9][^\s]*)/gi);
+    return await extractLastOpenClawVersion(
+      this.runDir,
+      phaseName,
+      /(?:OpenClaw|OPSYS)\s+([0-9][^\s]*)/gi,
+    );
   }
 
   protected async writeSummary(): Promise<string> {

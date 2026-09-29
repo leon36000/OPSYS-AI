@@ -77,6 +77,7 @@ describe("registerTelegramMiniAppCommand", () => {
     ).resolves.toEqual({ text: "open this in a DM with the bot" });
     expect(resolveTelegramMiniAppUrls).not.toHaveBeenCalled();
     expect(launchTickets.issue).not.toHaveBeenCalled();
+    expect(command.description).toBe("Open the OPSYS dashboard");
   });
 
   it("returns a web app button for owner DM invocations", async () => {
@@ -108,7 +109,7 @@ describe("registerTelegramMiniAppCommand", () => {
       }),
     );
 
-    expect(result.text).toBe("Open OpenClaw dashboard.");
+    expect(result.text).toBe("Open OPSYS dashboard.");
     expect(result.presentation?.blocks).toEqual([
       {
         type: "buttons",

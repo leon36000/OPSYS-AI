@@ -82,7 +82,7 @@ function approvalNotificationCopy(params: {
   const agent = params.agentLabel ? ` for ${params.agentLabel}` : "";
   if (params.terminal) {
     return {
-      title: `${label}OpenClaw approval updated`,
+      title: `${label}OPSYS approval updated`,
       body:
         params.preferences.detailLevel === "private"
           ? "This approval is no longer pending."
@@ -90,11 +90,11 @@ function approvalNotificationCopy(params: {
     };
   }
   return {
-    title: `${label}OpenClaw approval requested`,
+    title: `${label}OPSYS approval requested`,
     body:
       params.preferences.detailLevel === "private"
-        ? "Open OpenClaw to review this request."
-        : `Open OpenClaw to review an approval${agent}.`,
+        ? "Open OPSYS to review this request."
+        : `Open OPSYS to review an approval${agent}.`,
   };
 }
 

@@ -216,6 +216,9 @@ describe("public session document", () => {
     );
     expect(html).toContain('http-equiv="refresh" content="15"');
     expect(html).toContain('property="og:title" content="A shared conversation"');
+    expect(html).toContain('property="og:site_name" content="OPSYS"');
+    expect(html).toContain("<title>A shared conversation · OPSYS</title>");
+    expect(html).not.toContain("OpenClaw");
     expect(html).toContain('aria-label="Conversation"');
     expect(html).toContain('name="referrer" content="no-referrer"');
   });

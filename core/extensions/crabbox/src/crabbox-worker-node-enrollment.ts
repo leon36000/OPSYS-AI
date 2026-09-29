@@ -148,8 +148,9 @@ setPhase("preparation");
     if (manifest.name !== "openclaw" || manifest.version !== bootstrap.openclawVersion) throw new Error("Cloud worker bootstrap package identity does not match the Gateway");
     const probe = spawnSync(process.execPath, [path.join(packageRoot, "openclaw.mjs"), "--version"], { env: nodeEnv, encoding: "utf8", timeout: 60000 });
     const version = probe.stdout?.trim();
-    const expected = "OpenClaw " + bootstrap.openclawVersion;
-    if (probe.status !== 0 || (version !== expected && !version?.startsWith(expected + " "))) throw new Error("Cloud worker bootstrap CLI could not verify its Gateway version");
+    // The banner says OPSYS since T0.7; an older package still prints OpenClaw.
+    const banners = ["OPSYS ", "OpenClaw "].map((brand) => brand + bootstrap.openclawVersion);
+    if (probe.status !== 0 || !banners.some((expected) => version === expected || version?.startsWith(expected + " "))) throw new Error("Cloud worker bootstrap CLI could not verify its Gateway version");
   };
   const verifyArchive = async (source, artifact, output) => {
     const hash = crypto.createHash("sha256");

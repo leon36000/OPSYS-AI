@@ -155,3 +155,33 @@ ui/src/pages/chat/talk/consult.test.ts
 ui/src/pages/chat/talk/gateway-relay.test.ts
 ui/src/pages/chat/talk/google-live-control.test.ts
 ui/src/pages/chat/talk/webrtc.test.ts
+
+# T0.7 lot 1, bannière, notifications et pages partagées : la marque visible devient OPSYS. `src/cli`, `src/infra`,
+# `src/gateway`, `extensions`, `test` et `ui` ne sont pas dans `test:fast` ; `src/status` et `src/entry.*` peuvent être
+# rangés dans les voies « unit-fast » (contenu du test) : on les liste pour être sûr qu'ils tournent quelque part.
+# `test/openclaw-launcher.e2e.test.ts` (processus longs, contrôle du runtime Node) reste hors liste : il suit la voie e2e.
+src/cli/banner.test.ts
+src/cli/claw-banner.test.ts
+src/cli/tagline.test.ts
+src/cli/program/help.test.ts
+src/entry.version-fast-path.test.ts
+src/status/status-message.test.ts
+src/infra/openclaw-cli-shim.test.ts
+src/infra/push-apns.test.ts
+src/gateway/approval-web-push.test.ts
+src/gateway/event-web-push.test.ts
+src/gateway/server-methods/push.test.ts
+src/gateway/control-ui-share.http.test.ts
+src/gateway/control-ui-public-session.http.test.ts
+src/gateway/control-ui-public-session-render.test.ts
+src/gateway/server.plugin-http-auth.test.ts
+src/gateway/server-discovery.test.ts
+extensions/crabbox/src/crabbox-worker-node-enrollment.test.ts
+extensions/crabbox/src/crabbox-worker-node-enrollment-replay.test.ts
+extensions/crabbox/src/crabbox-worker-node-enrollment-windows.test.ts
+test/scripts/parallels-runtime-setup.test.ts
+test/scripts/parallels-smoke-model.test.ts
+test/openclaw-launcher-version.e2e.test.ts
+ui/src/app/service-worker-cache.test.ts
+extensions/telegram/src/miniapp/command.test.ts
+extensions/telegram/src/miniapp/page.test.ts

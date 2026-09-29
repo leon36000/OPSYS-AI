@@ -437,7 +437,7 @@ export async function installSmokeRuntimeCompanions(input: {
   }
   const version = input
     .readCli(["--version"])
-    .match(/^OpenClaw\s+(\d{4}\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?)(?:\s|$)/mu)?.[1];
+    .match(/^(?:OpenClaw|OPSYS)\s+(\d{4}\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?)(?:\s|$)/mu)?.[1];
   if (!version) {
     throw new Error("could not resolve installed OpenClaw version for runtime companions");
   }

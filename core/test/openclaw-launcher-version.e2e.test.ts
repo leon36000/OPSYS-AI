@@ -146,7 +146,7 @@ describe("openclaw launcher version provenance", () => {
       const result = runLauncherVersion(fixtureRoot);
 
       expect(result.status).toBe(0);
-      expect(result.stdout).toBe(`OpenClaw ${packageVersion} (${buildCommit.slice(0, 7)})\n`);
+      expect(result.stdout).toBe(`OPSYS ${packageVersion} (${buildCommit.slice(0, 7)})\n`);
       expect(result.stderr).toBe("");
     },
   );
@@ -159,7 +159,7 @@ describe("openclaw launcher version provenance", () => {
       const result = runLauncherVersion(fixtureRoot);
 
       expect(result.status).toBe(0);
-      expect(result.stdout).toBe(`OpenClaw ${packageVersion} (${checkoutCommit.slice(0, 7)})\n`);
+      expect(result.stdout).toBe(`OPSYS ${packageVersion} (${checkoutCommit.slice(0, 7)})\n`);
       expect(result.stderr).toBe("");
     },
   );
@@ -175,7 +175,7 @@ describe("openclaw launcher version provenance", () => {
     const result = runLauncherVersion(fixtureRoot);
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toBe(`OpenClaw 2026.8.1 (${buildCommit.slice(0, 7)})\n`);
+    expect(result.stdout).toBe(`OPSYS 2026.8.1 (${buildCommit.slice(0, 7)})\n`);
     expect(result.stderr).toBe("");
   });
 
@@ -187,7 +187,7 @@ describe("openclaw launcher version provenance", () => {
       const result = runLauncherVersion(fixtureRoot, { flag });
 
       expect(result.status).toBe(0);
-      expect(result.stdout).toBe(`OpenClaw ${packageVersion} (${buildCommit.slice(0, 7)})\n`);
+      expect(result.stdout).toBe(`OPSYS ${packageVersion} (${buildCommit.slice(0, 7)})\n`);
       expect(result.stderr).toBe("");
     },
   );
@@ -201,7 +201,7 @@ describe("openclaw launcher version provenance", () => {
     const result = runLauncherVersion(fixtureRoot);
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toBe(`OpenClaw ${packageVersion} (${buildCommit.slice(0, 7)})\n`);
+    expect(result.stdout).toBe(`OPSYS ${packageVersion} (${buildCommit.slice(0, 7)})\n`);
     await expect(
       fs.access(path.join(fixtureRoot, ".openclaw-lifecycle-pending")),
     ).rejects.toHaveProperty("code", "ENOENT");
@@ -252,7 +252,7 @@ describe("openclaw launcher version provenance", () => {
     const result = runLauncherVersion(fixtureRoot, { env });
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toBe(`OpenClaw ${packageVersion} (${expected})\n`);
+    expect(result.stdout).toBe(`OPSYS ${packageVersion} (${expected})\n`);
     expect(result.stderr).toBe("");
   });
 
@@ -264,7 +264,7 @@ describe("openclaw launcher version provenance", () => {
     const result = runLauncherVersion(fixtureRoot);
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toBe(`OpenClaw ${packageVersion} (${checkoutCommit.slice(0, 7)})\n`);
+    expect(result.stdout).toBe(`OPSYS ${packageVersion} (${checkoutCommit.slice(0, 7)})\n`);
     expect(result.stderr).toBe("");
   });
 

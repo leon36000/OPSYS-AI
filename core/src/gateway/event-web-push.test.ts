@@ -404,7 +404,7 @@ describe("event Web Push classification", () => {
         await vi.waitFor(() => expect(preparedWebPushSendMock).toHaveBeenCalledOnce());
         expect(preparedWebPushSendMock).toHaveBeenCalledWith(
           expect.objectContaining({
-            payload: expect.objectContaining({ title: "OpenClaw scheduled task failed" }),
+            payload: expect.objectContaining({ title: "OPSYS scheduled task failed" }),
           }),
         );
       } else {
@@ -683,7 +683,7 @@ describe("event Web Push classification", () => {
         expect(preparedWebPushSendMock).toHaveBeenCalledWith(
           expect.objectContaining({
             payload: {
-              title: "OpenClaw mention",
+              title: "OPSYS mention",
               body:
                 detailLevel === "private"
                   ? "Someone mentioned you in a conversation."
