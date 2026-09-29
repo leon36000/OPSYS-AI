@@ -20,6 +20,14 @@ par un modèle, provenance sur chaque fait ; consolidation nocturne idempotente 
 fait durable citant ses sources ; audit « non-oubli » (`audit.py`, `m10_auditer_non_oubli`) qui
 vérifie l'intégrité des deux chaînes et la trace de chaque fait attendu (WCT, variance).
 
+PLAN T3.3-suite ajoute le dépôt POSTFLIGHT (`faits_candidats.py`, `m10_deposer_faits_candidats`) : après
+un tour d'agent, le core transmet ce que les OUTILS ont fait (outil, résultat ok ou refus, code), jamais
+ce que le modèle a écrit. Chaque fait devient un maillon `fait_candidat` du registre Affaires, en statut
+`candidat` : idempotent par clé de dépôt, lot refusé en entier au premier élément invalide. Ce n'est
+pas une vérité : il n'entre ni dans le paquet de contexte ni dans la consolidation nocturne (phase
+ultérieure). Tâche interne automatique (T1, N2), fermée aux appareils. La lecture du PREFLIGHT est
+`m10_paquet_contexte_affaire` (T0), appelée par le moteur de contexte du core (`core/src/context-engine/`).
+
 - `department.yaml` — manifeste (`m10_memoire.outils`, aucune dépendance — M10 est la fondation
   mémoire que M9 consomme).
 - `SOUL.md` — identité de l'agent.
@@ -27,9 +35,9 @@ vérifie l'intégrité des deux chaînes et la trace de chaque fait attendu (WCT
 - `src/m10_memoire/outils.py` — outils composés : `m10_journaliser_decision` (validation →
   écriture Affaires → référence), `m10_contexte_preflight` (PREFLIGHT, trace le refus sans
   jamais interrompre l'appelant), `m10_paquet_contexte_affaire`, `m10_consolider_affaire`,
-  `m10_auditer_non_oubli` (PLAN T3.3), + outils unitaires (WCT, révision, statuts, vérification
+  `m10_auditer_non_oubli` (PLAN T3.3), `m10_deposer_faits_candidats` (PLAN T3.3-suite), + outils unitaires (WCT, révision, statuts, vérification
   de référence). Seul ce module touche `opsys` (stockage, bus) : `classification.py`,
-  `variance.py`, `consolidation.py`, `paquets.py` et `audit.py` restent purs (DA-M10-08).
+  `variance.py`, `consolidation.py`, `paquets.py`, `faits_candidats.py` et `audit.py` restent purs (DA-M10-08).
 - Correctifs de fiabilité (TDD, tests dans `tests/`) :
   - `revision.py` — l'arbitrage d'une révision qui n'a jamais été signalée était accepté ;
     refusé nommément désormais (`REJ-REVISION-SIGNALEMENT-INTROUVABLE`).

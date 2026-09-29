@@ -16,6 +16,7 @@ from m10_memoire.outils import (
     auditer_non_oubli,
     consolider_affaire,
     contexte_preflight,
+    deposer_faits_candidats,
     journaliser_decision,
     memoriser_wct,
     outils,
@@ -27,7 +28,8 @@ from m10_memoire.outils import (
 
 from opsys import stockage
 from opsys.departements import lire_manifeste
-from opsys.outils import executer
+from opsys.outils import Autonomie, Niveau, executer
+from opsys.politiques import approbation_requise_niveau
 
 HORODATAGE = "2026-08-04T12:00:00+00:00"
 
@@ -90,6 +92,7 @@ def test_manifeste_et_outils_coherents():
     assert noms[1] == "m10_contexte_preflight"
     assert all(nom.startswith("m10_") for nom in noms)
     assert {"m10_paquet_contexte_affaire", "m10_consolider_affaire", "m10_auditer_non_oubli"} <= set(noms)
+    assert "m10_deposer_faits_candidats" in noms
 
 
 def test_journaliser_decision_valide_ecrit_et_retourne_une_reference_verifiable():
@@ -266,3 +269,78 @@ def test_auditer_non_oubli_via_executer_un_element_sans_identifiant_devient_un_o
     reponse = executer(outil, {"identifiants_attendus": [{"type_evenement": "m4.travaux_termines"}]})
     assert reponse["ok"] is True
     assert reponse["resultat"]["nb_oublis"] == 1
+
+
+def _fait_candidat(cle="tc-0001", outil="m3_estimer_projet", resultat="ok", code=None):
+    return {"cle": cle, "outil": outil, "resultat": resultat, "code": code}
+
+
+def test_deposer_faits_candidats_ecrit_au_registre_durable_puis_rejoue_sans_doublon():
+    faits = [_fait_candidat("tc-0001"), _fait_candidat("tc-0002", resultat="refus", code="refus_metier")]
+
+    premier = deposer_faits_candidats("LEAD-001", "m03-estimation", faits, HORODATAGE)
+    second = deposer_faits_candidats("LEAD-001", "m03-estimation", faits, "2026-08-04T12:05:00+00:00")
+
+    assert premier["accepte"] is True
+    assert premier["resultat"]["ecrits"] == 2
+    assert second["accepte"] is True
+    assert second["resultat"]["ecrits"] == 0
+    assert second["resultat"]["deja_deposes"] == 2
+    rapport = auditer_non_oubli([])
+    assert rapport["chaine_affaires_intacte"] is True
+
+
+def test_deposer_faits_candidats_refuse_un_lot_invalide_par_un_verdict_nomme():
+    reponse = deposer_faits_candidats("LEAD-001", "m03-estimation", [_fait_candidat(resultat="peut-etre")], HORODATAGE)
+
+    assert reponse == {"accepte": False, "verdict": "REJ-CANDIDAT-FAIT-INVALIDE"}
+
+
+def test_un_fait_candidat_n_apparait_pas_dans_le_paquet_de_contexte():
+    deposer_faits_candidats("LEAD-001", "m03-estimation", [_fait_candidat()], HORODATAGE)
+
+    paquet = paquet_contexte_affaire("LEAD-001", HORODATAGE)
+
+    assert all(couche["vide"] is True for couche in paquet["couches"])
+
+
+def test_deposer_faits_candidats_via_executer_ecrit_et_refuse_les_arguments_mal_formes():
+    outil = next(o for o in outils() if o.nom == "m10_deposer_faits_candidats")
+
+    reponse = executer(
+        outil,
+        {
+            "affaire_id": "LEAD-EXEC",
+            "departement": "m03-estimation",
+            "faits": [_fait_candidat("tc-exec-1")],
+            "horodatage": HORODATAGE,
+        },
+    )
+    mal_forme = executer(
+        outil,
+        {"affaire_id": "LEAD-EXEC", "departement": "m03-estimation", "faits": "tc-exec-1", "horodatage": HORODATAGE},
+    )
+
+    assert reponse["ok"] is True
+    assert reponse["resultat"]["accepte"] is True
+    assert reponse["resultat"]["resultat"]["ecrits"] == 1
+    assert mal_forme["erreur"] == "arguments_invalides"
+
+
+def test_le_depot_est_une_tache_interne_automatique_hors_de_portee_des_appareils():
+    """T1 (écriture interne) mais N2 : appelé par le core à chaque tour, jamais par un humain. En N3 le
+    mode `ombre` de M10 mettrait chaque tour d'agent en attente d'approbation. Aucun rôle d'appareil."""
+    outil = next(o for o in outils() if o.nom == "m10_deposer_faits_candidats")
+
+    assert outil.autonomie is Autonomie.T1
+    assert outil.niveau_effectif is Niveau.N2
+    assert approbation_requise_niveau(outil.niveau_effectif, "ombre") is False
+    assert outil.roles_appareil == frozenset()
+    assert outil.frontiere_humaine is False
+
+
+def test_la_lecture_du_paquet_par_affaire_est_une_lecture_t0():
+    lecture = next(o for o in outils() if o.nom == "m10_paquet_contexte_affaire")
+
+    assert lecture.autonomie is Autonomie.T0
+    assert lecture.niveau_effectif is Niveau.N0

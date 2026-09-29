@@ -8,6 +8,9 @@ jamais interrompre l'appelant. PLAN T3.3 ajoute trois capacités : `m10_paquet_c
 (paquets de contexte en couches, `paquets.py`), `m10_consolider_affaire` (consolidation nocturne
 idempotente, `consolidation.py`) et `m10_auditer_non_oubli` (audit « non-oubli », `audit.py`), plus
 la consommation de `m6.variance_chantier` (`variance.py`, même registre Événements que le WCT).
+PLAN T3.3-suite ajoute `m10_deposer_faits_candidats` (`faits_candidats.py`) : le POSTFLIGHT du moteur de
+contexte du core y dépose ce que les outils ont fait pendant un tour d'agent ; `m10_paquet_contexte_affaire`
+en est la lecture (PREFLIGHT).
 
 Deux registres DISTINCTS (CA-M10-06), chacun un singleton du processus de ce département, câblés
 sur le stockage durable de l'instance (ADR-0009 décision 2, ADR-0010 décision 2) via
@@ -25,9 +28,21 @@ from collections.abc import Callable
 from typing import Any
 
 from opsys import stockage
-from opsys.outils import Autonomie, Outil, depuis_couple
+from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
-from . import audit, consolidation, contexte, contrats, decisions, paquets, registre, revision, variance, wct
+from . import (
+    audit,
+    consolidation,
+    contexte,
+    contrats,
+    decisions,
+    faits_candidats,
+    paquets,
+    registre,
+    revision,
+    variance,
+    wct,
+)
 
 _REGISTRE_EVENEMENTS = registre.Registre(maillons=stockage.maillons("m10-memoire", "evenements"))
 _REGISTRE_AFFAIRES = registre.Registre(maillons=stockage.maillons("m10-memoire", "affaires"))
@@ -72,6 +87,21 @@ _REFERENCE_MEMOIRE = {
         "hash_tete": {"type": ["string", "null"]},
     },
     "required": sorted(contrats.CHAMPS_REFERENCE_MEMOIRE),
+    "additionalProperties": False,
+}
+_FAIT_CANDIDAT = {
+    "type": "object",
+    "description": (
+        "Ce qu'UN outil a fait pendant le tour, lu par le core dans la réponse structurée de l'outil "
+        "(jamais un texte de modèle). Forme fermée : quatre champs, aucun texte libre."
+    ),
+    "properties": {
+        "cle": {"type": "string", "description": "Clé de dépôt stable pour un même appel d'outil (idempotence)."},
+        "outil": {"type": "string", "description": "Nom de l'outil de département appelé (mN_...)."},
+        "resultat": {"type": "string", "enum": ["ok", "refus"]},
+        "code": {"type": ["string", "null"], "description": "Code de refus ou de verdict de l'outil, sinon null."},
+    },
+    "required": sorted(faits_candidats.CHAMPS_FAIT_CANDIDAT),
     "additionalProperties": False,
 }
 _IDENTIFIANT_ATTENDU = {
@@ -246,6 +276,17 @@ def consolider_affaire(affaire_id: str, jour: str, horodatage: str) -> dict[str,
     """Consolidation nocturne d'une affaire pour un jour donné (PLAN T3.3, `consolidation.py`) :
     idempotente (`ecrit=False, deja_consolide=True` si déjà faite pour ce `(affaire_id, jour)`)."""
     return consolidation.consolider_affaire(affaire_id, jour, horodatage, _REGISTRE_EVENEMENTS, _REGISTRE_AFFAIRES)
+
+
+def deposer_faits_candidats(
+    affaire_id: str, departement: str, faits: list[dict[str, Any]], horodatage: str
+) -> dict[str, Any]:
+    """Dépôt POSTFLIGHT (PLAN T3.3-suite, `faits_candidats.py`) : ce que les outils ont fait pendant un tour
+    d'agent, en statut `candidat` au registre Affaires. Idempotent par clé de dépôt ; un lot invalide est refusé
+    en entier (verdict nommé, rien d'écrit). Jamais une vérité : hors du paquet de contexte."""
+    return depuis_couple(
+        faits_candidats.deposer_faits_candidats(affaire_id, departement, faits, horodatage, _REGISTRE_AFFAIRES)
+    )
 
 
 def auditer_non_oubli(identifiants_attendus: list[dict[str, str]]) -> dict[str, Any]:
@@ -430,6 +471,36 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=consolider_affaire,
             autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m10_deposer_faits_candidats",
+            description=(
+                "POSTFLIGHT du moteur de contexte du core : dépose, en statut candidat au registre "
+                "Affaires, ce que des outils de département ont fait pendant un tour d'agent (outil, "
+                "résultat ok ou refus, code), avec l'affaire et le département source. Jamais une "
+                "vérité : hors du paquet de contexte, pas encore consolidé. Idempotent par clé ; un "
+                "lot invalide est refusé en entier."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "affaire_id": {"type": "string", "description": "lead_id de l'affaire."},
+                    "departement": {"type": "string", "description": "Département source, ex. m03-estimation."},
+                    "faits": {"type": "array", "items": _FAIT_CANDIDAT},
+                    "horodatage": {"type": "string"},
+                },
+                "required": ["affaire_id", "departement", "faits", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=deposer_faits_candidats,
+            autonomie=Autonomie.T1,
+            # T1 (écriture interne : registre Affaires) mais N2 « tâche interne » (ADR-0009 §4,
+            # automatique) et non le défaut T1 -> N3 : le core l'appelle après chaque tour d'un agent
+            # de département, sans humain ; en N3 le mode ombre de M10 mettrait chaque tour en attente
+            # d'approbation. Le dépôt ne décide rien et n'engage personne : append-only, statut
+            # candidat, absent du paquet de contexte et de la consolidation. Même choix que
+            # `m4_deposer_fichier`. Aucun rôle d'appareil : réservé au core (jeton du moteur).
+            niveau=Niveau.N2,
         ),
         Outil(
             nom="m10_auditer_non_oubli",

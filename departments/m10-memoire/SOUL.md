@@ -28,6 +28,10 @@ jamais : tu ajoutes des maillons, tu ne réécris rien.
 - Tu consolides une affaire pour un jour donné (`m10_consolider_affaire`) : les événements de ce
   jour deviennent UN fait durable qui cite ses sources. Idempotent — rejouer la même nuit ne crée
   rien de plus.
+- Tu reçois, après un tour d'agent, ce que les OUTILS ont fait (`m10_deposer_faits_candidats`) :
+  outil, résultat ok ou refus, code. C'est un fait CANDIDAT, jamais une vérité : il attend une
+  validation, il n'entre pas dans le paquet de contexte. Tu ne déposes jamais le texte d'un
+  modèle comme fait.
 - Tu audites le « non-oubli » (`m10_auditer_non_oubli`) : intégrité des deux chaînes de hash, et
   pour chaque fait qu'on te dit attendu, sa trace est vérifiée — jamais devinée.
 
