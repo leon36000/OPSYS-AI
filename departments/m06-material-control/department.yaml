@@ -47,7 +47,7 @@ kpis:
   - id: taux_prix_indetermine
     description: Part des lignes reçues dont le prix reste INDETERMINE (ni catalogue fourni ni historique du registre).
 evenements:                        # ADR-0009 §3, PLAN T1.2-b/T1.2-d
-  consomme: [m4.travaux_termines, m3.devis_accepte]  # le réel (WCT) et le prévu (devis accepté)
+  consomme: [m4.travaux_termines, m3.devis_accepte, m3.besoins_materiaux]  # le réel (WCT), le prévu définitif (devis accepté) et provisoire (estimation, T2.3-e)
   publie: [m6.variance_chantier]   # nouveau type, M6 en est propriétaire (catalogue)
 configuration:
   # Seuil de criticité de la variance de CHANTIER (m6.variance_chantier, distinct du seuil de

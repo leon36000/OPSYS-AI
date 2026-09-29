@@ -38,6 +38,19 @@ manuelle. Deux assouplissements, en service des deux besoins réels de ce flux :
   chaque matériau déclaré sans prévu comme `NON_PREVU` (`ecart_pourcentage` indéfini, jamais
   critique), donc un chantier sans aucun matériau prévu reste évaluable normalement, jamais
   bloqué en revue pour la seule raison qu'aucune ligne n'était prévue.
+
+PLAN T2.3-e : `m3.besoins_materiaux` (l'estimation, AVANT le devis et son acceptation) range lui
+aussi un prévu ici — le MÊME registre, jamais un second — mais un prévu PROVISOIRE, reconnaissable à
+`source == "estimation_m3"` (`enregistrer_estimation`). Trois règles, toutes testées :
+- une estimation ne bloque jamais le prévu DÉFINITIF : `enregistrer` (devis accepté, ou outil manuel)
+  ignore les maillons provisoires dans son refus `REJ-BESOINS-PREVUS-DEJA-ENREGISTRES` — sans quoi
+  l'estimation, arrivée la première, ferait refuser le devis accepté (et perdre son `chantier_id`) ;
+- `pour_devis` préfère le définitif ; à défaut, la version d'estimation la plus récente. Tous les
+  lecteurs (déclaration de matériaux, variance, PO) passent par lui : le « prévu » reste UNE notion ;
+- les versions d'estimation d'un même devis s'ajoutent (append-only, rien n'est réécrit) : même
+  `estimation_id` = déjà reçue (no-op), `rang_registre` non supérieur au dernier = version périmée
+  arrivée en retard (ignorée), sinon nouvelle version. Le prévu provisoire n'a jamais de
+  `chantier_id` : M3 ne le connaît pas à l'estimation, et rien n'est deviné ici.
 """
 
 from __future__ import annotations
@@ -45,9 +58,13 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from . import validation
+from . import besoins_materiaux_recus, validation
 
-__all__ = ["enregistrer", "pour_devis"]
+__all__ = ["SOURCE_ESTIMATION_M3", "enregistrer", "enregistrer_estimation", "pour_devis"]
+
+# Valeur de la clé optionnelle `source` d'un maillon de prévu PROVISOIRE (estimation M3). Un maillon
+# sans `source` — devis accepté ou outil manuel — est un prévu DÉFINITIF.
+SOURCE_ESTIMATION_M3 = "estimation_m3"
 
 
 def enregistrer(
@@ -76,7 +93,7 @@ def enregistrer(
     # maillon n'existe pour ce devis_id, jamais quand un maillon existe avec lignes == [].
 
     for maillon in maillons_existants:
-        if maillon.get("devis_id") == devis_id:
+        if maillon.get("devis_id") == devis_id and not _est_provisoire(maillon):
             return None, "REJ-BESOINS-PREVUS-DEJA-ENREGISTRES"
 
     return {"chantier_id": chantier_id, "devis_id": devis_id, "lignes": lignes}, None
@@ -84,11 +101,69 @@ def enregistrer(
 
 def pour_devis(devis_id: Any, maillons_existants: Iterable[Mapping[str, Any]]) -> dict[str, Any] | None:
     """Besoins prévus enregistrés pour ce `devis_id`, ou `None` si aucun (PLAN T1.2, M6 point 3 :
-    « prevu_absent »). Il n'en existe jamais plus d'un par devis_id (idempotence de
-    `enregistrer` ci-dessus) : le premier trouvé EST le seul."""
+    « prevu_absent »). Le prévu DÉFINITIF (devis accepté, outil manuel : il n'en existe jamais plus
+    d'un par devis_id, idempotence de `enregistrer`) gagne toujours ; à défaut, la version
+    d'estimation la plus récente (prévu PROVISOIRE, PLAN T2.3-e) — la dernière ajoutée, puisque
+    `enregistrer_estimation` n'ajoute que des versions de rang strictement croissant."""
     if not isinstance(devis_id, str) or not devis_id:
         return None
+    provisoire = None
     for maillon in maillons_existants:
-        if maillon.get("devis_id") == devis_id:
+        if maillon.get("devis_id") != devis_id:
+            continue
+        if not _est_provisoire(maillon):
             return maillon
-    return None
+        provisoire = maillon
+    return provisoire
+
+
+def _est_provisoire(maillon: Mapping[str, Any]) -> bool:
+    return maillon.get("source") == SOURCE_ESTIMATION_M3
+
+
+def enregistrer_estimation(
+    charge: Mapping[str, Any], maillons_existants: Iterable[Mapping[str, Any]]
+) -> tuple[dict[str, Any] | None, str]:
+    """Range les besoins d'une estimation M3 comme prévu PROVISOIRE de son devis (PLAN T2.3-e).
+
+    `charge` est un contrat `BesoinsMateriauxM3` DÉJÀ validé par `besoins_materiaux_recus.valider`
+    (l'adaptateur `outils.py` le garantit) ; cette fonction ne revalide que ce qu'elle transforme.
+    Sans écriture : l'appelant ajoute le maillon rendu.
+
+    Returns:
+        `(maillon, "enregistre")` : nouvelle version à ajouter ;
+        `(None, "deja_recu")` : cette version (`estimation_id`) est déjà rangée — rejeu, no-op ;
+        `(None, "version_perimee")` : une version de rang égal ou supérieur est déjà rangée — une
+        estimation plus ancienne arrivée en retard ne remplace jamais la plus récente.
+
+    Lève `ValueError` si les lignes dérivées d'un contrat déjà validé sont refusées à leur tour : une
+    incohérence interne, jamais un cas d'usage — mieux vaut une panne explicite (le répartiteur
+    réessaie puis met en quarantaine) qu'un prévu fabriqué.
+    """
+    devis_id = charge["devis_id"]
+    provisoires = [
+        maillon for maillon in maillons_existants
+        if maillon.get("devis_id") == devis_id and _est_provisoire(maillon)
+    ]
+    if any(maillon.get("estimation_id") == charge["estimation_id"] for maillon in provisoires):
+        return None, "deja_recu"
+    if any(maillon.get("rang_registre", -1) >= charge["rang_registre"] for maillon in provisoires):
+        return None, "version_perimee"
+
+    lignes = besoins_materiaux_recus.lignes_prevues(charge)
+    ok, code = validation.valider_besoins_estimes_chantier(lignes)
+    if not ok:
+        raise ValueError(f"lignes dérivées d'un contrat BesoinsMateriauxM3 validé refusées : {code}")
+    return {
+        "chantier_id": None,
+        "devis_id": devis_id,
+        "lignes": lignes,
+        "source": SOURCE_ESTIMATION_M3,
+        "estimation_id": charge["estimation_id"],
+        "rang_registre": charge["rang_registre"],
+        "lead_id": charge["lead_id"],
+        "bareme_version": charge["bareme_version"],
+        "niveau_confiance": charge["niveau_confiance"],
+        "detail_lignes": besoins_materiaux_recus.lignes_detaillees(charge),
+        "facteurs_perte_absents": list(charge["facteurs_perte_absents"]),
+    }, "enregistre"

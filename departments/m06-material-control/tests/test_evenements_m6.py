@@ -138,7 +138,7 @@ def _declarer_materiaux(m6, wct_id, intervention_id, chantier_id, quantite, mate
 
 # -- déclaration du module ---------------------------------------------------------------------
 def test_declaration_module_consommateurs():
-    assert set(consommateurs()) == {"m4.travaux_termines", "m3.devis_accepte"}
+    assert set(consommateurs()) == {"m4.travaux_termines", "m3.devis_accepte", "m3.besoins_materiaux"}
 
 
 # -- seuil de configuration (fail-closed, PLAN point 3) ------------------------------------------

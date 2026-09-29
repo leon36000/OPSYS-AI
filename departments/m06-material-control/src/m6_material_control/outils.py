@@ -39,6 +39,11 @@ par `_recevoir_travaux_termines` (consommateur de `m4.travaux_termines`) ET par
 écriture comble après coup ce qui manquait à un WCT déjà reçu (`wct_recus.py`) — le flux réel
 (R12 §4/§9.7) livre presque toujours la déclaration, et parfois le prévu M3 (T1.2-d), APRÈS la
 complétion, jamais avant.
+
+PLAN T2.3-e : `_recevoir_besoins_materiaux` consomme `m3.besoins_materiaux` (les besoins d'une ESTIMATION,
+avant le devis) et les range comme prévu PROVISOIRE dans le registre `besoins_prevus` existant, après
+une validation propre à M6 (`besoins_materiaux_recus.py`). Un contrat invalide lève : réessais puis
+quarantaine. Recevoir n'est jamais acheter — aucun PO, aucune réservation, aucun mouvement de stock.
 """
 
 from __future__ import annotations
@@ -54,6 +59,7 @@ from opsys.outils import Autonomie, Outil
 
 from . import (
     acces,
+    besoins_materiaux_recus,
     besoins_prevus,
     bons_commande,
     digest,
@@ -1434,8 +1440,60 @@ def _recevoir_devis_accepte(charge: dict[str, Any]) -> dict[str, Any]:
     return enregistrer_besoins_prevus(charge["chantier_id"], charge["devis_id"], lignes)
 
 
+def _recevoir_besoins_materiaux(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consomme `m3.besoins_materiaux` (PLAN T2.3-e) : les besoins d'une ESTIMATION, avant le devis.
+
+    Validation du récepteur, indépendante de celle de M3 (`besoins_materiaux_recus.valider`, en plus
+    du schéma du catalogue) : un contrat invalide LÈVE `ValueError` — le répartiteur réessaie puis le
+    met en QUARANTAINE, visible d'un humain (`opsys evenements etat`), sans qu'aucune écriture n'ait
+    eu lieu. Un rejet retourné comme résultat serait « traité » : la faute passerait pour un succès.
+
+    Un contrat valide est rangé dans le registre des besoins prévus EXISTANT (`besoins_prevus.py`,
+    source `estimation_m3` : prévu provisoire du devis, jamais un second registre) — celui que
+    `m6_declarer_materiaux_utilises` et l'évaluation de variance lisent déjà, et que le prévu définitif
+    du devis accepté (`_recevoir_devis_accepte`) remplace sans jamais être refusé par lui. Idempotent
+    par (`devis_id`, `estimation_id`) ; une version d'estimation périmée arrivée en retard est
+    ignorée (`besoins_prevus.enregistrer_estimation`).
+
+    Ne crée JAMAIS de bon de commande, ne réserve rien, ne touche à aucun stock : recevoir un besoin
+    n'est pas acheter. Un PO reste un brouillon calculé à la demande (`m6_creer_po_brouillon`), soumis à
+    approbation (T2.5) — et il exige un `chantier_id`, que le prévu provisoire n'a pas.
+
+    Dans la transaction du répartiteur seulement : le registre durable fait autorité (comme
+    `_recevoir_travaux_termines`), jamais l'historique en mémoire d'un appel direct — une écriture
+    perdue en silence serait pire qu'une panne."""
+    ok, code = besoins_materiaux_recus.valider(charge)
+    if not ok:
+        raise ValueError(f"m3.besoins_materiaux refusé ({code}) : contrat invalide, aucune écriture")
+    maillons = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_BESOINS_PREVUS)
+    maillon, statut = besoins_prevus.enregistrer_estimation(charge, maillons)
+    resultat: dict[str, Any] = {
+        "traite": True,
+        "statut": statut,
+        "devis_id": charge["devis_id"],
+        "estimation_id": charge["estimation_id"],
+    }
+    if maillon is None:
+        return resultat
+    maillons.append(maillon)
+    courant = besoins_prevus.pour_devis(charge["devis_id"], maillons)
+    definitif_existe = courant is not None and courant.get("estimation_id") != charge["estimation_id"]
+    resultat["lignes_enregistrees"] = len(maillon["lignes"])
+    resultat["lignes_sans_sku"] = [
+        ligne["materiau"] for ligne in maillon["detail_lignes"] if "sku" not in ligne
+    ]
+    resultat["facteurs_perte_absents"] = list(maillon["facteurs_perte_absents"])
+    resultat["prevu_definitif_existant"] = definitif_existe
+    if not definitif_existe:
+        # Cette version EST maintenant le prévu du devis : si son WCT est déjà reçu, il se
+        # réévalue — même règle que pour un prévu manuel ou un devis accepté tardif (T1.2-d).
+        _reevaluer_si_wct_connu_par_devis_id(charge["devis_id"])
+    return resultat
+
+
 def consommateurs() -> dict[str, Callable[[dict], dict]]:
     return {
         "m4.travaux_termines": _recevoir_travaux_termines,
         "m3.devis_accepte": _recevoir_devis_accepte,
+        "m3.besoins_materiaux": _recevoir_besoins_materiaux,
     }
