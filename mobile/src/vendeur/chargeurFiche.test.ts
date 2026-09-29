@@ -191,6 +191,8 @@ describe("chargerFiche — hors ligne et pannes", () => {
       ecrire: async () => {
         throw new Error("disque plein");
       },
+      supprimer: async () => undefined,
+      supprimerParPrefixe: async () => undefined,
     };
     const resultat = await creerChargeurFiche(config(fauxTransport(SERVEUR_COMPLET), depot)).chargerFiche("lead-a-01");
     expect(resultat.source).toBe("serveur");

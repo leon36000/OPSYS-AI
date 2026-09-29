@@ -1,4 +1,5 @@
 import { estObjet } from "../protocole/enveloppeOutil";
+import { cleDeCachePersonne, PREFIXE_CACHE_ADMIN } from "../stockage/cles";
 import type { DepotCleValeur } from "../stockage/depotCleValeur";
 
 /**
@@ -16,11 +17,14 @@ import type { DepotCleValeur } from "../stockage/depotCleValeur";
  * jamais une valeur à moitié devinée. Les clés portent une version (`_v1`) pour qu'un changement de forme ne relise
  * rien de faux. Ce qu'on n'écrit jamais : un refus du serveur (un cache ne dit pas ce que le serveur refuse).
  *
+ * **Effacé quand l'identité de l'appareil change** (PLAN T1.4-n) : révocation, autre personne, autre rôle. Le préfixe est
+ * dans `src/stockage/cles.ts`, la purge dans `src/identite/caches.ts`.
+ *
  * Stockage : protection au repos du système (R12 §6), comme le reste du cache de l'app.
  */
 
 function cle(personne: string, nom: string): string {
-  return `admin:${encodeURIComponent(personne)}:${nom}_v1`;
+  return cleDeCachePersonne(PREFIXE_CACHE_ADMIN, personne, `${nom}_v1`);
 }
 
 export interface SectionEnCache {

@@ -14,7 +14,17 @@
 export interface DepotCleValeur {
   lire(cle: string): Promise<string | null>;
   ecrire(cle: string, valeur: string): Promise<void>;
+  /** Efface UNE clé ; une clé absente n'est pas une erreur. */
+  supprimer(cle: string): Promise<void>;
+  /**
+   * Efface toutes les clés qui COMMENCENT par `prefixe` (PLAN T1.4-n : purge des caches d'une identité qui n'est plus
+   * celle de l'appareil, `src/identite/caches.ts`). Un préfixe vide est refusé : il effacerait tout le dépôt, y compris
+   * ce qui n'est pas un cache (checklists, identifiants de complétion).
+   */
+  supprimerParPrefixe(prefixe: string): Promise<void>;
 }
+
+export const ERREUR_PREFIXE_VIDE = "supprimerParPrefixe : un préfixe vide effacerait tout le dépôt";
 
 export class DepotCleValeurMemoire implements DepotCleValeur {
   private readonly valeurs = new Map<string, string>();
@@ -25,5 +35,25 @@ export class DepotCleValeurMemoire implements DepotCleValeur {
 
   async ecrire(cle: string, valeur: string): Promise<void> {
     this.valeurs.set(cle, valeur);
+  }
+
+  async supprimer(cle: string): Promise<void> {
+    this.valeurs.delete(cle);
+  }
+
+  async supprimerParPrefixe(prefixe: string): Promise<void> {
+    if (prefixe === "") {
+      throw new Error(ERREUR_PREFIXE_VIDE);
+    }
+    for (const cle of [...this.valeurs.keys()]) {
+      if (cle.startsWith(prefixe)) {
+        this.valeurs.delete(cle);
+      }
+    }
+  }
+
+  /** Les clés présentes, triées : ce que les tests regardent pour dire « il ne reste rien ». */
+  cles(): readonly string[] {
+    return [...this.valeurs.keys()].sort();
   }
 }

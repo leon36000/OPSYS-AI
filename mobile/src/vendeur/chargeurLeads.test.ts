@@ -369,6 +369,8 @@ describe("le cache est facultatif : sa panne ne cache pas une lecture réussie",
       ecrire: async () => {
         throw new Error("disque plein");
       },
+      supprimer: async () => undefined,
+      supprimerParPrefixe: async () => undefined,
     };
     const espion = jest.spyOn(console, "error").mockImplementation(() => undefined);
     const resultat = await creerChargeurLeads(config(fauxTransport({ [OUTIL_LISTER_LEADS]: serveurParPages() }), depot)).chargerLeads(AUCUN);

@@ -169,7 +169,12 @@ describe("lireSection : la lecture d'une section, ses quatre issues", () => {
 
   test("la panne du cache (écriture) ne cache pas une lecture réussie", async () => {
     const erreur = jest.spyOn(console, "error").mockImplementation(() => undefined);
-    const depot: DepotCleValeur = { lire: async () => null, ecrire: async () => Promise.reject(new Error("SQLite plein")) };
+    const depot: DepotCleValeur = {
+      lire: async () => null,
+      ecrire: async () => Promise.reject(new Error("SQLite plein")),
+      supprimer: async () => undefined,
+      supprimerParPrefixe: async () => undefined,
+    };
 
     const lu = await lireSection(config(serveurQuiRepond(enveloppeCouple({ n: 9 })), { depot }), SECTION);
 

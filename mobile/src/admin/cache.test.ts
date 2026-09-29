@@ -15,6 +15,8 @@ function depotEspion(): DepotCleValeur & { readonly cles: string[] } {
       cles.push(cle);
       await interne.ecrire(cle, valeur);
     },
+    supprimer: (cle) => interne.supprimer(cle),
+    supprimerParPrefixe: (prefixe) => interne.supprimerParPrefixe(prefixe),
   };
 }
 

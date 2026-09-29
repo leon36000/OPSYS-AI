@@ -3,6 +3,7 @@ import type { FiltreLeads } from "../m2/listeLeads";
 import { estDevisVendeurValide } from "../m3/devis";
 import type { DevisVendeur } from "../m3/devis";
 import { estObjet } from "../protocole/enveloppeOutil";
+import { cleDeCachePersonne, PREFIXE_CACHE_VENDEUR } from "../stockage/cles";
 import type { DepotCleValeur } from "../stockage/depotCleValeur";
 import { estDevisConnuValide } from "./devisConnus";
 import type { DevisConnu } from "./devisConnus";
@@ -28,12 +29,15 @@ import type { LeadsLus } from "./lectureLeads";
  * **Ni coût ni marge, jamais.** Un devis n'est écrit qu'après la liste blanche (`m3/devis.ts`), et relu de façon
  * STRICTE (`estDevisVendeurValide` refuse une clé de plus) : un coût n'atteint jamais la base du téléphone.
  *
+ * **Effacé quand l'identité de l'appareil change** (PLAN T1.4-n) : révocation, autre personne, autre rôle. Le préfixe est
+ * dans `src/stockage/cles.ts`, la purge dans `src/identite/caches.ts`.
+ *
  * Stockage : protection au repos du système (R12 §6), comme le reste du cache ; le contact d'un client y est de la
  * donnée personnelle (Loi 25), gardée pour les leads de CETTE personne seulement.
  */
 
 function cle(personne: string, nom: string): string {
-  return `vendeur:${personne}:${nom}_v1`;
+  return cleDeCachePersonne(PREFIXE_CACHE_VENDEUR, personne, `${nom}_v1`);
 }
 
 async function lireJson(depot: DepotCleValeur, cleComplete: string): Promise<unknown> {
