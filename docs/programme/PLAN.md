@@ -1898,7 +1898,25 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       catégories de réserve (M5.14), paie (M5.4 : paies, DAS) : remplace les déclarations YAML.
 - [ ] T4.16-c M5 : calendrier 2027 et validation par le CPA ; acomptes provisionnels TPS/TVQ et
       d'impôt.
-- [ ] T4.16-d M5 : prévision de trésorerie (M5.7), sur le cash libre de T4.16.
+- [x] T4.16-d M5 : prévision de trésorerie (M5.7), sur le cash libre de T4.16.
+      Preuve (cc75327, b79d7fd, 6f41f62, 53ae85d, f3f2ac2) :
+      - `prevision.py` pur (`Decimal`, arrondi au cent une seule fois, aucune horloge) : semaine par
+        semaine sur un horizon borné (1 à 26 semaines), flux CONNUS et DATÉS seulement (factures
+        clients et fournisseurs, échéances fiscales de T4.16, paies, DAS et dettes déclarées), chaque
+        ligne avec sa source ; un décaissement inconnu : « non calculable à partir de la semaine X,
+        manque Y » ; un encaissement inconnu ou échu n'est pas compté, et la réponse le dit ;
+      - départ : le solde du registre, pas le cash libre (déjà net des obligations : les faire
+        sortir à leur échéance les compterait deux fois) ; le cash libre prévu est rendu à côté ;
+      - `m5_prevoir_tresorerie` (T0, admin seulement, refus dans le code), mention « Analyse
+        préparatoire IA » ; la garde AST anti-décaissement couvre le module et l'outil ;
+      - M5 1837 verts, gate BMAD M5 ; cas fictif chiffré à la cent près (alerte en semaine 2) ;
+        `tests/e2e/test_prevision_tresorerie_appareil.py` (vraie porte d'appareil, vrai bus, employé
+        refusé) ; 383 mutants, 378 tués, 5 équivalents justifiés.
+      Limites : aucune vente, aucun chantier ni dépense future, aucune statistique ; le solde est
+      celui du registre, pas de la banque ; aucune échéance n'existe sur les factures : la date d'un
+      flux est celle de la pièce plus un délai que le propriétaire déclare (un seul par sens).
+      GATE NATHAN : seuil d'alerte, horizon, délais d'encaissement et de paiement, dates de sortie
+      des paies, DAS et dettes (et les décisions fiscales de T4.16). Revue externe (argent).
 - [x] T4.17 M7 : usine à contenu, un chantier donne cinq contenus et un paquet manuel (M7.3, M7.2).
       Écart (§7 M7.3, M7.2 et E2E « gouttières à Repentigny → 5 contenus → approbation → export →
       mesure » ; audit M7 §2.8) : un seul brouillon ; aucun paquet manuel ; aucun registre de
@@ -2173,6 +2191,7 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
   - approbateur exposé par le socle, correction et annulation de facture (T4.15-c) : 01c336d, fae0521, 2a5b3ba ;
   - M1, M7 et M10 lisent l'approbateur par le socle, sans copie de la table des approbations (T4.15-d) :
     0d87631, 6cf96d8, b213977 ;
+  - M5, prévision de trésorerie (T4.16-d) : cc75327, b79d7fd, 6f41f62, 53ae85d, f3f2ac2 ;
   - envoi d'un devis par approbation N4 (T4.7) : 8fd15ce ;
   - clôture d'un transfert réservée à un humain (M1, T4.5) : dd56449 ;
   - canaux de M1 (politique d'approbation d'un message de client) : `src/opsys/canaux.py`, fc80869 ;
