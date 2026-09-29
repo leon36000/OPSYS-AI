@@ -5,8 +5,9 @@
 // it reads what the installer wrote for the supervisor (`<config dir>/opsys/metier.json`, the file
 // `opsys-metier-config.ts` documents) and launches the engine CLI the way that file says.
 //   - `commande_cli` (a list of strings) is the command line to which the arguments are appended,
-//     e.g. `["/home/u/.local/share/opsys/venv/bin/python", "-m", "opsys.cli"]`. `opsys instance
-//     initialiser` writes it, next to `commande` (the MCP server the supervisor launches).
+//     e.g. `["/home/u/.local/share/opsys/venv/bin/python", "-m", "opsys.cli"]`.
+//     `opsys-metier instance initialiser` writes it, next to `commande` (the MCP server the
+//     supervisor launches).
 //   - without `commande_cli`, and without a custom `commande` either, the default mirrors the
 //     supervisor's (`uv run opsys-mcp` in `dossier`): `uv run --project <dossier> opsys-metier`.
 //   - a custom `commande` with no `commande_cli` is refused: that file predates `opsys metier`,

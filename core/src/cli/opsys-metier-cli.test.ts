@@ -1,7 +1,7 @@
 // `opsys metier <command>`: the Python engine's CLI launched from `opsys/metier.json` (OPSYS-AI
 // PLAN T0.7 lot 2). Nothing here starts a real engine: the launcher is a recording fake, and the
-// contract with the installer (the key `commande_cli` that `opsys instance initialiser` writes)
-// is checked on the Python side, in `tests/test_instance.py`.
+// contract with the installer (the key `commande_cli` that `opsys-metier instance initialiser`
+// writes) is checked on the Python side, in `tests/test_instance.py`.
 import type { spawnSync } from "node:child_process";
 import { constants as osConstants } from "node:os";
 import fs from "node:fs";
