@@ -11,6 +11,7 @@ Données fictives (`fictif: true`) : personnes, appareils, affaires, événement
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 import json
 from pathlib import Path
@@ -22,7 +23,7 @@ from sqlalchemy import update
 
 from opsys import approbations, contexte, idempotence, identite, openclaw, stockage
 from opsys.capacites import Capacites, outils_executables
-from opsys.departements import charger_departements
+from opsys.departements import PolitiqueApprobation, charger_departements
 from opsys.outils import Niveau, executer, executer_atomique
 from opsys.stockage.schema import APPROBATIONS
 
@@ -235,10 +236,14 @@ def test_un_appel_direct_hors_transaction_est_refuse_meme_avec_une_identite(par_
     assert _traitements() == []
 
 
+# -- 2 bis. ce que le SOCLE dit d'une approbation (T4.15-d : M10 ne lit plus la table des approbations) --------------
+# `approbations.decider` pose la demande qu'il exécute et `approbations.approbateur_en_cours` dit qui l'a approuvée : la
+# matrice complète (autre outil, personne inactive, rôle d'agent, pointeur contrefait) est dans
+# `tests/test_approbateur_en_cours.py`. Ici : ce que M10 en fait, par le VRAI `decider` chaque fois qu'il peut le faire.
 def _forcer_une_decision_en_cours(nom_outil, arguments, *, decide_par="nathan", decide_role="nathan_owner",
                                   statut="en_cours", departement="m10-memoire"):
-    """Écrit dans la file la ligne que `approbations.decider` écrit au moment d'exécuter, pour prouver ce
-    que l'outil accepte et refuse. Rend l'identifiant de la ligne."""
+    """Écrit à la main, dans la file, la ligne que `approbations.decider` écrit au moment d'exécuter, SANS que
+    `decider` s'exécute : ce que ferait un agent qui parviendrait à écrire dans la table. Rend l'identifiant."""
     with stockage.transaction() as cnx:
         ident = approbations.creer_demande(cnx, departement, nom_outil, arguments, niveau=Niveau.N3)
         cnx.execute(update(APPROBATIONS).where(APPROBATIONS.c.id == ident).values(
@@ -251,22 +256,30 @@ def _appel_dans_la_meme_transaction(par_nom, nom_outil, arguments):
         return executer(par_nom[nom_outil], arguments)
 
 
-def test_l_outil_reconnait_la_decision_humaine_d_une_ligne_en_cours_de_ce_outil_avec_ces_arguments(par_nom, signal):
-    """Témoin positif du mécanisme que `decider` alimente (le vrai chemin est prouvé plus haut)."""
+def _personnes_de_roles_larges():
     with stockage.transaction() as cnx:
-        ident = approbations.creer_demande(cnx, "m10-memoire", "m10_prendre_en_compte_signal", _args_signal(),
-                                           niveau=Niveau.N3)
-        cnx.execute(update(APPROBATIONS).where(APPROBATIONS.c.id == ident).values(
-            statut="en_cours", decide_par="nathan", decide_role="nathan_owner"))
-        reponse = executer(par_nom["m10_prendre_en_compte_signal"], _args_signal())
+        identite.creer_personne(cnx, "gestion", "Gestionnaire Fictive", "mot-de-passe-gestion-1234", ["manager"])
+        identite.creer_personne(cnx, "robot", "Agent Fictif", "mot-de-passe-robot-123456", ["system_agent"])
 
-    assert reponse["resultat"]["accepte"] is True
-    assert reponse["resultat"]["resultat"]["par"] == "nathan"
+
+def _approuver_sous_une_politique_elargie(capacites, nom_outil, arguments, par, roles_n3):
+    """Le VRAI `decider`, dans un département dont la politique N3 admet `roles_n3` : la file accepte alors ces
+    rôles, et l'outil décide seul lesquels il reconnaît comme humains."""
+    dep = dataclasses.replace(
+        capacites.departements["m10-memoire"],
+        politique_approbation=PolitiqueApprobation(roles={Niveau.N3: frozenset(roles_n3)}))
+    departements = {dep.id: dep}
+    with stockage.transaction() as cnx:
+        ident = approbations.creer_demande(cnx, dep.id, nom_outil, arguments, niveau=Niveau.N3)
+    with stockage.transaction() as cnx:
+        return approbations.decider(
+            cnx, ident, True, par, outils_executables(departements, stockage.transaction), departements)
 
 
 @pytest.mark.parametrize(
     "cas",
     [
+        {},  # exactement la ligne que `decider` écrit : approbateur humain actif, cet outil, ce département
         {"statut": "en_attente"},  # une demande que personne n'a encore approuvée
         {"statut": "refusee"},
         {"statut": "executee"},
@@ -276,8 +289,12 @@ def test_l_outil_reconnait_la_decision_humaine_d_une_ligne_en_cours_de_ce_outil_
         {"decide_par": "employe.fictif", "decide_role": "nathan_owner"},  # ne porte pas le rôle
         {"departement": "m03-estimation"},  # une demande d'un autre département
     ],
+    ids=["bien_formee", "en_attente", "refusee", "executee", "sans_approbateur", "role_employe", "personne_inconnue",
+         "sans_le_role", "autre_departement"],
 )
-def test_une_ligne_qui_n_est_pas_une_decision_humaine_en_cours_ne_donne_aucun_droit(par_nom, signal, cas):
+def test_une_ligne_ecrite_a_la_main_ne_donne_aucun_droit_meme_bien_formee(par_nom, signal, cas):
+    """Ce que M10 acceptait avant T4.15-d (une demande `en_cours` de cet outil, aux mêmes arguments, d'un approbateur
+    humain actif) ne vaut plus rien sans que `decider` soit en train d'exécuter."""
     _forcer_une_decision_en_cours("m10_prendre_en_compte_signal", _args_signal(), **cas)
 
     reponse = _appel_dans_la_meme_transaction(par_nom, "m10_prendre_en_compte_signal", _args_signal())
@@ -287,24 +304,78 @@ def test_une_ligne_qui_n_est_pas_une_decision_humaine_en_cours_ne_donne_aucun_dr
     assert _traitements() == []
 
 
-def test_une_decision_en_cours_pour_d_autres_arguments_ou_un_autre_outil_ne_donne_aucun_droit(par_nom, signal):
-    _forcer_une_decision_en_cours("m10_prendre_en_compte_signal", _args_signal(motif="Un autre motif, approuvé."))
-    _forcer_une_decision_en_cours("m10_clore_signal", _args_signal())
+def test_l_approbation_d_une_demande_ne_sert_ni_apres_elle_ni_a_un_autre_outil(capacites, par_nom, signal):
+    """Le socle ne dit qui a approuvé que PENDANT `decider` : le même outil appelé ensuite avec un autre motif, ou
+    l'autre outil du cycle, n'y gagne rien."""
+    demande = capacites.appeler("m10_prendre_en_compte_signal", _args_signal())["demande_id"]
+    assert _approuver(capacites, demande)["statut"] == "executee"
 
-    reponse = _appel_dans_la_meme_transaction(par_nom, "m10_prendre_en_compte_signal", _args_signal())
+    autre_motif = executer_atomique(
+        par_nom["m10_prendre_en_compte_signal"], _args_signal(motif="Un autre motif, approuvé."))
+    cloture = executer_atomique(par_nom["m10_clore_signal"], _args_signal())
 
-    assert reponse["resultat"]["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
+    assert autre_motif["resultat"]["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
+    assert cloture["resultat"]["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
+    assert [m["etat_resultant"] for m in _traitements()] == ["pris_en_compte"]
+
+
+@pytest.mark.parametrize("par, role", [("gestion", "manager"), ("employe.fictif", "employee"),
+                                       ("robot", "system_agent")])
+def test_un_role_que_la_file_admet_mais_que_l_outil_ne_reconnait_pas_n_ecrit_rien(capacites, signal, par, role):
+    """Le manifeste peut élargir la politique N3 : la file exécute alors la demande, mais l'outil n'admet comme
+    humains que `admin` et `nathan_owner` (`humain.roles_humains()`)."""
+    _personnes_de_roles_larges()
+
+    decision = _approuver_sous_une_politique_elargie(
+        capacites, "m10_prendre_en_compte_signal", _args_signal(), par, {role, "nathan_owner"})
+
+    assert decision["statut"] == "executee", decision
+    assert decision["reponse"]["resultat"]["accepte"] is False
+    assert decision["reponse"]["resultat"]["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
     assert _traitements() == []
 
 
-def test_un_approbateur_desactive_depuis_la_reservation_ne_donne_plus_de_droit(par_nom, signal):
-    _forcer_une_decision_en_cours("m10_prendre_en_compte_signal", _args_signal())
+def test_un_admin_que_la_file_admet_ecrit_sous_son_role_par_la_voie_approbation(capacites, signal):
+    decision = _approuver_sous_une_politique_elargie(
+        capacites, "m10_prendre_en_compte_signal", _args_signal(), "admin.fictif", {"admin", "nathan_owner"})
+
+    assert decision["reponse"]["resultat"]["accepte"] is True
+    [maillon] = _traitements()
+    assert (maillon["par"], maillon["role"], maillon["source_decision"]) == ("admin.fictif", "admin", "approbation")
+
+
+def test_une_demande_d_un_autre_departement_n_autorise_pas_l_outil_de_m10(capacites, signal):
+    """`decider` exécute l'outil que la demande nomme, mais la demande porte sur `m03-estimation` : M10 ne reconnaît
+    que les demandes de son propre département."""
     with stockage.transaction() as cnx:
-        identite.activer(cnx, "nathan", False)
+        ident = approbations.creer_demande(
+            cnx, "m03-estimation", "m10_prendre_en_compte_signal", _args_signal(), niveau=Niveau.N3)
+    with stockage.transaction() as cnx:
+        decision = approbations.decider(
+            cnx, ident, True, "nathan", outils_executables(capacites.departements, stockage.transaction),
+            capacites.departements)
 
-    reponse = _appel_dans_la_meme_transaction(par_nom, "m10_prendre_en_compte_signal", _args_signal())
+    assert decision["statut"] == "executee", decision
+    assert decision["reponse"]["resultat"]["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
+    assert _traitements() == []
 
-    assert reponse["resultat"]["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
+
+def test_un_approbateur_desactive_depuis_la_reservation_ne_donne_plus_de_droit(capacites, signal):
+    """`decider` a réservé la demande sous `nathan`, alors actif ; l'outil relit la base à l'instant d'écrire."""
+    executables = outils_executables(capacites.departements, stockage.transaction)
+    reel = executables["m10_prendre_en_compte_signal"]
+
+    def _desactiver_puis_ecrire(**arguments):
+        identite.activer(stockage.connexion_courante(), "nathan", False)
+        return reel.fonction(**arguments)
+
+    executables["m10_prendre_en_compte_signal"] = dataclasses.replace(reel, fonction=_desactiver_puis_ecrire)
+    demande = capacites.appeler("m10_prendre_en_compte_signal", _args_signal())["demande_id"]
+    with stockage.transaction() as cnx:
+        decision = approbations.decider(cnx, demande, True, "nathan", executables, capacites.departements)
+
+    assert decision["reponse"]["resultat"]["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
+    assert _traitements() == []
 
 
 # -- 3. l'appareil : l'identité authentifiée décide, jamais un argument ------------------------------

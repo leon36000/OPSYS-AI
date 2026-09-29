@@ -37,16 +37,12 @@ ici, et seulement ici, que le paquet touche `opsys` (stockage et bus).
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from typing import Any
 
-from sqlalchemy import select
-
-from opsys import approbations, identite, stockage
+from opsys import approbations, stockage
 from opsys import contexte as contexte_appel
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
-from opsys.stockage.schema import APPROBATIONS
 
 from . import (
     amont,
@@ -433,51 +429,17 @@ def _verdict(code: str, detail: str) -> dict[str, Any]:
     return {"accepte": False, "verdict": validation.construire_verdict(code, detail)}
 
 
-def _decision_approuvee_en_cours(
-    cnx: Any, nom_outil: str, arguments: dict[str, Any]
-) -> tuple[str, str] | None:
-    """`(personne, rôle)` de l'humain qui a APPROUVÉ la demande que cet appel exécute, sinon `None`.
-
-    `approbations.decider` réserve la demande (`en_attente` -> `en_cours`, avec `decide_par` et `decide_role`
-    : une personne active portant un rôle autorisé pour ce niveau dans ce département) puis exécute l'outil
-    avec les arguments EXACTS enregistrés, dans la même transaction. Cet appel EST donc une décision humaine
-    si et seulement si une demande `en_cours` de cet outil, de ce département, porte exactement ces
-    arguments et un approbateur de rôle humain toujours actif. Un agent ne peut pas fabriquer une telle ligne :
-    il ne peut que créer une demande `en_attente`. Lecture seule.
-
-    Le socle n'expose pas l'approbateur à l'outil (`approbations.decider` ne pose aucun contexte) : cette
-    lecture de la table du socle en tient lieu, en attendant qu'il le fasse.
-    """
-    if cnx is None:
-        return None
-    lignes = cnx.execute(
-        select(APPROBATIONS.c.arguments, APPROBATIONS.c.decide_par, APPROBATIONS.c.decide_role).where(
-            APPROBATIONS.c.statut == "en_cours",
-            APPROBATIONS.c.outil == nom_outil,
-            APPROBATIONS.c.departement == _DEPARTEMENT,
-        )
-    ).all()
-    for arguments_enregistres, decide_par, decide_role in lignes:
-        if not decide_par or decide_role not in humain.roles_humains():
-            continue
-        if json.loads(arguments_enregistres) != arguments:
-            continue
-        personne = identite.personne_active(cnx, decide_par)
-        if personne is not None and decide_role in personne.roles:
-            return decide_par, decide_role
-    return None
-
-
-def _acteur_humain(
-    nom_outil: str, arguments: dict[str, Any]
-) -> tuple[dict[str, str] | None, dict[str, Any] | None]:
+def _acteur_humain(nom_outil: str) -> tuple[dict[str, str] | None, dict[str, Any] | None]:
     """Qui décide : `({par, role, source}, None)` si c'est un humain identifié, sinon `(None, réponse de refus)`.
 
     Deux voies, jamais une troisième, et jamais un texte de modèle ni un argument :
     1. un appel d'appareil dont l'identité (posée par le core d'après un jeton vérifié, `_meta`) est
        CONFIRMÉE en base à l'instant même (personne active portant encore ce rôle), de rôle `admin` ;
-    2. l'exécution d'une demande qu'un humain vient d'approuver dans la file d'approbation
-       (`_decision_approuvee_en_cours`).
+    2. l'exécution d'une demande qu'un humain vient d'approuver dans la file d'approbation : le SOCLE dit qui l'a
+       approuvée (`approbations.approbateur_en_cours`, PLAN T4.15-d ; demande relue en base, personne active portant
+       encore son rôle), et l'outil ne reconnaît que `admin` et `nathan_owner` (`humain.roles_humains()`), même si la
+       politique du département s'élargit. Les arguments ne sont pas comparés : `decider` rejoue les arguments EXACTS
+       enregistrés et lui seul pose la demande en cours.
     Tout le reste est refusé : un appel d'agent qui n'a pas passé par l'approbation (un département en mode
     `supervise` ou `autonome` exécute un N3 sans file), un appel en ligne de commande, un appel hors
     transaction où rien n'est vérifiable. Ne lit JAMAIS les arguments comme identité."""
@@ -496,9 +458,9 @@ def _acteur_humain(
                 humain.REJ_HUMAIN_ROLE_INSUFFISANT, "cette écriture est réservée au rôle admin depuis un appareil"
             )
         return {"par": confirmee.personne, "role": confirmee.role, "source": humain.SOURCE_APPAREIL}, None
-    approbateur = _decision_approuvee_en_cours(cnx, nom_outil, arguments)
+    approbateur = approbations.approbateur_en_cours(cnx, nom_outil, _DEPARTEMENT, roles=humain.roles_humains())
     if approbateur is not None:
-        return {"par": approbateur[0], "role": approbateur[1], "source": humain.SOURCE_APPROBATION}, None
+        return {"par": approbateur.personne, "role": approbateur.role, "source": humain.SOURCE_APPROBATION}, None
     return None, _verdict(
         humain.REJ_HUMAIN_REQUIS,
         "cette écriture est une décision humaine : un agent ne peut pas la faire seul. Fais-la depuis l'app "
@@ -515,7 +477,7 @@ def _horodatage_faisant_foi(horodatage: str) -> str:
 
 
 def _traiter_signal(action: str, nom_outil: str, signal_id: str, motif: str, horodatage: str) -> dict[str, Any]:
-    acteur, refus = _acteur_humain(nom_outil, {"signal_id": signal_id, "motif": motif, "horodatage": horodatage})
+    acteur, refus = _acteur_humain(nom_outil)
     if acteur is None:
         return refus or _verdict(humain.REJ_HUMAIN_REQUIS, "acteur humain introuvable")
     return depuis_couple(
@@ -553,10 +515,7 @@ def lister_signaux(affaire_id: str | None = None) -> dict[str, Any]:
 def lier_session_affaire(cle_session: str, affaire_id: str, motif: str, horodatage: str) -> dict[str, Any]:
     """Un HUMAIN lie une session (clé composée par le core) à une affaire : ce que le moteur de contexte lira
     à la place du texte de la demande (PLAN T3.3-suite-b, `liaison.py`)."""
-    acteur, refus = _acteur_humain(
-        "m10_lier_session_affaire",
-        {"cle_session": cle_session, "affaire_id": affaire_id, "motif": motif, "horodatage": horodatage},
-    )
+    acteur, refus = _acteur_humain("m10_lier_session_affaire")
     if acteur is None:
         return refus or _verdict(humain.REJ_HUMAIN_REQUIS, "acteur humain introuvable")
     return depuis_couple(
