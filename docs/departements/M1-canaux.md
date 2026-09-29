@@ -609,10 +609,10 @@ sur le gabarit de plainte. Le code partagé vit maintenant dans le socle : `opsy
   résumé. Le prix se lit « un chiffre, puis une devise, un taux ou un mot » (seule la fourchette lit un nombre entier), le
   courriel d'un résumé se reconnaît à un caractère permis devant le « @ », et celui du client part du début de sa suite de
   caractères permis, saute jusqu'à la première frontière de mot, puis se lit d'un seul jet. Mêmes verdicts qu'avant, et même
-  texte de courriel (comparés à l'ancien code sur 22 614 210 textes par version de Python, 3.11, 3.12 et 3.13, avec un
-  script jetable : aucun écart ; les fonctions qui lisent ces motifs le sont aussi, sur 6 194 798 textes).
+  texte de courriel (comparés à l'ancien code sur 22 617 107 textes par version de Python, 3.11, 3.12 et 3.13, avec un
+  script jetable : aucun écart ; les fonctions qui lisent ces motifs le sont aussi, sur 6 197 695 textes).
   `tests/test_motifs_lineaires.py` en garde la preuve (oracle recopié, textes hostiles de 20 000 et de 100 000 caractères,
-  balayage de tous les motifs de M1).
+  balayage de tous les motifs de M1) ; 95 mutants : 88 tués, 7 équivalents (même sens, même complexité).
 - **Limites du courriel écrit par un client, gardées telles quelles** (T4.17-g ; à décider) : derrière une lettre accentuée,
   la lecture repart du premier point (« andré.tremblay@x.ca » : le lead garde « .tremblay@x.ca », dont M2 tire le
   `client_id`) ; une partie locale qui suit une lettre accentuée n'est pas reconnue (« françois@x.ca » : le rejet dit
