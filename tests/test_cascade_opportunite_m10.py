@@ -40,6 +40,7 @@ from opsys.outils import executer_atomique
 from opsys.stockage import codec
 from opsys.stockage.schema import EVENEMENTS_RECUS
 
+FICTIF = True  # aucune donnée réelle : un numéro, des personnes, des montants et des empreintes de test
 RACINE = Path(__file__).resolve().parents[1]
 DEBUT = dt.datetime(2026, 9, 29, 9, 30, tzinfo=dt.timezone(dt.timedelta(hours=-4)))
 NUMERO = "+15145550142"

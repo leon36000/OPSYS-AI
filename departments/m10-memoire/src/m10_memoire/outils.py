@@ -15,9 +15,6 @@ PLAN T4.18 ajoute la consommation de l'AMONT d'une affaire (`amont.py`, `etapes.
 et faits d'étape seulement ; le contact du lead n'est jamais copié ; le prix et le coût d'un devis accepté vont dans un
 maillon `FINANCIAL`, le client associé est `CLIENT_PRIVATE`). Les consommateurs sont produits par la table de
 `etapes.py` : une étape de plus (`m3.devis_envoye`) est une entrée de cette table et une ligne du manifeste.
-PLAN T4.18-b : l'affaire a UNE forme commune au core et à M10 (`affaire.py` : un lead, ou l'opportunité
-`<lead>~opp~<wct_id>` que M2 ouvre) ; le paquet de contexte porte, en plus de ses quatre couches, un bloc `affaire`
-(connue ou non, origine reçue, verdict) et un bloc `consolidation` (les jours omis à consolider).
 PLAN T3.3-suite ajoute `m10_deposer_faits_candidats` (`faits_candidats.py`) : le POSTFLIGHT du moteur de
 contexte du core y dépose ce que les outils ont fait pendant un tour d'agent ; `m10_paquet_contexte_affaire`
 en est la lecture (PREFLIGHT).
@@ -27,6 +24,9 @@ PLAN T3.3-suite-b ajoute cinq capacités : `m10_lister_signaux`, `m10_prendre_en
 compte, clôture, liaison) sont des décisions HUMAINES : `_acteur_humain` établit qui décide (jeton d'appareil
 confirmé en base, ou approbation humaine en cours d'exécution) et refuse tout le reste, y compris un appel
 direct d'agent dans un mode où l'approbation n'est pas requise.
+PLAN T4.18-b : l'affaire a UNE forme commune au core et à M10 (`affaire.py` : un lead, ou l'opportunité
+`<lead>~opp~<wct_id>` que M2 ouvre) ; le paquet de contexte porte, en plus de ses quatre couches, un bloc `affaire`
+(connue ou non, origine reçue, verdict) et un bloc `consolidation` (les jours omis à consolider).
 
 Deux registres DISTINCTS (CA-M10-06), chacun un singleton du processus de ce département, câblés
 sur le stockage durable de l'instance (ADR-0009 décision 2, ADR-0010 décision 2) via

@@ -266,7 +266,7 @@ l'opportunité `<lead>~opp~<wct_id>` que M2 ouvre quand un client revient n'avai
   deux côtés rejouent la MÊME liste de cas, un fichier (`core/src/context-engine/opsys-contexte.affaires.json`) que
   vitest (`opsys-contexte-affaire.test.ts`) et pytest (`test_affaire.py`) lisent tous deux. Côté M10, le lien de session, le
   dépôt POSTFLIGHT, le paquet et les faits de l'amont (M2, M3) la partagent ; M1 garde la forme du lead seul, car il ne
-  publie jamais d'opportunité. Les anciennes copies (64 caractères, sans tilde) sont un sous-ensemble : rien de gardé ne devient invalide.
+  publie jamais d'opportunité. Les anciennes copies (64 caractères, sans tilde) sont un sous-ensemble de la forme actuelle.
 - **Limite dite : un seul niveau d'opportunité.** M2 suffixe le lead du WCT (`_ouvrir_nouvelle_opportunite_pour_wct`), qui peut
   déjà être une opportunité : `<lead>~opp~<wct 1>~opp~<wct 2>` serait refusée par M10 (quarantaine visible du consommateur) et
   le core ne demanderait aucun paquet pour elle. Le cas est dans la liste partagée, parmi les refus. Le correctif est chez M2
@@ -307,13 +307,14 @@ l'opportunité `<lead>~opp~<wct_id>` que M2 ouvre quand un client revient n'avai
   récent au plus ancien et s'arrête au premier plafond atteint ; son premier fait est toujours gardé, même trop gros. Un fait de
   l'historique avec des identifiants de 64 caractères pèse 180 à 270 caractères (mesuré sur les charges réelles) : quatre tiennent
   presque toujours, c'est le plafond de caractères qui coupe. Une affaire complète compte six à huit faits visibles selon l'agent
-  et le nombre de devis : le lead qualifié, son origine, et le client associé pour M1 et M2 sortent les premiers. Le cadrage (les deux blocs, les
-  titres du core) ne compte pas dans le budget. Les chiffres ne changent pas ; le bloc `affaire` et la liste des jours existent
+  et le nombre de devis : le lead qualifié, son origine, sort le premier, puis le client associé pour M1 et M2. Le cadrage (les deux
+  blocs, les titres du core) ne compte pas dans le budget. Les chiffres ne changent pas ; le bloc `affaire` et la liste des jours existent
   parce qu'ils rendent cette perte lisible.
 - **Ce que seule la CI prouve.** `core.yml` : la construction, `opsys-contexte-affaire.test.ts` (la liste de cas côté core),
   `opsys-contexte-paquet.test.ts` (validation et rendu des deux blocs, cinq paquets réels), `opsys-contexte-engine.test.ts`
-  (l'opportunité demandée en entier, l'affaire inconnue journalisée, le garde inchangé). `e2e-core.yml` ne joue aucun tour
-  d'agent : il ne voit pas cette tâche. Ici, le core est relu à la main, sa logique transcrite en Python, et les fixtures sont
+  (l'opportunité demandée en entier, l'affaire inconnue journalisée, le garde inchangé). `e2e-core.yml` construit le core et joue app,
+  Gateway et moteur sans aucun tour d'agent : il n'exerce pas le moteur de contexte et ne verrait qu'une rupture de la
+  construction. Ici, le core est relu à la main, sa logique transcrite en Python, et les fixtures sont
   comparées clé par clé à la sortie réelle de M10 (`tests/test_openclaw_contexte.py`).
 - **Reste.** Décider si une affaire inconnue bloque les actions N3 ou plus ; la chaîne d'opportunités (chez M2) ; un consommateur
   du bloc `consolidation` qui consolide sans lecture humaine ; le rattrapage des affaires d'avant T4.18.

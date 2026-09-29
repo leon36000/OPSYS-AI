@@ -21,7 +21,7 @@ et le DIT explicitement (``tronque``, ``nb_omis``). Une couche sans fait est dé
 ``horodatage``, ``identifiant`` — rien n'est inventé — et son niveau de ``confidentialite``.
 
 Le BUDGET, tel que ce module le calcule (PLAN T4.18-b : il est documenté ici, dans le README de M10 et dans
-ADR-0010, et un test lit le README) :
+ADR-0010, et un test lit ces deux textes contre le code) :
 
 - le paquet a un budget de ``BUDGET_CARACTERES_DEFAUT`` = 4 000 caractères, partagé également entre les quatre couches
   (``budget_par_couche`` : 1 000 chacune, division entière) ; une couche compte au plus
@@ -37,7 +37,7 @@ ADR-0010, et un test lit le README) :
   c'est l'historique de l'affaire qui s'amenuise : une affaire complète (lead, client, devis envoyé, accepté, sans
   réponse, travaux terminés, variance) compte six à huit faits visibles selon l'agent et le nombre de devis, et son
   ORIGINE, le plus ancien, sort la première.
-  D'où les deux blocs ci-dessous, qui ne dépendent pas de la troncature.
+  D'où deux blocs ci-dessous : l'un garde l'origine que la troncature a omise, l'autre dit ce qu'elle a omis.
 
 Blocs de synthèse, calculés sur TOUS les éléments, jamais sur ce que la troncature a laissé :
 - ``signaux`` : nombre de signaux ouverts, pris en compte, clos. Le core s'y fie pour bloquer une action

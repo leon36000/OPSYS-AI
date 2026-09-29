@@ -580,9 +580,15 @@ def test_ce_que_m10_ecrit_dans_les_blocs_de_l_affaire_passe_les_motifs_du_core()
 
     for genre in (affaire.GENRE_LEAD, affaire.GENRE_OPPORTUNITE):
         origine = etapes.origine_de(genre)
-        assert origine is not None and re.fullmatch(type_evenement.group(1), origine), genre
-    assert re.fullmatch(jour.group(1), consolidation.jour_de("2026-09-15T23:30:00-04:00"))
+        assert origine is not None and re.search(type_evenement.group(1), origine), genre
+    assert re.search(jour.group(1), consolidation.jour_de("2026-09-15T23:30:00-04:00"))
     assert etapes.origine_de(None) is None and etapes.origine_de("autre") is None
+    # ... et ils restent fermés : `RegExp.test` cherche, il ne tient pas compte d'un reste (on cherche donc de même).
+    pas_des_types = ("Camille Testeur", "m1.lead_qualifie extra", "x1.lead_qualifie", "m11.lead_qualifie", "m1.", "")
+    for pas_un_type in pas_des_types:
+        assert not re.search(type_evenement.group(1), pas_un_type), pas_un_type
+    for pas_un_jour in ("2026-09-15T23:30:00-04:00", "hier", "2026-9-15", " 2026-09-15", "2026-09-15 ", ""):
+        assert not re.search(jour.group(1), pas_un_jour), pas_un_jour
 
 
 def test_les_niveaux_n_du_core_sont_l_echelle_de_python_dans_l_ordre():
