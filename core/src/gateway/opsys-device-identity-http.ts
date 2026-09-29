@@ -3,7 +3,7 @@
 // named role (`admin`, `employee`, `seller`) its device is attributed to.
 //
 // Why an authenticated HTTP read and not a field of the WebSocket `hello-ok`:
-//  - the attribution is made AFTER the owner's native approval of the pairing (`opsys appareils
+//  - the attribution is made AFTER the owner's native approval of the pairing (`opsys metier appareils
 //    appairer`), so `hello-ok` cannot carry an identity the device does not have yet, and the app
 //    closes its socket right after pairing and never reconnects over WebSocket;
 //  - the app can ask again at every start and every return to the foreground with the device token

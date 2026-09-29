@@ -107,3 +107,33 @@ export function buildOpsysMetierChildEnv(params: {
   env[OPSYS_MCP_TOKEN_ENV] = params.token;
   return env;
 }
+
+/**
+ * Environment of the engine's CLI when the operator runs `opsys metier <command>` (PLAN T0.7
+ * lot 2). Same passthrough as the supervised engine: what Python needs and the `OPSYS_*` /
+ * `LITELLM_*` settings, never the Gateway's own `OPENCLAW_*` variables or provider keys. Three
+ * differences from `buildOpsysMetierChildEnv`:
+ * - `extra` (the `env` key of `metier.json`) only holds DEFAULTS here: the caller's environment
+ *   wins, so `OPSYS_HOME=/autre opsys metier instance restaurer ...` reaches the engine as typed
+ *   instead of being silently redirected to the installed instance;
+ * - no token is added: an `OPSYS_MCP_JETON` already in the environment (the instance `.env` the
+ *   Gateway also reads) passes through by its prefix, as it did with the old `opsys` command;
+ * - on Windows, Python writes UTF-8 even when its output is redirected (in cp1252 an arrow in a
+ *   message makes `print` fail).
+ */
+export function buildOpsysMetierCliEnv(params: {
+  base: NodeJS.ProcessEnv;
+  extra: Readonly<Record<string, string>>;
+  platform?: NodeJS.Platform;
+}): Record<string, string> {
+  const env: Record<string, string> = { ...params.extra };
+  for (const [name, value] of Object.entries(params.base)) {
+    if (value !== undefined && isPassedThrough(name)) {
+      env[name] = value;
+    }
+  }
+  if ((params.platform ?? process.platform) === "win32") {
+    env.PYTHONUTF8 = "1";
+  }
+  return env;
+}

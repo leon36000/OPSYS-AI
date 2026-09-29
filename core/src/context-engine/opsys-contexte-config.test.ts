@@ -268,7 +268,7 @@ describe("parseOpsysContexteConfig: where the case comes from, and the levels of
   it("says to regenerate the file when the levels are missing, as an old contexte.json has none", () => {
     expect(parseOpsysContexteConfig({ actif: true, agents: M3 })).toMatchObject({
       kind: "invalid",
-      reason: expect.stringContaining("opsys openclaw configurer"),
+      reason: expect.stringContaining("opsys metier openclaw configurer"),
     });
   });
 });

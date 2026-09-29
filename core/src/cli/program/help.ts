@@ -45,6 +45,11 @@ const EXAMPLES = [
     'openclaw message send --channel telegram --target @mychat --message "Hi"',
     "Send via your Telegram bot.",
   ],
+  // Not a Commander command: `entry.ts` hands it to the Python engine (PLAN T0.7 lot 2).
+  [
+    "opsys metier verifier",
+    "Run the OPSYS business engine's own commands: people, approvals, instance, departments.",
+  ],
 ] as const;
 
 export function formatProgramHelpOutput(str: string): string {

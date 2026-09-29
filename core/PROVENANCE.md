@@ -193,7 +193,7 @@ choses au tour d'un agent de département :
 
 **Désactivé par défaut** : sans `<dossier de config>/opsys/contexte.json` portant `"actif": true`, le moteur
 est transparent (comportement du moteur « legacy »). Le fichier est lu hors du schéma Zod, comme `roles.json` et
-`metier.json`, et généré par `src/opsys/openclaw.py` (`opsys openclaw configurer --contexte-entreprise
+`metier.json`, et généré par `src/opsys/openclaw.py` (`opsys metier openclaw configurer --contexte-entreprise
 AGENT[:OUTIL,OUTIL]`), qui écrit dans le même appel `plugins.slots.contextEngine`. Format : commentaire
 d'en-tête de `src/context-engine/opsys-contexte-config.ts`.
 
@@ -411,6 +411,76 @@ reste `openclaw` (lot 2) : la bannière ne le contient pas.
   hors `test:fast` rejoignent `test/opsys-tests-cibles.txt` ; `test/openclaw-launcher.e2e.test.ts` (une expression
   élargie) suit la voie e2e.
 
+## Renommage, lot 2 : une seule commande `opsys` (T0.7)
+
+Décisions : [R14](../docs/research/R14-renommage-core.md), décision 3. `opsys` est la commande du core, `openclaw` en reste
+l'alias, et la CLI du moteur Python (qui s'appelait `opsys`) est `opsys metier <commande>`, son exécutable étant
+`opsys-metier`. Rien ne s'exécute dans le bac à sable : la CI (`tests`, `tests-opsys`, job `installateur`, `e2e-core`) fait foi.
+
+- **Binaire** : `package.json`, `bin` : `opsys` et `openclaw` pointent tous deux sur `openclaw.mjs`. Le fichier du lanceur
+  ne change pas de nom (des centaines de chemins le désignent) ; `isMainModule` compare les chemins réels, un lien `opsys`
+  démarre donc le même point d'entrée. Les enveloppes de l'installateur, elles, appellent toujours `node core/openclaw.mjs`.
+- **`opsys metier <commande>`** : `src/cli/opsys-metier-argv.ts` (reconnaît `metier` et les seize anciens noms des
+  commandes du moteur, depuis l'argv brut, options racines comprises) et `src/cli/opsys-metier-cli.ts` (lance le moteur).
+  `src/entry.ts` (`runMainOrRootHelp`) leur répond AVANT les chemins d'aide rapide et Commander, comme il le fait pour le
+  relais de crochets natifs : les arguments (`--help`, `--config-dir`, `--par`...) appartiennent au moteur. `metier` n'est
+  volontairement PAS une commande Commander : un nouveau nom racine exigerait le catalogue des commandes, l'arbre de
+  complétion et leurs tests croisés ; l'aide racine le présente par un exemple (`program/help.ts`).
+- **Où est le moteur** : le core ne devine aucun chemin. Il lit `<dossier de config>/opsys/metier.json`, celui que le
+  superviseur T0.10 lit déjà (`resolveOpsysDir`), clé `commande_cli` (liste, arguments ajoutés à la fin), que
+  `opsys metier instance initialiser` écrit : le même interpréteur que `commande`, `-m opsys.cli`. Sans `commande_cli` ni
+  `commande`, la valeur par défaut reprend celle du superviseur (`uv run --project <dossier> opsys-metier`) ; avec une
+  `commande` personnalisée et sans `commande_cli`, le core refuse et dit de relancer l'installateur. `"actif": true` n'est
+  pas exigé : la CLI ne dépend pas de la supervision. La clé est documentée dans l'en-tête de `opsys-metier-config.ts`
+  (un test Python compare les clés écrites à cet en-tête). Aucune autre modification de ce fichier.
+- **Lancement** : `spawnSync` héritant du terminal (`stdio: "inherit"` : les mots de passe demandés sans écho marchent),
+  dans le dossier courant de l'appelant (les chemins relatifs valent ce qu'on a tapé), code de sortie relayé
+  (`resolveSubprocessExitCode`, 128 + signal). Environnement : `buildOpsysMetierCliEnv` (`gateway/opsys-metier-env.ts`),
+  le même ensemble que celui du moteur supervisé (jamais `OPENCLAW_*` ni clés de fournisseurs), avec trois différences :
+  la clé `env` de `metier.json` ne donne que des défauts (l'`OPSYS_HOME` tapé par l'opérateur l'emporte : sans cela,
+  `instance restaurer` irait dans l'instance installée), aucun jeton n'est ajouté (celui de `.env` passe par son préfixe,
+  comme avec l'ancienne commande), `PYTHONUTF8=1` sous Windows. Le `.env` de l'état du core est lu par
+  `loadGlobalRuntimeDotEnvFiles` (le premier gagnant), sans lire celui du dossier courant.
+- **Refus depuis un agent** : la CLI du moteur porte des décisions humaines (approbations, personnes, modes d'autonomie) ;
+  `opsys metier` est refusée quand `OPENCLAW_SHELL=exec` (posé par l'exécuteur de commandes des agents), comme
+  `operator-cli-message-input.ts` le fait pour ses actions réservées. Le shim `openclaw` du Gateway pour les agents
+  (`infra/openclaw-cli-shim.ts`) reste tel quel : il ne fournit toujours que `openclaw`.
+- **Anciennes invocations** : `opsys personnes creer ...` (et `openclaw personnes ...`) n'exécute rien, écrit sur la sortie
+  d'erreur la forme nouvelle avec les arguments tapés, et sort avec le code 2. Pas de délégation silencieuse : une commande
+  retirée qui marcherait encore cacherait une documentation périmée, et un script échoue franchement. La liste est
+  `OPSYS_METIER_MOVED_COMMANDS` ; `tests/test_commande_metier.py` la confronte au parseur du moteur, au faux core de la preuve
+  de l'installateur et aux noms des commandes du core (aucune collision).
+- **Le binaire `opsys` reconnu partout où l'on reconnaît `openclaw`** :
+  - `infra/exec-control-command-guard.ts` : le garde qui refuse `channels login` interactif depuis un agent. Sans cela,
+    `opsys channels login` l'aurait contourné ;
+  - `commands/daemon-install-plan.shared.ts` (dossier du binaire dans le PATH du service) et
+    `infra/openclaw-cli-invocation.ts` (l'entrée de la CLI courante, pour les processus enfants).
+- **Gardé exprès** (chacun est couplé à du code que la CI seule peut éprouver ; à traiter dans un lot ultérieur si on le
+  veut) :
+  - `CLI_NAME` (`cli/cli-name.ts`), donc `Usage: openclaw ...`, le nom des fichiers de complétion et les messages de
+    `update` : il sert aussi de clé aux étapes de mise à jour persistées (`update-command-package.ts` écrit
+    `${CLI_NAME} doctor`, que `doctor-update-schema-guard.ts` compare à la chaîne `"openclaw doctor"` dans la base) ;
+    le changer sans remplacer ces sites casserait la garde de schéma de la mise à jour ;
+  - `process.title` (`openclaw`, `openclaw-gateway`, `openclaw-hooks`, `openclaw-node-worker`) : `infra/gateway-process-argv.ts`,
+    `restart-stale-pids.ts`, `openclaw-process-census.ts`, les diagnostics de `status`, `dashboard` et `doctor` reconnaissent
+    un Gateway à ce titre ; les renommer sans étendre ces détecteurs (et les `pkill -f '^openclaw-gateway'` des fumées
+    Parallels) laisserait un Gateway périmé non détecté. Un lot dédié, avec ces détecteurs et leurs tests ;
+  - les indications `formatCliCommand("openclaw ...")` (242 fichiers) et les préfixes de diagnostic `openclaw:` du lanceur
+    et de `node-host-launcher.mjs` (`test/openclaw-launcher.e2e.test.ts` les fige) : l'alias les couvre ;
+  - `infra/exec-approvals-policy.ts` : l'exemption de l'inspection en lecture seule des suppressions d'audit ne connaît
+    que `openclaw` ; `opsys` demande l'approbation habituelle (la direction sûre) ;
+  - le nom de fichier `openclaw.mjs`, les variables `OPENCLAW_*` et les noms de service (`openclaw-gateway-opsys`,
+    lot 4).
+- Tests neufs : `src/cli/opsys-metier-argv.test.ts`, `src/cli/opsys-metier-cli.test.ts` (lecteur de `metier.json`, environnement,
+  code de sortie, refus depuis un agent, message de transition) ; ajoutés à des fichiers existants :
+  `src/entry.run-main.test.ts` (l'aiguillage), `src/gateway/opsys-metier-env.test.ts` (`buildOpsysMetierCliEnv`),
+  `src/infra/exec-control-command-guard.test.ts` (le garde reconnaît `opsys`), `src/commands/daemon-install-plan.shared.test.ts`.
+  Les voisins d'origine des fichiers touchés rejoignent `test/opsys-tests-cibles.txt`. Côté Python : `tests/test_commande_metier.py`,
+  `tests/test_instance.py` (la clé `commande_cli`) et la preuve de l'installateur avec le vrai core
+  (`tests/installateur/bout_en_bout.sh` et `.ps1`, étapes « 1 bis » et « 1 bis bis »), seule preuve que le core lance bien le moteur.
+- Les citations de l'ancienne forme dans le core (messages et commentaires de `opsys-contexte-config.ts`,
+  `opsys-device-identity-http.ts` et de leurs tests) disent maintenant `opsys metier ...`.
+
 ## Sécurité
 
 Il n'y a plus de mises à jour automatiques. Une veille mensuelle des avis de sécurité d'OpenClaw
@@ -435,7 +505,7 @@ jour `src/opsys/openclaw.py` et ses tests dans le même commit.
 | Substitution `${VAR}` | clés `OPSYS_CLE_Mx`, `OPSYS_MCP_JETON` | `src/config/env-substitution.ts` |
 | `automations add --cron --tz --session isolated --agent --message` | planifications des départements | `src/cli/cron-cli.ts` |
 | Espace de travail : `SOUL.md`, `AGENTS.md`, `skills/` | identité, règles, procédures | `src/agents/` (amorçage de l'espace de travail) |
-| `opsys/metier.json` (hors schéma Zod) | active et règle le superviseur du moteur métier (T0.10) ; `openclaw.py` ne l'écrit pas encore | `src/gateway/opsys-metier-config.ts` |
+| `opsys/metier.json` (hors schéma Zod) | active et règle le superviseur du moteur métier (T0.10) ; porte aussi `commande_cli`, la ligne de commande de la CLI du moteur que `opsys metier` lance (T0.7 lot 2). Écrit par `instance.py` (`ecrire_metier`) | `src/gateway/opsys-metier-config.ts`, `src/cli/opsys-metier-cli.ts` |
 | `opsys/roles.json` (hors schéma Zod) | `roles` : outils permis par rôle d'appareil ; `serveurs` : le serveur MCP de chacun (T1.4-c6). Noms d'outils nus | `src/gateway/opsys-device-roles.ts` |
 | `opsys/appareils.json` (hors schéma Zod) | appareil -> personne et rôle OPSYS (T1.4-c2, c4) ; rendu aussi à l'appareil par `GET /opsys/identite` (T1.4-c5). Format inchangé | `src/gateway/opsys-device-roles.ts` |
 | `opsys/contexte.json` (hors schéma Zod) | active et règle le moteur de contexte OPSYS (T3.3-suite) ; écrit par `openclaw.py` (`contexte_entreprise`, `affaire_par_session`) ; porte aussi `niveaux` (niveau N de chaque outil, pour le garde), `outil_affaire` et l'`affaire` de chaque agent (T3.3-suite-b) | `src/context-engine/opsys-contexte-config.ts` |

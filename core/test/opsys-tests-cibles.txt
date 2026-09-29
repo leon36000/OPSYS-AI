@@ -1,4 +1,4 @@
-# Tests des zones du core modifiées par OPSYS (T1.4-c1, T1.4-c2, T1.4-c4, T1.4-c5, T1.4-c6, T0.10, T3.3-suite, T3.3-suite-b, T0.7 lot 1).
+# Tests des zones du core modifiées par OPSYS (T1.4-c1, T1.4-c2, T1.4-c4, T1.4-c5, T1.4-c6, T0.10, T3.3-suite, T3.3-suite-b, T0.7 lots 1 et 2).
 #
 # `pnpm test:fast` (les six morceaux de la CI) exclut `src/gateway/**`, `src/agents/**` et
 # `packages/gateway-protocol/**` : ces tests appartiennent à d'autres projets vitest. Le job
@@ -185,3 +185,18 @@ test/openclaw-launcher-version.e2e.test.ts
 ui/src/app/service-worker-cache.test.ts
 extensions/telegram/src/miniapp/command.test.ts
 extensions/telegram/src/miniapp/page.test.ts
+
+# T0.7 lot 2, une seule commande `opsys` : `opsys metier <commande>` lance le moteur Python par le core
+# (src/cli/opsys-metier-argv.ts, opsys-metier-cli.ts, greffé dans src/entry.ts), les anciens noms des commandes du moteur
+# disent la nouvelle, et le core déclare le binaire `opsys` en plus de `openclaw` (package.json). `src/cli`, `src/infra`,
+# `src/commands` et `src/agents` ne sont pas garantis dans `test:fast` : les tests neufs et les voisins d'origine des
+# fichiers touchés sont listés. opsys-metier-env.test.ts et opsys-metier-config.test.ts (T0.10, plus haut) couvrent
+# `buildOpsysMetierCliEnv` et la clé `commande_cli` documentée dans l'en-tête de opsys-metier-config.ts.
+src/cli/opsys-metier-argv.test.ts
+src/cli/opsys-metier-cli.test.ts
+src/entry.run-main.test.ts
+src/entry.test.ts
+src/infra/exec-control-command-guard.test.ts
+src/agents/bash-tools.exec.script-preflight.test.ts
+src/infra/openclaw-cli-invocation.test.ts
+src/commands/daemon-install-plan.shared.test.ts

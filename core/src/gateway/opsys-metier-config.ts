@@ -14,6 +14,8 @@
 //     "actif": true,                      // required, must be exactly true
 //     "dossier": "/opt/opsys",            // required, absolute, existing: cwd of the engine
 //     "commande": ["uv", "run", ...],     // default: uv run opsys-mcp --http --hote H --port P
+//     "commande_cli": ["python", "-m", "opsys.cli"],  // the engine's CLI for `opsys metier <command>`
+//                                         // (T0.7 lot 2, src/cli/opsys-metier-cli.ts); ignored here
 //     "hote": "127.0.0.1",                // default 127.0.0.1 (bind address and probe host)
 //     "port": 8765,                       // default 8765 (must match a custom "commande")
 //     "env": { "OPSYS_HOME": "/var/lib/opsys" },   // extra environment, never the token

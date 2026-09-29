@@ -231,7 +231,7 @@ beforeEach(() => {
   resetOpsysDeviceRolesCacheForTesting();
 });
 
-/** What `opsys openclaw configurer` and `opsys appareils appairer` write next to openclaw.json. */
+/** What `opsys metier openclaw configurer` and `opsys metier appareils appairer` write next to openclaw.json. */
 function writeOpsysFragments(
   state: OpenClawTestState,
   fragments: { roles: unknown; appareils: unknown },

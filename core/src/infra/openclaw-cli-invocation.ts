@@ -8,7 +8,8 @@ import { resolveRuntimeWorkerArgv } from "./runtime-worker-url.js";
 import { tryProcessCwd } from "./safe-cwd.js";
 
 const requireFromHere = createRequire(import.meta.url);
-const OPENCLAW_CLI_ENTRY_BASENAMES = new Set(["openclaw", "openclaw.mjs"]);
+// `opsys` is the command of OPSYS-CORE, `openclaw` its alias (PLAN T0.7 lot 2).
+const OPENCLAW_CLI_ENTRY_BASENAMES = new Set(["opsys", "openclaw", "openclaw.mjs"]);
 const OPENCLAW_PACKAGE_ENTRY_PATHS = new Set([
   path.join("dist", "entry.js"),
   path.join("dist", "entry.mjs"),

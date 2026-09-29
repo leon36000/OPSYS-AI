@@ -100,6 +100,17 @@ describe("resolveDaemonServicePathDirs openclaw discovery", () => {
     ).toEqual(["/Users/testuser/.npm-global/bin"]);
   });
 
+  // `opsys` is the command of OPSYS-CORE and `openclaw` its alias (PLAN T0.7 lot 2).
+  it("uses the active opsys command directory, like the openclaw alias", () => {
+    expect(
+      resolveDaemonServicePathDirs({
+        argv: ["node", "/Users/testuser/.npm-global/bin/opsys", "gateway", "install"],
+        env: { PATH: "" },
+        platform: "darwin",
+      }),
+    ).toEqual(["/Users/testuser/.npm-global/bin"]);
+  });
+
   it.skipIf(process.platform === "win32")(
     "finds the PATH shim that resolves to the active package entrypoint",
     () => {

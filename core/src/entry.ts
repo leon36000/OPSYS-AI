@@ -7,6 +7,7 @@ import { format } from "node:util";
 import { isRootHelpInvocation } from "./cli/argv.js";
 import { parseCliContainerArgs, resolveCliContainerTarget } from "./cli/container-target.js";
 import { requestExitAfterOneShotOutput, runCliWithExitFinalization } from "./cli/one-shot-exit.js";
+import { resolveOpsysMetierInvocation } from "./cli/opsys-metier-argv.js";
 import {
   tryOutputPrecomputedCommandHelp,
   type PrecomputedCommandHelpDeps,
@@ -336,6 +337,17 @@ export async function runMainOrRootHelp(
       if (isNativeHookRelayArgv(argv) && !argv.includes("--help") && !argv.includes("-h")) {
         const { runNativeHookRelayCliFromArgv } = await import("./cli/native-hook-relay-cli.js");
         const exitCode = await runNativeHookRelayCliFromArgv(argv);
+        process.exitCode = exitCode;
+        requestExitAfterOneShotOutput(defaultRuntime, exitCode);
+        return;
+      }
+      // `opsys metier <command>` hands the command line to the Python engine (T0.7 lot 2). The
+      // spelling that was retired (`opsys personnes ...`) says what to type instead.
+      // Answered before any help fast path or Commander: the arguments belong to the engine.
+      const opsysMetier = resolveOpsysMetierInvocation(argv);
+      if (opsysMetier) {
+        const { runOpsysMetierCli } = await import("./cli/opsys-metier-cli.js");
+        const exitCode = runOpsysMetierCli(opsysMetier);
         process.exitCode = exitCode;
         requestExitAfterOneShotOutput(defaultRuntime, exitCode);
         return;

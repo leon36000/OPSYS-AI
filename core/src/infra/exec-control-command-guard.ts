@@ -81,21 +81,29 @@ function normalizeCommandBaseName(token: string | undefined): string {
   return base.replace(/\.(?:cmd|exe)$/u, "");
 }
 
+// `opsys` is the command of OPSYS-CORE and `openclaw` its alias (PLAN T0.7 lot 2): a control command
+// typed with either name is the same command, so the guard must know both.
+const OPENCLAW_COMMAND_NAMES: ReadonlySet<string> = new Set(["opsys", "openclaw"]);
+
+function isOpenClawCommandName(token: string | undefined): boolean {
+  return OPENCLAW_COMMAND_NAMES.has(normalizeCommandBaseName(token));
+}
+
 function stripOpenClawPackageRunner(argv: string[]): string[] {
   const commandName = normalizeCommandBaseName(argv[0]);
-  if (commandName === "openclaw") {
+  if (isOpenClawCommandName(argv[0])) {
     return argv;
   }
   if (
     (commandName === "pnpm" || commandName === "npm" || commandName === "yarn") &&
-    normalizeCommandBaseName(argv[1]) === "openclaw"
+    isOpenClawCommandName(argv[1])
   ) {
     return argv.slice(1);
   }
   if (
     (commandName === "pnpm" || commandName === "npm" || commandName === "yarn") &&
     (argv[1] === "exec" || argv[1] === "dlx" || argv[1] === "run") &&
-    normalizeCommandBaseName(argv[2]) === "openclaw"
+    isOpenClawCommandName(argv[2])
   ) {
     return argv.slice(2);
   }
@@ -115,7 +123,7 @@ function stripOpenClawPackageRunner(argv: string[]): string[] {
         idx += 1;
       }
     }
-    if (normalizeCommandBaseName(argv[idx]) === "openclaw") {
+    if (isOpenClawCommandName(argv[idx])) {
       return argv.slice(idx);
     }
   }
@@ -129,7 +137,7 @@ function parseOpenClawChannelsLoginShellCommand(raw: string): boolean {
   }
   const openclawArgv = stripOpenClawPackageRunner(argv);
   return (
-    normalizeCommandBaseName(openclawArgv[0]) === "openclaw" &&
+    isOpenClawCommandName(openclawArgv[0]) &&
     (openclawArgv[1] === "channels" || openclawArgv[1] === "channel") &&
     openclawArgv[2] === "login"
   );

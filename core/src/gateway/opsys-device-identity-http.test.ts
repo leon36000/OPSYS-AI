@@ -110,11 +110,11 @@ const APPAREILS_FRAGMENT = {
     [ADMIN_DEVICE]: { personne: "nathan_owner", role: "admin" },
     // Attributed a role `roles.json` does not declare: no identity, not a default one.
     [ORPHAN_ROLE_DEVICE]: { personne: "jdupont", role: "operator" },
-    // `UNATTRIBUTED_DEVICE` is deliberately absent: paired natively, `opsys appareils appairer` not run.
+    // `UNATTRIBUTED_DEVICE` is deliberately absent: paired natively, `opsys metier appareils appairer` not run.
   },
 };
 
-/** What `opsys openclaw configurer` and `opsys appareils appairer` write next to openclaw.json. */
+/** What `opsys metier openclaw configurer` and `opsys metier appareils appairer` write next to openclaw.json. */
 function writeOpsysFragments(
   state: OpenClawTestState,
   fragments: { roles: unknown; appareils: unknown },
@@ -229,7 +229,7 @@ describe("GET /opsys/identite: the device is told who it is, by the server", () 
     });
   });
 
-  it("gives no identity to a paired device that is not attributed yet (native approval done, `opsys appareils appairer` not run)", async () => {
+  it("gives no identity to a paired device that is not attributed yet (native approval done, `opsys metier appareils appairer` not run)", async () => {
     await withPairedDevice(UNATTRIBUTED_DEVICE, async (deviceToken) => {
       const res = await readIdentity(deviceToken);
 
@@ -257,7 +257,7 @@ describe("GET /opsys/identite: the device is told who it is, by the server", () 
     await withPairedDevice(EMPLOYEE_DEVICE, async (deviceToken, ctx) => {
       expect((await readIdentity(deviceToken)).status).toBe(200);
 
-      // `opsys appareils revoquer` regenerates appareils.json without the device (the file shrinks on purpose:
+      // `opsys metier appareils revoquer` regenerates appareils.json without the device (the file shrinks on purpose:
       // the cache keys on mtime and size).
       writeOpsysFragments(ctx.state, { roles: ROLES_FRAGMENT, appareils: { appareils: {} } });
 

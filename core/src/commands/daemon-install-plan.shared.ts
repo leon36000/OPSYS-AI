@@ -84,13 +84,16 @@ export function resolveDaemonRuntimeBinDir(runtimePath?: string): string[] | und
   return [path.dirname(trimmed)];
 }
 
+// `opsys` is the command of OPSYS-CORE and `openclaw` its alias (PLAN T0.7 lot 2): both are the CLI.
+const OPENCLAW_COMMAND_NAMES = ["opsys", "openclaw"] as const;
+
 function isOpenClawCommandBasename(basename: string, platform: NodeJS.Platform): boolean {
-  if (basename === "openclaw") {
+  if ((OPENCLAW_COMMAND_NAMES as readonly string[]).includes(basename)) {
     return true;
   }
   if (platform === "win32") {
-    return (
-      basename === "openclaw.cmd" || basename === "openclaw.ps1" || basename === "openclaw.exe"
+    return OPENCLAW_COMMAND_NAMES.some((name) =>
+      [`${name}.cmd`, `${name}.ps1`, `${name}.exe`].includes(basename),
     );
   }
   return false;
