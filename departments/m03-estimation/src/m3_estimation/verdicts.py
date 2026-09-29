@@ -98,6 +98,11 @@ CODES_M3_LIST = [
     "REJ-SOUMISSION-PDF-CARACTERE-NON-SUPPORTE",
     "REJ-SOUMISSION-PDF-RENDU-IMPOSSIBLE",
     "REJ-SOUMISSION-PDF-TROP-VOLUMINEUX",
+    # PLAN T4.7 (revue et envoi du devis, M3.14) : codes de revue_devis.py (devis et contexte de revue
+    # inexploitables) et de l'adaptateur outils.py (l'envoi ne s'exécute que sur une décision approuvée).
+    "REJ-REVUE-DEVIS-INVALIDE",
+    "REJ-REVUE-CONTEXTE-INVALIDE",
+    "REJ-ENVOI-SANS-APPROBATION",
 ]
 CODES_M3 = set(CODES_M3_LIST)
 
