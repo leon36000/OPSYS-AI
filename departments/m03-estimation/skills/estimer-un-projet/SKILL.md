@@ -25,3 +25,9 @@ description: Procédure pour estimer un projet de rénovation extérieure à par
    ne les recalcule ni ne les répète. Si `besoins_materiaux.facteurs_perte_absents` n'est pas vide, dis-le à un humain :
    le barème ne fournit pas leur facteur de perte, ne le devine pas.
 6. Toute réponse `accepte: false` contient un `verdict` : corrige l'entrée indiquée ou escalade.
+7. Pour faire envoyer un devis créé (`m3_creer_devis`), appelle `m3_demander_envoi_devis` avec le `devis_id` et,
+   dans `contexte_revue`, les faits de la réponse de l'estimation : `niveau_confiance_hierarchie`,
+   `estimation.verdict_estimation`, `estimation.alerte_plancher`. Ajoute `service_complexe`, `client_a_risque`,
+   `distance_km` ou `donnees_fournisseur_completes` seulement si une personne te les a donnés ; sinon laisse-les
+   absents (la revue les dira « non évaluables »). Ne les devine jamais. La réponse est `en_attente_approbation` :
+   le propriétaire décide, le devis n'est PAS envoyé. Ne le présente pas comme envoyé.

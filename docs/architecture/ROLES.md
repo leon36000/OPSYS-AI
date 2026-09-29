@@ -68,7 +68,7 @@ qui travaille sur un toit, un gestionnaire qui reprend un dossier).
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 81 outils sur 159 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 82 outils sur 160 sont déclarés.
 
 ### `employee` (11 outils) : §9.3, le terrain
 
@@ -104,12 +104,13 @@ M10.
 | `m2_enregistrer_interaction` | §9.4 « notes ». Ses leads seulement, sous son propre nom. |
 | `m3_lire_devis` | §9.4 M3 « voir risques et marge » ; « ne voit pas les coûts internes au-delà de sa soumission ». Les devis de ses leads seulement. |
 | `m3_generer_soumission_brouillon` | §9.4 « soumissions ». HTML ou PDF (`format`), mêmes gardes. Sans coût ni marge. Les devis de ses leads seulement. |
+| `m3_demander_envoi_devis` (T2, **N4**) | §9.4 « soumissions », §7 M3.14 « revue et approbation humaine » (T4.7). Il DEMANDE : le socle met la demande dans la file du propriétaire, rien n'est envoyé, rien ne change. Il ne décide jamais (voir « L'envoi d'un devis par approbation N4 » plus bas). |
 | `m3_qualifier_photos` | §9.4 « demander des photos au client » : ce qui manque. |
 
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (81 outils) : §9.5 + employé + vendeur
+### `admin` (82 outils) : §9.5 + employé + vendeur
 
 Les 11 outils de l'employé, les 10 du vendeur, et :
 
@@ -262,6 +263,28 @@ décider N3 depuis l'app est un changement de `approbations_appareil._lecture_se
   a demandée, que le total est inchangé et qu'aucune de ses attentes n'est déjà affichée ; sinon il relit depuis
   le début et le dit (MOBILE.md). Une attente nouvelle est presque toujours la plus récente, donc en fin de liste :
   elle ne déplace rien.
+
+### L'envoi d'un devis par approbation N4 (T4.7)
+
+`m3_demander_envoi_devis` (M3.14) est **T2, N4**, ouvert à `seller` et à `admin`. Le vendeur (ou le gestionnaire)
+DEMANDE ; le propriétaire décide. Le devis approuvé ne part pas seul : le statut `envoye` dit « approuvé pour envoi »,
+la livraison au client est à M1 (T2.1-c) et n'existe pas encore. Aucun outil d'envoi réel.
+
+| Déclaration ou garde | Pourquoi |
+|---|---|
+| **N4 : `Capacites` ne l'exécute jamais sur un appel d'appareil ni d'agent** | À la demande (mode `ombre` ou `supervise`), le socle enregistre une demande `en_attente` au niveau N4 figé (`approbations.creer_demande`) et répond `en_attente_approbation`. Le devis reste `brouillon`. N4 dépasse le plafond de la validation humaine au départ (N3) : le vendeur ne se valide pas lui-même. |
+| **Qui décide : `nathan_owner`, et lui seul** | `department.yaml/approbations.n4 = [nathan_owner]` (aussi le défaut du socle). `approbations.decider` refuse un gestionnaire (`admin` + `manager`), la finance et le vendeur (`aucun rôle autorisé pour N4`, rien exécuté, la demande reste en attente). L'app (`m9_decider_demande_approbation`) exige en plus que la PERSONNE porte `nathan_owner` : un `admin` qui ne l'est pas reçoit `reserve_au_proprietaire`, et lit la file sans les arguments. |
+| **L'attente porte les motifs** | M3 déclare une `attentes()` : une entrée `revue_envoi_devis` par demande en attente, de même `id` que la demande, dont le `resume` est la revue du devis d'AUJOURD'HUI (`revue_devis.py`) : l'ALERTE ROUGE d'abord, les autres motifs, puis le nombre de critères non évaluables. Tout `admin` la lit (comme les autres attentes) ; elle ne se décide pas, la demande oui. Bornée à 240 caractères, ce que l'app montre : ce qui ne tient pas est compté (`+ 2 autres`). |
+| **La revue ne devine rien** | Trois sources citées par chaque motif : le devis (`prix_total`, `taux_marge`), `contexte_revue` (faits recopiés de `m3_estimer_projet` ou connus d'une personne) et les seuils de `department.yaml/configuration/revue_devis`, VIDES à dessein. Un seuil vide ou un fait absent rend le critère « non évaluable » (« seuil à configurer : marge_minimale »), jamais « rien à signaler ». Le prix sous le minimum rentable et l'alerte de plancher de l'estimation sont ROUGES ; une alerte rouge n'empêche pas l'envoi, le propriétaire la lit et décide (§7 M3.11). |
+| **L'outil refuse de s'exécuter hors d'une décision** | Le mode `autonome` ne met que N5 en file : un N4 s'y exécuterait sans humain. `m3_demander_envoi_devis` relit donc la demande `en_cours` que `approbations.decider` vient de réserver (mêmes arguments, approbateur `nathan_owner` actif : patron de M5 et M10) et rend `REJ-ENVOI-SANS-APPROBATION` sinon. |
+| **Une fois, à l'instant du socle** | Approuvé, le devis passe `envoye` à `decide_le` (l'horloge du socle, jamais une heure fournie) avec la personne, son rôle et la synthèse de la revue (codes seulement) ; `m3.devis_envoye` est publié dans la même transaction (`m3-devis-envoye-<devis_id>`, sans coût, marge ni prix). Un devis déjà `envoye` est un rejeu : rien n'est écrit ni republié (`deja_envoye`). Un devis `accepte` est refusé (transition illégale). |
+| **Le rejeu de l'appareil** | Même clé d'idempotence, même demande (`rejoue: true`) : aucune seconde demande. Décider deux fois la même demande : `deja_decidee`. |
+
+**Ce que cette section laisse ouvert.** L'outil ne s'exécute qu'à la décision, sans l'identité de l'appareil du
+vendeur : le socle ne peut donc pas y filtrer par propriétaire du lead (T1.4-k2). Un vendeur peut demander l'envoi
+du devis d'un lead qui n'est pas le sien ; il n'apprend rien (aucune lecture, aucune existence révélée) et le
+propriétaire lit le devis, la revue et les faits avant d'approuver. Il faudrait un contrôle à la demande dans le socle
+(`Outil` avec un garde d'appel), qui n'existe pas.
 
 ### Fermés à tous les appareils
 
