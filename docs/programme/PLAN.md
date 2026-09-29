@@ -1642,7 +1642,7 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       proposé, l'admin l'applique (N3) ; panne du fournisseur : `inconnu`, jamais `ok`.
       Dépend de : T4.10, T4.12. GATE NATHAN : seuils météo par service ; forfait d'Open-Meteo
       (gratuit = non commercial) ; licence de MSC GeoMet à lire.
-- [ ] T4.14 M6 : réservation par chantier, emplacements et « matériel prêt » (M6.8, M6.9, M6.4).
+- [x] T4.14 M6 : réservation par chantier, emplacements et « matériel prêt » (M6.8, M6.9, M6.4).
       Écart (§6 flux des matériaux ; audit M6 M6.8, M6.9 « ABSENT ») : rien ne réserve le matériel
       d'un chantier, et M4 ne sait pas si l'équipe part avec ce qu'il faut.
       - emplacements (dépôt, camion, remorque, chantier, employé, fournisseur, retour, rebut,
@@ -1654,6 +1654,24 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       Preuve : pytest M6, mutations, gate BMAD M6 ; E2E par le vrai bus : devis accepté, stock
       insuffisant, `a_commander` ; `opsys verifier`.
       Dépend de : T4.10. GATE NATHAN : seuils de réapprovisionnement. T3 : aucune commande envoyée.
+      Preuve (5c314f4, 1c56af9) :
+      - réservation depuis le prévu DÉFINITIF du devis accepté (jamais une estimation),
+        `min(besoin, disponible)`, sans double réservation ; `disponible = en main − réservé`
+        alimente le réapprovisionnement ; stock jamais négatif (réconciliation à chaque changement) ;
+        libération N2 ; clôture à la déclaration des matériaux ;
+      - `m6.materiel_pret` (`pret`, `partiel`, `a_commander`, lignes manquantes ; schéma fermé, une
+        révision par changement) ; aucun bon de commande créé seul (test AST) ;
+      - emplacements en liste fermée, transferts audités (registre hash-chaîné à part) ; la chaîne
+        des mouvements ne bouge pas d'un octet (empreintes figées) ;
+      - 4 outils admin (`m6_reserver_materiel`, `m6_liberer_reservation`, `m6_transferer_stock`,
+        `m6_lire_disponibilite`) ; E2E `tests/e2e/test_materiel_pret_appareil.py` ;
+      - M6 1108, M5 890, M4 1940, M8 367, socle 1309 (50 sautés), gate BMAD M6, verifier 157 outils
+        (79 déclarés) ; 52 mutations tuées.
+      Limites : le stock ne déclare pas d'unité ; les sorties de stock ne disent pas d'où elles
+      sortent ; prévu vide = rien réservé (pas de repli sur l'estimation, à confirmer).
+- [ ] T4.14-b M4 lit `m6.materiel_pret` dans `preparation.py` (volet « matériel ») : par devis, la
+      charge de plus grande `revision` ; « prêt » = `pret` ET `reservation_active` ET aucune ligne
+      manquante ; aucune charge : « non vérifiable ».
 - [x] T4.15 M6 et M5 : comptes à payer depuis les réceptions (M5.2, M6.16).
       Écart (§7 M5.2, M6.16 ; audit M5 M5.2 « ABSENT » ; audit M6 M6.16 « PARTIEL ») : M5 ne sait pas
       ce que l'entreprise doit aux fournisseurs.
@@ -1685,9 +1703,14 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       Limites : unité des prix non déclarée (réserve `REJ-AP-UNITE-PRIX-NON-CONFIRMEE` sur tout
       attendu, GATE NATHAN) ; ni correction ni annulation d'une facture saisie ; factures sans PO non
       couvertes ; aucun paiement fournisseur (N5).
-- [ ] T4.15-b M6 : une livraison qui complète un PO déjà partiel reste `RECEPTION_INFERIEURE`
+- [x] T4.15-b M6 : une livraison qui complète un PO déjà partiel reste `RECEPTION_INFERIEURE`
       (`reception.py` compare chaque livraison à la commande entière) : cumuler les livraisons pour
       atteindre `received` ; une réception éphémère accepte encore des quantités négatives.
+      Preuve (6a852c1) : `reception.evaluer_cumul` (Decimal exact) ; chaque livraison est rangée au
+      registre du PO (empreinte, horodatage, quantités) et le cumul se relit ; rejeu refusé
+      (`REJ-RECEPTION-DEJA-ENREGISTREE`) ; PO d'avant sans détail : cumul « non fiable » ; quantité
+      négative ou non finie refusée aussi hors PO persisté ; M6 892 (837 avant) ; 17 mutations
+      tuées.
 - [ ] T4.15-c M5 : correction ou annulation d'une facture fournisseur saisie (N4, motif, trace) ;
       factures sans PO (carburant, outils) ; le socle expose l'approbateur d'une demande à l'outil
       (`_decision_approuvee_en_cours` est copiée dans M5 et M10).
