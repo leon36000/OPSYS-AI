@@ -26,6 +26,10 @@ describe("DESCRIPTEURS_MUTATION", () => {
     expect(DESCRIPTEURS_MUTATION.get("approval_decision")?.tool).toBe("m9_decider_demande_approbation");
   });
 
+  test("lead_note -> m2_enregistrer_interaction (PLAN T4.8)", () => {
+    expect(DESCRIPTEURS_MUTATION.get("lead_note")?.tool).toBe("m2_enregistrer_interaction");
+  });
+
   test("photo_upload/signature_capture : AUCUN descripteur — le transport passe par fichier_bloc (PLAN T1.4-f)", () => {
     expect(DESCRIPTEURS_MUTATION.get("photo_upload")).toBeUndefined();
     expect(DESCRIPTEURS_MUTATION.get("signature_capture")).toBeUndefined();
@@ -48,6 +52,36 @@ describe("DESCRIPTEURS_MUTATION", () => {
         resultat: { accepte: false, verdict: { code: "REJ-FICHIER-EMPREINTE-DISCORDANTE", detail: "hachage différent" } },
       });
       expect(resultat).toEqual({ accepte: false, verdict: { code: "REJ-FICHIER-EMPREINTE-DISCORDANTE", detail: "hachage différent" } });
+    });
+  });
+
+  describe("interprète lead_note (m2_enregistrer_interaction)", () => {
+    const interpreter = DESCRIPTEURS_MUTATION.get("lead_note")!.interpreterResultat;
+
+    test("note enregistrée -> accepte:true, l'accusé typé en résumé", () => {
+      const resultat = interpreter({
+        ok: true,
+        resultat: { accepte: true, resultat: { lead_id: "L1", ligne_id: "abc", tete_chaine: "def", horodatage: "2026-09-29T14:03:22-04:00" } },
+      });
+      expect(resultat).toEqual({
+        accepte: true,
+        resume: { leadId: "L1", ligneId: "abc", horodatage: "2026-09-29T14:03:22-04:00" },
+      });
+    });
+
+    test("lead d'un autre ou clos -> accepte:false avec le verdict du serveur, tel quel", () => {
+      const resultat = interpreter({
+        ok: true,
+        resultat: { accepte: false, verdict: { code: "REJ-LEAD-NON-ASSIGNE", detail: "lead inconnu" } },
+      });
+      expect(resultat).toEqual({ accepte: false, verdict: { code: "REJ-LEAD-NON-ASSIGNE", detail: "lead inconnu" } });
+    });
+
+    test("accusé illisible -> accepte:false : jamais un succès silencieux", () => {
+      expect(interpreter({ ok: true, resultat: { accepte: true, resultat: {} } })).toMatchObject({
+        accepte: false,
+        verdict: { code: "reponse_illisible" },
+      });
     });
   });
 

@@ -1,0 +1,445 @@
+{
+ "fictif": true,
+ "reponses": {
+  "page_des_leads": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "ordre": "ingestion croissante (le plus ancien d'abord, instants comparés en UTC), puis lead_id croissant",
+     "filtre": {
+      "statut": null,
+      "segment": null
+     },
+     "total": 4,
+     "decalage": 0,
+     "affichees": 4,
+     "reste": 0,
+     "suivant": null,
+     "message": null,
+     "indetermines": 0,
+     "leads": [
+      {
+       "lead_id": "lead-a-1",
+       "statut": "qualifie",
+       "proprietaire": "vendeur.a",
+       "travaux": "renovation_totale",
+       "ville": "Repentigny",
+       "urgence_declaree": true,
+       "ingere_le": "2026-09-01T09:00:00-04:00",
+       "derniere_activite": "2026-09-03T10:00:00-04:00",
+       "prochaine_action": {
+        "description": "Appeler le client (fictif)",
+        "echeance": "2026-09-05T09:00:00-04:00"
+       },
+       "segments": [
+        {
+         "segment": "hot_lead",
+         "regle": "urgence_declaree_lead_ouvert",
+         "donnee": {
+          "urgence_declaree": true,
+          "statut": "qualifie"
+         }
+        },
+        {
+         "segment": "estimate_ready",
+         "regle": "readiness_m3_satisfaite",
+         "donnee": {
+          "statut": "qualifie",
+          "pret_pour_m3": true
+         }
+        }
+       ]
+      },
+      {
+       "lead_id": "lead-a-2",
+       "statut": "converti",
+       "proprietaire": "vendeur.a",
+       "travaux": "renovation_totale",
+       "ville": "Repentigny",
+       "urgence_declaree": false,
+       "ingere_le": "2026-09-01T09:00:00-04:00",
+       "derniere_activite": "2026-09-04T09:00:00-04:00",
+       "prochaine_action": {
+        "description": "Appeler le client (fictif)",
+        "echeance": "2026-09-05T09:00:00-04:00"
+       },
+       "segments": [
+        {
+         "segment": "won_pending_schedule",
+         "regle": "soumission_acceptee_a_planifier",
+         "donnee": {
+          "statut": "converti",
+          "reference_devis_m3": "devis-a-2"
+         }
+        }
+       ]
+      },
+      {
+       "lead_id": "lead-a-3",
+       "statut": "qualifie",
+       "proprietaire": "vendeur.a",
+       "travaux": "renovation_totale",
+       "ville": "Joliette",
+       "urgence_declaree": false,
+       "ingere_le": "2026-09-01T09:00:00-04:00",
+       "derniere_activite": "2026-09-02T09:00:00-04:00",
+       "prochaine_action": {
+        "description": "Appeler le client (fictif)",
+        "echeance": "2026-09-05T09:00:00-04:00"
+       },
+       "segments": []
+      },
+      {
+       "lead_id": "lead-a-4",
+       "statut": "qualifie",
+       "proprietaire": "vendeur.a",
+       "travaux": "renovation_totale",
+       "ville": "Terrebonne",
+       "urgence_declaree": false,
+       "ingere_le": "2026-09-01T09:00:00-04:00",
+       "derniere_activite": "2026-09-03T10:30:00-04:00",
+       "prochaine_action": {
+        "description": "Appeler le client (fictif)",
+        "echeance": "2026-09-05T09:00:00-04:00"
+       },
+       "segments": [
+        {
+         "segment": "estimate_ready",
+         "regle": "readiness_m3_satisfaite",
+         "donnee": {
+          "statut": "qualifie",
+          "pret_pour_m3": true
+         }
+        }
+       ]
+      }
+     ],
+     "regles": {
+      "readiness_m3_satisfaite": "Lead qualifié dont la readiness M3 est satisfaite : owner, service (ou type de travaux) valide, ville et interaction après la qualification (readiness.evaluer).",
+      "soumission_acceptee_a_planifier": "Lead converti : la soumission est acceptée et le chantier reste à planifier par M4 (règle planifier_chantier).",
+      "urgence_declaree_lead_ouvert": "Urgence déclarée à l'ingestion (contrat : urgence_declaree) sur un lead encore ouvert (statut nouveau ou qualifie)."
+     },
+     "segments_non_calculables": [
+      {
+       "segment": "needs_photos",
+       "manque": "non calculable, manque l'état des photos du lead (M3 les qualifie, rien n'atteint M2)"
+      },
+      {
+       "segment": "quote_sent",
+       "manque": "non calculable, manque le fait « devis envoyé » de M3 (m3.devis_envoye, T4.7)"
+      },
+      {
+       "segment": "quote_stale",
+       "manque": "non calculable, manque le seuil jours_soumission_perimee : seuil à configurer (configuration.segments, entier de jours ≥ 1)"
+      },
+      {
+       "segment": "high_value_customer",
+       "manque": "non calculable, manque la valeur du client (montants à M3 et à M5) et un seuil de valeur"
+      },
+      {
+       "segment": "referral_candidate",
+       "manque": "non calculable, manque la satisfaction du client (client_satisfait de M4, non gardé par M2)"
+      },
+      {
+       "segment": "complaint_risk",
+       "manque": "non calculable, manque les plaintes et la satisfaction du client (M1 T4.5, M4)"
+      },
+      {
+       "segment": "dormant_lead",
+       "manque": "non calculable, manque le seuil jours_inactivite_dormant : seuil à configurer (configuration.segments, entier de jours ≥ 1)"
+      },
+      {
+       "segment": "seasonal_opportunity",
+       "manque": "non calculable, manque le calendrier saisonnier des services et l'historique par saison"
+      }
+     ]
+    }
+   }
+  },
+  "page_du_segment_converti": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "ordre": "ingestion croissante (le plus ancien d'abord, instants comparés en UTC), puis lead_id croissant",
+     "filtre": {
+      "statut": null,
+      "segment": "won_pending_schedule"
+     },
+     "total": 1,
+     "decalage": 0,
+     "affichees": 1,
+     "reste": 0,
+     "suivant": null,
+     "message": null,
+     "indetermines": 0,
+     "leads": [
+      {
+       "lead_id": "lead-a-2",
+       "statut": "converti",
+       "proprietaire": "vendeur.a",
+       "travaux": "renovation_totale",
+       "ville": "Repentigny",
+       "urgence_declaree": false,
+       "ingere_le": "2026-09-01T09:00:00-04:00",
+       "derniere_activite": "2026-09-04T09:00:00-04:00",
+       "prochaine_action": {
+        "description": "Appeler le client (fictif)",
+        "echeance": "2026-09-05T09:00:00-04:00"
+       },
+       "segments": [
+        {
+         "segment": "won_pending_schedule",
+         "regle": "soumission_acceptee_a_planifier",
+         "donnee": {
+          "statut": "converti",
+          "reference_devis_m3": "devis-a-2"
+         }
+        }
+       ]
+      }
+     ],
+     "regles": {
+      "soumission_acceptee_a_planifier": "Lead converti : la soumission est acceptée et le chantier reste à planifier par M4 (règle planifier_chantier)."
+     },
+     "segments_non_calculables": [
+      {
+       "segment": "needs_photos",
+       "manque": "non calculable, manque l'état des photos du lead (M3 les qualifie, rien n'atteint M2)"
+      },
+      {
+       "segment": "quote_sent",
+       "manque": "non calculable, manque le fait « devis envoyé » de M3 (m3.devis_envoye, T4.7)"
+      },
+      {
+       "segment": "quote_stale",
+       "manque": "non calculable, manque le seuil jours_soumission_perimee : seuil à configurer (configuration.segments, entier de jours ≥ 1)"
+      },
+      {
+       "segment": "high_value_customer",
+       "manque": "non calculable, manque la valeur du client (montants à M3 et à M5) et un seuil de valeur"
+      },
+      {
+       "segment": "referral_candidate",
+       "manque": "non calculable, manque la satisfaction du client (client_satisfait de M4, non gardé par M2)"
+      },
+      {
+       "segment": "complaint_risk",
+       "manque": "non calculable, manque les plaintes et la satisfaction du client (M1 T4.5, M4)"
+      },
+      {
+       "segment": "dormant_lead",
+       "manque": "non calculable, manque le seuil jours_inactivite_dormant : seuil à configurer (configuration.segments, entier de jours ≥ 1)"
+      },
+      {
+       "segment": "seasonal_opportunity",
+       "manque": "non calculable, manque le calendrier saisonnier des services et l'historique par saison"
+      }
+     ]
+    }
+   }
+  },
+  "refus_segment_non_calculable": {
+   "ok": true,
+   "resultat": {
+    "accepte": false,
+    "verdict": {
+     "code": "REJ-SEGMENT-NON-CALCULABLE",
+     "statut": "",
+     "detail": "segment quote_sent : non calculable, manque le fait « devis envoyé » de M3 (m3.devis_envoye, T4.7)"
+    }
+   }
+  },
+  "arguments_invalides": {
+   "ok": false,
+   "erreur": "arguments_invalides",
+   "details": [
+    "paramètre inconnu : owner"
+   ]
+  },
+  "suggestion_doublon": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "lead_id": "lead-a-1",
+     "statut": "qualifie",
+     "regle": "doublon_en_attente",
+     "suggestion": "Arbitrer le doublon c51ec0e4f81dd489a47455d06515c770bc2e5a35f774cd32304c42e6cbac649a avant de poursuivre.",
+     "motif": "Un signalement de doublon probable est en attente d'arbitrage humain (M2.12)."
+    }
+   }
+  },
+  "suggestion_prete": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "lead_id": "lead-a-4",
+     "statut": "qualifie",
+     "regle": "transmettre_m3",
+     "suggestion": "Transmettre le dossier à M3 pour estimation.",
+     "motif": "Readiness M3 satisfaite (M2.5) : owner, type de travaux, ville, interaction post-qualification."
+    }
+   }
+  },
+  "refus_lead_d_un_autre": {
+   "ok": true,
+   "resultat": {
+    "accepte": false,
+    "verdict": {
+     "code": "REJ-LEAD-NON-ASSIGNE",
+     "statut": "",
+     "detail": "ce lead n'est pas assigné à la personne authentifiée (ou est inconnu)"
+    }
+   }
+  },
+  "client_du_lead": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "lead_id": "lead-a-1",
+     "client_id": "a2f9b5d094369843521d099715b97ef817491c0e2309406bd46d75c41301a346"
+    }
+   }
+  },
+  "client_360": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "client_id": "a2f9b5d094369843521d099715b97ef817491c0e2309406bd46d75c41301a346",
+     "contact": {
+      "nom": "Cliente Partagée (fictif)",
+      "courriel": "partagee@exemple-fictif.test"
+     },
+     "opportunites": [
+      {
+       "lead_id": "lead-a-1",
+       "statut": "qualifie",
+       "ville": "Repentigny",
+       "type_travaux": "renovation_totale",
+       "service": null,
+       "canal": "telephone",
+       "source": null,
+       "campagne": null,
+       "utm": null,
+       "prochaine_action": {
+        "description": "Appeler le client (fictif)",
+        "echeance": "2026-09-05T09:00:00-04:00"
+       }
+      },
+      {
+       "lead_id": "lead-a-2",
+       "statut": "converti",
+       "ville": "Repentigny",
+       "type_travaux": "renovation_totale",
+       "service": null,
+       "canal": "telephone",
+       "source": null,
+       "campagne": null,
+       "utm": null,
+       "prochaine_action": {
+        "description": "Appeler le client (fictif)",
+        "echeance": "2026-09-05T09:00:00-04:00"
+       }
+      }
+     ],
+     "interactions_recentes": [
+      {
+       "lead_id": "lead-a-1",
+       "auteur": "vendeur.a",
+       "resume": "Premier appel : le client veut voir le devis (fictif)",
+       "horodatage": "2026-09-03T10:00:00-04:00"
+      }
+     ]
+    }
+   }
+  },
+  "devis_interne": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "devis_id": "devis-a-2",
+     "lead_id": "lead-a-2",
+     "chantier_id": null,
+     "lignes": [
+      {
+       "reference_ligne": "devis-a-2-L0",
+       "description": "Gouttière alu 5 po (fictif)",
+       "quantite": "30",
+       "unite": "pi_lin",
+       "cout_unitaire": "10.00",
+       "reference_besoin_materiau": "besoin-goutt-001",
+       "cout_ligne": "300.00",
+       "prix_unitaire": "12.00",
+       "prix_ligne": "360.00"
+      }
+     ],
+     "taux_marge": "0.20",
+     "cout_total": "300.00",
+     "prix_total": "360.00",
+     "type_entree": "devis_cree",
+     "statut": "brouillon",
+     "horodatage": "2026-09-01T09:05:00-04:00"
+    }
+   }
+  },
+  "refus_devis_d_un_autre": {
+   "ok": true,
+   "resultat": {
+    "accepte": false,
+    "verdict": {
+     "code": "REJ-DEVIS-INTROUVABLE",
+     "detail": "devis inconnu : 'devis-b-1'"
+    }
+   }
+  },
+  "note_enregistree": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "lead_id": "lead-a-3",
+     "ligne_id": "28b38186657ba4b6642424039c63e92e9d371d5c74a20a2152af7c63cf13efe9",
+     "tete_chaine": "28b38186657ba4b6642424039c63e92e9d371d5c74a20a2152af7c63cf13efe9",
+     "horodatage": "2026-09-29T12:00:00-04:00"
+    }
+   },
+   "rejoue": false
+  },
+  "note_rejouee": {
+   "ok": true,
+   "resultat": {
+    "accepte": true,
+    "resultat": {
+     "lead_id": "lead-a-3",
+     "ligne_id": "28b38186657ba4b6642424039c63e92e9d371d5c74a20a2152af7c63cf13efe9",
+     "tete_chaine": "28b38186657ba4b6642424039c63e92e9d371d5c74a20a2152af7c63cf13efe9",
+     "horodatage": "2026-09-29T12:00:00-04:00"
+    }
+   },
+   "rejoue": true
+  },
+  "note_conflit": {
+   "ok": false,
+   "erreur": "mutation_conflit",
+   "details": "clé 'e2e-fixture-note' de l'appareil 'ea948dd5fb28b80cb770f0d724db8328b1640880a67cf9c3063e936ade8ccb64' déjà utilisée pour d'autres arguments ('m2_enregistrer_interaction')"
+  },
+  "note_refusee": {
+   "ok": true,
+   "resultat": {
+    "accepte": false,
+    "verdict": {
+     "code": "REJ-LEAD-NON-ASSIGNE",
+     "statut": "",
+     "detail": "ce lead n'est pas assigné à la personne authentifiée (ou est inconnu)"
+    }
+   },
+   "rejoue": false
+  }
+ }
+}

@@ -318,6 +318,138 @@ export interface RessourcesCommunes {
     };
     echecDefinitif: string;
   };
+  vendeur: {
+    accueil: { leads: string; quotes: string };
+    commun: {
+      rafraichir: string;
+      chargement: string;
+      sansSession: string;
+      echecLecture: string;
+      refus: string;
+      cache: string;
+      absent: string;
+      date: string;
+    };
+    statuts: Record<string, string>;
+    segments: Record<string, string>;
+    leads: {
+      titre: string;
+      filtreStatut: string;
+      filtreSegment: string;
+      tous: string;
+      segmentNonCalculable: string;
+      badgeNonCalculable: string;
+      segmentsNonCalculablesTitre: string;
+      total: string;
+      aucunLead: string;
+      voirPlus: string;
+      chargementSuite: string;
+      echecSuite: string;
+      listeChangee: string;
+      pageIncoherente: string;
+      listePartielleCache: string;
+      illisibles: string;
+      indetermines: string;
+      urgent: string;
+      derniereActivite: string;
+      prochaineAction: string;
+      aucuneProchaineAction: string;
+      regleCitee: string;
+      regleSansEnonce: string;
+      donnee: string;
+      voirRegles: string;
+      masquerRegles: string;
+      nonCalculableDuLead: string;
+      ouvrir: string;
+    };
+    lead: {
+      titre: string;
+      identifiantInvalide: string;
+      suggestion: {
+        titre: string;
+        regle: string;
+        motif: string;
+        refus: string;
+      };
+      client: {
+        titre: string;
+        contact: string;
+        contactAbsent: string;
+        ceLead: string;
+        autres: string;
+        opportuniteAbsente: string;
+        statut: string;
+        travaux: string;
+        ville: string;
+        canal: string;
+        source: string;
+        prochaineAction: string;
+        illisibles: string;
+        refus: string;
+      };
+      historique: {
+        titre: string;
+        aucune: string;
+        systeme: string;
+        autres: string;
+        dernieres: string;
+      };
+      notes: {
+        titre: string;
+        champ: string;
+        ajouter: string;
+        enCours: string;
+        vide: string;
+        tropLongue: string;
+        enFileTitre: string;
+        statut: {
+          en_attente: string;
+          envoi: string;
+          echec_permanent: string;
+        };
+        resultat: {
+          enregistree: string;
+          refusee: string;
+          enFile: string;
+        };
+        appareilNonAppaire: string;
+      };
+    };
+    quotes: {
+      titre: string;
+      limiteListe: string;
+      prixSeulement: string;
+      numero: {
+        etiquette: string;
+        indice: string;
+        ouvrir: string;
+        vide: string;
+        ouvertsTitre: string;
+      };
+      aucune: string;
+      prixTotal: string;
+      prixAbsent: string;
+      statut: string;
+      statuts: Record<string, string>;
+      statutInconnu: string;
+      lead: string;
+      origine: Record<string, string>;
+      voirLignes: string;
+      masquerLignes: string;
+      ligne: string;
+      ligneSansQuantite: string;
+      prixUnitaire: string;
+      prixLigne: string;
+      avis: {
+        non_calculable: string;
+        echouee: string;
+        partielle: string;
+        depuis_cache: string;
+      };
+      refus: string;
+      indisponible: string;
+    };
+  };
 }
 
 /**
@@ -663,6 +795,169 @@ const frCA: RessourcesCommunes = {
       tracee: "Signée {{decidePar}} ({{role}}), {{date}}.",
     },
     echecDefinitif: "Décision non appliquée ({{code}}) : {{detail}}",
+  },
+  vendeur: {
+    accueil: { leads: "Mes leads", quotes: "Mes soumissions" },
+    commun: {
+      rafraichir: "Rafraîchir",
+      chargement: "Chargement…",
+      sansSession: "Appareil non apparié ou identité non confirmée : impossible de lire pour l'instant.",
+      echecLecture: "Impossible de lire ({{code}}) : {{detail}}",
+      refus: "Le serveur refuse ({{code}}) : {{detail}}",
+      cache: "Hors ligne : données du cache, lues le {{date}}. Raison : {{code}}.",
+      absent: "non précisé",
+      date: "{{date}}",
+    },
+    statuts: {
+      nouveau: "Nouveau",
+      qualifie: "Qualifié",
+      converti: "Converti",
+      perdu: "Perdu",
+      cedule: "Cédulé",
+      chantier: "Chantier",
+      facture: "Facturé",
+      paiement: "Paiement",
+      avis: "Avis",
+    },
+    segments: {
+      hot_lead: "Lead chaud",
+      needs_photos: "Photos à demander",
+      estimate_ready: "Prêt pour l'estimation",
+      quote_sent: "Soumission envoyée",
+      quote_stale: "Soumission sans réponse",
+      won_pending_schedule: "Gagné, chantier à planifier",
+      active_job: "Chantier en cours",
+      invoice_pending: "Facture à encaisser",
+      past_customer: "Client existant",
+      high_value_customer: "Client de grande valeur",
+      referral_candidate: "Candidat à la référence",
+      complaint_risk: "Risque de plainte",
+      dormant_lead: "Lead dormant",
+      seasonal_opportunity: "Occasion saisonnière",
+    },
+    leads: {
+      titre: "Mes leads",
+      filtreStatut: "Statut",
+      filtreSegment: "Segment",
+      tous: "Tous",
+      segmentNonCalculable: "Ce segment n'est pas calculable : {{detail}}",
+      badgeNonCalculable: "non calculable",
+      segmentsNonCalculablesTitre: "Segments non calculables ({{nombre}})",
+      total: "{{total}} lead(s)",
+      aucunLead: "Aucun lead pour ce filtre.",
+      voirPlus: "Voir plus ({{nombre}} autre(s) lead(s))",
+      chargementSuite: "Chargement de la suite…",
+      echecSuite: "Impossible de charger la suite ({{code}}) : {{detail}}",
+      listeChangee: "Des leads ont changé pendant la lecture : la liste a été relue depuis le début.",
+      pageIncoherente: "Réponse incohérente du serveur : la liste a été relue depuis le début.",
+      listePartielleCache: "Le cache ne garde que {{nombre}} lead(s) sur {{total}} : rafraîchissez en ligne pour voir la suite.",
+      illisibles: "{{nombre}} lead(s) illisible(s) pour cette version de l'app : à voir à la console.",
+      indetermines: "{{nombre}} lead(s) dont le segment n'a pas pu être calculé : ils ne sont pas dans cette liste.",
+      urgent: "Urgence déclarée",
+      derniereActivite: "Dernière activité : {{date}}",
+      prochaineAction: "Prochaine action : {{description}} (échéance {{echeance}})",
+      aucuneProchaineAction: "Prochaine action : aucune consignée",
+      regleCitee: "Règle : {{enonce}}",
+      regleSansEnonce: "Règle : {{regle}} (énoncé non fourni par le serveur)",
+      donnee: "{{cle}} : {{valeur}}",
+      voirRegles: "Voir les règles",
+      masquerRegles: "Masquer les règles",
+      nonCalculableDuLead: "Non calculable pour ce lead — {{segment}} : {{manque}}",
+      ouvrir: "Ouvrir la fiche",
+    },
+    lead: {
+      titre: "Lead {{id}}",
+      identifiantInvalide: "Identifiant de lead illisible : rien n'est lu.",
+      suggestion: {
+        titre: "Prochaine action suggérée",
+        regle: "Règle citée : {{regle}}",
+        motif: "Motif : {{motif}}",
+        refus: "Aucune suggestion ({{code}}) : {{detail}}",
+      },
+      client: {
+        titre: "Client 360",
+        contact: "Contact",
+        contactAbsent: "Contact : non fourni par le serveur.",
+        ceLead: "Ce lead",
+        autres: "Autres opportunités du client",
+        opportuniteAbsente: "Ce lead n'est pas dans le Client 360 rendu par le serveur.",
+        statut: "Statut : {{statut}}",
+        travaux: "Travaux : {{travaux}}",
+        ville: "Ville : {{ville}}",
+        canal: "Canal : {{canal}}",
+        source: "Source : {{source}}",
+        prochaineAction: "Prochaine action consignée : {{description}} (échéance {{echeance}})",
+        illisibles: "{{nombre}} élément(s) illisible(s) pour cette version de l'app : à voir à la console.",
+        refus: "Client 360 indisponible ({{code}}) : {{detail}}",
+      },
+      historique: {
+        titre: "Historique",
+        aucune: "Aucune interaction enregistrée pour ce lead.",
+        systeme: "système",
+        autres: "{{nombre}} interaction(s) des autres opportunités du client ne sont pas montrées ici.",
+        dernieres: "Les dix dernières interactions du client sont lues.",
+      },
+      notes: {
+        titre: "Ajouter une note",
+        champ: "Note (au plus {{max}} caractères)",
+        ajouter: "Ajouter la note",
+        enCours: "Envoi en cours…",
+        vide: "Écrivez la note avant de l'envoyer.",
+        tropLongue: "La note dépasse {{max}} caractères.",
+        enFileTitre: "Notes pas encore dans l'historique",
+        statut: {
+          en_attente: "En file d'envoi : elle partira dès que l'appareil sera en ligne.",
+          envoi: "Envoi en cours…",
+          echec_permanent: "Refusée par le serveur : elle ne sera pas renvoyée.",
+        },
+        resultat: {
+          enregistree: "Note enregistrée.",
+          refusee: "Note refusée ({{code}}) : {{detail}}",
+          enFile: "Note mise en file d'envoi (hors ligne) : le serveur l'écrira une seule fois, à l'arrivée.",
+        },
+        appareilNonAppaire: "Appareil non apparié : impossible d'envoyer la note pour l'instant.",
+      },
+    },
+    quotes: {
+      titre: "Mes soumissions",
+      limiteListe:
+        "Aucun outil ne liste vos soumissions. Cette liste montre celles que vos leads citent (soumission acceptée à " +
+        "planifier, soumission envoyée restée sans réponse). Pour une autre, entrez son numéro.",
+      prixSeulement: "Statut et prix seulement : ni coût ni marge.",
+      numero: {
+        etiquette: "Numéro d'une soumission",
+        indice: "Numéro de la soumission",
+        ouvrir: "Ouvrir",
+        vide: "Entrez le numéro de la soumission.",
+        ouvertsTitre: "Ouvertes par leur numéro",
+      },
+      aucune: "Aucune soumission connue pour l'instant.",
+      prixTotal: "Prix total : {{montant}}",
+      prixAbsent: "Prix total : non fourni",
+      statut: "Statut : {{statut}}",
+      statuts: { brouillon: "Brouillon", envoye: "Envoyée au client", accepte: "Acceptée" },
+      statutInconnu: "{{statut}} (statut inconnu de l'app)",
+      lead: "Lead {{id}}",
+      origine: {
+        lead_converti: "Soumission acceptée : chantier à planifier",
+        soumission_perimee: "Envoyée, restée sans réponse",
+        saisi: "Ouverte par son numéro",
+      },
+      voirLignes: "Voir les lignes",
+      masquerLignes: "Masquer les lignes",
+      ligne: "{{description}} — {{quantite}} {{unite}}",
+      ligneSansQuantite: "{{description}} — quantité non fournie",
+      prixUnitaire: "Prix unitaire : {{montant}}",
+      prixLigne: "Prix de la ligne : {{montant}}",
+      avis: {
+        non_calculable: "Segment « {{segment}} » non calculable : {{manque}}",
+        echouee: "Segment « {{segment}} » non lu ({{code}}) : {{detail}}. La liste peut être incomplète.",
+        partielle: "Segment « {{segment}} » : {{reste}} lead(s) non lu(s). La liste est incomplète.",
+        depuis_cache: "Segment « {{segment}} » lu dans le cache ({{code}}) : la liste peut être périmée.",
+      },
+      refus: "Soumission {{id}} : le serveur refuse ({{code}}) : {{detail}}",
+      indisponible: "Soumission {{id}} : impossible de la lire ({{code}}) et aucune copie n'est gardée.",
+    },
   },
 };
 

@@ -34,7 +34,8 @@ fichiers-avant-complétion) et `materials.tsx` (M6.10, formulaire des matériaux
 dans toute l'app depuis T1.4-e** : `punch.tsx` et `job/[id]/index.tsx` lisent tous les deux
 `src/protocole/configuration.ts::obtenirConfigurationAppel()` (la VRAIE identité d'appairage) —
 voir « Écran `punch.tsx` ». Étape 6 (R12 §5) livrée ensuite : `(admin)/approvals`, le propriétaire liste et décide les demandes
-d'approbation N3 et N4 (voir « Écran `approvals.tsx` »). Reste l'E2E Maestro contre un core réel — voir
+d'approbation N3 et N4 (voir « Écran `approvals.tsx` »). **Profil vendeur (PLAN T4.8) :** `(seller)/leads`, `lead/[id]` et `quotes` — ses leads, sa fiche (règle citée,
+Client 360, historique, note par la file) et ses soumissions, avec un cache hors ligne marqué (voir « Profil vendeur »). Reste l'E2E Maestro contre un core réel — voir
 « Ce qui n'est PAS encore fait ». T1.4-b (idempotence côté socle) et T1.4-c1 (le core transmet la clé,
 l'appareil et son heure dans le `_meta` MCP) sont faits côté serveur — voir
 [`IDEMPOTENCE.md`](IDEMPOTENCE.md) et la section « `/tools/invoke` » ci-dessous ; le trajet réel
@@ -1504,6 +1505,107 @@ demandes d'approbation du socle. La logique est dans `src/ecrans/approvals.ts` e
   prouver contre un core réel (T1.4-c5) ; l'attente d'un département n'a pas de bouton : la revue d'une
   complétion se fait par `m4_resoudre_revue_completion` (outil N4, décidé ensuite par le propriétaire dans la
   liste des demandes), sans écran dédié.
+
+## Profil vendeur (`(seller)`, PLAN T4.8)
+
+Le vendeur (DEFINITION-PRODUIT §9.4) lit **ses** leads, la fiche d'un lead et ses soumissions, et note un échange.
+Trois écrans, un accueil (`seller.tsx`, avec ses liens), six outils sur les dix de la portée `seller`
+([`ROLES.md`](ROLES.md)). La logique est pure et testée ; les `.tsx` ne sont que le câblage React (non couverts en
+rendu, comme les autres écrans).
+
+| Écran | Ce qu'il montre | Outils (nom nu) | Logique testée |
+|---|---|---|---|
+| `leads.tsx` | ses leads, paginés, filtre par statut et par segment, règle citée de chaque segment | `m2_lister_leads` | `src/m2/listeLeads.ts`, `src/vendeur/lectureLeads.ts`, `chargeurLeads.ts`, `src/ecrans/leads.ts` |
+| `lead/[id].tsx` | prochaine action suggérée avec sa règle, Client 360, historique, note | `m2_suggerer_prochaine_action`, `m2_trouver_client_de_lead`, `m2_obtenir_client_360`, `m2_enregistrer_interaction` (par la file) | `src/m2/client360.ts`, `interaction.ts`, `src/vendeur/fiche.ts`, `chargeurFiche.ts`, `src/ecrans/lead.ts` |
+| `quotes.tsx` | ses soumissions : statut et prix | `m3_lire_devis` ; `m2_lister_leads` par segment pour trouver les numéros | `src/m3/devis.ts`, `src/vendeur/devisConnus.ts`, `chargeurDevis.ts`, `src/ecrans/quotes.ts` |
+
+- **Tout passe par la porte d'appareil.** Nom nu, `_meta` posé par le core, rôle `seller`. Les six noms sont épinglés
+  par `src/vendeur/ecransVendeur.test.ts` (nom nu, dans la portée du vendeur, aucun outil de l'admin) et lus dans le
+  code de l'app par l'E2E moteur (`tests/e2e/test_vendeur_appareil.py`) : chacun est dans la portée `seller` de
+  `openclaw.roles_outils`. Aucun écran n'appelle `fetch` lui-même. Aucun argument ne désigne une personne : le
+  serveur tient la personne du jeton.
+- **Le serveur décide qui voit quoi.** « Ses leads » est la portée de M2 (`acces.leads_visibles`) : le lead d'un autre,
+  un lead sans propriétaire et un lead inconnu donnent le MÊME refus (`REJ-LEAD-NON-ASSIGNE`), le Client 360 d'un
+  vendeur ne porte que ses opportunités et ses notes. L'app ne filtre rien de plus, et ne déduit aucune portée.
+- **Lecture d'abord, cache marqué.** Chaque lecture réussie écrit un cache SQLite (dépôt clé/valeur partagé,
+  `src/vendeur/cache.ts`) ; si le serveur ne répond pas (réseau, délai, sortie tronquée, réponse illisible), l'écran
+  rend le cache **avec sa date et la raison** (« Hors ligne : données du cache, lues le … »). Règles :
+  - une clé par PERSONNE (`vendeur:<personne>:...`) : après un nouvel appairage pour quelqu'un d'autre sur le même
+    téléphone, ses leads et le contact de ses clients ne sont jamais relus ;
+  - un cache par filtre pour les leads, par lead pour la fiche, par numéro pour les devis ;
+  - le cache garde les MOTS DU SERVEUR (pages brutes, réponses acceptées ou refus) et se relit par les mêmes
+    lecteurs que la lecture en ligne : une valeur corrompue ou d'une autre forme est « pas de cache », jamais une
+    valeur devinée (clés versionnées `_v1`) ;
+  - **un refus n'est jamais remplacé par le cache** : le serveur a répondu non (segment non calculable, identité
+    invalide, devis introuvable), un cache ne dit pas ce qu'il refuse aujourd'hui ;
+  - une fiche est celle d'UNE lecture : si l'une des trois lectures (suggestion, client, Client 360) échoue, c'est la
+    fiche gardée en entier, jamais un mélange de lectures fraîches et gardées ;
+  - l'écriture du cache est facultative : sa panne ne cache pas une lecture réussie.
+  Le contact d'un client est de la donnée personnelle (Loi 25) gardée sous la protection au repos du système
+  (R12 §6), pour les leads de cette personne seulement.
+- **`leads.tsx`.** Pages par `decalage` et `suivant` (T4.6) ; « Voir plus » recolle la page demandée par les mêmes
+  règles que « Voir plus » des attentes (`fusionnerPage`) : c'est la page demandée, pour le même filtre, le total n'a
+  pas changé, aucun lead n'est déjà affiché, `suivant` = `decalage` + `affichees`. Sinon les rangs ont glissé : la
+  liste est **relue depuis le début** et l'écran le dit. Une page dont la pagination se contredit (`reste` sans
+  `suivant`, `suivant` qui ne progresse pas) est illisible : elle ferait manquer des leads ou tourner en rond. Un lead
+  dont un élément est illisible est compté, jamais montré à moitié. Un segment **non calculable** (les six sans
+  donnée, `dormant_lead` et `quote_stale` tant que leurs seuils de `department.yaml` sont vides) est marqué sur son
+  filtre, et le choisir montre « non calculable, manque X » (mots de M2), jamais une liste vide ; un lead dit aussi
+  ce que M2 n'a pas pu calculer POUR LUI. Une valeur absente est dite absente (« non précisé »), « urgent » n'est
+  affiché que si l'urgence est déclarée. Chaque segment cite sa règle (énoncé rendu par M2) et la donnée qui l'a
+  déclenché.
+- **`lead/[id].tsx`.** La suggestion est celle de la table de règles de M2 (`suggestions.py`) : son texte fixe, son
+  identifiant de règle et son motif, tels quels ; un lead clos n'a pas de suggestion (verdict montré). Le Client 360
+  est lu en deux appels (`m2_trouver_client_de_lead` puis `m2_obtenir_client_360` avec le `client_id` que le serveur
+  a donné, jamais deviné) ; une réponse qui parlerait d'un autre lead ou d'un autre client n'est pas montrée
+  (`composerFiche`). L'historique est celui de CE lead (les dix dernières interactions du client sont lues ; celles
+  des autres opportunités sont comptées, pas montrées) ; l'écriture du système (`system:m3`...) est marquée.
+- **La note part par la file sortante** (`lead_note` -> `m2_enregistrer_interaction`, `chantierId = lead:<id>`). Son id
+  est la clé d'idempotence : une note renvoyée après une réponse perdue porte la même clé et le même payload,
+  `{lead_id, resume, horodatage}` exactement (ni `auteur`, ni personne, ni rôle : l'auteur est la personne du jeton, le
+  serveur refuse toute autre). L'`horodatage` est l'heure de l'appareil à l'écriture, posée une fois. Hors ligne la note
+  reste en file, visible (« Notes pas encore dans l'historique ») avec son état ; un refus du serveur (lead d'un autre,
+  lead clos) est un échec permanent dont le verdict est montré, elle n'est pas renvoyée. **Borne : 300 caractères** :
+  le Client 360 rend dix interactions dans une réponse que le socle tronque au-delà de 6 000 caractères, et une note
+  trop longue rendrait l'historique illisible pour tout le monde (l'E2E écrit dix notes de 300 caractères : 4 928
+  caractères, pas de troncature). Le serveur n'a pas cette borne : voir « Limites ».
+- **`quotes.tsx`.** `m3_lire_devis` avec le seul `devis_id`. **Statut et prix, ni coût ni marge, par défaut.** Le
+  serveur ne sait pas rendre cette vue au vendeur : M3 n'a que deux projections (`interne`, avec coût, marge et prix ;
+  `employe`, sans coût, sans marge ET sans prix) et rend `interne` à un appareil `seller` (`_VUE_PAR_ROLE_APPAREIL`, dit
+  « aucune troisième vue » dans son commentaire). La réponse porte donc `cout_unitaire`, `cout_ligne`, `cout_total` et
+  `taux_marge`. L'app applique la règle une seconde fois (R12 §6, « l'app ne rend pas non plus ces champs ») :
+  `lireDevisVendeur` ne recopie qu'une liste blanche (identité, statut, prix, lignes décrites), donc ni l'écran ni le
+  cache du téléphone n'en portent ; le cache relit son devis de façon STRICTE et refuse une clé de plus. Ce n'est pas
+  une protection contre un appareil compromis (la réponse a transité) : la vraie protection est une vue serveur
+  (GATE NATHAN : vue de devis du vendeur avec ou sans coût et marge). L'E2E caractérise l'état actuel (le vendeur
+  reçoit `cout_total` et `taux_marge` ; `role="employe"` retirerait aussi le prix) et échouera le jour où M3 livre
+  cette vue. Un prix absent est dit absent ; l'app ne recalcule aucun total, aucune taxe (les montants restent des
+  textes décimaux mis en forme sans passer par un nombre).
+- **Aucun outil ne liste les soumissions d'un vendeur.** `m3_lire_devis` lit un devis par son numéro, et le seul
+  endroit où un numéro arrive à l'app est la donnée que M2 cite pour `won_pending_schedule` (`reference_devis_m3`, le
+  devis accepté) et `quote_stale` (`devis_id`, le devis envoyé resté sans réponse). L'écran découvre donc les devis par
+  `m2_lister_leads` filtré par ces deux segments (au plus dix pages chacun), les réunit aux numéros déjà connus, et
+  laisse le vendeur ouvrir un autre devis par son numéro (gardé s'il se lit). Il le dit : un segment non calculable
+  (seuil à configurer), une lecture partielle, en échec ou venue du cache sont montrés au-dessus de la liste. Les
+  brouillons, les devis envoyés pas encore périmés et ceux d'un lead déjà cédulé ou facturé ne sont pas listables.
+- **Preuve.** Jest : les lecteurs, les chargeurs (faux transport, dépôt mémoire), la fusion des pages, le cache
+  (par personne, corrompu, sans coût ni marge), la file (envoi, renvoi avec la même clé, refus, hors ligne) et la
+  logique des trois écrans ; des gardes de source (nom nu, aucun coût ni marge dans les écrans, aucun `fetch`) ;
+  `src/vendeur/reponsesMoteur.test.ts` passe les VRAIES réponses d'un moteur (`fixtures/reponses-moteur.json`) par les
+  lecteurs. E2E moteur (`tests/e2e/test_vendeur_appareil.py`, appareil `seller`) : ses leads seulement, 403 sur les
+  outils de l'admin et sur tout nom non nu, rejeu d'une note sans double effet (état du moteur comparé avant et
+  après), la forme des réponses comparée à la fixture, les catalogues et noms d'outils lus dans le code de l'app.
+- **Limites.** (1) Aucun outil ne liste les soumissions, ni ne rend « le prix sans coût ni marge » : dit ci-dessus, pas
+  ajouté ici (`departments/` n'est pas touché). (2) La borne de 300 caractères est celle de l'app ; le serveur ne
+  borne pas `resume`, et une note plus longue écrite par un agent peut tronquer la réponse du Client 360 : l'écran
+  dit alors `reponse_tronquee` plutôt que d'afficher un extrait. (3) La règle `doublon_en_attente` suggère au vendeur
+  « d'arbitrer le doublon », geste réservé à l'admin (`m2_arbitrer_doublon`) ; l'app montre la règle telle quelle.
+  (4) L'instant de référence de `m2_lister_leads` et de la suggestion est l'heure de l'appareil (un appareil qui la
+  falsifie ne change que sa propre vue, `liste_leads.py`). (5) Pas de rafraîchissement automatique au retour du
+  réseau pour `leads` et `quotes` (bouton manuel ; la fiche se relit quand la file se vide). (6) Une note ne se
+  modifie ni ne s'annule ; pas de transition de statut, de relance, de demande de photos ni de mesure depuis l'app
+  (outils du vendeur non câblés : `m2_transitionner_statut`, `m2_evaluer_readiness`, `m3_generer_soumission_brouillon`,
+  `m3_qualifier_photos`). (7) Le trajet réel appareil -> core -> moteur reste à prouver contre un core réel.
 
 ## Ce qui n'est PAS encore fait
 

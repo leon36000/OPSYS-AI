@@ -20,6 +20,10 @@ export type StatutMutation = "brouillon" | "en_attente" | "envoi" | "envoyee" | 
  *    d'approbation (`m9_decider_demande_approbation`, `(admin)/approvals.tsx`). Une mutation par
  *    décision, `chantierId` fixe (`approbations`, pas un chantier) : son id est la clé d'idempotence
  *    qui fait qu'une décision renvoyée ne s'applique qu'une fois.
+ *  - `lead_note` (PLAN T4.8) : une note du vendeur sur SON lead (`m2_enregistrer_interaction`,
+ *    `(seller)/lead/[id].tsx`, `src/m2/interaction.ts`). Une mutation par note, `chantierId` = `lead:<id>` (une
+ *    note n'appartient à aucun chantier) : son id est la clé d'idempotence qui fait qu'une note renvoyée après
+ *    une réponse perdue n'est écrite qu'une fois.
  */
 export type TypeMutation =
   | "punch_in"
@@ -34,7 +38,8 @@ export type TypeMutation =
   | "fichier_bloc"
   | "job_completion"
   | "gps_consent_change"
-  | "approval_decision";
+  | "approval_decision"
+  | "lead_note";
 
 /**
  * Une ligne de la file sortante SQLite (`outbox`, R12 §4). `id` est le `mutation_id` UUID créé

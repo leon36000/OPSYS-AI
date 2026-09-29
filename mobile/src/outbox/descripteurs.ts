@@ -5,6 +5,7 @@ import { interpreterResultatPointage } from "../m4/pointage";
 import { interpreterResultatDeciderDemande } from "../approbations/contrat";
 import { interpreterResultatDeclarerMateriauxUtilises } from "../m6/materiaux";
 import { interpreterResultatDeposerFichier } from "../fichiers/protocole";
+import { interpreterResultatEnregistrerInteraction } from "../m2/interaction";
 import type { DescripteurTypeMutation, InterpretationResultatMetier } from "./vidangeur";
 import type { TypeMutation } from "./types";
 
@@ -86,6 +87,17 @@ function versInterpretationGeneriqueDecisionApprobation(resultatBrut: unknown): 
   return { accepte: false, verdict: interpretation.verdict };
 }
 
+/** Même rôle, pour `m2_enregistrer_interaction` (`src/m2/interaction.ts`, PLAN T4.8) — `(seller)/lead/[id].tsx`,
+ * la note du vendeur. Un accusé illisible n'est jamais un succès : c'est un rejet qui dit de vérifier
+ * l'historique. `resume` porte l'accusé (`AccuseNote`). */
+function versInterpretationGeneriqueNote(resultatBrut: unknown): InterpretationResultatMetier {
+  const interpretation = interpreterResultatEnregistrerInteraction(resultatBrut);
+  if (interpretation.accepte) {
+    return { accepte: true, resume: interpretation.resultat };
+  }
+  return { accepte: false, verdict: interpretation.verdict };
+}
+
 /**
  * Association type de mutation -> outil réel (`/tools/invoke`, `tool`) + interprète de sa
  * réponse business. `punch_in`/`punch_out` : T1.4-d, R12 §5 étape 2 — voir
@@ -115,6 +127,8 @@ function versInterpretationGeneriqueDecisionApprobation(resultatBrut: unknown): 
  * `gps_consent_change` -> `m4_definir_consentement_gps` : PLAN T1.4-k (`src/m4/consentementGps.ts`).
  * `approval_decision` -> `m9_decider_demande_approbation` : l'étape 6 de PLAN T1.4-f (le propriétaire
  * décide depuis son téléphone, `src/approbations/contrat.ts`).
+ * `lead_note` -> `m2_enregistrer_interaction` : PLAN T4.8 (le vendeur note un échange sur SON lead,
+ * `src/m2/interaction.ts`).
  */
 export const DESCRIPTEURS_MUTATION: ReadonlyMap<TypeMutation, DescripteurTypeMutation> = new Map([
   ["punch_in", { tool: "m4_pointer", interpreterResultat: versInterpretationGenerique }],
@@ -125,4 +139,5 @@ export const DESCRIPTEURS_MUTATION: ReadonlyMap<TypeMutation, DescripteurTypeMut
   ["materials_submit", { tool: "m6_declarer_materiaux_utilises", interpreterResultat: versInterpretationGeneriqueMateriaux }],
   ["gps_consent_change", { tool: "m4_definir_consentement_gps", interpreterResultat: versInterpretationGeneriqueConsentementGps }],
   ["approval_decision", { tool: "m9_decider_demande_approbation", interpreterResultat: versInterpretationGeneriqueDecisionApprobation }],
+  ["lead_note", { tool: "m2_enregistrer_interaction", interpreterResultat: versInterpretationGeneriqueNote }],
 ]);
