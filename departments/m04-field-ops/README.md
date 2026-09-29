@@ -156,8 +156,9 @@ PLAN T4.1-d (conception : `docs/research/R15-cedule-vrp.md` §4 ; skill `optimis
 assemble l'entrée du solveur, le fait résoudre et range le plan au registre. Deux outils, réservés à l'`admin`
 (portée : `docs/architecture/ROLES.md`) :
 - `m4_proposer_cedule` (T1, niveau N1 : un brouillon, automatique) : lit au registre les interventions au statut
-  `planifiee`, leur `urgence_declaree` et les coordonnées CONFIRMÉES (`outils.lire_localisation_confirmee`), et
-  demande tout le reste en arguments. Range le maillon `cedule_proposee` (plan complet, entrée sans matrice donc
+  `planifiee` (et, depuis T4.12, les `a_planifier` dont la préparation est prête), leur `urgence_declaree` et les
+  coordonnées CONFIRMÉES (`outils.lire_localisation_confirmee`), et lit le reste dans le PROFIL DES ÉQUIPES de
+  l'entreprise (section « Profil des équipes »), ou en arguments (surcharge tracée). Range le maillon `cedule_proposee` (plan complet, entrée sans matrice donc
   sans coordonnée de chantier, état des interventions, trois empreintes : entrée, sortie, état) et rend `plan_id`,
   `mode_distance`, `mode_bride` et un `avertissement` « mode bridé » quand les distances sont approximatives, les
   `non_cedulees` et leurs raisons. Aucune assignation. Même entrée : même plan, même `plan_id`, rien d'écrit de
@@ -174,8 +175,9 @@ assemble l'entrée du solveur, le fait résoudre et range le plan au registre. D
 
 Ce que M4 SAIT (jamais fourni) : les interventions à planifier, leur nature de travaux (`type_travaux` d'un lead v1
 ou `service` d'un lead v2, jamais l'un déduit de l'autre), leur urgence déclarée, le
-technicien déjà assigné, les coordonnées confirmées. Ce que M4 ne sait PAS encore (argument explicite, sinon UN
-verdict `REJ-CHAMP-MANQUANT` qui liste tout ce qu'il faut fournir, aucune valeur par défaut) : `equipes` (`id`,
+technicien déjà assigné, les coordonnées confirmées. Depuis T4.12, ce qui suit vient du profil des équipes quand
+l'appelant ne le donne pas ; ce que ni le profil ni un argument ne donne est UN verdict `REJ-CHAMP-MANQUANT` qui liste
+tout ce qu'il faut fournir et où le déclarer, aucune valeur par défaut : `equipes` (`id`,
 `competences`, `depot` : `id`, `latitude_microdegres`, `longitude_microdegres`, `quarts`), `durees_par_type_travaux`,
 `competences_par_type_travaux` (leads v1 ; `{}` s'il n'y en a pas dans le lot), `durees_par_service` et
 `competences_par_service` (leads v2, exigés seulement si le lot en contient : une clé par service déclaré par
@@ -183,7 +185,7 @@ l'entreprise), `chantiers` (une entrée par intervention : `fenetre` du client e
 `null` seulement si aucun créneau n'est confirmé au client) et `parametres` (`facteur_detour_milliemes`,
 `vitesse_moyenne_kmh`, `marge_par_trajet_secondes`, `iterations`, `cout_non_cedule_m`). Seule exception, technique
 et non métier : la `graine` du solveur, 0 si omise (PyVRP est amorcé par l'empreinte de l'entrée de toute façon).
-L'`id` d'une équipe EST le `technicien_id` de l'assignation ; `jour` est un numéro choisi par l'appelant.
+L'`id` d'une équipe EST le `technicien_id` de l'assignation ; `jour` est un numéro de journée de la cédule.
 
 **Urgence.** `urgence_declaree` (booléen du LeadQualifie) devient l'entier 0 à 3 du solveur par une règle écrite,
 `cedule_tournees.REGLE_URGENCE` : vrai vaut 1, faux vaut 0, source absente ou non booléenne est un verdict. Un chantier
@@ -243,17 +245,79 @@ DEFINITION-PRODUIT §6 (« soumission acceptée → M4 planifie ») et §7 M4.5,
   admin seulement, lecture seule). Le verdict est une liste de volets : `soumission` (le devis qui a fait naître
   l'intervention), `adresse` (coordonnées CONFIRMÉES, lues comme la cédule les lit : le chantier est le `lead_id`),
   `equipe`, `materiel`, `meteo`. Chaque volet est `ok` (lu à sa source), `manque` (attendu et absent : le champ `manque`
-  dit quoi fournir) ou `non_verifiable` (M4 n'a pas encore de quoi le lire). **Équipe, matériel et météo sont
-  `non_verifiable` aujourd'hui** (profil des équipes : PLAN T4.12 ; `m6.materiel_pret` : T4.14 ; météo : T4.13) : le
+  dit quoi fournir) ou `non_verifiable` (M4 n'a pas encore de quoi le lire). **Matériel et météo sont `non_verifiable`
+  aujourd'hui** (`m6.materiel_pret` : T4.14 ; météo : T4.13 ; l'équipe l'était avant T4.12) : le
   verdict d'ensemble est `pret` SEULEMENT si tous les volets sont `ok`, sinon `bloque` ou `non_verifiable`, donc aucune
-  intervention n'est `pret` avant ces trois tâches et la porte `a_planifier → planifiee` reste fermée. Le verdict ne rend ni
+  intervention n'est `pret` avant ces deux tâches et la porte `a_planifier → planifiee` reste fermée. Le verdict ne rend ni
   coordonnée, ni contact, ni prix.
 
 Preuve : `tests/test_consommer_devis_accepte.py` (bus réel, M4 seul), `tests/test_etats_a_planifier.py`,
 `tests/test_preparation.py`, la table de `tests/test_etats.py`, et `tests/test_cascade_devis_accepte.py` du socle (M1 → M2
 → M3, puis M2 converti, M4 à planifier, M5, M6 et M8 comme avant, rejeu et ordre inversé sans doublon).
 
-Limites connues : aucun outil ne fait passer une intervention de `a_planifier` à `planifiee` (la porte exige un verdict
-`pret`, inatteignable tant qu'un volet est non vérifiable) ; `m4_planifier_intervention` n'a pas de garde contre une
-intervention née du bus pour le même devis (il inscrit la sienne) ; le mobile (`StatutInterventionM4`) ne connaît pas
-`a_planifier` (un employé ne le voit jamais : rien ne lui est assigné).
+Limites connues : le mobile (`StatutInterventionM4`) ne connaît pas `a_planifier` (un employé ne le voit jamais : rien
+ne lui est assigné). Levées par T4.12 (section suivante) : la sortie de `a_planifier` (`m4_appliquer_cedule`), le volet
+« équipe » (vérifié depuis le profil) et la garde contre le doublon de `m4_planifier_intervention`.
+
+## Profil des équipes, admissibilité et sortie de `a_planifier` (PLAN T4.12)
+
+DEFINITION-PRODUIT §7 M4.2, M4.3 et M4.7 ; limite de T4.1-d (« tout est argument »). Avant, l'agent recopiait équipes,
+dépôt, quarts et durées à chaque cédule. Quatre pièces :
+
+- **Le profil des équipes** (`opsys.equipes`, socle ; clé `equipes` de `$OPSYS_HOME/entreprise.yaml`, même mécanisme et
+  même signature au journal d'audit que les services et la zone desservie ; forme et règles dans
+  `docs/architecture/TAXONOMIE.md`). `opsys equipes lister` et `opsys equipes declarer --depuis equipes.yaml --par
+  nathan`. Équipes (membres = personnes OPSYS existantes, compétences, dépôt, quarts), durée et compétences par service,
+  réglages de la cédule, fenêtre par défaut d'un chantier `a_planifier`. Aucune donnée de ressources humaines, de santé
+  ni d'évaluation : le schéma est fermé. Sans profil : verdict qui dit quoi déclarer, jamais un repli ; profil invalide :
+  `REJ-PROFIL-INVALIDE`, jamais lu comme absent.
+- **L'admissibilité** (`admissibilite.py`, pur, gardé par analyse du code). Une équipe est admissible pour un service si
+  elle détient TOUTES ses compétences et si l'un de ses quarts est assez long pour sa durée ; chaque équipe écartée dit
+  pourquoi. C'est une condition nécessaire : le solveur ajoute trajets, fenêtre du client et charge des journées. Elle
+  devient le volet `equipe` de `preparation.py` : `ok` (les équipes admissibles sont nommées), `manque` (sans profil, avec
+  un profil invalide, sans durée pour ce service, sans équipe admissible : le volet dit quoi déclarer ou ajuster), ou
+  `non_verifiable` pour un lead v1 (le profil est par service). Matériel et météo restent `non_verifiable`.
+- **`m4_proposer_cedule` lit le profil sans argument.** Un argument donné REMPLACE la clé entière du profil (jamais une
+  fusion) : c'est une surcharge, tracée (`provenance` : `profil` ou `surcharge`, par clé et, pour `chantiers`, par
+  intervention ; `empreinte_profil` au maillon). Une intervention `a_planifier` sans entrée dans `chantiers` prend la
+  fenêtre par défaut du profil et AUCUN créneau figé : avant toute cédule, aucun créneau n'a pu être promis (T3). Une
+  intervention `planifiee` exige toujours son entrée et son `creneau_fige` explicite. Les tables par type de travaux
+  (leads v1, gelés) restent des arguments. Même valeurs, que le profil les donne ou que l'appelant les écrive : mêmes
+  octets de plan, même `plan_id`.
+- **La sortie de `a_planifier` passe par la cédule** (choix : `m4_appliquer_cedule`, pas un outil dédié). La cédule est
+  l'endroit où l'équipe est choisie et vérifiée ; un outil « planifier » à part permettrait de sortir de `a_planifier`
+  sans équipe, ou d'en assigner une sans passer la préparation. `m4_proposer_cedule` ne prend une `a_planifier` que si son
+  verdict de préparation est « prêt » (les autres sont rendues dans `non_pretes`, avec ce qui leur manque ; une
+  intervention demandée par `intervention_ids` et non prête est refusée, `REJ-CEDULE-PREPARATION-NON-PRETE`).
+  `m4_appliquer_cedule` recalcule le verdict d'aujourd'hui pour chaque intervention qu'il place, la fait passer
+  `a_planifier → planifiee` par `etats.transitionner` (la porte d'empreinte de T4.10 : le verdict est recalculé et sa
+  propre empreinte vérifiée, un verdict truqué ou périmé ne passe pas), puis l'assigne. Toutes les vérifications
+  précèdent la première écriture : préparation toujours prête, état et empreinte de préparation inchangés, profil
+  inchangé si le plan en a lu des valeurs (`REJ-CEDULE-ENTREE-CHANGEE`), entrée du solveur inchangée, plan valide, et
+  l'équipe qui reçoit une intervention sortante est admissible SELON LE PROFIL, même si le plan a été proposé avec des
+  équipes en surcharge (`REJ-TOURNEES-PLAN-INVALIDE`). Une intervention que le plan laisse de côté reste `a_planifier`.
+  Les membres d'une équipe agissent sur ses interventions (`docs/architecture/ROLES.md`) ; celui qui part devient le
+  technicien.
+- **Plus de doublon.** `etats.inscrire_intervention` (donc `m4_planifier_intervention`) refuse un `devis_id` qui a déjà
+  une intervention, née du bus ou non, annulée ou non (un devis n'a qu'une intervention : `REJ-TRANSITION-ILLEGALE`, qui
+  nomme l'intervention et dit de la préparer et de la céduler) ; sans `devis_id`, il refuse un lead qui a déjà une
+  intervention active née du bus (fournir le `devis_id` d'un AUTRE devis lève le refus). L'autre ordre existait déjà : le
+  consommateur du bus reconnaît une intervention planifiée à la main pour ce devis (`deja_applique`). Les deux ordres sont
+  prouvés par le vrai bus, à M4 seul et sur les dix départements (`tests/test_cascade_devis_accepte.py`).
+
+Preuve : `tests/test_equipes.py` et `tests/test_cli_equipes.py` du socle (profil et commande), `test_admissibilite.py`,
+`test_preparation.py`, `test_cedule_tournees_profil.py` (module pur, profil injecté), `test_equipes_cedule.py` (vrais
+outils, vrai bus, vrai fichier : la démonstration Repentigny-Joliette de T4.1-d rejouée depuis le profil seul, 26 785 m, les
+mêmes octets de plan que les mêmes valeurs en arguments, y compris sur une seconde instance), `test_acces_par_equipe.py`.
+Le fixture `tests/fixtures/equipes_repentigny_joliette.json` est FICTIF (`fictif: true`) et un test vérifie qu'aucun
+chiffre n'a dérivé du scénario de T4.1-d.
+
+Limites connues : **matériel et météo restent non vérifiables (T4.14, T4.13) : aucune intervention n'est « prête » en
+vrai, donc aucune intervention née du bus ne sort de `a_planifier` aujourd'hui** ; les tests de sortie SIMULENT ces deux
+volets pour prouver la plomberie, un test prouve que la porte reste fermée sans eux. Et comme un devis n'a qu'une
+intervention, le repli `m4_planifier_intervention` est fermé pour un devis dont l'intervention existe : le propriétaire
+tranche s'il veut une attestation humaine d'un volet non vérifiable (aucune n'existe). `jour` est le numéro de journée du
+solveur : pas de calendrier, pas de quarts par jour de la semaine ; les bornes des réglages de la cédule sont vérifiées par
+M4 à l'usage, pas à la déclaration ; une planification à la main SANS `devis_id`, faite avant le devis accepté du même lead,
+n'est pas reconnue par le bus (deux interventions : test épinglé) ; un membre n'est que d'une équipe ; le plan proposé avec des arguments complets ne lit pas le profil, donc un
+changement du profil ne le périme pas (l'admissibilité, elle, reste jugée à l'application).

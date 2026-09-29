@@ -80,8 +80,9 @@ du lead, lue à l'inscription ; une intervention porte exactement l'une des deux
 
 - Les tables de la cédule par tournées ne sont exigées que pour la version présente dans le lot : un lot
   mixte exige les deux jeux, et chaque intervention lit la table de SA version (un service propre peut porter
-  le code d'un type v1, aucune n'est prise pour l'autre). Les deux tables par type restent requises par le
-  schéma de l'outil (`{}` pour un lot sans lead v1).
+  le code d'un type v1, aucune n'est prise pour l'autre). Depuis T4.12, aucune table n'est requise par le schéma de
+  l'outil : celles par service viennent du profil des équipes (plus bas), celles par type de travaux (leads v1, gelés)
+  restent des arguments, exigés seulement si le lot contient un lead v1.
 - Le WCT ne porte jamais les deux clés (`outbox.verifier_invariants_outbox` le refuse). Ses treize clés
   requises ne changent pas ; `service` s'ajoute au catalogue du socle et à `CHAMPS_WCT_OPTIONNELS` de M4 et
   de M6 (qui refuse toute clé inconnue). M10 n'en extrait que les douze clés de son contrat.
@@ -181,8 +182,54 @@ d'un message. Ce que M1 en fait : [M1-canaux](../departements/M1-canaux.md) §10
 - Gate BMAD de M3 (`departments/m03-estimation/docs/bmad/verif_coherence.py`, contrôle 13 ter) :
   l'architecture de M3 décrit le contrat v2 que M2 accepte et cite le catalogue du socle.
 
+## Équipes, dépôt, quarts et durées (PLAN T4.12)
+
+Le même profil porte les équipes de l'entreprise et ce que M4 en fait : `opsys.equipes` (module frère de
+`opsys.taxonomie`, même fichier, même écriture signée au journal d'audit). Avant T4.12, l'agent recopiait équipes, dépôt
+et quarts à chaque cédule. **Rien de cela n'est dans le code** : le propriétaire le déclare (GATE NATHAN), une fois.
+
+```yaml
+equipes:
+  liste:                        # l'id d'une équipe EST le technicien_id de son assignation
+    - id: eq-repentigny
+      membres: [alice, bruno]   # identifiants de PERSONNES OPSYS (opsys personnes lister), rien d'autre
+      competences: [gouttieres, revetement]                  # des codes que le propriétaire choisit
+      depot: {id: depot-repentigny, latitude_microdegres: 45735000, longitude_microdegres: -73455000}
+      quarts: [{jour: 0, debut_min: 480, fin_min: 1020}]     # jour : numéro de journée de la cédule
+  services:                     # par code de service DÉCLARÉ ci-dessus, durée et compétences requises
+    gouttieres: {duree_min: 90, competences: [gouttieres]}
+  cedule:                       # réglages du solveur, tous obligatoires (graine facultative)
+    {facteur_detour_milliemes: 1300, vitesse_moyenne_kmh: 50, marge_par_trajet_secondes: 600,
+     iterations: 500, cout_non_cedule_m: 500000}
+  fenetre_par_defaut:           # offerte à un chantier a_planifier dont le client n'a donné aucune fenêtre
+    {jours: [0], debut_min: 480, fin_min: 1020}
+```
+
+`opsys equipes lister` montre le fichier, le profil canonique et ce qu'il reste à déclarer ; `opsys equipes declarer
+--depuis equipes.yaml --par nathan` REMPLACE la clé entière par le contenu validé du fichier (YAML ou JSON), signée au
+journal (identifiants d'équipe, nombre de membres, services, empreinte : jamais le nom d'un membre). Les membres doivent
+être des personnes OPSYS existantes et actives ; une personne n'est membre que d'une équipe ; l'identifiant d'une équipe
+ne peut être celui d'une personne qui n'en est pas membre. Chaque sous-clé est facultative à la déclaration : ce qui
+manque, M4 le dit au moment d'en avoir besoin.
+
+| Situation | Verdict |
+|---|---|
+| Aucun profil (clé absente ou vide) | `REJ-EQUIPES-NON-CONFIGUREES` : dit quoi déclarer et la commande. Aucune équipe, aucun dépôt, aucun quart ni aucune durée n'est inventé. |
+| Profil écrit mais invalide (équipe sans membre, quart mal formé, clé inconnue comme `salaire`, personne dans deux équipes…) | `REJ-PROFIL-INVALIDE` avec la raison, **jamais lu comme absent** ; `opsys verifier` le signale. Le schéma est FERMÉ : aucune donnée de ressources humaines, de santé ni d'évaluation. |
+| Durée pour un service que l'entreprise ne déclare pas | `opsys verifier` la signale. |
+
+M4 s'en sert de trois façons : `m4_proposer_cedule` lit équipes, durées, compétences, réglages et fenêtre par défaut sans
+argument (un argument donné est une SURCHARGE, tracée : la provenance de chaque valeur est rendue et gardée au maillon
+du plan) ; l'admissibilité d'une équipe pour un service est CALCULÉE par le code (toutes les compétences du service, et
+au moins un quart assez long pour sa durée : `admissibilite.py`) et devient le volet « équipe » de
+`m4_verifier_preparation` ; les membres d'une équipe agissent sur les interventions assignées à leur équipe
+([ROLES](ROLES.md), « Les équipes du profil de l'entreprise »). Les leads v1 (gelés) n'ont pas de service : leurs durées et
+compétences par type de travaux restent des arguments. Détail : README de M4.
+
 ## Reste à faire
 
 - Demande de chiffrage M1→M3 (`m1-demande-chiffrage.v1.yaml`) : v2 à publier.
 - Règle de précédence entre services (« réparation de gouttières ») : décision du propriétaire (T2.1).
 - Barèmes et estimateurs par service (T2.3, M3.8).
+- Quarts par jour de la semaine et calendrier : le profil des équipes garde le `jour` numéroté du solveur (M4 ne tient
+  pas encore de calendrier) ; véhicules et équipements ne sont pas modélisés.

@@ -123,7 +123,7 @@ Les 11 outils de l'employé, les 10 du vendeur, et :
 | M4 | `m4_produire_brouillon_temps` | §9.3 : brouillon de feuille de temps envoyé à M5. |
 | M4 | `m4_lire_position_gps` | §9.2 « accès admin journalisé » ; POLITIQUE-geolocalisation §6. `accede_par` doit être sa propre personne (T1.4-k). |
 | M4 | `m4_proposer_localisation`, `m4_confirmer_localisation` (N3) | §9.5 M4 « dispatch du jour » (T4.1-a, R15 §3) : l'admin voit la proposition de coordonnées d'un chantier (index RQA local) puis la confirme ; `confirme_par` doit être sa propre personne. Réservés à l'admin : c'est l'adresse d'un client, et une coordonnée confirmée décide d'une tournée. L'employé n'a aucun besoin de géocoder une adresse ; le vendeur non plus. Les deux outils refusent aussi, dans le code, tout rôle d'appareil autre qu'`admin`. |
-| M4 | `m4_proposer_cedule` (N1), `m4_appliquer_cedule` (N3) | §9.5 M4 « dispatch du jour » (T4.1-d, R15 §4) : l'admin fait proposer une cédule par tournées depuis son téléphone (brouillon : aucune assignation, aucune vérité écrite), la lit (mode bridé, non cédulées et leurs raisons) puis l'applique ; `confirme_par` doit être sa propre personne. Réservés à l'admin : une tournée regroupe des chantiers de clients (adresses, coordonnées confirmées), et l'application décide qui voit quelles interventions. Le brouillon lui-même écrit un maillon au registre : l'ouvrir à l'employé ou au vendeur permettrait d'y déposer des plans à volonté. Les deux outils refusent aussi, dans le code, tout rôle d'appareil autre qu'`admin`. |
+| M4 | `m4_proposer_cedule` (N1), `m4_appliquer_cedule` (N3) | §9.5 M4 « dispatch du jour » (T4.1-d, R15 §4 ; T4.12) : l'admin fait proposer une cédule par tournées depuis son téléphone (brouillon : aucune assignation, aucune vérité écrite), la lit (mode bridé, non cédulées et leurs raisons, provenance de chaque valeur : profil des équipes ou surcharge) puis l'applique ; appliquer fait sortir de `a_planifier` les interventions prêtes que le plan place ; `confirme_par` doit être sa propre personne. Réservés à l'admin : une tournée regroupe des chantiers de clients (adresses, coordonnées confirmées), et l'application décide qui voit quelles interventions. Le brouillon lui-même écrit un maillon au registre : l'ouvrir à l'employé ou au vendeur permettrait d'y déposer des plans à volonté. Les deux outils refusent aussi, dans le code, tout rôle d'appareil autre qu'`admin`. |
 | M4 | `m4_verifier_preparation` (T0) | §9.5 M4 « dispatch du jour » (T4.10-b, M4.6) : l'admin lit, pour une intervention née d'un devis accepté, si elle peut être planifiée, volet par volet, et ce qui manque (soumission, adresse confirmée, équipe, matériel, météo). Lecture pure : rien n'est écrit, aucun volet non vérifiable n'est présenté comme prêt, aucune date ni aucun créneau n'est promis. Réservé à l'admin : c'est l'état d'un chantier de client (adresse confirmée ou non). L'outil refuse aussi, dans le code, tout rôle d'appareil autre qu'`admin`. |
 | M5 | `m5_etat_tresorerie`, `m5_lister_attentes_facturation` | §9.5 M5 : trésorerie, cash libre réel, factures à approuver. Identité confirmée en base ; la vue vient du rôle authentifié, jamais des arguments (T1.4-k2, plus bas). |
 | M5 | `m5_lire_rentabilite_chantier`, `m5_lire_comptes_a_recevoir` | §6 « travaux terminés », §9.5 M5 : coût réel et marge par chantier, comptes à recevoir (factures envoyées). Lecture pure, même règle d'accès que la trésorerie (T1.5-d) : coûts, marges et créances sont des finances, jamais pour l'employé ni le vendeur (§9.2, §9.4) ; aucun montant, prix ni taux ne se passe en argument. |
@@ -309,7 +309,7 @@ envoie un autre technicien, c'est lui qui a l'intervention. Une intervention que
 
 | Appelant | Règle |
 |---|---|
-| **Appel d'appareil, `employee`** | Seulement les interventions qui lui sont ASSIGNÉES, et seulement sous son propre identifiant. Autre intervention ou intervention inconnue : le même refus `REJ-INTERVENTION-NON-ASSIGNEE` (rien ne dit à un employé quelles interventions existent). `technicien_id` différent de la personne : `REJ-IDENTITE-FOURNIE-DIFFERENTE`, jamais préféré ni remplacé en silence. |
+| **Appel d'appareil, `employee`** | Seulement les interventions qui lui sont ASSIGNÉES (à lui, ou à une ÉQUIPE dont il est membre selon le profil de l'entreprise, T4.12 : voir plus bas), et seulement sous son propre identifiant. Autre intervention ou intervention inconnue : le même refus `REJ-INTERVENTION-NON-ASSIGNEE` (rien ne dit à un employé quelles interventions existent). `technicien_id` différent de la personne : `REJ-IDENTITE-FOURNIE-DIFFERENTE`, jamais préféré ni remplacé en silence. |
 | **Appel d'appareil, `admin`** | Toutes les interventions ; il dispatche, pointe et déclare pour les autres, donc `technicien_id` est honoré tel quel. Exception : `accede_par` de `m4_lire_position_gps` doit être sa propre personne. |
 | **Sans identité d'appareil** (agent, console, secret partagé) | Comportement d'avant T1.4-k, aucun contrôle de personne : voulu et documenté (voie des agents, ci-dessous). Seules les deux concordances du formulaire de M6 valent pour tous. |
 | **Identité non confirmée en base** (personne inconnue, désactivée, rôle retiré depuis l'appairage, rôle sans portée sur M4/M6, ou aucune base jointe) | `REJ-IDENTITE-APPAREIL-INVALIDE`, avant toute écriture. La règle est celle de T1.4-h (`approbations.signataire_valide`) : `identite_appelante()` ne rend que ce que le core a transmis. Les lectures (liste, statut) lèvent un refus métier plutôt que de rendre une liste vide qui masquerait l'échec. |
@@ -327,6 +327,24 @@ envoie un autre technicien, c'est lui qui a l'intervention. Une intervention que
 | `m4_verifier_preparation` | hors portée (T4.10-b) ; refusé aussi dans l'outil (`REJ-IDENTITE-APPAREIL-INVALIDE`) | lecture seule, aucune personne à nommer |
 | `m4_deposer_fichier`, `m4_etat_fichier` | identité confirmée seulement | idem |
 | `m6_declarer_materiaux_utilises` | le WCT doit porter son `technicien_id` | tous les WCT |
+
+### Les équipes du profil de l'entreprise (T4.12)
+
+La cédule par tournées assigne une intervention à une ÉQUIPE : le `technicien_id` de l'assignation est alors
+l'identifiant de l'équipe (`opsys.equipes`, clé `equipes` de `entreprise.yaml`), pas celui d'une personne. Un
+`employee` agit aussi sur l'intervention assignée à une équipe DONT IL EST MEMBRE (`acces.Acteur.equipes`, lues dans
+le profil par l'adaptateur, jamais dans un argument) :
+
+- il la voit (`m4_lister_interventions`, `m4_statut_intervention`) et peut partir (`m4_demarrer_route`), toujours
+  sous son propre `technicien_id` : l'identifiant de l'équipe n'est jamais un `technicien_id` admis pour lui ;
+- quand il part, le technicien de l'intervention devient la personne qui part (`etats.transitionner`) : les autres
+  membres n'y ont plus accès, comme pour une assignation directe ; l'`admin` dispatche pour les autres, inchangé ;
+- profil absent ou invalide : aucune équipe, donc aucun accès par équipe (fail-closed, jamais davantage de droits) ;
+  un retrait du profil retire l'accès à la lecture suivante ;
+- le profil refuse qu'une personne soit membre de deux équipes et qu'une équipe porte l'identifiant d'une personne
+  qui n'en est pas membre (`opsys equipes declarer` vérifie aussi que chaque membre est une personne OPSYS existante
+  et active) : aucune équipe ne donne accès à quelqu'un qui n'en est pas membre ;
+- aucune donnée de ressources humaines, de santé ni d'évaluation dans le profil : le schéma est fermé.
 
 Ordre des contrôles : identité confirmée, puis `technicien_id`, puis assignation ; toujours AVANT toute
 écriture, y compris la clé de chiffrement GPS que `m4_pointer` crée pour un technicien (un refus n'en laisse
@@ -472,6 +490,15 @@ pour un appel d'appareil ; sans identité d'appareil, la liste, comme avant. La 
   maillon `cedule_proposee`, jamais une assignation. Les deux gardes de l'application (état des interventions,
   entrée du solveur reconstruite avec les coordonnées d'aujourd'hui) et `verifier_plan` ne remplacent pas cette
   décision : ils empêchent d'appliquer un plan périmé, pas un plan qu'un agent aurait mal paramétré.
+- **Sortie de `a_planifier` (T4.12).** `m4_appliquer_cedule` (N3) fait aussi passer `a_planifier -> planifiee` chaque
+  intervention que le plan place, avec un verdict de préparation « prêt » recalculé à l'application (la porte
+  d'empreinte de T4.10 : `etats.transitionner`). Tant que les volets matériel et météo de `preparation` sont non
+  vérifiables (T4.14, T4.13), aucun verdict n'est « prêt » : la porte est câblée et reste fermée, aucune intervention
+  née du bus ne peut en sortir, et `m4_planifier_intervention` refuse désormais le devis dont l'intervention existe
+  déjà (un devis n'a qu'une intervention). Décision à prendre par le propriétaire si l'exploitation ne peut pas
+  attendre ces deux tâches : une attestation humaine nommée et motivée d'un volet non vérifiable (aucune n'existe).
+  Les surcharges d'arguments de `m4_proposer_cedule` sont tracées (`provenance`) mais permises : le profil reste juge de
+  l'équipe qui reçoit une intervention sortant de `a_planifier` (`REJ-TOURNEES-PLAN-INVALIDE` sinon).
 - **Voie des agents.** Le secret partagé de la passerelle garde l'accès complet aux outils (documenté,
   voulu) : seule la voie du jeton d'appareil passe par `roles.json`, donc par ces contrôles.
 - **Approbation différée.** Un appel d'appareil dont l'identité n'est pas valide part en file (T1.4-h) ; une
