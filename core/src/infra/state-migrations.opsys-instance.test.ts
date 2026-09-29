@@ -42,7 +42,10 @@ function instanceIn(home: string, active: "canonical" | "legacy"): Instance {
   };
 }
 
-function withInstance(run: (instance: Instance) => void, active: "canonical" | "legacy" = "canonical") {
+function withInstance(
+  run: (instance: Instance) => void,
+  active: "canonical" | "legacy" = "canonical",
+) {
   withTempDirSync({ prefix: "opsys-state-migration-" }, (home) => {
     run(instanceIn(home, active));
   });
@@ -87,7 +90,9 @@ describe("OPSYS state migration: the move", () => {
       const result = migrateLegacyOpsysStateDir({ env, homedir });
 
       expect(result.warnings).toEqual([]);
-      expect(result.changes).toEqual([`State dir: ${legacy} → ${canonical} (former path now linked)`]);
+      expect(result.changes).toEqual([
+        `State dir: ${legacy} → ${canonical} (former path now linked)`,
+      ]);
       expect(result.notices).toHaveLength(1);
       expect(result.notices[0]).toContain("gateway install --force");
       expect(snapshotOf(canonical)).toEqual(before);

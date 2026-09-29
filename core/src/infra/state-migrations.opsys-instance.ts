@@ -160,7 +160,11 @@ function conflictMessage(source: string, target: string): string {
 }
 
 /** Top-level names the moved tree must still hold; a Gateway may add entries meanwhile, never remove them. */
-function movedTreeIsIntact(source: string, target: string, namesBefore: readonly string[]): boolean {
+function movedTreeIsIntact(
+  source: string,
+  target: string,
+  namesBefore: readonly string[],
+): boolean {
   try {
     if (lstatIfPresent(source)) {
       return false;

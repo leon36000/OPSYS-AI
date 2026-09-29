@@ -28,7 +28,9 @@ function seedState(dir: string): void {
 
 describe("OPSYS instance directories", () => {
   it("puts the core state in the instance directory and names the former profile directory", () => {
-    expect(resolveOpsysCoreStateDir("/home/marie")).toBe(path.join("/home/marie", ".opsys", "core"));
+    expect(resolveOpsysCoreStateDir("/home/marie")).toBe(
+      path.join("/home/marie", ".opsys", "core"),
+    );
     expect(resolveLegacyOpsysProfileStateDir("/home/marie")).toBe(
       path.join("/home/marie", ".openclaw-opsys"),
     );

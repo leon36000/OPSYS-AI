@@ -5,12 +5,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { withTempDirSync } from "../test-helpers/temp-dir.js";
-import { applyCliProfileEnv } from "./profile.js";
 import {
   listCanonicalProfileConfigPaths,
   resolveProfileConfigPath,
   resolveProfileStateDir,
 } from "./profile-utils.js";
+import { applyCliProfileEnv } from "./profile.js";
 
 const DIR_LINK_TYPE = process.platform === "win32" ? "junction" : "dir";
 
@@ -161,7 +161,9 @@ describe("profile config helpers", () => {
       path.join("/s", "opsys.json"),
       path.join("/s", "openclaw.json"),
     ]);
-    expect(listCanonicalProfileConfigPaths("work", "/s")).toEqual([path.join("/s", "openclaw.json")]);
+    expect(listCanonicalProfileConfigPaths("work", "/s")).toEqual([
+      path.join("/s", "openclaw.json"),
+    ]);
     expect(listCanonicalProfileConfigPaths("default", "/s")).toEqual([
       path.join("/s", "openclaw.json"),
     ]);
@@ -172,7 +174,9 @@ describe("profile config helpers", () => {
       expect(resolveProfileConfigPath("opsys", stateDir)).toBe(path.join(stateDir, "opsys.json"));
       expect(resolveProfileConfigPath("work", stateDir)).toBe(path.join(stateDir, "openclaw.json"));
       fs.writeFileSync(path.join(stateDir, "openclaw.json"), "{}\n", "utf8");
-      expect(resolveProfileConfigPath("opsys", stateDir)).toBe(path.join(stateDir, "openclaw.json"));
+      expect(resolveProfileConfigPath("opsys", stateDir)).toBe(
+        path.join(stateDir, "openclaw.json"),
+      );
     });
   });
 });
