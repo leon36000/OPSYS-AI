@@ -16,14 +16,21 @@
 #     l'installateur reserve a l'utilisateur (icacls, instance.py, restreindre_dossier) ; le script de preuve le verifie ;
 #   - `gateway uninstall` arrete le Gateway (arbre de processus), supprime la tache, l'entree de demarrage et le
 #     script ;
-#   - le dossier d'etat est %USERPROFILE%\.openclaw-opsys (profil opsys), reserve a l'utilisateur par une ACL sans
-#     heritage que les fichiers du service heritent ; .env et l'archive d'export ont en plus leur propre ACL.
+#   - le dossier d'etat est %USERPROFILE%\.opsys\core, configuration opsys.json (profil opsys ; PLAN T0.7 lot 3 :
+#     core/src/config/opsys-instance.ts), reserve a l'utilisateur par une ACL sans heritage que les fichiers du service
+#     heritent ; .env et l'archive d'export ont en plus leur propre ACL. Avant le lot 3, l'etat etait dans
+#     %USERPROFILE%\.openclaw-opsys avec openclaw.json : le core l'y lit encore tant qu'il est seul a porter un etat, et
+#     Doctor (`opsys doctor --non-interactive`) le DEPLACE vers %USERPROFILE%\.opsys\core en laissant une jonction a
+#     l'ancien chemin. Les etapes "1 quinquies" (sans service) et "5 bis" (avec le service : arrete d'abord, Windows
+#     garde ses fichiers ouverts) en font la preuve avec le vrai core.
 # Une seule commande (PLAN T0.7 lot 2) : `opsys` est le core (`openclaw` son alias), `opsys metier <commande>` lance le
 # moteur Python par le core (core/src/cli/opsys-metier-cli.ts, d'apres `opsys\metier.json`), `opsys-metier` est le moteur
 # seul, et l'ancienne forme (`opsys instance dossier`) dit la nouvelle sans rien executer. Tout cela est eprouve ici, avec
 # le vrai core, sous Windows (PYTHONUTF8 pose par le core, chemins et arguments par `spawnSync`, sans shell).
-# Ce script INSTALLE puis DESINSTALLE : il refuse de tourner sur un poste qui a deja un etat du core d'OPSYS ou sa tache
-# (ne l'executez pas sur un poste reel ; la CI l'execute sur une machine neuve).
+# Ce script INSTALLE puis DESINSTALLE : il refuse de tourner sur un poste qui a deja un etat du core d'OPSYS (dans
+# %USERPROFILE%\.opsys\core ou dans l'ancien %USERPROFILE%\.openclaw-opsys) ou sa tache (ne l'executez pas sur un poste
+# reel ; la CI l'execute sur une machine neuve). Il ne supprime que ce qu'il a lui-meme fabrique (un faux ancien etat de
+# quelques octets, pour prouver le conflit).
 #
 # Deux interpreteurs : l'installateur est joue par l'interpreteur de ce script (pwsh en CI) pour l'installation, le
 # service et la desinstallation, puis par Windows PowerShell 5.1 (powershell.exe, celui que la plupart des utilisateurs
@@ -82,7 +89,10 @@ $script:NomTache = 'OpenClaw Gateway (opsys)'
 $script:NomTacheOrigine = 'OpenClaw Gateway'
 # Le dossier personnel se lit comme le fait le core (HOME, puis USERPROFILE) : core/packages/normalization-core/src/home-dir.ts
 $script:Personnel = Get-Reglage 'HOME' ([Environment]::GetEnvironmentVariable('USERPROFILE'))
-$script:EtatCore = Join-Path $script:Personnel '.openclaw-opsys'
+$script:DossierInstance = Join-Path $script:Personnel '.opsys'
+$script:EtatCore = Join-Path $script:DossierInstance 'core'
+$script:AncienProfil = Join-Path $script:Personnel '.openclaw-opsys'
+$script:InstanceExistait = $false
 $script:OpsysHome = Join-Path $script:Travail 'instance'
 $script:Logiciel = Join-Path $script:Travail 'logiciel'
 $script:Bin = Join-Path $script:Travail 'commandes'
@@ -153,7 +163,7 @@ function ConvertTo-Annotation {
 
 function Write-Echec {
     param([string]$Message, [string]$Trace = '')
-    if (Test-Path -LiteralPath (Join-Path $script:EtatCore '.env')) { Publish-Masque }
+    if (Test-Path -LiteralPath (Get-EnvDuCore)) { Publish-Masque }
     Close-Groupe
     [Console]::Error.WriteLine("ECHEC : $Message")
     if ($Trace) { [Console]::Error.WriteLine($Trace) }
@@ -168,8 +178,15 @@ function Write-Echec {
 }
 
 # -- Secrets ---------------------------------------------------------------------------------------------------------------
+# Le .env du core : dans l'etat canonique, ou dans l'ancien dossier du profil tant que la preuve de la migration l'y a remis.
+function Get-EnvDuCore {
+    $canonique = Join-Path $script:EtatCore '.env'
+    if (Test-Path -LiteralPath $canonique) { return $canonique }
+    return (Join-Path $script:AncienProfil '.env')
+}
+
 function Get-ValeursSecretes {
-    $fichier = Join-Path $script:EtatCore '.env'
+    $fichier = Get-EnvDuCore
     if (-not (Test-Path -LiteralPath $fichier)) { return @() }
     $valeurs = @()
     foreach ($ligne in [System.IO.File]::ReadAllLines($fichier, $script:Utf8)) {
@@ -259,15 +276,83 @@ function Get-Empreinte {
     return (Get-FileHash -LiteralPath $Chemin -Algorithm SHA256).Hash.ToLowerInvariant()
 }
 
+# Le fichier de configuration que le core lit dans un dossier d'etat : opsys.json, sinon l'openclaw.json qui existe (un
+# etat d'avant le lot 3 le porte ; il n'est jamais renomme), comme core/src/config/opsys-instance.ts.
+function Get-ConfigDe {
+    param([string]$Etat)
+    $canonique = Join-Path $Etat 'opsys.json'
+    $ancien = Join-Path $Etat 'openclaw.json'
+    if ((Test-Path -LiteralPath $canonique) -or (-not (Test-Path -LiteralPath $ancien))) { return $canonique }
+    return $ancien
+}
+
 # Les fichiers que l'installateur ecrit ou garde : secrets, configuration du core, fragments OPSYS, reglages. Pas l'etat
 # que le Gateway ecrit lui-meme (sessions, espaces de travail des agents).
 function Get-EmpreinteDesFichiersGeres {
-    $fichiers = @((Join-Path $script:EtatCore '.env'), (Join-Path $script:EtatCore 'openclaw.json'), (Join-Path $script:OpsysHome 'paliers.yaml'))
+    $fichiers = @((Join-Path $script:EtatCore '.env'), (Get-ConfigDe $script:EtatCore), (Join-Path $script:OpsysHome 'paliers.yaml'))
     $dossier = Join-Path $script:EtatCore 'opsys'
     if (Test-Path -LiteralPath $dossier) { $fichiers += @(Get-ChildItem -LiteralPath $dossier -Filter '*.json' -File | ForEach-Object { $_.FullName }) }
     $lignes = @($fichiers | ForEach-Object { (Get-Empreinte $_) } | Sort-Object)
     $sha = [System.Security.Cryptography.SHA256]::Create()
     return -join ($sha.ComputeHash($script:Utf8.GetBytes($lignes -join "`n")) | ForEach-Object { $_.ToString('x2') })
+}
+
+# Les secrets et les fragments d'un dossier d'etat, par nom RELATIF : la meme empreinte avant et apres un deplacement de
+# dossier. La configuration n'y est pas : Doctor peut la normaliser, on verifie seulement qu'elle est la, sous son nom.
+function Get-EmpreinteDeLEtat {
+    param([string]$Etat)
+    $lignes = @("$(Get-Empreinte (Join-Path $Etat '.env'))  .env")
+    foreach ($fichier in @(Get-ChildItem -LiteralPath (Join-Path $Etat 'opsys') -Filter '*.json' -File)) {
+        $lignes += "$(Get-Empreinte $fichier.FullName)  opsys/$($fichier.Name)"
+    }
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    return -join ($sha.ComputeHash($script:Utf8.GetBytes((@($lignes | Sort-Object) -join "`n"))) | ForEach-Object { $_.ToString('x2') })
+}
+
+# Chaque fichier d'un dossier d'etat, par nom relatif.
+function Get-ListeDeLEtat {
+    param([string]$Etat)
+    $base = (Resolve-Path -LiteralPath $Etat).Path.TrimEnd('\')
+    return @(Get-ChildItem -LiteralPath $Etat -Recurse -File -Force | ForEach-Object { $_.FullName.Substring($base.Length + 1) } | Sort-Object)
+}
+
+# Rien de ce que le dossier d'etat portait avant le deplacement n'a disparu.
+function Assert-RienDePerdu {
+    param([string[]]$Liste, [string]$Etat)
+    foreach ($fichier in $Liste) {
+        if (-not (Test-Path -LiteralPath (Join-Path $Etat $fichier) -PathType Leaf)) { Stop-Preuve "Doctor a perdu $fichier en deplacant l'etat vers $Etat" }
+    }
+}
+
+# Une jonction ou un lien symbolique de dossier (Doctor laisse une jonction : elle ne demande aucun privilege).
+function Test-LienDeDossier {
+    param([string]$Chemin)
+    if (-not (Test-Path -LiteralPath $Chemin)) { return $false }
+    return [bool](Get-Item -LiteralPath $Chemin -Force).LinkType
+}
+
+function Get-CibleDuLien {
+    param([string]$Chemin)
+    if (-not (Test-LienDeDossier $Chemin)) { return '' }
+    $cible = [string]@((Get-Item -LiteralPath $Chemin -Force).Target)[0]
+    foreach ($prefixe in @('\\?\', '\??\')) { if ($cible.StartsWith($prefixe)) { $cible = $cible.Substring($prefixe.Length) } }
+    return $cible.TrimEnd('\')
+}
+
+# Windows refuse de renommer un dossier dont un fichier est ouvert (antivirus, indexeur, processus que l'on vient d'arreter) :
+# le deplacement est retente pendant vingt secondes avant de conclure a l'echec.
+function Move-DossierAvecReprises {
+    param([string]$De, [string]$Vers)
+    for ($essai = 1; $essai -le 10; $essai++) {
+        try {
+            Move-Item -LiteralPath $De -Destination $Vers -ErrorAction Stop
+            return
+        }
+        catch {
+            if ($essai -eq 10) { throw }
+            Start-Sleep -Seconds 2
+        }
+    }
 }
 
 # -- Commandes natives ------------------------------------------------------------------------------------------------------
@@ -473,7 +558,7 @@ function Confirm-ServiceWindows {
         Stop-Preuve "le script de la tache ne designe pas le dossier d'etat canonique du profil ($($script:EtatCore))"
     }
     if ($contenu.IndexOf('OPENCLAW_PROFILE=opsys', [System.StringComparison]::OrdinalIgnoreCase) -lt 0) { Stop-Preuve "le script de la tache ne porte pas le profil opsys" }
-    if ($contenu.IndexOf((Join-Path $script:OpsysHome 'core'), [System.StringComparison]::OrdinalIgnoreCase) -ge 0) { Stop-Preuve "le script de la tache designe l'ancien etat du core" }
+    if ($contenu.IndexOf($script:AncienProfil, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) { Stop-Preuve "le script de la tache designe l'ancien dossier du profil ($($script:AncienProfil)), pas $($script:EtatCore)" }
     if ((Get-CodeHttp "http://127.0.0.1:$($script:PortGateway)/startupz") -ne 200) { Stop-Preuve "le Gateway ne repond pas sous le service" }
     if ((Get-CodeHttp "http://127.0.0.1:$($script:PortMoteur)/sante") -ne 200) { Stop-Preuve "le moteur ne repond pas sous le service" }
     Assert-AclPrivee $scriptTache 'le script de la tache (gateway.cmd)'
@@ -489,6 +574,173 @@ function Confirm-ServiceWindows {
     $script:ServiceProuve = 'oui'
 }
 
+# `opsys doctor --non-interactive` avec le vrai core : l'ancien etat est DEPLACE, jamais copie. Le code de sortie de Doctor
+# n'est pas juge (il peut relever autre chose que l'etat) : ce sont les EFFETS qui font foi.
+function Invoke-DoctorDeplaceLEtat {
+    param([string]$Journal)
+    $doctor = Invoke-Opsys @('doctor', '--non-interactive')
+    $script:Secrets = @(Get-ValeursSecretes)
+    $texte = Hide-Secrets $doctor.Sortie
+    [System.IO.File]::WriteAllText($Journal, $texte + "`n", $script:Utf8)
+    Write-Host "opsys doctor --non-interactive : code de sortie $($doctor.Code) (juge sur ses effets)"
+    Assert-SansSecret 'sortie de Doctor' @($Journal)
+    $deplace = (Test-Path -LiteralPath $script:EtatCore -PathType Container) -and (-not (Test-LienDeDossier $script:EtatCore)) -and (Test-LienDeDossier $script:AncienProfil)
+    if (-not $deplace) {
+        Write-Host $texte
+        Stop-Preuve "Doctor n'a pas deplace l'etat de $($script:AncienProfil) vers $($script:EtatCore) en laissant un lien a l'ancien chemin (code $($doctor.Code))"
+    }
+    $cible = Get-CibleDuLien $script:AncienProfil
+    if (-not [string]::Equals($cible, $script:EtatCore.TrimEnd('\'), [System.StringComparison]::OrdinalIgnoreCase)) {
+        Stop-Preuve "le lien laisse a $($script:AncienProfil) ne mene pas a $($script:EtatCore) (il mene a '$cible')"
+    }
+}
+
+# La definition du service designe-t-elle CE dossier comme etat ? gateway.cmd, ecrit dans l'etat, pose OPENCLAW_STATE_DIR.
+function Test-EtatNommeParLeService {
+    param([string]$Contenu, [string]$Etat)
+    return ($Contenu.IndexOf("OPENCLAW_STATE_DIR=$Etat", [System.StringComparison]::OrdinalIgnoreCase) -ge 0)
+}
+
+# Le dossier d'instance (%USERPROFILE%\.opsys), s'il est vide et si le script l'a fait naitre.
+function Remove-DossierInstanceVide {
+    if ($script:InstanceExistait) { return }
+    try { [System.IO.Directory]::Delete($script:DossierInstance) } catch { $null = $_ }
+}
+
+# Le service d'avant le lot 3 : sa definition nomme %USERPROFILE%\.openclaw-opsys. On le reconstitue avec le vrai core (l'etat
+# remis a l'ancien emplacement, ou le core le lit encore : `gateway install --force` y installe le service), puis on suit la
+# marche a suivre : arreter le service (Windows garde ses fichiers ouverts), Doctor deplace l'etat, l'installateur est relance et
+# reinstalle le service. La tache garde son nom et la definition nomme alors le nouvel etat.
+function Invoke-ServiceDAvantLeLot3 {
+    Write-Etape "5 bis. Service d'avant le lot 3 : sa definition nomme %USERPROFILE%\.openclaw-opsys ; apres Doctor et la relance de l'installateur, elle nomme %USERPROFILE%\.opsys\core (meme nom de tache)"
+    $arret = Invoke-Opsys @('gateway', 'stop')
+    if ($arret.Code -ne 0) { Write-Host $arret.Sortie; Stop-Preuve "opsys gateway stop a echoue (code $($arret.Code))" }
+    Wait-Arret "http://127.0.0.1:$($script:PortGateway)/startupz" 60 'le Gateway apres opsys gateway stop'
+    Wait-Arret "http://127.0.0.1:$($script:PortMoteur)/sante" 60 'le moteur apres opsys gateway stop'
+    if ((Test-Path -LiteralPath $script:AncienProfil) -or (Test-LienDeDossier $script:AncienProfil)) {
+        Stop-Preuve "$($script:AncienProfil) existe : la preuve du service d'avant le lot 3 part d'un poste ou seul $($script:EtatCore) porte l'etat"
+    }
+    Move-DossierAvecReprises $script:EtatCore $script:AncienProfil
+    Remove-DossierInstanceVide
+    $installation = Invoke-Opsys @('gateway', 'install', '--force', '--port', [string]$script:PortGateway)
+    $journalAncien = Join-Path $script:Travail 'service-d-avant.log'
+    $script:Secrets = @(Get-ValeursSecretes)
+    [System.IO.File]::WriteAllText($journalAncien, (Hide-Secrets $installation.Sortie) + "`n", $script:Utf8)
+    if ($installation.Code -ne 0) {
+        Write-Host (Hide-Secrets $installation.Sortie)
+        Stop-Preuve "opsys gateway install a echoue avec l'etat a l'ancien emplacement (code $($installation.Code)) : le core doit l'y lire et y installer le service"
+    }
+    Assert-SansSecret "sortie de gateway install (etat a l'ancien emplacement)" @($journalAncien)
+    $scriptAncien = Join-Path $script:AncienProfil 'gateway.cmd'
+    if (-not (Test-Path -LiteralPath $scriptAncien)) { Stop-Preuve "le script de la tache ($scriptAncien) n'existe pas apres l'installation du service a l'ancien emplacement" }
+    if (-not (Test-EtatNommeParLeService ([System.IO.File]::ReadAllText($scriptAncien)) $script:AncienProfil)) {
+        Stop-Preuve "la definition du service ne nomme pas $($script:AncienProfil) (OPENCLAW_STATE_DIR) alors que l'etat y est : le core n'a pas lu l'ancien etat en place"
+    }
+    Wait-Http "http://127.0.0.1:$($script:PortGateway)/startupz" 240 "Gateway (service nomme sur l'ancien dossier)"
+    Wait-Http "http://127.0.0.1:$($script:PortMoteur)/sante" 240 "moteur (service nomme sur l'ancien dossier)"
+    Add-Constat "service d'avant le lot 3 : sa definition nomme $($script:AncienProfil), le core y lit l'etat en place, le Gateway et le moteur repondent"
+    $arret = Invoke-Opsys @('gateway', 'stop')
+    if ($arret.Code -ne 0) { Write-Host $arret.Sortie; Stop-Preuve "opsys gateway stop a echoue (code $($arret.Code))" }
+    Wait-Arret "http://127.0.0.1:$($script:PortGateway)/startupz" 60 'le Gateway avant le deplacement'
+    Wait-Arret "http://127.0.0.1:$($script:PortMoteur)/sante" 60 'le moteur avant le deplacement'
+    $listeAvant = @(Get-ListeDeLEtat $script:AncienProfil)
+    $empreinteAvant = Get-EmpreinteDeLEtat $script:AncienProfil
+    Invoke-DoctorDeplaceLEtat (Join-Path $script:Travail 'doctor-service.log')
+    Assert-RienDePerdu $listeAvant $script:EtatCore
+    if ((Get-EmpreinteDeLEtat $script:EtatCore) -ne $empreinteAvant) { Stop-Preuve 'les secrets ou les fragments ont change pendant le deplacement' }
+    $journal = Join-Path $script:Travail 'installation-4.log'
+    Assert-Installe "install.ps1 (relance apres Doctor)" (Invoke-Installateur $journal @()) $journal
+    $scriptNouveau = Join-Path $script:EtatCore 'gateway.cmd'
+    if (-not (Test-Path -LiteralPath $scriptNouveau)) { Stop-Preuve "le script de la tache ($scriptNouveau) n'existe pas apres la relance de l'installateur" }
+    $contenuNouveau = [System.IO.File]::ReadAllText($scriptNouveau)
+    if (-not (Test-EtatNommeParLeService $contenuNouveau $script:EtatCore)) {
+        Stop-Preuve "apres la relance de l'installateur, la definition du service ne nomme pas $($script:EtatCore) (OPENCLAW_STATE_DIR)"
+    }
+    if (Test-EtatNommeParLeService $contenuNouveau $script:AncienProfil) {
+        Stop-Preuve "apres la relance de l'installateur, la definition du service nomme encore l'ancien dossier $($script:AncienProfil)"
+    }
+    Confirm-ServiceWindows
+    if ((Get-EmpreinteDeLEtat $script:EtatCore) -ne $empreinteAvant) { Stop-Preuve "la relance de l'installateur a change un secret ou un fragment" }
+    Add-Constat "service d'avant le lot 3 : Doctor a deplace l'etat vers $($script:EtatCore), la relance de l'installateur a reecrit la definition du service (meme nom de tache, $($script:EtatCore) au lieu de $($script:AncienProfil)), le service repond, les secrets et les fragments sont ceux d'avant"
+}
+
+# L'etat d'avant le lot 3 (etape "1 quinquies") : refuse par le moteur, lu en place par le core, deplace par Doctor,
+# puis deux etats. Une fonction a part pour pouvoir la rejouer contre le faux core (tests/test_installateur_powershell_faux.py).
+function Invoke-PreuveDeLaMigration {
+    param([string[]]$PortsOpsys)
+    Write-Etape "1 quinquies. Installation d'avant le lot 3 (etat dans %USERPROFILE%\.openclaw-opsys) : refusee avec la marche a suivre, puis deplacee par Doctor (un renommage, une jonction), jamais copiee ni perdue"
+    # L'etat tel qu'une installation faite depuis T0.11-b le laissait : dans l'ancien dossier du profil, configuration openclaw.json.
+    Move-DossierAvecReprises $script:EtatCore $script:AncienProfil
+    Move-Item -LiteralPath (Join-Path $script:AncienProfil 'opsys.json') -Destination (Join-Path $script:AncienProfil 'openclaw.json')
+    Remove-DossierInstanceVide
+    $listeAvant = @(Get-ListeDeLEtat $script:AncienProfil)
+    $empreinteAvant = Get-EmpreinteDeLEtat $script:AncienProfil
+    # 1. Le moteur refuse d'ecrire tant que l'etat est reste a l'ancien emplacement, dit quoi faire et ne modifie rien. Le core,
+    # lui, lit l'ancien dossier en place : la commande `opsys metier` et un service encore lance parlent du meme etat.
+    $refusAvant = Invoke-OpsysMetier (@('instance', 'initialiser') + $PortsOpsys)
+    if ($refusAvant.Code -ne 1) { Stop-Preuve "opsys metier instance initialiser a rendu le code $($refusAvant.Code) au lieu de refuser (1) l'etat reste dans $($script:AncienProfil) : $($refusAvant.Sortie)" }
+    if ($refusAvant.Sortie.IndexOf("ancien emplacement d$($script:EAigu)tect$($script:EAigu)", [System.StringComparison]::Ordinal) -lt 0) { Stop-Preuve "l'etat reste a l'ancien emplacement n'est pas signale : $($refusAvant.Sortie)" }
+    if ($refusAvant.Sortie.IndexOf('opsys doctor --non-interactive', [System.StringComparison]::Ordinal) -lt 0) { Stop-Preuve 'le message ne dit pas de lancer Doctor' }
+    if ($refusAvant.Sortie.IndexOf($script:AncienProfil, [System.StringComparison]::OrdinalIgnoreCase) -lt 0) { Stop-Preuve "le message ne nomme pas l'ancien dossier" }
+    if ($refusAvant.Sortie.IndexOf($script:EtatCore, [System.StringComparison]::OrdinalIgnoreCase) -lt 0) { Stop-Preuve "le message ne nomme pas le dossier d'etat du core" }
+    if ((Get-EmpreinteDeLEtat $script:AncienProfil) -ne $empreinteAvant) { Stop-Preuve "le refus a modifie l'ancien etat" }
+    if (Test-Path -LiteralPath $script:EtatCore) { Stop-Preuve "le refus a cree $($script:EtatCore)" }
+    $configAncienne = Join-Path $script:AncienProfil 'openclaw.json'
+    $configAvantDoctor = Get-DerniereLigne (Invoke-Opsys @('config', 'file')).Sortie
+    if (-not [string]::Equals($configAvantDoctor, $configAncienne, [System.StringComparison]::OrdinalIgnoreCase)) {
+        Stop-Preuve "avant le deplacement, le core devait lire l'ancien etat en place ($configAncienne) : il lit '$configAvantDoctor'"
+    }
+    # 2. Doctor du core deplace l'etat ; ce sont ses effets qui font foi.
+    Invoke-DoctorDeplaceLEtat (Join-Path $script:Travail 'doctor-deplacement.log')
+    Assert-RienDePerdu $listeAvant $script:EtatCore
+    if ((Get-EmpreinteDeLEtat $script:EtatCore) -ne $empreinteAvant) { Stop-Preuve 'les secrets ou les fragments ont change pendant le deplacement' }
+    $configNouvelle = Join-Path $script:EtatCore 'openclaw.json'
+    if (-not ((Test-Path -LiteralPath $configNouvelle) -and (-not (Test-Path -LiteralPath (Join-Path $script:EtatCore 'opsys.json'))))) {
+        Stop-Preuve "Doctor a renomme la configuration : l'openclaw.json d'avant devait rester lu en place, sous son nom"
+    }
+    Assert-AclPrivee $script:EtatCore "le dossier d'etat du core apres le deplacement" -SansHeritage
+    Assert-AclPrivee (Join-Path $script:EtatCore '.env') '.env apres le deplacement' -SansHeritage
+    $configApresDoctor = Get-DerniereLigne (Invoke-Opsys @('config', 'file')).Sortie
+    if (-not [string]::Equals($configApresDoctor, $configNouvelle, [System.StringComparison]::OrdinalIgnoreCase)) {
+        Stop-Preuve "apres le deplacement, le core doit lire $configNouvelle : il lit '$configApresDoctor'"
+    }
+    $validationApres = Invoke-Opsys @('config', 'validate')
+    if ($validationApres.Code -ne 0) { Write-Host $validationApres.Sortie; Stop-Preuve "opsys config validate refuse la configuration apres le deplacement (code $($validationApres.Code))" }
+    # 3. Le moteur ne refuse plus, garde les secrets, n'invente pas d'opsys.json a cote de l'openclaw.json d'avant.
+    $repriseApres = Invoke-OpsysMetier (@('instance', 'initialiser') + $PortsOpsys)
+    if ($repriseApres.Code -ne 0) { Write-Host $repriseApres.Sortie; Stop-Preuve "opsys metier instance initialiser a echoue apres le deplacement par Doctor (code $($repriseApres.Code))" }
+    if ((Get-EmpreinteDeLEtat $script:EtatCore) -ne $empreinteAvant) { Stop-Preuve 'la reinitialisation a change un secret ou un fragment' }
+    $configMoteurApres = Get-DerniereLigne (Invoke-Moteur @('instance', 'fichier-config')).Sortie
+    if (-not [string]::Equals($configMoteurApres, $configNouvelle, [System.StringComparison]::OrdinalIgnoreCase)) {
+        Stop-Preuve "opsys-metier instance fichier-config repond '$configMoteurApres' au lieu de $configNouvelle"
+    }
+    if (Test-Path -LiteralPath (Join-Path $script:EtatCore 'opsys.json')) { Stop-Preuve "opsys.json a ete cree a cote de l'openclaw.json d'avant" }
+    Add-Constat "etat d'avant le lot 3 : refuse par le moteur avec la marche a suivre, lu en place par le core ($configAncienne), deplace par Doctor vers $($script:EtatCore) (jonction a l'ancien chemin, secrets et fragments identiques, rien de perdu, openclaw.json garde, ACL reservees a l'utilisateur conservees)"
+    # 4. Deux etats : Doctor ne fusionne rien et ne supprime rien, le moteur refuse et laisse la decision a un humain.
+    [System.IO.Directory]::Delete($script:AncienProfil)  # la jonction seule
+    $null = New-Item -ItemType Directory -Path $script:AncienProfil
+    [System.IO.File]::WriteAllText((Join-Path $script:AncienProfil '.env'), "MARQUEUR=etat-d-avant-fictif`n", $script:Utf8)
+    $neufAvant = Get-EmpreinteDeLEtat $script:EtatCore
+    $doctorConflit = Invoke-Opsys @('doctor', '--non-interactive')
+    $ancienIntact = (Test-Path -LiteralPath $script:AncienProfil -PathType Container) -and (-not (Test-LienDeDossier $script:AncienProfil)) -and ([System.IO.File]::ReadAllText((Join-Path $script:AncienProfil '.env')) -eq "MARQUEUR=etat-d-avant-fictif`n")
+    if (-not $ancienIntact) { Write-Host (Hide-Secrets $doctorConflit.Sortie); Stop-Preuve "Doctor a touche a l'ancien etat malgre le conflit (code $($doctorConflit.Code))" }
+    if (@(Get-ChildItem -LiteralPath $script:AncienProfil -Force).Count -ne 1) { Stop-Preuve "Doctor a ajoute des fichiers a l'ancien etat malgre le conflit" }
+    if ((Get-EmpreinteDeLEtat $script:EtatCore) -ne $neufAvant) { Stop-Preuve "Doctor a modifie l'etat neuf malgre le conflit" }
+    if ((Test-Path -LiteralPath "$($script:AncienProfil).old") -or (Test-Path -LiteralPath "$($script:EtatCore).old")) { Stop-Preuve "Doctor a mis un dossier de cote a la place de l'humain" }
+    $refusConflit = Invoke-OpsysMetier (@('instance', 'initialiser') + $PortsOpsys)
+    if (($refusConflit.Code -ne 1) -or ($refusConflit.Sortie.IndexOf('ancien emplacement en conflit', [System.StringComparison]::Ordinal) -lt 0)) {
+        Stop-Preuve "le moteur devait refuser le conflit (code 1, 'ancien emplacement en conflit') : code $($refusConflit.Code), $($refusConflit.Sortie)"
+    }
+    if ($refusConflit.Sortie.IndexOf("$($script:AncienProfil).old", [System.StringComparison]::OrdinalIgnoreCase) -lt 0) { Stop-Preuve "le message du conflit ne dit pas de mettre l'un des deux de cote (.old)" }
+    Move-DossierAvecReprises $script:AncienProfil "$($script:AncienProfil).old"  # la decision humaine : garder l'etat neuf
+    $null = Invoke-Opsys @('doctor', '--non-interactive')
+    if ((Test-Path -LiteralPath $script:AncienProfil) -or (Test-LienDeDossier $script:AncienProfil)) { Stop-Preuve "Doctor a recree $($script:AncienProfil) alors qu'il n'y a plus d'ancien etat a deplacer" }
+    $repriseConflit = Invoke-OpsysMetier (@('instance', 'initialiser') + $PortsOpsys)
+    if ($repriseConflit.Code -ne 0) { Write-Host $repriseConflit.Sortie; Stop-Preuve "opsys metier instance initialiser a echoue apres la mise de cote de l'ancien etat (code $($repriseConflit.Code))" }
+    if ((Get-EmpreinteDeLEtat $script:EtatCore) -ne $neufAvant) { Stop-Preuve 'la reprise apres le conflit a change un secret ou un fragment' }
+    Add-Constat "deux etats : Doctor ne deplace, ne fusionne ni ne supprime rien, le moteur refuse et dit la decision humaine (.old) ; l'ancien etat mis de cote, tout reprend sans changer un secret"
+}
+
 # =====================================================================================================================
 function Invoke-Preuve {
     # -- 0. Le poste ---------------------------------------------------------------------------------------------------
@@ -496,13 +748,18 @@ function Invoke-Preuve {
     if (Test-Path -LiteralPath $script:EtatCore) {
         Stop-Preuve "$($script:EtatCore) existe deja : ce script installe puis desinstalle, il ne s'execute pas sur un poste qui porte une instance OPSYS. Deplacez ce dossier, ou prenez un poste neuf."
     }
+    if ((Test-Path -LiteralPath $script:AncienProfil) -or (Test-LienDeDossier $script:AncienProfil)) {
+        Stop-Preuve "$($script:AncienProfil) existe deja : c'est l'ancien dossier d'etat du profil opsys. Ce script ne s'execute pas sur un poste qui porte une instance OPSYS : deplacez ce dossier, ou prenez un poste neuf."
+    }
+    # Le dossier d'instance (%USERPROFILE%\.opsys) : le script ne retire que celui qu'il a fait naitre.
+    $script:InstanceExistait = Test-Path -LiteralPath $script:DossierInstance
     if (Test-Tache $script:NomTache) { Stop-Preuve "la tache '$($script:NomTache)' existe deja sur ce poste : ce script ne s'execute pas sur un poste qui porte une instance OPSYS." }
     if (@(Get-EntreesDemarrage).Count -gt 0) { Stop-Preuve "une entree du dossier Demarrage d'OPSYS existe deja sur ce poste : ce script ne s'execute pas sur un poste qui porte une instance OPSYS." }
     # Le Python du poste (celui de setup-python), pour controler la base apres la desinstallation : l'environnement de l'installateur est alors retire.
     $commandePython = Get-Command 'python' -ErrorAction SilentlyContinue
     if (-not $commandePython) { Stop-Preuve "python est introuvable dans le PATH : il controle la base apres la desinstallation (setup-python en CI)" }
     $script:PythonSysteme = $commandePython.Source
-    Add-Constat "poste neuf (Windows) : aucun etat du core d'OPSYS ($($script:EtatCore)) ni tache '$($script:NomTache)'"
+    Add-Constat "poste neuf (Windows) : aucun etat du core d'OPSYS ($($script:EtatCore), ni l'ancien $($script:AncienProfil)) ni tache '$($script:NomTache)'"
     Add-Constat "interpreteurs : installation, service et desinstallation par $(Get-NomHote $script:HotePrincipal), relance et seconde desinstallation par $(Get-NomHote $script:HoteSecondaire) ($($script:HoteSecondaire))"
 
     Write-Etape '0 bis. Decision prealable : un palier de modeles (comme apres une restauration ou un premier reglage)'
@@ -518,20 +775,28 @@ function Invoke-Preuve {
     }
     Assert-AclPrivee $script:EtatCore "le dossier d'etat du core" -SansHeritage
     Assert-AclPrivee (Join-Path $script:EtatCore '.env') '.env' -SansHeritage
+    if (-not $script:InstanceExistait) { Assert-AclPrivee $script:DossierInstance "le dossier d'instance" -SansHeritage }
+    if (-not ((Test-Path -LiteralPath (Join-Path $script:EtatCore 'opsys.json')) -and (-not (Test-Path -LiteralPath (Join-Path $script:EtatCore 'openclaw.json'))))) {
+        Stop-Preuve "l'instance neuve doit porter opsys.json seul (opsys.json : $(Test-Path -LiteralPath (Join-Path $script:EtatCore 'opsys.json')), openclaw.json : $(Test-Path -LiteralPath (Join-Path $script:EtatCore 'openclaw.json')))"
+    }
     if (-not (Test-Path -LiteralPath (Join-Path (Join-Path $script:EtatCore 'opsys') 'metier.json'))) { Stop-Preuve "opsys\metier.json absent de $($script:EtatCore)" }
     if (Test-Path -LiteralPath (Join-Path $script:OpsysHome 'core')) { Stop-Preuve "un dossier core est apparu sous OPSYS_HOME : l'etat du core ne vit plus la (T0.11-b)" }
     if (-not ((Test-Path -LiteralPath (Join-Path $script:OpsysHome 'opsys.db')) -and (Test-Path -LiteralPath (Join-Path $script:OpsysHome 'paliers.yaml')))) {
         Stop-Preuve 'les donnees metier ne sont plus sous OPSYS_HOME'
     }
-    Assert-SansSecret 'configuration du core' (@(Join-Path $script:EtatCore 'openclaw.json') + @(Get-ChildItem -LiteralPath (Join-Path $script:EtatCore 'opsys') -Filter '*.json' | ForEach-Object { $_.FullName }))
-    Add-Constat "installation terminee : etat du core dans $($script:EtatCore) (dossier et .env reserves a l'utilisateur par ACL), donnees dans OPSYS_HOME, aucun secret dans la configuration, la sortie ni le journal de l'installateur"
+    Assert-SansSecret 'configuration du core' (@(Get-ConfigDe $script:EtatCore) + @(Get-ChildItem -LiteralPath (Join-Path $script:EtatCore 'opsys') -Filter '*.json' | ForEach-Object { $_.FullName }))
+    Add-Constat "installation terminee : etat du core dans $($script:EtatCore) (dossier et .env reserves a l'utilisateur par ACL, configuration opsys.json), donnees dans OPSYS_HOME, aucun secret dans la configuration, la sortie ni le journal de l'installateur"
 
     Write-Etape "1 bis. Le dossier d'etat : le moteur Python, le core et les attentes ecrites d'apres le fork s'accordent"
     $dossier = Get-DerniereLigne (Invoke-OpsysMetier @('instance', 'dossier')).Sortie
     if (-not [string]::Equals($dossier, $script:EtatCore, [System.StringComparison]::OrdinalIgnoreCase)) { Stop-Preuve "opsys metier instance dossier repond '$dossier' au lieu de $($script:EtatCore)" }
     $dossierMoteur = Get-DerniereLigne (Invoke-Moteur @('instance', 'dossier')).Sortie
     if (-not [string]::Equals($dossierMoteur, $script:EtatCore, [System.StringComparison]::OrdinalIgnoreCase)) { Stop-Preuve "opsys-metier instance dossier repond '$dossierMoteur' au lieu de $($script:EtatCore)" }
-    $attendu = Join-Path $script:EtatCore 'openclaw.json'
+    $attendu = Join-Path $script:EtatCore 'opsys.json'
+    $configMoteur = Get-DerniereLigne (Invoke-Moteur @('instance', 'fichier-config')).Sortie
+    if (-not [string]::Equals($configMoteur, $attendu, [System.StringComparison]::OrdinalIgnoreCase)) { Stop-Preuve "opsys-metier instance fichier-config repond '$configMoteur' au lieu de $attendu" }
+    $configMetier = Get-DerniereLigne (Invoke-OpsysMetier @('instance', 'fichier-config')).Sortie
+    if (-not [string]::Equals($configMetier, $attendu, [System.StringComparison]::OrdinalIgnoreCase)) { Stop-Preuve "opsys metier instance fichier-config repond '$configMetier' au lieu de $attendu" }
     $configCore = Get-DerniereLigne (Invoke-Opsys @('config', 'file')).Sortie
     $configAlias = Get-DerniereLigne (Invoke-Openclaw @('config', 'file')).Sortie
     if (-not [string]::Equals($configAlias, $configCore, [System.StringComparison]::OrdinalIgnoreCase)) { Stop-Preuve "l'alias openclaw ne repond pas comme opsys : '$configAlias' au lieu de '$configCore'" }
@@ -552,7 +817,7 @@ function Invoke-Preuve {
     }
     if (-not [string]::Equals($polluee, "$attendu|$($script:EtatCore)", [System.StringComparison]::OrdinalIgnoreCase)) { Stop-Preuve "un environnement OPENCLAW_* a deplace le core ou le moteur qu'il lance : ils repondent '$polluee' (la commande installee doit l'ecarter)" }
     if ((Test-Path -LiteralPath $ailleurs) -or (Test-Path -LiteralPath $foyerCore)) { Stop-Preuve "un dossier a ete cree d'apres l'environnement de l'appelant" }
-    Add-Constat "opsys metier instance dossier, opsys-metier instance dossier, opsys config file (et son alias openclaw) et l'attente ecrite d'apres le fork donnent tous $($script:EtatCore) ; l'environnement de l'appelant n'y change rien"
+    Add-Constat "opsys metier instance dossier, opsys-metier instance dossier, opsys config file (et son alias openclaw) et l'attente ecrite d'apres le fork donnent tous $($script:EtatCore), et la configuration que le moteur annonce (instance fichier-config) est celle que le core lit ($attendu) ; l'environnement de l'appelant n'y change rien"
 
     Write-Etape "1 bis bis. Une seule commande : opsys est le core, opsys metier le moteur, l'ancienne forme dit la nouvelle"
     $versionCore = Get-DerniereLigne (Invoke-Opsys @('--version')).Sortie
@@ -604,6 +869,8 @@ function Invoke-Preuve {
     if ((Get-EmpreinteDesFichiersGeres) -ne $geresAvant) { Stop-Preuve 'la reinitialisation a change un secret ou la configuration' }
     if ((Get-Empreinte (Join-Path (Join-Path $script:OpsysHome 'core.ancien') '.env')) -ne $ancienAvant) { Stop-Preuve "l'ancien etat mis de cote a ete modifie" }
     Add-Constat "l'ancienne disposition est refusee avec la marche a suivre, sans rien modifier ; mise de cote, l'instance se reinitialise sans changer un secret"
+
+    Invoke-PreuveDeLaMigration $portsOpsys
 
     # -- 2. Gateway au premier plan et moteur supervise -----------------------------------------------------------------
     Write-Etape '2. Gateway au premier plan : il lance le moteur (superviseur T0.10) avec le jeton de .env'
@@ -661,7 +928,8 @@ function Invoke-Preuve {
     $contenuExport = Join-Path $decompose 'opsys-export'
     Assert-SansSecret "archive d'export" @(Get-ChildItem -LiteralPath $contenuExport -File | ForEach-Object { $_.FullName })
     $manifeste = [System.IO.File]::ReadAllText((Join-Path $contenuExport 'manifeste.json'), $script:Utf8)
-    if (-not $manifeste.Contains('"~/.openclaw-opsys/.env"')) { Stop-Preuve "le manifeste ne nomme pas l'etat du core (~/.openclaw-opsys) parmi les fichiers exclus" }
+    if (-not $manifeste.Contains('"~/.opsys/core/.env"')) { Stop-Preuve "le manifeste ne nomme pas l'etat du core (~/.opsys/core) parmi les fichiers exclus" }
+    if (-not $manifeste.Contains('"~/.openclaw-opsys/"')) { Stop-Preuve "le manifeste ne nomme pas l'ancien emplacement de l'etat du core (~/.openclaw-opsys) parmi les exclusions" }
     foreach ($personnel in @($script:Personnel, $script:Personnel.Replace('\', '\\'))) {
         if ($manifeste.IndexOf($personnel, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) { Stop-Preuve 'le manifeste porte le dossier personnel du poste' }
     }
@@ -692,6 +960,7 @@ function Invoke-Preuve {
         if ($service.Code -eq 0) {
             Assert-SansSecret "sortie de install.ps1 (service)" @($journal, (Join-Path (Join-Path $script:Logiciel 'journaux') 'installation.log'))
             Confirm-ServiceWindows
+            Invoke-ServiceDAvantLeLot3
         }
         else {
             Write-Host $service.Sortie
@@ -705,7 +974,7 @@ function Invoke-Preuve {
     # -- 6. Desinstallation sans perte de donnees -----------------------------------------------------------------------
     Write-Etape '6. Desinstallation avec export prealable : le logiciel part, les donnees restent'
     $envAvant = Get-Empreinte (Join-Path $script:EtatCore '.env')
-    $configAvant = Get-Empreinte (Join-Path $script:EtatCore 'openclaw.json')
+    $configAvant = Get-Empreinte (Get-ConfigDe $script:EtatCore)
     $geresAvantDesinstallation = Get-EmpreinteDesFichiersGeres
     $paliersAvant = Get-Empreinte (Join-Path $script:OpsysHome 'paliers.yaml')
     $archiveAvant = Join-Path $script:Travail 'avant-desinstallation.tar.gz'
@@ -722,7 +991,12 @@ function Invoke-Preuve {
     if (($cheminUtilisateur -split ';') -contains $script:Bin) { Stop-Preuve "le dossier des commandes est encore dans le PATH de l'utilisateur" }
     if (-not (Test-Path -LiteralPath (Join-Path $script:Racine 'core\openclaw.mjs'))) { Stop-Preuve "le depot de l'utilisateur a ete touche" }
     if ((Get-Empreinte (Join-Path $script:EtatCore '.env')) -ne $envAvant) { Stop-Preuve '.env a change pendant la desinstallation' }
-    if ((Get-Empreinte (Join-Path $script:EtatCore 'openclaw.json')) -ne $configAvant) { Stop-Preuve 'openclaw.json a change pendant la desinstallation' }
+    if ((Get-Empreinte (Get-ConfigDe $script:EtatCore)) -ne $configAvant) { Stop-Preuve "la configuration du core ($(Get-ConfigDe $script:EtatCore)) a change pendant la desinstallation" }
+    if (Test-LienDeDossier $script:AncienProfil) {
+        if (-not [string]::Equals((Get-CibleDuLien $script:AncienProfil), $script:EtatCore.TrimEnd('\'), [System.StringComparison]::OrdinalIgnoreCase)) {
+            Stop-Preuve "la jonction laissee par Doctor a $($script:AncienProfil) a change pendant la desinstallation"
+        }
+    }
     if ((Get-EmpreinteDesFichiersGeres) -ne $geresAvantDesinstallation) { Stop-Preuve 'un fichier gere a change pendant la desinstallation' }
     if ((Get-Empreinte (Join-Path (Join-Path $script:OpsysHome 'core.ancien') '.env')) -ne $ancienAvant) { Stop-Preuve "l'ancien etat mis de cote a change pendant la desinstallation" }
     if ($des.Sortie.IndexOf("Etat du core conserve : $($script:EtatCore)", [System.StringComparison]::OrdinalIgnoreCase) -lt 0) {
@@ -743,6 +1017,12 @@ function Invoke-Preuve {
     $seconde = Invoke-Hote $script:HoteSecondaire (Join-Path $script:Racine 'install\uninstall.ps1') @() (Join-Path $script:Travail 'desinstallation-2.log')
     if ($seconde.Code -ne 0) { Write-Host $seconde.Sortie; Stop-Preuve "la desinstallation n'est pas relancable (sous $(Get-NomHote $script:HoteSecondaire), code $($seconde.Code))" }
     Add-Constat "la desinstallation est relancable (sous $(Get-NomHote $script:HoteSecondaire))"
+    # Le seul reste du script : le faux ancien etat de l'etape "1 quinquies" (un fichier de quelques octets qu'il a lui-meme ecrit).
+    $resteFictif = "$($script:AncienProfil).old"
+    if (Test-Path -LiteralPath $resteFictif) {
+        Remove-Item -LiteralPath (Join-Path $resteFictif '.env') -Force -ErrorAction SilentlyContinue
+        try { [System.IO.Directory]::Delete($resteFictif) } catch { Write-Avertissement "$resteFictif n'est pas vide : laisse en place" }
+    }
 
     # -- Resume ---------------------------------------------------------------------------------------------------------
     Write-Etape 'Tout est vrai'

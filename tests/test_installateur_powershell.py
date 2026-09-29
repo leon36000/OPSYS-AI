@@ -135,11 +135,15 @@ def test_install_ps1_reflete_install_sh():
                    "'build'", "isSupportedOpenClawNodeVersion", "/startupz", "/sante", "installation.env",
                    "SOURCE_GEREE", "--clear", "'>=3.11'", "--editable", "packageManager", "-SansService", "24.16",
                    "26.1", "instance dossier", "config', 'file'", "Test-DossierDuCore", "Initialize-DossierCore",
-                   "--profile $script:ProfilCore", "DOSSIER_CORE", "PROFIL_CORE"):
+                   "--profile $script:ProfilCore", "DOSSIER_CORE", "PROFIL_CORE", "instance fichier-config"):
         assert commun in ps, commun
     for commun in ("instance dossier", "verifier_dossier_du_core", "determiner_dossier_core", "DOSSIER_CORE",
-                   "PROFIL_CORE", '--profile "$PROFIL_CORE"'):
+                   "PROFIL_CORE", '--profile "$PROFIL_CORE"', "instance fichier-config"):
         assert commun in sh, commun
+    # T0.7 lot 3 : le fichier de configuration attendu est celui que dit le moteur, jamais un nom écrit en dur
+    for script, texte in (("install.sh", sh), ("install.ps1", ps)):
+        code = re.sub(r"(?m)^\s*#.*$", "", texte)
+        assert "openclaw.json" not in code and "opsys.json" not in code, script
     assert "CodeEnAttente = 3" in ps and "CODE_EN_ATTENTE=3" in sh
 
 

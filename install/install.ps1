@@ -17,10 +17,14 @@
 #
 # Le core tourne sous son profil "opsys" (PLAN T0.11-b) : toute commande du core passe `--profile opsys`, jamais
 # OPENCLAW_STATE_DIR, OPENCLAW_CONFIG_PATH ni OPENCLAW_HOME. Son etat est alors le dossier canonique du profil
-# (%USERPROFILE%\.openclaw-opsys), le seul pour lequel le core accepte d'installer un service, et le service porte
-# un nom distinct de celui du core d'origine (tache "OpenClaw Gateway (opsys)"). `opsys metier instance dossier` donne ce
-# dossier. Une installation faite avec l'ancienne disposition (%OPSYS_HOME%\core) est signalee, avec la marche a
-# suivre, jamais migree en silence.
+# (%USERPROFILE%\.opsys\core depuis T0.7 lot 3 ; avant, %USERPROFILE%\.openclaw-opsys), le seul pour lequel le core
+# accepte d'installer un service, et le service porte un nom distinct de celui du core d'origine (tache "OpenClaw
+# Gateway (opsys)"). `opsys metier instance dossier` donne ce dossier, `opsys metier instance fichier-config` la
+# configuration qu'il porte (opsys.json, ou l'openclaw.json d'une installation anterieure, lu en place et jamais
+# renomme). Une installation faite avec l'ancienne disposition (%OPSYS_HOME%\core) ou dont l'etat est reste dans
+# %USERPROFILE%\.openclaw-opsys est refusee avec la marche a suivre, jamais migree en silence par ce script : le
+# deplacement est celui de Doctor (opsys doctor --non-interactive, service arrete d'abord : Windows garde ses fichiers
+# ouverts), puis on relance ce script, qui reinstalle aussi le service vers le nouvel emplacement.
 #
 # Relancable sans rien casser : c'est aussi la mise a jour. Les donnees de l'instance ne sont jamais touchees.
 #
@@ -436,19 +440,29 @@ function Initialize-DossierCore {
 }
 
 # Le dossier que l'installateur a prepare doit etre celui que le core lira : le core dit lui-meme ou est sa configuration
-# (`opsys config file`). Si la regle de profil du fork change, on s'arrete ici, avant de demarrer un Gateway qui
-# ignorerait la configuration generee.
+# (`opsys config file`). Le fichier attendu est celui que dit le moteur (`instance fichier-config` : opsys.json, ou
+# l'openclaw.json qui existe deja), lu apres l'initialisation. Si la regle de profil du fork change, on s'arrete ici,
+# avant de demarrer un Gateway qui ignorerait la configuration generee.
 function Test-DossierDuCore {
     Write-Info "Verification du dossier d'etat du core (opsys config file)..."
+    $env:OPSYS_HOME = $script:OpsysHome
+    $env:PYTHONUTF8 = '1'
+    $rc = Invoke-Capture { & $script:VenvPy -m opsys.cli instance fichier-config }
+    $attendu = ''
+    $lignesAttendues = @($rc.Sortie -split "`n" | Where-Object { $_.Trim() })
+    if ($lignesAttendues.Count -gt 0) { $attendu = "$($lignesAttendues[-1])".Trim() }
+    if (($rc.Code -ne 0) -or (-not $attendu)) {
+        Stop-Install "le fichier de configuration du core est indetermine : $($rc.Sortie)"
+    }
+    Assert-CheminAbsolu "le fichier de configuration du core" $attendu
     $r = Invoke-Capture { Invoke-Noyau @('config', 'file') }
     Add-Journal "`n== opsys config file (code $($r.Code))`n$(Hide-Secrets $r.Sortie)"
     if ($r.Code -ne 0) { Stop-Install "opsys config file a echoue (code $($r.Code)). Journal complet : $($script:Journal)" }
     $annonce = ''
     $lignes = @($r.Sortie -split "`n" | Where-Object { $_.Trim() })
     if ($lignes.Count -gt 0) { $annonce = "$($lignes[-1])".Trim() }
-    $attendu = Join-Path $script:DossierCore 'openclaw.json'
     if (-not [string]::Equals($annonce, $attendu, [System.StringComparison]::OrdinalIgnoreCase)) {
-        Stop-Install "le core cherche sa configuration dans '$annonce', mais l'installateur a prepare '$attendu'. La regle du profil '$($script:ProfilCore)' a change dans le core (core/src/cli/profile-utils.ts) : rien n'est demarre. Journal : $($script:Journal)"
+        Stop-Install "le core cherche sa configuration dans '$annonce', mais l'installateur a prepare '$attendu'. La regle du profil '$($script:ProfilCore)' a change dans le core (core/src/config/opsys-instance.ts) : rien n'est demarre. Journal : $($script:Journal)"
     }
 }
 

@@ -55,8 +55,14 @@ def test_les_jobs_macos_et_windows_ont_les_declencheurs_du_job_linux(workflow):
     assert set(declencheurs) == {"workflow_dispatch", "push", "pull_request"}
     assert declencheurs["push"]["paths"] == declencheurs["pull_request"]["paths"]
     for chemin in ("install/**", "tests/installateur/**", ".github/workflows/installateur.yml", "src/opsys/instance.py",
-                   "src/opsys/exportation.py"):
+                   "src/opsys/exportation.py", "src/opsys/openclaw.py"):
         assert chemin in declencheurs["pull_request"]["paths"]
+    # T0.7 lot 3 : ce qui décide où le core range son état, et la migration de Doctor, relancent la preuve
+    for chemin in ("core/src/config/opsys-instance.ts", "core/src/config/paths.ts", "core/src/cli/profile.ts",
+                   "core/src/cli/profile-utils.ts", "core/src/daemon/paths.ts",
+                   "core/src/infra/state-migrations.opsys-instance.ts", "core/src/infra/state-migrations.state-dir.ts",
+                   "core/openclaw.mjs"):
+        assert chemin in declencheurs["pull_request"]["paths"], chemin
     for job in INSTALLATIONS:
         assert "if" not in workflow["jobs"][job], f"{job} ne doit pas avoir de condition propre"
         assert "needs" not in workflow["jobs"][job], f"{job} ne dépend d'aucun autre job"

@@ -227,7 +227,7 @@ exiger_secrets_prives_au_repos() { # dossiers...
 # Le fichier de configuration que le core lit dans un dossier d'état : opsys.json, sinon l'openclaw.json qui existe (un
 # état d'avant le lot 3 le porte ; il n'est jamais renommé), comme core/src/config/opsys-instance.ts.
 config_de() { # dossier d'état
-    if [ -f "$1/opsys.json" ]; then printf '%s' "$1/opsys.json"; else printf '%s' "$1/openclaw.json"; fi
+    if [ -f "$1/opsys.json" ] || [ ! -f "$1/openclaw.json" ]; then printf '%s' "$1/opsys.json"; else printf '%s' "$1/openclaw.json"; fi
 }
 
 # Les fichiers que l'installateur écrit ou garde : secrets, configuration du core, fragments OPSYS, réglages. Pas l'état

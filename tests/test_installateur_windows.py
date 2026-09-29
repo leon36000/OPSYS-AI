@@ -163,6 +163,9 @@ $script:EnActions = $false
 $script:EchecPrevu = $false
 $script:EtapeCourante = '5. Service'
 $script:EtatCore = $env:ETAT_CORE
+$script:AncienProfil = $env:ANCIEN_PROFIL_ESSAI
+$script:DossierInstance = $env:DOSSIER_INSTANCE_ESSAI
+$script:InstanceExistait = $false
 $script:OpsysHome = $env:OPSYS_HOME_ESSAI
 $script:Travail = $env:TRAVAIL_ESSAI
 $script:Constats = New-Object System.Collections.Generic.List[string]
@@ -176,6 +179,8 @@ def _fonctions(tmp_path: Path, corps: str, script: Path = PREUVE_PS1, **env: str
     (tmp_path / "instance").mkdir(exist_ok=True)
     (tmp_path / "travail").mkdir(exist_ok=True)
     environnement = {"SCRIPT_CHARGE": str(script), "ETAT_CORE": str(etat),
+                     "ANCIEN_PROFIL_ESSAI": str(tmp_path / "ancien-profil"),
+                     "DOSSIER_INSTANCE_ESSAI": str(tmp_path / "dossier-instance"),
                      "OPSYS_HOME_ESSAI": str(tmp_path / "instance"), "TRAVAIL_ESSAI": str(tmp_path / "travail"), **env}
     return pwsh("-Command", CHARGEUR + corps, env=environnement)
 
@@ -373,23 +378,139 @@ def test_le_script_de_preuve_echoue_proprement_hors_de_windows_avec_groupe_annot
 
 
 @avec_pwsh
-def test_le_script_de_preuve_refuse_un_poste_qui_porte_deja_un_etat_du_core(tmp_path):
+@pytest.mark.parametrize("dossier", [".opsys/core", ".openclaw-opsys"], ids=["etat-canonique", "ancien-emplacement"])
+def test_le_script_de_preuve_refuse_un_poste_qui_porte_deja_un_etat_du_core(tmp_path, dossier):
     personnel = tmp_path / "personnel"
-    (personnel / ".openclaw-opsys").mkdir(parents=True)
+    (personnel / dossier).mkdir(parents=True)
 
     resultat = pwsh("-File", str(PREUVE_PS1), env={
         "HOME": str(personnel), "USERPROFILE": str(personnel), "OPSYS_TRAVAIL": str(tmp_path / "travail")})
 
     assert resultat.returncode == 1
-    assert "existe deja : ce script installe puis desinstalle" in resultat.stderr
+    assert "existe deja : " in resultat.stderr and "script" in resultat.stderr
+    assert str(personnel / dossier) in resultat.stderr
     assert "erreur inattendue" not in resultat.stderr  # un constat, pas un plantage
 
 
 @avec_pwsh
-def test_le_diagnostic_imprime_les_journaux_sans_secret_ni_contenu_de_env_et_sort_en_0(tmp_path):
+def test_le_fichier_de_configuration_lu_est_opsys_json_ou_l_openclaw_json_qui_existe(tmp_path):
+    corps = ("$e = $script:EtatCore; 'neuf=' + (Split-Path -Leaf (Get-ConfigDe $e)); "
+             "Set-Content -LiteralPath (Join-Path $e 'openclaw.json') -Value '{}'; "
+             "'ancien=' + (Split-Path -Leaf (Get-ConfigDe $e)); "
+             "Set-Content -LiteralPath (Join-Path $e 'opsys.json') -Value '{}'; "
+             "'les-deux=' + (Split-Path -Leaf (Get-ConfigDe $e))")
+
+    resultat = _fonctions(tmp_path, corps)
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    assert resultat.stdout.splitlines() == ["neuf=opsys.json", "ancien=openclaw.json", "les-deux=opsys.json"]
+
+
+@avec_pwsh
+def test_le_env_du_core_est_celui_de_l_etat_canonique_ou_a_defaut_de_l_ancien_dossier(tmp_path):
+    corps = ("$defaut = Get-EnvDuCore; 'defaut-ancien=' + ($defaut -eq (Join-Path $script:AncienProfil '.env')); "
+             "Set-Content -LiteralPath (Join-Path $script:EtatCore '.env') -Value 'A=1'; "
+             "'canonique=' + ((Get-EnvDuCore) -eq (Join-Path $script:EtatCore '.env'))")
+
+    resultat = _fonctions(tmp_path, corps)
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    assert resultat.stdout.splitlines() == ["defaut-ancien=True", "canonique=True"]
+
+
+@avec_pwsh
+def test_l_empreinte_de_l_etat_ne_depend_pas_de_l_emplacement_et_la_liste_dit_ce_qui_manque(tmp_path):
+    a, b = tmp_path / "a", tmp_path / "b"
+    for dossier in (a, b):
+        (dossier / "opsys").mkdir(parents=True)
+        (dossier / ".env").write_text("OPSYS_MCP_JETON=0123456789abcdef\n", encoding="utf-8")
+        (dossier / "opsys" / "tools.json").write_text("{}", encoding="utf-8")
+        (dossier / "opsys" / "metier.json").write_text('{"actif": true}', encoding="utf-8")
+    corps = (f"$a = '{a}'; $b = '{b}'; "
+             "if ((Get-EmpreinteDeLEtat $a) -eq (Get-EmpreinteDeLEtat $b)) { 'meme-empreinte' }; "
+             "(Get-ListeDeLEtat $a) -join '|'; "
+             "Remove-Item -LiteralPath (Join-Path $b 'opsys/tools.json'); "
+             "try { Assert-RienDePerdu (Get-ListeDeLEtat $a) $b } catch { 'perdu=' + $_.Exception.Message }; "
+             "Set-Content -LiteralPath (Join-Path $b '.env') -Value 'autre'; "
+             "if ((Get-EmpreinteDeLEtat $a) -ne (Get-EmpreinteDeLEtat $b)) { 'secret-modifie-vu' }")
+
+    resultat = _fonctions(tmp_path, corps)
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    lignes = resultat.stdout.splitlines()
+    assert lignes[0] == "meme-empreinte"
+    assert sorted(lignes[1].split("|")) == [".env", "opsys/metier.json", "opsys/tools.json"]
+    assert lignes[2] == f"perdu=Doctor a perdu opsys/tools.json en deplacant l'etat vers {b}"
+    assert lignes[3] == "secret-modifie-vu"
+
+
+@avec_pwsh
+def test_un_lien_de_dossier_se_reconnait_et_dit_sa_cible(tmp_path):
+    cible, reel, lien = tmp_path / "cible", tmp_path / "reel", tmp_path / "lien"
+    cible.mkdir()
+    reel.mkdir()
+    lien.symlink_to(cible, target_is_directory=True)
+    corps = (f"'lien=' + (Test-LienDeDossier '{lien}'); 'reel=' + (Test-LienDeDossier '{reel}'); "
+             f"'absent=' + (Test-LienDeDossier '{tmp_path / 'absent'}'); 'cible=' + (Get-CibleDuLien '{lien}'); "
+             f"'vide=[' + (Get-CibleDuLien '{reel}') + ']'")
+
+    resultat = _fonctions(tmp_path, corps)
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    assert resultat.stdout.splitlines() == ["lien=True", "reel=False", "absent=False", f"cible={cible}", "vide=[]"]
+
+
+@avec_pwsh
+def test_la_definition_du_service_nomme_le_dossier_d_etat_sans_tenir_compte_de_la_casse(tmp_path):
+    script = 'set "OPENCLAW_STATE_DIR=C:\\Users\\x\\.opsys\\core"'
+    corps = (f"$s = '{script}'; "
+             "Test-EtatNommeParLeService $s 'C:\\Users\\x\\.opsys\\core'; "
+             "Test-EtatNommeParLeService $s 'C:\\Users\\x\\.openclaw-opsys'; "
+             "Test-EtatNommeParLeService $s 'c:\\users\\X\\.OPSYS\\core'")
+
+    resultat = _fonctions(tmp_path, corps)
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    assert resultat.stdout.splitlines() == ["True", "False", "True"]
+
+
+@avec_pwsh
+def test_un_dossier_se_deplace_par_renommage(tmp_path):
+    source, cible = tmp_path / "source", tmp_path / "cible"
+    source.mkdir()
+    (source / "f").write_text("x", encoding="utf-8")
+
+    resultat = _fonctions(tmp_path, f"Move-DossierAvecReprises '{source}' '{cible}'; 'fin'")
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    assert (cible / "f").is_file() and not source.exists()  # renommé, pas copié
+
+
+@avec_pwsh
+def test_le_dossier_d_instance_ne_se_retire_que_s_il_est_vide_et_né_avec_le_script(tmp_path):
+    vide, plein, existait = tmp_path / "vide", tmp_path / "plein", tmp_path / "existait"
+    for dossier in (vide, plein, existait):
+        dossier.mkdir()
+    (plein / "f").write_text("x", encoding="utf-8")
+    corps = (f"$script:DossierInstance = '{vide}'; Remove-DossierInstanceVide; "
+             f"$script:DossierInstance = '{plein}'; Remove-DossierInstanceVide; "
+             f"$script:InstanceExistait = $true; $script:DossierInstance = '{existait}'; "
+             "Remove-DossierInstanceVide; 'fin'")
+
+    resultat = _fonctions(tmp_path, corps)
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    assert not vide.exists()  # vide et né avec le script : retiré
+    assert (plein / "f").is_file()  # jamais un dossier qui porte quelque chose
+    assert existait.is_dir()  # jamais un dossier qui existait avant le script
+
+
+@avec_pwsh
+@pytest.mark.parametrize("dossier", [".opsys/core", ".openclaw-opsys"], ids=["etat-canonique", "ancien-emplacement"])
+def test_le_diagnostic_imprime_les_journaux_sans_secret_ni_contenu_de_env_et_sort_en_0(tmp_path, dossier):
     personnel = tmp_path / "personnel"
-    (personnel / ".openclaw-opsys").mkdir(parents=True)
-    (personnel / ".openclaw-opsys" / ".env").write_text(f"OPSYS_MCP_JETON={SECRET}\nRIEN=ceci\n", encoding="utf-8")
+    (personnel / dossier).mkdir(parents=True)
+    (personnel / dossier / ".env").write_text(f"OPSYS_MCP_JETON={SECRET}\nRIEN=ceci\n", encoding="utf-8")
     travail = tmp_path / "travail"
     travail.mkdir()
     (travail / "installation-1.log").write_text(f"debut\nle moteur dit {SECRET} fin\n", encoding="utf-8")

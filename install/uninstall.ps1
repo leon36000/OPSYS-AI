@@ -14,8 +14,9 @@
 #      jamais touche.
 #
 # Ce script ne supprime JAMAIS les donnees de l'instance : %OPSYS_HOME% (base, paliers, profil d'entreprise) ni l'etat
-# du core (dossier du profil "opsys", %USERPROFILE%\.openclaw-opsys : secrets .env, etat du Gateway). La suppression
-# definitive est une decision humaine, hors de ce script (docs/exploitation/INSTALLATION.md).
+# du core (dossier du profil "opsys", %USERPROFILE%\.opsys\core : secrets .env, etat du Gateway ; avant T0.7 lot 3,
+# %USERPROFILE%\.openclaw-opsys, et la jonction que Doctor y laisse). La suppression definitive est une decision humaine,
+# hors de ce script (docs/exploitation/INSTALLATION.md).
 # Relancable. Variables : OPSYS_HOME, OPSYS_LOGICIEL, OPSYS_BIN. Code de sortie : 0 fait ; 1 arrete avant tout retrait
 # irreversible, avec quoi faire.
 #
@@ -102,6 +103,8 @@ function Get-CodeSortie {
 }
 
 # Un dossier qui est ou contient les donnees de l'instance ou l'etat du core, ou le dossier personnel, ne se supprime jamais.
+# L'etat du core est protege la ou l'installation l'a note ET la ou il est aujourd'hui (%USERPROFILE%\.opsys\core) ou etait
+# avant T0.7 lot 3 (%USERPROFILE%\.openclaw-opsys) : une installation d'avant le lot 3 a note l'ancien chemin.
 # Le separateur est celui du systeme (\ sous Windows) : la garde se rejoue ainsi sous PowerShell 7 hors de Windows (tests).
 function Test-Garde {
     param([string]$Dossier)
@@ -116,8 +119,13 @@ function Test-Garde {
     if (($donnees + $sep).StartsWith($dossierComplet + $sep, $ignorer)) {
         Stop-Desinstall "refus de supprimer '$Dossier' : il contient les donnees de l'instance ($($script:OpsysHome)). Rien n'a ete retire."
     }
-    $etatCore = [string]$script:Enregistre['DOSSIER_CORE']
-    if ($etatCore) {
+    $etatsDuCore = @(
+        [string]$script:Enregistre['DOSSIER_CORE'],
+        (Join-Path (Join-Path $env:USERPROFILE '.opsys') 'core'),
+        (Join-Path $env:USERPROFILE '.openclaw-opsys')
+    )
+    foreach ($etatCore in $etatsDuCore) {
+        if (-not $etatCore) { continue }
         $etat = [System.IO.Path]::GetFullPath($etatCore).TrimEnd($sep)
         if (($etat + $sep).StartsWith($dossierComplet + $sep, $ignorer)) {
             Stop-Desinstall "refus de supprimer '$Dossier' : c'est l'etat du core ou il le contient ($etatCore). Rien n'a ete retire."
@@ -275,7 +283,7 @@ function Invoke-Desinstallation {
         Write-Host 'OPSYS est retire.'
         Write-Host "  Donnees conservees : $($script:OpsysHome) (base, paliers, profil d'entreprise)."
         $etatConserve = [string]$script:Enregistre['DOSSIER_CORE']
-        if (-not $etatConserve) { $etatConserve = "le dossier .openclaw-$($script:ProfilCore) de votre dossier personnel" }
+        if (-not $etatConserve) { $etatConserve = "le dossier .opsys\core de votre dossier personnel" }
         Write-Host "  Etat du core conserve : $etatConserve (secrets .env, etat du Gateway)."
         if (-not $ExporterAvant) { Write-Host '  Aucun export demande (-ExporterAvant). Pour en faire un maintenant : reinstallez OPSYS, puis opsys metier instance exporter.' }
         Write-Host '  Les supprimer definitivement est une decision humaine : voir docs/exploitation/INSTALLATION.md.'

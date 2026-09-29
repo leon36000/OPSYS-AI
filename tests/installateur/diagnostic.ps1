@@ -5,7 +5,9 @@
 #
 # Aucun secret : les valeurs secretes de <etat du core>\.env (jetons, cles) sont d'abord declarees au masque de GitHub
 # (::add-mask::), puis remplacees par *** dans tout ce qui est imprime, meme hors de GitHub. Le contenu de .env n'est
-# jamais imprime : seulement des noms et des tailles.
+# jamais imprime : seulement des noms et des tailles. L'etat du core est dans %USERPROFILE%\.opsys\core (T0.7 lot 3) ;
+# l'ancien %USERPROFILE%\.openclaw-opsys est lu aussi, pour les secrets et pour dire ce qu'il est (dossier, ou jonction
+# laissee par Doctor).
 #
 # Sortie : un groupe repliable (::group::) par sujet sous GitHub Actions, des titres "== sujet" ailleurs.
 # Variables : OPSYS_TRAVAIL (dossier de travail de bout_en_bout.ps1), OPSYS_LOGICIEL (defaut : <travail>\logiciel),
@@ -26,7 +28,8 @@ $logiciel = [Environment]::GetEnvironmentVariable('OPSYS_LOGICIEL')
 if ([string]::IsNullOrEmpty($logiciel) -and -not [string]::IsNullOrEmpty($travail)) { $logiciel = Join-Path $travail 'logiciel' }
 $personnel = [Environment]::GetEnvironmentVariable('HOME')
 if ([string]::IsNullOrEmpty($personnel)) { $personnel = [Environment]::GetEnvironmentVariable('USERPROFILE') }
-$etatCore = Join-Path $personnel '.openclaw-opsys'
+$etatCore = Join-Path (Join-Path $personnel '.opsys') 'core'
+$ancienProfil = Join-Path $personnel '.openclaw-opsys'
 $portGateway = 18789
 $portMoteur = 8765
 $valeur = [Environment]::GetEnvironmentVariable('OPSYS_PORT_GATEWAY')
@@ -41,11 +44,12 @@ $script:Secrets = @()
 try { [Console]::OutputEncoding = $script:Utf8 } catch { $null = $_ }
 
 function Get-ValeursSecretes {
-    $fichier = Join-Path $etatCore '.env'
-    if (-not (Test-Path -LiteralPath $fichier)) { return @() }
     $valeurs = @()
-    foreach ($ligne in [System.IO.File]::ReadAllLines($fichier, $script:Utf8)) {
-        if ($ligne -match '^\s*(?:export\s+)?[A-Z0-9_]*(?:JETON|TOKEN|_CLE|SECRET|PASSWORD)[A-Z0-9_]*=(.{12,})$') { $valeurs += $Matches[1] }
+    foreach ($fichier in @((Join-Path $etatCore '.env'), (Join-Path $ancienProfil '.env'))) {
+        if (-not (Test-Path -LiteralPath $fichier)) { continue }
+        foreach ($ligne in [System.IO.File]::ReadAllLines($fichier, $script:Utf8)) {
+            if ($ligne -match '^\s*(?:export\s+)?[A-Z0-9_]*(?:JETON|TOKEN|_CLE|SECRET|PASSWORD)[A-Z0-9_]*=(.{12,})$') { $valeurs += $Matches[1] }
+        }
     }
     return $valeurs
 }
@@ -105,8 +109,11 @@ if ($logiciel) {
 Write-Commande "tache planifiee '$nomTache' (schtasks /Query /V)" { & schtasks.exe /Query /TN $nomTache /V /FO LIST }
 Write-Commande "tache planifiee '$nomTache' (dernier lancement)" { Get-ScheduledTask -TaskName $nomTache -ErrorAction Stop | Get-ScheduledTaskInfo | Format-List | Out-String }
 
+# gateway.cmd : dans l'etat canonique ; dans l'ancien dossier tant qu'il est un vrai dossier (une jonction mene au meme fichier).
 $scriptTache = Join-Path $etatCore 'gateway.cmd'
 if (Test-Path -LiteralPath $scriptTache) { Write-FinDuFichier $scriptTache }
+$scriptAncien = Join-Path $ancienProfil 'gateway.cmd'
+if ((Test-Path -LiteralPath $scriptAncien) -and (-not (Get-Item -LiteralPath $ancienProfil -Force).LinkType)) { Write-FinDuFichier $scriptAncien }
 
 $appdata = [Environment]::GetEnvironmentVariable('APPDATA')
 if ($appdata) {
@@ -118,6 +125,14 @@ if ($appdata) {
 # L'etat du core : les noms et les tailles seulement, jamais le contenu (.env : secrets en clair).
 Write-Commande "etat du core ($etatCore : noms et tailles seulement)" {
     Get-ChildItem -LiteralPath $etatCore -Force -Recurse -Depth 2 -ErrorAction Stop | Select-Object -First 100 | ForEach-Object { '{0,10} {1}' -f $_.Length, $_.FullName }
+}
+
+# L'ancien emplacement : absent, dossier (etat d'avant le lot 3 pas encore deplace) ou jonction (laissee par Doctor).
+Write-Commande "ancien emplacement de l'etat ($ancienProfil : nature, noms et tailles seulement)" {
+    if (-not (Test-Path -LiteralPath $ancienProfil)) { 'absent'; return }
+    $element = Get-Item -LiteralPath $ancienProfil -Force
+    if ($element.LinkType) { "lien ($($element.LinkType)) vers $(@($element.Target)[0])" }
+    else { Get-ChildItem -LiteralPath $ancienProfil -Force -Recurse -Depth 1 -ErrorAction Stop | Select-Object -First 100 | ForEach-Object { '{0,10} {1}' -f $_.Length, $_.FullName } }
 }
 
 $logsDuCore = @()

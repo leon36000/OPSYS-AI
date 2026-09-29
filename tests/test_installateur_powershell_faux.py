@@ -38,6 +38,7 @@ RACINE = Path(__file__).resolve().parents[1]
 INSTALL_PS1 = RACINE / "install" / "install.ps1"
 UNINSTALL_PS1 = RACINE / "install" / "uninstall.ps1"
 FAUX_CORE = RACINE / "tests" / "installateur" / "faux_core.py"
+PREUVE_PS1 = RACINE / "tests" / "installateur" / "bout_en_bout.ps1"
 PWSH = shutil.which("pwsh")
 PNPM = "12.4.0"
 EMBEDDINGS = {"OPSYS_EMBEDDINGS_URL": "http://127.0.0.1:11434/v1", "OPSYS_EMBEDDINGS_MODELE": "bge-m3"}
@@ -108,7 +109,11 @@ class Poste:
 
     @property
     def etat_core(self) -> Path:
-        return self.hote / ".openclaw-opsys"
+        return self.hote / ".opsys" / "core"  # le dossier canonique du profil `opsys` (T0.7 lot 3)
+
+    @property
+    def ancien_profil(self) -> Path:
+        return self.hote / ".openclaw-opsys"  # où le profil rangeait son état avant le lot 3
 
     def _fabriquer_depot(self) -> None:
         (self.depot / "core").mkdir(parents=True)
@@ -220,8 +225,9 @@ def test_installation_sans_service_dans_l_ordre_avec_les_bons_arguments(pret):
     python = pret.logiciel / "venv" / "Scripts" / "python.exe"
     moteur = f"uv pip install --python {python} --editable {pret.depot}[tournees,soumission]"
     assert moteur in appels
-    config = json.loads((pret.etat_core / "openclaw.json").read_text(encoding="utf-8"))
+    config = json.loads((pret.etat_core / "opsys.json").read_text(encoding="utf-8"))
     assert config["gateway"]["port"] == pret.port_gateway or config["gateway"]["port"] == 18789
+    assert not (pret.etat_core / "openclaw.json").exists()  # l'instance neuve n'a que le nom canonique
     metier = json.loads((pret.etat_core / "opsys" / "metier.json").read_text(encoding="utf-8"))
     assert metier["actif"] is True and metier["dossier"] == str(pret.depot) and metier["port"] == pret.port_moteur
     enregistrement = pret.enregistrement()
@@ -359,7 +365,7 @@ def test_sans_decision_l_installateur_sort_en_3_et_dit_quoi_fournir(poste):
 
     assert resultat.returncode == 3, _sortie(resultat)
     assert "il manque les decisions listees ci-dessus" in resultat.stdout
-    assert not (poste.etat_core / "openclaw.json").exists()  # fail-closed : rien d'autre n'est écrit
+    assert not (poste.etat_core / "opsys.json").exists()  # fail-closed : rien d'autre n'est écrit
     assert (poste.etat_core / ".env").is_file()  # mais les secrets existent, pour la relance
 
 
@@ -384,7 +390,218 @@ def test_l_ancienne_disposition_est_refusee_avec_la_marche_a_suivre_sans_rien_mo
 
     assert resultat.returncode == 1, _sortie(resultat)
     assert "ancienne disposition d" in _sortie(resultat) and str(pret.home / "core") in _sortie(resultat)
-    assert pret.empreintes(pret.home / "core") == avant and not (pret.etat_core / "openclaw.json").exists()
+    assert pret.empreintes(pret.home / "core") == avant and not (pret.etat_core / "opsys.json").exists()
+
+
+def _etat_d_une_installation_d_avant_le_lot_3(pret: Poste, *options: str) -> Path:
+    """Ce qu'une installation faite depuis T0.11-b laisse : l'état dans `%USERPROFILE%\\.openclaw-opsys` (configuration
+    `openclaw.json`). On installe, puis on défait ce que le lot 3 a changé."""
+    assert pret.installer(*options).returncode == 0
+    shutil.move(str(pret.etat_core), str(pret.ancien_profil))
+    (pret.ancien_profil / "opsys.json").rename(pret.ancien_profil / "openclaw.json")
+    (pret.hote / ".opsys").rmdir()  # le dossier d'instance n'existait pas encore (OPSYS_HOME est ailleurs, ici)
+    return pret.ancien_profil
+
+
+def _secrets_de(dossier: Path) -> list[str]:
+    env = (dossier / ".env").read_text(encoding="utf-8")
+    return [v for k, v in re.findall(r"^([A-Z0-9_]+)=(.*)$", env, flags=re.MULTILINE)
+            if re.search(r"JETON|TOKEN|CLE", k) and len(v) >= 12]
+
+
+def test_un_etat_reste_dans_l_ancien_dossier_du_profil_arrete_l_installation_avec_la_marche_a_suivre(pret):
+    ancien = _etat_d_une_installation_d_avant_le_lot_3(pret, "-SansService")
+    secrets = _secrets_de(ancien)
+    avant = pret.empreintes(ancien)
+
+    resultat = pret.installer("-SansService")
+
+    assert resultat.returncode == 1, _sortie(resultat)
+    assert "ancien emplacement d" in _sortie(resultat) and str(ancien) in _sortie(resultat)
+    assert str(pret.etat_core) in _sortie(resultat) and "opsys doctor --non-interactive" in _sortie(resultat)
+    assert pret.empreintes(ancien) == avant and not pret.etat_core.exists()  # rien n'a bougé, rien n'est copié
+    assert not any(secret in _sortie(resultat) for secret in secrets)  # jamais un secret dans un message
+
+
+def test_apres_le_deplacement_par_doctor_la_relance_garde_les_secrets_et_repointe_le_service(pret):
+    ancien = _etat_d_une_installation_d_avant_le_lot_3(pret)  # avec le service (tâche planifiée émulée)
+    script_ancien = ancien / "gateway.cmd"
+    script_ancien.write_text(script_ancien.read_text(encoding="utf-8").replace(str(pret.etat_core), str(ancien)),
+                             encoding="utf-8")
+    secrets = _secrets_de(ancien)
+    assert pret.installer().returncode == 1  # le refus, puis la marche à suivre : arrêter le service, lancer Doctor
+
+    # le faux core joue Doctor : un renommage, puis un lien à l'ancien chemin
+    doctor = subprocess.run(
+        [sys.executable, str(FAUX_CORE), str(pret.depot / "core" / "openclaw.mjs"), "--profile", "opsys", "doctor",
+         "--non-interactive"], env=pret.env(), capture_output=True, text=True, check=False)
+    assert doctor.returncode == 0, _sortie(doctor)
+    assert ancien.is_symlink() and ancien.resolve() == pret.etat_core.resolve()
+    reprise = pret.installer()
+
+    assert reprise.returncode == 0, _sortie(reprise)
+    assert "Gateway et moteur repondent." in reprise.stdout
+    assert _secrets_de(pret.etat_core) == secrets  # les secrets sont ceux d'avant : rien n'a été régénéré
+    assert (pret.etat_core / "openclaw.json").is_file() and not (pret.etat_core / "opsys.json").exists()
+    script = (pret.etat_core / "gateway.cmd").read_text(encoding="utf-8")
+    assert f'OPENCLAW_STATE_DIR={pret.etat_core}"' in script and str(ancien) not in script  # le service suit l'état
+    assert pret.enregistrement()["DOSSIER_CORE"] == str(pret.etat_core)
+
+
+# -- la preuve de la migration de bout_en_bout.ps1, rejouée contre le faux core -------------------------------------
+# Le script de preuve ne s'exécute en entier que sous Windows (CI). Ses deux fonctions de la migration, elles,
+# sont chargées depuis l'arbre syntaxique et jouées ici, sous PowerShell 7, avec les commandes du poste remplacées
+# par le faux core : ni .cmd, ni ACL, ni Planificateur de tâches sous Linux. Les FAUTES du faux core (Doctor qui
+# copie, qui perd un fichier, qui fusionne ; core sans repli ; service qui nomme le mauvais dossier) prouvent que
+# chaque contrôle sait échouer.
+PRELUDE_PREUVE = r"""
+$ErrorActionPreference = 'Stop'
+Set-StrictMode -Version 2.0
+$global:LASTEXITCODE = 0
+$ast = [System.Management.Automation.Language.Parser]::ParseFile($env:PREUVE_PS1, [ref]$null, [ref]$null)
+$genre = [System.Management.Automation.Language.FunctionDefinitionAst]
+foreach ($definition in $ast.FindAll({ param($n) $n -is $genre }, $false)) {
+    . ([scriptblock]::Create($definition.Extent.Text))
+}
+Add-Type -AssemblyName System.Net.Http
+$script:Utf8 = New-Object System.Text.UTF8Encoding($false)
+$script:Latin1 = [System.Text.Encoding]::GetEncoding('iso-8859-1')
+$script:EAigu = [string][char]0x00E9
+$script:Secrets = @()
+$script:GroupeOuvert = $false
+$script:GatewayProc = $null
+$script:EnActions = $false
+$script:EchecPrevu = $false
+$script:EtapeCourante = 'essai'
+$script:Constats = New-Object System.Collections.Generic.List[string]
+$script:Personnel = $env:HOME
+$script:DossierInstance = Join-Path $script:Personnel '.opsys'
+$script:EtatCore = Join-Path $script:DossierInstance 'core'
+$script:AncienProfil = Join-Path $script:Personnel '.openclaw-opsys'
+$script:InstanceExistait = $false
+$script:OpsysHome = $env:OPSYS_HOME
+$script:Racine = $env:RACINE_ESSAI
+$script:Travail = $env:TRAVAIL_ESSAI
+$script:Logiciel = $env:OPSYS_LOGICIEL
+$script:Bin = $env:OPSYS_BIN
+$script:PortGateway = [int]$env:OPSYS_PORT_GATEWAY
+$script:PortMoteur = [int]$env:OPSYS_PORT_MOTEUR
+$script:HotePrincipal = $env:PWSH_ESSAI
+$script:ModeService = 'aucun'
+$script:ServiceProuve = 'non'
+# Les commandes du poste, jouees par le faux core (le moteur seul est le vrai).
+function Invoke-Opsys {
+    param([string[]]$Arguments)
+    return Invoke-Natif { & $env:PYTHON_ESSAI $env:FAUX_CORE $env:ENTREE_ESSAI '--profile' 'opsys' @Arguments }
+}
+function Invoke-OpsysMetier {
+    param([string[]]$Arguments)
+    return Invoke-Opsys (@('metier') + $Arguments)
+}
+function Invoke-Moteur {
+    param([string[]]$Arguments)
+    return Invoke-Natif { & $env:PYTHON_ESSAI -m opsys.cli @Arguments }
+}
+function Assert-AclPrivee {
+    param([string]$Chemin, [string]$Libelle, [switch]$SansHeritage)
+}
+function Confirm-ServiceWindows { }
+# (`--source` : le depot de l'installation ; sans lui, `initialiser` prendrait celui du paquet)
+$ports = @('--port-gateway', [string]$script:PortGateway, '--port-moteur', [string]$script:PortMoteur,
+    '--source', $env:OPSYS_SOURCE)
+try {
+"""
+FIN_PREUVE = r"""
+}
+catch {
+    [Console]::Error.WriteLine("ECHEC : " + $_.Exception.Message)
+    exit 1
+}
+"""
+
+
+def _jouer_la_preuve(pret: Poste, corps: str, **env: str) -> subprocess.CompletedProcess[str]:
+    assert PWSH is not None
+    environnement = pret.env(
+        PREUVE_PS1=str(PREUVE_PS1), RACINE_ESSAI=str(RACINE), TRAVAIL_ESSAI=str(pret.racine), PWSH_ESSAI=PWSH,
+        PYTHON_ESSAI=sys.executable, ENTREE_ESSAI=str(pret.depot / "core" / "openclaw.mjs"),
+        OPSYS_SOURCE=str(pret.depot), **env)
+    return subprocess.run([PWSH, "-NoProfile", "-NonInteractive", "-Command", PRELUDE_PREUVE + corps + FIN_PREUVE],
+                          env=environnement, capture_output=True, text=True, timeout=600, check=False, cwd=RACINE)
+
+
+def test_la_preuve_de_la_migration_joue_ses_quatre_temps_contre_le_faux_core(pret):
+    assert pret.installer("-SansService").returncode == 0
+    secrets = _secrets_de(pret.etat_core)
+
+    resultat = _jouer_la_preuve(pret, "Invoke-PreuveDeLaMigration $ports")
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    assert "OK  etat d'avant le lot 3 : refuse par le moteur avec la marche a suivre" in resultat.stdout
+    assert "OK  deux etats : Doctor ne deplace, ne fusionne ni ne supprime rien" in resultat.stdout
+    assert _secrets_de(pret.etat_core) == secrets  # les secrets sont ceux d'avant
+    assert (pret.etat_core / "openclaw.json").is_file() and not (pret.etat_core / "opsys.json").exists()
+    assert not pret.ancien_profil.exists() and (pret.hote / ".openclaw-opsys.old").is_dir()  # mis de côté, pas supprimé
+    assert not any(secret in _sortie(resultat) for secret in secrets)
+
+
+FAUTES_DE_MIGRATION_PS = {
+    "un core sans repli sur l'ancien dossier": (
+        {"FAUX_SANS_REPLI": "1"}, "l'etat reste a l'ancien emplacement n'est pas signale"),
+    "un Doctor qui ne fait rien": ({"FAUX_DOCTOR_INACTIF": "1"}, "Doctor n'a pas deplace l'etat de"),
+    "un Doctor qui copie au lieu de deplacer": ({"FAUX_DOCTOR_COPIE": "1"}, "Doctor n'a pas deplace l'etat de"),
+    "un Doctor qui ne laisse pas de lien": ({"FAUX_DOCTOR_SANS_LIEN": "1"}, "en laissant un lien a l'ancien chemin"),
+    "un Doctor qui perd un fichier": ({"FAUX_DOCTOR_PERD_UN_FICHIER": "1"}, "Doctor a perdu opsys"),
+    "un Doctor qui modifie un secret": (
+        {"FAUX_DOCTOR_ALTERE_UN_SECRET": "1"}, "les secrets ou les fragments ont change pendant le deplacement"),
+    "un Doctor qui renomme la configuration": ({"FAUX_DOCTOR_RENOMME_LA_CONFIG": "1"}, "Doctor a perdu openclaw.json"),
+    "un Doctor qui fusionne deux etats": (
+        {"FAUX_DOCTOR_FUSIONNE": "1"}, "Doctor a touche a l'ancien etat malgre le conflit"),
+}
+
+
+@pytest.mark.parametrize("faute", sorted(FAUTES_DE_MIGRATION_PS))
+def test_chaque_controle_de_la_migration_powershell_attrape_sa_faute(pret, faute):
+    injection, message = FAUTES_DE_MIGRATION_PS[faute]
+    assert pret.installer("-SansService").returncode == 0
+
+    resultat = _jouer_la_preuve(pret, "Invoke-PreuveDeLaMigration $ports", **injection)
+
+    assert resultat.returncode == 1, f"la faute « {faute} » n'a pas été attrapée : {_sortie(resultat)}"
+    assert message in resultat.stderr, resultat.stderr
+
+
+def test_la_preuve_du_service_d_avant_le_lot_3_suit_la_marche_a_suivre_contre_le_faux_core(pret):
+    assert pret.installer().returncode == 0  # avec le service (tâche planifiée émulée)
+    secrets = _secrets_de(pret.etat_core)
+
+    resultat = _jouer_la_preuve(pret, "Invoke-ServiceDAvantLeLot3")
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    assert "OK  service d'avant le lot 3 : sa definition nomme" in resultat.stdout
+    assert "OK  service d'avant le lot 3 : Doctor a deplace l'etat" in resultat.stdout
+    assert _secrets_de(pret.etat_core) == secrets and pret.ancien_profil.is_symlink()
+    script = (pret.etat_core / "gateway.cmd").read_text(encoding="utf-8")
+    assert f'OPENCLAW_STATE_DIR={pret.etat_core}"' in script and str(pret.ancien_profil) not in script
+
+
+FAUTES_DU_SERVICE_PS = {
+    "un service dont la definition nomme toujours l'ancien dossier": (
+        {"FAUX_SERVICE_GARDE_L": "1"}, "apres la relance de l'installateur, la definition du service ne nomme pas"),
+    "un service qui ne suit pas l'etat lu a l'ancien emplacement": (
+        {"FAUX_SERVICE_NOMME_LE_NOUVEAU": "1"}, "la definition du service ne nomme pas"),
+}
+
+
+@pytest.mark.parametrize("faute", sorted(FAUTES_DU_SERVICE_PS))
+def test_chaque_controle_du_service_d_avant_le_lot_3_powershell_attrape_sa_faute(pret, faute):
+    injection, message = FAUTES_DU_SERVICE_PS[faute]
+    assert pret.installer().returncode == 0
+
+    resultat = _jouer_la_preuve(pret, "Invoke-ServiceDAvantLeLot3", **injection)
+
+    assert resultat.returncode == 1, f"la faute « {faute} » n'a pas été attrapée : {_sortie(resultat)}"
+    assert message in resultat.stderr, resultat.stderr
 
 
 def test_une_option_ou_un_prerequis_manquant_est_refuse_avant_toute_ecriture(pret):
@@ -497,6 +714,24 @@ def test_la_desinstallation_refuse_de_supprimer_un_dossier_qui_contient_l_etat_d
     assert resultat.returncode == 1, _sortie(resultat)
     assert "c'est l'etat du core ou il le contient" in _sortie(resultat)
     assert (dedans / ".env").is_file() and (pret.bin / "opsys.cmd").is_file()  # le refus vient AVANT tout retrait
+
+
+def test_la_desinstallation_protege_l_etat_du_core_la_ou_il_est_meme_si_l_enregistrement_nomme_l_ancien_chemin(pret):
+    """Une installation d'avant le lot 3 a noté `.openclaw-opsys` ; l'état est maintenant dans `.opsys/core`."""
+    pret.installer("-SansService")
+    enregistrement = pret.logiciel / "installation.env"
+    enregistrement.write_text(enregistrement.read_text(encoding="utf-8").replace(
+        f"DOSSIER_CORE={pret.etat_core}", f"DOSSIER_CORE={pret.ancien_profil}"), encoding="utf-8")
+    poste = pret.logiciel / "venv" / "poste"  # un dossier personnel rangé DANS un dossier que le script supprime
+    etat = poste / ".opsys" / "core"
+    etat.mkdir(parents=True)
+    (etat / ".env").write_text("OPSYS_MCP_JETON=jeton-fictif-0123456789abcdef\n", encoding="utf-8")
+
+    resultat = pret.desinstaller(USERPROFILE=str(poste), HOME=str(poste))
+
+    assert resultat.returncode == 1, _sortie(resultat)
+    assert "c'est l'etat du core ou il le contient" in _sortie(resultat)
+    assert (etat / ".env").is_file() and (pret.bin / "opsys.cmd").is_file()  # le refus vient AVANT tout retrait
 
 
 def test_uninstall_ps1_rend_l_environnement_de_l_appelant(pret):

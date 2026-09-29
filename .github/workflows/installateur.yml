@@ -14,6 +14,7 @@ on:
       - "tests/installateur/**"
       - "src/opsys/instance.py"
       - "src/opsys/exportation.py"
+      - "src/opsys/openclaw.py"
       - "src/opsys/cli.py"
       - "core/package.json"
       - "core/pnpm-lock.yaml"
@@ -21,6 +22,15 @@ on:
       - "core/src/entry.ts"
       - "core/src/cli/opsys-metier-*.ts"
       - "core/src/gateway/opsys-metier-*.ts"
+      # Le dossier d'instance ~/.opsys/core et sa migration par Doctor (T0.7 lot 3), que le trajet de preuve exerce
+      - "core/openclaw.mjs"
+      - "core/src/config/opsys-instance.ts"
+      - "core/src/config/paths.ts"
+      - "core/src/cli/profile.ts"
+      - "core/src/cli/profile-utils.ts"
+      - "core/src/daemon/paths.ts"
+      - "core/src/infra/state-migrations.opsys-instance.ts"
+      - "core/src/infra/state-migrations.state-dir.ts"
       - "pyproject.toml"
       - ".github/workflows/installateur.yml"
   pull_request:
@@ -29,6 +39,7 @@ on:
       - "tests/installateur/**"
       - "src/opsys/instance.py"
       - "src/opsys/exportation.py"
+      - "src/opsys/openclaw.py"
       - "src/opsys/cli.py"
       - "core/package.json"
       - "core/pnpm-lock.yaml"
@@ -36,6 +47,15 @@ on:
       - "core/src/entry.ts"
       - "core/src/cli/opsys-metier-*.ts"
       - "core/src/gateway/opsys-metier-*.ts"
+      # Le dossier d'instance ~/.opsys/core et sa migration par Doctor (T0.7 lot 3), que le trajet de preuve exerce
+      - "core/openclaw.mjs"
+      - "core/src/config/opsys-instance.ts"
+      - "core/src/config/paths.ts"
+      - "core/src/cli/profile.ts"
+      - "core/src/cli/profile-utils.ts"
+      - "core/src/daemon/paths.ts"
+      - "core/src/infra/state-migrations.opsys-instance.ts"
+      - "core/src/infra/state-migrations.state-dir.ts"
       - "pyproject.toml"
       - ".github/workflows/installateur.yml"
 
@@ -109,8 +129,9 @@ jobs:
   # système, avec les mêmes déclencheurs.
   #
   # Le core tourne sous son profil « opsys » (PLAN T0.11-b). Attendus, écrits dans bout_en_bout.sh d'après le code du
-  # fork : état du core dans ~/.openclaw-opsys (hors de l'instance) ; service systemd utilisateur
-  # openclaw-gateway-opsys.service, distinct de openclaw-gateway.service (celui du core d'origine).
+  # fork : état du core dans ~/.opsys/core, configuration opsys.json (T0.7 lot 3 ; avant, ~/.openclaw-opsys, que Doctor
+  # déplace : étapes « 1 quinquies » et « 5 bis ») ; service systemd utilisateur openclaw-gateway-opsys.service,
+  # distinct de openclaw-gateway.service (celui du core d'origine).
   installation:
     runs-on: ubuntu-24.04
     timeout-minutes: 75
