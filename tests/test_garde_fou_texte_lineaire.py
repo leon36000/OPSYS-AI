@@ -286,8 +286,8 @@ def test_l_ecart_d_un_declencheur_ne_recouvre_jamais_un_autre_declencheur_mais_l
 
 
 AVEUX_A_ECART = [
-    "Nous assumons pleinement notre responsabilité.",  # « nous assumons la responsabilité » (alternative fixe)
-    "Nous assumons, dans cette affaire, toute la responsabilité",  # alternative à écart
+    "Nous assumons pleinement notre responsabilité.",  # un écart de deux mots entre le déclencheur et la cible
+    "Nous assumons, dans cette affaire, toute la responsabilité",  # un écart plus long, avec une virgule
     "Nous reconnaissons que, dans ce dossier, il y a une erreur",
     "nous assumons nous assumons nous assumons la responsabilité",
     "nous assumons x\nnous assumons responsabilité",
