@@ -60,8 +60,10 @@ from typing import Any
 
 RACINE = Path(__file__).resolve().parents[2]
 ICI = Path(__file__).resolve().parent
-if str(ICI) not in sys.path:
-    sys.path.insert(0, str(ICI))
+FIXTURES = ICI.parent / "fixtures"
+for _chemin in (ICI, FIXTURES):
+    if str(_chemin) not in sys.path:
+        sys.path.insert(0, str(_chemin))
 
 from harnais_e2e_chantier import MATERIAU_ID  # noqa: E402
 from journee import EtatDeLaJournee, creer_app_employe, jouer_la_journee  # noqa: E402
