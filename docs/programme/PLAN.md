@@ -962,7 +962,7 @@ Première tranche métier : elle traverse neuf départements et l'app mobile.
 Détaillée à partir des audits (T0.3) : voix M1 par étapes, CFO IA M5, usine à contenu M7, VRP,
 météo et GPS M4, vision M3, conseil d'agents M9…
 
-- [ ] T4.1 M4 : la cédule trie sur un hachage de ville, sans sens géographique ; la remplacer par
+- [x] T4.1 M4 : la cédule trie sur un hachage de ville, sans sens géographique ; la remplacer par
       de vraies coordonnées et un VRP (audit M4).
       Conception : `docs/research/R15-cedule-vrp.md` (PyVRP, MIT ; distances par paliers,
       haversine × détour puis OSRM local en option ; géocodage local par le Référentiel québécois
@@ -1030,12 +1030,28 @@ météo et GPS M4, vision M3, conseil d'agents M9…
         essayé) ; un créneau figé sans coordonnées refuse toute l'entrée (choix réversible) ;
         `urgence` est un entier 0 à 3 alors que LeadQualifie n'a qu'un booléen (conversion en
         T4.1-d) ; les codes `REJ-TOURNEES-*` et `REJ-MATRICE-*` restent à inscrire au catalogue.
-  - [ ] T4.1-d Outils et E2E : `m4_proposer_cedule` (brouillon) et `m4_appliquer_cedule` (N3,
+  - [x] T4.1-d Outils et E2E : `m4_proposer_cedule` (brouillon) et `m4_appliquer_cedule` (N3,
         refus si l'entrée a changé) ; scénario fictif Repentigny–Joliette, kilomètres en baisse
         contre le tourniquet sur la même fixture.
-        À faire aussi : codes `REJ-MATRICE-*` et `REJ-TOURNEES-*` au catalogue de `verdicts.py` ;
-        conversion d'`urgence` ; extra `tournees` dans `deploy/Dockerfile` ; lecture des
-        coordonnées par `outils.lire_localisation_confirmee` (T4.1-a).
+        Preuve (intégrée après ee08b3a, 0871624, 07d5778) :
+        - `cedule_tournees.py` pur ; `m4_proposer_cedule` (N1) stocke `cedule_proposee` sans
+          coordonnée de chantier, rend `plan_id`, `mode_bride` et les non-cédulées avec raisons ;
+          `m4_appliquer_cedule` (N3, `admin`) revérifie l'état des interventions, l'empreinte de
+          l'entrée reconstruite avec les coordonnées du jour et `verifier_plan`, sinon
+          `REJ-CEDULE-ENTREE-CHANGEE` ; assigne par `etats.assigner_technicien`, idempotent ;
+        - urgence : règle écrite (vrai = 1, faux = 0, source absente → verdict) ; 12 codes au
+          catalogue ; extra `tournees` dans `deploy/Dockerfile` ; skill `optimiser-la-cedule` ;
+        - démonstration (fictive) : plan 26 785 m contre 187 601 m pour le tourniquet sur la
+          même matrice (−85 %), meilleur sur 13 graines sur 13 ; créneau figé tenu ; coordonnée
+          modifiée → refus sans écriture ; employé → hors portée ; application rejouée → une
+          seule ;
+        - M4 1559, M6 425, socle 731, gate BMAD, verifier 126 outils (54 déclarés), 44 mutations
+          tuées.
+
+        Limites : M4 ne connaît ni équipes, dépôts, quarts, durées, compétences ni fenêtres
+        client : tout est argument (à alimenter par la configuration de l'entreprise) ; les
+        jours et heures des visites restent dans le maillon (`fenetre_planifiee` toujours
+        `null`) ; N3 en mode `supervise` ou `autonome` s'exécute sans file.
 - [x] T4.2 M4 : consentement et rétention du GPS (`POLITIQUE-geolocalisation.md`) non câblés dans
       le pointage (audit M4) ; bloquant avant tout GPS continu.
       Preuve (ff0c118, 7e5ccab) :
