@@ -128,7 +128,8 @@ def preparer_brouillon_contenu_public(
         "intervention_id": charge.get("intervention_id"),
         "lead_id": charge.get("lead_id"),
         "ville": charge.get("ville"),
-        "type_travaux": charge.get("type_travaux"),
+        "type_travaux": charge.get("type_travaux"),  # lead v1 ; None pour un v2
+        "service": charge.get("service"),  # lead v2 (code, PLAN T0.13-b) ; None pour un v1, jamais déduit
         "brand_name": profil["name"],  # type: ignore[index]
         "photos": photos_traitees,
         "preuve_consentement": {

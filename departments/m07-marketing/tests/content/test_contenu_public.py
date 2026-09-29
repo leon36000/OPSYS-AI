@@ -154,6 +154,15 @@ def test_succes_doute_de_detection_force_revue_humaine_mais_produit_quand_meme_l
     assert "plaque" in brouillon["motifs_revue_humaine"][0]
 
 
+def test_lead_v2_le_brouillon_garde_le_service_et_jamais_un_type_travaux_deduit():
+    """PLAN T0.13-b : un WCT de lead v2 porte `service` à la place de `type_travaux`, aucun n'est déduit de l'autre."""
+    charge = {k: v for k, v in _wct().items() if k != "type_travaux"} | {"service": "gouttieres"}
+    brouillon, motif = contenu_public.preparer_brouillon_contenu_public(
+        charge, _PHOTOS_UNE_PHOTO, BRAND_VALIDE, _DetecteurFixe(), 0.5)
+    assert motif is None
+    assert (brouillon["service"], brouillon["type_travaux"]) == ("gouttieres", None)
+
+
 def test_id_deterministe_pour_le_meme_wct_id():
     brouillon1, _ = contenu_public.preparer_brouillon_contenu_public(
         _wct(), _PHOTOS_UNE_PHOTO, BRAND_VALIDE, _DetecteurFixe(), seuil_confiance=0.8

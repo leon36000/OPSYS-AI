@@ -17,6 +17,10 @@ CHAMPS_WCT = (
 # M6 ne les lit pas : il les accepte sans s'en servir, et refuse toujours une clé inconnue.
 # `type_travaux` (lead v1) et `service` (lead v2, PLAN T0.13-b) sont deux clés distinctes du WCT : M4
 # n'en porte jamais qu'une, et aucune n'est déduite de l'autre.
+# PLAN T1.5-d : le consentement du client à une demande d'avis et la preuve des consentements (qui les a
+# recueillis, quand, quel texte) sont aussi portés par le WCT ; M6 les accepte sans les lire, comme le
+# reste. Sans eux ici, `valider_wct` refuserait (`REJ-WCT-CHAMP-INATTENDU`) le formulaire des matériaux
+# de tout chantier terminé avec un consentement.
 # `tests/test_validation_entrees.py` garde cette liste alignée sur le catalogue.
 CHAMPS_WCT_OPTIONNELS = (
     "ville",
@@ -26,6 +30,10 @@ CHAMPS_WCT_OPTIONNELS = (
     "description_factuelle",
     "consentement_marketing",
     "client_satisfait",
+    "consentement_demande_avis",
+    "consentement_recueilli_par",
+    "consentement_recueilli_le",
+    "consentement_version_texte",
 )
 
 CONSOMMATEUR_ATTENDU = "M6"

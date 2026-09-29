@@ -19,7 +19,7 @@ from typing import Any
 
 import yaml
 
-from opsys import stockage
+from opsys import stockage, taxonomie
 from opsys.outils import Autonomie, Outil
 
 from .ads import intelligence as ads_intelligence
@@ -441,17 +441,34 @@ def _enregistrer_wct_recu(charge: dict[str, Any]) -> None:
     registre.append(dict(charge))
 
 
+def _libelle_du_service(charge: dict[str, Any]) -> tuple[str | None, str | None]:
+    """`(libellé, None)` du service d'un WCT v2, `(None, motif)` si ce service n'est pas déclaré par
+    l'entreprise (profil d'instance, `opsys.taxonomie`), `(None, None)` pour un WCT v1 (`type_travaux`,
+    aucune taxonomie : jamais l'un déduit de l'autre, PLAN T0.13-b). Le motif ne porte que le code du
+    verdict : le détail nomme un chemin de fichier du serveur, qui n'entre pas dans un brouillon."""
+    if "service" not in charge:
+        return None, None
+    service, verdict = taxonomie.valider_service(charge["service"])
+    if service is None:
+        return None, f"libellé du service {charge['service']!r} introuvable ({verdict['code']})"
+    return service.libelle, None
+
+
 def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
     """Consommateur `m4.travaux_termines` (ADR-0009 §3, DEPARTEMENTS.md « Événements ») :
     enregistre d'abord le WCT reçu (`_enregistrer_wct_recu`, inconditionnel), puis prépare une
     demande d'avis EN BROUILLON (écriture interne au registre du département, jamais un envoi —
     voir `reputation.demande_avis`). L'envoi réel reste une action externe derrière une
-    approbation, hors de ce consommateur et de tout outil exposé ici.
+    décision humaine (T3), hors de ce consommateur et de tout outil exposé ici.
 
-    Fail-closed : `consentement_marketing` absent ou faux, ou `client_satisfait` absent ou faux,
-    refuse la préparation de la demande d'avis (aucun brouillon écrit) avec un motif explicite
-    dans le résumé rendu — mais le WCT reste enregistré dans `wct_recus` dans tous les cas : un
-    refus de demande d'avis n'empêche jamais d'enregistrer le fait reçu.
+    PLAN T1.5-d : le brouillon naît du consentement du client à une demande d'avis
+    (`consentement_demande_avis`, recueilli par l'employé dans l'app « Terminer », prouvé par M4 : qui,
+    quand, quel texte), lu ICI dans le WCT reçu par le bus, jamais dans un argument. Fail-closed :
+    consentement absent ou faux, ou sans sa preuve, ou `client_satisfait = false`, refuse la
+    préparation (aucun brouillon écrit) avec un motif explicite dans le résumé rendu — mais le WCT reste
+    enregistré dans `wct_recus` dans tous les cas : un refus de demande d'avis n'empêche jamais
+    d'enregistrer le fait reçu. Pour un lead v2, le texte dit le libellé du service déclaré par
+    l'entreprise ; pour un lead v1, `type_travaux`.
 
     Idempotent par `wct_id` : un brouillon déjà déposé pour ce wct_id (relivraison de
     l'événement, ou `repartir()` rejoué) n'est jamais dupliqué — no-op qui rend
@@ -465,7 +482,8 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
         if brouillon_existant.get("wct_id") == wct_id:
             return {"brouillon_cree": False, "deja_enregistre": True, "wct_id": wct_id}
 
-    brouillon, motif = reputation_demande_avis.construire_brouillon(charge)
+    libelle_service, motif_service = _libelle_du_service(charge)
+    brouillon, motif = reputation_demande_avis.construire_brouillon(charge, libelle_service, motif_service)
     if brouillon is None:
         return {"brouillon_cree": False, "deja_enregistre": False, "wct_id": wct_id, "motif": motif}
 
@@ -476,6 +494,37 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
         "wct_id": wct_id,
         "demande_avis_id": brouillon["id"],
     }
+
+
+# Ce qu'une ligne de `m7_lister_demandes_avis` porte : de quoi relire le brouillon et la preuve du
+# consentement, sans le reste (`lead_id`, `intervention_id` restent au registre). Bornée : `Capacites`
+# tronque au-delà de 6 000 caractères, et un brouillon en pèse environ 650, d'où huit au plus.
+_CHAMPS_LIGNE_DEMANDE_AVIS = (
+    "id", "wct_id", "nature_travaux", "ville", "texte", "approval_status", "avertissements",
+)
+_LIMITE_DEMANDES_AVIS_DEFAUT = 5
+_LIMITE_DEMANDES_AVIS_MAX = 8
+
+
+def lister_demandes_avis(limite: int = _LIMITE_DEMANDES_AVIS_DEFAUT) -> dict[str, Any]:
+    """Les brouillons de demande d'avis que M7 a préparés (PLAN T1.5-d), les plus récents d'abord :
+    lecture seule du registre durable `demandes_avis`, sans écrire ni envoyer quoi que ce soit. Chaque
+    ligne dit ce qu'on écrirait au client et sur quel consentement (qui l'a recueilli, quand, quel texte).
+    `total` compte tous les brouillons ; `reste` ceux que `limite` ne montre pas."""
+    if isinstance(limite, bool) or not isinstance(limite, int) or not 1 <= limite <= _LIMITE_DEMANDES_AVIS_MAX:
+        raise ValueError(f"limite : un entier de 1 à {_LIMITE_DEMANDES_AVIS_MAX} est attendu")
+    demandes = list(stockage.maillons(*_REGISTRE_DEMANDES_AVIS))
+    lignes = []
+    for demande in reversed(demandes[-limite:]):
+        preuve = demande["preuve_consentement"]
+        lignes.append({
+            **{cle: demande.get(cle) for cle in _CHAMPS_LIGNE_DEMANDE_AVIS},
+            "consentement": {
+                "recueilli_par": preuve["recueilli_par"], "recueilli_le": preuve["recueilli_le"],
+                "version_texte": preuve["version_texte"],
+            },
+        })
+    return {"total": len(demandes), "demandes": lignes, "reste": len(demandes) - len(lignes)}
 
 
 def consommateurs() -> dict[str, Any]:
@@ -635,6 +684,28 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=lister_file_approbation,
             # §9.5 M7 (contenus et réponses aux avis à approuver).
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m7_lister_demandes_avis",
+            description=(
+                "Liste les brouillons de demande d'avis nés d'un « Terminer » avec le consentement du client "
+                "(les plus récents d'abord) : texte proposé, preuve du consentement (qui, quand, quel texte). "
+                "Lecture seule : rien n'est envoyé, l'envoi au client reste une décision humaine."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "limite": {
+                        "type": "integer", "minimum": 1, "maximum": _LIMITE_DEMANDES_AVIS_MAX,
+                        "description": f"Nombre de brouillons montrés (défaut {_LIMITE_DEMANDES_AVIS_DEFAUT}).",
+                    }
+                },
+                "required": [],
+                "additionalProperties": False,
+            },
+            fonction=lister_demandes_avis,
+            # §9.5 M7 (avis à approuver) : le brouillon est ce que le propriétaire relit avant d'écrire au client.
             roles_appareil=frozenset({"admin"}),
         ),
         Outil(

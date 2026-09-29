@@ -72,6 +72,18 @@ def test_valider_wct_accepte_service_d_un_lead_v2_comme_cle_additive(wct_valide)
     assert validation.valider_wct(wct_valide) == (True, None)
 
 
+def test_valider_wct_accepte_le_consentement_a_la_demande_d_avis_et_sa_preuve(wct_valide):
+    """PLAN T1.5-d : un chantier terminé avec le consentement du client à une demande d'avis porte aussi sa
+    preuve (qui, quand, quel texte). M6 lit ce WCT sur le bus pour le formulaire des matériaux : il doit
+    l'accepter, sans quoi la déclaration de l'employé serait refusée à cause d'un consentement."""
+    wct_valide.update({
+        "consentement_marketing": True, "consentement_demande_avis": True, "client_satisfait": True,
+        "consentement_recueilli_par": "etienne", "consentement_recueilli_le": "2026-09-15T12:00:05+00:00",
+        "consentement_version_texte": "consentement-client-fr-CA-v1",
+    })
+    assert validation.valider_wct(wct_valide) == (True, None)
+
+
 def test_champs_wct_optionnels_alignes_sur_le_catalogue():
     from m6_material_control import contrats
 

@@ -67,7 +67,7 @@ qui travaille sur un toit, un gestionnaire qui reprend un dossier).
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 64 outils sur 138 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 65 outils sur 139 sont déclarés.
 
 ### `employee` (11 outils) : §9.3, le terrain
 
@@ -107,7 +107,7 @@ M10.
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (58 outils) : §9.5 + employé + vendeur
+### `admin` (59 outils) : §9.5 + employé + vendeur
 
 Les 11 outils de l'employé, les 9 du vendeur, et :
 
@@ -127,6 +127,7 @@ Les 11 outils de l'employé, les 9 du vendeur, et :
 | M6 | `m6_receptionner_commande`, `m6_soumettre_comptage` | §9.5 « réception rapide » ; §9 « inventaire ». |
 | M6 | `m6_produire_digest`, `m6_evaluer_variance_chantier` | §9.5 « stock critique », « rapport de pertes et bris », « écarts de chantier ». |
 | M7 | `m7_lister_file_approbation` | §9.5 M7 : contenus et réponses aux avis à approuver. |
+| M7 | `m7_lister_demandes_avis` (T0) | §9.5 M7 « avis à répondre » et §6 « travaux terminés » (T1.5-d) : le brouillon de demande d'avis né d'un « Terminer » avec le consentement du client, avec la preuve de ce consentement (qui, quand, quel texte). Lecture seule, bornée à huit brouillons (`Capacites` tronque à 6 000 caractères) : rien n'est envoyé, l'envoi au client reste une décision humaine. Ni l'employé (il recueille le consentement, il ne lit pas ce que le propriétaire décide d'en faire) ni le vendeur. |
 | M9 | `m9_produire_briefing_matin`, `m9_lire_alertes_m8`, `m9_lire_etat_consolide` | §7 M9 mobile : « Admin/Nathan seulement ». |
 | M9 | `m9_lister_demandes_approbation` (T0), `m9_decider_demande_approbation` (T1, N2) | §9.2 « le propriétaire approuve tout depuis le téléphone », §9.5 « Approbations » (T1.4-f). Règles ci-dessous : `admin` ouvre l'outil, la PERSONNE doit être le propriétaire. |
 | M10 | `m10_statut_decision`, `m10_statut_revision`, `m10_arbitrer_revision`, `m10_paquet_contexte_affaire` | §7 M10 mobile : décisions à valider, contradictions, recherche dans la mémoire. |

@@ -41,6 +41,31 @@ Le serveur se bind sur `127.0.0.1` et affiche le `host:port` réel.
 python3 -m pytest "departments/m07-marketing/tests" -q
 ```
 
+## Demande d'avis : le consentement du client, recueilli à « Terminer » (PLAN T1.5-d)
+
+DEFINITION-PRODUIT §6 : à « travaux terminés », M7 « propose une demande d'avis ». La demande naît du
+**consentement explicite du client à être contacté pour un avis**, que l'employé recueille auprès de lui dans
+l'app (écran « Terminer », `mobile/src/m4/consentementClient.ts`, cases non cochées par défaut, texte fr-CA
+versionné).
+
+- **Deux consentements distincts** (Loi 25, `POLITIQUE-photos-non-contractuelles.md` §3) : `consentement_demande_avis`
+  (être contacté pour un avis, ce qui suit) et `consentement_marketing` (l'usage de photos, section suivante).
+  L'un n'est jamais déduit de l'autre.
+- **M4 le porte avec sa preuve**, posée par le serveur (`consentement_recueilli_par` : la personne authentifiée ;
+  `consentement_recueilli_le` : l'heure de réception du serveur ; `consentement_version_texte` : le texte présenté).
+  Clés additives de `m4.travaux_termines`. M7 les lit dans le WCT reçu par le bus, jamais dans un argument.
+- **Fail-closed** (`reputation/demande_avis.py`) : consentement absent, faux ou sans sa preuve, ou
+  `client_satisfait = false` : aucun brouillon. Le WCT reste quand même enregistré (`wct_recus`).
+- **Le brouillon** (`demandes_avis`, gabarit fixe, jamais un texte de modèle) porte la preuve du consentement.
+  Nature des travaux (T0.13-b) : `type_travaux` pour un lead v1, le **libellé du service** déclaré par l'entreprise
+  (`opsys.taxonomie`) pour un lead v2 ; jamais l'un déduit de l'autre. Service non déclaré : texte générique et
+  `avertissements` le dit.
+- **Jamais envoyé** : `approval_status` reste `PROPOSE`. L'envoi au client est un engagement externe (T3), une
+  décision humaine qu'aucun outil de M7 ne prend. L'admin relit les brouillons par `m7_lister_demandes_avis`
+  (T0, `admin`, huit au plus par appel).
+- **Limite** : `client_satisfait = false` refuse encore la demande (règle de T1.2-c). Les plateformes d'avis interdisent de
+  ne solliciter que les clients satisfaits (P9) : décision à confirmer par Nathan.
+
 ## Contenu public : consentement + floutage (PLAN T4.3)
 
 - `m7_marketing.brand.profil_client` : chargement fail-closed du profil de marque du CLIENT

@@ -87,6 +87,22 @@
     "client_satisfait": {
       "type": ["boolean", "null"],
       "description": "M7-audit.md L118 : signal de qualité (« client satisfait oui/non »), absent du WCT actuel ; null si non recueilli, jamais inventé."
+    },
+    "consentement_demande_avis": {
+      "type": "boolean",
+      "description": "Clé additive (PLAN T1.5-d) : consentement explicite du client à être contacté pour laisser un avis sur les travaux (Loi 25 ; POLITIQUE-photos-non-contractuelles.md §3 : consentement DISTINCT de consentement_marketing, qui vise l'usage de photos). Jamais déduit de consentement_marketing ni l'inverse. Recueilli par l'employé auprès du client dans l'app, accepté par M4 SEULEMENT pendant un appel d'appareil ; absent = non consenti."
+    },
+    "consentement_recueilli_par": {
+      "type": "string",
+      "description": "Clé additive (PLAN T1.5-d) : la personne authentifiée (identité confirmée en base) qui a recueilli consentement_marketing et/ou consentement_demande_avis auprès du client. Posée par M4, jamais fournie par l'appareil. Présente seulement avec l'un de ces deux consentements."
+    },
+    "consentement_recueilli_le": {
+      "type": "string",
+      "description": "Clé additive (PLAN T1.5-d) : heure de RÉCEPTION du serveur (RFC 3339) à laquelle ces consentements ont été enregistrés, jamais l'horloge de l'appareil. Posée par M4, présente seulement avec l'un des deux consentements."
+    },
+    "consentement_version_texte": {
+      "type": "string",
+      "description": "Clé additive (PLAN T1.5-d) : identifiant de la version du texte de consentement que l'app a présenté au client (POLITIQUE-consentement-sms.md §4 : « version de la politique »). Fournie par l'appareil, exigée par M4 dès qu'un consentement est envoyé ; l'app garde le texte de chaque version."
     }
   },
   "required": [

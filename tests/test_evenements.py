@@ -206,6 +206,32 @@ def test_catalogue_m4_travaux_termines_accepte_les_champs_optionnels_m7(session)
     assert evenements.publier("m4.travaux_termines", "m04-field-ops", charge)
 
 
+def test_catalogue_m4_travaux_termines_accepte_le_consentement_a_la_demande_d_avis_et_sa_preuve(session):
+    """PLAN T1.5-d : clés additives, optionnelles, jamais requises ; `consentement_marketing` reste distinct."""
+    charge = _wct_exemple(
+        consentement_demande_avis=True, consentement_marketing=False,
+        consentement_recueilli_par="etienne", consentement_recueilli_le="2026-09-28T18:05:00+00:00",
+        consentement_version_texte="consentement-client-fr-CA-v1",
+    )
+    assert evenements.publier("m4.travaux_termines", "m04-field-ops", charge)
+    requis = set(evenements.schema("m4.travaux_termines")["required"])
+    assert not requis & {"consentement_demande_avis", "consentement_recueilli_par",
+                         "consentement_recueilli_le", "consentement_version_texte"}
+
+
+@pytest.mark.parametrize("cle,mauvaise_valeur", [
+    ("consentement_demande_avis", "oui"),
+    ("consentement_demande_avis", None),
+    ("consentement_recueilli_par", 7),
+    ("consentement_recueilli_le", 1748864105),
+    ("consentement_version_texte", ["v1"]),
+])
+def test_catalogue_m4_travaux_termines_rejette_un_consentement_ou_une_preuve_mal_types(session, cle, mauvaise_valeur):
+    with pytest.raises(evenements.ChargeInvalide):
+        evenements.publier("m4.travaux_termines", "m04-field-ops", _wct_exemple(**{cle: mauvaise_valeur}))
+    assert _compte_sortants() == 0
+
+
 def test_catalogue_m4_travaux_termines_accepte_devis_et_revue_absents(session):
     # devis_id et revue_id sont requis mais nullables (outbox.py : None si sans devis / sans écart).
     assert evenements.publier("m4.travaux_termines", "m04-field-ops", _wct_exemple(devis_id=None, revue_id="rev-1"))

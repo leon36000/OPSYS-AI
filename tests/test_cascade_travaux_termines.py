@@ -393,14 +393,19 @@ def test_nominal_cascade_complete_sans_quarantaine(base_durable):
     wct_charge = _charge_publiee("m4.travaux_termines", wct_id)
     # T1.2-f : type_travaux (connu depuis le contrat gelé à l'inscription, jamais deviné) est
     # désormais composé par M4 — voir departments/m04-field-ops/tests/test_outbox.py et
-    # test_evenements_m4.py pour la preuve dédiée. Les quatre faits CLIENT (Loi 25 :
-    # consentement_marketing, client_satisfait, photos, description_factuelle) restent
+    # test_evenements_m4.py pour la preuve dédiée. Les faits CLIENT (Loi 25 :
+    # consentement_marketing, consentement_demande_avis et sa preuve, client_satisfait, photos,
+    # description_factuelle) restent
     # absents ICI car cette complétion n'est PAS un appel d'appareil (m4_completer_intervention
     # les refuse nommément hors d'un tel appel) ; `ville` reste un cas à part, structurellement
     # absent du WCT — M4 ne connaît la ville qu'au travers de sa tokenisation Loi 25
     # (registre immuable, jamais en clair, docs/bmad/03-ARCHITECTURE.md §2 de M4).
     assert wct_charge["type_travaux"] == "renovation_totale"
-    for champ in ("consentement_marketing", "client_satisfait", "photos", "description_factuelle", "ville"):
+    for champ in (
+        "consentement_marketing", "client_satisfait", "photos", "description_factuelle", "ville",
+        "consentement_demande_avis", "consentement_recueilli_par", "consentement_recueilli_le",
+        "consentement_version_texte",
+    ):
         assert champ not in wct_charge, f"{champ} inattendu dans le WCT réel (hors appel d'appareil)"
 
     _m6_declarer_wct_fabrique(m6, chantier_id, MATERIAU_ID)
@@ -475,9 +480,11 @@ def test_nominal_cascade_complete_sans_quarantaine(base_durable):
     assert transitions_facture[0]["prochaine_action"]["echeance"] == wct_charge["horodatage_completion"]
 
     # -- M7 : SES traces — brouillon d'avis SEULEMENT avec consentement ----------------------
-    # Constat : consentement_marketing n'existe nulle part dans le WCT réel (ci-dessus) ; M7 fail-
-    # closed ne crée donc RIEN ici. La preuve positive (avec consentement -> brouillon) est un
-    # test dédié : test_m7_brouillon_avis_seulement_avec_consentement_reel.
+    # Constat : ni consentement_demande_avis ni consentement_marketing n'existent dans ce WCT
+    # (complétion d'agent, pas d'appareil) ; M7 fail-closed ne crée donc RIEN ici. La preuve
+    # positive (avec consentement -> brouillon) est un test dédié :
+    # test_m7_brouillon_avis_seulement_avec_consentement_reel ; celle qui part d'un « Terminer » de
+    # l'app est `tests/e2e/test_demande_d_avis_appareil.py`.
     assert list(stockage.maillons("m07-marketing", "demandes_avis")) == []
 
     # -- M8 : SES traces — faits mesurés (sans coût) ------------------------------------------
@@ -779,11 +786,12 @@ def test_ordre_inverse_completion_avant_acceptation_devis_converge_comme_nominal
 
 
 # =============================================================================================
-# Complément ciblé : le gap M7 constaté dans le scénario nominal (M4 réel ne porte jamais
-# consentement_marketing/client_satisfait) laisse la moitié « avec consentement » de la règle
-# « brouillon SEULEMENT avec consentement » non exercée par la cascade réelle. Ce test appelle
-# le VRAI consommateur M7 (chargé depuis le manifeste, comme le répartiteur le ferait) avec une
-# charge conforme au catalogue qui PORTE le consentement, pour prouver les DEUX branches.
+# Complément ciblé : le gap M7 constaté dans le scénario nominal (M4 réel ne porte pas, hors d'un
+# appel d'appareil, le consentement du client à la demande d'avis) laisse la moitié « avec
+# consentement » de la règle « brouillon SEULEMENT avec consentement » non exercée par cette
+# cascade d'agent. Ce test appelle le VRAI consommateur M7 (chargé depuis le manifeste, comme le
+# répartiteur le ferait) avec une charge conforme au catalogue qui PORTE le consentement et sa
+# preuve (PLAN T1.5-d), pour prouver les DEUX branches.
 # =============================================================================================
 def test_m7_brouillon_avis_seulement_avec_consentement_reel(base_durable):
     deps = charger_departements()
@@ -800,9 +808,13 @@ def test_m7_brouillon_avis_seulement_avec_consentement_reel(base_durable):
         base.update(overrides)
         return base
 
+    preuve = {
+        "consentement_recueilli_par": "etienne", "consentement_recueilli_le": "2026-09-20T18:05:00+00:00",
+        "consentement_version_texte": "consentement-client-fr-CA-v1",
+    }
     with stockage.transaction():
         resultat = consommateur_m7(_charge(
-            "WCT-M7-CONSENT-fictif", consentement_marketing=True, client_satisfait=True,
+            "WCT-M7-CONSENT-fictif", consentement_demande_avis=True, client_satisfait=True, **preuve,
         ))
     assert resultat["brouillon_cree"] is True
     demandes = list(stockage.maillons("m07-marketing", "demandes_avis"))
@@ -810,7 +822,7 @@ def test_m7_brouillon_avis_seulement_avec_consentement_reel(base_durable):
 
     with stockage.transaction():
         resultat2 = consommateur_m7(_charge(
-            "WCT-M7-SANS-CONSENT-fictif", consentement_marketing=False, client_satisfait=True,
+            "WCT-M7-SANS-CONSENT-fictif", consentement_demande_avis=False, client_satisfait=True, **preuve,
         ))
     assert resultat2["brouillon_cree"] is False
     demandes_apres = list(stockage.maillons("m07-marketing", "demandes_avis"))
