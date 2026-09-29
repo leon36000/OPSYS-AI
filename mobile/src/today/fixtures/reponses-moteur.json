@@ -1,0 +1,102 @@
+{
+ "fictif": true,
+ "appels": {
+  "interventions_planifiee_tronquee": {
+   "outil": "m4_lister_interventions",
+   "args": {
+    "statut": "planifiee"
+   }
+  },
+  "interventions_en_route": {
+   "outil": "m4_lister_interventions",
+   "args": {
+    "statut": "en_route"
+   }
+  },
+  "interventions_sur_site": {
+   "outil": "m4_lister_interventions",
+   "args": {
+    "statut": "sur_site"
+   }
+  },
+  "interventions_en_revue": {
+   "outil": "m4_lister_interventions",
+   "args": {
+    "statut": "en_revue"
+   }
+  },
+  "interventions_sans_filtre_tronquee": {
+   "outil": "m4_lister_interventions",
+   "args": {}
+  },
+  "statut_intervention": {
+   "outil": "m4_statut_intervention",
+   "args": {
+    "intervention_id": "8b78e55503d0eda3ba593b7973f94868009d9fee17e9af1072c8a71ee6b837ff"
+   }
+  },
+  "refus_identite_interventions": {
+   "outil": "m4_lister_interventions",
+   "args": {
+    "statut": "planifiee"
+   }
+  },
+  "refus_identite_statut": {
+   "outil": "m4_statut_intervention",
+   "args": {
+    "intervention_id": "6f490690953b77d199aeb3e7b96406607299159f56f69be62e27e63e0da0edb6"
+   }
+  }
+ },
+ "reponses": {
+  "interventions_planifiee_tronquee": {
+   "ok": true,
+   "tronque": true,
+   "apercu": "{\"ok\": true, \"resultat\": [{\"intervention_id\": \"1402692d77786d4071b7ac4a485b2ae26dfd6bde30e24e29170dbf65faf26824\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-03-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-03-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"1a1625a4b470875c4386197143989be22117145f1a113a277e31b86e8152ee88\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-04-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-04-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"1d73037a0fd6c9c3ce442548d9e21240e312b51a4e84462bb6fb0571bc5d8b6f\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-12-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-12-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"1dd7d6987a2b89b81d514c00036e9a2e5dd770f95ecc6c157aa9610fcc4c74b2\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-21-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-21-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"2744e233fd2539817358d0ccbca3e81333bf0a140919684111e2678a51812f53\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-15-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-15-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"3bb1fea5cad9cef3fa715d317dd76388633af0fbf90daa8b348b398684141a80\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-11-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-11-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"43ba308bfd9008995e0f64e68e1703aaae88e298febff12efe8ca6e4559b61d6\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-24-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-24-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"4c8a4283b1b77322db3f9504157f07f8c753f0c37694b41a1975acd7e4dea204\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-14-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-14-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"5cdb521510a72be069bf8203db9c0d85f902ad09c8c83a5485bdb1b4c994f74b\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-08-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-08-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"6742d9b2c04ad3ecf81e758e72501701515fff5821071eb47f37a334c495638d\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-22-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-22-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"6eb3c15088c6502f9b0cfd126e00f75376416dd4d062c7f1e6a00ce4ff510065\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-13-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-13-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"6f490690953b77d199aeb3e7b96406607299159f56f69be62e27e63e0da0edb6\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-01-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-01-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"70973ffaec4300d3b0677e2037bd04592e0286d3eebd1e221ec84c7a670a8f35\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-10-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-10-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"7244515d45243d37aa59eeaec03ffea075200e816a86bf4d9ce5886b4e72a967\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-25-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-25-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"7662a655073e21b41d25920563b019485046b7360ccad83e800dfcbaa495b7aa\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-18-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-18-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\":\n\n[… 1228 caractères omis — artefact 85b40b6be32c10d5 ; lire la suite avec opsys_lire_artefact(id='85b40b6be32c10d5', debut=4200)]\n\nif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-06-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"c1c5085dfaab58d4484807b793ecc618537abe15cf0fd390cee1bf3eccf6478b\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-19-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-19-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"c397ec2503eb84fed6d8dc3a0d39d4416e44c2405b10034bf10f23df8a551da4\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-02-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-02-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"e7aad12160698baa68e7f1140c7f22e08645817a98366f7caa874ecac2ef2edb\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-05-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-05-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"ef3c25b6350900d309882c799a977bdcbf71692293ac07a6a4567241f59148d6\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-23-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-23-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"f8ab3f6fa733578e3834cbcd8eb8361b4f3eac488e4d6a0d908151e3712ada38\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-17-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-17-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"fc8aa97ff611ad0700526ebce0e2f0282bc0331ce1da890a3e5c2368e1b751ac\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-07-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-07-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}]}"
+  },
+  "interventions_en_route": {
+   "ok": true,
+   "resultat": [
+    {
+     "intervention_id": "8b78e55503d0eda3ba593b7973f94868009d9fee17e9af1072c8a71ee6b837ff",
+     "statut": "en_route",
+     "lead_id": "LEAD-EMP-27-fictif",
+     "type_travaux": "renovation_totale",
+     "devis_id": "DEVIS-EMP-27-fictif",
+     "technicien_assigne": "etienne",
+     "fenetre_planifiee": null
+    }
+   ]
+  },
+  "interventions_sur_site": {
+   "ok": true,
+   "resultat": []
+  },
+  "interventions_en_revue": {
+   "ok": true,
+   "resultat": []
+  },
+  "interventions_sans_filtre_tronquee": {
+   "ok": true,
+   "tronque": true,
+   "apercu": "{\"ok\": true, \"resultat\": [{\"intervention_id\": \"1402692d77786d4071b7ac4a485b2ae26dfd6bde30e24e29170dbf65faf26824\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-03-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-03-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"1a1625a4b470875c4386197143989be22117145f1a113a277e31b86e8152ee88\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-04-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-04-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"1d73037a0fd6c9c3ce442548d9e21240e312b51a4e84462bb6fb0571bc5d8b6f\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-12-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-12-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"1dd7d6987a2b89b81d514c00036e9a2e5dd770f95ecc6c157aa9610fcc4c74b2\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-21-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-21-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"2744e233fd2539817358d0ccbca3e81333bf0a140919684111e2678a51812f53\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-15-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-15-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"3bb1fea5cad9cef3fa715d317dd76388633af0fbf90daa8b348b398684141a80\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-11-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-11-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"43ba308bfd9008995e0f64e68e1703aaae88e298febff12efe8ca6e4559b61d6\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-24-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-24-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"4c8a4283b1b77322db3f9504157f07f8c753f0c37694b41a1975acd7e4dea204\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-14-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-14-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"5cdb521510a72be069bf8203db9c0d85f902ad09c8c83a5485bdb1b4c994f74b\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-08-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-08-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"6742d9b2c04ad3ecf81e758e72501701515fff5821071eb47f37a334c495638d\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-22-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-22-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"6eb3c15088c6502f9b0cfd126e00f75376416dd4d062c7f1e6a00ce4ff510065\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-13-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-13-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"6f490690953b77d199aeb3e7b96406607299159f56f69be62e27e63e0da0edb6\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-01-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-01-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"70973ffaec4300d3b0677e2037bd04592e0286d3eebd1e221ec84c7a670a8f35\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-10-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-10-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"7244515d45243d37aa59eeaec03ffea075200e816a86bf4d9ce5886b4e72a967\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-25-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-25-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"7662a655073e21b41d25920563b019485046b7360ccad83e800dfcbaa495b7aa\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-18-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-18-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\":\n\n[… 1504 caractères omis — artefact a5c3fd832d3bdd88 ; lire la suite avec opsys_lire_artefact(id='a5c3fd832d3bdd88', debut=4200)]\n\nif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-06-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"c1c5085dfaab58d4484807b793ecc618537abe15cf0fd390cee1bf3eccf6478b\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-19-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-19-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"c397ec2503eb84fed6d8dc3a0d39d4416e44c2405b10034bf10f23df8a551da4\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-02-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-02-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"e7aad12160698baa68e7f1140c7f22e08645817a98366f7caa874ecac2ef2edb\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-05-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-05-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"ef3c25b6350900d309882c799a977bdcbf71692293ac07a6a4567241f59148d6\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-23-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-23-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"f8ab3f6fa733578e3834cbcd8eb8361b4f3eac488e4d6a0d908151e3712ada38\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-17-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-17-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}, {\"intervention_id\": \"fc8aa97ff611ad0700526ebce0e2f0282bc0331ce1da890a3e5c2368e1b751ac\", \"statut\": \"planifiee\", \"lead_id\": \"LEAD-EMP-07-fictif\", \"type_travaux\": \"renovation_totale\", \"devis_id\": \"DEVIS-EMP-07-fictif\", \"technicien_assigne\": \"etienne\", \"fenetre_planifiee\": null}]}"
+  },
+  "statut_intervention": {
+   "ok": true,
+   "resultat": {
+    "intervention_id": "8b78e55503d0eda3ba593b7973f94868009d9fee17e9af1072c8a71ee6b837ff",
+    "statut": "en_route"
+   }
+  },
+  "refus_identite_interventions": {
+   "ok": false,
+   "erreur": "refus_metier",
+   "details": "REJ-IDENTITE-APPAREIL-INVALIDE : personne 'luc' inconnue, inactive, ou ne porte plus le rôle 'employee' porté par le jeton d'appareil (ou identité non vérifiable hors transaction)"
+  },
+  "refus_identite_statut": {
+   "ok": false,
+   "erreur": "refus_metier",
+   "details": "REJ-IDENTITE-APPAREIL-INVALIDE : personne 'luc' inconnue, inactive, ou ne porte plus le rôle 'employee' porté par le jeton d'appareil (ou identité non vérifiable hors transaction)"
+  }
+ }
+}

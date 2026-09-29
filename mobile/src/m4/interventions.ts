@@ -51,7 +51,7 @@ export type StatutInterventionM4 =
   | "annulee"
   | "a_planifier";
 
-/** Dans l'ordre de `etats.ETATS` : épinglé au serveur par `tests/e2e/test_admin_appareil.py`. */
+/** Dans l'ordre de `etats.ETATS` : épinglé au serveur par `tests/e2e/test_liste_employe_appareil.py`. */
 export const ETATS_INTERVENTION_M4: readonly StatutInterventionM4[] = [
   "planifiee",
   "en_route",
