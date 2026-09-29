@@ -15,7 +15,8 @@ Trois scénarios, chacun sur une base SQLite temporaire migrée :
 3. PLAN T4.19 — l'entonnoir et la vue exécutive : lead ingéré et qualifié (M2), deux devis envoyés (M3, par
    l'approbation N4 du propriétaire), l'un accepté, l'autre sans réponse, puis le chantier terminé (M4, M5, M6) :
    `m8_lire_vue_executive` montre l'entonnoir, la marge réelle de M5 (le texte que M5 a publié), le stock à
-   commander de M6 (ce que M6 met à la file du propriétaire) et un cash libre « manque » ; un employé et un
+   commander de M6 (ce que M6 met à la file du propriétaire) et un cash libre « manque » tant que M5 n'a rien
+   constaté (T4.19-b : le constat de bout en bout est dans `test_cascade_cash_libre_m5_m8.py`) ; un employé et un
    vendeur en sont refusés.
 
 Ce que M3 ne fournit pas encore reste « non calculable, manque X » : la durée estimée du devis (M3 ne
@@ -681,10 +682,12 @@ def test_du_lead_qualifie_au_chantier_termine_la_vue_executive_montre_l_entonnoi
     assert (stock["statut"], stock["n_articles"], stock["reste"], stock["seuils_a_configurer"]) == ("lu", 1, 0, False)
     assert stock["articles"] == [{cle: besoin[cle] for cle in ("id", "resume", "depuis", "action_proposee")}]
 
-    # -- 4. le cash libre : M5 ne le publie sur aucun événement, la vue le dit et renvoie à l'outil de M5 ------------
+    # -- 4. le cash libre : personne n'a fait constater le cash libre à M5 ici, la vue dit « manque » et où le lire ----
+    # (le constat de bout en bout, M5 qui publie et M8 qui le montre, est dans `test_cascade_cash_libre_m5_m8.py`)
     assert vue["cash_libre"] == {
-        "source": "M5 (m5_etat_tresorerie, T4.16)", "statut": "manque", "manque": ["cash_libre"],
-        "a_lire": "m5_etat_tresorerie (admin), avec la décomposition du cash libre",
+        "source": "M5 (m5.cash_libre_constate)", "statut": "manque", "manque": ["cash_libre"],
+        "a_lire": "m5_etat_tresorerie (admin), avec la décomposition du cash libre ; "
+                  "m5_constater_cash_libre (admin) le publie à M8",
     }
     assert [champ for champ in (m["champ"] for m in vue["manques"]) if champ == "cash_libre"] == ["cash_libre"]
     assert not [t for t in _types_publies() if "cash" in t]  # M5 n'a rien constaté ici : aucun constat au bus

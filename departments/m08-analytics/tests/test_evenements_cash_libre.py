@@ -316,8 +316,9 @@ def test_un_constat_non_calculable_est_range_tel_quel_sans_aucun_zero_et_la_vue_
     assert constat["statut"] == "NON_CALCULABLE" and constat["cash_libre_cad"] is None
     assert constat["composantes"]["paies"] is None and constat["composantes"]["das"] == "1350.75"
     assert vue["cash_libre"]["age"] == {"jours": 1, "aujourd_hui": "2026-09-30"}
+    assert constat["manque"] == ["paies : REJ-CASH-PAIE-A-DECLARER"]
     assert [m["raison"] for m in vue["manques"] if m["champ"] == "cash_libre"] == [
-        "M5 a constaté le cash libre « non calculable » le 2026-09-29 : manque paies (REJ-CASH-PAIE-A-DECLARER)"]
+        "M5 a constaté le cash libre « non calculable » le 2026-09-29 : voir cash_libre.constat.manque"]
 
 
 def test_apres_livraison_la_vue_montre_le_montant_de_m5_tel_quel_sans_appeler_m5(

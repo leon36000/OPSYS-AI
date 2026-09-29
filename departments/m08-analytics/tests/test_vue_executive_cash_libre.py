@@ -97,6 +97,50 @@ def _constat(sequence=1, jour="2026-09-29", **surcharges):
     return cash_libre.fait_constat(charge)
 
 
+_CODES_MANQUE = {
+    "solde": "REJ-CASH-SOLDE-ABSENT", "taxes_a_remettre": "REJ-FISCAL-FREQUENCE-A-DECLARER",
+    "paies": "REJ-CASH-PAIE-A-DECLARER", "das": "REJ-CASH-DAS-A-DECLARER",
+    "comptes_a_payer": "REJ-CASH-COMPTES-A-PAYER-INCOMPLETS", "dettes": "REJ-CASH-DETTES-A-DECLARER",
+    "reserves": "REJ-CASH-RESERVES-A-DECLARER",
+}
+
+
+def _constat_premier_jour(jour="2026-09-29"):
+    """Le tout premier constat d'une entreprise qui n'a encore rien déclaré, tel que M5 le publie : aucun solde connu,
+    aucune déclaration ; seuls les comptes à payer (registre vide) valent 0.00. Six manques, aucun repère `au_plus`."""
+    absente = {"statut": "NON_CALCULABLE", "origine": "AUCUNE", "piece": None, "pieces": 0}
+    composantes = [
+        _composante(cid, "0.00", piece=None, pieces=0) if cid == "comptes_a_payer"
+        else _composante(cid, None, **absente)
+        for cid in _ORDRE
+    ]
+    return _constat(
+        1, jour, statut="NON_CALCULABLE", cash_libre_cad=None, au_plus_cad=None, en_deficit=None,
+        lecture="Cash libre non calculable : le solde n'est pas connu (voir manque). Aucun chiffre n'est donné.",
+        solde=_composante("solde", None, **absente), composantes=composantes, reserves=[],
+        manque=[{"composante": c, "code": _CODES_MANQUE[c]} for c in
+                ("solde", "taxes_a_remettre", "paies", "das", "dettes", "reserves")],
+    )
+
+
+def _constat_le_plus_gros(jour="2026-09-29"):
+    """Le plus gros constat que M5 puisse dire : les six obligations manquent (dont les comptes à payer, pour deux
+    raisons, avec un plancher), trois réserves, et le repère `au_plus`. Plus gros que le premier jour."""
+    composantes = [_composante(cid, None, statut="NON_CALCULABLE", origine="AUCUNE", piece=None, pieces=0)
+                   for cid in _ORDRE]
+    composantes[3]["plancher_cad"] = "459.91"
+    return _constat(
+        1, jour, statut="NON_CALCULABLE", cash_libre_cad=None, au_plus_cad="36654.33", en_deficit=None,
+        lecture="Cash libre non calculable : 7 manque(s) (voir manque). Au plus 36654.33 $ : le solde moins ce qui est "
+                "connu ; ce qui manque ne peut que le réduire. Ce n'est PAS de l'argent disponible.",
+        composantes=composantes,
+        manque=[{"composante": c, "code": _CODES_MANQUE[c]} for c in _ORDRE]
+        + [{"composante": "comptes_a_payer", "code": "REJ-CASH-FACTURE-ILLISIBLE"}],
+        reserves=["REJ-AP-UNITE-PRIX-NON-CONFIRMEE", "REJ-CASH-DECLARATION-INVALIDE",
+                  "REJ-FISCAL-FREQUENCE-A-DECLARER"],
+    )
+
+
 def _constat_non_calculable(sequence=1, jour="2026-09-29"):
     composantes = [
         _composante(cid, None, statut="NON_CALCULABLE", origine="AUCUNE", piece=None, pieces=0) if cid == "paies"
@@ -250,9 +294,10 @@ def test_le_dernier_constat_de_m5_est_montre_tel_quel_avec_son_age(lire_vue):
 
     section = vue["cash_libre"]
     assert set(section) == {"source", "statut", "n_constats_recus", "constat", "age", "non_repris", "a_lire"}
-    assert section["statut"] == "lu" and section["source"] == "M5 (m5.cash_libre_constate), repris sans aucun calcul"
+    assert section["statut"] == "lu" and section["source"] == "M5 (m5.cash_libre_constate)"
     assert section["age"] == {"jours": 3, "aujourd_hui": "2026-10-02"} and section["n_constats_recus"] == 1
     constat = section["constat"]
+    assert "evenement_id" not in constat, "le rang et le jour identifient le constat dans la vue"
     assert (constat["sequence"], constat["date_reference"], constat["statut"]) == (1, "2026-09-29", "CALCULE")
     assert (constat["cash_libre_cad"], constat["au_plus_cad"], constat["en_deficit"]) == ("27861.98", None, False)
     assert constat["lecture"].startswith("Cash libre : 27861.98 $") and constat["mention"] == MENTION
@@ -309,13 +354,12 @@ def test_un_constat_non_calculable_passe_tel_quel_et_s_ajoute_aux_manques_de_la_
     assert constat["statut"] == "NON_CALCULABLE" and constat["cash_libre_cad"] is None
     assert constat["en_deficit"] is None and constat["au_plus_cad"] == "32061.98"
     assert "PAS de l'argent disponible" in constat["lecture"]
-    assert constat["manque"] == [{"composante": "paies", "code": "REJ-CASH-PAIE-A-DECLARER"}]
+    assert constat["manque"] == ["paies : REJ-CASH-PAIE-A-DECLARER"]
     assert constat["composantes"]["paies"] is None and constat["composantes"]["das"] == "1350.75"
     assert section["age"] == {"jours": 1, "aujourd_hui": "2026-09-30"}
     assert _manques_de_cash_libre(vue) == [{
         "champ": "cash_libre", "source": "M5 (m5.cash_libre_constate)",
-        "raison": "M5 a constaté le cash libre « non calculable » le 2026-09-29 : "
-                  "manque paies (REJ-CASH-PAIE-A-DECLARER)",
+        "raison": "M5 a constaté le cash libre « non calculable » le 2026-09-29 : voir cash_libre.constat.manque",
     }]
     texte = json.dumps(vue, ensure_ascii=False)
     assert '"cash_libre_cad": "0' not in texte and '"cash_libre_cad": 0' not in texte
@@ -359,8 +403,7 @@ def test_l_age_suit_la_date_donnee_par_l_appelant(aujourd_hui, attendu):
 def test_sans_aujourd_hui_l_age_est_non_calculable_et_le_montant_est_quand_meme_montre(arguments):
     section = _vue(_par_nom([_constat()]), arguments)["cash_libre"]
 
-    assert section["age"] == {
-        "jours": None, "raison": "aujourd_hui non fourni : M8 n'a pas d'horloge, la date vient de l'appelant"}
+    assert section["age"] == {"jours": None, "raison": "aujourd_hui non fourni : M8 n'a pas d'horloge"}
     assert section["constat"]["cash_libre_cad"] == "27861.98"
 
 
@@ -444,8 +487,8 @@ def _totaux(vue):
     )
 
 
-_ESSENTIEL = ("evenement_id", "sequence", "date_reference", "statut", "cash_libre_cad", "au_plus_cad", "en_deficit",
-              "lecture", "manque", "reserves", "mention")
+_ESSENTIEL = ("sequence", "date_reference", "statut", "cash_libre_cad", "au_plus_cad", "en_deficit", "lecture",
+              "manque", "reserves", "mention")
 
 
 def test_la_decomposition_ne_part_qu_apres_toutes_les_listes_et_les_montants_ne_partent_jamais():
@@ -506,6 +549,43 @@ def test_une_vue_qui_ne_tient_pas_meme_sans_decomposition_est_un_refus_jamais_un
 
     with pytest.raises(ValueError, match="dépasse à elle seule la borne de 300 caractères"):
         vue_executive.assembler(situation, [], [], None, 300, faits_cash_libre=[_constat()])
+
+
+def test_la_premiere_installation_sans_solde_ni_declaration_tient_dans_la_vue_avec_de_la_marge(lire_vue):
+    """Le tout premier constat, celui de l'installation : rien n'est connu, six manques. La vue doit le montrer en
+    entier (décomposition comprise), pas se refuser : elle a plus de 200 caractères de marge sous la borne."""
+    vue = lire_vue([_constat_premier_jour()], {"aujourd_hui": "2026-09-29"})
+
+    constat = vue["cash_libre"]["constat"]
+    assert (constat["statut"], constat["cash_libre_cad"], constat["au_plus_cad"]) == ("NON_CALCULABLE", None, None)
+    assert [m.split(" : ")[0] for m in constat["manque"]] == [
+        "solde", "taxes_a_remettre", "paies", "das", "dettes", "reserves"]
+    assert constat["composantes"]["solde"] is None and constat["composantes"]["comptes_a_payer"] == "0.00"
+    assert "composantes_omises" not in constat, "M6 lisible, rien d'autre à montrer : la décomposition reste"
+    assert len(json.dumps(vue, ensure_ascii=False)) < m8_outils.BUDGET_SORTIE - 200
+
+
+def test_la_premiere_installation_tient_encore_quand_m6_est_illisible_et_sans_date():
+    """Hors transaction d'outil, M6 n'est pas lisible : un manque de plus. La vue tient quand même sous la borne."""
+    reponse = _lire(_par_nom([_constat_premier_jour()]))
+
+    assert reponse["ok"] is True, reponse
+    assert len(json.dumps(reponse["resultat"], ensure_ascii=False)) <= m8_outils.BUDGET_SORTIE
+    assert reponse["resultat"]["cash_libre"]["constat"]["statut"] == "NON_CALCULABLE"
+
+
+def test_le_plus_gros_constat_possible_tient_quand_m6_est_lisible_la_decomposition_part_comptee_et_dite(lire_vue):
+    vue = lire_vue([_constat_le_plus_gros()])
+
+    constat = vue["cash_libre"]["constat"]
+    assert len(json.dumps(vue, ensure_ascii=False)) <= m8_outils.BUDGET_SORTIE
+    assert constat["composantes_omises"] == 7 and "composantes" not in constat and "planchers_cad" not in constat
+    assert vue["cash_libre"]["non_repris"].startswith("décomposition, source et fraîcheur")
+    assert constat["au_plus_cad"] == "36654.33" and "PAS de l'argent disponible" in constat["lecture"]
+    assert len(constat["manque"]) == 7
+    assert constat["manque"][3] == "comptes_a_payer : REJ-CASH-COMPTES-A-PAYER-INCOMPLETS"
+    assert constat["manque"][6] == "comptes_a_payer : REJ-CASH-FACTURE-ILLISIBLE", "deux raisons, deux entrées"
+    assert len(constat["reserves"]) == 3 and constat["mention"] == MENTION
 
 
 def test_la_vue_d_une_grosse_entreprise_avec_un_constat_tient_sous_la_limite_du_socle_et_garde_le_constat(

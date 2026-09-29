@@ -4,7 +4,8 @@ Ce que ce fichier prouve, sans base de données :
 - le fait rangé est la charge de `m5.cash_libre_constate` TELLE QUE M5 l'a publiée, rien de plus ni de moins ;
 - le DERNIER constat est celui de plus grand `sequence`, quel que soit l'ordre de livraison du bus ;
 - la section de la vue reprend chaque montant verbatim (aucun calcul, aucun arrondi : un garde statique le verrouille) ;
-- un constat « non calculable, manque X » est montré tel quel et ajoute un manque nommé, jamais un zéro ;
+- un constat « non calculable, manque X » est montré tel quel (chaque manque en « composante : code ») et ajoute
+  un manque à la vue qui renvoie à lui, jamais un zéro ;
 - sans constat : « manque », comme avant T4.19-b ;
 - l'âge du constat n'existe que si l'appelant donne `aujourd_hui` (M8 n'a pas d'horloge) ; une date illisible est
   refusée, jamais corrigée ; un âge négatif est dit incohérent, jamais ramené à zéro ;
@@ -232,7 +233,7 @@ def test_un_age_dont_une_date_est_illisible_n_existe_pas(reference, aujourd_hui)
 
 def test_sans_aujourd_hui_l_age_est_non_calculable_et_dit_pourquoi():
     assert cash_libre.age("2026-09-29", None) == {
-        "jours": None, "raison": "aujourd_hui non fourni : M8 n'a pas d'horloge, la date vient de l'appelant"}
+        "jours": None, "raison": "aujourd_hui non fourni : M8 n'a pas d'horloge"}
 
 
 def test_l_age_d_un_constat_du_jour_est_zero_jour_pas_non_calculable():
@@ -285,14 +286,15 @@ def test_avec_un_constat_calcule_la_section_le_montre_tel_quel_avec_son_age():
 
     assert manques == [], "un constat calculé ne crée aucun manque"
     assert set(section) == {"source", "statut", "n_constats_recus", "constat", "age", "non_repris", "a_lire"}
-    assert section["source"] == "M5 (m5.cash_libre_constate), repris sans aucun calcul" and section["statut"] == "lu"
+    assert section["source"] == "M5 (m5.cash_libre_constate)" and section["statut"] == "lu"
     assert section["n_constats_recus"] == 1
     assert section["age"] == {"jours": 3, "aujourd_hui": "2026-10-02"}
     assert section["a_lire"] == "m5_etat_tresorerie (admin)"
     assert section["non_repris"] == "source et fraîcheur de chaque composante, hypothèses"
     constat = section["constat"]
-    assert set(constat) == {"evenement_id", "sequence", "date_reference", "statut", "cash_libre_cad", "au_plus_cad",
-                            "en_deficit", "lecture", "composantes", "manque", "reserves", "mention"}
+    assert set(constat) == {"sequence", "date_reference", "statut", "cash_libre_cad", "au_plus_cad", "en_deficit",
+                            "lecture", "composantes", "manque", "reserves", "mention"}
+    assert "evenement_id" not in constat, "le rang et le jour identifient le constat ; l'id reste au fait rangé"
     assert (constat["sequence"], constat["date_reference"], constat["statut"]) == (1, "2026-09-29", "CALCULE")
     assert (constat["cash_libre_cad"], constat["au_plus_cad"], constat["en_deficit"]) == ("27861.98", None, False)
     assert constat["lecture"].startswith("Cash libre : 27861.98 $") and constat["mention"] == MENTION
@@ -345,7 +347,7 @@ def test_un_deficit_est_montre_tel_quel_negatif_jamais_ramene_a_zero():
     assert "C'est un déficit" in constat["lecture"]
 
 
-def test_un_constat_non_calculable_est_montre_tel_quel_et_ajoute_un_manque_nomme_avec_les_codes_de_m5():
+def test_un_constat_non_calculable_est_montre_tel_quel_et_ajoute_un_manque_qui_renvoie_a_ses_codes():
     manques = []
 
     section = cash_libre.section([_fait(_charge_non_calculable())], "2026-09-30", manques)
@@ -355,27 +357,39 @@ def test_un_constat_non_calculable_est_montre_tel_quel_et_ajoute_un_manque_nomme
     assert constat["statut"] == "NON_CALCULABLE" and constat["cash_libre_cad"] is None
     assert constat["au_plus_cad"] == "32061.98" and constat["en_deficit"] is None
     assert "PAS de l'argent disponible" in constat["lecture"]
-    assert constat["manque"] == [{"composante": "paies", "code": "REJ-CASH-PAIE-A-DECLARER"}]
+    assert constat["manque"] == ["paies : REJ-CASH-PAIE-A-DECLARER"]
     assert constat["composantes"]["paies"] is None, "M5 n'a pas pu chiffrer les paies : null, jamais zéro"
     assert constat["composantes"]["das"] == "1350.75"
     assert manques == [{
         "champ": "cash_libre", "source": "M5 (m5.cash_libre_constate)",
-        "raison": "M5 a constaté le cash libre « non calculable » le 2026-09-29 : "
-                  "manque paies (REJ-CASH-PAIE-A-DECLARER)",
+        "raison": "M5 a constaté le cash libre « non calculable » le 2026-09-29 : voir cash_libre.constat.manque",
     }]
     assert section["age"] == {"jours": 1, "aujourd_hui": "2026-09-30"}
 
 
-def test_plusieurs_manques_sont_tous_dits_dans_l_ordre_de_m5_et_une_seule_fois():
+def test_plusieurs_manques_sont_tous_dits_dans_l_ordre_de_m5_et_le_manque_de_la_vue_n_est_dit_qu_une_fois():
     charge = _charge_non_calculable(manque=("paies", "das", "dettes"))
     manques = []
 
-    cash_libre.section([_fait(charge)], None, manques)
+    section = cash_libre.section([_fait(charge)], None, manques)
     cash_libre.section([_fait(charge)], None, manques)
 
-    assert len(manques) == 1
-    assert manques[0]["raison"].endswith(
-        "manque paies (REJ-CASH-PAIE-A-DECLARER), das (REJ-CASH-DAS-A-DECLARER), dettes (REJ-CASH-DETTES-A-DECLARER)")
+    assert section["constat"]["manque"] == [
+        "paies : REJ-CASH-PAIE-A-DECLARER", "das : REJ-CASH-DAS-A-DECLARER", "dettes : REJ-CASH-DETTES-A-DECLARER"]
+    assert len(manques) == 1 and manques[0]["raison"].endswith("voir cash_libre.constat.manque")
+
+
+def test_une_composante_qui_manque_pour_deux_raisons_donne_deux_entrees_rien_n_est_fusionne():
+    charge = _charge_non_calculable()
+    charge["manque"] = [
+        {"composante": "paies", "code": "REJ-CASH-PAIE-A-DECLARER"},
+        {"composante": "paies", "code": "REJ-CASH-DECLARATION-INVALIDE"},
+    ]
+    assert erreurs_charge(TYPE, charge) == []
+
+    constat = cash_libre.section([_fait(charge)], None, [])["constat"]
+
+    assert constat["manque"] == ["paies : REJ-CASH-PAIE-A-DECLARER", "paies : REJ-CASH-DECLARATION-INVALIDE"]
 
 
 def test_un_statut_que_m5_n_a_pas_dit_calcule_est_traite_comme_non_calcule_par_prudence():
@@ -404,7 +418,7 @@ def test_la_section_ne_modifie_pas_le_fait_range():
     section = cash_libre.section([fait], "2026-10-02", [])
     section["constat"]["composantes"].clear()
     section["constat"]["reserves"].append("REJ-AUTRE")
-    section["constat"]["manque"].append({"composante": "paies", "code": "REJ-X"})
+    section["constat"]["manque"].append("paies : REJ-X")
     cash_libre.reduire(section)
 
     assert fait == avant

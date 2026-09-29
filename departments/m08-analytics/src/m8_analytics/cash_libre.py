@@ -126,7 +126,7 @@ def age(date_reference: Any, aujourd_hui: str | None) -> dict[str, Any]:
     (M8 n'a pas d'horloge, il ne devine jamais la date) ; une date de référence illisible ou postérieure à
     ``aujourd_hui`` aussi, avec la raison, jamais un âge négatif ni ramené à zéro."""
     if aujourd_hui is None:
-        return {"jours": None, "raison": "aujourd_hui non fourni : M8 n'a pas d'horloge, la date vient de l'appelant"}
+        return {"jours": None, "raison": "aujourd_hui non fourni : M8 n'a pas d'horloge"}
     jours = age_en_jours(date_reference, aujourd_hui)
     if jours is None:
         return {"jours": None, "aujourd_hui": aujourd_hui, "raison": "la date de référence du constat est illisible"}
@@ -154,6 +154,12 @@ def _nommees(composantes: list[Any]) -> list[dict[str, Any]]:
     return [c for c in composantes if isinstance(c, dict) and isinstance(c.get("id"), str)]
 
 
+def _manques(fait: dict[str, Any]) -> list[str]:
+    """Ce que M5 dit qu'il manque, une entrée « composante : code » par manque (la forme compacte que M5 emploie luimême
+    dans sa trace) : une composante qui manque pour deux raisons donne deux entrées, rien n'est fusionné."""
+    return [f"{m.get('composante')} : {m.get('code')}" for m in _listes(fait.get("manque")) if isinstance(m, dict)]
+
+
 def _montants(composantes: list[Any]) -> dict[str, Any]:
     """``id`` -> montant en texte, dans l'ordre de M5 (le solde, puis les six obligations). ``None`` : M5 n'a pas pu
     chiffrer cette composante (jamais zéro) ; son statut se lit là, car M5 ne rend un montant que pour une composante
@@ -171,8 +177,7 @@ def _projection(fait: dict[str, Any]) -> dict[str, Any]:
     Rien n'est calculé, arrondi ni réécrit : chaque texte est celui de M5."""
     composantes = [fait.get("solde"), *_listes(fait.get("composantes"))]
     projection = {
-        "evenement_id": fait.get("evenement_id"), "sequence": fait.get("sequence"),
-        "date_reference": fait.get("date_reference"), "statut": fait.get("statut"),
+        "sequence": fait.get("sequence"), "date_reference": fait.get("date_reference"), "statut": fait.get("statut"),
         "cash_libre_cad": fait.get("cash_libre_cad"), "au_plus_cad": fait.get("au_plus_cad"),
         "en_deficit": fait.get("en_deficit"), "lecture": fait.get("lecture"),
         "composantes": _montants(composantes),
@@ -180,19 +185,16 @@ def _projection(fait: dict[str, Any]) -> dict[str, Any]:
     planchers = _planchers(composantes)
     if planchers:
         projection["planchers_cad"] = planchers
-    projection["manque"] = [dict(m) for m in _listes(fait.get("manque")) if isinstance(m, dict)]
+    projection["manque"] = _manques(fait)
     projection["reserves"] = _listes(fait.get("reserves"))
     projection["mention"] = fait.get("mention")
     return projection
 
 
 def _raison_non_calculable(fait: dict[str, Any]) -> str:
-    manque = ", ".join(
-        f"{m.get('composante')} ({m.get('code')})" for m in _listes(fait.get("manque")) if isinstance(m, dict)
-    )
     return (
-        f"M5 a constaté le cash libre « non calculable » le {fait.get('date_reference')} : manque "
-        f"{manque or 'une donnée que M5 ne nomme pas'}"
+        f"M5 a constaté le cash libre « non calculable » le {fait.get('date_reference')} : "
+        "voir cash_libre.constat.manque"
     )
 
 
@@ -207,7 +209,7 @@ def section(faits: list[dict[str, Any]], aujourd_hui: str | None, manques: list[
     if courant.get("statut") != _STATUT_CALCULE:
         _ajouter_manque(manques, {"champ": "cash_libre", "source": SOURCE, "raison": _raison_non_calculable(courant)})
     return {
-        "source": f"{SOURCE}, repris sans aucun calcul", "statut": "lu",
+        "source": SOURCE, "statut": "lu",
         "n_constats_recus": nombre_de_constats(faits),
         "constat": _projection(courant),
         "age": age(courant.get("date_reference"), aujourd_hui),
