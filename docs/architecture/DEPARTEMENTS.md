@@ -132,7 +132,9 @@ Un département qui reçoit le public par un canal du core (aujourd'hui `sms`) l
 `opsys-metier openclaw configurer` en tire le canal (désactivé tant que ses variables d'environnement ne sont pas
 toutes fournies), sa liaison à l'agent, une session par correspondant, l'interdiction d'une réponse
 automatique et une boîte à outils fermée pour l'agent. Le département doit fournir l'outil d'accueil du canal
-(`m1_recevoir_message_canal` pour `sms`), de niveau N2 au plus, et ne peut pas être en mode `autonome`.
+(`m1_recevoir_message_canal` pour `sms`), de niveau N2 au plus, et ne peut pas être en mode `autonome`. Le formulaire d'un
+site n'est pas un canal du core : il ne se déclare pas dans `canaux:` (aucune extension, aucune variable), il entre par le même outil
+d'accueil ([M1-canaux](../departements/M1-canaux.md) §13).
 `opsys-metier verifier` contrôle ces règles. Voir [M1-canaux](../departements/M1-canaux.md).
 
 ## Événements (ADR-0009 §3, bus dans `opsys.evenements`)

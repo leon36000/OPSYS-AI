@@ -13,6 +13,9 @@ une attente lisible dans « À voir », un gabarit de réponse empathique en bro
 département choisit) ; l'avis légal y est vérifié partout, pas seulement sur le gabarit de plainte (§11) ; le STOP d'un client est
 publié au bus (`m1.retrait_consentement`) : M7 en tire le retrait de son consentement marketing, et M2 celui du consentement
 de contact de ses relances, SMS et courriel (§12, T4.9).
+**Suite (T4.17-e3, 2026-09-29) :** le formulaire d'un site est un canal de `m1_recevoir_message_canal` et le seul qui porte un
+`utm` : validé comme M2, porté tel quel jusqu'au lead, jamais perdu en silence ; extrait de formulaire à coller sur le site ;
+preuve de bout en bout jusqu'à M8 (§13).
 **Références :** `DEFINITION-PRODUIT` §5, §6, §7 (M1.1, M1.3, M1.4, M1.7, M1.8, M1.12), `M1-audit.md`, ADR-0010 (T3.3-suite-b).
 **Le core ne s'exécute pas dans ce bac à sable.** Tout ce qui suit sur le core vient de la lecture de ses sources
 (`fichier:ligne` donnés) ; la CI (`e2e-core`, `openclaw config validate`) est l'autorité.
@@ -163,6 +166,7 @@ un canal partagé par deux départements, ou le mode `autonome`. Avec `--config-
 2. **T2.1-c — envoi réel après approbation** : adaptateur d'envoi par le canal, consentement opt-in, application du
    retrait, appel manqué (SMS de rappel seulement avec opt-in, tâche de rappel toujours).
 3. **T2.1-d — courriel** (`imap`) et **voix** (`voice-call`) : §7.
+4. **Le récepteur du formulaire du site** (T3, décision du propriétaire) : rien ne reçoit encore le POST du formulaire (§13.6).
 
 ## 7. Limites du fork et greffes (le code de `core/` n'est pas touché ici)
 
@@ -680,3 +684,108 @@ que son chantier serve de contenu public : M1 le dit au bus, et M7 en tire ses p
 - **Preuve** : `tests/test_stop_retire_consentement_marketing.py` (le vrai bus : STOP, puis tout contenu du client est bloqué,
   paquet exporté compris, numéro absent), `departments/m01-front-office/tests/test_retrait_publie.py`,
   `departments/m07-marketing/tests/usine/test_retrait_du_bus.py`.
+
+## 13. Le formulaire du site et les `utm_*` : jusqu'au lead (T4.17-e3)
+
+Un lead venu d'un contenu de M7 perdait son `utm_content` : M8 ne pouvait pas l'attribuer. Le trajet lien -> formulaire -> M1 ->
+M2 -> M8 est maintenant prouvé, sauf ce qui reste à la mise en ligne (§13.6). `LeadQualifie` v2 et `m1.lead_qualifie` n'ont pas
+changé (le champ `utm` y était), `core/` n'est pas touché, rien n'est publié.
+
+### 13.1 Les chemins d'un formulaire vers M1, trouvés avant cette tranche
+
+| Chemin | Ce que c'était | Verdict |
+|---|---|---|
+| `m1_traiter_demande_entrante`, `canal="formulaire"` | Outil d'agent T1, **N3**. L'appelant fournit tout (texte, conversation, signal, heure, zone). Portait `utm`, sans garde de canal. | N3 : en `ombre`, il attend une approbation, et le garde du core (ADR-0010) refuse un appel N3 dans la session d'un visiteur dont l'affaire n'est pas liée. Inutilisable pour un premier message. Gardé, avec la garde de canal (§13.3). |
+| `m1_recevoir_message_canal` | N2. Ne connaissait que `sms` et `courriel` : pas `formulaire`, pas `utm`. | Devient le chemin du formulaire (§13.2). |
+| Core : extension, route | Aucune extension de formulaire ni de webchat (`core/extensions/` : sms, imap, voice-call, messageries ; l'audit M1 §3.3 le dit « absent du fork »). Seul accueil HTTP générique : `hooks` (`POST /hooks/agent`, `core/src/gateway/hooks.ts`), désactivé par défaut, à jeton secret obligatoire, qui livre un texte à un agent. OPSYS n'écrit aucune clé `hooks`. Le Caddyfile envoie le domaine principal à la passerelle : `/hooks/*` y serait joignable si `hooks` était activé. | Aucune route de formulaire. Le récepteur reste à faire (§13.6). |
+| Courriel (`imap`) | Un formulaire qui envoie un courriel n'atteint M1 que si l'expéditeur est admis (`allowedSenders`, §7). | Un `utm` n'est jamais lu dans un courriel : refusé pour `courriel`. |
+| Gabarit de formulaire du dépôt | Aucun. Le site que M7 génère (`departments/m07-marketing/src/m7_marketing/site/`) n'a pas de formulaire. L'app mobile n'appelle aucun outil de M1 (l'écran client est un accueil vide). | Un extrait à coller (§13.5). |
+
+### 13.2 Le canal `formulaire` de `m1_recevoir_message_canal`
+
+- **Même chemin que le SMS** : provenance, registre, plainte qui prime, fenêtre de conversation, qualification, lead, bus, M2. Le
+  lead porte `canal: formulaire` (contrat M1 -> M2) et `source: formulaire`.
+- **Expéditeur** : l'adresse courriel (ou le numéro E.164) que le visiteur a écrite. **Elle n'est vérifiée par personne.** Le contact
+  du lead est ce champ seul (le texte n'y ajoute rien) ; il s'étiquette `texte` (« écrit par le client »), jamais `canal` :
+  `conversation.connu.contact` et les résumés de transfert ne disent pas « vérifié par le canal ».
+- **Ni STOP ni clé de session** : un mot de retrait n'a de sens que pour un SMS ; un formulaire n'a pas de session par correspondant.
+- `canaux: [sms]` du manifeste ne change pas : `formulaire` n'est pas un canal du core (aucune variable, aucun fragment).
+  `m1_transferer` et `m1_escalader_plainte` acceptent aussi `formulaire`.
+
+### 13.3 Le `utm` : une seule règle, celle de M2
+
+| Règle | Comportement |
+|---|---|
+| Qui en porte un | Le canal `formulaire` seul (`contrats.CANAUX_AVEC_UTM`). |
+| Validation | Celle de M2, mot pour mot (`contrats.utm_invalide`, aussi utilisée par le contrat v2) : dictionnaire non vide, clés `utm_source`, `utm_medium`, `utm_campaign`, `utm_content` seulement, chaque valeur une chaîne non vide. **Aucune autre borne** (ni longueur ni alphabet : ceux de M7 sont à M7). `tests/test_utm_derive_m2.py` confronte M1 et M2 sur les mêmes entrées. |
+| Portage | Copié tel quel dans le lead que **ce message** fait naître (octet à octet, jamais deviné, complété ni normalisé). Absent : le lead n'en porte pas. |
+| Invalide | `REJ-UTM-INVALIDE` (`ValueError`, rien n'est écrit) : le détail nomme la clé fautive et dit quoi faire (recopier les paramètres du lien tels quels, ou omettre `utm`). |
+| Canal sans lien | `sms`, `courriel`, `telephone`, `texte` : `REJ-UTM-CANAL-SANS-SENS`, rien n'est écrit (un STOP qui porte un `utm` non plus). Un `utm` est le paramètre d'un lien suivi dans un navigateur. Même garde pour `m1_traiter_demande_entrante` et `m1_qualifier_signal`. |
+| Registre | La ligne `signal` garde l'`utm` reçu, même quand aucun lead ne le porte. |
+| Réponse | Quand un `utm` est fourni, un bloc `utm` : `{"statut": "porte_par_le_lead"}` ou `{"statut": "non_porte", "raison", "detail"}`. Raisons : `aucun_lead_ouvert` (demande incomplète), `lead_deja_emis` (le lead, gelé, ne porte pas cet `utm`), `transfert_humain` (plainte, urgence). L'agent le dit à une personne. |
+| Rejeu | Un message rejoué n'écrit rien ; le bloc se relit sur le lead que le registre rend. |
+
+### 13.4 Limites connues
+
+1. Le `utm` d'un formulaire est déclaré par le navigateur du visiteur : n'importe qui peut écrire un lien avec la clé d'un
+   contenu. Il attribue, il ne prouve pas.
+2. Le modèle recopie `utm` comme il recopie le canal, l'expéditeur et l'heure (§2) ; la greffe du §7 le retirerait du modèle. Une
+   clé recopiée de travers est comptée « inconnue » par M8, à part.
+3. Le lead porte l'`utm` du message qui le fait naître. Une demande incomplète suivie d'un message sans `utm` donne un lead sans
+   `utm` : celui du premier message reste au registre, et la réponse du premier message l'a dit.
+4. Sans fenêtre de conversation, deux soumissions au texte identique d'un même visiteur donnent le même `lead_id` : le bus garde le
+   premier lead, donc le premier `utm` (limite du §8, la fenêtre n'a pas ce défaut).
+5. L'identité n'est pas vérifiée (usurper un courriel est possible) ; le téléphone saisi reste dans le texte, pas dans le contact.
+6. Aucune borne de longueur sur les valeurs, comme M2 ; le texte du message est borné à 20 000 octets.
+7. Une page qui n'est pas la page d'arrivée du lien n'a plus les paramètres : le formulaire ne garde rien entre deux pages.
+
+### 13.5 Coller le formulaire sur le site (un fichier du dépôt, rien n'est publié)
+
+Fichier : `departments/m01-front-office/site/formulaire-demande.html`, gardé par `tests/test_formulaire_site.py`.
+
+1. Le coller sur la **page d'arrivée** des liens de M7 (le `site_url` du profil de marque).
+2. Remplacer `REMPLACER-PAR-L-ADRESSE-DU-RECEPTEUR` par l'adresse du récepteur (§13.6). Sans elle, le bouton est éteint et un message
+   le dit : une demande ne part jamais dans le vide.
+3. Retirer le commentaire d'en-tête.
+4. Essayer avec le `lien_utm` d'un paquet exporté : la soumission doit porter les champs cachés `utm_*` (outils du navigateur).
+
+Le script recopie `utm_source`, `utm_medium`, `utm_campaign` et `utm_content` de l'adresse de la page, tels quels, en champs cachés
+créés seulement pour les paramètres présents et non vides. Il ne garde rien (ni témoin ni stockage), ne complète rien et n'appelle
+aucun autre site. Il a été vérifié à la main avec un faux DOM ; les tests gardent sa forme, pas son exécution dans un navigateur.
+
+### 13.6 Ce que le récepteur doit faire (à construire ; la mise en ligne reste T3)
+
+Aucun code ne reçoit encore le POST du formulaire. Le récepteur (côté serveur : jamais un secret dans la page) remet la soumission à
+l'agent M1, qui appelle `m1_recevoir_message_canal` :
+
+| Argument | Vient de |
+|---|---|
+| `canal` | `formulaire` |
+| `expediteur` | le champ `courriel` (à défaut, un numéro E.164) |
+| `message_id` | un identifiant unique par soumission, créé par le récepteur (sans espace, 200 caractères au plus) |
+| `recu_le` | l'heure de réception du récepteur, ISO-8601 avec fuseau |
+| `texte` | le champ `message`, tel quel |
+| `utm` | un objet fait des champs `utm_*` reçus, tels quels ; omis s'il n'y en a aucun |
+
+Le récepteur ne filtre ni ne corrige les champs `utm_*` : un champ inconnu ou vide est refusé par M1 (verdict), et la soumission est
+alors gardée pour une personne, jamais jetée. Deux voies à décider : un relais côté serveur du site qui appelle le core (`hooks`, jeton
+secret ; le modèle recopie alors les champs, §13.4 point 2), ou un point d'accueil HTTP d'OPSYS qui appelle l'outil sans modèle.
+
+### 13.7 Ce que Nathan décide (GATE NATHAN)
+
+Rien de ceci n'a de valeur par défaut dans le code.
+
+1. Où le formulaire est publié, et son récepteur (voie, jeton, antipourriel : captcha, limite de débit).
+2. Garder les `utm_*` le temps de la visite (stockage de session) ou non : décision de confidentialité (Loi 25). Aujourd'hui, rien
+   n'est gardé.
+3. L'avis de confidentialité du formulaire et le consentement : le formulaire ne demande aucun consentement SMS ni marketing.
+4. Le courriel obligatoire, et la conversion d'un téléphone saisi en E.164.
+5. Une borne de longueur sur les valeurs `utm_*` : M2, M3 et M4 n'en ont pas, une décision se prend pour les quatre.
+6. L'attribution : l'`utm` du message qui fait naître le lead (règle actuelle), ou celui du premier message de la conversation.
+
+### 13.8 Preuve
+
+`departments/m01-front-office/tests/test_utm_formulaire.py` (le canal, la règle, les refus, ce qu'aucun lead ne porte, le rejeu,
+l'étiquette du contact, le bus), `test_formulaire_site.py` (le fichier collé), `tests/test_utm_derive_m2.py` (M1 et M2 acceptent et
+refusent les mêmes `utm`), `tests/e2e/test_formulaire_utm_bout_en_bout.py` (le vrai moteur : lien exporté par M7, soumission, lead de
+M1, Client 360 de M2, mesure de M8 ; visiteurs par lien, sans lien, à clé falsifiée ; rejeu ; refus sans aucun effet).

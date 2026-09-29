@@ -30,6 +30,22 @@ Conception, configuration générée, garde-fous et greffes du core à faire : [
 M2 consomme ce lead pour de vrai depuis T2.1-b (`evenements.consomme` de M2, sans greffe) : ingestion complète, idempotente ;
 un refus lève, le répartiteur réessaie puis met en quarantaine.
 
+## Formulaire du site et UTM (PLAN T4.17-e3)
+
+Un lead venu d'un contenu de M7 garde son `utm_content` jusqu'à M8 :
+
+- **`formulaire` est un canal de `m1_recevoir_message_canal`** (l'adresse ou le numéro que le visiteur a écrit, jamais vérifié :
+  le contact s'étiquette « écrit par le client ») et **le seul qui porte un `utm`** ; un SMS, un courriel ou un appel qui en
+  fournit un est refusé (`REJ-UTM-CANAL-SANS-SENS`), rien n'est écrit.
+- **Une seule règle de validation, celle de M2** (`contrats.utm_invalide` : quatre clés, valeurs non vides, aucune autre borne),
+  gardée par `tests/test_utm_derive_m2.py`. Un `utm` invalide est refusé (`REJ-UTM-INVALIDE`), avec ce qu'il faut corriger.
+- **Porté tel quel** par le lead que le message fait naître, jamais deviné ni complété. Un `utm` qu'aucun lead ne porte
+  (demande incomplète, conversation déjà qualifiée, plainte) est dit dans la réponse (`utm.statut`) et reste au registre.
+- **`site/formulaire-demande.html`** : l'extrait que le propriétaire colle sur son site ; son script recopie les `utm_*` de
+  l'adresse de la page. Rien n'est publié ; le récepteur du formulaire reste à construire (T3).
+
+Règles, limites et décisions de Nathan : [M1-canaux](../../docs/departements/M1-canaux.md) §13.
+
 ## Qualification par conversation (PLAN T2.1-b)
 
 Un client qui écrit le service dans un message et la ville dans le suivant donne un lead complet : `conversation.py` (module

@@ -247,9 +247,10 @@ chaque contenu porte une **clé de mesure**, `utm_content`, qui voyage du paquet
 - **M8 compte** (`m8_lire_mesures_contenus`) les leads de M1 (`m1.lead_qualifie`, `lead.utm.utm_content`, égalité stricte)
   puis les devis de M3 par contenu ; un lead sans clé n'est attribué à aucun contenu.
 
-**Limites, jamais cachées.** (1) Le trajet physique n'est pas bouclé : le site généré n'a pas de formulaire qui recopie
-`utm_*` vers M1, et le canal SMS de M1 (`m1_recevoir_message_canal`) n'accepte pas `utm` ; seul `m1_traiter_demande_entrante`
-le porte aujourd'hui. (2) Impressions et clics : aucune source (ni le bus, ni Matomo, ni les statistiques des
+**Limites, jamais cachées.** (1) Le trajet est prouvé de bout en bout (PLAN T4.17-e3 : lien de ce paquet, formulaire,
+`m1_recevoir_message_canal` pour le canal `formulaire`, lead de M2, mesure de M8 ; `tests/e2e/test_formulaire_utm_bout_en_bout.py`),
+mais pas encore en ligne : le site que ce module génère n'a pas de formulaire (M1 livre un extrait à coller,
+`departments/m01-front-office/site/formulaire-demande.html`) et rien ne reçoit encore le formulaire (T3, `M1-canaux.md` §13). (2) Impressions et clics : aucune source (ni le bus, ni Matomo, ni les statistiques des
 plateformes) ; M8 dit « non calculable », jamais un zéro ; le connecteur reste à décider. (3) L'attribution est à la
 dernière touche par clé : un client qui revient par une opportunité rouverte par M2 (`<lead>~opp~<wct_id>`) n'est pas
 attribué à son contenu d'origine. (4) L'énuméré UTM gelé n'a aucune source YouTube et une seule source vidéo (`tiktok`) : la

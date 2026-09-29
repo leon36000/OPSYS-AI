@@ -1,0 +1,60 @@
+<!--
+  Formulaire de demande de soumission : extrait à coller dans une page du site (PLAN T4.17-e3).
+  Guide, réception par M1 et limites : docs/departements/M1-canaux.md, section 13. Retirer ce commentaire avant la mise en ligne.
+
+  1. Remplacer l'adresse du récepteur (action) : sans elle, le formulaire refuse de partir et le dit au visiteur.
+  2. Le coller sur la page d'ARRIVÉE des liens de M7 : le script lit l'adresse de CETTE page.
+
+  Le script recopie utm_source, utm_medium, utm_campaign et utm_content de l'adresse de la page dans la soumission, tels
+  quels, sous la forme de champs cachés créés seulement pour les paramètres présents. Il ne garde rien (ni témoin ni
+  stockage), ne complète rien et n'appelle aucun autre site. Sans paramètre utm_*, la soumission n'en porte pas.
+-->
+<form id="demande-soumission" method="post" action="REMPLACER-PAR-L-ADRESSE-DU-RECEPTEUR">
+  <p>
+    <label for="demande-nom">Nom</label>
+    <input id="demande-nom" name="nom" type="text" autocomplete="name">
+  </p>
+  <p>
+    <label for="demande-courriel">Courriel (obligatoire)</label>
+    <input id="demande-courriel" name="courriel" type="email" autocomplete="email" required>
+  </p>
+  <p>
+    <label for="demande-telephone">Téléphone</label>
+    <input id="demande-telephone" name="telephone" type="tel" autocomplete="tel">
+  </p>
+  <p>
+    <label for="demande-message">Votre demande : le service souhaité et la ville de la propriété</label>
+    <textarea id="demande-message" name="message" rows="5" maxlength="4000" required></textarea>
+  </p>
+  <p id="demande-etat" role="status"></p>
+  <p><button type="submit">Envoyer ma demande</button></p>
+</form>
+<script>
+(function () {
+  "use strict";
+  var CLES_UTM = ["utm_source", "utm_medium", "utm_campaign", "utm_content"];
+  var formulaire = document.getElementById("demande-soumission");
+  if (!formulaire) { return; }
+
+  // Sans adresse de récepteur, une demande partirait dans le vide : un lead perdu. Le formulaire ne part pas.
+  var adresse = formulaire.getAttribute("action");
+  if (!adresse || adresse.indexOf("REMPLACER") !== -1) {
+    formulaire.querySelector('button[type="submit"]').disabled = true;
+    document.getElementById("demande-etat").textContent =
+      "Ce formulaire n'est pas encore configuré : l'adresse du récepteur manque.";
+    return;
+  }
+
+  // Les paramètres utm_* de l'adresse de la page, tels quels : un champ caché par paramètre présent et non vide.
+  var parametres = new URLSearchParams(window.location.search);
+  CLES_UTM.forEach(function (cle) {
+    var valeur = parametres.get(cle);
+    if (valeur === null || valeur === "") { return; }
+    var champ = document.createElement("input");
+    champ.type = "hidden";
+    champ.name = cle;
+    champ.value = valeur;
+    formulaire.appendChild(champ);
+  });
+})();
+</script>

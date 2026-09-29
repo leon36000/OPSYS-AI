@@ -483,6 +483,13 @@ def test_le_schema_de_l_outil_porte_utm_sans_l_exiger():
     assert outil.parametres["additionalProperties"] is False
 
 
+@pytest.mark.parametrize("nom", ["m1_transferer", "m1_escalader_plainte"])
+def test_les_outils_de_transfert_de_l_agent_acceptent_aussi_le_formulaire_mais_pas_de_utm(nom):
+    outil = next(o for o in outils() if o.nom == nom)
+    assert outil.parametres["properties"]["canal"]["enum"] == ["courriel", "formulaire", "sms"]
+    assert "utm" not in outil.parametres["properties"], "un transfert n'ouvre aucun lead : il ne porte aucun utm"
+
+
 def test_l_enveloppe_rend_le_refus_d_un_utm_comme_un_refus_metier_qui_dit_quoi_corriger():
     base = {"canal": "formulaire", "expediteur": ADRESSE, "message_id": "F-1", "recu_le": _a(0), "texte": DEMANDE}
     invalide = executer(_outil(), {**base, "utm": {"utm_id": "x"}})
