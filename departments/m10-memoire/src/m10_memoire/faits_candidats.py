@@ -30,6 +30,8 @@ import re
 from datetime import datetime
 from typing import Any
 
+from . import affaire
+
 TYPE_ENTREE_FAIT_CANDIDAT = "fait_candidat"
 STATUT_FAIT_CANDIDAT = "candidat"
 NB_FAITS_MAX_PAR_DEPOT = 20
@@ -44,8 +46,8 @@ REJ_CANDIDAT_FAIT_INVALIDE = "REJ-CANDIDAT-FAIT-INVALIDE"
 REJ_CANDIDAT_CLE_EN_DOUBLE = "REJ-CANDIDAT-CLE-EN-DOUBLE"
 REJ_CANDIDAT_CLE_DEJA_UTILISEE = "REJ-CANDIDAT-CLE-DEJA-UTILISEE"
 
-# Formes fermées : ce qui entre au registre ne peut pas porter de texte libre.
-_AFFAIRE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$")
+# Formes fermées : ce qui entre au registre ne peut pas porter de texte libre. L'affaire a la forme commune au core et
+# à M10 (`affaire.py`) : un lead, ou l'opportunité que M2 ouvre pour un client qui revient.
 _DEPARTEMENT = re.compile(r"^m(0[1-9]|10)-[a-z][a-z0-9-]*$")
 _CLE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _OUTIL_DEPARTEMENT = re.compile(r"^m(10|[1-9])_[a-z][a-z0-9_]{1,60}$")
@@ -81,7 +83,7 @@ def _fait_valide(fait: Any) -> bool:
 
 def _valider_depot(affaire_id: Any, departement_source: Any, faits: Any, horodatage: Any) -> str | None:
     """Code du premier défaut, ou ``None`` si le lot est entièrement valide."""
-    if not _texte_conforme(affaire_id, _AFFAIRE):
+    if not affaire.valide(affaire_id):
         return REJ_CANDIDAT_AFFAIRE_INVALIDE
     if not _texte_conforme(departement_source, _DEPARTEMENT):
         return REJ_CANDIDAT_DEPARTEMENT_INVALIDE

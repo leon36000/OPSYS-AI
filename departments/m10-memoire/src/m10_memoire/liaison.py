@@ -25,7 +25,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from . import humain, validation
+from . import affaire, humain, validation
 
 TYPE_ENTREE_LIAISON = "session_affaire_liee"
 
@@ -39,8 +39,6 @@ REJ_LIAISON_AFFAIRE_INVALIDE = "REJ-LIAISON-AFFAIRE-INVALIDE"
 # caractère de contrôle.
 _CLE_SESSION = re.compile(r"^agent:[a-z0-9][a-z0-9_-]{0,63}:[^\s\x00-\x1f\x7f]{1,200}$")
 SESSION_PRINCIPALE = "main"
-# Même forme d'identifiant d'affaire que `faits_candidats.py` et le moteur de contexte du core.
-_AFFAIRE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$")
 
 
 def cle_session_valide(cle_session: Any) -> bool:
@@ -52,7 +50,9 @@ def cle_session_valide(cle_session: Any) -> bool:
 
 
 def affaire_valide(affaire_id: Any) -> bool:
-    return isinstance(affaire_id, str) and _AFFAIRE.fullmatch(affaire_id) is not None
+    """La forme d'affaire commune au core et à M10 (`affaire.py`) : un lead, ou l'opportunité que M2 ouvre pour un
+    client qui revient, à laquelle un humain lie sa nouvelle conversation."""
+    return affaire.valide(affaire_id)
 
 
 def lier_session_affaire(
@@ -74,7 +74,9 @@ def lier_session_affaire(
         )
     if not affaire_valide(affaire_id):
         return None, validation.construire_verdict(
-            REJ_LIAISON_AFFAIRE_INVALIDE, "affaire_id attendu : le lead_id de l'affaire (lettres, chiffres, ._:-)"
+            REJ_LIAISON_AFFAIRE_INVALIDE,
+            "affaire_id attendu : le lead_id de l'affaire, ou <lead>~opp~<wct_id> pour l'opportunité que M2 ouvre "
+            "(lettres, chiffres et ._:-, 197 caractères au plus)",
         )
     defaut = humain.verifier_ecriture(par, role, source_decision, motif, horodatage)
     if defaut is not None:

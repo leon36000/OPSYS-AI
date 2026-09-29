@@ -16,11 +16,11 @@ from pathlib import Path
 
 import pytest
 from m10_memoire import (
+    affaire,
     confidentialite,
     consolidation,
     decisions,
     faits_candidats,
-    liaison,
     paquets,
     registre,
     signaux,
@@ -585,12 +585,33 @@ def test_le_core_envoie_a_m10_les_arguments_que_ses_outils_declarent(departement
 
 
 def test_la_forme_d_une_affaire_est_la_meme_pour_le_core_et_pour_m10():
+    """T4.18-b : un identifiant d'affaire (`AFFAIRE_ID`) et la ligne `affaire_id: ...` d'une demande (`AFFAIRE_LINE`)
+    ont, dans le core, EXACTEMENT la forme de M10 (`affaire.FORME_AFFAIRE`), l'opportunité que M2 ouvre comprise."""
     lecture = _source("opsys-contexte-paquet.ts")
-    motif = re.search(r"AFFAIRE_ID = /(.*?)/u;", lecture)
-    assert motif is not None
+    identifiant = re.search(r"AFFAIRE_ID = /(.*?)/u;", lecture)
+    ligne = re.search(r"AFFAIRE_LINE =\s*/(.*?)/gmu;", lecture)
+    assert identifiant is not None and ligne is not None
 
-    assert motif.group(1) == liaison._AFFAIRE.pattern
-    assert motif.group(1) == faits_candidats._AFFAIRE.pattern
+    assert identifiant.group(1) == affaire.FORME_AFFAIRE.pattern
+    corps = affaire.FORME_AFFAIRE.pattern[1:-1]  # le même motif, sans ses ancres
+    assert ligne.group(1) == rf"^[ \t]*affaire_id[ \t]*[:=][ \t]*({corps})[ \t]*$"
+    assert "~opp~" in identifiant.group(1) and affaire.SEPARATEUR_OPPORTUNITE == "~opp~"
+
+
+def test_le_core_et_m10_rejouent_la_meme_liste_de_cas_d_affaires():
+    """La liste de cas est UN fichier ; le test du core et celui de M10 le lisent tous deux (rien n'est recopié)."""
+    nom = "opsys-contexte.affaires.json"
+    test_du_core = _source("opsys-contexte-affaire.test.ts")
+    test_de_m10 = (RACINE / "departments" / "m10-memoire" / "tests" / "test_affaire.py").read_text(encoding="utf-8")
+    assert nom in test_du_core and nom in test_de_m10
+    cas = json.loads(_source(nom))
+
+    assert cas["fictif"] is True
+    assert cas["limites"]["affaire"] == affaire.LONGUEUR_AFFAIRE_MAX
+    assert all(affaire.valide(c["id"]) for c in cas["acceptees"])
+    assert not any(affaire.valide(c["id"]) for c in cas["refusees"])
+    cibles = (RACINE / "core" / "test" / "opsys-tests-cibles.txt").read_text(encoding="utf-8").splitlines()
+    assert "src/context-engine/opsys-contexte-affaire.test.ts" in cibles  # le job `tests-opsys` le lance
 
 
 def _valeurs(noeud):

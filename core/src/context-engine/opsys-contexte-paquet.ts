@@ -95,10 +95,14 @@ export type OpsysAffaireOfSession =
   | { kind: "found"; affaireId: string }
   | { kind: "unresolved"; reason: string };
 
-// The case is named on a line of its own: `affaire_id: LEAD-001`. Same identifier form as M10
-// (`faits_candidats.py`): letters, digits and `._:-`, 64 characters at most.
-const AFFAIRE_LINE = /^[ \t]*affaire_id[ \t]*[:=][ \t]*([A-Za-z0-9][A-Za-z0-9._:-]{0,63})[ \t]*$/gmu;
-const AFFAIRE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/u;
+// The case is named on a line of its own: `affaire_id: LEAD-001`, or `affaire_id: LEAD-001~opp~WCT-009` for the
+// opportunity M2 opens when a client comes back. Same form as M10 (`affaire.py`, `FORME_AFFAIRE`), written twice
+// word for word: letters, digits and `._:-`, 64 characters for the lead, then optionally `~opp~` and at most 128
+// characters for the `wct_id`: 197 in all, no space, no line break, no control character. A test of the socle
+// compares the text of the two patterns, and both sides replay the cases of `opsys-contexte.affaires.json`.
+const AFFAIRE_LINE =
+  /^[ \t]*affaire_id[ \t]*[:=][ \t]*([A-Za-z0-9][A-Za-z0-9._:-]{0,63}(?:~opp~[A-Za-z0-9][A-Za-z0-9._:-]{0,127})?)[ \t]*$/gmu;
+const AFFAIRE_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}(?:~opp~[A-Za-z0-9][A-Za-z0-9._:-]{0,127})?$/u;
 const CONTROL_RUNS = /[\p{Cc}\u2028\u2029]+/gu;
 const WHITESPACE_RUNS = /\s+/gu;
 
@@ -108,6 +112,11 @@ const LAYER_TITLES: Record<OpsysPaquetLayerName, string> = {
   evenements_recents: "Événements récents",
   signaux_non_resolus: "Signaux critiques (ouverts d'abord, puis les derniers clos)",
 };
+
+/** True for a well-formed case identifier: a lead, or the opportunity M2 opens for a returning client. */
+export function isOpsysAffaireId(value: string): boolean {
+  return AFFAIRE_ID.test(value);
+}
 
 /**
  * Finds the case a turn is about. Exactly one distinct `affaire_id` line is a case; none or several

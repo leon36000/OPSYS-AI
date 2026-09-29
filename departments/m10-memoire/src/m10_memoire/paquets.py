@@ -38,7 +38,7 @@ import json
 from datetime import datetime
 from typing import Any
 
-from . import classification, confidentialite, consolidation, decisions, etapes, signaux
+from . import affaire, classification, confidentialite, consolidation, decisions, etapes, signaux
 
 BUDGET_CARACTERES_DEFAUT = 4000
 NB_FAITS_MAX_PAR_COUCHE_DEFAUT = 5
@@ -196,8 +196,11 @@ def _couche(
 def _valider_entrees(
     affaire_id: Any, horodatage: Any, budget_caracteres: Any, n_faits_max_par_couche: Any, agent: Any
 ) -> None:
-    if not affaire_id or not isinstance(affaire_id, str):
-        raise ValueError("affaire_id requis (chaîne non vide)")
+    if not affaire.valide(affaire_id):
+        raise ValueError(
+            "affaire_id invalide : le lead_id de l'affaire, ou <lead>~opp~<wct_id> pour l'opportunité que M2 ouvre "
+            "(lettres, chiffres et ._:-, 197 caractères au plus)"
+        )
     if not horodatage or not isinstance(horodatage, str):
         raise ValueError("horodatage requis (chaîne non vide)")
     if not isinstance(budget_caracteres, int) or isinstance(budget_caracteres, bool) or budget_caracteres <= 0:

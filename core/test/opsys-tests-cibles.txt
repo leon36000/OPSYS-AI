@@ -1,4 +1,4 @@
-# Tests des zones du core modifiées par OPSYS (T1.4-c1, T1.4-c2, T1.4-c4, T1.4-c5, T1.4-c6, T0.10, T3.3-suite, T3.3-suite-b, T0.7 lots 1 et 2).
+# Tests des zones du core modifiées par OPSYS (T1.4-c1, T1.4-c2, T1.4-c4, T1.4-c5, T1.4-c6, T0.10, T3.3-suite, T3.3-suite-b, T4.18-b, T0.7 lots 1 et 2).
 #
 # `pnpm test:fast` (les six morceaux de la CI) exclut `src/gateway/**`, `src/agents/**` et
 # `packages/gateway-protocol/**` : ces tests appartiennent à d'autres projets vitest. Le job
@@ -76,6 +76,11 @@ src/context-engine/opsys-contexte-engine.test.ts
 src/context-engine/opsys-contexte.registration.test.ts
 src/context-engine/opsys-contexte-mcp.wire.test.ts
 src/context-engine/opsys-contexte-garde.test.ts
+
+# T4.18-b : la forme d'une affaire (`affaire_id`, un lead ou l'opportunité `<lead>~opp~<wct_id>` que M2 ouvre), commune au
+# core et à M10. `opsys-contexte-affaire.test.ts` rejoue `opsys-contexte.affaires.json`, la liste de cas que M10 rejoue
+# aussi (`departments/m10-memoire/tests/test_affaire.py`). Même projet que les tests voisins (unit, sorte « default »).
+src/context-engine/opsys-contexte-affaire.test.ts
 
 # La greffe du garde dans runBeforeToolCallHook (src/agents/agent-tools.before-tool-call.policy.ts) a ses trois
 # tests d'origine voisins (decision, e2e, embedded-mode) et sa preuve propre, opsys-contexte : le vrai

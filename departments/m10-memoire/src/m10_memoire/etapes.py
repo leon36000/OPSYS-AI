@@ -38,7 +38,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from . import confidentialite, validation
+from . import affaire, confidentialite, validation
 
 TYPE_LEAD_QUALIFIE = "m1.lead_qualifie"
 TYPE_CLIENT_ASSOCIE = "m2.client_associe"
@@ -56,11 +56,10 @@ REJ_AMONT_CHAMP_INVALIDE = "REJ-AMONT-CHAMP-INVALIDE"
 REJ_AMONT_HORODATAGE_INVALIDE = "REJ-AMONT-HORODATAGE-INVALIDE"
 
 # Formes fermées (même esprit que `faits_candidats.py`) : aucun espace, aucune arobase, aucun « + » ne passe.
-_AFFAIRE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$")
+# La forme d'une affaire n'est plus écrite ici mais dans `affaire.py`, commune au core et à toutes les entrées de M10 :
+# `affaire.FORME_LEAD` pour le lead que M1 publie, `affaire.FORME_AFFAIRE` pour celui de M2 et de M3, qui peut être
+# l'opportunité `<lead d'origine>~opp~<wct_id>` que M2 ouvre pour un nouveau chantier d'un client déjà connu.
 _IDENTIFIANT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
-# Lead de M2 : une affaire, ou l'opportunité que M2 ouvre pour un nouveau chantier d'un client déjà connu
-# (`<lead d'origine>~opp~<wct_id>`, `m2_revenue_crm.outils`). M2 et M3 publient ces identifiants tels quels ; M1 jamais.
-_LEAD_M2 = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}(~opp~[A-Za-z0-9][A-Za-z0-9._:-]{0,127})?$")
 _CODE_SERVICE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 _DECIMAL = re.compile(r"^[0-9]+(\.[0-9]+)?$")
 _CANAUX = frozenset({"telephone", "courriel", "formulaire", "texte"})
@@ -140,7 +139,7 @@ def _instant(charge: Mapping[str, Any], chemin: tuple[str, ...]) -> str:
 # -- extraction : une fonction par type, une clé à la fois ------------------------------------------------------
 def _extraire_lead_qualifie(charge: Mapping[str, Any]) -> dict[str, Any]:
     return {
-        "lead_id": _forme(charge, ("lead", "lead_id"), _AFFAIRE),
+        "lead_id": _forme(charge, ("lead", "lead_id"), affaire.FORME_LEAD),
         "service": _forme(charge, ("lead", "service"), _CODE_SERVICE),
         "canal": _choix(charge, ("lead", "canal"), _CANAUX),
         "urgence_declaree": _booleen(charge, ("lead", "urgence_declaree")),
@@ -150,7 +149,7 @@ def _extraire_lead_qualifie(charge: Mapping[str, Any]) -> dict[str, Any]:
 
 def _extraire_client_associe(charge: Mapping[str, Any]) -> dict[str, Any]:
     return {
-        "lead_id": _forme(charge, ("lead_id",), _LEAD_M2),
+        "lead_id": _forme(charge, ("lead_id",), affaire.FORME_AFFAIRE),
         "client_id": _forme(charge, ("client_id",), _IDENTIFIANT),
         "horodatage": _instant(charge, ("horodatage_association",)),
     }
@@ -158,7 +157,7 @@ def _extraire_client_associe(charge: Mapping[str, Any]) -> dict[str, Any]:
 
 def _extraire_devis_envoye(charge: Mapping[str, Any]) -> dict[str, Any]:
     return {
-        "lead_id": _forme(charge, ("lead_id",), _LEAD_M2),
+        "lead_id": _forme(charge, ("lead_id",), affaire.FORME_AFFAIRE),
         "devis_id": _forme(charge, ("devis_id",), _IDENTIFIANT),
         "chantier_id": _forme_ou_none(charge, ("chantier_id",), _IDENTIFIANT),
         # L'instant de la décision du propriétaire qui approuve l'envoi (écrit par le socle), pas la livraison.
@@ -168,7 +167,7 @@ def _extraire_devis_envoye(charge: Mapping[str, Any]) -> dict[str, Any]:
 
 def _extraire_devis_accepte(charge: Mapping[str, Any]) -> dict[str, Any]:
     return {
-        "lead_id": _forme(charge, ("lead_id",), _LEAD_M2),
+        "lead_id": _forme(charge, ("lead_id",), affaire.FORME_AFFAIRE),
         "devis_id": _forme(charge, ("devis_id",), _IDENTIFIANT),
         "chantier_id": _forme_ou_none(charge, ("chantier_id",), _IDENTIFIANT),
         "horodatage": _instant(charge, ("horodatage_acceptation",)),
@@ -177,7 +176,7 @@ def _extraire_devis_accepte(charge: Mapping[str, Any]) -> dict[str, Any]:
 
 def _extraire_montants_devis_accepte(charge: Mapping[str, Any]) -> dict[str, Any]:
     return {
-        "lead_id": _forme(charge, ("lead_id",), _LEAD_M2),
+        "lead_id": _forme(charge, ("lead_id",), affaire.FORME_AFFAIRE),
         "devis_id": _forme(charge, ("devis_id",), _IDENTIFIANT),
         "prix_total": _forme(charge, ("prix_total",), _DECIMAL),
         "cout_total": _forme(charge, ("cout_total",), _DECIMAL),
@@ -188,7 +187,7 @@ def _extraire_montants_devis_accepte(charge: Mapping[str, Any]) -> dict[str, Any
 
 def _extraire_devis_sans_reponse(charge: Mapping[str, Any]) -> dict[str, Any]:
     return {
-        "lead_id": _forme(charge, ("lead_id",), _LEAD_M2),
+        "lead_id": _forme(charge, ("lead_id",), affaire.FORME_AFFAIRE),
         "devis_id": _forme(charge, ("devis_id",), _IDENTIFIANT),
         "chantier_id": _forme_ou_none(charge, ("chantier_id",), _IDENTIFIANT),
         "statut": _choix(charge, ("statut",), _STATUTS_SANS_REPONSE),
