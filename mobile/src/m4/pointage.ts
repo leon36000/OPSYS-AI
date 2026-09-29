@@ -81,9 +81,9 @@ export interface ArgumentsM4Pointer {
  *  - `fenetreTravail`/`referentielVilles`/`ville`/`sel` : aucune route serveur n'expose encore
  *    ces données au mobile (pas de `today.tsx`, pas d'appairage T1.4-c pour les demander avec
  *    autorité) ;
- * `technicienId`/`interventionId` ne sont PAS dans ce contexte : ce sont les deux seules
- * identités que l'employé fournit lui-même sur `punch.tsx` (aucune session appairée pour les
- * connaître à sa place, T1.4-c) — paramètres explicites de `construireArgumentsPointer`
+ * `technicienId`/`interventionId` ne sont PAS dans ce contexte : `interventionId` est saisi ou
+ * connu de l'écran, `technicienId` est la personne que le serveur a confirmée pour l'appareil
+ * (`src/identite/`, PLAN T1.4-c5) — paramètres explicites de `construireArgumentsPointer`
  * ci-dessous, jamais une valeur par défaut cachée dans ce contexte.
  *
  * `punch.tsx` fournit ce contexte pour l'instant depuis une seule source PROVISOIRE et

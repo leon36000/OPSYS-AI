@@ -9,8 +9,9 @@ export const PROFILS: readonly Profil[] = ["admin", "employee", "seller", "clien
 
 /**
  * État de session tel que le reste de l'app le consulte. `role` reste une chaîne libre (pas
- * `Profil`) : un jeton peut techniquement porter n'importe quelle valeur, connue ou non — c'est
- * à `evaluerGarde` de trancher, jamais à ce type de le présupposer (fail-closed, P2).
+ * `Profil`) : c'est à `evaluerGarde` de trancher, jamais à ce type de le présupposer (fail-closed, P2).
+ * Depuis PLAN T1.4-c5, `role` est le rôle NOMMÉ que le serveur a confirmé pour cet appareil
+ * (`src/identite/etat.ts::sessionDepuisEtat`), jamais le rôle de transport du jeton (`operator`).
  */
 export type SessionAppareil = { readonly presente: false } | { readonly presente: true; readonly role: string };
 
@@ -18,4 +19,4 @@ export type MotifRefusGarde = "session_absente" | "role_inconnu" | "role_non_aut
 
 export type VerdictGarde =
   | { readonly autorise: true }
-  | { readonly autorise: false; readonly motif: MotifRefusGarde; readonly redirectionVers: "/pairing" };
+  | { readonly autorise: false; readonly motif: MotifRefusGarde; readonly redirectionVers: "/" };

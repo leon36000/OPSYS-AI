@@ -43,8 +43,9 @@ import type { ChargeAppairage } from "./codeAppairage";
 /** `core/src/gateway/role-policy.types.ts:2` : `GatewayRole = "operator" | "node"` — un
  * appareil mobile opéré par une personne est un `"operator"`. C'est un rôle DE TRANSPORT
  * (distinct du profil métier OPSYS admin/employee/seller, voir `docs/architecture/MOBILE.md`
- * § Appairage) : tant que T1.4-c2 (rôles nommés) n'est pas livré côté core, c'est la SEULE
- * valeur que le fork accepte aujourd'hui pour un appareil apparié humain. */
+ * § Appairage) : c'est la SEULE valeur que le fork accepte pour un appareil apparié humain, et
+ * `hello.auth.role` le rend tel quel. Le profil vient de l'identité que le serveur donne à
+ * l'appareil (`GET /opsys/identite`, `src/identite/`, PLAN T1.4-c5), jamais de cette valeur. */
 const ROLE_CONNEXION = "operator";
 
 /** Portées demandées par défaut — valeurs réellement acceptées par le fork, confirmées dans

@@ -23,8 +23,9 @@ import type { MutationOutbox } from "../outbox/types";
  *    (R12 §4), donc une reprise après coupure rejoue la même réponse sans réécrire.
  *
  * LIMITES, dites plutôt que masquées :
- *  - l'app ne connaît pas encore la personne appairée : `technicienId` est saisi par l'employé,
- *    comme sur `punch.tsx` ; le serveur, lui, le confronte à l'identité authentifiée ;
+ *  - `technicienId` n'est plus saisi (PLAN T1.4-c5) : l'écran envoie la personne que le serveur a
+ *    confirmée pour l'appareil (`src/identite/`) ; le serveur, lui, la confronte à l'identité
+ *    authentifiée du jeton et refuse tout autre identifiant ;
  *  - `preuve` reste `{fictif: true, reference}` : `consentement.py` refuse toute preuve réelle
  *    tant que le mode ombre dure (même garde que `pointage.ATTESTATION`) ;
  *  - `version_politique` désigne le texte présenté à l'employé. La politique est une PROPOSITION

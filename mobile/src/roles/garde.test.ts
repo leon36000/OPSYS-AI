@@ -3,12 +3,12 @@ import { PROFILS, type Profil, type SessionAppareil } from "./types";
 
 describe("evaluerGarde", () => {
   describe("session absente", () => {
-    test.each(PROFILS)("refuse le groupe %s et redirige vers /pairing", (groupe) => {
+    test.each(PROFILS)("refuse le groupe %s et renvoie à l'aiguilleur /", (groupe) => {
       const verdict = evaluerGarde({ presente: false }, groupe);
       expect(verdict).toEqual({
         autorise: false,
         motif: "session_absente",
-        redirectionVers: "/pairing",
+        redirectionVers: "/",
       });
     });
   });
@@ -26,7 +26,7 @@ describe("evaluerGarde", () => {
             expect(verdict).toEqual({
               autorise: false,
               motif: "role_non_autorise",
-              redirectionVers: "/pairing",
+              redirectionVers: "/",
             });
           }
         });
@@ -49,7 +49,7 @@ describe("evaluerGarde", () => {
         expect(verdict).toEqual({
           autorise: false,
           motif: "role_inconnu",
-          redirectionVers: "/pairing",
+          redirectionVers: "/",
         });
       }
     });

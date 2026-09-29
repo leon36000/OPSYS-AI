@@ -11,8 +11,10 @@ function estProfilConnu(role: string): role is Profil {
   return (PROFILS as readonly string[]).includes(role);
 }
 
+/** Toute garde qui refuse renvoie à l'aiguilleur `app/index.tsx`, qui choisit d'après l'état de l'app :
+ * appairage, écran d'erreur d'identité, ou le groupe du rôle nommé (PLAN T1.4-c5). */
 function refuser(motif: MotifRefusGarde): VerdictGarde {
-  return { autorise: false, motif, redirectionVers: "/pairing" };
+  return { autorise: false, motif, redirectionVers: "/" };
 }
 
 /**
@@ -22,7 +24,7 @@ function refuser(motif: MotifRefusGarde): VerdictGarde {
  * exhaustivement testable et réutilisable telle quelle dans les quatre `_layout.tsx` de groupe.
  *
  * Fail-closed (P2, AGENTS.md) : session absente, rôle inconnu, et rôle valide mais différent du
- * groupe visé produisent tous les trois un refus vers `/pairing` — jamais un accès par défaut.
+ * groupe visé produisent tous les trois un refus vers l'aiguilleur `/` — jamais un accès par défaut.
  * Un jeton `employee` n'obtient donc jamais `autorise: true` pour le groupe `admin`, y compris
  * par navigation directe vers son URL : chaque `_layout.tsx` de groupe appelle cette garde avant
  * de rendre quoi que ce soit (voir app/(admin)/_layout.tsx et les trois autres).

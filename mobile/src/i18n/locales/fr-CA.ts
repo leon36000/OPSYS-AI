@@ -27,6 +27,35 @@ export interface RessourcesCommunes {
       reponse_inattendue: string;
     };
   };
+  identite: {
+    chargement: string;
+    absente: string;
+    bandeau: {
+      connecte: string;
+      aReconfirmer: string;
+    };
+    roles: {
+      admin: string;
+      employee: string;
+      seller: string;
+    };
+    erreur: {
+      titre: string;
+      appareil: string;
+      reessayer: string;
+      reessayerEnCours: string;
+      reappairer: string;
+      motifs: {
+        appareil_non_attribue: string;
+        role_inconnu: string;
+        jeton_refuse: string;
+        refus_inattendu: string;
+        reponse_invalide: string;
+        hors_ligne_sans_memoire: string;
+        stockage_illisible: string;
+      };
+    };
+  };
   groupes: {
     employee: { accueil: string };
     seller: { accueil: string };
@@ -36,7 +65,6 @@ export interface RessourcesCommunes {
   pointage: {
     titre: string;
     champIntervention: string;
-    champTechnicien: string;
     champsRequis: string;
     aucunPointage: string;
     boutons: {
@@ -58,8 +86,6 @@ export interface RessourcesCommunes {
   consentementGps: {
     titre: string;
     explication: string;
-    champTechnicien: string;
-    champRequis: string;
     retirer: string;
     appareilNonAppaire: string;
     etat: {
@@ -93,8 +119,6 @@ export interface RessourcesCommunes {
   };
   job: {
     titre: string;
-    champTechnicien: string;
-    champsRequis: string;
     appareilNonAppaire: string;
     statutInconnu: string;
     source: {
@@ -299,6 +323,46 @@ const frCA: RessourcesCommunes = {
       reponse_inattendue: "Réponse inattendue de la passerelle. Réessayez plus tard.",
     },
   },
+  identite: {
+    chargement: "Vérification de votre identité…",
+    absente: "Identité non confirmée : impossible de continuer pour l'instant.",
+    bandeau: {
+      connecte: "{{personne}} — {{role}}",
+      aReconfirmer: "À reconfirmer : identité gardée de la dernière connexion, le serveur n'a pas pu être joint.",
+    },
+    roles: {
+      admin: "Administrateur",
+      employee: "Employé",
+      seller: "Vendeur",
+    },
+    erreur: {
+      titre: "Identité de l'appareil non confirmée",
+      appareil: "Identifiant de l'appareil : {{appareilId}}",
+      reessayer: "Réessayer",
+      reessayerEnCours: "Vérification…",
+      reappairer: "Appairer de nouveau",
+      motifs: {
+        appareil_non_attribue:
+          "Cet appareil est apparié, mais n'est pas encore attribué à une personne. Donnez l'identifiant " +
+          "ci-dessous au propriétaire pour qu'il l'attribue à votre nom, puis réessayez.",
+        role_inconnu:
+          "Le rôle attribué à cet appareil n'est pas reconnu. Aucun profil n'est ouvert : demandez au " +
+          "propriétaire de corriger l'attribution.",
+        jeton_refuse:
+          "Cet appareil n'est plus autorisé (accès révoqué ou expiré). Appairez-le de nouveau avec un nouveau code.",
+        refus_inattendu:
+          "La passerelle refuse de donner l'identité de cet appareil. Réessayez plus tard ou demandez de l'aide " +
+          "au propriétaire.",
+        reponse_invalide: "Réponse inattendue de la passerelle : l'identité n'a pas pu être confirmée. Réessayez plus tard.",
+        hors_ligne_sans_memoire:
+          "Impossible de joindre le serveur, et aucune identité n'a encore été confirmée sur cet appareil. " +
+          "Connectez-vous au réseau, puis réessayez.",
+        stockage_illisible:
+          "Le stockage sécurisé de l'appareil est illisible pour l'instant. Réessayez ; si cela persiste, " +
+          "redémarrez l'appareil.",
+      },
+    },
+  },
   groupes: {
     employee: { accueil: "Accueil — employé" },
     seller: { accueil: "Accueil — vendeur" },
@@ -308,8 +372,7 @@ const frCA: RessourcesCommunes = {
   pointage: {
     titre: "Pointage",
     champIntervention: "Intervention",
-    champTechnicien: "Technicien",
-    champsRequis: "Entrez l'intervention et le technicien avant de pointer.",
+    champsRequis: "Entrez l'intervention avant de pointer.",
     aucunPointage: "Aucun pointage pour l'instant.",
     boutons: {
       entree: "Entrée",
@@ -333,8 +396,6 @@ const frCA: RessourcesCommunes = {
       "Votre position n'est enregistrée qu'au moment de votre pointage, si vous y avez consenti. " +
       "Retirer votre consentement désactive tout de suite la position au pointage : vous pointez " +
       "alors à la main. Vous pouvez le donner de nouveau plus tard.",
-    champTechnicien: "Votre identifiant d'employé",
-    champRequis: "Entrez votre identifiant d'employé avant de retirer votre consentement.",
     retirer: "Retirer mon consentement GPS",
     appareilNonAppaire: "Appareil non apparié : impossible d'envoyer le retrait pour l'instant.",
     etat: {
@@ -368,8 +429,6 @@ const frCA: RessourcesCommunes = {
   },
   job: {
     titre: "Chantier",
-    champTechnicien: "Technicien",
-    champsRequis: "Entrez le technicien avant de continuer.",
     appareilNonAppaire: "Appareil non apparié : impossible de continuer pour l'instant.",
     statutInconnu: "Statut inconnu",
     source: {

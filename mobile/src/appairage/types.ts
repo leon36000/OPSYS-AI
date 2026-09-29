@@ -94,9 +94,8 @@ export interface SocketAppairageLike {
 }
 
 export interface InfoClientAppairage {
-  /** Un des `GATEWAY_CLIENT_IDS` fermés du fork (`client-info.ts:10-29`) — voir la limite
-   * documentée dans `docs/architecture/MOBILE.md` (§ Appairage, aucun id OPSYS dédié tant qu'il
-   * n'est pas ajouté au fork). */
+  /** Un des `GATEWAY_CLIENT_IDS` fermés du core : `opsys-mobile` depuis PLAN T1.4-c5 (avant, `openclaw-ios` /
+   * `openclaw-android` empruntés) — voir `docs/architecture/MOBILE.md`, « Identifiant de client ». */
   readonly id: string;
   readonly version: string;
   /** `Platform.OS` ("ios" | "android"). */

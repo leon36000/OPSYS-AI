@@ -9,8 +9,8 @@ import { appairerAppareil } from "@/appairage/client";
 import { resoudreInfoClientAppairage } from "@/appairage/clientInfo";
 import { chargerOuCreerIdentite, sauvegarderSession } from "@/appairage/stockage";
 import type { EtatAppairage, MotifEchecAppairage, SocketAppairageLike } from "@/appairage/types";
+import { useCycleIdentite } from "@/identite/hooks";
 import { definirConfigurationAppel } from "@/protocole/configuration";
-import { useDefinirSessionAppareil } from "@/roles/contexte";
 
 /**
  * Écran d'appairage RÉEL (PLAN T1.4-c3). Saisie du CODE seulement (pas de lecture QR : voir
@@ -25,7 +25,7 @@ import { useDefinirSessionAppareil } from "@/roles/contexte";
 export default function EcranAppairage() {
   const { t } = useTranslation();
   const router = useRouter();
-  const definirSession = useDefinirSessionAppareil();
+  const { apresAppairage } = useCycleIdentite();
 
   const [code, setCode] = useState("");
   const [enCours, setEnCours] = useState(false);
@@ -72,16 +72,16 @@ export default function EcranAppairage() {
         jeton: resultat.jeton,
         appareilId: resultat.appareilId,
       });
-      // Rôle reçu du serveur -> garde de routes existante (`src/roles/garde.ts`). Un rôle
-      // encore inconnu (générique "operator" tant que T1.4-c2 n'a pas livré les rôles nommés
-      // admin/employee/seller — voir MOBILE.md) reste ici fail-closed : `evaluerGarde` refuse
-      // tout groupe et redirige vers /pairing, exactement comme un jeton absent.
-      definirSession({ presente: true, role: resultat.role });
+      // `resultat.role` est le rôle de TRANSPORT du jeton (« operator »), pas un profil : le profil (admin,
+      // employé, vendeur) vient de l'identité que le serveur donne à l'appareil (`GET /opsys/identite`, PLAN
+      // T1.4-c5). `apresAppairage` oublie l'identité gardée d'un appairage précédent, puis la lit ; l'aiguilleur
+      // `app/index.tsx` attend cette lecture, puis ouvre le groupe du rôle nommé ou l'écran d'erreur.
+      void apresAppairage();
       router.replace("/");
     } finally {
       setEnCours(false);
     }
-  }, [code, enCours, definirSession, router]);
+  }, [code, enCours, apresAppairage, router]);
 
   return (
     <View style={styles.conteneur}>

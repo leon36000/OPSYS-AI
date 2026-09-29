@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { Link, useLocalSearchParams } from "expo-router";
 import { useTranslation } from "react-i18next";
 
 import { actionsDisponiblesJob, phaseDepuisStatutServeur, resoudreActionJob } from "@/ecrans/job";
 import type { ActionJob, PhaseJob } from "@/ecrans/job";
+import { BandeauIdentite } from "@/identite/BandeauIdentite";
 import { construireArgumentsDemarrerRoute } from "@/m4/interventions";
 import { obtenirContextePointageProvisoire } from "@/m4/contextePointageProvisoire";
 import { construireArgumentsPointer } from "@/m4/pointage";
@@ -12,6 +13,7 @@ import { genererMutationId } from "@/outbox/id";
 import { creerMutation, formaterHorodatageLocal, soumettreMutation } from "@/outbox/mutation";
 import { declencherVidange, obtenirDepot } from "@/outbox/service";
 import { obtenirConfigurationAppel } from "@/protocole/configuration";
+import { usePersonneAppairee } from "@/roles/contexte";
 import { obtenirStatutChantier } from "@/today/service";
 import type { ResultatStatutChantier } from "@/today/statut";
 
@@ -22,6 +24,9 @@ import type { ResultatStatutChantier } from "@/today/statut";
  * « arrivé », `etats.py`). Verdict serveur affiché sur un échec définitif, même patron que
  * `punch.tsx` (T1.4-d).
  *
+ * Le technicien n'est plus saisi (PLAN T1.4-c5) : c'est la personne que le serveur a confirmée pour cet
+ * appareil (`usePersonneAppairee`), que le serveur confronte de toute façon à l'identité du jeton.
+ *
  * Écran non testé en rendu (même limite que `punch.tsx`/`today.tsx`) : `src/ecrans/job.ts`,
  * `src/today/statut.ts`, `src/m4/interventions.ts` portent la logique, testée là.
  */
@@ -30,12 +35,12 @@ export default function EcranChantier() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const interventionId = typeof id === "string" ? id : "";
 
-  const [technicien, setTechnicien] = useState("");
+  const personne = usePersonneAppairee();
   const [resultatStatut, setResultatStatut] = useState<ResultatStatutChantier | null>(null);
   const [phase, setPhase] = useState<PhaseJob | null>(null);
   const [chargementStatut, setChargementStatut] = useState(false);
   const [enTraitement, setEnTraitement] = useState(false);
-  const [erreurValidation, setErreurValidation] = useState(false);
+  const [erreurIdentite, setErreurIdentite] = useState(false);
   const [erreurAppareil, setErreurAppareil] = useState(false);
   const [dernierVerdict, setDernierVerdict] = useState<{ code: string; detail: string } | null>(null);
 
@@ -63,11 +68,12 @@ export default function EcranChantier() {
       if (!interventionId || phase === null) {
         return;
       }
-      const technicienId = technicien.trim();
-      if (!technicienId) {
-        setErreurValidation(true);
+      // Fail-closed : sans personne confirmée par le serveur, aucune mutation n'est créée (PLAN T1.4-c5).
+      if (!personne) {
+        setErreurIdentite(true);
         return;
       }
+      const technicienId = personne;
       const resolue = resoudreActionJob(phase, action);
       if (!resolue) {
         return; // fail-closed : ne devrait pas arriver, actionsDisponiblesJob(phase) filtre déjà.
@@ -79,7 +85,7 @@ export default function EcranChantier() {
         setErreurAppareil(true);
         return;
       }
-      setErreurValidation(false);
+      setErreurIdentite(false);
       setErreurAppareil(false);
       setEnTraitement(true);
       try {
@@ -123,7 +129,7 @@ export default function EcranChantier() {
         setEnTraitement(false);
       }
     },
-    [interventionId, phase, technicien, chargerStatut],
+    [interventionId, phase, personne, chargerStatut],
   );
 
   const actions = phase !== null ? actionsDisponiblesJob(phase) : [];
@@ -133,6 +139,7 @@ export default function EcranChantier() {
     <View style={styles.conteneur}>
       <Text style={styles.titre}>{t("job.titre")}</Text>
       <Text style={styles.identifiant}>{interventionId}</Text>
+      <BandeauIdentite />
 
       {chargementStatut ? <ActivityIndicator /> : null}
       <Text style={styles.statut}>
@@ -141,15 +148,7 @@ export default function EcranChantier() {
       {resultatStatut?.source === "cache" ? <Text style={styles.avis}>{t("job.source.cache")}</Text> : null}
       {resultatStatut?.source === "aucune" ? <Text style={styles.avis}>{t("job.source.aucune")}</Text> : null}
 
-      <TextInput
-        style={styles.champ}
-        placeholder={t("job.champTechnicien")}
-        value={technicien}
-        onChangeText={setTechnicien}
-        editable={!enTraitement}
-        accessibilityLabel={t("job.champTechnicien")}
-      />
-      {erreurValidation && !technicien.trim() ? <Text style={styles.erreur}>{t("job.champsRequis")}</Text> : null}
+      {erreurIdentite ? <Text style={styles.erreur}>{t("identite.absente")}</Text> : null}
       {erreurAppareil ? <Text style={styles.erreur}>{t("job.appareilNonAppaire")}</Text> : null}
 
       <View style={styles.boutons}>
@@ -206,7 +205,6 @@ const styles = StyleSheet.create({
   identifiant: { color: "#888", fontSize: 12 },
   statut: { fontSize: 18, fontWeight: "600", marginTop: 4 },
   avis: { color: "#666", fontSize: 13 },
-  champ: { borderWidth: 1, borderColor: "#999", borderRadius: 6, padding: 10 },
   erreur: { color: "#b00020" },
   boutons: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   bouton: { backgroundColor: "#1c6f5c", paddingVertical: 10, paddingHorizontal: 16, borderRadius: 6 },

@@ -9,6 +9,7 @@ import {
   resoudreActionEmploye,
 } from "@/ecrans/punch";
 import type { ActionEmploye, PhasePointage } from "@/ecrans/punch";
+import { BandeauIdentite } from "@/identite/BandeauIdentite";
 import { obtenirContextePointageProvisoire } from "@/m4/contextePointageProvisoire";
 import { construireArgumentsPointer } from "@/m4/pointage";
 import { demarrerDeclencheursVidange } from "@/outbox/declencheurs";
@@ -17,6 +18,7 @@ import { creerMutation, formaterHorodatageLocal, soumettreMutation } from "@/out
 import { declencherVidange, obtenirDepot } from "@/outbox/service";
 import type { MutationOutbox } from "@/outbox/types";
 import { obtenirConfigurationAppel } from "@/protocole/configuration";
+import { usePersonneAppairee } from "@/roles/contexte";
 
 /**
  * `punch.tsx` (M4.4, R12 §5 étape 2) : entrée/sortie/pause, en file AVANT tout réseau. La
@@ -25,8 +27,10 @@ import { obtenirConfigurationAppel } from "@/protocole/configuration";
  * effets, JSX), non couvert par des tests automatisés faute de `@testing-library/react-native`
  * dans la pile installée (voir MOBILE.md).
  *
- * `intervention`/`technicien` sont saisis à la main : aucune session appairée (T1.4-c) ni
- * `today.tsx` (R12 §5 étape 3) pour les connaître à l'avance — voir la docstring de
+ * `intervention` est saisie à la main (`today.tsx` la connaît, pas ce chemin). Le technicien n'est PLUS
+ * saisi (PLAN T1.4-c5) : c'est la personne que le serveur a confirmée pour cet appareil
+ * (`usePersonneAppairee`), envoyée comme `technicien_id`. Le serveur la confronte de toute façon à
+ * l'identité authentifiée du jeton et refuse un autre identifiant. Voir la docstring de
  * `src/m4/contextePointageProvisoire.ts` pour les autres champs que `m4_pointer` exige et que
  * cette tranche ne peut pas encore fournir avec de vraies données (GPS, fenêtre, référentiel).
  */
@@ -40,13 +44,14 @@ const LIBELLES_BOUTON: Record<ActionEmploye, (phase: PhasePointage) => "entree" 
 export default function EcranPointage() {
   const { t } = useTranslation();
   const [intervention, setIntervention] = useState("");
-  const [technicien, setTechnicien] = useState("");
+  const personne = usePersonneAppairee();
   const [phase, setPhase] = useState<PhasePointage>("avant_arrivee");
   const [derniereMutation, setDerniereMutation] = useState<MutationOutbox | null>(null);
   const [dernierVerdict, setDernierVerdict] = useState<{ code: string; detail: string } | null>(null);
   const [enTraitement, setEnTraitement] = useState(false);
   const [erreurValidation, setErreurValidation] = useState(false);
   const [erreurAppareil, setErreurAppareil] = useState(false);
+  const [erreurIdentite, setErreurIdentite] = useState(false);
 
   const derniereMutationIdRef = useRef<string | null>(null);
 
@@ -71,11 +76,17 @@ export default function EcranPointage() {
   const surAction = useCallback(
     async (action: ActionEmploye) => {
       const interventionId = intervention.trim();
-      const technicienId = technicien.trim();
-      if (!interventionId || !technicienId) {
+      if (!interventionId) {
         setErreurValidation(true);
         return;
       }
+      // Fail-closed : sans personne confirmée par le serveur, aucune mutation n'est créée. Cas normalement
+      // impossible dans le groupe `(employee)`, dont la garde exige cette même identité.
+      if (!personne) {
+        setErreurIdentite(true);
+        return;
+      }
+      const technicienId = personne;
       const resolue = resoudreActionEmploye(phase, action);
       if (!resolue) {
         return; // fail-closed : ne devrait pas arriver, actionsDisponibles(phase) filtre déjà.
@@ -93,6 +104,7 @@ export default function EcranPointage() {
       }
       setErreurValidation(false);
       setErreurAppareil(false);
+      setErreurIdentite(false);
       setEnTraitement(true);
       try {
         const horloge = { maintenant: new Date(), decalageMinutesUTC: -new Date().getTimezoneOffset() };
@@ -129,10 +141,10 @@ export default function EcranPointage() {
         setEnTraitement(false);
       }
     },
-    [intervention, technicien, phase, rafraichirDerniereMutation],
+    [intervention, personne, phase, rafraichirDerniereMutation],
   );
 
-  const champsValides = intervention.trim() !== "" && technicien.trim() !== "";
+  const champsValides = intervention.trim() !== "";
   const heureMinute = derniereMutation ? extraireHeureMinuteLocale(derniereMutation.createdAtLocal) : null;
   const etatSynchro = derniereMutation
     ? deriverEtatSynchroAffiche(derniereMutation.statut, dernierVerdict)
@@ -141,6 +153,7 @@ export default function EcranPointage() {
   return (
     <View style={styles.conteneur}>
       <Text style={styles.titre}>{t("pointage.titre")}</Text>
+      <BandeauIdentite />
 
       <TextInput
         style={styles.champ}
@@ -150,16 +163,9 @@ export default function EcranPointage() {
         editable={!enTraitement}
         accessibilityLabel={t("pointage.champIntervention")}
       />
-      <TextInput
-        style={styles.champ}
-        placeholder={t("pointage.champTechnicien")}
-        value={technicien}
-        onChangeText={setTechnicien}
-        editable={!enTraitement}
-        accessibilityLabel={t("pointage.champTechnicien")}
-      />
       {erreurValidation && !champsValides ? <Text style={styles.erreur}>{t("pointage.champsRequis")}</Text> : null}
       {erreurAppareil ? <Text style={styles.erreur}>{t("pointage.appareilNonAppaire")}</Text> : null}
+      {erreurIdentite ? <Text style={styles.erreur}>{t("identite.absente")}</Text> : null}
 
       <View style={styles.boutons}>
         {actionsDisponibles(phase).map((action) => (

@@ -4,56 +4,39 @@ import "@/i18n";
 import { useEffect } from "react";
 import { Stack } from "expo-router";
 
-import { chargerSession } from "@/appairage/stockage";
-import { definirConfigurationAppel } from "@/protocole/configuration";
-import { SessionProvider, useDefinirSessionAppareil } from "@/roles/contexte";
+import { useCycleIdentite } from "@/identite/hooks";
+import { demarrerDeclencheursVidange } from "@/outbox/declencheurs";
+import { SessionProvider } from "@/roles/contexte";
 
 /**
- * Layout racine (PLAN T1.4-a item 2 ; mis à jour PLAN T1.4-c3) : session (`SessionProvider`),
- * i18n (import ci-dessus), restauration au démarrage d'une session déjà appariée
- * (`RestaurationSession` ci-dessous). Le routage par rôle vit dans chaque `_layout.tsx` de
- * groupe (src/roles/garde.ts), pas ici : ce layout ne fait que composer les fournisseurs et le
- * navigateur racine.
+ * Layout racine (PLAN T1.4-a item 2 ; mis à jour PLAN T1.4-c3 puis T1.4-c5) : état de l'app
+ * (`SessionProvider`), i18n (import ci-dessus), et le cycle de l'identité (`CycleIdentiteApp` ci-dessous).
+ * Le routage par rôle vit dans chaque `_layout.tsx` de groupe (src/roles/garde.ts) et dans l'aiguilleur
+ * `app/index.tsx` : ce layout ne fait que composer les fournisseurs et le navigateur racine.
  */
 export default function LayoutRacine() {
   return (
     <SessionProvider>
-      <RestaurationSession />
+      <CycleIdentiteApp />
       <Stack screenOptions={{ headerShown: false }} />
     </SessionProvider>
   );
 }
 
 /**
- * Relit `expo-secure-store` UNE FOIS au montage (PLAN T1.4-c3) : si un appairage précédent a
- * persisté une session (`app/pairing/index.tsx`, `src/appairage/stockage.ts`), restaure à la
- * fois la configuration de connexion (`src/protocole/configuration.ts`, consommée par
- * `src/outbox/service.ts`) et la session de rôle (`src/roles/contexte.tsx`, consommée par
- * `src/roles/garde.ts`) SANS repasser par un nouvel appairage. Ne rend rien. Sans session
- * persistée (premier lancement, ou après une déconnexion), ne fait rien : la session reste
- * `{presente: false}` comme avant — aucun faux état apparié inventé (AGENTS.md, fail-closed).
+ * Restaure la session appairée depuis `expo-secure-store` (jeton, URL, dernière identité confirmée),
+ * puis relit l'identité auprès du serveur : au démarrage, à chaque retour au premier plan et à chaque
+ * retour du réseau (mêmes déclencheurs que la file sortante). Sans session persistée (premier lancement),
+ * l'état devient « non appairé ». Ne rend rien. Voir `src/identite/hooks.ts`.
  */
-function RestaurationSession() {
-  const definirSession = useDefinirSessionAppareil();
+function CycleIdentiteApp() {
+  const { restaurer, rafraichir } = useCycleIdentite();
 
   useEffect(() => {
-    let annulee = false;
-    void (async () => {
-      const session = await chargerSession();
-      if (annulee || !session) {
-        return;
-      }
-      definirConfigurationAppel({
-        urlBase: session.urlBase,
-        jeton: session.jeton,
-        appareilId: session.appareilId,
-      });
-      definirSession({ presente: true, role: session.role });
-    })();
-    return () => {
-      annulee = true;
-    };
-  }, [definirSession]);
+    void restaurer();
+  }, [restaurer]);
+
+  useEffect(() => demarrerDeclencheursVidange({ declencher: rafraichir }), [rafraichir]);
 
   return null;
 }

@@ -1,41 +1,55 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 
+import { ETAT_RESTAURATION, personneDepuisEtat, sessionDepuisEtat, type EtatIdentite } from "../identite/etat";
 import type { SessionAppareil } from "./types";
 
-const SESSION_ABSENTE: SessionAppareil = { presente: false };
-
 interface ValeurContexteSession {
+  readonly etat: EtatIdentite;
+  readonly definirEtat: (etat: EtatIdentite) => void;
+  /** Dérivée de `etat` : le rôle NOMMÉ confirmé par le serveur (ou gardé, à reconfirmer), sinon aucune session. */
   readonly session: SessionAppareil;
-  readonly definirSession: (session: SessionAppareil) => void;
 }
 
 const ContexteSession = createContext<ValeurContexteSession | null>(null);
 
 /**
- * Fournit l'état de session de l'appareil à toute l'app (`app/_layout.tsx`). Démarre TOUJOURS
- * `{ presente: false }` : la lecture d'un jeton persistant (`expo-secure-store`) et le
- * protocole d'appairage lui-même sont PLAN T1.4-c, pas ce squelette — on n'invente aucun faux
- * état « apparié ». `definirSession` est déjà exposé pour que ce travail futur n'ait qu'à
- * appeler ce setter une fois l'appairage réussi, sans toucher au routage ni à `src/roles/garde`.
+ * Fournit à toute l'app ce qu'elle sait de sa personne et de son rôle (`app/_layout.tsx`, PLAN T1.4-c5).
+ * Démarre TOUJOURS en `restauration` : la lecture du coffre (`expo-secure-store`) et celle du serveur
+ * viennent après, et aucun faux état « apparié » n'est inventé. La session que la garde de routes regarde
+ * (`useSessionAppareil`) est dérivée de cet état : un profil n'existe que si le serveur a confirmé un rôle
+ * nommé (ou si la dernière confirmation est gardée, hors ligne).
  */
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const [session, definirSession] = useState<SessionAppareil>(SESSION_ABSENTE);
-  const valeur = useMemo<ValeurContexteSession>(() => ({ session, definirSession }), [session]);
+  const [etat, definirEtat] = useState<EtatIdentite>(ETAT_RESTAURATION);
+  const valeur = useMemo<ValeurContexteSession>(
+    () => ({ etat, definirEtat, session: sessionDepuisEtat(etat) }),
+    [etat],
+  );
   return <ContexteSession.Provider value={valeur}>{children}</ContexteSession.Provider>;
 }
 
 function useContexteSession(): ValeurContexteSession {
   const contexte = useContext(ContexteSession);
   if (!contexte) {
-    throw new Error("useSessionAppareil/useDefinirSessionAppareil doit être utilisé sous <SessionProvider>.");
+    throw new Error("Les hooks de session doivent être utilisés sous <SessionProvider>.");
   }
   return contexte;
 }
 
+/** Ce que la garde de routes (`src/roles/garde.ts`) regarde : le rôle nommé, ou aucune session. */
 export function useSessionAppareil(): SessionAppareil {
   return useContexteSession().session;
 }
 
-export function useDefinirSessionAppareil(): (session: SessionAppareil) => void {
-  return useContexteSession().definirSession;
+export function useEtatIdentite(): EtatIdentite {
+  return useContexteSession().etat;
+}
+
+export function useDefinirEtatIdentite(): (etat: EtatIdentite) => void {
+  return useContexteSession().definirEtat;
+}
+
+/** La personne appairée, telle que le serveur l'a confirmée ; `null` tant qu'elle ne l'est pas. */
+export function usePersonneAppairee(): string | null {
+  return personneDepuisEtat(useContexteSession().etat);
 }

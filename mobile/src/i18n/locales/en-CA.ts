@@ -29,6 +29,44 @@ const enCA: RessourcesCommunes = {
       reponse_inattendue: "Unexpected response from the gateway. Try again later.",
     },
   },
+  identite: {
+    chargement: "Checking your identity…",
+    absente: "Identity not confirmed: cannot continue right now.",
+    bandeau: {
+      connecte: "{{personne}} — {{role}}",
+      aReconfirmer: "To be reconfirmed: identity kept from the last connection, the server could not be reached.",
+    },
+    roles: {
+      admin: "Administrator",
+      employee: "Employee",
+      seller: "Seller",
+    },
+    erreur: {
+      titre: "Device identity not confirmed",
+      appareil: "Device ID: {{appareilId}}",
+      reessayer: "Try again",
+      reessayerEnCours: "Checking…",
+      reappairer: "Pair again",
+      motifs: {
+        appareil_non_attribue:
+          "This device is paired, but not yet assigned to a person. Give the ID below to the owner so they " +
+          "can assign it to your name, then try again.",
+        role_inconnu:
+          "The role assigned to this device is not recognized. No profile is opened: ask the owner to fix " +
+          "the assignment.",
+        jeton_refuse:
+          "This device is no longer authorized (access revoked or expired). Pair it again with a new code.",
+        refus_inattendu:
+          "The gateway refuses to give this device's identity. Try again later or ask the owner for help.",
+        reponse_invalide: "Unexpected gateway response: the identity could not be confirmed. Try again later.",
+        hors_ligne_sans_memoire:
+          "The server cannot be reached, and no identity has been confirmed on this device yet. Connect to " +
+          "the network, then try again.",
+        stockage_illisible:
+          "The device's secure storage is unreadable for now. Try again; if it persists, restart the device.",
+      },
+    },
+  },
   groupes: {
     employee: { accueil: "Home — employee" },
     seller: { accueil: "Home — seller" },
@@ -38,8 +76,7 @@ const enCA: RessourcesCommunes = {
   pointage: {
     titre: "Time clock",
     champIntervention: "Job",
-    champTechnicien: "Technician",
-    champsRequis: "Enter the job and technician before punching.",
+    champsRequis: "Enter the job before punching.",
     aucunPointage: "No punch yet.",
     boutons: {
       entree: "Clock in",
@@ -63,8 +100,6 @@ const enCA: RessourcesCommunes = {
       "Your position is only recorded when you punch, if you have consented. Withdrawing your " +
       "consent turns off position capture at punch right away: you then punch by hand. You can " +
       "give it again later.",
-    champTechnicien: "Your employee ID",
-    champRequis: "Enter your employee ID before withdrawing your consent.",
     retirer: "Withdraw my GPS consent",
     appareilNonAppaire: "Device not paired: cannot send the withdrawal right now.",
     etat: {
@@ -98,8 +133,6 @@ const enCA: RessourcesCommunes = {
   },
   job: {
     titre: "Job",
-    champTechnicien: "Technician",
-    champsRequis: "Enter the technician before continuing.",
     appareilNonAppaire: "Device not paired: cannot continue right now.",
     statutInconnu: "Unknown status",
     source: {
