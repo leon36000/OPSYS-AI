@@ -15,3 +15,13 @@ Conception, configuration générée, garde-fous et greffes du core à faire : [
 
 M2 consomme ce lead pour de vrai depuis T2.1-b (`evenements.consomme` de M2, sans greffe) : ingestion complète, idempotente ;
 un refus lève, le répartiteur réessaie puis met en quarantaine.
+
+## Qualification par conversation (PLAN T2.1-b)
+
+Un client qui écrit le service dans un message et la ville dans le suivant donne un lead complet : `conversation.py` (module
+pur) rassemble les messages d'une même conversation dans la fenêtre que le profil d'entreprise déclare
+(`fenetre_conversation_minutes`, jamais une durée par défaut) et le lead naît quand service et ville sont connus, un seul
+par conversation ouverte. Un message rejoué ne compte pas deux fois ; STOP ferme la conversation ; une fenêtre expirée
+n'est plus rassemblée. Sans fenêtre déclarée, la qualification reste message par message et la réponse le dit
+(`conversation.verdict`). Ce qui est demandé au client est un brouillon (`brouillon_reponse`, `envoye: false`) : il ne part que
+par `m1_emettre_notification` (N4), après approbation. Règles et limites : [M1-canaux](../../docs/departements/M1-canaux.md) §8.

@@ -79,6 +79,17 @@ def _motif_service(service: taxonomie.Service):
     return _MOTIFS_SERVICE_CACHE[cle]
 
 
+def _services_evoques(contenu: str, services) -> list[str]:
+    """Codes des services déclarés que le contenu évoque, dans l'ordre de la déclaration."""
+    texte = _sans_accent(contenu)
+    evoques = []
+    for service in services:
+        motif = _motif_service(service)
+        if motif is not None and motif.search(texte):
+            evoques.append(service.code)
+    return evoques
+
+
 def _extraire_service(contenu: str, services):
     """Retourne `(code, None)` si UN SEUL service déclaré est évoqué, sinon `(None, raison)`.
 
@@ -86,12 +97,7 @@ def _extraire_service(contenu: str, services):
     qualifié (fail-closed, jamais un choix arbitraire). L'agent demande alors lequel. La règle de
     précédence (p. ex. « réparation de gouttières ») reste une décision du propriétaire (T2.1).
     """
-    texte = _sans_accent(contenu)
-    evoques = []
-    for service in services:
-        motif = _motif_service(service)
-        if motif is not None and motif.search(texte):
-            evoques.append(service.code)
+    evoques = _services_evoques(contenu, services)
     if len(evoques) == 1:
         return evoques[0], None
     if not evoques:
@@ -118,6 +124,33 @@ def _extraire_ville(contenu: str, zone_desservie):
     return None
 
 
+def diagnostiquer(contenu_filtre: str, zone_desservie, services=None) -> dict:
+    """Ce que le contenu établit déjà, pour dire ce qu'il reste à demander (jamais pour qualifier).
+
+    Retourne `{"services_evoques": [codes], "service": code | None, "ville": ville | None, "urgence_declaree": bool}` :
+    `service` n'est posé que si UN SEUL service déclaré est évoqué (même règle que `qualifier`), `ville` que si une
+    ville de `zone_desservie` est reconnue. Mêmes règles, mêmes sources : ce qui est « connu » ici est exactement ce
+    que `qualifier` accepte, jamais davantage.
+    """
+    if not zone_desservie:
+        raise ValueError(
+            "zone_desservie requise et non vide : aucune ville n'est codée en dur "
+            "dans qualification.py, l'appelant doit fournir la zone desservie"
+        )
+    if services is None:
+        services, verdict_profil = taxonomie.charger_services()
+        if verdict_profil is not None:
+            raise ValueError(f"{verdict_profil['code']}: {verdict_profil['detail']}")
+    contenu = _clean(contenu_filtre)
+    evoques = _services_evoques(contenu, services)
+    return {
+        "services_evoques": evoques,
+        "service": evoques[0] if len(evoques) == 1 else None,
+        "ville": _extraire_ville(contenu, zone_desservie),
+        "urgence_declaree": _extraire_urgence(contenu),
+    }
+
+
 def _extraire_urgence(contenu: str) -> bool:
     """Détecte la présence d'un marqueur d'urgence explicite."""
     return any(p.search(contenu) for p in _URGENCE_PATTERNS)
@@ -137,10 +170,16 @@ def _extraire_contact(contenu: str) -> dict | None:
     return contact if contact else None
 
 
-def _materiau_lead_id(conversation_id: str, contenu: str) -> str:
+def _materiau_lead_id(conversation_id: str, contenu: str, identite: str | None = None) -> str:
     """Encodage canonique INJECTIF (préfixage par longueur) : deux couples différents
-    ne peuvent pas produire le même matériau, contrairement à une concaténation directe."""
-    return f"{len(conversation_id)}:{conversation_id}|{len(contenu)}:{contenu}"
+    ne peuvent pas produire le même matériau, contrairement à une concaténation directe.
+
+    `identite` (optionnelle) s'ajoute comme troisième segment ; absente, le matériau est celui d'avant, octet pour
+    octet : les `lead_id` déjà émis ne changent pas."""
+    materiau = f"{len(conversation_id)}:{conversation_id}|{len(contenu)}:{contenu}"
+    if identite is not None:
+        materiau += f"|{len(identite)}:{identite}"
+    return materiau
 
 
 def qualifier(
@@ -153,6 +192,7 @@ def qualifier(
     utm: dict | None = None,
     campagne: str | None = None,
     contact_canal: dict | None = None,
+    identite_lead: str | None = None,
 ) -> dict:
     """
     Extrait les informations obligatoires d'un message filtré.
@@ -172,6 +212,8 @@ def qualifier(
         adresse d'un courriel, `m1_front_office.reception`). Elle devient le contact du lead, seule : le texte
         du client n'y ajoute rien et ne la remplace pas (M2 tire le `client_id` du contact entier). Absent, le
         contact est cherché dans le texte, comme avant.
+    identite_lead : de quoi distinguer deux demandes de même texte d'un même client (le premier message d'une
+        conversation rassemblée, `conversation`) ; entre dans l'empreinte du `lead_id`. Absente : `lead_id` d'avant.
     """
     if not zone_desservie:
         raise ValueError(
@@ -203,7 +245,7 @@ def qualifier(
         if contact is None:
             return _rejet()
 
-    materiau = _materiau_lead_id(conversation_id, contenu)
+    materiau = _materiau_lead_id(conversation_id, contenu, identite_lead)
     lead_id = hashlib.sha256(materiau.encode("utf-8")).hexdigest()
 
     lead = {

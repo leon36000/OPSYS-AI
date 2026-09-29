@@ -24,6 +24,10 @@ Le même profil porte aussi la ZONE DESSERVIE (`zone_desservie`, les villes où 
 PLAN T2.1) : M1 la lit ici, jamais dans ce qu'un client ou un modèle lui écrit. Sans zone, aucune ville
 n'est reconnue et le verdict dit où la déclarer.
 
+Et la FENÊTRE DE CONVERSATION (`fenetre_conversation_minutes`, PLAN T2.1-b) : la durée pendant laquelle M1
+rassemble les messages d'un même client pour qualifier une demande écrite en plusieurs messages. Aucune durée
+n'est inventée : sans elle, M1 qualifie message par message et le verdict le dit.
+
 Ce module est pur (fichier YAML et journal d'audit seulement) : il ne connaît ni M1, ni M2, ni M3.
 Les verdicts sont des dict `{"code", "detail"}` ; chaque département les traduit dans son propre
 catalogue de codes et garde le `detail`, qui porte la consigne de configuration.
@@ -45,6 +49,7 @@ from .etat import dossier_opsys
 NOM_FICHIER_PROFIL = "entreprise.yaml"
 CLE_SERVICES = "services"
 CLE_ZONE = "zone_desservie"
+CLE_FENETRE_CONVERSATION = "fenetre_conversation_minutes"
 
 # Codes de verdict émis par ce module (jamais un booléen nu : le détail dit quoi corriger).
 VERDICT_SERVICE_NON_CONFIGURE = "REJ-SERVICE-NON-CONFIGURE"
@@ -52,12 +57,15 @@ VERDICT_SERVICE_INCONNU = "REJ-SERVICE-INCONNU"
 VERDICT_SERVICE_INVALIDE = "REJ-SERVICE-INVALIDE"
 VERDICT_PROFIL_INVALIDE = "REJ-PROFIL-INVALIDE"
 VERDICT_ZONE_NON_CONFIGUREE = "REJ-ZONE-NON-CONFIGUREE"
+VERDICT_FENETRE_NON_CONFIGUREE = "REJ-FENETRE-NON-CONFIGUREE"
 
 _FORME_CODE = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
 _LIBELLE_MAX = 120
 _MOTS_CLES_MAX = 20
 _VILLES_MAX = 300
 _VILLE_MAX = 80
+# Garde contre une faute de frappe (« 30000 » pour « 30 »), pas une valeur par défaut : sept jours.
+FENETRE_CONVERSATION_MAX_MINUTES = 7 * 24 * 60
 
 
 class ProfilInvalide(ValueError):
@@ -356,12 +364,10 @@ def charger_zone_desservie() -> tuple[tuple[str, ...], dict[str, str] | None]:
     return villes, None
 
 
-def enregistrer_zone_desservie(villes: Any, chemin: Path | None = None, par: str | None = None) -> Path:
-    """Écrit la zone validée dans le profil, sans toucher aux autres clés du fichier (services compris).
-
-    Signée par `par`, la modification est inscrite au journal d'audit (même patron que les services).
-    """
-    propres = normaliser_zone_desservie(villes)
+def _ecrire_cle_du_profil(
+    cle: str, valeur: Any, chemin: Path | None, par: str | None, action: str, details: dict[str, Any]
+) -> Path:
+    """Écrit une clé dans le profil sans toucher aux autres ; signée par `par`, elle est inscrite au journal d'audit."""
     fichier = chemin or fichier_profil()
     existant: dict[str, Any] = {}
     if fichier.is_file():
@@ -371,26 +377,102 @@ def enregistrer_zone_desservie(villes: Any, chemin: Path | None = None, par: str
             raise ProfilInvalide(f"{fichier} illisible : {exc} ; corrige-le ou supprime-le avant de déclarer") from exc
         if isinstance(lu, dict):
             existant = lu
-    existant[CLE_ZONE] = list(propres)
+    existant[cle] = valeur
     fichier.parent.mkdir(parents=True, exist_ok=True)
     fichier.write_text(yaml.safe_dump(existant, allow_unicode=True, sort_keys=True), encoding="utf-8")
     if par:
         from .etat import journaliser, session
 
         with session() as cnx:
-            journaliser(cnx, par, "entreprise.zone_desservie", str(fichier), {"villes": list(propres)})
+            journaliser(cnx, par, action, str(fichier), details)
     return fichier
+
+
+def enregistrer_zone_desservie(villes: Any, chemin: Path | None = None, par: str | None = None) -> Path:
+    """Écrit la zone validée dans le profil, sans toucher aux autres clés du fichier (services compris).
+
+    Signée par `par`, la modification est inscrite au journal d'audit (même patron que les services).
+    """
+    propres = normaliser_zone_desservie(villes)
+    return _ecrire_cle_du_profil(CLE_ZONE, list(propres), chemin, par, "entreprise.zone_desservie",
+                                 {"villes": list(propres)})
+
+
+def normaliser_fenetre_conversation(minutes: Any) -> int:
+    """Valide la fenêtre de conversation : un nombre entier de minutes, d'au moins 1 et d'au plus sept jours.
+
+    Refuse le texte, le décimal, le booléen et le zéro : une durée mal écrite n'est jamais arrondie ni devinée.
+    """
+    if isinstance(minutes, bool) or not isinstance(minutes, int):
+        raise ProfilInvalide(f"'{CLE_FENETRE_CONVERSATION}' doit être un nombre entier de minutes (reçu {minutes!r})")
+    if not 1 <= minutes <= FENETRE_CONVERSATION_MAX_MINUTES:
+        raise ProfilInvalide(
+            f"'{CLE_FENETRE_CONVERSATION}' : entre 1 et {FENETRE_CONVERSATION_MAX_MINUTES} minutes (reçu {minutes})"
+        )
+    return minutes
+
+
+def lire_fenetre_conversation(chemin: Path | None = None) -> int | None:
+    """Minutes déclarées par le profil de l'instance ; `None` si le fichier ou la clé est absent.
+
+    Lève `ProfilInvalide` si la clé existe mais n'est pas une durée valide (même règle que la zone : une valeur
+    cassée n'est jamais lue comme absente).
+    """
+    fichier = chemin or fichier_profil()
+    if not fichier.is_file():
+        return None
+    try:
+        donnees = yaml.safe_load(fichier.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
+        raise ProfilInvalide(f"{fichier} illisible : {exc}") from exc
+    if donnees is None:
+        return None
+    if not isinstance(donnees, dict):
+        raise ProfilInvalide(f"{fichier} : un objet YAML est attendu à la racine")
+    if CLE_FENETRE_CONVERSATION not in donnees:
+        return None
+    try:
+        return normaliser_fenetre_conversation(donnees[CLE_FENETRE_CONVERSATION])
+    except ProfilInvalide as exc:
+        raise ProfilInvalide(f"{fichier} : {exc}") from exc
+
+
+def charger_fenetre_conversation() -> tuple[int | None, dict[str, str] | None]:
+    """`(minutes, None)` si l'instance déclare sa fenêtre, sinon `(None, verdict)` qui dit où la déclarer.
+    Ne lève jamais : une valeur illisible est un verdict `REJ-PROFIL-INVALIDE`, distinct de l'absence
+    (`REJ-FENETRE-NON-CONFIGUREE`), que l'appelant peut tolérer sans jamais confondre les deux."""
+    chemin = fichier_profil()
+    try:
+        minutes = lire_fenetre_conversation(chemin)
+    except ProfilInvalide as exc:
+        return None, _verdict(VERDICT_PROFIL_INVALIDE, f"profil d'entreprise invalide : {exc}")
+    if minutes is None:
+        return None, _verdict(
+            VERDICT_FENETRE_NON_CONFIGUREE,
+            f"aucune fenêtre de conversation déclarée : donne sa durée en minutes dans {chemin} "
+            f"(clé '{CLE_FENETRE_CONVERSATION}') ; tant qu'elle est absente, la qualification se fait "
+            "message par message (un service dans un message et la ville dans le suivant ne se rejoignent pas)",
+        )
+    return minutes, None
+
+
+def enregistrer_fenetre_conversation(minutes: Any, chemin: Path | None = None, par: str | None = None) -> Path:
+    """Écrit la fenêtre validée dans le profil, sans toucher aux autres clés (services et zone compris).
+    Signée par `par`, elle est inscrite au journal d'audit."""
+    propre = normaliser_fenetre_conversation(minutes)
+    return _ecrire_cle_du_profil(CLE_FENETRE_CONVERSATION, propre, chemin, par, "entreprise.fenetre_conversation",
+                                 {"minutes": propre})
 
 
 def verifier_profil() -> list[str]:
     """`opsys verifier` : un profil présent doit être valide. Un profil absent n'est pas une erreur
     (l'instance n'a simplement encore déclaré aucun service, et tout service est alors refusé)."""
     problemes: list[str] = []
-    for lecture in (lire_services, lire_zone_desservie):
+    for lecture in (lire_services, lire_zone_desservie, lire_fenetre_conversation):
         try:
             lecture()
         except ProfilInvalide as exc:
-            if str(exc) not in problemes:  # un fichier illisible échoue aux deux lectures : un seul message
+            if str(exc) not in problemes:  # un fichier illisible échoue à chaque lecture : un seul message
                 problemes.append(str(exc))
     return problemes
 

@@ -3,7 +3,8 @@
 **Date :** 2026-09-29. **Portée de cette tranche :** un message SMS de client arrive à l'agent M1 par le canal du
 core, est qualifié par le code, et devient un lead v2 que M2 recevra par le bus. Rien n'est envoyé au client. Le
 courriel a son outil (même chemin) mais pas sa configuration ; la voix vient après.
-**Suite (T2.1-b, partie 1, 2026-09-29) :** M2 consomme vraiment `m1.lead_qualifie` (§7).
+**Suite (T2.1-b, partie 1, 2026-09-29) :** M2 consomme vraiment `m1.lead_qualifie` (§7), et un client qui écrit le service
+dans un message et la ville dans le suivant donne un lead complet, par du code (§8).
 **Références :** `DEFINITION-PRODUIT` §5, §6, §7 (M1.1, M1.3, M1.4, M1.7), `M1-audit.md`, ADR-0010 (T3.3-suite-b).
 **Le core ne s'exécute pas dans ce bac à sable.** Tout ce qui suit sur le core vient de la lecture de ses sources
 (`fichier:ligne` donnés) ; la CI (`e2e-core`, `openclaw config validate`) est l'autorité.
@@ -52,6 +53,7 @@ pas dans cette tranche.
 | `source` du lead | le canal du core (`sms`) | jamais lue dans le texte |
 | Service | la taxonomie du profil d'entreprise (4 services réels du premier client) | `opsys.taxonomie` ; plusieurs services ou aucun : on demande lequel |
 | Zone desservie | `zone_desservie` du profil d'entreprise (`$OPSYS_HOME/entreprise.yaml`) | l'agent ne la fournit pas ; absente : refus qui dit où la déclarer |
+| Ce qu'on demande au client | un brouillon que le code compose (§8) | garde-fou des interdits appliqué par le code ; il ne part que par `m1_emettre_notification` (N4), après approbation |
 | Prix, dates, engagements | jamais produits | `m1_verifier_garde_fou` avant toute proposition de message |
 | Le texte du client | donnée non fiable | filtre de provenance (`[CONTENU_NON_FIABLE]`), jamais une consigne |
 
@@ -146,10 +148,9 @@ un canal partagé par deux départements, ou le mode `autonome`. Avec `--config-
 
 ## 6. Ce qui reste (tranches suivantes)
 
-1. **T2.1-b — retirer le modèle de la réception.** *Fait (partie 1) :* M2 consomme `m1.lead_qualifie` (§7). *Reste :* la
-   qualification par conversation (elle est encore message par message : le service dans un message et la ville dans le
-   suivant ne se rejoignent pas) ; le crochet `message_received` (§7) ; le lien automatique session -> affaire (décision de
-   confidentialité du propriétaire, §3).
+1. **T2.1-b — retirer le modèle de la réception.** *Fait (partie 1) :* M2 consomme `m1.lead_qualifie` (§7) et la
+   qualification se fait par conversation (§8). *Reste :* le crochet `message_received` (§7) ; le lien automatique
+   session -> affaire (décision de confidentialité du propriétaire, §3).
 2. **T2.1-c — envoi réel après approbation** : adaptateur d'envoi par le canal, consentement opt-in, application du
    retrait, appel manqué (SMS de rappel seulement avec opt-in, tâche de rappel toujours).
 3. **T2.1-d — courriel** (`imap`) et **voix** (`voice-call`) : §7.
@@ -167,8 +168,8 @@ un canal partagé par deux départements, ou le mode `autonome`. Avec `--config-
   - **Idempotence** : le répartiteur livre une fois par (événement, consommateur). En plus, un lead déjà ingéré (même
     `lead_id`, même empreinte de contrat) est reconnu (`deja_applique`) : ni second lead, ni seconde opportunité, ni
     second `m2.client_associe`. Un `lead_id` connu avec un autre contenu lève `LeadRefuse` (décision humaine).
-  - **Preuve** : `tests/test_canal_sms_bout_en_bout.py` (vrai manifeste de M2, sans greffe) et
-    `departments/m02-revenue-crm/tests/test_consommer_lead_de_m1.py` (rejeu, quarantaine, refus).
+  - **Preuve** : `tests/test_canal_sms_bout_en_bout.py` (vrai manifeste de M2, sans greffe),
+    `tests/test_canal_conversation.py` (quarantaine, rejeu), `departments/m02-revenue-crm/tests/test_consommer_lead_de_m1.py`.
 - **Le modèle recopie les champs de la plateforme.** Greffe : un crochet `message_received`, écrit par OPSYS dans
   `core/src/context-engine/` (où vit déjà le client MCP de M10, `opsys-contexte-mcp.ts`), qui appelle
   `m1_recevoir_message_canal` avant le tour de l'agent avec ce que le core lui donne : `from`, `content`, `timestamp`
@@ -197,3 +198,70 @@ un canal partagé par deux départements, ou le mode `autonome`. Avec `--config-
   `e2e-core`, qui utilise le vrai manifeste de M1) ; que la clé de session réelle est celle que `cle_session` calcule ;
   que `allow: ["opsys_m1__*"]` laisse bien passer les outils MCP sous ce nom ; que `sendPolicy` retient aussi la réponse
   aux commandes texte. Chacun est une lecture de source, pas une exécution.
+
+## 8. Qualification par conversation (T2.1-b, partie 1)
+
+Un client écrit souvent « mes gouttières fuient » puis, dans le message suivant, « à Laval ». Qualifié message par
+message, il ne donnait jamais un lead complet. Le code (`m1_front_office/conversation.py`, module pur), pas le modèle,
+rassemble maintenant les messages d'une même conversation dans une fenêtre bornée et qualifie quand service et ville sont
+connus. Aucun message n'est envoyé : ce qu'il reste à demander est un brouillon.
+
+**La durée de la fenêtre n'est pas inventée.** Elle vient du profil d'entreprise, comme la zone desservie :
+
+```yaml
+# $OPSYS_HOME/entreprise.yaml
+fenetre_conversation_minutes: 30   # entier, de 1 à 10080 (sept jours) ; aucun défaut
+```
+
+`opsys.taxonomie.charger_fenetre_conversation` la lit ; `enregistrer_fenetre_conversation(minutes, par="nom")` l'écrit, signée
+au journal d'audit, sans toucher aux services ni à la zone. La valeur est lue à chaque message. Le « 30 » ci-dessus est un
+exemple : le propriétaire choisit.
+
+| Situation | Comportement |
+|---|---|
+| Fenêtre **absente** | Comportement d'avant : chaque message est qualifié seul. Chaque réponse porte `conversation: {mode: "message_par_message", verdict: {code: "REJ-FENETRE-NON-CONFIGUREE", detail: <où la déclarer>}}`. |
+| Fenêtre **déclarée mais invalide** (0, texte, décimal, plus de sept jours) | Refus avant toute écriture (`REJ-PROFIL-INVALIDE`), jamais lue comme absente ; `opsys verifier` la signale. |
+| Fenêtre déclarée | Voir ci-dessous. |
+
+**Règles avec fenêtre** (le registre anti-perte est la seule mémoire ; rien n'est gardé entre deux appels) :
+
+- **Conversation ouverte.** Elle commence au premier message que ni un retrait (STOP) ni la fenêtre n'ont fermé. Un message
+  s'y joint si son heure de réception est à au plus `fenetre` minutes de celle du premier message (borne incluse). L'heure
+  de réception fait foi, pas l'ordre d'arrivée. Au-delà, il ouvre une nouvelle conversation ; les messages d'avant restent
+  au registre (une ligne par message, rien n'est perdu) mais ne se joignent plus. La réponse dit combien
+  (`conversation.hors_fenetre`).
+- **Le lead naît quand service et ville sont connus**, sur le texte rassemblé (mêmes règles que message par message : un seul
+  service, une ville de la zone ; plusieurs services évoqués : on demande lequel). L'urgence se lit sur tous les messages.
+  `lead_emis` garde `signaux_rassembles` ; l'événement `m1.lead_qualifie` n'a pas changé.
+- **Un seul lead par conversation ouverte.** Un message qui arrive après le lead, dans la même fenêtre, est inscrit et
+  rattaché (`rattache_au_lead` sur sa ligne) : décision `CONVERSATION_DEJA_QUALIFIEE`, `nouveau_lead: false`, aucun second
+  événement. La réponse dit ce que le lead transmis ne porte pas (`complement.urgence_declaree`,
+  `complement.autre_service_evoque`) pour qu'une personne le voie. Après la fenêtre, une nouvelle conversation peut donner un
+  nouveau lead, même à texte identique : l'identité du lead compte alors le premier message de la conversation.
+- **Un message rejoué ne compte pas deux fois** : il est reconnu par son `signal_id` avant tout, rien n'est écrit, la
+  réponse est celle d'alors (y compris `CONVERSATION_DEJA_QUALIFIEE`).
+- **STOP ferme la conversation.** Ce qui a été écrit avant n'est jamais qualifié (la réponse au STOP dit combien de messages
+  restent sans lead : `messages_non_qualifies`). Un message d'après ne se joint pas aux précédents et n'a pas de brouillon
+  (`sans_brouillon: "retrait_consentement"`). STOP retire le consentement aux messages, pas le droit d'écrire : une demande
+  complète d'après reste qualifiée.
+
+**Ce qui est demandé au client est un brouillon.** Quand le lead n'est pas complet, la réponse porte `a_demander`
+(`["service"]`, `["ville"]` ou les deux), `conversation.connu` (ce qui est établi), et `brouillon_reponse` : une question
+courte composée par le code (services demandés lus dans le profil, jamais dans une liste locale), passée au garde-fou des
+interdits. Si le garde-fou la refuse (un libellé de service déclaré ne doit pas glisser un prix), il n'y a pas de brouillon
+(`sans_brouillon` dit pourquoi). `envoye` vaut toujours `false` : le brouillon ne part que par `m1_emettre_notification`
+(N4), en attente d'une personne. Prouvé avec `Capacites` et `approbations.decider`
+(`tests/test_canal_conversation.py`) : la réception ne crée aucune demande d'approbation et n'envoie rien.
+
+**Limites connues.**
+
+- La fenêtre se mesure depuis le premier message de la conversation (elle ne glisse pas à chaque message) : un client
+  bavard ne garde pas une conversation ouverte indéfiniment. Un message livré hors d'ordre se joint s'il tient dans la
+  fenêtre du premier message reçu.
+- Changer la durée du profil regroupe autrement les messages déjà au registre, à la lecture suivante.
+- Le mécanisme est celui du canal, pas du SMS seul : un courriel du même correspondant dans la fenêtre se joint de la même
+  façon (le courriel n'a pas encore sa configuration, §7).
+- Sans fenêtre, deux messages de texte identique d'un même client donnent le même `lead_id`, donc un seul événement : M2 ne
+  voit pas le second. Non modifié (les `lead_id` déjà émis gardent leur identité) ; la fenêtre, elle, n'a pas ce défaut.
+- L'agent doit relayer `complement.*` à une personne : aucun outil de tâche n'existe encore côté M1 pour l'écrire ailleurs
+  que dans sa réponse.

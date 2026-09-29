@@ -98,6 +98,15 @@ intervient. `opsys.taxonomie.charger_zone_desservie` la lit ; sans zone, aucune 
 `REJ-ZONE-NON-CONFIGUREE` dit où la déclarer. M1 la lit pour un message de canal : l'agent ne la fournit pas. Un profil
 mal formé (liste vide, ville en double) est refusé, jamais lu comme absent ; `opsys verifier` le signale.
 
+## Fenêtre de conversation (PLAN T2.1-b)
+
+Le même profil porte `fenetre_conversation_minutes` : la durée, en minutes entières (de 1 à 10080), pendant laquelle M1
+rassemble les messages d'un même client pour qualifier une demande écrite en plusieurs messages.
+`opsys.taxonomie.charger_fenetre_conversation` la lit. **Aucune durée n'est inventée** : absente, elle donne le verdict
+`REJ-FENETRE-NON-CONFIGUREE` (qui dit où la déclarer), et M1 qualifie message par message comme avant. Une valeur mal
+formée est refusée (`REJ-PROFIL-INVALIDE`), jamais lue comme absente ; `opsys verifier` la signale. Détail des règles :
+[M1-canaux](../departements/M1-canaux.md) §8.
+
 ## Garde de dérive
 
 - `opsys verifier` : profil valide s'il existe ; aucune source de département ni du socle ne recopie

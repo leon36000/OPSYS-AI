@@ -23,7 +23,14 @@ Canaux du core (PLAN T2.1-a, `docs/departements/M1-canaux.md`) : `m1_recevoir_me
 que l'extension `sms` livre à l'agent M1. Les champs de la plateforme (canal, expéditeur, identifiant, heure)
 passent par `reception.py`, qui en tire l'identité, la conversation, le signal et le contact ; puis la chaîne
 ci-dessus qualifie le message. Un lead qualifié est publié au bus (`m1.lead_qualifie`, dans la transaction de
-l'inscription au registre) : c'est ainsi qu'il atteint M2, qui n'est pas un outil que l'agent M1 voit.
+l'inscription au registre) : c'est ainsi qu'il atteint M2, qui n'est pas un outil que l'agent M1 voit. M2 le
+consomme (`m1.lead_qualifie`, PLAN T2.1-b) : il ne lui est jamais appelé directement.
+
+Qualification par conversation (PLAN T2.1-b, `conversation.py`) : quand le profil d'entreprise déclare une fenêtre
+(`fenetre_conversation_minutes`), les messages d'un même client dans cette fenêtre se rassemblent, par du code, et le
+lead naît quand service et ville sont connus, un seul par conversation ouverte. Sans fenêtre déclarée, la
+qualification reste message par message et la réponse le dit (`conversation.verdict`). Ce qui est demandé au client
+est un brouillon (`brouillon_reponse`) : il ne part que par `m1_emettre_notification` (N4), après approbation.
 """
 
 from __future__ import annotations
@@ -37,6 +44,7 @@ from . import (
     adaptateurs,
     consentement,
     contrats,
+    conversation,
     digest,
     garde_fou,
     phases_voix,
@@ -225,6 +233,7 @@ def _traiter(
     campagne: str | None,
     contact_canal: dict[str, str] | None = None,
     cle_session: str | None = None,
+    fenetre_minutes: int | None = None,
 ) -> dict[str, Any]:
     # 0. Configuration avant tout effet : sans service déclaré par l'instance, on refuse ici,
     #    avant d'écrire au registre (fail-closed, le message dit quoi configurer).
@@ -233,6 +242,12 @@ def _traiter(
         raise ValueError(f"{verdict_profil['code']}: {verdict_profil['detail']}")
 
     reg = _obtenir_registre()
+
+    # 0 bis. Conversation ouverte (seulement si l'instance déclare une fenêtre) : lue AVANT d'écrire ce message,
+    #        pour savoir si la conversation est déjà qualifiée et ce qu'elle a rassemblé.
+    ouverte = None
+    if fenetre_minutes is not None:
+        ouverte = conversation.lire(reg.lire(), conversation_id, horodatage, fenetre_minutes)
 
     # 1. Provenance : neutralise toute tentative d'injection AVANT tout traitement
     #    (M1-R-08 — un contenu externe n'est jamais fiable tel quel).
@@ -250,7 +265,17 @@ def _traiter(
     }
     if source is not None:
         signal["source"] = source
+    if ouverte is not None and ouverte.lead is not None:
+        signal["rattache_au_lead"] = ouverte.lead["lead"]["lead_id"]
     ligne_id_signal = reg.ajouter(signal)
+
+    # 2 bis. Conversation déjà qualifiée : un seul lead par conversation ouverte. Le message est inscrit (une ligne,
+    #        rien n'est perdu) et rattaché au lead ; il n'en crée pas un second.
+    if ouverte is not None and ouverte.lead is not None:
+        return _complement_de_conversation(
+            ouverte, fenetre_minutes, ligne_id_signal, sain, contenu_filtre, signal_id, horodatage,
+            zone_desservie, services,
+        )
 
     # 3. Consentement : uniquement pertinent pour un canal vocal (M1-R-07).
     verdict_consentement = None
@@ -261,13 +286,21 @@ def _traiter(
             horodatage=horodatage,
         )
 
-    # 4. Qualification par règles déterministes, zéro LLM, zéro ville inventée.
+    # 4. Qualification par règles déterministes, zéro LLM, zéro ville inventée. Avec une fenêtre, elle porte sur
+    #    tous les messages de la conversation ouverte (le lead naît quand service et ville sont connus) ; sinon, sur
+    #    ce message seul.
+    contenu_a_qualifier, identite_lead, signaux = contenu_filtre, None, [signal_id]
+    if ouverte is not None:
+        contenu_a_qualifier = conversation.contenu_rassemble(ouverte, contenu_filtre)
+        signaux = conversation.signaux_rassembles(ouverte, signal_id)
+        identite_lead = signaux[0]  # deux conversations de même texte n'ont pas le même lead
     resultat_qualif = qualification.qualifier(
-        contenu_filtre, canal, conversation_id, zone_desservie,
+        contenu_a_qualifier, canal, conversation_id, zone_desservie,
         services=services, source=source, utm=utm, campagne=campagne, contact_canal=contact_canal,
+        identite_lead=identite_lead,
     )
     if "verdict" in resultat_qualif:
-        return {
+        reponse_precisions: dict[str, Any] = {
             "etape": "qualification",
             "accepte": True,
             "signal_ligne_id": ligne_id_signal,
@@ -277,6 +310,13 @@ def _traiter(
             "verdict_qualification": resultat_qualif["verdict"],
             "decision": "DEMANDER_PRECISIONS",
         }
+        if ouverte is not None:
+            diagnostic = qualification.diagnostiquer(contenu_a_qualifier, zone_desservie, services)
+            reponse_precisions["conversation"] = conversation.decrire(
+                ouverte, horodatage, fenetre_minutes, signaux, diagnostic)
+            reponse_precisions.update(conversation.proposer_precisions(
+                diagnostic, {un.code: un.libelle for un in services}, ouverte.retire))
+        return reponse_precisions
 
     # 5. Décision : lead conforme au contrat gelé M1->M2 v2 (vérification défensive :
     #    qualifier() garantit déjà la conformité, valider_lead le confirme et
@@ -293,6 +333,8 @@ def _traiter(
     }
     if cle_session is not None:
         lead_emis["cle_session"] = cle_session
+    if ouverte is not None:
+        lead_emis["signaux_rassembles"] = signaux
     ligne_id_lead = reg.ajouter(lead_emis)
     _publier_lead(resultat_qualif, horodatage, signal_id)
 
@@ -309,14 +351,61 @@ def _traiter(
     }
     if cle_session is not None:
         reponse["cle_session"] = cle_session
+    if ouverte is not None:
+        reponse["conversation"] = conversation.decrire(ouverte, horodatage, fenetre_minutes, signaux)
     return reponse
+
+
+def _complement_de_conversation(
+    ouverte: conversation.ConversationOuverte,
+    fenetre_minutes: int,
+    ligne_id_signal: str,
+    sain: bool,
+    contenu_filtre: str,
+    signal_id: str,
+    horodatage: str,
+    zone_desservie: list[str],
+    services,
+) -> dict[str, Any]:
+    """Un message qui arrive dans une conversation DÉJÀ qualifiée : aucun second lead. Ce que le lead transmis à M2
+    ne porte pas (une urgence, un autre service évoqué) est dit dans la réponse, pour qu'une personne le voie."""
+    ligne_lead = ouverte.lead
+    diagnostic = qualification.diagnostiquer(contenu_filtre, zone_desservie, services)
+    autres = [code for code in diagnostic["services_evoques"] if code != ligne_lead["lead"]["service"]]
+    return {
+        "etape": "conversation",
+        "accepte": True,
+        "signal_ligne_id": ligne_id_signal,
+        "provenance_saine": sain,
+        "consentement": None,
+        "qualifie": True,
+        "nouveau_lead": False,
+        "lead": ligne_lead["lead"],
+        "lead_ligne_id": ligne_lead["ligne_id"],
+        "decision": "CONVERSATION_DEJA_QUALIFIEE",
+        "complement": {
+            "urgence_declaree": diagnostic["urgence_declaree"],
+            "services_evoques": diagnostic["services_evoques"],
+            "autre_service_evoque": bool(autres),
+        },
+        "conversation": conversation.decrire(
+            ouverte, horodatage, fenetre_minutes, conversation.signaux_rassembles(ouverte, signal_id)),
+        "consigne": (
+            "La conversation est déjà qualifiée : ce message est inscrit et rattaché à son lead, aucun second lead "
+            "n'est créé. Si `complement.urgence_declaree` ou `complement.autre_service_evoque` est vrai, dis-le à "
+            "une personne dans ta réponse finale : le lead transmis à M2 ne le porte pas."
+        ),
+    }
 
 
 def _signal_deja_recu(reg: Registre, signal_id: str) -> dict[str, Any] | None:
     """La réponse déjà donnée à ce signal, ou `None` s'il est nouveau. Un message que la plateforme livre deux fois
     (reprise après panne, nouvel essai de l'agent) ne laisse pas une seconde ligne : exactement une par signal."""
     signal = lead = alerte = None
+    leads_par_id: dict[str, dict[str, Any]] = {}
     for maillon in reg.lire():
+        if maillon.get("type_entree") == "lead_emis" and isinstance(maillon.get("lead"), dict):
+            leads_par_id[maillon["lead"].get("lead_id")] = maillon
         if maillon.get("signal_id") != signal_id:
             continue
         type_entree = maillon.get("type_entree")
@@ -342,13 +431,26 @@ def _signal_deja_recu(reg: Registre, signal_id: str) -> dict[str, Any] | None:
             reponse["cle_session"] = lead["cle_session"]
     elif alerte is not None:
         reponse.update(alerte_ligne_id=alerte["ligne_id"], decision="RETRAIT_CONSENTEMENT")
+    elif signal.get("rattache_au_lead") is not None and signal["rattache_au_lead"] in leads_par_id:
+        # Message reçu après le lead de sa conversation : il y était rattaché, il n'a jamais créé de lead.
+        ligne_lead = leads_par_id[signal["rattache_au_lead"]]
+        reponse.update(
+            qualifie=True, nouveau_lead=False, lead=ligne_lead["lead"], lead_ligne_id=ligne_lead["ligne_id"],
+            decision="CONVERSATION_DEJA_QUALIFIEE",
+        )
     return reponse
 
 
-def _enregistrer_retrait(reg: Registre, message: reception.MessageRecu) -> dict[str, Any]:
+def _enregistrer_retrait(
+    reg: Registre, message: reception.MessageRecu, fenetre_minutes: int | None = None
+) -> dict[str, Any]:
     """Un client écrit STOP : le signal est inscrit (une ligne par signal), une alerte dit qu'il ne veut plus de
     messages, et rien n'est qualifié ni émis. Aucune réponse n'est proposée : le retrait s'applique tel quel
-    (POLITIQUE-consentement-sms.md §4)."""
+    (POLITIQUE-consentement-sms.md §4). Avec une fenêtre, l'alerte ferme aussi la conversation ouverte : ce qui a été
+    écrit avant STOP n'est jamais qualifié, et la réponse dit combien de messages restent sans lead."""
+    ouverte = None
+    if fenetre_minutes is not None:
+        ouverte = conversation.lire(reg.lire(), message.conversation_id, message.horodatage, fenetre_minutes)
     contenu_filtre, sain = provenance.filtrer(message.contenu)
     ligne_signal = reg.ajouter({
         "type_entree": "signal",
@@ -369,7 +471,7 @@ def _enregistrer_retrait(reg: Registre, message: reception.MessageRecu) -> dict[
         "signal_id": message.signal_id,
         "horodatage": message.horodatage,
     })
-    return {
+    reponse = {
         "etape": "consentement",
         "accepte": True,
         "signal_ligne_id": ligne_signal,
@@ -379,6 +481,14 @@ def _enregistrer_retrait(reg: Registre, message: reception.MessageRecu) -> dict[
         "decision": "RETRAIT_CONSENTEMENT",
         "consigne": "Le client se retire : n'envoie aucun message à ce correspondant, ne propose aucune réponse.",
     }
+    if ouverte is not None:
+        reponse["conversation"] = {
+            "mode": "fenetre",
+            "fenetre_minutes": fenetre_minutes,
+            "fermee_par_retrait": True,
+            "messages_non_qualifies": 0 if ouverte.lead is not None else len(ouverte.messages),
+        }
+    return reponse
 
 
 def recevoir_message_canal(
@@ -397,9 +507,14 @@ def recevoir_message_canal(
     du canal, seule), la clé de session du core. La zone desservie vient du profil de l'instance : l'agent ne la
     fournit pas. `source` du lead est le canal du core.
 
-    Refus (`ValueError`, rien d'écrit) : champ de plateforme invalide, service ou zone non déclarés par l'instance.
-    Sinon : un retrait (STOP) est inscrit sans être qualifié ; un message déjà reçu rend sa réponse sans rien
-    écrire ; tout autre passe par `_traiter` (provenance → registre → qualification → lead → bus).
+    Refus (`ValueError`, rien d'écrit) : champ de plateforme invalide, service ou zone non déclarés par l'instance,
+    fenêtre de conversation déclarée mais invalide. Sinon : un retrait (STOP) est inscrit sans être qualifié ; un
+    message déjà reçu rend sa réponse sans rien écrire ; tout autre passe par `_traiter` (provenance → registre →
+    qualification → lead → bus).
+
+    Fenêtre de conversation (PLAN T2.1-b) : déclarée par le profil d'entreprise, elle rassemble les messages d'un même
+    client (`conversation.py`) ; absente, la qualification reste message par message et `conversation.verdict` le dit,
+    avec où la déclarer. Jamais une durée par défaut.
     """
     message = reception.preparer(canal, expediteur, message_id, recu_le, texte, objet)
     zone, verdict_zone = taxonomie.charger_zone_desservie()
@@ -408,17 +523,25 @@ def recevoir_message_canal(
     _, verdict_profil = taxonomie.charger_services()
     if verdict_profil is not None:
         raise ValueError(f"{verdict_profil['code']}: {verdict_profil['detail']}")
+    fenetre, verdict_fenetre = taxonomie.charger_fenetre_conversation()
+    if verdict_fenetre is not None and verdict_fenetre["code"] != taxonomie.VERDICT_FENETRE_NON_CONFIGUREE:
+        # Une valeur cassée n'est jamais lue comme une valeur absente : refus, rien n'est écrit.
+        raise ValueError(f"{verdict_fenetre['code']}: {verdict_fenetre['detail']}")
     reg = _obtenir_registre()
     deja = _signal_deja_recu(reg, message.signal_id)
     if deja is not None:
         return deja
     if message.retrait:
-        return _enregistrer_retrait(reg, message)
-    return _traiter(
-        message.contenu, message.canal_contrat, message.conversation_id, message.signal_id, message.horodatage,
-        list(zone), None, message.canal, None, None,
-        contact_canal=message.contact, cle_session=message.cle_session,
-    )
+        reponse = _enregistrer_retrait(reg, message, fenetre)
+    else:
+        reponse = _traiter(
+            message.contenu, message.canal_contrat, message.conversation_id, message.signal_id, message.horodatage,
+            list(zone), None, message.canal, None, None,
+            contact_canal=message.contact, cle_session=message.cle_session, fenetre_minutes=fenetre,
+        )
+    if fenetre is None:
+        reponse["conversation"] = {"mode": "message_par_message", "verdict": verdict_fenetre}
+    return reponse
 
 
 # ---------------------------------------------------------------------------
@@ -487,7 +610,9 @@ def outils() -> tuple[Outil, ...]:
                 "L'outil filtre la provenance, inscrit le signal au registre anti-perte (une ligne par message, un "
                 "message rejoué ne s'ajoute pas), reconnaît un retrait (STOP), qualifie par règles (service déclaré, "
                 "ville de la zone de l'entreprise, expéditeur comme contact) et transmet le lead à M2 par le bus. "
-                "Rien n'est envoyé au client."
+                "Si l'entreprise a déclaré une fenêtre de conversation, les messages du même client dans cette "
+                "fenêtre se rassemblent (le service dans un message, la ville dans le suivant) : un seul lead par "
+                "conversation ; ce qu'il reste à demander est un brouillon, jamais envoyé."
             ),
             parametres={
                 "type": "object",
