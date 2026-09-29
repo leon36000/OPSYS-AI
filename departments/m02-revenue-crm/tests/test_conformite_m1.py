@@ -24,7 +24,11 @@ SHA256_HORODATAGE_ATTENDU = "7168dc81de0d37f0e7160b96e9df14c9a1bf5ef594a791f2574
 # (REJ-CONVERSATION-CLOSE, invariant transversal, manquait ; quatre identifiants stables
 # repris pour l'écart structurel ; REJ-LEAD-DEJA-INGERE ajouté par addendum). Le gel a joué
 # son rôle — il a forcé cette décision à être explicite au lieu de passer inaperçue.
-SHA256_VERDICTS_ATTENDU = "e0e11120f29b1e2954971b7522e92eb7fe90feb6283e747b8e51e4f19f610d6c"
+# Gel RESCELLÉ une seconde fois le 2026-09-29 (PLAN T1.4-k2, identité authentifiée d'un appel d'appareil) :
+# quatre identifiants ajoutés au catalogue (groupe 5) — REJ-IDENTITE-APPAREIL-INVALIDE et
+# REJ-IDENTITE-FOURNIE-DIFFERENTE repris de M4 et de M5, REJ-LEAD-NON-ASSIGNE et REJ-OWNER-INCONNU propres à
+# M2. Décision journalisée dans docs/bmad/03-ARCHITECTURE.md (addendum T1.4-k2).
+SHA256_VERDICTS_ATTENDU = "a2c98764cb2becdd577768276f4b5fbf00ce8548a7bd0df5dfe0d86319b436e2"
 
 
 class TestCA_M2_13_Empreintes:

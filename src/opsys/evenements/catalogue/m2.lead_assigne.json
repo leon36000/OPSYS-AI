@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m2.lead_assigne",
+  "title": "M2 — Lead assigné à son propriétaire",
+  "description": "Émis par M2 quand un lead est qualifié (transition nouveau -> qualifie, qui exige un owner), dans la MÊME transaction que la transition (departments/m02-revenue-crm/src/m2_revenue_crm/outils.py::transitionner_statut, PLAN T1.4-k2). Porte le propriétaire du lead tel que M2 le tient : c'est le seul fait d'assignation de M2, jamais déduit d'un autre champ. evenement_id déterministe (f\"m2-lead-assigne-{lead_id}\", même patron que m2.client_associe) : un lead n'est qualifié qu'une fois, une redélivrance est un no-op. Consommateur visé : M3, qui le relit à la source (opsys.evenements.charge_publiee, sans copie ni import de M2) pour ne rendre à un vendeur que les devis des leads dont il est le propriétaire. `proprietaire` est du texte libre pour une qualification faite sans jeton d'appareil (agent) ; il ne désigne un vendeur que s'il est l'identifiant de sa personne OPSYS.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "lead_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Lead M2 (opportunité) qui vient d'être qualifié."
+    },
+    "proprietaire": {
+      "type": "string",
+      "minLength": 1,
+      "description": "L'owner consigné à la qualification, sans espaces de tête ni de queue : l'identifiant OPSYS de la personne (opsys.identite) quand la qualification vient d'un appareil."
+    },
+    "horodatage_assignation": {
+      "type": "string",
+      "description": "Horodatage RFC 3339 de la transition (fourni à m2_transitionner_statut, jamais une horloge ambiante)."
+    }
+  },
+  "required": ["lead_id", "proprietaire", "horodatage_assignation"]
+}

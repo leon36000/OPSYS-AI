@@ -57,6 +57,9 @@ kpis:
 # src/opsys/evenements/catalogue/m2.client_associe.json. M5 le consomme déjà (facturation avec le
 # vrai client_id, repli sur lead_id sinon — departments/m05-financecore). M7 (attribution des
 # sources, M2.10) peut s'y abonner aussi.
+# PLAN T1.4-k2 : M2 publie aussi m2.lead_assigne à chaque qualification (le propriétaire du lead, dans la
+# même transaction) — catalogue src/opsys/evenements/catalogue/m2.lead_assigne.json. M3 le relit à la
+# source du bus pour ne rendre à un vendeur que les devis de SES leads (sans importer M2, #109).
 evenements:
   consomme: [m4.travaux_termines, m3.devis_sans_reponse]
-  publie: [m2.client_associe]
+  publie: [m2.client_associe, m2.lead_assigne]

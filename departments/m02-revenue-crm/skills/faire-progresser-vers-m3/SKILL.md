@@ -8,11 +8,13 @@ description: Procédure pour qualifier un lead, enregistrer ses interactions com
 1. La transition de `nouveau` vers `qualifie` exige un owner humain non vide ET une
    prochaine action complète (description non vide, échéance ISO-8601 avec fuseau) : ces deux
    éléments viennent toujours d'un humain, jamais de toi. Appelle `m2_transitionner_statut`
-   avec exactement ce qu'on t'a fourni.
+   avec exactement ce qu'on t'a fourni. L'owner est l'identifiant OPSYS de la personne (par
+   exemple `vendeur.un`), jamais son nom : c'est cet identifiant qui rend le lead visible à son
+   vendeur sur l'app. Si on ne te donne qu'un nom, demande l'identifiant.
 2. Une fois qualifié, chaque interaction commerciale réelle (appel, courriel, rencontre) doit
    être enregistrée avec `m2_enregistrer_interaction` (auteur, résumé, horodatage). Une
    interaction inventée pour satisfaire la gate est un aveu de responsabilité que tu ne dois
-   jamais faire.
+   jamais faire. Depuis l'app, l'auteur est la personne connectée : il n'est pas à fournir.
 3. Appelle `m2_evaluer_readiness` avant d'annoncer que le lead peut passer à M3. Si le
    marqueur n'est pas émis, la réponse contient un `verdict` qui liste précisément ce qui
    manque (owner, type de travaux, ville, ou interaction post-qualification) : relaie cette

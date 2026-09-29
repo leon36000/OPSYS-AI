@@ -170,10 +170,10 @@ class TestManifeste:
         assert "m4.travaux_termines" in consommateurs
         assert "m3.devis_sans_reponse" in consommateurs
 
-    def test_m2_declare_publier_client_associe(self):
-        """PLAN T2.2 (Client 360)."""
+    def test_m2_declare_publier_client_associe_et_lead_assigne(self):
+        """PLAN T2.2 (Client 360), puis PLAN T1.4-k2 (propriétaire du lead, lu par M3)."""
         dep = charger_departements()["m02-revenue-crm"]
-        assert dep.evenements_publie == ("m2.client_associe",)
+        assert dep.evenements_publie == ("m2.client_associe", "m2.lead_assigne")
 
 
 class TestNominal:

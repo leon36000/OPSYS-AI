@@ -169,3 +169,15 @@ Risque résiduel journalisé. Le registre n'impose pas la monotonie des horodata
 ## Addendum PLAN T0.13 — M2 accepte le contrat `LeadQualifie` v1 et v2
 
 `contrats.valider_structure` valide le lead dans la version qu'il déclare : `schema_version` présent (valeur 2 exactement), c'est la v2 (`service` de la taxonomie du socle, huit clés gelées `CHAMPS_CONTRAT_GELE_V2`, plus `source`/`utm`/`campagne` optionnels) ; absent, c'est la v1 gelée (`type_travaux`), validée comme avant. Aucune version n'est devinée : un lead v1 qui porte `service`, ou un lead v2 qui porte `type_travaux`, est refusé. Le service doit être déclaré par le profil d'entreprise de l'instance, à l'ingestion et à la readiness ; sinon le verdict (`REJ-ENUM-INVALIDE`, dont le détail porte le refus du socle) dit quoi configurer. Le marqueur de readiness signe la clé `service` pour un lead v2 et `type_travaux` pour un lead v1 (octets inchangés). Le rapprochement `ville_et_travaux` ne compare que des leads de la même version. Voir `docs/architecture/TAXONOMIE.md`.
+
+## Addendum PLAN T1.4-k2 — identité authentifiée d'un appel d'appareil (2026-09-29)
+
+Décision. Pour un appel d'appareil, la personne du jeton, confirmée en base à chaque appel, décide de ce que M2 lit et de ce qu'il écrit : l'auteur d'une interaction est cette personne, et un vendeur ne voit et n'agit que sur les leads dont il est le propriétaire. Justification : jusqu'ici l'auteur venait de l'appelant et chaque vendeur voyait tous les leads. Le module pur `acces.py` décide, `outils.py` lit l'identité, comme pour M4 et M5.
+
+La propriété existait déjà. Le propriétaire d'un lead est l'owner que la transition vers qualifie exige et consigne. Aucun maillon d'assignation n'est ajouté, et le propriétaire n'est déduit d'aucun autre champ. Justification : une seconde source de propriété pourrait diverger de la première, et la readiness et le digest lisent déjà celle-ci. Un lead nouveau n'a pas de propriétaire : l'admin, ou l'agent sur décision humaine, l'assigne en qualifiant.
+
+Le fait est publié. La qualification publie `m2.lead_assigne` dans la même transaction, avec un identifiant d'événement déterministe par lead. Justification : M3 relit ce fait à la source du bus, sans importer M2 (#109) et sans copie de la propriété.
+
+Catalogue de verdicts. Quatre identifiants s'ajoutent en groupe 5, à la suite : REJ-IDENTITE-APPAREIL-INVALIDE et REJ-IDENTITE-FOURNIE-DIFFERENTE, repris tels quels de M4 et de M5, puis REJ-LEAD-NON-ASSIGNE et REJ-OWNER-INCONNU, propres à M2. Justification : même faute, même nom, pour que les refus restent comparables entre modules. Le refus REJ-LEAD-NON-ASSIGNE est le même pour un lead d'un autre, sans propriétaire ou inconnu, pour qu'un vendeur ne puisse pas sonder les leads existants.
+
+Gel resscellé. L'empreinte sha256 de verdicts.py, épinglée au titre de CA-M2-13, a été mise à jour une seconde fois. Justification : le gel a rempli sa fonction, il a forcé cette modification à devenir une décision explicite et journalisée.

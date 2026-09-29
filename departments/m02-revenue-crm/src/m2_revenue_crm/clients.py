@@ -187,13 +187,20 @@ def _instant_utc(horodatage_str: str) -> datetime:
 _MAX_INTERACTIONS_RECENTES = 10
 
 
-def vue_360(registre_cible, client_id: str) -> dict | None:
+def vue_360(registre_cible, client_id: str, leads_permis: set[str] | None = None) -> dict | None:
     """Vue 360 compacte (§7 M2, M2.2) : leads/opportunités, statuts, prochaines actions connues,
     interactions récentes. PROJECTION pure du registre existant — aucune nouvelle donnée
     personnelle stockée (Loi 25, minimisation) : contact/ville proviennent du contrat déjà ingéré,
     jamais dupliqués ni enrichis ici. None si ``client_id`` ne correspond à aucun lead connu.
+
+    ``leads_permis`` (PLAN T1.4-k2, ``acces.leads_visibles``) : ``None`` = toutes les opportunités du
+    client (admin, agent) ; un ensemble = seulement celles-là (un vendeur ne voit d'un client que ses
+    opportunités : ni leur statut, ni leurs interactions, ni leur prochaine action). Aucune des
+    opportunités permises n'existe pour ce client : None, comme un client inconnu.
     """
     leads = opportunites_du_client(registre_cible, client_id)
+    if leads_permis is not None:
+        leads = [lead_id for lead_id in leads if lead_id in leads_permis]
     if not leads:
         return None
 
@@ -236,10 +243,13 @@ def vue_360(registre_cible, client_id: str) -> dict | None:
     }
 
 
-def obtenir_vue_360(registre_cible, client_id: str) -> tuple[dict | None, dict | None]:
+def obtenir_vue_360(
+    registre_cible, client_id: str, leads_permis: set[str] | None = None
+) -> tuple[dict | None, dict | None]:
     """(resultat, verdict) — même patron que le reste du module : verdict NOMMÉ si ``client_id``
-    est introuvable, jamais une vue vide rendue comme si elle était valide."""
-    vue = vue_360(registre_cible, client_id)
+    est introuvable, jamais une vue vide rendue comme si elle était valide. ``leads_permis`` : voir
+    ``vue_360``."""
+    vue = vue_360(registre_cible, client_id, leads_permis)
     if vue is None:
         return None, verdicts.construire_verdict(
             "REJ-TRANSITION-ILLEGALE", detail=f"client_id introuvable : {client_id!r}"

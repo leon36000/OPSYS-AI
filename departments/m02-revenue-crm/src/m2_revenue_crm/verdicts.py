@@ -40,6 +40,13 @@ CODES_M2_LIST = [
     # Groupe 4 — émis par les modules du présent arbre
     "REJ-FIXTURE-NON-FICTIVE",
     "REJ-HORODATAGE-INVALIDE",
+    # Groupe 5 — PLAN T1.4-k2 : identité authentifiée d'un appel d'appareil. Les deux premiers reprennent
+    # tels quels les identifiants de M4 et de M5 (même faute, même nom) ; les deux suivants sont propres
+    # à M2 (docs/architecture/ROLES.md).
+    "REJ-IDENTITE-APPAREIL-INVALIDE",
+    "REJ-IDENTITE-FOURNIE-DIFFERENTE",
+    "REJ-LEAD-NON-ASSIGNE",
+    "REJ-OWNER-INCONNU",
 ]
 CODES_M2 = set(CODES_M2_LIST)
 

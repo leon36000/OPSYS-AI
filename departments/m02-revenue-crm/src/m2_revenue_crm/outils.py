@@ -17,6 +17,13 @@ sur un registre EN MÉMOIRE vide ; `utiliser_stockage_durable()` revient au
 stockage durable. Ce module est l'unique endroit du département qui connaît
 `opsys` au-delà du contrat `Outil` — `registre.py` reste pur (ni `opsys` ni
 SQLAlchemy).
+
+Identité authentifiée (PLAN T1.4-k2, `acces.py`, docs/architecture/ROLES.md) : pour un appel d'appareil,
+`_acteur_appareil` lit la personne et le rôle du jeton (`contexte.identite_appelante()`, jamais les
+arguments) et les fait confirmer en base à chaque appel. `auteur` d'une interaction vient de cette
+personne ; un vendeur ne voit et n'agit que sur les leads dont il est le propriétaire (`owner` de la
+transition `nouveau -> qualifie`), l'admin sur tous. Chaque refus précède toute écriture. Sans identité
+d'appareil (agent, console, consommateur d'événement) : comportement d'avant, aucun contrôle de personne.
 """
 
 from __future__ import annotations
@@ -24,10 +31,22 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from opsys import evenements, stockage
+from opsys import approbations, contexte, evenements, identite, stockage
 from opsys.outils import Autonomie, Outil
 
-from . import clients, contrats, digest, doublons, ingestion, interactions, readiness, statuts, suggestions, verdicts
+from . import (
+    acces,
+    clients,
+    contrats,
+    digest,
+    doublons,
+    ingestion,
+    interactions,
+    readiness,
+    statuts,
+    suggestions,
+    verdicts,
+)
 from .registre import Registre
 
 _DEPARTEMENT = "m02-revenue-crm"
@@ -82,6 +101,74 @@ def _publier_si_durable(type_evenement: str, charge: dict[str, Any], evenement_i
     table absente pour rien plutôt que d'être un simple no-op silencieux."""
     if _stockage_durable_actif:
         evenements.publier(type_evenement, _DEPARTEMENT, charge, evenement_id=evenement_id)
+
+
+# Événement publié à chaque qualification d'un lead (PLAN T1.4-k2) : le propriétaire tel que M2 le tient,
+# lisible par un autre département à la source du bus (`evenements.charge_publiee`) sans importer M2.
+_TYPE_EVENEMENT_LEAD_ASSIGNE = "m2.lead_assigne"
+
+
+def _acteur_appareil(
+    roles_permis: frozenset[str],
+) -> tuple[acces.Acteur | None, dict[str, Any] | None]:
+    """Qui appelle : ``(None, None)`` hors appel d'appareil, ``(acteur, None)`` si l'identité du jeton est
+    CONFIRMÉE en base et dans la portée de l'outil, ``(None, verdict)`` sinon (PLAN T1.4-k2).
+
+    Même patron que ``m4_field_ops.outils._acteur_appareil`` et ``m5_financecore.outils._acteur_appareil``
+    (copie voulue : aucun import entre départements, #109 ; un helper du socle les réunirait). Le
+    ``contexte.identite_appelante()`` ne rend que ce que le core a transmis en `_meta` : la personne a pu
+    être désactivée, ou perdre le rôle, depuis l'émission du jeton. On la revérifie donc à chaque appel
+    avec la même fonction que la validation humaine au départ (``approbations.signataire_valide``, T1.4-h :
+    personne active portant encore ce rôle). Hors transaction (aucune base jointe), rien n'est vérifiable :
+    refus fermé, jamais une identité crue sur parole. Ne lit JAMAIS les arguments de l'outil, n'écrit rien."""
+    appelante = contexte.identite_appelante()
+    if appelante is None:
+        return None, None
+    cnx = stockage.connexion_courante()
+    confirmee = approbations.signataire_valide(cnx, appelante) if cnx is not None else None
+    if confirmee is None:
+        return None, verdicts.construire_verdict(
+            "REJ-IDENTITE-APPAREIL-INVALIDE",
+            detail=(
+                f"personne {appelante.personne!r} inconnue, inactive, ou ne porte plus le rôle "
+                f"{appelante.role!r} porté par le jeton d'appareil (ou identité non vérifiable "
+                "hors transaction)"
+            ),
+        )
+    return acces.acteur_de(confirmee.personne, confirmee.role, roles_permis)
+
+
+def _refus(verdict: dict[str, Any]) -> dict[str, Any]:
+    return {"accepte": False, "verdict": verdict}
+
+
+def _exiger_admin() -> None:
+    """Défense en profondeur des outils réservés à l'admin (digest, doublons) : la portée par outil est déjà
+    tenue par le core (``Outil.roles_appareil``), le socle ne l'applique pas hors de lui. Un appel d'appareil
+    dont l'identité n'est pas confirmée en base, ou qui n'est pas `admin`, lève un refus métier AVANT toute
+    lecture ou écriture (``ValueError`` : ces outils rendent une liste ou un texte, pas un verdict)."""
+    _, verdict = _acteur_appareil(acces.ROLES_ADMIN)
+    if verdict is not None:
+        raise ValueError(f"{verdict['code']} : {verdict['detail']}")
+
+
+def _proprietaire_confirme(owner: Any) -> tuple[str | None, dict[str, Any] | None]:
+    """``(identifiant, None)`` si ``owner`` est l'identifiant d'une personne ACTIVE qui peut posséder un lead
+    (``acces.ROLES_PROPRIETAIRES``), sinon ``(None, verdict)``. Sert la qualification faite depuis un
+    appareil : un ``owner`` saisi de travers ne doit pas rendre le lead invisible à tous les vendeurs, sans
+    recours (le propriétaire est consigné une seule fois, à la qualification). Hors transaction : refus
+    fermé, rien n'est vérifiable."""
+    cnx = stockage.connexion_courante()
+    personne = identite.personne_active(cnx, owner.strip()) if cnx is not None and isinstance(owner, str) else None
+    if personne is None or not personne.roles & acces.ROLES_PROPRIETAIRES:
+        return None, verdicts.construire_verdict(
+            "REJ-OWNER-INCONNU",
+            detail=(
+                "owner doit être l'identifiant d'une personne OPSYS active portant le rôle seller ou admin "
+                "(c'est cet identifiant qui rend le lead visible à son vendeur)"
+            ),
+        )
+    return personne.identifiant, None
 
 
 def _ingerer_et_lier(
@@ -165,21 +252,59 @@ def transitionner_statut(
     reference_devis_m3: str | None = None,
     motif: str | None = None,
 ) -> dict[str, Any]:
+    """Transition de statut (`statuts.transitionner`).
+
+    Appel d'appareil (PLAN T1.4-k2) : identité confirmée en base, puis un vendeur ne transitionne que
+    SES leads (`acces.controler_lead`) ; à la qualification faite depuis un appareil (admin, seul à voir un
+    lead `nouveau`), `owner` doit être l'identifiant d'une personne active qui peut posséder un lead
+    (`_proprietaire_confirme`). Chaque refus précède toute écriture. Sans identité d'appareil : `owner`
+    reste du texte libre, comme avant.
+
+    La qualification publie `m2.lead_assigne` (propriétaire du lead, dans la MÊME transaction) : c'est ce
+    fait, lu à la source du bus, que M3 confronte pour ne rendre à un vendeur que les devis de ses leads."""
+    acteur, verdict_acteur = _acteur_appareil(acces.ROLES_LEADS)
+    if verdict_acteur is not None:
+        return _refus(verdict_acteur)
+    reg = _obtenir_registre()
+    verdict_lead = acces.controler_lead(reg, lead_id, acteur)
+    if verdict_lead is not None:
+        return _refus(verdict_lead)
+    if (
+        acteur is not None
+        and statut_cible == "qualifie"
+        and statuts.statut_courant(reg, lead_id) == "nouveau"
+        and isinstance(owner, str)
+        and owner.strip()
+    ):
+        owner, verdict_owner = _proprietaire_confirme(owner)
+        if verdict_owner is not None:
+            return _refus(verdict_owner)
     accuse, verdict = statuts.transitionner(
-        lead_id, statut_cible, _obtenir_registre(), horodatage,
+        lead_id, statut_cible, reg, horodatage,
         owner=owner, prochaine_action=prochaine_action,
         reference_devis_m3=reference_devis_m3, motif=motif,
     )
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
+    if statut_cible == "qualifie" and accuse["statut_precedent"] == "nouveau":
+        # `owner` est ici une chaîne non vide : sans quoi `statuts.transitionner` aurait refusé.
+        _publier_si_durable(
+            _TYPE_EVENEMENT_LEAD_ASSIGNE,
+            {"lead_id": lead_id, "proprietaire": owner.strip(), "horodatage_assignation": accuse["horodatage"]},
+            f"m2-lead-assigne-{lead_id}",
+        )
     return {"accepte": True, "resultat": accuse}
 
 
 def detecter_doublons(lead_id: str) -> list[str]:
+    _exiger_admin()
     return doublons.detecter(_obtenir_registre(), lead_id)
 
 
 def signaler_doublon(lead_id_a: str, lead_id_b: str, horodatage: str) -> dict[str, Any]:
+    _, verdict_acteur = _acteur_appareil(acces.ROLES_ADMIN)
+    if verdict_acteur is not None:
+        return _refus(verdict_acteur)
     signalement, verdict = doublons.signaler(_obtenir_registre(), lead_id_a, lead_id_b, horodatage)
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
@@ -187,22 +312,54 @@ def signaler_doublon(lead_id_a: str, lead_id_b: str, horodatage: str) -> dict[st
 
 
 def arbitrer_doublon(signalement_id: str, decision: str, horodatage: str) -> dict[str, Any]:
+    _, verdict_acteur = _acteur_appareil(acces.ROLES_ADMIN)
+    if verdict_acteur is not None:
+        return _refus(verdict_acteur)
     accuse, verdict = doublons.arbitrer(_obtenir_registre(), signalement_id, decision, horodatage)
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
     return {"accepte": True, "resultat": accuse}
 
 
-def enregistrer_interaction(lead_id: str, auteur: str, resume: str, horodatage: str) -> dict[str, Any]:
-    accuse, verdict = interactions.enregistrer(lead_id, auteur, resume, _obtenir_registre(), horodatage)
+def enregistrer_interaction(
+    lead_id: str, auteur: str | None = None, resume: str = "", horodatage: str = ""
+) -> dict[str, Any]:
+    """Enregistre une interaction (`interactions.enregistrer`).
+
+    Appel d'appareil (PLAN T1.4-k2) : identité confirmée en base ; `auteur` VIENT de la personne
+    authentifiée (absent : elle ; différent : `REJ-IDENTITE-FOURNIE-DIFFERENTE`, jamais remplacé en
+    silence, `admin` compris) ; un vendeur n'écrit que sur SES leads. Chaque refus précède toute écriture.
+    Sans identité d'appareil : `auteur` est celui de l'appelant, obligatoire (`REJ-CHAMP-VIDE` sinon, qui
+    remplace l'ancien refus de schéma `arguments_invalides`). `resume` et `horodatage` restent requis par le
+    schéma de l'outil : leurs valeurs par défaut ne servent qu'à un appel Python direct, qui obtient alors le
+    verdict du champ vide plutôt qu'une exception."""
+    acteur, verdict_acteur = _acteur_appareil(acces.ROLES_LEADS)
+    if verdict_acteur is not None:
+        return _refus(verdict_acteur)
+    auteur_consigne, verdict_auteur = acces.auteur_effectif(acteur, auteur)
+    if verdict_auteur is not None:
+        return _refus(verdict_auteur)
+    reg = _obtenir_registre()
+    verdict_lead = acces.controler_lead(reg, lead_id, acteur)
+    if verdict_lead is not None:
+        return _refus(verdict_lead)
+    accuse, verdict = interactions.enregistrer(lead_id, auteur_consigne, resume, reg, horodatage)
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
     return {"accepte": True, "resultat": accuse}
 
 
 def trouver_client_de_lead(lead_id: str) -> dict[str, Any]:
-    """PLAN T2.2 (Client 360) : le client_id auquel ce lead (opportunité) est rattaché."""
-    client_id = clients.client_de_lead(_obtenir_registre(), lead_id)
+    """PLAN T2.2 (Client 360) : le client_id auquel ce lead (opportunité) est rattaché. Appel d'appareil
+    (PLAN T1.4-k2) : identité confirmée, et un vendeur ne l'obtient que pour SES leads."""
+    acteur, verdict_acteur = _acteur_appareil(acces.ROLES_LEADS)
+    if verdict_acteur is not None:
+        return _refus(verdict_acteur)
+    reg = _obtenir_registre()
+    verdict_lead = acces.controler_lead(reg, lead_id, acteur)
+    if verdict_lead is not None:
+        return _refus(verdict_lead)
+    client_id = clients.client_de_lead(reg, lead_id)
     if client_id is None:
         return {
             "accepte": False,
@@ -215,8 +372,19 @@ def trouver_client_de_lead(lead_id: str) -> dict[str, Any]:
 
 def obtenir_client_360(client_id: str) -> dict[str, Any]:
     """PLAN T2.2 (Client 360) : vue compacte des opportunités, statuts, prochaines actions
-    connues et interactions récentes d'un client. Lecture pure, aucune écriture."""
-    vue, verdict = clients.obtenir_vue_360(_obtenir_registre(), client_id)
+    connues et interactions récentes d'un client. Lecture pure, aucune écriture.
+
+    Appel d'appareil (PLAN T1.4-k2) : identité confirmée ; un vendeur ne voit d'un client que SES
+    opportunités (statut, prochaine action, interactions), et un client dont aucune ne lui appartient
+    donne le même refus qu'un client inconnu. L'admin voit tout."""
+    acteur, verdict_acteur = _acteur_appareil(acces.ROLES_LEADS)
+    if verdict_acteur is not None:
+        return _refus(verdict_acteur)
+    reg = _obtenir_registre()
+    permis = acces.leads_visibles(reg, clients.opportunites_du_client(reg, client_id), acteur)
+    if permis is not None and not permis:
+        return _refus(acces.refus_client_sans_lead_visible())
+    vue, verdict = clients.obtenir_vue_360(reg, client_id, permis)
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
     return {"accepte": True, "resultat": vue}
@@ -224,8 +392,16 @@ def obtenir_client_360(client_id: str) -> dict[str, Any]:
 
 def suggerer_prochaine_action(lead_id: str, horodatage: str) -> dict[str, Any]:
     """PLAN T2.2 (M2.6) : suggestion déterministe de prochaine meilleure action, par table de
-    règles citée (suggestions.suggerer) — jamais appliquée automatiquement au registre."""
-    suggestion, verdict = suggestions.suggerer(_obtenir_registre(), lead_id, horodatage)
+    règles citée (suggestions.suggerer) — jamais appliquée automatiquement au registre. Appel d'appareil
+    (PLAN T1.4-k2) : identité confirmée, et un vendeur ne la reçoit que pour SES leads."""
+    acteur, verdict_acteur = _acteur_appareil(acces.ROLES_LEADS)
+    if verdict_acteur is not None:
+        return _refus(verdict_acteur)
+    reg = _obtenir_registre()
+    verdict_lead = acces.controler_lead(reg, lead_id, acteur)
+    if verdict_lead is not None:
+        return _refus(verdict_lead)
+    suggestion, verdict = suggestions.suggerer(reg, lead_id, horodatage)
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
     return {"accepte": True, "resultat": suggestion}
@@ -687,14 +863,23 @@ def consommateurs() -> dict[str, Callable[[dict], dict]]:
 def evaluer_readiness(lead_id: str, horodatage: str) -> dict[str, Any]:
     """Émet le marqueur de readiness (aucune écriture au registre) : soit le lead
     satisfait déjà les quatre conditions et le marqueur est signé, soit un
-    verdict détaille précisément ce qui manque."""
-    marqueur, verdict = readiness.emettre_marqueur(_obtenir_registre(), lead_id, horodatage)
+    verdict détaille précisément ce qui manque. Appel d'appareil (PLAN T1.4-k2) : identité confirmée, et un
+    vendeur ne l'évalue que pour SES leads."""
+    acteur, verdict_acteur = _acteur_appareil(acces.ROLES_LEADS)
+    if verdict_acteur is not None:
+        return _refus(verdict_acteur)
+    reg = _obtenir_registre()
+    verdict_lead = acces.controler_lead(reg, lead_id, acteur)
+    if verdict_lead is not None:
+        return _refus(verdict_lead)
+    marqueur, verdict = readiness.emettre_marqueur(reg, lead_id, horodatage)
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
     return {"accepte": True, "resultat": marqueur}
 
 
 def produire_digest(date_jour: str, horodatage: str) -> str:
+    _exiger_admin()
     return digest.produire_digest(_obtenir_registre(), date_jour, horodatage)
 
 
@@ -780,7 +965,10 @@ def outils() -> tuple[Outil, ...]:
                 "Transitionne le statut d'un lead (nouveau→qualifie, qualifie→converti, "
                 "qualifie→perdu, nouveau→perdu). Chaque transition exige les données humaines "
                 "correspondantes (owner+prochaine_action, ou reference_devis_m3, ou motif) ; jamais "
-                "générées par cet outil."
+                "générées par cet outil. Pendant un appel d'appareil authentifié (PLAN T1.4-k2), un "
+                "vendeur ne transitionne que SES leads (dont il est owner) ; à la qualification, owner "
+                "est l'identifiant OPSYS d'une personne active (seller ou admin), qui rend le lead "
+                "visible à son vendeur."
             ),
             parametres={
                 "type": "object",
@@ -788,7 +976,13 @@ def outils() -> tuple[Outil, ...]:
                     "lead_id": {"type": "string"},
                     "statut_cible": {"type": "string", "enum": list(statuts.STATUTS)},
                     "horodatage": _HORODATAGE,
-                    "owner": {"type": ["string", "null"]},
+                    "owner": {
+                        "type": ["string", "null"],
+                        "description": (
+                            "Propriétaire du lead, exigé à la qualification : l'identifiant OPSYS de la "
+                            "personne (ex. vendeur.un), jamais son nom."
+                        ),
+                    },
                     "prochaine_action": _PROCHAINE_ACTION,
                     "reference_devis_m3": {"type": ["string", "null"]},
                     "motif": {"type": ["string", "null"]},
@@ -798,8 +992,9 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=transitionner_statut,
             autonomie=Autonomie.T1,
-            # §9.4 (vendeur : pipeline personnel, perdu avec motif). Le vendeur agit seul en N3 (T1.4-h).
-            roles_appareil=frozenset({"seller", "admin"}),
+            # §9.4 (vendeur : pipeline personnel, perdu avec motif). Le vendeur agit seul en N3 (T1.4-h),
+            # sur SES leads (T1.4-k2).
+            roles_appareil=acces.ROLES_LEADS,
         ),
         Outil(
             nom="m2_detecter_doublons",
@@ -812,7 +1007,7 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=detecter_doublons,
             # §9.5 M2 (admin : doublons).
-            roles_appareil=frozenset({"admin"}),
+            roles_appareil=acces.ROLES_ADMIN,
         ),
         Outil(
             nom="m2_signaler_doublon",
@@ -830,7 +1025,7 @@ def outils() -> tuple[Outil, ...]:
             fonction=signaler_doublon,
             autonomie=Autonomie.T1,
             # §9.5 M2 (admin : doublons).
-            roles_appareil=frozenset({"admin"}),
+            roles_appareil=acces.ROLES_ADMIN,
         ),
         Outil(
             nom="m2_arbitrer_doublon",
@@ -851,26 +1046,38 @@ def outils() -> tuple[Outil, ...]:
             fonction=arbitrer_doublon,
             autonomie=Autonomie.T1,
             # §9.5 M2 (admin : doublons) ; arbitrage humain, jamais le vendeur.
-            roles_appareil=frozenset({"admin"}),
+            roles_appareil=acces.ROLES_ADMIN,
         ),
         Outil(
             nom="m2_enregistrer_interaction",
-            description="Enregistre une interaction commerciale humaine réelle pour un lead actif (non clos).",
+            description=(
+                "Enregistre une interaction commerciale humaine réelle pour un lead actif (non clos). "
+                "Pendant un appel d'appareil authentifié (PLAN T1.4-k2), auteur est la personne "
+                "authentifiée : omis, il vaut cette personne ; différent, c'est un refus nommé, jamais "
+                "un remplacement silencieux ; un vendeur n'écrit que sur SES leads. Sans appareil "
+                "(agent), auteur est obligatoire."
+            ),
             parametres={
                 "type": "object",
                 "properties": {
                     "lead_id": {"type": "string"},
-                    "auteur": {"type": "string"},
+                    "auteur": {
+                        "type": ["string", "null"],
+                        "description": (
+                            "Obligatoire pour un agent ; pour un appareil, omis ou égal à la personne "
+                            "authentifiée."
+                        ),
+                    },
                     "resume": {"type": "string"},
                     "horodatage": _HORODATAGE,
                 },
-                "required": ["lead_id", "auteur", "resume", "horodatage"],
+                "required": ["lead_id", "resume", "horodatage"],
                 "additionalProperties": False,
             },
             fonction=enregistrer_interaction,
             autonomie=Autonomie.T1,
-            # §9.4 (vendeur : notes). `auteur` vient encore de l'appelant : à lier à la personne (suite de T1.4-k).
-            roles_appareil=frozenset({"seller", "admin"}),
+            # §9.4 (vendeur : notes), sur SES leads ; `auteur` vient de la personne authentifiée (T1.4-k2).
+            roles_appareil=acces.ROLES_LEADS,
         ),
         Outil(
             nom="m2_trouver_client_de_lead",
@@ -886,7 +1093,7 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=trouver_client_de_lead,
             # §9.4 (vendeur : Client 360).
-            roles_appareil=frozenset({"seller", "admin"}),
+            roles_appareil=acces.ROLES_LEADS,
         ),
         Outil(
             nom="m2_obtenir_client_360",
@@ -902,7 +1109,7 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=obtenir_client_360,
             # §9.4 (vendeur : Client 360).
-            roles_appareil=frozenset({"seller", "admin"}),
+            roles_appareil=acces.ROLES_LEADS,
         ),
         Outil(
             nom="m2_evaluer_readiness",
@@ -919,7 +1126,7 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=evaluer_readiness,
             # §9.4 M3 (vendeur : « lead prêt pour l'estimation »).
-            roles_appareil=frozenset({"seller", "admin"}),
+            roles_appareil=acces.ROLES_LEADS,
         ),
         Outil(
             nom="m2_suggerer_prochaine_action",
@@ -936,7 +1143,7 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=suggerer_prochaine_action,
             # §9.4 (vendeur : prochaine meilleure action).
-            roles_appareil=frozenset({"seller", "admin"}),
+            roles_appareil=acces.ROLES_LEADS,
         ),
         Outil(
             nom="m2_produire_digest",
@@ -949,7 +1156,7 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=produire_digest,
             # §9.5 M2 (admin : pipeline, leads chauds) ; le vendeur n'a que le sien.
-            roles_appareil=frozenset({"admin"}),
+            roles_appareil=acces.ROLES_ADMIN,
         ),
         Outil(
             nom="m2_marquer_chantier_termine",
