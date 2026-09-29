@@ -741,7 +741,7 @@ changé (le champ `utm` y était), `core/` n'est pas touché, rien n'est publié
 
 ### 13.5 Coller le formulaire sur le site (un fichier du dépôt, rien n'est publié)
 
-Fichier : `departments/m01-front-office/site/formulaire-demande.html`, gardé par `tests/test_formulaire_site.py`.
+Fichier : `departments/m01-front-office/site/formulaire-demande.html`, gardé par `departments/m01-front-office/tests/test_formulaire_site.py`.
 
 1. Le coller sur la **page d'arrivée** des liens de M7 (le `site_url` du profil de marque).
 2. Remplacer `REMPLACER-PAR-L-ADRESSE-DU-RECEPTEUR` par l'adresse du récepteur (§13.6). Sans elle, le bouton est éteint et un message
