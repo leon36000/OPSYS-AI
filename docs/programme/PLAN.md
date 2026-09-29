@@ -99,10 +99,11 @@ identifiants du propriétaire, repli livré en attendant.
         - Restent (lot 4 ou suivi) : `CLI_NAME`, `process.title`, indices `formatCliCommand`,
           préfixes `openclaw:` du lanceur, noms de service.
         - Preuve CI sur 70ca693 : `core` VERT (run 32 : construction `pnpm build`, tests 1 à 6,
-          `tests-opsys`) ; `installateur` macOS VERT avec le vrai core ; Linux rouge sur un test
-          du lot que le bac à sable ne pouvait pas jouer (lecture texte d'un `.cmd` en `\r\n`,
-          corrigé en d828427, l'étape du vrai core n'a pas été jouée) ; Windows et `e2e-core` en
-          cours.
+          `tests-opsys`) ; `e2e-core` VERT (run 34) ; `installateur` macOS VERT avec le vrai core,
+          Windows vert jusqu'à l'étape 4 (dont `opsys`, `opsys metier`, l'ancienne forme et le refus
+          au shell de l'agent) ; Linux rouge sur un test du lot que le bac à sable ne pouvait pas
+          jouer (lecture texte d'un `.cmd` en `\r\n`, corrigé en d828427). À cocher au premier vert
+          de Linux et de Windows.
   - [ ] Lot 3 : dossier d'instance `~/.opsys` (état du core dans `core/`), `opsys.json`, anciens noms
         relus par la migration Doctor existante.
         Depuis T0.11-b, l'installateur utilise le profil `opsys` (`~/.openclaw-opsys`) : ce lot
@@ -226,6 +227,11 @@ identifiants du propriétaire, repli livré en attendant.
             (`local-repository-directory-policy.ts`), comme root derrière un 0700. La preuve compare
             désormais par SID (noms localisés) et n'admet que ces trois comptes, plus un
             propriétaire vérifié ; tout autre compte (Users, Everyone…) reste un échec.
+            Deuxième passage (installateur 9, 70ca693) : macOS VERT ; Windows passe les étapes 0 à 4
+            (installation, ACL, une seule commande `opsys`, `opsys metier`, relance, export et
+            restauration, Gateway qui supervise le moteur) et échoue à l'étape 5 sur la preuve : elle
+            cherchait « LeastPrivilege » dans le XML de la tâche, que le Planificateur omet (niveau par
+            défaut). Corrigé en aa6a03e (HighestAvailable refusé, niveau effectif lu : Limited).
       Reste ensuite : macOS et Windows (T0.11-d) ; LiteLLM, PostgreSQL et console restent à
       Docker Compose.
 
