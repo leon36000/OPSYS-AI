@@ -641,10 +641,12 @@ pour un appel d'appareil ; sans identité d'appareil, la liste, comme avant. La 
   clés sœurs `curseur` et `taille_page` (contrat v1 gelé : sans clé, la liste ne change pas ; l'employé ne voit que ses
   interventions, la pagination se fait APRÈS ce filtre). Limites connues : (1) le créneau d'une intervention est celui du
   dernier plan APPLIQUÉ qui la place ; une intervention planifiée par `m4_planifier_intervention` n'a aucune fenêtre au
-  registre, donc aucun créneau à juger (`inconnu`, avec la cause). (2) L'heure d'un report (`m4_signaler_report`) et
-  d'une demande d'écart (`m4_creer_demande_ecart`) est celle que l'appelant écrit ; l'heure de réception du serveur ne
-  fait foi que pour le pointage, le départ et la complétion. L'âge d'un retard ou d'un incident en hérite : le
-  corriger est un changement d'écriture de ces deux outils (lire `recu_le`), pas de lecture. (3) Le retard sur la cédule
+  registre, donc aucun créneau à juger (`inconnu`, avec la cause). (2) Depuis T4.27-a2, l'heure d'un report
+  (`m4_signaler_report`) et d'une demande d'écart (`m4_creer_demande_ecart`) est celle de réception du serveur pendant un
+  appel d'appareil, comme le pointage ; l'heure de l'appareil reste à part (`horodatage_appareil`), et chaque ligne de
+  `m4_lire_retards_incidents` dit `origine_heure` (`serveur` ou `appelant`). Reste : `horodatage_reference` est l'heure
+  de l'appareil de l'admin qui lit ; `m4_resoudre_demande` et `m4_resoudre_revue_completion` gardent l'heure de leur
+  appelant. (3) Le retard sur la cédule
   n'est pas mesuré (M4 ne tient aucun calendrier) : le relevé le dit (`non_mesurable`). (4) La liste v1 (sans clé) reste
   coupée par le socle à 6 000 caractères : l'app doit lire par pages.
 - **Voie des agents.** Le secret partagé de la passerelle garde l'accès complet aux outils (documenté,

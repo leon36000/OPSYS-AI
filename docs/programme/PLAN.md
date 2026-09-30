@@ -2273,9 +2273,24 @@ météo et GPS M4, vision M3, conseil d'agents M9…
         Limites : l'heure d'un report et d'une demande d'écart est celle que l'appelant écrit (T4.27-a2) ;
         une intervention planifiée par `m4_planifier_intervention` n'a pas de fenêtre au registre, donc
         aucun créneau (`inconnu`) ; la liste v1 sans clé reste coupée au-delà d'une vingtaine de lignes.
-  - [ ] T4.27-a2 M4 : `m4_signaler_report` et `m4_creer_demande_ecart` lisent `recu_le` (l'heure du
+  - [x] T4.27-a2 M4 : `m4_signaler_report` et `m4_creer_demande_ecart` lisent `recu_le` (l'heure du
         serveur) au lieu de l'heure que l'appelant écrit, pour que l'âge d'un retard ne dépende plus de
         l'appareil (changement d'écriture : contrat additif, tests de rejeu).
+        Preuve (54fdc59, 27f7b38, 9441eff, fc143ab, 4ace021, a212aa3) :
+        - pendant un appel d'appareil, l'heure du fait est celle de réception du serveur (patron du
+          pointage) ; l'heure de l'appareil reste à part (`horodatage_appareil`, affichage seulement) ;
+          l'`horodatage` écrit reste demandé (contrat v1 gelé) mais n'est pas lu ; hors appel d'appareil,
+          maillon et accusé d'avant, octet pour octet ;
+        - rejeu : la même clé rend la même heure (celle de la première réception), sans rien écrire ; une
+          autre clé pour le même report est refusée, la même clé avec d'autres arguments est un conflit ;
+        - les faits d'avant gardent leur heure ; `m4_lire_retards_incidents` dit `origine_heure` sur
+          chaque ligne (jamais `serveur` sans preuve) ;
+        - M4 2 827 passés sur l'état intégré (71 nouveaux), E2E `test_heure_du_serveur_appareil.py`
+          (téléphone qui retarde ou avance de trois jours, rejeu, faits d'avant) et E2E touchés : 102
+          passés ; gate BMAD TOUT VERT ; ruff ; mutations 42 sur 42 (un survivant fermé par un test).
+        Limites : un geste fait hors ligne est daté à l'envoi ; `horodatage_reference` reste l'heure de
+        l'appareil de l'admin qui lit ; `m4_resoudre_demande` et `m4_resoudre_revue_completion` gardent
+        l'heure de leur appelant (à traiter à part).
   - [ ] T4.27-m Mobile : l'écran « Chantiers du jour » lit la météo d'une intervention, les retards et
         incidents, et pagine la liste par `curseur` (contrat exact dans le rapport de T4.27-a, repris
         dans `departments/m04-field-ops/README.md`) ; corriger les mentions « météo non lue » et « pas de
