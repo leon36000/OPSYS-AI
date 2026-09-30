@@ -173,3 +173,17 @@ l'inventer.
 
 Les modules restent purs : aucun import du socle, aucune horloge, aucun aléa, aucun réseau, aucun flottant, ce que des
 tests vérifient par analyse du code. Aucun ne porte de coordonnée, de contact ni de champ financier.
+
+## 8. L'heure d'un report et d'une demande d'écart (PLAN T4.27-a2)
+
+Le report et la demande d'écart suivent le patron du pointage. Pendant un appel d'appareil, l'heure du fait est celle de
+réception du serveur, que la plateforme pose pour une mutation à clé d'idempotence : M4 ne consulte aucune horloge.
+L'heure de l'appareil reste à part, sous la clé sœur horodatage_appareil du maillon et de l'accusé, pour l'affichage
+seulement : elle n'entre dans aucun calcul. L'horodatage que l'appelant écrit reste demandé, car le contrat v1 est gelé,
+mais il n'est pas lu. Sans appel d'appareil, le maillon et l'accusé sont ceux d'avant, octet pour octet. Un renvoi de la
+même clé rend la réponse enregistrée : la même heure, celle de la première réception.
+
+Le module horodatage dit d'où vient l'heure d'un fait : serveur quand le maillon porte l'heure de l'appareil à côté,
+appelant sinon. Le relevé des retards l'écrit sur chaque ligne (origine_heure). Une anomalie de pointage prend l'origine de
+son pointage, et sans preuve d'une heure du serveur la réponse n'est jamais serveur. Les faits d'avant gardent leur heure :
+le registre est immuable.
