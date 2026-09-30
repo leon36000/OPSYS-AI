@@ -39,4 +39,7 @@ description: Procédure pour planifier une intervention terrain depuis un lead M
 8. Pour dire à l'admin ce qui va mal, appelle `m4_lire_retards_incidents` avec l'heure de l'appareil
    (`horodatage_reference`) : les reports en cours et les demandes de revue ouvertes, avec leur âge ; « bloquée » dès
    24 h. `retard_sur_cedule` est `non_mesurable` : dis-le, ne dis jamais « aucun retard ». Une liste coupée (`reste`
-   plus grand que 0) se lit avec l'outil que `suite` nomme.
+   plus grand que 0) se lit avec l'outil que `suite` nomme. Chaque ligne dit `origine_heure` : `serveur` (l'heure de
+   réception d'un geste fait sur un appareil) ou `appelant` (l'heure qu'un agent, la console ou un fait d'avant a
+   écrite : son âge suit l'horloge de celui qui l'a écrite). Cite-le quand l'âge décide d'une alerte ; ne corrige jamais
+   une heure toi-même.

@@ -455,7 +455,8 @@ aléa, ni réseau, ni flottant).
   liste est bornée à 8, du plus ancien au plus récent ; `reste` compte les autres et `suite` dit où les lire
   (`m4_lister_interventions`, `m4_lister_pending_review`). **`retard_sur_cedule` vaut `non_mesurable`** avec la raison :
   le plan d'une cédule numérote ses jours sans date civile et le registre ne garde aucune fenêtre planifiée ; « aucun
-  retard » n'est jamais écrit. Aucun texte libre du terrain, aucun contact.
+  retard » n'est jamais écrit. Aucun texte libre du terrain, aucun contact. **Chaque ligne dit `origine_heure`**
+  (T4.27-a2, section suivante) : `serveur` ou `appelant`.
 
 Preuve : `tests/test_pagination_interventions.py` et `tests/test_retards.py` (modules purs, analyse du code),
 `tests/test_meteo_intervention.py` (fonction pure : même créneau que `verifier`, `meteo.evaluer_creneau` appelée avec
@@ -466,7 +467,57 @@ l'employé et le vendeur sur la météo et les retards, 45 interventions par pag
 coupée, l'employé ne voit que les siennes). Les fixtures sont FICTIVES (`fictif: true`).
 
 Limites connues : le retard sur la cédule n'est pas mesurable (M4 ne tient aucun calendrier) ; une intervention
-planifiée par `m4_planifier_intervention` n'a aucune fenêtre au registre, donc aucun créneau à juger ; l'heure d'un report
-et d'une demande d'écart est celle que l'appelant a écrite (le serveur ne garde pas son heure de réception pour ces deux
-gestes : contrairement au pointage, au départ et à la complétion), l'âge d'un retard en hérite ; la liste v1 sans clé reste
-coupée par le socle.
+planifiée par `m4_planifier_intervention` n'a aucune fenêtre au registre, donc aucun créneau à juger ; la liste v1 sans
+clé reste coupée par le socle. L'heure d'un report et d'une demande d'écart, limite de T4.27-a, est levée par T4.27-a2 :
+voir la section suivante, qui dit aussi ce qui reste.
+
+## L'heure d'un report et d'une demande d'écart (PLAN T4.27-a2)
+
+Avant, `m4_signaler_report` et `m4_creer_demande_ecart` inscrivaient l'heure que l'appelant écrit. L'âge d'un retard ou
+d'un incident (`m4_lire_retards_incidents`, « bloquée » dès 24 h) en héritait : un téléphone à l'heure fausse faussait
+l'âge. Les deux outils suivent maintenant le patron du pointage (T1.4-d, R12 §4 : « les deux heures sont conservées »,
+`docs/architecture/IDEMPOTENCE.md` §5).
+
+- **Pendant un appel d'appareil**, l'heure du fait est celle de RÉCEPTION du serveur (`opsys.contexte.
+  horodatage_reception()`, posée par la plateforme pour une mutation à clé d'idempotence, jamais par l'appelant ni par un
+  modèle ; M4 ne consulte aucune horloge, CA-M4-15). Le `horodatage` que l'appelant écrit n'est pas lu. Le contrat v1 le
+  demande encore et il est gelé : l'app et les agents l'envoient, un ancien appel reste valide, et le refuser casserait
+  l'app. Il n'est ni validé ni gardé : même illisible ou énorme, il n'entre pas dans un registre immuable où il n'aurait
+  aucun usage (l'heure de l'appareil, elle, vient de `_meta`, validée par le socle).
+- **L'heure de l'appareil reste à part** : clé sœur `horodatage_appareil`, sur le maillon (de la demande, et de la
+  transition `en_revue` qu'elle provoque) et sur l'accusé. Affichage seulement, jamais lue pour un calcul : ni l'âge, ni
+  l'ordre, ni `demande_id` (l'empreinte de l'intervention et de l'heure du serveur). L'accusé d'une demande d'écart rend
+  aussi `horodatage` (celui du serveur), pour qu'un renvoi rejoué le rende.
+- **Idempotence.** Un renvoi de la même clé rend la réponse enregistrée (`rejoue: true`), donc la même heure, celle de la
+  première réception, sans rien écrire (le socle ne ré-exécute rien). Une autre clé pour le même report est refusée
+  (`REJ-TRANSITION-ILLEGALE`, l'heure du premier ne bouge pas) ; la même clé avec d'autres arguments est un conflit nommé
+  (`mutation_conflit`).
+- **Hors appel d'appareil** (agent, console, demande approuvée puis exécutée : le socle ne leur pose aucune heure de
+  réception) : comme avant, `horodatage` fait foi et doit être lisible (`REJ-HORODATAGE-INVALIDE`), sans clé sœur. Le
+  maillon et l'accusé sont alors ceux d'avant, octet pour octet : les empreintes du test ont été calculées avec le code
+  d'avant.
+- **Les faits d'avant gardent leur heure** : le registre est immuable, rien n'est réécrit ni corrigé. Le relevé dit
+  d'où vient chaque heure avec `origine_heure` : `serveur` quand le fait porte l'heure de l'appareil à côté (son
+  `horodatage` est alors celui du serveur, comme le pointage depuis T1.4-d), `appelant` sinon (un fait d'avant, d'un agent
+  ou de la console : son âge dépend de l'horloge de celui qui l'a écrit, et le relevé ne la corrige pas). Une anomalie de
+  pointage prend l'origine de son pointage (`pointage_ligne_id`), donc se lit `serveur` même si elle date d'avant ; sans
+  pointage retrouvé, `appelant`, jamais `serveur` sans preuve (`horodatage.origine`).
+
+Limites connues : (1) l'âge se compte depuis la RÉCEPTION : un geste fait hors ligne et envoyé plus tard est daté à
+l'envoi (R12 §4 : c'est le prix d'une horloge de serveur qui fait foi) ; l'heure de l'appareil reste à part, de quoi
+mesurer ce délai plus tard, mais rien ne l'affiche. (2) `horodatage_reference` reste l'heure de l'appareil de l'admin qui
+lit : une lecture n'a pas d'heure de réception du socle (aucune clé d'idempotence), donc un téléphone d'admin à l'heure
+fausse fausse encore l'âge affiché ; M4 n'a pas d'horloge. (3) Le digest (`m4_produire_digest`, forme gelée) profite de
+l'heure du serveur pour ses demandes bloquées mais ne dit pas l'origine. (4) Deux gestes de l'admin gardent encore
+l'heure que leur appelant écrit : `m4_resoudre_demande` et `m4_resoudre_revue_completion`, qui datent la résolution et
+l'issue qu'elle provoque (la transition, et l'identifiant du Work Completion Trigger d'un écart validé). Ils n'entrent
+pas dans l'âge d'un retard (une demande résolue sort du relevé) : à traiter à part, comme ce lot l'a fait pour le report
+et l'écart.
+`m4_annuler_intervention` et `m4_planifier_intervention` sont fermés aux appareils.
+
+Preuve : `tests/test_origine_heure.py` (modules purs : règle, empreintes d'avant, refus, relevé),
+`tests/test_heure_du_serveur_outils.py` (vrais outils, base migrée : heure du serveur, heure écrite ignorée, appareil qui
+retarde ou avance de trois jours, faits d'avant, anomalies de pointage, digest), `tests/test_heure_du_serveur_rejeu.py`
+(`Capacites.appeler` avec `_meta` réel et horloge de test : même clé, même heure, rien d'écrit) et
+`tests/e2e/test_heure_du_serveur_appareil.py` (par la porte d'appareil : vrai moteur, HTTP MCP). Fixtures FICTIVES
+(`fictif: true`).
