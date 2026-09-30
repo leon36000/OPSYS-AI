@@ -106,7 +106,7 @@ identifiants du propriétaire, repli livré en attendant.
           10 (b684e36) : Linux, macOS et Windows verts avec le vrai core, dont l'étape « une seule
           commande » (`opsys` est le core, `opsys metier` le moteur, l'ancienne forme dit la
           nouvelle en code 2, `opsys metier` refusé au shell de l'agent).
-  - [ ] Lot 3 : dossier d'instance `~/.opsys` (état du core dans `core/`), `opsys.json`, anciens noms
+  - [x] Lot 3 : dossier d'instance `~/.opsys` (état du core dans `core/`), `opsys.json`, anciens noms
         relus par la migration Doctor existante.
         Depuis T0.11-b, l'installateur utilise le profil `opsys` (`~/.openclaw-opsys`) : ce lot
         rend `~/.opsys/core` canonique dans `resolveStateDir` et `resolveProfileStateDir`, et
@@ -121,9 +121,13 @@ identifiants du propriétaire, repli livré en attendant.
         - installateurs, désinstallation, preuves de bout en bout (« 1 quinquies », « 5 bis »), faux
           core et docs suivent ; 0700, `.env` 0600 et ACL Windows prouvés sur le nouveau chemin ; le
           service garde son nom (lot 4).
-        Preuve ici : socle, ruff, verifier, shellcheck, `.ps1` rejoués contre le faux core. Reste la
-        CI : vitest du core (`core`), vrai Doctor, vrai service et vraies ACL (`e2e-core`,
-        `installateur` sur Linux, macOS et Windows).
+        Preuve ici : socle, ruff, verifier, shellcheck, `.ps1` rejoués contre le faux core.
+        Preuve CI : `core` VERT (run 34, 7189c91 : construction et vitest du core) ; `e2e-core` VERT
+        (run 46) ; `installateur` 12 rouge sur les trois systèmes à l'étape « 5 bis » seulement
+        (`opsys gateway stop` refusé hors d'un terminal interactif sans `--force`,
+        `core/src/cli/terminal-interactivity.ts`), corrigé dans les preuves (f62104f) ; `installateur` 13
+        VERT sur Linux, macOS et Windows avec le vrai core (vrai Doctor sur un état d'avant le lot, vrai
+        service qui nomme le nouvel état, 0700, `.env` 0600, ACL Windows) ; faux core 208 passés.
         GATE NATHAN (R14, addendum du lot 3) : renommer `openclaw.json` en `opsys.json` dans tout le
         core (un lot à part) ; faire suivre `OPSYS_HOME` au dossier d'état (le core devrait la lire et
         le service la porter) ; ordre des lots 3 et 4 pour les postes qui ont déjà un service (le lien
