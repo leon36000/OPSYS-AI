@@ -343,18 +343,20 @@ def test_deux_heures_d_appareil_differentes_ne_changent_que_la_cle_soeur():
 )
 def test_une_heure_d_appareil_mal_formee_est_refusee_sans_rien_ecrire(appareil):
     registre = Registre()
-    identifiant = _en_route(registre, "L-1")
+    en_route = _en_route(registre, "L-1")  # une demande d'écart provoque ici une transition en_revue
+    planifiee = _inscrire(registre, "L-2")  # ici aucune transition : la demande elle-même doit refuser, avant d'écrire
     avant = _octets(registre.lire())
-    accuse, verdict = etats.transitionner(
-        identifiant, "reportee", registre, RECU_LE, motif="meteo", horodatage_appareil=appareil
-    )
-    assert accuse is None and verdict["code"] == "REJ-HORODATAGE-INVALIDE"
-    assert "horodatage_appareil" in verdict["detail"]
-    accuse, verdict = ecarts.creer_demande_ecart(
-        identifiant, VERSION_PREVUE, VERSION_DECLAREE, RECU_LE, registre, horodatage_appareil=appareil
-    )
-    assert accuse is None and verdict["code"] == "REJ-HORODATAGE-INVALIDE"
-    assert "horodatage_appareil" in verdict["detail"]
+    for identifiant in (en_route, planifiee):
+        accuse, verdict = etats.transitionner(
+            identifiant, "reportee", registre, RECU_LE, motif="meteo", horodatage_appareil=appareil
+        )
+        assert accuse is None and verdict["code"] == "REJ-HORODATAGE-INVALIDE"
+        assert "horodatage_appareil" in verdict["detail"]
+        accuse, verdict = ecarts.creer_demande_ecart(
+            identifiant, VERSION_PREVUE, VERSION_DECLAREE, RECU_LE, registre, horodatage_appareil=appareil
+        )
+        assert accuse is None and verdict["code"] == "REJ-HORODATAGE-INVALIDE"
+        assert "horodatage_appareil" in verdict["detail"]
     assert _octets(registre.lire()) == avant, "rien n'est écrit : jamais une clé sœur illisible dans un registre"
 
 
