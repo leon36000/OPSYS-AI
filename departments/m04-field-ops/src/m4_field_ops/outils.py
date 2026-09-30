@@ -282,6 +282,23 @@ def _preuve_consentement_client(
     }, None
 
 
+def _heures_de_l_appel(horodatage: str) -> tuple[str, str | None]:
+    """``(heure qui fait foi, heure de l'appareil)`` d'un geste d'écriture (PLAN T4.27-a2, même patron que
+    ``m4_pointer``, T1.4-d, R12 §4).
+
+    Pendant un appel d'appareil (``contexte.horodatage_reception()``, posé par la plateforme, jamais par le modèle),
+    l'heure de RÉCEPTION DU SERVEUR fait foi et l'heure de l'appareil, déjà validée par le socle, se garde À PART : le
+    ``horodatage`` que l'appelant a écrit n'est pas lu (ni validé, ni gardé). Le contrat v1 le demande encore, gelé : un
+    ancien appel reste valide ; refuser cette valeur casserait l'app, et la garder ferait entrer dans un registre
+    immuable une chaîne non bornée qui n'a aucun usage (celle de l'appareil vient de ``_meta``, validée).
+    Hors appel d'appareil (agent, console, exécution d'une demande approuvée) : ``horodatage`` fait foi, comme avant,
+    et l'heure de l'appareil est ``None`` (le fait porte alors l'heure de son appelant : ``horodatage.origine``)."""
+    reception = contexte.horodatage_reception()
+    if reception is None:
+        return horodatage, None
+    return reception.recu_le.isoformat(), reception.horodatage_appareil.isoformat()
+
+
 def _refus(verdict: dict[str, Any]) -> dict[str, Any]:
     return {"accepte": False, "verdict": verdict}
 
@@ -421,8 +438,16 @@ def outils(
         verdict_acces = acces.controler_intervention(registre_courant(), intervention_id, acteur)
         if verdict_acces is not None:
             return _refus(verdict_acces)
+        # PLAN T4.27-a2 : l'heure d'un report est celle de RÉCEPTION DU SERVEUR pendant un appel d'appareil (l'âge d'un
+        # retard, lu par `m4_lire_retards_incidents`, ne dépend plus de l'horloge de l'appareil) ; l'heure de
+        # l'appareil se garde à côté, sur le maillon et l'accusé. Un renvoi de la même clé rend l'accusé de la
+        # première réception, avec son heure : le socle ne ré-exécute rien.
+        horodatage_faisant_foi, horodatage_appareil = _heures_de_l_appel(horodatage)
         return depuis_couple(
-            etats.transitionner(intervention_id, "reportee", registre_courant(), horodatage, motif=motif)
+            etats.transitionner(
+                intervention_id, "reportee", registre_courant(), horodatage_faisant_foi, motif=motif,
+                horodatage_appareil=horodatage_appareil,
+            )
         )
 
     def annuler_intervention(intervention_id: str, horodatage: str) -> dict[str, Any]:
@@ -602,8 +627,12 @@ def outils(
         verdict_acces = acces.controler_intervention(registre_courant(), intervention_id, acteur)
         if verdict_acces is not None:
             return _refus(verdict_acces)
+        # PLAN T4.27-a2 : même règle que `m4_signaler_report`. L'heure de la demande (donc son `demande_id` et son âge
+        # dans `m4_lire_retards_incidents`) est celle de RÉCEPTION DU SERVEUR pendant un appel d'appareil.
+        horodatage_faisant_foi, horodatage_appareil = _heures_de_l_appel(horodatage)
         return depuis_couple(ecarts.creer_demande_ecart(
-            intervention_id, version_prevue, version_declaree, horodatage, registre_courant()
+            intervention_id, version_prevue, version_declaree, horodatage_faisant_foi, registre_courant(),
+            horodatage_appareil=horodatage_appareil,
         ))
 
     def resoudre_demande(demande_id: str, decision: str, horodatage: str, motif: str | None = None) -> dict[str, Any]:
@@ -1140,7 +1169,11 @@ def outils(
             description=(
                 "Reporte une intervention (client_absent, meteo ou decision_admin). T1.4-k, appel "
                 "d'appareil d'un employé : seulement sur une intervention qui lui est assignée "
-                "(REJ-INTERVENTION-NON-ASSIGNEE)."
+                "(REJ-INTERVENTION-NON-ASSIGNEE). T4.27-a2, appel d'appareil : l'heure du report est celle de "
+                "réception du serveur, jamais l'horloge de l'appareil ni la valeur de `horodatage` (toujours "
+                "demandée, non lue) ; l'heure de l'appareil reste lisible à côté (`horodatage_appareil`), jamais "
+                "utilisée pour un calcul, et un renvoi de la même clé rend la même heure. Hors appel d'appareil "
+                "(agent, console) : `horodatage` fait foi, comme avant."
             ),
             parametres={
                 "type": "object",
@@ -1225,7 +1258,11 @@ def outils(
             description=(
                 "Ouvre une demande d'écart métier (durée/périmètre/matériaux prévu vs déclaré). "
                 "T1.4-k, appel d'appareil d'un employé : seulement sur une intervention qui lui est "
-                "assignée (REJ-INTERVENTION-NON-ASSIGNEE)."
+                "assignée (REJ-INTERVENTION-NON-ASSIGNEE). T4.27-a2, appel d'appareil : l'heure de la demande est "
+                "celle de réception du serveur, jamais l'horloge de l'appareil ni la valeur de `horodatage` "
+                "(toujours demandée, non lue) ; l'accusé la rend, avec l'heure de l'appareil à côté "
+                "(`horodatage_appareil`, jamais utilisée pour un calcul), et un renvoi de la même clé rend la même "
+                "heure. Hors appel d'appareil (agent, console) : `horodatage` fait foi, comme avant."
             ),
             parametres={
                 "type": "object",
@@ -2048,7 +2085,9 @@ def outils(
                 f"`bloquee` dès {retards.SEUIL_BLOCAGE_HEURES} h, comme le digest). Du plus ancien au plus récent, "
                 f"{retards.LIMITE_PAR_LISTE} par liste : `reste` compte le reste, `suite` dit quel outil le rend. Le "
                 "retard sur la cédule n'est PAS mesuré (aucun calendrier) : `retard_sur_cedule` est non_mesurable, "
-                "jamais « aucun retard ». Aucun texte libre du terrain ni contact. N'écrit rien. Réservé à l'admin."
+                "jamais « aucun retard ». Chaque ligne dit d'où vient son heure (`origine_heure` : `serveur`, "
+                "réception ; `appelant`, heure écrite par l'appelant, dont l'âge suit son horloge). Aucun texte "
+                "libre du terrain ni contact. N'écrit rien. Réservé à l'admin."
             ),
             parametres={
                 "type": "object",

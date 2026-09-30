@@ -65,12 +65,21 @@ def _valider_version(version, etiquette="version"):
 
 # ------------------------------------------------------------------ API publique
 def creer_demande_ecart(
-    intervention_id, version_prevue, version_declaree, horodatage_arg, registre_cible
+    intervention_id, version_prevue, version_declaree, horodatage_arg, registre_cible,
+    horodatage_appareil=None,
 ):
     """Crée une demande d'écart métier et l'inscrit au registre.
 
+    ``horodatage_appareil`` (PLAN T4.27-a2), optionnel : l'heure de l'appareil (ISO 8601 avec fuseau), gardée À PART
+    sous la clé sœur ``horodatage_appareil`` du maillon de la demande (et de la transition en_revue qu'elle provoque) :
+    affichage seulement, jamais lue pour un calcul. La fournir DÉCLARE que ``horodatage_arg`` est l'heure de RÉCEPTION
+    du serveur (un appel d'appareil) ; ce module n'a aucune horloge, c'est ``outils.py`` seul qui en décide
+    (``horodatage.origine`` relit ce signe). Alors l'accusé porte aussi ``horodatage`` et ``horodatage_appareil``, pour
+    qu'un renvoi rejoué rende la même heure. ``None`` (défaut, tout appel d'avant) : le maillon et l'accusé restent
+    exactement ce qu'ils étaient, l'heure écrite par l'appelant fait foi.
+
     Ordre strict des contrôles :
-    1. horodatage valide
+    1. horodatage valide (puis, si fourni, ``horodatage_appareil``)
     2. validation des deux versions (clés, types, non-vide)
     3. rejet si versions identiques (pas d'écart)
     4. récupération du statut courant de l'intervention
@@ -90,6 +99,17 @@ def creer_demande_ecart(
         horodatage.valider_horodatage(horodatage_arg)
     except ValueError:
         return (None, verdicts.construire_verdict("REJ-HORODATAGE-INVALIDE"))
+    if horodatage_appareil is not None:
+        try:
+            horodatage.valider_horodatage(horodatage_appareil)
+        except ValueError:
+            return (
+                None,
+                verdicts.construire_verdict(
+                    "REJ-HORODATAGE-INVALIDE",
+                    detail="horodatage_appareil : une heure ISO 8601 avec fuseau est attendue",
+                ),
+            )
 
     # 2. Validation des versions
     try:
@@ -153,7 +173,8 @@ def creer_demande_ecart(
     # 8. Transition éventuelle vers en_revue
     if (statut, "en_revue") in etats.TRANSITIONS_AUTORISEES:
         acc_trans, ver_trans = etats.transitionner(
-            intervention_id, "en_revue", registre_cible, horodatage_arg
+            intervention_id, "en_revue", registre_cible, horodatage_arg,
+            horodatage_appareil=horodatage_appareil,
         )
         if acc_trans is None:
             # DÉFENSIF et structurellement inatteignable : la condition ci-dessus
@@ -177,6 +198,9 @@ def creer_demande_ecart(
         "version_declaree": copy.deepcopy(version_declaree),
         "statut_arbitrage": "en_attente",
     }
+    if horodatage_appareil is not None:
+        # PLAN T4.27-a2 : l'heure de l'appareil, À PART ; sa présence dit que ``horodatage`` est l'heure du serveur.
+        maillon[horodatage.CLE_HORODATAGE_APPAREIL] = horodatage_appareil
     ligne_id = registre_cible.ajouter(maillon)
 
     # 10. Accusé
@@ -190,6 +214,10 @@ def creer_demande_ecart(
         "statut": statut_final,
         "tete_chaine": registre_cible.tete(),
     }
+    if horodatage_appareil is not None:
+        # PLAN T4.27-a2 : additifs, absents sans appareil. L'heure de la demande, pour qu'un renvoi rejoué la rende.
+        accuse["horodatage"] = horodatage_arg
+        accuse[horodatage.CLE_HORODATAGE_APPAREIL] = horodatage_appareil
     return (accuse, None)
 
 

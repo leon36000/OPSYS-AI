@@ -27,6 +27,7 @@ Données fictives (AGENTS.md).
 from __future__ import annotations
 
 import copy
+import datetime as dt
 import json
 import socket
 from pathlib import Path
@@ -513,7 +514,10 @@ def test_les_retards_et_les_incidents_se_lisent_avec_leur_age_sans_rien_ecrire(m
     assert vide.resultat["reports"]["total"] == 0 and vide.resultat["incidents"]["total"] == 0
     assert vide.resultat["retard_sur_cedule"]["statut"] == "non_mesurable"
 
-    # 1. les gestes de l'app : l'employé signale un client absent et un écart de matériaux ; l'admin reporte une autre
+    # 1. les gestes de l'app : l'employé signale un client absent et un écart de matériaux ; l'admin reporte une autre.
+    # PLAN T4.27-a2 : l'heure d'un report et d'une demande d'écart est celle de RÉCEPTION du serveur (l'horloge de test
+    # du moteur), plus celle que l'app écrit : on la règle avant chaque geste, l'âge lu en découle.
+    moteur.horloge.maintenant = dt.datetime.fromisoformat("2026-09-27T08:00:00-04:00")
     report_employe = etienne.appeler(
         "m4_signaler_report",
         {"intervention_id": a, "motif": "client_absent", "horodatage": "2026-09-27T08:00:00-04:00"},
@@ -521,6 +525,7 @@ def test_les_retards_et_les_incidents_se_lisent_avec_leur_age_sans_rien_ecrire(m
         horodatage_appareil="2026-09-27T08:00:00-04:00",
     )
     assert report_employe.ok and report_employe.metier["accepte"] is True, report_employe.corps
+    moteur.horloge.maintenant = dt.datetime.fromisoformat("2026-09-28T07:00:00-04:00")
     report_admin = admin.appeler(
         "m4_signaler_report",
         {"intervention_id": c, "motif": "decision_admin", "horodatage": "2026-09-28T07:00:00-04:00"},
@@ -528,6 +533,7 @@ def test_les_retards_et_les_incidents_se_lisent_avec_leur_age_sans_rien_ecrire(m
         horodatage_appareil="2026-09-28T07:00:00-04:00",
     )
     assert report_admin.ok and report_admin.metier["accepte"] is True, report_admin.corps
+    moteur.horloge.maintenant = dt.datetime.fromisoformat("2026-09-28T12:00:00-04:00")
     ecart = etienne.appeler(
         "m4_creer_demande_ecart",
         {
@@ -542,15 +548,28 @@ def test_les_retards_et_les_incidents_se_lisent_avec_leur_age_sans_rien_ecrire(m
     assert ecart.ok and ecart.metier["accepte"] is True, ecart.corps
     demande_id = ecart.resultat["demande_id"]
 
-    # 2. l'admin lit : ce que les gestes ont écrit, avec l'âge calculé à partir de SA référence ; rien n'est écrit
+    # 2. l'admin lit : ce que les gestes ont écrit (l'heure du serveur, écrite en UTC), avec l'âge calculé à partir de
+    # SA référence ; rien n'est écrit
     avant, maillons_avant = moteur.empreinte_etat(), _octets(_maillons_m4())
     lecture = admin.appeler("m4_lire_retards_incidents", {"horodatage_reference": reference})
     assert lecture.statut == 200 and lecture.metier["accepte"] is True, lecture.corps
     releve = lecture.resultat
     assert releve["reference"] == reference and releve["seuil_blocage_heures"] == 24
     assert releve["reports"]["liste"] == [
-        {"intervention_id": a, "motif": "client_absent", "depuis": "2026-09-27T08:00:00-04:00", "heures_ecoulees": 49},
-        {"intervention_id": c, "motif": "decision_admin", "depuis": "2026-09-28T07:00:00-04:00", "heures_ecoulees": 26},
+        {
+            "intervention_id": a,
+            "motif": "client_absent",
+            "depuis": "2026-09-27T12:00:00+00:00",
+            "origine_heure": "serveur",
+            "heures_ecoulees": 49,
+        },
+        {
+            "intervention_id": c,
+            "motif": "decision_admin",
+            "depuis": "2026-09-28T11:00:00+00:00",
+            "origine_heure": "serveur",
+            "heures_ecoulees": 26,
+        },
     ]
     assert releve["reports"]["par_motif"] == {"client_absent": 1, "meteo": 0, "decision_admin": 1}
     assert releve["incidents"]["liste"] == [
@@ -558,7 +577,8 @@ def test_les_retards_et_les_incidents_se_lisent_avec_leur_age_sans_rien_ecrire(m
             "demande_id": demande_id,
             "intervention_id": b,
             "type_demande": "ecart_metier",
-            "depuis": "2026-09-28T12:00:00-04:00",
+            "depuis": "2026-09-28T16:00:00+00:00",
+            "origine_heure": "serveur",
             "heures_ecoulees": 21,
             "bloquee": False,
         }

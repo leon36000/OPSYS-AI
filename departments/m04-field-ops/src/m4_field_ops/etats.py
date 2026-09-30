@@ -610,7 +610,7 @@ def technicien_assigne(registre_cible, intervention_id):
 
 def transitionner(
     intervention_id, statut_cible, registre_cible, horodatage_arg, motif=None,
-    assignation=None, preparation=None,
+    assignation=None, preparation=None, horodatage_appareil=None,
 ):
     """
     Effectue une transition d’état pour une intervention existante.
@@ -620,6 +620,12 @@ def transitionner(
         statut_cible: état visé (doit appartenir à ETATS).
         registre_cible: instance de Registre.
         horodatage_arg: horodatage chaîne (RFC 3339 avec fuseau).
+        horodatage_appareil: PLAN T4.27-a2, optionnel — l'heure de l'appareil (ISO 8601 avec fuseau), gardée À PART sous
+            la clé sœur ``horodatage_appareil`` du maillon et de l'accusé : affichage seulement, jamais lue pour un
+            calcul. La fournir DÉCLARE que ``horodatage_arg`` est l'heure de RÉCEPTION du serveur (le fait d'un appel
+            d'appareil) : ce module n'a aucune horloge, c'est ``outils.py`` seul qui décide d'où vient l'heure
+            (``horodatage.origine`` relit ce signe). ``None`` (défaut, tout appel d'avant) : le maillon et l'accusé
+            restent exactement ce qu'ils étaient, l'heure écrite par l'appelant fait foi.
         motif: obligatoire pour un report, interdit sinon.
         assignation: obligatoire pour planifiee -> en_route (PRD §4 : cette
             transition est « conditionnée à l’assignation effective d’un
@@ -640,6 +646,17 @@ def transitionner(
         horodatage.valider_horodatage(horodatage_arg)
     except ValueError:
         return None, verdicts.construire_verdict("REJ-HORODATAGE-INVALIDE")
+
+    # 1 bis. Heure de l'appareil (PLAN T4.27-a2) : sa forme seulement, jamais lue pour un calcul. Mal formée : refus,
+    # rien n'est écrit (jamais une clé sœur illisible dans un registre immuable).
+    if horodatage_appareil is not None:
+        try:
+            horodatage.valider_horodatage(horodatage_appareil)
+        except ValueError:
+            return None, verdicts.construire_verdict(
+                "REJ-HORODATAGE-INVALIDE",
+                detail="horodatage_appareil : une heure ISO 8601 avec fuseau est attendue",
+            )
 
     # 2. Existence de l’intervention
     courant = statut_courant(registre_cible, intervention_id)
@@ -771,6 +788,10 @@ def transitionner(
     if courant == "a_planifier" and statut_cible == "planifiee":
         # Ce sur quoi la transition s'appuie : l'empreinte du verdict de préparation, pas le verdict lui-même.
         maillon["empreinte_preparation"] = preparation["empreinte"]
+    if horodatage_appareil is not None:
+        # PLAN T4.27-a2 : l'heure de l'appareil, À PART (affichage seulement) ; sa présence dit que ``horodatage``
+        # est l'heure de réception du serveur (``horodatage.origine``). Absente : le maillon est celui d'avant.
+        maillon[horodatage.CLE_HORODATAGE_APPAREIL] = horodatage_appareil
 
     # 8. Écriture, puis relecture PAR ligne_id (hash, pas un index)
     ligne_id = registre_cible.ajouter(maillon)
@@ -794,6 +815,8 @@ def transitionner(
         "tete_chaine": registre_cible.tete(),
         "horodatage": horodatage_arg,
     }
+    if horodatage_appareil is not None:
+        accuse[horodatage.CLE_HORODATAGE_APPAREIL] = horodatage_appareil  # T4.27-a2 : additif, absent sans appareil
     return accuse, None
 
 

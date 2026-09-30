@@ -10,8 +10,11 @@ Ce que ce fichier prouve, par les outils qui écrivent ces faits (l'employé sig
   * l'âge vient de la référence de l'appelant ; « bloquée » dès 24 h comme le digest, dont il donne les mêmes demandes ;
   * l'employé, le vendeur et une identité non confirmée sont refusés dans le code ; un agent peut lire ;
   * la lecture n'écrit rien ; la limite d'une réponse d'appareil est tenue ;
-  * limite documentée : l'heure d'un report et d'une demande d'écart est celle que l'appelant a écrite (l'heure de
-    réception du serveur ne fait foi que pour le punch, le départ et la complétion).
+  * PLAN T4.27-a2 : l'heure d'un report et d'une demande d'écart est celle de RÉCEPTION du serveur (comme le punch, le
+    départ et la complétion) : l'horloge de l'appareil ne fausse plus l'âge. Ici, chaque geste de l'app est fait avec
+    une heure écrite absurde et une heure de réception connue : tout le relevé suit la seconde. Le détail (heure de
+    l'appareil gardée à part, rejeu, faits d'avant, origine de chaque ligne) est dans `test_heure_du_serveur_outils.py`
+    et `test_heure_du_serveur_rejeu.py`.
 Données fictives (`fictif: true`) : personnes, appareils et identifiants portent « fictif ».
 """
 
@@ -128,17 +131,23 @@ def _planifier(par_nom, lead_id, technicien) -> str:
     return reponse["resultat"]["intervention_id"]
 
 
-def _reporter(par_nom, intervention_id, motif, horodatage, identite_appelante):
+# L'heure que l'appelant écrit, volontairement absurde : pendant un appel d'appareil, seule l'heure de RÉCEPTION du
+# serveur (`recu_le`) fait foi (T4.27-a2). Si elle fuitait dans un âge, ces tests le diraient tout de suite.
+HEURE_ECRITE_ABSURDE = "2000-01-01T00:00:00+00:00"
+
+
+def _reporter(par_nom, intervention_id, motif, recu_le, identite_appelante):
     reponse = _appeler(
         par_nom,
         "m4_signaler_report",
-        {"intervention_id": intervention_id, "motif": motif, "horodatage": horodatage},
+        {"intervention_id": intervention_id, "motif": motif, "horodatage": HEURE_ECRITE_ABSURDE},
         identite_appelante,
+        dt.datetime.fromisoformat(recu_le),
     )
     assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse
 
 
-def _ecart(par_nom, intervention_id, horodatage, identite_appelante):
+def _ecart(par_nom, intervention_id, recu_le, identite_appelante):
     reponse = _appeler(
         par_nom,
         "m4_creer_demande_ecart",
@@ -146,9 +155,10 @@ def _ecart(par_nom, intervention_id, horodatage, identite_appelante):
             "intervention_id": intervention_id,
             "version_prevue": {"duree_minutes": 60, "perimetre": "perimetre prevu", "materiaux": ["m1"]},
             "version_declaree": {"duree_minutes": 90, "perimetre": "PERIMETRE-LIBRE-DU-TERRAIN", "materiaux": ["m2"]},
-            "horodatage": horodatage,
+            "horodatage": HEURE_ECRITE_ABSURDE,
         },
         identite_appelante,
+        dt.datetime.fromisoformat(recu_le),
     )
     assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse
     return reponse["resultat"]["resultat"]["demande_id"]
@@ -171,7 +181,7 @@ def _code_refus(reponse):
 @pytest.fixture
 def monde(par_nom):
     """Trois interventions planifiées (deux à Marc, une à Léa) : un report du client absent, un report de l'admin, un
-    écart déclaré par Marc. Heures écrites : 2025-06-03 08:00, 2025-06-04 07:00 et 2025-06-04 12:00."""
+    écart déclaré par Marc. Heures de RÉCEPTION du serveur : 2025-06-03 08:00, 2025-06-04 07:00 et 2025-06-04 12:00."""
     a = _planifier(par_nom, "L-A", "marc.fictif")
     b = _planifier(par_nom, "L-B", "marc.fictif")
     c = _planifier(par_nom, "L-C", "lea.fictif")
@@ -211,12 +221,14 @@ def test_le_releve_montre_les_reports_et_l_incident_ecrits_par_les_gestes_de_l_e
             "intervention_id": monde["a"],
             "motif": "client_absent",
             "depuis": "2025-06-03T08:00:00+00:00",
+            "origine_heure": "serveur",
             "heures_ecoulees": 49,
         },
         {
             "intervention_id": monde["c"],
             "motif": "decision_admin",
             "depuis": "2025-06-04T07:00:00+00:00",
+            "origine_heure": "serveur",
             "heures_ecoulees": 26,
         },
     ]
@@ -227,6 +239,7 @@ def test_le_releve_montre_les_reports_et_l_incident_ecrits_par_les_gestes_de_l_e
             "intervention_id": monde["b"],
             "type_demande": "ecart_metier",
             "depuis": "2025-06-04T12:00:00+00:00",
+            "origine_heure": "serveur",
             "heures_ecoulees": 21,
             "bloquee": False,
         }
@@ -309,10 +322,10 @@ def test_le_releve_ne_porte_aucun_texte_libre_du_terrain_ni_contact(par_nom, mon
         assert interdit not in texte, interdit
 
 
-def test_l_heure_d_un_report_et_d_une_demande_d_ecart_est_celle_que_l_appelant_a_ecrite(par_nom):
-    """Limite documentée (ROLES.md, README de M4) : contrairement au punch, au départ et à la complétion, l'heure de
-    RÉCEPTION du serveur ne fait pas foi pour un report ni pour une demande d'écart : le relevé montre l'heure
-    écrite."""
+def test_l_heure_d_un_report_et_d_une_demande_d_ecart_est_celle_de_reception_du_serveur(par_nom):
+    """PLAN T4.27-a2 (levée de la limite de T4.27-a) : comme le punch, le départ et la complétion, l'heure de RÉCEPTION
+    du serveur fait foi pour un report et une demande d'écart reçus d'un appareil ; l'heure écrite par l'appelant ne
+    date rien, et l'âge lu ne dépend plus de l'horloge de l'appareil."""
     a = _planifier(par_nom, "L-A", "marc.fictif")
     b = _planifier(par_nom, "L-B", "marc.fictif")
     recu_le = dt.datetime(2025, 6, 5, 9, 0, tzinfo=dt.UTC)
@@ -338,8 +351,11 @@ def test_l_heure_d_un_report_et_d_une_demande_d_ecart_est_celle_que_l_appelant_a
     )
     assert reponse["resultat"]["accepte"] is True
     releve = _releve(_lire(par_nom))
-    assert releve["reports"]["liste"][0]["depuis"] == "2025-06-03T08:00:00+00:00" != recu_le.isoformat()
-    assert releve["incidents"]["liste"][0]["depuis"] == "2025-06-03T09:00:00+00:00"
+    assert releve["reports"]["liste"][0]["depuis"] == recu_le.isoformat() != "2025-06-03T08:00:00+00:00"
+    assert releve["incidents"]["liste"][0]["depuis"] == recu_le.isoformat() != "2025-06-03T09:00:00+00:00"
+    assert releve["reports"]["liste"][0]["origine_heure"] == "serveur"
+    assert releve["incidents"]["liste"][0]["origine_heure"] == "serveur"
+    assert releve["reports"]["liste"][0]["heures_ecoulees"] == 0  # reçu à 09:00, référence 09:30 : 0 heure pleine
 
 
 # =========================================================================================

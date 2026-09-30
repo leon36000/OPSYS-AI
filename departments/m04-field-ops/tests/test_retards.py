@@ -10,9 +10,11 @@ Ce que le relevé doit prouver :
   * du plus ancien au plus récent, borné par liste ; le reste est compté, jamais perdu en silence ; `bloques` compte
     TOUTES les demandes bloquées, pas seulement celles qui sont affichées ;
   * le retard sur la cédule est `non_mesurable` et dit pourquoi : le relevé n'écrit jamais « aucun retard » ;
-  * rien d'écrit, aucun texte libre du terrain ni contact ni coordonnée ; le module est pur.
+  * rien d'écrit, aucun texte libre du terrain ni contact ni coordonnée ; le module est pur ;
+  * chaque ligne dit d'où vient son heure (`origine_heure` : `serveur` ou `appelant`, PLAN T4.27-a2) : ici, des faits
+    inscrits sans heure d'appareil, donc `appelant` ; l'origine elle-même est prouvée dans `test_origine_heure.py`.
 
-Le scénario par les vrais outils et la porte d'appareil : `test_retards_outil.py` et
+Le scénario par les vrais outils et la porte d'appareil : `test_retards_outil.py`, `test_heure_du_serveur_outils.py` et
 `tests/e2e/test_lectures_admin_m4_appareil.py`. Tout est fictif (`fictif: true`).
 """
 
@@ -184,6 +186,7 @@ def test_un_report_montre_l_intervention_le_motif_l_heure_et_l_age_en_heures_ple
             "intervention_id": identifiant,
             "motif": "meteo",
             "depuis": "2030-01-01T08:00:00+00:00",
+            "origine_heure": "appelant",  # inscrit sans heure d'appareil : l'heure est celle de l'appelant
             "heures_ecoulees": 49,
         }
     ]
@@ -282,6 +285,7 @@ def test_un_incident_montre_la_demande_l_intervention_le_type_l_heure_et_l_age()
             "intervention_id": identifiant,
             "type_demande": "ecart_metier",
             "depuis": "2030-01-02T08:00:00+00:00",
+            "origine_heure": "appelant",
             "heures_ecoulees": 2,
             "bloquee": False,
         }
@@ -514,7 +518,12 @@ def test_reports_courants_et_incidents_ouverts_lisent_un_registre_ou_un_instanta
     _reporter(registre, identifiant, "meteo", "2030-01-01T08:00:00+00:00")
     demande = _ecart(registre, identifiant, "2030-01-01T09:00:00+00:00")
     assert retards.reports_courants(registre) == [
-        {"intervention_id": identifiant, "motif": "meteo", "depuis": "2030-01-01T08:00:00+00:00"}
+        {
+            "intervention_id": identifiant,
+            "motif": "meteo",
+            "depuis": "2030-01-01T08:00:00+00:00",
+            "origine_heure": "appelant",
+        }
     ]
     assert retards.incidents_ouverts(registre) == [
         {
@@ -522,6 +531,7 @@ def test_reports_courants_et_incidents_ouverts_lisent_un_registre_ou_un_instanta
             "intervention_id": identifiant,
             "type_demande": "ecart_metier",
             "depuis": "2030-01-01T09:00:00+00:00",
+            "origine_heure": "appelant",
         }
     ]
 
@@ -562,6 +572,7 @@ def test_le_module_est_pur_sans_opsys_reseau_horloge_alea_ni_ecriture():
                     "ecarts",
                     "etats",
                     "horodatage",
+                    "pointage",
                     "verdicts",
                 }
         if isinstance(noeud, ast.Attribute):

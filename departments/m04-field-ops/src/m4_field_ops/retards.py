@@ -22,9 +22,18 @@ numérote ses jours (0, 1, ...) sans date civile, et le registre ne garde aucune
 sans départ ne se détecte pas. Aucun « aucun retard » n'est jamais écrit ici ; ``retard_sur_cedule`` est
 ``non_mesurable`` et dit pourquoi.
 
-Les heures des reports et des demandes d'écart sont celles que le registre a gardées : l'appelant les a écrites
-(contrairement au pointage, au départ ou à la complétion, dont l'heure de réception du serveur fait foi). Le relevé ne
-les corrige pas.
+D'OÙ VIENT L'HEURE D'UN FAIT (PLAN T4.27-a2). Chaque ligne dit ``origine_heure`` :
+
+    ``serveur``   l'heure du fait est celle de RÉCEPTION du serveur : un report, une demande d'écart ou un pointage
+                  reçus d'un appareil. L'âge ne dépend plus de l'horloge du téléphone qui a fait le geste ;
+    ``appelant``  l'heure du fait est celle que l'appelant a écrite : un fait inscrit avant T4.27-a2 (ces faits gardent
+                  leur heure, le registre est immuable), ou par un agent, la console ou une demande approuvée. Son
+                  âge dépend alors de l'horloge de celui qui l'a écrite ; le relevé ne la corrige pas, il le dit.
+
+La règle est ``horodatage.origine`` (un fait d'appareil porte ``horodatage_appareil`` à côté de son heure). Pour une
+anomalie de pointage, c'est le pointage lié (``pointage_ligne_id``) qui porte ce signe : sans lui, ``appelant``, jamais
+``serveur`` par défaut. La référence, elle, reste celle que l'appelant fournit : l'horloge de l'appareil de l'admin qui
+lit fausse encore l'âge (M4 n'a pas d'horloge, et une lecture n'en reçoit pas du socle).
 
 Ordre, stable : du plus ancien au plus récent (les plus en retard d'abord), puis par identifiant. Chaque liste est
 bornée (``LIMITE_PAR_LISTE``) pour tenir dans une réponse d'appareil ; le reste est compté (``reste``), jamais perdu en
@@ -36,7 +45,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from . import cedule_tournees, digest, ecarts, etats, horodatage, verdicts
+from . import cedule_tournees, digest, ecarts, etats, horodatage, pointage, verdicts
 
 TYPE_RELEVE = "RETARDS_INCIDENTS"
 SEUIL_BLOCAGE_HEURES = digest.SEUIL_BLOCAGE_HEURES
@@ -75,12 +84,13 @@ def _plus_anciens_d_abord(entrees, cle_identifiant):
 
 
 def reports_courants(instantane):
-    """Les reports EN COURS : ``[{intervention_id, motif, depuis}]``, une entrée par intervention au statut
-    ``reportee``.
+    """Les reports EN COURS : ``[{intervention_id, motif, depuis, origine_heure}]``, une entrée par intervention au
+    statut ``reportee``.
 
     ``instantane`` : un objet qui a ``lire()`` (un registre, ou ``cedule_tournees.instantane_du_registre``). Le statut
-    courant est celui de ``etats.lister_interventions`` (une seule définition de « reportée maintenant ») ; le motif et
-    l'heure sont ceux de la DERNIÈRE transition de report de l'intervention. Lecture pure."""
+    courant est celui de ``etats.lister_interventions`` (une seule définition de « reportée maintenant ») ; le motif,
+    l'heure et son origine (``serveur`` ou ``appelant``) sont ceux de la DERNIÈRE transition de report de
+    l'intervention. Lecture pure."""
     courantes = {ligne["intervention_id"] for ligne in etats.lister_interventions(instantane, statut="reportee")}
     derniers = {}
     for maillon in instantane.lire():
@@ -91,20 +101,43 @@ def reports_courants(instantane):
         ):
             derniers[maillon["intervention_id"]] = maillon
     return [
-        {"intervention_id": identifiant, "motif": maillon["motif"], "depuis": maillon["horodatage"]}
+        {
+            "intervention_id": identifiant,
+            "motif": maillon["motif"],
+            "depuis": maillon["horodatage"],
+            "origine_heure": horodatage.origine(maillon),
+        }
         for identifiant, maillon in derniers.items()
     ]
 
 
+def _origine_de_la_demande(demande, pointages):
+    """``serveur`` ou ``appelant`` : d'où vient l'heure d'une demande de revue ouverte.
+
+    Une demande d'écart porte elle-même le signe de l'appareil (``m4_creer_demande_ecart``). Une anomalie de pointage
+    est née de son pointage, dont elle prend l'heure : c'est ce pointage (``pointage_ligne_id``) qui le porte, même pour
+    une anomalie d'avant T4.27-a2 (le pointage garde l'heure du serveur depuis T1.4-d). Pointage introuvable : le
+    signe manque, donc ``appelant`` (jamais ``serveur`` sans preuve)."""
+    if demande.get("type_demande") == pointage.TYPE_REVUE_ANOMALIE:
+        return horodatage.origine(pointages.get(demande.get("pointage_ligne_id")))
+    return horodatage.origine(demande)
+
+
 def incidents_ouverts(instantane):
-    """Les demandes de revue sans résolution : ``[{demande_id, intervention_id, type_demande, depuis}]``. Lecture
-    pure."""
+    """Les demandes de revue sans résolution : ``[{demande_id, intervention_id, type_demande, depuis, origine_heure}]``.
+    Lecture pure."""
+    pointages = {
+        maillon["ligne_id"]: maillon
+        for maillon in instantane.lire()
+        if maillon["type_entree"] == pointage.TYPE_POINTAGE
+    }
     return [
         {
             "demande_id": demande["demande_id"],
             "intervention_id": demande["intervention_id"],
             "type_demande": demande["type_demande"],
             "depuis": demande["horodatage"],
+            "origine_heure": _origine_de_la_demande(demande, pointages),
         }
         for demande in ecarts.lister_pending_review(instantane)
     ]
@@ -124,7 +157,8 @@ def lire(registre_cible, horodatage_reference, limite_par_liste=None):
 
     Le relevé porte, pour chaque liste, son ``total``, la ventilation (``par_motif``, ``par_type``), ce qui est
     ``affiches`` et ce qui ``reste`` ; pour les incidents, ``bloques`` (comptés sur TOUS, pas seulement sur ceux qui
-    sont affichés). ``retard_sur_cedule`` est toujours ``non_mesurable``, avec la raison."""
+    sont affichés). Chaque ligne dit ``origine_heure`` (``serveur`` ou ``appelant``, voir le module).
+    ``retard_sur_cedule`` est toujours ``non_mesurable``, avec la raison."""
     try:
         horodatage.valider_horodatage(horodatage_reference)
     except ValueError:
@@ -145,6 +179,7 @@ def lire(registre_cible, horodatage_reference, limite_par_liste=None):
             "intervention_id": report["intervention_id"],
             "motif": report["motif"],
             "depuis": report["depuis"],
+            "origine_heure": report["origine_heure"],
             "heures_ecoulees": _heures_ecoulees(report["depuis"], reference),
         }
         for report in reports[:limite]
@@ -167,6 +202,7 @@ def lire(registre_cible, horodatage_reference, limite_par_liste=None):
                 "intervention_id": incident["intervention_id"],
                 "type_demande": incident["type_demande"],
                 "depuis": incident["depuis"],
+                "origine_heure": incident["origine_heure"],
                 "heures_ecoulees": heures,
                 "bloquee": heures is not None and heures >= SEUIL_BLOCAGE_HEURES,
             }
