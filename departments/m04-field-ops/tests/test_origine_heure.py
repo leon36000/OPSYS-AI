@@ -216,7 +216,7 @@ def test_sans_l_heure_de_l_appareil_a_cote_l_heure_est_celle_de_l_appelant_jamai
     assert horodatage.origine(maillon) == "appelant"
 
 
-def test_l_origine_ne_lit_que_la_cle_sœur_pas_le_reste_du_maillon():
+def test_l_origine_ne_lit_que_la_cle_soeur_pas_le_reste_du_maillon():
     """Ni le type d'entrée, ni une clé `origine`, ni `recu_le` écrits à la main ne font dire `serveur`."""
     maillon = {"type_entree": "transition_statut", "horodatage": RECU_LE, "origine": "serveur", "recu_le": RECU_LE}
     assert horodatage.origine(maillon) == "appelant"

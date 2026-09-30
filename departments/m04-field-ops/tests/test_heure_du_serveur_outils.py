@@ -268,7 +268,7 @@ def test_la_demande_d_ecart_d_un_chantier_en_route_passe_en_revue_a_l_heure_du_s
     assert transition["horodatage_appareil"] == HORLOGE_APPAREIL.isoformat()
 
 
-def test_l_admin_qui_reporte_par_son_appareil_est_daté_par_le_serveur_lui_aussi(par_nom):
+def test_l_admin_qui_reporte_par_son_appareil_est_date_par_le_serveur_lui_aussi(par_nom):
     intervention = _planifier(par_nom, "L-D", "lea.fictif")
     accuse = _resultat(_report(par_nom, intervention, "decision_admin", identite_appelante=ADMIN))
     assert accuse["horodatage"] == RECU_LE.isoformat() and accuse["horodatage_appareil"] == HORLOGE_APPAREIL.isoformat()
