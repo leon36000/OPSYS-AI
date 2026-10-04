@@ -65,6 +65,10 @@ Revue ROOT : les licences de code capturées ont été relues et cinq textes pri
 
 Le [pilote CPU sur deux fixtures](M5-OCR-PILOTE-CPU-2026-10-04.md) exerce ensuite
 les versions **déjà installées** PDFium/Tesseract dans une isolation bornée.
+
+Une [qualification d’identité du wheel candidat 5.13.0](M5-OCR-ARTEFACT-PDFIUM-2026-10-04.md)
+conserve ensuite ses 19 notices exactes et compare son binaire à la release amont.
+Elle ne qualifie ni l’exécution du candidat ni le binaire 5.3.0 du pilote précédent.
 ROOT télécharge le seul pack français public épinglé; aucun OCRmyPDF/Docling
 n’est installé. L’erreur de numéro sur l’image inclinée reste explicitement
 conservée, et aucune intégration produit ni précision fr-CA n’est revendiquée.

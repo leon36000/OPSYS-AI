@@ -495,7 +495,7 @@ la revue et les régressions qualifient les correctifs, pas le seul décompte d�
 | Docling | v2.133.0, `b0315ea356298e4659c9727e9f5191dd2001860a`, MIT | Candidat layout/table, non adopté. Licences des poids déclarées dans les cartes, vérification complète ouverte; extras/CPU/RAM à mesurer. |
 | OCRmyPDF | v17.13.0, `1a1cfb595b9a504a4689b23193a76bae7c3a156d`, MPL-2.0 | Premier profil de benchmark CPU envisagé, non installé. Ghostscript optionnel; pipeline PDFium/Tesseract distinct du lecteur natif. |
 | Tesseract et données `fra` | moteur5.5.1 `3b7c70e34dea179549ed3e995872e2e019eb8477`; tessdata_fast `87416418657359cb625c412a48b6e1d6d41c29bd`, Apache-2.0 distinctes | Langue disponible, précision fr-CA/AP non mesurée. Pack1130365octets selon métadonnées, non téléchargé. |
-| pypdfium2/PDFium | stable5.13.0 `a4659102e4c258ee18c661232c0f9763f6c85ad0`, textes Apache/BSD wrapper et BSD-style PDFium capturés | Notices de bibliothèques embarquées à inventorier pour le wheel exact; pas de qualification héritée du wrapper. |
+| pypdfium2/PDFium | stable5.13.0 `a4659102e4c258ee18c661232c0f9763f6c85ad0`, wrapper Apache/BSD, wheel Linux x64 exact et ses 19 notices vérifiés | [Identité d’artefact](REPRISE-2026-10-04/M5-OCR-ARTEFACT-PDFIUM-2026-10-04.md) : PDFium build 7999 identique au binaire de release amont; fonctionnement du candidat encore à qualifier, sans adoption. |
 | GitLab do-invparse | `6c0205666604cd3acbe547110e9a02104d460cc4`, MIT OR Apache-2.0 | Source distincte, non retenue : OCR planifié, modèle européen EN16931; aucune preuve OCR CAD/TPS/TVQ. |
 
 [Analyse, sources, contrats et profils](REPRISE-2026-10-04/M5-OCR-GITHUB-GITLAB.md).
