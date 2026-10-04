@@ -644,7 +644,7 @@ def test_migration_reelle_0019_0020_0021_preserve_intentions_et_ap(tmp_path):
         }
         assert cnx.exec_driver_sql("SELECT * FROM agents_declencheurs_remises").all() == []
     _upgrade(url, "head")
-    assert stockage.revision_courante(url) == "0023"
+    assert stockage.revision_courante(url) == "0024"
     with stockage.moteur(url).begin() as cnx:
         assert {r["name"] for r in inspect(cnx).get_columns(table.name)} == set(table.c.keys())
         assert cnx.execute(select(INTENTIONS)).all() == ancien

@@ -4,7 +4,7 @@ Objectif : compléter les départements existants selon la [vision issue des ins
 Architecture : core et socle existants, adaptateurs bornés, sources transactionnelles et événements.
 Socle technique : TypeScript core, Python/FastAPI/SQLAlchemy, mémoire PostgreSQL/pgvector existante;
 services spécialisés à qualifier séparément. Exécution : chef de projet et délégation Luna autorisée,
-un propriétaire par surface de modification. Pas de commit/push/merge/déploiement dans ce mandat local.
+un propriétaire par surface de modification. Publication en branche et dans la PR #623 explicitement autorisée ; aucune fusion de main ni aucun déploiement autorisé.
 
 ## Contraintes et risques de revue
 
@@ -121,3 +121,16 @@ séparément, sans promotion des critères globaux des lots 4 à 6.
 
 Chaque lot produit son propre design concret, interfaces, tests, préimages, décision de brique et
 rapport de résultats. Les lots 2–10 sont une feuille de route avec critères, pas des cases livrées.
+
+
+## Point de reprise M5 — étape 20, 4 octobre 2026
+
+La [saisie fournisseur depuis Fusion](../grs/compta/M5-AP-SAISIE-RAPPORT-2026-10-04.md)
+prolonge les lots 3/9 : second POST humain, N3 canonique, revalidation, append
+unique et rejeu historique, provenance `0024`. ROOT r124 qualifie 637 cas ciblés
+sur 18 fichiers complets, sans échec/erreur/skip ; Ruff vert sur 12 fichiers,
+1 236 sources inchangées. Reçus dans le rapport; CI de l'étape à suivre sur son propre commit. Aucun paiement, ledger final ou engagement externe.
+M5 global reste PARTIEL. Suite utile : corpus de factures fournisseurs réelles
+autorisées, mesure des refus/mappings/citations et politique de rétention ;
+OCR/scans, sans PO, pont PostgreSQL, mobile et connecteurs exigent leurs propres
+tranches. Cette qualification ne clôt aucun des dix lots d'ambition.

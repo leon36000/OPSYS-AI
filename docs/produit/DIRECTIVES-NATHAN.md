@@ -2,7 +2,8 @@
 
 Source : instruction explicite du propriétaire dans la conversation du 30 septembre 2026.
 Ce fichier en conserve la synthèse opérationnelle dans le dépôt. Il est destiné à la mémoire
-versionnée du projet ; les modifications de ce lot sont encore locales, sans commit ni push.
+versionnée du projet ; la reprise est publiée dans la [PR privée #623](https://github.com/leon36000/OPSYS-AI/pull/623),
+sans fusion ni déploiement.
 Il ne prétend pas être déjà ingéré par M10 ni conservé dans la mémoire personnelle d'un modèle.
 
 ## Construire à partir de briques existantes

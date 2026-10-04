@@ -969,9 +969,9 @@ def _registre_comptes_a_payer() -> registre_module.Registre:
     return registre_module.Registre(maillons=stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_COMPTES_A_PAYER))
 
 
-def _dictionnaire_taux() -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+def _dictionnaire_taux(*, contenu_octets: bytes | None = None) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """Les taux fiscaux versionnés, ou le refus nommé d'un fichier illisible (même verdict que les autres outils)."""
-    dictionnaire, erreurs = taux_fiscaux.charger_taux_fiscaux(_CHEMIN_TAUX_FISCAUX)
+    dictionnaire, erreurs = taux_fiscaux.charger_taux_fiscaux(_CHEMIN_TAUX_FISCAUX, contenu_octets=contenu_octets)
     if erreurs:
         return None, {"code": "REJ-TAUX-FICHIER-INVALIDE", "detail": "; ".join(erreurs)}
     return dictionnaire, None
@@ -1124,6 +1124,8 @@ def saisir_facture_fournisseur(
     montant_avant_taxes: str,
     total_facture: str | None,
     horodatage: str,
+    *,
+    contenu_taux: bytes | None = None,
 ) -> dict[str, Any]:
     """L'outil `m5_saisir_facture_fournisseur` (T1, N3, `admin`) : range une facture fournisseur SAISIE par un humain
     contre un PO déjà reçu (`comptes_a_payer.saisir_facture_fournisseur`), et rend la facture, ses avertissements et
@@ -1140,7 +1142,9 @@ def saisir_facture_fournisseur(
     )
     if acteur is None:
         return _refus(refus)
-    dictionnaire_taux, refus_taux = _dictionnaire_taux()
+    # Octets internes optionnels : le pont Fusion transmet le snapshot déjà borné et
+    # validé. Ils sont absents du schéma MCP, des arguments d'approbation et du navigateur.
+    dictionnaire_taux, refus_taux = _dictionnaire_taux(contenu_octets=contenu_taux)
     if refus_taux is not None:
         return _refus(refus_taux)
     registre_cible = _registre_comptes_a_payer()

@@ -28,8 +28,14 @@ configurables et limites fournisseur vérifiées avant appel.
 réutilise maintenant les contrôles métier avant saisie, sans ajouter une facture
 ou dette. PDF/citations/révisions, chaîne AP et taux sont relus; accès admin et
 finance/owner, CSRF et révocation au rendu sont vérifiés. ROOT r119 :
-363/363 tests ciblés sur dix fichiers complets, aucun ignoré. La confirmation AP
-avec provenance reste le lot suivant. M5 global demeure PARTIEL.
+363/363 tests ciblés sur dix fichiers complets, aucun ignoré. L'[étape 20 de
+saisie AP confirmée](../grs/compta/M5-AP-SAISIE-RAPPORT-2026-10-04.md) ajoute un
+second POST privé : approbation canonique N3, idempotence et provenance `0024`,
+une facture `SAISIE` interne sans paiement ni ledger final. ROOT r124 : 637 cas
+ciblés sur 18 fichiers complets, sans échec/erreur/skip, en 89,748 s JUnit ;
+Ruff vert sur 12 fichiers et 1 236 sources inchangées. Reçus dans le rapport; CI de cette
+étape à suivre sur son propre commit. Ces campagnes se recouvrent et ne
+s'additionnent pas. M5 global demeure PARTIEL.
 
 Le head `79b49669` a désormais réussi les six workflows natifs, dont
 3 815 tests du socle/17 ignorés. Cela ne remplace pas la CI du prochain commit;

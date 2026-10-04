@@ -1,5 +1,28 @@
 # Publication et corrections de CI — 4 octobre 2026
 
+## Relevé de la tranche de saisie AP — 4 octobre, 11:24 UTC
+
+`0b2d34f83151eea3ff094fec8a4d08834d5a5831` a réussi les six workflows natifs :
+CI 37194745926, Core 37194745929, E2E 37194745969, mobile 37194745934,
+dépendances 37194745922 et installateur 37194745924. Son socle donne
+**3 829 réussis/17 ignorés/1 warning**, 2 018,70 s; dix départements, neuf
+partitions M3 et gates réussis. L'installation Linux joue le vrai Core;
+les jobs Docker Desktop opt-in restent ignorés. Ces résultats sont conservés
+séparément des preuves de la nouvelle saisie AP.
+
+`bfc5b8d463cbcdf706ac2657eb39720717473888` : mobile, E2E et dépendances réussis;
+CI, Core et installation encore en cours à ce relevé. Aucun résultat du head
+précédent ne qualifie ce commit ni le prochain.
+
+La [saisie humaine Fusion AP → M5](../../grs/compta/M5-AP-SAISIE-RAPPORT-2026-10-04.md)
+réussit localement ROOT r124 : **637/637 sur dix-huit fichiers complets**,
+89,748 s JUnit, aucun échec/erreur/skip; Ruff vert sur les douze fichiers
+modifiés et 1 236 sources surveillées inchangées. r122 (formatage) et r123
+(633P/4F, erreurs de fixtures) restent conservés dans la capsule
+`M5-AP-SAISIE-r1`. La CI du commit de saisie reste à obtenir après publication.
+Le périmètre SQLite/PDF natif fictif ne certifie ni PostgreSQL financier,
+OCR, paiements, ledger final, mobile AP ou mise en production du CFO.
+
 ## Relevé complémentaire du 4 octobre, 10:35 UTC
 
 Le head `79b49669fa544c93b5aede738947bb7fbe452768` a réussi les six workflows :

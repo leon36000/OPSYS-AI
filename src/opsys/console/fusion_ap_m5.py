@@ -104,6 +104,71 @@ def _montant(champs: Mapping[str, str], cle: str) -> str:
     return valeur
 
 
+def _verifier_cnx(
+    cnx: Any, acteur: str, lot_id: str, *, revision_pdf: int, revision_ap: int,
+    po_id: str, fournisseur_id: str, correspondance_confirmee: bool,
+) -> tuple[dict[str, Any], dict[str, str], bytes]:
+    """Contrôle pur dans la transaction du pont; arguments/bytes restent côté serveur."""
+    _finance(cnx, acteur)
+    po_id, fournisseur_id = _identifiant(po_id), _identifiant(fournisseur_id)
+    if correspondance_confirmee is not True:
+        raise _erreur("AP_CORRESPONDANCE_A_REVOIR", 400)
+    source, champs, rows, raw = _sources(cnx, acteur, lot_id, revision_pdf, revision_ap)
+    if not champs["fournisseur"].strip() or not champs["po"].strip():
+        raise _erreur("AP_CORRESPONDANCE_A_REVOIR")
+    if champs["devise"] != "CAD":
+        raise _erreur("REJ-AP-DEVISE-NON-CAD")
+    montant = _montant(champs, "sous_total_imprime")
+    total = _montant(champs, "total_imprime")
+    taxes_imprimees = _montant(champs, "taxe_imprimee")
+    dictionnaire, erreurs = taux_fiscaux.charger_taux_fiscaux(
+        outils._CHEMIN_TAUX_FISCAUX, contenu_octets=raw,
+    )
+    if erreurs:
+        raise _erreur("M5_TAUX_INDISPONIBLES", 503)
+    observe_le = datetime.now(UTC).isoformat(timespec="seconds")
+    calcul, verdict = comptes_a_payer.verifier_facture_fournisseur(
+        po_id=po_id, fournisseur_id=fournisseur_id, numero_facture=champs["numero"],
+        date_facture=champs["date"], montant_avant_taxes=montant, total_facture=total,
+        saisi_par=acteur, voie="appareil", horodatage=observe_le,
+        dictionnaire_taux=dictionnaire, maillons=rows,
+    )
+    if verdict is not None:
+        raise _erreur(verdict["code"])
+    if calcul is None:
+        raise _erreur("M5_CALCUL_INDISPONIBLE", 503)
+    if Decimal(taxes_imprimees) != calcul["total_taxes"]:
+        raise _erreur("AP_TAXES_IMPRIMEES_INCOHERENTES")
+    current, _, _, _ = _sources(cnx, acteur, lot_id, revision_pdf, revision_ap)
+    if current != source:
+        raise _erreur("AP_SOURCES_MODIFIEES")
+    snapshot_id = hashlib.sha256(json.dumps(
+        {"schema": 1, "lot_id": lot_id, "source": source}, sort_keys=True, separators=(",", ":"),
+    ).encode()).hexdigest()
+    resultat = {
+        "statut": "CONTROLES_M5_COMPATIBLES", "source": source,
+        "snapshot_id": snapshot_id, "observe_le": observe_le,
+        "calcul": {
+            cle: format(calcul[cle], ".2f")
+            for cle in ("montant_avant_taxes", "total_taxes", "montant_apres_taxes")
+        } | {"taxes": [
+            {cle: ligne[cle] for cle in ("id", "version")}
+            | {"source": dictionnaire[ligne["id"]]["source"],
+               "montant": format(ligne["montant"], ".2f")}
+            for ligne in calcul["taxes"]
+        ]},
+        "avertissements": calcul["avertissements"],
+    }
+    resultat["commande_sha256"] = hashlib.sha256(json.dumps(
+        {"snapshot_id": snapshot_id, "po_id": po_id, "fournisseur_id": fournisseur_id},
+        sort_keys=True, separators=(",", ":"),
+    ).encode()).hexdigest()
+    arguments = {"po_id": po_id, "fournisseur_id": fournisseur_id,
+                 "numero_facture": champs["numero"], "date_facture": champs["date"],
+                 "montant_avant_taxes": montant, "total_facture": total}
+    return resultat, arguments, raw
+
+
 def verifier(
     fabrique: fusion_pdf.FabriqueConnexion, acteur: str, lot_id: str, *,
     revision_pdf: int, revision_ap: int, po_id: str, fournisseur_id: str,
@@ -112,56 +177,13 @@ def verifier(
     """Lit le snapshot courant, contrôle puis le relit. Rien n'est confirmé ou conservé."""
     try:
         with fusion_pdf._transaction(fabrique, acteur) as cnx:
-            _finance(cnx, acteur)
-            po_id, fournisseur_id = _identifiant(po_id), _identifiant(fournisseur_id)
-            if correspondance_confirmee is not True:
-                raise _erreur("AP_CORRESPONDANCE_A_REVOIR", 400)
-            source, champs, rows, raw = _sources(cnx, acteur, lot_id, revision_pdf, revision_ap)
-            if not champs["fournisseur"].strip() or not champs["po"].strip():
-                raise _erreur("AP_CORRESPONDANCE_A_REVOIR")
-            if champs["devise"] != "CAD":
-                raise _erreur("REJ-AP-DEVISE-NON-CAD")
-            montant = _montant(champs, "sous_total_imprime")
-            total = _montant(champs, "total_imprime")
-            taxes_imprimees = _montant(champs, "taxe_imprimee")
-            dictionnaire, erreurs = taux_fiscaux.charger_taux_fiscaux(
-                outils._CHEMIN_TAUX_FISCAUX, contenu_octets=raw,
+            resultat, _, _ = _verifier_cnx(
+                cnx, acteur, lot_id, revision_pdf=revision_pdf, revision_ap=revision_ap,
+                po_id=po_id, fournisseur_id=fournisseur_id,
+                correspondance_confirmee=correspondance_confirmee,
             )
-            if erreurs:
-                raise _erreur("M5_TAUX_INDISPONIBLES", 503)
-            observe_le = datetime.now(UTC).isoformat(timespec="seconds")
-            calcul, verdict = comptes_a_payer.verifier_facture_fournisseur(
-                po_id=po_id, fournisseur_id=fournisseur_id, numero_facture=champs["numero"],
-                date_facture=champs["date"], montant_avant_taxes=montant, total_facture=total,
-                saisi_par=acteur, voie="appareil", horodatage=observe_le,
-                dictionnaire_taux=dictionnaire, maillons=rows,
-            )
-            if verdict is not None:
-                raise _erreur(verdict["code"])
-            if calcul is None:
-                raise _erreur("M5_CALCUL_INDISPONIBLE", 503)
-            if Decimal(taxes_imprimees) != calcul["total_taxes"]:
-                raise _erreur("AP_TAXES_IMPRIMEES_INCOHERENTES")
-            current, _, _, _ = _sources(cnx, acteur, lot_id, revision_pdf, revision_ap)
-            if current != source:
-                raise _erreur("AP_SOURCES_MODIFIEES")
-            snapshot_id = hashlib.sha256(json.dumps(
-                {"schema": 1, "lot_id": lot_id, "source": source}, sort_keys=True, separators=(",", ":"),
-            ).encode()).hexdigest()
-            return {
-                "statut": "CONTROLES_M5_COMPATIBLES", "source": source,
-                "snapshot_id": snapshot_id, "observe_le": observe_le,
-                "calcul": {
-                    cle: format(calcul[cle], ".2f")
-                    for cle in ("montant_avant_taxes", "total_taxes", "montant_apres_taxes")
-                } | {"taxes": [
-                    {cle: ligne[cle] for cle in ("id", "version")}
-                    | {"source": dictionnaire[ligne["id"]]["source"],
-                       "montant": format(ligne["montant"], ".2f")}
-                    for ligne in calcul["taxes"]
-                ]},
-                "avertissements": calcul["avertissements"],
-            }
+            return resultat
+
     except (fusion_ap.FusionAPErreur, PermissionError):
         raise
     except (OSError, ValueError, TypeError, KeyError, ArithmeticError, SQLAlchemyError, yaml.YAMLError) as exc:

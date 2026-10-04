@@ -21,6 +21,7 @@ _FORM_MAX = 16_384
 _UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\Z")
 _MUTATION = re.compile(r"[A-Za-z0-9_.:-]{1,128}\Z")
 _REVISION = re.compile(r"(?:0|[1-9][0-9]{0,9})\Z")
+_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _CHAMPS = (
     ("fournisseur", "Fournisseur"),
     ("numero", "Numéro de facture"),
@@ -257,6 +258,64 @@ def _resultat_m5(resultat: Mapping[str, Any]) -> str:
     )
 
 
+def _confirmation_saisie_m5(
+    prefixe: str,
+    session: Session,
+    lot_id: str,
+    revision_pdf: int,
+    revision_ap: int,
+    po_id: str,
+    fournisseur_id: str,
+    resultat: Mapping[str, Any],
+) -> str:
+    commande_sha256 = resultat.get("commande_sha256")
+    if not isinstance(commande_sha256, str) or not _SHA256.fullmatch(commande_sha256):
+        raise HTTPException(503, {"code": "VERIFICATION_M5_INDISPONIBLE"})
+    mutation_id = uuid.uuid4().hex
+    return (
+        '<section class="carte pile"><h2>Saisie humaine dans M5</h2>'
+        '<p>La vérification précédente était une observation sans effet. Ce second envoi créera une facture SAISIE, '
+        'donc une dette interne; aucun paiement ne sera lancé. Le brouillon Fusion restera A_REVOIR.</p>'
+        f'<form method="post" action="{pages.e(prefixe)}/fusion/pdf/lots/{pages.e(lot_id)}/ap/saisir-m5" '
+        'class="pile">'
+        f'<input type="hidden" name="csrf" value="{pages.e(session.csrf)}">'
+        f'<input type="hidden" name="revision_pdf" value="{revision_pdf}">'
+        f'<input type="hidden" name="revision_ap" value="{revision_ap}">'
+        f'<input type="hidden" name="po_id" value="{pages.e(po_id)}">'
+        f'<input type="hidden" name="fournisseur_id" value="{pages.e(fournisseur_id)}">'
+        '<input type="hidden" name="correspondance_confirmee" value="oui">'
+        f'<input type="hidden" name="snapshot_attendu" value="{pages.e(commande_sha256)}">'
+        f'<input type="hidden" name="mutation_id" value="{mutation_id}">'
+        '<label><input type="checkbox" name="saisie_confirmee" value="oui" required>'
+        'Je confirme la saisie d’une dette interne dans M5, sans paiement.</label>'
+        '<button class="principal" type="submit">Confirmer la saisie M5</button></form></section>'
+    )
+
+
+def _recu_saisie_m5(resultat: Mapping[str, Any]) -> str:
+    status = resultat.get("statut")
+    facture_id = resultat.get("facture_id")
+    approbation_id = resultat.get("approbation_id")
+    rejoue = resultat.get("rejoue")
+    if (
+        not isinstance(status, str)
+        or not isinstance(facture_id, str)
+        or not isinstance(approbation_id, str)
+        or type(rejoue) is not bool
+    ):
+        raise HTTPException(503, {"code": "SAISIE_M5_INDISPONIBLE"})
+    return (
+        '<section class="carte pile"><h2>Référence de saisie M5</h2>'
+        f'<p>État : {pages.e(status)}.</p>'
+        f'<p>Référence de facture : {pages.e(facture_id)}.</p>'
+        f'<p>Référence d’approbation : {pages.e(approbation_id)}.</p>'
+        f'<p>Rejeu idempotent : {"oui" if rejoue else "non"}.</p>'
+        '<p>Cette référence conserve la saisie interne d’origine dans M5. Consultez M5 pour son état courant '
+        'et ses éventuelles corrections ou annulations. Aucun paiement n’a été lancé; le brouillon Fusion '
+        'demeure A_REVOIR.</p></section>'
+    )
+
+
 def _liste_a_revoir(prefixe: str, rows: list[Mapping[str, Any]]) -> str:
     if not rows:
         return '<p>Aucun brouillon AP à rouvrir.</p>'
@@ -291,7 +350,13 @@ def _liste_a_revoir(prefixe: str, rows: list[Mapping[str, Any]]) -> str:
     )
 
 
-def creer_router(*, session_page: Callable[..., Session], prefixe: str, cnx_factory: Callable[..., Any]) -> APIRouter:
+def creer_router(
+    *,
+    session_page: Callable[..., Session],
+    prefixe: str,
+    cnx_factory: Callable[..., Any],
+    deps: Mapping[str, Any] | None = None,
+) -> APIRouter:
     router = APIRouter()
 
     def session_vivante(request: Request, utilisateur: str | None = None) -> Session:
@@ -550,6 +615,9 @@ def creer_router(*, session_page: Callable[..., Session], prefixe: str, cnx_fact
             session = session_vivante(request, session.utilisateur)
             verifier_role_finance(session)
             contenu = _resultat_m5(resultat)
+            contenu += _confirmation_saisie_m5(
+                prefixe, session, lot_id, revision_pdf, revision_ap, po_id, fournisseur_id, resultat
+            )
         except HTTPException as exc:
             session = session_vivante(request, session.utilisateur)
             return echec_prive(request, session, exc)
@@ -560,6 +628,74 @@ def creer_router(*, session_page: Callable[..., Session], prefixe: str, cnx_fact
             request,
             session,
             '<section class="carte pile"><h1>Vérification AP préparatoire</h1>' + contenu + '</section>',
+        )
+        verifier_role_finance(session_vivante(request, session.utilisateur))
+        return reponse
+
+    @router.post("/fusion/pdf/lots/{lot_id}/ap/saisir-m5", response_class=HTMLResponse)
+    async def saisir_ap_m5(lot_id: str, request: Request) -> HTMLResponse:
+        session = session_vivante(request)
+        sans_query(request)
+        valider_lot(lot_id)
+        verifier_role_finance(session)
+        fields = await _formulaire(
+            request,
+            {
+                "csrf", "revision_pdf", "revision_ap", "po_id", "fournisseur_id",
+                "correspondance_confirmee", "saisie_confirmee", "snapshot_attendu", "mutation_id",
+            },
+        )
+        session = session_vivante(request, session.utilisateur)
+        verifier_role_finance(session)
+        valider_csrf(fields, session)
+        revision_pdf = _revision(fields["revision_pdf"], positive=True)
+        revision_ap = _revision(fields["revision_ap"], positive=True)
+        po_id, fournisseur_id = fields["po_id"], fields["fournisseur_id"]
+        if (
+            not po_id or len(po_id) > 64 or po_id.strip() != po_id or not po_id.isprintable()
+            or not fournisseur_id or len(fournisseur_id) > 64
+            or fournisseur_id.strip() != fournisseur_id or not fournisseur_id.isprintable()
+        ):
+            raise HTTPException(400, {"code": "IDENTIFIANT_M5_INVALIDE"})
+        if fields["correspondance_confirmee"] != "oui":
+            raise HTTPException(400, {"code": "CORRESPONDANCE_NON_ATTESTEE"})
+        if fields["saisie_confirmee"] != "oui":
+            raise HTTPException(400, {"code": "SAISIE_NON_CONFIRMEE"})
+        if not _SHA256.fullmatch(fields["snapshot_attendu"]):
+            raise HTTPException(400, {"code": "SNAPSHOT_M5_INVALIDE"})
+        if not re.fullmatch(r"[0-9a-f]{32}", fields["mutation_id"]):
+            raise HTTPException(400, {"code": "IDENTIFIANT_MUTATION_INVALIDE"})
+        try:
+            from . import fusion_ap_m5_saisie
+
+            resultat = await bloquant(
+                fusion_ap_m5_saisie.saisir,
+                cnx_factory,
+                session.utilisateur,
+                lot_id,
+                deps=deps,
+                revision_pdf=revision_pdf,
+                revision_ap=revision_ap,
+                po_id=po_id,
+                fournisseur_id=fournisseur_id,
+                correspondance_confirmee=True,
+                saisie_confirmee=True,
+                snapshot_attendu=fields["snapshot_attendu"],
+                mutation_id=fields["mutation_id"],
+            )
+            session = session_vivante(request, session.utilisateur)
+            verifier_role_finance(session)
+            contenu = _recu_saisie_m5(resultat)
+        except HTTPException as exc:
+            session = session_vivante(request, session.utilisateur)
+            return echec_prive(request, session, exc)
+        except Exception:
+            session = session_vivante(request, session.utilisateur)
+            return echec_prive(request, session, HTTPException(503, {"code": "SAISIE_M5_INDISPONIBLE"}))
+        reponse = rendre_prive(
+            request,
+            session,
+            '<section class="carte pile"><h1>Saisie AP M5</h1>' + contenu + '</section>',
         )
         verifier_role_finance(session_vivante(request, session.utilisateur))
         return reponse

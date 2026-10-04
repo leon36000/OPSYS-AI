@@ -332,6 +332,7 @@ def creer_application(
             session_page=session_page,
             prefixe=prefixe,
             cnx_factory=cnx_factory,
+            deps=deps,
         )
     )
     app.include_router(paie_ui.creer_router(**{k: v for k, v in callbacks_metier.items() if k != "ecriture_api"}))

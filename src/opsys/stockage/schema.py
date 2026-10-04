@@ -574,6 +574,25 @@ FUSION_AP_COMMANDES = Table(
     CheckConstraint("revision_resultat > 0", name="revision_positive"),
 )
 
+# Liaison de provenance uniquement : la facture et ses corrections restent dans le registre M5.
+FUSION_AP_SAISIES = Table(
+    "fusion_ap_saisies", META,
+    Column("lot_id", String(36), ForeignKey("fusion_ap_brouillons.lot_id"), primary_key=True),
+    Column("acteur", String(64), nullable=False),
+    Column("mutation_id", String(128), nullable=False),
+    Column("commande_sha256", String(64), nullable=False),
+    Column("preuve_json", Text, nullable=False),
+    Column("approbation_id", String(12), ForeignKey("approbations.id"), nullable=False, unique=True),
+    Column("facture_id", String(64), nullable=False),
+    Column("maillon_id", String(64), nullable=False),
+    Column("rang_maillon", Integer, nullable=False),
+    Column("cree_le", Text, nullable=False),
+    UniqueConstraint("acteur", "mutation_id", name="uq_fusion_ap_saisies_acteur_mutation"),
+    CheckConstraint("length(commande_sha256) = 64 AND length(maillon_id) = 64", name="empreintes"),
+    CheckConstraint("rang_maillon >= 0", name="rang"),
+    CheckConstraint("length(preuve_json) BETWEEN 2 AND 4096", name="preuve_bornee"),
+)
+
 # Profils d'agents configurables : projection courante + historique immuable des révisions.
 AGENTS_CONFIGURABLES = Table(
     "agents_configurables",

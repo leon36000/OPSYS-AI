@@ -1,0 +1,323 @@
+{
+  "archive": "AVATAR-AUDIO-3D-r1.tar.xz",
+  "bytes": 343584,
+  "sha256": "df24f17a4ee08a5e96634f395443598c729793a7479840256a69a7d0299521ea",
+  "timestamp_utc": "2026-10-04T11:21:24.065383+00:00",
+  "source_sha256": {
+    "docs/research/REPRISE-2026-10-04/AVATAR-AUDIO-3D-GITHUB-GITLAB.md": "f91172b4e72f610961ec441f8b2cb7a8cfa5981fbd70d77c34d081c535802bfa",
+    "docs/research/INGREDIENTS.md": "813a0bea3c7db7066f0d308541da601ee3eeaedcf2626943491bde62d26a08e2"
+  },
+  "qualification": "Documentary research, primary sources rechecked; no code adoption, model payload, inference, mobile runtime, fr-CA performance or latency qualification",
+  "entries": [
+    {
+      "path": "SHA256SUMS",
+      "bytes": 3719,
+      "sha256": "67ecc81ee6a997e8eb551105861fac8a990c2ac3daf19490237171dc2bbbeb26"
+    },
+    {
+      "path": "SHA256SUMS.sha256",
+      "bytes": 112,
+      "sha256": "b8006ec2d8d6cb6c92e3598dc66697157efd4e26441ff4021c5a88c2c5a27a0e"
+    },
+    {
+      "path": "captures/github-livekit-main-commit.json",
+      "bytes": 8975,
+      "sha256": "0e7473ecb4aa1c79ae85af59d5634d53c297b0b824aae6d6ed26c1f7c8fb47a7"
+    },
+    {
+      "path": "captures/github-livekit-release-latest.json",
+      "bytes": 6650,
+      "sha256": "f81890cb02ffbcaad94b55807d9ba84174c8909858c5ac8f7946a9731cecfb7c"
+    },
+    {
+      "path": "captures/github-livekit-rn-main.json",
+      "bytes": 6499,
+      "sha256": "bf1abb9cfd144847eb9290d12c2eb9dc5718870263c69c3332418915905d45b2"
+    },
+    {
+      "path": "captures/github-livekit-rn-release-commit.json",
+      "bytes": 1156017,
+      "sha256": "c1b5a83f6910895757cd008836f343fd36b56513e554f33a76a8e1d1cf9c4eb1"
+    },
+    {
+      "path": "captures/github-livekit-rn-release.json",
+      "bytes": 5938,
+      "sha256": "551255b1e7ba7a439d7b3db67c7ef7fd107c73b1c8e7892db708d2113e2bc51b"
+    },
+    {
+      "path": "captures/github-livekit-rn-repo.json",
+      "bytes": 7556,
+      "sha256": "836c04cf6e37aaa9ea26598dedd0dcee49dedc880a754976b49fc33b0f2467c0"
+    },
+    {
+      "path": "captures/github-livekit-rn-tag-object.json",
+      "bytes": 876,
+      "sha256": "5d4ad6e5c57e97a1dfd8cccc0b588991b4bcc24e91453655cda087a6c141ff2d"
+    },
+    {
+      "path": "captures/github-livekit-rn-tag.json",
+      "bytes": 469,
+      "sha256": "131b781b7989b2b4422580e5e4b258f508572d164aefb8bf6a3afd196ed29af4"
+    },
+    {
+      "path": "captures/github-livekit-tag-commit.json",
+      "bytes": 170572,
+      "sha256": "1799409ae99c673577595ce16678a22eef2ff391feeb6e27f920e1c91d5e36ad"
+    },
+    {
+      "path": "captures/github-livekit-tag.json",
+      "bytes": 415,
+      "sha256": "36a1409cbd786a8d10cd56d8fa7feb22de122e360dfc5723a7f05ff106bb35f8"
+    },
+    {
+      "path": "captures/github-livekit-v1.8.4-release.json",
+      "bytes": 6650,
+      "sha256": "f81890cb02ffbcaad94b55807d9ba84174c8909858c5ac8f7946a9731cecfb7c"
+    },
+    {
+      "path": "captures/gitlab-audio2face-search.json",
+      "bytes": 6397,
+      "sha256": "58988b8d327a07167006a6f3aa0f7373885b2d2b6f52542ca1dff101d64189c7"
+    },
+    {
+      "path": "captures/gitlab-vrm-LICENSE.txt",
+      "bytes": 34523,
+      "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
+    },
+    {
+      "path": "captures/gitlab-vrm-README.md",
+      "bytes": 18653,
+      "sha256": "de66b542d2d9bc78b78da2a76ac3fafc792a505d58dc4b7b82be0cc3e8f319bb"
+    },
+    {
+      "path": "captures/gitlab-vrm-main-commit.json",
+      "bytes": 1125,
+      "sha256": "f552b80357781c8fdabdf4015793aef2f944edc6a3afacd0ff791d313e562443"
+    },
+    {
+      "path": "captures/gitlab-vrm-package.json",
+      "bytes": 2968,
+      "sha256": "604fb49d7f6e5dfef76ae4c28d9665f00ec5a9f02364ab8d4aa3c5c814310f9a"
+    },
+    {
+      "path": "captures/gitlab-vrm-search.json",
+      "bytes": 9418,
+      "sha256": "ec9ab38544b2181b136fa0afe38a6b05cd103620c9570a5a5dbb47e98ebe4699"
+    },
+    {
+      "path": "captures/gitlab-vrm-tree.json",
+      "bytes": 2203,
+      "sha256": "1a4415bc5d25c380b581db89528274394ec6a6db1c6ecc78022e787e35dffb8f"
+    },
+    {
+      "path": "captures/hf-nvidia-james-README.md",
+      "bytes": 11158,
+      "sha256": "919c104c2ebf501cb8ba06f0261253b1a51fb087e5136153d85a6475636b39ce"
+    },
+    {
+      "path": "captures/hf-nvidia-james-model.json",
+      "bytes": 1136,
+      "sha256": "c9c2050c033f7fde531a47827435c1e691456c4a14dd375384a16624a70923ba"
+    },
+    {
+      "path": "captures/hf-nvidia-james-tree.json",
+      "bytes": 14988,
+      "sha256": "f26b3c671b85d0fabd0670eadbc85d3970e78b3438148226606811ccf385f3bb"
+    },
+    {
+      "path": "captures/livekit-LICENSE.txt",
+      "bytes": 11357,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    {
+      "path": "captures/livekit-commit-tag.json",
+      "bytes": 2576,
+      "sha256": "5589d1dd825b1633a7be9f029213456a320c04e94eb742d34dac8356bcaa2f1c"
+    },
+    {
+      "path": "captures/livekit-doc-self-hosting.html",
+      "bytes": 299840,
+      "sha256": "7f1ccefb06105bd97fb1b50708cbb14299687899dd274097e74a3542624b06c2"
+    },
+    {
+      "path": "captures/livekit-doc-voice-ai.html",
+      "bytes": 648473,
+      "sha256": "14c1970dc7803b1af09a5ca892416fbf4891d39b989576646abb159bd6bb8d6e"
+    },
+    {
+      "path": "captures/livekit-pyproject.toml",
+      "bytes": 8521,
+      "sha256": "07cee087a1f557785f92cb210374288e901832b1f5a7410eccf5fcb58b1fe97e"
+    },
+    {
+      "path": "captures/livekit-react-native-LICENSE.txt",
+      "bytes": 11357,
+      "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
+    },
+    {
+      "path": "captures/livekit-react-native-release-LICENSE.txt",
+      "bytes": 11357,
+      "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
+    },
+    {
+      "path": "captures/nvidia-a2f-LICENSE.txt",
+      "bytes": 1097,
+      "sha256": "211c1b442d1d55e2989de4344d63e9e6b8896cb3bd91289a92da708597087dd6"
+    },
+    {
+      "path": "captures/nvidia-a2f-SDK-README.md",
+      "bytes": 12527,
+      "sha256": "b6415ea8c479c54ce632103fd0b6b48d7fc4a1db932f478d271d396cfe9cc0bc"
+    },
+    {
+      "path": "captures/nvidia-a2f-main.json",
+      "bytes": 1105187,
+      "sha256": "2569f282ac1e29d178c864f45c84dfaff79af0d5284f9f0b9a2a385d3f11ca5f"
+    },
+    {
+      "path": "captures/nvidia-a2f-sdk-tags.json",
+      "bytes": 5,
+      "sha256": "2ba33ca0557f1bb5b7ba88d67f9d0093c7185a36ec51fe2b7bd9372d3e001d6d"
+    },
+    {
+      "path": "captures/nvidia-nim-a2f-rpc.html",
+      "bytes": 100786,
+      "sha256": "02a74a066354618e78e13328289678da11ec16b79965217b1b01553e38171e2e"
+    },
+    {
+      "path": "captures/nvidia-nim-getting-started.html",
+      "bytes": 91935,
+      "sha256": "9ff126041192d4c9545f056147276c2817a67d10fa8589ba4d90e9d01148f3fd"
+    },
+    {
+      "path": "captures/nvidia-open-model-license.html",
+      "bytes": 308712,
+      "sha256": "b834c25e4ebb60035a009edf1171d7cf98ad0bfdc841ef21b40959a67c32b2ae"
+    },
+    {
+      "path": "captures/prior-AVATAR-AUDIO-CONTRAT.md",
+      "bytes": 10414,
+      "sha256": "e8d2534b3ea34bbcf693d8eff3a2cc3131760662e9081acff76d0428abc85813"
+    },
+    {
+      "path": "captures/prior-AVATAR-AUDIO-LICENCES.md",
+      "bytes": 14123,
+      "sha256": "14c6f5921fe853ff01df50dea6c30c087892345bfc46fe80e67438c9bc84979b"
+    },
+    {
+      "path": "captures/prior-INGREDIENTS.md",
+      "bytes": 75014,
+      "sha256": "507f0a987b9dae00f533ee47cce4ffc20810bc2e9103a620b4e2f9288d29ca88"
+    },
+    {
+      "path": "captures/prior-R21-README.md",
+      "bytes": 6266,
+      "sha256": "7dcfd060f7ea648b7ff39570d7a582afa347264c390f2f6e9191e2689df392ff"
+    },
+    {
+      "path": "notes/rapport.md",
+      "bytes": 10724,
+      "sha256": "dfbafd50f43484e9ea82439422d5e159f68e4339cc9101e3466cfb1b8f9a5a6b"
+    },
+    {
+      "path": "preimage-INGREDIENTS-current.md",
+      "bytes": 75014,
+      "sha256": "507f0a987b9dae00f533ee47cce4ffc20810bc2e9103a620b4e2f9288d29ca88"
+    },
+    {
+      "path": "root-doc-before-r1/AVATAR-AUDIO-3D-GITHUB-GITLAB.md",
+      "bytes": 13151,
+      "sha256": "8523421ccce5943f8c0a4fb04ecc5b5b5b3b2313df192974bf461f52e6740487"
+    },
+    {
+      "path": "root-verification-r1/ADDITIONAL-RECHECK-r1.json",
+      "bytes": 440,
+      "sha256": "bfda29723281a194e4e9a9fd453f680b640675dde92242d3833853dee6df97e5"
+    },
+    {
+      "path": "root-verification-r1/RN-RELEASE-RECHECK-r1.json",
+      "bytes": 535,
+      "sha256": "16d998a7f74aac50ffa8b4b1d6a4e76ad346915fc99b1aacb63c903115dd353f"
+    },
+    {
+      "path": "root-verification-r1/ROOT-REVIEW-r1.json",
+      "bytes": 2393,
+      "sha256": "a95781561d93fbd98cca84c0587d768be50d6761bb81f616a7db4c53dd7631a9"
+    },
+    {
+      "path": "root-verification-r1/SOURCE-RECHECK-r1.json",
+      "bytes": 1791,
+      "sha256": "3fc2e493db79e21d9cb5aabc6efda63b4933d1f9e245d29dd73b899098d0c016"
+    },
+    {
+      "path": "root-verification-r1/gitlab-vrm-LICENSE.txt",
+      "bytes": 34523,
+      "sha256": "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
+    },
+    {
+      "path": "root-verification-r1/hf-nvidia-james-README.md",
+      "bytes": 11158,
+      "sha256": "919c104c2ebf501cb8ba06f0261253b1a51fb087e5136153d85a6475636b39ce"
+    },
+    {
+      "path": "root-verification-r1/livekit-LICENSE.txt",
+      "bytes": 11357,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    {
+      "path": "root-verification-r1/livekit-react-native-LICENSE.txt",
+      "bytes": 11357,
+      "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
+    },
+    {
+      "path": "root-verification-r1/nvidia-a2f-LICENSE.txt",
+      "bytes": 1097,
+      "sha256": "211c1b442d1d55e2989de4344d63e9e6b8896cb3bd91289a92da708597087dd6"
+    },
+    {
+      "path": "root-verification-r1/nvidia-open-model-license-text-r1.txt",
+      "bytes": 31510,
+      "sha256": "699bfcd33a83525703dda24ad7fb57040b0754759c7d13c363f8ea7b900598c9"
+    },
+    {
+      "path": "root-verification-r1/nvidia-open-model-license.html",
+      "bytes": 308712,
+      "sha256": "b834c25e4ebb60035a009edf1171d7cf98ad0bfdc841ef21b40959a67c32b2ae"
+    },
+    {
+      "path": "root-verification-r1/nvidia-trustworthy-ai-terms.html",
+      "bytes": 291352,
+      "sha256": "3ece3cea2e3f217b2f3b1f0195c37110f95220b62bdcad9b5c902d021fd897cd"
+    },
+    {
+      "path": "root-verification-r1/rn-release-LICENSE.txt",
+      "bytes": 11357,
+      "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
+    },
+    {
+      "path": "root-verification-r1/rn-tag-object.json",
+      "bytes": 767,
+      "sha256": "31c9effbcaa579e53b6bd5c2ff97ba9ccec5f8f5b8090a311282e1f28c18f293"
+    },
+    {
+      "path": "root-verification-r1/rn-tag.json",
+      "bytes": 430,
+      "sha256": "cf585ac87dce0174165472ccd84ecb4f16c8050b41474359463c8019360534ec"
+    },
+    {
+      "path": "sources.json",
+      "bytes": 6995,
+      "sha256": "d3b3a20d87a312048fac69f5a6d449d0445a403294a8b756070e662b19f7babe"
+    },
+    {
+      "path": "sources/docs/research/INGREDIENTS.md",
+      "bytes": 75876,
+      "sha256": "813a0bea3c7db7066f0d308541da601ee3eeaedcf2626943491bde62d26a08e2"
+    },
+    {
+      "path": "sources/docs/research/REPRISE-2026-10-04/AVATAR-AUDIO-3D-GITHUB-GITLAB.md",
+      "bytes": 13439,
+      "sha256": "f91172b4e72f610961ec441f8b2cb7a8cfa5981fbd70d77c34d081c535802bfa"
+    }
+  ]
+}

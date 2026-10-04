@@ -11,6 +11,17 @@ pas retenu. Les captures et la correction d'un pin de développement initial son
 conservées. Aucun statut intégré, précision réelle ou dépendance supplémentaire
 n'est attribué par ce travail de recherche.
 
+## Recherche audiovisuelle 3D du 4 octobre — approfondissement non adopté
+
+La [revue GitHub/GitLab des architectures avatar/audio](REPRISE-2026-10-04/AVATAR-AUDIO-3D-GITHUB-GITLAB.md)
+approfondit seulement les composants déjà listés ici/R21 : clips TTS avec cues locaux d’abord;
+LiveKit Agents et SDK React Native si un besoin micro/WebRTC est prouvé; NVIDIA Audio2Face/NIM
+comme service GPU séparé et facultatif. Les licences du framework, des SDK, du modèle NVIDIA et
+des actifs VRM restent distinctes; aucun coût, latence, qualité fr-CA ou statut intégré n’est
+revendiqué. La recherche GitLab a identifié des miroirs NVIDIA, pas un upstream séparé; le seul
+projet VRM distinct inspecté est webcam/MediaPipe AGPL et n’est pas retenu pour la synchronisation
+TTS. Les sources primaires épinglées et captures sont reliées au rapport.
+
 ## Actif audiovisuel facultatif — RobotExpressive (2 octobre 2026)
 
 Le catalogue local facultatif `robotexpressive-quaternius-cc0-v1` utilise le modèle

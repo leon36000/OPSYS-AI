@@ -84,8 +84,10 @@ sémantique des citations. Les taux/source versionnés existants ne sont pas une
 certification CPA. Aucun rapprochement n'est appliqué et aucun texte financier
 n'est envoyé à la mémoire générale.
 
-La prochaine tranche est une saisie M5 explicitement approuvée, avec provenance
-Fusion et revalidation de toutes les sources. Sans PO, OCR/image, fournisseurs
-réels, rétention, ingestion massive, QuickBooks/CCube et actions officielles
-restent à qualifier séparément. Aucune dette, paie, déclaration ou sortie d'argent
-n'est créée par ce parcours.
+La [saisie M5 confirmée](M5-AP-SAISIE-RAPPORT-2026-10-04.md) dispose désormais
+d'un second POST privé, distinct de cette vérification : approbation N3,
+idempotence, revalidation et provenance Fusion `0024`. Ce POST de vérification
+reste sans facture ni dette ; seule la confirmation explicite crée une dette
+interne `SAISIE`, sans paiement ni écriture finale. Sans PO, OCR/image,
+fournisseurs réels, rétention, ingestion massive, QuickBooks/CCube et actions
+officielles restent à qualifier séparément.
