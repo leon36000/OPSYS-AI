@@ -77,3 +77,14 @@ nouveau commit restent obligatoires avant intégration. Le gate mobile demeure r
 [Archive de preuves](preuves/DURCISSEMENT-r1.tar.xz) et
 [inventaire SHA256](preuves/DURCISSEMENT-r1.json) : reçus ROOT, JUnit, sources figées,
 contrôles interrompus et extraits identifiés des échecs GitHub. La PR reste en brouillon.
+
+## Publication et dernière relecture
+
+La tranche ci-dessus est publiée dans `31dba4efff8f764592375b1b72c9ca8427d23a31`, arbre
+`16dd277952bb28f4ea451b8f259fe390b2d008b5`, vérifié identique à l'index de publication.
+La dernière relecture retire l'apostrophe typographique d'un message littéral PowerShell,
+car ce caractère peut servir de délimiteur de chaîne. Les trois fichiers Python repassent
+sur cette source corrigée : `qa-r21`, 116 réussis, aucun ignoré, Ruff réussi. Cela ne
+remplace pas l'analyse et l'exécution PowerShell natives attendues de CI.
+Cette reprise dispose d'une [archive distincte](preuves/POWERSHELL-LITTERAL-r1.tar.xz)
+et de son [inventaire](preuves/POWERSHELL-LITTERAL-r1.json) ; la preuve précédente reste intacte.

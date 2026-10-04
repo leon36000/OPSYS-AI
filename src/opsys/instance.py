@@ -336,7 +336,7 @@ try {
     if ([string]::IsNullOrWhiteSpace($path)) { throw 'chemin ACL absent' }
     $isDirectory = $env:OPSYS_INSTANCE_ACL_DIRECTORY -eq '1'
     $currentSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
-    if ($null -eq $currentSid) { throw 'SID de l’utilisateur Windows courant absent' }
+    if ($null -eq $currentSid) { throw 'SID du compte Windows courant absent' }
 
     $acl = Get-Acl -LiteralPath $path
     $ownerBefore = $acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value
