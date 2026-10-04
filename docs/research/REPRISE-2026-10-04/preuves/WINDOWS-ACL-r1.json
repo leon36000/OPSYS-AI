@@ -1,0 +1,150 @@
+{
+  "created_utc": "2026-10-04T00:59:55.165930+00:00",
+  "archive": "WINDOWS-ACL-r1.tar.gz",
+  "archive_bytes": 389602,
+  "archive_sha256": "83392cd56597c21ff0406051f4bca15582776ab690effba4477accd742b27539",
+  "entries": [
+    {
+      "path": "PUBLICATION-FOLLOWUP-RESULT-r1.json",
+      "size": 4004,
+      "sha256": "6851efdd61f61dcd67a4edb754cddf5c6cc06a9d903b9bc5e2ea2c8c77bc60d3"
+    },
+    {
+      "path": "guard_helpers_r2.py",
+      "size": 13311,
+      "sha256": "145395c894c7621bc0f2534ba5b6ce282810ae523b0eca203a87ad55afeed844"
+    },
+    {
+      "path": "qa-r10/execution-r1/ruff.log",
+      "size": 2757,
+      "sha256": "100dd7f95247256f3c3d6641da5a4bb8f67de52838fb2ec9d9c81542d556fc7b"
+    },
+    {
+      "path": "qa-r10/freeze.json",
+      "size": 153193,
+      "sha256": "f0ee14c66777e71f246ce484efa8ad66f5e6e4364f5d92ddb464e7dfa391d7b5"
+    },
+    {
+      "path": "qa-r10/receipt.json",
+      "size": 313524,
+      "sha256": "9abbca8ae235a84b0d736afc26d4082090ac99400edce68ed92092889ef68023"
+    },
+    {
+      "path": "qa-r11/execution-r1/pytest.log",
+      "size": 160,
+      "sha256": "b594f0f90c257e8d3f63776be92c1255983828d4aaf4e0fb762d8be5f441c15a"
+    },
+    {
+      "path": "qa-r11/execution-r1/pytest.xml",
+      "size": 15591,
+      "sha256": "ac03e39739a43a8b8caa6689248fb3479b99e4bf4f373957d795270e78118cd7"
+    },
+    {
+      "path": "qa-r11/execution-r1/ruff.log",
+      "size": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "qa-r11/freeze.json",
+      "size": 153193,
+      "sha256": "113d43c62968b9fc2bf5062343940dde7665e4d8d59e8f9ee21d0439495b42fe"
+    },
+    {
+      "path": "qa-r11/receipt.json",
+      "size": 315725,
+      "sha256": "ddbf02da8fc3d31f040869a5e9388717511516b8f8e5e2c93742996d2d4ae4b2"
+    },
+    {
+      "path": "qa-r12/CLASSIFICATION.json",
+      "size": 408,
+      "sha256": "42c5dc6021a12beb15f9fa1e8ea700b0488d57074b339bd590e176ec4e07059e"
+    },
+    {
+      "path": "qa-r12/execution-r1/gitleaks.log",
+      "size": 135,
+      "sha256": "c72a2b444cf9afaa68a9bb97d4fb66d50570db535b7720622cc9c29b838db029"
+    },
+    {
+      "path": "qa-r12/freeze.json",
+      "size": 493,
+      "sha256": "394f45ec6711b4a146240ec9e10a4a0790eeafdf744c371bca429964f4c914cc"
+    },
+    {
+      "path": "qa-r12/receipt.json",
+      "size": 3392,
+      "sha256": "8553b2c7a46b6fa9b52bd283eb1a171e3e6091ac48f8bd563d3e2b57e98c5079"
+    },
+    {
+      "path": "qa-r12/scan.json",
+      "size": 662,
+      "sha256": "752c62976771d71c51b485b6ddb807e5f8e9c2ad6a14a8d71f5ce5d1039f395b"
+    },
+    {
+      "path": "qa_root_r10.py",
+      "size": 3613,
+      "sha256": "70fbdc11277518fb4d5442f5c6fa23f34b21241d7a1befbcea2fce4fd6e06078"
+    },
+    {
+      "path": "qa_root_r11.py",
+      "size": 3613,
+      "sha256": "5f049d7d71546339636bbda265e794e7ec8cac0ab5b5148aa739269616df960d"
+    },
+    {
+      "path": "qa_root_r12.py",
+      "size": 3308,
+      "sha256": "5302a9b45ae8da36a078dad67f5e4dc6c096b63315351b95b88996e97b851f9b"
+    },
+    {
+      "path": "remote/job-111327787598-extract.log",
+      "size": 2266,
+      "sha256": "6cc72a0da33d810cd6cefa0d55989296deb2f22ef8ccb06232fba57a4520604a"
+    },
+    {
+      "path": "remote/job-111327787794-extract.log",
+      "size": 3920,
+      "sha256": "277cda84d49ff15ffd6a4543dda9f2dce5ecaf26bc7f7ff2b319cd4a56675c78"
+    },
+    {
+      "path": "remote/job-111327787937.log",
+      "size": 57337,
+      "sha256": "e22702956fc9bea8e2fe1c59c96827145c0d4474352df29aeda2a77c872198d8"
+    },
+    {
+      "path": "remote/run-37165617167.json",
+      "size": 18381,
+      "sha256": "be6c5dbd585eca00d259467e73667dad6ab303eb397c48d60ad3f366620979e4"
+    },
+    {
+      "path": "remote/run-37165617170.json",
+      "size": 20985,
+      "sha256": "00d2466ac3e85a8be11229bf4c2c16d4a73304e6e81a52664b50287c66af956c"
+    },
+    {
+      "path": "remote/run-37165617210.json",
+      "size": 18875,
+      "sha256": "75135c83409a151ce70cf33fd27548fd3579e8de88923995c8fd9ea88a47d9a8"
+    },
+    {
+      "path": "remote/run-37165617213.json",
+      "size": 34358,
+      "sha256": "f576196e6b9a019f26883f30e682d95f3980bb0edce7a89250479482d336f028"
+    },
+    {
+      "path": "remote/run-37165617223.json",
+      "size": 14790,
+      "sha256": "6c0c267641d7a4dfd5b2f746acad83e035f875502d540bd763511eaada6473b4"
+    },
+    {
+      "path": "remote/run-37165617229.json",
+      "size": 48550,
+      "sha256": "394ba9f791675e67fab626ba09f0b61279d87b59191d19a05a8fb0dd74213688"
+    }
+  ],
+  "raw_scan_ok": false,
+  "qa_local_linux": {
+    "passed": 113,
+    "skipped": 0,
+    "native_windows_qualified": false
+  },
+  "log_scope": "Windows log complet ; nouveaux échecs core/E2E extraits du connecteur ; métadonnées GitHub intégrales à date observée"
+}

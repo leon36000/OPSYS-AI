@@ -37,6 +37,24 @@ def _mode(chemin: Path) -> int:
     return stat.S_IMODE(chemin.stat().st_mode)
 
 
+def _chemin_absolu_attendu(chemin: str) -> Path:
+    """Résout les entrées HOME POSIX comme le fait le code sous l'OS courant."""
+    return Path(os.path.abspath(chemin))
+
+
+def _espionner_chmod_posix(monkeypatch):
+    appels = []
+    chmod_reel = os.chmod
+
+    def espion(chemin, mode):
+        appels.append((Path(chemin), mode))
+        chmod_reel(chemin, mode)
+
+    monkeypatch.setattr(instance, "_sous_windows", lambda: False)
+    monkeypatch.setattr(instance.os, "chmod", espion)
+    return appels
+
+
 def _valeurs_secretes(chemin: Path) -> list[str]:
     env = instance.lire_env(chemin)
     return [valeur for nom, valeur in env.items() if re.search(r"JETON|TOKEN|CLE", nom) and len(valeur) >= 12]
@@ -72,7 +90,7 @@ def palier_standard():
 
 
 # -- assurer_env ------------------------------------------------------------------------------------------------------
-def test_env_cree_en_0600_avec_les_secrets_manquants(tmp_path):
+def test_env_cree_en_0600_avec_les_secrets_manquants(tmp_path, verifier_acces_prive):
     chemin = tmp_path / "core" / ".env"
     ancien_umask = os.umask(0)  # le pire cas : aucun droit retiré par le système
     try:
@@ -80,7 +98,7 @@ def test_env_cree_en_0600_avec_les_secrets_manquants(tmp_path):
     finally:
         os.umask(ancien_umask)
 
-    assert _mode(chemin) == 0o600
+    verifier_acces_prive(chemin, mode=0o600)
     assert rapport.generees == tuple(SECRETS_ATTENDUS)
     env = instance.lire_env(chemin)
     assert len(env["OPSYS_MCP_JETON"]) >= 24 and not re.search(r"\s", env["OPSYS_MCP_JETON"])  # exigé par le moteur
@@ -141,14 +159,14 @@ def test_un_secret_vide_est_genere_et_le_reste_du_fichier_est_conserve(tmp_path)
     assert len(instance.lire_env(chemin)["OPSYS_MCP_JETON"]) == 64
 
 
-def test_un_fichier_pose_a_la_main_avec_des_droits_larges_est_resserre(tmp_path):
+def test_un_fichier_pose_a_la_main_avec_des_droits_larges_est_resserre(tmp_path, verifier_acces_prive):
     chemin = tmp_path / ".env"
     chemin.write_text("OPSYS_MCP_JETON=jeton-existant-1234567890\n", encoding="utf-8")
     chemin.chmod(0o644)
 
     instance.assurer_env(chemin, ["OPSYS_MCP_JETON"], {})
 
-    assert _mode(chemin) == 0o600
+    verifier_acces_prive(chemin, mode=0o600)
     assert chemin.read_text(encoding="utf-8") == "OPSYS_MCP_JETON=jeton-existant-1234567890\n"
 
 
@@ -389,33 +407,46 @@ def test_un_dossier_qui_n_est_pas_un_depot_est_refuse(opsys_home, tmp_path):
         _initialiser(opsys_home, source=tmp_path)
 
 
-def test_les_dossiers_crees_sont_prives_et_un_dossier_ouvert_est_signale(tmp_path):
+def test_les_dossiers_crees_sont_prives_et_un_dossier_ouvert_est_signale(
+        tmp_path, verifier_acces_prive):
     neuf, neuf_core = tmp_path / "neuf", tmp_path / "hote" / ".opsys" / "core"
     assert instance._preparer_dossiers([neuf, neuf_core.parent, neuf_core]) == []
-    assert _mode(neuf) == 0o700 and _mode(neuf_core) == 0o700
-    assert _mode(neuf_core.parent) == 0o700  # le dossier d'instance n'est pas créé avec les droits par défaut
+    verifier_acces_prive(neuf, mode=0o700)
+    verifier_acces_prive(neuf_core, mode=0o700)
+    verifier_acces_prive(neuf_core.parent, mode=0o700)  # le dossier d'instance est privé lui aussi
 
     ouvert = tmp_path / "ouvert"
     ouvert.mkdir(mode=0o755)
     ouvert.chmod(0o755)
+    contenu_ouvert_avant = _contenu_de_tout(ouvert)
+    mode_ouvert_avant = _mode(ouvert)
     avertissements = instance._preparer_dossiers([ouvert, neuf_core])
-    assert any(str(ouvert) in ligne and "chmod 700" in ligne for ligne in avertissements)
-    assert _mode(ouvert) == 0o755  # un dossier existant n'est jamais modifié
+    if os.name == "nt":
+        # Sous Windows, les ACL des dossiers préexistants ne sont ni inspectées ni modifiées.
+        assert avertissements == []
+    else:
+        assert any(str(ouvert) in ligne and "chmod 700" in ligne for ligne in avertissements)
+    assert _contenu_de_tout(ouvert) == contenu_ouvert_avant
+    assert _mode(ouvert) == mode_ouvert_avant  # un dossier existant n'est jamais modifié
 
 
 # -- le dossier d'état du core : `core/` dans le dossier d'instance du compte -------------------------------------
 def test_le_dossier_du_core_est_celui_du_profil_opsys_sous_le_dossier_personnel():
-    assert instance.dossier_core({"HOME": "/home/marie"}) == Path("/home/marie/.opsys/core")
-    assert instance.dossier_core({"USERPROFILE": "/users/marie"}) == Path("/users/marie/.opsys/core")
-    assert instance.dossier_core({"HOME": "/h/un", "USERPROFILE": "/h/deux"}) == Path("/h/un/.opsys/core")
-    assert instance.dossier_core({"HOME": "/home/marie/../paul/"}) == Path("/home/paul/.opsys/core")
+    assert instance.dossier_core({"HOME": "/home/marie"}) == _chemin_absolu_attendu("/home/marie/.opsys/core")
+    assert instance.dossier_core({"USERPROFILE": "/users/marie"}) == _chemin_absolu_attendu("/users/marie/.opsys/core")
+    assert instance.dossier_core({"HOME": "/h/un", "USERPROFILE": "/h/deux"}) == (
+        _chemin_absolu_attendu("/h/un/.opsys/core"))
+    assert instance.dossier_core({"HOME": "/home/marie/../paul/"}) == _chemin_absolu_attendu("/home/paul/.opsys/core")
     # « undefined » et « null » se lisent comme absents, comme dans le core (`normalizeHomeDirValue`)
-    assert instance.dossier_core({"HOME": "undefined", "USERPROFILE": "/h/deux"}) == Path("/h/deux/.opsys/core")
+    assert instance.dossier_core({"HOME": "undefined", "USERPROFILE": "/h/deux"}) == (
+        _chemin_absolu_attendu("/h/deux/.opsys/core"))
 
 
 def test_l_ancien_dossier_du_profil_est_a_cote_du_dossier_personnel():
-    assert instance.ancien_dossier_profil({"HOME": "/home/marie"}) == Path("/home/marie/.openclaw-opsys")
-    assert instance.ancien_dossier_profil({"USERPROFILE": "/users/marie"}) == Path("/users/marie/.openclaw-opsys")
+    assert instance.ancien_dossier_profil({"HOME": "/home/marie"}) == (
+        _chemin_absolu_attendu("/home/marie/.openclaw-opsys"))
+    assert instance.ancien_dossier_profil({"USERPROFILE": "/users/marie"}) == (
+        _chemin_absolu_attendu("/users/marie/.openclaw-opsys"))
     with pytest.raises(instance.ErreurInstance, match="HOME"):
         instance.ancien_dossier_profil({"PATH": "/usr/bin"})
 
@@ -424,7 +455,7 @@ def test_openclaw_home_est_ecarte_comme_le_font_les_commandes_installees():
     environ = {"HOME": "/home/marie", "OPENCLAW_HOME": "/ailleurs", "OPENCLAW_STATE_DIR": "/autre/etat",
                "OPENCLAW_PROFILE": "autre"}
 
-    assert instance.dossier_core(environ) == Path("/home/marie/.opsys/core")
+    assert instance.dossier_core(environ) == _chemin_absolu_attendu("/home/marie/.opsys/core")
 
 
 def test_sans_dossier_personnel_le_dossier_du_core_est_refuse_jamais_devine():
@@ -440,15 +471,16 @@ def test_l_environnement_du_processus_donne_le_dossier_personnel_du_poste(hote):
 
 
 def test_l_etat_du_core_suit_le_compte_pas_opsys_home_et_les_dossiers_sont_prives(
-        opsys_home, hote, etat_core, palier_standard):
+        opsys_home, hote, etat_core, palier_standard, verifier_acces_prive):
     resultat = _initialiser(opsys_home, environ=EMBEDDINGS)
 
     assert resultat.etat == "pret" and resultat.dossier_core == etat_core
     assert not (opsys_home / "core").exists()  # OPSYS_HOME est ailleurs : ses données restent chez lui
     assert (etat_core / ".env").is_file() and (etat_core / "opsys.json").is_file()
     assert (etat_core / "opsys" / "metier.json").is_file()
-    assert _mode(etat_core) == 0o700 and _mode(etat_core / ".env") == 0o600
-    assert _mode(hote / ".opsys") == 0o700  # le dossier d'instance, créé avec l'état du core, est privé lui aussi
+    verifier_acces_prive(etat_core, mode=0o700)
+    verifier_acces_prive(etat_core / ".env", mode=0o600)
+    verifier_acces_prive(hote / ".opsys", mode=0o700)  # créé avec l'état du core
     assert not [p for p in opsys_home.iterdir() if p.is_dir()]  # OPSYS_HOME ne garde que des fichiers de données
     assert any("OPSYS_HOME" in ligne and str(opsys_home) in ligne and str(etat_core) in ligne
                for ligne in resultat.avertissements)  # le core ne lit pas OPSYS_HOME : l'écart est dit
@@ -462,19 +494,21 @@ def _instance_par_defaut(hote: Path, monkeypatch) -> Path:
     home = hote / ".opsys"
     monkeypatch.setenv("OPSYS_HOME", str(home))
     modeles.enregistrer_paliers({"standard": {"provider": "anthropic", "model": "claude-sonnet-5"}})
-    home.chmod(0o700)
+    # Le fixture établit l'ACL privée sur le dossier préexistant; initialiser() le laisse intact.
+    instance.restreindre_dossier(home)
     return home
 
 
 def test_avec_l_opsys_home_par_defaut_les_donnees_et_l_etat_du_core_sont_dans_le_meme_dossier_d_instance(
-        hote, etat_core, monkeypatch):
+        hote, etat_core, monkeypatch, verifier_acces_prive):
     home = _instance_par_defaut(hote, monkeypatch)
 
     resultat = _initialiser(home, environ=EMBEDDINGS)
 
     assert resultat.etat == "pret" and resultat.dossier_core == home / "core" == etat_core
     assert (home / "opsys.db").is_file() and (home / "paliers.yaml").is_file()
-    assert _mode(home) == 0o700 and _mode(etat_core) == 0o700
+    verifier_acces_prive(home, mode=0o700)
+    verifier_acces_prive(etat_core, mode=0o700)
     assert not any("OPSYS_HOME" in ligne for ligne in resultat.avertissements)  # rien à signaler : un seul dossier
 
 
@@ -935,14 +969,17 @@ def test_le_dossier_personnel_se_lit_comme_dans_le_core():
 
 
 # -- restreindre_acces : 0600 sous POSIX, icacls sous Windows --------------------------------------------------------
-def test_restreindre_acces_pose_0600_hors_de_windows(tmp_path):
+def test_restreindre_acces_pose_0600_hors_de_windows(tmp_path, monkeypatch):
     fichier = tmp_path / "secret"
     fichier.write_text("x", encoding="utf-8")
     fichier.chmod(0o644)
+    appels = _espionner_chmod_posix(monkeypatch)
 
     instance.restreindre_acces(fichier)
 
-    assert _mode(fichier) == 0o600
+    assert appels == [(fichier, 0o600)]
+    if os.name != "nt":
+        assert _mode(fichier) == 0o600
 
 
 def test_restreindre_acces_sous_windows_coupe_l_heritage_et_ne_garde_que_l_utilisateur(tmp_path, monkeypatch):
@@ -959,11 +996,13 @@ def test_restreindre_acces_sous_windows_coupe_l_heritage_et_ne_garde_que_l_utili
     fichier = tmp_path / ".env"
     fichier.write_text("x", encoding="utf-8")
     fichier.chmod(0o644)
+    mode_avant = _mode(fichier)
 
     instance.restreindre_acces(fichier)
 
     assert appels == [["icacls", str(fichier), "/inheritance:r", "/grant:r", "sylvie-fictif:(F)"]]
-    assert _mode(fichier) == 0o644  # os.chmod ne sert à rien sous Windows : seul icacls agit
+    assert _mode(fichier) == mode_avant  # l'appel icacls simulé n'altère pas le mode exposé par l'OS
+    assert fichier.read_text(encoding="utf-8") == "x"  # le test vérifie l'appel simulé, pas la DACL effective
 
 
 def test_restreindre_acces_sous_windows_refuse_sans_utilisateur_et_sur_refus_d_icacls(tmp_path, monkeypatch):
@@ -982,14 +1021,29 @@ def test_restreindre_acces_sous_windows_refuse_sans_utilisateur_et_sur_refus_d_i
         instance.restreindre_acces(fichier)
 
 
-def test_restreindre_dossier_pose_0700_hors_de_windows(tmp_path):
+def test_restreindre_dossier_pose_0700_hors_de_windows(tmp_path, monkeypatch):
     dossier = tmp_path / "etat"
     dossier.mkdir()
     dossier.chmod(0o755)
+    appels = _espionner_chmod_posix(monkeypatch)
 
     instance.restreindre_dossier(dossier)
 
-    assert _mode(dossier) == 0o700
+    assert appels == [(dossier, 0o700)]
+    if os.name != "nt":
+        assert _mode(dossier) == 0o700
+
+
+def test_restreindre_acces_et_dossier_protegent_effectivement_le_chemin(tmp_path, verifier_acces_prive):
+    fichier = tmp_path / ".env"
+    fichier.write_text("secret fictif\n", encoding="utf-8")
+    instance.restreindre_acces(fichier)
+    verifier_acces_prive(fichier, mode=0o600)
+
+    dossier = tmp_path / "core"
+    dossier.mkdir()
+    instance.restreindre_dossier(dossier)
+    verifier_acces_prive(dossier, mode=0o700)
 
 
 def test_sous_windows_les_dossiers_crees_ont_une_acl_heritee_reduite_a_l_utilisateur(tmp_path, hote, monkeypatch):

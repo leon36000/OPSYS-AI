@@ -164,18 +164,31 @@ def test_les_installateurs_verifient_docker_linux_et_preparent_l_image_sandbox_a
 
 
 def test_les_deux_installateurs_synchronisent_les_memes_extras_verrouilles():
+    extras_par_script = {}
     for script in (INSTALL_SH, INSTALL_PS1):
         texte = script.read_text(encoding="utf-8")
         lignes = re.sub(r"\\\n[ \t]*", " ", texte)
         commandes = re.findall(r"\buv sync --locked[^\n]*", lignes)
         assert len(commandes) == 2, script.name
+        if script == INSTALL_SH:
+            declaration = re.search(r'(?m)^EXTRAS_MOTEUR="([^"]+)"$', texte)
+            assert declaration and 'for extra in "${base_extras[@]}"; do extras+=(--extra "$extra"); done' in texte
+            assert 'if [ "$INGESTION_PDF" -eq 1 ]; then extras+=(--extra ingestion-pdf); fi' in texte
+            assert all('"${extras[@]}"' in commande for commande in commandes), script.name
+        else:
+            declaration = re.search(r"(?m)^\$script:ExtrasMoteur = '([^']+)'", texte)
+            assert declaration and "foreach ($extra in $script:ExtrasMoteur.Split(','))" in texte
+            assert all("@extrasMoteurUv" in commande for commande in commandes), script.name
+            assert "OPSYS_INGESTION_ENV_FILE" in texte and "install.sh uniquement" in texte
+        assert declaration is not None, script.name
+        extras = declaration.group(1).split(",")
+        extras_par_script[script.name] = extras
         for commande in commandes:
             assert "--group build" in commande and "--no-dev" in commande, script.name
-            assert re.findall(r"--extra (\w+)", commande) == ["tournees", "soumission"], script.name
             assert "--no-build-isolation" in commande, script.name
         assert "--no-install-project" in commandes[0]
         assert "--no-install-project" not in commandes[1]
-
+    assert extras_par_script[INSTALL_SH.name] == extras_par_script[INSTALL_PS1.name] == ["tournees", "soumission"]
 
 def test_l_installateur_ne_garde_plus_le_service_d_une_autre_installation_et_ne_pose_aucun_etat_a_la_main():
     """Sous le profil « opsys », le service a son propre nom : la garde d'avant T0.11-b n'a plus d'objet."""

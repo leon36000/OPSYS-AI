@@ -14,7 +14,6 @@ import io
 import json
 import os
 import sqlite3
-import stat
 import subprocess
 import tarfile
 from pathlib import Path
@@ -144,13 +143,14 @@ def test_les_exclusions_nomment_le_dossier_du_profil_du_core_et_jamais_un_secret
     assert resultat.en_json()["exclus"] == [dict(e) for e in exportation.EXCLUS]
 
 
-def test_archive_et_empreinte_sont_privees_et_l_empreinte_se_verifie_avec_sha256sum(opsys_home, tmp_path):
+def test_archive_et_empreinte_sont_privees_et_l_empreinte_sha256_se_verifie(
+        opsys_home, tmp_path, verifier_acces_prive):
     _peupler(opsys_home)
 
     resultat = exportation.exporter(opsys_home, tmp_path / "export.tar.gz", par="test")
 
-    assert stat.S_IMODE(resultat.archive.stat().st_mode) == 0o600
-    assert stat.S_IMODE(resultat.empreinte.stat().st_mode) == 0o600
+    verifier_acces_prive(resultat.archive, mode=0o600)
+    verifier_acces_prive(resultat.empreinte, mode=0o600)
     assert resultat.empreinte.read_text(encoding="utf-8") == f"{resultat.sha256}  export.tar.gz\n"
     assert resultat.sha256 == hashlib.sha256(resultat.archive.read_bytes()).hexdigest()
     assert not [p for p in tmp_path.iterdir() if p.name.startswith(".opsys-export-")]  # aucun résidu

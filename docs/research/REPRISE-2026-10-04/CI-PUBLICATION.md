@@ -80,3 +80,18 @@ La nouvelle CI doit encore confirmer les installateurs réels, PostgreSQL, le Ga
 la suite core complète et le profil vocal. Le manque de disque local empêche une nouvelle image
 PostgreSQL et une construction complète locale ; les résultats GitHub servent de preuve dans
 leur périmètre exact. Aucun module ni OPSYS-AI dans son ensemble n'est déclaré terminé.
+
+## Résultats du second commit et reprise Windows
+
+Le second commit publié est `df76940ff3fce10670f4e195a7228a89ca5e4028`, arbre
+`78ce4a9bb431e2e0d01af2480ab82956ca5008e0`, vérifié identique à l'index de qualification.
+Sa CI confirme la construction du core, le profil mémoire vocal natif après cette
+construction et les six partitions unitaires. L'analyse de l'installateur, son job macOS
+et l'audit général des dépendances réussissent aussi. Cela requalifie le défaut Dockerfile
+de la première CI ; l'interruption locale `qa-r5` reste conservée comme telle.
+
+Le job Windows révèle quatorze échecs de portabilité. Le [correctif Windows](WINDOWS-ACL.md)
+ajoute des assertions d'ACL natives et passe 113 cas locaux sous Linux ; Windows reste à
+confirmer sur le nouveau commit. Le job supplémentaire `tests-opsys` et le parcours E2E
+échouent encore ; le gate mobile reste rouge. Les observations précédentes de ce document
+décrivent leurs commits respectifs et ne sont pas transformées en succès global.

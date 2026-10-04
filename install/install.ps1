@@ -34,6 +34,7 @@
 #   OPSYS_PORT_MOTEUR, OPSYS_EMBEDDINGS_URL, OPSYS_EMBEDDINGS_MODELE, OPSYS_EMBEDDINGS_CLE,
 #   OPSYS_MODE_FOURNISSEUR (natif par defaut, litellm seulement si explicite), OPSYS_PASSERELLE_URL,
 #   OPSYS_VERBOSE=1
+#   OPSYS_INGESTION_ENV_FILE : ingestion PDF native via install.sh uniquement (Linux, bwrap, non-root).
 # Code de sortie : 0 tout est pret ; 1 une etape a echoue ; 3 installe mais il manque une decision (paliers de
 # modeles, service d'embeddings) : le message dit quoi fournir, puis on relance la meme commande.
 #
@@ -452,11 +453,13 @@ function Install-Moteur {
     if (-not (Test-MoteurPython)) {
         Invoke-Etape "Creation de l'environnement Python (uv venv)" { & uv venv --clear --python '>=3.11' $script:Venv } -Conseil "Il faut Python 3.11 ou plus : installez-le, ou laissez uv le telecharger (acces reseau)."
     }
+    $extrasMoteurUv = @()
+    foreach ($extra in $script:ExtrasMoteur.Split(',')) { $extrasMoteurUv += @('--extra', $extra) }
     $ancienEnvironnementUv = $env:UV_PROJECT_ENVIRONMENT
     try {
         $env:UV_PROJECT_ENVIRONMENT = $script:Venv
-        Invoke-Etape "Synchronisation des dependances selon uv.lock" { & uv sync --locked --project $script:Depot --python $script:VenvPy --group build --no-dev --extra tournees --extra soumission --no-build-isolation --no-install-project } -Conseil "Verifiez l'acces reseau (PyPI), puis relancez."
-        Invoke-Etape "Installation du moteur verrouille" { & uv sync --locked --project $script:Depot --python $script:VenvPy --group build --no-dev --extra tournees --extra soumission --no-build-isolation } -Conseil "Verifiez l'acces reseau (PyPI), puis relancez."
+        Invoke-Etape "Synchronisation des dependances selon uv.lock" { & uv sync --locked --project $script:Depot --python $script:VenvPy --group build --no-dev @extrasMoteurUv --no-build-isolation --no-install-project } -Conseil "Verifiez l'acces reseau (PyPI), puis relancez."
+        Invoke-Etape "Installation du moteur verrouille" { & uv sync --locked --project $script:Depot --python $script:VenvPy --group build --no-dev @extrasMoteurUv --no-build-isolation } -Conseil "Verifiez l'acces reseau (PyPI), puis relancez."
     }
     finally {
         if ($null -eq $ancienEnvironnementUv) { Remove-Item Env:UV_PROJECT_ENVIRONMENT -ErrorAction SilentlyContinue }
