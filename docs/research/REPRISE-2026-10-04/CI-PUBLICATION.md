@@ -111,3 +111,13 @@ une conservation d'ACE explicites étrangères par le helper de production. Le
 [durcissement Windows/MCP](DURCISSEMENT-WINDOWS-MCP.md) corrige ce helper, le refus des
 lectures authentifiées et les tests Linux qui retrouvaient le vrai Docker du runner.
 Ses preuves locales ne remplacent pas la nouvelle CI native.
+
+## Reprise mobile avec copies maintenues — 4 octobre 2026
+
+La [qualification des dépendances mobile](MOBILE-DEPENDANCES-FORKS.md) traite
+les deux chemins sans release stable corrigée, avec des identités privées et des
+correctifs amont sous licence. Les résultats rouges historiques ci-dessus demeurent
+rattachés à leurs commits. Après installation normale sous Node 22 : TypeScript,
+17 tests de consommateurs et 2 607 tests Jest passent localement; audit npm
+zéro high/critical, 13 moderate, seuil inchangé. Le prochain résultat natif reste
+à obtenir. La même capsule conserve 23 tests PostgreSQL/mémoire réussis en réel.

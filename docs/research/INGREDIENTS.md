@@ -452,3 +452,15 @@ explicitement**, sur les 10 rapports `docs/research/R1`–`R10` et
 R12 ; mise à jour du choix de core par
 [ADR-0007](../decisions/ADR-0007-core-openclaw.md), vérifiée directement dans le code, les tests et le
 clone local d'OpenClaw (pas seulement relayée).
+
+## Correctifs maintenus du tooling mobile — 4 octobre 2026
+
+| Brique | Licence vérifiée | Adoption et preuve | Limites |
+|---|---|---|---|
+| braces, PR micromatch/braces #72, `28d440b5dd449dbf1fe6f3506cf94ecca4d02660` | MIT, LICENSE conservée | Copie privée `@opsys-ai/braces` 3.0.3-opsys.1, limite de profondeur et deux fixes de parseur amont; 940 cas réussis, résolution Metro réelle | Expansion cartésienne non bornée globalement; maintenance OPSYS |
+| node-forge, PR digitalbazaar/forge #1152, `ceba34402e329f0365134f23fe19898756527d65` | BSD-3-Clause choisie, licence duale conservée | Copie privée `@opsys-ai/node-forge` 1.4.0-opsys.1 du runtime npm, correctif RSA ciblé; 829 tests réussis et 4 pending amont, consommateur Expo réel | Ni release officielle corrigée ni audit cryptographique exhaustif; maintenance OPSYS |
+
+Sources, empreintes, graphes et résultats : [qualification mobile](REPRISE-2026-10-04/MOBILE-DEPENDANCES-FORKS.md).
+Aucune autre version verrouillée n’est modifiée. Le seuil npm high reste actif;
+13 alertes moderate restent ouvertes. Le catalogue npm ignore les identités privées :
+la revue et les régressions qualifient les correctifs, pas le seul décompte d’audit.

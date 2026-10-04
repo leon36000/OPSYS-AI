@@ -8,7 +8,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "typecheck": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "test:dependencies": "node --test scripts/security-dependencies.test.cjs"
   },
   "dependencies": {
     "@expo/log-box": "57.0.4",
@@ -46,6 +47,12 @@
     "babel-preset-expo": "57.0.13",
     "jest": "29.7.0",
     "jest-expo": "57.0.5",
-    "typescript": "6.0.3"
+    "typescript": "6.0.3",
+    "braces": "file:./vendor/braces",
+    "node-forge": "file:./vendor/node-forge"
+  },
+  "overrides": {
+    "braces": "$braces",
+    "node-forge": "$node-forge"
   }
 }

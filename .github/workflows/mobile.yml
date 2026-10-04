@@ -35,6 +35,8 @@ jobs:
         run: npm audit --package-lock-only --ignore-scripts --audit-level=high
       - name: Installation
         run: npm ci
+      - name: Régressions des dépendances adaptées (résolution et sécurité)
+        run: npm run test:dependencies
       - name: Vérification des types (TypeScript strict)
         run: npm run typecheck
       - name: Tests unitaires (Jest, preset jest-expo)
