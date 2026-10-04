@@ -1,5 +1,26 @@
 # Publication et corrections de CI — 4 octobre 2026
 
+## Relevé complémentaire du 4 octobre, 10:35 UTC
+
+Le head `79b49669fa544c93b5aede738947bb7fbe452768` a réussi les six workflows :
+socle [37192902352](https://github.com/leon36000/OPSYS-AI/actions/runs/37192902352),
+Core 37192902361, E2E 37192902318, mobile 37192902387, dépendances 37192902315,
+installateurs 37192902625. Le socle natif donne **3 815 réussis/17 ignorés/1 warning**,
+2 020,06 s; dix départements, neuf partitions M3 et gates réussis. Les jobs Docker
+Desktop opt-in ne sont pas assimilés à une exécution.
+
+`d67acfdd` : mobile/E2E/dépendances réussis, socle/Core/installateurs annulés
+pendant leur attente et remplacés par le head suivant; aucune réussite ni
+défaillance de code n'est déduite de ces annulations. `0b2d34f` : mobile et
+dépendances réussis; les quatre autres workflows ont démarré et doivent fournir
+leurs propres résultats. Les anciens comptes ne sont pas reportés sur ce head.
+
+La [vérification AP Fusion → M5](../../grs/compta/M5-AP-VERIFICATION-REPRISE-2026-10-04.md)
+est qualifiée localement ROOT r119 : **363/363 tests sur dix fichiers complets**,
+Ruff vert et 1 230 sources stables. r118 reproduit la révocation de finance au
+rendu et garde les autres refus de qualification; le contrôle de production est
+corrigé avant publication. La CI native du prochain commit reste à obtenir.
+
 Les résultats récents du head `b005c4e6`, le diagnostic des 79 échecs du socle
 et son correctif qualifié sont dans [Socle : contrats et mutations M7](SOCLE-CONTRATS-M7.md).
 Les observations historiques ci-dessous restent rattachées à leurs commits.

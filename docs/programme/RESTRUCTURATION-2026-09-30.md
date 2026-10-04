@@ -24,6 +24,20 @@ configurables et limites fournisseur vérifiées avant appel.
 
 ## État de départ et priorité
 
+**Actualisation M5 du 4 octobre :** la [vérification AP Fusion → M5](../grs/compta/M5-AP-VERIFICATION-REPRISE-2026-10-04.md)
+réutilise maintenant les contrôles métier avant saisie, sans ajouter une facture
+ou dette. PDF/citations/révisions, chaîne AP et taux sont relus; accès admin et
+finance/owner, CSRF et révocation au rendu sont vérifiés. ROOT r119 :
+363/363 tests ciblés sur dix fichiers complets, aucun ignoré. La confirmation AP
+avec provenance reste le lot suivant. M5 global demeure PARTIEL.
+
+Le head `79b49669` a désormais réussi les six workflows natifs, dont
+3 815 tests du socle/17 ignorés. Cela ne remplace pas la CI du prochain commit;
+le [bilan par head](../research/REPRISE-2026-10-04/CI-PUBLICATION.md) sépare succès,
+exécutions en cours et attentes remplacées. La [recherche multi-vues M3](../research/REPRISE-2026-10-04/M3-PHOTOGRAMMETRIE-GITHUB-GITLAB.md)
+épingle des candidats de benchmark et corrige le tag COLMAP; aucune adoption ou
+précision terrain n'est revendiquée.
+
 **Publication du 4 octobre :** la [PR de reprise #623](https://github.com/leon36000/OPSYS-AI/pull/623)
 est ouverte en brouillon sur la base de Claude. Le [bilan de CI et ses preuves](../research/REPRISE-2026-10-04/CI-PUBLICATION.md)
 confirme la construction complète du premier core publié et documente les corrections d'installation,

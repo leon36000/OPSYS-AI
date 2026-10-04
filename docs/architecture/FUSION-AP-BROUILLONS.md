@@ -76,15 +76,21 @@ la clé de mutation idempotente du service.
 
 ## Limites métier
 
-Le brouillon n'est pas validé contre le registre des fournisseurs, les PO reçus,
-les doublons M5, les taxes ou un instantané du registre. Les champs imprimés
+L'enregistrement du brouillon ne le valide pas contre le registre des fournisseurs,
+les PO reçus, les doublons M5, les taxes ou un instantané du registre. Les champs imprimés
 peuvent être inexacts, contradictoires ou mal saisis; ils restent à revoir. Les
 fonctions M5 `saisir_facture_fournisseur` et `saisir_facture_sans_po` sont des
 écritures métier et ne sont jamais appelées par cette tranche. L'écran privé
 permet seulement la saisie et la revue; il n'ajoute aucune confirmation AP. Les
-prochaines étapes devront
-qualifier séparément une vérification M5 en lecture seule puis une confirmation
-humaine explicite avant tout enregistrement comptable.
+administrateurs possédant aussi le rôle `finance` ou `nathan_owner` disposent
+depuis le 4 octobre d'une [vérification M5 explicite en lecture seule](../grs/compta/M5-AP-VERIFICATION-REPRISE-2026-10-04.md).
+Elle ne confirme pas le brouillon : elle relit PDF/citations, révisions, chaîne AP
+et taux; l'humain fournit les identifiants PO/fournisseur et atteste leur
+correspondance. Le total imprimé et l'agrégat des taxes sont comparés aux calculs
+M5. Les champs monétaires doivent être corrigés en décimaux positionnels au cent,
+la date en ISO, la devise en `CAD`; aucun libellé ambigu n'est normalisé.
+Une confirmation humaine et la provenance restent à construire séparément avant
+toute saisie comptable; aucune facture, dette ni paiement n'est ajouté ici.
 
 Les PDF de qualification doivent être générés localement avec des identités et
 valeurs fictives. Le succès du worker natif et ses codes de readiness ne

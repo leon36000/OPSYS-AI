@@ -1,5 +1,25 @@
 # M5 — Audit fiscalité, paie et calendrier des obligations
 
+## Actualisation 2026-10-04 — brouillon fournisseur et contrôles M5
+
+Une [vérification privée AP en lecture seule](M5-AP-VERIFICATION-REPRISE-2026-10-04.md)
+relie maintenant le brouillon PDF `A_REVOIR` aux contrôles canoniques M5. L'humain
+choisit le PO reçu/fournisseur et atteste leur correspondance; le code relit
+PDF/citations/révisions, chaîne AP et taux versionnés, puis compare montants et
+doublons courants. Aucune dette, facture, validation durable ou écriture n'est
+créée. Les **363 tests ciblés ROOT r119** passent sur dix fichiers complets;
+droits, révocation au rendu, intégrité et absence d'effet sont vérifiés.
+
+| Sous-capacité M5.2 | État de cette tranche |
+|---|---|
+| Proposition chiffrée PDF/AP et reprise | Existant conservé, `A_REVOIR` |
+| Vérification préalable PO/fournisseur/taxes/total/doublons | QUALIFIÉE LOCAL — SQLite, PDF natif fictif, contrôle explicite privé |
+| Saisie AP depuis Fusion avec provenance et approbation | À CONSTRUIRE — parcours séparé, aucune dette créée ici |
+| OCR/image, factures réelles représentatives, ingestion massive | PARTIEL / À QUALIFIER |
+
+La CI de la tranche doit être suivie sur son propre commit. M5 complet, fiscalité
+officielle, paie et CFO ne sont pas certifiés par cette vérification.
+
 ## Actualisation R22 — import bancaire préparatoire
 
 Le [pilote Fusion CSV](../../architecture/FUSION-CSV.md) réutilise le parseur et les propositions M5 existants. La source et le résultat normalisé sont chiffrés, les tranches de 100 lignes reprenables et les snapshots M5 revalidés avant chaque traitement et lecture terminale. Un snapshot périmé masque les propositions; aucun rapprochement, journal, paiement ou écriture fiscale n’est appliqué. L’interface est privée admin/owner, avec identité vivante et CSRF pour les mutations.

@@ -63,7 +63,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Context, Decimal
 from typing import Any
@@ -90,6 +90,7 @@ __all__ = [
     "saisir_facture_sans_po",
     "synthese_du_po",
     "totaux_sans_po",
+    "verifier_facture_fournisseur",
     "vue_facture",
 ]
 
@@ -545,7 +546,7 @@ def _ranger_facture(
     return _etats_factures(registre_cible.lire())[identifiant]
 
 
-def saisir_facture_fournisseur(
+def _preparer_facture_fournisseur(
     *,
     po_id: Any,
     fournisseur_id: Any,
@@ -557,10 +558,9 @@ def saisir_facture_fournisseur(
     voie: Any,
     horodatage: Any,
     dictionnaire_taux: Mapping[str, Mapping[str, Any]],
-    registre_cible: Any,
+    obtenir_maillons: Callable[[], Iterable[Mapping[str, Any]]],
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-    """`({"facture": état, "avertissements": [codes]}, None)` : range une facture fournisseur SAISIE par un humain ;
-    ou `(None, verdict)` sans rien écrire.
+    """Prépare une facture sur un unique instantané de maillons, sans écrire.
 
     Ordre des refus, du plus bête au plus fin : champs texte, humain identifié (`saisi_par`, `voie` : l'identité est
     établie par `outils.py`, jamais lue d'un argument), dates, montants, taux, PO connu, fournisseur du PO, doublon.
@@ -576,9 +576,9 @@ def saisir_facture_fournisseur(
       fournisseur et même numéro avec un AUTRE montant n'est pas un doublon : la saisie passe avec l'avertissement
       `REJ-AP-FACTURE-NUMERO-REPETE` (refuser bloquerait la bonne facture ; le rapprochement montrera l'écart, et la
       correction ou l'annulation de l'une des deux le lève).
-    - la facture entre au statut `SAISIE` ; `corriger_facture_fournisseur` et `annuler_facture_fournisseur` la font
-      passer à `CORRIGEE` ou `ANNULEE` par des pièces de plus, sans jamais la modifier. Aucun autre statut n'existe :
-      ni « approuvée », ni « payée »."""
+    `obtenir_maillons` est appelé seulement après les contrôles locaux, ce qui conserve l'ordre de lecture historique
+    de la saisie. Il reçoit la même séquence que celle utilisée pour vérifier le PO et l'état courant des factures.
+    """
     for champ, valeur in (("po_id", po_id), ("fournisseur_id", fournisseur_id), ("numero_facture", numero_facture)):
         if not _texte_non_vide(valeur):
             return None, _verdict("REJ-AP-FACTURE-CHAMP-INVALIDE", f"{champ} requis, non vide")
@@ -600,7 +600,7 @@ def saisir_facture_fournisseur(
     if verdict is not None:
         return None, verdict
 
-    maillons = registre_cible.lire()
+    maillons = obtenir_maillons()
     po = _po_connu(maillons, po_id)
     if po is None:
         return None, _verdict(
@@ -617,10 +617,117 @@ def saisir_facture_fournisseur(
     doublon, avertissements = _chercher_doublon(etats, fournisseur_id, numero_facture, montant)
     if doublon is not None:
         return None, _refus_doublon(doublon, fournisseur_id, numero_facture, montant)
+    return {
+        "po_id": po_id,
+        "fournisseur_id": fournisseur_id,
+        "numero_facture": numero_facture,
+        "date_facture": date_facture,
+        "montant_avant_taxes": montant,
+        "calcul": calcul,
+        "etats": etats,
+        "avertissements": avertissements,
+    }, None
+
+
+def verifier_facture_fournisseur(
+    *,
+    po_id: Any,
+    fournisseur_id: Any,
+    numero_facture: Any,
+    date_facture: Any,
+    montant_avant_taxes: Any,
+    total_facture: Any,
+    saisi_par: Any,
+    voie: Any,
+    horodatage: Any,
+    dictionnaire_taux: Mapping[str, Mapping[str, Any]],
+    maillons: Iterable[Mapping[str, Any]],
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Vérifie et prépare une facture fournisseur en lecture seule.
+
+    Les paramètres de saisie restent identiques, mais `maillons` remplace le registre : l'appelant fournit un
+    instantané déjà lu et stable. `(préparation, None)` contient uniquement les champs canoniques de la facture et les
+    taxes recalculées ; `(None, verdict)` nomme le premier contrôle refusé. Aucun statut n'est attribué, aucun
+    identifiant n'est généré et aucune pièce n'est écrite.
+    """
+    preparation, verdict = _preparer_facture_fournisseur(
+        po_id=po_id,
+        fournisseur_id=fournisseur_id,
+        numero_facture=numero_facture,
+        date_facture=date_facture,
+        montant_avant_taxes=montant_avant_taxes,
+        total_facture=total_facture,
+        saisi_par=saisi_par,
+        voie=voie,
+        horodatage=horodatage,
+        dictionnaire_taux=dictionnaire_taux,
+        obtenir_maillons=lambda: tuple(maillons),
+    )
+    if verdict is not None:
+        return None, verdict
+    calcul = preparation["calcul"]
+    return {
+        "po_id": preparation["po_id"],
+        "fournisseur_id": preparation["fournisseur_id"],
+        "numero_facture": preparation["numero_facture"],
+        "date_facture": preparation["date_facture"],
+        "montant_avant_taxes": preparation["montant_avant_taxes"],
+        "taxes": list(calcul["taxes"]),
+        "total_taxes": calcul["total_taxes"],
+        "montant_apres_taxes": calcul["montant_apres_taxes"],
+        "avertissements": list(preparation["avertissements"]),
+    }, None
+
+
+def saisir_facture_fournisseur(
+    *,
+    po_id: Any,
+    fournisseur_id: Any,
+    numero_facture: Any,
+    date_facture: Any,
+    montant_avant_taxes: Any,
+    total_facture: Any,
+    saisi_par: Any,
+    voie: Any,
+    horodatage: Any,
+    dictionnaire_taux: Mapping[str, Mapping[str, Any]],
+    registre_cible: Any,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """`({"facture": état, "avertissements": [codes]}, None)` : range une facture fournisseur SAISIE par un humain ;
+    ou `(None, verdict)` sans rien écrire.
+
+    La préparation et ses contrôles canoniques sont partagés avec `verifier_facture_fournisseur`. La saisie lit un seul
+    instantané après les contrôles locaux, puis seule `_ranger_facture` écrit la facture.
+    """
+    preparation, verdict = _preparer_facture_fournisseur(
+        po_id=po_id,
+        fournisseur_id=fournisseur_id,
+        numero_facture=numero_facture,
+        date_facture=date_facture,
+        montant_avant_taxes=montant_avant_taxes,
+        total_facture=total_facture,
+        saisi_par=saisi_par,
+        voie=voie,
+        horodatage=horodatage,
+        dictionnaire_taux=dictionnaire_taux,
+        obtenir_maillons=registre_cible.lire,
+    )
+    if verdict is not None:
+        return None, verdict
     etat = _ranger_facture(
-        registre_cible, etats, po_id=po_id, categorie_depense=None, fournisseur_id=fournisseur_id,
-        numero_facture=numero_facture, date_facture=date_facture, montant=montant, calcul=calcul,
-        saisi_par=saisi_par, voie=voie, avertissements=avertissements, horodatage=horodatage,
+        registre_cible,
+        preparation["etats"],
+        po_id=preparation["po_id"],
+        categorie_depense=None,
+        fournisseur_id=preparation["fournisseur_id"],
+        numero_facture=preparation["numero_facture"],
+        date_facture=preparation["date_facture"],
+        montant=preparation["montant_avant_taxes"],
+        calcul=preparation["calcul"],
+        saisi_par=saisi_par,
+        voie=voie,
+        avertissements=preparation["avertissements"],
+        horodatage=horodatage,
     )
     return {"facture": etat, "avertissements": etat["avertissements"]}, None
 

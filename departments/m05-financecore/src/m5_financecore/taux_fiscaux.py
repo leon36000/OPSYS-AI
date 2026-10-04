@@ -18,11 +18,21 @@ _CHAMPS_TEXTE = ("id", "nom", "version", "source")
 _BORNE_HAUTE_FRACTION_VALIDATION = 1.0
 
 
-def charger_taux_fiscaux(chemin):
+def charger_taux_fiscaux(chemin, *, contenu_octets: bytes | None = None):
+    """Valide le fichier ou les octets exacts déjà bornés/épinglés par un lecteur privé.
+
+    `chemin` reste la référence dans les erreurs; aucune deuxième lecture n'a lieu
+    quand les octets sont fournis. Les règles de validation sont communes.
+    """
     dictionnaire = {}
     erreurs = []
 
-    contenu = yaml.safe_load(Path(chemin).read_text(encoding="utf-8"))
+    if contenu_octets is not None and not isinstance(contenu_octets, bytes):
+        raise TypeError("les octets du fichier fiscal doivent être des bytes")
+    contenu = yaml.safe_load(
+        Path(chemin).read_text(encoding="utf-8") if contenu_octets is None
+        else contenu_octets.decode("utf-8", errors="strict")
+    )
 
     if not isinstance(contenu, dict) or contenu.get("schema_version") != 1:
         erreurs.append(f"schema_version invalide : {chemin}")

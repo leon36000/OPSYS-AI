@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
 
 from .. import fusion_ap, fusion_pdf
-from . import pages, securite
+from . import fusion_ap_m5, pages, securite
 from .securite import Session
 
 _FORM_MAX = 16_384
@@ -192,10 +192,68 @@ def _resume(prefixe: str, session: Session, lot: Mapping[str, Any], brouillon: M
             f'<input type="hidden" name="revision_ap" value="{revision_ap}">'
             '<button type="submit">Afficher les champs enregistrés</button></form>'
         )
+        if session.roles.intersection({"finance", "nathan_owner"}):
+            form += (
+                f'<form method="post" action="{pages.e(prefixe)}/fusion/pdf/lots/{pages.e(lot["lot_id"])}'
+                '/ap/verifier-m5" class="pile">'
+                f'<input type="hidden" name="csrf" value="{pages.e(session.csrf)}">'
+                f'<input type="hidden" name="revision_pdf" value="{pages.e(lot["revision"])}">'
+                f'<input type="hidden" name="revision_ap" value="{pages.e(revision_ap)}">'
+                '<label>Bon de commande reçu choisi dans M5'
+                '<input name="po_id" maxlength="64" required autocomplete="off"></label>'
+                '<label>Fournisseur canonique choisi dans M5'
+                '<input name="fournisseur_id" maxlength="64" required autocomplete="off"></label>'
+                '<label><input type="checkbox" name="correspondance_confirmee" value="oui" required>'
+                'J’atteste que le PO et le fournisseur choisis correspondent aux identifiants imprimés sur la facture.'
+                '</label><button class="principal" type="submit">Vérifier les contrôles M5</button></form>'
+            )
     return (
         f'<p><a href="{pages.e(prefixe)}/fusion/pdf/lots/{pages.e(lot["lot_id"])}">Retour au lot PDF</a></p>'
         f'<dl class="meta"><dt>État AP</dt><dd>{pages.e(status)}</dd>'
         f"<dt>Révision PDF</dt><dd>{pages.e(lot['revision'])}</dd></dl>" + form
+    )
+
+
+def _resultat_m5(resultat: Mapping[str, Any]) -> str:
+    """Rend uniquement les éléments d'observation autorisés par le contrat privé M5."""
+    calcul = resultat.get("calcul")
+    source = resultat.get("source")
+    if not isinstance(calcul, Mapping) or not isinstance(source, Mapping):
+        raise HTTPException(503, {"code": "VERIFICATION_M5_INDISPONIBLE"})
+    montants = (calcul.get("montant_avant_taxes"), calcul.get("total_taxes"), calcul.get("montant_apres_taxes"))
+    if any(not isinstance(value, str) for value in montants):
+        raise HTTPException(503, {"code": "VERIFICATION_M5_INDISPONIBLE"})
+    taxes = calcul.get("taxes")
+    avertissements = resultat.get("avertissements")
+    if not isinstance(taxes, list) or not isinstance(avertissements, list):
+        raise HTTPException(503, {"code": "VERIFICATION_M5_INDISPONIBLE"})
+    lignes_taxes: list[str] = []
+    for taxe in taxes:
+        if not isinstance(taxe, Mapping) or any(
+            not isinstance(taxe.get(key), str) for key in ("id", "version", "source", "montant")
+        ):
+            raise HTTPException(503, {"code": "VERIFICATION_M5_INDISPONIBLE"})
+        lignes_taxes.append(
+            "<li>"
+            + " — ".join(pages.e(taxe[key]) for key in ("id", "montant", "version", "source"))
+            + "</li>"
+        )
+    if any(not isinstance(code, str) for code in avertissements):
+        raise HTTPException(503, {"code": "VERIFICATION_M5_INDISPONIBLE"})
+    codes = "".join(f"<li>{pages.e(code)}</li>" for code in avertissements) or "<li>Aucun</li>"
+    return (
+        '<section class="carte pile"><h2>Observation préparatoire M5</h2>'
+        f'<p>{pages.e(resultat.get("statut", ""))} — observé le {pages.e(resultat.get("observe_le", ""))}</p>'
+        f'<p>Snapshot {pages.e(resultat.get("snapshot_id", ""))}; révisions PDF/AP '
+        f'{pages.e(source.get("revision_pdf", ""))}/{pages.e(source.get("revision_ap", ""))}.</p>'
+        '<dl class="meta">'
+        f'<dt>Montant avant taxes</dt><dd>{pages.e(montants[0])} CAD</dd>'
+        f'<dt>Total des taxes</dt><dd>{pages.e(montants[1])} CAD</dd>'
+        f'<dt>Montant après taxes</dt><dd>{pages.e(montants[2])} CAD</dd></dl>'
+        f'<h3>Taxes versionnées</h3><ul>{"".join(lignes_taxes)}</ul>'
+        f'<h3>Codes d’avertissement</h3><ul>{codes}</ul>'
+        '<p>Observation préparatoire, A_REVOIR conservé; aucune facture, dette, approbation ni paiement créé.</p>'
+        '</section>'
     )
 
 
@@ -278,6 +336,10 @@ def creer_router(*, session_page: Callable[..., Session], prefixe: str, cnx_fact
     def valider_csrf(fields: Mapping[str, str], session: Session) -> None:
         if not securite.csrf_valide(fields.get("csrf"), session):
             raise HTTPException(403, "jeton CSRF absent ou invalide")
+
+    def verifier_role_finance(session: Session) -> None:
+        if not session.roles.intersection({"finance", "nathan_owner"}):
+            raise HTTPException(403, {"code": "ACCES_FINANCE_REFUSE"})
 
     async def resultats_actuels(request: Request, utilisateur: str, lot_id: str, revision: int):
         lot = await bloquant(fusion_pdf.lire, cnx_factory, utilisateur, lot_id)
@@ -439,6 +501,67 @@ def creer_router(*, session_page: Callable[..., Session], prefixe: str, cnx_fact
             return echec_prive(request, session, exc)
         reponse = _privee(RedirectResponse(f"{prefixe}/fusion/pdf/lots/{lot_id}/ap", status_code=303))
         session_vivante(request, session.utilisateur)
+        return reponse
+
+    @router.post("/fusion/pdf/lots/{lot_id}/ap/verifier-m5", response_class=HTMLResponse)
+    async def verifier_ap_m5(lot_id: str, request: Request) -> HTMLResponse:
+        session = session_vivante(request)
+        sans_query(request)
+        valider_lot(lot_id)
+        verifier_role_finance(session)
+        fields = await _formulaire(
+            request,
+            {"csrf", "revision_pdf", "revision_ap", "po_id", "fournisseur_id", "correspondance_confirmee"},
+        )
+        session = session_vivante(request, session.utilisateur)
+        verifier_role_finance(session)
+        valider_csrf(fields, session)
+        revision_pdf = _revision(fields["revision_pdf"], positive=True)
+        revision_ap = _revision(fields["revision_ap"], positive=True)
+        po_id, fournisseur_id = fields["po_id"], fields["fournisseur_id"]
+        if (
+            not po_id
+            or len(po_id) > 64
+            or po_id.strip() != po_id
+            or any(ord(char) < 32 for char in po_id)
+            or not fournisseur_id
+            or len(fournisseur_id) > 64
+            or fournisseur_id.strip() != fournisseur_id
+            or any(ord(char) < 32 for char in fournisseur_id)
+        ):
+            raise HTTPException(400, {"code": "IDENTIFIANT_M5_INVALIDE"})
+        if fields["correspondance_confirmee"] != "oui":
+            raise HTTPException(400, {"code": "CORRESPONDANCE_NON_ATTESTEE"})
+        try:
+            resultat = await bloquant(
+                fusion_ap_m5.verifier,
+                cnx_factory,
+                session.utilisateur,
+                lot_id,
+                revision_pdf=revision_pdf,
+                revision_ap=revision_ap,
+                po_id=po_id,
+                fournisseur_id=fournisseur_id,
+                correspondance_confirmee=True,
+            )
+            session = session_vivante(request, session.utilisateur)
+            verifier_role_finance(session)
+            await bloquant(fusion_ap_m5.confirmer_sources, cnx_factory, session.utilisateur, lot_id, resultat)
+            session = session_vivante(request, session.utilisateur)
+            verifier_role_finance(session)
+            contenu = _resultat_m5(resultat)
+        except HTTPException as exc:
+            session = session_vivante(request, session.utilisateur)
+            return echec_prive(request, session, exc)
+        except Exception:
+            session = session_vivante(request, session.utilisateur)
+            return echec_prive(request, session, HTTPException(503, {"code": "VERIFICATION_M5_INDISPONIBLE"}))
+        reponse = rendre_prive(
+            request,
+            session,
+            '<section class="carte pile"><h1>Vérification AP préparatoire</h1>' + contenu + '</section>',
+        )
+        verifier_role_finance(session_vivante(request, session.utilisateur))
         return reponse
 
     return router
