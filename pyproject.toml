@@ -34,6 +34,7 @@ soumission = ["reportlab==4.5.1"]  # soumission brouillon de M3 en PDF (PLAN T2.
 dev = [
     "pytest==9.1.1", "ruff>=0.6", "fastapi==0.133.1", "uvicorn>=0.31.1,<1", "psycopg[binary]==3.2.3",
     "pypdf==6.19.0",  # tests M3 ; l'exécution PDF exige explicitement l'extra ingestion-pdf
+    "httpx==0.28.1",  # client des tests HTTP ; httpx2 transitif de MCP expose un autre module
 ]
 
 [project.scripts]

@@ -661,7 +661,7 @@ def test_transport_contexte_lie_vue_privee_a_la_route_et_refuse_le_bearer_public
             appeler, "/mcp/contexte/m03-estimation", context_token,
             {"affaire_id": "LEAD-HTTP", "horodatage": HORODATAGE, "agent": "m01-front-office"},
         )
-        _, usurpation_publique = anyio.run(
+        outils_publics, usurpation_publique = anyio.run(
             appeler, "/mcp/m10-memoire", public_token,
             {"affaire_id": "LEAD-HTTP", "horodatage": HORODATAGE, "agent": "m01-front-office"},
         )
@@ -679,8 +679,9 @@ def test_transport_contexte_lie_vue_privee_a_la_route_et_refuse_le_bearer_public
     paquet_m1 = json.loads(reponse_m1.content[0].text)["resultat"]
     paquet_m3 = json.loads(reponse_m3.content[0].text)["resultat"]
     assert outils_m1 == outils_m3 == {
-        "m10_paquet_contexte_affaire", "opsys_contexte_creer_ticket_cible"
+        "m10_paquet_contexte_affaire", "opsys_contexte_creer_ticket_cible", "opsys_contexte_creer_ticket_memoire"
     }
+    assert outils_publics.isdisjoint({"opsys_contexte_creer_ticket_cible", "opsys_contexte_creer_ticket_memoire"})
     assert paquet_m1["confidentialite"] == {"agent": "m01-front-office", "regle": "v1", "nb_retenus": 0}
     assert paquet_m3["confidentialite"] == {"agent": "m03-estimation", "regle": "v1", "nb_retenus": 1}
     assert "CLIENT-HTTP" in json.dumps(paquet_m1)

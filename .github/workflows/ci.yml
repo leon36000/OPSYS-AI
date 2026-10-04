@@ -41,8 +41,8 @@ jobs:
           PY
       - name: Installation verrouillée (socle)
         run: |
-          uv sync --locked --group build --extra dev --no-build-isolation --no-install-project
-          uv sync --locked --group build --extra dev --no-build-isolation
+          uv sync --locked --group build --extra dev --extra soumission --no-build-isolation --no-install-project
+          uv sync --locked --group build --extra dev --extra soumission --no-build-isolation
           echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
       - name: Lint du socle
         run: ruff check src tests
