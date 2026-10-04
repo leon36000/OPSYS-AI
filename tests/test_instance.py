@@ -1014,6 +1014,37 @@ def test_restreindre_acces_sous_windows_construit_une_dacl_privee(tmp_path, monk
     assert fichier.read_text(encoding="utf-8") == "x"
 
 
+@pytest.mark.parametrize("pwsh_disponible", [True, False])
+def test_acl_windows_utilise_les_modules_de_sa_propre_version(tmp_path, monkeypatch, pwsh_disponible):
+    fichier = tmp_path / "chemin avec espaces et accent é.env"
+    fichier.write_text("contenu fictif", encoding="utf-8")
+    monkeypatch.setattr(instance, "_sous_windows", lambda: True)
+    nom_modules = "PSModulePath"  # orthographe native de PowerShell, aussi testée sous POSIX
+    monkeypatch.setenv(nom_modules, "modules-incompatibles-du-shell-parent")
+    monkeypatch.setenv("OPSYS_TEST_ENV_CONSERVE", "temoin-fictif")
+    recherches = []
+
+    def trouver(nom):
+        recherches.append(nom)
+        if nom == "pwsh" and not pwsh_disponible:
+            return None
+        return nom + ".exe"
+
+    def executer(commande, **options):
+        assert commande[0] == ("pwsh.exe" if pwsh_disponible else "powershell.exe")
+        assert not any(nom.casefold() == "psmodulepath" for nom in options["env"])
+        assert options["env"]["OPSYS_TEST_ENV_CONSERVE"] == "temoin-fictif"
+        assert options["env"]["OPSYS_INSTANCE_ACL_PATH"] == str(fichier)
+        return subprocess.CompletedProcess(commande, 0, "", "")
+
+    monkeypatch.setattr(instance.shutil, "which", trouver)
+    monkeypatch.setattr(instance.subprocess, "run", executer)
+    instance.restreindre_acces(fichier)
+    assert recherches == (["pwsh"] if pwsh_disponible else ["pwsh", "powershell"])
+    assert os.environ[nom_modules] == "modules-incompatibles-du-shell-parent"
+    assert fichier.read_text(encoding="utf-8") == "contenu fictif"
+
+
 def test_restreindre_acces_sous_windows_refuse_si_powershell_absent_ou_refuse(tmp_path, monkeypatch):
     fichier = tmp_path / ".env"
     fichier.write_text("x", encoding="utf-8")
@@ -1091,9 +1122,9 @@ def test_restreindre_acces_retirer_une_ace_explicite_etrangere(tmp_path, verifie
     fichier.write_text(contenu, encoding="utf-8")
 
     if os.name == "nt":
-        powershell = shutil.which("powershell") or shutil.which("pwsh")
+        powershell = shutil.which("pwsh") or shutil.which("powershell")
         assert powershell is not None
-        env = os.environ.copy()
+        env = {nom: valeur for nom, valeur in os.environ.items() if nom.casefold() != "psmodulepath"}
         env["OPSYS_TEST_ACL_PATH"] = str(fichier)
         ajout = subprocess.run(
             ["icacls", str(fichier), "/grant", "*S-1-1-0:(R)"],

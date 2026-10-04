@@ -332,6 +332,12 @@ def _sous_windows() -> bool:
 _SCRIPT_ACL_WINDOWS = r"""
 $ErrorActionPreference = 'Stop'
 try {
+    # ACL commands must come from this runtime, never a module path inherited from another shell.
+    $env:PSModulePath = [System.IO.Path]::Combine($PSHOME, 'Modules')
+    $securityModule = [System.IO.Path]::Combine(
+        $PSHOME, 'Modules', 'Microsoft.PowerShell.Security', 'Microsoft.PowerShell.Security.psd1'
+    )
+    Import-Module -Name $securityModule -ErrorAction Stop
     $path = $env:OPSYS_INSTANCE_ACL_PATH
     if ([string]::IsNullOrWhiteSpace($path)) { throw 'chemin ACL absent' }
     $isDirectory = $env:OPSYS_INSTANCE_ACL_DIRECTORY -eq '1'
@@ -389,10 +395,12 @@ exit 0
 
 def _restreindre_acl_windows(chemin: Path, *, dossier: bool) -> None:
     """Remplace la DACL en une opération par une règle FullControl au SID courant."""
-    powershell = shutil.which("powershell") or shutil.which("pwsh")
+    powershell = shutil.which("pwsh") or shutil.which("powershell")
     if powershell is None:
         raise ErreurInstance(f"PowerShell est absent : impossible de restreindre l'accès à {chemin}.")
-    environnement = os.environ.copy()
+    # A child shell must load its own built-in modules. A PS7 parent's PSModulePath
+    # can otherwise make Windows PowerShell 5 import incompatible PS7 assemblies.
+    environnement = {nom: valeur for nom, valeur in os.environ.items() if nom.casefold() != "psmodulepath"}
     environnement["OPSYS_INSTANCE_ACL_PATH"] = str(chemin)
     environnement["OPSYS_INSTANCE_ACL_DIRECTORY"] = "1" if dossier else "0"
     try:
