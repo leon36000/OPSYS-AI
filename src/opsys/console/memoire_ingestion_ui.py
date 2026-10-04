@@ -95,38 +95,7 @@ async def _formulaire(request: Request) -> tuple[dict[str, str], bytes]:
         if any(not isinstance(value, str) for value in texte.values()):
             raise _ErreurMultipart(400, "champs multipart invalides", reprise)
         fichier = valeurs["source"]
-        if not isinstance(fichier, UploadFile):
-            raise _ErreurMultipart(400, "fichier invalide", reprise)
-        nom = fichier.filename
-        type_brut = fichier.content_type or ""
-        message_type = Message()
-        message_type["content-type"] = type_brut
-        media_fichier = message_type.get_content_type().lower()
-        parametres_type = message_type.get_params(header="content-type", unquote=True) or []
-        base_type = str(parametres_type[0][0]).lower() if parametres_type else ""
-        charset = [str(value).lower() for name, value in parametres_type[1:] if name.lower() == "charset"]
-        autres_parametres = [name for name, _ in parametres_type[1:] if name.lower() != "charset"]
-        if fichier.headers.get("content-transfer-encoding") is not None:
-            raise _ErreurMultipart(400, "encodage de fichier inattendu", reprise)
-        if (
-            not nom
-            or len(nom) > 160
-            or any(c in nom for c in ("/", "\\", "\x00"))
-            or not nom.lower().endswith((".txt", ".md"))
-        ):
-            raise _ErreurMultipart(400, "nom ou format de fichier invalide", reprise)
-        if (
-            not type_brut.strip()
-            or base_type != media_fichier
-            or media_fichier not in {"text/plain", "text/markdown", "application/octet-stream"}
-            or len(charset) > 1
-            or (charset and charset[0] not in {"utf-8", "utf8"})
-            or autres_parametres
-        ):
-            raise _ErreurMultipart(415, "type de fichier invalide", reprise)
-        contenu = await fichier.read(_OCTETS + 1)
-        if len(contenu) > _OCTETS:
-            raise _ErreurMultipart(413, "fichier supérieur à 1 MiB", reprise)
+        contenu = await _valider_upload(fichier, reprise)
         return texte, contenu
     except HTTPException:
         raise
@@ -135,6 +104,44 @@ async def _formulaire(request: Request) -> tuple[dict[str, str], bytes]:
     finally:
         if form is not None:
             await form.close()
+
+
+async def _valider_upload(fichier: Any, reprise: dict[str, str] | None = None) -> bytes:
+    """Validation commune du fichier historique et des emplacements de lot."""
+    if not isinstance(fichier, UploadFile):
+        raise _ErreurMultipart(400, "fichier invalide", reprise)
+    nom = fichier.filename
+    type_brut = fichier.content_type or ""
+    message_type = Message()
+    message_type["content-type"] = type_brut
+    media_fichier = message_type.get_content_type().lower()
+    parametres_type = message_type.get_params(header="content-type", unquote=True) or []
+    base_type = str(parametres_type[0][0]).lower() if parametres_type else ""
+    charset = [str(value).lower() for name, value in parametres_type[1:] if name.lower() == "charset"]
+    autres_parametres = [name for name, _ in parametres_type[1:] if name.lower() != "charset"]
+    if fichier.headers.get("content-transfer-encoding") is not None:
+        raise _ErreurMultipart(400, "encodage de fichier inattendu", reprise)
+    if (
+        not nom or len(nom) > 160 or any(c in nom for c in ("/", "\\", "\x00"))
+        or not nom.lower().endswith((".txt", ".md"))
+    ):
+        raise _ErreurMultipart(400, "nom ou format de fichier invalide", reprise)
+    if (
+        not type_brut.strip() or base_type != media_fichier
+        or media_fichier not in {"text/plain", "text/markdown", "application/octet-stream"}
+        or len(charset) > 1 or (charset and charset[0] not in {"utf-8", "utf8"}) or autres_parametres
+    ):
+        raise _ErreurMultipart(415, "type de fichier invalide", reprise)
+    contenu = await fichier.read(_OCTETS + 1)
+    if len(contenu) > _OCTETS:
+        raise _ErreurMultipart(413, "fichier supérieur à 1 MiB", reprise)
+    try:
+        texte = contenu.decode("utf-8", errors="strict")
+    except UnicodeDecodeError as exc:
+        raise _ErreurMultipart(400, "le fichier doit être en UTF-8 valide", reprise) from exc
+    if "\x00" in texte:
+        raise _ErreurMultipart(400, "le fichier contient un octet interdit", reprise)
+    return contenu
 
 
 def _service():
@@ -210,7 +217,10 @@ def _contenu(
     succes: str = "",
     avertissement: str = "",
 ) -> str:
-    morceaux = [_form_admission(session, prefixe)]
+    morceaux = [
+        f'<p><a href="{pages.e(prefixe)}/memoire/procedures/imports">Créer ou reprendre un lot d’import</a></p>',
+        _form_admission(session, prefixe),
+    ]
     morceaux.append(
         '<form method="post" action="' + pages.e(prefixe) + '/memoire/procedures/indexer-recues">'
         '<input type="hidden" name="csrf" value="' + pages.e(session.csrf) + '">'
@@ -561,4 +571,9 @@ def creer_router(*, session_page: Callable[..., Session], prefixe: str) -> APIRo
         except HTTPException as exc:
             return reponse_erreur(request, session, exc)
 
+    from .memoire_import_lots_ui import creer_router as creer_router_lots
+
+    router.include_router(
+        creer_router_lots(session_page=session_page, prefixe=prefixe, service_factory=_service)
+    )
     return router

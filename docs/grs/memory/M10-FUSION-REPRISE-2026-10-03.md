@@ -97,3 +97,11 @@ Bornes proposées : 1 MiB par fichier, 5 MiB de sources, UTF-8 TXT/MD et champs 
 [Revue, empreintes et capsules exactes du candidat r4](/workspace/poursuite-opsys-2026-10-02-r1/M10-INTAKE-CANDIDATS-ROOT-r1/r4/REVUE-ROOT.json). Le patch gelé a pour SHA-256 `0223be95e2aba8bdca98b36c9a14bc3c844eaf15ecf10cf2a6136fd439f0788a`. **Ce candidat n’est pas appliqué; ses tests ne sont pas exécutés.** Les 14 cas PostgreSQL du lot d’indexation qualifié plus haut ne qualifient pas ce nouvel intake.
 
 La qualification PostgreSQL reste empêchée par l’espace disque disponible : Docker `vfs` copie le rootfs de l’image même avec des données en RAM. Aucun conteneur préexistant, image ou donnée n’est supprimé pour forcer ce test; aucun double SQLite ne remplace sa preuve PostgreSQL. Restent aussi hors périmètre : intake universel, OCR, corpus client, cohorte durable et oubli groupé, métrique d’assimilation et exploitation VPS.
+
+## Suite du 4 octobre : manifeste d'import durable
+
+La [nouvelle tranche](M10-IMPORT-LOTS-REPRISE-2026-10-04.md) utilise un manifeste
+PostgreSQL intégré au store canonique et une console de reprise. Elle a son design,
+ses régressions et sa qualification distincts. Le candidat r4 décrit plus haut reste
+historique et non appliqué : son patch et ses tests ne sont pas présentés comme les
+sources ou preuves de la nouvelle implémentation.

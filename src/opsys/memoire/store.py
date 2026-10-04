@@ -740,11 +740,20 @@ class MemoireEntreprise:
             raise ValueError("empreinte de la source admise invalide")
         return int(ligne[0]), int(ligne[1]), corps
 
-    def _admettre_procedure(self, contenu: bytes, titre: str, *, auteur: str, cle_admission: str,
-                            document_id: str | None):
-        import uuid
+    @staticmethod
+    def _empreinte_cle_lot(cle_lot: str) -> str:
+        if (not isinstance(cle_lot, str) or not re.fullmatch(r"[A-Za-z0-9_-]{16,128}", cle_lot)):
+            raise ValueError("clé de lot opaque de 16 à 128 caractères attendue")
+        return hashlib.sha256(b"opsys-m10-import-lot-v1\0" + cle_lot.encode("ascii")).hexdigest()
 
-        from .ingestion_procedures import OCTETS_MAX, Admission, extraire
+    @staticmethod
+    def _cle_admission_lot(cle_lot_sha256: str, position: int) -> str:
+        brut = f"opsys-m10-import-slot-v1:{cle_lot_sha256}:{position}".encode("ascii")
+        return hashlib.sha256(brut).hexdigest()
+
+    @staticmethod
+    def _valider_source_procedure(contenu: bytes) -> str:
+        from .ingestion_procedures import OCTETS_MAX, extraire
 
         if not isinstance(contenu, bytes) or not contenu or len(contenu) > OCTETS_MAX:
             raise ValueError("source UTF-8 de 1 à 1 MiB attendue")
@@ -754,7 +763,24 @@ class MemoireEntreprise:
             raise ValueError("UTF-8 strict attendu") from exc
         if not texte_source.strip() or "\x00" in texte_source:
             raise ValueError("source vide ou contenant NUL refusée")
-        extraire(contenu)  # segmentation/bornes validées avant toute réservation ou ligne persistée
+        extraire(contenu)
+        return hashlib.sha256(contenu).hexdigest()
+
+    @staticmethod
+    def _verrouiller_quota_procedure(cnx: Any) -> None:
+        cnx.execute("SELECT pg_advisory_xact_lock(hashtext('opsys.memoire.procedure.quota'))")
+
+    @staticmethod
+    def _verrouiller_lot_procedure(cnx: Any, cle_lot_sha256: str) -> None:
+        cnx.execute("SELECT pg_advisory_xact_lock(hashtext(%s))",
+                    ("opsys.memoire.procedure.lot." + cle_lot_sha256,))
+
+    def _admettre_procedure(self, contenu: bytes, titre: str, *, auteur: str, cle_admission: str,
+                            document_id: str | None):
+        import uuid
+
+
+        digest = self._valider_source_procedure(contenu)
         if not isinstance(titre, str) or not titre.strip() or len(titre) > 300:
             raise ValueError("titre obligatoire (300 caractères au plus)")
         if not isinstance(auteur, str) or not auteur.strip() or len(auteur) > 200:
@@ -762,8 +788,6 @@ class MemoireEntreprise:
         if (not isinstance(cle_admission, str) or not 16 <= len(cle_admission) <= 128
                 or not re.fullmatch(r"[A-Za-z0-9_-]+", cle_admission)):
             raise ValueError("clé d'admission opaque de 16 à 128 caractères attendue")
-        import hashlib
-        digest = hashlib.sha256(contenu).hexdigest()
         ident_fourni = None
         if document_id is not None:
             try:
@@ -771,59 +795,240 @@ class MemoireEntreprise:
             except (ValueError, AttributeError) as exc:
                 raise ValueError("UUID logique invalide") from exc
         with self._connexion_documentaire() as cnx:
-            cnx.execute("SELECT pg_advisory_xact_lock(hashtext('opsys.memoire.procedure.quota'))")
-            if cnx.execute("SELECT 1 FROM memoire.procedure_admission_oubliees WHERE cle_admission=%s",
-                           (cle_admission,)).fetchone():
-                raise ValueError("clé d'admission oubliée : une nouvelle admission exige une nouvelle clé")
-            commande = cnx.execute(
-                "SELECT v.id,v.etat,v.sha256,v.auteur,d.titre,s.document_uuid::text"
-                " FROM memoire.procedure_versions v JOIN memoire.documents d ON d.id=v.document_id"
-                " JOIN memoire.procedure_series s USING(document_uuid) WHERE v.cle_admission=%s",
-                (cle_admission,)).fetchone()
-            if commande:
-                if (commande[2] != digest or commande[3] != auteur.strip() or commande[4] != titre.strip()
-                        or (ident_fourni is not None and commande[5] != ident_fourni)):
-                    raise ValueError("conflit : clé d'admission déjà liée à une autre commande")
-                return Admission(commande[5], digest, int(commande[0]), commande[1])
-            ident = ident_fourni or str(uuid.uuid4())
-            uri = f"opsys-document://{ident}/{digest}"
-            cnx.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", ("opsys.memoire.procedure." + ident,))
-            existante = cnx.execute(
-                "SELECT v.id, v.etat FROM memoire.procedure_versions v"
-                " WHERE v.document_uuid = %s::uuid AND v.sha256 = %s", (ident, digest)).fetchone()
-            if existante:
-                raise ValueError("version déjà admise : réutiliser sa clé d'admission idempotente")
-            serie = cnx.execute("SELECT 1 FROM memoire.procedure_series WHERE document_uuid=%s::uuid FOR UPDATE",
-                                (ident,)).fetchone()
-            if serie is None:
-                if ident_fourni is not None:
-                    raise ValueError("UUID initial fourni interdit; l'identité logique est générée par le serveur")
-                (n_series,) = cnx.execute("SELECT count(*) FROM memoire.procedure_series").fetchone()
-                if n_series >= 64:
-                    raise ValueError("quota atteint : 64 séries de procédures")
-                cnx.execute("INSERT INTO memoire.procedure_series(document_uuid,titre) VALUES (%s::uuid,%s)",
-                            (ident, titre.strip()))
-                version_no = 1
-            else:
-                (version_no,) = cnx.execute(
-                    "SELECT COALESCE(max(version_no),0)+1 FROM memoire.procedure_versions"
-                    " WHERE document_uuid=%s::uuid", (ident,)).fetchone()
-                if version_no > 8:
-                    raise ValueError("quota atteint : 8 versions par série")
-            (octets_existants,) = cnx.execute("SELECT COALESCE(sum(octet_length(corps)),0)"
-                                               " FROM memoire.procedure_versions").fetchone()
-            if octets_existants + len(contenu) > 64 * 1024 * 1024:
-                raise ValueError("quota global de 64 MiB atteint")
-            (db_document_id,) = cnx.execute(
-                "INSERT INTO memoire.documents(source,titre) VALUES (%s,%s) RETURNING id", (uri, titre.strip())
+            return self._admettre_procedure_dans_cnx(
+                cnx, contenu, digest, titre.strip(), auteur.strip(), cle_admission, ident_fourni
+            )
+
+    def _admettre_procedure_dans_cnx(
+        self, cnx: Any, contenu: bytes, digest: str, titre: str, auteur: str, cle_admission: str,
+        ident_fourni: str | None, *, quota_verrouille: bool = False,
+    ):
+        """Insère ou rejoue une source dans la transaction détenue par l'appelant."""
+        import uuid
+
+        from .ingestion_procedures import Admission
+
+        if not quota_verrouille:
+            self._verrouiller_quota_procedure(cnx)
+        if cnx.execute("SELECT 1 FROM memoire.procedure_admission_oubliees WHERE cle_admission=%s",
+                       (cle_admission,)).fetchone():
+            raise ValueError("clé d'admission oubliée : une nouvelle admission exige une nouvelle clé")
+        commande = cnx.execute(
+            "SELECT v.id,v.etat,v.sha256,v.auteur,d.titre,s.document_uuid::text"
+            " FROM memoire.procedure_versions v JOIN memoire.documents d ON d.id=v.document_id"
+            " JOIN memoire.procedure_series s USING(document_uuid) WHERE v.cle_admission=%s",
+            (cle_admission,),
+        ).fetchone()
+        if commande:
+            if (commande[2] != digest or commande[3] != auteur or commande[4] != titre
+                    or (ident_fourni is not None and commande[5] != ident_fourni)):
+                raise ValueError("conflit : clé d'admission déjà liée à une autre commande")
+            return Admission(commande[5], digest, int(commande[0]), commande[1])
+        ident = ident_fourni or str(uuid.uuid4())
+        uri = f"opsys-document://{ident}/{digest}"
+        cnx.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", ("opsys.memoire.procedure." + ident,))
+        existante = cnx.execute(
+            "SELECT v.id, v.etat FROM memoire.procedure_versions v"
+            " WHERE v.document_uuid = %s::uuid AND v.sha256 = %s", (ident, digest)
+        ).fetchone()
+        if existante:
+            raise ValueError("version déjà admise : réutiliser sa clé d'admission idempotente")
+        serie = cnx.execute("SELECT 1 FROM memoire.procedure_series WHERE document_uuid=%s::uuid FOR UPDATE",
+                            (ident,)).fetchone()
+        if serie is None:
+            if ident_fourni is not None:
+                raise ValueError("UUID initial fourni interdit; l'identité logique est générée par le serveur")
+            (n_series,) = cnx.execute("SELECT count(*) FROM memoire.procedure_series").fetchone()
+            if n_series >= 64:
+                raise ValueError("quota atteint : 64 séries de procédures")
+            cnx.execute("INSERT INTO memoire.procedure_series(document_uuid,titre) VALUES (%s::uuid,%s)",
+                        (ident, titre))
+            version_no = 1
+        else:
+            (version_no,) = cnx.execute(
+                "SELECT COALESCE(max(version_no),0)+1 FROM memoire.procedure_versions"
+                " WHERE document_uuid=%s::uuid", (ident,)
             ).fetchone()
-            (version_pk,) = cnx.execute(
-                "INSERT INTO memoire.procedure_versions(document_uuid,version_no,sha256,cle_admission,"
-                "document_id,corps,auteur,etat,extracteur)"
-                " VALUES (%s::uuid,%s,%s,%s,%s,%s,%s,'RECU','procedures-1') RETURNING id",
-                (ident, version_no, digest, cle_admission, db_document_id, contenu, auteur.strip()),
-            ).fetchone()
+            if version_no > 8:
+                raise ValueError("quota atteint : 8 versions par série")
+        (octets_existants,) = cnx.execute(
+            "SELECT COALESCE(sum(octet_length(corps)),0) FROM memoire.procedure_versions"
+        ).fetchone()
+        if octets_existants + len(contenu) > 64 * 1024 * 1024:
+            raise ValueError("quota global de 64 MiB atteint")
+        (db_document_id,) = cnx.execute(
+            "INSERT INTO memoire.documents(source,titre) VALUES (%s,%s) RETURNING id", (uri, titre)
+        ).fetchone()
+        (version_pk,) = cnx.execute(
+            "INSERT INTO memoire.procedure_versions(document_uuid,version_no,sha256,cle_admission,"
+            "document_id,corps,auteur,etat,extracteur)"
+            " VALUES (%s::uuid,%s,%s,%s,%s,%s,%s,'RECU','procedures-1') RETURNING id",
+            (ident, version_no, digest, cle_admission, db_document_id, contenu, auteur),
+        ).fetchone()
         return Admission(ident, digest, int(version_pk), "RECU")
+
+    def _sources_lot_procedure(self, sources: Sequence[Any]):
+        import uuid
+
+        from .ingestion_procedures import SourceLot
+
+        if not isinstance(sources, Sequence) or isinstance(sources, (str, bytes)) or not 1 <= len(sources) <= 5:
+            raise ValueError("un lot doit décrire de 1 à 5 emplacements")
+        resultat = []
+        positions = set()
+        for source in sources:
+            if not isinstance(source, SourceLot):
+                raise ValueError("chaque source doit être un SourceLot")
+            if (isinstance(source.position, bool) or not isinstance(source.position, int)
+                    or not 1 <= source.position <= 5):
+                raise ValueError("position de lot entre 1 et 5 attendue")
+            if source.position in positions:
+                raise ValueError("positions de lot dupliquées")
+            positions.add(source.position)
+            if (not isinstance(source.titre, str) or not source.titre.strip() or len(source.titre) > 300
+                    or not isinstance(source.sha256, str) or re.fullmatch(r"[0-9a-f]{64}", source.sha256) is None):
+                raise ValueError("titre et SHA-256 documentaire valides attendus")
+            cible = None
+            if source.serie_cible_id is not None:
+                try:
+                    cible = str(uuid.UUID(source.serie_cible_id))
+                except (ValueError, AttributeError, TypeError) as exc:
+                    raise ValueError("UUID de série cible invalide") from exc
+            resultat.append(SourceLot(source.position, source.titre.strip(), source.sha256, cible))
+        return tuple(sorted(resultat, key=lambda source: source.position))
+
+    def _creer_lot_procedure(self, cle_lot: str, sources: Sequence[Any], *, auteur: str):
+        cle_sha = self._empreinte_cle_lot(cle_lot)
+        propres = self._sources_lot_procedure(sources)
+        if not isinstance(auteur, str) or not auteur.strip() or len(auteur) > 200:
+            raise ValueError("auteur administrateur obligatoire")
+        auteur = auteur.strip()
+        cibles = sorted({source.serie_cible_id for source in propres if source.serie_cible_id is not None})
+        with self._connexion_documentaire() as cnx:
+            self._verrouiller_quota_procedure(cnx)
+            self._verrouiller_lot_procedure(cnx, cle_sha)
+            if cnx.execute("SELECT 1 FROM memoire.procedure_lots_oublies WHERE cle_lot_sha256=%s",
+                           (cle_sha,)).fetchone():
+                raise ValueError("clé de lot oubliée : une nouvelle admission exige une nouvelle clé")
+            ligne = cnx.execute(
+                "SELECT auteur,nombre_emplacements FROM memoire.procedure_lots"
+                " WHERE cle_lot_sha256=%s FOR UPDATE", (cle_sha,)
+            ).fetchone()
+            if ligne:
+                existantes = cnx.execute(
+                    "SELECT position,titre,sha256,serie_cible_id::text FROM memoire.procedure_lot_emplacements"
+                    " WHERE cle_lot_sha256=%s ORDER BY position", (cle_sha,)
+                ).fetchall()
+                attendues = [(s.position, s.titre, s.sha256, s.serie_cible_id) for s in propres]
+                if (ligne[0] != auteur or ligne[1] != len(propres)
+                        or [tuple(row) for row in existantes] != attendues):
+                    raise ValueError("conflit : clé de lot déjà liée à un autre manifeste ou auteur")
+                return self._lire_lot_dans_cnx(cnx, cle_lot, cle_sha, auteur)
+            (nombre_lots,) = cnx.execute("SELECT count(*) FROM memoire.procedure_lots").fetchone()
+            if nombre_lots >= 64:
+                raise ValueError("quota atteint : 64 lots vivants")
+            if cibles:
+                for ident in cibles:
+                    # Même ordre que indexation/activation : advisory série avant le row lock.
+                    cnx.execute("SELECT pg_advisory_xact_lock(hashtext(%s))",
+                                ("opsys.memoire.procedure." + ident,))
+                    if cnx.execute("SELECT 1 FROM memoire.procedure_series"
+                                   " WHERE document_uuid=%s::uuid FOR UPDATE", (ident,)).fetchone() is None:
+                        raise ValueError("série cible absente")
+            cnx.execute("INSERT INTO memoire.procedure_lots(cle_lot_sha256,auteur,nombre_emplacements)"
+                        " VALUES (%s,%s,%s)", (cle_sha, auteur, len(propres)))
+            for source in propres:
+                cnx.execute(
+                    "INSERT INTO memoire.procedure_lot_emplacements(cle_lot_sha256,position,titre,sha256,"
+                    "serie_cible_id) VALUES (%s,%s,%s,%s,%s::uuid)",
+                    (cle_sha, source.position, source.titre, source.sha256, source.serie_cible_id),
+                )
+            return self._lire_lot_dans_cnx(cnx, cle_lot, cle_sha, auteur)
+
+    def _lire_lot_dans_cnx(self, cnx: Any, cle_lot: str, cle_sha: str, auteur: str):
+        from .ingestion_procedures import EmplacementLot, LotProcedure
+
+        manifeste = cnx.execute("SELECT auteur,nombre_emplacements FROM memoire.procedure_lots"
+                                " WHERE cle_lot_sha256=%s", (cle_sha,)).fetchone()
+        if manifeste is None:
+            if cnx.execute("SELECT 1 FROM memoire.procedure_lots_oublies WHERE cle_lot_sha256=%s",
+                           (cle_sha,)).fetchone():
+                raise ValueError("lot oublié")
+            raise ValueError("lot absent")
+        if manifeste[0] != auteur:
+            raise ValueError("auteur différent du propriétaire du lot")
+        rows = cnx.execute(
+            "SELECT e.position,e.titre,e.sha256,e.serie_cible_id::text,v.document_uuid::text,v.etat,"
+            "(v.sha256=s.sha256_courante) FROM memoire.procedure_lot_emplacements e"
+            " LEFT JOIN memoire.procedure_versions v ON v.id=e.version_id"
+            " LEFT JOIN memoire.procedure_series s ON s.document_uuid=v.document_uuid"
+            " WHERE e.cle_lot_sha256=%s ORDER BY e.position", (cle_sha,)
+        ).fetchall()
+        if len(rows) != manifeste[1]:
+            raise ValueError("manifeste du lot incomplet")
+        emplacements = tuple(
+            EmplacementLot(int(row[0]), row[1], row[2], row[3], row[4], row[5] or "ATTENTE",
+                           bool(row[6]) if row[5] else False)
+            for row in rows
+        )
+        return LotProcedure(cle_lot, auteur, emplacements)
+
+    def _lire_lot_procedure(self, cle_lot: str, *, auteur: str):
+        cle_sha = self._empreinte_cle_lot(cle_lot)
+        if not isinstance(auteur, str) or not auteur.strip():
+            raise ValueError("auteur administrateur obligatoire")
+        with self._connexion_documentaire() as cnx:
+            self._verrouiller_quota_procedure(cnx)
+            self._verrouiller_lot_procedure(cnx, cle_sha)
+            return self._lire_lot_dans_cnx(cnx, cle_lot, cle_sha, auteur.strip())
+
+    def _admettre_emplacement_lot(self, cle_lot: str, position: int, contenu: bytes, *, auteur: str):
+        cle_sha = self._empreinte_cle_lot(cle_lot)
+        if isinstance(position, bool) or not isinstance(position, int) or not 1 <= position <= 5:
+            raise ValueError("position de lot entre 1 et 5 attendue")
+        if not isinstance(auteur, str) or not auteur.strip() or len(auteur) > 200:
+            raise ValueError("auteur administrateur obligatoire")
+        digest = self._valider_source_procedure(contenu)
+        auteur = auteur.strip()
+        with self._connexion_documentaire() as cnx:
+            self._verrouiller_quota_procedure(cnx)
+            self._verrouiller_lot_procedure(cnx, cle_sha)
+            manifeste = cnx.execute("SELECT auteur FROM memoire.procedure_lots WHERE cle_lot_sha256=%s FOR UPDATE",
+                                    (cle_sha,)).fetchone()
+            if manifeste is None:
+                if cnx.execute("SELECT 1 FROM memoire.procedure_lots_oublies WHERE cle_lot_sha256=%s",
+                               (cle_sha,)).fetchone():
+                    raise ValueError("lot oublié")
+                raise ValueError("lot absent")
+            if manifeste[0] != auteur:
+                raise ValueError("auteur différent du propriétaire du lot")
+            emplacement = cnx.execute(
+                "SELECT titre,sha256,serie_cible_id::text,version_id FROM memoire.procedure_lot_emplacements"
+                " WHERE cle_lot_sha256=%s AND position=%s FOR UPDATE", (cle_sha, position)
+            ).fetchone()
+            if emplacement is None:
+                raise ValueError("emplacement absent du manifeste")
+            titre, attendu, cible, version_id = emplacement
+            if digest != attendu:
+                raise ValueError("empreinte de source différente du manifeste du lot")
+            if version_id is not None:
+                version = cnx.execute("SELECT document_uuid::text FROM memoire.procedure_versions WHERE id=%s",
+                                      (version_id,)).fetchone()
+                if version is None:
+                    raise ValueError("version liée au lot absente")
+                return self._lire_lot_dans_cnx(cnx, cle_lot, cle_sha, auteur)
+            admission = self._admettre_procedure_dans_cnx(
+                cnx, contenu, digest, titre, auteur, self._cle_admission_lot(cle_sha, position), cible,
+                quota_verrouille=True,
+            )
+            maj = cnx.execute(
+                "UPDATE memoire.procedure_lot_emplacements SET version_id=%s"
+                " WHERE cle_lot_sha256=%s AND position=%s AND version_id IS NULL",
+                (admission.version_id, cle_sha, position),
+            )
+            if maj.rowcount != 1:
+                raise ValueError("conflit de rattachement d'emplacement")
+            return self._lire_lot_dans_cnx(cnx, cle_lot, cle_sha, auteur)
 
     def _etat_procedure(self, document_id: str, *, absent_ok: bool = False):
         import uuid
@@ -958,7 +1163,14 @@ class MemoireEntreprise:
         if not isinstance(demandeur, str) or not demandeur.strip() or not isinstance(motif, str) or not motif.strip():
             raise ValueError("demandeur et motif obligatoires pour journaliser l'effacement")
         with self._connexion_documentaire() as cnx:
-            cnx.execute("SELECT pg_advisory_xact_lock(hashtext('opsys.memoire.procedure.quota'))")
+            self._verrouiller_quota_procedure(cnx)
+            lots = cnx.execute(
+                "SELECT DISTINCT e.cle_lot_sha256 FROM memoire.procedure_lot_emplacements e"
+                " LEFT JOIN memoire.procedure_versions v ON v.id=e.version_id"
+                " WHERE v.document_uuid=%s::uuid OR e.serie_cible_id=%s::uuid"
+                " ORDER BY e.cle_lot_sha256", (ident, ident)
+            ).fetchall()
+            self._invalider_lots_procedure_cnx(cnx, [row[0] for row in lots])
             cnx.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", ("opsys.memoire.procedure." + ident,))
             cnx.execute("INSERT INTO memoire.procedure_admission_oubliees(cle_admission)"
                         " SELECT cle_admission FROM memoire.procedure_versions WHERE document_uuid=%s::uuid"
@@ -973,6 +1185,13 @@ class MemoireEntreprise:
             cnx.execute(_SQL_JOURNAL, (demandeur.strip(), motif.strip(),
                                        json.dumps({"document_uuid": ident}), fragments, documents))
         return int(fragments)
+
+    def _invalider_lots_procedure_cnx(self, cnx: Any, cles_sha256: Sequence[str]) -> None:
+        for cle_sha in sorted(set(cles_sha256)):
+            self._verrouiller_lot_procedure(cnx, cle_sha)
+            cnx.execute("INSERT INTO memoire.procedure_lots_oublies(cle_lot_sha256) VALUES (%s)"
+                        " ON CONFLICT DO NOTHING", (cle_sha,))
+            cnx.execute("DELETE FROM memoire.procedure_lots WHERE cle_lot_sha256=%s", (cle_sha,))
 
     def oublier(self, filtres: Mapping[str, Any], *, demandeur: str, motif: str) -> int:
         """Effacement Loi 25 en une transaction : fragments, puis documents orphelins, puis journal.
@@ -993,12 +1212,13 @@ class MemoireEntreprise:
                               and set(filtres) <= cles_admission)
         with (self._connexion_documentaire() if admission_ciblable
               else self._connexion()) as cnx:
+            # Toutes les suppressions de source partagent le verrou quota avec les admissions et les lots.
+            self._verrouiller_quota_procedure(cnx)
             fragments_cascade = 0
             documents_cascade = 0
             # Les admissions RECU peuvent n'avoir aucun fragment : les sélecteurs historiques par source
             # ou id de document doivent quand même retirer la source et toutes ses versions.
             if admission_ciblable:
-                cnx.execute("SELECT pg_advisory_xact_lock(hashtext('opsys.memoire.procedure.quota'))")
                 sources = _chaines("source", filtres["source"]) if "source" in filtres else None
                 doc_id = filtres.get("document_id")
                 conditions = ["(%s::text[] IS NULL OR d.source=ANY(%s::text[]))",
@@ -1017,6 +1237,32 @@ class MemoireEntreprise:
                     f" WHERE {predicats} ORDER BY 1",
                     params,
                 ).fetchall()
+                document_ids = cnx.execute(
+                    "SELECT DISTINCT v.document_id FROM memoire.procedure_versions v"
+                    " JOIN memoire.documents d ON d.id=v.document_id"
+                    f" WHERE {predicats} ORDER BY v.document_id", params,
+                ).fetchall()
+                ids_cibles = [row[0] for row in document_ids]
+                if ids_cibles:
+                    lots = cnx.execute(
+                        "SELECT DISTINCT e.cle_lot_sha256 FROM memoire.procedure_lot_emplacements e"
+                        " JOIN memoire.procedure_versions v ON v.id=e.version_id"
+                        " WHERE v.document_id=ANY(%s) ORDER BY e.cle_lot_sha256", (ids_cibles,)
+                    ).fetchall()
+                    cles_lots = {row[0] for row in lots}
+                    ids_cibles_set = set(ids_cibles)
+                    for (serie_cible,) in series:
+                        docs_serie = cnx.execute(
+                            "SELECT document_id FROM memoire.procedure_versions"
+                            " WHERE document_uuid=%s::uuid", (serie_cible,)
+                        ).fetchall()
+                        if {row[0] for row in docs_serie} <= ids_cibles_set:
+                            lots_cibles = cnx.execute(
+                                "SELECT DISTINCT cle_lot_sha256 FROM memoire.procedure_lot_emplacements"
+                                " WHERE serie_cible_id=%s::uuid ORDER BY cle_lot_sha256", (serie_cible,)
+                            ).fetchall()
+                            cles_lots.update(row[0] for row in lots_cibles)
+                    self._invalider_lots_procedure_cnx(cnx, tuple(cles_lots))
                 for (serie_id,) in series:
                     cnx.execute("SELECT pg_advisory_xact_lock(hashtext(%s))",
                                 ("opsys.memoire.procedure." + serie_id,))
@@ -1061,6 +1307,7 @@ class MemoireEntreprise:
     def purger_expires(self) -> int:
         """Supprime les fragments dont l'échéance est passée (rétention Loi 25, art. 23)."""
         with self._connexion() as cnx:
+            self._verrouiller_quota_procedure(cnx)
             supprimes = cnx.execute("DELETE FROM memoire.fragments WHERE expire_le IS NOT NULL"
                                     " AND expire_le <= now() RETURNING document_id").fetchall()
             if supprimes:
@@ -1117,15 +1364,85 @@ class MemoireEntreprise:
         cles = ("documents", "fragments", "sans_embedding", "echus_a_purger", "personnels")
         return {cle: int(valeur) for cle, valeur in zip(cles, ligne, strict=True)}
 
-    @staticmethod
-    def _supprimer_orphelins(cnx: psycopg.Connection[Any], documents: set[int]) -> int:
+    def _supprimer_orphelins(self, cnx: psycopg.Connection[Any], documents: set[int]) -> int:
         if not documents:
             return 0
+        candidats = sorted(row[0] for row in cnx.execute(
+            "SELECT d.id FROM memoire.documents d WHERE d.id=ANY(%s)"
+            " AND NOT EXISTS (SELECT 1 FROM memoire.fragments f WHERE f.document_id=d.id) ORDER BY d.id",
+            (sorted(documents),),
+        ).fetchall())
+        if not candidats:
+            return 0
+
+        # Stabiliser indexation pendant la décision d'orphelin : elle prend le verrou advisory de série
+        # avant de créer des fragments. Le quota est déjà détenu par oublier()/purger_expires().
+        versions_avant = cnx.execute(
+            "SELECT id,document_uuid::text,cle_admission FROM memoire.procedure_versions"
+            " WHERE document_id=ANY(%s) ORDER BY document_uuid,id", (candidats,)
+        ).fetchall()
+        if versions_avant:
+            ids_version = [row[0] for row in versions_avant]
+            series = sorted({row[1] for row in versions_avant})
+            lots = cnx.execute(
+                "SELECT DISTINCT cle_lot_sha256 FROM memoire.procedure_lot_emplacements"
+                " WHERE version_id=ANY(%s) OR serie_cible_id=ANY(%s::uuid[]) ORDER BY cle_lot_sha256",
+                (ids_version, series),
+            ).fetchall()
+            cles_lots_verrouillees = [row[0] for row in lots]
+            for cle_sha in cles_lots_verrouillees:
+                self._verrouiller_lot_procedure(cnx, cle_sha)
+            for ident in series:
+                cnx.execute("SELECT pg_advisory_xact_lock(hashtext(%s))",
+                            ("opsys.memoire.procedure." + ident,))
+
+            # L'indexation déjà engagée a pu finir pendant l'attente du verrou de série.
+            candidats = sorted(row[0] for row in cnx.execute(
+                "SELECT d.id FROM memoire.documents d WHERE d.id=ANY(%s)"
+                " AND NOT EXISTS (SELECT 1 FROM memoire.fragments f WHERE f.document_id=d.id) ORDER BY d.id",
+                (candidats,),
+            ).fetchall())
+            if candidats:
+                versions = cnx.execute(
+                    "SELECT id,document_uuid::text,cle_admission FROM memoire.procedure_versions"
+                    " WHERE document_id=ANY(%s) ORDER BY document_uuid,id", (candidats,)
+                ).fetchall()
+                ids_version = [row[0] for row in versions]
+                series_supprimees = []
+                for ident in sorted({row[1] for row in versions}):
+                    restant = cnx.execute(
+                        "SELECT 1 FROM memoire.procedure_versions v WHERE v.document_uuid=%s::uuid"
+                        " AND NOT (v.document_id=ANY(%s)) LIMIT 1", (ident, candidats),
+                    ).fetchone()
+                    if restant is None:
+                        series_supprimees.append(ident)
+                cles_lots = set()
+                if ids_version:
+                    cles_lots.update(row[0] for row in cnx.execute(
+                        "SELECT DISTINCT cle_lot_sha256 FROM memoire.procedure_lot_emplacements"
+                        " WHERE version_id=ANY(%s) ORDER BY cle_lot_sha256", (ids_version,)
+                    ).fetchall())
+                if series_supprimees:
+                    cles_lots.update(row[0] for row in cnx.execute(
+                        "SELECT DISTINCT cle_lot_sha256 FROM memoire.procedure_lot_emplacements"
+                        " WHERE serie_cible_id=ANY(%s::uuid[]) ORDER BY cle_lot_sha256",
+                        (series_supprimees,),
+                    ).fetchall())
+                # Ces clés ont été prises avant les advisory de série; tout nouveau lot est bloqué au quota.
+                for cle_sha in sorted(cles_lots):
+                    self._verrouiller_lot_procedure(cnx, cle_sha)
+                cnx.execute(
+                    "INSERT INTO memoire.procedure_admission_oubliees(cle_admission)"
+                    " SELECT cle_admission FROM memoire.procedure_versions WHERE document_id=ANY(%s)"
+                    " ON CONFLICT DO NOTHING", (candidats,),
+                )
+                self._invalider_lots_procedure_cnx(cnx, tuple(cles_lots))
+
         cnx.execute("UPDATE memoire.procedure_series s SET sha256_courante=NULL"
                     " WHERE EXISTS (SELECT 1 FROM memoire.procedure_versions v"
                     " WHERE v.document_uuid=s.document_uuid AND v.document_id=ANY(%s)"
-                    " AND v.sha256=s.sha256_courante)", (sorted(documents),))
-        supprimes = cnx.execute(_SQL_ORPHELINS, (sorted(documents),)).rowcount
+                    " AND v.sha256=s.sha256_courante)", (candidats,))
+        supprimes = cnx.execute(_SQL_ORPHELINS, (candidats,)).rowcount
         # Les FK document_id en cascade enlèvent les versions; supprimer leurs séries vides évite
         # de réserver un UUID sans source ni historique après un effacement standard.
         cnx.execute("DELETE FROM memoire.procedure_series s WHERE NOT EXISTS "

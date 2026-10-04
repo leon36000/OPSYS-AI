@@ -156,6 +156,28 @@ CREATE TABLE IF NOT EXISTS memoire.procedure_versions (
 CREATE TABLE IF NOT EXISTS memoire.procedure_admission_oubliees (
     cle_admission text PRIMARY KEY CHECK (length(cle_admission) BETWEEN 16 AND 128)
 );
+-- Manifeste léger d'import. Le contenu demeure uniquement dans procedure_versions.corps.
+CREATE TABLE IF NOT EXISTS memoire.procedure_lots (
+    cle_lot_sha256 text PRIMARY KEY CHECK (cle_lot_sha256 ~ '^[0-9a-f]{64}$'),
+    auteur text NOT NULL CHECK (btrim(auteur) <> '' AND length(auteur) <= 200),
+    nombre_emplacements smallint NOT NULL CHECK (nombre_emplacements BETWEEN 1 AND 5),
+    cree_le timestamptz NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS memoire.procedure_lot_emplacements (
+    cle_lot_sha256 text NOT NULL REFERENCES memoire.procedure_lots(cle_lot_sha256) ON DELETE CASCADE,
+    position smallint NOT NULL CHECK (position BETWEEN 1 AND 5),
+    titre text NOT NULL CHECK (btrim(titre) <> '' AND length(titre) <= 300),
+    sha256 text NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'),
+    serie_cible_id uuid,
+    version_id bigint UNIQUE REFERENCES memoire.procedure_versions(id) ON DELETE CASCADE,
+    PRIMARY KEY (cle_lot_sha256, position)
+);
+CREATE INDEX IF NOT EXISTS procedure_lot_emplacements_version
+    ON memoire.procedure_lot_emplacements(version_id) WHERE version_id IS NOT NULL;
+-- Empreinte seule : l'oubli invalide le rejeu sans garder clé, titre, SHA documentaire ni UUID.
+CREATE TABLE IF NOT EXISTS memoire.procedure_lots_oublies (
+    cle_lot_sha256 text PRIMARY KEY CHECK (cle_lot_sha256 ~ '^[0-9a-f]{64}$')
+);
 ALTER TABLE memoire.procedure_series DROP CONSTRAINT IF EXISTS procedure_courante_fk;
 ALTER TABLE memoire.procedure_series ADD CONSTRAINT procedure_courante_fk
     FOREIGN KEY (document_uuid, sha256_courante)

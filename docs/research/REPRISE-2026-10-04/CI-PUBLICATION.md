@@ -121,3 +121,38 @@ rattachés à leurs commits. Après installation normale sous Node 22 : TypeScri
 17 tests de consommateurs et 2 607 tests Jest passent localement; audit npm
 zéro high/critical, 13 moderate, seuil inchangé. Le prochain résultat natif reste
 à obtenir. La même capsule conserve 23 tests PostgreSQL/mémoire réussis en réel.
+
+## Résultats natifs confirmés après la reprise mobile
+
+Le commit mobile publié est `d2669faac3f423dca336e34382eab1b758863ad3`,
+arbre `f9f1bd2eab4a3bd03720cb9901d105130a70b110`, quatorzième commit.
+Son [workflow mobile](https://github.com/leon36000/OPSYS-AI/actions/runs/37189707458)
+réussit : audit sans high/critical (13 moderate), installation normale,
+17 régressions des consommateurs, TypeScript et 2 607 tests Jest dans 118 suites.
+
+Le [socle du head précédent d943c5d](https://github.com/leon36000/OPSYS-AI/actions/runs/37187354743)
+réussit aussi : prévol PDF, 3 773 tests réussis, 17 ignorés et un warning en
+41 min 59 s. Les dix départements et neuf partitions M3 de ce head réussissent.
+Ces exclusions natives restent explicites; aucun verdict de zéro ignoré global.
+Les [logs et reçus distants](preuves/CI-NATIVE-d2669fa-r1.tar.xz) sont conservés
+avec leur [inventaire](preuves/CI-NATIVE-d2669fa-r1.json).
+Les autres workflows du nouveau head poursuivent leur exécution; ces résultats
+ne certifient pas tous les parcours fonctionnels de la vision produit.
+
+## Tranche suivante — imports internes M10 reprenables
+
+Le [rapport M10](../../grs/memory/M10-IMPORT-LOTS-REPRISE-2026-10-04.md) décrit
+le manifeste PostgreSQL, les emplacements stables et les réponses partielles privées.
+ROOT r106 passe **82/82 cas, zéro skip**, avec Ruff vert, 1 224 sources stables,
+aucune garde déclenchée et aucun OOM; Gitleaks r107 trouve zéro alerte.
+L'oubli générique, la rétention et l'ordre des verrous ont leurs régressions PostgreSQL
+réelles, conservées en rouge r105 puis vert r106. Les tests antérieurs ne sont pas
+additionnés pour présenter un nombre de cas uniques artificiel.
+
+Capsule [M10-IMPORT-LOTS-r1.tar.xz](preuves/M10-IMPORT-LOTS-r1.tar.xz),
+SHA-256 `e6cbe872089339e686871946869d03020dc1b8eb9f60b599a0b4df878bfde42b`,
+[inventaire](preuves/M10-IMPORT-LOTS-r1.json) et
+[versions exactes de l'environnement](preuves/M10-IMPORT-LOTS-ENV-r1.json).
+La CI native de cette nouvelle tranche reste à obtenir sur son commit publié.
+**PARTIEL** : procédures internes M03; ni import client universel, ni OCR/PDF,
+ni assimilation sur corpus d'entreprise réel, ni entraînement automatique.

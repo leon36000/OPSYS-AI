@@ -5,6 +5,7 @@ from __future__ import annotations
 import dataclasses
 import re
 import unicodedata
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -57,6 +58,32 @@ class VersionResume:
 class PageSeries:
     total: int
     series: tuple[dict[str, object], ...]
+
+
+@dataclasses.dataclass(frozen=True)
+class SourceLot:
+    position: int
+    titre: str
+    sha256: str
+    serie_cible_id: str | None = None
+
+
+@dataclasses.dataclass(frozen=True)
+class EmplacementLot:
+    position: int
+    titre: str
+    sha256: str
+    serie_cible_id: str | None
+    document_id: str | None
+    etat: str
+    active: bool
+
+
+@dataclasses.dataclass(frozen=True)
+class LotProcedure:
+    cle_lot: str
+    auteur: str
+    emplacements: tuple[EmplacementLot, ...]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -166,6 +193,15 @@ class IngestionProcedures:
                  document_id: str | None = None) -> Admission:
         return self._memoire._admettre_procedure(contenu, titre, auteur=auteur,
                                                   cle_admission=cle_admission, document_id=document_id)
+
+    def creer_lot(self, cle_lot: str, sources: Sequence[SourceLot], *, auteur: str) -> LotProcedure:
+        return self._memoire._creer_lot_procedure(cle_lot, sources, auteur=auteur)
+
+    def admettre_emplacement(self, cle_lot: str, position: int, contenu: bytes, *, auteur: str) -> LotProcedure:
+        return self._memoire._admettre_emplacement_lot(cle_lot, position, contenu, auteur=auteur)
+
+    def lire_lot(self, cle_lot: str, *, auteur: str) -> LotProcedure:
+        return self._memoire._lire_lot_procedure(cle_lot, auteur=auteur)
 
     def lister_recues(self, *, limite: int = INDEXATION_LOT_MAX) -> tuple[tuple[str, str], ...]:
         """Liste au plus cinq versions reçues dans un ordre stable, sans lire leur contenu."""

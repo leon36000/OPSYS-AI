@@ -1,5 +1,15 @@
 # M10 — audit initial de l’état courant
 
+## Actualisation du 4 octobre — imports internes reprenables
+
+La [tranche de reprise durable](M10-IMPORT-LOTS-REPRISE-2026-10-04.md) complète
+l'admission individuelle par un manifeste PostgreSQL de un à cinq documents M03,
+positions stables, rejeu idempotent, succès partiels et effacement des manifests liés.
+Elle garde le même corps canonique et n'ajoute pas de moteur mémoire. Ses preuves
+finales et limites sont séparées des campagnes R26 ci-dessous. **M10 reste PARTIEL**;
+PDF/OCR, classification générale, assimilation client et corpus représentatif ne sont
+pas prouvés par ce parcours interne.
+
 ## Actualisation R26 — procédures internes M3
 
 Le 2 octobre 2026, le backend d'[admission de procédures UTF-8](../../architecture/INGESTION-PROCEDURES-M3.md)
