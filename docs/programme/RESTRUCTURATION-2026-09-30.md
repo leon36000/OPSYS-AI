@@ -79,6 +79,19 @@ MCP/appareil historique et PostgreSQL hors qualification. Le chaînage interne
 ne constitue pas une ancre externe, la tentative demeure déclarée. M1 global
 **PARTIEL** ; le prochain commit doit obtenir sa propre CI.
 
+**M10, tranche 26 qualifiée localement :** le [raccord PDF Finance → provenance M10](../grs/memory/M10-PROVENANCE-PDF-RAPPORT-2026-10-04.md)
+inscrit des métadonnées candidates `FINANCIAL` dans le registre documentaire,
+avec [variant fermé](../grs/memory/M10-PROVENANCE-PDF-DESIGN-2026-10-04.md)
+et contrat CSV conservé. Le PDF reste seul autorité du texte, pages/citations
+et résultats chiffrés ; aucune indexation, vectorisation ou classification
+universelle. SQLite, transaction commune, bornes avant décodage/après append,
+chaînage interne sans ancre externe ; ancien lot absent sans backfill GET/rejeu.
+ROOT r156 passe **1 401/1 401 sur 52 fichiers complets**, sans échec/erreur/skip,
+179,504 s JUnit, Ruff/vérificateur verts, 1 247 sources sans dérive/OOM.
+Les rouges r152/r153 restent conservés. Le test M10 de développement sur vrai
+PostgreSQL en RAM est distinct du raccord financier PDF SQLite, sans DDL.
+M10 et Fusion **PARTIEL** ; le futur commit26 doit obtenir sa propre CI.
+
 Le head `79b49669` a désormais réussi les six workflows natifs, dont
 3 815 tests du socle/17 ignorés. Cela ne remplace pas la CI du prochain commit;
 le [bilan par head](../research/REPRISE-2026-10-04/CI-PUBLICATION.md) sépare succès,

@@ -3,18 +3,21 @@
 from __future__ import annotations
 
 import base64
+import hashlib
+from datetime import UTC, datetime
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
 from m3_estimation import devis_durable, soumission_pdf
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from starlette.datastructures import UploadFile
 
 from opsys import fusion_pdf, identite, stockage
 from opsys.console import application, securite
 from opsys.console.securite import Configuration
-from opsys.stockage.schema import FUSION_PDF_LOTS, FUSION_PDF_QUOTA
+from opsys.stockage.schema import FUSION_PDF_LOTS, FUSION_PDF_QUOTA, META, REGISTRES
 
 SECRET = "secret-console-pdf-fictif-" + "x" * 32
 PASSWORD = "mot-de-passe-pdf-fictif-1234"
@@ -351,7 +354,7 @@ def test_erreur_lister_devient_code_http_sans_detail_interne(client_pdf, monkeyp
 def test_permission_error_est_normalisee_et_session_revokee_est_reverifiee(client_pdf, monkeypatch):
     monkeypatch.setattr(
         fusion_pdf,
-        "lire",
+        "lire_avec_provenance",
         lambda *_: (_ for _ in ()).throw(PermissionError("secret permission fictif")),
     )
     lot_id = "00000000-0000-4000-8000-000000000001"
@@ -365,7 +368,7 @@ def test_permission_error_est_normalisee_et_session_revokee_est_reverifiee(clien
             identite.retirer_role(cnx, OWNER, "nathan_owner")
         raise fusion_pdf.FusionPDFErreur("LOT_INCONNU", "detail sensible fictif", 404)
 
-    monkeypatch.setattr(fusion_pdf, "lire", retirer_et_refuser)
+    monkeypatch.setattr(fusion_pdf, "lire_avec_provenance", retirer_et_refuser)
     response = client_pdf.get(f"/fusion/pdf/lots/{lot_id}")
     assert response.status_code == 403
     assert "LOT_INCONNU" not in response.text and "detail sensible fictif" not in response.text
@@ -418,3 +421,281 @@ def _lot_id(location: str) -> str:
     match = re.search(r"/fusion/pdf/lots/([0-9a-f-]{36})", location)
     assert match, location
     return match.group(1)
+
+
+def _instantane_pdf_et_memoire():
+    """Toutes les tables réelles de la fixture : GET ne modifie ni quotas, ni provenance, ni journal."""
+    with stockage.transaction() as cnx:
+        return {
+            table.name: tuple(sorted((tuple(row) for row in cnx.execute(select(table))), key=repr))
+            for table in META.sorted_tables
+        }
+
+
+def _preparation_fictive(monkeypatch):
+    """Seule frontière simulée : le worker PDF. Stockage, chiffrement et provenance restent réels."""
+    def worker_fictif(source):
+        texte = "Extrait entièrement fictif " + MARKER
+        return {"ok": True, "resultat": {
+            "schema_version": 1, "source_sha256": hashlib.sha256(source).hexdigest(),
+            "extracteur": fusion_pdf.EXTRACTEUR, "configuration_sha256": fusion_pdf.CONFIGURATION_SHA256,
+            "pages": [{"numero": 1, "fragments": [{
+                "id": "p1-f1", "texte": texte, "sha256": hashlib.sha256(texte.encode()).hexdigest(),
+            }]}],
+        }}
+
+    monkeypatch.setattr(fusion_pdf, "_extraire_isole", worker_fictif)
+
+
+@pytest.mark.parametrize("lecteur", [OWNER, ADMIN])
+def test_provenance_m10_pdf_apres_reconnexion_est_privee_et_sans_ecriture(client_pdf, pdf_fictif, lecteur, monkeypatch):
+    client = client_pdf
+    csrf = _csrf(client.get("/fusion/pdf"))
+    admission = _admettre(client, csrf, pdf_fictif, mutation="provenance-admission-fictive")
+    assert admission.status_code == 303, admission.text
+    lot_id = _lot_id(admission.headers["location"])
+    client.cookies.clear()
+    csrf = _connecter(client, lecteur)
+    avant = _instantane_pdf_et_memoire()
+    detail = client.get(f"/fusion/pdf/lots/{lot_id}")
+    assert detail.status_code == 200, detail.text
+    assert "Provenance M10" in detail.text and "FINANCIAL" in detail.text
+    assert "Source candidate préparatoire, non validée" in detail.text
+    assert "<dt>Révision du lot PDF</dt><dd>1</dd>" in detail.text
+    assert "<dt>Révision M10</dt><dd>1</dd>" in detail.text
+    assert hashlib.sha256(pdf_fictif).hexdigest() in detail.text
+    reference = f"opsys-ingestion://m05-financecore/pdf/lots/{lot_id}"
+    assert reference in detail.text and f'href="{reference}"' not in detail.text
+    assert MARKER not in detail.text and KEY not in detail.text and "devis-fictif.pdf" not in detail.text
+    assert detail.headers["cache-control"] == "private, no-store, max-age=0"
+    assert _instantane_pdf_et_memoire() == avant
+
+    _preparation_fictive(monkeypatch)
+    prepared = client.post(
+        f"/fusion/pdf/lots/{lot_id}/preparer", data={"csrf": csrf, "revision_attendue": "1"},
+        follow_redirects=False,
+    )
+    assert prepared.status_code == 303, prepared.text
+    avant = _instantane_pdf_et_memoire()
+    detail = client.get(f"/fusion/pdf/lots/{lot_id}")
+    assert detail.status_code == 200, detail.text
+    assert "<dt>État de la source</dt><dd>EXTRAIT_PREPARATOIRE</dd>" in detail.text
+    assert "<dt>Révision du lot PDF</dt><dd>2</dd>" in detail.text
+    assert "<dt>Révision M10</dt><dd>2</dd>" in detail.text
+    assert "<dt>Pages préparées</dt><dd>1</dd>" in detail.text
+    assert MARKER not in detail.text and "non validée" in detail.text
+    assert _instantane_pdf_et_memoire() == avant
+    extrait = client.get(f"/fusion/pdf/lots/{lot_id}/extraits?page=1")
+    assert extrait.status_code == 200 and MARKER in extrait.text
+    assert _instantane_pdf_et_memoire() == avant
+
+
+def test_lot_historique_sans_trace_reste_absent_sans_backfill(client_pdf, pdf_fictif):
+    client = client_pdf
+    csrf = _csrf(client.get("/fusion/pdf"))
+    admission = _admettre(client, csrf, pdf_fictif, mutation="ancien-lot-fictif")
+    assert admission.status_code == 303
+    lot_id = _lot_id(admission.headers["location"])
+    # Image historique synthétique : seul ce registre documentaire de fixture est retiré.
+    with stockage.transaction() as cnx:
+        cnx.execute(delete(REGISTRES).where(
+            (REGISTRES.c.departement == "m10-memoire") & (REGISTRES.c.registre == "documents")
+        ))
+    avant = _instantane_pdf_et_memoire()
+    for _ in range(2):
+        detail = client.get(f"/fusion/pdf/lots/{lot_id}")
+        assert detail.status_code == 200, detail.text
+        assert "Provenance M10 absente pour ce lot" in detail.text
+        assert "Source candidate préparatoire, non validée" not in detail.text
+    assert _instantane_pdf_et_memoire() == avant
+
+
+@pytest.mark.parametrize("champ,valeur", [
+    ("source_sha256", "0" * 64), ("configuration_sha256", "0" * 64),
+    ("source_revision", 2), ("revision", True), ("total_pages", True),
+    ("reference_locale", "javascript:CANARI-FICTIF"), ("horodatage", "date-sans-fuseau"),
+    ("horodatage", "2030-10-04T08:00:00+00:00"),
+    ("texte", MARKER), ("statut", "VALIDE"), ("acteur_transition", "nom@example.com"),
+])
+def test_projection_provenance_malfomee_ou_divergente_est_503_sans_corps(
+    client_pdf, pdf_fictif, monkeypatch, champ, valeur,
+):
+    client = client_pdf
+    csrf = _csrf(client.get("/fusion/pdf"))
+    admission = _admettre(client, csrf, pdf_fictif, mutation="projection-fictive")
+    assert admission.status_code == 303
+    lot_id = _lot_id(admission.headers["location"])
+    original = fusion_pdf.lire_avec_provenance
+
+    def projection_alteree(*args):
+        lecture = original(*args)
+        assert lecture["provenance"] is not None
+        return {**lecture, "provenance": {**lecture["provenance"], champ: valeur}}
+
+    monkeypatch.setattr(fusion_pdf, "lire_avec_provenance", projection_alteree)
+    avant = _instantane_pdf_et_memoire()
+    response = client.get(f"/fusion/pdf/lots/{lot_id}")
+    assert response.status_code == 503, response.text
+    assert "PDF_PROVENANCE_INDISPONIBLE" in response.text
+    assert MARKER not in response.text and "CANARI-FICTIF" not in response.text
+    assert "Source candidate" not in response.text and "no-store" in response.headers["cache-control"]
+    assert _instantane_pdf_et_memoire() == avant
+
+
+def test_provenance_source_reelle_alteree_refuse_sans_ecriture(client_pdf, pdf_fictif):
+    from opsys.stockage import codec
+
+    client = client_pdf
+    csrf = _csrf(client.get("/fusion/pdf"))
+    admission = _admettre(client, csrf, pdf_fictif, mutation="chaine-alteree-fictive")
+    assert admission.status_code == 303
+    lot_id = _lot_id(admission.headers["location"])
+    with stockage.transaction() as cnx:
+        filtre = (REGISTRES.c.departement == "m10-memoire") & (REGISTRES.c.registre == "documents")
+        row = cnx.execute(select(REGISTRES).where(filtre)).one()
+        document = codec.decoder(row.maillon)
+        assert document["lot_id"] == lot_id
+        document["source_sha256"] = "0" * 64  # Aucun recalcul de la chaîne : vraie altération SQL.
+        cnx.execute(update(REGISTRES).where(filtre & (REGISTRES.c.rang == row.rang)).values(
+            maillon=codec.encoder(document),
+        ))
+    avant = _instantane_pdf_et_memoire()
+    response = client.get(f"/fusion/pdf/lots/{lot_id}")
+    assert response.status_code == 503, response.text
+    assert "PDF_PROVENANCE_INDISPONIBLE" in response.text
+    assert MARKER not in response.text and KEY not in response.text and lot_id not in response.text
+    assert _instantane_pdf_et_memoire() == avant
+
+
+def test_quota_provenance_refuse_avant_decodeur_et_sans_ecriture(client_pdf, pdf_fictif, monkeypatch):
+    from opsys.stockage import codec
+
+    client = client_pdf
+    csrf = _csrf(client.get("/fusion/pdf"))
+    admission = _admettre(client, csrf, pdf_fictif, mutation="quota-provenance-fictif")
+    assert admission.status_code == 303
+    lot_id = _lot_id(admission.headers["location"])
+    with stockage.transaction() as cnx:
+        filtre = (REGISTRES.c.departement == "m10-memoire") & (REGISTRES.c.registre == "documents")
+        assert cnx.execute(select(REGISTRES).where(filtre)).one().maillon
+        cnx.execute(update(REGISTRES).where(filtre).values(maillon="x" * 65_537))
+    avant = _instantane_pdf_et_memoire()
+    appels_decodeur = []
+
+    def decoder_interdit(*args, **kwargs):
+        appels_decodeur.append(True)
+        raise AssertionError("le quota doit refuser avant le décodage")
+
+    monkeypatch.setattr(codec, "decoder", decoder_interdit)
+    response = client.get(f"/fusion/pdf/lots/{lot_id}")
+    assert response.status_code == 503, response.text
+    assert "PDF_PROVENANCE_INDISPONIBLE" in response.text and appels_decodeur == []
+    assert _instantane_pdf_et_memoire() == avant
+
+
+def test_provenance_valide_passe_par_echappement_et_reference_locale_non_active(client_pdf, pdf_fictif, monkeypatch):
+    from opsys.console import fusion_pdf_ui
+
+    client = client_pdf
+    csrf = _csrf(client.get("/fusion/pdf"))
+    admission = _admettre(client, csrf, pdf_fictif, mutation="escape-provenance-fictive")
+    assert admission.status_code == 303
+    lot_id = _lot_id(admission.headers["location"])
+    original = fusion_pdf_ui.pages.e
+    echappees = []
+
+    def observer_echappement(valeur):
+        echappees.append(valeur)
+        return original(valeur)
+
+    monkeypatch.setattr(fusion_pdf_ui.pages, "e", observer_echappement)
+    response = client.get(f"/fusion/pdf/lots/{lot_id}")
+    assert response.status_code == 200, response.text
+    assert f"opsys-ingestion://m05-financecore/pdf/lots/{lot_id}" in echappees
+    assert fusion_pdf.EXTRACTEUR in echappees and "FINANCIAL" in echappees
+    assert 'href="opsys-ingestion:' not in response.text
+
+
+@pytest.mark.parametrize("champ,valeur,statut", [
+    ("extracteur", '<svg onload="CANARI-FICTIF">', "RECU"),
+    ("auteur", "nom@example.com", "RECU"),
+    ("code", "CODE_INCONNU_FICTIF", "REFUSE"),
+    ("code", None, "REFUSE"),
+    ("code", "PDF_MALFORME", "ERREUR_REPRENABLE"),
+])
+def test_projection_substituee_reste_stricte_meme_si_lot_et_trace_correspondent(
+    client_pdf, pdf_fictif, monkeypatch, champ, valeur, statut,
+):
+    client = client_pdf
+    csrf = _csrf(client.get("/fusion/pdf"))
+    admission = _admettre(client, csrf, pdf_fictif, mutation="projection-substituee-fictive")
+    assert admission.status_code == 303
+    lot_id = _lot_id(admission.headers["location"])
+    original = fusion_pdf.lire_avec_provenance
+
+    def projection_substituee(*args):
+        lecture = original(*args)
+        cle_lot = "acteur" if champ == "auteur" else champ
+        return {"lot": {**lecture["lot"], cle_lot: valeur, "statut": statut},
+                "provenance": {**lecture["provenance"], champ: valeur, "statut": statut}}
+
+    monkeypatch.setattr(fusion_pdf, "lire_avec_provenance", projection_substituee)
+    avant = _instantane_pdf_et_memoire()
+    response = client.get(f"/fusion/pdf/lots/{lot_id}")
+    assert response.status_code == 503, response.text
+    assert "PDF_PROVENANCE_INDISPONIBLE" in response.text
+    assert "CANARI-FICTIF" not in response.text and "nom@example.com" not in response.text
+    assert _instantane_pdf_et_memoire() == avant
+
+
+@pytest.mark.parametrize("incident", ["role", "desactivation", "expiration"])
+def test_provenance_reverifie_autorite_apres_rendu_sans_corps(client_pdf, pdf_fictif, monkeypatch, incident):
+    from opsys.console import fusion_pdf_ui
+
+    client = client_pdf
+    csrf = _csrf(client.get("/fusion/pdf"))
+    admission = _admettre(client, csrf, pdf_fictif, mutation="retrait-provenance-fictive")
+    assert admission.status_code == 303
+    lot_id = _lot_id(admission.headers["location"])
+    original = fusion_pdf_ui._reponse
+    maintenant = [int(datetime.now(UTC).timestamp())]
+    if incident == "expiration":
+        monkeypatch.setattr(securite, "time", SimpleNamespace(time=lambda: maintenant[0]))
+
+    def rendu_puis_retrait(*args, **kwargs):
+        response = original(*args, **kwargs)
+        assert "Provenance M10" in response.body.decode()
+        if incident == "expiration":
+            maintenant[0] += 10_000_000
+        else:
+            with stockage.transaction() as cnx:
+                if incident == "role":
+                    identite.retirer_role(cnx, OWNER, "nathan_owner")
+                else:
+                    identite.activer(cnx, OWNER, False)
+        return response
+
+    monkeypatch.setattr(fusion_pdf_ui, "_reponse", rendu_puis_retrait)
+    response = client.get(f"/fusion/pdf/lots/{lot_id}", follow_redirects=False)
+    assert response.status_code == (403 if incident == "role" else 303), response.text
+    assert "Provenance M10" not in response.text and lot_id not in response.text and MARKER not in response.text
+
+
+def test_projection_lot_et_trace_uuid_malforme_meme_si_36_caracteres_autorises(client_pdf, pdf_fictif):
+    from opsys.console import fusion_pdf_ui
+
+    client = client_pdf
+    csrf = _csrf(client.get("/fusion/pdf"))
+    admission = _admettre(client, csrf, pdf_fictif, mutation="uuid-provenance-fictif")
+    assert admission.status_code == 303
+    lot_id = _lot_id(admission.headers["location"])
+    lecture = fusion_pdf.lire_avec_provenance(stockage.transaction, OWNER, lot_id)
+    malforme = "a" * 36
+    lot = {**lecture["lot"], "lot_id": malforme}
+    trace = {**lecture["provenance"], "lot_id": malforme,
+             "reference_locale": f"opsys-ingestion://m05-financecore/pdf/lots/{malforme}"}
+    avant = _instantane_pdf_et_memoire()
+    with pytest.raises(fusion_pdf.FusionPDFErreur) as refus:
+        fusion_pdf_ui._provenance(lot, trace)
+    assert refus.value.code == "PDF_PROVENANCE_INDISPONIBLE" and refus.value.statut_http == 503
+    assert _instantane_pdf_et_memoire() == avant

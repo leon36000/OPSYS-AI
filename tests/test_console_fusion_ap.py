@@ -162,7 +162,10 @@ def test_revue_ap_privee_ne_lit_pas_sur_get_et_echappe_apres_post(client_ap):
     assert again.status_code == 200 and _MARQUEUR not in again.text
     with stockage.transaction() as cnx:
         assert cnx.execute(select(func.count()).select_from(FUSION_LOTS)).scalar_one() == 0
-        assert cnx.execute(select(func.count()).select_from(REGISTRES)).scalar_one() == 0
+        # Le PDF prêt possède deux traces candidates M10; AP n’écrit aucun autre registre.
+        provenance = (REGISTRES.c.departement == "m10-memoire") & (REGISTRES.c.registre == "documents")
+        assert cnx.execute(select(func.count()).select_from(REGISTRES).where(provenance)).scalar_one() == 2
+        assert cnx.execute(select(func.count()).select_from(REGISTRES).where(~provenance)).scalar_one() == 0
         assert cnx.execute(select(func.count()).select_from(FUSION_AP_BROUILLONS)).scalar_one() == 1
 
 

@@ -1,7 +1,8 @@
 """Préparation PDF native locale : provenance paginée, sources/résultats chiffrés.
 
-Linux/bubblewrap et SQLite uniquement. Aucun montant interprété, registre M5 ou
-mémoire générale alimenté. Le quota PDF est distinct du compartiment CSV.
+Linux/bubblewrap et SQLite uniquement. Aucun montant interprété ni registre M5 n'est alimenté;
+seul le registre documentaire M10 reçoit des métadonnées de provenance FINANCIAL candidate. Le
+quota PDF est distinct du compartiment CSV.
 """
 
 from __future__ import annotations
@@ -23,11 +24,11 @@ from pathlib import Path
 from time import monotonic
 from typing import Any
 
-from sqlalchemy import insert, select, update
+from sqlalchemy import LargeBinary, cast, func, insert, select, update
 from sqlalchemy.exc import OperationalError
 
 from . import etat, fusion_csv, identite, stockage
-from .stockage.schema import FUSION_PDF_COMMANDES, FUSION_PDF_LOTS, FUSION_PDF_QUOTA
+from .stockage.schema import FUSION_PDF_COMMANDES, FUSION_PDF_LOTS, FUSION_PDF_QUOTA, REGISTRES
 
 FusionPDFErreur = fusion_csv.FusionErreur
 FabriqueConnexion = fusion_csv.FabriqueConnexion
@@ -57,6 +58,9 @@ _REFUS = frozenset({
     "PDF_AMBIGU", "PDF_SANS_TEXTE", "PDF_TEXTE_BORNE", "PDF_SOURCE_BORNEE", "PDF_MEMOIRE_BORNEE",
     "PDF_MALFORME", "PDF_AVERTISSEMENT", "PDF_SORTIE_BORNEE",
 })
+_M10_DOCUMENTS_MAX = 10_000
+_M10_LIGNE_MAX = 65_536
+_M10_TOTAL_MAX = 8_388_608
 
 
 def _erreur(code: str, statut: int = 409) -> FusionPDFErreur:
@@ -117,6 +121,73 @@ def _journal(cnx, acteur: str, lot: Mapping[str, Any]) -> None:
     etat.journaliser(cnx, acteur, "fusion.pdf." + lot["statut"].lower(), lot["lot_id"], {
         cle: lot[cle] for cle in ("source_sha256", "extracteur", "revision", "statut", "total_pages", "code")
     })
+
+
+def _maillons_provenance(cnx):
+    """Vérifie les bornes SQL du registre entier avant tout décodage de ses maillons."""
+    filt = (REGISTRES.c.departement == "m10-memoire") & (REGISTRES.c.registre == "documents")
+    taille_octets = func.length(cast(REGISTRES.c.maillon, LargeBinary))
+    nombre, total, maximum, premier, dernier = cnx.execute(select(
+        func.count(), func.coalesce(func.sum(taille_octets), 0), func.coalesce(func.max(taille_octets), 0),
+        func.min(REGISTRES.c.rang), func.max(REGISTRES.c.rang),
+    ).where(filt)).one()
+    if (nombre > _M10_DOCUMENTS_MAX or total > _M10_TOTAL_MAX or maximum > _M10_LIGNE_MAX
+            or (nombre and (premier != 0 or dernier != nombre - 1))):
+        raise _erreur("PDF_PROVENANCE_INDISPONIBLE", 503)
+    return stockage.maillons("m10-memoire", "documents")
+
+
+def _lire_provenance_pdf_cnx(cnx, lot_id: str):
+    try:
+        from m10_memoire import provenance_documentaire
+
+        maillons = _maillons_provenance(cnx)
+        provenance = provenance_documentaire.lire(maillons, lot_id)
+        if provenance is not None and provenance["genre"] != "m5.document_pdf_natif":
+            raise ValueError("collision de genre de provenance")
+        return provenance
+    except FusionPDFErreur:
+        raise
+    except Exception as exc:
+        raise _erreur("PDF_PROVENANCE_INDISPONIBLE", 503) from exc
+
+
+def _provenance_correspond_lot(provenance: Mapping[str, Any], lot: Mapping[str, Any]) -> bool:
+    return all(provenance.get(cle) == valeur for cle, valeur in {
+        "genre": "m5.document_pdf_natif", "lot_id": lot["lot_id"],
+        "reference_locale": f"opsys-ingestion://m05-financecore/pdf/lots/{lot['lot_id']}",
+        "source_sha256": lot["source_sha256"], "classe": lot["classe"], "auteur": lot["acteur"],
+        "extracteur": lot["extracteur"], "configuration_sha256": lot["configuration_sha256"],
+        "source_revision": lot["revision"], "statut": lot["statut"],
+        "total_pages": lot["total_pages"], "code": lot["code"], "horodatage": lot["modifie_le"],
+    }.items())
+
+
+def _enregistrer_provenance_pdf(cnx, lot: Mapping[str, Any], acteur_transition: str) -> None:
+    try:
+        from m10_memoire import provenance_documentaire
+
+        maillons = _maillons_provenance(cnx)
+        precedente = provenance_documentaire.lire(maillons, lot["lot_id"])
+        revision = 1 if precedente is None else precedente["revision"] + 1
+        document = {
+            "type_entree": "provenance_documentaire", "genre": "m5.document_pdf_natif",
+            "lot_id": lot["lot_id"],
+            "reference_locale": f"opsys-ingestion://m05-financecore/pdf/lots/{lot['lot_id']}",
+            "source_sha256": lot["source_sha256"], "classe": lot["classe"], "auteur": lot["acteur"],
+            "acteur_transition": acteur_transition, "extracteur": lot["extracteur"],
+            "configuration_sha256": lot["configuration_sha256"], "source_revision": lot["revision"],
+            "revision": revision, "statut": lot["statut"], "total_pages": lot["total_pages"],
+            "code": lot["code"], "horodatage": lot["modifie_le"],
+        }
+        provenance_documentaire.enregistrer(maillons, document)
+        enregistre = _lire_provenance_pdf_cnx(cnx, lot["lot_id"])
+        if enregistre != document or not _provenance_correspond_lot(enregistre, lot):
+            raise ValueError("provenance PDF persistée incohérente")
+    except FusionPDFErreur:
+        raise
+    except Exception as exc:
+        raise _erreur("PDF_PROVENANCE_INDISPONIBLE", 503) from exc
 
 
 def _clair(lot: Mapping[str, Any], nature: str) -> bytes:
@@ -209,6 +280,7 @@ def creer(fabrique: FabriqueConnexion, acteur: str, *, mutation_id: str, pdf_oct
         raise _erreur("PDF_SOURCE_INVALIDE", 400)
     source_sha = hashlib.sha256(pdf_octets).hexdigest()
     empreinte = hashlib.sha256(f"{acteur}:{source_sha}:{EXTRACTEUR}:{CONFIGURATION_SHA256}".encode()).hexdigest()
+    nouvelle_admission = False
     with _transaction(fabrique, acteur) as cnx:
         commande = cnx.execute(select(FUSION_PDF_COMMANDES).where(
             (FUSION_PDF_COMMANDES.c.acteur == acteur) & (FUSION_PDF_COMMANDES.c.mutation_id == mutation_id)
@@ -229,6 +301,7 @@ def creer(fabrique: FabriqueConnexion, acteur: str, *, mutation_id: str, pdf_oct
             _compatible(lot)
             fusion_csv._cle(lot["cle_reference"])
         else:
+            nouvelle_admission = True
             reference = fusion_csv._reference_cle()
             lot_id = str(uuid.uuid4())
             nonce, chiffre, octets = fusion_csv._chiffrer(
@@ -256,6 +329,8 @@ def creer(fabrique: FabriqueConnexion, acteur: str, *, mutation_id: str, pdf_oct
             acteur=acteur, mutation_id=mutation_id, empreinte_requete=empreinte,
             lot_id=lot["lot_id"], cree_le=maintenant,
         ))
+        if nouvelle_admission:
+            _enregistrer_provenance_pdf(cnx, lot, acteur)
         return _vue(lot)
 
 
@@ -472,12 +547,25 @@ def preparer(fabrique: FabriqueConnexion, acteur: str, lot_id: str, revision_att
             raise _erreur("CONFLIT_REVISION")
         courant.update(valeurs)
         _journal(cnx, acteur, courant)
+        _enregistrer_provenance_pdf(cnx, courant, acteur)
         return _vue(courant)
 
 
 def lire(fabrique: FabriqueConnexion, acteur: str, lot_id: str) -> dict[str, Any]:
     with _transaction(fabrique, acteur) as cnx:
         return _vue(_lot(cnx, lot_id))
+
+
+def lire_avec_provenance(fabrique: FabriqueConnexion, acteur: str, lot_id: str) -> dict[str, Any]:
+    """Lecture jointe, sans backfill, de l’état PDF et de sa provenance M10 éventuelle."""
+    with _transaction(fabrique, acteur) as cnx:
+        lot = _lot(cnx, lot_id)
+        _compatible(lot)
+        fusion_csv._cle(lot["cle_reference"])
+        provenance = _lire_provenance_pdf_cnx(cnx, lot_id)
+        if provenance is not None and not _provenance_correspond_lot(provenance, lot):
+            raise _erreur("PDF_PROVENANCE_INDISPONIBLE", 503)
+        return {"lot": _vue(lot), "provenance": provenance}
 
 
 def lire_resultat(fabrique: FabriqueConnexion, acteur: str, lot_id: str) -> dict[str, Any]:

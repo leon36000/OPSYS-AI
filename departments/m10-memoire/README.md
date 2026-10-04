@@ -2,6 +2,20 @@
 
 Mémoire Long Terme — non-oubli, PREFLIGHT tracé (POSTFLIGHT applicatif hors périmètre v1).
 
+## Provenance PDF Finance — tranche 26 qualifiée localement
+
+**M10 global et Fusion restent PARTIEL.** Le raccord inscrit des métadonnées
+candidates `FINANCIAL` dans le registre documentaire existant, sans copier
+texte/citations ou indexer le contenu. Le PDF reste leur autorité ; contrat
+CSV conservé, SQLite seulement, ancien lot absent sans backfill GET/rejeu.
+ROOT r156 : **1 401/1 401 sur 52 fichiers complets**, sans échec/erreur/skip,
+179,504 s JUnit, Ruff/vérificateur verts, 1 247 sources sans dérive/OOM.
+Rouges r152/r153 conservés. La campagne inclut un test M10 de développement
+sur PostgreSQL réel en RAM, sans qualifier le raccord financier PDF sur PG.
+[Design](../../docs/grs/memory/M10-PROVENANCE-PDF-DESIGN-2026-10-04.md)
+et [rapport](../../docs/grs/memory/M10-PROVENANCE-PDF-RAPPORT-2026-10-04.md).
+Aucun classement universel, ancre externe ou apprentissage n’est déclaré.
+
 Statut : département OPSYS complet (manifeste, SOUL, 2 skills, outils d'agent) sur le modèle
 de M3-estimation, mode `ombre`. Les six stories de domaine S001-S006 du PRD sont livrées et
 vertes : contrats gelés, deux registres append-only hash-chaînés distincts (Événements/Affaires,

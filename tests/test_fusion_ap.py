@@ -165,7 +165,10 @@ def test_brouillon_ap_chiffre_cite_idempotent_et_sans_ecriture_comptable(nathan,
             lot["source_cipher_octets"] + lot["resultat_cipher_octets"] + brouillon["proposition_cipher_octets"]
         )
         assert cnx.execute(select(func.count()).select_from(FUSION_LOTS)).scalar_one() == 0
-        assert cnx.execute(select(func.count()).select_from(REGISTRES)).scalar_one() == 0
+        # Le PDF prêt possède deux traces candidates M10; AP n’écrit aucun autre registre.
+        provenance = (REGISTRES.c.departement == "m10-memoire") & (REGISTRES.c.registre == "documents")
+        assert cnx.execute(select(func.count()).select_from(REGISTRES).where(provenance)).scalar_one() == 2
+        assert cnx.execute(select(func.count()).select_from(REGISTRES).where(~provenance)).scalar_one() == 0
         assert cnx.execute(select(func.count()).select_from(FUSION_AP_COMMANDES)).scalar_one() == 2
         assert all("FICTIF-2042" not in row["details"] and "114.98" not in row["details"] for row in journal)
 
@@ -329,7 +332,10 @@ def test_brouillon_ap_cas_citation_invalide_rejeu_mutation_et_quota_rollback(nat
         assert brouillon["revision"] == 1
         assert cnx.execute(select(func.count()).select_from(FUSION_AP_COMMANDES)).scalar_one() == 1
         assert cnx.execute(select(func.count()).select_from(FUSION_LOTS)).scalar_one() == 0
-        assert cnx.execute(select(func.count()).select_from(REGISTRES)).scalar_one() == 0
+        # Le PDF prêt possède deux traces candidates M10; AP n’écrit aucun autre registre.
+        provenance = (REGISTRES.c.departement == "m10-memoire") & (REGISTRES.c.registre == "documents")
+        assert cnx.execute(select(func.count()).select_from(REGISTRES).where(provenance)).scalar_one() == 2
+        assert cnx.execute(select(func.count()).select_from(REGISTRES).where(~provenance)).scalar_one() == 0
 
 
 def test_brouillon_ap_cle_historique_et_autorisation_active(nathan, monkeypatch):
@@ -510,7 +516,10 @@ def test_deux_admins_concurrents_gagnent_un_seul_cas(nathan, monkeypatch):
         assert brouillon["revision"] == 1
         assert cnx.execute(select(func.count()).select_from(FUSION_AP_COMMANDES)).scalar_one() == 1
         assert cnx.execute(select(func.count()).select_from(FUSION_LOTS)).scalar_one() == 0
-        assert cnx.execute(select(func.count()).select_from(REGISTRES)).scalar_one() == 0
+        # Le PDF prêt possède deux traces candidates M10; AP n’écrit aucun autre registre.
+        provenance = (REGISTRES.c.departement == "m10-memoire") & (REGISTRES.c.registre == "documents")
+        assert cnx.execute(select(func.count()).select_from(REGISTRES).where(provenance)).scalar_one() == 2
+        assert cnx.execute(select(func.count()).select_from(REGISTRES).where(~provenance)).scalar_one() == 0
 
 
 def test_revocation_apres_ecriture_annule_brouillon_et_quota(nathan, monkeypatch):
@@ -543,7 +552,10 @@ def test_revocation_apres_ecriture_annule_brouillon_et_quota(nathan, monkeypatch
         assert cnx.execute(select(func.count()).select_from(FUSION_AP_BROUILLONS)).scalar_one() == 0
         assert cnx.execute(select(func.count()).select_from(FUSION_AP_COMMANDES)).scalar_one() == 0
         assert cnx.execute(select(func.count()).select_from(FUSION_LOTS)).scalar_one() == 0
-        assert cnx.execute(select(func.count()).select_from(REGISTRES)).scalar_one() == 0
+        # Le PDF prêt possède deux traces candidates M10; AP n’écrit aucun autre registre.
+        provenance = (REGISTRES.c.departement == "m10-memoire") & (REGISTRES.c.registre == "documents")
+        assert cnx.execute(select(func.count()).select_from(REGISTRES).where(provenance)).scalar_one() == 2
+        assert cnx.execute(select(func.count()).select_from(REGISTRES).where(~provenance)).scalar_one() == 0
         assert cnx.execute(select(PERSONNES.c.actif).where(PERSONNES.c.identifiant == nathan)).scalar_one() is True
 
 

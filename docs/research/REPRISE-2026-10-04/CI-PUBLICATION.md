@@ -1,5 +1,56 @@
 # Publication et corrections de CI — 4 octobre 2026
 
+## Provenance PDF → M10 — tranche 26 qualifiée localement
+
+Le [raccord documentaire](../../grs/memory/M10-PROVENANCE-PDF-RAPPORT-2026-10-04.md)
+passe ROOT r156 : **1 401/1 401, 0F/0E/0S, 52 fichiers complets**,
+181,250 s JUnit ; Ruff sur dix chemins et vérificateur verts,
+1 247 sources sans dérive/OOM, aucun processus survivant. Le scope comprend
+les suites AP backend/UI et installation PDF ajoutées avant lancement.
+Les 8 nouveaux cas SQL provenance, 63 PDF historiques, 49 console PDF,
+21 purs M10 et 25 API M10 sont inclus ; un test API M10 utilise vrai PostgreSQL
+en RAM, sans qualifier le raccord PDF Finance sur PostgreSQL.
+
+r152 conserve 0P/1F, canari admis sans parser/worker, zéro trace contre une
+attendue ; r153 conserve 1 398P/3F. La validation UUID reste canonique sans
+import `uuid`, politique de conformité et gardes CSV inchangées. M10 ne garde
+que des métadonnées candidates FINANCIAL ; PDF seul autorité du contenu.
+M10 et Fusion restent PARTIEL, SQLite financier seulement. Le reçu ROOT r158
+et les gels sont conservés dans la [capsule PDF/M10](preuves/M10-PROVENANCE-PDF-r2.tar.xz)
+et son [manifeste](preuves/M10-PROVENANCE-PDF-r2.json). Aucun résultat CI du commit26
+n’est déduit des campagnes locales ou du head25.
+
+## Relevé CI de la base 25 — 4 octobre 2026 à 14:58:34 UTC
+
+| Commit | CI | Core | E2E | Mobile | Dépendances | Installateur |
+|---|---|---|---|---|---|---|
+| `853d31d2c8bab5492f6e27fb034f6a1dbaa65e83` | En cours | En cours | Succès | Succès | Succès | En cours |
+
+Snapshot conservé par ROOT, sans échec visible à ce relevé. Analyse
+installateur et jobs macOS/Windows hébergés simulés réussis ; étape Linux
+simulée active, prévol Docker et E2E Linux réel encore en attente. Les E2E
+macOS/Windows self-hosted sont explicitement ignorés à ce relevé. Ces skips
+observés ne sont pas une qualification Desktop réel. Aucun résultat d’un
+job en cours, ni CI du futur commit26, n’est extrapolé. Le relevé précédent
+est conservé ci-dessous.
+
+## Relevé CI de la base 25 — 4 octobre 2026 à 14:34:16 UTC
+
+| Commit | CI | Core | E2E | Mobile | Dépendances | Installateur |
+|---|---|---|---|---|---|---|
+| `853d31d2c8bab5492f6e27fb034f6a1dbaa65e83` | En cours | En cours | En cours | Succès | Succès | En attente |
+
+Snapshot conservé par ROOT. Les jobs installateur ne sont pas encore observés ;
+aucun skip ou résultat d’installation n’est déduit. Le YAML de cette base
+configure des tests Linux simulés, un prévol Docker et un E2E réel ; les jobs
+Mac/Windows hébergés utilisent des doubles, le réel self-hosted est opt-in
+hors PR. Ces configurations ne sont pas des résultats exécutés observés.
+Aucun résultat CI de la tranche 26 n’est fourni ici.
+Les succès et états précédents conservent leurs dates et commits ; aucune
+qualification M1 ou M10 antérieure n’est reportée sur ce nouveau raccord.
+M10 et Fusion restent PARTIEL ; aucune fusion ou mise en production annoncée.
+
+
 ## Suivi de rappels M1 — tranche 25 qualifiée localement
 
 Le [suivi humain](../../grs/reception/M1-SUIVI-RAPPELS-RAPPORT-2026-10-04.md)

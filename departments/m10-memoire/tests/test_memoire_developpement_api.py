@@ -203,9 +203,11 @@ def test_http_refuse_une_session_apres_desactivation_du_compte(api):
 def test_http_exige_csrf_et_refuse_identite_ou_chemin_depot_du_corps(api):
     client, _, _ = api
     csrf = _connecter(client)
+    # Jeton explicitement fictif généré pour qualifier le masquage, jamais une clé d’accès.
+    cle_fictive = "sk-" + "fictif-api-test-" + "0" * 12
     command = {
         "prompt_id": "api-prompt",
-        "content": "Réparer le rappel API_KEY=sk-api-test-secret-1234567890",
+        "content": f"Réparer le rappel API_KEY={cle_fictive}",
         "version": 1,
         "module": "M7",
         "purpose": "rappel test HTTP",
@@ -226,7 +228,7 @@ def test_http_exige_csrf_et_refuse_identite_ou_chemin_depot_du_corps(api):
 
     response = client.post("/api/memoire-developpement/prompts", json=command, headers={"x-csrf-token": csrf})
     assert response.status_code == 200
-    assert "sk-api-test-secret-1234567890" not in response.text
+    assert cle_fictive not in response.text
     assert response.json()["redacted"] is True
 
     preflight = client.post(
@@ -243,7 +245,7 @@ def test_http_postgresql_persiste_sur_le_stockage_canonique(monkeypatch):
     if raison:
         pytest.skip(raison)
 
-    with postgres_ephemere() as url:
+    with postgres_ephemere(stockage_en_memoire=True) as url:
         monkeypatch.setenv(stockage.ENV_URL, url)
         stockage.migrer(url)
         with stockage.transaction() as cnx:

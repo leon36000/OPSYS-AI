@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import uuid
 from collections.abc import Callable, Mapping
+from datetime import datetime
 from email.message import Message
 from typing import Any
 
@@ -14,7 +15,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import UploadFile
 from starlette.requests import Request as StarletteRequest
 
-from .. import fusion_pdf
+from .. import fusion_pdf, identite
 from . import pages, securite
 from .securite import Session
 
@@ -24,6 +25,13 @@ _ACTION_MAX = 16_384
 _MUTATION = re.compile(r"[A-Za-z0-9_.:-]{1,128}\Z")
 _UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\Z")
 _STATUTS = {"RECU", "EXTRAIT_PREPARATOIRE", "REFUSE", "ERREUR_REPRENABLE"}
+_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+_EXTRACTEUR = re.compile(r"pypdf-[0-9]+\.[0-9]+\.[0-9]+/pdf-natif-[1-9][0-9]*\Z")
+_CHAMPS_PROVENANCE = frozenset({
+    "type_entree", "genre", "lot_id", "reference_locale", "source_sha256", "classe", "auteur",
+    "acteur_transition", "extracteur", "configuration_sha256", "source_revision", "revision",
+    "statut", "total_pages", "code", "horodatage",
+})
 
 
 def _privee(reponse: Response) -> Response:
@@ -76,6 +84,89 @@ def _resume(lot: Mapping[str, Any]) -> str:
     if code:
         lignes += f"<dt>Code de résultat</dt><dd>{pages.e(code)}</dd>"
     return f'<dl class="meta">{lignes}</dl>'
+
+
+def _provenance(lot: Mapping[str, Any], trace: Any) -> str:
+    """Rend les seules métadonnées du port PDF/M10, jamais le texte ni un lien exécutable."""
+    debut = '<section class="carte pile"><h2>Provenance M10</h2>'
+    if trace is None:
+        return debut + (
+            "<p>Provenance M10 absente pour ce lot. La consultation ne crée pas de trace historique.</p></section>"
+        )
+    invalide = fusion_pdf.FusionPDFErreur(
+        "PDF_PROVENANCE_INDISPONIBLE", "provenance PDF temporairement indisponible", 503,
+    )
+    if not isinstance(trace, Mapping) or set(trace) != _CHAMPS_PROVENANCE:
+        raise invalide
+    attendus = {
+        "type_entree": "provenance_documentaire", "genre": "m5.document_pdf_natif", "classe": "FINANCIAL",
+        "lot_id": lot.get("lot_id"), "auteur": lot.get("acteur"), "source_sha256": lot.get("source_sha256"),
+        "configuration_sha256": lot.get("configuration_sha256"), "extracteur": lot.get("extracteur"),
+        "statut": lot.get("statut"), "source_revision": lot.get("revision"),
+        "total_pages": lot.get("total_pages"), "code": lot.get("code"),
+        "horodatage": lot.get("modifie_le"),
+        "reference_locale": f"opsys-ingestion://m05-financecore/pdf/lots/{lot.get('lot_id')}",
+    }
+    if any(trace[cle] != valeur for cle, valeur in attendus.items()):
+        raise invalide
+    if (
+        type(trace["revision"]) is not int or trace["revision"] < 1
+        or type(trace["source_revision"]) is not int or trace["source_revision"] < 1
+        or type(lot.get("revision")) is not int
+        or type(trace["total_pages"]) is not int or not 0 <= trace["total_pages"] <= fusion_pdf.PAGES_MAX
+        or type(lot.get("total_pages")) is not int
+        or not isinstance(trace["statut"], str) or trace["statut"] not in _STATUTS
+        or not isinstance(trace["lot_id"], str) or not _UUID.fullmatch(trace["lot_id"])
+    ):
+        raise invalide
+    try:
+        if str(uuid.UUID(trace["lot_id"])) != trace["lot_id"]:
+            raise invalide
+    except ValueError:
+        raise invalide from None
+    for cle in ("source_sha256", "configuration_sha256"):
+        if not isinstance(trace[cle], str) or not _SHA256.fullmatch(trace[cle]):
+            raise invalide
+    for cle, maximum in (("auteur", 64), ("acteur_transition", 64), ("extracteur", 128), ("horodatage", 64)):
+        valeur = trace[cle]
+        if not isinstance(valeur, str) or not 1 <= len(valeur) <= maximum or not valeur.isprintable():
+            raise invalide
+    if (
+        not identite.identifiant_valide(trace["auteur"]) or not identite.identifiant_valide(trace["acteur_transition"])
+        or not _EXTRACTEUR.fullmatch(trace["extracteur"])
+    ):
+        raise invalide
+    try:
+        instant = datetime.fromisoformat(trace["horodatage"])
+        if instant.tzinfo is None or instant.utcoffset() is None:
+            raise invalide
+    except (ValueError, OverflowError):
+        raise invalide from None
+    if (trace["statut"] == "EXTRAIT_PREPARATOIRE") != (trace["total_pages"] > 0):
+        raise invalide
+    if trace["statut"] in {"RECU", "EXTRAIT_PREPARATOIRE"} and trace["code"] is not None:
+        raise invalide
+    if trace["code"] is not None and (
+        not isinstance(trace["code"], str) or not 1 <= len(trace["code"]) <= 128 or not trace["code"].isprintable()
+    ):
+        raise invalide
+    if (
+        trace["statut"] == "REFUSE" and trace["code"] not in fusion_pdf._REFUS
+        or trace["statut"] == "ERREUR_REPRENABLE" and trace["code"] not in fusion_pdf._TEMPORAIRES
+    ):
+        raise invalide
+    cles = (
+        ("classe", "Classe source"), ("statut", "État de la source"),
+        ("source_revision", "Révision du lot PDF"), ("revision", "Révision M10"),
+        ("total_pages", "Pages préparées"), ("extracteur", "Extracteur"),
+        ("horodatage", "Trace enregistrée le"), ("reference_locale", "Référence locale"),
+    )
+    lignes = "".join(f"<dt>{pages.e(label)}</dt><dd>{pages.e(trace[cle])}</dd>" for cle, label in cles)
+    return debut + (
+        "<p>Source candidate préparatoire, non validée. Cette provenance ne constitue pas une validation comptable "
+        "et ne copie pas le texte du PDF dans la mémoire.</p>"
+        f'<dl class="meta">{lignes}</dl></section>'
+    )
 
 
 def _liste(
@@ -407,11 +498,23 @@ def creer_router(
         if not _UUID.fullmatch(lot_id):
             raise HTTPException(400, "identifiant de lot invalide")
         try:
-            lot = await appeler_bloquant(fusion_pdf.lire, cnx_factory, session.utilisateur, lot_id)
+            lecture = await appeler_bloquant(fusion_pdf.lire_avec_provenance, cnx_factory, session.utilisateur, lot_id)
+            if (
+                not isinstance(lecture, Mapping) or set(lecture) != {"lot", "provenance"}
+                or not isinstance(lecture["lot"], Mapping) or lecture["lot"].get("lot_id") != lot_id
+                or lecture["lot"].get("classe") != "FINANCIAL" or lecture["lot"].get("type_source") != "pdf_natif"
+                or type(lecture["lot"].get("revision")) is not int or lecture["lot"]["revision"] < 1
+                or not isinstance(lecture["lot"].get("statut"), str) or lecture["lot"]["statut"] not in _STATUTS
+            ):
+                raise HTTPException(503, {"code": "PDF_PROVENANCE_INDISPONIBLE"})
+            lot = lecture["lot"]
+            provenance = appeler(_provenance, lot, lecture["provenance"])
+            session = session_vivante(request, session.utilisateur)
+            reponse = _reponse(prefixe, session, _detail(prefixe, session, lot) + provenance)
         except HTTPException as exc:
             return page_erreur(request, session, exc)
-        session = session_vivante(request, session.utilisateur)
-        return _reponse(prefixe, session, _detail(prefixe, session, lot))
+        session_vivante(request, session.utilisateur)
+        return reponse
 
     @router.post("/fusion/pdf/lots/{lot_id}/preparer")
     async def preparer(lot_id: str, request: Request) -> Response:

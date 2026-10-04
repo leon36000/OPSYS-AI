@@ -88,7 +88,12 @@ def test_pdf_m3_reel_chiffre_et_reprend_sans_parser(base_pdf, pdf_fictif, monkey
         assert "Gouttière" not in json.dumps(etat.lire_journal(cnx), ensure_ascii=False)
         assert cnx.execute(select(FUSION_QUOTA.c.octets_cipher)).scalar_one() == 0
         assert cnx.execute(select(func.count()).select_from(FUSION_LOTS)).scalar_one() == 0
-        assert cnx.execute(select(func.count()).select_from(REGISTRES)).scalar_one() == 0
+        assert cnx.execute(select(func.count()).select_from(REGISTRES).where(
+            REGISTRES.c.departement == "m05-financecore"
+        )).scalar_one() == 0
+        assert cnx.execute(select(func.count()).select_from(REGISTRES).where(
+            (REGISTRES.c.departement == "m10-memoire") & (REGISTRES.c.registre == "documents")
+        )).scalar_one() == 2
         quota = cnx.execute(select(FUSION_PDF_QUOTA)).mappings().one()
         assert quota["octets_cipher"] == saved["source_cipher_octets"] + saved["resultat_cipher_octets"]
     assert "pages" not in fusion_pdf.lire(stockage.transaction, base_pdf, lot["lot_id"])
