@@ -33,9 +33,11 @@ Module pur : aucune horloge, aucun accès à la base ni au réseau.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from opsys import taxonomie
@@ -46,6 +48,8 @@ from . import horodatage as controle_horodatage
 TYPE_ENTREE = "transfert"
 EVT_OUVERT = "ouvert"
 EVT_CLOS = "clos"
+EVT_PRISE_EN_CHARGE = "prise_en_charge"
+EVT_TENTATIVE_SANS_CONTACT = "tentative_sans_contact"
 MARQUE = "rattache_au_transfert"
 
 TYPES = taxonomie.TYPES_TRANSFERT
@@ -93,6 +97,10 @@ ACTION_PROPOSEE = "lire (m1_lire_transfert), agir auprès du client, puis clore 
 _ARROBASE_ET_DOMAINE = re.compile(r"@[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}")
 _SIGNES_D_UNE_ADRESSE = ".%+'-!#$&*/=?^`{|}~"
 _DATE_ISO = re.compile(r"\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:\d{2})?)?")
+_ECHEANCE_RAPPEL = re.compile(
+    r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
+    r"(?:\.[0-9]{1,6})?(?:Z|[+-][0-9]{2}:[0-9]{2})"
+)
 _SUITE_DE_CHIFFRES = re.compile(r"\+?\d[\d\s().\-]{5,}\d")
 _CHIFFRES_D_UN_TELEPHONE = 7
 
@@ -552,3 +560,122 @@ def vue(etat: EtatTransfert, lignes: Sequence[Mapping[str, Any]]) -> dict[str, A
             "clos_le": cloture["horodatage"],
         }
     return resultat
+
+
+def source_appel_revendiquee(lignes: Iterable[Mapping[str, Any]], transfert_id: str) -> bool:
+    """Vrai si une ligne d'appel revendique le lien, même si son contenu doit ensuite échouer à la validation."""
+    for ligne in lignes:
+        reponse = ligne.get("reponse")
+        tache = reponse.get("tache_rappel") if isinstance(reponse, Mapping) else None
+        if (
+            ligne.get("type_entree") == "appel_importe"
+            and isinstance(tache, Mapping)
+            and tache.get("transfert_id") == transfert_id
+        ):
+            return True
+    return False
+
+
+def sources_appel_rappel(lignes: Iterable[Mapping[str, Any]], transfert_id: str) -> tuple[Mapping[str, Any], ...]:
+    """Sources canoniques d'appel dont la réponse M1 rattache une tâche de rappel à ce transfert."""
+    sources = []
+    for ligne in lignes:
+        if ligne.get("type_entree") != "appel_importe":
+            continue
+        reponse = ligne.get("reponse")
+        if not isinstance(reponse, Mapping) or reponse.get("accepte") is not True:
+            continue
+        tache = reponse.get("tache_rappel")
+        if not isinstance(tache, Mapping) or tache.get("transfert_id") != transfert_id:
+            continue
+        if (
+            ligne.get("appel_id") != reponse.get("appel_id")
+            or ligne.get("source") != reponse.get("source")
+            or ligne.get("statut") != reponse.get("statut")
+            or ligne.get("statut") not in {"manque", "voicemail"}
+        ):
+            continue
+        sources.append(ligne)
+    return tuple(sources)
+
+
+def projection_suivi_rappel(
+    lignes: Iterable[Mapping[str, Any]], transfert_id: str
+) -> dict[str, Any] | None:
+    """Projection privée et révision CAS du rappel lié à une vraie source d'appel M1."""
+    lignes = tuple(lignes)
+    etat = next((element for element in lire(lignes) if element.identifiant == transfert_id), None)
+    sources = sources_appel_rappel(lignes, transfert_id)
+    if etat is None or not sources:
+        return None
+
+    lignes_transfert = tuple(
+        ligne for ligne in lignes
+        if ligne.get("type_entree") == TYPE_ENTREE and ligne.get("transfert_id") == transfert_id
+    )
+    pertinentes = tuple(
+        ligne for ligne in lignes
+        if (
+            ligne.get("type_entree") == TYPE_ENTREE and ligne.get("transfert_id") == transfert_id
+        ) or (
+            ligne.get("type_entree") == "signal" and ligne.get(MARQUE) == transfert_id
+        ) or (
+            ligne.get("type_entree") == "appel_importe"
+            and sources_appel_rappel((ligne,), transfert_id)
+        )
+    )
+    identifiants = [ligne.get("ligne_id") for ligne in pertinentes]
+    if any(not isinstance(identifiant, str) or re.fullmatch(r"[0-9a-f]{64}", identifiant) is None
+           for identifiant in identifiants):
+        raise ValueError("REJ-SUIVI-RAPPEL-HISTORIQUE-INCOHERENT")
+    snapshot = hashlib.sha256(json.dumps(identifiants, separators=(",", ":")).encode("ascii")).hexdigest()
+
+    suivi = [
+        (index, ligne) for index, ligne in enumerate(lignes_transfert)
+        if ligne.get("evenement") in {EVT_PRISE_EN_CHARGE, EVT_TENTATIVE_SANS_CONTACT}
+    ]
+    prise = None
+    tentatives = []
+    cloture_index = next(
+        (index for index, ligne in enumerate(lignes_transfert) if ligne.get("evenement") == EVT_CLOS), None,
+    )
+    for index, ligne in suivi:
+        if cloture_index is not None and index > cloture_index:
+            raise ValueError("REJ-SUIVI-RAPPEL-HISTORIQUE-INCOHERENT")
+        if ligne.get("evenement") == EVT_PRISE_EN_CHARGE:
+            if prise is not None or tentatives:
+                raise ValueError("REJ-SUIVI-RAPPEL-HISTORIQUE-INCOHERENT")
+            prise = ligne
+        else:
+            if prise is None or ligne.get("par") != prise.get("par"):
+                raise ValueError("REJ-SUIVI-RAPPEL-HISTORIQUE-INCOHERENT")
+            tentatives.append(ligne)
+
+    derniere = tentatives[-1] if tentatives else None
+    return {
+        "snapshot_suivi": snapshot,
+        "responsable": prise.get("par") if prise is not None else None,
+        "role": prise.get("role") if prise is not None else None,
+        "pris_en_charge_le": prise.get("horodatage") if prise is not None else None,
+        "tentatives_sans_contact": len(tentatives),
+        "derniere_tentative_le": derniere.get("horodatage") if derniere is not None else None,
+        "prochaine_tentative_le": derniere.get("prochaine_tentative_le") if derniere is not None else None,
+    }
+
+
+def normaliser_echeance_rappel(echeance: str, maintenant: str) -> str:
+    """Valide une échéance ASCII explicitement zonée et strictement future; rend l'instant en UTC."""
+    if not isinstance(echeance, str) or len(echeance) > 40 or _ECHEANCE_RAPPEL.fullmatch(echeance) is None:
+        raise ValueError("REJ-SUIVI-RAPPEL-ECHEANCE-INVALIDE")
+    try:
+        date_echeance = datetime.fromisoformat(echeance.replace("Z", "+00:00"))
+        date_serveur = datetime.fromisoformat(maintenant.replace("Z", "+00:00"))
+        date_echeance_utc = date_echeance.astimezone(UTC)
+        date_serveur_utc = date_serveur.astimezone(UTC)
+    except (ValueError, TypeError, OverflowError):
+        raise ValueError("REJ-SUIVI-RAPPEL-ECHEANCE-INVALIDE") from None
+    if date_echeance.tzinfo is None or date_serveur.tzinfo is None:
+        raise ValueError("REJ-SUIVI-RAPPEL-ECHEANCE-INVALIDE")
+    if date_echeance_utc <= date_serveur_utc:
+        raise ValueError("REJ-SUIVI-RAPPEL-ECHEANCE-PAS-FUTURE")
+    return date_echeance_utc.isoformat(timespec="microseconds")

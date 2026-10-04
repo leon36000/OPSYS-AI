@@ -70,6 +70,7 @@ from typing import Any
 from opsys import approbations, evenements, identite, stockage, taxonomie
 from opsys import contexte as contexte_appel
 from opsys.outils import Autonomie, Niveau, Outil
+from opsys.stockage import lecture_m1
 
 from . import (
     adaptateurs,
@@ -92,6 +93,7 @@ from . import (
     transferts,
     verdicts,
 )
+from . import horodatage as controle_horodatage
 from .phases_voix import TransitionInterdite
 from .registre import Registre
 
@@ -1293,6 +1295,155 @@ def _etat_du_transfert(lignes: list[dict[str, Any]], transfert_id: str) -> trans
     return next((e for e in transferts.lire(lignes) if e.identifiant == transfert_id), None)
 
 
+def _refus_suivi_rappel(code: str, detail: str) -> dict[str, Any]:
+    return _verdict_refus(code, detail)
+
+
+def _lire_registre_suivi_rappel() -> tuple[Registre, list[dict[str, Any]]]:
+    """Vérifie le port durable, la connexion d'écriture SQLite et la chaîne avant lecture/mutation de suivi."""
+    cnx = stockage.connexion_courante()
+    reg = _obtenir_registre()
+    maillons = getattr(reg, "_entrees", None)
+    if (
+        not _stockage_durable_actif
+        or cnx is None
+        or stockage.connexion_courante() is not cnx
+        or not cnx.in_transaction()
+        or cnx.dialect.name != "sqlite"
+        or not isinstance(maillons, stockage.MaillonsDurables)
+        or maillons.departement != _DEPARTEMENT
+        or maillons.registre != _NOM_REGISTRE
+    ):
+        raise ValueError("REJ-SUIVI-RAPPEL-STOCKAGE-NON-QUALIFIE")
+    lecture_m1.borner(cnx)
+    lignes = reg.lire()
+    valide, _verdict_chaine = Registre(lignes).valider_chaine()
+    if not valide:
+        raise ValueError("REJ-SUIVI-RAPPEL-CHAINE-ALTEREE")
+    return reg, lignes
+
+
+def _acteur_suivi_rappel() -> tuple[dict[str, str] | None, dict[str, Any] | None]:
+    """Autorité humaine de console, revalidée en base sous transaction."""
+    cnx = stockage.connexion_courante()
+    appelante = contexte_appel.identite_appelante()
+    if cnx is None or not cnx.in_transaction() or appelante is None:
+        return None, _refus_suivi_rappel(
+            "REJ-SUIVI-RAPPEL-HUMAIN-REQUIS", "Identité humaine authentifiée requise; aucune action n'a été inscrite."
+        )
+    if appelante.source != "console":
+        return None, _refus_suivi_rappel(
+            "REJ-SUIVI-RAPPEL-HUMAIN-REQUIS", "Cette action exige une session humaine authentifiée."
+        )
+    confirmee = approbations.signataire_valide(cnx, appelante)
+    if confirmee is None:
+        return None, _refus_suivi_rappel(
+            "REJ-SUIVI-RAPPEL-IDENTITE-INVALIDE", "Identité inactive ou rôle retiré; aucune action n'a été inscrite."
+        )
+    if confirmee.role not in {identite.Role.ADMIN.value, "nathan_owner"}:
+        return None, _refus_suivi_rappel(
+            "REJ-SUIVI-RAPPEL-ROLE-INSUFFISANT", "Rôle humain propriétaire ou admin requis."
+        )
+    return {"par": confirmee.personne, "role": confirmee.role, "voie": appelante.source}, None
+
+
+def consigner_suivi_rappel(
+    transfert_id: str,
+    action: str,
+    snapshot_attendu: str,
+    horodatage: str,
+    prochaine_tentative_le: str | None = None,
+) -> dict[str, Any]:
+    """Attribue une tâche d'appel manqué ou consigne une tentative déclarée sans contact, sans effet externe."""
+    acteur, refus = _acteur_suivi_rappel()
+    if acteur is None:
+        return refus or _refus_suivi_rappel(
+            "REJ-SUIVI-RAPPEL-HUMAIN-REQUIS", "Identité humaine authentifiée requise."
+        )
+    if action not in {transferts.EVT_PRISE_EN_CHARGE, transferts.EVT_TENTATIVE_SANS_CONTACT}:
+        return _refus_suivi_rappel("REJ-SUIVI-RAPPEL-ACTION-INVALIDE", "Action de suivi inconnue.")
+    if not isinstance(snapshot_attendu, str) or re.fullmatch(r"[0-9a-f]{64}", snapshot_attendu) is None:
+        return _refus_suivi_rappel("REJ-SUIVI-RAPPEL-SNAPSHOT-INVALIDE", "Révision du dossier invalide.")
+    if action == transferts.EVT_PRISE_EN_CHARGE and prochaine_tentative_le is not None:
+        return _refus_suivi_rappel(
+            "REJ-SUIVI-RAPPEL-ECHEANCE-INATTENDUE", "Une prise en charge ne porte pas d'échéance de tentative."
+        )
+
+    quand = _horodatage_faisant_foi(horodatage)
+    try:
+        # Le paramètre homonyme est une chaîne; le validateur est celui du module.
+        controle_horodatage.valider_horodatage(quand)
+    except (TypeError, ValueError):
+        return _refus_suivi_rappel("REJ-SUIVI-RAPPEL-HORODATAGE-INVALIDE", "Heure serveur invalide.")
+    prochaine = None
+    if action == transferts.EVT_TENTATIVE_SANS_CONTACT:
+        try:
+            prochaine = transferts.normaliser_echeance_rappel(prochaine_tentative_le, quand)
+        except ValueError as exc:
+            return _refus_suivi_rappel(str(exc), "Échéance future explicite requise.")
+    elif prochaine_tentative_le is not None:
+        return _refus_suivi_rappel(
+            "REJ-SUIVI-RAPPEL-ECHEANCE-INATTENDUE", "Une prise en charge ne porte pas d'échéance de tentative."
+        )
+
+    try:
+        reg, lignes = _lire_registre_suivi_rappel()
+    except ValueError as exc:
+        return _refus_suivi_rappel(str(exc), "Le registre de suivi n'est pas disponible ou est altéré.")
+    etat = _etat_du_transfert(lignes, transfert_id)
+    if etat is None:
+        return _refus_suivi_rappel("REJ-SUIVI-RAPPEL-CONFLIT-TRANSFERT-INCONNU", "Dossier de rappel indisponible.")
+    sources = transferts.sources_appel_rappel(lignes, transfert_id)
+    if not sources:
+        return _refus_suivi_rappel(
+            "REJ-SUIVI-RAPPEL-CONFLIT-SOURCE-APPEL-ABSENTE", "Une source canonique d'appel manqué est requise."
+        )
+    if etat.ouverture.get("type_transfert") != "ventes":
+        return _refus_suivi_rappel(
+            "REJ-SUIVI-RAPPEL-CONFLIT-TYPE-INELIGIBLE", "Seul un rappel de ventes importé est admissible."
+        )
+    if not etat.ouvert:
+        return _refus_suivi_rappel("REJ-SUIVI-RAPPEL-CONFLIT-TRANSFERT-CLOS", "Ce dossier est déjà clos.")
+    courant = transferts.projection_suivi_rappel(lignes, transfert_id)
+    if courant is None:
+        return _refus_suivi_rappel(
+            "REJ-SUIVI-RAPPEL-CONFLIT-SOURCE-APPEL-ABSENTE", "Source canonique de rappel introuvable."
+        )
+    if courant["snapshot_suivi"] != snapshot_attendu:
+        return _refus_suivi_rappel(
+            "REJ-SUIVI-RAPPEL-CONFLIT-SNAPSHOT-PERIME", "Le dossier a changé; rechargez-le avant de réessayer."
+        )
+    if action == transferts.EVT_PRISE_EN_CHARGE:
+        if courant["responsable"] is not None:
+            return _refus_suivi_rappel(
+                "REJ-SUIVI-RAPPEL-CONFLIT-DEJA-ATTRIBUE", "Cette tâche est déjà prise en charge."
+            )
+    elif courant["responsable"] != acteur["par"]:
+        return _refus_suivi_rappel(
+            "REJ-SUIVI-RAPPEL-CONFLIT-NON-ATTRIBUTAIRE", "Seule la personne responsable peut consigner la tentative."
+        )
+
+    ligne: dict[str, Any] = {
+        "type_entree": transferts.TYPE_ENTREE,
+        "evenement": action,
+        "transfert_id": transfert_id,
+        "par": acteur["par"],
+        "role": acteur["role"],
+        "voie": acteur["voie"],
+        "horodatage": quand,
+    }
+    if prochaine is not None:
+        ligne["prochaine_tentative_le"] = prochaine
+    reg.ajouter(ligne)
+    lecture_m1.borner(stockage.connexion_courante())
+    apres = reg.lire()
+    valide, _verdict_chaine = Registre(apres).valider_chaine()
+    projection = transferts.projection_suivi_rappel(apres, transfert_id) if valide else None
+    if projection is None:
+        raise ValueError("REJ-SUIVI-RAPPEL-CHAINE-ALTEREE")
+    return {"accepte": True, "resultat": {"suivi_rappel": projection}}
+
+
 def lire_transfert(transfert_id: str) -> dict[str, Any]:
     """Ce qu'une personne lit d'un transfert : résumé, destinataire, contact, messages, et le brouillon de réponse d'une
     plainte ou d'une urgence encore ouverte (jamais envoyé). Lecture seule."""
@@ -1302,6 +1453,15 @@ def lire_transfert(transfert_id: str) -> dict[str, Any]:
     if etat is None:
         return _verdict_refus("REJ-TRANSFERT-INCONNU", f"aucun transfert {transfert_id!r} au registre")
     resultat = transferts.vue(etat, lignes)
+    if _stockage_durable_actif and transferts.source_appel_revendiquee(lignes, transfert_id):
+        try:
+            _reg_durable, lignes_durables = _lire_registre_suivi_rappel()
+            projection = transferts.projection_suivi_rappel(lignes_durables, transfert_id)
+            if projection is None:
+                raise ValueError("REJ-SUIVI-RAPPEL-SOURCE-INDISPONIBLE")
+            resultat["suivi_rappel"] = projection
+        except ValueError as exc:
+            raise ValueError("REJ-SUIVI-RAPPEL-SOURCE-INDISPONIBLE") from exc
     retire = transferts.retire(lignes, etat.ouverture["conversation_id"])
     resultat["client_retire_des_messages"] = retire
     type_transfert = etat.ouverture["type_transfert"]
@@ -2003,6 +2163,36 @@ def outils() -> tuple[Outil, ...]:
             # refuse lui-même tout appel qui n'est pas une décision humaine (`_acteur_humain`), même en `supervise`.
             # §9.5 M1 mobile (admin) : plaintes, transferts, « prendre en charge ».
             roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m1_consigner_suivi_rappel",
+            description=(
+                "Consigne une prise en charge ou une tentative déclarée sans contact sur un rappel issu d'un appel "
+                "manqué importé. La tâche reste ouverte; aucun appel, contact, message ou rendez-vous n'est créé. "
+                "L'identité et l'heure viennent du contexte authentifié et du serveur."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "transfert_id": _TRANSFERT_ID,
+                    "action": {"type": "string", "enum": [
+                        transferts.EVT_PRISE_EN_CHARGE, transferts.EVT_TENTATIVE_SANS_CONTACT,
+                    ]},
+                    "snapshot_attendu": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                    "horodatage": {"type": "string", "description": "Heure de réception fixée par le serveur."},
+                    "prochaine_tentative_le": {
+                        "type": "string", "minLength": 20, "maxLength": 40,
+                        "description": "Échéance future explicitement choisie, ISO-8601 avec offset.",
+                    },
+                },
+                "required": ["transfert_id", "action", "snapshot_attendu", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=consigner_suivi_rappel,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
+            # Le rejeu N2 appareil doit être qualifié avant ouverture de cette portée.
+            roles_appareil=frozenset(),
         ),
         Outil(
             nom="m1_emettre_notification",

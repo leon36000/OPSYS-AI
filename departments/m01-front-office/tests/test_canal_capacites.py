@@ -193,14 +193,17 @@ def test_en_mode_supervise_un_message_vers_un_client_attend_toujours(capacites, 
     assert reponse["statut"] == "en_attente_approbation"
 
 
-def test_seuls_l_accueil_et_les_deux_outils_de_transfert_sont_n2_et_rien_n_est_t3_dans_m1(dep):
+def test_accueil_transferts_import_et_suivi_sont_n2_et_rien_n_est_t3_dans_m1(dep):
     """N2 « tâche interne » (ADR-0009 §4) : l'accueil, et les deux outils qui mettent une conversation devant une
-    personne (PLAN T4.5). Tous trois sont appelés dans la session d'un client dont l'affaire n'est pas liée, où le
+    personne (PLAN T4.5), import manuel et suivi humain non terminal.
+    Les outils d’accueil et de transfert sont appelés dans la session d'un client dont l'affaire n'est pas liée, où le
     garde du core refuserait un N3. Tout ce qui sort vers le client (N4) ou décide (clôture, N3) est ailleurs."""
     par_nom = {o.nom: o for o in dep.charger_outils()}
     n2 = sorted(nom for nom, o in par_nom.items() if o.niveau_effectif.value == "N2")
-    assert n2 == ["m1_escalader_plainte", "m1_importer_appel_manuellement", "m1_recevoir_message_canal",
-                  "m1_transferer"]
+    assert n2 == [
+        "m1_consigner_suivi_rappel", "m1_escalader_plainte", "m1_importer_appel_manuellement",
+        "m1_recevoir_message_canal", "m1_transferer",
+    ]
     assert not any(o.frontiere_humaine for o in par_nom.values())
     assert par_nom["m1_emettre_notification"].niveau_effectif.value == "N4"
     assert par_nom["m1_clore_transfert"].niveau_effectif.value == "N3"

@@ -2,16 +2,21 @@
 
 from __future__ import annotations
 
+import importlib
+import re
+import time
 import uuid
 from collections.abc import Callable, Mapping
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import quote, urlsplit
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
-from .. import stockage, tableau_de_bord
-from . import metier, pages, securite
+from .. import identite, stockage, tableau_de_bord
+from ..stockage.maillons import MaillonsDurables
+from . import metier, pages, reception_digest_ui, securite
 from .securite import Session
 
 _APPELS = {
@@ -55,6 +60,96 @@ def creer_router(
     def appeler(session: Session, nom: str, arguments: Mapping[str, Any], mutation_id: str | None = None):
         with cnx_factory() as cnx:
             return metier.executer(cnx, deps, session, nom, arguments, mutation_id=mutation_id)
+
+    def autoriser_suivi(cnx: Any, session: Session) -> None:
+        if session.expire <= int(time.time()):
+            raise HTTPException(401, "authentification requise")
+        personne = identite.personne_active(cnx, session.utilisateur)
+        if personne is None:
+            raise HTTPException(401, "authentification requise")
+        if not personne.roles.intersection({"nathan_owner", "admin"}):
+            raise HTTPException(403, "accès refusé")
+
+    def dans_source_suivi(session: Session, construire: Callable[[Any], Response]) -> Response:
+        # Le refus et le contrôle après sérialisation restent avant le commit de la factory.
+        try:
+            with cnx_factory() as cnx:
+                autoriser_suivi(cnx, session)
+                if cnx.dialect.name != "sqlite" or stockage.connexion_courante() is not cnx:
+                    raise RuntimeError("source non qualifiée")
+                departement = deps.get("m01-front-office")
+                if departement is None or departement.module_outils != "m1_front_office.outils":
+                    raise RuntimeError("source non qualifiée")
+                outils = importlib.import_module(departement.module_outils)
+                maillons = getattr(getattr(outils, "_registre", None), "_entrees", None)
+                if (
+                    getattr(outils, "_stockage_durable_actif", False) is not True
+                    or not isinstance(maillons, MaillonsDurables)
+                    or maillons.departement != "m01-front-office" or maillons.registre != "principal"
+                ):
+                    raise RuntimeError("source non qualifiée")
+                reception_digest_ui._preflight(cnx)
+                response = construire(cnx)
+                autoriser_suivi(cnx, session)
+                return response
+        except HTTPException:
+            raise
+        except PermissionError:
+            raise HTTPException(403, "accès refusé") from None
+        except KeyError:
+            raise HTTPException(409, "dossier indisponible ou modifié") from None
+        except ValueError as exc:
+            if "conflit" in str(exc).lower():
+                raise HTTPException(409, "commande contradictoire") from None
+            raise HTTPException(400, "commande de suivi invalide") from None
+        except Exception:
+            raise HTTPException(503, "suivi temporairement indisponible") from None
+
+    def executer_suivi(
+        session: Session, transfert_id: str, champs: Mapping[str, Any], *, formulaire: bool,
+    ) -> Response:
+        arguments, mutation_id = _arguments_suivi_rappel(transfert_id, champs, formulaire=formulaire)
+
+        def construire(cnx: Any) -> Response:
+            reponse = metier.executer(
+                cnx, deps, session, "m1_consigner_suivi_rappel", arguments, mutation_id=mutation_id,
+            )
+            ok, charge, erreur = resultat_metier(reponse)
+            if not ok:
+                code = erreur["code"]
+                if code in {"arguments_invalides", "refus_metier"} or code in {
+                    f"REJ-SUIVI-RAPPEL-{suffixe}" for suffixe in (
+                        "ACTION-INVALIDE", "SNAPSHOT-INVALIDE", "ECHEANCE-INVALIDE", "ECHEANCE-PAS-FUTURE",
+                        "ECHEANCE-INATTENDUE", "HORODATAGE-INVALIDE",
+                    )
+                }:
+                    raise HTTPException(400, "commande de suivi invalide")
+                if code in {
+                    "REJ-SUIVI-RAPPEL-HUMAIN-REQUIS", "REJ-SUIVI-RAPPEL-IDENTITE-INVALIDE",
+                    "REJ-SUIVI-RAPPEL-ROLE-INSUFFISANT",
+                }:
+                    raise HTTPException(403, "accès refusé")
+                if code.startswith("REJ-SUIVI-RAPPEL-CONFLIT-"):
+                    raise HTTPException(409, "dossier indisponible ou modifié")
+                raise HTTPException(503, "suivi temporairement indisponible")
+            if not isinstance(reponse, Mapping) or reponse.get("ok") is not True:
+                raise HTTPException(503, "suivi temporairement indisponible")
+            if not isinstance(charge, Mapping) or set(charge) != {"suivi_rappel"}:
+                raise HTTPException(503, "suivi temporairement indisponible")
+            projection = _projection_suivi_rappel(charge["suivi_rappel"])
+            if projection["responsable"] != session.utilisateur:
+                raise HTTPException(503, "suivi temporairement indisponible")
+            if formulaire:
+                return RedirectResponse(
+                    f"{prefixe}/reception/transferts/{quote(transfert_id, safe='')}", status_code=303,
+                    headers={"Cache-Control": "no-store"},
+                )
+            corps: dict[str, Any] = {"ok": True, "resultat": {"suivi_rappel": projection}}
+            if reponse.get("rejoue") is True:
+                corps["rejoue"] = True
+            return JSONResponse(corps, headers={"Cache-Control": "no-store"})
+
+        return dans_source_suivi(session, construire)
 
     def reception_donnees(session: Session) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         with cnx_factory() as cnx:
@@ -256,11 +351,15 @@ def creer_router(
                      session, bandeau)
 
     def page_transfert(session: Session, transfert_id: str) -> HTMLResponse:
-        reponse = appeler(session, "m1_lire_transfert", {"transfert_id": transfert_id})
+        return dans_source_suivi(session, lambda cnx: construire_page_transfert(cnx, session, transfert_id))
+
+    def construire_page_transfert(cnx: Any, session: Session, transfert_id: str) -> HTMLResponse:
+        reponse = metier.executer(cnx, deps, session, "m1_lire_transfert", {"transfert_id": transfert_id})
         ok, charge, erreur = resultat_metier(reponse)
         if not ok or not isinstance(charge, Mapping):
-            raise HTTPException(404 if erreur.get("code") == "REJ-TRANSFERT-INCONNU" else 409,
-                                erreur["message"])
+            if erreur.get("code") == "REJ-TRANSFERT-INCONNU":
+                raise HTTPException(404, "dossier indisponible")
+            raise HTTPException(503, "suivi temporairement indisponible")
         contenu = [
             '<p><a href="' + pages.e(prefixe) + '/reception">Retour à la réception</a></p>',
             '<section class="carte">',
@@ -284,6 +383,9 @@ def creer_router(
                     contenu.append(f'<li><p class="note">{pages.e(message.get("recu_le", ""))}</p>'
                                    f'<blockquote>{pages.e(message.get("texte", ""))}</blockquote></li>')
                 contenu.append("</ol>")
+        if "suivi_rappel" in charge:
+            suivi = _projection_suivi_rappel(charge["suivi_rappel"])
+            contenu.append(_section_suivi_rappel(prefixe, session, transfert_id, charge.get("statut"), suivi))
         if charge.get("statut") == "ouvert":
             contenu.extend([
                 f'<form method="post" action="{pages.e(prefixe)}/reception/transferts/'
@@ -291,7 +393,7 @@ def creer_router(
                 'class="pile">',
                 f'<input type="hidden" name="csrf" value="{pages.e(session.csrf)}">',
                 f'<input type="hidden" name="mutation_id" value="{uuid.uuid4()}">',
-                '<label>Note de prise en charge<input name="motif" required minlength="10" maxlength="500"></label>',
+                '<label>Motif de clôture<input name="motif" required minlength="10" maxlength="500"></label>',
                 '<button type="submit">Clore le transfert</button></form>',
             ])
         else:
@@ -325,6 +427,25 @@ def creer_router(
     @router.get("/reception/transferts/{transfert_id}", response_class=HTMLResponse)
     def lire_transfert_page(transfert_id: str, request: Request) -> Response:
         return page_transfert(session_page(request), transfert_id)
+
+    @router.post("/reception/transferts/{transfert_id}/suivi-rappel")
+    async def suivi_rappel_formulaire(transfert_id: str, request: Request) -> Response:
+        session = session_page(request)
+        champs = await _formulaire(request)
+        csrf_formulaire(champs, session)
+        try:
+            return executer_suivi(session, transfert_id, champs, formulaire=True)
+        except ValueError:
+            raise HTTPException(400, "commande de suivi invalide") from None
+
+    @router.post("/api/reception/transferts/{transfert_id}/suivi-rappel")
+    async def api_suivi_rappel(transfert_id: str, request: Request) -> Response:
+        session = ecriture_api(request)
+        corps = await _objet_json(request)
+        try:
+            return executer_suivi(session, transfert_id, corps, formulaire=False)
+        except ValueError:
+            raise HTTPException(400, "commande de suivi invalide") from None
 
     @router.post("/reception/transferts/{transfert_id}/clore")
     async def clore_transfert_formulaire(transfert_id: str, request: Request) -> Response:
@@ -396,11 +517,22 @@ def creer_router(
     @router.get("/api/reception/transferts")
     def api_lire_transfert(transfert_id: str, request: Request) -> Response:
         session = session_api(request)
-        try:
-            reponse = appeler(session, "m1_lire_transfert", {"transfert_id": transfert_id})
-            return _api_resultat(reponse)
-        except (ValueError, KeyError, PermissionError) as exc:
-            return erreur_api(exc)
+
+        def construire(cnx: Any) -> Response:
+            reponse = metier.executer(cnx, deps, session, "m1_lire_transfert", {"transfert_id": transfert_id})
+            ok, charge, erreur = resultat_metier(reponse)
+            if not ok or not isinstance(charge, Mapping):
+                if erreur.get("code") == "REJ-TRANSFERT-INCONNU":
+                    return JSONResponse(
+                        {"ok": False, "erreur": {"code": "REJ-TRANSFERT-INCONNU", "message": "dossier indisponible"}},
+                        status_code=400, headers={"Cache-Control": "no-store"},
+                    )
+                raise HTTPException(503, "suivi temporairement indisponible")
+            if "suivi_rappel" in charge:
+                _projection_suivi_rappel(charge["suivi_rappel"])
+            return JSONResponse({"ok": True, "resultat": charge}, headers={"Cache-Control": "no-store"})
+
+        return dans_source_suivi(session, construire)
 
     @router.post("/api/reception/transferts")
     async def api_clore_transfert(request: Request) -> Response:
@@ -448,6 +580,137 @@ def creer_router(
             return erreur_api(exc)
 
     return router
+
+
+def _arguments_suivi_rappel(
+    transfert_id: str, champs: Mapping[str, Any], *, formulaire: bool,
+) -> tuple[dict[str, Any], str]:
+    attendus = {"action", "snapshot_attendu", "mutation_id"}
+    action = champs.get("action")
+    if action == "tentative_sans_contact":
+        attendus.add("prochaine_tentative_le")
+    elif action != "prise_en_charge":
+        raise ValueError("action invalide")
+    if formulaire:
+        attendus.add("csrf")
+    if set(champs) != attendus:
+        raise ValueError("champs invalides")
+    if not isinstance(transfert_id, str) or not 1 <= len(transfert_id) <= 200:
+        raise ValueError("identifiant invalide")
+    snapshot = champs.get("snapshot_attendu")
+    if not isinstance(snapshot, str) or not re.fullmatch(r"[0-9a-f]{64}", snapshot, re.ASCII):
+        raise ValueError("révision invalide")
+    mutation_id = _mutation_id(champs.get("mutation_id"))
+    arguments = {"transfert_id": transfert_id, "action": action, "snapshot_attendu": snapshot}
+    if action == "tentative_sans_contact":
+        prochaine = champs["prochaine_tentative_le"]
+        try:
+            _instant_suivi_rappel(prochaine)
+        except (ValueError, OverflowError):
+            raise ValueError("échéance invalide") from None
+        # Le tool vérifie le futur après le reçu idempotent : son rejeu reste historique.
+        arguments["prochaine_tentative_le"] = prochaine
+    return arguments, mutation_id
+
+
+def _instant_suivi_rappel(valeur: Any) -> datetime:
+    if not isinstance(valeur, str) or len(valeur) > 40 or not re.fullmatch(
+        r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}"
+        r"(?:\.[0-9]{1,6})?(?:Z|[+-][0-9]{2}:[0-9]{2})", valeur, re.ASCII,
+    ):
+        raise ValueError("instant invalide")
+    instant = datetime.fromisoformat(valeur)
+    if instant.utcoffset() is None:
+        raise ValueError("fuseau requis")
+    return instant.astimezone(UTC)
+
+
+def _projection_suivi_rappel(valeur: Any) -> dict[str, Any]:
+    clefs = {
+        "snapshot_suivi", "responsable", "role", "pris_en_charge_le", "tentatives_sans_contact",
+        "derniere_tentative_le", "prochaine_tentative_le",
+    }
+    if not isinstance(valeur, Mapping) or set(valeur) != clefs:
+        raise RuntimeError("projection indisponible")
+    snapshot, responsable, role = valeur["snapshot_suivi"], valeur["responsable"], valeur["role"]
+    if not isinstance(snapshot, str) or not re.fullmatch(r"[0-9a-f]{64}", snapshot, re.ASCII):
+        raise RuntimeError("projection indisponible")
+    if responsable is not None and (
+        not isinstance(responsable, str) or not 1 <= len(responsable) <= 80 or not responsable.isprintable()
+    ):
+        raise RuntimeError("projection indisponible")
+    if role not in {None, "admin", "nathan_owner"} or (responsable is None) != (role is None):
+        raise RuntimeError("projection indisponible")
+    nombre = valeur["tentatives_sans_contact"]
+    if type(nombre) is not int or not 0 <= nombre <= 10_000:
+        raise RuntimeError("projection indisponible")
+    instants: dict[str, datetime | None] = {}
+    for cle in ("pris_en_charge_le", "derniere_tentative_le", "prochaine_tentative_le"):
+        instants[cle] = None
+        if valeur[cle] is not None:
+            try:
+                instants[cle] = _instant_suivi_rappel(valeur[cle])
+            except (ValueError, OverflowError):
+                raise RuntimeError("projection indisponible") from None
+    prise, derniere, prochaine = (instants[cle] for cle in (
+        "pris_en_charge_le", "derniere_tentative_le", "prochaine_tentative_le",
+    ))
+    if responsable is None:
+        if nombre != 0 or any(instant is not None for instant in instants.values()):
+            raise RuntimeError("projection indisponible")
+    else:
+        if prise is None:
+            raise RuntimeError("projection indisponible")
+        if nombre == 0:
+            if derniere is not None or prochaine is not None:
+                raise RuntimeError("projection indisponible")
+        elif derniere is None or prochaine is None or not prise <= derniere < prochaine:
+            raise RuntimeError("projection indisponible")
+    return dict(valeur)
+
+
+def _section_suivi_rappel(
+    prefixe: str, session: Session, transfert_id: str, statut: Any, suivi: Mapping[str, Any],
+) -> str:
+    contenu = ['<section class="carte"><h2>Suivi du rappel</h2>',
+               '<p>Ces informations sont déclarées par la personne qui prend le rappel en charge. '
+               'Elles ne certifient ni un appel téléphonique ni un contact établi.</p>']
+    responsable = suivi["responsable"]
+    if responsable is None:
+        contenu.append('<p>Ce rappel n’a pas encore été pris en charge.</p>')
+    else:
+        contenu.extend([
+            f'<p>Pris en charge par {pages.e(responsable)} le {pages.e(suivi["pris_en_charge_le"])}.</p>',
+            f'<p>Tentatives consignées sans contact : {suivi["tentatives_sans_contact"]}.</p>',
+        ])
+        if suivi["derniere_tentative_le"] is not None:
+            contenu.append(f'<p>Dernière tentative consignée : {pages.e(suivi["derniere_tentative_le"])}.</p>')
+        if suivi["prochaine_tentative_le"] is not None:
+            contenu.append(f'<p>Prochaine tentative prévue : {pages.e(suivi["prochaine_tentative_le"])}.</p>')
+    if statut == "ouvert" and (responsable is None or responsable == session.utilisateur):
+        action = "prise_en_charge" if responsable is None else "tentative_sans_contact"
+        contenu.extend([
+            f'<form method="post" action="{pages.e(prefixe)}/reception/transferts/'
+            f'{quote(transfert_id, safe="")}/suivi-rappel" class="pile">',
+            f'<input type="hidden" name="csrf" value="{pages.e(session.csrf)}">',
+            f'<input type="hidden" name="mutation_id" value="{uuid.uuid4()}">',
+            f'<input type="hidden" name="snapshot_attendu" value="{suivi["snapshot_suivi"]}">',
+            f'<input type="hidden" name="action" value="{action}">',
+        ])
+        if responsable is not None:
+            contenu.append(
+                '<label>Prochaine tentative (date et heure avec fuseau explicite)'
+                '<input name="prochaine_tentative_le" required maxlength="40" '
+                'placeholder="2030-10-04T09:15:00-04:00"></label>'
+                '<button type="submit">Consigner une tentative sans contact</button>'
+            )
+        else:
+            contenu.append('<button type="submit">Prendre ce rappel en charge</button>')
+        contenu.append('</form>')
+    elif statut == "ouvert":
+        contenu.append('<p>Seule la personne responsable peut consigner une tentative.</p>')
+    contenu.append('</section>')
+    return "".join(contenu)
 
 
 def resultat_metier(reponse: Any) -> tuple[bool, Any, dict[str, str]]:

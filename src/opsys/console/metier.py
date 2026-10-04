@@ -41,6 +41,7 @@ LECTURES = {
 COMMANDES = {
     "m1_importer_appel_manuellement": "m01-front-office",
     "m1_clore_transfert": "m01-front-office",
+    "m1_consigner_suivi_rappel": "m01-front-office",
     "m7_importer_avis_manuel": "m07-marketing",
     "m7_decider_reponse_avis": "m07-marketing",
     "m7_exporter_reponse_avis_manuel": "m07-marketing",
@@ -361,6 +362,8 @@ def executer(
     personne = identite.personne_active(cnx, session.utilisateur)
     if personne is None or not personne.roles.intersection({"nathan_owner", "admin"}):
         raise PermissionError("administration métier requise")
+    if nom == "m1_consigner_suivi_rappel" and session.expire <= datetime.now(UTC).timestamp():
+        raise PermissionError("session de suivi expirée")
     if nom in {
         "m5_affecter_cout_marketing", "m5_revoquer_affectation_cout_marketing", "m5_lire_couts_marketing_affectes",
     }:
@@ -511,6 +514,11 @@ def executer(
         except idempotence.MutationConflit as exc:
             raise ValueError("conflit de commande métier") from exc
         if reclamation.rejouee:
+            if nom == "m1_consigner_suivi_rappel":
+                vivante = identite.personne_active(cnx, session.utilisateur)
+                if (session.expire <= datetime.now(UTC).timestamp() or vivante is None
+                        or not vivante.roles.intersection({"nathan_owner", "admin"})):
+                    raise PermissionError("autorité de suivi retirée")
             return {**reclamation.reponse, "rejoue": True}
     if nom in DECISIONS_HUMAINES:
         # La personne presse le bouton; le socle applique les mêmes rôles et trace la décision.
@@ -534,6 +542,33 @@ def executer(
             contexte.appeler_en_tant_que(departement, origine=departement),
         ):
             reponse = executer_atomique(outil, charge)
+    if nom == "m1_consigner_suivi_rappel":
+        personne_vivante = identite.personne_active(cnx, session.utilisateur)
+        if (session.expire <= datetime.now(UTC).timestamp() or personne_vivante is None
+                or not personne_vivante.roles.intersection({"nathan_owner", "admin"})):
+            raise PermissionError("autorité de suivi retirée")
+        code_refus = None
+        if reponse.get("ok") is False:
+            details = reponse.get("details")
+            code_refus = details[0] if isinstance(details, list) and details else str(details or "")
+        else:
+            resultat_outil = reponse.get("resultat")
+            if isinstance(resultat_outil, Mapping) and resultat_outil.get("accepte") is False:
+                verdict = resultat_outil.get("verdict")
+                code_refus = (
+                    str(verdict.get("code") or "REJ-SUIVI-RAPPEL-REPONSE-INVALIDE")
+                    if isinstance(verdict, Mapping) else "REJ-SUIVI-RAPPEL-REPONSE-INVALIDE"
+                )
+        if code_refus:
+            if code_refus == "REJ-SUIVI-RAPPEL-REPONSE-INVALIDE":
+                raise RuntimeError("réponse de suivi non qualifiée")
+            if any(mot in code_refus for mot in ("HUMAIN", "IDENTITE", "ROLE-INSUFFISANT")):
+                raise PermissionError(code_refus)
+            if any(mot in code_refus for mot in ("STOCKAGE", "CHAINE", "HISTORIQUE", "SOURCE-INDISPONIBLE")):
+                raise RuntimeError("source de suivi indisponible")
+            raise ValueError(code_refus)
+        if reponse.get("ok") is not True:
+            raise ValueError("REJ-SUIVI-RAPPEL-REPONSE-INVALIDE")
     if meta is not None:
         idempotence.finaliser(cnx, meta, reponse)
         journaliser(

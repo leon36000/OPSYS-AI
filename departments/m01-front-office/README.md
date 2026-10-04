@@ -20,6 +20,23 @@ et le [rapport](../../docs/grs/reception/M1-DIGEST-CONSOLE-RAPPORT-2026-10-04.md
 Les tentatives de rappel non terminales restent une tranche distincte.
 M1 global demeure **PARTIEL**.
 
+## Suivi humain de rappels — tranche 25 qualifiée localement
+
+La console owner/admin consigne prise en charge à soi et tentative sans
+contact sur les seuls transferts `ventes` reliés à un appel importé. Saisie
+humaine T1/N2 sans approbation N3 ; dossier ouvert, clôture N3 distincte.
+ROOT r150 : **1 737/1 737 sur 39 fichiers complets**, sans échec/erreur/skip,
+118,464 s JUnit, Ruff/vérificateur verts et 1 245 sources sans dérive/OOM.
+Lecture SQL bornée avant décodage et après append, CAS, rôle live et rejeu
+sont couverts ; le chaînage en mémoire n’apporte pas d’ancre externe.
+Le backend console uniquement refuse source appareil et son catalogue est
+fermé ; lecteur MCP/appareil historique et PostgreSQL hors qualification.
+Les rouges r144–r149 sont conservés ; aucun appel ou contact réussi n’est
+certifié. [Design](../../docs/grs/reception/M1-SUIVI-RAPPELS-DESIGN-2026-10-04.md),
+[audit](../../docs/grs/reception/M1-SUIVI-RAPPELS-AUDIT-2026-10-04.md)
+et [rapport](../../docs/grs/reception/M1-SUIVI-RAPPELS-RAPPORT-2026-10-04.md).
+M1 global reste **PARTIEL**.
+
 ## Garde-fou des interdits et STOP publié au bus (PLAN T4.17-c)
 
 - **Le garde-fou est celui du socle** (`opsys.garde_fou_texte`) : `garde_fou.py` ne fait plus que choisir les familles de M1

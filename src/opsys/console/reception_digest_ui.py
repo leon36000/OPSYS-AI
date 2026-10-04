@@ -11,19 +11,18 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
-from sqlalchemy import LargeBinary, cast, func, select
 
 from .. import identite, stockage
+from ..stockage import lecture_m1
 from ..stockage.maillons import MaillonsDurables
-from ..stockage.schema import REGISTRES
 from . import metier, pages
 from .securite import Session
 
 _DEPARTEMENT = "m01-front-office"
 _REGISTRE = "principal"
-_MAX_LIGNES = 10_000
-_MAX_MAILLON_OCTETS = 65_536
-_MAX_TOTAL_OCTETS = 8_388_608
+_MAX_LIGNES = lecture_m1.MAX_LIGNES
+_MAX_MAILLON_OCTETS = lecture_m1.MAX_MAILLON_OCTETS
+_MAX_TOTAL_OCTETS = lecture_m1.MAX_TOTAL_OCTETS
 _MAX_DIGEST_OCTETS = 32_768
 _CANAUX = {
     "telephone": "Téléphone",
@@ -54,25 +53,10 @@ _LIGNES_OPTIONNELLES = {
 
 def _preflight(cnx: Any) -> int:
     """Borne l'unique source SQLite avant le premier décodage du registre."""
-    if cnx.dialect.name != "sqlite":
-        raise RuntimeError("source non qualifiée")
-    filtre = (REGISTRES.c.departement == _DEPARTEMENT) & (REGISTRES.c.registre == _REGISTRE)
-    octets = func.length(cast(REGISTRES.c.maillon, LargeBinary))
-    count, maxi, total = cnx.execute(
-        select(func.count(), func.coalesce(func.max(octets), 0), func.coalesce(func.sum(octets), 0))
-        .select_from(REGISTRES)
-        .where(filtre)
-    ).one()
-    if (
-        type(count) is not int
-        or count > _MAX_LIGNES
-        or type(maxi) is not int
-        or type(total) is not int
-        or maxi > _MAX_MAILLON_OCTETS
-        or total > _MAX_TOTAL_OCTETS
-    ):
-        raise RuntimeError("source non qualifiée")
-    return count
+    return lecture_m1.borner(
+        cnx, max_lignes=_MAX_LIGNES, max_maillon_octets=_MAX_MAILLON_OCTETS,
+        max_total_octets=_MAX_TOTAL_OCTETS,
+    )
 
 
 def creer_router(

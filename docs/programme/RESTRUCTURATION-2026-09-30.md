@@ -64,6 +64,21 @@ ROOT r142 passe **1 667/1 667 sur 37 fichiers complets**, zéro échec/erreur/sk
 et leurs corrections sont conservés. M1 global **PARTIEL**. Le suivi
 humain des tentatives de rappel non terminales reste une tranche distincte.
 
+**M1, tranche 25 qualifiée localement :** le [suivi humain non terminal des rappels](../grs/reception/M1-SUIVI-RAPPELS-RAPPORT-2026-10-04.md)
+ajoute deux saisies T1/N2 : prise en charge à soi et tentative sans contact,
+sur un transfert `ventes` réellement relié à l’import d’appel. Dossier ouvert,
+clôture N3 distincte, aucune communication ou mutation CRM. Le
+[design](../grs/reception/M1-SUIVI-RAPPELS-DESIGN-2026-10-04.md) décrit SQLite
+canonique, rôle live, CAS/rejeu et bornage SQL avant décodage/après append.
+ROOT r150 passe **1 737/1 737 sur 39 fichiers complets**, sans échec/erreur/skip,
+118,464 s JUnit, Ruff/vérificateur verts, 1 245 sources sans dérive/OOM.
+Les rouges précédents et r148 vert intermédiaire restent conservés ; r144
+n’atteignait pas son assertion DB après le 404. Console uniquement : nouvelle
+commande appareil fermée au catalogue et refusée en backend ; lecteur direct
+MCP/appareil historique et PostgreSQL hors qualification. Le chaînage interne
+ne constitue pas une ancre externe, la tentative demeure déclarée. M1 global
+**PARTIEL** ; le prochain commit doit obtenir sa propre CI.
+
 Le head `79b49669` a désormais réussi les six workflows natifs, dont
 3 815 tests du socle/17 ignorés. Cela ne remplace pas la CI du prochain commit;
 le [bilan par head](../research/REPRISE-2026-10-04/CI-PUBLICATION.md) sépare succès,

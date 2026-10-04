@@ -1,4 +1,34 @@
 # Publication et corrections de CI — 4 octobre 2026
+
+## Suivi de rappels M1 — tranche 25 qualifiée localement
+
+Le [suivi humain](../../grs/reception/M1-SUIVI-RAPPELS-RAPPORT-2026-10-04.md)
+passe ROOT r150 : **1 737/1 737, 39 fichiers complets, 0F/0E/0S**,
+118,464 s JUnit ; Ruff vert sur 11 chemins (dont un test restauré hors diff),
+vérificateur vert, 1 245 sources sans dérive/OOM. Les 61 cas console/SQL/métier
+et neuf unitaires de domaine sont inclus, pas additionnés. Le périmètre
+prévu est 10 chemins code/test, six docs et deux artefacts capsule ; aucune
+CI distante de ce nouveau commit n’est extrapolée.
+
+r144 conserve 0P/1F (404 attendu 409), avec assertion DB non atteinte ; r145
+Ruff rouge sans pytest ; r146 27P/21F ; r147 1 723P/9F ; r148 vert intermédiaire
+1 734/1 734 ; r149 1 734P/1F de fixture. r150 couvre le vrai rollback SQL
+après append et deux refus appareil owner/admin. Saisie console T1/N2 sans
+approbation N3, clôture distincte. Backend console uniquement et rôles appareil
+vides ; lecteur MCP/appareil historique et PostgreSQL hors qualification.
+Aucun appel, contact réussi, ancre externe ou statut global terminé n’est
+promu. ROOT r151 secrets reste en attente à cette préparation.
+
+## Relevé CI de la base M1 — 4 octobre 2026 à 14:06:16 UTC
+
+| Commit | CI | Core | E2E | Mobile | Dépendances | Installateur |
+|---|---|---|---|---|---|---|
+| `7adca5ae3bb18be7799e39f62883ed70c633a115` | En cours | En cours | Succès | Succès | Succès | En cours |
+
+Relevé capturé par ROOT et conservé dans les preuves de préparation. Il porte
+sur la base publiée, pas sur les correctifs de la tranche 25 ni leur prochain
+commit. Les états historiques suivants restent inchangés.
+
 ## Résumé M1 — relevé du 04 octobre à 13:07 UTC
 
 | Commit | CI | Core | E2E | Mobile | Dépendances | Installateur |
