@@ -39,6 +39,11 @@ La [liste privée Mes imports](../grs/memory/M10-MES-IMPORTS-REPRISE-2026-10-04.
 ajoute une reprise après fermeture de navigateur, avec 95 tests intégrés sur neuf
 fichiers, PostgreSQL réel, sans skip. Les périmètres des campagnes restent distincts.
 
+La [synthèse des imports personnels](../grs/memory/M10-FUSION-IMPORTS-REPRISE-2026-10-04.md)
+relie maintenant ce parcours à Fusion et affiche les étapes dérivées, sans score
+de connaissance. ROOT r112 : 127 tests sur dix fichiers complets, incluant les 95
+précédents; deux sessions et cycle d'oubli vérifiés sur PostgreSQL réel.
+
 Base auditée : `2e56c0d5605dfe575bde9244f38924d5390f2674`, branche récente de Claude.
 18 815 tests locaux passés et 78 sautés lors de l'audit ; core/mobile CI verts sur l'arbre consulté,
 CI socle expirée au délai de 20 minutes et gates rouges au HEAD. Ces résultats sont **historiques**,

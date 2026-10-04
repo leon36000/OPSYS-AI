@@ -1,5 +1,10 @@
 # M10 — audit initial de l’état courant
 
+La [synthèse Fusion des imports personnels](M10-FUSION-IMPORTS-REPRISE-2026-10-04.md)
+complète la reprise par des compteurs séparés ATTENTE/RECU/INDEXE/actifs et des liens
+depuis le hub. ROOT r112 qualifie 127 cas sur dix fichiers complets, dont les 95 de
+Mes imports; aucun score d'assimilation ni nouvelle extraction n'est revendiqué.
+
 ## Actualisation du 4 octobre — imports internes reprenables
 
 [Mes imports et reprise après fermeture du navigateur](M10-MES-IMPORTS-REPRISE-2026-10-04.md)

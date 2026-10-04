@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import datetime as dt
 import os
+import re
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
@@ -25,10 +26,12 @@ _ETATS_PROCEDURES = frozenset({"RECU", "INDEXE"})
 _ETATS_AP = frozenset({"A_REVALIDER", "INDISPONIBLE"})
 _SERIES_MAX = 64
 _VERSIONS_MAX = 8
+_IMPORTS_M03_MAX = 64
+_REFERENCE_IMPORT_M03 = re.compile(r"^[0-9a-f]{64}$")
 
 
 def lire_procedures() -> IngestionProcedures:
-    """Retourne la façade M03 existante; elle n’expose ici que séries et résumés de versions."""
+    """Retourne la façade M03 existante pour les séries, versions et imports privés."""
     return MemoireEntreprise(os.environ.get("OPSYS_DATABASE_URL", "")).procedures()
 
 
@@ -171,6 +174,54 @@ def _compteurs_procedures(service: IngestionProcedures, verifier: Callable[[], N
     }
 
 
+def _attribut_import_m03(lot: Any, nom: str) -> Any:
+    if isinstance(lot, Mapping):
+        return lot.get(nom)
+    return getattr(lot, nom, None)
+
+
+def _compteurs_imports_m03(lots: Any) -> dict[str, int]:
+    """Valide et additionne la projection privée des manifestes M03, sans exposer leurs références."""
+    if (
+        not isinstance(lots, Sequence)
+        or isinstance(lots, (str, bytes))
+        or len(lots) > _IMPORTS_M03_MAX
+    ):
+        raise ValueError("liste des imports M03 hors contrat")
+
+    compteurs = {
+        "lots": len(lots), "emplacements": 0, "attente": 0, "recu": 0, "indexe": 0, "actifs": 0,
+    }
+    references: set[str] = set()
+    for lot in lots:
+        reference = _attribut_import_m03(lot, "reference")
+        if not isinstance(reference, str) or not _REFERENCE_IMPORT_M03.fullmatch(reference):
+            raise ValueError("référence de lot M03 invalide")
+        if reference in references:
+            raise ValueError("référence de lot M03 dupliquée")
+        references.add(reference)
+
+        nombre = _entier(_attribut_import_m03(lot, "nombre_emplacements"), minimum=1)
+        if nombre > 5:
+            raise ValueError("nombre d’emplacements M03 hors quota")
+        attente = _entier(_attribut_import_m03(lot, "attente"))
+        recu = _entier(_attribut_import_m03(lot, "recu"))
+        indexe = _entier(_attribut_import_m03(lot, "indexe"))
+        actifs = _entier(_attribut_import_m03(lot, "actifs"))
+        if attente + recu + indexe != nombre or actifs > indexe:
+            raise ValueError("compteurs d’imports M03 incohérents")
+
+        compteurs["emplacements"] += nombre
+        compteurs["attente"] += attente
+        compteurs["recu"] += recu
+        compteurs["indexe"] += indexe
+        compteurs["actifs"] += actifs
+
+    if compteurs["attente"] + compteurs["recu"] + compteurs["indexe"] != compteurs["emplacements"]:
+        raise ValueError("somme des imports M03 incohérente")
+    return compteurs
+
+
 def _source(
     request: Request,
     lecteur_session: Callable[..., Session],
@@ -231,6 +282,11 @@ def lire_synthese(
             request, session_page, acteur,
             lire_procedures, _compteurs_procedures,
         ),
+        "imports_m03": _source(
+            request, session_page, acteur,
+            lambda: lire_procedures().lister_lots(auteur=acteur),
+            lambda value, _verify: _compteurs_imports_m03(value),
+        ),
     }
 
 
@@ -285,11 +341,23 @@ def _html(synthese: Mapping[str, Mapping[str, Any]], prefixe: str, session: Sess
         ("versions_recues", "Versions reçues"), ("versions_indexees", "Versions indexées"),
         ("versions_actives", "Versions actives"),
     ), "L’indexation et l’activation ne certifient ni la justesse ni la couverture des procédures.")
+    imports_m03 = _carte("Mes imports M03", synthese["imports_m03"], (
+        ("lots", "Lots"), ("emplacements", "Emplacements"), ("attente", "En attente"),
+        ("recu", "Reçus"), ("indexe", "Indexés"), ("actifs", "Actifs"),
+    ), (
+        "Ces états de manifestes personnels restent distincts des séries et versions; "
+        "ils ne mesurent pas l’assimilation."
+    ))
+    imports_m03 += (
+        f'<p><a href="{pages.e(prefixe)}/memoire/procedures/imports">'
+        "Ouvrir Mes imports M03</a></p>"
+    )
     return (
-        f'<section class="carte pile"><h1>Synthèse des sources admises</h1>'
-        "<p>Cette page compte uniquement les sources admises présentes dans chaque magasin; elle ne mesure pas "
+        f'<section class="carte pile"><h1>Synthèse des sources et des imports</h1>'
+        "<p>Cette page compte séparément les sources admises et les manifestes d’import déclarés; elle ne mesure pas "
         "la couverture de l’entreprise. Les observations ont des heures distinctes et les accès restent séparés.</p>"
-        f"{csv}{pdf}{ap}{procedures}<p><a href=\"{pages.e(prefixe)}/fusion-operationnelle\">Retour aux lots CSV</a></p>"
+        f"{csv}{pdf}{ap}{procedures}{imports_m03}"
+        f"<p><a href=\"{pages.e(prefixe)}/fusion-operationnelle\">Retour aux lots CSV</a></p>"
         f'<p><a href="{pages.e(prefixe)}/fusion/pdf">Consulter les lots PDF</a> · '
         f'<a href="{pages.e(prefixe)}/memoire/procedures">Consulter les procédures M03</a></p></section>'
     )
@@ -310,7 +378,7 @@ def creer_router(
         if session_finale.utilisateur != session.utilisateur:
             raise HTTPException(403, "identité modifiée pendant la lecture")
         session = session_finale
-        body = pages.gabarit("Synthèse Fusion", _html(resume, prefixe, session), prefixe=prefixe,
+        body = pages.gabarit("Synthèse des sources et des imports", _html(resume, prefixe, session), prefixe=prefixe,
                              session=session, actif="fusion")
         return HTMLResponse(body, headers={"Cache-Control": "private, no-store, max-age=0"})
 

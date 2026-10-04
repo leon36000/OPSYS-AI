@@ -1,0 +1,97 @@
+{
+  "archive": "CI-NATIVE-05fea996-79b49669-r1.tar.xz",
+  "bytes": 74308,
+  "sha256": "f504ef288d33e088bdeac6310c7d6b8108874e538950500f11a3b85fdc05fc26",
+  "timestamp_utc": "2026-10-04T10:06:29.063745+00:00",
+  "heads": [
+    "05fea996d46138cccc0ca0692963b19f4955e04c",
+    "79b49669fa544c93b5aede738947bb7fbe452768"
+  ],
+  "results": "head15 socle3802passed17skipped, Core/E2E/mobile/deps success; installer pending replaced no jobs. head16 mobile2607Jest118suites17consumer/E2E/deps success, Core/CI/installer in progress at snapshot. head14 installer finalsuccess opt-in jobs skipped",
+  "entries": [
+    {
+      "path": "native-ci15-socle-r1.log",
+      "bytes": 214837,
+      "sha256": "75ca8d256587642d588ca6aa64cfdacc155f08ee71d64e39d2cab6441aa6db0e",
+      "raw_sha256": "75ca8d256587642d588ca6aa64cfdacc155f08ee71d64e39d2cab6441aa6db0e",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "native-ci16-mobile-r1.log",
+      "bytes": 41036,
+      "sha256": "e9352655c7eb00256947c338f592386ad41a966e96b9b53269603ee36bc8b553",
+      "raw_sha256": "e9352655c7eb00256947c338f592386ad41a966e96b9b53269603ee36bc8b553",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "native-installateur-05fea996-cancelled-r1.json",
+      "bytes": 231,
+      "sha256": "3166d20edade23b1f9b6e1628a9a4439873ff03c2baac7ee65b52b099d76c5b6",
+      "raw_sha256": "3166d20edade23b1f9b6e1628a9a4439873ff03c2baac7ee65b52b099d76c5b6",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "native-installateur-05fea996-empty-jobs-r1.json",
+      "bytes": 28,
+      "sha256": "81fad6e0b8c5e61b09d89c058a469316f5b3b72e1c8aeca03a4495974b1ce443",
+      "raw_sha256": "81fad6e0b8c5e61b09d89c058a469316f5b3b72e1c8aeca03a4495974b1ce443",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "native-installateur-d2669fa-final-r1.json",
+      "bytes": 6073,
+      "sha256": "2c54b322bfd8a7f26d5c424a1972b01b5d87781d082f7e9dffcf492ea790a870",
+      "raw_sha256": "2c54b322bfd8a7f26d5c424a1972b01b5d87781d082f7e9dffcf492ea790a870",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "native-jobs15-1002-r1.json",
+      "bytes": 25387,
+      "sha256": "6a7d32585f1f5db529361c6968af131f4160fa7b8a1990daed0bd05e2e4abd6a",
+      "raw_sha256": "6a7d32585f1f5db529361c6968af131f4160fa7b8a1990daed0bd05e2e4abd6a",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "native-runs15-1002-r1.json",
+      "bytes": 1966,
+      "sha256": "4fd98205e0a59d033a48b87af928032feb7a08f605a5da7798ba17ecafaa716e",
+      "raw_sha256": "4fd98205e0a59d033a48b87af928032feb7a08f605a5da7798ba17ecafaa716e",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "native-runs16-1002-r1.json",
+      "bytes": 1955,
+      "sha256": "5ba4df69f67a193ad938431c951673ea38d167d42a19831b373bd56a51461783",
+      "raw_sha256": "5ba4df69f67a193ad938431c951673ea38d167d42a19831b373bd56a51461783",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "publication16/NATIVE-DIFF-STAT-r1.txt",
+      "bytes": 1074,
+      "sha256": "7d6c86f12cb179b9e026fe9ccf8679887545ccaf604a4d0064c26b425313dd35",
+      "raw_sha256": "7d6c86f12cb179b9e026fe9ccf8679887545ccaf604a4d0064c26b425313dd35",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "publication16/PUBLICATION-PLAN-r1.json",
+      "bytes": 3219,
+      "sha256": "4a625dcb0cc961d2c4224eac71af23fc4cb6b4da74751ac5f34c941d06df4433",
+      "raw_sha256": "4a625dcb0cc961d2c4224eac71af23fc4cb6b4da74751ac5f34c941d06df4433",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "publication16/PUBLICATION-RESULT-r1.json",
+      "bytes": 3421,
+      "sha256": "97c4db988ac45ed95e66ac073be2b94a616fd56cacb56b424e44c2aded0cafdd",
+      "raw_sha256": "97c4db988ac45ed95e66ac073be2b94a616fd56cacb56b424e44c2aded0cafdd",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "publication16/publish-rest-r1.py",
+      "bytes": 2460,
+      "sha256": "7c6c5d4cdcc0ccc3946622b447444cb963fc335a11e345f85ccf6999b87e2eaa",
+      "raw_sha256": "7c6c5d4cdcc0ccc3946622b447444cb963fc335a11e345f85ccf6999b87e2eaa",
+      "qa_dsn_redactions": 0
+    }
+  ]
+}

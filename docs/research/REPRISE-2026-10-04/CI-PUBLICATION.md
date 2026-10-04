@@ -179,3 +179,39 @@ complets, PostgreSQL réel, zéro skip, Ruff vert et 1 226 sources stables.
 [Capsule](preuves/M10-MES-IMPORTS-r1.tar.xz), [inventaire](preuves/M10-MES-IMPORTS-r1.json).
 La CI de cette tranche reste à obtenir sur son nouveau commit; aucune promotion du
 statut global PARTIEL n'est effectuée.
+
+## Relevé du 4 octobre à 10:02 UTC et raccordement Fusion
+
+Le run installateur du commit `d2669fa` a finalement réussi : analyse et Linux/
+Windows/macOS verts; les deux jobs Docker Desktop opt-in restent non exécutés.
+Le commit `05fea996` réussit le socle **3 802 passed/17 skipped/1 warning**, en
+2 049,84 s (job111405863049, CI37191642091), ses départements et partitions M3,
+Core, E2E, mobile et dépendances. Son run installateur **37191642065 a été annulé
+sans aucun job** : le run plus récent a remplacé celui qui attendait dans le groupe.
+`cancel-in-progress:false` protège le run actif, pas l'unique emplacement en attente.
+Cette annulation n'est ni un échec de test ni une réussite d'installation.
+
+Sur le commit `79b49669`, E2E **37192902318**, mobile **37192902387** et dépendances
+réussissent. Le mobile confirme encore 17 régressions et 2 607 Jest/118 suites.
+Core **37192902361**, CI **37192902352** et installateurs **37192902625** sont en
+cours au relevé; aucun résultat complet n'en est anticipé. Le collecteur socle
+inclut les nouveaux fichiers M10 sous `tests/` sans exclusion; sa collecte distante
+et son exécution restent à constater dans le run de ce head.
+
+[Relevés/logs natifs et publication Mes imports](preuves/CI-NATIVE-05fea996-79b49669-r1.tar.xz)
+et [inventaire](preuves/CI-NATIVE-05fea996-79b49669-r1.json). Les 17 skips du socle
+restent visibles; ils ne deviennent pas une preuve de zéro skip global.
+
+Le [raccordement Fusion](../../grs/memory/M10-FUSION-IMPORTS-REPRISE-2026-10-04.md)
+ajoute une carte personnelle ATTENTE/RECU/INDEXE/actifs et les liens de reprise.
+ROOT r112 qualifie **127/127 sur dix fichiers complets**, incluant les 95 cas de
+Mes imports : PostgreSQL réel, deux sessions/auteurs, état dérivé et oubli, zéro
+échec/erreur/skip, Ruff vert, 1 226 sources stables. Les essais rouges r110/r111
+sont conservés et concernent une mise en forme puis une fixture CAS erronée;
+aucun contrôle de production n'a été assoupli. Le résultat natif du prochain
+commit doit être obtenu séparément. OPSYS-AI reste PARTIEL.
+
+Gitleaks signale une alerte brute sur le mot de passe fictif préexistant du test HTTP
+de synthèse. ROOT a vérifié la ligne dans le parent, son empreinte et l'usage local
+de fixture; aucun secret réel trouvé dans cette portée et aucune règle/exclusion
+ou baseline ajoutée. Le résultat brut et la classification sont conservés séparément.

@@ -342,11 +342,12 @@ def creer_router(
         if request.query_params:
             raise HTTPException(400, "paramètres invalides")
         contenu = (
-            '<section class="carte pile"><h1>Fusion opérationnelle</h1>'
+            '<section class="carte pile"><h1>Fusion opérationnelle — sources et imports</h1>'
             f'<p><a href="{pages.e(prefixe)}/fusion-operationnelle/synthese">'
-            'Consulter la synthèse des sources admises</a></p>'
+            'Consulter la synthèse des sources et des imports</a></p>'
             f'<p><a href="{pages.e(prefixe)}/fusion-operationnelle">Ouvrir les lots CSV</a></p>'
-            f'<p><a href="{pages.e(prefixe)}/fusion/pdf">Ouvrir le pilote PDF préparatoire</a></p></section>'
+            f'<p><a href="{pages.e(prefixe)}/fusion/pdf">Ouvrir le pilote PDF préparatoire</a></p>'
+            f'<p><a href="{pages.e(prefixe)}/memoire/procedures/imports">Mes imports M03</a></p></section>'
         )
         session_vivante(request, session.utilisateur)
         return _reponse(prefixe, session, contenu)
