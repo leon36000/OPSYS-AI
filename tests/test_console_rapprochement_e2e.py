@@ -31,6 +31,8 @@ class _Forms(HTMLParser):
     def __init__(self):
         super().__init__()
         self.forms: list[dict[str, str]] = []
+        self.options: list[dict[str, list[str]]] = []
+        self.current_options: dict[str, list[str]] = {}
         self.current: dict[str, str] | None = None
         self.select_name: str | None = None
         self.select_first: str | None = None
@@ -40,14 +42,18 @@ class _Forms(HTMLParser):
         attr = dict(attrs)
         if tag == "form":
             self.current = {"action": attr.get("action") or ""}
+            self.current_options = {}
         elif tag == "input" and self.current is not None and attr.get("name"):
             self.current[attr["name"]] = attr.get("value") or ""
         elif tag == "select" and self.current is not None:
             self.select_name = attr.get("name")
             self.select_first = None
             self.select_selected = None
+            if self.select_name:
+                self.current_options[self.select_name] = []
         elif tag == "option" and self.select_name is not None:
             value = attr.get("value") or ""
+            self.current_options[self.select_name].append(value)
             if self.select_first is None:
                 self.select_first = value
             if "selected" in attr:
@@ -59,6 +65,7 @@ class _Forms(HTMLParser):
             self.select_name = None
         elif tag == "form" and self.current is not None:
             self.forms.append(self.current)
+            self.options.append(self.current_options)
             self.current = None
 
 
@@ -70,15 +77,35 @@ def _forms(html: str) -> list[dict[str, str]]:
 
 def _form_for(html: str, action: str, *, obligation_id: str | None = None,
               source_ref: str | None = None) -> dict[str, str]:
-    for form in _forms(html):
+    parser = _Forms()
+    parser.feed(html)
+    for form, options in zip(parser.forms, parser.options, strict=True):
         if form.get("action") != action:
             continue
         if obligation_id is not None and form.get("obligation_id") != obligation_id:
             continue
         if source_ref is not None and form.get("source_ref") != source_ref:
-            continue
+            # Un navigateur peut choisir toute option proposée, indépendamment de l’ordre des hashes.
+            if source_ref not in options.get("source_ref", []):
+                continue
+            form["source_ref"] = source_ref
         return form
     raise AssertionError(f"formulaire fictif introuvable : {action}/{obligation_id}/{source_ref}")
+
+
+@pytest.mark.parametrize("references", [("source-a", "source-b"), ("source-b", "source-a")])
+def test_la_source_proposee_est_selectionnable_independamment_de_l_ordre(references):
+    html = '<form><input name="action" value="PROVISION_CREDIT"><select name="source_ref">'
+    html += "".join(f'<option value="{reference}">{reference}</option>' for reference in references)
+    html += "</select></form>"
+    assert _form_for(html, "PROVISION_CREDIT", source_ref="source-a")["source_ref"] == "source-a"
+
+
+def test_une_source_non_proposee_ne_peut_pas_etre_inventee_par_le_navigateur():
+    html = ('<form><input name="action" value="PROVISION_CREDIT"><select name="source_ref">'
+            '<option value="source-a">Source fictive</option></select></form>')
+    with pytest.raises(AssertionError, match="formulaire fictif introuvable"):
+        _form_for(html, "PROVISION_CREDIT", source_ref="source-absente")
 
 
 @pytest.fixture
