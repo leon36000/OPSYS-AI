@@ -184,13 +184,26 @@ describe("OPSYS target tickets on the final MCP call boundary", () => {
     expect(businessCalls[0]?._meta).toStrictEqual(deviceMeta);
   });
 
-  it("refuses incomplete purported device metadata before either MCP call", async () => {
+  it.each([
+    { "opsys/personne": "personne.synthetic" },
+    { "opsys/role": "admin" },
+    { "opsys/personne": "personne.synthetic", "opsys/role": "" },
+    {
+      "opsys/personne": "personne.synthetic",
+      "opsys/role": "admin",
+      "opsys/idempotencyKey": "key",
+    },
+    { "opsys/personne": "personne.synthetic", "opsys/role": "admin", "opsys/appareil": "device" },
+    {
+      "opsys/idempotencyKey": "key",
+      "opsys/appareil": "device",
+      "opsys/horodatageAppareil": "2026-10-04T00:00:00Z",
+    },
+  ])("refuses incomplete purported device metadata before either MCP call: %j", async (meta) => {
     const { root, runtime } = await setup();
 
     await expect(
-      withMcpCallMeta({ "opsys/personne": "personne.synthetic", "opsys/role": "admin" }, () =>
-        runtime.callTool("opsys_m3", TOOL, FINAL_ARGS),
-      ),
+      withMcpCallMeta(meta, () => runtime.callTool("opsys_m3", TOOL, FINAL_ARGS)),
     ).rejects.toThrow(/device call refused: authenticated metadata is incomplete/i);
 
     expect(await readCalls(root, "opsys_context_m03-estimation")).toHaveLength(0);

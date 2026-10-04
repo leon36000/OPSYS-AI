@@ -51,6 +51,7 @@ import json
 import os
 import re
 import secrets
+import shutil
 import stat
 import subprocess
 import tempfile
@@ -328,29 +329,98 @@ def _sous_windows() -> bool:
     return os.name == "nt"
 
 
-def _icacls(chemin: Path, droit: str) -> None:
-    """Coupe l'héritage de l'ACL de `chemin` et n'y laisse que l'utilisateur (`droit` : `(F)`, ou `(OI)(CI)(F)` pour un
-    dossier, dont tout ce qu'il contiendra héritera)."""
-    utilisateur = os.environ.get("USERNAME", "")
-    if not utilisateur:
-        raise ErreurInstance(f"USERNAME est absent : impossible de restreindre l'accès à {chemin} (icacls).")
-    resultat = subprocess.run(
-        ["icacls", str(chemin), "/inheritance:r", "/grant:r", f"{utilisateur}:{droit}"],
-        capture_output=True, text=True, check=False,
-    )
+_SCRIPT_ACL_WINDOWS = r"""
+$ErrorActionPreference = 'Stop'
+try {
+    $path = $env:OPSYS_INSTANCE_ACL_PATH
+    if ([string]::IsNullOrWhiteSpace($path)) { throw 'chemin ACL absent' }
+    $isDirectory = $env:OPSYS_INSTANCE_ACL_DIRECTORY -eq '1'
+    $currentSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User
+    if ($null -eq $currentSid) { throw 'SID de l’utilisateur Windows courant absent' }
+
+    $acl = Get-Acl -LiteralPath $path
+    $ownerBefore = $acl.GetOwner([System.Security.Principal.SecurityIdentifier]).Value
+    $explicitRules = @($acl.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]))
+    # Build a complete private DACL in memory, then apply it with one Set-Acl operation.
+    # No /reset or intermediate broad ACL is ever written to the file or directory.
+    $acl.SetAccessRuleProtection($true, $false)
+    foreach ($rule in $explicitRules) { [void]$acl.RemoveAccessRuleSpecific($rule) }
+
+    $rights = [System.Security.AccessControl.FileSystemRights]::FullControl
+    $allow = [System.Security.AccessControl.AccessControlType]::Allow
+    if ($isDirectory) {
+        $inheritance = [System.Security.AccessControl.InheritanceFlags]::ContainerInherit -bor `
+            [System.Security.AccessControl.InheritanceFlags]::ObjectInherit
+        $rule = [System.Security.AccessControl.FileSystemAccessRule]::new(
+            $currentSid, $rights, $inheritance,
+            [System.Security.AccessControl.PropagationFlags]::None, $allow
+        )
+    } else {
+        $rule = [System.Security.AccessControl.FileSystemAccessRule]::new($currentSid, $rights, $allow)
+    }
+    $acl.AddAccessRule($rule)
+    Set-Acl -LiteralPath $path -AclObject $acl
+
+    $verified = Get-Acl -LiteralPath $path
+    $verifiedRules = @($verified.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier]))
+    if (-not $verified.AreAccessRulesProtected -or $verifiedRules.Count -ne 1) {
+        throw 'DACL appliquée différente de la règle privée attendue'
+    }
+    $applied = $verifiedRules[0]
+    $full = [long][System.Security.AccessControl.FileSystemRights]::FullControl
+    if ($applied.IdentityReference.Value -ne $currentSid.Value -or
+        $applied.AccessControlType -ne $allow -or $applied.IsInherited -or
+        (([long]$applied.FileSystemRights -band $full) -ne $full)) {
+        throw 'ACE Allow FullControl du SID courant absente ou incorrecte'
+    }
+    if ($isDirectory -and ([int]$applied.InheritanceFlags -ne 3)) {
+        throw 'ACE du dossier sans héritage OI/CI'
+    }
+    if ($verified.GetOwner([System.Security.Principal.SecurityIdentifier]).Value -ne $ownerBefore) {
+        throw 'le propriétaire du chemin a changé'
+    }
+} catch {
+    [Console]::Error.WriteLine($_.Exception.Message)
+    exit 1
+}
+exit 0
+"""
+
+
+def _restreindre_acl_windows(chemin: Path, *, dossier: bool) -> None:
+    """Remplace la DACL en une opération par une règle FullControl au SID courant."""
+    powershell = shutil.which("powershell") or shutil.which("pwsh")
+    if powershell is None:
+        raise ErreurInstance(f"PowerShell est absent : impossible de restreindre l'accès à {chemin}.")
+    environnement = os.environ.copy()
+    environnement["OPSYS_INSTANCE_ACL_PATH"] = str(chemin)
+    environnement["OPSYS_INSTANCE_ACL_DIRECTORY"] = "1" if dossier else "0"
+    try:
+        resultat = subprocess.run(
+            [powershell, "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", _SCRIPT_ACL_WINDOWS],
+            env=environnement,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=30,
+        )
+    except (OSError, subprocess.TimeoutExpired) as erreur:
+        raise ErreurInstance(f"PowerShell n'a pas pu restreindre l'accès à {chemin} : {erreur}") from erreur
     if resultat.returncode != 0:
-        raise ErreurInstance(f"icacls a refusé de restreindre l'accès à {chemin} : {resultat.stderr.strip()}")
+        raise ErreurInstance(
+            f"PowerShell a refusé de restreindre l'accès à {chemin} : {resultat.stderr.strip()}"
+        )
 
 
 def restreindre_acces(chemin: Path) -> None:
     """Le fichier n'est lisible que par son propriétaire (0600 ; ACL réduite à l'utilisateur sous Windows).
 
-    Sous Windows, `os.chmod` ne touche pas les droits : l'ACL du fichier hérite de son dossier. `icacls` coupe
-    l'héritage et ne laisse que l'utilisateur. Sert à `.env` (secrets) et aux archives d'export (renseignements
-    personnels).
+    Sous Windows, `os.chmod` ne touche pas les droits : la DACL peut contenir des ACE explicites en plus des droits
+    hérités. PowerShell construit puis applique en une opération une DACL protégée qui n'accorde FullControl qu'au SID
+    courant. Sert à `.env` (secrets) et aux archives d'export (renseignements personnels).
     """
     if _sous_windows():
-        _icacls(chemin, "(F)")
+        _restreindre_acl_windows(chemin, dossier=False)
         return
     os.chmod(chemin, 0o600)
 
@@ -361,7 +431,7 @@ def restreindre_dossier(chemin: Path) -> None:
     script de la tâche planifiée (`gateway.cmd`) porte les valeurs de `.env` (l'environnement durable du service,
     `core/src/commands/daemon-install-helpers.ts`), et n'a donc pas d'ACL propre."""
     if _sous_windows():
-        _icacls(chemin, "(OI)(CI)(F)")
+        _restreindre_acl_windows(chemin, dossier=True)
         return
     os.chmod(chemin, 0o700)
 

@@ -968,7 +968,7 @@ def test_le_dossier_personnel_se_lit_comme_dans_le_core():
     assert "if (normalizeHomeDirValue(env.OPENCLAW_HOME)) {\n    return false;" in chemins  # sinon aucun service
 
 
-# -- restreindre_acces : 0600 sous POSIX, icacls sous Windows --------------------------------------------------------
+# -- restreindre_acces : 0600 sous POSIX, DACL privée sous Windows --------------------------------------------------
 def test_restreindre_acces_pose_0600_hors_de_windows(tmp_path, monkeypatch):
     fichier = tmp_path / "secret"
     fichier.write_text("x", encoding="utf-8")
@@ -982,17 +982,18 @@ def test_restreindre_acces_pose_0600_hors_de_windows(tmp_path, monkeypatch):
         assert _mode(fichier) == 0o600
 
 
-def test_restreindre_acces_sous_windows_coupe_l_heritage_et_ne_garde_que_l_utilisateur(tmp_path, monkeypatch):
-    appels: list[list[str]] = []
+def test_restreindre_acces_sous_windows_construit_une_dacl_privee(tmp_path, monkeypatch):
+    appels: list[tuple[list[str], dict[str, str]]] = []
 
     def faux(commande, **options):
-        appels.append(list(commande))
+        appels.append((list(commande), options["env"]))
         assert options["check"] is False and options["capture_output"] is True
+        assert options["timeout"] == 30
         return subprocess.CompletedProcess(commande, 0, "", "")
 
     monkeypatch.setattr(instance, "_sous_windows", lambda: True)
+    monkeypatch.setattr(instance.shutil, "which", lambda executable: "powershell.exe")
     monkeypatch.setattr(instance.subprocess, "run", faux)
-    monkeypatch.setenv("USERNAME", "sylvie-fictif")
     fichier = tmp_path / ".env"
     fichier.write_text("x", encoding="utf-8")
     fichier.chmod(0o644)
@@ -1000,24 +1001,32 @@ def test_restreindre_acces_sous_windows_coupe_l_heritage_et_ne_garde_que_l_utili
 
     instance.restreindre_acces(fichier)
 
-    assert appels == [["icacls", str(fichier), "/inheritance:r", "/grant:r", "sylvie-fictif:(F)"]]
-    assert _mode(fichier) == mode_avant  # l'appel icacls simulé n'altère pas le mode exposé par l'OS
-    assert fichier.read_text(encoding="utf-8") == "x"  # le test vérifie l'appel simulé, pas la DACL effective
+    assert len(appels) == 1
+    commande, environnement = appels[0]
+    assert commande == ["powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
+                        instance._SCRIPT_ACL_WINDOWS]
+    assert environnement["OPSYS_INSTANCE_ACL_PATH"] == str(fichier)
+    assert environnement["OPSYS_INSTANCE_ACL_DIRECTORY"] == "0"
+    assert str(fichier) not in commande[-1]  # le chemin n'est jamais interpolé dans le script PowerShell
+    assert "SetAccessRuleProtection($true, $false)" in commande[-1]
+    assert "RemoveAccessRuleSpecific" in commande[-1] and "Set-Acl -LiteralPath $path" in commande[-1]
+    assert _mode(fichier) == mode_avant  # PowerShell simulé : le mode Unix ne prouve pas une ACL Windows
+    assert fichier.read_text(encoding="utf-8") == "x"
 
 
-def test_restreindre_acces_sous_windows_refuse_sans_utilisateur_et_sur_refus_d_icacls(tmp_path, monkeypatch):
+def test_restreindre_acces_sous_windows_refuse_si_powershell_absent_ou_refuse(tmp_path, monkeypatch):
     fichier = tmp_path / ".env"
     fichier.write_text("x", encoding="utf-8")
     monkeypatch.setattr(instance, "_sous_windows", lambda: True)
-    monkeypatch.delenv("USERNAME", raising=False)
+    monkeypatch.setattr(instance.shutil, "which", lambda executable: None)
 
-    with pytest.raises(instance.ErreurInstance, match="USERNAME est absent"):
+    with pytest.raises(instance.ErreurInstance, match="PowerShell est absent"):
         instance.restreindre_acces(fichier)
 
-    monkeypatch.setenv("USERNAME", "sylvie-fictif")
+    monkeypatch.setattr(instance.shutil, "which", lambda executable: "powershell.exe")
     monkeypatch.setattr(instance.subprocess, "run",
                         lambda commande, **_: subprocess.CompletedProcess(commande, 5, "", "Access is denied."))
-    with pytest.raises(instance.ErreurInstance, match="icacls a refusé de restreindre l'accès.*Access is denied"):
+    with pytest.raises(instance.ErreurInstance, match="PowerShell a refusé de restreindre l'accès.*Access is denied"):
         instance.restreindre_acces(fichier)
 
 
@@ -1046,18 +1055,18 @@ def test_restreindre_acces_et_dossier_protegent_effectivement_le_chemin(tmp_path
     verifier_acces_prive(dossier, mode=0o700)
 
 
-def test_sous_windows_les_dossiers_crees_ont_une_acl_heritee_reduite_a_l_utilisateur(tmp_path, hote, monkeypatch):
+def test_sous_windows_les_dossiers_crees_recoivent_une_dacl_privee_avec_heritage(tmp_path, hote, monkeypatch):
     """Le service écrit ses propres fichiers dans l'état du core (`gateway.cmd` porte les valeurs de `.env`) : leur
     protection est celle du dossier, que les fichiers hériteront (`(OI)(CI)`)."""
-    appels: list[list[str]] = []
+    appels: list[tuple[list[str], dict[str, str]]] = []
 
-    def faux(commande, **_options):
-        appels.append(list(commande))
+    def faux(commande, **options):
+        appels.append((list(commande), options["env"]))
         return subprocess.CompletedProcess(commande, 0, "", "")
 
     monkeypatch.setattr(instance, "_sous_windows", lambda: True)
+    monkeypatch.setattr(instance.shutil, "which", lambda executable: "powershell.exe")
     monkeypatch.setattr(instance.subprocess, "run", faux)
-    monkeypatch.setenv("USERNAME", "sylvie-fictif")
     home, etat = tmp_path / "instance", hote / ".opsys" / "core"
     existant = tmp_path / "existant"
     existant.mkdir()
@@ -1065,9 +1074,49 @@ def test_sous_windows_les_dossiers_crees_ont_une_acl_heritee_reduite_a_l_utilisa
     instance._preparer_dossiers([home, etat.parent, etat])
     instance._preparer_dossiers([existant, existant])  # un dossier existant n'est jamais modifié
 
-    assert appels == [
-        ["icacls", str(home), "/inheritance:r", "/grant:r", "sylvie-fictif:(OI)(CI)(F)"],
-        ["icacls", str(etat.parent), "/inheritance:r", "/grant:r", "sylvie-fictif:(OI)(CI)(F)"],
-        ["icacls", str(etat), "/inheritance:r", "/grant:r", "sylvie-fictif:(OI)(CI)(F)"],
-    ]
+    assert [env["OPSYS_INSTANCE_ACL_PATH"] for _, env in appels] == [str(home), str(etat.parent), str(etat)]
+    assert [env["OPSYS_INSTANCE_ACL_DIRECTORY"] for _, env in appels] == ["1", "1", "1"]
+    assert all(commande == ["powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
+                           instance._SCRIPT_ACL_WINDOWS] for commande, _ in appels)
+    assert "InheritanceFlags]::ContainerInherit" in instance._SCRIPT_ACL_WINDOWS
+    assert "InheritanceFlags]::ObjectInherit" in instance._SCRIPT_ACL_WINDOWS
     assert home.is_dir() and etat.is_dir()
+    assert _contenu_de_tout(existant) == {}
+
+
+def test_restreindre_acces_retirer_une_ace_explicite_etrangere(tmp_path, verifier_acces_prive):
+    """Sur Windows, une ACE Everyone réellement ajoutée doit disparaître de la DACL finale."""
+    fichier = tmp_path / ".env"
+    contenu = "OPSYS_MCP_JETON=secret-fictif\n"
+    fichier.write_text(contenu, encoding="utf-8")
+
+    if os.name == "nt":
+        powershell = shutil.which("powershell") or shutil.which("pwsh")
+        assert powershell is not None
+        env = os.environ.copy()
+        env["OPSYS_TEST_ACL_PATH"] = str(fichier)
+        ajout = subprocess.run(
+            ["icacls", str(fichier), "/grant", "*S-1-1-0:(R)"],
+            capture_output=True, text=True, check=False, timeout=30,
+        )
+        assert ajout.returncode == 0, ajout.stderr
+        verifie_ace = r"""
+$ErrorActionPreference = 'Stop'
+$acl = Get-Acl -LiteralPath $env:OPSYS_TEST_ACL_PATH
+$rules = @($acl.GetAccessRules($true, $false, [System.Security.Principal.SecurityIdentifier]) |
+    Where-Object { $_.IdentityReference.Value -eq 'S-1-1-0' -and
+                   $_.AccessControlType -eq [System.Security.AccessControl.AccessControlType]::Allow })
+if ($rules.Count -lt 1) { exit 7 }
+exit 0
+"""
+        avant = subprocess.run(
+            [powershell, "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", verifie_ace],
+            env=env, capture_output=True, text=True, check=False, timeout=30,
+        )
+        assert avant.returncode == 0, avant.stderr
+    else:
+        fichier.chmod(0o644)
+
+    instance.restreindre_acces(fichier)
+    verifier_acces_prive(fichier, mode=0o600)
+    assert fichier.read_text(encoding="utf-8") == contenu

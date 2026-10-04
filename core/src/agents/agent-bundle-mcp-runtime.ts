@@ -1105,25 +1105,35 @@ function createServerMcpRuntime(
       const validateResult = session.toolMetadata?.validatorForCall(toolName);
       const callArguments = isRecord(input) ? input : {};
       const ambientMeta = currentMcpCallMeta();
-      const deviceMetaKeys = [
+      const idempotencyMetaKeys = [
         "opsys/idempotencyKey",
         "opsys/appareil",
         "opsys/horodatageAppareil",
-        "opsys/personne",
-        "opsys/role",
       ] as const;
-      const hasAnyDeviceMeta = deviceMetaKeys.some((key) => ambientMeta?.[key] !== undefined);
-      const isAuthenticatedOpsysDeviceCall = deviceMetaKeys.every(
+      const identityMetaKeys = ["opsys/personne", "opsys/role"] as const;
+      const hasAnyIdempotencyMeta = idempotencyMetaKeys.some(
+        (key) => ambientMeta?.[key] !== undefined,
+      );
+      const hasAnyIdentityMeta = identityMetaKeys.some((key) => ambientMeta?.[key] !== undefined);
+      const hasCompleteIdempotencyMeta = idempotencyMetaKeys.every(
         (key) => typeof ambientMeta?.[key] === "string" && ambientMeta[key].length > 0,
       );
-      if (hasAnyDeviceMeta && !isAuthenticatedOpsysDeviceCall) {
+      const hasCompleteIdentityMeta = identityMetaKeys.every(
+        (key) => typeof ambientMeta?.[key] === "string" && ambientMeta[key].length > 0,
+      );
+      if (
+        (hasAnyIdentityMeta && !hasCompleteIdentityMeta) ||
+        (hasAnyIdempotencyMeta && (!hasCompleteIdempotencyMeta || !hasCompleteIdentityMeta))
+      ) {
         throw new Error("OPSYS device call refused: authenticated metadata is incomplete");
       }
+      const isAuthenticatedOpsysDeviceCall = hasCompleteIdentityMeta;
       const requestSignal = getSessionMcpRequestSignal() ?? new AbortController().signal;
       if (isAuthenticatedOpsysDeviceCall && toolName === "opsys_memoire_rechercher") {
         throw new Error("OPSYS memory refused: device memory catalogue is closed");
       }
-      // A device call carries a host-minted, authenticated person and idempotency envelope. The
+      // Device reads carry host-authenticated person/role; writes add the complete idempotency
+      // envelope. A partial envelope or an envelope without identity remains refused. The
       // Python capability revalidates that human at the effect boundary; target tickets are for
       // model calls and must not replace the established device authorization path.
       const cibleTicket = isAuthenticatedOpsysDeviceCall

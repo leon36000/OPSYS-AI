@@ -377,7 +377,7 @@ describe("gateway lifetime sidecars", () => {
     });
 
     expect(opsysMetier.start).toHaveBeenCalledOnce();
-    expect(owner.snapshot()).toContain(engine);
+    expect(engine.stop).not.toHaveBeenCalled();
     await owner.stop();
     expect(engine.stop).toHaveBeenCalledOnce();
   });

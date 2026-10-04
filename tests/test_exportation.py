@@ -156,45 +156,62 @@ def test_archive_et_empreinte_sont_privees_et_l_empreinte_sha256_se_verifie(
     assert not [p for p in tmp_path.iterdir() if p.name.startswith(".opsys-export-")]  # aucun résidu
 
 
-def _faux_icacls(monkeypatch, *, code: int = 0, erreur: str = "") -> list[list[str]]:
-    """Sous Windows : `os.chmod` ne restreint rien, `icacls` réduit l'ACL. On joue Windows sur Linux : les appels
-    d'`icacls` sont notés (leur syntaxe est éprouvée sous Windows par la CI), pas exécutés."""
-    appels: list[list[str]] = []
+def _faux_powershell_acl(monkeypatch, *, code: int = 0, erreur: str = "") -> list[tuple[list[str], dict[str, str]]]:
+    """Enregistre les appels de protection ; ce double ne qualifie pas les ACL Windows natives."""
+    appels: list[tuple[list[str], dict[str, str]]] = []
 
-    def faux(commande, **_options):
-        appels.append(list(commande))
+    def faux(commande, **options):
+        appels.append((list(commande), options["env"]))
         return subprocess.CompletedProcess(commande, code, "", erreur)
 
     monkeypatch.setattr(instance, "_sous_windows", lambda: True)
+    monkeypatch.setattr(instance.shutil, "which", lambda executable: "powershell.exe")
     monkeypatch.setattr(instance.subprocess, "run", faux)
-    monkeypatch.setenv("USERNAME", "sylvie-fictif")
     return appels
 
 
 def test_sous_windows_l_archive_et_son_empreinte_ont_une_acl_reduite_a_l_utilisateur(opsys_home, tmp_path, monkeypatch):
     _peupler(opsys_home)
-    appels = _faux_icacls(monkeypatch)
+    appels = _faux_powershell_acl(monkeypatch)
 
     resultat = exportation.exporter(opsys_home, tmp_path / "export.tar.gz", par="test")
 
     # une fois pour l'archive (avant sa première donnée), une fois pour son empreinte : jamais lisibles par un autre
     # compte
-    assert appels == [
-        ["icacls", str(resultat.archive), "/inheritance:r", "/grant:r", "sylvie-fictif:(F)"],
-        ["icacls", str(resultat.empreinte), "/inheritance:r", "/grant:r", "sylvie-fictif:(F)"],
-    ]
+    assert [env["OPSYS_INSTANCE_ACL_PATH"] for _, env in appels] == [str(resultat.archive), str(resultat.empreinte)]
+    assert [env["OPSYS_INSTANCE_ACL_DIRECTORY"] for _, env in appels] == ["0", "0"]
+    assert all(cmd == ["powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
+                       instance._SCRIPT_ACL_WINDOWS] for cmd, _ in appels)
     assert resultat.sha256 == hashlib.sha256(resultat.archive.read_bytes()).hexdigest()
 
 
-def test_sous_windows_un_refus_d_icacls_arrete_l_export_sans_laisser_de_fichier(opsys_home, tmp_path, monkeypatch):
+def test_sous_windows_un_refus_d_acl_arrete_l_export_sans_laisser_de_fichier(opsys_home, tmp_path, monkeypatch):
     _peupler(opsys_home)
-    _faux_icacls(monkeypatch, code=5, erreur="Access is denied.")
+    _faux_powershell_acl(monkeypatch, code=5, erreur="Access is denied.")
 
-    with pytest.raises(instance.ErreurInstance, match="icacls a refusé de restreindre l'accès"):
+    with pytest.raises(instance.ErreurInstance, match="PowerShell a refusé de restreindre l'accès"):
         exportation.exporter(opsys_home, tmp_path / "export.tar.gz", par="test")
 
     assert not (tmp_path / "export.tar.gz").exists() and not (tmp_path / "export.tar.gz.sha256").exists()
     assert not [p for p in tmp_path.iterdir() if p.name.startswith(".opsys-export-")]  # ni archive, ni résidu
+
+
+@pytest.mark.parametrize("erreur", [PermissionError("refus fictif"), subprocess.TimeoutExpired("powershell", 30)])
+def test_sous_windows_une_protection_inexecutable_ou_expiree_ne_laisse_aucun_export(
+        opsys_home, tmp_path, monkeypatch, erreur):
+    _peupler(opsys_home)
+    monkeypatch.setattr(instance, "_sous_windows", lambda: True)
+    monkeypatch.setattr(instance.shutil, "which", lambda executable: "powershell.exe")
+
+    def echec(commande, **options):
+        raise erreur
+
+    monkeypatch.setattr(instance.subprocess, "run", echec)
+    with pytest.raises(instance.ErreurInstance, match="PowerShell n'a pas pu restreindre l'accès"):
+        exportation.exporter(opsys_home, tmp_path / "export.tar.gz", par="test")
+
+    assert not (tmp_path / "export.tar.gz").exists() and not (tmp_path / "export.tar.gz.sha256").exists()
+    assert not [p for p in tmp_path.iterdir() if p.name.startswith(".opsys-export-")]
 
 
 def test_la_copie_est_coherente_meme_quand_les_ecritures_sont_dans_le_journal_wal(opsys_home, tmp_path):

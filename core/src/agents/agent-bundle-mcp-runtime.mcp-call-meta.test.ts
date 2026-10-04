@@ -48,11 +48,13 @@ for await (const line of readline.createInterface({ input: process.stdin })) voi
   return { command: process.execPath, args: [serverPath] };
 }
 
-async function callEchoMeta(options: {
-  serverName?: string;
-  sessionKey?: string;
-  profile?: { agentId: string; profileId: string; profileRevision: number };
-} = {}) {
+async function callEchoMeta(
+  options: {
+    serverName?: string;
+    sessionKey?: string;
+    profile?: { agentId: string; profileId: string; profileRevision: number };
+  } = {},
+) {
   const server = await startEchoMetaServer();
   const serverName = options.serverName ?? "echo";
   const agents = options.profile
@@ -105,6 +107,28 @@ describe("agent-bundle-mcp-runtime callTool OPSYS _meta", () => {
     expect(received.meta).toStrictEqual(meta);
   });
 
+  it("forwards authenticated read identity and strips caller profile binding on the actual wire", async () => {
+    const received = await withMcpCallMeta(
+      {
+        "opsys/personne": "person.synthetic",
+        "opsys/role": "owner",
+        "opsys/runtimeProfileId": "spoofed",
+        "opsys/runtimeProfileRevision": "999",
+        "opsys/runtimeServer": "attacker",
+      },
+      () =>
+        callEchoMeta({
+          serverName: "opsys_m5",
+          sessionKey: "agent:opsys-agent-worker:session-mcp-call-meta",
+          profile: { agentId: "opsys-agent-worker", profileId: "worker", profileRevision: 7 },
+        }),
+    );
+    expect(received.meta).toStrictEqual({
+      "opsys/personne": "person.synthetic",
+      "opsys/role": "owner",
+    });
+  });
+
   it("sends the host profile binding as flat MCP _meta on the actual stdio wire", async () => {
     const received = await withMcpCallMeta(
       {
@@ -112,12 +136,12 @@ describe("agent-bundle-mcp-runtime callTool OPSYS _meta", () => {
         "opsys/runtimeProfileRevision": "999",
         "opsys/runtimeServer": "attacker",
       },
-        () =>
-          callEchoMeta({
-            serverName: "opsys_m5",
-            sessionKey: "agent:opsys-agent-worker:session-mcp-call-meta",
-            profile: { agentId: "opsys-agent-worker", profileId: "worker", profileRevision: 7 },
-          }),
+      () =>
+        callEchoMeta({
+          serverName: "opsys_m5",
+          sessionKey: "agent:opsys-agent-worker:session-mcp-call-meta",
+          profile: { agentId: "opsys-agent-worker", profileId: "worker", profileRevision: 7 },
+        }),
     );
     expect(received.meta).toStrictEqual({
       "opsys/runtimeProfileId": "worker",

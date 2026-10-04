@@ -367,8 +367,16 @@ def test_un_node_non_supporte_par_le_fork_arrete_tout(bac):
 
 def test_sans_cli_docker_l_installation_est_refusee_avant_tout_travail(bac):
     (bac.faux / "docker").unlink()
+    outils = bac.racine / "outils-sans-docker"
+    outils.mkdir()
+    for nom in ("bash", "uname", "id"):
+        executable = shutil.which(nom)
+        assert executable is not None
+        (outils / nom).symlink_to(executable)
+    chemin_path = os.pathsep.join((str(bac.faux), str(outils)))
+    assert shutil.which("docker", path=chemin_path) is None
 
-    resultat = bac.installer()
+    resultat = bac.installer(chemin_path=chemin_path)
 
     assert resultat.returncode == 1 and "Docker CLI" in resultat.stderr
     assert not any(a.startswith(("pnpm", "uv", "openclaw")) for a in bac.appels())

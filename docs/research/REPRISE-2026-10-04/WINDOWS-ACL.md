@@ -57,3 +57,10 @@ construit et refuse l'appel appareil pour métadonnées authentifiées incomplè
 défauts restent à corriger et ne sont pas couverts par les 113 tests de cette tranche.
 Le job Linux est encore en cours et le workflow Python est en attente à l'observation
 conservée dans l'archive. Aucun workflow global ni produit complet n'est déclaré vert.
+
+## Observation suivante sur `c6422b1e`
+
+Le test natif refuse sept ACL contenant encore des autorisations explicites étrangères.
+Le [durcissement suivant](DURCISSEMENT-WINDOWS-MCP.md) corrige ce défaut de production,
+avec les assertions strictes conservées. Les 113 cas ci-dessus restent la preuve du
+correctif précédent, sans qualification rétroactive des nouvelles sources.

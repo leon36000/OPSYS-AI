@@ -95,3 +95,10 @@ ajoute des assertions d'ACL natives et passe 113 cas locaux sous Linux ; Windows
 confirmer sur le nouveau commit. Le job supplémentaire `tests-opsys` et le parcours E2E
 échouent encore ; le gate mobile reste rouge. Les observations précédentes de ce document
 décrivent leurs commits respectifs et ne sont pas transformées en succès global.
+
+Le troisième commit `c6422b1ece5b7b0c77c1d759cb58e5ec96dcfa8c`, arbre
+`86bbd64652b7a355fa332537ae7b0254974f599d`, est publié et vérifié. Sa CI Windows démontre
+une conservation d'ACE explicites étrangères par le helper de production. Le
+[durcissement Windows/MCP](DURCISSEMENT-WINDOWS-MCP.md) corrige ce helper, le refus des
+lectures authentifiées et les tests Linux qui retrouvaient le vrai Docker du runner.
+Ses preuves locales ne remplacent pas la nouvelle CI native.

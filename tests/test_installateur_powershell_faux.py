@@ -288,7 +288,15 @@ def test_daemon_docker_linux_absent_arrete_avant_le_build_et_le_gateway(poste):
 
 def test_absence_cli_docker_windows_arrete_avant_tout_travail(poste):
     (poste.faux / "docker").unlink()
-    resultat = poste.installer("-SansService")
+    outils = poste.racine / "outils-sans-docker"
+    outils.mkdir()
+    for nom in ("bash", "uname", "id"):
+        executable = shutil.which(nom)
+        assert executable is not None
+        (outils / nom).symlink_to(executable)
+    chemin_path = os.pathsep.join((str(poste.faux), str(outils)))
+    assert shutil.which("docker", path=chemin_path) is None
+    resultat = poste.installer("-SansService", PATH=chemin_path)
 
     assert resultat.returncode == 1 and "Docker CLI" in _sortie(resultat)
     assert not any(a.startswith(("pnpm", "uv", "openclaw")) for a in poste.appels())
