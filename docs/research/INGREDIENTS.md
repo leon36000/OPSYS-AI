@@ -1,5 +1,16 @@
 # INGREDIENTS — Catalogue des briques open source retenues pour OPSYS-AI
 
+## Recherche métrique M3 du 4 octobre — candidats non adoptés
+
+La [comparaison multi-vues GitHub/GitLab](REPRISE-2026-10-04/M3-PHOTOGRAMMETRIE-GITHUB-GITLAB.md)
+vérifie COLMAP 4.2.1 (`bd1fcf…`, BSD trois clauses pour le projet), OpenSfM v1.1
+(`8b6b77…`, BSD deux clauses) et GigaMesh (`23d8cf…`, GPL-3+). Premier banc proposé :
+COLMAP séparé, avec échelle/contrôles terrain, licences de dépendances et budgets
+CPU/RAM à qualifier avant adoption. OpenSfM reste une piste GIS; GigaMesh n'est
+pas retenu. Les captures et la correction d'un pin de développement initial sont
+conservées. Aucun statut intégré, précision réelle ou dépendance supplémentaire
+n'est attribué par ce travail de recherche.
+
 ## Actif audiovisuel facultatif — RobotExpressive (2 octobre 2026)
 
 Le catalogue local facultatif `robotexpressive-quaternius-cc0-v1` utilise le modèle
