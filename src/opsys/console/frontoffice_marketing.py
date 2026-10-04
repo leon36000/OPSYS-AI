@@ -103,6 +103,8 @@ def creer_router(
         contenu = [
             f'<p><a class="bouton" href="{pages.e(prefixe)}/reception/voicemail">'
             'Importer un message vocal</a></p>',
+            f'<p><a class="bouton" href="{pages.e(prefixe)}/reception/digest">'
+            'Résumé de réception</a></p>',
             '<section class="carte"><h2>À prendre en charge</h2>',
         ]
         if not attentes:

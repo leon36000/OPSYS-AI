@@ -5,6 +5,21 @@ Front Office IA — reception omnicanale, voix 0->5, qualification, adjointe
 Statut: PARTIAL (EPIC E — vague 1 livrée en mode ombre : registre, machine à états des phases
 voix 0->5, garde-fou des interdits absolus, qualification, adaptateurs, digest.)
 
+## Résumé privé de réception — tranche du 4 octobre 2026
+
+Le port canonique `m1_produire_digest` existe ; son exposition dans la console
+est **qualifiée localement** : ROOT r142, 1 667 tests sur 37 fichiers complets,
+sans échec/erreur/skip, Ruff vert et 1 242 sources inchangées. Deux GET privés
+avec date choisie ou jour UTC par défaut affiché réutilisent ses agrégats, avec bornes SQLite,
+grammaire fermée, rôles relus
+et `no-store`. Le suivi des conversations est courant, même pour une date
+ancienne ; ce n’est pas un instantané historique uniforme. ROOT r137 conserve
+un baseline de route absente : 0 réussite, 1 échec, 1 241 sources inchangées.
+Voir le [design](../../docs/grs/reception/M1-DIGEST-CONSOLE-DESIGN-2026-10-04.md)
+et le [rapport](../../docs/grs/reception/M1-DIGEST-CONSOLE-RAPPORT-2026-10-04.md).
+Les tentatives de rappel non terminales restent une tranche distincte.
+M1 global demeure **PARTIEL**.
+
 ## Garde-fou des interdits et STOP publié au bus (PLAN T4.17-c)
 
 - **Le garde-fou est celui du socle** (`opsys.garde_fou_texte`) : `garde_fou.py` ne fait plus que choisir les familles de M1

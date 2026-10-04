@@ -1,4 +1,20 @@
 # Publication et corrections de CI — 4 octobre 2026
+## Résumé M1 — relevé du 04 octobre à 13:07 UTC
+
+| Commit | CI | Core | E2E | Mobile | Dépendances | Installateur |
+|---|---|---|---|---|---|---|
+| `947f4ab66172b522d4e1108e61deb7b6b651dc3e` | En cours | En cours | Succès | Succès | Succès | En attente |
+| `dd415bd90d1e6f7e0f96234d91121e106154437f` | Succès | Succès | Succès | Succès | Succès | Annulé |
+| `4e9beea082140ab007419af935d1f082e4a2624f` | Annulé | Succès | Succès | Succès | Succès | En cours |
+
+Captures exactes dans la [capsule M1](preuves/M1-DIGEST-CONSOLE-r1.tar.xz).
+Les annulations ne valent ni réussite ni défaut de code. Ces états ne qualifient
+pas le prochain commit. Le [résumé de réception](../../grs/reception/M1-DIGEST-CONSOLE-RAPPORT-2026-10-04.md)
+passe localement ROOT r142 : **1 667/1 667 sur 37 fichiers complets**,
+zéro échec/erreur/skip, 95,034 s JUnit, Ruff vert et 1 242 sources inchangées.
+La CI du commit de publication reste à obtenir sur son propre SHA.
+
+
 
 ## Pilote OCR — relevé du 4 octobre à 12:20 UTC
 

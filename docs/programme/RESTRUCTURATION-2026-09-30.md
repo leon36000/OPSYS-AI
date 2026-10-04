@@ -50,6 +50,20 @@ une erreur de numéro sur l’image inclinée; aucune proposition AP automatique
 adoption de moteur ou précision réelle n’est déclarée. La preuve ne change
 pas le lecteur natif ni le statut de M5.
 
+**Résumé M1 du 4 octobre, qualifié localement :** le [résumé privé de réception](../grs/reception/M1-DIGEST-CONSOLE-RAPPORT-2026-10-04.md)
+expose le port de digest existant, sans nouvelle écriture CRM, approbation,
+LLM ou fournisseur. Le [design](../grs/reception/M1-DIGEST-CONSOLE-DESIGN-2026-10-04.md)
+prévoit deux GET avec date choisie ou défaut UTC affiché, SQLite durable seulement,
+préflight SQL borné,
+grammaire fermée et rôles relus au rendu. La méthode distingue événements
+datés, suivi courant et dates des transferts ; aucun instantané historique
+uniforme n’est promis. ROOT r137 conserve un baseline **rouge** de route
+absente : 0 réussite, 1 échec, sans erreur/skip, 1 241 sources inchangées.
+ROOT r142 passe **1 667/1 667 sur 37 fichiers complets**, zéro échec/erreur/skip,
+95,034 s JUnit, Ruff vert et 1 242 sources inchangées. Les rouges r139–r141
+et leurs corrections sont conservés. M1 global **PARTIEL**. Le suivi
+humain des tentatives de rappel non terminales reste une tranche distincte.
+
 Le head `79b49669` a désormais réussi les six workflows natifs, dont
 3 815 tests du socle/17 ignorés. Cela ne remplace pas la CI du prochain commit;
 le [bilan par head](../research/REPRISE-2026-10-04/CI-PUBLICATION.md) sépare succès,
