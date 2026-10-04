@@ -156,3 +156,26 @@ SHA-256 `e6cbe872089339e686871946869d03020dc1b8eb9f60b599a0b4df878bfde42b`,
 La CI native de cette nouvelle tranche reste à obtenir sur son commit publié.
 **PARTIEL** : procédures internes M03; ni import client universel, ni OCR/PDF,
 ni assimilation sur corpus d'entreprise réel, ni entraînement automatique.
+
+## Confirmation native et tranche Mes imports
+
+La CI du commit `d2669fa` est entièrement verte (run **37189707445**) : dix
+Départements, neuf partitions M3, socle **3 773 passés/17 skips/1 warning**, gate final
+réussi. Le socle prend 2 435,85 s. Core et E2E de ce commit réussissent aussi;
+l'installateur poursuit son propre run et n'est pas déduit de cette preuve.
+Le mobile du commit M10 `05fea996` réussit (run **37191642136**, job111404887503) :
+17 régressions et **2 607 tests Jest/118 suites**. Son E2E et l'audit des dépendances
+réussissent; Core/socle/installateur poursuivent leurs runs au relevé.
+
+[Logs natifs et snapshot](preuves/CI-NATIVE-d2669fa-05fea996-r2.tar.xz),
+[inventaire](preuves/CI-NATIVE-d2669fa-05fea996-r2.json),
+SHA-256 `676928838572ac80fda4738a3e101954c516e94e80081f4b4aa18b8784de2d68`.
+Les archives précédentes restent immuables et concernent leurs propres snapshots.
+
+La [liste privée Mes imports](../../grs/memory/M10-MES-IMPORTS-REPRISE-2026-10-04.md)
+permet maintenant de retrouver un lot après fermeture du navigateur sans sa clé
+originale. ROOT r108 qualifie **95/95 cas dans une commande**, sur neuf fichiers
+complets, PostgreSQL réel, zéro skip, Ruff vert et 1 226 sources stables.
+[Capsule](preuves/M10-MES-IMPORTS-r1.tar.xz), [inventaire](preuves/M10-MES-IMPORTS-r1.json).
+La CI de cette tranche reste à obtenir sur son nouveau commit; aucune promotion du
+statut global PARTIEL n'est effectuée.

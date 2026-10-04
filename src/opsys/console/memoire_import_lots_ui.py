@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import secrets
 from collections.abc import Callable, Mapping
 from email.message import Message
@@ -21,6 +22,7 @@ from .memoire_ingestion_ui import _NONCE, _OCTETS, _privee, _valider_upload
 from .securite import Session
 
 _CORPS_LOT = 5 * _OCTETS + 65_536
+_REFERENCE = re.compile(r"^[0-9a-f]{64}$")
 _SLOTS = range(1, 6)
 _ETATS = ("ATTENTE", "RECU", "INDEXE")
 
@@ -132,16 +134,42 @@ def _page(session: Session, prefixe: str, corps: str, code: int = 200) -> Respon
     ))
 
 
-def _erreur(session: Session, prefixe: str, code: int, message: str, *, cle: str | None = None) -> Response:
+def _cible_lot(prefixe: str, key: str, *, par_reference: bool) -> str:
+    partie = "ref/" if par_reference else ""
+    return f"{pages.e(prefixe)}/memoire/procedures/imports/{partie}{pages.e(key)}"
+
+
+def _erreur(
+    session: Session, prefixe: str, code: int, message: str, *, cle: str | None = None,
+    par_reference: bool = False,
+) -> Response:
+    validation = _REFERENCE if par_reference else _NONCE
     cible = (
-        f"{pages.e(prefixe)}/memoire/procedures/imports/{pages.e(cle)}"
-        if cle is not None and _NONCE.fullmatch(cle)
+        _cible_lot(prefixe, cle, par_reference=par_reference)
+        if cle is not None and validation.fullmatch(cle)
         else f"{pages.e(prefixe)}/memoire/procedures/imports"
     )
     return _page(
         session, prefixe, f'<section class="carte"><p role="alert">{pages.e(message)}</p>'
         f'<p><a href="{cible}">Consulter ou reprendre</a></p></section>', code,
     )
+
+
+def _inbox(lots: tuple[Any, ...], prefixe: str) -> str:
+    corps = ['<section class="carte pile"><h2>Mes imports M03</h2>']
+    if not lots:
+        corps.append('<p>Aucun import en cours ou terminé pour votre compte.</p>')
+    for lot in lots:
+        reference = str(_attribut(lot, "reference"))
+        cible = _cible_lot(prefixe, reference, par_reference=True)
+        corps.append(
+            f'<p><a href="{cible}">Consulter ou reprendre le lot {pages.e(reference[:16])}</a> · '
+            f'{pages.e(_attribut(lot, "nombre_emplacements"))} documents · '
+            f'ATTENTE {pages.e(_attribut(lot, "attente"))} · RECU {pages.e(_attribut(lot, "recu"))} · '
+            f'INDEXE {pages.e(_attribut(lot, "indexe"))} · actifs {pages.e(_attribut(lot, "actifs"))}</p>'
+        )
+    corps.append('</section>')
+    return "".join(corps)
 
 
 def _form_creation(session: Session, prefixe: str, cle: str) -> str:
@@ -169,13 +197,15 @@ def _form_creation(session: Session, prefixe: str, cle: str) -> str:
     return "".join(blocks)
 
 
-def _form_reprise(session: Session, prefixe: str, key: str, emplacements: tuple[Any, ...]) -> str:
+def _form_reprise(
+    session: Session, prefixe: str, key: str, emplacements: tuple[Any, ...], *, par_reference: bool = False
+) -> str:
     waiting = [slot for slot in emplacements if _attribut(slot, "etat") == "ATTENTE"]
     if not waiting:
         return '<p>Tous les emplacements sont déjà reçus ou indexés.</p>'
     blocks = [
         f'<form method="post" enctype="multipart/form-data" '
-        f'action="{pages.e(prefixe)}/memoire/procedures/imports/{pages.e(key)}/reprendre" class="pile">',
+        f'action="{_cible_lot(prefixe, key, par_reference=par_reference)}/reprendre" class="pile">',
         f'<input type="hidden" name="csrf" value="{pages.e(session.csrf)}">',
         f'<input type="hidden" name="cle_lot" value="{pages.e(key)}">',
     ]
@@ -197,12 +227,16 @@ def _form_reprise(session: Session, prefixe: str, key: str, emplacements: tuple[
     return "".join(blocks)
 
 
-def _afficher_lot(session: Session, prefixe: str, lot: Any, *, notice: str = "", code: int = 200) -> Response:
+def _afficher_lot(
+    session: Session, prefixe: str, lot: Any, *, notice: str = "", code: int = 200,
+    par_reference: bool = False,
+) -> Response:
     key = str(_attribut(lot, "cle_lot", ""))
     slots = tuple(_attribut(lot, "emplacements", ()))
     counts = {state: sum(_attribut(slot, "etat") == state for slot in slots) for state in _ETATS}
     active = sum(bool(_attribut(slot, "active", False)) for slot in slots)
-    body = [f'<section class="carte pile"><h2>État du lot</h2><p>Clé : {pages.e(key)}</p>']
+    label = "Référence" if par_reference else "Clé"
+    body = [f'<section class="carte pile"><h2>État du lot</h2><p>{label} : {pages.e(key)}</p>']
     if notice:
         body.append(f'<p role="status">{pages.e(notice)}</p>')
     body.append(
@@ -215,7 +249,7 @@ def _afficher_lot(session: Session, prefixe: str, lot: Any, *, notice: str = "",
             f'{" · actif" if _attribut(slot, "active", False) else ""}</p>'
         )
     body.append("</section>")
-    body.append(_form_reprise(session, prefixe, key, slots))
+    body.append(_form_reprise(session, prefixe, key, slots, par_reference=par_reference))
     return _page(session, prefixe, "".join(body), code)
 
 
@@ -251,40 +285,50 @@ def creer_router(
             ))
         return _erreur(
             session, prefixe, erreur.status_code, str(erreur.detail),
-            cle=request.path_params.get("cle"),
+            cle=request.path_params.get("cle") or request.path_params.get("reference"),
+            par_reference="reference" in request.path_params,
         )
 
     async def partiel(
-        request: Request, initiale: Session, cle: str, *, code: int, notice: str
+        request: Request, initiale: Session, cle: str, *, code: int, notice: str, par_reference: bool = False
     ) -> Response:
         try:
             session = vivante(request, initiale)
-            lot = await run_in_threadpool(service_factory().lire_lot, cle, auteur=session.utilisateur)
+            service = service_factory()
+            lire = service.lire_lot_reference if par_reference else service.lire_lot
+            lot = await run_in_threadpool(lire, cle, auteur=session.utilisateur)
             session = vivante(request, initiale)
-            return _afficher_lot(session, prefixe, lot, notice=notice, code=code)
+            return _afficher_lot(session, prefixe, lot, notice=notice, code=code, par_reference=par_reference)
         except HTTPException as exc:
             return reponse_refus(request, initiale, exc)
         except Exception:
             # Garder la clé opaque suffit à reprendre quand le stockage sera disponible.
-            return _erreur_partielle(request, initiale, cle, code, notice)
+            return _erreur_partielle(request, initiale, cle, code, notice, par_reference=par_reference)
 
     def _erreur_partielle(
-        request: Request, initiale: Session, cle: str, code: int, notice: str
+        request: Request, initiale: Session, cle: str, code: int, notice: str, *, par_reference: bool = False
     ) -> Response:
         try:
             session = vivante(request, initiale)
         except HTTPException as exc:
             return reponse_refus(request, initiale, exc)
-        return _erreur(session, prefixe, code, notice, cle=cle)
+        return _erreur(session, prefixe, code, notice, cle=cle, par_reference=par_reference)
 
     @router.get("/memoire/procedures/imports")
     async def page_imports(request: Request) -> Response:
         session = vivante(request)
         try:
             sans_query(request)
+            lots = await run_in_threadpool(service_factory().lister_lots, auteur=session.utilisateur)
+            session = vivante(request, session)
+            return _page(
+                session, prefixe, _inbox(tuple(lots), prefixe)
+                + _form_creation(session, prefixe, secrets.token_urlsafe(32))
+            )
         except HTTPException as exc:
-            return _erreur(session, prefixe, exc.status_code, str(exc.detail))
-        return _page(session, prefixe, _form_creation(session, prefixe, secrets.token_urlsafe(32)))
+            return reponse_refus(request, session, exc)
+        except Exception:
+            return reponse_refus(request, session, HTTPException(503, "mémoire indisponible; réessayez plus tard"))
 
     @router.post("/memoire/procedures/imports/creer")
     async def creer(request: Request) -> Response:
@@ -351,18 +395,19 @@ def creer_router(
                 )
             return reponse_refus(request, session, HTTPException(503, "mémoire indisponible; réessayez plus tard"))
 
-    @router.get("/memoire/procedures/imports/{cle}")
-    async def etat(request: Request, cle: str) -> Response:
+    async def consulter(request: Request, cle: str, *, par_reference: bool) -> Response:
         session = vivante(request)
         try:
             sans_query(request)
-            if not _NONCE.fullmatch(cle):
+            if not (_REFERENCE if par_reference else _NONCE).fullmatch(cle):
                 raise HTTPException(404, "lot introuvable")
-            lot = await run_in_threadpool(service_factory().lire_lot, cle, auteur=session.utilisateur)
+            service = service_factory()
+            lire = service.lire_lot_reference if par_reference else service.lire_lot
+            lot = await run_in_threadpool(lire, cle, auteur=session.utilisateur)
             if lot is None:
                 raise HTTPException(404, "lot introuvable")
             session = vivante(request, session)
-            return _afficher_lot(session, prefixe, lot)
+            return _afficher_lot(session, prefixe, lot, par_reference=par_reference)
         except HTTPException as exc:
             return reponse_refus(request, session, exc)
         except MemoireIndisponible:
@@ -372,17 +417,31 @@ def creer_router(
         except Exception:
             return reponse_refus(request, session, HTTPException(503, "mémoire indisponible; réessayez plus tard"))
 
-    @router.post("/memoire/procedures/imports/{cle}/reprendre")
-    async def reprendre(request: Request, cle: str) -> Response:
+    @router.get("/memoire/procedures/imports/{cle}")
+    async def etat(request: Request, cle: str) -> Response:
+        return await consulter(request, cle, par_reference=False)
+
+    @router.get("/memoire/procedures/imports/ref/{reference}")
+    async def etat_reference(request: Request, reference: str) -> Response:
+        return await consulter(request, reference, par_reference=True)
+
+    async def reprendre_lot(request: Request, cle: str, *, par_reference: bool) -> Response:
         session = vivante(request)
         try:
             sans_query(request)
-            if not _NONCE.fullmatch(cle):
+            if not (_REFERENCE if par_reference else _NONCE).fullmatch(cle):
                 raise HTTPException(404, "lot introuvable")
             fields, documents = await lire_formulaire(request, session)
             if fields.get("cle_lot", cle) != cle:
                 raise HTTPException(400, "clé de lot invalide")
-            lot = await run_in_threadpool(service_factory().lire_lot, cle, auteur=session.utilisateur)
+            service = service_factory()
+            lire = service.lire_lot_reference if par_reference else service.lire_lot
+            try:
+                lot = await run_in_threadpool(lire, cle, auteur=session.utilisateur)
+            except MemoireIndisponible:
+                raise
+            except ValueError as exc:
+                raise HTTPException(404, "lot introuvable") from exc
             if lot is None:
                 raise HTTPException(404, "lot introuvable")
             slots = {int(_attribut(slot, "position")): slot for slot in _attribut(lot, "emplacements", ())}
@@ -401,30 +460,40 @@ def creer_router(
             for position in positions:
                 def reprendre_autorise(position_courante: int = position):
                     vivante(request, session)
-                    return service_factory().admettre_emplacement(
-                        cle, position_courante, documents[position_courante], auteur=session.utilisateur
-                    )
+                    service = service_factory()
+                    admettre = service.admettre_emplacement_reference if par_reference else service.admettre_emplacement
+                    return admettre(cle, position_courante, documents[position_courante], auteur=session.utilisateur)
 
                 await run_in_threadpool(reprendre_autorise)
-            lot = await run_in_threadpool(service_factory().lire_lot, cle, auteur=session.utilisateur)
+            service = service_factory()
+            lire = service.lire_lot_reference if par_reference else service.lire_lot
+            lot = await run_in_threadpool(lire, cle, auteur=session.utilisateur)
             session = vivante(request, session)
-            return _afficher_lot(session, prefixe, lot, notice="Reprise terminée.")
+            return _afficher_lot(session, prefixe, lot, notice="Reprise terminée.", par_reference=par_reference)
         except HTTPException as exc:
             return reponse_refus(request, session, exc)
         except MemoireIndisponible:
             return await partiel(
-                request, session, cle, code=503,
+                request, session, cle, par_reference=par_reference, code=503,
                 notice="Reprise partielle : mémoire indisponible; les emplacements reçus restent conservés.",
             )
         except ValueError:
             return await partiel(
-                request, session, cle, code=409,
+                request, session, cle, par_reference=par_reference, code=409,
                 notice="Reprise partielle : lot introuvable ou emplacement refusé.",
             )
         except Exception:
             return await partiel(
-                request, session, cle, code=503,
+                request, session, cle, par_reference=par_reference, code=503,
                 notice="Reprise partielle : mémoire indisponible; les emplacements reçus restent conservés.",
             )
+
+    @router.post("/memoire/procedures/imports/{cle}/reprendre")
+    async def reprendre(request: Request, cle: str) -> Response:
+        return await reprendre_lot(request, cle, par_reference=False)
+
+    @router.post("/memoire/procedures/imports/ref/{reference}/reprendre")
+    async def reprendre_reference(request: Request, reference: str) -> Response:
+        return await reprendre_lot(request, reference, par_reference=True)
 
     return router

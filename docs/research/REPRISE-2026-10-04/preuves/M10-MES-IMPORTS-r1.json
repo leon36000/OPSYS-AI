@@ -1,0 +1,212 @@
+{
+  "archive": "M10-MES-IMPORTS-r1.tar.xz",
+  "bytes": 101432,
+  "sha256": "0f6bbbc35b261944e4e195006dc8d6f3e5678f715073ab26d9d11b96e02d2d4f",
+  "timestamp_utc": "2026-10-04T09:39:17.999630+00:00",
+  "qualification": "ROOT r108:95/95 passing, no skip; Gitleaks r109 zero",
+  "source_sha256": {
+    "src/opsys/memoire/store.py": "517efe2ef08fdda1c35c2ec52e7bb6d6646ba97992ed961b210b9b9466782a4e",
+    "src/opsys/memoire/ingestion_procedures.py": "356adcc07cda2adab9831e157f1dab9f1beb17ee0586deac9959a65efb301147",
+    "src/opsys/console/memoire_import_lots_ui.py": "6e5607ea157626d93de6fe1348b50f20df6e6a7f180819edb564be2264553127",
+    "tests/test_console_memoire_import_lots.py": "c37618ee24d9574e678d928ac02514696d8312558ff98b2c06ec768711fa2c60",
+    "tests/test_memoire_import_lots_references.py": "53467a794f8009aef00b447da36d525e9b28b61a210f4e2d0ab2fbe41e981f8a",
+    "tests/test_console_memoire_import_lots_references.py": "ed877675b0bda9d41854fc8f759b88d7d837cc86eeab980a73b8945ce83c0af9"
+  },
+  "parent_proof": {
+    "archive": "M10-IMPORT-LOTS-r1.tar.xz",
+    "sha256": "e6cbe872089339e686871946869d03020dc1b8eb9f60b599a0b4df878bfde42b",
+    "note": "Previous RED/green preserved separately, not added to unique95cases"
+  },
+  "runtime_environment": "M10-IMPORT-LOTS-ENV-r1.json, same Python/pgvector toolchain",
+  "entries": [
+    {
+      "path": "drivers/guard_helpers_r2.py",
+      "bytes": 13311,
+      "sha256": "145395c894c7621bc0f2534ba5b6ce282810ae523b0eca203a87ad55afeed844",
+      "raw_sha256": "145395c894c7621bc0f2534ba5b6ce282810ae523b0eca203a87ad55afeed844",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/package-proof-r1.py",
+      "bytes": 2708,
+      "sha256": "caa7d0bc07299822aa886aad6edb28e332b699784f1bdc946c7d4ff6d4a617a0",
+      "raw_sha256": "caa7d0bc07299822aa886aad6edb28e332b699784f1bdc946c7d4ff6d4a617a0",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/qa_root_r108.py",
+      "bytes": 4212,
+      "sha256": "d92af6ade0f661f950f8b13e6b52ca1663652daa1167323c97212b3fe598e8fd",
+      "raw_sha256": "d92af6ade0f661f950f8b13e6b52ca1663652daa1167323c97212b3fe598e8fd",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/qa_root_r109.py",
+      "bytes": 3642,
+      "sha256": "2059b54780e661f529e846584bb856421c4ab5b68c8aa8773f07dfcd94c34bdb",
+      "raw_sha256": "2059b54780e661f529e846584bb856421c4ab5b68c8aa8773f07dfcd94c34bdb",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r108/execution-r1/pytest.log",
+      "bytes": 160,
+      "sha256": "1b94a2cdcd14923adbd3ce9a3c8ce47994166473e280ad29621b23ff863c34e5",
+      "raw_sha256": "1b94a2cdcd14923adbd3ce9a3c8ce47994166473e280ad29621b23ff863c34e5",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r108/execution-r1/pytest.xml",
+      "bytes": 18893,
+      "sha256": "8314838c3f633744bdfb49ccc10a0df9d4462f4afcf62bdd35e96774872c9571",
+      "raw_sha256": "8314838c3f633744bdfb49ccc10a0df9d4462f4afcf62bdd35e96774872c9571",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r108/execution-r1/ruff.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r108/freeze.json",
+      "bytes": 154110,
+      "sha256": "0f193acf5941bba15957fe75cb10f5abb75c9892ef506c40840d88b4b9a42560",
+      "raw_sha256": "0f193acf5941bba15957fe75cb10f5abb75c9892ef506c40840d88b4b9a42560",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r108/receipt.json",
+      "bytes": 318643,
+      "sha256": "4d9bfda76a5f613922e16711188095995fbc0a2dd6011bfbdc568f20b5758abe",
+      "raw_sha256": "4d9bfda76a5f613922e16711188095995fbc0a2dd6011bfbdc568f20b5758abe",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r109/execution-r1/gitleaks.log",
+      "bytes": 131,
+      "sha256": "06ee27c17d282412d4b34502980f80b7b5f178bfa582dcba537628d1a8c58d4b",
+      "raw_sha256": "06ee27c17d282412d4b34502980f80b7b5f178bfa582dcba537628d1a8c58d4b",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r109/freeze.json",
+      "bytes": 1299,
+      "sha256": "c862f03cb5691760cdb49de20ee876780ff8f6024c3d1b54bc7ca2c9b1da9f3e",
+      "raw_sha256": "c862f03cb5691760cdb49de20ee876780ff8f6024c3d1b54bc7ca2c9b1da9f3e",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r109/receipt.json",
+      "bytes": 4986,
+      "sha256": "7342a9f96b3e07dc1878283b6b40b5d7e1bc2cc276dd99b85b7eee07ede61c0c",
+      "raw_sha256": "7342a9f96b3e07dc1878283b6b40b5d7e1bc2cc276dd99b85b7eee07ede61c0c",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r109/scan.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "raw_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/grs/memory/M10-MES-IMPORTS-DESIGN-2026-10-04.md",
+      "bytes": 3055,
+      "sha256": "eba0220698cc391e42530a7c53808e9692f17f9ab8fd23085147d84a6fbe7f59",
+      "raw_sha256": "eba0220698cc391e42530a7c53808e9692f17f9ab8fd23085147d84a6fbe7f59",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/grs/memory/M10-MES-IMPORTS-REPRISE-2026-10-04.md",
+      "bytes": 4194,
+      "sha256": "67e8ceae3e31a7d9df9e7d8777a33a40ccd92fcfb2c646056d5c9bebfc57770f",
+      "raw_sha256": "67e8ceae3e31a7d9df9e7d8777a33a40ccd92fcfb2c646056d5c9bebfc57770f",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/src/opsys/console/memoire_import_lots_ui.py",
+      "bytes": 23838,
+      "sha256": "6e5607ea157626d93de6fe1348b50f20df6e6a7f180819edb564be2264553127",
+      "raw_sha256": "6e5607ea157626d93de6fe1348b50f20df6e6a7f180819edb564be2264553127",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/src/opsys/memoire/ingestion_procedures.py",
+      "bytes": 8387,
+      "sha256": "356adcc07cda2adab9831e157f1dab9f1beb17ee0586deac9959a65efb301147",
+      "raw_sha256": "356adcc07cda2adab9831e157f1dab9f1beb17ee0586deac9959a65efb301147",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/src/opsys/memoire/store.py",
+      "bytes": 85762,
+      "sha256": "517efe2ef08fdda1c35c2ec52e7bb6d6646ba97992ed961b210b9b9466782a4e",
+      "raw_sha256": "517efe2ef08fdda1c35c2ec52e7bb6d6646ba97992ed961b210b9b9466782a4e",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/tests/test_console_memoire_import_lots.py",
+      "bytes": 15067,
+      "sha256": "c37618ee24d9574e678d928ac02514696d8312558ff98b2c06ec768711fa2c60",
+      "raw_sha256": "c37618ee24d9574e678d928ac02514696d8312558ff98b2c06ec768711fa2c60",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/tests/test_console_memoire_import_lots_references.py",
+      "bytes": 10246,
+      "sha256": "ed877675b0bda9d41854fc8f759b88d7d837cc86eeab980a73b8945ce83c0af9",
+      "raw_sha256": "ed877675b0bda9d41854fc8f759b88d7d837cc86eeab980a73b8945ce83c0af9",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/tests/test_memoire_import_lots_references.py",
+      "bytes": 8065,
+      "sha256": "53467a794f8009aef00b447da36d525e9b28b61a210f4e2d0ab2fbe41e981f8a",
+      "raw_sha256": "53467a794f8009aef00b447da36d525e9b28b61a210f4e2d0ab2fbe41e981f8a",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent/POSTIMAGE.sha256",
+      "bytes": 312,
+      "sha256": "9ce942e17b23cc1583cf94c4c65776b69a0f27eea47952ea4ec175f92c7b6839",
+      "raw_sha256": "9ce942e17b23cc1583cf94c4c65776b69a0f27eea47952ea4ec175f92c7b6839",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent/PREIMAGE.sha256",
+      "bytes": 444,
+      "sha256": "03f2ee5c4f0534afcdfd6e229f525a6783d36b92dac23d0e904c4548cb17b7af",
+      "raw_sha256": "03f2ee5c4f0534afcdfd6e229f525a6783d36b92dac23d0e904c4548cb17b7af",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/agent/changes.patch",
+      "bytes": 15130,
+      "sha256": "9a4a41eb31a9241f4c39e33e1d626acf7c2914a3f4dc796c1f3b7b7e308bd026",
+      "raw_sha256": "9a4a41eb31a9241f4c39e33e1d626acf7c2914a3f4dc796c1f3b7b7e308bd026",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/proof-root/ROOT-DIFF-r1.patch",
+      "bytes": 23639,
+      "sha256": "0fd4da3faf789852dee24f599261e478a0678a8c5748764136618f521bec5e67",
+      "raw_sha256": "0fd4da3faf789852dee24f599261e478a0678a8c5748764136618f521bec5e67",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/proof-root/ROOT-REVIEW-r1.json",
+      "bytes": 1203,
+      "sha256": "3d479a2c60d4f0e4930915ffea263205f7b9aacc2d2bd082f9515f712aa9d62b",
+      "raw_sha256": "3d479a2c60d4f0e4930915ffea263205f7b9aacc2d2bd082f9515f712aa9d62b",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/proof-root/ROOT-SOURCES-r1.json",
+      "bytes": 694,
+      "sha256": "ddff788b7002b8f9b32dd08bc65b652a61a97d795df184c9b5a1883fcc016ba5",
+      "raw_sha256": "ddff788b7002b8f9b32dd08bc65b652a61a97d795df184c9b5a1883fcc016ba5",
+      "qa_dsn_redactions": 0
+    }
+  ]
+}

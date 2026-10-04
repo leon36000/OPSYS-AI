@@ -87,6 +87,16 @@ class LotProcedure:
 
 
 @dataclasses.dataclass(frozen=True)
+class ResumeLot:
+    reference: str
+    nombre_emplacements: int
+    attente: int
+    recu: int
+    indexe: int
+    actifs: int
+
+
+@dataclasses.dataclass(frozen=True)
 class Position:
     debut_octets: int
     fin_octets: int
@@ -202,6 +212,19 @@ class IngestionProcedures:
 
     def lire_lot(self, cle_lot: str, *, auteur: str) -> LotProcedure:
         return self._memoire._lire_lot_procedure(cle_lot, auteur=auteur)
+
+    def lister_lots(self, *, auteur: str) -> tuple[ResumeLot, ...]:
+        return self._memoire._lister_lots_procedure(auteur=auteur)
+
+    def lire_lot_reference(self, reference: str, *, auteur: str) -> LotProcedure:
+        return self._memoire._lire_lot_reference(reference, auteur=auteur)
+
+    def admettre_emplacement_reference(
+        self, reference: str, position: int, contenu: bytes, *, auteur: str,
+    ) -> LotProcedure:
+        return self._memoire._admettre_emplacement_lot_reference(
+            reference, position, contenu, auteur=auteur
+        )
 
     def lister_recues(self, *, limite: int = INDEXATION_LOT_MAX) -> tuple[tuple[str, str], ...]:
         """Liste au plus cinq versions reçues dans un ordre stable, sans lire leur contenu."""

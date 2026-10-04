@@ -747,6 +747,12 @@ class MemoireEntreprise:
         return hashlib.sha256(b"opsys-m10-import-lot-v1\0" + cle_lot.encode("ascii")).hexdigest()
 
     @staticmethod
+    def _valider_reference_lot(reference: str) -> str:
+        if not isinstance(reference, str) or re.fullmatch(r"[0-9a-f]{64}", reference) is None:
+            raise ValueError("référence de lot SHA-256 minuscule attendue")
+        return reference
+
+    @staticmethod
     def _cle_admission_lot(cle_lot_sha256: str, position: int) -> str:
         brut = f"opsys-m10-import-slot-v1:{cle_lot_sha256}:{position}".encode("ascii")
         return hashlib.sha256(brut).hexdigest()
@@ -975,15 +981,56 @@ class MemoireEntreprise:
 
     def _lire_lot_procedure(self, cle_lot: str, *, auteur: str):
         cle_sha = self._empreinte_cle_lot(cle_lot)
+        return self._lire_lot_par_sha_procedure(cle_lot, cle_sha, auteur=auteur)
+
+    def _lire_lot_reference(self, reference: str, *, auteur: str):
+        reference = self._valider_reference_lot(reference)
+        return self._lire_lot_par_sha_procedure(reference, reference, auteur=auteur)
+
+    def _lire_lot_par_sha_procedure(self, identifiant: str, cle_sha: str, *, auteur: str):
         if not isinstance(auteur, str) or not auteur.strip():
             raise ValueError("auteur administrateur obligatoire")
         with self._connexion_documentaire() as cnx:
             self._verrouiller_quota_procedure(cnx)
             self._verrouiller_lot_procedure(cnx, cle_sha)
-            return self._lire_lot_dans_cnx(cnx, cle_lot, cle_sha, auteur.strip())
+            return self._lire_lot_dans_cnx(cnx, identifiant, cle_sha, auteur.strip())
+
+    def _lister_lots_procedure(self, *, auteur: str):
+        from .ingestion_procedures import ResumeLot
+
+        if not isinstance(auteur, str) or not auteur.strip() or len(auteur) > 200:
+            raise ValueError("auteur administrateur obligatoire")
+        with self._connexion_documentaire() as cnx:
+            self._verrouiller_quota_procedure(cnx)
+            rows = cnx.execute(
+                "SELECT l.cle_lot_sha256,count(e.position),"
+                "count(*) FILTER (WHERE v.id IS NULL),"
+                "count(*) FILTER (WHERE v.etat='RECU'),"
+                "count(*) FILTER (WHERE v.etat='INDEXE'),"
+                "count(*) FILTER (WHERE v.sha256=s.sha256_courante) "
+                "FROM memoire.procedure_lots l "
+                "JOIN memoire.procedure_lot_emplacements e USING(cle_lot_sha256) "
+                "LEFT JOIN memoire.procedure_versions v ON v.id=e.version_id "
+                "LEFT JOIN memoire.procedure_series s ON s.document_uuid=v.document_uuid "
+                "WHERE l.auteur=%s GROUP BY l.cle_lot_sha256,l.cree_le "
+                "ORDER BY l.cree_le DESC,l.cle_lot_sha256 LIMIT 64",
+                (auteur.strip(),),
+            ).fetchall()
+        return tuple(ResumeLot(str(row[0]), *(int(value) for value in row[1:])) for row in rows)
 
     def _admettre_emplacement_lot(self, cle_lot: str, position: int, contenu: bytes, *, auteur: str):
         cle_sha = self._empreinte_cle_lot(cle_lot)
+        return self._admettre_emplacement_lot_par_sha(cle_lot, cle_sha, position, contenu, auteur=auteur)
+
+    def _admettre_emplacement_lot_reference(
+        self, reference: str, position: int, contenu: bytes, *, auteur: str,
+    ):
+        reference = self._valider_reference_lot(reference)
+        return self._admettre_emplacement_lot_par_sha(reference, reference, position, contenu, auteur=auteur)
+
+    def _admettre_emplacement_lot_par_sha(
+        self, identifiant: str, cle_sha: str, position: int, contenu: bytes, *, auteur: str,
+    ):
         if isinstance(position, bool) or not isinstance(position, int) or not 1 <= position <= 5:
             raise ValueError("position de lot entre 1 et 5 attendue")
         if not isinstance(auteur, str) or not auteur.strip() or len(auteur) > 200:
@@ -1016,7 +1063,7 @@ class MemoireEntreprise:
                                       (version_id,)).fetchone()
                 if version is None:
                     raise ValueError("version liée au lot absente")
-                return self._lire_lot_dans_cnx(cnx, cle_lot, cle_sha, auteur)
+                return self._lire_lot_dans_cnx(cnx, identifiant, cle_sha, auteur)
             admission = self._admettre_procedure_dans_cnx(
                 cnx, contenu, digest, titre, auteur, self._cle_admission_lot(cle_sha, position), cible,
                 quota_verrouille=True,
@@ -1028,7 +1075,7 @@ class MemoireEntreprise:
             )
             if maj.rowcount != 1:
                 raise ValueError("conflit de rattachement d'emplacement")
-            return self._lire_lot_dans_cnx(cnx, cle_lot, cle_sha, auteur)
+            return self._lire_lot_dans_cnx(cnx, identifiant, cle_sha, auteur)
 
     def _etat_procedure(self, document_id: str, *, absent_ok: bool = False):
         import uuid

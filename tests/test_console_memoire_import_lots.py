@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 
 from opsys.console import memoire_ingestion_ui
 from opsys.console.securite import Session
-from opsys.memoire.ingestion_procedures import EmplacementLot, LotProcedure
+from opsys.memoire.ingestion_procedures import EmplacementLot, LotProcedure, ResumeLot
 from opsys.memoire.store import MemoireIndisponible
 
 
@@ -26,6 +26,18 @@ class _FacadeLots:
         self.lecture_indisponible = False
         self.retrait_role_apres_premier = False
         self.retirer_role = None
+
+    def lister_lots(self, *, auteur):
+        return tuple(
+            ResumeLot(
+                hashlib.sha256(cle.encode()).hexdigest(), len(lot.emplacements),
+                sum(s.etat == "ATTENTE" for s in lot.emplacements),
+                sum(s.etat == "RECU" for s in lot.emplacements),
+                sum(s.etat == "INDEXE" for s in lot.emplacements),
+                sum(s.active for s in lot.emplacements),
+            )
+            for cle, lot in self.lots.items() if lot.auteur == auteur
+        )
 
     def creer_lot(self, cle_lot, sources, *, auteur):
         self.mutations.append(("creer", None))
@@ -347,3 +359,20 @@ def test_limites_nombre_et_octets_refusent_sans_mutation(console_lots, sources):
     )
     assert response.status_code in {400, 413}
     assert service.mutations == []
+
+
+
+def test_role_retire_pendant_liste_imports_bloque_affichage(console_lots, monkeypatch):
+    client, service, active = console_lots
+    original = service.lister_lots
+
+    def retirer_role(*args, **kwargs):
+        lots = original(*args, **kwargs)
+        active["admin"] = False
+        return lots
+
+    monkeypatch.setattr(service, "lister_lots", retirer_role)
+    response = client.get("/memoire/procedures/imports")
+    assert response.status_code == 403
+    assert "Mes imports M03" not in response.text
+    assert response.headers["cache-control"] == "no-store"

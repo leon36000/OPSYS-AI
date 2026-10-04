@@ -35,6 +35,9 @@ leurs commits respectifs, pas sur une tranche ultérieure. Aucune fusion ni prom
 La [reprise M10 des imports internes](../grs/memory/M10-IMPORT-LOTS-REPRISE-2026-10-04.md)
 consolide le parcours PostgreSQL/console; l'ingestion universelle et l'assimilation
 sur corpus client restent à qualifier.
+La [liste privée Mes imports](../grs/memory/M10-MES-IMPORTS-REPRISE-2026-10-04.md)
+ajoute une reprise après fermeture de navigateur, avec 95 tests intégrés sur neuf
+fichiers, PostgreSQL réel, sans skip. Les périmètres des campagnes restent distincts.
 
 Base auditée : `2e56c0d5605dfe575bde9244f38924d5390f2674`, branche récente de Claude.
 18 815 tests locaux passés et 78 sautés lors de l'audit ; core/mobile CI verts sur l'arbre consulté,

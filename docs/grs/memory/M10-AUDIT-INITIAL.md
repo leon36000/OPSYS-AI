@@ -2,6 +2,11 @@
 
 ## Actualisation du 4 octobre — imports internes reprenables
 
+[Mes imports et reprise après fermeture du navigateur](M10-MES-IMPORTS-REPRISE-2026-10-04.md)
+complète cette tranche par une projection privée des manifestes déjà stockés et des
+références stables; sans nouveau backend, corps copié ni clé originale persistée.
+ROOT r108 qualifie 95 cas sur neuf fichiers, incluant les 82 de la tranche précédente.
+
 La [tranche de reprise durable](M10-IMPORT-LOTS-REPRISE-2026-10-04.md) complète
 l'admission individuelle par un manifeste PostgreSQL de un à cinq documents M03,
 positions stables, rejeu idempotent, succès partiels et effacement des manifests liés.
