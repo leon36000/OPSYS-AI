@@ -196,7 +196,7 @@ describe("OPSYS target tickets on the final MCP call boundary", () => {
     { "opsys/personne": "personne.synthetic", "opsys/role": "admin", "opsys/appareil": "device" },
     {
       "opsys/idempotencyKey": "key",
-      "opsys/appareil": "device",
+      "opsys/appareil": "",
       "opsys/horodatageAppareil": "2026-10-04T00:00:00Z",
     },
   ])("refuses incomplete purported device metadata before either MCP call: %j", async (meta) => {

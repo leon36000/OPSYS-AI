@@ -31,11 +31,21 @@ falsifier). Trois clés, sous l'espace de noms `opsys/` :
 | `opsys/appareil` | string non vide | Oui | Identité de l'appareil appairé (table `appareils`, ADR-0009 §5) |
 | `opsys/horodatageAppareil` | string RFC 3339 **avec fuseau** | Oui | Heure locale de l'appareil au moment de la mutation (affichage seulement) |
 
-Sans `opsys/idempotencyKey`, le comportement de `Capacites.appeler` est **strictement inchangé**
+Sans identité d'appareil et sans `opsys/idempotencyKey`, le comportement de `Capacites.appeler` reste inchangé
 (aucune table touchée, aucune clé `rejoue` dans la réponse) : tout appelant MCP qui ne connaît pas
 ce contrat (Hermes, Claude Code, un futur outil interne) continue de fonctionner exactement comme
 avant T1.4-b.
 
+Une identité d'appareil authentifiée (`opsys/personne`, `opsys/role`) sans enveloppe
+d'idempotence permet seulement les outils **T0 et N0** du registre métier. Toute autre
+opération est refusée par `Capacites.appeler` avec `idempotence_appareil_requise`, avant
+tout effet, demande d'approbation ou réclamation. T0 seul ne suffit pas : un outil peut
+déclarer explicitement N1/N2 pour un brouillon ou une tâche interne. La décision vient du
+registre Python, pas d'une annotation MCP `readOnlyHint` ni d'une liste de noms dans le Gateway.
+Le contexte console et les appels d'agents sans identité d'appareil conservent leur protocole.
+
+Un champ `opsys/appareil` ou `opsys/horodatageAppareil` sans clé est également refusé :
+une enveloppe partielle ne devient jamais silencieusement un appel sans idempotence.
 Si `opsys/idempotencyKey` est présent mais que `opsys/appareil` manque, ou que
 `opsys/horodatageAppareil` manque ou n'a pas de fuseau, l'appel est refusé proprement
 (`{"ok": false, "erreur": "meta_invalide", ...}`, fail-closed) plutôt que d'exécuter sans

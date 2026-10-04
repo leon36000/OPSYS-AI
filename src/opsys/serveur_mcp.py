@@ -80,8 +80,8 @@ def creer_serveur(
             )
         # Idempotence d'appareil (T1.4-b) : clé et identité voyagent dans le `_meta` MCP de
         # `tools/call`, jamais dans les arguments que le modèle produit (contrat complet :
-        # docs/architecture/IDEMPOTENCE.md). Sans `opsys/idempotencyKey`, `meta` est None et
-        # `Capacites.appeler` se comporte exactement comme avant T1.4-b.
+        # docs/architecture/IDEMPOTENCE.md). Sans `opsys/idempotencyKey`, `meta` est None ;
+        # une identité d'appareil ne peut alors appeler qu'une lecture T0/N0.
         try:
             meta = idempotence.depuis_meta_mcp(params.meta)
             ticket_cible = liaison_cibles.depuis_meta_mcp(params.meta)

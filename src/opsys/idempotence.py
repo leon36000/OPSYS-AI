@@ -68,12 +68,18 @@ def _horodatage_valide(valeur: str) -> bool:
 
 def depuis_meta_mcp(meta: Mapping[str, Any] | None) -> Meta | None:
     """Structure typée depuis `params.meta` (MCP `_meta`) ; None si aucune idempotence demandée
-    (aucune `opsys/idempotencyKey`) — dans ce cas, `Capacites.appeler` reste inchangée.
+    (aucune `opsys/idempotencyKey`). `Capacites.appeler` refuse ensuite une mutation
+    d'appareil sans cette enveloppe ; les appels internes sans identité restent inchangés.
 
-    Lève ValueError si la clé est présente mais l'appareil ou l'horodatage manque ou est mal formé :
+    Lève ValueError si un champ est présent sans clé, ou si la clé est présente mais
+    l'appareil ou l'horodatage manque ou est mal formé :
     fail-closed, un refus explicite vaut mieux qu'une idempotence tue en silence.
     """
-    if not meta or CLE_META not in meta:
+    if not meta:
+        return None
+    if CLE_META not in meta:
+        if APPAREIL_META in meta or HORODATAGE_META in meta:
+            raise ValueError(f"{CLE_META} requis quand un champ d'idempotence est fourni")
         return None
     cle, appareil, horodatage = meta.get(CLE_META), meta.get(APPAREIL_META), meta.get(HORODATAGE_META)
     if not isinstance(cle, str) or not cle.strip():

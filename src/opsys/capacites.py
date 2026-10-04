@@ -251,9 +251,23 @@ class Capacites:
     ) -> dict[str, Any]:
         """Exécute `nom`. `meta` (idempotence d'appareil, T1.4-b) vient du `_meta` MCP de
         `tools/call` (`serveur_mcp.appeler_outil`), jamais des arguments produits par le modèle.
-        Sans `meta`, comportement strictement inchangé : voir `docs/architecture/IDEMPOTENCE.md`.
+        Sans identité d'appareil et sans `meta`, le comportement interne reste inchangé.
+        Une identité d'appareil seule permet une lecture T0/N0 ; toute autre opération
+        exige l'enveloppe d'idempotence avant le répartiteur métier.
         """
         args = dict(arguments or {})
+        appelante = identite_appelante()
+        entree = self.index.get(nom)
+        if meta is None and appelante is not None and appelante.source == "appareil" and entree is not None:
+            outil = entree[1]
+            # Autonomie T0 alone is insufficient: some internal drafts/tasks explicitly use N1/N2.
+            # The business registry owns this decision; MCP readOnlyHint is not an authorization policy.
+            if outil.autonomie is not Autonomie.T0 or outil.niveau_effectif is not Niveau.N0:
+                return {
+                    "ok": False,
+                    "erreur": "idempotence_appareil_requise",
+                    "details": "Une mutation d'appareil exige une clé, un appareil et un horodatage validés.",
+                }
         if nom == "opsys_memoire_rechercher":
             if ticket_cible is not None:
                 return {"ok": False, "erreur": "ticket_cible_hors_portee_memoire"}

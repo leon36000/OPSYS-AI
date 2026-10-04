@@ -129,6 +129,27 @@ describe("agent-bundle-mcp-runtime callTool OPSYS _meta", () => {
     });
   });
 
+  it("preserves internal idempotency without inferring a device identity on the actual wire", async () => {
+    const meta = {
+      "opsys/idempotencyKey": "internal-call-synthetic-1",
+      "opsys/appareil": "internal-synthetic",
+      "opsys/horodatageAppareil": "2026-10-04T00:00:00Z",
+    };
+    const received = await withMcpCallMeta(meta, () =>
+      callEchoMeta({
+        serverName: "opsys_m5",
+        sessionKey: "agent:opsys-agent-worker:session-mcp-call-meta",
+        profile: { agentId: "opsys-agent-worker", profileId: "worker", profileRevision: 7 },
+      }),
+    );
+    expect(received.meta).toStrictEqual({
+      ...meta,
+      "opsys/runtimeProfileId": "worker",
+      "opsys/runtimeProfileRevision": "7",
+      "opsys/runtimeServer": "opsys_m5",
+    });
+  });
+
   it("sends the host profile binding as flat MCP _meta on the actual stdio wire", async () => {
     const received = await withMcpCallMeta(
       {

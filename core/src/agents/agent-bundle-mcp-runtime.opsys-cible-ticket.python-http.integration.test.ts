@@ -41,8 +41,9 @@ beforeEach(async () => {
 
 function requiredPython(): string {
   const python = process.env.OPSYS_TEST_PYTHON;
-  if (!python)
+  if (!python) {
     throw new Error("OPSYS_TEST_PYTHON is required for the Python HTTP ticket integration test");
+  }
   return python;
 }
 
@@ -51,7 +52,9 @@ function childExited(child: ChildProcess): boolean {
 }
 
 async function stopChild(child: ChildProcess): Promise<void> {
-  if (childExited(child)) return;
+  if (childExited(child)) {
+    return;
+  }
   child.kill("SIGTERM");
   const exited = await new Promise<boolean>((resolveExit) => {
     const timeout = setTimeout(() => resolveExit(false), 2_000);
@@ -60,7 +63,9 @@ async function stopChild(child: ChildProcess): Promise<void> {
       resolveExit(true);
     });
   });
-  if (exited || childExited(child)) return;
+  if (exited || childExited(child)) {
+    return;
+  }
   child.kill("SIGKILL");
   await new Promise<void>((resolveExit, reject) => {
     const timeout = setTimeout(
@@ -122,8 +127,9 @@ async function runFixture(
     child.once("error", reject);
     child.once("exit", (value) => resolveExit(value ?? 1));
   });
-  if (code !== 0)
+  if (code !== 0) {
     throw new Error(`Python target ticket fixture failed (${code}): ${stderr.slice(-2_000)}`);
+  }
   return stdout.trim();
 }
 
@@ -134,10 +140,12 @@ async function reservePort(): Promise<number> {
     server.listen(0, "127.0.0.1", resolveListen);
   });
   const address = server.address();
-  if (!address || typeof address === "string") throw new Error("Could not allocate loopback port");
-  await new Promise<void>((resolveClose, reject) =>
-    server.close((error) => (error ? reject(error) : resolveClose())),
-  );
+  if (!address || typeof address === "string") {
+    throw new Error("Could not allocate loopback port");
+  }
+  await new Promise<void>((resolveClose, reject) => {
+    server.close((error) => (error ? reject(error) : resolveClose()));
+  });
   return address.port;
 }
 
@@ -239,7 +247,9 @@ afterEach(async () => {
   const manager = getSessionMcpRuntimeManagerForTesting();
   await manager.disposeSession("opsys-real-python-cible-ticket");
   await manager.disposeSession("opsys-real-python-m3-n4-device");
-  for (const child of children.splice(0)) await stopChild(child);
+  for (const child of children.splice(0)) {
+    await stopChild(child);
+  }
   await Promise.all(
     tempDirs.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
   );
@@ -285,9 +295,23 @@ describe("OPSYS target ticket through Core and the real Python HTTP MCP", () => 
       linked: true,
     });
 
+    const withoutIdempotency = await withMcpCallMeta(
+      { "opsys/personne": "nathan-fixture", "opsys/role": "admin" },
+      () => runtime.callTool("opsys_m2", TOOL, { ...ARGS, resume: "mutation sans idempotence" }),
+    );
+    expect(withoutIdempotency.isError).toBe(true);
+    const refusedText = withoutIdempotency.content.find((item) => item.type === "text")?.text;
+    expect(JSON.parse(refusedText ?? "null")).toMatchObject({
+      ok: false,
+      erreur: "idempotence_appareil_requise",
+    });
+    expect(JSON.parse(await runFixture(python, home, "inspect"))).toStrictEqual({
+      interactions: 1,
+      linked: true,
+    });
     await expect(
-      withMcpCallMeta({ "opsys/personne": "personne.fake", "opsys/role": "admin" }, () =>
-        runtime.callTool("opsys_m2", TOOL, { ...ARGS, resume: "appel métadonnées incomplètes" }),
+      withMcpCallMeta({ "opsys/personne": "nathan-fixture" }, () =>
+        runtime.callTool("opsys_m2", TOOL, { ...ARGS, resume: "identité partielle" }),
       ),
     ).rejects.toThrow(/authenticated metadata is incomplete/i);
     const forged = await withMcpCallMeta(
@@ -354,7 +378,9 @@ describe("OPSYS target ticket through Core and the real Python HTTP MCP", () => 
     expect(ticketEnvelope.ok).toBe(true);
     expect(typeof ticketEnvelope.resultat?.ticket).toBe("string");
     const ticket = ticketEnvelope.resultat?.ticket;
-    if (!ticket) throw new Error("real Python target ticket issuer returned no ticket");
+    if (!ticket) {
+      throw new Error("real Python target ticket issuer returned no ticket");
+    }
     const firstReplayCall = await callRealPythonMcp(
       port,
       "/mcp/m02-revenue-crm",

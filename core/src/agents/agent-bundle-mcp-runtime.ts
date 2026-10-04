@@ -1123,7 +1123,7 @@ function createServerMcpRuntime(
       );
       if (
         (hasAnyIdentityMeta && !hasCompleteIdentityMeta) ||
-        (hasAnyIdempotencyMeta && (!hasCompleteIdempotencyMeta || !hasCompleteIdentityMeta))
+        (hasAnyIdempotencyMeta && !hasCompleteIdempotencyMeta)
       ) {
         throw new Error("OPSYS device call refused: authenticated metadata is incomplete");
       }
@@ -1133,7 +1133,8 @@ function createServerMcpRuntime(
         throw new Error("OPSYS memory refused: device memory catalogue is closed");
       }
       // Device reads carry host-authenticated person/role; writes add the complete idempotency
-      // envelope. A partial envelope or an envelope without identity remains refused. The
+      // envelope. A partial envelope remains refused. Complete idempotency metadata on an
+      // internal/shared-secret call does not establish a device identity. The
       // Python capability revalidates that human at the effect boundary; target tickets are for
       // model calls and must not replace the established device authorization path.
       const cibleTicket = isAuthenticatedOpsysDeviceCall
