@@ -1,4 +1,4 @@
-"""La preuve de bout en bout (`tests/installateur/bout_en_bout.sh`) jouée contre un FAUX core (PLAN T0.11-d).
+"""La preuve de bout en bout (`tests/installateur/bout_en_bout.sh`) jouée contre un FAUX core et faux Docker.
 
 Le script de preuve n'a jamais tourné sur macOS. Le bac à sable ne construit pas le core et n'a pas macOS : on
 essaie donc le script LUI-MÊME, avant la CI, contre `tests/installateur/faux_core.py` (le moteur Python est le vrai) et
@@ -18,6 +18,7 @@ faux ; que launchd du poste de CI a une session graphique.
 from __future__ import annotations
 
 import contextlib
+import json
 import os
 import re
 import shutil
@@ -68,6 +69,15 @@ echo "shasum: seul -a 256 est émulé" >&2
 exit 1
 '''
 ABSENT = '#!/usr/bin/env bash\necho "$0: command not found" >&2\nexit 127\n'  # ce que macOS n'a pas
+FAUX_DOCKER = r'''#!/usr/bin/env bash
+printf 'docker %s\n' "$*" >>"$FAUX_JOURNAL"
+"$FAUX_PYTHON" -c 'import json,sys; print(json.dumps(sys.argv[1:]))' "$@" >>"$FAUX_DOCKER_ARGV"
+case "$*" in
+    "info --format {{.OSType}}") echo linux ;;
+    "image inspect openclaw-sandbox:bookworm-slim") exit 0 ;;
+    *) echo "commande Docker inattendue dans la fixture : $*" >&2; exit 2 ;;
+esac
+'''
 LAUNCHCTL = '''#!/usr/bin/env bash
 [ "${1:-}" = "print" ] || { echo "faux launchctl : $*" >&2; exit 64; }
 cible="${2:-}"
@@ -106,7 +116,7 @@ def _version_pnpm() -> str:
 
 
 class Poste:
-    """Un poste fictif : HOME, dossier de travail, faux node/pnpm/uv, et (macOS) les faux BSD."""
+    """Un poste fictif : faux core, faux node/pnpm/uv/Docker et, pour macOS, fausses commandes BSD."""
 
     def __init__(self, tmp_path: Path, *, macos: bool) -> None:
         self.macos = macos
@@ -118,7 +128,7 @@ class Poste:
         self.hote.mkdir(parents=True)
         self.faux.mkdir()
         self.port_gateway, self.port_moteur = _port_libre(), _port_libre()
-        for nom, corps in (("node", FAUX_NODE), ("pnpm", FAUX_PNPM), ("uv", FAUX_UV)):
+        for nom, corps in (("node", FAUX_NODE), ("pnpm", FAUX_PNPM), ("uv", FAUX_UV), ("docker", FAUX_DOCKER)):
             self.ecrire(nom, corps)
         if macos:
             for nom, corps in (("uname", UNAME_DARWIN), ("stat", STAT_BSD), ("shasum", SHASUM_BSD),
@@ -154,6 +164,7 @@ class Poste:
             "OPSYS_PORT_GATEWAY": str(self.port_gateway), "OPSYS_PORT_MOTEUR": str(self.port_moteur),
             "FAUX_PYTHON": sys.executable, "FAUX_CORE": str(FAUX_CORE), "FAUX_PNPM_VERSION": _version_pnpm(),
             "FAUX_LAUNCHD": str(self.hote / ".faux-launchd"), "FAUX_JOURNAL": str(self.travail / "appels.log"),
+            "FAUX_DOCKER_ARGV": str(self.travail / "docker-argv.jsonl"),
         })
         env.update(supplement)
         return env
@@ -163,6 +174,22 @@ class Poste:
         self.travail.mkdir(exist_ok=True)
         return subprocess.run(["bash", str(SCRIPT)], env=self.env(**supplement), cwd=RACINE, capture_output=True,
                               text=True, timeout=timeout, check=False)
+
+    def arguments_docker(self) -> list[list[str]]:
+        journal = self.travail / "docker-argv.jsonl"
+        if not journal.exists():
+            return []
+        return [json.loads(ligne) for ligne in journal.read_text(encoding="utf-8").splitlines()]
+
+    def verifier_docker_factice(self) -> None:
+        commandes = self.arguments_docker()
+        assert ["info", "--format", "{{.OSType}}"] in commandes
+        assert ["image", "inspect", "openclaw-sandbox:bookworm-slim"] in commandes
+        autorisees = (
+            ["info", "--format", "{{.OSType}}"],
+            ["image", "inspect", "openclaw-sandbox:bookworm-slim"],
+        )
+        assert all(commande in autorisees for commande in commandes)
 
     def secrets(self) -> list[str]:
         env = (self.etat_core / ".env").read_text(encoding="utf-8")
@@ -205,6 +232,10 @@ def test_macos_la_preuve_entiere_passe_avec_le_service_launchd(macos):
 
     sortie = _sortie(resultat)
     assert resultat.returncode == 0, sortie
+    macos.verifier_docker_factice()
+    _verifier_fournisseurs(macos, mode="natif")
+    installation = (macos.travail / "installation-1.log").read_text(encoding="utf-8")
+    assert "natifs OpenClaw" in installation and "aucun service LiteLLM requis" in installation
     assert "== Tout est vrai" in resultat.stdout
     for etape in ("0. Poste", "1. Installation (sans service)", "1 quinquies. Installation d'avant le lot 3",
                   "2. Gateway au premier plan", "3. Relance", f"5. Service utilisateur ({ETIQUETTE})",
@@ -236,10 +267,14 @@ def test_macos_la_preuve_entiere_passe_avec_le_service_launchd(macos):
 
 
 def test_linux_la_preuve_sans_service_passe_avec_les_commandes_gnu(linux):
-    resultat = linux.jouer(OPSYS_SANS_SERVICE="1", GITHUB_ACTIONS="true", GITHUB_STEP_SUMMARY=str(linux.resume))
+    resultat = linux.jouer(OPSYS_SANS_SERVICE="1", GITHUB_ACTIONS="true", GITHUB_STEP_SUMMARY=str(linux.resume),
+                          OPSYS_MODE_FOURNISSEUR="litellm", OPSYS_PASSERELLE_URL="http://127.0.0.1:9/v1")
 
     sortie = _sortie(resultat)
     assert resultat.returncode == 0, sortie
+    linux.verifier_docker_factice()
+    _verifier_fournisseurs(linux, mode="litellm")
+    assert "LiteLLM de compatibilité" in (linux.travail / "installation-1.log").read_text(encoding="utf-8")
     assert "== Tout est vrai" in resultat.stdout
     assert "OK  poste neuf (Linux)" in resultat.stdout
     # T0.7 lot 3 : la migration de l'état d'avant se prouve sans service ; l'étape du service d'avant saute avec lui
@@ -260,6 +295,22 @@ def test_linux_la_preuve_sans_service_passe_avec_les_commandes_gnu(linux):
     assert "prouvé : **non**" in resume  # jamais un faux vert : la phase sautée est dite
     for secret in linux.secrets():
         assert secret not in _sans_masque(sortie)
+
+
+def _verifier_fournisseurs(poste: Poste, *, mode: str) -> None:
+    """Le vrai moteur a produit un catalogue distinct pour chaque choix d'installation."""
+    fournisseurs = json.loads((poste.etat_core / "opsys" / "models.json").read_text(encoding="utf-8"))["providers"]
+    env = (poste.etat_core / ".env").read_text(encoding="utf-8")
+    if mode == "natif":
+        assert "anthropic" in fournisseurs
+        assert fournisseurs["anthropic"]["apiKey"] == "${ANTHROPIC_API_KEY}"
+        assert not any(nom.startswith("opsys-m") for nom in fournisseurs)
+        assert "OPSYS_MODE_FOURNISSEUR=" not in env and "OPSYS_PASSERELLE_URL=" not in env
+    else:
+        assert "anthropic" not in fournisseurs
+        assert fournisseurs["opsys-m1"]["baseUrl"] == "http://127.0.0.1:9/v1"
+        assert "OPSYS_MODE_FOURNISSEUR=litellm\n" in env
+        assert "OPSYS_PASSERELLE_URL=http://127.0.0.1:9/v1\n" in env
 
 
 # -- les contrôles du service launchd, un à un (contrôles négatifs) --------------------------------------------------

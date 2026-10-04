@@ -15,10 +15,11 @@ Doctrine :
     §3) : l'un n'est jamais déduit de l'autre. Fail-closed : absent ou faux, aucun brouillon. Le
     consentement doit aussi venir avec sa PREUVE, posée par M4 (qui l'a recueilli, quand, quel texte
     a été présenté) : un consentement que personne ne peut relire n'est pas documenté.
-  - `client_satisfait = false` refuse encore (aucune demande à un client connu insatisfait, règle de
-    T1.2-c) ; son absence ou `null` (« non recueilli, jamais inventé ») ne refuse plus : c'est le
-    client qui a demandé à être sollicité, pas un signal deviné. Décision à confirmer par Nathan : les
-    plateformes d'avis interdisent de ne solliciter que les clients satisfaits (P9).
+  - La satisfaction ne décide jamais si un client reçoit la demande : les clients consentants et
+    éligibles reçoivent le même texte neutre, qu'ils soient satisfaits, insatisfaits ou non évalués.
+    Les exclusions sont opérationnelles et explicites : consentement absent/faux, preuve manquante,
+    ou nature des travaux contradictoire. Une plainte suit son traitement privé et humain sans changer
+    l'éligibilité à la demande d'avis.
   - Nature des travaux (PLAN T0.13-b) : un WCT de lead v1 porte `type_travaux`, un WCT de lead v2
     porte `service` (code de la taxonomie). Le texte dit `type_travaux` pour un v1 et le LIBELLÉ du
     service pour un v2, que l'adaptateur résout (`libelle_service`) ; jamais l'un déduit de l'autre, et
@@ -44,7 +45,6 @@ REFUS_PREUVE_ABSENTE = (
     "preuve du consentement absente (fail-closed) : aucun brouillon sans qui l'a recueilli, quand, "
     "et quel texte a été présenté au client"
 )
-REFUS_CLIENT_INSATISFAIT = "client_satisfait = false : aucune demande d'avis à un client insatisfait"
 REFUS_NATURE_TRAVAUX_AMBIGUE = (
     "type_travaux ET service dans le même WCT (lead v1 ou v2, jamais les deux) : aucun brouillon"
 )
@@ -59,8 +59,8 @@ CLES_PREUVE = ("consentement_recueilli_par", "consentement_recueilli_le", "conse
 _GABARIT = (
     "Bonjour,\n\n"
     "Merci d'avoir fait confiance à notre équipe pour vos travaux{lieu}. "
-    "Si vous êtes satisfait du résultat, accepteriez-vous de laisser un avis Google ? "
-    "Cela nous aide énormément à faire connaître notre travail.\n\n"
+    "Si vous le souhaitez, vous pouvez partager un avis honnête sur votre expérience. "
+    "Tous les commentaires nous aident à nous améliorer et aident les autres clients à faire un choix éclairé.\n\n"
     "Cordialement,\nL'équipe"
 )
 
@@ -77,8 +77,6 @@ def _motif_refus(charge: Mapping[str, Any]) -> str | None:
         return REFUS_CONSENTEMENT_FAUX
     if not all(_texte_non_vide(charge.get(cle)) for cle in CLES_PREUVE):
         return REFUS_PREUVE_ABSENTE
-    if charge.get("client_satisfait") is False:
-        return REFUS_CLIENT_INSATISFAIT
     if "type_travaux" in charge and "service" in charge:
         return REFUS_NATURE_TRAVAUX_AMBIGUE
     return None
@@ -111,8 +109,9 @@ def _nature_des_travaux(
 def construire_brouillon(
     charge: Mapping[str, Any], libelle_service: str | None = None, motif_service: str | None = None,
 ) -> tuple[dict[str, Any] | None, str | None]:
-    """`(brouillon, None)` si `consentement_demande_avis` est vrai, sa preuve est là et le client n'est
-    pas connu insatisfait ; sinon `(None, motif)`. Jamais d'exception : un refus métier n'est pas une
+    """`(brouillon, None)` si le consentement à être contacté est vrai et prouvé, indépendamment de
+    la satisfaction ; sinon `(None, motif)` pour une exclusion opérationnelle explicite. Jamais
+    d'exception : un refus métier n'est pas une
     panne, la structure de `charge` (champs requis du WCT) est déjà garantie par le schéma JSON du
     catalogue avant que ceci ne soit appelé.
 

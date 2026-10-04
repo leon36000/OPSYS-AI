@@ -250,6 +250,10 @@ def _ingerer_et_lier(
             "lead_id": lead_id,
             "client_id": lien_client["client_id"],
             "horodatage_association": accuse["horodatage"],
+            # Attribution marketing minimisée : seuls les deux UTM canoniques déjà validés par
+            # `contrats.py` traversent le bus. Aucun UTM content/medium ni champ de contact.
+            **({"utm": {k: contrat["utm"][k] for k in ("utm_source", "utm_campaign") if k in contrat["utm"]}}
+               if isinstance(contrat.get("utm"), dict) else {}),
         },
         f"m2-client-associe-{lead_id}",
     )

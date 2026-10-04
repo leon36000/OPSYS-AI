@@ -70,13 +70,13 @@ def orchestrer_chantier_vers_social(
     acteur_approuve: str,
     adapter_config: dict | None = None,
 ) -> dict:
-    """Point d'entrée unique du workflow chantier -> contenu social.
+    """Prépare une proposition locale depuis une fixture; ce workflow historique ne valide ni ne publie.
 
     Args:
         chemin_chantier: Chemin vers le fichier chantier.yaml.
         timestamp: Horodatage ISO-8601 fourni par l'appelant.
-        acteur_propose: Identifiant de l'acteur proposant le contenu.
-        acteur_approuve: Identifiant de l'acteur approuvant le contenu (doit être différent).
+        acteur_propose: Paramètre de compatibilité historique; n'est pas une preuve, l'identité vient du serveur.
+        acteur_approuve: Paramètre de compatibilité historique; ignoré, seul le contexte propriétaire confirmé décide.
         adapter_config: Configuration pour PostizAdapter (défaut: {"enabled": True, "dry_run": False}).
 
     Returns:
@@ -85,6 +85,10 @@ def orchestrer_chantier_vers_social(
     Raises:
         ValueError: Si la fixture n'a pas ``fictif: true``, ou si la nature de ses travaux est
             invalide pour la version qu'elle déclare (``type_travaux`` v1, ``service`` v2).
+
+    La file de démonstration reste en mémoire. Une décision exige l'identité propriétaire confirmée par le serveur
+    et une transaction OPSYS; les arguments d'acteur ne peuvent pas approuver. Ce chemin ne fournit aucun reçu de
+    publication.
     """
     # ------------------------------------------------------------------
     # 1. Chargement et validation de la fixture

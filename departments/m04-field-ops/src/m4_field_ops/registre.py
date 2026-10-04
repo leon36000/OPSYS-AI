@@ -57,6 +57,7 @@ _TYPE_ENTREE_VALIDES = {
     # PLAN T4.14-b (M4.6) : la charge m6.materiel_pret la plus récente d'un devis accepté (materiel.py). M6 dit ce qui
     # est réservé ; M4 le range pour que la préparation le lise, sans jamais importer M6 ni lire son stock.
     "materiel_pret_recu",
+    "heures_regulieres_validees",
 }
 
 

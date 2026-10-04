@@ -26,6 +26,9 @@ export type TranslationMemoryEntry = {
   tgt_lang: string;
   translated: string;
   updated_at: string;
+  // Public provenance for explicitly reviewed, offline imports. Other legacy
+  // provider/model fields remain private and are not projected by the renderer.
+  provider?: "curated-local";
 };
 
 export type LocaleMeta = {
@@ -164,6 +167,8 @@ export function createControlUiLocaleSyncPlan(input: {
       translated: ReadonlyMap<string, string>,
       metadata: {
         sourceLocale: string;
+        sourcePath?: string;
+        provider?: "curated-local";
         updatedAt: () => string;
       },
     ): void {
@@ -176,13 +181,14 @@ export function createControlUiLocaleSyncPlan(input: {
         translationMemory.set(item.cacheKey, {
           cache_key: item.cacheKey,
           segment_id: item.key,
-          source_path: `ui/src/i18n/locales/${input.entry.fileName}`,
+          source_path: metadata.sourcePath ?? `ui/src/i18n/locales/${input.entry.fileName}`,
           src_lang: metadata.sourceLocale,
           text: item.text,
           text_hash: item.textHash,
           tgt_lang: input.entry.locale,
           translated: value,
           updated_at: metadata.updatedAt(),
+          ...(metadata.provider === "curated-local" ? { provider: metadata.provider } : {}),
         });
       }
     },
@@ -305,6 +311,7 @@ function renderTranslationMemory(
       tgt_lang: source.tgt_lang,
       translated,
       updated_at: source.updated_at,
+      ...(source.provider === "curated-local" ? { provider: source.provider } : {}),
     });
   }
 

@@ -95,7 +95,7 @@ def cles_du_bloc_yaml(motif_titre, niveau_titre_suivant):
             f"qui ferme la section), reçu {type(niveau_titre_suivant).__name__}"
         )
     titre_suivant = re.compile(
-        r"^#{1,%d}\s" % niveau_titre_suivant, re.MULTILINE
+        rf"^#{{1,{niveau_titre_suivant}}}\s", re.MULTILINE
     ).search(vue, debut_section)
     fin_section = titre_suivant.start() if titre_suivant else len(texte)
     section = texte[debut_section:fin_section]

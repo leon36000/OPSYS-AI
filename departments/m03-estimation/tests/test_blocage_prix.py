@@ -15,13 +15,13 @@ ce fichier doit ÉCHOUER à l'exécution — c'est le RED attendu de la story.
 
 import ast
 import sys
+from pathlib import Path
 
 import pytest
-from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from m3_estimation import blocage_prix, contrats, hierarchie_echelle, qualite_photos, verdicts
+from m3_estimation import blocage_prix, contrats, hierarchie_echelle, verdicts
 
 # Verdicts d'estimation qui BLOQUENT le prix : celui qui nomme la cause
 # (QUALITE_ENTREE_INSUFFISANTE) et l'échappatoire D-032 (INDETERMINE), qui ne
@@ -467,9 +467,8 @@ def test_aucun_import_reseau_modele_alea_ni_horloge():
         if isinstance(noeud, ast.Import):
             for alias in noeud.names:
                 importes.add(alias.name.split(".")[0])
-        elif isinstance(noeud, ast.ImportFrom):
-            if noeud.level == 0 and noeud.module is not None:
-                importes.add(noeud.module.split(".")[0])
+        elif isinstance(noeud, ast.ImportFrom) and noeud.level == 0 and noeud.module is not None:
+            importes.add(noeud.module.split(".")[0])
     assert IMPORTS_INTERDITS.isdisjoint(importes)
 
 

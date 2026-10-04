@@ -14,6 +14,14 @@ import { normalizeCronRuntimeAuthority } from "../runtime-authority.js";
 import { normalizeCronScheduledToolPolicy } from "../scheduled-tool-policy.js";
 import { cronJobUsesToolRuntime } from "../tools-allow.js";
 import type { CronStoredJob, CronToolsAllowProvenance } from "../types.js";
+import {
+  OPSYS_CRON_AUTHORITY_CIPHERTEXT_PREFIX,
+  OPSYS_CRON_AUTHORITY_NAMESPACE,
+  OPSYS_CRON_AUTHORITY_RUNTIME_ID,
+  openOpsysCronAuthority,
+  sealOpsysCronAuthority,
+  type OpsysCronAuthorityBinding,
+} from "./opsys-runtime-authority-crypto.js";
 
 const CRON_RUNTIME_AUTHORITY_TABLE = "cron_job_runtime_authorities";
 const CRON_RUNTIME_AUTHORITY_FINGERPRINT_VERSION = 1;
@@ -106,18 +114,71 @@ function loadCronRuntimeAuthorityRows(
   ).rows;
 }
 
+function reservedLegacyOpsysAuthority(value: unknown): boolean {
+  return value !== null && typeof value === "object" && !Array.isArray(value) &&
+    Reflect.get(value, "namespace") === OPSYS_CRON_AUTHORITY_NAMESPACE;
+}
+
+function isReservedOpsysAuthorityJson(value: string | null): boolean {
+  if (value === null) return false;
+  if (value.startsWith(OPSYS_CRON_AUTHORITY_CIPHERTEXT_PREFIX)) return true;
+  return reservedLegacyOpsysAuthority(safeParseJson(value));
+}
+
+function markOpsysAuthorityPreserved(job: CronStoredJob): void {
+  job.runtimeAuthorityRecoveryRequired = true;
+}
+
 function applyCronRuntimeAuthorityRow(
   job: CronStoredJob,
   row: CronRuntimeAuthorityRow,
-): "ok" | "repair" {
+  storeKey: string,
+): "ok" | "repair" | "preserve" {
   delete job.runtimeAuthority;
   delete job.runtimeAuthorityRecoveryRequired;
+  delete job.runtimeAuthorityCiphertextDisposition;
   if (row.recovery_required === 1) {
     job.runtimeAuthorityRecoveryRequired = true;
     return "ok";
   }
-  const authority = normalizeCronRuntimeAuthority(safeParseJson(row.authority_json ?? ""));
-  if (!authority || row.authority_input_fingerprint !== cronRuntimeAuthorityInputFingerprint(job)) {
+
+  const authorityJson = row.authority_json;
+  const expectedFingerprint = cronRuntimeAuthorityInputFingerprint(job);
+  if (authorityJson?.startsWith(OPSYS_CRON_AUTHORITY_CIPHERTEXT_PREFIX)) {
+    // The magic prefix reserves this row even when its encoded envelope is corrupt.
+    if (row.authority_input_fingerprint !== expectedFingerprint) {
+      markOpsysAuthorityPreserved(job);
+      return "preserve";
+    }
+    const binding: OpsysCronAuthorityBinding = {
+      storeKey,
+      jobId: job.id,
+      runtimeId: OPSYS_CRON_AUTHORITY_RUNTIME_ID,
+      namespace: OPSYS_CRON_AUTHORITY_NAMESPACE,
+      inputFingerprint: expectedFingerprint,
+    };
+    const plaintext = openOpsysCronAuthority(binding, authorityJson);
+    const authority = normalizeCronRuntimeAuthority(safeParseJson(plaintext ?? ""));
+    if (
+      !authority ||
+      authority.runtimeId !== OPSYS_CRON_AUTHORITY_RUNTIME_ID ||
+      authority.namespace !== OPSYS_CRON_AUTHORITY_NAMESPACE
+    ) {
+      markOpsysAuthorityPreserved(job);
+      return "preserve";
+    }
+    job.runtimeAuthority = authority;
+    return "ok";
+  }
+
+  const parsedAuthority = safeParseJson(authorityJson ?? "");
+  if (reservedLegacyOpsysAuthority(parsedAuthority)) {
+    // Never accept or rewrite legacy OPSYS plaintext, even with a forged runtimeId.
+    markOpsysAuthorityPreserved(job);
+    return "preserve";
+  }
+  const authority = normalizeCronRuntimeAuthority(parsedAuthority);
+  if (!authority || row.authority_input_fingerprint !== expectedFingerprint) {
     job.runtimeAuthorityRecoveryRequired = true;
     return "repair";
   }
@@ -138,7 +199,7 @@ export function loadCronRuntimeAuthorities(params: {
     if (!job) {
       continue;
     }
-    if (applyCronRuntimeAuthorityRow(job, row) === "repair") {
+    if (applyCronRuntimeAuthorityRow(job, row, params.storeKey) === "repair") {
       repairJobIds.push(job.id);
     }
   }
@@ -188,7 +249,8 @@ export function repairCronRuntimeAuthorityRows(params: {
     if (!job) {
       continue;
     }
-    if (applyCronRuntimeAuthorityRow(job, row) === "repair") {
+    const applied = applyCronRuntimeAuthorityRow(job, row, params.storeKey);
+    if (applied === "repair") {
       writeRecoveryRow(params.db, params.storeKey, job.id);
       repaired = true;
     }
@@ -227,23 +289,59 @@ export function replaceCronRuntimeAuthorityRows(params: {
     if (params.preserveExistingForJobIds?.has(job.id)) {
       const existingRow = existingRowsByJobId?.get(job.id);
       if (existingRow) {
-        if (applyCronRuntimeAuthorityRow(job, existingRow) === "repair") {
-          writeRecoveryRow(params.db, params.storeKey, job.id);
+        if (job.runtimeAuthorityCiphertextDisposition === "clear") {
+          // Explicit capture/revocation owns this transition; do not replay old sidecar state.
+        } else {
+          // A pre-prompt snapshot cannot replace the sidecar, even if it carries
+          // an authority object. Only reconcileRuntimeAuthority's explicit
+          // clear/capture marker owns replacement.
+          if (applyCronRuntimeAuthorityRow(job, existingRow, params.storeKey) === "repair") {
+            writeRecoveryRow(params.db, params.storeKey, job.id);
+          }
+          continue;
         }
-        continue;
       }
-      if (!params.writeMissingForJobIds?.has(job.id)) {
+      if (!existingRow && !params.writeMissingForJobIds?.has(job.id)) {
         continue;
       }
     }
     if (job.runtimeAuthorityRecoveryRequired === true) {
+      if (job.runtimeAuthorityCiphertextDisposition !== "clear") {
+        const currentRow = loadCronRuntimeAuthorityRows(params.db, params.storeKey, [job.id])[0];
+        if (currentRow && isReservedOpsysAuthorityJson(currentRow.authority_json)) {
+          // Preserve the exact SQL value/fingerprint/recovery bit on passive writes.
+          continue;
+        }
+      }
       writeRecoveryRow(params.db, params.storeKey, job.id);
+      if (job.runtimeAuthorityCiphertextDisposition === "clear") {
+        delete job.runtimeAuthorityCiphertextDisposition;
+      }
       continue;
     }
     const authority = normalizeCronRuntimeAuthority(job.runtimeAuthority);
     if (authority) {
-      const authorityJson = JSON.stringify(authority);
       const authorityInputFingerprint = cronRuntimeAuthorityInputFingerprint(job);
+      let authorityJson: string;
+      if (authority.namespace === OPSYS_CRON_AUTHORITY_NAMESPACE) {
+        if (authority.runtimeId !== OPSYS_CRON_AUTHORITY_RUNTIME_ID) {
+          throw new Error("Cron runtime authority capture is invalid");
+        }
+        const binding: OpsysCronAuthorityBinding = {
+          storeKey: params.storeKey,
+          jobId: job.id,
+          runtimeId: OPSYS_CRON_AUTHORITY_RUNTIME_ID,
+          namespace: OPSYS_CRON_AUTHORITY_NAMESPACE,
+          inputFingerprint: authorityInputFingerprint,
+        };
+        const sealed = sealOpsysCronAuthority(binding, JSON.stringify(authority));
+        if (!sealed) {
+          throw new Error("OPSYS cron runtime authority is unavailable");
+        }
+        authorityJson = sealed;
+      } else {
+        authorityJson = JSON.stringify(authority);
+      }
       executeSqliteQuerySync(
         params.db,
         database
@@ -263,6 +361,9 @@ export function replaceCronRuntimeAuthorityRows(params: {
             }),
           ),
       );
+      if (job.runtimeAuthorityCiphertextDisposition === "clear") {
+        delete job.runtimeAuthorityCiphertextDisposition;
+      }
       continue;
     }
     executeSqliteQuerySync(
@@ -272,5 +373,8 @@ export function replaceCronRuntimeAuthorityRows(params: {
         .where("store_key", "=", params.storeKey)
         .where("job_id", "=", job.id),
     );
+    if (job.runtimeAuthorityCiphertextDisposition === "clear") {
+      delete job.runtimeAuthorityCiphertextDisposition;
+    }
   }
 }

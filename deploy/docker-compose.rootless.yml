@@ -1,0 +1,56 @@
+# Overlay explicite : Compose >= 2.24.4 (!override), même daemon rootless pour toute la pile.
+# Générer les variables non secrètes avec rootless.py ; les répertoires doivent déjà exister.
+# Aucun socket Docker ni clé SSH n'est projeté dans les sandboxes des agents.
+services:
+  opsys:
+    user: "1000:1000"
+    security_opt: ["no-new-privileges:true"]
+    logging: !override
+      driver: local
+    cpus: 2.0
+    pids_limit: 256
+    volumes: !override
+      - type: bind
+        source: ${OPSYS_ROOTLESS_DATA:?profil rootless manquant}
+        target: /opt/data
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${OPSYS_ROOTLESS_STATE:?profil rootless manquant}
+        target: /openclaw-config
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${OPSYS_ROOTLESS_LITELLM:?profil rootless manquant}
+        target: /shared/litellm-config
+        bind: {create_host_path: false}
+  openclaw-gateway:
+    user: "1000:1000"
+    build:
+      args:
+        OPENCLAW_INSTALL_DOCKER_CLI: "1"
+    environment:
+      DOCKER_HOST: ssh://opsys-rootless-control
+      DOCKER_CONTEXT: ""
+      DOCKER_TLS_VERIFY: ""
+      DOCKER_CERT_PATH: ""
+      SSH_AUTH_SOCK: ""
+    cpus: 2.0
+    pids_limit: 256
+    volumes: !override
+      - type: bind
+        source: ${OPSYS_ROOTLESS_STATE:?profil rootless manquant}
+        target: /home/node/.openclaw
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${OPSYS_ROOTLESS_AUTH:?profil rootless manquant}
+        target: /home/node/.config/openclaw
+        bind: {create_host_path: false}
+      - type: bind
+        source: ${OPSYS_ROOTLESS_SSH:?profil rootless manquant}
+        target: /home/node/.ssh
+        read_only: true
+        bind: {create_host_path: false}
+  caddy:
+    # Ports hauts en loopback ; un edge/TLS accessible reste une tranche distincte.
+    ports: !override
+      - "127.0.0.1:${OPSYS_ROOTLESS_HTTP_PORT:-8080}:80"
+      - "127.0.0.1:${OPSYS_ROOTLESS_HTTPS_PORT:-8443}:443"

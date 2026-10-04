@@ -280,6 +280,55 @@ describe("cron show pagination guard (regression for #83856)", () => {
   });
 });
 
+describe("cron remove config revision", () => {
+  beforeEach(() => {
+    callGatewayFromCli.mockReset().mockResolvedValue({ ok: true, removed: true });
+    vi.spyOn(defaultRuntime, "writeJson").mockImplementation(() => {});
+    vi.spyOn(defaultRuntime, "error").mockImplementation(() => {});
+    vi.spyOn(defaultRuntime, "exit").mockImplementation((code) => {
+      throw new Error(`exit ${code}`);
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  async function runRemove(args: string[]) {
+    const program = new Command().exitOverride();
+    registerCronSimpleCommands(program);
+    await program.parseAsync(["rm", "job-1", ...args], { from: "user" });
+  }
+
+  it("keeps the legacy removal request unchanged", async () => {
+    await runRemove([]);
+
+    expect(callGatewayFromCli).toHaveBeenCalledExactlyOnceWith("cron.remove", expect.anything(), {
+      id: "job-1",
+    });
+    expect(defaultRuntime.writeJson).toHaveBeenCalledExactlyOnceWith({ ok: true, removed: true });
+  });
+
+  it("passes an explicit opaque revision without a lookup", async () => {
+    await runRemove(["--expected-config-revision", "sha256:current"]);
+
+    expect(callGatewayFromCli).toHaveBeenCalledExactlyOnceWith("cron.remove", expect.anything(), {
+      id: "job-1",
+      expectedConfigRevision: "sha256:current",
+    });
+  });
+
+  it.each(["", "x".repeat(129)])("rejects invalid revision %j before RPC", async (revision) => {
+    await expect(runRemove(["--expected-config-revision", revision])).rejects.toThrow("exit 1");
+
+    expect(defaultRuntime.error).toHaveBeenCalledWith(
+      "Invalid --expected-config-revision (must be 1–128 characters).",
+    );
+    expect(callGatewayFromCli).not.toHaveBeenCalled();
+    expect(defaultRuntime.writeJson).not.toHaveBeenCalled();
+  });
+});
+
 describe("cron disable hint", () => {
   beforeEach(() => {
     callGatewayFromCli.mockReset();

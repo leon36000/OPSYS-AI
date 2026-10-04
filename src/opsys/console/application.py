@@ -29,6 +29,8 @@ import os
 import sys
 from collections.abc import Callable, Mapping
 from contextlib import AbstractContextManager
+from dataclasses import replace
+from importlib import import_module
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, quote
@@ -36,14 +38,46 @@ from urllib.parse import parse_qs, quote
 import uvicorn
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
-from sqlalchemy import Connection
+from sqlalchemy import Connection, select
 from starlette.concurrency import run_in_threadpool
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from .. import etat, identite, stockage, tableau_de_bord
+from .. import admission_agents, agents, agents_declencheurs, contexte, etat, identite, stockage, tableau_de_bord
 from ..departements import Departement, charger_departements
-from . import pages, ressources, securite
+from ..stockage import base_cron_operateur
+from ..stockage.schema import AGENTS_POLITIQUE_ENTREPRISE
+from . import (
+    agents_ui,
+    banque_metier,
+    banque_ui,
+    brand_ui,
+    calendrier_marketing_ui,
+    cfo_ui,
+    connecteurs_ui,
+    finance_snapshot_prive,
+    finance_ui,
+    frontoffice_marketing,
+    fusion_ap_ui,
+    fusion_pdf_ui,
+    fusion_synthese,
+    fusion_ui,
+    marketing_cmo_ui,
+    marketing_growth_ui,
+    marketing_performance_ui,
+    memoire_api,
+    memoire_apprentissage_ui,
+    memoire_ingestion_ui,
+    memoire_jobs_ui,
+    memoire_ui,
+    obligations_privees,
+    obligations_rapprochement_ui,
+    pages,
+    paie_ui,
+    ressources,
+    securite,
+    voicemail_ui,
+)
 from .securite import Configuration, Session
 
 logger = logging.getLogger("opsys.console")
@@ -51,8 +85,10 @@ logger = logging.getLogger("opsys.console")
 HOTE = "0.0.0.0"
 PORT = 8700
 LIMITE_CORPS = 64 * 1024  # octets : largement assez pour un formulaire ou un JSON de pilotage
-CSP = ("default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; form-action 'self'; "
-       "frame-ancestors 'none'; base-uri 'none'")
+CSP = (
+    "default-src 'none'; style-src 'self'; script-src 'self'; img-src 'self'; form-action 'self'; "
+    "frame-ancestors 'none'; base-uri 'none'"
+)
 _STATIQUES = {
     "console.css": (ressources.CSS, "text/css; charset=utf-8"),
     "console.js": (ressources.JS, "text/javascript; charset=utf-8"),
@@ -99,7 +135,11 @@ def _message(exc: Exception) -> str:
 
 
 def _code(exc: Exception) -> int:
-    return 404 if isinstance(exc, KeyError) else 400
+    if isinstance(exc, KeyError):
+        return 404
+    if isinstance(exc, PermissionError):
+        return 403
+    return 409 if "conflit" in str(exc).lower() else 400
 
 
 async def _corps(request: Request) -> bytes:
@@ -139,8 +179,11 @@ def _attestation_depuis_formulaire(champs: Mapping[str, str]) -> dict[str, str] 
     """N5 seulement (ADR-0009 §5) : trois champs plats du formulaire HTML (pas d'objet imbriqué en
     `application/x-www-form-urlencoded`) ; absents pour toute autre décision. `approbations.decider`
     valide le contenu — ce formulaire ne fait que le rassembler."""
-    valeurs = {"nom": champs.get("attestation_nom", ""), "profession": champs.get("attestation_profession", ""),
-              "reference_document": champs.get("attestation_document", "")}
+    valeurs = {
+        "nom": champs.get("attestation_nom", ""),
+        "profession": champs.get("attestation_profession", ""),
+        "reference_document": champs.get("attestation_document", ""),
+    }
     if not any(v.strip() for v in valeurs.values()):
         return None
     return valeurs
@@ -161,18 +204,39 @@ def creer_application(
 
     # -- sessions et jetons ----------------------------------------------------------------------
     def session_de(request: Request) -> Session | None:
-        return securite.lire_session(request.cookies.get(securite.NOM_COOKIE), configuration.secret)
+        session = securite.lire_session(request.cookies.get(securite.NOM_COOKIE), configuration.secret)
+        if session is None:
+            return None
+        with cnx_factory() as cnx:
+            personne = identite.personne_active(cnx, session.utilisateur)
+        # Un cookie signé ne maintient ni un compte désactivé ni des rôles retirés en vie.
+        return replace(session, roles=personne.roles) if personne is not None else None
 
-    def session_page(request: Request) -> Session:
+    def verifier_administration(cnx: Connection, session: Session) -> None:
+        personne = identite.personne_active(cnx, session.utilisateur)
+        if personne is None:
+            raise HTTPException(401, "authentification requise")
+        if not personne.roles.intersection({"nathan_owner", "admin"}):
+            raise HTTPException(403, "administration réservée au propriétaire ou à un administrateur")
+
+    def administration(session: Session) -> None:
+        with cnx_factory() as cnx:
+            verifier_administration(cnx, session)
+
+    def session_page(request: Request, *, administrateur: bool = True) -> Session:
         session = session_de(request)
         if session is None:
             raise _ConnexionRequise
+        if administrateur:
+            administration(session)
         return session
 
-    def session_api(request: Request) -> Session:
+    def session_api(request: Request, *, administrateur: bool = True) -> Session:
         session = session_de(request)
         if session is None:
             raise HTTPException(401, "authentification requise")
+        if administrateur:
+            administration(session)
         return session
 
     def ecriture_api(request: Request) -> Session:
@@ -188,7 +252,7 @@ def creer_application(
     def est_api(request: Request) -> bool:
         chemin = request.url.path
         if prefixe and chemin.startswith(f"{prefixe}/"):
-            chemin = chemin[len(prefixe):]
+            chemin = chemin[len(prefixe) :]
         return chemin.startswith("/api/")
 
     @app.exception_handler(_ConnexionRequise)
@@ -202,6 +266,137 @@ def creer_application(
             return JSONResponse({"detail": texte}, status_code=403)
         return HTMLResponse(pages.page_erreur("Action refusée", texte, prefixe=prefixe), status_code=403)
 
+    app.include_router(
+        memoire_api.creer_router(
+            session_api=session_api, ecriture_api=ecriture_api, cnx_factory=cnx_factory, objet_json=_objet_json
+        )
+    )
+    app.include_router(connecteurs_ui.creer_router(
+        session_page=session_page, session_api=session_api, cnx_factory=cnx_factory,
+        deps=deps, prefixe=prefixe, ecriture_api=ecriture_api, objet_json=_objet_json, chemin_paliers=chemin_paliers,
+    ))
+    callbacks_metier = {
+        "session_page": session_page,
+        "session_api": session_api,
+        "ecriture_api": ecriture_api,
+        "formulaire": _formulaire,
+        "objet_json": _objet_json,
+        "cnx_factory": cnx_factory,
+        "deps": deps,
+        "prefixe": prefixe,
+    }
+    callbacks_frontoffice = {k: v for k, v in callbacks_metier.items() if k not in {"formulaire", "objet_json"}}
+    app.include_router(
+        frontoffice_marketing.creer_router(**callbacks_frontoffice, _formulaire=_formulaire, _objet_json=_objet_json)
+    )
+    app.include_router(
+        voicemail_ui.creer_router(session_page=session_page, cnx_factory=cnx_factory, deps=deps, prefixe=prefixe)
+    )
+    app.include_router(finance_ui.creer_router(**callbacks_metier))
+    app.include_router(
+        banque_ui.creer_router(
+            session_page=session_page,
+            session_api=session_api,
+            ecriture_api=ecriture_api,
+            formulaire=_formulaire,
+            objet_json=_objet_json,
+            autoriser_page=lambda session: banque_metier.autoriser_page(cnx_factory, session),
+            lire_comptes=lambda: banque_metier.comptes_configures(deps),
+            previsualiser=lambda session, demande: banque_metier.previsualiser(
+                cnx_factory, deps, session, demande
+            ),
+            prefixe=prefixe,
+        )
+    )
+    app.include_router(
+        fusion_ui.creer_router(
+            session_page=session_page, session_api=session_api, ecriture_api=ecriture_api,
+            formulaire=_formulaire, cnx_factory=cnx_factory, deps=deps,
+            lire_comptes=lambda: banque_metier.comptes_configures(deps), prefixe=prefixe,
+        )
+    )
+    app.include_router(
+        fusion_synthese.creer_router(
+            session_page=session_page, prefixe=prefixe, cnx_factory=cnx_factory,
+        )
+    )
+    app.include_router(
+        fusion_pdf_ui.creer_router(
+            session_page=session_page,
+            prefixe=prefixe,
+            cnx_factory=cnx_factory,
+        )
+    )
+    app.include_router(
+        fusion_ap_ui.creer_router(
+            session_page=session_page,
+            prefixe=prefixe,
+            cnx_factory=cnx_factory,
+        )
+    )
+    app.include_router(paie_ui.creer_router(**{k: v for k, v in callbacks_metier.items() if k != "ecriture_api"}))
+    app.include_router(obligations_rapprochement_ui.creer_router(
+        session_page=session_page, formulaire=_formulaire, cnx_factory=cnx_factory,
+        journal=obligations_privees, finance_snapshot=finance_snapshot_prive, prefixe=prefixe,
+    ))
+    app.include_router(cfo_ui.creer_router(**callbacks_metier))
+    app.include_router(calendrier_marketing_ui.creer_router(**callbacks_metier))
+    app.include_router(marketing_performance_ui.creer_router(**callbacks_metier))
+    app.include_router(marketing_cmo_ui.creer_router(**callbacks_metier))
+    app.include_router(marketing_growth_ui.creer_router(**callbacks_metier))
+    app.include_router(brand_ui.creer_router(**callbacks_metier))
+
+    def appeler_memoire(session: Session, action: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+        from m10_memoire import developpement
+
+        # Fermer la lecture avant l'écriture du registre M10 dans sa propre transaction.
+        with cnx_factory() as cnx:
+            verifier_administration(cnx, session)
+            personne = identite.personne_active(cnx, session.utilisateur)
+            role = "nathan_owner" if "nathan_owner" in personne.roles else "admin"
+        try:
+            with contexte.appele_par_appareil(contexte.IdentiteAppelante(session.utilisateur, role)):
+                return action(*args, **kwargs)
+        except developpement.AccesDeveloppementRefuse as exc:
+            raise HTTPException(403, "accès mémoire développement refusé") from exc
+        except (ValueError, KeyError, TypeError) as exc:
+            raise HTTPException(400, "commande mémoire invalide") from exc
+
+    app.include_router(
+        memoire_jobs_ui.creer_router(
+            session_api=session_api,
+            ecriture_api=ecriture_api,
+            session_page=session_page,
+            objet_json=_objet_json,
+            formulaire=_formulaire,
+            verifier_formulaire=verifier_formulaire,
+            appeler_memoire=appeler_memoire,
+            prefixe=prefixe,
+        )
+    )
+    app.include_router(memoire_ingestion_ui.creer_router(session_page=session_page, prefixe=prefixe))
+
+    def revalider_admin_memoire(session: Session) -> None:
+        with cnx_factory() as cnx:
+            verifier_administration(cnx, session)
+
+    departement_m03 = deps.get("m03-estimation")
+    if departement_m03 is None:
+        outils_m03, codes_m3 = frozenset(), frozenset()
+    else:
+        outils_m03 = frozenset(outil.nom for outil in departement_m03.charger_outils())
+        paquet_m03 = departement_m03.module_outils.rpartition(".")[0]
+        catalogue_verdicts = import_module(f"{paquet_m03}.verdicts")
+        codes_m3 = frozenset(catalogue_verdicts.CODES_M3_LIST)
+
+    app.include_router(memoire_apprentissage_ui.creer_router(
+        session_page=session_page,
+        revalider_administration=revalider_admin_memoire,
+        prefixe=prefixe,
+        outils_m03=outils_m03,
+        codes_m3=codes_m3,
+    ))
+
     # -- actions (fil de travail : SQLite et outils sont bloquants) --------------------------------
     def authentifier(identifiant: str, mot_de_passe: str) -> identite.Personne | None:
         with cnx_factory() as cnx:
@@ -209,42 +404,105 @@ def creer_application(
 
     def changer_mode(ident: str, mode: Any, session: Session) -> dict[str, Any]:
         with cnx_factory() as cnx:
+            verifier_administration(cnx, session)
             return tableau_de_bord.changer_mode(cnx, deps, ident, mode, session.utilisateur)
 
-    def decider(ident: str, decision: Any, motif: str, attestation: Mapping[str, Any] | None,
-               session: Session) -> dict[str, Any]:
+    def decider(
+        ident: str, decision: Any, motif: str, attestation: Mapping[str, Any] | None, session: Session
+    ) -> dict[str, Any]:
         with cnx_factory() as cnx:
-            return tableau_de_bord.decider_approbation(cnx, deps, ident, decision, session.utilisateur,
-                                                        motif.strip(), attestation)
+            verifier_administration(cnx, session)
+            return tableau_de_bord.decider_approbation(
+                cnx, deps, ident, decision, session.utilisateur, motif.strip(), attestation
+            )
 
     def ecrire_palier(palier: str, conf: Any, session: Session) -> dict[str, Any]:
-        return tableau_de_bord.ecrire_palier(palier, conf, session.utilisateur, chemin_paliers)
+        with cnx_factory() as cnx:
+            verifier_administration(cnx, session)
+            return tableau_de_bord.ecrire_palier(palier, conf, session.utilisateur, chemin_paliers)
+
+    def muter_agent(action: str, ident: str | None, corps: Mapping[str, Any], session: Session) -> dict[str, Any]:
+        attendus = {"mutation_id"}
+        attendus |= {"spec"} if action in {"creer", "modifier"} else set()
+        attendus |= {"revision_attendue"} if action != "creer" else set()
+        attendus |= {"actif"} if action == "activation" else set()
+        if set(corps) != attendus:
+            raise ValueError("champs de la commande invalides")
+        spec = corps.get("spec")
+        if action in {"creer", "modifier"} and not isinstance(spec, dict):
+            raise ValueError("spec : objet requis")
+        with cnx_factory() as cnx:
+            verifier_administration(cnx, session)
+            commun = {"par": session.utilisateur, "mutation_id": corps["mutation_id"]}
+            if action == "creer":
+                profil = agents.creer(cnx, deps, spec, **commun)
+            elif action == "modifier":
+                profil = agents.modifier(cnx, ident, deps, spec, revision_attendue=corps["revision_attendue"], **commun)
+            elif action == "activation":
+                profil = agents.definir_actif(
+                    cnx, ident, deps, corps["actif"], revision_attendue=corps["revision_attendue"], **commun
+                )
+            else:
+                profil = agents.supprimer(cnx, ident, deps, revision_attendue=corps["revision_attendue"], **commun)
+        return {"agent": profil}
+
+    def lire_plafonds(cnx: Connection) -> dict[str, Any] | None:
+        ligne = (
+            cnx.execute(select(AGENTS_POLITIQUE_ENTREPRISE).where(AGENTS_POLITIQUE_ENTREPRISE.c.id == 1))
+            .mappings()
+            .fetchone()
+        )
+        return dict(ligne) if ligne is not None else None
+
+    def ecrire_plafonds(corps: Mapping[str, Any], session: Session) -> dict[str, Any]:
+        if set(corps) != {"budget_jour", "budget_mois", "revision_attendue"}:
+            raise ValueError("champs des plafonds invalides")
+        with cnx_factory() as cnx:
+            verifier_administration(cnx, session)
+            politique = admission_agents.configurer_plafonds_entreprise(
+                cnx,
+                corps["budget_jour"],
+                corps["budget_mois"],
+                par=session.utilisateur,
+                revision_attendue=corps["revision_attendue"],
+            )
+        return {"plafonds": politique}
 
     async def executer_api(action: Callable[..., dict[str, Any]], *arguments: Any) -> dict[str, Any]:
         try:
             return await run_in_threadpool(action, *arguments)
-        except (ValueError, KeyError) as exc:
+        except (ValueError, KeyError, PermissionError) as exc:
             raise HTTPException(_code(exc), _message(exc)) from exc
         except ImportError as exc:
             raise HTTPException(500, f"outils des départements illisibles, rien n'a été exécuté : {exc}") from exc
 
     # -- pages -----------------------------------------------------------------------------------
-    def html(session: Session, actif: str, titre: str, corps: str, en_attente: int, code: int = 200,
-             bandeau: pages.Bandeau | None = None) -> HTMLResponse:
-        page = pages.gabarit(titre, corps, prefixe=prefixe, session=session, actif=actif, en_attente=en_attente,
-                             bandeau=bandeau)
+    def html(
+        session: Session,
+        actif: str,
+        titre: str,
+        corps: str,
+        en_attente: int,
+        code: int = 200,
+        bandeau: pages.Bandeau | None = None,
+    ) -> HTMLResponse:
+        page = pages.gabarit(
+            titre, corps, prefixe=prefixe, session=session, actif=actif, en_attente=en_attente, bandeau=bandeau
+        )
         return HTMLResponse(page, status_code=code)
 
     def page_departements(session: Session, code: int = 200, bandeau: pages.Bandeau | None = None) -> HTMLResponse:
         with cnx_factory() as cnx:
             vues = tableau_de_bord.vue_departements(cnx, deps)
             en_attente = tableau_de_bord.nombre_en_attente(cnx, pages.PLAFOND_PASTILLE)
-        corps = pages.contenu_departements(vues, tableau_de_bord.modes_disponibles(), prefixe=prefixe,
-                                           csrf=session.csrf)
+        corps = pages.contenu_departements(
+            vues, tableau_de_bord.modes_disponibles(), prefixe=prefixe, csrf=session.csrf
+        )
         return html(session, "departements", "Départements", corps, en_attente, code, bandeau)
 
-    def page_approbations(session: Session, statut: str = "", code: int = 200,
-                          bandeau: pages.Bandeau | None = None) -> HTMLResponse:
+    def page_approbations(
+        session: Session, statut: str = "", code: int = 200, bandeau: pages.Bandeau | None = None
+    ) -> HTMLResponse:
         with cnx_factory() as cnx:
             try:
                 demandes = tableau_de_bord.lister_approbations(cnx, deps, statut or None)
@@ -257,12 +515,56 @@ def creer_application(
 
     def page_budgets(session: Session) -> HTMLResponse:
         with cnx_factory() as cnx:
+            verifier_administration(cnx, session)
             donnees = tableau_de_bord.budgets(cnx, deps)
+            plafonds = lire_plafonds(cnx)
             en_attente = tableau_de_bord.nombre_en_attente(cnx, pages.PLAFOND_PASTILLE)
-        return html(session, "budgets", "Budgets", pages.contenu_budgets(donnees, prefixe=prefixe), en_attente)
+        corps = pages.contenu_budgets(donnees, prefixe=prefixe)
+        corps += agents_ui.plafonds_entreprise(plafonds, prefixe=prefixe, csrf=session.csrf)
+        return html(session, "budgets", "Budgets", corps, en_attente)
 
-    def page_modeles(session: Session, code: int = 200, bandeau: pages.Bandeau | None = None,
-                     saisie: Mapping[str, Mapping[str, str]] | None = None) -> HTMLResponse:
+    def page_agents(
+        session: Session, ident: str | None = None, code: int = 200, bandeau: pages.Bandeau | None = None
+    ) -> HTMLResponse:
+        with cnx_factory() as cnx:
+            verifier_administration(cnx, session)
+            profils = agents.lister(cnx, inclure_inactifs=True)
+            profil = agents.obtenir(cnx, ident) if ident else None
+            if ident and profil is None:
+                raise HTTPException(404, "profil inconnu")
+            historique = agents.historique(cnx, ident) if ident else []
+            reservations_actives = (
+                admission_agents.lister_reservations_actives(cnx, ident)
+                if ident and profil
+                else None
+            )
+            instance = ""
+            grant = None
+            if ident and profil and profil["departement"] == "m05-financecore":
+                from .. import agent_cfo_grants
+
+                if cnx.dialect.name == "sqlite":
+                    instance = agent_cfo_grants.instance_id(cnx)
+                    grant = agent_cfo_grants.lire(cnx, ident, instance_id=instance)
+            en_attente = tableau_de_bord.nombre_en_attente(cnx, pages.PLAFOND_PASTILLE)
+        corps = agents_ui.contenu(
+            profils, deps, profil=profil, historique=historique, prefixe=prefixe, csrf=session.csrf,
+            reservations_actives=reservations_actives,
+        )
+        if profil:
+            corps += agents_ui.demandes_cron(profil, prefixe=prefixe, csrf=session.csrf)
+        if profil and profil["departement"] == "m05-financecore":
+            corps += agents_ui.grant_cfo(
+                profil, grant, prefixe=prefixe, csrf=session.csrf, instance_configuree=bool(instance)
+            )
+        return html(session, "agents", "Configuration des agents", corps, en_attente, code, bandeau)
+
+    def page_modeles(
+        session: Session,
+        code: int = 200,
+        bandeau: pages.Bandeau | None = None,
+        saisie: Mapping[str, Mapping[str, str]] | None = None,
+    ) -> HTMLResponse:
         try:
             vue = tableau_de_bord.lire_paliers(deps, chemin_paliers)
             corps = pages.contenu_modeles(vue, prefixe=prefixe, csrf=session.csrf, saisie=saisie)
@@ -301,32 +603,334 @@ def creer_application(
         authentifiee = await run_in_threadpool(authentifier, identifiant, champs.get("mot_de_passe", ""))
         if authentifiee is None:
             logger.warning("échec de connexion pour %r", identifiant)
-            page = pages.page_connexion(prefixe=prefixe, erreur="Identifiant ou mot de passe incorrect.",
-                                        identifiant=identifiant)
+            page = pages.page_connexion(
+                prefixe=prefixe, erreur="Identifiant ou mot de passe incorrect.", identifiant=identifiant
+            )
             return HTMLResponse(page, status_code=401)
         try:
-            session = securite.ouvrir_session(authentifiee.identifiant, authentifiee.roles,
-                                              configuration.duree_session)
+            session = securite.ouvrir_session(authentifiee.identifiant, authentifiee.roles, configuration.duree_session)
         except ValueError as exc:
-            return HTMLResponse(pages.page_connexion(prefixe=prefixe, erreur=str(exc), identifiant=identifiant),
-                                status_code=400)
+            return HTMLResponse(
+                pages.page_connexion(prefixe=prefixe, erreur=str(exc), identifiant=identifiant), status_code=400
+            )
         reponse = RedirectResponse(f"{prefixe}/departements", status_code=303)
         reponse.set_cookie(
-            securite.NOM_COOKIE, securite.signer_session(session, configuration.secret),
-            max_age=configuration.duree_session, path=prefixe or "/", secure=configuration.cookie_securise,
-            httponly=True, samesite="strict",
+            securite.NOM_COOKIE,
+            securite.signer_session(session, configuration.secret),
+            max_age=configuration.duree_session,
+            path=prefixe or "/",
+            secure=configuration.cookie_securise,
+            httponly=True,
+            samesite="strict",
         )
         logger.info("connexion de %r", session.utilisateur)
         return reponse
 
     # -- pages authentifiées ---------------------------------------------------------------------
+    @app.get("/memoire/audit")
+    def audit_memoire(request: Request) -> HTMLResponse:
+        from m10_memoire import developpement
+
+        session = session_page(request)
+        if request.query_params:
+            raise HTTPException(400, "le contrôle utilise les limites de la console")
+        rapport = appeler_memoire(
+            session, developpement.auditer_developpement, repository=memoire_api._repository(), limite=100
+        )
+        return HTMLResponse(
+            pages.gabarit(
+                "Contrôle de la mémoire",
+                memoire_ui.audit_contenu(rapport, prefixe),
+                prefixe=prefixe,
+                session=session,
+                actif="memoire",
+            )
+        )
+
+    @app.get("/memoire")
+    def memoire_page(
+        request: Request, module: str = "M10", task: str = "mémoire développement", files: str = ""
+    ) -> Response:
+        from m10_memoire import developpement
+
+        session = session_page(request)
+        if module not in {"OPSYS", "CORE", *(f"M{i}" for i in range(1, 11))} or len(task) > 2000 or len(files) > 4000:
+            raise HTTPException(400, "recherche mémoire invalide")
+        statut = appeler_memoire(session, developpement.verifier_chaine)
+        paquet = appeler_memoire(
+            session,
+            developpement.preflight,
+            module,
+            task,
+            files=[f.strip() for f in files.splitlines() if f.strip()],
+            repository=memoire_api._repository(),
+        )
+        with cnx_factory() as cnx:
+            en_attente = tableau_de_bord.nombre_en_attente(cnx, pages.PLAFOND_PASTILLE)
+        corps = memoire_ui.contenu(
+            statut, paquet, prefixe=prefixe, csrf=session.csrf, module=module, task=task, files=files
+        )
+        return html(session, "memoire", "Mémoire de développement", corps, en_attente)
+
+    @app.post("/memoire/scanner")
+    async def memoire_scanner(request: Request) -> Response:
+        from m10_memoire import developpement
+
+        session = session_page(request)
+        champs = await _formulaire(request)
+        verifier_formulaire(champs, session)
+        await run_in_threadpool(
+            appeler_memoire,
+            session,
+            developpement.scanner_depot,
+            memoire_api._repository(),
+            horodatage=memoire_api._horodatage_serveur(),
+        )
+        return RedirectResponse(f"{prefixe}/memoire", status_code=303)
+
+    @app.post("/budgets/agents")
+    async def plafonds_agents_formulaire(request: Request) -> Response:
+        session = session_page(request)
+        champs = await _formulaire(request)
+        verifier_formulaire(champs, session)
+        try:
+            corps = {cle: int(champs.get(cle, "")) for cle in ("budget_jour", "budget_mois", "revision_attendue")}
+            await run_in_threadpool(ecrire_plafonds, corps, session)
+        except (ValueError, PermissionError) as exc:
+            raise HTTPException(_code(exc), _message(exc)) from exc
+        return RedirectResponse(f"{prefixe}/budgets", status_code=303)
+
+    @app.get("/agents")
+    def agents_(request: Request) -> Response:
+        return page_agents(session_page(request))
+
+    @app.get("/agents/{ident}")
+    def agent_(ident: str, request: Request) -> Response:
+        bandeau = None
+        if request.query_params.get("rapprochement") == "declare":
+            bandeau = ("Déclaration manuelle enregistrée; son contenu n’est pas vérifié par OPSYS.", "succes")
+        return page_agents(session_page(request), ident, bandeau=bandeau)
+
+    @app.post("/agents")
+    @app.post("/agents/{ident}")
+    async def agent_formulaire(request: Request, ident: str | None = None) -> Response:
+        session = session_page(request)
+        champs = await _formulaire(request)
+        verifier_formulaire(champs, session)
+        try:
+            spec = agents_ui.specification(champs)
+            commande = {"spec": spec, "mutation_id": champs.get("mutation_id", "")}
+            action = "modifier" if ident else "creer"
+            if ident:
+                commande["revision_attendue"] = int(champs.get("revision_attendue", ""))
+            resultat = await run_in_threadpool(muter_agent, action, ident, commande, session)
+        except (ValueError, KeyError, PermissionError) as exc:
+            return await run_in_threadpool(page_agents, session, ident, _code(exc), (_message(exc), "erreur"))
+        return RedirectResponse(f"{prefixe}/agents/{quote(resultat['agent']['id'], safe='')}", status_code=303)
+
+    async def _demande_intention_cron(ident: str, request: Request, *, retirer: bool) -> Response:
+        session = session_page(request)
+        if request.headers.get("content-type", "").lower() not in {
+            "application/x-www-form-urlencoded", "application/x-www-form-urlencoded; charset=utf-8",
+        }:
+            raise HTTPException(400, "formulaire cron invalide")
+        try:
+            paires = parse_qs(
+                (await _corps(request)).decode("utf-8", errors="strict"),
+                keep_blank_values=True,
+                max_num_fields=8,
+                strict_parsing=True,
+                encoding="utf-8",
+                errors="strict",
+            )
+        except (UnicodeError, ValueError) as exc:
+            raise HTTPException(400, "formulaire cron invalide") from exc
+        if any(len(valeurs) != 1 for valeurs in paires.values()):
+            raise HTTPException(400, "formulaire cron invalide")
+        champs = {cle: valeurs[0] for cle, valeurs in paires.items()}
+        verifier_formulaire(champs, session)
+        attendus = {"csrf", "mutation_id", "revision_attendue", "confirme"}
+        if not retirer:
+            attendus.add("fuseau")
+        if set(champs) != attendus or champs.get("confirme") != "oui":
+            return await run_in_threadpool(
+                page_agents, session, ident, 400,
+                ("Formulaire de demande cron incomplet ou invalide.", "erreur"),
+            )
+        revision_brute = champs.get("revision_attendue", "")
+        if not revision_brute.isascii() or not revision_brute.isdecimal() or len(revision_brute) > 16:
+            return await run_in_threadpool(
+                page_agents, session, ident, 400, ("Révision de profil invalide.", "erreur"),
+            )
+        revision = int(revision_brute)
+        if not 1 <= revision <= 2**53 - 1:
+            return await run_in_threadpool(
+                page_agents, session, ident, 400, ("Révision de profil invalide.", "erreur"),
+            )
+
+        def effectuer() -> dict[str, Any]:
+            identite_base = base_cron_operateur.verifier_base_cron_operateur(cnx_factory)
+
+            def operation() -> dict[str, Any]:
+                if retirer:
+                    return agents_declencheurs.retirer(
+                        deps, ident, par=session.utilisateur, revision_attendue=revision,
+                        mutation_id=champs["mutation_id"],
+                    )
+                return agents_declencheurs.demander(
+                    deps, ident, par=session.utilisateur, revision_attendue=revision,
+                    fuseau=champs["fuseau"], mutation_id=champs["mutation_id"],
+                )
+
+            return base_cron_operateur.dans_base_cron_operateur(cnx_factory, identite_base, operation)
+
+        try:
+            resultat = await run_in_threadpool(effectuer)
+            if resultat.get("execute") is not False:
+                raise ValueError("le propriétaire n’a pas confirmé l’état inerte")
+        except (ValueError, KeyError, PermissionError) as exc:
+            return await run_in_threadpool(page_agents, session, ident, _code(exc), (_message(exc), "erreur"))
+        action = "retrait demandé" if retirer else "demande préparée"
+        return await run_in_threadpool(
+            page_agents, session, ident, 200,
+            (f"Cron : {action}. Aucune tâche Core n’a été créée ou exécutée.", "succes"),
+        )
+
+    @app.post("/agents/{ident}/declencheurs/cron/demander")
+    async def agent_demander_cron(ident: str, request: Request) -> Response:
+        return await _demande_intention_cron(ident, request, retirer=False)
+
+    @app.post("/agents/{ident}/declencheurs/cron/retirer")
+    async def agent_retirer_cron(ident: str, request: Request) -> Response:
+        return await _demande_intention_cron(ident, request, retirer=True)
+
+    @app.post("/agents/{ident}/reservations/{reservation_id}/concilier")
+    async def agent_reservation_concilier(ident: str, reservation_id: str, request: Request) -> Response:
+        session = session_page(request)
+        champs = await _formulaire(request)
+        verifier_formulaire(champs, session)
+        try:
+            total_brut = champs.get("tokens_reels", "")
+            if not total_brut.isascii() or not total_brut.isdecimal() or len(total_brut) > 19:
+                raise ValueError("le total déclaré doit être un entier décimal entre 0 et 2^63-1")
+            total = int(total_brut)
+            if total > (1 << 63) - 1:
+                raise ValueError("le total déclaré dépasse la limite 64 bits")
+            if champs.get("attestation") != "oui":
+                raise ValueError("la déclaration du relevé final est requise")
+            with cnx_factory() as cnx:
+                verifier_administration(cnx, session)
+                admission_agents.concilier_manuellement(
+                    cnx,
+                    reservation_id,
+                    ident,
+                    total,
+                    par=session.utilisateur,
+                    reference_releve=champs.get("reference_releve", ""),
+                )
+        except (ValueError, KeyError, PermissionError, admission_agents.AdmissionRefusee) as exc:
+            return await run_in_threadpool(
+                page_agents, session, ident, _code(exc), (_message(exc), "erreur")
+            )
+        return RedirectResponse(
+            f"{prefixe}/agents/{quote(ident, safe='')}?rapprochement=declare", status_code=303
+        )
+
+    @app.post("/agents/{ident}/activation")
+    async def agent_activation_formulaire(ident: str, request: Request) -> Response:
+        session = session_page(request)
+        champs = await _formulaire(request)
+        verifier_formulaire(champs, session)
+        try:
+            if champs.get("actif") not in {"true", "false"}:
+                raise ValueError("activation invalide")
+            corps = {
+                "actif": champs["actif"] == "true",
+                "mutation_id": champs.get("mutation_id", ""),
+                "revision_attendue": int(champs.get("revision_attendue", "")),
+            }
+            await run_in_threadpool(muter_agent, "activation", ident, corps, session)
+        except (ValueError, KeyError, PermissionError) as exc:
+            return await run_in_threadpool(page_agents, session, ident, _code(exc), (_message(exc), "erreur"))
+        return RedirectResponse(f"{prefixe}/agents/{quote(ident, safe='')}", status_code=303)
+
+    @app.post("/agents/{ident}/archivage")
+    async def agent_archivage_formulaire(ident: str, request: Request) -> Response:
+        session = session_page(request)
+        champs = await _formulaire(request)
+        verifier_formulaire(champs, session)
+        try:
+            corps = {
+                "mutation_id": champs.get("mutation_id", ""),
+                "revision_attendue": int(champs.get("revision_attendue", "")),
+            }
+            await run_in_threadpool(muter_agent, "supprimer", ident, corps, session)
+        except (ValueError, KeyError, PermissionError) as exc:
+            return await run_in_threadpool(page_agents, session, ident, _code(exc), (_message(exc), "erreur"))
+        return RedirectResponse(f"{prefixe}/agents", status_code=303)
+
+    @app.post("/agents/{ident}/droit-cfo")
+    async def agent_grant_cfo(ident: str, request: Request) -> Response:
+        session = session_page(request)
+        champs = await _formulaire(request)
+        verifier_formulaire(champs, session)
+        try:
+            from .. import agent_cfo_grants
+
+            role = "nathan_owner" if "nathan_owner" in session.roles else "admin"
+            identity = contexte.IdentiteAppelante(session.utilisateur, role, source="console")
+            with contexte.appele_par_appareil(identity), cnx_factory() as cnx:
+                agent_cfo_grants.accorder(
+                    cnx,
+                    ident,
+                    par=session.utilisateur,
+                    instance_id=agent_cfo_grants.instance_id(cnx),
+                    revision_attendue=int(champs.get("revision_attendue", "")),
+                    version_attendue=int(champs.get("version_grant_attendue", "")),
+                    date_debut_rapport=champs.get("date_debut_rapport", ""),
+                    date_fin_rapport=champs.get("date_fin_rapport", ""),
+                    outils=[x.strip() for x in champs.get("outils", "").splitlines() if x.strip()],
+                    rapports_par_jour=int(champs.get("rapports_par_jour", "3")),
+                    expire_le=champs.get("expire_le") or None,
+                )
+        except (ValueError, KeyError, PermissionError) as exc:
+            return await run_in_threadpool(page_agents, session, ident, _code(exc), (_message(exc), "erreur"))
+        return RedirectResponse(f"{prefixe}/agents/{quote(ident, safe='')}", status_code=303)
+
+    @app.post("/agents/{ident}/droit-cfo/retrait")
+    async def agent_revoquer_cfo(ident: str, request: Request) -> Response:
+        session = session_page(request)
+        champs = await _formulaire(request)
+        verifier_formulaire(champs, session)
+        try:
+            from .. import agent_cfo_grants
+
+            role = "nathan_owner" if "nathan_owner" in session.roles else "admin"
+            identity = contexte.IdentiteAppelante(session.utilisateur, role, source="console")
+            with contexte.appele_par_appareil(identity), cnx_factory() as cnx:
+                agent_cfo_grants.revoquer(
+                    cnx,
+                    ident,
+                    par=session.utilisateur,
+                    instance_id=agent_cfo_grants.instance_id(cnx),
+                    version_attendue=int(champs.get("version_grant_attendue", "")),
+                )
+        except (ValueError, KeyError, PermissionError) as exc:
+            return await run_in_threadpool(page_agents, session, ident, _code(exc), (_message(exc), "erreur"))
+        return RedirectResponse(f"{prefixe}/agents/{quote(ident, safe='')}", status_code=303)
+
     @app.post("/deconnexion")
     async def deconnexion(request: Request) -> Response:
-        session = session_page(request)
+        session = session_page(request, administrateur=False)
         verifier_formulaire(await _formulaire(request), session)
         reponse = RedirectResponse(f"{prefixe}/connexion", status_code=303)
-        reponse.delete_cookie(securite.NOM_COOKIE, path=prefixe or "/", secure=configuration.cookie_securise,
-                              httponly=True, samesite="strict")
+        reponse.delete_cookie(
+            securite.NOM_COOKIE,
+            path=prefixe or "/",
+            secure=configuration.cookie_securise,
+            httponly=True,
+            samesite="strict",
+        )
         return reponse
 
     @app.get("/departements")
@@ -355,8 +959,9 @@ def creer_application(
         verifier_formulaire(champs, session)
         attestation = _attestation_depuis_formulaire(champs)
         try:
-            resultat = await run_in_threadpool(decider, ident, champs.get("decision", ""), champs.get("motif", ""),
-                                               attestation, session)
+            resultat = await run_in_threadpool(
+                decider, ident, champs.get("decision", ""), champs.get("motif", ""), attestation, session
+            )
         except (ValueError, KeyError) as exc:
             return await run_in_threadpool(page_approbations, session, "", _code(exc), (_message(exc), "erreur"))
         except ImportError as exc:
@@ -377,7 +982,8 @@ def creer_application(
         session = session_page(request)
         champs = await _formulaire(request)
         verifier_formulaire(champs, session)
-        saisie = {cle: champs.get(cle, "") for cle in ("provider", "model", "base_url")}
+        saisie = {cle: champs.get(cle, "") for cle in ("provider", "model", "base_url", "api_key_env")}
+        saisie["fallbacks"] = [nom.strip() for nom in champs.get("fallbacks", "").split(",") if nom.strip()]
         try:
             await run_in_threadpool(ecrire_palier, palier, saisie, session)
         except ValueError as exc:
@@ -385,9 +991,67 @@ def creer_application(
         return RedirectResponse(f"{prefixe}/modeles?ok=palier", status_code=303)
 
     # -- API JSON ----------------------------------------------------------------------------------
+    @app.get("/api/agents-plafonds")
+    def api_plafonds_agents(request: Request) -> dict[str, Any]:
+        session = session_api(request)
+        with cnx_factory() as cnx:
+            verifier_administration(cnx, session)
+            return {"plafonds": lire_plafonds(cnx)}
+
+    @app.put("/api/agents-plafonds")
+    async def api_configurer_plafonds_agents(request: Request) -> dict[str, Any]:
+        session = ecriture_api(request)
+        return await executer_api(ecrire_plafonds, await _objet_json(request), session)
+
+    @app.get("/api/agents")
+    def api_agents(request: Request, departement: str | None = None) -> dict[str, Any]:
+        session = session_api(request)
+        with cnx_factory() as cnx:
+            verifier_administration(cnx, session)
+            return {"agents": agents.lister(cnx, departement=departement, inclure_inactifs=True)}
+
+    @app.get("/api/agents/{ident}")
+    def api_agent(ident: str, request: Request) -> dict[str, Any]:
+        session = session_api(request)
+        with cnx_factory() as cnx:
+            verifier_administration(cnx, session)
+            profil = agents.obtenir(cnx, ident)
+        if profil is None:
+            raise HTTPException(404, "profil inconnu")
+        return {"agent": profil}
+
+    @app.get("/api/agents/{ident}/historique")
+    def api_historique_agent(ident: str, request: Request) -> dict[str, Any]:
+        session = session_api(request)
+        with cnx_factory() as cnx:
+            verifier_administration(cnx, session)
+            if agents.obtenir(cnx, ident, inclure_supprime=True) is None:
+                raise HTTPException(404, "profil inconnu")
+            return {"historique": agents.historique(cnx, ident)}
+
+    @app.post("/api/agents")
+    async def api_creer_agent(request: Request) -> dict[str, Any]:
+        session = ecriture_api(request)
+        return await executer_api(muter_agent, "creer", None, await _objet_json(request), session)
+
+    @app.patch("/api/agents/{ident}")
+    async def api_modifier_agent(ident: str, request: Request) -> dict[str, Any]:
+        session = ecriture_api(request)
+        return await executer_api(muter_agent, "modifier", ident, await _objet_json(request), session)
+
+    @app.post("/api/agents/{ident}/activation")
+    async def api_activer_agent(ident: str, request: Request) -> dict[str, Any]:
+        session = ecriture_api(request)
+        return await executer_api(muter_agent, "activation", ident, await _objet_json(request), session)
+
+    @app.delete("/api/agents/{ident}")
+    async def api_supprimer_agent(ident: str, request: Request) -> dict[str, Any]:
+        session = ecriture_api(request)
+        return await executer_api(muter_agent, "supprimer", ident, await _objet_json(request), session)
+
     @app.get("/api/session")
     def api_session(request: Request) -> dict[str, Any]:
-        session = session_api(request)
+        session = session_api(request, administrateur=False)
         return {"utilisateur": session.utilisateur, "roles": sorted(session.roles), "csrf": session.csrf}
 
     @app.get("/api/departements")
@@ -457,8 +1121,9 @@ def creer_application(
 
 def lancer(argv: list[str] | None = None, environ: Mapping[str, str] | None = None) -> int:
     """Démarre la console. Refuse de démarrer (code 2) sans configuration valide."""
-    parseur = argparse.ArgumentParser(prog="opsys-console",
-                                      description="Console web OPSYS : départements, approbations, budgets, paliers")
+    parseur = argparse.ArgumentParser(
+        prog="opsys-console", description="Console web OPSYS : départements, approbations, budgets, paliers"
+    )
     parseur.add_argument("--hote", default=HOTE, help=f"adresse d'écoute (défaut : {HOTE})")
     parseur.add_argument("--port", type=int, default=PORT, help=f"port d'écoute (défaut : {PORT})")
     args = parseur.parse_args(argv)

@@ -127,6 +127,8 @@ export const AgentsUpdateParamsSchema = closedObject({
   agentRuntime: Type.Optional(NonEmptyString),
   emoji: Type.Optional(Type.String()),
   avatar: Type.Optional(Type.String()),
+  /** Assign or clear an operator-selected model from the local avatar catalogue. */
+  avatarModelId: Type.Optional(Type.Union([NonEmptyString, Type.Null()])),
 });
 
 /** Result returned after updating an agent. */

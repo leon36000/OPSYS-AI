@@ -1,11 +1,19 @@
 # PRD — MODULE M5 (FINANCECORE)
 
+> Document de cadrage du socle v1 historique. Réconciliation du 30 septembre 2026 :
+> M5 possède le dossier CFO, conformément à la directive actuelle; M9 peut l'utiliser pour
+> la stratégie globale. Les prévisions hebdomadaires, le cash libre et leurs raccords ont évolué
+> depuis ce PRD. Le [contrat courant M5.16](../../contracts/dossier_decision_cfo.v1.yaml) et le
+> [raccord préparatoire](../../../../docs/grs/compta/M5-CFO-DECISION-RACCORDEMENT-PLAN.md)
+> décrivent la tranche actuelle et ses limites. Les reports historiques ci-dessous ne retirent
+> aucun sous-département du périmètre cible.
+
 ## 0. TRANCHÉ SUR LES POINTS OUVERTS DE L'ANALYSTE
 
-- **§7.1 (CFO Decision Report)** : M5 v1 produit l'**état financier** — la primitive factuelle
-  (solde, argent disponible, taux utilisés, référence déterministe). Le « CFO Decision Report » à
-  25 points, qui interprète et priorise, est un livrable **M9** qui consommera cet état financier —
-  même relation que M7.11/M8 pour le MMM. M5 ne construit aucune interprétation ni priorisation.
+- **§7.1 (CFO Decision Report), réconcilié** : **M5 produit le dossier CFO en 25 rubriques**
+  et conserve la vérité financière. La première tranche assemble les vues canoniques en lecture
+  seule; scénarios, recommandation et confiance restent inconnus sans données et méthode
+  vérifiables. M9 consomme ce dossier pour contextualiser la stratégie générale de l'entreprise.
 - **§7.2 (forme du mouvement)** : v1 reste PLAT — un mouvement porte un montant, un type, un
   horodatage, une classe de rétention, une source — aucun plan comptable multi-niveaux en v1.
 - **§7.3 (échelle F0-F7)** : énuméré fermé ordonné à 8 valeurs, **caller-spécifié** (celui qui crée
@@ -48,9 +56,8 @@ chaîne, jamais stocké dans un champ positionnable. Détail complet en architec
 - **CPA (professionnel externe, futur, hors intégration réelle v1)** : le champ `preuve` d'une
   demande F7 porte sa mention ; v1 ne vérifie pas cryptographiquement une signature CPA réelle,
   seulement la présence structurelle du champ.
-- **M9 (futur consommateur, hors périmètre v1)** : consommera l'état financier de M5 comme
-  primitive factuelle pour produire le CFO Decision Report — contrat stable requis, pas un format
-  ad hoc.
+- **M9 (consommateur)** : utilise l'état financier et le dossier CFO produits par M5;
+  il ne crée pas une autre vérité financière.
 
 ## 2. PARCOURS PRINCIPAUX
 
@@ -119,7 +126,7 @@ disponible, ni référence à un mouvement individuel — seulement son identit�
 | Adapters réels (banque, paie, comptable) | Progression obligatoire read-only → dry-run → write gated (fiche source) ; chacun une story GATED distincte |
 | Agent RAG fiscal conversationnel | Hors périmètre déterministe — dépend de D-029/D-031, construit ailleurs, comme le LLM narrateur M8 |
 | Forecast 5 ans | R-009 : historique encore insuffisant pour une projection honnête ; seuil `n` minimal futur, patron XmR M8 |
-| CFO Decision Report (25 points) complet | Livrable M9, qui consomme l'état financier M5 (tranché §0) |
+| CFO Decision Report (25 points) complet | Propriété M5; première tranche factuelle raccordée, scénarios et décisions complets à construire selon le contrat courant |
 | Vérification cryptographique réelle MFA/CPA | Intégration Zitadel (P0-9b) — infra hors périmètre du module de domaine |
 | Approval Engine central du core | Service pas encore construit comme unifié (brief §2.5) ; migration future, ADR distinct |
 | Les 20 sous-départements dans leur richesse complète | v1 = socle commun (registre, soldes, taux, F0-F7, conformité) |
@@ -405,7 +412,9 @@ les taux fiscaux sont des déclarations versionnées (§5.3), jamais une constan
 
 ## 10. FRONTIÈRES RATIFIÉES (rappel)
 
-M5 ne construit aucun adapter réel (banque/paie/comptable — read-only puis dry-run puis write,
-chacun GATED), ne construit pas l'agent RAG fiscal conversationnel, ne fabrique aucun forecast en
-v1 (R-009), ne produit pas le CFO Decision Report complet (position M9, §0), ne vérifie pas
-cryptographiquement une preuve MFA/CPA réelle, et n'importe jamais un paquet `mX_*` de domaine.
+Le socle v1 décrit ici ne construisait aucun adapter réel ni agent RAG fiscal conversationnel
+et ne produisait pas de prévision. Ces éléments demeurent dans le périmètre cible M5. Le code
+courant possède une prévision hebdomadaire bornée et un dossier CFO préparatoire en 25 rubriques;
+ils ne prouvent pas un CFO stratégique complet. Aucun raccord réel banque/paie/comptable,
+validation cryptographique MFA/CPA ni import direct d'un paquet `mX_*` de domaine n'est établi
+par ce PRD historique.

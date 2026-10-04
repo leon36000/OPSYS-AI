@@ -18,12 +18,13 @@ réécrit ses propres artefacts ne serait pas reproductible. Le gate n'étant pa
 un paquet installable, il est chargé par importlib depuis son chemin réel
 dérivé de ``__file__`` — jamais du répertoire courant.
 """
-import pytest
-
 import sys as _sys
 from pathlib import Path as _Path
+
+import pytest
+
 _sys.path.insert(0, str(_Path(__file__).resolve().parent))
-from _commun_gate import GATE, BRIEF, PRD, ARCHI
+from _commun_gate import ARCHI, GATE, PRD
 
 # Le corps des tests nomme le gate « VERIF_COHERENCE » : simple affectation
 # pour conserver cet identifiant sans toucher à aucun test.
@@ -31,7 +32,7 @@ VERIF_COHERENCE = GATE
 
 
 def test_le_controle_est_vert_sur_les_documents_reels():
-    """Sans mutation, aucun message — sinon une mutation « qui mord » pourrait mordre parce que le contrôle est rouge en permanence."""
+    """Sans mutation, le contrôle est vert et une mutation ne mord pas par défaut."""
     messages = VERIF_COHERENCE.verifier_grandeurs_fournies_declarees(PRD, ARCHI)
     assert messages == [], f"contrôle rouge sur les documents réels non mutés : {messages}"
 
@@ -106,5 +107,4 @@ def test_section_interface_introuvable_est_non_probante():
         "On n'exige pas le numéro de section car ce gate s'ancre sur le nom des sections, "
         "jamais sur leur numéro."
     )
-
 

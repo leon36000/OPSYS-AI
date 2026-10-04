@@ -99,6 +99,7 @@ class _SiteValidator(html.parser.HTMLParser):
         self.imgs_without_alt: bool = False
         self.has_on_attr: bool = False
         self.has_javascript_protocol: bool = False
+        self.has_unauthorized_script: bool = False
         self.script_ld_json_content: str | None = None
         self.style_content: str | None = None
         self.nav_aria_label_ok: bool = True   # True si tous les <nav> ont aria-label ou aria-labelledby
@@ -207,10 +208,18 @@ class _SiteValidator(html.parser.HTMLParser):
             if not alt.strip():
                 self.imgs_without_alt = True
 
-        # <script ld+json>
-        elif tag_lower == "script" and attrs_dict.get("type") == "application/ld+json":
-            self._in_script_ld = True
-            self._script_buf.clear()
+        # Seul le bloc JSON-LD statique attendu est autorisé ; aucun script exécutable n'est
+        # nécessaire au site généré.
+        elif tag_lower == "script":
+            if (
+                attrs_dict.get("type", "").lower() != "application/ld+json"
+                or self._in_script_ld
+                or self.script_ld_json_content is not None
+            ):
+                self.has_unauthorized_script = True
+            else:
+                self._in_script_ld = True
+                self._script_buf.clear()
 
         # <style>
         elif tag_lower == "style":
@@ -419,8 +428,8 @@ def validate(html_text: str, *, content: dict | None = None, assets_dir: str | N
         violations.append(("G-13", "Image sans attribut alt non vide."))
 
     # --- G-14 ---
-    if parser.has_on_attr or parser.has_javascript_protocol:
-        violations.append(("G-14", "Gestionnaire d'événement inline ou protocole javascript: détecté."))
+    if parser.has_on_attr or parser.has_javascript_protocol or parser.has_unauthorized_script:
+        violations.append(("G-14", "Gestionnaire inline, protocole javascript: ou script hors JSON-LD détecté."))
 
     # --- G-15 ---
     if parser.script_ld_json_content is None:

@@ -1,0 +1,28 @@
+{
+  "head": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+  "date_utc": "2026-09-30T12:06:25.961183+00:00",
+  "files_fetched_core": 51,
+  "file_blob_mismatches": [],
+  "broken_local_report_links": [],
+  "repositories_github_core": 12,
+  "repositories_hermes": 1,
+  "repositories_gitlab": 1,
+  "exa_results_requested": 35,
+  "source_or_candidate_code_executed": false,
+  "source_installs": false,
+  "benchmark_executed": false,
+  "opsys_files_modified_by_this_workstream": [],
+  "concurrent_worktree_status": [
+    " M 00-DIGEST.md",
+    " M AGENTS.md",
+    " M CLAUDE.md",
+    " M core/AGENTS.md",
+    " M docs/architecture/ARCHITECTURE.md",
+    " M docs/produit/DEFINITION-PRODUIT.md",
+    " M docs/programme/BOUCLE.md",
+    "?? docs/decisions/ADR-0012-reutilisation-profondeur-productivite.md",
+    "?? docs/produit/DIRECTIVES-NATHAN.md",
+    "?? docs/produit/PERIMETRE-MODULES.md"
+  ],
+  "note": "Les documents/règles modifiés parallèlement appartiennent au coordinateur."
+}

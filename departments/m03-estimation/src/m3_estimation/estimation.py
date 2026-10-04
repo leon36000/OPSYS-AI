@@ -153,7 +153,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from decimal import ROUND_HALF_EVEN, ROUND_HALF_UP, Decimal, InvalidOperation, localcontext
 from typing import Any
 
 from . import (
@@ -168,6 +168,7 @@ from . import (
     qualite_photos,
     scenarios,
     signaux,
+    trace_calibration_temps,
     validation,
     verdicts,
 )
@@ -229,17 +230,17 @@ def graine_stable(bareme: dict[str, Any], type_travaux: str, quantite: float) ->
 
 def _duree_estimee_minutes_texte(
     quantite: Any, bareme: dict[str, Any], type_travaux: str
-) -> tuple[str | None, dict | None]:
+) -> tuple[str | None, Decimal | None, dict | None]:
     """``duree_estimee_minutes = quantite x duree_minutes_par_unite`` (Decimal, texte) — voir la
     docstring du module pour le choix de dépôt (charge du registre, jamais EstimationV1) et pour
-    la distinction ABSENTE (silencieux, ``(None, None)``) contre INVALIDE (verdict nommé)."""
+    la distinction ABSENTE (silencieux, ``(None, None, None)``) contre INVALIDE (verdict nommé)."""
     poste = bareme.get("postes", {}).get(type_travaux) if isinstance(bareme, dict) else None
     if not isinstance(poste, dict) or "duree_minutes_par_unite" not in poste:
-        return None, None  # non fournie : aucune durée calculée, jamais une durée inventée
+        return None, None, None  # non fournie : aucune durée calculée, jamais une durée inventée
 
     brute = poste["duree_minutes_par_unite"]
     if isinstance(brute, bool) or not isinstance(brute, (int, float, Decimal)):
-        return None, verdicts.construire_verdict(
+        return None, None, verdicts.construire_verdict(
             "REJ-ECART-DUREE-ESTIMEE-INVALIDE",
             detail=f"duree_minutes_par_unite doit être numérique (reçu {type(brute).__name__})",
         )
@@ -247,16 +248,16 @@ def _duree_estimee_minutes_texte(
         taux_decimal = brute if isinstance(brute, Decimal) else Decimal(str(brute))
         quantite_decimale = Decimal(str(quantite))
     except InvalidOperation:
-        return None, verdicts.construire_verdict(
+        return None, None, verdicts.construire_verdict(
             "REJ-ECART-DUREE-ESTIMEE-INVALIDE",
             detail="duree_minutes_par_unite ou quantite non convertible en Decimal",
         )
     if not taux_decimal.is_finite() or taux_decimal <= 0:
-        return None, verdicts.construire_verdict(
+        return None, None, verdicts.construire_verdict(
             "REJ-ECART-DUREE-ESTIMEE-INVALIDE",
             detail=f"duree_minutes_par_unite doit être strictement positive et finie (reçu {brute!r})",
         )
-    return str(quantite_decimale * taux_decimal), None
+    return str(quantite_decimale * taux_decimal), taux_decimal, None
 
 
 def _prix_recommande_depuis_intervalle(
@@ -299,6 +300,7 @@ def orchestrer_estimation(
     taux_scenarios: dict[str, Any] | None = None,
     taux_scenarios_configures: dict[str, Any] | None = None,
     seuils_revue: Any = None,
+    calibration_candidate: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Compose la chaîne complète d'estimation M3 — voir la docstring du module pour l'ordre et
     les décisions de conception. Chaque étape qui échoue rend un verdict NOMMÉ qui dit quoi
@@ -348,6 +350,7 @@ def orchestrer_estimation(
     bareme_version: str | None = None
     alerte_plancher = False
     duree_estimee_minutes: str | None = None
+    taux_duree_minutes_par_unite: Decimal | None = None
     prix_recommande: dict[str, float] | None = None
     elements_manquants_prix: list[str] = []
     signal_relance_m2: dict[str, Any] | None = None
@@ -395,9 +398,40 @@ def orchestrer_estimation(
         ):
             verdicts_candidats.append(contrats.VERDICT_REFERENCE_ECHELLE_ABSENTE)
 
-        duree_estimee_minutes, verdict = _duree_estimee_minutes_texte(quantite, bareme, type_travaux)
+        duree_estimee_minutes, taux_duree_minutes_par_unite, verdict = _duree_estimee_minutes_texte(
+            quantite, bareme, type_travaux
+        )
         if verdict is not None:
             return {"etape": "duree_main_doeuvre", "accepte": False, "verdict": verdict}
+        taux_duree_source = taux_duree_minutes_par_unite
+        if calibration_candidate is not None:
+            try:
+                scope = calibration_candidate["scope"]
+                empreinte_bareme_courante = trace_calibration_temps.empreinte_bareme(bareme)
+                quantite_demandee = Decimal(str(quantite))
+                quantite_scope = Decimal(scope["quantite_exacte"])
+                taux_scope = Decimal(scope["taux_minutes_par_unite_reference"])
+                concorde = (
+                    taux_duree_source is not None
+                    and scope["type_service"] == type_travaux
+                    and scope["unite_quantite"] == bareme.get("unite")
+                    and scope["bareme_version"] == bareme.get("version")
+                    and scope["empreinte_bareme"] == empreinte_bareme_courante
+                    and quantite_scope.is_finite() and quantite_scope == quantite_demandee
+                    and taux_scope.is_finite() and taux_scope == taux_duree_source
+                )
+                taux_candidat = Decimal(calibration_candidate["taux_minutes_par_unite_candidat"])
+                if not concorde or not taux_candidat.is_finite() or taux_candidat <= 0:
+                    return {"etape": "calibration_active", "accepte": False,
+                            "raisons": ["scope_calibration_active_incompatible"]}
+                taux_duree_minutes_par_unite = taux_candidat
+                with localcontext() as contexte_decimal:
+                    contexte_decimal.prec = 64
+                    contexte_decimal.rounding = ROUND_HALF_EVEN
+                    duree_estimee_minutes = format(Decimal(str(quantite)) * taux_candidat, "f")
+            except (ArithmeticError, KeyError, TypeError, ValueError):
+                return {"etape": "calibration_active", "accepte": False,
+                        "raisons": ["calibration_active_invalide"]}
 
         prix_recommande, verdict = _prix_recommande_depuis_intervalle(intervalle_confiance, taux_marge)
         if verdict is not None:
@@ -449,6 +483,18 @@ def orchestrer_estimation(
     }
     if duree_estimee_minutes is not None:
         charge["duree_estimee_minutes"] = duree_estimee_minutes
+        trace_temps, verdict = trace_calibration_temps.construire_trace(
+            bareme=bareme,
+            type_service=type_travaux,
+            quantite=quantite,
+            taux_minutes_par_unite=taux_duree_minutes_par_unite,
+            duree_estimee_minutes=duree_estimee_minutes,
+            taux_minutes_par_unite_source=taux_duree_source if calibration_candidate is not None else None,
+            calibration_version_id=calibration_candidate.get("candidate_id") if calibration_candidate else None,
+        )
+        if verdict is not None:
+            return {"etape": "trace_calibration_temps", "accepte": False, "verdict": verdict}
+        charge["trace_calibration_temps"] = trace_temps
     if besoins_calcules is not None:
         charge["besoins_materiaux"] = besoins_calcules
 

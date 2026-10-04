@@ -185,6 +185,7 @@ function ensureTranscriptionTurn(session: TranscriptionRelaySession): string {
 function closeTranscriptionSession(
   session: TranscriptionRelaySession,
   reason: "completed" | "error",
+  discardAudio = false,
 ): void {
   if (session.closed) {
     return;
@@ -194,7 +195,9 @@ function closeTranscriptionSession(
   forgetUnifiedTalkSession(session.id);
   clearTimeout(session.cleanupTimer);
   try {
-    if (!session.draining) {
+    if (discardAudio && session.sttSession.cancel) {
+      session.sttSession.cancel();
+    } else if (!session.draining) {
       session.sttSession.close();
     }
   } finally {
@@ -218,7 +221,7 @@ function closeTalkTranscriptionRelaySessionsForConnection(connId: string): Promi
   return closeTalkRelaySessionsForConnection({
     sessions: transcriptionSessions.values(),
     connId,
-    closeSession: (session) => closeTranscriptionSession(session, "completed"),
+    closeSession: (session) => closeTranscriptionSession(session, "completed", true),
     onCloseError: (error, session) => {
       session.context.logGateway.warn(
         `failed to close transcription relay session after connection disconnect: ${formatError(error)}`,
@@ -230,7 +233,7 @@ function closeTalkTranscriptionRelaySessionsForConnection(connId: string): Promi
 function pruneExpiredTranscriptionSessions(nowMs = Date.now()): void {
   closeExpiredTalkRelaySessions({
     sessions: transcriptionSessions.values(),
-    closeSession: (session) => closeTranscriptionSession(session, "completed"),
+    closeSession: (session) => closeTranscriptionSession(session, "completed", true),
     nowMs,
   });
 }
@@ -351,7 +354,7 @@ export function createTalkTranscriptionRelaySession(
           final: true,
         },
       );
-      closeTranscriptionSession(relay, "error");
+      closeTranscriptionSession(relay, "error", true);
     },
   });
   const relay: TranscriptionRelaySession = {
@@ -365,7 +368,7 @@ export function createTalkTranscriptionRelaySession(
     cleanupTimer: setTimeout(() => {
       const active = transcriptionSessions.get(transcriptionSessionId);
       if (active) {
-        closeTranscriptionSession(active, "completed");
+        closeTranscriptionSession(active, "completed", true);
       }
     }, TRANSCRIPTION_SESSION_TTL_MS),
     receivedAudio: false,
@@ -403,7 +406,7 @@ export function createTalkTranscriptionRelaySession(
           final: true,
         },
       );
-      closeTranscriptionSession(active, "error");
+      closeTranscriptionSession(active, "error", true);
     });
 
   return {
@@ -427,7 +430,7 @@ function getTranscriptionSession(
     sessions: transcriptionSessions,
     sessionId: transcriptionSessionId,
     connId,
-    closeSession: (session) => closeTranscriptionSession(session, "completed"),
+    closeSession: (session) => closeTranscriptionSession(session, "completed", true),
     unknownSessionMessage: "Unknown transcription Talk session",
   });
   if (relay.draining) {
@@ -449,6 +452,11 @@ export function sendTalkTranscriptionRelayAudio(params: {
   const audio = decodeTalkRelayAudioBase64(params.audioBase64, "Transcription Talk");
   const turnId = ensureTranscriptionTurn(session);
   session.sttSession.sendAudio(audio);
+  // Providers may synchronously report a terminal error while accepting this
+  // frame. Do not emit an input-audio event after that callback closed relay.
+  if (session.closed || transcriptionSessions.get(session.id) !== session) {
+    return;
+  }
   session.receivedAudio = true;
   broadcastToOwner(session.context, session.connId, {
     transcriptionSessionId: session.id,
@@ -491,7 +499,7 @@ export function stopTalkTranscriptionRelaySession(params: {
   clearTimeout(session.cleanupTimer);
   session.cleanupTimer = setTimeout(() => {
     if (transcriptionSessions.get(session.id) === session) {
-      closeTranscriptionSession(session, "completed");
+      closeTranscriptionSession(session, "completed", true);
     }
   }, TRANSCRIPTION_PROVIDER_FINAL_DRAIN_MS);
   session.cleanupTimer.unref?.();
@@ -500,7 +508,19 @@ export function stopTalkTranscriptionRelaySession(params: {
     // exact owner registered throughout its bounded provider shutdown window.
     session.sttSession.close();
   } catch (error) {
-    closeTranscriptionSession(session, "completed");
+    closeTranscriptionSession(session, "completed", true);
     throw error;
   }
+}
+
+/** Discards a transcription session owned by this connection, including a pending drain. */
+export function cancelTalkTranscriptionRelaySession(params: {
+  transcriptionSessionId: string;
+  connId: string;
+}): void {
+  const session = transcriptionSessions.get(params.transcriptionSessionId);
+  if (!session || session.connId !== params.connId) {
+    throw new Error("Unknown transcription Talk session");
+  }
+  closeTranscriptionSession(session, "completed", true);
 }

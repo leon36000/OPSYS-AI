@@ -16,6 +16,11 @@ import {
 export { SilentReplyPolicyConfigSchema } from "./zod-schema.agent-defaults-base.js";
 
 export const AgentDefaultsSchema = AgentDefaultsBaseSchema.safeExtend({
+  /** OPSYS-owned marker: every configured agent/session requires sandboxed exec. */
+  opsysIsolation: z
+    .object({ exec: z.literal("sandbox-required") })
+    .strict()
+    .optional(),
   contextLimits: AgentContextLimitsSchema,
   blockStreamingChunk: BlockStreamingChunkSchema.optional(),
   blockStreamingCoalesce: BlockStreamingCoalesceSchema.optional(),

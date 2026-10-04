@@ -54,6 +54,7 @@ la limite du socle. Impressions et clics : aucune source, « non calculable » e
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from typing import Any
 
@@ -574,6 +575,7 @@ _DEPARTEMENT = "m08-analytics"
 # catalogue_non_etendu` (test_evenements_alerte_proposee.py) le verrouille.
 _TYPES_ALERTE_SUR_BUS = frozenset({
     qualite.VERDICT_DONNEE_ABSENTE,
+    qualite.VERDICT_DONNEE_INVALIDE,
     qualite.VERDICT_DONNEE_PERIMEE,
     qualite.VERDICT_HORS_PLAGE,
 })
@@ -689,6 +691,8 @@ def outils(
                 valeur = float(maillon["valeurs"][metric_id])
             except (TypeError, ValueError):
                 continue
+            if not math.isfinite(valeur):
+                continue
             candidats.append((maillon["horodatage"], valeur))
         return candidats
 
@@ -751,6 +755,12 @@ def outils(
             valeur_metrique = semantique.deriver_metrique(
                 module_source, metric_id, definition, registre_cible, horodatage_reference
             )
+            if valeur_metrique.get("derniere_valeur_invalide", False):
+                return {
+                    "etape": "semantique",
+                    "accepte": False,
+                    "verdict": f"REJ-QUALITE-DONNEE-INVALIDE:{metric_id}",
+                }
             metriques.append(valeur_metrique)
 
             historique = _historique_numerique(module_source, metric_id)
@@ -824,7 +834,10 @@ def outils(
         )
 
         alertes_proposees: list[dict[str, Any]] = []
-        absence = qualite.evaluer_presence(metric_id, valeur_metrique["n"], valeur_metrique["valeur"])
+        absence = qualite.evaluer_presence(
+            metric_id, valeur_metrique["n"], valeur_metrique["valeur"],
+            valeur_metrique.get("valeurs_invalides", 0),
+        )
         if absence is not None:
             alertes_proposees.append(alertes.proposer_action(absence, definition))
         else:

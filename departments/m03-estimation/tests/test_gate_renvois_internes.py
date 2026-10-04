@@ -10,7 +10,7 @@ from pathlib import Path as _Path
 import pytest
 
 _sys.path.insert(0, str(_Path(__file__).resolve().parent))
-from _commun_gate import GATE, BRIEF, PRD, ARCHI
+from _commun_gate import ARCHI, BRIEF, GATE, PRD
 
 VERIF_COHERENCE = GATE
 

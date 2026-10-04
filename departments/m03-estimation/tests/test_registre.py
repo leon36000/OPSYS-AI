@@ -11,7 +11,8 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from m3_estimation import contrats, devis, registre, verdicts
+# Import après l'ajout du src local, nécessaire à l'exécution directe hors pytest.
+from m3_estimation import contrats, devis, registre, verdicts  # noqa: E402
 
 
 def _empreinte_valide():

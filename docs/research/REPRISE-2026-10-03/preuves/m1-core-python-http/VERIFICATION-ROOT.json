@@ -1,0 +1,215 @@
+{
+  "executor": "ROOT",
+  "scope": "Real native Core MCP client to new Python HTTP process and SQLite M1 durable owners",
+  "qualified": true,
+  "cases": 2,
+  "counts": {
+    "passed": 2,
+    "failure": 0,
+    "error": 0,
+    "skipped": 0
+  },
+  "source_count": 6394,
+  "source_bytes": 70984208,
+  "elapsed_seconds": 22.08905670803506,
+  "source_unchanged": true,
+  "m1_source_sha256": {
+    "core/test/opsys-runtime-admission-fixture.py": "18a70918dfb7a611d95e4de74e4fcf5d745527e56730d00c8a015d253f65dbc0",
+    "core/src/agents/opsys-runtime-missed-call.python-http.integration.test.ts": "6e3b91331dcb11e5c0f0a39a6b122b58a6673aae687362f8129e8f02bab8d000"
+  },
+  "existing_m9_companion": {
+    "qualified": false,
+    "reason": "hard_raw_quota_floor_256MiB",
+    "cases_qualified": 0,
+    "receipt": "opsys-m1-core-http-m9-regression-root-r1--execution-r1--receipt.json.gz"
+  },
+  "limits": [
+    "No full Core build or generated SDK exports",
+    "No plugin profiler on fresh built output",
+    "No Gateway reload/recovery E2E",
+    "No real provider phone account or voice audio",
+    "No general PostgreSQL or M10 event proof"
+  ],
+  "artifacts": [
+    {
+      "path": "opsys-m1-core-http-root-r1--FREEZE-SOURCES-r1.json.gz",
+      "bytes_original": 789080,
+      "sha256_original": "a5bfad7921029b1f7cce0b16e3677bf220809003e5006eedba4784aa01cea62f",
+      "sha256_gzip": "e14e97a7693141b29cb5c44d3ca09c3044b67ed7fc3ef6faa143e345d00e7b57"
+    },
+    {
+      "path": "opsys-m1-core-http-root-r1--PLAN-r1.json.gz",
+      "bytes_original": 159,
+      "sha256_original": "2617c9700348e2a87af553ee70273a98cbc0c07b285c6c80193fa7b034fe48a2",
+      "sha256_gzip": "5ef59426114582b367a4058b2b5fd6955caded463b0f1531d295ce4ca57a2036"
+    },
+    {
+      "path": "opsys-m1-core-http-root-r1--SCOPE-r1.json.gz",
+      "bytes_original": 78,
+      "sha256_original": "9d9003f88c5c2b453513ad1e4caa5b2ff72e953b4501ba1cb0ace8760d1f2f86",
+      "sha256_gzip": "2d5df177b8dd2d19d4755b510f19940683920ecb0f21fb1fe106de9e0cb3befa"
+    },
+    {
+      "path": "opsys-m1-core-http-root-r1--conducteur-root.py.gz",
+      "bytes_original": 16581,
+      "sha256_original": "990dc4f7f36c0545bd69c9ea06bc66e060aaf49a97e713819f14ccba01e8303c",
+      "sha256_gzip": "86bd6ae6cbd428afd128e0332960d124ad94b47ef3af70f1f65d83691d95ad1f"
+    },
+    {
+      "path": "opsys-m1-core-http-root-r1--execution-r1--boundary-guards-raw-result.json.gz",
+      "bytes_original": 1425,
+      "sha256_original": "62de2eebd8463226ba0ef20baf639a845d73687a5104a959bafd41118bbcdd70",
+      "sha256_gzip": "aea92fac1ae6abb3b0fd97a5f628042ff52c1c0d7a249e77330ff92c5b5e14fe"
+    },
+    {
+      "path": "opsys-m1-core-http-root-r1--execution-r1--boundary-guards.log.gz",
+      "bytes_original": 88,
+      "sha256_original": "a63ed5d5ad78141928ebafe83f1617a7db3d09ec926b6164af4b120817020254",
+      "sha256_gzip": "dcf9b6e0e54d1086a021dc98aad60f66fc23ea94cd7da376bb735fe9b745baf7"
+    },
+    {
+      "path": "opsys-m1-core-http-root-r1--execution-r1--format-raw-result.json.gz",
+      "bytes_original": 1363,
+      "sha256_original": "02b4f37f81b2d2b3965674e005ae18d29123111b6cf7d8f352639e46480b7e51",
+      "sha256_gzip": "f5fa10003b1911c2987d685374541be53f8cdc66841a52ac19060ae898e915a2"
+    },
+    {
+      "path": "opsys-m1-core-http-root-r1--execution-r1--format.log.gz",
+      "bytes_original": 110,
+      "sha256_original": "8ed52ca998709d4034d68313ea604d72b799f984fc29d369c3b22aa641cc1839",
+      "sha256_gzip": "03b9354a35701a6fe3d9156bb7dd9c10de8c0d26f6410e7c0615f8f08f3a793d"
+    },
+    {
+      "path": "opsys-m1-core-http-root-r1--execution-r1--m1-python-http-raw-result.json.gz",
+      "bytes_original": 1729,
+      "sha256_original": "20c8251c962d09bdcce426a1d9b74719e31bc67d19362fe901e01b844217dfc4",
+      "sha256_gzip": "be0844fae30686a09be966f7fc47a79ffce794dce7b4707f58655697262ab780"
+    },
+    {
+      "path": "opsys-m1-core-http-root-r1--execution-r1--m1-python-http.log.gz",
+      "bytes_original": 1371,
+      "sha256_original": "e01dc12ef5a40642f2f9bade0d5d880837fa4966789897ec239a79707001ec7c",
+      "sha256_gzip": "e48b4c97ba5642504af62f711f017b88fdd84926d1d1d7d8cd885d0edf28c17f"
+    },
+    {
+      "path": "opsys-m1-core-http-root-r1--execution-r1--m1-python-http.xml.gz",
+      "bytes_original": 1020,
+      "sha256_original": "e9ad8ea3ed3e66ce2b7cdc92b256917702054cef56125e38f34bc513f0af4d9d",
+      "sha256_gzip": "49cfecd6657e715387f4e68e79b51ddd8d7d55c2e16436a62d44835b830ee386"
+    },
+    {
+      "path": "opsys-m1-core-http-root-r1--execution-r1--python-fixture-lint-raw-result.json.gz",
+      "bytes_original": 1249,
+      "sha256_original": "c0f3bfafc7eb9e2afd8ed5bfdd41f381785ee4fe36aff989710061bca61834cb",
+      "sha256_gzip": "9d04a530933ca33d3eb347c93e295f3a14f9bf7ef648c0fb67992eb4ad515322"
+    },
+    {
+      "path": "opsys-m1-core-http-root-r1--execution-r1--python-fixture-lint.log.gz",
+      "bytes_original": 19,
+      "sha256_original": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "sha256_gzip": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd"
+    },
+    {
+      "path": "opsys-m1-core-http-root-r1--execution-r1--receipt.json.gz",
+      "bytes_original": 1613445,
+      "sha256_original": "57bf7e4185d81612edb355ac0182a8a7bbb8e626b468227312c248f41a28865a",
+      "sha256_gzip": "bca3fe0c76961142c5f746db684ba5952ef1000e83142ef5b52fa8a3b90df8f6"
+    },
+    {
+      "path": "opsys-m1-core-http-root-r1--execution-r1--syntax-lint-raw-result.json.gz",
+      "bytes_original": 1366,
+      "sha256_original": "8460046550d0391ed5b277a5c25f6c2a80399ce50b9918b76c94a3777db95cce",
+      "sha256_gzip": "56867dd3f71924bedb0f10fbc2086bc5e33b78174a589efcda1300da0f85f4bd"
+    },
+    {
+      "path": "opsys-m1-core-http-root-r1--execution-r1--syntax-lint.log.gz",
+      "bytes_original": 91,
+      "sha256_original": "ccd8e8e913dbc5ad326efc73af9a83f0b7c8221d24138e4b712a78a52a4e998f",
+      "sha256_gzip": "d8197def01e84f1b7705ddb6bf283795fbb70a10b386f2619d15f33963b8f0f1"
+    },
+    {
+      "path": "opsys-m1-core-http-m9-regression-root-r1--FREEZE-SOURCES-r1.json.gz",
+      "bytes_original": 789080,
+      "sha256_original": "a5bfad7921029b1f7cce0b16e3677bf220809003e5006eedba4784aa01cea62f",
+      "sha256_gzip": "e14e97a7693141b29cb5c44d3ca09c3044b67ed7fc3ef6faa143e345d00e7b57"
+    },
+    {
+      "path": "opsys-m1-core-http-m9-regression-root-r1--PLAN-r1.json.gz",
+      "bytes_original": 100,
+      "sha256_original": "5c72ea7990b19ea7a82ff79d239ebc2f921b7254ba929fe0f89d32dd53ffba90",
+      "sha256_gzip": "42828f4eeb531b4e86cbe0df6459e811546064b0a5900baf40075a4d2d85ebbe"
+    },
+    {
+      "path": "opsys-m1-core-http-m9-regression-root-r1--SCOPE-r1.json.gz",
+      "bytes_original": 78,
+      "sha256_original": "9d9003f88c5c2b453513ad1e4caa5b2ff72e953b4501ba1cb0ace8760d1f2f86",
+      "sha256_gzip": "2d5df177b8dd2d19d4755b510f19940683920ecb0f21fb1fe106de9e0cb3befa"
+    },
+    {
+      "path": "opsys-m1-core-http-m9-regression-root-r1--conducteur-root.py.gz",
+      "bytes_original": 16015,
+      "sha256_original": "fa7e462400abcd28b79e65958e08c8a121d4f856704044bebc52c2e54a4a8ac9",
+      "sha256_gzip": "aa4b09657f6fe14c0ab148429edd15a2b5f6eeba04970d793ce95272de77a090"
+    },
+    {
+      "path": "opsys-m1-core-http-m9-regression-root-r1--execution-r1--m9-python-http-raw-result.json.gz",
+      "bytes_original": 2078,
+      "sha256_original": "c225f24473f03c9cbc668cfe0d40838f8d86c49591e52e097f79160a0849e175",
+      "sha256_gzip": "746b7f32e7977218086c40de58f5ce3334ae4bcd7b1f8f1c31d4c905f9332c2d"
+    },
+    {
+      "path": "opsys-m1-core-http-m9-regression-root-r1--execution-r1--m9-python-http.log.gz",
+      "bytes_original": 96,
+      "sha256_original": "4108f13ec329114d3241ca8a6f5b1de1b049b1f0c82b248e21f3c59bf93531bb",
+      "sha256_gzip": "1639e4c212edbf8a6cf47db2699659f84b3f093e44b4fc011b233f2e004d59f7"
+    },
+    {
+      "path": "opsys-m1-core-http-m9-regression-root-r1--execution-r1--m9-python-http.xml.gz",
+      "bytes_original": 0,
+      "sha256_original": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "sha256_gzip": "f61f27bd17de546264aa58f40f3aafaac7021e0ef69c17f6b1b4cd7664a037ec"
+    },
+    {
+      "path": "opsys-m1-core-http-m9-regression-root-r1--execution-r1--receipt.json.gz",
+      "bytes_original": 1607066,
+      "sha256_original": "b2043116c353e946a87e4b739b7b4553a62b33e8e240957f9e83901cb033e453",
+      "sha256_gzip": "fe45e72c2a7285c8fa1026186f937626798f3f52d2556fd158a03383710ea766"
+    },
+    {
+      "path": "opsys-m1-core-http-format-root-r1--FREEZE-SOURCES-r1.json.gz",
+      "bytes_original": 656012,
+      "sha256_original": "5bdbbc73fac7a04c8bea6f5f26e16044a745933c252153227903a1cdf696ac3f",
+      "sha256_gzip": "1411956fd621951446d0f4609ff7072fa85b4babd64807420fafc40cc13cc0bb"
+    },
+    {
+      "path": "opsys-m1-core-http-format-root-r1--SCOPE-r1.json.gz",
+      "bytes_original": 78,
+      "sha256_original": "9d9003f88c5c2b453513ad1e4caa5b2ff72e953b4501ba1cb0ace8760d1f2f86",
+      "sha256_gzip": "2d5df177b8dd2d19d4755b510f19940683920ecb0f21fb1fe106de9e0cb3befa"
+    },
+    {
+      "path": "opsys-m1-core-http-format-root-r1--conducteur-root.py.gz",
+      "bytes_original": 15902,
+      "sha256_original": "d3058e9081c1457ea05d3e914ac469f95029a817f6e0ff65c9b8667070295a66",
+      "sha256_gzip": "b2694a6325acd2977dae6f36d9c5fa9c5938f72c5599aadd5d3bde8cbfb810e5"
+    },
+    {
+      "path": "opsys-m1-core-http-format-root-r1--execution-r1--format-write-raw-result.json.gz",
+      "bytes_original": 1381,
+      "sha256_original": "442382d5e584a9fc35127515a03179e42adf02b7a896a04a9f69080523ec05ee",
+      "sha256_gzip": "70fc2aaf2064d7489b3d885c876968fab03dd2ae59d2ca8117e03809215d0b38"
+    },
+    {
+      "path": "opsys-m1-core-http-format-root-r1--execution-r1--format-write.log.gz",
+      "bytes_original": 45,
+      "sha256_original": "77c82a8739c8682dcae8d5e7848458d3f039d2f1c5a778db288969c3ff54bbf8",
+      "sha256_gzip": "a11f5d5a17a2203c32075b8fca7d9e2dc43fc58c4d8aa4e6008a2b562fbadbd1"
+    },
+    {
+      "path": "opsys-m1-core-http-format-root-r1--execution-r1--receipt.json.gz",
+      "bytes_original": 1335770,
+      "sha256_original": "2741028adc79416bd8b50ea0172b29c2b1959526f58d9f7ac25cecce8a3bf3b8",
+      "sha256_gzip": "780b51b11f29c8669335adcccdb6b3e4f21bcb14d42229e345ae7890b02e6088"
+    }
+  ]
+}

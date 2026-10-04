@@ -238,11 +238,14 @@ def test_un_role_retire_depuis_l_appairage_est_refuse_par_l_identite_confirmee_e
     assert lecture.statut == 200  # le jeton passe la porte : c'est M2 qui refuse, sur la personne, pas sur le jeton
     verdict = lecture.metier["verdict"]
     assert verdict["code"] == "REJ-IDENTITE-APPAREIL-INVALIDE" and LEAD_B not in json.dumps(lecture.corps)
-    # Une écriture N3 dont la personne n'est plus confirmée n'est PAS exécutée : le socle la met dans la file du
-    # propriétaire (validation au départ non satisfaite), rien n'est préparé ni inscrit avant sa décision.
+    # Une personne dont le rôle a été retiré ne peut plus proposer ces mutations N3 : le refus
+    # précède la création d'une demande, d'un reçu d'idempotence ou d'un effet métier.
+    empreinte = moteur.empreinte_etat()
     for reponse in (_preparer(moteur, b, LEAD_B, "appel", "e2e-role-retire-1"),
                     _consentir(moteur, b, LEAD_B, "e2e-role-retire-2")):
-        assert reponse.statut == 200 and reponse.enveloppe["statut"] == "en_attente_approbation", reponse.corps
+        assert reponse.statut == 200 and reponse.enveloppe["ok"] is False, reponse.corps
+        assert reponse.enveloppe["erreur"] == "ticket_cible_requis", reponse.corps
+    assert moteur.empreinte_etat() == empreinte
     assert _registres(moteur) == avant
     assert _registre("relances_preparees") == [] and _registre("consentements_contact") == []
 

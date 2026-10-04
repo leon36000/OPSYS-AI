@@ -35,19 +35,21 @@ from collections.abc import Callable
 from functools import partial
 from typing import Any
 
-from opsys import approbations, cles_chiffrement, contexte, evenements, fichiers, jetons, stockage
+from opsys import approbations, cles_chiffrement, contexte, evenements, fichiers, identite, jetons, stockage
 from opsys import equipes as equipes_entreprise
 from opsys import meteo as meteo_entreprise
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import (
     acces,
+    calibration_projection,
     cedule,
     cedule_tournees,
     consentement,
     digest,
     ecarts,
     etats,
+    heures_regulieres,
     localisation,
     materiel,
     meteo_creneaux,
@@ -347,6 +349,16 @@ def outils(
         if registre_cible is not None:
             return None
         return stockage.connexion_courante()
+
+    def _verifier_chaine_heures(reg: registre.Registre) -> dict[str, Any] | None:
+        try:
+            valide = reg.valider_chaine()
+        except Exception:
+            valide = False
+        if not valide:
+            return verdicts.construire_verdict(
+                "REJ-REGISTRE-INVALIDE", detail="chaîne M4 corrompue; aucun contenu financier n'est lu")
+        return None
 
     # -- fonctions enveloppes (closures sur registre_courant) ---------------
 
@@ -824,6 +836,18 @@ def outils(
     def lire_outbox(depuis_index: int = 0) -> list[dict[str, Any]]:
         return [{"index": i, "wct": w} for i, w in outbox.lire_outbox(registre_courant(), depuis_index)]
 
+    def lire_faits_calibration_m3(wct_ids: list[str]) -> dict[str, Any]:
+        """Projection readonly des faits terrain validés, réservée à M3 et aux admins."""
+        origine = contexte.departement_origine_appelante()
+        appareil = contexte.identite_appelante()
+        if origine is not None and origine != "m03-estimation":
+            return {"observations": [], "refus": [{"motif": "departement_appelant_non_autorise"}]}
+        if appareil is not None and appareil.role != "admin":
+            return {"observations": [], "refus": [{"motif": "role_appareil_non_autorise"}]}
+        if origine is None and appareil is None:
+            return {"observations": [], "refus": [{"motif": "appelant_non_authentifie"}]}
+        return calibration_projection.lire_projections(wct_ids)
+
     def notifier_client_completion(intervention_id: str) -> dict[str, Any]:
         """Prépare le brouillon de message client (T2) : jamais GPS/technicien/lead_id en clair."""
         wct = None
@@ -873,6 +897,179 @@ def outils(
         return depuis_couple(
             temps.produire_brouillon_temps(registre_courant(), periode, seuil_minutes=seuil_minutes)
         )
+
+    def previsualiser_heures_regulieres(
+        technicien_id: str, debut: str, fin: str, fuseau: str,
+    ) -> dict[str, Any]:
+        acteur, verdict_acteur = _acteur_appareil()
+        if verdict_acteur is not None:
+            return _refus(verdict_acteur)
+        if acteur is None or acteur.role != "admin":
+            return _refus(verdicts.construire_verdict(
+                "REJ-IDENTITE-HUMAINE-REQUISE", detail="lecture réservée à une identité admin confirmée"))
+        cnx = stockage.connexion_courante()
+        personne = identite.personne_active(cnx, technicien_id) if cnx is not None else None
+        if personne is None or "employee" not in personne.roles:
+            return _refus(verdicts.construire_verdict(
+                "REJ-TECHNICIEN-INVALIDE", detail="technicien doit être une personne OPSYS active avec rôle employee"))
+        reg = registre_courant()
+        verdict_chaine = _verifier_chaine_heures(reg)
+        if verdict_chaine is not None:
+            return _refus(verdict_chaine)
+        return heures_regulieres.previsualiser(reg.lire(), technicien_id, debut, fin, fuseau)
+
+    def valider_heures_regulieres(
+        technicien_id: str, debut: str, fin: str, fuseau: str, empreinte_sources: str,
+        categories_minutes: dict[str, int], details_intervalles: list[dict[str, Any]], sources: list[str],
+        validation_precedente_attendue: dict[str, Any] | None,
+        couverture_complete: bool, classification_reguliere_confirmee: bool,
+        dispositions: dict[str, Any], motif_correction: str,
+    ) -> dict[str, Any]:
+        cnx = stockage.connexion_courante()
+        signataire = approbations.approbateur_en_cours(
+            cnx, "m4_valider_heures_regulieres", _DEPARTEMENT,
+            roles=frozenset({"admin", "manager", "nathan_owner"}),
+        )
+        if signataire is None:
+            return _refus(verdicts.construire_verdict(
+                "REJ-HUMAIN-REQUIS", detail="validation réservée à une approbation N4 actuellement signée"))
+        if couverture_complete is not True or classification_reguliere_confirmee is not True:
+            return _refus(verdicts.construire_verdict(
+                "REJ-ATTESTATION-MANQUANTE",
+                detail="couverture complète et classification régulière explicites requises"))
+        if not isinstance(dispositions, dict) or set(dispositions) != {"travail", "deplacement", "pause"} or any(
+            not isinstance(v, dict) or type(v.get("inclure")) is not bool
+            or not isinstance(v.get("source"), str) or not v["source"].strip() for v in dispositions.values()
+        ):
+            return _refus(verdicts.construire_verdict(
+                "REJ-DECISION-CATEGORIE-INCOMPLETE",
+                detail="chaque catégorie exige inclure explicite et source humaine"))
+        personne = identite.personne_active(cnx, technicien_id) if cnx is not None else None
+        if personne is None or "employee" not in personne.roles:
+            return _refus(verdicts.construire_verdict(
+                "REJ-TECHNICIEN-INVALIDE", detail="technicien OPSYS inactif ou sans rôle employee"))
+        reg = registre_courant()
+        verdict_chaine = _verifier_chaine_heures(reg)
+        if verdict_chaine is not None:
+            return _refus(verdict_chaine)
+        proposition = heures_regulieres.previsualiser(reg.lire(), technicien_id, debut, fin, fuseau)
+        if (not proposition.get("accepte") or not isinstance(categories_minutes, dict)
+                or set(categories_minutes) != {"travail", "deplacement", "pause"}
+                or any(type(v) is not int or v < 0 for v in categories_minutes.values())
+                or proposition["resultat"]["empreinte_sources"] != empreinte_sources
+                or proposition["resultat"]["categories_minutes"] != categories_minutes
+                or proposition["resultat"]["details_intervalles"] != details_intervalles
+                or not isinstance(sources, list)
+                or proposition["resultat"]["sources"] != sources):
+            return _refus(verdicts.construire_verdict(
+                "REJ-SOURCES-CHANGEES",
+                detail="recalcul des pointages différent de l'aperçu signé; reprendre l'aperçu"))
+        precedent = [m for m in reg.lire() if m.get("type_entree") == "heures_regulieres_validees"
+                     and m.get("technicien_id") == technicien_id
+                     and m.get("periode") == proposition["resultat"]["periode"]]
+        tete_precedente = None if not precedent else {
+            "revision": precedent[-1].get("revision"), "ligne_id": precedent[-1].get("ligne_id")}
+        if validation_precedente_attendue != tete_precedente:
+            return _refus(verdicts.construire_verdict(
+                "REJ-VALIDATION-COURANTE-CHANGE", detail="une autre correction N4 a été écrite; reprendre l'aperçu"))
+        if not isinstance(motif_correction, str) or not motif_correction.strip():
+            return _refus(verdicts.construire_verdict(
+                "REJ-MOTIF-CORRECTION-REQUIS", detail="motif humain requis pour toute nouvelle révision"))
+        minutes = sum(proposition["resultat"]["categories_minutes"][k] for k, v in dispositions.items()
+                      if v["inclure"])
+        reg.ajouter({
+            "type_entree": "heures_regulieres_validees", "version_schema": 1,
+            "revision": len(precedent) + 1, "remplace_ligne_id": precedent[-1]["ligne_id"] if precedent else None,
+            "validation_precedente_attendue": validation_precedente_attendue,
+            "technicien_id": technicien_id, "periode": proposition["resultat"]["periode"],
+            "minutes_regulieres": minutes, "categories_minutes": proposition["resultat"]["categories_minutes"],
+            "details_intervalles": proposition["resultat"]["details_intervalles"],
+            "dispositions": dispositions, "couverture_complete": True,
+            "motif_correction": motif_correction,
+            "classification_reguliere_confirmee": True, "empreinte_sources": empreinte_sources,
+            "sources": proposition["resultat"]["sources"],
+            "approuve_par": signataire.personne, "role_approbateur": signataire.role,
+            "demande_approbation_id": contexte.demande_approuvee_en_cours(),
+            "horodatage": approbations._maintenant(),
+        })
+        return {"accepte": True, "resultat": reg.lire()[-1]}
+
+    def lire_heures_regulieres_validees(technicien_id: str, debut: str, fin: str, fuseau: str) -> dict[str, Any]:
+        cnx = stockage.connexion_courante()
+        origine = contexte.departement_origine_appelante()
+        projection_privee_m5 = origine == "m05-financecore"
+        if projection_privee_m5:
+            appelante = contexte.identite_appelante()
+            if (appelante is None or appelante.source != "console" or appelante.role != "nathan_owner"):
+                return _refus(verdicts.construire_verdict(
+                    "REJ-IDENTITE-HUMAINE-REQUISE",
+                    detail="lecture M5 réservée à une identité console nathan_owner confirmée"))
+            signataire = approbations.signataire_valide(cnx, appelante) if cnx is not None else None
+            if signataire is None:
+                return _refus(verdicts.construire_verdict(
+                    "REJ-IDENTITE-APPAREIL-INVALIDE",
+                    detail="identité console nathan_owner inactive ou non confirmée en base"))
+        else:
+            acteur, verdict_acteur = _acteur_appareil()
+            if verdict_acteur is not None:
+                return _refus(verdict_acteur)
+            if acteur is None or acteur.role != "admin":
+                return _refus(verdicts.construire_verdict(
+                    "REJ-IDENTITE-HUMAINE-REQUISE", detail="lecture réservée à une identité admin confirmée"))
+        personne = identite.personne_active(cnx, technicien_id) if cnx is not None else None
+        if personne is None or "employee" not in personne.roles:
+            return _refus(verdicts.construire_verdict(
+                "REJ-TECHNICIEN-INVALIDE", detail="technicien OPSYS inactif ou sans rôle employee"))
+        reg = registre_courant()
+        verdict_chaine = _verifier_chaine_heures(reg)
+        if verdict_chaine is not None:
+            return _refus(verdict_chaine)
+        identifiant_periode = {"debut": debut, "fin": fin, "fuseau": fuseau}
+        maillons = reg.lire()
+        candidats = [m for m in maillons if m.get("type_entree") == "heures_regulieres_validees"
+                     and m.get("technicien_id") == technicien_id and m.get("periode") == identifiant_periode]
+        if not candidats:
+            return _refus(verdicts.construire_verdict("REJ-VALIDATION-ABSENTE", detail="aucune validation N4"))
+        actuel = candidats[-1]
+        source = heures_regulieres.previsualiser(maillons, technicien_id, debut, fin, fuseau)
+        precedent_attendu = None if len(candidats) == 1 else {
+            "revision": candidats[-2].get("revision"), "ligne_id": candidats[-2].get("ligne_id")}
+        tete_courante = {"revision": actuel.get("revision"), "ligne_id": actuel.get("ligne_id")}
+        if not source.get("accepte") or not heures_regulieres.validation_coherente(
+            actuel, source["resultat"], len(candidats), candidats[-2]["ligne_id"] if len(candidats) > 1 else None,
+        ) or actuel.get("validation_precedente_attendue") != precedent_attendu or source["resultat"].get(
+            "validation_precedente") != tete_courante:
+            return _refus(verdicts.construire_verdict(
+                "REJ-VALIDATION-INCOHERENTE",
+                detail="la validation N4 ne correspond plus aux sources ou à sa révision"))
+        demande_id = actuel.get("demande_approbation_id")
+        demande = approbations.lire(cnx, demande_id) if cnx is not None and isinstance(demande_id, str) else None
+        champs_signes = {
+            "technicien_id": technicien_id, "debut": debut, "fin": fin, "fuseau": fuseau,
+            "empreinte_sources": actuel.get("empreinte_sources"),
+            "categories_minutes": actuel.get("categories_minutes"),
+            "details_intervalles": actuel.get("details_intervalles"), "sources": actuel.get("sources"),
+            "validation_precedente_attendue": actuel.get("validation_precedente_attendue"),
+            "couverture_complete": True, "classification_reguliere_confirmee": True,
+            "dispositions": actuel.get("dispositions"), "motif_correction": actuel.get("motif_correction"),
+        }
+        if (not demande or demande.get("statut") != "executee"
+                or demande.get("outil") != "m4_valider_heures_regulieres"
+                or demande.get("departement") != _DEPARTEMENT
+                or demande.get("decide_par") != actuel.get("approuve_par")
+                or demande.get("decide_role") != actuel.get("role_approbateur")
+                or demande.get("arguments") != champs_signes):
+            return _refus(verdicts.construire_verdict(
+                "REJ-APPROBATION-INCOHERENTE", detail="la validation ne correspond pas à sa demande N4 exécutée"))
+        if projection_privee_m5:
+            return {"accepte": True, "resultat": {
+                "technicien_id": actuel["technicien_id"], "periode": actuel["periode"],
+                "minutes_regulieres": actuel["minutes_regulieres"], "ligne_id": actuel["ligne_id"],
+                "revision": actuel["revision"], "empreinte_sources": actuel["empreinte_sources"],
+                "couverture_complete": actuel["couverture_complete"],
+                "classification_reguliere_confirmee": actuel["classification_reguliere_confirmee"],
+            }}
+        return {"accepte": True, "resultat": actuel}
 
     def proposer_localisation(adresse: Any, chantier_id: str | None = None) -> dict[str, Any]:
         """Lecture seule : cherche l'adresse dans l'index RQA LOCAL (aucun réseau) et PROPOSE, sans rien
@@ -1528,6 +1725,25 @@ def outils(
             autonomie=Autonomie.T0,
         ),
         Outil(
+            nom="m4_lire_faits_calibration_m3",
+            description=(
+                "Projection interne, en lecture seule, des WCT publiés dont la chaîne M4, le statut courant et les "
+                "pointages d'arrivée/départ sont vérifiés. Relit la charge canonique du bus; refuse les faits "
+                "manquants ou divergents. Réservée à M3 et aux admins; les durées sont des minutes écoulées nettes "
+                "des pauses, sans temps de déplacement ni heures-personnes."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"wct_ids": {
+                    "type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 128},
+                    "minItems": 1, "maxItems": 200, "uniqueItems": True,
+                }},
+                "required": ["wct_ids"], "additionalProperties": False,
+            },
+            fonction=lire_faits_calibration_m3, autonomie=Autonomie.T0,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
             nom="m4_notifier_client_completion",
             description=(
                 "Prépare le message de confirmation de fin de travaux pour le client, à partir "
@@ -2072,6 +2288,60 @@ def outils(
             # proposition de cédule (`m4_proposer_cedule` écrit un maillon). Ni l'employé ni le vendeur : c'est un
             # chantier de client (adresse confirmée, créneau). Refusé aussi dans l'outil
             # (`acces.controler_administrateur`).
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_previsualiser_heures_regulieres",
+            description=("Aperçu privé des pointages d'une personne OPSYS active. Dérive catégories travail, "
+                         "déplacement et pause depuis les horodatages des maillons M4, sans GPS ni règle de paie. "
+                         "Chaque intervalle incomplet, ambigu ou hors période est refusé. Aucun WCT/temps d'équipe."),
+            parametres={"type": "object", "properties": {
+                "technicien_id": {"type": "string"}, "debut": {"type": "string", "format": "date"},
+                "fin": {"type": "string", "format": "date"}, "fuseau": {"type": "string"}},
+                "required": ["technicien_id", "debut", "fin", "fuseau"], "additionalProperties": False},
+            fonction=previsualiser_heures_regulieres, autonomie=Autonomie.T0,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m4_valider_heures_regulieres",
+            description=("Écrit une révision append-only d'heures régulières seulement pendant une approbation N4 "
+                         "signée. Recalcule l'aperçu scellé avant écriture. Chaque catégorie doit être explicitement "
+                         "incluse ou exclue avec sa source humaine; aucune interprétation juridique automatique."),
+            parametres={"type": "object", "properties": {
+                "technicien_id": {"type": "string"}, "debut": {"type": "string", "format": "date"},
+                "fin": {"type": "string", "format": "date"}, "fuseau": {"type": "string"},
+                "empreinte_sources": {"type": "string"}, "couverture_complete": {"type": "boolean"},
+                "categories_minutes": {"type": "object", "properties": {
+                    k: {"type": "integer", "minimum": 0} for k in ("travail", "deplacement", "pause")},
+                    "required": ["travail", "deplacement", "pause"], "additionalProperties": False},
+                "details_intervalles": {"type": "array", "items": {"type": "object"}},
+                "sources": {"type": "array", "items": {"type": "string"}},
+                "validation_precedente_attendue": {"type": ["object", "null"], "properties": {
+                    "revision": {"type": "integer", "minimum": 1}, "ligne_id": {"type": "string"}},
+                    "required": ["revision", "ligne_id"], "additionalProperties": False},
+                "motif_correction": {"type": "string", "minLength": 1},
+                "classification_reguliere_confirmee": {"type": "boolean"},
+                "dispositions": {"type": "object", "properties": {
+                    k: {"type": "object", "properties": {"inclure": {"type": "boolean"}, "source": {"type": "string"}},
+                        "required": ["inclure", "source"], "additionalProperties": False}
+                    for k in ("travail", "deplacement", "pause")},
+                    "required": ["travail", "deplacement", "pause"], "additionalProperties": False}},
+                "required": ["technicien_id", "debut", "fin", "fuseau", "empreinte_sources", "categories_minutes",
+                             "details_intervalles", "sources", "couverture_complete",
+                             "validation_precedente_attendue",
+                             "classification_reguliere_confirmee", "dispositions", "motif_correction"],
+                "additionalProperties": False},
+            fonction=valider_heures_regulieres, autonomie=Autonomie.T1, niveau=Niveau.N4,
+        ),
+        Outil(
+            nom="m4_lire_heures_regulieres_validees",
+            description=("Lecture privée admin de la validation N4 courante d'une période individuelle. Refuse si "
+                         "les pointages ont changé depuis la validation. Les révisions antérieures restent auditées."),
+            parametres={"type": "object", "properties": {
+                "technicien_id": {"type": "string"}, "debut": {"type": "string", "format": "date"},
+                "fin": {"type": "string", "format": "date"}, "fuseau": {"type": "string"}},
+                "required": ["technicien_id", "debut", "fin", "fuseau"], "additionalProperties": False},
+            fonction=lire_heures_regulieres_validees, autonomie=Autonomie.T0,
             roles_appareil=frozenset({"admin"}),
         ),
         Outil(

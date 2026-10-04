@@ -1,4 +1,6 @@
 import type { DepotCleValeur } from "../stockage/depotCleValeur";
+import { estAccuseCompletionM4 } from "./completion";
+import type { MutationOutbox } from "../outbox/types";
 
 /**
  * Garde, par chantier, le SEUL `wct_id` de la complétion acceptée — l'identifiant de l'accusé de
@@ -29,4 +31,10 @@ export async function lireWctIdCompletion(depot: DepotCleValeur, chantierId: str
 
 export async function ecrireWctIdCompletion(depot: DepotCleValeur, chantierId: string, wctId: string): Promise<void> {
   await depot.ecrire(cleWctId(chantierId), wctId);
+}
+
+/** Récupère le WCT depuis l'accusé durable de la file, même si le vidangeur a fini hors écran. */
+export function trouverAccuseCompletion(mutations: readonly MutationOutbox[], chantierId: string): string | null {
+  const completion = mutations.find((m) => m.type === "job_completion" && m.chantierId === chantierId && m.statut === "envoyee");
+  return completion && estAccuseCompletionM4(completion.resumeAccepte) ? completion.resumeAccepte.wct_id : null;
 }

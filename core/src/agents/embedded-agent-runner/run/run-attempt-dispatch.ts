@@ -644,6 +644,7 @@ export async function prepareAndDispatchEmbeddedRunAttempt(input: {
     jobId: params.jobId,
     scheduledRuntimeAuthority: params.scheduledRuntimeAuthority,
     scheduledRuntimeAuthorityRecoveryRequired: params.scheduledRuntimeAuthorityRecoveryRequired,
+    validateScheduledRuntimeAuthority: params.validateScheduledRuntimeAuthority,
     toolsAllow: params.toolsAllow,
     toolExecutionAllow: params.toolExecutionAllow,
     // Authorized prompt enrichment needs the exact prepared turn policy identity.

@@ -259,10 +259,11 @@ def test_paiement_n5_avec_attestation_montant_exact_marque_payee(dep, personnes)
 
 def test_paiement_n5_montant_qui_ne_concorde_pas_rend_un_verdict_nomme_jamais_paye(dep, personnes):
     """Point 2 du mandat : paiement partiel ou écart -> verdict nommé, JAMAIS une valeur inventée.
-    La décision du socle reste `executee` (l'outil a bien tourné) : ce que le CODE refuse, c'est
-    de marquer la facture PAYEE sur un montant qui ne concorde pas — jamais une panne du socle."""
+    La commande approuvée est en échec métier, avec réponse d'outil valide refusant le paiement.
+    Aucun maillon financier n'est ajouté et la facture reste ENVOYEE."""
     facture_id = _creer_facture_brouillon(facture_id="FACT-N5-PARTIEL", devis_id="DEVIS-N5-PARTIEL")
     _envoyer_facture_directement(facture_id)
+    factures_avant = m5_outils._registre_factures(None).lire()
     capacites = Capacites({"m05-financecore": dep}, stockage.transaction)
     ident = capacites.appeler("m5_enregistrer_paiement_facture", {
         "facture_id": facture_id, "montant_paye": "500.00", "approbateur": "Nathan (fictif)",
@@ -276,10 +277,12 @@ def test_paiement_n5_montant_qui_ne_concorde_pas_rend_un_verdict_nomme_jamais_pa
             attestation=ATTESTATION_VALIDE,
         )
 
-    assert decision["statut"] == "executee"
+    assert decision["statut"] == "echec"
+    assert decision["reponse"]["ok"] is True
     assert decision["reponse"]["resultat"]["accepte"] is False
     assert decision["reponse"]["resultat"]["verdict"]["code"] == "REJ-FACTURE-PAIEMENT-PARTIEL"
     assert _statut_facture(facture_id) == "ENVOYEE", "jamais marquée PAYEE sur un paiement partiel"
+    assert m5_outils._registre_factures(None).lire() == factures_avant, "aucun paiement n'ajoute de maillon facture"
 
 
 def test_refus_d_une_demande_d_envoi_ne_transitionne_rien(dep, personnes):

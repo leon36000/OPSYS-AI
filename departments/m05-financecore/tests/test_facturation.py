@@ -1,7 +1,7 @@
 """Facturation client (M5.2) : facture brouillon, verrous d'envoi/paiement, âge des créances."""
 
 import dataclasses
-from decimal import Decimal
+from decimal import Decimal, Inexact, Rounded, localcontext
 from pathlib import Path
 
 import pytest
@@ -128,6 +128,33 @@ def test_creer_facture_brouillon_nominal_recalcule_les_totaux_et_les_taxes_sur_l
     assert len(maillon["lignes"]) == 2
     assert maillon["lignes"][0]["montant"] == Decimal("340.00")
     assert maillon["lignes"][1]["montant"] == Decimal("260.00")
+
+
+def test_creer_facture_brouillon_refuse_un_prix_fini_hors_du_domaine_sans_ecrire():
+    resultat, verdict, registre_cible = _creer(
+        facture_id="FACT-EXTREME", devis_id="DEVIS-EXTREME",
+        lignes=[{
+            "description": "Ligne fictive", "quantite": "1", "unite": "unité",
+            "prix_unitaire": "1e100", "reference_ligne_devis": "L1",
+        }],
+    )
+
+    assert resultat is None
+    assert verdict is not None and verdict["code"] == "REJ-FACTURE-MONTANT-INCOHERENT"
+    assert registre_cible.lire() == []
+
+
+def test_creer_facture_brouillon_est_independante_du_contexte_decimal_appelant():
+    with localcontext() as contexte:
+        contexte.prec = 2
+        contexte.traps[Inexact] = True
+        contexte.traps[Rounded] = True
+        maillon, verdict, registre_cible = _creer()
+
+    assert verdict is None
+    assert maillon["montant_avant_taxes"] == Decimal("600.00")
+    assert maillon["montant_apres_taxes"] == Decimal("689.85")
+    assert registre_cible.valider_chaine() == (True, "")
 
 
 def test_creer_facture_brouillon_arrondit_un_demi_cent_de_ligne_vers_le_haut():
@@ -325,6 +352,40 @@ def test_creer_facture_brouillon_est_idempotente_par_devis_id():
     assert verdict2["code"] == "REJ-FACTURE-DEVIS-DEJA-FACTURE"
     assert "FACT-A" in verdict2["detail"]
     assert len(registre_cible.lire()) == 1
+
+
+def test_collision_facture_id_refuse_sans_modifier_facture_envoyee_ni_ar():
+    facture, verdict, registre_cible = _creer(facture_id="FACT-COLLISION", devis_id="DEVIS-1")
+    assert verdict is None
+    _, verdict = facturation.envoyer_facture("FACT-COLLISION", "2026-08-10T09:00:00+00:00", registre_cible)
+    assert verdict is None
+    avant = list(registre_cible.lire())
+    ar_avant, verdict = facturation.calculer_age_creances(registre_cible, "2026-08-11")
+    assert verdict is None
+
+    resultat, conflit, _ = _creer(
+        facture_id="FACT-COLLISION", devis_id="DEVIS-2", registre_cible=registre_cible
+    )
+
+    assert resultat is None
+    assert conflit is not None and conflit["code"] == "REJ-FACTURE-DEVIS-DEJA-FACTURE"
+    assert "facture_id" in conflit["detail"] and "autre charge" in conflit["detail"]
+    assert registre_cible.lire() == avant
+    etat = facturation.facture_active_pour_devis(registre_cible, "DEVIS-1")
+    assert etat["devis_id"] == "DEVIS-1" and etat["statut"] == "ENVOYEE"
+    ar_apres, verdict = facturation.calculer_age_creances(registre_cible, "2026-08-11")
+    assert verdict is None and ar_apres == ar_avant
+
+
+def test_rejeu_identique_facture_id_est_idempotent():
+    _, verdict1, registre_cible = _creer(facture_id="FACT-REJEU", devis_id="DEVIS-REJEU")
+    avant = list(registre_cible.lire())
+
+    resultat, verdict2, _ = _creer(facture_id="FACT-REJEU", devis_id="DEVIS-REJEU", registre_cible=registre_cible)
+
+    assert verdict1 is None and verdict2 is None
+    assert resultat["ligne_id"] == avant[0]["ligne_id"]
+    assert registre_cible.lire() == avant
 
 
 def test_facture_active_pour_devis_rend_none_si_aucune():

@@ -1,0 +1,70 @@
+[
+  {
+    "name": "m5_etat_tresorerie",
+    "line": 1946
+  },
+  {
+    "name": "m5_calculer_taxes_tps_tvq",
+    "line": 1990
+  },
+  {
+    "name": "m5_enregistrer_mouvement",
+    "line": 2005
+  },
+  {
+    "name": "m5_creer_facture_brouillon",
+    "line": 2028
+  },
+  {
+    "name": "m5_lister_attentes_facturation",
+    "line": 2062
+  },
+  {
+    "name": "m5_lire_rentabilite_chantier",
+    "line": 2079
+  },
+  {
+    "name": "m5_lire_comptes_a_recevoir",
+    "line": 2113
+  },
+  {
+    "name": "m5_saisir_facture_fournisseur",
+    "line": 2139
+  },
+  {
+    "name": "m5_saisir_facture_sans_po",
+    "line": 2194
+  },
+  {
+    "name": "m5_corriger_facture_fournisseur",
+    "line": 2240
+  },
+  {
+    "name": "m5_annuler_facture_fournisseur",
+    "line": 2286
+  },
+  {
+    "name": "m5_lister_comptes_a_payer",
+    "line": 2313
+  },
+  {
+    "name": "m5_lire_echeances_fiscales",
+    "line": 2357
+  },
+  {
+    "name": "m5_prevoir_tresorerie",
+    "line": 2390
+  },
+  {
+    "name": "m5_constater_cash_libre",
+    "line": 2440
+  },
+  {
+    "name": "m5_envoyer_facture",
+    "line": 2486
+  },
+  {
+    "name": "m5_enregistrer_paiement_facture",
+    "line": 2510
+  }
+]

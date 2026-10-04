@@ -12,6 +12,7 @@ import {
 import { resolveSandboxDockerEnv, resolveSandboxScope } from "../agents/sandbox/config-contract.js";
 import { getContainerEnvFileEntryIssue } from "../infra/container-env-file.js";
 import type { PluginMetadataSnapshot } from "../plugins/plugin-metadata-snapshot.js";
+import { isAssistantAvatarModelId } from "../shared/assistant-avatar-model-catalog.js";
 import {
   hasAvatarUriScheme,
   isAvatarDataUrl,
@@ -170,6 +171,24 @@ function validateIdentityAvatar(
   }
   const issues: ConfigValidationIssue[] = [];
   for (const { entry, source } of agents) {
+    if (
+      entry.identity?.avatarModelId !== undefined &&
+      !isAssistantAvatarModelId(entry.identity.avatarModelId)
+    ) {
+      const pathSegments =
+        source.kind === "entries"
+          ? (["agents", "entries", source.key, "identity", "avatarModelId"] as const)
+          : (["agents", "list", source.index, "identity", "avatarModelId"] as const);
+      issues.push(
+        withConfigIssuePath(
+          {
+            path: pathSegments.join("."),
+            message: "identity.avatarModelId must name a model in the local avatar catalogue.",
+          },
+          pathSegments,
+        ),
+      );
+    }
     const avatarRaw = entry.identity?.avatar;
     if (typeof avatarRaw !== "string") {
       continue;

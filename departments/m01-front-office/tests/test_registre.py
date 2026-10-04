@@ -38,6 +38,11 @@ def _entree_signal_personnalisee(**kwargs):
 
 
 class TestRegistre:
+    def test_chaine_vide_refuse_une_ancre_externe_non_vide(self):
+        ok, verdict = registre.Registre().valider_chaine(ancre_attendue="ancre-externe-non-vide")
+        assert ok is False
+        assert verdict["code"] == "REJ-CHAINE-ALTEREE"
+
     def test_ajout_produit_ligne_id_sha256(self):
         r = registre.Registre()
         entree = _entree_signal()

@@ -178,7 +178,6 @@ def environnement_de_base(
         ENV_REPARTITEUR: "0",
         "OPSYS_EMBEDDINGS_URL": URL_INJOIGNABLE,
         "OPSYS_EMBEDDINGS_MODELE": "bge-m3",
-        "OPSYS_PERSONNE_MOT_DE_PASSE": MOT_DE_PASSE,
         "OPENCLAW_STATE_DIR": str(travail / "core-etat"),
         "OPENCLAW_GATEWAY_TOKEN": jeton_gateway,
         "OPENCLAW_GATEWAY_PORT": str(port_gateway),
@@ -212,11 +211,13 @@ def creer_instance(
 
 # -- commandes ------------------------------------------------------------------------------------------------
 def lancer(argv: list[str], env: dict[str, str], *, cwd: Path | None = None, delai_s: int = DELAI_COMMANDE_S,
+           entree: str | None = None,
            ) -> subprocess.CompletedProcess[str]:
     """Une commande qui doit réussir. Sinon `EchecE2E` avec sa sortie, secrets caviardés."""
     libelle = " ".join(shlex.quote(a) for a in argv)
     try:
-        resultat = subprocess.run(argv, env=env, cwd=cwd, capture_output=True, text=True, timeout=delai_s, check=False)
+        resultat = subprocess.run(argv, env=env, cwd=cwd, input=entree, capture_output=True,
+                                  text=True, timeout=delai_s, check=False)
     except subprocess.TimeoutExpired as erreur:
         raise EchecE2E(f"commande sans réponse après {delai_s} s : {caviarder(libelle)}") from erreur
     if resultat.returncode != 0:
@@ -227,7 +228,10 @@ def lancer(argv: list[str], env: dict[str, str], *, cwd: Path | None = None, del
 
 
 def opsys(instance: Instance, *args: str) -> subprocess.CompletedProcess[str]:
-    return lancer([sys.executable, "-m", "opsys.cli", *args], instance.env, cwd=RACINE)
+    # Le harnais fournit la saisie fictive à getpass pour l'amorçage des personnes seulement.
+    # Aucun secret personnel n'est hérité par le moteur ou par la Gateway.
+    saisie = MOT_DE_PASSE + "\n" if args[:2] in (("personnes", "creer"), ("personnes", "mot-de-passe")) else None
+    return lancer([sys.executable, "-m", "opsys.cli", *args], instance.env, cwd=RACINE, entree=saisie)
 
 
 def openclaw(instance: Instance, *args: str, delai_s: int = DELAI_COMMANDE_S) -> subprocess.CompletedProcess[str]:
@@ -274,8 +278,7 @@ def preparer_configuration(instance: Instance, pile: contextlib.ExitStack) -> No
     `pile` rétablit ce que cette étape a remplacé dans ce processus."""
     opsys(instance, "base", "migrer")
     opsys(instance, "paliers", "definir", "standard", "--provider", "anthropic", "--model", "claude-sonnet-5")
-    opsys(instance, "openclaw", "configurer", "--config-dir", str(instance.dossier_core), "--url-mcp", instance.url_mcp,
-          "--url-passerelle", URL_INJOIGNABLE)
+    opsys(instance, "openclaw", "configurer", "--config-dir", str(instance.dossier_core), "--url-mcp", instance.url_mcp)
 
     racine = instance.dossier_core / "openclaw.json"
     config = json.loads(racine.read_text(encoding="utf-8"))
@@ -297,8 +300,8 @@ def preparer_configuration(instance: Instance, pile: contextlib.ExitStack) -> No
     exiger(mcp["servers"]["opsys_m4"]["url"] == f"{instance.url_mcp}/{DEPARTEMENT_TERRAIN}",
            "mcp.json doit pointer le moteur de ce scénario", serveur=mcp["servers"]["opsys_m4"])
 
-    # Le core refuse de charger une configuration qui cite une variable absente : les clés virtuelles des
-    # départements (LiteLLM, injoignable ici) reçoivent une valeur fictive, le jeton du moteur est le vrai.
+    # Le core refuse une variable absente : les clés fournisseur natives sont fictives dans ce
+    # scénario sans génération LLM; le jeton du moteur rejoint réellement le serveur MCP de test.
     for fichier in sorted(instance.dossier_opsys.glob("*.json")):
         for nom in re.findall(r"\$\{([A-Z_][A-Z0-9_]*)\}", fichier.read_text(encoding="utf-8")):
             instance.env.setdefault(nom, f"fictif-{nom.lower()}-e2e-core")

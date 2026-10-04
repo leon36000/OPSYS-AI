@@ -1,0 +1,23 @@
+{
+  "archive_members": 340,
+  "deployed_VPS_qualified": false,
+  "exact_file_set": [
+    "MANIFEST.json",
+    "POST-CHECK.json",
+    "QUALIFICATION.json",
+    "README.md",
+    "capsule.tar.gz"
+  ],
+  "public_fixture_logs_only": true,
+  "publication_only_fixed_new_directory": "/workspace/OPSYS-AI-recent/docs/research/PDF-NATIF-GEOMETRIE-2026-10-02",
+  "roundtrip_all_members_without_extraction": true,
+  "schema": "opsys.pdf-native-post-check/v2",
+  "sha256": {
+    "MANIFEST.json": "bfa3829849e1c21e24fc279449bf8d4640c13a1f642481e21f4ee2be3e409125",
+    "QUALIFICATION.json": "bb3c2a24a5ce29f4e952f38c6b7b9cb8f6eb8c8fbf1e5be416517caa40e8e4de",
+    "README.md": "0d9dec43245ff7c0c709519aebc91d11c7e0d86b3156ab05ce40be2b44c293f5",
+    "capsule.tar.gz": "2056642fe7eeb2a28a0c497dd62bd51c67c993eeff5a7986fa7b33c9d0bbd69b"
+  },
+  "source_inputs_stable": true,
+  "tests_worker_Node_Docker_started": false
+}

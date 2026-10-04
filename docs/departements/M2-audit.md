@@ -1,5 +1,11 @@
 # Audit M2 — Revenue CRM
 
+> Audit historique du 28 septembre 2026, conservé pour traçabilité. Les évolutions ultérieures
+> ne sont pas inventoriées ici. Consulter le [plan de consolidation](../programme/RESTRUCTURATION-2026-09-30.md)
+> et les [recherches actuelles](../research/R16-2026-09-30/README.md) pour M1/M5/M7/M10. Un statut
+> ancien et un nombre de tests ne certifient pas le périmètre cible complet.
+
+
 Auditeur : Claude (session `session_01V5Nu4HTRqHAjT1HJqArVEa`), 28 septembre 2026. Portée : lecture
 et exécution de commandes seulement, aucune modification hors ce fichier. Références : `docs/produit/
 DEFINITION-PRODUIT.md` §1, §5, §6, §7 (M2), §8, §9, §10, §13 ; `AGENTS.md` ; `docs/architecture/

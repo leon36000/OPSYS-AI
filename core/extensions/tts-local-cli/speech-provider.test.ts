@@ -614,9 +614,9 @@ mkdirSync(process.argv[outIndex + 1]);
   );
 
   it.each(["synthesize", "synthesizeTelephony"] as const)(
-    "keeps %s debug previews free of lone surrogates",
+    "does not log private text in %s debug messages",
     async (method) => {
-      const text = `${"a".repeat(49)}😀tail`;
+      const text = `SENSITIVE-CUSTOMER-SENTINEL ${"a".repeat(49)}😀tail`;
       const providerConfig = { command: "missing-openclaw-tts-test-command" };
       const run =
         method === "synthesize"
@@ -629,8 +629,11 @@ mkdirSync(process.argv[outIndex + 1]);
             });
       await expect(run).rejects.toThrow();
 
-      const preview = String(debugLogMock.mock.calls[0]?.[0]);
-      expect(Buffer.from(preview).toString()).toBe(preview);
+      const debugMessages = debugLogMock.mock.calls.map(([message]) => String(message)).join("\n");
+      expect(debugMessages).toContain(`textLength=${text.length}`);
+      expect(debugMessages).not.toContain("SENSITIVE-CUSTOMER-SENTINEL");
+      expect(debugMessages).not.toContain("SENSITIVE-CUSTOMER");
+      expect(Buffer.from(debugMessages).toString()).toBe(debugMessages);
     },
   );
 });

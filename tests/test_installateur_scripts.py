@@ -1,7 +1,7 @@
 """Scripts `install/install.sh` et `install/uninstall.sh` (PLAN T0.11), joués contre de FAUSSES commandes.
 
-Node, pnpm, uv et curl sont remplacés par de petits scripts qui journalisent leurs appels ; le moteur Python, lui,
-est le vrai (l'interpréteur « de l'environnement » est l'interpréteur des tests), donc
+Node, pnpm, uv, curl et Docker sont remplacés par de petits scripts qui journalisent leurs appels ; le moteur Python,
+lui, est le vrai (l'interpréteur « de l'environnement » est celui des tests), donc
 `opsys-metier instance initialiser`, les secrets, la configuration du core et l'export tournent pour de vrai
 dans un dossier temporaire.
 
@@ -37,6 +37,8 @@ import stat
 import subprocess
 import sys
 import tarfile
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
@@ -160,6 +162,40 @@ exit 0
 """
 
 FAUX_CURL = "#!/usr/bin/env bash\nexit 0\n"
+FAUX_DOCKER = r'''#!/usr/bin/env bash
+printf 'docker %s\n' "$*" >>"$FAUX_JOURNAL"
+"$FAUX_PYTHON" -c 'import json,sys; print(json.dumps(sys.argv[1:]))' "$@" >>"$FAUX_DOCKER_ARGV"
+case "${1:-}" in
+    info)
+        if [ "${FAUX_DOCKER_DAEMON:-ready}" != "ready" ]; then
+            echo 'Cannot connect to the Docker daemon' >&2
+            exit 1
+        fi
+        [ "${FAUX_DOCKER_OS:-linux}" = "linux" ] || {
+            echo "${FAUX_DOCKER_OS}"
+            exit 0
+        }
+        echo linux
+    ;;
+    image)
+        if [ "${2:-}" = "inspect" ] && {
+            [ "${FAUX_DOCKER_IMAGE:-present}" = "present" ] || [ -f "$FAUX_DOCKER_IMAGE_STATE" ]
+        }; then
+            exit 0
+        fi
+        exit 1
+        ;;
+    build)
+        if [ "${FAUX_DOCKER_BUILD:-success}" = "fail" ]; then
+            echo 'network unavailable while fetching pinned base image' >&2
+            exit 1
+        fi
+        : >"$FAUX_DOCKER_IMAGE_STATE"
+        exit 0
+        ;;
+    *) echo "unexpected docker arguments: $*" >&2; exit 2 ;;
+esac
+'''
 
 
 class Bac:
@@ -179,7 +215,8 @@ class Bac:
         self.ancien_profil = self.hote / ".openclaw-opsys"  # où le profil rangeait son état avant T0.7 lot 3
         self.hote.mkdir()
         self.faux.mkdir()
-        for nom, corps in (("node", FAUX_NODE), ("pnpm", FAUX_PNPM), ("uv", FAUX_UV), ("curl", FAUX_CURL)):
+        for nom, corps in (("node", FAUX_NODE), ("pnpm", FAUX_PNPM), ("uv", FAUX_UV), ("curl", FAUX_CURL),
+                           ("docker", FAUX_DOCKER)):
             chemin = self.faux / nom
             chemin.write_text(corps, encoding="utf-8")
             chemin.chmod(0o755)
@@ -193,6 +230,7 @@ class Bac:
         (self.depot / "departments").mkdir()
         (self.depot / "core" / "openclaw.mjs").write_text("// faux core\n", encoding="utf-8")
         (self.depot / "core" / "node-version.mjs").write_text("// faux\n", encoding="utf-8")
+        shutil.copytree(RACINE / "core" / "scripts", self.depot / "core" / "scripts")
         (self.depot / "core" / "package.json").write_text(
             json.dumps({"name": "openclaw", "packageManager": f"pnpm@{PNPM}+sha512.0123456789abcdef"}, indent=2) + "\n",
             encoding="utf-8")
@@ -224,10 +262,12 @@ class Bac:
             "OPSYS_HOME": str(self.home), "OPSYS_LOGICIEL": str(self.logiciel), "OPSYS_BIN": str(self.bin),
             "PYTHONPATH": os.pathsep.join(chemins_python), "LANG": "C.UTF-8",
             "FAUX_JOURNAL": str(self.journal), "FAUX_ETATS": str(self.etats), "FAUX_PNPM_VERSION": PNPM,
-            "FAUX_PYTHON": sys.executable,
+            "FAUX_PYTHON": sys.executable, "FAUX_DOCKER_IMAGE_STATE": str(self.racine / "docker-image"),
+            "FAUX_DOCKER_ARGV": str(self.racine / "docker-argv.jsonl"),
         }
         env.update(self.env_supplementaire)
         return env
+
 
     def lancer(self, script: Path, *args: str, chemin_path: str | None = None, entree: str | None = None,
                cwd: Path | None = None, **env: str) -> subprocess.CompletedProcess[str]:
@@ -240,6 +280,12 @@ class Bac:
 
     def appels(self) -> list[str]:
         return self.journal.read_text(encoding="utf-8").splitlines()
+
+    def arguments_docker(self) -> list[list[str]]:
+        journal = self.racine / "docker-argv.jsonl"
+        if not journal.exists():
+            return []
+        return [json.loads(ligne) for ligne in journal.read_text(encoding="utf-8").splitlines()]
 
     def etats_du_core(self) -> list[dict[str, str]]:
         """Ce que le faux core a reçu à chaque appel : état, profil, OPENCLAW_HOME, configuration."""
@@ -295,12 +341,100 @@ def test_sans_node_ou_sans_uv_rien_n_est_fait_et_le_message_dit_quoi_installer(b
     assert not bac.home.exists() and not bac.logiciel.exists() and not bac.bin.exists()  # rien n'a été créé
 
 
+@pytest.mark.parametrize(
+    ("reglages", "message"),
+    [
+        ({"OPSYS_MODE_FOURNISSEUR": "autre"}, "doit valoir natif ou litellm"),
+        ({"OPSYS_MODE_FOURNISSEUR": "litellm"}, "exige OPSYS_PASSERELLE_URL"),
+        ({"OPSYS_PASSERELLE_URL": "http://127.0.0.1:4000/v1"}, "seul n'active pas LiteLLM"),
+    ],
+)
+def test_le_mode_fournisseur_est_valide_avant_tout_travail_installateur(bac, reglages, message):
+    resultat = bac.installer(**reglages)
+
+    assert resultat.returncode == 1 and message in resultat.stderr
+    assert not any(appel.startswith(("pnpm", "uv")) for appel in bac.appels())
+    assert not bac.home.exists() and not bac.logiciel.exists() and not bac.bin.exists()
+
+
 def test_un_node_non_supporte_par_le_fork_arrete_tout(bac):
     resultat = bac.installer(FAUX_NODE_SUPPORTE="0", FAUX_NODE_VERSION="22.1.0")
 
     assert resultat.returncode == 1
     assert "Node v22.1.0 n'est pas pris en charge" in resultat.stderr and "24.16" in resultat.stderr
     assert not any(a.startswith("pnpm") for a in bac.appels()) and not bac.bin.exists()
+
+
+def test_sans_cli_docker_l_installation_est_refusee_avant_tout_travail(bac):
+    (bac.faux / "docker").unlink()
+
+    resultat = bac.installer()
+
+    assert resultat.returncode == 1 and "Docker CLI" in resultat.stderr
+    assert not any(a.startswith(("pnpm", "uv", "openclaw")) for a in bac.appels())
+    assert not bac.home.exists() and not bac.logiciel.exists() and not bac.bin.exists()
+
+
+def test_sans_daemon_docker_linux_accessible_aucune_installation_ne_demarre(bac):
+    resultat = bac.installer(FAUX_DOCKER_DAEMON="absent")
+
+    assert resultat.returncode == 1 and "daemon Docker" in resultat.stderr
+    assert "docker info" in "\n".join(bac.appels())
+    assert not any(a.startswith(("pnpm", "uv", "openclaw")) for a in bac.appels())
+    assert not any("gateway install" in a for a in bac.appels())
+
+
+def test_daemon_docker_windows_est_refuse_avant_tout_travail(bac):
+    resultat = bac.installer(FAUX_DOCKER_OS="windows")
+
+    assert resultat.returncode == 1 and "conteneurs Linux" in resultat.stderr
+    assert not any(a.startswith(("pnpm", "uv", "openclaw")) for a in bac.appels())
+    assert not any("gateway install" in a for a in bac.appels())
+
+
+def test_image_sandbox_existante_est_reutilisee_sans_rebuild_ni_pull(bac):
+    bac.preparer_decisions()
+
+    resultat = bac.installer(FAUX_DOCKER_IMAGE="present")
+
+    appels = bac.appels()
+    assert resultat.returncode == 0, _sortie(resultat)
+    assert "docker image inspect openclaw-sandbox:bookworm-slim" in appels
+    assert not any(a.startswith("docker build") for a in appels)
+    assert not any(a.startswith("docker pull") for a in appels)
+    assert appels.index("docker image inspect openclaw-sandbox:bookworm-slim") < next(
+        i for i, a in enumerate(appels) if "gateway install" in a
+    )
+
+
+def test_image_sandbox_absente_est_construite_avant_demarrage_du_gateway(bac):
+    bac.preparer_decisions()
+    bac.depot.rename(bac.depot.with_name("depot avec espaces"))
+    bac.depot = bac.depot.with_name("depot avec espaces")
+
+    resultat = bac.installer(FAUX_DOCKER_IMAGE="absent")
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    appels = bac.appels()
+    construction = next(i for i, a in enumerate(appels) if a.startswith("docker build "))
+    demarrage = next(i for i, a in enumerate(appels) if "gateway install" in a)
+    assert construction < demarrage
+    assert "openclaw-sandbox:bookworm-slim" in appels[construction]
+    assert "scripts/docker/sandbox/Dockerfile" in appels[construction]
+    assert not any(a.startswith("docker pull") for a in appels)
+    attendu = ["build", "-t", "openclaw-sandbox:bookworm-slim", "-f",
+               str(bac.depot / "core/scripts/docker/sandbox/Dockerfile"), str(bac.depot / "core")]
+    assert attendu in bac.arguments_docker()
+
+
+def test_echec_build_sandbox_arrete_l_installation_avec_conseil_reseau(bac):
+    resultat = bac.installer(FAUX_DOCKER_IMAGE="absent", FAUX_DOCKER_BUILD="fail")
+
+    assert resultat.returncode == 1
+    assert "image sandbox" in resultat.stderr.lower()
+    assert "reseau" in resultat.stderr.lower() or "réseau" in resultat.stderr.lower()
+    assert not any("gateway install" in a for a in bac.appels())
+    assert any(a.startswith("docker build") for a in bac.appels())
 
 
 def test_une_option_inconnue_est_refusee(bac):
@@ -317,16 +451,19 @@ def test_installation_complete_dans_l_ordre_avec_les_bons_arguments(bac):
 
     assert resultat.returncode == 0, _sortie(resultat)
     assert "OPSYS est installé." in resultat.stdout
+    assert "natifs OpenClaw" in resultat.stdout and "aucun service LiteLLM requis" in resultat.stdout
     appels = bac.appels()
     attendu = ["pnpm install --frozen-lockfile", "pnpm build", f"openclaw {PROFIL} --version"]
     assert [a for a in appels if a in attendu] == attendu
     ordre = [next(i for i, a in enumerate(appels) if a.startswith(debut)) for debut in (
-        "pnpm install", "pnpm build", "uv venv", "uv pip install", f"openclaw {PROFIL} --version",
+        "pnpm install", "pnpm build", "uv venv", "uv sync", f"openclaw {PROFIL} --version",
         f"openclaw {PROFIL} config file", f"openclaw {PROFIL} config validate", f"openclaw {PROFIL} gateway install")]
     assert ordre == sorted(ordre)
     assert f"uv venv --clear --python >=3.11 {bac.logiciel}/venv" in appels
-    moteur = f"uv pip install --python {bac.logiciel}/venv/bin/python --editable {bac.depot}[tournees,soumission]"
-    assert moteur in appels
+    sync = (f"uv sync --locked --project {bac.depot} --python {bac.logiciel}/venv/bin/python "
+            "--group build --no-dev --extra tournees --extra soumission --no-build-isolation")
+    assert sync + " --no-install-project" in appels
+    assert sync in appels
     assert f"openclaw {PROFIL} gateway install --force --port 18789" in appels
     assert all(a.startswith(f"openclaw {PROFIL} ") for a in appels if a.startswith("openclaw "))  # jamais sans profil
     config = json.loads((bac.etat_core / "opsys.json").read_text(encoding="utf-8"))
@@ -435,6 +572,8 @@ def test_les_commandes_installees_portent_l_instance_et_lisent_env_sans_l_evalue
     assert "-m opsys.cli" not in enveloppe_core  # `opsys` n'est plus l'enveloppe du moteur
     enveloppe_moteur = (bac.bin / "opsys-metier").read_text(encoding="utf-8")
     assert f"DOSSIER_CORE={bac.etat_core}" in enveloppe_moteur and "-m opsys.cli" in enveloppe_moteur
+    powershell = (RACINE / "install" / "install.ps1").read_text(encoding="utf-8")
+    assert "natifs OpenClaw" in powershell and "aucun service LiteLLM requis" in powershell
 
 
 # -- fail-closed : décision manquante, étape en échec, fichier étranger --------------------------------------
@@ -468,6 +607,40 @@ def test_une_etape_en_echec_arrete_tout_avec_la_fin_du_journal_et_quoi_faire(bac
     assert str(bac.logiciel / "journaux" / "installation.log") in resultat.stderr
     assert not [a for a in bac.appels() if a.startswith("uv")]  # rien n'a continué
     assert not bac.bin.exists() and not (bac.logiciel / "installation.env").exists()
+
+
+def test_le_bout_en_bout_sonde_de_vrais_endpoints_http_de_readiness(bac):
+    requetes: list[str] = []
+
+    class Gestionnaire(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            requetes.append(self.path)
+            self.send_response(200 if self.path in {"/startupz", "/sante"} else 404)
+            self.end_headers()
+
+        def log_message(self, format: str, *args: object) -> None:
+            return
+
+    serveur = ThreadingHTTPServer(("127.0.0.1", 0), Gestionnaire)
+    fil = threading.Thread(target=serveur.serve_forever, daemon=True)
+    fil.start()
+    try:
+        bac.preparer_decisions()
+        curl = shutil.which("curl", path="/usr/bin:/bin")
+        assert curl
+        (bac.faux / "curl").write_text(f'#!/usr/bin/env bash\nexec {curl} "$@"\n', encoding="utf-8")
+        (bac.faux / "curl").chmod(0o755)
+
+        resultat = bac.installer(
+            OPSYS_PORT_GATEWAY=str(serveur.server_port), OPSYS_PORT_MOTEUR=str(serveur.server_port)
+        )
+
+        assert resultat.returncode == 0, _sortie(resultat)
+        assert "/startupz" in requetes and "/sante" in requetes
+    finally:
+        serveur.shutdown()
+        serveur.server_close()
+        fil.join(timeout=2)
 
 
 def test_une_configuration_refusee_par_le_core_arrete_avant_le_service(bac):
@@ -856,8 +1029,10 @@ def test_installation_a_distance_par_curl_pipe_bash_puis_mise_a_jour_par_relance
         ["git", "-C", str(clone), "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
     enregistrement = (bac.logiciel / "installation.env").read_text(encoding="utf-8").splitlines()
     assert f"SOURCE={clone}" in enregistrement and "SOURCE_GEREE=1" in enregistrement
-    moteur = f"uv pip install --python {bac.logiciel}/venv/bin/python --editable {clone}[tournees,soumission]"
-    assert moteur in bac.appels()
+    sync = (f"uv sync --locked --project {clone} --python {bac.logiciel}/venv/bin/python "
+            "--group build --no-dev --extra tournees --extra soumission --no-build-isolation")
+    assert sync + " --no-install-project" in bac.appels()
+    assert sync in bac.appels()
 
     nouveau = bac.commit("deuxième")
     seconde = bac.lancer(INSTALL, entree=script, **_a_distance(bac))  # main : la mise à jour
@@ -1038,6 +1213,76 @@ def test_la_desinstallation_refuse_de_supprimer_un_dossier_qui_contient_les_donn
     assert (bac.bin / "opsys").exists()  # le refus vient AVANT tout retrait
 
 
+@pytest.mark.parametrize("alias", ["dotdot", "symlink"])
+def test_la_garde_resout_les_alias_physiques_vers_les_donnees(bac, alias):
+    bac.preparer_decisions()
+    assert bac.installer("--sans-service").returncode == 0
+    logiciel = bac.racine / "software"
+    (logiciel / "venv").mkdir(parents=True)
+    instance_dedans = logiciel / "venv" / "instance"
+    instance_dedans.mkdir()
+    (instance_dedans / "opsys.db").write_text("base-fictive\n", encoding="utf-8")
+
+    if alias == "dotdot":
+        (bac.racine / "sous-dossier").mkdir()
+        chemin = bac.racine / "alias-parent"
+        chemin.symlink_to(bac.racine / "sous-dossier", target_is_directory=True)
+        logiciel_alias = chemin / ".." / "software"
+    else:
+        logiciel_alias = bac.racine / "lien-logiciel"
+        logiciel_alias.symlink_to(logiciel, target_is_directory=True)
+
+    resultat = bac.lancer(UNINSTALL, "--simuler", OPSYS_LOGICIEL=str(logiciel_alias),
+                          OPSYS_HOME=str(instance_dedans))
+
+    assert resultat.returncode == 1 and "données de l'instance" in resultat.stderr
+    assert (instance_dedans / "opsys.db").is_file()
+    assert not [appel for appel in bac.appels() if appel.startswith("node ") and "gateway uninstall" in appel]
+
+
+def test_la_garde_refuse_un_lien_de_suppression_vers_un_descendant_des_donnees(bac):
+    bac.preparer_decisions()
+    assert bac.installer("--sans-service").returncode == 0
+    instance = bac.racine / "instance-fictive"
+    dossier_a_conserver = instance / "archives"
+    dossier_a_conserver.mkdir(parents=True)
+    (dossier_a_conserver / "preuve.txt").write_text("conserver\n", encoding="utf-8")
+    logiciel = bac.racine / "logiciel-fictif"
+    (logiciel / "venv").mkdir(parents=True)
+    (logiciel / "journaux").symlink_to(dossier_a_conserver, target_is_directory=True)
+
+    resultat = bac.lancer(UNINSTALL, "--simuler", OPSYS_LOGICIEL=str(logiciel), OPSYS_HOME=str(instance))
+
+    assert resultat.returncode == 1 and "sous-dossier des données" in resultat.stderr
+    assert (dossier_a_conserver / "preuve.txt").read_text(encoding="utf-8") == "conserver\n"
+
+
+def test_la_garde_refuse_une_cible_physique_egale_aux_donnees(bac):
+    bac.preparer_decisions()
+    assert bac.installer("--sans-service").returncode == 0
+    logiciel = bac.racine / "logiciel-egal"
+    (logiciel / "venv").mkdir(parents=True)
+    (logiciel / "venv" / "opsys.db").write_text("base-fictive\n", encoding="utf-8")
+
+    resultat = bac.lancer(UNINSTALL, "--simuler", OPSYS_LOGICIEL=str(logiciel),
+                          OPSYS_HOME=str(logiciel / "venv"))
+
+    assert resultat.returncode == 1 and "contient les données de l'instance" in resultat.stderr
+    assert (logiciel / "venv" / "opsys.db").is_file()
+
+
+def test_la_desinstallation_refuse_une_archive_placee_dans_un_dossier_a_supprimer(bac):
+    bac.preparer_decisions()
+    assert bac.installer("--sans-service").returncode == 0
+    archive = bac.logiciel / "venv" / "sauvegarde.tar.gz"
+
+    resultat = bac.lancer(UNINSTALL, "--simuler", "--exporter-avant", str(archive))
+
+    assert resultat.returncode == 1 and "contient la sauvegarde demandée" in resultat.stderr
+    assert "[simulation] export" not in resultat.stdout
+    assert (bac.logiciel / "venv").is_dir()
+
+
 def test_la_desinstallation_refuse_de_supprimer_un_dossier_qui_contient_l_etat_du_core(bac):
     bac.preparer_decisions()
     assert bac.installer("--sans-service").returncode == 0
@@ -1094,6 +1339,18 @@ def test_les_versions_que_l_installateur_annonce_sont_celles_du_fork():
     for script in (INSTALL, RACINE / "install" / "install.ps1"):
         texte = script.read_text(encoding="utf-8")
         assert "24.16" in texte and "26.1" in texte, script.name
+
+
+def test_les_installateurs_native_n_exigent_litellm_que_sur_choix_explicite():
+    bash = INSTALL.read_text(encoding="utf-8")
+    powershell = (RACINE / "install" / "install.ps1").read_text(encoding="utf-8")
+    for script in (bash, powershell):
+        assert "OPSYS_MODE_FOURNISSEUR" in script
+        assert "OPSYS_PASSERELLE_URL seul n" in script
+        assert "natifs OpenClaw" in script
+        assert "aucun service LiteLLM requis" in script
+    assert 'local mode="${OPSYS_MODE_FOURNISSEUR:-natif}"' in bash
+    assert "function Test-ModeFournisseur" in powershell
 
 
 def test_le_profil_les_variables_ecartees_et_les_noms_de_service_des_scripts_sont_ceux_du_moteur_et_du_fork():

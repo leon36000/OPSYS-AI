@@ -1,0 +1,1064 @@
+{
+  "archives": [
+    {
+      "archive": "sources-r24/core--extensions--voice-call--index.test.ts--8f812f6c6f7f947ddad38724018954ad3bd3d4d8d5c13fe3eccf76a18783c172.gz",
+      "categorie": "sources-r24",
+      "origine": "/workspace/OPSYS-AI-recent/core/extensions/voice-call/index.test.ts",
+      "sha256_gzip": "4198b7b1cac1f2ec8aa11d440d61ff7acb5020260c82421575257490521151db",
+      "sha256_original": "8f812f6c6f7f947ddad38724018954ad3bd3d4d8d5c13fe3eccf76a18783c172",
+      "taille_gzip": 8195,
+      "taille_originale": 46819
+    },
+    {
+      "archive": "sources-r24/core--extensions--voice-call--index.ts--b2cb9c0a5b35c6fa7def85ac5bcbe0ca3d96c9f283a84b6055a74835030be07b.gz",
+      "categorie": "sources-r24",
+      "origine": "/workspace/OPSYS-AI-recent/core/extensions/voice-call/index.ts",
+      "sha256_gzip": "8730f36bb9d9cd53146ee209153722f79ddc4c022e53214d5442476001791adc",
+      "sha256_original": "b2cb9c0a5b35c6fa7def85ac5bcbe0ca3d96c9f283a84b6055a74835030be07b",
+      "taille_gzip": 4575,
+      "taille_originale": 22194
+    },
+    {
+      "archive": "sources-r24/core--extensions--voice-call--openclaw.plugin.json--000481a495d688e1bfc966857baf761069c2095beb3549e4f71ac94b4e70ed40.gz",
+      "categorie": "sources-r24",
+      "origine": "/workspace/OPSYS-AI-recent/core/extensions/voice-call/openclaw.plugin.json",
+      "sha256_gzip": "37b0f5169b066382f1eb9afb6da14ed5748735a520e1beafa11cdb926c9f215f",
+      "sha256_original": "000481a495d688e1bfc966857baf761069c2095beb3549e4f71ac94b4e70ed40",
+      "taille_gzip": 4104,
+      "taille_originale": 28817
+    },
+    {
+      "archive": "sources-r24/core--extensions--voice-call--src--local-asr-transcription-provider.test.ts--60c5c053c81152e6b1ee873e02cabc3bc597f1baae59415dacf74067d4eb2b28.gz",
+      "categorie": "sources-r24",
+      "origine": "/workspace/OPSYS-AI-recent/core/extensions/voice-call/src/local-asr-transcription-provider.test.ts",
+      "sha256_gzip": "6a57d48f061722be6e8af1dd7ab296adb387c789ae7bc8c70189903a63385715",
+      "sha256_original": "60c5c053c81152e6b1ee873e02cabc3bc597f1baae59415dacf74067d4eb2b28",
+      "taille_gzip": 3023,
+      "taille_originale": 13465
+    },
+    {
+      "archive": "sources-r24/core--extensions--voice-call--src--local-asr-transcription-provider.ts--7780cda901b88652179543096e86f5e18a3181cfa087af7656a4fa3c9064f6e4.gz",
+      "categorie": "sources-r24",
+      "origine": "/workspace/OPSYS-AI-recent/core/extensions/voice-call/src/local-asr-transcription-provider.ts",
+      "sha256_gzip": "e7d9bd495eee4cf9d1dbe973ec06655bf080b54a9e8cd7ffe38774d96b4596ea",
+      "sha256_original": "7780cda901b88652179543096e86f5e18a3181cfa087af7656a4fa3c9064f6e4",
+      "taille_gzip": 3257,
+      "taille_originale": 10893
+    },
+    {
+      "archive": "sources-r24/core--extensions--voice-call--src--webhook.provider-discovery.test.ts--4e33097c0b9727535b75b4ed1fc65cd70beec803c1dbe7ab3ddde496d09411c5.gz",
+      "categorie": "sources-r24",
+      "origine": "/workspace/OPSYS-AI-recent/core/extensions/voice-call/src/webhook.provider-discovery.test.ts",
+      "sha256_gzip": "9d74435c38db38461f5eee9a1197ddfca99b5d5e2e65422dee1bee4e558a2b6a",
+      "sha256_original": "4e33097c0b9727535b75b4ed1fc65cd70beec803c1dbe7ab3ddde496d09411c5",
+      "taille_gzip": 2086,
+      "taille_originale": 7280
+    },
+    {
+      "archive": "sources-r24/core--packages--gateway-protocol--src--schema--channels.test.ts--728f018dadcc916968d6211e4a3e2d28e41154487793b3afa67d7af0b3077cfb.gz",
+      "categorie": "sources-r24",
+      "origine": "/workspace/OPSYS-AI-recent/core/packages/gateway-protocol/src/schema/channels.test.ts",
+      "sha256_gzip": "0e536ca944bf6df4304b46e7d5516d685cd955bf348ffbf5084bef8e7fc90275",
+      "sha256_original": "728f018dadcc916968d6211e4a3e2d28e41154487793b3afa67d7af0b3077cfb",
+      "taille_gzip": 577,
+      "taille_originale": 1745
+    },
+    {
+      "archive": "sources-r24/core--packages--gateway-protocol--src--schema--channels.ts--98c2d3d445d9f42bf726bc1c96f4ac53f1baadc880bad1c264e3399507803171.gz",
+      "categorie": "sources-r24",
+      "origine": "/workspace/OPSYS-AI-recent/core/packages/gateway-protocol/src/schema/channels.ts",
+      "sha256_gzip": "994c5099b9a06b46bba377181c5be3b38a1481af2eadd60302a741df7290a234",
+      "sha256_original": "98c2d3d445d9f42bf726bc1c96f4ac53f1baadc880bad1c264e3399507803171",
+      "taille_gzip": 6189,
+      "taille_originale": 31439
+    },
+    {
+      "archive": "sources-r24/core--src--gateway--talk--handlers--index.test.ts--559a8ebab24d0d7b37244587c6b49fb659e5c8d46e9f75926f0c18ee9b5a15c3.gz",
+      "categorie": "sources-r24",
+      "origine": "/workspace/OPSYS-AI-recent/core/src/gateway/talk/handlers/index.test.ts",
+      "sha256_gzip": "48d48171ff3ec2f4ea06cef7584a0e0039fb319c867f58462ecc7a4ea0e711e2",
+      "sha256_original": "559a8ebab24d0d7b37244587c6b49fb659e5c8d46e9f75926f0c18ee9b5a15c3",
+      "taille_gzip": 24290,
+      "taille_originale": 168320
+    },
+    {
+      "archive": "sources-r24/core--src--gateway--talk--handlers--session.ts--58a3909efe4e08ca20a7cd664762a747b319385a07fb24fdbe37dfe47c949321.gz",
+      "categorie": "sources-r24",
+      "origine": "/workspace/OPSYS-AI-recent/core/src/gateway/talk/handlers/session.ts",
+      "sha256_gzip": "0fe4c63125e63f66de1c6249c94d7a0081e8a8d1cb0eaa5e8647eefed2c6340c",
+      "sha256_original": "58a3909efe4e08ca20a7cd664762a747b319385a07fb24fdbe37dfe47c949321",
+      "taille_gzip": 4764,
+      "taille_originale": 25029
+    },
+    {
+      "archive": "sources-r24/core--src--gateway--talk--transcription-relay.test.ts--1f8bfde4175af24dcb6063cf3a11b502818bf73e0587c653eaedfdd01001ec6c.gz",
+      "categorie": "sources-r24",
+      "origine": "/workspace/OPSYS-AI-recent/core/src/gateway/talk/transcription-relay.test.ts",
+      "sha256_gzip": "8cc5b7bfa6e2834a9f2c8fb84aa8877cb4352d19ab4db049d262e3046e748154",
+      "sha256_original": "1f8bfde4175af24dcb6063cf3a11b502818bf73e0587c653eaedfdd01001ec6c",
+      "taille_gzip": 5667,
+      "taille_originale": 33505
+    },
+    {
+      "archive": "sources-r24/core--src--gateway--talk--transcription-relay.ts--1ac3df64fe8493f1cabfa6c3beb2510da58d54c349ef2b50bca9c49b59c95afb.gz",
+      "categorie": "sources-r24",
+      "origine": "/workspace/OPSYS-AI-recent/core/src/gateway/talk/transcription-relay.ts",
+      "sha256_gzip": "23f7d13a3c5e8fe2ba160c771a4973dd0f821c8ce58a82f26968974e960d24b4",
+      "sha256_original": "1ac3df64fe8493f1cabfa6c3beb2510da58d54c349ef2b50bca9c49b59c95afb",
+      "taille_gzip": 4255,
+      "taille_originale": 17385
+    },
+    {
+      "archive": "sources-r24/core--src--realtime-transcription--provider-types.ts--66d62218853ff0a87a8ad9c1f70cd6773f2aaadf784254641375548e36cfc950.gz",
+      "categorie": "sources-r24",
+      "origine": "/workspace/OPSYS-AI-recent/core/src/realtime-transcription/provider-types.ts",
+      "sha256_gzip": "a5ab60b75de6350f942b17deade51babe252ef77c1a86c40a9f934220c5adbb7",
+      "sha256_original": "66d62218853ff0a87a8ad9c1f70cd6773f2aaadf784254641375548e36cfc950",
+      "taille_gzip": 563,
+      "taille_originale": 1579
+    },
+    {
+      "archive": "sources-r24/core--ui--src--pages--chat--composer-dictation.test.ts--114d330e1d8646dcde243605d5a8c85d51b3f08a9883f94077a73625147453ab.gz",
+      "categorie": "sources-r24",
+      "origine": "/workspace/OPSYS-AI-recent/core/ui/src/pages/chat/composer-dictation.test.ts",
+      "sha256_gzip": "4e1311cdb21e485447b6c055a51e8d78dfd5873e7fa537879f27b26251a92e7f",
+      "sha256_original": "114d330e1d8646dcde243605d5a8c85d51b3f08a9883f94077a73625147453ab",
+      "taille_gzip": 5720,
+      "taille_originale": 35084
+    },
+    {
+      "archive": "sources-r24/core--ui--src--pages--chat--composer-dictation.ts--37aebe0d81d8a7b5b2400234f82abacf19921dccb98148af713b58e589c16234.gz",
+      "categorie": "sources-r24",
+      "origine": "/workspace/OPSYS-AI-recent/core/ui/src/pages/chat/composer-dictation.ts",
+      "sha256_gzip": "f5358013972b5e0c4df0528ded218a86c133eb9529e4171a9d927dd670716e4d",
+      "sha256_original": "37aebe0d81d8a7b5b2400234f82abacf19921dccb98148af713b58e589c16234",
+      "taille_gzip": 6025,
+      "taille_originale": 25729
+    },
+    {
+      "archive": "docs/docs--architecture--DICTEE-LOCALE-CORE.md--607839b471e476b511ee1941719ef5ab803acb827d7a986d256fa36ca352ed8e.gz",
+      "categorie": "docs",
+      "origine": "/workspace/OPSYS-AI-recent/docs/architecture/DICTEE-LOCALE-CORE.md",
+      "sha256_gzip": "6da4d1c95f1fd93c63229c54130c566dab28a7239b653e06608ee267ffee1f79",
+      "sha256_original": "607839b471e476b511ee1941719ef5ab803acb827d7a986d256fa36ca352ed8e",
+      "taille_gzip": 2305,
+      "taille_originale": 4737
+    },
+    {
+      "archive": "docs/docs--programme--BILAN-RESTRUCTURATION-2026-09-30.md--fd82272de78ae59fea4b5cca62831b560b830ae0d56957d43f482b483cf883fb.gz",
+      "categorie": "docs",
+      "origine": "/workspace/OPSYS-AI-recent/docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md",
+      "sha256_gzip": "3440ea0830bc1ce7af1175dd08cf912a91e7967cfdae0fd6a2ec054ac283094f",
+      "sha256_original": "fd82272de78ae59fea4b5cca62831b560b830ae0d56957d43f482b483cf883fb",
+      "taille_gzip": 22179,
+      "taille_originale": 63065
+    },
+    {
+      "archive": "docs/docs--programme--LOT-DICTEE-LOCALE-CORE.md--70d990d91c9a33356090d1684fcf24a01f64bbb016f133ebdc4e082b95f349e6.gz",
+      "categorie": "docs",
+      "origine": "/workspace/OPSYS-AI-recent/docs/programme/LOT-DICTEE-LOCALE-CORE.md",
+      "sha256_gzip": "f670fe3897bf5b51f0cd957dc46bdba5d9d65191a5c907302f876247ae27bc06",
+      "sha256_original": "70d990d91c9a33356090d1684fcf24a01f64bbb016f133ebdc4e082b95f349e6",
+      "taille_gzip": 3195,
+      "taille_originale": 6692
+    },
+    {
+      "archive": "docs/docs--programme--REPRISE-DICTEE-BILAN-R24.md--2baaa9a7649a0aca6ba8e6aa3e168127f63dcd4c21fabd2f15302900ae83ef82.gz",
+      "categorie": "docs",
+      "origine": "/workspace/OPSYS-AI-recent/docs/programme/REPRISE-DICTEE-BILAN-R24.md",
+      "sha256_gzip": "58a09273d1952f172ef0252b1eecf5a99f3e1f1cd60fc3483580dc1bd42785b4",
+      "sha256_original": "2baaa9a7649a0aca6ba8e6aa3e168127f63dcd4c21fabd2f15302900ae83ef82",
+      "taille_gzip": 2535,
+      "taille_originale": 4760
+    },
+    {
+      "archive": "docs/docs--programme--REPRISE-PLAN-2026-10-02.md--a880e349436f8b92c0d067bd72a8259d02d26ed6a27dbe828acecd50f6cf467f.gz",
+      "categorie": "docs",
+      "origine": "/workspace/OPSYS-AI-recent/docs/programme/REPRISE-PLAN-2026-10-02.md",
+      "sha256_gzip": "0e4373160dbf1e4336f422a8b2022e793a4262b46691854f5806de2fb87f6c26",
+      "sha256_original": "a880e349436f8b92c0d067bd72a8259d02d26ed6a27dbe828acecd50f6cf467f",
+      "taille_gzip": 4015,
+      "taille_originale": 8251
+    },
+    {
+      "archive": "voix-r24/ARCHIVEUR-R24-r2-PREPARATION.json--bb5d564ded7918577e7556b98bbbaf3f10201b4cd545e274ef7a278104f2b9c3.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/ARCHIVEUR-R24-r2-PREPARATION.json",
+      "sha256_gzip": "59f8f65a1fdcbafb640b2d61ac0810ef491be6823a64532bf0b122ced3aaac1e",
+      "sha256_original": "bb5d564ded7918577e7556b98bbbaf3f10201b4cd545e274ef7a278104f2b9c3",
+      "taille_gzip": 890,
+      "taille_originale": 1963
+    },
+    {
+      "archive": "voix-r24/ARCHIVEUR-ROOT-r3-PREPARATION.json--459c060dd855b0c42141340bd8208c87b4cefd8ac23f8bcc02684b46a2c4c6bf.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/ARCHIVEUR-ROOT-r3-PREPARATION.json",
+      "sha256_gzip": "59d09f69bcdfe7d9d5fc9ec226655a48ba120ded650f6c139843209ea476479d",
+      "sha256_original": "459c060dd855b0c42141340bd8208c87b4cefd8ac23f8bcc02684b46a2c4c6bf",
+      "taille_gzip": 371,
+      "taille_originale": 467
+    },
+    {
+      "archive": "voix-r24/CONSOLIDATION-ROOT-r1.json--4b70f2e9d17acc42ef2341ae92ba74fb61caa982823da9bc0ce058d26200caca.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/CONSOLIDATION-ROOT-r1.json",
+      "sha256_gzip": "e45f19d28479a6f3186a828d6400f87c18dd51ebf84865d48d8b58660b14a4e1",
+      "sha256_original": "4b70f2e9d17acc42ef2341ae92ba74fb61caa982823da9bc0ce058d26200caca",
+      "taille_gzip": 602,
+      "taille_originale": 2023
+    },
+    {
+      "archive": "voix-r24/GEL-ROOT-VERIFICATION-r1.json--673e6ebae831b38f1071b739b4339154b45593e6bbb395acf74c839b230af51a.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/GEL-ROOT-VERIFICATION-r1.json",
+      "sha256_gzip": "6640c37d0a7b21af0415e028ed19523a9fe15cdff54ffdc87450f0a43690cdf1",
+      "sha256_original": "673e6ebae831b38f1071b739b4339154b45593e6bbb395acf74c839b230af51a",
+      "taille_gzip": 922,
+      "taille_originale": 1961
+    },
+    {
+      "archive": "voix-r24/PLAN-R24.md--c8fb60282201dec9a0a88f9f18f08d1772ed8f8f15057e4aabc868fcd6645839.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/PLAN-R24.md",
+      "sha256_gzip": "7f9aef3dedee1a8c5054eb6d8b18b2f37b57f8aa2d63aa4ce9adcadaf1bec766",
+      "sha256_original": "c8fb60282201dec9a0a88f9f18f08d1772ed8f8f15057e4aabc868fcd6645839",
+      "taille_gzip": 6219,
+      "taille_originale": 14309
+    },
+    {
+      "archive": "voix-r24/QUALIFICATEUR-ROOT-r3-PREPARATION.json--41d6aa9c280234cba4cf9cd0d0776e89e9d85d766440cb68486845916fde31f4.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/QUALIFICATEUR-ROOT-r3-PREPARATION.json",
+      "sha256_gzip": "71602c7ce388b133a7564253d1c87073a9160a579636c1c7b0462c27463572b4",
+      "sha256_original": "41d6aa9c280234cba4cf9cd0d0776e89e9d85d766440cb68486845916fde31f4",
+      "taille_gzip": 390,
+      "taille_originale": 571
+    },
+    {
+      "archive": "voix-r24/QUALIFICATEUR-ROOT-r4-PREPARATION.json--fec81ee25e92773878f1324d0d82cf344457342b803a365bf2106c34b8b3c0a0.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/QUALIFICATEUR-ROOT-r4-PREPARATION.json",
+      "sha256_gzip": "bb9541009d516937d3b785748b9375edbfa996604120e68ed74d57d446ccdf53",
+      "sha256_original": "fec81ee25e92773878f1324d0d82cf344457342b803a365bf2106c34b8b3c0a0",
+      "taille_gzip": 242,
+      "taille_originale": 311
+    },
+    {
+      "archive": "voix-r24/QUALIFICATEUR-ROOT-r5-PREPARATION.json--31a2a9e8777c5f829f7f9daee72aa0f8f1fd77ff3b25643ec80196952ab817dc.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/QUALIFICATEUR-ROOT-r5-PREPARATION.json",
+      "sha256_gzip": "ac503265b31690297e5e05b4e0fe76cf715601f293af817f9b637626cb703388",
+      "sha256_original": "31a2a9e8777c5f829f7f9daee72aa0f8f1fd77ff3b25643ec80196952ab817dc",
+      "taille_gzip": 681,
+      "taille_originale": 1418
+    },
+    {
+      "archive": "voix-r24/RESSOURCES-r1.json--12041e71031f495ac2c10422ec86de803d887402ed7b8a106447fa86fba98968.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/RESSOURCES-r1.json",
+      "sha256_gzip": "d96d84f087e3a1bfe37e9c1cc48da8eddfa1bce9efe8e3eafc0af4c8df650658",
+      "sha256_original": "12041e71031f495ac2c10422ec86de803d887402ed7b8a106447fa86fba98968",
+      "taille_gzip": 356,
+      "taille_originale": 486
+    },
+    {
+      "archive": "voix-r24/archiver-r24-r1.py--d0e05fec6f519143eda7733f7647ec83bab9e58ab14c0338e87fae189c525bc0.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/archiver-r24-r1.py",
+      "sha256_gzip": "5d4371878e84e050cb97df183e23f9d57126b00751155304ce3850c6db780354",
+      "sha256_original": "d0e05fec6f519143eda7733f7647ec83bab9e58ab14c0338e87fae189c525bc0",
+      "taille_gzip": 12463,
+      "taille_originale": 40646
+    },
+    {
+      "archive": "voix-r24/archiver-r24-r2.py--4f69aa5e11e75e88c4b025dea7f7889d8faaf84c4682f5fb0e0be2e8702b1f32.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/archiver-r24-r2.py",
+      "sha256_gzip": "61f6331ff908ae51b83874e65acd05d0d32540eac0a6052ccaecabb8e0baf1f6",
+      "sha256_original": "4f69aa5e11e75e88c4b025dea7f7889d8faaf84c4682f5fb0e0be2e8702b1f32",
+      "taille_gzip": 13145,
+      "taille_originale": 44042
+    },
+    {
+      "archive": "voix-r24/archiver-r24-r3.py--cf04f33076f61469c0346da79bce99780aaa470d40e4531899834cbac630f29f.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/archiver-r24-r3.py",
+      "sha256_gzip": "eb613671793779b5d2fa1eaf85e8cfc99b40244e93107fd885a2c60ab042f30b",
+      "sha256_original": "cf04f33076f61469c0346da79bce99780aaa470d40e4531899834cbac630f29f",
+      "taille_gzip": 13330,
+      "taille_originale": 44577
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r3-apres.json--5b257863f6e7cc919aa02d65d820ee352d1037d18ac65b9efba211c695442c7e.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r3-apres.json",
+      "sha256_gzip": "cf94015d86f4073c1bed8db3e3231f300666bb3a4699a9f3a9d37234417833ac",
+      "sha256_original": "5b257863f6e7cc919aa02d65d820ee352d1037d18ac65b9efba211c695442c7e",
+      "taille_gzip": 1672611,
+      "taille_originale": 4450050
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r3-avant.json--4b19420cc2059b6e110814c0491c07613c455ae1d7456aa2245a29a140c50d18.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r3-avant.json",
+      "sha256_gzip": "3d733a5e0963ac03618eee21b121aefab7691f68cceca8ad19657e2aff2642ab",
+      "sha256_original": "4b19420cc2059b6e110814c0491c07613c455ae1d7456aa2245a29a140c50d18",
+      "taille_gzip": 1672611,
+      "taille_originale": 4450050
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r3-extension.log--557230af311f61784550f22c1e267716713aa506855aabad25fee5a2f1740cd7.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r3-extension.log",
+      "sha256_gzip": "9e417329e9ce46bcd53735c0ad85686b57b9560d7f692a450cb01b6c51d29beb",
+      "sha256_original": "557230af311f61784550f22c1e267716713aa506855aabad25fee5a2f1740cd7",
+      "taille_gzip": 1138,
+      "taille_originale": 5444
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r3-extension.xml--164231f9275e4738ed462d2b02843a12a90934340d4b7262dd118a2b86d21564.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r3-extension.xml",
+      "sha256_gzip": "108dd24b1d3951ecb0306c5e1be4ac6e80ece677a3b089a8c35675fd16669f6d",
+      "sha256_original": "164231f9275e4738ed462d2b02843a12a90934340d4b7262dd118a2b86d21564",
+      "taille_gzip": 2987,
+      "taille_originale": 16912
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r3-gateway.log--bf85f4d68178ccb87d79374a3b3496a6e34f6a041f504ee61d0593344318003a.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r3-gateway.log",
+      "sha256_gzip": "87b16f7456fa381ff9fbd98244db61c1c4a94cc33ad486f6b6aee00195053d60",
+      "sha256_original": "bf85f4d68178ccb87d79374a3b3496a6e34f6a041f504ee61d0593344318003a",
+      "taille_gzip": 458,
+      "taille_originale": 778
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r3-gateway.xml--0cc138d69a9122c62a1eab9f718cc2af4eae2da385ce7f7079f1ecd637e4fade.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r3-gateway.xml",
+      "sha256_gzip": "a96425acce5d80bde6ef02c39e00206fc7f0e7c759fd0659c318e6fcd36d4375",
+      "sha256_original": "0cc138d69a9122c62a1eab9f718cc2af4eae2da385ce7f7079f1ecd637e4fade",
+      "taille_gzip": 7731,
+      "taille_originale": 68163
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r3-oxfmt.log--4da37fe714ae5085119f1aea24bafc93aa516d84b3dc9a8b417976cd03f9cc02.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r3-oxfmt.log",
+      "sha256_gzip": "8090d9010966914f7aef6bb56a0440e6365b8de1ce949a275277dd653ca41da6",
+      "sha256_original": "4da37fe714ae5085119f1aea24bafc93aa516d84b3dc9a8b417976cd03f9cc02",
+      "taille_gzip": 108,
+      "taille_originale": 111
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r3-oxlint.log--330bd61d0a770b69e570c8cd03ff7b3835faba5741b50f85d752a60f6445a57e.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r3-oxlint.log",
+      "sha256_gzip": "05e68b1a6d669170682035e8cde67cd1bdbbef9c36dbcac3fe84fca04368a71b",
+      "sha256_original": "330bd61d0a770b69e570c8cd03ff7b3835faba5741b50f85d752a60f6445a57e",
+      "taille_gzip": 135,
+      "taille_originale": 135
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r3-protocol.log--1de98dc9cc3071d119352178e1bc4f5955c43f8dc08a562e23122cc72e1e2d44.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r3-protocol.log",
+      "sha256_gzip": "8f4b1781e4ea0ff1638c53c57ffc23c768efd01d2166481482f24191735c4e99",
+      "sha256_original": "1de98dc9cc3071d119352178e1bc4f5955c43f8dc08a562e23122cc72e1e2d44",
+      "taille_gzip": 299,
+      "taille_originale": 392
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r3-protocol.xml--a2d15500fbb4aedda8d7aae43ca49fdefb55d12b1e5e3de69dd0151bbb6cafca.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r3-protocol.xml",
+      "sha256_gzip": "d68aea9946a95ed649e7cc8bea7565a3a66f098179856e0895b92e5ff2cdf1ee",
+      "sha256_original": "a2d15500fbb4aedda8d7aae43ca49fdefb55d12b1e5e3de69dd0151bbb6cafca",
+      "taille_gzip": 375,
+      "taille_originale": 786
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r3-resultat.json--843a7eea4bffb62784b0baa410b7de398b3835aeb9c02b45e78a467c2bb2650a.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r3-resultat.json",
+      "sha256_gzip": "62a91bbeb076325fcd327ef940a34efad45d89f0cddca58699e81a941ee1f5c7",
+      "sha256_original": "843a7eea4bffb62784b0baa410b7de398b3835aeb9c02b45e78a467c2bb2650a",
+      "taille_gzip": 1692,
+      "taille_originale": 9523
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r3-ui.log--fa9f061783dbec8f2ceb6f02d9b9fc211d9ade6f8dcf07cf8b00295f37dbcd3e.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r3-ui.log",
+      "sha256_gzip": "4d01f386c49d886a57c9eac59a12d7c36131cbeae716eaa3725813d35dec0703",
+      "sha256_original": "fa9f061783dbec8f2ceb6f02d9b9fc211d9ade6f8dcf07cf8b00295f37dbcd3e",
+      "taille_gzip": 503,
+      "taille_originale": 824
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r3-ui.xml--8be0d4dc988b37e0aecc8b333bcdc67a52d758aaca8a8913a44ccf75fd625277.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r3-ui.xml",
+      "sha256_gzip": "971f3f579da1322227394ea5806e6ac9fbdebe33d95aedb2a645797e005d465d",
+      "sha256_original": "8be0d4dc988b37e0aecc8b333bcdc67a52d758aaca8a8913a44ccf75fd625277",
+      "taille_gzip": 2392,
+      "taille_originale": 13844
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r3-ws.log--70215d6468358e9954bba21307f7fa60e05744e22640aadc65611b279f141879.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r3-ws.log",
+      "sha256_gzip": "d1fd41a023f231ecdae6a909b75bf943ae102cabcac9f68104a58b4ecaeeb8b5",
+      "sha256_original": "70215d6468358e9954bba21307f7fa60e05744e22640aadc65611b279f141879",
+      "taille_gzip": 6664,
+      "taille_originale": 35409
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r3-ws.xml--c12f033ca32130a31896bed9863221cc3b6e03be2b2019ddbcf60986d1173122.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r3-ws.xml",
+      "sha256_gzip": "ea9fe6919802c79118b7232cd06ebf37f1113b6bf63a491045ac932a6c58a03d",
+      "sha256_original": "c12f033ca32130a31896bed9863221cc3b6e03be2b2019ddbcf60986d1173122",
+      "taille_gzip": 118,
+      "taille_originale": 130
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r4-apres.json--7b0e95d39ad9ff01538da643d3de95ad48b55510ff31bb2ac311cbb364561c2c.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r4-apres.json",
+      "sha256_gzip": "971901751e7e074c25bfdbbf215537befa574044d2bedfe9acae8847763414f0",
+      "sha256_original": "7b0e95d39ad9ff01538da643d3de95ad48b55510ff31bb2ac311cbb364561c2c",
+      "taille_gzip": 1672610,
+      "taille_originale": 4450050
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r4-avant.json--f5dc239d6104f8c0f9bb149b75bba164d7daf500731812679c5a338582adacd1.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r4-avant.json",
+      "sha256_gzip": "9c8de8b2d386178cde046c668f2b97d5abdc6ccbd9110cc1708fa2a33258c964",
+      "sha256_original": "f5dc239d6104f8c0f9bb149b75bba164d7daf500731812679c5a338582adacd1",
+      "taille_gzip": 1672611,
+      "taille_originale": 4450050
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r4-resultat.json--eba31d35751fbeaff9f0109efeb7fc55fd893bfb74a8d5c6425df194647d497b.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r4-resultat.json",
+      "sha256_gzip": "5ab8407022190e70a61a3a80cc3262ec811d197540f63e7229b54809ec81c5f6",
+      "sha256_original": "eba31d35751fbeaff9f0109efeb7fc55fd893bfb74a8d5c6425df194647d497b",
+      "taille_gzip": 681,
+      "taille_originale": 1443
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r4-ws.log--55666ee228a440c5308ba4693d7073baf46b8ecefea06a46d4f6650171da94ac.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r4-ws.log",
+      "sha256_gzip": "5ac3449e4873807853ee81a542a42b0fc36bc4aa51ed0a5d8b0de08950986e91",
+      "sha256_original": "55666ee228a440c5308ba4693d7073baf46b8ecefea06a46d4f6650171da94ac",
+      "taille_gzip": 408,
+      "taille_originale": 741
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r4-ws.xml--bfb4abef0afb457de0be962fcf533b6805030be1dbf4e191791deaa2f34980cb.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r4-ws.xml",
+      "sha256_gzip": "b6e8b9f61660a1b9a1f753b251db77fca92448d218e0890ea5f465440778f1ee",
+      "sha256_original": "bfb4abef0afb457de0be962fcf533b6805030be1dbf4e191791deaa2f34980cb",
+      "taille_gzip": 1319,
+      "taille_originale": 7438
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r5-apres.json--7f0affc7f0e7fd5459ca68b47c9ebc8ad6634fc76360881a2f9d4e7bee6ce5ff.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r5-apres.json",
+      "sha256_gzip": "e1f24656b0201563bb7294c035665c697e0b9196ef397687cd84381ca1601633",
+      "sha256_original": "7f0affc7f0e7fd5459ca68b47c9ebc8ad6634fc76360881a2f9d4e7bee6ce5ff",
+      "taille_gzip": 1672607,
+      "taille_originale": 4450050
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r5-avant.json--45fbb2ffe4e22d53a669ac9a8a50a8fbf415ec1f0859b703f373bd30be64287f.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r5-avant.json",
+      "sha256_gzip": "cc8710fd37b59fceeda678b7e8bf81932405643d33bc437113c423742431d68a",
+      "sha256_original": "45fbb2ffe4e22d53a669ac9a8a50a8fbf415ec1f0859b703f373bd30be64287f",
+      "taille_gzip": 1672609,
+      "taille_originale": 4450050
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r5-extension.log--61ca95b34b132b713f46fb715728c81b3afaa3444febbf57a32869a4310557cc.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r5-extension.log",
+      "sha256_gzip": "fb4af9e8cbb82d3fe48bbfc6bafe8181501af35e656e2b058925815c1b856b17",
+      "sha256_original": "61ca95b34b132b713f46fb715728c81b3afaa3444febbf57a32869a4310557cc",
+      "taille_gzip": 1139,
+      "taille_originale": 5444
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r5-extension.xml--4e86344f641ea3192e40fe4e888147eb03bf6952d2d2d88e764f285afe8a04c5.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r5-extension.xml",
+      "sha256_gzip": "4fd5dfff022000e612fb8c496ba084df25d4c7a454835763d04d9769ac0e4145",
+      "sha256_original": "4e86344f641ea3192e40fe4e888147eb03bf6952d2d2d88e764f285afe8a04c5",
+      "taille_gzip": 3012,
+      "taille_originale": 17123
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r5-oxfmt.log--b5013a71daeecd0cde9150cf9bd01e11ce7512cf08cd7aa941d81d3556254283.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r5-oxfmt.log",
+      "sha256_gzip": "41ac3e5cdfc3d5d28f52e190419ef5ea1717be05b7d95f431c7d299fc3ce7038",
+      "sha256_original": "b5013a71daeecd0cde9150cf9bd01e11ce7512cf08cd7aa941d81d3556254283",
+      "taille_gzip": 108,
+      "taille_originale": 112
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r5-oxlint.log--330bd61d0a770b69e570c8cd03ff7b3835faba5741b50f85d752a60f6445a57e.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r5-oxlint.log",
+      "sha256_gzip": "05e68b1a6d669170682035e8cde67cd1bdbbef9c36dbcac3fe84fca04368a71b",
+      "sha256_original": "330bd61d0a770b69e570c8cd03ff7b3835faba5741b50f85d752a60f6445a57e",
+      "taille_gzip": 135,
+      "taille_originale": 135
+    },
+    {
+      "archive": "voix-r24/core-voix-r24-root-r5-resultat.json--6f8160d0beca7339a2d49e838cb3a7f79e86dd8d63ff49dc62150534f5b61a8b.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r5-resultat.json",
+      "sha256_gzip": "1ba5c0a331589d8695bfc0232dc4543c8750159c575c77644f60e77b6cb3f890",
+      "sha256_original": "6f8160d0beca7339a2d49e838cb3a7f79e86dd8d63ff49dc62150534f5b61a8b",
+      "taille_gzip": 1081,
+      "taille_originale": 4619
+    },
+    {
+      "archive": "voix-r24/delta-autorise-root-r5.json--cf989d54ecf59021f8062ce78e3a38b0e2fd739fd159dcc33ba387cd11e157be.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/delta-autorise-root-r5.json",
+      "sha256_gzip": "7ed9aad871e5d27575dc4487a9fe3f305621cf561a2975b0abd48e3aa3c2fc11",
+      "sha256_original": "cf989d54ecf59021f8062ce78e3a38b0e2fd739fd159dcc33ba387cd11e157be",
+      "taille_gzip": 124,
+      "taille_originale": 268
+    },
+    {
+      "archive": "voix-r24/docs-archive-root-r1.json--27ff082eafff99afea2b2ed19e8a65eb95083ff2ade535dc4555ce02b3008717.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/docs-archive-root-r1.json",
+      "sha256_gzip": "735d6e804718d3e9be2d923b1b07edb4dc2d9adb7922906776f3bdfa745c3504",
+      "sha256_original": "27ff082eafff99afea2b2ed19e8a65eb95083ff2ade535dc4555ce02b3008717",
+      "taille_gzip": 149,
+      "taille_originale": 244
+    },
+    {
+      "archive": "voix-r24/extension-r24-author-final.xml--7189a8f974d91b7b6c52c7fb5b0ddef4ecd18af93abed70959f5fe9f0a145882.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/extension-r24-author-final.xml",
+      "sha256_gzip": "cbc1865f376b91b1425c9ae230cbd5faf9f12f647babcc429727c33e2eed8f73",
+      "sha256_original": "7189a8f974d91b7b6c52c7fb5b0ddef4ecd18af93abed70959f5fe9f0a145882",
+      "taille_gzip": 2996,
+      "taille_originale": 16909
+    },
+    {
+      "archive": "voix-r24/extension-r24-author-r2-final.xml--306c6df15a22d35aeae616e7db303946a1a465dd85156af1a5ed3cfa3c558b10.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/extension-r24-author-r2-final.xml",
+      "sha256_gzip": "9dca9ea868372a946562d5282b965996ed2622f65e98c5c5ccb2c0898d8933ec",
+      "sha256_original": "306c6df15a22d35aeae616e7db303946a1a465dd85156af1a5ed3cfa3c558b10",
+      "taille_gzip": 3008,
+      "taille_originale": 17121
+    },
+    {
+      "archive": "voix-r24/extension-r24-author-r2.xml--dad97c8d78a6cebd86a22778afa1958d0386c6d1f4f617b99d19b535a4605ef2.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/extension-r24-author-r2.xml",
+      "sha256_gzip": "194ca56ba9e8c82cd977f20df9badf6df7fa73ccae745de3519289a05f4f4e1c",
+      "sha256_original": "dad97c8d78a6cebd86a22778afa1958d0386c6d1f4f617b99d19b535a4605ef2",
+      "taille_gzip": 2952,
+      "taille_originale": 16648
+    },
+    {
+      "archive": "voix-r24/extension-r24-author.xml--d7522d450b97940bb5591d567a1d480b945760c8f6bae918207cd5b513d0c639.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/extension-r24-author.xml",
+      "sha256_gzip": "dfc7591722d882770c12601e88535e93201baafa7f11fc1c0430c153087fbaa9",
+      "sha256_original": "d7522d450b97940bb5591d567a1d480b945760c8f6bae918207cd5b513d0c639",
+      "taille_gzip": 2949,
+      "taille_originale": 16645
+    },
+    {
+      "archive": "voix-r24/gateway-r24-author-r2.xml--26de86fc6c1794560be546081dc8152d744b7f2753982ecc9157ae7670e25d8c.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/gateway-r24-author-r2.xml",
+      "sha256_gzip": "091294bacb98577a4e1efe72f7e8a5df3cf2293b70723373351ef81d11908af5",
+      "sha256_original": "26de86fc6c1794560be546081dc8152d744b7f2753982ecc9157ae7670e25d8c",
+      "taille_gzip": 4327,
+      "taille_originale": 29830
+    },
+    {
+      "archive": "voix-r24/gateway-r24-author.xml--9620b7ca8b6ac0dab47eef706ccb64ea4398b528d56a1c4c95d3af2830e9d90b.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/gateway-r24-author.xml",
+      "sha256_gzip": "794ed9dafaca1caba23b532bb6c5c23af1f70631f32d1d579b2f45deabbe928a",
+      "sha256_original": "9620b7ca8b6ac0dab47eef706ccb64ea4398b528d56a1c4c95d3af2830e9d90b",
+      "taille_gzip": 4310,
+      "taille_originale": 29592
+    },
+    {
+      "archive": "voix-r24/preimages--PREIMAGES-AMENDEMENT-TESTS.json--fb13a7b45ef538cc0b17962c53b0dc420c4ce7c8f653d73fe3dba3226bae3e8f.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages/PREIMAGES-AMENDEMENT-TESTS.json",
+      "sha256_gzip": "d2536199cae66130f8c7786abd14d62e844cf523076fda396ea938aeead10606",
+      "sha256_original": "fb13a7b45ef538cc0b17962c53b0dc420c4ce7c8f653d73fe3dba3226bae3e8f",
+      "taille_gzip": 419,
+      "taille_originale": 840
+    },
+    {
+      "archive": "voix-r24/preimages--PREIMAGES-AMENDEMENT.json--d49af2e99f33a9aba6e5a8cef3a79a0392db57b0525ce771c5d3c09cd6b8d8bf.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages/PREIMAGES-AMENDEMENT.json",
+      "sha256_gzip": "3ef53bb30a029692fbaf5d2e6a0f192935e9afac10f33dba03be73e17055dc41",
+      "sha256_original": "d49af2e99f33a9aba6e5a8cef3a79a0392db57b0525ce771c5d3c09cd6b8d8bf",
+      "taille_gzip": 707,
+      "taille_originale": 2140
+    },
+    {
+      "archive": "voix-r24/preimages--PREIMAGES-DISCOVERY.json--07131353129f7a18d9b1167d806bc1ee42c734c620f5f8346ca3d63dff70844d.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages/PREIMAGES-DISCOVERY.json",
+      "sha256_gzip": "6c886f9033916be0ab80a561536f5aac6fcc2d1a27f1f29c39cfecd92f9d4419",
+      "sha256_original": "07131353129f7a18d9b1167d806bc1ee42c734c620f5f8346ca3d63dff70844d",
+      "taille_gzip": 327,
+      "taille_originale": 527
+    },
+    {
+      "archive": "voix-r24/preimages--PREIMAGES-INDEX-TEST.json--9601bc020bcf1bcce48d3b9a59b749727ff42b32dccbf30140cbc5d0bef31762.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages/PREIMAGES-INDEX-TEST.json",
+      "sha256_gzip": "76d8400d14840827ab4da49cbde2c8f63c1b1ba64b612f8f2fa1223a3de7621a",
+      "sha256_original": "9601bc020bcf1bcce48d3b9a59b749727ff42b32dccbf30140cbc5d0bef31762",
+      "taille_gzip": 217,
+      "taille_originale": 282
+    },
+    {
+      "archive": "voix-r24/preimages--PREIMAGES.json--a84ee3c9fadd24ccec0050a01da79ec8a6391e560c7ae6e1e90f5fac0f386a0b.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages/PREIMAGES.json",
+      "sha256_gzip": "f882a65e8e361b7c2185aeeeec75bcdeb288e03874c62c23a25a8add3455d55f",
+      "sha256_original": "a84ee3c9fadd24ccec0050a01da79ec8a6391e560c7ae6e1e90f5fac0f386a0b",
+      "taille_gzip": 528,
+      "taille_originale": 1593
+    },
+    {
+      "archive": "voix-r24/preimages--core__extensions__voice-call__index.test.ts.preimage--666504c79dbb3a78a366be410917d6ccbe3ff15e17417618e6503783a0185b58.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages/core__extensions__voice-call__index.test.ts.preimage",
+      "sha256_gzip": "4e25c5daf9ff7196f9925b23801f7ebe64211239b4242da4f557d1318721d25a",
+      "sha256_original": "666504c79dbb3a78a366be410917d6ccbe3ff15e17417618e6503783a0185b58",
+      "taille_gzip": 7997,
+      "taille_originale": 45502
+    },
+    {
+      "archive": "voix-r24/preimages--core__extensions__voice-call__index.ts.preimage--742c30d8c736432ac0fab9f744f7054fb0f36b82bbdf5c0fb4d4b3d2d2828811.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages/core__extensions__voice-call__index.ts.preimage",
+      "sha256_gzip": "4a417eb255cd0a7759b773833b121da6a2110e01decb2a0bc25d09f5937a1cdc",
+      "sha256_original": "742c30d8c736432ac0fab9f744f7054fb0f36b82bbdf5c0fb4d4b3d2d2828811",
+      "taille_gzip": 4526,
+      "taille_originale": 22011
+    },
+    {
+      "archive": "voix-r24/preimages--core__extensions__voice-call__openclaw.plugin.json.preimage--a7ce0f937f80833f90ec4cd952755b841e44815e354e5a4fdcef31283cf7e4b6.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages/core__extensions__voice-call__openclaw.plugin.json.preimage",
+      "sha256_gzip": "db80fc951fdb45c2dd47a014b7d0a416bf57baed022925a3cd3fa1fd86daac7d",
+      "sha256_original": "a7ce0f937f80833f90ec4cd952755b841e44815e354e5a4fdcef31283cf7e4b6",
+      "taille_gzip": 4081,
+      "taille_originale": 28752
+    },
+    {
+      "archive": "voix-r24/preimages--core__extensions__voice-call__src__webhook.provider-discovery.test.ts.preimage--042d773a6553f910030aabeb8969b1c5c73a57c936565fc16b1a2020179ddddd.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages/core__extensions__voice-call__src__webhook.provider-discovery.test.ts.preimage",
+      "sha256_gzip": "9912d8884994f4a00664a7a8acdcfd503ac222d9028ef63ab0ce2520e3687b62",
+      "sha256_original": "042d773a6553f910030aabeb8969b1c5c73a57c936565fc16b1a2020179ddddd",
+      "taille_gzip": 1476,
+      "taille_originale": 4539
+    },
+    {
+      "archive": "voix-r24/preimages--core__packages__gateway-protocol__src__schema__channels.test.ts.preimage--96bca702aeaf5fd7622378471c34850ada45ae2b3dafefd061912fd533ee8340.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages/core__packages__gateway-protocol__src__schema__channels.test.ts.preimage",
+      "sha256_gzip": "d00fc3dc38c82ae65bfd4e55494f447ca85fdc3ce22428d02e911e9372fe9e0c",
+      "sha256_original": "96bca702aeaf5fd7622378471c34850ada45ae2b3dafefd061912fd533ee8340",
+      "taille_gzip": 455,
+      "taille_originale": 1040
+    },
+    {
+      "archive": "voix-r24/preimages--core__packages__gateway-protocol__src__schema__channels.ts.preimage--8dab6844756ac00e8f38ae87847c0d39cd24923528b68ac5245b6bb03c5a00c1.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages/core__packages__gateway-protocol__src__schema__channels.ts.preimage",
+      "sha256_gzip": "58da4843af5d2644008b99e2b74f058049338adbd17b8982c2cd142b43ee3c7c",
+      "sha256_original": "8dab6844756ac00e8f38ae87847c0d39cd24923528b68ac5245b6bb03c5a00c1",
+      "taille_gzip": 6179,
+      "taille_originale": 31392
+    },
+    {
+      "archive": "voix-r24/preimages--core__src__gateway__talk__handlers__index.test.ts.preimage--f46ad428744ec8523e5a0387aea554a0ca3433dae007b9897ac1f06df88c2b9a.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages/core__src__gateway__talk__handlers__index.test.ts.preimage",
+      "sha256_gzip": "966a4503c6616deb583358952138db2d63ebd71cf17f875ba884bb6fba96fe6b",
+      "sha256_original": "f46ad428744ec8523e5a0387aea554a0ca3433dae007b9897ac1f06df88c2b9a",
+      "taille_gzip": 24106,
+      "taille_originale": 166857
+    },
+    {
+      "archive": "voix-r24/preimages--core__src__gateway__talk__handlers__session.ts.preimage--ed3dc3deb4e23ce3cd030336bec76bbba571f572693425b59e9cb9f3251c09c4.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages/core__src__gateway__talk__handlers__session.ts.preimage",
+      "sha256_gzip": "976a1a53aae80676e593046ddd30f3bafa0c6340f397b99cd9ee99e415b8d481",
+      "sha256_original": "ed3dc3deb4e23ce3cd030336bec76bbba571f572693425b59e9cb9f3251c09c4",
+      "taille_gzip": 4699,
+      "taille_originale": 24302
+    },
+    {
+      "archive": "voix-r24/preimages--core__src__gateway__talk__transcription-relay.test.ts.preimage--58c1ca9d301411e9ab4558765edde2e1b80c34ab5fbeb4d630561796ba90f5ba.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages/core__src__gateway__talk__transcription-relay.test.ts.preimage",
+      "sha256_gzip": "1b7f2229dab8d5a33d581f7f32757493af9d5516bf323046e30fbe4f63a11e89",
+      "sha256_original": "58c1ca9d301411e9ab4558765edde2e1b80c34ab5fbeb4d630561796ba90f5ba",
+      "taille_gzip": 5264,
+      "taille_originale": 29055
+    },
+    {
+      "archive": "voix-r24/preimages--core__src__gateway__talk__transcription-relay.ts.preimage--46d00d577c24e6c1f45f7adf2bd00bebb7466600b034c3b0b96f4b1599307c4d.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages/core__src__gateway__talk__transcription-relay.ts.preimage",
+      "sha256_gzip": "f27475821dbe2dbfd6306058ec2da6f7238b37cd87b48941a033801e2003e07f",
+      "sha256_original": "46d00d577c24e6c1f45f7adf2bd00bebb7466600b034c3b0b96f4b1599307c4d",
+      "taille_gzip": 4061,
+      "taille_originale": 16497
+    },
+    {
+      "archive": "voix-r24/preimages--core__src__realtime-transcription__provider-types.ts.preimage--b1bc5adb93016fb966d99218883d1bbb4948924814052cc1eb1978d2c1a6a1be.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages/core__src__realtime-transcription__provider-types.ts.preimage",
+      "sha256_gzip": "7586a970c68f4642aa713f36fb4586ba01ba7651919988d91a4da12c2da419fc",
+      "sha256_original": "b1bc5adb93016fb966d99218883d1bbb4948924814052cc1eb1978d2c1a6a1be",
+      "taille_gzip": 518,
+      "taille_originale": 1477
+    },
+    {
+      "archive": "voix-r24/preimages--core__ui__src__pages__chat__composer-dictation.test.ts.preimage--170543ea0dac21a3e87d028ff5260c3ff30a0f81159feac52b86f0d6785e2014.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages/core__ui__src__pages__chat__composer-dictation.test.ts.preimage",
+      "sha256_gzip": "f04f245e25246850584ddff4dba99fa6ee653a937ad7db71762e1eb434c7ab45",
+      "sha256_original": "170543ea0dac21a3e87d028ff5260c3ff30a0f81159feac52b86f0d6785e2014",
+      "taille_gzip": 5341,
+      "taille_originale": 30281
+    },
+    {
+      "archive": "voix-r24/preimages--core__ui__src__pages__chat__composer-dictation.ts.preimage--b149c4f552bf0bc7660bdf9d9e4b89f94595943fd02afbff040c2a56b0deef5e.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages/core__ui__src__pages__chat__composer-dictation.ts.preimage",
+      "sha256_gzip": "c3334ab757e02a34944743a68a9f87bd3ccb7c699d03000181625e9ddf56a92a",
+      "sha256_original": "b149c4f552bf0bc7660bdf9d9e4b89f94595943fd02afbff040c2a56b0deef5e",
+      "taille_gzip": 5960,
+      "taille_originale": 25422
+    },
+    {
+      "archive": "voix-r24/preimages-r2--index.test.ts--b5bb28fb81c5c215d9f404e972a9da0e68ccffb9d504134091c9334c3edcbb3c.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages-r2/index.test.ts",
+      "sha256_gzip": "27c7de72780b4e799e08c89b4f491bbdf5d98ee5f2d7cdaf18c2f3915b49ef94",
+      "sha256_original": "b5bb28fb81c5c215d9f404e972a9da0e68ccffb9d504134091c9334c3edcbb3c",
+      "taille_gzip": 8096,
+      "taille_originale": 46095
+    },
+    {
+      "archive": "voix-r24/preimages-r2--index.ts--b2cb9c0a5b35c6fa7def85ac5bcbe0ca3d96c9f283a84b6055a74835030be07b.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages-r2/index.ts",
+      "sha256_gzip": "8730f36bb9d9cd53146ee209153722f79ddc4c022e53214d5442476001791adc",
+      "sha256_original": "b2cb9c0a5b35c6fa7def85ac5bcbe0ca3d96c9f283a84b6055a74835030be07b",
+      "taille_gzip": 4575,
+      "taille_originale": 22194
+    },
+    {
+      "archive": "voix-r24/preimages-r2--local-asr-transcription-provider.test.ts--e9c6820ca6b1f8d962964a94202743a4c19a792bccdd997fe3c1d9c728cfafa9.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages-r2/local-asr-transcription-provider.test.ts",
+      "sha256_gzip": "258e9bf98d5a318a5ff58f4b3f4c602dd893e54793445da68d9a12e0e2f0c6ec",
+      "sha256_original": "e9c6820ca6b1f8d962964a94202743a4c19a792bccdd997fe3c1d9c728cfafa9",
+      "taille_gzip": 3025,
+      "taille_originale": 13417
+    },
+    {
+      "archive": "voix-r24/preimages-r2--local-asr-transcription-provider.ts--ea434ad5344ce05ca1b3b2021c9e81b0da3eb7e3e0342b20b9032e419a0459b4.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages-r2/local-asr-transcription-provider.ts",
+      "sha256_gzip": "77a476e03daa0e6fdd726980ea484b81e362ff97a0525a3e18f62a1c7d3fec62",
+      "sha256_original": "ea434ad5344ce05ca1b3b2021c9e81b0da3eb7e3e0342b20b9032e419a0459b4",
+      "taille_gzip": 3256,
+      "taille_originale": 10882
+    },
+    {
+      "archive": "voix-r24/preimages-r2--webhook.provider-discovery.test.ts--4df02b53a57f5960537a2d6b6444af19f1ef2652d27134a220f48a07dbdca4b8.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages-r2/webhook.provider-discovery.test.ts",
+      "sha256_gzip": "e2129432b4c38ac99938fae34a692c4fbaa49b6ec8e9105b32e1d804f83220e3",
+      "sha256_original": "4df02b53a57f5960537a2d6b6444af19f1ef2652d27134a220f48a07dbdca4b8",
+      "taille_gzip": 2075,
+      "taille_originale": 7214
+    },
+    {
+      "archive": "voix-r24/preimages-r2.json--565a27ac5b3d897da631c66aa6b2f8cba7cc4418b77f17c3f7d9eedf0c20deca.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preimages-r2.json",
+      "sha256_gzip": "33f9a1811e7dfe647519c4daf7c7432ef58411802be88630eff108840c742ca2",
+      "sha256_original": "565a27ac5b3d897da631c66aa6b2f8cba7cc4418b77f17c3f7d9eedf0c20deca",
+      "taille_gzip": 466,
+      "taille_originale": 919
+    },
+    {
+      "archive": "voix-r24/preuves-selection-root-r1.json--d5552ad24916760c8a292f5ad643919d1439bf1720e6b7e309d1fd00093576e4.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preuves-selection-root-r1.json",
+      "sha256_gzip": "cc70bbc3c90de88ec766150e7d4d4221e3e9a53dc6fc961338de4e6ac93ed07f",
+      "sha256_original": "d5552ad24916760c8a292f5ad643919d1439bf1720e6b7e309d1fd00093576e4",
+      "taille_gzip": 187,
+      "taille_originale": 516
+    },
+    {
+      "archive": "voix-r24/protocol-r24-author-r2.xml--15e06c8642fc383ef7e903174982637efa01bb63d882f0d0a4c737541063f9b0.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/protocol-r24-author-r2.xml",
+      "sha256_gzip": "77c751fcc9736da0d9814a1f7d39b50be6e10a99b9517508460816c65f93f1c2",
+      "sha256_original": "15e06c8642fc383ef7e903174982637efa01bb63d882f0d0a4c737541063f9b0",
+      "taille_gzip": 375,
+      "taille_originale": 786
+    },
+    {
+      "archive": "voix-r24/protocol-r24-author.xml--c20b67499533a48806d5e434ad09b6ab30a5394bff5d47f49b7139250061c3ec.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/protocol-r24-author.xml",
+      "sha256_gzip": "892038168b6317755b2546eefc822b2ff49e5664cf5f632d0991c2684df04e30",
+      "sha256_original": "c20b67499533a48806d5e434ad09b6ab30a5394bff5d47f49b7139250061c3ec",
+      "taille_gzip": 374,
+      "taille_originale": 786
+    },
+    {
+      "archive": "voix-r24/qualification-plan-r1.md--f6335de6dab63099144f0c4491528b6e0fa69dc1ecfd55f7651a21caae05c5a1.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/qualification-plan-r1.md",
+      "sha256_gzip": "2a5d56913839dc3d3d1098c582bf0e1113f44bb495dc8a4021344e08c0db3b03",
+      "sha256_original": "f6335de6dab63099144f0c4491528b6e0fa69dc1ecfd55f7651a21caae05c5a1",
+      "taille_gzip": 1424,
+      "taille_originale": 3138
+    },
+    {
+      "archive": "voix-r24/qualification-plan-r2.md--6504e3850ecab1f46ff23554089fa508b5af04a91039978a25c22b130ba9c8ed.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/qualification-plan-r2.md",
+      "sha256_gzip": "1a497c3d85fca850817cb9db9d763956715fd0ddcd2e07bee15173eff1aa69fa",
+      "sha256_original": "6504e3850ecab1f46ff23554089fa508b5af04a91039978a25c22b130ba9c8ed",
+      "taille_gzip": 1290,
+      "taille_originale": 2609
+    },
+    {
+      "archive": "voix-r24/qualifier-core-voix-r24-root-r1.py--792880294277d2a5e2d62cc7d3a93986629be54c2bfc8f0636f49203736852bf.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/qualifier-core-voix-r24-root-r1.py",
+      "sha256_gzip": "46d952510e081249c1533fb4d7f50b55be19d86c5a13ad36e9dc448da431b09c",
+      "sha256_original": "792880294277d2a5e2d62cc7d3a93986629be54c2bfc8f0636f49203736852bf",
+      "taille_gzip": 1920,
+      "taille_originale": 6396
+    },
+    {
+      "archive": "voix-r24/qualifier-core-voix-r24-root-r2.py--cb8bb98d4c349d9840974b9af3e333590eee4d420b4e315ff2378a3c50fd35cf.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/qualifier-core-voix-r24-root-r2.py",
+      "sha256_gzip": "5675898b56c46b350b96b2eabb9d264509032835b9830d728ada00333be8becd",
+      "sha256_original": "cb8bb98d4c349d9840974b9af3e333590eee4d420b4e315ff2378a3c50fd35cf",
+      "taille_gzip": 2193,
+      "taille_originale": 5716
+    },
+    {
+      "archive": "voix-r24/qualifier-core-voix-r24-root-r3.py--43231fa0cfd5931bc501cb46825fc86cdcf2825cf50f5bff84ef31512d95180a.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/qualifier-core-voix-r24-root-r3.py",
+      "sha256_gzip": "c3ba0161b40b9153cb34bc7fe8faa5ca6bc3f3557bfcba87252de0f98e57bf9a",
+      "sha256_original": "43231fa0cfd5931bc501cb46825fc86cdcf2825cf50f5bff84ef31512d95180a",
+      "taille_gzip": 2375,
+      "taille_originale": 6159
+    },
+    {
+      "archive": "voix-r24/qualifier-core-voix-r24-root-r4.py--371fcb1dddda0a0757dd110529f1238258f61f539dcc4c6c0310873a35cbe62a.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/qualifier-core-voix-r24-root-r4.py",
+      "sha256_gzip": "9a55aa06e4844ae1871a7f00ec2d0bf61981d66a6236a22c66b2a744f35a23be",
+      "sha256_original": "371fcb1dddda0a0757dd110529f1238258f61f539dcc4c6c0310873a35cbe62a",
+      "taille_gzip": 2404,
+      "taille_originale": 6230
+    },
+    {
+      "archive": "voix-r24/qualifier-core-voix-r24-root-r5.py--829b9d3f231a003ac6e255e6068781280db92944230164863390ae4e643dcf82.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/qualifier-core-voix-r24-root-r5.py",
+      "sha256_gzip": "e79bf9dbac93aa8e63bb0e41fc8a19b50dc69ef9f776a4e735f1aacdbf3821a2",
+      "sha256_original": "829b9d3f231a003ac6e255e6068781280db92944230164863390ae4e643dcf82",
+      "taille_gzip": 2402,
+      "taille_originale": 6243
+    },
+    {
+      "archive": "voix-r24/rapport-r24-auteur-r2.md--605bbbdc7f1b81a5ae124d83be712d06939c002dd7ece367dd47697e019f67df.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/rapport-r24-auteur-r2.md",
+      "sha256_gzip": "e89893aac62437dfbede2b89054d99feb3d0952407abbf1c96dbe8cda382c665",
+      "sha256_original": "605bbbdc7f1b81a5ae124d83be712d06939c002dd7ece367dd47697e019f67df",
+      "taille_gzip": 1430,
+      "taille_originale": 2698
+    },
+    {
+      "archive": "voix-r24/rapport-r24-auteur.md--24301d8af85f39db3f143fa23812e6d203f098d862c19835993614ccf66e7999.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/rapport-r24-auteur.md",
+      "sha256_gzip": "e932e1266d20eed4d814b6262cccb385449f4ea64445eaec897a8ea82827ef71",
+      "sha256_original": "24301d8af85f39db3f143fa23812e6d203f098d862c19835993614ccf66e7999",
+      "taille_gzip": 3380,
+      "taille_originale": 7535
+    },
+    {
+      "archive": "voix-r24/revue-design-r1.md--9d67eada0b3146ada2f8cabe961ffb1b31b24cd2e0a31619e68598764ced37cd.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/revue-design-r1.md",
+      "sha256_gzip": "85f4a862845c4a0559f8830980f27f159293babdfba8cf75d7a1fd7915fb905b",
+      "sha256_original": "9d67eada0b3146ada2f8cabe961ffb1b31b24cd2e0a31619e68598764ced37cd",
+      "taille_gzip": 2925,
+      "taille_originale": 6226
+    },
+    {
+      "archive": "voix-r24/revue-final-additif-r3.md--51666e4ebd76bc607a151146d1191b489d6352fa1557498604f7c44c5b55004b.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/revue-final-additif-r3.md",
+      "sha256_gzip": "d5b0c1792622946936d16099f532ad9d6c99457002b03ec4174ad565f3eb2058",
+      "sha256_original": "51666e4ebd76bc607a151146d1191b489d6352fa1557498604f7c44c5b55004b",
+      "taille_gzip": 1647,
+      "taille_originale": 3281
+    },
+    {
+      "archive": "voix-r24/revue-finale-independante-r2.md--db952a4f840b687578d050fad7e4e803ad3e9dc3bde530938677a556b3b97d08.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/revue-finale-independante-r2.md",
+      "sha256_gzip": "736586cd98eb15a5ad5b642f10e2d24c74147f02619235721fc6bc1e37ef8753",
+      "sha256_original": "db952a4f840b687578d050fad7e4e803ad3e9dc3bde530938677a556b3b97d08",
+      "taille_gzip": 4477,
+      "taille_originale": 9435
+    },
+    {
+      "archive": "voix-r24/revue-independante-r2.md--bc7318aa33be17291ce0dee99546442cf36b3b51c49293ff9ad19282091e2b08.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/revue-independante-r2.md",
+      "sha256_gzip": "572aa6d862448d84e409d29fad5173b428dd16f60a90efea8dbb3caf0bee2ec5",
+      "sha256_original": "bc7318aa33be17291ce0dee99546442cf36b3b51c49293ff9ad19282091e2b08",
+      "taille_gzip": 2828,
+      "taille_originale": 5543
+    },
+    {
+      "archive": "voix-r24/root-docs-preimages-r1--BILAN-RESTRUCTURATION-2026-09-30.md--ea2fda27e7573efd88352ba9c3f6c1b31ca01a6260b694320a5b9f9796b5d8fa.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/root-docs-preimages-r1/BILAN-RESTRUCTURATION-2026-09-30.md",
+      "sha256_gzip": "d33b44ed769ca5ea7851f300fdb5a034c3500b93d944ed3656c0dfe3fc560aa3",
+      "sha256_original": "ea2fda27e7573efd88352ba9c3f6c1b31ca01a6260b694320a5b9f9796b5d8fa",
+      "taille_gzip": 21722,
+      "taille_originale": 61876
+    },
+    {
+      "archive": "voix-r24/root-docs-preimages-r1--LOT-DICTEE-LOCALE-CORE.md--5e4ec5620e4a1594971aa4fd018679a285ad1b45924751d9f8a92815a9cd73be.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/root-docs-preimages-r1/LOT-DICTEE-LOCALE-CORE.md",
+      "sha256_gzip": "31aeae8fd569234f18d5a005b148b20bae7fd69b2d358bdd6f48d36bf0ae9fdc",
+      "sha256_original": "5e4ec5620e4a1594971aa4fd018679a285ad1b45924751d9f8a92815a9cd73be",
+      "taille_gzip": 2588,
+      "taille_originale": 5400
+    },
+    {
+      "archive": "voix-r24/root-docs-preimages-r1--PREIMAGES.json--643867456eeb99ffcb16e4cc02cba94dfec66bad758d61eb2f3d7cd44a9c8437.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/root-docs-preimages-r1/PREIMAGES.json",
+      "sha256_gzip": "ebd9a397ece9a298e6bc247f2d261d46afb12b4b60ec0fb20136838b795102f3",
+      "sha256_original": "643867456eeb99ffcb16e4cc02cba94dfec66bad758d61eb2f3d7cd44a9c8437",
+      "taille_gzip": 369,
+      "taille_originale": 725
+    },
+    {
+      "archive": "voix-r24/root-docs-preimages-r1--REPRISE-PLAN-2026-10-02.md--5d2a1afb2d34c3153c458f8b9076cadeed7a54bee59220055510e97ee5a3456c.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/root-docs-preimages-r1/REPRISE-PLAN-2026-10-02.md",
+      "sha256_gzip": "1a02ad0332f95aaf47ae5d0b3b4503bde178e0ebfa95e0b29c1fa02f44cb2a24",
+      "sha256_original": "5d2a1afb2d34c3153c458f8b9076cadeed7a54bee59220055510e97ee5a3456c",
+      "taille_gzip": 3887,
+      "taille_originale": 7914
+    },
+    {
+      "archive": "voix-r24/sources-archive-root-r1.json--8ee306bd2277c134b77ad57d513eafea30aa3dfd82b1977c0dbfe640444d4b6b.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/sources-archive-root-r1.json",
+      "sha256_gzip": "e86d621aa25cda9231412bb36e7c6f67d57f750080eeaf220ac5b7a1c9047604",
+      "sha256_original": "8ee306bd2277c134b77ad57d513eafea30aa3dfd82b1977c0dbfe640444d4b6b",
+      "taille_gzip": 246,
+      "taille_originale": 847
+    },
+    {
+      "archive": "voix-r24/ui-r24-author-final.xml--de1635366a827bd827970c2819a014d28db5edd157f7d3d164a7d885667dc4fe.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/ui-r24-author-final.xml",
+      "sha256_gzip": "bbc4099f46955f558ea998098e655e3d7d0a5d0509359a1a67ee7221bb3d829d",
+      "sha256_original": "de1635366a827bd827970c2819a014d28db5edd157f7d3d164a7d885667dc4fe",
+      "taille_gzip": 1282,
+      "taille_originale": 6191
+    },
+    {
+      "archive": "voix-r24/ui-r24-author-r2.xml--6dd74239ffad40ca4c69c04b0c13c6392b64f0ca05dc39bd2cd2a3889098c3b9.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/ui-r24-author-r2.xml",
+      "sha256_gzip": "306caa07371cf2e2aa0b8931bfa007ff48bd16fb6d2356e9a899b1ca6998a9d4",
+      "sha256_original": "6dd74239ffad40ca4c69c04b0c13c6392b64f0ca05dc39bd2cd2a3889098c3b9",
+      "taille_gzip": 1278,
+      "taille_originale": 6188
+    },
+    {
+      "archive": "voix-r24/ui-r24-author.xml--df0685d8f6399e27a72f107577f7799f50ab0e7168cacd8f064d40f6274fb2ec.gz",
+      "categorie": "voix-r24",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/ui-r24-author.xml",
+      "sha256_gzip": "f883828f3f42f7332c77499a557ab8ca062e4c191fbf031973a59cb1d73b4fc6",
+      "sha256_original": "df0685d8f6399e27a72f107577f7799f50ab0e7168cacd8f064d40f6274fb2ec",
+      "taille_gzip": 1284,
+      "taille_originale": 6192
+    }
+  ],
+  "date_utc": "2026-10-02T05:53:56.898300+00:00",
+  "exclusions": [],
+  "format": "gzip mtime=0, SHA256 intégral dans nom, tailles/SHA brut et gzip",
+  "limites": [
+    "clip au Stop",
+    "pas ASR réel/fr-CA qualifié",
+    "pas streaming transcription live",
+    "pas latence terrain",
+    "pas build/browser complet",
+    "pas tests relancés par archiveur"
+  ],
+  "rapports_auteur": {
+    "amendement": {
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/rapport-r24-auteur-r2.md",
+      "sha256": "605bbbdc7f1b81a5ae124d83be712d06939c002dd7ece367dd47697e019f67df"
+    },
+    "originel": {
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/rapport-r24-auteur.md",
+      "sha256": "24301d8af85f39db3f143fa23812e6d203f098d862c19835993614ccf66e7999"
+    }
+  },
+  "schema": "opsys.r24-evidence-manifest/v1",
+  "selected_proofs": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/preuves-selection-root-r1.json",
+  "selected_snapshot": "/workspace/poursuite-opsys-2026-10-02-r1/voix-r24/core-voix-r24-root-r5-apres.json",
+  "sources_generales_copiees": false
+}

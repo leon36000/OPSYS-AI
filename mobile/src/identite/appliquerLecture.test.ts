@@ -2,6 +2,9 @@ import type { ConfigurationAppel } from "../protocole/configuration";
 import { appliquerLecture } from "./appliquerLecture";
 import type { DependancesAppliquerLecture } from "./appliquerLecture";
 import type { EtatIdentite } from "./etat";
+import { synchroniserCaches, ecrireProprietaireDesCaches, CLE_PROPRIETAIRE_DES_CACHES } from "./caches";
+import { DepotCleValeurMemoire } from "../stockage/depotCleValeur";
+import { PREFIXES_DES_CACHES_PAR_PERSONNE } from "../stockage/cles";
 
 const APPAREIL = "a".repeat(64);
 const CONFIGURATION: ConfigurationAppel = { urlBase: "https://grs.exemple.ca", jeton: "jeton-1", appareilId: APPAREIL };
@@ -32,7 +35,7 @@ describe("appliquerLecture — ce que l'app fait d'une lecture de l'identité qu
     const definirEtat = jest.fn();
     const synchroniserCaches = jest.fn(async () => undefined);
     await appliquerLecture(ETAT, CONFIGURATION, dependances({ definirEtat, synchroniserCaches }));
-    expect(synchroniserCaches).toHaveBeenCalledWith(ETAT);
+    expect(synchroniserCaches).toHaveBeenCalledWith(ETAT, expect.any(Function));
     expect(definirEtat).toHaveBeenCalledWith(ETAT, CONFIGURATION);
   });
 
@@ -45,6 +48,49 @@ describe("appliquerLecture — ce que l'app fait d'une lecture de l'identité qu
     );
     expect(appliquee).toBe(false);
     expect(journal).toEqual([]);
+  });
+
+  test("nouvel appairage pendant la purge : ne pas appliquer l'ancien état", async () => {
+    let courant: ConfigurationAppel | null = CONFIGURATION;
+    let terminer!: () => void;
+    const purge = new Promise<void>((resolve) => { terminer = resolve; });
+    const definirEtat = jest.fn();
+    const pending = appliquerLecture(ETAT, CONFIGURATION, dependances({
+      configurationCourante: () => courant,
+      synchroniserCaches: async () => { await purge; },
+      definirEtat,
+    }));
+    courant = { ...CONFIGURATION, jeton: "jeton-2" };
+    terminer();
+    expect(await pending).toBe(false);
+    expect(definirEtat).not.toHaveBeenCalled();
+  });
+
+  test("purge async périmée ne réattribue pas son marqueur aux nouveaux caches", async () => {
+    let courant: ConfigurationAppel | null = CONFIGURATION;
+    const memoire = new DepotCleValeurMemoire();
+    await ecrireProprietaireDesCaches(memoire, { personne: "ancienne", role: "employee" });
+    await memoire.ecrire(`${PREFIXES_DES_CACHES_PAR_PERSONNE[0]}cache-a`, "ancienne donnée");
+    let commencer!: () => void;
+    let finir!: () => void;
+    const purger = new Promise<void>((resolve) => { commencer = resolve; });
+    const attente = new Promise<void>((resolve) => { finir = resolve; });
+    const depot = {
+      lire: (cle: string) => memoire.lire(cle), ecrire: (cle: string, valeur: string) => memoire.ecrire(cle, valeur),
+      supprimer: (cle: string) => memoire.supprimer(cle),
+      async supprimerParPrefixe(prefixe: string) { commencer(); await attente; await memoire.supprimerParPrefixe(prefixe); },
+    };
+    const pending = appliquerLecture(ETAT, CONFIGURATION, {
+      configurationCourante: () => courant,
+      synchroniserCaches: (etat, valide) => synchroniserCaches(depot, etat, valide),
+      definirEtat: jest.fn(),
+    });
+    await purger;
+    courant = { ...CONFIGURATION, jeton: "jeton-2" };
+    finir();
+    expect(await pending).toBe(false);
+    expect(await memoire.lire(CLE_PROPRIETAIRE_DES_CACHES)).toBe(JSON.stringify({ personne: "ancienne", role: "employee" }));
+    expect(await memoire.lire(`${PREFIXES_DES_CACHES_PAR_PERSONNE[0]}cache-a`)).toBeNull();
   });
 
   test("un autre appareil dans la configuration courante : jeté aussi", async () => {

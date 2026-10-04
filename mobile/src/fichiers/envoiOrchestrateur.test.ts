@@ -1,9 +1,12 @@
 import { encoderBase64Standard } from "./base64";
 import { decouperEnBlocs, TAILLE_BLOC_OCTETS } from "./decoupage";
 import { preparerEnvoiFichier } from "./envoiOrchestrateur";
+import { calculerEtatEnvoiFichier } from "./etatEnvoi";
+import { evaluerPreparationCompletion } from "../ecrans/complete";
 import type { ConfigurationEnvoiFichier } from "./envoiOrchestrateur";
 import type { CandidatFichierM4 } from "./candidats";
 import { DepotOutboxMemoire } from "../outbox/depot";
+import type { DepotOutbox } from "../outbox/depot";
 import type { FonctionDigestSha256 } from "./empreinte";
 
 const HORLOGE = { maintenant: new Date("2026-09-28T18:32:00.000Z"), decalageMinutesUTC: -240 };
@@ -22,6 +25,7 @@ const SHA_ATTENDU_PAR_DIGEST_FIXE = "ab";
 
 const FICHIER_1600_OCTETS: CandidatFichierM4 = {
   mutationId: "photo-1",
+  proprietaire: "jdupont",
   chantierId: "I1",
   uri: "file:///opsys-photos/I1/apres/a.jpg",
   sha256: SHA_ATTENDU_PAR_DIGEST_FIXE,
@@ -30,7 +34,7 @@ const FICHIER_1600_OCTETS: CandidatFichierM4 = {
 };
 
 function creerConfig(
-  depot: DepotOutboxMemoire,
+  depot: DepotOutbox,
   octetsSurDisque: Uint8Array<ArrayBuffer>,
   overrides: Partial<ConfigurationEnvoiFichier> = {},
 ): ConfigurationEnvoiFichier {
@@ -63,6 +67,7 @@ describe("preparerEnvoiFichier — cas nominal", () => {
     expect(lignes.map((m) => m.type)).toEqual(["fichier_bloc", "fichier_bloc"]);
     expect(lignes.map((m) => m.statut)).toEqual(["en_attente", "en_attente"]);
     expect(lignes.map((m) => m.chantierId)).toEqual(["I1", "I1"]);
+    expect(lignes.map((m) => m.proprietaire)).toEqual(["jdupont", "jdupont"]);
 
     const blocsAttendus = decouperEnBlocs(octets);
     expect(lignes[0].payload).toEqual({
@@ -122,8 +127,53 @@ describe("preparerEnvoiFichier — reprise via m4_etat_fichier (mission item 1)"
     const resultat = await preparerEnvoiFichier(config, FICHIER_1600_OCTETS, []);
     expect(resultat).toEqual({ ok: true, blocsEnfiles: 1 });
     const lignes = await depot.lister();
-    expect(lignes).toHaveLength(1);
-    expect(lignes[0].payload.index_bloc).toBe(1);
+    expect(lignes).toHaveLength(2);
+    expect(lignes.find((m) => m.type === "fichier_bloc")?.payload.index_bloc).toBe(1);
+    let etat = await depot.lister();
+    expect(calculerEtatEnvoiFichier(etat, "I1", SHA_ATTENDU_PAR_DIGEST_FIXE)).toMatchObject({ statut: "en_cours", blocsEnvoyes: 1, nombreBlocs: 2 });
+    const blocManquant = etat.find((m) => m.type === "fichier_bloc")!;
+    await depot.mettreAJour({ ...blocManquant, statut: "envoyee" }); // accusé valide après vidange
+    etat = await depot.lister();
+    expect(calculerEtatEnvoiFichier(etat, "I1", SHA_ATTENDU_PAR_DIGEST_FIXE)).toMatchObject({ statut: "complet", blocsEnvoyes: 2, nombreBlocs: 2 });
+    expect(evaluerPreparationCompletion({
+      checklistComplete: true, photosApresSha256: [SHA_ATTENDU_PAR_DIGEST_FIXE], signatureSha256: null,
+      signatureRequise: false, notes: "", mutations: etat, chantierId: "I1",
+    })).toMatchObject({ pret: true });
+  });
+
+  test("si le serveur a déjà tous les blocs, l'état durable devient complet sans nouvel envoi", async () => {
+    const depot = new DepotOutboxMemoire();
+    const config = creerConfig(depot, octetsDeTaille(FICHIER_1600_OCTETS.tailleOctets), {
+      obtenirEtatServeur: jest.fn().mockResolvedValue({ existe: true, complet: true, blocsRecus: [0, 1], reference: `fichier:sha256:${SHA_ATTENDU_PAR_DIGEST_FIXE}` }),
+    });
+    expect(await preparerEnvoiFichier(config, FICHIER_1600_OCTETS, [])).toEqual({ ok: true, blocsEnfiles: 0 });
+    expect(calculerEtatEnvoiFichier(await depot.lister(), "I1", SHA_ATTENDU_PAR_DIGEST_FIXE).statut).toBe("complet");
+  });
+
+  test("redémarrage après insertion partielle enfile uniquement les indices absents", async () => {
+    const base = new DepotOutboxMemoire();
+    let appels = 0;
+    const depot = { ...base, async inserer(m: Parameters<typeof base.inserer>[0]) {
+      appels += 1;
+      if (appels === 2) throw new Error("disk full");
+      return base.inserer(m);
+    }, lister: () => base.lister(), obtenir: (id: string) => base.obtenir(id), mettreAJour: (m: Parameters<typeof base.mettreAJour>[0]) => base.mettreAJour(m) };
+    const config = creerConfig(depot, octetsDeTaille(FICHIER_1600_OCTETS.tailleOctets));
+    await expect(preparerEnvoiFichier(config, FICHIER_1600_OCTETS, [])).rejects.toThrow("disk full");
+    const reprises = creerConfig(depot, octetsDeTaille(FICHIER_1600_OCTETS.tailleOctets));
+    expect(await preparerEnvoiFichier(reprises, FICHIER_1600_OCTETS, await base.lister())).toEqual({ ok: true, blocsEnfiles: 1 });
+    expect((await base.lister()).map((m) => m.payload.index_bloc).sort()).toEqual([0, 1]);
+  });
+
+  test("préparations concurrentes du même fichier n'enfilent qu'une mutation par indice", async () => {
+    const depot = new DepotOutboxMemoire();
+    const config = creerConfig(depot, octetsDeTaille(FICHIER_1600_OCTETS.tailleOctets));
+    await Promise.all([
+      preparerEnvoiFichier(config, FICHIER_1600_OCTETS, []),
+      preparerEnvoiFichier(config, FICHIER_1600_OCTETS, []),
+    ]);
+    const lignes = await depot.lister();
+    expect(lignes.map((m) => m.payload.index_bloc).sort()).toEqual([0, 1]);
   });
 
   test("échec de m4_etat_fichier (hors ligne) -> jamais bloquant, envoie tous les blocs", async () => {
@@ -190,7 +240,7 @@ describe("preparerEnvoiFichier — refus fail-closed, jamais d'envoi", () => {
       tentatives: 3,
       createdAtLocal: "2026-09-28T08:00:00-04:00",
       prochaineTentativeA: null,
-      proprietaire: null,
+      proprietaire: "jdupont",
     };
 
     const resultat = await preparerEnvoiFichier(config, FICHIER_1600_OCTETS, [mutationEnEchec]);

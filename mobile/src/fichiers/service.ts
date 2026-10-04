@@ -11,6 +11,7 @@ import { obtenirDepot } from "../outbox/service";
 import { invoquerOutil } from "../protocole/client";
 import { obtenirConfigurationAppel } from "../protocole/configuration";
 import type { MutationOutbox } from "../outbox/types";
+import { obtenirSessionEnvoi } from "../protocole/configuration";
 
 /**
  * Câblage RÉEL de l'envoi de fichier (`expo-file-system` pour la lecture des octets,
@@ -74,8 +75,10 @@ export interface EnvoiFichierChantier {
 export async function envoyerFichiersDuChantier(chantierId: string): Promise<EnvoiFichierChantier[]> {
   const depot = await obtenirDepot();
   const mutations: MutationOutbox[] = await depot.lister();
-  const signature = candidatSignature(mutations, chantierId);
-  const candidats = [...candidatsPhotosApres(mutations, chantierId), ...(signature ? [signature] : [])];
+  const session = obtenirSessionEnvoi();
+  if (!session) return [];
+  const signature = candidatSignature(mutations, chantierId, session.personne);
+  const candidats = [...candidatsPhotosApres(mutations, chantierId, session.personne), ...(signature ? [signature] : [])];
 
   const config = await obtenirConfigurationEnvoi();
   const resultats: EnvoiFichierChantier[] = [];

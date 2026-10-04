@@ -28,6 +28,7 @@ import { collectKnownSessionGroups } from "../../lib/sessions/grouping.ts";
 import {
   canDeleteSessionRows,
   isPinnableUiSessionRow,
+  parseAgentSessionKey,
   resolveUiConfiguredMainKey,
 } from "../../lib/sessions/session-key.ts";
 import {
@@ -40,6 +41,7 @@ import { ChatPaneDiscussion } from "./chat-pane-discussion.ts";
 import { sidebarPanelDefinitions } from "./chat-pane-embedded-panels.ts";
 import { resolveChatPaneDesktopTarget, resolveChatPanePlacement } from "./chat-pane-placement.ts";
 import { readChatSessionActionAccess } from "./chat-session-action-access.ts";
+import "./components/chat-agent-3d-avatar.ts";
 import { renderBackgroundTasksToggle } from "./components/chat-background-tasks-render.ts";
 import type { BackgroundTasksProps } from "./components/chat-background-tasks.types.ts";
 import { isChatRunWorking } from "./components/chat-composer.ts";
@@ -587,7 +589,22 @@ export abstract class ChatPaneHeader extends ChatPaneDiscussion {
             variant="session"
           ></openclaw-viewer-facepile>`
         : nothing,
-      faceControl: nothing,
+      faceControl: (() => {
+        const state = this.state;
+        const routedAgentId = state ? parseAgentSessionKey(state.sessionKey)?.agentId : undefined;
+        const explicitAgentId = routedAgentId ?? this.agentId?.trim() ?? "";
+        const modelId = state?.assistantAvatarModelId;
+        return state?.connected &&
+          explicitAgentId &&
+          modelId &&
+          state.assistantAgentId === explicitAgentId
+          ? html`<openclaw-chat-agent-3d-avatar
+              .agentId=${explicitAgentId}
+              .avatarModelId=${modelId}
+              .connected=${true}
+            ></openclaw-chat-agent-3d-avatar>`
+          : nothing;
+      })(),
       sharingControl:
         sharing &&
         (!canManageChatSessionSharing(sharing.session) || !sharing.openDisabledReason) &&

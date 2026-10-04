@@ -30,6 +30,7 @@ type AssistantIdentity = {
   name: string;
   avatar: string;
   emoji?: string;
+  avatarModelId?: string;
 };
 
 type AssistantIdentityNameSource = "agent" | "workspace" | "default";
@@ -144,5 +145,12 @@ export function resolveAssistantIdentity(params: {
   ];
   const emoji = emojiCandidates.map((candidate) => normalizeEmojiValue(candidate)).find(Boolean);
 
-  return { agentId, name, nameSource, avatar, emoji };
+  return {
+    agentId,
+    name,
+    nameSource,
+    avatar,
+    emoji,
+    ...(agentIdentity?.avatarModelId ? { avatarModelId: agentIdentity.avatarModelId } : {}),
+  };
 }

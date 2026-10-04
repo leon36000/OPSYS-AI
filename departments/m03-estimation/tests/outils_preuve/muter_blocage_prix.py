@@ -41,10 +41,12 @@ MUTATIONS = [
      '        "borne_basse": None,\n        "borne_haute": None,',
      '        "borne_basse": 0.0,\n        "borne_haute": 0.0,'),
     ("ordre EPINGLE : le verdict qui NOMME cede a l echappatoire",
-     "        if qualite_insuffisante:\n            verdict_estimation = VERDICT_QUALITE_INSUFFISANTE\n"
-     "        else:\n            verdict_estimation = VERDICT_INDETERMINE",
-     "        if niveau_indetermine:\n            verdict_estimation = VERDICT_INDETERMINE\n"
-     "        else:\n            verdict_estimation = VERDICT_QUALITE_INSUFFISANTE"),
+     "        verdict_estimation = (\n"
+     "            VERDICT_QUALITE_INSUFFISANTE if qualite_insuffisante else VERDICT_INDETERMINE\n"
+     "        )",
+     "        verdict_estimation = (\n"
+     "            VERDICT_INDETERMINE if niveau_indetermine else VERDICT_QUALITE_INSUFFISANTE\n"
+     "        )"),
     ("la regle de blocage : OU -> ET (une seule cause ne bloque plus)",
      "    if qualite_insuffisante or niveau_indetermine:",
      "    if qualite_insuffisante and niveau_indetermine:"),
@@ -114,6 +116,7 @@ def executer_tests():
                 # dynamique PLAN T0.12) : l'inclure crée la même récursion mutuelle que
                 # test_gardes_des_outils.py ci-dessus.
                 f"--ignore={_ENV.dossier_tests / 'test_outils_de_preuve.py'}",
+                f"--ignore={_ENV.dossier_tests / 'test_campagne_m3_persistante.py'}",
                 "-p", "no:cacheprovider", "--color=no", f"--junitxml={rapport}",
             ],
             capture_output=True,
@@ -172,7 +175,9 @@ try:
             except SyntaxError as erreur:
                 echecs.append(f"{nom} : ne compile pas ({erreur.msg})")
                 print(f"{nom:<52} -> NE COMPILE PAS")
-                continue
+                # Le scénario de compilation invalide est un échec fermé : annoncer
+                # seulement le refus, sans continuer ni imprimer de bilan validant.
+                sys.exit(1)
 
             _CIBLE.write_text(mutant, encoding="utf-8")
             purge()

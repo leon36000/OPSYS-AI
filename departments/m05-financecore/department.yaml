@@ -53,6 +53,19 @@ approbations:                                         # ADR-0009 §5, PLAN T1.3-
 #       das:      {montant: "0.00", source: "d'où vient le chiffre", au: "2026-09-25"}
 #       dettes:   {montant: "0.00", source: "d'où vient le chiffre", au: "2026-09-25"}
 #       reserves: {montant: "0.00", source: "décision de Nathan", au: "2026-09-25"}   # seulement si aucune PROVISION n'est posée
+#     calendrier_obligations:                   # exemple de forme fictif, à remplacer; absent, l'outil dit ce qui manque
+#       paies:                                  # idem das / dettes; compléter depuis la source propre à la période
+#         autorite: "autorité émettrice de la règle ou de l'avis"
+#         periode_debut: "2026-09-01"
+#         periode_fin: "2026-09-30"
+#         echeance_source: "référence/URL/document qui établit l'échéance"
+#         source_consultee_le: "2026-09-30"
+#         source_applicable_du: "2026-01-01"
+#         source_applicable_jusqu_au: "2026-12-31"
+#         annee: 2026
+#         version: "version réellement indiquée par la source"
+#       # l'échéance elle-même reste dans prevision.echeances_obligations.<id> (date explicite, déjà consommée par la prévision)
+#       # elle ne prouve ni paiement ni production; une période passée est « à vérifier ».
 #
 # Un « 0.00 » déclaré est un zéro CONNU (avec sa source et sa date) ; une composante absente n'est jamais zéro. Le calendrier
 # fiscal lui-même est dans contracts/calendrier_fiscal.v1.yaml (sources officielles citées, à valider par le CPA).

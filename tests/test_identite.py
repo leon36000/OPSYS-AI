@@ -173,7 +173,7 @@ def _sortie(capsys) -> dict:
 
 
 def test_cli_creer_lister_roles_activer_mot_de_passe(session, monkeypatch, capsys):
-    monkeypatch.setenv(cli.ENV_MOT_DE_PASSE_PERSONNE, "un-mot-de-passe-solide-123")
+    monkeypatch.setattr(cli.getpass, "getpass", lambda _prompt: "un-mot-de-passe-solide-123")
     assert cli.main(["personnes", "creer", "helene", "--nom", "Hélène Fortin", "--role", "nathan_owner"]) == 0
     cree = _sortie(capsys)
     assert cree == {"identifiant": "helene", "nom": "Hélène Fortin", "actif": True, "roles": ["nathan_owner"]}
@@ -191,7 +191,7 @@ def test_cli_creer_lister_roles_activer_mot_de_passe(session, monkeypatch, capsy
     assert cli.main(["personnes", "activer", "helene"]) == 0
     assert _sortie(capsys) == {"identifiant": "helene", "actif": True}
 
-    monkeypatch.setenv(cli.ENV_MOT_DE_PASSE_PERSONNE, "nouveau-mot-de-passe-456")
+    monkeypatch.setattr(cli.getpass, "getpass", lambda _prompt: "nouveau-mot-de-passe-456")
     assert cli.main(["personnes", "mot-de-passe", "helene"]) == 0
     assert _sortie(capsys) == {"identifiant": "helene", "mot_de_passe": "modifié"}
     from opsys import etat
@@ -201,7 +201,7 @@ def test_cli_creer_lister_roles_activer_mot_de_passe(session, monkeypatch, capsy
 
 
 def test_cli_creer_sans_nom_refuse(session, monkeypatch, capsys):
-    monkeypatch.setenv(cli.ENV_MOT_DE_PASSE_PERSONNE, "un-mot-de-passe-solide-123")
+    monkeypatch.setattr(cli.getpass, "getpass", lambda _prompt: "un-mot-de-passe-solide-123")
     assert cli.main(["personnes", "creer", "irene"]) == 2
 
 
@@ -219,8 +219,7 @@ def test_cli_roles_personne_inconnue(session, capsys):
 
 
 def test_cli_mot_de_passe_jamais_en_argument():
-    """Aucun `--mot-de-passe` (ou variante) n'existe sur `opsys-metier personnes` : lu par `getpass` ou
-    OPSYS_PERSONNE_MOT_DE_PASSE seulement (jamais en clair dans l'historique du shell)."""
+    """Aucun argument ou variable héritée ne remplace la saisie personnelle par `getpass`."""
     with pytest.raises(SystemExit):
         cli.construire_parseur().parse_args(["personnes", "creer", "jules", "--nom", "Jules",
                                              "--mot-de-passe", "peu-importe"])

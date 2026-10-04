@@ -12,8 +12,8 @@ Ces tests jouent la journée de l'employé par la vraie porte d'appareil (mêmes
 
 - avec le consentement à la demande d'avis : un brouillon chez M7, que l'admin lit sur son téléphone
   (`m7_lister_demandes_avis`) avec la preuve du consentement ; l'employé, lui, n'a pas cet outil (403) ;
-- sans consentement, avec le seul consentement aux photos (un autre consentement, Loi 25), avec un client
-  connu insatisfait, ou avec un refus explicite : rien ;
+- sans consentement, avec le seul consentement aux photos (un autre consentement, Loi 25),
+  ou avec un refus explicite : rien ; la satisfaction n'exclut aucun client consentant ;
 - l'appareil ne peut pas écrire lui-même « recueilli par » ni l'heure : le serveur les pose ;
 - pour un lead v2, le brouillon dit le libellé du service déclaré par l'entreprise, pas son code (T0.13-b).
 
@@ -141,10 +141,13 @@ def _chantier_termine(
 # A. Le client consent à la demande d'avis : M7 propose un brouillon, l'admin le lit, rien n'est envoyé.
 # =============================================================================================
 @SQLITE_SEULEMENT
+@pytest.mark.parametrize("satisfaction", [True, False, None], ids=["satisfait", "insatisfait", "non_evalue"])
 def test_terminer_avec_le_consentement_du_client_propose_une_demande_d_avis_a_l_admin(
-    moteur, equipe, version_du_texte,
+    moteur, equipe, version_du_texte, satisfaction,
 ):
     champs = {"consentement_demande_avis": True, "consentement_version_texte": version_du_texte}
+    if satisfaction is not None:
+        champs["client_satisfait"] = satisfaction
     chantier, app, completion = _chantier_termine(moteur, equipe, "AVIS-OUI", 15, champs)
     wct_id = completion.resultat["wct_id"]
 
@@ -154,7 +157,9 @@ def test_terminer_avec_le_consentement_du_client_propose_une_demande_d_avis_a_l_
         assert appel.reponse.enveloppe["rejoue"] is False, appel.outil
         assert appel.reponse.metier["accepte"] is True, (appel.outil, appel.reponse.metier)
     terminer = next(a for a in app.appels if a.outil == "m4_completer_intervention")
-    assert {cle for cle in terminer.args if cle.startswith("consentement")} == set(champs)
+    assert {cle for cle in terminer.args if cle.startswith("consentement")} == {
+        cle for cle in champs if cle.startswith("consentement")
+    }
 
     # -- le WCT publié porte le consentement ET sa preuve, posée par le serveur -------------------------
     (publie,) = _evenements("m4.travaux_termines")
@@ -176,6 +181,7 @@ def test_terminer_avec_le_consentement_du_client_propose_une_demande_d_avis_a_l_
     assert brouillon["approval_status"] == "PROPOSE"
     assert (brouillon["type_travaux"], brouillon["service"]) == ("renovation_totale", None)  # lead v1
     assert "(renovation totale)" in brouillon["texte"]
+    assert "avis honnête" in brouillon["texte"]
     assert brouillon["preuve_consentement"] == {
         "consentement_demande_avis": True, "recueilli_par": "etienne",
         "recueilli_le": publie["consentement_recueilli_le"], "version_texte": version_du_texte,
@@ -217,8 +223,6 @@ CAS_SANS_DEMANDE = {
     "aucun_choix": ({}, "aucun consentement recueilli : « Terminer » part comme avant"),
     "photos_seulement": ({"consentement_marketing": True},
                          "le consentement aux photos n'est pas celui d'être contacté pour un avis"),
-    "consentement_mais_client_insatisfait": ({"consentement_demande_avis": True, "client_satisfait": False},
-                                             "aucune demande à un client connu insatisfait"),
     "refus_explicite": ({"consentement_demande_avis": False},
                         "le client a refusé : un fait, porté tel quel, qui ne produit rien"),
 }

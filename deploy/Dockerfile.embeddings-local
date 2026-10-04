@@ -1,0 +1,19 @@
+# Provider optionnel; les poids restent fournis par l'opérateur sur un volume read-only.
+FROM python:3.12-slim@sha256:f77ac9e44ae96ef2c90b8053ea08c31f8be030f824196b0ae4db6d462c84e51f
+
+ARG UID=10100
+RUN useradd --create-home --home-dir /home/embeddings --uid "$UID" --user-group embeddings
+WORKDIR /opt/opsys
+COPY requirements-embeddings-local.lock.txt /opt/requirements-embeddings-local.lock.txt
+COPY src/opsys /opt/opsys/src/opsys
+RUN python3 -m venv /opt/embeddings-venv && \
+    /opt/embeddings-venv/bin/python -m pip install --no-input --no-cache-dir --require-hashes \
+      -r /opt/requirements-embeddings-local.lock.txt && \
+    chown -R embeddings:embeddings /opt/opsys /opt/embeddings-venv
+ENV PATH=/opt/embeddings-venv/bin:$PATH \
+    PYTHONPATH=/opt/opsys/src \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    TOKENIZERS_PARALLELISM=false
+USER embeddings
+ENTRYPOINT ["python", "-m", "opsys.memoire.serveur_embeddings_local"]

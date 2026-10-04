@@ -53,6 +53,12 @@ export type VoiceCallRuntime = {
   stop: () => Promise<void>;
 };
 
+type HostMissedCallImporter = NonNullable<
+  Parameters<
+    Parameters<OpenClawPluginApi["registerService"]>[0]["start"]
+  >[0]["hostMissedCallImporter"]
+>;
+
 type Logger = {
   info: (message: string) => void;
   warn: (message: string) => void;
@@ -288,6 +294,7 @@ export async function createVoiceCallRuntime(params: {
   stateRuntime?: VoiceCallStateRuntime["state"];
   ttsRuntime?: TelephonyTtsRuntime;
   logger?: Logger;
+  hostMissedCallImporter?: HostMissedCallImporter;
 }): Promise<VoiceCallRuntime> {
   const {
     config: rawConfig,
@@ -297,6 +304,7 @@ export async function createVoiceCallRuntime(params: {
     stateRuntime,
     ttsRuntime,
     logger,
+    hostMissedCallImporter,
   } = params;
   const log = logger ?? {
     info: console.log,
@@ -308,6 +316,9 @@ export async function createVoiceCallRuntime(params: {
   const cfg = fullConfig ?? (coreConfig as OpenClawConfig);
   const unresolvedConfig = resolveVoiceCallConfig(rawConfig);
   const config = { ...unresolvedConfig, agentId: resolveVoiceCallAgentId(unresolvedConfig, cfg) };
+  if (config.enabled && config.missedCallIngress && !hostMissedCallImporter) {
+    throw new Error("missed-call ingress is enabled without a host importer capability");
+  }
 
   if (!config.enabled) {
     throw new Error("Voice call disabled. Enable the plugin entry in config.");
@@ -338,6 +349,7 @@ export async function createVoiceCallRuntime(params: {
     fullConfig ?? (coreConfig as OpenClawConfig),
     agentRuntime,
     log,
+    hostMissedCallImporter,
   );
   if (realtimeVoiceRuntime) {
     const { RealtimeCallHandler } = await loadRealtimeHandler();

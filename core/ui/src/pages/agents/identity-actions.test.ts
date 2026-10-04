@@ -4,9 +4,24 @@ import type { ApplicationContext } from "../../app/context.ts";
 import { createRuntimeConfigCapability } from "../../lib/config/runtime-config-capability.ts";
 import { gatewayHelloForMethods } from "../../test-helpers/gateway-methods.ts";
 import * as avatarImage from "./avatar-image.ts";
-import { resetIdentityDraft, saveIdentityDraft, selectIdentityAvatar } from "./identity-actions.ts";
+import {
+  resetIdentityDraft,
+  saveIdentityDraft,
+  selectIdentityAvatar,
+  setIdentityDraftAvatarModel,
+} from "./identity-actions.ts";
 
 const fileToAvatarDataUrlMock = vi.fn<typeof avatarImage.fileToAvatarDataUrl>();
+
+function deferred<T = unknown>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
 
 beforeEach(() => {
   vi.spyOn(avatarImage, "fileToAvatarDataUrl").mockImplementation(fileToAvatarDataUrlMock);
@@ -66,6 +81,174 @@ describe("agent identity actions", () => {
     await Promise.resolve();
 
     expect(state.identityDraft.avatar).toBeNull();
+  });
+
+  it.each([
+    ["assign", "robotexpressive-quaternius-cc0-v1", "robotexpressive-quaternius-cc0-v1"],
+    ["clear", null, null],
+  ] as const)(
+    "persists an explicit avatar model choice to the same agent (%s)",
+    async (_label, choice, expected) => {
+      const request = vi.fn().mockResolvedValue({});
+      const client = { request } as unknown as GatewayBrowserClient;
+      const state = host();
+      setIdentityDraftAvatarModel(state, choice);
+      const agents = {
+        refreshList: vi.fn(async () => undefined),
+      } as unknown as ApplicationContext["agents"];
+      const agentIdentity = {
+        invalidate: vi.fn(),
+        ensure: vi.fn(async () => undefined),
+      } as unknown as ApplicationContext["agentIdentity"];
+      const runExternalMutation: ApplicationContext["runtimeConfig"]["runExternalMutation"] =
+        async (task, options) => {
+          if (!options?.canDispatch?.()) {
+            return { ok: false, reason: "rejected", error: "Access changed." };
+          }
+          return { ok: true, value: await task(client), refresh: { ok: true } };
+        };
+
+      await saveIdentityDraft({
+        host: state,
+        expectedClient: client,
+        agentId: "beta",
+        agents,
+        agentIdentity,
+        runtimeConfig: { runExternalMutation } as unknown as ApplicationContext["runtimeConfig"],
+        canDispatch: () => true,
+        isCurrent: () => true,
+        onSaved: vi.fn(),
+      });
+
+      expect(request).toHaveBeenCalledWith("agents.update", {
+        agentId: "beta",
+        avatarModelId: expected,
+      });
+      expect(agentIdentity.invalidate).toHaveBeenCalledWith(["beta"]);
+      expect(state.identityDraft.avatarModelId).toBeUndefined();
+    },
+  );
+
+  it("keeps an untouched avatar model out of the mutation payload", async () => {
+    const request = vi.fn();
+    const client = { request } as unknown as GatewayBrowserClient;
+    const state = host();
+
+    await saveIdentityDraft({
+      host: state,
+      expectedClient: client,
+      agentId: "beta",
+      agents: {} as ApplicationContext["agents"],
+      agentIdentity: {} as ApplicationContext["agentIdentity"],
+      runtimeConfig: {
+        runExternalMutation: vi.fn(),
+      } as unknown as ApplicationContext["runtimeConfig"],
+      canDispatch: () => true,
+      isCurrent: () => true,
+      onSaved: vi.fn(),
+    });
+
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it("does not reset a newer agent draft when an old save completes after refresh", async () => {
+    const response = deferred();
+    const request = vi.fn(() => response.promise);
+    const client = { request } as unknown as GatewayBrowserClient;
+    const state = host();
+    setIdentityDraftAvatarModel(state, "robotexpressive-quaternius-cc0-v1");
+    let isCurrent = true;
+    const agents = {
+      refreshList: vi.fn(async () => {
+        isCurrent = false;
+        resetIdentityDraft(state);
+        state.identityDraft = { name: "Research draft", emoji: null, avatar: null };
+      }),
+    } as unknown as ApplicationContext["agents"];
+    const agentIdentity = {
+      invalidate: vi.fn(),
+      ensure: vi.fn(async () => undefined),
+    } as unknown as ApplicationContext["agentIdentity"];
+
+    const saving = saveIdentityDraft({
+      host: state,
+      expectedClient: client,
+      agentId: "main",
+      agents,
+      agentIdentity,
+      runtimeConfig: {
+        runExternalMutation: async (task) => ({
+          ok: true as const,
+          value: await task(client),
+          refresh: { ok: true as const },
+        }),
+      } as unknown as ApplicationContext["runtimeConfig"],
+      canDispatch: () => true,
+      isCurrent: () => isCurrent,
+      onSaved: vi.fn(),
+    });
+    expect(request).toHaveBeenCalledWith("agents.update", {
+      agentId: "main",
+      avatarModelId: "robotexpressive-quaternius-cc0-v1",
+    });
+
+    response.resolve({});
+    await saving;
+
+    expect(state.identityDraft.name).toBe("Research draft");
+    expect(state.identitySaving).toBe(false);
+    expect(agentIdentity.invalidate).toHaveBeenCalledWith(["main"]);
+    expect(agentIdentity.ensure).not.toHaveBeenCalled();
+  });
+
+  it("does not refresh identity capabilities when the connection changes during mutation", async () => {
+    const response = deferred();
+    const request = vi.fn(() => response.promise);
+    const client = { request } as unknown as GatewayBrowserClient;
+    const state = host();
+    setIdentityDraftAvatarModel(state, "robotexpressive-quaternius-cc0-v1");
+    let isCurrent = true;
+    const agents = {
+      refreshList: vi.fn(async () => undefined),
+    } as unknown as ApplicationContext["agents"];
+    const agentIdentity = {
+      invalidate: vi.fn(),
+      ensure: vi.fn(async () => undefined),
+    } as unknown as ApplicationContext["agentIdentity"];
+
+    const saving = saveIdentityDraft({
+      host: state,
+      expectedClient: client,
+      agentId: "main",
+      agents,
+      agentIdentity,
+      runtimeConfig: {
+        runExternalMutation: async (task) => ({
+          ok: true as const,
+          value: await task(client),
+          refresh: { ok: true as const },
+        }),
+      } as unknown as ApplicationContext["runtimeConfig"],
+      canDispatch: () => true,
+      isCurrent: () => isCurrent,
+      onSaved: vi.fn(),
+    });
+    expect(request).toHaveBeenCalledWith("agents.update", {
+      agentId: "main",
+      avatarModelId: "robotexpressive-quaternius-cc0-v1",
+    });
+
+    isCurrent = false;
+    resetIdentityDraft(state);
+    state.identityDraft = { name: "New connection draft", emoji: null, avatar: null };
+    response.resolve({});
+    await saving;
+
+    expect(agentIdentity.invalidate).not.toHaveBeenCalled();
+    expect(agents.refreshList).not.toHaveBeenCalled();
+    expect(agentIdentity.ensure).not.toHaveBeenCalled();
+    expect(state.identityDraft.name).toBe("New connection draft");
+    expect(state.identitySaving).toBe(false);
   });
 
   it.each([

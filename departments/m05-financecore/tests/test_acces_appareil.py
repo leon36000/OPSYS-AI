@@ -207,11 +207,15 @@ def test_l_outil_ne_declare_que_l_admin_comme_role_d_appareil(par_nom):
     lectures = {"m5_etat_tresorerie", "m5_lister_attentes_facturation",
                 "m5_lire_rentabilite_chantier", "m5_lire_comptes_a_recevoir",  # les deux précédents : T1.5-d
                 "m5_lister_comptes_a_payer", "m5_saisir_facture_fournisseur",  # les deux précédents : T4.15
-                "m5_lire_echeances_fiscales",  # le calendrier fiscal : T4.16
+                "m5_lire_echeances_fiscales", "m5_lire_calendrier_obligations",  # calendriers : T4.16
                 "m5_saisir_facture_sans_po", "m5_corriger_facture_fournisseur",  # les trois : T4.15-c
                 "m5_annuler_facture_fournisseur",
                 "m5_prevoir_tresorerie",  # la prévision de trésorerie : T4.16-d
-                "m5_constater_cash_libre"}  # le constat du cash libre publié au bus (T1, N3) : T4.19-b
+                    "m5_constater_cash_libre", "m5_preparer_decision_capital",
+                    "m5_preparer_dossier_decision_cfo"}  # T4.19-b, décision capital et dossier CFO préparatoires
+    lectures |= {
+        "m5_enregistrer_contrat_horaire", "m5_revoquer_contrat_horaire", "m5_lire_contrat_horaire",
+    }  # M5.4.a : lecture privée et mutations N4 accessibles à l'admin appareil seulement
     for nom in lectures:
         assert par_nom[nom].roles_appareil == frozenset({"admin"}), nom
     assert {nom for nom, o in par_nom.items() if o.roles_appareil} == lectures

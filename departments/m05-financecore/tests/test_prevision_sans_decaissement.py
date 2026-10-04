@@ -56,7 +56,8 @@ def test_le_module_pur_de_la_prevision_n_importe_ni_le_registre_ni_un_autre_depa
 
     imports = re.findall(r"^(?:from|import)\s+(.+)$", source, re.MULTILINE)
     assert imports == ["__future__ import annotations", "json", "re", "collections.abc import Iterable, Mapping",
-                       "datetime import date, datetime, timedelta", "decimal import ROUND_HALF_UP, Decimal",
+                       "datetime import date, datetime, timedelta",
+                       "decimal import ROUND_HALF_UP, Context, Decimal, localcontext",
                        "typing import Any", ". import analyse, calendrier_fiscal, cash_libre, encodage, validation"]
     assert conformite.verifier_aucun_import_domaine(_PAQUET) == (True, "")
 
@@ -171,8 +172,18 @@ def test_une_fonction_de_lecture_seule_de_l_outil_qui_disparait_est_une_violatio
 
 
 # ---------------------------------------------------------------- 4. sur des copies des VRAIS fichiers
-_FICHIERS = ("comptes_a_payer", "calendrier_fiscal", "cash_libre", "prevision", "constat_cash_libre", "analyse",
-             "outils", "soldes", "etat_financier")
+_FICHIERS = (
+    "comptes_a_payer",
+    "calendrier_fiscal",
+    "calendrier_obligations",
+    "cash_libre",
+    "prevision",
+    "constat_cash_libre",
+    "analyse",
+    "outils",
+    "soldes",
+    "etat_financier",
+)
 
 
 def _sur_les_vrais_fichiers(tmp_path, modifier):

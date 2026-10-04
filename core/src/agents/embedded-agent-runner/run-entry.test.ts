@@ -22,6 +22,31 @@ const state = setupRunEntryTestState();
 describe("runEmbeddedAgentEntry", () => {
   registerRunEntryFailureTests(state);
 
+  it("assigns contiguous admission ordinals only when a candidate reaches admission", async () => {
+    const admissionOrdinals: number[] = [];
+    await runEmbeddedAgentEntry({
+      selection: { cfg: {}, provider: "primary-provider", model: "primary-model" },
+      identity: { runId: "run-admission-ordinal", agentId: "main", sessionId: "session-1" },
+      harness: createDirectHarness(),
+      behavior: { kind: "command-rpc", hasCommittedSideEffect: () => false },
+      sessionOverride: { kind: "preserve" },
+      runCandidate: async (provider, model, options) => {
+        // Model preparation can fail before StreamFn. Simulate that for the primary
+        // by leaving its lazy ordinal untouched; the fallback's first admission is 0.
+        if (provider !== "primary-provider") {
+          expect(options.getAdmissionCandidateIndex).toBeTypeOf("function");
+          admissionOrdinals.push(options.getAdmissionCandidateIndex!());
+        }
+        return makeResult({
+          provider,
+          model,
+          classification: provider === "primary-provider" ? "empty" : undefined,
+        });
+      },
+    });
+    expect(admissionOrdinals).toEqual([0]);
+  });
+
   it("keeps shared fallback and terminal behavior aligned across entry modes", async ({
     onTestFinished,
   }) => {

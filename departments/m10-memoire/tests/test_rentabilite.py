@@ -29,7 +29,7 @@ from m10_memoire import (
     wct,
 )
 
-from opsys import evenements, stockage
+from opsys import contexte, evenements, stockage
 from opsys.departements import charger_departements
 from opsys.evenements.schemas import erreurs_charge
 
@@ -365,7 +365,8 @@ def test_de_bout_en_bout_le_wct_et_la_rentabilite_forment_l_affaire_et_la_marge_
 
     with stockage.transaction():
         for agent in (None, "m01-front-office", "m02-revenue-crm"):
-            paquet = outils_mod.paquet_contexte_affaire("LEAD-1", HORODATAGE_PAQUET, agent)
+            with contexte.appeler_en_tant_que(agent):
+                paquet = outils_mod.paquet_contexte_affaire("LEAD-1", HORODATAGE_PAQUET)
             assert paquet["confidentialite"]["nb_retenus"] == 1
             texte = json.dumps(paquet, ensure_ascii=False)
             assert not [m for m in MONTANTS_DE_MARGE if m in texte], agent

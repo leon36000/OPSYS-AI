@@ -1,0 +1,191 @@
+{
+  "captures": [
+    {
+      "archive": "captures/PLAN.md--9f7fe35cc3b499c654d8ddb5cc6ca89c48019e46b1142c8b7ec33cd9fbb96b50.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/recherche-model-r35/PLAN.md",
+      "sha256_archive": "d2cdf65bd072559f49383f2a239dc69941aee782cc05025f869447a8839f9cd9",
+      "sha256_original": "9f7fe35cc3b499c654d8ddb5cc6ca89c48019e46b1142c8b7ec33cd9fbb96b50",
+      "taille_archive": 3964,
+      "taille_originale": 7681
+    },
+    {
+      "archive": "captures/SOURCES.md--7d2088a72ed0e27aeba167580132ca8b71f693bfae0279a9b93914da33952421.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/recherche-model-r35/SOURCES.md",
+      "sha256_archive": "76078d97dac9a7f1e89b58cea56481c4873d619073787afa4fb669d1539d2531",
+      "sha256_original": "7d2088a72ed0e27aeba167580132ca8b71f693bfae0279a9b93914da33952421",
+      "taille_archive": 2435,
+      "taille_originale": 4817
+    },
+    {
+      "archive": "captures/ETAT-RUNTIME-R1.md--f1604d9cf6458f573e67cde0e3e275e3348f1294cd9ffc97d487e21efafa23f7.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/recherche-model-r35/ETAT-RUNTIME-R1.md",
+      "sha256_archive": "cf7c5f2ab07921107a175d01f0d8c18d87b6ac181ba826cd97d823313b6a7452",
+      "sha256_original": "f1604d9cf6458f573e67cde0e3e275e3348f1294cd9ffc97d487e21efafa23f7",
+      "taille_archive": 2221,
+      "taille_originale": 4011
+    },
+    {
+      "archive": "captures/PG-CAMPAIGN-R1.md--c5615033ad29d1ebe1c1e8296b13d9569d11fc6c75865312ab61f9f0a7f816c0.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/recherche-model-r35/PG-CAMPAIGN-R1.md",
+      "sha256_archive": "5e786338bdce53bdf431a0413dba314ba0ba677174828443d33837bd43793688",
+      "sha256_original": "c5615033ad29d1ebe1c1e8296b13d9569d11fc6c75865312ab61f9f0a7f816c0",
+      "taille_archive": 1814,
+      "taille_originale": 3373
+    },
+    {
+      "archive": "captures/PG-CAMPAIGN-R1.json--fcb3f41475933e3c47c3db3286419d74adf7cb8c055422cf070d8eb1fe374898.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/recherche-model-r35/PG-CAMPAIGN-R1.json",
+      "sha256_archive": "8e8129196a0f14e6afe4cf6a1d5bf7fefc6e3784518736986f99e4599b5551c3",
+      "sha256_original": "fcb3f41475933e3c47c3db3286419d74adf7cb8c055422cf070d8eb1fe374898",
+      "taille_archive": 3089,
+      "taille_originale": 38327
+    },
+    {
+      "archive": "captures/VERIFICATION-ROOT-r1.json--267299b2c9cc8417b709bf07f23325e68f15259234d483b5b9186907b40b6435.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/recherche-model-r35/VERIFICATION-ROOT-r1.json",
+      "sha256_archive": "3e40f067685791c96dfb4a8f95fb4d26c48266f9f1d78262762fca80b7550818",
+      "sha256_original": "267299b2c9cc8417b709bf07f23325e68f15259234d483b5b9186907b40b6435",
+      "taille_archive": 703,
+      "taille_originale": 2310
+    },
+    {
+      "archive": "captures/verifier-resultats-root-r1.py--2fd12502db9d0093c982474f907dfaa6625b00f46a2e7e52e8c570958d17a9f7.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/recherche-model-r35/verifier-resultats-root-r1.py",
+      "sha256_archive": "af47347674680c3a18c7b0223bb27dc5b807c603b33af1aa95d290d3a131759a",
+      "sha256_original": "2fd12502db9d0093c982474f907dfaa6625b00f46a2e7e52e8c570958d17a9f7",
+      "taille_archive": 2036,
+      "taille_originale": 4399
+    },
+    {
+      "archive": "captures/manifest.json--d2ded34df8b5273d723fec89a773c737bea780fa5d3aaa2a3c6c335d974224ee.gz",
+      "origine": "/dev/shm/opsys-r35-20261002-onnx/manifest.json",
+      "sha256_archive": "bd56f38a3889feb2fd648b97d65cb833cea0d0ddcad99192f3aa422dd8986fef",
+      "sha256_original": "d2ded34df8b5273d723fec89a773c737bea780fa5d3aaa2a3c6c335d974224ee",
+      "taille_archive": 1511,
+      "taille_originale": 5136
+    },
+    {
+      "archive": "captures/encode21.py--6ad29755050174e7179c783534a4cfc7a3cff7eb89f083d8167d2741e4b3cfb6.gz",
+      "origine": "/dev/shm/opsys-r35-20261002-onnx/encode21.py",
+      "sha256_archive": "31541349c0a36036cac9a7fb0703cdeb906c6f3d7e9ffd3c7da5bf19649a9619",
+      "sha256_original": "6ad29755050174e7179c783534a4cfc7a3cff7eb89f083d8167d2741e4b3cfb6",
+      "taille_archive": 2947,
+      "taille_originale": 7153
+    },
+    {
+      "archive": "captures/campagne-pg-r35.py--07329fb77d95f472fba9b04b7bd2865cf17dfe43df278bcc29dc27ca07f60f81.gz",
+      "origine": "/dev/shm/opsys-r35-20261002-onnx/campagne-pg-r35.py",
+      "sha256_archive": "0ef9886545f5a0c38af8deccf24b110b9015e7a399bac28a8825a6b95ea2f422",
+      "sha256_original": "07329fb77d95f472fba9b04b7bd2865cf17dfe43df278bcc29dc27ca07f60f81",
+      "taille_archive": 3182,
+      "taille_originale": 8727
+    },
+    {
+      "archive": "captures/vectors-r35-bge-m3.json--c492e7d0260ccec6d40e1290082dded18283258a5fc7e3f6a782a933aedc8cb1.gz",
+      "origine": "/dev/shm/opsys-r35-20261002-onnx/vectors-r35-bge-m3.json",
+      "sha256_archive": "700fff11b5cb8163b3860cb71c65702f67d330d250938c9be9a5ba2230bc1a67",
+      "sha256_original": "c492e7d0260ccec6d40e1290082dded18283258a5fc7e3f6a782a933aedc8cb1",
+      "taille_archive": 201509,
+      "taille_originale": 463050
+    },
+    {
+      "archive": "captures/postgres-r35-campaign.json--d4150a94a5cfa92bdcf8c4f432fc7f0b70361a38f0e1a7f07e05b2af28283327.gz",
+      "origine": "/dev/shm/opsys-r35-20261002-onnx/postgres-r35-campaign.json",
+      "sha256_archive": "1bbdbf56edd2273b5ad37c52f85fce4e34b99890e7320cc63e8e4c5d0ffc6e73",
+      "sha256_original": "d4150a94a5cfa92bdcf8c4f432fc7f0b70361a38f0e1a7f07e05b2af28283327",
+      "taille_archive": 3671,
+      "taille_originale": 62272
+    },
+    {
+      "archive": "captures/inference-summary.json--0dcf37ae76136cccd0953489146127ce45357da596338445f2c36caa2e3bf719.gz",
+      "origine": "/dev/shm/opsys-r35-20261002-onnx/inference-summary.json",
+      "sha256_archive": "a3ef90bf885f77d63012057fd828a6f07952c559a1915827b22d665564a8ae11",
+      "sha256_original": "0dcf37ae76136cccd0953489146127ce45357da596338445f2c36caa2e3bf719",
+      "taille_archive": 967,
+      "taille_originale": 2233
+    },
+    {
+      "archive": "captures/inference-process-receipt.json--2642229b56075d24c517688f9a6b190271c5f14083845cd8f5099122001495e5.gz",
+      "origine": "/dev/shm/opsys-r35-20261002-onnx/inference-process-receipt.json",
+      "sha256_archive": "968b810b9f80346b548581cb637e1adc8558371290fdb274b0b3ace706ced912",
+      "sha256_original": "2642229b56075d24c517688f9a6b190271c5f14083845cd8f5099122001495e5",
+      "taille_archive": 1070,
+      "taille_originale": 2157
+    },
+    {
+      "archive": "captures/runtime-import-probe.json--80f69e14405f0bd9aef82bced1caf5111a54d6ca56c60297d82c549220626143.gz",
+      "origine": "/dev/shm/opsys-r35-20261002-onnx/runtime-import-probe.json",
+      "sha256_archive": "1015a465a101c142c8855aac0e9c5f61b00327f74381f779f374b248bb4b8990",
+      "sha256_original": "80f69e14405f0bd9aef82bced1caf5111a54d6ca56c60297d82c549220626143",
+      "taille_archive": 522,
+      "taille_originale": 993
+    },
+    {
+      "archive": "captures/BAAI-bge-m3-README.md--0b81ccf9134e5874d620a86e6905062ea999e779c34eb1a7e65eaeb7fe00e450.gz",
+      "origine": "/dev/shm/opsys-r35-20261002-onnx/licenses/BAAI-bge-m3-README.md",
+      "sha256_archive": "b28c7bf4dbd3e6efa9fbbaaf19cf24ebe178afd672409963aab5f527c976bf31",
+      "sha256_original": "0b81ccf9134e5874d620a86e6905062ea999e779c34eb1a7e65eaeb7fe00e450",
+      "taille_archive": 5143,
+      "taille_originale": 15822
+    },
+    {
+      "archive": "captures/FlagEmbedding-LICENSE--587a673933425dbc36ec61268d3b954051b2d3ef3c9b322ede357976055ffdd5.gz",
+      "origine": "/dev/shm/opsys-r35-20261002-onnx/licenses/FlagEmbedding-LICENSE",
+      "sha256_archive": "4c7617ac211a274e46b626c644ff391060d75e7349eefe915625bc19734792b7",
+      "sha256_original": "587a673933425dbc36ec61268d3b954051b2d3ef3c9b322ede357976055ffdd5",
+      "taille_archive": 643,
+      "taille_originale": 1065
+    },
+    {
+      "archive": "captures/Xenova-bge-m3-README.md--dd0589fb62a392046192696d78fa8637db353eadca2df743ed3919a3163abec5.gz",
+      "origine": "/dev/shm/opsys-r35-20261002-onnx/licenses/Xenova-bge-m3-README.md",
+      "sha256_archive": "53445581f84f0c7eb19ac6a6ab5745286c35c2344eb40176078176e600d2a0af",
+      "sha256_original": "dd0589fb62a392046192696d78fa8637db353eadca2df743ed3919a3163abec5",
+      "taille_archive": 1269,
+      "taille_originale": 3076
+    },
+    {
+      "archive": "captures/onnxruntime-LICENSE--2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c.gz",
+      "origine": "/dev/shm/opsys-r35-20261002-onnx/licenses/onnxruntime-LICENSE",
+      "sha256_archive": "fd3f9c9c6ed4f3e9caf1ae5bc0f84b27c338ac9733660fef2e093f27017e2e23",
+      "sha256_original": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+      "taille_archive": 644,
+      "taille_originale": 1073
+    },
+    {
+      "archive": "captures/tokenizers-LICENSE--c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4.gz",
+      "origine": "/dev/shm/opsys-r35-20261002-onnx/licenses/tokenizers-LICENSE",
+      "sha256_archive": "6786f21c5d2a261c9c26c91365433ab6b1c2897478ce5336fb90bd32fe3c0362",
+      "sha256_original": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+      "taille_archive": 3968,
+      "taille_originale": 11357
+    },
+    {
+      "archive": "captures/jeu_or_fr.json--d3720fe1b3d66b4c93fd48271b59d595fb760d50d3db4324f80b973fe325165c.gz",
+      "origine": "/workspace/OPSYS-AI-recent/tests/fixtures/memoire/jeu_or_fr.json",
+      "sha256_archive": "8a713d2dcfbd4ca87fecfa3cde8818ffa74a65e385118d1bfa7719964ba9033a",
+      "sha256_original": "d3720fe1b3d66b4c93fd48271b59d595fb760d50d3db4324f80b973fe325165c",
+      "taille_archive": 1511,
+      "taille_originale": 4623
+    },
+    {
+      "archive": "captures/evaluation-v1.json--f86af8f45f7e7828be9dd2d4059bafce02f54c7d75a6695865885a077c07583c.gz",
+      "origine": "/workspace/OPSYS-AI-recent/tests/fixtures/memoire/evaluation-v1.json",
+      "sha256_archive": "d9df15edeb55c6092e48b4f9258bf4b0466dd5626ca814c46d2a77b5bd226d4f",
+      "sha256_original": "f86af8f45f7e7828be9dd2d4059bafce02f54c7d75a6695865885a077c07583c",
+      "taille_archive": 834,
+      "taille_originale": 3235
+    },
+    {
+      "archive": "captures/archiver-banc-r35-root-r1.py--35472309c793e9c504499f457c144ff10e1a09a7193e33286a767986bbdf91b1.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/recherche-model-r35/archiver-banc-r35-root-r1.py",
+      "sha256_archive": "888aa09339cb20aeff61bc6c9eadcbe7c60c0bbaa2f5c262ef72a4db6966b0a5",
+      "sha256_original": "35472309c793e9c504499f457c144ff10e1a09a7193e33286a767986bbdf91b1",
+      "taille_archive": 2321,
+      "taille_originale": 4581
+    }
+  ],
+  "limites": "Banc exploratoire fictif : 21 vecteurs réels BGE-M3 CPU et 9 questions/12 fragments. Inférence exit0; campagne PostgreSQL auteur exit1 après écriture, erreur de résumé conservée. ROOT a vérifié les artefacts et recalculé les métriques, sans nouvelle inférence/requête. Forbidden-hit mesure la pertinence selon qrels, jamais les ACL. Aucune qualité premium, citation documentaire, compilation, durabilité, intégration fournisseur ou installation VPS qualifiée. Sources runtime PostgreSQL non capturées avant ce banc; seuls scripts et artefacts exacts sont conservés. Poids/tokenizer exclus de cette archive, leurs empreintes/provenances figurent dans le manifeste original.",
+  "schema": "opsys.r35-archive-exploratoire/v1",
+  "tests_lances_par_archive": false
+}

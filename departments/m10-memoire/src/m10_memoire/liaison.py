@@ -31,6 +31,7 @@ TYPE_ENTREE_LIAISON = "session_affaire_liee"
 
 REJ_LIAISON_CLE_SESSION_INVALIDE = "REJ-LIAISON-CLE-SESSION-INVALIDE"
 REJ_LIAISON_AFFAIRE_INVALIDE = "REJ-LIAISON-AFFAIRE-INVALIDE"
+REJ_LIAISON_CAS_PERIME = "REJ-LIAISON-CAS-PERIME"
 
 # Clé de session d'un agent, telle que le core la compose (`buildAgentPeerSessionKey`) : `agent:<agent>:` (agent
 # en minuscules) puis le reste (canal, pair, fil), tel quel : le core garde tels quels les identifiants opaques
@@ -104,15 +105,7 @@ def affaire_de_la_session(cle_session: Any, registre_affaires: Any) -> dict[str,
     par défaut. Un maillon dont l'auteur n'a pas la forme d'un humain identifié est ignoré."""
     if not cle_session_valide(cle_session):
         raise ValueError("cle_session invalide : agent:<agent>:<canal>:direct:<pair>, telle que le core la compose")
-    courant = None
-    for maillon in registre_affaires.lire():
-        if (
-            maillon.get("type_entree") == TYPE_ENTREE_LIAISON
-            and maillon.get("cle_session") == cle_session
-            and affaire_valide(maillon.get("affaire_id"))
-            and humain.acteur_valide(maillon.get("par"), maillon.get("role"), maillon.get("source_decision"))
-        ):
-            courant = maillon
+    courant = liaison_courante(cle_session, registre_affaires)
     if courant is None:
         return {"lie": False, "affaire_id": None}
     return {
@@ -121,3 +114,62 @@ def affaire_de_la_session(cle_session: Any, registre_affaires: Any) -> dict[str,
         "lie_par": courant["par"],
         "lie_le": courant["horodatage"],
     }
+
+
+def liaison_courante(cle_session: Any, registre_affaires: Any) -> dict[str, Any] | None:
+    """Liaison active complète, avec son `ligne_id` pour les CAS internes; `None` si absente."""
+    if not cle_session_valide(cle_session):
+        raise ValueError("cle_session invalide : agent:<agent>:<canal>:direct:<pair>, telle que le core la compose")
+    courant = None
+    for maillon in registre_affaires.lire():
+        if maillon.get("cle_session") != cle_session:
+            continue
+        if (
+            maillon.get("type_entree") == TYPE_ENTREE_LIAISON
+            and affaire_valide(maillon.get("affaire_id"))
+            and humain.acteur_valide(maillon.get("par"), maillon.get("role"), maillon.get("source_decision"))
+        ):
+            courant = maillon
+        elif (
+            maillon.get("type_entree") == "session_affaire_revoquee"
+            and maillon.get("cible_ligne_id") == (courant or {}).get("ligne_id")
+            and humain.acteur_valide(maillon.get("par"), maillon.get("role"), maillon.get("source_decision"))
+        ):
+            courant = None
+    return courant
+
+
+def revoquer_session_affaire(
+    cle_session: str,
+    ligne_attendue: str,
+    par: str,
+    role: str,
+    source_decision: str,
+    motif: str,
+    horodatage: str,
+    registre_affaires: Any,
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Révoque par ajout un lien actuellement actif si sa ligne correspond au CAS fourni."""
+    if not cle_session_valide(cle_session):
+        return None, validation.construire_verdict(
+            REJ_LIAISON_CLE_SESSION_INVALIDE, "clé de session invalide; seule une session privée peut être révoquée"
+        )
+    courant = liaison_courante(cle_session, registre_affaires)
+    if courant is None or not isinstance(ligne_attendue, str) or courant["ligne_id"] != ligne_attendue:
+        return None, validation.construire_verdict(
+            REJ_LIAISON_CAS_PERIME, "la liaison active a changé ou est déjà absente; relire avant de révoquer"
+        )
+    defaut = humain.verifier_ecriture(par, role, source_decision, motif, horodatage)
+    if defaut is not None:
+        return None, defaut
+    ligne_id = registre_affaires.ajouter({
+        "type_entree": "session_affaire_revoquee",
+        "horodatage": horodatage,
+        "cle_session": cle_session,
+        "cible_ligne_id": ligne_attendue,
+        "par": par,
+        "role": role,
+        "source_decision": source_decision,
+        "motif": motif.strip(),
+    })
+    return next(m for m in registre_affaires.lire() if m["ligne_id"] == ligne_id), None

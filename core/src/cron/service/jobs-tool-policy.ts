@@ -335,10 +335,12 @@ export function reconcileRuntimeAuthority(params: {
     // does not execute the captured tool surface and later reappear on reuse.
     delete params.job.runtimeAuthority;
     delete params.job.runtimeAuthorityRecoveryRequired;
+    params.job.runtimeAuthorityCiphertextDisposition = "clear";
     return;
   }
   if (params.captured) {
     delete params.job.runtimeAuthorityRecoveryRequired;
+    params.job.runtimeAuthorityCiphertextDisposition = "clear";
     const runtimeAuthority = params.runtimeAuthority
       ? cloneCronRuntimeAuthority(params.runtimeAuthority)
       : undefined;
@@ -357,10 +359,11 @@ export function reconcileRuntimeAuthority(params: {
   if (params.explicitlyMutatesToolsAllow) {
     // Explicit tool caps are a complete replacement. Runtime-owned authority
     // may be restored only by another authenticated exact-surface capture.
-    if (params.job.runtimeAuthority) {
+    if (params.job.runtimeAuthority || params.job.runtimeAuthorityRecoveryRequired === true) {
       params.job.runtimeAuthorityRecoveryRequired = true;
       delete params.job.runtimeAuthority;
     }
+    params.job.runtimeAuthorityCiphertextDisposition = "clear";
   }
 }
 

@@ -1,7 +1,8 @@
 """Capacités MCP de la mémoire d'entreprise : opsys_memoire_rechercher (T0), _ajouter (T1), _oublier (T3).
 
 Elles passent par `opsys.outils.executer`, comme dans `Capacites`. Le PostgreSQL + pgvector est réel
-(conteneur éphémère). L'endpoint d'embeddings est un double local, car c'est un service externe.
+(conteneur éphémère avec PGDATA en tmpfs jetable : 256 MiB, conteneur 512 MiB, image locale sans pull).
+L'endpoint d'embeddings est un double local, car c'est un service externe.
 """
 
 from __future__ import annotations
@@ -12,6 +13,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from memoire.doubles import DOSSIER, port_ferme, postgres_ephemere, raison_sans_docker, serveur_embeddings, vider
@@ -38,6 +40,29 @@ def _dans(jours):
     return (dt.date.today() + dt.timedelta(days=jours)).isoformat()
 
 
+def test_sortie_rend_citation_typee_et_signale_troncature_sans_attributs_libres():
+    position = SimpleNamespace(debut_octets=8, fin_octets=17, ligne_debut=3, ligne_fin=3,
+                               section=tuple(["S" * 300] * 6))
+    citation = SimpleNamespace(document_id="3a6f", sha256="a" * 64, extracteur="procedures-1",
+                               auteur_admission="admin:preuve", nombre_occurrences=5,
+                               positions=(position, position, position, position))
+    resultat = SimpleNamespace(fragment_id=7, texte="mot " * 300, source="opsys-document://opaque",
+                               portee="procedures", departement="m03-estimation", cree_le=dt.datetime.now(dt.UTC),
+                               score=0.1, titre=None, sujets=(), sensibilite="interne",
+                               citations_verifiees=(citation,), attributs={"citation": "FAUSSE"})
+
+    sortie = module_outils._sortie(SimpleNamespace(mode="plein_texte", resultats=(resultat,)), "")
+    ligne = sortie["resultats"][0]
+    assert ligne["texte_tronque"] is True
+    assert ligne["contenu_non_fiable"] is True
+    assert len(ligne["citations_verifiees"][0]["positions"]) == 3
+    assert sum(map(len, ligne["citations_verifiees"][0]["positions"][0]["section"])) <= 200
+    assert ligne["citations_verifiees"][0]["positions"][0]["section_tronquee"] is True
+    assert ligne["citations_verifiees"][0]["nombre_occurrences"] == 5
+    assert "attributs" not in ligne and "FAUSSE" not in json.dumps(ligne)
+    assert len(json.dumps(sortie, ensure_ascii=False)) <= module_outils.JSON_SORTIE_MAX
+
+
 @pytest.fixture
 def environnement(monkeypatch):
     for variable in ("OPSYS_DATABASE_URL", "OPSYS_DEPARTEMENT", "OPSYS_EMBEDDINGS_URL", "OPSYS_EMBEDDINGS_MODELE",
@@ -51,7 +76,7 @@ def environnement(monkeypatch):
 def url_pg():
     if RAISON_SANS_DOCKER is not None:
         pytest.skip(RAISON_SANS_DOCKER)
-    with postgres_ephemere() as url:
+    with postgres_ephemere(stockage_en_memoire=True) as url:
         MemoireEntreprise(url).migrer()
         yield url
 
@@ -149,6 +174,45 @@ def test_portees_bornees_par_le_manifeste_du_departement_appelant(base, embeddin
     base.setenv("OPSYS_DEPARTEMENT", "m02-memoire-demo")
     vu_par_m2 = _appel("opsys_memoire_rechercher", requete="C-0042")["resultat"]
     assert [r["portee"] for r in vu_par_m2["resultats"]] == ["clients"]
+
+
+@avec_docker
+def test_m03_lit_procedures_en_plein_texte_sans_appel_embeddings_et_ne_peut_pas_ecrire(base, embeddings):
+    base.setenv("OPSYS_DEPARTMENTS", str(RACINE / "departments"))
+    base.setenv("OPSYS_DEPARTEMENT", "m03-estimation")
+    refus = _appel("opsys_memoire_ajouter", texte="pas de write", source="fictif:procedure",
+                   portee="procedures", sensibilite="interne")
+    assert refus["ok"] is False and "écriture" in refus["details"]
+    reponse = _appel("opsys_memoire_rechercher", requete="procédure de toiture", portees=["procedures"])
+    assert reponse["ok"] is True
+    assert reponse["resultat"]["mode"] == "plein_texte"
+    assert "aucun appel d'embeddings" in reponse["resultat"]["avertissement"]
+    assert embeddings.requetes == []
+
+
+@avec_docker
+def test_citation_m03_borne_json_et_sections_sans_perdre_la_reference(base, embeddings):
+    base.setenv("OPSYS_DEPARTMENTS", str(RACINE / "departments"))
+    base.setenv("OPSYS_DEPARTEMENT", "m03-estimation")
+    service = MemoireEntreprise(os.environ["OPSYS_DATABASE_URL"]).procedures()
+    raw = "".join(f"{'#' * niveau} {chr(64 + niveau) * 300}\n" for niveau in range(1, 7))
+    raw += "\nVerifier le couple de serrage de la toiture.\n"
+    admission = service.admettre(raw.encode(), "Titre d'essai " + "T" * 280, auteur="admin:sections",
+                                 cle_admission="nonce-sections-r26-0001")
+    service.indexer(admission.document_id, admission.sha256)
+    service.activer(admission.document_id, admission.sha256, attendu_sha256=None, auteur="admin:sections")
+    resultat = _appel("opsys_memoire_rechercher", requete="couple serrage toiture",
+                      portees=["procedures"])
+    assert resultat["ok"] is True, resultat
+    corps = resultat["resultat"]
+    assert corps["mode"] == "plein_texte"
+    assert len(json.dumps(corps, ensure_ascii=False)) <= module_outils.JSON_SORTIE_MAX
+    (fragment,) = corps["resultats"]
+    position = fragment["citations_verifiees"][0]["positions"][0]
+    assert position["section_tronquee"] is True
+    assert sum(map(len, position["section"])) <= 200
+    assert position["debut_octets"] < position["fin_octets"]
+    assert embeddings.requetes == []
 
 
 @avec_docker

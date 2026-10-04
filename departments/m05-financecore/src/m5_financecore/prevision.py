@@ -50,7 +50,7 @@ import json
 import re
 from collections.abc import Iterable, Mapping
 from datetime import date, datetime, timedelta
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, Context, Decimal, localcontext
 from typing import Any
 
 from . import analyse, calendrier_fiscal, cash_libre, encodage, validation
@@ -72,6 +72,7 @@ __all__ = [
     "lire_jour",
     "lire_reglages",
     "lire_seuil",
+    "projeter_scenarios",
     "vue_prevision",
     "vue_semaine",
 ]
@@ -84,6 +85,7 @@ SORTIE = "SORTIE"
 _JOURS_PAR_SEMAINE = 7
 _CENT = Decimal("0.01")
 _ZERO = Decimal("0")
+_CONTEXTE_MONETAIRE = Context(prec=64)
 # Ordre de grandeur au-delà duquel un montant est illisible : 10^12 dollars (même plafond que les comptes à payer).
 _EXPOSANT_MAX = 11
 _TEXTE_MONTANT = re.compile(r"^[0-9]{1,12}(\.[0-9]{1,2})?$")
@@ -474,7 +476,8 @@ def flux_taxes(
     if apres_le_calendrier["factures_clients"] + apres_le_calendrier["factures_fournisseurs"]:
         flux.append(_taxes_inconnues("taxes:couverture", _verdict(
             "REJ-CALENDRIER-ANNEE-NON-DECLAREE",
-            f"des factures sont datées après le {couvert}, fin du calendrier fiscal connu : leur échéance n'est pas "
+            f"des factures sont datées après le {couvert}, fin du calendrier fiscal connu : leur échéance "
+            "n'est pas "
             f"au calendrier (années déclarées : {sorted(calendrier)}) ; ajouter l'année à "
             "contracts/calendrier_fiscal.v1.yaml depuis les tableaux officiels de Revenu Québec")))
     for periode in periodes:
@@ -642,7 +645,7 @@ def _alerte(
     }
 
 
-def assembler(
+def _assembler(
     aujourd_hui: date, horizon_semaines: int, solde: Mapping[str, Any], flux: Iterable[Mapping[str, Any]], *,
     seuil: Mapping[str, Any] | None = None, verdict_seuil: Mapping[str, Any] | None = None,
     cash_libre_resultat: Mapping[str, Any] | None = None,
@@ -756,6 +759,114 @@ def assembler(
         "reserves": sorted({code for f in liste for code in f["reserves"]}),
     }
     return {**contenu, "prevision_id": encodage.empreinte(contenu)}
+
+
+# ---------------------------------------------------------------------------------------------------- les vues
+def assembler(
+    aujourd_hui: date, horizon_semaines: int, solde: Mapping[str, Any], flux: Iterable[Mapping[str, Any]], *,
+    seuil: Mapping[str, Any] | None = None, verdict_seuil: Mapping[str, Any] | None = None,
+    cash_libre_resultat: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Assemble la prévision avec une précision locale indépendante du contexte appelant."""
+    with localcontext(_CONTEXTE_MONETAIRE):
+        return _assembler(
+            aujourd_hui, horizon_semaines, solde, flux, seuil=seuil, verdict_seuil=verdict_seuil,
+            cash_libre_resultat=cash_libre_resultat,
+        )
+
+
+def projeter_scenarios(
+    aujourd_hui: date,
+    horizon_semaines: int,
+    solde: Mapping[str, Any],
+    flux_connus: Iterable[Mapping[str, Any]],
+    sorties_scenarios: Mapping[str, Iterable[Mapping[str, Any]] | None],
+) -> dict[str, Any]:
+    """Projette les sorties explicitement fournies sur le même solde et les mêmes flux connus.
+
+    Un scénario sans flux signifie « incomplet », jamais une option sans coût. Les obligations de base sont reprises
+    une fois dans chaque projection; elles ne sont pas retranchées du cash libre.
+    """
+    noms = ("achat_comptant", "financement", "location")
+    inconnus = set(sorties_scenarios) - set(noms)
+    if inconnus:
+        raise ValueError(f"scénario de trésorerie inconnu : {sorted(inconnus)}")
+    base = list(flux_connus)
+    verdict_seuil = validation.construire_verdict(
+        "REJ-PREVISION-SEUIL-A-CONFIGURER", "La projection par option ne calcule pas d'alerte de seuil"
+    )
+    base_resultat = assembler(aujourd_hui, horizon_semaines, solde, base, verdict_seuil=verdict_seuil)
+    projections: dict[str, dict[str, Any]] = {}
+    for nom in noms:
+        brutes = sorties_scenarios.get(nom)
+        sorties = [] if brutes is None else list(brutes)
+        if not sorties:
+            projections[nom] = {
+                "statut": "INCOMPLET",
+                "solde_fin": None,
+                "plus_bas": None,
+                "manque": ["échéancier absent, non rapproché ou couverture déclarée insuffisante"],
+                "flux_scenario": [],
+                "sorties_hors_horizon": {"nombre": 0, "total": "0.00", "non_chiffres": 0},
+            }
+            continue
+        horizon_fin = aujourd_hui + timedelta(days=_JOURS_PAR_SEMAINE * horizon_semaines - 1)
+        couverture = sorties[0].get("couvre_jusquau")
+        if not isinstance(couverture, date) or couverture < horizon_fin:
+            projections[nom] = {
+                "statut": "INCOMPLET",
+                "solde_fin": None,
+                "plus_bas": None,
+                "manque": [f"couverture de l'échéancier inférieure à la fin d'horizon ({horizon_fin.isoformat()})"],
+                "flux_scenario": [],
+                "sorties_hors_horizon": {"nombre": 0, "total": "0.00", "non_chiffres": 0},
+            }
+            continue
+        if any(flux.get("sens") != SORTIE for flux in sorties):
+            raise ValueError(f"le scénario {nom} ne peut contenir que des sorties")
+        resultat = assembler(aujourd_hui, horizon_semaines, solde, [*base, *sorties], verdict_seuil=verdict_seuil)
+        semaines = resultat["semaines"]
+        dernier = semaines[-1] if semaines else None
+        bas = resultat["plus_bas"]
+        projections[nom] = {
+            "statut": "CALCULE" if resultat["calculable"] else "NON_CALCULABLE",
+            "solde_fin": _texte(dernier["solde_fin"]) if dernier and dernier["statut"] == "CALCULE" else None,
+            "plus_bas": None
+            if bas is None or not resultat["calculable"]
+            else {"semaine": bas["semaine"], "solde": _texte(bas["solde"])},
+            "manque": [dict(groupe) for groupe in resultat["manque"]],
+            "flux_scenario": [
+                {
+                    "source": str(flux["source"]),
+                    "date": flux["date"].isoformat(),
+                    "montant": _texte(flux["montant"]),
+                    "hypothese": str(flux["hypothese"]),
+                }
+                for flux in sorties
+            ],
+            "statut_provenance": "REFERENCE_MANUELLE_NON_VERIFIEE",
+            "couverture_saisie_jusquau": couverture.isoformat(),
+            "sorties_hors_horizon": {
+                "nombre": resultat["au_dela_de_l_horizon"]["sorties"]["nombre"],
+                "total": _texte(resultat["au_dela_de_l_horizon"]["sorties"]["total"]),
+                "non_chiffres": resultat["au_dela_de_l_horizon"]["sorties"]["non_chiffres"],
+            },
+        }
+    flux_base = [
+        {
+            "id": str(flux["id"]),
+            "source": str(flux["source"]),
+            "date": None if flux["date"] is None else flux["date"].isoformat(),
+            "montant": _texte(flux["montant"]),
+            "manque": [manque["code"] for manque in flux["manque"]],
+        }
+        for flux in sorted(base, key=_cle_de_tri)
+    ]
+    return {
+        "flux_connus_inclus": flux_base,
+        "flux_encaissements_non_comptes": base_resultat["encaissements_non_comptes"],
+        "options": projections,
+    }
 
 
 # ---------------------------------------------------------------------------------------------------- les vues

@@ -1,0 +1,69 @@
+{
+  "queried_at_utc": "2026-09-30T11:55:52.327514+00:00",
+  "project_url": "https://gitlab.com/gitlab-org/gitlab",
+  "files": [
+    {
+      "path": "LICENSE",
+      "commit": "2d1f3c266d04c069c98349923c86ac636bd59744",
+      "blob_id": "722a1cbbc93fd0a0806c22021919167f93c47ba4",
+      "bytes": 2001,
+      "url": "https://gitlab.com/gitlab-org/gitlab/-/blob/2d1f3c266d04c069c98349923c86ac636bd59744/LICENSE",
+      "local": "/workspace/restructuration-opsys-2026-09-30/preuves-core/gitlab__LICENSE"
+    },
+    {
+      "path": "doc/user/model_context_protocol/mcp_server.md",
+      "commit": "2d1f3c266d04c069c98349923c86ac636bd59744",
+      "blob_id": "f9760223c33c13f391fd407c6461fba558d82b4d",
+      "bytes": 28665,
+      "url": "https://gitlab.com/gitlab-org/gitlab/-/blob/2d1f3c266d04c069c98349923c86ac636bd59744/doc/user/model_context_protocol/mcp_server.md",
+      "local": "/workspace/restructuration-opsys-2026-09-30/preuves-core/gitlab__doc__user__model_context_protocol__mcp_server.md"
+    }
+  ],
+  "project": {
+    "id": 278964,
+    "path_with_namespace": "gitlab-org/gitlab",
+    "default_branch": "master",
+    "web_url": "https://gitlab.com/gitlab-org/gitlab",
+    "archived": null,
+    "last_activity_at": "2026-09-30T11:28:18.049Z"
+  },
+  "commit": {
+    "id": "2d1f3c266d04c069c98349923c86ac636bd59744",
+    "short_id": "2d1f3c26",
+    "created_at": "2026-09-30T13:52:40.000+02:00",
+    "parent_ids": [
+      "adab1d326b47796816a461421996c6ae594c346e",
+      "acbdd100f8d96479642ad9371749e8ae0647d06c"
+    ],
+    "title": "Merge branch 'fix/aigw-install-failure-not-spec-failure' into 'master' ",
+    "message": "Merge branch 'fix/aigw-install-failure-not-spec-failure' into 'master' \n\nSkip DAP feature specs when AI Gateway install fails\n\nSee merge request https://gitlab.com/gitlab-org/gitlab/-/merge_requests/258445\n\nMerged-by: Enrique Alcántara <ealcantara@gitlab.com>\nApproved-by: Patrick Cyiza <jpcyiza@gitlab.com>\n",
+    "author_name": "Enrique Alcántara",
+    "author_email": "ealcantara@gitlab.com",
+    "authored_date": "2026-09-30T13:52:40.000+02:00",
+    "committer_name": "GitLab",
+    "committer_email": "noreply@gitlab.com",
+    "committed_date": "2026-09-30T13:52:40.000+02:00",
+    "trailers": {},
+    "extended_trailers": {},
+    "web_url": "https://gitlab.com/gitlab-org/gitlab/-/commit/2d1f3c266d04c069c98349923c86ac636bd59744",
+    "stats": {
+      "additions": 156,
+      "deletions": 32,
+      "total": 188
+    },
+    "status": "running",
+    "project_id": 278964,
+    "last_pipeline": {
+      "id": 2897098408,
+      "iid": 6462440,
+      "project_id": 278964,
+      "sha": "2d1f3c266d04c069c98349923c86ac636bd59744",
+      "ref": "master",
+      "status": "running",
+      "source": "push",
+      "created_at": "2026-09-30T11:54:03.475Z",
+      "updated_at": "2026-09-30T11:54:07.849Z",
+      "web_url": "https://gitlab.com/gitlab-org/gitlab/-/pipelines/2897098408"
+    }
+  }
+}

@@ -15,7 +15,8 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from m3_estimation import devis_durable, verdicts
+# Import après l'ajout du src local, nécessaire à l'exécution directe hors pytest.
+from m3_estimation import devis_durable, verdicts  # noqa: E402
 
 _HORODATAGE = "2026-09-28T14:00:00-04:00"
 
@@ -307,6 +308,12 @@ def test_lead_id_vide_rejete():
     _verdict_attendu(_creer([], lead_id="   "), "REJ-DEVIS-LEAD-ID-VIDE")
 
 
+def test_reference_estimation_de_forme_invalide_rejetee():
+    assert "REJ-CONTRAT-INVALIDE" in verdicts.CODES_M3_LIST
+    reponse = _creer([], estimation_source_hash="A" * 64)
+    assert reponse[0] is None and reponse[1]["code"] == "REJ-CONTRAT-INVALIDE"
+
+
 def test_horodatage_vide_rejete():
     _verdict_attendu(_creer([], horodatage=""), "REJ-DEVIS-HORODATAGE-VIDE")
 
@@ -352,6 +359,32 @@ def test_meme_devis_id_contenu_different_est_rejete():
     )
     assert "M3-DEVIS-durable-001" in verdict["detail"]
     assert len(registre) == 1, "un contenu divergent ne doit jamais écraser le devis existant"
+
+
+def test_reference_estimation_est_immuable_et_participe_a_idempotence():
+    registre = []
+    hash_source = "a" * 64
+    premier, verdict = _creer(registre, estimation_source_hash=hash_source)
+    assert verdict is None
+    assert premier["estimation_source_hash"] == hash_source
+
+    rejoue, verdict_rejeu = _creer(registre, estimation_source_hash=hash_source)
+    assert verdict_rejeu is None and rejoue == premier
+    assert len(registre) == 1
+
+    _, verdict_different = _creer(registre, estimation_source_hash="b" * 64)
+    _verdict_attendu((None, verdict_different), "REJ-DEVIS-ID-DEJA-UTILISE")
+    assert len(registre) == 1
+
+
+def test_devis_legacy_sans_reference_rejoue_avec_none_sans_mutation():
+    registre = []
+    premier, verdict = _creer(registre)
+    assert verdict is None and "estimation_source_hash" not in premier
+    registre[0].pop("estimation_source_hash", None)  # forme d'un vieux maillon durable
+    rejoue, verdict_rejeu = _creer(registre, estimation_source_hash=None)
+    assert verdict_rejeu is None and rejoue == premier
+    assert len(registre) == 1
 
 
 def test_devis_id_distincts_coexistent():
@@ -511,6 +544,14 @@ def test_projection_employe_garde_les_champs_operationnels():
     assert projection["lignes"][0]["description"] == devis["lignes"][0]["description"]
     assert projection["lignes"][0]["quantite"] == devis["lignes"][0]["quantite"]
     assert projection["lignes"][0]["reference_ligne"] == devis["lignes"][0]["reference_ligne"]
+
+
+def test_projection_employe_ne_revele_pas_hash_de_provenance():
+    devis, verdict = _creer([], estimation_source_hash="a" * 64)
+    assert verdict is None
+    projection, verdict = devis_durable.projeter_devis(devis, "employe")
+    assert verdict is None
+    assert "estimation_source_hash" not in projection
 
 
 def test_projection_role_inconnu_rejetee():

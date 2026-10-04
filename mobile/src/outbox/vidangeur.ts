@@ -269,8 +269,14 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
 
     const interpretation = descripteur.interpreterResultat(resultatAppel.result);
     if (interpretation.accepte) {
-      await config.depot.mettreAJour(marquerEnvoyee(enEnvoi));
+      await config.depot.mettreAJour(marquerEnvoyee(enEnvoi, interpretation.resume));
       return { genre: "envoyee", resume: interpretation.resume };
+    }
+    if (interpretation.verdict.code === "accuse_invalide") {
+      // Réponse incompatible après un effet serveur possible : conserver la même clé et réessayer
+      // avec recul, l'idempotence serveur empêchera un doublon si le premier appel a abouti.
+      await config.depot.mettreAJour(marquerEchecReessayable(enEnvoi, config.maintenant()));
+      return { genre: "remise_en_attente" };
     }
     // Rejet métier (HTTP 200, mais `accepte: false`) : définitif — réessayer le MÊME payload ne
     // changerait pas l'issue (fenêtre dépassée, contrat mal formé…). R12 §4 : jamais perdu

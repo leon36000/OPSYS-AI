@@ -14,9 +14,9 @@ ce fichier doit ÉCHOUER à l'exécution — c'est le RED attendu de la story.
 
 import ast
 import sys
+from pathlib import Path
 
 import pytest
-from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
@@ -45,6 +45,17 @@ def _bareme_valide(**surcharges):
     }
     bareme.update(surcharges)
     return bareme
+
+
+@pytest.mark.parametrize("quantite", [10, 10 ** 1000])
+def test_depassement_numerique_retourne_un_verdict_avant_tirage(quantite):
+    bareme = _bareme_valide()
+    type_travaux = contrats.TYPES_TRAVAUX[0]
+    bareme["postes"][type_travaux] = {"cout_unitaire_min": 1e308, "cout_unitaire_max": 1e308}
+    intervalle, rejet = monte_carlo.simuler_intervalle(bareme, type_travaux, quantite, 7, 0.9)
+    assert intervalle is None and rejet["code"] == "REJ-CONTRAT-INVALIDE"
+    quantiles, rejet = monte_carlo.simuler_quantiles(bareme, type_travaux, quantite, 7, [0.5, 0.8])
+    assert quantiles is None and rejet["code"] == "REJ-CONTRAT-INVALIDE"
 
 
 def test_reproductibilite_bit_a_bit_a_graine_egale():

@@ -1,0 +1,23 @@
+{
+  "controle_courant_produit": false,
+  "originaux_hors_capsule": {
+    "/workspace/poursuite-opsys-2026-10-02-r1/R43-qualification-root-r1/manifest.json": {
+      "inclus_capsule": false,
+      "octets": 10809,
+      "sha256": "29f45478f4be68967cf57163620ece43a747d77048f2d4fc5007325776a0650e"
+    },
+    "/workspace/poursuite-opsys-2026-10-02-r1/R43-qualification-root-r1/results.json": {
+      "inclus_capsule": false,
+      "octets": 13796,
+      "sha256": "b2b7c2837a25a4e05f6e190149a475d0bf6167572eb8f996ab921d09d7b6390f"
+    }
+  },
+  "plan_sha256": "410fe00c6c637e0abf24e1b3137702fae54bed4155c7994d2b19901c428b2e2f",
+  "sources": {
+    "/workspace/poursuite-opsys-2026-10-02-r1/R43-qualification-root-r1/bench_http.py": "767355b4180a3de8ba889cfdc978ae140690fd224b9152400c531cd47caf4ae3",
+    "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r4/bench_http.py": "e985ab1764ea95a6073845508a9f6540f7ac5b86a2decb88f8f7b5c76d5d959a",
+    "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r5/bench_http.py": "767355b4180a3de8ba889cfdc978ae140690fd224b9152400c531cd47caf4ae3",
+    "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/bench_http.py": "767355b4180a3de8ba889cfdc978ae140690fd224b9152400c531cd47caf4ae3",
+    "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/test_bench_helpers.py": "4f7991f99ebd7f5925b515121023838970a60668a7311d5afcfb176b22d5a643"
+  }
+}

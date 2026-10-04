@@ -1,0 +1,148 @@
+{
+  "utc": "2026-10-03T09:09:04.875095+00:00",
+  "qualified": true,
+  "original_receipt": "/dev/shm/opsys-cron-core-assembled-root-r1/provider-admission-r1/RECU-ROOT.json",
+  "tests": {
+    "cases": 11,
+    "counts": {
+      "passed": 11,
+      "failure": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "files": [
+      "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts"
+    ],
+    "cases_by_file": {
+      "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts": 11
+    },
+    "testcases": [
+      {
+        "file": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "classname": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "name": "OPSYS runtime provider admission > refuses generic compaction only for agents with configured runtime admission",
+        "status": "passed"
+      },
+      {
+        "file": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "classname": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "name": "OPSYS runtime provider admission > refuses before dispatch when the private server denies the budget",
+        "status": "passed"
+      },
+      {
+        "file": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "classname": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "name": "OPSYS runtime provider admission > dispatches only on a fresh grant, then reconciles normalized usage",
+        "status": "passed"
+      },
+      {
+        "file": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "classname": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "name": "OPSYS runtime provider admission > keeps an existing cycle from authorizing a second provider dispatch",
+        "status": "passed"
+      },
+      {
+        "file": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "classname": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "name": "OPSYS runtime provider admission > fails closed on a legacy profile marker without a host-owned revision",
+        "status": "passed"
+      },
+      {
+        "file": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "classname": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "name": "OPSYS runtime provider admission > counts tool-continuation streams as new cycles for the same candidate",
+        "status": "passed"
+      },
+      {
+        "file": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "classname": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "name": "OPSYS runtime provider admission > keeps the reservation open when provider usage is missing or zero",
+        "status": "passed"
+      },
+      {
+        "file": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "classname": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "name": "OPSYS scheduled final provider authority > revalidates host authority after budget admission and before provider dispatch",
+        "status": "passed"
+      },
+      {
+        "file": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "classname": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "name": "OPSYS scheduled final provider authority > leaves an admitted reservation open when live authority is withdrawn",
+        "status": "passed"
+      },
+      {
+        "file": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "classname": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "name": "OPSYS scheduled final provider authority > checks authority again for every stream and fallback candidate",
+        "status": "passed"
+      },
+      {
+        "file": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "classname": "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "name": "OPSYS scheduled final provider authority > does not dispatch when the host aborts during final authority validation",
+        "status": "passed"
+      }
+    ],
+    "ok": true
+  },
+  "files": [
+    {
+      "name": "RECU-ROOT.json.gz",
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/provider-admission-r1/RECU-ROOT.json",
+      "sha256": "73f06df8a74126afacb5ba5f4abfa1c0440cdccdeb1ef2e048294215f4f64ac9",
+      "bytes": 10192
+    },
+    {
+      "name": "format.log.gz",
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/provider-admission-r1/format.log",
+      "sha256": "2ddd74518123760fbbedcfc4bee5cc9465cb0233e478f503bb3321b1d8c41266",
+      "bytes": 112
+    },
+    {
+      "name": "junit.xml.gz",
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/provider-admission-r1/junit.xml",
+      "sha256": "057f786944fbcce95828a4b30dea53d9454799ff15606c6b2f2ce88580fce4ac",
+      "bytes": 3153
+    },
+    {
+      "name": "native.log.gz",
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/provider-admission-r1/native.log",
+      "sha256": "d9ec3a086e453ecbc4625ad944ba79c47c34bbe568942cb35dd763942fc7d334",
+      "bytes": 772
+    }
+  ],
+  "scope_sha256_current": {
+    "core/src/gateway/opsys-cron-live-validator.test.ts": "8c71d8d2a4c64ad8feba8466afc0f07a0db4d866d39baf57d6ff8b1623b88272",
+    "core/src/gateway/opsys-cron-live-validator.ts": "2973d25441b2ca302f1600192b7bc28bf33e13bf74255eccf3225d4d783875a8",
+    "core/src/gateway/opsys-metier-supervisor.test.ts": "ec1e65fc187b37fed76b42cdc988b0f0480acce3f2a0c7ad87addd1e931567a0",
+    "core/src/gateway/opsys-metier-supervisor.ts": "1888e609791283156715e63c1ca8e97bedefa15c945df55eb9876d26404b2d46",
+    "core/src/gateway/server-cron.ts": "e14e965380cb724d47fcae04b2077c553322ea2bdbec8917f3c89bf6cf131e26",
+    "core/src/gateway/server-kernel-request-runtime.ts": "262b089f606232c70ab39afadcd649a2264beaed28e9a996be6a819f5c513ed2",
+    "core/src/gateway/server-lifetime-sidecars.test.ts": "05c5ad382265ea1a70d2977fbeb09629510d6e923ea6ae793fffe3dc41bf6484",
+    "core/src/gateway/server-lifetime-sidecars.ts": "18e27b22fe26bf23d1c9884a59d349c3166b8589bc981deb345a9395c457e35d",
+    "core/src/gateway/server-methods/shared-types.ts": "c344fa725e919c00319e023de2352182e7c256df8534338c71c3f6f1df877040",
+    "core/src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts": "112b48a82e23dc02bed1d7fb8e9f865199e3026daef6c1df1e646687e03901c2",
+    "core/src/agents/embedded-agent-runner/opsys-runtime-admission.ts": "5bf684e2eb31ec6da0a2bc35ecd77bd8e6b84e943023f0c237a8728eb4218860",
+    "core/src/agents/embedded-agent-runner/run/attempt-prompt-submit.cron-authority.test.ts": "5c61a620163fe171a7f59f6e1b23f6aa2eb92febf7a5f011f18c2733a35b55e4",
+    "core/src/agents/embedded-agent-runner/run/attempt-prompt-submit.ts": "17a7123fc7984dc6aa2eea21f0313338927af0ea65983fa62a63812bdaea3c9c",
+    "core/src/agents/embedded-agent-runner/run/params.ts": "9ff3d60562ea5a6d1db195d34dd5e7d20dff8a57d5ab6aa188e5b7d8c36c1c5e",
+    "core/src/agents/embedded-agent-runner/run/run-attempt-dispatch.ts": "d777123af112efae55ea4bd59139d68a2b8bbbaf905240636114a311a64c9d47",
+    "core/src/cron/isolated-agent/run-execution.types.ts": "593efce0b0dc342d9a585c068d7849b18bad0a12f7a02d7d5148105fc932b95a",
+    "core/src/cron/isolated-agent/run-executor.ts": "64928fab3743d90afad1b187160a56acb2d1fe63cfd6dd098fff768fadd6e87e",
+    "core/src/cron/isolated-agent/run-prepare-runtime.ts": "ce0db29c3d64a8af98a6408b71837ea58ba60f4c03fd1b0b0bcc86b9495c540a",
+    "core/src/cron/isolated-agent/run.ts": "57b5bc309a1c870ed4fea04c24eee5b0f10d64c7521a852749a9f26b61fffceb",
+    "core/src/gateway/opsys-cron-private-client.ts": "f008abdfaa89020ac8bd493f59308862557dd4a89c15ccfeb7fdee87673646e7",
+    "core/src/gateway/opsys-cron-private-client.test.ts": "8c1fa122dd76863c24223a0b505b5b085c3ba8a2fb4ee8e18cf0f513bb7a1c30",
+    "core/src/gateway/opsys-cron-runtime-grant.ts": "d48533e5733bcad12772f7e920851919e9128347ceef513998d8dd51c8d72ff8",
+    "core/src/cron/service.ts": "8baec347fcb136ea0596f7a18230f99cc9193382f75124ff388b6af4725f8a95",
+    "core/src/cron/service/state.ts": "0ff10bc392efee7a5c8d953293b51f3501483636775b863eacda8ca848b13ecd",
+    "core/src/cron/service/ops-mutations.ts": "27f1c3c06992d40530cdc106fd417103882265a9b1875be3c23a116669f4b858",
+    "core/src/cron/service.declarative-jobs.test.ts": "4bd238eebee03285c795e31b231dfdac056b1cedece4303cf52c5b87d8f007eb",
+    "core/src/gateway/opsys-cron-reconciler.ts": "5bc1823661536e67cde27a8dbfb2272b0b51ea943b3673dbf0216793f1892d55",
+    "core/src/gateway/opsys-cron-reconciler.test.ts": "59de84f5856ea61203278934f1ea0fa8231e73f951c7a33c34be6fcddb0465cc",
+    "core/src/gateway/opsys-cron-reconciler.native.test.ts": "7b17d1c65b1b9dac6e7a52ebd6d9bbdf70fe05f402567cba7cd1882d4902ea6e",
+    "core/test/vitest/vitest.gateway-server-paths.mjs": "2fab569f3c0966bcf4e56e19fc4c394d65f5d791fee4789b75f118cfd4548fb6"
+  },
+  "limitations": "11 cas admission synth\u00e9tique; stream SDK, lifecycle et int\u00e9gration SQLite native non qualifi\u00e9s; aucun provider r\u00e9el."
+}

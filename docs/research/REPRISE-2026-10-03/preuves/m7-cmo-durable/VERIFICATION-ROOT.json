@@ -1,0 +1,186 @@
+{
+  "ok": true,
+  "source_count": 671,
+  "source_bytes": 9380675,
+  "source_delta": {},
+  "oom_before": {
+    "oom": 10,
+    "oom_kill": 3,
+    "oom_group_kill": 0
+  },
+  "oom_after": {
+    "oom": 10,
+    "oom_kill": 3,
+    "oom_group_kill": 0
+  },
+  "elapsed_seconds": 52.186587560980115,
+  "steps": [
+    {
+      "name": "ruff",
+      "ok": true,
+      "guard": null,
+      "exit_code": 0,
+      "peak_group_rss_bytes": 0,
+      "minimum_room_bytes": 1308004352,
+      "cleanup": {
+        "signals": [],
+        "reaped_owned_children": [],
+        "survivors": {},
+        "leader_start_ticks": 28438248
+      }
+    },
+    {
+      "name": "pytest",
+      "ok": true,
+      "guard": null,
+      "exit_code": 0,
+      "peak_group_rss_bytes": 202346496,
+      "minimum_room_bytes": 1115447296,
+      "cleanup": {
+        "signals": [],
+        "reaped_owned_children": [],
+        "survivors": {},
+        "leader_start_ticks": 28438343
+      }
+    }
+  ],
+  "junit": {
+    "tests": 176,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "unique": 176,
+    "by_class": {
+      "tests.test_console_growth": 59,
+      "tests.test_console_metier": 8,
+      "tests.test_commande_metier": 9,
+      "departments.m07-marketing.tests.test_growth_lecture": 43,
+      "departments.m07-marketing.tests.test_brand_growth_local": 1,
+      "tests.test_console_cmo": 20,
+      "departments.m07-marketing.tests.test_cmo_strategie": 12,
+      "tests.test_console_cmo_strategies": 24
+    }
+  },
+  "artifacts": [
+    {
+      "path": "r1/FREEZE-SOURCES-r1.json",
+      "raw_bytes": 85085,
+      "raw_sha256": "3e5bd9028ee636bfaaaae1857f160a2e3079789aa2981bd712bcf9a6ca4885d0",
+      "gzip_sha256": "490fc74e65ef159ca66f3ddffedb8e26c790b98882cbe006b40999c35c3b65d2",
+      "readback": true
+    },
+    {
+      "path": "r1/PLAN-r1.json",
+      "raw_bytes": 3138,
+      "raw_sha256": "cdf0a6a41457a06b6232a27a9d76c9ae9f1b6a98e1d784723ec128d3e87e5df5",
+      "gzip_sha256": "7b373de33583fff5252f290fedf5ce547d3be9e137e830a34b4b91cd4c4a7c9d",
+      "readback": true
+    },
+    {
+      "path": "r1/conducteur-root.py",
+      "raw_bytes": 19447,
+      "raw_sha256": "7bd54e8536f3acde9dffc6e2f0cd44cf96ef5d051cd9e26468e4312d5086b11e",
+      "gzip_sha256": "8b9be3de76b18a0a0c895d023d44dadc54ab45ec348b2d83821d98ff85ba30aa",
+      "readback": true
+    },
+    {
+      "path": "r1/execution-r1/receipt.json",
+      "raw_bytes": 357100,
+      "raw_sha256": "cbf54cd0142cd752f34dbb11a42f716ab23b030a3f5bc0b5997668fc72f5d0b2",
+      "gzip_sha256": "961ff8f48aee3073e3ce33708ebd020a78d95e519fd84977def24cab4885fed5",
+      "readback": true
+    },
+    {
+      "path": "r1/execution-r1/ruff.log",
+      "raw_bytes": 796,
+      "raw_sha256": "863eab2790948c1e0aadaf9c8e7c73cc38c8ef4df4af2990a53cdef6dcae23b1",
+      "gzip_sha256": "341c6ab60eb0916b815037c1b1007007dcfd51cb2c7b5971da8a50e2abece1ea",
+      "readback": true
+    },
+    {
+      "path": "r2/FREEZE-SOURCES-r1.json",
+      "raw_bytes": 85085,
+      "raw_sha256": "2efe1638d6c52816843b17ad866e7eef88ebe5301b980e56a5a6f9f0fe48a888",
+      "gzip_sha256": "3b730cb3f967ef689859b63b2aa1a6df8aa4bd89c8e88ed914c50f62da3c848d",
+      "readback": true
+    },
+    {
+      "path": "r2/PLAN-r1.json",
+      "raw_bytes": 3225,
+      "raw_sha256": "5cb55e0fc508e30b524447766429673d698adf014ac2ae7f1b76d2b9acf716c1",
+      "gzip_sha256": "b8f277af4bdf589756f0b0171f524d22a387f9f2bda1837b81e81a9f473d835b",
+      "readback": true
+    },
+    {
+      "path": "r2/conducteur-root.py",
+      "raw_bytes": 19447,
+      "raw_sha256": "58d650cb609b2e0ab09791062b48e3d03d6cbfd0c9f5e33d3913fd5fd2438db4",
+      "gzip_sha256": "687d82f222855d326e5ceeb25d9e8e30cf12338d8bddd6e1a69621803b72456f",
+      "readback": true
+    },
+    {
+      "path": "r2/execution-r1/pytest.log",
+      "raw_bytes": 261,
+      "raw_sha256": "e95b3c590259fb2a0c445c851862bd06c40a3e2d4fe56677765fa8f976a85828",
+      "gzip_sha256": "e20d20faf74fbaa65e275cbecf50b771e99ecbf0988ca057b114dd1231074944",
+      "readback": true
+    },
+    {
+      "path": "r2/execution-r1/pytest.xml",
+      "raw_bytes": 26327,
+      "raw_sha256": "63f366de0f455e057f830838ec334e5c7904f9f6816e584f7e6255c106cf1b71",
+      "gzip_sha256": "741500855b24020d19ca8579cb2a6db4e3333d10986efa309dc72102bc750e75",
+      "readback": true
+    },
+    {
+      "path": "r2/execution-r1/receipt.json",
+      "raw_bytes": 538088,
+      "raw_sha256": "7a228f47739bafa8468ba02af91359f6efa983303d22a17ba91ef854ef7ba927",
+      "gzip_sha256": "f3153df3024462bf1e72fe56cbf6cf5175f518085e3daeadbdcb42158b87a639",
+      "readback": true
+    },
+    {
+      "path": "r2/execution-r1/ruff.log",
+      "raw_bytes": 19,
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "gzip_sha256": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+      "readback": true
+    },
+    {
+      "source": "departments/m07-marketing/src/m7_marketing/cmo_strategie.py",
+      "artifact": "sources-qualifiees/departments--m07-marketing--src--m7_marketing--cmo_strategie.py.gz",
+      "raw_sha256": "85300ec2f4f05f166faf92b8db7cfab7583a63216c758d2af5874f63f6d0ded5",
+      "readback": true
+    },
+    {
+      "source": "departments/m07-marketing/tests/test_cmo_strategie.py",
+      "artifact": "sources-qualifiees/departments--m07-marketing--tests--test_cmo_strategie.py.gz",
+      "raw_sha256": "368b02fef75369f68ede5e4332f8a3b28eaf71e89811d75e0e326d66c847c112",
+      "readback": true
+    },
+    {
+      "source": "src/opsys/console/marketing_cmo_ui.py",
+      "artifact": "sources-qualifiees/src--opsys--console--marketing_cmo_ui.py.gz",
+      "raw_sha256": "36a50c7d395f8c7be8c031b8622eb28c9b1b5d7dcd3a711f6b596306e9c1f6b8",
+      "readback": true
+    },
+    {
+      "source": "src/opsys/console/metier.py",
+      "artifact": "sources-qualifiees/src--opsys--console--metier.py.gz",
+      "raw_sha256": "4457f643e8c20bb3d68465d0b33fa56bdd3cda482412fb573d77c2991b9abe35",
+      "readback": true
+    },
+    {
+      "source": "tests/test_console_cmo_strategies.py",
+      "artifact": "sources-qualifiees/tests--test_console_cmo_strategies.py.gz",
+      "raw_sha256": "dc9edd0566ef17c8e7e77d23fc7b42ca4069ad76d6f9e6c3df80a0f4522b25c7",
+      "readback": true
+    }
+  ],
+  "scope": "Eight complete files; SQLite/actual HTTP, synthetic Synergy data",
+  "history": "R1 lint SIM117 rejected; ROOT combined contexts without reducing oracle; R2 full campaign passes",
+  "limits": [
+    "No provider, external metrics, ROI, publication, real spend, PostgreSQL, dedicated mobile or VPS",
+    "Human declared plan; sources not externally verified"
+  ]
+}

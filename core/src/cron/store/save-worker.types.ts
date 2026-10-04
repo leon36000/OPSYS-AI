@@ -1,4 +1,5 @@
 import type { CronStoreFile } from "../types.js";
+import type { CronRetirementCapture } from "./runtime-retirement-store.js";
 import type { CronSaveError } from "./save-error.js";
 import type {
   CronStoreChangesOptions,
@@ -11,6 +12,14 @@ export type CronStoreWriteResult<Value> = { committed: boolean } & (
   | { ok: false; error: CronSaveError }
 );
 
+/** Private data carrier; callbacks and live authority remain on the host. */
+export type CronStoreRetirementMutation = Readonly<{
+  capture: CronRetirementCapture;
+  jobId: string;
+  removedAtMs: number;
+  nonce: string;
+}>;
+
 export type CronStoreSaveWorkerOperations = {
   "cron.save": {
     input: { storeKey: string; store: CronStoreFile; options?: CronStoreSaveOptions };
@@ -21,6 +30,7 @@ export type CronStoreSaveWorkerOperations = {
       storeKey: string;
       changes: PreparedCronStoreChanges;
       options?: CronStoreChangesOptions;
+      retirement?: CronStoreRetirementMutation;
     };
     output: CronStoreWriteResult<CronStoreFile>;
   };

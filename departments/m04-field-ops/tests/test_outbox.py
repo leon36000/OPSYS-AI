@@ -557,6 +557,27 @@ def test_aucune_pause_duree_inchangee():
     assert duree == 150
 
 
+def test_pause_terminee_apres_depart_refuse_completer_sans_wct():
+    """Un registre ancien/forgé dont la pause déborde la présence ne donne ni durée négative ni WCT."""
+    reg, i_id = _intervention_sur_site_avec_pointages()
+    reg.ajouter({
+        "type_entree": pointage_mod.TYPE_POINTAGE, "intervention_id": i_id,
+        "action": "pause_debut", "horodatage": "2025-06-02T09:50:00+00:00",
+    })
+    reg.ajouter({
+        "type_entree": pointage_mod.TYPE_POINTAGE, "intervention_id": i_id,
+        "action": "pause_fin", "horodatage": "2025-06-02T12:10:00+00:00",
+    })
+    taille = len(reg.lire())
+    duree, code = outbox_mod.calculer_duree_reelle(reg, i_id)
+    assert (duree, code) == (None, "REJ-CONTRAT-INVALIDE")
+    accuse, verdict = outbox_mod.completer_intervention(i_id, H_COMPLETION, reg, ecart_detecte=False)
+    assert accuse is None
+    assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
+    assert len(reg.lire()) == taille
+    assert outbox_mod.lire_outbox(reg, 0) == []
+
+
 def test_pause_debut_sans_fin_fail_closed():
     reg = registre_mod.Registre()
     acc, _ = etats_mod.inscrire_intervention(CONTRAT_VALIDE, MARQUEUR_VALIDE, reg, H1, SEL)

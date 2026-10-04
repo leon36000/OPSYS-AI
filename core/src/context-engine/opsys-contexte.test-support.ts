@@ -18,7 +18,7 @@
 //   - `PAQUET_M10_HISTORIQUE_TRONQUE`: a lead from an SMS (a 64-character identifier) whose history overflows the
 //     events layer: the opening step is omitted from the layer but still named by the block `affaire`, and the
 //     block `consolidation` lists the two days that no durable fact sums up.
-import type { OpsysContexteConfig, OpsysToolLevel } from "./opsys-contexte-config.js";
+import type { OpsysContexteConfig, OpsysToolLevel, OpsysToolTarget } from "./opsys-contexte-config.js";
 
 export const FICTIF = true;
 
@@ -527,7 +527,13 @@ export const CONFIG_M3: OpsysContexteConfig = {
   timeoutMs: 4_000,
   agents: new Map([["m03-estimation", ["m3_estimer_projet"]]]),
   affaireFromSession: new Set<string>(),
+  contextServers: new Map([["m03-estimation", "opsys_context_m03-estimation"]]),
   levels: LEVELS_TEST,
+  targets: new Map<string, OpsysToolTarget>([
+    ["m3_estimer_projet", { kind: "affaire", path: ["contrat", "lead_id"], identity: "lead" }],
+    ["m4_notifier_client_completion", { kind: "unknown" }],
+    ["m5_enregistrer_mouvement", { kind: "unknown" }],
+  ]),
 };
 
 /** M3 as above, and M1 on a client channel: its case comes from the session key, never from the text. */
@@ -538,4 +544,8 @@ export const CONFIG_M3_ET_M1_SESSION: OpsysContexteConfig = {
     ["m01-front-office", []],
   ]),
   affaireFromSession: new Set(["m01-front-office"]),
+  contextServers: new Map([
+    ["m03-estimation", "opsys_context_m03-estimation"],
+    ["m01-front-office", "opsys_context_m01-front-office"],
+  ]),
 };

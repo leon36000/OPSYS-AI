@@ -1,5 +1,11 @@
 # Plan d'exécution OPSYS-AI
 
+> Historique des tranches de septembre. La consolidation courante est
+> [RESTRUCTURATION-2026-09-30](RESTRUCTURATION-2026-09-30.md), sous ADR-0012. Les cases et preuves
+> anciennes restent datées ; les défauts reproduits par audit sont suivis dans le nouveau plan.
+> Les mentions de revue extérieure obligatoire ci-dessous sont historiques et remplacées par
+> ADR-0012 ; les validations humaines des actions métier sensibles restent applicables.
+
 Source du QUOI : [définition produit](../produit/DEFINITION-PRODUIT.md). Décision d'architecture :
 [ADR-0008](../decisions/ADR-0008-fork-openclaw-opsys-core.md). Mode de travail : [BOUCLE.md](BOUCLE.md).
 

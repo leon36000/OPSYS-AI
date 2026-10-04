@@ -34,7 +34,7 @@ def _meta(**autres):
 def url_pg():
     if RAISON_SANS_DOCKER is not None:
         pytest.skip(RAISON_SANS_DOCKER)
-    with postgres_ephemere() as url:
+    with postgres_ephemere(stockage_en_memoire=True) as url:
         MemoireEntreprise(url).migrer()
         yield url
 
@@ -262,6 +262,77 @@ def test_ajouter_est_idempotent_et_complete_l_embedding_manquant(memoire):
     assert premier == second
     etat = memoire.etat()
     assert (etat["fragments"], etat["sans_embedding"]) == (1, 0)
+
+
+@avec_docker
+def test_source_namespace_opsys_document_est_interdite_au_chemin_generique(memoire):
+    with pytest.raises(ValueError, match="source réservée"):
+        memoire.ajouter("Contenu sans admission", _meta(
+            portee="procedures", source="opsys-document://00000000-0000-0000-0000-000000000000/" + "a" * 64))
+    assert memoire.etat()["fragments"] == 0
+
+
+@avec_docker
+def test_completer_embeddings_ne_transmet_pas_les_procedures_au_plongeur(memoire, url_pg):
+    service = memoire.procedures()
+    admission = service.admettre(b"# Plan\n\nVerifier la toiture.\n", "Plan", auteur="admin:store",
+                                 cle_admission="nonce-maintenance-r26-01")
+    service.indexer(admission.document_id, admission.sha256)
+    service.activer(admission.document_id, admission.sha256, attendu_sha256=None, auteur="admin:store")
+    legacy = "Ancien fragment mémoire à vectoriser."
+    memoire.ajouter(legacy, _meta())
+    emis = []
+
+    def plonger_local(textes):
+        emis.extend(textes)
+        return [plonger(texte) for texte in textes]
+
+    # Le double local suffit à éprouver le périmètre; la procédure ne doit jamais lui être transmise.
+    total = memoire.completer_embeddings(plonger_local, inclure_personnelles=False)
+    assert total == 1 and emis == [legacy]
+    assert _sql(url_pg, "SELECT count(*) FROM memoire.fragments f JOIN memoire.procedure_versions v"
+                " ON v.document_id=f.document_id WHERE v.sha256=%s AND f.embedding IS NOT NULL",
+                admission.sha256)[0][0] == 0
+
+
+@avec_docker
+def test_ajout_duplique_separe_profil_et_portee_sans_reclasser_le_fragment(memoire):
+    texte = "Fictif : code de virement Orange, accès réservé aux finances."
+    expire = _dans(30)
+    origine = _meta(departement="m05-financecore", portee="mouvements", source="fictif:finance/1",
+                    sensibilite="personnelle", sujets=["client:C-FAUX"], expire_le=expire)
+    ident = memoire.ajouter(texte, origine, plonger(texte))
+
+    # Une autre paire profil/portée peut conserver une copie canonique propre.
+    copie = memoire.ajouter(
+        texte,
+        _meta(departement="m01-front-office", portee="signaux", source="fictif:finance/1",
+              sensibilite="interne", sujets=[]),
+    )
+    assert copie != ident
+
+    # Dans cette même paire profil/portée, la modification de gouvernance est refusée.
+    with pytest.raises(ValueError, match="gouvernance"):
+        memoire.ajouter(
+            texte,
+            _meta(departement="m05-financecore", portee="mouvements", source="fictif:finance/1",
+                  sensibilite="interne", sujets=[]),
+        )
+
+    recherche_origine = memoire.rechercher("code de virement Orange", None, 5, {"portee": "mouvements"})
+    recherche_nouvelle_portee = memoire.rechercher("code de virement Orange", None, 5, {"portee": "signaux"})
+    (fragment,) = recherche_origine.resultats
+    assert fragment.fragment_id == ident
+    assert (fragment.departement, fragment.portee, fragment.sensibilite) == (
+        "m05-financecore", "mouvements", "personnelle"
+    )
+    assert fragment.sujets == ("client:C-FAUX",) and fragment.expire_le is not None
+    (copie_lue,) = recherche_nouvelle_portee.resultats
+    assert copie_lue.fragment_id == copie
+    assert (copie_lue.departement, copie_lue.portee, copie_lue.sensibilite) == (
+        "m01-front-office", "signaux", "interne"
+    )
+    assert memoire.etat()["fragments"] == 2
 
 
 @avec_docker

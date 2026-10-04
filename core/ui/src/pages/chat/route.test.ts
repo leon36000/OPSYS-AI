@@ -9,6 +9,7 @@ import type { ApplicationContext } from "../../app/context.ts";
 import { sessionsResult } from "../../lib/sessions/session-capability.test-support.ts";
 import { createChatPageSessions } from "./chat-page.test-support.ts";
 import { loadChatRoute } from "./route-loader.ts";
+import { createRouteTestAgentCapability } from "./route-resolution.test-support.ts";
 import { pages } from "./route.ts";
 
 const keyUuid = "12345678-90ab-cdef-1234-567890abcdef";
@@ -43,7 +44,7 @@ function contextFor(resolution: SessionsResolveResult = { ok: false }, mainKey =
       subscribe: vi.fn(() => () => undefined),
       subscribeEvents: vi.fn(() => () => undefined),
     },
-    agents: { state: { agentsList: { mainKey } } },
+    agents: createRouteTestAgentCapability(mainKey, ["main", "research", "ops", "work"], true),
   } as unknown as ApplicationContext;
   const sessions = createChatPageSessions(context.gateway);
   const list = vi.spyOn(sessions, "list");
@@ -407,7 +408,7 @@ describe("loadChatRoute", () => {
           return () => undefined;
         },
       },
-      agents: { state: { agentsList: null } },
+      agents: createRouteTestAgentCapability("workspace"),
     } as unknown as ApplicationContext;
     const pending = loadChatRoute(
       context,
@@ -508,7 +509,7 @@ describe("loadChatRoute", () => {
           return () => undefined;
         },
       },
-      agents: { state: { agentsList: null } },
+      agents: createRouteTestAgentCapability("workspace"),
     } as unknown as ApplicationContext;
     const pending = loadChatRoute(
       context,
@@ -576,7 +577,7 @@ describe("loadChatRoute", () => {
             return () => undefined;
           },
         },
-        agents: { state: { agentsList: null } },
+        agents: createRouteTestAgentCapability(mainKey),
       } as unknown as ApplicationContext;
       const loaded = await loadChatRoute(
         context,

@@ -477,7 +477,8 @@ def test_le_role_d_une_gestionnaire_admise_par_le_departement_ne_suffit_pas_a_l_
     _demande, decision = _demande_puis_decision(
         permissif, "m5_corriger_facture_fournisseur", _corriger_args(facture), "gestion", role="manager")
 
-    assert decision["statut"] == "executee", "la file a exécuté l'outil"
+    assert decision["statut"] == "echec", "la commande refusée ne compte pas comme exécutée"
+    assert decision["reponse"]["ok"] is True
     assert decision["reponse"]["resultat"]["accepte"] is False
     assert decision["reponse"]["resultat"]["verdict"]["code"] == "REJ-AP-HUMAIN-REQUIS"
     assert _registre_ap() == avant

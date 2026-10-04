@@ -274,5 +274,6 @@ def test_ecrire_palier_invalide_refuse_sans_rien_ecrire(opsys_home, palier, conf
 
 
 def test_champs_de_palier_alignes_sur_le_socle():
-    complet = modeles.valider_palier("local", {"provider": "custom", "model": "m", "base_url": "http://llm:8000/v1"})
+    complet = modeles.valider_palier("local", {"provider": "custom", "model": "m", "base_url": "http://llm:8000/v1",
+                                              "api_key_env": "MODELE_CLE", "fallbacks": ["fort"]})
     assert set(complet) == set(tableau_de_bord.CHAMPS_PALIER)

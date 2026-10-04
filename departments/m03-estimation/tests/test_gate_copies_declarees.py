@@ -14,12 +14,13 @@ et une preuve qui réécrit ses propres artefacts ne serait pas reproductible.
 Le gate n'étant pas un paquet installable, il est chargé par importlib depuis
 son chemin réel dérivé de ``__file__`` — jamais du répertoire courant.
 """
-import pytest
-
 import sys as _sys
 from pathlib import Path as _Path
+
+import pytest
+
 _sys.path.insert(0, str(_Path(__file__).resolve().parent))
-from _commun_gate import GATE, BRIEF, PRD, ARCHI
+from _commun_gate import ARCHI, GATE, PRD
 
 # Le corps des tests nomme le gate « VERIF_COHERENCE » : simple affectation
 # pour conserver cet identifiant sans toucher à aucun test.
@@ -340,7 +341,11 @@ _ARCHI_SYNTHETIQUE = ("# Archi\n\n## Copie\n\nCopié mot pour mot du PRD section
 
 
 def test_un_bloc_non_ferme_est_masque_jusqua_la_fin():
-    """Un bloc clôturé jamais refermé doit être masqué jusqu'à la fin du document — sans ce test, un scanner qui traiterait la fin de fichier comme une clôture implicite laisserait le faux titre et la fausse déclaration fuiter du bloc, et le cas de bord le plus structurant du masquage casserait en silence."""
+    """Un bloc jamais refermé reste masqué jusqu'à la fin du document.
+
+    Sans ce test, un scanner pourrait traiter la fin de fichier comme une clôture
+    implicite et laisser fuiter le faux titre et la fausse déclaration.
+    """
     messages_nu = VERIF_COHERENCE.verifier_copies_declarees(
         _PRD_SYNTHETIQUE, _ARCHI_SYNTHETIQUE
     )
@@ -348,7 +353,11 @@ def test_un_bloc_non_ferme_est_masque_jusqua_la_fin():
         "le couple synthétique nu doit être vert — sinon ce test « reste "
         f"vert » ne prouverait rien. Messages : {messages_nu}"
     )
-    archi_bloc_non_ferme = _ARCHI_SYNTHETIQUE + "\n## Exemple\n\n```text\n# faux titre\nCopié mot pour mot du PRD section 9.\n"
+    archi_bloc_non_ferme = (
+        _ARCHI_SYNTHETIQUE
+        + "\n## Exemple\n\n```text\n# faux titre\n"
+        "Copié mot pour mot du PRD section 9.\n"
+    )
     messages = VERIF_COHERENCE.verifier_copies_declarees(
         _PRD_SYNTHETIQUE, archi_bloc_non_ferme
     )
@@ -369,7 +378,10 @@ def test_un_bloc_non_ferme_est_masque_jusqua_la_fin():
 
 
 def test_un_bloc_imbrique_ne_ferme_pas_le_bloc_englobant():
-    """Une clôture de trois accents ne doit pas fermer un bloc ouvert à quatre — sans ce test, un scanner qui accepterait une clôture plus courte que l'ouverture refermerait le bloc englobant sur le bloc imbriqué et exposerait le faux titre."""
+    """Une clôture plus courte que l'ouverture ne ferme pas le bloc englobant.
+
+    Une fermeture prématurée exposerait le faux titre du bloc imbriqué.
+    """
     messages_nu = VERIF_COHERENCE.verifier_copies_declarees(
         _PRD_SYNTHETIQUE, _ARCHI_SYNTHETIQUE
     )
@@ -394,7 +406,10 @@ def test_un_bloc_imbrique_ne_ferme_pas_le_bloc_englobant():
 
 
 def test_une_cloture_indentee_ouvre_et_ferme_un_bloc():
-    """Une clôture précédée de deux espaces doit ouvrir et fermer un bloc comme une clôture en colonne zéro — sans ce test, un scanner qui exigerait la colonne zéro ne masquerait aucun bloc indenté et le faux titre fuiterait."""
+    """Une clôture précédée de deux espaces agit comme celle en colonne zéro.
+
+    Sans cette règle, le faux titre d'un bloc indenté fuiterait.
+    """
     messages_nu = VERIF_COHERENCE.verifier_copies_declarees(
         _PRD_SYNTHETIQUE, _ARCHI_SYNTHETIQUE
     )
@@ -419,7 +434,11 @@ def test_une_cloture_indentee_ouvre_et_ferme_un_bloc():
 
 
 def test_un_titre_indente_borne_bien_la_zone():
-    """Un titre indenté de deux espaces doit borner la zone de copie exactement comme un titre en colonne zéro — sans ce test, la seconde table serait rattachée à la zone déclarée, la rendrait ambiguë, et le contrôle mordrait des documents conformes."""
+    """Un titre indenté borne la zone de copie comme un titre en colonne zéro.
+
+    Sinon la seconde table rendrait la zone ambiguë et rejetterait un document
+    conforme.
+    """
     messages_nu = VERIF_COHERENCE.verifier_copies_declarees(
         _PRD_SYNTHETIQUE, _ARCHI_SYNTHETIQUE
     )
@@ -459,7 +478,10 @@ def test_un_titre_indente_borne_bien_la_zone():
 
 
 def test_un_titre_de_section_indente_est_reconnu_dans_le_prd():
-    """Un titre de section indenté de deux espaces dans le PRD doit être reconnu comme un vrai titre et résoudre la section citée exactement comme en colonne zéro — sans ce test, une regex de titre sans tolérance d'indentation ne trouve pas la section citée et le contrôle échoue sur un document pourtant valide."""
+    """Un titre de section indenté dans le PRD résout la section citée.
+
+    La regex doit accepter son indentation comme elle accepte la colonne zéro.
+    """
     prd_indente = "# PRD\n\n  ## 1. Section\n\n| Valeur | Sens |\n|---|---|\n| A | un |\n"
     messages = VERIF_COHERENCE.verifier_copies_declarees(
         prd_indente, _ARCHI_SYNTHETIQUE
@@ -483,7 +505,11 @@ def test_un_titre_de_section_indente_est_reconnu_dans_le_prd():
 
 
 def test_un_retour_chariot_dans_une_cellule_ne_tronque_pas_l_appariement():
-    """Un retour chariot dans une cellule ne doit pas tronquer la première ligne d'un artefact lors de l'appariement — sans ce test, un retour à .splitlines(), qui coupe aussi sur « \r » seul, tronquerait l'en-tête à « | A », apparierait le leurre et déclarerait divergente une copie exacte, et la régression passerait inaperçue."""
+    """Un CR dans une cellule ne tronque pas la ligne d'artefact appariée.
+
+    ``splitlines()`` couperait aussi sur CR seul, apparierait le leurre et
+    déclarerait divergente la copie exacte.
+    """
     prd = "# PRD\n\n## 1. Section\n\n| A\n|---|---|\n| leurre | ici |\n\n| A\rZ | un |\n|---|---|\n| vrai | la |\n"
     archi = "# Archi\n\n## Copie\n\nCopié mot pour mot du PRD section 1.\n\n| A\rZ | un |\n|---|---|\n| vrai | la |\n"
     messages = VERIF_COHERENCE.verifier_copies_declarees(prd, archi)

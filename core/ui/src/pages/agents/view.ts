@@ -1,6 +1,7 @@
 // Control UI view renders agents screen content.
 import { html, nothing } from "lit";
 import { keyed } from "lit/directives/keyed.js";
+import type { AssistantAvatarModelId } from "../../../../src/shared/assistant-avatar-model-catalog.js";
 import type { AgentIdentityResult, AgentsListResult, ModelCatalogEntry } from "../../api/types.ts";
 import { handleCopyButton } from "../../components/copy-button.ts";
 import type { DecisionModelEntry } from "../../components/decision-model-picker.ts";
@@ -118,6 +119,7 @@ type AgentsProps = {
   onConfigReload: () => void;
   onConfigSave: () => void;
   onIdentityFieldChange: (field: "name" | "emoji", value: string) => void;
+  onIdentityAvatarModelChange?: (modelId: AssistantAvatarModelId | null) => void;
   onIdentityAvatarSelect: (file: File) => void;
   onIdentitySave: () => void;
   onModelChange: (agentId: string, modelId: string | null) => void;
@@ -304,6 +306,8 @@ export function renderAgents(props: AgentsProps) {
                             onConfigReload: props.onConfigReload,
                             onConfigSave: props.onConfigSave,
                             onIdentityFieldChange: props.onIdentityFieldChange,
+                            onIdentityAvatarModelChange:
+                              props.onIdentityAvatarModelChange ?? (() => undefined),
                             onIdentityAvatarSelect: props.onIdentityAvatarSelect,
                             onIdentitySave: props.onIdentitySave,
                             onModelChange: props.onModelChange,

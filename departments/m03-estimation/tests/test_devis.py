@@ -15,9 +15,8 @@ if str(_SRC) not in sys.path:
 if str(_TESTS) not in sys.path:
     sys.path.insert(0, str(_TESTS))
 
-from _commun_contrats import cles_du_bloc_yaml
-from m3_estimation import contrats, devis, verdicts
-
+from _commun_contrats import cles_du_bloc_yaml  # noqa: E402
+from m3_estimation import contrats, devis, verdicts  # noqa: E402
 
 _CLES_ESTIMATION_ATTENDUES = {
     "devis_id",

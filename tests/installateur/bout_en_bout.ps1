@@ -100,8 +100,9 @@ $script:HotePrincipal = (Get-Process -Id $PID).Path
 $commandeCinq = Get-Command 'powershell.exe' -ErrorAction SilentlyContinue
 if ($commandeCinq) { $script:HoteSecondaire = $commandeCinq.Source } else { $script:HoteSecondaire = $script:HotePrincipal }
 
-# Les decisions que l'installateur n'invente pas : un palier de modeles, un service d'embeddings et une passerelle de
-# modeles. Aucun n'existe en CI : ce sont des adresses fermees, seul le demarrage est eprouve.
+# Les decisions que l'installateur n'invente pas : un palier de modeles et un service d'embeddings.
+# Les fournisseurs restent natifs par defaut. LiteLLM exige explicitement OPSYS_MODE_FOURNISSEUR=litellm et
+# OPSYS_PASSERELLE_URL. Les adresses fermees de CI eprouvent seulement le demarrage.
 $env:OPSYS_HOME = $script:OpsysHome
 $env:OPSYS_LOGICIEL = $script:Logiciel
 $env:OPSYS_BIN = $script:Bin
@@ -110,7 +111,6 @@ $env:OPSYS_PORT_GATEWAY = [string]$script:PortGateway
 $env:OPSYS_PORT_MOTEUR = [string]$script:PortMoteur
 $env:OPSYS_EMBEDDINGS_URL = 'http://127.0.0.1:9/v1'
 $env:OPSYS_EMBEDDINGS_MODELE = 'bge-m3'
-$env:OPSYS_PASSERELLE_URL = 'http://127.0.0.1:9/v1'
 $env:NO_PROXY = '127.0.0.1,localhost'
 $env:no_proxy = '127.0.0.1,localhost'
 $env:PYTHONUTF8 = '1'

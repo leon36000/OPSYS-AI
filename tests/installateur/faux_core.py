@@ -82,6 +82,7 @@ PASSAVANT_PREFIXES_CLI = ("LC_", "LITELLM_", "OPSYS_", "PYTHON", "UV_", "XDG_")
 COMMANDES_DEPLACEES = (
     "departements", "verifier", "profils", "approbations", "personnes", "base", "evenements", "mode", "budgets",
     "services", "equipes", "meteo", "paliers", "openclaw", "appareils", "instance", "passerelle",
+    "memoire-developpement",
 )
 
 

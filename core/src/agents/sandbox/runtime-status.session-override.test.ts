@@ -9,6 +9,193 @@ import {
 } from "./runtime-status.js";
 
 describe("session sandbox override", () => {
+  it("keeps OPSYS agent main and named sessions sandbox-required despite persisted opt-out", async () => {
+    await withOpenClawTestState({ scenario: "minimal" }, async () => {
+      const cfg: OpenClawConfig = {
+        tools: { exec: { host: "sandbox" } },
+        agents: {
+          ownership: "explicit",
+          defaults: {
+            opsysIsolation: { exec: "sandbox-required" },
+            sandbox: {
+              mode: "all",
+              backend: "docker",
+              scope: "session",
+              workspaceAccess: "none",
+              docker: { network: "none", readOnlyRoot: true, capDrop: ["ALL"], binds: [] },
+            },
+          },
+          entries: {
+            main: {},
+            "m03-estimation": { opsysIsolation: { exec: "sandbox-required" } },
+          },
+        },
+      };
+      const sessionKey = "agent:m03-estimation:main";
+      await upsertSessionEntryCore(
+        { agentId: "m03-estimation", sessionKey },
+        { sessionId: "main", updatedAt: 1, sandboxMode: "off" },
+      );
+
+      expect(
+        resolveSandboxRuntimeStatus({ cfg, sessionKey, agentId: "m03-estimation" }),
+      ).toMatchObject({
+        sandboxRequired: true,
+        sandboxed: true,
+        workspaceAccess: "none",
+      });
+
+      const mainSessionKey = "agent:main:main";
+      await upsertSessionEntryCore(
+        { agentId: "main", sessionKey: mainSessionKey },
+        { sessionId: "main", updatedAt: 1, sandboxMode: "off" },
+      );
+      expect(
+        resolveSandboxRuntimeStatus({ cfg, sessionKey: mainSessionKey, agentId: "main" }),
+      ).toMatchObject({
+        sandboxRequired: true,
+        sandboxed: true,
+      });
+    });
+  });
+
+  it("fails closed when an OPSYS-required agent sandbox is downgraded", () => {
+    const cfg: OpenClawConfig = {
+      agents: {
+        ownership: "explicit",
+        defaults: { sandbox: { mode: "off" } },
+        entries: { "m03-estimation": { opsysIsolation: { exec: "sandbox-required" } } },
+      },
+    };
+
+    expect(() =>
+      resolveSandboxRuntimeStatus({
+        cfg,
+        sessionKey: "agent:m03-estimation:main",
+        agentId: "m03-estimation",
+        preparedSessionEntry: null,
+      }),
+    ).toThrow(/OPSYS agent m03-estimation requires/);
+  });
+
+  it("refuses an OPSYS sandbox-required request without a canonical session key", () => {
+    const cfg = {
+      tools: { exec: { host: "sandbox" } },
+      agents: {
+        ownership: "explicit",
+        defaults: {
+          opsysIsolation: { exec: "sandbox-required" },
+          sandbox: {
+            mode: "all",
+            backend: "docker",
+            scope: "session",
+            workspaceAccess: "none",
+            docker: { network: "none", readOnlyRoot: true, capDrop: ["ALL"], binds: [] },
+          },
+        },
+        entries: { main: {} },
+      },
+    } as OpenClawConfig;
+    expect(() => resolveSandboxRuntimeStatus({ cfg, agentId: "main" })).toThrow(
+      /OPSYS agent main requires a canonical session key/,
+    );
+  });
+
+  it.each(["seccompProfile", "apparmorProfile"] as const)(
+    "rejects custom %s under required OPSYS isolation",
+    (profileKey) => {
+      const docker = {
+        network: "none",
+        readOnlyRoot: true,
+        capDrop: ["ALL"],
+        binds: [],
+        [profileKey]: "unconfined",
+      };
+      const cfg = {
+        tools: { exec: { host: "sandbox" } },
+        agents: {
+          ownership: "explicit",
+          defaults: {
+            opsysIsolation: { exec: "sandbox-required" },
+            sandbox: {
+              mode: "all",
+              backend: "docker",
+              scope: "session",
+              workspaceAccess: "none",
+              docker,
+            },
+          },
+          entries: { main: {} },
+        },
+      } as OpenClawConfig;
+      expect(() =>
+        resolveSandboxRuntimeStatus({
+          cfg,
+          agentId: "main",
+          sessionKey: "agent:main:main",
+          preparedSessionEntry: null,
+        }),
+      ).toThrow(/OPSYS agent main requires/);
+    },
+  );
+
+  it.each([
+    ["remote execution target", { tools: { exec: { host: "node" } } }],
+    ["host execution target", { tools: { exec: { host: "gateway" } } }],
+    [
+      "network or bind override",
+      {
+        tools: { exec: { host: "sandbox" } },
+        agents: {
+          ownership: "explicit",
+          defaults: {
+            sandbox: {
+              mode: "all",
+              backend: "docker",
+              scope: "session",
+              workspaceAccess: "none",
+              docker: {
+                network: "bridge",
+                readOnlyRoot: true,
+                capDrop: ["ALL"],
+                binds: ["/run/docker.sock:/run/docker.sock"],
+              },
+            },
+          },
+          entries: { "m03-estimation": { opsysIsolation: { exec: "sandbox-required" } } },
+        },
+      },
+    ],
+  ])("rejects OPSYS downgrade: %s", (_name, overrides) => {
+    const cfg = Object.assign(
+      {
+        tools: { exec: { host: "sandbox" } },
+        agents: {
+          ownership: "explicit",
+          defaults: {
+            sandbox: {
+              mode: "all",
+              backend: "docker",
+              scope: "session",
+              workspaceAccess: "none",
+              docker: { network: "none", readOnlyRoot: true, capDrop: ["ALL"], binds: [] },
+            },
+          },
+          entries: { "m03-estimation": { opsysIsolation: { exec: "sandbox-required" } } },
+        },
+      },
+      overrides,
+    ) as OpenClawConfig;
+    expect(() =>
+      resolveSandboxRuntimeStatus({
+        cfg,
+        sessionKey: "agent:m03-estimation:main",
+        agentId: "m03-estimation",
+        preparedSessionEntry: null,
+      }),
+    ).toThrow(/OPSYS agent m03-estimation requires/);
+  });
+
   it("uses canonical classification identity in exact, batch, and context resolution", async () => {
     await withOpenClawTestState({ scenario: "minimal" }, async (state) => {
       const cfg: OpenClawConfig = { agents: { defaults: { sandbox: { mode: "all" } } } };

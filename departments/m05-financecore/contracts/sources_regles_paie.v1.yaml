@@ -1,0 +1,134 @@
+schema_version: 1
+portee_catalogue: >-
+  Inventaire documentaire; aucune table de calcul de paie n'est qualifiée. Les références listées ne couvrent pas
+  nécessairement toutes les règles, crédits, exceptions ou contributions applicables.
+juridictions:
+  QC:
+    composants_requis: [federal, quebec]
+sources:
+  - id: arc_t4127_2026_122e_janvier
+    juridiction: QC
+    composant: federal
+    document: T4127
+    edition: "122e édition, janvier 2026"
+    applicable_du: "2026-01-01"
+    applicable_au: "2026-06-30"
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jan/t4127-jan-payroll-deductions-formulas-computer-programs.html
+    capture_path: null
+    sha256: fe89856203fec4252ae6f7447d2ac368e2a608c680be2015e4bd200356da485c
+    statut: NON_QUALIFIEE
+    portee_statut: >-
+      Page HTML officielle CRA capturée par R16 le 2026-09-30 (text/html, HTTP 200); le SHA du catalogue est celui de cette page, pas celui du PDF. PDF de la même édition capturé séparément le 2026-10-01 (SHA-256 c715b8e6d33e0887119e0462b9a4cf8915370c56381932f1d7ba3a32385ddd8c), archivé hors runtime; non intégré au catalogue M5. T4127 n'inclut pas l'impôt provincial QC; portée fédérale QC/vecteurs/revue CPA restent à qualifier.
+    frequences: null
+  - id: arc_t4127_2026_123e_juillet
+    juridiction: QC
+    composant: federal
+    document: T4127
+    edition: "123e édition, juillet 2026"
+    applicable_du: "2026-07-01"
+    applicable_au: null
+    url: https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas/t4127-jul/t4127-jul-payroll-deductions-formulas.html
+    capture_path: null
+    sha256: cbd818498f172c7ec16b97acf06d29cfb5e74f5663edbb6d343894a756418c9d
+    statut: NON_QUALIFIEE
+    portee_statut: >-
+      Page HTML officielle CRA capturée par R16 le 2026-09-30 (text/html, HTTP 200); le SHA du catalogue est celui de cette page, pas celui du PDF. PDF de la même édition capturé séparément le 2026-10-01 (SHA-256 69d86d952cb14c786fdcc0321ec293f66db1529276ef310217b3ade47db25671), archivé hors runtime; non intégré au catalogue M5. Borne de fin et portée fédérale QC/vecteurs/revue CPA restent à qualifier; T4127 n'inclut pas l'impôt provincial QC.
+    frequences: null
+  - id: rq_tp1015f_2026
+    juridiction: QC
+    composant: quebec
+    document: TP-1015.F
+    edition: "2026-01"
+    applicable_du: null
+    applicable_au: null
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.F%282026-01%29.pdf
+    capture_path: null
+    sha256: a65675dc6ad2bfc6c4fe2695d4914a57f381eccc9b8b1e1c581b7c9c8a18e72b
+    statut: NON_QUALIFIEE
+    portee_statut: >-
+      PDF officiel de millésime 2026-01 capturé hors runtime le 2026-10-01; le SHA décrit les octets PDF, mais la capture n’est pas intégrée au catalogue M5. Intervalle d'effet/couverture et vecteurs CPA restent à qualifier.
+    frequences: null
+  - id: rq_tp1015g_2026
+    juridiction: QC
+    composant: quebec_guide
+    document: TP-1015.G
+    edition: "2026-01"
+    applicable_du: null
+    applicable_au: null
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.G%282026-01%29.pdf
+    capture_path: null
+    sha256: b0c848cf67f26e269939c0032c69b577673dcd994966c0ed152b5627f86c313b
+    statut: NON_QUALIFIEE
+    portee_statut: >-
+      PDF officiel de millésime 2026-01 capturé hors runtime le 2026-10-01; le SHA décrit les octets PDF, mais la capture n’est pas intégrée au catalogue M5. Intervalle d'effet/couverture et vecteurs CPA restent à qualifier.
+    frequences: null
+  - id: rq_tp1015ti_2026
+    juridiction: QC
+    composant: quebec_tables_irpp
+    document: TP-1015.TI
+    edition: "2026-01"
+    applicable_du: null
+    applicable_au: null
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.TI%282026-01%29.pdf
+    capture_path: null
+    sha256: 8f291c5857fcbfa16dbae4f42435f6f9c2149f0f65c75c0f816c2d06a8c33c73
+    statut: NON_QUALIFIEE
+    portee_statut: >-
+      PDF officiel de millésime 2026-01 capturé hors runtime le 2026-10-01; le SHA décrit les octets PDF, mais la capture n’est pas intégrée au catalogue M5. Intervalle d'effet/couverture et vecteurs CPA restent à qualifier.
+    frequences: null
+  - id: rq_tp1015ti26_2026
+    juridiction: QC
+    composant: quebec_table_irpp_26
+    document: TP-1015.TI.26
+    edition: "2026-01"
+    applicable_du: null
+    applicable_au: null
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.TI.26%282026-01%29.pdf
+    capture_path: null
+    sha256: 83f1a4cd56d3c81f9aa5ddb81ca6d619953e74d78d8f0b5af19c94f1c3b03ef1
+    statut: NON_QUALIFIEE
+    portee_statut: >-
+      PDF officiel de millésime 2026-01 capturé hors runtime le 2026-10-01; le SHA décrit les octets PDF, mais la capture n’est pas intégrée au catalogue M5. Intervalle d'effet/couverture et vecteurs CPA restent à qualifier.
+    frequences: null
+  - id: rq_tp1015tr_2026
+    juridiction: QC
+    composant: quebec_tables_rrq
+    document: TP-1015.TR
+    edition: "2026-01"
+    applicable_du: null
+    applicable_au: null
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.TR%282026-01%29.pdf
+    capture_path: null
+    sha256: 32144099093936757d2a89f6d6ef43b2d2a9df6717e8a8922c2324d5c4606aeb
+    statut: NON_QUALIFIEE
+    portee_statut: >-
+      PDF officiel de millésime 2026-01 capturé hors runtime le 2026-10-01; le SHA décrit les octets PDF, mais la capture n’est pas intégrée au catalogue M5. Intervalle d'effet/couverture et vecteurs CPA restent à qualifier.
+    frequences: null
+  - id: rq_tp1015tr26_2026
+    juridiction: QC
+    composant: quebec_table_rrq_26
+    document: TP-1015.TR.26
+    edition: "2026-01"
+    applicable_du: null
+    applicable_au: null
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.TR.26%282026-01%29.pdf
+    capture_path: null
+    sha256: 2079c958132de69216157b5c16c0296c89556e6deb69ad1854c9ebddf680c321
+    statut: NON_QUALIFIEE
+    portee_statut: >-
+      PDF officiel de millésime 2026-01 capturé hors runtime le 2026-10-01; le SHA décrit les octets PDF, mais la capture n’est pas intégrée au catalogue M5. Intervalle d'effet/couverture et vecteurs CPA restent à qualifier.
+    frequences: null
+  - id: rq_tp1015ta_2026
+    juridiction: QC
+    composant: quebec_table_rqap
+    document: TP-1015.TA
+    edition: "2026-01"
+    applicable_du: null
+    applicable_au: null
+    url: https://www.revenuquebec.ca/documents/fr/formulaires/tp/TP-1015.TA%282026-01%29.pdf
+    capture_path: null
+    sha256: 41049d52a58754ff99b958c8e0af8dfcda0f44ad795568d1b9a32b4d3fa1b44f
+    statut: NON_QUALIFIEE
+    portee_statut: >-
+      PDF officiel de millésime 2026-01 capturé hors runtime le 2026-10-01; le SHA décrit les octets PDF, mais la capture n’est pas intégrée au catalogue M5. Intervalle d'effet/couverture et vecteurs CPA restent à qualifier.
+    frequences: null

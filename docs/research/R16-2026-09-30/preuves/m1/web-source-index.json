@@ -1,0 +1,438 @@
+{
+  "review_date": "2026-09-30",
+  "search_results_requested": 70,
+  "unique_urls": 73,
+  "sources": [
+    {
+      "url": "https://github.com/SYSTRAN/faster-whisper",
+      "type": "primary_repository",
+      "evidence_file": "exa-fetch1.json"
+    },
+    {
+      "url": "https://huggingface.co/hexgrad/Kokoro-82M",
+      "type": "original_model_card",
+      "evidence_file": "exa-fetch1.json"
+    },
+    {
+      "url": "https://huggingface.co/rhasspy/piper-voices/blob/main/fr/fr_FR/siwis/medium/MODEL_CARD",
+      "type": "original_model_card",
+      "evidence_file": "exa-fetch1.json"
+    },
+    {
+      "url": "https://docs.livekit.io/telephony/features/transfers/warm.md",
+      "type": "official_provider",
+      "evidence_file": "exa-fetch1.json"
+    },
+    {
+      "url": "https://support.google.com/business/answer/15013580?hl=en",
+      "type": "official_provider",
+      "evidence_file": "exa-fetch1.json"
+    },
+    {
+      "url": "https://developers.chatwoot.com/self-hosted/faq",
+      "type": "official_provider",
+      "evidence_file": "exa-fetch1.json"
+    },
+    {
+      "url": "https://developers.chatwoot.com/self-hosted/deployment/requirements",
+      "type": "official_provider",
+      "evidence_file": "exa-fetch1.json"
+    },
+    {
+      "url": "https://www.twilio.com/en-us/voice/pricing/ca",
+      "type": "official_provider",
+      "evidence_file": "exa-fetch2.json"
+    },
+    {
+      "url": "https://www.twilio.com/en-us/sms/pricing/ca",
+      "type": "official_provider",
+      "evidence_file": "exa-fetch2.json"
+    },
+    {
+      "url": "https://developers.facebook.com/docs/whatsapp/pricing/",
+      "type": "official_provider",
+      "evidence_file": "exa-fetch2.json"
+    },
+    {
+      "url": "https://developers.chatwoot.com/self-hosted/deployment/requirements",
+      "type": "official_provider",
+      "evidence_file": "exa-fetch2.json"
+    },
+    {
+      "url": "https://docs.pipecat.ai/pipecat/learn/transports",
+      "type": "official_provider",
+      "evidence_file": "exa-fetch2.json"
+    },
+    {
+      "url": "https://docs.livekit.io/reference/agents/turn-handling-options.md",
+      "type": "official_provider",
+      "evidence_file": "exa-fetch2.json"
+    },
+    {
+      "url": "https://developers.chatwoot.com/self-hosted/faq",
+      "type": "official_provider",
+      "evidence_file": "exa-fetch2.json"
+    },
+    {
+      "url": "https://support.google.com/business/answer/14919062?hl=en",
+      "type": "official_provider",
+      "evidence_file": "exa-fetch2.json"
+    },
+    {
+      "url": "https://developers.google.com/business-communications/business-messages/resources/release-notes/update-on-gbm",
+      "type": "official_provider",
+      "evidence_file": "exa-fetch2.json"
+    },
+    {
+      "url": "https://gitlab.linphone.org/BC/public/liblinphone",
+      "type": "primary_repository",
+      "evidence_file": "exa-gitlab.json"
+    },
+    {
+      "url": "https://gitlab.linphone.org/BC/public/external/whisper.cpp",
+      "type": "primary_repository",
+      "evidence_file": "exa-gitlab.json"
+    },
+    {
+      "url": "https://gitlab.com/linphone2/liblinphone/-/tree/master",
+      "type": "primary_repository",
+      "evidence_file": "exa-gitlab.json"
+    },
+    {
+      "url": "https://gitlab.linphone.org/BC/public/liblinphone/-/tree/master/share",
+      "type": "primary_repository",
+      "evidence_file": "exa-gitlab.json"
+    },
+    {
+      "url": "https://gitlab.linphone.org/BC/public/external/whisper.cpp/-/blob/bc/README.md?ref_type=heads",
+      "type": "primary_repository",
+      "evidence_file": "exa-gitlab.json"
+    },
+    {
+      "url": "https://gitlab.com/psyb0t/docker-mailbox",
+      "type": "primary_repository",
+      "evidence_file": "exa-gitlab.json"
+    },
+    {
+      "url": "https://gitlab.com/supportik/supportik",
+      "type": "primary_repository",
+      "evidence_file": "exa-gitlab.json"
+    },
+    {
+      "url": "https://gitlab.com/ladybirdweb/faveohelpdesk/-/tree/master",
+      "type": "primary_repository",
+      "evidence_file": "exa-gitlab.json"
+    },
+    {
+      "url": "https://gitlab.com/psyb0t/aigate/-/tree/main/mailbox",
+      "type": "primary_repository",
+      "evidence_file": "exa-gitlab.json"
+    },
+    {
+      "url": "https://gitlab.com/etke.cc/honoroit/-/tree/3ee115c9c0d483188d8275b8a688f171f83e3568",
+      "type": "primary_repository",
+      "evidence_file": "exa-gitlab.json"
+    },
+    {
+      "url": "https://docs.pipecat.ai/pipecat/learn/transports",
+      "type": "official_provider",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://docs.pipecat.ai/api-reference/server/services/serializers/twilio",
+      "type": "official_provider",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://github.com/pipecat-ai/pipecat-examples/tree/main/twilio-chatbot",
+      "type": "primary_repository",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://docs.pipecat.ai/api-reference/server/services/transport/livekit.md",
+      "type": "official_provider",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://docs.pipecat.ai/api-reference/server/services/transport/fastapi-websocket",
+      "type": "official_provider",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://docs.livekit.io/telephony/features/transfers/warm.md",
+      "type": "official_provider",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://docs.livekit.io/reference/agents/turn-handling-options.md",
+      "type": "official_provider",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://docs.livekit.io/reference/recipes/answer_call.md",
+      "type": "official_provider",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://github.com/livekit/agents/tree/main/examples/warm-transfer",
+      "type": "primary_repository",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://docs.livekit.io/agents/logic/sessions/",
+      "type": "official_provider",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://support.google.com/business/answer/14919062?hl=en",
+      "type": "official_provider",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://developers.google.com/business-communications/business-messages/resources/release-notes/update-on-gbm",
+      "type": "official_provider",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://developers.google.com/business-communications/business-messages/guides/how-it-works",
+      "type": "official_provider",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://www.nearmedia.co/whatsapp-now-live-on-us-google-business-profiles-2/",
+      "type": "secondary_not_decisive",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://developers.google.com/business-communications/business-messages",
+      "type": "official_provider",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://chatwoot.help/hc/user-guide/articles/1677776492-enterprise-edition",
+      "type": "official_provider",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://developers.chatwoot.com/self-hosted/faq",
+      "type": "official_provider",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://www.chatwoot.com/pricing/self-hosted-plans",
+      "type": "official_provider",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://chatwoot.help/hc/handbook/articles/developing-enterprise-edition-features-38.md",
+      "type": "official_provider",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://www.chatwoot.com/solutions/size/enterprise",
+      "type": "official_provider",
+      "evidence_file": "exa-pass1.json"
+    },
+    {
+      "url": "https://www.twilio.com/en-us/voice/pricing/ca",
+      "type": "official_provider",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://www.twilio.com/docs/voice/media-streams",
+      "type": "official_provider",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://www.twilio.com/docs/voice/media-streams/websocket-messages",
+      "type": "official_provider",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://www.twilio.com/en-us/sms/pricing/ca",
+      "type": "official_provider",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://www.twilio.com/docs/voice/pricing.md",
+      "type": "official_provider",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://support.google.com/business/answer/15013580?hl=en",
+      "type": "official_provider",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://support.google.com/business/answer/14919062?hl=en",
+      "type": "official_provider",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://support.google.com/business/answer/14919056?hl=en",
+      "type": "official_provider",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://support.google.com/business/answer/13763036?hl=en",
+      "type": "official_provider",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://support.google.com/business/answer/14919062?hl=en-GB",
+      "type": "official_provider",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://github.com/OHF-Voice/piper1-gpl/releases/tag/v1.3.0",
+      "type": "primary_repository",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://github.com/OHF-Voice/piper1-gpl/blob/main/docs/CLI.md",
+      "type": "primary_repository",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://pkg.go.dev/github.com/OHF-Voice/piper1-gpl@v1.4.2",
+      "type": "secondary_not_decisive",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://github.com/rhasspy/piper/blob/c0670df63daf07070c9be36b5c4bed270ad72383/VOICES.md",
+      "type": "primary_repository",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://github.com/rhasspy/piper/blob/9b1c6397/README.md",
+      "type": "primary_repository",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://developers.facebook.com/docs/messenger-platform/send-messages/",
+      "type": "official_provider",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://developers.facebook.com/docs/instagram-messaging/overview/",
+      "type": "official_provider",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://developers.facebook.com/docs/messenger-platform/instagram/app-review/",
+      "type": "official_provider",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://developers.facebook.com/documentation/business-messaging/messenger-platform/policy",
+      "type": "official_provider",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://developers.facebook.com/docs/messenger-platform/instagram/features/webhook/",
+      "type": "official_provider",
+      "evidence_file": "exa-pass2.json"
+    },
+    {
+      "url": "https://developers.facebook.com/docs/whatsapp/cloud-api/guides/send-messages/",
+      "type": "official_provider",
+      "evidence_file": "exa-pass3.json"
+    },
+    {
+      "url": "https://developers.facebook.com/docs/whatsapp/pricing/",
+      "type": "official_provider",
+      "evidence_file": "exa-pass3.json"
+    },
+    {
+      "url": "https://developers.facebook.com/documentation/business-messaging/whatsapp/get-started",
+      "type": "official_provider",
+      "evidence_file": "exa-pass3.json"
+    },
+    {
+      "url": "https://developers.facebook.com/docs/whatsapp/pricing/updates-to-pricing?locale=es_ES",
+      "type": "official_provider",
+      "evidence_file": "exa-pass3.json"
+    },
+    {
+      "url": "https://developers.facebook.com/docs/whatsapp/business-management-api/message-templates",
+      "type": "official_provider",
+      "evidence_file": "exa-pass3.json"
+    },
+    {
+      "url": "https://developers.chatwoot.com/api-reference/inboxes/add-or-remove-agent-bot",
+      "type": "official_provider",
+      "evidence_file": "exa-pass3.json"
+    },
+    {
+      "url": "https://developers.chatwoot.com/api-reference/webhooks/update-a-webhook-object",
+      "type": "official_provider",
+      "evidence_file": "exa-pass3.json"
+    },
+    {
+      "url": "https://developers.chatwoot.com/api-reference/webhooks/add-a-webhook",
+      "type": "official_provider",
+      "evidence_file": "exa-pass3.json"
+    },
+    {
+      "url": "https://developers.chatwoot.com/api-reference/agentbots/create-an-agent-bot",
+      "type": "official_provider",
+      "evidence_file": "exa-pass3.json"
+    },
+    {
+      "url": "https://developers.chatwoot.com/api-reference/inboxes/update-inbox",
+      "type": "official_provider",
+      "evidence_file": "exa-pass3.json"
+    },
+    {
+      "url": "https://www.twilio.com/docs/usage/webhooks/webhooks-security",
+      "type": "official_provider",
+      "evidence_file": "exa-pass3.json"
+    },
+    {
+      "url": "https://www.twilio.com/docs/messaging/features/consent-api",
+      "type": "official_provider",
+      "evidence_file": "exa-pass3.json"
+    },
+    {
+      "url": "https://www.twilio.com/docs/usage/tutorials/how-to-secure-your-express-app-by-validating-incoming-twilio-requests",
+      "type": "official_provider",
+      "evidence_file": "exa-pass3.json"
+    },
+    {
+      "url": "https://www.twilio.com/docs/usage/webhooks/webhooks-faq",
+      "type": "official_provider",
+      "evidence_file": "exa-pass3.json"
+    },
+    {
+      "url": "https://www.twilio.com/docs/messaging/tutorials/masked-numbers/node",
+      "type": "official_provider",
+      "evidence_file": "exa-pass3.json"
+    },
+    {
+      "url": "https://surveyjs.io/try/vanillajs",
+      "type": "official_provider",
+      "evidence_file": "exa-pass3.json"
+    },
+    {
+      "url": "https://github.com/surveyjs/survey-library",
+      "type": "primary_repository",
+      "evidence_file": "exa-pass3.json"
+    },
+    {
+      "url": "https://github.com/surveyjs/survey-creator/",
+      "type": "primary_repository",
+      "evidence_file": "exa-pass3.json"
+    },
+    {
+      "url": "https://surveyjs.io/pricing",
+      "type": "official_provider",
+      "evidence_file": "exa-pass3.json"
+    },
+    {
+      "url": "https://surveyjs.io/",
+      "type": "official_provider",
+      "evidence_file": "exa-pass3.json"
+    }
+  ],
+  "authority_rule": "Fresh GitHub API metadata over cached search snippets; official provider policy pages over older landing pages; per-file code license and model license over GitHub SPDX heuristic"
+}

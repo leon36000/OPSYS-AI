@@ -95,6 +95,37 @@ def test_alerte_donnee_perimee_est_publiee_en_production(base_durable):
     }
 
 
+def test_alerte_donnee_non_finie_est_distincte_et_publiee(base_durable):
+    par_nom = {o.nom: o for o in outils()}
+    executer_atomique(par_nom["m8_enregistrer_definition_metrique"], {"definition": _DEFINITION_M4})
+    rapport = executer_atomique(
+        par_nom["m8_rapport_metriques"],
+        {
+            "dictionnaire": {"m04-field-ops": {"m4_duree_reelle_minutes": {}}},
+            "snapshot": {
+                "module_source": "m04-field-ops", "horodatage": "2026-01-04T00:00:00Z",
+                "valeurs": {"m4_duree_reelle_minutes": "nan"},
+            },
+            "metric_ids": ["m4_duree_reelle_minutes"],
+            "horodatage_reference": "2026-01-04T00:00:00Z", "n_minimal": 1,
+        },
+    )
+    assert rapport["resultat"]["accepte"] is False
+    assert "rapport" not in rapport["resultat"]
+    resultat = executer_atomique(
+        par_nom["m8_evaluer_qualite_metrique"],
+        {"metric_id": "m4_duree_reelle_minutes", "horodatage_reference": "2026-01-04T00:00:00Z"},
+    )
+    alerte = resultat["resultat"]["alertes_proposees"][0]
+    assert resultat["resultat"]["n"] == 0 and resultat["resultat"]["valeur"] is None
+    assert alerte["type_alerte"] == "REJ-QUALITE-DONNEE-INVALIDE"
+    assert alerte["preuve"] == {"metric_id": "m4_duree_reelle_minutes", "n": 0, "valeurs_invalides": 1}
+    publies = _evenements_publies("m8.alerte_proposee")
+    assert len(publies) == 1
+    assert publies[0]["charge"]["type_alerte"] == "REJ-QUALITE-DONNEE-INVALIDE"
+    assert publies[0]["charge"]["preuve"] == alerte["preuve"]
+
+
 def test_reevaluation_identique_ne_republie_pas_un_second_evenement(base_durable):
     """Idempotence PRODUCTEUR : même métrique, même horodatage_reference (donc même verdict) —
     l'outbox garde un seul évenement_id (ADR-0009 §3, on_conflict_do_nothing)."""

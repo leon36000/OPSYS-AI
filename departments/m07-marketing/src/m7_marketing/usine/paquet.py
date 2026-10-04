@@ -162,3 +162,35 @@ def construire_export(
         "exporte_par": exporte_par,
         "horodatage": horodatage,
     }, None
+
+
+def ajouter_medias_prepares(
+    paquet: Mapping[str, Any], dossier: Mapping[str, Any], remise: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Ajoute au paquet calendrier des références de fichiers revus, sans incorporer leurs octets."""
+    if dossier.get("statut") not in {"APPROUVE", "REMIS"}:
+        raise ValueError("le dossier médias doit être approuvé et la remise doit viser sa révision courante")
+    if dossier.get("statut") == "APPROUVE" and remise.get("empreinte_cible") != dossier.get("empreinte_dossier"):
+        raise ValueError("la remise ne vise pas l'empreinte du dossier approuvé")
+    if dossier.get("statut") == "REMIS" and not any(
+        r.get("media_export_id") == remise.get("media_export_id") for r in dossier.get("remises", [])
+    ):
+        raise ValueError("la remise ne figure pas dans l'historique du dossier")
+    references = remise.get("prepared_refs")
+    if not isinstance(references, list) or not references or not all(isinstance(r, str) for r in references):
+        raise ValueError("références préparées absentes ou invalides")
+    return {
+        **dict(paquet),
+        "dossier_medias": {
+            "statut": "revue humaine, remis manuellement",
+            "media_export_id": remise["media_export_id"],
+            "revision": remise["revision_cible"],
+            "empreinte_dossier": remise["empreinte_cible"],
+            "fichiers_prepares": references,
+            "limites": (
+                "Fichiers fournis par un humain. OPSYS vérifie taille, hash et signature JPEG/PNG, mais ne décode "
+                "pas les pixels et ne retire ni ne vérifie automatiquement EXIF, visages, plaques ou adresses. "
+                "La revue consignée est une attestation humaine."
+            ),
+        },
+    }

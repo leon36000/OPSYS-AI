@@ -38,7 +38,7 @@ from m4_field_ops import cedule
 from m8_analytics import outils as m8_outils
 from sqlalchemy import select
 
-from opsys import evenements, stockage
+from opsys import contexte, evenements, stockage
 from opsys.departements import charger_departements
 from opsys.outils import executer_atomique
 from opsys.stockage import codec
@@ -399,8 +399,9 @@ def _retenus_attendus(agent) -> int:
     return niveaux.count("FINANCIAL") + (0 if prives_admis else niveaux.count("CLIENT_PRIVATE"))
 
 
-def _m10(deps, nom: str, **arguments) -> dict:
-    reponse = executer_atomique(_outils(deps, "m10-memoire")[nom], arguments)
+def _m10(deps, nom: str, *, origine: str | None = None, **arguments) -> dict:
+    with contexte.appeler_en_tant_que(origine):
+        reponse = executer_atomique(_outils(deps, "m10-memoire")[nom], arguments)
     assert reponse["ok"] is True, reponse
     return reponse["resultat"]
 
@@ -500,10 +501,13 @@ def test_la_marge_reelle_de_m5_atteint_m8_qui_la_mesure_et_m10_qui_la_memorise_s
 
     # -- M10 : la marge ne sort dans AUCUN paquet de contexte, pour aucun agent ---------------------------------
     for agent in (None, "m01-front-office", "m02-revenue-crm", "m05-financecore", "m08-analytics"):
-        arguments = {"affaire_id": lead_id, "horodatage": _iso(base, 24 * 3600)}
-        if agent is not None:
-            arguments["agent"] = agent
-        paquet = _m10(deps, "m10_paquet_contexte_affaire", **arguments)
+        paquet = _m10(
+            deps,
+            "m10_paquet_contexte_affaire",
+            origine=agent,
+            affaire_id=lead_id,
+            horodatage=_iso(base, 24 * 3600),
+        )
         texte = json.dumps(paquet, ensure_ascii=False)
         # Retenues, seulement comptées.
         assert paquet["confidentialite"]["nb_retenus"] == _retenus_attendus(agent), agent

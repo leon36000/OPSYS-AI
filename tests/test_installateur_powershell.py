@@ -133,7 +133,7 @@ def test_install_ps1_reflete_install_sh():
     assert not manquantes, f"install.ps1 ne connaît pas : {manquantes}"
     for commun in ("instance initialiser", "config validate", "gateway install", "'--force'", "--frozen-lockfile",
                    "'build'", "isSupportedOpenClawNodeVersion", "/startupz", "/sante", "installation.env",
-                   "SOURCE_GEREE", "--clear", "'>=3.11'", "--editable", "packageManager", "-SansService", "24.16",
+                   "SOURCE_GEREE", "--clear", "'>=3.11'", "uv sync --locked", "packageManager", "-SansService", "24.16",
                    "26.1", "instance dossier", "config', 'file'", "Test-DossierDuCore", "Initialize-DossierCore",
                    "--profile $script:ProfilCore", "DOSSIER_CORE", "PROFIL_CORE", "instance fichier-config"):
         assert commun in ps, commun
@@ -145,6 +145,36 @@ def test_install_ps1_reflete_install_sh():
         code = re.sub(r"(?m)^\s*#.*$", "", texte)
         assert "openclaw.json" not in code and "opsys.json" not in code, script
     assert "CodeEnAttente = 3" in ps and "CODE_EN_ATTENTE=3" in sh
+
+
+def test_les_installateurs_verifient_docker_linux_et_preparent_l_image_sandbox_avant_gateway():
+    sh = re.sub(r"(?m)^\s*#.*$", "", INSTALL_SH.read_text(encoding="utf-8"))
+    ps = re.sub(r"(?m)^\s*#.*$", "", INSTALL_PS1.read_text(encoding="utf-8"))
+    image = "openclaw-sandbox:bookworm-slim"
+
+    assert "command -v docker" in sh and "docker info --format '{{.OSType}}'" in sh
+    assert "Test-DockerPrerequis" in ps and "docker info --format '{{.OSType}}'" in ps
+    assert image in sh and image in ps
+    assert "core/scripts/sandbox-setup.sh" in sh
+    assert "scripts\\docker\\sandbox\\Dockerfile" in ps
+    assert "docker build -t $image -f $dockerfile $core" in ps
+    assert sh.index("construire_core\n    preparer_image_sandbox") < sh.index("installer_moteur\n")
+    assert ps.rindex("Build-Core\n        Prepare-SandboxImage") < ps.rindex("Install-Moteur")
+    assert "docker pull" not in sh and "docker pull" not in ps
+
+
+def test_les_deux_installateurs_synchronisent_les_memes_extras_verrouilles():
+    for script in (INSTALL_SH, INSTALL_PS1):
+        texte = script.read_text(encoding="utf-8")
+        lignes = re.sub(r"\\\n[ \t]*", " ", texte)
+        commandes = re.findall(r"\buv sync --locked[^\n]*", lignes)
+        assert len(commandes) == 2, script.name
+        for commande in commandes:
+            assert "--group build" in commande and "--no-dev" in commande, script.name
+            assert re.findall(r"--extra (\w+)", commande) == ["tournees", "soumission"], script.name
+            assert "--no-build-isolation" in commande, script.name
+        assert "--no-install-project" in commandes[0]
+        assert "--no-install-project" not in commandes[1]
 
 
 def test_l_installateur_ne_garde_plus_le_service_d_une_autre_installation_et_ne_pose_aucun_etat_a_la_main():

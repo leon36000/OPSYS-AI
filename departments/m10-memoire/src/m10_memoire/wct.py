@@ -1,8 +1,9 @@
-from . import classification, contrats
+from . import classification, contrats, encodage
 
 REJ_WCT_CHAMP_MANQUANT = "REJ-WCT-CHAMP-MANQUANT"
 REJ_WCT_CHAMP_INATTENDU = "REJ-WCT-CHAMP-INATTENDU"
 REJ_WCT_CONSOMMATEUR_M10_ABSENT = "REJ-WCT-CONSOMMATEUR-M10-ABSENT"
+REJ_WCT_CONFLIT = "REJ-WCT-CONFLIT"
 
 
 def valider_wct(wct_recu):
@@ -26,8 +27,9 @@ def valider_wct(wct_recu):
 def memoriser_wct(wct_recu, registre_cible):
     """Mémorise le WCT reçu ; rend ``(maillon, None)``.
 
-    Idempotent par ``wct_id`` (PLAN T1.2-e) : un WCT déjà mémorisé rend le maillon EXISTANT sans
-    rien réécrire. Un WCT donné n'est censé arriver qu'une fois (`m4.travaux_termines` publie sous
+    Idempotent par ``wct_id`` : le même contenu rend le maillon EXISTANT sans rien réécrire.
+    Un payload différent sous cet identifiant est un conflit nommé; il ne remplace pas l'historique.
+    Un WCT donné n'est censé arriver qu'une fois (`m4.travaux_termines` publie sous
     `evenement_id = wct_id`, ADR-0009 §3) ; le répartiteur ne rappelle d'ailleurs jamais cette
     fonction deux fois pour le même (evenement_id, consommateur). Mais cette garde-là seule ne
     protège pas contre une relivraison du MÊME fait sous un evenement_id DIFFÉRENT (producteur en
@@ -45,6 +47,16 @@ def memoriser_wct(wct_recu, registre_cible):
     wct_id = wct_recu["wct_id"]
     for maillon in registre_cible.lire():
         if classification.type_evenement(maillon) == classification.TYPE_WCT and maillon.get("wct_id") == wct_id:
+            # Compare le WCT contractuel complet. Ne recalcule jamais hash_maillon de M4 : cette
+            # empreinte n'est ni notre canon de comparaison, ni une preuve d'égalité du payload.
+            # Les anciens maillons incomplets échouent fermé, plutôt que d'être déclarés identiques.
+            if not all(champ in maillon for champ in contrats.CHAMPS_WCT):
+                return None, REJ_WCT_CONFLIT
+            deja_recu = {champ: maillon[champ] for champ in contrats.CHAMPS_WCT}
+            empreinte_nouvelle = encodage.empreinte(wct_recu)
+            empreinte_existante = encodage.empreinte(deja_recu)
+            if empreinte_nouvelle != empreinte_existante:
+                return None, REJ_WCT_CONFLIT
             return maillon, None
 
     entree = {

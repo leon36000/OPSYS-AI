@@ -264,7 +264,9 @@ def test_correction_annulation_et_facture_sans_po_de_bout_en_bout(moteur, pret):
     assert rejeu.enveloppe["statut"] == "en_attente_approbation"
     avant_rejeu = moteur.empreinte_etat()["registres"]
     decide_rejeu = _decider(moteur, admin, rejeu.enveloppe["demande_id"], "cle-decision-3")
-    assert decide_rejeu.resultat["statut"] == "executee" and decide_rejeu.resultat["issue"]["accepte"] is False
+    # La décision humaine est acceptée ; l'action métier refusée n'est pas une exécution réussie.
+    assert decide_rejeu.statut == 200 and decide_rejeu.metier["accepte"] is True
+    assert decide_rejeu.resultat["statut"] == "echec" and decide_rejeu.resultat["issue"]["accepte"] is False
     assert moteur.empreinte_etat()["registres"] == avant_rejeu, "un rejeu n'écrit aucune pièce de plus"
     assert _cash(admin) == ("18941.25", "702.33", "356.42")
 

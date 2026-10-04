@@ -46,6 +46,8 @@ export type GitBackupManifest = {
   identity: GitBackupIdentity;
   userVersion: number;
   excludedTables: string[];
+  /** Tables whose rows were retained with secret data scrubbed for recovery. */
+  redactedTables?: string[];
   excludedConfigStateKeyPrefixes: string[];
   tables: Record<string, { rows: number; sha256: string }>;
 };
@@ -165,6 +167,7 @@ async function serializeGitBackupTable(
   table: string,
   outputPath?: string,
   rowFilter?: (row: Record<string, unknown>) => boolean,
+  rowProject?: (row: Record<string, unknown>) => Record<string, unknown>,
 ): Promise<GitBackupTableDigest> {
   const columns = readTableColumns(database, table);
   if (columns.length === 0) {
@@ -207,9 +210,10 @@ async function serializeGitBackupTable(
       if (rowFilter && !rowFilter(source)) {
         continue;
       }
+      const projected = rowProject ? rowProject(source) : source;
       const encoded: Record<string, unknown> = {};
       for (const column of columns) {
-        encoded[column.name] = encodeSqliteValue(source[column.name]);
+        encoded[column.name] = encodeSqliteValue(projected[column.name]);
       }
       const line = `${JSON.stringify(encoded)}\n`;
       hash.update(line);
@@ -243,6 +247,90 @@ function redactedSecretTables(identity: GitBackupIdentity, excludeSecrets: boole
   return new Set(identity.role === "global" ? STATE_SECRET_TABLE_NAMES : AGENT_SECRET_TABLE_NAMES);
 }
 
+const CRON_RUNTIME_AUTHORITY_TABLE = "cron_job_runtime_authorities";
+const CRON_JOB_TABLE = "cron_jobs";
+const DIAGNOSTIC_EVENTS_TABLE = "diagnostic_events";
+const CRON_QUARANTINE_SCOPE_PREFIX = "cron.quarantine:";
+
+function projectRedactedCronJob(database: DatabaseSync, sidecarExists: boolean) {
+  const matchingAuthority = sidecarExists
+    ? database.prepare(
+        `SELECT 1 AS present
+           FROM ${quoteIdentifier(CRON_RUNTIME_AUTHORITY_TABLE)}
+          WHERE store_key = ? AND job_id = ?
+          LIMIT 1`,
+      )
+    : undefined;
+  return (row: Record<string, unknown>): Record<string, unknown> => {
+    if (typeof row.job_json !== "string") {
+      throw new Error("Secret-redacted Git backup cannot inspect cron job JSON.");
+    }
+    let job: unknown;
+    try {
+      job = JSON.parse(row.job_json) as unknown;
+    } catch {
+      throw new Error("Secret-redacted Git backup cannot inspect cron job JSON.");
+    }
+    if (!job || typeof job !== "object" || Array.isArray(job)) {
+      throw new Error("Secret-redacted Git backup cannot inspect cron job JSON.");
+    }
+    const jobRecord = job as Record<string, unknown>;
+    if (
+      Object.hasOwn(jobRecord, "runtimeAuthority") ||
+      Object.hasOwn(jobRecord, "runtimeAuthorityRecoveryRequired")
+    ) {
+      throw new Error(
+        "Secret-redacted Git backup cannot preserve embedded private cron authority; restore or explicitly replace it first.",
+      );
+    }
+    if (!matchingAuthority) {
+      return row;
+    }
+    if (typeof row.store_key !== "string" || typeof row.job_id !== "string") {
+      throw new Error("Secret-redacted Git backup cannot classify a linked cron job.");
+    }
+    if (!matchingAuthority.get(row.store_key, row.job_id)) {
+      return row;
+    }
+    if (row.enabled !== 0 && row.enabled !== 1 && row.enabled !== 0n && row.enabled !== 1n) {
+      throw new Error("Secret-redacted Git backup cannot safely disable a linked cron job.");
+    }
+    return { ...row, enabled: 0, job_json: JSON.stringify({ ...job, enabled: false }) };
+  };
+}
+
+function projectRedactedCronAuthority(row: Record<string, unknown>): Record<string, unknown> {
+  if (
+    !Object.hasOwn(row, "authority_json") ||
+    !Object.hasOwn(row, "authority_input_fingerprint") ||
+    !Object.hasOwn(row, "recovery_required")
+  ) {
+    throw new Error("Secret-redacted Git backup cannot safely scrub cron runtime authority.");
+  }
+  return {
+    ...row,
+    authority_json: null,
+    authority_input_fingerprint: null,
+    recovery_required: 1,
+  };
+}
+
+// Keeping the sidecar recovery marker prevents redacted restores from falling
+// back to the legacy no-authority path.
+function hasCronRuntimeAuthorityJobs(database: DatabaseSync): boolean {
+  return Boolean(
+    database
+      .prepare(
+        `SELECT 1 AS present
+           FROM ${quoteIdentifier(CRON_RUNTIME_AUTHORITY_TABLE)} AS authority
+           JOIN ${quoteIdentifier(CRON_JOB_TABLE)} AS job
+             ON job.store_key = authority.store_key AND job.job_id = authority.job_id
+          LIMIT 1`,
+      )
+      .get(),
+  );
+}
+
 /** Dump one verified SQLite copy into the deterministic Git repository layout. */
 export async function dumpGitBackupDatabase(params: {
   snapshotPath: string;
@@ -261,7 +349,38 @@ export async function dumpGitBackupDatabase(params: {
     );
     // manifest.excludedTables documents redaction only; operational projection
     // tables are always omitted and converge on next gateway startup.
-    const excludedTables = [...redacted].filter((table) => existingTables.has(table)).toSorted();
+    const preserveForRecovery = new Set<string>();
+    const redactedTables: string[] = [];
+    const hasCronAuthorities =
+      params.excludeSecrets === true &&
+      identity.role === "global" &&
+      existingTables.has(CRON_RUNTIME_AUTHORITY_TABLE) &&
+      existingTables.has(CRON_JOB_TABLE) &&
+      hasCronRuntimeAuthorityJobs(database);
+    if (
+      params.excludeSecrets === true &&
+      identity.role === "global" &&
+      existingTables.has(CRON_RUNTIME_AUTHORITY_TABLE)
+    ) {
+      preserveForRecovery.add(CRON_RUNTIME_AUTHORITY_TABLE);
+      if (hasCronAuthorities && existingTables.has(CRON_JOB_TABLE)) {
+        preserveForRecovery.add(CRON_JOB_TABLE);
+      }
+      redactedTables.push(CRON_RUNTIME_AUTHORITY_TABLE);
+      if (preserveForRecovery.has(CRON_JOB_TABLE)) {
+        redactedTables.push(CRON_JOB_TABLE);
+      }
+    }
+    const projectCronQuarantineDiagnostics =
+      params.excludeSecrets === true &&
+      identity.role === "global" &&
+      existingTables.has(DIAGNOSTIC_EVENTS_TABLE);
+    if (projectCronQuarantineDiagnostics) {
+      redactedTables.push(DIAGNOSTIC_EVENTS_TABLE);
+    }
+    const excludedTables = [...redacted]
+      .filter((table) => existingTables.has(table) && !preserveForRecovery.has(table))
+      .toSorted();
     const excludedConfigStateKeyPrefixes =
       identity.role === "global" &&
       params.excludeSecrets === true &&
@@ -303,11 +422,32 @@ export async function dumpGitBackupDatabase(params: {
               );
             }
           : undefined;
+      const scopedRowFilter =
+        rowFilter ??
+        (table === DIAGNOSTIC_EVENTS_TABLE && projectCronQuarantineDiagnostics
+          ? (row: Record<string, unknown>) => {
+              if (typeof row.scope !== "string") {
+                throw new Error(
+                  "Secret-redacted Git backup cannot classify a diagnostic event scope.",
+                );
+              }
+              return !row.scope.startsWith(CRON_QUARANTINE_SCOPE_PREFIX);
+            }
+          : undefined);
+      const rowProject =
+        params.excludeSecrets === true && identity.role === "global"
+          ? table === CRON_RUNTIME_AUTHORITY_TABLE
+            ? projectRedactedCronAuthority
+            : table === CRON_JOB_TABLE && existingTables.has(CRON_JOB_TABLE)
+              ? projectRedactedCronJob(database, existingTables.has(CRON_RUNTIME_AUTHORITY_TABLE))
+              : undefined
+          : undefined;
       tables[table] = await serializeGitBackupTable(
         database,
         table,
         path.join(tablesPath, `${table}.jsonl`),
-        rowFilter,
+        scopedRowFilter,
+        rowProject,
       );
     }
     const manifest: GitBackupManifest = {
@@ -315,6 +455,7 @@ export async function dumpGitBackupDatabase(params: {
       identity,
       userVersion: userVersionRow.user_version,
       excludedTables,
+      redactedTables: redactedTables.toSorted(),
       excludedConfigStateKeyPrefixes,
       tables,
     };
@@ -351,6 +492,9 @@ export function parseGitBackupManifest(value: string, source: string): GitBackup
     (manifest.identity.role !== "global" && manifest.identity.role !== "agent") ||
     !Number.isSafeInteger(manifest.userVersion) ||
     !Array.isArray(manifest.excludedTables) ||
+    (manifest.redactedTables !== undefined &&
+      (!Array.isArray(manifest.redactedTables) ||
+        manifest.redactedTables.some((table) => typeof table !== "string"))) ||
     (manifest.excludedConfigStateKeyPrefixes !== undefined &&
       (!Array.isArray(manifest.excludedConfigStateKeyPrefixes) ||
         manifest.excludedConfigStateKeyPrefixes.some((prefix) => typeof prefix !== "string"))) ||
@@ -362,6 +506,7 @@ export function parseGitBackupManifest(value: string, source: string): GitBackup
   const validated = {
     ...manifest,
     excludedConfigStateKeyPrefixes: manifest.excludedConfigStateKeyPrefixes ?? [],
+    redactedTables: manifest.redactedTables ?? [],
   } as GitBackupManifest;
   normalizeIdentity(validated.identity);
   for (const [table, entry] of Object.entries(validated.tables)) {

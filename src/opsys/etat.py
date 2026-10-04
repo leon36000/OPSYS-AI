@@ -15,8 +15,10 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import sqlite3
 from contextlib import AbstractContextManager
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import Connection, func, insert, select
@@ -51,21 +53,39 @@ def lire_journal(cnx: Connection, limite: int = 200) -> list[dict[str, Any]]:
 
 def importer_etat_si_necessaire(cnx: Connection) -> bool:
     """Importe une seule fois l'ancien `OPSYS_HOME/etat.db` (sqlite3 brut, pré-ADR-0009) dans la
-    base de l'instance, puis renomme le fichier ; rend `True` si un import a eu lieu.
+    base de l'instance ; rend `True` si un import a eu lieu.
 
     N'écrit rien si l'ancien fichier est absent, ou si une des tables cibles contient déjà des
-    lignes (installation déjà migrée, ou déjà utilisée depuis) : idempotent, et jamais destructeur
-    (T3 — la suppression définitive est une frontière humaine), l'ancien fichier est renommé, pas
-    effacé. Appelée par `stockage.migrer()`, donc au démarrage de la console et du serveur MCP.
+    lignes (installation déjà migrée, ou déjà utilisée depuis). L'import et son état durable sont
+    dans la même transaction ; la source est conservée pour permettre une reprise après arrêt brutal.
+    Appelée par `stockage.migrer()`, donc au démarrage de la console et du serveur MCP.
     """
-    ancien = dossier_opsys() / "etat.db"
+    dossier = dossier_opsys()
+    ancien = dossier / "etat.db"
+    source_archivee = False
     if not ancien.is_file():
-        return False
+        # Les versions précédentes renommaient la source avant le commit. Si le processus s'arrêtait dans cette
+        # fenêtre, la transaction annulait les lignes et seule cette copie restait. Elle demeure reprenable.
+        archives = sorted(
+            chemin for chemin in dossier.glob("etat.db.migre-*")
+            if chemin.is_file() and not chemin.name.endswith(("-wal", "-shm"))
+        )
+        if not archives:
+            return False
+        ancien = archives[-1]
+        source_archivee = True
     deja_peuplees = any(
         cnx.execute(select(func.count()).select_from(table)).scalar_one() > 0 for table in _TABLES_HERITEES
     )
     if deja_peuplees:
         return False
+    if source_archivee:
+        # Une ancienne version pouvait déplacer le fichier principal en laissant son WAL sous le nom d'origine.
+        # Le fichier principal est renommé uniquement après les écritures : réassocier ces preuves avant lecture.
+        orphelin_wal = Path(f"{dossier / 'etat.db'}-wal")
+        wal_archive = Path(f"{ancien}-wal")
+        if orphelin_wal.is_file() and not wal_archive.exists():
+            os.replace(orphelin_wal, wal_archive)
     # Lecture ponctuelle de l'ancien format : le plan de contrôle n'écrit plus jamais en sqlite3 brut.
     source = sqlite3.connect(ancien)
     source.row_factory = sqlite3.Row
@@ -80,6 +100,7 @@ def importer_etat_si_necessaire(cnx: Connection) -> bool:
             cnx.execute(insert(JOURNAL).values(**ligne))
     finally:
         source.close()
-    horodatage = dt.datetime.now(dt.UTC).strftime("%Y%m%d")
-    ancien.rename(ancien.with_name(f"etat.db.migre-{horodatage}"))
+    # Le fichier reste disponible après le commit. Les lignes insérées dans la même transaction constituent l'état
+    # durable d'import : si elles existent au prochain démarrage, le garde ci-dessus évite tout rejeu ; si le
+    # processus s'arrête avant commit, SQLite annule tout et la source (originale ou ancienne copie renommée) repart.
     return True

@@ -102,6 +102,7 @@ export type ResolvedAgentConfig = {
   embeddedAgent?: AgentEntry["embeddedAgent"];
   sandbox?: AgentEntry["sandbox"];
   tools?: AgentEntry["tools"];
+  opsysIsolation?: AgentEntry["opsysIsolation"];
 };
 
 /** Strip null bytes from paths to prevent ENOTDIR errors. */
@@ -415,6 +416,7 @@ export function resolveAgentConfig(
         : undefined,
     sandbox: entry.sandbox,
     tools: entry.tools,
+    opsysIsolation: entry.opsysIsolation ?? agentDefaults?.opsysIsolation,
   };
 }
 

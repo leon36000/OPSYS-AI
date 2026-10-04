@@ -53,12 +53,26 @@ import {
   getCodeModeExecBeforeHookMetadataForToolKind,
   reconcileCodeModeExecBeforeHookParams,
 } from "./code-mode-control-tools.js";
+import { verifyOpsysRuntimeToolCall } from "./embedded-agent-runner/opsys-runtime-admission.js";
 import { admitSingleToolCallLoop } from "./tool-loop-admission.js";
 import { normalizeToolPolicyName } from "./tool-policy.js";
 import { getGatewayToolCallerIdentity } from "./tools/gateway-caller-context.js";
 
 const BEFORE_TOOL_CALL_HOOK_FAILURE_REASON =
   "Tool call blocked because before_tool_call hook failed";
+
+async function revalidateConfiguredProfileTool(args: {
+  toolName: string;
+  ctx?: HookContext;
+  signal?: AbortSignal;
+}): Promise<void> {
+  await verifyOpsysRuntimeToolCall({
+    config: args.ctx?.config ?? getRuntimeConfig(),
+    agentId: args.ctx?.agentId,
+    toolName: args.toolName,
+    signal: args.signal,
+  });
+}
 
 /** Keep receipt routing private without widening observable hook outcomes. */
 function markPrivateDecision(
@@ -175,6 +189,7 @@ export async function runBeforeToolCallHook(args: {
       toolName,
       sessionKey: args.ctx?.sessionKey,
       agentId: args.ctx?.agentId,
+      toolParams: params,
     });
     if (opsysContexte.block) {
       const outcome: HookOutcome = {
@@ -222,6 +237,7 @@ export async function runBeforeToolCallHook(args: {
       };
     }
     if (!initialCorePolicyResult && !shouldRunTrustedPolicies && !hasBeforeToolCallHooks) {
+      await revalidateConfiguredProfileTool({ toolName, ctx: args.ctx, signal: args.signal });
       return withLoopWarning({ blocked: false, params });
     }
     const deriveOptions =
@@ -328,6 +344,7 @@ export async function runBeforeToolCallHook(args: {
           return approvalOutcome;
         }
         if (approvalOutcome.deferredApproval) {
+          await revalidateConfiguredProfileTool({ toolName, ctx: args.ctx, signal: args.signal });
           return withLoopWarning(approvalOutcome);
         }
         trustedApprovalParams = approvalOutcome.params;
@@ -355,8 +372,28 @@ export async function runBeforeToolCallHook(args: {
         signal: args.signal,
       });
       if (finalApprovalOutcome) {
+        if (!finalApprovalOutcome.blocked) {
+          await revalidateConfiguredProfileTool({ toolName, ctx: args.ctx, signal: args.signal });
+        }
         return withLoopWarning(finalApprovalOutcome);
       }
+      const finalContextDecision = checkOpsysContexteToolCall({
+        toolName,
+        sessionKey: args.ctx?.sessionKey,
+        agentId: args.ctx?.agentId,
+        toolParams: policyAdjustedParams,
+      });
+      if (finalContextDecision.block) {
+        const outcome: HookOutcome = {
+          blocked: true,
+          kind: "veto",
+          reason: finalContextDecision.reason,
+          params: policyAdjustedParams,
+        };
+        markPrivateDecision(outcome, "genericDecision");
+        return outcome;
+      }
+      await revalidateConfiguredProfileTool({ toolName, ctx: args.ctx, signal: args.signal });
       const allowed: HookOutcome = {
         blocked: false as const,
         params: policyAdjustedParams,
@@ -422,6 +459,7 @@ export async function runBeforeToolCallHook(args: {
           return approvalOutcome;
         }
         if (approvalOutcome.deferredApproval) {
+          await revalidateConfiguredProfileTool({ toolName, ctx: args.ctx, signal: args.signal });
           return withLoopWarning(approvalOutcome);
         }
         finalParams = approvalOutcome.params;
@@ -446,8 +484,28 @@ export async function runBeforeToolCallHook(args: {
       signal: args.signal,
     });
     if (finalApprovalOutcome) {
+      if (!finalApprovalOutcome.blocked) {
+        await revalidateConfiguredProfileTool({ toolName, ctx: args.ctx, signal: args.signal });
+      }
       return withLoopWarning(finalApprovalOutcome);
     }
+    const finalContextDecision = checkOpsysContexteToolCall({
+      toolName,
+      sessionKey: args.ctx?.sessionKey,
+      agentId: args.ctx?.agentId,
+      toolParams: finalParams,
+    });
+    if (finalContextDecision.block) {
+      const outcome: HookOutcome = {
+        blocked: true,
+        kind: "veto",
+        reason: finalContextDecision.reason,
+        params: finalParams,
+      };
+      markPrivateDecision(outcome, "genericDecision");
+      return outcome;
+    }
+    await revalidateConfiguredProfileTool({ toolName, ctx: args.ctx, signal: args.signal });
     const allowed: HookOutcome = {
       blocked: false as const,
       params: finalParams,

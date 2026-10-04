@@ -1,6 +1,11 @@
 // Control UI view renders agents panels overview screen content.
 import { html, nothing } from "lit";
 import { normalizeAgentModelRefForConfig } from "../../../../src/config/model-input.js";
+import {
+  ASSISTANT_AVATAR_MODELS,
+  isAssistantAvatarModelId,
+  type AssistantAvatarModelId,
+} from "../../../../src/shared/assistant-avatar-model-catalog.js";
 import type {
   AgentIdentityResult,
   AgentsFilesListResult,
@@ -42,6 +47,8 @@ export type AgentIdentityDraft = {
   name: string | null;
   emoji: string | null;
   avatar: string | null;
+  /** Undefined leaves the configured value alone; null explicitly removes it. */
+  avatarModelId?: AssistantAvatarModelId | null;
 };
 
 /** Authenticated image lease the settings preview shares with the roster. */
@@ -71,6 +78,7 @@ export function renderAgentOverview(params: {
   onConfigReload: () => void;
   onConfigSave: () => void;
   onIdentityFieldChange: (field: "name" | "emoji", value: string) => void;
+  onIdentityAvatarModelChange: (modelId: AssistantAvatarModelId | null) => void;
   onIdentityAvatarSelect: (file: File) => void;
   onIdentitySave: () => void;
   onModelChange: (agentId: string, modelId: string | null) => void;
@@ -122,6 +130,13 @@ export function renderAgentOverview(params: {
     identityDraft.name ?? params.agentIdentity?.name ?? agent.identity?.name ?? agent.name ?? "";
   const identityEmoji =
     identityDraft.emoji ?? params.agentIdentity?.emoji ?? agent.identity?.emoji ?? "";
+  const draftAvatarModelId =
+    identityDraft.avatarModelId !== undefined
+      ? identityDraft.avatarModelId
+      : params.agentIdentity?.avatarModelId;
+  const selectedAvatarModelId = isAssistantAvatarModelId(draftAvatarModelId)
+    ? draftAvatarModelId
+    : "";
   // Upload previews are local data URLs; persisted avatars live on a protected
   // Gateway route and must resolve through the authenticated image lease.
   const persistedAvatarUrl = identityDraft.avatar
@@ -131,7 +146,10 @@ export function renderAgentOverview(params: {
     identityDraft.avatar ??
     (persistedAvatarUrl ? params.identityAvatarLoader.resolve(persistedAvatarUrl) : null);
   const identityDirty =
-    identityDraft.name !== null || identityDraft.emoji !== null || identityDraft.avatar !== null;
+    identityDraft.name !== null ||
+    identityDraft.emoji !== null ||
+    identityDraft.avatar !== null ||
+    identityDraft.avatarModelId !== undefined;
   const identityInvalid =
     (identityDraft.name !== null && !identityDraft.name.trim()) ||
     (identityDraft.emoji !== null && !identityDraft.emoji.trim());
@@ -184,6 +202,46 @@ export function renderAgentOverview(params: {
                   @input=${(e: Event) =>
                     params.onIdentityFieldChange("emoji", (e.target as HTMLInputElement).value)}
                 />
+              </label>
+              <label class="field agent-identity-editor__avatar-model">
+                <span>${t("agents.identity.avatarModel")}</span>
+                <select
+                  ?disabled=${
+                    identityBusy ||
+                    params.agentIdentityLoading ||
+                    Boolean(params.agentIdentityError) ||
+                    !params.agentIdentity
+                  }
+                  @change=${(e: Event) => {
+                    const value = (e.target as HTMLSelectElement).value;
+                    if (value === "") {
+                      params.onIdentityAvatarModelChange(null);
+                    } else if (isAssistantAvatarModelId(value)) {
+                      params.onIdentityAvatarModelChange(value);
+                    }
+                  }}
+                >
+                  <option value="" ?selected=${selectedAvatarModelId === ""}>
+                    ${t("agents.identity.avatarModelNone")}
+                  </option>
+                  ${Object.keys(ASSISTANT_AVATAR_MODELS)
+                    .filter(isAssistantAvatarModelId)
+                    .map(
+                      (modelId) =>
+                        html`<option
+                          value=${modelId}
+                          ?selected=${selectedAvatarModelId === modelId}
+                        >
+                          ${
+                            modelId === "robotexpressive-quaternius-cc0-v1"
+                              ? t("agents.identity.avatarModelRobot")
+                              : modelId === "mpfb-human-cc0-v1"
+                                ? t("agents.identity.avatarModelHumanMpfb")
+                                : t("agents.identity.avatarModelNone")
+                          }
+                        </option>`,
+                    )}
+                </select>
               </label>
             </div>
           </div>

@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, Inexact, Rounded, localcontext
 
 import pytest
 from m5_financecore import registre, soldes, validation
@@ -125,6 +125,28 @@ def test_un_solde_decimal_ne_subit_pas_d_erreur_binaire():
 
     assert type(solde) is Decimal
     assert solde == Decimal("0.30")
+
+
+def test_solde_et_provisions_sont_independants_du_contexte_decimal_appelant():
+    registre_cible = registre.Registre()
+    _ajouter(registre_cible, Decimal("100000000"), "ENCAISSEMENT")
+    _ajouter(registre_cible, Decimal("0.01"), "ENCAISSEMENT")
+    _ajouter(registre_cible, Decimal("-100000000"), "AJUSTEMENT")
+    _ajouter(registre_cible, Decimal("100000000"), "PROVISION")
+    _ajouter(registre_cible, Decimal("0.01"), "PROVISION")
+    _ajouter(registre_cible, Decimal("100000000"), "PROVISION")
+
+    with localcontext() as contexte:
+        contexte.prec = 8
+        contexte.traps[Inexact] = True
+        contexte.traps[Rounded] = True
+        solde = soldes.calculer_solde(registre_cible)
+        provisions = soldes.calculer_provisions(registre_cible)[0]
+        disponible = soldes.calculer_argent_disponible(registre_cible)
+
+    assert solde == Decimal("0.01")
+    assert provisions == Decimal("200000000.01")
+    assert disponible == Decimal("-200000000.00")
 
 
 def test_decrire_les_mouvements_ne_compte_que_les_mouvements_pas_les_autres_maillons_du_registre():

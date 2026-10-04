@@ -1,5 +1,6 @@
 // Verifies model config schema parsing and validation behavior.
 import { describe, expect, it } from "vitest";
+import { AgentModelSchema } from "./zod-schema.agent-model.js";
 import { ModelsConfigSchema } from "./zod-schema.core.js";
 
 describe("ModelsConfigSchema", () => {
@@ -13,6 +14,35 @@ describe("ModelsConfigSchema", () => {
             models: [{ id: "balanced", name: "Balanced" }],
           },
         },
+      }).success,
+    ).toBe(true);
+  });
+
+  it("accepts the native provider and OpenAI-compatible local entries emitted from OPSYS paliers", () => {
+    expect(
+      ModelsConfigSchema.safeParse({
+        mode: "merge",
+        providers: {
+          anthropic: {
+            apiKey: "${ANTHROPIC_API_KEY}",
+            models: [{ id: "claude-sonnet-4-6", name: "claude-sonnet-4-6" }],
+          },
+          "opsys-local": {
+            baseUrl: "http://ollama:11434/v1",
+            api: "openai-completions",
+            apiKey: "local",
+            models: [{ id: "qwen3:8b", name: "qwen3:8b" }],
+          },
+        },
+      }).success,
+    ).toBe(true);
+  });
+
+  it("accepts a validated OPSYS primary model with explicit provider/model fallbacks", () => {
+    expect(
+      AgentModelSchema.safeParse({
+        primary: "anthropic/claude-sonnet-4-6",
+        fallbacks: ["anthropic/claude-haiku-4-5-20251001", "opsys-local/qwen3:8b"],
       }).success,
     ).toBe(true);
   });

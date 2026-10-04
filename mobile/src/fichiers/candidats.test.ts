@@ -40,6 +40,7 @@ describe("candidatsPhotosApres", () => {
     const mutations: MutationOutbox[] = [
       mutation({
         id: "p1",
+        proprietaire: "A",
         type: "photo_upload",
         chantierId: "I1",
         payload: { nature: "apres", uri: "file:///a.jpg", sha256: "sha-a", taille_octets: 1000 },
@@ -54,42 +55,45 @@ describe("candidatsPhotosApres", () => {
         payload: { nature: "apres", uri: "file:///d.jpg", sha256: "sha-d", taille_octets: 500 },
       }),
     ];
-    const candidats = candidatsPhotosApres(mutations, "I1");
+    const candidats = candidatsPhotosApres(mutations, "I1", "A");
     expect(candidats).toEqual([
-      { mutationId: "p1", chantierId: "I1", uri: "file:///a.jpg", sha256: "sha-a", tailleOctets: 1000, typeMime: "image/jpeg" },
+      { mutationId: "p1", proprietaire: "A", chantierId: "I1", uri: "file:///a.jpg", sha256: "sha-a", tailleOctets: 1000, typeMime: "image/jpeg" },
     ]);
+    expect(candidatsPhotosApres(mutations, "I1", "B")).toEqual([]);
   });
 
   test("payload corrompu (uri manquant) -> exclu, jamais un candidat inventé", () => {
     const mutations: MutationOutbox[] = [
       mutation({ id: "p1", type: "photo_upload", chantierId: "I1", payload: { nature: "apres", sha256: "sha-a", taille_octets: 1000 } }),
     ];
-    expect(candidatsPhotosApres(mutations, "I1")).toEqual([]);
+    expect(candidatsPhotosApres(mutations, "I1", "A")).toEqual([]);
   });
 
   test("aucune photo -> tableau vide", () => {
-    expect(candidatsPhotosApres([], "I1")).toEqual([]);
+    expect(candidatsPhotosApres([], "I1", "A")).toEqual([]);
   });
 });
 
 describe("candidatSignature", () => {
   test("null si aucune signature capturée", () => {
-    expect(candidatSignature([], "I1")).toBeNull();
+    expect(candidatSignature([], "I1", "A")).toBeNull();
   });
 
   test("renvoie la DERNIÈRE capture brouillon du chantier", () => {
     const mutations: MutationOutbox[] = [
-      mutation({ id: "s1", type: "signature_capture", chantierId: "I1", sequence: 1, payload: { uri: "file:///s1.png", sha256: "sha-1", taille_octets: 10 } }),
-      mutation({ id: "s2", type: "signature_capture", chantierId: "I1", sequence: 2, payload: { uri: "file:///s2.png", sha256: "sha-2", taille_octets: 20 } }),
+      mutation({ id: "s1", type: "signature_capture", chantierId: "I1", proprietaire: "A", sequence: 1, payload: { uri: "file:///s1.png", sha256: "sha-1", taille_octets: 10 } }),
+      mutation({ id: "s2", type: "signature_capture", chantierId: "I1", proprietaire: "A", sequence: 2, payload: { uri: "file:///s2.png", sha256: "sha-2", taille_octets: 20 } }),
       mutation({ id: "s-autre", type: "signature_capture", chantierId: "I2", sequence: 3, payload: { uri: "file:///s3.png", sha256: "sha-3", taille_octets: 30 } }),
     ];
-    expect(candidatSignature(mutations, "I1")).toEqual({
+    expect(candidatSignature(mutations, "I1", "A")).toEqual({
       mutationId: "s2",
+      proprietaire: "A",
       chantierId: "I1",
       uri: "file:///s2.png",
       sha256: "sha-2",
       tailleOctets: 20,
       typeMime: "image/png",
     });
+    expect(candidatSignature(mutations, "I1", "B")).toBeNull();
   });
 });

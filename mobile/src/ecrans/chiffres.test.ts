@@ -580,6 +580,26 @@ describe("les échéances fiscales", () => {
       factures: { cle: "admin.chiffres.echeances.factures", params: { clients: 1, fournisseurs: 0 } },
     });
     expect(premiere.taxesNonChiffrees).toBeNull();
+    expect(premiere.couvertureTaxes).toEqual({ cle: "admin.chiffres.echeances.couverturePartielle" });
+  });
+
+  test("affiche l'avertissement de couverture partielle fourni par M5 sans le transformer", () => {
+    const brut = reponse("echeances");
+    brut.resultat.resultat.echeances[0].taxes_nettes.couverture = {
+      statut: "PARTIELLE",
+      detail: "Les registres ne prouvent pas leur exhaustivité.",
+    };
+    const [premiere] = presenterEcheances(echeancesDeBrut(brut), "fr-CA").echeances;
+    expect(premiere.couvertureTaxes).toEqual({ cle: "admin.chiffres.echeances.couverturePartielle" });
+    expect(premiere.taxes?.aRemettre.params).toEqual({ montant: n("748,75 $") });
+  });
+
+  test("une ancienne réponse sans couverture affiche un avertissement inconnu", () => {
+    const brut = reponse("echeances");
+    delete brut.resultat.resultat.echeances[0].taxes_nettes.couverture;
+    const [premiere] = presenterEcheances(echeancesDeBrut(brut), "fr-CA").echeances;
+    expect(premiere.taxes?.aRemettre.params).toEqual({ montant: n("748,75 $") });
+    expect(premiere.couvertureTaxes).toEqual({ cle: "admin.chiffres.echeances.couvertureInconnue" });
   });
 
   test("la limite de paiement et la limite de production sont chacune celle de M5, avec SES jours restants", () => {

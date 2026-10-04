@@ -3,7 +3,7 @@ import { candidatsPhotosApres, candidatSignature } from "./candidats";
 import type { CandidatFichierM4 } from "./candidats";
 import { calculerEtatEnvoiFichier } from "./etatEnvoi";
 import type { EtatEnvoiFichier } from "./etatEnvoi";
-import { construireArgumentsDeposerFichier } from "./protocole";
+import { construireArgumentsDeposerFichier, construireReferenceFichier } from "./protocole";
 import type { ResultatEtatFichier, VerdictServeurFichier } from "./protocole";
 import { validerTailleFichier, decouperEnBlocs } from "./decoupage";
 import { verifierEmpreinteFichier } from "./verification";
@@ -73,7 +73,7 @@ export type ResultatPreparationEnvoiFichier =
  * (déclenchement) — cette fonction ne fait qu'ENFILER en sécurité, jamais un aller-retour réseau
  * implicite en plus de la lecture optionnelle de `m4_etat_fichier`.
  */
-export async function preparerEnvoiFichier(
+async function preparerSousVerrou(
   config: ConfigurationEnvoiFichier,
   fichier: CandidatFichierM4,
   mutationsExistantes: readonly MutationOutbox[],
@@ -87,10 +87,11 @@ export async function preparerEnvoiFichier(
     return { ok: false, raison: "taille_invalide", verdict: verdictTaille };
   }
 
-  const etatLocal = calculerEtatEnvoiFichier(mutationsExistantes, fichier.chantierId, fichier.sha256);
-  if (etatLocal.statut === "complet" || etatLocal.statut === "en_cours") {
-    // Déjà complet, ou déjà en file avec au moins un bloc en attente/envoi : rien à refaire —
-    // idempotent, jamais un doublon de blocs pour la même empreinte.
+  const enBase = await config.depot.lister();
+  const mutationsInitiales = [...new Map([...mutationsExistantes, ...enBase].map((m) => [m.id, m])).values()]
+    .filter((m) => m.proprietaire === fichier.proprietaire);
+  const etatLocal = calculerEtatEnvoiFichier(mutationsInitiales, fichier.chantierId, fichier.sha256);
+  if (etatLocal.statut === "complet") {
     return { ok: true, blocsEnfiles: 0 };
   }
   if (etatLocal.statut === "echec_permanent") {
@@ -107,17 +108,46 @@ export async function preparerEnvoiFichier(
     return { ok: false, raison: "empreinte_discordante", sha256Capture: verification.sha256Capture, sha256Relu: verification.sha256Relu };
   }
 
-  const etatServeur = await config.obtenirEtatServeur(fichier.sha256).catch(() => null);
-  const blocsDejaRecusParLeServeur = new Set<number>(etatServeur?.blocsRecus ?? []);
-
   const tousLesBlocs = decouperEnBlocs(octets);
   const nombreBlocs = tousLesBlocs.length;
 
-  let blocsEnfiles = 0;
-  for (let index = 0; index < tousLesBlocs.length; index += 1) {
-    if (blocsDejaRecusParLeServeur.has(index)) {
-      continue; // reprise : le serveur a déjà ce bloc, ne jamais le réenvoyer (mission item 1).
+  let etatServeur = await config.obtenirEtatServeur(fichier.sha256).catch(() => null);
+  if (etatServeur) {
+    const indicesUniques = new Set(etatServeur.blocsRecus);
+    const tousRecus = indicesUniques.size === nombreBlocs && Array.from({ length: nombreBlocs }, (_, i) => indicesUniques.has(i)).every(Boolean);
+    const indicesValides = etatServeur.blocsRecus.every((i) => i >= 0 && i < nombreBlocs) && indicesUniques.size === etatServeur.blocsRecus.length;
+    const referenceCoherente = etatServeur.complet
+      ? etatServeur.reference === construireReferenceFichier(fichier.sha256)
+      : etatServeur.reference === null;
+    if (!indicesValides || etatServeur.complet !== tousRecus || !referenceCoherente) etatServeur = null;
+  }
+  const blocsDejaRecusParLeServeur = new Set<number>(etatServeur?.blocsRecus ?? []);
+
+  // Réconcilie chaque accusé distant dans le dépôt avant de décider quoi envoyer. Les reçus
+  // distants qui n'ont pas de mutation locale sont des lignes terminales locales, jamais envoyables.
+  if (etatServeur) {
+    const actuelles = (await config.depot.lister()).filter((m) => m.proprietaire === fichier.proprietaire);
+    for (const mutation of actuelles.filter((m) => m.type === "fichier_bloc" && m.chantierId === fichier.chantierId && m.payload.empreinte_sha256 === fichier.sha256 && blocsDejaRecusParLeServeur.has(m.payload.index_bloc as number))) {
+      if (mutation.statut !== "envoyee") await config.depot.mettreAJour({ ...mutation, statut: "envoyee", resumeAccepte: etatServeur });
     }
+    const indicesLocaux = new Set(actuelles.filter((m) => m.type === "fichier_bloc" && m.chantierId === fichier.chantierId && m.payload.empreinte_sha256 === fichier.sha256).map((m) => m.payload.index_bloc));
+    for (const index of blocsDejaRecusParLeServeur) {
+      if (indicesLocaux.has(index)) continue;
+      const recu = creerMutation({
+        type: "fichier_bloc_reconcilie", chantierId: fichier.chantierId,
+        payload: { empreinte_sha256: fichier.sha256, index_bloc: index, nombre_blocs: nombreBlocs },
+      }, config.genererId, config.horloge);
+      await config.depot.inserer({ ...recu, statut: "envoyee", proprietaire: fichier.proprietaire, resumeAccepte: etatServeur });
+    }
+  }
+
+  let blocsEnfiles = 0;
+  const lignesApresReconciliation = (await config.depot.lister()).filter((m) => m.proprietaire === fichier.proprietaire);
+  const indicesDejaLocaux = new Set(lignesApresReconciliation
+    .filter((m) => (m.type === "fichier_bloc" || m.type === "fichier_bloc_reconcilie") && m.chantierId === fichier.chantierId && m.payload.empreinte_sha256 === fichier.sha256)
+    .map((m) => m.payload.index_bloc));
+  for (let index = 0; index < tousLesBlocs.length; index += 1) {
+    if (indicesDejaLocaux.has(index) || blocsDejaRecusParLeServeur.has(index)) continue;
     const args = construireArgumentsDeposerFichier(
       fichier.sha256,
       fichier.tailleOctets,
@@ -131,11 +161,30 @@ export async function preparerEnvoiFichier(
       config.genererId,
       config.horloge,
     );
-    await config.depot.inserer(soumettreMutation(brouillon));
+    await config.depot.inserer({ ...soumettreMutation(brouillon), proprietaire: fichier.proprietaire });
     blocsEnfiles += 1;
   }
 
   return { ok: true, blocsEnfiles };
+}
+
+const preparationsActives = new Map<string, Promise<ResultatPreparationEnvoiFichier>>();
+
+/** Sérialise les préparations par propriétaire, chantier et empreinte; une seconde invocation
+ * relit ensuite le dépôt et ne crée que les indices encore absents. */
+export function preparerEnvoiFichier(
+  config: ConfigurationEnvoiFichier,
+  fichier: CandidatFichierM4,
+  mutationsExistantes: readonly MutationOutbox[],
+): Promise<ResultatPreparationEnvoiFichier> {
+  const cle = `${fichier.proprietaire}\u0000${fichier.chantierId}\u0000${fichier.sha256}`;
+  const dejaEnCours = preparationsActives.get(cle);
+  if (dejaEnCours) return dejaEnCours;
+  const travail = preparerSousVerrou(config, fichier, mutationsExistantes).finally(() => {
+    if (preparationsActives.get(cle) === travail) preparationsActives.delete(cle);
+  });
+  preparationsActives.set(cle, travail);
+  return travail;
 }
 
 // Réexportés pour que les écrans/tests n'aient qu'un seul module à importer pour préparer la

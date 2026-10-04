@@ -357,6 +357,7 @@ export const TalkSessionSteerParamsSchema = closedObject({
 /** Closes a gateway-managed Talk session. */
 export const TalkSessionCloseParamsSchema = closedObject({
   sessionId: NonEmptyString,
+  discardAudio: Type.Optional(Type.Boolean()),
 });
 
 /** Reads Talk provider capabilities with optional realtime launch overrides. */

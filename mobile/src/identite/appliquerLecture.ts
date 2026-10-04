@@ -13,7 +13,7 @@ import type { EtatIdentite } from "./etat";
  */
 export interface DependancesAppliquerLecture {
   readonly configurationCourante: () => ConfigurationAppel | null;
-  readonly synchroniserCaches: (etat: EtatIdentite) => Promise<unknown>;
+  readonly synchroniserCaches: (etat: EtatIdentite, sessionToujoursCourante: () => boolean) => Promise<unknown>;
   readonly definirEtat: (etat: EtatIdentite, configuration: ConfigurationAppel) => void;
 }
 
@@ -27,13 +27,18 @@ export async function appliquerLecture(
   if (courante === null || courante.jeton !== configuration.jeton || courante.appareilId !== configuration.appareilId) {
     return false;
   }
+  const sessionToujoursCourante = (): boolean => {
+    const courante = dependances.configurationCourante();
+    return courante !== null && courante.jeton === configuration.jeton && courante.appareilId === configuration.appareilId;
+  };
   try {
-    await dependances.synchroniserCaches(etat);
+    await dependances.synchroniserCaches(etat, sessionToujoursCourante);
   } catch (erreur) {
     // Le journal ne porte que le nom de l'opération et l'erreur : jamais une personne, jamais un jeton.
     // eslint-disable-next-line no-console
     console.error("opsys: caches de l'identité précédente non effacés (retenté à la prochaine confirmation)", erreur);
   }
+  if (!sessionToujoursCourante()) return false;
   dependances.definirEtat(etat, configuration);
   return true;
 }

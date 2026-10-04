@@ -145,7 +145,9 @@ qu'à l'expiration de la dernière sauvegarde qui contient la clé. Deux décisi
 procédure qui réapplique les purges après toute restauration, à partir d'un journal de purge tenu
 hors des sauvegardes. Le chiffrement lui-même (flux HMAC-SHA256, nonce déterministe par pointage,
 sans authentification) protège la confidentialité ; l'intégrité est assurée par la chaîne du
-registre. Il relève du code critique et demande une revue externe avant la mise en service.
+registre. Il relève du code critique : analyser le modèle de menace, la primitive cryptographique,
+les sauvegardes et les régressions avant mise en service. ADR-0012 retire l'attente obligatoire
+d'un modèle extérieur ; il ne constitue pas une validation de cette construction cryptographique.
 
 ## 7. Lectures pures du propriétaire (PLAN T4.27-a)
 

@@ -48,8 +48,6 @@ from .departements import (
 from .profils import generer_distribution
 from .stockage.schema import REGISTRES
 
-ENV_MOT_DE_PASSE_PERSONNE = "OPSYS_PERSONNE_MOT_DE_PASSE"
-
 
 def _afficher(donnees: object) -> None:
     print(json.dumps(donnees, ensure_ascii=False, indent=2))
@@ -193,16 +191,32 @@ def cmd_approbations(args: argparse.Namespace) -> int:
             _afficher(approbations.file_proprietaire(cnx, deps))
             return 0
         index = outils_executables(deps, etat.session)
+        if _authentifier_action_humaine(cnx, args.par) is None:
+            return 1
         _afficher(approbations.decider(cnx, args.id, args.action == "approuver", args.par, index, deps,
                                        args.motif, _attestation_depuis_args(args)))
     return 0
 
 
 def _lire_mot_de_passe_personne() -> str:
-    """Jamais en argument de ligne de commande (ADR-0009 §5) : `getpass` sans écho, ou la variable
-    d'environnement OPSYS_PERSONNE_MOT_DE_PASSE (tests, scripts)."""
-    valeur = os.environ.get(ENV_MOT_DE_PASSE_PERSONNE)
-    return valeur if valeur is not None else getpass.getpass("Mot de passe : ")
+    """Preuve humaine interactive, jamais lue depuis l'environnement hérité des agents."""
+    return getpass.getpass("Mot de passe : ")
+
+
+def _authentifier_action_humaine(cnx, identifiant: str, roles_requis: set[str] | None = None):
+    """Step-up personnel juste avant une décision ou mutation opérateur; `--par` seul n'est pas une preuve."""
+    if not sys.stdin.isatty():
+        print("authentification personnelle requise; aucune modification effectuée", file=sys.stderr)
+        return None
+    try:
+        mot_de_passe = _lire_mot_de_passe_personne()
+    except (EOFError, OSError):
+        mot_de_passe = ""
+    personne = identite.authentifier(cnx, identifiant, mot_de_passe)
+    if personne is None or (roles_requis and not personne.roles.intersection(roles_requis)):
+        print("authentification personnelle requise; aucune modification effectuée", file=sys.stderr)
+        return None
+    return personne
 
 
 def cmd_personnes(args: argparse.Namespace) -> int:
@@ -287,7 +301,8 @@ def cmd_instance(args: argparse.Namespace) -> int:
         if args.action == "initialiser":
             resultat = instance.initialiser(
                 home, source=_source_du_logiciel(args.source), python=Path(sys.executable),
-                port_gateway=args.port_gateway, port_moteur=args.port_moteur)
+                port_gateway=args.port_gateway, port_moteur=args.port_moteur,
+                mode_fournisseur=args.mode_fournisseur, url_passerelle=args.url_passerelle)
             _afficher(resultat.en_json())
             for ligne in resultat.manque:
                 print(f"À FAIRE : {ligne}", file=sys.stderr)
@@ -325,6 +340,8 @@ def cmd_mode(args: argparse.Namespace) -> int:
         print(refus, file=sys.stderr)
         return 1
     with etat.session() as cnx:
+        if _authentifier_action_humaine(cnx, args.par, {"nathan_owner", "admin"}) is None:
+            return 1
         approbations.fixer_mode(cnx, args.departement, args.mode, args.par)
     print(f"{args.departement} → {args.mode}")
     return 0
@@ -480,16 +497,49 @@ def _contexte_entreprise(specifications: list[tuple[str, list[str]]] | None) -> 
 
 
 def cmd_openclaw(args: argparse.Namespace) -> int:
+    if args.action == "bootstrap-serveur":
+        from . import serveur_bootstrap
+
+        try:
+            resultat = serveur_bootstrap.preparer(Path(args.config_dir), args.domaine)
+        except serveur_bootstrap.ErreurBootstrapServeur as erreur:
+            print(str(erreur), file=sys.stderr)
+            return 2
+        _afficher(resultat)
+        return 0
     deps = charger_departements()
     dossier = Path(args.config_dir)
     fichiers = openclaw.generer(deps, dossier, modeles.charger_paliers(), url_mcp=args.url_mcp,
-                                url_passerelle=args.url_passerelle, racine_espaces=args.espaces,
+                                url_passerelle=args.url_passerelle, mode_fournisseur=args.mode_fournisseur,
+                                racine_espaces=args.espaces,
                                 fuseau=args.fuseau,
+                                cnx_factory=etat.session,
                                 contexte_entreprise=_contexte_entreprise(args.contexte_entreprise) or None,
                                 affaire_par_session=args.affaire_par_session or ())
     racine = openclaw.racine_si_absente(dossier)
     for nom, chemin in fichiers.items():
         print(f"{nom}: {chemin}")
+    profils_en_attente = json.loads(fichiers["profils_en_attente"].read_text(encoding="utf-8"))["profils"]
+    if profils_en_attente:
+        print(
+            "Profils configurables retenus (non exportés comme agents exécutables) : "
+            + ", ".join(profil["id"] for profil in profils_en_attente)
+            + "; le runtime d'admission et de conciliation des tokens n'est pas raccordé.",
+            file=sys.stderr,
+        )
+    print(
+        f"Fournisseurs de modèles : "
+        f"{'LiteLLM (compatibilité)' if args.mode_fournisseur == 'litellm' else 'natifs'}"
+    )
+    if args.mode_fournisseur == "natif":
+        secrets_manquants = openclaw.secrets_modeles_manquants(modeles.charger_paliers(), os.environ)
+        if secrets_manquants:
+            print(
+                "Configuration modèles incomplète : fournissez les variables d'environnement "
+                + ", ".join(secrets_manquants)
+                + ". La passerelle reste installée; ces modèles seront indisponibles tant que les clés manquent.",
+                file=sys.stderr,
+            )
     print(f"{openclaw.fichier_racine(dossier).name} : "
           f"{'créé avec les $include OPSYS' if racine else 'existant, non modifié'}")
     manquants = openclaw.includes_de_canaux_manquants(dossier)
@@ -579,6 +629,9 @@ def construire_parseur() -> argparse.ArgumentParser:
     p.add_argument("--version", action="version", version=f"opsys-metier {__version__}")
     sous = p.add_subparsers(dest="commande", required=True)
 
+    from . import memoire_developpement_cli
+    memoire_developpement_cli.ajouter_commandes(sous)
+
     sous.add_parser("departements", help="lister les départements").set_defaults(fn=cmd_departements)
 
     v = sous.add_parser("verifier", help="valider manifestes et outils (CI)")
@@ -659,10 +712,17 @@ def construire_parseur() -> argparse.ArgumentParser:
     pa.add_argument("--base-url")
     pa.set_defaults(fn=cmd_paliers)
     oc = sous.add_parser("openclaw", help="configuration d'OPSYS-CORE (OpenClaw)")
-    oc.add_argument("action", choices=["configurer"])
+    actions_oc = oc.add_subparsers(dest="action", required=True)
+    bootstrap = actions_oc.add_parser("bootstrap-serveur", help="racine du serveur Compose, sans réparation")
+    bootstrap.add_argument("--config-dir", required=True, help="volume de configuration du serveur Compose")
+    bootstrap.add_argument("--domaine", required=True, help="nom d'hôte DNS ou IPv4, sans URL ni port")
+    bootstrap.set_defaults(fn=cmd_openclaw)
+    oc = actions_oc.add_parser("configurer", help="générer les fragments OPSYS")
     oc.add_argument("--config-dir", required=True, help="dossier de openclaw.json (volume partagé)")
     oc.add_argument("--url-mcp", default="http://opsys:8765/mcp")
-    oc.add_argument("--url-passerelle", default="http://litellm:4000/v1")
+    oc.add_argument("--mode-fournisseur", choices=["natif", "litellm"], default="natif",
+                    help="natif par défaut ; litellm n'est conservé que pour la compatibilité explicite")
+    oc.add_argument("--url-passerelle", help="requis seulement avec --mode-fournisseur litellm")
     oc.add_argument("--espaces", default="./opsys/espaces", help="chemin des espaces vu par OpenClaw")
     oc.add_argument("--fuseau", default="America/Toronto")
     oc.add_argument(
@@ -702,6 +762,9 @@ def construire_parseur() -> argparse.ArgumentParser:
     ins.add_argument("--source", help="initialiser : dépôt du logiciel (défaut : celui du paquet installé)")
     ins.add_argument("--port-gateway", type=int, help="initialiser : port du Gateway (défaut : 18789)")
     ins.add_argument("--port-moteur", type=int, help="initialiser : port du moteur métier (défaut : 8765)")
+    ins.add_argument("--mode-fournisseur", choices=["natif", "litellm"],
+                     help="initialiser : natif par défaut ; LiteLLM seulement sur choix explicite")
+    ins.add_argument("--url-passerelle", help="initialiser : requis seulement avec --mode-fournisseur litellm")
     ins.set_defaults(fn=cmd_instance)
 
     pg = sous.add_parser("passerelle", help="passerelle LiteLLM : configuration et clés par département")
@@ -716,6 +779,9 @@ def construire_parseur() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = construire_parseur().parse_args(argv)
+    if args.commande == "memoire-developpement":
+        from . import memoire_developpement_cli
+        return memoire_developpement_cli.executer(args)
     if args.commande == "approbations" and args.action not in ("lister", "file") and not args.id:
         print("id de demande requis", file=sys.stderr)
         return 2

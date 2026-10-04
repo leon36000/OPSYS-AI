@@ -76,8 +76,8 @@ class TestRefusFixtureSansFictif:
 
 
 class TestChaineCompleteReelle:
-    def test_chaine_complete_reelle(self) -> None:
-        """Fixture valide -> étapes OK, NotAutorise tracé, métriques."""
+    def test_workflow_historique_ne_peut_pas_approuver_avec_acteur_argument(self) -> None:
+        """La fixture donne une proposition; les identifiants libres ne produisent pas d'approbation/publication."""
         approval.reset()
         resultat = chantier_social.orchestrer_chantier_vers_social(
             str(FIXTURE_VALIDE),
@@ -88,27 +88,24 @@ class TestChaineCompleteReelle:
         assert resultat["chantier_slug"] == "residence-quebec-2026"
 
         etapes = resultat["etapes"]
-        assert len(etapes) == 5
-        noms_attendus = ["charge", "compose", "propose", "approuve", "publication"]
+        assert len(etapes) == 4
+        noms_attendus = ["charge", "compose", "propose", "approuve"]
         for idx, nom in enumerate(noms_attendus):
             assert etapes[idx]["nom"] == nom
 
-        # Les quatre premières étapes aboutissent normalement.
+        # Le contenu est proposé, mais l'approbation sans preuve serveur échoue.
         for idx in range(4):
-            assert etapes[idx]["statut"] == "SUCCES"
-
-        # NEW-PROD-008 : une publication refusée par le gate doit être BLOQUE,
-        # jamais SUCCES, même si le détail mentionne NotAutorise.
-        assert etapes[4]["statut"] == "BLOQUE"
-
-        detail_pub = etapes[-1]["detail"]
-        assert "NotAutorise" in str(detail_pub)
+            assert etapes[idx]["statut"] == ("ECHEC" if idx == 3 else "SUCCES")
+        assert "identité serveur propriétaire" in etapes[-1]["detail"]
+        assert "publication" not in [e["nom"] for e in etapes]
+        assert approval.list_items("PROPOSE")
+        assert approval.list_items("APPROVED") == []
 
         metriques = resultat["metriques"]
         assert metriques == {
             "chantiers_traites": 1,
             "contenus_proposes": 1,
-            "publications_bloquees_gated": 1,
+            "publications_bloquees_gated": 0,
         }
 
 
@@ -129,7 +126,7 @@ class TestAutoApprobationRefusee:
         assert derniere["nom"] == "approuve"
         assert derniere["statut"] == "ECHEC"
         detail = str(derniere["detail"]).lower()
-        assert "auto" in detail or "distinct" in detail
+        assert "identité serveur propriétaire" in detail
 
         # Vérifier qu'aucune étape "publication" n'est présente
         noms = [e["nom"] for e in etapes]
@@ -137,8 +134,8 @@ class TestAutoApprobationRefusee:
 
 
 class TestGatingFlagOff:
-    def test_gating_flag_off(self) -> None:
-        """Adaptateur disabled -> étape publication ECHEC AdapterDisabled, métrique 0."""
+    def test_adaptateur_n_est_pas_atteint_sans_approbation_humaine(self) -> None:
+        """La configuration d'adaptateur ne remplace pas la preuve serveur d'approbation."""
         approval.reset()
         resultat = chantier_social.orchestrer_chantier_vers_social(
             str(FIXTURE_VALIDE),
@@ -148,17 +145,17 @@ class TestGatingFlagOff:
             adapter_config={"enabled": False, "dry_run": True},
         )
         etapes = resultat["etapes"]
-        # Vérifier que l'étape publication existe et est en échec
-        pub_etape = etapes[-1]
-        assert pub_etape["nom"] == "publication"
-        assert pub_etape["statut"] == "ECHEC"
-        assert "AdapterDisabled" in str(pub_etape["detail"])
+        assert etapes[-1]["nom"] == "approuve"
+        assert etapes[-1]["statut"] == "ECHEC"
+        assert "identité serveur propriétaire" in str(etapes[-1]["detail"])
+        assert "publication" not in [etape["nom"] for etape in etapes]
         assert resultat["metriques"]["publications_bloquees_gated"] == 0
 
 
 class TestDeterminisme:
-    def test_determinisme(self) -> None:
-        """Deux appels identiques -> résultats strictement identiques."""
+    def test_determinisme(self, monkeypatch) -> None:
+        """Avec la même horloge serveur reçue, deux appels identiques rendent la même proposition."""
+        monkeypatch.setattr(approval, "_horodatage_serveur", lambda: "2026-07-25T00:00:00+00:00")
         approval.reset()
         resultat1 = chantier_social.orchestrer_chantier_vers_social(
             str(FIXTURE_VALIDE),
@@ -288,14 +285,15 @@ def _lancer(chemin: Path) -> dict:
 
 class TestChantierV2:
     def test_chantier_v2_traverse_la_chaine_avec_le_libelle_du_service(self, tmp_path, declarer_services):
-        """Un chantier v2 porte `service` (taxonomie du socle) : même chaîne en cinq étapes que le v1, le
+        """Un chantier v2 porte `service` (taxonomie du socle) : même chaîne sûre que le v1, le
         titre vient du libellé fr-CA du service déclaré, jamais d'un `type_travaux` déduit."""
         declarer_services()
         resultat = _lancer(_chantier_v2(tmp_path))
 
-        assert [e["nom"] for e in resultat["etapes"]] == ["charge", "compose", "propose", "approuve", "publication"]
-        assert [e["statut"] for e in resultat["etapes"]][:4] == ["SUCCES"] * 4
-        assert resultat["etapes"][4]["statut"] == "BLOQUE"
+        assert [e["nom"] for e in resultat["etapes"]] == ["charge", "compose", "propose", "approuve"]
+        assert [e["statut"] for e in resultat["etapes"]] == ["SUCCES", "SUCCES", "SUCCES", "ECHEC"]
+        assert "identité serveur propriétaire" in resultat["etapes"][-1]["detail"]
+        assert resultat["etapes"][3]["statut"] == "ECHEC"
         assert "Gouttières et descentes à Laval" in resultat["etapes"][1]["detail"]["title"]
 
     def test_chantier_v1_reste_accepte_sans_aucun_profil_d_entreprise(self):

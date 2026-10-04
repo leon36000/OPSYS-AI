@@ -25,10 +25,14 @@ Ce que la commande fait, dans l'ordre :
 2. crée `$OPSYS_HOME` et le dossier d'état du core, accessibles à leur propriétaire seul (0700 ; sous Windows,
    ACL réduite à l'utilisateur et héritée par ce que le service y écrit, `restreindre_dossier`) ;
 3. migre la base de l'instance (SQLite, `$OPSYS_HOME/opsys.db`) ;
-4. pose `<état du core>/.env`, 0600 : les secrets qui manquent (jeton du moteur `OPSYS_MCP_JETON`, jeton du
+4. pose `<état du core>/.env`, 0600 : les secrets qui manquent (jetons `OPSYS_MCP_JETON` et
+   `OPSYS_CONTEXT_MCP_JETON` réservé au moteur de contexte, jeton du
    Gateway, une clé virtuelle par département) et les réglages fournis (`OPSYS_EMBEDDINGS_*`,
-   `OPSYS_PASSERELLE_URL`). Un secret présent n'est JAMAIS régénéré ; aucune valeur n'est rendue ni écrite dans
-   une sortie ;
+   `OPSYS_PASSERELLE_URL`). Les fournisseurs de modèles OpenClaw sont natifs par défaut ; LiteLLM n'est utilisé
+   qu'avec le mode explicite `litellm` et une URL. Une URL historique seule ne change pas le mode. Une mise à jour
+   d'instance existante ajoute le jeton de contexte s'il manque et conserve le `OPSYS_MCP_JETON` déjà configuré.
+   Un secret présent n'est JAMAIS régénéré ; aucune valeur n'est
+   rendue ni écrite dans une sortie ;
 5. vérifie que le core peut être configuré. Sinon (paliers de modèles, service d'embeddings) : verdict
    `en_attente` qui dit quoi fournir, et RIEN d'autre n'est écrit. Fail-closed : aucune valeur inventée ;
 6. génère la configuration du core (`opsys-metier openclaw configurer`), le bloc `gateway` du fichier racine
@@ -76,10 +80,11 @@ VARIABLES_ECARTEES = (
 )
 NOM_ENV = ".env"
 ENV_JETON_MCP = "OPSYS_MCP_JETON"  # core/src/gateway/opsys-metier-config.ts::OPSYS_MCP_TOKEN_ENV
+ENV_JETON_CONTEXTE = "OPSYS_CONTEXT_MCP_JETON"
 ENV_JETON_GATEWAY = "OPENCLAW_GATEWAY_TOKEN"
 ENV_PASSERELLE = "OPSYS_PASSERELLE_URL"
+ENV_MODE_FOURNISSEUR = "OPSYS_MODE_FOURNISSEUR"
 ENV_BASE_URL = stockage.ENV_URL
-URL_PASSERELLE_DEFAUT = "http://127.0.0.1:4000/v1"  # port usuel de LiteLLM en local ; l'installateur ne l'installe pas
 PORT_GATEWAY_DEFAUT = 18789  # core/src/config/paths.ts::DEFAULT_GATEWAY_PORT
 PORT_MOTEUR_DEFAUT = 8765  # core/src/gateway/opsys-metier-config.ts::DEFAULT_PORT
 CLE_COMMANDE_CLI = "commande_cli"  # core/src/cli/opsys-metier-cli.ts::OPSYS_METIER_CLI_COMMAND_KEY
@@ -87,7 +92,7 @@ HOTE_LOCAL = "127.0.0.1"
 CODE_EN_ATTENTE = 3  # code de sortie de `opsys-metier instance initialiser` : installé, mais il manque une décision
 
 # Les seuls réglages que l'installateur accepte de l'environnement et écrit dans `.env`.
-REGLAGES_ACCEPTES = (ENV_URL, ENV_MODELE, ENV_CLE, ENV_LOCAL, ENV_PASSERELLE)
+REGLAGES_ACCEPTES = (ENV_URL, ENV_MODELE, ENV_CLE, ENV_LOCAL, ENV_PASSERELLE, ENV_MODE_FOURNISSEUR)
 
 # Alphabet d'une valeur de `.env` : sans espace, guillemet, `$`, `#`, barre oblique inverse ni saut de ligne.
 # Écrite ainsi, une ligne est lue de la même façon par le core (dotenv), par les enveloppes `opsys-metier` (bash, cmd)
@@ -125,6 +130,7 @@ class ResultatInitialisation:
     port_gateway: int
     port_moteur: int
     dossier_core: Path
+    mode_fournisseur: str
 
     def en_json(self) -> dict[str, Any]:
         return {
@@ -135,6 +141,7 @@ class ResultatInitialisation:
             "port_gateway": self.port_gateway,
             "port_moteur": self.port_moteur,
             "dossier_core": str(self.dossier_core),
+            "mode_fournisseur": self.mode_fournisseur,
             "env": {
                 "chemin": str(self.env.chemin),
                 "secrets_generes": list(self.env.generees),
@@ -576,6 +583,8 @@ def initialiser(
     python: Path,
     port_gateway: int | None = None,
     port_moteur: int | None = None,
+    mode_fournisseur: str | None = None,
+    url_passerelle: str | None = None,
     environ: Mapping[str, str] | None = None,
     departements: Mapping[str, Departement] | None = None,
     etat_core: Path | None = None,
@@ -623,6 +632,36 @@ def initialiser(
         etat_d_avant = disposition_du_profil_d_avant(etat_core, ancien_profil)
         if etat_d_avant is not None:
             raise _refuser_profil_d_avant(etat_d_avant, ancien_profil, etat_core)
+
+    chemin = chemin_env(etat_core)
+    env_existant = lire_env(chemin)
+    mode_explicitement_fourni = mode_fournisseur is not None or ENV_MODE_FOURNISSEUR in environ
+    mode_effectif = (
+        mode_fournisseur
+        or environ.get(ENV_MODE_FOURNISSEUR)
+        or env_existant.get(ENV_MODE_FOURNISSEUR)
+        or "natif"
+    ).strip().lower()
+    if mode_effectif not in {"natif", "litellm"}:
+        raise ErreurInstance(f"{ENV_MODE_FOURNISSEUR} doit valoir 'natif' ou 'litellm'.")
+    passerelle_existante = env_existant.get(ENV_PASSERELLE, "").strip()
+    passerelle_fournie = (url_passerelle or environ.get(ENV_PASSERELLE, "")).strip()
+    url_explicite_sans_mode = bool(url_passerelle or environ.get(ENV_PASSERELLE, "").strip())
+    if url_explicite_sans_mode and mode_effectif != "litellm":
+        raise ErreurInstance(f"{ENV_PASSERELLE} est réservée à --mode-fournisseur litellm.")
+    if mode_effectif == "litellm" and not (passerelle_fournie or passerelle_existante):
+        raise ErreurInstance(f"le mode litellm exige une URL explicite avec --url-passerelle ou {ENV_PASSERELLE}.")
+    if mode_effectif == "litellm":
+        valeur_passerelle = passerelle_fournie or passerelle_existante
+        _valider_reglage(ENV_PASSERELLE, valeur_passerelle)
+        if not valeur_passerelle.startswith(("http://", "https://")):
+            raise ErreurInstance(f"{ENV_PASSERELLE} doit être une URL http(s) valide.")
+    # Un OPSYS_PASSERELLE_URL seul dans l'ancien .env n'active jamais LiteLLM : il reste lisible pour un choix
+    # explicite ultérieur, tandis que le générateur natif reçoit uniquement les fournisseurs de paliers.
+    if mode_effectif == "litellm":
+        reglages_modele = {ENV_MODE_FOURNISSEUR: "litellm", ENV_PASSERELLE: passerelle_fournie or passerelle_existante}
+    else:
+        reglages_modele = ({ENV_MODE_FOURNISSEUR: "natif"} if mode_explicitement_fourni else {})
     avertissements = _preparer_dossiers(list(dict.fromkeys(dossiers)))
     if etat_core_par_defaut and home.resolve() != etat_core.parent.resolve():
         avertissements.append(
@@ -638,11 +677,12 @@ def initialiser(
     revision = stockage.migrer()
     deps = dict(departements) if departements is not None else charger_departements()
 
-    chemin = chemin_env(etat_core)
     reglages = {nom: environ[nom].strip() for nom in REGLAGES_ACCEPTES if environ.get(nom, "").strip()}
-    if ENV_PASSERELLE not in reglages and not lire_env(chemin).get(ENV_PASSERELLE):
-        reglages[ENV_PASSERELLE] = URL_PASSERELLE_DEFAUT
-    secrets_attendus = [ENV_JETON_MCP, ENV_JETON_GATEWAY, *(openclaw._variable_cle(dep) for dep in deps.values())]
+    reglages.update(reglages_modele)
+    secrets_attendus = [
+        ENV_JETON_MCP, ENV_JETON_CONTEXTE, ENV_JETON_GATEWAY,
+        *(openclaw._variable_cle(dep) for dep in deps.values()),
+    ]
     rapport = assurer_env(chemin, secrets_attendus, reglages)
     env = lire_env(chemin)
 
@@ -652,12 +692,13 @@ def initialiser(
     if manque:
         return ResultatInitialisation(
             "en_attente", revision, tuple(manque), tuple(avertissements), rapport, fichiers,
-            port_gateway or PORT_GATEWAY_DEFAUT, port_effectif_moteur, etat_core,
+            port_gateway or PORT_GATEWAY_DEFAUT, port_effectif_moteur, etat_core, mode_effectif,
         )
 
     openclaw.generer(
         deps, etat_core, paliers, url_mcp=f"http://{HOTE_LOCAL}:{port_effectif_moteur}/mcp",
-        url_passerelle=env[ENV_PASSERELLE], environ=env,
+        url_passerelle=(passerelle_fournie or passerelle_existante) if mode_effectif == "litellm" else None,
+        mode_fournisseur=mode_effectif, environ=env,
     )
     openclaw.racine_si_absente(etat_core, nom_creation=NOM_CONFIG)
     _, port_effectif_gateway = completer_racine(etat_core, port_gateway)
@@ -671,5 +712,5 @@ def initialiser(
     fichiers.update({"openclaw": str(config), "metier": str(metier)})
     return ResultatInitialisation(
         "pret", revision, (), tuple(avertissements), rapport, fichiers, port_effectif_gateway, port_effectif_moteur,
-        etat_core,
+        etat_core, mode_effectif,
     )

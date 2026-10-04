@@ -29,6 +29,9 @@ EMPLOYE = frozenset({
     "m4_completer_intervention", "m4_creer_demande_ecart", "m4_definir_consentement_gps",
     "m4_demarrer_route", "m4_deposer_fichier", "m4_etat_fichier", "m4_lister_interventions", "m4_pointer",
     "m4_signaler_report", "m4_statut_intervention", "m6_declarer_materiaux_utilises",
+    # M7 : enregistrer un consentement de référence et importer/lire les avis non privés;
+    # les plaintes privées et les décisions/exports/publications restent fermés à ce rôle.
+    "m7_enregistrer_consentement_reference", "m7_importer_avis_manuel", "m7_lister_inbox_reputation",
 })
 
 # §9.4 (profil vendeur) : ses leads, le Client 360, les soumissions de ses leads (M2, M3). Aucun outil
@@ -45,7 +48,7 @@ VENDEUR = frozenset({
 # §9.5 (profil admin / propriétaire) : ce que fait l'employé et le vendeur, plus ce que le propriétaire
 # ou son gestionnaire décide ou consulte depuis son téléphone.
 ADMIN_SEUL = frozenset({
-    "m1_produire_digest",
+    "m1_produire_digest", "m1_importer_appel_manuellement",
     "m1_lire_transfert", "m1_clore_transfert",  # transferts à un humain : lire, clore en personne (T4.5)
     "m2_arbitrer_doublon", "m2_detecter_doublons", "m2_produire_digest", "m2_signaler_doublon",
     # réassigner un lead (décision humaine) et republier le fait de propriété d'avant T1.4-k2 (T1.4-m)
@@ -56,6 +59,8 @@ ADMIN_SEUL = frozenset({
     "m4_verifier_meteo_creneau",  # la météo d'un plan de cédule : dispatch de l'admin (T4.13)
     "m4_lire_meteo_intervention",  # la météo du créneau d'une intervention, sans plan_id : dispatch (T4.27-a)
     "m4_lire_retards_incidents",  # les reports en cours et les incidents ouverts : dispatch de l'admin (T4.27-a)
+    # Sources horaires individuelles : aperçu et validation courante privés, aucun accès employé/vendeur.
+    "m4_previsualiser_heures_regulieres", "m4_lire_heures_regulieres_validees",
     "m4_volumetrie_pending_review",
     "m5_etat_tresorerie", "m5_lister_attentes_facturation",
     "m5_lire_rentabilite_chantier", "m5_lire_comptes_a_recevoir",  # coût réel, marge, créances (T1.5-d)
@@ -64,7 +69,12 @@ ADMIN_SEUL = frozenset({
     # propriétaire ou la finance ; par la voie directe, la PERSONNE doit porter nathan_owner ou finance)
     "m5_saisir_facture_sans_po", "m5_corriger_facture_fournisseur", "m5_annuler_facture_fournisseur",
     "m5_lire_echeances_fiscales",  # calendrier fiscal vivant, TPS/TVQ (T4.16)
+    "m5_lire_calendrier_obligations",  # échéances avec origine et fraîcheur, lecture admin seulement (T4.16)
     "m5_prevoir_tresorerie",  # prévision de trésorerie des flux connus et datés, lecture pure (T4.16-d)
+    "m5_preparer_decision_capital",  # comparaison financière indicative, sans commande ni paiement
+    "m5_preparer_dossier_decision_cfo",  # dossier préparatoire de direction, lecture pure des sources M5
+    # Contrat privé CAD : écritures humaines N4 et lecteur courant, sans élargir le droit d'agent CFO.
+    "m5_enregistrer_contrat_horaire", "m5_revoquer_contrat_horaire", "m5_lire_contrat_horaire",
     # le cash libre constaté et publié au bus pour M8 : écriture interne (T1, N3), l'admin qui voit les coûts
     "m5_constater_cash_libre",
     "m6_annuler_po", "m6_approuver_po", "m6_evaluer_variance_chantier", "m6_produire_digest",
@@ -72,6 +82,10 @@ ADMIN_SEUL = frozenset({
     # réservation, emplacements, disponibilité : l'admin seulement (T4.14) ; jamais l'employé ni le vendeur
     "m6_reserver_materiel", "m6_liberer_reservation", "m6_transferer_stock", "m6_lire_disponibilite",
     "m7_lister_file_approbation", "m7_lister_demandes_avis",  # avis à relire avant d'écrire au client (T1.5-d)
+    "m7_approuver_budget_campagne", "m7_configurer_profil_marque",  # décisions propriétaires Brand/Growth
+    "m7_decider_creneau_calendrier", "m7_decider_reponse_avis",  # décisions propriétaires avant tout export
+    "m7_exporter_creneau_manuel", "m7_exporter_reponse_avis_manuel", "m7_lister_calendrier",
+    "m7_lire_performance_campagnes",  # lecture des conversions et marges attribuées, admin seulement
     # usine à contenu (T4.17) : le propriétaire lit, décide, prend le paquet à publier, enregistre un retrait
     "m7_lister_contenus_chantier", "m7_decider_contenu", "m7_exporter_paquet_manuel",
     "m7_enregistrer_retrait_consentement_marketing",
@@ -94,8 +108,16 @@ USINE_A_CONTENU_ADMIN = frozenset({
 })
 USINE_A_CONTENU_AGENT = frozenset({"m7_proposer_contenus_chantier", "m7_lire_matiere_chantier"})
 
+# Les autres outils M7 sont admin seulement. Les avis importés par un employé restent limités aux avis
+# non privés (test M7 de l'inbox durable); aucune décision, aucun export ni publication n'est ouvert.
+MARKETING_ADMIN_SEUL = frozenset({
+    "m7_approuver_budget_campagne", "m7_configurer_profil_marque", "m7_decider_creneau_calendrier",
+    "m7_decider_reponse_avis", "m7_exporter_creneau_manuel", "m7_exporter_reponse_avis_manuel",
+    "m7_lister_calendrier", "m7_lire_performance_campagnes",
+})
+
 # Outils qu'AUCUN appareil ne peut appeler, avec la raison. Ils restent appelables par les agents
-# (serveur MCP du département) : seule la voie du jeton d'appareil les refuse.
+# (serveur MCP du département), sauf le brut régulier qui exige le propriétaire via console.
 FERMES_A_TOUS = {
     "m4_lire_outbox": "WCT complets : positions GPS et identités de tous les techniciens ; outil des modules aval",
     "m6_consommer_materiaux": "prend encore un WCT fourni par l'appelant (remplacé par m6_declarer_materiaux_utilises)",
@@ -111,6 +133,7 @@ FERMES_A_TOUS = {
     "m6_marquer_po_envoye": "engagement externe (N4) : passe par la file d'approbation",
     "m5_creer_facture_brouillon": "étape de la cascade §6 (M5), pas une action de téléphone",
     "m5_envoyer_facture": "engagement client (N4) : passe par la file d'approbation",
+    "m5_preparer_brut_regulier": "propriétaire confirmé via console seulement ; aucun jeton d'appareil ni agent",
     "m1_transferer": "jugement de l'agent dans la session d'un client (N2) ; l'employé qui signale : à faire",
     "m1_escalader_plainte": "jugement de l'agent dans la session d'un client (N2) ; les règles l'ouvrent déjà",
     "m2_ingerer_lead": "ingestion du contrat M1 -> M2, pas une saisie de téléphone",
@@ -169,6 +192,21 @@ def test_l_usine_a_contenu_est_au_proprietaire_et_l_agent_seul_ecrit_les_brouill
     index = tous_les_outils(departements_reels.values())
     assert set(index) >= (USINE_A_CONTENU_ADMIN | USINE_A_CONTENU_AGENT)
     assert not index["m7_decider_contenu"][1].frontiere_humaine  # N3 : la validation au départ suffit au propriétaire
+
+
+def test_employe_ne_recoit_ni_actions_marketing_admin_ni_publication(roles_reels, departements_reels):
+    index = tous_les_outils(departements_reels.values())
+    assert set(roles_reels["admin"]) >= MARKETING_ADMIN_SEUL
+    for role in ("employee", "seller"):
+        assert not MARKETING_ADMIN_SEUL & set(roles_reels[role])
+    assert "m7_publier_post_social" in index
+    assert index["m7_publier_post_social"][1].frontiere_humaine
+    for _role, outils in roles_reels.items():
+        assert "m7_publier_post_social" not in outils
+    # Les seuls accès employé à l'inbox sont l'import manuel et une liste qui masque les avis privés.
+    assert {outil for outil in roles_reels["employee"] if outil.startswith("m7_")} == {
+        "m7_enregistrer_consentement_reference", "m7_importer_avis_manuel", "m7_lister_inbox_reputation",
+    }
 
 
 def test_les_trois_roles_d_appareil_sont_les_seules_cles(roles_reels):

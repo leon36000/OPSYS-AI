@@ -18,9 +18,9 @@ ce fichier doit ÉCHOUER à l'exécution — c'est le RED attendu de la story.
 
 import ast
 import sys
+from pathlib import Path
 
 import pytest
-from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 

@@ -1,12 +1,9 @@
 #!/bin/sh
 # deploy/entrypoint.sh — point d'entrée du conteneur "opsys".
 #
-# Un seul conteneur, trois responsabilités (architecture demandée par l'Orchestrateur) :
-#   1. synchronisation idempotente de la config LiteLLM (`opsys-metier passerelle config`), des agents
-#      OpenClaw (`opsys-metier passerelle cles` + `opsys-metier openclaw configurer`) et de la consommation
-#      mesurée par LiteLLM (`opsys-metier passerelle synchroniser`, alimente budgets/alertes OPSYS) —
-#      rejouée périodiquement pour absorber une configuration de modèles faite après coup dans la
-#      console, sans jamais redémarrer le conteneur ;
+# Native provider configuration is the default. LiteLLM key/config/usage synchronization runs only
+# after an explicit `OPSYS_MODE_FOURNISSEUR=litellm` choice.
+#   1. regenerates model/provider configuration after operator changes in the console;
 #   2. le serveur MCP OPSYS en HTTP streamable (`opsys-mcp --http`) ;
 #   3. la console OPSYS (`opsys-console`).
 #
@@ -20,20 +17,32 @@ set -eu
 
 OPENCLAW_CONFIG_DIR="${OPENCLAW_CONFIG_DIR:-/openclaw-config}"
 LITELLM_CONFIG_DIR="${LITELLM_CONFIG_DIR:-/shared/litellm-config}"
-LITELLM_URL="${LITELLM_URL:-http://litellm:4000}"
+MODE="${OPSYS_MODE_FOURNISSEUR:-natif}"
+OPSYS_PASSERELLE_URL="${OPSYS_PASSERELLE_URL:-}"
 OPSYS_MCP_PORT="${OPSYS_MCP_PORT:-8765}"
 SYNC_INTERVAL="${OPSYS_SYNC_INTERVAL_SECONDS:-300}"
 SYNC_JOURS="${OPSYS_SYNC_JOURS:-1}"
 
-mkdir -p "$OPENCLAW_CONFIG_DIR" "$LITELLM_CONFIG_DIR"
+case "$MODE" in
+    natif) ;;
+    litellm)
+        case "$OPSYS_PASSERELLE_URL" in http://*|https://*) ;; *) echo "[opsys-init] URL explicite requise en mode litellm." >&2; exit 2 ;; esac
+        LITELLM_URL="$OPSYS_PASSERELLE_URL"
+        ;;
+    *) echo "[opsys-init] OPSYS_MODE_FOURNISSEUR invalide : $MODE" >&2; exit 2 ;;
+esac
+
+# Lecture seule avant toute création/bootstrap/migration. Les volumes existants ne changent
+# jamais de propriétaire en silence ; une archive UID10100 exige une reprise assistée.
+if ! python3 "$(dirname "$0")/permissions.py"; then
+    echo "[opsys-init] permissions serveur refusées; snapshot et reprise assistée des volumes requis." >&2
+    exit 2
+fi
 
 log() { echo "[opsys-init] $*"; }
 warn() { echo "[opsys-init] $*" >&2; }
 
-# -- (1a) Config LiteLLM depuis les paliers OPSYS ------------------------------------------------
-# Pur calcul + écriture fichier (aucun appel réseau) : ne dépend pas de LiteLLM déjà démarré, donc
-# sûr à lancer avant lui. C'est la raison d'être de l'ordre postgres -> opsys -> litellm ci-dessous
-# dans docker-compose.yml : LiteLLM lit ce fichier à SON démarrage.
+# -- Configuration facultative de LiteLLM ------------------------------------------------------
 sync_litellm_config() {
     if opsys-metier passerelle config --sortie "$LITELLM_CONFIG_DIR/config.yaml"; then
         log "config LiteLLM régénérée : $LITELLM_CONFIG_DIR/config.yaml"
@@ -64,20 +73,40 @@ sys.exit(1)
 PY
 }
 
+bootstrap_serveur() {
+    opsys-metier openclaw bootstrap-serveur --config-dir "$OPENCLAW_CONFIG_DIR" \
+        --domaine "${OPSYS_DOMAINE:-localhost}"
+}
+
 sync_openclaw() {
-    if ! litellm_joignable; then
-        warn "LiteLLM pas encore joignable sur $LITELLM_URL — clés et config OpenClaw reportées au prochain cycle."
-        return 0
+    if ! bootstrap_serveur; then
+        warn "racine serveur incompatible; aucun fragment régénéré. Reprise assistée requise."
+        return 1
     fi
-    if opsys-metier passerelle cles --url "$LITELLM_URL"; then
-        log "clés virtuelles LiteLLM synchronisées pour tous les départements."
-    else
-        warn "au moins une clé virtuelle LiteLLM n'a PAS pu être enregistrée (détail ci-dessus) — nouvel essai au prochain cycle."
+    if [ "$MODE" = litellm ]; then
+        if litellm_joignable; then
+            if opsys-metier passerelle cles --url "$LITELLM_URL"; then
+                log "clés virtuelles LiteLLM synchronisées pour tous les départements."
+            else
+                warn "au moins une clé virtuelle LiteLLM n'a PAS pu être enregistrée (nouvel essai au prochain cycle)."
+            fi
+        else
+            warn "LiteLLM pas encore joignable sur $LITELLM_URL — clés reportées au prochain cycle."
+        fi
     fi
-    if opsys-metier openclaw configurer --config-dir "$OPENCLAW_CONFIG_DIR"; then
-        log "configuration des agents OpenClaw synchronisée dans $OPENCLAW_CONFIG_DIR/opsys/."
+    if [ "$MODE" = litellm ]; then
+        if opsys-metier openclaw configurer --config-dir "$OPENCLAW_CONFIG_DIR" --mode-fournisseur litellm \
+            --url-passerelle "$LITELLM_URL"; then
+            log "configuration LiteLLM d'OpenClaw synchronisée dans $OPENCLAW_CONFIG_DIR/opsys/."
+        else
+            warn "configuration d'OpenClaw non générée; vérifiez les paliers dans la console."
+        fi
     else
-        warn "configuration des agents OpenClaw NON générée — configurez les modèles dans la console OPSYS, puis le prochain cycle (${SYNC_INTERVAL}s) reprendra automatiquement."
+        if opsys-metier openclaw configurer --config-dir "$OPENCLAW_CONFIG_DIR" --mode-fournisseur natif; then
+            log "configuration native d'OpenClaw synchronisée dans $OPENCLAW_CONFIG_DIR/opsys/."
+        else
+            warn "configuration native non générée — configurez les paliers dans la console, puis nouvelle tentative dans ${SYNC_INTERVAL}s."
+        fi
     fi
 }
 
@@ -87,6 +116,7 @@ sync_openclaw() {
 # Core est OpenClaw. Idempotent (valeurs absolues par jour/département/modèle) ; exige aussi
 # LiteLLM déjà debout.
 sync_usage() {
+    [ "$MODE" = litellm ] || return 0
     if ! litellm_joignable; then
         warn "LiteLLM pas encore joignable sur $LITELLM_URL — synchronisation de la consommation reportée au prochain cycle."
         return 0
@@ -129,10 +159,19 @@ memoire_entretien() {
     fi
 }
 
-# Premier passage synchrone, avant que le conteneur ne soit annoncé "healthy" : garantit que le
-# fichier de config LiteLLM existe dès que possible pour le service `litellm` qui en dépend, et que
-# le schéma de la mémoire est en place avant le premier appel d'outil.
-sync_litellm_config
+# Refus d'une racine distante/ancienne/incohérente avant migration ou génération.
+if ! bootstrap_serveur; then
+    warn "bootstrap serveur refusé; arrêt sans réparation de la racine existante."
+    exit 2
+fi
+
+# Migre la base choisie avant d'ouvrir MCP/console. Par défaut c'est SQLite dans le volume opsys_data;
+# OPSYS_DATABASE_URL permet explicitement d'utiliser PostgreSQL.
+if ! opsys-metier base migrer; then
+    warn "migration du stockage OPSYS impossible; arrêt pour éviter de servir un état partiel."
+    exit 1
+fi
+if [ "$MODE" = litellm ]; then sync_litellm_config; fi
 sync_openclaw
 sync_usage
 
@@ -157,7 +196,7 @@ fi
 (
     while true; do
         sleep "$SYNC_INTERVAL"
-        sync_litellm_config
+        if [ "$MODE" = litellm ]; then sync_litellm_config; fi
         sync_openclaw
         sync_usage
     done

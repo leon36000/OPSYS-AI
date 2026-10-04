@@ -1,0 +1,487 @@
+{
+  "audit_head": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+  "ci_head": "7189c9197e301391769f737b4dfbcb0f1f95698e",
+  "import_commit": "ba19ccc5a9dcf8d96df8414d2e603efd0c959854",
+  "import": {
+    "files": 36216,
+    "added": 10667597,
+    "deleted": 69,
+    "binary": 140,
+    "groups": {
+      ".crabbox.yaml": {
+        "files": 1,
+        "added": 141,
+        "deleted": 0,
+        "binary": 0
+      },
+      ".dockerignore": {
+        "files": 1,
+        "added": 78,
+        "deleted": 0,
+        "binary": 0
+      },
+      ".env.example": {
+        "files": 1,
+        "added": 95,
+        "deleted": 0,
+        "binary": 0
+      },
+      ".gitattributes": {
+        "files": 1,
+        "added": 13,
+        "deleted": 0,
+        "binary": 0
+      },
+      ".gitignore": {
+        "files": 1,
+        "added": 239,
+        "deleted": 0,
+        "binary": 0
+      },
+      ".npmrc": {
+        "files": 1,
+        "added": 8,
+        "deleted": 0,
+        "binary": 0
+      },
+      ".openclaw": {
+        "files": 1,
+        "added": 23,
+        "deleted": 0,
+        "binary": 0
+      },
+      ".oxfmtrc.jsonc": {
+        "files": 1,
+        "added": 47,
+        "deleted": 0,
+        "binary": 0
+      },
+      ".oxlintrc.json": {
+        "files": 1,
+        "added": 420,
+        "deleted": 0,
+        "binary": 0
+      },
+      ".pre-commit-config.yaml": {
+        "files": 1,
+        "added": 116,
+        "deleted": 0,
+        "binary": 0
+      },
+      ".semgrepignore": {
+        "files": 1,
+        "added": 104,
+        "deleted": 0,
+        "binary": 0
+      },
+      "AGENTS.md": {
+        "files": 1,
+        "added": 139,
+        "deleted": 0,
+        "binary": 0
+      },
+      "CONTRIBUTING.md": {
+        "files": 1,
+        "added": 275,
+        "deleted": 0,
+        "binary": 0
+      },
+      "Dockerfile": {
+        "files": 1,
+        "added": 453,
+        "deleted": 0,
+        "binary": 0
+      },
+      "LICENSE": {
+        "files": 1,
+        "added": 24,
+        "deleted": 0,
+        "binary": 0
+      },
+      "NOTICE": {
+        "files": 1,
+        "added": 15,
+        "deleted": 0,
+        "binary": 0
+      },
+      "PROVENANCE.md": {
+        "files": 1,
+        "added": 65,
+        "deleted": 0,
+        "binary": 0
+      },
+      "README.md": {
+        "files": 1,
+        "added": 331,
+        "deleted": 0,
+        "binary": 0
+      },
+      "SECURITY.md": {
+        "files": 1,
+        "added": 397,
+        "deleted": 0,
+        "binary": 0
+      },
+      "THIRD_PARTY_NOTICES.md": {
+        "files": 1,
+        "added": 67,
+        "deleted": 0,
+        "binary": 0
+      },
+      "UPSTREAM.md": {
+        "files": 1,
+        "added": 0,
+        "deleted": 63,
+        "binary": 0
+      },
+      "VISION.md": {
+        "files": 1,
+        "added": 144,
+        "deleted": 0,
+        "binary": 0
+      },
+      "cli-root-options.d.mts": {
+        "files": 1,
+        "added": 23,
+        "deleted": 0,
+        "binary": 0
+      },
+      "cli-root-options.mjs": {
+        "files": 1,
+        "added": 176,
+        "deleted": 0,
+        "binary": 0
+      },
+      "config": {
+        "files": 18,
+        "added": 8264,
+        "deleted": 0,
+        "binary": 0
+      },
+      "custodian-skills": {
+        "files": 4,
+        "added": 277,
+        "deleted": 0,
+        "binary": 0
+      },
+      "deploy": {
+        "files": 1,
+        "added": 39,
+        "deleted": 0,
+        "binary": 0
+      },
+      "docker-compose.yml": {
+        "files": 1,
+        "added": 135,
+        "deleted": 0,
+        "binary": 0
+      },
+      "extensions": {
+        "files": 4491,
+        "added": 1202727,
+        "deleted": 0,
+        "binary": 46
+      },
+      "gateway-run-argv.d.mts": {
+        "files": 1,
+        "added": 3,
+        "deleted": 0,
+        "binary": 0
+      },
+      "gateway-run-argv.mjs": {
+        "files": 1,
+        "added": 46,
+        "deleted": 0,
+        "binary": 0
+      },
+      "gateway-shutdown-budget.d.mts": {
+        "files": 1,
+        "added": 6,
+        "deleted": 0,
+        "binary": 0
+      },
+      "gateway-shutdown-budget.mjs": {
+        "files": 1,
+        "added": 11,
+        "deleted": 0,
+        "binary": 0
+      },
+      "node-host-launcher.mjs": {
+        "files": 1,
+        "added": 591,
+        "deleted": 0,
+        "binary": 0
+      },
+      "node-runtime-recovery.d.mts": {
+        "files": 1,
+        "added": 37,
+        "deleted": 0,
+        "binary": 0
+      },
+      "node-runtime-recovery.mjs": {
+        "files": 1,
+        "added": 751,
+        "deleted": 0,
+        "binary": 0
+      },
+      "node-runtime-update.d.mts": {
+        "files": 1,
+        "added": 11,
+        "deleted": 0,
+        "binary": 0
+      },
+      "node-runtime-update.mjs": {
+        "files": 1,
+        "added": 145,
+        "deleted": 0,
+        "binary": 0
+      },
+      "node-sqlite.d.mts": {
+        "files": 1,
+        "added": 16,
+        "deleted": 0,
+        "binary": 0
+      },
+      "node-sqlite.mjs": {
+        "files": 1,
+        "added": 185,
+        "deleted": 0,
+        "binary": 0
+      },
+      "node-version.d.mts": {
+        "files": 1,
+        "added": 22,
+        "deleted": 0,
+        "binary": 0
+      },
+      "node-version.mjs": {
+        "files": 1,
+        "added": 211,
+        "deleted": 0,
+        "binary": 0
+      },
+      "openclaw.mjs": {
+        "files": 1,
+        "added": 766,
+        "deleted": 0,
+        "binary": 0
+      },
+      "package.json": {
+        "files": 1,
+        "added": 2374,
+        "deleted": 0,
+        "binary": 0
+      },
+      "packages": {
+        "files": 1239,
+        "added": 241888,
+        "deleted": 0,
+        "binary": 0
+      },
+      "patches": {
+        "files": 6,
+        "added": 4413,
+        "deleted": 6,
+        "binary": 0
+      },
+      "pnpm-lock.yaml": {
+        "files": 1,
+        "added": 15061,
+        "deleted": 0,
+        "binary": 0
+      },
+      "pnpm-workspace.yaml": {
+        "files": 1,
+        "added": 143,
+        "deleted": 0,
+        "binary": 0
+      },
+      "scripts": {
+        "files": 1534,
+        "added": 458823,
+        "deleted": 0,
+        "binary": 0
+      },
+      "security": {
+        "files": 12,
+        "added": 6627,
+        "deleted": 0,
+        "binary": 0
+      },
+      "skills": {
+        "files": 77,
+        "added": 8288,
+        "deleted": 0,
+        "binary": 0
+      },
+      "src": {
+        "files": 22278,
+        "added": 6538109,
+        "deleted": 0,
+        "binary": 0
+      },
+      "taxonomy.yaml": {
+        "files": 1,
+        "added": 11724,
+        "deleted": 0,
+        "binary": 0
+      },
+      "test": {
+        "files": 1803,
+        "added": 688674,
+        "deleted": 0,
+        "binary": 15
+      },
+      "tsconfig.core.json": {
+        "files": 1,
+        "added": 24,
+        "deleted": 0,
+        "binary": 0
+      },
+      "tsconfig.extensions.json": {
+        "files": 1,
+        "added": 23,
+        "deleted": 0,
+        "binary": 0
+      },
+      "tsconfig.extensions.projects.json": {
+        "files": 1,
+        "added": 7,
+        "deleted": 0,
+        "binary": 0
+      },
+      "tsconfig.json": {
+        "files": 1,
+        "added": 322,
+        "deleted": 0,
+        "binary": 0
+      },
+      "tsconfig.scripts.json": {
+        "files": 1,
+        "added": 24,
+        "deleted": 0,
+        "binary": 0
+      },
+      "tsconfig.ui.json": {
+        "files": 1,
+        "added": 11,
+        "deleted": 0,
+        "binary": 0
+      },
+      "tsdown.ai.config.ts": {
+        "files": 1,
+        "added": 52,
+        "deleted": 0,
+        "binary": 0
+      },
+      "tsdown.config.ts": {
+        "files": 1,
+        "added": 1024,
+        "deleted": 0,
+        "binary": 0
+      },
+      "ui": {
+        "files": 4701,
+        "added": 1472348,
+        "deleted": 0,
+        "binary": 79
+      },
+      "vitest.config.ts": {
+        "files": 1,
+        "added": 2,
+        "deleted": 0,
+        "binary": 0
+      }
+    }
+  },
+  "after_import": {
+    "files": 420,
+    "added": 28796,
+    "deleted": 4964,
+    "binary": 1,
+    "groups": {
+      "AGENTS.md": {
+        "files": 1,
+        "added": 73,
+        "deleted": 139,
+        "binary": 0
+      },
+      "PROVENANCE.md": {
+        "files": 1,
+        "added": 543,
+        "deleted": 5,
+        "binary": 0
+      },
+      "apps": {
+        "files": 2,
+        "added": 73,
+        "deleted": 0,
+        "binary": 0
+      },
+      "docs": {
+        "files": 27,
+        "added": 1560,
+        "deleted": 0,
+        "binary": 1
+      },
+      "extensions": {
+        "files": 20,
+        "added": 63,
+        "deleted": 28,
+        "binary": 0
+      },
+      "openclaw.mjs": {
+        "files": 1,
+        "added": 7,
+        "deleted": 2,
+        "binary": 0
+      },
+      "package.json": {
+        "files": 1,
+        "added": 1,
+        "deleted": 0,
+        "binary": 0
+      },
+      "packages": {
+        "files": 1,
+        "added": 10,
+        "deleted": 0,
+        "binary": 0
+      },
+      "scripts": {
+        "files": 16,
+        "added": 22,
+        "deleted": 103,
+        "binary": 0
+      },
+      "src": {
+        "files": 184,
+        "added": 14700,
+        "deleted": 1714,
+        "binary": 0
+      },
+      "test": {
+        "files": 9,
+        "added": 275,
+        "deleted": 410,
+        "binary": 0
+      },
+      "ui": {
+        "files": 157,
+        "added": 11469,
+        "deleted": 2563,
+        "binary": 0
+      }
+    }
+  },
+  "2e56c0d5605dfe575bde9244f38924d5390f2674": {
+    "core": "687aeae2d9a9be98ef2f6a781e55571342fbbc03",
+    ".github/workflows/core.yml": "64aa58b67b5c6f154174863de456ccb542f2c741"
+  },
+  "7189c9197e301391769f737b4dfbcb0f1f95698e": {
+    "core": "687aeae2d9a9be98ef2f6a781e55571342fbbc03",
+    ".github/workflows/core.yml": "64aa58b67b5c6f154174863de456ccb542f2c741"
+  },
+  "dependencies_changed_since_import": [],
+  "repository_status": []
+}

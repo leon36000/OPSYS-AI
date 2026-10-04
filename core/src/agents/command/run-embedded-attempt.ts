@@ -483,6 +483,7 @@ export async function runEmbeddedAgentAttempt(params: RunEmbeddedAgentAttemptPar
               body,
               transcriptBody,
               isFallbackRetry: runOptions.isFallbackRetry,
+              getAdmissionCandidateIndex: runOptions.getAdmissionCandidateIndex,
               classifyResult: runOptions.classifyResult,
               preserveCliSessionBinding:
                 isHeartbeatLifecycleRunKind(logicalTurnOpts.bootstrapContextRunKind) ||

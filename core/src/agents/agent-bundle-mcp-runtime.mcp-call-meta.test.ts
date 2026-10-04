@@ -10,8 +10,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanupTempDirs, makeTempDir } from "../../test/helpers/temp-dir.js";
-import { getOrCreateSessionMcpRuntime } from "./agent-bundle-mcp-manager.test-support.js";
-import { testing } from "./agent-bundle-mcp-runtime.js";
+import { createSessionMcpRuntime, testing } from "./agent-bundle-mcp-runtime.js";
 import { withMcpCallMeta } from "./mcp-call-meta.js";
 
 const tempDirs: string[] = [];
@@ -49,18 +48,43 @@ for await (const line of readline.createInterface({ input: process.stdin })) voi
   return { command: process.execPath, args: [serverPath] };
 }
 
-async function callEchoMeta() {
+async function callEchoMeta(options: {
+  serverName?: string;
+  sessionKey?: string;
+  profile?: { agentId: string; profileId: string; profileRevision: number };
+} = {}) {
   const server = await startEchoMetaServer();
-  const runtime = await getOrCreateSessionMcpRuntime({
+  const serverName = options.serverName ?? "echo";
+  const agents = options.profile
+    ? {
+        entries: {
+          [options.profile.agentId]: {
+            opsysRuntimeAdmission: {
+              profileId: options.profile.profileId,
+              profileRevision: options.profile.profileRevision,
+            },
+          },
+        },
+      }
+    : undefined;
+  const runtime = createSessionMcpRuntime({
     sessionId: "session-mcp-call-meta",
-    sessionKey: "agent:test:session-mcp-call-meta",
+    sessionKey: options.sessionKey ?? "agent:test:session-mcp-call-meta",
     workspaceDir: makeTempDir(tempDirs, "mcp-call-meta-workspace-"),
     manifestRegistry: { plugins: [] },
-    cfg: { plugins: { enabled: false }, mcp: { servers: { echo: server } } },
+    cfg: {
+      plugins: { enabled: false },
+      ...(agents ? { agents } : {}),
+      mcp: { servers: { [serverName]: server } },
+    },
   });
-  const result = await runtime.callTool("echo", "echo_meta", {});
-  const text = result.content.find((item) => item.type === "text")?.text;
-  return JSON.parse(String(text)) as { meta: Record<string, unknown> | null };
+  try {
+    const result = await runtime.callTool(serverName, "echo_meta", {});
+    const text = result.content.find((item) => item.type === "text")?.text;
+    return JSON.parse(String(text)) as { meta: Record<string, unknown> | null };
+  } finally {
+    await runtime.dispose();
+  }
 }
 
 describe("agent-bundle-mcp-runtime callTool OPSYS _meta", () => {
@@ -74,8 +98,58 @@ describe("agent-bundle-mcp-runtime callTool OPSYS _meta", () => {
       "opsys/idempotencyKey": "mut-1",
       "opsys/appareil": "tel-employe-42",
       "opsys/horodatageAppareil": "2026-09-28T14:32:05-04:00",
+      "opsys/personne": "personne.synthetic",
+      "opsys/role": "admin",
     };
     const received = await withMcpCallMeta(meta, callEchoMeta);
-    expect(received.meta).toEqual(meta);
+    expect(received.meta).toStrictEqual(meta);
+  });
+
+  it("sends the host profile binding as flat MCP _meta on the actual stdio wire", async () => {
+    const received = await withMcpCallMeta(
+      {
+        "opsys/runtimeProfileId": "spoofed",
+        "opsys/runtimeProfileRevision": "999",
+        "opsys/runtimeServer": "attacker",
+      },
+        () =>
+          callEchoMeta({
+            serverName: "opsys_m5",
+            sessionKey: "agent:opsys-agent-worker:session-mcp-call-meta",
+            profile: { agentId: "opsys-agent-worker", profileId: "worker", profileRevision: 7 },
+          }),
+    );
+    expect(received.meta).toStrictEqual({
+      "opsys/runtimeProfileId": "worker",
+      "opsys/runtimeProfileRevision": "7",
+      "opsys/runtimeServer": "opsys_m5",
+    });
+  });
+
+  it("keeps authenticated device metadata and strips profile binding", async () => {
+    const deviceMeta = {
+      "opsys/idempotencyKey": "device-call-1",
+      "opsys/appareil": "device.synthetic",
+      "opsys/horodatageAppareil": "2026-10-01T10:00:00Z",
+      "opsys/personne": "person.synthetic",
+      "opsys/role": "owner",
+      "opsys/runtimeProfileId": "spoofed",
+      "opsys/runtimeProfileRevision": "999",
+      "opsys/runtimeServer": "attacker",
+    };
+    const received = await withMcpCallMeta(deviceMeta, () =>
+      callEchoMeta({
+        serverName: "opsys_m5",
+        sessionKey: "agent:opsys-agent-worker:session-mcp-call-meta",
+        profile: { agentId: "opsys-agent-worker", profileId: "worker", profileRevision: 7 },
+      }),
+    );
+    expect(received.meta).toStrictEqual({
+      "opsys/idempotencyKey": "device-call-1",
+      "opsys/appareil": "device.synthetic",
+      "opsys/horodatageAppareil": "2026-10-01T10:00:00Z",
+      "opsys/personne": "person.synthetic",
+      "opsys/role": "owner",
+    });
   });
 });

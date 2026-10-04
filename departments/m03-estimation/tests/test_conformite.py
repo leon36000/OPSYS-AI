@@ -7,13 +7,13 @@ from pathlib import Path
 
 import pytest
 
-
 RACINE_MODULE = Path(__file__).resolve().parents[1]
 RACINE_SRC = RACINE_MODULE / "src"
 if str(RACINE_SRC) not in sys.path:
     sys.path.insert(0, str(RACINE_SRC))
 
-from m3_estimation import conformite, digest, registre
+# Import après l'ajout du src local, nécessaire à l'exécution directe hors pytest.
+from m3_estimation import conformite, digest, registre  # noqa: E402
 
 
 def _ecrire_source(repertoire: Path, nom: str, contenu: str) -> Path:

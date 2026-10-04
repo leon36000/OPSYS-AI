@@ -46,10 +46,16 @@ def test_le_nouveau_code_est_dans_la_portee_de_la_garde():
     strict = conformite._SURVEILLE_SANS_DECAISSEMENT
     lecture = conformite._SURVEILLE_EN_LECTURE_SEULE
 
-    for module in ("calendrier_fiscal", "cash_libre", "analyse", "comptes_a_payer"):
+    for module in ("calendrier_fiscal", "calendrier_obligations", "cash_libre", "analyse", "comptes_a_payer"):
         assert strict[module] is None and (_PAQUET / f"{module}.py").is_file(), f"{module} : le module entier"
-    assert {"lire_echeances_fiscales", "_taxes_par_echeance", "_calendrier_fiscal", "_configuration_manifeste",
-            "_cash_libre"} <= set(strict["outils"])
+    assert {
+        "lire_echeances_fiscales",
+        "lire_calendrier_obligations",
+        "_taxes_par_echeance",
+        "_calendrier_fiscal",
+        "_configuration_manifeste",
+        "_cash_libre",
+    } <= set(strict["outils"])
     # T4.16-d : la prévision ouvre elle aussi le registre des mouvements pour en tirer le solde (lecture seule) ;
     # T4.19-b : le constat aussi (`constater_cash_libre`), qui confie son écriture à une fonction en strict
     assert set(lecture["outils"]) == {"etat_tresorerie", "prevoir_tresorerie", "constater_cash_libre"}
@@ -184,8 +190,18 @@ def test_un_appel_qui_ne_donne_que_surveille_ne_controle_que_le_regime_strict(tm
 
 
 # ---------------------------------------------------------------- 4. sur des copies des VRAIS fichiers
-_FICHIERS = ("comptes_a_payer", "calendrier_fiscal", "cash_libre", "prevision", "constat_cash_libre", "analyse",
-             "outils", "soldes", "etat_financier")
+_FICHIERS = (
+    "comptes_a_payer",
+    "calendrier_fiscal",
+    "calendrier_obligations",
+    "cash_libre",
+    "prevision",
+    "constat_cash_libre",
+    "analyse",
+    "outils",
+    "soldes",
+    "etat_financier",
+)
 
 
 def _sur_les_vrais_fichiers(tmp_path, modifier, **portees):
@@ -269,8 +285,8 @@ def test_une_ecriture_glissee_dans_le_vrai_solde_est_attrapee(tmp_path):
     def modifier(nom, texte):
         if nom != "soldes":
             return texte
-        ancre = "    total = Decimal(\"0\")\n    for maillon"
-        return texte.replace(ancre, "    registre_cible.ajouter({})\n" + ancre, 1)
+        ancre = "        total = Decimal(\"0\")\n        for maillon"
+        return texte.replace(ancre, "        registre_cible.ajouter({})\n" + ancre, 1)
 
     conforme, detail = _sur_les_vrais_fichiers(tmp_path, modifier)
 

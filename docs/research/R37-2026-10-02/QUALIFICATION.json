@@ -1,0 +1,26 @@
+{
+  "author_tests": 58,
+  "limits": "ROOT58 : 58 cas uniques verts, zéro échec/erreur/skip; 1 111 sources stables. Ruff cinq fichiers vert. Le scénario PostgreSQL M03 est entièrement synthétique : 51 séries/52 versions paginées. Les préimages R37-r2 ne concernent que synthèse et test; application/PDF UI récupérés byte-à-byte de R28 après édition, donc explicitement pas des préimages prépatch. Le dashboard n’expose ni contenu, titre, montant, SHA, URI ni citation. La base financière et les pilotes CSV/PDF restent SQLite seuls; aucun PostgreSQL pilote qualifié. Aucune qualification métier/entreprise n’est inférée.",
+  "modules": {
+    "test_console_fusion_operationnelle": 19,
+    "test_console_fusion_pdf": 23,
+    "test_console_fusion_synthese": 16
+  },
+  "root_delta": [],
+  "root_junit": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "tests": 58
+  },
+  "root_sources": 1111,
+  "ruff_root_files": 5,
+  "schema": "opsys.r37-qualification/v1",
+  "source_snapshot": {
+    "src/opsys/console/application.py": "7c99c96cf2f1daad81231a09a222eb9949adddbb0a2c716eaed8f00d60ffc2a7",
+    "src/opsys/console/fusion_pdf_ui.py": "1c7a330152022f9fbcf8a91e77bc16f13cd87dc6b62749bf72df27cc47b4876a",
+    "src/opsys/console/fusion_synthese.py": "42e5c85c79e8ea1087fc4361f22939d2b95ab9576ed4591b2bb4d85b1176ef26",
+    "tests/test_console_fusion_synthese.py": "4100931904a36317bf2466f03c55570229dd6bdd3b2b52e43bd021af0aa9216a"
+  },
+  "tests_lances": false
+}

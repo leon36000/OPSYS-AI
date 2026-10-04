@@ -22,7 +22,7 @@ import pytest
 from m2_revenue_crm import acces, assignation, outils
 from sqlalchemy import select, update
 
-from opsys import approbations, contexte, evenements, idempotence, identite, stockage
+from opsys import approbations, contexte, evenements, idempotence, identite, liaison_cibles, stockage
 from opsys.capacites import Capacites, outils_executables
 from opsys.departements import lire_manifeste
 from opsys.outils import Autonomie, Niveau, executer_atomique
@@ -92,7 +92,7 @@ def dep(personnes):
 
 @pytest.fixture
 def capacites(dep):
-    return Capacites({dep.id: dep}, stockage.transaction, memoire=False)
+    return Capacites({dep.id: dep}, stockage.transaction, appelant=dep.id, memoire=False)
 
 
 def _contrat(lead_id: str, contact: dict | None = None) -> dict:
@@ -132,6 +132,30 @@ def _appeler(par_nom, nom, arguments, identite_appelante=None):
 
 def _reassigner(par_nom, identite_appelante=NATHAN, **plus):
     return _appeler(par_nom, "m2_reassigner_lead", _args(**plus), identite_appelante)
+
+
+def _proposer_avec_ticket(capacites, nom, arguments):
+    """Appel agent contrôlé : M2 lead existant, lien M10 de session et ticket sur l'outil/arguments exacts."""
+    from m10_memoire import liaison as liaison_m10
+    from m10_memoire import registre as registre_m10
+
+    lead_id = arguments["lead_id"]
+    cle_session = f"agent:m02-revenue-crm:tests:{lead_id}"
+    with stockage.transaction() as cnx:
+        reg_m10 = registre_m10.Registre(maillons=stockage.maillons("m10-memoire", "affaires"))
+        active = liaison_m10.liaison_courante(cle_session, reg_m10)
+        if active is None:
+            _, refus = liaison_m10.lier_session_affaire(
+                cle_session, lead_id, "nathan", "admin", "appareil", "liaison M2 de fixture fictive", H3, reg_m10,
+            )
+            assert refus is None
+        else:
+            assert active["affaire_id"] == lead_id
+        ticket = liaison_cibles.emettre_ticket(
+            cnx, departement="m02-revenue-crm", agent_id="m02-revenue-crm", cle_session=cle_session,
+            affaire_id=lead_id, origine_affaire="session", outil=nom, arguments=arguments,
+        )
+    return capacites.appeler(nom, arguments, ticket_cible=liaison_cibles.TicketMeta(ticket["ticket"]))
 
 
 def _verdict(reponse):
@@ -396,7 +420,7 @@ def test_un_appel_sans_personne_est_refuse_meme_dans_un_mode_ou_un_n3_s_execute_
 
 def test_un_agent_qui_propose_attend_une_personne_puis_la_decision_est_celle_de_l_approbateur(
         capacites, dep, par_nom, leads):
-    proposition = capacites.appeler("m2_reassigner_lead", _args())
+    proposition = _proposer_avec_ticket(capacites, "m2_reassigner_lead", _args())
     assert proposition["ok"] is True and proposition["statut"] == "en_attente_approbation"
     assert _maillons_de_reassignation() == [] and _fait("lead-un", 2) is None, "rien n'est réassigné avant la décision"
     with stockage.transaction() as cnx:
@@ -418,7 +442,7 @@ def test_un_agent_qui_propose_attend_une_personne_puis_la_decision_est_celle_de_
 @pytest.mark.parametrize("approbateur", ["admin.fictif", "vendeur.un", "marc.fictif"])
 def test_seul_le_proprietaire_approuve_la_proposition_d_un_agent(capacites, leads, approbateur):
     """La politique de M2 ne déclare que `nathan_owner` pour un N3 (défaut le plus restrictif, comme M1 et M10)."""
-    proposition = capacites.appeler("m2_reassigner_lead", _args())
+    proposition = _proposer_avec_ticket(capacites, "m2_reassigner_lead", _args())
 
     with pytest.raises(ValueError, match="aucun rôle autorisé"), stockage.transaction() as cnx:
         approbations.decider(

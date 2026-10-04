@@ -21,7 +21,7 @@ describe("DepotOutboxMemoire", () => {
     expect(brouillon.sequence).toBeNull();
     const persistee = await depot.inserer(brouillon);
     expect(persistee.sequence).toBe(1);
-    expect(persistee).toEqual({ ...brouillon, sequence: 1 });
+    expect(persistee).toEqual({ ...brouillon, sequence: 1, resumeAccepte: null });
   });
 
   test("la sequence croît strictement à chaque insertion (compteur du dépôt)", async () => {

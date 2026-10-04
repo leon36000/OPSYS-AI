@@ -801,8 +801,14 @@ def test_l_image_installe_l_extra_tournees_a_la_version_que_le_code_epingle():
     import tomllib
 
     dockerfile = (_RACINE / "deploy" / "Dockerfile").read_text(encoding="utf-8")
-    ligne = next(ligne for ligne in dockerfile.splitlines() if 'pip install' in ligne and '-e "/opt/opsys[' in ligne)
-    extras = re.search(r'-e "/opt/opsys\[([^\]]*)\]"', ligne).group(1).split(",")
-    assert "tournees" in extras and {"postgres", "console"} <= set(extras)
+    assert "--require-hashes" in dockerfile
+    assert "-r /opt/opsys/requirements-runtime.lock.txt" in dockerfile
+    assert "--no-deps" in dockerfile and "--no-build-isolation -e /opt/opsys" in dockerfile
+
+    verrou = (_RACINE / "requirements-runtime.lock.txt").read_text(encoding="utf-8")
+    assert re.search(rf"(?m)^pyvrp=={re.escape(tournees.VERSION_PYVRP)}\s", verrou)
+    assert re.search(r"(?m)^reportlab==4\.5\.1\s", verrou)
+
     projet = tomllib.loads((_RACINE / "pyproject.toml").read_text(encoding="utf-8"))
     assert projet["project"]["optional-dependencies"]["tournees"] == [f"pyvrp=={tournees.VERSION_PYVRP}"]
+    assert projet["project"]["optional-dependencies"]["soumission"] == ["reportlab==4.5.1"]

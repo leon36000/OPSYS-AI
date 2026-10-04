@@ -52,6 +52,34 @@ describe("invoquerOutil — succès", () => {
   });
 });
 
+describe("invoquerOutil — délai et erreur pendant le corps", () => {
+  test("le délai couvre la lecture du corps après les en-têtes", async () => {
+    let signal: AbortSignal | undefined;
+    const fetchImpl = jest.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      signal = init?.signal as AbortSignal;
+      return { ok: true, status: 200, json: () => new Promise(() => undefined) } as unknown as Response;
+    });
+    const resultat = await Promise.race([
+      invoquerOutil({ fetchImpl, urlBase: "https://x", jeton: "t", requete: REQUETE, delaiMs: 20 }),
+      new Promise<"pending">((resolve) => setTimeout(() => resolve("pending"), 80)),
+    ]);
+    expect(resultat).not.toBe("pending");
+    expect(signal?.aborted).toBe(true);
+    if (resultat !== "pending") {
+      expect(resultat).toMatchObject({ ok: false, echec: { origine: "delai", reessayable: true } });
+    }
+  });
+
+  test("rupture du corps HTTP 200 est un échec réseau réessayable, pas un succès/permanent", async () => {
+    const fetchImpl = jest.fn(async () => ({
+      ok: true, status: 200,
+      json: async () => { throw new TypeError("terminated"); },
+    }) as unknown as Response);
+    const resultat = await invoquerOutil({ fetchImpl, urlBase: "https://x", jeton: "t", requete: REQUETE });
+    expect(resultat).toMatchObject({ ok: false, echec: { origine: "reseau", reessayable: true } });
+  });
+});
+
 describe("invoquerOutil — échecs réseau/délai (toujours réessayables)", () => {
   test("échec réseau (fetch rejette) -> origine 'reseau', réessayable", async () => {
     const fetchImpl = jest.fn(async () => {

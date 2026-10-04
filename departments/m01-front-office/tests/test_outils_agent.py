@@ -287,6 +287,20 @@ class TestOutilsUnitaires:
 # Phases voix 0→5
 # ---------------------------------------------------------------------------
 class TestPhasesVoix:
+    def test_transition_publique_refuse_une_conversation_forgee_sans_mutation(self):
+        forge = {
+            "conversation_id": "conv-forgee", "signal_id": "aucune-ouverture", "statut": "ouverte",
+            "phase_courante": 4,
+            "phases": [{"numero": n, "horodatage_debut": "2026-09-28T10:00:00-04:00",
+                        "horodatage_fin": None, "statut": "ouverte"} for n in range(5)],
+            "dernier_ligne_id": None,
+        }
+        avant = _obtenir_registre().lire()
+        resultat = transitionner_phase(forge, 5, "2026-09-28T10:05:00-04:00")
+        assert resultat["accepte"] is False
+        assert resultat["verdict"]["code"] == "REJ-CONVERSATION-NON-CANONIQUE"
+        assert _obtenir_registre().lire() == avant == []
+
     def test_progression_lineaire_jusqu_a_la_phase_5(self):
         ouverture = ouvrir_conversation("sig-voix-1", "2026-09-28T10:00:00-04:00")
         assert ouverture["accepte"] is True

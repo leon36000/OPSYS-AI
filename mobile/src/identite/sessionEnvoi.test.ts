@@ -109,11 +109,11 @@ describe("le cycle d'identité ne change jamais d'état sans le dire à la file 
   test("les caches de l'ancienne identité sont effacés AVANT le changement d'état, et jamais pour un résultat jeté", () => {
     const appliquer = fs.readFileSync(path.join(__dirname, "appliquerLecture.ts"), "utf8");
     const jete = appliquer.indexOf("return false;");
-    const purge = appliquer.indexOf("dependances.synchroniserCaches(etat)");
+    const purge = appliquer.indexOf("dependances.synchroniserCaches(etat, sessionToujoursCourante)");
     const etat = appliquer.indexOf("dependances.definirEtat(etat, configuration)");
     expect(jete).toBeGreaterThan(-1);
     expect(purge).toBeGreaterThan(jete);
     expect(etat).toBeGreaterThan(purge);
-    expect(source).toContain("synchroniserCachesSansEchouer(obtenirDepotLocal, nouvelEtat)");
+    expect(source).toContain("synchroniserCachesSansEchouer(obtenirDepotLocal, nouvelEtat, sessionToujoursCourante)");
   });
 });

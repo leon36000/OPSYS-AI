@@ -2,7 +2,14 @@
 
 **Version :** 28 septembre 2026 (révision 2 : prompt M6 intégré, prompts M4, M5 et M9 complets, app mobile renforcée)
 **Révision 3 (28 septembre 2026, ingénieur en chef) :** choix du core tranché et points ouverts d'ingénierie décidés, voir [ADR-0008](../decisions/ADR-0008-fork-openclaw-opsys-core.md). Le reste du texte est inchangé.
+**Révision 4 (30 septembre 2026, directive Nathan) :** réutilisation prioritaire GitHub/GitLab,
+profondeur des départements, mémoire du développement dans M10, agents configurables et contrôles
+proportionnés : [directives durables](DIRECTIVES-NATHAN.md), [périmètre adapté](PERIMETRE-MODULES.md)
+et [ADR-0012](../decisions/ADR-0012-reutilisation-profondeur-productivite.md).
 **Langue :** français (Québec)
+**Révision 5 (2 octobre 2026 UTC) :** reprise confiée par Nathan, avatars audiovisuels,
+API par département, assimilation documentaire et calibration :
+[vision d'entreprise apprenante](VISION-ENTREPRISE-APPRENANTE.md).
 **Lecteur principal :** Claude Code et tout agent qui travaille sur OPSYS-AI
 **Sources :** prompts maîtres des départements (8–9 juin 2026, et 23 juin 2026 pour M6), plan maître v1.2 (juillet–août 2026), directives de Nathan (septembre 2026). Détail en annexe A.
 
@@ -12,7 +19,9 @@
 
 1. Ce fichier définit le **QUOI** : ce qu'est OPSYS-AI, ce que fait chacun des 10 départements, quelles règles ne se négocient pas.
 2. Le **COMMENT** (langages, frameworks, briques, structure du code) est laissé à la restructuration, sauf ce que la section 3 fixe déjà.
-3. En cas de contradiction entre ce fichier et un ancien prompt de département, **ce fichier gagne**. Les anciens prompts restent la référence pour le détail fonctionnel (routes, tables, KPI, scénarios de test).
+3. Les instructions explicites actuelles de Nathan priment. Ce fichier adapte les anciens prompts
+   au dépôt actuel ; ils conservent le détail fonctionnel (routes, tables, KPI, scénarios). Une
+   adaptation de chemins ou de stack ne réduit pas la profondeur métier sans décision explicite.
 4. Rien ici ne dit qu'un département est « terminé ». Les états de la section 11 datent de juin 2026 et doivent être revérifiés par audit.
 5. **Test de dérive :** si un livrable pourrait décrire n'importe quelle entreprise sans parler de leads, soumissions, chantiers, équipes, factures ou matériaux, c'est de l'infrastructure, pas OPSYS-AI. Retour à la section 1.
 6. **L'app mobile est un pilier du produit**, pas un complément (inventaire, punch des employés, vendeurs, approbations du propriétaire, suivi client). Voir la section 9 avant de concevoir quoi que ce soit côté interface.
@@ -68,17 +77,19 @@ OPSYS-AI a changé de forme, pas de but. L'idée de base reste : **10 départeme
 |---|---|---|
 | Déploiement | Framework qui se greffe sur une infra IA existante (prérequis : passerelle LLM, base vectorielle, PostgreSQL, stockage) | **Produit autonome, installable sur un VPS** |
 | Configuration des modèles | Passerelle LLM fournie par l'hôte | **Dashboard OPSYS-AI** pour configurer tous les modèles nécessaires, **cloud ou locaux** |
-| Core | Core autonome avec 8 services partagés | **OPSYS-CORE**, construit directement sur le code source d'**OpenClaw2** ou de **Hermes Agent**, lourdement modifié pour tout unifier (aucune dépendance à leurs mises à jour) |
-| Mémoire | M10 + RAG fournis par l'hôte | Mémoire de type OpenClaw2 (jugée excellente) + **RAG premium obligatoire** ; documentation à rédiger en prérequis |
+| Core | Core autonome avec 8 services partagés | **OPSYS-CORE**, fork du code OpenClaw déjà présent, maintenu par OPSYS ; Hermes et d'autres projets sont sources d'ingrédients à qualifier, sans synchronisation amont automatique |
+| Mémoire | M10 + RAG fournis par l'hôte | Mémoire durable métier et développement, RAG avec sources, permissions, versions et évaluations ; registres déjà présents, parcours complet à consolider |
 | Coût des modèles | Routage de modèles par département | **Économie de tokens maximale**, mécanismes natifs |
 | Dépôts Forge | Gouvernaient le développement | **Mis de côté** ; le projet est restructuré et assaini |
 | Construction | Stack imposée par les prompts | **Briques open source mûres = ingrédients**, adaptées ou fusionnées puis homogénéisées (GitHub, GitLab, bibliothèques open source) |
 
 **Ce qui ne change pas :** les 10 départements, leur synergie, la validation humaine, la Loi 25, l'indépendance envers l'infrastructure personnelle de Nathan, l'ambition SaaS, **et l'app mobile à quatre profils, qui reste primordiale**.
 
-**Le choix OpenClaw2 vs Hermes Agent n'est pas tranché.** Il se fait par comparaison documentée : licence (modification et redistribution commerciale), état du code, facilité de modification, qualité de la mémoire, support multi-modèles.
-
-**Tranché le 28 septembre 2026 : OpenClaw2, forké en dur et renommé OPSYS-CORE** (comparatif et décisions : [ADR-0008](../decisions/ADR-0008-fork-openclaw-opsys-core.md)).
+**Base retenue le 28 septembre 2026 :** dépôt `openclaw/openclaw`, forké dans `core/` et renommé
+OPSYS-CORE ([ADR-0008](../decisions/ADR-0008-fork-openclaw-opsys-core.md), `core/PROVENANCE.md`).
+« OpenClaw2 » est le terme employé dans les directives ; il n'identifie pas à lui seul un autre
+dépôt à importer. [ADR-0012](../decisions/ADR-0012-reutilisation-profondeur-productivite.md)
+confirme la recherche de composants Hermes sans remplacer cette base utile.
 
 ---
 
@@ -111,6 +122,9 @@ Chaque département les consomme au lieu de réinventer les siens. C'est ce qui 
 
 **Exigé par Nathan :** tout gérer et configurer depuis un seul endroit, y compris la connexion de tous les modèles IA nécessaires (cloud ou locaux).
 **Impliqué par les prompts des départements :**
+- agents spécialisés par département, avec modèle, outils, droits, mémoire, budget, déclencheurs,
+  limites de tours/retries et escalade configurables ; plusieurs agents peuvent collaborer sans
+  être appelés systématiquement ni échanger des données privées hors permissions ;
 - statut des connecteurs et des portes fermées (gates) ;
 - file d'approbations humaines ;
 - politiques et scripts (ex. scripts de réception, politiques de conversation) ;
@@ -159,7 +173,7 @@ Avant toute réponse complexe ou modification critique, le département lit son 
 
 ### P5 — Ne pas reconstruire, ne pas casser
 
-M2 et M5 sont les piliers les plus avancés : on les durcit, on les connecte, on ne les refait pas. Toute nouvelle route est additive ; un changement incompatible passe par une v2, avec tests de régression. **Voir le point ouvert n° 7 (section 13) : cette règle doit être réconciliée avec la restructuration.**
+M2 et M5 ont une base réelle dans OPSYS : on la durcit et la connecte avant d'envisager un remplacement. Une interface incompatible exige une migration explicite et des régressions utiles ; ajouter une API parallèle ne suffit pas. Les volumes et labels de l'ancien dépôt Forge ne prouvent pas la complétion du code actuel.
 
 ### P6 — Complétion prouvée
 
@@ -487,7 +501,11 @@ Transversal : conformité Loi 25, multi-entités, adaptateurs QuickBooks, CCube,
 **Mobile.** Admin : factures à approuver, paiements reçus, retards, dépenses à valider, trésorerie, anomalies. Employé : matériel utilisé, photo de reçu, confirmation de fin de travaux (jamais d'écriture finale). Vendeur : marge estimée de la soumission, statut de paiement, relance autorisée. Client : facture, lien de paiement, reçu, historique simple. **Jamais de marges ni de coûts internes visibles pour le client.**
 
 **Portes fermées.** OAuth QuickBooks, CCube, actions financières et légales, dépenses infonuagiques, validation par le CPA pour tout ce qui est officiel.
-**État connu.** `FAIT_VÉRIFIÉ` pour la base (~14 249 lignes, ~91 fichiers Python, ~238 routes sous `/compta`). QuickBooks et CCube en `STUB` (gate). L'extension CFO IA (paie, fiscalité, projections, conseillers, tableau de bord CFO) est **à construire** et devient prioritaire.
+**État historique de juin (Forge).** Base annoncée `FAIT_VÉRIFIÉ` (~14 249 lignes, ~91 fichiers,
+~238 routes `/compta`). Ces volumes et routes ne sont pas l'inventaire OPSYS de septembre :
+25 fichiers Python de source, 17 outils MCP au commit `2e56c0d`, avec facturation/AP/prévision
+partiels. Le périmètre CFO complet est à construire et qualifier ; collision de facture DEP-001
+à corriger. [Recherche M5 actuelle](../research/R16-2026-09-30/recherche-m5.md).
 **Preuve de complétion (CFO IA).** Paie brouillon, calendrier fiscal vivant, réserves et cash libre réel, prévisions 13 semaines à 24 mois alimentées par contrats et cédule, simulations camion/équipement/bâtiment, comparaisons emprunt vs comptant, rapport de décision CFO, tableau de bord CFO, mémoire M10, sources fiscales citées, E2E verts, toute action critique bloquée sans validation.
 
 ---
@@ -646,14 +664,19 @@ Transversal : conformité Loi 25, multi-entités, adaptateurs QuickBooks, CCube,
 **Ce que ce n'est pas.** Pas un simple RAG : une mémoire complète, gouvernée, vérifiable, versionnée, interrogeable, auditable.
 
 **Deux mondes, liés mais séparés par permissions et confidentialité.**
-1. **Mémoire de l'usine** (Forge) : code, plans, prompts, protocoles de développement. *Voir point ouvert n° 5.*
+1. **Mémoire du développement** : code, plans, prompts, décisions, tests, erreurs, protocoles et
+   historique Git. Incluse dans le périmètre M10 par la directive du 30 septembre (ADR-0012),
+   avec collecte configurable et permissions distinctes ; aucune infrastructure Forge requise.
 2. **Mémoire d'affaires** : clients, procédures, services, prix, marketing, comptabilité, équipes, inventaire, factures, chantiers, erreurs, apprentissages.
 
 **Ce qu'elle mémorise (côté produit).** Modules et leur état, décisions (avec raison, options, conséquences, statut), erreurs et leçons, règles et instructions de Nathan, préférences de clients, promesses humaines, plaintes, hypothèses d'estimation, décisions financières et stratégiques, tests et preuves, historique des changements, **modèle de soi** d'OPSYS-AI (identité, mission, limites, modules, règles, portes).
 
 **Dix règles.** (1) Toute tâche laisse une trace. (2) Aucun agent n'agit sans contexte. (3) Rien n'est écrasé sans mémoire. (4) Toute décision a une raison. (5) La mémoire est révisable (remplacer, archiver, expurger, pierre tombale ; **pas de suppression dure par défaut**). (6) Tout est sourcé. (7) Le système se connaît lui-même. (8) Mémoire avant génération. (9) Mémoire après action. (10) **Pas de mémoire magique** : explicite, testée, auditable.
 
-**Ordre de vérité en cas de contradiction.** Constitution du système → décisions explicites de Nathan → matrice de complétion à jour → rapports récents validés → tests et sondes → code actuel → documentation → journaux récents → mémoires anciennes → hypothèses. Une contradiction n'est jamais tranchée au hasard : elle est enregistrée et résolue.
+**Ordre de vérité en cas de contradiction.** Pour les exigences : directives explicites actuelles
+de Nathan → décisions applicables → règles et définition. Pour l'état réel : preuves reproductibles,
+code et sondes du commit concerné ; matrice et rapports doivent citer ces preuves. Un label ancien
+ou une suite verte ne peut nier un défaut reproduit. Enregistrer et résoudre les contradictions.
 
 **Statuts de mémoire.** `active`, `draft`, `verified`, `stale`, `superseded`, `contradicted`, `archived`, `rejected`, `sensitive`, `requires_review`.
 **Niveaux de confidentialité.** `PUBLIC_INTERNAL`, `INTERNAL`, `SENSITIVE`, `FINANCIAL`, `CLIENT_PRIVATE`, `SECRET_REF`, `LEGAL_LOCKED`.
@@ -662,11 +685,14 @@ Transversal : conformité Loi 25, multi-entités, adaptateurs QuickBooks, CCube,
 **Paquets de contexte.** Chaque département a les siens (ex. identité, politiques, contexte client) et les charge avant toute action critique. Ils sont en couches pour économiser les tokens.
 **Récupération.** Combine sémantique, mots-clés, module, fraîcheur, importance, statut, autorité de la source, voisinage dans le graphe, permissions ; pas une simple similarité.
 
-**Lien avec la directive de septembre.** La mémoire d'OpenClaw2 est jugée excellente ; un **RAG premium est obligatoire**, avec documentation en prérequis. M10 doit s'appuyer sur ces éléments sans perdre les garde-fous ci-dessus.
+**Lien avec la directive de septembre.** Réutiliser la mémoire du fork OpenClaw et qualifier les composants Hermes. L'exigence de RAG approfondi signifie sources, récupération hybride, permissions, révisions, évaluations et contexte adapté au métier ; elle n'impose ni abonnement premium ni empilement de moteurs. Voir le [périmètre M10 adapté](PERIMETRE-MODULES.md).
 
 **Mobile.** Admin : recherche dans la mémoire, décisions à valider, contradictions. Employé : ajouter une note de chantier ou une « chose à ne pas oublier » ; ne voit jamais la mémoire interne. Vendeur : consulter la mémoire client autorisée, ajouter un apprentissage de vente.
 
-**État connu.** `STUB` : `conscience_bridge.py` insuffisant. Manquent la mémoire opérationnelle réelle, le graphe en production, l'auto-amélioration, les jeux de données.
+**État historique de juin.** `STUB` : `conscience_bridge.py` insuffisant dans Forge. Ce n'est pas
+l'inventaire de septembre : OPSYS possède désormais des registres, paquets de contexte et une
+consolidation dans `departments/m10-memoire/`. Le périmètre complet reste à vérifier ; voir
+[la recherche M10](../research/R16-2026-09-30/recherche-m10.md) et le plan de consolidation.
 **Preuve de complétion.** Capture des événements, décisions, erreurs, tests ; synchronisation base relationnelle et vectorielle ; couche relationnelle ; paquets de contexte ; consolidation nocturne ; audit « non-oubli » ; modèle de soi ; permissions ; secrets jamais en clair ; détection des contradictions et des mémoires périmées ; réponses sourcées ; E2E verts.
 
 ---
@@ -694,7 +720,7 @@ Transversal : conformité Loi 25, multi-entités, adaptateurs QuickBooks, CCube,
 
 ### 9.1 Ce que les prompts établissent
 
-- Une app existait (« forge-app », probablement React Native/Expo), avec **quatre profils** : admin, employé, client, vendeur, branchée aux API des départements. Les prompts disent de la réutiliser plutôt que de la refaire ; voir le point ouvert n° 9 pour la suite dans le pivot.
+- Les prompts décrivent l'ancienne « forge-app » à **quatre profils**. Le dépôt OPSYS contient aujourd'hui `mobile/` sous React Native/Expo ; réutiliser cette base. Cela ne prouve ni la reprise de tous les parcours Forge ni leur fiabilité : l'audit mobile relève des défauts de capture, reprise et acquittement à corriger.
 - Chaque département définit ses écrans par profil. Les critères de complétion de la plupart d'entre eux incluent leurs écrans ou hooks mobiles.
 
 ### 9.2 Exigences non négociables
@@ -806,7 +832,7 @@ Complément de l'app pour l'admin : tableau de dispatch, wallboards, tableaux de
 | M10 | `STUB` | `conscience_bridge.py` insuffisant |
 
 Le produit global n'était pas à 100 %. Le plan maître v1.2 (50 décisions D-001 à D-050, 39 risques, 13 réglementations) et le squelette de dépôt existent ; ils sont à **réviser** selon le pivot, pas à jeter.
-Ordre de développement ratifié dans le plan v1.2 : **M7 → M1 → M2 → M4**. À revoir avec la restructuration.
+Ordre historique du plan v1.2 : **M7 → M1 → M2 → M4**. Le [plan actuel](../programme/RESTRUCTURATION-2026-09-30.md) commence par les frontières et invariants reproduits, puis les capacités partagées et les départements.
 
 ---
 
@@ -814,8 +840,11 @@ Ordre de développement ratifié dans le plan v1.2 : **M7 → M1 → M2 → M4**
 
 Les prompts de départements ont été écrits pour le dépôt Forge/GRS/Andromeda. Ils mentionnent des éléments à classer en deux groupes.
 
-**A. Outillage de développement (probablement hors produit)**
-Constitution Forge/GRS, matrice de complétion Forge, protocole Cursor (preflight/postflight), mémoire de code et hooks Git, Forge Conscience, orchestrateur RSI, `AGENTS.md`, méthode PROOF IDE. La discipline « pas de faux terminé, preuve à chaque étape » reste valable comme pratique d'ingénierie.
+**A. Mémoire de développement incluse, ancienne usine non requise**
+Prompts, plans, décisions, code, tests, erreurs et contexte avant/après tâche appartiennent au
+périmètre M10, isolés de la mémoire d'affaires (ADR-0012). Les anciennes infrastructures Forge,
+protocoles de consensus et orchestrateurs RSI ne sont pas des prérequis du produit. La discipline
+de preuve reste, avec contrôles proportionnés et sans validation extérieure obligatoire.
 
 **B. Briques candidates (pas des obligations)**
 - Orchestration : LangGraph, Temporal, n8n, Dagster/Prefect.
@@ -833,19 +862,23 @@ Ces briques sont des **ingrédients** : chacune se justifie par la maturité de 
 
 ---
 
-## 13. Points ouverts et incohérences détectées
+## 13. Incohérences héritées et décisions actuelles
 
-**Révision 3 :** les points 1, 5, 6, 7, 9, 10 et 11 sont décidés dans l'[ADR-0008](../decisions/ADR-0008-fork-openclaw-opsys-core.md). Restent à Nathan : le point 4 (nom commercial) et la portée SaaS de M5 (point 8).
+**Révision 4 :** ADR-0008 conserve son rôle historique ; les directives du 30 septembre et
+[ADR-0012](../decisions/ADR-0012-reutilisation-profondeur-productivite.md) fixent la profondeur,
+la mémoire de développement et les règles de travail actuelles. Les choix d'ingénierie ordinaires
+ne sont pas des questions d'approbation laissées ouvertes.
 
-1. **Chemins hérités qui ne suivent pas la numérotation** : M4 = `module6_equipes`, M9 = `module7_strategie`, M7 = `module8_seo`, alors que M6 = `module6_inventory` dans son propre prompt. La numérotation M1–M10 de ce fichier fait foi ; les chemins sont à rationaliser (risque de confusion M4/M6 surtout).
+1. **Chemins hérités qui ne suivent pas la numérotation** : `module6_equipes`, `module7_strategie`, `module8_seo` désignent l'ancien Forge. OPSYS utilise déjà `departments/m01-…` à `m10-…` ; les adaptations se font dans ces modules, sans recréer les anciennes arborescences.
 2. **Trois numérotations des sous-modules M5** : prompt de base (M5.1–M5.10), addendum du 8 juin (M5.1–M5.15), extension « CFO IA ultime » (M5.1–M5.20). Ce fichier suit l'extension, la plus complète.
 3. **Deux formulations de la mention obligatoire de M5** (« Préparation IA — validation Nathan/CPA requise avant action officielle » dans l'addendum ; « Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle » dans l'extension). Retenir la seconde.
-4. **Nom commercial.** Le profil de l'entreprise dit « Gouttières et Revêtements Synergy » ; les modèles de SMS (M1) et de courriel fournisseur (M6) disent « Gouttières et Revêtements Lanaudière ». À confirmer avant de figer scripts et messages.
-5. **M10 : la moitié « usine » (Forge) est de l'outillage de développement**, pas du produit. À trancher : la garde-t-on comme mémoire de développement pour les agents, séparée du produit livré ?
-6. **Ordre de développement** M7 → M1 → M2 → M4 : à confirmer après restructuration. M6 n'y figure pas encore, alors que M3, M4 et M5 en dépendent (matériaux, coût réel).
-7. **« Ne pas reconstruire M2 et M5 » vs « restructurer sans les dépôts Forge ».** Le code existant de M2 (CRM) et de M5 (~14 000 lignes) est-il conservé, porté sur OPSYS-CORE ou réécrit ? Décision explicite et documentée, avec audit préalable.
-8. **Portée de M5.** L'extension CFO IA (paie, impôt, achat de bâtiment, stratégie fiscale) est très large et sensible. Confirmer ce qui est livré aux clients SaaS et ce qui reste réservé au propriétaire.
-9. **L'app mobile dans le pivot.** L'app existante (« forge-app ») est-elle conservée, portée ou réécrite sur OPSYS-CORE ? Quelle stack (React Native/Expo « probable » selon les prompts) ? À décider tôt : chaque département en dépend, et le hors-ligne, le GPS et la caméra contraignent le choix.
+4. **Nom commercial.** Les anciens exemples « Synergy » et « Lanaudière » ne doivent pas figer les messages. Utiliser le profil de l'entreprise configurée ; si le nom manque, produire un brouillon avec donnée manquante et bloquer l'envoi réel.
+5. **M10 : deux domaines inclus**, affaires et développement, liés par sources et entités mais
+   séparés par permissions. Décidé par Nathan le 30 septembre et enregistré dans ADR-0012.
+6. **Ordre de développement.** Le plan actuel corrige d'abord droits, affaire cible, facture, stock, mémoire et restauration ; puis agents/budgets, M10 et départements. M6 reste une dépendance explicite des coûts, estimations et opérations.
+7. **M2 et M5.** Conserver le code actuel d'OPSYS, corriger ses défauts et compléter les parcours. Le volume de l'ancien M5 Forge n'est pas celui de ce dépôt ; aucun portage ou réécriture générale n'est présumé nécessaire.
+8. **Portée de M5.** Le CFO IA complet, paie, fiscalité préparatoire et décisions d'actifs font partie du design cible. Les droits configurés protègent chaque entreprise et profil ; les actions officielles exigent toujours l'humain et le professionnel applicable. Cette profondeur n'est pas réduite à une fonctionnalité réservée au développeur.
+9. **App mobile.** La base React Native/Expo présente est conservée. Corriger les invariants hors ligne et les frontières de profils avant de multiplier les écrans ; la livraison se mesure par parcours métier, pas par présence de routes.
 10. **M6 dépend de M1 pour l'envoi des commandes** (courriel sortant). Prévoir le repli manuel que le prompt M6 exige (« fallback manuel documenté »).
 11. **Seuils non chiffrés.** Les prompts parlent de seuils (variance des matériaux, confiance, montants élevés, marge minimale) sans valeurs, sauf quelques exemples (M5). Chaque département doit les définir, configurables depuis le dashboard.
 
@@ -860,10 +893,10 @@ Ces briques sont des **ingrédients** : chacune se justifie par la maturité de 
 5. **Documenter chaque décision** (raison, options, conséquences), y compris les rejets de briques.
 6. **Traiter l'app mobile comme un livrable de premier rang.** Chaque département livre ses écrans pour les profils concernés (section 9), en particulier le punch, le formulaire de matériaux utilisés, les approbations et le parcours du vendeur.
 
-**Garde-fous recommandés (proposés par Claude, à valider par Nathan, non décidés) :**
-- Avant le grand ménage : étiqueter l'état actuel (tag ou branche) et **archiver plutôt que supprimer**, surtout le plan v1.2 et les ADR.
+**Consignes d'ingénierie applicables avec contrôles proportionnés (ADR-0012) :**
+- Conserver l'historique Git et travailler sur une branche identifiable ; dater les anciens plans et ADR plutôt que les faire passer pour les décisions actuelles.
 - Inventaire des **licences** de toutes les briques retenues, pas seulement du Core. Une licence copyleft peut contraindre un produit SaaS.
-- Choix du Core par comparatif documenté (point de la section 3), pas par intuition. **Fait : ADR-0008.**
+- Conserver le fork décidé dans ADR-0008 ; qualifier chaque emprunt Hermes ou autre brique sur son code, son besoin et ses contraintes.
 - Le dashboard sera exposé sur un VPS : authentification, stockage chiffré des clés d'API et des modèles dès la conception ; isolation entre clients si le SaaS est multi-instances.
 - Suivi minimal des correctifs de sécurité des briques forkées, puisqu'elles ne seront plus mises à jour automatiquement.
 

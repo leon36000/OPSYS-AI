@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import http.server
 import json
+import subprocess
 import threading
+from pathlib import Path
 
 import pytest
 
+from opsys import modeles as modeles_config
 from opsys import openclaw, passerelle
 
 PALIERS = {
@@ -23,12 +26,20 @@ ENVIRON_EMBEDDINGS = {"OPSYS_EMBEDDINGS_URL": "http://embeddings-test:11434/v1",
 def test_fragments_openclaw(departements_demo, tmp_path):
     fichiers = openclaw.generer(departements_demo, tmp_path, PALIERS, fuseau="America/Toronto",
                                  environ=ENVIRON_EMBEDDINGS)
-    modeles = json.loads(fichiers["models"].read_text(encoding="utf-8"))
-    fournisseur = modeles["providers"]["opsys-m9"]
-    assert modeles["mode"] == "merge"
-    assert fournisseur["apiKey"] == "${OPSYS_CLE_M9}"
-    assert fournisseur["api"] == "openai-completions"
-    assert [m["id"] for m in fournisseur["models"]] == ["opsys-local", "opsys-rapide", "opsys-standard"]
+    catalog = json.loads(fichiers["models"].read_text(encoding="utf-8"))
+    assert catalog["mode"] == "merge"
+    assert catalog["providers"]["anthropic"]["apiKey"] == "${ANTHROPIC_API_KEY}"
+    assert catalog["providers"]["anthropic"]["models"] == [
+        {"id": "claude-haiku-4-5-20251001", "name": "claude-haiku-4-5-20251001"},
+        {"id": "claude-sonnet-5", "name": "claude-sonnet-5"},
+    ]
+    assert catalog["providers"]["opsys-local"] == {
+        "models": [{"id": "qwen3:8b", "name": "qwen3:8b"}],
+        "baseUrl": "http://ollama:11434/v1",
+        "api": "openai-completions",
+        "apiKey": "local",
+        "request": {"allowPrivateNetwork": True},
+    }
 
     fragment_agents = json.loads(fichiers["agents"].read_text(encoding="utf-8"))
     assert fragment_agents["defaults"]["contextPruning"] == {"mode": "cache-ttl", "ttl": "1h"}
@@ -36,8 +47,13 @@ def test_fragments_openclaw(departements_demo, tmp_path):
     assert fragment_agents["ownership"] == "explicit"
     assert not any(entree.get("default") for entree in fragment_agents["entries"].values())
     agents = fragment_agents["entries"]
-    assert agents["m09-demo"] == {"name": "M9 · Démo", "workspace": "./opsys/espaces/m09-demo",
-                                  "model": "opsys-m9/opsys-standard", "tools": {"deny": []}}
+    assert agents["m09-demo"] == {
+        "name": "M9 · Démo",
+        "workspace": "./opsys/espaces/m09-demo",
+        "model": "anthropic/claude-sonnet-5",
+        "opsysIsolation": {"exec": "sandbox-required"},
+        "tools": {"deny": ["opsys_context_*__*", "opsys_runtime_*__*"]},
+    }
 
     mcp = json.loads(fichiers["mcp"].read_text(encoding="utf-8"))["servers"]["opsys_m9"]
     assert mcp["url"] == "http://opsys:8765/mcp/m09-demo"
@@ -52,6 +68,105 @@ def test_fragments_openclaw(departements_demo, tmp_path):
     assert "`m9_payer` (T3)" in (espace / "SOUL.md").read_text(encoding="utf-8")
     assert "en_attente_approbation" in (espace / "AGENTS.md").read_text(encoding="utf-8")
     assert (espace / "skills" / "procedure-demo" / "SKILL.md").is_file()
+
+
+def test_litellm_est_un_mode_de_compatibilite_explicite(departements_demo, tmp_path):
+    fichiers = openclaw.generer(
+        departements_demo,
+        tmp_path,
+        PALIERS,
+        mode_fournisseur="litellm",
+        url_passerelle="http://litellm-test:4000/v1",
+        environ=ENVIRON_EMBEDDINGS,
+    )
+
+    catalog = json.loads(fichiers["models"].read_text(encoding="utf-8"))
+    assert "opsys-m9" in catalog["providers"]
+    assert catalog["providers"]["opsys-m9"]["baseUrl"] == "http://litellm-test:4000/v1"
+    assert json.loads(fichiers["agents"].read_text(encoding="utf-8"))["entries"]["m09-demo"]["model"] == (
+        "opsys-m9/opsys-standard"
+    )
+
+
+def test_paliers_emettent_des_replis_valides_sans_modeles_alias_inventes(departements_demo, tmp_path):
+    paliers = {
+        **PALIERS,
+        "standard": {**PALIERS["standard"], "fallbacks": ["rapide"]},
+        "local": {**PALIERS["local"], "api_key_env": "OPSYS_TEST_LLM_KEY"},
+    }
+    fichiers = openclaw.generer(departements_demo, tmp_path, paliers, environ=ENVIRON_EMBEDDINGS)
+    agent = json.loads(fichiers["agents"].read_text(encoding="utf-8"))["entries"]["m09-demo"]
+    providers = json.loads(fichiers["models"].read_text(encoding="utf-8"))["providers"]
+
+    assert agent["model"] == {
+        "primary": "anthropic/claude-sonnet-5",
+        "fallbacks": ["anthropic/claude-haiku-4-5-20251001"],
+    }
+    assert providers["opsys-local"]["apiKey"] == "${OPSYS_TEST_LLM_KEY}"
+    assert all("opsys-standard" not in model["id"] for entry in providers.values() for model in entry["models"])
+
+
+def test_configuration_native_est_projetee_depuis_le_fichier_paliers_du_dashboard(departements_demo, tmp_path):
+    fichier_paliers = tmp_path / "paliers.yaml"
+    modeles_config.enregistrer_paliers({
+        "standard": {"provider": "anthropic", "model": "claude-sonnet-4-6"},
+        "rapide": {"provider": "openai", "model": "gpt-5.4-mini"},
+        "local": {
+            "provider": "custom",
+            "model": "qwen3:8b",
+            "base_url": "http://127.0.0.1:11434/v1",
+            "api_key_env": "OPSYS_LOCAL_LLM_KEY",
+        },
+    }, chemin=fichier_paliers)
+    paliers_lus = modeles_config.charger_paliers(fichier_paliers)
+    env = {**ENVIRON_EMBEDDINGS, "ANTHROPIC_API_KEY": "secret-fixture-must-not-be-written"}
+
+    fichiers = openclaw.generer(departements_demo, tmp_path / "oc", paliers_lus, environ=env)
+    catalog = json.loads(fichiers["models"].read_text(encoding="utf-8"))
+
+    assert catalog["providers"]["anthropic"]["models"] == [
+        {"id": "claude-sonnet-4-6", "name": "claude-sonnet-4-6"}
+    ]
+    assert catalog["providers"]["anthropic"]["apiKey"] == "${ANTHROPIC_API_KEY}"
+    assert catalog["providers"]["openai"]["apiKey"] == "${OPENAI_API_KEY}"
+    assert catalog["providers"]["opsys-local"]["apiKey"] == "${OPSYS_LOCAL_LLM_KEY}"
+    assert "secret-fixture-must-not-be-written" not in fichiers["models"].read_text(encoding="utf-8")
+
+    racine = Path(__file__).resolve().parents[1]
+    tsx = racine / "core" / "node_modules" / ".bin" / "tsx"
+    if not tsx.is_file():
+        pytest.skip("validation croisée désactivée : dépendances TypeScript du core absentes")
+    validateur = tmp_path / "valider-modeles.ts"
+    schema = (racine / "core" / "src" / "config" / "zod-schema.core.ts").as_posix()
+    validateur.write_text(
+        "import { readFileSync } from 'node:fs';\n"
+        f"import {{ ModelsConfigSchema }} from {json.dumps(schema)};\n"
+        "const raw = JSON.parse(readFileSync(process.argv[2], 'utf8'));\n"
+        "const parsed = ModelsConfigSchema.safeParse(raw);\n"
+        "if (!parsed.success) { process.stderr.write(JSON.stringify(parsed.error.issues)); process.exit(1); }\n",
+        encoding="utf-8",
+    )
+    subprocess.run(
+        [str(tsx), str(validateur), str(fichiers["models"])],
+        cwd=racine / "core",
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_refuse_paliers_de_repli_absents_ou_cycliques(departements_demo, tmp_path):
+    paliers_absent = {**PALIERS, "standard": {**PALIERS["standard"], "fallbacks": ["fort"]}}
+    with pytest.raises(ValueError, match="non configurés"):
+        openclaw.generer(departements_demo, tmp_path, paliers_absent, environ=ENVIRON_EMBEDDINGS)
+
+    paliers_cycle = {
+        **PALIERS,
+        "standard": {**PALIERS["standard"], "fallbacks": ["rapide"]},
+        "rapide": {**PALIERS["rapide"], "fallbacks": ["standard"]},
+    }
+    with pytest.raises(ValueError, match="cycle"):
+        openclaw.generer(departements_demo, tmp_path, paliers_cycle, environ=ENVIRON_EMBEDDINGS)
 
 
 def test_palier_par_defaut_manquant(departements_demo, tmp_path):

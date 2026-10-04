@@ -11,6 +11,7 @@ TYPES = ["signal", "transition_phase", "lead_emis", "chiffrage_emis", "alerte"]
 TYPE_SUIVI = "suivi_conversation"
 # Les transferts à un humain (PLAN T4.5, `transferts.py`) ont eux aussi leurs lignes : jamais « non classées ».
 TYPE_TRANSFERT = transferts.TYPE_ENTREE
+TYPE_APPEL_IMPORTE = "appel_importe"
 
 
 def _canal_de(entree: dict) -> str:
@@ -123,7 +124,7 @@ def produire_digest(entrees: list[dict], date_reference: str) -> str:
     compteur = collections.Counter()
     non_classes = 0
     for entree in entrees:
-        if entree.get("type_entree") in (TYPE_SUIVI, TYPE_TRANSFERT):
+        if entree.get("type_entree") in (TYPE_SUIVI, TYPE_TRANSFERT, TYPE_APPEL_IMPORTE):
             continue  # comptés à part (`_lignes_de_suivi`, `_lignes_de_transferts`), jamais parmi les « non classées »
         if not _correspond_a_la_date(entree, date_reference):
             continue
@@ -141,5 +142,11 @@ def produire_digest(entrees: list[dict], date_reference: str) -> str:
             lignes.append(f"- {canal}: {type_}: {nb}")
     lignes.extend(_lignes_de_suivi(entrees, date_reference))
     lignes.extend(_lignes_de_transferts(entrees, date_reference))
+    appels = collections.Counter(
+        entree.get("statut", "inconnu") for entree in entrees
+        if entree.get("type_entree") == TYPE_APPEL_IMPORTE and _correspond_a_la_date(entree, date_reference)
+    )
+    if appels:
+        lignes.append("- appels importés : " + ", ".join(f"{statut}: {appels[statut]}" for statut in sorted(appels)))
     lignes.append(f"- entrées non classées : {non_classes}")
     return "\n".join(lignes)

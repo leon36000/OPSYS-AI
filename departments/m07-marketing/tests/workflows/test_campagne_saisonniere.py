@@ -124,7 +124,8 @@ class TestCampagneSaisonniere:
         assert compteurs["items_proposes"] == 0
         assert compteurs["themes_couverts"] == 0
 
-    def test_determinisme(self):
+    def test_determinisme(self, monkeypatch):
+        monkeypatch.setattr(approval, "_horodatage_serveur", lambda: "2026-07-15T00:00:00+00:00")
         date_ref_iso = _make_iso("2026-07-15")
         plan1 = campagne_saisonniere.planifier_campagne_saisonniere(date_ref_iso, str(CALENDRIER))
         approval.reset()

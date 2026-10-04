@@ -1,0 +1,5 @@
+# Label des postes Docker Linux préparés pour les E2E macOS/Windows opt-in.
+# Les labels standards (self-hosted, macOS, Windows) restent validés par actionlint.
+self-hosted-runner:
+  labels:
+    - opsys-docker-linux

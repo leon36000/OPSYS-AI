@@ -19,14 +19,31 @@ jobs:
   # Socle : lint, cohérence des départements, tests du socle.
   socle:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: "3.12"
-      - name: Installation (socle + départements)
-        run: python -m pip install --quiet -e ".[dev]"
+      - name: uv (version verrouillée)
+        run: python -m pip install --quiet uv==0.12.19 && uv --version
+      - name: Concordance entre uv.lock et le lock d'image
+        run: |
+          uv export --locked --group build --no-dev --extra postgres --extra console --extra tournees --extra soumission \
+            --format requirements-txt --no-emit-project --output-file "$RUNNER_TEMP/requirements-runtime.lock.txt"
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          expected = Path("requirements-runtime.lock.txt").read_text(encoding="utf-8").splitlines()[2:]
+          generated = (Path(os.environ["RUNNER_TEMP"]) / "requirements-runtime.lock.txt").read_text(encoding="utf-8").splitlines()[2:]
+          if expected != generated:
+              raise SystemExit("requirements-runtime.lock.txt ne correspond plus à uv.lock")
+          PY
+      - name: Installation verrouillée (socle)
+        run: |
+          uv sync --locked --group build --extra dev --no-build-isolation --no-install-project
+          uv sync --locked --group build --extra dev --no-build-isolation
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
       - name: Lint du socle
         run: ruff check src tests
       # `opsys` est la commande du core (PLAN T0.7 lot 2) ; la CLI du moteur est `opsys-metier` (`opsys metier` la lance
@@ -43,13 +60,14 @@ jobs:
     timeout-minutes: 45
     env:
       # Départements dont `ruff check` est à zéro : le lint y est bloquant (PLAN T5.1). Ajouter un
-      # dossier ici dès qu'il est propre ; il ne reste que M3 à corriger. Un département
+      # dossier ici dès qu'il est propre ; les dix départements sont maintenant contrôlés. Un département
       # absent de cette liste n'est pas linté. `tests/test_ci_departements.py` vérifie que chaque
       # dossier listé existe, figure dans la matrice et passe `ruff check`.
       DEPARTEMENTS_LINT: >-
         [
           "m01-front-office",
           "m02-revenue-crm",
+          "m03-estimation",
           "m04-field-ops",
           "m05-financecore",
           "m06-material-control",
@@ -77,18 +95,18 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: "3.12"
-      - name: Installation (socle + départements)
-        run: python -m pip install --quiet -e ".[dev]"
-      # PyVRP (extra `tournees`, PLAN T4.1-c) : seul M4 s'en sert ; sans lui, ses tests PyVRP seraient
-      # sautés et seul le DP exact serait exercé.
-      - name: Extra tournées (PyVRP) pour M4
-        if: matrix.dossier == 'm04-field-ops'
-        run: python -m pip install --quiet -e ".[tournees]"
-      # ReportLab (extra `soumission`, PLAN T2.3-f) : seul M3 s'en sert (soumission brouillon en PDF) ; sans
-      # lui, ses tests PDF seraient sautés et le rendu ne serait jamais exercé.
-      - name: Extra soumission (ReportLab) pour M3
-        if: matrix.dossier == 'm03-estimation'
-        run: python -m pip install --quiet -e ".[soumission]"
+      - name: uv (version verrouillée)
+        run: python -m pip install --quiet uv==0.12.19 && uv --version
+      - name: Installation verrouillée (extras requis par le département)
+        env:
+          DOSSIER: ${{ matrix.dossier }}
+        run: |
+          extras=(--extra dev)
+          if [[ "$DOSSIER" == m04-field-ops ]]; then extras+=(--extra tournees); fi
+          if [[ "$DOSSIER" == m03-estimation ]]; then extras+=(--extra soumission); fi
+          uv sync --locked --group build "${extras[@]}" --no-build-isolation --no-install-project
+          uv sync --locked --group build "${extras[@]}" --no-build-isolation
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
       - name: Lint du département ${{ matrix.dossier }}
         if: contains(fromJSON(env.DEPARTEMENTS_LINT), matrix.dossier)
         run: ruff check "departments/${{ matrix.dossier }}"
@@ -134,8 +152,13 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: "3.12"
-      - name: Installation (socle + départements, extra soumission)
-        run: python -m pip install --quiet -e ".[dev,soumission]"
+      - name: uv (version verrouillée)
+        run: python -m pip install --quiet uv==0.12.19 && uv --version
+      - name: Installation verrouillée (preuves M3)
+        run: |
+          uv sync --locked --group build --extra dev --extra soumission --no-build-isolation --no-install-project
+          uv sync --locked --group build --extra dev --extra soumission --no-build-isolation
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
       - name: Outils de preuve de M3 (${{ matrix.fichier }}, ${{ matrix.seul || format('part {0}/{1}', matrix.part, matrix.parts) }})
         shell: bash
         env:
@@ -165,9 +188,9 @@ jobs:
           fi
           python -m pytest "${retenus[@]}" --durations=0
 
-  # `gates` est le contexte requis par la protection de branche de `main` : garder ce nom. Il
-  # tourne toujours (`if: always()`) et échoue explicitement si un job requis n'a pas réussi : un
-  # job requis sauté ou annulé ne doit jamais passer pour un succès.
+  # `gates` reste le contexte requis par la protection de branche historique. Le job mobile a un
+  # nom distinct (`mobile-gates`). Ce contrôle tourne toujours (`if: always()`) et échoue si un
+  # job Python requis a été sauté ou annulé.
   gates:
     needs: [socle, departement, m03-preuves]
     if: always()

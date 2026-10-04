@@ -25,16 +25,18 @@ from typing import Any
 
 from sqlalchemy import Connection
 
-from . import approbations, idempotence, jetons, openclaw
+from . import approbations, idempotence, jetons, liaison_cibles, openclaw
+from . import contexte as contexte_appel
 from .contexte import (
     HorodatageAppareil,
+    IdentiteAppelante,
     appeler_en_tant_que,
     horodatage_reception,
     identite_appelante,
     receptionne_de,
 )
 from .departements import Departement, tous_les_outils
-from .outils import Autonomie, Outil, executer_atomique, valider_arguments
+from .outils import Autonomie, Niveau, Outil, executer_atomique, valider_arguments
 from .politiques import approbation_requise_niveau, validation_au_depart_possible
 
 _SCHEMA_VIDE = {"type": "object", "properties": {}, "additionalProperties": False}
@@ -72,9 +74,12 @@ class Capacites:
         limite_sortie: int = jetons.LIMITE_SORTIE_DEFAUT,
         appelant: str | None = None,
         memoire: bool = True,
+        memoire_politique: Callable[[], dict[str, Any]] | None = None,
+        memoire_versionnee: bool = False,
     ) -> None:
-        """`appelant` : département au nom duquel les outils communs s'exécutent (point d'accès
-        `/mcp/<département>`). Sans appelant, les outils communs au-delà de T0 sont refusés."""
+        """`appelant` : département d'origine fixé par le point d'accès MCP (`/mcp/<département>` ou
+        `/mcp/contexte/<département>`), au nom duquel les outils communs s'exécutent. Sans appelant,
+        les outils communs au-delà de T0 sont refusés."""
         inconnus = (filtre or set()) - set(departements)
         if inconnus:
             raise ValueError(f"départements inconnus : {sorted(inconnus)}")
@@ -83,14 +88,79 @@ class Capacites:
         self.departements = {k: v for k, v in departements.items() if not filtre or k in filtre}
         self.appelant = departements[appelant] if appelant else None
         self._cnx_factory = cnx_factory
+        self._memoire_politique = memoire_politique
+        self._memoire_versionnee = memoire_versionnee
         self._limite = limite_sortie
         self._portees_roles: dict[str, frozenset[str]] | None = None  # calculé au besoin, voir _outils_du_role
+        ports_prives: dict[str, Mapping[str, Any]] = {}
+        if "m05-financecore" in self.departements:
+            ports_prives["m05-financecore"] = {
+                "lecteur_heures_m4": self._lecteur_heures_m4(departements, cnx_factory)
+            }
         self.index: dict[str, tuple[Departement | None, Outil]] = dict(
-            tous_les_outils(self.departements.values())
+            tous_les_outils(self.departements.values(), ports_prives=ports_prives)
         )
         communs = self._outils_communs() + list(_outils_memoire() if memoire else ())
         for outil in communs:
             self.index[outil.nom] = (None, outil)
+
+    @staticmethod
+    def _lecteur_heures_m4(
+        departements: Mapping[str, Departement],
+        cnx_factory: Callable[[], AbstractContextManager[Connection]],
+    ) -> Callable[..., dict[str, Any]]:
+        """Compose M5 vers l'unique lecture M4 autorisée sans exposer sa Capacité au métier."""
+        nom_outil = "m4_lire_heures_regulieres_validees"
+        if "m04-field-ops" not in departements:
+            def indisponible(*_args: Any, **_kwargs: Any) -> dict[str, Any]:
+                return {
+                    "ok": False,
+                    "erreur": "lecteur_heures_m4_indisponible",
+                    "details": "Le département M4 n'est pas installé.",
+                }
+
+            return indisponible
+
+        lecteur = Capacites(
+            departements,
+            cnx_factory,
+            filtre={"m04-field-ops"},
+            appelant="m05-financecore",
+            memoire=False,
+        )
+
+        def lire(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            if kwargs or len(args) != 4:
+                return {
+                    "ok": False,
+                    "erreur": "arguments_lecteur_heures_invalides",
+                    "details": "Le lecteur M4 exige exactement quatre arguments positionnels.",
+                }
+            identite = contexte_appel.identite_appelante()
+            if (
+                identite is None
+                or identite.source != "console"
+                or identite.role != "nathan_owner"
+                or contexte_appel.DEPARTEMENT_APPELANT.get() != "m05-financecore"
+                or contexte_appel.departement_origine_appelante() != "m05-financecore"
+            ):
+                return {
+                    "ok": False,
+                    "erreur": "identite_console_proprietaire_requise",
+                    "details": "La lecture M4 privée exige le contexte M5 et l'identité owner de console.",
+                }
+            entree = lecteur.index.get(nom_outil)
+            if entree is None or entree[0] is None:
+                return {
+                    "ok": False,
+                    "erreur": "lecteur_heures_m4_indisponible",
+                    "details": "L'outil M4 de lecture validée n'est pas disponible.",
+                }
+            return lecteur.appeler(nom_outil, dict(zip(
+                ("technicien_id", "debut", "fin", "fuseau"), args, strict=True
+            )))
+
+        return lire
 
     # -- outils communs -----------------------------------------------------------------
     def _outils_communs(self) -> list[Outil]:
@@ -145,19 +215,197 @@ class Capacites:
     def lister(self) -> list[Outil]:
         return [outil for _, outil in self.index.values()]
 
+    def appeler_profil_runtime(
+        self,
+        nom: str,
+        arguments: Mapping[str, Any] | None,
+        meta: idempotence.Meta | None,
+        ticket_cible: liaison_cibles.TicketMeta | None,
+        *,
+        profile_id: str,
+        profile_revision: int,
+        server: str,
+        ticket_memoire: str | None = None,
+    ) -> dict[str, Any]:
+        """Revérifie et dispatch un outil Core profilé sous le verrou de sa ligne de profil."""
+        from . import admission_agents
+
+        if self.appelant is None or server != f"opsys_{self.appelant.prefixe_outils}":
+            return {"ok": False, "erreur": "admission_profil_refusee", "details": "serveur hors profil"}
+        outil_complet = f"{server}__{nom}"
+        try:
+            with self._cnx_factory() as cnx:
+                admission_agents.verifier_outil_runtime(
+                    cnx, profile_id, self.departements, outil_complet, profile_revision, verrouiller=True
+                )
+                # `cnx_factory` is the storage ContextVar transaction: nested capability/tool
+                # transactions remain under this profile row lock until dispatch returns.
+                return self.appeler(nom, arguments, meta, ticket_cible, ticket_memoire)
+        except admission_agents.AdmissionRefusee as exc:
+            return {"ok": False, "erreur": "admission_profil_refusee", "details": str(exc)}
+
     def appeler(
-        self, nom: str, arguments: Mapping[str, Any] | None, meta: idempotence.Meta | None = None
+        self, nom: str, arguments: Mapping[str, Any] | None, meta: idempotence.Meta | None = None,
+        ticket_cible: liaison_cibles.TicketMeta | None = None,
+        ticket_memoire: str | None = None,
     ) -> dict[str, Any]:
         """Exécute `nom`. `meta` (idempotence d'appareil, T1.4-b) vient du `_meta` MCP de
         `tools/call` (`serveur_mcp.appeler_outil`), jamais des arguments produits par le modèle.
         Sans `meta`, comportement strictement inchangé : voir `docs/architecture/IDEMPOTENCE.md`.
         """
+        args = dict(arguments or {})
+        if nom == "opsys_memoire_rechercher":
+            if ticket_cible is not None:
+                return {"ok": False, "erreur": "ticket_cible_hors_portee_memoire"}
+            return self._appeler_memoire(args, ticket_memoire)
+        if ticket_memoire is not None:
+            return {"ok": False, "erreur": "memoire_ticket_hors_portee"}
+        if ticket_cible is not None:
+            return self._appeler_avec_ticket(nom, args, ticket_cible)
+        if nom in liaison_cibles.OUTILS_CIBLES:
+            entree = self.index.get(nom)
+            dept, outil = entree if entree is not None else (None, None)
+            if dept is None or (self.appelant is not None and dept.id != self.appelant.id):
+                return {
+                    "ok": False,
+                    "erreur": "ticket_cible_requis",
+                    "details": "Cette mutation doit être appelée depuis le département propriétaire de l'outil.",
+                }
+            if meta is None:
+                return {
+                    "ok": False,
+                    "erreur": "ticket_cible_requis",
+                    "details": (
+                        "Cette mutation exige un ticket de session, sauf action N3 "
+                        "authentifiée d'un humain."
+                    ),
+                }
+            if validation_au_depart_possible(outil.niveau_effectif) and self._humain_n3_cible_valide(nom):
+                return self._appeler_idempotent(nom, args, meta, revalider_humain_n3=True)
+            if outil.niveau_effectif is Niveau.N4 and self._humain_appareil_cible_valide(nom):
+                return self._appeler_idempotent(
+                    nom, args, meta, revalider_humain_cible=True, demander_n4_humain=True
+                )
+            return {
+                "ok": False,
+                "erreur": "ticket_cible_requis",
+                "details": (
+                    "Cette mutation exige un ticket de session, sauf action N3 authentifiée d'un humain "
+                    "ou demande N4 authentifiée et dans la portée de l'appareil."
+                ),
+            }
         if meta is None:
-            return self._distribuer(nom, arguments)
-        return self._appeler_idempotent(nom, dict(arguments or {}), meta)
+            return self._distribuer(nom, args)
+        return self._appeler_idempotent(nom, args, meta)
+
+    def _appeler_memoire(self, args: dict[str, Any], ticket: str | None) -> dict[str, Any]:
+        from .memoire import autorite
+
+        try:
+            if contexte_appel.identite_appelante() is not None:
+                raise ValueError("MEMOIRE-APPAREIL-FERME")
+            if self._memoire_politique is None:
+                if ticket is not None:
+                    raise ValueError("MEMOIRE-AUTORITE-TRANSPORT-ABSENTE")
+                return self._distribuer(autorite.NOM_OUTIL, args)
+            policy = autorite.valider_politique(self._memoire_politique())
+            if self.appelant is None or self.appelant.id not in policy["departements"]:
+                raise ValueError("MEMOIRE-DEPARTEMENT-NON-CLASSE")
+            dep = self.appelant.id
+            if policy["departements"][dep] == "global":
+                if ticket is not None:
+                    raise ValueError("MEMOIRE-TICKET-HORS-VOIE-CLIENT")
+                empreinte = autorite.empreinte_politique(policy)
+                reponse = self._distribuer(autorite.NOM_OUTIL, args)
+                if empreinte != autorite.empreinte_politique(autorite.valider_politique(self._memoire_politique())):
+                    raise ValueError("MEMOIRE-CLASSIFICATION-MODIFIEE")
+                return reponse
+            if not self._memoire_versionnee:
+                raise ValueError("MEMOIRE-ROUTE-CLIENT-OBSOLETE: régénérer la configuration Core")
+            # Procédures seules, explicitement autorisées par le manifeste et le fragment serveur.
+            if (ticket is None and args.get("portees") == ["procedures"]
+                    and "procedures" in self.appelant.memoire_lecture):
+                with autorite.lecture_bornee((), ("procedures",)):
+                    reponse = self._distribuer(autorite.NOM_OUTIL, args)
+                if autorite.empreinte_politique(policy) != autorite.empreinte_politique(
+                        autorite.valider_politique(self._memoire_politique())):
+                    raise ValueError("MEMOIRE-CLASSIFICATION-MODIFIEE")
+                return reponse
+            if ticket is None:
+                raise ValueError("MEMOIRE-TICKET-CLIENT-REQUIS")
+            with self._cnx_factory() as cnx:
+                sujets = autorite.verifier(cnx, policy, dep, ticket, args)
+                with autorite.lecture_bornee(sujets, tuple(policy["procedures_globales"])):
+                    reponse = self._distribuer(autorite.NOM_OUTIL, args)
+                # Aucun cache personnel ni branche de replay avant cette revalidation vivante.
+                autorite.verifier(cnx, self._memoire_politique(), dep, ticket, args)
+                if reponse.get("ok"):
+                    autorite.consommer(cnx, ticket)
+                return reponse
+        except (ValueError, KeyError, TypeError) as exc:
+            return {"ok": False, "erreur": "memoire_autorite_refusee", "details": str(exc)}
+
+    def _humain_n3_cible_valide(self, nom: str, cnx: Connection | None = None) -> bool:
+        entree = self.index.get(nom)
+        if entree is None or entree[0] is None:
+            return False
+        outil = entree[1]
+        if not validation_au_depart_possible(outil.niveau_effectif):
+            return False
+        return self._humain_appareil_cible_valide(nom, cnx)
+
+    def _humain_appareil_cible_valide(self, nom: str, cnx: Connection | None = None) -> bool:
+        return self._signataire_appareil_cible_valide(nom, cnx) is not None
+
+    def _signataire_appareil_cible_valide(
+        self, nom: str, cnx: Connection | None = None
+    ) -> IdentiteAppelante | None:
+        entree = self.index.get(nom)
+        appelante = identite_appelante()
+        if entree is None or entree[0] is None or appelante is None:
+            return None
+        if nom not in self._outils_du_role(appelante.role):
+            return None
+        if cnx is not None:
+            return approbations.signataire_valide(cnx, appelante)
+        with self._cnx_factory() as connexion:
+            return approbations.signataire_valide(connexion, appelante)
+
+    def _appeler_avec_ticket(
+        self, nom: str, arguments: dict[str, Any], ticket_meta: liaison_cibles.TicketMeta
+    ) -> dict[str, Any]:
+        """Vérifie, exécute et consomme le ticket dans une seule transaction SQLite."""
+        try:
+            dept, _ = self.index[nom]
+            if dept is None or self.appelant is None or dept.id != self.appelant.id:
+                raise liaison_cibles.CibleRefusee("route d'origine différente du département de l'outil")
+            with self._cnx_factory() as cnx:
+                ticket = liaison_cibles.verifier_ticket(
+                    cnx, ticket_meta, departement=dept.id, outil=nom, arguments=arguments
+                )
+                if ticket.reponse_rejouee is not None:
+                    return {**ticket.reponse_rejouee, "rejoue": True}
+                reponse = self._distribuer(nom, arguments)
+                demande_id = reponse.get("demande_id") if reponse.get("statut") == "en_attente_approbation" else None
+                if demande_id:
+                    from sqlalchemy import update
+
+                    from .stockage.schema import APPROBATIONS
+
+                    cnx.execute(update(APPROBATIONS).where(APPROBATIONS.c.id == demande_id).values(
+                        ticket_cible_hash=ticket.empreinte
+                    ))
+                    liaison_cibles.sceller_ticket(cnx, ticket, demande_id, reponse)
+                else:
+                    liaison_cibles.consommer_ticket(cnx, ticket, reponse)
+                return reponse
+        except (KeyError, liaison_cibles.CibleRefusee) as exc:
+            return {"ok": False, "erreur": "cible_refusee", "details": str(exc)}
 
     def _appeler_idempotent(
-        self, nom: str, arguments: dict[str, Any], meta: idempotence.Meta
+        self, nom: str, arguments: dict[str, Any], meta: idempotence.Meta, *,
+        revalider_humain_n3: bool = False, revalider_humain_cible: bool = False,
+        demander_n4_humain: bool = False,
     ) -> dict[str, Any]:
         """Réclame `(appareil, cle)` puis exécute, dans une seule transaction : un renvoi de la
         même clé, du même outil et des mêmes arguments rejoue la réponse enregistrée sans
@@ -171,24 +419,68 @@ class Capacites:
         """
         recu_le = dt.datetime.now(dt.UTC)
         with self._cnx_factory() as cnx:
+            if revalider_humain_n3 and not self._humain_n3_cible_valide(nom, cnx):
+                return {
+                    "ok": False,
+                    "erreur": "ticket_cible_requis",
+                    "details": "Identité humaine inactive ou autorisation N3 retirée avant l'écriture.",
+                }
+            signataire_n4 = None
+            if revalider_humain_cible:
+                signataire_n4 = self._signataire_appareil_cible_valide(nom, cnx)
+                if signataire_n4 is None:
+                    return {
+                        "ok": False,
+                        "erreur": "ticket_cible_requis",
+                        "details": "Identité humaine inactive ou autorisation retirée avant la création de la demande.",
+                    }
             try:
                 reclamation = idempotence.reclamer(cnx, meta, nom, arguments, recu_le)
             except idempotence.MutationConflit as exc:
                 return {"ok": False, "erreur": "mutation_conflit", "details": str(exc)}
             if reclamation.rejouee:
                 return {**reclamation.reponse, "rejoue": True}
+            if demander_n4_humain:
+                if signataire_n4 is None:
+                    raise ValueError("création N4 humaine sans signataire revérifié en base")
+                departement, outil = self.index[nom]
+                assert departement is not None and outil.niveau_effectif is Niveau.N4
+                erreurs = valider_arguments(outil.parametres, arguments)
+                if erreurs:
+                    reponse = {"ok": False, "erreur": "arguments_invalides", "details": erreurs}
+                else:
+                    ident = approbations.creer_demande(
+                        cnx,
+                        departement.id,
+                        nom,
+                        arguments,
+                        niveau=outil.niveau_effectif,
+                        provenance_humaine=(signataire_n4, meta.appareil, meta.cle),
+                    )
+                    reponse = {
+                        "ok": True,
+                        "statut": "en_attente_approbation",
+                        "demande_id": ident,
+                        "details": (
+                            "Demande N4 créée par un appareil humain authentifié. Le propriétaire doit "
+                            "l'approuver avant toute exécution."
+                        ),
+                    }
+                idempotence.finaliser(cnx, meta, reponse)
+                return {**reponse, "rejoue": False}
             horodatage = HorodatageAppareil(
                 appareil=meta.appareil,
                 horodatage_appareil=dt.datetime.fromisoformat(meta.horodatage_appareil),
                 recu_le=recu_le,
             )
             with receptionne_de(horodatage):
-                reponse = self._distribuer(nom, arguments, appel_appareil=True)
+                reponse = self._distribuer(nom, arguments, appel_appareil=True, meta=meta)
             idempotence.finaliser(cnx, meta, reponse)
             return {**reponse, "rejoue": False}
 
     def _distribuer(
-        self, nom: str, arguments: Mapping[str, Any] | None, *, appel_appareil: bool = False
+        self, nom: str, arguments: Mapping[str, Any] | None, *, appel_appareil: bool = False,
+        meta: idempotence.Meta | None = None,
     ) -> dict[str, Any]:
         """Aiguille un appel : outil commun, approbation requise, ou exécution atomique.
 
@@ -205,7 +497,8 @@ class Capacites:
         arguments = dict(arguments or {})
         if departement is None:  # outil commun : exécuté au nom du département appelant
             if outil.autonomie is Autonomie.T0:
-                with appeler_en_tant_que(self.appelant.id if self.appelant else None):
+                origine = self.appelant.id if self.appelant else None
+                with appeler_en_tant_que(origine, origine=origine):
                     return self._tronquer(executer_atomique(outil, arguments), nom)
             if self.appelant is None:
                 return {"ok": False, "erreur": "departement_appelant_inconnu",
@@ -226,13 +519,24 @@ class Capacites:
                 erreurs = valider_arguments(outil.parametres, arguments)
                 if erreurs:
                     return {"ok": False, "erreur": "arguments_invalides", "details": erreurs}
+                provenance_humaine = None
+                if appel_appareil and meta is not None and outil.niveau_effectif is Niveau.N4:
+                    signataire = self._signataire_appareil_cible_valide(nom, cnx)
+                    if (
+                        signataire is not None
+                        and signataire.source == "appareil"
+                        and signataire.role not in approbations.ROLES_NON_HUMAINS
+                    ):
+                        provenance_humaine = (signataire, meta.appareil, meta.cle)
                 ident = approbations.creer_demande(cnx, departement.id, nom, arguments,
-                                                   niveau=outil.niveau_effectif)
+                                                   niveau=outil.niveau_effectif,
+                                                   provenance_humaine=provenance_humaine)
                 return {"ok": True, "statut": "en_attente_approbation", "demande_id": ident,
                         "details": f"Action {outil.autonomie.value} ({outil.niveau_effectif.value}) en mode "
                                    f"{mode} : un humain doit l'approuver dans la console OPSYS. Ne la "
                                    "présente pas comme faite."}
-        with appeler_en_tant_que(departement.id):
+        origine = self.appelant.id if self.appelant else None
+        with appeler_en_tant_que(departement.id, origine=origine):
             return self._tronquer(executer_atomique(outil, arguments), nom)
 
     def _outils_du_role(self, role: str) -> frozenset[str]:
@@ -291,20 +595,31 @@ class Capacites:
                                "(openclaw.roles_outils) : ni exécuté ni mis en attente."}
         reception = horodatage_reception()
         with cnx.begin_nested():
-            with appeler_en_tant_que(departement.id):
+            origine = self.appelant.id if self.appelant else None
+            with appeler_en_tant_que(departement.id, origine=origine):
                 reponse = executer_atomique(outil, arguments)
             if reponse.get("ok"):
                 approbations.tracer_validation_au_depart(
                     cnx, departement.id, outil.nom, arguments, niveau=outil.niveau_effectif,
                     signataire=signataire, reponse=reponse,
                     appareil=reception.appareil if reception is not None else None)
-        return self._tronquer(reponse, outil.nom)
+        return self._tronquer(
+            reponse, outil.nom, departement=departement.id,
+            origine=self.appelant.id if self.appelant else None,
+        )
 
-    def _tronquer(self, reponse: dict[str, Any], source: str) -> dict[str, Any]:
+    def _tronquer(
+        self, reponse: dict[str, Any], source: str, *, departement: str | None = None,
+        origine: str | None = None,
+    ) -> dict[str, Any]:
         texte = json.dumps(reponse, ensure_ascii=False)
         if len(texte) <= self._limite:
             return reponse
+        departement_artifact = departement or contexte_appel.DEPARTEMENT_APPELANT.get()
+        origine_artifact = origine or contexte_appel.departement_origine_appelante()
         with self._cnx_factory() as cnx:
             return {"ok": reponse.get("ok", False), "tronque": True,
-                    "apercu": jetons.tronquer(cnx, texte, source, self._limite)}
-
+                    "apercu": jetons.tronquer(
+                        cnx, texte, source, self._limite,
+                        departement=departement_artifact, origine=origine_artifact,
+                    )}

@@ -90,7 +90,7 @@ function createSession() {
 function createBaseInput() {
   const sessionPromptState = getEmbeddedSessionPromptState(sessionId);
   return {
-    attempt: { sessionId },
+    attempt: { runId: "attempt-prompt-submit-run", sessionId },
     appendContext: "append context",
     contextTokenBudget: 8_000,
     images: [] as ImageContent[],
@@ -418,7 +418,11 @@ describe("submitEmbeddedAttemptPrompt", () => {
       });
       await submitEmbeddedAttemptPrompt({
         ...createBaseInput(),
-        attempt: { sessionId, userTurnTranscriptRecorder: recorder },
+        attempt: {
+          runId: "attempt-prompt-submit-run",
+          sessionId,
+          userTurnTranscriptRecorder: recorder,
+        },
         activeSession: session,
         appendOnlyRuntimeContext: retryContext !== "transient",
         appendContext: undefined,
@@ -771,6 +775,7 @@ describe("submitEmbeddedAttemptPrompt", () => {
       await submitEmbeddedAttemptPrompt({
         ...input,
         attempt: {
+          runId: "attempt-prompt-submit-run",
           sessionId,
           skipPreparedUserTurnMessage,
           userTurnTranscriptRecorder: recorder,
@@ -975,7 +980,7 @@ describe("submitEmbeddedAttemptPrompt", () => {
 
     await submitEmbeddedAttemptPrompt({
       ...input,
-      attempt: { sessionId, promptCacheKey },
+      attempt: { runId: "attempt-prompt-submit-run", sessionId, promptCacheKey },
       activeSession,
       toolResultAggregateMaxChars: 6_000,
       promptActiveSession: async () => {

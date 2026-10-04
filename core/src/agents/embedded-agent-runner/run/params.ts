@@ -75,6 +75,9 @@ export type CurrentInboundPromptContext = {
 };
 
 export type RunEmbeddedAgentParams = {
+  /** Trusted candidate ordinal from the host model fallback runner, never tool/model input. */
+  getAdmissionCandidateIndex?: () => number;
+  /** Trusted fallback classification from the host model fallback runner. */
   /** Detached runs may read session identity but never write its durable transcript or metadata. */
   sessionPersistence?: "durable" | "detached";
   /** Storage-neutral transcript/session target. Defaults to sessionId/sessionKey/agentId. */
@@ -95,6 +98,8 @@ export type RunEmbeddedAgentParams = {
   scheduledRuntimeAuthority?: CronRuntimeAuthority;
   /** A known runtime-specific authority envelope was explicitly cleared. */
   scheduledRuntimeAuthorityRecoveryRequired?: boolean;
+  /** Host-only live scheduled authority check, invoked at each final provider boundary. */
+  validateScheduledRuntimeAuthority?: (signal: AbortSignal) => Promise<void>;
   /** Relative workspace path that memory-triggered writes are allowed to append to. */
   memoryFlushWritePath?: string;
   /** Sticky source-turn taint inherited by an internal maintenance run. */

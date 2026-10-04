@@ -37,7 +37,7 @@ export class DepotOutboxMemoire implements DepotOutbox {
     if (this.lignes.has(mutation.id)) {
       throw new Error(`mutation déjà présente dans le dépôt : ${mutation.id}`);
     }
-    const persistee: MutationOutbox = { ...mutation, sequence: this.prochaineSequence };
+    const persistee: MutationOutbox = { ...mutation, sequence: this.prochaineSequence, resumeAccepte: mutation.resumeAccepte ?? null };
     this.prochaineSequence += 1;
     this.lignes.set(mutation.id, persistee);
     return persistee;

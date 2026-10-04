@@ -82,6 +82,16 @@
       "type": "string",
       "description": "Texte décimal (ex. \"0.35\" pour 35 %) : taux de marge appliqué à ce devis, fourni explicitement à sa création — jamais codé en dur."
     },
+    "estimation_source_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "OPTIONNEL — hash_maillon SHA-256 de l'estimation M3 explicitement liée à ce devis à sa création. Opaque; ne prouve que la référence à la chaîne M3 validée. Absent sur les devis historiques ou sans source déclarée."
+    },
+    "semantique_temps": {
+      "type": "string",
+      "enum": ["duree_ecoulee_intervention"],
+      "description": "OPTIONNEL — durée écoulée sur site par unité, pauses validées et déplacement exclus; émis uniquement si le barème source l'a déclaré exactement."
+    },
     "duree_estimee_minutes": {
       "type": "string",
       "pattern": "^[0-9]+(\\.[0-9]+)?$",

@@ -7,7 +7,6 @@ import type {
   SpeechSynthesisRequest,
   SpeechTelephonySynthesisRequest,
 } from "openclaw/plugin-sdk/speech-core";
-import { truncateUtf16Safe } from "openclaw/plugin-sdk/speech-provider";
 import { asOptionalRecord, filterStringRecord } from "openclaw/plugin-sdk/string-coerce-runtime";
 
 const VALID_OUTPUT_FORMATS = ["mp3", "opus", "wav"] as const;
@@ -368,7 +367,7 @@ export function buildCliSpeechProvider(): SpeechProviderPlugin {
         throw new Error("CLI TTS not configured");
       }
 
-      log.debug(`synthesize: text=${truncateUtf16Safe(req.text, 50)}...`);
+      log.debug(`synthesize: textLength=${req.text.length}`);
 
       return await withTempWorkspace(
         {
@@ -418,7 +417,7 @@ export function buildCliSpeechProvider(): SpeechProviderPlugin {
         throw new Error("CLI TTS not configured");
       }
 
-      log.debug(`synthesizeTelephony: text=${truncateUtf16Safe(req.text, 50)}...`);
+      log.debug(`synthesizeTelephony: textLength=${req.text.length}`);
 
       return await withTempWorkspace(
         {

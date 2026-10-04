@@ -38,7 +38,7 @@ export function calculerEtatEnvoiFichier(
   sha256: string,
 ): EtatEnvoiFichier {
   const blocs = mutations.filter(
-    (m) => m.type === "fichier_bloc" && m.chantierId === chantierId && m.payload.empreinte_sha256 === sha256,
+    (m) => (m.type === "fichier_bloc" || m.type === "fichier_bloc_reconcilie") && m.chantierId === chantierId && m.payload.empreinte_sha256 === sha256,
   );
 
   if (blocs.length === 0) {
@@ -49,7 +49,8 @@ export function calculerEtatEnvoiFichier(
   // envoiOrchestrateur.ts) — le premier bloc trouvé fait foi ; `null` (payload incohérent,
   // ne devrait jamais arriver) laisse `nombreBlocs` à 0, jamais une valeur devinée.
   const nombreBlocs = nombreBlocsDeclare(blocs[0]) ?? 0;
-  const blocsEnvoyes = blocs.filter((m) => m.statut === "envoyee").length;
+  const indicesEnvoyes = new Set(blocs.filter((m) => m.statut === "envoyee").map((m) => m.payload.index_bloc).filter((i): i is number => typeof i === "number" && Number.isInteger(i) && i >= 0));
+  const blocsEnvoyes = indicesEnvoyes.size;
 
   // Un SEUL bloc en échec permanent condamne tout le fichier : redécouper et renvoyer les MÊMES
   // octets sous une NOUVELLE clé d'idempotence ne changerait pas l'issue d'un rejet business
@@ -60,7 +61,8 @@ export function calculerEtatEnvoiFichier(
     return { statut: "echec_permanent", reference: null, blocsEnvoyes, nombreBlocs };
   }
 
-  if (nombreBlocs > 0 && blocsEnvoyes >= nombreBlocs) {
+  const tousIndicesRecus = nombreBlocs > 0 && Array.from({ length: nombreBlocs }, (_, i) => i).every((i) => indicesEnvoyes.has(i));
+  if (tousIndicesRecus) {
     return { statut: "complet", reference: construireReferenceFichier(sha256), blocsEnvoyes, nombreBlocs };
   }
 

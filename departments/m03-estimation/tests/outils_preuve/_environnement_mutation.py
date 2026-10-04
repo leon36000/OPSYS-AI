@@ -54,21 +54,50 @@ sabotage`` sans ce lien). Jamais copié, jamais écrit : aucun test M3 n'écrit 
 
 from __future__ import annotations
 
+import hashlib
+import json
 import pathlib
 import shutil
+import stat
 import tempfile
 
 
 class EnvironnementMutation:
     """Copie jetable du département M3, prête à recevoir des mutants sans toucher au disque réel."""
 
-    def __init__(self, racine: pathlib.Path) -> None:
+    def __init__(
+        self, racine: pathlib.Path, *, dossier: pathlib.Path | None = None
+    ) -> None:
         self.racine_reelle = pathlib.Path(racine).resolve()
         vrai_departement = self.racine_reelle / "departments" / "m03-estimation"
         if not vrai_departement.is_dir():
             raise FileNotFoundError(f"département introuvable : {vrai_departement}")
 
-        self.dossier = pathlib.Path(tempfile.mkdtemp(prefix="m3_mutation_"))
+        self._persistant = dossier is not None
+        self.dossier = (
+            pathlib.Path(dossier)
+            if dossier is not None
+            else pathlib.Path(tempfile.mkdtemp(prefix="m3_mutation_"))
+        )
+        source_hash = _empreinte_arbre(vrai_departement)
+        marqueur_source = self.dossier / ".m3-source.sha256"
+        marqueur_scenario = self.dossier / ".m3-scenario.sha256"
+        if self._persistant and self.dossier.exists():
+            if not marqueur_source.is_file() or marqueur_source.read_text().strip() != source_hash:
+                raise AssertionError("le runID désigne une copie M3 d'une autre source")
+            self.dossier_departement = self.dossier / "departments" / "m03-estimation"
+            if not marqueur_scenario.is_file():
+                raise AssertionError("copie de scénario persistante incomplète")
+            if marqueur_scenario.read_text().strip() != _empreinte_arbre(self.dossier_departement):
+                raise AssertionError("copie de scénario persistante modifiée")
+            self.dossier_source = self.dossier_departement / "src" / "m3_estimation"
+            self.dossier_tests = self.dossier_departement / "tests"
+            return
+
+        if self._persistant:
+            self.dossier.mkdir(parents=True)
+        elif any(self.dossier.iterdir()):
+            raise AssertionError("le répertoire temporaire de mutation n'est pas vide")
         departements = self.dossier / "departments"
         departements.mkdir()
 
@@ -101,6 +130,15 @@ class EnvironnementMutation:
         self.dossier_departement = departements / "m03-estimation"
         self.dossier_source = self.dossier_departement / "src" / "m3_estimation"
         self.dossier_tests = self.dossier_departement / "tests"
+        marqueur_source.write_text(source_hash + "\n", encoding="ascii")
+
+    def sceller(self) -> None:
+        """Scelle l'état intentionnel du scénario pour qu'une reprise le revalide."""
+        if self._persistant:
+            empreinte = _empreinte_arbre(self.dossier_departement)
+            (self.dossier / ".m3-scenario.sha256").write_text(
+                empreinte + "\n", encoding="ascii"
+            )
 
     def cible(self, source_reelle: pathlib.Path) -> pathlib.Path:
         """Retourne, dans la copie, l'équivalent d'un fichier réel de ``src/m3_estimation``."""
@@ -113,4 +151,31 @@ class EnvironnementMutation:
 
     def nettoyer(self) -> None:
         """Supprime la copie entière ; jamais appelé sur autre chose qu'un dossier temporaire."""
-        shutil.rmtree(self.dossier, ignore_errors=True)
+        if not self._persistant:
+            shutil.rmtree(self.dossier, ignore_errors=True)
+
+
+def _empreinte_arbre(racine: pathlib.Path) -> str:
+    """Hash du contenu, du type et du mode du département copié."""
+    entrees = []
+    for chemin in sorted(racine.rglob("*")):
+        if chemin.name in {"__pycache__", ".pytest_cache", ".ruff_cache"}:
+            continue
+        info = chemin.lstat()
+        mode = stat.S_IMODE(info.st_mode)
+        relatif = chemin.relative_to(racine).as_posix()
+        if chemin.is_symlink():
+            entree = (relatif, mode, "lien", str(chemin.readlink()))
+        elif chemin.is_dir():
+            entree = (relatif, mode, "dossier", "")
+        else:
+            entree = (
+                relatif,
+                mode,
+                "fichier",
+                hashlib.sha256(chemin.read_bytes()).hexdigest(),
+            )
+        entrees.append(entree)
+    return hashlib.sha256(
+        json.dumps(entrees, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()

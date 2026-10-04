@@ -1,5 +1,53 @@
 # INGREDIENTS — Catalogue des briques open source retenues pour OPSYS-AI
 
+## Actif audiovisuel facultatif — RobotExpressive (2 octobre 2026)
+
+Le catalogue local facultatif `robotexpressive-quaternius-cc0-v1` utilise le modèle
+`RobotExpressive.glb` de Three.js, fichier épinglé au commit
+[`b924f0cad4058dc4dde71445c796980c3cd5b5ed`](https://github.com/mrdoob/three.js/tree/b924f0cad4058dc4dde71445c796980c3cd5b5ed/examples/models/gltf/RobotExpressive).
+Le README du modèle annonce Quaternius CC0 1.0 et les modifications de Don McCurdy ; le texte
+juridique CC0 a été relu. L'actif inclus fait 463 988 octets, SHA-256
+`047f5e5fb3bb6d378bd1df16ca6137f2a596c99b3a1b5690b4020c05aaf6f319`. L'actif est servi par une
+route Control UI authentifiée et non par `ui/public`. Le GLB lui-même reste statique : pas d'audio
+ni de synchronisation labiale, et l'attribution d'un modèle à un agent reste explicite. Le Core
+embarque un README de provenance et le texte juridique CC0 à côté du modèle sous
+`core/assets/avatar-models/`; le reçu borné et l'inspection structurelle sont conservés dans le
+scratch R47. Aucune licence ou empreinte de modèle n'est extrapolée aux autres fichiers du dépôt
+Three.js.
+
+## Renderer Web Three.js — adoption préparatoire (2 octobre 2026)
+
+Le code source du renderer chat utilise maintenant `three@0.186.1` comme dépendance UI directe
+(runtime, MIT, copyright `© 2010-2026 three.js authors`) et son `GLTFLoader`; le chargement reste
+paresseux et limité à l'avatar explicitement demandé. Le texte MIT exact (1 081 octets, SHA-256
+`8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc`) est conservé à
+`core/ui/public/licenses/three-MIT.txt` pour être livré avec le bundle UI. `@types/three@0.186.0`
+(MIT) sert seulement à TypeScript. ROOT a généré et revu le lock pnpm 12.4.0, SHA-256
+`faf75ce21976f50b35a194d378a9b27af86b68bffbb8bd90fd7be212d210f395`, et confirmé une installation
+frozen le 2026-10-02; la vérification structurelle du lock est en cours. Le build, la copie du texte
+MIT dans `dist/control-ui`, le contenu de l'archive distribuée et le rendu en navigateur restent à
+qualifier; aucune taille finale de chunk n'est revendiquée.
+
+Les cinq nouvelles transitives du paquet de types ne sont ni importées ni prévues dans le runtime
+navigateur. Leurs licences ont été vérifiées dans les fichiers des archives exactes conservées dans
+la capture R47. Les pins observés dans le lock sont :
+
+| Paquet | Version résolue | Licence | Usage / preuve de licence |
+|---|---:|---|---|
+| `three` | 0.186.1 | MIT | Runtime UI; license bytes SHA-256 `8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc` |
+| `@types/three` | 0.186.0 | MIT | Types/dev seulement; `c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383` |
+| `@dimforge/rapier3d-compat` | 0.12.0 | Apache-2.0 | Transitive de types seulement; `4c05555705e3efde601fb1252ae48f1d63992af8a8fb8947745b7fa834e8f519` |
+| `@tweenjs/tween.js` | 23.1.3 | MIT | Transitive de types seulement; `c95fecd88f2709bfc34e4d1f1ccc36d17048990e6ba26c283cfecdef0432936b` |
+| `@types/stats.js` | 0.17.4 | MIT | Transitive de types seulement; `c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383` |
+| `@types/webxr` | 0.5.24 | MIT | Transitive de types seulement; `c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383` |
+| `meshoptimizer` | 1.1.1 | MIT | Transitive de types seulement; `f03037ca7bad1e3eb7f4a63fa6084a8baabd5ba30d3c239a9a7f35705d873e26` |
+
+`fflate@0.8.3` est la sixième dépendance de `@types/three` et existait déjà dans le lock avant
+cette tranche. Les cinq nouveaux paquets ci-dessus sont les seules transitives inédites capturées;
+Rapier/WASM, XR, tween, stats et meshoptimizer ne sont pas des fonctionnalités du renderer livrées.
+Leur capture inclut métadonnées npm, SRI et fichier de licence exact; les dépendances de types ne
+justifient pas de copier leurs notices dans le bundle runtime lorsqu'elles ne sont pas incorporées.
+
 > Condensé des 10 rapports de recherche [`docs/research/R1`](R1-core-openclaw.md)…
 > [`R10`](R10-m9-capabilities.md) (brief commun : [`00-BRIEF.md`](00-BRIEF.md)). Chaque licence est
 > reprise **telle que le rapport source l'a vérifiée** (fichier `LICENSE` brut, fiche modèle Hugging
@@ -7,6 +55,53 @@
 > Contrainte produit (rappel `00-BRIEF.md`) : MIT/Apache-2.0/BSD/MPL = OK en dépendance ; LGPL = OK en
 > liaison dynamique ; GPL/AGPL = service séparé non modifié uniquement ; source-available
 > (BSL/Elastic/SSPL/RAIL/licences communautaires non-OSI) = signalé comme risque.
+
+## Mise à jour de référence — 30 septembre 2026
+
+### Qualification de reprise : protection des imports financiers
+
+`cryptography` **50.0.2** est retenue pour AES-256-GCM dans le
+[pilote CSV durable](../programme/LOT-FUSION-CSV-COMPTABLE.md), qualifié localement dans
+[R22](R22-2026-10-02/README.md). La qualification SQLite ne couvre pas PostgreSQL.
+La version est déjà verrouillée par `uv.lock` et le verrou runtime; son extra direct `ingestion`
+rend ce besoin explicite. La roue Linux utilisée pour les tests fait 4,8 Mo, SHA-256
+`9dab55f57c74c3cad24c323bacbbd04be4705ba6eb0d92e920b1fc4837ed5079`.
+Les trois notices réelles de cette roue ont été relues : licence au choix Apache-2.0 ou
+BSD-3-Clause, avis à conserver. GitHub `pyca/cryptography` est le primaire; GitLab Debian Salsa
+est un emballage identifié par recherche, dont l'accès direct a échoué, pas une source adoptée.
+Les dépendances installées de test `cffi` 2.1.1 (MIT No Attribution) et `pycparser` 3.0
+(BSD-3-Clause) ont leurs notices conservées. Le rôle des bibliothèques natives embarquées reste
+celui de la distribution upstream; aucune réimplémentation du chiffrement n'est ajoutée.
+
+Le venv de qualification contient désormais 50.0.2, installé hors réseau depuis la roue vérifiée.
+L'inventaire initial d'un Python global en 50.0.0 n'est pas celui des tests; les reçus distinguent
+ces interpréteurs. Ce choix protège sources/résultats avec clé externe référencée et AAD lié au
+lot; il ne constitue ni un coffre de secrets, ni un service OCR, ni une mémoire entraînée.
+Le décompte historique ci-dessous reste celui des recherches R1–R15 et n'inclut pas cette reprise.
+
+La [recherche de reprise R21](R21-2026-10-02/README.md) ajoute une **liste de candidats non
+adoptés** pour ingestion documentaire (Docling), géospatial (Rasterio/py3dtiles/ODM), audio/3D
+(Pipecat/LiveKit/TalkingHead/Audio2Face) et évaluation de mémoire/apprentissage. Elle distingue
+licences du code, poids et actifs, sources primaires et résultats publiés. Aucun statut « Intégré »
+du catalogue ci-dessous n'est accordé par cette recherche.
+
+La [recherche R16](R16-2026-09-30/README.md) complète les rapports antérieurs avec sources/commits
+et licences relus. Ce catalogue conserve leurs détails datés : une mention « Phase 2 » est une
+candidate, pas une décision d'installer une nouvelle stack. L'état réel se vérifie dans le code
+et le parcours ; les scénarios mock/export restent distincts des intégrations externes.
+
+Le core est un **fork modifié**, pas une image officielle configurée exclusivement de l'extérieur;
+provenance dans `core/PROVENANCE.md`. Hermes est une source d'ingrédients. Le mobile est Expo. Le
+générateur configure les fournisseurs natifs par défaut; LiteLLM reste une compatibilité explicite.
+Les paliers peuvent nommer les variables d'environnement des clés, jamais leurs valeurs en clair
+dans le JSON. Le readiness refuse les clés requises manquantes; les tests sans credentials ne
+prouvent pas les appels à un fournisseur externe. Voir R16 et le plan courant. La mémoire comprend
+deux domaines isolés (affaires/développement), sans Forge requis.
+
+Priorités : frontières de l'audit → installation cohérente → admission budget fournisseur et
+profils spécialisés → M10 complet → parcours M1/M7/M5 profonds. Qualification nouvelle : code,
+licence primaire et dépendances/poids, commit stable, maintenance, interface, coûts et preuve métier.
+Les pourcentages et performances publiés par un projet tiers ne sont pas des résultats OPSYS.
 
 ## Légende « Phase »
 
@@ -20,33 +115,28 @@
 
 ## Core
 
-> **Mise à jour ADR-0007** (remplace le point 1 d'ADR-0006, seul) : le core bascule de Hermes Agent
-> vers **OpenClaw**. Vérifié directement (clone local `--depth 1`, `scratchpad/clones/openclaw`,
-> commit `2d39f2f7`, identique à celui déjà inspecté par R1) : `package.json` `"version": "2026.9.6"`,
-> `LICENSE` MIT « OpenClaw Foundation » — cohérent avec `core/UPSTREAM.md` et ADR-0007. Code OPSYS
-> réel et testé : `src/opsys/openclaw.py` (génère les fragments `$include` par département — agent,
-> fournisseur de modèles, espace de travail `SOUL.md`/`AGENTS.md`/`skills/`, automatisations cron) +
-> `src/opsys/serveur_mcp.py` (mode `--http` streamable, jeton obligatoire) ; 9 tests dédiés
-> (`tests/test_openclaw_passerelle.py`, `tests/test_serveur_mcp_http.py`, dont un aller-retour MCP réel
-> via un serveur uvicorn + le client MCP officiel) — exécutés, **tous verts**.
+> **État courant : ADR-0008 et ADR-0012.** Base `openclaw/openclaw` v2026.9.6 forkée,
+> renommée et greffée dans `core/`. Pas de synchronisation automatique. `core/UPSTREAM.md` a été
+> retiré ; `PROVENANCE.md` et `NOTICE` font foi. Les tests historiques ci-dessous ne certifient
+> pas l'installation, toutes les permissions, ni l'équivalence d'un runtime Hermes.
 
 | Brique | Licence vérifiée | Rôle dans OPSYS | Intégration | Phase | Rapport source |
 |---|---|---|---|---|---|
-| **OpenClaw** (openclaw/openclaw) | MIT | OPSYS-CORE : canaux, **mémoire d'agent native à provenance** (owner/agent/untrusted/system, consolidation « dreaming » à portes déterministes, rappel sans appel de modèle, purge de bout en bout), **apps mobiles officielles iOS/Android + Wear OS** (voir [`docs/architecture/MOBILE.md`](../architecture/MOBILE.md)), Control UI, automatisations (cron), MCP natif (stdio **et** streamable HTTP), fournisseurs de modèles compatibles OpenAI (routés vers LiteLLM) | Dépendance vendorisée épinglée par tag + commit + digest sha256 (`core/UPSTREAM.md` : release `v2026.9.6`, commit `ce5bbdc2`, image `ghcr.io/openclaw/openclaw`) ; extension exclusivement par interfaces publiques (`$include`, `agents.entries`, `models.providers`, `mcp.servers`, automatisations, skills `SKILL.md`) — aucun patch amont à ce jour | **Intégré** | R1 · ADR-0007 |
+| **OpenClaw** (openclaw/openclaw) | MIT, avis à conserver | Runtime agents, canaux, mémoire native, Control UI ; app mobile OPSYS Expo distincte | Fork dur modifié dans `core/`, provenance `core/PROVENANCE.md` et greffes OPSYS ; code source maintenu par OPSYS, correctifs de sécurité ciblés | **Intégré** (fork ; limites de l’audit ouvertes) | R1 · R11 · ADR-0008 · R16 |
 | **jsonschema** (python-jsonschema) | MIT (fichier `COPYING` lu dans le paquet installé) | Validation complète (Draft 2020-12) des charges du bus d'événements contre le catalogue `src/opsys/evenements/catalogue/*.json`, objets et tableaux imbriqués compris ; vérification des schémas au chargement | Dépendance déclarée dans `pyproject.toml` (`>=4.20,<5`), déjà tirée par `mcp` ; ses dépendances (`attrs`, `referencing`, `jsonschema-specifications`, `rpds-py`) sont MIT | **Intégré** | ADR-0009 §3 |
-| **Hermes Agent** (NousResearch) | MIT | Runtime alternatif optionnel : le serveur MCP OPSYS fonctionne aussi en stdio pour Hermes (et Claude Code, et les tests) ; source d'ingrédients (compacteur de contexte, patrons de plugins) | `src/opsys/hermes_plugin.py` + `src/opsys/profils.py` (génère des distributions de profil Hermes) **conservés et testés**, mais ne sont plus le chemin par défaut | **Intégré** (adaptateur optionnel — runtime par défaut = OpenClaw) | R2 · ADR-0006 pt.1 (remplacé) · ADR-0007 pt.8 |
+| **Hermes Agent** (NousResearch) | MIT | Ingrédients mémoire/context engine/compaction/skills/sous-agents ; adaptateur Python historique présent | Reprises étroites après preuve, pas un deuxième core obligatoire ; comparaison source R16 complète R2/ADR-0008 | **Référence** pour nouvelles greffes ; adaptateur historique à qualifier | R2 · R16/Hermes · ADR-0012 |
 
 ## Modèles / économie de tokens
 
 | Brique | Licence vérifiée | Rôle dans OPSYS | Intégration | Phase | Rapport source |
 |---|---|---|---|---|---|
-| **LiteLLM Proxy** | MIT (cœur ; dossier `enterprise/` sous licence distincte, à éviter) | Passerelle de modèles **par défaut** (ADR-0007 pt.4) : les paliers OPSYS deviennent des alias LiteLLM (`opsys-local/-rapide/-standard/-fort`), clé virtuelle + plafond `tpd_limit` (tokens/jour) par département, cache Valkey (exact + sémantique) | `src/opsys/passerelle.py` (`config_litellm`, `ClientLiteLLM.enregistrer_departement`) ; CLI `opsys-metier passerelle config` (écrit le `proxy_config.yaml`) et `opsys-metier passerelle cles` (enregistre les clés virtuelles) ; **testé** (`tests/test_openclaw_passerelle.py`, y compris cycle création→mise à jour de clé contre un faux serveur LiteLLM) | **Intégré** | R3 · ADR-0007 |
+| **LiteLLM Proxy** | MIT (cœur ; dossier `enterprise/` sous licence distincte, à éviter) | Gateway de compatibilité facultative, activée seulement par un choix explicite; paliers aliasés, clés virtuelles et contrôles de budget dans ce chemin | `src/opsys/passerelle.py` (`config_litellm`, `ClientLiteLLM.enregistrer_departement`) ; CLI `opsys-metier passerelle config` et `cles` ; **tests avec serveur factice** (`tests/test_openclaw_passerelle.py`), sans preuve d'appels à un fournisseur réel | **Intégré en compatibilité** | R3 (historique) · ADR-0008 · R16 |
 | Cache-prompt et compaction **natifs d'OpenClaw** (`cacheRetention`, `contextPruning.mode:"cache-ttl"`, `compaction.*`, heartbeat keep-warm) | MIT (mécanisme du core OpenClaw) | Remplace, comme runtime par défaut, le rôle que jouaient les modules `agent/prompt_caching.py`/`context_compressor.py` de Hermes : cache multi-fournisseurs testé en direct (`cacheRetention`), compaction/troncature dynamique des résultats d'outils, suivi des coûts natif | Défauts OpenClaw actifs ; `src/opsys/openclaw.py::generer()` ne paramètre **pas encore** `cacheRetention`/`compaction`/`contextPruning` par département (seuls `name`/`workspace`/`model` sont écrits dans `agents.json`) — détail dans [`ECONOMIE-TOKENS.md`](../architecture/ECONOMIE-TOKENS.md) §2-3 | Phase 2 (mécanisme natif disponible, non encore paramétré par OPSYS) | R1 · ADR-0007 |
 | Patron `localService` d'**OpenClaw** (démarrage à la demande / arrêt sur inactivité des modèles locaux) | MIT | Réduit l'empreinte VPS d'un modèle local (Ollama/llama.cpp) tenu résident 24 h/24 | Réimplémentation Python prévue (`local_model_manager`) ; `passerelle.py::modele_litellm()` sait déjà traduire un palier `custom`/`ollama` en paramètres LiteLLM, mais sans gestion de cycle de vie | Phase 2 | R3 |
 | Règles de conception « cache-boundary » d'**OpenClaw** (préfixe stable / suffixe volatil, jamais changer de modèle en cours de session) | MIT | Discipline de rédaction des espaces de travail par agent — désormais **le comportement natif du runtime par défaut**, pas seulement une discipline appliquée manuellement | `src/opsys/openclaw.py::generer()` écrit `SOUL.md`+`AGENTS.md` (contenu stable) par agent, dans l'espace de travail que le système-prompt-cache-boundary natif d'OpenClaw sépare automatiquement du contexte volatil (runtime, timestamps) | **Intégré** | R1 · R3 · ADR-0007 |
 | **Langfuse** (cœur) | MIT (dossiers `ee/`, `web/src/ee/`, `worker/src/ee/` sous licence Enterprise séparée) | Traçabilité coût/latence par appel LLM, complémentaire à la page native OpenClaw Control UI → Usage et à `/usage`/`/status` | Service sidecar (web + worker + ClickHouse + Postgres), callback LiteLLM + SDK Python | Phase 2 | R3 · R5 |
 | **LLMLingua / LongLLMLingua** | MIT | Compression de prompt par élagage de tokens à faible information (extraits RAG, longues sorties) | Dépendance pip | Phase 2 | R3 |
-| **Ollama** + **llama.cpp** (`llama-server`) | MIT (les deux) | Exécution locale des tâches classification/extraction/embeddings à coût marginal ~0 | `passerelle.py::modele_litellm()` route déjà un palier `provider: "custom"`/`"ollama"` vers un tel serveur via LiteLLM ; aucun palier local n'est configuré par défaut | Phase 2 | R3 |
+| **Ollama** + **llama.cpp** (`llama-server`) | MIT (les deux) | Fournisseurs de modèles locaux; le propriétaire configure le palier et fait tourner le service séparément | Le générateur natif projette les fournisseurs et références de secrets déclarés dans `paliers.yaml`; aucun modèle ni service local n'est installé automatiquement | Intégré côté configuration native; exécution locale à configurer | R3 · R16 |
 | **Bifrost** (maximhq) | Apache-2.0 | Option de repli passerelle réseau si l'empreinte Postgres/Redis de LiteLLM est trop lourde (binaire Go unique, cache sémantique natif) | Service sidecar (alternative à LiteLLM) | Référence (option de repli, non retenue par défaut) | R3 |
 | **RouteLLM** (lm-sys) — concept uniquement, pas la dépendance | Apache-2.0 (dépôt non maintenu depuis août 2024) | Patron « classifieur léger décide si un modèle faible suffit, sinon escalade » | Réimplémentation maison prévue par règles/heuristiques par module ; aujourd'hui l'assignation palier↔usage est **statique** par manifeste (`department.yaml: modeles`), pas un classifieur dynamique | Phase 2 | R3 |
 
@@ -55,11 +145,12 @@
 | Brique | Licence vérifiée | Rôle dans OPSYS | Intégration | Phase | Rapport source |
 |---|---|---|---|---|---|
 | **pgvector** + **pgvectorscale** | PostgreSQL License (les deux) | Indexation vectorielle dans le Postgres métier déjà prévu (StreamingDiskANN pour pgvectorscale) | Extension SQL (`CREATE EXTENSION vector`) | Phase 2 | R4 · R5 |
-| FTS natif Postgres (`tsvector`/GIN) | Licence PostgreSQL (composant du moteur, pas une brique tierce) | Recherche lexicale (≈BM25), zéro risque de licence | Natif Postgres | Phase 2 | R4 |
+| FTS natif Postgres (`tsvector`/GIN) | Licence PostgreSQL (composant du moteur, pas une brique tierce) | Recherche lexicale native ; `ts_rank`/`ts_rank_cd` ne sont pas BM25, qui exige une implémentation ou extension distincte | Natif Postgres | Phase 2 | R4 · correction R16 |
 | **Mem0** (mode OSS) | Apache-2.0 | Mémoire de faits par agent/tenant, recherche hybride sémantique+BM25+entités | Dépendance pip (`mem0ai`), vector store = pgvector du Postgres OPSYS | Phase 2 | R4 |
-| **Graphiti** (Zep) + **Neo4j Community** (backend graphe) | Graphiti : Apache-2.0 · Neo4j Community : GPLv3 (sidecar non modifié) | Seul framework OSS à offrir un graphe bi-temporel natif (validité « quand c'était vrai » vs « quand invalidé ») pour clients/chantiers/décisions | Dépendance pip (`graphiti-core`) + service Neo4j sidecar consommé par Bolt | Phase 2 | R4 |
+| **Graphiti** (Zep) + **Neo4j Community** (backend graphe) | Graphiti : Apache-2.0 · Neo4j Community : GPLv3 (sidecar non modifié) | Graphe temporel (validité « quand c'était vrai » vs « quand invalidé ») pour clients/chantiers/décisions | Dépendance pip (`graphiti-core`) + service Neo4j sidecar consommé par Bolt | Candidate, backend à qualifier (pas driver PostgreSQL universel) | R4 · R16 |
 | **Docling** | MIT | Ingestion/OCR/parsing de tableaux, exécution locale possible (air-gapped, pertinent Loi 25) | Dépendance pip ou service `docling-serve` | Phase 2 | R4 |
 | **BAAI/bge-m3** + **BAAI/bge-reranker-v2-m3** | bge-m3 : MIT (fiche HF) · reranker : Apache-2.0 (fiche HF) | Embeddings/reranking FR multilingue par défaut, exécutables CPU/ONNX | Poids téléchargés, servis en local | Phase 2 | R4 |
+| Service local R41 BGE-M3 ONNX quantifié | Modèle : fiche Xenova et carte BAAI déclarent MIT, mais aucun fichier `LICENSE` distinct trouvé pour les poids. Runtime : ONNX Runtime MIT, Tokenizers Apache-2.0, NumPy BSD-3-Clause | Endpoint privé OpenAI-compatible, CPU, un texte et 512 tokens max | Extra Python optionnel épinglé; assets externes fournis et vérifiés par taille/SHA, aucun téléchargement au démarrage | Implémentation opt-in; qualification VPS/RSS et juridique des poids encore ouvertes | R41 · R35 |
 | Contextual Retrieval (technique Anthropic) + **Late Chunking** (jina-ai) | Contextual Retrieval : technique, pas un paquet · Late Chunking : Apache-2.0 | Chunking : contexte de situation par chunk (cache de prompt) + préservation du contexte inter-chunks sans appel LLM supplémentaire | Patron de pipeline Python | Phase 2 | R4 |
 | **RAGAS** + **TruLens** | RAGAS : Apache-2.0 · TruLens : MIT | Évaluation continue (faithfulness, context precision/recall, RAG triad) + jeu de tests maison | Dépendance pip + harnais interne | Phase 2 | R4 |
 | Squelette `MemoryProvider`/`MemoryManager` de **Hermes Agent** | MIT | Patron du port mémoire M10 (lifecycle, hooks `on_session_end`/`on_pre_compress`/`on_memory_write`) | Squelette du core Hermes à étendre (lever la limite « un seul provider externe actif ») | Référence (patron à étendre, pas encore de providers OPSYS écrits) | R4 |
@@ -145,9 +236,10 @@ version réellement installée (toutes vérifiées une à une ci-dessus). Aucun 
 |---|---|---|---|---|---|
 | **Pipecat** (Daily) | BSD-2-Clause | Colonne vertébrale de l'orchestration voix temps réel (pipeline STT→LLM→TTS, connecteurs Twilio/Deepgram/faster-whisper/ElevenLabs) | Dépendance pip | Phase 2 | R6 |
 | **faster-whisper** + checkpoint communautaire `whisper-large-v3-turbo-fr-quebecois` | faster-whisper : MIT · checkpoint : licence du fine-tune non vérifiée ligne à ligne (dérivé Whisper) | STT local, WER 6,65 % mesuré sur français québécois (vs ~19,5 % générique) | pip + poids local | Phase 2 | R6 |
+| **whisper.cpp v1.8.0 / large-v3-turbo q5_0** — candidat R43 | Runtime MIT ; qualification des poids et redistribution à distinguer | Banc CPU HTTP réel : 20 locuteurs fr-CA, WER 29,02 %, p95 42,16 s | Recherche locale séparée, aucun raccord produit | Refusé pour le budget temps réel Core 4 s sur ce CPU ; parole lue seulement | [Mesures R43](R43-ASR-FRCA-MESURES-2026-10-02.md) |
 | **Twilio** (Voice/SIP/SMS/WhatsApp BSP) | SaaS propriétaire (SDK usage courant MIT, non revérifié ligne à ligne) | Téléphonie + SMS + WhatsApp Business en un seul contrat | SDK API | Phase 2 | R6 |
 | **ElevenLabs** | SaaS propriétaire | TTS client-facing : seul fournisseur à documenter des voix « Québec » natives | SDK API | Phase 2 | R6 |
-| **Piper** (`piper1-gpl`) / **Kokoro-82M** — repli TTS gratuit non critique | Piper (dépôt maintenu) : GPL-3.0 (ancien dépôt MIT gelé/archivé) · Kokoro : Apache-2.0 | Messages internes/tests où l'accent québécois n'est pas critique | Piper : **service/process séparé uniquement** (jamais `import`é, GPL) · Kokoro : vendorisable | Phase 2 | R6 |
+| **Piper** (`piper1-gpl`) / **Kokoro-82M** — repli TTS gratuit non critique | Piper (dépôt maintenu) : GPL-3.0 (ancien dépôt MIT gelé/archivé) · Kokoro : Apache-2.0 | Messages internes/tests où l'accent québécois n'est pas critique | Piper : **service/process séparé uniquement** (jamais `import`é, GPL) · Kokoro : poids distincts du pipeline français eSpeak/GPL, liaison/service à qualifier (R16) | Phase 2 | R6 |
 | **imap-tools** | Apache-2.0 | Lecture IMAP d'une boîte courriel existante (parsing MIME, IDLE) | Dépendance pip | Phase 2 | R6 |
 | **Chatwoot** (cœur CE) | MIT (dossier `enterprise/` propriétaire séparé, à ne jamais toucher) | Widget web + inbox omnicanale, évite de réécrire un widget de chat | Service sidecar docker | Phase 2 | R6 |
 | `garde_fou.py` (code interne existant) | — (code propriétaire OPSYS, pas une brique tierce) | Gate bloquant regex déterministe (interdits prix/date/engagement/aveu), zéro coût LLM — **conservé tel quel** | Déjà dans `departments/m01-front-office/src/m1_front_office/garde_fou.py` | **Intégré** (existant, mode ombre) | R6 |
@@ -172,7 +264,7 @@ version réellement installée (toutes vérifiées une à une ci-dessus). Aucun 
 | PERT maison sur `random.Random.betavariate` (stdlib) | stdlib : aucune dépendance | Tirage PERT (bêta) de `monte_carlo.py` quand un poste du barème porte un mode (`cout_unitaire_mode`), sinon uniforme ; déterminisme bit à bit conservé | **Intégré (T4.11)** : stdlib seulement, scipy non requis | Phase 2 | R7 |
 | **WeasyPrint** | BSD-3-Clause | Génération du devis PDF depuis le contrat gelé `EstimationV1` (Jinja2→HTML→PDF) | Dépendance pip ; exige Pango (bibliothèque système) : **écartée pour le PDF de la soumission brouillon de la v1** au profit de ReportLab ci-dessous, gardée en réserve pour un devis à mise en page riche | Phase 2 | R7 |
 | **ReportLab** | BSD-3-Clause (fichier `LICENSE` de la roue 4.5.1, lu le 2026-09-29). La roue embarque aussi des polices avec leurs propres licences, lues dans `reportlab/fonts/` : Bitstream Vera (permissive, redistribuable), DarkGarden (GPL-2 ou plus avec exception de police) ; **aucune n'est utilisée par nous** (Helvetica standard, non incorporée) ni modifiée : simple présence de fichiers de données dans la roue, à savoir pour la revue GPL d'AGENTS.md | Rend la soumission brouillon de M3 en PDF (`soumission_pdf.py`, PLAN T2.3-f) : mêmes champs que le HTML, aucun coût ni marge, montants `Decimal` mis en forme à la québécoise, mention BROUILLON sur toute page. Python pur, aucune bibliothèque système (ni Pango ni Cairo) : l'installateur et l'image l'installent avec pip seul. Mode `invariant` + date de création tirée de l'horodatage du devis : mêmes entrées, mêmes octets | Extra `soumission` de `pyproject.toml` (`reportlab==4.5.1`), import paresseux, version épinglée vérifiée à l'exécution (`pdf_installe`) ; roue 2 Mo, `py3-none-any` ; dépendances déclarées, licences lues le 2026-09-29 : Pillow (MIT-CMU, déjà tiré par d'autres briques, roue avec ses bibliothèques), charset-normalizer (MIT). Extra absent : verdict « installer l'extra soumission », jamais un HTML renommé ; job M3 de la CI et image Docker l'installent | **Intégré** (extra optionnel ; exercé par les tests de M3 quand il est installé, toujours en CI) | R7 · T2.3-f |
-| **pypdf** | BSD-3-Clause (fichier `LICENSE` de la roue 6.19.0, lu le 2026-09-29) | Relit les PDF produits par les tests de M3 (texte extrait) : on prouve ce qu'un lecteur y lit, pas que des octets existent | Extra `dev` de `pyproject.toml` (`pypdf==6.19.0`), jamais en exécution ; Python pur, aucune dépendance | **Intégré** (dépendance de test) | T2.3-f |
+| **pypdf** | BSD-3-Clause (fichier `LICENSE` de la roue 6.19.0, lu le 2026-09-29 et revérifié pour R28) | Relit les PDF M3 dans les tests; extrait aussi du texte paginé dans le worker natif financier isolé | Extras `dev` et `ingestion-pdf` (`pypdf==6.19.0`); exécution Linux/bubblewrap bornée, source et résultat chiffrés | **Intégré localement** (tests et backend natif; interface/installation VPS séparées) | T2.3-f · [R28](../programme/LOT-FUSION-PDF-NATIF.md) |
 | **SAM 2** (Meta) + **Grounding DINO** (via `transformers`) | SAM 2 : Apache-2.0 · Grounding DINO : Apache-2.0 | Mesure par objet de référence réelle (segmentation + localisation par texte), vérifie par le pixel ce qui n'était que déclaré | Sidecar Python (FastAPI interne), poids séparés | Phase 2 | R7 |
 | **Depth Anything V2** — checkpoint **Small** uniquement | Apache-2.0 (Small ; Base/Large/Giant en CC-BY-NC, voir Refusées) | Carte de profondeur relative → mesure métrique avec un point d'échelle | Sidecar Python | Phase 2 | R7 |
 | **SAM 3** (Meta) | Licence « SAM License » personnalisée (source-available, commercial autorisé mais clauses anti-rétro-ingénierie/riposte) | Segmentation par concept texte en un appel | Sidecar Python isolé, jamais redistribué | Phase 2, **signalé** (validation juridique requise avant usage) | R7 |
@@ -217,7 +309,7 @@ version réellement installée (toutes vérifiées une à une ci-dessus). Aucun 
 | Brique | Licence vérifiée | Rôle dans OPSYS | Intégration | Phase | Rapport source |
 |---|---|---|---|---|---|
 | **Matomo** | GPL-3.0 | Analytics web déjà câblé implicitement dans les fixtures (`utm_source`), reporting UTM/attribution riche, conforme Loi 25 | **Service sidecar non modifié uniquement** | Phase 2 | R9 |
-| **Scrapy** | Apache-2.0 | Alimente `competitive/*` en snapshots réels (au lieu de fixtures figées), respecte `robots.txt` | Dépendance pip directe | Phase 2 | R9 |
+| **Scrapy** | BSD-3-Clause (source primaire R16) | Alimente `competitive/*` en snapshots réels (au lieu de fixtures figées), configuration conforme aux accès/conditions applicables requise ; `robots.txt` seul ne prouve pas le droit de collecte | Dépendance pip directe | Phase 2 | R9 |
 | **Postiz** | AGPL-3.0 | Planification sociale multi-canal + Google Business Profile (post et lecture des métriques) | **Service sidecar non modifié** ; adaptateur Python déjà écrit (`postiz_adapter.py`, GATED `enabled=False`/`dry_run=True`) | Phase 2 (adaptateur codé et gated ; service Postiz non déployé) | R9 |
 | **Astro** | MIT | Rendu du site (îlots, zéro JS par défaut), remplacerait le générateur HTML-par-f-string actuel ; `guardrail.py`/`aeo_engine.py` restent les gates inchangés | Build-time (pas un service runtime) | Phase 2 | R9 |
 | **Unlighthouse** + **SerpBear** | MIT (les deux) | SEO technique à l'échelle : Core Web Vitals réel sur tout le site + suivi de position mots-clés | CLI/sidecar Docker | Phase 2 | R9 |
@@ -251,8 +343,8 @@ version réellement installée (toutes vérifiées une à une ci-dessus). Aucun 
 | **Agent Skills** (`SKILL.md`, agentskills.io) | Apache-2.0 (spécification ; skills de génération docx/pdf/pptx/xlsx du dépôt d'exemples officiel = source-available, pas OSS) | Format de capacité par département — **déjà le format utilisé** dans ce dépôt (`departments/*/skills/*/SKILL.md`, cf. `DEPARTEMENTS.md`) | Convention déjà appliquée | **Intégré** | R10 |
 | **LangGraph** | MIT | Moteur d'orchestration du futur Strategic Supervisor (graphe d'état typé, checkpoints) — déjà nommé dans la fiche source M9 | Dépendance pip, isolée derrière une interface interne | Phase 2 (GATED) | R10 |
 | **gVisor** (`runsc`) | Apache-2.0 | Sandbox des skills exécutant du code, sans nécessiter KVM (compatible VPS d'entrée de gamme) | `runtime: runsc` par service docker-compose | Phase 2 | R10 |
-| **DeepEval** / **Ragas** | Apache-2.0 (les deux) | Gate CI `proof-eval` symétrique du `proof-review` existant, jeu de données « golden » par département | Dépendance pip + CI | Phase 2 | R10 |
-| Patron interne `civ_review.py` / `tally_reviews.py` (proof-method) | — (outil méthode interne, pas une brique OSS tierce) | Mécanisme de débat/consensus multi-vendor déjà en production pour la revue de code — **à copier-adapter** pour le Council M9 plutôt qu'importer un framework de débat externe | Copie-adaptation interne (règle #109 du dépôt) | **Intégré** (méthode, hors périmètre M9 v1) | R10 |
+| **DeepEval** / **Ragas** | Apache-2.0 (les deux) | Évaluations sur jeux « golden » par département, avec métriques adaptées ; aucun gate de consensus imposé | Dépendance optionnelle ou banc isolé | Candidate | R10 · ADR-0012 |
+| Patron interne `civ_review.py` / `tally_reviews.py` (ancienne proof-method) | — | Historique de débat multi-fournisseurs ; ne prouve pas un composant M9 présent. ADR-0012 retire ce protocole comme prérequis ; déclencher un spécialiste ou critique seulement si la question le justifie | Aucune adoption automatique ni vote obligatoire | **Historique** | R10 · ADR-0012 |
 | **STORM** / Co-STORM | MIT | Génération de rapport long structuré avec citations tracées | Dépendance pip | Phase 2 (GATED) | R10 |
 | **local-deep-research** | MIT | Veille confidentielle 100 % locale (LLM local ou cloud au choix) | Dépendance pip ou sidecar | Phase 2 (GATED) | R10 |
 | **EMA Workbench** (TU Delft) | BSD-3-Clause | Scenario discovery / décision robuste sous incertitude profonde (module de découverte de scénarios seulement, pas tout le framework) | Dépendance pip (module ciblé) | Phase 2 (GATED) | R10 |
@@ -345,7 +437,7 @@ hors périmètre strict de R10 ») et documente en plus, pour M10 spécifiquemen
 
 **Total : 144 briques/patrons retenus** (dont 37 déjà intégrés au code ou à la méthode : **OpenClaw**
 comme core par défaut, **Hermes Agent** comme adaptateur/runtime optionnel, **LiteLLM** comme
-passerelle de modèles par défaut, la discipline de cache-boundary (désormais native au runtime
+passerelle de compatibilité optionnelle, la discipline de cache-boundary (désormais native au runtime
 OpenClaw), `garde_fou.py` M1 conservé, le format Agent Skills, le patron
 `civ_review.py`/`tally_reviews.py`, le modèle « Département » de M10, les 15 briques du
 squelette de l'app mobile — PLAN T1.4-a : Expo/Expo Router/expo-sqlite/expo-localization/

@@ -21,7 +21,7 @@ jobs:
   # Squelette Expo Router de l'app mobile OPSYS (PLAN T1.4-a, docs/research/R12-app-mobile.md
   # §3). Le bac à sable de développement n'exécute pas le core (core.yml s'en charge) ; ce job
   # est la preuve de construction/tests côté mobile.
-  gates:
+  mobile-gates:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -31,6 +31,8 @@ jobs:
           node-version: "22.x"
           cache: npm
           cache-dependency-path: mobile/package-lock.json
+      - name: Audit npm des dépendances verrouillées
+        run: npm audit --package-lock-only --ignore-scripts --audit-level=high
       - name: Installation
         run: npm ci
       - name: Vérification des types (TypeScript strict)

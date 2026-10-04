@@ -663,6 +663,7 @@ export const IdentitySchema = z
     theme: z.string().optional(),
     emoji: z.string().optional(),
     avatar: z.string().optional(),
+    avatarModelId: z.string().min(1).max(64).optional(),
   })
   .strict()
   .optional();

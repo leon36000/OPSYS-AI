@@ -31,11 +31,11 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from m3_estimation import signaux, verdicts
-import sys as _s2
-from pathlib import Path as _P2
-_s2.path.insert(0, str(_P2(__file__).resolve().parent))
-from _commun_contrats import cles_du_bloc_yaml
+# Imports après ajout des chemins locaux : ce fichier garde son mode d'exécution directe.
+from m3_estimation import signaux, verdicts  # noqa: E402
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _commun_contrats import cles_du_bloc_yaml  # noqa: E402
 
 
 # ---------------------------------------------------------------------------

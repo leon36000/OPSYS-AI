@@ -117,6 +117,8 @@ export type IdentityConfig = {
   emoji?: string;
   /** Avatar image: workspace-relative path, http(s) URL, or data URI. */
   avatar?: string;
+  /** Explicit ID from the Gateway's locally shipped 3D avatar catalogue. */
+  avatarModelId?: string;
 };
 
 export type LoggingConfig = NonNullable<z.input<typeof LoggingConfigSchema>>;

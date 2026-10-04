@@ -45,6 +45,10 @@ import zlib
 from pathlib import Path
 from typing import Any
 
+from alembic import command
+from alembic.config import Config
+from alembic.runtime.migration import MigrationContext
+from sqlalchemy import create_engine
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -333,7 +337,36 @@ def _verifier_base(chemin: Path, manifeste: dict[str, Any]) -> str:
             f"la révision de la base ({revision!r}) est inconnue de ce logiciel : l'archive vient d'une version plus "
             "récente. Mettez le logiciel à jour (relancez l'installateur) avant de restaurer."
         )
+    try:
+        connexion = sqlite3.connect(str(chemin))
+        try:
+            lignes = connexion.execute("SELECT version_num FROM alembic_version").fetchall()
+        finally:
+            connexion.close()
+    except sqlite3.Error as erreur:
+        raise ErreurExportation(f"la révision SQLite de l'archive est illisible : {erreur}") from erreur
+    revision_sqlite = lignes[0][0] if len(lignes) == 1 and lignes[0][0] else None
+    if revision_sqlite != revision:
+        raise ErreurExportation(
+            f"la révision SQLite ({revision_sqlite!r}) ne correspond pas à celle du manifeste ({revision!r}) : "
+            "restauration refusée."
+        )
     return revision
+
+
+def _migrer_copie(chemin: Path) -> str:
+    """Met à niveau la base extraite sans basculer l'instance ni importer son ancien etat.db."""
+    configuration = Config()
+    configuration.set_main_option("script_location", str(Path(__file__).parent / "stockage" / "migrations"))
+    moteur = create_engine(f"sqlite:///{chemin}")
+    try:
+        with moteur.begin() as connexion:
+            configuration.attributes["connection"] = connexion
+            command.upgrade(configuration, "head")
+        with moteur.connect() as connexion:
+            return MigrationContext.configure(connexion).get_current_revision() or "aucune"
+    finally:
+        moteur.dispose()
 
 
 def restaurer(archive: Path, home: Path, *, par: str, remplacer: bool = False, empreinte: str | None = None,
@@ -354,6 +387,7 @@ def restaurer(archive: Path, home: Path, *, par: str, remplacer: bool = False, e
         dossier = Path(temporaire)
         manifeste = _extraire(archive, dossier)
         revision = _verifier_base(dossier / NOM_BASE, manifeste)
+        revision_finale = _migrer_copie(dossier / NOM_BASE)
         cibles = {NOM_BASE: base, **{nom: home / nom for nom in FICHIERS_REGLAGES if (dossier / nom).is_file()}}
         existants = [nom for nom, cible in cibles.items() if cible.exists()]
         if existants and not remplacer:
@@ -365,6 +399,7 @@ def restaurer(archive: Path, home: Path, *, par: str, remplacer: bool = False, e
         stockage.liberer()
         instant = horodatage()
         mis_de_cote: list[tuple[Path, Path]] = []
+        poses: list[Path] = []
         try:
             for cible in cibles.values():
                 for suffixe in ("", "-wal", "-shm"):
@@ -375,13 +410,17 @@ def restaurer(archive: Path, home: Path, *, par: str, remplacer: bool = False, e
                         mis_de_cote.append((actuel, ecarte))
             for nom, cible in cibles.items():
                 os.replace(dossier / nom, cible)
+                poses.append(cible)
+            _journaliser(url, par, "instance.restauration", archive.name,
+                         {"sha256": reelle, "restaures": sorted(cibles),
+                          "mis_de_cote": [str(e) for _, e in mis_de_cote], "revision_archive": revision})
         except BaseException:
+            stockage.liberer()
+            sauvegardes = {actuel for actuel, _ in mis_de_cote}
+            for cible in reversed(poses):
+                if cible not in sauvegardes:
+                    cible.unlink(missing_ok=True)
             for actuel, ecarte in reversed(mis_de_cote):
-                if not actuel.exists():
-                    os.replace(ecarte, actuel)
+                os.replace(ecarte, actuel)
             raise
-    revision_finale = stockage.migrer(url)
-    _journaliser(url, par, "instance.restauration", archive.name,
-                 {"sha256": reelle, "restaures": sorted(cibles), "mis_de_cote": [str(e) for _, e in mis_de_cote],
-                  "revision_archive": revision})
     return ResultatRestauration(base, tuple(sorted(cibles)), tuple(str(e) for _, e in mis_de_cote), revision_finale)

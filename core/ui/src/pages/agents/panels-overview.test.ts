@@ -1,6 +1,7 @@
 // Control UI tests cover the agents overview context display.
 import { render } from "lit";
 import { describe, expect, it, vi } from "vitest";
+import { ASSISTANT_AVATAR_MODELS } from "../../../../src/shared/assistant-avatar-model-catalog.js";
 import type { MultiSelect } from "../../components/multi-select.ts";
 import { buildAgentContext } from "../../lib/agents/display.ts";
 import { createAgentViewTestProps as createProps } from "./agents-view.test-helpers.ts";
@@ -121,6 +122,44 @@ it.each([
   const save = container.querySelector<HTMLButtonElement>(".agent-identity-editor__actions button");
   expect(save?.textContent?.trim()).toBe(text);
   expect(save?.disabled).toBe(true);
+  expect(
+    container.querySelector<HTMLSelectElement>(".agent-identity-editor__avatar-model select")
+      ?.disabled,
+  ).toBe(true);
+});
+
+it("hydrates the selected local avatar model and maps the explicit empty choice to removal", () => {
+  const container = document.createElement("div");
+  const modelId = Object.keys(ASSISTANT_AVATAR_MODELS)[0];
+  const onIdentityAvatarModelChange = vi.fn();
+  render(
+    renderAgents(
+      createProps({
+        agentIdentityById: {
+          beta: { agentId: "beta", avatarModelId: modelId },
+        },
+        onIdentityAvatarModelChange,
+      }),
+    ),
+    container,
+  );
+
+  const select = container.querySelector<HTMLSelectElement>(
+    ".agent-identity-editor__avatar-model select",
+  );
+  expect(select?.value).toBe(modelId);
+  expect(Array.from(select?.options ?? [], (option) => option.value)).toEqual(["", modelId]);
+  expect(select?.selectedOptions[0]?.textContent?.trim()).toBe(
+    "Robot Expressive (Quaternius, CC0)",
+  );
+  expect(select?.querySelector('option[value^="http"]')).toBeNull();
+
+  if (!select) {
+    throw new Error("Expected the avatar model selector");
+  }
+  select.value = "";
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+  expect(onIdentityAvatarModelChange).toHaveBeenCalledWith(null);
 });
 
 it("shows inherited skills in the Agent Context overview", () => {

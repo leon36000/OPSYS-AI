@@ -36,13 +36,12 @@ ADMIN = contexte.IdentiteAppelante(personne="admin.fictif", role="admin")
 MARC = contexte.IdentiteAppelante(personne="marc.fictif", role="employee")
 VENDEUR = contexte.IdentiteAppelante(personne="vendeur.fictif", role="seller")
 
-# Les outils M5 de la portée `admin` : quatre lectures (dont deux de T1.5-d), la lecture des comptes à payer et la
-# saisie d'une facture fournisseur par un humain (T4.15, une écriture : voir test_comptes_a_payer_outils.py), et le
-# calendrier fiscal (T4.16, lecture pure).
+# Les outils M5 de la portée `admin` : lectures, préparation de décision et actions fournisseur déjà portées par les
+# outils M5 (dont quatre lectures de T1.5-d), les calendriers et la décision de capital préparatoire.
 OUTILS_DE_LECTURE_FINANCE = {"m5_etat_tresorerie", "m5_lister_attentes_facturation",
                              "m5_lire_rentabilite_chantier", "m5_lire_comptes_a_recevoir",
                              "m5_lister_comptes_a_payer", "m5_saisir_facture_fournisseur",
-                             "m5_lire_echeances_fiscales",
+                             "m5_lire_echeances_fiscales", "m5_lire_calendrier_obligations",
                              # T4.15-c : facture sans PO (N3), correction et annulation d'une facture saisie (N4 :
                              # l'appel attend le propriétaire ou la finance, voir test_correction_outils.py)
                              "m5_saisir_facture_sans_po", "m5_corriger_facture_fournisseur",
@@ -51,7 +50,12 @@ OUTILS_DE_LECTURE_FINANCE = {"m5_etat_tresorerie", "m5_lister_attentes_facturati
                              "m5_prevoir_tresorerie",
                              # T4.19-b : le constat du cash libre publié au bus (T1, N3 : l'admin, avec le droit de
                              # voir les coûts ; departments/m05-financecore/tests/test_constat_cash_libre_outils.py)
-                             "m5_constater_cash_libre"}
+                             "m5_constater_cash_libre", "m5_preparer_decision_capital",
+                             "m5_preparer_dossier_decision_cfo",
+                             # M5.4.a : source salariale privée; les écritures exigent une décision N4, la lecture T0
+                             # revalide le principal humain et la cible employee avant d'ouvrir le registre.
+                             "m5_enregistrer_contrat_horaire", "m5_revoquer_contrat_horaire",
+                             "m5_lire_contrat_horaire"}
 CODE_INVALIDE = "REJ-IDENTITE-APPAREIL-INVALIDE"
 CODE_DIFFERENTE = "REJ-IDENTITE-FOURNIE-DIFFERENTE"
 CODE_REQUIS = "REJ-AUTORISE-COUTS-REQUIS"
@@ -104,10 +108,18 @@ def _code(reponse):
 # -- 1. la portée que le core applique : M5 est fermé à l'employé et au vendeur -------------------------
 def test_le_core_ne_donne_les_outils_m5_ni_a_l_employe_ni_au_vendeur(capacites):
     portees = openclaw.roles_outils(capacites.departements)
+    catalogue_m5 = {o.nom: o for o in outils_m5.outils()}
 
     assert [n for n in portees["employee"] if n.startswith("m5_")] == []
     assert [n for n in portees["seller"] if n.startswith("m5_")] == []
+    assert {n for n, o in catalogue_m5.items() if o.roles_appareil == frozenset({"admin"})} == OUTILS_DE_LECTURE_FINANCE
+    assert all(catalogue_m5[n].roles_appareil == frozenset({"admin"}) for n in OUTILS_DE_LECTURE_FINANCE)
     assert {n for n in portees["admin"] if n.startswith("m5_")} == OUTILS_DE_LECTURE_FINANCE
+    assert catalogue_m5["m5_preparer_brut_regulier"].roles_appareil == frozenset()
+    assert all("m5_preparer_brut_regulier" not in noms for noms in portees.values())
+    assert catalogue_m5["m5_lire_sources_regles_paie"].roles_appareil == frozenset()
+    assert catalogue_m5["m5_preparer_dossier_webras"].roles_appareil == frozenset()
+    assert all("m5_preparer_dossier_webras" not in noms for noms in portees.values())
     # L'écriture financière et l'engagement ne sont dans aucun rôle : T3/N5 et la cascade §6.
     tous = {n for noms in portees.values() for n in noms}
     assert not tous & {"m5_enregistrer_mouvement", "m5_enregistrer_paiement_facture", "m5_envoyer_facture",

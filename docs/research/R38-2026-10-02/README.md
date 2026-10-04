@@ -1,0 +1,17 @@
+# R38 — qualification locale PostgreSQL/Compose
+
+ROOT : 49 passés, 1 Docker explicitement sauté (50 cas JUnit), 0 échec/erreur, 64,195 s. 1122 sources surveillées stables pendant tests et qualité, aucun contrôle global courant revendiqué. Runtime QA séparé : 21 assertions réelles PG17.11/Compose/volumes fictifs ; physique puis SQL logique, cleanup78,808s, baseline intacte. Ces nombres ne sont pas additionnés. R1/r2 runtime rouges, rouges R36/source et préimages conservés ; R34 immuable. Préflight archive r1 refusé sur Compose produit changé ; document EXPLOITATION15f historique, version produit R41 actuelle et Compose produit hors qualification R38. Clôture courante trois sources code seulement. Backups bruts uniquement RAM volatile, reçus/manifestes/SHA durables, aucun PGDATA/SQLite brut dans capsule. Services métier absents ; pas VPS, installation OPSYS, sandbox agent/rootless, TLS ni sauvegarde entreprise. Flock même inode uniquement ; pas copies/remplacement atomique/restauration parallèle ni rollback automatique.
+
+[MANIFEST.json](MANIFEST.json), [SOURCES-FINALES.json](SOURCES-FINALES.json), [QUALIFICATION.json](QUALIFICATION.json), [POST-CHECK.json](POST-CHECK.json).
+
+- [Rapport exact](preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--rapport-r38-r3.md--bbaf4a0e18d1cbe165db864c6cde18eefb2d8173bbc7185b702d05c3b735c919.gz)
+- [JUnit ROOT : 49 passés + 1 skip](preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-root-r4-2026-10-02.xml--b46b317fb74c0155d73d536f7ad07d3aa833f724d7dfdbe8a0e92f1cd92f5547.gz)
+- [Qualité ROOT](preuves/restructuration-opsys-2026-09-30--preuves--backup-compose-qualite-root-r4-2026-10-02-resultat.json--1c3955c38271e8c37a5d42950494131eadc8d4b4b694a6c1b3a2c57752617ac3.gz)
+- [Runtime r3 : 21 assertions](preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--RESULTAT-r3.json--0b7690536b06d7c4468b26f792cc1db9ce88a9b52fc809ea7aae7c77d0d8ee1f.gz)
+- [Vérification ROOT runtime et RAM](preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r3--VERIFICATION-ROOT-r1.json--7a0a095d434d9249dc1ade87120dd5fde791bba1549492c8344ebc8af14adbda.gz)
+- [Runtime r1 rouge](preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--RESULTAT-r1.json--2ca9f4e2cc4e42956728993c14483c4db38cc4e430bad6996406550a5624757b.gz)
+- [Runtime r2 rouge](preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--r2--RESULTAT-r2.json--90e48efba1eeb714ef1d7afdbe248974033118365546065815a5b83c7ee8c3d7.gz)
+- [Périmètre et doc historiques](preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--preparation-archive-r2--CONTEXTE-HISTORIQUE-r2.md--f77a16e68ccb903e0fa0d5445054aa1192bba4296a1dce345e83c94277922490.gz)
+- [Doc EXPLOITATION historique qualifiée](doc-historique/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--correction-source-r3--preimages--docs--ops--EXPLOITATION.md--15f93d15f0564e908cd6e8810f95a79bc23779c078b35a41b3804e9deeec4ffc.gz)
+- [Refus de préflight archive r1](preuves/audit-opsys-2026-09-30--infra--vps-2026-10-02--R38-postgresql-reel--preparation-archive-r1--PREFLIGHT-RED-r1.json--588d39960be792780ef07d5ad1150b307e3a90514dd32c3c69a7391fd0ad4bd8.gz)
+[Archive R34 historique](../R34-2026-10-02/README.md), [exploitation produit courante hors R38](../../ops/EXPLOITATION.md), [profil rootless candidat non qualifié](../../ops/SERVEUR-ROOTLESS.md).

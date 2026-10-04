@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import { describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import { resolveCronJobConfigRevision } from "./config-revision.js";
@@ -636,6 +637,135 @@ describe("CronService declarative jobs", () => {
       expect(await cron.readJob(created.id)).toMatchObject({ displayName: "Daily report" });
     } finally {
       cron.stop();
+    }
+  });
+
+  it("removes a job when the store-locked removal precondition matches", async () => {
+    const { storePath } = await makeStorePath();
+    const cron = createCronService(storePath);
+    await cron.start();
+
+    try {
+      const created = declarativeResult(await cron.add(declaration()));
+      const expectedRevision = resolveCronJobConfigRevision(created.job);
+      const commitGuard = vi.fn();
+      await expect(
+        cron.removeWithPrecondition(
+          created.id,
+          (current) => {
+            expect(resolveCronJobConfigRevision(current)).toBe(expectedRevision);
+          },
+          { commitGuard },
+        ),
+      ).resolves.toEqual({ ok: true, removed: true });
+      expect(commitGuard).toHaveBeenCalledOnce();
+      expect(await cron.readJob(created.id)).toBeUndefined();
+    } finally {
+      cron.stop();
+    }
+  });
+
+  it("leaves a job intact when the store-locked removal precondition rejects", async () => {
+    const { storePath } = await makeStorePath();
+    const cron = createCronService(storePath);
+    await cron.start();
+
+    try {
+      const created = declarativeResult(await cron.add(declaration()));
+      const commitGuard = vi.fn();
+      await expect(
+        cron.removeWithPrecondition(
+          created.id,
+          () => {
+            throw new Error("stale owner");
+          },
+          { commitGuard },
+        ),
+      ).rejects.toThrow("stale owner");
+      expect(commitGuard).not.toHaveBeenCalled();
+      expect(await cron.readJob(created.id)).toMatchObject({
+        id: created.id,
+        displayName: "Daily report",
+      });
+    } finally {
+      cron.stop();
+    }
+  });
+
+  it("rejects stale removal after another service instance updates the shared row", async () => {
+    const { storePath } = await makeStorePath();
+    const first = createCronService(storePath);
+    const second = createCronService(storePath);
+    await first.start();
+    await second.start();
+
+    try {
+      const created = declarativeResult(await first.add(declaration()));
+      const staleRevision = resolveCronJobConfigRevision(created.job);
+      await second.readJob(created.id);
+      await second.update(created.id, { displayName: "Replacement owner" });
+
+      await expect(
+        first.removeWithPrecondition(created.id, (current) => {
+          if (resolveCronJobConfigRevision(current) !== staleRevision) {
+            throw new Error("revision conflict");
+          }
+        }),
+      ).rejects.toThrow("revision conflict");
+      expect(await second.readJob(created.id)).toMatchObject({
+        id: created.id,
+        displayName: "Replacement owner",
+      });
+    } finally {
+      second.stop();
+      first.stop();
+    }
+  });
+
+  it("rejects grant-only replacement at an unchanged config revision", async () => {
+    const { storePath } = await makeStorePath();
+    const first = createCronService(storePath);
+    const second = createCronService(storePath);
+    await first.start();
+    await second.start();
+    const originalAuthority = {
+      version: 1 as const,
+      runtimeId: "opsys-runtime",
+      namespace: "opsys-cron",
+      payload: { epoch: 3, capability: "old-secret" },
+    };
+    const replacementAuthority = {
+      ...originalAuthority,
+      payload: { epoch: 4, capability: "new-secret" },
+    };
+
+    try {
+      const created = declarativeResult(
+        await first.add(declaration(), { captureRuntimeAuthority: () => originalAuthority }),
+      );
+      const staleRevision = resolveCronJobConfigRevision(created.job);
+      await second.readJob(created.id);
+      await second.update(created.id, {}, { captureRuntimeAuthority: () => replacementAuthority });
+      const replaced = await second.readJob(created.id);
+      expect(replaced).toBeDefined();
+      expect(resolveCronJobConfigRevision(replaced!)).toBe(staleRevision);
+
+      await expect(
+        first.removeWithPrecondition(created.id, (current) => {
+          if (
+            !isDeepStrictEqual(
+              Reflect.get(current, "runtimeAuthority"),
+              created.job.runtimeAuthority,
+            )
+          ) {
+            throw new Error("runtime grant changed");
+          }
+        }),
+      ).rejects.toThrow("runtime grant changed");
+      expect((await second.readJob(created.id))?.runtimeAuthority).toEqual(replacementAuthority);
+    } finally {
+      second.stop();
+      first.stop();
     }
   });
 

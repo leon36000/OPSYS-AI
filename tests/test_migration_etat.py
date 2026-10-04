@@ -3,13 +3,17 @@ l'instance : voir `opsys.etat.importer_etat_si_necessaire`, appelée par `opsys.
 
 from __future__ import annotations
 
-import datetime as dt
+import os
 import sqlite3
+import subprocess
+import sys
+import textwrap
+from pathlib import Path
 
 import pytest
 from sqlalchemy import select
 
-from opsys import etat, stockage
+from opsys import contexte, etat, jetons, stockage
 from opsys.stockage.schema import APPROBATIONS, ARTEFACTS, JOURNAL, MODES_DEPARTEMENTS, USAGE_TOKENS
 
 _ANCIEN_SCHEMA = """
@@ -73,7 +77,7 @@ def _comptes(cnx) -> dict[str, int]:
     return {nom: cnx.execute(select(func.count()).select_from(table)).scalar_one() for nom, table in tables.items()}
 
 
-def test_migrer_importe_l_ancien_etat_et_renomme_le_fichier(opsys_home):
+def test_migrer_importe_l_ancien_etat_et_conserve_la_source(opsys_home):
     ancien = opsys_home / "etat.db"
     _ecrire_ancien_etat(ancien)
     try:
@@ -84,15 +88,16 @@ def test_migrer_importe_l_ancien_etat_et_renomme_le_fichier(opsys_home):
             [demande] = cnx.execute(select(APPROBATIONS)).mappings().all()
             assert (demande["id"], demande["statut"], demande["resultat"]) == ("abc123456789", "executee",
                                                                                 '{"ok": true}')
+            [artefact] = cnx.execute(select(ARTEFACTS)).mappings().all()
+            assert artefact["departement"] is None and artefact["origine"] is None
+            with contexte.appeler_en_tant_que("m09-demo"), pytest.raises(KeyError, match="artefact inconnu"):
+                jetons.lire_artefact(cnx, "deadbeef00000001")
             journal = [dict(ligne) for ligne in cnx.execute(select(JOURNAL).order_by(JOURNAL.c.id)).mappings()]
         # L'ordre chronologique de l'ancien journal est préservé par les nouveaux identifiants.
         assert [j["action"] for j in journal] == ["departement.mode", "approbation.approuver"]
-        assert not ancien.exists()  # jamais supprimé : renommé
-        horodatage = dt.datetime.now(dt.UTC).strftime("%Y%m%d")
-        renomme = opsys_home / f"etat.db.migre-{horodatage}"
-        assert renomme.is_file()
+        assert ancien.is_file()  # la source reste disponible pour reprendre après un crash
         # Le contenu de l'ancien fichier reste lisible (T3 : la suppression est une frontière humaine).
-        with sqlite3.connect(renomme) as verif:
+        with sqlite3.connect(ancien) as verif:
             assert verif.execute("SELECT COUNT(*) FROM approbations").fetchone()[0] == 1
     finally:
         stockage.liberer()
@@ -135,6 +140,7 @@ def test_importer_etat_si_necessaire_ne_rejoue_pas_si_les_tables_sont_deja_peupl
             premier_compte = _comptes(cnx)
         # Un nouveau fichier « etat.db » réapparaît (ex. sauvegarde restaurée par erreur) ; les
         # tables de la base de l'instance, elles, contiennent déjà les lignes importées plus haut.
+        ancien.unlink()
         _ecrire_ancien_etat(ancien, avec_journal_double=False)
         with stockage.transaction() as cnx:
             importe = etat.importer_etat_si_necessaire(cnx)
@@ -175,5 +181,95 @@ def test_import_bloque_des_qu_une_seule_table_cible_contient_deja_des_lignes(ops
             importe = etat.importer_etat_si_necessaire(cnx)
         assert importe is False
         assert ancien.is_file()
+    finally:
+        stockage.liberer()
+
+
+def _processus_interrompu(home, phase: str) -> subprocess.CompletedProcess:
+    script = textwrap.dedent(
+        """
+        import os
+        from opsys import etat, stockage
+
+        phase = os.environ["OPSYS_TEST_PHASE"]
+        importer = etat.importer_etat_si_necessaire
+
+        def interrompre(cnx):
+            resultat = importer(cnx)
+            if phase == "avant_commit":
+                os._exit(73)
+            return resultat
+
+        etat.importer_etat_si_necessaire = interrompre
+        stockage.migrer()
+        if phase == "apres_commit":
+            os._exit(74)
+        """
+    )
+    environnement = {**os.environ, "OPSYS_HOME": str(home), "OPSYS_TEST_PHASE": phase}
+    return subprocess.run([sys.executable, "-c", script], env=environnement, check=False, capture_output=True)
+
+
+@pytest.mark.parametrize("phase,code", [("avant_commit", 73), ("apres_commit", 74)])
+def test_import_historique_reprend_apres_crash_sans_perte_ni_doublon(opsys_home, phase, code):
+    _ecrire_ancien_etat(opsys_home / "etat.db")
+
+    processus = _processus_interrompu(opsys_home, phase)
+
+    assert processus.returncode == code, processus.stderr.decode(errors="replace")
+    try:
+        stockage.migrer()
+        with stockage.transaction() as cnx:
+            assert _comptes(cnx) == {"approbations": 1, "usage_tokens": 1, "artefacts": 1, "journal": 2,
+                                     "modes_departements": 1}
+            assert cnx.execute(select(JOURNAL.c.action)).scalars().all() == ["departement.mode",
+                                                                             "approbation.approuver"]
+        assert (opsys_home / "etat.db").is_file()
+    finally:
+        stockage.liberer()
+
+
+def test_import_reprend_apres_ancien_rename_avant_commit(opsys_home):
+    archive = opsys_home / "etat.db.migre-20260930"
+    _ecrire_ancien_etat(archive)
+
+    processus = _processus_interrompu(opsys_home, "avant_commit")
+
+    assert processus.returncode == 73, processus.stderr.decode(errors="replace")
+    try:
+        stockage.migrer()
+        with stockage.transaction() as cnx:
+            assert _comptes(cnx) == {"approbations": 1, "usage_tokens": 1, "artefacts": 1, "journal": 2,
+                                     "modes_departements": 1}
+        assert archive.is_file()
+    finally:
+        stockage.liberer()
+
+
+def test_import_lit_aussi_les_lignes_historique_encore_dans_le_wal(opsys_home):
+    ancien = opsys_home / "etat.db"
+    _ecrire_ancien_etat(ancien)
+    lecteur = sqlite3.connect(ancien)
+    lecteur.execute("PRAGMA journal_mode=WAL")
+    lecteur.execute("BEGIN")
+    lecteur.execute("SELECT COUNT(*) FROM journal").fetchone()
+    ecrivain = sqlite3.connect(ancien)
+    ecrivain.execute("INSERT INTO journal (quand, par, action, cible, details) VALUES (?,?,?,?,?)",
+                     ("2026-09-02T00:00:00+00:00", "nathan", "historique.wal", "fictif", "{}"))
+    ecrivain.commit()
+    ecrivain.close()
+    assert Path(f"{ancien}-wal").stat().st_size > 0
+
+    processus = subprocess.run(
+        [sys.executable, "-c", "from opsys import stockage; stockage.migrer(); stockage.liberer()"],
+        env={**os.environ, "OPSYS_HOME": str(opsys_home)}, check=False, capture_output=True,
+    )
+
+    lecteur.close()
+    assert processus.returncode == 0, processus.stderr.decode(errors="replace")
+    try:
+        with stockage.transaction() as cnx:
+            actions = cnx.execute(select(JOURNAL.c.action).order_by(JOURNAL.c.id)).scalars().all()
+        assert actions == ["departement.mode", "approbation.approuver", "historique.wal"]
     finally:
         stockage.liberer()

@@ -1,0 +1,19 @@
+{
+  "date_utc": "2026-10-02T03:56:52.718842+00:00",
+  "archives_verifiees": 293,
+  "sources_union_verifiees": 36293,
+  "liens_locaux_verifies": 302,
+  "manifest_sha256": "9467fad3828690d7c107c615f55dfb9b1c05489df11e5887047208bef0668b2e",
+  "readme_sha256": "4d199f699720042480861c087c7f1459c6f797a12bbd90dab17191fb55e91b6f",
+  "historique_sha256": {
+    "R19-2026-09-30/MANIFEST.json": "14c92b771ed2f43064e693936fda3cba45e03268c0c4c0c2632205f449206bae",
+    "R19-2026-09-30/README.md": "089b8e6a0cba6803588454cf267dd00cabb160a8d0a9c067f31a7ae952b19224",
+    "R20-2026-10-01/MANIFEST.json": "426ccb6e1bda8bdaa6fc6efa7580190165049dffc5a361b9f1feee90b1d2f1c8",
+    "R20-2026-10-01/README.md": "942ce1f0106c527ad5d3c55369d7e1f427db6f570fc2183be4fb5e8fe556f790",
+    "R21-2026-10-02/MANIFEST.json": "1a80a8d01ae6b1d73b9ba9373c36025a1fd2f61cc15f1bdb4fc565477f9fd53c",
+    "R21-2026-10-02/README.md": "7dcfd060f7ea648b7ff39570d7a582afa347264c390f2f6e9191e2689df392ff"
+  },
+  "r1_preserve": true,
+  "note": "R1 contrôlait son auto-lien avant création. R2 contrôle après création; son propre lien est validé après écriture.",
+  "erreurs": []
+}

@@ -1,13 +1,8 @@
-"""Le workflow `installateur` (PLAN T0.11-d) : ce qu'on peut vérifier de lui avant de le lancer sur GitHub.
+"""Contrat des checks installateur hosted et des E2E poste Docker auto-hébergés.
 
-Un workflow ne s'exécute qu'en CI, et un YAML fautif ne se voit qu'au premier lancement (dix minutes de file, et un
-runner macOS facturé dix fois). Ces tests lisent le fichier et vérifient ce que la tâche exige : trois jobs
-d'installation
-(Linux, macOS, Windows) qui ont les mêmes déclencheurs, un plafond de durée chacun, aucune étape qui tolère l'échec, un
-diagnostic en cas d'échec qui ne montre aucun secret, des actions épinglées, et des scripts qui existent.
-
-Ce qu'ils ne prouvent PAS : que GitHub accepte le fichier (syntaxe des expressions `${{ }}`, noms d'images), ni que les
-scripts réussissent sur macOS et Windows. Cela, seul un lancement le prouve.
+Les tests scripts/fakes tournent sur les runners hosted. Les E2E macOS/Windows exigent un runner du propriétaire avec
+daemon Linux et s'activent seulement par workflow_dispatch explicite. Ces tests vérifient la séparation, les prévols,
+les diagnostics qui masquent les secrets, les actions épinglées et les scripts.
 """
 
 from __future__ import annotations
@@ -24,6 +19,12 @@ RACINE = Path(__file__).resolve().parents[1]
 WORKFLOW = RACINE / ".github" / "workflows" / "installateur.yml"
 INSTALLATIONS = {
     "installation": "ubuntu-24.04", "installation-macos": "macos-latest", "installation-windows": "windows-latest"}
+INSTALLATIONS_DOCKER = {
+    "installation-macos-docker": ["self-hosted", "macOS", "opsys-docker-linux"],
+    "installation-windows-docker": ["self-hosted", "Windows", "opsys-docker-linux"],
+}
+TOUS_LES_JOBS_INSTALLATION = (*INSTALLATIONS, *INSTALLATIONS_DOCKER)
+JOBS_E2E_REEL = ("installation", *INSTALLATIONS_DOCKER)
 
 
 @pytest.fixture(scope="module")
@@ -39,8 +40,8 @@ def _etapes(workflow: dict, job: str) -> list[dict]:
     return workflow["jobs"][job]["steps"]
 
 
-def test_le_fichier_se_charge_et_porte_les_quatre_jobs(workflow):
-    assert set(workflow["jobs"]) == {"analyse", *INSTALLATIONS}
+def test_le_fichier_se_charge_et_porte_les_six_jobs(workflow):
+    assert set(workflow["jobs"]) == {"analyse", *INSTALLATIONS, *INSTALLATIONS_DOCKER}
     assert workflow["permissions"] == {"contents": "read"}
 
 
@@ -49,13 +50,21 @@ def test_chaque_installation_tourne_sur_son_systeme(workflow, job):
     assert workflow["jobs"][job]["runs-on"] == INSTALLATIONS[job]
 
 
-def test_les_jobs_macos_et_windows_ont_les_declencheurs_du_job_linux(workflow):
-    """Les déclencheurs sont ceux du workflow entier : aucun job n'a de condition propre qui les restreindrait."""
+@pytest.mark.parametrize("job", sorted(INSTALLATIONS_DOCKER))
+def test_les_e2e_poste_docker_utilisent_les_labels_self_hosted(workflow, job):
+    assert workflow["jobs"][job]["runs-on"] == INSTALLATIONS_DOCKER[job]
+    condition = "${{ github.event_name == 'workflow_dispatch' && inputs.preuve_poste_docker }}"
+    assert workflow["jobs"][job]["if"] == condition
+
+
+def test_les_checks_hosted_conservent_les_declencheurs_automatiques_du_job_linux(workflow):
+    """Les tests/faux restent automatiques; seuls les vrais E2E poste Docker sont opt-in."""
     declencheurs = _declencheurs(workflow)
     assert set(declencheurs) == {"workflow_dispatch", "push", "pull_request"}
     assert declencheurs["push"]["paths"] == declencheurs["pull_request"]["paths"]
-    for chemin in ("install/**", "tests/installateur/**", ".github/workflows/installateur.yml", "src/opsys/instance.py",
-                   "src/opsys/exportation.py", "src/opsys/openclaw.py"):
+    for chemin in ("install/**", "tests/installateur/**", "tests/test_installateur_*.py",
+                   ".github/workflows/installateur.yml", "src/opsys/instance.py",
+                   "src/opsys/exportation.py", "src/opsys/openclaw.py", "uv.lock", "requirements-runtime.lock.txt"):
         assert chemin in declencheurs["pull_request"]["paths"]
     # T0.7 lot 3 : ce qui décide où le core range son état, et la migration de Doctor, relancent la preuve
     for chemin in ("core/src/config/opsys-instance.ts", "core/src/config/paths.ts", "core/src/cli/profile.ts",
@@ -67,20 +76,25 @@ def test_les_jobs_macos_et_windows_ont_les_declencheurs_du_job_linux(workflow):
         assert "if" not in workflow["jobs"][job], f"{job} ne doit pas avoir de condition propre"
         assert "needs" not in workflow["jobs"][job], f"{job} ne dépend d'aucun autre job"
         assert "strategy" not in workflow["jobs"][job]
+    entree = declencheurs["workflow_dispatch"]["inputs"]["preuve_poste_docker"]
+    assert entree["type"] == "boolean" and entree["default"] is False
+    for job in INSTALLATIONS_DOCKER:
+        assert "needs" not in workflow["jobs"][job]
+        assert "strategy" not in workflow["jobs"][job]
 
 
-@pytest.mark.parametrize("job", sorted(INSTALLATIONS))
+@pytest.mark.parametrize("job", sorted(TOUS_LES_JOBS_INSTALLATION))
 def test_chaque_installation_a_un_plafond_de_duree_raisonnable(workflow, job):
     delai = workflow["jobs"][job]["timeout-minutes"]
 
     # assez pour construire le core, pas assez pour brûler des minutes
     assert isinstance(delai, int) and 30 <= delai <= 150
-    if job != "installation":
+    if job in INSTALLATIONS_DOCKER:
         assert delai >= workflow["jobs"]["installation"]["timeout-minutes"]  # ces systèmes construisent plus lentement
 
 
 def test_aucune_etape_ne_tolere_l_echec(workflow):
-    for job in INSTALLATIONS:
+    for job in TOUS_LES_JOBS_INSTALLATION:
         for etape in _etapes(workflow, job):
             nom = etape.get("name", etape.get("uses", "?"))
             assert "continue-on-error" not in etape, f"{job} / {nom}"
@@ -100,7 +114,7 @@ def test_chaque_etape_a_un_nom_ou_une_action_et_les_actions_sont_epinglees_par_e
                 assert epinglee, f"{job} : {etape['uses']} n'est pas épinglée"
 
 
-@pytest.mark.parametrize("job", ["installation-macos", "installation-windows"])
+@pytest.mark.parametrize("job", ["installation-macos-docker", "installation-windows-docker"])
 def test_le_service_est_requis_et_l_entree_sans_service_est_transmise(workflow, job):
     env = workflow["jobs"][job]["env"]
 
@@ -108,7 +122,7 @@ def test_le_service_est_requis_et_l_entree_sans_service_est_transmise(workflow, 
     assert env["OPSYS_SANS_SERVICE"] == "${{ inputs.sans_service || '0' }}"
 
 
-@pytest.mark.parametrize("job", ["installation", "installation-macos", "installation-windows"])
+@pytest.mark.parametrize("job", JOBS_E2E_REEL)
 def test_le_dossier_de_travail_est_pose_par_etape_car_le_contexte_runner_n_existe_pas_au_niveau_du_job(workflow, job):
     """GitHub refuse `${{ runner.temp }}` dans le `env` d'un job (actionlint l'a montré) : il vit dans les étapes."""
     assert "runner." not in str(workflow["jobs"][job].get("env", {}))
@@ -130,29 +144,32 @@ def test_l_entree_sans_service_du_job_linux_est_inchangee(workflow):
 
 
 def _etape_de_preuve(workflow, job: str) -> dict:
-    marque = "bout_en_bout.ps1" if job == "installation-windows" else "bout_en_bout.sh"
+    marque = "bout_en_bout.ps1" if job == "installation-windows-docker" else "bout_en_bout.sh"
     return next(e for e in _etapes(workflow, job) if marque in e.get("run", ""))
 
 
 def test_macos_joue_le_script_de_preuve_bash_du_depot(workflow):
-    etape = _etape_de_preuve(workflow, "installation-macos")
+    etape = _etape_de_preuve(workflow, "installation-macos-docker")
 
     assert etape["run"].strip() == "bash tests/installateur/bout_en_bout.sh"
     assert "shell" not in etape  # bash de macOS, comme le script l'annonce (bash 3.2 compris)
+    assert workflow["jobs"]["installation-macos-docker"]["runs-on"] == ["self-hosted", "macOS", "opsys-docker-linux"]
 
 
 def test_windows_joue_le_script_de_preuve_powershell_avec_pwsh_et_propage_le_code_de_sortie(workflow):
-    etape = _etape_de_preuve(workflow, "installation-windows")
+    etape = _etape_de_preuve(workflow, "installation-windows-docker")
 
     assert etape["shell"] == "pwsh"
     assert "& ./tests/installateur/bout_en_bout.ps1" in etape["run"]
     assert "exit $LASTEXITCODE" in etape["run"]
+    assert workflow["jobs"]["installation-windows-docker"]["runs-on"] == [
+        "self-hosted", "Windows", "opsys-docker-linux"]
 
 
 @pytest.mark.parametrize(("job", "commande"), [
     ("installation", "bash tests/installateur/diagnostic.sh"),
-    ("installation-macos", "bash tests/installateur/diagnostic.sh"),
-    ("installation-windows", "./tests/installateur/diagnostic.ps1"),
+    ("installation-macos-docker", "bash tests/installateur/diagnostic.sh"),
+    ("installation-windows-docker", "./tests/installateur/diagnostic.ps1"),
 ])
 def test_un_echec_est_suivi_d_un_diagnostic_qui_ne_montre_aucun_secret(workflow, job, commande):
     dernieres = _etapes(workflow, job)[-1]
@@ -180,25 +197,45 @@ def test_les_tests_python_du_job_linux_comprennent_les_nouveaux_fichiers(workflo
         assert (RACINE / "tests" / fichier).is_file()
 
 
-def test_macos_joue_d_abord_les_tests_des_scripts_contre_de_fausses_commandes_avant_de_construire_le_core(workflow):
+def test_macos_hosted_joue_les_fakes_sans_promettre_le_docker_linux_ni_le_vrai_core(workflow):
     noms = [e.get("name", "") for e in _etapes(workflow, "installation-macos")]
-    rapide = next(i for i, n in enumerate(noms) if "fausses commandes" in n)
-    vrai = next(i for i, n in enumerate(noms) if "vrai core" in n)
-
-    assert rapide < vrai
     corps = next(e["run"] for e in _etapes(workflow, "installation-macos") if "pytest" in e.get("run", ""))
     assert "tests/test_installateur_scripts.py" in corps
-    # ces essais imitent macOS sur Linux : ils ne servent pas sur un Mac
     assert "test_installateur_bout_en_bout" not in corps
+    assert not any("bout_en_bout.sh" in e.get("run", "") for e in _etapes(workflow, "installation-macos"))
+    assert not any("vrai core" in n.lower() for n in noms)
+    assert not any("Docker : CLI et daemon Linux" in n for n in noms)
 
 
-def test_windows_prepare_les_chemins_longs_avant_l_extraction_du_depot(workflow):
-    noms = [e.get("name", e.get("uses", "")) for e in _etapes(workflow, "installation-windows")]
+def test_windows_hosted_joue_les_fakes_sans_vrai_e2e(workflow):
+    corps = next(e["run"] for e in _etapes(workflow, "installation-windows") if "pytest" in e.get("run", ""))
+    assert "test_installateur_powershell_faux.py" in corps
+    assert "test_installateur_windows.py" in corps
+    assert "bout_en_bout.ps1" not in corps
+    assert not any("bout_en_bout.ps1" in e.get("run", "") for e in _etapes(workflow, "installation-windows"))
+    assert not any("Docker : CLI et daemon Linux" in e.get("name", "")
+                   for e in _etapes(workflow, "installation-windows"))
+@pytest.mark.parametrize("job", ["installation", *INSTALLATIONS_DOCKER])
+def test_le_prevol_docker_linux_precede_le_script_de_preuve(workflow, job):
+    etapes = _etapes(workflow, job)
+    prevol = next(i for i, e in enumerate(etapes) if "Docker : CLI et daemon Linux" in e.get("name", ""))
+    marque = "bout_en_bout.ps1" if job == "installation-windows-docker" else "bout_en_bout.sh"
+    preuve = next(i for i, e in enumerate(etapes) if marque in e.get("run", ""))
+    corps = etapes[prevol]["run"]
+    assert prevol < preuve
+    assert "docker --version" in corps
+    assert "docker info --format '{{.OSType}}'" in corps
+    assert "linux" in corps.lower()
+
+
+@pytest.mark.parametrize("job", ["installation-windows", "installation-windows-docker"])
+def test_windows_prepare_les_chemins_longs_avant_l_extraction_du_depot(workflow, job):
+    noms = [e.get("name", e.get("uses", "")) for e in _etapes(workflow, job)]
     longs = next(i for i, n in enumerate(noms) if "chemins longs" in n)
     extraction = next(i for i, n in enumerate(noms) if n.startswith("actions/checkout"))
 
     assert longs < extraction
-    assert "core.longpaths true" in _etapes(workflow, "installation-windows")[longs]["run"]
+    assert "core.longpaths true" in _etapes(workflow, job)[longs]["run"]
 
 
 def test_le_workflow_n_emploie_aucun_secret_du_depot():

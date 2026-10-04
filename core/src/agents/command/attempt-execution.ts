@@ -240,6 +240,7 @@ export function runAgentAttempt(params: {
   body: string;
   transcriptBody?: string;
   isFallbackRetry: boolean;
+  getAdmissionCandidateIndex?: () => number;
   preserveCliSessionBinding?: boolean;
   classifyResult?: (result: EmbeddedAgentRunResult) => ModelFallbackResultClassification;
   modelRoutingProvenance: ModelFallbackAttemptProvenance;
@@ -1057,6 +1058,7 @@ export function runAgentAttempt(params: {
     allowGatewaySubagentBinding: params.opts.allowGatewaySubagentBinding,
     allowTransientCooldownProbe: params.allowTransientCooldownProbe,
     modelRun: params.opts.modelRun,
+    getAdmissionCandidateIndex: params.getAdmissionCandidateIndex,
     promptMode: params.opts.promptMode,
     onAgentEvent: params.onAgentEvent,
     deferTerminalLifecycle: params.deferTerminalLifecycle,

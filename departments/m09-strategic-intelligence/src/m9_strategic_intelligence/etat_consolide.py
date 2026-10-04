@@ -38,14 +38,15 @@ def construire_etat_consolide(registre_snapshots):
         ):
             faits_par_module[module_source] = maillon
 
-        cle_groupe = (module_source, horodatage)
+        horodatage_utc = _analyser_horodatage(horodatage).astimezone(UTC).isoformat()
+        cle_groupe = (module_source, horodatage_utc)
         if cle_groupe not in maillons_par_source_et_horodatage:
             maillons_par_source_et_horodatage[cle_groupe] = []
         maillons_par_source_et_horodatage[cle_groupe].append(maillon)
 
     contradictions = []
 
-    for (module_source, horodatage), maillons_groupe in (
+    for (module_source, horodatage_utc), maillons_groupe in (
         maillons_par_source_et_horodatage.items()
     ):
         for position_a in range(len(maillons_groupe)):
@@ -65,7 +66,11 @@ def construire_etat_consolide(registre_snapshots):
                                 maillon_b["index"],
                             ),
                             "module_source": module_source,
-                            "horodatage": horodatage,
+                            # Provenance: conserver les représentations originales en plus
+                            # de l'instant canonique utilisé pour grouper les observations.
+                            "horodatage": maillon_a["horodatage"],
+                            "horodatage_utc": horodatage_utc,
+                            "horodatages_sources": sorted({maillon_a["horodatage"], maillon_b["horodatage"]}),
                         }
                     )
 

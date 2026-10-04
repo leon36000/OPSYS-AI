@@ -60,8 +60,8 @@ MUTATIONS = [
  ),
  (
      "typage STRICT -> isinstance (accepte True)", Q, TQ,
-     '    if type(seuils["resolution_minimale"]) is not int:',
-     '    if not isinstance(seuils["resolution_minimale"], int):',
+     '    if type(seuils["resolution_minimale"]) is not int or seuils["resolution_minimale"] <= 0:',
+     '    if not isinstance(seuils["resolution_minimale"], int) or seuils["resolution_minimale"] <= 0:',
  ),
  (
      "cles des seuils : egalite -> sous-ensemble", Q, TQ,
@@ -127,6 +127,7 @@ def executer_tests():
                 # dynamique PLAN T0.12) : l'inclure crée la même récursion mutuelle que
                 # test_gardes_des_outils.py ci-dessus.
                 f"--ignore={_ENV.dossier_tests / 'test_outils_de_preuve.py'}",
+                f"--ignore={_ENV.dossier_tests / 'test_campagne_m3_persistante.py'}",
                 "-p", "no:cacheprovider", "--color=no", f"--junitxml={rapport}",
             ],
             capture_output=True,

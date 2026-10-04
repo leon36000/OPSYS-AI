@@ -83,11 +83,11 @@ CONSTATS=()
 ETAPE_COURANTE="préparation"
 GROUPE_OUVERT=0
 
-# Les décisions que l'installateur n'invente pas : un palier de modèles, un service d'embeddings et une passerelle
-# de modèles. Aucun n'existe en CI : ce sont des adresses fermées, seul le démarrage est éprouvé.
+# Les décisions que l'installateur n'invente pas : un palier de modèles et un service d'embeddings.
+# Les fournisseurs de modèles restent natifs par défaut. La compatibilité LiteLLM se teste en fournissant
+# explicitement OPSYS_MODE_FOURNISSEUR=litellm et OPSYS_PASSERELLE_URL. Les adresses fermées de CI éprouvent le démarrage.
 export OPSYS_EMBEDDINGS_URL="http://127.0.0.1:9/v1"
 export OPSYS_EMBEDDINGS_MODELE="bge-m3"
-export OPSYS_PASSERELLE_URL="http://127.0.0.1:9/v1"
 export NO_PROXY="127.0.0.1,localhost"
 export no_proxy="127.0.0.1,localhost"
 

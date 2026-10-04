@@ -17,18 +17,22 @@ date ci-dessous sont repris tels quels de l'en-tête de chaque fichier.
 | [0009](ADR-0009-socle-metier.md) | Socle métier : une base par instance, événements, approbations N0–N5, rôles et audit | **Accepté** (ingénieur en chef) | 2026-09-28 | SQLite par défaut et PostgreSQL en option (SQLAlchemy 2 Core + Alembic) ; métier, outbox, approbations et audit dans une même transaction ; échelle d'autonomie unique N0–N5 (correspondances T, F, M7) ; rôles P8 et signature par personne. |
 | [0010](ADR-0010-memoire.md) | Mémoire : deux magasins, M10 gouverne, la « RAM » est le moteur de contexte | **Accepté** (ingénieur en chef) | 2026-09-28 | Couche A = mémoire native des agents ; Couche B = mémoire d'entreprise dans la base de l'instance (SQLite + FTS5 + sqlite-vec, PostgreSQL en option) ; M10 = gouvernance (statuts, confidentialité, ordre de vérité) ; RAM = moteur de contexte natif (4 paquets sous budget) ; PREFLIGHT/POSTFLIGHT sur les hooks du core ; embeddings locaux partagés ; cloisonnement entre agents. |
 | [0011](ADR-0011-canaux-reception-envoi.md) | Canaux : réception sans modèle et envoi réel au client après approbation N4 | **Proposé** (décision du propriétaire, GATE NATHAN) | 2026-09-29 | Réception : le core appelle lui-même `m1_recevoir_message_canal` avant le tour, sous la file durable du canal (le crochet `message_received`, « fire and forget », est écarté) ; le modèle lit, il ne recopie plus. Envoi : le moteur tient le registre des envois (proposer en N2, envoyer en N4), le core exécute le texte exact, au plus une fois ; une issue inconnue va à « À voir », jamais rejouée ; STOP ne se lève jamais. Aucun appel du moteur vers le core, aucun secret de plus. Tranches T2.1-c1 à c9. |
+| [0012](ADR-0012-reutilisation-profondeur-productivite.md) | Réutilisation prioritaire, profondeur et contrôles proportionnés | **Accepté sur directive explicite du propriétaire** | 2026-09-30 | Recherche GitHub/GitLab avant réécriture ; fork actuel maintenu, Hermes source d'ingrédients ; M10 métier et développement séparés ; agents configurables ; fin des votes/revues extérieures obligatoires, validation technique proportionnée et frontières humaines métier conservées. |
 
 ## Ce qui fait autorité aujourd'hui
 
-**La [définition produit](../produit/DEFINITION-PRODUIT.md) fixe le QUOI ; [ADR-0008](ADR-0008-fork-openclaw-opsys-core.md)
-fixe le core et l'architecture.** ADR-0008 remplace ADR-0007 en entier et le point 1 d'ADR-0006 ;
-le reste d'ADR-0006 (départements, règle d'or, politiques, économie de tokens, méthode allégée) reste
-en vigueur tant qu'il ne contredit ni la définition ni ADR-0008. Les ADR 0001 à 0005 restent dans ce dossier **à titre
-historique** (traçabilité de comment on en est arrivé là — voir aussi
-[`docs/history/README.md`](../history/README.md), qui documente ce que la restructuration v2 a retiré
-du dépôt et pourquoi) ; ils ne gouvernent plus l'exécution courante. En cas de désaccord apparent entre
-un ADR historique et ADR-0006/0007, **le plus récent des deux (0007) prévaut** sur ce qu'il remplace
-explicitement, et ADR-0006 prévaut sur tout le reste qu'il remplace.
+Les [directives actuelles de Nathan](../produit/DIRECTIVES-NATHAN.md) priment pour les exigences.
+La [définition](../produit/DEFINITION-PRODUIT.md) et le [périmètre](../produit/PERIMETRE-MODULES.md)
+fixent le QUOI. ADR-0008 fixe le fork et l'architecture, 0009 le socle, 0010 la mémoire ;
+**ADR-0012** complète ces décisions et remplace explicitement l'exclusion du développement de M10
+et les validations de développement par modèles. Il ne modifie pas les autorisations financières.
+ADR-0011 conserve son statut proposé ; sa présence et les patches associés ne valent pas approbation
+production de canaux externes. L'état réel se juge sur code et preuves du commit, pas sur un ADR.
+
+ADR-0008 remplace ADR-0007 en entier et le point 1 d'ADR-0006. Le reste d'ADR-0006 vaut dans la
+mesure où il ne contredit pas les décisions plus récentes. Les ADR 0001–0007 restent historiques,
+avec les [documents de retrait](../history/README.md) pour la traçabilité. Le choix de licence
+commerciale du produit demeure ouvert ; qualifier les briques ne le tranche pas.
 
 Deux nuances de statut à connaître en lisant les fichiers eux-mêmes :
 - ADR-0001, 0002 et 0003 se déclarent chacun *« Accepted (immuable — changer = nouvel ADR qui

@@ -22,9 +22,7 @@ par l'appelant. Sans seuil transmis, rien n'est comparé et l'entrée est
 rejetée — aucune valeur par défaut n'est inventée.
 """
 
-from . import qualite_photos
-from . import verdicts
-from . import contrats
+from . import contrats, qualite_photos, verdicts
 
 # Jeu FERMÉ des quatre niveaux de confiance, déclaré dans l'ordre STRICT de
 # la hiérarchie ratifiée : la première règle satisfaite gagne. L'échappatoire

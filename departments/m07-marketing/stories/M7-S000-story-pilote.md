@@ -1,5 +1,8 @@
 # M7-S000 — Story pilote (MODE OMBRE)
 
+> Story historique. Les chemins et règles ci-dessous décrivent le pilote ; le périmètre courant
+> est [M7 complet](../../../docs/produit/PERIMETRE-MODULES.md), sous ADR-0012.
+
 But: prouver le pipeline A->G de bout en bout, pas le produit. <= 1 h humain-equivalent (D-044).
 
 ## Portee
@@ -14,4 +17,6 @@ But: prouver le pipeline A->G de bout en bout, pas le produit. <= 1 h humain-equ
 4. MODE OMBRE: aucun effet de bord externe
 
 ## Interdits rappeles
-Stubs, TODO en diff, assert True, DONE partiel. Sortie finale: PREUVE: ou BLOCKED:.
+Pas de comportement factice présenté comme livré, ni de statut complet sans preuve. Les travaux
+incomplets sont suivis dans le plan ; le compte rendu indique commandes, résultats et limites,
+sans format obligatoire PREUVE/BLOCKED.

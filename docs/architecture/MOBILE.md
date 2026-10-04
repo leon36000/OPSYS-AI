@@ -431,7 +431,8 @@ compte pas :
 
 Épinglé par `core/src/gateway/opsys-mobile-trust.test.ts` : la trame `connect` de l'app est valide avec cet
 identifiant, et `isNativeAppUiClient` le refuse. Si quelqu'un l'ajoute à la classe, ce test échoue et
-demande une décision. Cette décision est à confirmer par la revue externe (code d'admission critique).
+demande une décision d'admission documentée, fondée sur le modèle de menace et les tests du
+transport. ADR-0012 supprime l'attente obligatoire d'un autre modèle ou fournisseur.
 
 ## File sortante (`src/outbox/`, R12 §4)
 

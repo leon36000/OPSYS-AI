@@ -39,6 +39,7 @@ Put under `plugins.entries.voice-call.config`:
   fromNumber: "+15550001234",
   toNumber: "+15550005678",
   sessionScope: "per-phone", // or "per-call" | "main"
+  missedCallIngress: false, // opt in only with an admitted OPSYS profile
 
   twilio: {
     accountSid: "ACxxxxxxxx",
@@ -97,6 +98,7 @@ Put under `plugins.entries.voice-call.config`:
 
 Notes:
 
+- `missedCallIngress` defaults to `false`. When enabled, only verified inbound `no-answer` and `busy` events with a persisted call record are imported through the host-bound `opsys_runtime_<profileId>` route. The service requires a valid admitted profile and fails closed if the host capability is unavailable.
 - Twilio/Telnyx/Plivo require a **publicly reachable** webhook URL.
 - `tailscale.port` defaults to `443` and owns the external HTTPS port for both legacy `tailscale.mode` and unified Tailscale tunnel providers. Funnel supports `443`, `8443`, or `10000`; Serve accepts any valid TCP port.
 - Twilio defaults to US1. For a non-US Region, set `twilio.region` to `ie1` or `au1` and use credentials created in that Region; see [Twilio's regional REST API guide](https://www.twilio.com/docs/global-infrastructure/using-the-twilio-rest-api-in-a-non-us-region).
@@ -164,3 +166,43 @@ Actions:
 - Outbound conversation calls suppress barge-in only while the initial greeting is actively speaking, then re-enable normal interruption.
 - Twilio stream disconnect auto-end uses a short grace window so quick reconnects do not end the call.
 - Realtime provider selection is generic. Configure `streaming.provider` / `realtime.provider` and put provider-owned options under `providers.<id>`.
+
+## OPSYS missed-call host contract (V1)
+
+`HostMissedCallImportInputV1`, `HostMissedCallImportResultV1`, and
+`HostMissedCallImporterV1` are exported as types by the existing
+`openclaw/plugin-sdk/core` and `openclaw/plugin-sdk/plugin-entry` subpaths.
+The service descriptor opts in with `hostMissedCallIngress: { version: 1, agentId }`.
+The optional context field preserves source compatibility for other services; when
+ingress is enabled, this plugin requires a host capability for the effective agent
+and refuses startup if that capability is absent or targets a different agent.
+
+The host grants this fixed operation only to the bundled `voice-call` plugin's
+`voicecall` service. A workspace plugin does not obtain it by copying the descriptor.
+It is a private OPSYS operation, absent from agent tool catalogues, and cannot
+select an arbitrary profile, MCP server, or tool. The admitted profile, revision,
+service lease, and committed configuration scope are checked before and after
+awaited work. Stop or reload aborts pending imports immediately, before asynchronous
+service cleanup finishes; retained capability copies are also revoked.
+
+Production ingress requires a verified Twilio, Telnyx, or Plivo webhook. Keep
+`skipSignatureVerification` false; the mock provider is rejected for public ingress
+because its verifier is not an authentication boundary. The constructed provider
+must match the configured provider. The host validates a known inbound call that
+was never answered and ended with `no-answer` or `busy`, then uses the verified
+event key and stored start time. This Core verification is the trust boundary:
+the private Python port does not independently authenticate carrier webhooks.
+
+Only `{ ok, source, call_id, status }` is accepted as the backend acknowledgement.
+It must arrive before manager processing and the provider HTTP acknowledgement.
+Failure releases the existing webhook replay reservation for redelivery; the
+backend's durable idempotence prevents a second human follow-up. This is not a
+claim of exactly-once delivery across processes. No LLM or outgoing communication
+is needed by this import operation.
+
+A plugin configuration reload recreates its descriptor. A service-only reload
+that changes the effective default agent can retain an old descriptor: startup
+fails closed on the target mismatch, and the Gateway's existing recovery restart
+re-registers the plugin. This recovery path still needs integration qualification.
+Tests may mock the private MCP transport or provider verifier; those tests do not
+qualify a carrier signature, a real phone call, or a production deployment.

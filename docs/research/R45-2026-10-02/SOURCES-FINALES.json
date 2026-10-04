@@ -1,0 +1,16 @@
+{
+  "captures": {
+    "deploy/install.sh": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/sources-gel-r3/deploy/install.sh",
+    "deploy/readiness.py": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/sources-gel-r3/deploy/readiness.py",
+    "docs/ops/INSTALLATION-VPS.md": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/sources-gel-r3/docs/ops/INSTALLATION-VPS.md",
+    "tests/test_deploy_install_readiness.py": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R45-installation-lecture-seule/sources-gel-r3/tests/test_deploy_install_readiness.py"
+  },
+  "controle_courant": "quatre sources R45 seulement ; aucune clôture globale actuelle1124 ni qualification runtime/VPS.",
+  "inventaire_entrees_sha256": "c7ca83f367f5990dd920caa174d1770ff1c326725c161066e1d1f1c4b7ff43b5",
+  "sources_qualifiees": {
+    "deploy/install.sh": "bcf912b5d9b9c4f9cb072d28751ac0ca5eaa2ba671eb5b60edd7368a819b5b27",
+    "deploy/readiness.py": "0128b11a9a0ca5b78cc448562afdcae62776e2b7c0a1b46d0df4a87e08123a77",
+    "docs/ops/INSTALLATION-VPS.md": "8916c03fb7d40f5d53eb2ac1d5d39312ee7f1beef8165a760ceff53b8561399f",
+    "tests/test_deploy_install_readiness.py": "cefb8764020a7a365b33533f82c42c8fad94d77f9c72ab9eac6051df33903d34"
+  }
+}

@@ -1,4 +1,5 @@
 import { gatewayCredentialScope } from "@openclaw/gateway-client/browser";
+import type { AssistantAvatarModelId } from "../../../../src/shared/assistant-avatar-model-catalog.js";
 import type { GatewayBrowserClient } from "../../api/gateway.ts";
 import type {
   AgentsFilesGetResult,
@@ -218,6 +219,7 @@ type AgentIdentityUpdate = {
   name?: string;
   emoji?: string;
   avatar?: string;
+  avatarModelId?: AssistantAvatarModelId | null;
 };
 
 /** Persist identity fields through the gateway; the handler also rewrites the
@@ -231,6 +233,7 @@ export async function updateAgentIdentity(
     ...(update.name ? { name: update.name } : {}),
     ...(update.emoji ? { emoji: update.emoji } : {}),
     ...(update.avatar ? { avatar: update.avatar } : {}),
+    ...(update.avatarModelId !== undefined ? { avatarModelId: update.avatarModelId } : {}),
   });
 }
 

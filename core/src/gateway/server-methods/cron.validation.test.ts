@@ -3,9 +3,9 @@
 
 import { performance } from "node:perf_hooks";
 import { expectDefined } from "@openclaw/normalization-core";
-import { createRequireRecord } from "openclaw/plugin-sdk/test-fixtures";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createDeferred } from "../../../test/helpers/promise.js";
+import { createRequireRecord } from "../../../test/helpers/record.js";
 import { createOperationalRunInstanceRef } from "../../agents/admitted-run-context.js";
 import {
   bindCronManagementGrant,
@@ -21,6 +21,7 @@ import {
 } from "../../commands/doctor/cron/legacy-repair.js";
 import type { SessionCreatedActor } from "../../config/sessions/session-entry-provenance.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
+import { resolveCronJobConfigRevision } from "../../cron/config-revision.js";
 import { CronService } from "../../cron/service.js";
 import { createCronStoreHarness, createNoopLogger } from "../../cron/service.test-harness.js";
 import { loadCronStore, saveCronStore } from "../../cron/store.js";
@@ -45,6 +46,10 @@ import {
   revokeCronCreatorAuthorityRunScope,
 } from "../cron-creator-authority-grant.js";
 import type { CronCreatorAuthorityGrant } from "../cron-creator-authority-grant.types.js";
+import {
+  captureGatewayDeviceRevocation,
+  readGatewayDeviceRevocationGuard,
+} from "../device-revocation.js";
 import { getGatewayProcessInstanceId } from "../process-instance.js";
 import * as cronCallerScope from "./cron-caller-scope.js";
 import { createCronTestContext, createCronJob } from "./cron.validation.test-support.js";
@@ -789,6 +794,255 @@ describe("cron method validation", () => {
     expect(respond).toHaveBeenCalledWith(true, { ok: true, removed: true }, undefined);
   });
 
+  describe("cron.remove config revision", () => {
+    it.each(["id", "jobId"])("accepts a matching revision with %s", async (selector) => {
+      const job = createCronJob();
+      const context = createCronContext(job);
+      const revision = resolveCronJobConfigRevision(job);
+
+      const { respond } = await invokeCron(
+        "cron.remove",
+        { [selector]: job.id, expectedConfigRevision: revision },
+        { context },
+      );
+
+      expect(context.cron.getJob).toHaveBeenCalledExactlyOnceWith(job.id);
+      expect(context.cron.remove).toHaveBeenCalledWith(job.id, {
+        commitGuard: expect.any(Function),
+      });
+      expect(respond).toHaveBeenCalledWith(true, { ok: true, removed: true }, undefined);
+    });
+
+    it("does not treat scheduler state or update timestamps as a changed definition", async () => {
+      const job = createCronJob();
+      const context = createCronContext(job);
+      context.cron.getJob.mockReturnValue({
+        ...job,
+        updatedAtMs: 1000,
+        state: { lastRunAtMs: 999 },
+      });
+
+      const { respond } = await invokeCron(
+        "cron.remove",
+        { id: job.id, expectedConfigRevision: resolveCronJobConfigRevision(job) },
+        { context },
+      );
+
+      expect(respond).toHaveBeenCalledWith(true, { ok: true, removed: true }, undefined);
+    });
+
+    it("rejects a changed definition at commit without reporting a removal", async () => {
+      const job = createCronJob();
+      const replacement = createCronJob({ name: "changed after precheck" });
+      const context = createCronContext(job);
+      context.cron.remove.mockImplementationOnce(async (_id, options) => {
+        context.cron.getJob.mockReturnValue(replacement);
+        options?.commitGuard?.();
+        return { ok: true, removed: true };
+      });
+
+      const { respond } = await invokeCron(
+        "cron.remove",
+        { id: job.id, expectedConfigRevision: resolveCronJobConfigRevision(job) },
+        { context },
+      );
+
+      expectResponseError(respond, {
+        code: "INVALID_REQUEST",
+        messageIncludes: "cron job definition no longer matches the loaded version",
+        details: {
+          code: "CRON_JOB_CHANGED",
+          expectedConfigRevision: resolveCronJobConfigRevision(job),
+          actualConfigRevision: resolveCronJobConfigRevision(replacement),
+        },
+      });
+      expect(context.logGateway.info).not.toHaveBeenCalled();
+    });
+
+    it("rejects a target absent at the commit guard", async () => {
+      const job = createCronJob();
+      const context = createCronContext(job);
+      context.cron.remove.mockImplementationOnce(async (_id, options) => {
+        context.cron.getJob.mockReturnValue(undefined);
+        options?.commitGuard?.();
+        return { ok: true, removed: true };
+      });
+
+      const { respond } = await invokeCron(
+        "cron.remove",
+        { id: job.id, expectedConfigRevision: resolveCronJobConfigRevision(job) },
+        { context },
+      );
+
+      expectResponseError(respond, {
+        code: "INVALID_REQUEST",
+        messageIncludes: "unknown cron job id",
+      });
+      expect(context.logGateway.info).not.toHaveBeenCalled();
+    });
+
+    it("revalidates current operator authority before comparing the revision", async () => {
+      const job = createCronJob();
+      const context = createCronContext(job);
+      let currentAuthority = true;
+      context.cron.remove.mockImplementationOnce(async (_id, options) => {
+        currentAuthority = false;
+        options?.commitGuard?.();
+        return { ok: true, removed: true };
+      });
+
+      const { respond } = await invokeCron(
+        "cron.remove",
+        { id: job.id, expectedConfigRevision: resolveCronJobConfigRevision(job) },
+        { context, hasCurrentClientAuthority: () => currentAuthority },
+      );
+
+      expectResponseError(respond, {
+        code: "INVALID_REQUEST",
+        messageIncludes: "Gateway caller authority is no longer active",
+      });
+      expect(context.cron.getJob).not.toHaveBeenCalled();
+      expect(context.logGateway.info).not.toHaveBeenCalled();
+    });
+
+    it("preserves owner-held device revocation facts on the composed revision guard", async () => {
+      const job = createCronJob();
+      const context = createCronContext(job);
+      const capture = captureGatewayDeviceRevocation(
+        context,
+        { deviceId: "fictif-cas-device", role: "operator" },
+        () => true,
+      );
+      try {
+        context.cron.remove.mockImplementationOnce(async (_id, options) => {
+          const revocationCurrent = readGatewayDeviceRevocationGuard(options?.commitGuard);
+          expect(revocationCurrent).toBeTypeOf("function");
+          expect(revocationCurrent?.()).toBe(true);
+          options?.commitGuard?.();
+          return { ok: true, removed: true };
+        });
+
+        const { respond } = await invokeCron(
+          "cron.remove",
+          { id: job.id, expectedConfigRevision: resolveCronJobConfigRevision(job) },
+          { context, hasCurrentClientAuthority: capture.isCurrent },
+        );
+
+        expect(respond).toHaveBeenCalledWith(true, { ok: true, removed: true }, undefined);
+      } finally {
+        capture.release();
+      }
+    });
+
+    it("keeps a foreign job hidden even when its revision is supplied", async () => {
+      const job = createCronJob({ agentId: "worker" });
+      const context = createCronContext(job);
+
+      const { respond } = await invokeCron(
+        "cron.remove",
+        { id: job.id, expectedConfigRevision: resolveCronJobConfigRevision(job) },
+        { context, client: callerClient("ops") },
+      );
+
+      expectResponseError(respond, {
+        code: "INVALID_REQUEST",
+        details: { code: "CRON_JOB_NOT_FOUND", jobId: job.id },
+      });
+      expect(context.cron.remove).not.toHaveBeenCalled();
+      expect(context.cron.getJob).not.toHaveBeenCalled();
+    });
+
+    it("keeps a legacy operator removal free of a new revision guard", async () => {
+      const job = createCronJob();
+      const context = createCronContext(job);
+
+      const { respond } = await invokeCron("cron.remove", { id: job.id }, { context });
+
+      expect(context.cron.remove).toHaveBeenCalledExactlyOnceWith(job.id);
+      expect(context.cron.getJob).not.toHaveBeenCalled();
+      expect(respond).toHaveBeenCalledWith(true, { ok: true, removed: true }, undefined);
+    });
+
+    it("preserves a real concurrent update while removal waits for the owner lock", async () => {
+      const { storePath } = await makeStorePath();
+      const runIsolatedAgentJob = vi.fn(async () => ({ status: "ok" as const }));
+      const cron = new CronService({
+        storePath,
+        cronEnabled: false,
+        defaultAgentId: "main",
+        log: cronLogger,
+        enqueueSystemEvent: vi.fn(),
+        requestHeartbeat: vi.fn(),
+        runIsolatedAgentJob,
+      });
+      const releaseUpdate = createDeferred();
+      let update: Promise<CronJob> | undefined;
+      let invocation: ReturnType<typeof invokeCron> | undefined;
+      try {
+        await cron.start();
+        const initial = await cron.add({
+          id: "cron-cas-fictif",
+          name: "fictif initial",
+          enabled: false,
+          schedule: { kind: "every", everyMs: 60_000 },
+          sessionTarget: "main",
+          wakeMode: "next-heartbeat",
+          payload: { kind: "systemEvent", text: "fictif" },
+          delivery: { mode: "none" },
+        });
+        const expectedConfigRevision = resolveCronJobConfigRevision(initial);
+        const updateEntered = createDeferred();
+        update = cron.updateWithPrecondition(
+          initial.id,
+          { name: "fictif replacement" },
+          async () => {
+            updateEntered.resolve();
+            await releaseUpdate.promise;
+          },
+        );
+        await updateEntered.promise;
+        const removalQueued = createDeferred();
+        const context = createCronContext(initial);
+        context.cron.getJob.mockImplementation((id) => cron.getJob(id));
+        context.cron.remove.mockImplementationOnce(async (id, options) => {
+          removalQueued.resolve();
+          return await cron.remove(id, options);
+        });
+        invocation = invokeCron(
+          "cron.remove",
+          { id: initial.id, expectedConfigRevision },
+          { context },
+        );
+        await removalQueued.promise;
+        expect(context.cron.getJob).not.toHaveBeenCalled();
+        releaseUpdate.resolve();
+        const replacement = await update;
+        const { respond } = await invocation;
+
+        expectResponseError(respond, {
+          code: "INVALID_REQUEST",
+          details: {
+            code: "CRON_JOB_CHANGED",
+            expectedConfigRevision,
+            actualConfigRevision: resolveCronJobConfigRevision(replacement),
+          },
+        });
+        expect(await cron.readJob(initial.id)).toMatchObject({ name: "fictif replacement" });
+        expect((await loadCronStore(storePath)).jobs).toHaveLength(1);
+        expect((await loadCronStore(storePath)).jobs[0]).toMatchObject({
+          id: initial.id,
+          name: "fictif replacement",
+        });
+        expect(runIsolatedAgentJob).not.toHaveBeenCalled();
+        expect(context.logGateway.info).not.toHaveBeenCalled();
+      } finally {
+        releaseUpdate.resolve();
+        await Promise.allSettled([update, invocation]);
+        cron.stop();
+      }
+    });
+  });
+
   it("trims whitespace around cron.get job ids before lookup", async () => {
     const job = createCronJob({ id: "cron-42" });
     const { context, respond } = await invokeCronGet({ jobId: " cron-42 " }, job);
@@ -1293,7 +1547,7 @@ describe("cron method validation", () => {
   });
 
   it.each([{}, { agentId: undefined }, { agentId: null }])(
-    "defaults scoped cron.add ownership to the trusted caller for %j",
+    "defaults scoped cron.add ownership to the trusted caller case %# for %j",
     async (fields) => {
       const { context, respond } = await invokeCronAdd(agentTurnCronParams(fields), {
         client: callerClient("ops"),

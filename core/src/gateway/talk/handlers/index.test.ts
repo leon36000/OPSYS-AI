@@ -103,6 +103,7 @@ const mocks = vi.hoisted(() => ({
   createTalkTranscriptionRelaySession: vi.fn(),
   sendTalkTranscriptionRelayAudio: vi.fn(),
   stopTalkTranscriptionRelaySession: vi.fn(),
+  cancelTalkTranscriptionRelaySession: vi.fn(),
   chatSend: vi.fn(),
   controlRealtimeVoiceAgentRun: vi.fn(),
   steerTalkRealtimeRelayAgentRun: vi.fn(),
@@ -275,6 +276,7 @@ vi.mock("../transcription-relay.js", async (importOriginal) => {
     createTalkTranscriptionRelaySession: mocks.createTalkTranscriptionRelaySession,
     sendTalkTranscriptionRelayAudio: mocks.sendTalkTranscriptionRelayAudio,
     stopTalkTranscriptionRelaySession: mocks.stopTalkTranscriptionRelaySession,
+    cancelTalkTranscriptionRelaySession: mocks.cancelTalkTranscriptionRelaySession,
   };
 });
 
@@ -2283,6 +2285,20 @@ describe("talk.session unified handlers", () => {
       sessionKey: "agent:main:main",
     });
 
+    const discardRealtimeRespond = vi.fn();
+    await callTalkHandler("talk.session.close", {
+      params: { sessionId: "relay-unified-1", discardAudio: true },
+      id: "5",
+      respond: discardRealtimeRespond,
+      context: {},
+    });
+    expect(discardRealtimeRespond).toHaveBeenCalledWith(
+      false,
+      undefined,
+      expect.objectContaining({ code: ErrorCodes.INVALID_REQUEST }),
+    );
+    expect(mocks.stopTalkRealtimeRelaySession).not.toHaveBeenCalled();
+
     const closeRespond = vi.fn();
     await callTalkHandler("talk.session.close", {
       params: { sessionId: "relay-unified-1" },
@@ -2691,6 +2707,28 @@ describe("talk.session unified handlers", () => {
         context: {},
       });
       expect(mocks.stopTalkTranscriptionRelaySession).toHaveBeenCalledWith({
+        transcriptionSessionId: "stt-unified-1",
+        connId: "conn-1",
+      });
+
+      const foreignCancelRespond = vi.fn();
+      await callTalkHandler("talk.session.close", {
+        params: { sessionId: "stt-unified-1", discardAudio: true },
+        client: { connId: "conn-other" },
+        respond: foreignCancelRespond,
+        context: {},
+      });
+      expect(mocks.cancelTalkTranscriptionRelaySession).not.toHaveBeenCalled();
+      expect(foreignCancelRespond).toHaveBeenCalledWith(false, undefined, expect.anything());
+
+      const cancelRespond = vi.fn();
+      await callTalkHandler("talk.session.close", {
+        params: { sessionId: "stt-unified-1", discardAudio: true },
+        id: "4",
+        respond: cancelRespond,
+        context: {},
+      });
+      expect(mocks.cancelTalkTranscriptionRelaySession).toHaveBeenCalledWith({
         transcriptionSessionId: "stt-unified-1",
         connId: "conn-1",
       });

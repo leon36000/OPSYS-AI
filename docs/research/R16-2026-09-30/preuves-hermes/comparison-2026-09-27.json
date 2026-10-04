@@ -1,0 +1,22 @@
+{
+  "agent/memory_provider.py": {
+    "identical": true,
+    "sha256_old": "a4e44a293013fff831ac136ab77c556541cd18817f53bd662e97090cd80bd5a6",
+    "sha256_recent": "a4e44a293013fff831ac136ab77c556541cd18817f53bd662e97090cd80bd5a6"
+  },
+  "agent/memory_manager.py": {
+    "identical": false,
+    "sha256_old": "8066aca920851ef6b16c013e9905821d2db937168520b2c778c661563249c48d",
+    "sha256_recent": "048842c1c3725e6fe6aef8f2b7fe3ea06baec02cebdea1e9ab0e9da06473930d"
+  },
+  "agent/subagent_lifecycle.py": {
+    "identical": true,
+    "sha256_old": "1c3dc15ad5bb91a79cba040ca7bf504e44f8fbf45db1911ed30821ce1730b51c",
+    "sha256_recent": "1c3dc15ad5bb91a79cba040ca7bf504e44f8fbf45db1911ed30821ce1730b51c"
+  },
+  "agent/prompt_caching.py": {
+    "identical": true,
+    "sha256_old": "e9b3a817cf2e65b9525c27cc59bd573dfd567e94b9b8668862c99dd1e87b3aea",
+    "sha256_recent": "e9b3a817cf2e65b9525c27cc59bd573dfd567e94b9b8668862c99dd1e87b3aea"
+  }
+}

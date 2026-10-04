@@ -98,13 +98,17 @@ export function decisionCaches(marqueur: ProprietaireDesCaches | null, etat: Eta
  * Applique la décision. Lève si le dépôt lève : l'appelant décide (`synchroniserCachesSansEchouer`). L'ordre compte : le
  * marqueur n'est écrit qu'APRÈS la purge, donc une purge interrompue est retentée à la confirmation suivante.
  */
-export async function synchroniserCaches(depot: DepotCleValeur, etat: EtatIdentite): Promise<DecisionCaches> {
+export async function synchroniserCaches(depot: DepotCleValeur, etat: EtatIdentite, sessionToujoursCourante: () => boolean = () => true): Promise<DecisionCaches> {
+  if (!sessionToujoursCourante()) return { genre: "conserver" };
   const decision = decisionCaches(await lireProprietaireDesCaches(depot), etat);
+  if (!sessionToujoursCourante()) return { genre: "conserver" };
   if (decision.genre === "purger_puis_marquer") {
     await purgerCachesDeLaPersonne(depot);
+    if (!sessionToujoursCourante()) return { genre: "conserver" };
     await ecrireProprietaireDesCaches(depot, decision.proprietaire);
   } else if (decision.genre === "purger_puis_oublier") {
     await purgerCachesDeLaPersonne(depot);
+    if (!sessionToujoursCourante()) return { genre: "conserver" };
     await depot.supprimer(CLE_PROPRIETAIRE_DES_CACHES);
   }
   return decision;
@@ -117,9 +121,10 @@ export async function synchroniserCaches(depot: DepotCleValeur, etat: EtatIdenti
 export async function synchroniserCachesSansEchouer(
   obtenirDepot: () => Promise<DepotCleValeur>,
   etat: EtatIdentite,
+  sessionToujoursCourante: () => boolean = () => true,
 ): Promise<DecisionCaches | null> {
   try {
-    return await synchroniserCaches(await obtenirDepot(), etat);
+    return await synchroniserCaches(await obtenirDepot(), etat, sessionToujoursCourante);
   } catch (erreur) {
     // eslint-disable-next-line no-console
     console.error("opsys: caches de l'identité précédente non effacés (retenté à la prochaine confirmation)", erreur);

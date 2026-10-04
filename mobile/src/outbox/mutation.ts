@@ -96,9 +96,9 @@ export function marquerEnvoi(mutation: MutationOutbox): MutationOutbox {
 }
 
 /** `envoi` -> `envoyee` : accusé de réception du serveur (statut terminal). */
-export function marquerEnvoyee(mutation: MutationOutbox): MutationOutbox {
+export function marquerEnvoyee(mutation: MutationOutbox, resumeAccepte: unknown = null): MutationOutbox {
   transitionnerOuLever(mutation, "envoyee");
-  return { ...mutation, statut: "envoyee" };
+  return { ...mutation, statut: "envoyee", resumeAccepte };
 }
 
 /**

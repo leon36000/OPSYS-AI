@@ -126,7 +126,7 @@ function submissionInput(
     prompt: "Use the findings to finish the answer.",
   });
   return {
-    attempt: { sessionId, sessionKey: requesterSessionKey },
+    attempt: { runId: "steering-requester-run", sessionId, sessionKey: requesterSessionKey },
     contextTokenBudget: 32_000,
     images: [],
     leasedSteering,

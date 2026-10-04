@@ -19,6 +19,7 @@ from sqlalchemy import func, select
 from opsys import approbations, evenements, identite, stockage, taxonomie
 from opsys.capacites import Capacites, outils_executables
 from opsys.departements import lire_manifeste
+from opsys.openclaw import roles_outils
 from opsys.stockage.schema import EVENEMENTS_SORTANTS
 
 M1 = Path(__file__).resolve().parents[1]
@@ -198,8 +199,15 @@ def test_seuls_l_accueil_et_les_deux_outils_de_transfert_sont_n2_et_rien_n_est_t
     garde du core refuserait un N3. Tout ce qui sort vers le client (N4) ou décide (clôture, N3) est ailleurs."""
     par_nom = {o.nom: o for o in dep.charger_outils()}
     n2 = sorted(nom for nom, o in par_nom.items() if o.niveau_effectif.value == "N2")
-    assert n2 == ["m1_escalader_plainte", "m1_recevoir_message_canal", "m1_transferer"]
+    assert n2 == ["m1_escalader_plainte", "m1_importer_appel_manuellement", "m1_recevoir_message_canal",
+                  "m1_transferer"]
     assert not any(o.frontiere_humaine for o in par_nom.values())
     assert par_nom["m1_emettre_notification"].niveau_effectif.value == "N4"
     assert par_nom["m1_clore_transfert"].niveau_effectif.value == "N3"
     assert par_nom["m1_lire_transfert"].niveau_effectif.value == "N0"
+
+
+def test_import_manuel_appel_est_expose_aux_appareils_admin_seulement(dep):
+    portees = roles_outils({dep.id: dep})
+    assert "m1_importer_appel_manuellement" in portees["admin"]
+    assert "m1_importer_appel_manuellement" not in portees["employee"]

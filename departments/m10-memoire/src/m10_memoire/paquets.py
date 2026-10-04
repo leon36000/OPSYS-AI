@@ -120,7 +120,8 @@ def _tronquer_couche(nom: str, faits: list[dict], budget_caracteres: int, n_max:
     retenus: list[dict] = []
     caracteres = 0
     for fait in faits[:n_max]:
-        taille = len(json.dumps(fait, ensure_ascii=False, sort_keys=True))
+        taille = len(json.dumps({k: v for k, v in fait.items() if not k.startswith("_")},
+                                ensure_ascii=False, sort_keys=True))
         if retenus and caracteres + taille > budget_caracteres:
             break
         retenus.append(fait)
@@ -134,7 +135,7 @@ def _tronquer_couche(nom: str, faits: list[dict], budget_caracteres: int, n_max:
         "nb_inclus": len(retenus),
         "nb_omis": nb_omis,
         "caracteres": caracteres,
-        "faits": retenus,
+        "faits": [{k: v for k, v in fait.items() if not k.startswith("_")} for fait in retenus],
     }
 
 
@@ -147,11 +148,13 @@ def _candidats_regles_entreprise(registre_affaires: Any) -> list[dict]:
 
 
 def _candidats_faits_affaire(affaire_id: str, maillons_affaires: list[dict]) -> list[dict]:
-    bruts = [
-        m
-        for m in maillons_affaires
-        if m.get("type_entree") == consolidation.TYPE_ENTREE_FAIT and m.get("affaire_id") == affaire_id
-    ]
+    # Les consolidations de source-set croissant sont des versions append-only. En contexte, une
+    # seule version courante par jour évite de répéter le résumé antérieur et son résumé mis à jour.
+    derniers: dict[str, dict] = {}
+    for maillon in maillons_affaires:
+        if maillon.get("type_entree") == consolidation.TYPE_ENTREE_FAIT and maillon.get("affaire_id") == affaire_id:
+            derniers[maillon["cle_consolidation"]] = maillon
+    bruts = list(derniers.values())
     return [
         _fait(
             m["ligne_id"],
@@ -191,13 +194,15 @@ def _fait_evenement(maillon: dict) -> dict[str, str]:
     # ne contient que des WCT et des variances).
     identifiant = classification.identifiant(maillon) or maillon["ligne_id"]
     source = type_evenement or "inconnu"
-    return _fait(
+    fait = _fait(
         identifiant,
         maillon["horodatage"],
         source,
         _resume_evenement(maillon, type_evenement, identifiant),
         confidentialite.niveau_de(maillon),
     )
+    fait["_source_ligne_id"] = maillon["ligne_id"]
+    return fait
 
 
 def _candidats_signaux(signaux_de_laffaire: list[dict]) -> list[dict]:
@@ -235,12 +240,18 @@ def _couche(
 def _a_consolider(affaire_id: str, omis: list[dict], maillons_affaires: list[dict]) -> dict[str, Any]:
     """Les jours dont la couche des événements a omis un fait et qu'aucun fait durable ne résume (PLAN T4.18-b).
 
-    Le jour est celui de l'événement tel qu'il est écrit (``consolidation.jour_de``), le critère de « consolidé » celui
-    de ``consolider_affaire`` : chaque entrée est un appel valide de ``m10_consolider_affaire``, et le jour sort de la
-    liste dès que l'appel est fait. Bornée à ``NB_JOURS_A_CONSOLIDER_MAX`` (les plus anciens d'abord) ; le total dit le
+    Le jour est celui de l'événement tel qu'il est écrit (``consolidation.jour_de``). Une consolidation antérieure
+    ne suffit plus si elle ne cite pas encore une source omise arrivée tardivement. Chaque entrée est un appel valide
+    de ``m10_consolider_affaire``. Bornée à ``NB_JOURS_A_CONSOLIDER_MAX`` (les plus anciens d'abord) ; le total dit le
     reste."""
+    sources_omet: dict[str, set[str]] = {}
+    for fait in omis:
+        ligne_id = fait.get("_source_ligne_id")
+        if ligne_id:
+            sources_omet.setdefault(consolidation.jour_de(fait["horodatage"]), set()).add(ligne_id)
     jours = consolidation.jours_non_consolides(
-        affaire_id, [consolidation.jour_de(fait["horodatage"]) for fait in omis], maillons_affaires
+        affaire_id, [consolidation.jour_de(fait["horodatage"]) for fait in omis], maillons_affaires,
+        sources_omet=sources_omet,
     )
     return {
         "a_consolider": [{"affaire_id": affaire_id, "jour": jour} for jour in jours[:NB_JOURS_A_CONSOLIDER_MAX]],

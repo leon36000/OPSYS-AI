@@ -6,7 +6,8 @@ M3 ne re-juge pas la readiness à partir du contenu du contrat ; il constate
 la signature que M2 a produite.
 
 Ancre du critère CA-M3-03 (emplacement « docstring de module ») :
-validation STRUCTURELLE du marqueur : M3 ne recalcule pas l'empreinte, qui couvre des conditions extraites du registre de M2
+validation STRUCTURELLE du marqueur : M3 ne recalcule pas l'empreinte, qui
+couvre des conditions extraites du registre de M2
 
 NOTE D'ANCRE : la phrase « la readiness est constatée, jamais re-déduite »
 tient volontairement sur UNE SEULE LIGNE ci-dessus parce qu'elle est une
@@ -30,8 +31,7 @@ from datetime import datetime
 
 from opsys import taxonomie
 
-from . import contrats
-from . import verdicts
+from . import contrats, verdicts
 
 # ---------------------------------------------------------------------------
 # Bornes DÉFENSIVES d'implémentation, sans aucune signification métier —

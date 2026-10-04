@@ -21,8 +21,8 @@ defaults:
     working-directory: core
 
 jobs:
-  # Construit OPSYS-CORE, fork dur d'OpenClaw v2026.9.6 (ADR-0008, core/PROVENANCE.md). Le bac à
-  # sable de développement n'exécute pas ce code : cette CI est la seule preuve de construction.
+  # Construit OPSYS-CORE, fork dur d'OpenClaw v2026.9.6 (ADR-0008, core/PROVENANCE.md).
+  # Cette preuve CI complète les vérifications locales ciblées décrites dans core/AGENTS.md.
   construction:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -34,7 +34,7 @@ jobs:
       - name: pnpm (version fixée par packageManager)
         run: corepack enable && pnpm --version
       - name: Installation
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
       - name: Construction
         run: pnpm build
 
@@ -56,7 +56,7 @@ jobs:
       - name: pnpm (version fixée par packageManager)
         run: corepack enable && pnpm --version
       - name: Installation
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
       - name: Tests unitaires rapides (morceau ${{ matrix.morceau }}/6)
         # Mêmes réglages que la CI d'origine : la config unitaire partage ses workers
         # (isolate: false), elle tourne avec peu de workers et 8 Go de tas Node.
@@ -89,20 +89,32 @@ jobs:
   # échoue si une cible ne correspond à rien. Liste : core/test/opsys-tests-cibles.txt.
   tests-opsys:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
         with:
           node-version: "24.x"
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.12"
+      - name: uv (version verrouillée du projet Python)
+        working-directory: ..
+        run: python -m pip install --quiet uv==0.12.19 && uv --version
+      - name: Dépendances OPSYS Python verrouillées pour le test d'interopérabilité
+        working-directory: ..
+        run: |
+          uv sync --project . --locked --group build --extra dev --no-build-isolation --no-install-project
+          uv sync --project . --locked --group build --extra dev --no-build-isolation
       - name: pnpm (version fixée par packageManager)
         run: corepack enable && pnpm --version
       - name: Installation
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
       - name: Tests ciblés OPSYS (projets gateway, agents, gateway-protocol)
         env:
           NODE_OPTIONS: --max-old-space-size=8192
           OPENCLAW_VITEST_MAX_WORKERS: "2"
+          OPSYS_TEST_PYTHON: ${{ github.workspace }}/.venv/bin/python
         shell: bash
         run: |
           set -o pipefail

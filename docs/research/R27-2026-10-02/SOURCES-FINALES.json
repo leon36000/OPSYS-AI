@@ -1,0 +1,20 @@
+{
+  "controle_courant": "onze seules sources; pas égalité globale avec snapshot1102",
+  "rapports_gel": [
+    "rapport-r27-correctif-r2.md",
+    "rapport-r27-envoi-r3.md"
+  ],
+  "sources_qualifiees": {
+    "departments/m03-estimation/src/m3_estimation/devis_durable.py": "fd24ac21e21e241db3a72d7a4e13abc4b8cf47b770fa2f7fcf7b98c35a8edf04",
+    "departments/m03-estimation/src/m3_estimation/estime_vs_reel.py": "b8a9c59cc2ada7ae6f633b2533063b7d8cab3945253d9996c0f3812cd68bafae",
+    "departments/m03-estimation/src/m3_estimation/outils.py": "ea68bb943987fe43146d67e4a7a337b52d636e9595be140480caf250fa6a1ea6",
+    "departments/m03-estimation/src/m3_estimation/trace_calibration_temps.py": "9b36ea6db093f729e0a539606af80e3717134d1460d23d7ff279a88dfdfe2a4c",
+    "departments/m03-estimation/tests/test_devis_accepte_duree_estimee.py": "6061dd04cb7dbc5018d8a478a80a1aced91ac7941904cfaa333e4e66b8ca180e",
+    "departments/m03-estimation/tests/test_devis_durable.py": "96588b3a13b3144d31f0cbd16660a613acb1551496733d483fa8c909780a9ae5",
+    "departments/m03-estimation/tests/test_envoi_devis_capacites.py": "6097a6afc9d0b4d2a23b097807f9949d1adad3a936141264d4f84321a24a4949",
+    "departments/m03-estimation/tests/test_estime_vs_reel.py": "96b4a146ff978704314fb6aeff7fa462d87a24b6650acc887f5c96f431db344a",
+    "departments/m03-estimation/tests/test_trace_calibration_temps.py": "1066d873d72064cfb99e1c96668ab430281e1d9d65e56b7f12bebaae9fbeb390",
+    "src/opsys/evenements/catalogue/m3.devis_accepte.json": "0346a8da0e0b1a30779359a953de408cc4affe7f8b32ddeac34cdd4cd3e65aa3",
+    "tests/test_cascade_amont_m10.py": "241f36b6d9da61f968bd96df8e6edc9af1c02a303ee219c029e377e2fed4e4ea"
+  }
+}

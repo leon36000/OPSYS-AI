@@ -389,6 +389,73 @@ def test_evaluer_qualite_metrique_donnee_fraiche_et_dans_la_plage_ne_propose_auc
     assert resultat["alertes_proposees"] == []
 
 
+def test_nan_public_est_non_derivable_et_propose_une_qualite_absente():
+    registre = RegistreSnapshots()
+    par_nom = {o.nom: o for o in outils(registre, [])}
+    _appeler(par_nom, "m8_enregistrer_definition_metrique", definition=_DEFINITION_REGISTRE_M4)
+    registre.ajouter(_snapshot_m4("2026-01-01T00:00:00Z", "nan"))
+    resultat = _appeler(
+        par_nom, "m8_evaluer_qualite_metrique",
+        metric_id="m4_duree_reelle_minutes", horodatage_reference="2026-01-04T00:00:00Z",
+    )
+    assert resultat["ok"] is True
+    assert resultat["resultat"]["n"] == 0
+    assert resultat["resultat"]["valeur"] is None
+    assert resultat["resultat"]["verdict"] is None
+    assert len(resultat["resultat"]["alertes_proposees"]) == 1
+    alerte = resultat["resultat"]["alertes_proposees"][0]
+    assert alerte["type_alerte"] == "REJ-QUALITE-DONNEE-INVALIDE"
+    assert alerte["preuve"] == {
+        "metric_id": "m4_duree_reelle_minutes", "n": 0, "valeurs_invalides": 1,
+    }
+
+
+def test_rapport_public_refuse_un_snapshot_nan_sans_produire_de_rapport():
+    par_nom = _outils_par_nom()
+    module_source = "M-nan-public"
+    resultat = _appeler(
+        par_nom, "m8_rapport_metriques",
+        dictionnaire=_dictionnaire(module_source),
+        snapshot=_snapshot(module_source, "2026-01-04T00:00:00Z", "nan"),
+        metric_ids=["m_cpl"], horodatage_reference="2026-01-04T00:00:00Z", n_minimal=1,
+    )
+    assert resultat["ok"] is True
+    assert resultat["resultat"]["accepte"] is False
+    assert resultat["resultat"]["etape"] == "semantique"
+    assert "rapport" not in resultat["resultat"]
+
+
+def test_rapport_public_refuse_une_derniere_valeur_non_numerique_sans_la_confondre_avec_absence():
+    par_nom = _outils_par_nom()
+    module_source = "M-valeur-mal-formee"
+    resultat = _appeler(
+        par_nom, "m8_rapport_metriques",
+        dictionnaire=_dictionnaire(module_source),
+        snapshot=_snapshot(module_source, "2026-01-04T00:00:00Z", "inconnu"),
+        metric_ids=["m_cpl"], horodatage_reference="2026-01-04T00:00:00Z", n_minimal=1,
+    )
+
+    assert resultat["ok"] is True
+    assert resultat["resultat"]["accepte"] is False
+    assert resultat["resultat"]["etape"] == "semantique"
+    assert resultat["resultat"]["verdict"] == "REJ-QUALITE-DONNEE-INVALIDE:m_cpl"
+    assert "rapport" not in resultat["resultat"]
+
+
+def test_rapport_redevient_possible_apres_nouveau_snapshot_fini():
+    par_nom = _outils_par_nom()
+    module_source = "M-nan-puis-fini"
+    for valeur in ("nan", "42.5"):
+        resultat = _appeler(
+            par_nom, "m8_rapport_metriques",
+            dictionnaire=_dictionnaire(module_source),
+            snapshot=_snapshot(module_source, "2026-01-04T00:00:00Z", valeur),
+            metric_ids=["m_cpl"], horodatage_reference="2026-01-04T00:00:00Z", n_minimal=1,
+        )
+    assert resultat["resultat"]["accepte"] is True
+    assert resultat["resultat"]["rapport"]["metriques"][0]["valeur"] == 42.5
+
+
 def test_evaluer_qualite_metrique_donnee_perimee_propose_une_alerte():
     par_nom = _outils_par_nom()
     _appeler(par_nom, "m8_enregistrer_definition_metrique", definition=_DEFINITION_REGISTRE_M4)

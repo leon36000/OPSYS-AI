@@ -1,0 +1,18 @@
+{
+  "workflow": 1,
+  "provider": "curated-local",
+  "sourceLocale": "en",
+  "locale": "fr-CA",
+  "entries": [
+    {
+      "key": "chat.sessionRoute.agentUnavailable",
+      "text_hash": "d6bf283bee98b1e7921c6c93031591bc094f7bac2bd798ae8a0692040986b4f4",
+      "translated": "Agent indisponible"
+    },
+    {
+      "key": "chat.sessionRoute.agentRosterUnavailable",
+      "text_hash": "1c200ed534c4e4f35f5111da3a8374f9a22d109ed155ca85e498be82b08f36a9",
+      "translated": "Impossible de vérifier l’état de cet agent. Reconnectez-vous et réessayez."
+    }
+  ]
+}

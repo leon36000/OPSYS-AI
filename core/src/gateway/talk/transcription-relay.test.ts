@@ -17,6 +17,7 @@ import {
   rememberUnifiedTalkSession,
 } from "./session-registry.js";
 import {
+  cancelTalkTranscriptionRelaySession,
   createTalkTranscriptionRelaySession,
   sendTalkTranscriptionRelayAudio,
   stopTalkTranscriptionRelaySession,
@@ -361,6 +362,103 @@ describe("talk transcription gateway relay", () => {
     expect(findPayloadByType(events, "close").reason).toBe("completed");
   });
 
+  it("does not broadcast input audio after a synchronous provider error closes the relay", async () => {
+    let request: RealtimeTranscriptionSessionCreateRequest | undefined;
+    const sttSession = createSttSessionMock();
+    sttSession.sendAudio.mockImplementation(() => {
+      request?.onError?.(new Error("provider rejected audio"));
+    });
+    const { events, session } = await createStartedRelaySession(sttSession, {}, (value) => {
+      request = value;
+    });
+
+    sendTalkTranscriptionRelayAudio({
+      transcriptionSessionId: session.transcriptionSessionId,
+      connId: "conn-1",
+      audioBase64: "AQI=",
+    });
+
+    expect(findPayloadByType(events, "error").message).toBe("provider rejected audio");
+    expect(findPayloadByType(events, "close").reason).toBe("error");
+    expect(
+      events.some((event) => isRecord(event.payload) && event.payload.type === "inputAudio"),
+    ).toBe(false);
+    expect(
+      events.some(
+        (event) =>
+          isRecord(event.payload) &&
+          isRecord(event.payload.talkEvent) &&
+          event.payload.talkEvent.type === "input.audio.delta",
+      ),
+    ).toBe(false);
+  });
+
+  it("cancels buffered and draining providers and suppresses late transcripts", async () => {
+    vi.useFakeTimers();
+    for (const afterStop of [false, true]) {
+      let request: RealtimeTranscriptionSessionCreateRequest | undefined;
+      const cancel = vi.fn();
+      const sttSession = { ...createSttSessionMock(), cancel };
+      const { events, session } = await createStartedRelaySession(sttSession, {}, (value) => {
+        request = value;
+      });
+      sendTalkTranscriptionRelayAudio({
+        transcriptionSessionId: session.transcriptionSessionId,
+        connId: "conn-1",
+        audioBase64: "AQI=",
+      });
+      if (afterStop) {
+        stopTalkTranscriptionRelaySession({
+          transcriptionSessionId: session.transcriptionSessionId,
+          connId: "conn-1",
+        });
+        expect(sttSession.close).toHaveBeenCalledOnce();
+      }
+
+      cancelTalkTranscriptionRelaySession({
+        transcriptionSessionId: session.transcriptionSessionId,
+        connId: "conn-1",
+      });
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(sttSession.close).toHaveBeenCalledTimes(afterStop ? 1 : 0);
+      const eventCount = events.length;
+      request?.onTranscript?.("must not escape cancellation");
+      expect(events).toHaveLength(eventCount);
+      expect(() => getUnifiedTalkSession(session.transcriptionSessionId)).toThrow(
+        "Unknown Talk session",
+      );
+    }
+  });
+
+  it("cancels an abort-capable provider when close throws during drain", async () => {
+    const cancel = vi.fn();
+    const sttSession = { ...createSttSessionMock(), cancel };
+    sttSession.close.mockImplementationOnce(() => {
+      throw new Error("close failed");
+    });
+    const { session } = await createStartedRelaySession(sttSession, {});
+    sendTalkTranscriptionRelayAudio({
+      transcriptionSessionId: session.transcriptionSessionId,
+      connId: "conn-1",
+      audioBase64: "AQI=",
+    });
+    expect(() =>
+      stopTalkTranscriptionRelaySession({
+        transcriptionSessionId: session.transcriptionSessionId,
+        connId: "conn-1",
+      }),
+    ).toThrow("close failed");
+    expect(sttSession.close).toHaveBeenCalledOnce();
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(() =>
+      sendTalkTranscriptionRelayAudio({
+        transcriptionSessionId: session.transcriptionSessionId,
+        connId: "conn-1",
+        audioBase64: "AQI=",
+      }),
+    ).toThrow("Unknown transcription Talk session");
+  });
+
   it("closes a provider immediately when its transcription session never received audio", async () => {
     const sttSession = createSttSessionMock();
     const { events, session } = await createStartedRelaySession(sttSession, {});
@@ -398,6 +496,27 @@ describe("talk transcription gateway relay", () => {
     const close = findPayloadByType(events, "close");
     expect(close.reason).toBe("completed");
     expect(sttSession.close).toHaveBeenCalledOnce();
+  });
+
+  it("cancels an abort-capable provider when the graceful drain expires", async () => {
+    vi.useFakeTimers();
+    const cancel = vi.fn();
+    const sttSession = { ...createSttSessionMock(), cancel };
+    const { session } = await createStartedRelaySession(sttSession, {});
+    sendTalkTranscriptionRelayAudio({
+      transcriptionSessionId: session.transcriptionSessionId,
+      connId: "conn-1",
+      audioBase64: "AQI=",
+    });
+    stopTalkTranscriptionRelaySession({
+      transcriptionSessionId: session.transcriptionSessionId,
+      connId: "conn-1",
+    });
+
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect(sttSession.close).toHaveBeenCalledOnce();
+    expect(cancel).toHaveBeenCalledOnce();
   });
 
   it("preserves partial activity between provider finals while graceful draining continues", async () => {
@@ -479,7 +598,8 @@ describe("talk transcription gateway relay", () => {
 
   it("closes a draining provider immediately when its browser owner disconnects", async () => {
     let request: RealtimeTranscriptionSessionCreateRequest | undefined;
-    const sttSession = createSttSessionMock();
+    const cancel = vi.fn();
+    const sttSession = { ...createSttSessionMock(), cancel };
     sttSession.close.mockImplementationOnce(() => {
       queueMicrotask(() => request?.onTranscript?.("disconnected provider transcript"));
     });
@@ -513,6 +633,7 @@ describe("talk transcription gateway relay", () => {
       ),
     ).toBe(false);
     expect(sttSession.close).toHaveBeenCalledOnce();
+    expect(cancel).toHaveBeenCalledOnce();
   });
 
   it("terminates graceful draining immediately when the provider reports an error", async () => {

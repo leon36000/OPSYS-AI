@@ -9,6 +9,7 @@ les tests fournissent des valeurs reconnaissables et vérifient qu'aucun fichier
 from __future__ import annotations
 
 import dataclasses
+import io
 import json
 from pathlib import Path
 
@@ -219,7 +220,11 @@ def test_l_affaire_de_m1_vient_de_la_session_et_l_accueil_n_est_jamais_bloque_pa
     fichiers = _generer(tous, tmp_path, contexte_entreprise={"m01-front-office": []},
                         affaire_par_session=["m01-front-office"])
     contexte = _json(fichiers, "contexte")
-    assert contexte["agents"]["m01-front-office"] == {"depot": [], "affaire": "session"}
+    assert contexte["agents"]["m01-front-office"] == {
+        "depot": [],
+        "affaire": "session",
+        "serveur_contexte": "opsys_context_m01-front-office",
+    }
     assert contexte["niveaux"]["m1_recevoir_message_canal"] == "N2"
     assert contexte["niveaux"]["m1_traiter_demande_entrante"] == "N3"
     assert contexte["niveaux"]["m1_emettre_notification"] == "N4"
@@ -285,7 +290,9 @@ def test_sans_departement_a_canaux_les_fragments_sont_vides_et_les_agents_inchan
     assert _json(fichiers, "bindings") == []
     assert _json(fichiers, "session") == {}
     assert _json(fichiers, "plugins")["entries"].keys() == {"memory-core"}
-    assert _json(fichiers, "agents")["entries"]["m09-demo"]["tools"] == {"deny": []}
+    assert _json(fichiers, "agents")["entries"]["m09-demo"]["tools"] == {
+        "deny": ["opsys_context_*__*", "opsys_runtime_*__*"]
+    }
 
 
 def test_l_etat_des_canaux_dit_les_variables_a_fournir(tous):
@@ -505,12 +512,46 @@ def test_cli_configurer_avertit_et_garde_le_canal_inactif_quand_openclaw_json_es
     attendu = "canal m01-front-office / sms : INACTIF, openclaw.json n'inclut pas channels, bindings, session"
     assert attendu in sortie.out
     assert "ATTENTION : openclaw.json n'inclut pas channels, bindings, session" in sortie.err
+    assert "Configuration modèles incomplète" in sortie.err
+    assert "ANTHROPIC_API_KEY" in sortie.err
     assert json.loads((dossier / "opsys" / "channels.json").read_text(encoding="utf-8"))["sms"]["enabled"] is False
     assert (dossier / "openclaw.json").read_text(encoding="utf-8") == '{"gateway": {"port": 18789}}\n'
+    models = _json({"models": dossier / "opsys" / "models.json"}, "models")
+    assert "opsys-m1" not in models["providers"]
+    assert _json({"agents": dossier / "opsys" / "agents.json"}, "agents")["entries"]["m01-front-office"]["model"] == (
+        "anthropic/claude-sonnet-5"
+    )
+
+
+def test_cli_litellm_ne_s_active_qu_avec_le_mode_legacy_et_url(monkeypatch, opsys_home, tmp_path, capsys):
+    monkeypatch.setenv("OPSYS_EMBEDDINGS_URL", ENVIRON_EMBEDDINGS["OPSYS_EMBEDDINGS_URL"])
+    monkeypatch.setenv("OPSYS_EMBEDDINGS_MODELE", "bge-m3")
+    monkeypatch.setattr(cli.modeles, "charger_paliers", lambda *a, **k: PALIERS)
+    dossier = tmp_path / "oc"
+
+    code = cli.main([
+        "openclaw", "configurer", "--config-dir", str(dossier),
+        "--mode-fournisseur", "litellm", "--url-passerelle", "http://litellm-test:4000/v1",
+    ])
+
+    assert code == 0
+    sortie = capsys.readouterr()
+    assert "litellm" in sortie.out
+    config_modeles = _json({"models": dossier / "opsys" / "models.json"}, "models")
+    assert config_modeles["providers"]["opsys-m1"]["baseUrl"] == "http://litellm-test:4000/v1"
     assert SECRET not in sortie.out + sortie.err
 
 
-def test_cli_mode_refuse_autonome_a_m1(capsys, session):
+def test_cli_mode_refuse_autonome_a_m1_cas_mot_de_passe_humain_requis(capsys, session, nathan, monkeypatch):
     assert cli.main(["mode", "m01-front-office", "autonome", "--par", "nathan"]) == 1
     assert "sans approbation humaine" in capsys.readouterr().err
+    assert cli.main(["mode", "m02-revenue-crm", "autonome", "--par", "nathan"]) == 1
+    assert "authentification personnelle requise" in capsys.readouterr().err
+
+    class Terminal(io.StringIO):
+        def isatty(self):
+            return True
+
+    monkeypatch.setattr(cli.sys, "stdin", Terminal())
+    monkeypatch.setattr(cli.getpass, "getpass", lambda _prompt: "mot-de-passe-de-test-nathan-1234")
     assert cli.main(["mode", "m02-revenue-crm", "autonome", "--par", "nathan"]) == 0

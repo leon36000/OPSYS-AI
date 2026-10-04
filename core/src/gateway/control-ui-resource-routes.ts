@@ -14,6 +14,7 @@ export function resolveAssistantMediaRoutePath(basePath?: string): string {
 
 const CONTROL_UI_RESOURCE_ROUTES = {
   agentAvatar: { prefix: "/avatar", suffix: "" },
+  agentAvatarModel: { prefix: "/avatar-model", suffix: "" },
   catalogIcon: { prefix: "/__openclaw__/catalog-icon", suffix: "" },
   channelAvatar: { prefix: "/__openclaw__/channel-avatar", suffix: "" },
   linkFavicon: { prefix: "/__openclaw__/link-favicon", suffix: "" },

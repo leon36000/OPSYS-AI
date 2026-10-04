@@ -2,7 +2,6 @@ import importlib.util
 import io
 from pathlib import Path
 
-
 _CHEMIN_MODULE = Path(__file__).resolve().parent / "outils_preuve" / "lecture_junit.py"
 _SPECIFICATION = importlib.util.spec_from_file_location(
     "lecture_junit_outils_preuve",

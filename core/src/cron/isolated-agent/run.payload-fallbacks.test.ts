@@ -130,7 +130,7 @@ describe("runCronIsolatedAgentTurn — payload.fallbacks", () => {
     );
   });
 
-  it("forwards reauthorization recovery after an explicit tools cap clears app authority", async () => {
+  it("blocks provider dispatch while explicit tools cap recovery is required", async () => {
     mockRunCronFallbackPassthrough();
     resolveEffectiveAgentRuntimeMock.mockReturnValue("codex");
 
@@ -143,10 +143,13 @@ describe("runCronIsolatedAgentTurn — payload.fallbacks", () => {
       }),
     );
 
-    expect(result.status).toBe("ok");
-    expect(runEmbeddedAgentMock).toHaveBeenCalledWith(
-      expect.objectContaining({ scheduledRuntimeAuthorityRecoveryRequired: true }),
-    );
+    expect(result).toMatchObject({
+      status: "error",
+      admissionDisposition: "rejected",
+      executionStarted: false,
+    });
+    expect(runEmbeddedAgentMock).not.toHaveBeenCalled();
+    expect(runCliAgentMock).not.toHaveBeenCalled();
   });
 
   it("marks only later candidates in one prompt as fallback runners", async () => {

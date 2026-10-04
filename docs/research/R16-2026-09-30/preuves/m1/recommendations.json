@@ -1,0 +1,79 @@
+{
+  "review_date": "2026-09-30",
+  "head": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+  "verdict": "PREUVE",
+  "status_scope": "read-only research; no implementation or production proof",
+  "repository_modified_by_worker": false,
+  "core_executed": false,
+  "m1_tests_executed": false,
+  "production_actions": false,
+  "recommended_first_path": [
+    "retain OPSYS-CORE SMS Twilio and existing voice-call",
+    "trusted durable intake direct to M1",
+    "approved outbound bridge with provider receipt and statuses",
+    "reuse IMAP ImapFlow/mailparser/mailauth",
+    "form receiver with server envelope and unverified-contact labels",
+    "M2 follow-up tasks and M4 authoritative scheduling",
+    "CPU faster-whisper voicemail optional"
+  ],
+  "optional_services": [
+    {
+      "name": "Pipecat",
+      "code_license": "BSD-2-Clause",
+      "role": "single Python voice session engine if existing voice-call insufficient",
+      "bridge_work": "permissions, CRM/task outcomes, consent, escalation, replay, session ownership, metrics"
+    },
+    {
+      "name": "LiveKit Agents/SIP",
+      "code_license": "Apache-2.0",
+      "role": "alternative when SIP/WebRTC/warm transfer required",
+      "restricted_component": "MODEL_LICENSE proprietary weights must not be treated as Apache or used outside LiveKit",
+      "bridge_work": "media ports/TURN/trunk, trusted OPSYS tool interface, human availability/fallback, callbacks"
+    },
+    {
+      "name": "Chatwoot CE",
+      "code_license": "MIT outside enterprise; proprietary enterprise",
+      "role": "optional inbox/webchat sidecar",
+      "bridge_work": "ACL isolation, account/inbox/event mapping, one transport owner per number/mailbox, no outbound bypass"
+    }
+  ],
+  "disallowed_default_imports": [
+    "current Piper GPL direct import into permissive OPSYS bundle",
+    "Chatwoot enterprise files without paid valid license",
+    "LiveKit proprietary model weights classified Apache or ported to another framework",
+    "form-js custom watermark license treated plain MIT",
+    "WhatsApp Web/Baileys presented as official Cloud API"
+  ],
+  "corrections": [
+    "Google Business Messages API ended 2024-07-31; current eligible SMS/WhatsApp profile contact is not GBM API",
+    "M1 current business code is not June stub state",
+    "M1 emission adapter is shadow deterministic hash not real send",
+    "score remains M1 and not LeadQualifie v2; versioned change required"
+  ],
+  "mapping": [
+    "M1.1",
+    "M1.2",
+    "M1.3",
+    "M1.4",
+    "M1.5",
+    "M1.6",
+    "M1.7",
+    "M1.8",
+    "M1.9",
+    "M1.10",
+    "M1.11",
+    "M1.12",
+    "M1.13"
+  ],
+  "cpu_strategy": "base CPU plus optional queued voicemail; separate optional media and GPU remote endpoints; no local GPU/Forge mandatory",
+  "independent_proof_required": [
+    "intake crash/replay and shared transport ownership",
+    "approved attempt versus delivery",
+    "identity/finance cross-client and cross-tenant negatives",
+    "voice interruption/2 misunderstanding/human unavailable",
+    "M4 event before confirmation",
+    "native four-profile offline ownership and photo upload",
+    "M7 optout and M10 scope/privacy"
+  ],
+  "report": "/workspace/restructuration-opsys-2026-09-30/recherche-m1.md"
+}

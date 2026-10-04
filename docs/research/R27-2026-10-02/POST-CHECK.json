@@ -1,0 +1,12 @@
+{
+  "erreurs": [],
+  "index_sha256": {
+    "MANIFEST.json": "8e51906b46df43ec43068503e965f167a1683caa5f0fa254b873ceb2108e121d",
+    "README.md": "648aeb1d1c21135222f04056228f677c60d7abcccbca49d60cff84bbb9c713af",
+    "SOURCES-FINALES.json": "69ffedcdb3c8cce039ff40ddcf9f3b6d6c998390ac6e3d64c1aff06857866b5d"
+  },
+  "liens_docs": 20,
+  "liens_readme": 11,
+  "qualification_sha256": "4e8b40a00f265021590e00942a4081ed0995748220bcdb9ee935e5e7339541a2",
+  "schema": "opsys.r27-post-check/v1"
+}

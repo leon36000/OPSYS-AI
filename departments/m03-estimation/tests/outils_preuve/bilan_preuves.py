@@ -13,7 +13,6 @@ import shutil
 import subprocess
 import sys
 
-
 RACINE = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
 ESTIMATION = RACINE / "departments" / "m03-estimation"
 TESTS = ESTIMATION / "tests"

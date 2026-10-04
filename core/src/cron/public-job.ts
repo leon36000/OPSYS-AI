@@ -10,6 +10,7 @@ export function toPublicCronJob(job: CronStoredJob): CronJob {
     toolsAllowExecTargetRequirement: _toolsAllowExecTargetRequirement,
     runtimeAuthority: _runtimeAuthority,
     runtimeAuthorityRecoveryRequired: _runtimeAuthorityRecoveryRequired,
+    runtimeAuthorityCiphertextDisposition: _runtimeAuthorityCiphertextDisposition,
     ...publicJob
   } = job;
   const state = { ...job.state };

@@ -1,0 +1,773 @@
+{
+  "head": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+  "preuves": [
+    {
+      "case": "M1_DEFAULT_MODE",
+      "fictif": true,
+      "envelope": {
+        "ok": true,
+        "statut": "en_attente_approbation",
+        "demande_id": "10d069ceaa82",
+        "details": "Action T1 (N3) en mode ombre : un humain doit l'approuver dans la console OPSYS. Ne la présente pas comme faite."
+      }
+    },
+    {
+      "case": "M1_CAPACITES_FORGED",
+      "fictif": true,
+      "envelope": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "verdict": {
+            "code": "OK",
+            "statut": "",
+            "detail": ""
+          },
+          "conversation": {
+            "conversation_id": "CONV-FICTIVE-FORGEE-CAP",
+            "statut": "close_normale",
+            "phase_courante": 5,
+            "phases": [
+              {
+                "numero": 0,
+                "statut": "close_normale",
+                "horodatage_debut": "2026-09-30T09:00:00+00:00",
+                "horodatage_fin": null
+              },
+              {
+                "numero": 1,
+                "statut": "close_normale",
+                "horodatage_debut": "2026-09-30T09:00:00+00:00",
+                "horodatage_fin": null
+              },
+              {
+                "numero": 2,
+                "statut": "close_normale",
+                "horodatage_debut": "2026-09-30T09:00:00+00:00",
+                "horodatage_fin": null
+              },
+              {
+                "numero": 3,
+                "statut": "close_normale",
+                "horodatage_debut": "2026-09-30T09:00:00+00:00",
+                "horodatage_fin": null
+              },
+              {
+                "numero": 4,
+                "statut": "close_normale",
+                "horodatage_debut": "2026-09-30T09:00:00+00:00",
+                "horodatage_fin": "2026-09-30T09:00:00+00:00"
+              },
+              {
+                "numero": 5,
+                "horodatage_debut": "2026-09-30T09:00:00+00:00",
+                "horodatage_fin": null,
+                "statut": "close_normale"
+              }
+            ],
+            "dernier_ligne_id": "765a42b145747c9e168c654a3829562af38a123607d4c6c63ec08c97b6210540"
+          }
+        }
+      }
+    },
+    {
+      "case": "M1_CAPACITES_LEDGER",
+      "fictif": true,
+      "maillons": [
+        {
+          "type_entree": "transition_phase",
+          "horodatage": "2026-09-30T09:00:00+00:00",
+          "precedent_ligne_id": null,
+          "payload": {
+            "conversation_id": "CONV-FICTIVE-FORGEE-CAP",
+            "phase_source": 4,
+            "phase_cible": 5
+          },
+          "ligne_id": "765a42b145747c9e168c654a3829562af38a123607d4c6c63ec08c97b6210540"
+        }
+      ]
+    },
+    {
+      "case": "M5_CAPACITES_COLLISION",
+      "fictif": true,
+      "premiere": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "facture_id": "FACT-FICTIVE-COLLISION",
+            "chantier_id": "CH-FICTIF",
+            "devis_id": "DEVIS-FICTIF-A",
+            "client_id": "CLIENT-FICTIF",
+            "lignes": [
+              {
+                "description": "Ligne fictive",
+                "quantite": "1",
+                "unite": "u",
+                "prix_unitaire": "100",
+                "reference_ligne_devis": "ligne-fictive",
+                "montant": "100.00"
+              }
+            ],
+            "montant_avant_taxes": "100.00",
+            "taxes": [
+              {
+                "id": "tps_federale",
+                "nom": "Taxe sur les produits et services (fédérale)",
+                "version": "2026-v1",
+                "taux": "0.05",
+                "montant": "5.00"
+              },
+              {
+                "id": "tvq_quebec",
+                "nom": "Taxe de vente du Québec",
+                "version": "2026-v1",
+                "taux": "0.09975",
+                "montant": "9.98"
+              }
+            ],
+            "total_taxes": "14.98",
+            "montant_apres_taxes": "114.98",
+            "statut": "BROUILLON",
+            "horodatage": "2026-09-30T09:00:00+00:00",
+            "type_entree": "facture_creee",
+            "ligne_id": "2092652a70df8b37ee96ec1dbee3eb09f45eb2575cbd5d07663d28d209607177",
+            "precedent_ligne_id": null
+          },
+          "registre_factures": {
+            "taille": 1,
+            "tete": "2092652a70df8b37ee96ec1dbee3eb09f45eb2575cbd5d07663d28d209607177"
+          }
+        }
+      },
+      "seconde": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "facture_id": "FACT-FICTIVE-COLLISION",
+            "chantier_id": "CH-FICTIF",
+            "devis_id": "DEVIS-FICTIF-B",
+            "client_id": "CLIENT-FICTIF",
+            "lignes": [
+              {
+                "description": "Ligne fictive",
+                "quantite": "1",
+                "unite": "u",
+                "prix_unitaire": "100",
+                "reference_ligne_devis": "ligne-fictive",
+                "montant": "100.00"
+              }
+            ],
+            "montant_avant_taxes": "100.00",
+            "taxes": [
+              {
+                "id": "tps_federale",
+                "nom": "Taxe sur les produits et services (fédérale)",
+                "version": "2026-v1",
+                "taux": "0.05",
+                "montant": "5.00"
+              },
+              {
+                "id": "tvq_quebec",
+                "nom": "Taxe de vente du Québec",
+                "version": "2026-v1",
+                "taux": "0.09975",
+                "montant": "9.98"
+              }
+            ],
+            "total_taxes": "14.98",
+            "montant_apres_taxes": "114.98",
+            "statut": "BROUILLON",
+            "horodatage": "2026-09-30T09:00:00+00:00",
+            "type_entree": "facture_creee",
+            "ligne_id": "36c212a405b5ba2ba4ae47a25b97a54a5a11c17816800b750067d4d1480dcccc",
+            "precedent_ligne_id": "199fda13a392231df4324ad735f415121c990cf1d77a52087c5e23f8a7bfb082"
+          },
+          "registre_factures": {
+            "taille": 3,
+            "tete": "36c212a405b5ba2ba4ae47a25b97a54a5a11c17816800b750067d4d1480dcccc"
+          }
+        }
+      },
+      "creance_avant": "114.98",
+      "creance_apres": "0"
+    },
+    {
+      "case": "M5_CAPACITES_FINITE_EXCEPTION",
+      "fictif": true,
+      "envelope": {
+        "exception": "InvalidOperation",
+        "details": "[<class 'decimal.InvalidOperation'>]"
+      }
+    },
+    {
+      "case": "M3_CAPACITES_NAN",
+      "fictif": true,
+      "envelope": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "photos_acceptables": true,
+            "verdict_estimation": "AUCUN_BLOCAGE",
+            "prix_bloque": false,
+            "elements_manquants": []
+          }
+        }
+      }
+    },
+    {
+      "case": "M3_CAPACITES_OVERFLOW",
+      "fictif": true,
+      "envelope": {
+        "exception": "InvalidOperation",
+        "details": "[<class 'decimal.InvalidOperation'>]"
+      }
+    },
+    {
+      "case": "M4_CAPACITES_NEGATIVE",
+      "fictif": true,
+      "pointages": [
+        {
+          "ok": true,
+          "resultat": {
+            "accepte": true,
+            "resultat": {
+              "intervention_id": "e6b67a0dc9d0772608bba4ac2b884f0a9b2b7d685c2e92143708cc93df27b0a6",
+              "technicien_id": "TECH-FICTIF",
+              "action": "arrivee",
+              "horodatage": "2026-09-30T09:00:00+00:00",
+              "ligne_id": "7c438decefade430dc6f1b158b1aeaf0cd9e0d979dfaa0a51ae7cc675d997ee9",
+              "gps_coherent": true,
+              "statut": "sur_site",
+              "demande_id": null,
+              "tete_chaine": "849204d96ee89eef26bb8050e942db35a543c3f162a5e2836d24b24b12c63db3",
+              "gps_chiffre": true
+            }
+          }
+        },
+        {
+          "ok": true,
+          "resultat": {
+            "accepte": true,
+            "resultat": {
+              "intervention_id": "e6b67a0dc9d0772608bba4ac2b884f0a9b2b7d685c2e92143708cc93df27b0a6",
+              "technicien_id": "TECH-FICTIF",
+              "action": "depart",
+              "horodatage": "2026-09-30T10:00:00+00:00",
+              "ligne_id": "d59a092c7dac02f682db4363f6b81103b2c2785c853d8e5d0b6ed7dd0e944d9c",
+              "gps_coherent": true,
+              "statut": "sur_site",
+              "demande_id": null,
+              "tete_chaine": "d59a092c7dac02f682db4363f6b81103b2c2785c853d8e5d0b6ed7dd0e944d9c",
+              "gps_chiffre": true
+            }
+          }
+        },
+        {
+          "ok": true,
+          "resultat": {
+            "accepte": true,
+            "resultat": {
+              "intervention_id": "e6b67a0dc9d0772608bba4ac2b884f0a9b2b7d685c2e92143708cc93df27b0a6",
+              "technicien_id": "TECH-FICTIF",
+              "action": "pause_debut",
+              "horodatage": "2026-09-30T10:10:00+00:00",
+              "ligne_id": "db6383f8c28a23c3d4ce85cb73c08915b542ff2423f0e2622210ef95860bd6c6",
+              "gps_coherent": true,
+              "statut": "sur_site",
+              "demande_id": null,
+              "tete_chaine": "db6383f8c28a23c3d4ce85cb73c08915b542ff2423f0e2622210ef95860bd6c6",
+              "gps_chiffre": true
+            }
+          }
+        },
+        {
+          "ok": true,
+          "resultat": {
+            "accepte": true,
+            "resultat": {
+              "intervention_id": "e6b67a0dc9d0772608bba4ac2b884f0a9b2b7d685c2e92143708cc93df27b0a6",
+              "technicien_id": "TECH-FICTIF",
+              "action": "pause_fin",
+              "horodatage": "2026-09-30T12:10:00+00:00",
+              "ligne_id": "b6a04f4642b5d3c05f9fa8e92b1faef27db73c2091ea924f742cfdd38f580f41",
+              "gps_coherent": true,
+              "statut": "sur_site",
+              "demande_id": null,
+              "tete_chaine": "b6a04f4642b5d3c05f9fa8e92b1faef27db73c2091ea924f742cfdd38f580f41",
+              "gps_chiffre": true
+            }
+          }
+        }
+      ],
+      "completion": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "wct_id": "32ad60445ae2854485f3728b391f3aa32f388ac497d29b313931b1089735ab33",
+            "intervention_id": "e6b67a0dc9d0772608bba4ac2b884f0a9b2b7d685c2e92143708cc93df27b0a6",
+            "ligne_id": "2ccb4765f90fc9d9c6ab48b23c989d41acbbe5afb8077d798d4cf0f24d1bd0ab",
+            "statut": "completed_pending_review",
+            "hash_maillon": "0ab3e9a0dceab48be507317b8bd4d6d6f6627ef01b6b766d4b3f3bda6bc83f82",
+            "duree_reelle_minutes": -60,
+            "ecart_signale": false,
+            "tete_chaine": "2ccb4765f90fc9d9c6ab48b23c989d41acbbe5afb8077d798d4cf0f24d1bd0ab"
+          }
+        }
+      }
+    },
+    {
+      "case": "M6_CAPACITES_LEGACY",
+      "fictif": true,
+      "premiere": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "intervention_id": "AUTRE-INT-FICTIVE",
+            "chantier_id": "CH-FICTIF",
+            "materiaux_confirmes": [
+              {
+                "materiau_id": "MAT-FICTIF",
+                "quantite_declaree": 3.0
+              }
+            ],
+            "stock_restant": [
+              {
+                "materiau_id": "MAT-FICTIF",
+                "quantite": 7.0
+              }
+            ]
+          },
+          "registre": {
+            "taille": 2,
+            "hash_tete": "f241c526c98278938800cdc901133955b0e57f10c76b0ecf88bb20e0abcb374c"
+          }
+        }
+      },
+      "seconde": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "intervention_id": "AUTRE-INT-FICTIVE",
+            "chantier_id": "CH-FICTIF",
+            "materiaux_confirmes": [
+              {
+                "materiau_id": "MAT-FICTIF",
+                "quantite_declaree": 3.0
+              }
+            ],
+            "stock_restant": [
+              {
+                "materiau_id": "MAT-FICTIF",
+                "quantite": 4.0
+              }
+            ]
+          },
+          "registre": {
+            "taille": 3,
+            "hash_tete": "720929431e96500722659f18c6f4f765151ba947245b5f35b1cf2fdb5f9f7f29"
+          }
+        }
+      }
+    },
+    {
+      "case": "M6_CAPACITES_NEW_UNKNOWN",
+      "fictif": true,
+      "envelope": {
+        "ok": true,
+        "resultat": {
+          "accepte": false,
+          "verdict": {
+            "code": "REJ-WCT-INCONNU"
+          }
+        }
+      }
+    },
+    {
+      "case": "M7_CAPACITES_RETRAIT",
+      "fictif": true,
+      "avant": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "retrait_id": "1b4dc346-7df6-56fe-89f2-884f32b3ace6",
+            "wct_id": "WCT-RETRAIT-FICTIF",
+            "lead_id": null,
+            "wct_connu": false,
+            "deja_enregistre": false,
+            "contenus_bloques": [],
+            "contenus_deja_exportes": [],
+            "a_faire": [
+              "wct_id inconnu de M7 : le retrait est enregistré et bloquera ce chantier s'il arrive ; vérifier le wct_id"
+            ]
+          }
+        }
+      },
+      "apres": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "retrait_id": "1b4dc346-7df6-56fe-89f2-884f32b3ace6",
+            "wct_id": "WCT-RETRAIT-FICTIF",
+            "lead_id": null,
+            "wct_connu": true,
+            "deja_enregistre": true,
+            "contenus_bloques": [],
+            "contenus_deja_exportes": [],
+            "a_faire": []
+          }
+        }
+      },
+      "autre_wct_meme_lead_bloque": false
+    },
+    {
+      "case": "M8_CAPACITES_NAN",
+      "fictif": true,
+      "definition": {
+        "ok": true,
+        "resultat": {
+          "enregistree": true,
+          "deja_a_jour": false,
+          "verdict": null
+        }
+      },
+      "rapport": {
+        "ok": true,
+        "resultat": {
+          "etape": "complet",
+          "accepte": true,
+          "rapport": {
+            "type": "RAPPORT_ANALYTIQUE",
+            "role": null,
+            "metriques": [
+              {
+                "metric_id": "cpl",
+                "valeur": NaN,
+                "version_definition": "4f947c7764353b6969b7a2c6ffe24414c49f540531dd3f0fab8d8778d0c39a93",
+                "fraicheur": 1.0,
+                "n": 1
+              }
+            ],
+            "signaux": [
+              {
+                "metric_id": "cpl",
+                "type_signal": "DONNEES_INSUFFISANTES",
+                "valeur_observee": null,
+                "limite_naturelle_haute": null,
+                "limite_naturelle_basse": null,
+                "n": 1
+              }
+            ],
+            "snapshot_id": "2b7c55e71595373ec5973c47387188f287b08cc33ecfa1e0c2ea71f9db1f38bb"
+          }
+        }
+      },
+      "qualite": {
+        "ok": true,
+        "resultat": {
+          "metric_id": "cpl",
+          "definition_trouvee": true,
+          "verdict": null,
+          "n": 1,
+          "valeur": NaN,
+          "fraicheur_jours": 1.0,
+          "alertes_proposees": []
+        }
+      }
+    },
+    {
+      "case": "M9_CAPACITES_TIMEZONES",
+      "fictif": true,
+      "premier": {
+        "ok": true,
+        "resultat": {
+          "etape": "complet",
+          "accepte": true,
+          "etat_consolide": {
+            "type": "ETAT_CONSOLIDE",
+            "faits_par_module": {
+              "M5": {
+                "index": 0,
+                "module_source": "M5",
+                "horodatage": "2026-09-30T08:00:00-04:00",
+                "valeurs": {
+                  "cash": "1"
+                },
+                "hash_precedent": "",
+                "hash_maillon": "34bc753bba22871d8c219d5dc978426350bdbbf734642eaebee27cc2ffe8027c"
+              }
+            },
+            "contradictions": [],
+            "etat_id": "5e0b5bdee99c1b17907037f733c82a4488c003624e3eb03c65508c2f4d0f557f"
+          }
+        }
+      },
+      "second": {
+        "ok": true,
+        "resultat": {
+          "etape": "complet",
+          "accepte": true,
+          "etat_consolide": {
+            "type": "ETAT_CONSOLIDE",
+            "faits_par_module": {
+              "M5": {
+                "index": 1,
+                "module_source": "M5",
+                "horodatage": "2026-09-30T12:00:00Z",
+                "valeurs": {
+                  "cash": "100"
+                },
+                "hash_precedent": "34bc753bba22871d8c219d5dc978426350bdbbf734642eaebee27cc2ffe8027c",
+                "hash_maillon": "f44581743b7088b1095e5a89b6bc6c178f243edb2db5adc2ea415d70a746bbe5"
+              }
+            },
+            "contradictions": [],
+            "etat_id": "011cf74b4781c582746e3b0604c38907919cc804644fa8470f0ecee8b7a3bc27"
+          }
+        }
+      }
+    },
+    {
+      "case": "M10_CAPACITES_AGENT",
+      "fictif": true,
+      "m10_voit_prive": false,
+      "argument_m1_voit_prive": true,
+      "envelope": {
+        "ok": true,
+        "resultat": {
+          "affaire_id": "LEAD-PRIVE-FICTIF",
+          "horodatage": "2026-09-30T09:00:00+00:00",
+          "budget_caracteres": 4000,
+          "caracteres_utilises": 242,
+          "couches": [
+            {
+              "nom": "regles_entreprise",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "faits_affaire",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 1,
+              "nb_inclus": 1,
+              "nb_omis": 0,
+              "caracteres": 242,
+              "faits": [
+                {
+                  "identifiant": "9510ec2bb81fc56cc31bf22a14548dc2ef2ec6ac6b3149fa43475e8859293760",
+                  "horodatage": "2026-09-30T09:00:00+00:00",
+                  "source": "m10:consolidation",
+                  "resume": "2026-09-29 : DONNEE_CLIENT_FICTIVE",
+                  "confidentialite": "CLIENT_PRIVATE"
+                }
+              ]
+            },
+            {
+              "nom": "evenements_recents",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "signaux_non_resolus",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            }
+          ],
+          "signaux": {
+            "nb_ouverts": 0,
+            "nb_pris_en_compte": 0,
+            "nb_clos": 0
+          },
+          "confidentialite": {
+            "agent": "m01-front-office",
+            "regle": "v1",
+            "nb_retenus": 0
+          },
+          "affaire": {
+            "connue": false,
+            "origine_recue": false,
+            "origine": null,
+            "verdict": "AMONT-AFFAIRE-INCONNUE"
+          },
+          "consolidation": {
+            "a_consolider": [],
+            "nb_a_consolider": 0
+          }
+        }
+      }
+    },
+    {
+      "case": "M10_CAPACITES_WCT",
+      "fictif": true,
+      "premier": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "wct_id": "WCT-CONFLIT-FICTIF",
+            "intervention_id": "INT-FICTIVE",
+            "lead_id": "LEAD-FICTIF",
+            "technicien_id": "TECH-FICTIF",
+            "horodatage_completion": "2026-09-29T10:00:00-04:00",
+            "fix_gps_completion": {
+              "latitude": 46.8,
+              "longitude": -71.2
+            },
+            "duree_reelle_minutes": 1,
+            "ecart_signale": false,
+            "revue_id": null,
+            "hash_maillon": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "consommateurs_cibles": [
+              "M6",
+              "M10"
+            ],
+            "devis_id": "DEVIS-FICTIF",
+            "type_entree": "evenement_memorise",
+            "horodatage": "2026-09-29T10:00:00-04:00",
+            "ligne_id": "334547244f95cd9461c0ce06c476c3b30da596aad28034268a19cce4d36191a2",
+            "precedent_ligne_id": null
+          }
+        }
+      },
+      "second": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "wct_id": "WCT-CONFLIT-FICTIF",
+            "intervention_id": "INT-FICTIVE",
+            "lead_id": "LEAD-FICTIF",
+            "technicien_id": "TECH-FICTIF",
+            "horodatage_completion": "2026-09-29T10:00:00-04:00",
+            "fix_gps_completion": {
+              "latitude": 46.8,
+              "longitude": -71.2
+            },
+            "duree_reelle_minutes": 1,
+            "ecart_signale": false,
+            "revue_id": null,
+            "hash_maillon": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "consommateurs_cibles": [
+              "M6",
+              "M10"
+            ],
+            "devis_id": "DEVIS-FICTIF",
+            "type_entree": "evenement_memorise",
+            "horodatage": "2026-09-29T10:00:00-04:00",
+            "ligne_id": "334547244f95cd9461c0ce06c476c3b30da596aad28034268a19cce4d36191a2",
+            "precedent_ligne_id": null
+          }
+        }
+      }
+    },
+    {
+      "case": "M10_CAPACITES_LATE",
+      "fictif": true,
+      "premiere_consolidation": {
+        "ok": true,
+        "resultat": {
+          "ecrit": true,
+          "deja_consolide": false,
+          "fait": {
+            "type_entree": "fait_consolide",
+            "horodatage": "2026-09-30T09:00:00+00:00",
+            "affaire_id": "LEAD-FICTIF",
+            "jour": "2026-09-29",
+            "cle_consolidation": "LEAD-FICTIF:2026-09-29",
+            "resume": "1 travaux terminés",
+            "sources": [
+              {
+                "registre": "evenements",
+                "ligne_id": "334547244f95cd9461c0ce06c476c3b30da596aad28034268a19cce4d36191a2",
+                "type_evenement": "m4.travaux_termines",
+                "identifiant": "WCT-CONFLIT-FICTIF"
+              }
+            ],
+            "ligne_id": "96297ffe3691eb5643407df207d16c31a6b39cd751803b562a96ff1eefcf166a",
+            "precedent_ligne_id": "9510ec2bb81fc56cc31bf22a14548dc2ef2ec6ac6b3149fa43475e8859293760"
+          },
+          "verdict": null
+        }
+      },
+      "evenement_retarde": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "wct_id": "WCT-RETARDE-FICTIF",
+            "intervention_id": "INT-FICTIVE",
+            "lead_id": "LEAD-FICTIF",
+            "technicien_id": "TECH-FICTIF",
+            "horodatage_completion": "2026-09-29T10:00:00-04:00",
+            "fix_gps_completion": {
+              "latitude": 46.8,
+              "longitude": -71.2
+            },
+            "duree_reelle_minutes": 90,
+            "ecart_signale": false,
+            "revue_id": null,
+            "hash_maillon": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "consommateurs_cibles": [
+              "M6",
+              "M10"
+            ],
+            "devis_id": "DEVIS-FICTIF",
+            "type_entree": "evenement_memorise",
+            "horodatage": "2026-09-29T10:00:00-04:00",
+            "ligne_id": "0fdcf1e2e559d8e751e65ea589d43c0b1452d2f92937c9d2424e747f46b3f747",
+            "precedent_ligne_id": "334547244f95cd9461c0ce06c476c3b30da596aad28034268a19cce4d36191a2"
+          }
+        }
+      },
+      "seconde_consolidation": {
+        "ok": true,
+        "resultat": {
+          "ecrit": false,
+          "deja_consolide": true,
+          "fait": {
+            "type_entree": "fait_consolide",
+            "horodatage": "2026-09-30T09:00:00+00:00",
+            "affaire_id": "LEAD-FICTIF",
+            "jour": "2026-09-29",
+            "cle_consolidation": "LEAD-FICTIF:2026-09-29",
+            "resume": "1 travaux terminés",
+            "sources": [
+              {
+                "registre": "evenements",
+                "ligne_id": "334547244f95cd9461c0ce06c476c3b30da596aad28034268a19cce4d36191a2",
+                "type_evenement": "m4.travaux_termines",
+                "identifiant": "WCT-CONFLIT-FICTIF"
+              }
+            ],
+            "ligne_id": "96297ffe3691eb5643407df207d16c31a6b39cd751803b562a96ff1eefcf166a",
+            "precedent_ligne_id": "9510ec2bb81fc56cc31bf22a14548dc2ef2ec6ac6b3149fa43475e8859293760"
+          },
+          "verdict": null
+        }
+      }
+    }
+  ]
+}

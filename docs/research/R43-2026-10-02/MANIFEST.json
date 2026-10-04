@@ -1,0 +1,670 @@
+{
+  "archives": [
+    {
+      "archive": "preuves/001--R43-R47-followup-r1.md--1a459c4033ad2746490dab108930e094d240c78d94dacc518c3fe017a2fbd398.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-R47-followup-r1.md",
+      "sha256_archive": "fa8880052ea429645dd4b7ff30b811f715ad0ee82239704132c5e60b9bb73402",
+      "sha256_original": "1a459c4033ad2746490dab108930e094d240c78d94dacc518c3fe017a2fbd398",
+      "taille_archive": 5917,
+      "taille_originale": 11871
+    },
+    {
+      "archive": "preuves/002--R43-R47-stat-correction-r1.md--6980837b0165490f7fd3b7b8a13dfe3f37a1754b5e61ec63cee680f94374658d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-R47-stat-correction-r1.md",
+      "sha256_archive": "7c4cc765a47b43ebb9ea4d5a7b9a9d00bd6c7879f1089e51fd1477872bafff1d",
+      "sha256_original": "6980837b0165490f7fd3b7b8a13dfe3f37a1754b5e61ec63cee680f94374658d",
+      "taille_archive": 433,
+      "taille_originale": 657
+    },
+    {
+      "archive": "preuves/003--AUDIOS-DISPONIBILITE-RO-r1.json--844a739d7a782edb12166e8f700365b06b17bb2bd25bb53241b7c3ef05678a86.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-archive-preparation-r1/AUDIOS-DISPONIBILITE-RO-r1.json",
+      "sha256_archive": "6e5bfd1145b16301d58c18db674b0b190169d5c342c6f070c898ce5a70d3c9a6",
+      "sha256_original": "844a739d7a782edb12166e8f700365b06b17bb2bd25bb53241b7c3ef05678a86",
+      "taille_archive": 412,
+      "taille_originale": 812
+    },
+    {
+      "archive": "preuves/004--ENTREES-ARCHIVE-R43-r1.json--410fe00c6c637e0abf24e1b3137702fae54bed4155c7994d2b19901c428b2e2f.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-archive-preparation-r1/ENTREES-ARCHIVE-R43-r1.json",
+      "sha256_archive": "6e1645004d3b2fbf3d15251b4feedd7772b8f4778bf5433238799f05e5727081",
+      "sha256_original": "410fe00c6c637e0abf24e1b3137702fae54bed4155c7994d2b19901c428b2e2f",
+      "taille_archive": 4483,
+      "taille_originale": 22842
+    },
+    {
+      "archive": "preuves/005--HISTORIQUE-DELTA-SHA-r1.json--cbcd2b6866e5461d62acf0d3385612187bd99e407c145d1e790a668949dd106e.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-archive-preparation-r1/HISTORIQUE-DELTA-SHA-r1.json",
+      "sha256_archive": "79f440c2ab61c3b5a24a9e0ea24a6437cd613fc191f76610834c17be9485cf69",
+      "sha256_original": "cbcd2b6866e5461d62acf0d3385612187bd99e407c145d1e790a668949dd106e",
+      "taille_archive": 555,
+      "taille_originale": 1058
+    },
+    {
+      "archive": "preuves/006--LICENCES-PROVENANCE-r1.json--d519baad0471ec2c959a4acdf1d963a5ce6a109dc77f203ad2b1271ccfdf4bd2.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-archive-preparation-r1/LICENCES-PROVENANCE-r1.json",
+      "sha256_archive": "79858bc993b41062bbd19325407ec57e763d922c2d36f89d3f9832ef87ee68c3",
+      "sha256_original": "d519baad0471ec2c959a4acdf1d963a5ce6a109dc77f203ad2b1271ccfdf4bd2",
+      "taille_archive": 612,
+      "taille_originale": 1420
+    },
+    {
+      "archive": "preuves/007--PLAN-r1.md--620b54f3cb681d273c4a4e8962918526c9c6563a643bc7786a11aee339c46111.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-archive-preparation-r1/PLAN-r1.md",
+      "sha256_archive": "d3987b714d848a7e717b81138a03833b716189ee2e5c809998d35031cbb76ee2",
+      "sha256_original": "620b54f3cb681d273c4a4e8962918526c9c6563a643bc7786a11aee339c46111",
+      "taille_archive": 2014,
+      "taille_originale": 3811
+    },
+    {
+      "archive": "preuves/008--PROJECTIONS-r1.json--8d08645207494b77f6a8daaaa76a689285b7a9c8ea2f28135c675d78cd783160.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-archive-preparation-r1/PROJECTIONS-r1.json",
+      "sha256_archive": "1d7dbe3e69d6fc5591463b368da87108c97680decb84396d6f8101802e337495",
+      "sha256_original": "8d08645207494b77f6a8daaaa76a689285b7a9c8ea2f28135c675d78cd783160",
+      "taille_archive": 707,
+      "taille_originale": 1709
+    },
+    {
+      "archive": "preuves/009--R43-RESULTAT-SYNTHESE-r1.md--51ca66870902cfd79b5adad971d5fad18cacb257a404872c545f0c7ecc072609.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-archive-preparation-r1/R43-RESULTAT-SYNTHESE-r1.md",
+      "sha256_archive": "ffee185e4113c4960011ec234f8e6f3322a2a50d55bd5ba52ea5021a8d41eb58",
+      "sha256_original": "51ca66870902cfd79b5adad971d5fad18cacb257a404872c545f0c7ecc072609",
+      "taille_archive": 1362,
+      "taille_originale": 2255
+    },
+    {
+      "archive": "preuves/010--REFUS-PREPARATION-r1.json--51a5f05b704f95181612dff3e89a835ed9a1d6d1879957fe2b924b418e43b9df.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-archive-preparation-r1/REFUS-PREPARATION-r1.json",
+      "sha256_archive": "009611948d07a63da64ccb48dd58a1800eaf16a6a8cdb0873adada8db6c29ea8",
+      "sha256_original": "51a5f05b704f95181612dff3e89a835ed9a1d6d1879957fe2b924b418e43b9df",
+      "taille_archive": 250,
+      "taille_originale": 337
+    },
+    {
+      "archive": "preuves/011--archiver-r43-r1.py--4632db50ad7a986fd4417e70042a350f20a991567ce12933847e34bce4ccd595.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-archive-preparation-r1/archiver-r43-r1.py",
+      "sha256_archive": "9086ebc287c54f032c1d1173784f143c7fa1543f461c302bef2d3a2d0bef113e",
+      "sha256_original": "4632db50ad7a986fd4417e70042a350f20a991567ce12933847e34bce4ccd595",
+      "taille_archive": 5436,
+      "taille_originale": 15236
+    },
+    {
+      "archive": "preuves/012--CC0-1.0-legalcode.txt--a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-archive-preparation-r1/licences/CC0-1.0-legalcode.txt",
+      "sha256_archive": "6a381d59f13d60a76ab906f62d67380cbc88d9cd6f167c954a76e603de3aad1e",
+      "sha256_original": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+      "taille_archive": 2826,
+      "taille_originale": 7048
+    },
+    {
+      "archive": "preuves/013--OpenAI-Whisper-LICENSE.txt--b5d65a59060e68c4ff940e1eddfa6f94b2d68fdf58ed7f4dd57721c997e35e9d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-archive-preparation-r1/licences/OpenAI-Whisper-LICENSE.txt",
+      "sha256_archive": "9fd631e65580c5ac14b3ac5f904e02d14493710b07130728f1378a82c8048a6d",
+      "sha256_original": "b5d65a59060e68c4ff940e1eddfa6f94b2d68fdf58ed7f4dd57721c997e35e9d",
+      "taille_archive": 642,
+      "taille_originale": 1063
+    },
+    {
+      "archive": "preuves/014--common-voice-dataset-card.md--a2c6ed6719c680395e8e6a02374fac01c474fe010dc54a19dd3174d9eba51ddc.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-archive-preparation-r1/licences/common-voice-dataset-card.md",
+      "sha256_archive": "1f02a26ab3f0913bc3ede52ea04acb8868448d2d246e0fc5cac2b82df20ba322",
+      "sha256_original": "a2c6ed6719c680395e8e6a02374fac01c474fe010dc54a19dd3174d9eba51ddc",
+      "taille_archive": 1314,
+      "taille_originale": 3163
+    },
+    {
+      "archive": "preuves/015--manifest-pseudonymes-r1.json--49f9bdb57960e34c79f99a0ab2e019389db0c127a3a60e6e6229baa7e549905e.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-archive-preparation-r1/projections/manifest-pseudonymes-r1.json",
+      "sha256_archive": "cc71ef610f957cb69c164f5ccaaeaa49401a28e37ffd94ba103d36657586dd63",
+      "sha256_original": "49f9bdb57960e34c79f99a0ab2e019389db0c127a3a60e6e6229baa7e549905e",
+      "taille_archive": 2677,
+      "taille_originale": 10734
+    },
+    {
+      "archive": "preuves/016--results-pseudonymes-r1.json--b5a4fa6c016360298f147c6e2f03abac72f6510ec286505fd2e81a57555fe3d0.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-archive-preparation-r1/projections/results-pseudonymes-r1.json",
+      "sha256_archive": "159794692df8144857c2c4f50cf90df60a511a4edb989ba3467912b8d8728aed",
+      "sha256_original": "b5a4fa6c016360298f147c6e2f03abac72f6510ec286505fd2e81a57555fe3d0",
+      "taille_archive": 3430,
+      "taille_originale": 11556
+    },
+    {
+      "archive": "preuves/017--BILAN-PREIMAGE.md--f33c17f26d9f01f86a1815f155768139b07982e16a7cb3276f81e4c440b0a631.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-qualification-root-r1/BILAN-PREIMAGE.md",
+      "sha256_archive": "66d973f262e9988d1e2865b2f2672d5823d1ad786c0addd67611ba92ec8e49e6",
+      "sha256_original": "f33c17f26d9f01f86a1815f155768139b07982e16a7cb3276f81e4c440b0a631",
+      "taille_archive": 6930,
+      "taille_originale": 17555
+    },
+    {
+      "archive": "preuves/018--INGREDIENTS-PREIMAGE.md--09fafec6b1298290ba090466c6d9be5e8070c18519d753878f553b023d0ae7fb.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-qualification-root-r1/INGREDIENTS-PREIMAGE.md",
+      "sha256_archive": "aa6485ac525ebfc3bd000c17eecafbf7d2d331cd0623f44859efe83167b520b9",
+      "sha256_original": "09fafec6b1298290ba090466c6d9be5e8070c18519d753878f553b023d0ae7fb",
+      "taille_archive": 26380,
+      "taille_originale": 68726
+    },
+    {
+      "archive": "preuves/019--RECU-BILAN-ROOT-r1.json--d50c01ca4fe2cb221bcc6461a18623076444e94920c63aee66c0768c5eecde91.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-qualification-root-r1/RECU-BILAN-ROOT-r1.json",
+      "sha256_archive": "f1c130155e4970db74af850b97a52b79e703353c34a3449944263b85a3ec3e5a",
+      "sha256_original": "d50c01ca4fe2cb221bcc6461a18623076444e94920c63aee66c0768c5eecde91",
+      "taille_archive": 257,
+      "taille_originale": 314
+    },
+    {
+      "archive": "preuves/020--VERIFICATION-LIENS-ROOT-r1.json--73ef01ace956aec7335cab830a601cd80ea0cc4608b6f6b97f3fbbf07fc12130.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-qualification-root-r1/VERIFICATION-LIENS-ROOT-r1.json",
+      "sha256_archive": "4a9d4495740e98e58de2c336d2da9324c9514d1b21978c211d3b8ff93b59136c",
+      "sha256_original": "73ef01ace956aec7335cab830a601cd80ea0cc4608b6f6b97f3fbbf07fc12130",
+      "taille_archive": 132,
+      "taille_originale": 131
+    },
+    {
+      "archive": "preuves/021--VERIFICATION-ROOT-r1.json--fef8322c20c7aa516926e0a97ac94740e88080c6618b834cb503393fa5b5ca71.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-qualification-root-r1/VERIFICATION-ROOT-r1.json",
+      "sha256_archive": "497eaa6c347c91a0c12380d9f2ccb492c13ff15603e9fd14858c7654a91201ed",
+      "sha256_original": "fef8322c20c7aa516926e0a97ac94740e88080c6618b834cb503393fa5b5ca71",
+      "taille_archive": 974,
+      "taille_originale": 1878
+    },
+    {
+      "archive": "preuves/022--bench_http.py--767355b4180a3de8ba889cfdc978ae140690fd224b9152400c531cd47caf4ae3.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-qualification-root-r1/bench_http.py",
+      "sha256_archive": "bef3f6d6b3c9d47e6b43c064537be1ccb76d29db306038219e80bb9c783d2bea",
+      "sha256_original": "767355b4180a3de8ba889cfdc978ae140690fd224b9152400c531cd47caf4ae3",
+      "taille_archive": 8030,
+      "taille_originale": 24752
+    },
+    {
+      "archive": "preuves/023--server.log--3cdf5451e830009b2c9da9a0ddf9ea3549d6c8f6df57aac23f1a5a72732faf57.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-qualification-root-r1/server.log",
+      "sha256_archive": "100f17481f6a9124caf1fc930903acb40585f729237902e5e5f26db4b52ae640",
+      "sha256_original": "3cdf5451e830009b2c9da9a0ddf9ea3549d6c8f6df57aac23f1a5a72732faf57",
+      "taille_archive": 1258,
+      "taille_originale": 11980
+    },
+    {
+      "archive": "preuves/024--R43-voix-frca-recherche-r1.md--2ef36a708ce110dfd7ddd7472315d5eb0cdbdb5e6d45705c985dd827763b4e29.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-voix-frca-recherche-r1.md",
+      "sha256_archive": "1168ce31c71fd60140749c18d1020beb4baa35f29317dc15cc860e940f348162",
+      "sha256_original": "2ef36a708ce110dfd7ddd7472315d5eb0cdbdb5e6d45705c985dd827763b4e29",
+      "taille_archive": 5958,
+      "taille_originale": 12484
+    },
+    {
+      "archive": "preuves/025--R43-voix-frca-recherche-r2.md--13419897500ac6629619cd9acd16637b146e5bdbec909a54d5ec755408669b77.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-voix-frca-recherche-r2.md",
+      "sha256_archive": "c93a78169c41387deb99d1e15ba45fd7d64d90324e3cbc029e1e9ae5064e7389",
+      "sha256_original": "13419897500ac6629619cd9acd16637b146e5bdbec909a54d5ec755408669b77",
+      "taille_archive": 9300,
+      "taille_originale": 20882
+    },
+    {
+      "archive": "preuves/026--R43-voix-frca-recherche-r3.md--a6a06e140b8d30b0447b64b7bcc403cb55ee5c3d880ff7b7c2904eebaec55788.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-voix-frca-recherche-r3.md",
+      "sha256_archive": "5df8d95881d8a89c1447d52602a209b61a3334f10ae6ecd65005a3ec687e77c5",
+      "sha256_original": "a6a06e140b8d30b0447b64b7bcc403cb55ee5c3d880ff7b7c2904eebaec55788",
+      "taille_archive": 4019,
+      "taille_originale": 8203
+    },
+    {
+      "archive": "preuves/027--R43-whisper-r4.md--1a6b02d5960092a1acf4e7ac4de928891aac61cd8fced873e0b407a64d7567a8.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r4/R43-whisper-r4.md",
+      "sha256_archive": "3ffeb5dc9a3f9fc74c9448d3a229038638b7ec809632d35523886cf477ab6306",
+      "sha256_original": "1a6b02d5960092a1acf4e7ac4de928891aac61cd8fced873e0b407a64d7567a8",
+      "taille_archive": 4118,
+      "taille_originale": 7978
+    },
+    {
+      "archive": "preuves/028--SHA256SUMS.txt--ace37e27903816a1ee4c474c23dd0abbc5fa7f64c05d90f8d00e3135b93b9ba6.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r4/SHA256SUMS.txt",
+      "sha256_archive": "4c23d6b777464d705e50159aad0ccefb89cf6cefc2f69996429222a24728e74e",
+      "sha256_original": "ace37e27903816a1ee4c474c23dd0abbc5fa7f64c05d90f8d00e3135b93b9ba6",
+      "taille_archive": 886,
+      "taille_originale": 1356
+    },
+    {
+      "archive": "preuves/029--bench_http.py--e985ab1764ea95a6073845508a9f6540f7ac5b86a2decb88f8f7b5c76d5d959a.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r4/bench_http.py",
+      "sha256_archive": "2249e44892c76342ac11960a9fc3c20de424f2a4bb28e4c215bc7b98b7d5b3bf",
+      "sha256_original": "e985ab1764ea95a6073845508a9f6540f7ac5b86a2decb88f8f7b5c76d5d959a",
+      "taille_archive": 5830,
+      "taille_originale": 16611
+    },
+    {
+      "archive": "preuves/030--BUILD-RECEIPT.md--ff074715373c17624cd39ebba869fa40c3cba5f494fb8c0f8c94415ced92b3b9.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r4/build/BUILD-RECEIPT.md",
+      "sha256_archive": "cd0cae0f478a2716f0e75f7938d4a251a5a744e4d2d36a01fa3779006834112e",
+      "sha256_original": "ff074715373c17624cd39ebba869fa40c3cba5f494fb8c0f8c94415ced92b3b9",
+      "taille_archive": 1733,
+      "taille_originale": 3011
+    },
+    {
+      "archive": "preuves/031--CMake-Copyright.txt--0676e30827684487aa0ea8f72f01e9460a6320fa34a2888df0ad1dd3e8a06eb8.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r4/build/CMake-Copyright.txt",
+      "sha256_archive": "c0ad91461ae03fbd505644dc2c337671d84f09d83db62fe92f8b6721d808d517",
+      "sha256_original": "0676e30827684487aa0ea8f72f01e9460a6320fa34a2888df0ad1dd3e8a06eb8",
+      "taille_archive": 2731,
+      "taille_originale": 5477
+    },
+    {
+      "archive": "preuves/032--build.log--0449dfc310c721e5af009292acc6ceaf1d65cc3676d0820c62ab1f0d005dd845.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r4/build/build.log",
+      "sha256_archive": "50f6f470f8121a4fb237537522d04e3d2f232f07e99e0c56ef380f2818aed2e2",
+      "sha256_original": "0449dfc310c721e5af009292acc6ceaf1d65cc3676d0820c62ab1f0d005dd845",
+      "taille_archive": 500,
+      "taille_originale": 2762
+    },
+    {
+      "archive": "preuves/033--cmake-3.31.6-SHA-256.txt--b1c5992a758cae17c8e13c7a31ae1297baa42fecddc646a2b37ab518ca70a82b.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r4/build/cmake-3.31.6-SHA-256.txt",
+      "sha256_archive": "462a282f80efb32fd090fde1ef034d5eb3f6be0162ed3e622ba38a26b0a14585",
+      "sha256_original": "b1c5992a758cae17c8e13c7a31ae1297baa42fecddc646a2b37ab518ca70a82b",
+      "taille_archive": 814,
+      "taille_originale": 1646
+    },
+    {
+      "archive": "preuves/034--monitored_build.py--9036ba0ac64b889911810e1981a47c2eb4dd92e8b6b808f4f19a1800b4d152e2.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r4/build/monitored_build.py",
+      "sha256_archive": "1ef6fe27aa22a7b918fc16d34c64798f52493f00f0d3845a0d942e42cf61d021",
+      "sha256_original": "9036ba0ac64b889911810e1981a47c2eb4dd92e8b6b808f4f19a1800b4d152e2",
+      "taille_archive": 1151,
+      "taille_originale": 2559
+    },
+    {
+      "archive": "preuves/035--prepare_build.sh--f66df9c0960763217275ddfe26b40453028be48e90c0f68806d19f3c93ecf303.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r4/build/prepare_build.sh",
+      "sha256_archive": "e5bdbe4e3164802433bd6916da1052e2b5f1a09f58975926db08651fe77987ce",
+      "sha256_original": "f66df9c0960763217275ddfe26b40453028be48e90c0f68806d19f3c93ecf303",
+      "taille_archive": 1138,
+      "taille_originale": 2463
+    },
+    {
+      "archive": "preuves/036--server-help.txt--6a00047fbd1601554f50354e53417a7eec6f42f8fe2aabee4c6f0580c6af891d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r4/build/server-help.txt",
+      "sha256_archive": "a3217e042b369de8bf395ba74bf58fad576cc939dad0071671122a2e4cb02cfe",
+      "sha256_original": "6a00047fbd1601554f50354e53417a7eec6f42f8fe2aabee4c6f0580c6af891d",
+      "taille_archive": 1571,
+      "taille_originale": 4216
+    },
+    {
+      "archive": "preuves/037--whisper.cpp-LICENSE--e562a2ddfaf8280537795ac5ecd34e3012b6582a147ef69ba6a6a5c08c84757d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r4/build/whisper.cpp-LICENSE",
+      "sha256_archive": "7fb04d705cb9230e73c943c5ee9c2332b0d03f55c2918671774e3805ff1b9fdc",
+      "sha256_original": "e562a2ddfaf8280537795ac5ecd34e3012b6582a147ef69ba6a6a5c08c84757d",
+      "taille_archive": 654,
+      "taille_originale": 1078
+    },
+    {
+      "archive": "preuves/038--R43-whisper-r4.md--1a6b02d5960092a1acf4e7ac4de928891aac61cd8fced873e0b407a64d7567a8.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r5/R43-whisper-r4.md",
+      "sha256_archive": "3ffeb5dc9a3f9fc74c9448d3a229038638b7ec809632d35523886cf477ab6306",
+      "sha256_original": "1a6b02d5960092a1acf4e7ac4de928891aac61cd8fced873e0b407a64d7567a8",
+      "taille_archive": 4118,
+      "taille_originale": 7978
+    },
+    {
+      "archive": "preuves/039--R43-whisper-r5.md--8464fcd700311f8896b3b13ef6e4f521f636f9af3eeab8000184d5373848ca66.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r5/R43-whisper-r5.md",
+      "sha256_archive": "062f555630a9aeef55bf94a7d1f34fa4fe0a69e6cf855b04a2ae7ee6b9470a4b",
+      "sha256_original": "8464fcd700311f8896b3b13ef6e4f521f636f9af3eeab8000184d5373848ca66",
+      "taille_archive": 2911,
+      "taille_originale": 5654
+    },
+    {
+      "archive": "preuves/040--ROOT-helper-r1.xml--3075de9aceb0a14b2305dc36c16f3d5820e00a751873b2382866ff4e6934966d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r5/ROOT-helper-r1.xml",
+      "sha256_archive": "d489af1e9cf2d13fcbe02552a268b6618f03644b0d155b5723b88343e42bd6bd",
+      "sha256_original": "3075de9aceb0a14b2305dc36c16f3d5820e00a751873b2382866ff4e6934966d",
+      "taille_archive": 398,
+      "taille_originale": 1096
+    },
+    {
+      "archive": "preuves/041--SHA256SUMS.txt--c59a39209e4eceeac84701db8ca47f0597d7a49c55bf74edd14504688b9b9117.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r5/SHA256SUMS.txt",
+      "sha256_archive": "d2ac84ba187f3fdbf2c2bb80f653846a67ab741713cd85566a1308577d210a4f",
+      "sha256_original": "c59a39209e4eceeac84701db8ca47f0597d7a49c55bf74edd14504688b9b9117",
+      "taille_archive": 1230,
+      "taille_originale": 1989
+    },
+    {
+      "archive": "preuves/042--bench_http.py--767355b4180a3de8ba889cfdc978ae140690fd224b9152400c531cd47caf4ae3.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r5/bench_http.py",
+      "sha256_archive": "bef3f6d6b3c9d47e6b43c064537be1ccb76d29db306038219e80bb9c783d2bea",
+      "sha256_original": "767355b4180a3de8ba889cfdc978ae140690fd224b9152400c531cd47caf4ae3",
+      "taille_archive": 8030,
+      "taille_originale": 24752
+    },
+    {
+      "archive": "preuves/043--BUILD-RECEIPT.md--ff074715373c17624cd39ebba869fa40c3cba5f494fb8c0f8c94415ced92b3b9.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r5/build/BUILD-RECEIPT.md",
+      "sha256_archive": "cd0cae0f478a2716f0e75f7938d4a251a5a744e4d2d36a01fa3779006834112e",
+      "sha256_original": "ff074715373c17624cd39ebba869fa40c3cba5f494fb8c0f8c94415ced92b3b9",
+      "taille_archive": 1733,
+      "taille_originale": 3011
+    },
+    {
+      "archive": "preuves/044--CMake-Copyright.txt--0676e30827684487aa0ea8f72f01e9460a6320fa34a2888df0ad1dd3e8a06eb8.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r5/build/CMake-Copyright.txt",
+      "sha256_archive": "c0ad91461ae03fbd505644dc2c337671d84f09d83db62fe92f8b6721d808d517",
+      "sha256_original": "0676e30827684487aa0ea8f72f01e9460a6320fa34a2888df0ad1dd3e8a06eb8",
+      "taille_archive": 2731,
+      "taille_originale": 5477
+    },
+    {
+      "archive": "preuves/045--build.log--0449dfc310c721e5af009292acc6ceaf1d65cc3676d0820c62ab1f0d005dd845.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r5/build/build.log",
+      "sha256_archive": "50f6f470f8121a4fb237537522d04e3d2f232f07e99e0c56ef380f2818aed2e2",
+      "sha256_original": "0449dfc310c721e5af009292acc6ceaf1d65cc3676d0820c62ab1f0d005dd845",
+      "taille_archive": 500,
+      "taille_originale": 2762
+    },
+    {
+      "archive": "preuves/046--cmake-3.31.6-SHA-256.txt--b1c5992a758cae17c8e13c7a31ae1297baa42fecddc646a2b37ab518ca70a82b.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r5/build/cmake-3.31.6-SHA-256.txt",
+      "sha256_archive": "462a282f80efb32fd090fde1ef034d5eb3f6be0162ed3e622ba38a26b0a14585",
+      "sha256_original": "b1c5992a758cae17c8e13c7a31ae1297baa42fecddc646a2b37ab518ca70a82b",
+      "taille_archive": 814,
+      "taille_originale": 1646
+    },
+    {
+      "archive": "preuves/047--common-whisper.cpp--fd139e5699333b7c3711492c85c9d7d5e2127a82d45a0b621e6dcbf1693b4027.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r5/build/common-whisper.cpp",
+      "sha256_archive": "78b16641604cbea4a442a5073d117b2cdbd7036a3dde65968607a95875ffa15b",
+      "sha256_original": "fd139e5699333b7c3711492c85c9d7d5e2127a82d45a0b621e6dcbf1693b4027",
+      "taille_archive": 1722,
+      "taille_originale": 5195
+    },
+    {
+      "archive": "preuves/048--monitored_build.py--9036ba0ac64b889911810e1981a47c2eb4dd92e8b6b808f4f19a1800b4d152e2.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r5/build/monitored_build.py",
+      "sha256_archive": "1ef6fe27aa22a7b918fc16d34c64798f52493f00f0d3845a0d942e42cf61d021",
+      "sha256_original": "9036ba0ac64b889911810e1981a47c2eb4dd92e8b6b808f4f19a1800b4d152e2",
+      "taille_archive": 1151,
+      "taille_originale": 2559
+    },
+    {
+      "archive": "preuves/049--prepare_build.sh--f66df9c0960763217275ddfe26b40453028be48e90c0f68806d19f3c93ecf303.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r5/build/prepare_build.sh",
+      "sha256_archive": "e5bdbe4e3164802433bd6916da1052e2b5f1a09f58975926db08651fe77987ce",
+      "sha256_original": "f66df9c0960763217275ddfe26b40453028be48e90c0f68806d19f3c93ecf303",
+      "taille_archive": 1138,
+      "taille_originale": 2463
+    },
+    {
+      "archive": "preuves/050--server-help.txt--6a00047fbd1601554f50354e53417a7eec6f42f8fe2aabee4c6f0580c6af891d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r5/build/server-help.txt",
+      "sha256_archive": "a3217e042b369de8bf395ba74bf58fad576cc939dad0071671122a2e4cb02cfe",
+      "sha256_original": "6a00047fbd1601554f50354e53417a7eec6f42f8fe2aabee4c6f0580c6af891d",
+      "taille_archive": 1571,
+      "taille_originale": 4216
+    },
+    {
+      "archive": "preuves/051--server.cpp--217d7e9b448b784ab6ea659df020ce3734fe5930091f7318ad0ab7cb3c0fccad.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r5/build/server.cpp",
+      "sha256_archive": "2997223b04e95daf1f4715772712c6ed1b2e56a99c6e4e8914f9ce40c528c1bf",
+      "sha256_original": "217d7e9b448b784ab6ea659df020ce3734fe5930091f7318ad0ab7cb3c0fccad",
+      "taille_archive": 12196,
+      "taille_originale": 55664
+    },
+    {
+      "archive": "preuves/052--whisper.cpp-LICENSE--e562a2ddfaf8280537795ac5ecd34e3012b6582a147ef69ba6a6a5c08c84757d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r5/build/whisper.cpp-LICENSE",
+      "sha256_archive": "7fb04d705cb9230e73c943c5ee9c2332b0d03f55c2918671774e3805ff1b9fdc",
+      "sha256_original": "e562a2ddfaf8280537795ac5ecd34e3012b6582a147ef69ba6a6a5c08c84757d",
+      "taille_archive": 654,
+      "taille_originale": 1078
+    },
+    {
+      "archive": "preuves/053--test_bench_helpers.py--4f7991f99ebd7f5925b515121023838970a60668a7311d5afcfb176b22d5a643.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r5/test_bench_helpers.py",
+      "sha256_archive": "3f09d80eb84e6ae3647ecad9ade891728db04eb8bbedd80917df37b8cb5fdbb9",
+      "sha256_original": "4f7991f99ebd7f5925b515121023838970a60668a7311d5afcfb176b22d5a643",
+      "taille_archive": 1206,
+      "taille_originale": 2568
+    },
+    {
+      "archive": "preuves/054--DOWNLOAD-MODEL-ROOT-r1.json--6aa1dad59a826880576e765b72b4d9379e3355aaf56edf573315a02cf1a7a1b6.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/DOWNLOAD-MODEL-ROOT-r1.json",
+      "sha256_archive": "7dd059a6c7fddb93942002624cca63ff906e6dbb7d217874f3cb67b584056641",
+      "sha256_original": "6aa1dad59a826880576e765b72b4d9379e3355aaf56edf573315a02cf1a7a1b6",
+      "taille_archive": 315,
+      "taille_originale": 446
+    },
+    {
+      "archive": "preuves/055--DOWNLOAD-PREFLIGHT-REFUS-ROOT-r1.json--310da6550e1b88b441c7571d7c039b4fa7e27b843348ebe7ed01574b4468e89d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/DOWNLOAD-PREFLIGHT-REFUS-ROOT-r1.json",
+      "sha256_archive": "9bbd2a7623514dfdf5a2baf63bf0e71b80cb43c076cf3a14a33d5ba351ed52e5",
+      "sha256_original": "310da6550e1b88b441c7571d7c039b4fa7e27b843348ebe7ed01574b4468e89d",
+      "taille_archive": 306,
+      "taille_originale": 434
+    },
+    {
+      "archive": "preuves/056--R43-r5-hash-addendum.md--920c292f88dea8fa4519303b1f8c090895bfd1045c8891348ff21ad27d265a36.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/R43-r5-hash-addendum.md",
+      "sha256_archive": "10b3caec14b5d037e08eacc5655f408cf4b4e671a57d33c937fc50c9d3b4134d",
+      "sha256_original": "920c292f88dea8fa4519303b1f8c090895bfd1045c8891348ff21ad27d265a36",
+      "taille_archive": 750,
+      "taille_originale": 1226
+    },
+    {
+      "archive": "preuves/057--R43-whisper-r4.md--1a6b02d5960092a1acf4e7ac4de928891aac61cd8fced873e0b407a64d7567a8.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/R43-whisper-r4.md",
+      "sha256_archive": "3ffeb5dc9a3f9fc74c9448d3a229038638b7ec809632d35523886cf477ab6306",
+      "sha256_original": "1a6b02d5960092a1acf4e7ac4de928891aac61cd8fced873e0b407a64d7567a8",
+      "taille_archive": 4118,
+      "taille_originale": 7978
+    },
+    {
+      "archive": "preuves/058--R43-whisper-r6.md--37e0cd6d3d00b044c6d0277f7c4c9b29a488411829acfe5a8c313c703206ae67.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/R43-whisper-r6.md",
+      "sha256_archive": "36ff3e03d853dc2d0d66711a02d0630c8f98f5b6dfab1b0f41c46fa2714981ef",
+      "sha256_original": "37e0cd6d3d00b044c6d0277f7c4c9b29a488411829acfe5a8c313c703206ae67",
+      "taille_archive": 1783,
+      "taille_originale": 3023
+    },
+    {
+      "archive": "preuves/059--RECU-DEPS-FADVISE-ROOT-r1.json--163fccc977c7371b013d9cbe1bd35e952d17527a39a1289fae0398083699367b.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/RECU-DEPS-FADVISE-ROOT-r1.json",
+      "sha256_archive": "135eb843f35463f7ad1195b938b7f3106fe318362c11fe9db3166ef2df7c4d62",
+      "sha256_original": "163fccc977c7371b013d9cbe1bd35e952d17527a39a1289fae0398083699367b",
+      "taille_archive": 320,
+      "taille_originale": 431
+    },
+    {
+      "archive": "preuves/060--RECU-TSGO-FADVISE-ROOT-r1.json--bcc05652d4b053228e36e10416e63ba44b0a72bfdd891c7ec4f8f26772505624.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/RECU-TSGO-FADVISE-ROOT-r1.json",
+      "sha256_archive": "4cc7f4c8f65a274449daa867d4bb295f83c4e900e7f349d5819a2d1881180ec3",
+      "sha256_original": "bcc05652d4b053228e36e10416e63ba44b0a72bfdd891c7ec4f8f26772505624",
+      "taille_archive": 252,
+      "taille_originale": 319
+    },
+    {
+      "archive": "preuves/061--ROOT-helper-r1.xml--38cc7add8f984bc29df76919b4d75851fbcb6f4600be64870aa0e2516f94d19a.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/ROOT-helper-r1.xml",
+      "sha256_archive": "340e97e205425c41944275124123c2d72808a79b1949e9c51abe20313a6bcf41",
+      "sha256_original": "38cc7add8f984bc29df76919b4d75851fbcb6f4600be64870aa0e2516f94d19a",
+      "taille_archive": 424,
+      "taille_originale": 1266
+    },
+    {
+      "archive": "preuves/062--SHA256SUMS.txt--d0497a3c96110a8f3b78bc0349d187f65237a529fa2ded42cc263a52249b6f09.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/SHA256SUMS.txt",
+      "sha256_archive": "146bba1d6d03cf6a0a34de1a29fed282455c480ddabdf4d35f1ae92b5cd36e9f",
+      "sha256_original": "d0497a3c96110a8f3b78bc0349d187f65237a529fa2ded42cc263a52249b6f09",
+      "taille_archive": 1475,
+      "taille_originale": 2588
+    },
+    {
+      "archive": "preuves/063--VERIFICATION-HELPERS-ROOT-r1.json--72cc05956ba42250c09dec9729d0f34065d3f1f3c2f2326d9fb751aee37a37f1.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/VERIFICATION-HELPERS-ROOT-r1.json",
+      "sha256_archive": "c99d6b0af7975af0558ab78ce904003d6781600b4ef403b64fd100478477cb8f",
+      "sha256_original": "72cc05956ba42250c09dec9729d0f34065d3f1f3c2f2326d9fb751aee37a37f1",
+      "taille_archive": 462,
+      "taille_originale": 653
+    },
+    {
+      "archive": "preuves/064--bench_http.py--767355b4180a3de8ba889cfdc978ae140690fd224b9152400c531cd47caf4ae3.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/bench_http.py",
+      "sha256_archive": "bef3f6d6b3c9d47e6b43c064537be1ccb76d29db306038219e80bb9c783d2bea",
+      "sha256_original": "767355b4180a3de8ba889cfdc978ae140690fd224b9152400c531cd47caf4ae3",
+      "taille_archive": 8030,
+      "taille_originale": 24752
+    },
+    {
+      "archive": "preuves/065--BUILD-RECEIPT.md--ff074715373c17624cd39ebba869fa40c3cba5f494fb8c0f8c94415ced92b3b9.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/build/BUILD-RECEIPT.md",
+      "sha256_archive": "cd0cae0f478a2716f0e75f7938d4a251a5a744e4d2d36a01fa3779006834112e",
+      "sha256_original": "ff074715373c17624cd39ebba869fa40c3cba5f494fb8c0f8c94415ced92b3b9",
+      "taille_archive": 1733,
+      "taille_originale": 3011
+    },
+    {
+      "archive": "preuves/066--CMake-Copyright.txt--0676e30827684487aa0ea8f72f01e9460a6320fa34a2888df0ad1dd3e8a06eb8.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/build/CMake-Copyright.txt",
+      "sha256_archive": "c0ad91461ae03fbd505644dc2c337671d84f09d83db62fe92f8b6721d808d517",
+      "sha256_original": "0676e30827684487aa0ea8f72f01e9460a6320fa34a2888df0ad1dd3e8a06eb8",
+      "taille_archive": 2731,
+      "taille_originale": 5477
+    },
+    {
+      "archive": "preuves/067--build.log--0449dfc310c721e5af009292acc6ceaf1d65cc3676d0820c62ab1f0d005dd845.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/build/build.log",
+      "sha256_archive": "50f6f470f8121a4fb237537522d04e3d2f232f07e99e0c56ef380f2818aed2e2",
+      "sha256_original": "0449dfc310c721e5af009292acc6ceaf1d65cc3676d0820c62ab1f0d005dd845",
+      "taille_archive": 500,
+      "taille_originale": 2762
+    },
+    {
+      "archive": "preuves/068--cmake-3.31.6-SHA-256.txt--b1c5992a758cae17c8e13c7a31ae1297baa42fecddc646a2b37ab518ca70a82b.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/build/cmake-3.31.6-SHA-256.txt",
+      "sha256_archive": "462a282f80efb32fd090fde1ef034d5eb3f6be0162ed3e622ba38a26b0a14585",
+      "sha256_original": "b1c5992a758cae17c8e13c7a31ae1297baa42fecddc646a2b37ab518ca70a82b",
+      "taille_archive": 814,
+      "taille_originale": 1646
+    },
+    {
+      "archive": "preuves/069--common-whisper.cpp--fd139e5699333b7c3711492c85c9d7d5e2127a82d45a0b621e6dcbf1693b4027.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/build/common-whisper.cpp",
+      "sha256_archive": "78b16641604cbea4a442a5073d117b2cdbd7036a3dde65968607a95875ffa15b",
+      "sha256_original": "fd139e5699333b7c3711492c85c9d7d5e2127a82d45a0b621e6dcbf1693b4027",
+      "taille_archive": 1722,
+      "taille_originale": 5195
+    },
+    {
+      "archive": "preuves/070--monitored_build.py--9036ba0ac64b889911810e1981a47c2eb4dd92e8b6b808f4f19a1800b4d152e2.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/build/monitored_build.py",
+      "sha256_archive": "1ef6fe27aa22a7b918fc16d34c64798f52493f00f0d3845a0d942e42cf61d021",
+      "sha256_original": "9036ba0ac64b889911810e1981a47c2eb4dd92e8b6b808f4f19a1800b4d152e2",
+      "taille_archive": 1151,
+      "taille_originale": 2559
+    },
+    {
+      "archive": "preuves/071--prepare_build.sh--f66df9c0960763217275ddfe26b40453028be48e90c0f68806d19f3c93ecf303.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/build/prepare_build.sh",
+      "sha256_archive": "e5bdbe4e3164802433bd6916da1052e2b5f1a09f58975926db08651fe77987ce",
+      "sha256_original": "f66df9c0960763217275ddfe26b40453028be48e90c0f68806d19f3c93ecf303",
+      "taille_archive": 1138,
+      "taille_originale": 2463
+    },
+    {
+      "archive": "preuves/072--server-help.txt--6a00047fbd1601554f50354e53417a7eec6f42f8fe2aabee4c6f0580c6af891d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/build/server-help.txt",
+      "sha256_archive": "a3217e042b369de8bf395ba74bf58fad576cc939dad0071671122a2e4cb02cfe",
+      "sha256_original": "6a00047fbd1601554f50354e53417a7eec6f42f8fe2aabee4c6f0580c6af891d",
+      "taille_archive": 1571,
+      "taille_originale": 4216
+    },
+    {
+      "archive": "preuves/073--server.cpp--217d7e9b448b784ab6ea659df020ce3734fe5930091f7318ad0ab7cb3c0fccad.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/build/server.cpp",
+      "sha256_archive": "2997223b04e95daf1f4715772712c6ed1b2e56a99c6e4e8914f9ce40c528c1bf",
+      "sha256_original": "217d7e9b448b784ab6ea659df020ce3734fe5930091f7318ad0ab7cb3c0fccad",
+      "taille_archive": 12196,
+      "taille_originale": 55664
+    },
+    {
+      "archive": "preuves/074--whisper.cpp-LICENSE--e562a2ddfaf8280537795ac5ecd34e3012b6582a147ef69ba6a6a5c08c84757d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/build/whisper.cpp-LICENSE",
+      "sha256_archive": "7fb04d705cb9230e73c943c5ee9c2332b0d03f55c2918671774e3805ff1b9fdc",
+      "sha256_original": "e562a2ddfaf8280537795ac5ecd34e3012b6582a147ef69ba6a6a5c08c84757d",
+      "taille_archive": 654,
+      "taille_originale": 1078
+    },
+    {
+      "archive": "preuves/075--download-model-root-r1.py--8ac5cd85ed5d6637e3388e329ff7d17d4506454cbf4a8e98fb1b6ad97a250660.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/download-model-root-r1.py",
+      "sha256_archive": "845e45522e023eb7ac193f1a38674b29c7a9858934964de43297e6923d1c6f1f",
+      "sha256_original": "8ac5cd85ed5d6637e3388e329ff7d17d4506454cbf4a8e98fb1b6ad97a250660",
+      "taille_archive": 1166,
+      "taille_originale": 2013
+    },
+    {
+      "archive": "preuves/076--test_bench_helpers.py--4f7991f99ebd7f5925b515121023838970a60668a7311d5afcfb176b22d5a643.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R43-whisper-r6/test_bench_helpers.py",
+      "sha256_archive": "3f09d80eb84e6ae3647ecad9ade891728db04eb8bbedd80917df37b8cb5fdbb9",
+      "sha256_original": "4f7991f99ebd7f5925b515121023838970a60668a7311d5afcfb176b22d5a643",
+      "taille_archive": 1206,
+      "taille_originale": 2568
+    },
+    {
+      "archive": "preuves/077--archiver-r27-r1.py--c7f9925b634a5793f60b6bd4cc024d8989e0eb8050a3d5d18ce9b2ebd69b6f7b.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-r27/archiver-r27-r1.py",
+      "sha256_archive": "7d09d0e5e5b79550b1464666e8a42a43125be8e52aced766e9ef8e6d307f1d2b",
+      "sha256_original": "c7f9925b634a5793f60b6bd4cc024d8989e0eb8050a3d5d18ce9b2ebd69b6f7b",
+      "taille_archive": 6014,
+      "taille_originale": 16286
+    },
+    {
+      "archive": "preuves/078--archiver-r30-r1.py--5adc44fc5a1659bf1306f6400e768a4fedbb1129e8d2504a69aff3a73f40dde5.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/archiver-r30-r1.py",
+      "sha256_archive": "fbab2810f80f547ad85eba7f483cbf68dc245ffecd35c725a0dd5e40fd690ed6",
+      "sha256_original": "5adc44fc5a1659bf1306f6400e768a4fedbb1129e8d2504a69aff3a73f40dde5",
+      "taille_archive": 4531,
+      "taille_originale": 11816
+    },
+    {
+      "archive": "preuves/079--archiver-r25-r1.py--d94812b5d6c27e316429f1104fa9044bac88ad2252776718c1afb3543abe7213.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/archiver-r25-r1.py",
+      "sha256_archive": "9f67ca4ae89f2a37134cbf335c16b1d33507c8a0957546120dbb9803610294c5",
+      "sha256_original": "d94812b5d6c27e316429f1104fa9044bac88ad2252776718c1afb3543abe7213",
+      "taille_archive": 10059,
+      "taille_originale": 31543
+    },
+    {
+      "archive": "preuves/080--archiver-r26-r1.py--066e8b937ee875e328978f511de848180210df24eb47a442b5832b5108f1eea4.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r26/archiver-r26-r1.py",
+      "sha256_archive": "a66e0e0bfd3187e241d5aec25a491d3b6e769d1d866c1f7ddfd001974c0afb9c",
+      "sha256_original": "066e8b937ee875e328978f511de848180210df24eb47a442b5832b5108f1eea4",
+      "taille_archive": 6484,
+      "taille_originale": 18142
+    },
+    {
+      "archive": "preuves/081--voice-asr-cpu-pilote-tiny-base-r1.md--0168556fbc0cfadf56efdcf3d521ec4f852aa9d4d388daf9a928f03c62d8d5ed.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voice-asr-cpu-pilote-tiny-base-r1.md",
+      "sha256_archive": "15ca090d90afd29087ba0a0643133260e053e88977aee507254c69050f7b6188",
+      "sha256_original": "0168556fbc0cfadf56efdcf3d521ec4f852aa9d4d388daf9a928f03c62d8d5ed",
+      "taille_archive": 4228,
+      "taille_originale": 8934
+    },
+    {
+      "archive": "preuves/082--voice-asr-cpu-r43-stat-addendum-r1.md--ee6b04e1165d63b3007c0bb61b91a51e743d1761512b3ce0e986f57f5f5ddca0.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voice-asr-cpu-r43-stat-addendum-r1.md",
+      "sha256_archive": "7dc166e5841b7c06e9f6d44864f2f002a0b82fea4f105c6ad1586cd04e5ad8dc",
+      "sha256_original": "ee6b04e1165d63b3007c0bb61b91a51e743d1761512b3ce0e986f57f5f5ddca0",
+      "taille_archive": 553,
+      "taille_originale": 868
+    },
+    {
+      "archive": "preuves/083--voice-asr-cpu-recherche-r1.md--ebbcc6a4977651d572867b254e70dbb1c645b257f13e459b029fffed1d529988.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/voice-asr-cpu-recherche-r1.md",
+      "sha256_archive": "00ba190943344661d351c5dafaf914030b3abf0c458c41e356e29bac3f33cdef",
+      "sha256_original": "ebbcc6a4977651d572867b254e70dbb1c645b257f13e459b029fffed1d529988",
+      "taille_archive": 5532,
+      "taille_originale": 12340
+    }
+  ],
+  "limites": "20 requêtes ASR réelles CPU/loopback/fr réussies, WER56/193, p50 nearest-rank41.55056414302089s, p9542.16105038500973s ; 20 dépassements délaiCore4s : NON QUALIFIÉ TEMPS RÉEL. Six helpers ROOT6 distincts du benchmark ; cinq helpers historiques non additionnés, source5 exacte absente. Projections pseudonymes, originaux et audios hors capsule ; pas poids/runtime/cache/secret. Driver original SHA inchangé ; manifeste projeté pas entrée replay directe. Aucun rejeu, Docker, modèle, téléchargement ou installation par archive. Pas voix métier/conversation/TTS/mobile/téléphone/VPS qualifié.",
+  "schema": "opsys.r43-manifest/v1"
+}

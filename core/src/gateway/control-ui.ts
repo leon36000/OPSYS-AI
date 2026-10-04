@@ -8,6 +8,8 @@ import {
   resolveTimestampMsToIsoString,
 } from "@openclaw/normalization-core/number-coercion";
 import { startsWithSvgRootElement } from "../../packages/gateway-protocol/src/svg-image.js";
+import { resolveAgentConfig } from "../agents/agent-scope-config.js";
+import { validateAssistantAvatarModelBytes } from "../agents/assistant-avatar-model-file.js";
 import {
   type AgentAvatarResolution,
   resolvePublicAgentAvatarSource,
@@ -23,6 +25,7 @@ import { resolveDevInstallGitBranch } from "../infra/dev-install-branch.js";
 import { readFileWindowFully } from "../infra/file-read.js";
 import { openLocalFileSafely, FsSafeError } from "../infra/fs-safe.js";
 import { safeFileURLToPath } from "../infra/local-file-access.js";
+import { resolveOpenClawPackageRootSync } from "../infra/openclaw-root.js";
 import { isWithinDir } from "../infra/path-safety.js";
 import { assertLocalMediaAllowed, LocalMediaAccessError } from "../media/local-media-access.js";
 import {
@@ -38,6 +41,10 @@ import {
 } from "../media/playback-transcode.js";
 import { extractOriginalFilename } from "../media/store.js";
 import { safeEqualSecret } from "../security/secret-equal.js";
+import {
+  ASSISTANT_AVATAR_MODELS,
+  isAssistantAvatarModelId,
+} from "../shared/assistant-avatar-model-catalog.js";
 import { AVATAR_MAX_BYTES, resolveAvatarMime } from "../shared/avatar-policy.js";
 import { escapeHtml } from "../shared/html-escape.js";
 import { createLazyRuntimeModule } from "../shared/lazy-runtime.js";
@@ -741,7 +748,10 @@ export async function handleControlUiAvatarRequest(
   const url = new URL(urlRaw, "http://localhost");
   const basePath = normalizeControlUiBasePath(opts.basePath);
   const pathname = url.pathname;
-  const parsed = parseControlUiResourcePath("agentAvatar", pathname, basePath);
+  const modelRoute = parseControlUiResourcePath("agentAvatarModel", pathname, basePath);
+  const parsed = modelRoute.matched
+    ? modelRoute
+    : parseControlUiResourcePath("agentAvatar", pathname, basePath);
   if (!parsed.matched) {
     return false;
   }
@@ -763,6 +773,64 @@ export async function handleControlUiAvatarRequest(
     return true;
   }
   requestAuth.assertCurrent();
+
+  if (modelRoute.matched) {
+    const currentConfig = opts.getRuntimeConfig?.() ?? opts.config;
+    if (!resolveAgentConfig(currentConfig, agentId)) {
+      respondControlUiNotFound(res);
+      return true;
+    }
+    const modelId = resolveAssistantIdentity({ cfg: currentConfig, agentId }).avatarModelId;
+    if (!isAssistantAvatarModelId(modelId)) {
+      respondControlUiNotFound(res);
+      return true;
+    }
+    const packageRoot = resolveOpenClawPackageRootSync({ moduleUrl: import.meta.url });
+    if (!packageRoot) {
+      respondControlUiNotFound(res);
+      return true;
+    }
+    const model = ASSISTANT_AVATAR_MODELS[modelId];
+    const opened = openRootFileSync({
+      absolutePath: path.join(packageRoot, model.assetPath),
+      rootPath: packageRoot,
+      boundaryLabel: "local assistant avatar model",
+      maxBytes: 10 * 1024 * 1024,
+    });
+    if (!opened.ok) {
+      respondControlUiNotFound(res);
+      return true;
+    }
+    try {
+      const bytes = await readFileDescriptorBounded(opened.fd, 10 * 1024 * 1024);
+      if (bytes.length !== model.bytes || !validateAssistantAvatarModelBytes(modelId, bytes)) {
+        respondControlUiNotFound(res);
+        return true;
+      }
+      requestAuth.assertCurrent();
+      const latestConfig = opts.getRuntimeConfig?.() ?? opts.config;
+      if (
+        !resolveAgentConfig(latestConfig, agentId) ||
+        resolveAssistantIdentity({ cfg: latestConfig, agentId }).avatarModelId !== modelId
+      ) {
+        respondControlUiNotFound(res);
+        return true;
+      }
+      res.setHeader("Vary", "Authorization, Cookie");
+      res.setHeader("Content-Type", "model/gltf-binary");
+      res.setHeader("Content-Length", String(bytes.length));
+      res.setHeader("Cache-Control", "private, no-store");
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.statusCode = 200;
+      res.end(req.method === "HEAD" ? undefined : bytes);
+    } catch {
+      requestAuth.assertCurrent();
+      respondControlUiNotFound(res);
+    } finally {
+      fs.closeSync(opened.fd);
+    }
+    return true;
+  }
 
   const identity = resolveAssistantIdentity({ cfg: opts.config, agentId });
   const projection = openGatewayAssistantAvatar({ cfg: opts.config, identity });

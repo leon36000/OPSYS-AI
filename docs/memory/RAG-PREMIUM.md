@@ -51,7 +51,7 @@
  │ PostgreSQL 17, schéma `memoire` : documents · fragments · journal_effacements              │
  │   plein texte FR (tsvector `memoire.francais` = unaccent + french_stem, GIN)               │
  │   vecteurs bge-m3 1024 d (pgvector, HNSW cosinus) → fusion RRF → rerank (phase 2)          │
- │ ingestion Docling → découpage → embeddings (/v1/embeddings, local par défaut)              │
+ │ ingestion Docling → découpage → embeddings (/v1/embeddings, si configuré)                  │
  └────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -139,11 +139,14 @@ journalisé) et exposée en MCP par trois outils, soumis aux politiques T0–T3 
 3. **Embeddings — BAAI/bge-m3 (MIT).**
    - Dense, 1 024 dimensions, 8 192 tokens de contexte, multilingue dont le français.
    - Client stdlib `embeddings.py` : `POST {OPSYS_EMBEDDINGS_URL}/embeddings`, modèle et clé par variables
-     d'environnement, lots de 32. Les erreurs sont explicites : HTTP, délai, JSON, dimension, valeurs
-     non finies.
-   - Serveur local : Ollama ou `llama-server` (MIT, déjà inscrits dans `INGREDIENTS.md`), ou TEI/Infinity.
-     La licence et le support de bge-m3 sont à vérifier et à inscrire dans `INGREDIENTS.md` avant
-     adoption.
+     d'environnement. La taille par défaut reste 32; le provider R41 local impose un lot de 1. Les erreurs
+     sont explicites : HTTP, délai, JSON, dimension, valeurs non finies ou réponse trop volumineuse.
+   - Le provider R41 (`python -m opsys.memoire.serveur_embeddings_local`) sert les assets ONNX quantifiés
+     fournis par l'opérateur; il n'effectue aucun téléchargement. Il exige Python 3.12 et l'extra
+     `embeddings-local` optionnel. Entrées de 512 tokens maximum, sans troncature. Le profil Compose est
+     opt-in et réseau interne; le plafond mémoire de 3 GiB est provisoire, RSS à 512 tokens et capacité
+     VPS restent à mesurer. Les cartes Xenova/BAAI déclarent MIT mais aucun fichier `LICENSE` distinct
+     n'a été trouvé pour les poids. Voir `INGREDIENTS.md` et `docs/ops/EXPLOITATION.md`.
    - Option cloud : un endpoint OpenAI-compatible qui sert bge-m3. Les données quittent le VPS : EFVP
      obligatoire (§6).
 4. **Stockage — PostgreSQL 17 + pgvector** (§4).
@@ -216,8 +219,9 @@ Filtres acceptés (liste blanche ; clé inconnue = refus) : `departement`, `port
 | `OPSYS_DEPARTEMENT` | Département appelant par défaut du processus. La plateforme peut le fixer par requête avec `outils.appeler_en_tant_que(id)`, qui est prioritaire : serveur MCP, console qui exécute une approbation. Jamais un argument du modèle. Sans lui, les outils refusent. |
 | `OPSYS_EMBEDDINGS_URL` | Base OpenAI-compatible (ex. `http://embeddings:11434/v1`). Absente = mode plein texte explicite. |
 | `OPSYS_EMBEDDINGS_MODELE` | Obligatoire si l'URL est définie. Aucun modèle par défaut. |
-| `OPSYS_EMBEDDINGS_CLE` | Jeton Bearer, facultatif. |
+| `OPSYS_EMBEDDINGS_CLE` | Jeton Bearer; obligatoire pour le provider local R41, facultatif pour les endpoints configurés sans auth. |
 | `OPSYS_EMBEDDINGS_LOCAL` | `1` si l'endpoint tourne sur le VPS. Sinon, les fragments `personnelle` ne sont pas envoyés. |
+| `OPSYS_EMBEDDINGS_TAILLE_LOT` | Lot client entre 1 et 32; défaut 32 pour compatibilité. R41 fixe le provider local à 1. |
 
 Commandes d'exploitation : `python -m opsys.memoire migrer | purger | etat | completer`.
 
@@ -335,6 +339,24 @@ registre de M10 existent déjà (v1).
 - **TruLens** (MIT) : triade RAG et traces pour déboguer un cas.
 - **Règle** : aucun chiffre de benchmark fournisseur n'est retenu (R4 §7). Seul notre banc fait foi.
   Tout changement de modèle, de découpage ou de fusion se juge sur ce banc avant fusion.
+
+
+### 9.1 Mesure R31 du retriever sur PostgreSQL réel
+
+Le 2 octobre 2026, ROOT a exécuté 18 tests (15 métriques/oracles purs, 3 parcours PostgreSQL 17 + pgvector) : 0 échec, 0 erreur, 0 skip, 5,116 s pour la campagne entière. Les 1 113 empreintes surveillées avant et après sont identiques. Le test R31 mesure le retriever contre 9 qrels indépendants issus du petit jeu fictif de 12 fragments : 6 questions `development`, 3 `holdout`. SHA corpus `d3720fe1b3d66b4c93fd48271b59d595fb760d50d3db4324f80b973fe325165c`; SHA qrels canonique `83172dd521f4b66f6f6ef04bf17275596d6c4e9a846fa0f65d7f3d415ad215be`.
+
+| Mode de retrieval | Split (questions) | Recall@5 | P@5 | MRR@10 | nDCG@10 | forbidden-hit@10 |
+|---|---:|---:|---:|---:|---:|---:|
+| lexical | all (9) | 0,5556 | 0,1111 | 0,5556 | 0,5556 | 0,3333 |
+| lexical | development (6) | 0,5000 | 0,1000 | 0,5000 | 0,5000 | 0,5000 |
+| lexical | holdout (3) | 0,6667 | 0,1333 | 0,6667 | 0,6667 | 0,0000 |
+| double déterministe | all (9) | 1,0000 | 0,2000 | 0,9444 | 0,9590 | 1,0000 |
+| double déterministe | development (6) | 1,0000 | 0,2000 | 0,9167 | 0,9385 | 1,0000 |
+| double déterministe | holdout (3) | 1,0000 | 0,2000 | 1,0000 | 1,0000 | 1,0000 |
+
+`P@5` garde un dénominateur fixe de cinq. `forbidden-hit@10` compte une question si au moins une source étiquetée indésirable dans ses qrels apparaît parmi les dix premiers; ce n'est pas un refus d'accès, une mesure d'ACL ou une preuve d'isolation. Le parcours de classement interroge volontairement toutes les portées permises de la fixture; un test séparé vérifie un filtre de département. Le contrat d'autorité du sujet/client reste une analyse de sécurité distincte, non qualifiée ici.
+
+Le mode double réutilise `plonger`, sac de mots et trigrammes déterministe de test; son rappel parfait vient avec un forbidden-hit de 1,0. Il ne s'agit pas d'un modèle sémantique. Le score lexical faible est une observation sur ces 9 qrels, pas un seuil premium. Le temps de campagne JUnit n'est pas une latence de requête p95. Aucun modèle réel, coût d'embedding, corpus de production, échelle VPS ou benchmark premium n'a été mesuré. Cette table complète le test historique de plomberie `rappel@3` décrit ci-dessus, dont le protocole/k diffère; elle ne le remplace pas par un chiffre généralisable. La preuve ROOT se trouve au XML `metriques-pg-root-r1.xml` (SHA-256 `4000422a10ce0ade7344960b5e4cdc5fe8ad0e1c3540b214193ac79d030f2824`) et à son reçu `memoire-metriques-pg-root-r1-2026-10-02-resultat.json`; son archivage R31 compact est proposé séparément.
 
 ## 10. Dimensionnement
 

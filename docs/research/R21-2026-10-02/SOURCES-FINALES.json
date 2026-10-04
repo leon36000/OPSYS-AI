@@ -1,0 +1,10 @@
+{
+  "sources_selectionnees": 1072,
+  "identiques_aux_149_tests_M3": true,
+  "delta_depuis_312": [
+    "departments/m03-estimation/src/m3_estimation/estime_vs_reel.py"
+  ],
+  "logique_M3_identique_hors_docstring": true,
+  "portee": "src/tests/departments/install py/yaml/toml/sh/ps1/json, hors caches, symlinks, preuves et outils_preuve; aucun core TypeScript couvert",
+  "empreinte_carte_sources": "724b31e279adec0d1c5b629fdc085f21d65f5f4e03a34b3be66ccf4ef3547a51"
+}

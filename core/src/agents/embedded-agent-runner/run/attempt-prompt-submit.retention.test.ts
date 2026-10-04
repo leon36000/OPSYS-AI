@@ -184,7 +184,7 @@ it("submits deferred child results after canonical archive pruning without poiso
     prompt: "Use the findings to finish the answer.",
   });
   await submitEmbeddedAttemptPrompt({
-    attempt: { sessionId, sessionKey: requesterSessionKey },
+    attempt: { runId: "retention-requester-run", sessionId, sessionKey: requesterSessionKey },
     activeSession: session,
     contextTokenBudget: 32_000,
     images: [],

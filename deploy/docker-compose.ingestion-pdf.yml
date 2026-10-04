@@ -1,0 +1,16 @@
+# Option explicite, ajoutée au même service Python : voir docs/ops/INGESTION-PDF-DOCKER.md.
+# Aucun worker réseau, daemon Docker, privilège ou clé d'ingestion dans le Gateway.
+services:
+  opsys:
+    image: opsys:ingestion-pdf-local
+    build:
+      args:
+        OPSYS_INGESTION_PDF: "1"
+    # Fichier privé hors contexte de build ; référence courante et anciennes clés conservées
+    # par l'opérateur. config --quiet uniquement : une sortie config complète révèle les clés.
+    env_file:
+      - ${OPSYS_INGESTION_ENV_FILE:?OPSYS_INGESTION_ENV_FILE doit pointer vers un fichier privé externe}
+    healthcheck:
+      test: ["CMD", "python3", "/opt/opsys/deploy/readiness_pdf.py"]
+      interval: 30s
+      timeout: 30s

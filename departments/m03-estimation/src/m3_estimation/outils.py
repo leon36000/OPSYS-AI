@@ -13,6 +13,8 @@ import hashlib
 import json
 import re
 from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -20,11 +22,15 @@ import yaml
 from sqlalchemy import select
 
 from opsys import contexte, evenements, identite, jetons, stockage, taxonomie
+from opsys.approbations import approbateur_en_cours
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
+from opsys.stockage import codec
 from opsys.stockage.schema import APPROBATIONS
 
 from . import (
     besoins_materiaux,
+    calibration_raccord,
+    calibration_versions,
     contrats,
     devis_durable,
     devis_relance,
@@ -77,6 +83,16 @@ _SEUILS = {
 }
 _BAREME = {
     "type": "object",
+    "properties": {
+        "semantique_temps": {
+            "type": "string",
+            "description": (
+                "Optionnel. Seule la valeur exacte duree_ecoulee_intervention qualifie les minutes comme "
+                "temps écoulé sur site par unité, pauses et déplacement exclus; absent ou toute autre valeur "
+                "reste non qualifiée."
+            ),
+        },
+    },
     "description": (
         "{version, unite, postes: {service (lead v2) ou type_travaux (lead v1) : {cout_unitaire_min, "
         "cout_unitaire_max, "
@@ -417,10 +433,16 @@ def estimer_projet(
     vue = _vue_projection_effective(None)
     if not vue["accepte"]:
         return {"etape": "identite_appareil", "accepte": False, "verdict": vue["verdict"]}
+    calibration_candidate, erreur_calibration = _calibration_active_pour_demande(
+        contrat, bareme, quantite,
+    )
+    if erreur_calibration is not None:
+        return {"etape": "calibration_active", "accepte": False,
+                "raisons": [erreur_calibration], "candidate_active": False}
     resultat = estimation.orchestrer_estimation(
         contrat, marqueur, photos, seuils, bareme, quantite, plancher_rentable,
         registre_production(), graine, taux_marge,
-        taux_marge_scenarios, _taux_scenarios_configures(), _seuils_revue(),
+        taux_marge_scenarios, _taux_scenarios_configures(), _seuils_revue(), calibration_candidate,
     )
     if resultat.get("accepte") is True and resultat.get("besoins_materiaux") is not None:
         _publier_besoins_materiaux(resultat["besoins_materiaux"])
@@ -470,6 +492,37 @@ def registre_devis_production() -> stockage.MaillonsDurables:
     return stockage.maillons("m03-estimation", "devis")
 
 
+def _source_estimation_exacte(hash_source: str | None, devis_id: str, lead_id: str) -> dict[str, Any] | None:
+    """Résout un hash source seulement dans la chaîne M3 validée et pour les deux mêmes identifiants.
+
+    L'appelant est dans la transaction atomique du métier. Une chaîne altérée, un hash absent/inconnu,
+    ou un devis/lead différent ne produit aucune source exploitable.
+    """
+    if (
+        not isinstance(hash_source, str)
+        or len(hash_source) != 64
+        or any(caractere not in "0123456789abcdef" for caractere in hash_source)
+    ):
+        return None
+    journal = registre_production()
+    try:
+        valide, _ = journal.valider_chaine()
+        if not valide:
+            return None
+        matches = [
+            maillon for maillon in journal.lire()
+            if isinstance(maillon, dict) and maillon.get("hash_maillon") == hash_source
+        ]
+    except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+        return None
+    if len(matches) != 1:
+        return None
+    charge = matches[0].get("charge")
+    if not isinstance(charge, dict) or charge.get("devis_id") != devis_id or charge.get("lead_id") != lead_id:
+        return None
+    return charge
+
+
 def creer_devis(
     devis_id: str,
     lead_id: str,
@@ -478,7 +531,19 @@ def creer_devis(
     taux_marge: str,
     horodatage: str,
     prix_total: str | None = None,
+    estimation_source_hash: str | None = None,
 ) -> dict[str, Any]:
+    if (
+        estimation_source_hash is not None
+        and _source_estimation_exacte(estimation_source_hash, devis_id, lead_id) is None
+    ):
+        return {
+            "accepte": False,
+            "verdict": verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE",
+                detail="estimation_source_hash ne référence pas une charge M3 validée pour ce devis et ce lead",
+            ),
+        }
     return depuis_couple(
         devis_durable.creer_devis(
             devis_id,
@@ -489,6 +554,7 @@ def creer_devis(
             horodatage,
             registre_devis_production(),
             prix_total_fourni=prix_total,
+            estimation_source_hash=estimation_source_hash,
         )
     )
 
@@ -531,12 +597,13 @@ def marquer_devis_accepte(devis_id: str, approbateur: str, horodatage: str) -> d
     )
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
-    charge = estime_vs_reel.avec_duree_estimee(  # PLAN T1.5-d : durée estimée du devis, si l'estimation la porte
-        devis_durable.charge_evenement_devis_accepte(devis),
-        devis_id,
-        registre_devis_production(),
-        registre_production().lire(),
-    )
+    charge = devis_durable.charge_evenement_devis_accepte(devis)
+    source = _source_estimation_exacte(devis.get("estimation_source_hash"), devis_id, devis.get("lead_id"))
+    if source is not None:
+        # La référence est l'unique autorité. Le helper exige la sémantique exacte avant de publier la mesure.
+        charge = estime_vs_reel.avec_duree_estimee(
+            charge, devis_id, registre_devis_production(), registre_production().lire()
+        )
     evenements.publier("m3.devis_accepte", "m03-estimation", charge, evenement_id=f"m3-devis-accepte-{devis_id}")
     return {"accepte": True, "resultat": devis}
 
@@ -552,6 +619,265 @@ def registre_estime_vs_reel_production() -> stockage.MaillonsDurables:
     return stockage.maillons("m03-estimation", "estime_vs_reel")
 
 
+def registre_calibration_versions_production() -> stockage.MaillonsDurables:
+    """Journal append-only CAS des candidates et décisions de calibration."""
+    return stockage.maillons("m03-estimation", "calibration_versions")
+
+
+def _prefixe_recu_wct(maillons: Any) -> dict[str, Any] | None:
+    """Empreinte bornée du préfixe M3 append-only des reçus WCT et rangs d'admission courants."""
+    if not isinstance(maillons, list) or len(maillons) > 20_000:
+        return None
+    entries: list[dict[str, Any]] = []
+    rangs: dict[str, int] = {}
+    for rang_registre, maillon in enumerate(maillons):
+        if not isinstance(maillon, dict) or maillon.get("type_entree") != "wct_recu":
+            continue
+        champs = {"type_entree", "wct_id", "devis_id", "lead_id", "intervention_id",
+                  "horodatage_completion", "main_doeuvre", "materiaux", "horodatage"}
+        if (set(maillon) != champs or not isinstance(maillon.get("wct_id"), str)
+                or not maillon["wct_id"] or maillon["wct_id"] in rangs
+                or not isinstance(maillon.get("main_doeuvre"), dict)
+                or not isinstance(maillon.get("horodatage_completion"), str)
+                or maillon.get("horodatage") != maillon.get("horodatage_completion")):
+            return None
+        rangs[maillon["wct_id"]] = len(entries)
+        encoded = codec.encoder(maillon)
+        entries.append({"rang_registre": rang_registre, "maillon": encoded})
+    contenu = {"version": "m03-wct-prefix/1", "entrees": entries}
+    canonique = json.dumps(contenu, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    if len(entries) > 2_000 or len(canonique.encode("utf-8")) > 4_000_000:
+        return None
+    return {
+        "count": len(entries), "sha256": hashlib.sha256(canonique.encode("utf-8")).hexdigest(),
+        "wct_id_hashes": sorted(
+            calibration_versions.empreinte_identifiant_wct(wct_id) for wct_id in rangs
+        ),
+        "rangs": rangs, "entrees": entries,
+    }
+
+
+def _politique_calibration() -> dict[str, Any] | None:
+    configuration = _configuration_du_manifeste()
+    politique = configuration.get("calibration_temps") if isinstance(configuration, dict) else None
+    return politique if isinstance(politique, dict) else None
+
+
+def proposer_calibration_temps(coupure_utc: str, coupure_evaluation_utc: str) -> dict[str, Any]:
+    """Fige candidates exclusivement depuis le train du rapport; ne consomme aucun holdout futur."""
+    rapport = evaluer_calibration_cohortes(coupure_utc, _inclure_observations=True, _train_only=True)
+    rapport.pop("observations_qualifiees", None)
+    rapport.pop("_observations_qualifiees", None)
+    # Les observations brutes ne sont jamais incluses dans le reçu d'outil; le registre conserve
+    # seulement les empreintes et bornes de provenance du rapport source.
+    if rapport.get("statut") != "candidate":
+        rapport["candidate_active"] = False
+        return rapport
+    prefixe = _prefixe_recu_wct(list(registre_estime_vs_reel_production()))
+    if prefixe is None:
+        return {"statut": "refuse", "raisons": ["prefixe_wct_m3_invalide_ou_hors_limite"],
+                "candidate_active": False}
+    rapport["source_wct_prefix"] = {
+        "count": prefixe["count"], "sha256": prefixe["sha256"],
+        "wct_id_hashes": prefixe["wct_id_hashes"],
+    }
+    rapport["holdout_cutoff_utc"] = coupure_evaluation_utc
+    sans_hash = {key: value for key, value in rapport.items() if key != "rapport_sha256"}
+    rapport["rapport_sha256"] = hashlib.sha256(
+        json.dumps(sans_hash, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    ).hexdigest()
+    politique = _politique_calibration()
+    if politique is None:
+        return {"statut": "refuse", "raisons": ["politique_calibration_absente"], "candidate_active": False}
+    journal = registre_calibration_versions_production()
+    prefixe_immediat = _prefixe_recu_wct(list(registre_estime_vs_reel_production()))
+    if (prefixe_immediat is None or prefixe_immediat["count"] != prefixe["count"]
+            or prefixe_immediat["sha256"] != prefixe["sha256"]):
+        return {"statut": "refuse", "raisons": ["prefixe_wct_m3_concurrent"], "candidate_active": False}
+    resultat = calibration_versions.proposer_candidate(journal, rapport, politique=politique)
+    resultat["rapport_sha256"] = rapport.get("rapport_sha256")
+    resultat["holdout_initial_non_utilise"] = True
+    resultat["candidate_active"] = False
+    if isinstance(resultat.get("candidates"), list):
+        resultat["candidates"] = [
+            {
+                "candidate_id": item["candidate_id"],
+                "type_service": item["scope"]["type_service"],
+                "unite_quantite": item["scope"]["unite_quantite"],
+                "bareme_version": item["scope"]["bareme_version"],
+                "quantite_exacte": item["scope"]["quantite_exacte"],
+                "taux_minutes_par_unite_reference": item["scope"]["taux_minutes_par_unite_reference"],
+                "taux_minutes_par_unite_candidat": item["taux_minutes_par_unite_candidat"],
+                "source_horizon_utc": item["source_horizon_utc"],
+                "holdout_cutoff_utc": item["holdout_cutoff_utc"],
+                "politique_version": item["politique"]["version"],
+                "politique_sha256": item["politique_sha256"],
+                "candidate_active": False,
+            }
+            for item in resultat["candidates"]
+        ]
+    return resultat
+
+
+def evaluer_candidate_calibration(candidate_id: str) -> dict[str, Any]:
+    """Compare baseline et candidate sur une nouvelle fenêtre explicitement coupée, après le protocole figé."""
+    try:
+        candidate = calibration_versions.lire_candidate(registre_calibration_versions_production(), candidate_id)
+    except ValueError:
+        return {"statut": "refuse", "raisons": ["journal_calibration_invalide"], "candidate_active": False}
+    if candidate is None:
+        return {"statut": "refuse", "raisons": ["candidate_introuvable"], "candidate_active": False}
+    prefixe_actuel = _prefixe_recu_wct(list(registre_estime_vs_reel_production()))
+    prefixe_attendu = candidate.get("source_wct_prefix")
+    if (prefixe_actuel is None or not isinstance(prefixe_attendu, dict)
+            or type(prefixe_attendu.get("count")) is not int
+            or prefixe_attendu["count"] > prefixe_actuel["count"]):
+        return {"statut": "refuse", "raisons": ["prefixe_wct_m3_indisponible"], "candidate_active": False}
+    prefixe_serialise = {
+        "version": "m03-wct-prefix/1",
+        "entrees": prefixe_actuel["entrees"][:prefixe_attendu["count"]],
+    }
+    digest_prefixe = hashlib.sha256(json.dumps(
+        prefixe_serialise, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+    ).encode("utf-8")).hexdigest()
+    hashes_ids_prefixe = sorted(
+        calibration_versions.empreinte_identifiant_wct(wct_id)
+        for wct_id, rang in prefixe_actuel["rangs"].items() if rang < prefixe_attendu["count"]
+    )
+    if (digest_prefixe != prefixe_attendu.get("sha256")
+            or hashes_ids_prefixe != prefixe_attendu.get("wct_id_hashes")):
+        return {"statut": "refuse", "raisons": ["prefixe_wct_m3_modifie"], "candidate_active": False}
+    rapport = evaluer_calibration_cohortes(candidate["holdout_cutoff_utc"], _inclure_observations=True)
+    observations = rapport.pop("observations_qualifiees", [])
+    if rapport.get("statut") == "refuse":
+        return {"statut": "refuse", "raisons": rapport.get("raisons", ["source_m4_refusee"]),
+                "candidate_active": False}
+    try:
+        horizon_text = candidate["source_horizon_utc"]
+        horizon = datetime.fromisoformat(
+            horizon_text[:-1] + "+00:00" if horizon_text.endswith("Z") else horizon_text
+        ).astimezone(UTC)
+    except (AttributeError, KeyError, TypeError, ValueError):
+        return {"statut": "refuse", "raisons": ["horizon_source_invalide"], "candidate_active": False}
+    provenance = rapport.get("provenance_observations", [])
+    holdout_wct_ids = {
+        item.get("wct_id") for item in provenance
+        if isinstance(item, dict) and item.get("partition") == "holdout"
+    }
+    # Dénominateur conservateur : les WCT du holdout observés et les WCT identifiables refusés
+    # ou exclus restent comptés. Le corpus M4 n'est pas déclaré exhaustif.
+    known_holdout_ids = set(holdout_wct_ids)
+    for entry in rapport.get("exclusions", []) + rapport.get("refus_projection_m4", []):
+        if isinstance(entry, dict) and isinstance(entry.get("wct_id"), str):
+            known_holdout_ids.add(entry["wct_id"])
+    futur = []
+    for observation in observations:
+        if observation.get("wct_id") not in holdout_wct_ids:
+            continue
+        try:
+            debut_text = observation["horodatage_debut"]
+            debut = datetime.fromisoformat(
+                debut_text[:-1] + "+00:00" if debut_text.endswith("Z") else debut_text
+            )
+            if debut.tzinfo is None or debut.utcoffset() != timedelta(0):
+                continue
+            debut = debut.astimezone(UTC)
+        except (AttributeError, KeyError, TypeError, ValueError):
+            continue
+        if debut <= horizon:
+            continue
+        rang_admission = prefixe_actuel["rangs"].get(observation.get("wct_id"))
+        if rang_admission is None or rang_admission < prefixe_attendu["count"]:
+            continue
+        futur.append({
+            **observation,
+            "duree_estimee_minutes": format(observation["duree_estimee_minutes"], "f"),
+            "quantite": format(observation["quantite"], "f"),
+            "taux_minutes_par_unite": format(observation["taux_minutes_par_unite"], "f"),
+            "taux_minutes_par_unite_source": format(observation["taux_minutes_par_unite_source"], "f"),
+        })
+    ids_admis_apres_sceau = {
+        wct_id for wct_id, rang in prefixe_actuel["rangs"].items()
+        if rang >= prefixe_attendu["count"]
+    }
+    return calibration_versions.evaluer_candidate(
+        registre_calibration_versions_production(), candidate_id, futur,
+        couverture_denominateur=len(known_holdout_ids | ids_admis_apres_sceau),
+    )
+
+
+def activer_candidate_calibration(candidate_id: str, active_version_attendue: str | None = None) -> dict[str, Any]:
+    signataire = approbateur_en_cours(
+        stockage.connexion_courante(), "m3_activer_candidate_calibration", "m03-estimation",
+        roles=frozenset({"nathan_owner"}),
+    )
+    if signataire is None:
+        return {"accepte": False, "raisons": ["approbateur_nathan_owner_requis"], "candidate_active": False}
+    return calibration_versions.activer_candidate(
+        registre_calibration_versions_production(), candidate_id,
+        active_version_attendue=active_version_attendue,
+        approbateur={"personne": signataire.personne, "role": signataire.role},
+    )
+
+
+def rollback_candidate_calibration(candidate_id: str) -> dict[str, Any]:
+    signataire = approbateur_en_cours(
+        stockage.connexion_courante(), "m3_rollback_candidate_calibration", "m03-estimation",
+        roles=frozenset({"nathan_owner"}),
+    )
+    if signataire is None:
+        return {"accepte": False, "raisons": ["approbateur_nathan_owner_requis"], "candidate_active": False}
+    return calibration_versions.revoquer_candidate(
+        registre_calibration_versions_production(), active_version_attendue=candidate_id,
+        approbateur={"personne": signataire.personne, "role": signataire.role},
+    )
+
+
+def _calibration_active_pour_demande(
+    contrat: dict[str, Any], bareme: dict[str, Any], quantite: float,
+) -> tuple[dict[str, Any] | None, str | None]:
+    if not isinstance(contrat, dict) or not isinstance(bareme, dict):
+        return None, None
+    service = contrat.get("service", contrat.get("type_travaux"))
+    if not isinstance(service, str):
+        return None, None
+    try:
+        baseline, taux, verdict = estimation._duree_estimee_minutes_texte(quantite, bareme, service)
+    except (AttributeError, TypeError, ValueError):
+        return None, None
+    if verdict is not None or baseline is None or taux is None:
+        return None, None
+    try:
+        journal = registre_calibration_versions_production()
+        valide, _ = calibration_versions.valider_journal(list(journal))
+        if not valide:
+            return None, "journal_calibration_invalide"
+        active = calibration_versions.version_active(
+            list(journal), service, bareme.get("unite"), bareme.get("version"),
+            estimation.trace_calibration_temps.empreinte_bareme(bareme),
+            format(Decimal(str(quantite)), "f"), format(taux, "f"), None,
+        )
+        profondeur = 0
+        while active is not None and profondeur < 16:
+            suivant = calibration_versions.version_active(
+                list(journal), service, bareme.get("unite"), bareme.get("version"),
+                estimation.trace_calibration_temps.empreinte_bareme(bareme),
+                format(Decimal(str(quantite)), "f"), active["taux_minutes_par_unite_candidat"],
+                active["candidate_id"],
+            )
+            if suivant is None:
+                return active, None
+            if suivant["candidate_id"] == active["candidate_id"]:
+                return None, "cycle_calibration"
+            active = suivant
+            profondeur += 1
+        if profondeur >= 16:
+            return None, "profondeur_calibration_depassee"
+        return active, None
+    except (ArithmeticError, KeyError, TypeError, ValueError, RecursionError):
+        return None, "journal_calibration_invalide"
+
+
 # ---------------------------------------------------------------------------------------------
 # Consommateurs d'événements (ADR-0009 §3, PLAN T1.2-d) : seul cet adaptateur connaît `opsys` ;
 # `estime_vs_reel.py` (module pur) fait le rapprochement et l'enregistrement déterministes. Le
@@ -560,12 +886,16 @@ def registre_estime_vs_reel_production() -> stockage.MaillonsDurables:
 # ci-dessus), sans le mode « en mémoire » des tests unitaires du module pur.
 # ---------------------------------------------------------------------------------------------
 def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
-    """Consomme `m4.travaux_termines` : relie le WCT à son devis puis, si le lien existe déjà, à
-    l'estimation d'origine (`estime_vs_reel.enregistrer_travaux_termines`, DÉTERMINISTE). Toujours
-    `traite: true` — une comparaison main-d'œuvre incomplète est une lacune nommée dans le
-    résultat, jamais un échec de consommation."""
+    """Consomme le WCT; une mesure n'est comparable qu'avec le hash explicite du devis et une
+    chaîne M3 valide. Une chaîne cassée rend la mesure indisponible, sans bloquer la réception du WCT."""
+    journal = registre_production()
+    try:
+        valide, _ = journal.valider_chaine()
+        maillons_estimations = journal.lire() if valide else []
+    except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+        maillons_estimations = []
     resultat = estime_vs_reel.enregistrer_travaux_termines(
-        charge, registre_devis_production(), registre_production().lire(), registre_estime_vs_reel_production()
+        charge, registre_devis_production(), maillons_estimations, registre_estime_vs_reel_production()
     )
     return {"traite": True, "wct_id": resultat["wct_id"]}
 
@@ -588,6 +918,96 @@ def lire_ecarts_estime_reel(
     return depuis_couple(
         estime_vs_reel.lire_ecarts(registre_estime_vs_reel_production(), devis_id, depuis, jusqua)
     )
+
+
+def evaluer_calibration_cohortes(
+    coupure_utc: str, *, _inclure_observations: bool = False, _train_only: bool = False,
+) -> dict[str, Any]:
+    """Rapport de calibration candidat, formé depuis M4 et les registres M3 relus en serveur."""
+    appareil = contexte.identite_appelante()
+    origine = contexte.departement_origine_appelante()
+    if appareil is not None and appareil.role != "admin":
+        return {"statut": "refuse", "raisons": ["role_appareil_non_autorise"], "candidate_active": False}
+    if origine != "m03-estimation" and appareil is None:
+        return {"statut": "refuse", "raisons": ["departement_appelant_non_autorise"], "candidate_active": False}
+    try:
+        from opsys.capacites import Capacites
+        from opsys.departements import charger_departements
+
+        departements = charger_departements()
+        cibles = {nom: departements[nom] for nom in ("m03-estimation", "m04-field-ops")}
+        capacites = Capacites(
+            cibles, stockage.transaction, appelant="m03-estimation", limite_sortie=200_000, memoire=False,
+        )
+        registre_rapport = registre_estime_vs_reel_production()
+        if len(registre_rapport) > 2000:
+            return {"statut": "refuse", "raisons": ["limite_wct_m3_depassee"], "candidate_active": False}
+        maillons_wct = list(registre_rapport)
+        wct_ids = sorted({
+            maillon["wct_id"] for maillon in maillons_wct
+            if isinstance(maillon, dict) and maillon.get("type_entree") == "wct_recu"
+            and isinstance(maillon.get("wct_id"), str)
+        })
+        if len(wct_ids) > 2000:
+            return {"statut": "refuse", "raisons": ["limite_wct_m3_depassee"], "candidate_active": False}
+        projections_m4: list[dict[str, Any]] = []
+        for debut in range(0, len(wct_ids), 200):
+            resultat = capacites.appeler(
+                "m4_lire_faits_calibration_m3", {"wct_ids": wct_ids[debut:debut + 200]},
+            )
+            if not resultat.get("ok") or not isinstance(resultat.get("resultat"), dict):
+                return {
+                    "statut": "refuse", "raisons": ["projection_m4_refusee_ou_indisponible"],
+                    "candidate_active": False,
+                }
+            projections_m4.append(resultat["resultat"])
+        projections = {
+            "observations": [
+                observation for projection in projections_m4 for observation in projection.get("observations", [])
+            ],
+            "refus": [refus for projection in projections_m4 for refus in projection.get("refus", [])],
+        }
+    except (ImportError, KeyError, TypeError, ValueError, RecursionError):
+        return {"statut": "refuse", "raisons": ["projection_m4_indisponible"], "candidate_active": False}
+    journal_estimations = registre_production()
+    journal_devis = registre_devis_production()
+    if len(stockage.maillons("m03-estimation", "principal")) > 20000:
+        return {"statut": "refuse", "raisons": ["limite_registre_estimations_depassee"], "candidate_active": False}
+    if len(journal_devis) > 10000:
+        return {"statut": "refuse", "raisons": ["limite_registre_devis_depassee"], "candidate_active": False}
+    rapport = calibration_raccord.construire_rapport(
+        coupure_utc=coupure_utc,
+        registre_estimations=journal_estimations,
+        registre_devis=journal_devis,
+        projections_m4=projections,
+        _inclure_observations=_inclure_observations,
+        _train_only=_train_only,
+    )
+    if rapport.get("statut") in {"candidate", "insuffisant"}:
+        observation_rows = rapport.get("_observations_qualifiees", [])
+        if _train_only:
+            train_ids = {
+                row.get("wct_id") for row in rapport.get("provenance_observations", [])
+                if isinstance(row, dict) and row.get("partition") == "train"
+            }
+            observation_rows = [row for row in observation_rows if row.get("wct_id") in train_ids]
+        horizons = [row["horodatage_completion"] for row in observation_rows if isinstance(row, dict)]
+        if horizons:
+            rapport["source_horizon_utc"] = max(horizons)
+        if _inclure_observations:
+            rapport["observations_qualifiees"] = observation_rows
+        else:
+            rapport.pop("_observations_qualifiees", None)
+        public = {
+            key: value for key, value in rapport.items()
+            if key not in {"observations_qualifiees", "_observations_qualifiees"}
+        }
+        public.pop("rapport_sha256", None)
+        rapport["rapport_sha256"] = hashlib.sha256(
+            json.dumps(public, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+        ).hexdigest()
+        rapport.pop("_observations_qualifiees", None)
+    return rapport
 
 
 def detecter_devis_sans_reponse(horodatage_reference: str, delai_relance_jours: int) -> dict[str, Any]:
@@ -1005,6 +1425,10 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=estimer_projet,
             autonomie=Autonomie.T1,
+            # Le core compare le contrat validé avec l'affaire M10 avant l'effet métier.
+            portee_contexte="affaire",
+            cible_contexte=("contrat", "lead_id"),
+            identite_contexte="lead",
         ),
         Outil(
             nom="m3_qualifier_photos",
@@ -1078,6 +1502,14 @@ def outils() -> tuple[Outil, ...]:
                 "type": "object",
                 "properties": {
                     "devis_id": {"type": "string"},
+                    "estimation_source_hash": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{64}$",
+                        "description": (
+                            "Optionnel : hash_maillon exact de l'estimation M3 retourné par "
+                            "m3_estimer_projet.estimation.hash_maillon; le code valide la chaîne et les IDs."
+                        ),
+                    },
                     "lead_id": {"type": "string", "description": "lien avec le lead M2"},
                     "chantier_id": {"type": ["string", "null"], "description": "chantier M4, si déjà connu"},
                     "lignes": {"type": "array", "items": _LIGNE_DEVIS, "minItems": 1},
@@ -1174,6 +1606,94 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=lire_ecarts_estime_reel,
             autonomie=Autonomie.T0,
+        ),
+        Outil(
+            nom="m3_evaluer_calibration_cohortes",
+            description=(
+                "Évalue une cohorte candidate inactive depuis les faits publiés M4 et les liens exacts M3. "
+                "Exige une coupure ISO-8601 UTC explicite, rejette ou compte les preuves insuffisantes, exclut "
+                "les chantiers traversant la frontière, et ne modifie aucun prix ni barème. Une durée réelle est "
+                "du temps écoulé sur site moins pauses, sans déplacement ni heures-personnes."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"coupure_utc": {"type": "string", "format": "date-time", "maxLength": 40}},
+                "required": ["coupure_utc"],
+                "additionalProperties": False,
+            },
+            fonction=evaluer_calibration_cohortes,
+            autonomie=Autonomie.T0,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m3_proposer_calibration_temps",
+            description=(
+                "Préenregistre au journal append-only une candidate de durée calculée exclusivement sur le train "
+                "d'une cohorte M3/M4, ainsi que la coupure UTC de son futur holdout. Le holdout du rapport initial "
+                "est marqué comme déjà vu et ne sert pas à son évaluation ultérieure. Candidate inactive; aucun prix, "
+                "coût ou facteur photo n'est modifié."
+            ),
+            parametres={
+                "type": "object", "properties": {
+                    "coupure_utc": {"type": "string", "format": "date-time", "maxLength": 40},
+                    "coupure_evaluation_utc": {"type": "string", "format": "date-time", "maxLength": 40},
+                }, "required": ["coupure_utc", "coupure_evaluation_utc"], "additionalProperties": False,
+            },
+            fonction=proposer_calibration_temps,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m3_evaluer_candidate_calibration",
+            description=(
+                "Évalue une candidate préenregistrée sur sa coupure holdout UTC scellée avant collecte, après son "
+                "horizon source. Baseline et candidate sont comparées selon la politique déjà scellée; données "
+                "insuffisantes ou réutilisées refusent l'admission. La candidate reste inactive."
+            ),
+            parametres={
+                "type": "object", "properties": {
+                    "candidate_id": {"type": "string", "minLength": 64, "maxLength": 64},
+                }, "required": ["candidate_id"], "additionalProperties": False,
+            },
+            fonction=evaluer_candidate_calibration,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m3_activer_candidate_calibration",
+            description=(
+                "Demande la promotion future d'une candidate évaluée comme acceptable. Décision N4 du seul "
+                "propriétaire authentifié; l'appel demande une approbation, il n'active pas la candidate. "
+                "Les estimations et devis historiques restent inchangés."
+            ),
+            parametres={
+                "type": "object", "properties": {
+                    "candidate_id": {"type": "string", "minLength": 64, "maxLength": 64},
+                    "active_version_attendue": {"type": ["string", "null"], "maxLength": 64},
+                }, "required": ["candidate_id", "active_version_attendue"], "additionalProperties": False,
+            },
+            fonction=activer_candidate_calibration,
+            autonomie=Autonomie.T2,
+            niveau=Niveau.N4,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m3_rollback_candidate_calibration",
+            description=(
+                "Demande le retrait d'une candidate actuellement active. Décision N4 du seul propriétaire; "
+                "le journal reste append-only et les estimations historiques ne sont pas réécrites."
+            ),
+            parametres={
+                "type": "object", "properties": {
+                    "candidate_id": {"type": "string", "minLength": 64, "maxLength": 64},
+                }, "required": ["candidate_id"], "additionalProperties": False,
+            },
+            fonction=rollback_candidate_calibration,
+            autonomie=Autonomie.T2,
+            niveau=Niveau.N4,
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m3_detecter_devis_sans_reponse",

@@ -47,6 +47,17 @@ def proposer_action(evaluation: dict[str, Any], definition: dict[str, Any]) -> d
         quoi = f"Aucune valeur reçue pour {metric_id}."
         pourquoi = f"n = {evaluation['n']} : aucune donnée exploitable dans le registre."
         preuve: dict[str, Any] = {"metric_id": metric_id, "n": evaluation["n"]}
+    elif verdict == qualite.VERDICT_DONNEE_INVALIDE:
+        quoi = f"Valeur non finie exclue pour {metric_id}."
+        pourquoi = (
+            f"{evaluation['valeurs_invalides']} observation(s) NaN ou infinie ont été refusées; "
+            f"n = {evaluation['n']} observation(s) finie(s) restent exploitables."
+        )
+        preuve = {
+            "metric_id": metric_id,
+            "n": evaluation["n"],
+            "valeurs_invalides": evaluation["valeurs_invalides"],
+        }
     elif verdict == qualite.VERDICT_DONNEE_PERIMEE:
         quoi = f"Valeur périmée pour {metric_id}."
         pourquoi = (

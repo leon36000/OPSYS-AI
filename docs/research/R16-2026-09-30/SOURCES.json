@@ -1,0 +1,1552 @@
+{
+  "date": "2026-09-30",
+  "statut": "RECHERCHE_SOURCE_PAS_INTEGRATION",
+  "observations": [
+    {
+      "host": "github",
+      "repo": "openclaw/openclaw",
+      "commit": "537c33e4118ae31a96d0d0c3aee317963058bbd9",
+      "licence": null,
+      "source_licence": [
+        "https://github.com/openclaw/openclaw/blob/537c33e4118ae31a96d0d0c3aee317963058bbd9/LICENSE"
+      ],
+      "volet": "core",
+      "verification_licence": "fichiers primaires",
+      "limites": "maintenir-greffes-et-reports-cibles",
+      "rapport_qualification": "recherche-core.md"
+    },
+    {
+      "host": "github",
+      "repo": "badlogic/pi-mono",
+      "commit": "d2931ad3d5bf6936fbdfa5dfc81fb32f875499b2",
+      "licence": null,
+      "source_licence": [
+        "https://github.com/earendil-works/pi/blob/d2931ad3d5bf6936fbdfa5dfc81fb32f875499b2/LICENSE"
+      ],
+      "volet": "core",
+      "verification_licence": "fichiers primaires",
+      "limites": "patchs-cibles-sans-remplacer-sdk",
+      "rapport_qualification": "recherche-core.md"
+    },
+    {
+      "host": "github",
+      "repo": "Martian-Engineering/lossless-claw",
+      "commit": "e05d8d34b2a44fdef556ce95dd90115b46630200",
+      "licence": null,
+      "source_licence": [
+        "https://github.com/Martian-Engineering/lossless-claw/blob/e05d8d34b2a44fdef556ce95dd90115b46630200/LICENSE"
+      ],
+      "volet": "core",
+      "verification_licence": "fichiers primaires",
+      "limites": "pilote-context-engine-apres-garde-M10",
+      "rapport_qualification": "recherche-core.md"
+    },
+    {
+      "host": "github",
+      "repo": "langchain-ai/langmem",
+      "commit": "9d033b47d9ce53e37e92c92241b0496c0278932e",
+      "licence": null,
+      "source_licence": [
+        "https://github.com/langchain-ai/langmem/blob/9d033b47d9ce53e37e92c92241b0496c0278932e/LICENSE"
+      ],
+      "volet": "core",
+      "verification_licence": "fichiers primaires",
+      "limites": "apprentissage-procedural-hors-chemin-critique",
+      "rapport_qualification": "recherche-core.md"
+    },
+    {
+      "host": "github",
+      "repo": "agentskills/agentskills",
+      "commit": "69ef37e9424c0a7ea9dd2293b559e43ec8176379",
+      "licence": null,
+      "source_licence": [
+        "https://github.com/agentskills/agentskills/blob/69ef37e9424c0a7ea9dd2293b559e43ec8176379/LICENSE",
+        "https://github.com/agentskills/agentskills/blob/69ef37e9424c0a7ea9dd2293b559e43ec8176379/skills-ref/LICENSE"
+      ],
+      "volet": "core",
+      "verification_licence": "fichiers primaires",
+      "limites": "validation-procedures-et-chargement-progressif",
+      "rapport_qualification": "recherche-core.md"
+    },
+    {
+      "host": "github",
+      "repo": "vectorize-io/hindsight",
+      "commit": "d56c4acdf59c41957613d399094cdf8c489b060c",
+      "licence": null,
+      "source_licence": [
+        "https://github.com/vectorize-io/hindsight/blob/d56c4acdf59c41957613d399094cdf8c489b060c/LICENSE"
+      ],
+      "volet": "core",
+      "verification_licence": "fichiers primaires",
+      "limites": "reserve-rappel-riche-sans-remplacement-verite",
+      "rapport_qualification": "recherche-core.md"
+    },
+    {
+      "host": "github",
+      "repo": "maximhq/bifrost",
+      "commit": "19ecdb510bfb3971a7d680f33e17280187e379f4",
+      "licence": null,
+      "source_licence": [
+        "https://github.com/maximhq/bifrost/blob/19ecdb510bfb3971a7d680f33e17280187e379f4/LICENSE"
+      ],
+      "volet": "core",
+      "verification_licence": "fichiers primaires",
+      "limites": "gateway-seulement-si-besoin-mesure",
+      "rapport_qualification": "recherche-core.md"
+    },
+    {
+      "host": "github",
+      "repo": "asg017/sqlite-vec",
+      "commit": "04d28bd21773981e2d266bbf6aa4efbd011eb4f6",
+      "licence": null,
+      "source_licence": [
+        "https://github.com/asg017/sqlite-vec/blob/04d28bd21773981e2d266bbf6aa4efbd011eb4f6/LICENSE-APACHE",
+        "https://github.com/asg017/sqlite-vec/blob/04d28bd21773981e2d266bbf6aa4efbd011eb4f6/LICENSE-MIT"
+      ],
+      "volet": "core",
+      "verification_licence": "fichiers primaires",
+      "limites": "conserver-index-local",
+      "rapport_qualification": "recherche-core.md"
+    },
+    {
+      "host": "github",
+      "repo": "astral-sh/uv",
+      "commit": "06fdf0cdb591adae479feb5b769b0213eabb229c",
+      "licence": null,
+      "source_licence": [
+        "https://github.com/astral-sh/uv/blob/06fdf0cdb591adae479feb5b769b0213eabb229c/LICENSE-APACHE",
+        "https://github.com/astral-sh/uv/blob/06fdf0cdb591adae479feb5b769b0213eabb229c/LICENSE-MIT"
+      ],
+      "volet": "core",
+      "verification_licence": "fichiers primaires",
+      "limites": "epingle-release-outil-et-lock",
+      "rapport_qualification": "recherche-core.md"
+    },
+    {
+      "host": "github",
+      "repo": "prefix-dev/pixi",
+      "commit": "81264a2a914b25e21df4d891889a0495a6269b70",
+      "licence": null,
+      "source_licence": [
+        "https://github.com/prefix-dev/pixi/blob/81264a2a914b25e21df4d891889a0495a6269b70/LICENSE"
+      ],
+      "volet": "core",
+      "verification_licence": "fichiers primaires",
+      "limites": "seulement-si-distribution-native-necessaire",
+      "rapport_qualification": "recherche-core.md"
+    },
+    {
+      "host": "github",
+      "repo": "obot-platform/obot",
+      "commit": "fb4b094cc1643ae5b47dff65cd6e16a5c2606b95",
+      "licence": null,
+      "source_licence": [
+        "https://github.com/obot-platform/obot/blob/fb4b094cc1643ae5b47dff65cd6e16a5c2606b95/LICENSE"
+      ],
+      "volet": "core",
+      "verification_licence": "fichiers primaires",
+      "limites": "hebergement-connecteurs-si-besoin-isolation-prouve",
+      "rapport_qualification": "recherche-core.md"
+    },
+    {
+      "host": "github",
+      "repo": "tensorzero/tensorzero",
+      "commit": "62eb8f63e8ec62018d70420dbf1a8c5d1c026315",
+      "licence": null,
+      "source_licence": [
+        "https://github.com/tensorzero/tensorzero/blob/62eb8f63e8ec62018d70420dbf1a8c5d1c026315/LICENSE"
+      ],
+      "volet": "core",
+      "verification_licence": "fichiers primaires",
+      "limites": "depot-archive",
+      "rapport_qualification": "recherche-core.md"
+    },
+    {
+      "host": "github",
+      "repo": "NousResearch/hermes-agent",
+      "commit": "f42f579cf8bac4918ac9599bece71618afadd846",
+      "licence": "MIT",
+      "source_licence": [
+        "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/LICENSE"
+      ],
+      "volet": "core",
+      "verification_licence": "fichiers primaires",
+      "limites": "checkpoint/procedures/cache/delegation/update-sans-second-runtime",
+      "rapport_qualification": "recherche-core.md"
+    },
+    {
+      "host": "gitlab",
+      "repo": "gitlab-org/gitlab",
+      "commit": "2d1f3c266d04c069c98349923c86ac636bd59744",
+      "licence": null,
+      "source_licence": [
+        "https://gitlab.com/gitlab-org/gitlab/-/blob/2d1f3c266d04c069c98349923c86ac636bd59744/LICENSE"
+      ],
+      "volet": "core",
+      "verification_licence": "fichiers primaires",
+      "limites": "MCP-HTTP-scope-developpement-lecture",
+      "rapport_qualification": "recherche-core.md"
+    },
+    {
+      "host": "github",
+      "repo": "NousResearch/hermes-agent",
+      "commit": "f42f579cf8bac4918ac9599bece71618afadd846",
+      "licence": "MIT",
+      "source_licence": [
+        "https://github.com/NousResearch/hermes-agent/blob/f42f579cf8bac4918ac9599bece71618afadd846/LICENSE"
+      ],
+      "volet": "core/Hermes",
+      "verification_licence": "fichiers primaires",
+      "limites": null,
+      "rapport_qualification": "hermes-notes.md"
+    },
+    {
+      "host": "github",
+      "repo": "topoteretes/cognee",
+      "commit": "ba3631f2ed363a6ea50d649c34c56885af6b36fe",
+      "licence": "Apache-2.0",
+      "source_licence": [
+        "https://github.com/topoteretes/cognee/blob/ba3631f2ed363a6ea50d649c34c56885af6b36fe/LICENSE"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "run-llama/llama_index",
+      "commit": "7e2c60a78ec27e8d146dfdd596778aea83c041d5",
+      "licence": "MIT",
+      "source_licence": [
+        "https://github.com/run-llama/llama_index/blob/7e2c60a78ec27e8d146dfdd596778aea83c041d5/LICENSE"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "langchain-ai/langgraph",
+      "commit": "07b33185eab893be2ed031eedae52f09314bf77c",
+      "licence": "MIT",
+      "source_licence": [
+        "https://github.com/langchain-ai/langgraph/blob/07b33185eab893be2ed031eedae52f09314bf77c/LICENSE",
+        "https://github.com/langchain-ai/langgraph/blob/07b33185eab893be2ed031eedae52f09314bf77c/libs/checkpoint/LICENSE",
+        "https://github.com/langchain-ai/langgraph/blob/07b33185eab893be2ed031eedae52f09314bf77c/libs/checkpoint-postgres/LICENSE",
+        "https://github.com/langchain-ai/langgraph/blob/07b33185eab893be2ed031eedae52f09314bf77c/libs/checkpoint-sqlite/LICENSE"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "getzep/graphiti",
+      "commit": "3c427640abf909f12f71f963fce15eb514a3c493",
+      "licence": "Apache-2.0",
+      "source_licence": [
+        "https://github.com/getzep/graphiti/blob/3c427640abf909f12f71f963fce15eb514a3c493/LICENSE"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "getzep/zep",
+      "commit": "495bf72880d13f0b81696ec4f88a9817ed85ca73",
+      "licence": "Apache-2.0",
+      "source_licence": [
+        "https://github.com/getzep/zep/blob/495bf72880d13f0b81696ec4f88a9817ed85ca73/LICENSE"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "mem0ai/mem0",
+      "commit": "94c3fe9f238f3dbf29c9ce98643bd71eb13077cd",
+      "licence": "Apache-2.0",
+      "source_licence": [
+        "https://github.com/mem0ai/mem0/blob/94c3fe9f238f3dbf29c9ce98643bd71eb13077cd/LICENSE"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "open-telemetry/opentelemetry-python",
+      "commit": "cee5f52e2d009085a330874ea8d1549eb5b68baa",
+      "licence": "Apache-2.0",
+      "source_licence": [
+        "https://github.com/open-telemetry/opentelemetry-python/blob/cee5f52e2d009085a330874ea8d1549eb5b68baa/LICENSE"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "langfuse/langfuse",
+      "commit": "0de9ccd64e0f9d35c1990fb6c851fa00530e7960",
+      "licence": "NOASSERTION",
+      "source_licence": [
+        "https://github.com/langfuse/langfuse/blob/0de9ccd64e0f9d35c1990fb6c851fa00530e7960/LICENSE",
+        "https://github.com/langfuse/langfuse/blob/0de9ccd64e0f9d35c1990fb6c851fa00530e7960/ee/LICENSE"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "explodinggradients/ragas",
+      "commit": "298b68274234c060deacab3cf5fb52aa3a20e885",
+      "licence": "Apache-2.0",
+      "source_licence": [
+        "https://github.com/explodinggradients/ragas/blob/298b68274234c060deacab3cf5fb52aa3a20e885/LICENSE"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "confident-ai/deepeval",
+      "commit": "b13093cf9c9b5468dbe7d00529e8f20e14300d55",
+      "licence": "Apache-2.0",
+      "source_licence": [
+        "https://github.com/confident-ai/deepeval/blob/b13093cf9c9b5468dbe7d00529e8f20e14300d55/LICENSE.md"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "promptfoo/promptfoo",
+      "commit": "e6b46046e7f454edc54b27143cb0902d929f3fa6",
+      "licence": "MIT",
+      "source_licence": [
+        "https://github.com/promptfoo/promptfoo/blob/e6b46046e7f454edc54b27143cb0902d929f3fa6/LICENSE"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "pgvector/pgvector",
+      "commit": "70fb225dc0b9a6abb9aa05508a1f770dd1b05a23",
+      "licence": "NOASSERTION",
+      "source_licence": [
+        "https://github.com/pgvector/pgvector/blob/70fb225dc0b9a6abb9aa05508a1f770dd1b05a23/LICENSE"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "postgres/postgres",
+      "commit": "9510a826e4add77280e0a7a65f429563a4c4a2a8",
+      "licence": "NOASSERTION",
+      "source_licence": [
+        "https://github.com/postgres/postgres/blob/9510a826e4add77280e0a7a65f429563a4c4a2a8/COPYRIGHT"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "sqlite/sqlite",
+      "commit": "737c12a04cded128ee204ab50b368bdd8a068f01",
+      "licence": "NOASSERTION",
+      "source_licence": [
+        "https://github.com/sqlite/sqlite/blob/737c12a04cded128ee204ab50b368bdd8a068f01/LICENSE.md"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "vectorize-io/hindsight",
+      "commit": "d56c4acdf59c41957613d399094cdf8c489b060c",
+      "licence": "MIT",
+      "source_licence": [
+        "https://github.com/vectorize-io/hindsight/blob/d56c4acdf59c41957613d399094cdf8c489b060c/LICENSE"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "letta-ai/letta",
+      "commit": "5bcdd177d70fa2b31a754cfcd801e77b2e1ab16a",
+      "licence": "Apache-2.0",
+      "source_licence": [
+        "https://github.com/letta-ai/letta/blob/5bcdd177d70fa2b31a754cfcd801e77b2e1ab16a/LICENSE"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "HKUDS/LightRAG",
+      "commit": "453dce83d6d0354a06e46c8d4029a0895c4e054b",
+      "licence": "MIT",
+      "source_licence": [
+        "https://github.com/HKUDS/LightRAG/blob/453dce83d6d0354a06e46c8d4029a0895c4e054b/LICENSE"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "alibaba/zvec",
+      "commit": "13fd088b6255363c0d1362724340243bc8f6d0d2",
+      "licence": "Apache-2.0",
+      "source_licence": [
+        "https://github.com/alibaba/zvec/blob/13fd088b6255363c0d1362724340243bc8f6d0d2/LICENSE"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "asg017/sqlite-vec",
+      "commit": "04d28bd21773981e2d266bbf6aa4efbd011eb4f6",
+      "licence": "Apache-2.0",
+      "source_licence": [
+        "https://github.com/asg017/sqlite-vec/blob/04d28bd21773981e2d266bbf6aa4efbd011eb4f6/LICENSE-APACHE",
+        "https://github.com/asg017/sqlite-vec/blob/04d28bd21773981e2d266bbf6aa4efbd011eb4f6/LICENSE-MIT"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "tree-sitter/tree-sitter",
+      "commit": "0b1cc6843e4b397eae758e93022cbed569623e46",
+      "licence": "MIT",
+      "source_licence": [
+        "https://github.com/tree-sitter/tree-sitter/blob/0b1cc6843e4b397eae758e93022cbed569623e46/LICENSE"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "sourcegraph/zoekt",
+      "commit": "153817f643cde8b229ee388c1dddbcf07f4798af",
+      "licence": "Apache-2.0",
+      "source_licence": [
+        "https://github.com/sourcegraph/zoekt/blob/153817f643cde8b229ee388c1dddbcf07f4798af/LICENSE"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "tobi/qmd",
+      "commit": "04e4dbd8245c527a88f1a8f0bda547aef9ca81fb",
+      "licence": "MIT",
+      "source_licence": [
+        "https://github.com/tobi/qmd/blob/04e4dbd8245c527a88f1a8f0bda547aef9ca81fb/LICENSE"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "open-telemetry/semantic-conventions-genai",
+      "commit": "bcc7f9c2856fa7f4feb753f54d4ebba9455cc3dc",
+      "licence": "Apache-2.0",
+      "source_licence": [
+        "https://github.com/open-telemetry/semantic-conventions-genai/blob/bcc7f9c2856fa7f4feb753f54d4ebba9455cc3dc/LICENSE"
+      ],
+      "volet": "M10",
+      "verification_licence": "fichiers primaires ; limites détaillées dans rapport",
+      "limites": null,
+      "rapport_qualification": "recherche-m10.md"
+    },
+    {
+      "host": "github",
+      "repo": "ekmungai/python-accounting",
+      "commit": "03f94859dabfe2a3ce4bce116ac2bdb38d898a77",
+      "licence": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "source_licence": [
+        "https://raw.githubusercontent.com/ekmungai/python-accounting/03f94859dabfe2a3ce4bce116ac2bdb38d898a77/LICENSE"
+      ],
+      "volet": "M5",
+      "verification_licence": "fichiers primaires",
+      "limites": null,
+      "rapport_qualification": "recherche-m5.md"
+    },
+    {
+      "host": "github",
+      "repo": "beancount/beancount",
+      "commit": "9747213802acb733ce53acc6e963f5961f47d6cd",
+      "licence": {
+        "key": "gpl-2.0",
+        "name": "GNU General Public License v2.0",
+        "spdx_id": "GPL-2.0",
+        "url": "https://api.github.com/licenses/gpl-2.0",
+        "node_id": "MDc6TGljZW5zZTg="
+      },
+      "source_licence": [
+        "https://github.com/beancount/beancount/blob/9747213802acb733ce53acc6e963f5961f47d6cd/COPYING"
+      ],
+      "volet": "M5",
+      "verification_licence": "fichiers primaires",
+      "limites": null,
+      "rapport_qualification": "recherche-m5.md",
+      "licence_primaire": "GPL-2.0-only (COPYING et pyproject vérifiés dans le rapport M5)"
+    },
+    {
+      "host": "github",
+      "repo": "ledger/ledger",
+      "commit": "faecd27cec670e128018dd92c8490a5b23f55660",
+      "licence": {
+        "key": "other",
+        "name": "Other",
+        "spdx_id": "NOASSERTION",
+        "url": null,
+        "node_id": "MDc6TGljZW5zZTA="
+      },
+      "source_licence": [
+        "https://raw.githubusercontent.com/ledger/ledger/faecd27cec670e128018dd92c8490a5b23f55660/LICENSE.md"
+      ],
+      "volet": "M5",
+      "verification_licence": "fichiers primaires",
+      "limites": null,
+      "rapport_qualification": "recherche-m5.md"
+    },
+    {
+      "host": "github",
+      "repo": "frappe/erpnext",
+      "commit": "46a04f01a619d6fed99e6d0f3e7a327d12d43388",
+      "licence": {
+        "key": "gpl-3.0",
+        "name": "GNU General Public License v3.0",
+        "spdx_id": "GPL-3.0",
+        "url": "https://api.github.com/licenses/gpl-3.0",
+        "node_id": "MDc6TGljZW5zZTk="
+      },
+      "source_licence": [
+        "https://raw.githubusercontent.com/frappe/erpnext/46a04f01a619d6fed99e6d0f3e7a327d12d43388/license.txt"
+      ],
+      "volet": "M5",
+      "verification_licence": "fichiers primaires",
+      "limites": null,
+      "rapport_qualification": "recherche-m5.md"
+    },
+    {
+      "host": "github",
+      "repo": "odoo/odoo",
+      "commit": "24b59ae7617e6b6ccf466d8b8cfebd541baa8b89",
+      "licence": {
+        "key": "other",
+        "name": "Other",
+        "spdx_id": "NOASSERTION",
+        "url": null,
+        "node_id": "MDc6TGljZW5zZTA="
+      },
+      "source_licence": [
+        "https://raw.githubusercontent.com/odoo/odoo/24b59ae7617e6b6ccf466d8b8cfebd541baa8b89/LICENSE"
+      ],
+      "volet": "M5",
+      "verification_licence": "fichiers primaires",
+      "limites": null,
+      "rapport_qualification": "recherche-m5.md"
+    },
+    {
+      "host": "github",
+      "repo": "tryton/tryton",
+      "commit": "efed804e603e015ec0351c40fc5be3354efa0600",
+      "licence": null,
+      "source_licence": [
+        "https://raw.githubusercontent.com/tryton/tryton/efed804e603e015ec0351c40fc5be3354efa0600/trytond/LICENSE",
+        "https://raw.githubusercontent.com/tryton/tryton/efed804e603e015ec0351c40fc5be3354efa0600/modules/account/LICENSE"
+      ],
+      "volet": "M5",
+      "verification_licence": "fichiers primaires",
+      "limites": null,
+      "rapport_qualification": "recherche-m5.md"
+    },
+    {
+      "host": "github",
+      "repo": "docling-project/docling",
+      "commit": "42de1e20fe2783c0c30c5b3c0f9c60ab5eef9e16",
+      "licence": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "source_licence": [
+        "https://raw.githubusercontent.com/docling-project/docling/42de1e20fe2783c0c30c5b3c0f9c60ab5eef9e16/LICENSE"
+      ],
+      "volet": "M5",
+      "verification_licence": "fichiers primaires",
+      "limites": null,
+      "rapport_qualification": "recherche-m5.md"
+    },
+    {
+      "host": "github",
+      "repo": "tesseract-ocr/tesseract",
+      "commit": "db20f322d03664d1e878e2fbf6e904f5da755594",
+      "licence": {
+        "key": "apache-2.0",
+        "name": "Apache License 2.0",
+        "spdx_id": "Apache-2.0",
+        "url": "https://api.github.com/licenses/apache-2.0",
+        "node_id": "MDc6TGljZW5zZTI="
+      },
+      "source_licence": [
+        "https://raw.githubusercontent.com/tesseract-ocr/tesseract/db20f322d03664d1e878e2fbf6e904f5da755594/LICENSE"
+      ],
+      "volet": "M5",
+      "verification_licence": "fichiers primaires",
+      "limites": null,
+      "rapport_qualification": "recherche-m5.md"
+    },
+    {
+      "host": "github",
+      "repo": "PaddlePaddle/PaddleOCR",
+      "commit": "dab3fe35379033fdcb2d0e9572fac0b36c9a9ebf",
+      "licence": {
+        "key": "apache-2.0",
+        "name": "Apache License 2.0",
+        "spdx_id": "Apache-2.0",
+        "url": "https://api.github.com/licenses/apache-2.0",
+        "node_id": "MDc6TGljZW5zZTI="
+      },
+      "source_licence": [
+        "https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/dab3fe35379033fdcb2d0e9572fac0b36c9a9ebf/LICENSE"
+      ],
+      "volet": "M5",
+      "verification_licence": "fichiers primaires",
+      "limites": null,
+      "rapport_qualification": "recherche-m5.md"
+    },
+    {
+      "host": "github",
+      "repo": "ej2/python-quickbooks",
+      "commit": "264a0f63d6336b006e77bfaadfe27131fa5607bd",
+      "licence": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "source_licence": [
+        "https://raw.githubusercontent.com/ej2/python-quickbooks/264a0f63d6336b006e77bfaadfe27131fa5607bd/LICENSE"
+      ],
+      "volet": "M5",
+      "verification_licence": "fichiers primaires",
+      "limites": null,
+      "rapport_qualification": "recherche-m5.md"
+    },
+    {
+      "host": "github",
+      "repo": "stripe/stripe-python",
+      "commit": "b48375a3e295a4eb58ed5b2f567fe03d0491e43b",
+      "licence": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "source_licence": [
+        "https://raw.githubusercontent.com/stripe/stripe-python/b48375a3e295a4eb58ed5b2f567fe03d0491e43b/LICENSE"
+      ],
+      "volet": "M5",
+      "verification_licence": "fichiers primaires",
+      "limites": null,
+      "rapport_qualification": "recherche-m5.md"
+    },
+    {
+      "host": "github",
+      "repo": "plaid/plaid-python",
+      "commit": "703b9091145553330497a2995a02a68749c8915c",
+      "licence": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "source_licence": [
+        "https://raw.githubusercontent.com/plaid/plaid-python/703b9091145553330497a2995a02a68749c8915c/LICENSE"
+      ],
+      "volet": "M5",
+      "verification_licence": "fichiers primaires",
+      "limites": null,
+      "rapport_qualification": "recherche-m5.md"
+    },
+    {
+      "host": "github",
+      "repo": "numpy/numpy-financial",
+      "commit": "22c29b4ad61a5e413d4858e46e3f26f55ebdf328",
+      "licence": {
+        "key": "bsd-3-clause",
+        "name": "BSD 3-Clause \"New\" or \"Revised\" License",
+        "spdx_id": "BSD-3-Clause",
+        "url": "https://api.github.com/licenses/bsd-3-clause",
+        "node_id": "MDc6TGljZW5zZTU="
+      },
+      "source_licence": [
+        "https://raw.githubusercontent.com/numpy/numpy-financial/22c29b4ad61a5e413d4858e46e3f26f55ebdf328/LICENSE.txt"
+      ],
+      "volet": "M5",
+      "verification_licence": "fichiers primaires",
+      "limites": null,
+      "rapport_qualification": "recherche-m5.md"
+    },
+    {
+      "host": "github",
+      "repo": "intuit/oauth-pythonclient",
+      "commit": "005f8f9112be9320f139d314e660e54370f470b7",
+      "licence": null,
+      "source_licence": [
+        "https://raw.githubusercontent.com/intuit/oauth-pythonclient/005f8f9112be9320f139d314e660e54370f470b7/LICENSE"
+      ],
+      "volet": "M5",
+      "verification_licence": "fichiers primaires",
+      "limites": null,
+      "rapport_qualification": "recherche-m5.md"
+    },
+    {
+      "host": "github",
+      "repo": "gitroomhq/postiz-app",
+      "commit": "2a46d88cf3b037ffefcf983118d7e55ebd40e3be",
+      "licence": "AGPL-3.0",
+      "source_licence": "https://github.com/gitroomhq/postiz-app/blob/2a46d88cf3b037ffefcf983118d7e55ebd40e3be/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "service_separe_optionnel",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "inovector/mixpost",
+      "commit": "df57648b866310446703f5294350552b62735df5",
+      "licence": "MIT",
+      "source_licence": "https://github.com/inovector/mixpost/blob/df57648b866310446703f5294350552b62735df5/LICENSE.md",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "alternative_limitee",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "matomo-org/matomo",
+      "commit": "6b52cc1537ed380612eddc1e137796c123d6cddf",
+      "licence": "GPL-3.0",
+      "source_licence": "https://github.com/matomo-org/matomo/blob/6b52cc1537ed380612eddc1e137796c123d6cddf/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "analytics_separe_si_besoin",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "towfiqi/serpbear",
+      "commit": "a1328fb4142dde40e0011c646339c4d4dbabdaca",
+      "licence": "MIT",
+      "source_licence": "https://github.com/towfiqi/serpbear/blob/a1328fb4142dde40e0011c646339c4d4dbabdaca/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "seo_sidecar_optionnel",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "pymc-labs/pymc-marketing",
+      "commit": "814ad07467c6a983a2ab44deae3014da49ba68b8",
+      "licence": "Apache-2.0",
+      "source_licence": "https://github.com/pymc-labs/pymc-marketing/blob/814ad07467c6a983a2ab44deae3014da49ba68b8/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "analyse_differee",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "google/meridian",
+      "commit": "076424fe8f4a5ebe9410fbe216f85d8568d7a696",
+      "licence": "Apache-2.0",
+      "source_licence": "https://github.com/google/meridian/blob/076424fe8f4a5ebe9410fbe216f85d8568d7a696/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "analyse_differee",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "googleads/google-ads-python",
+      "commit": "48845cfdb8c9d7ea96930a13d9a14c19286c35e8",
+      "licence": "Apache-2.0",
+      "source_licence": "https://github.com/googleads/google-ads-python/blob/48845cfdb8c9d7ea96930a13d9a14c19286c35e8/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "sdk_officiel_prioritaire",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "googleapis/google-api-python-client",
+      "commit": "496433cb5c5e37c3f3cca582c73387262fc8e745",
+      "licence": "Apache-2.0",
+      "source_licence": "https://github.com/googleapis/google-api-python-client/blob/496433cb5c5e37c3f3cca582c73387262fc8e745/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "sdk_officiel_prioritaire",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "facebook/facebook-python-business-sdk",
+      "commit": "efd8423a2e595ea8d4c04eb824ce113f2f1d68cd",
+      "licence": "NOASSERTION",
+      "source_licence": "https://github.com/facebook/facebook-python-business-sdk/blob/efd8423a2e595ea8d4c04eb824ce113f2f1d68cd/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "arbitrage_licence_avant_adoption",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "tiktok/tiktok-business-api-sdk",
+      "commit": "f809c396520df2d7b201a9ccc5378d822b728ed3",
+      "licence": "MIT",
+      "source_licence": "https://github.com/tiktok/tiktok-business-api-sdk/blob/f809c396520df2d7b201a9ccc5378d822b728ed3/LICENSE.md",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "sdk_officiel_a_evaluer",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "linkedin-developers/linkedin-api-python-client",
+      "commit": "6331e52f5ea59b326447efa67a9bf925ed2d9ec7",
+      "licence": "NOASSERTION",
+      "source_licence": "https://github.com/linkedin-developers/linkedin-api-python-client/blob/6331e52f5ea59b326447efa67a9bf925ed2d9ec7/LICENSE.md",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "ne_pas_vendorer_par_defaut",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "umami-software/umami",
+      "commit": "ec0ff50388c264ed8ce46f00967e92f7e71476ae",
+      "licence": "MIT",
+      "source_licence": "https://github.com/umami-software/umami/blob/ec0ff50388c264ed8ce46f00967e92f7e71476ae/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "alternative_analytics_legere",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "milesmcc/shynet",
+      "commit": "ca35caba3af2b888acc990b99152c500a1c44461",
+      "licence": "Apache-2.0",
+      "source_licence": "https://github.com/milesmcc/shynet/blob/ca35caba3af2b888acc990b99152c500a1c44461/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "alternative_secondaire",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "allinurl/goaccess",
+      "commit": "0b01c37e8d7f20dff07a323f723510faa5e5ea8d",
+      "licence": "MIT",
+      "source_licence": "https://github.com/allinurl/goaccess/blob/0b01c37e8d7f20dff07a323f723510faa5e5ea8d/COPYING",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "diagnostic_logs_cible",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "dgtlmoon/changedetection.io",
+      "commit": "0e0566721b1c483dcf7ae548210ee10532d9b181",
+      "licence": "Apache-2.0",
+      "source_licence": "https://github.com/dgtlmoon/changedetection.io/blob/0e0566721b1c483dcf7ae548210ee10532d9b181/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "veille_ciblee",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "Zulko/moviepy",
+      "commit": "211e4b15f6ce4f34a6a9efbfff40590e43a68f77",
+      "licence": "MIT",
+      "source_licence": "https://github.com/Zulko/moviepy/blob/211e4b15f6ce4f34a6a9efbfff40590e43a68f77/LICENCE.txt",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "librairie_media_ciblee",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "fullcalendar/fullcalendar",
+      "commit": "f34b025203bf143c7313f7078cf717303f76d112",
+      "licence": "MIT",
+      "source_licence": "https://github.com/fullcalendar/fullcalendar/blob/f34b025203bf143c7313f7078cf717303f76d112/LICENSE.md",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "composant_ui_cible",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "wix/react-native-calendars",
+      "commit": "808c6e100511f9adf65b1adec5e5830210f27ef4",
+      "licence": "MIT",
+      "source_licence": "https://github.com/wix/react-native-calendars/blob/808c6e100511f9adf65b1adec5e5830210f27ef4/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "composant_mobile_a_evaluer",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "trypostit/trypost",
+      "commit": "f9fc951fb0e19a88adca629804faf3215905f066",
+      "licence": "AGPL-3.0",
+      "source_licence": "https://github.com/trypostit/trypost/blob/f9fc951fb0e19a88adca629804faf3215905f066/LICENSE.md",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "challenger_en_observation",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "crawlseo/crawlseo",
+      "commit": "f62719a7cd4e8ee74f1c6da206276412b51d21da",
+      "licence": "MIT",
+      "source_licence": "https://github.com/crawlseo/crawlseo/blob/f62719a7cd4e8ee74f1c6da206276412b51d21da/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "prototype_seo_a_tester",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "Nuraveda-Labs/ai-ads-agent",
+      "commit": "918b5dd76d67bb22b6f0b54c56ef49105fe5dc80",
+      "licence": "MIT",
+      "source_licence": "https://github.com/Nuraveda-Labs/ai-ads-agent/blob/918b5dd76d67bb22b6f0b54c56ef49105fe5dc80/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "miroir_pas_brique_distincte",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "Nuraveda-Labs/ai-social-agent",
+      "commit": "f4373a1576cc8b64213fbc6eb97567c682087f03",
+      "licence": "MIT",
+      "source_licence": "https://github.com/Nuraveda-Labs/ai-social-agent/blob/f4373a1576cc8b64213fbc6eb97567c682087f03/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "miroir_pas_brique_distincte",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "gitlab",
+      "repo": "nuraveda-lab/ai-social-agent",
+      "commit": "f4373a1576cc8b64213fbc6eb97567c682087f03",
+      "licence": null,
+      "source_licence": "https://gitlab.com/nuraveda-lab/ai-social-agent/-/blob/f4373a1576cc8b64213fbc6eb97567c682087f03/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "idees_ciblees_pas_stack_entier",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "gitlab",
+      "repo": "nuraveda-lab/ai-ads-agent",
+      "commit": "918b5dd76d67bb22b6f0b54c56ef49105fe5dc80",
+      "licence": null,
+      "source_licence": "https://gitlab.com/nuraveda-lab/ai-ads-agent/-/blob/918b5dd76d67bb22b6f0b54c56ef49105fe5dc80/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "ne_pas_adopter_executor_entier",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "gitlab",
+      "repo": "betterbrainlab/better-search-lab",
+      "commit": "f719fec04b9d8702fe64f3a69950fc94df005f02",
+      "licence": null,
+      "source_licence": "https://gitlab.com/betterbrainlab/better-search-lab/-/blob/f719fec04b9d8702fe64f3a69950fc94df005f02/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "pepite_gitlab_en_observation",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "gitlab",
+      "repo": "crowltech/crowl",
+      "commit": "13d03d513486d7be9e6ac2c5143aa3ebd250413e",
+      "licence": null,
+      "source_licence": "https://gitlab.com/crowltech/crowl/-/blob/13d03d513486d7be9e6ac2c5143aa3ebd250413e/LICENSE.txt",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "ecarte_maintenance",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "gitlab",
+      "repo": "JoeCotellese/shrieking-gecko",
+      "commit": "2fbf003c5ed1c00a00da295d0856a62eae15b40d",
+      "licence": null,
+      "source_licence": "https://gitlab.com/JoeCotellese/shrieking-gecko/-/blob/2fbf003c5ed1c00a00da295d0856a62eae15b40d/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "pepite_cli_gitlab_a_valider",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "scrapy/scrapy",
+      "commit": "b4279e9e496ddecc5fa1d0647ce928410841a58f",
+      "licence": "BSD-3-Clause",
+      "source_licence": "https://github.com/scrapy/scrapy/blob/b4279e9e496ddecc5fa1d0647ce928410841a58f/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "librairie_collecte_ciblee",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "withastro/astro",
+      "commit": "f637bd9a305541cc1c36b6933916cac86a7db46a",
+      "licence": "NOASSERTION",
+      "source_licence": "https://github.com/withastro/astro/blob/f637bd9a305541cc1c36b6933916cac86a7db46a/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "build_site_optionnel",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "knadh/listmonk",
+      "commit": "c13bba4e2f840b3d2628eb636202a878fd91e984",
+      "licence": "AGPL-3.0",
+      "source_licence": "https://github.com/knadh/listmonk/blob/c13bba4e2f840b3d2628eb636202a878fd91e984/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "email_separe_si_besoin",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "heuer/segno",
+      "commit": "b11dc2913c22b22b3bc0a6efaa989904c44977bf",
+      "licence": "BSD-3-Clause",
+      "source_licence": "https://github.com/heuer/segno/blob/b11dc2913c22b22b3bc0a6efaa989904c44977bf/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "librairie_offline_ciblee",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "tweepy/tweepy",
+      "commit": "c1978d643ecce491929084e4290b35f57e4921ad",
+      "licence": "MIT",
+      "source_licence": "https://github.com/tweepy/tweepy/blob/c1978d643ecce491929084e4290b35f57e4921ad/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "social_optional_non_prioritaire",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "MarshalX/atproto",
+      "commit": "71629f535e1872a5769411347d6df47f17f946b8",
+      "licence": "MIT",
+      "source_licence": "https://github.com/MarshalX/atproto/blob/71629f535e1872a5769411347d6df47f17f946b8/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "social_optional_non_prioritaire",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "subzeroid/instagrapi",
+      "commit": "7e7cea11f9d5438271591bc6092afa43906c1030",
+      "licence": "NOASSERTION",
+      "source_licence": "https://github.com/subzeroid/instagrapi/blob/7e7cea11f9d5438271591bc6092afa43906c1030/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "ecarte_api_privee",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "davidteather/TikTok-Api",
+      "commit": "99630590a2e24997f69822b0541f396424f44d40",
+      "licence": "MIT",
+      "source_licence": "https://github.com/davidteather/TikTok-Api/blob/99630590a2e24997f69822b0541f396424f44d40/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "ecarte_scraping_non_officiel",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "gitlab",
+      "repo": "demsking/akanse",
+      "commit": "586dbb593bdb2547f0f1e4f983c06022f8e142c4",
+      "licence": null,
+      "source_licence": "https://gitlab.com/demsking/akanse/-/blob/586dbb593bdb2547f0f1e4f983c06022f8e142c4/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "ecarte_pour_cible",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "gitlab",
+      "repo": "Roxanne_Ardary/brandfabric",
+      "commit": "4257b5a66203d7ec1100e1cd639e82454d279407",
+      "licence": null,
+      "source_licence": "https://gitlab.com/Roxanne_Ardary/brandfabric/-/blob/4257b5a66203d7ec1100e1cd639e82454d279407/License",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "ecarte_copy_brand",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "gitlab",
+      "repo": "cro-dev-public/ab-testing-toolkit",
+      "commit": "411f2e7854eb2fb862eef01e0bf25dd61bd0e9c5",
+      "licence": null,
+      "source_licence": "https://gitlab.com/cro-dev-public/ab-testing-toolkit/-/blob/411f2e7854eb2fb862eef01e0bf25dd61bd0e9c5/LICENSE.md",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "idees_frontend_secondaires",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "gitlab",
+      "repo": "cleaninsights/clean-insights-matomo-proxy",
+      "commit": "09107b0a5c1eca888ce52c15bb5f82ab2a8578a3",
+      "licence": null,
+      "source_licence": "https://gitlab.com/cleaninsights/clean-insights-matomo-proxy/-/blob/09107b0a5c1eca888ce52c15bb5f82ab2a8578a3/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "pepite_pattern_privacy_pas_dep_defaut",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "gitlab",
+      "repo": "npati.com/npati-content-automation",
+      "commit": "0f84a97879296a860cb14498f01479c74d2c6571",
+      "licence": null,
+      "source_licence": "https://gitlab.com/npati.com/npati-content-automation/-/blob/0f84a97879296a860cb14498f01479c74d2c6571/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "ecarte_stack_wordpress",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "opencv/opencv",
+      "commit": "c093fe7d3180b2ba2c24dd669bcad08b774ff0aa",
+      "licence": "NOASSERTION",
+      "source_licence": "https://github.com/opencv/opencv/blob/c093fe7d3180b2ba2c24dd669bcad08b774ff0aa/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "media_reel_a_brancher",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "opencv/opencv_zoo",
+      "commit": "47534e27c9851bb1128ccc0102f1145e27f23f98",
+      "licence": "Apache-2.0",
+      "source_licence": "https://github.com/opencv/opencv_zoo/blob/47534e27c9851bb1128ccc0102f1145e27f23f98/LICENSE",
+      "volet": "M7",
+      "verification_licence": true,
+      "limites": "poids_yunet_cible",
+      "rapport_qualification": "recherche-m7.md"
+    },
+    {
+      "host": "github",
+      "repo": "postalsys/imapflow",
+      "commit": "9ddce95003c34edf9ac5d1f3de47fe2890560efa",
+      "licence": "NOASSERTION",
+      "source_licence": "https://github.com/postalsys/imapflow/blob/9ddce95003c34edf9ac5d1f3de47fe2890560efa/LICENSE.txt",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "pipecat-ai/pipecat",
+      "commit": "20999cd7b816dc5950eb9553b1ae36a1e771f2bc",
+      "licence": "BSD-2-Clause",
+      "source_licence": "https://github.com/pipecat-ai/pipecat/blob/20999cd7b816dc5950eb9553b1ae36a1e771f2bc/LICENSE",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "data-privacy-stack/presidio",
+      "commit": "d4ccc6bcb6b6a7144336fe93b7839e61e251301b",
+      "licence": "MIT",
+      "source_licence": "https://github.com/data-privacy-stack/presidio/blob/d4ccc6bcb6b6a7144336fe93b7839e61e251301b/LICENSE",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "SpamScope/mail-parser",
+      "commit": "0005905a5e59e45318f44ffaccb40749b0d48868",
+      "licence": "Apache-2.0",
+      "source_licence": "https://github.com/SpamScope/mail-parser/blob/0005905a5e59e45318f44ffaccb40749b0d48868/LICENSE.txt",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "freescout-help-desk/freescout",
+      "commit": "684f81409a66651577c65aa7fff77b8109c114e6",
+      "licence": "AGPL-3.0",
+      "source_licence": "https://github.com/freescout-help-desk/freescout/blob/684f81409a66651577c65aa7fff77b8109c114e6/LICENSE",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "bpmn-io/form-js",
+      "commit": "5cececea2b083b8fe714a0391c3f86b4575f810d",
+      "licence": "NOASSERTION",
+      "source_licence": "https://github.com/bpmn-io/form-js/blob/5cececea2b083b8fe714a0391c3f86b4575f810d/LICENSE",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "livekit/agents",
+      "commit": "d251b89e61fe5f8ba78e0b39b501d91b0856a2d0",
+      "licence": "Apache-2.0",
+      "source_licence": "https://github.com/livekit/agents/blob/d251b89e61fe5f8ba78e0b39b501d91b0856a2d0/LICENSE",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "twilio/twilio-python",
+      "commit": "2fd57cf8f344c472c6e3b14205ad266d1bd6babc",
+      "licence": "MIT",
+      "source_licence": "https://github.com/twilio/twilio-python/blob/2fd57cf8f344c472c6e3b14205ad266d1bd6babc/LICENSE",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "snakers4/silero-vad",
+      "commit": "1e261b036686cd0017d500ee96acd1c4ba572a9d",
+      "licence": "MIT",
+      "source_licence": "https://github.com/snakers4/silero-vad/blob/1e261b036686cd0017d500ee96acd1c4ba572a9d/LICENSE",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "surveyjs/survey-library",
+      "commit": "fc35547c925d1b02cc7c1257fa604350e8ff9c04",
+      "licence": "MIT",
+      "source_licence": "https://github.com/surveyjs/survey-library/blob/fc35547c925d1b02cc7c1257fa604350e8ff9c04/LICENSE",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "chatwoot/chatwoot",
+      "commit": "03702d176d6a9c94f421ffa10f472464f8ec198c",
+      "licence": "NOASSERTION",
+      "source_licence": "https://github.com/chatwoot/chatwoot/blob/03702d176d6a9c94f421ffa10f472464f8ec198c/LICENSE",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "twilio/twilio-node",
+      "commit": "de6edf89c937b87dd155b6f1ca9b659ae4dab54d",
+      "licence": "MIT",
+      "source_licence": "https://github.com/twilio/twilio-node/blob/de6edf89c937b87dd155b6f1ca9b659ae4dab54d/LICENSE",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "livekit/sip",
+      "commit": "b77a5f439498a818f20ace939eac68fd5783a7f4",
+      "licence": "Apache-2.0",
+      "source_licence": "https://github.com/livekit/sip/blob/b77a5f439498a818f20ace939eac68fd5783a7f4/LICENSE.txt",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "SYSTRAN/faster-whisper",
+      "commit": "ed9a06cd89a93e47838f564998a6c09b655d7f43",
+      "licence": "MIT",
+      "source_licence": "https://github.com/SYSTRAN/faster-whisper/blob/ed9a06cd89a93e47838f564998a6c09b655d7f43/LICENSE",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "OHF-Voice/piper1-gpl",
+      "commit": "efffbfb226bfb511ebbcf55d0cecd8b35a89743d",
+      "licence": "GPL-3.0",
+      "source_licence": "https://github.com/OHF-Voice/piper1-gpl/blob/efffbfb226bfb511ebbcf55d0cecd8b35a89743d/COPYING",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "aiortc/aiortc",
+      "commit": "8a2864630bf417d977a06dda8d0254b1c1501bfb",
+      "licence": "BSD-3-Clause",
+      "source_licence": "https://github.com/aiortc/aiortc/blob/8a2864630bf417d977a06dda8d0254b1c1501bfb/LICENSE",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "rhasspy/piper",
+      "commit": "73c04d81d5590ecc46e522de3601ce7fb29fc2be",
+      "licence": "MIT",
+      "source_licence": "https://github.com/rhasspy/piper/blob/73c04d81d5590ecc46e522de3601ce7fb29fc2be/LICENSE.md",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "eclipsesource/jsonforms",
+      "commit": "47f77687320f5b161a315da1d5bf9f5aad04c5f8",
+      "licence": "MIT",
+      "source_licence": "https://github.com/eclipsesource/jsonforms/blob/47f77687320f5b161a315da1d5bf9f5aad04c5f8/LICENSE",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "nodemailer/mailparser",
+      "commit": "85db897091e295505b649a74fcc67a3a25c44f90",
+      "licence": "NOASSERTION",
+      "source_licence": "https://github.com/nodemailer/mailparser/blob/85db897091e295505b649a74fcc67a3a25c44f90/LICENSE",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "livekit/livekit",
+      "commit": "2fab31691bba2dc6317544cc440c37a93f291935",
+      "licence": "Apache-2.0",
+      "source_licence": "https://github.com/livekit/livekit/blob/2fab31691bba2dc6317544cc440c37a93f291935/LICENSE",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "django-helpdesk/django-helpdesk",
+      "commit": "78284944712e9fe86746f804908a9b77f7147cc6",
+      "licence": "BSD-3-Clause",
+      "source_licence": "https://github.com/django-helpdesk/django-helpdesk/blob/78284944712e9fe86746f804908a9b77f7147cc6/LICENSE",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "hexgrad/kokoro",
+      "commit": "dfb907a02bba8152ca444717ca5d78747ccb4bec",
+      "licence": "Apache-2.0",
+      "source_licence": "https://github.com/hexgrad/kokoro/blob/dfb907a02bba8152ca444717ca5d78747ccb4bec/LICENSE",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "nodemailer/nodemailer",
+      "commit": "81efd7bfc559305f900d6a22b5c56aa94556002b",
+      "licence": "NOASSERTION",
+      "source_licence": "https://github.com/nodemailer/nodemailer/blob/81efd7bfc559305f900d6a22b5c56aa94556002b/LICENSE",
+      "volet": "M1",
+      "verification_licence": "texte de licence primaire et métadonnées",
+      "limites": "modèles et dossiers commerciaux à vérifier séparément",
+      "rapport_qualification": "recherche-m1.md"
+    },
+    {
+      "host": "github",
+      "repo": "inventree/InvenTree",
+      "commit": "9478c25a70696feddafbff139e6f41d3b0abe78d",
+      "licence": "MIT",
+      "source_licence": "https://github.com/inventree/InvenTree/blob/9478c25a70696feddafbff139e6f41d3b0abe78d/LICENSE",
+      "volet": "M2/M3/M4/M6/M8/M9",
+      "verification_licence": "fichier de licence primaire",
+      "limites": null,
+      "rapport_qualification": "recherche-transversale.md"
+    },
+    {
+      "host": "github",
+      "repo": "google/or-tools",
+      "commit": "100f66e6242ab8bf8d32feb8f3bf086db66ae2b5",
+      "licence": "Apache-2.0",
+      "source_licence": "https://github.com/google/or-tools/blob/100f66e6242ab8bf8d32feb8f3bf086db66ae2b5/LICENSE",
+      "volet": "M2/M3/M4/M6/M8/M9",
+      "verification_licence": "fichier de licence primaire",
+      "limites": null,
+      "rapport_qualification": "recherche-transversale.md"
+    },
+    {
+      "host": "github",
+      "repo": "networkx/networkx",
+      "commit": "92f497e2eb8192d1ce9205595f512294e4a9b696",
+      "licence": "BSD-3-Clause (fichier primaire ; API NOASSERTION)",
+      "source_licence": "https://github.com/networkx/networkx/blob/92f497e2eb8192d1ce9205595f512294e4a9b696/LICENSE.txt",
+      "volet": "M2/M3/M4/M6/M8/M9",
+      "verification_licence": "fichier de licence primaire",
+      "limites": null,
+      "rapport_qualification": "recherche-transversale.md"
+    },
+    {
+      "host": "github",
+      "repo": "duckdb/duckdb",
+      "commit": "028c980193d8115cff19d86e2e73e716376bf03f",
+      "licence": "MIT",
+      "source_licence": "https://github.com/duckdb/duckdb/blob/028c980193d8115cff19d86e2e73e716376bf03f/LICENSE",
+      "volet": "M2/M3/M4/M6/M8/M9",
+      "verification_licence": "fichier de licence primaire",
+      "limites": null,
+      "rapport_qualification": "recherche-transversale.md"
+    },
+    {
+      "host": "gitlab",
+      "repo": "team-simpy/simpy",
+      "commit": "f43816490c6f76f336ad6e457d3cab9f386894af",
+      "licence": "MIT",
+      "source_licence": "https://gitlab.com/team-simpy/simpy/-/blob/f43816490c6f76f336ad6e457d3cab9f386894af/LICENSE.rst",
+      "volet": "M2/M3/M4/M6/M8/M9",
+      "verification_licence": "fichier de licence primaire",
+      "limites": null,
+      "rapport_qualification": "recherche-transversale.md"
+    },
+    {
+      "host": "gitlab",
+      "repo": "graphviz/graphviz",
+      "commit": "73780af60a7d334f3d67b92afa8b7ab5980696fe",
+      "licence": "EPL-2.0",
+      "source_licence": "https://gitlab.com/graphviz/graphviz/-/blob/73780af60a7d334f3d67b92afa8b7ab5980696fe/LICENSE",
+      "volet": "M2/M3/M4/M6/M8/M9",
+      "verification_licence": "fichier de licence primaire",
+      "limites": null,
+      "rapport_qualification": "recherche-transversale.md"
+    }
+  ],
+  "depots_distincts_par_hote": {
+    "github": 107,
+    "gitlab": 13
+  },
+  "nombre_observations": 123,
+  "note": "Les miroirs GitLab/GitHub peuvent désigner le même projet, les renommages peuvent désigner le même dépôt. Aucun total ne mesure la maturité ni des heures économisées. NOASSERTION est un résultat API, pas une licence ; le fichier primaire fait foi.",
+  "description_licences": "Le champ licence conserve les métadonnées consolidées ; une valeur nulle ne vaut ni autorisation ni absence de licence. Lire la qualification primaire et ses limites dans le rapport du volet, y compris sous-dossiers, dépendances et modèles."
+}

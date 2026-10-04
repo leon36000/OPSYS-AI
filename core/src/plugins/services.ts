@@ -1,3 +1,4 @@
+import { createHostMissedCallImporterV1 } from "../agents/opsys-runtime-missed-call.js";
 import { STATE_DIR } from "../config/paths.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import { getGatewayProcessInstanceId } from "../gateway/process-instance.js";
@@ -38,6 +39,13 @@ import type { OpenClawPluginServiceContext } from "./types.js";
 
 const log = createSubsystemLogger("plugins");
 export const PLUGIN_SERVICE_REPLACEMENT_STOP_TIMEOUT_MS = 5_000;
+
+function captureVoiceCallHostScope(config: OpenClawConfig): string {
+  return (
+    JSON.stringify([config.plugins?.entries?.["voice-call"], config.agents, config.mcp?.servers]) ??
+    "undefined"
+  );
+}
 
 class PluginServiceTimeoutError extends Error {}
 
@@ -105,6 +113,7 @@ type OwnedPluginService = {
   cleanupReporting?: Promise<unknown>;
   stopRequested: boolean;
   stopNodeInvocations?: () => void;
+  hostMissedCallAbortController?: AbortController;
   health: NonNullable<OpenClawPluginServiceContext["serviceHealth"]>;
   lease: PluginRuntimeCapabilityLease;
 };
@@ -216,6 +225,8 @@ async function startPreparedPluginServices({
   publication: { callback: ((handle: PluginServicesHandle) => void) | undefined };
 }): Promise<PluginServicesHandle> {
   const { ownedServices, owner } = preparedOwner;
+  let currentConfig = initialConfig;
+  let currentVoiceCallHostScope = captureVoiceCallHostScope(initialConfig);
   const canStart = (registration: PluginServiceRegistration) =>
     !owner.closed && owner.registrations.has(registration) && !owner.stopped.has(registration);
   const runBeforeDeadline = async (
@@ -256,6 +267,7 @@ async function startPreparedPluginServices({
     beforeStop?: Promise<unknown>,
   ) => {
     entry.stopRequested = true;
+    entry.hostMissedCallAbortController?.abort(new Error("Plugin service is stopping"));
     entry.stopNodeInvocations?.();
     const recordFailure = (error: unknown) => {
       if (!failures) {
@@ -406,6 +418,13 @@ async function startPreparedPluginServices({
   let reloadTail = Promise.resolve();
   const handle: PluginServicesHandle = {
     reload: (config, serviceIds) => {
+      // Publish committed config before queueing cleanup; retained host callbacks revalidate now.
+      currentConfig = config;
+      currentVoiceCallHostScope = captureVoiceCallHostScope(config);
+      const requested = ownedServices.filter((entry) => serviceIds.has(entry.id));
+      for (const entry of requested) {
+        entry.hostMissedCallAbortController?.abort(new Error("Plugin service is reloading"));
+      }
       const reloading = reloadTail.then(async () => {
         await startupSettled;
         if (owner.closed) {
@@ -418,6 +437,7 @@ async function startPreparedPluginServices({
         for (const entry of selected) {
           entry.reloading = reloading;
           entry.stopRequested = true;
+          entry.hostMissedCallAbortController?.abort(new Error("Plugin service is reloading"));
           entry.stopNodeInvocations?.();
         }
         const failures: unknown[] = [];
@@ -463,6 +483,7 @@ async function startPreparedPluginServices({
       );
       for (const entry of selected) {
         entry.stopRequested = true;
+        entry.hostMissedCallAbortController?.abort(new Error("Plugin service is stopping"));
         entry.stopNodeInvocations?.();
       }
       const strict = options?.strict === true;
@@ -563,6 +584,40 @@ async function startPreparedPluginServices({
 
     const scopeTraceName = (name: string) =>
       `${traceName}.${name.split(".").map(encodeStartupTraceSegment).join(".")}`;
+    const missedCallIngress =
+      entry.pluginId === "voice-call" &&
+      entry.id === "voicecall" &&
+      entry.origin === "bundled" &&
+      service.hostMissedCallIngress?.version === 1
+        ? service.hostMissedCallIngress
+        : undefined;
+    const hostMissedCallAbortController = missedCallIngress ? new AbortController() : undefined;
+    const capturedHostMissedCallScope = missedCallIngress
+      ? captureVoiceCallHostScope(config)
+      : undefined;
+    let hostMissedCallOperation:
+      | NonNullable<
+          OpenClawPluginServiceContext["hostMissedCallImporter"]
+        >["importInboundMissedCall"]
+      | undefined;
+    const hostMissedCallImporter = missedCallIngress
+      ? {
+          agentId: missedCallIngress.agentId,
+          importInboundMissedCall: (
+            input: Parameters<
+              NonNullable<
+                OpenClawPluginServiceContext["hostMissedCallImporter"]
+              >["importInboundMissedCall"]
+            >[0],
+          ) => {
+            if (!hostMissedCallOperation) {
+              throw new Error("OPSYS missed-call import capability is not active");
+            }
+            return hostMissedCallOperation(input);
+          },
+        }
+      : undefined;
+
     const serviceContext: OpenClawPluginServiceContext = {
       config,
       workspaceDir,
@@ -574,6 +629,7 @@ async function startPreparedPluginServices({
         debug: (msg) => log.debug(msg),
       },
       serviceHealth: health,
+      ...(hostMissedCallImporter ? { hostMissedCallImporter } : {}),
       ...(getCron ? { getCron } : {}),
       ...(nodeInvoker
         ? { invokeNode: nodeInvoker.invoke, openNodeDuplex: nodeInvoker.openDuplex }
@@ -608,6 +664,7 @@ async function startPreparedPluginServices({
       registry,
       stopRequested: false,
       stopNodeInvocations: nodeInvoker?.stop,
+      hostMissedCallAbortController,
       diagnosticsExporter: serviceContext.internalDiagnostics !== undefined,
       stop: service.stop
         ? () =>
@@ -649,6 +706,19 @@ async function startPreparedPluginServices({
         ownedService.startup = settled.promise;
         try {
           ownedService.startupConsumer = instance?.retainConsumer();
+          if (missedCallIngress && hostMissedCallAbortController) {
+            hostMissedCallOperation = createHostMissedCallImporterV1({
+              config,
+              getCurrentConfig: () => currentConfig,
+              isServiceScopeCurrent: () =>
+                capturedHostMissedCallScope !== undefined &&
+                currentVoiceCallHostScope === capturedHostMissedCallScope,
+              isStopping: () => owner.closed || ownedService.stopRequested || !lease.isActive(),
+              signal: hostMissedCallAbortController.signal,
+              agentId: missedCallIngress.agentId,
+              lease,
+            });
+          }
           const start = () => service.start(serviceContext);
           await withPluginHttpRouteRegistry(
             registry,

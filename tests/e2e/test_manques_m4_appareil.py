@@ -59,7 +59,6 @@ MOBILE_SRC = RACINE / "mobile" / "src"
 FIXTURE_APP = MOBILE_SRC / "admin" / "fixtures" / "manques-m4.json"
 ENV_REGENERER = "OPSYS_REGENERER_FIXTURES_MOBILE"
 LIMITE_TRONCATURE = 6000  # `jetons.LIMITE_SORTIE_DEFAUT`
-_CHEMIN_DE_TEST = re.compile(r"/tmp/pytest-of-[^/]+/pytest-\d+/[^/]+/opsys-home")
 JETON = re.compile(r"[A-Za-z0-9_.-]{1,64}")
 M4 = "m04-field-ops"
 SERVICE = "gouttieres"
@@ -84,14 +83,14 @@ def _table_de_l_app() -> dict[str, str]:
     return table
 
 
-def _normaliser(valeur: Any) -> Any:
-    """Le chemin d'un fichier du serveur de test change à chaque exécution : la fixture garde un chemin stable."""
+def _normaliser(valeur: Any, opsys_home: Path) -> Any:
+    """Remplace la racine OPSYS_HOME effectivement configurée par le chemin stable de la fixture."""
     if isinstance(valeur, dict):
-        return {cle: _normaliser(v) for cle, v in valeur.items()}
+        return {cle: _normaliser(v, opsys_home) for cle, v in valeur.items()}
     if isinstance(valeur, list):
-        return [_normaliser(v) for v in valeur]
+        return [_normaliser(v, opsys_home) for v in valeur]
     if isinstance(valeur, str):
-        return _CHEMIN_DE_TEST.sub("/srv/opsys", valeur)
+        return valeur.replace(str(opsys_home), "/srv/opsys")
     return valeur
 
 
@@ -198,7 +197,7 @@ class Enregistreur:
         assert self.moteur.empreinte_etat() == avant, f"{nom} : lire n'écrit rien"
         assert nom not in self.reponses, nom
         self.appels[nom] = {"outil": "m4_verifier_preparation", "args": args}
-        self.reponses[nom] = _normaliser(reponse.enveloppe)
+        self.reponses[nom] = _normaliser(reponse.enveloppe, self.moteur.dossier / "opsys-home")
         return reponse
 
 

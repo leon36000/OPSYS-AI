@@ -49,11 +49,17 @@ export function sanitizeAgentIdentityLine(value: string): string {
   return value.replace(/\s+/g, " ").trim();
 }
 
-const IDENTITY_CONFIG_FIELDS = ["name", "theme", "emoji", "avatar"] as const;
+const IDENTITY_CONFIG_FIELDS = ["name", "theme", "emoji", "avatar", "avatarModelId"] as const;
 
-function compactIdentityConfig(identity: IdentityConfig): IdentityConfig | undefined {
+function compactIdentityConfig(
+  identity: IdentityConfig,
+  includeModel = true,
+): IdentityConfig | undefined {
   const resolved: IdentityConfig = {};
   for (const field of IDENTITY_CONFIG_FIELDS) {
+    if (!includeModel && field === "avatarModelId") {
+      continue;
+    }
     const value = identity[field]?.trim();
     if (value) {
       resolved[field] = value;
@@ -66,18 +72,20 @@ export function createAgentIdentityConfig(params: {
   name?: string;
   emoji?: unknown;
   avatar?: unknown;
+  avatarModelId?: string;
 }): IdentityConfig | undefined {
   return compactIdentityConfig({
     ...(params.name ? { name: sanitizeAgentIdentityLine(params.name) } : {}),
     emoji: sanitizeAgentIdentityLine(normalizeOptionalString(params.emoji) ?? ""),
     avatar: sanitizeAgentIdentityLine(normalizeOptionalString(params.avatar) ?? ""),
+    avatarModelId: sanitizeAgentIdentityLine(params.avatarModelId ?? ""),
   });
 }
 
 export function normalizeIdentityForFile(
   identity: IdentityConfig | undefined,
 ): IdentityConfig | undefined {
-  return identity ? compactIdentityConfig(identity) : undefined;
+  return identity ? compactIdentityConfig(identity, false) : undefined;
 }
 
 function normalizeIdentityValue(value: string): string {

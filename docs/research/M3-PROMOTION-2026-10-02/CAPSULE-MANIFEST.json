@@ -1,0 +1,376 @@
+{
+  "files": [
+    {
+      "bytes": 4731,
+      "path": "PLAN-CAPSULE-R3.md",
+      "sha256": "da21302374ea69c22e55aa6965ca71c4dd5862ab851b671a5ad3304d9e71c919"
+    },
+    {
+      "bytes": 2436,
+      "path": "PROPOSITION-BILAN-M3-PROMOTION-R3.patch",
+      "sha256": "7b14e46220d5692422a2dbd89c6d2b1af0abe0ce56f9bb095294ea55b025b92a"
+    },
+    {
+      "bytes": 3119,
+      "path": "author/R3-ROOT-REVIEW.json",
+      "sha256": "4a7a1b7d428508df19547e7d10fd2e4fdfdad2ac3cbd448ec7d9328ba5193be0"
+    },
+    {
+      "bytes": 177,
+      "path": "author/targeted-r3-final.log",
+      "sha256": "a201540565ffa78d7bed99642cc7f513c05ee55f70849776b397972deb50f3d0"
+    },
+    {
+      "bytes": 9213,
+      "path": "author/targeted-r3-final.xml",
+      "sha256": "f03b860872ecadfb1508d582a78bedaa603f69acff2c66a4bc0a50b2e89e0e76"
+    },
+    {
+      "bytes": 10303,
+      "path": "build_capsule_r3.py",
+      "sha256": "dbe05c854aeff66f627f2f9bbad96c9d78dd79c6c8fe21cbbecc92c446a3456b"
+    },
+    {
+      "bytes": 6610,
+      "path": "post-r3-docs/departments/m03-estimation/docs/calibration-temps.md",
+      "sha256": "ce8e23d435a94b3c2a2c092eb2d45a8f19d0160dc64f4b88b36238596d01b64b"
+    },
+    {
+      "bytes": 13046,
+      "path": "preimages/PREIMAGES-PROVENANCE.json",
+      "sha256": "eed1972721118bd6229282b77fc4f845e12e5a4b241db38a98a85201a0769bac"
+    },
+    {
+      "bytes": 1569,
+      "path": "preimages/R2-PREIMAGES-SHA256.json",
+      "sha256": "81e6a1f64352cce01dc1ecbb3e9862efe79d611dcb5e31639f9a0fc93af84230"
+    },
+    {
+      "bytes": 4439,
+      "path": "preimages/R2-initial/departments/m03-estimation/department.yaml",
+      "sha256": "d5da0f100f88b186846275b793b408878cfb257272cca864cea8abfa5508cd06"
+    },
+    {
+      "bytes": 22459,
+      "path": "preimages/R2-initial/departments/m03-estimation/src/m3_estimation/calibration_cohortes.py",
+      "sha256": "76c07eb743e3a7468328bd15513966814626f133bb65bd90d548355c0dc63571"
+    },
+    {
+      "bytes": 9506,
+      "path": "preimages/R2-initial/departments/m03-estimation/src/m3_estimation/calibration_raccord.py",
+      "sha256": "4a811b2044e2fc458d01093b8c8ecd2cf443a7a451a0c66769b7a0d4094695a6"
+    },
+    {
+      "bytes": 32683,
+      "path": "preimages/R2-initial/departments/m03-estimation/src/m3_estimation/estimation.py",
+      "sha256": "07062d80af0666fc511a72b66d893d477328025661b7c251b60b8a0e47a87a6b"
+    },
+    {
+      "bytes": 76750,
+      "path": "preimages/R2-initial/departments/m03-estimation/src/m3_estimation/outils.py",
+      "sha256": "100f888817846372b15a3fee2dc37760b818aff6d0e44d6d08c66a021d07c4e4"
+    },
+    {
+      "bytes": 4063,
+      "path": "preimages/R2-initial/departments/m03-estimation/src/m3_estimation/trace_calibration_temps.py",
+      "sha256": "9b36ea6db093f729e0a539606af80e3717134d1460d23d7ff279a88dfdfe2a4c"
+    },
+    {
+      "bytes": 10555,
+      "path": "preimages/R2-initial/departments/m03-estimation/tests/test_calibration_cohortes.py",
+      "sha256": "124008e136db9e271f01c6251d47e4e794f41491d7bf474d1c9e210afc6dfce4"
+    },
+    {
+      "bytes": 5720,
+      "path": "preimages/R2-initial/departments/m03-estimation/tests/test_calibration_raccord.py",
+      "sha256": "65ac5553b66980605adbd5f24793a5f619ea13d9036098adfe5a19a84b57ea10"
+    },
+    {
+      "bytes": 7145,
+      "path": "preimages/R2-initial/departments/m03-estimation/tests/test_trace_calibration_temps.py",
+      "sha256": "1066d873d72064cfb99e1c96668ab430281e1d9d65e56b7f12bebaae9fbeb390"
+    },
+    {
+      "bytes": 4474,
+      "path": "preimages/R2-prefix/calibration-temps.md.before",
+      "sha256": "b581764ad385e27275d34c84d4d8f971c7e8bc14a00d1c5c28799d12f7776f56"
+    },
+    {
+      "bytes": 24459,
+      "path": "preimages/R2-prefix/calibration_cohortes.py.before",
+      "sha256": "f925e6fca859cb24c120c616397866f186b95b43dd57f779300731da5aa6bf61"
+    },
+    {
+      "bytes": 46894,
+      "path": "preimages/R2-prefix/calibration_versions.py.before",
+      "sha256": "1d2ed5d82d97f31aea8e6c44cdd78f667c96c665c7417d945d5cfbeffee0cf4d"
+    },
+    {
+      "bytes": 91490,
+      "path": "preimages/R2-prefix/outils.py.before",
+      "sha256": "e5f3a17b7ade2e7da32098b7289e5c9f9c4e3f4e10c9e2ec03243db2bfcef25a"
+    },
+    {
+      "bytes": 10555,
+      "path": "preimages/R2-prefix/test_calibration_cohortes.py.before-reconstructed-match-root-m7",
+      "sha256": "124008e136db9e271f01c6251d47e4e794f41491d7bf474d1c9e210afc6dfce4"
+    },
+    {
+      "bytes": 13981,
+      "path": "preimages/R2-prefix/test_calibration_promotion.py.before",
+      "sha256": "b106cabf1584955bc84bb98e3b3811034b5dfe0d0d4ca75bc1689e69cfd9978a"
+    },
+    {
+      "bytes": 19509,
+      "path": "preimages/R2-prefix/test_calibration_promotion_sdk.py.before",
+      "sha256": "5b3ea201704214904a5b2895c0e1307bbf0e15d9df725dc2bc2debb67387a92a"
+    },
+    {
+      "bytes": 46368,
+      "path": "preimages/R2-review/calibration_versions.py.before-canonical-decimals",
+      "sha256": "a6c7787fb01232ce986941264fd81224eaf5b8c41c10762a639dba2c2fd85d45"
+    },
+    {
+      "bytes": 34712,
+      "path": "preimages/R2-review/estimation.py.before-canonical-decimals",
+      "sha256": "872c3a9460618006a1788c4185462496d731e063c1967d295ef54f3f3a221b73"
+    },
+    {
+      "bytes": 8315,
+      "path": "preimages/R2-review/test_calibration_promotion.py.before",
+      "sha256": "b19e38e191f3adc7bf146c974dd017e23befa75ee9a383514b668fcf63f1404c"
+    },
+    {
+      "bytes": 5720,
+      "path": "preimages/R2-review/test_calibration_raccord.py.before-negative-wct",
+      "sha256": "65ac5553b66980605adbd5f24793a5f619ea13d9036098adfe5a19a84b57ea10"
+    },
+    {
+      "bytes": 8651,
+      "path": "preimages/R2-review/test_trace_calibration_temps.py.before-scale-test",
+      "sha256": "a6e376379d996347feeef6513e5918aed19819ef38231400a0713882ba63b14f"
+    },
+    {
+      "bytes": 49049,
+      "path": "preimages/R3-before-final-fix/calibration_versions.py",
+      "sha256": "c4ac0a09338cfe913c19ef5c90291961af4c652a6e904dd419478066dec3b461"
+    },
+    {
+      "bytes": 96038,
+      "path": "preimages/R3-before-final-fix/outils.py",
+      "sha256": "fa72c33a8a54b0fabfd39688caaef61363fab67413c8ea2e11e8166d70cd071f"
+    },
+    {
+      "bytes": 14632,
+      "path": "preimages/R3-before-final-fix/test_calibration_promotion.py",
+      "sha256": "7058017f29850162afb008d3624dfe25466c1cf0c9d22fc210382b9faa9e1e8e"
+    },
+    {
+      "bytes": 21415,
+      "path": "preimages/R3-before-final-fix/test_calibration_promotion_sdk.py",
+      "sha256": "ce1553c7a5d68c00f6a33dbf15bf2b63f6c6615e98c3a516b501d723313dfe6d"
+    },
+    {
+      "bytes": 14105,
+      "path": "preimages/R3-before-final-fix/test_outils_scenarios.py",
+      "sha256": "68709f76ac90da7a1f103a9fd14f1479b3fe1647a098bd66e3d4448f5e85fe83"
+    },
+    {
+      "bytes": 21415,
+      "path": "preimages/R3-before-test-strengthening/test_calibration_promotion_sdk.py",
+      "sha256": "cc5e5735f731ad8f360dceb8f4bcecef934c466a38b99cb101265e7da46730bf"
+    },
+    {
+      "bytes": 48824,
+      "path": "preimages/R3-before/calibration_versions.py",
+      "sha256": "831b11ded6654ea5dc18589ce042ea2464738d6b254586c409a7cff6e5661b89"
+    },
+    {
+      "bytes": 95840,
+      "path": "preimages/R3-before/outils.py",
+      "sha256": "cd399602f538d5c49bc22ce28179898beed9eaff76df9954046f9a111df7c573"
+    },
+    {
+      "bytes": 14599,
+      "path": "preimages/R3-before/test_calibration_promotion.py",
+      "sha256": "a14d25540bd168c4d7024098b924c235a12fe147a5c5217333835df19b873008"
+    },
+    {
+      "bytes": 21156,
+      "path": "preimages/R3-before/test_calibration_promotion_sdk.py",
+      "sha256": "b1ad72b2e3869f42fb0c708be5cc30bc72d991674afd99db93f5bf5fe1e6210e"
+    },
+    {
+      "bytes": 13347,
+      "path": "preimages/R3-before/test_outils_scenarios.py",
+      "sha256": "34ff1f414af069825dc2bbeaa8ea9aad4ab6ff96b310f439802a8ff1819f5a98"
+    },
+    {
+      "bytes": 5877,
+      "path": "preimages/guide/calibration-temps.md.before-concurrency-note",
+      "sha256": "d07873cda274d8f74ed0a0a94a2674a2b60c4200a67ed5284db581eed2b391c8"
+    },
+    {
+      "bytes": 14030,
+      "path": "receipts/CHANGES-r3.json",
+      "sha256": "b7264f684a30d5a22db422a38163259a306c9e1aacc7dace0eeb7f96d71274e9"
+    },
+    {
+      "bytes": 371,
+      "path": "receipts/CLI-manifest-r1.json",
+      "sha256": "fcd8d367dd6c3affe08b7718439c82390552aff5579d3d6a3e08c18277ebe371"
+    },
+    {
+      "bytes": 384,
+      "path": "receipts/CLI-manifest-r1.log",
+      "sha256": "2d29b58cf291282ee819c26b3bb6dafacb347f661545c10a3872e88a4383dbef"
+    },
+    {
+      "bytes": 6489,
+      "path": "receipts/ROOT-SOURCES-r1.json",
+      "sha256": "e679689d68c249dbbd987422bd6a17059dab859695c8bcb74015aff2e76642d3"
+    },
+    {
+      "bytes": 2674,
+      "path": "receipts/ROOT-VERIFICATION-r3.json",
+      "sha256": "1920315f7d5087e30b2b8eb9191a1d4663f9b315850d2b72f838d286f8fa55e8"
+    },
+    {
+      "bytes": 0,
+      "path": "receipts/ROOT-r1-outer-empty.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "bytes": 898,
+      "path": "receipts/ROOT-r1-wrapper.log",
+      "sha256": "0551bd978eb4c45832addd2a78a89cdb142d58738d6d59cc25cb1f012a77857a"
+    },
+    {
+      "bytes": 28722,
+      "path": "receipts/ROOT-r1.json",
+      "sha256": "f499b9b0b2922b700d9d6cbfeccebac27dd30394b3c227cab391971664d736e2"
+    },
+    {
+      "bytes": 10642,
+      "path": "receipts/ROOT-r2-runner.log",
+      "sha256": "d5458deff121edb3e83c2590cffd8bb17e9caf18ee03a704b0262359a07e89be"
+    },
+    {
+      "bytes": 29080,
+      "path": "receipts/ROOT-r2.json",
+      "sha256": "fa484849a1e4d165082bdf09d838cb4357595ff811fc7c76232e76946feceb8e"
+    },
+    {
+      "bytes": 2681,
+      "path": "receipts/ROOT-r2.log",
+      "sha256": "b42c0f498f41ba9f73505dc712ee52343538d369b92a3f0d763ff6d14daa8324"
+    },
+    {
+      "bytes": 381465,
+      "path": "receipts/ROOT-r2.xml",
+      "sha256": "b0fcba85ddc1cbda7e9054f28dcb85b005335872ec7e36cc0f8600d78ae00d9c"
+    },
+    {
+      "bytes": 2513,
+      "path": "receipts/ROOT-r3-runner.log",
+      "sha256": "7f043449fdf0cca8f715ef7c9fd14525901a79af2a301ee67c31209748f15995"
+    },
+    {
+      "bytes": 29158,
+      "path": "receipts/ROOT-r3.json",
+      "sha256": "e5e18b09bfacd7dfb9991bd6e1d163ed902063cb590f1954e29feb639fc6b654"
+    },
+    {
+      "bytes": 2680,
+      "path": "receipts/ROOT-r3.log",
+      "sha256": "4fbd5bcad146c419d7d38c1925a05eb169e25ce7aec452ea4c3cfc6f1780dc72"
+    },
+    {
+      "bytes": 373580,
+      "path": "receipts/ROOT-r3.xml",
+      "sha256": "3eab80acb4b64a9fe5f714a6f3487cba93e610a195ab742e1b15ef2a0e208af2"
+    },
+    {
+      "bytes": 5143,
+      "path": "sources/departments/m03-estimation/department.yaml",
+      "sha256": "c5708fc826dca4577d4abb8e9f8eb1ed7422506463aaa927101a78c8185b986b"
+    },
+    {
+      "bytes": 5877,
+      "path": "sources/departments/m03-estimation/docs/calibration-temps.md",
+      "sha256": "d07873cda274d8f74ed0a0a94a2674a2b60c4200a67ed5284db581eed2b391c8"
+    },
+    {
+      "bytes": 26072,
+      "path": "sources/departments/m03-estimation/src/m3_estimation/calibration_cohortes.py",
+      "sha256": "086825bccb93a7e9b82e8c290b3445de5f17a167bb0dcf53370c6867cb090412"
+    },
+    {
+      "bytes": 10446,
+      "path": "sources/departments/m03-estimation/src/m3_estimation/calibration_raccord.py",
+      "sha256": "1caa8c96641db499cda06d2fab99b17356f8df1aade538491156a7f7ce570aae"
+    },
+    {
+      "bytes": 49049,
+      "path": "sources/departments/m03-estimation/src/m3_estimation/calibration_versions.py",
+      "sha256": "c4ac0a09338cfe913c19ef5c90291961af4c652a6e904dd419478066dec3b461"
+    },
+    {
+      "bytes": 34904,
+      "path": "sources/departments/m03-estimation/src/m3_estimation/estimation.py",
+      "sha256": "5e1e12b764d750084b484a28133b432715a1bdbb6252708e89ae87374e7eb1b1"
+    },
+    {
+      "bytes": 96042,
+      "path": "sources/departments/m03-estimation/src/m3_estimation/outils.py",
+      "sha256": "3cf1742fcf725cd3c87e15e56c5b0e81fb979bca00ba3da25afa659867af0d05"
+    },
+    {
+      "bytes": 5150,
+      "path": "sources/departments/m03-estimation/src/m3_estimation/trace_calibration_temps.py",
+      "sha256": "65e0a4373b21cdcfbe52f797bb63efd7529e3c5223db67fefcc0cf6a3144ea1e"
+    },
+    {
+      "bytes": 11777,
+      "path": "sources/departments/m03-estimation/tests/test_calibration_cohortes.py",
+      "sha256": "fa7290b283d6602eb7b49c6f1dba776f6293fbaa25c0a91ed98affd3cc73adc1"
+    },
+    {
+      "bytes": 14840,
+      "path": "sources/departments/m03-estimation/tests/test_calibration_promotion.py",
+      "sha256": "c2892902446ef17777cfd91a284dd9ebb588db44811dac7c31614b720ba1a6d6"
+    },
+    {
+      "bytes": 21696,
+      "path": "sources/departments/m03-estimation/tests/test_calibration_promotion_sdk.py",
+      "sha256": "86248e14ce152562601030aef2deb9d59a51d217fd52abd029a9417664023148"
+    },
+    {
+      "bytes": 6373,
+      "path": "sources/departments/m03-estimation/tests/test_calibration_raccord.py",
+      "sha256": "21beca1224a39929c99db42ac126b636b772f0d1af6d484662bc7eae4b4cb628"
+    },
+    {
+      "bytes": 22724,
+      "path": "sources/departments/m03-estimation/tests/test_estimation.py",
+      "sha256": "396820abfba3d2cb1f534cda6814c2919bc98fc8ad88f5643f89bceee4553542"
+    },
+    {
+      "bytes": 27941,
+      "path": "sources/departments/m03-estimation/tests/test_gardes_des_outils.py",
+      "sha256": "abbaec935f3b57898e2be54251ce7e05695f484ffd66c8bf201e4aa4f897149b"
+    },
+    {
+      "bytes": 14105,
+      "path": "sources/departments/m03-estimation/tests/test_outils_scenarios.py",
+      "sha256": "68709f76ac90da7a1f103a9fd14f1479b3fe1647a098bd66e3d4448f5e85fe83"
+    },
+    {
+      "bytes": 9734,
+      "path": "sources/departments/m03-estimation/tests/test_trace_calibration_temps.py",
+      "sha256": "4acf6d767cf9285e10cdda4d05fa6e52c76e020f499808d66a9326adfa016bca"
+    }
+  ],
+  "format": "m3-promotion-r3-capsule/1",
+  "payload_bytes": 2203189
+}

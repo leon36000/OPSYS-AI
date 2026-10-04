@@ -31,12 +31,17 @@ export function readAvatarGatewayContext() {
 export async function fetchGatewayContextResource(
   url: string,
   timeoutMs: number,
+  requestSignal?: AbortSignal,
 ): Promise<Response> {
   const origin = appGatewayOrigin ?? globalThis.location?.origin ?? "http://localhost";
   if (new URL(url, origin).origin !== origin) {
     throw new Error("Resource must belong to the connected Gateway");
   }
-  const signal = AbortSignal.any([gatewayRequests.signal, AbortSignal.timeout(timeoutMs)]);
+  const signals = [gatewayRequests.signal, AbortSignal.timeout(timeoutMs)];
+  if (requestSignal) {
+    signals.push(requestSignal);
+  }
+  const signal = AbortSignal.any(signals);
   const response = await fetchWithControlUiAuth(
     url,
     { credentials: "include", signal },

@@ -6,9 +6,14 @@ import {
   setActivePluginRegistry,
 } from "openclaw/plugin-sdk/channel-test-helpers";
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
+import { resolveConfiguredCapabilityProvider } from "openclaw/plugin-sdk/provider-selection-runtime";
 import { getRealtimeTranscriptionProvider } from "openclaw/plugin-sdk/realtime-transcription";
 import { useAutoCleanupTempDirTracker, withEnvAsync } from "openclaw/plugin-sdk/test-env";
 import { afterEach, describe, expect, it } from "vitest";
+import {
+  createLocalAsrTranscriptionProvider,
+  LOCAL_ASR_TRANSCRIPTION_PROVIDER_ID,
+} from "./local-asr-transcription-provider.js";
 import { CallManager } from "./manager.js";
 import { MockProvider } from "./providers/mock.js";
 import { createVoiceCallBaseConfig } from "./test-fixtures.js";
@@ -18,6 +23,71 @@ afterEach(resetPluginRuntimeStateForTest);
 const tempDirs = useAutoCleanupTempDirTracker(afterEach);
 
 describe("VoiceCallWebhookServer transcription provider discovery", () => {
+  it("discovers the real local clip provider but requires explicit config selection", () => {
+    const workspace = "/tmp/voice-call-local-provider-discovery";
+    const localProvider = createLocalAsrTranscriptionProvider();
+    const registry = createEmptyPluginRegistry();
+    registry.realtimeTranscriptionProviders.push({
+      pluginId: "voice-call",
+      pluginName: "voice-call",
+      source: "/bundled/voice-call/index.js",
+      provider: localProvider,
+    });
+    setActivePluginRegistry(registry, undefined, "default", workspace);
+
+    const resolve = (selected: boolean) => {
+      const cfg = {
+        agents: { defaults: { workspace } },
+        plugins: {
+          entries: {
+            "voice-call": {
+              enabled: true,
+              config: {
+                enabled: false,
+                streaming: {
+                  enabled: false,
+                  ...(selected ? { provider: LOCAL_ASR_TRANSCRIPTION_PROVIDER_ID } : {}),
+                  providers: {
+                    [LOCAL_ASR_TRANSCRIPTION_PROVIDER_ID]: {
+                      baseUrl: "http://127.0.0.1:9000",
+                      model: "whisper-local",
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      } as OpenClawConfig;
+      return resolveConfiguredCapabilityProvider({
+        configuredProviderId: selected ? LOCAL_ASR_TRANSCRIPTION_PROVIDER_ID : undefined,
+        providerConfigs: {
+          [LOCAL_ASR_TRANSCRIPTION_PROVIDER_ID]: {
+            baseUrl: "http://127.0.0.1:9000",
+            model: "whisper-local",
+          },
+        },
+        cfg,
+        cfgForResolve: cfg,
+        getConfiguredProvider: (providerId) => getRealtimeTranscriptionProvider(providerId, cfg),
+        listProviders: () =>
+          [getRealtimeTranscriptionProvider(LOCAL_ASR_TRANSCRIPTION_PROVIDER_ID, cfg)].filter(
+            (provider) => provider !== undefined,
+          ),
+        resolveProviderConfig: ({ provider, cfg: resolveCfg, rawConfig }) =>
+          provider.resolveConfig?.({ cfg: resolveCfg, rawConfig }) ?? rawConfig,
+        isProviderConfigured: ({ provider, cfg: currentCfg, providerConfig }) =>
+          provider.isConfigured({ cfg: currentCfg, providerConfig }),
+      });
+    };
+
+    expect(resolve(false)).toMatchObject({ ok: false, code: "provider-not-configured" });
+    expect(resolve(true)).toMatchObject({
+      ok: true,
+      provider: { id: LOCAL_ASR_TRANSCRIPTION_PROVIDER_ID },
+    });
+  });
+
   it.each(
     ["configured-stt", "configured-stt-alias"].flatMap((configKey) =>
       [undefined, configKey].map((configuredProviderId) => ({ configKey, configuredProviderId })),

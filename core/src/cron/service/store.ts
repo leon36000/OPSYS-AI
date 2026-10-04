@@ -1,5 +1,6 @@
 /** Loads, normalizes, quarantines, and persists cron service store state. */
 import { isRecord } from "@openclaw/normalization-core/record-coerce";
+import { captureCronMutationCommit } from "../mutation-completion.js";
 import { normalizeCronJobIdentityFields } from "../normalize-job-identity.js";
 import { normalizeCronJobInput } from "../normalize.js";
 import { getInvalidPersistedCronJobReason } from "../persisted-shape.js";
@@ -13,12 +14,14 @@ import {
   saveCronJobsStoreWithRevisionNative,
   saveCronJobsStoreChangesWithRevision,
   saveCronJobsStoreChangesWithRevisionNative,
+  saveCronJobsStoreRetirementWithRevision,
   type QuarantinedCronConfigJob,
 } from "../store.js";
 import {
   CronRunReceiptConflictError,
   CronRunReceiptRevisionError,
 } from "../store/run-receipt-store.js";
+import type { CronRetirementCapture } from "../store/runtime-retirement-store.js";
 import type { CronStoreTransactionHooks } from "../store/transaction-hooks.types.js";
 import type { CronJob, CronStoreFile } from "../types.js";
 import { computeJobNextRunAtMs } from "./jobs-scheduling.js";
@@ -404,14 +407,48 @@ export function persistNativeOrRestore(
   });
 }
 
+/** Retirement always commits a data-only delta on the worker, including with an active scheduler. */
+export function persistRetirementOrRestore(
+  state: CronServiceState,
+  snapshot: CronRollbackSnapshot,
+  retirement: { capture: CronRetirementCapture; jobId: string; removedAtMs: number },
+  assertCurrent: () => void,
+  opts: Omit<PersistOptions, "stateOnly" | "transactionHooks"> = {},
+): Promise<void> {
+  if (!snapshot.store || !state.store) {
+    throw new Error("Cron retirement requires an owning store snapshot.");
+  }
+  const committed = captureCronMutationCommit("cron.remove");
+  return persistOrRestoreUsing(
+    state,
+    snapshot,
+    opts,
+    {
+      save: saveCronJobsStoreWithRevision,
+      saveChanges: (storePath, previous, next, options) =>
+        saveCronJobsStoreRetirementWithRevision(
+          storePath,
+          previous,
+          next,
+          retirement,
+          assertCurrent,
+          committed,
+          options,
+        ),
+    },
+    true,
+  );
+}
+
 async function persistOrRestoreUsing(
   state: CronServiceState,
   snapshot: CronRollbackSnapshot,
   opts: Omit<PersistOptions, "stateOnly">,
   persistence: CronPersistence,
+  forceChanges = false,
 ): Promise<void> {
   try {
-    if (!state.deps.cronEnabled && snapshot.store && state.store) {
+    if ((forceChanges || !state.deps.cronEnabled) && snapshot.store && state.store) {
       const committed = await persistence.saveChanges(
         state.deps.storePath,
         snapshot.store,

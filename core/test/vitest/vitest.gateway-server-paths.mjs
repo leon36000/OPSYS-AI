@@ -10,6 +10,7 @@ export const gatewayDatabaseWorkerTestFiles = [
   "src/gateway/agent-turn/agent-run-dispatch.execution-binding.test.ts",
   "src/gateway/agent-turn/agent-run-dispatch.sqlite.test.ts",
   "src/gateway/approval-fixture.test.ts",
+  "src/gateway/assistant-avatar-model-http.loopback.test.ts",
   "src/gateway/board-http.test.ts",
   "src/gateway/board-store.test.ts",
   "src/gateway/chat-display-projection.cron.test.ts",
@@ -271,6 +272,7 @@ export const gatewayDatabaseWorkerTestFiles = [
   "src/gateway/worker-environments/workspace-result-ref-mutation.test.ts",
   "src/gateway/worker-environments/workspace-result-repository.test.ts",
   "test/plugins/codex-model-catalog.gateway.test.ts",
+  "src/gateway/opsys-cron-reconciler.native.test.ts",
 ];
 
 // Native Vitest subprocesses cold-import the real Gateway; keep their collection

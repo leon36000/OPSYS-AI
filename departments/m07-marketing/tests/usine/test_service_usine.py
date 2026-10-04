@@ -669,9 +669,9 @@ def test_un_role_que_la_file_admet_mais_que_l_outil_ne_reconnait_pas_ne_decide_r
         {"contenu_id": contenu_id, "decision": "approuver", "horodatage": HORODATAGE},
         personne="gestionnaire", roles_n3={"admin", "nathan_owner"})
 
-    assert sortie["statut"] == "executee", sortie
+    assert sortie["statut"] == "echec", sortie  # le refus métier arrête la requête; l'action reste non exécutée
     assert sortie["reponse"]["resultat"]["accepte"] is False
-    assert sortie["reponse"]["resultat"]["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
+    assert sortie["reponse"]["resultat"]["verdict"]["code"] == "REJ-HUMAIN-ROLE-INSUFFISANT"
     assert _lire("decisions_contenu") == []
 
 
@@ -1164,3 +1164,59 @@ def test_le_rapport_de_floutage_de_t4_3_est_joint_au_paquet_sans_jamais_dire_flo
     assert premier["rapport_detecteur"]["zones_floutees"] == 1
     assert second["rapport_detecteur"] is None  # la seconde photo n'a jamais été traitée
     assert registre.STATUT_APPROUVE == "APPROVED" and chantier.STATUT_PROPOSE == "propose"
+
+
+def test_retrait_avant_wct_cree_lien_lead_durable_quand_wct_est_recu(base_durable, brand_configure, fabriquer_charge):
+    wct = fabriquer_charge()
+    retrait_initial = _metier(_appeler(
+        "m7_enregistrer_retrait_consentement_marketing", wct_id=wct["wct_id"], canal="sms",
+        horodatage=HORODATAGE,
+    ))["resultat"]
+    assert retrait_initial["wct_connu"] is False and retrait_initial["lead_id"] is None
+    initial = _lire("retraits_consentement_marketing")
+    assert len(initial) == 1 and initial[0]["lead_id"] is None
+
+    # Un autre chantier du même lead peut être arrivé et avoir un contenu approuvé/remis avant que M7 ne
+    # connaisse le lien. La nouvelle preuve WCT doit ensuite le bloquer aux lectures/exportations futures.
+    chantier_associe = fabriquer_charge(wct_id="wct-meme-lead-avant-lien", lead_id=wct["lead_id"])
+    _recevoir(chantier_associe)
+    contenu_associe = _id("facebook", chantier_associe["wct_id"])
+    _approuver(contenu_associe)
+    _exporter(contenu_associe)
+
+    _recevoir(wct)
+    assert _lire("wct_recus")[0]["consentement_marketing"] is True  # le retrait M7 ne réécrit pas le fait M4
+    retraits = _lire("retraits_consentement_marketing")
+    assert len(retraits) == 2
+    assert retraits[0]["lead_id"] is None  # le fait initial reste append-only
+    lien, = [r for r in retraits if r.get("type_maillon") == "liaison_lead"]
+    assert lien["lead_id"] == wct["lead_id"]
+    assert lien["source_wct"] == {
+        "wct_id": wct["wct_id"], "hash_maillon": wct["hash_maillon"],
+        "horodatage_completion": wct["horodatage_completion"],
+    }
+    _recevoir(wct)  # redelivery relit la même preuve, sans dupliquer le lien append-only
+    assert len(_lire("retraits_consentement_marketing")) == 2
+    retrait_lie = _metier(_appeler(
+        "m7_enregistrer_retrait_consentement_marketing", wct_id=wct["wct_id"], canal="courriel",
+        horodatage="2026-09-30T11:00:00-04:00",
+    ))["resultat"]
+    assert retrait_lie["wct_connu"] is True and retrait_lie["lead_id"] == wct["lead_id"]
+    assert len(retraits) == 2
+    assert lien["retrait_id"] == retrait_initial["retrait_id"]
+    assert service.retrait.retrait_applicable("wct-autre", wct["lead_id"], retraits) is not None
+    assert not [c for c in _lire("contenus_chantier") if c["wct_id"] == wct["wct_id"]]
+    assert {c["approval_status"] for c in _contenus(wct_id=chantier_associe["wct_id"])} == {"CONSENTEMENT_RETIRE"}
+    export_retire = _metier(_appeler(
+        "m7_exporter_paquet_manuel", contenu_id=contenu_associe, horodatage=HORODATAGE,
+    ))
+    assert export_retire["verdict"]["code"] == "REJ-CONSENTEMENT-RETIRE"
+
+    second = _metier(_appeler(
+        "m7_enregistrer_retrait_consentement_marketing", wct_id=wct["wct_id"], canal="telephone",
+        horodatage="2026-09-30T12:00:00-04:00",
+    ))["resultat"]
+    assert second["lead_id"] == wct["lead_id"] and second["deja_enregistre"] is True
+    assert len(_lire("retraits_consentement_marketing")) == 2
+    suivant = _recevoir(fabriquer_charge(wct_id="wct-meme-lead-suivant", lead_id=wct["lead_id"]))
+    assert suivant["contenus"]["statut"] == "consentement_retire"

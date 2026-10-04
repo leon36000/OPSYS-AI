@@ -1536,6 +1536,24 @@ CREATE TABLE IF NOT EXISTS cron_job_runtime_authorities (
   )
 ) STRICT;
 
+-- Encrypted cleanup receipts survive the owning DELETE. No FK to cron_jobs:
+-- the proof/capability must remain recoverable until the private Python ACK.
+CREATE TABLE IF NOT EXISTS cron_job_runtime_retirements (
+  store_key TEXT NOT NULL,
+  receipt_id TEXT NOT NULL CHECK(length(receipt_id) = 64),
+  job_id TEXT NOT NULL CHECK(length(job_id) BETWEEN 1 AND 128),
+  profile_id TEXT NOT NULL CHECK(length(profile_id) BETWEEN 2 AND 64),
+  intention_id TEXT NOT NULL CHECK(length(intention_id) = 64),
+  epoch INTEGER NOT NULL CHECK(epoch > 0),
+  source_hash TEXT NOT NULL CHECK(length(source_hash) = 64),
+  input_fingerprint TEXT NOT NULL,
+  ciphertext TEXT NOT NULL CHECK(length(CAST(ciphertext AS BLOB)) <= 98304),
+  removed_at_ms INTEGER NOT NULL CHECK(removed_at_ms > 0),
+  acknowledged_at_ms INTEGER CHECK(acknowledged_at_ms > 0),
+  PRIMARY KEY (store_key, receipt_id),
+  UNIQUE (store_key, job_id, source_hash, epoch)
+) STRICT;
+
 -- Scratch is separate from cron_jobs so scheduler state writes and downgraded
 -- full-row replacement preserve it. New builds prune rows explicitly on job removal.
 -- content NULL is a tombstone: it keeps the revision lineage monotonic across

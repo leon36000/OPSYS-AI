@@ -18,12 +18,16 @@ TROIS CAS, jamais un quatrième :
     (docs/architecture/ROLES.md, « Voie des agents »).
   - appel d'appareil, rôle avec droit de voir les coûts (``admin``) : ``autorise_couts`` est DÉRIVÉ du
     rôle (table ci-dessous), jamais cru sur parole.
+  - appel console serveur, ``nathan_owner`` : droit M5 validé en base live; cette source n'est jamais
+    acceptée depuis un jeton appareil ni depuis les arguments d'outil.
   - appel d'appareil, rôle sans portée sur l'outil : refus, avant de lire quoi que ce soit.
 
 RÈGLE ÉCRITE (rôle -> droit de voir solde, argent disponible et taux). Fermée par défaut : un rôle
-absent de la table ne voit pas les coûts.
+absent de la table ne voit pas les coûts, sauf le rôle propriétaire confirmé pour la source console.
   - ``admin`` : oui. DEFINITION-PRODUIT §9.5 (« M5 : trésorerie et cash libre réel ») et §7 M5
     « Mobile » (« Admin : ... trésorerie »).
+  - ``nathan_owner`` : oui uniquement avec la source serveur ``console`` et après relecture du rôle
+    actif en base.
   - ``employee`` : non. §9.2 (« l'employé ne voit jamais coûts, marges ni finances »).
   - ``seller`` : non. §9.4 (« Ne voit pas : finances globales, coûts internes au-delà de sa
     soumission ») ; le solde et l'argent disponible sont des finances globales.
@@ -49,11 +53,13 @@ import dataclasses
 from . import validation
 
 ROLE_ADMIN = "admin"
+ROLE_PROPRIETAIRE = "nathan_owner"
 ROLE_EMPLOYE = "employee"
 ROLE_VENDEUR = "seller"
 
 __all__ = [
     "ROLE_ADMIN",
+    "ROLE_PROPRIETAIRE",
     "ROLE_EMPLOYE",
     "ROLE_VENDEUR",
     "Acteur",
@@ -72,32 +78,39 @@ _VOIT_LES_COUTS = {
 
 @dataclasses.dataclass(frozen=True)
 class Acteur:
-    """Personne et rôle d'un jeton d'appareil, DÉJÀ confirmés par la base (voir ``outils.py``)."""
+    """Personne, rôle et source serveur, confirmés par la base (voir ``outils.py``)."""
 
     personne: str
     role: str
+    source: str = "appareil"
 
 
-def acteur_de(personne, role, roles_permis):
+def acteur_de(personne, role, roles_permis, *, source="appareil"):
     """``(Acteur, None)`` si ``role`` est dans ``roles_permis``, sinon ``(None, verdict)``.
 
     ``roles_permis`` est la portée déclarée de l'outil (``Outil.roles_appareil``, la source unique
     que le core applique déjà en amont) : la repasser ici est une défense en profondeur, car le
     socle n'applique pas cette portée aux outils T0 hors du core. Un rôle hors portée n'obtient ni
     la vue sans montants ni un message qui décrit ce que l'outil aurait rendu."""
-    if role not in roles_permis:
+    if source not in {"appareil", "console"}:
+        return None, validation.construire_verdict(
+            "REJ-IDENTITE-APPAREIL-INVALIDE", detail="source d'identité non autorisée"
+        )
+    autorise_appareil = role in roles_permis
+    autorise_proprietaire_console = source == "console" and role == ROLE_PROPRIETAIRE
+    if not autorise_appareil and not autorise_proprietaire_console:
         return None, validation.construire_verdict(
             "REJ-IDENTITE-APPAREIL-INVALIDE",
             detail=f"rôle d'appareil {role!r} sans portée sur cet outil financier",
         )
-    return Acteur(personne=personne, role=role), None
+    return Acteur(personne=personne, role=role, source=source), None
 
 
-def droit_couts(role):
+def droit_couts(role, *, source="appareil"):
     """Vrai si ce rôle voit solde, argent disponible et taux (règle écrite en tête de module).
 
     Un rôle inconnu ne voit rien. Ne prend que le rôle, jamais un argument de l'appelant."""
-    return _VOIT_LES_COUTS.get(role, False) is True
+    return _VOIT_LES_COUTS.get(role, False) is True or (source == "console" and role == ROLE_PROPRIETAIRE)
 
 
 def _refus(code, detail):
@@ -130,7 +143,7 @@ def resoudre_vue(acteur, role, autorise_couts):
             "role ne correspond pas au rôle authentifié : la réponse porte celui du jeton d'appareil, "
             "jamais une étiquette choisie par l'appelant",
         )
-    droit = droit_couts(acteur.role)
+    droit = droit_couts(acteur.role, source=acteur.source)
     if autorise_couts is True and not droit:
         return _refus(
             "REJ-ROLE-ELARGI",

@@ -1,0 +1,14 @@
+{
+  "archives": 154,
+  "index_sha256": {
+    "MANIFEST.json": "14129a875d35b282933b64a43e37002764f451dbdd51e16ecde4ce1df7c54d2b",
+    "README.md": "5a6a40f3925d16bd5eec5393fb609c6d08fe745d930d75122fbaedad79bb22ba",
+    "SOURCES-FINALES.json": "fd5ad0cafcfa5e52a492a96f995e4708f8f5660d0751b191dabb3398629b55e8"
+  },
+  "liens": 48,
+  "qualification_sha256": "21e5949ba4e70ee14f950e0bd9a8b970825de9105c8ecf6546f81fad1fc18626",
+  "roundtrip_integral": true,
+  "schema": "opsys.r28-post-check/v1",
+  "sources_docs_et_historique_stables": true,
+  "tests_lances": false
+}

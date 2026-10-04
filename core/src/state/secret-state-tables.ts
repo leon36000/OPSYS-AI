@@ -5,7 +5,12 @@ export const STATE_SECRET_TABLE_NAMES = [
   "channel_ingress_events",
   "channel_pairing_requests",
   "clawhub_promotion_claims",
+  // These keys decrypt application payloads persisted in otherwise generic tables.
+  "cles_chiffrement",
   "config_revision_keys",
+  "cron_job_runtime_authorities",
+  // Retirement ciphertext still contains the old private capability needed for crash recovery.
+  "cron_job_runtime_retirements",
   "device_auth_tokens",
   "device_bootstrap_tokens",
   "device_identities",

@@ -11,6 +11,10 @@ const REVIEWED_SAFE_TABLES = {
 const EMBEDDED_CREDENTIAL_TABLES = {
   // payload_json stores the pairing setup payload, including its live bootstrapToken.
   device_pairing_join_codes: "payload_json contains a pairing bootstrapToken",
+  // authority_json stores the private capability needed to resume an authorized cron job.
+  cron_job_runtime_authorities: "authority_json contains a private runtime capability",
+  cron_job_runtime_retirements:
+    "ciphertext contains a private capability for terminal cleanup only",
 } as const;
 
 const CREDENTIAL_COLUMN_SEGMENT =

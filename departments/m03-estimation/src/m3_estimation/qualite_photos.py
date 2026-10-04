@@ -12,8 +12,7 @@ transmis, rien n'est comparé et l'entrée est rejetée — aucune valeur par
 défaut n'est inventée.
 """
 
-from . import contrats
-from . import verdicts
+from . import contrats, verdicts
 
 
 def _cles_fautives(cles_recues, cles_attendues):
@@ -50,12 +49,12 @@ def _valider_seuils(seuils):
             ),
         )
     # type(...) is int : un booléen est refusé car bool est sous-classe de int.
-    if type(seuils["resolution_minimale"]) is not int:
+    if type(seuils["resolution_minimale"]) is not int or seuils["resolution_minimale"] <= 0:
         return verdicts.construire_verdict(
             "REJ-SEUILS-INVALIDES",
             detail="clé fautive : resolution_minimale",
         )
-    if type(seuils["eclairage_minimal"]) not in (int, float):
+    if type(seuils["eclairage_minimal"]) not in (int, float) or not 0 <= seuils["eclairage_minimal"] <= 10:
         return verdicts.construire_verdict(
             "REJ-SEUILS-INVALIDES",
             detail="clé fautive : eclairage_minimal",

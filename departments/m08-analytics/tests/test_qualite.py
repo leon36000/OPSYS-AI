@@ -7,6 +7,15 @@ def test_evaluer_presence_n_zero_et_valeur_none_est_donnee_absente():
     assert resultat == {"metric_id": "m_cpl", "verdict": qualite.VERDICT_DONNEE_ABSENTE, "n": 0}
 
 
+def test_evaluer_presence_non_fini_est_distinct_de_l_absence():
+    resultat = qualite.evaluer_presence("m_cpl", 0, None, valeurs_invalides=1)
+    assert resultat == {
+        "metric_id": "m_cpl", "verdict": qualite.VERDICT_DONNEE_INVALIDE,
+        "n": 0, "valeurs_invalides": 1,
+    }
+    assert qualite.evaluer_presence("m_cpl", 1, float("nan"))["verdict"] == qualite.VERDICT_DONNEE_INVALIDE
+
+
 def test_evaluer_presence_n_zero_mais_valeur_fournie_reste_absente_garde_defensive():
     """n == 0 déclenche l'absence même si `valeur` est incohéremment non None : la garde ne
     fait jamais confiance à une seule des deux moitiés du signal, comme xmr.py::detecter_signal

@@ -2,8 +2,8 @@
 
 `test_installateur_powershell.py` ne lit que le texte des scripts ; `test_installateur_windows.py` en exécute les
 fonctions. Ici, les DEUX scripts tournent en entier, comme `test_installateur_scripts.py` le fait pour `install.sh` :
-Node,
-pnpm, uv et curl sont de faux programmes (le moteur Python est le vrai), le core est `tests/installateur/faux_core.py`,
+Node, pnpm, uv, curl et Docker sont de faux programmes (le moteur Python est le vrai), le core
+est `tests/installateur/faux_core.py`,
 qui émule la tâche planifiée (`FAUX_PLATEFORME=windows`). PowerShell sous Linux convertit les `\\` des chemins de
 `Join-Path` : `Scripts\\python.exe` devient `Scripts/python.exe`, ce qui permet de jouer le script sans Windows.
 
@@ -47,7 +47,7 @@ pytestmark = pytest.mark.skipif(
     PWSH is None or os.name == "nt" or shutil.which("curl") is None or shutil.which("git") is None,
     reason="pwsh, curl et git sous Linux ou macOS : les scripts s'exécutent sous Windows en CI")
 
-FAUX_NODE = '#!/usr/bin/env bash\nexec "$FAUX_PYTHON" "$FAUX_CORE" "$@"\n'
+FAUX_NODE = '#!/usr/bin/env bash\necho "node $*" >>"$FAUX_JOURNAL"\nexec "$FAUX_PYTHON" "$FAUX_CORE" "$@"\n'
 FAUX_PNPM = '''#!/usr/bin/env bash
 if [ "${1:-}" = "--version" ]; then echo "$FAUX_PNPM_VERSION"; exit 0; fi
 echo "pnpm $*" >>"$FAUX_JOURNAL"
@@ -75,6 +75,33 @@ while [ $# -gt 0 ]; do
 done
 exec curl "${args[@]}"
 '''
+FAUX_DOCKER = r'''#!/usr/bin/env bash
+printf 'docker %s\n' "$*" >>"$FAUX_JOURNAL"
+"$FAUX_PYTHON" -c 'import json,sys; print(json.dumps(sys.argv[1:]))' "$@" >>"$FAUX_DOCKER_ARGV"
+case "${1:-}" in
+    info)
+        if [ "${FAUX_DOCKER_DAEMON:-ready}" != "ready" ]; then
+            echo 'Cannot connect to Docker daemon' >&2
+            exit 1
+        fi
+        echo "${FAUX_DOCKER_OS:-linux}"
+        ;;
+    image)
+        if [ "${2:-}" = "inspect" ] && {
+            [ "${FAUX_DOCKER_IMAGE:-present}" = "present" ] || [ -f "$FAUX_DOCKER_IMAGE_STATE" ]
+        }; then
+            exit 0
+        fi
+        exit 1
+        ;;
+    build)
+        if [ "${FAUX_DOCKER_BUILD:-success}" = "fail" ]; then echo 'network unavailable' >&2; exit 1; fi
+        : >"$FAUX_DOCKER_IMAGE_STATE"
+        exit 0
+        ;;
+    *) echo "unexpected docker arguments: $*" >&2; exit 2 ;;
+esac
+'''
 
 
 def _port_libre() -> int:
@@ -95,11 +122,13 @@ class Poste:
         self.faux = tmp_path / "faux"
         self.depot = tmp_path / "depot"
         self.journal = tmp_path / "appels.log"
+        self.journal_docker_argv = tmp_path / "docker-argv.jsonl"
         self.export = tmp_path / "export"
         self.port_gateway, self.port_moteur = _port_libre(), _port_libre()
         for dossier in (self.hote, self.faux, self.export):
             dossier.mkdir()
-        for nom, corps in (("node", FAUX_NODE), ("pnpm", FAUX_PNPM), ("uv", FAUX_UV), ("curl.exe", FAUX_CURL_EXE)):
+        for nom, corps in (("node", FAUX_NODE), ("pnpm", FAUX_PNPM), ("uv", FAUX_UV),
+                           ("curl.exe", FAUX_CURL_EXE), ("docker", FAUX_DOCKER)):
             chemin = self.faux / nom
             chemin.write_text(corps, encoding="utf-8")
             chemin.chmod(0o755)
@@ -122,6 +151,7 @@ class Poste:
         (self.depot / "core" / "node-version.mjs").write_text("// faux\n", encoding="utf-8")
         (self.depot / "core" / "package.json").write_text(
             json.dumps({"packageManager": f"pnpm@{PNPM}+sha512.0123456789abcdef"}), encoding="utf-8")
+        shutil.copytree(RACINE / "core" / "scripts", self.depot / "core" / "scripts")
         (self.depot / "pyproject.toml").write_text('[project]\nname = "faux-opsys"\n', encoding="utf-8")
         (self.depot / "departments" / "LISEZMOI").write_text("faux\n", encoding="utf-8")
         git = ["git", "-C", str(self.depot)]
@@ -151,6 +181,8 @@ class Poste:
             "FAUX_PYTHON": sys.executable, "FAUX_CORE": str(FAUX_CORE), "FAUX_JOURNAL": str(self.journal),
             "FAUX_PNPM_VERSION": PNPM, "FAUX_PLATEFORME": "windows", "FAUX_ETAT": str(self.etat_core),
             "FAUX_TACHES": str(self.hote / ".faux-taches"),
+            "FAUX_DOCKER_IMAGE_STATE": str(self.racine / "docker-image"),
+            "FAUX_DOCKER_ARGV": str(self.journal_docker_argv),
         })
         env.update(self.env_supplementaire)
         env.update(supplement)
@@ -174,6 +206,11 @@ class Poste:
 
     def appels(self) -> list[str]:
         return self.journal.read_text(encoding="utf-8").splitlines()
+
+    def arguments_docker(self) -> list[list[str]]:
+        if not self.journal_docker_argv.exists():
+            return []
+        return [json.loads(ligne) for ligne in self.journal_docker_argv.read_text(encoding="utf-8").splitlines()]
 
     def secrets(self) -> list[str]:
         env = (self.etat_core / ".env").read_text(encoding="utf-8")
@@ -223,8 +260,10 @@ def test_installation_sans_service_dans_l_ordre_avec_les_bons_arguments(pret):
     assert [a for a in appels if a in attendu] == attendu
     assert f"uv venv --clear --python >=3.11 {pret.logiciel / 'venv'}" in appels
     python = pret.logiciel / "venv" / "Scripts" / "python.exe"
-    moteur = f"uv pip install --python {python} --editable {pret.depot}[tournees,soumission]"
-    assert moteur in appels
+    sync = (f"uv sync --locked --project {pret.depot} --python {python} "
+            "--group build --no-dev --extra tournees --extra soumission --no-build-isolation")
+    assert sync + " --no-install-project" in appels
+    assert sync in appels
     config = json.loads((pret.etat_core / "opsys.json").read_text(encoding="utf-8"))
     assert config["gateway"]["port"] == pret.port_gateway or config["gateway"]["port"] == 18789
     assert not (pret.etat_core / "openclaw.json").exists()  # l'instance neuve n'a que le nom canonique
@@ -236,6 +275,67 @@ def test_installation_sans_service_dans_l_ordre_avec_les_bons_arguments(pret):
     assert enregistrement["PORT_GATEWAY"] == str(pret.port_gateway)
     assert enregistrement["PORT_MOTEUR"] == str(pret.port_moteur)
     assert re.fullmatch(r"[0-9a-f]{40}", enregistrement["SOURCE_COMMIT"])
+
+
+def test_daemon_docker_linux_absent_arrete_avant_le_build_et_le_gateway(poste):
+    resultat = poste.installer("-SansService", FAUX_DOCKER_DAEMON="absent")
+    appels = poste.appels()
+
+    assert resultat.returncode == 1 and "daemon Docker inaccessible" in _sortie(resultat)
+    assert not any(a.startswith(("pnpm", "uv", "openclaw")) for a in appels)
+    assert not any("gateway install" in a for a in appels)
+
+
+def test_absence_cli_docker_windows_arrete_avant_tout_travail(poste):
+    (poste.faux / "docker").unlink()
+    resultat = poste.installer("-SansService")
+
+    assert resultat.returncode == 1 and "Docker CLI" in _sortie(resultat)
+    assert not any(a.startswith(("pnpm", "uv", "openclaw")) for a in poste.appels())
+    assert not any("gateway install" in a for a in poste.appels())
+
+
+def test_daemon_docker_non_linux_arrete_avant_tout_travail(poste):
+    resultat = poste.installer("-SansService", FAUX_DOCKER_OS="windows")
+    appels = poste.appels()
+
+    assert resultat.returncode == 1 and "conteneurs Linux" in _sortie(resultat)
+    assert not any(a.startswith(("pnpm", "uv", "openclaw")) for a in appels)
+    assert not any("gateway install" in a for a in appels)
+
+
+def test_image_docker_existante_est_reutilisee_sans_build_ni_pull(pret):
+    resultat = pret.installer("-SansService", FAUX_DOCKER_IMAGE="present")
+    appels = pret.appels()
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    assert "docker image inspect openclaw-sandbox:bookworm-slim" in appels
+    assert not any(a.startswith(("docker build", "docker pull")) for a in appels)
+
+
+def test_image_docker_absente_est_construite_avec_le_dockerfile_du_core_avant_le_gateway(pret):
+    pret.depot.rename(pret.depot.with_name("depot avec espaces"))
+    pret.depot = pret.depot.with_name("depot avec espaces")
+    resultat = pret.installer(FAUX_DOCKER_IMAGE="absent")
+    appels = pret.appels()
+
+    assert resultat.returncode == 0, _sortie(resultat)
+    build = next(i for i, a in enumerate(appels) if a.startswith("docker build -t openclaw-sandbox:bookworm-slim"))
+    gateway = next(i for i, a in enumerate(appels) if "gateway install" in a)
+    assert build < gateway
+    assert "scripts/docker/sandbox/Dockerfile" in appels[build]
+    attendu = ["build", "-t", "openclaw-sandbox:bookworm-slim", "-f",
+               str(pret.depot / "core" / "scripts" / "docker" / "sandbox" / "Dockerfile"), str(pret.depot / "core")]
+    assert attendu in pret.arguments_docker()
+
+
+def test_echec_build_docker_empeche_l_installation_du_gateway(pret):
+    resultat = pret.installer(FAUX_DOCKER_IMAGE="absent", FAUX_DOCKER_BUILD="fail")
+
+    assert resultat.returncode == 1
+    assert "Construction de l'image sandbox" in _sortie(resultat)
+    assert "reseau Docker" in _sortie(resultat)
+    assert not any("gateway install" in a for a in pret.appels())
 
 
 def test_les_commandes_installees_sont_des_enveloppes_cmd_qui_ecartent_l_environnement_du_core(pret):

@@ -128,6 +128,7 @@ async function loadPageAssistantIdentity(state: ChatPageHost) {
     }
     state.assistantName = identity.name;
     state.assistantAvatar = identity.avatar;
+    state.assistantAvatarModelId = identity.avatarModelId ?? null;
     state.assistantAvatarSource = identity.avatarSource ?? null;
     state.assistantAvatarStatus = identity.avatarStatus ?? null;
     state.assistantAvatarReason = identity.avatarReason ?? null;
@@ -162,6 +163,7 @@ export function createPageState(
     onboarding: false,
     assistantName: appConfig.assistantIdentity.name,
     assistantAvatar: null,
+    assistantAvatarModelId: null,
     assistantAvatarStatus: null,
     assistantAvatarReason: null,
     assistantAvatarSource: null,

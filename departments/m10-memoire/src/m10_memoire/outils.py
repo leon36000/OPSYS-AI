@@ -394,21 +394,21 @@ def verifier_reference(reference: dict[str, Any]) -> dict[str, Any]:
     return depuis_couple(contexte.verifier_reference(reference, registre_cible))
 
 
-def paquet_contexte_affaire(affaire_id: str, horodatage: str, agent: str | None = None) -> dict[str, Any]:
+def paquet_contexte_affaire(affaire_id: str, horodatage: str) -> dict[str, Any]:
     """Paquet de contexte en 4 couches ordonnées pour une affaire (PLAN T3.3, `paquets.py`) : budget
     de caractères fixé par le code (non exposé à l'appelant — P11, économie de tokens).
 
-    `agent` (PLAN T3.3-suite-b) : le département qui recevra le paquet, posé par le moteur de contexte du
-    core d'après la clé de session ; il règle le filtre de confidentialité (`confidentialite.py`). Absent :
-    la vue la plus restrictive, celle d'un humain qui lit sans agent."""
+    Le destinataire est fixé par le répartiteur dans le contexte d'appel OPSYS. En dehors de ce contexte,
+    le filtre prend la vue la plus restrictive."""
     return paquets.assembler_paquet_contexte(
-        affaire_id, horodatage, _REGISTRE_EVENEMENTS, _REGISTRE_AFFAIRES, agent=agent
+        affaire_id, horodatage, _REGISTRE_EVENEMENTS, _REGISTRE_AFFAIRES,
+        agent=contexte_appel.departement_origine_appelante(),
     )
 
 
 def consolider_affaire(affaire_id: str, jour: str, horodatage: str) -> dict[str, Any]:
-    """Consolidation nocturne d'une affaire pour un jour donné (PLAN T3.3, `consolidation.py`) :
-    idempotente (`ecrit=False, deja_consolide=True` si déjà faite pour ce `(affaire_id, jour)`)."""
+    """Consolidation nocturne d'une affaire (PLAN T3.3, `consolidation.py`) : idempotente tant que
+    l'ensemble des sources du jour n'a pas changé; reprend les événements arrivés tard."""
     return consolidation.consolider_affaire(affaire_id, jour, horodatage, _REGISTRE_EVENEMENTS, _REGISTRE_AFFAIRES)
 
 
@@ -707,13 +707,6 @@ def outils() -> tuple[Outil, ...]:
                 "properties": {
                     "affaire_id": _AFFAIRE_ID,
                     "horodatage": {"type": "string"},
-                    "agent": {
-                        "type": "string",
-                        "description": (
-                            "Département qui recevra le paquet (ex. m03-estimation), posé par le moteur de "
-                            "contexte : règle le filtre de confidentialité. Absent : vue la plus restrictive."
-                        ),
-                    },
                 },
                 "required": ["affaire_id", "horodatage"],
                 "additionalProperties": False,

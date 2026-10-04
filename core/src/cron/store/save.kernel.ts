@@ -56,7 +56,8 @@ function mergeCronRuntimeAuthority(
   const merged = { ...next };
   const source =
     !isDeepStrictEqual(previous.runtimeAuthority, next.runtimeAuthority) ||
-    previous.runtimeAuthorityRecoveryRequired !== next.runtimeAuthorityRecoveryRequired
+    previous.runtimeAuthorityRecoveryRequired !== next.runtimeAuthorityRecoveryRequired ||
+    previous.runtimeAuthorityCiphertextDisposition !== next.runtimeAuthorityCiphertextDisposition
       ? next
       : current;
   if (source.runtimeAuthority) {
@@ -68,6 +69,11 @@ function mergeCronRuntimeAuthority(
     merged.runtimeAuthorityRecoveryRequired = true;
   } else {
     delete merged.runtimeAuthorityRecoveryRequired;
+  }
+  if (source.runtimeAuthorityCiphertextDisposition) {
+    merged.runtimeAuthorityCiphertextDisposition = source.runtimeAuthorityCiphertextDisposition;
+  } else {
+    delete merged.runtimeAuthorityCiphertextDisposition;
   }
   return merged;
 }

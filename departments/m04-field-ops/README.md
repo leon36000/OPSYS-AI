@@ -7,6 +7,10 @@ append-only hash-chaîné, contrats et frontières, machine à états 7 statuts,
 pointage horodaté et géolocalisé, écarts et file pending_review, Work Completion Trigger en
 maillon composite atomique, digest et gardes de conformité. 427 tests.)
 
+## Heures régulières individuelles validées (préparatoire)
+
+Le maillon M4 et sa lecture privée M5 sont décrits dans [heures régulières validées](docs/heures-regulieres-validees.md). Il fournit des heures individuelles explicitement revues; ce n’est ni une paie officielle ni un statut M4 complet.
+
 PLAN T1.4-k — contrôle d'accès par personne et par intervention (`acces.py`, pur ; détail et limites
 dans `docs/architecture/ROLES.md`). Pour un appel d'appareil, l'identifiant de technicien EST celui de la
 personne OPSYS authentifiée (`opsys.contexte.identite_appelante()`, revérifiée en base à chaque appel).

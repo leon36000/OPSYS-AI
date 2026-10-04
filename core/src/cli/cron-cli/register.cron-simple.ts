@@ -138,9 +138,24 @@ export function registerCronSimpleCommands(cron: Command) {
     createCronOutputCommand(cron, "rm")
       .description("Remove an automation")
       .argument("<id>", "Job id")
+      .option("--expected-config-revision <revision>", "Remove only the loaded config revision")
       .action(async (id, opts) => {
         try {
-          const res = await callGatewayFromCli("cron.remove", opts, { id: requireCronJobId(id) });
+          const expectedConfigRevision = opts.expectedConfigRevision;
+          if (
+            expectedConfigRevision !== undefined &&
+            (typeof expectedConfigRevision !== "string" ||
+              expectedConfigRevision.length < 1 ||
+              expectedConfigRevision.length > 128)
+          ) {
+            throw new CronCliError(
+              "Invalid --expected-config-revision (must be 1–128 characters).",
+            );
+          }
+          const res = await callGatewayFromCli("cron.remove", opts, {
+            id: requireCronJobId(id),
+            ...(expectedConfigRevision !== undefined ? { expectedConfigRevision } : {}),
+          });
           printCronJson(res);
         } catch (err) {
           handleCronCliError(err);

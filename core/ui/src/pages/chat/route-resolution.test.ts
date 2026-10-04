@@ -13,6 +13,7 @@ import {
 } from "../../lib/sessions/route-navigation.ts";
 import { loadChatRoute } from "./route-loader.ts";
 import {
+  createRouteTestAgentCapability,
   createSessionRouteContext as contextFor,
   createSessionRouteRow as row,
   installShortSessionResolver as installShortResolver,
@@ -111,7 +112,7 @@ describe("gateway-backed session route resolution", () => {
       defaultId: "main",
       mainKey: "main",
       scope: "global",
-      agents: [],
+      agents: [{ id: "main" }, { id: "research" }],
     };
     context.gateway.snapshot.hello = {
       snapshot: {
@@ -319,7 +320,7 @@ describe("gateway-backed session route resolution", () => {
           return () => undefined;
         },
       },
-      agents: { state: { agentsList: null } },
+      agents: createRouteTestAgentCapability("main"),
       sessions: { state: { result: result([]) }, list },
     } as unknown as ApplicationContext;
     const pending = loadChatRoute(

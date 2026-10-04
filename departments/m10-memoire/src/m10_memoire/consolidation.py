@@ -2,9 +2,10 @@
 
 Condense les événements d'UNE affaire (``lead_id``) survenus un JOUR donné en UN fait durable,
 avec la trace vers ses sources (jamais perdue : chaque source cite son ``ligne_id`` d'origine).
-Idempotente par ``(affaire_id, jour)`` : rejouer la même nuit ne crée rien de plus — un fait déjà
-consolidé pour ce jour est rendu tel quel, jamais dupliqué ni fusionné (DA-M10-05, append-only : la
-consolidation AJOUTE un maillon, elle ne réécrit jamais un maillon-source).
+Idempotente par ensemble des sources de ``(affaire_id, jour)`` : rejouer sans nouvelle source ne crée
+rien de plus ; si un événement arrive tard, un nouveau fait agrégé cite les sources complètes. Les
+versions antérieures restent intactes (DA-M10-05, append-only : la consolidation AJOUTE un maillon,
+elle ne réécrit jamais un maillon-source ni un résumé antérieur).
 
 ``horodatage`` (l'instant d'écriture du fait consolidé) est TOUJOURS fourni par l'appelant ; ``jour``
 (la date consolidée) aussi. Aucune horloge n'est lue ici (conformite.py::HORLOGE_INTERNE le
@@ -39,12 +40,27 @@ def jour_de(horodatage: str) -> str:
     return horodatage[:10]
 
 
-def jours_non_consolides(affaire_id: str, jours: list[str], maillons_affaires: list[dict[str, Any]]) -> list[str]:
-    """Parmi ``jours``, ceux pour lesquels AUCUN fait consolidé de cette affaire n'existe, sans doublon, du plus ancien
-    au plus récent. Le critère est celui de ``consolider_affaire`` (la clé ``affaire:jour``) : un jour listé ici est
-    un jour que l'outil sait consolider, et il cesse de l'être dès qu'il l'a fait."""
-    cles = {m.get("cle_consolidation") for m in maillons_affaires if m.get("type_entree") == TYPE_ENTREE_FAIT}
-    return sorted(jour for jour in set(jours) if _cle_consolidation(affaire_id, jour) not in cles)
+def jours_non_consolides(
+    affaire_id: str,
+    jours: list[str],
+    maillons_affaires: list[dict[str, Any]],
+    sources_omet: dict[str, set[str]] | None = None,
+) -> list[str]:
+    """Jours sans couverture des événements omis, ou sans consolidation du tout."""
+    derniers: dict[str, dict[str, Any]] = {}
+    for maillon in maillons_affaires:
+        if maillon.get("type_entree") == TYPE_ENTREE_FAIT:
+            derniers[maillon.get("cle_consolidation")] = maillon
+    a_reprendre = []
+    for jour in set(jours):
+        fait = derniers.get(_cle_consolidation(affaire_id, jour))
+        if fait is None:
+            a_reprendre.append(jour)
+            continue
+        couvertes = {s.get("ligne_id") for s in fait.get("sources", [])}
+        if sources_omet and sources_omet.get(jour, set()) - couvertes:
+            a_reprendre.append(jour)
+    return sorted(a_reprendre)
 
 
 def _resumer(evenements_du_jour: list[dict]) -> str:
@@ -106,9 +122,9 @@ def consolider_affaire(
     """Rend TOUJOURS un dict explicite (jamais une valeur par défaut) :
     ``{"ecrit": bool, "deja_consolide": bool, "fait": maillon | None, "verdict": code | None}``.
 
-    ``ecrit`` n'est vrai que si un NOUVEAU maillon a été ajouté PAR CET APPEL — l'idempotence par
-    jour se lit sur ce champ : un second appel pour le même ``(affaire_id, jour)`` rend
-    ``ecrit=False, deja_consolide=True`` et le MÊME fait, sans rien écrire de plus.
+    ``ecrit`` n'est vrai que si un NOUVEAU maillon a été ajouté PAR CET APPEL. Un appel sans
+    nouvelles sources rend ``ecrit=False, deja_consolide=True`` et le dernier agrégat existant ;
+    une source tardive produit un nouvel agrégat append-only complet.
     """
     if not affaire_id or not isinstance(affaire_id, str):
         return {"ecrit": False, "deja_consolide": False, "fait": None, "verdict": REJ_CONSOLIDATION_AFFAIRE_ABSENTE}
@@ -116,9 +132,9 @@ def consolider_affaire(
         return {"ecrit": False, "deja_consolide": False, "fait": None, "verdict": REJ_CONSOLIDATION_JOUR_ABSENT}
 
     cle = _cle_consolidation(affaire_id, jour)
-    for maillon in registre_affaires.lire():
-        if maillon.get("type_entree") == TYPE_ENTREE_FAIT and maillon.get("cle_consolidation") == cle:
-            return {"ecrit": False, "deja_consolide": True, "fait": maillon, "verdict": None}
+    maillons_affaires = registre_affaires.lire()
+    deja = [m for m in maillons_affaires if m.get("type_entree") == TYPE_ENTREE_FAIT
+            and m.get("cle_consolidation") == cle]
 
     evenements_affaire = classification.evenements_de_laffaire(affaire_id, registre_evenements.lire())
     evenements_du_jour = [e for e in evenements_affaire if jour_de(e["horodatage"]) == jour]
@@ -130,6 +146,13 @@ def consolider_affaire(
             "verdict": REJ_CONSOLIDATION_AUCUN_EVENEMENT,
         }
 
+    sources = _sources(evenements_du_jour)
+    sources_connues = {s.get("ligne_id") for m in deja for s in m.get("sources", [])}
+    sources_nouvelles = {s.get("ligne_id") for s in sources} - sources_connues
+    if deja and not sources_nouvelles:
+        dernier = deja[-1]
+        return {"ecrit": False, "deja_consolide": True, "fait": dernier, "verdict": None}
+
     entree = {
         "type_entree": TYPE_ENTREE_FAIT,
         "horodatage": horodatage,
@@ -137,7 +160,7 @@ def consolider_affaire(
         "jour": jour,
         "cle_consolidation": cle,
         "resume": _resumer(evenements_du_jour),
-        "sources": _sources(evenements_du_jour),
+        "sources": sources,
     }
     ligne_id = registre_affaires.ajouter(entree)
 

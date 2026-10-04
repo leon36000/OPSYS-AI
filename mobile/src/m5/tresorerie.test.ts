@@ -486,6 +486,10 @@ describe("m5_lire_echeances_fiscales, telle que le moteur la rend", () => {
       tvq: { collectee: "498.75", creditsIntrants: "0.00", nette: "498.75", aRemettre: "498.75" },
       facturesClients: 1,
       facturesFournisseurs: 0,
+      couverture: {
+        statut: "PARTIELLE",
+        detail: "les pièces admissibles aux registres sont les seules sources du calcul; aucune preuve ne confirme que les périodes et les registres sont complets",
+      },
     });
     expect(lu.echeances[1].taxesNettes?.aRemettre).toBe("0.00");
     expect(lu.avertissementCouverture).toContain("l'année 2027 n'est pas déclarée dans le calendrier");
@@ -502,6 +506,24 @@ describe("m5_lire_echeances_fiscales, telle que le moteur la rend", () => {
     expect(lu.echeances[0]).toMatchObject({ statut: "EN_RETARD", joursAvantPaiement: -60, joursAvantProduction: -60, periodeTerminee: true });
     expect(lu.echeances.map((e) => e.statut)).toEqual(["EN_RETARD", "A_VENIR", "A_VENIR"]);
     expect([...STATUTS_ECHEANCE].sort()).toEqual(["A_VENIR", "EN_RETARD"]);
+  });
+
+  test("préserve une couverture partielle confirmée par M5", () => {
+    const brut = valeurCouple("echeances");
+    brut.echeances[0].taxes_nettes.couverture = {
+      statut: "PARTIELLE",
+      detail: "Les pièces des registres sont les seules sources du calcul.",
+    };
+    expect(lireEcheancesFiscales(brut)?.echeances[0].taxesNettes?.couverture).toEqual({
+      statut: "PARTIELLE",
+      detail: "Les pièces des registres sont les seules sources du calcul.",
+    });
+  });
+
+  test("une ancienne réponse sans couverture conserve explicitement un état inconnu", () => {
+    const brut = valeurCouple("echeances");
+    delete brut.echeances[0].taxes_nettes.couverture;
+    expect(lireEcheancesFiscales(brut)?.echeances[0].taxesNettes?.couverture).toEqual({ statut: "INCONNUE" });
   });
 
   test("la fréquence de production non déclarée est un refus qui dit quoi déclarer : aucune échéance n'est supposée", () => {
@@ -552,6 +574,8 @@ describe("ce que la lecture des échéances refuse ou dit (fail-closed)", () => 
     ["taxe nette illisible (montant numérique)", (e: any) => (e.taxes_nettes.a_remettre = 748.75)],
     ["taxe nette sans TVQ", (e: any) => delete e.taxes_nettes.tvq],
     ["taxe nette dont un détail n'est pas décimal", (e: any) => (e.taxes_nettes.tps.nette = "peu")],
+    ["couverture fournie avec un statut inconnu", (e: any) => (e.taxes_nettes.couverture = { statut: "COMPLETE", detail: "ok" })],
+    ["couverture partielle fournie sans son détail", (e: any) => (e.taxes_nettes.couverture = { statut: "PARTIELLE" })],
     ["manques de l'échéance illisibles", (e: any) => (e.manque = [1])],
   ])("une échéance avec %s est comptée illisible, l'autre reste lue", (_nom, modification) => {
     const lu = modifie((page) => modification(page.echeances[0]));

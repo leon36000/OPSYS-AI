@@ -54,6 +54,7 @@ export type ChatPageHost = ChatHost &
     onboarding: boolean;
     assistantName: string;
     assistantAvatar: string | null;
+    assistantAvatarModelId?: string | null;
     assistantAvatarStatus: "none" | "local" | "remote" | "data" | null;
     assistantAvatarReason: string | null;
     assistantAvatarSource: string | null;

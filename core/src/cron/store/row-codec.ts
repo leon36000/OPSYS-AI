@@ -41,6 +41,7 @@ function stripJobRuntimeFields(job: CronStoreFile["jobs"][number]): Record<strin
   const {
     runtimeAuthority: _runtimeAuthority,
     runtimeAuthorityRecoveryRequired: _runtimeAuthorityRecoveryRequired,
+    runtimeAuthorityCiphertextDisposition: _runtimeAuthorityCiphertextDisposition,
     state: _state,
     updatedAtMs: _updatedAtMs,
     ...rest
@@ -114,6 +115,11 @@ function normalizeCronJobForSqlite(job: CronStoreFile["jobs"][number]): CronStor
   const normalized = normalizeCronJobInput(raw, { applyDefaults: true });
   if (!normalized || getInvalidPersistedCronJobReason(normalized)) {
     return null;
+  }
+  // This private in-memory marker is produced by the trusted mutation owner.
+  // normalizeCronJobInput deliberately drops it when decoding external/job_json data.
+  if (job.runtimeAuthorityCiphertextDisposition === "clear") {
+    normalized.runtimeAuthorityCiphertextDisposition = "clear";
   }
   if (!hadDeleteAfterRun) {
     // Legacy rows omitted deleteAfterRun entirely; avoid writing the default

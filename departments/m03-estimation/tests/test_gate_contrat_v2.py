@@ -71,7 +71,12 @@ LIGNE_SERVICE = (
     ("version annoncée différente", "Vaut 2 (entier strict", "Vaut 3 (entier strict", "version déclarée"),
     ("titre du contrat v2 renommé", "#### `LeadQualifie v2`", "#### `LeadQualifie deux`", "introuvable"),
     ("nom du bloc erroné", "LeadQualifie_v2:", "LeadQualifie_v3:", "ancrage erroné"),
-    ("service retiré du catalogue cité", "`soffite_fascia`,\n`reparation`.", "`soffite_fascia`.", "Catalogue de services divergent"),
+    (
+        "service retiré du catalogue cité",
+        "`soffite_fascia`,\n`reparation`.",
+        "`soffite_fascia`.",
+        "Catalogue de services divergent",
+    ),
     ("service inventé dans le catalogue cité", "`soffite_fascia`,\n`reparation`.",
      "`soffite_fascia`,\n`reparation`, `pergola`.", "Catalogue de services divergent"),
     ("phrase du catalogue supprimée", "Codes du catalogue de référence :", "Codes possibles :", "introuvable"),
@@ -86,7 +91,9 @@ def test_mutation_de_l_architecture_est_detectee(libelle, avant, apres, attendu)
 @pytest.mark.parametrize("libelle, avant, apres, attendu", [
     ("clé v2 ajoutée côté producteur", '    "schema_version",\n    "lead_id",',
      '    "schema_version",\n    "sha256",\n    "lead_id",', "DIFFÈRE"),
-    ("clé v2 retirée côté producteur", '    "service",\n    "ville",\n    "canal",\n    "contact",\n    "urgence_declaree",\n)\n\nCANAUX',
+    (
+        "clé v2 retirée côté producteur",
+        '    "service",\n    "ville",\n    "canal",\n    "contact",\n    "urgence_declaree",\n)\n\nCANAUX',
      '    "ville",\n    "canal",\n    "contact",\n    "urgence_declaree",\n)\n\nCANAUX', "DIFFÈRE"),
     ("constante de version renommée", "VERSION_CONTRAT_V2 = 2", "VERSION_V2 = 2", "VERSION_CONTRAT_V2 introuvable"),
     ("version du producteur changée", "VERSION_CONTRAT_V2 = 2", "VERSION_CONTRAT_V2 = 3", "version déclarée"),

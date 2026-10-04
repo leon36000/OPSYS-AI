@@ -93,7 +93,12 @@ export function estAccuseCompletionM4(valeur: unknown): valeur is AccuseCompleti
     estObjet(valeur) &&
     typeof valeur.wct_id === "string" &&
     typeof valeur.intervention_id === "string" &&
-    typeof valeur.statut === "string"
+    typeof valeur.ligne_id === "string" &&
+    typeof valeur.statut === "string" &&
+    typeof valeur.hash_maillon === "string" &&
+    typeof valeur.duree_reelle_minutes === "number" && Number.isFinite(valeur.duree_reelle_minutes) &&
+    typeof valeur.ecart_signale === "boolean" &&
+    (valeur.tete_chaine === null || typeof valeur.tete_chaine === "string")
   );
 }
 
@@ -129,8 +134,9 @@ export function interpreterResultatCompleterIntervention(resultatBrut: unknown):
     return { accepte: false, verdict: { code: texteOu(v.code, "REJ-INCONNU"), detail: texteOu(v.detail, "") } };
   }
   if (resultatMetier?.accepte === true) {
-    const accuseBrut = estObjet(resultatMetier.resultat) ? (resultatMetier.resultat as unknown) : null;
-    return { accepte: true, resultat: accuseBrut as AccuseCompletionM4 | null };
+    const accuseBrut = resultatMetier.resultat;
+    if (estAccuseCompletionM4(accuseBrut)) return { accepte: true, resultat: accuseBrut };
+    return { accepte: false, verdict: { code: "accuse_invalide", detail: "Accusé de complétion incomplet ou invalide." } };
   }
-  return { accepte: true, resultat: null };
+  return { accepte: false, verdict: { code: "accuse_invalide", detail: "Réponse métier de complétion inconnue." } };
 }

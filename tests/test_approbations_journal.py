@@ -32,6 +32,11 @@ def _ok(x: int) -> dict:
     return {"x": x}
 
 
+def _refus_verdict(x: int) -> dict:
+    APPELS.append(x)
+    return {"accepte": False, "verdict": {"code": "REJ-PIECE-MANQUANTE", "detail": "Pièce source manquante"}}
+
+
 def _panne_apres_ecriture(x: int) -> dict:
     """Écrit un maillon métier puis tombe en panne : le maillon doit être annulé (point de sauvegarde)."""
     stockage.maillons("m09-demo", "principal").append({"x": x})
@@ -52,11 +57,39 @@ def _lente(x: int) -> dict:
 OUTILS = {
     "m9_panne": Outil("m9_panne", "Outil qui tombe en panne.", _SCHEMA, _panne, Autonomie.T2),
     "m9_ok": Outil("m9_ok", "Outil qui réussit.", _SCHEMA, _ok, Autonomie.T2),
+    "m9_refus_verdict": Outil("m9_refus_verdict", "Verdict métier refusé.", _SCHEMA, _refus_verdict, Autonomie.T2),
     "m9_panne_ecrit": Outil("m9_panne_ecrit", "Écrit puis tombe en panne.", _SCHEMA,
                             _panne_apres_ecriture, Autonomie.T2),
     "m9_refuse_ecrit": Outil("m9_refuse_ecrit", "Écrit puis refuse.", _SCHEMA, _refus_apres_ecriture, Autonomie.T2),
     "m9_lent": Outil("m9_lent", "Outil lent, pour la course entre deux décisions.", _SCHEMA, _lente, Autonomie.T2),
 }
+
+
+def test_approbation_ne_marque_pas_un_verdict_metier_refuse_comme_execute(session, nathan):
+    with session() as cnx:
+        ident = _creer(cnx, "m9_refus_verdict", {"x": 1})
+        decision = approbations.decider(cnx, ident, True, nathan, OUTILS, DEPARTEMENTS)
+        assert decision["reponse"]["ok"] is True  # Le transport a bien transmis le verdict.
+        assert decision["reponse"]["resultat"]["accepte"] is False
+        assert decision["statut"] == "echec"
+        trace = approbations.lire(cnx, ident)
+        assert trace["statut"] == "echec"
+        assert trace["resultat"]["resultat"]["verdict"]["code"] == "REJ-PIECE-MANQUANTE"
+    assert APPELS == [1]
+
+
+def test_validation_au_depart_ne_marque_pas_un_verdict_metier_refuse_comme_execute(session, nathan):
+    from opsys.contexte import IdentiteAppelante
+
+    with session() as cnx:
+        ident = approbations.tracer_validation_au_depart(
+            cnx, "m09-demo", "m9_refus_verdict", {"x": 1}, niveau=Niveau.N3,
+            signataire=IdentiteAppelante(nathan, "nathan_owner"),
+            reponse={"ok": True, "resultat": {"accepte": False}},
+        )
+        trace = approbations.lire(cnx, ident)
+        assert trace["statut"] == "echec"
+        assert trace["resultat"] == {"ok": True, "accepte": False}
 
 
 @pytest.fixture(autouse=True)

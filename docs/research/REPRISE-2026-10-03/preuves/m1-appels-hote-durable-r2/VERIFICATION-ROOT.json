@@ -1,0 +1,218 @@
+{
+  "utc": "2026-10-03T13:04:48.702863+00:00",
+  "executor": "ROOT",
+  "ok": true,
+  "scope": "M1 private durable host ingress, SQLite and synthetic calls; nine whole files, native MCP regressions and ASGI SDK call",
+  "test_cases": 205,
+  "junit": {
+    "cases": 205,
+    "counts": {
+      "passed": 205,
+      "failure": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "files": [
+      "departments/m01-front-office/tests/test_import_appels_durable.py",
+      "departments/m01-front-office/tests/test_transferts.py",
+      "departments/m01-front-office/tests/test_voicemail_stt.py",
+      "tests/test_console_metier.py",
+      "tests/test_console_voicemail_upload.py",
+      "tests/test_contexte.py",
+      "tests/test_runtime_import_appel_manque.py",
+      "tests/test_serveur_mcp.py",
+      "tests/test_serveur_mcp_http.py"
+    ],
+    "expected_cases": null,
+    "case_count_matches_expected": true,
+    "unique_case_ids": 205,
+    "all_cases_attributed_and_unique": true,
+    "ok": true
+  },
+  "ruff_files": [
+    "src/opsys/serveur_mcp.py",
+    "departments/m01-front-office/src/m1_front_office/outils.py",
+    "departments/m01-front-office/src/m1_front_office/transferts.py",
+    "tests/test_runtime_import_appel_manque.py",
+    "tests/test_serveur_mcp_http.py"
+  ],
+  "verifier_exit": 0,
+  "source_count": 677,
+  "source_bytes": 9488034,
+  "source_delta": {},
+  "peak_group_rss_bytes": 211374080,
+  "minimum_room_bytes": 1103028224,
+  "elapsed_seconds": 51.88752710400149,
+  "oom_before": {
+    "oom": 10,
+    "oom_kill": 3,
+    "oom_group_kill": 0
+  },
+  "oom_after": {
+    "oom": 10,
+    "oom_kill": 3,
+    "oom_group_kill": 0
+  },
+  "survivors": {
+    "ruff": {},
+    "pytest": {},
+    "verifier": {}
+  },
+  "previous_qualification": "../qualification-r1/VERIFICATION-ROOT.json",
+  "preserved_red": "r8: 203 passed, 2 failed; non-ASCII E164 digits accepted and ephemeral owner wrongly ACKed as durable",
+  "corrections": [
+    "Host importer rejects in-memory owner mode before effects",
+    "E164 common validator requires ASCII digits"
+  ],
+  "not_qualified": [
+    "Core telephony transport",
+    "Provider signatures/direction/no-answer validation in Python; trusted host responsibility",
+    "Real phone/provider/audio calls",
+    "PostgreSQL concurrency",
+    "M10 operation memory",
+    "VPS",
+    "Complete autonomous M1"
+  ],
+  "artifacts": [
+    {
+      "source": "/dev/shm/opsys-m1-host-private-root-r8-durable-red/conducteur-root.py",
+      "capsule": "r8-conducteur-root.py.gz",
+      "sha256": "953c7afb246f634915a0710a085b1b0691e233c493c5696721a011dc8cc2218b",
+      "bytes": 19560,
+      "gzip_sha256": "ff0c6ad8a446203e006b43ff27ce1a60a7352f532018fe4edfb973c6c12bddba"
+    },
+    {
+      "source": "/dev/shm/opsys-m1-host-private-root-r8-durable-red/PLAN-r1.json",
+      "capsule": "r8-PLAN-r1.json.gz",
+      "sha256": "9f97967623bcfa72edb49a4d38f59995707f264d182038451a51fef90f283cbc",
+      "bytes": 2288,
+      "gzip_sha256": "ddc440e203cde27c50dfc571a1b53c599054ec3f2d0e58876a450dcfe8666be8"
+    },
+    {
+      "source": "/dev/shm/opsys-m1-host-private-root-r8-durable-red/FREEZE-SOURCES-r1.json",
+      "capsule": "r8-FREEZE-SOURCES-r1.json.gz",
+      "sha256": "7d6556bf99b22069b6a03649ee3de0f477dc1691d9ebdcd3e1290fe5a4dd854a",
+      "bytes": 85803,
+      "gzip_sha256": "f03e7ebc911e0d9bcddd1ee855023f14cac2175229246a15d279a53f81e20195"
+    },
+    {
+      "source": "/dev/shm/opsys-m1-host-private-root-r8-durable-red/execution-r1/receipt.json",
+      "capsule": "r8-execution-r1-receipt.json.gz",
+      "sha256": "1bd13395ea23e7d7c58f9a9256ea6e697a88b729e2f2212571508edfba1dbbfc",
+      "bytes": 542838,
+      "gzip_sha256": "1be5f97c904e60c375995b66444d1e2c2cc74fdf53c3fb104e1e4e0a5edff559"
+    },
+    {
+      "source": "/dev/shm/opsys-m1-host-private-root-r8-durable-red/execution-r1/ruff.log",
+      "capsule": "r8-execution-r1-ruff.log.gz",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "gzip_sha256": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd"
+    },
+    {
+      "source": "/dev/shm/opsys-m1-host-private-root-r8-durable-red/execution-r1/pytest.log",
+      "capsule": "r8-execution-r1-pytest.log.gz",
+      "sha256": "83dbb3f4f5b2d3364f4431b862988d2222ba4fdbb3c29c1d8b1643fab9cdbc82",
+      "bytes": 3919,
+      "gzip_sha256": "b93c267d0a00312ae9d9a7db0024be9787ef1b4f52ea1199bb62d7d34f33d475"
+    },
+    {
+      "source": "/dev/shm/opsys-m1-host-private-root-r8-durable-red/execution-r1/pytest.xml",
+      "capsule": "r8-execution-r1-pytest.xml.gz",
+      "sha256": "e8e478914d393dcb116ea3fd1d93cd6fca413535acafa5c259f694a26462c859",
+      "bytes": 36087,
+      "gzip_sha256": "25b01bbf290466c05100bdccdd988b3ee4ebbf94c167afa7e79c8f4187a13bf5"
+    },
+    {
+      "source": "/dev/shm/opsys-m1-host-private-root-r9-durable-fix/conducteur-root.py",
+      "capsule": "r9-conducteur-root.py.gz",
+      "sha256": "d07c0c415bddbc891b4927896804e05da4bbddc5afc2672d155776e40c83cc8b",
+      "bytes": 19560,
+      "gzip_sha256": "04955f03620eca4fc3cf76cefb736349315459bb76287808cf3a8902ea4f98b7"
+    },
+    {
+      "source": "/dev/shm/opsys-m1-host-private-root-r9-durable-fix/PLAN-r1.json",
+      "capsule": "r9-PLAN-r1.json.gz",
+      "sha256": "7e97db2c5e7c1aa2749d1f9014123a32281a6bb48365081d12642bdbc4b88058",
+      "bytes": 2282,
+      "gzip_sha256": "d7053df5a9606547928ed0427ad7aa522364230e13b5b2b7ed1467d3a5ea6065"
+    },
+    {
+      "source": "/dev/shm/opsys-m1-host-private-root-r9-durable-fix/FREEZE-SOURCES-r1.json",
+      "capsule": "r9-FREEZE-SOURCES-r1.json.gz",
+      "sha256": "727b74746a36a6becf043d79186780184d5e89a69f80ffe4ea82d48a6c078bdc",
+      "bytes": 85803,
+      "gzip_sha256": "8e0185220b089b14de92177bc9aa4e17d8a6a5292b8d5d5f4d50f06592f9fab9"
+    },
+    {
+      "source": "/dev/shm/opsys-m1-host-private-root-r9-durable-fix/execution-r1/receipt.json",
+      "capsule": "r9-execution-r1-receipt.json.gz",
+      "sha256": "5d766d8cb428398b5617acf00fb0ed6f27706ed2008926e52fdd255e246b46f0",
+      "bytes": 723693,
+      "gzip_sha256": "7845d63f0f1a6c85de351e5d4f4144aa3812a09664bc441075ff67d15e56b741"
+    },
+    {
+      "source": "/dev/shm/opsys-m1-host-private-root-r9-durable-fix/execution-r1/ruff.log",
+      "capsule": "r9-execution-r1-ruff.log.gz",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "gzip_sha256": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd"
+    },
+    {
+      "source": "/dev/shm/opsys-m1-host-private-root-r9-durable-fix/execution-r1/pytest.log",
+      "capsule": "r9-execution-r1-pytest.log.gz",
+      "sha256": "d0c74a841e66b471e260b7c7cbfd4f7856e2e9268a63e028cf79b3282ef3fd1f",
+      "bytes": 261,
+      "gzip_sha256": "ea081169ea2bf8306f6cecdf3269005dee8489340a0cb6e4b74df605cb2601c1"
+    },
+    {
+      "source": "/dev/shm/opsys-m1-host-private-root-r9-durable-fix/execution-r1/pytest.xml",
+      "capsule": "r9-execution-r1-pytest.xml.gz",
+      "sha256": "2c3904a70c913cb4f8728c93c3147c398ecb6d01bfed32b644351e1b09cd4501",
+      "bytes": 32762,
+      "gzip_sha256": "0ba4bb4f00f47f7bfa6416b4503a8b411c16722d132b89bc8ad4fcf34c20dd3a"
+    },
+    {
+      "source": "/dev/shm/opsys-m1-host-private-root-r9-durable-fix/execution-r1/verifier.log",
+      "capsule": "r9-execution-r1-verifier.log.gz",
+      "sha256": "2d29b58cf291282ee819c26b3bb6dafacb347f661545c10a3872e88a4383dbef",
+      "bytes": 384,
+      "gzip_sha256": "599b2a7da83894771d8687cca4632b59c7fcac843c9bbdf5f25fbf579a611c49"
+    },
+    {
+      "source": "/workspace/OPSYS-AI-recent/src/opsys/serveur_mcp.py",
+      "capsule": "qualified-source-1.gz",
+      "sha256": "ef1adc8f8df4c74283b1a404fb7c3f3fc7c6376c32bf8a05937a061d79fc5cd2",
+      "bytes": 52709,
+      "gzip_sha256": "15192f052868f1d209da033326ea954becb16c102e6c615da0628036df952ae1"
+    },
+    {
+      "source": "/workspace/OPSYS-AI-recent/departments/m01-front-office/src/m1_front_office/outils.py",
+      "capsule": "qualified-source-2.gz",
+      "sha256": "0e892b6149ef8753f7ecd870cf9702ce798965d7582bb44c906f8e940a71aea2",
+      "bytes": 106826,
+      "gzip_sha256": "073277cf27eeea006d2caca606b01a979cbbd85989baa748dab7e34889680315"
+    },
+    {
+      "source": "/workspace/OPSYS-AI-recent/departments/m01-front-office/src/m1_front_office/transferts.py",
+      "capsule": "qualified-source-3.gz",
+      "sha256": "bcea6a4d4640012b523c2b26c25725c23416bfeccd08e9d08678b50fe3751568",
+      "bytes": 27197,
+      "gzip_sha256": "bef52bb66581a5bdb7ec588a2fbdc66d6b29cd3d91795ebb18b1f6ed7ee2f42b"
+    },
+    {
+      "source": "/workspace/OPSYS-AI-recent/tests/test_runtime_import_appel_manque.py",
+      "capsule": "qualified-source-4.gz",
+      "sha256": "b593ab26f71544f813601ec67dc469d5595375da9807918e0d08565fa27c569a",
+      "bytes": 16301,
+      "gzip_sha256": "4c266c6340ad0ae18cda6d298dd43824d3334c0be1553ea21fa4b1b57c12e81a"
+    },
+    {
+      "source": "/workspace/OPSYS-AI-recent/tests/test_serveur_mcp_http.py",
+      "capsule": "qualified-source-5.gz",
+      "sha256": "70376328980e6ee4cd187e746b0a0c4cf90d981ca2bcb0588e10f1d7796533e1",
+      "bytes": 25799,
+      "gzip_sha256": "405eda1758a307d198ce3d0e858caf0848777e3198c521226b70757ba72d7a27"
+    }
+  ]
+}

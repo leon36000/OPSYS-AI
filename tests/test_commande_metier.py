@@ -46,7 +46,7 @@ def _sous_commandes_du_parseur() -> set[str]:
 def _liste_ts(source: str, nom: str) -> list[str]:
     trouve = re.search(rf"{nom}[^=]*=\s*\[(.*?)\];", source, flags=re.DOTALL)
     assert trouve, f"{nom} introuvable"
-    return re.findall(r'"([a-z]+)"', trouve.group(1))
+    return re.findall(r'"([a-z]+(?:-[a-z]+)*)"', trouve.group(1))
 
 
 # -- les noms ----------------------------------------------------------------------------------------------
@@ -89,7 +89,7 @@ def test_les_anciens_noms_du_core_sont_les_sous_commandes_du_parseur_et_du_faux_
     du_parseur = _sous_commandes_du_parseur()
     assert set(_liste_ts(argv_ts, "OPSYS_METIER_MOVED_COMMANDS")) == du_parseur
     assert len(_liste_ts(argv_ts, "OPSYS_METIER_MOVED_COMMANDS")) == len(du_parseur)  # sans doublon
-    assert set(re.findall(r'"([a-z]+)"', faux.group(1))) == du_parseur
+    assert set(re.findall(r'"([a-z]+(?:-[a-z]+)*)"', faux.group(1))) == du_parseur
     assert re.search(r'OPSYS_METIER_COMMAND = "metier";', argv_ts)
     assert "metier" not in du_parseur  # `opsys metier metier` n'aurait aucun sens
 
@@ -172,7 +172,7 @@ def _est_verifie(chemin: str) -> bool:
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="git")
 def test_aucun_fichier_suivi_ne_cite_l_ancienne_invocation_du_moteur():
-    ancienne = re.compile(rf"(?<![-\w/.])opsys ({'|'.join(sorted(_sous_commandes_du_parseur()))})\b")
+    ancienne = re.compile(rf"(?<![-\w/.])opsys ({'|'.join(sorted(_sous_commandes_du_parseur()))})(?![-\w])")
     citent = {}
     for chemin in _fichiers_suivis():
         fichier = RACINE / chemin

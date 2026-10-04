@@ -1,4 +1,5 @@
 // Agent identity draft state and persistence, split out of agents-page.ts.
+import type { AssistantAvatarModelId } from "../../../../src/shared/assistant-avatar-model-catalog.js";
 import type { GatewayBrowserClient } from "../../api/gateway.ts";
 import type { ApplicationContext, ApplicationNavigationPreferences } from "../../app/context.ts";
 import { t } from "../../i18n/index.ts";
@@ -42,6 +43,14 @@ export function setIdentityDraftField(
   host.identityError = null;
 }
 
+export function setIdentityDraftAvatarModel(
+  host: AgentIdentityEditorHost,
+  modelId: AssistantAvatarModelId | null,
+) {
+  host.identityDraft = { ...host.identityDraft, avatarModelId: modelId };
+  host.identityError = null;
+}
+
 export function selectIdentityAvatar(host: AgentIdentityEditorHost, file: File) {
   const epoch = advanceAvatarSelectionEpoch(host);
   void fileToAvatarDataUrl(file).then((result) => {
@@ -72,15 +81,17 @@ export async function saveIdentityDraft(params: {
 }) {
   const { host, expectedClient, agentId, agents, agentIdentity, runtimeConfig } = params;
   const draft = host.identityDraft;
-  // Set/replace only: agents.update has no explicit clear operation. Keep a
-  // blank edit visible and unsaved instead of pretending it removed a field.
+  // Text and image edits set/replace only. The catalogue model has a separate
+  // tri-state so explicit null clears it while an untouched field is omitted.
   const name = draft.name?.trim();
   const emoji = draft.emoji?.trim();
   const avatar = draft.avatar ?? undefined;
+  const avatarModelId = draft.avatarModelId;
+  const hasAvatarModelChange = avatarModelId !== undefined;
   if ((draft.name !== null && !name) || (draft.emoji !== null && !emoji)) {
     return;
   }
-  if (!name && !emoji && !avatar) {
+  if (!name && !emoji && !avatar && !hasAvatarModelChange) {
     resetIdentityDraft(host);
     return;
   }
@@ -92,7 +103,13 @@ export async function saveIdentityDraft(params: {
         if (client !== expectedClient) {
           throw new Error("Connection changed before the agent identity update started.");
         }
-        return updateAgentIdentity(client, { agentId, name, emoji, avatar });
+        return updateAgentIdentity(client, {
+          agentId,
+          name,
+          emoji,
+          avatar,
+          ...(hasAvatarModelChange ? { avatarModelId } : {}),
+        });
       },
       {
         canDispatch: params.canDispatch,
@@ -102,6 +119,11 @@ export async function saveIdentityDraft(params: {
     if (!mutation.ok) {
       throw new Error(mutation.error);
     }
+    // The mutation may have completed after the selected agent or Gateway
+    // changed. Do not invalidate/refresh shared capabilities for stale work.
+    if (!params.isCurrent()) {
+      return;
+    }
     const refreshErrors = mutation.refresh.ok ? [] : [mutation.refresh.error];
     agentIdentity.invalidate([agentId]);
     try {
@@ -110,6 +132,9 @@ export async function saveIdentityDraft(params: {
       refreshErrors.push(
         `Agent identity was saved, but the agent list refresh failed: ${formatUiError(error)}`,
       );
+    }
+    if (!params.isCurrent()) {
+      return;
     }
     try {
       await agentIdentity.ensure([agentId]);

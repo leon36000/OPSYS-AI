@@ -671,7 +671,10 @@ export const CronUpdateParamsSchema = cronIdOrJobIdParams({
 });
 
 /** Removes a cron job by id or legacy jobId alias. */
-export const CronRemoveParamsSchema = cronIdOrJobIdParams({});
+export const CronRemoveParamsSchema = cronIdOrJobIdParams({
+  /** Rejects removal when the current definition does not match the caller's token. */
+  expectedConfigRevision: Type.Optional(CronConfigRevisionSchema),
+});
 
 /** Runs a cron job immediately, immediately if enabled, or only if due. */
 export const CronRunParamsSchema = cronIdOrJobIdParams({

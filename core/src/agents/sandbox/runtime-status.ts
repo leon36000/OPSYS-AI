@@ -23,8 +23,10 @@ import {
 import type { SessionEntry } from "../../config/sessions/types.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { resolveSessionAgentId } from "../agent-scope.js";
+import { resolveAgentConfig } from "../agent-scope-config.js";
 import { auditSandboxToolPolicyBlock, escapeControlCharsVisible } from "../tool-policy-audit.js";
 import { resolveSandboxConfigForAgent } from "./config.js";
+import { DEFAULT_SANDBOX_IMAGE } from "./constants.js";
 import {
   classifyToolAgainstSandboxToolPolicy,
   resolveSandboxToolPolicyForAgent,
@@ -67,6 +69,50 @@ function shouldSandboxSession(
     return true;
   }
   return sessionKey.trim() !== mainSessionKey.trim();
+}
+
+function assertOpsysSandboxPolicy(
+  cfg: SandboxConfig,
+  agentId: string,
+  openClawCfg?: OpenClawConfig,
+) {
+  const agent = resolveAgentConfig(openClawCfg ?? {}, agentId);
+  if (agent?.opsysIsolation?.exec !== "sandbox-required") {
+    return false;
+  }
+  const docker = cfg.docker;
+  const browser = cfg.browser;
+  const unsafe =
+    cfg.mode !== "all" ||
+    cfg.backend !== "docker" ||
+    cfg.scope !== "session" ||
+    cfg.workspaceAccess !== "none" ||
+    docker.image !== DEFAULT_SANDBOX_IMAGE ||
+    docker.network !== "none" ||
+    docker.readOnlyRoot !== true ||
+    JSON.stringify(docker.capDrop) !== JSON.stringify(["ALL"]) ||
+    docker.binds !== undefined ||
+    JSON.stringify(docker.env) !== JSON.stringify({ LANG: "C.UTF-8" }) ||
+    docker.user !== undefined ||
+    docker.gpus !== undefined ||
+    docker.setupCommand !== undefined ||
+    docker.extraHosts !== undefined ||
+    docker.dns !== undefined ||
+    docker.dangerouslyAllowReservedContainerTargets === true ||
+    docker.dangerouslyAllowExternalBindSources === true ||
+    docker.dangerouslyAllowContainerNamespaceJoin === true ||
+    docker.seccompProfile !== undefined ||
+    docker.apparmorProfile !== undefined ||
+    browser.enabled ||
+    browser.binds !== undefined ||
+    openClawCfg?.tools?.exec?.host !== "sandbox" ||
+    (agent.tools?.exec?.host !== undefined && agent.tools.exec.host !== "sandbox");
+  if (unsafe) {
+    throw new Error(
+      `OPSYS agent ${agentId} requires agents.defaults.sandbox mode=all, backend=docker, workspaceAccess=none, network=none, read-only root, capDrop=ALL and no extra mounts or environment`,
+    );
+  }
+  return true;
 }
 
 function resolveMainSessionKeyForSandbox(params: {
@@ -180,6 +226,12 @@ function resolveSandboxRuntimeStatusWithRead(
   });
   const cfg = params.cfg;
   const sandboxCfg = resolveSandboxConfigForAgent(cfg, classificationAgentId);
+  const opsysSandboxRequired = assertOpsysSandboxPolicy(sandboxCfg, classificationAgentId, cfg);
+  if (opsysSandboxRequired && !classificationSessionKey) {
+    throw new Error(
+      `OPSYS agent ${classificationAgentId} requires a canonical session key for sandbox isolation`,
+    );
+  }
   const mainSessionKey = resolveMainSessionKeyForSandbox({ cfg, agentId: classificationAgentId });
   const comparableSessionKey = resolveComparableSessionKeyForSandbox({
     cfg,
@@ -203,15 +255,15 @@ function resolveSandboxRuntimeStatusWithRead(
             { readOnly: true },
           )
         : undefined;
-  const sandboxRequired = session?.existing?.sandbox === "required";
+  const sandboxRequired = session?.existing?.sandbox === "required" || opsysSandboxRequired;
   const profileId = sessionCreatorProfileId(session?.existing?.createdActor)?.trim();
   const isolation: SandboxRuntimeIsolation = sandboxRequired
     ? {
         sandboxRequired: true,
-        createdActor: session.existing?.createdActor,
+        createdActor: session?.existing?.createdActor,
         isolationSubject: profileId
           ? { kind: "profile", profileId }
-          : { kind: "session", sessionKey: session.normalizedKey },
+          : { kind: "session", sessionKey: session?.normalizedKey ?? comparableSessionKey },
         workspaceAccess: sandboxCfg.workspaceAccess === "rw" ? "ro" : sandboxCfg.workspaceAccess,
       }
     : { sandboxRequired: false };

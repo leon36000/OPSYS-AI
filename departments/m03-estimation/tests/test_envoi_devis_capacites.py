@@ -41,6 +41,7 @@ from opsys import (  # noqa: E402
     evenements,
     idempotence,
     identite,
+    liaison_cibles,
     openclaw,
     stockage,
 )
@@ -102,7 +103,7 @@ def departements(dep, base_durable):
 
 @pytest.fixture
 def capacites(departements):
-    return Capacites(departements, stockage.transaction, memoire=False)
+    return Capacites(departements, stockage.transaction, appelant=DEP, memoire=False)
 
 
 @pytest.fixture
@@ -134,6 +135,44 @@ def _creer_devis(devis_id, lead_id="lead-un", cout="1600.00", taux="0.25"):
         "taux_marge": taux, "horodatage": _HORODATAGE,
     })
     assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse
+    _assurer_lead_m2_et_liaison(lead_id)
+
+
+def _assurer_lead_m2_et_liaison(lead_id):
+    """Prépare les résolveurs canoniques M2 et M10 exigés par un ticket de session M3."""
+    from m2_revenue_crm import ingestion, statuts
+    from m2_revenue_crm import registre as registre_m2
+    from m10_memoire import liaison as liaison_m10
+    from m10_memoire import registre as registre_m10
+
+    with stockage.transaction():
+        reg_m2 = registre_m2.Registre(maillons=stockage.maillons("m02-revenue-crm", "principal"))
+        if statuts.statut_courant(reg_m2, lead_id) is None:
+            contrat = {
+                "lead_id": lead_id, "conversation_id": f"conv-{lead_id}",
+                "contact": {"nom": f"Client {lead_id}", "telephone": "555-0101"},
+                "type_travaux": "renovation_totale", "ville": "Québec",
+                "urgence_declaree": False, "canal": "telephone",
+            }
+            # Ingère dans la chaîne durable courante : créer un registre vierge par lead
+            # concaténerait plusieurs racines et invaliderait la preuve de cible M2 suivante.
+            nouveau = registre_m2.Registre(maillons=stockage.maillons("m02-revenue-crm", "principal"))
+            _, verdict = ingestion.ingerer(contrat, nouveau, _HORODATAGE)
+            assert verdict is None
+
+    cle_session = f"agent:{DEP}:tests:{lead_id}"
+    with stockage.transaction():
+        reg_m10 = registre_m10.Registre(maillons=stockage.maillons("m10-memoire", "affaires"))
+        active = liaison_m10.liaison_courante(cle_session, reg_m10)
+        if active is None:
+            _, refus = liaison_m10.lier_session_affaire(
+                cle_session, lead_id, "proprio", "admin", "appareil", "liaison M3 de fixture fictive",
+                _HORODATAGE, reg_m10,
+            )
+            assert refus is None
+        else:
+            assert active["affaire_id"] == lead_id
+    return cle_session
 
 
 def _arguments(devis_id, contexte_revue=CONTEXTE_MONO_VUE):
@@ -141,10 +180,30 @@ def _arguments(devis_id, contexte_revue=CONTEXTE_MONO_VUE):
 
 
 def _demander(capacites, devis_id, contexte_revue=CONTEXTE_MONO_VUE, cle="cle-1", identite_appelante=VENDEUR):
-    """Ce que fait le téléphone du vendeur : `Capacites.appeler` avec le `_meta` d'idempotence et l'identité."""
-    meta = idempotence.Meta(cle=cle, appareil=APPAREIL, horodatage_appareil="2026-09-29T10:15:00-04:00")
-    with contexte.appele_par_appareil(identite_appelante):
-        return capacites.appeler(NOM, _arguments(devis_id, contexte_revue), meta)
+    """Propose N4 depuis une session d'agent liée, avec un ticket privé sur les arguments finaux."""
+    del identite_appelante  # Une identité d'appareil seule n'autorise pas cette mutation N4.
+    arguments = _arguments(devis_id, contexte_revue)
+    cache = getattr(capacites, "_tickets_fixture_m3", None)
+    if cache is None:
+        cache = {}
+        capacites._tickets_fixture_m3 = cache
+    cle_cache = (cle, idempotence.empreinte_arguments(arguments))
+    if cle_cache not in cache:
+        etat_devis = _etat_du_devis(devis_id)
+        cle_session = _assurer_lead_m2_et_liaison(etat_devis["lead_id"])
+        try:
+            with stockage.transaction() as cnx:
+                ticket = liaison_cibles.emettre_ticket(
+                    cnx, departement=DEP, agent_id=DEP, cle_session=cle_session,
+                    affaire_id=etat_devis["lead_id"], origine_affaire="session",
+                    outil=NOM, arguments=arguments,
+                )
+        except liaison_cibles.CibleRefusee as exc:
+            return {"ok": False, "erreur": "cible_refusee", "details": str(exc)}
+        cache[cle_cache] = ticket["ticket"]
+    return capacites.appeler(
+        NOM, arguments, ticket_cible=liaison_cibles.TicketMeta(cache[cle_cache])
+    )
 
 
 def _demandes(statut=None):
@@ -272,14 +331,22 @@ def test_les_seuils_vides_du_vrai_manifeste_disent_seuil_a_configurer_dans_la_fi
 
 def test_une_demande_qu_on_ne_sait_pas_revoir_reste_visible_avec_sa_raison(capacites, departements, personnes):
     _creer_devis("M3-DEVIS-envoi-004")
-    _demander(capacites, "M3-DEVIS-inconnu", cle="cle-a")
-    # Un AGENT (aucune identité d'appareil) propose de même : le socle met sa demande en file, il ne l'exécute pas.
+    cle_session = _assurer_lead_m2_et_liaison("lead-un")
+    arguments_inconnus = _arguments("M3-DEVIS-inconnu")
+    with stockage.transaction() as cnx, pytest.raises(liaison_cibles.CibleRefusee, match="devis absent"):
+        liaison_cibles.emettre_ticket(
+            cnx, departement=DEP, agent_id=DEP, cle_session=cle_session,
+            affaire_id="lead-un", origine_affaire="session", outil=NOM, arguments=arguments_inconnus,
+        )
+    # Un agent ne peut pas créer une attente visant un devis absent du registre canonique.
     agent = capacites.appeler(NOM, _arguments("M3-DEVIS-envoi-004", {"climat": "froid"}))
+    assert agent["ok"] is False and agent["erreur"] == "ticket_cible_requis", agent
+    # Le même agent avec un ticket lié à un devis connu peut demander la revue, qui conserve le motif d'entrée invalide.
+    agent = _demander(capacites, "M3-DEVIS-envoi-004", {"climat": "froid"}, cle="cle-b")
     assert agent["ok"] is True and agent["statut"] == "en_attente_approbation", agent
 
     resumes = {i["resume"] for i in _file(departements) if i["type"] == "revue_envoi_devis"}
 
-    assert any("M3-DEVIS-inconnu demandé, mais ce devis est introuvable. À refuser." in r for r in resumes)
     assert any("revue impossible (REJ-REVUE-CONTEXTE-INVALIDE" in r and "climat" in r for r in resumes)
     assert all(len(r) <= revue_devis.LIMITE_RESUME for r in resumes)
 
@@ -400,7 +467,8 @@ def test_le_rejeu_est_sans_effet_meme_cle_meme_demande_redecision_et_nouvelle_de
 
     premiere = _demander(capacites, "M3-DEVIS-envoi-022", cle="cle-rejeu")
     rejouee = _demander(capacites, "M3-DEVIS-envoi-022", cle="cle-rejeu")  # le réseau a coupé : le téléphone renvoie
-    assert premiere["rejoue"] is False and rejouee["rejoue"] is True
+    # La voie ticketée n'ajoute `rejoue` qu'au rejeu : la première réponse reste celle du contrat N3.
+    assert premiere.get("rejoue", False) is False and rejouee["rejoue"] is True
     assert rejouee["demande_id"] == premiere["demande_id"]
     assert len(_demandes()) == 1, "la même clé ne crée pas une seconde demande"
 
@@ -472,7 +540,8 @@ def test_en_mode_autonome_le_socle_n_a_pas_de_file_pour_le_n4_mais_l_outil_refus
     with stockage.transaction() as cnx:
         approbations.fixer_mode(cnx, DEP, "autonome", "proprio")
 
-    reponse = capacites.appeler(NOM, _arguments("M3-DEVIS-envoi-031"))
+    # Même en mode autonome, une session doit d'abord prouver sa cible canonique par un ticket.
+    reponse = _demander(capacites, "M3-DEVIS-envoi-031")
 
     assert reponse["ok"] is True and "statut" not in reponse, "aucune demande : le socle a exécuté l'outil"
     assert reponse["resultat"]["accepte"] is False

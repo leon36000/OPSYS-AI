@@ -61,6 +61,7 @@ import {
 } from "./compaction-runtime-preparation.js";
 import { resolveCompactionTimeoutMs } from "./compaction-safety-timeout.js";
 import { prepareCompactionSessionAgent } from "./compaction-session-agent.js";
+import { opsysRuntimeCompactionRefusal } from "./opsys-runtime-admission.js";
 import type { PreparedCompactEmbeddedAgentSessionParams } from "./direct-compaction-preparation.js";
 import { compactEmbeddedAgentSessionDirectOnce } from "./direct-compaction.js";
 import { readCompactionAccountingRecorder } from "./run/compaction-accounting-bridge.js";
@@ -297,6 +298,13 @@ export async function compactEmbeddedAgentSessionDirect(
     },
     sessionFile: runSessionTarget.sessionKey,
   };
+  const admissionRefusal = opsysRuntimeCompactionRefusal(
+    requestedParams.config,
+    requestedParams.agentId ?? "",
+  );
+  if (admissionRefusal) {
+    return { ok: false, compacted: false, reason: admissionRefusal };
+  }
   const requestedAgentIds = resolveSessionAgentIds({
     sessionKey: requestedParams.sessionKey,
     config: requestedParams.config,

@@ -31,7 +31,8 @@
 # Options : -SansService  -Source <dossier>  -Ref <ref>  -Aide
 # Variables : OPSYS_HOME (defaut %USERPROFILE%\.opsys), OPSYS_LOGICIEL (defaut %LOCALAPPDATA%\OPSYS),
 #   OPSYS_BIN (defaut %LOCALAPPDATA%\OPSYS\bin), OPSYS_SOURCE, OPSYS_REPO_URL, OPSYS_REF, OPSYS_PORT_GATEWAY,
-#   OPSYS_PORT_MOTEUR, OPSYS_EMBEDDINGS_URL, OPSYS_EMBEDDINGS_MODELE, OPSYS_EMBEDDINGS_CLE, OPSYS_PASSERELLE_URL,
+#   OPSYS_PORT_MOTEUR, OPSYS_EMBEDDINGS_URL, OPSYS_EMBEDDINGS_MODELE, OPSYS_EMBEDDINGS_CLE,
+#   OPSYS_MODE_FOURNISSEUR (natif par defaut, litellm seulement si explicite), OPSYS_PASSERELLE_URL,
 #   OPSYS_VERBOSE=1
 # Code de sortie : 0 tout est pret ; 1 une etape a echoue ; 3 installe mais il manque une decision (paliers de
 # modeles, service d'embeddings) : le message dit quoi fournir, puis on relance la meme commande.
@@ -67,6 +68,7 @@ $script:Pnpm = ''
 $script:PnpmDir = ''
 $script:ServiceInstalle = 0
 $script:EnAttente = $false
+$script:ModeFournisseur = 'natif'
 # Profil du core et variables qui sortiraient son etat du dossier canonique (comme install.sh et instance.py).
 $script:ProfilCore = 'opsys'
 $script:VariablesEcartees = @('OPENCLAW_STATE_DIR', 'OPENCLAW_CONFIG_PATH', 'OPENCLAW_HOME', 'OPENCLAW_PROFILE', 'OPENCLAW_LAUNCHD_LABEL', 'OPENCLAW_SYSTEMD_UNIT', 'OPENCLAW_WINDOWS_TASK_NAME')
@@ -219,7 +221,21 @@ function Test-Prerequis {
     if (-not (Get-Command curl.exe -ErrorAction SilentlyContinue)) {
         Stop-Install "curl.exe est introuvable (sondes de sante) : il est fourni avec Windows 10 (1803) et suivants."
     }
+    Test-DockerPrerequis
     $script:Node = (Get-Command node).Source
+}
+
+function Test-DockerPrerequis {
+    if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+        Stop-Install "Docker CLI est introuvable. Installez Docker Desktop avec le moteur Linux, puis relancez."
+    }
+    $r = Invoke-Capture { & docker info --format '{{.OSType}}' }
+    if ($r.Code -ne 0) {
+        Stop-Install "daemon Docker inaccessible. Demarrez Docker Desktop et verifiez que 'docker info' repond, puis relancez; OPSYS ne modifiera ni droits, ni groupes, ni socket."
+    }
+    if ($r.Sortie.Trim() -ne 'linux') {
+        Stop-Install "le daemon Docker doit utiliser des conteneurs Linux (docker info a retourne '$($r.Sortie.Trim())'). Basculez Docker Desktop en mode Linux, puis relancez."
+    }
 }
 
 # Il n'y a plus de garde "ne jamais ecraser la tache d'une autre installation d'OpenClaw" : sous le profil "opsys", la
@@ -403,6 +419,25 @@ function Build-Core {
     Invoke-Etape "Verification du core" { Invoke-Noyau @('--version') }
 }
 
+function Prepare-SandboxImage {
+    $image = 'openclaw-sandbox:bookworm-slim'
+    $inspection = Invoke-Capture { & docker image inspect $image }
+    if ($inspection.Code -eq 0) {
+        Write-Info "Image sandbox existante reutilisee : $image"
+        return
+    }
+    $core = Join-Path $script:Depot 'core'
+    $dockerfile = Join-Path $core 'scripts\docker\sandbox\Dockerfile'
+    if (-not (Test-Path -LiteralPath $dockerfile -PathType Leaf)) {
+        Stop-Install "le code source ne contient pas le Dockerfile sandbox attendu : $dockerfile. Verifiez OPSYS_SOURCE."
+    }
+    Invoke-Etape "Construction de l'image sandbox $image" { & docker build -t $image -f $dockerfile $core } -Conseil "L'image absente est construite depuis le Dockerfile OPSYS, dont la base Debian est epinglee. Verifiez le reseau Docker vers ce registre et l'espace disque, puis relancez. OPSYS ne tire aucun tag d'image arbitraire."
+    $verification = Invoke-Capture { & docker image inspect $image }
+    if ($verification.Code -ne 0) {
+        Stop-Install "le build s'est termine mais l'image sandbox $image reste absente; aucun Gateway ne sera demarre."
+    }
+}
+
 function Test-MoteurPython {
     if (-not (Test-Path -LiteralPath $script:VenvPy)) { return $false }
     $r = Invoke-Capture { & $script:VenvPy -c 'import sys; sys.exit(sys.version_info < (3, 11))' }
@@ -417,7 +452,16 @@ function Install-Moteur {
     if (-not (Test-MoteurPython)) {
         Invoke-Etape "Creation de l'environnement Python (uv venv)" { & uv venv --clear --python '>=3.11' $script:Venv } -Conseil "Il faut Python 3.11 ou plus : installez-le, ou laissez uv le telecharger (acces reseau)."
     }
-    Invoke-Etape "Installation du moteur metier (uv pip install)" { & uv pip install --python $script:VenvPy --editable "$($script:Depot)[$($script:ExtrasMoteur)]" } -Conseil "Verifiez l'acces reseau (PyPI), puis relancez."
+    $ancienEnvironnementUv = $env:UV_PROJECT_ENVIRONMENT
+    try {
+        $env:UV_PROJECT_ENVIRONMENT = $script:Venv
+        Invoke-Etape "Synchronisation des dependances selon uv.lock" { & uv sync --locked --project $script:Depot --python $script:VenvPy --group build --no-dev --extra tournees --extra soumission --no-build-isolation --no-install-project } -Conseil "Verifiez l'acces reseau (PyPI), puis relancez."
+        Invoke-Etape "Installation du moteur verrouille" { & uv sync --locked --project $script:Depot --python $script:VenvPy --group build --no-dev --extra tournees --extra soumission --no-build-isolation } -Conseil "Verifiez l'acces reseau (PyPI), puis relancez."
+    }
+    finally {
+        if ($null -eq $ancienEnvironnementUv) { Remove-Item Env:UV_PROJECT_ENVIRONMENT -ErrorAction SilentlyContinue }
+        else { $env:UV_PROJECT_ENVIRONMENT = $ancienEnvironnementUv }
+    }
 }
 
 # -- L'instance -----------------------------------------------------------------------------------------------------------------
@@ -494,6 +538,7 @@ function Initialize-Instance {
     $verdict = $sortie | ConvertFrom-Json
     $script:PortGateway = [string]$verdict.port_gateway
     $script:PortMoteur = [string]$verdict.port_moteur
+    $script:ModeFournisseur = [string]$verdict.mode_fournisseur
 }
 
 # -- Commandes opsys et openclaw (core), opsys-metier (moteur) -------------------------------------------------------------------
@@ -648,7 +693,13 @@ function Write-Bilan {
     Write-Host "  Commandes             : $($script:Bin)\opsys.cmd (core ; alias openclaw.cmd), $($script:Bin)\opsys-metier.cmd (moteur : opsys metier <commande>)"
     if (-not $script:EnAttente) {
         Write-Host "  Gateway               : http://127.0.0.1:$($script:PortGateway)  (moteur : 127.0.0.1:$($script:PortMoteur))"
-        Write-Host "  Passerelle de modeles : non installee par ce script : attendue a l'adresse OPSYS_PASSERELLE_URL de .env"
+        if ($script:ModeFournisseur -eq 'natif') {
+            Write-Host "  Fournisseurs de modeles : natifs OpenClaw, selon $($script:OpsysHome)\paliers.yaml (aucun service LiteLLM requis)"
+        }
+        else {
+            Write-Host '  Fournisseurs de modeles : LiteLLM de compatibilite, explicitement selectionne'
+        }
+        Write-Host '  LiteLLM optionnel : aucun service externe n est installe par cet installateur'
         if ($script:ServiceInstalle -eq 1) { Write-Host "  Service               : installe (tache planifiee de l'utilisateur, profil $($script:ProfilCore)) ; etat : opsys gateway status" }
         else { Write-Host '  Service               : non installe (-SansService) ; demarrage : opsys gateway run' }
         Write-Host ''
@@ -660,18 +711,34 @@ function Write-Bilan {
     Write-Host "  Journal de cette installation : $($script:Journal)"
 }
 
+function Test-ModeFournisseur {
+    $mode = Get-Reglage 'OPSYS_MODE_FOURNISSEUR' 'natif'
+    $url = Get-Reglage 'OPSYS_PASSERELLE_URL' ''
+    if ($mode -eq 'natif' -and $url) {
+        Stop-Install 'OPSYS_PASSERELLE_URL seul n active pas LiteLLM : choisissez explicitement OPSYS_MODE_FOURNISSEUR=litellm.'
+    }
+    if ($mode -eq 'litellm' -and -not $url) {
+        Stop-Install 'le mode litellm exige OPSYS_PASSERELLE_URL ; aucun service externe n est installe par ce script.'
+    }
+    if ($mode -notin @('natif', 'litellm')) {
+        Stop-Install 'OPSYS_MODE_FOURNISSEUR doit valoir natif ou litellm.'
+    }
+}
+
 function Invoke-Installation {
     if ($Aide) {
         Write-Host "install.ps1 : installe OPSYS (OPSYS-CORE + moteur metier) sur Windows."
         Write-Host "Options : -SansService  -Source <dossier>  -Ref <ref>  -Aide"
         Write-Host "Variables : OPSYS_HOME, OPSYS_LOGICIEL, OPSYS_BIN, OPSYS_SOURCE, OPSYS_REPO_URL, OPSYS_REF, OPSYS_PORT_GATEWAY,"
-        Write-Host "  OPSYS_PORT_MOTEUR, OPSYS_EMBEDDINGS_URL, OPSYS_EMBEDDINGS_MODELE, OPSYS_EMBEDDINGS_CLE, OPSYS_PASSERELLE_URL, OPSYS_VERBOSE"
+        Write-Host "  OPSYS_PORT_MOTEUR, OPSYS_EMBEDDINGS_URL, OPSYS_EMBEDDINGS_MODELE, OPSYS_EMBEDDINGS_CLE, OPSYS_MODE_FOURNISSEUR,"
+        Write-Host "  OPSYS_PASSERELLE_URL, OPSYS_VERBOSE"
         Write-Host "Code de sortie : 0 pret, 1 echec d'une etape, 3 installe mais il manque une decision."
         return 0
     }
     $encodageConsole = $null
     Save-Environnement
     try {
+        Test-ModeFournisseur
         try { $encodageConsole = [Console]::OutputEncoding; [Console]::OutputEncoding = $script:Utf8 } catch { $encodageConsole = $null }
         $script:OpsysHome = Get-Reglage 'OPSYS_HOME' (Join-Path $env:USERPROFILE '.opsys')
         $script:Logiciel = Get-Reglage 'OPSYS_LOGICIEL' (Join-Path $env:LOCALAPPDATA 'OPSYS')
@@ -701,6 +768,7 @@ function Invoke-Installation {
         Test-VersionNode
         Initialize-Pnpm
         Build-Core
+        Prepare-SandboxImage
         Install-Moteur
         Initialize-DossierCore
         Initialize-Instance

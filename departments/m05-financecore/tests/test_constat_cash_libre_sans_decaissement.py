@@ -207,8 +207,18 @@ def test_une_fonction_de_lecture_seule_de_l_outil_qui_disparait_est_une_violatio
 
 
 # ---------------------------------------------------------------- 5. sur des copies des VRAIS fichiers
-_FICHIERS = ("comptes_a_payer", "calendrier_fiscal", "cash_libre", "prevision", "constat_cash_libre", "analyse",
-             "outils", "soldes", "etat_financier")
+_FICHIERS = (
+    "comptes_a_payer",
+    "calendrier_fiscal",
+    "calendrier_obligations",
+    "cash_libre",
+    "prevision",
+    "constat_cash_libre",
+    "analyse",
+    "outils",
+    "soldes",
+    "etat_financier",
+)
 
 
 def _sur_les_vrais_fichiers(tmp_path, modifier):

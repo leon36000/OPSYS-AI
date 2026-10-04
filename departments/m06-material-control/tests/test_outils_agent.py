@@ -192,12 +192,9 @@ def test_receptionner_commande_parametre_requis_manquant_est_un_refus_de_schema(
 # --- m6_consommer_materiaux : chaîné à une réception préalable --------------
 
 
-def test_consommer_materiaux_apres_reception_reussit_bug_stock_insuffisant_corrige():
-    r1 = executer(
-        _outil("m6_receptionner_commande"),
-        {"bon_demande": _bon_demande(), "reception_po": _reception_po(), "catalogue_materiaux": _catalogue()},
-    )
-    historique = r1["resultat"]["registre_historique"]
+def test_consommer_materiaux_apres_reception_reussit_bug_stock_insuffisant_corrige(base_durable):
+    _publier_wct()
+    _receptionner_durable()
 
     formulaire = {
         "wct_id": "w1",
@@ -205,9 +202,9 @@ def test_consommer_materiaux_apres_reception_reussit_bug_stock_insuffisant_corri
         "chantier_id": "C1",
         "lignes_consommees": [{"materiau_id": "MAT-1", "quantite": 4.0}],
     }
-    r2 = executer(
+    r2 = executer_atomique(
         _outil("m6_consommer_materiaux"),
-        {"wct": _wct(), "formulaire": formulaire, "registre_historique": historique},
+        {"wct": _wct(), "formulaire": formulaire},
     )
 
     assert r2["ok"] is True
@@ -215,7 +212,8 @@ def test_consommer_materiaux_apres_reception_reussit_bug_stock_insuffisant_corri
     assert r2["resultat"]["resultat"]["stock_restant"] == [{"materiau_id": "MAT-1", "quantite": 6.0}]
 
 
-def test_consommer_materiaux_sans_stock_prealable_est_refuse_nomme():
+def test_consommer_materiaux_sans_stock_prealable_est_refuse_nomme(base_durable):
+    _publier_wct()
     formulaire = {
         "wct_id": "w1",
         "intervention_id": "i1",
@@ -223,11 +221,56 @@ def test_consommer_materiaux_sans_stock_prealable_est_refuse_nomme():
         "lignes_consommees": [{"materiau_id": "MAT-1", "quantite": 4.0}],
     }
 
-    reponse = executer(_outil("m6_consommer_materiaux"), {"wct": _wct(), "formulaire": formulaire})
+    reponse = executer_atomique(
+        _outil("m6_consommer_materiaux"), {"wct": _wct(), "formulaire": formulaire}
+    )
 
     assert reponse["ok"] is True
     assert reponse["resultat"]["accepte"] is False
     assert reponse["resultat"]["verdict"]["code"] == "REJ-STOCK-INSUFFISANT"
+
+
+def test_ancien_contrat_consommation_exige_wct_canonique_intervention_et_idempotence_metier(base_durable):
+    _publier_wct()
+    _receptionner_durable()
+    outil = _outil("m6_consommer_materiaux")
+    formulaire = {
+        "wct_id": "w1",
+        "intervention_id": "i1",
+        "chantier_id": "C1",
+        "lignes_consommees": [{"materiau_id": "MAT-1", "quantite": 3.0}],
+    }
+
+    inconnu = executer_atomique(
+        outil,
+        {"wct": {**_wct(), "wct_id": "inconnu"}, "formulaire": formulaire},
+    )
+    mauvaise_intervention = executer_atomique(
+        outil,
+        {"wct": _wct(), "formulaire": {**formulaire, "intervention_id": "autre"}},
+    )
+    assert inconnu["ok"] and inconnu["resultat"]["accepte"] is False
+    assert inconnu["resultat"]["verdict"]["code"] == "REJ-WCT-INCONNU"
+    assert mauvaise_intervention["ok"] and mauvaise_intervention["resultat"]["accepte"] is False
+    assert mauvaise_intervention["resultat"]["verdict"]["code"] == (
+        "REJ-FORMULAIRE-MATERIAUX-INTERVENTION-INCOHERENTE"
+    )
+    mouvements_apres_refus = _mouvements_durables()
+    assert len(mouvements_apres_refus) == 1  # la réception seule : stock toujours égal à 10
+    assert mouvements_apres_refus[0]["type_mouvement"] == "RECEPTION"
+    assert mouvements_apres_refus[0]["quantite"] == 10.0
+
+    premiere = executer_atomique(outil, {"wct": _wct(), "formulaire": formulaire})
+    rejeu_autre_cle = executer_atomique(outil, {"wct": _wct(), "formulaire": formulaire})
+    assert premiere["ok"] and premiere["resultat"]["accepte"] is True
+    assert premiere["resultat"]["resultat"]["stock_restant"] == [
+        {"materiau_id": "MAT-1", "quantite": 7.0}
+    ]
+    assert rejeu_autre_cle["ok"] and rejeu_autre_cle["resultat"]["accepte"] is False
+    assert rejeu_autre_cle["resultat"]["verdict"]["code"] == "REJ-DECLARATION-DEJA-SOUMISE"
+    mouvements_apres_rejeu = _mouvements_durables()
+    assert len(mouvements_apres_rejeu) == 2  # réception + une consommation, donc stock égal à 7
+    assert sum(m["quantite"] for m in mouvements_apres_rejeu) == 7.0
 
 
 # --- m6_declarer_materiaux_utilises : PLAN T1.1-d2 point 2 ------------------

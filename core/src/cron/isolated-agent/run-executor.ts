@@ -12,9 +12,11 @@ import {
   applyCliSessionBindingResult,
   assertCliSessionBindingResultCommitAllowed,
 } from "../../agents/cli-session.js";
+import { requiresOpsysRuntimeAdmission } from "../../agents/embedded-agent-runner/opsys-runtime-admission.js";
 import { runEmbeddedAgentEntry } from "../../agents/embedded-agent-runner/run-entry.js";
 import { createDeferredEmbeddedRunLifecycleManager } from "../../agents/embedded-agent-runner/run/deferred-lifecycle-owner.js";
 import type { FastModeAutoProgressState } from "../../agents/fast-mode.js";
+import { AgentHarnessPreflightError } from "../../agents/harness/errors.js";
 import { runAgentHarnessBeforeMessageWriteHook } from "../../agents/harness/hook-helpers.js";
 import { findModelInCatalog, modelSupportsInput } from "../../agents/model-catalog-lookup.js";
 import { resolveConfiguredThinkingDefault } from "../../agents/model-thinking-default.js";
@@ -42,6 +44,7 @@ import {
 } from "../../tasks/task-status-access.js";
 import { resolveCronJobConfigRevision } from "../config-revision.js";
 import { assertCronExecutionRootRuntime } from "../execution-root-runtime.js";
+import { assertCronRuntimeAuthorityCandidate } from "../runtime-authority-admission.js";
 import { resolveCronScheduledToolPolicy } from "../scheduled-tool-policy.js";
 import { resolveCronAuthenticatedChannelRequester } from "../tools-allow-provenance.js";
 import type { CronAgentExecutionPhaseUpdate, CronJob } from "../types.js";
@@ -50,10 +53,7 @@ import {
   resolveCurrentChannelTarget,
 } from "./channel-output-policy.js";
 import { resolveCronPayloadOutcome } from "./helpers.js";
-import {
-  assertCronRuntimeAuthorityCandidate,
-  prepareCronPromptRunAdmission,
-} from "./run-admission.js";
+import { prepareCronPromptRunAdmission } from "./run-admission.js";
 import { createCronCandidateExecutionResolver } from "./run-candidate-runtime.js";
 import {
   appendCronDeliveryInstruction,
@@ -421,8 +421,19 @@ function createCronPromptExecutor(
           candidateRuntime,
           cliExecution && Boolean(rootedExecution),
         );
+        if (
+          requiresOpsysRuntimeAdmission(params.cfgWithAgentDefaults, params.agentId) &&
+          (cliExecution ||
+            candidateRuntime !== "openclaw" ||
+            typeof params.validateScheduledRuntimeAuthority !== "function")
+        ) {
+          throw new AgentHarnessPreflightError(
+            "OPSYS scheduled execution requires the embedded runtime and live host authority validation.",
+          );
+        }
         assertCronRuntimeAuthorityCandidate({
           authority: params.job.runtimeAuthority,
+          recoveryRequired: params.job.runtimeAuthorityRecoveryRequired === true,
           candidateRuntime,
           cliExecution,
         });
@@ -663,6 +674,7 @@ function createCronPromptExecutor(
           runTimeoutOverrideMs: params.runTimeoutOverrideMs,
           toolsAllow: params.agentPayload?.toolsAllow,
           scheduledRuntimeAuthority: params.job.runtimeAuthority,
+          validateScheduledRuntimeAuthority: params.validateScheduledRuntimeAuthority,
           scheduledRuntimeAuthorityRecoveryRequired:
             params.job.runtimeAuthorityRecoveryRequired === true,
           execSession: params.cronSession.sessionEntry,

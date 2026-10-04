@@ -4,7 +4,7 @@
 // `src/opsys/openclaw.py` together with `opsys/contexte.json`). It adds two things to a department
 // agent's turn and reuses everything else from the fork:
 //   - PREFLIGHT, in `assemble()`: asks M10 for the packet of the case the turn is about
-//     (`m10_paquet_contexte_affaire`, through the existing MCP road) and returns it as the
+//     (`m10_paquet_contexte_affaire`, through the agent-bound context MCP server) and returns it as the
 //     `systemPromptAddition` the runner already prepends to the system prompt. The assembly of the
 //     messages is the legacy engine's own, untouched;
 //   - POSTFLIGHT, in `afterTurn()`: hands M10 what the department tools did during the turn
@@ -80,6 +80,7 @@ export type OpsysContexteLog = {
 
 /** One bounded call to a tool of the business engine. Resolves with the parsed OPSYS answer. */
 export type OpsysContexteToolCaller = (params: {
+  server: string;
   tool: string;
   args: Record<string, unknown>;
   timeoutMs: number;
@@ -219,7 +220,7 @@ export class OpsysContextEngine implements ContextEngine {
     const { callOpsysMcpTool } = await loadMcpCaller();
     return await callOpsysMcpTool({
       config: this.config,
-      server: settings.config.server,
+      server: params.server,
       tool: params.tool,
       args: params.args,
       timeoutMs: params.timeoutMs,
@@ -245,7 +246,7 @@ export class OpsysContextEngine implements ContextEngine {
   ): Promise<unknown> {
     const controller = new AbortController();
     let cancelTimer: () => void = () => undefined;
-    const expired = new Promise<never>((resolve, reject) => {
+    const expired = new Promise<never>((_resolve, reject) => {
       cancelTimer = this.startTimer(timeoutMs, () => {
         controller.abort();
         reject(new DeadlineError(`pas de réponse en ${String(timeoutMs)} ms`));
@@ -306,6 +307,7 @@ export class OpsysContextEngine implements ContextEngine {
     try {
       envelope = await this.bounded(config.timeoutMs, (signal) =>
         this.callTool({
+          server: config.server,
           tool: config.affaireTool,
           args: { cle_session: sessionKey },
           timeoutMs: config.timeoutMs,
@@ -348,15 +350,20 @@ export class OpsysContextEngine implements ContextEngine {
       return this.unavailable(agentId, undefined, resolution.reason, sessionKey);
     }
     const { affaireId } = resolution;
+    const contextServer = config.contextServers.get(agentId);
+    if (contextServer === undefined) {
+      return this.unavailable(agentId, affaireId, "aucun serveur de contexte lié à cet agent", sessionKey);
+    }
 
     let envelope: unknown;
     try {
       envelope = await this.bounded(config.timeoutMs, (signal) =>
         this.callTool({
+          server: contextServer,
           tool: config.packetTool,
-          // `agent` is the department read in the session key, never a word of the request: M10 filters
-          // the packet for it (`confidentialite.py`) and the core checks that it says so.
-          args: { affaire_id: affaireId, horodatage: this.horodatage(), agent: agentId },
+          // The route and bearer bind the origin to the session agent. The model-facing tool args
+          // never carry an identity that could be spoofed.
+          args: { affaire_id: affaireId, horodatage: this.horodatage() },
           timeoutMs: config.timeoutMs,
           signal,
         }),
@@ -469,6 +476,7 @@ export class OpsysContextEngine implements ContextEngine {
     try {
       envelope = await this.bounded(config.timeoutMs, (signal) =>
         this.callTool({
+          server: config.server,
           tool: config.depositTool,
           args: {
             affaire_id: affaireId,

@@ -400,3 +400,75 @@ def test_la_cli_refuse_sans_archive_et_traduit_un_refus_en_code_1(opsys_home, tm
     assert cli.main(["instance", "exporter", "--sortie", str(tmp_path / "x.tar.gz")]) == 1
     assert "ERREUR : aucune base à exporter" in capsys.readouterr().err
     assert [p.name for p in tmp_path.iterdir() if p.name != "opsys-home"] == []  # ni archive ni résidu
+
+
+@pytest.mark.parametrize("revisions", [("9999",), ("0008", "0007"), ()])
+def test_revision_sqlite_differente_du_manifeste_refuse_avant_toucher_instance(
+        opsys_home, tmp_path, monkeypatch, revisions):
+    base = tmp_path / "base-incoherente.db"
+    connexion = sqlite3.connect(base)
+    connexion.execute("CREATE TABLE alembic_version (version_num TEXT)")
+    connexion.executemany("INSERT INTO alembic_version VALUES (?)", [(rev,) for rev in revisions])
+    connexion.commit()
+    connexion.close()
+    archive = _archive_sur_mesure(tmp_path / "revision-incoherente.tar.gz", base.read_bytes(), revision="0008")
+    cible = _autre_instance(monkeypatch, tmp_path, "cible")
+    stockage.migrer()
+    with stockage.transaction() as cnx:
+        identite.creer_personne(cnx, "ancienne-fictive", "Ancienne", MOT_DE_PASSE, ["employee"])
+    ancienne_base = (cible / "opsys.db").read_bytes()
+
+    with pytest.raises(exportation.ErreurExportation, match="ne correspond pas"):
+        exportation.restaurer(archive, cible, par="test", remplacer=True)
+
+    assert (cible / "opsys.db").read_bytes() == ancienne_base
+    assert _personnes() == ["ancienne-fictive"]
+
+
+def test_echec_pose_deuxieme_fichier_retablit_base_et_reglages(opsys_home, tmp_path, monkeypatch):
+    _peupler(opsys_home)
+    archive = exportation.exporter(opsys_home, tmp_path / "export.tar.gz", par="test").archive
+    cible = _autre_instance(monkeypatch, tmp_path, "cible")
+    stockage.migrer()
+    with stockage.transaction() as cnx:
+        identite.creer_personne(cnx, "ancienne-fictive", "Ancienne", MOT_DE_PASSE, ["employee"])
+    (cible / "paliers.yaml").write_text("generation: ancienne\n", encoding="utf-8")
+    remplacer = os.replace
+
+    def echec_de_pose(source, destination):
+        if Path(source).name == "paliers.yaml" and Path(destination) == cible / "paliers.yaml":
+            raise OSError("panne de pose déterministe")
+        return remplacer(source, destination)
+
+    monkeypatch.setattr(exportation.os, "replace", echec_de_pose)
+    with pytest.raises(OSError, match="panne de pose déterministe"):
+        exportation.restaurer(archive, cible, par="test", remplacer=True)
+
+    stockage.liberer()
+    assert (cible / "paliers.yaml").read_text(encoding="utf-8") == "generation: ancienne\n"
+    monkeypatch.setenv("OPSYS_HOME", str(cible))
+    assert _personnes() == ["ancienne-fictive"]
+    assert not list(cible.glob("*.avant-restauration-*"))
+
+
+def test_echec_migration_copie_ne_bascule_aucun_fichier(opsys_home, tmp_path, monkeypatch):
+    _peupler(opsys_home)
+    archive = exportation.exporter(opsys_home, tmp_path / "export.tar.gz", par="test").archive
+    cible = _autre_instance(monkeypatch, tmp_path, "cible")
+    stockage.migrer()
+    with stockage.transaction() as cnx:
+        identite.creer_personne(cnx, "ancienne-fictive", "Ancienne", MOT_DE_PASSE, ["employee"])
+    (cible / "paliers.yaml").write_text("generation: ancienne\n", encoding="utf-8")
+    ancienne_base = (cible / "opsys.db").read_bytes()
+
+    def echec_migration(*_args, **_kwargs):
+        raise RuntimeError("migration refusée déterministement")
+
+    monkeypatch.setattr(exportation.command, "upgrade", echec_migration)
+    with pytest.raises(RuntimeError, match="migration refusée déterministement"):
+        exportation.restaurer(archive, cible, par="test", remplacer=True)
+
+    assert (cible / "opsys.db").read_bytes() == ancienne_base
+    assert (cible / "paliers.yaml").read_text(encoding="utf-8") == "generation: ancienne\n"
+    assert _personnes() == ["ancienne-fictive"]
+    assert not list(cible.glob("*.avant-restauration-*"))

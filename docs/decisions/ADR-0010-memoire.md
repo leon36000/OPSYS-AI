@@ -6,6 +6,34 @@
 - Fondé sur : [audit M10](../departements/M10-audit.md), [RAG-PREMIUM](../memory/RAG-PREMIUM.md),
   documentation mémoire du core (`docs/concepts/memory*.md`, `context-engine.md`, `plugins/hooks.md`).
 
+## État courant — 2026-09-30 (complément, sans réécriture de l’historique)
+
+Les sections T3.3/T3.3-suite-b/T4.18 ci-dessous gardent leur texte et leur contexte historique. Plusieurs
+notes « reste », « greffe non appliquée » ou « CI seulement » décrivent l’état au moment de leur rédaction,
+pas l’état courant. La réconciliation, les preuves datées et les limites sont consignées dans
+[COHERENCE-DOCUMENTAIRE](../research/R17-2026-09-30/COHERENCE-DOCUMENTAIRE.md).
+
+- **Moteur de contexte et garde d’action :** la greffe Core et le hook effectif `before_tool_call` sont
+  présents. La voie de contexte M10 utilise la route MCP privée `/mcp/contexte/<agentId>`, liée à l’origine
+  du serveur, avec `OPSYS_CONTEXT_MCP_JETON` distinct du bearer public. Les outils de cette voie restent
+  refusés au modèle. Le moteur de contexte d’entreprise reste désactivé par défaut; l’activation exige une
+  configuration explicite.
+- **Admission provider :** un raccord distinct protège les profils configurables exportés vers le runner
+  embedded. Avant chaque dispatch `StreamFn`, il exige une admission fraîche et une réservation; usage
+  positif seul est réconcilié. Cela ne s’étend pas aux agents départementaux historiques, CLI/harness ou
+  plugins à transport propre. La compaction générique et les sous-agents ne sont pas couverts; le provider
+  des preuves était simulé et aucun appel fournisseur réel n’a été fait. L’estimation de tokens n’est pas
+  une garantie de coût financier.
+- **Mémoire de développement M10 :** son registre canonique, son API/console et un audit à la demande sont
+  présents selon les preuves locales. Le scan est limité aux fichiers suivis par Git. Les plafonds de
+  l’audit ne bornent pas la reconstruction préalable du journal complet; aucun scheduler/nightly ni
+  retrieval sémantique n’est prouvé.
+
+Les résultats rapportés sont des preuves ciblées locales sur arbre de travail partagé, non une validation
+de CI distante, de production ou de parcours fournisseur avec credentials. Le raccord ciblé C02 ne ferme
+pas les autres classes de liaison. Les rapports de preuve détaillent les portées et les diagnostics
+étrangers rencontrés.
+
 ## Contexte
 
 La définition (P4, P11, M10) exige une mémoire gouvernée, sourcée, versionnée, à paquets de contexte
@@ -87,9 +115,11 @@ Ce qui existe (activable pour tout agent nommé ; le cas visé est M3, avant `m3
 - **Décision 3, `afterTurn()` = POSTFLIGHT.** Il dépose chez M10 ce que les outils listés ont fait pendant le
   tour (`m10_deposer_faits_candidats`) : outil, résultat `ok` ou `refus`, code. Jamais un texte de modèle.
   Un fait déposé est un **candidat** : hors du paquet, hors de la consolidation nocturne.
-- **Appel au moteur métier.** Par la voie existante : `mcp.servers.opsys_m10` (HTTP `streamable`, en-tête
-  `Bearer ${OPSYS_MCP_JETON}`, point d'accès `/mcp/m10-memoire`). Jamais d'accès direct à la base. Un appel
-  ouvre sa connexion et la referme : rien n'est gardé entre deux tours.
+- **Appel au moteur métier.** Le core sélectionne dans `contextServers` le serveur lié à l'agent
+  configuré : HTTP `streamable` `/mcp/contexte/<agentId>`, en-tête
+  `Bearer ${OPSYS_CONTEXT_MCP_JETON}`. Cette route fixe l'origine d'appel et n'expose que
+  `m10_paquet_contexte_affaire`. Le secret est distinct de `OPSYS_MCP_JETON`; aucun accès direct à
+  la base n'est fait. Un appel ouvre sa connexion et la referme : rien n'est gardé entre deux tours.
 - **Budget.** M10 calcule le budget de caractères et la troncature ; le core valide la cohérence du paquet
   (compteurs, quatre couches dans l'ordre, total sous le budget de M10) et le refuse en entier au moindre écart.
   Il ne le tronque jamais. Un paquet plus grand que le budget de tokens que le lanceur laisse est refusé de la
@@ -171,8 +201,10 @@ humain, ou réessayer quand le contexte est disponible).
 - Le niveau vient de `contexte.json` (`niveaux`, généré par `openclaw.py` depuis `Outil.niveau_effectif`), jamais du
   modèle. Un outil absent de `niveaux` n'est pas un outil OPSYS connu : jamais bloqué. Les niveaux N0 à N2 ne le
   sont jamais.
-- Inactif tant que `contexte.json` n'est pas actif, ou s'il est invalide (le moteur le dit déjà à chaque tour), et
-  pour un agent que le fichier ne nomme pas.
+- Désactivé ou absent : pas de garde pour les agents non configurés. En revanche, une configuration
+  explicitement active mais illisible, invalide, obsolète/non versionnée, ou sans serveur d'origine
+  valable produit l'état `invalid`; les appels OPSYS sont bloqués. Le statut inactif n'est donc pas
+  confondu avec une activation cassée (C03).
 - Le moteur écrit, à chaque tour (`assemble()` avec prompt), l'état de son PREFLIGHT par clé de session (mémoire du
   processus, 512 sessions). Le réassemblage sans prompt que le lanceur fait après chaque résultat d'outil ne compose
   rien et n'écrase pas cet état. Une session qui n'a pas eu son propre tour évalué (un sous-agent, un redémarrage du
@@ -221,6 +253,26 @@ département ne voit pas le serveur MCP de M10, seul le moteur du core appelle l
 un paquet dont le bloc de confidentialité ne nomme pas cet agent, ou dont un fait porte un niveau fermé. Une décision
 peut être marquée (`m10_journaliser_decision`, clé sœur `confidentialite`, contrat v1 intact) ; aucun autre producteur
 ne marque encore : les événements du bus, dont le catalogue est fermé, n'en portent pas.
+
+**Transport et identité d'origine (frontière DEP-002).** Le nom de l'agent n'est plus passé en
+argument d'outil. `openclaw.py` génère pour chaque agent une entrée `serveur_contexte` qui pointe
+vers `opsys_context_<agentId>` et `/mcp/contexte/<agentId>`. Le serveur MCP attribue cette voie au
+`appelant` canonique du chemin et ne publie que `m10_paquet_contexte_affaire`; le middleware exige
+`OPSYS_CONTEXT_MCP_JETON` (24 caractères minimum), distinct du bearer public
+`OPSYS_MCP_JETON`. Le générateur ajoute `opsys_context_*__*` au deny de tous les agents, y compris
+les agents internes sans allowlist : enregistrer une entrée MCP ne suffit donc pas à rendre l'outil
+appelable par le modèle. L'origine (`agentId`) est l'agent servi; l'exécuteur de l'outil reste le
+serveur M10. Les accès CLIENT_PRIVATE autorisés pour M1/M2 restent dans leur vue filtrée et ne
+sont pas fermés globalement.
+
+**C02 ciblé et C03.** La vérification couvre la liaison M3 `m3_estimer_projet` uniquement : la
+configuration lie l'outil à `contrat.lead_id` de type affaire/lead. Le garde compare la valeur à
+l'affaire canonique du PREFLIGHT; argument absent, invalide, différent ou affaire inconnue donne un
+refus. Une identité de lead ne valide pas une cible WCT/opportunité. Cela ne promeut ni ne prétend
+corriger les autres classes C02 (autres types de cibles, opérations ou preuves hors de cette liaison).
+Pour C03, `contexte.json` actif et invalide bloque les outils OPSYS; absence ou désactivation
+explicite conserve le mode inactif. Les tests du core couvrent config invalide, liaison M3 connue,
+cible absente/différente, et le refus effectif par la politique `before_tool_call`.
 
 ### T4.18 : l'amont d'une affaire, du lead au devis (M10 `etapes.py`, `amont.py`)
 

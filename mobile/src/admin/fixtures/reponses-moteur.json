@@ -1045,7 +1045,11 @@
          "a_remettre": "498.75"
         },
         "factures_clients": 1,
-        "factures_fournisseurs": 0
+        "factures_fournisseurs": 0,
+        "couverture": {
+         "statut": "PARTIELLE",
+         "detail": "les pièces admissibles aux registres sont les seules sources du calcul; aucune preuve ne confirme que les périodes et les registres sont complets"
+        }
        }
       },
       {
@@ -1072,7 +1076,11 @@
          "a_remettre": "0.00"
         },
         "factures_clients": 0,
-        "factures_fournisseurs": 0
+        "factures_fournisseurs": 0,
+        "couverture": {
+         "statut": "PARTIELLE",
+         "detail": "les pièces admissibles aux registres sont les seules sources du calcul; aucune preuve ne confirme que les périodes et les registres sont complets"
+        }
        }
       }
      ],
@@ -1768,7 +1776,11 @@
          "a_remettre": "0.00"
         },
         "factures_clients": 0,
-        "factures_fournisseurs": 0
+        "factures_fournisseurs": 0,
+        "couverture": {
+         "statut": "PARTIELLE",
+         "detail": "les pièces admissibles aux registres sont les seules sources du calcul; aucune preuve ne confirme que les périodes et les registres sont complets"
+        }
        }
       },
       {
@@ -1795,7 +1807,11 @@
          "a_remettre": "498.75"
         },
         "factures_clients": 1,
-        "factures_fournisseurs": 0
+        "factures_fournisseurs": 0,
+        "couverture": {
+         "statut": "PARTIELLE",
+         "detail": "les pièces admissibles aux registres sont les seules sources du calcul; aucune preuve ne confirme que les périodes et les registres sont complets"
+        }
        }
       },
       {
@@ -1822,7 +1838,11 @@
          "a_remettre": "0.00"
         },
         "factures_clients": 0,
-        "factures_fournisseurs": 0
+        "factures_fournisseurs": 0,
+        "couverture": {
+         "statut": "PARTIELLE",
+         "detail": "les pièces admissibles aux registres sont les seules sources du calcul; aucune preuve ne confirme que les périodes et les registres sont complets"
+        }
        }
       }
      ],

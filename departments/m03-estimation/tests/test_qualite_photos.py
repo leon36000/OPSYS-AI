@@ -22,7 +22,6 @@ l'implémentation devra tenir :
   éléments manquants non vides).
 """
 
-import re
 import sys
 from pathlib import Path
 
@@ -36,11 +35,11 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from m3_estimation import contrats, qualite_photos, verdicts
-import sys as _s2
-from pathlib import Path as _P2
-_s2.path.insert(0, str(_P2(__file__).resolve().parent))
-from _commun_contrats import cles_du_bloc_yaml
+# Imports après ajout des chemins locaux : ce fichier garde son mode d'exécution directe.
+from m3_estimation import contrats, qualite_photos, verdicts  # noqa: E402
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _commun_contrats import cles_du_bloc_yaml  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Aides de construction — chaque appel retourne des dictionnaires NEUFS :
@@ -72,7 +71,7 @@ def _lot_valide():
     photos = []
     for index, angle in enumerate(("face", "profil", "trois_quarts")):
         photo = _photo_valide()
-        photo["photo_id"] = "photo-%03d" % index
+        photo["photo_id"] = f"photo-{index:03d}"
         photo["angle"] = angle
         photos.append(photo)
     photos[2]["reference_echelle"] = None
@@ -82,6 +81,24 @@ def _lot_valide():
 def _seuils_valides():
     """Retourne des seuils NEUFS conformes : exactement les deux clés du contrat."""
     return {"resolution_minimale": 800, "eclairage_minimal": 4.0}
+
+
+@pytest.mark.parametrize("eclairage", [float("nan"), float("inf"), -1.0, 10.1])
+def test_seuil_eclairage_non_fini_ou_hors_echelle_est_refuse(eclairage):
+    photo = _photo_valide()
+    photo["eclairage"] = 0
+    resultat, verdict = qualite_photos.qualifier_photos([photo],
+                        {"resolution_minimale": 800, "eclairage_minimal": eclairage})
+    assert resultat is None
+    assert verdict["code"] == "REJ-SEUILS-INVALIDES"
+
+
+@pytest.mark.parametrize("resolution", [0, -1])
+def test_seuil_resolution_non_positif_est_refuse(resolution):
+    resultat, verdict = qualite_photos.qualifier_photos([_photo_valide()],
+                        {"resolution_minimale": resolution, "eclairage_minimal": 4})
+    assert resultat is None
+    assert verdict["code"] == "REJ-SEUILS-INVALIDES"
 
 
 def _assert_verdict_rejet(verdict, code_attendu):
@@ -428,7 +445,7 @@ def test_catalogue_ferme_contient_les_codes_de_rejet():
     ids=("resolution-booleenne", "eclairage-booleen"),
 )
 def test_un_booleen_comme_seuil_est_refuse(cle_seuil):
-    """bool est sous-classe de int en Python. Sans ce test, remplacer le typage strict par isinstance passerait inaperçu et un booléen deviendrait un seuil valide."""
+    """bool est sous-classe de int : isinstance accepterait à tort un booléen."""
     seuils = _seuils_valides()
     seuils[cle_seuil] = True
     qualification, verdict = qualite_photos.qualifier_photos(_lot_valide(), seuils)
@@ -597,7 +614,10 @@ def test_gardes_isolees_une_par_une(cas):
     ids=("photo-ensemble", "reference-ensemble"),
 )
 def test_un_ensemble_ne_plante_pas_il_est_refuse(fabriquer_lot):
-    """Ces deux gardes paraissent redondantes avec le contrôle des clés, mais elles ne le sont pas ; un ``set`` portant exactement les bons noms franchit le contrôle des clés puis fait lever ``TypeError`` à l'accès indexé ; ce que ces gardes garantissent n'est pas une détection supplémentaire mais un refus NOMMÉ au lieu d'un plantage — mesuré. Sans cette enveloppe, l'échec du test EST le plantage qu'il interdit, et la promesse de son nom n'est jamais vérifiée."""
+    """Un set de clés peut passer la forme puis planter à l'accès indexé.
+
+    La garde promet un refus nommé plutôt qu'une exception non maîtrisée.
+    """
     try:
         qualification, verdict = qualite_photos.qualifier_photos(
             fabriquer_lot(), _seuils_valides()
@@ -616,7 +636,7 @@ def test_un_ensemble_ne_plante_pas_il_est_refuse(fabriquer_lot):
     ["photo_id", "angle", "reference_echelle.type"],
 )
 def test_une_chaine_de_blancs_est_refusee(champ):
-    """`not chaine` est faux pour une chaîne d'espaces ; sans ce test, la garde pourrait être écrite sans `.strip()` et laisser passer des valeurs vides en apparence."""
+    """`not chaine` laisse passer les espaces; `.strip()` doit les refuser."""
     photo = {
         "photo_id": "photo-001",
         "resolution_largeur": 1920,

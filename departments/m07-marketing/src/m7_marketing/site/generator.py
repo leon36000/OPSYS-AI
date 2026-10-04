@@ -44,6 +44,11 @@ def render_html(content: dict) -> str:
     lang = html.escape(content["lang"])
     nav_label = html.escape(content["nav_label"])
     colors = content["colors"]
+    cles_couleur = ("bg", "fg", "link", "header_bg", "header_fg", "nav_bg", "nav_fg", "footer_bg", "footer_fg")
+    if not isinstance(colors, dict) or any(
+        not guardrail._est_couleur_hex(colors.get(cle)) for cle in cles_couleur
+    ):
+        raise ValueError("couleur CSS invalide : seules les couleurs hexadécimales #rgb et #rrggbb sont permises")
     org = content["org"]
     org_name = html.escape(str(org["name"]))
 

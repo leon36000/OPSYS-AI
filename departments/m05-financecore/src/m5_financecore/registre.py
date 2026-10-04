@@ -36,6 +36,16 @@ _TYPE_ENTREE_VALIDES = {
     # ces pièces (`comptes_a_payer._etats_factures`). Aucun de ces types n'est un mouvement financier.
     "correction_facture_fournisseur",
     "annulation_facture_fournisseur",
+    # M5.4.a : contrats horaires individuels, dans un flux durable propre aux salaires;
+    # ces pièces ne sont jamais des mouvements financiers.
+    "contrat_horaire_enregistre",
+    "contrat_horaire_revoque",
+    # M5.8a : échéanciers contractuels saisis et révocations; registre distinct des mouvements.
+    "echeancier_contrat_enregistre",
+    "echeancier_contrat_revoque",
+    # Répartitions analytiques humaines, dans leur registre propre ; aucun mouvement financier.
+    "affectation_cout_marketing_enregistree",
+    "affectation_cout_marketing_retiree",
 }
 
 _CHAMPS_MOUVEMENT = (

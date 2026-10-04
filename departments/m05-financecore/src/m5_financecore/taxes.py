@@ -27,11 +27,13 @@ jamais ROUND_HALF_EVEN, qui aurait arrondi certains demi-cents vers le bas (voir
 
 from __future__ import annotations
 
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, Context, Decimal, localcontext
 
 from . import taux_fiscaux, validation
 
 _DEUX_DECIMALES = Decimal("0.01")
+_MONTANT_MAX = Decimal("999999999999.99")
+_CONTEXTE_MONETAIRE = Context(prec=64)
 _IDS_TAXES_QUEBEC_DEFAUT = ("tps_federale", "tvq_quebec")
 
 
@@ -49,29 +51,37 @@ def calculer_taxes(montant_avant_taxes, dictionnaire_taux, ids_taux=_IDS_TAXES_Q
             "REJ-MOUVEMENT-MONTANT-INVALIDE",
             detail="montant_avant_taxes doit être un Decimal fini",
         )
-
-    detail_taxes = []
-    total_taxes = Decimal("0")
-    for taux_id in ids_taux:
-        taux, verdict = taux_fiscaux.rechercher_taux(dictionnaire_taux, taux_id)
-        if verdict is not None:
-            return None, verdict
-        taux_decimal = Decimal(str(taux["taux"]))
-        montant_taxe = (montant_avant_taxes * taux_decimal).quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)
-        detail_taxes.append(
-            {
-                "id": taux_id,
-                "nom": taux["nom"],
-                "version": taux["version"],
-                "taux": str(taux_decimal),
-                "montant": montant_taxe,
-            }
+    if montant_avant_taxes.copy_abs() > _MONTANT_MAX:
+        return None, validation.construire_verdict(
+            "REJ-MOUVEMENT-MONTANT-INVALIDE",
+            detail=f"montant_avant_taxes hors domaine (maximum { _MONTANT_MAX })",
         )
-        total_taxes += montant_taxe
 
-    return {
-        "montant_avant_taxes": montant_avant_taxes,
-        "taxes": detail_taxes,
-        "total_taxes": total_taxes,
-        "montant_apres_taxes": montant_avant_taxes + total_taxes,
-    }, None
+    with localcontext(_CONTEXTE_MONETAIRE):
+        detail_taxes = []
+        total_taxes = Decimal("0")
+        for taux_id in ids_taux:
+            taux, verdict = taux_fiscaux.rechercher_taux(dictionnaire_taux, taux_id)
+            if verdict is not None:
+                return None, verdict
+            taux_decimal = Decimal(str(taux["taux"]))
+            montant_taxe = (montant_avant_taxes * taux_decimal).quantize(
+                _DEUX_DECIMALES, rounding=ROUND_HALF_UP
+            )
+            detail_taxes.append(
+                {
+                    "id": taux_id,
+                    "nom": taux["nom"],
+                    "version": taux["version"],
+                    "taux": str(taux_decimal),
+                    "montant": montant_taxe,
+                }
+            )
+            total_taxes += montant_taxe
+
+        return {
+            "montant_avant_taxes": montant_avant_taxes,
+            "taxes": detail_taxes,
+            "total_taxes": total_taxes,
+            "montant_apres_taxes": montant_avant_taxes + total_taxes,
+        }, None

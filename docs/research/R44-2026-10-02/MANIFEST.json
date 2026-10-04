@@ -1,0 +1,914 @@
+{
+  "archives": [
+    {
+      "archive": "preuves/001-R44-R45-supplement-root-r1.json--99d82588ef05aa2068e2bd4bca02c8bd410fe2eab29cba323fd86a2ff4067075.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/R44-R45-supplement-root-r1.json",
+      "qualification": "Sélection supplémentaire ROOT ; trois chemins R45 non reproduits en capsule R44",
+      "sha256_archive": "a9b0b53e640470420fc232715fe1c3da0dde5fbbf339cba9dcc24423acc20e4a",
+      "sha256_original": "99d82588ef05aa2068e2bd4bca02c8bd410fe2eab29cba323fd86a2ff4067075",
+      "taille_archive": 272,
+      "taille_originale": 679
+    },
+    {
+      "archive": "preuves/002-archiver-r27-r1.py--c7f9925b634a5793f60b6bd4cc024d8989e0eb8050a3d5d18ce9b2ebd69b6f7b.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-r27/archiver-r27-r1.py",
+      "qualification": "Helper d’archive existant importé, aucune main exécutée",
+      "sha256_archive": "7d09d0e5e5b79550b1464666e8a42a43125be8e52aced766e9ef8e6d307f1d2b",
+      "sha256_original": "c7f9925b634a5793f60b6bd4cc024d8989e0eb8050a3d5d18ce9b2ebd69b6f7b",
+      "taille_archive": 6014,
+      "taille_originale": 16286
+    },
+    {
+      "archive": "preuves/003-archiver-r30-r1.py--5adc44fc5a1659bf1306f6400e768a4fedbb1129e8d2504a69aff3a73f40dde5.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/archiver-r30-r1.py",
+      "qualification": "Helper d’archive existant importé, aucune main exécutée",
+      "sha256_archive": "fbab2810f80f547ad85eba7f483cbf68dc245ffecd35c725a0dd5e40fd690ed6",
+      "sha256_original": "5adc44fc5a1659bf1306f6400e768a4fedbb1129e8d2504a69aff3a73f40dde5",
+      "taille_archive": 4531,
+      "taille_originale": 11816
+    },
+    {
+      "archive": "preuves/004-archiver-r25-r1.py--d94812b5d6c27e316429f1104fa9044bac88ad2252776718c1afb3543abe7213.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/archiver-r25-r1.py",
+      "qualification": "Helper d’archive existant importé, aucune main exécutée",
+      "sha256_archive": "9f67ca4ae89f2a37134cbf335c16b1d33507c8a0957546120dbb9803610294c5",
+      "sha256_original": "d94812b5d6c27e316429f1104fa9044bac88ad2252776718c1afb3543abe7213",
+      "taille_archive": 10059,
+      "taille_originale": 31543
+    },
+    {
+      "archive": "preuves/005-archiver-r26-r1.py--066e8b937ee875e328978f511de848180210df24eb47a442b5832b5108f1eea4.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r26/archiver-r26-r1.py",
+      "qualification": "Helper d’archive existant importé, aucune main exécutée",
+      "sha256_archive": "a66e0e0bfd3187e241d5aec25a491d3b6e769d1d866c1f7ddfd001974c0afb9c",
+      "sha256_original": "066e8b937ee875e328978f511de848180210df24eb47a442b5832b5108f1eea4",
+      "taille_archive": 6484,
+      "taille_originale": 18142
+    },
+    {
+      "archive": "preuves/006-marketing-installation-qualite-root-r1-2026-10-02-apres.json--13c6b1d34f5a29540f8eede74094225391c3943de7711539d26839c58ec46438.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-qualite-root-r1-2026-10-02-apres.json",
+      "qualification": "ROOT1172=1136M7+36R45 disjoints; qualité séparée ; aucun total entre campagnes",
+      "sha256_archive": "152f59b4c39cfa4ec14b0e59b89ccd2afbe6cb1bf037fc51a18808f333bc37af",
+      "sha256_original": "13c6b1d34f5a29540f8eede74094225391c3943de7711539d26839c58ec46438",
+      "taille_archive": 54081,
+      "taille_originale": 144192
+    },
+    {
+      "archive": "preuves/007-marketing-installation-qualite-root-r1-2026-10-02-avant.json--72e1716e785d77e71232fca7ccbd4ed28b4d04534900ec7860c3ca00a5c8457f.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-qualite-root-r1-2026-10-02-avant.json",
+      "qualification": "ROOT1172=1136M7+36R45 disjoints; qualité séparée ; aucun total entre campagnes",
+      "sha256_archive": "7e2ace0e816cd1528c9fbeab6c96a98c4680d9fbd55218fb0e2383a55009301f",
+      "sha256_original": "72e1716e785d77e71232fca7ccbd4ed28b4d04534900ec7860c3ca00a5c8457f",
+      "taille_archive": 54081,
+      "taille_originale": 144192
+    },
+    {
+      "archive": "preuves/008-marketing-installation-qualite-root-r1-2026-10-02-resultat.json--3b75e71e393828b86b1f1722f7273af13678c776726c0ba980284972cd855dee.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-qualite-root-r1-2026-10-02-resultat.json",
+      "qualification": "ROOT1172=1136M7+36R45 disjoints; qualité séparée ; aucun total entre campagnes",
+      "sha256_archive": "1f70d6305eea2b5aab6eb25046d966d7b1409e630b1e810d89b8c2c73ed647e8",
+      "sha256_original": "3b75e71e393828b86b1f1722f7273af13678c776726c0ba980284972cd855dee",
+      "taille_archive": 625,
+      "taille_originale": 1080
+    },
+    {
+      "archive": "preuves/009-marketing-installation-qualite-root-r1-2026-10-02.log--808853d59724e311e00d1c34858ee1c20dda0458d5651547a929e7fb264a2bdc.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-qualite-root-r1-2026-10-02.log",
+      "qualification": "ROOT1172=1136M7+36R45 disjoints; qualité séparée ; aucun total entre campagnes",
+      "sha256_archive": "cfcc7ed78489630587d797ef1326d4b3e964d3fe8846b8c924ee187461156124",
+      "sha256_original": "808853d59724e311e00d1c34858ee1c20dda0458d5651547a929e7fb264a2bdc",
+      "taille_archive": 57,
+      "taille_originale": 40
+    },
+    {
+      "archive": "preuves/010-marketing-installation-root-r1-2026-10-02-apres.json--a51a81694aff9c21a2c8c1dd016824bb62da8cce0a56cbf67f62c4dd81f66bce.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-root-r1-2026-10-02-apres.json",
+      "qualification": "ROOT1172=1136M7+36R45 disjoints; qualité séparée ; aucun total entre campagnes",
+      "sha256_archive": "db6f96caca05c9185ecdd2bc46001d5cda440d220f12688369bd0e0d717c43c0",
+      "sha256_original": "a51a81694aff9c21a2c8c1dd016824bb62da8cce0a56cbf67f62c4dd81f66bce",
+      "taille_archive": 54081,
+      "taille_originale": 144192
+    },
+    {
+      "archive": "preuves/011-marketing-installation-root-r1-2026-10-02-avant.json--b20c9d7f69b484c78b761cdfe2e6a6bdcbb894c5152ca9954ea1bbeb4eaef19f.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-root-r1-2026-10-02-avant.json",
+      "qualification": "ROOT1172=1136M7+36R45 disjoints; qualité séparée ; aucun total entre campagnes",
+      "sha256_archive": "d0b06a33d04e3e072c122eb346b3a2a24b888f44c77cbeeea0a6fb1009eb9b23",
+      "sha256_original": "b20c9d7f69b484c78b761cdfe2e6a6bdcbb894c5152ca9954ea1bbeb4eaef19f",
+      "taille_archive": 54081,
+      "taille_originale": 144192
+    },
+    {
+      "archive": "preuves/012-marketing-installation-root-r1-2026-10-02-resultat.json--c6d0083653b1c80b1dbb305dfc6afae3466aa596186d52c06205f8bc6bbb22df.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-root-r1-2026-10-02-resultat.json",
+      "qualification": "ROOT1172=1136M7+36R45 disjoints; qualité séparée ; aucun total entre campagnes",
+      "sha256_archive": "6dcf7ef7818d5c1326782a67b9a21142c306f903e43c8c6582b8e35faa2a5783",
+      "sha256_original": "c6d0083653b1c80b1dbb305dfc6afae3466aa596186d52c06205f8bc6bbb22df",
+      "taille_archive": 667,
+      "taille_originale": 1474
+    },
+    {
+      "archive": "preuves/013-marketing-installation-root-r1-2026-10-02.log--688def24cde2753dabdb1b22993e912bb824f0b39c027540ebf3191d82f48bb8.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-root-r1-2026-10-02.log",
+      "qualification": "ROOT1172=1136M7+36R45 disjoints; qualité séparée ; aucun total entre campagnes",
+      "sha256_archive": "c97ff3de3e540e174ba524109ac592815abb77125b842d5f40e2eda5e4879de4",
+      "sha256_original": "688def24cde2753dabdb1b22993e912bb824f0b39c027540ebf3191d82f48bb8",
+      "taille_archive": 123,
+      "taille_originale": 1382
+    },
+    {
+      "archive": "preuves/014-marketing-installation-root-r1-2026-10-02.xml--7b5c74dd09948fb32079248fabf34486566d3f15370961180ebae7367dd8b0eb.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-root-r1-2026-10-02.xml",
+      "qualification": "ROOT1172=1136M7+36R45 disjoints; qualité séparée ; aucun total entre campagnes",
+      "sha256_archive": "7caf0d62e10d7ac4eeadd7f116e5c441c57a2ae07414a42589f7158f79a02b18",
+      "sha256_original": "7b5c74dd09948fb32079248fabf34486566d3f15370961180ebae7367dd8b0eb",
+      "taille_archive": 21178,
+      "taille_originale": 205932
+    },
+    {
+      "archive": "preuves/015-design-r44a-r1.md--db77c21e0dca57caf7915497ceed1dc4ba144697afe303553fefcefb52efb6cd.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44-audit-r1/design-r44a-r1.md",
+      "qualification": "Audit/dessein avant raccord, source historique ; pas preuve du gel final",
+      "sha256_archive": "d6a2adbeb8e73572a231f7ca6af57e5ca474e5c5b7bbbcba83dfcd3d8cb32a25",
+      "sha256_original": "db77c21e0dca57caf7915497ceed1dc4ba144697afe303553fefcefb52efb6cd",
+      "taille_archive": 3343,
+      "taille_originale": 7575
+    },
+    {
+      "archive": "preuves/016-manifest-r1.json--e4233797981d2c6fd4b3433a4678d18c1b227cc2791e3d2c69cf33e762585573.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44-audit-r1/manifest-r1.json",
+      "qualification": "Audit/dessein avant raccord, source historique ; pas preuve du gel final",
+      "sha256_archive": "86e8e587a8db50b0462e7783a515192bae90d6029fcea0012fb22eb4dee8f593",
+      "sha256_original": "e4233797981d2c6fd4b3433a4678d18c1b227cc2791e3d2c69cf33e762585573",
+      "taille_archive": 586,
+      "taille_originale": 1160
+    },
+    {
+      "archive": "preuves/017-probe-lecture-r1.log--c8e385556c6c08a504c308c7523f2b50777f5654fe2438352f15131e555e0eea.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44-audit-r1/probe-lecture-r1.log",
+      "qualification": "Audit/dessein avant raccord, source historique ; pas preuve du gel final",
+      "sha256_archive": "51dda8f1940059310e8bc180e66e70d05ec8468051dc41a726894c094d707d77",
+      "sha256_original": "c8e385556c6c08a504c308c7523f2b50777f5654fe2438352f15131e555e0eea",
+      "taille_archive": 535,
+      "taille_originale": 1018
+    },
+    {
+      "archive": "preuves/018-probe-lecture-r1.py--c3a83fd976c8c140f43cbc2cbdee2df494a39f5efdafc81b8e4d4564c312b48b.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44-audit-r1/probe-lecture-r1.py",
+      "qualification": "Audit/dessein avant raccord, source historique ; pas preuve du gel final",
+      "sha256_archive": "2baa6e4c50864105d4cf37f2a954ea0e0ae620ef85835003c691d4796f4e5513",
+      "sha256_original": "c3a83fd976c8c140f43cbc2cbdee2df494a39f5efdafc81b8e4d4564c312b48b",
+      "taille_archive": 688,
+      "taille_originale": 1367
+    },
+    {
+      "archive": "preuves/019-rapport-audit-r1.md--91b63b6009083930ec53d54aec3a3b89f8354504a26e8ce25ef46a9d8b4b5e0a.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44-audit-r1/rapport-audit-r1.md",
+      "qualification": "Audit/dessein avant raccord, source historique ; pas preuve du gel final",
+      "sha256_archive": "92c50ac80c9ad2c9b5b1a9efcd90699d28604733faf0364e3d83e603a35a3751",
+      "sha256_original": "91b63b6009083930ec53d54aec3a3b89f8354504a26e8ce25ef46a9d8b4b5e0a",
+      "taille_archive": 2921,
+      "taille_originale": 5952
+    },
+    {
+      "archive": "preuves/020-resultat-r1.json--35f517c9bed6d4e4b9b7c44d6b8544c7fd46190e798ad7caad095487f0fb4321.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44-audit-r1/resultat-r1.json",
+      "qualification": "Audit/dessein avant raccord, source historique ; pas preuve du gel final",
+      "sha256_archive": "95aec160182d452b87a9c2bb5126ca6a3dcc53ba67ad5ab9c87789f3626f7355",
+      "sha256_original": "35f517c9bed6d4e4b9b7c44d6b8544c7fd46190e798ad7caad095487f0fb4321",
+      "taille_archive": 855,
+      "taille_originale": 1607
+    },
+    {
+      "archive": "preuves/021-sources-apres-probe-r1.json--5e222b681f950113c08479efc3cbc5371c41c4b84f9853e924089c4eb62ac2a1.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44-audit-r1/sources-apres-probe-r1.json",
+      "qualification": "Audit/dessein avant raccord, source historique ; pas preuve du gel final",
+      "sha256_archive": "b78017a3bbd317d4980670967ef078a2204c88f64c7f7373e45cd7beae4621ec",
+      "sha256_original": "5e222b681f950113c08479efc3cbc5371c41c4b84f9853e924089c4eb62ac2a1",
+      "taille_archive": 1917,
+      "taille_originale": 4110
+    },
+    {
+      "archive": "preuves/022-sources-avant-probe-r1.json--6c9d42a75c3695c7d6f590197807ca5c04de3f77984012d2c1d9d1547bceb920.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44-audit-r1/sources-avant-probe-r1.json",
+      "qualification": "Audit/dessein avant raccord, source historique ; pas preuve du gel final",
+      "sha256_archive": "7fb236119d9901eba27d0b5569b768e53202afd232d7db54ba61afc72c52e8e5",
+      "sha256_original": "6c9d42a75c3695c7d6f590197807ca5c04de3f77984012d2c1d9d1547bceb920",
+      "taille_archive": 1861,
+      "taille_originale": 3999
+    },
+    {
+      "archive": "preuves/023-CAPSULE-SOURCES-R44-r1.json--b15b17f8faa791bac275e07cc741c0cda83c077f0b74cab1da8115ed692416a1.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/CAPSULE-SOURCES-R44-r1.json",
+      "qualification": "Capsule onze chemins gelés et préimage destination absente",
+      "sha256_archive": "38e952ba5726860082e94062e4912672f5a3ee371a9eb38fb7bcad30d3997140",
+      "sha256_original": "b15b17f8faa791bac275e07cc741c0cda83c077f0b74cab1da8115ed692416a1",
+      "taille_archive": 978,
+      "taille_originale": 3951
+    },
+    {
+      "archive": "preuves/024-ENTREES-ARCHIVE-R44-r1.json--18e5d5dddf1b79602977b80d2e0a34b4a8ad2e945c90ca372bb4aaea2ceb63cb.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/ENTREES-ARCHIVE-R44-r1.json",
+      "qualification": "inventaire épinglé",
+      "sha256_archive": "35379f22fe9985d6cee3379e26710ede9749b5e24b951845ef81c4fe1a671196",
+      "sha256_original": "18e5d5dddf1b79602977b80d2e0a34b4a8ad2e945c90ca372bb4aaea2ceb63cb",
+      "taille_archive": 6032,
+      "taille_originale": 34426
+    },
+    {
+      "archive": "preuves/025-PREIMAGE-ARCHIVE-R44-r1.json--ab24f9e26aad826cc7e55c5b549f708b4df036da3bf5ee27d569cb1f7661649e.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/PREIMAGE-ARCHIVE-R44-r1.json",
+      "qualification": "Capsule onze chemins gelés et préimage destination absente",
+      "sha256_archive": "612a3cf871ba6af74bfce964b3891135b22ecffe866f78eebe374f4eb4868012",
+      "sha256_original": "ab24f9e26aad826cc7e55c5b549f708b4df036da3bf5ee27d569cb1f7661649e",
+      "taille_archive": 200,
+      "taille_originale": 312
+    },
+    {
+      "archive": "preuves/026-archiver-r44-r1.py--5d9f2fdba7177afff7e8d1b7b8c273d7432bb3300f2fe92b139cbad63c17e661.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/archiver-r44-r1.py",
+      "qualification": "conducteur proposé ; ROOT seul exécute",
+      "sha256_archive": "9e83889b1e917da4cc8163b6b08701b2bb040269ee1527fabe1387da5c04f841",
+      "sha256_original": "5d9f2fdba7177afff7e8d1b7b8c273d7432bb3300f2fe92b139cbad63c17e661",
+      "taille_archive": 4816,
+      "taille_originale": 12698
+    },
+    {
+      "archive": "preuves/027-registre.py--f62bae289358888d1e3e11c73b1f45c31239c4aa6f960d75f085a6396a60be23.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/departments/m07-marketing/src/m7_marketing/brand/registre.py",
+      "qualification": "Capsule onze chemins gelés et préimage destination absente",
+      "sha256_archive": "a26be13b4fe93943feaeb3dac9f3a1f962fc9104a328d3c9c98761e3b33fb349",
+      "sha256_original": "f62bae289358888d1e3e11c73b1f45c31239c4aa6f960d75f085a6396a60be23",
+      "taille_archive": 3561,
+      "taille_originale": 11520
+    },
+    {
+      "archive": "preuves/028-chantier.py--1403470af6629d57ba6c6c200db2829a266680457c3f3a639a3b6ff5b0a9313e.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/departments/m07-marketing/src/m7_marketing/usine/chantier.py",
+      "qualification": "Capsule onze chemins gelés et préimage destination absente",
+      "sha256_archive": "4f1ce47e83235d9e83b2a359d709ec05b5fa5afc04fa30563ab18e0c8f291ffa",
+      "sha256_original": "1403470af6629d57ba6c6c200db2829a266680457c3f3a639a3b6ff5b0a9313e",
+      "taille_archive": 5783,
+      "taille_originale": 17802
+    },
+    {
+      "archive": "preuves/029-registre.py--7bd3067afa2ae86582417c2f5bc411d534c473dae2c0dd9f68c2ae419887ac3a.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/departments/m07-marketing/src/m7_marketing/usine/registre.py",
+      "qualification": "Capsule onze chemins gelés et préimage destination absente",
+      "sha256_archive": "d444ad614904d3d7a8d85b6f4ba4f7dcda63b0c70312ec04a460929019ee2f7c",
+      "sha256_original": "7bd3067afa2ae86582417c2f5bc411d534c473dae2c0dd9f68c2ae419887ac3a",
+      "taille_archive": 3493,
+      "taille_originale": 14147
+    },
+    {
+      "archive": "preuves/030-service.py--ab3eaef1446643560a17ed8be851a6b771661fe884689f6829c95934767e3f25.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/departments/m07-marketing/src/m7_marketing/usine/service.py",
+      "qualification": "Capsule onze chemins gelés et préimage destination absente",
+      "sha256_archive": "00e0799bdf2a97dfd1cf1c5ce853957c429f1294c5ab3f6832888273e9388df8",
+      "sha256_original": "ab3eaef1446643560a17ed8be851a6b771661fe884689f6829c95934767e3f25",
+      "taille_archive": 19090,
+      "taille_originale": 81723
+    },
+    {
+      "archive": "preuves/031-test_inbox_durable.py--825f3cb85cc1dcf24659e5836442ff92d3aa6d66a179cfa1b0a9496240f38c8b.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/departments/m07-marketing/tests/reputation/test_inbox_durable.py",
+      "qualification": "Capsule onze chemins gelés et préimage destination absente",
+      "sha256_archive": "561d4298ac405403ac7d18d542309ef3e1c69e69e44d73465e9593acedb01574",
+      "sha256_original": "825f3cb85cc1dcf24659e5836442ff92d3aa6d66a179cfa1b0a9496240f38c8b",
+      "taille_archive": 2254,
+      "taille_originale": 8392
+    },
+    {
+      "archive": "preuves/032-M7-MARQUE-USINE-R44A.md--446da30bbad14a6c609730c771345f324ec7d2a0b07d2c903e97a95366d7f331.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/docs/grs/marketing/M7-MARQUE-USINE-R44A.md",
+      "qualification": "Capsule onze chemins gelés et préimage destination absente",
+      "sha256_archive": "b4a298efe8a61f0b02342368a9d63e56d990d36a01689bfc056664ed380da73d",
+      "sha256_original": "446da30bbad14a6c609730c771345f324ec7d2a0b07d2c903e97a95366d7f331",
+      "taille_archive": 2601,
+      "taille_originale": 5332
+    },
+    {
+      "archive": "preuves/033-brand_ui.py--8e62b2aa95139d766556d00f5e3ae836694e0ad220d0a1f89cde03f8433f34e8.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/src/opsys/console/brand_ui.py",
+      "qualification": "Capsule onze chemins gelés et préimage destination absente",
+      "sha256_archive": "64ea50a9f2a5e5206a8b526ab1fcbfc17b18075f51357528d32514d06f69b23b",
+      "sha256_original": "8e62b2aa95139d766556d00f5e3ae836694e0ad220d0a1f89cde03f8433f34e8",
+      "taille_archive": 4749,
+      "taille_originale": 17467
+    },
+    {
+      "archive": "preuves/034-calendrier_marketing_ui.py--8d495d4542d5044d228059733101ce46fd4e74c6eeabe4b8c628f40ed8e4fcf9.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/src/opsys/console/calendrier_marketing_ui.py",
+      "qualification": "Capsule onze chemins gelés et préimage destination absente",
+      "sha256_archive": "0e607ddee5d29722651488ecac3478cb43e147db47ff88826d13ea7b2e4ed584",
+      "sha256_original": "8d495d4542d5044d228059733101ce46fd4e74c6eeabe4b8c628f40ed8e4fcf9",
+      "taille_archive": 9956,
+      "taille_originale": 41987
+    },
+    {
+      "archive": "preuves/035-metier.py--fc35dd4d04f0cc14a92f764695f5f86bcbd569fc7a48743d28791621e8f6d9bc.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/src/opsys/console/metier.py",
+      "qualification": "Capsule onze chemins gelés et préimage destination absente",
+      "sha256_archive": "a6a6fceb41a4583e4af4d1c2a43c28b4cd84b9301a787ca9a6ca00c5272c4129",
+      "sha256_original": "fc35dd4d04f0cc14a92f764695f5f86bcbd569fc7a48743d28791621e8f6d9bc",
+      "taille_archive": 3879,
+      "taille_originale": 15979
+    },
+    {
+      "archive": "preuves/036-test_console_marketing_marque_usine.py--db24519accc8a429f814db6acfeb9ad0ba0244529301e925c3c418f8c2c08750.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/tests/test_console_marketing_marque_usine.py",
+      "qualification": "Capsule onze chemins gelés et préimage destination absente",
+      "sha256_archive": "1e65cb55ba59ddf08b837ab6fcc627cf4debc87ed00cfdd7855ee45f2b2b3956",
+      "sha256_original": "db24519accc8a429f814db6acfeb9ad0ba0244529301e925c3c418f8c2c08750",
+      "taille_archive": 5084,
+      "taille_originale": 19768
+    },
+    {
+      "archive": "preuves/037-test_marketing_marque_snapshot.py--8fc99361811fd163fa2e549985b70a4b81e838464663e49aa91e7d925a2ab7d0.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-archive-r1-preparation/capsule-sources/tests/test_marketing_marque_snapshot.py",
+      "qualification": "Capsule onze chemins gelés et préimage destination absente",
+      "sha256_archive": "c7c4ec5e24e2b336005778f4f4f2417a73c7c0ba6008c96c0b616e6ce114175a",
+      "sha256_original": "8fc99361811fd163fa2e549985b70a4b81e838464663e49aa91e7d925a2ab7d0",
+      "taille_archive": 1715,
+      "taille_originale": 6943
+    },
+    {
+      "archive": "preuves/038-R44a-final-r2.patch--f022d6bb09200c4bc3453aadc4da9b075fae2ee51f56e4c6db010bba8297bc33.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/R44a-final-r2.patch",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "67c1882298eed9a90aa96bf9b5db01c64ab2179889ca86b7c224c3fd881d79b2",
+      "sha256_original": "f022d6bb09200c4bc3453aadc4da9b075fae2ee51f56e4c6db010bba8297bc33",
+      "taille_archive": 21692,
+      "taille_originale": 84664
+    },
+    {
+      "archive": "preuves/039-combined-r1.log--3e3a147b11cf62e596e8472a641d2c5f189c879b1da55f7510504148c3ddea5c.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/combined-r1.log",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "b79d49d2dbf2865137a6a6e73fe2ec01bed437b9f7ccbeb6ad8ec68029e56d15",
+      "sha256_original": "3e3a147b11cf62e596e8472a641d2c5f189c879b1da55f7510504148c3ddea5c",
+      "taille_archive": 836,
+      "taille_originale": 3645
+    },
+    {
+      "archive": "preuves/040-combined-r1.xml--612dc23438b659878b3b60508684fe0412f557de1ed43ba52b944d0745c18e13.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/combined-r1.xml",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "26cfbc29791d50bddfde6497208e7a1569e1d0cbec07138114ce58157ff2ebf0",
+      "sha256_original": "612dc23438b659878b3b60508684fe0412f557de1ed43ba52b944d0745c18e13",
+      "taille_archive": 1291,
+      "taille_originale": 6338
+    },
+    {
+      "archive": "preuves/041-contrats-r2.log--a3152cbf8e4ba774681e0add01ba4b91554ba73256f41e0bed5882809046e9ee.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/contrats-r2.log",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "54b69c2552b6bbd392215ac70fcf6d1fdc07f77215b7daadba12a179bad365d7",
+      "sha256_original": "a3152cbf8e4ba774681e0add01ba4b91554ba73256f41e0bed5882809046e9ee",
+      "taille_archive": 52,
+      "taille_originale": 99
+    },
+    {
+      "archive": "preuves/042-contrats-r2.xml--d55541ebafcb38a6637dabba0bc47e53903dbf728ab5caa42f527742c5628ccc.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/contrats-r2.xml",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "cb1581850519a149896dbb9caaac129be14a3bc603f44a6a14878c9160985a28",
+      "sha256_original": "d55541ebafcb38a6637dabba0bc47e53903dbf728ab5caa42f527742c5628ccc",
+      "taille_archive": 1090,
+      "taille_originale": 6034
+    },
+    {
+      "archive": "preuves/043-correction-r2.diff--002df89ae9a01df63312fb84ef9391c67c0265602907a542857f8428244b4428.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/correction-r2.diff",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "cc44c9d0bd8ede977907d63667b39927601e051139e2c72d30134159ffac7060",
+      "sha256_original": "002df89ae9a01df63312fb84ef9391c67c0265602907a542857f8428244b4428",
+      "taille_archive": 777,
+      "taille_originale": 1767
+    },
+    {
+      "archive": "preuves/044-correction-r2.json--0cc92a7d1cf38265a9e032d7cfd494dbf8fb872a74fb9f7ac2efac268f59938c.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/correction-r2.json",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "aff22507f56ffd7c9d912e1fe1287f8a3bb813b2536af8f1ae77de366672c960",
+      "sha256_original": "0cc92a7d1cf38265a9e032d7cfd494dbf8fb872a74fb9f7ac2efac268f59938c",
+      "taille_archive": 512,
+      "taille_originale": 868
+    },
+    {
+      "archive": "preuves/045-final-r1.log--2ef9e5c0b9fc3aeb0e75122ce48d8881b777855d8e09222f3d94c77fa2a960fb.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/final-r1.log",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "239f09d2b76a101659bc111d40d6edf24b4cc445394dc365846d72b29e8cf33b",
+      "sha256_original": "2ef9e5c0b9fc3aeb0e75122ce48d8881b777855d8e09222f3d94c77fa2a960fb",
+      "taille_archive": 1061,
+      "taille_originale": 10208
+    },
+    {
+      "archive": "preuves/046-final-r1.xml--62d66d3816e36004cb8b81639a6a6d9fc734dc88e253740e49bc068558dd1b0d.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/final-r1.xml",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "f863a27a139daaae20327b9415cf48b2fc9627d87b9ad84aa0518b880f818c59",
+      "sha256_original": "62d66d3816e36004cb8b81639a6a6d9fc734dc88e253740e49bc068558dd1b0d",
+      "taille_archive": 21071,
+      "taille_originale": 209338
+    },
+    {
+      "archive": "preuves/047-final-r2.log--feba8c9ee979be0fcf032e83475710866884f6a415e865e466103cecff369cb8.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/final-r2.log",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "a6b685731df2c0b8425aef247a502b0f64ae02bbbd5339497c787541179ea5c4",
+      "sha256_original": "feba8c9ee979be0fcf032e83475710866884f6a415e865e466103cecff369cb8",
+      "taille_archive": 119,
+      "taille_originale": 1302
+    },
+    {
+      "archive": "preuves/048-final-r2.xml--bdc9f71bf7dabd13324f907d79c74db746ae0d3fc8c20c672109429aae8b3e6d.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/final-r2.xml",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "d149e8acc0023af96302afa810ff5791a17b61966be7be579ce65c2b5fbd06b6",
+      "sha256_original": "bdc9f71bf7dabd13324f907d79c74db746ae0d3fc8c20c672109429aae8b3e6d",
+      "taille_archive": 20377,
+      "taille_originale": 200839
+    },
+    {
+      "archive": "preuves/049-final-resultat-r1.json--e3ca86003c9062d1bcb32b2625664f8bbfce5f9b2c4064b142ef80061d5aa82f.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/final-resultat-r1.json",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "bc5f6ed5c3e74bc0215496e24dace112dbed3c06cf768b66e757eb7d3778e175",
+      "sha256_original": "e3ca86003c9062d1bcb32b2625664f8bbfce5f9b2c4064b142ef80061d5aa82f",
+      "taille_archive": 651,
+      "taille_originale": 1157
+    },
+    {
+      "archive": "preuves/050-final-resultat-r2.json--4a567279d4527eb5669947f15dfac0bcedbb1ab8078ffe418d541729a9080329.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/final-resultat-r2.json",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "2f4b803e5a0565c39dda02f93ecdfa9f7efd16ef1a9afc3f05028d4de1363cfa",
+      "sha256_original": "4a567279d4527eb5669947f15dfac0bcedbb1ab8078ffe418d541729a9080329",
+      "taille_archive": 647,
+      "taille_originale": 1157
+    },
+    {
+      "archive": "preuves/051-final-sources-apres-r1.json--a26e445e468f1746292e381d7cb0afcaa7d770d2961ab3df7c24831a094720e2.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/final-sources-apres-r1.json",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "0d428b28a10f15536a607bfa9cb34f009bb470314c8cf6b7f830496a6413c6e1",
+      "sha256_original": "a26e445e468f1746292e381d7cb0afcaa7d770d2961ab3df7c24831a094720e2",
+      "taille_archive": 9802,
+      "taille_originale": 31899
+    },
+    {
+      "archive": "preuves/052-final-sources-apres-r2.json--a0db5cb17188ea846356fb40c5abba0e8925425ac52796ef846e83f2c604953c.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/final-sources-apres-r2.json",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "58b5a8410917afc574ef0770d9a1e9a11cbe3ed12e9cc2ad5bb5db8752dc11f1",
+      "sha256_original": "a0db5cb17188ea846356fb40c5abba0e8925425ac52796ef846e83f2c604953c",
+      "taille_archive": 9805,
+      "taille_originale": 31899
+    },
+    {
+      "archive": "preuves/053-final-sources-avant-r1.json--051dd44b32ca0cbba7eff9d90a1336e05a52b3736285c7840f1968551b250ff6.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/final-sources-avant-r1.json",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "b1c196f0c9d69467964b95e4b14832929a7f791e9890c760a88b003398a7307b",
+      "sha256_original": "051dd44b32ca0cbba7eff9d90a1336e05a52b3736285c7840f1968551b250ff6",
+      "taille_archive": 9883,
+      "taille_originale": 32003
+    },
+    {
+      "archive": "preuves/054-final-sources-avant-r2.json--77e033cf838a210c310e80bf23e6d445962fbc70ceaf754b1e3a7ac758f36528.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/final-sources-avant-r2.json",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "4e6bdc0adeb847dae445e21cf8cf5d7bbb1fc4cdf523b1fbe6e599113aa20508",
+      "sha256_original": "77e033cf838a210c310e80bf23e6d445962fbc70ceaf754b1e3a7ac758f36528",
+      "taille_archive": 9885,
+      "taille_originale": 32003
+    },
+    {
+      "archive": "preuves/055-gel-final-r2.json--8d6d4a330a8689c3454b25549b3671ab23a9e9a6435b2aef5d806a2b7e5d0ead.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/gel-final-r2.json",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "4c573705fb0e4580c3a42e6086463ad5ec2ec79620190254ab25e1bdbcb24ef3",
+      "sha256_original": "8d6d4a330a8689c3454b25549b3671ab23a9e9a6435b2aef5d806a2b7e5d0ead",
+      "taille_archive": 3023,
+      "taille_originale": 8005
+    },
+    {
+      "archive": "preuves/056-http-contrats-r1.log--3ad6e6075c12c10360cae29428c9bc08e542c9b1ace6c55d80d6cf5f21b5cb7a.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/http-contrats-r1.log",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "2b6b6cad7d8e0a4b1933be8a10fd2a0a88a6a74087218908788ccedb754af68c",
+      "sha256_original": "3ad6e6075c12c10360cae29428c9bc08e542c9b1ace6c55d80d6cf5f21b5cb7a",
+      "taille_archive": 52,
+      "taille_originale": 99
+    },
+    {
+      "archive": "preuves/057-http-contrats-r1.xml--775bccd5d33d43a22b2a5cce4bb20223503330e3eb66ce1f4d331237eebe5e01.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/http-contrats-r1.xml",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "fa431893b66d475018b164c8a79b06ec62eeec86c806ceca3382197b0471a231",
+      "sha256_original": "775bccd5d33d43a22b2a5cce4bb20223503330e3eb66ce1f4d331237eebe5e01",
+      "taille_archive": 570,
+      "taille_originale": 2058
+    },
+    {
+      "archive": "preuves/058-http-red-r1.log--5cdb52b120b3cb839260aa4830f6e2af52ae7aea1a312b23d74f9560ea2fa5ee.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/http-red-r1.log",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "669f2389312d34c91513a4782c60b20542a1292dae9462d73e74c15152e1e414",
+      "sha256_original": "5cdb52b120b3cb839260aa4830f6e2af52ae7aea1a312b23d74f9560ea2fa5ee",
+      "taille_archive": 1122,
+      "taille_originale": 6837
+    },
+    {
+      "archive": "preuves/059-http-red-r1.xml--94194f0d74b0bab41ec34a47240841e14be96b43d422f35fe2d07d06ac14346f.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/http-red-r1.xml",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "45fe220b7508d520cababd0888f44d60306ff4c4e1c076b0606d864f3197bb31",
+      "sha256_original": "94194f0d74b0bab41ec34a47240841e14be96b43d422f35fe2d07d06ac14346f",
+      "taille_archive": 1349,
+      "taille_originale": 9465
+    },
+    {
+      "archive": "preuves/060-index-campagnes-r2.json--10dcb2c9d3c6f9ee737ecf016f90a46134a72c17704aa2ae61ba4a5fdb9791e6.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/index-campagnes-r2.json",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "97f996ba343f439a5be90dac269d52a56051e32909c70cfa0923a09cb4bc4f5b",
+      "sha256_original": "10dcb2c9d3c6f9ee737ecf016f90a46134a72c17704aa2ae61ba4a5fdb9791e6",
+      "taille_archive": 1013,
+      "taille_originale": 3198
+    },
+    {
+      "archive": "preuves/061-nom-vide-red-r1.log--ad795520a90850e90739344a2943f6bef116f6d575d2c4df51e68db0c8438b1d.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/nom-vide-red-r1.log",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "ef63c733853120237e810ec22e54621b8524eff6969f3dc759ba09942d03c6de",
+      "sha256_original": "ad795520a90850e90739344a2943f6bef116f6d575d2c4df51e68db0c8438b1d",
+      "taille_archive": 2219,
+      "taille_originale": 9190
+    },
+    {
+      "archive": "preuves/062-nom-vide-red-r1.xml--e376ce1c74aab53c75a36d4806d4e636b1c927c55e5a08ab84355aef073d5b8b.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/nom-vide-red-r1.xml",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "5d4ff283a1b6de55ce6c88375fd8cdeabe7cc8410ac3e59279a09da46a99abac",
+      "sha256_original": "e376ce1c74aab53c75a36d4806d4e636b1c927c55e5a08ab84355aef073d5b8b",
+      "taille_archive": 2337,
+      "taille_originale": 9341
+    },
+    {
+      "archive": "preuves/063-plan.md--436528e40720f1859cc11ef5e31a8ed415bd7fa609ca3b14ee11164e15a0ddc7.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/plan.md",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "05d5704b52d255c43ec805cecdce513bbb6cc6c1650641439c7160eabde8a581",
+      "sha256_original": "436528e40720f1859cc11ef5e31a8ed415bd7fa609ca3b14ee11164e15a0ddc7",
+      "taille_archive": 462,
+      "taille_originale": 679
+    },
+    {
+      "archive": "preuves/064-preimage-extension-metier.json--f5947f5adea7625acf002a2ee580e5a756224a3065beacc7a5897f0397327ebd.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/preimage-extension-metier.json",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "857213ea4d3aed52bf05c814484732725741324bf70e78e7b57ab9f4931adf30",
+      "sha256_original": "f5947f5adea7625acf002a2ee580e5a756224a3065beacc7a5897f0397327ebd",
+      "taille_archive": 232,
+      "taille_originale": 280
+    },
+    {
+      "archive": "preuves/065-registre.py--8c70a6638df6f60fe97684362951b3d04812bf602ae10f639e849a27ebc7f2cc.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/preimages/departments/m07-marketing/src/m7_marketing/brand/registre.py",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "c7907a58bd3288c112debfcce0fdac6f54b0c28d668dac02841c723b6a2fe0fc",
+      "sha256_original": "8c70a6638df6f60fe97684362951b3d04812bf602ae10f639e849a27ebc7f2cc",
+      "taille_archive": 590,
+      "taille_originale": 1484
+    },
+    {
+      "archive": "preuves/066-chantier.py--1f78a48531daa87de2ae84cf33f36eac282d6f616e4250a1495c88ebaae64b2d.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/preimages/departments/m07-marketing/src/m7_marketing/usine/chantier.py",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "e120fe8094728577848f4624933a463ab51d94a5c9f94e19808c0728b132b17d",
+      "sha256_original": "1f78a48531daa87de2ae84cf33f36eac282d6f616e4250a1495c88ebaae64b2d",
+      "taille_archive": 5666,
+      "taille_originale": 17330
+    },
+    {
+      "archive": "preuves/067-registre.py--fa159216608d07b01ac63d9c56828bb101daa7f73398a20734c9502663d36935.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/preimages/departments/m07-marketing/src/m7_marketing/usine/registre.py",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "7848d8646508e3262d93285013034460a43be38cace5ac6d16a56e33b5f07398",
+      "sha256_original": "fa159216608d07b01ac63d9c56828bb101daa7f73398a20734c9502663d36935",
+      "taille_archive": 3206,
+      "taille_originale": 13287
+    },
+    {
+      "archive": "preuves/068-service.py--03eae9adfce854d959fa16de87e5cead773eed32aa0527544b075aaacf4e3efe.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/preimages/departments/m07-marketing/src/m7_marketing/usine/service.py",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "d7b9c31c683b4aeeac924e90266a7382e40f0c99557df1a35758ddb171d27183",
+      "sha256_original": "03eae9adfce854d959fa16de87e5cead773eed32aa0527544b075aaacf4e3efe",
+      "taille_archive": 18011,
+      "taille_originale": 77040
+    },
+    {
+      "archive": "preuves/069-brand_ui.py--028df852b0a0b75650377c6d0d7cc974dc26ed2bf34fd3f7657ccfcb7f89b6ce.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/preimages/src/opsys/console/brand_ui.py",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "7cfc83a5dbde5ab2aaef8d3338defc78ba007418831664f698e7ca5fd5411fe0",
+      "sha256_original": "028df852b0a0b75650377c6d0d7cc974dc26ed2bf34fd3f7657ccfcb7f89b6ce",
+      "taille_archive": 3880,
+      "taille_originale": 13737
+    },
+    {
+      "archive": "preuves/070-calendrier_marketing_ui.py--ae973319f19fac1758d33ed4b4fdf6613467297aa0ac3694c5abcf1d46acdafc.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/preimages/src/opsys/console/calendrier_marketing_ui.py",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "9bcac8553ff35008b864591506ae0163590c4bcb4e4203313d3576c072b43751",
+      "sha256_original": "ae973319f19fac1758d33ed4b4fdf6613467297aa0ac3694c5abcf1d46acdafc",
+      "taille_archive": 9166,
+      "taille_originale": 38728
+    },
+    {
+      "archive": "preuves/071-metier.py--0beaeecaf17f4b6e9cfa1b17df643c087995a182de418a5d120c2b07d770f366.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/preimages/src/opsys/console/metier.py",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "616eea5e21168a0f4dc2599f020df8c61fc0d4a5704f5ec3487f572d3697309e",
+      "sha256_original": "0beaeecaf17f4b6e9cfa1b17df643c087995a182de418a5d120c2b07d770f366",
+      "taille_archive": 3824,
+      "taille_originale": 15751
+    },
+    {
+      "archive": "preuves/072-test_inbox_durable.py--c883608586027b2a9132a827277cbebe5afbf68db3cea4adf654cd91b95ab4d8.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/preimages-correction-r2/departments/m07-marketing/tests/reputation/test_inbox_durable.py",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "7badec70c299e3dc1c7361c4425e4fd6cef0025b9d848aecf37869ae4c8260a7",
+      "sha256_original": "c883608586027b2a9132a827277cbebe5afbf68db3cea4adf654cd91b95ab4d8",
+      "taille_archive": 2264,
+      "taille_originale": 8400
+    },
+    {
+      "archive": "preuves/073-brand_ui.py--78eeb9cf644c6e6acf32c819e3209cc81008b98608730ab7fbe384dd268fad1d.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/preimages-correction-r2/src/opsys/console/brand_ui.py",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "d447e2cd9ec76afff9d78bf1e877b473f8ec523e1744d20bf2c76c73d5671bf0",
+      "sha256_original": "78eeb9cf644c6e6acf32c819e3209cc81008b98608730ab7fbe384dd268fad1d",
+      "taille_archive": 4765,
+      "taille_originale": 17487
+    },
+    {
+      "archive": "preuves/074-preimages.json--190f5a6d1e8afa3b4aabbfa43144ab63b633db336878c08fd22d7851fdbc7a71.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/preimages.json",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "6f18e74a3236615ccfbbf4dc5a3b952dba4664fe16bba70fe80db29d72df73f8",
+      "sha256_original": "190f5a6d1e8afa3b4aabbfa43144ab63b633db336878c08fd22d7851fdbc7a71",
+      "taille_archive": 508,
+      "taille_originale": 1199
+    },
+    {
+      "archive": "preuves/075-qualite-finale-r2.json--b482e37abdbe256faa83c5c4320f857a14a46b5bcde9bcd2f41cdd3bc4164c6e.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/qualite-finale-r2.json",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "8188203c862aed2af5dfb1d518de585224c92a35c2d08571cfca5d355e3db7ce",
+      "sha256_original": "b482e37abdbe256faa83c5c4320f857a14a46b5bcde9bcd2f41cdd3bc4164c6e",
+      "taille_archive": 843,
+      "taille_originale": 2215
+    },
+    {
+      "archive": "preuves/076-qualite-finale-r2.log--82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/qualite-finale-r2.log",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+      "sha256_original": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "taille_archive": 39,
+      "taille_originale": 19
+    },
+    {
+      "archive": "preuves/077-rapport-final-r2.md--b870cdf5221aefbb89ba50c67b65715187dba6a5c157761bfa4c23e690ff172e.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/rapport-final-r2.md",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "e0f8b26af55a8d902e547850c5e0afe0e00b5a286193a0210124ba3254d90ce8",
+      "sha256_original": "b870cdf5221aefbb89ba50c67b65715187dba6a5c157761bfa4c23e690ff172e",
+      "taille_archive": 2739,
+      "taille_originale": 5706
+    },
+    {
+      "archive": "preuves/078-reader-green-r1.log--1095112e245b0dba63d6dc031c0e2606e4e66299e20e6800d114c732f11f898d.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/reader-green-r1.log",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "95f6ef4317532ccfc325efe08544788c286d7fe7c52a1a89cc5ddf01173d1893",
+      "sha256_original": "1095112e245b0dba63d6dc031c0e2606e4e66299e20e6800d114c732f11f898d",
+      "taille_archive": 52,
+      "taille_originale": 99
+    },
+    {
+      "archive": "preuves/079-reader-green-r1.xml--875c57ebf195332d9d5ae1d03548b44fe345b0ce4fba6802cbfa273edf9baea8.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/reader-green-r1.xml",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "1412f31bf38a2abf454c5ecd608dd85d69bdc205797db79d104c85e276f1beca",
+      "sha256_original": "875c57ebf195332d9d5ae1d03548b44fe345b0ce4fba6802cbfa273edf9baea8",
+      "taille_archive": 424,
+      "taille_originale": 1706
+    },
+    {
+      "archive": "preuves/080-reader-red-r1.log--f2a419f15cab1148bf2619664c169ae13dc2114fe6559e1d877d988cf5d1df4a.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/reader-red-r1.log",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "95b6fd5d159de78f8e13c94a78a0d65f909b84ea0ce226479a78fa1ad578866b",
+      "sha256_original": "f2a419f15cab1148bf2619664c169ae13dc2114fe6559e1d877d988cf5d1df4a",
+      "taille_archive": 349,
+      "taille_originale": 814
+    },
+    {
+      "archive": "preuves/081-reader-red-r1.xml--d8fa77e461df0403f51097eeb49fa97480ac7549898ee36da2af17d1da107195.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/reader-red-r1.xml",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "66a2dbdeaf04eae2c2eb3836019e0187c138319253e2c3a445172100c833a41a",
+      "sha256_original": "d8fa77e461df0403f51097eeb49fa97480ac7549898ee36da2af17d1da107195",
+      "taille_archive": 454,
+      "taille_originale": 814
+    },
+    {
+      "archive": "preuves/082-reader-red-r2.log--bc951b4e546d48175a439bd58d5aa5ec2f6b08762d657e19c43eee862ff63f4d.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/reader-red-r2.log",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "7d364a752b9bbab6d8989a4bd32182f83acabf5149e2ee48af64e5f3580059dd",
+      "sha256_original": "bc951b4e546d48175a439bd58d5aa5ec2f6b08762d657e19c43eee862ff63f4d",
+      "taille_archive": 2012,
+      "taille_originale": 13980
+    },
+    {
+      "archive": "preuves/083-reader-red-r2.xml--fb27c14bf35a31ebee43269c7faddd97b9b3051b916b6e7f49f8c42edfc6a534.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/reader-red-r2.xml",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "cf04c688f0661e04abdb1dbad3f4697b3b48657243272772662c2064c53ce52d",
+      "sha256_original": "fb27c14bf35a31ebee43269c7faddd97b9b3051b916b6e7f49f8c42edfc6a534",
+      "taille_archive": 2235,
+      "taille_originale": 16298
+    },
+    {
+      "archive": "preuves/084-regressions-r1.log--b6e6fd1f8a12645cb842e07c890c9c5764c82483572270075a8e912ba8ac8b41.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/regressions-r1.log",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "57799fcc2c796a8a38a6eeb4b534a812ee7a6d49ffb3774fda49a5095ac078df",
+      "sha256_original": "b6e6fd1f8a12645cb842e07c890c9c5764c82483572270075a8e912ba8ac8b41",
+      "taille_archive": 10106,
+      "taille_originale": 98130
+    },
+    {
+      "archive": "preuves/085-regressions-r1.xml--23680f991e0a5d7a68c068af6482fa1ebf7c32501c260767519fce462d8ac53c.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/regressions-r1.xml",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "e05777678662254e18803d276f62bd0f01c36d10a66797d8d004e3e1dc042eac",
+      "sha256_original": "23680f991e0a5d7a68c068af6482fa1ebf7c32501c260767519fce462d8ac53c",
+      "taille_archive": 17475,
+      "taille_originale": 186933
+    },
+    {
+      "archive": "preuves/086-regressions-r2.log--7e4712e5a5064fc88c561a330620ca38b3bfcc77f6dcf57049a931fa9d2ea15a.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/regressions-r2.log",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "b87634d19ffd0403bbbe9fb1a5183b211fea1e4136305abd5ad34578a9300075",
+      "sha256_original": "7e4712e5a5064fc88c561a330620ca38b3bfcc77f6dcf57049a931fa9d2ea15a",
+      "taille_archive": 647,
+      "taille_originale": 3965
+    },
+    {
+      "archive": "preuves/087-regressions-r2.xml--acbe786b2f8271c41513dbac9ad9954cf1f066f6dde46c6e1bff0ab2636e3bce.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/regressions-r2.xml",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "fa55757bfa210670134301c4e60b333f7d11c430ef6f78626ef35c7673a25ca1",
+      "sha256_original": "acbe786b2f8271c41513dbac9ad9954cf1f066f6dde46c6e1bff0ab2636e3bce",
+      "taille_archive": 723,
+      "taille_originale": 4008
+    },
+    {
+      "archive": "preuves/088-regressions-r3.log--35b5f6364a9872e567054252a01524ac46af21c6b58c20dc5430e56a1b90c331.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/regressions-r3.log",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "808da21f44641688c1236aa1b7b7d8aaf308f5952c1ca0c70845b650aa38ee26",
+      "sha256_original": "35b5f6364a9872e567054252a01524ac46af21c6b58c20dc5430e56a1b90c331",
+      "taille_archive": 84,
+      "taille_originale": 501
+    },
+    {
+      "archive": "preuves/089-regressions-r3.xml--d3026441a70b24a557c360e1973060e0ea7d6f3cb9ed03f14137955c7da6761e.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/regressions-r3.xml",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "6b19edb45a9d3f9a2094fe5c0250f2e9ea4707cd4b18fae76e55c118db7817e5",
+      "sha256_original": "d3026441a70b24a557c360e1973060e0ea7d6f3cb9ed03f14137955c7da6761e",
+      "taille_archive": 9643,
+      "taille_originale": 94378
+    },
+    {
+      "archive": "preuves/090-reputation-correction-r2.log--9b9921f86fd6b3152506ee10296cc7b68c4c8079c5375e81d0c985a4d7422124.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/reputation-correction-r2.log",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "41b841f59436e98aa2daa694a4434338e36b8c007abb1f6d26a469b388233da1",
+      "sha256_original": "9b9921f86fd6b3152506ee10296cc7b68c4c8079c5375e81d0c985a4d7422124",
+      "taille_archive": 51,
+      "taille_originale": 98
+    },
+    {
+      "archive": "preuves/091-reputation-correction-r2.xml--ea777a13d23c766a663f634a91e057e14f722e8e9e834e88ab7289ae62a766f7.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/reputation-correction-r2.xml",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "515217db6d05ae2ada4da4d8b1d62c3262c29c4bcc258a32861f372febf7d4fb",
+      "sha256_original": "ea777a13d23c766a663f634a91e057e14f722e8e9e834e88ab7289ae62a766f7",
+      "taille_archive": 428,
+      "taille_originale": 1088
+    },
+    {
+      "archive": "preuves/092-validation-livrable-final-r2.json--7c871006c709662f1d0d2cd77ce6592550e2974a7fec20abb6c02c790407c952.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/validation-livrable-final-r2.json",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "582fe7229a73981b77c220a3076f95b80b9a885f27a600721fdf6e1fb8753eed",
+      "sha256_original": "7c871006c709662f1d0d2cd77ce6592550e2974a7fec20abb6c02c790407c952",
+      "taille_archive": 867,
+      "taille_originale": 2146
+    },
+    {
+      "archive": "preuves/093-verification-final-r1.py--8aa206d750dc97cb0542018b34d7dbd53c190a47724afb5e5be3d831689dfde1.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/verification-final-r1.py",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "212fa394401562fef1bb7971467a9e095b54659e93e48b05f77c7c83beb2d607",
+      "sha256_original": "8aa206d750dc97cb0542018b34d7dbd53c190a47724afb5e5be3d831689dfde1",
+      "taille_archive": 1426,
+      "taille_originale": 2907
+    },
+    {
+      "archive": "preuves/094-verification-final-r2.py--0af16ca65d47cf7bc7a3b580cafeab3d7570f8f2008fa4687894bb6dda4b9699.gz",
+      "origine": "/workspace/restructuration-opsys-2026-10-02/marketing-r44a-implementation-r1/verification-final-r2.py",
+      "qualification": "R44a local : préimages/rouges/diagnostics/reprises ; finale1136 et sous-ensemble39 non additionnables",
+      "sha256_archive": "ace37cbdb1ab72f51e7b06599da24823691206af238cc7342d0a4af695a5ac24",
+      "sha256_original": "0af16ca65d47cf7bc7a3b580cafeab3d7570f8f2008fa4687894bb6dda4b9699",
+      "taille_archive": 1428,
+      "taille_originale": 2907
+    }
+  ],
+  "campagnes": [
+    {
+      "additionnable": false,
+      "commande": [
+        "/workspace/audit-opsys-2026-09-30/venv/bin/python",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-o",
+        "addopts=",
+        "-p",
+        "no:cacheprovider",
+        "--import-mode=importlib",
+        "departments/m07-marketing/tests",
+        "tests/test_marketing_marque_snapshot.py",
+        "tests/test_console_marketing_marque_usine.py",
+        "tests/test_console_brand.py",
+        "tests/test_console_calendrier_marketing.py",
+        "tests/test_console_metier.py",
+        "tests/test_deploy_install_readiness.py",
+        "tests/test_bootstrap_serveur.py::test_installateur_valide_avant_lancement_et_garde_readiness",
+        "tests/test_bootstrap_serveur.py::test_bootstrap_frais_reference_auth_et_generation_reelle",
+        "--junitxml=/workspace/restructuration-opsys-2026-09-30/preuves/marketing-installation-root-r1-2026-10-02.xml"
+      ],
+      "compteurs": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 1172
+      },
+      "counts": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 1172
+      },
+      "debut_utc": "2026-10-02T13:08:48.220694+00:00",
+      "exit_code": 0,
+      "fin_utc": "2026-10-02T13:09:48.591832+00:00",
+      "prefix": "marketing-installation-root-r1-2026-10-02",
+      "receipt_sha256": "c6d0083653b1c80b1dbb305dfc6afae3466aa596186d52c06205f8bc6bbb22df",
+      "sources_count": 1124
+    },
+    {
+      "additionnable": false,
+      "commande": [
+        "/workspace/audit-opsys-2026-09-30/venv/bin/python",
+        "-B",
+        "-c",
+        "import json,subprocess; from pathlib import Path; r=Path(\"/workspace/OPSYS-AI-recent\"); s=json.loads(Path(\"/workspace/poursuite-opsys-2026-10-02-r1/R44-R45-supplement-root-r1.json\").read_text()); py=[p for p in s if p.endswith(\".py\")]+[\"tests/test_deploy_install_readiness.py\"]; cmds=[[\"/workspace/audit-opsys-2026-09-30/venv/bin/ruff\",\"check\",\"--no-cache\",*py],[\"bash\",\"-n\",\"deploy/install.sh\"],[\"git\",\"diff\",\"--check\",\"--\",*s]]; results=[subprocess.run(c,cwd=r).returncode for c in cmds]; print(json.dumps({\"codes\":results})); raise SystemExit(max(results))"
+      ],
+      "compteurs": null,
+      "counts": null,
+      "debut_utc": "2026-10-02T13:10:45.878489+00:00",
+      "exit_code": 0,
+      "fin_utc": "2026-10-02T13:10:45.942976+00:00",
+      "prefix": "marketing-installation-qualite-root-r1-2026-10-02",
+      "receipt_sha256": "3b75e71e393828b86b1f1722f7273af13678c776726c0ba980284972cd855dee",
+      "sources_count": 1124
+    }
+  ],
+  "limites": "R44a : profil canonique → usine existante, preuve de marque et fraîcheur console/service, révision explicite. ROOT combinée1172=1136M7+36R45 disjoints ; 39 nouveaux cas inclus1136. Aucun total entre campagnes. ROOT1124 sources stables ; contrôle courant limité aux11 capsules R44. Premier complet local1131P5F fixture import interne ; correction import direct sans changer35 assertions. Rouges de collecte et métier préservés ; anciens résultats non réattribués au gel. SQLite/HTTP TestClient réels, WCT/personnes/marque fictifs ; pas PG atomique, OAuth/publication, modèle ou VPS. MCP générique peut rejouer un reçu historique avant service ; fraîcheur universelle non prouvée. R44b édition humaine des textes reste distincte. Collecteur sans test/service ; publication ROOT après revue.",
+  "schema": "opsys.r44-manifest/v1"
+}

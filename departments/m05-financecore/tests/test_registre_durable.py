@@ -339,3 +339,42 @@ def test_registre_des_factures_relu_par_une_nouvelle_instance_apres_redemarrage(
     assert relu.lire()[0]["montant_avant_taxes"] == Decimal("600.00")
     assert type(relu.lire()[0]["montant_avant_taxes"]) is Decimal
     assert relu.valider_chaine() == (True, "")
+
+
+def test_collision_facture_id_durable_preserve_facture_envoyee_et_ar_apres_relecture(base_durable):
+    taux, erreurs = taux_fiscaux.charger_taux_fiscaux(_CHEMIN_TAUX_FISCAUX)
+    assert erreurs == []
+    ecrivain = registre.Registre(maillons=stockage.maillons(_DEPARTEMENT, "factures"))
+    with stockage.transaction():
+        facture, verdict = facturation.creer_facture_brouillon(
+            facture_id="FACT-DURABLE-COLLISION", chantier_id="CHANTIER-001", devis_id="DEVIS-001",
+            client_id="CLIENT-001", lignes=_LIGNES_FACTURE, horodatage=HORODATAGE,
+            dictionnaire_taux=taux, registre_cible=ecrivain,
+        )
+        assert verdict is None
+        _, verdict = facturation.envoyer_facture(
+            "FACT-DURABLE-COLLISION", "2026-08-10T09:00:00+00:00", ecrivain
+        )
+        assert verdict is None
+
+    relu = registre.Registre(maillons=stockage.maillons(_DEPARTEMENT, "factures"))
+    avant = relu.lire()
+    ar_avant, verdict = facturation.calculer_age_creances(relu, "2026-08-11")
+    assert verdict is None
+    with stockage.transaction():
+        conflit, verdict = facturation.creer_facture_brouillon(
+            facture_id="FACT-DURABLE-COLLISION", chantier_id="CHANTIER-001", devis_id="DEVIS-002",
+            client_id="CLIENT-001", lignes=_LIGNES_FACTURE, horodatage=HORODATAGE,
+            dictionnaire_taux=taux, registre_cible=relu,
+        )
+    assert conflit is None
+    assert verdict is not None and verdict["code"] == "REJ-FACTURE-DEVIS-DEJA-FACTURE"
+    assert "facture_id" in verdict["detail"]
+
+    apres_redemarrage = registre.Registre(maillons=stockage.maillons(_DEPARTEMENT, "factures"))
+    assert apres_redemarrage.lire() == avant
+    etat = facturation.facture_active_pour_devis(apres_redemarrage, "DEVIS-001")
+    assert etat["devis_id"] == "DEVIS-001" and etat["statut"] == "ENVOYEE"
+    ar_apres, verdict = facturation.calculer_age_creances(apres_redemarrage, "2026-08-11")
+    assert verdict is None and ar_apres == ar_avant
+    assert apres_redemarrage.valider_chaine() == (True, "")

@@ -1,0 +1,9 @@
+{
+  "archives": 36,
+  "liens": 14,
+  "qualification_sha256": "9d377c616e769a79653d8024a4a020ef374db2be8d767241ff61d98b1490eb35",
+  "roundtrip_integral": true,
+  "schema": "opsys.r30-post-check/v1",
+  "sources_docs_et_historique_stables": true,
+  "tests_lances": false
+}

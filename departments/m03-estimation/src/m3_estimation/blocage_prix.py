@@ -154,10 +154,9 @@ def decider_blocage(niveau_confiance, qualification):
         # INDETERMINE — l'échappatoire « on ne sait pas pourquoi » (D-032) —
         # alors qu'une cause nommable existe : la raison exacte du blocage
         # serait perdue et remplacée par un aveu d'ignorance injustifié.
-        if qualite_insuffisante:
-            verdict_estimation = VERDICT_QUALITE_INSUFFISANTE
-        else:
-            verdict_estimation = VERDICT_INDETERMINE
+        verdict_estimation = (
+            VERDICT_QUALITE_INSUFFISANTE if qualite_insuffisante else VERDICT_INDETERMINE
+        )
         return {
             "prix_bloque": True,
             "verdict_estimation": verdict_estimation,

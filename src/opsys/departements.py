@@ -119,11 +119,30 @@ class Departement:
     def numero(self) -> int:
         return int(self.code[1:])
 
-    def charger_outils(self) -> tuple[Outil, ...]:
-        """Importe `module_outils.OUTILS` et vérifie le préfixe et l'unicité des noms."""
+    def charger_outils(
+        self, *, ports_prives: Mapping[str, Any] | None = None
+    ) -> tuple[Outil, ...]:
+        """Importe les outils et vérifie le préfixe et l'unicité des noms.
+
+        `ports_prives` est un raccord interne M4/M7→M5, jamais lu dans un manifeste.
+        Le port M7 projette trois outils privés absents du catalogue par défaut/MCP.
+        """
         module = importlib.import_module(self.module_outils)
         fabrique = getattr(module, "outils", None)
-        outils = tuple(fabrique() if callable(fabrique) else getattr(module, "OUTILS", ()))
+        ports = dict(ports_prives or {})
+        if ports and (
+            self.id != "m05-financecore"
+            or self.module_outils != "m5_financecore.outils"
+            or not set(ports) <= {"lecteur_heures_m4", "lecteur_campagne_m7"}
+            or not all(callable(port) for port in ports.values())
+        ):
+            raise ValueError(f"{self.id} : port privé non autorisé")
+        if callable(fabrique):
+            outils = tuple(fabrique(**ports) if ports else fabrique())
+        else:
+            if ports:
+                raise ValueError(f"{self.id} : une fabrique outils() est requise pour un port privé")
+            outils = tuple(getattr(module, "OUTILS", ()))
         if not outils:
             raise ValueError(f"{self.id} : {self.module_outils} n'expose ni outils() ni OUTILS")
         vus: set[str] = set()
@@ -368,14 +387,21 @@ def dependances_manquantes(departements: Mapping[str, Departement]) -> dict[str,
     return manquantes
 
 
-def tous_les_outils(departements: Iterable[Departement]) -> dict[str, tuple[Departement, Outil]]:
+def tous_les_outils(
+    departements: Iterable[Departement],
+    *,
+    ports_prives: Mapping[str, Mapping[str, Any]] | None = None,
+) -> dict[str, tuple[Departement, Outil]]:
     """Index global nom d'outil -> (département, outil), avec contrôle d'unicité."""
     index: dict[str, tuple[Departement, Outil]] = {}
+    ports = dict(ports_prives or {})
     for dep in departements:
-        for outil in dep.charger_outils():
+        for outil in dep.charger_outils(ports_prives=ports.pop(dep.id, None)):
             if outil.nom in index:
                 raise ValueError(f"outil {outil.nom} déclaré par deux départements")
             index[outil.nom] = (dep, outil)
+    if ports:
+        raise ValueError(f"ports privés pour départements absents : {sorted(ports)}")
     return index
 
 

@@ -22,6 +22,10 @@ function blocMutation(index: number, statut: StatutMutation, overrides: Partial<
 }
 
 describe("calculerEtatEnvoiFichier", () => {
+  test("des lignes dupliquées pour le même index ne prouvent jamais la complétude", () => {
+    const etat = calculerEtatEnvoiFichier([blocMutation(0, "envoyee"), blocMutation(0, "envoyee")], "I1", SHA);
+    expect(etat).toMatchObject({ statut: "en_cours", blocsEnvoyes: 1, nombreBlocs: 3 });
+  });
   test("aucune mutation -> non_demarre", () => {
     expect(calculerEtatEnvoiFichier([], "I1", SHA)).toEqual({
       statut: "non_demarre",

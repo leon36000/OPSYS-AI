@@ -6,7 +6,7 @@ une base SQLite temporaire migrée — jamais une simulation en mémoire.
 M7 prépare une demande d'avis EN BROUILLON (écriture interne au registre du département, jamais
 un envoi) seulement si le client a consenti à être contacté pour un avis (`consentement_demande_avis`,
 PLAN T1.5-d, distinct de `consentement_marketing`), preuve à l'appui (qui l'a recueilli, quand, quel
-texte), et que `client_satisfait` n'est pas faux ; tout champ absent vaut refus, fail-closed
+texte) ; la satisfaction ne filtre jamais les clients consentants
 (`reputation/demande_avis.py`, testé isolément dans `tests/reputation/test_demande_avis.py`). Ce
 fichier prouve l'intégration réelle : bus, manifeste, registre durable, taxonomie, idempotence.
 
@@ -137,13 +137,16 @@ def test_consentement_faux_et_client_insatisfait_ne_depose_aucun_brouillon(base_
     assert _demandes_avis() == []
 
 
-def test_client_insatisfait_seul_ne_depose_aucun_brouillon(base_durable, departements):
-    """Le consentement vrai ne suffit pas : `client_satisfait = false` refuse aussi."""
+def test_client_insatisfait_consentant_recoit_le_meme_brouillon_neutre_a_approuver(base_durable, departements):
     charge = _wct_consenti(wct_id="wct-m7-client-insatisfait", client_satisfait=False)
     evenements.publier("m4.travaux_termines", "m04-field-ops", charge)
 
     evenements.repartir(departements, maintenant="2026-09-28T18:00:00+00:00")
-    assert _demandes_avis() == []
+    demandes = _demandes_avis()
+    assert len(demandes) == 1
+    assert demandes[0]["approval_status"] == "PROPOSE"
+    assert "Si vous le souhaitez" in demandes[0]["texte"]
+    assert "honnête" in demandes[0]["texte"]
 
 
 def test_le_consentement_aux_photos_ne_depose_aucun_brouillon_d_avis(base_durable, departements):

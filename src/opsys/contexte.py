@@ -1,8 +1,9 @@
 """Contexte ambiant d'un appel d'outil : ce que la plateforme fixe, jamais le modèle.
 
-Le serveur MCP fixe le département appelant selon le point d'accès appelé (`/mcp/<département>`) ;
-la file d'approbation le fixe au département qui a créé la demande. Les outils qui cloisonnent
-(mémoire d'entreprise, budgets) le lisent ici.
+Le répartiteur pose le département propriétaire de l'outil en cours et, séparément, son origine fiable
+depuis le point d'accès MCP lié (`/mcp/contexte/<département>`). L'origine sert aux vues cloisonnées :
+un outil appelé au nom d'un département ne peut pas choisir le destinataire par ses arguments. La file
+d'approbation fixe les deux au département qui a créé la demande.
 
 Une mutation d'appareil idempotente (`opsys.idempotence`, T1.4-b) fixe en plus les deux horloges de
 l'appel (contrat : `docs/architecture/IDEMPOTENCE.md`, modèle de synchro : R12 §4) : celle de
@@ -31,16 +32,30 @@ from typing import Any
 DEPARTEMENT_APPELANT: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "opsys_departement_appelant", default=None
 )
+DEPARTEMENT_ORIGINE_APPELANT: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "opsys_departement_origine_appelant", default=None
+)
 
 
 @contextlib.contextmanager
-def appeler_en_tant_que(departement: str | None) -> Iterator[None]:
-    """Fixe le département appelant pour les appels faits dans ce contexte (None = aucun)."""
+def appeler_en_tant_que(departement: str | None, *, origine: str | None = None) -> Iterator[None]:
+    """Fixe le département qui exécute l'outil et son origine fiable (None = aucun).
+
+    `origine` est fixé par le répartiteur depuis son point d'accès MCP, jamais depuis les arguments.
+    Sans valeur explicite, il suit `departement` pour les appels internes et les approbations.
+    """
     jeton = DEPARTEMENT_APPELANT.set(departement)
+    jeton_origine = DEPARTEMENT_ORIGINE_APPELANT.set(origine if origine is not None else departement)
     try:
         yield
     finally:
+        DEPARTEMENT_ORIGINE_APPELANT.reset(jeton_origine)
         DEPARTEMENT_APPELANT.reset(jeton)
+
+
+def departement_origine_appelante() -> str | None:
+    """Département d'origine fiable du répartiteur en cours, ou None hors d'un appel."""
+    return DEPARTEMENT_ORIGINE_APPELANT.get()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -91,11 +106,37 @@ class IdentiteAppelante:
 
     personne: str
     role: str
+    # Établie par l'adaptateur serveur; le parseur MCP ne lit jamais une source depuis `_meta`.
+    source: str = "appareil"
 
 
 _IDENTITE_APPELANTE: contextvars.ContextVar[IdentiteAppelante | None] = contextvars.ContextVar(
     "opsys_identite_appelante", default=None
 )
+
+_TICKET_AGENT_CFO: contextvars.ContextVar[tuple[str, dict[str, Any]] | None] = contextvars.ContextVar(
+    "opsys_ticket_agent_cfo", default=None
+)
+
+
+@contextlib.contextmanager
+def appele_avec_ticket_agent_cfo(ticket: str | None, tool_arguments: Mapping[str, Any] | None = None) -> Iterator[None]:
+    """Fixe un ticket opaque émis par la route runtime privée; aucun champ d'argument n'est lu."""
+    jeton = _TICKET_AGENT_CFO.set((ticket, dict(tool_arguments or {})) if ticket is not None else None)
+    try:
+        yield
+    finally:
+        _TICKET_AGENT_CFO.reset(jeton)
+
+
+def ticket_agent_cfo() -> str | None:
+    value = _TICKET_AGENT_CFO.get()
+    return value[0] if value else None
+
+
+def arguments_ticket_agent_cfo() -> dict[str, Any] | None:
+    value = _TICKET_AGENT_CFO.get()
+    return dict(value[1]) if value else None
 
 
 @contextlib.contextmanager
@@ -132,9 +173,7 @@ def identite_appelante() -> IdentiteAppelante | None:
 
 # -- demande approuvée en cours d'exécution (T4.15-c) --------------------------------------------
 
-_DEMANDE_APPROUVEE: contextvars.ContextVar[str | None] = contextvars.ContextVar(
-    "opsys_demande_approuvee", default=None
-)
+_DEMANDE_APPROUVEE: contextvars.ContextVar[str | None] = contextvars.ContextVar("opsys_demande_approuvee", default=None)
 
 
 @contextlib.contextmanager
@@ -169,7 +208,6 @@ def depuis_meta_mcp_identite(meta: Mapping[str, Any] | None) -> IdentiteAppelant
     if not meta:
         return None
     personne, role = meta.get(PERSONNE_META), meta.get(ROLE_META)
-    if (not isinstance(personne, str) or not personne.strip()
-            or not isinstance(role, str) or not role.strip()):
+    if not isinstance(personne, str) or not personne.strip() or not isinstance(role, str) or not role.strip():
         return None
     return IdentiteAppelante(personne=personne.strip(), role=role.strip())

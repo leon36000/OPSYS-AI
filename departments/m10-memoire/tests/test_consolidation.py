@@ -145,6 +145,29 @@ def test_consolider_affaire_rejouee_la_meme_nuit_ne_cree_rien_de_plus():
     assert len(registre_affaires.lire()) == 1
 
 
+def test_consolider_affaire_ajoute_les_sources_arrivees_apres_sans_doublonner():
+    registre_evenements, registre_affaires = _registres()
+    wct.memoriser_wct(_wct(wct_id="WCT-1"), registre_evenements)
+    consolidation.consolider_affaire(
+        "LEAD-1", JOUR, HORODATAGE_CONSOLIDATION, registre_evenements, registre_affaires
+    )
+    wct.memoriser_wct(_wct(wct_id="WCT-2"), registre_evenements)
+
+    tardif = consolidation.consolider_affaire(
+        "LEAD-1", JOUR, HORODATAGE_CONSOLIDATION, registre_evenements, registre_affaires
+    )
+    rejoue = consolidation.consolider_affaire(
+        "LEAD-1", JOUR, "2026-09-16T04:30:00-04:00", registre_evenements, registre_affaires
+    )
+
+    assert tardif["ecrit"] is True and tardif["deja_consolide"] is False
+    assert [s["identifiant"] for s in tardif["fait"]["sources"]] == ["WCT-1", "WCT-2"]
+    assert tardif["fait"]["resume"] == "2 travaux terminés"
+    assert rejoue["ecrit"] is False and rejoue["deja_consolide"] is True
+    assert rejoue["fait"]["ligne_id"] == tardif["fait"]["ligne_id"]
+    assert len(registre_affaires.lire()) == 2  # l'ancien résumé est conservé, une seule nouvelle version agrégée
+
+
 def test_consolider_affaire_un_nouveau_jour_cree_un_nouveau_fait():
     registre_evenements, registre_affaires = _registres()
     wct.memoriser_wct(

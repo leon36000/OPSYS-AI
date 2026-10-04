@@ -192,6 +192,32 @@ def test_memoriser_wct_meme_wct_id_deux_fois_ne_duplique_pas(registre_cible):
     assert len(registre_cible.lire()) == 1
 
 
+def test_maillon_historique_incomplet_echoue_ferme_sans_affirmer_rejeu():
+    ancien = registre.Registre(
+        [{"type_entree": "evenement_memorise", "wct_id": "WCT-001", "duree_reelle_minutes": 90}]
+    )
+
+    maillon, code = wct.memoriser_wct(_wct(), ancien)
+
+    assert maillon is None
+    assert code == wct.REJ_WCT_CONFLIT
+    assert len(ancien.lire()) == 1
+
+
+def test_memoriser_wct_refuse_un_payload_different_sous_meme_id(registre_cible):
+    original = _wct()
+    maillon, code = wct.memoriser_wct(original, registre_cible)
+    change = dict(original, duree_reelle_minutes=1)
+
+    replay, replay_code = wct.memoriser_wct(change, registre_cible)
+
+    assert code is None
+    assert maillon is not None
+    assert replay is None
+    assert replay_code == wct.REJ_WCT_CONFLIT
+    assert len(registre_cible.lire()) == 1
+
+
 def test_memoriser_wct_idempotent_naffecte_pas_un_wct_id_different(registre_cible):
     premier, _ = wct.memoriser_wct(_wct(), registre_cible)
 

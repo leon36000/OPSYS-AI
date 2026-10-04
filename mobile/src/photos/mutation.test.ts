@@ -50,11 +50,11 @@ describe("construireMutationPhotoUpload", () => {
 describe("listerPhotosDuChantier", () => {
   test("ne retient que les photo_upload brouillon du chantier, toutes natures confondues", () => {
     const mutations: MutationOutbox[] = [
-      construireMutationPhotoUpload({ ...PHOTO, nature: "avant" }, () => "p1", HORLOGE),
-      construireMutationPhotoUpload({ ...PHOTO, nature: "apres" }, () => "p2", HORLOGE),
+      { ...construireMutationPhotoUpload({ ...PHOTO, nature: "avant" }, () => "p1", HORLOGE), proprietaire: "A" },
+      { ...construireMutationPhotoUpload({ ...PHOTO, nature: "apres" }, () => "p2", HORLOGE), proprietaire: "A" },
       construireMutationPhotoUpload({ ...PHOTO, chantierId: "I2" }, () => "p3", HORLOGE),
       { ...construireMutationPhotoUpload(PHOTO, () => "p4", HORLOGE), statut: "envoyee" },
     ];
-    expect(listerPhotosDuChantier(mutations, "I1").map((m) => m.id)).toEqual(["p1", "p2"]);
+    expect(listerPhotosDuChantier(mutations, "I1", "A").map((m) => m.id)).toEqual(["p1", "p2"]);
   });
 });

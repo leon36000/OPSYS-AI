@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDeferred } from "../../../test/helpers/promise.js";
-import { setAvatarGatewayOrigin } from "./identity-avatar-context.ts";
+import { fetchGatewayContextResource, setAvatarGatewayOrigin } from "./identity-avatar-context.ts";
 import { resolveAvatarImageUrl, retainAvatarImageUrl } from "./identity-avatar-loader.ts";
 import { resolveAvatar, resolveIdentityHue } from "./identity-avatar.ts";
 
@@ -13,6 +13,32 @@ afterEach(() => {
   setAvatarGatewayOrigin(null);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+it("aborts a private resource request when its owning view is retired", async () => {
+  setAvatarGatewayOrigin("https://gateway.example.test", ["profile-token"]);
+  const started = createDeferred<void>();
+  const fetchResource = vi.spyOn(globalThis, "fetch").mockImplementation((_input, init) => {
+    started.resolve();
+    return new Promise((_resolve, reject) => {
+      const signal = init?.signal;
+      if (!signal) {
+        reject(new Error("Missing request signal"));
+        return;
+      }
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    });
+  });
+  const owner = new AbortController();
+  const pending = fetchGatewayContextResource("/avatar-model/main", 15_000, owner.signal);
+  await started.promise;
+  owner.abort();
+  await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  expect(fetchResource).toHaveBeenCalledOnce();
+  expect(fetchResource).toHaveBeenCalledWith(
+    "https://gateway.example.test/avatar-model/main",
+    expect.objectContaining({ credentials: "include", signal: expect.any(AbortSignal) }),
+  );
 });
 
 describe("resolveAvatar", () => {

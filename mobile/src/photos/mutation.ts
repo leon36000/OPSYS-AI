@@ -7,8 +7,8 @@ import type { NaturePhoto, PhotoCapturee } from "./types";
  * confondues — pour l'affichage des vignettes dans `photos.tsx` (`extraireReferencesPhotosLocales`,
  * `src/m4/preuvesCompletion.ts`, se limite lui à une nature et ne renvoie que des `id`, pas de
  * quoi afficher une vignette). */
-export function listerPhotosDuChantier(mutations: readonly MutationOutbox[], chantierId: string): MutationOutbox[] {
-  return mutations.filter((m) => m.type === "photo_upload" && m.chantierId === chantierId && m.statut === "brouillon");
+export function listerPhotosDuChantier(mutations: readonly MutationOutbox[], chantierId: string, proprietaire: string): MutationOutbox[] {
+  return mutations.filter((m) => m.type === "photo_upload" && m.chantierId === chantierId && m.statut === "brouillon" && m.proprietaire === proprietaire);
 }
 
 /**

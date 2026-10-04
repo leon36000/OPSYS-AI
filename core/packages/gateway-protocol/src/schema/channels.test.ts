@@ -1,6 +1,6 @@
 import { Value } from "typebox/value";
 import { describe, expect, it } from "vitest";
-import { TalkCatalogResultSchema } from "./channels.js";
+import { TalkCatalogResultSchema, TalkSessionCloseParamsSchema } from "./channels.js";
 
 function catalogWithActiveVoicePolicy(activeVoiceSelectionPolicy: unknown) {
   return {
@@ -32,5 +32,21 @@ describe("TalkCatalogResultSchema", () => {
     expect(Value.Check(TalkCatalogResultSchema, catalogWithActiveVoicePolicy("free-form"))).toBe(
       false,
     );
+  });
+});
+
+describe("TalkSessionCloseParamsSchema", () => {
+  it("accepts an optional strict discardAudio intent", () => {
+    expect(Value.Check(TalkSessionCloseParamsSchema, { sessionId: "s1" })).toBe(true);
+    expect(
+      Value.Check(TalkSessionCloseParamsSchema, { sessionId: "s1", discardAudio: false }),
+    ).toBe(true);
+    expect(Value.Check(TalkSessionCloseParamsSchema, { sessionId: "s1", discardAudio: true })).toBe(
+      true,
+    );
+    expect(
+      Value.Check(TalkSessionCloseParamsSchema, { sessionId: "s1", discardAudio: "true" }),
+    ).toBe(false);
+    expect(Value.Check(TalkSessionCloseParamsSchema, { sessionId: "s1", extra: true })).toBe(false);
   });
 });

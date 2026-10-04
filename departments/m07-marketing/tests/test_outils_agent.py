@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from m7_marketing import outils
 from m7_marketing.content import approval as content_approval
 
+from opsys import contexte, stockage
+from opsys import identite as identites
 from opsys.departements import lire_manifeste
 from opsys.outils import executer
 
@@ -28,7 +31,78 @@ def test_manifeste_et_outils_coherents():
     assert all(nom.startswith("m7_") for nom in noms)
     assert len(noms) == len(set(noms)), "outils en double"
     assert "m7_calculer_roi" in noms
+    assert "m7_lire_performance_campagnes" in noms
     assert "m7_publier_post_social" in noms
+
+
+def test_lecture_performance_refuse_un_agent_avant_toute_lecture(monkeypatch):
+    def ne_pas_lire(*args):
+        raise AssertionError("le registre financier M7 ne doit pas être lu avant l'autorisation")
+
+    monkeypatch.setattr(outils.contexte_appel, "identite_appelante", lambda: None)
+    monkeypatch.setattr(
+        outils.usine_service,
+        "_proprietaire_qui_decide",
+        lambda nom: (None, {"code": "REJ-HUMAIN-REQUIS"}),
+    )
+    monkeypatch.setattr(outils.stockage, "maillons", ne_pas_lire)
+    with pytest.raises(ValueError, match="REJ-HUMAIN-REQUIS"):
+        outils.lire_performance_campagnes("2026-09-01", "2026-09-30")
+
+
+def test_nouvel_outil_performance_est_admin_appareil_et_roi_legacy_est_fictif():
+    lecture = next(o for o in outils.outils() if o.nom == "m7_lire_performance_campagnes")
+    legacy = next(o for o in outils.outils() if o.nom == "m7_calculer_roi")
+    assert lecture.roles_appareil == frozenset({"admin"})
+    assert "DÉMONSTRATION FICTIVE" in legacy.description
+    assert outils.calculer_roi.__name__ == "calculer_roi"
+
+
+@pytest.fixture
+def base_performance(tmp_path, monkeypatch):
+    monkeypatch.setenv(stockage.ENV_URL, f"sqlite:///{tmp_path / 'performance-fictive.db'}")
+    stockage.migrer()
+    with stockage.transaction() as cnx:
+        identites.creer_personne(cnx, "nathan", "Propriétaire fictif", "mot-de-passe-fictif-123", ["nathan_owner"])
+        identites.creer_personne(cnx, "gestionnaire", "Admin fictif", "mot-de-passe-fictif-123", ["admin"])
+    yield
+    stockage.liberer()
+
+
+def test_lecture_performance_accepte_proprietaire_console_confirme(base_performance):
+    with stockage.transaction(), contexte.appele_par_appareil(
+        contexte.IdentiteAppelante("nathan", "nathan_owner", "console")
+    ):
+        resultat = outils.lire_performance_campagnes("2026-09-01", "2026-09-30")
+
+    assert resultat["couverture"] == "INCONNUE"
+    assert resultat["campagnes"] == []
+    assert resultat["observation_source"]["lignes_lues"] == 0
+
+
+def test_lecture_performance_accepte_admin_console_confirme(base_performance):
+    with stockage.transaction(), contexte.appele_par_appareil(
+        contexte.IdentiteAppelante("gestionnaire", "admin", "console")
+    ):
+        resultat = outils.lire_performance_campagnes("2026-09-01", "2026-09-30")
+
+    assert resultat["couverture"] == "INCONNUE"
+    assert resultat["campagnes"] == []
+    assert resultat["observation_source"]["lignes_lues"] == 0
+
+
+def test_lecture_performance_refuse_admin_revoque_avant_registre(monkeypatch):
+    identite = SimpleNamespace(personne="gestionnaire", role="admin", source="console")
+
+    def ne_pas_lire(*args):
+        raise AssertionError("l'identité révoquée doit être rejetée avant lecture")
+
+    monkeypatch.setattr(outils.contexte_appel, "identite_appelante", lambda: identite)
+    monkeypatch.setattr(outils.usine_service, "_appelant_confirme", lambda: None)
+    monkeypatch.setattr(outils.stockage, "maillons", ne_pas_lire)
+
+    with pytest.raises(ValueError, match="REJ-IDENTITE-APPAREIL-INVALIDE"):
+        outils.lire_performance_campagnes("2026-09-01", "2026-09-30")
 
 
 # ---------------------------------------------------------------------------
@@ -103,7 +177,7 @@ class TestProposerContenu:
             acteur="orchestrateur",
         )
         assert item["approval_status"] == "PROPOSE"
-        assert item["proposer"] == "orchestrateur"
+        assert item["proposer"] == "agent"  # le texte acteur n'est pas une identité serveur
         vus = outils.lister_file_approbation("PROPOSE")
         assert any(v["id"] == item["id"] for v in vus)
 
@@ -179,7 +253,8 @@ class TestProposerReponseAvis:
 # m7_calculer_metriques_reputation — T0, outil composé
 # ---------------------------------------------------------------------------
 def test_calculer_metriques_reputation_nominal():
-    metriques = outils.calculer_metriques_reputation()
+    fixture = outils._FIXTURES / "avis" / "avis-anonymises.v1.yaml"
+    metriques = outils.calculer_metriques_reputation(chemin_avis=str(fixture))
     assert metriques["m7_rep_total_avis"] > 0
     assert set(metriques["m7_rep_repartition_cats"]) == {"litige", "urgence", "eloge", "neutre"}
     assert 1.0 <= metriques["m7_rep_note_moyenne"] <= 5.0

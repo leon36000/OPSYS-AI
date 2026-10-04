@@ -21,7 +21,8 @@
     "onCommands": ["voicecall"]
   },
   "contracts": {
-    "tools": ["voice_call"]
+    "tools": ["voice_call"],
+    "realtimeTranscriptionProviders": ["voice-call-local-clip"]
   },
   "uiHints": {
     "provider": {
@@ -38,6 +39,10 @@
     },
     "inboundPolicy": {
       "label": "Inbound Policy"
+    },
+    "missedCallIngress": {
+      "label": "Import missed calls to OPSYS",
+      "help": "Imports verified inbound no-answer and busy calls through the admitted OPSYS profile. Disabled by default."
     },
     "allowFrom": {
       "label": "Inbound Allowlist"
@@ -275,7 +280,7 @@
       "id": "inbound-calls",
       "title": "Inbound calls",
       "order": 20,
-      "properties": ["inboundPolicy", "allowFrom", "inboundGreeting", "numbers"]
+      "properties": ["inboundPolicy", "allowFrom", "inboundGreeting", "numbers", "missedCallIngress"]
     },
     {
       "id": "outbound-calls",
@@ -339,6 +344,11 @@
     "properties": {
       "enabled": {
         "type": "boolean"
+      },
+      "missedCallIngress": {
+        "type": "boolean",
+        "default": false,
+        "description": "Import verified inbound calls ending without answer into the configured OPSYS profile."
       },
       "provider": {
         "type": "string",

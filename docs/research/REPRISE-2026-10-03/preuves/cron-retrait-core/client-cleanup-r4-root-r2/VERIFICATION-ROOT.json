@@ -1,0 +1,257 @@
+{
+  "status": "PASS",
+  "ok": true,
+  "elapsed": 6.3669279189780354,
+  "scope": {
+    "src/gateway/opsys-cron-private-client.test.ts": 30
+  },
+  "junit": {
+    "cases": 30,
+    "counts": {
+      "passed": 30,
+      "failure": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "files": [
+      "src/gateway/opsys-cron-private-client.test.ts"
+    ],
+    "cases_by_file": {
+      "src/gateway/opsys-cron-private-client.test.ts": 30
+    },
+    "testcases": [
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient > fails closed on non-loopback URLs and missing or colliding operator secrets",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient > lists only the exact owner metadata and carries the private bearer over no-store POST",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient > accepts all sixteen owner intentions within the bounded response",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient > refuses overflow, incomplete lists, duplicate identities and oversized UTF-8 metadata",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient > validates all audiences uniformly and refuses every pair collision",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient > closes outbound and configuration property-getter diagnostics",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient > projects either a validated native cron.add or the explicit removal result",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient > prepares with a fingerprint and rejects an epoch or canonical declaration mismatch",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient > acknowledges, validates, and renews only exact owner statuses",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient > hides remote error bodies and rejects duplicate JSON fields and unexpected response fields",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient > turns transport failures into a generic error without surfacing the bearer",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient > refuses throwing getters, root toJSON arrays, cycles and BigInt without leaking or fetching",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient > compares preparation with the JSON wire snapshot despite input mutation during fetch",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient > compares prepare and ACK with every scalar sent before HTTP, despite later mutation and getters",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient > stops validation before fetch or during an outstanding fetch, without exposing the abort reason",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient > cancels an outstanding response body when validation is aborted after HTTP headers",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient > rejects malformed native SHA and oversized or invalid UTF-8 responses",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient terminal cleanup > uses the private cleanup audience and binds both replies to the disabled native SHA",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient terminal cleanup > rejects an altered preparation native_revision without accepting a receipt",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient terminal cleanup > rejects an altered preparation job_id without accepting a receipt",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient terminal cleanup > rejects an altered preparation declaration_hash without accepting a receipt",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient terminal cleanup > rejects an altered preparation source_hash without accepting a receipt",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient terminal cleanup > rejects an altered preparation receipt_id without accepting a receipt",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient terminal cleanup > rejects an altered preparation execute without accepting a receipt",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient terminal cleanup > rejects an altered preparation extra without accepting a receipt",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient terminal cleanup > snapshots all preparation and ACK scalars before fetch can mutate the host input",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient terminal cleanup > closes getter errors and refuses non-SHA cleanup revisions before HTTP",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient terminal cleanup > rejects an ACK with divergent epoch",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient terminal cleanup > rejects an ACK with divergent receipt_id",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-private-client.test.ts",
+        "classname": "src/gateway/opsys-cron-private-client.test.ts",
+        "name": "OpsysCronPrivateClient terminal cleanup > rejects an ACK with divergent job_id",
+        "status": "passed"
+      }
+    ],
+    "ok": true
+  },
+  "source_drift_before": {},
+  "source_drift_after": {},
+  "artifacts": [
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/client-cleanup-r4-root-r2/RECU-ROOT.json",
+      "artifact": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/retrait-core-r4/qualification-root-r1/client-cleanup-r4-root-r2/RECU-ROOT.json.gz",
+      "source_sha256": "13e2cbbfc313ad1fcd181ff0dc2af025479e977c4a5eb482c58d06e29f147c33",
+      "archive_sha256": "b60f601190dfa1362f636608206e853b135071ad423c4488c8558a3a6ea3fe20",
+      "bytes": 16583
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/client-cleanup-r4-root-r2/format.log",
+      "artifact": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/retrait-core-r4/qualification-root-r1/client-cleanup-r4-root-r2/format.log.gz",
+      "source_sha256": "115f6f4094b99f166f83f736a28b976f939f389a192d90ec6cc6202a66d09f0a",
+      "archive_sha256": "26e79190ec5735ef088c8ce98798ef779ba66d6a492bf1204cb3d16ee04e550a",
+      "bytes": 113
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/client-cleanup-r4-root-r2/junit.xml",
+      "artifact": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/retrait-core-r4/qualification-root-r1/client-cleanup-r4-root-r2/junit.xml.gz",
+      "source_sha256": "abaa0cc5abf0a9b94ace804a92238bbbc14ffae811c7126b69cd059a8148314e",
+      "archive_sha256": "a2a8c99c38071e5a34c990c0402cd2e3d00b8fdbb7e5b038ea8088811b58a2f9",
+      "bytes": 7291
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/client-cleanup-r4-root-r2/native.log",
+      "artifact": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/retrait-core-r4/qualification-root-r1/client-cleanup-r4-root-r2/native.log.gz",
+      "source_sha256": "dbb63ffcd424e8e832a2a0e1520aa70dc4996485b53e0dab222b8f38d5ef4076",
+      "archive_sha256": "14cdea207cde896b93e7c29de7d19f0e11201a95c33c3c92a98b770efcd2d586",
+      "bytes": 381
+    }
+  ],
+  "common": {
+    "qa-root-r17-cleanup.py": {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/qa-root-r17-cleanup.py",
+      "artifact": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/retrait-core-r4/qualification-root-r1/commun/qa-root-r17-cleanup.py.gz",
+      "source_sha256": "b9601821c0f1bf7e7068d203764bc62ad485a641d38fbf9c2f03b79b2901632d",
+      "archive_sha256": "e2e1b7a7f8482c56ce77529239b855265e8733538c5f9587a71ff6a816c17462",
+      "bytes": 7495
+    },
+    "sources-frozen-r8.json.gz": {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/sources-frozen-r8.json.gz",
+      "artifact": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/retrait-core-r4/qualification-root-r1/commun/sources-frozen-r8.json.gz.gz",
+      "source_sha256": "c7a348b21779d82b04e889e23820647274c41bdf7a6afdf0afcb5645ace7c170",
+      "archive_sha256": "81722dbd74feec8198d74c60824ea1266ebe956407c75361076e4c64b5095085",
+      "bytes": 538100
+    }
+  },
+  "native_owner_config": "test/vitest/vitest.gateway-client.config.ts",
+  "hermetic_closure": false,
+  "limits": "Fixtures synth\u00e9tiques; aucun provider r\u00e9el/VPS; voir garde de chaque re\u00e7u."
+}

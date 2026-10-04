@@ -102,6 +102,11 @@ describe("interpreterResultatCompleterIntervention", () => {
     const resultat = interpreterResultatCompleterIntervention({ ok: false, erreur: "refus_metier", details: "horodatage invalide" });
     expect(resultat).toEqual({ accepte: false, verdict: { code: "refus_metier", detail: "horodatage invalide" } });
   });
+
+  test("réponse acceptée sans accusé complet reste incertaine et réessayable", () => {
+    expect(interpreterResultatCompleterIntervention({ ok: true, resultat: { accepte: true, resultat: { wct_id: "W1" } } }))
+      .toEqual({ accepte: false, verdict: { code: "accuse_invalide", detail: "Accusé de complétion incomplet ou invalide." } });
+  });
 });
 
 describe("estAccuseCompletionM4", () => {

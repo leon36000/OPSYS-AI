@@ -1,7 +1,20 @@
-import { ecrireWctIdCompletion, lireWctIdCompletion } from "./wctIdCompletion";
+import { ecrireWctIdCompletion, lireWctIdCompletion, trouverAccuseCompletion } from "./wctIdCompletion";
 import { DepotCleValeurMemoire } from "../stockage/depotCleValeur";
+import type { MutationOutbox } from "../outbox/types";
 
 describe("lireWctIdCompletion / ecrireWctIdCompletion", () => {
+  test("récupère le wct_id depuis l'accusé durable d'une complétion acceptée hors écran", () => {
+    const completion: MutationOutbox = {
+      id: "c1", sequence: 1, type: "job_completion", chantierId: "I1", payload: {}, dependsOn: null,
+      statut: "envoyee", tentatives: 0, createdAtLocal: "2026-09-30T10:00:00-04:00", prochaineTentativeA: null,
+      proprietaire: "A", resumeAccepte: {
+        wct_id: "W1", intervention_id: "I1", ligne_id: "L1", statut: "completed_verified",
+        hash_maillon: "h", duree_reelle_minutes: 30, ecart_signale: false, tete_chaine: null,
+      },
+    };
+    expect(trouverAccuseCompletion([completion], "I1")).toBe("W1");
+    expect(trouverAccuseCompletion([{ ...completion, resumeAccepte: null }], "I1")).toBeNull();
+  });
   test("rien de mémorisé -> null", async () => {
     const depot = new DepotCleValeurMemoire();
     expect(await lireWctIdCompletion(depot, "I1")).toBeNull();

@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, Inexact, Rounded, localcontext
 from pathlib import Path
 
 from m5_financecore import taux_fiscaux, taxes
@@ -78,6 +78,25 @@ def test_calculer_taxes_est_reproductible():
     second, _ = taxes.calculer_taxes(Decimal("37.42"), dictionnaire)
 
     assert premier == second
+
+
+def test_calculer_taxes_est_independant_du_contexte_decimal_appelant():
+    with localcontext() as contexte:
+        contexte.prec = 2
+        contexte.traps[Inexact] = True
+        contexte.traps[Rounded] = True
+        resultat, verdict = taxes.calculer_taxes(Decimal("100.00"), _dictionnaire_reel())
+
+    assert verdict is None
+    assert resultat["total_taxes"] == Decimal("14.98")
+    assert resultat["montant_apres_taxes"] == Decimal("114.98")
+
+
+def test_calculer_taxes_refuse_un_montant_fini_hors_du_domaine():
+    resultat, verdict = taxes.calculer_taxes(Decimal("1e100"), _dictionnaire_reel())
+
+    assert resultat is None
+    assert verdict["code"] == "REJ-MOUVEMENT-MONTANT-INVALIDE"
 
 
 def test_calculer_taxes_tps_arrondit_un_demi_cent_vers_le_haut():

@@ -148,6 +148,22 @@ def test_memoriser_wct_puis_signaler_et_arbitrer_une_revision():
     assert refus_registre_croise["accepte"] is False
 
 
+def test_rejeu_wct_identique_est_noop_et_payload_modifie_est_refuse():
+    from m10_memoire.outils import _REGISTRE_EVENEMENTS
+
+    original = dict(_wct("WCT-DEP009"), duree_reelle_minutes=1)
+    outil = next(o for o in outils() if o.nom == "m10_memoriser_wct")
+    first = executer(outil, {"wct_recu": original})["resultat"]
+    same = executer(outil, {"wct_recu": dict(original)})["resultat"]
+    assert first["accepte"] is True and same["accepte"] is True
+    assert same["resultat"]["ligne_id"] == first["resultat"]["ligne_id"]
+    changed = dict(original, duree_reelle_minutes=90)
+    conflict = executer(outil, {"wct_recu": changed})["resultat"]
+    assert conflict["accepte"] is False
+    assert conflict["verdict"] == "REJ-WCT-CONFLIT"
+    assert len([m for m in _REGISTRE_EVENEMENTS.lire() if m.get("wct_id") == "WCT-DEP009"]) == 1
+
+
 def test_signaler_puis_arbitrer_une_revision_sur_le_registre_affaires():
     depart = journaliser_decision(_decision("DEC-REV-A"), HORODATAGE)
     arrivee = journaliser_decision(_decision("DEC-REV-B"), HORODATAGE)

@@ -15,6 +15,7 @@ import type { CronRuntimeAuthority } from "../runtime-authority.js";
 import type { CronScheduledToolPolicy } from "../scheduled-tool-policy.js";
 import type { QuarantinedCronConfigJob } from "../store.js";
 import type { CronRunReceiptHandle } from "../store/run-receipt.types.js";
+import type { CronRetirementCapture } from "../store/runtime-retirement-store.js";
 import type {
   CronCompletionStatus,
   CronTriggerEvaluationResult,
@@ -478,3 +479,10 @@ export type CronCommitGuardOptions = {
 };
 /** Cron-store-locked guard evaluated against the current job before an update applies. */
 export type CronUpdatePrecondition = (job: CronJob, nowMs: number) => void | Promise<void>;
+/** Cron-store-locked predicate evaluated before a job removal is committed. */
+export type CronRemovePrecondition = (job: CronJob, nowMs: number) => void | Promise<void>;
+/** Host-only cleanup proof; never accepted from public cron.remove arguments. */
+export type CronRemoveOptions = CronCommitGuardOptions & {
+  systemOwned?: boolean;
+  retirement?: CronRetirementCapture;
+};

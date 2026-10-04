@@ -320,7 +320,9 @@ describe("AgentsPage routing", () => {
         await mutations[0]?.catch(() => undefined);
       } else {
         oldRefresh.resolve(agentsList);
-        await waitForFast(() => expect(page.context.agentIdentity.ensure).toHaveBeenCalledOnce());
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(page.context.agentIdentity.ensure).not.toHaveBeenCalled();
       }
       await Promise.resolve();
       expect(page.identitySaving).toBe(true);
@@ -362,7 +364,12 @@ describe("AgentsPage routing", () => {
     };
     setPageGateway(page, client);
     page.subscriptions.hostConnected();
-    page.identityDraft = { name: "Main draft", emoji: null, avatar: null };
+    page.identityDraft = {
+      name: null,
+      emoji: null,
+      avatar: null,
+      avatarModelId: "robotexpressive-quaternius-cc0-v1",
+    };
 
     page.saveIdentityDraft();
     expect(runExternalMutation).toHaveBeenCalledOnce();

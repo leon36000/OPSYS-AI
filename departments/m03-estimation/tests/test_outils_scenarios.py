@@ -120,8 +120,22 @@ def test_l_outil_garde_son_autonomie_son_niveau_et_reste_ferme_aux_appareils():
 
 def test_aucun_outil_n_a_ete_ajoute_pour_les_scenarios():
     noms = [o.nom for o in outils_m3.outils()]
+    outils_calibration = {
+        "m3_evaluer_calibration_cohortes", "m3_proposer_calibration_temps",
+        "m3_evaluer_candidate_calibration", "m3_activer_candidate_calibration",
+        "m3_rollback_candidate_calibration",
+    }
+    baseline_13 = {
+        "m3_estimer_projet", "m3_qualifier_photos", "m3_classifier_confiance",
+        "m3_simuler_intervalle", "m3_confronter_plancher", "m3_creer_devis",
+        "m3_lire_devis", "m3_marquer_devis_accepte", "m3_lire_ecarts_estime_reel",
+        "m3_detecter_devis_sans_reponse", "m3_generer_soumission_brouillon",
+        "m3_demander_envoi_devis", "m3_verifier_politique_photos",
+    }
     assert noms[0] == "m3_estimer_projet"
-    assert len(noms) == len(set(noms)) == 13
+    assert len(noms) == len(set(noms))
+    assert set(noms) - outils_calibration == baseline_13
+    assert set(noms) & outils_calibration == outils_calibration
     assert not any("scenario" in nom or "p50" in nom or "facteur" in nom for nom in noms)
 
 

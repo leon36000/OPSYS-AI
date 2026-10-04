@@ -1,0 +1,1047 @@
+{
+  "cutoff": "2026-09-30T23:59:59Z",
+  "activity_window": [
+    "2026-03-30",
+    "2026-09-30"
+  ],
+  "repositories": [
+    {
+      "repo": "ekmungai/python-accounting",
+      "observed_at": "2026-09-30T11:50:14.954135+00:00",
+      "cutoff": "2026-09-30T23:59:59Z",
+      "files": [
+        {
+          "url": "https://raw.githubusercontent.com/ekmungai/python-accounting/03f94859dabfe2a3ce4bce116ac2bdb38d898a77/LICENCE",
+          "ok": false,
+          "error": "HTTP Error 404: Not Found",
+          "repo_path": "LICENCE"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ekmungai/python-accounting/03f94859dabfe2a3ce4bce116ac2bdb38d898a77/LICENSE",
+          "ok": true,
+          "status": 200,
+          "sha256": "198b9a1984f905ae41092e30511e8f86d73ff73980a8177e24c5fb50a89c2150",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/ekmungai__python-accounting/LICENSE",
+          "bytes": 1070,
+          "repo_path": "LICENSE"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ekmungai/python-accounting/03f94859dabfe2a3ce4bce116ac2bdb38d898a77/pyproject.toml",
+          "ok": true,
+          "status": 200,
+          "sha256": "7e8ce81bb0c5eb5fd275525b36d7c6f36f391805be971fa93f1a22c693c39a88",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/ekmungai__python-accounting/pyproject.toml",
+          "bytes": 823,
+          "repo_path": "pyproject.toml"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ekmungai/python-accounting/03f94859dabfe2a3ce4bce116ac2bdb38d898a77/python_accounting/models/entity.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "cdc110b783a67294096364ebfd52f75bb0cd89e850d50618c88e10dd0f094682",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/ekmungai__python-accounting/python_accounting__models__entity.py",
+          "bytes": 2701,
+          "repo_path": "python_accounting/models/entity.py"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ekmungai/python-accounting/03f94859dabfe2a3ce4bce116ac2bdb38d898a77/python_accounting/models/account.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "4fd6e6b90c4751f32d54b711bcb4cced9da60f7c875bc269f211dae4275cc2b9",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/ekmungai__python-accounting/python_accounting__models__account.py",
+          "bytes": 20056,
+          "repo_path": "python_accounting/models/account.py"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ekmungai/python-accounting/03f94859dabfe2a3ce4bce116ac2bdb38d898a77/python_accounting/models/transaction.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "0c4c2958921db3da4e8926ad1b7386619035a422add6f5442e5c3e15c748da50",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/ekmungai__python-accounting/python_accounting__models__transaction.py",
+          "bytes": 13500,
+          "repo_path": "python_accounting/models/transaction.py"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ekmungai/python-accounting/03f94859dabfe2a3ce4bce116ac2bdb38d898a77/python_accounting/transactions/client_invoice.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "62566b96fb9db9439f28ff9ec777f1c474cf63b3e09dfa32e54f0fb875c962cf",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/ekmungai__python-accounting/python_accounting__transactions__client_invoice.py",
+          "bytes": 1145,
+          "repo_path": "python_accounting/transactions/client_invoice.py"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ekmungai/python-accounting/03f94859dabfe2a3ce4bce116ac2bdb38d898a77/python_accounting/reports/balance_sheet.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "b621abdef3af327abc3d85680d49294190ebafbad168d4cb1c74960c8453f7da",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/ekmungai__python-accounting/python_accounting__reports__balance_sheet.py",
+          "bytes": 3299,
+          "repo_path": "python_accounting/reports/balance_sheet.py"
+        }
+      ],
+      "default_branch": "main",
+      "archived": false,
+      "pushed_at_observed": "2026-08-28T13:37:29Z",
+      "license_hint": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "meta_fetch": {
+        "url": "https://api.github.com/repos/ekmungai/python-accounting",
+        "ok": true,
+        "status": 200,
+        "sha256": "8181e4fb8e790074e2b0bba56ed6ece5fa9201b5a48c3664b0b97e4e6e4c7cc6"
+      },
+      "sha": "03f94859dabfe2a3ce4bce116ac2bdb38d898a77",
+      "commit_date": "2026-05-06T12:23:19Z",
+      "commit_fetch": {
+        "url": "https://api.github.com/repos/ekmungai/python-accounting/commits?until=2026-09-30T23:59:59Z&per_page=1",
+        "ok": true,
+        "status": 200,
+        "sha256": "020024f49dd16ae5cb6d224c91469cff2a6a7df38e775396cb6f640d7b4153d9"
+      },
+      "release_asof": {
+        "tag": "v1.0.0",
+        "published_at": "2024-03-01T13:29:45Z",
+        "url": "https://github.com/ekmungai/python-accounting/releases/tag/v1.0.0"
+      },
+      "releases_fetch": {
+        "url": "https://api.github.com/repos/ekmungai/python-accounting/releases?per_page=20",
+        "ok": true,
+        "status": 200,
+        "sha256": "5f60e1bfccbed0524d7c1a9c67767690a0534ab1231fa5eea063fcefc28704f0"
+      }
+    },
+    {
+      "repo": "beancount/beancount",
+      "observed_at": "2026-09-30T11:50:14.954911+00:00",
+      "cutoff": "2026-09-30T23:59:59Z",
+      "files": [
+        {
+          "url": "https://raw.githubusercontent.com/beancount/beancount/9747213802acb733ce53acc6e963f5961f47d6cd/COPYING",
+          "ok": true,
+          "status": 200,
+          "sha256": "aeb6c47206ea227aad935eb9ff38a8c518e9a96668b2c9ce685b6c4c80bdc853",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/beancount__beancount/COPYING",
+          "bytes": 18343,
+          "repo_path": "COPYING"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/beancount/beancount/9747213802acb733ce53acc6e963f5961f47d6cd/LICENSE",
+          "ok": false,
+          "error": "HTTP Error 404: Not Found",
+          "repo_path": "LICENSE"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/beancount/beancount/9747213802acb733ce53acc6e963f5961f47d6cd/pyproject.toml",
+          "ok": true,
+          "status": 200,
+          "sha256": "c35d5505624de536ea027dd0c80eed4a95b5b156c8095388bade2c1c047c99d7",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/beancount__beancount/pyproject.toml",
+          "bytes": 3675,
+          "repo_path": "pyproject.toml"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/beancount/beancount/9747213802acb733ce53acc6e963f5961f47d6cd/beancount/core/data.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "bb23dfb55b4fa81d8e74560c0e0c100616612e46d6375180a582a6fe7312256f",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/beancount__beancount/beancount__core__data.py",
+          "bytes": 30488,
+          "repo_path": "beancount/core/data.py"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/beancount/beancount/9747213802acb733ce53acc6e963f5961f47d6cd/beancount/parser/parser.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "d986d45366db1b542121bff8a7b496be68125c83e0302e53a353bf7b14d0478b",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/beancount__beancount/beancount__parser__parser.py",
+          "bytes": 13050,
+          "repo_path": "beancount/parser/parser.py"
+        }
+      ],
+      "default_branch": "master",
+      "archived": false,
+      "pushed_at_observed": "2026-08-23T20:17:45Z",
+      "license_hint": {
+        "key": "gpl-2.0",
+        "name": "GNU General Public License v2.0",
+        "spdx_id": "GPL-2.0",
+        "url": "https://api.github.com/licenses/gpl-2.0",
+        "node_id": "MDc6TGljZW5zZTg="
+      },
+      "meta_fetch": {
+        "url": "https://api.github.com/repos/beancount/beancount",
+        "ok": true,
+        "status": 200,
+        "sha256": "f29258601fc19c6bb15867a5cd547280e34b4409377b32bedff93a86906cbb90"
+      },
+      "sha": "9747213802acb733ce53acc6e963f5961f47d6cd",
+      "commit_date": "2026-08-23T20:17:45Z",
+      "commit_fetch": {
+        "url": "https://api.github.com/repos/beancount/beancount/commits?until=2026-09-30T23:59:59Z&per_page=1",
+        "ok": true,
+        "status": 200,
+        "sha256": "a90011b7b86b0e84394b566e51fd5aea0e54577c5353d0dec1ff3eaa2be51ff8"
+      },
+      "release_asof": null,
+      "releases_fetch": {
+        "url": "https://api.github.com/repos/beancount/beancount/releases?per_page=20",
+        "ok": true,
+        "status": 200,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    {
+      "repo": "ledger/ledger",
+      "observed_at": "2026-09-30T11:50:14.955328+00:00",
+      "cutoff": "2026-09-30T23:59:59Z",
+      "files": [
+        {
+          "url": "https://raw.githubusercontent.com/ledger/ledger/faecd27cec670e128018dd92c8490a5b23f55660/LICENSE.md",
+          "ok": true,
+          "status": 200,
+          "sha256": "f79a4a9e719561cf9f4046e958e134f9cce908b83c934805b5e25dc6fe5541e9",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/ledger__ledger/LICENSE.md",
+          "bytes": 1492,
+          "repo_path": "LICENSE.md"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ledger/ledger/faecd27cec670e128018dd92c8490a5b23f55660/LICENSE",
+          "ok": false,
+          "error": "HTTP Error 404: Not Found",
+          "repo_path": "LICENSE"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ledger/ledger/faecd27cec670e128018dd92c8490a5b23f55660/CMakeLists.txt",
+          "ok": true,
+          "status": 200,
+          "sha256": "258d7d07abc10c5221c407a5c41a9ec936e68af646ef93da46eaa6889edf4ca2",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/ledger__ledger/CMakeLists.txt",
+          "bytes": 24159,
+          "repo_path": "CMakeLists.txt"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ledger/ledger/faecd27cec670e128018dd92c8490a5b23f55660/src/post.h",
+          "ok": true,
+          "status": 200,
+          "sha256": "6501744058f300a4c8a24379a90f0627a8c8a79f9e7a45fcecf722bc0b85c34b",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/ledger__ledger/src__post.h",
+          "bytes": 18690,
+          "repo_path": "src/post.h"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ledger/ledger/faecd27cec670e128018dd92c8490a5b23f55660/src/xact.h",
+          "ok": true,
+          "status": 200,
+          "sha256": "974882b054a3b75b85c542b127d157ad991b7ac98dbba21e752cab4c38fac3ba",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/ledger__ledger/src__xact.h",
+          "bytes": 17777,
+          "repo_path": "src/xact.h"
+        }
+      ],
+      "default_branch": "main",
+      "archived": false,
+      "pushed_at_observed": "2026-09-22T19:34:25Z",
+      "license_hint": {
+        "key": "other",
+        "name": "Other",
+        "spdx_id": "NOASSERTION",
+        "url": null,
+        "node_id": "MDc6TGljZW5zZTA="
+      },
+      "meta_fetch": {
+        "url": "https://api.github.com/repos/ledger/ledger",
+        "ok": true,
+        "status": 200,
+        "sha256": "5c65accd909a825fe26848686b408038c2b3b00234fff837b778a428dadc4ae3"
+      },
+      "sha": "faecd27cec670e128018dd92c8490a5b23f55660",
+      "commit_date": "2026-09-22T18:42:15Z",
+      "commit_fetch": {
+        "url": "https://api.github.com/repos/ledger/ledger/commits?until=2026-09-30T23:59:59Z&per_page=1",
+        "ok": true,
+        "status": 200,
+        "sha256": "cc616ea01ab9df69860a7a164aba483277d2fb7a6f5552d34b7a9199a8d7ce77"
+      },
+      "release_asof": {
+        "tag": "v3.4.1",
+        "published_at": "2025-10-26T05:57:54Z",
+        "url": "https://github.com/ledger/ledger/releases/tag/v3.4.1"
+      },
+      "releases_fetch": {
+        "url": "https://api.github.com/repos/ledger/ledger/releases?per_page=20",
+        "ok": true,
+        "status": 200,
+        "sha256": "a35c97a75cd611cfa0158c9e44888d4982cff2774cd253458e7ce74695a93cec"
+      }
+    },
+    {
+      "repo": "frappe/erpnext",
+      "observed_at": "2026-09-30T11:50:14.955771+00:00",
+      "cutoff": "2026-09-30T23:59:59Z",
+      "files": [
+        {
+          "url": "https://raw.githubusercontent.com/frappe/erpnext/46a04f01a619d6fed99e6d0f3e7a327d12d43388/license.txt",
+          "ok": true,
+          "status": 200,
+          "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/frappe__erpnext/license.txt",
+          "bytes": 35149,
+          "repo_path": "license.txt"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/frappe/erpnext/46a04f01a619d6fed99e6d0f3e7a327d12d43388/LICENSE",
+          "ok": false,
+          "error": "HTTP Error 404: Not Found",
+          "repo_path": "LICENSE"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/frappe/erpnext/46a04f01a619d6fed99e6d0f3e7a327d12d43388/pyproject.toml",
+          "ok": true,
+          "status": 200,
+          "sha256": "82a593e847a9726607aff13dbb80072bf8088b7edbf9e0f59e945c29ccebf592",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/frappe__erpnext/pyproject.toml",
+          "bytes": 2530,
+          "repo_path": "pyproject.toml"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/frappe/erpnext/46a04f01a619d6fed99e6d0f3e7a327d12d43388/erpnext/accounts/doctype/journal_entry/journal_entry.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "a8a0c8eaa6b4d5b355af19f3fc61eeb8d63a6a02a647b2529bca16b546e37ef4",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/frappe__erpnext/erpnext__accounts__doctype__journal_entry__journal_entry.py",
+          "bytes": 46978,
+          "repo_path": "erpnext/accounts/doctype/journal_entry/journal_entry.py"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/frappe/erpnext/46a04f01a619d6fed99e6d0f3e7a327d12d43388/erpnext/accounts/doctype/sales_invoice/sales_invoice.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "a848978a59b1da2f20124e802554e57c1c9b247446b318878ffcb1b7568f0a5e",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/frappe__erpnext/erpnext__accounts__doctype__sales_invoice__sales_invoice.py",
+          "bytes": 42158,
+          "repo_path": "erpnext/accounts/doctype/sales_invoice/sales_invoice.py"
+        }
+      ],
+      "default_branch": "develop",
+      "archived": false,
+      "pushed_at_observed": "2026-09-30T10:55:07Z",
+      "license_hint": {
+        "key": "gpl-3.0",
+        "name": "GNU General Public License v3.0",
+        "spdx_id": "GPL-3.0",
+        "url": "https://api.github.com/licenses/gpl-3.0",
+        "node_id": "MDc6TGljZW5zZTk="
+      },
+      "meta_fetch": {
+        "url": "https://api.github.com/repos/frappe/erpnext",
+        "ok": true,
+        "status": 200,
+        "sha256": "febb02f7e20bf83976731f241b1c73022ccafdfbf867ea478db88b444c8d68a4"
+      },
+      "sha": "46a04f01a619d6fed99e6d0f3e7a327d12d43388",
+      "commit_date": "2026-09-30T09:27:20Z",
+      "commit_fetch": {
+        "url": "https://api.github.com/repos/frappe/erpnext/commits?until=2026-09-30T23:59:59Z&per_page=1",
+        "ok": true,
+        "status": 200,
+        "sha256": "130e88a3ac907f752db68cf8774068fe7a807ff36ab28889da993cd81f713883"
+      },
+      "release_asof": {
+        "tag": "v16.37.0",
+        "published_at": "2026-09-30T07:09:17Z",
+        "url": "https://github.com/frappe/erpnext/releases/tag/v16.37.0"
+      },
+      "releases_fetch": {
+        "url": "https://api.github.com/repos/frappe/erpnext/releases?per_page=20",
+        "ok": true,
+        "status": 200,
+        "sha256": "107f8a5d7665990ed657e7d1eb08fa5e1683ff8475af4f57534cdcd74d89ca23"
+      }
+    },
+    {
+      "repo": "odoo/odoo",
+      "observed_at": "2026-09-30T11:50:17.209324+00:00",
+      "cutoff": "2026-09-30T23:59:59Z",
+      "files": [
+        {
+          "url": "https://raw.githubusercontent.com/odoo/odoo/24b59ae7617e6b6ccf466d8b8cfebd541baa8b89/LICENSE",
+          "ok": true,
+          "status": 200,
+          "sha256": "abc09dad5f84a76e1b0279237053cae16c03228ab27d8d467677054c2bd17eeb",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/odoo__odoo/LICENSE",
+          "bytes": 43529,
+          "repo_path": "LICENSE"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/odoo/odoo/24b59ae7617e6b6ccf466d8b8cfebd541baa8b89/setup.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "1f5bc04f221bc322ed46f2c3a2c6a03e9de54d58d02b18b1ae7b7a6018dc14d1",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/odoo__odoo/setup.py",
+          "bytes": 1948,
+          "repo_path": "setup.py"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/odoo/odoo/24b59ae7617e6b6ccf466d8b8cfebd541baa8b89/addons/account/__manifest__.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "44e871598c83615f67b9ef846fbfa8db240db3f8618fcae917be1aea64fe488b",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/odoo__odoo/addons__account____manifest__.py",
+          "bytes": 6458,
+          "repo_path": "addons/account/__manifest__.py"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/odoo/odoo/24b59ae7617e6b6ccf466d8b8cfebd541baa8b89/addons/l10n_ca/__manifest__.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "224ffe7601733a75648743b71f1dc64533e3e170d99294d76c649734c3063cc0",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/odoo__odoo/addons__l10n_ca____manifest__.py",
+          "bytes": 1985,
+          "repo_path": "addons/l10n_ca/__manifest__.py"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/odoo/odoo/24b59ae7617e6b6ccf466d8b8cfebd541baa8b89/addons/l10n_ca/models/account_tax.py",
+          "ok": false,
+          "error": "HTTP Error 404: Not Found",
+          "repo_path": "addons/l10n_ca/models/account_tax.py"
+        }
+      ],
+      "default_branch": "20.0",
+      "archived": false,
+      "pushed_at_observed": "2026-09-30T11:39:29Z",
+      "license_hint": {
+        "key": "other",
+        "name": "Other",
+        "spdx_id": "NOASSERTION",
+        "url": null,
+        "node_id": "MDc6TGljZW5zZTA="
+      },
+      "meta_fetch": {
+        "url": "https://api.github.com/repos/odoo/odoo",
+        "ok": true,
+        "status": 200,
+        "sha256": "20d7ce8d01e23036b245a0bc853f48b0a9225a44b35ec338b1c5d47de32757a9"
+      },
+      "sha": "24b59ae7617e6b6ccf466d8b8cfebd541baa8b89",
+      "commit_date": "2026-09-30T05:52:18Z",
+      "commit_fetch": {
+        "url": "https://api.github.com/repos/odoo/odoo/commits?until=2026-09-30T23:59:59Z&per_page=1",
+        "ok": true,
+        "status": 200,
+        "sha256": "c6a4117ec6761bd17df717a589e7efb1c84bf4ce99a9c09aefeb9ac357152f3f"
+      },
+      "release_asof": null,
+      "releases_fetch": {
+        "url": "https://api.github.com/repos/odoo/odoo/releases?per_page=20",
+        "ok": true,
+        "status": 200,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    {
+      "repo": "tryton/tryton",
+      "observed_at": "2026-09-30T11:50:17.292488+00:00",
+      "cutoff": "2026-09-30T23:59:59Z",
+      "files": [
+        {
+          "url": "https://raw.githubusercontent.com/tryton/tryton/efed804e603e015ec0351c40fc5be3354efa0600/LICENSE",
+          "ok": false,
+          "error": "HTTP Error 404: Not Found",
+          "repo_path": "LICENSE"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/tryton/tryton/efed804e603e015ec0351c40fc5be3354efa0600/COPYRIGHT",
+          "ok": false,
+          "error": "HTTP Error 404: Not Found",
+          "repo_path": "COPYRIGHT"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/tryton/tryton/efed804e603e015ec0351c40fc5be3354efa0600/trytond/LICENSE",
+          "ok": true,
+          "status": 200,
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/tryton__tryton/trytond__LICENSE",
+          "bytes": 35147,
+          "repo_path": "trytond/LICENSE"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/tryton/tryton/efed804e603e015ec0351c40fc5be3354efa0600/modules/account/LICENSE",
+          "ok": true,
+          "status": 200,
+          "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/tryton__tryton/modules__account__LICENSE",
+          "bytes": 35147,
+          "repo_path": "modules/account/LICENSE"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/tryton/tryton/efed804e603e015ec0351c40fc5be3354efa0600/modules/account/tryton.cfg",
+          "ok": true,
+          "status": 200,
+          "sha256": "d4c772357bf58b79977ad073e53c56b1e8a282ae75a5fc13017e1b7522f00924",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/tryton__tryton/modules__account__tryton.cfg",
+          "bytes": 3193,
+          "repo_path": "modules/account/tryton.cfg"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/tryton/tryton/efed804e603e015ec0351c40fc5be3354efa0600/modules/account/account.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "b9d5974e69027024f396edcb19246cf6d18000436e98255a6ec625c9133b7726",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/tryton__tryton/modules__account__account.py",
+          "bytes": 128761,
+          "repo_path": "modules/account/account.py"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/tryton/tryton/efed804e603e015ec0351c40fc5be3354efa0600/modules/account/move.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "886638306d0807cf0ed6293defa56528206c245bc12ca5a89b55582fb8969feb",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/tryton__tryton/modules__account__move.py",
+          "bytes": 120934,
+          "repo_path": "modules/account/move.py"
+        }
+      ],
+      "default_branch": "main",
+      "archived": false,
+      "pushed_at_observed": "2026-09-29T23:04:00Z",
+      "license_hint": null,
+      "meta_fetch": {
+        "url": "https://api.github.com/repos/tryton/tryton",
+        "ok": true,
+        "status": 200,
+        "sha256": "1f434b00edb9033a190c6d1cba441b48553b33ec4c3995a63c78023a5d38885e"
+      },
+      "sha": "efed804e603e015ec0351c40fc5be3354efa0600",
+      "commit_date": "2026-09-22T07:47:03Z",
+      "commit_fetch": {
+        "url": "https://api.github.com/repos/tryton/tryton/commits?until=2026-09-30T23:59:59Z&per_page=1",
+        "ok": true,
+        "status": 200,
+        "sha256": "243349165904c9db8cb8460511e807caa8fc5f320747c6a4c2db1101f28bc1fa"
+      },
+      "release_asof": null,
+      "releases_fetch": {
+        "url": "https://api.github.com/repos/tryton/tryton/releases?per_page=20",
+        "ok": true,
+        "status": 200,
+        "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    {
+      "repo": "docling-project/docling",
+      "observed_at": "2026-09-30T11:50:17.497319+00:00",
+      "cutoff": "2026-09-30T23:59:59Z",
+      "files": [
+        {
+          "url": "https://raw.githubusercontent.com/docling-project/docling/42de1e20fe2783c0c30c5b3c0f9c60ab5eef9e16/LICENSE",
+          "ok": true,
+          "status": 200,
+          "sha256": "edb765d1e3e60d0c7a7d5fba5f2bb2c3c29f7465cecb5c22cf1185c884954e4c",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/docling-project__docling/LICENSE",
+          "bytes": 1072,
+          "repo_path": "LICENSE"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/docling-project/docling/42de1e20fe2783c0c30c5b3c0f9c60ab5eef9e16/pyproject.toml",
+          "ok": true,
+          "status": 200,
+          "sha256": "2e1b7a46fa990df32d7a171dc426b94eb7d1b880b1d55e220c444012739f95ee",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/docling-project__docling/pyproject.toml",
+          "bytes": 16154,
+          "repo_path": "pyproject.toml"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/docling-project/docling/42de1e20fe2783c0c30c5b3c0f9c60ab5eef9e16/docling/document_converter.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "26af433afbadac649222426ce6f577f81949f67a4348daaf706c6b0b186b503b",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/docling-project__docling/docling__document_converter.py",
+          "bytes": 34532,
+          "repo_path": "docling/document_converter.py"
+        }
+      ],
+      "default_branch": "main",
+      "archived": false,
+      "pushed_at_observed": "2026-09-30T10:03:29Z",
+      "license_hint": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "meta_fetch": {
+        "url": "https://api.github.com/repos/docling-project/docling",
+        "ok": true,
+        "status": 200,
+        "sha256": "310cb4786ab289ff4e69b6765292d56d5fa3c92eb2c733d3eb5d61235bbe6163"
+      },
+      "sha": "42de1e20fe2783c0c30c5b3c0f9c60ab5eef9e16",
+      "commit_date": "2026-09-30T10:03:25Z",
+      "commit_fetch": {
+        "url": "https://api.github.com/repos/docling-project/docling/commits?until=2026-09-30T23:59:59Z&per_page=1",
+        "ok": true,
+        "status": 200,
+        "sha256": "d624b4319df62213889ae11d1ee8cbae403d4afd8335585d8edb29d1a9507dd5"
+      },
+      "release_asof": {
+        "tag": "v2.131.0",
+        "published_at": "2026-09-29T07:58:11Z",
+        "url": "https://github.com/docling-project/docling/releases/tag/v2.131.0"
+      },
+      "releases_fetch": {
+        "url": "https://api.github.com/repos/docling-project/docling/releases?per_page=20",
+        "ok": true,
+        "status": 200,
+        "sha256": "73291a04549e8c51b62d73f66888c401e2b1d75b359a52a0214b623282ed63ac"
+      }
+    },
+    {
+      "repo": "tesseract-ocr/tesseract",
+      "observed_at": "2026-09-30T11:50:18.067454+00:00",
+      "cutoff": "2026-09-30T23:59:59Z",
+      "files": [
+        {
+          "url": "https://raw.githubusercontent.com/tesseract-ocr/tesseract/db20f322d03664d1e878e2fbf6e904f5da755594/LICENSE",
+          "ok": true,
+          "status": 200,
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/tesseract-ocr__tesseract/LICENSE",
+          "bytes": 11358,
+          "repo_path": "LICENSE"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/tesseract-ocr/tesseract/db20f322d03664d1e878e2fbf6e904f5da755594/CMakeLists.txt",
+          "ok": true,
+          "status": 200,
+          "sha256": "47f1732518a6efd162bac21232ad5183e833451ebaf076630399bbd8c5834b90",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/tesseract-ocr__tesseract/CMakeLists.txt",
+          "bytes": 34095,
+          "repo_path": "CMakeLists.txt"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/tesseract-ocr/tesseract/db20f322d03664d1e878e2fbf6e904f5da755594/src/api/baseapi.h",
+          "ok": false,
+          "error": "HTTP Error 404: Not Found",
+          "repo_path": "src/api/baseapi.h"
+        }
+      ],
+      "default_branch": "main",
+      "archived": false,
+      "pushed_at_observed": "2026-09-28T07:40:38Z",
+      "license_hint": {
+        "key": "apache-2.0",
+        "name": "Apache License 2.0",
+        "spdx_id": "Apache-2.0",
+        "url": "https://api.github.com/licenses/apache-2.0",
+        "node_id": "MDc6TGljZW5zZTI="
+      },
+      "meta_fetch": {
+        "url": "https://api.github.com/repos/tesseract-ocr/tesseract",
+        "ok": true,
+        "status": 200,
+        "sha256": "0bb25e160c859e161e4102adbef1ce6707578cd8a966982df028730d02ec8824"
+      },
+      "sha": "db20f322d03664d1e878e2fbf6e904f5da755594",
+      "commit_date": "2026-09-28T07:40:38Z",
+      "commit_fetch": {
+        "url": "https://api.github.com/repos/tesseract-ocr/tesseract/commits?until=2026-09-30T23:59:59Z&per_page=1",
+        "ok": true,
+        "status": 200,
+        "sha256": "52736d7e77c328a569dc671f8102525b2af15e1793930f3e7e4ec831f9870cbf"
+      },
+      "release_asof": {
+        "tag": "5.5.3",
+        "published_at": "2026-07-24T18:33:22Z",
+        "url": "https://github.com/tesseract-ocr/tesseract/releases/tag/5.5.3"
+      },
+      "releases_fetch": {
+        "url": "https://api.github.com/repos/tesseract-ocr/tesseract/releases?per_page=20",
+        "ok": true,
+        "status": 200,
+        "sha256": "3bc6e60312423ca94cef9424e4948806525a24d04f7eae9460483c455ab2507c"
+      }
+    },
+    {
+      "repo": "PaddlePaddle/PaddleOCR",
+      "observed_at": "2026-09-30T11:50:19.083203+00:00",
+      "cutoff": "2026-09-30T23:59:59Z",
+      "files": [
+        {
+          "url": "https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/dab3fe35379033fdcb2d0e9572fac0b36c9a9ebf/LICENSE",
+          "ok": true,
+          "status": 200,
+          "sha256": "3840c5c0c61c294264d2dd77b8777be6ddd90121ef4e0e64abcd22edea581d6e",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/PaddlePaddle__PaddleOCR/LICENSE",
+          "bytes": 11376,
+          "repo_path": "LICENSE"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/dab3fe35379033fdcb2d0e9572fac0b36c9a9ebf/pyproject.toml",
+          "ok": true,
+          "status": 200,
+          "sha256": "63e8bfa19e197e47649a95dad422bcb09c1d2959367cafd40b0a7f19e4452412",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/PaddlePaddle__PaddleOCR/pyproject.toml",
+          "bytes": 2707,
+          "repo_path": "pyproject.toml"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/PaddlePaddle/PaddleOCR/dab3fe35379033fdcb2d0e9572fac0b36c9a9ebf/paddleocr/_pipelines/ocr.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "fc870f7a7f1b33756020d75c63c6dc0dc04981df1ff46627a040336ead9a9b88",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/PaddlePaddle__PaddleOCR/paddleocr___pipelines__ocr.py",
+          "bytes": 23064,
+          "repo_path": "paddleocr/_pipelines/ocr.py"
+        }
+      ],
+      "default_branch": "main",
+      "archived": false,
+      "pushed_at_observed": "2026-09-16T03:31:50Z",
+      "license_hint": {
+        "key": "apache-2.0",
+        "name": "Apache License 2.0",
+        "spdx_id": "Apache-2.0",
+        "url": "https://api.github.com/licenses/apache-2.0",
+        "node_id": "MDc6TGljZW5zZTI="
+      },
+      "meta_fetch": {
+        "url": "https://api.github.com/repos/PaddlePaddle/PaddleOCR",
+        "ok": true,
+        "status": 200,
+        "sha256": "4b96ea5d8646be56ef7d141b283e862e4e7599689e35994684a140cc343b6ff9"
+      },
+      "sha": "dab3fe35379033fdcb2d0e9572fac0b36c9a9ebf",
+      "commit_date": "2026-09-16T03:30:53Z",
+      "commit_fetch": {
+        "url": "https://api.github.com/repos/PaddlePaddle/PaddleOCR/commits?until=2026-09-30T23:59:59Z&per_page=1",
+        "ok": true,
+        "status": 200,
+        "sha256": "1ee825f423c47ebcc7d804f3d3bcd628a4e76fbfce915853fcfb3c197f305b8a"
+      },
+      "release_asof": {
+        "tag": "v3.7.0",
+        "published_at": "2026-06-11T12:09:14Z",
+        "url": "https://github.com/PaddlePaddle/PaddleOCR/releases/tag/v3.7.0"
+      },
+      "releases_fetch": {
+        "url": "https://api.github.com/repos/PaddlePaddle/PaddleOCR/releases?per_page=20",
+        "ok": true,
+        "status": 200,
+        "sha256": "4f4e95eb40c9697f035511df79e119e831481249cb536cec8fa4d768cff1f404"
+      }
+    },
+    {
+      "repo": "ej2/python-quickbooks",
+      "observed_at": "2026-09-30T11:50:19.842180+00:00",
+      "cutoff": "2026-09-30T23:59:59Z",
+      "files": [
+        {
+          "url": "https://raw.githubusercontent.com/ej2/python-quickbooks/264a0f63d6336b006e77bfaadfe27131fa5607bd/LICENSE",
+          "ok": true,
+          "status": 200,
+          "sha256": "9632557594cf7f1598210d74e18932ab183809520dc7b2f3bdfeafb587ee240a",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/ej2__python-quickbooks/LICENSE",
+          "bytes": 1085,
+          "repo_path": "LICENSE"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ej2/python-quickbooks/264a0f63d6336b006e77bfaadfe27131fa5607bd/setup.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "de50aff50eff32e6c6ae12fdd6524e3795f7e0b070d165d349a490d8ecf7e044",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/ej2__python-quickbooks/setup.py",
+          "bytes": 1695,
+          "repo_path": "setup.py"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ej2/python-quickbooks/264a0f63d6336b006e77bfaadfe27131fa5607bd/quickbooks/objects/invoice.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "02cc72f287ac960369cbc87dff375730c1812a70deacbc8238a31a35e62373d4",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/ej2__python-quickbooks/quickbooks__objects__invoice.py",
+          "bytes": 3831,
+          "repo_path": "quickbooks/objects/invoice.py"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/ej2/python-quickbooks/264a0f63d6336b006e77bfaadfe27131fa5607bd/quickbooks/objects/bill.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "a0b65ca0057e602609be9e102f6bd2f2e9c6f1814707c2b82c0a771b114f9eb5",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/ej2__python-quickbooks/quickbooks__objects__bill.py",
+          "bytes": 2129,
+          "repo_path": "quickbooks/objects/bill.py"
+        }
+      ],
+      "default_branch": "main",
+      "archived": false,
+      "pushed_at_observed": "2026-03-23T23:47:57Z",
+      "license_hint": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "meta_fetch": {
+        "url": "https://api.github.com/repos/ej2/python-quickbooks",
+        "ok": true,
+        "status": 200,
+        "sha256": "753ee527f95d689552054a038da45afe02c824156a0aed5864cd5aed0647d125"
+      },
+      "sha": "264a0f63d6336b006e77bfaadfe27131fa5607bd",
+      "commit_date": "2025-04-16T02:10:40Z",
+      "commit_fetch": {
+        "url": "https://api.github.com/repos/ej2/python-quickbooks/commits?until=2026-09-30T23:59:59Z&per_page=1",
+        "ok": true,
+        "status": 200,
+        "sha256": "7f11d91ccd78045d65599defecd16153a8333362ab203871011d6364d69802c9"
+      },
+      "release_asof": {
+        "tag": "0.9.12",
+        "published_at": "2025-04-16T02:00:03Z",
+        "url": "https://github.com/routablehq/python-quickbooks/releases/tag/0.9.12"
+      },
+      "releases_fetch": {
+        "url": "https://api.github.com/repos/ej2/python-quickbooks/releases?per_page=20",
+        "ok": true,
+        "status": 200,
+        "sha256": "c8d8363638420753e5c35b1ade532483a317b74ff064503df95cb05f96d091ed"
+      }
+    },
+    {
+      "repo": "stripe/stripe-python",
+      "observed_at": "2026-09-30T11:50:19.891624+00:00",
+      "cutoff": "2026-09-30T23:59:59Z",
+      "files": [
+        {
+          "url": "https://raw.githubusercontent.com/stripe/stripe-python/b48375a3e295a4eb58ed5b2f567fe03d0491e43b/LICENSE",
+          "ok": true,
+          "status": 200,
+          "sha256": "8b28bcffabe88a728cc48d37d907bd75febd0ee725fd774946912dca31bc6027",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/stripe__stripe-python/LICENSE",
+          "bytes": 1092,
+          "repo_path": "LICENSE"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/stripe/stripe-python/b48375a3e295a4eb58ed5b2f567fe03d0491e43b/pyproject.toml",
+          "ok": true,
+          "status": 200,
+          "sha256": "3b99adf7d0073f38fe1f5b3ea1244a634e3c056e4b37e7d062b06f15c11996fc",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/stripe__stripe-python/pyproject.toml",
+          "bytes": 3368,
+          "repo_path": "pyproject.toml"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/stripe/stripe-python/b48375a3e295a4eb58ed5b2f567fe03d0491e43b/stripe/_invoice_service.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "40730b3e17a2a854a12d19ac7143ed627a55f31e7c675fc9becbcd2036ea4e14",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/stripe__stripe-python/stripe___invoice_service.py",
+          "bytes": 32171,
+          "repo_path": "stripe/_invoice_service.py"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/stripe/stripe-python/b48375a3e295a4eb58ed5b2f567fe03d0491e43b/stripe/_balance_transaction_service.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "208101a1bce6dbc6c9858a66533ece0080514cfb452839e22b2dc1c3c3b05a03",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/stripe__stripe-python/stripe___balance_transaction_service.py",
+          "bytes": 3790,
+          "repo_path": "stripe/_balance_transaction_service.py"
+        }
+      ],
+      "default_branch": "master",
+      "archived": false,
+      "pushed_at_observed": "2026-09-30T01:07:32Z",
+      "license_hint": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "meta_fetch": {
+        "url": "https://api.github.com/repos/stripe/stripe-python",
+        "ok": true,
+        "status": 200,
+        "sha256": "e492d7e916f310b2d9e63dc6f27d3fb5113c334db50742677fce3edf6e37393f"
+      },
+      "sha": "b48375a3e295a4eb58ed5b2f567fe03d0491e43b",
+      "commit_date": "2026-09-29T22:06:24Z",
+      "commit_fetch": {
+        "url": "https://api.github.com/repos/stripe/stripe-python/commits?until=2026-09-30T23:59:59Z&per_page=1",
+        "ok": true,
+        "status": 200,
+        "sha256": "f4bae09e1ba6f3cf12406629eb196ea980572dad0595e3b79f1ebdf2cb9c9fe7"
+      },
+      "release_asof": {
+        "tag": "v15.6.1",
+        "published_at": "2026-09-01T18:41:30Z",
+        "url": "https://github.com/stripe/stripe-python/releases/tag/v15.6.1"
+      },
+      "releases_fetch": {
+        "url": "https://api.github.com/repos/stripe/stripe-python/releases?per_page=20",
+        "ok": true,
+        "status": 200,
+        "sha256": "9603a8cc1635126c7b2e5cf715957ce3035a35cbdbd4f54f5a82a900b74c1019"
+      }
+    },
+    {
+      "repo": "plaid/plaid-python",
+      "observed_at": "2026-09-30T11:50:19.939136+00:00",
+      "cutoff": "2026-09-30T23:59:59Z",
+      "files": [
+        {
+          "url": "https://raw.githubusercontent.com/plaid/plaid-python/703b9091145553330497a2995a02a68749c8915c/LICENSE",
+          "ok": true,
+          "status": 200,
+          "sha256": "fc28355905d70a5146fb814e73dd433f0fc2152105c85fc7336fb9a122ca8422",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/plaid__plaid-python/LICENSE",
+          "bytes": 1095,
+          "repo_path": "LICENSE"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/plaid/plaid-python/703b9091145553330497a2995a02a68749c8915c/pyproject.toml",
+          "ok": false,
+          "error": "HTTP Error 404: Not Found",
+          "repo_path": "pyproject.toml"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/plaid/plaid-python/703b9091145553330497a2995a02a68749c8915c/setup.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "944a1b9d786bb2541c1f8d16b000877508e0b3fbf749bd5a0c571504c9587e08",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/plaid__plaid-python/setup.py",
+          "bytes": 993,
+          "repo_path": "setup.py"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/plaid/plaid-python/703b9091145553330497a2995a02a68749c8915c/plaid/api/plaid_api.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "8ab806d201fd09abb171fb774825537f0c6adcf3bdc659f15619e61833719108",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/plaid__plaid-python/plaid__api__plaid_api.py",
+          "bytes": 2111137,
+          "repo_path": "plaid/api/plaid_api.py"
+        }
+      ],
+      "default_branch": "master",
+      "archived": false,
+      "pushed_at_observed": "2026-09-01T20:26:43Z",
+      "license_hint": {
+        "key": "mit",
+        "name": "MIT License",
+        "spdx_id": "MIT",
+        "url": "https://api.github.com/licenses/mit",
+        "node_id": "MDc6TGljZW5zZTEz"
+      },
+      "meta_fetch": {
+        "url": "https://api.github.com/repos/plaid/plaid-python",
+        "ok": true,
+        "status": 200,
+        "sha256": "0497087d710c9c3064f6b8b5e162e51f8e261418f43dd19898e4335ed2a0a916"
+      },
+      "sha": "703b9091145553330497a2995a02a68749c8915c",
+      "commit_date": "2026-09-01T19:42:15Z",
+      "commit_fetch": {
+        "url": "https://api.github.com/repos/plaid/plaid-python/commits?until=2026-09-30T23:59:59Z&per_page=1",
+        "ok": true,
+        "status": 200,
+        "sha256": "201c7370f4f2b4a18b1db44d90bb194df9a1140c8a9f7e5976504159b6483531"
+      },
+      "release_asof": {
+        "tag": "16.0.0",
+        "published_at": "2023-09-29T17:21:46Z",
+        "url": "https://github.com/plaid/plaid-python/releases/tag/16.0.0"
+      },
+      "releases_fetch": {
+        "url": "https://api.github.com/repos/plaid/plaid-python/releases?per_page=20",
+        "ok": true,
+        "status": 200,
+        "sha256": "549574ed1c351a9949049478f0037d9c6c68cd7b93b746651b11a776a71c54c7"
+      }
+    },
+    {
+      "repo": "numpy/numpy-financial",
+      "observed_at": "2026-09-30T11:50:20.645552+00:00",
+      "cutoff": "2026-09-30T23:59:59Z",
+      "files": [
+        {
+          "url": "https://raw.githubusercontent.com/numpy/numpy-financial/22c29b4ad61a5e413d4858e46e3f26f55ebdf328/LICENSE.txt",
+          "ok": true,
+          "status": 200,
+          "sha256": "a2755eb34bddfc97dc39cbeebe352744d989c1e0f7fab7baacb9fc9a9ee3e1b4",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/numpy__numpy-financial/LICENSE.txt",
+          "bytes": 1543,
+          "repo_path": "LICENSE.txt"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/numpy/numpy-financial/22c29b4ad61a5e413d4858e46e3f26f55ebdf328/LICENSE",
+          "ok": false,
+          "error": "HTTP Error 404: Not Found",
+          "repo_path": "LICENSE"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/numpy/numpy-financial/22c29b4ad61a5e413d4858e46e3f26f55ebdf328/pyproject.toml",
+          "ok": true,
+          "status": 200,
+          "sha256": "1b9055657ad927a9e0b6a12e1732e01b8204863818099c36ffb98d51c9c886a9",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/numpy__numpy-financial/pyproject.toml",
+          "bytes": 2890,
+          "repo_path": "pyproject.toml"
+        },
+        {
+          "url": "https://raw.githubusercontent.com/numpy/numpy-financial/22c29b4ad61a5e413d4858e46e3f26f55ebdf328/numpy_financial/_financial.py",
+          "ok": true,
+          "status": 200,
+          "sha256": "b5a0b1e488e9407dd0be71b202cedf4cce77e5902034760da723451c1b27df0e",
+          "local_path": "/workspace/restructuration-opsys-2026-09-30/preuves-m5/numpy__numpy-financial/numpy_financial___financial.py",
+          "bytes": 44812,
+          "repo_path": "numpy_financial/_financial.py"
+        }
+      ],
+      "default_branch": "main",
+      "archived": false,
+      "pushed_at_observed": "2026-09-17T19:20:33Z",
+      "license_hint": {
+        "key": "bsd-3-clause",
+        "name": "BSD 3-Clause \"New\" or \"Revised\" License",
+        "spdx_id": "BSD-3-Clause",
+        "url": "https://api.github.com/licenses/bsd-3-clause",
+        "node_id": "MDc6TGljZW5zZTU="
+      },
+      "meta_fetch": {
+        "url": "https://api.github.com/repos/numpy/numpy-financial",
+        "ok": true,
+        "status": 200,
+        "sha256": "35395eb2fdde0d69fd804fc7418b00776f9296f8175e84c214ac5741a133730c"
+      },
+      "sha": "22c29b4ad61a5e413d4858e46e3f26f55ebdf328",
+      "commit_date": "2026-09-15T07:56:03Z",
+      "commit_fetch": {
+        "url": "https://api.github.com/repos/numpy/numpy-financial/commits?until=2026-09-30T23:59:59Z&per_page=1",
+        "ok": true,
+        "status": 200,
+        "sha256": "e301eceac93a4d896c56238f0e2963aa1b5fdfe649d897c3345a6974ebe60408"
+      },
+      "release_asof": {
+        "tag": "v1.1.0",
+        "published_at": "2026-09-15T07:44:50Z",
+        "url": "https://github.com/numpy/numpy-financial/releases/tag/v1.1.0"
+      },
+      "releases_fetch": {
+        "url": "https://api.github.com/repos/numpy/numpy-financial/releases?per_page=20",
+        "ok": true,
+        "status": 200,
+        "sha256": "240b668e1f1187f9c8e157585a58d766b19ac4b82dfcc597ce29fac34cc4bbea"
+      }
+    }
+  ]
+}

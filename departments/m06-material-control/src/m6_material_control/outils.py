@@ -7,7 +7,8 @@ compose de bout en bout : réception -> écriture du stock -> résolution de pri
 de réception -> signal à M5 -> suggestion de réapprovisionnement, en un seul appel.
 `m6_declarer_materiaux_utilises` (PLAN T1.1-d2) fait de même pour la fin de chantier :
 formulaire enrichi -> mouvements typés (CONSOMMATION/RETOUR/PERTE/BRIS) -> stock théorique
-cohérent, idempotent par wct_id. Depuis PLAN T1.4-i, l'appelant ne fournit plus le WCT, seulement
+cohérent, idempotent par wct_id avec conflit nommé si le contenu du WCT diverge. Depuis PLAN T1.4-i,
+l'appelant ne fournit plus le WCT, seulement
 son `wct_id` : M6 relit la charge `m4.travaux_termines` publiée par M4 (`evenements.charge_publiee`,
 le magasin du bus — AGENTS.md : un fait vient de sa source de vérité, jamais de l'appelant) et la
 valide comme avant ; un `wct_id` que M4 n'a jamais publié est refusé (`REJ-WCT-INCONNU`).
@@ -91,6 +92,7 @@ from . import (
     bons_commande,
     digest,
     emplacements,
+    encodage,
     evenement_reception,
     fournisseurs,
     livre_prix,
@@ -1028,13 +1030,39 @@ def consommer_materiaux(
     formulaire: dict[str, Any],
     registre_historique: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    """Compatibilité de l'ancien contrat, adossée au WCT canonique M4.
+
+    Le champ ``wct`` reste accepté pour compatibilité, mais n'est plus une source de vérité :
+    son ``wct_id`` sert uniquement à relire ``m4.travaux_termines``. L'appel doit donc être
+    transactionnel, comme ``m6_declarer_materiaux_utilises``. Une consommation est ensuite
+    marquée par ce WCT dans le registre, ce qui rend les appels répétés idempotents même si la
+    clé d'idempotence de transport change.
+    """
+    wct_id = wct.get("wct_id") if isinstance(wct, dict) else None
+    wct_canonique = _wct_publie_par_m4(wct_id)
+    if wct_canonique is None:
+        return {"accepte": False, "verdict": {"code": "REJ-WCT-INCONNU"}}
+
+    ok, code = validation.valider_wct(wct_canonique)
+    if ok:
+        ok, code = validation.valider_formulaire_consommation(formulaire, wct_canonique)
+    if not ok:
+        return {"accepte": False, "verdict": {"code": code}}
+    if formulaire["intervention_id"] != wct_canonique["intervention_id"]:
+        return {
+            "accepte": False,
+            "verdict": {"code": "REJ-FORMULAIRE-MATERIAUX-INTERVENTION-INCOHERENTE"},
+        }
+
     registre_cible = _registre_de_l_appel(registre_historique)
-    resultat, code = materiel.consommer_materiaux(wct, formulaire, registre_cible)
+    resultat, code = materiel.consommer_materiaux(
+        wct_canonique, formulaire, registre_cible, wct_id=wct_id
+    )
     if code is not None:
         return {"accepte": False, "verdict": {"code": code}}
-    # T4.14 : du stock vient de sortir ; le WCT (fourni par l'appelant, comme avant) clôt la réservation de son devis.
+    # T4.14 : du stock vient de sortir ; le WCT relu de M4 clôture la réservation de son devis.
     _cloturer_et_reconcilier(
-        wct.get("devis_id"), wct["wct_id"], wct["horodatage_completion"],
+        wct_canonique.get("devis_id"), wct_canonique["wct_id"], wct_canonique["horodatage_completion"],
         [ligne["materiau_id"] for ligne in formulaire["lignes_consommees"]],
     )
     return {"accepte": True, "resultat": resultat, **_etat_registre(registre_cible)}
@@ -1566,9 +1594,13 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m6_consommer_materiaux",
             description=(
-                "Confirme une consommation de matériaux sur une intervention terrain (WCT de M4), "
-                "décrémente le stock localisé du chantier. Refuse fail-closed si le stock disponible "
-                "est insuffisant. La confirmation ne porte jamais de coût."
+                "Ancien contrat conservé pour compatibilité ({wct, formulaire}), désormais lié au WCT "
+                "publié par M4 : le champ wct sélectionne son wct_id mais sa charge est relue dans "
+                "l'événement canonique. Exige une transaction durable, refuse un WCT inconnu ou une "
+                "intervention divergente sans écriture, et refuse un second débit du même WCT même "
+                "si la clé de transport change. Décrémente le stock du chantier. La confirmation ne "
+                "porte jamais de coût. Pour le formulaire de fin de chantier enrichi, utiliser "
+                "m6_declarer_materiaux_utilises."
             ),
             parametres={
                 "type": "object",
@@ -2044,8 +2076,10 @@ def outils() -> tuple[Outil, ...]:
 # en transaction), sans le mode « en mémoire » des tests unitaires hors transaction ci-dessus.
 def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
     """Consomme `m4.travaux_termines` : garde ce que M6 vient de recevoir de ce WCT (wct_id,
-    intervention_id, devis_id, horodatage_completion — `wct_recus.py`, idempotent par wct_id),
-    puis délègue tout le calcul et la publication à `_evaluer_et_publier_variance` (fonction
+    intervention_id, devis_id, horodatage_completion et empreinte du contenu complet —
+    `wct_recus.py`). Une répétition du même wct_id et du même contenu est idempotente ; un contenu
+    différent retourne `CONFLIT-WCT-CONTENU` et ne touche ni projection ni événement. Puis délègue
+    tout le calcul et la publication à `_evaluer_et_publier_variance` (fonction
     UNIQUE, partagée avec `m6_declarer_materiaux_utilises` et `m6_enregistrer_besoins_prevus` —
     voir sa docstring pour le détail des statuts, du seuil et de `chantier_id`).
 
@@ -2058,12 +2092,21 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
     """
     wct_recus_registre = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_WCT_RECUS)
     wct_recu = wct_recus.pour_wct_id(charge["wct_id"], wct_recus_registre)
-    if wct_recu is None:
-        wct_recu = wct_recus.construire(
-            charge["wct_id"], charge["intervention_id"], charge.get("devis_id"),
-            charge["horodatage_completion"],
-        )
-        wct_recus_registre.append(wct_recu)
+    empreinte_contenu = encodage.empreinte(charge)
+    if wct_recu is not None:
+        if wct_recu.get("empreinte_contenu") != empreinte_contenu:
+            return {
+                "statut_variance": "conflit",
+                "wct_id": charge["wct_id"],
+                "code": "CONFLIT-WCT-CONTENU",
+            }
+        return _evaluer_et_publier_variance(wct_recu)
+
+    wct_recu = wct_recus.construire(
+        charge["wct_id"], charge["intervention_id"], charge.get("devis_id"),
+        charge["horodatage_completion"], empreinte_contenu,
+    )
+    wct_recus_registre.append(wct_recu)
     return _evaluer_et_publier_variance(wct_recu)
 
 

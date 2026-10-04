@@ -3,6 +3,30 @@ import { AgentsSchema } from "./zod-schema.agents.js";
 import { OpenClawSchema } from "./zod-schema.js";
 
 describe("agent roster ownership", () => {
+  it("accepts the OPSYS-owned required-exec-sandbox marker", () => {
+    const result = AgentsSchema.safeParse({
+      ownership: "explicit",
+      defaults: { opsysIsolation: { exec: "sandbox-required" } },
+      entries: { "m03-estimation": { opsysIsolation: { exec: "sandbox-required" } } },
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data?.entries?.["m03-estimation"]).toMatchObject({
+        opsysIsolation: { exec: "sandbox-required" },
+      });
+    }
+  });
+
+  it("rejects a sandbox marker that names a host or downgrade mode", () => {
+    expect(
+      AgentsSchema.safeParse({
+        ownership: "explicit",
+        entries: { "m03-estimation": { opsysIsolation: { exec: "gateway" } } },
+      }).success,
+    ).toBe(false);
+  });
+
   it("rejects an empty roster after load-time migration", () => {
     expect(AgentsSchema.safeParse({ entries: {} }).success).toBe(false);
   });

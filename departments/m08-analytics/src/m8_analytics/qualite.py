@@ -26,23 +26,37 @@ jamais une valeur de composante fournie brute par l'appelant, voir ``outils.py``
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 VERDICT_DONNEE_ABSENTE = "REJ-QUALITE-DONNEE-ABSENTE"
+VERDICT_DONNEE_INVALIDE = "REJ-QUALITE-DONNEE-INVALIDE"
 VERDICT_DONNEE_PERIMEE = "REJ-QUALITE-DONNEE-PERIMEE"
 VERDICT_HORS_PLAGE = "REJ-QUALITE-HORS-PLAGE"
 VERDICT_DOUBLON = "REJ-QUALITE-DOUBLON"
 VERDICT_INCOHERENT = "REJ-QUALITE-INCOHERENCE"
 
 
-def evaluer_presence(metric_id: str, n: int, valeur: float | None) -> dict[str, Any] | None:
+def evaluer_presence(
+    metric_id: str, n: int, valeur: float | None, valeurs_invalides: int = 0,
+) -> dict[str, Any] | None:
     """``VERDICT_DONNEE_ABSENTE`` si aucune valeur n'a pu être dérivée (``n == 0`` ou
     ``valeur is None`` — les deux sont toujours cohérents en sortie de
     ``semantique.deriver_metrique``, le second contrôle reste une garde défensive), sinon
     ``None``. Ne dit jamais pourquoi la donnée manque (ce n'est pas une cause) : seulement le
     fait, pour que l'appelant (``alertes.py``) sache quoi demander et à qui."""
+    if valeur is not None and not math.isfinite(valeur):
+        valeurs_invalides = max(valeurs_invalides, 1)
+    if valeurs_invalides:
+        return {
+            "metric_id": metric_id,
+            "verdict": VERDICT_DONNEE_INVALIDE,
+            "n": n,
+            "valeurs_invalides": valeurs_invalides,
+        }
     if n == 0 or valeur is None:
-        return {"metric_id": metric_id, "verdict": VERDICT_DONNEE_ABSENTE, "n": n}
+        resultat = {"metric_id": metric_id, "verdict": VERDICT_DONNEE_ABSENTE, "n": n}
+        return resultat
     return None
 
 

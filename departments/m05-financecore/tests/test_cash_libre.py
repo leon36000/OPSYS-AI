@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import json
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, Inexact, Rounded, localcontext
 from pathlib import Path
 
 import pytest
@@ -38,6 +38,23 @@ FICTIF = True
 CHEMIN_TAUX = Path(__file__).resolve().parents[1] / "contracts" / "taux_fiscaux.v1.yaml"
 REMISES = date(2026, 6, 30)
 D = Decimal
+
+
+def test_cash_libre_preserve_les_cents_sous_contexte_decimal_externe_restrictif():
+    solde = {"id": "solde", "montant": D("100000000.01"), "manque": [], "reserves": []}
+    composantes = [
+        {"id": ident, "montant": D("100000000.00") if ident == "taxes_a_remettre" else D("0.00"),
+         "manque": [], "reserves": [], "plancher": None}
+        for ident in ("taxes_a_remettre", "paies", "das", "comptes_a_payer", "dettes", "reserves")
+    ]
+
+    with localcontext() as contexte:
+        contexte.prec = 8
+        contexte.traps[Inexact] = True
+        contexte.traps[Rounded] = True
+        resultat = cash_libre.calculer_cash_libre(solde, composantes)
+
+    assert resultat["cash_libre"] == D("0.01")
 
 DECLARATIONS = {
     "paies": {"montant": "4200.00", "source": "brouillon de paie du 2026-09-25 (fictif)", "au": "2026-09-25"},

@@ -684,6 +684,41 @@ def test_le_budget_ne_touche_pas_une_vue_sans_cash_libre(par_nom, cas_fictif, mo
 
 
 # ======================================================= 8. m5_lire_echeances_fiscales : l'outil du calendrier
+def test_registres_absents_ne_confirment_pas_un_zero_de_taxes(par_nom, declare):
+    """Un calendrier configuré ne prouve pas la couverture des livres de factures vides."""
+    declare(CONFIGURATION_COMPLETE)
+
+    echeances = _echeances(par_nom)["resultat"]["echeances"]
+
+    assert len(echeances) == 2
+    assert all(e["taxes_nettes"] is None for e in echeances)
+    assert all(e["manque"][0]["code"] == "REJ-FISCAL-COUVERTURE-ABSENTE" for e in echeances)
+    assert all("aucune attestation de couverture" in e["manque"][0]["detail"] for e in echeances)
+
+
+@pytest.mark.parametrize("piece", ["brouillon", "evenement_technique"])
+def test_aucune_piece_admissible_ne_confirme_pas_un_zero_de_taxes(par_nom, declare, taux, piece):
+    """Un maillon quelconque ne prouve pas qu'une pièce fiscale utilisable couvre les registres."""
+    declare(CONFIGURATION_COMPLETE)
+    with stockage.transaction():
+        reg = m5_outils._registre_factures(None)
+        if piece == "brouillon":
+            _, verdict = facturation.creer_facture_brouillon(
+                "F-BROUILLON", "CH-1", "D-BROUILLON", "C-1",
+                [{"description": "service (fictif)", "quantite": "1", "unite": "u", "prix_unitaire": "10.00",
+                  "reference_ligne_devis": "L-1"}], "2026-09-01T09:00:00-04:00", taux, reg,
+            )
+            assert verdict is None, verdict
+        else:
+            reg.ajouter({"type_entree": "demande_creee", "demande_id": "TECH-1",
+                         "horodatage": "2026-09-01T09:00:00-04:00"})
+
+    echeances = _echeances(par_nom)["resultat"]["echeances"]
+
+    assert all(e["taxes_nettes"] is None for e in echeances)
+    assert all(e["manque"][0]["code"] == "REJ-FISCAL-COUVERTURE-ABSENTE" for e in echeances)
+
+
 def test_l_outil_est_de_lecture_seule_reserve_a_l_admin(par_nom):
     outil = par_nom["m5_lire_echeances_fiscales"]
 
@@ -702,6 +737,7 @@ def test_les_echeances_du_cas_fictif_avec_la_taxe_nette_de_chaque_periode(par_no
     assert troisieme["taxes_nettes"]["tps"] == {"collectee": "676.67", "credits_intrants": "15.00", "nette": "661.67",
                                                 "a_remettre": "661.67"}
     assert quatrieme["taxes_nettes"]["a_remettre"] == "0.00"
+    assert quatrieme["taxes_nettes"]["couverture"]["statut"] == "PARTIELLE"
     assert troisieme["periode_terminee"] is False, "le trimestre est encore ouvert : le chiffre est partiel"
     assert resultat["mention"] == MENTION and resultat["role"] == "admin"
 

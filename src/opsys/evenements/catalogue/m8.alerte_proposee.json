@@ -16,7 +16,7 @@
     },
     "type_alerte": {
       "type": "string",
-      "enum": ["REJ-QUALITE-DONNEE-ABSENTE", "REJ-QUALITE-DONNEE-PERIMEE", "REJ-QUALITE-HORS-PLAGE", "MESURE-SEUIL-FRANCHI", "MESURE-SEUIL-A-CONFIGURER"],
+      "enum": ["REJ-QUALITE-DONNEE-ABSENTE", "REJ-QUALITE-DONNEE-INVALIDE", "REJ-QUALITE-DONNEE-PERIMEE", "REJ-QUALITE-HORS-PLAGE", "MESURE-SEUIL-FRANCHI", "MESURE-SEUIL-A-CONFIGURER"],
       "description": "Verdict m8_analytics.qualite.py à l'origine de l'alerte (VERDICT_DONNEE_ABSENTE, VERDICT_DONNEE_PERIMEE, VERDICT_HORS_PLAGE) — les trois premiers sont les seuls que m8_analytics.alertes.proposer_action sait transformer en action proposée ; les deux derniers (T1.5-d) viennent de m8_analytics.mesures_chantier.charges_alertes."
     },
     "quoi": {
@@ -51,6 +51,17 @@
             "metric_id": {"type": "string"},
             "fraicheur_jours": {"type": "number"},
             "fraicheur_attendue_jours": {"type": "number"}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metric_id", "n", "valeurs_invalides"],
+          "description": "REJ-QUALITE-DONNEE-INVALIDE : les observations non convertibles en nombre fini ou mal typées sont exclues; aucune n'est acceptée comme mesure.",
+          "properties": {
+            "metric_id": {"type": "string"},
+            "n": {"type": "integer", "minimum": 0, "description": "Nombre d'observations finies conservées pour contrôle."},
+            "valeurs_invalides": {"type": "integer", "minimum": 1, "description": "Nombre d'observations non numériques, mal typées, NaN ou infinies refusées."}
           }
         },
         {

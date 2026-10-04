@@ -2,7 +2,16 @@
 
 FinanceCore — comptabilite, fiscalite (mention CPA), paie, CFO IA
 
-Statut : département OPSYS complet (mode `ombre`), sur le modèle de M3. Les 7
+Statut au 1er octobre 2026 : **PARTIEL — consolidation requise**. Les opérations internes et des
+rapports préparatoires sont raccordés, mais le périmètre CFO complet n'est pas livré. Le comptage
+historique au commit `2e56c0d` (17 outils) et le constat initial DEP-001 ne décrivent plus l'arbre
+courant : DEP-001 est corrigé localement, avec régression en mémoire et sur stockage durable
+(`test_facturation.py`, `test_registre_durable.py`). M5 expose maintenant 26 outils; M5.4.a ajoute 3 outils (deux N4, un T0), M5.4.b ajoute un outil T0 de brouillon brut régulier, M5.4.c expose seulement l'état des références de paie et M5.4.d prépare un export manuel WebRAS réservé au propriétaire-console. Le brut ne calcule ni retenues ni obligations employeur et n'alimente pas le cash libre; le dossier WebRAS ne calcule aucun montant fiscal ni net et ne qualifie pas le brut comme revenu imposable.
+`opsys-metier verifier` confirme les nombres de départements, outils et portées d'appareil dans sa preuve de cette tranche. Voir le [périmètre cible](../../docs/produit/PERIMETRE-MODULES.md), la
+[recherche actuelle](../../docs/research/R16-2026-09-30/recherche-m5.md) et le
+[bilan intégré](../../docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md).
+
+Historique du premier lot (mode `ombre`), sur le modèle de M3. Les 7
 stories du PRD (`docs/bmad/02-PRD-PM.md`) sont livrées et vertes : contrats
 gelés + validation d'entrée (S001), registre append-only hash-chaîné (S002),
 solde/argent disponible (S003), taux fiscaux versionnés (S004), registre
@@ -10,7 +19,7 @@ d'approbation F0-F7 (S005), état financier filtré par rôle (S006), conformit�
 statique transversale (S007). Couche département ajoutée : `department.yaml`,
 `SOUL.md`, 2 skills (`tenir-le-registre-financier`,
 `gerer-les-approbations-f0-f7`), `src/m5_financecore/outils.py` (5 outils
-agent), `tests/test_outils_agent.py`.
+agent au premier lot, 17 actuellement), `tests/test_outils_agent.py`.
 
 Quatre bugs corrigés (test rouge → vert) lors de cette passe :
 - `soldes.py` n'imposait aucun signe : un DECAISSEMENT positif gonflait le
@@ -126,8 +135,9 @@ libre est alors nul, la réponse nomme ce qui manque et donne un `au_plus` (le s
 l'argent disponible). Sans aucun mouvement au registre, le solde lui-même est inconnu. D'où vient chaque composante : le solde et
 les réserves, du registre des mouvements (les mouvements `PROVISION`) ; les taxes, de la taxe des factures clients envoyées
 (`ENVOYEE`, `PAYEE`) moins les crédits de taxes sur intrants des factures fournisseur SAISIES (T4.15), depuis la dernière remise ;
-les comptes à payer, du total de T4.15 ; les paies, DAS et dettes, de RIEN (M5.4, paie, est absent) : le propriétaire les DÉCLARE
-avec leur source et leur date dans `department.yaml` (`configuration.obligations_declarees`), sinon elles sont « à déclarer ». Un
+les comptes à payer, du total de T4.15 ; les paies, DAS et dettes restent des obligations réelles déclarées manuellement
+avec leur source et leur date dans `department.yaml` (`configuration.obligations_declarees`), sinon elles sont « à déclarer ».
+M5.4.a conserve le taux individuel et M5.4.b prépare un brut régulier, sans créer de paie ni d'obligation déclarée. Un
 « 0.00 » déclaré est un zéro connu. Un déficit est rendu tel quel. Arrondi : `ROUND_HALF_UP`, une fois, au résultat.
 
 Calendrier fiscal : `contracts/calendrier_fiscal.v1.yaml`, sur le patron de `taux_fiscaux.v1.yaml` (année, sources officielles
@@ -137,13 +147,22 @@ CPA. `m5_lire_echeances_fiscales` (T0, `admin`) dit les prochaines échéances T
 période. Une année non déclarée est REFUSÉE (`REJ-CALENDRIER-ANNEE-NON-DECLAREE`). La fréquence de production (mensuelle,
 trimestrielle, annuelle), la fin d'exercice, le statut de particulier en affaires et la date de dernière remise sont des
 décisions ou des faits du propriétaire (GATE NATHAN, `configuration.fiscal` de `department.yaml`) : absents, le calendrier le dit
-et ne suppose rien. Hors du calendrier, faute de donnée : acomptes provisionnels, DAS, T4 et RL-1, CNESST.
+et ne suppose rien. Hors du calcul fiscal, faute de source officielle déclarée : acomptes provisionnels, paie, DAS, T4 et RL-1,
+CNESST.
+
+`m5_lire_calendrier_obligations` (T0, `admin`) ajoute un calendrier préparatoire pour les paies, DAS et dettes déjà déclarées :
+il reprend leur montant/source/date dans `obligations_declarees`, leur échéance explicite dans la configuration de prévision et
+les métadonnées d'autorité, période, source, validité déclarée, année et version dans `calendrier_obligations`. Une ligne
+incomplète reste visible avec les champs manquants. Une fenêtre de source qui ne couvre pas la période est marquée périmée;
+aucun âge maximal n'est inventé. Une échéance passée est à vérifier, jamais considérée comme non payée. Ce n'est pas un moteur
+de paie : aucun taux, calcul de retenue, date récurrente, dépôt ou paiement n'est ajouté.
 
 Mention obligatoire (`analyse.py`) : « Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision
 officielle ou action réelle. » (DEFINITION-PRODUIT §7 M5, §13.3) est portée par toute sortie acceptée d'un outil d'analyse
-(`m5_etat_tresorerie`, `m5_lire_echeances_fiscales`, `m5_prevoir_tresorerie` (T4.16-d), `m5_lire_rentabilite_chantier`, `m5_lister_comptes_a_payer`,
+(`m5_etat_tresorerie`, `m5_lire_echeances_fiscales`, `m5_lire_calendrier_obligations`, `m5_prevoir_tresorerie` (T4.16-d), `m5_lire_rentabilite_chantier`, `m5_lister_comptes_a_payer`,
 `m5_saisir_facture_fournisseur`, et depuis T4.15-c `m5_saisir_facture_sans_po`, `m5_corriger_facture_fournisseur`,
-`m5_annuler_facture_fournisseur`) ; un test ferme le monde (chaque outil est classé) et lit la mention dans le document produit.
+`m5_annuler_facture_fournisseur`, ainsi que `m5_preparer_brut_regulier`) ; un test ferme le monde (chaque outil est classé)
+et lit la mention dans le document produit.
 
 AUCUNE REMISE, AUCUNE DÉCLARATION, AUCUN PAIEMENT. Le calendrier propose des dates ; remettre une taxe est N5 (Nathan ET le
 CPA). `conformite.verifier_aucun_decaissement` couvre le nouveau code : en régime strict (aucun mot de mouvement) pour le
@@ -155,7 +174,8 @@ se compensent pas entre elles et une taxe nette négative n'est jamais de l'arge
 fournisseur ni de remise : un fournisseur payé ou une taxe remise reste retranché tant que le registre l'ignore
 (`taxes_remises_jusqu_au` s'avance à la main, avec le CPA) : le cash libre est alors SOUS-estimé, jamais surestimé ; (3) une
 PROVISION posée pour un autre poste (taxes, paies) compte deux fois : aucune catégorie de réserve n'existe encore ; (4) paies, DAS
-et dettes sont déclarées à la main dans le manifeste, en attendant M5.4 et un registre des dettes ; (5) `aujourd_hui` est fourni
+et dettes sont déclarées à la main dans le manifeste ; le brut préparatoire M5.4.b ne crée aucune obligation et ne remplace pas
+cette déclaration ; (5) `aujourd_hui` est fourni
 par l'appelant (M5 n'a pas d'horloge, DA-M5-06) ; (6) la fréquence de production et les autres décisions sont absentes du
 manifeste livré : tant que Nathan ne les déclare pas, le cash libre est « non calculable » et le calendrier refuse de nommer une
 échéance ; (7) le cash libre est l'état d'aujourd'hui, jamais une projection : la prévision des flux connus et datés vient de
@@ -212,7 +232,9 @@ un décaissement échu est placé en semaine 1 (aucun paiement n'est constaté) 
 conditions propres à un client ou à un fournisseur ne sont pas connues ; (5) la taxe d'une période non terminée est celle des factures déjà
 émises ; un remboursement de taxes n'est jamais compté ; les dates du calendrier sont à valider par le CPA ; acomptes provisionnels et CNESST
 hors calendrier ; (6) le solde d'une semaine est celui de sa fin : un creux au milieu d'une semaine n'est pas vu ; (7) le code critique de
-M5 (argent) exige une revue externe (un modèle d'un autre fournisseur ou un humain) avant `main`.
+M5 exige des preuves financières et des régressions ciblées avant intégration ; ADR-0012 supprime
+l'obligation d'attendre un autre modèle ou fournisseur. La validation humaine des actions financières
+réelles reste obligatoire.
 
 PLAN T4.15-c (correction, annulation et factures sans PO, `comptes_a_payer.py`, M5.2) : trois outils de plus, tous refusés à un
 agent seul.
@@ -286,3 +308,24 @@ quelle fréquence, un bouton du profil admin ?) ; (2) la date de référence est
 porte est celle qu'on lui a donnée ; (3) le constat vieillit : M8 dit son âge, aucun seuil de péremption n'est inventé (GATE
 NATHAN) ; (4) les hypothèses du calcul (crédits de taxes récupérables à 100 %) voyagent avec le constat et restent à valider par
 le CPA ; (5) deux appels simultanés pour le même rang : le second échoue (écriture concurrente) et se rejoue sans dégât.
+
+M5.10.a (intégré localement le 1er octobre 2026, décision capital) :
+`m5_preparer_decision_capital` accepte facultativement
+`echeanciers_hypothetiques`; chaque option saisit `couvre_jusquau` et jusqu'à huit sorties datées, catégorisées, avec
+montant texte au cent, référence source et hypothèse. Le prix comptant et les mises de fonds sont rapprochés des montants
+cités; chaque paiement mensuel saisi est rapproché du montant mensuel de l'offre. Un montant non rapproché, une sortie sans
+source/date ou une couverture qui s'arrête avant la fin de l'horizon laisse l'option `INCOMPLET`, sans solde projeté. La
+couverture jusqu'à la fin de l'horizon de 1 à 26 semaines est une déclaration manuelle, non une preuve de calendrier complet.
+L'extension est additive : sans cette entrée, l'ancienne forme de comparaison d'offres est conservée. La comparaison
+capital reste un outil compact distinct du dossier CFO à 25 rubriques; avec l'extension, la réponse omet son contexte AR/AP/devis
+pour tenir dans le budget. M5 ne génère aucune date ou échéance depuis le paiement mensuel cité et ne calcule ni taux, taxe,
+intérêt ou frais. La projection réutilise le même instantané financier et ses flux connus/datés, part du solde du registre
+(jamais du cash libre) et ne soustrait pas une seconde fois réserves ou obligations. Elle montre le solde de fin et le plus bas
+des fins de semaine si l'horizon est calculable; ce minimum n'est pas un creux intra-semaine. Un premier dépassement budgétaire
+rend les soldes `NON_CALCULABLE`; le rapport est mesuré à nouveau et refusé s'il dépasse encore la limite. Aucune
+recommandation, validation fiscale, commande, signature ou dépense n'en découle. Les retenues, cotisations, DAS, paie nette,
+obligations calculées, fiscalité officielle, rapprochement bancaire, contrats signés, DSCR et projections à 12/24 mois
+restent partiels ou absents.
+
+
+M5.4.a ajoute le journal privé des contrats horaires individuels. M5.4.b ajoute un brouillon du brut régulier depuis M4 et le taux M5, sans retenues, cotisations, DAS, paie nette, écriture, paiement ou alimentation du cash libre. M5.4.c expose l'inventaire versionné des références de règles : ARC/RQ sont actuellement NON_QUALIFIEES et toute lacune laisse l'état PARTIEL; aucune retenue n'est calculée. M5.4.d produit un JSON privé destiné à une saisie et un calcul humains dans WebRAS/PDOC, sans appel à ces services; l'assiette humaine est facultative et reste inconnue si elle n'est pas fournie. Les hypothèses d'arrondi restent déclaratives et non vérifiées; une validation humaine est requise. Les retenues, cotisations, paie nette et obligations employeur calculées restent absentes. Le périmètre est décrit dans [M5.4.a — contrat salarial horaire](docs/m54-contrat-salarial-horaire.md), [M5.4.b — brut régulier préparatoire](docs/m54b-brut-regulier-preparatoire.md), [M5.4.c — références de règles de paie](docs/m54c-sources-regles-paie.md) et [M5.4.d — dossier WebRAS manuel](docs/m54d-dossier-webras-manuel.md).

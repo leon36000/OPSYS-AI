@@ -84,6 +84,7 @@ import { root, FsSafeError } from "../../infra/fs-safe.js";
 import { isPathInside } from "../../infra/path-guards.js";
 import { movePathToTrash } from "../../plugin-sdk/browser-maintenance.js";
 import { normalizeAgentIdStrict } from "../../routing/session-key.js";
+import { isAssistantAvatarModelId } from "../../shared/assistant-avatar-model-catalog.js";
 import {
   readAgentDeletionJournal,
   type AgentDeletionJournalCleanupPath,
@@ -613,6 +614,19 @@ export const agentsHandlers: GatewayRequestHandlers = {
 
     const model = params.model === null ? null : resolveOptionalStringParam(params.model);
 
+    if (
+      params.avatarModelId !== undefined &&
+      params.avatarModelId !== null &&
+      !isAssistantAvatarModelId(params.avatarModelId)
+    ) {
+      respond(
+        false,
+        undefined,
+        errorShape(ErrorCodes.INVALID_REQUEST, "Unknown local avatar model."),
+      );
+      return;
+    }
+
     const safeName =
       typeof params.name === "string" && params.name.trim()
         ? sanitizeAgentIdentityLine(params.name.trim())
@@ -622,8 +636,11 @@ export const agentsHandlers: GatewayRequestHandlers = {
       name: safeName,
       emoji: params.emoji,
       avatar: params.avatar,
+      avatarModelId: typeof params.avatarModelId === "string" ? params.avatarModelId : undefined,
     });
-    const hasIdentityFields = Boolean(identity);
+    const identityUpdate =
+      params.avatarModelId === null ? { ...identity, avatarModelId: undefined } : identity;
+    const hasIdentityFields = Boolean(identityUpdate || params.avatarModelId === null);
 
     const agentConfigUpdate: Parameters<typeof updateAgentConfigEntry>[0] = {
       agentId,
@@ -631,7 +648,7 @@ export const agentsHandlers: GatewayRequestHandlers = {
       ...(workspaceDir ? { workspace: workspaceDir } : {}),
       ...(model !== undefined ? { model } : {}),
       ...(params.agentRuntime ? { agentRuntime: params.agentRuntime } : {}),
-      ...(identity ? { identity } : {}),
+      ...(identityUpdate ? { identity: identityUpdate } : {}),
     };
     const selectionError = validateAgentModelSelectionUpdate(params);
     if (selectionError) {

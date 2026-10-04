@@ -65,9 +65,16 @@ describe("interpreterResultatDeposerFichier", () => {
     expect(resultat).toEqual({ accepte: false, verdict: { code: "invalid_request", detail: "type_mime invalide" } });
   });
 
-  test("forme non reconnue -> défensif, pas complet, jamais un blocage", () => {
-    expect(interpreterResultatDeposerFichier(null)).toEqual({ accepte: true, resultat: { reference: null, complet: false, blocsRecus: [] } });
-    expect(interpreterResultatDeposerFichier(undefined)).toEqual({ accepte: true, resultat: { reference: null, complet: false, blocsRecus: [] } });
+  test("forme non reconnue ou accusé incomplet -> rejet récupérable, jamais envoyé", () => {
+    const attendu = { accepte: false, verdict: { code: "accuse_invalide", detail: "Réponse métier de dépôt de fichier inconnue." } };
+    expect(interpreterResultatDeposerFichier(null)).toEqual(attendu);
+    expect(interpreterResultatDeposerFichier(undefined)).toEqual(attendu);
+    expect(interpreterResultatDeposerFichier({ ok: true, resultat: { accepte: true, resultat: {} } }).accepte).toBe(false);
+  });
+
+  test("un accusé valide d'un bloc non final demeure accepté", () => {
+    expect(interpreterResultatDeposerFichier({ ok: true, resultat: { accepte: true, resultat: { reference: null, complet: false, blocs_recus: [0] } } }))
+      .toEqual({ accepte: true, resultat: { reference: null, complet: false, blocsRecus: [0] } });
   });
 });
 
@@ -103,5 +110,10 @@ describe("interpreterResultatEtatFichier", () => {
       resultat: { accepte: false, verdict: { code: "REJ-FICHIER-PARAMETRES-INVALIDES", detail: "empreinte_sha256 invalide" } },
     });
     expect(resultat).toEqual({ accepte: false, verdict: { code: "REJ-FICHIER-PARAMETRES-INVALIDES", detail: "empreinte_sha256 invalide" } });
+  });
+
+  test("réponse inconnue ou état incomplet ne se transforme pas en fichier absent", () => {
+    expect(interpreterResultatEtatFichier({})).toMatchObject({ accepte: false, verdict: { code: "accuse_invalide" } });
+    expect(interpreterResultatEtatFichier({ ok: true, resultat: { accepte: true, resultat: {} } })).toMatchObject({ accepte: false, verdict: { code: "accuse_invalide" } });
   });
 });

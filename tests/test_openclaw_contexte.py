@@ -95,15 +95,28 @@ def test_active_ecrit_contexte_json_et_le_choix_du_moteur_ensemble(departements,
 
     contexte = _lire(fichiers, "contexte")
     niveaux = contexte.pop("niveaux")  # vérifié à part : un niveau par outil des départements
+    cibles = contexte.pop("cibles")
     assert contexte == {
+        "version": 2,
         "actif": True,
         "serveur": "opsys_m10",
         "outil_paquet": "m10_paquet_contexte_affaire",
         "outil_depot": "m10_deposer_faits_candidats",
         "outil_affaire": "m10_affaire_de_la_session",
-        "agents": {"m03-estimation": {"depot": ["m3_estimer_projet"], "affaire": "demande"}},
+        "agents": {
+            "m03-estimation": {
+                "depot": ["m3_estimer_projet"],
+                "affaire": "demande",
+                "serveur_contexte": "opsys_context_m03-estimation",
+            }
+        },
     }
     assert niveaux
+    assert cibles["m3_estimer_projet"] == {
+        "type": "affaire",
+        "chemin": ["contrat", "lead_id"],
+        "identite": "lead",
+    }
     plugins = _lire(fichiers, "plugins")
     assert plugins["slots"] == {"contextEngine": "opsys"}
     assert plugins["entries"]["memory-core"]["config"]["dreaming"]["enabled"] is True  # inchangé
@@ -130,18 +143,26 @@ def test_agents_tries_outils_dedoubles_et_paquet_seul_possible(departements, tmp
 
     agents = _lire(fichiers, "contexte")["agents"]
     assert list(agents) == ["m03-estimation", "m04-field-ops"]
-    assert agents["m03-estimation"] == {"depot": ["m3_qualifier_photos", "m3_estimer_projet"], "affaire": "demande"}
-    assert agents["m04-field-ops"] == {"depot": [], "affaire": "demande"}
+    assert agents["m03-estimation"] == {
+        "depot": ["m3_qualifier_photos", "m3_estimer_projet"],
+        "affaire": "demande",
+        "serveur_contexte": "opsys_context_m03-estimation",
+    }
+    assert agents["m04-field-ops"] == {
+        "depot": [],
+        "affaire": "demande",
+        "serveur_contexte": "opsys_context_m04-field-ops",
+    }
 
 
-def test_le_serveur_nomme_est_celui_de_mcp_json_avec_le_jeton_d_entete(departements, tmp_path):
-    """Le core appelle M10 par la voie existante : même serveur, même URL, même en-tête que les agents."""
+def test_le_serveur_de_contexte_est_lie_a_l_agent_et_au_jeton_interne(departements, tmp_path):
+    """Chaque agent nommé reçoit un endpoint M10 origin-bound et un bearer distinct."""
     fichiers = _generer(departements, tmp_path, contexte_entreprise=ESTIMATION)
 
-    serveur = _lire(fichiers, "mcp")["servers"][_lire(fichiers, "contexte")["serveur"]]
-    assert serveur["url"].endswith("/mcp/m10-memoire")
+    serveur = _lire(fichiers, "mcp")["servers"]["opsys_context_m03-estimation"]
+    assert serveur["url"].endswith("/mcp/contexte/m03-estimation")
     assert serveur["transport"] == "streamable-http"
-    assert serveur["headers"] == {"Authorization": "Bearer ${OPSYS_MCP_JETON}"}
+    assert serveur["headers"] == {"Authorization": "Bearer ${OPSYS_CONTEXT_MCP_JETON}"}
 
 
 def test_les_deux_outils_appeles_existent_avec_les_niveaux_que_le_core_suppose(departements):
@@ -251,6 +272,53 @@ def test_niveaux_donne_le_niveau_effectif_de_chaque_outil_des_departements(depar
     assert len(niveaux) == sum(len(dep.charger_outils()) for dep in departements.values())
 
 
+def test_cibles_ticket_declarent_exactement_les_neuf_mutations_resolues_par_python(departements, tmp_path):
+    fichiers = _generer(departements, tmp_path, contexte_entreprise=ESTIMATION)
+    cibles = _lire(fichiers, "contexte")["cibles"]
+    attendues = {
+        "m2_transitionner_statut", "m2_reassigner_lead", "m2_enregistrer_interaction",
+        "m2_preparer_relance", "m2_enregistrer_consentement_contact", "m2_marquer_chantier_termine",
+        "m3_marquer_devis_accepte", "m3_demander_envoi_devis", "m3_creer_devis",
+    }
+    assert {nom for nom, cible in cibles.items() if cible == {"type": "ticket"}} == attendues
+    assert cibles["m5_enregistrer_mouvement"] == {"type": "inconnue"}
+
+
+def test_cibles_explicitent_l_affaire_m3_et_refusent_les_contrats_non_declares(departements, tmp_path):
+    contexte = _lire(_generer(departements, tmp_path, contexte_entreprise=ESTIMATION), "contexte")
+
+    assert contexte["version"] == 2
+    assert contexte["cibles"]["m3_estimer_projet"] == {
+        "type": "affaire", "chemin": ["contrat", "lead_id"], "identite": "lead",
+    }
+    # N3+ inconnus sont expressément marqués. Le core les refuse tant que leur propriétaire
+    # n'a pas déclaré une cible affaire ou justifié une portée globale.
+    assert contexte["cibles"]["m3_creer_devis"] == {"type": "ticket"}
+    assert contexte["cibles"]["m5_enregistrer_mouvement"] == {"type": "inconnue"}
+    assert all(contexte["niveaux"][nom] in {"N3", "N4", "N5"} for nom in contexte["cibles"])
+
+
+def test_chaque_agent_contexte_a_un_serveur_mcp_origin_bound(departements, tmp_path):
+    fichiers = _generer(
+        departements,
+        tmp_path,
+        contexte_entreprise={"m03-estimation": ["m3_estimer_projet"]},
+    )
+    contexte = _lire(fichiers, "contexte")
+    mcp = _lire(fichiers, "mcp")["servers"]
+    agents = _lire(fichiers, "agents")["entries"]
+    tools = _lire(fichiers, "tools")
+
+    serveur = "opsys_context_m03-estimation"
+    assert contexte["agents"]["m03-estimation"]["serveur_contexte"] == serveur
+    assert mcp[serveur]["url"].endswith("/contexte/m03-estimation")
+    assert mcp[serveur]["headers"] == {"Authorization": "Bearer ${OPSYS_CONTEXT_MCP_JETON}"}
+    policy = agents["m03-estimation"]["tools"]
+    assert "opsys_context_*__*" in policy["deny"]
+    assert not any(name.startswith("opsys_context_") for name in policy.get("allow", []))
+    assert "opsys_context_*__*" in tools["deny"]
+
+
 def test_les_outils_qui_engagent_l_entreprise_sont_au_niveau_n3_ou_plus_dans_la_configuration(departements, tmp_path):
     niveaux = _lire(_generer(departements, tmp_path, contexte_entreprise=ESTIMATION), "contexte")["niveaux"]
 
@@ -292,8 +360,14 @@ def test_l_affaire_vient_de_la_session_pour_les_seuls_agents_nommes(departements
     )
 
     agents = _lire(fichiers, "contexte")["agents"]
-    assert agents["m01-front-office"] == {"depot": [], "affaire": "session"}
-    assert agents["m03-estimation"] == {"depot": ["m3_estimer_projet"], "affaire": "demande"}
+    assert agents["m01-front-office"] == {
+        "depot": [], "affaire": "session", "serveur_contexte": "opsys_context_m01-front-office"
+    }
+    assert agents["m03-estimation"] == {
+        "depot": ["m3_estimer_projet"],
+        "affaire": "demande",
+        "serveur_contexte": "opsys_context_m03-estimation",
+    }
 
 
 def test_la_lecture_de_l_affaire_de_la_session_est_une_lecture_de_m10_fermee_aux_appareils(departements):
@@ -396,8 +470,16 @@ def test_la_commande_active_le_moteur_pour_les_agents_nommes(tmp_path, monkeypat
     assert "contexte:" in capsys.readouterr().out
     contexte = json.loads((config / "opsys" / "contexte.json").read_text(encoding="utf-8"))
     assert contexte["agents"] == {
-        "m03-estimation": {"depot": ["m3_estimer_projet", "m3_qualifier_photos"], "affaire": "demande"},
-        "m04-field-ops": {"depot": [], "affaire": "demande"},
+        "m03-estimation": {
+            "depot": ["m3_estimer_projet", "m3_qualifier_photos"],
+            "affaire": "demande",
+            "serveur_contexte": "opsys_context_m03-estimation",
+        },
+        "m04-field-ops": {
+            "depot": [],
+            "affaire": "demande",
+            "serveur_contexte": "opsys_context_m04-field-ops",
+        },
     }
     plugins = json.loads((config / "opsys" / "plugins.json").read_text(encoding="utf-8"))
     assert plugins["slots"] == {"contextEngine": "opsys"}
@@ -459,8 +541,11 @@ def test_le_core_choisit_le_moteur_sous_l_identifiant_que_python_ecrit():
 
 def test_le_core_lit_les_cles_que_python_ecrit_dans_contexte_json():
     lecture = _source("opsys-contexte-config.ts")
-    for cle in ("actif", "serveur", "outil_paquet", "outil_depot", "outil_affaire", "delai_ms", "niveaux", "agents",
-                "depot", "affaire"):
+    cles = (
+        "version", "actif", "serveur", "outil_paquet", "outil_depot", "outil_affaire",
+        "delai_ms", "niveaux", "cibles", "agents", "depot", "affaire", "serveur_contexte",
+    )
+    for cle in cles:
         assert f"raw.{cle}" in lecture or f"settings.{cle}" in lecture or f'"{cle}"' in lecture, cle
     assert f'"{openclaw.OUTIL_PAQUET_CONTEXTE}"' in lecture
     assert f'"{openclaw.OUTIL_DEPOT_FAITS}"' in lecture
@@ -619,13 +704,14 @@ def test_les_noms_d_outils_que_le_core_accepte_sont_ceux_des_outils_des_departem
         assert not re.fullmatch(motif_garde.group(1), hors_opsys), hors_opsys
 
 
-def test_le_core_envoie_a_m10_les_arguments_que_ses_outils_declarent(departements):
+def test_le_core_resout_le_contexte_depuis_le_serveur_origine_et_sans_identite_en_arguments(departements):
     moteur = _source("opsys-contexte-engine.ts")
     outils = {o.nom: o for o in departements["m10-memoire"].charger_outils()}
 
-    assert "agent:" in moteur and "cle_session:" in moteur
-    assert "agent" in outils[openclaw.OUTIL_PAQUET_CONTEXTE].parametres["properties"]
-    assert "agent" not in outils[openclaw.OUTIL_PAQUET_CONTEXTE].parametres["required"]  # absent : vue restrictive
+    assert "config.contextServers.get(agentId)" in moteur
+    assert "agent:" not in moteur
+    assert "agent" not in outils[openclaw.OUTIL_PAQUET_CONTEXTE].parametres["properties"]
+    assert set(outils[openclaw.OUTIL_PAQUET_CONTEXTE].parametres["required"]) == {"affaire_id", "horodatage"}
     assert set(outils[openclaw.OUTIL_AFFAIRE_SESSION].parametres["required"]) == {"cle_session"}
 
 

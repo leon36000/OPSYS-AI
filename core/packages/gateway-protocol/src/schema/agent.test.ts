@@ -2,6 +2,7 @@
 import { Value } from "typebox/value";
 import { describe, expect, it } from "vitest";
 import {
+  AgentIdentityResultSchema,
   AgentParamsSchema,
   ConversationListParamsSchema,
   ConversationListResultSchema,
@@ -13,6 +14,24 @@ import {
   ConversationTurnResultSchema,
   MessageActionParamsSchema,
 } from "./agent.js";
+
+describe("AgentIdentityResultSchema", () => {
+  it("accepts a catalogue model id without relaxing strict identity output", () => {
+    expect(
+      Value.Check(AgentIdentityResultSchema, {
+        agentId: "sales",
+        avatarModelId: "robotexpressive-quaternius-cc0-v1",
+      }),
+    ).toBe(true);
+    expect(
+      Value.Check(AgentIdentityResultSchema, {
+        agentId: "sales",
+        avatarModelId: "robotexpressive-quaternius-cc0-v1",
+        path: "/private/model.glb",
+      }),
+    ).toBe(false);
+  });
+});
 
 /**
  * Regression coverage for agent-run schema payloads that carry internal

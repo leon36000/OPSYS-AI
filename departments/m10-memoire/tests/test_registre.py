@@ -21,10 +21,13 @@ def test_types_entree_valides_sont_exactement_ceux_de_m10():
         "fait_candidat",  # PLAN T3.3-suite : faits_candidats.py
         "signal_traite",  # PLAN T3.3-suite-b : signaux.py
         "session_affaire_liee",  # PLAN T3.3-suite-b : liaison.py
+        "session_affaire_revoquee",  # retrait CAS humain d'une liaison active, historique append-only
+        "memoire_developpement",  # Tranche mémoire de développement sourcée
+        "provenance_documentaire",  # Sources métier autonomes sans affaire artificielle
     }
 
     assert types_attendus.issubset(registre._TYPE_ENTREE_VALIDES)
-    assert len(registre._TYPE_ENTREE_VALIDES) == 7
+    assert len(registre._TYPE_ENTREE_VALIDES) == 10
     assert "mouvement_enregistre" not in registre._TYPE_ENTREE_VALIDES
     assert "demande_creee" not in registre._TYPE_ENTREE_VALIDES
     assert "transition_approbation" not in registre._TYPE_ENTREE_VALIDES

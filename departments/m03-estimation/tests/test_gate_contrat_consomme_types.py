@@ -1,15 +1,13 @@
-from pathlib import Path
 import sys
-
-import pytest
-
+from pathlib import Path
 
 RACINE_MODULE = Path(__file__).resolve().parents[1]
 DOSSIER_GATE = RACINE_MODULE / "docs" / "bmad"
 if str(DOSSIER_GATE) not in sys.path:
     sys.path.insert(0, str(DOSSIER_GATE))
 
-from verif_coherence import verifier_contrat_consomme_existe_vraiment
+# Import après l'ajout du dossier gate local, nécessaire en exécution directe.
+from verif_coherence import verifier_contrat_consomme_existe_vraiment  # noqa: E402
 
 
 def _architecture(champs):

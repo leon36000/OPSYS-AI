@@ -123,6 +123,7 @@ class ComposerDictationSession {
   private pendingAudioSamples = 0;
   private appendChain: Promise<void> = Promise.resolve();
   private closePromise: Promise<void> | null = null;
+  private discardClosePromise: Promise<void> | null = null;
   private stopped = false;
   private discarded = false;
   private failed = false;
@@ -170,7 +171,7 @@ class ComposerDictationSession {
       result.audio?.inputEncoding !== DICTATION_ENCODING ||
       result.audio.inputSampleRateHz !== DICTATION_SAMPLE_RATE_HZ
     ) {
-      await this.closeRemote();
+      await this.closeRemote(true);
       throw new Error(t("chat.composer.dictationAudioUnsupported"));
     }
     if (this.discarded) {
@@ -181,7 +182,7 @@ class ComposerDictationSession {
     }
     if (this.stopped) {
       await this.appendChain;
-      await this.closeRemote();
+      await this.closeRemote(this.discarded);
     }
   }
 
@@ -203,10 +204,10 @@ class ComposerDictationSession {
 
   async cancel(): Promise<void> {
     this.discarded = true;
-    await this.stopAndClose(false);
+    await this.stopAndClose(false, true);
   }
 
-  private async stopAndClose(reportStartFailure: boolean): Promise<void> {
+  private async stopAndClose(reportStartFailure: boolean, discardAudio = false): Promise<void> {
     await this.stopCapture();
     await this.startPromise?.catch((error: unknown) => {
       if (reportStartFailure && !isAbortError(error)) {
@@ -214,7 +215,7 @@ class ComposerDictationSession {
       }
     });
     await this.appendChain;
-    await this.closeRemote();
+    await this.closeRemote(discardAudio || this.discarded);
   }
 
   markGatewayDisconnected(): boolean {
@@ -224,7 +225,9 @@ class ComposerDictationSession {
   }
 
   cancelPendingFinal(): void {
+    this.discarded = true;
     this.settleLateFinalDrain?.(true);
+    void this.closeRemote(true);
   }
 
   private appendAudio(samples: Float32Array): void {
@@ -340,15 +343,19 @@ class ComposerDictationSession {
     this.context = null;
   }
 
-  private closeRemote(): Promise<void> {
+  private closeRemote(discardAudio = false): Promise<void> {
     if (!this.sessionId) {
       return Promise.resolve();
     }
-    this.closePromise ??= this.client
-      .request("talk.session.close", { sessionId: this.sessionId })
-      .then(() => undefined)
-      .catch(() => undefined);
-    return this.closePromise;
+    return (this[discardAudio ? "discardClosePromise" : "closePromise"] ??= this.client
+      .request("talk.session.close", {
+        sessionId: this.sessionId,
+        ...(discardAudio ? { discardAudio: true } : {}),
+      })
+      .then(
+        () => {},
+        () => {},
+      ));
   }
 
   private waitForLateFinal(): Promise<string> {

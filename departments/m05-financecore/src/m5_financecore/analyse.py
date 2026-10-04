@@ -27,7 +27,10 @@ MENTION_ANALYSE_PREPARATOIRE = (
 SORTIES_D_ANALYSE = frozenset({
     "m5_etat_tresorerie",  # le cash libre réel : un calcul qui retranche des obligations, sous hypothèses
     "m5_lire_echeances_fiscales",  # échéances TPS/TVQ : un calendrier à valider par le CPA
+    "m5_lire_calendrier_obligations",  # paies, DAS, dettes et fiscalité sous sources déclarées
     "m5_prevoir_tresorerie",  # prévision des flux connus et datés : un calcul sous hypothèses, seuil et délais déclarés
+    "m5_preparer_decision_capital",  # comparaison préparatoire de scénarios d'acquisition
+    "m5_preparer_dossier_decision_cfo",  # dossier stratégique composé à partir des vues canoniques M5
     "m5_constater_cash_libre",  # le cash libre constaté et publié au bus (T4.19-b) : le même calcul, sous hypothèses
     "m5_lire_rentabilite_chantier",  # coût réel et marge : une lecture de rentabilité
     "m5_lister_comptes_a_payer",  # « à payer attendu » et rapprochement PROPOSÉ
@@ -35,6 +38,9 @@ SORTIES_D_ANALYSE = frozenset({
     "m5_saisir_facture_sans_po",  # rend la facture recalculée et ce que valent les factures sans PO : un calcul
     "m5_corriger_facture_fournisseur",  # rend le rapprochement PROPOSÉ du PO (ou le total sans PO) au nouvel état
     "m5_annuler_facture_fournisseur",  # idem : ce que le PO doit après l'annulation, PROPOSÉ, jamais appliqué
+    "m5_preparer_brut_regulier",  # estimation préparatoire humaine du brut, sans retenues ni action officielle
+    "m5_preparer_dossier_webras",  # dossier préparatoire pour calcul humain dans les services officiels
+    "m5_prevoir_tresorerie_contrats",  # prévision préparatoire de flux contractuels rapprochés aux sources M3/M5
 })
 
 # Les autres outils de M5, chacun avec la raison pour laquelle sa sortie n'est pas une analyse.
@@ -46,6 +52,18 @@ SORTIES_HORS_ANALYSE = {
     "m5_lire_comptes_a_recevoir": "liste des factures envoyées et de leur âge : un fait du registre",
     "m5_envoyer_facture": "action de N4, déjà tenue par une approbation humaine du socle",
     "m5_enregistrer_paiement_facture": "action de N5, déjà tenue par Nathan et le professionnel (socle)",
+    "m5_enregistrer_contrat_horaire": "enregistre une source de rémunération après approbation humaine N4",
+    "m5_revoquer_contrat_horaire": "révoque append-only une source salariale après approbation humaine N4",
+    "m5_lire_contrat_horaire": "lit la version actuelle d'un contrat salarié sans calculer de montant",
+    "m5_lire_sources_regles_paie": (
+        "inventorie l'état des références déclarées et leurs lacunes, sans calculer ni valider une paie"
+    ),
+    "m5_enregistrer_echeancier_contrat": (
+        "enregistre un échéancier contractuel après validation humaine N4; la sortie est une écriture sourcée"
+    ),
+    "m5_revoquer_echeancier_contrat": (
+        "révoque append-only un échéancier après validation humaine N4, sans calculer une projection"
+    ),
 }
 
 

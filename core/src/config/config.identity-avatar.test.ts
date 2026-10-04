@@ -50,6 +50,36 @@ describe("identity avatar validation", () => {
     });
   });
 
+  it("accepts only a model id from the shipped local avatar catalogue", async () => {
+    await withTempHome(async (home) => {
+      const workspace = path.join(home, "openclaw");
+      const accepted = validateConfigObject({
+        agents: {
+          entries: {
+            main: {
+              default: true,
+              workspace,
+              identity: { avatarModelId: "robotexpressive-quaternius-cc0-v1" },
+            },
+          },
+        },
+      });
+      expect(accepted.ok).toBe(true);
+
+      const rejected = validateConfigObject({
+        agents: {
+          entries: {
+            main: { default: true, workspace, identity: { avatarModelId: "../../private.glb" } },
+          },
+        },
+      });
+      expect(rejected.ok).toBe(false);
+      if (!rejected.ok) {
+        expect(rejected.issues[0]?.path).toBe("agents.entries.main.identity.avatarModelId");
+      }
+    });
+  });
+
   it("rejects avatar paths outside workspace", async () => {
     await withTempHome(async (home) => {
       const workspace = path.join(home, "openclaw");

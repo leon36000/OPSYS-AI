@@ -29,7 +29,7 @@ import yaml
 from m2_revenue_crm import acces, consentements, gabarits_relance, liste_leads, outils, relances
 from sqlalchemy import select, update
 
-from opsys import approbations, contexte, idempotence, identite, stockage
+from opsys import approbations, contexte, idempotence, identite, liaison_cibles, stockage
 from opsys.capacites import Capacites, outils_executables
 from opsys.departements import lire_manifeste
 from opsys.outils import Autonomie, Niveau, executer_atomique
@@ -120,7 +120,7 @@ def dep(personnes):
 
 @pytest.fixture
 def capacites(dep):
-    return Capacites({dep.id: dep}, stockage.transaction, memoire=False)
+    return Capacites({dep.id: dep}, stockage.transaction, appelant=dep.id, memoire=False)
 
 
 def _contrat(lead_id, contact, ingere=H_INGERE):
@@ -188,6 +188,31 @@ def _preparer(par_nom, lead_id="lead-un", regle="relance_devis_sans_reponse", ca
               identite_appelante=VENDEUR_UN, horodatage=MAINTENANT, **plus):
     arguments = {"lead_id": lead_id, "regle": regle, "canal": canal, "horodatage": horodatage, **plus}
     return _appeler(par_nom, "m2_preparer_relance", arguments, identite_appelante)
+
+
+def _proposer_avec_ticket(capacites, nom, arguments):
+    """Appel d'agent limité à un lead M2 et une liaison M10 réels de cette fixture."""
+    from m10_memoire import liaison as liaison_m10
+    from m10_memoire import registre as registre_m10
+
+    lead_id = arguments["lead_id"]
+    cle_session = f"agent:{DEPARTEMENT}:tests:{lead_id}"
+    with stockage.transaction() as cnx:
+        reg_m10 = registre_m10.Registre(maillons=stockage.maillons("m10-memoire", "affaires"))
+        active = liaison_m10.liaison_courante(cle_session, reg_m10)
+        if active is None:
+            _, refus = liaison_m10.lier_session_affaire(
+                cle_session, lead_id, "nathan", "admin", "appareil", "liaison M2 de fixture fictive",
+                MAINTENANT, reg_m10,
+            )
+            assert refus is None
+        else:
+            assert active["affaire_id"] == lead_id
+        ticket = liaison_cibles.emettre_ticket(
+            cnx, departement=DEPARTEMENT, agent_id=DEPARTEMENT, cle_session=cle_session,
+            affaire_id=lead_id, origine_affaire="session", outil=nom, arguments=arguments,
+        )
+    return capacites.appeler(nom, arguments, ticket_cible=liaison_cibles.TicketMeta(ticket["ticket"]))
 
 
 def _arguments_consentement(lead_id="lead-un", canal="sms", **plus):
@@ -841,7 +866,7 @@ def test_un_consentement_recueilli_d_un_lead_du_meme_client_ouvre_le_canal_pour_
 # -- agent, approbation, idempotence, heure du serveur ------------------------------------------------------
 def test_un_agent_qui_propose_attend_une_personne_puis_la_relance_est_preparee_au_nom_de_l_agent(
         capacites, monde):
-    proposition = capacites.appeler("m2_preparer_relance", {
+    proposition = _proposer_avec_ticket(capacites, "m2_preparer_relance", {
         "lead_id": "lead-un", "regle": "relance_devis_sans_reponse", "canal": "appel", "horodatage": MAINTENANT})
     assert proposition["ok"] is True and proposition["statut"] == "en_attente_approbation"
     assert _preparees() == [], "validation humaine au départ : rien n'est préparé avant la décision"
@@ -969,7 +994,7 @@ def test_un_agent_qui_propose_attend_le_proprietaire_et_le_consentement_est_insc
         "lead_id": "lead-un", "canal": "sms", "enonce_version": "consentement-sms-v1", "source": "appel",
         "preuve": {"type": "verbal_documente", "reference": "note-appel-2026-09-20-A12"}, "recueilli_le": RECUEILLI,
         "horodatage": "2026-09-20T10:05:00-04:00"}
-    proposition = capacites.appeler("m2_enregistrer_consentement_contact", arguments)
+    proposition = _proposer_avec_ticket(capacites, "m2_enregistrer_consentement_contact", arguments)
     assert proposition["ok"] is True and proposition["statut"] == "en_attente_approbation"
     assert _journal_consentements() == []
 
@@ -985,7 +1010,7 @@ def test_un_agent_qui_propose_attend_le_proprietaire_et_le_consentement_est_insc
 
 @pytest.mark.parametrize("approbateur", ["vendeur.un", "marc.fictif", "admin.fictif"])
 def test_seul_le_proprietaire_approuve_le_consentement_propose_par_un_agent(capacites, monde, approbateur):
-    proposition = capacites.appeler("m2_enregistrer_consentement_contact", {
+    proposition = _proposer_avec_ticket(capacites, "m2_enregistrer_consentement_contact", {
         "lead_id": "lead-un", "canal": "sms", "enonce_version": "v1", "source": "appel", "preuve": PREUVE,
         "recueilli_le": RECUEILLI, "horodatage": "2026-09-20T10:05:00-04:00"})
     with pytest.raises(ValueError, match="aucun rôle autorisé"), stockage.transaction() as cnx:

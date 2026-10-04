@@ -46,7 +46,11 @@ function isModelOnlyUpdate(params: AgentConfigUpdate): boolean {
 }
 
 export function validateAgentModelSelectionUpdate(
-  params: AgentConfigUpdate & { emoji?: string; avatar?: string },
+  params: AgentConfigUpdate & {
+    emoji?: string;
+    avatar?: string;
+    avatarModelId?: string | null;
+  },
 ): string | undefined {
   if (!params.agentRuntime) {
     return undefined;
@@ -55,6 +59,7 @@ export function validateAgentModelSelectionUpdate(
     !isModelOnlyUpdate(params) ||
     params.emoji !== undefined ||
     params.avatar !== undefined ||
+    params.avatarModelId !== undefined ||
     !params.model
   ) {
     return "Runtime selection requires a model-only update.";

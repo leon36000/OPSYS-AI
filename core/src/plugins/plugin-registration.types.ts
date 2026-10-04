@@ -361,6 +361,29 @@ export type OpenClawGatewayDiscoveryService = {
   ) => void | Promise<void | { stop?: () => void | Promise<void> }>;
 };
 
+/** Versioned, fixed host import capability for verified inbound missed calls. */
+export type HostMissedCallProviderV1 = "mock" | "twilio" | "telnyx" | "plivo";
+export type HostMissedCallImportInputV1 = Readonly<{
+  provider: HostMissedCallProviderV1;
+  eventId: string;
+  callId: string;
+  startedAt: string;
+  from: string;
+  terminal: "no-answer" | "busy";
+}>;
+export type HostMissedCallImportResultV1 = Readonly<{
+  ok: true;
+  source: `voice-call:${HostMissedCallProviderV1}`;
+  call_id: string;
+  status: "manque";
+}>;
+export type HostMissedCallImporterV1 = {
+  readonly agentId: string;
+  importInboundMissedCall(
+    input: HostMissedCallImportInputV1,
+  ): Promise<HostMissedCallImportResultV1>;
+};
+
 /** Context passed to long-lived plugin services. */
 export type OpenClawPluginServiceHealth = {
   reportFailure: (error: unknown) => void;
@@ -373,6 +396,8 @@ export type OpenClawPluginServiceContext = {
   stateDir: string;
   logger: PluginLogger;
   serviceHealth?: OpenClawPluginServiceHealth;
+  /** Fixed host import operation; injected only into the opted-in bundled voice-call service. */
+  hostMissedCallImporter?: HostMissedCallImporterV1;
   /** Gateway-owned scheduler access, revoked when this service stops. */
   getCron?: () => import("./hook-gateway.types.js").PluginHookGatewayCronService | undefined;
   /** Service-owned node calls for this plugin's commands; normal node policy still applies. */
@@ -415,6 +440,8 @@ export type OpenClawPluginServiceContext = {
 /** Background service registered by a plugin during `register(api)`. */
 export type OpenClawPluginService = {
   id: string;
+  /** Opt in to the narrow Core-owned M1 missed-call import route. */
+  hostMissedCallIngress?: { version: 1; agentId: string };
   /** Restart this service with committed config when one of these paths changes. */
   reload?: { configPrefixes: readonly string[] };
   start: (ctx: OpenClawPluginServiceContext) => void | Promise<void>;

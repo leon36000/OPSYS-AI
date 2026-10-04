@@ -23,12 +23,12 @@ import {
   construireChampsClient,
 } from "@/m4/consentementClient";
 import type { ChoixClient } from "@/m4/consentementClient";
-import { ecrireWctIdCompletion, lireWctIdCompletion } from "@/m4/wctIdCompletion";
+import { ecrireWctIdCompletion, lireWctIdCompletion, trouverAccuseCompletion } from "@/m4/wctIdCompletion";
 import { genererMutationId } from "@/outbox/id";
 import { creerMutation, formaterHorodatageLocal, soumettreMutation } from "@/outbox/mutation";
 import { declencherVidange, obtenirDepot } from "@/outbox/service";
 import type { MutationOutbox } from "@/outbox/types";
-import { obtenirConfigurationAppel } from "@/protocole/configuration";
+import { obtenirConfigurationAppel, obtenirSessionEnvoi } from "@/protocole/configuration";
 import { obtenirDepotLocal } from "@/stockage/service";
 
 /**
@@ -104,12 +104,14 @@ export default function EcranCompletion() {
         return;
       }
       const items = await chargerChecklist(interventionId);
-      await rafraichirMutations();
+      const mutationsLocales = await rafraichirMutations();
       // Un `wct_id` déjà mémorisé signifie qu'une complétion a déjà réussi PAR LE PASSÉ (cet
       // écran ou une session précédente) : rend le lien vers `materials.tsx` accessible dès ce
       // montage, sans dépendre de `resultatCompletion` (purement local à CETTE instance de l'écran
       // — voir la note sur `enAttenteConfirmation` plus bas, même limite documentée que `punch.tsx`).
-      const wctIdDejaConnu = await lireWctIdCompletion(await obtenirDepotLocal(), interventionId);
+      const depotLocal = await obtenirDepotLocal();
+      const wctIdDejaConnu = await lireWctIdCompletion(depotLocal, interventionId) ?? trouverAccuseCompletion(mutationsLocales, interventionId);
+      if (wctIdDejaConnu) await ecrireWctIdCompletion(depotLocal, interventionId, wctIdDejaConnu);
       if (annule) {
         return;
       }
@@ -147,8 +149,10 @@ export default function EcranCompletion() {
       await declencherVidange();
       const mutationsActuelles = await rafraichirMutations();
 
-      const photosCandidats = candidatsPhotosApres(mutationsActuelles, interventionId);
-      const signatureCandidat = candidatSignature(mutationsActuelles, interventionId);
+      const sessionEnvoi = obtenirSessionEnvoi();
+      const mutationsPersonne = sessionEnvoi ? mutationsActuelles.filter((m) => m.proprietaire === sessionEnvoi.personne) : [];
+      const photosCandidats = sessionEnvoi ? candidatsPhotosApres(mutationsPersonne, interventionId, sessionEnvoi.personne) : [];
+      const signatureCandidat = sessionEnvoi ? candidatSignature(mutationsPersonne, interventionId, sessionEnvoi.personne) : null;
 
       const etat = evaluerPreparationCompletion({
         checklistComplete: checklistTerminee(checklistItems),
@@ -156,7 +160,7 @@ export default function EcranCompletion() {
         signatureSha256: signatureCandidat ? signatureCandidat.sha256 : null,
         signatureRequise,
         notes,
-        mutations: mutationsActuelles,
+        mutations: mutationsPersonne,
         chantierId: interventionId,
       });
 

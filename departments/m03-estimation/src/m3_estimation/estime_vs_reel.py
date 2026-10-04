@@ -9,9 +9,11 @@ seuls ``now``/``today``/``utcnow``/etc. sont interdits, cf. ``conformite.py``), 
 Ce module est le PREMIER appelant réel du registre append-only décrit par
 ``docs/departements/M3-audit.md`` §M3.15 (« Apprentissage estimé vs réel ») : ce registre-là
 (``registre.py``/``outils.registre_production()``, collection "principal") reste celui d'ORIGINE
-— les futures estimations Monte Carlo qu'un orchestrateur (T2.3, pas encore construit) y écrira.
+— les estimations que l'orchestrateur ``estimation.py`` y écrit.
 Ce module ne lui ajoute RIEN : il le LIT SEULEMENT (recherche d'une estimation d'origine par
-``devis_id``), en lecture seule, jamais en écriture — conforme à « réutiliser plutôt qu'empiler ».
+le ``estimation_source_hash`` immuable du devis), en lecture seule, jamais en écriture — conforme
+à « réutiliser plutôt qu'empiler ». Un devis sans référence exacte ne fournit aucune durée
+comparable; aucune estimation « la plus récente » n'est choisie.
 Les résultats de LA COMPARAISON (durée réelle contre estimée, variance matériaux) vivent dans un
 second registre, DÉDIÉ à cette comparaison (``stockage.maillons("m03-estimation",
 "estime_vs_reel")`` en production, choix de ``outils.py`` seul) — jamais mélangé au premier, par
@@ -30,15 +32,15 @@ L'état courant d'un wct_id est la fusion de ses maillons (``_etats_courants``).
 terminal — catalogue ``m6.variance_chantier.json``), rendent l'état existant sans rien écrire de
 plus — une redélivrance (bus, ou rejeu direct) ne crée jamais de second maillon.
 
-MAIN-D'ŒUVRE — lien devis/estimation d'origine (``_duree_estimee_minutes``) : cherche une durée
-estimée en texte décimal OU en ``Decimal`` sous la clé optionnelle ``duree_estimee_minutes``,
-d'abord sur le DEVIS (``devis_durable.lire_devis``), puis, si absente, sur l'ESTIMATION D'ORIGINE
-(maillon de ``registre.py`` dont ``charge["devis_id"]`` correspond). Cette clé n'existe
-AUJOURD'HUI nulle part dans le dépôt (ni le contrat gelé du devis, T2.3-a/b, ni ``registre.py``,
-S008, ne la définissent) : le résultat RÉEL, tant qu'aucun orchestrateur ne l'écrit, est TOUJOURS
-« durée estimée absente », rapporté par un verdict nommé (``REJ-ECART-ESTIMATION-ORIGINE-ABSENTE``)
-— jamais une durée inventée. La convention est posée ici, précisément, pour qu'un futur écrivain
-(devis ou orchestrateur d'estimation) sache où et comment l'écrire sans deviner.
+MAIN-D'ŒUVRE — lien devis/estimation d'origine (``_duree_estimee_minutes``) : lit seulement le
+maillon M3 dont le ``hash_maillon`` correspond à ``estimation_source_hash`` conservé au devis,
+et exige que le ``lead_id`` du WCT soit celui du devis, puis les mêmes ``devis_id``/``lead_id``
+entre devis et source, ainsi que
+``trace_calibration_temps.semantique_temps == "duree_ecoulee_intervention"``. La durée doit être
+une valeur décimale positive. Absence de référence, trace non qualifiée, durée absente ou illisible
+rend le verdict ``REJ-ECART-ESTIMATION-ORIGINE-ABSENTE`` explicite; jamais de dernier maillon ou
+de durée legacy choisie par identifiant seul. Le producteur M4 établit le WCT de l'intervention et
+son lien métier; M3 vérifie ici la concordance d'identité avant de rapprocher ses mesures.
 
 MESURE D'ERREUR (``ecart_relatif``) : écart relatif SIGNÉ, ``(réel - estimé) / estimé`` — positif
 = dépassement, négatif = sous-estimation. PUREMENT INFORMATIF à ce stade : AUCUN code de ce
@@ -69,6 +71,7 @@ __all__ = [
 ]
 
 _STATUT_VARIANCE_EVALUEE = "evaluee"
+_SANS_CONTROLE_LEAD = object()
 
 
 def _ajouter(entree: dict[str, Any], registre_cible: Any) -> dict[str, Any]:
@@ -136,34 +139,75 @@ def ecart_relatif(estime: Decimal, reel: Decimal) -> tuple[Decimal | None, dict 
     return (reel - estime) / estime, None
 
 
-def _estimation_origine(devis_id: str, maillons_estimations: Iterable[Any]) -> dict[str, Any] | None:
-    """Dernière (la plus récente) charge de ``registre.py`` dont ``devis_id`` correspond, ou
-    ``None``. Lecture SEULE : ce module n'écrit jamais dans ce registre (cf. docstring)."""
-    trouvee: dict[str, Any] | None = None
+def _estimation_origine(devis: dict[str, Any], maillons_estimations: Iterable[Any]) -> dict[str, Any] | None:
+    """Charge M3 pointée exactement par le devis, jamais recherche par identifiant métier seul."""
+    hash_source = devis.get("estimation_source_hash")
+    if (
+        not isinstance(hash_source, str)
+        or len(hash_source) != 64
+        or any(c not in "0123456789abcdef" for c in hash_source)
+    ):
+        return None
+    trouvees: list[dict[str, Any]] = []
     for maillon in maillons_estimations:
         if not isinstance(maillon, dict):
             continue
         charge = maillon.get("charge")
-        if isinstance(charge, dict) and charge.get("devis_id") == devis_id:
-            trouvee = charge
-    return trouvee
+        if (
+            maillon.get("hash_maillon") == hash_source
+            and isinstance(charge, dict)
+            and charge.get("devis_id") == devis.get("devis_id")
+            and charge.get("lead_id") == devis.get("lead_id")
+        ):
+            trouvees.append(charge)
+    return trouvees[0] if len(trouvees) == 1 else None
 
 
 def _duree_estimee_minutes(
-    devis_id: str, registre_devis: Any, maillons_estimations: Iterable[Any]
+    devis_id: str,
+    registre_devis: Any,
+    maillons_estimations: Iterable[Any],
+    lead_id_attendu: str | None | object = _SANS_CONTROLE_LEAD,
 ) -> tuple[Decimal | None, dict | None]:
-    """Cherche ``duree_estimee_minutes`` d'abord sur le devis, puis sur l'estimation d'origine
-    (cf. docstring du module). Un rejet nommé, jamais une durée inventée, si aucune des deux
-    sources ne la porte — ce qui est le cas de TOUT le dépôt aujourd'hui."""
+    """Lit la durée uniquement sur le maillon hashé et sémantiquement qualifié pointé par le devis."""
     devis, verdict_devis = devis_durable.lire_devis(registre_devis, devis_id)
-    if verdict_devis is None:
-        brute = devis.get("duree_estimee_minutes")
-        if brute is not None:
-            return _vers_decimal_positif(brute, "REJ-ECART-DUREE-ESTIMEE-INVALIDE", "duree_estimee_minutes (devis)")
-
-    estimation = _estimation_origine(devis_id, maillons_estimations)
+    if (
+        verdict_devis is None
+        and lead_id_attendu is not _SANS_CONTROLE_LEAD
+        and devis.get("lead_id") != lead_id_attendu
+    ):
+        return None, verdicts.construire_verdict(
+            "REJ-ECART-ESTIMATION-ORIGINE-ABSENTE",
+            detail=(
+                f"lead du WCT ({lead_id_attendu!r}) différent du lead du devis "
+                f"({devis.get('lead_id')!r}); comparaison main-d'œuvre non calculable"
+            ),
+        )
+    estimation = _estimation_origine(devis, maillons_estimations) if verdict_devis is None else None
     if estimation is not None:
-        brute = estimation.get("duree_estimee_minutes")
+        trace = estimation.get("trace_calibration_temps")
+        if (
+            isinstance(trace, dict)
+            and trace.get("version_schema") in (2, 3)
+            and trace.get("semantique_temps") == "duree_ecoulee_intervention"
+        ):
+            brute = trace.get("duree_estimee_minutes")
+            if brute is None or brute != estimation.get("duree_estimee_minutes"):
+                brute = None
+            if trace.get("version_schema") == 3:
+                try:
+                    quantite = Decimal(trace["quantite"])
+                    taux = Decimal(trace["taux_minutes_par_unite"])
+                    taux_source = Decimal(trace["taux_minutes_par_unite_source"])
+                    calibration_id = trace["calibration_version_id"]
+                    if (quantite <= 0 or taux <= 0 or taux_source <= 0 or quantite * taux != Decimal(brute)
+                            or not isinstance(calibration_id, str) or len(calibration_id) != 64
+                            or any(c not in "0123456789abcdef" for c in calibration_id)):
+                        brute = None
+                except (ArithmeticError, KeyError, TypeError, ValueError):
+                    brute = None
+        else:
+            brute = None
         if brute is not None:
             return _vers_decimal_positif(
                 brute, "REJ-ECART-DUREE-ESTIMEE-INVALIDE", "duree_estimee_minutes (estimation d'origine)"
@@ -172,9 +216,8 @@ def _duree_estimee_minutes(
     return None, verdicts.construire_verdict(
         "REJ-ECART-ESTIMATION-ORIGINE-ABSENTE",
         detail=(
-            f"aucune durée estimée pour devis_id={devis_id!r} : ni le devis "
-            f"(devis_id trouvé={verdict_devis is None}) ni une estimation d'origine "
-            f"(trouvée={estimation is not None}) ne portent duree_estimee_minutes"
+            f"aucune durée qualifiée pour devis_id={devis_id!r} : devis trouvé={verdict_devis is None}, "
+            f"référence exacte exploitable={estimation is not None}"
         ),
     )
 
@@ -182,24 +225,29 @@ def _duree_estimee_minutes(
 def avec_duree_estimee(
     charge_devis_accepte: dict[str, Any], devis_id: str, registre_devis: Any, maillons_estimations: Iterable[Any]
 ) -> dict[str, Any]:
-    """Copie de la charge de ``m3.devis_accepte`` avec la clé OPTIONNELLE ``duree_estimee_minutes`` (PLAN T1.5-d),
-    quand l'estimation d'origine du devis la porte : M8 la compare à la durée réelle du WCT (temps prévu contre
-    réel). Même règle que la comparaison main-d'œuvre (``_duree_estimee_minutes``) : une seule lecture de la
-    durée estimée pour tout le paquet.
+    """Copie la charge d'acceptation avec la durée optionnelle issue du hash exact du devis, si la trace porte
+    la sémantique qualifiée. La même résolution sert à la comparaison WCT M3; aucune recherche par devis_id seul.
 
     Texte décimal strictement positif (``format(..., "f")`` : jamais d'exposant, jamais un nombre JSON). Fail-closed :
     aucune estimation d'origine pour ce devis, durée absente ou illisible -> la clé est OMISE (jamais une durée
-    par défaut, jamais zéro) et M8 répond « non calculable, manque duree_estimee_minutes ». Ne lit que ;
-    n'écrit rien."""
+    par défaut, jamais zéro) et M8 répond « non calculable, manque duree_estimee_minutes ».
+    Ne lit que ; n'écrit rien."""
     duree, verdict = _duree_estimee_minutes(devis_id, registre_devis, maillons_estimations)
     charge = dict(charge_devis_accepte)
+    charge.pop("duree_estimee_minutes", None)
+    charge.pop("semantique_temps", None)
     if verdict is None:
         charge["duree_estimee_minutes"] = format(duree, "f")
+        charge["semantique_temps"] = "duree_ecoulee_intervention"
     return charge
 
 
 def _comparer_main_doeuvre(
-    devis_id: str | None, duree_reelle_minutes: Decimal, registre_devis: Any, maillons_estimations: Iterable[Any]
+    devis_id: str | None,
+    lead_id: str | None,
+    duree_reelle_minutes: Decimal,
+    registre_devis: Any,
+    maillons_estimations: Iterable[Any],
 ) -> dict[str, Any]:
     if devis_id is None:
         return {
@@ -212,7 +260,9 @@ def _comparer_main_doeuvre(
             ),
         }
 
-    duree_estimee_minutes, verdict = _duree_estimee_minutes(devis_id, registre_devis, maillons_estimations)
+    duree_estimee_minutes, verdict = _duree_estimee_minutes(
+        devis_id, registre_devis, maillons_estimations, lead_id_attendu=lead_id
+    )
     if verdict is not None:
         return {
             "duree_reelle_minutes": duree_reelle_minutes,
@@ -246,7 +296,9 @@ def enregistrer_travaux_termines(
 
     devis_id = charge_wct.get("devis_id")
     duree_reelle_minutes = Decimal(charge_wct["duree_reelle_minutes"])  # int JSON, jamais un float
-    main_doeuvre = _comparer_main_doeuvre(devis_id, duree_reelle_minutes, registre_devis, maillons_estimations)
+    main_doeuvre = _comparer_main_doeuvre(
+        devis_id, charge_wct.get("lead_id"), duree_reelle_minutes, registre_devis, maillons_estimations
+    )
 
     entree = {
         "type_entree": "wct_recu",

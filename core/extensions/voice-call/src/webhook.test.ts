@@ -2863,3 +2863,493 @@ describe("VoiceCallWebhookServer webhook event path auto-response (#79118)", () 
   });
 });
 /* oxlint-disable max-lines -- TODO: split this grandfathered oversized file. */
+
+describe("VoiceCallWebhookServer host missed-call import", () => {
+  const providerCallId = "CA-missed-call";
+  const startedAt = Date.parse("2026-10-03T10:15:30.000Z");
+  const makeMissedEvent = (
+    timestamp: number,
+    overrides: Partial<NormalizedEvent> = {},
+  ): NormalizedEvent =>
+    ({
+      id: "provider-random-event-id",
+      dedupeKey: "provider-stable-event-key",
+      type: "call.ended",
+      reason: "no-answer",
+      callId: providerCallId,
+      providerCallId,
+      timestamp,
+      direction: "inbound",
+      from: "+15145550123",
+      ...overrides,
+    }) as NormalizedEvent;
+  const makeCall = (
+    answeredAt?: number,
+    direction: CallRecord["direction"] = "inbound",
+    callProviderId = providerCallId,
+  ): CallRecord => ({
+    callId: "call-stable",
+    providerCallId: callProviderId,
+    provider: "twilio",
+    direction,
+    state: "no-answer",
+    from: "+15145550123",
+    to: "+15145550999",
+    startedAt,
+    endedAt: startedAt + 20_000,
+    ...(answeredAt === undefined ? {} : { answeredAt }),
+    transcript: [],
+    processedEventIds: [],
+  });
+  const createIngressConfig = () =>
+    createConfig({
+      enabled: true,
+      provider: "twilio",
+      missedCallIngress: true,
+      serve: { port: 0, bind: "127.0.0.1", path: "/voice/webhook" },
+    });
+  const importAck = {
+    ok: true as const,
+    source: "voice-call:twilio" as const,
+    call_id: providerCallId,
+    status: "manque" as const,
+  };
+
+  it("rejects an invalid real Twilio signature before parsing, manager access, or import", async () => {
+    mocks.generateVoiceResponse.mockClear();
+    const authToken = "m1-real-twilio-auth-token";
+    const twilioProvider = new TwilioProvider({ accountSid: "AC123", authToken });
+    const verifyWebhook = vi.spyOn(twilioProvider, "verifyWebhook");
+    const parseWebhookEvent = vi.spyOn(twilioProvider, "parseWebhookEvent");
+    const { manager, processEvent } = createManager([]);
+    const getCallFromMemoryOrStore = vi.fn(async () => makeCall());
+    Object.assign(manager, { getCallFromMemoryOrStore });
+    const importer: NonNullable<ConstructorParameters<typeof VoiceCallWebhookServer>[7]> = {
+      agentId: "opsys-agent-demo",
+      importInboundMissedCall: vi.fn(async () => importAck),
+    };
+    const server = new VoiceCallWebhookServer(
+      createIngressConfig(),
+      manager,
+      twilioProvider,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      importer,
+    );
+    const body =
+      `CallSid=${providerCallId}&CallStatus=no-answer&Direction=inbound` +
+      `&From=%2B15145550123&To=%2B15145550999`;
+
+    try {
+      const baseUrl = await server.start();
+      twilioProvider.setPublicUrl(requireBoundRequestUrl(server, baseUrl).toString());
+      // The helper computes a valid Twilio HMAC, but under the wrong credential.
+      const response = await postSignedTwilioWebhook({
+        server,
+        baseUrl,
+        authToken: "incorrect-twilio-auth-token",
+        body,
+      });
+
+      expect(response.status).toBe(401);
+      expect(verifyWebhook).toHaveBeenCalledOnce();
+      expect(parseWebhookEvent).not.toHaveBeenCalled();
+      expect(importer.importInboundMissedCall).not.toHaveBeenCalled();
+      expect(getCallFromMemoryOrStore).not.toHaveBeenCalled();
+      expect(processEvent).not.toHaveBeenCalled();
+      expect(mocks.generateVoiceResponse).not.toHaveBeenCalled();
+    } finally {
+      await server.stop();
+    }
+  });
+
+  it("imports a signed real Twilio no-answer only after M1 ACK and before manager commit", async () => {
+    const authToken = "m1-real-twilio-auth-token";
+    const twilioProvider = new TwilioProvider({ accountSid: "AC123", authToken });
+    const { manager, processEvent } = createManager([]);
+    const order: string[] = [];
+    const persistedCall = makeCall();
+    const getCallFromMemoryOrStore = vi.fn(async (id: string) => {
+      order.push("call-record-read");
+      return id === providerCallId ? persistedCall : undefined;
+    });
+    Object.assign(manager, { getCallFromMemoryOrStore });
+    let importedInput:
+      | Parameters<
+          NonNullable<
+            ConstructorParameters<typeof VoiceCallWebhookServer>[7]
+          >["importInboundMissedCall"]
+        >[0]
+      | undefined;
+    const importer: NonNullable<ConstructorParameters<typeof VoiceCallWebhookServer>[7]> = {
+      agentId: "opsys-agent-demo",
+      importInboundMissedCall: vi.fn(async (input) => {
+        importedInput = input;
+        order.push("m1-ack");
+        return importAck;
+      }),
+    };
+    processEvent.mockImplementation(async () => {
+      order.push("manager-commit");
+      return { kind: "processed" };
+    });
+    mocks.generateVoiceResponse.mockClear();
+    const server = new VoiceCallWebhookServer(
+      createIngressConfig(),
+      manager,
+      twilioProvider,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      importer,
+    );
+    const body =
+      `CallSid=${providerCallId}&CallStatus=no-answer&Direction=inbound` +
+      `&From=%2B15145550123&To=%2B15145550999`;
+
+    try {
+      const baseUrl = await server.start();
+      twilioProvider.setPublicUrl(requireBoundRequestUrl(server, baseUrl).toString());
+      const response = await postSignedTwilioWebhook({ server, baseUrl, authToken, body });
+
+      expect(response.status).toBe(200);
+      expect(getCallFromMemoryOrStore).toHaveBeenCalledWith(providerCallId);
+      expect(importer.importInboundMissedCall).toHaveBeenCalledOnce();
+      expect(importedInput).toMatchObject({
+        provider: "twilio",
+        eventId: expect.any(String),
+        callId: providerCallId,
+        startedAt: new Date(startedAt).toISOString(),
+        from: "+15145550123",
+        terminal: "no-answer",
+      });
+      expect(order).toEqual(["call-record-read", "m1-ack", "manager-commit"]);
+      expect(mocks.generateVoiceResponse).not.toHaveBeenCalled();
+    } finally {
+      await server.stop();
+    }
+  });
+
+  it("does not invoke the importer for an invalid signature", async () => {
+    const event = makeMissedEvent(startedAt + 10_000);
+    const parseWebhookEvent = vi.fn(() => ({ events: [event], statusCode: 200 }));
+    const twilioProvider = createTwilioVerificationProvider({
+      verifyWebhook: () => ({ ok: false, reason: "invalid signature" }),
+      parseWebhookEvent,
+    });
+    const { manager, processEvent } = createManager([]);
+    const importer = {
+      agentId: "opsys-agent-demo",
+      importInboundMissedCall: vi.fn(async () => importAck),
+    };
+    const server = new VoiceCallWebhookServer(
+      createIngressConfig(),
+      manager,
+      twilioProvider,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      importer,
+    );
+    try {
+      const baseUrl = await server.start();
+      const response = await postWebhookFormWithHeaders(server, baseUrl, "CallSid=CA-missed-call", {
+        "x-twilio-signature": "invalid",
+      });
+      expect(response.status).toBe(401);
+      expect(parseWebhookEvent).not.toHaveBeenCalled();
+      expect(importer.importInboundMissedCall).not.toHaveBeenCalled();
+      expect(processEvent).not.toHaveBeenCalled();
+    } finally {
+      await server.stop();
+    }
+  });
+
+  it("waits for exact M1 acknowledgement before committing the manager event", async () => {
+    const event = makeMissedEvent(startedAt + 40_000);
+    const twilioProvider = createTwilioVerificationProvider({
+      parseWebhookEvent: () => ({ events: [event], statusCode: 200 }),
+    });
+    const { manager, processEvent } = createManager([]);
+    Object.assign(manager, { getCallFromMemoryOrStore: vi.fn(async () => makeCall()) });
+    const order: string[] = [];
+    const importer = {
+      agentId: "opsys-agent-demo",
+      importInboundMissedCall: vi.fn(async () => {
+        order.push("m1-ack");
+        return importAck;
+      }),
+    };
+    processEvent.mockImplementation(async () => {
+      order.push("manager-commit");
+      return { kind: "processed" };
+    });
+    const server = new VoiceCallWebhookServer(
+      createIngressConfig(),
+      manager,
+      twilioProvider,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      importer,
+    );
+    try {
+      const baseUrl = await server.start();
+      const response = await postWebhookFormWithHeaders(server, baseUrl, "CallSid=CA-missed-call", {
+        "x-twilio-signature": "valid",
+      });
+      expect(response.status).toBe(200);
+      expect(importer.importInboundMissedCall).toHaveBeenCalledWith({
+        provider: "twilio",
+        eventId: "provider-stable-event-key",
+        callId: providerCallId,
+        startedAt: "2026-10-03T10:15:30.000Z",
+        from: "+15145550123",
+        terminal: "no-answer",
+      });
+      expect(order).toEqual(["m1-ack", "manager-commit"]);
+    } finally {
+      await server.stop();
+    }
+  });
+
+  it("releases failed replay reservations and redelivery reuses persisted provenance", async () => {
+    let reserved = false;
+    let parsedCount = 0;
+    const releaseReplay = vi.fn(() => {
+      reserved = false;
+    });
+    const verifyWebhook = vi.fn(() => {
+      if (reserved) {
+        return { ok: true, verifiedRequestKey: "twilio:req:missed", isReplay: true };
+      }
+      reserved = true;
+      return { ok: true, verifiedRequestKey: "twilio:req:missed", releaseReplay };
+    });
+    const twilioProvider = createTwilioVerificationProvider({
+      verifyWebhook,
+      parseWebhookEvent: () => ({
+        events: [makeMissedEvent(startedAt + ++parsedCount * 5_000)],
+        statusCode: 200,
+      }),
+    });
+    const { manager, processEvent } = createManager([]);
+    Object.assign(manager, { getCallFromMemoryOrStore: vi.fn(async () => makeCall()) });
+    const importer = {
+      agentId: "opsys-agent-demo",
+      importInboundMissedCall: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("M1 unavailable"))
+        .mockResolvedValueOnce(importAck),
+    };
+    const server = new VoiceCallWebhookServer(
+      createIngressConfig(),
+      manager,
+      twilioProvider,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      importer,
+    );
+    try {
+      const baseUrl = await server.start();
+      const headers = { "x-twilio-signature": "valid" };
+      const failed = await postWebhookFormWithHeaders(
+        server,
+        baseUrl,
+        "CallSid=CA-missed-call",
+        headers,
+      );
+      expect(failed.status).toBe(500);
+      expect(releaseReplay).toHaveBeenCalledTimes(1);
+      expect(processEvent).not.toHaveBeenCalled();
+
+      const retried = await postWebhookFormWithHeaders(
+        server,
+        baseUrl,
+        "CallSid=CA-missed-call",
+        headers,
+      );
+      expect(retried.status).toBe(200);
+      expect(importer.importInboundMissedCall).toHaveBeenCalledTimes(2);
+      expect(importer.importInboundMissedCall.mock.calls.map(([input]) => input.startedAt)).toEqual(
+        ["2026-10-03T10:15:30.000Z", "2026-10-03T10:15:30.000Z"],
+      );
+      expect(processEvent).toHaveBeenCalledTimes(1);
+
+      const replay = await postWebhookFormWithHeaders(
+        server,
+        baseUrl,
+        "CallSid=CA-missed-call",
+        headers,
+      );
+      expect(replay.status).toBe(200);
+      expect(importer.importInboundMissedCall).toHaveBeenCalledTimes(2);
+    } finally {
+      await server.stop();
+    }
+  });
+
+  it("ignores unknown, outbound, and answered calls including answeredAt zero", async () => {
+    const events = [
+      makeMissedEvent(startedAt, { providerCallId: "CA-unknown", callId: "CA-unknown" }),
+      makeMissedEvent(startedAt, {
+        direction: "outbound",
+        providerCallId: "CA-outbound",
+        callId: "CA-outbound",
+      }),
+      makeMissedEvent(startedAt, { providerCallId: "CA-answered", callId: "CA-answered" }),
+    ];
+    const twilioProvider = createTwilioVerificationProvider({
+      parseWebhookEvent: () => ({ events, statusCode: 200 }),
+    });
+    const { manager } = createManager([]);
+    Object.assign(manager, {
+      getCallFromMemoryOrStore: vi.fn(async (callId: string) =>
+        callId === "CA-answered" ? makeCall(0, "inbound", "CA-answered") : undefined,
+      ),
+    });
+    const importer = {
+      agentId: "opsys-agent-demo",
+      importInboundMissedCall: vi.fn(async () => importAck),
+    };
+    const server = new VoiceCallWebhookServer(
+      createIngressConfig(),
+      manager,
+      twilioProvider,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      importer,
+    );
+    try {
+      const baseUrl = await server.start();
+      const response = await postWebhookFormWithHeaders(server, baseUrl, "CallSid=batch", {
+        "x-twilio-signature": "valid",
+      });
+      expect(response.status).toBe(200);
+      expect(importer.importInboundMissedCall).not.toHaveBeenCalled();
+    } finally {
+      await server.stop();
+    }
+  });
+});
+
+// Append inside webhook.test.ts, which already defines createConfig,
+// createTwilioVerificationProvider, createManager, provider, and
+// postWebhookFormWithHeaders. This uses a real loopback HTTP server with fake
+// providers/manager only; no real telephony or network service is contacted.
+
+describe("VoiceCallWebhookServer missed-call authentication defense", () => {
+  const importedEvent: NormalizedEvent = {
+    id: "event-random",
+    dedupeKey: "provider-stable-event",
+    type: "call.ended",
+    reason: "no-answer",
+    callId: "CA-unsafe",
+    providerCallId: "CA-unsafe",
+    timestamp: Date.parse("2026-10-03T12:00:10.000Z"),
+    direction: "inbound",
+    from: "+15145550123",
+  };
+
+  async function assertUnsafeIngressRejected(params: {
+    provider: VoiceCallProvider;
+    providerName: "twilio" | "mock";
+    skipSignatureVerification: boolean;
+  }) {
+    const getCallFromMemoryOrStore = vi.fn(async () => ({
+      callId: "call-unsafe",
+      providerCallId: "CA-unsafe",
+      provider: params.providerName,
+      direction: "inbound" as const,
+      state: "ended" as const,
+      from: "+15145550123",
+      to: "+15145550999",
+      startedAt: Date.parse("2026-10-03T12:00:00.000Z"),
+      transcript: [],
+      processedEventIds: [],
+      answeredAt: undefined,
+    }));
+    const manager = {
+      getCallFromMemoryOrStore,
+      getActiveCalls: () => [],
+      getCallByProviderCallId: () => undefined,
+      processEvent: vi.fn(async () => ({ kind: "processed" as const })),
+      endCall: vi.fn(async () => ({ success: true })),
+    } as unknown as CallManager;
+    const importer = {
+      agentId: "opsys-agent-demo",
+      importInboundMissedCall: vi.fn(async () => ({
+        ok: true as const,
+        source: `voice-call:${params.providerName}`,
+        call_id: "CA-unsafe",
+        status: "manque" as const,
+      })),
+    } as NonNullable<ConstructorParameters<typeof VoiceCallWebhookServer>[7]>;
+    const server = new VoiceCallWebhookServer(
+      createConfig({
+        enabled: true,
+        provider: params.providerName,
+        missedCallIngress: true,
+        skipSignatureVerification: params.skipSignatureVerification,
+        serve: { bind: "127.0.0.1", port: 0, path: "/voice/webhook" },
+      }),
+      manager,
+      params.provider,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      importer,
+    );
+
+    try {
+      const baseUrl = await server.start();
+      const response = await postWebhookFormWithHeaders(
+        server,
+        baseUrl,
+        "CallSid=CA-unsafe&CallStatus=completed",
+        params.providerName === "twilio" ? { "x-twilio-signature": "test-signature" } : {},
+      );
+      expect(response.status).toBe(500); // The owner guard fails closed before any M1 import.
+      expect(importer.importInboundMissedCall).not.toHaveBeenCalled();
+      expect(getCallFromMemoryOrStore).not.toHaveBeenCalled();
+    } finally {
+      await server.stop();
+    }
+  }
+
+  it("blocks mock ingress even when its verifier reports success", async () => {
+    const mockProvider: VoiceCallProvider = {
+      ...provider,
+      name: "mock",
+      verifyWebhook: vi.fn(() => ({ ok: true, verifiedRequestKey: "mock:unsafe" })),
+      parseWebhookEvent: vi.fn(() => ({ events: [importedEvent], statusCode: 200 })),
+    };
+    await assertUnsafeIngressRejected({
+      provider: mockProvider,
+      providerName: "mock",
+      skipSignatureVerification: false,
+    });
+  });
+
+  it("blocks Twilio ingress when signature verification is configured to be skipped", async () => {
+    const twilioProvider = createTwilioVerificationProvider({
+      verifyWebhook: vi.fn(() => ({ ok: true, verifiedRequestKey: "twilio:unsafe" })),
+      parseWebhookEvent: vi.fn(() => ({ events: [importedEvent], statusCode: 200 })),
+    });
+    await assertUnsafeIngressRejected({
+      provider: twilioProvider,
+      providerName: "twilio",
+      skipSignatureVerification: true,
+    });
+  });
+});

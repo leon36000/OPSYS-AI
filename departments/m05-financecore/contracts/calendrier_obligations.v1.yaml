@@ -1,0 +1,34 @@
+# Contrat des métadonnées de configuration lues par m5_lire_calendrier_obligations.
+# Les trois obligations (paies, das, dettes) sont des identifiants fermés, pas des taux ni des règles.
+# Les montants restent dans configuration.obligations_declarees et les dates restent dans
+# configuration.prevision.echeances_obligations afin de réutiliser les sources canoniques existantes.
+schema_version: 1
+obligations:
+  paies:
+    nom: "Paies"
+  das:
+    nom: "Déductions à la source (DAS)"
+  dettes:
+    nom: "Dettes déclarées"
+champs_requis:
+  autorite: "Texte explicite de l'autorité émettrice, jamais déduit du type d'obligation"
+  periode_debut: "Date ISO inclusive de début de la période visée"
+  periode_fin: "Date ISO inclusive de fin de la période visée"
+  echeance_source: "Référence documentaire ou URL qui justifie l'échéance déclarée séparément"
+  source_consultee_le: "Date ISO de consultation ou vérification de la source"
+  source_applicable_du: "Date ISO de début de validité annoncée par la source"
+  source_applicable_jusqu_au: "Date ISO de fin de validité annoncée par la source"
+  annee: "Entier égal à l'année de fin de période, fourni explicitement"
+  version: "Version réellement publiée ou transcrite par la source"
+sources_de_valeur:
+  montant: "configuration.obligations_declarees.<id>.montant, avec source et au"
+  echeance: "configuration.prevision.echeances_obligations.<id>, date ISO entre guillemets"
+statuts:
+  - DOCUMENTEE_A_VALIDER
+  - INCOMPLETE
+  - SOURCE_PERIMEE
+  - ECHEANCE_PASSEE_A_VERIFIER
+garanties:
+  - "Une fenêtre de validité qui ne couvre pas toute la période est périmée; aucun seuil d'âge n'est inventé."
+  - "Une date d'échéance passée ne signifie pas que la déclaration ou le paiement a été omis."
+  - "Aucune formule de paie, remise, déclaration ou paiement n'est exécuté."

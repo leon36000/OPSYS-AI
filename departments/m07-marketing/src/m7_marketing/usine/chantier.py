@@ -228,6 +228,7 @@ def _avertissements_media(plateforme: Plateforme, photos: list[str]) -> list[str
 def _proposition(
     charge: Mapping[str, Any], plateforme: Plateforme, revision: int, texte: str, origine_texte: str,
     nature: Nature, matiere: gabarits.Matiere, profil: Mapping[str, Any], avertissements: list[str], origine: str,
+    marque_source: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     photos = [p for p in (charge.get("photos") or []) if isinstance(p, str)]
     canonique = json.dumps(
@@ -271,6 +272,7 @@ def _proposition(
         "origine": origine,
         "propose_le": charge["horodatage_completion"],
         "approval_status": registre.STATUT_PROPOSE,  # invariant — jamais auto-publié (D-043)
+        **({"marque_source": dict(marque_source)} if marque_source is not None else {}),
     }
 
 
@@ -289,6 +291,9 @@ def _item_existant(proposition: Mapping[str, Any], statut_courant: str) -> dict[
 def preparer(
     charge: Mapping[str, Any], profil: Mapping[str, Any], nature: Nature, textes: Mapping[str, str] | None,
     propositions: Iterable[Mapping[str, Any]], decisions: Iterable[Mapping[str, Any]], origine: str,
+    marque_source: Mapping[str, Any] | None = None,
+    renouveler_marque: bool = True,
+    revision_humaine: str | None = None,
 ) -> Preparation:
     """Les propositions à écrire pour ce chantier (les cinq plateformes, dans l'ordre), et le compte rendu.
 
@@ -307,10 +312,13 @@ def preparer(
         revision = 1
         if courante is not None:
             statut_courant = registre.statut(courante, decisions, ())
-            if statut_courant != registre.STATUT_REJETE:
+            marque_changee = renouveler_marque and marque_source is not None \
+                and registre.fraicheur_marque(courante, dict(marque_source)) != "courante"
+            edition_humaine = revision_humaine == courante["contenu_id"] and plateforme.code in textes
+            if statut_courant != registre.STATUT_REJETE and not marque_changee and not edition_humaine:
                 items.append(_item_existant(courante, statut_courant))
                 continue
-            if plateforme.code not in textes:
+            if plateforme.code not in textes and not marque_changee:
                 items.append({
                     "plateforme": plateforme.code, "statut": ITEM_TEXTE_REQUIS, "contenu_id": courante["contenu_id"],
                     "motif": "rejeté par le propriétaire : fournis un nouveau texte (textes) qui corrige ce qu'il a "
@@ -319,7 +327,10 @@ def preparer(
                 continue
             revision = courante["revision"] + 1
         if plateforme.code in textes:
-            texte, origine_texte = textes[plateforme.code].strip(), "modele"
+            texte = textes[plateforme.code].strip()
+            origine_texte = (
+                "humain" if courante is not None and revision_humaine == courante["contenu_id"] else "modele"
+            )
         else:
             texte, origine_texte = gabarits.composer(plateforme.code, matiere), "gabarit"
         violations = controler_texte(texte, contexte_controle(charge, profil, plateforme.longueur_max))
@@ -331,6 +342,7 @@ def preparer(
             continue
         proposition = _proposition(
             charge, plateforme, revision, texte, origine_texte, nature, matiere, profil, avertissements, origine,
+            marque_source,
         )
         nouvelles.append(proposition)
         items.append({

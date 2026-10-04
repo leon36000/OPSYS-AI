@@ -514,8 +514,7 @@ def test_l_approbation_d_une_cloture_ne_sert_pas_a_clore_un_autre_transfert(capa
 @pytest.mark.parametrize("par, role", [("gestion", "manager"), ("employe.fictif", "employee"),
                                        ("robot", "system_agent")])
 def test_un_role_que_la_file_admet_mais_que_l_outil_ne_reconnait_pas_ne_clot_rien(capacites, dep, par, role):
-    """Le manifeste peut élargir la politique N3 : la file exécute alors la demande, mais l'outil n'admet comme
-    humains que `admin` et `nathan_owner`."""
+    """Le manifeste peut élargir la politique N3, mais l'outil refuse ces acteurs et la demande échoue."""
     with stockage.transaction() as cnx:
         identite.creer_personne(cnx, "gestion", "Gestionnaire Fictive", "mot-de-passe-gestion-1234", ["manager"])
         identite.creer_personne(cnx, "robot", "Agent Fictif", "mot-de-passe-robot-123456", ["system_agent"])
@@ -523,7 +522,7 @@ def test_un_role_que_la_file_admet_mais_que_l_outil_ne_reconnait_pas_ne_clot_rie
 
     decision = _approuver_sous_une_politique_elargie(dep, demande, par, {role, "nathan_owner"})
 
-    assert decision["statut"] == "executee", decision
+    assert decision["statut"] == "echec", decision
     assert decision["reponse"]["resultat"]["accepte"] is False
     assert decision["reponse"]["resultat"]["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
     assert _cloture_de(tid) == [] and len(_attentes()) == 1
@@ -680,10 +679,11 @@ def test_sans_transfert_au_registre_aucune_attente(capacites):
 # -- Qui appelle quoi : la portée des appareils ---
 
 
-def test_seuls_la_lecture_et_la_cloture_sont_ouvertes_a_l_admin_et_a_personne_d_autre(dep):
+def test_seuls_la_lecture_la_cloture_et_import_sont_ouverts_a_l_admin(dep):
     portees = openclaw.roles_outils({dep.id: dep})
     m1_admin = {nom for nom in portees["admin"] if nom.startswith("m1_")}
-    assert m1_admin == {"m1_lire_transfert", "m1_clore_transfert", "m1_produire_digest"}
+    assert m1_admin == {"m1_lire_transfert", "m1_clore_transfert", "m1_produire_digest",
+                        "m1_importer_appel_manuellement"}
     for role in ("employee", "seller"):
         assert not any(nom.startswith("m1_") for nom in portees.get(role, ())), role
     par_nom = {o.nom: o for o in dep.charger_outils()}

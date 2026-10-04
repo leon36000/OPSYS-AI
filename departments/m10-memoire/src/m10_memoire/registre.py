@@ -24,6 +24,9 @@ _TYPE_ENTREE_VALIDES = {
     "fait_candidat",  # PLAN T3.3-suite : faits_candidats.py, dépôt POSTFLIGHT du core, jamais une vérité
     "signal_traite",  # PLAN T3.3-suite-b : signaux.py, passage d'un signal critique par un humain identifié
     "session_affaire_liee",  # PLAN T3.3-suite-b : liaison.py, l'affaire d'une session, écrite par un humain
+    "session_affaire_revoquee",  # retrait humain CAS d'une liaison de session, historique append-only
+    "memoire_developpement",  # Tranche mémoire dev : événements, sources et relations dans le registre durable
+    "provenance_documentaire",  # source métier autonome, sans affaire client implicite
 }
 
 
@@ -51,8 +54,7 @@ class Registre:
         type_entree = entree.get("type_entree")
         if type_entree not in _TYPE_ENTREE_VALIDES:
             raise ValueError(
-                f"type_entree non reconnu : {type_entree!r}. "
-                f"Attendu l'un de {sorted(_TYPE_ENTREE_VALIDES)}."
+                f"type_entree non reconnu : {type_entree!r}. Attendu l'un de {sorted(_TYPE_ENTREE_VALIDES)}."
             )
 
         if "horodatage" not in entree:
@@ -84,11 +86,7 @@ class Registre:
         for maillon in self._chain:
             if maillon["precedent_ligne_id"] != precedent_attendu:
                 return False, f"maillon invalide : {maillon['ligne_id']}"
-            corps = {
-                k: v
-                for k, v in maillon.items()
-                if k not in ("ligne_id", "precedent_ligne_id")
-            }
+            corps = {k: v for k, v in maillon.items() if k not in ("ligne_id", "precedent_ligne_id")}
             ligne_id_attendu = encodage.empreinte(corps, precedent_attendu)
             if maillon["ligne_id"] != ligne_id_attendu:
                 return False, f"maillon invalide : {maillon['ligne_id']}"

@@ -1,0 +1,139 @@
+{
+  "created_at_utc": "2026-10-02T18:54:23.353778+00:00",
+  "archive_bytes": 21687,
+  "archive_sha256": "43a6d02e1308a59f2232e3987043505b8d22338f456bc39fdd69c66cb539cc02",
+  "source_manifest_sha256": "fdc29853a5d689923f84f03020ab84fbb4ea58f83eb17ac7957d35d70f33e083",
+  "members": [
+    {
+      "path": "CAPSULE-MANIFEST-R1.json",
+      "bytes": 3661,
+      "sha256": "fdc29853a5d689923f84f03020ab84fbb4ea58f83eb17ac7957d35d70f33e083",
+      "mode": "0600"
+    },
+    {
+      "path": "drivers/runner-r1-preimage.py",
+      "bytes": 15428,
+      "sha256": "43b95de54f8dcb25bc994eeb8dd14a12d0f8d1add607bdfa6d7e9b4cfd9b7b8a",
+      "mode": "0600"
+    },
+    {
+      "path": "drivers/runner-r2-freeze.json",
+      "bytes": 1963,
+      "sha256": "95fbadc483c39dc31f4e523f5a94d08a7a720efcd91b3eda083b6d2abd624dd0",
+      "mode": "0600"
+    },
+    {
+      "path": "drivers/runner-r2-preimage-receipt.json",
+      "bytes": 439,
+      "sha256": "98d4f959bfae18a3f09e79a79782cf7be9752f011bf8df90fe13df1831e6306d",
+      "mode": "0600"
+    },
+    {
+      "path": "drivers/runner-r2-preimage.py",
+      "bytes": 18525,
+      "sha256": "6cdfe074a72bb6a70fb5e8a5ce98da19ba811c314a9fef7f170687a2bed89891",
+      "mode": "0600"
+    },
+    {
+      "path": "drivers/runner-r3-freeze.json",
+      "bytes": 1871,
+      "sha256": "204e1924d9e7f2dca0a294e877cf33a02faf6d944285d0dfee0ffe04131220ab",
+      "mode": "0600"
+    },
+    {
+      "path": "drivers/runner-r3-preimage-receipt.json",
+      "bytes": 459,
+      "sha256": "56573ea87f8ade0eee1c0fd1a44f485162eadbf10409dd8c7a7485671aa8799a",
+      "mode": "0600"
+    },
+    {
+      "path": "drivers/runner-r3-preimage.py",
+      "bytes": 19136,
+      "sha256": "009471f8b34afd9d0088fb4187e2e43b4e31fe62b2beebb08222085111ea4731",
+      "mode": "0600"
+    },
+    {
+      "path": "drivers/runner-r3.py",
+      "bytes": 19451,
+      "sha256": "5ddc8d5a3677a7c058d4eda5b0c55036a40c2a85908a09e5c24697339e3c128b",
+      "mode": "0600"
+    },
+    {
+      "path": "guide/TTS-TEST-CONDUCTEUR-R3.md",
+      "bytes": 1827,
+      "sha256": "5338fb944bde6aed3b71f0a18e39b40ca3319b499682952cefc6f3214b77ce2c",
+      "mode": "0600"
+    },
+    {
+      "path": "guide/privacy-scope.md",
+      "bytes": 822,
+      "sha256": "efd4ee2609ac063e16cef721951492b5430d7f9990785e70c6a093c6403f8e97",
+      "mode": "0600"
+    },
+    {
+      "path": "pins/sdk-and-runtime-pins.json",
+      "bytes": 1308,
+      "sha256": "57d447eeaf65a8c966e942e7c11080570d55c314bb31d343a714cc225817134b",
+      "mode": "0600"
+    },
+    {
+      "path": "runs/green-direct-r3/junit.xml",
+      "bytes": 6885,
+      "sha256": "488d66baaa4b89c6333561b37c6545e31bc805f6014d1dc82156300212b76fa8",
+      "mode": "0600"
+    },
+    {
+      "path": "runs/green-direct-r3/receipt.json",
+      "bytes": 8867,
+      "sha256": "1c3a5816d37739e55c1c259fd7cd7350693cc11cd84c2c042f29af3d485b962a",
+      "mode": "0600"
+    },
+    {
+      "path": "runs/green-direct-r3/root-verification.json",
+      "bytes": 685,
+      "sha256": "5e4237e280346fd38943c6479e37f5e52ae7c8a17c40e066ed2ba3896a71f542",
+      "mode": "0600"
+    },
+    {
+      "path": "runs/green-direct-r3/stdout.log",
+      "bytes": 91,
+      "sha256": "d060ded210f7ee110cb6177796d288cb0703043b5da80505077dad9b65275216",
+      "mode": "0600"
+    },
+    {
+      "path": "runs/red-wrapper-r2/junit-empty.xml",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "mode": "0600"
+    },
+    {
+      "path": "runs/red-wrapper-r2/receipt.json",
+      "bytes": 3438,
+      "sha256": "eba2e9b3bfcd987f79390ee0370f395492a7233ad62a343a0ce1e73ceb448686",
+      "mode": "0600"
+    },
+    {
+      "path": "runs/red-wrapper-r2/stdout.log",
+      "bytes": 378,
+      "sha256": "0c0dd0b01972401e14a51a4dbfecf78cadb08dbd5e9aa241649a43dc17a3a0bb",
+      "mode": "0600"
+    },
+    {
+      "path": "sources/speech-provider.test.ts",
+      "bytes": 20372,
+      "sha256": "7f6580a6ee185e190465a5eb7939f074484c97e0a0032c462dc7e6a28e358ee0",
+      "mode": "0600"
+    },
+    {
+      "path": "sources/speech-provider.ts",
+      "bytes": 14985,
+      "sha256": "4ca6b5ae17b00d70c038f3bb2fc2d4279209352f43b7e7ac635292f9cc2be0bd",
+      "mode": "0600"
+    }
+  ],
+  "roundtrip_verified": true,
+  "private_audio_excluded": true,
+  "private_oracle_excluded": true,
+  "model_weights_excluded": true,
+  "credentials_excluded": true
+}

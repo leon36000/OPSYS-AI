@@ -168,10 +168,10 @@ def synchroniser_usage(
             modeles = (jour.get("breakdown") or {}).get("models") or {"total": {"metrics": jour.get("metrics", {})}}
             for modele, donnees in modeles.items():
                 m = donnees.get("metrics", {})
-                jetons.fixer_usage(cnx, date, dep.id, f"litellm:{modele}", int(m.get("successful_requests", 0)), {
-                    "tokens_entree": int(m.get("prompt_tokens", 0)),
-                    "tokens_sortie": int(m.get("completion_tokens", 0)),
-                    "tokens_cache_lus": int(m.get("cache_read_input_tokens", 0)),
+                jetons.fixer_usage(cnx, date, dep.id, f"litellm:{modele}", m.get("successful_requests", 0), {
+                    "tokens_entree": m.get("prompt_tokens", 0),
+                    "tokens_sortie": m.get("completion_tokens", 0),
+                    "tokens_cache_lus": m.get("cache_read_input_tokens", 0),
                 })
                 lignes += 1
     return lignes

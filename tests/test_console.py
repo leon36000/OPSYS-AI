@@ -42,8 +42,9 @@ def client(departements_demo, session):
 
 
 def _connecter(client, identifiant=IDENTIFIANT, mot_de_passe=MOT_DE_PASSE):
-    return client.post("/connexion", data={"identifiant": identifiant, "mot_de_passe": mot_de_passe},
-                       follow_redirects=False)
+    return client.post(
+        "/connexion", data={"identifiant": identifiant, "mot_de_passe": mot_de_passe}, follow_redirects=False
+    )
 
 
 @pytest.fixture
@@ -54,6 +55,268 @@ def connecte(client, personne_nathan):
 
 def _csrf(client) -> str:
     return client.get("/api/session").json()["csrf"]
+
+
+def test_memoire_console_raccord_api_et_page_sourcée(connecte):
+    demande = {
+        "prompt_id": "audit-memoire",
+        "content": "Préserver les décisions marketing M7",
+        "version": 1,
+        "module": "M7",
+        "purpose": "Conserver le contexte de croissance",
+    }
+    assert connecte.post("/api/memoire-developpement/prompts", json=demande).status_code == 403
+    headers = {"x-csrf-token": _csrf(connecte)}
+    enregistre = connecte.post("/api/memoire-developpement/prompts", json=demande, headers=headers)
+    assert enregistre.status_code == 200, enregistre.text
+    assert connecte.get("/api/memoire-developpement/status").json()["verified"] == 1
+    page = connecte.get("/memoire", params={"module": "M7", "task": "décisions marketing"})
+    assert page.status_code == 200
+    assert "audit-memoire" in page.text and "Conserver le contexte de croissance" in page.text
+    assert "Aucune source de fichier" in page.text
+
+
+def test_memoire_console_echappe_recherche_et_refuse_role_retire(connecte, session):
+    page = connecte.get("/memoire", params={"module": "M7", "task": '<script>alert("test")</script>'})
+    assert page.status_code == 200 and '<script>alert("test")' not in page.text
+    assert "&lt;script&gt;" in page.text
+    headers = {"x-csrf-token": _csrf(connecte)}
+    with session() as cnx:
+        identite.retirer_role(cnx, IDENTIFIANT, "nathan_owner")
+        identite.ajouter_role(cnx, IDENTIFIANT, "employee")
+    assert connecte.get("/memoire").status_code == 403
+    assert connecte.post("/memoire/scanner", data={"csrf": headers["x-csrf-token"]}).status_code == 403
+    assert connecte.get("/api/memoire-developpement/status").status_code == 403
+
+
+def test_audit_memoire_console_rend_le_rapport_sans_contenu_et_revalide_le_role(connecte, session):
+    headers = {"x-csrf-token": _csrf(connecte)}
+    prompt = {
+        "prompt_id": "console-audit-orphan",
+        "content": "PROMPT PRIVÉ QUI NE DOIT PAS APPARAÎTRE DANS L’AUDIT",
+        "version": 1,
+        "module": "M7",
+        "purpose": "test audit console",
+    }
+    enregistre = connecte.post("/api/memoire-developpement/prompts", json=prompt, headers=headers)
+    assert enregistre.status_code == 200
+    avant = connecte.get("/api/memoire-developpement/status").json()
+    page = connecte.get("/memoire/audit")
+    assert page.status_code == 200
+    assert "Audit de la mémoire de développement" in page.text
+    assert "prompts sans plan" in page.text
+    assert enregistre.json()["event_id"] in page.text
+    assert "PROMPT PRIVÉ QUI NE DOIT PAS APPARAÎTRE" not in page.text
+    assert connecte.get("/api/memoire-developpement/status").json() == avant
+    assert connecte.get("/memoire/audit", params={"repository": "/tmp"}).status_code == 400
+
+    with session() as cnx:
+        identite.retirer_role(cnx, IDENTIFIANT, "nathan_owner")
+        identite.ajouter_role(cnx, IDENTIFIANT, "employee")
+    assert connecte.get("/memoire/audit").status_code == 403
+
+
+def _profil_agent(ident="assistant-devis"):
+    return {
+        "id": ident,
+        "departement": "m09-demo",
+        "responsabilite": "Préparer les dossiers de soumission",
+        "palier_modele": "rapide",
+        "outils": ["m9_additionner"],
+        "budget_jour": 1000,
+        "budget_mois": 10000,
+        "limite_tours": 8,
+        "limite_reessais": 2,
+        "limite_concurrence": 1,
+        "declencheurs": [{"type": "manuel"}],
+    }
+
+
+def test_agents_console_parcours_persistant_et_revision(connecte, session):
+    from opsys import agents
+
+    headers = {"x-csrf-token": _csrf(connecte)}
+    for ident in ("assistant-devis", "controleur-marge"):
+        reponse = connecte.post(
+            "/api/agents", json={"spec": _profil_agent(ident), "mutation_id": f"creation-{ident}"}, headers=headers
+        )
+        assert reponse.status_code == 200
+        assert reponse.json()["agent"]["actif"] is False
+    assert len(connecte.get("/api/agents").json()["agents"]) == 2
+    commande = {"actif": True, "mutation_id": "activation-devis", "revision_attendue": 1}
+    activation = connecte.post("/api/agents/assistant-devis/activation", json=commande, headers=headers)
+    assert activation.status_code == 200
+    assert activation.json()["agent"]["revision"] == 2
+    assert (
+        connecte.post("/api/agents/assistant-devis/activation", json=commande, headers=headers).json()
+        == activation.json()
+    )
+    conflit = connecte.patch(
+        "/api/agents/assistant-devis",
+        headers=headers,
+        json={"spec": _profil_agent(), "mutation_id": "revision-perimee", "revision_attendue": 1},
+    )
+    assert conflit.status_code == 409
+    assert connecte.get("/api/agents/assistant-devis/historique").json()["historique"][1]["actif"] is True
+    with session() as cnx:
+        assert agents.obtenir(cnx, "assistant-devis")["modifie_par"] == IDENTIFIANT
+        assert len(agents.historique(cnx, "assistant-devis")) == 2
+    page = connecte.get("/agents")
+    assert page.status_code == 200 and "assistant-devis" in page.text and "Configuration" in page.text
+
+
+def test_agents_console_refuse_csrf_acteur_et_droits_retires(connecte, session):
+    demande = {"spec": _profil_agent(), "mutation_id": "creation-sans-autorite"}
+    assert connecte.post("/api/agents", json=demande).status_code == 403
+    headers = {"x-csrf-token": _csrf(connecte)}
+    assert connecte.post("/api/agents", json={**demande, "par": "quelquun"}, headers=headers).status_code == 400
+    with session() as cnx:
+        identite.retirer_role(cnx, IDENTIFIANT, "nathan_owner")
+        identite.ajouter_role(cnx, IDENTIFIANT, "employee")
+    assert connecte.get("/api/agents").status_code == 403
+    assert connecte.post("/api/agents", json=demande, headers=headers).status_code == 403
+
+
+def test_agents_console_formulaire_echappe_et_archive(connecte):
+    champs = {
+        **_profil_agent(),
+        "csrf": _csrf(connecte),
+        "mutation_id": "formulaire-agent-create",
+        "outils": "m9_additionner",
+        "declencheurs": "manuel",
+        "responsabilite": '<script>alert("secret")</script>',
+    }
+    assert connecte.post("/agents", data=champs, follow_redirects=False).status_code == 303
+    page = connecte.get("/agents/assistant-devis")
+    assert page.status_code == 200
+    assert "&lt;script&gt;" in page.text and '<script>alert("secret")' not in page.text
+    assert "Historique" in page.text
+    headers = {"x-csrf-token": _csrf(connecte)}
+    suppression = connecte.request(
+        "DELETE",
+        "/api/agents/assistant-devis",
+        headers=headers,
+        json={"mutation_id": "archivage-agent-id", "revision_attendue": 1},
+    )
+    assert suppression.status_code == 200 and suppression.json()["agent"]["supprime"] is True
+    assert connecte.get("/api/agents/assistant-devis").status_code == 404
+    assert len(connecte.get("/api/agents/assistant-devis/historique").json()["historique"]) == 2
+
+
+def test_paliers_console_references_secrets_et_replis_valides(connecte, opsys_home):
+    headers = {"x-csrf-token": _csrf(connecte)}
+    assert (
+        connecte.put(
+            "/api/paliers/fort", json={"provider": "openai", "model": "modele-fort"}, headers=headers
+        ).status_code
+        == 200
+    )
+    conf = {
+        "provider": "custom",
+        "model": "modele-local",
+        "base_url": "http://serveur:8000/v1",
+        "api_key_env": "FOURNISSEUR_CLE_PRIVEE",
+        "fallbacks": ["fort"],
+    }
+    assert connecte.put("/api/paliers/rapide", json=conf, headers=headers).status_code == 200
+    fichier = opsys_home / "paliers.yaml"
+    avant = fichier.read_text()
+    boucle = connecte.put(
+        "/api/paliers/fort",
+        json={"provider": "openai", "model": "modele-fort", "fallbacks": ["rapide"]},
+        headers=headers,
+    )
+    assert boucle.status_code == 400 and fichier.read_text() == avant
+    champs = {**conf, "csrf": _csrf(connecte), "fallbacks": "fort"}
+    assert connecte.post("/modeles/rapide", data=champs, follow_redirects=False).status_code == 303
+    assert modeles.charger_paliers()["rapide"] == conf
+    assert "FOURNISSEUR_CLE_PRIVEE" in connecte.get("/modeles").text
+
+
+def test_agents_plafonds_entreprise_console_et_revisions(connecte):
+    headers = {"x-csrf-token": _csrf(connecte)}
+    assert connecte.get("/api/agents-plafonds").json()["plafonds"] is None
+    commande = {"budget_jour": 2000, "budget_mois": 20000, "revision_attendue": 0}
+    assert connecte.put("/api/agents-plafonds", json=commande).status_code == 403
+    reponse = connecte.put("/api/agents-plafonds", json=commande, headers=headers)
+    assert reponse.status_code == 200
+    assert reponse.json()["plafonds"]["modifie_par"] == IDENTIFIANT
+    assert connecte.put("/api/agents-plafonds", json=commande, headers=headers).status_code == 409
+    assert "20000" in connecte.get("/budgets").text
+    formulaire = {"budget_jour": "3000", "budget_mois": "30000", "revision_attendue": "1", "csrf": _csrf(connecte)}
+    assert connecte.post("/budgets/agents", data=formulaire, follow_redirects=False).status_code == 303
+    assert connecte.get("/api/agents-plafonds").json()["plafonds"]["revision"] == 2
+
+
+@pytest.mark.parametrize("role", ["employee", "client", "seller", "system_agent"])
+def test_console_administration_refusee_aux_profils_non_administrateurs(client, session, opsys_home, role):
+    with session() as cnx:
+        identite.creer_personne(cnx, "limite", "Profil limité", MOT_DE_PASSE, [role])
+    assert _connecter(client, "limite").status_code == 303
+    csrf = _csrf(client)
+    for chemin in (
+        "/api/departements",
+        "/api/approbations",
+        "/api/approbations/file",
+        "/api/budgets",
+        "/api/paliers",
+        "/departements",
+        "/modeles",
+    ):
+        assert client.get(chemin, follow_redirects=False).status_code == 403
+    assert (
+        client.post(
+            "/api/departements/m09-demo/mode", json={"mode": "autonome"}, headers={"x-csrf-token": csrf}
+        ).status_code
+        == 403
+    )
+    assert (
+        client.post(
+            "/departements/m09-demo/mode", data={"mode": "autonome", "csrf": csrf}, follow_redirects=False
+        ).status_code
+        == 403
+    )
+    assert (
+        client.put(
+            "/api/paliers/local", json={"provider": "anthropic", "model": "modele-test"}, headers={"x-csrf-token": csrf}
+        ).status_code
+        == 403
+    )
+    assert not (opsys_home / "paliers.yaml").exists()
+    with session() as cnx:
+        assert approbations.mode_effectif(cnx, "m09-demo", "supervise") == "supervise"
+    assert client.post("/deconnexion", data={"csrf": csrf}, follow_redirects=False).status_code == 303
+
+
+@pytest.mark.parametrize("retrait", ["desactivation", "role"])
+def test_console_revalide_les_droits_apres_connexion(connecte, session, opsys_home, retrait):
+    csrf = _csrf(connecte)
+    with session() as cnx:
+        if retrait == "desactivation":
+            identite.activer(cnx, IDENTIFIANT, False)
+        else:
+            identite.retirer_role(cnx, IDENTIFIANT, "nathan_owner")
+            identite.ajouter_role(cnx, IDENTIFIANT, "employee")
+    code = 401 if retrait == "desactivation" else 403
+    assert (
+        connecte.post(
+            "/api/departements/m09-demo/mode", json={"mode": "autonome"}, headers={"x-csrf-token": csrf}
+        ).status_code
+        == code
+    )
+    assert (
+        connecte.put(
+            "/api/paliers/local", json={"provider": "anthropic", "model": "modele-test"}, headers={"x-csrf-token": csrf}
+        ).status_code
+        == code
+    )
+    assert not (opsys_home / "paliers.yaml").exists()
+    if retrait == "role":
+        assert connecte.get("/api/session").json()["roles"] == ["employee"]
+    else:
+        assert connecte.get("/api/session").status_code == 401
+    with session() as cnx:
+        assert approbations.mode_effectif(cnx, "m09-demo", "supervise") == "supervise"
 
 
 @pytest.fixture
@@ -121,8 +384,7 @@ def test_jeton_csrf():
     assert not securite.csrf_valide("é" + ouverte.csrf[1:], ouverte)
 
 
-@pytest.mark.parametrize(("nom", "message"), [("   ", "manquant"), ("x" * 81, "trop long"),
-                                              ("a\x00b", "invalide")])
+@pytest.mark.parametrize(("nom", "message"), [("   ", "manquant"), ("x" * 81, "trop long"), ("a\x00b", "invalide")])
 def test_identifiant_de_session_valide(nom, message):
     with pytest.raises(ValueError, match=message):
         securite.valider_nom(nom)
@@ -135,10 +397,17 @@ def test_pages_et_api_exigent_une_session(client):
     for chemin in ("/departements", "/approbations", "/budgets", "/modeles"):
         reponse = client.get(chemin, follow_redirects=False)
         assert (reponse.status_code, reponse.headers["location"]) == (303, f"{PREFIXE}/connexion")
-    for methode, chemin in [("get", "/api/session"), ("get", "/api/departements"), ("get", "/api/approbations"),
-                            ("get", "/api/approbations/file"), ("get", "/api/budgets"), ("get", "/api/paliers"),
-                            ("post", "/api/departements/m09-demo/mode"), ("post", "/api/approbations/x/decision"),
-                            ("put", "/api/paliers/local")]:
+    for methode, chemin in [
+        ("get", "/api/session"),
+        ("get", "/api/departements"),
+        ("get", "/api/approbations"),
+        ("get", "/api/approbations/file"),
+        ("get", "/api/budgets"),
+        ("get", "/api/paliers"),
+        ("post", "/api/departements/m09-demo/mode"),
+        ("post", "/api/approbations/x/decision"),
+        ("put", "/api/paliers/local"),
+    ]:
         assert client.request(methode, chemin, json={}).status_code == 401
     for chemin in ("/departements/m09-demo/mode", "/approbations/x/decision", "/modeles/local", "/deconnexion"):
         reponse = client.post(chemin, data={"csrf": "x"}, follow_redirects=False)
@@ -193,8 +462,8 @@ def test_cookie_falsifie_ou_expire_refuse(client):
     valide = securite.Session(utilisateur="intrus", roles=frozenset({"admin"}), csrf="c" * 43, expire=maintenant + 60)
     client.cookies.set("opsys_session", securite.signer_session(valide, "un-autre-secret-" + "z" * 32))
     assert client.get("/api/session").status_code == 401
-    client.cookies.set("opsys_session", securite.signer_session(valide, SECRET))  # témoin : bien signé
-    assert client.get("/api/session").json() == {"utilisateur": "intrus", "roles": ["admin"], "csrf": "c" * 43}
+    client.cookies.set("opsys_session", securite.signer_session(valide, SECRET))  # signé, mais personne absente
+    assert client.get("/api/session").status_code == 401
 
 
 def test_deconnexion(connecte):
@@ -205,8 +474,11 @@ def test_deconnexion(connecte):
 
 
 def test_corps_trop_volumineux_refuse(client):
-    reponse = client.post("/connexion", content=b"a" * (application.LIMITE_CORPS + 1),
-                          headers={"content-type": "application/x-www-form-urlencoded"})
+    reponse = client.post(
+        "/connexion",
+        content=b"a" * (application.LIMITE_CORPS + 1),
+        headers={"content-type": "application/x-www-form-urlencoded"},
+    )
     assert reponse.status_code == 413
 
 
@@ -231,7 +503,10 @@ def test_parcours_approbation_par_l_api(connecte, session, demande):
         [traitee] = approbations.lister(cnx, "executee")
     # La signature vient de la session, jamais du corps de la requête ; le rôle utilisé est enregistré.
     assert (traitee["decide_par"], traitee["decide_role"], traitee["motif_decision"]) == (
-        IDENTIFIANT, "nathan_owner", "vu avec le client")
+        IDENTIFIANT,
+        "nathan_owner",
+        "vu avec le client",
+    )
 
     deja = connecte.post(url, json={"decision": "refuser"}, headers=entetes)
     assert deja.status_code == 400 and "déjà traitée" in deja.json()["detail"]
@@ -255,7 +530,10 @@ def test_refus_par_formulaire_html_avec_arguments_exacts_echappes(connecte, sess
     with session() as cnx:
         [refusee] = approbations.lister(cnx, "refusee")
     assert (refusee["decide_par"], refusee["decide_role"], refusee["motif_decision"]) == (
-        IDENTIFIANT, "nathan_owner", "non")
+        IDENTIFIANT,
+        "nathan_owner",
+        "non",
+    )
     assert demo_outils.JOURNAL == []
 
     deja = connecte.post(url, data={"decision": "approuver", "csrf": jeton}, follow_redirects=False)
@@ -284,16 +562,19 @@ def test_approbation_employe_refusee_proprietaire_acceptee(connecte, session, de
 
 def test_decision_n5_exige_l_attestation_par_l_api_et_le_formulaire(connecte, session, demande_n5):
     entetes = {"X-CSRF-Token": _csrf(connecte)}
-    sans_attestation = connecte.post(f"/api/approbations/{demande_n5}/decision", json={"decision": "approuver"},
-                                     headers=entetes)
+    sans_attestation = connecte.post(
+        f"/api/approbations/{demande_n5}/decision", json={"decision": "approuver"}, headers=entetes
+    )
     assert sans_attestation.status_code == 400 and "attestation" in sans_attestation.json()["detail"]
     with session() as cnx:
         [encore] = approbations.lister(cnx, "en_attente")
     assert encore["id"] == demande_n5 and demo_outils.JOURNAL == []
 
-    avec_attestation = connecte.post(f"/api/approbations/{demande_n5}/decision",
-                                     json={"decision": "approuver", "attestation": ATTESTATION_TEST},
-                                     headers=entetes)
+    avec_attestation = connecte.post(
+        f"/api/approbations/{demande_n5}/decision",
+        json={"decision": "approuver", "attestation": ATTESTATION_TEST},
+        headers=entetes,
+    )
     assert avec_attestation.status_code == 200 and avec_attestation.json()["statut"] == "executee"
     with session() as cnx:
         [traitee] = approbations.lister(cnx, "executee")
@@ -308,9 +589,13 @@ def test_decision_n5_par_formulaire_html_avec_attestation(connecte, demande_n5):
     jeton = _csrf(connecte)
     reponse = connecte.post(
         f"/approbations/{demande_n5}/decision",
-        data={"decision": "approuver", "csrf": jeton, "attestation_nom": ATTESTATION_TEST["nom"],
-             "attestation_profession": ATTESTATION_TEST["profession"],
-             "attestation_document": ATTESTATION_TEST["reference_document"]},
+        data={
+            "decision": "approuver",
+            "csrf": jeton,
+            "attestation_nom": ATTESTATION_TEST["nom"],
+            "attestation_profession": ATTESTATION_TEST["profession"],
+            "attestation_document": ATTESTATION_TEST["reference_document"],
+        },
         follow_redirects=False,
     )
     assert (reponse.status_code, reponse.headers["location"]) == (303, f"{PREFIXE}/approbations?ok=executee")
@@ -340,18 +625,22 @@ def test_changement_de_mode_signe(connecte, session):
     assert inconnu.status_code == 404 and "département inconnu" in inconnu.json()["detail"]
     assert connecte.post(url, json={"mode": "ombre"}).status_code == 403
 
-    formulaire = connecte.post("/departements/m09-demo/mode", data={"mode": "ombre", "csrf": jeton},
-                               follow_redirects=False)
+    formulaire = connecte.post(
+        "/departements/m09-demo/mode", data={"mode": "ombre", "csrf": jeton}, follow_redirects=False
+    )
     assert formulaire.status_code == 303
     assert formulaire.headers["location"].startswith(f"{PREFIXE}/departements?ok=mode")
     with session() as cnx:
         assert approbations.mode_effectif(cnx, "m09-demo", "supervise") == "ombre"
-        ligne = cnx.execute(
-            text("SELECT modifie_par FROM modes_departements WHERE departement = 'm09-demo'")
-        ).mappings().fetchone()
+        ligne = (
+            cnx.execute(text("SELECT modifie_par FROM modes_departements WHERE departement = 'm09-demo'"))
+            .mappings()
+            .fetchone()
+        )
     assert ligne["modifie_par"] == IDENTIFIANT
-    invalide = connecte.post("/departements/m09-demo/mode", data={"mode": "libre", "csrf": jeton},
-                             follow_redirects=False)
+    invalide = connecte.post(
+        "/departements/m09-demo/mode", data={"mode": "libre", "csrf": jeton}, follow_redirects=False
+    )
     assert invalide.status_code == 400 and "mode inconnu" in invalide.text
     assert connecte.get("/api/departements").json()["departements"][0]["mode"] == "ombre"
 
@@ -372,12 +661,18 @@ def test_paliers_invalides_400_et_valides_persistes(connecte, opsys_home):
     assert modeles.charger_paliers() == {"local": local}
     assert connecte.get("/api/paliers").json()["manquants"] == ["rapide", "standard"]
 
-    invalide = connecte.post("/modeles/rapide", data={"provider": "custom", "model": "m", "base_url": "",
-                                                      "csrf": jeton}, follow_redirects=False)
+    invalide = connecte.post(
+        "/modeles/rapide",
+        data={"provider": "custom", "model": "m", "base_url": "", "csrf": jeton},
+        follow_redirects=False,
+    )
     assert invalide.status_code == 400 and "exige base_url" in invalide.text
     assert 'value="m"' in invalide.text  # la saisie est conservée pour être corrigée
-    valide = connecte.post("/modeles/rapide", data={"provider": "anthropic", "model": "claude-haiku-4-5-20251001",
-                                                    "base_url": "", "csrf": jeton}, follow_redirects=False)
+    valide = connecte.post(
+        "/modeles/rapide",
+        data={"provider": "anthropic", "model": "claude-haiku-4-5-20251001", "base_url": "", "csrf": jeton},
+        follow_redirects=False,
+    )
     assert (valide.status_code, valide.headers["location"]) == (303, f"{PREFIXE}/modeles?ok=palier")
     assert set(modeles.charger_paliers()) == {"local", "rapide"}
 
@@ -391,8 +686,12 @@ def test_aide_fournisseur_local_conforme_au_socle():
 
 
 def test_pages_en_francais_protegees_et_sans_ressource_externe(connecte, demande):
-    for chemin, titre in (("/departements", "Départements"), ("/approbations", "Approbations"),
-                          ("/budgets", "Budgets"), ("/modeles", "Modèles")):
+    for chemin, titre in (
+        ("/departements", "Départements"),
+        ("/approbations", "Approbations"),
+        ("/budgets", "Budgets"),
+        ("/modeles", "Modèles"),
+    ):
         page = connecte.get(chemin)
         assert page.status_code == 200 and page.headers["content-type"].startswith("text/html")
         assert '<html lang="fr">' in page.text and f"<h1>{titre}</h1>" in page.text

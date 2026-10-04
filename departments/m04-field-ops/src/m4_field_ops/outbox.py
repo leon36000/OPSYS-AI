@@ -152,7 +152,7 @@ def _dernier_depart(registre_cible, intervention_id):
 
 
 # --------------------------------------------------------------------- API publique
-def calculer_minutes_pause(registre_cible, intervention_id):
+def calculer_minutes_pause(registre_cible, intervention_id, debut_presence=None, fin_presence=None):
     """
     Somme les pauses (T1.1-c#1) d'une intervention, en minutes.
 
@@ -188,6 +188,13 @@ def calculer_minutes_pause(registre_cible, intervention_id):
             if debut_pause_ouverte is None:
                 return None, "REJ-CONTRAT-INVALIDE"
             dt_fin = datetime.fromisoformat(p["horodatage"])
+            if dt_fin < debut_pause_ouverte:
+                return None, "REJ-CONTRAT-INVALIDE"
+            if (
+                (debut_presence is not None and debut_pause_ouverte < debut_presence)
+                or (fin_presence is not None and dt_fin > fin_presence)
+            ):
+                return None, "REJ-CONTRAT-INVALIDE"
             total_minutes += int((dt_fin - debut_pause_ouverte).total_seconds() // 60)
             debut_pause_ouverte = None
     if debut_pause_ouverte is not None:
@@ -286,11 +293,16 @@ def calculer_duree_reelle(registre_cible, intervention_id):
     if dt_dep < dt_arr:
         return None, "REJ-HORODATAGE-ANTERIEUR"
 
-    minutes_pause, code_pause = calculer_minutes_pause(registre_cible, intervention_id)
+    minutes_pause, code_pause = calculer_minutes_pause(
+        registre_cible, intervention_id, debut_presence=dt_arr, fin_presence=dt_dep,
+    )
     if minutes_pause is None:
         return None, code_pause
 
     minutes = int((dt_dep - dt_arr).total_seconds() // 60) - minutes_pause
+    if minutes < 0:
+        # Invariant final défensif : une durée négative ne doit jamais devenir un fait WCT.
+        return None, "REJ-CONTRAT-INVALIDE"
     return minutes, None
 
 

@@ -59,6 +59,10 @@ qu'aucun lead ne porte ne disparaît jamais en silence.
 
 from __future__ import annotations
 
+import datetime as dt
+import hashlib
+import json
+import re
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -74,6 +78,7 @@ from . import (
     conversation,
     digest,
     garde_fou,
+    horodatage,
     phases_voix,
     photos,
     plaintes,
@@ -93,6 +98,7 @@ from .registre import Registre
 _CANAUX = ("telephone", "courriel", "formulaire", "texte")
 _DEPARTEMENT = "m01-front-office"
 _NOM_REGISTRE = "principal"
+_FOURNISSEURS_APPEL_HOTE = frozenset({"mock", "twilio", "telnyx", "plivo"})
 
 # La politique Loi 25 « photos » (T3), dont M1 lit le statut : dérivé de __file__, jamais du répertoire courant (même
 # discipline que M3). parents[4] depuis src/m1_front_office/outils.py atteint la racine du dépôt.
@@ -115,6 +121,245 @@ _registre = _registre_durable()
 _stockage_durable_actif = True
 
 TYPE_EVENEMENT_LEAD = "m1.lead_qualifie"
+
+
+def rechercher_rejeu_voicemail_stt(
+    empreinte_requete: str, source: str, evenement_id: str, appel_id: str
+) -> dict[str, Any] | None:
+    """Rend une réponse d'import déjà terminée pour un upload STT strictement identique.
+
+    Seuls les maillons privés écrits par le routeur après un STT réussi servent de preuve de cache.
+    L'audio et le texte ne sont ni copiés ni renvoyés ici.
+    """
+    source, evenement_id, appel_id = source.strip(), evenement_id.strip(), appel_id.strip()
+    lignes = _obtenir_registre().lire()
+    appel = next(
+        (
+            ligne
+            for ligne in lignes
+            if ligne.get("type_entree") == "appel_importe"
+            and ligne.get("source") == source
+            and ligne.get("evenement_id") == evenement_id
+            and ligne.get("appel_id") == appel_id
+            and ligne.get("statut") == "voicemail"
+            and isinstance(ligne.get("reponse"), dict)
+            and ligne["reponse"].get("transcription_conservee") is True
+        ),
+        None,
+    )
+    if appel is None:
+        return None
+    preuve = next(
+        (
+            ligne
+            for ligne in reversed(lignes)
+            if ligne.get("type_entree") == "voicemail_stt_termine"
+            and ligne.get("empreinte_requete") == empreinte_requete
+            and ligne.get("empreinte_import") == appel.get("empreinte")
+        ),
+        None,
+    )
+    return dict(appel["reponse"]) if preuve is not None else None
+
+
+def enregistrer_rejeu_voicemail_stt(empreinte_requete: str, source: str, evenement_id: str, appel_id: str) -> bool:
+    """Ajoute la preuve opaque après import accepté; aucun résultat incertain n'est cacheable."""
+    source, evenement_id, appel_id = source.strip(), evenement_id.strip(), appel_id.strip()
+    reg = _obtenir_registre()
+    lignes = reg.lire()
+    appel = next(
+        (
+            ligne
+            for ligne in lignes
+            if ligne.get("type_entree") == "appel_importe"
+            and ligne.get("source") == source
+            and ligne.get("evenement_id") == evenement_id
+            and ligne.get("appel_id") == appel_id
+            and ligne.get("statut") == "voicemail"
+            and isinstance(ligne.get("reponse"), dict)
+            and ligne["reponse"].get("transcription_conservee") is True
+        ),
+        None,
+    )
+    if appel is None:
+        return False
+    if any(
+        ligne.get("type_entree") == "voicemail_stt_termine"
+        and ligne.get("empreinte_requete") == empreinte_requete
+        and ligne.get("empreinte_import") == appel.get("empreinte")
+        for ligne in lignes
+    ):
+        return True
+    reg.ajouter(
+        {
+            "type_entree": "voicemail_stt_termine",
+            "version": 1,
+            "horodatage": dt.datetime.now(dt.UTC).isoformat(timespec="microseconds"),
+            "empreinte_requete": empreinte_requete,
+            "empreinte_import": appel["empreinte"],
+        }
+    )
+    return True
+
+
+
+
+def importer_appel_manuellement(
+    source: str,
+    evenement_id: str,
+    appel_id: str,
+    recu_le: str,
+    telephone: str,
+    statut: str,
+    transcription: str | None = None,
+    consentement_enregistrement: str | None = None,
+) -> dict[str, Any]:
+    """Importe manuellement un appel ou une arrivée tardive de transcription, sans fournisseur vocal.
+
+    `source` décrit explicitement le journal/export consulté ; les identifiants d'événement et d'appel sont ceux de
+    cette source. Le même appel peut recevoir ensuite un événement `voicemail` après `manque`. Le texte n'entre dans
+    la qualification que si le consentement explicite est `accorde`; aucun média/audio n'est accepté ou conservé.
+    Une demande qualifiée passe par l'événement M1→M2 existant. Sinon une tâche de rappel durable apparaît dans « À
+    voir ». Aucun appel ni message sortant n'est émis.
+    """
+    if isinstance(source, str) and source.strip().startswith("voice-call:"):
+        raise ValueError("REJ-SOURCE-RESERVEE: cette provenance appartient à l'hôte téléphonique")
+    return _importer_appel(
+        source, evenement_id, appel_id, recu_le, telephone, statut, transcription,
+        consentement_enregistrement, declenchement="appel_manuel",
+        prefixe_signal="appel-manuel", source_contact="numéro de téléphone importé manuellement",
+    )
+
+
+def importer_appel_manque_hote(
+    provider: str, event_id: str, call_id: str, recu_le: str, telephone: str,
+) -> dict[str, Any]:
+    """Import host-only d'un appel manqué. L'hôte vérifie webhook/provider; M1 n'en vérifie pas la signature."""
+    if not _stockage_durable_actif:
+        raise ValueError("REJ-STOCKAGE-NON-DURABLE: l'import de l'hôte exige le registre de production")
+    if not isinstance(provider, str) or provider not in _FOURNISSEURS_APPEL_HOTE:
+        raise ValueError("REJ-FOURNISSEUR-INVALIDE: provider d'appel non pris en charge")
+    return _importer_appel(
+        f"voice-call:{provider}", event_id, call_id, recu_le, telephone, "manque", None, None,
+        declenchement="appel_operateur", prefixe_signal="appel-hote",
+        source_contact="numéro transmis par l'hôte",
+    )
+
+
+def _importer_appel(
+    source: str,
+    evenement_id: str,
+    appel_id: str,
+    recu_le: str,
+    telephone: str,
+    statut: str,
+    transcription: str | None = None,
+    consentement_enregistrement: str | None = None,
+    *,
+    declenchement: str,
+    prefixe_signal: str,
+    source_contact: str,
+) -> dict[str, Any]:
+    """Owner partagé de l'import M1; toutes les provenances sont fixées par wrappers internes."""
+    if not isinstance(source, str) or not source.strip() or len(source) > 120:
+        raise ValueError("REJ-SOURCE-INVALIDE: source explicite requise (ex. export manuel de journal d'appels)")
+    if not isinstance(evenement_id, str) or not evenement_id.strip() or len(evenement_id) > 200:
+        raise ValueError("REJ-EVENEMENT-INVALIDE: identifiant d'événement source requis")
+    if not isinstance(appel_id, str) or not appel_id.strip() or len(appel_id) > 200:
+        raise ValueError("REJ-APPEL-INVALIDE: identifiant métier d'appel requis")
+    if statut not in {"manque", "voicemail"}:
+        raise ValueError("REJ-STATUT-INVALIDE: statut attendu `manque` ou `voicemail`")
+    if not isinstance(telephone, str) or re.fullmatch(r"\+[1-9][0-9]{6,14}", telephone.strip()) is None:
+        raise ValueError("REJ-TELEPHONE-INVALIDE: numéro E.164 requis")
+    telephone = telephone.strip()
+    horodatage.valider_horodatage(recu_le)
+    if transcription is not None and (not isinstance(transcription, str) or not transcription.strip()):
+        raise ValueError("REJ-TRANSCRIPTION-INVALIDE: transcription absente ou vide")
+    if statut == "manque" and transcription:
+        raise ValueError("REJ-STATUT-INVALIDE: un appel manqué ne porte pas de transcription")
+    if statut == "voicemail" and transcription and consentement_enregistrement != "accorde":
+        # On ne rejette pas l'événement source : le message vocal est bien reçu, mais son contenu reste hors registre.
+        transcription_a_traiter = None
+    else:
+        transcription_a_traiter = transcription
+
+    contenu = {
+        "source": source.strip(), "evenement_id": evenement_id.strip(), "appel_id": appel_id.strip(),
+        "recu_le": recu_le, "telephone": telephone, "statut": statut,
+        "transcription": transcription,
+        "consentement_enregistrement": consentement_enregistrement,
+    }
+    # L'identifiant de transport varie lors d'un nouvel envoi : l'idempotence du fait métier est
+    # portée par (source, appel_id, statut) et l'empreinte du contenu métier, jamais par cet ID.
+    contenu_metier = {cle: valeur for cle, valeur in contenu.items() if cle != "evenement_id"}
+    if prefixe_signal == "appel-hote":
+        # Le contenu d'un ancien import manuel ne prouve pas un import de l'hôte,
+        # même s'il revendiquait la même source. Son empreinte historique reste intacte.
+        contenu_metier["origine_import"] = "hote_voix_v1"
+    empreinte = hashlib.sha256(json.dumps(contenu_metier, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    reg = _obtenir_registre()
+    lignes = reg.lire()
+    existant = next((ligne for ligne in lignes if ligne.get("type_entree") == "appel_importe"
+                     and ligne.get("source") == contenu["source"]
+                     and ligne.get("appel_id") == contenu["appel_id"]
+                     and ligne.get("statut") == statut), None)
+    if existant is not None:
+        if existant.get("empreinte") != empreinte:
+            raise ValueError("REJ-APPEL-CONTRADICTOIRE: ce fait d'appel existe avec un contenu différent")
+        return dict(existant["reponse"])
+
+    conversation_id = reception.identifiant_de_conversation("sms", telephone)
+    signal_id = f"{prefixe_signal}:{contenu['source']}:{contenu['evenement_id']}"
+    texte = transcription_a_traiter or (
+        "Appel manqué, rappel demandé." if statut == "manque"
+        else "Message vocal reçu; contenu non conservé faute de consentement explicite."
+    )
+    zone, verdict_zone = taxonomie.charger_zone_desservie()
+    if verdict_zone is not None:
+        raise ValueError(f"{verdict_zone['code']}: {verdict_zone['detail']}")
+    fenetre, verdict_fenetre = taxonomie.charger_fenetre_conversation()
+    if verdict_fenetre is not None and verdict_fenetre["code"] != taxonomie.VERDICT_FENETRE_NON_CONFIGUREE:
+        raise ValueError(f"{verdict_fenetre['code']}: {verdict_fenetre['detail']}")
+    resultat = _traiter(
+        texte, "telephone", conversation_id, signal_id, recu_le, list(zone),
+        consentement_enregistrement if transcription_a_traiter else None, declenchement, None, None,
+        contact_canal={"telephone": telephone}, fenetre_minutes=fenetre,
+    )
+    # Les appels manqués et les messages non qualifiés deviennent une tâche humaine durable. Une plainte/urgence
+    # garde la priorité de son transfert existant ; un lead qualifié est déjà transmis au vrai CRM M2.
+    transfert_resultat = None
+    if resultat.get("decision") not in {"TRANSMETTRE_M2", "ESCALADE_PLAINTE", "ESCALADE_URGENCE", "TRANSFERT_EN_COURS"}:
+        signal = next((ligne for ligne in reg.lire() if ligne.get("type_entree") == "signal"
+                       and ligne.get("signal_id") == signal_id), None)
+        if signal is not None:
+            destinataire, verdict_destinataire = taxonomie.charger_destinataire_du_transfert("ventes")
+            ligne, refus = transferts.preparer_ouverture(
+                reg.lire(), type_transfert="ventes", categories=(), termes={},
+                declenche_par=transferts.DECLENCHE_PAR_REGLES, canal="telephone", source=declenchement,
+                conversation_id=conversation_id, message_courant=signal, contact={"telephone": telephone},
+                contact_source=source_contact, destinataire=destinataire,
+                verdict_destinataire=verdict_destinataire, fenetre_minutes=None,
+            )
+            if ligne is not None:
+                ligne_id = reg.ajouter(ligne)
+                transfert_resultat = {"transfert_id": ligne["transfert_id"], "statut": "ouvert",
+                                      "ligne_id": ligne_id, "envoi_automatique": False}
+    elif resultat.get("decision") == "TRANSFERT_EN_COURS":
+        transfert_ouvert = resultat.get("transfert", {})
+        if transfert_ouvert.get("type_transfert") == "ventes":
+            transfert_resultat = {"transfert_id": transfert_ouvert["transfert_id"], "statut": "ouvert",
+                                  "deja_ouvert": True, "envoi_automatique": False}
+    reponse = {
+        "accepte": True, "source": contenu["source"], "appel_id": contenu["appel_id"],
+        "evenement_id": contenu["evenement_id"], "statut": statut,
+        "transcription_conservee": transcription_a_traiter is not None,
+        "traitement": resultat, "tache_rappel": transfert_resultat,
+        "envoi_automatique": False,
+    }
+    reg.ajouter({"type_entree": "appel_importe", "source": contenu["source"],
+                 "evenement_id": contenu["evenement_id"], "appel_id": contenu["appel_id"],
+                 "statut": statut, "empreinte": empreinte, "horodatage": recu_le, "reponse": reponse})
+    return reponse
 
 
 def reinitialiser_registre() -> None:
@@ -364,27 +609,103 @@ def ouvrir_conversation(signal_id: str, horodatage: str) -> dict[str, Any]:
     return {"accepte": True, "resultat": resultat}
 
 
+def _conversation_voix_canonique(conversation_fournie: Any) -> dict[str, Any] | None:
+    """Relit et reconstruit l'état vocal depuis les maillons ; l'objet envoyé par le modèle n'est qu'une référence."""
+    if not isinstance(conversation_fournie, dict) or not isinstance(conversation_fournie.get("conversation_id"), str):
+        return None
+    lignes = _obtenir_registre().lire()
+    identifiant = conversation_fournie["conversation_id"]
+    transitions = [ligne for ligne in lignes if ligne.get("type_entree") == "transition_phase"
+                   and ligne.get("payload", {}).get("conversation_id") == identifiant]
+    if not transitions:
+        return None
+    ouverture = transitions[0]
+    payload_ouverture = ouverture.get("payload", {})
+    if payload_ouverture.get("motif") != "ouverture" or payload_ouverture.get("phase_cible") != 0:
+        return None
+    conv = {
+        "conversation_id": identifiant,
+        "signal_id": conversation_fournie.get("signal_id"),
+        "statut": "ouverte",
+        "phases": [{"numero": 0, "horodatage_debut": ouverture["horodatage"],
+                    "horodatage_fin": None, "statut": "ouverte"}],
+        "phase_courante": 0,
+        "dernier_ligne_id": ouverture.get("ligne_id"),
+    }
+    for ligne in transitions[1:]:
+        payload = ligne.get("payload", {})
+        source, cible = payload.get("phase_source"), payload.get("phase_cible")
+        if conv["statut"] != "ouverte" or source != conv["phase_courante"] or cible not in (source + 1,):
+            abandon_valide = (
+                payload.get("motif") == "abandon" and conv["statut"] == "ouverte"
+                and source == conv["phase_courante"] and cible == 5
+            )
+            if abandon_valide:
+                phase = conv["phases"][source]
+                phase.update(statut="close_abandon", horodatage_fin=ligne["horodatage"])
+                conv["phases"].append({"numero": 5, "horodatage_debut": ligne["horodatage"],
+                                       "horodatage_fin": ligne["horodatage"], "statut": "close_abandon"})
+                conv.update(statut="close_abandon", phase_courante=5, dernier_ligne_id=ligne.get("ligne_id"))
+                continue
+            return None
+        phase = conv["phases"][source]
+        statut_phase = "close_normale"
+        phase.update(statut=statut_phase, horodatage_fin=ligne["horodatage"])
+        fin = cible == 5
+        conv["phases"].append({"numero": cible, "horodatage_debut": ligne["horodatage"],
+                              "horodatage_fin": None, "statut": "close_normale" if fin else "ouverte"})
+        conv.update(phase_courante=cible, dernier_ligne_id=ligne.get("ligne_id"))
+        if fin:
+            conv["statut"] = "close_normale"
+    violations = [ligne for ligne in lignes if ligne.get("type_entree") == "alerte"
+                  and ligne.get("code") == "EVT-PHASE-VIOLATION"
+                  and ligne.get("payload", {}).get("conversation_id") == identifiant]
+    if violations and conv["statut"] == "ouverte":
+        conv["phases"][conv["phase_courante"]]["statut"] = "close_erreur"
+        conv["statut"] = "close_erreur"
+    # Les anciens maillons ne portaient pas signal_id dans payload ; l'identifiant déterministe lie alors
+    # l'assertion à l'heure d'ouverture. Les ouvertures nouvelles conservent aussi le signal explicitement.
+    signal_id = payload_ouverture.get("signal_id", conversation_fournie.get("signal_id"))
+    if payload_ouverture.get("signal_id") not in (None, conversation_fournie.get("signal_id")):
+        return None
+    if phases_voix._generer_conversation_id(signal_id, ouverture["horodatage"]) != identifiant:
+        return None
+    conv["signal_id"] = signal_id
+    return conv
+
+
+def _refuser_conversation_voix(non_canonique: bool = True) -> dict[str, Any]:
+    code = "REJ-CONVERSATION-NON-CANONIQUE" if non_canonique else "REJ-CONVERSATION-INCONNUE"
+    return verdicts.construire_verdict(code, detail="relis une conversation M1 ouverte depuis le registre vocal")
+
+
 def transitionner_phase(conversation: dict[str, Any], phase_cible: int, horodatage: str) -> dict[str, Any]:
     """Fait progresser une conversation d'une phase. `conversation` est l'objet
     renvoyé par `m1_ouvrir_conversation` (ou une transition précédente), à
     reporter tel quel — jamais reconstruit de mémoire par l'agent."""
+    canonique = _conversation_voix_canonique(conversation)
+    if canonique is None or canonique != conversation:
+        return {"accepte": False, "verdict": _refuser_conversation_voix(), "conversation": conversation}
     try:
-        verdict = phases_voix.transitionner(conversation, phase_cible, horodatage, _obtenir_registre())
+        verdict = phases_voix.transitionner(canonique, phase_cible, horodatage, _obtenir_registre())
     except TransitionInterdite as exc:
         # phases_voix lève sur violation plutôt que de renvoyer un couple : on
         # traduit ici vers le même patron (accepte, verdict) que le reste des
         # outils, pour que l'agent n'ait qu'une seule forme de réponse à lire.
-        return {"accepte": False, "verdict": exc.verdict, "conversation": conversation}
+        return {"accepte": False, "verdict": exc.verdict, "conversation": canonique}
     if verdict.get("code") != "OK":
-        return {"accepte": False, "verdict": verdict, "conversation": conversation}
-    return {"accepte": True, "verdict": verdict, "conversation": conversation}
+        return {"accepte": False, "verdict": verdict, "conversation": canonique}
+    return {"accepte": True, "verdict": verdict, "conversation": canonique}
 
 
 def abandonner_conversation(conversation: dict[str, Any], horodatage: str) -> dict[str, Any]:
-    verdict = phases_voix.abandonner(conversation, horodatage, _obtenir_registre())
+    canonique = _conversation_voix_canonique(conversation)
+    if canonique is None or canonique != conversation:
+        return {"accepte": False, "verdict": _refuser_conversation_voix(), "conversation": conversation}
+    verdict = phases_voix.abandonner(canonique, horodatage, _obtenir_registre())
     if verdict.get("code") != "OK":
-        return {"accepte": False, "verdict": verdict, "conversation": conversation}
-    return {"accepte": True, "verdict": verdict, "conversation": conversation}
+        return {"accepte": False, "verdict": verdict, "conversation": canonique}
+    return {"accepte": True, "verdict": verdict, "conversation": canonique}
 
 
 def produire_digest(date_reference: str) -> str:
@@ -1078,9 +1399,16 @@ def _complement_de_conversation(
     return reponse
 
 
-def _signal_deja_recu(reg: Registre, signal_id: str) -> dict[str, Any] | None:
-    """La réponse déjà donnée à ce signal, ou `None` s'il est nouveau. Un message que la plateforme livre deux fois
-    (reprise après panne, nouvel essai de l'agent) ne laisse pas une seconde ligne : exactement une par signal."""
+def _signal_deja_recu(
+    reg: Registre, message: reception.MessageRecu
+) -> dict[str, Any] | None:
+    """Retourne la réponse d'un rejeu identique; un même ID avec des données métier différentes est refusé.
+
+    L'identifiant de message seul ne suffit pas : les registres M1 sont la frontière anti-perte et un fournisseur ou
+    une intégration peut réutiliser un ID avec un autre expéditeur, corps ou horodatage. Comparer avant toute mutation
+    évite de faire passer le second contenu pour le premier ou de créer une autre interaction.
+    """
+    signal_id = message.signal_id
     signal = lead = alerte = None
     leads_par_id: dict[str, dict[str, Any]] = {}
     lignes = reg.lire()
@@ -1098,6 +1426,22 @@ def _signal_deja_recu(reg: Registre, signal_id: str) -> dict[str, Any] | None:
             alerte = maillon
     if signal is None:
         return None
+    contenu_filtre, provenance_saine = provenance.filtrer(message.contenu)
+    champs_attendus = {
+        "canal": message.canal_contrat,
+        "source": message.canal,
+        "conversation_id": message.conversation_id,
+        "signal_id": message.signal_id,
+        "horodatage": message.horodatage,
+        "contenu_filtre": contenu_filtre,
+        "provenance_saine": provenance_saine,
+    }
+    divergent = [nom for nom, valeur in champs_attendus.items() if signal.get(nom) != valeur]
+    if divergent:
+        raise ValueError(
+            "REJ-SIGNAL-CONTRADICTOIRE: ce message_id existe déjà avec des données différentes "
+            f"({', '.join(divergent)})"
+        )
     if signal.get(transferts.MARQUE) is not None:
         # Message reçu dans une plainte ou une urgence : il était rattaché à un transfert, il n'a jamais créé de lead.
         etat = next((e for e in transferts.lire(lignes) if e.identifiant == signal[transferts.MARQUE]), None)
@@ -1239,7 +1583,7 @@ def recevoir_message_canal(
         # Une valeur cassée n'est jamais lue comme une valeur absente : refus, rien n'est écrit.
         raise ValueError(f"{verdict_fenetre['code']}: {verdict_fenetre['detail']}")
     reg = _obtenir_registre()
-    deja = _signal_deja_recu(reg, message.signal_id)
+    deja = _signal_deja_recu(reg, message)
     if deja is not None:
         return _avec_bloc_utm(deja, None if utm is None else dict(utm))
     if message.retrait:
@@ -1414,6 +1758,33 @@ def outils() -> tuple[Outil, ...]:
             # d'affaire liée. L'outil ne décide rien et n'engage personne ; tout message vers le client reste
             # `m1_emettre_notification` (N4).
             niveau=Niveau.N2,
+        ),
+        Outil(
+            nom="m1_importer_appel_manuellement",
+            description=(
+                "Importe un appel manqué ou un message vocal depuis une source explicitement nommée (journal/export "
+                "manuel). Ce n'est pas une intégration opérateur et aucun audio n'est accepté. Le texte vocal n'est "
+                "traité/conservé qu'avec consentement explicite `accorde`; sinon seul le fait d'appel est inscrit et "
+                "une tâche de rappel peut être créée. Un lead qualifié rejoint M2 par le contrat existant. Aucun "
+                "appel, SMS ou courriel n'est envoyé. Un événement tardif `voicemail` peut compléter un appel `manque`."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "source": {"type": "string"}, "evenement_id": {"type": "string"},
+                    "appel_id": {"type": "string"}, "recu_le": {"type": "string"},
+                    "telephone": {"type": "string"},
+                    "statut": {"type": "string", "enum": ["manque", "voicemail"]},
+                    "transcription": {"type": ["string", "null"]},
+                    "consentement_enregistrement": {"type": ["string", "null"]},
+                },
+                "required": ["source", "evenement_id", "appel_id", "recu_le", "telephone", "statut"],
+                "additionalProperties": False,
+            },
+            fonction=importer_appel_manuellement,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
+            roles_appareil=frozenset({"admin"}),
         ),
         Outil(
             nom="m1_filtrer_provenance",

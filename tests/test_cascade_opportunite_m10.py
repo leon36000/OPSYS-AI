@@ -33,7 +33,7 @@ from m10_memoire import affaire, amont, classification, etapes
 from m10_memoire import outils as m10_outils
 from sqlalchemy import select
 
-from opsys import evenements, stockage, taxonomie
+from opsys import contexte, evenements, stockage, taxonomie
 from opsys.capacites import Capacites
 from opsys.departements import Departement, charger_departements
 from opsys.outils import executer_atomique
@@ -75,6 +75,11 @@ def instance(tmp_path, monkeypatch, declarer_services):
 
 def _outils(deps, dep_id):
     return {o.nom: o for o in deps[dep_id].charger_outils()}
+
+
+def _paquet_m10(affaire_id: str, horodatage: str, departement: str) -> dict:
+    with contexte.appeler_en_tant_que(departement):
+        return m10_outils.paquet_contexte_affaire(affaire_id, horodatage)
 
 
 def _ok(reponse):
@@ -189,8 +194,8 @@ class TestOpportuniteParLeVraiBus:
         _, _, opportunite = client_qui_revient
 
         with stockage.transaction():
-            pour_m1 = m10_outils.paquet_contexte_affaire(opportunite, LECTURE_LE, "m01-front-office")
-            pour_m3 = m10_outils.paquet_contexte_affaire(opportunite, LECTURE_LE, "m03-estimation")
+            pour_m1 = _paquet_m10(opportunite, LECTURE_LE, "m01-front-office")
+            pour_m3 = _paquet_m10(opportunite, LECTURE_LE, "m03-estimation")
 
         for paquet in (pour_m1, pour_m3):
             assert paquet["affaire_id"] == opportunite
@@ -207,8 +212,8 @@ class TestOpportuniteParLeVraiBus:
         _, lead_id, opportunite = client_qui_revient
 
         with stockage.transaction():
-            du_lead = m10_outils.paquet_contexte_affaire(lead_id, LECTURE_LE, "m01-front-office")
-            de_l_opportunite = m10_outils.paquet_contexte_affaire(opportunite, LECTURE_LE, "m01-front-office")
+            du_lead = _paquet_m10(lead_id, LECTURE_LE, "m01-front-office")
+            de_l_opportunite = _paquet_m10(opportunite, LECTURE_LE, "m01-front-office")
 
         assert du_lead["affaire"]["origine"] == etapes.TYPE_LEAD_QUALIFIE
         assert de_l_opportunite["affaire"]["origine"] == etapes.TYPE_CLIENT_ASSOCIE
@@ -229,7 +234,7 @@ class TestOpportuniteParLeVraiBus:
         _, lead_id, _ = client_qui_revient
 
         with stockage.transaction():
-            avant = m10_outils.paquet_contexte_affaire(lead_id, LECTURE_LE, "m01-front-office")
+            avant = _paquet_m10(lead_id, LECTURE_LE, "m01-front-office")
         couche = next(c for c in avant["couches"] if c["nom"] == "evenements_recents")
         assert couche["nb_total"] == 5 and couche["nb_inclus"] == 3 and couche["nb_omis"] == 2
         assert etapes.TYPE_LEAD_QUALIFIE not in {fait["source"] for fait in couche["faits"]}
@@ -241,7 +246,7 @@ class TestOpportuniteParLeVraiBus:
         entree = avant["consolidation"]["a_consolider"][0]
         with stockage.transaction():
             fait = m10_outils.consolider_affaire(entree["affaire_id"], entree["jour"], LECTURE_LE)
-            apres = m10_outils.paquet_contexte_affaire(lead_id, LECTURE_LE, "m01-front-office")
+            apres = _paquet_m10(lead_id, LECTURE_LE, "m01-front-office")
         assert fait["ecrit"] is True and fait["fait"]["resume"] == "1 lead(s) qualifié(s), 1 client(s) associé(s)"
         assert apres["consolidation"] == {"a_consolider": [], "nb_a_consolider": 0}
 
@@ -250,7 +255,7 @@ class TestOpportuniteParLeVraiBus:
         inconnu = f"{lead_id}~opp~{hashlib.sha256(b'jamais-vu').hexdigest()}"
 
         with stockage.transaction():
-            paquet = m10_outils.paquet_contexte_affaire(inconnu, LECTURE_LE, "m03-estimation")
+            paquet = _paquet_m10(inconnu, LECTURE_LE, "m03-estimation")
 
         assert paquet["affaire"] == {
             "connue": False, "origine_recue": False, "origine": None, "verdict": amont.AMONT_AFFAIRE_INCONNUE}
@@ -271,7 +276,7 @@ class TestOpportuniteParLeVraiBus:
         _, _, opportunite = client_qui_revient
 
         with stockage.transaction():
-            paquet = m10_outils.paquet_contexte_affaire(opportunite, LECTURE_LE, "m01-front-office")
+            paquet = _paquet_m10(opportunite, LECTURE_LE, "m01-front-office")
 
         blocs = json.dumps([paquet["affaire"], paquet["consolidation"]], ensure_ascii=False)
         for confidence in (NUMERO, "5145550142", "Laval", "gouttières fuient", "Alice", "Nathan"):

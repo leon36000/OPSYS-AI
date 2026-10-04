@@ -31,7 +31,7 @@ logger = logging.getLogger("opsys.tableau_de_bord")
 STATUTS = ("en_attente", "refusee", "executee", "echec")
 DECISIONS = ("approuver", "refuser")
 # Champs d'un palier retenus par opsys.modeles.valider_palier (un test garde l'alignement).
-CHAMPS_PALIER = ("provider", "model", "base_url")
+CHAMPS_PALIER = ("provider", "model", "base_url", "api_key_env", "fallbacks")
 
 
 def _outils(dep: Departement) -> tuple[tuple[Outil, ...], str | None]:

@@ -189,6 +189,8 @@ const adminFrCA = {
       tvq: "TVQ : collectée {{collectee}}, crédits d'intrants {{credits}}, nette {{nette}}, à remettre {{aRemettre}}.",
       factures: "Factures comptées : {{clients}} client(s), {{fournisseurs}} fournisseur(s).",
       taxesNonChiffrees: "Taxes non chiffrées par M5 : voir ce qui manque.",
+      couverturePartielle: "Calcul sur les pièces reçues; couverture partielle.",
+      couvertureInconnue: "Couverture non confirmée; le total peut être incomplet.",
       illisibles: "{{nombre}} échéance(s) illisible(s) pour cette version de l'app : non affichées.",
       nonAffichees: "{{nombre}} échéance(s) non affichée(s).",
       connuJusquAu: "Calendrier connu jusqu'au {{date}}",

@@ -13,8 +13,8 @@
 // manifests), never from the model. The open-signal count is M10's, over every signal of the case: a
 // truncated layer cannot hide one (`opsys-contexte-paquet.ts`).
 //
-// OFF until `contexte.json` is active: without it (or with a file that cannot be trusted, which the
-// engine already reports in every turn) nothing is blocked.
+// OFF when `contexte.json` is absent or explicitly inactive. Once the operator selects this engine,
+// an invalid configuration blocks OPSYS-shaped calls because the levels cannot be trusted.
 //
 // How the state gets here. The engine writes it in `assemble()` (`OpsysContextEngine`), once per turn,
 // under the session key. This module only reads it. A context engine cannot itself veto a tool call:
@@ -24,6 +24,7 @@
 // documented in `core/PROVENANCE.md` and ADR-0010. Until that graft is in, this module decides and the
 // core does not enforce.
 import { normalizeAgentId } from "@openclaw/normalization-core/agent-id";
+import { isRecord } from "@openclaw/normalization-core/record-coerce";
 import { parseAgentSessionKey } from "../routing/session-key.js";
 import {
   OPSYS_TOOL_LEVELS,
@@ -31,7 +32,7 @@ import {
   type OpsysContexteConfigResult,
   type OpsysToolLevel,
 } from "./opsys-contexte-config.js";
-import { oneLine } from "./opsys-contexte-paquet.js";
+import { isOpsysAffaireId, oneLine } from "./opsys-contexte-paquet.js";
 
 /** What the last turn's PREFLIGHT found out about the case. */
 export type OpsysGuardState =
@@ -121,6 +122,51 @@ function blockedForSignals(affaireId: string, nbOuverts: number): OpsysGuardDeci
   };
 }
 
+function blockedForTarget(reason: string): OpsysGuardDecision {
+  return {
+    block: true,
+    reason:
+      `Action bloquée : la cible de l'outil ne correspond pas à l'affaire M10 évaluée (${oneLine(reason)}). ` +
+      "Précise l'affaire visée et fais lire son contexte avant de réessayer.",
+  };
+}
+
+function valueAtPath(value: unknown, path: readonly string[]): unknown {
+  let current: unknown = value;
+  for (const segment of path) {
+    if (!isRecord(current)) {
+      return undefined;
+    }
+    if (!Object.hasOwn(current, segment)) {
+      return undefined;
+    }
+    current = current[segment];
+  }
+  return current;
+}
+
+const LEAD_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/u;
+const WCT_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
+
+function targetMatches(
+  target: unknown,
+  identity: "affaire" | "lead" | "wct",
+  affaireId: string,
+): boolean {
+  if (typeof target !== "string" || !isOpsysAffaireId(affaireId)) {
+    return false;
+  }
+  if (identity === "affaire") {
+    return isOpsysAffaireId(target) && target === affaireId;
+  }
+  if (identity === "lead") {
+    // A lead-scoped action is valid only for the canonical lead case itself. A matching lead
+    // prefix does not authorize an opportunity for another WCT.
+    return LEAD_ID.test(target) && target === affaireId;
+  }
+  return WCT_ID.test(target) && affaireId.endsWith(`~opp~${target}`);
+}
+
 /**
  * The decision, as a pure function of what the engine recorded. `config` is what `readOpsysContexteConfig`
  * returned; `state` is the session's last recorded state, if any.
@@ -131,10 +177,18 @@ export function evaluateGuard(params: {
   agentId: string | undefined;
   config: OpsysContexteConfigResult;
   state: OpsysGuardState | undefined;
+  toolParams: unknown;
   nowMs: number;
 }): OpsysGuardDecision {
-  if (params.config.kind !== "enabled") {
+  if (params.config.kind === "absent" || params.config.kind === "disabled") {
     return { block: false };
+  }
+  // The operator selected this engine, but a broken configuration cannot tell us which OPSYS
+  // tools are N3+. Fail closed for OPSYS-shaped calls and preserve unrelated tools.
+  if (params.config.kind === "invalid") {
+    return OPSYS_TOOL_NAME.test(bareToolName(params.toolName))
+      ? blockedForContext(`configuration de contexte invalide : ${params.config.reason}`)
+      : { block: false };
   }
   const { config } = params.config;
   const agentId = agentIdOf(params.sessionKey, params.agentId);
@@ -151,6 +205,20 @@ export function evaluateGuard(params: {
   }
   if (state.kind === "unavailable") {
     return blockedForContext(state.reason);
+  }
+  const target = config.targets.get(bareToolName(params.toolName));
+  if (target === undefined || target.kind === "unknown") {
+    return blockedForTarget(
+      `aucun contrat de cible fiable n'est déclaré pour ${bareToolName(params.toolName)}; le propriétaire doit déclarer affaire ou globale`,
+    );
+  }
+  if (
+    target.kind === "affaire" &&
+    !targetMatches(valueAtPath(params.toolParams, target.path), target.identity, state.affaireId)
+  ) {
+    return blockedForTarget(
+      `l'argument ${target.path.join(".")} est absent, invalide ou vise une autre affaire que ${state.affaireId}`,
+    );
   }
   return state.nbOuverts > 0 ? blockedForSignals(state.affaireId, state.nbOuverts) : { block: false };
 }
@@ -169,7 +237,7 @@ export type OpsysGuardDeps = {
  * must not become a hole for OPSYS actions, nor stop the agent's own tools.
  */
 export function checkOpsysContexteToolCall(
-  params: { toolName: string; sessionKey: string | undefined; agentId: string | undefined },
+  params: { toolName: string; sessionKey: string | undefined; agentId: string | undefined; toolParams?: unknown },
   deps: OpsysGuardDeps = {},
 ): OpsysGuardDecision {
   try {
@@ -178,6 +246,7 @@ export function checkOpsysContexteToolCall(
     const state = params.sessionKey === undefined ? undefined : store.get(params.sessionKey);
     return evaluateGuard({
       ...params,
+      toolParams: params.toolParams,
       config,
       state,
       nowMs: (deps.nowMs ?? Date.now)(),

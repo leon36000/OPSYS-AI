@@ -1,0 +1,45 @@
+{
+  "ok": true,
+  "tests": 35,
+  "files": {
+    "tests/test_console_paie.py": 14,
+    "tests/test_console_paie_obligations.py": 21
+  },
+  "source_pins": 576,
+  "ruff_files": 3,
+  "source_delta": {},
+  "oom_before": {
+    "oom": 10,
+    "oom_kill": 3,
+    "oom_group_kill": 0
+  },
+  "oom_after": {
+    "oom": 10,
+    "oom_kill": 3,
+    "oom_group_kill": 0
+  },
+  "artifacts": {
+    "receipt.json.gz": {
+      "raw_sha256": "52966d38d808f154bf29a6027e07627579f62f8f3c55b48cb46324b74618cc62",
+      "bytes": 460772,
+      "gzip_sha256": "47f4980b9d365451bfb4298d8d7c11b1f19766e57c678dea8216281570f5edac"
+    },
+    "pytest.xml.gz": {
+      "raw_sha256": "affb8426ad3ca646f820a9f14d18df07897e0c5ec454ac6b42b0bb0ae313be1c",
+      "bytes": 8143,
+      "gzip_sha256": "5eca487de4c032418a82ac7e53f67eea37cf14967e82c9a1e94702a8d524c99a"
+    },
+    "pytest.log.gz": {
+      "raw_sha256": "6270602e3b13e5283ed733de0dd8817be19a919db4aaa613473f7e2c8a48d753",
+      "bytes": 100,
+      "gzip_sha256": "7ecfdfa741533e8047051bfa4eb37ff79b8af7cdd6e2ee9d4bff0d5835379e37"
+    },
+    "ruff.log.gz": {
+      "raw_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19,
+      "gzip_sha256": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd"
+    }
+  },
+  "scope": "Real canonical SQLite/HTTP/AES with fictional payroll inputs. Human replacement and settlement declaration; no payment, official tax calculation, payroll calculation, MCP/LLM exposure or common CFO/forecast reserve total. Reserves remain INCONNU.",
+  "prior_attempt": "34 passed, one fixture failure; real AES delegation corrected to reach the role-revalidation boundary. Raw RED retained in /dev/shm/opsys-m5-obligations-cycle-root-r1/execution-r1."
+}

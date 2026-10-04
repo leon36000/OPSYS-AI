@@ -74,7 +74,7 @@ export function useCycleIdentite(): CycleIdentite {
       // T1.4-n, `src/identite/caches.ts`). Un résultat d'une session qui n'est plus la courante est jeté.
       await appliquerLecture(etat, configuration, {
         configurationCourante: obtenirConfigurationAppel,
-        synchroniserCaches: (nouvelEtat) => synchroniserCachesSansEchouer(obtenirDepotLocal, nouvelEtat),
+        synchroniserCaches: (nouvelEtat, sessionToujoursCourante) => synchroniserCachesSansEchouer(obtenirDepotLocal, nouvelEtat, sessionToujoursCourante),
         definirEtat,
       });
     })();

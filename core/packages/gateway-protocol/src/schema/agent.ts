@@ -370,6 +370,8 @@ export const AgentIdentityResultSchema = closedObject({
   name: Type.Optional(NonEmptyString),
   nameSource: Type.Optional(Type.String({ enum: ["config", "agent", "workspace", "default"] })),
   avatar: Type.Optional(NonEmptyString),
+  /** Optional local 3D avatar model selected in agent configuration. */
+  avatarModelId: Type.Optional(NonEmptyString),
   avatarSource: Type.Optional(NonEmptyString),
   avatarStatus: Type.Optional(Type.String({ enum: ["none", "local", "remote", "data"] })),
   avatarReason: Type.Optional(NonEmptyString),

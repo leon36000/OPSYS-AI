@@ -9,6 +9,7 @@ import { genererMutationId } from "../outbox/id";
 import { formaterHorodatageLocal } from "../outbox/mutation";
 import { obtenirDepot } from "../outbox/service";
 import type { MutationOutbox } from "../outbox/types";
+import { obtenirSessionEnvoi } from "../protocole/configuration";
 
 /**
  * Câblage RÉEL de la capture photo (`photos.tsx`) : copie le fichier TEMPORAIRE produit par
@@ -74,7 +75,8 @@ export async function enregistrerPhotoCapturee(params: ParametresPhotoCapturee):
 export async function listerPhotosCapturees(chantierId: string): Promise<MutationOutbox[]> {
   const depot = await obtenirDepot();
   const toutes = await depot.lister();
-  return listerPhotosDuChantier(toutes, chantierId);
+  const session = obtenirSessionEnvoi();
+  return session ? listerPhotosDuChantier(toutes, chantierId, session.personne) : [];
 }
 
 // Réexporté pour que `photos.tsx` n'ait besoin d'importer que ce fichier pour le formatage

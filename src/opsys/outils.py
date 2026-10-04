@@ -13,9 +13,11 @@ import decimal
 import enum
 import re
 from collections.abc import Callable, Mapping
-from typing import Any
+from typing import Any, Literal
 
 _NOM_OUTIL = re.compile(r"^(m(?:10|[1-9])|opsys)_[a-z][a-z0-9_]{1,60}$")
+PorteeContexte = Literal["affaire", "globale"]
+IdentiteContexte = Literal["affaire", "lead", "wct"]
 _TYPES_JSON: dict[str, tuple[type, ...]] = {
     "string": (str,),
     "integer": (int,),
@@ -89,6 +91,12 @@ class Outil:
     # `opsys.openclaw.roles_outils` est la seule projection vers le core ; un outil T3/N5 n'est
     # jamais projeté, quoi que déclare cet attribut (`opsys-metier verifier` le refuse aussi).
     roles_appareil: frozenset[str] = frozenset()
+    # Scope consumed by the core's M10 before-tool guard. An absent declaration is projected as
+    # unresolved for N3+ calls; it never silently means global. `cible_contexte` is a JSON path in
+    # the validated tool arguments, and `identite_contexte` says how it names M10's canonical case.
+    portee_contexte: PorteeContexte | None = None
+    cible_contexte: tuple[str, ...] | None = None
+    identite_contexte: IdentiteContexte | None = None
 
     def __post_init__(self) -> None:
         if not _NOM_OUTIL.match(self.nom):
@@ -107,6 +115,23 @@ class Outil:
             raise ValueError(f"{self.nom} : paramètres requis non décrits : {sorted(manquants)}")
         if not isinstance(self.autonomie, Autonomie):
             raise ValueError(f"{self.nom} : autonomie invalide {self.autonomie!r}")
+        if self.portee_contexte not in (None, "affaire", "globale"):
+            raise ValueError(f"{self.nom} : portee_contexte doit être 'affaire' ou 'globale'")
+        if self.portee_contexte == "affaire":
+            if (
+                not self.cible_contexte
+                or not all(isinstance(segment, str) and segment for segment in self.cible_contexte)
+                or self.identite_contexte not in ("affaire", "lead", "wct")
+            ):
+                raise ValueError(f"{self.nom} : une portée affaire exige un chemin et une identité explicites")
+            current: Any = self.parametres
+            for segment in self.cible_contexte:
+                properties = current.get("properties") if isinstance(current, Mapping) else None
+                if not isinstance(properties, Mapping) or segment not in properties:
+                    raise ValueError(f"{self.nom} : cible contexte absente du schéma: {self.cible_contexte!r}")
+                current = properties[segment]
+        elif self.cible_contexte is not None or self.identite_contexte is not None:
+            raise ValueError(f"{self.nom} : une cible ou identité contexte exige une portée affaire")
         if self.niveau is not None and not isinstance(self.niveau, Niveau):
             raise ValueError(f"{self.nom} : niveau invalide {self.niveau!r}")
         # Forme seulement : le contenu (rôle connu, outil non T3) est contrôlé par `opsys-metier verifier`

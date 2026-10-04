@@ -223,7 +223,7 @@ class Moteur:
 
     # -- personnes et appareils : les commandes réelles du socle -----------------------------------------
     def creer_personne(self, identifiant: str, nom: str, roles: list[str], monkeypatch: Any) -> None:
-        monkeypatch.setenv(cli.ENV_MOT_DE_PASSE_PERSONNE, MOT_DE_PASSE)
+        monkeypatch.setattr(cli.getpass, "getpass", lambda _prompt: MOT_DE_PASSE)
         argv = ["personnes", "creer", identifiant, "--nom", nom]
         for role in roles:
             argv += ["--role", role]

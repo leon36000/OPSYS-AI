@@ -3,7 +3,12 @@
 // OPSYS and of the state the engine recorded for the session: no engine, no network, no clock but the
 // one the tests hand it.
 import { describe, expect, it } from "vitest";
-import type { OpsysContexteConfigResult } from "./opsys-contexte-config.js";
+import type {
+  OpsysContexteConfig,
+  OpsysContexteConfigResult,
+  OpsysToolLevel,
+  OpsysToolTarget,
+} from "./opsys-contexte-config.js";
 import {
   checkOpsysContexteToolCall,
   evaluateGuard,
@@ -32,6 +37,7 @@ function decide(
     agentId?: string | undefined;
     config?: OpsysContexteConfigResult;
     state?: OpsysGuardState | undefined;
+    toolParams?: unknown;
     nowMs?: number;
   } = {},
 ) {
@@ -41,6 +47,7 @@ function decide(
     agentId: undefined,
     config: ENABLED,
     state: ready(0),
+    toolParams: { contrat: { lead_id: "LEAD-001" } },
     nowMs: NOW,
     ...overrides,
   });
@@ -66,8 +73,49 @@ describe("evaluateGuard: what it blocks", () => {
     expect(reasonOf(decision)).toContain("Tu ne peux pas le faire à sa place");
   });
 
+  it("blocks a ready M10 packet when m3_estimer_projet targets another lead", () => {
+    const decision = decide({ toolParams: { contrat: { lead_id: "LEAD-002" } } });
+
+    expect(decision.block).toBe(true);
+    expect(reasonOf(decision)).toContain("ne correspond pas à l'affaire M10 évaluée");
+    expect(reasonOf(decision)).toContain("contrat.lead_id");
+  });
+
+  it.each([undefined, {}, { contrat: {} }, { contrat: { lead_id: "LEAD-001~opp~WCT-2" } }])(
+    "blocks a missing or non-canonical M3 lead target (%s)",
+    (toolParams) => {
+      expect(decide({ toolParams }).block).toBe(true);
+    },
+  );
+
+  it("keeps a lead target separate from an opportunity for that lead", () => {
+    expect(
+      decide({ state: ready(0), toolParams: { contrat: { lead_id: "LEAD-001" } } }),
+    ).toStrictEqual({
+      block: false,
+    });
+    expect(
+      decide({ state: ready(0), toolParams: { contrat: { lead_id: "LEAD-001~opp~WCT-009" } } })
+        .block,
+    ).toBe(true);
+  });
+
+  it("fails closed when an N3+ tool has no explicit target scope in generated config", () => {
+    const config: OpsysContexteConfigResult = {
+      kind: "enabled",
+      config: { ...CONFIG_M3, targets: new Map() },
+    };
+
+    const decision = decide({ config, state: ready(0) });
+
+    expect(decision.block).toBe(true);
+    expect(reasonOf(decision)).toContain("aucun contrat de cible fiable");
+  });
+
   it("blocks an N3 tool when the packet was unavailable, says why, and says to retry", () => {
-    const decision = decide({ state: unavailable("moteur métier injoignable ou trop lent (ECONNREFUSED)") });
+    const decision = decide({
+      state: unavailable("moteur métier injoignable ou trop lent (ECONNREFUSED)"),
+    });
 
     expect(decision.block).toBe(true);
     expect(reasonOf(decision)).toContain("indisponible");
@@ -84,7 +132,9 @@ describe("evaluateGuard: what it blocks", () => {
   });
 
   it("blocks an N3 tool when the evaluation is stale, and not a millisecond before", () => {
-    expect(decide({ state: ready(0, NOW - OPSYS_GUARD_MAX_AGE_MS) })).toStrictEqual({ block: false });
+    expect(decide({ state: ready(0, NOW - OPSYS_GUARD_MAX_AGE_MS) })).toStrictEqual({
+      block: false,
+    });
 
     const decision = decide({ state: ready(0, NOW - OPSYS_GUARD_MAX_AGE_MS - 1) });
 
@@ -119,20 +169,70 @@ describe("evaluateGuard: the level comes from the generated configuration", () =
   ])("blocks $tool (level $level) without a usable context", ({ tool }) => {
     expect(decide({ toolName: tool, state: unavailable("x") }).block).toBe(true);
     expect(decide({ toolName: tool, state: ready(1) }).block).toBe(true);
-    expect(decide({ toolName: tool, state: ready(0) }).block).toBe(false);
+    expect(decide({ toolName: tool, state: ready(0) }).block).toBe(tool !== "m3_estimer_projet");
   });
 
   it("finds the level by the bare name, with or without the `<server>__` prefix the model sees", () => {
-    for (const name of ["m3_estimer_projet", "opsys_m3__m3_estimer_projet", "a__b__m3_estimer_projet"]) {
+    for (const name of [
+      "m3_estimer_projet",
+      "opsys_m3__m3_estimer_projet",
+      "a__b__m3_estimer_projet",
+    ]) {
       expect(decide({ toolName: name, state: unavailable("x") }).block).toBe(true);
     }
-    expect(decide({ toolName: "opsys_m3__m3_lire_devis", state: unavailable("x") }).block).toBe(false);
+    expect(decide({ toolName: "opsys_m3__m3_lire_devis", state: unavailable("x") }).block).toBe(
+      false,
+    );
   });
 
   it("does not guess the level of a tool the configuration does not list", () => {
-    for (const name of ["read", "exec", "opsys_m3__m3_outil_inconnu", "opsys_etat_budget", "memory_search"]) {
+    for (const name of [
+      "read",
+      "exec",
+      "opsys_m3__m3_outil_inconnu",
+      "opsys_etat_budget",
+      "memory_search",
+    ]) {
       expect(decide({ toolName: name, state: unavailable("x") })).toStrictEqual({ block: false });
     }
+  });
+
+  it("permits an unknown target only when the generated config explicitly marks a whitelisted ticket tool", () => {
+    const toolName = "m3_creer_devis";
+    const ticketConfig: OpsysContexteConfig = {
+      ...CONFIG_M3,
+      levels: new Map<string, OpsysToolLevel>([...CONFIG_M3.levels, [toolName, "N3"]]),
+      targets: new Map<string, OpsysToolTarget>([
+        ...CONFIG_M3.targets,
+        [toolName, { kind: "ticket" }],
+      ]),
+    };
+    const enabled: OpsysContexteConfigResult = { kind: "enabled", config: ticketConfig };
+    const common = {
+      toolName,
+      sessionKey: SESSION,
+      agentId: undefined,
+      state: ready(0),
+      toolParams: {
+        lead_id: "LEAD-001", devis_id: "DEV-FICTIF-C02", chantier_id: null,
+        lignes: [], taux_marge: "0.20", horodatage: "2026-10-02T12:00:00+00:00",
+      },
+      nowMs: NOW,
+    };
+
+    expect(decide({ ...common, config: enabled })).toStrictEqual({ block: false });
+
+    const unresolved: OpsysContexteConfigResult = {
+      kind: "enabled",
+      config: {
+        ...ticketConfig,
+        targets: new Map<string, OpsysToolTarget>([
+          ...CONFIG_M3.targets,
+          [toolName, { kind: "unknown" }],
+        ]),
+      },
+    };
+    expect(decide({ ...common, config: unresolved }).block).toBe(true);
   });
 });
 
@@ -140,11 +240,20 @@ describe("evaluateGuard: off until contexte.json is active, and only for the age
   it.each([
     { title: "no contexte.json", config: { kind: "absent" } as const },
     { title: "a contexte.json that is not active", config: { kind: "disabled" } as const },
-    { title: "a contexte.json that cannot be trusted", config: { kind: "invalid", reason: "x" } as const },
   ])("never blocks with $title", ({ config }) => {
     expect(decide({ config, state: unavailable("x") })).toStrictEqual({ block: false });
     expect(decide({ config, state: undefined })).toStrictEqual({ block: false });
     expect(decide({ config, state: ready(4) })).toStrictEqual({ block: false });
+  });
+
+  it("refuses OPSYS calls with the invalid-config reason after the engine has been selected", () => {
+    const config = { kind: "invalid", reason: '"niveaux" is missing' } as const;
+    const decision = decide({ config, state: ready(0) });
+
+    expect(decision.block).toBe(true);
+    expect(reasonOf(decision)).toContain("configuration de contexte invalide");
+    expect(reasonOf(decision)).toContain('"niveaux" is missing');
+    expect(decide({ toolName: "read", config, state: undefined })).toStrictEqual({ block: false });
   });
 
   it("never blocks an agent the configuration does not name", () => {
@@ -161,7 +270,11 @@ describe("evaluateGuard: off until contexte.json is active, and only for the age
 
   it("takes the agent from the hook context when it is given, before the session key", () => {
     expect(
-      decide({ sessionKey: "agent:m01-front-office:main", agentId: "m03-estimation", state: undefined }).block,
+      decide({
+        sessionKey: "agent:m01-front-office:main",
+        agentId: "m03-estimation",
+        state: undefined,
+      }).block,
     ).toBe(true);
     expect(
       decide({ sessionKey: SESSION, agentId: "m01-front-office", state: undefined }),
@@ -169,7 +282,9 @@ describe("evaluateGuard: off until contexte.json is active, and only for the age
   });
 
   it("normalizes the agent id like the engine does", () => {
-    expect(decide({ agentId: "M03-Estimation", sessionKey: undefined, state: undefined }).block).toBe(true);
+    expect(
+      decide({ agentId: "M03-Estimation", sessionKey: undefined, state: undefined }).block,
+    ).toBe(true);
   });
 });
 
@@ -226,7 +341,12 @@ describe("checkOpsysContexteToolCall", () => {
 
   it("reads the session's recorded state and decides", () => {
     const store = new OpsysContexteGuardStore();
-    const call = { toolName: "opsys_m3__m3_estimer_projet", sessionKey: SESSION, agentId: "m03-estimation" };
+    const call = {
+      toolName: "opsys_m3__m3_estimer_projet",
+      sessionKey: SESSION,
+      agentId: "m03-estimation",
+      toolParams: { contrat: { lead_id: "LEAD-001" } },
+    };
 
     expect(checkOpsysContexteToolCall(call, deps(store)).block).toBe(true); // nothing recorded yet
     store.set(SESSION, ready(0));
@@ -271,7 +391,10 @@ describe("checkOpsysContexteToolCall", () => {
       { toolName: "opsys_m3__m3_estimer_projet", sessionKey: SESSION, agentId: undefined },
       failing,
     );
-    const native = checkOpsysContexteToolCall({ toolName: "read", sessionKey: SESSION, agentId: undefined }, failing);
+    const native = checkOpsysContexteToolCall(
+      { toolName: "read", sessionKey: SESSION, agentId: undefined },
+      failing,
+    );
 
     expect(opsys.block).toBe(true);
     expect(reasonOf(opsys)).toContain("le garde du moteur de contexte a échoué");
@@ -281,13 +404,24 @@ describe("checkOpsysContexteToolCall", () => {
   it("uses the clock it is given, not the wall clock, to judge staleness", () => {
     const store = new OpsysContexteGuardStore();
     store.set(SESSION, ready(0, NOW));
-    const call = { toolName: "m3_estimer_projet", sessionKey: SESSION, agentId: undefined };
+    const call = {
+      toolName: "m3_estimer_projet",
+      sessionKey: SESSION,
+      agentId: undefined,
+      toolParams: { contrat: { lead_id: "LEAD-001" } },
+    };
 
     expect(
-      checkOpsysContexteToolCall(call, { ...deps(store), nowMs: () => NOW + OPSYS_GUARD_MAX_AGE_MS }),
+      checkOpsysContexteToolCall(call, {
+        ...deps(store),
+        nowMs: () => NOW + OPSYS_GUARD_MAX_AGE_MS,
+      }),
     ).toStrictEqual({ block: false });
     expect(
-      checkOpsysContexteToolCall(call, { ...deps(store), nowMs: () => NOW + OPSYS_GUARD_MAX_AGE_MS + 1 }).block,
+      checkOpsysContexteToolCall(call, {
+        ...deps(store),
+        nowMs: () => NOW + OPSYS_GUARD_MAX_AGE_MS + 1,
+      }).block,
     ).toBe(true);
   });
 });

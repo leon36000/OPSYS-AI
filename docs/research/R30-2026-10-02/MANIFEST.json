@@ -1,0 +1,348 @@
+{
+  "archives": [
+    {
+      "archive": "sources-r30/OPSYS-AI-recent--departments--m03-estimation--src--m3_estimation--calibration_cohortes.py--76c07eb743e3a7468328bd15513966814626f133bb65bd90d548355c0dc63571.gz",
+      "origine": "/workspace/OPSYS-AI-recent/departments/m03-estimation/src/m3_estimation/calibration_cohortes.py",
+      "sha256_archive": "87efd4958fc22718a20d92eefbef3fb8e47a3ccf0bff9cd57186c7dbac64f3dd",
+      "sha256_original": "76c07eb743e3a7468328bd15513966814626f133bb65bd90d548355c0dc63571",
+      "taille_archive": 5982,
+      "taille_originale": 22459
+    },
+    {
+      "archive": "sources-r30/OPSYS-AI-recent--departments--m03-estimation--tests--test_calibration_cohortes.py--124008e136db9e271f01c6251d47e4e794f41491d7bf474d1c9e210afc6dfce4.gz",
+      "origine": "/workspace/OPSYS-AI-recent/departments/m03-estimation/tests/test_calibration_cohortes.py",
+      "sha256_archive": "f620840e4d63d0c6a05ae48795c3d23941d7c00468a38ec025d3e72e5f85eb6e",
+      "sha256_original": "124008e136db9e271f01c6251d47e4e794f41491d7bf474d1c9e210afc6dfce4",
+      "taille_archive": 2754,
+      "taille_originale": 10555
+    },
+    {
+      "archive": "docs/OPSYS-AI-recent--docs--architecture--CALIBRATION-COHORTES-TEMPS.md--505464065c76a41aee679fafba776400b5c71a783e26cea21c9a9810ec1addd5.gz",
+      "origine": "/workspace/OPSYS-AI-recent/docs/architecture/CALIBRATION-COHORTES-TEMPS.md",
+      "sha256_archive": "b74ca788b18a5d3a9063d643ae3b8cca3180d4a93009b637b12c5b10a4ab491c",
+      "sha256_original": "505464065c76a41aee679fafba776400b5c71a783e26cea21c9a9810ec1addd5",
+      "taille_archive": 2613,
+      "taille_originale": 5452
+    },
+    {
+      "archive": "docs/OPSYS-AI-recent--docs--programme--LOT-COHORTES-TEMPS.md--ea7e1afb048796e7f3b4ef246e261fb635290f4559cd0759775d9bec61992595.gz",
+      "origine": "/workspace/OPSYS-AI-recent/docs/programme/LOT-COHORTES-TEMPS.md",
+      "sha256_archive": "6ab2c4c28c7d9c3f83c52948146f3a863f7ce39ee31d0d3fd9333d0a2b25f064",
+      "sha256_original": "ea7e1afb048796e7f3b4ef246e261fb635290f4559cd0759775d9bec61992595",
+      "taille_archive": 2194,
+      "taille_originale": 4155
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-r27--archiver-r27-r1.py--c7f9925b634a5793f60b6bd4cc024d8989e0eb8050a3d5d18ce9b2ebd69b6f7b.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-r27/archiver-r27-r1.py",
+      "sha256_archive": "7d09d0e5e5b79550b1464666e8a42a43125be8e52aced766e9ef8e6d307f1d2b",
+      "sha256_original": "c7f9925b634a5793f60b6bd4cc024d8989e0eb8050a3d5d18ce9b2ebd69b6f7b",
+      "taille_archive": 6014,
+      "taille_originale": 16286
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-suite--DECIMAL-CONTEXTE-ROOT-r1.json--60ff532a6d2e8c33bf3fd024a7e45cf90e4afb507e03328107ace18e66fa5cbc.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/DECIMAL-CONTEXTE-ROOT-r1.json",
+      "sha256_archive": "74ad7642e33e0a86f6a96224b57bfef0342f2355495b1ef4185bf47cf385571e",
+      "sha256_original": "60ff532a6d2e8c33bf3fd024a7e45cf90e4afb507e03328107ace18e66fa5cbc",
+      "taille_archive": 441,
+      "taille_originale": 837
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-suite--ENTREES-ARCHIVE-R30-r1.json--949f87481ee4ed4a7caf7e858b3d0393c4d5e532b4eeba8ed9dc2c0b4d21c01e.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/ENTREES-ARCHIVE-R30-r1.json",
+      "sha256_archive": "04284b5fcf9f77e8f7b09656a271e06d847a020b7e9eba2b8badf69f03e60ac4",
+      "sha256_original": "949f87481ee4ed4a7caf7e858b3d0393c4d5e532b4eeba8ed9dc2c0b4d21c01e",
+      "taille_archive": 2481,
+      "taille_originale": 8284
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-suite--PLAN-COHORTES-r1.md--7791b508fa7cd63f07fd2455dace89d74b51b16b88e4ca0445b940bd2f71f385.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/PLAN-COHORTES-r1.md",
+      "sha256_archive": "ee630d920b9bf8c60612bf2f7299160536b0e6c3789f13e02f54e9b24daa0362",
+      "sha256_original": "7791b508fa7cd63f07fd2455dace89d74b51b16b88e4ca0445b940bd2f71f385",
+      "taille_archive": 4929,
+      "taille_originale": 11517
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-suite--PROPOSITION-ARCHIVE-R30-r1.json--82d91291e1b0e04565039fc0ce7c454a1220b2828d92399a0a4bfebfb9c93793.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/PROPOSITION-ARCHIVE-R30-r1.json",
+      "sha256_archive": "411144c13d6c42a540fb36a680a1a8e342285f77a988d894c698d75586bb68de",
+      "sha256_original": "82d91291e1b0e04565039fc0ce7c454a1220b2828d92399a0a4bfebfb9c93793",
+      "taille_archive": 1657,
+      "taille_originale": 3356
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-suite--RECU-COHORTES-r1.md--457ce02f75933647b2fe9ddf06ceb2d81cc95ebb32eae39288f5d72b2000917f.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/RECU-COHORTES-r1.md",
+      "sha256_archive": "dc6568370f4258004d6a8939a72a3bdba63b4131f393bc3344d10f97eb0e4c0c",
+      "sha256_original": "457ce02f75933647b2fe9ddf06ceb2d81cc95ebb32eae39288f5d72b2000917f",
+      "taille_archive": 1736,
+      "taille_originale": 3446
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-suite--archiver-r30-r1.py--5adc44fc5a1659bf1306f6400e768a4fedbb1129e8d2504a69aff3a73f40dde5.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/archiver-r30-r1.py",
+      "sha256_archive": "fbab2810f80f547ad85eba7f483cbf68dc245ffecd35c725a0dd5e40fd690ed6",
+      "sha256_original": "5adc44fc5a1659bf1306f6400e768a4fedbb1129e8d2504a69aff3a73f40dde5",
+      "taille_archive": 4531,
+      "taille_originale": 11816
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-suite--cohortes-root-r2.xml--f08f6680787611edfbe4e55dc11cc39a0d29392b1011419a775f4573efe9499d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/cohortes-root-r2.xml",
+      "sha256_archive": "8df0a5ffde50a884b8f620742ff3dd799d5cca1c505ebbcccb5a06133cf4b561",
+      "sha256_original": "f08f6680787611edfbe4e55dc11cc39a0d29392b1011419a775f4573efe9499d",
+      "taille_archive": 667,
+      "taille_originale": 2694
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-suite--docs-preimages-r1--PREIMAGES.json--e8c9e940f550d1db9e69dd9f9c172be462fec834cc61a5ff71b5a1ec76ea5940.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/docs-preimages-r1/PREIMAGES.json",
+      "sha256_archive": "093540597b239c6f842330921a12fb5e91033a4cfe50116ddcdfb086cf3e24ff",
+      "sha256_original": "e8c9e940f550d1db9e69dd9f9c172be462fec834cc61a5ff71b5a1ec76ea5940",
+      "taille_archive": 208,
+      "taille_originale": 345
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-suite--preimages-r2--SHA256.txt--4fc359cd525788bef965025abac93ad0d194db7b8434bdb4175f37015b405c56.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/preimages-r2/SHA256.txt",
+      "sha256_archive": "398132b376521a6acc92657be29e203a4c29dc73533ae59f1379d5f58473e360",
+      "sha256_original": "4fc359cd525788bef965025abac93ad0d194db7b8434bdb4175f37015b405c56",
+      "taille_archive": 198,
+      "taille_originale": 329
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-suite--preimages-r2--calibration_cohortes.py--cd0e28d8c7a6e66eaf1576da56c3091ea320699877c22f67bff6418b4a2c90db.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/preimages-r2/calibration_cohortes.py",
+      "sha256_archive": "3384750d92d21aa58ef2f10e70eb48a9d5b8ce3b1937d5ebb55a747e8083560f",
+      "sha256_original": "cd0e28d8c7a6e66eaf1576da56c3091ea320699877c22f67bff6418b4a2c90db",
+      "taille_archive": 5173,
+      "taille_originale": 19501
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-suite--preimages-r2--test_calibration_cohortes.py--00b5246b79dc5b752efbc16e5c7725e8a09a5bae8e543317cb8b2127163a7212.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/preimages-r2/test_calibration_cohortes.py",
+      "sha256_archive": "723a73e6c338aa1ae850836167e360c33624602676c50ca00fa52d5a85eb8e15",
+      "sha256_original": "00b5246b79dc5b752efbc16e5c7725e8a09a5bae8e543317cb8b2127163a7212",
+      "taille_archive": 2396,
+      "taille_originale": 8658
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-suite--proofs-r2--pytest-cohortes-r2-01.xml--3757fbcc7ba78a1fc3db9216855835db98da98ac0ca62a9f2b6124afbc293efc.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/proofs-r2/pytest-cohortes-r2-01.xml",
+      "sha256_archive": "16a172bdea28e66575a7e5c3dbcba024a8ebe30556c0b84bf69de3cb05b10b19",
+      "sha256_original": "3757fbcc7ba78a1fc3db9216855835db98da98ac0ca62a9f2b6124afbc293efc",
+      "taille_archive": 668,
+      "taille_originale": 2694
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-suite--proofs-r2--pytest-cohortes-r2-02.xml--fdeafe51757189eea648f11c2c0ba0079a17080534c08f7b42cb2d7d271472c5.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/proofs-r2/pytest-cohortes-r2-02.xml",
+      "sha256_archive": "5095c051ae823351fece3808f4eb5a9531d6e59b5969d8eff4dc999b41bfac7b",
+      "sha256_original": "fdeafe51757189eea648f11c2c0ba0079a17080534c08f7b42cb2d7d271472c5",
+      "taille_archive": 668,
+      "taille_originale": 2694
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-suite--proofs-r2--ruff-cohortes-r2-01.json--ca94fdf6bc9303235b420a9a6a1e616a2bbfb8d3eb6683bf1ff63790f728af74.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/proofs-r2/ruff-cohortes-r2-01.json",
+      "sha256_archive": "1e115788a6b43f6058e1df2f6507cca3006658f1599480e4227342f28fedfeb8",
+      "sha256_original": "ca94fdf6bc9303235b420a9a6a1e616a2bbfb8d3eb6683bf1ff63790f728af74",
+      "taille_archive": 669,
+      "taille_originale": 2272
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-suite--proofs-r2--ruff-cohortes-r2-02.json--4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/proofs-r2/ruff-cohortes-r2-02.json",
+      "sha256_archive": "d15254cd9d142b950433cb8d1c0efb328352fa04db90c0f4d6eb2a68dead445f",
+      "sha256_original": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "taille_archive": 22,
+      "taille_originale": 2
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--calibration-suite--sources--RECHERCHE-OSS.md--fe32bd89d3a61f4e0bd4b05df8b6e9843e52f171657a174919218f0d65cbe2ff.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/sources/RECHERCHE-OSS.md",
+      "sha256_archive": "c02b17c04ea658ffbb2c99388461995bcb3dabd5cdbd710d7a19b4795d169006",
+      "sha256_original": "fe32bd89d3a61f4e0bd4b05df8b6e9843e52f171657a174919218f0d65cbe2ff",
+      "taille_archive": 1557,
+      "taille_originale": 3202
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--ingestion-pdf--qualite-root-r1.py--ce2773493573132d0ca4bcf5e124a597ce421da966ee3bccedcba8ec5827253d.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/qualite-root-r1.py",
+      "sha256_archive": "dfb09bb73688e1a9610360b829ac08c7bbef01a9c967788b4a2c1470a9bd62ca",
+      "sha256_original": "ce2773493573132d0ca4bcf5e124a597ce421da966ee3bccedcba8ec5827253d",
+      "taille_archive": 785,
+      "taille_originale": 1701
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--memoire-r25--archiver-r25-r1.py--d94812b5d6c27e316429f1104fa9044bac88ad2252776718c1afb3543abe7213.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/archiver-r25-r1.py",
+      "sha256_archive": "9f67ca4ae89f2a37134cbf335c16b1d33507c8a0957546120dbb9803610294c5",
+      "sha256_original": "d94812b5d6c27e316429f1104fa9044bac88ad2252776718c1afb3543abe7213",
+      "taille_archive": 10059,
+      "taille_originale": 31543
+    },
+    {
+      "archive": "preuves/poursuite-opsys-2026-10-02-r1--memoire-r26--archiver-r26-r1.py--066e8b937ee875e328978f511de848180210df24eb47a442b5832b5108f1eea4.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r26/archiver-r26-r1.py",
+      "sha256_archive": "a66e0e0bfd3187e241d5aec25a491d3b6e769d1d866c1f7ddfd001974c0afb9c",
+      "sha256_original": "066e8b937ee875e328978f511de848180210df24eb47a442b5832b5108f1eea4",
+      "taille_archive": 6484,
+      "taille_originale": 18142
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--cohortes-pures-root-r1-2026-10-02-apres.json--1b30bf53323192724439e8d49c7a21473d82f45f781e1fec11a5304ef8ddfa5a.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/cohortes-pures-root-r1-2026-10-02-apres.json",
+      "sha256_archive": "b62baf7572fe5c2dc45de2aa486af49ff0236de8d09df69c020259964d27443c",
+      "sha256_original": "1b30bf53323192724439e8d49c7a21473d82f45f781e1fec11a5304ef8ddfa5a",
+      "taille_archive": 52586,
+      "taille_originale": 140653
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--cohortes-pures-root-r1-2026-10-02-avant.json--f0323b5f7c785ba92e3de2cc7f14e58eba68c66cdbdd604e827e4af33e1e699c.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/cohortes-pures-root-r1-2026-10-02-avant.json",
+      "sha256_archive": "4a7ff415e238b89ad4d88b90b510ae717e71eac4791b0e67e6ba044d0a4065ca",
+      "sha256_original": "f0323b5f7c785ba92e3de2cc7f14e58eba68c66cdbdd604e827e4af33e1e699c",
+      "taille_archive": 52586,
+      "taille_originale": 140653
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--cohortes-pures-root-r1-2026-10-02-resultat.json--e87f585a98e5992869bb84c96e5c51228fe50d643704923f9306a8bfb822e046.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/cohortes-pures-root-r1-2026-10-02-resultat.json",
+      "sha256_archive": "07b133c5181f66b513a2d0601c5b39f7581283fd5eb58436fd2bc60f8c9579f0",
+      "sha256_original": "e87f585a98e5992869bb84c96e5c51228fe50d643704923f9306a8bfb822e046",
+      "taille_archive": 363,
+      "taille_originale": 581
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--cohortes-pures-root-r1-2026-10-02.log--cfc14fd2dc11c362cccf5421245ca5ab0e9d286b54a604a80bd2dd5522f6feb9.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/cohortes-pures-root-r1-2026-10-02.log",
+      "sha256_archive": "da8c9313ad3c9259274d33620d2b59387ff9bf2d7d1eec680ea74223908ea2eb",
+      "sha256_original": "cfc14fd2dc11c362cccf5421245ca5ab0e9d286b54a604a80bd2dd5522f6feb9",
+      "taille_archive": 33,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--cohortes-pures-root-r2-2026-10-02-apres.json--4d57fad39d31a4b5196a6d5de7ba796a2bc76aa87b6ec5191b19e8402041c686.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/cohortes-pures-root-r2-2026-10-02-apres.json",
+      "sha256_archive": "a3087a08f47f366676f227eea55e0a123e6d171cc070a6598ee74a42f333c203",
+      "sha256_original": "4d57fad39d31a4b5196a6d5de7ba796a2bc76aa87b6ec5191b19e8402041c686",
+      "taille_archive": 53295,
+      "taille_originale": 142163
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--cohortes-pures-root-r2-2026-10-02-avant.json--996d0f8a5f4a3c3de417b8ef071a4da01c453e6c9cb3cd302d245786644d3647.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/cohortes-pures-root-r2-2026-10-02-avant.json",
+      "sha256_archive": "072ff61870bfc3649904195ef9452b1d375924d1716b143c3c4759651db5c28d",
+      "sha256_original": "996d0f8a5f4a3c3de417b8ef071a4da01c453e6c9cb3cd302d245786644d3647",
+      "taille_archive": 53296,
+      "taille_originale": 142163
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--cohortes-pures-root-r2-2026-10-02-resultat.json--66267606bbfeb254f8ace56c2e7a0a362950ee02b0e7d75b89814d9c21e77577.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/cohortes-pures-root-r2-2026-10-02-resultat.json",
+      "sha256_archive": "8cfcc0bc9fa8334a620fa8e34f486b1edb60da9a8dc3c1870a846d71592c66a6",
+      "sha256_original": "66267606bbfeb254f8ace56c2e7a0a362950ee02b0e7d75b89814d9c21e77577",
+      "taille_archive": 504,
+      "taille_originale": 915
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--cohortes-pures-root-r2-2026-10-02.log--fe9dca0451129aaabdd76ea13e310b61a52091a146a1f9fe5b72b851eb33547f.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/cohortes-pures-root-r2-2026-10-02.log",
+      "sha256_archive": "f6b1e14aa2fe78aadaafa22678a65690a3ced99a1ac30387ee65d1ac7e5cc6fe",
+      "sha256_original": "fe9dca0451129aaabdd76ea13e310b61a52091a146a1f9fe5b72b851eb33547f",
+      "taille_archive": 33,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--pdf-natif-qualite-root-r1-2026-10-02-apres.json--759450f3ee9184c25ea61e648780eab99c328186685f97b8792603a7d4aa997d.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-natif-qualite-root-r1-2026-10-02-apres.json",
+      "sha256_archive": "ec0cbdcde4706bc552f1510616322e8d1ef533f7042aeeb107bd2e6d38a66d06",
+      "sha256_original": "759450f3ee9184c25ea61e648780eab99c328186685f97b8792603a7d4aa997d",
+      "taille_archive": 53296,
+      "taille_originale": 142163
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--pdf-natif-qualite-root-r1-2026-10-02-avant.json--638b7f72aad742a869763653506b5ec1a4ce66cf059b790e27a6f7956bb9d336.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-natif-qualite-root-r1-2026-10-02-avant.json",
+      "sha256_archive": "e039ef2cc500ac47d0a00b45c200afb5e39a3c5b3822a636e0e8957700255ae8",
+      "sha256_original": "638b7f72aad742a869763653506b5ec1a4ce66cf059b790e27a6f7956bb9d336",
+      "taille_archive": 53295,
+      "taille_originale": 142163
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--pdf-natif-qualite-root-r1-2026-10-02-resultat.json--fb044cdf05efbb3673a4e8575d2bc66664665fa072429b0453c233e8f667549e.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-natif-qualite-root-r1-2026-10-02-resultat.json",
+      "sha256_archive": "c5313817f9896ac8ffbb17d1aaf466550fa8e9bfd04ea1dd50b07ab7458c289d",
+      "sha256_original": "fb044cdf05efbb3673a4e8575d2bc66664665fa072429b0453c233e8f667549e",
+      "taille_archive": 331,
+      "taille_originale": 531
+    },
+    {
+      "archive": "preuves/restructuration-opsys-2026-09-30--preuves--pdf-natif-qualite-root-r1-2026-10-02.log--64029f5d3b4beb7f4176c5bc5fbb142dfbe028c7d66df8f2def5818ae75bb89a.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/pdf-natif-qualite-root-r1-2026-10-02.log",
+      "sha256_archive": "09f6d8a613fe109d644256e5c77ca1f9f3d076572b3b8c8ebfde501dd2956b59",
+      "sha256_original": "64029f5d3b4beb7f4176c5bc5fbb142dfbe028c7d66df8f2def5818ae75bb89a",
+      "taille_archive": 388,
+      "taille_originale": 536
+    }
+  ],
+  "campagnes": [
+    {
+      "commande": [
+        "/workspace/audit-opsys-2026-09-30/venv/bin/python",
+        "-m",
+        "pytest",
+        "--import-mode=importlib",
+        "-q",
+        "departments/m03-estimation/tests/test_calibration_cohortes.py"
+      ],
+      "compteurs_receipt": null,
+      "exit_code": 0,
+      "prefix": "cohortes-pures-root-r1-2026-10-02",
+      "qualifiante": false,
+      "receipt_sha256": "e87f585a98e5992869bb84c96e5c51228fe50d643704923f9306a8bfb822e046",
+      "sources_surveillees": 1094
+    },
+    {
+      "commande": [
+        "/workspace/audit-opsys-2026-09-30/venv/bin/python",
+        "-m",
+        "pytest",
+        "--import-mode=importlib",
+        "-q",
+        "departments/m03-estimation/tests/test_calibration_cohortes.py",
+        "--junitxml=/workspace/poursuite-opsys-2026-10-02-r1/calibration-suite/cohortes-root-r2.xml"
+      ],
+      "compteurs_receipt": {
+        "cas_effectifs": 14,
+        "errors": 0.0,
+        "failures": 0.0,
+        "skipped": 0.0,
+        "tests": 14.0,
+        "time": 0.256
+      },
+      "exit_code": 0,
+      "prefix": "cohortes-pures-root-r2-2026-10-02",
+      "qualifiante": true,
+      "receipt_sha256": "66267606bbfeb254f8ace56c2e7a0a362950ee02b0e7d75b89814d9c21e77577",
+      "sources_surveillees": 1107
+    },
+    {
+      "commande": [
+        "/workspace/audit-opsys-2026-09-30/venv/bin/python",
+        "/workspace/poursuite-opsys-2026-10-02-r1/ingestion-pdf/qualite-root-r1.py"
+      ],
+      "compteurs_receipt": null,
+      "exit_code": 0,
+      "prefix": "pdf-natif-qualite-root-r1-2026-10-02",
+      "qualifiante": true,
+      "receipt_sha256": "fb044cdf05efbb3673a4e8575d2bc66664665fa072429b0453c233e8f667549e",
+      "sources_surveillees": 1107
+    }
+  ],
+  "limites": "ROOT r2 : 14 IDs uniques, zéro échec/erreur/skip; auteurs et ROOT r1 non additionnés. Snapshots1107 stables pendant les campagnes, contrôle courant des deux seules sources et des deux docs. Préimages, défaut Decimal ROOT r1, diagnostic Ruff rouge et reprises conservés. Couche pure sur observations préparées : pas authentification, raccord durable/API, barème actif, LLM ou gain terrain.",
+  "schema": "opsys.r30-manifest/v1"
+}

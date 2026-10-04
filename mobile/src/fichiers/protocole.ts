@@ -153,13 +153,20 @@ export function interpreterResultatDeposerFichier(resultatBrut: unknown): Interp
     return { accepte: false, verdict: verdictDepuisBrut(resultatMetier.verdict) };
   }
   if (resultatMetier?.accepte === true) {
-    const r = estObjet(resultatMetier.resultat) ? resultatMetier.resultat : {};
+    const r = estObjet(resultatMetier.resultat) ? resultatMetier.resultat : null;
+    if (
+      !r || typeof r.complet !== "boolean" || !(r.reference === null || (typeof r.reference === "string" && r.reference.length > 0)) ||
+      !Array.isArray(r.blocs_recus) || r.blocs_recus.some((v) => typeof v !== "number" || !Number.isInteger(v) || v < 0) ||
+      (r.complet === true && typeof r.reference !== "string")
+    ) {
+      return { accepte: false, verdict: { code: "accuse_invalide", detail: "Accusé de dépôt de fichier incomplet ou invalide." } };
+    }
     return {
       accepte: true,
-      resultat: { reference: texteOuNul(r.reference), complet: r.complet === true, blocsRecus: tableauIndices(r.blocs_recus) },
+      resultat: { reference: r.reference, complet: r.complet, blocsRecus: tableauIndices(r.blocs_recus) },
     };
   }
-  return { accepte: true, resultat: { reference: null, complet: false, blocsRecus: [] } };
+  return { accepte: false, verdict: { code: "accuse_invalide", detail: "Réponse métier de dépôt de fichier inconnue." } };
 }
 
 /**
@@ -181,6 +188,11 @@ export function interpreterResultatEtatFichier(resultatBrut: unknown): Interpret
   }
   if (resultatMetier?.accepte === true) {
     const r = estObjet(resultatMetier.resultat) ? resultatMetier.resultat : {};
+    if (typeof r.existe !== "boolean" || typeof r.complet !== "boolean" || !Array.isArray(r.blocs_recus) ||
+      r.blocs_recus.some((v) => typeof v !== "number" || !Number.isInteger(v) || v < 0) ||
+      !(r.reference === null || (typeof r.reference === "string" && r.reference.length > 0)) || (r.complet && !r.reference)) {
+      return { accepte: false, verdict: { code: "accuse_invalide", detail: "État de fichier incomplet ou invalide." } };
+    }
     return {
       accepte: true,
       resultat: {
@@ -191,5 +203,5 @@ export function interpreterResultatEtatFichier(resultatBrut: unknown): Interpret
       },
     };
   }
-  return { accepte: true, resultat: { existe: false, complet: false, blocsRecus: [], reference: null } };
+  return { accepte: false, verdict: { code: "accuse_invalide", detail: "Réponse métier d'état de fichier inconnue." } };
 }

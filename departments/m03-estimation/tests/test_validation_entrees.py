@@ -11,7 +11,6 @@ l'import. Ils définissent le contrat que l'implémentation devra tenir :
 """
 
 import ast
-import re
 import sys
 from pathlib import Path
 
@@ -29,9 +28,8 @@ if str(_SRC_M3) not in sys.path:
 # Racine du dépôt : <racine>/departments/m03-estimation/tests/<ce fichier>.
 _RACINE_DEPOT = Path(__file__).resolve().parents[3]
 
-from m3_estimation import contrats
-from m3_estimation import validation
-from m3_estimation import verdicts
+# Import après l'ajout du src local, nécessaire à l'exécution directe hors pytest.
+from m3_estimation import contrats, validation, verdicts  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Constantes épinglées par les tests — chaînes écrites en clair, jamais calculées
@@ -457,7 +455,7 @@ def test_catalogue_ferme_refus_code_inconnu():
 
 def test_codes_exerces_appartiennent_au_catalogue():
     """Tous les codes exercés par ce fichier appartiennent à CODES_M3_LIST."""
-    assert _CODES_EXERCES_PAR_CE_FICHIER <= set(verdicts.CODES_M3_LIST)
+    assert set(verdicts.CODES_M3_LIST) >= _CODES_EXERCES_PAR_CE_FICHIER
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,392 @@
+{
+  "archive_policy": {
+    "R17_modified": false,
+    "aggregated_test_total": null,
+    "compression": "gzip",
+    "mtime": 0,
+    "source_bytes_verified_after_decompression": true
+  },
+  "artifacts": [
+    {
+      "archive": "docs/research/R18-2026-09-30/preuves/m7-performance-revue-root-suite-final.xml.gz",
+      "archive_bytes": 17991,
+      "archive_sha256": "581a273ad0dca4d029a4e05f79e6daa2290cb4867134a87dc6a7f6a8f4da106a",
+      "format": "JUnit",
+      "id": "m7_performance_complet",
+      "limitations": [
+        "Aucune source réelle de dépenses publicitaires; CPL et ROI restent null."
+      ],
+      "result": {
+        "duration_seconds": 28.18,
+        "errors": 0,
+        "failures": 0,
+        "passed": 1031,
+        "skipped": 0,
+        "tests_collected": 1031
+      },
+      "roundtrip_byte_equal": true,
+      "scope": "M7 complet après durcissements backend",
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves/m7-performance-revue-root-suite-final.xml",
+      "source_bytes": 184763,
+      "source_sha256": "7305c552c6b7126e81f06ef971e1757fda6ba9138e160f9a66b2234f738d4fd8"
+    },
+    {
+      "archive": "docs/research/R18-2026-09-30/preuves/m2-performance-campagnes-suite.xml.gz",
+      "archive_bytes": 29718,
+      "archive_sha256": "b3d77aafcaf8531b754771c5e567069fcb59ffc9ad38a76e834e0cbb36d0a1b2",
+      "format": "JUnit",
+      "id": "m2_complet",
+      "limitations": [
+        "Suite départementale indépendante; ne pas additionner aux tests d’intégration qui la recoupent."
+      ],
+      "result": {
+        "duration_seconds": 199.574,
+        "errors": 0,
+        "failures": 0,
+        "passed": 1795,
+        "skipped": 0,
+        "tests_collected": 1795
+      },
+      "roundtrip_byte_equal": true,
+      "scope": "Suite complète M2, incluant la publication UTM minimisée",
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves/m2-performance-campagnes-suite.xml",
+      "source_bytes": 307212,
+      "source_sha256": "0f47cff5aabcd6fe54a87d6c6a341228e46e50423187b0469c025d0ed835aaab"
+    },
+    {
+      "archive": "docs/research/R18-2026-09-30/preuves/integration-performance-m7-console.xml.gz",
+      "archive_bytes": 592,
+      "archive_sha256": "2e563ac466211f483275c80171fd96bd2beea342f15a70b708cae7d162ea18a4",
+      "format": "JUnit",
+      "id": "m7_console_integration",
+      "limitations": [
+        "Données d’événements de test synthétiques; aucune dépense publicitaire, LLM ou connecteur externe."
+      ],
+      "result": {
+        "duration_seconds": 4.661,
+        "errors": 0,
+        "failures": 0,
+        "passed": 16,
+        "skipped": 0,
+        "tests_collected": 16
+      },
+      "roundtrip_byte_equal": true,
+      "scope": "TestClient console M7, bus canonique et registre durable",
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves/integration-performance-m7-console.xml",
+      "source_bytes": 2817,
+      "source_sha256": "6ac219b85da82f4b6d40b28bc53930264a8d402e8ae492ae9f42975d1705315f"
+    },
+    {
+      "archive": "docs/research/R18-2026-09-30/preuves/integration-performance-m7-console.json.gz",
+      "archive_bytes": 585,
+      "archive_sha256": "b238b6dbcd7eb4142e04e0b33956c203c57ac1e87fd1ca4ac9f54789353fb1f5",
+      "format": "JSON",
+      "id": "m7_console_manifest",
+      "limitations": [
+        "Les champs de scope et hashes reflètent la collecte locale.",
+        "Aucun test de passerelle fournisseur ni de publicité; cette surface est en lecture seule."
+      ],
+      "reported_artifacts": {
+        "integration-performance-m7-console.log": "ecf57d762b443151696ef4727347520d0d5715719bac1e0cd93caddf627ffa61",
+        "integration-performance-m7-console.xml": "6ac219b85da82f4b6d40b28bc53930264a8d402e8ae492ae9f42975d1705315f"
+      },
+      "result": {
+        "errors": 0,
+        "failures": 0,
+        "skipped": 0,
+        "tests": 16
+      },
+      "roundtrip_byte_equal": true,
+      "scope": "Manifeste source de la collecte console M7",
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves/integration-performance-m7-console.json",
+      "source_bytes": 1109,
+      "source_sha256": "c38b8c5b8777698705f7072f04376e179278bac54982883997317d15cedec14c"
+    },
+    {
+      "archive": "docs/research/R18-2026-09-30/preuves/integration-performance-m7-console.log.gz",
+      "archive_bytes": 33,
+      "archive_sha256": "a331a635d9a5779b77573e420c11db8765bedfb350987e1485a4e3d3a73bffd5",
+      "format": "LOG",
+      "id": "m7_console_log",
+      "limitations": [
+        "Log pytest sans données métier."
+      ],
+      "roundtrip_byte_equal": true,
+      "scope": "Log court de collecte console M7",
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves/integration-performance-m7-console.log",
+      "source_bytes": 80,
+      "source_sha256": "ecf57d762b443151696ef4727347520d0d5715719bac1e0cd93caddf627ffa61"
+    },
+    {
+      "archive": "docs/research/R18-2026-09-30/preuves/raccords-m7-m10-core-cible.xml.gz",
+      "archive_bytes": 3517,
+      "archive_sha256": "1ffefb4ae5a66edf44968bc8a59cae1dd716af4915593a9706b3a053115e6b5b",
+      "format": "JUnit",
+      "id": "raccords_m7_m10_core",
+      "limitations": [
+        "Recouvre les tests console et départementaux; ligne distincte sans total global."
+      ],
+      "result": {
+        "duration_seconds": 16.737,
+        "errors": 0,
+        "failures": 0,
+        "passed": 128,
+        "skipped": 0,
+        "tests_collected": 128
+      },
+      "roundtrip_byte_equal": true,
+      "scope": "128 tests de raccords M7/M10/Core",
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves/raccords-m7-m10-core-cible.xml",
+      "source_bytes": 18405,
+      "source_sha256": "da7b4e0c0ddb0b966f888fced07e40410f6a544bce9d42b847b148f4bdd260ed"
+    },
+    {
+      "archive": "docs/research/R18-2026-09-30/preuves/m10-cron-projection-final-v2.xml.gz",
+      "archive_bytes": 349,
+      "archive_sha256": "14e1399c9b7af9df25d91d2fd5ee384f4b76a4154abf4cd5d7e255986f285289",
+      "format": "JUnit",
+      "id": "m10_cron_projection",
+      "limitations": [
+        "Ce test de projection n’établit pas à lui seul le comportement d’un Gateway ou VPS de production."
+      ],
+      "result": {
+        "duration_seconds": 0.972,
+        "errors": 0,
+        "failures": 0,
+        "passed": 4,
+        "skipped": 0,
+        "tests_collected": 4
+      },
+      "roundtrip_byte_equal": true,
+      "scope": "Tests unitaires de projection cron M10",
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves/m10-cron-projection-final-v2.xml",
+      "source_bytes": 746,
+      "source_sha256": "ad97ae496ae253e2daf867b3b03adc9ae779c9b48e8b21714c83afcaf7030a0c"
+    },
+    {
+      "archive": "docs/research/R18-2026-09-30/preuves/m10-native-cron-probe-pre-freeze.json.gz",
+      "archive_bytes": 628,
+      "archive_sha256": "71736008c183acdf888f715aaf7cfc231937321c5047060bd95d93f2c50768a8",
+      "format": "JSON",
+      "id": "m10_native_cron_probe_pre_freeze",
+      "limitations": [
+        "Gateway/worker sur le même hôte, SQLite synthétique, sans LLM, canal, plugin réseau ni VPS.",
+        "Core Gateway and Python worker shared one host",
+        "synthetic SQLite, owner, grant, repository and credential",
+        "no live provider/model, channels, plugin network or persistent OS service",
+        "Le JSON source a été remplacé après gel; l’archive conserve exactement la première sortie dont le hash source est inscrit ci-dessus."
+      ],
+      "result": {
+        "canonical": {
+          "chain_valid": true,
+          "checkpoint_count": 1,
+          "checkpoint_matches": true,
+          "report_count": 1,
+          "report_id_matches": true,
+          "report_status": "available"
+        },
+        "helper_exit": 0,
+        "projection_verified": true,
+        "replay": {
+          "same_report_id": true,
+          "status": "replayed"
+        },
+        "report_id": "515a3bf121f64f9a357c247779c28418ea23dbfde83229e16d35c9883d7fbc83",
+        "status": "passed"
+      },
+      "roundtrip_byte_equal": true,
+      "scope": "Probe natif pré-freeze, conservé comme trace historique; non utilisé pour conclure sur la source figée.",
+      "source": "/workspace/restructuration-opsys-2026-09-30/m10-native-cron-probe-result.json",
+      "source_available_after_final_rerun": false,
+      "source_bytes": 1341,
+      "source_sha256": "7cb27fe1c5b4bc806454acd50b6f91ceb0f35c35926d0b977a7a3284ad5ac586"
+    },
+    {
+      "archive": "docs/research/R18-2026-09-30/preuves/m10-console-jobs-final.xml.gz",
+      "archive_bytes": 1502,
+      "archive_sha256": "3761d057eb9f100a9522e73f39ff7e5f3cb0ad764720eaf06aa52dc701ff82e1",
+      "format": "JUnit",
+      "id": "m10_console_jobs",
+      "limitations": [
+        "Preuve locale; elle recoupe les 128 raccords M7/M10/Core."
+      ],
+      "result": {
+        "duration_seconds": 7.775,
+        "errors": 0,
+        "failures": 0,
+        "passed": 57,
+        "skipped": 0,
+        "tests_collected": 57
+      },
+      "roundtrip_byte_equal": true,
+      "scope": "57 tests gelés: 46 console et 11 jobs",
+      "source": "/tmp/opsys-console-jobs-final.xml",
+      "source_bytes": 7195,
+      "source_sha256": "c0b768a308ae8e14624c399e21e5069dd6d0565c5d28f3746eeafd0d4c928ed5"
+    },
+    {
+      "archive": "docs/research/R18-2026-09-30/preuves/m10-console-jobs-final.log.gz",
+      "archive_bytes": 33,
+      "archive_sha256": "b6a036d1dd5d652161548beacf0154dafd7a802692f9d7e096846c60b758bf4e",
+      "format": "LOG",
+      "id": "m10_console_jobs_log",
+      "limitations": [
+        "Log pytest sans données métier."
+      ],
+      "roundtrip_byte_equal": true,
+      "scope": "Log court de collecte des 57 tests console/jobs",
+      "source": "/tmp/opsys-console-jobs-final.log",
+      "source_bytes": 80,
+      "source_sha256": "5603b3bdbd979d86e8c62be43291039331c1f18d392c470cba56f4eba489b84d"
+    },
+    {
+      "archive": "docs/research/R18-2026-09-30/preuves/m10-native-cron-probe-result.json.gz",
+      "archive_bytes": 628,
+      "archive_sha256": "1d8d7d60ab09875d7e29aad32f058cff88ef642a2c4d22ab79dbcf4cc9afcf62",
+      "companion_log_not_archived": {
+        "bytes": 1073,
+        "reason": "journal de harness conservé hors archive; le résultat structuré final est archivé",
+        "sha256": "d67221c5912a167ea23ad0171aa25b0aefc1f9933c1f6448c87f9a94802548f0",
+        "source": "/workspace/restructuration-opsys-2026-09-30/m10-native-cron-probe-final-v2.log"
+      },
+      "format": "JSON",
+      "id": "m10_native_cron_probe_final",
+      "limitations": [
+        "Gateway et worker sur le même hôte avec SQLite synthétique; pas de service VPS persistant, fournisseur/modèle réel, canal ou plugin réseau.",
+        "Core Gateway and Python worker shared one host",
+        "synthetic SQLite, owner, grant, repository and credential",
+        "no live provider/model, channels, plugin network or persistent OS service"
+      ],
+      "result": {
+        "canonical": {
+          "chain_valid": true,
+          "checkpoint_count": 1,
+          "checkpoint_matches": true,
+          "report_count": 1,
+          "report_id_matches": true,
+          "report_status": "available"
+        },
+        "helper_exit": 0,
+        "projection_verified": true,
+        "replay": {
+          "same_report_id": true,
+          "status": "replayed"
+        },
+        "report_id": "9e5628b61f4504570616f5ed3cd079075b48bf76850145c0ab50ac225ddbbf0b",
+        "status": "passed"
+      },
+      "roundtrip_byte_equal": true,
+      "scope": "Probe Gateway natif final sur les cinq sources M10 gelées; temporisation, disponibilité, checkpoint, rejeu sans doublon et nettoyage vérifiés.",
+      "source": "/workspace/restructuration-opsys-2026-09-30/m10-native-cron-probe-result.json",
+      "source_bytes": 1341,
+      "source_sha256": "d2ab1ce54164aad397f2e137fa305a0fcd6f772106784f5e7c1ff8c46e851589"
+    },
+    {
+      "archive": "docs/research/R18-2026-09-30/preuves/m10-job-source-freeze.json.gz",
+      "archive_bytes": 451,
+      "archive_sha256": "d3890a8e410656d84de4004e50ca508aa6f69cf39be54f482dd23d47e55a2b4a",
+      "format": "JSON",
+      "id": "m10_job_source_freeze",
+      "limitations": [
+        "Archive de hashes/source paths seulement, aucun code source; le contrat C02 à neuf types a été corrigé avant le rerun final."
+      ],
+      "roundtrip_byte_equal": true,
+      "scope": "Manifeste de gel SHA-256 des cinq fichiers source M10 audités.",
+      "snapshot": {
+        "files": [
+          {
+            "path": "departments/m10-memoire/src/m10_memoire/developpement.py",
+            "sha256": "e110f857084a833f943703e200d237e86d239abefa17341ff04bacc46543d3b2"
+          },
+          {
+            "path": "departments/m10-memoire/src/m10_memoire/consolidation_developpement.py",
+            "sha256": "fecb21472233687edb99a570f8f00464ff58412697fc345fdfce558b2ead7e46"
+          },
+          {
+            "path": "departments/m10-memoire/tests/test_consolidation_developpement.py",
+            "sha256": "821f8fb6d2465840d9c1654e9637f7511ef42c1fefe8e18e2d0f031b72e7903a"
+          },
+          {
+            "path": "src/opsys/memoire_consolidation.py",
+            "sha256": "8fc9097b43da775640014b4c9e09ca8b889ec10ebf62636309d6388a6485d9f5"
+          },
+          {
+            "path": "src/opsys/memoire_developpement_cli.py",
+            "sha256": "01034fbef988c32fcea96fae6679b0cbfd5dde5c7afb2f1ecaa18485f2c87174"
+          }
+        ],
+        "frozen_at_utc": "2026-09-30T20:50:04.018084+00:00",
+        "source_file_count": 5
+      },
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves/m10-job-source-freeze.json",
+      "source_bytes": 1015,
+      "source_sha256": "cbf0b90136a2117fe42afd0d9477e79bee31050afe63cebd1de62d38f464ee66"
+    },
+    {
+      "archive": "docs/research/R18-2026-09-30/preuves/m10-job-cibles-final.xml.gz",
+      "archive_bytes": 2172,
+      "archive_sha256": "124c95f875694e6de97ea2f2b3aad6f12fffc9d2a5e290811c7e575e0616c88f",
+      "format": "JUnit",
+      "id": "m10_job_targeted_final",
+      "limitations": [
+        "Cibles isolées, recouvertes par la suite M10 complète; ligne conservée séparément, sans addition."
+      ],
+      "result": {
+        "duration_seconds": 8.706,
+        "errors": 0,
+        "failures": 0,
+        "passed": 84,
+        "skipped": 0,
+        "tests_collected": 84
+      },
+      "roundtrip_byte_equal": true,
+      "scope": "84 tests ciblés sur les sources M10 gelées (35 nouveau job, 22 développement, 27 conformité).",
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves/m10-job-cibles-final.xml",
+      "source_bytes": 13768,
+      "source_sha256": "50ac0b4759ca9925e0170a1639ffd44e69f3f5590d5389fa6107021a6208a6d3"
+    },
+    {
+      "archive": "docs/research/R18-2026-09-30/preuves/m10-job-departement-final.xml.gz",
+      "archive_bytes": 16402,
+      "archive_sha256": "dabce6cd66ebae1d4c46c42d1e2c20e54654295a132241f08e03124f9c515cda",
+      "format": "JUnit",
+      "id": "m10_job_department_final",
+      "limitations": [
+        "Résultat du snapshot final à 20:57 UTC avant l’extension C02 source=cli (dans humain.py/tests); ne certifie pas cette extension ni l’état C02 courant.",
+        "Suite locale sur le checkout partagé et les sources M10 gelées; ne valide pas une restauration brute après crash OS, un backup des credentials, ni un déploiement VPS.",
+        "Recouvre les 84 tests ciblés M10; conserver les deux résultats distincts sans les additionner."
+      ],
+      "result": {
+        "duration_seconds": 33.109,
+        "errors": 0,
+        "failures": 0,
+        "passed": 954,
+        "skipped": 0,
+        "tests_collected": 954
+      },
+      "roundtrip_byte_equal": true,
+      "scope": "Suite M10 complète du snapshot 20:57 UTC, 35 fichiers de test, après correction du contrat C02 à neuf types et avant extension C02 source=cli.",
+      "source": "/workspace/restructuration-opsys-2026-09-30/preuves/m10-job-departement-final.xml",
+      "source_bytes": 157965,
+      "source_sha256": "882445a82c8fb28407a96b0253ba63a00293969d3e7fd3753357a0f6989b6e9b",
+      "verified_snapshot_utc": "2026-09-30T20:57:00Z"
+    }
+  ],
+  "created_utc": "2026-09-30",
+  "lot": "R18-2026-09-30",
+  "not_included": [
+    "Potential-secret harness logs and native probe execution log.",
+    "C02 in-progress backend/TypeScript artifacts; overall C02 remains partial.",
+    "R17 evidence files, source code, UI/worker code, global program README or total project scoreboard.",
+    "M10 full-suite console log and verification bundle: the JUnit is archived; the concise verdict is recorded in this manifest/README, and no additional runtime logs are needed."
+  ],
+  "overlap_rule": "All test counts are independent per artifact. No grand total; R17 and R18 are separate dated milestones.",
+  "purpose": "Archive durable des nouvelles preuves M7 performance campagne et M10 jobs/cron, sans totaliser des suites qui se recoupent.",
+  "red_failure_references_not_archived": [
+    "/workspace/restructuration-opsys-2026-09-30/preuves/m7-performance-revue-root-red.xml",
+    "/workspace/restructuration-opsys-2026-09-30/preuves/m10-job-red-omissions.xml",
+    "/workspace/restructuration-opsys-2026-09-30/preuves/m10-cron-projection-red.xml"
+  ],
+  "repository": "/workspace/OPSYS-AI-recent",
+  "schema": "opsys.evidence-archive/v1"
+}

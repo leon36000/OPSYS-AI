@@ -8,12 +8,15 @@ import type { CronListPageOptions } from "./service/list-page-types.js";
 import * as lifecycleOps from "./service/ops-lifecycle.js";
 import * as mutationOps from "./service/ops-mutations.js";
 import * as readOps from "./service/ops-read.js";
+import * as retirementOps from "./service/ops-retirements.js";
 import type { OnExitRunOptions } from "./service/ops-run-preparation.js";
 import * as runOps from "./service/ops-run.js";
 import {
   type CronAddOptions,
   type CronServiceDeps,
   type CronRunMode,
+  type CronRemovePrecondition,
+  type CronRemoveOptions,
   type CronUpdatePrecondition,
   type CronUpdateOptions,
   type CronWakeMode,
@@ -136,6 +139,14 @@ export class CronService implements CronServiceContract {
     return await mutationOps.remove(this.state, id, opts);
   }
 
+  async removeWithPrecondition(
+    id: string,
+    precondition: CronRemovePrecondition,
+    opts?: CronRemoveOptions,
+  ) {
+    return await mutationOps.removeWithPrecondition(this.state, id, precondition, opts);
+  }
+
   async removeAgentJobsTransactional<T>(agentId: string, commit: () => Promise<T>): Promise<T> {
     return await mutationOps.removeAgentJobsTransactional(this.state, agentId, commit);
   }
@@ -181,6 +192,19 @@ export class CronService implements CronServiceContract {
 
   async readJob(id: string): Promise<CronJob | undefined> {
     return await readOps.readJob(this.state, id);
+  }
+
+  /** Internal host-only operations, deliberately absent from CronServiceContract and public RPC. */
+  async listPendingRetirements(commitGuard: () => void, profileId?: string) {
+    return await retirementOps.listPending(this.state, commitGuard, profileId);
+  }
+
+  async readRetirementProof(receiptId: string, commitGuard: () => void) {
+    return await retirementOps.readProof(this.state, receiptId, commitGuard);
+  }
+
+  async acknowledgeRetirementProof(receiptId: string, sourceHash: string, commitGuard: () => void) {
+    return await retirementOps.acknowledge(this.state, receiptId, sourceHash, commitGuard);
   }
 
   async readScratch(id: string) {

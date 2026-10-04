@@ -146,8 +146,26 @@ def test_valeurs_differentes_au_meme_horodatage_creent_une_contradiction():
             "ligne_id_b": 1,
             "module_source": "m6_ventes",
             "horodatage": "2025-01-01T10:00:00Z",
+            "horodatage_utc": "2025-01-01T10:00:00+00:00",
+            "horodatages_sources": ["2025-01-01T10:00:00Z"],
         }
     ]
+
+
+def test_representations_d_un_meme_instant_utc_creent_une_contradiction_et_gardent_les_sources():
+    registre_snapshots = registre.RegistreSnapshots()
+    source_a = "2026-09-30T08:00:00-04:00"
+    source_b = "2026-09-30T12:00:00Z"
+    _ajouter(registre_snapshots, "m5_finance", source_a, {"cash": 1})
+    _ajouter(registre_snapshots, "m5_finance", source_b, {"cash": 100})
+
+    resultat = etat_consolide.construire_etat_consolide(registre_snapshots)
+
+    assert len(resultat["contradictions"]) == 1
+    contradiction = resultat["contradictions"][0]
+    assert contradiction["horodatage_utc"] == "2026-09-30T12:00:00+00:00"
+    assert contradiction["horodatages_sources"] == [source_a, source_b]
+    assert resultat["faits_par_module"]["m5_finance"]["horodatage"] == source_b
 
 
 def test_trois_maillons_a_a_b_produisent_deux_contradictions_distinctes():
@@ -179,12 +197,16 @@ def test_trois_maillons_a_a_b_produisent_deux_contradictions_distinctes():
             "ligne_id_b": 2,
             "module_source": "m7_logistique",
             "horodatage": "2025-01-01T10:00:00Z",
+            "horodatage_utc": "2025-01-01T10:00:00+00:00",
+            "horodatages_sources": ["2025-01-01T10:00:00Z"],
         },
         {
             "ligne_id_a": 1,
             "ligne_id_b": 2,
             "module_source": "m7_logistique",
             "horodatage": "2025-01-01T10:00:00Z",
+            "horodatage_utc": "2025-01-01T10:00:00+00:00",
+            "horodatages_sources": ["2025-01-01T10:00:00Z"],
         },
     ]
 

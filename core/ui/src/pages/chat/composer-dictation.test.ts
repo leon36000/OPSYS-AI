@@ -259,7 +259,10 @@ describe("ComposerDictationController", () => {
       expect(stopTrack).toHaveBeenCalledOnce();
       expect(onCommit).not.toHaveBeenCalled();
       await waitForFast(() =>
-        expect(request).toHaveBeenCalledWith("talk.session.close", { sessionId: "dictation-1" }),
+        expect(request).toHaveBeenCalledWith("talk.session.close", {
+          sessionId: "dictation-1",
+          discardAudio: true,
+        }),
       );
     } finally {
       controller.dispose();
@@ -739,7 +742,10 @@ describe("ComposerDictationController", () => {
     });
 
     await waitForFast(() =>
-      expect(request).toHaveBeenCalledWith("talk.session.close", { sessionId: "late-session" }),
+      expect(request).toHaveBeenCalledWith("talk.session.close", {
+        sessionId: "late-session",
+        discardAudio: true,
+      }),
     );
     expect(onError).not.toHaveBeenCalled();
     controller.dispose();
@@ -758,9 +764,112 @@ describe("ComposerDictationController", () => {
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
     await waitForFast(() =>
-      expect(request).toHaveBeenCalledWith("talk.session.close", { sessionId: "dictation-1" }),
+      expect(request).toHaveBeenCalledWith("talk.session.close", {
+        sessionId: "dictation-1",
+        discardAudio: true,
+      }),
     );
     expect(onCommit).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it("propagates discard when Escape cancels while remote session creation is pending", async () => {
+    let resolveCreate!: (result: {
+      sessionId: string;
+      transcriptionSessionId: string;
+      audio: { inputEncoding: string; inputSampleRateHz: number };
+    }) => void;
+    const createResult = new Promise<{
+      sessionId: string;
+      transcriptionSessionId: string;
+      audio: { inputEncoding: string; inputSampleRateHz: number };
+    }>((resolve) => {
+      resolveCreate = resolve;
+    });
+    request = vi.fn(async (method: string) =>
+      method === "talk.session.create"
+        ? createResult
+        : method === "talk.catalog"
+          ? {
+              transcription: { ready: true, providers: [] },
+              realtime: { providers: [] },
+              speech: { providers: [] },
+              modes: [],
+              transports: [],
+              brains: [],
+            }
+          : { ok: true },
+    );
+    const { controller, target } = createHarness();
+    await startHold(target);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    resolveCreate({
+      sessionId: "dictation-1",
+      transcriptionSessionId: "dictation-1",
+      audio: { inputEncoding: "g711_ulaw", inputSampleRateHz: 8000 },
+    });
+    await waitForFast(() =>
+      expect(request).toHaveBeenCalledWith("talk.session.close", {
+        sessionId: "dictation-1",
+        discardAudio: true,
+      }),
+    );
+    expect(request).not.toHaveBeenCalledWith("talk.session.appendAudio", expect.anything());
+    controller.dispose();
+  });
+
+  it("waits for a pending append before sending discard on cancellation", async () => {
+    let resolveAppend!: () => void;
+    let appendStarted!: () => void;
+    const appendBegun = new Promise<void>((resolve) => {
+      appendStarted = resolve;
+    });
+    const appendResult = new Promise<void>((resolve) => {
+      resolveAppend = resolve;
+    });
+    request = vi.fn(async (method: string) => {
+      if (method === "talk.session.create") {
+        return {
+          sessionId: "dictation-1",
+          transcriptionSessionId: "dictation-1",
+          audio: { inputEncoding: "g711_ulaw", inputSampleRateHz: 8000 },
+        };
+      }
+      if (method === "talk.session.appendAudio") {
+        appendStarted();
+        return appendResult;
+      }
+      if (method === "talk.catalog") {
+        return {
+          transcription: { ready: true, providers: [] },
+          realtime: { providers: [] },
+          speech: { providers: [] },
+          modes: [],
+          transports: [],
+          brains: [],
+        };
+      }
+      return { ok: true };
+    });
+    const { controller, target } = createHarness();
+    await startHold(target);
+    const processor = processors.at(-1);
+    if (!processor) {
+      throw new Error("expected microphone processor");
+    }
+    processor.onaudioprocess?.({
+      inputBuffer: { getChannelData: () => new Float32Array([0, 1, -1]) },
+    });
+    await appendBegun;
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    resolveAppend();
+    await waitForFast(() =>
+      expect(request).toHaveBeenCalledWith("talk.session.close", {
+        sessionId: "dictation-1",
+        discardAudio: true,
+      }),
+    );
+    expect(request).not.toHaveBeenCalledWith("talk.session.close", { sessionId: "dictation-1" });
     controller.dispose();
   });
 
@@ -787,6 +896,44 @@ describe("ComposerDictationController", () => {
     );
     expect(onCommit).toHaveBeenCalledWith("keep recording");
     controller.dispose();
+  });
+
+  it("sends discard when a pending final is cancelled after Stop started draining", async () => {
+    const { controller, onCommit, target } = createHarness();
+    await startHold(target);
+    const processor = processors.at(-1);
+    if (!processor) {
+      throw new Error("expected microphone processor");
+    }
+    processor.onaudioprocess?.({
+      inputBuffer: { getChannelData: () => new Float32Array([0, 1, -1]) },
+    });
+    await waitForFast(() =>
+      expect(request).toHaveBeenCalledWith("talk.session.appendAudio", expect.anything()),
+    );
+
+    void controller.finishActive();
+    await waitForFast(() =>
+      expect(request).toHaveBeenCalledWith("talk.session.close", { sessionId: "dictation-1" }),
+    );
+    controller.dispose();
+    await waitForFast(() =>
+      expect(request).toHaveBeenCalledWith("talk.session.close", {
+        sessionId: "dictation-1",
+        discardAudio: true,
+      }),
+    );
+
+    emit({
+      transcriptionSessionId: "dictation-1",
+      type: "transcript",
+      text: "late final after cancellation",
+      final: true,
+    });
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(request.mock.calls.filter(([method]) => method === "talk.session.close")).toHaveLength(
+      2,
+    );
   });
 
   it("commits final text promptly when the Gateway disconnects during a partial drain", async () => {

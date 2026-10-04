@@ -263,6 +263,51 @@ def test_pauses_multiples_enregistrees_sur_le_registre():
     assert reg.valider_chaine() is True
 
 
+def test_pause_apres_depart_refusee_sans_ajouter_de_pointage():
+    """Le départ ferme la plage de travail : une pause ultérieure ne doit pas être imputée."""
+    reg, i_id = _registre_en_route()
+    assign = ASSIGNATION(i_id)
+    for action, horo in (
+        ("arrivee", "2025-06-02T09:00:00+00:00"),
+        ("depart", "2025-06-02T10:00:00+00:00"),
+    ):
+        accuse, verdict = pointage_mod.enregistrer_pointage(
+            i_id, "T1", action, horo, GPS_PROCHE, ATTESTATION, assign, FENETRE, REFERENTIEL, VILLE, SEL, reg,
+        )
+        assert accuse is not None, f"{action} refusé : {verdict}"
+    taille = len(reg.lire())
+    accuse, verdict = pointage_mod.enregistrer_pointage(
+        i_id, "T1", "pause_debut", "2025-06-02T10:10:00+00:00",
+        GPS_PROCHE, ATTESTATION, assign, FENETRE, REFERENTIEL, VILLE, SEL, reg,
+    )
+    assert accuse is None
+    assert verdict["code"] == "REJ-PUNCH-SANS-INTERVENTION"
+    assert len(reg.lire()) == taille
+
+
+def test_pause_antidatee_apres_depart_est_rejetee_pour_chronologie_avant_ecriture():
+    reg, i_id = _registre_en_route()
+    assign = ASSIGNATION(i_id)
+    for action, horo in (
+        ("arrivee", "2025-06-02T09:00:00+00:00"),
+        ("depart", "2025-06-02T10:00:00+00:00"),
+    ):
+        accuse, verdict = pointage_mod.enregistrer_pointage(
+            i_id, "T1", action, horo, GPS_PROCHE, ATTESTATION, assign, FENETRE, REFERENTIEL, VILLE, SEL, reg,
+        )
+        assert accuse is not None, f"{action} refusé : {verdict}"
+
+    taille = len(reg.lire())
+    accuse, verdict = pointage_mod.enregistrer_pointage(
+        i_id, "T1", "pause_debut", "2025-06-02T09:59:00+00:00",
+        GPS_PROCHE, ATTESTATION, assign, FENETRE, REFERENTIEL, VILLE, SEL, reg,
+    )
+
+    assert accuse is None
+    assert verdict["code"] == "REJ-HORODATAGE-ANTERIEUR"
+    assert len(reg.lire()) == taille
+
+
 # ------------------------------------------------------------------ 7. CA-M4-20 (neutralité)
 def test_causes_neutres_sans_terme_accusateur():
     termes_interdits = ["fraude", "faute", "coupable", "mensonge", "triche"]
@@ -709,4 +754,3 @@ def test_horodatage_appareil_type_invalide_refuse_rien_ecrit():
     assert accusé is None
     assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
     assert len(reg.lire()) == taille_avant
-

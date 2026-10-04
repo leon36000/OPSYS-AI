@@ -63,6 +63,34 @@ CODES_M4_LIST = [
     "REJ-METEO-REPONSE-INVALIDE",                 # sa réponse n'a pas la forme du port : rien n'est jugé dessus.
     "REJ-METEO-FOURNISSEUR-FERME",                # aucun fournisseur ouvert, ou ouvert sans droit (forfait gratuit).
     "REJ-METEO-LIEU-TROP-PRECIS",                 # un lieu de chantier plus fin que le dixième de degré : jamais envoyé
+    # Groupe 11 — préparation M5.4 : aperçu et validation N4 privée des heures individuelles.
+    "REJ-IDENTITE-HUMAINE-REQUISE",
+    "REJ-TECHNICIEN-INVALIDE",
+    "REJ-HUMAIN-REQUIS",
+    "REJ-ATTESTATION-MANQUANTE",
+    "REJ-DECISION-CATEGORIE-INCOMPLETE",
+    "REJ-SOURCES-CHANGEES",
+    "REJ-MOTIF-CORRECTION-REQUIS",
+    "REJ-VALIDATION-ABSENTE",
+    "REJ-VALIDATION-PERIMEE",
+    "REJ-PRECISION-MINUTE",
+    "REJ-PERIODE-INVALIDE",
+    "REJ-SOURCES-ABSENTES",
+    "REJ-INTERVENTION-AMBIGUE",
+    "REJ-POINTAGE-INCONNU",
+    "REJ-SOURCE-INVALIDE",
+    "REJ-TECHNICIEN-AMBIGU",
+    "REJ-INTERVALLE-HORS-PERIODE",
+    "REJ-POINTAGES-AMBIGUS",
+    "REJ-PAUSE-INCOMPLETE",
+    "REJ-PAUSE-AMBIGUE",
+    "REJ-DEPLACEMENT-AMBIGU",
+    "REJ-DEPLACEMENT-HORS-PERIODE",
+    "REJ-INTERVENTIONS-CHEVAUCHEES",
+    "REJ-REGISTRE-INVALIDE",
+    "REJ-VALIDATION-INCOHERENTE",
+    "REJ-APPROBATION-INCOHERENTE",
+    "REJ-VALIDATION-COURANTE-CHANGE",
     # Groupe 3 — succès
     "OK",
 ]

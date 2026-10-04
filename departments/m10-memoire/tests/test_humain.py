@@ -8,13 +8,14 @@ MOTIF = "Un motif qui dit vraiment pourquoi."
 HORODATAGE = "2026-09-16T09:00:00-04:00"
 
 
-def test_les_deux_roles_et_les_deux_voies_sont_les_seuls_admis():
+def test_les_deux_roles_et_les_trois_sources_sont_les_seuls_admis():
     assert humain.roles_humains() == {"admin", "nathan_owner"}
     assert humain.acteur_valide("amina.admin", "admin", "appareil") is True
     assert humain.acteur_valide("nathan", "nathan_owner", "approbation") is True
     for role in ("employee", "seller", "manager", "finance", "client", "system_agent", "", None):
         assert humain.acteur_valide("amina.admin", role, "appareil") is False
-    for source in ("modele", "cli", "", None):
+    assert humain.acteur_valide("nathan", "nathan_owner", humain.SOURCE_CLI) is True
+    for source in ("modele", "", None):
         assert humain.acteur_valide("amina.admin", "admin", source) is False
 
 

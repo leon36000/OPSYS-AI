@@ -211,6 +211,7 @@ function EcheanceUI({ echeance }: { readonly echeance: VueEcheance }) {
           <Ligne m={echeance.taxes.factures} style={styles.trace} />
         </>
       ) : null}
+      {echeance.couvertureTaxes !== null ? <Ligne m={echeance.couvertureTaxes} style={styles.avis} /> : null}
       {echeance.taxesNonChiffrees !== null ? <Ligne m={echeance.taxesNonChiffrees} style={styles.erreur} /> : null}
       {echeance.manque.length > 0 ? <Lignes items={echeance.manque} style={styles.avis} /> : null}
     </Carte>

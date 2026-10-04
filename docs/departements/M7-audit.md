@@ -1,5 +1,11 @@
 # Audit M7 — Marketing & Croissance IA (CMO IA)
 
+> Audit historique du 28 septembre 2026, conservé pour traçabilité. Les évolutions ultérieures
+> ne sont pas inventoriées ici. Consulter le [plan de consolidation](../programme/RESTRUCTURATION-2026-09-30.md)
+> et les [recherches actuelles](../research/R16-2026-09-30/README.md) pour M1/M5/M7/M10. Un statut
+> ancien et un nombre de tests ne certifient pas le périmètre cible complet.
+
+
 **Date de l'audit :** 2026-09-28. **Portée :** `departments/m07-marketing/` seulement, en lecture.
 **Référence produit :** `docs/produit/DEFINITION-PRODUIT.md` §1, §5 (P9), §6, §7 (M7), §8, §9, §10, §13.
 **Méthode :** lecture intégrale des 13 sous-paquets de `src/m7_marketing/`, des contrats, fixtures,

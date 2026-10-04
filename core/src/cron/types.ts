@@ -460,6 +460,8 @@ export type CronStoredJob = CronJob & {
   runtimeAuthority?: CronRuntimeAuthority;
   /** Authority was explicitly cleared and must be reauthorized before app reuse. */
   runtimeAuthorityRecoveryRequired?: true;
+  /** Private sidecar disposition carried only between store/mutation code. */
+  runtimeAuthorityCiphertextDisposition?: "clear";
 };
 
 /** Versioned cron store file shape. */

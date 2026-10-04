@@ -4,10 +4,30 @@ import type { GatewayBrowserClient } from "../../api/gateway.ts";
 import type { AgentIdentityResult } from "../../api/types.ts";
 import type { ApplicationGatewayPhase } from "../../app/gateway.ts";
 import { createTestGatewayClient } from "../../test-helpers/gateway-client.ts";
+import { normalizeAssistantIdentity } from "../assistant-identity.ts";
 import { createAgentIdentityCapability } from "./identity.ts";
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+it("retains only a catalogued 3D avatar model identifier", () => {
+  expect(
+    normalizeAssistantIdentity({
+      agentId: "main",
+      name: "Main",
+      avatar: null,
+      avatarModelId: "robotexpressive-quaternius-cc0-v1",
+    }).avatarModelId,
+  ).toBe("robotexpressive-quaternius-cc0-v1");
+  expect(
+    normalizeAssistantIdentity({
+      agentId: "main",
+      name: "Main",
+      avatar: null,
+      avatarModelId: "https://example.invalid/model.glb",
+    }).avatarModelId,
+  ).toBeNull();
 });
 
 it("rejects stale identities after reconnecting the same client", async () => {

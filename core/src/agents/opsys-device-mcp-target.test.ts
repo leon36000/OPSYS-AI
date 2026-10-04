@@ -102,6 +102,7 @@ describe("resolveOpsysDeviceMcpTarget", () => {
     const meta = {
       "opsys/idempotencyKey": "mut-1",
       "opsys/appareil": "tel-employe-42",
+      "opsys/horodatageAppareil": "2026-10-01T04:00:00.000Z",
       "opsys/personne": "jdupont",
       "opsys/role": "employee",
     };

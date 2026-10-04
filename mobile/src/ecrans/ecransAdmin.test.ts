@@ -153,6 +153,12 @@ describe("l'écran des chantiers ne montre jamais le texte de M4 tel quel (PLAN 
     expect(source).not.toMatch(/<Text[^>]*>\s*\{[^}]*\.manque\b/);
   });
 
+  test("l'avertissement de couverture fiscale est rendu avec le montant dans chaque échéance", () => {
+    const source = code("src/admin/vuesChiffres.tsx");
+    expect(source).toContain("echeance.couvertureTaxes !== null");
+    expect(source).toContain("<Ligne m={echeance.couvertureTaxes}");
+  });
+
   test("le modèle de vue ne lit jamais `.manque` d'un volet pour le montrer : la phrase vient de `direLeManque`", () => {
     const source = code("src/ecrans/chantiers.ts");
     expect(source).toContain("direLeManque(");

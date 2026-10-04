@@ -18,8 +18,20 @@ cd "$SCRIPT_DIR"
 log()  { printf '[install] %s\n' "$*"; }
 warn() { printf '[install] AVERTISSEMENT : %s\n' "$*" >&2; }
 die()  { printf '[install] ERREUR : %s\n' "$*" >&2; exit 1; }
+CORE_READY=0
+INSTALL_EN_ATTENTE=0
+CODE_EN_ATTENTE=3
 
-compose() { docker compose --env-file "$SCRIPT_DIR/.env" -f "$SCRIPT_DIR/docker-compose.yml" "$@"; }
+COMPOSE_PROFILE=""
+compose() {
+    if [ "$COMPOSE_PROFILE" = litellm ]; then
+        docker compose --profile litellm --env-file "$SCRIPT_DIR/.env" -f "$SCRIPT_DIR/docker-compose.yml" "$@"
+    elif [ "$COMPOSE_PROFILE" = database ]; then
+        docker compose --profile database --env-file "$SCRIPT_DIR/.env" -f "$SCRIPT_DIR/docker-compose.yml" "$@"
+    else
+        docker compose --env-file "$SCRIPT_DIR/.env" -f "$SCRIPT_DIR/docker-compose.yml" "$@"
+    fi
+}
 
 # -- Vérifications préalables ---------------------------------------------------------------------
 
@@ -109,6 +121,7 @@ ensure_env() {
         cp "$SCRIPT_DIR/.env.example" "$SCRIPT_DIR/.env"
     fi
     local var value
+    env_value() { grep -m1 "^$1=" "$SCRIPT_DIR/.env" | cut -d= -f2- || true; }
     set_if_placeholder() {
         var="$1"; value="$2"
         if grep -qE "^${var}=" "$SCRIPT_DIR/.env"; then
@@ -120,17 +133,37 @@ ensure_env() {
         fi
     }
     set_if_placeholder OPSYS_MCP_JETON "$(gen_secret 40)"
+    set_if_placeholder OPSYS_CONTEXT_MCP_JETON "$(gen_secret 40)"
     set_if_placeholder OPENCLAW_GATEWAY_TOKEN "$(gen_secret 40)"
-    set_if_placeholder LITELLM_MASTER_KEY "sk-$(gen_secret 40)"
-    set_if_placeholder POSTGRES_OPSYS_PASSWORD "$(gen_secret 32)"
-    set_if_placeholder POSTGRES_LITELLM_PASSWORD "$(gen_secret 32)"
+    set_if_placeholder OPSYS_MODE_FOURNISSEUR "natif"
+    set_if_placeholder OPSYS_PASSERELLE_URL ""
+    set_if_placeholder OPSYS_DATABASE_URL ""
     # Pas de mot de passe partagé pour la console (ADR-0009 §5) : OPSYS_CONSOLE_SECRET signe
     # seulement les sessions ; chaque personne se connecte avec son propre mot de passe, créé par
     # `opsys-metier personnes creer` (voir print_summary ci-dessous).
     set_if_placeholder OPSYS_CONSOLE_SECRET "$(gen_secret 44)"
-    for i in 1 2 3 4 5 6 7 8 9 10; do
-        set_if_placeholder "OPSYS_CLE_M${i}" "sk-opsys-m${i}-$(gen_secret 28)"
-    done
+    local mode database_url
+    mode="$(env_value OPSYS_MODE_FOURNISSEUR)"
+    case "$mode" in
+        natif) COMPOSE_PROFILE="" ;;
+        litellm)
+            COMPOSE_PROFILE="litellm"
+            set_if_placeholder LITELLM_MASTER_KEY "sk-$(gen_secret 40)"
+            set_if_placeholder POSTGRES_OPSYS_PASSWORD "$(gen_secret 32)"
+            set_if_placeholder POSTGRES_LITELLM_PASSWORD "$(gen_secret 32)"
+            if [ -z "$(env_value OPSYS_PASSERELLE_URL)" ]; then
+                set_if_placeholder OPSYS_PASSERELLE_URL "http://litellm:4000"
+            fi
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+                set_if_placeholder "OPSYS_CLE_M${i}" "sk-opsys-m${i}-$(gen_secret 28)"
+            done
+            ;;
+        *) die "OPSYS_MODE_FOURNISSEUR doit valoir natif ou litellm." ;;
+    esac
+    database_url="$(env_value OPSYS_DATABASE_URL)"
+    if [ "$COMPOSE_PROFILE" != litellm ] && [[ "$database_url" =~ ^postgres(ql)?:// ]]; then
+        COMPOSE_PROFILE="database"
+    fi
     chmod 600 "$SCRIPT_DIR/.env"
     log ".env prêt (chmod 600, secrets manquants générés — les autres inchangés)."
 }
@@ -182,54 +215,78 @@ wait_healthy() {
 }
 
 start_core() {
-    log "construction de l'image opsys..."
-    compose build opsys
-    log "démarrage postgres + valkey..."
-    compose up -d postgres valkey
-    wait_healthy postgres || die "postgres n'a pas démarré correctement."
-    wait_healthy valkey || die "valkey n'a pas démarré correctement."
-    log "démarrage opsys (écrit la config LiteLLM, sert MCP + console)..."
-    compose up -d opsys
-    wait_healthy opsys || die "opsys n'a pas démarré correctement (voir : docker compose -f deploy/docker-compose.yml logs opsys)."
-    log "démarrage litellm..."
-    compose up -d litellm
-    wait_healthy litellm || warn "litellm pas encore 'healthy' — la synchronisation des clés/agents réessaiera automatiquement (voir docs/ops/EXPLOITATION.md)."
+    log "construction des images OPSYS et du fork Core local..."
+    compose build opsys openclaw-gateway
+    if [ "$COMPOSE_PROFILE" = litellm ]; then
+        log "démarrage du profil compatibilité (PostgreSQL, Valkey, LiteLLM)..."
+        compose up -d postgres valkey
+        wait_healthy postgres || die "postgres n'a pas démarré correctement."
+        wait_healthy valkey || die "valkey n'a pas démarré correctement."
+        compose up -d opsys litellm
+        wait_healthy litellm || warn "LiteLLM pas encore healthy; le gateway restera bloqué jusqu'à readiness."
+    elif [ "$COMPOSE_PROFILE" = database ]; then
+        log "démarrage du profil PostgreSQL demandé pour OPSYS..."
+        compose up -d postgres
+        wait_healthy postgres || die "postgres n'a pas démarré correctement."
+        compose up -d opsys
+    else
+        log "démarrage natif OPSYS (SQLite, sans PostgreSQL ni LiteLLM)..."
+        compose up -d opsys
+    fi
+    if wait_healthy opsys 12; then
+        CORE_READY=1
+        log "migrations, paliers, secrets et console sont prêts."
+    else
+        CORE_READY=0
+        local readiness_rc=0
+        compose exec -T opsys python3 /opt/opsys/deploy/readiness.py || readiness_rc=$?
+        if [ "$readiness_rc" -eq "$CODE_EN_ATTENTE" ]; then
+            INSTALL_EN_ATTENTE=1
+            warn "configuration opérateur absente (paliers, embeddings ou secrets); console vérifiée par readiness, gateway suspendu. Après configuration, exécutez : docker compose -f deploy/docker-compose.yml up -d openclaw-gateway"
+        else
+            die "opsys n'est pas healthy (diagnostic readiness : $readiness_rc); vérifiez les logs et les services avant de relancer."
+        fi
+    fi
 }
 
 bootstrap_openclaw() {
-    log "synchronisation immédiate des clés virtuelles et de la config des agents OpenClaw..."
-    compose exec -T opsys opsys-metier passerelle cles --url http://litellm:4000 \
-        || warn "enregistrement des clés virtuelles incomplet — voir la sortie ci-dessus ; nouvel essai automatique toutes les OPSYS_SYNC_INTERVAL_SECONDS."
-    compose exec -T opsys opsys-metier openclaw configurer --config-dir /openclaw-config \
-        || warn "génération de la config des agents OpenClaw incomplète (paliers de modèles non configurés ?) — configurez-les dans la console OPSYS, la synchro reprendra automatiquement."
+    if [ "$COMPOSE_PROFILE" = litellm ]; then
+        log "profil LiteLLM actif : config native compatible et clés virtuelles synchronisées par opsys."
+    else
+        log "mode natif : aucune passerelle externe n'est requise."
+    fi
 
-    # shellcheck disable=SC1091
-    set -a; . "$SCRIPT_DIR/.env"; set +a
-    log "réglage de l'authentification et du Control UI OpenClaw (gateway.auth, CORS)..."
-    batch_json=$(printf '[{"path":"gateway.auth.token","value":"%s"},{"path":"gateway.bind","value":"lan"},{"path":"gateway.controlUi.allowedOrigins","value":["https://%s","http://%s"]}]' \
-        "$OPENCLAW_GATEWAY_TOKEN" "$OPSYS_DOMAINE" "$OPSYS_DOMAINE")
-    compose run --rm --no-deps --entrypoint node openclaw-gateway \
-        dist/index.js config set --batch-json "$batch_json" \
-        || warn "'openclaw config set' a échoué — réglez gateway.auth/bind manuellement (voir docs/ops/INSTALLATION-VPS.md)."
+    log "validation de la racine serveur (mode local, authentification et CORS conservés)..."
+    compose exec -T opsys sh -c \
+        'exec opsys-metier openclaw bootstrap-serveur --config-dir "$OPENCLAW_CONFIG_DIR" --domaine "${OPSYS_DOMAINE:-localhost}"' \
+        || die "bootstrap serveur refusé; préserver un snapshot et demander une récupération assistée."
 
-    log "démarrage openclaw-gateway..."
-    compose up -d openclaw-gateway
-    wait_healthy openclaw-gateway 40 || warn "openclaw-gateway pas encore 'healthy' — vérifiez : docker compose -f deploy/docker-compose.yml logs openclaw-gateway."
+    if [ "$CORE_READY" -eq 1 ]; then
+        log "démarrage du gateway Core OPSYS construit depuis le fork..."
+        compose up -d openclaw-gateway
+        wait_healthy openclaw-gateway 40 || die "gateway pas healthy — consultez les logs du service local openclaw-gateway."
+    else
+        warn "gateway non lancé : readiness OPSYS est encore incomplète."
+    fi
 }
 
 start_edge() {
-    log "démarrage caddy (et tout service restant du profil par défaut)..."
-    compose up -d
-    wait_healthy caddy || warn "caddy pas encore 'healthy' — vérifiez : docker compose -f deploy/docker-compose.yml logs caddy."
+    log "démarrage de Caddy; l'edge reste disponible même si les paliers attendent une configuration..."
+    compose up -d caddy
+    wait_healthy caddy || die "caddy pas 'healthy' — vérifiez : docker compose -f deploy/docker-compose.yml logs caddy."
 }
 
 print_summary() {
+    local bilan="Installation OPSYS terminée."
+    if [ "$INSTALL_EN_ATTENTE" -eq 1 ]; then
+        bilan="Installation OPSYS en attente de configuration (code $CODE_EN_ATTENTE)."
+    fi
     # shellcheck disable=SC1091
     set -a; . "$SCRIPT_DIR/.env"; set +a
     cat <<SUMMARY
 
 ============================================================================
-Installation OPSYS terminée.
+${bilan}
 
   Control UI OpenClaw : https://${OPSYS_DOMAINE}/
   Console OPSYS        : https://console.${OPSYS_DOMAINE}/
@@ -248,12 +305,17 @@ Prochaines étapes (docs/ops/INSTALLATION-VPS.md) :
      configurez au moins le palier de modèle "standard" (onglet Modèles), puis les départements à
      activer.
   2. Connectez-vous au Control UI OpenClaw (/) avec le jeton ci-dessus.
-  3. Les agents des départements apparaissent dans OpenClaw dans les
-     ${OPSYS_SYNC_INTERVAL_SECONDS:-300}s suivant la configuration des modèles (synchro
-     automatique) — ou immédiatement avec :
-       docker compose -f deploy/docker-compose.yml exec opsys sh -c \\
-         'opsys-metier passerelle cles --url http://litellm:4000 && opsys-metier openclaw configurer --config-dir /openclaw-config'
-  4. Si OPSYS_DOMAINE=localhost, le certificat est auto-signé (validation locale
+  3. En mode natif, configurez les fournisseurs et paliers depuis l'onglet Modèles.
+     Déclarez aussi OPSYS_EMBEDDINGS_URL et OPSYS_EMBEDDINGS_MODELE pour la mémoire native;
+     le backend local est opt-in, aucun modèle ni secret fournisseur n'est inventé.
+     Si un palier exige une variable comme OPENAI_API_KEY, ajoutez sa valeur à deploy/.env
+     (chmod 600), puis rechargez l'environnement du service :
+       docker compose -f deploy/docker-compose.yml up -d --force-recreate opsys
+     Quand le contrôle readiness devient healthy, démarrez le gateway :
+       docker compose -f deploy/docker-compose.yml up -d openclaw-gateway
+  4. Le mode LiteLLM est facultatif et doit être choisi explicitement dans OPSYS_MODE_FOURNISSEUR.
+     Il utilise le profil \`litellm\` et les clés OPSYS_CLE_M1..M10.
+  5. Si OPSYS_DOMAINE=localhost, le certificat est auto-signé (validation locale
      uniquement) : fixez un vrai domaine DNS avant tout accès distant réel.
 ============================================================================
 SUMMARY
@@ -272,6 +334,9 @@ main() {
     bootstrap_openclaw
     start_edge
     print_summary
+    if [ "$INSTALL_EN_ATTENTE" -eq 1 ]; then
+        exit "$CODE_EN_ATTENTE"
+    fi
 }
 
 main "$@"

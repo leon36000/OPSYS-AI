@@ -77,6 +77,20 @@ def test_sortie_conforme(tmp_path):
     assert violations == [], f"Le HTML produit doit être sans violation : {violations}"
 
 
+def test_render_refuse_une_couleur_css_qui_peut_fermer_style_et_injecter_script():
+    contenu = {**MINIMAL_CONTENT_DICT, "colors": {**MINIMAL_CONTENT_DICT["colors"]}}
+    contenu["colors"]["bg"] = "#fff</style><script>globalThis.audit_m7=1</script><style>"
+    with pytest.raises(ValueError, match="couleur CSS"):
+        generator.render_html(contenu)
+
+
+def test_guardrail_refuse_script_actif_mais_garde_jsonld_autorise():
+    html = generator.render_html(MINIMAL_CONTENT_DICT).replace(
+        "</head>", "<script>globalThis.audit_m7=1</script></head>", 1
+    )
+    assert any(code == "G-14" for code, _ in guardrail.validate(html))
+
+
 # ---------------------------------------------------------------------------
 # Test generate refuse si non conforme et n'écrit pas le fichier
 # ---------------------------------------------------------------------------

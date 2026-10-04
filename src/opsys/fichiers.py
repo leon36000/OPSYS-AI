@@ -30,7 +30,7 @@ import datetime as _dt
 import hashlib
 import re
 
-from sqlalchemy import Connection, select
+from sqlalchemy import Connection, func, select
 
 from .stockage.moteur import inserer
 from .stockage.schema import FICHIERS, FICHIERS_BLOCS
@@ -55,9 +55,9 @@ _EMPREINTE_HEX = re.compile(r"^[0-9a-f]{64}$")
 
 __all__ = [
     "TAILLE_BLOC_OCTETS", "TAILLE_MAX_OCTETS", "NOMBRE_BLOCS_MAX", "TYPES_MIME_PERMIS",
-    "PREFIXE_REFERENCE", "EtatFichier", "DepotResultat",
+    "PREFIXE_REFERENCE", "EtatFichier", "DepotResultat", "LectureFichier",
     "empreinte_valide", "reference_pour", "empreinte_depuis_reference",
-    "etat", "deposer_bloc",
+    "etat", "deposer_bloc", "lire_blob_verifie",
 ]
 
 
@@ -87,6 +87,89 @@ class EtatFichier:
     blocs_recus: tuple[int, ...]
     type_mime: str | None
     reference: str | None
+
+
+@dataclasses.dataclass(frozen=True)
+class LectureFichier:
+    accepte: bool
+    raison: str | None
+    octets: bytes | None
+    type_mime: str | None
+
+
+def lire_blob_verifie(cnx: Connection, reference: object) -> LectureFichier:
+    """Assemble un fichier CAS borné et revérifie sa ligne, ses indices, ses blocs, SHA et MIME.
+
+    `complet` seul ne vaut pas preuve de validité : cette lecture sert les usages privés qui
+    doivent vérifier les octets réellement présents en base. Elle ne journalise ni contenu ni
+    référence en diagnostic.
+    """
+    empreinte = empreinte_depuis_reference(reference)
+    if empreinte is None:
+        return LectureFichier(False, RAISON_PARAMETRES_INVALIDES, None, None)
+    ligne = cnx.execute(
+        select(FICHIERS.c.taille_octets, FICHIERS.c.type_mime, FICHIERS.c.nombre_blocs, FICHIERS.c.complet)
+        .where(FICHIERS.c.empreinte_sha256 == empreinte)
+    ).one_or_none()
+    if ligne is None or ligne.complet is not True:
+        return LectureFichier(False, RAISON_INCOHERENT, None, None)
+    if (
+        type(ligne.taille_octets) is not int or not 1 <= ligne.taille_octets <= TAILLE_MAX_OCTETS
+        or type(ligne.nombre_blocs) is not int or not 1 <= ligne.nombre_blocs <= NOMBRE_BLOCS_MAX
+        or ligne.type_mime not in TYPES_MIME_PERMIS
+    ):
+        return LectureFichier(False, RAISON_INCOHERENT, None, None)
+    attendu_blocs = -(-ligne.taille_octets // TAILLE_BLOC_OCTETS)
+    if ligne.nombre_blocs != attendu_blocs:
+        return LectureFichier(False, RAISON_INCOHERENT, None, None)
+    metadonnees_blocs = cnx.execute(
+        select(FICHIERS_BLOCS.c.index_bloc, FICHIERS_BLOCS.c.taille_octets,
+               func.length(FICHIERS_BLOCS.c.contenu_base64).label("taille_base64"))
+        .where(FICHIERS_BLOCS.c.empreinte_sha256 == empreinte)
+        .order_by(FICHIERS_BLOCS.c.index_bloc)
+        .limit(NOMBRE_BLOCS_MAX + 1)
+    ).all()
+    if len(metadonnees_blocs) != ligne.nombre_blocs or any(
+        type(b.index_bloc) is not int for b in metadonnees_blocs
+    ) or [b.index_bloc for b in metadonnees_blocs] != list(range(ligne.nombre_blocs)):
+        return LectureFichier(False, RAISON_INCOHERENT, None, None)
+    for index, bloc in enumerate(metadonnees_blocs):
+        taille = min(TAILLE_BLOC_OCTETS, ligne.taille_octets - index * TAILLE_BLOC_OCTETS)
+        if type(bloc.taille_octets) is not int or bloc.taille_octets != taille:
+            return LectureFichier(False, RAISON_INCOHERENT, None, None)
+        if bloc.taille_base64 != 4 * ((taille + 2) // 3):
+            return LectureFichier(False, RAISON_INCOHERENT, None, None)
+    limite_base64 = 4 * ((TAILLE_BLOC_OCTETS + 2) // 3)
+    blocs = cnx.execute(
+        select(FICHIERS_BLOCS.c.index_bloc,
+               func.substr(FICHIERS_BLOCS.c.contenu_base64, 1, limite_base64 + 1).label("contenu_base64"),
+               FICHIERS_BLOCS.c.taille_octets)
+        .where(FICHIERS_BLOCS.c.empreinte_sha256 == empreinte)
+        .order_by(FICHIERS_BLOCS.c.index_bloc)
+        .limit(NOMBRE_BLOCS_MAX + 1)
+    ).all()
+    if len(blocs) != ligne.nombre_blocs:
+        return LectureFichier(False, RAISON_INCOHERENT, None, None)
+    morceaux: list[bytes] = []
+    for index, bloc in enumerate(blocs):
+        taille = min(TAILLE_BLOC_OCTETS, ligne.taille_octets - index * TAILLE_BLOC_OCTETS)
+        longueur_base64_max = 4 * ((taille + 2) // 3)
+        if not isinstance(bloc.contenu_base64, str) or len(bloc.contenu_base64) > longueur_base64_max:
+            return LectureFichier(False, RAISON_INCOHERENT, None, None)
+        try:
+            donnees = base64.b64decode(bloc.contenu_base64, validate=True)
+        except (ValueError, TypeError):
+            return LectureFichier(False, RAISON_INCOHERENT, None, None)
+        if type(bloc.taille_octets) is not int or bloc.taille_octets != taille or len(donnees) != taille:
+            return LectureFichier(False, RAISON_INCOHERENT, None, None)
+        morceaux.append(donnees)
+    assemble = b"".join(morceaux)
+    if len(assemble) != ligne.taille_octets or hashlib.sha256(assemble).hexdigest() != empreinte:
+        return LectureFichier(False, RAISON_EMPREINTE_DISCORDANTE, None, None)
+    signature = _SIGNATURES_MAGIQUES[ligne.type_mime]
+    if assemble[:len(signature)] != signature:
+        return LectureFichier(False, RAISON_TYPE_NON_PERMIS, None, None)
+    return LectureFichier(True, None, assemble, ligne.type_mime)
 
 
 def etat(cnx: Connection, empreinte_sha256: str) -> EtatFichier:

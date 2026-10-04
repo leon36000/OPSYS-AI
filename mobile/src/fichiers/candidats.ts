@@ -16,6 +16,7 @@ import type { MutationOutbox } from "../outbox/types";
  */
 export interface CandidatFichierM4 {
   readonly mutationId: string;
+  readonly proprietaire: string;
   readonly chantierId: string;
   readonly uri: string;
   readonly sha256: string;
@@ -60,6 +61,7 @@ function nombreChamp(valeur: unknown): number | null {
  * champs, mais un brouillon relu depuis SQLite après une future migration de schéma doit rester
  * défensif, même discipline que `src/m4/interventions.ts::estInterventionM4`. */
 function versCandidat(mutation: MutationOutbox): CandidatFichierM4 | null {
+  if (mutation.proprietaire === null || mutation.proprietaire.trim() === "") return null;
   const uri = texteChamp(mutation.payload.uri);
   const sha256 = texteChamp(mutation.payload.sha256);
   const tailleOctets = nombreChamp(mutation.payload.taille_octets);
@@ -68,6 +70,7 @@ function versCandidat(mutation: MutationOutbox): CandidatFichierM4 | null {
   }
   return {
     mutationId: mutation.id,
+    proprietaire: mutation.proprietaire,
     chantierId: mutation.chantierId,
     uri,
     sha256,
@@ -79,10 +82,10 @@ function versCandidat(mutation: MutationOutbox): CandidatFichierM4 | null {
 /** Photos `apres` d'un chantier — même filtre que `preuvesCompletion.ts::extraireReferencesPhotosLocales`
  * (nature "apres" uniquement : les photos "avant"/"pendant" ne sont jamais envoyées à M4, voir sa
  * docstring), payload complet. */
-export function candidatsPhotosApres(mutations: readonly MutationOutbox[], chantierId: string): CandidatFichierM4[] {
+export function candidatsPhotosApres(mutations: readonly MutationOutbox[], chantierId: string, proprietaire: string): CandidatFichierM4[] {
   return mutations
     .filter(
-      (m) => m.type === "photo_upload" && m.chantierId === chantierId && m.statut === "brouillon" && m.payload.nature === "apres",
+      (m) => m.type === "photo_upload" && m.chantierId === chantierId && m.statut === "brouillon" && m.proprietaire === proprietaire && m.payload.nature === "apres",
     )
     .map(versCandidat)
     .filter((c): c is CandidatFichierM4 => c !== null);
@@ -91,8 +94,8 @@ export function candidatsPhotosApres(mutations: readonly MutationOutbox[], chant
 /** Dernière capture de signature du chantier — même choix que
  * `preuvesCompletion.ts::extraireReferenceSignatureLocale` (une nouvelle capture remplace la
  * précédente côté écran). `null` si aucune signature capturée. */
-export function candidatSignature(mutations: readonly MutationOutbox[], chantierId: string): CandidatFichierM4 | null {
-  const signatures = mutations.filter((m) => m.type === "signature_capture" && m.chantierId === chantierId && m.statut === "brouillon");
+export function candidatSignature(mutations: readonly MutationOutbox[], chantierId: string, proprietaire: string): CandidatFichierM4 | null {
+  const signatures = mutations.filter((m) => m.type === "signature_capture" && m.chantierId === chantierId && m.statut === "brouillon" && m.proprietaire === proprietaire);
   if (signatures.length === 0) {
     return null;
   }

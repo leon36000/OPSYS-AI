@@ -1,0 +1,523 @@
+{
+  "archives": [
+    {
+      "archive": "docs/docs--produit--PERIMETRE-MODULES.md--1eefefad1dda514b851c18b25a332543740f5709e1fa5ddc6e329542e961aa37.gz",
+      "categorie": "docs",
+      "origine": "/workspace/OPSYS-AI-recent/docs/produit/PERIMETRE-MODULES.md",
+      "sha256_gzip": "446a26b74290328c3c6ef48b51a265aad6742dc78cf715d42cd41f11b7f27218",
+      "sha256_original": "1eefefad1dda514b851c18b25a332543740f5709e1fa5ddc6e329542e961aa37",
+      "taille_gzip": 9274,
+      "taille_originale": 21340
+    },
+    {
+      "archive": "docs/docs--produit--VISION-ENTREPRISE-APPRENANTE.md--88e7824afe178a89a5158600cccc475ca208cd7ad069ade2b7a059f16fb14e73.gz",
+      "categorie": "docs",
+      "origine": "/workspace/OPSYS-AI-recent/docs/produit/VISION-ENTREPRISE-APPRENANTE.md",
+      "sha256_gzip": "f7cd819923a19a022d4b50837a266dccffaecf1cbe4ff94177bdd98364d454fe",
+      "sha256_original": "88e7824afe178a89a5158600cccc475ca208cd7ad069ade2b7a059f16fb14e73",
+      "taille_gzip": 3908,
+      "taille_originale": 8249
+    },
+    {
+      "archive": "docs/docs--programme--BILAN-RESTRUCTURATION-2026-09-30.md--ea2fda27e7573efd88352ba9c3f6c1b31ca01a6260b694320a5b9f9796b5d8fa.gz",
+      "categorie": "docs",
+      "origine": "/workspace/OPSYS-AI-recent/docs/programme/BILAN-RESTRUCTURATION-2026-09-30.md",
+      "sha256_gzip": "d33b44ed769ca5ea7851f300fdb5a034c3500b93d944ed3656c0dfe3fc560aa3",
+      "sha256_original": "ea2fda27e7573efd88352ba9c3f6c1b31ca01a6260b694320a5b9f9796b5d8fa",
+      "taille_gzip": 21722,
+      "taille_originale": 61876
+    },
+    {
+      "archive": "docs/docs--programme--LOT-QUALIFICATION-MEMOIRE-PG.md--6c8c66a6269f9d68ef5bdc8b04c20e9826c9aebb4cdeb79f6ca8a261d6823f1e.gz",
+      "categorie": "docs",
+      "origine": "/workspace/OPSYS-AI-recent/docs/programme/LOT-QUALIFICATION-MEMOIRE-PG.md",
+      "sha256_gzip": "b2f4d76345d40304d5468f76c99179b17b3407af41e7a10c16e2aec4889cce97",
+      "sha256_original": "6c8c66a6269f9d68ef5bdc8b04c20e9826c9aebb4cdeb79f6ca8a261d6823f1e",
+      "taille_gzip": 2424,
+      "taille_originale": 4678
+    },
+    {
+      "archive": "docs/docs--programme--REPRISE-PLAN-2026-10-02.md--5d2a1afb2d34c3153c458f8b9076cadeed7a54bee59220055510e97ee5a3456c.gz",
+      "categorie": "docs",
+      "origine": "/workspace/OPSYS-AI-recent/docs/programme/REPRISE-PLAN-2026-10-02.md",
+      "sha256_gzip": "1a02ad0332f95aaf47ae5d0b3b4503bde178e0ebfa95e0b29c1fa02f44cb2a24",
+      "sha256_original": "5d2a1afb2d34c3153c458f8b9076cadeed7a54bee59220055510e97ee5a3456c",
+      "taille_gzip": 3887,
+      "taille_originale": 7914
+    },
+    {
+      "archive": "sources-r25/tests--fixtures--memoire--doubles.py--257ce778b53c58e0df33088d301c74a81e76a92c11af1728910432bce43e1bf2.gz",
+      "categorie": "sources-r25",
+      "origine": "/workspace/OPSYS-AI-recent/tests/fixtures/memoire/doubles.py",
+      "sha256_gzip": "47b033acf0d240d79b1cfc3fe506f3032b7b8bde0958b68ce59bf557744867ec",
+      "sha256_original": "257ce778b53c58e0df33088d301c74a81e76a92c11af1728910432bce43e1bf2",
+      "taille_gzip": 4968,
+      "taille_originale": 15764
+    },
+    {
+      "archive": "sources-r25/tests--test_memoire_outils.py--37df58c9291db9d2a167d188f501c3b2ffcc506b6d94c175a91b7648e633c407.gz",
+      "categorie": "sources-r25",
+      "origine": "/workspace/OPSYS-AI-recent/tests/test_memoire_outils.py",
+      "sha256_gzip": "a7bb1cc38d042f3a92fdde361c5e76b990b9aad91c021c85e5a8fe19ad3d89e4",
+      "sha256_original": "37df58c9291db9d2a167d188f501c3b2ffcc506b6d94c175a91b7648e633c407",
+      "taille_gzip": 3688,
+      "taille_originale": 13123
+    },
+    {
+      "archive": "sources-r25/tests--test_memoire_store.py--181fd106804eb25694f9cd7eccc1d375144ea2c8479ecda9345516cdec693e3c.gz",
+      "categorie": "sources-r25",
+      "origine": "/workspace/OPSYS-AI-recent/tests/test_memoire_store.py",
+      "sha256_gzip": "b95e248518c6a4e2a6fb2a17d69a32cca9d121570db232f6ea205b095ccb8a1c",
+      "sha256_original": "181fd106804eb25694f9cd7eccc1d375144ea2c8479ecda9345516cdec693e3c",
+      "taille_gzip": 4886,
+      "taille_originale": 16867
+    },
+    {
+      "archive": "sources-r25/tests--test_postgres_fixture_doubles.py--027465d05a13753d5fbd7b7a299804f80181952e8017d77133af285c71b2ce66.gz",
+      "categorie": "sources-r25",
+      "origine": "/workspace/OPSYS-AI-recent/tests/test_postgres_fixture_doubles.py",
+      "sha256_gzip": "cf12317801b73488c797a009fca09eb068f2a9dea349f317f12f4fbee63e1d14",
+      "sha256_original": "027465d05a13753d5fbd7b7a299804f80181952e8017d77133af285c71b2ce66",
+      "taille_gzip": 2471,
+      "taille_originale": 11867
+    },
+    {
+      "archive": "memoire-r25/NETTOYAGE-ROOT-r1.json--4a3f06dbf3e75ee4e6a60769e9bb27f7070f2218f6b2016a7ae87475899cfa27.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/NETTOYAGE-ROOT-r1.json",
+      "sha256_gzip": "6b05ae4aec36ad54dabe5c0cf83b887d6955edbe7bc59e149df12d38778c5aba",
+      "sha256_original": "4a3f06dbf3e75ee4e6a60769e9bb27f7070f2218f6b2016a7ae87475899cfa27",
+      "taille_gzip": 279,
+      "taille_originale": 430
+    },
+    {
+      "archive": "memoire-r25/NETTOYAGE-ROOT-r2.json--cb35ece2d81528a5e157eb703510cd322cf4f21d0b131b5536e5aecbd8b9b4b9.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/NETTOYAGE-ROOT-r2.json",
+      "sha256_gzip": "4a5b697c5dd959e60b69cfae4185e5de4d74032ab6521553d3cac786258f80ad",
+      "sha256_original": "cb35ece2d81528a5e157eb703510cd322cf4f21d0b131b5536e5aecbd8b9b4b9",
+      "taille_gzip": 428,
+      "taille_originale": 659
+    },
+    {
+      "archive": "memoire-r25/PLAN-r2.md--f34fef941abcf610448cdb9db8ba5c6bd40397e92605ec7a68897a6c15bf3cbc.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/PLAN-r2.md",
+      "sha256_gzip": "2d8db89c0b620b05f7a80463d79589f3aaea853630eb965efe8a9bab9db1b643",
+      "sha256_original": "f34fef941abcf610448cdb9db8ba5c6bd40397e92605ec7a68897a6c15bf3cbc",
+      "taille_gzip": 520,
+      "taille_originale": 759
+    },
+    {
+      "archive": "memoire-r25/PLAN.md--03824b83f685d55bd0463d34a7023fad23125b028ddbad662cce0ffc2b1f3cde.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/PLAN.md",
+      "sha256_gzip": "fd6d577f563866d12cbd94ab68b1251a189389f6e90bd28cf62fd5a10f37ee2c",
+      "sha256_original": "03824b83f685d55bd0463d34a7023fad23125b028ddbad662cce0ffc2b1f3cde",
+      "taille_gzip": 1640,
+      "taille_originale": 2913
+    },
+    {
+      "archive": "memoire-r25/RAPPORT-r2.md--370502fdf42ee4635a914ebcf028dcca3dc98af2a060d84567dda8383f9368fc.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/RAPPORT-r2.md",
+      "sha256_gzip": "bc96a9d058b20db03b86da6b4449ef8edb487534ab030fc7c6962779a0e886b9",
+      "sha256_original": "370502fdf42ee4635a914ebcf028dcca3dc98af2a060d84567dda8383f9368fc",
+      "taille_gzip": 963,
+      "taille_originale": 1531
+    },
+    {
+      "archive": "memoire-r25/REVUE-ROOT-GO-r1.json--b3a0b0e225943d67871d2996fe38a0ecb654912e14600545e538c2cb996fe9af.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/REVUE-ROOT-GO-r1.json",
+      "sha256_gzip": "c466946177fb0da7c2eac1e361e3f33786a41095f0bb9a14f0e4be88ed811e5d",
+      "sha256_original": "b3a0b0e225943d67871d2996fe38a0ecb654912e14600545e538c2cb996fe9af",
+      "taille_gzip": 494,
+      "taille_originale": 752
+    },
+    {
+      "archive": "memoire-r25/REVUE-ROOT-r2-CORRECTION.json--cb97f5b009986cc997d93479e08cb6c948e4fff0d5ea1c69436daa6baee03ec4.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/REVUE-ROOT-r2-CORRECTION.json",
+      "sha256_gzip": "8ac20f15fc1d6a040f38746b766fdd563f2fc4b0b6bfdefa2b8169ad953c8b52",
+      "sha256_original": "cb97f5b009986cc997d93479e08cb6c948e4fff0d5ea1c69436daa6baee03ec4",
+      "taille_gzip": 570,
+      "taille_originale": 929
+    },
+    {
+      "archive": "memoire-r25/archiver-r25-r1.py--d94812b5d6c27e316429f1104fa9044bac88ad2252776718c1afb3543abe7213.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/archiver-r25-r1.py",
+      "sha256_gzip": "9f67ca4ae89f2a37134cbf335c16b1d33507c8a0957546120dbb9803610294c5",
+      "sha256_original": "d94812b5d6c27e316429f1104fa9044bac88ad2252776718c1afb3543abe7213",
+      "taille_gzip": 10059,
+      "taille_originale": 31543
+    },
+    {
+      "archive": "memoire-r25/docs-archive-root-r1.json--b6420bb05271699fe53204cfe25778fcc58e423c1ba320a063a8eb992f091768.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/docs-archive-root-r1.json",
+      "sha256_gzip": "6b487567169616aa3eb97838de26fd631c3dfe870d5342e481a269922d6a7ed0",
+      "sha256_original": "b6420bb05271699fe53204cfe25778fcc58e423c1ba320a063a8eb992f091768",
+      "taille_gzip": 166,
+      "taille_originale": 246
+    },
+    {
+      "archive": "memoire-r25/integration-root-r1.xml--c082f366653cba901d1bc4823a8eee590cc69e22848c2524a38dd17741916345.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/integration-root-r1.xml",
+      "sha256_gzip": "e1362626547552a3410d9d7a06cba893edc650d5318ed07f6b0d6a65238e9399",
+      "sha256_original": "c082f366653cba901d1bc4823a8eee590cc69e22848c2524a38dd17741916345",
+      "taille_gzip": 1140,
+      "taille_originale": 5434
+    },
+    {
+      "archive": "memoire-r25/integration-root-r2.xml--910b2efd4cbe865de44f6bb176ed4ef9d90832e552775226f06f0bd9506cff95.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/integration-root-r2.xml",
+      "sha256_gzip": "0b237455f992309f8dc391bc85b0230931bb11928f4cfed679e74bfae186843c",
+      "sha256_original": "910b2efd4cbe865de44f6bb176ed4ef9d90832e552775226f06f0bd9506cff95",
+      "taille_gzip": 2099,
+      "taille_originale": 11065
+    },
+    {
+      "archive": "memoire-r25/preimages-r1--doubles.py--45831a036f74347cfd4d3b932f529f8caca159d7bb8c94b51991b56164d51914.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/preimages-r1/doubles.py",
+      "sha256_gzip": "137f57594867dccb0884e2c630475b6f9068a73d401b92b536297e2a8c6b56c5",
+      "sha256_original": "45831a036f74347cfd4d3b932f529f8caca159d7bb8c94b51991b56164d51914",
+      "taille_gzip": 4800,
+      "taille_originale": 15222
+    },
+    {
+      "archive": "memoire-r25/preimages-r1--test_memoire_store.py--b402ca2dfc61d786538fefe8fafe77822943c39c8c5ba535a55846e995790251.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/preimages-r1/test_memoire_store.py",
+      "sha256_gzip": "e0462db3d63004458f76bac4d9a546e4e51782b1fe839cfafac0503b45c97b91",
+      "sha256_original": "b402ca2dfc61d786538fefe8fafe77822943c39c8c5ba535a55846e995790251",
+      "taille_gzip": 4871,
+      "taille_originale": 16843
+    },
+    {
+      "archive": "memoire-r25/preimages-r1--test_postgres_fixture_doubles.py--208ca25f266fedb2143a050f6472626d6a29faa128c8f465def9dc9ae517e71b.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/preimages-r1/test_postgres_fixture_doubles.py",
+      "sha256_gzip": "ccb419a953af7bc871eddfc66ddad55ca891e09320ac0ad54364a3dd91a43327",
+      "sha256_original": "208ca25f266fedb2143a050f6472626d6a29faa128c8f465def9dc9ae517e71b",
+      "taille_gzip": 1944,
+      "taille_originale": 9579
+    },
+    {
+      "archive": "memoire-r25/preimages-r2--test_memoire_outils.py--e7ccff01d66978a4d6c2928845d2189ba468f3b1c3f64a11b1d9702b63e20d69.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/preimages-r2/test_memoire_outils.py",
+      "sha256_gzip": "df6f7472930fbca1f29d20847f8a76cc9acdac809bda7afbd4856e21d5a48c61",
+      "sha256_original": "e7ccff01d66978a4d6c2928845d2189ba468f3b1c3f64a11b1d9702b63e20d69",
+      "taille_gzip": 3631,
+      "taille_originale": 13017
+    },
+    {
+      "archive": "memoire-r25/r1--FREEZE-r2.json--d3e9d5ad9927a9e99721319134d25fcd4624ed64ac6584c3986b467f818e6099.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/r1/FREEZE-r2.json",
+      "sha256_gzip": "7d5365d44eadba5850e1bdcb38eb5dc0359cbfe31fd6895ef8836b431acfd5ce",
+      "sha256_original": "d3e9d5ad9927a9e99721319134d25fcd4624ed64ac6584c3986b467f818e6099",
+      "taille_gzip": 778,
+      "taille_originale": 1339
+    },
+    {
+      "archive": "memoire-r25/r1--FREEZE.json--8fbf1704bffc3443e4822c5fef98bd415c0a592386f6a6b95d87f713ec64dd27.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/r1/FREEZE.json",
+      "sha256_gzip": "a3c23ee10bbeed726248b2c8e7682d3f3ecda53da9ed1584af877195acb8d422",
+      "sha256_original": "8fbf1704bffc3443e4822c5fef98bd415c0a592386f6a6b95d87f713ec64dd27",
+      "taille_gzip": 523,
+      "taille_originale": 1024
+    },
+    {
+      "archive": "memoire-r25/r1--delta-preimages-r1.patch--80ddff00a074665503b3a4ae69862ee77eb1b9920a646536907b08ed6598093a.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/r1/delta-preimages-r1.patch",
+      "sha256_gzip": "9362e00116f6aeab38fdedf7223ee242412366f8d97acafd084bb7d3bc8ce55c",
+      "sha256_original": "80ddff00a074665503b3a4ae69862ee77eb1b9920a646536907b08ed6598093a",
+      "taille_gzip": 1693,
+      "taille_originale": 4763
+    },
+    {
+      "archive": "memoire-r25/r1--delta-preimages-r2.patch--10c9025bd6dca4e3cdc03f265cf005b4809ba329df0b20eec43da34ecdd2ddb2.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/r1/delta-preimages-r2.patch",
+      "sha256_gzip": "371e694f82a6dfcaffb6b91251fc26c74a21af710622aaf9422992f9fa55350b",
+      "sha256_original": "10c9025bd6dca4e3cdc03f265cf005b4809ba329df0b20eec43da34ecdd2ddb2",
+      "taille_gzip": 520,
+      "taille_originale": 922
+    },
+    {
+      "archive": "memoire-r25/r1--tests-fixture-20261002T050326Z.json--9ef6a345ef8b3595a4583ed17b4d2bae4ac45ee62ac7569fc0e69df66b9d7a59.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/r1/tests-fixture-20261002T050326Z.json",
+      "sha256_gzip": "b06b235ed0581d7d5bf5772d57821813fd7518713d7efe6bf49a8613ec36b0c1",
+      "sha256_original": "9ef6a345ef8b3595a4583ed17b4d2bae4ac45ee62ac7569fc0e69df66b9d7a59",
+      "taille_gzip": 206,
+      "taille_originale": 257
+    },
+    {
+      "archive": "memoire-r25/r1--tests-fixture-20261002T050326Z.log--08faea39fd19189f6544839f505d91d76ecb1367e219f5db362cdf22916ef869.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/r1/tests-fixture-20261002T050326Z.log",
+      "sha256_gzip": "472a705ffdf78f8f7633f6b4eba9179885001eff1427a030db2c32624261f50a",
+      "sha256_original": "08faea39fd19189f6544839f505d91d76ecb1367e219f5db362cdf22916ef869",
+      "taille_gzip": 33,
+      "taille_originale": 80
+    },
+    {
+      "archive": "memoire-r25/r1--tests-fixture-20261002T050326Z.xml--d1c76f6ab491c09f7ce277e6e1b3298e84825cd685f4bd3bd653c134aba59d4b.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/r1/tests-fixture-20261002T050326Z.xml",
+      "sha256_gzip": "a9c8fa6789a91e8d21b283d9bd24d463f968b3d3339a1a9d351d8f55a75da9d8",
+      "sha256_original": "d1c76f6ab491c09f7ce277e6e1b3298e84825cd685f4bd3bd653c134aba59d4b",
+      "taille_gzip": 513,
+      "taille_originale": 1918
+    },
+    {
+      "archive": "memoire-r25/root-docs-preimages-r1--BILAN-RESTRUCTURATION-2026-09-30.md--3c5a824f17a9fc792a07f532d828ed861da22e05d22081aa1833fcd624623ec4.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/root-docs-preimages-r1/BILAN-RESTRUCTURATION-2026-09-30.md",
+      "sha256_gzip": "a3c755131bbdd9f15d285b82822714c818317c401b8e6a2a441f14e12c1de05d",
+      "sha256_original": "3c5a824f17a9fc792a07f532d828ed861da22e05d22081aa1833fcd624623ec4",
+      "taille_gzip": 21397,
+      "taille_originale": 60867
+    },
+    {
+      "archive": "memoire-r25/root-docs-preimages-r1--PREIMAGES.json--7cd5248155928d960abb466a557780bf4aba1e38303d71c09200f327902e892a.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/root-docs-preimages-r1/PREIMAGES.json",
+      "sha256_gzip": "79726b9772ec78787efb6b57bdd7e7e391b53928c6a8bb1f6a14b6682bcf7fc2",
+      "sha256_original": "7cd5248155928d960abb466a557780bf4aba1e38303d71c09200f327902e892a",
+      "taille_gzip": 273,
+      "taille_originale": 372
+    },
+    {
+      "archive": "memoire-r25/root-docs-preimages-r1--REPRISE-PLAN-2026-10-02.md--0ceecc6c8754777579b3fbd3548a9718a898f630413c94122b27b3624f9a1a34.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/root-docs-preimages-r1/REPRISE-PLAN-2026-10-02.md",
+      "sha256_gzip": "100fc8be7e26868f6762c158bd8abbc69168d7b8da484d4822fa518c9ee98078",
+      "sha256_original": "0ceecc6c8754777579b3fbd3548a9718a898f630413c94122b27b3624f9a1a34",
+      "taille_gzip": 3704,
+      "taille_originale": 7483
+    },
+    {
+      "archive": "memoire-r25/root-docs-preimages-r2--BILAN-RESTRUCTURATION-2026-09-30.md--46562960b8001727953b31aec6909daef55e1ed3726c346920ccd607fc492e09.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/root-docs-preimages-r2/BILAN-RESTRUCTURATION-2026-09-30.md",
+      "sha256_gzip": "d0520e355479aa5706555e2f1bcc78709764b2df66c69e41b827e14d1eb11831",
+      "sha256_original": "46562960b8001727953b31aec6909daef55e1ed3726c346920ccd607fc492e09",
+      "taille_gzip": 21643,
+      "taille_originale": 61573
+    },
+    {
+      "archive": "memoire-r25/root-docs-preimages-r2--PERIMETRE-MODULES.md--27b0369454b60be59922f8f15ae85b9b661d6e57b5ab074aff602b2d8a9daf15.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/root-docs-preimages-r2/PERIMETRE-MODULES.md",
+      "sha256_gzip": "ef4cd82b38ec283109ebd80a7c1aec1910b051741e211c0145b57f1772f837f3",
+      "sha256_original": "27b0369454b60be59922f8f15ae85b9b661d6e57b5ab074aff602b2d8a9daf15",
+      "taille_gzip": 9131,
+      "taille_originale": 20975
+    },
+    {
+      "archive": "memoire-r25/root-docs-preimages-r2--PREIMAGES.json--878ba997b593b0c5941ed32180d8dc554bc1a58bb6da1722a85a903f41bd1f44.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/root-docs-preimages-r2/PREIMAGES.json",
+      "sha256_gzip": "fc54e6aee1a6ca5d5fd1525bfb1f95ff99ed921d7df02676f3c038032714df0b",
+      "sha256_original": "878ba997b593b0c5941ed32180d8dc554bc1a58bb6da1722a85a903f41bd1f44",
+      "taille_gzip": 314,
+      "taille_originale": 424
+    },
+    {
+      "archive": "memoire-r25/root-docs-preimages-r2--VISION-ENTREPRISE-APPRENANTE.md--f2f9695efd55d2668cb55c6c648df97463359b629821d8004e98dca3648e3db5.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/root-docs-preimages-r2/VISION-ENTREPRISE-APPRENANTE.md",
+      "sha256_gzip": "3437494caf3fed9be59c3f07f1d22d87a75cbb40ac8cd2573e94a54ea93f9793",
+      "sha256_original": "f2f9695efd55d2668cb55c6c648df97463359b629821d8004e98dca3648e3db5",
+      "taille_gzip": 3651,
+      "taille_originale": 7687
+    },
+    {
+      "archive": "memoire-r25/sources-archive-root-r1.json--c4fa6c28e28a9fea89334059b696c2606f871625c431bd3092f67bc803e9eb89.gz",
+      "categorie": "memoire-r25",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-r25/sources-archive-root-r1.json",
+      "sha256_gzip": "f8a2072000921806fc81f9b84fd03ac035ddc234994968d06614dbabdf4ca1f9",
+      "sha256_original": "c4fa6c28e28a9fea89334059b696c2606f871625c431bd3092f67bc803e9eb89",
+      "taille_gzip": 97,
+      "taille_originale": 152
+    },
+    {
+      "archive": "entrees-selectionnees/sources-complementaires-r1.json--fd00f8378633fd3bc5eecba3fc6fb85e87b0b4df17f1cff502c3d695ad4ed30a.gz",
+      "categorie": "entrees-selectionnees",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/sources-complementaires-r1.json",
+      "sha256_gzip": "d22cafcf3a128dec18f86086cdd7d2f579cb834a6efc27abd4669b2fab5dec1b",
+      "sha256_original": "fd00f8378633fd3bc5eecba3fc6fb85e87b0b4df17f1cff502c3d695ad4ed30a",
+      "taille_gzip": 156,
+      "taille_originale": 405
+    },
+    {
+      "archive": "preuves-root/memoire-pg-integre-root-r2-2026-10-02-apres.json--ac796e1fcec096e2c8aaaf5e58d8d4c73673cf7f1691b3d6e8043c6f5a4719de.gz",
+      "categorie": "preuves-root",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-pg-integre-root-r2-2026-10-02-apres.json",
+      "sha256_gzip": "eeb008163980f66cbd72705d7976b468646a35804b6ebf6fb18e3565c27a03f2",
+      "sha256_original": "ac796e1fcec096e2c8aaaf5e58d8d4c73673cf7f1691b3d6e8043c6f5a4719de",
+      "taille_gzip": 52630,
+      "taille_originale": 140504
+    },
+    {
+      "archive": "preuves-root/memoire-pg-integre-root-r2-2026-10-02-avant.json--ba459b0fff175a1c43b91495fc4a7bc41cb4260b6b6ce2e70c7ac75190f261ef.gz",
+      "categorie": "preuves-root",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-pg-integre-root-r2-2026-10-02-avant.json",
+      "sha256_gzip": "871a6f2913bdaea32f1cc5b3406b478e59c76feb3acfce8027e46e3a5be111f9",
+      "sha256_original": "ba459b0fff175a1c43b91495fc4a7bc41cb4260b6b6ce2e70c7ac75190f261ef",
+      "taille_gzip": 52630,
+      "taille_originale": 140504
+    },
+    {
+      "archive": "preuves-root/memoire-pg-integre-root-r2-2026-10-02-resultat.json--790d71f798353ecb7587c3aa0ea06a7f356654ead0a1728dd9ef57105fa29885.gz",
+      "categorie": "preuves-root",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-pg-integre-root-r2-2026-10-02-resultat.json",
+      "sha256_gzip": "68c612800e03740d680187acfaa0598f03a6f196fba4bf5431ef9f10222588bd",
+      "sha256_original": "790d71f798353ecb7587c3aa0ea06a7f356654ead0a1728dd9ef57105fa29885",
+      "taille_gzip": 525,
+      "taille_originale": 1005
+    },
+    {
+      "archive": "preuves-root/memoire-pg-integre-root-r2-2026-10-02.log--366f6cc4b8883d00ca95839556ff0cc5c1f11b6f3207b52dc8611ebac3d6d77d.gz",
+      "categorie": "preuves-root",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-pg-integre-root-r2-2026-10-02.log",
+      "sha256_gzip": "1caa91e9d8bf382597ec1c240d574ce7abb26ab9b352ca9b7afbc8f240f60e2d",
+      "sha256_original": "366f6cc4b8883d00ca95839556ff0cc5c1f11b6f3207b52dc8611ebac3d6d77d",
+      "taille_gzip": 62,
+      "taille_originale": 180
+    },
+    {
+      "archive": "preuves-root/memoire-pg-qualite-root-r1-2026-10-02-apres.json--756defa354adb76cfc1efc5558b1d82d833998dcffd1cd54f1a589264a545b2c.gz",
+      "categorie": "preuves-root",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-pg-qualite-root-r1-2026-10-02-apres.json",
+      "sha256_gzip": "2bae45fd621d3043b3c0a74be91304538613cb6243f56672abbf2f541c36a68f",
+      "sha256_original": "756defa354adb76cfc1efc5558b1d82d833998dcffd1cd54f1a589264a545b2c",
+      "taille_gzip": 52632,
+      "taille_originale": 140504
+    },
+    {
+      "archive": "preuves-root/memoire-pg-qualite-root-r1-2026-10-02-avant.json--d45d64d6fbd93d5dda02943fa6e6ca9d255a11272685adf873e2fee133c146f1.gz",
+      "categorie": "preuves-root",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-pg-qualite-root-r1-2026-10-02-avant.json",
+      "sha256_gzip": "aa03645500df044132ae0a1203d0db8f1da98d10306cda98d24361c98e136a8a",
+      "sha256_original": "d45d64d6fbd93d5dda02943fa6e6ca9d255a11272685adf873e2fee133c146f1",
+      "taille_gzip": 52632,
+      "taille_originale": 140504
+    },
+    {
+      "archive": "preuves-root/memoire-pg-qualite-root-r1-2026-10-02-resultat.json--2f0ec090a70cbe46bff8b0e25df8e3e8db94130a506171b685da80a083a54770.gz",
+      "categorie": "preuves-root",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-pg-qualite-root-r1-2026-10-02-resultat.json",
+      "sha256_gzip": "22f8a166dfac617821a359bc2be60632b381fa6a325b5aeefdc01f0733b0791d",
+      "sha256_original": "2f0ec090a70cbe46bff8b0e25df8e3e8db94130a506171b685da80a083a54770",
+      "taille_gzip": 454,
+      "taille_originale": 765
+    },
+    {
+      "archive": "preuves-root/memoire-pg-qualite-root-r1-2026-10-02.log--82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18.gz",
+      "categorie": "preuves-root",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-pg-qualite-root-r1-2026-10-02.log",
+      "sha256_gzip": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+      "sha256_original": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "taille_gzip": 39,
+      "taille_originale": 19
+    },
+    {
+      "archive": "preuves-root/memoire-pg-qualite-root-r2-2026-10-02-apres.json--f2c5d47a5c53127c2db099be56ebc9e57a6662598c62ba61d65fc09f24a8b9db.gz",
+      "categorie": "preuves-root",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-pg-qualite-root-r2-2026-10-02-apres.json",
+      "sha256_gzip": "6f96b19b632db499fb4a74203f7a91d2f617bf639a191ec00d2c1262efb8d936",
+      "sha256_original": "f2c5d47a5c53127c2db099be56ebc9e57a6662598c62ba61d65fc09f24a8b9db",
+      "taille_gzip": 52630,
+      "taille_originale": 140504
+    },
+    {
+      "archive": "preuves-root/memoire-pg-qualite-root-r2-2026-10-02-avant.json--40ad6433189f548aab38dc85082fa3b297b846f10253895753dcf8b07dd3057b.gz",
+      "categorie": "preuves-root",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-pg-qualite-root-r2-2026-10-02-avant.json",
+      "sha256_gzip": "149b7cf2d4dbeed72eca4d9706e8e64c8768c1ae875a839cdb06720149ed9564",
+      "sha256_original": "40ad6433189f548aab38dc85082fa3b297b846f10253895753dcf8b07dd3057b",
+      "taille_gzip": 52630,
+      "taille_originale": 140504
+    },
+    {
+      "archive": "preuves-root/memoire-pg-qualite-root-r2-2026-10-02-resultat.json--ec9aa447a7de9cae78d05e356888e8e410884f333acd3c4fc66ee8dd17129f98.gz",
+      "categorie": "preuves-root",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-pg-qualite-root-r2-2026-10-02-resultat.json",
+      "sha256_gzip": "8bd1f9fe443e131710fe96b961a4f3af399ca4bf60d1254552d4bb8b2862980f",
+      "sha256_original": "ec9aa447a7de9cae78d05e356888e8e410884f333acd3c4fc66ee8dd17129f98",
+      "taille_gzip": 472,
+      "taille_originale": 822
+    },
+    {
+      "archive": "preuves-root/memoire-pg-qualite-root-r2-2026-10-02.log--82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18.gz",
+      "categorie": "preuves-root",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-pg-qualite-root-r2-2026-10-02.log",
+      "sha256_gzip": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+      "sha256_original": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "taille_gzip": 39,
+      "taille_originale": 19
+    },
+    {
+      "archive": "preuves-root/memoire-pg-ram-root-r1-2026-10-02-apres.json--c714191fc7dd5c343d7cb4dc0ba864b83577dbd58e0957d02d7dbe555fc5c058.gz",
+      "categorie": "preuves-root",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-pg-ram-root-r1-2026-10-02-apres.json",
+      "sha256_gzip": "1d4db7c9cee3ada382d703a1653868b86cd58922b477d7df03960f33c0f6020e",
+      "sha256_original": "c714191fc7dd5c343d7cb4dc0ba864b83577dbd58e0957d02d7dbe555fc5c058",
+      "taille_gzip": 52632,
+      "taille_originale": 140504
+    },
+    {
+      "archive": "preuves-root/memoire-pg-ram-root-r1-2026-10-02-avant.json--1191a75e5bee1ea752c68af288e09901a0d6d25012feaf1f9fc4991f0472454f.gz",
+      "categorie": "preuves-root",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-pg-ram-root-r1-2026-10-02-avant.json",
+      "sha256_gzip": "1446bfbb1071af21e5cfea20641b64e2f9b7470732b2020132b8dd1f86c3f435",
+      "sha256_original": "1191a75e5bee1ea752c68af288e09901a0d6d25012feaf1f9fc4991f0472454f",
+      "taille_gzip": 52632,
+      "taille_originale": 140504
+    },
+    {
+      "archive": "preuves-root/memoire-pg-ram-root-r1-2026-10-02-resultat.json--1f237fe7a919e0cfb2f168346a24ba016db15e8d3696c0663571b17f9e79742d.gz",
+      "categorie": "preuves-root",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-pg-ram-root-r1-2026-10-02-resultat.json",
+      "sha256_gzip": "7ad135c2ea018d9974028e9e36ee66aa383cecf654019088a89301c2852a7305",
+      "sha256_original": "1f237fe7a919e0cfb2f168346a24ba016db15e8d3696c0663571b17f9e79742d",
+      "taille_gzip": 496,
+      "taille_originale": 886
+    },
+    {
+      "archive": "preuves-root/memoire-pg-ram-root-r1-2026-10-02.log--ca5be18710c17f7ee4b2218ed059cce3d9324d9bbda5bf9affe53a52d413cbc8.gz",
+      "categorie": "preuves-root",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-pg-ram-root-r1-2026-10-02.log",
+      "sha256_gzip": "1abcef358b55f8da26fee8a2b0beb178b7e9094e37d956d7e3eef6ec63953df8",
+      "sha256_original": "ca5be18710c17f7ee4b2218ed059cce3d9324d9bbda5bf9affe53a52d413cbc8",
+      "taille_gzip": 52,
+      "taille_originale": 99
+    }
+  ],
+  "date_utc": "2026-10-02T05:24:14.304479+00:00",
+  "exclusions": [],
+  "format": "gzip mtime=0, SHA256 intégral dans le nom, tailles et SHA brut/gzip",
+  "limites": [
+    "PGDATA tmpfs éphémère",
+    "embeddings simulés",
+    "pas CSV PostgreSQL",
+    "pas durabilité disque",
+    "pas mémoire premium complète",
+    "pas Core rerun"
+  ],
+  "schema": "opsys.r25-evidence-manifest/v1",
+  "selected_quality": "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-pg-qualite-root-r2-2026-10-02-resultat.json",
+  "selected_result": "/workspace/restructuration-opsys-2026-09-30/preuves/memoire-pg-integre-root-r2-2026-10-02-resultat.json",
+  "sources_generales_copiees": false
+}

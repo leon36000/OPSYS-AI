@@ -370,6 +370,24 @@ class TestEvenementClientAssocie:
         assert ligne["type_evenement"] == "m2.client_associe"
         assert ligne["producteur"] == "m02-revenue-crm"
 
+    def test_utm_publie_seulement_source_et_campagne_validees_pour_m7(self, base_durable):
+        contrat = _contrat(
+            "EVT-UTM",
+            utm={
+                "utm_source": "google", "utm_campaign": "automne",
+                "utm_medium": "cpc", "utm_content": "contenu-prive",
+            },
+        )
+        outils.ingerer_lead(contrat, "2026-09-01T09:00:00-04:00")
+        with stockage.transaction() as cnx:
+            ligne = cnx.execute(
+                select(EVENEMENTS_SORTANTS).where(EVENEMENTS_SORTANTS.c.evenement_id == "m2-client-associe-EVT-UTM")
+            ).mappings().one()
+        charge = codec.decoder(ligne["charge"])
+        assert charge["utm"] == {"utm_source": "google", "utm_campaign": "automne"}
+        assert "contenu-prive" not in str(charge)
+        assert "contact" not in charge
+
     def test_redelivrance_du_meme_lead_est_un_no_op(self, base_durable):
         """evenement_id déterministe (f"m2-client-associe-{lead_id}") : REJ-LEAD-DEJA-INGERE
         empêche de toute façon un second appel pour le même lead_id, mais l'idempotence de

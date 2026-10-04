@@ -7,7 +7,7 @@ son contrat de configuration, voir `PROVENANCE.md`. Ces règles s'ajoutent à ce
 
 1. **Le `AGENTS.md` de la racine du dépôt.**
    - Il fixe le produit, la preuve avant DONE et les frontières humaines T3.
-   - Il interdit les stubs, les TODO et les secrets.
+   - Il interdit les faux livrables et les secrets ; les tâches incomplètes sont suivies dans le plan.
    - Il fixe les commits en français.
 2. **La définition du produit** (`docs/produit/DEFINITION-PRODUIT.md`). Elle remplace `VISION.md`,
    qui ne décrit que la vision historique d'OpenClaw.
@@ -21,10 +21,15 @@ son contrat de configuration, voir `PROVENANCE.md`. Ces règles s'ajoutent à ce
 
 ## Exécution
 
-- **Le bac à sable de développement n'exécute pas le code du core** : ni `pnpm install`, ni
-  construction, ni tests. La raison : `pnpm install` lance des scripts de paquets tiers.
-  - La preuve vient de la CI `.github/workflows/core.yml` (Node 24, pnpm de `packageManager`).
-  - Lire le code, `rg` et les outils Python sans exécution restent permis.
+- **Vérification locale proportionnée**, conformément aux directives Nathan et à ADR-0012 :
+  les tests ciblés et la construction sont permis dans l'environnement de développement.
+  Installer les dépendances verrouillées avec `pnpm install --frozen-lockfile --ignore-scripts
+  --ignore-pnpmfile` : aucun script de paquet tiers implicite.
+  - Utiliser Node 24 et la version pnpm de `packageManager`, comme la CI.
+  - Si une dépendance native exige une compilation, inspecter son script et documenter la
+    commande nécessaire avant de l'exécuter explicitement. Ne pas réactiver tous les scripts.
+  - Les preuves locales complètent la CI `.github/workflows/core.yml` ; elles ne la remplacent
+    pas avant intégration. Un test non exécutable est déclaré tel quel avec sa cause.
 - **Lockfile** : on le régénère sans script de paquet, avec
   `pnpm install --lockfile-only --ignore-scripts --ignore-pnpmfile`.
 - **Dépendances** : un ajout ou une mise à jour passe les contrôles de chaîne d'approvisionnement

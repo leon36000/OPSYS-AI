@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 
 import demo_outils
 import pytest
+from sqlalchemy import select
 
-from opsys import approbations, jetons
+from opsys import approbations, contexte, jetons
 from opsys.capacites import Capacites
+from opsys.stockage.schema import ARTEFACTS
 
 
 @pytest.fixture
@@ -77,13 +80,60 @@ def test_budget_epuise_bloque_les_actions(capacites, session):
     assert bloque["erreur"] == "budget_epuise"
 
 
-def test_troncature_et_lecture_artefact(capacites):
+def test_troncature_et_lecture_artefact(capacites, session):
     reponse = capacites.appeler("m9_gros_rapport", {"lignes": 100})
     assert reponse["tronque"] is True
     assert "opsys_lire_artefact" in reponse["apercu"]
     ident = reponse["apercu"].split("artefact ")[1].split(" ")[0]
-    lecture = capacites.appeler("opsys_lire_artefact", {"id": ident, "debut": 0, "longueur": 100})
+    lecteur = Capacites(capacites.departements, session, limite_sortie=800, appelant="m09-demo")
+    lecture = lecteur.appeler("opsys_lire_artefact", {"id": ident, "debut": 0, "longueur": 100})
     assert lecture["ok"] is True and len(lecture["resultat"]["contenu"]) == 100
+
+
+def test_artefact_ne_se_lit_que_depuis_son_origine_authentifiee(departements_demo, session):
+    base = departements_demo["m09-demo"]
+    departements = {
+        **departements_demo,
+        "m01-front-office": dataclasses.replace(base, id="m01-front-office"),
+        "m02-revenue-crm": dataclasses.replace(base, id="m02-revenue-crm"),
+    }
+    appelant_reel = Capacites(
+        departements, session, filtre={"m09-demo"}, limite_sortie=800, appelant="m01-front-office"
+    )
+    rapport = appelant_reel.appeler("m9_gros_rapport", {"lignes": 100})
+    assert rapport["tronque"] is True
+    ident = rapport["apercu"].split("artefact ")[1].split(" ")[0]
+    with session() as cnx:
+        artefact = cnx.execute(
+            select(ARTEFACTS.c.departement, ARTEFACTS.c.origine).where(ARTEFACTS.c.id == ident)
+        ).one()
+    assert artefact == ("m09-demo", "m01-front-office")
+
+    acces_origine = appelant_reel.appeler(
+        "opsys_lire_artefact", {"id": ident, "debut": 0, "longueur": 100}
+    )
+    acces_autre_departement = Capacites(
+        departements, session, filtre={"m09-demo"}, limite_sortie=800, appelant="m02-revenue-crm"
+    ).appeler("opsys_lire_artefact", {"id": ident, "debut": 0, "longueur": 100})
+
+    assert acces_origine["ok"] is True
+    assert acces_autre_departement["ok"] is False
+    assert acces_autre_departement["erreur"] == "refus_metier"
+    assert ident not in acces_autre_departement.get("details", "")
+
+
+def test_artefact_legacy_sans_provenance_refuse_via_capacites(departements_demo, session):
+    ident = "legacy0000000001"
+    with session() as cnx:
+        cnx.execute(ARTEFACTS.insert().values(
+            id=ident, cree_le="2026-09-01T00:00:00+00:00", source="ancien", taille=12,
+            contenu="contenu secret", departement=None, origine=None,
+        ))
+    lecteur = Capacites(departements_demo, session, appelant="m09-demo")
+    reponse = lecteur.appeler("opsys_lire_artefact", {"id": ident, "debut": 0, "longueur": 100})
+    assert reponse["erreur"] == "refus_metier"
+    assert "contenu secret" not in str(reponse)
+    assert ident not in str(reponse)
 
 
 def test_normalisation_usage_fournisseurs():
@@ -110,10 +160,13 @@ def test_niveaux_de_budget(departements_demo, session):
 def test_lecture_artefact_bornes(session):
     with session() as cnx:
         texte = "a" * 10000
-        apercu = jetons.tronquer(cnx, texte, "test", limite=1000)
+        apercu = jetons.tronquer(
+            cnx, texte, "test", limite=1000, departement="m09-demo", origine="m09-demo"
+        )
         assert len(apercu) < 1200
         ident = apercu.split("artefact ")[1].split(" ")[0]
-        fin = jetons.lire_artefact(cnx, ident, debut=9990, longueur=100)
+        with contexte.appeler_en_tant_que("m09-demo"):
+            fin = jetons.lire_artefact(cnx, ident, debut=9990, longueur=100)
         assert fin["contenu"] == "a" * 10 and fin["reste"] == 0
         with pytest.raises(ValueError):
             jetons.lire_artefact(cnx, ident, debut=-1)

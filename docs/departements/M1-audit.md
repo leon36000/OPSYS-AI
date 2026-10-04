@@ -1,5 +1,31 @@
 # Audit M1 — Front Office IA
 
+> Audit historique du 28 septembre 2026, conservé pour traçabilité. Les évolutions ultérieures
+> ne sont pas inventoriées ici. Consulter le [plan de consolidation](../programme/RESTRUCTURATION-2026-09-30.md)
+> et les [recherches actuelles](../research/R16-2026-09-30/README.md) pour M1/M5/M7/M10. Un statut
+> ancien et un nombre de tests ne certifient pas le périmètre cible complet.
+
+## Mise à jour du 30 septembre 2026 — adaptateur de voicemail
+
+Un adaptateur Python `m1_front_office.voicemail_stt` accepte des octets audio déjà lus et une
+extension validée, contrôle taille/durée, envoie le média à un endpoint STT OpenAI-compatible
+configuré par l'opérateur, puis appelle `m1_importer_appel_manuellement`. Il n'écrit pas l'audio,
+exige le consentement d'enregistrement avant l'envoi et exige un accord distinct si l'endpoint
+n'est pas configuré local. Si le consentement, la configuration, l'endpoint ou la réponse manque,
+l'import canonique reçoit l'appel sans transcription et conserve le chemin de rappel M1. Un diagnostic
+HTTP est seulement indicatif; `/models` n'est pas requis et ne prouve pas que la transcription marche.
+
+Le test utilise un serveur local OpenAI-compatible avec une réponse de transcription fictive
+explicitement identifiée par les fixtures; aucun fournisseur STT réel, clé de production, canal
+téléphonique ou chargement sécurisé de fichiers n'a été validé. Le module n'est pas encore câblé à
+une route d'upload ni au runtime `voice-call`; un intégrateur doit faire la lecture bornée du fichier
+et passer les octets. Les tests M1 ciblés couvrent le succès via l'import canonique, le rejeu, les
+refus de consentement, les échecs STT et la durée. Cette tranche rend le point d'adaptation utilisable,
+mais ne livre pas M1.5 complet ni une réception vocale opérationnelle. Vérification du 30 septembre :
+la suite `departments/m01-front-office/tests` passe après actualisation de trois attentes historiques
+de statut d'approbation refusée; Ruff passe sur les fichiers Python touchés.
+
+
 **Date de l'audit :** 2026-09-28. **Portée :** `departments/m01-front-office/` seulement, en lecture.
 **Référence produit :** `docs/produit/DEFINITION-PRODUIT.md` §1, §5, §6, §7 (M1), §8, §9, §10, §13.
 **Méthode :** lecture intégrale des 12 modules de `src/m1_front_office/`, des 11 fichiers de tests, des

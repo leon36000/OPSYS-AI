@@ -78,7 +78,11 @@ export class MockProvider implements VoiceCallProvider {
       id: evt.id ?? crypto.randomUUID(),
       callId: evt.callId,
       providerCallId: evt.providerCallId,
+      dedupeKey: evt.dedupeKey,
       timestamp: evt.timestamp ?? Date.now(),
+      direction: evt.direction,
+      from: evt.from,
+      to: evt.to,
     };
 
     switch (evt.type) {

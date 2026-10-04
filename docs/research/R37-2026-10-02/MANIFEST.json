@@ -1,0 +1,263 @@
+{
+  "archives": [
+    {
+      "archive": "docs/e4910e340a43cff9--REPRISE-BILAN-R32-R42-2026-10-02.md.gz",
+      "origine": "/workspace/OPSYS-AI-recent/docs/programme/REPRISE-BILAN-R32-R42-2026-10-02.md",
+      "sha256_archive": "4dc1acf87213f6cfe2688cf2f0409678d10fc547adcc1dfbe4068a5f978f85c0",
+      "sha256_original": "e4910e340a43cff92c96189e0cb63489208e0752083066c0a769f99023a7bebb",
+      "taille_archive": 4489,
+      "taille_originale": 10046
+    },
+    {
+      "archive": "sources-r37/7c99c96cf2f1daad--application.py.gz",
+      "origine": "/workspace/OPSYS-AI-recent/src/opsys/console/application.py",
+      "sha256_archive": "b79f5717f9cd134bc7000ea12329b794e8c42548728e5d57c12eab97fb41be1d",
+      "sha256_original": "7c99c96cf2f1daad81231a09a222eb9949adddbb0a2c716eaed8f00d60ffc2a7",
+      "taille_archive": 10151,
+      "taille_originale": 47602
+    },
+    {
+      "archive": "sources-r37/1c7a330152022f9f--fusion_pdf_ui.py.gz",
+      "origine": "/workspace/OPSYS-AI-recent/src/opsys/console/fusion_pdf_ui.py",
+      "sha256_archive": "4a37ebc21e635a7b43e45153debe631465cdef223c4e5c1bae5ddec538549bae",
+      "sha256_original": "1c7a330152022f9fbcf8a91e77bc16f13cd87dc6b62749bf72df27cc47b4876a",
+      "taille_archive": 5662,
+      "taille_originale": 22194
+    },
+    {
+      "archive": "sources-r37/42e5c85c79e8ea10--fusion_synthese.py.gz",
+      "origine": "/workspace/OPSYS-AI-recent/src/opsys/console/fusion_synthese.py",
+      "sha256_archive": "4203bfda367f41e88169b9432f01217e0b035b26f456bd4dc1477050c82cbc44",
+      "sha256_original": "42e5c85c79e8ea1087fc4361f22939d2b95ab9576ed4591b2bb4d85b1176ef26",
+      "taille_archive": 3934,
+      "taille_originale": 12851
+    },
+    {
+      "archive": "sources-r37/4100931904a36317--test_console_fusion_synthese.py.gz",
+      "origine": "/workspace/OPSYS-AI-recent/tests/test_console_fusion_synthese.py",
+      "sha256_archive": "77d06daa70f9b722d26d42ae4b6ddabab4c6ae5855e582df1ee2ff8252d48caf",
+      "sha256_original": "4100931904a36317bf2466f03c55570229dd6bdd3b2b52e43bd021af0aa9216a",
+      "taille_archive": 3749,
+      "taille_originale": 13217
+    },
+    {
+      "archive": "preuves/1bff01f303688cfb--ENTREES-ARCHIVE-R37-r1.json.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/ENTREES-ARCHIVE-R37-r1.json",
+      "sha256_archive": "b45bddcc5dee659074194d2ac793a1872dfd235251e0dfe30b062a9f9a70a1df",
+      "sha256_original": "1bff01f303688cfb819981f4a13cb440dd183a1c67c1ae37dda3f4ed0de0a167",
+      "taille_archive": 2651,
+      "taille_originale": 9223
+    },
+    {
+      "archive": "preuves/39c7eb4695cc3592--FREEZE-R37-r1.json.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/FREEZE-R37-r1.json",
+      "sha256_archive": "e2d6ed97cb6fc7bea4b5c5edef5a217c969a651124d869e457443fac77fe5cc9",
+      "sha256_original": "39c7eb4695cc3592c4c71e6ec4f2f2eaf31230b7b024ec713d1e65dda07615bd",
+      "taille_archive": 1901,
+      "taille_originale": 4630
+    },
+    {
+      "archive": "preuves/df989fda64da0d76--FREEZE-R37-r2.json.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/FREEZE-R37-r2.json",
+      "sha256_archive": "2f21c51a992266ecafbef082d1037ced66658d9736df9dce538d78f113973638",
+      "sha256_original": "df989fda64da0d76d7468c5019e20364968fe76e26c16fdb0c5c4090b1942c3d",
+      "taille_archive": 1625,
+      "taille_originale": 3883
+    },
+    {
+      "archive": "preuves/1e3839bd8a1ade5a--archiver-r37-proposition-r1.py.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/archiver-r37-proposition-r1.py",
+      "sha256_archive": "b905acc7994c3e15204c8f985133f5c7682b2d6b8e40ee23175ec18c2a3b0575",
+      "sha256_original": "1e3839bd8a1ade5afea834d05c22f3c24436655be0bad5065e985ad423d562b5",
+      "taille_archive": 5373,
+      "taille_originale": 15138
+    },
+    {
+      "archive": "origines-et-recuperations/f32e9a5a23a4af90--PREIMAGES-R37-r2.json.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/preimages-r2/PREIMAGES-R37-r2.json",
+      "sha256_archive": "983e99a4f4d074675b33d2a4d21f76c559b9eb18370780c61703dd059a374a56",
+      "sha256_original": "f32e9a5a23a4af90b31c8e051b168b6a630faa2fbb416bd5966c60d94146f8d9",
+      "taille_archive": 459,
+      "taille_originale": 1024
+    },
+    {
+      "archive": "origines-et-recuperations/3dee4592bc4f7348--fusion_synthese.py.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/preimages-r2/fusion_synthese.py",
+      "sha256_archive": "7b8c7fc015fee679318b58aeadf1dcc61e7789862f7cd0ad62bb9a1c760e08eb",
+      "sha256_original": "3dee4592bc4f7348100ff324a686be6c76d39d0f0dafda0a6bdb0ee36e2eee24",
+      "taille_archive": 3937,
+      "taille_originale": 12858
+    },
+    {
+      "archive": "origines-et-recuperations/a71323c9744f9876--test_console_fusion_synthese.py.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/preimages-r2/test_console_fusion_synthese.py",
+      "sha256_archive": "d8c1f284afd389f1af7d47209a7d41c784035bf8fbb4c8465fcb112a7f742192",
+      "sha256_original": "a71323c9744f9876386283d243da9dbb85269f888fffbacdc451b12277155d14",
+      "taille_archive": 2903,
+      "taille_originale": 9693
+    },
+    {
+      "archive": "preuves/bdbf707f12ed4829--receipt-ruff-r2-2026-10-02.json.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/receipt-ruff-r2-2026-10-02.json",
+      "sha256_archive": "273be2162d0c3dcc038804ca7d7386a75dc7c157d9f028a6c3883724c94ea79c",
+      "sha256_original": "bdbf707f12ed48295650d4f31248f1498305472c21f69658c0421901aa904d6d",
+      "taille_archive": 312,
+      "taille_originale": 533
+    },
+    {
+      "archive": "preuves/f7db14a9633f599f--receipt-tests-r2-2026-10-02.json.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/receipt-tests-r2-2026-10-02.json",
+      "sha256_archive": "3b6e6173162f4231f3e99cd293159fed241ec6e10907dd677d003ae40b5cad92",
+      "sha256_original": "f7db14a9633f599f97f24b7c038077c34e91300e1b44c0accfe4a3e6bbd6a619",
+      "taille_archive": 436,
+      "taille_originale": 908
+    },
+    {
+      "archive": "origines-et-recuperations/58ecf1bdf3d1f0f3--RECUPERATION-R28-r1.json.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/references-r28-recuperation-apres-edition/RECUPERATION-R28-r1.json",
+      "sha256_archive": "24bdeb5a3170104060bbb8d55dfd280fcbea65eafdb43964ae6fd97231be227d",
+      "sha256_original": "58ecf1bdf3d1f0f3b3616e61764c25f9ca632be9d0cd882e169bd5b4183897bd",
+      "taille_archive": 734,
+      "taille_originale": 1766
+    },
+    {
+      "archive": "origines-et-recuperations/b57c57506e26815e--application.py.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/references-r28-recuperation-apres-edition/application.py",
+      "sha256_archive": "a6feb1c28bf8a2a4c168eddd11411a284162296f937fa7563acce8e9343e3670",
+      "sha256_original": "b57c57506e26815e8d0ce9ea0455d3e9cc0bb26407d18302e7fc9b8ee27e2452",
+      "taille_archive": 10127,
+      "taille_originale": 47422
+    },
+    {
+      "archive": "origines-et-recuperations/e22c63df6a8ff0dd--fusion_pdf_ui.py.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/references-r28-recuperation-apres-edition/fusion_pdf_ui.py",
+      "sha256_archive": "c4a0083f09440a3a722eb8acb539ce3ccd50473f1c94922f0e0631fec97bd69b",
+      "sha256_original": "e22c63df6a8ff0dd64db4ea2274d33267464e64fa11d0009bd3c064b65e7061d",
+      "taille_archive": 5629,
+      "taille_originale": 22050
+    },
+    {
+      "archive": "preuves/bb6248cbf6d5e2d8--rouge-r1.json.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/rouge-r1.json",
+      "sha256_archive": "8590cb2c51cf5b78d67d3efe3c4c58f70c8e3dabe9091372d7be3670328ffbc9",
+      "sha256_original": "bb6248cbf6d5e2d8361a151fb2f722044bcebb08b7ad1eeea6d4f9148f7e8c68",
+      "taille_archive": 338,
+      "taille_originale": 460
+    },
+    {
+      "archive": "preuves/18eebc6039d517fa--rouge-refus-pages-r1.json.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/rouge-refus-pages-r1.json",
+      "sha256_archive": "a7728ad084188afb01e6b901cc20d1aa052fd3b023d5322bb593ae78ebe19adf",
+      "sha256_original": "18eebc6039d517fae61168808299dc13f3bb028ff3a4510e9f7925ebf063a96c",
+      "taille_archive": 390,
+      "taille_originale": 558
+    },
+    {
+      "archive": "preuves/9e462d235a0f8f4e--rouge-refus-pages-r1.log.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/rouge-refus-pages-r1.log",
+      "sha256_archive": "83fccea6ea929cd833c7e753fa0e76c71767a28047cf11cf843680f05456745a",
+      "sha256_original": "9e462d235a0f8f4ec49390739ffd3f9f17125c9bf62c8b477e4ec3f7b71ac1ce",
+      "taille_archive": 236,
+      "taille_originale": 301
+    },
+    {
+      "archive": "preuves/82b3e6a6c090a576--ruff-r2-2026-10-02.log.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/ruff-r2-2026-10-02.log",
+      "sha256_archive": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+      "sha256_original": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "taille_archive": 39,
+      "taille_originale": 19
+    },
+    {
+      "archive": "preuves/b53866f7a853267d--tests-r2-2026-10-02.log.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/tests-r2-2026-10-02.log",
+      "sha256_archive": "7517484bd25ba64b2bc8453caa22275ce9e320d4071542ebaf2c9370f0adee53",
+      "sha256_original": "b53866f7a853267d7eca16c2faa2f71689f462d5b06ee572ef078a18d6b0409a",
+      "taille_archive": 33,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/49f67b0d851472b3--tests-r2-2026-10-02.xml.gz",
+      "origine": "/workspace/poursuite-opsys-2026-10-02-r1/fusion-dashboard-r37/tests-r2-2026-10-02.xml",
+      "sha256_archive": "c0b471ffb49d05a84116bfb8cd207c6dd1c8f5e2c16dc99a1a7000c38107b105",
+      "sha256_original": "49f67b0d851472b35b50649a9e683774187d2db62be0c055216bb901b53730be",
+      "taille_archive": 1730,
+      "taille_originale": 8393
+    },
+    {
+      "archive": "preuves/ace838b8e452c4d9--fusion-synthese-qualite-root-r1-2026-10-02-apres.json.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/fusion-synthese-qualite-root-r1-2026-10-02-apres.json",
+      "sha256_archive": "ff0d4c0c2b3129df5eb916dd316b101e6e962357ca1a6bc1936f91cb3b468130",
+      "sha256_original": "ace838b8e452c4d916ccf2cd4872a3ce0f095608fe3717ae5d4fd68129498280",
+      "taille_archive": 53381,
+      "taille_originale": 142667
+    },
+    {
+      "archive": "preuves/18c3e14eebeb3da7--fusion-synthese-qualite-root-r1-2026-10-02-avant.json.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/fusion-synthese-qualite-root-r1-2026-10-02-avant.json",
+      "sha256_archive": "8866b3a912843c650860da1474ed37c0bd843ea65002818832230e4c96848c53",
+      "sha256_original": "18c3e14eebeb3da7d03fe9f43aef4e40862f3f3989b3716000b7fb6b5b78a5e2",
+      "taille_archive": 53382,
+      "taille_originale": 142667
+    },
+    {
+      "archive": "preuves/29acf6322361e668--fusion-synthese-qualite-root-r1-2026-10-02-resultat.json.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/fusion-synthese-qualite-root-r1-2026-10-02-resultat.json",
+      "sha256_archive": "16b6c43ca4b92b4d4de1cf7dbf4f3fa50eb7ed35a693d6b06be27af73a6d9a0a",
+      "sha256_original": "29acf6322361e668087a66383fce0a89f09af877fbe62251353e0d21fd2a6eed",
+      "taille_archive": 382,
+      "taille_originale": 694
+    },
+    {
+      "archive": "preuves/82b3e6a6c090a576--fusion-synthese-qualite-root-r1-2026-10-02.log.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/fusion-synthese-qualite-root-r1-2026-10-02.log",
+      "sha256_archive": "47f394a1497b1873bc6e6d6f9bb92aa51b990821f1ddd7770a933ffd29c456cd",
+      "sha256_original": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "taille_archive": 39,
+      "taille_originale": 19
+    },
+    {
+      "archive": "preuves/1372ccd8f0358e25--fusion-synthese-root-r1-2026-10-02-apres.json.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/fusion-synthese-root-r1-2026-10-02-apres.json",
+      "sha256_archive": "5300ee96b37c4591f2b384a5c0b2070b1315e8883e181ac2ebb89ca4afb40a85",
+      "sha256_original": "1372ccd8f0358e25a2243ab8ea2cdc52e3a9ae7f5206d01ea433f6117537e4f1",
+      "taille_archive": 53382,
+      "taille_originale": 142667
+    },
+    {
+      "archive": "preuves/f1c748365516155e--fusion-synthese-root-r1-2026-10-02-avant.json.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/fusion-synthese-root-r1-2026-10-02-avant.json",
+      "sha256_archive": "3635240e8db67adbc45b13dd7c5520e79cf4d046843104915c6bd95906803626",
+      "sha256_original": "f1c748365516155ebf516c182a4afad3f51a5ac8909879e1d8471a4bcfc2c872",
+      "taille_archive": 53382,
+      "taille_originale": 142667
+    },
+    {
+      "archive": "preuves/ec148fdddad85917--fusion-synthese-root-r1-2026-10-02-resultat.json.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/fusion-synthese-root-r1-2026-10-02-resultat.json",
+      "sha256_archive": "d8b84c32efb75e2c8d0791bfa84f5b4e407a2d3fc3de8bfd95b2cd17f35d99f4",
+      "sha256_original": "ec148fdddad85917e1e0a749eee22740a09085201ac1a5ab09dea2766b870d12",
+      "taille_archive": 522,
+      "taille_originale": 1045
+    },
+    {
+      "archive": "preuves/b53866f7a853267d--fusion-synthese-root-r1-2026-10-02.log.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/fusion-synthese-root-r1-2026-10-02.log",
+      "sha256_archive": "7517484bd25ba64b2bc8453caa22275ce9e320d4071542ebaf2c9370f0adee53",
+      "sha256_original": "b53866f7a853267d7eca16c2faa2f71689f462d5b06ee572ef078a18d6b0409a",
+      "taille_archive": 33,
+      "taille_originale": 80
+    },
+    {
+      "archive": "preuves/ac4f50ef549e3aa6--fusion-synthese-root-r1-2026-10-02.xml.gz",
+      "origine": "/workspace/restructuration-opsys-2026-09-30/preuves/fusion-synthese-root-r1-2026-10-02.xml",
+      "sha256_archive": "d5484ccbfc5452e706cfb207bcbe0261878ee0c7d9268512db1efedc4826f4e7",
+      "sha256_original": "ac4f50ef549e3aa66da8a609670cc1781ff4a943e5e2817e8001342a9939dba3",
+      "taille_archive": 1737,
+      "taille_originale": 8393
+    }
+  ],
+  "limits": "ROOT58 : 58 cas uniques verts, zéro échec/erreur/skip; 1 111 sources stables. Ruff cinq fichiers vert. Le scénario PostgreSQL M03 est entièrement synthétique : 51 séries/52 versions paginées. Les préimages R37-r2 ne concernent que synthèse et test; application/PDF UI récupérés byte-à-byte de R28 après édition, donc explicitement pas des préimages prépatch. Le dashboard n’expose ni contenu, titre, montant, SHA, URI ni citation. La base financière et les pilotes CSV/PDF restent SQLite seuls; aucun PostgreSQL pilote qualifié. Aucune qualification métier/entreprise n’est inférée.",
+  "qualification": "R37 dashboard métadonnées privées seulement",
+  "schema": "opsys.r37-manifest/v1"
+}

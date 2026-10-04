@@ -135,6 +135,7 @@ def executer_tests():
                 # dynamique PLAN T0.12) : l'inclure crée la même récursion mutuelle que
                 # test_gardes_des_outils.py ci-dessus.
                 f"--ignore={_ENV.dossier_tests / 'test_outils_de_preuve.py'}",
+                f"--ignore={_ENV.dossier_tests / 'test_campagne_m3_persistante.py'}",
                 "-p", "no:cacheprovider", "--color=no", f"--junitxml={rapport}",
             ],
             capture_output=True,

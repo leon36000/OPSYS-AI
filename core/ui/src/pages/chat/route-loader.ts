@@ -5,6 +5,7 @@ import { pathForSession } from "../../app-session-path-builder.ts";
 import { sessionRefFromPath, type SessionPathTarget } from "../../app-session-route-paths.ts";
 import type { ApplicationContext as FullApplicationContext } from "../../app/context.ts";
 import { waitForGatewayClient } from "../../app/gateway-readiness.ts";
+import { t } from "../../i18n/index.ts";
 import type { BoardFace } from "../../lib/board/settings.ts";
 import {
   buildCatalogSessionKey,
@@ -21,6 +22,7 @@ import {
 import {
   buildAgentMainSessionKey,
   isUiGlobalSessionKey,
+  normalizeAgentId,
   parseAgentSessionKey,
   resolveAgentIdFromSessionKey,
   resolveUiConfiguredMainKey,
@@ -165,6 +167,50 @@ function mainSessionKey(
     agentId: target.agentId,
     mainKey: configuredMainKey(context),
   });
+}
+
+async function explicitMainAgentAvailability(
+  context: ApplicationContext,
+  target: Extract<SessionPathTarget, { kind: "main" }>,
+  signal: AbortSignal,
+): Promise<"available" | "unavailable" | "unknown"> {
+  const initialList = context.agents.state.agentsList;
+  const hasValidRoster = (list: typeof initialList): list is NonNullable<typeof initialList> =>
+    Boolean(
+      list &&
+      Array.isArray(list.agents) &&
+      list.agents.every((agent) => typeof agent?.id === "string" && Boolean(agent.id.trim())),
+    );
+  const configured = (list: NonNullable<typeof initialList>) =>
+    list.agents.some((agent) => normalizeAgentId(agent.id) === normalizeAgentId(target.agentId));
+  if (initialList && !hasValidRoster(initialList)) {
+    return "unknown";
+  }
+  if (initialList && configured(initialList)) {
+    return "available";
+  }
+  if (initialList && !context.agents.state.agentsListCached) {
+    return "unavailable";
+  }
+  if (
+    typeof context.agents.ensureList !== "function" ||
+    typeof context.agents.refreshList !== "function"
+  ) {
+    return "unknown";
+  }
+
+  let agentsList = initialList;
+  if (!agentsList || context.agents.state.agentsListCached) {
+    await waitForGatewayClient(context.gateway, signal);
+    agentsList = initialList
+      ? await context.agents.refreshList()
+      : await context.agents.ensureList();
+  }
+  signal.throwIfAborted();
+  if (!agentsList || context.agents.state.agentsListCached || !hasValidRoster(agentsList)) {
+    return "unknown";
+  }
+  return configured(agentsList) ? "available" : "unavailable";
 }
 
 function candidatesForResolution(
@@ -362,6 +408,19 @@ export async function loadChatRoute(
     };
   }
   if (target.kind === "main") {
+    if (face === "chat") {
+      const availability = await explicitMainAgentAvailability(context, target, signal);
+      if (availability !== "available") {
+        return {
+          kind: "route-error",
+          message:
+            availability === "unavailable"
+              ? t("chat.sessionRoute.agentUnavailable")
+              : t("chat.sessionRoute.agentRosterUnavailable"),
+          face: "chat",
+        };
+      }
+    }
     if (preferenceDerived || !defaultsUsable) {
       await waitForGatewayClient(context.gateway, signal);
     }

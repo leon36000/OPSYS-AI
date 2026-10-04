@@ -1,5 +1,10 @@
 # ADR-0011 — Canaux : réception sans modèle et envoi réel au client après approbation N4
 
+> Note du 30 septembre : document proposé, complété par des preuves historiques de tranches.
+> Ses mentions de revue extérieure obligatoire sont remplacées par ADR-0012. Les approbations
+> humaines d'envoi réel et de politique de consentement restent applicables ; aucune mise en
+> production n'est déduite de l'existence de cet ADR ou de ses patches.
+
 - Statut : **Proposé** (rédaction confiée par l'ingénieur en chef, 2026-09-29). **La décision appartient au
   propriétaire** (GATE NATHAN, section « Ce que le propriétaire décide »). Rien n'est codé : cet ADR ne touche ni
   `core/`, ni `src/`, ni un département.

@@ -108,7 +108,7 @@ async function dispatch(
   const sessionPromptState = getEmbeddedSessionPromptState(sessionId);
   try {
     await submitEmbeddedAttemptPrompt({
-      attempt: { sessionId },
+      attempt: { runId: "code-mode-result-budget-run", sessionId },
       activeSession,
       contextTokenBudget: contextWindowTokens,
       images: [],

@@ -14,9 +14,9 @@ ce fichier doit ÉCHOUER à l'exécution — c'est le RED attendu de la story.
 
 import ast
 import sys
+from pathlib import Path
 
 import pytest
-from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
@@ -402,9 +402,8 @@ def test_aucun_import_reseau_ni_modele_d_inference():
         if isinstance(noeud, ast.Import):
             for alias in noeud.names:
                 importes.add(alias.name.split(".")[0])
-        elif isinstance(noeud, ast.ImportFrom):
-            if noeud.level == 0 and noeud.module is not None:
-                importes.add(noeud.module.split(".")[0])
+        elif isinstance(noeud, ast.ImportFrom) and noeud.level == 0 and noeud.module is not None:
+            importes.add(noeud.module.split(".")[0])
     assert IMPORTS_INTERDITS.isdisjoint(importes)
 
 

@@ -22,6 +22,8 @@ export type RunCronAgentTurnParams = {
   cfg: OpenClawConfig;
   deps: CliDeps;
   job: CronStoredJob;
+  /** Gateway-owned validator; never persisted in jobs or supplied by model arguments. */
+  validateScheduledRuntimeAuthority?: (signal: AbortSignal) => Promise<void>;
   message: string;
   abortSignal?: AbortSignal;
   signal?: AbortSignal;

@@ -24,19 +24,25 @@ son identifiant ; le lien de suivi du paquet la porte, et `m7_exporter_paquet_ma
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from opsys import contexte as contexte_appel
 from opsys import stockage, taxonomie
 from opsys.outils import Autonomie, Niveau, Outil
 
+from . import growth as growth_service
+from . import local as local_service
+from . import performance_campagnes
 from .ads import intelligence as ads_intelligence
 from .aeo import aeo_engine
 from .attribution import attribution_engine
 from .brand import brand_schema
 from .brand import profil_client as brand_profil_client
+from .brand import registre as brand_registre
 from .competitive import report as competitive_report
 from .content import approval as content_approval
 from .content import contenu_public as content_contenu_public
@@ -45,6 +51,7 @@ from .moderation import detection as moderation_detection
 from .moderation.image import ImageSynthetique
 from .reputation import classifier as reputation_classifier
 from .reputation import demande_avis as reputation_demande_avis
+from .reputation import inbox as reputation_inbox
 from .reputation import ingestion as reputation_ingestion
 from .reputation import metrics as reputation_metrics
 from .reputation import response_builder as reputation_response_builder
@@ -189,6 +196,39 @@ def generer_lien_utm(
 # ---------------------------------------------------------------------------
 # Attribution + ROI (outil composé de bout en bout — remplace 4-5 allers-retours)
 # ---------------------------------------------------------------------------
+def _autoriser_lecture_performance() -> None:
+    identite_appelante = contexte_appel.identite_appelante()
+    appelante = usine_service._appelant_confirme()
+    if identite_appelante is not None and appelante is None:
+        raise ValueError("REJ-IDENTITE-APPAREIL-INVALIDE : identité et rôle non confirmés en base")
+    if appelante is not None:
+        source_ok = appelante.role == "admin" and appelante.source in {"appareil", "console"} or (
+            appelante.role == "nathan_owner" and appelante.source == "console"
+        )
+        if not source_ok:
+            raise ValueError("REJ-ROLE-COUTS : rôle financier non autorisé pour cette origine")
+    else:
+        # La voie sans appareil n'est autorisée que si le propriétaire a approuvé cette lecture serveur.
+        acteur, refus = usine_service._proprietaire_qui_decide("m7_lire_performance_campagnes")
+        if refus is not None or acteur is None:
+            code = refus.get("code", "REJ-HUMAIN-REQUIS") if refus else "REJ-HUMAIN-REQUIS"
+            raise ValueError(f"{code} : autorisation propriétaire active requise pour lire les marges")
+
+
+def lire_performance_campagnes(debut: str, fin: str) -> dict[str, Any]:
+    """Faits observés bornés, rôle revalidé; aucun coût ads ni ROI numérique n'est branché."""
+    _autoriser_lecture_performance()
+    try:
+        debut_date, fin_date = date.fromisoformat(debut), date.fromisoformat(fin)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("PERIODE_DATE_INVALIDE : debut et fin doivent être des dates ISO") from exc
+    if debut_date > fin_date:
+        raise ValueError("PERIODE_INVERSEE")
+    resultat = performance_campagnes.lire_performance(debut_date, fin_date)
+    _autoriser_lecture_performance()
+    return resultat
+
+
 def calculer_roi(
     date_reference: str,
     chemin_matomo: str | None = None,
@@ -198,10 +238,11 @@ def calculer_roi(
     chemin_calendrier: str | None = None,
     chemin_mapping: str | None = None,
 ) -> dict[str, Any]:
-    """Chaîne complète : fixtures Matomo/CRM -> attribution (première/dernière touche)
+    """Démonstration fictive : fixtures Matomo/CRM -> attribution (première/dernière touche)
     -> rapport ads (règles AD-01..AD-06) -> consolidation ROI par canal ET par fenêtre
     marketing, via la table de correspondance canal->plateforme_ads explicite. Ne
-    fabrique jamais un coût ou un nombre de leads : `donnees_insuffisantes` explicite
+    Les fixtures ne sont pas des faits d'entreprise. Ne pas utiliser ce résultat comme ROI réel.
+    Ne fabrique jamais un coût ou un nombre de leads : `donnees_insuffisantes` explicite
     chaque lien manquant (canal sans plateforme connue, fenêtre sans mapping, etc.).
     """
     chemin_matomo = chemin_matomo or str(_FIXTURES / "matomo" / "visites.v1.yaml")
@@ -231,6 +272,107 @@ def calculer_roi(
 # ---------------------------------------------------------------------------
 # Contenu (composé : fabrique + propose en un seul appel — T1, jamais publié)
 # ---------------------------------------------------------------------------
+def configurer_profil_marque(profil: dict[str, Any], horodatage: str) -> dict[str, Any]:
+    """Enregistre le profil validé, uniquement depuis une action propriétaire active."""
+    acteur, refus = usine_service._proprietaire_qui_decide("m7_configurer_profil_marque")
+    if refus is not None:
+        return {"statut": "refuse", "verdict": refus}
+    return brand_registre.enregistrer(profil, acteur["par"], horodatage)
+
+
+def lire_profil_marque_courant() -> dict[str, Any]:
+    return brand_registre.courant()
+
+
+def proposer_contenu_canonique(surface: str, type: str, sujet: dict[str, Any], timestamp: str) -> dict[str, Any]:
+    """Propose du contenu à partir du profil de marque durable courant, sans surcharge d'appelant."""
+    courant = brand_registre.courant()
+    if courant["statut"] != "configure":
+        return {
+            "statut": "a_configurer",
+            "motif": "configurer un profil de marque administrateur validé avant de proposer du contenu",
+        }
+    personne, source = usine_service._qui_appelle()
+    item = content_factory.build_content_item(courant["profil"], surface, type, sujet, timestamp)
+    item["brand_revision"] = courant["revision"]
+    return content_approval.propose(item, f"{source}:{personne}", timestamp)
+
+
+def enregistrer_observation_growth(
+    observation_id: str,
+    metrique: str,
+    valeur: float,
+    unite: str,
+    debut: str,
+    fin: str,
+    plateforme: str,
+    campagne: str,
+    source: str,
+    preuve: str,
+    confiance: float,
+) -> dict[str, Any]:
+    return growth_service.enregistrer_observation(
+        observation_id, metrique, valeur, unite, debut, fin, plateforme, campagne, source, preuve, confiance
+    )
+
+
+def generer_plan_growth_30j(horizon: str) -> dict[str, Any]:
+    return growth_service.plan_30j(horizon)
+
+
+def enregistrer_consentement_reference(
+    consentement_id: str, personne_ref: str, texte_consentement: str, source_preuve: str, horodatage: str
+) -> dict[str, Any]:
+    acteur = usine_service._appelant_confirme()
+    staff = acteur is not None and (
+        acteur.role in {"admin", "employee"} or (acteur.role == "nathan_owner" and acteur.source == "console")
+    )
+    if not staff:
+        return {"statut": "identite_requise", "motif": "saisie par un employé M7 authentifié requise"}
+    return local_service.enregistrer_consentement(
+        consentement_id, personne_ref, texte_consentement, source_preuve, horodatage, acteur.personne
+    )
+
+
+def proposer_campagne_locale(
+    campagne_id: str,
+    type_campagne: str,
+    nom: str,
+    periode_debut: str,
+    periode_fin: str,
+    budget_cad: float,
+    url_base: str,
+    utm_source: str,
+    utm_medium: str,
+    lead_ref: str | None = None,
+    consentement_id: str | None = None,
+) -> dict[str, Any]:
+    return local_service.proposer(
+        campagne_id,
+        type_campagne,
+        nom,
+        periode_debut,
+        periode_fin,
+        budget_cad,
+        url_base,
+        utm_source,
+        utm_medium,
+        lead_ref,
+        consentement_id,
+    )
+
+
+def approuver_budget_campagne(campagne_id: str, revision: int, plafond_cad: float) -> dict[str, Any]:
+    acteur, refus = usine_service._proprietaire_qui_decide("m7_approuver_budget_campagne")
+    if refus is not None:
+        return {"statut": "refuse", "verdict": refus}
+    return local_service.approuver_budget(campagne_id, revision, plafond_cad, acteur)
+
+
+def lire_campagne_locale(campagne_id: str) -> dict[str, Any]:
+    return local_service.lire(campagne_id)
+
+
 def proposer_contenu(
     brand: dict[str, Any],
     surface: str,
@@ -317,7 +459,8 @@ def preparer_contenu_public(
     bloquant = usine_service.retrait_bloquant(charge)
     if bloquant is not None:
         return {
-            "brouillon": None, "statut": "consentement_retire",
+            "brouillon": None,
+            "statut": "consentement_retire",
             "motif": f"consentement marketing retiré par le client (retrait {bloquant['retrait_id']}) : aucun contenu",
         }
 
@@ -369,11 +512,10 @@ def calculer_metriques_reputation(
     reponses: list[dict[str, Any]] | None = None,
     chemin_avis: str | None = None,
 ) -> dict[str, Any]:
-    """Charge les avis (lecture seule, D-043), les classe (règles déterministes,
-    REJ-0040) et calcule les métriques agrégées alignées m7-metrics.v1.yaml (ids
-    m7_rep_*), en un seul appel. `reponses` (optionnel) = réponses déjà proposées via
-    `m7_proposer_reponse_avis`, pour le taux de réponse et le délai moyen."""
-    avis_list = reputation_ingestion.charger_avis(Path(chemin_avis) if chemin_avis else None)
+    """Calcule les métriques depuis l'inbox durable; une fixture ne se charge que par chemin explicite."""
+    avis_list = (
+        reputation_ingestion.charger_avis(Path(chemin_avis)) if chemin_avis else reputation_inbox.avis_pour_metriques()
+    )
     classifications = [reputation_classifier.classifier_avis(a) for a in avis_list]
     return reputation_metrics.calculer_metriques(avis_list, reponses, classifications)
 
@@ -471,8 +613,10 @@ def _enregistrer_wct_recu(charge: dict[str, Any]) -> None:
     registre = stockage.maillons(*_REGISTRE_WCT_RECUS)
     for existant in registre:
         if existant.get("wct_id") == wct_id:
+            usine_service.rattacher_retraits_au_wct(existant)
             return  # déjà enregistré (relivraison de l'événement, ou repartir() rejoué)
     registre.append(dict(charge))
+    usine_service.rattacher_retraits_au_wct(charge)
 
 
 def _libelle_du_service(charge: dict[str, Any]) -> tuple[str | None, str | None]:
@@ -524,10 +668,11 @@ def _demande_avis_du_chantier(charge: dict[str, Any]) -> dict[str, Any]:
     PLAN T1.5-d : le brouillon naît du consentement du client à une demande d'avis
     (`consentement_demande_avis`, recueilli par l'employé dans l'app « Terminer », prouvé par M4 : qui,
     quand, quel texte), lu ICI dans le WCT reçu par le bus, jamais dans un argument. Fail-closed :
-    consentement absent ou faux, ou sans sa preuve, ou `client_satisfait = false`, refuse la
-    préparation (aucun brouillon écrit) avec un motif explicite dans le résumé rendu — mais le WCT reste
-    enregistré dans `wct_recus` dans tous les cas : un refus de demande d'avis n'empêche jamais
-    d'enregistrer le fait reçu. Pour un lead v2, le texte dit le libellé du service déclaré par
+    consentement absent ou faux, ou sans sa preuve, refuse la préparation (aucun brouillon écrit)
+    avec un motif explicite dans le résumé rendu — la satisfaction ne filtre jamais les clients
+    consentants. Une plainte est traitée séparément en privé et avec validation humaine. Le WCT reste
+    enregistré dans `wct_recus` dans tous les cas : un refus opérationnel ne bloque jamais le fait reçu.
+    Pour un lead v2, le texte dit le libellé du service déclaré par
     l'entreprise ; pour un lead v1, `type_travaux`.
 
     Idempotent par `wct_id` : un brouillon déjà déposé pour ce wct_id (relivraison de
@@ -561,7 +706,13 @@ def _demande_avis_du_chantier(charge: dict[str, Any]) -> dict[str, Any]:
 # consentement, sans le reste (`lead_id`, `intervention_id` restent au registre). Bornée : `Capacites`
 # tronque au-delà de 6 000 caractères, et un brouillon en pèse environ 650, d'où huit au plus.
 _CHAMPS_LIGNE_DEMANDE_AVIS = (
-    "id", "wct_id", "nature_travaux", "ville", "texte", "approval_status", "avertissements",
+    "id",
+    "wct_id",
+    "nature_travaux",
+    "ville",
+    "texte",
+    "approval_status",
+    "avertissements",
 )
 _LIMITE_DEMANDES_AVIS_DEFAUT = 5
 _LIMITE_DEMANDES_AVIS_MAX = 8
@@ -578,13 +729,16 @@ def lister_demandes_avis(limite: int = _LIMITE_DEMANDES_AVIS_DEFAUT) -> dict[str
     lignes = []
     for demande in reversed(demandes[-limite:]):
         preuve = demande["preuve_consentement"]
-        lignes.append({
-            **{cle: demande.get(cle) for cle in _CHAMPS_LIGNE_DEMANDE_AVIS},
-            "consentement": {
-                "recueilli_par": preuve["recueilli_par"], "recueilli_le": preuve["recueilli_le"],
-                "version_texte": preuve["version_texte"],
-            },
-        })
+        lignes.append(
+            {
+                **{cle: demande.get(cle) for cle in _CHAMPS_LIGNE_DEMANDE_AVIS},
+                "consentement": {
+                    "recueilli_par": preuve["recueilli_par"],
+                    "recueilli_le": preuve["recueilli_le"],
+                    "version_texte": preuve["version_texte"],
+                },
+            }
+        )
     return {"total": len(demandes), "demandes": lignes, "reste": len(demandes) - len(lignes)}
 
 
@@ -595,12 +749,22 @@ def _recevoir_retrait_consentement(charge: dict[str, Any]) -> dict[str, Any]:
     return usine_service.enregistrer_retrait_de_leads(charge)
 
 
+def _recevoir_fait_performance(type_evenement: str):
+    def recevoir(charge: dict[str, Any]) -> dict[str, Any]:
+        return performance_campagnes.enregistrer_fait(type_evenement, charge)
+
+    return recevoir
+
+
 def consommateurs() -> dict[str, Any]:
     """Types d'événements consommés par M7 (ADR-0009 §3) — voir `department.yaml:evenements.consomme`
     et `docs/architecture/DEPARTEMENTS.md` § Événements."""
     return {
         "m4.travaux_termines": _recevoir_travaux_termines,
         "m1.retrait_consentement": _recevoir_retrait_consentement,
+        "m2.client_associe": _recevoir_fait_performance("m2.client_associe"),
+        "m3.devis_accepte": _recevoir_fait_performance("m3.devis_accepte"),
+        "m5.rentabilite_chantier": _recevoir_fait_performance("m5.rentabilite_chantier"),
     }
 
 
@@ -633,6 +797,159 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=lire_profil_marque,
+        ),
+        Outil(
+            nom="m7_configurer_profil_marque",
+            description="Enregistre une nouvelle version Brand Core validée; action réservée au propriétaire actif.",
+            parametres={
+                "type": "object",
+                "properties": {"profil": _BRAND, "horodatage": {"type": "string"}},
+                "required": ["profil", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=configurer_profil_marque,
+            autonomie=Autonomie.T1,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m7_lire_profil_marque_courant",
+            description="Lit la version actuelle du registre durable de marque, ou À CONFIGURER.",
+            parametres={"type": "object", "properties": {}, "additionalProperties": False},
+            fonction=lire_profil_marque_courant,
+        ),
+        Outil(
+            nom="m7_enregistrer_observation_growth",
+            description=(
+                "Enregistre une métrique finie avec période, source, preuve et confiance; "
+                "rejeu idempotent par observation_id."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "observation_id": {"type": "string"},
+                    "metrique": {"type": "string"},
+                    "valeur": {"type": "number"},
+                    "unite": {"type": "string"},
+                    "debut": {"type": "string"},
+                    "fin": {"type": "string"},
+                    "plateforme": {"type": "string"},
+                    "campagne": {"type": "string"},
+                    "source": {"type": "string"},
+                    "preuve": {"type": "string"},
+                    "confiance": {"type": "number", "minimum": 0, "maximum": 1},
+                },
+                "required": [
+                    "observation_id",
+                    "metrique",
+                    "valeur",
+                    "unite",
+                    "debut",
+                    "fin",
+                    "plateforme",
+                    "campagne",
+                    "source",
+                    "preuve",
+                    "confiance",
+                ],
+                "additionalProperties": False,
+            },
+            fonction=enregistrer_observation_growth,
+        ),
+        Outil(
+            nom="m7_generer_plan_growth_30j",
+            description=(
+                "Génère et conserve un snapshot déterministe de recommandations fondées sur les observations M7."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"horizon": {"type": "string"}},
+                "required": ["horizon"],
+                "additionalProperties": False,
+            },
+            fonction=generer_plan_growth_30j,
+        ),
+        Outil(
+            nom="m7_enregistrer_consentement_reference",
+            description="Enregistre la preuve de consentement d'une personne avant toute campagne de référence.",
+            parametres={
+                "type": "object",
+                "properties": {
+                    "consentement_id": {"type": "string"},
+                    "personne_ref": {"type": "string"},
+                    "texte_consentement": {"type": "string"},
+                    "source_preuve": {"type": "string"},
+                    "horodatage": {"type": "string"},
+                },
+                "required": ["consentement_id", "personne_ref", "texte_consentement", "source_preuve", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=enregistrer_consentement_reference,
+            roles_appareil=frozenset({"admin", "employee"}),
+        ),
+        Outil(
+            nom="m7_proposer_campagne_locale",
+            description=(
+                "Crée un brouillon de campagne locale (camion, pancarte, flyer, partenaire, "
+                "événement, référence, voisinage), sans dépense. Référence exige consentement."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "campagne_id": {"type": "string"},
+                    "type_campagne": {"type": "string", "enum": sorted(local_service.TYPES)},
+                    "nom": {"type": "string"},
+                    "periode_debut": {"type": "string"},
+                    "periode_fin": {"type": "string"},
+                    "budget_cad": {"type": "number", "minimum": 0},
+                    "url_base": {"type": "string"},
+                    "utm_source": {"type": "string"},
+                    "utm_medium": {"type": "string"},
+                    "lead_ref": {"type": ["string", "null"]},
+                    "consentement_id": {"type": ["string", "null"]},
+                },
+                "required": [
+                    "campagne_id",
+                    "type_campagne",
+                    "nom",
+                    "periode_debut",
+                    "periode_fin",
+                    "budget_cad",
+                    "url_base",
+                    "utm_source",
+                    "utm_medium",
+                ],
+                "additionalProperties": False,
+            },
+            fonction=proposer_campagne_locale,
+            autonomie=Autonomie.T1,
+        ),
+        Outil(
+            nom="m7_approuver_budget_campagne",
+            description="Approuve le budget/plafond d'une révision exacte par le propriétaire actif; aucun paiement.",
+            parametres={
+                "type": "object",
+                "properties": {
+                    "campagne_id": {"type": "string"},
+                    "revision": {"type": "integer", "minimum": 1},
+                    "plafond_cad": {"type": "number", "minimum": 0},
+                },
+                "required": ["campagne_id", "revision", "plafond_cad"],
+                "additionalProperties": False,
+            },
+            fonction=approuver_budget_campagne,
+            autonomie=Autonomie.T1,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m7_lire_campagne_locale",
+            description="Lit le brouillon, la décision associée et le statut CRM non vérifié.",
+            parametres={
+                "type": "object",
+                "properties": {"campagne_id": {"type": "string"}},
+                "required": ["campagne_id"],
+                "additionalProperties": False,
+            },
+            fonction=lire_campagne_locale,
         ),
         Outil(
             nom="m7_auditer_seo_site",
@@ -703,7 +1020,8 @@ def outils() -> tuple[Outil, ...]:
         Outil(
             nom="m7_calculer_roi",
             description=(
-                "Chaîne complète attribution -> ads -> ROI de bout en bout : charge Matomo/CRM, attribue "
+                "DÉMONSTRATION FICTIVE seulement (fixtures Matomo/CRM/ads) : chaîne attribution -> ads -> ROI. "
+                "Ces nombres ne sont pas des faits d'entreprise. Charge Matomo/CRM, attribue "
                 "première/dernière touche, charge les campagnes ads, consolide le coût par lead par canal "
                 "ET par fenêtre marketing. Jamais de coût ou de nb_leads fabriqué : donnees_insuffisantes "
                 "explicite chaque lien manquant."
@@ -728,6 +1046,32 @@ def outils() -> tuple[Outil, ...]:
             fonction=calculer_roi,
         ),
         Outil(
+            nom="m7_lire_performance_campagnes",
+            description=(
+                "Lecture en cohorte des associations M2, devis acceptés M3 et marges observées M5, avec sources et "
+                "couverture partielle/inconnue. La marge M5 n'est pas un encaissement. Les dépenses ads, CPL et ROI "
+                "restent inconnus/null. Accès admin confirmé ou propriétaire après approbation serveur; "
+                "agents M7 seuls refusés."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "debut": {
+                        "type": "string", "format": "date",
+                        "description": "Début inclusif de la cohorte d'associations M2.",
+                    },
+                    "fin": {
+                        "type": "string", "format": "date",
+                        "description": "Fin inclusive de la cohorte et date maximale d'observation M3/M5.",
+                    },
+                },
+                "required": ["debut", "fin"],
+                "additionalProperties": False,
+            },
+            fonction=lire_performance_campagnes,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
             nom="m7_proposer_contenu",
             description=(
                 "Compose un content-item (gabarit Brand Core + tactiques SEO/AEO) et le dépose PROPOSE dans la file "
@@ -736,17 +1080,15 @@ def outils() -> tuple[Outil, ...]:
             parametres={
                 "type": "object",
                 "properties": {
-                    "brand": _BRAND,
                     "surface": {"type": "string", "enum": ["google_aio", "perplexity", "assistants_ia"]},
                     "type": {"type": "string", "enum": ["post_social", "page_seo", "fiche_gbp", "article_blog"]},
                     "sujet": _SUJET,
                     "timestamp": {"type": "string"},
-                    "acteur": {"type": "string"},
                 },
-                "required": ["brand", "surface", "type", "sujet", "timestamp", "acteur"],
+                "required": ["surface", "type", "sujet", "timestamp"],
                 "additionalProperties": False,
             },
-            fonction=proposer_contenu,
+            fonction=proposer_contenu_canonique,
             autonomie=Autonomie.T1,
         ),
         Outil(
@@ -778,7 +1120,9 @@ def outils() -> tuple[Outil, ...]:
                 "type": "object",
                 "properties": {
                     "limite": {
-                        "type": "integer", "minimum": 1, "maximum": _LIMITE_DEMANDES_AVIS_MAX,
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": _LIMITE_DEMANDES_AVIS_MAX,
                         "description": f"Nombre de brouillons montrés (défaut {_LIMITE_DEMANDES_AVIS_DEFAUT}).",
                     }
                 },
@@ -876,7 +1220,9 @@ def outils() -> tuple[Outil, ...]:
                     "wct_id": {"type": "string", "description": "Un seul chantier."},
                     "statut": {"type": "string", "enum": list(usine_registre.STATUTS)},
                     "limite": {
-                        "type": "integer", "minimum": 1, "maximum": usine_service.LIMITE_LISTE_MAX,
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": usine_service.LIMITE_LISTE_MAX,
                         "description": f"Contenus montrés (défaut {usine_service.LIMITE_LISTE_DEFAUT}).",
                     },
                     "decalage": {"type": "integer", "minimum": 0, "description": "Rang de départ (`suivant`)."},
@@ -939,6 +1285,81 @@ def outils() -> tuple[Outil, ...]:
             roles_appareil=frozenset({"admin"}),
         ),
         Outil(
+            nom="m7_proposer_creneau_calendrier",
+            description=(
+                "Crée un brouillon de créneau à partir d'un contenu de chantier approuvé. planifie_le est une "
+                "intention datée avec fuseau; aucune publication ni programmation automatique. Source et hash sont "
+                "résolus depuis les registres durables; consentement revérifié."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "contenu_id": {"type": "string"},
+                    "planifie_le": _HORODATAGE,
+                    "horodatage": _HORODATAGE,
+                },
+                "required": ["contenu_id", "planifie_le", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=usine_service.proposer_creneau_calendrier,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N1,
+        ),
+        Outil(
+            nom="m7_lister_calendrier",
+            description="Lit les créneaux et leur état vérifié; ne lance aucune action de publication.",
+            parametres={
+                "type": "object",
+                "properties": {"wct_id": {"type": "string"}},
+                "required": [],
+                "additionalProperties": False,
+            },
+            fonction=usine_service.lister_calendrier,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m7_decider_creneau_calendrier",
+            description=(
+                "Décision distincte du propriétaire sur le créneau exact. N'approuve pas le texte, ne publie "
+                "rien; le contenu doit aussi rester approuvé et consenti."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "creneau_id": {"type": "string"},
+                    "decision": {"type": "string", "enum": ["approuver", "rejeter"]},
+                    "horodatage": _HORODATAGE,
+                    "motif": {"type": "string"},
+                },
+                "required": ["creneau_id", "decision", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=usine_service.decider_creneau_calendrier,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N3,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m7_exporter_creneau_manuel",
+            description=(
+                "Remet au propriétaire le paquet officiel après approbations contenu et créneau actuelles. "
+                "Export manuel tracé; ne publie ni ne programme le post."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "creneau_id": {"type": "string"},
+                    "horodatage": _HORODATAGE,
+                },
+                "required": ["creneau_id", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=usine_service.exporter_creneau_manuel,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
             nom="m7_enregistrer_retrait_consentement_marketing",
             description=(
                 "Le client retire son consentement à l'usage de son chantier en contenu public (Loi 25) : bloque "
@@ -986,10 +1407,95 @@ def outils() -> tuple[Outil, ...]:
             autonomie=Autonomie.T1,
         ),
         Outil(
+            nom="m7_importer_avis_manuel",
+            description=(
+                "Importe une transcription d'avis consultée manuellement sur une plateforme, avec sa référence source. "
+                "La classification et le brouillon sont calculés et enregistrés durablement. Idempotent par plateforme "
+                "et identifiant source; contenu différent sous la même clé = conflit. Aucun accès API ni publication."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "plateforme": {"type": "string", "enum": ["google_business_profile", "facebook", "autre"]},
+                    "avis_source_id": {"type": "string", "minLength": 1, "maxLength": 200},
+                    "date_avis": {"type": "string", "format": "date"},
+                    "note": {"type": "integer", "minimum": 1, "maximum": 5},
+                    "texte": {"type": "string", "minLength": 1, "maxLength": 5000},
+                    "source_url": {"type": "string", "minLength": 1, "maxLength": 2000},
+                },
+                "required": ["plateforme", "avis_source_id", "date_avis", "note", "texte", "source_url"],
+                "additionalProperties": False,
+            },
+            fonction=reputation_inbox.importer_avis_manuel,
+            autonomie=Autonomie.T0,
+            niveau=Niveau.N2,
+            roles_appareil=frozenset({"admin", "employee"}),
+        ),
+        Outil(
+            nom="m7_lister_inbox_reputation",
+            description=(
+                "Liste les avis manuellement importés et leurs brouillons, avec filtres catégorie/statut. Les employés "
+                "peuvent importer et consulter; le texte et la source des plaintes/urgences restent réservés "
+                "aux admins."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "categorie": {"type": "string", "enum": ["litige", "urgence", "eloge", "neutre"]},
+                    "statut": {
+                        "type": "string",
+                        "enum": ["PROPOSE", "APPROUVE", "APPROUVE_PRIVE", "REJETE", "EXPORTE_MANUEL"],
+                    },
+                    "limite": {"type": "integer", "minimum": 1, "maximum": 100},
+                },
+                "required": [],
+                "additionalProperties": False,
+            },
+            fonction=reputation_inbox.lister_inbox_reputation,
+            roles_appareil=frozenset({"admin", "employee"}),
+        ),
+        Outil(
+            nom="m7_decider_reponse_avis",
+            description=(
+                "Décision humaine : seul le propriétaire actif approuve ou rejette la révision et le texte "
+                "du brouillon. "
+                "L'approbation d'une plainte la garde privée; aucune publication n'est faite."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "avis_id": {"type": "string"},
+                    "decision": {"type": "string", "enum": ["approuver", "rejeter"]},
+                    "horodatage": _HORODATAGE,
+                    "motif": {"type": "string", "maxLength": 500},
+                },
+                "required": ["avis_id", "decision", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=reputation_inbox.decider_reponse_avis,
+            autonomie=Autonomie.T1,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m7_exporter_reponse_avis_manuel",
+            description=(
+                "Construit une seule fois un paquet stable à copier manuellement après approbation du propriétaire. "
+                "Ne publie, n'envoie et ne contacte aucune plateforme; les plaintes/urgences sont interdites d'export."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"avis_id": {"type": "string"}},
+                "required": ["avis_id"],
+                "additionalProperties": False,
+            },
+            fonction=reputation_inbox.exporter_reponse_avis_manuel,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
             nom="m7_calculer_metriques_reputation",
             description=(
-                "Charge les avis (lecture seule), les classe (litige/urgence/eloge/neutre, déterministe) et calcule "
-                "les métriques agrégées m7_rep_*, en un seul appel."
+                "Calcule les métriques sur les avis manuellement importés et durables (classement déterministe). "
+                "Un fichier fixture ne peut être chargé que par chemin explicitement fourni."
             ),
             parametres={
                 "type": "object",

@@ -1,0 +1,89 @@
+{
+  "utc": "2026-10-03T09:12:56.294497+00:00",
+  "qualified": true,
+  "tests": {
+    "cases": 93,
+    "counts": {
+      "passed": 93,
+      "failure": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "files": [
+      "tests/test_console_cfo.py",
+      "tests/test_console_cfo_prive.py",
+      "tests/test_console_paie.py",
+      "tests/test_console_paie_obligations.py",
+      "tests/test_console_rapprochement_e2e.py",
+      "tests/test_finance_snapshot_prive.py",
+      "tests/test_obligations_rapprochement_ui.py",
+      "tests/test_reconciliation_privee.py"
+    ],
+    "expected_cases": 93,
+    "case_count_matches_expected": true,
+    "unique_case_ids": 93,
+    "all_cases_attributed_and_unique": true,
+    "ok": true
+  },
+  "source_count": 584,
+  "scope_sha256": {
+    "src/opsys/console/obligations_privees.py": "6011a5b1c7a53a9c87470cb0eebaae7ac535208b74b641571f96e63839332fa1",
+    "src/opsys/console/finance_snapshot_prive.py": "58ab643fdb7193a7a4065f21f4d93cb9f5e0e58db23a8b8521aad15ef0ae0363",
+    "src/opsys/console/obligations_rapprochement_ui.py": "0b51250accc6743a65a2803c0299fffd51f113754ed738e0d8aa0c3a3d1a9040",
+    "src/opsys/console/application.py": "78e66029a6574d9806ce2d3907a3a88933edfd2c4867c539474979f1b78f01a4",
+    "src/opsys/console/cfo_ui.py": "19868b33adca10495e7c39c29c36ce10e6b3458492c0c55a47430d5e6b0e36f4",
+    "tests/test_console_cfo.py": "adb188ae7addb521ee4d9f898347351e0fdbe8e856d68181d8b8d780ee31db11",
+    "tests/test_console_cfo_prive.py": "b3457efedcdb67e29c2895d48aa88041b24b95a1a597c116e5e841817c3469a3",
+    "tests/test_console_paie.py": "978e09e5b82b270d47e9aa8d024610d311f3c20c87d6a1037d4f832bb9f726a2",
+    "tests/test_console_paie_obligations.py": "e687d81620fe9d8ffa4725ab3cc69e5d93ae6baa285d47f1abd46ed4c90459ee",
+    "tests/test_console_rapprochement_e2e.py": "538aca7756eae93e75b2df2b23737157d24219f3493d1540a8ea6f8d2a12b7b0",
+    "tests/test_finance_snapshot_prive.py": "c7da6a399ef72dfb1ca489b4b27b767e99346ea5b32e32a71e1f9bf6e541ca40",
+    "tests/test_obligations_rapprochement_ui.py": "eddb6877d7802b13ec9d9e1698e499b180f6b46891c1bd73431587e1c643d62e",
+    "tests/test_reconciliation_privee.py": "c451186b46e282ea5e6675830ca0e25127ab52e7c8dff31fd90eb01ae13f4084"
+  },
+  "files": [
+    {
+      "source": "/dev/shm/opsys-m5-rapprochement-root-r4/execution-r1/receipt.json",
+      "archive": "receipt.json.gz",
+      "sha256": "3f2d6809ffd86405fd870cb13d3192829e53edac06fd4e3efc1d3ff06739fdf2",
+      "bytes": 467951
+    },
+    {
+      "source": "/dev/shm/opsys-m5-rapprochement-root-r4/execution-r1/pytest.xml",
+      "archive": "pytest.xml.gz",
+      "sha256": "772cbe94eb266bd2eef6fb235e5394ba9fe23e41d065bb557f7ee898bbc48c54",
+      "bytes": 16225
+    },
+    {
+      "source": "/dev/shm/opsys-m5-rapprochement-root-r4/execution-r1/pytest.log",
+      "archive": "pytest.log.gz",
+      "sha256": "0c59e86d0782f656f28369f8bef636fdb62b21a6e299f1ae9458321872b6b326",
+      "bytes": 180
+    },
+    {
+      "source": "/dev/shm/opsys-m5-rapprochement-root-r4/execution-r1/ruff.log",
+      "archive": "ruff.log.gz",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19
+    },
+    {
+      "source": "/dev/shm/opsys-m5-rapprochement-root-r4/FREEZE-SOURCES-r1.json",
+      "archive": "FREEZE-SOURCES-r1.json.gz",
+      "sha256": "37aa7d33d91f1b11de0a46f3569a3e306d5036f977451286ea4d90d1d315d1d8",
+      "bytes": 73762
+    },
+    {
+      "source": "/dev/shm/opsys-m5-rapprochement-root-r4/PLAN-r1.json",
+      "archive": "PLAN-r1.json.gz",
+      "sha256": "2ad19781f9cf9ba23b3dbc8110e9f1065742023f29fa2f18e48492f93394639e",
+      "bytes": 5336
+    },
+    {
+      "source": "/dev/shm/opsys-m5-rapprochement-root-r4/conducteur-root.py",
+      "archive": "conducteur-root.py.gz",
+      "sha256": "2b76a4299cedcf957b6cfad3bed573bc926fc83fad0f56f0f823f9376c49b220",
+      "bytes": 18685
+    }
+  ],
+  "limitations": "SQLite canonique/HTTP/AES/calcul M5 r\u00e9els, donn\u00e9es fictives. Aucun paiement/paie nette/fiscalit\u00e9 officielle/LLM/provider/prod/VPS. Pr\u00e9vision principale et MCP ne consomment pas ce cash priv\u00e9."
+}

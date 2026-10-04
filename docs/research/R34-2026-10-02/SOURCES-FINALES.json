@@ -1,0 +1,18 @@
+{
+  "annexes_configuration": {
+    "deploy/Dockerfile": "76d8cdf74ab193d11653c53d2dfca8eb74b9eeddd0099781f9f1a9aa88d9d2c8",
+    "deploy/docker-compose.yml": "edd26807edb3ecd85552406f132a41fae077da102903139247182d1c0f4497d0"
+  },
+  "controle_courant": "8 chemins déclarés; pas fermeture actuelle de tout le dépôt",
+  "documents": {
+    "docs/ops/EXPLOITATION.md": "77948b52700e8d8d1c408659e741be5a7c703126845a3d6c422527b6c6f12b2e"
+  },
+  "inventaire_entrees_sha256": "fd323cdad0ef16a59fa96900a988a19dde2b783c7a5efb2fb80f4cf96da8acc6",
+  "sources_qualifiees": {
+    ".gitignore": "c8436f665566550dc11c37b49c638399e29cd01607e3827eaaea1e9fc8a8a609",
+    "deploy/.env.example": "a0fa39253c6b7c8c2f497eb37611dd3ebd464194dbb875438f69200117d36ebc",
+    "deploy/backup.sh": "0cee00f4f2f1d36f2f747cfad02a3a3746ffe4dffb580b1411b31b229f21a0c2",
+    "deploy/restore.sh": "a5259f3ae047ce32ad1a4513ff08aad46515d71d95e0e545c0a21b608395e126",
+    "tests/test_deploy_backup_restore.py": "be96641cde6a58e10a12108127f8d6792c400f4148966c86bac1929de01cc6aa"
+  }
+}

@@ -21,12 +21,13 @@ Limite assumée : les cas fail-closed (source de M2 absente ou constante
 renommée) sont hors de ce fichier, car ils exigeraient de toucher au
 système de fichiers d'un module voisin.
 """
-import pytest
-
 import sys as _sys
 from pathlib import Path as _Path
+
+import pytest
+
 _sys.path.insert(0, str(_Path(__file__).resolve().parent))
-from _commun_gate import GATE, BRIEF, PRD, ARCHI
+from _commun_gate import ARCHI, BRIEF, GATE
 
 # Le corps des tests nomme le gate « VERIF_COHERENCE » : simple affectation
 # pour conserver cet identifiant sans toucher à aucun test.

@@ -1,0 +1,74 @@
+{
+  "asr_reel": {
+    "deadline_misses_4s": 20,
+    "distinct_speakers": 20,
+    "p50_seconds": 41.55056414302089,
+    "p95_seconds": 42.16105038500973,
+    "reference_words": 193,
+    "successful_requests": 20,
+    "wer": 0.29015544041450775,
+    "word_errors": 56
+  },
+  "audios_inclus": 0,
+  "decision": "NOT_QUALIFIED_FOR_REALTIME_CORE_4S",
+  "docker_lance": false,
+  "helpers_additionnes": false,
+  "helpers_root5_historique": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "tests": 5
+  },
+  "helpers_root6": {
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "tests": 6
+  },
+  "identifiants_bruts_inclus": false,
+  "identites_helpers_root6": [
+    [
+      "poursuite-opsys-2026-10-02-r1.R43-whisper-r6.test_bench_helpers.BenchHelpers",
+      "test_decoder_requests_whisper_sample_rate_output"
+    ],
+    [
+      "poursuite-opsys-2026-10-02-r1.R43-whisper-r6.test_bench_helpers.BenchHelpers",
+      "test_health_endpoint_is_request_path_plus_health"
+    ],
+    [
+      "poursuite-opsys-2026-10-02-r1.R43-whisper-r6.test_bench_helpers.BenchHelpers",
+      "test_latency_uses_nearest_rank"
+    ],
+    [
+      "poursuite-opsys-2026-10-02-r1.R43-whisper-r6.test_bench_helpers.BenchHelpers",
+      "test_proc_stat_parser_handles_spaces_and_parentheses_in_comm"
+    ],
+    [
+      "poursuite-opsys-2026-10-02-r1.R43-whisper-r6.test_bench_helpers.BenchHelpers",
+      "test_synthetic_mp3_becomes_seekable_core_pcm_wav"
+    ],
+    [
+      "poursuite-opsys-2026-10-02-r1.R43-whisper-r6.test_bench_helpers.BenchHelpers",
+      "test_wer_normalization_preserves_accents_and_numbers"
+    ]
+  ],
+  "index_sha256": {
+    "MANIFEST.json": "226783621c5e1f10be84254436bc55162f88b88ac025b9b5f52c1be5ddf4ef9b",
+    "README.md": "95251ccdb92141af26c9213ee2f9364fca7b453fabd1f1c58a1c5d1a6259562d",
+    "SOURCES-FINALES.json": "1bd7d6375679ddbabedcd8bc226edb9704a5a5b39761b06a66bdab5d7710c260"
+  },
+  "limites": "20 requêtes ASR réelles CPU/loopback/fr réussies, WER56/193, p50 nearest-rank41.55056414302089s, p9542.16105038500973s ; 20 dépassements délaiCore4s : NON QUALIFIÉ TEMPS RÉEL. Six helpers ROOT6 distincts du benchmark ; cinq helpers historiques non additionnés, source5 exacte absente. Projections pseudonymes, originaux et audios hors capsule ; pas poids/runtime/cache/secret. Driver original SHA inchangé ; manifeste projeté pas entrée replay directe. Aucun rejeu, Docker, modèle, téléchargement ou installation par archive. Pas voix métier/conversation/TTS/mobile/téléphone/VPS qualifié.",
+  "modeles_runtime_inclus": false,
+  "modules_helpers": {
+    "test_bench_helpers": 6
+  },
+  "resource_observations": {
+    "minimum_cgroup_headroom_bytes": 3102494720,
+    "minimum_host_available_bytes": 7745900544,
+    "peak_process_tree_rss_bytes": 938639360,
+    "sampling_interval_seconds": 0.25
+  },
+  "schema": "opsys.r43-qualification/v1",
+  "tests_benchmark_lances_par_archive": false,
+  "vps_qualifie": false
+}

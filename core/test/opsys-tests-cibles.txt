@@ -11,6 +11,8 @@
 # T1.4-c1 : transmission du _meta MCP (src/agents/mcp-call-meta.ts, agent-bundle-mcp-runtime.ts)
 src/agents/mcp-call-meta.test.ts
 src/agents/agent-bundle-mcp-runtime.mcp-call-meta.test.ts
+src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts
+src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.python-http.integration.test.ts
 src/agents/agent-bundle-mcp-runtime.test.ts
 src/agents/agent-bundle-mcp-runtime.agent-bundle.test.ts
 src/agents/agent-bundle-mcp-runtime.sse-recovery.test.ts
@@ -70,6 +72,7 @@ src/gateway/server-methods/health.owner-routing.test.ts
 # vers test/vitest/vitest.unit.config.ts (sorte « default »), la même configuration que `test:fast`.
 # Le test voisin d'origine de init.ts, src/context-engine/context-engine.test.ts, tourne déjà dans test:fast.
 src/context-engine/opsys-contexte-config.test.ts
+src/context-engine/opsys-contexte-cible-ticket.test.ts
 src/context-engine/opsys-contexte-paquet.test.ts
 src/context-engine/opsys-contexte-depot.test.ts
 src/context-engine/opsys-contexte-engine.test.ts
@@ -90,6 +93,15 @@ src/agents/agent-tools.before-tool-call.decision.test.ts
 src/agents/agent-tools.before-tool-call.e2e.test.ts
 src/agents/agent-tools.before-tool-call.embedded-mode.test.ts
 src/agents/agent-tools.before-tool-call.opsys-contexte.test.ts
+
+# Admission des profils configurables : frontière fournisseur et continuations, rang paresseux
+# des candidats, refus d'exposer les outils MCP internes. Le voisin run-entry teste le même raccord.
+# Ces fichiers appartiennent aux projets agents et ne sont pas couverts par test:fast.
+src/agents/agent-tools.before-tool-call.opsys-runtime-deny.test.ts
+src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts
+src/agents/embedded-agent-runner/opsys-runtime-admission.python-http.integration.test.ts
+src/agents/embedded-agent-runner/run-entry.admission.integration.test.ts
+src/agents/embedded-agent-runner/run-entry.test.ts
 
 # T0.7 lot 1, interface et locales : la marque visible devient OPSYS et fr-CA s'ajoute aux locales.
 # `test:fast` ne couvre ni `ui/` (projet vitest « ui », jsdom, avec le greffon de locales de Vite) ni `test/`.
@@ -221,3 +233,18 @@ src/daemon/paths.opsys.test.ts
 src/daemon/service-env.test.ts
 src/infra/state-migrations.opsys-instance.test.ts
 src/infra/state-migrations.state-dir.test.ts
+
+# M5 : droits CFO accordés par un humain, tickets privés liés au profil et échange HTTP Python réel.
+src/agents/opsys-cfo-grant-ticket.test.ts
+src/agents/agent-bundle-mcp-runtime.opsys-cfo-grant-ticket.python-http.integration.test.ts
+
+# M1 : import privé hôte, callback authentifié et transport MCP Python réel.
+# Le job tests-opsys fournit OPSYS_TEST_PYTHON, sans skip implicite.
+src/agents/opsys-runtime-missed-call.test.ts
+src/agents/opsys-runtime-missed-call.python-http.integration.test.ts
+src/plugins/services.missed-call.test.ts
+src/plugins/services.test.ts
+extensions/voice-call/src/config.missed-call-ingress.test.ts
+extensions/voice-call/src/webhook.missed-call.test.ts
+extensions/voice-call/src/webhook.test.ts
+extensions/voice-call/index.test.ts

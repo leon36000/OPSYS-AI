@@ -103,6 +103,9 @@ resoudre_chemins() {
     chemin_absolu OPSYS_BIN "$OPSYS_BIN"
     VENV="$OPSYS_LOGICIEL/venv"
     VENV_PY="$VENV/bin/python"
+    if [ -n "$ARCHIVE" ]; then
+        case "$ARCHIVE" in /*) ;; *) ARCHIVE="$PWD/$ARCHIVE" ;; esac
+    fi
 }
 
 # agir "ce que l'on fait" commande [arguments...] : en simulation, dit ce qui serait fait.
@@ -117,29 +120,68 @@ agir() {
     "$@"
 }
 
+chemin_physique() {
+    command -v python3 >/dev/null 2>&1 || die "python3 est requis pour vérifier les chemins physiques. Rien n'a été retiré."
+    python3 -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$1"
+}
+
+chemins_se_recouvrent() {
+    local premier="$1" second="$2"
+    [ "$premier" = "$second" ] && return 0
+    if [ "$premier" = / ] || [ "$second" = / ]; then return 0; fi
+    case "$premier/" in "$second/"*) return 0 ;; esac
+    case "$second/" in "$premier/"*) return 0 ;; esac
+    return 1
+}
+
+chemin_contient() {
+    local parent="$1" enfant="$2"
+    [ "$parent" = "$enfant" ] && return 0
+    [ "$parent" = / ] && return 0
+    case "$enfant/" in "$parent/"*) return 0 ;; esac
+    return 1
+}
+
 # Un dossier qui est ou contient les données de l'instance ou l'état du core, la racine ou le dossier personnel ne se
 # supprime jamais. L'état du core est protégé là où l'installation l'a noté ET là où il est aujourd'hui (~/.opsys/core) ou
 # était avant T0.7 lot 3 (~/.openclaw-opsys) : une installation d'avant le lot 3 a noté l'ancien chemin.
 garde_dossier() {
-    local dossier="${1%/}" etat
-    case "$dossier" in
-        '' | "$HOME" | "$OPSYS_HOME") die "refus de supprimer '$dossier' : c'est le dossier personnel ou celui des données. Rien n'a été retiré." ;;
+    local dossier="${1%/}" physique home_physique donnees_physiques etat etat_physique
+    physique="$(chemin_physique "$dossier")" || die "impossible de résoudre le chemin '$dossier'. Rien n'a été retiré."
+    home_physique="$(chemin_physique "$HOME")" || die "impossible de résoudre HOME. Rien n'a été retiré."
+    donnees_physiques="$(chemin_physique "$OPSYS_HOME")" || die "impossible de résoudre OPSYS_HOME. Rien n'a été retiré."
+    case "$physique" in
+        '' | / | "$home_physique") die "refus de supprimer '$dossier' : c'est la racine ou le dossier personnel. Rien n'a été retiré." ;;
         *) ;;
     esac
-    case "$OPSYS_HOME/" in
-        "$dossier"/*) die "refus de supprimer '$dossier' : il contient les données de l'instance ($OPSYS_HOME). Rien n'a été retiré." ;;
-        *) ;;
-    esac
+    if [ -n "$ARCHIVE" ]; then
+        local sauvegarde sauvegarde_physique
+        for sauvegarde in "$ARCHIVE" "$ARCHIVE.sha256"; do
+            sauvegarde_physique="$(chemin_physique "$sauvegarde")" || die "impossible de résoudre la sauvegarde '$sauvegarde'. Rien n'a été retiré."
+            if chemin_contient "$physique" "$sauvegarde_physique"; then
+                die "refus de supprimer '$dossier' : il contient la sauvegarde demandée ($sauvegarde). Choisissez un chemin hors du logiciel. Rien n'a été retiré."
+            fi
+        done
+    fi
+    if chemins_se_recouvrent "$physique" "$donnees_physiques"; then
+        if chemin_contient "$physique" "$donnees_physiques"; then
+            die "refus de supprimer '$dossier' : son chemin physique contient les données de l'instance ($OPSYS_HOME). Rien n'a été retiré."
+        fi
+        die "refus de supprimer '$dossier' : son chemin physique vise un sous-dossier des données de l'instance ($OPSYS_HOME). Rien n'a été retiré."
+    fi
     for etat in "$ENR_DOSSIER_CORE" "$HOME/.opsys/core" "$HOME/.openclaw-opsys"; do
         [ -n "$etat" ] || continue
-        if [ "$dossier" = "$etat" ]; then
-            die "refus de supprimer '$dossier' : c'est l'état du core (secrets, état du Gateway). Rien n'a été retiré."
+        etat_physique="$(chemin_physique "$etat")" || die "impossible de résoudre le chemin protégé '$etat'. Rien n'a été retiré."
+        if chemins_se_recouvrent "$physique" "$etat_physique"; then
+            if chemin_contient "$physique" "$etat_physique"; then
+                die "refus de supprimer '$dossier' : il contient l'état du core ($etat). Rien n'a été retiré."
+            fi
+            die "refus de supprimer '$dossier' : son chemin physique vise un sous-dossier de l'état du core ($etat). Rien n'a été retiré."
         fi
-        case "$etat/" in
-            "$dossier"/*) die "refus de supprimer '$dossier' : il contient l'état du core ($etat). Rien n'a été retiré." ;;
-            *) ;;
-        esac
     done
+    if chemin_contient "$physique" "$home_physique"; then
+        die "refus de supprimer '$dossier' : il contient le dossier personnel. Rien n'a été retiré."
+    fi
 }
 
 supprimer_dossier() {

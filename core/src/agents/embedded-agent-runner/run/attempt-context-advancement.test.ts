@@ -172,6 +172,7 @@ describe("context advancement through embedded attempt guards", () => {
           config: {},
           prompt: "Read the fixture.",
           contextTokenBudget: 8192,
+          runId: "context-advancement-run",
           model,
           modelId: model.id,
           provider: model.provider,
@@ -298,7 +299,11 @@ describe("context advancement through embedded attempt guards", () => {
       };
       const sessionPromptState = getEmbeddedSessionPromptState(sessionId);
       const promptContext = await prepareEmbeddedAttemptPromptContext({
-        attempt: { config: {}, contextTokenBudget: 8192, sessionId },
+        attempt: {
+          config: {},
+          contextTokenBudget: 8192,
+          sessionId,
+        },
         capabilityToolNames: new Set(["read_fixture"]),
         includeBoundaryTimestamp: false,
         isRawModelRun: false,
@@ -323,7 +328,7 @@ describe("context advancement through embedded attempt guards", () => {
       });
       try {
         await submitEmbeddedAttemptPrompt({
-          attempt: { sessionId },
+          attempt: { runId: "context-advancement-run", sessionId },
           activeSession: session,
           contextTokenBudget: promptContext.contextTokenBudget,
           images: [],

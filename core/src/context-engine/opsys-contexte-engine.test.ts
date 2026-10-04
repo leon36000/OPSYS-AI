@@ -214,6 +214,7 @@ describe("OpsysContextEngine assemble (PREFLIGHT)", () => {
 
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({
+      server: CONFIG_M3.contextServers.get("m03-estimation"),
       tool: "m10_paquet_contexte_affaire",
       args: { affaire_id: "LEAD-001", horodatage: NOW },
       timeoutMs: 4_000,
@@ -827,7 +828,7 @@ describe("OpsysContextEngine records what the guard needs (PLAN T3.3-suite-b)", 
     });
   });
 
-  it("tells M10 which agent the packet is for: the department read in the session key, never the request", async () => {
+  it("routes the packet to the session agent's bound server without sending an agent argument", async () => {
     const { engine, calls } = harness();
 
     await engine.assemble(
@@ -837,15 +838,25 @@ describe("OpsysContextEngine records what the guard needs (PLAN T3.3-suite-b)", 
     expect(calls[0]?.args).toStrictEqual({
       affaire_id: "LEAD-001",
       horodatage: NOW,
-      agent: "m03-estimation",
     });
+    expect(calls[0]?.server).toBe(CONFIG_M3.contextServers.get("m03-estimation"));
   });
 });
 
 describe("the guard reads what the engine recorded, end to end", () => {
-  function decide(harnessResult: ReturnType<typeof harness>, toolName: string, sessionKey = SESSION_M3) {
+  function decide(
+    harnessResult: ReturnType<typeof harness>,
+    toolName: string,
+    sessionKey = SESSION_M3,
+    toolParams: unknown = { contrat: { lead_id: "LEAD-001" } },
+  ) {
     return checkOpsysContexteToolCall(
-      { toolName, sessionKey, agentId: undefined },
+      {
+        toolName,
+        sessionKey,
+        agentId: undefined,
+        toolParams,
+      },
       {
         readConfig: () => ({ kind: "enabled", config: CONFIG_M3 }),
         store: harnessResult.guardStore,
@@ -901,7 +912,9 @@ describe("the guard reads what the engine recorded, end to end", () => {
     const h = harness({ handler: async () => ({ ok: true, resultat: emptyPaquet("LEAD-INCONNU") }) });
     await h.engine.assemble(assembleParams({ prompt: "Estime.\naffaire_id: LEAD-INCONNU" }));
 
-    expect(decide(h, "opsys_m3__m3_estimer_projet")).toStrictEqual({ block: false });
+    expect(
+      decide(h, "opsys_m3__m3_estimer_projet", SESSION_M3, { contrat: { lead_id: "LEAD-INCONNU" } }),
+    ).toStrictEqual({ block: false });
   });
 });
 
@@ -943,8 +956,9 @@ describe("OpsysContextEngine: the case comes from the session, never from the cl
     expect(calls[1]?.args).toStrictEqual({
       affaire_id: "LEAD-777",
       horodatage: NOW,
-      agent: "m01-front-office",
     });
+    expect(calls[0]?.server).toBe(CONFIG_M3.server);
+    expect(calls[1]?.server).toBe(CONFIG_M3_ET_M1_SESSION.contextServers.get("m01-front-office"));
     expect(result.systemPromptAddition).toContain("affaire LEAD-777");
     expect(guardStore.get(SESSION_CLIENT)).toMatchObject({ kind: "ready", affaireId: "LEAD-777" });
   });
@@ -1040,7 +1054,9 @@ describe("OpsysContextEngine: the case comes from the session, never from the cl
     await engine.assemble(assembleParams());
 
     expect(calls.map((call) => call.tool)).toStrictEqual(["m10_paquet_contexte_affaire"]);
-    expect(calls[0]?.args).toMatchObject({ affaire_id: "LEAD-001", agent: "m03-estimation" });
+    expect(calls[0]?.args).toMatchObject({ affaire_id: "LEAD-001" });
+    expect(calls[0]?.args).not.toHaveProperty("agent");
+    expect(calls[0]?.server).toBe(CONFIG_M3.contextServers.get("m03-estimation"));
   });
 
   describe("POSTFLIGHT", () => {
@@ -1108,8 +1124,8 @@ describe("OpsysContextEngine: what M10 says of the case itself (PLAN T4.18-b)", 
 
     expect(calls[0]?.args).toMatchObject({
       affaire_id: AFFAIRE_M10_OPPORTUNITE,
-      agent: "m03-estimation",
     });
+    expect(calls[0]?.args).not.toHaveProperty("agent");
     expect(result.systemPromptAddition).toContain(`affaire ${AFFAIRE_M10_OPPORTUNITE}`);
     expect(result.systemPromptAddition).toContain("ouverte par m2.client_associe");
     expect(result.systemPromptAddition).not.toContain(MARKER);

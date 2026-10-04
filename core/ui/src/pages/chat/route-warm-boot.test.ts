@@ -11,6 +11,7 @@ import {
   installShortSessionResolver,
   sessionRouteListResult,
 } from "./route-resolution.test-support.ts";
+import { renderChatRoute } from "./route-view.ts";
 
 function warmRoute(scope: "per-sender" | "global" = "per-sender") {
   const fixture = createSessionRouteContext();
@@ -30,11 +31,17 @@ function warmRoute(scope: "per-sender" | "global" = "per-sender") {
     agents: [{ id: "roboclaw" }],
   };
   context.agents.state.agentsListCached = true;
+  const refreshList = vi.fn(async () => {
+    context.agents.state.agentsListCached = false;
+    return context.agents.state.agentsList;
+  });
+  context.agents.refreshList = refreshList;
   const cache = createDeferred();
   context.sessions.whenCachedRosterSettled = vi.fn(() => cache.promise);
   return {
     ...fixture,
     cache,
+    refreshList,
     connect(this: void) {
       context.gateway.snapshot.phase = "connected";
       context.gateway.snapshot.client = connectedClient;
@@ -53,7 +60,7 @@ function warmRoute(scope: "per-sender" | "global" = "per-sender") {
 
 describe("cached session route startup", () => {
   it("resolves an explicit main route before connecting with per-sender defaults", async () => {
-    const { context, request } = warmRoute();
+    const { context, request, refreshList } = warmRoute();
 
     await expect(
       loadChatRoute(
@@ -66,6 +73,145 @@ describe("cached session route startup", () => {
 
     expect(context.gateway.subscribe).not.toHaveBeenCalled();
     expect(request).not.toHaveBeenCalled();
+    expect(refreshList).not.toHaveBeenCalled();
+  });
+
+  it("waits for a live roster before rejecting an agent missing from the cache", async () => {
+    const { context, request, refreshList, connect } = warmRoute();
+
+    const pending = loadChatRoute(
+      context,
+      { pathname: "/chat/retired", search: "", hash: "" },
+      "chat",
+      new AbortController().signal,
+    );
+    await vi.waitFor(() => expect(context.gateway.subscribe).toHaveBeenCalledOnce());
+    expect(refreshList).not.toHaveBeenCalled();
+    connect();
+    const route = await pending;
+
+    expect(route).toMatchObject({ kind: "route-error", message: "Agent unavailable" });
+    expect(refreshList).toHaveBeenCalledOnce();
+    expect(request).not.toHaveBeenCalled();
+    const view = renderChatRoute(route);
+    expect(view).toHaveProperty("strings");
+    const templateSource = (view as { strings: readonly string[] }).strings.join("");
+    expect(templateSource).not.toContain("openclaw-chat-page");
+  });
+
+  it("keeps an explicit route when refresh finds an agent absent from the cache", async () => {
+    const { context, refreshList, connect } = warmRoute();
+    const cached = context.agents.state.agentsList!;
+    refreshList.mockImplementation(async () => {
+      const refreshed = {
+        ...cached,
+        agents: [...cached.agents, { id: "new-agent" }],
+      };
+      context.agents.state.agentsList = refreshed;
+      context.agents.state.agentsListCached = false;
+      return refreshed;
+    });
+    connect();
+
+    await expect(
+      loadChatRoute(
+        context,
+        { pathname: "/chat/new-agent", search: "", hash: "" },
+        "chat",
+        new AbortController().signal,
+      ),
+    ).resolves.toMatchObject({ kind: "session", sessionKey: "agent:new-agent:workspace" });
+    expect(refreshList).toHaveBeenCalledOnce();
+  });
+
+  it("rejects an absent agent from an already live roster without refreshing again", async () => {
+    const { context, refreshList } = warmRoute();
+    context.agents.state.agentsListCached = false;
+
+    await expect(
+      loadChatRoute(
+        context,
+        { pathname: "/chat/retired", search: "", hash: "" },
+        "chat",
+        new AbortController().signal,
+      ),
+    ).resolves.toMatchObject({ kind: "route-error", message: "Agent unavailable" });
+    expect(refreshList).not.toHaveBeenCalled();
+  });
+
+  it.each(["null roster without loader", "malformed roster"])(
+    "fails closed for an %s",
+    async (invalid) => {
+      const { context } = warmRoute();
+      if (invalid === "null roster without loader") {
+        context.agents.state.agentsList = null;
+        context.agents.state.agentsListCached = false;
+        const incomplete = context.agents as unknown as {
+          ensureList?: unknown;
+          refreshList?: unknown;
+        };
+        delete incomplete.ensureList;
+        delete incomplete.refreshList;
+      } else {
+        context.agents.state.agentsList = { mainKey: "workspace", agents: null } as never;
+      }
+
+      await expect(
+        loadChatRoute(
+          context,
+          { pathname: "/chat/retired", search: "", hash: "" },
+          "chat",
+          new AbortController().signal,
+        ),
+      ).resolves.toMatchObject({
+        kind: "route-error",
+        message: "Agent status is unavailable. Reconnect and try again.",
+      });
+    },
+  );
+
+  it("does not label an unknown cached agent absent when a live roster request fails", async () => {
+    const { context, refreshList, connect } = warmRoute();
+    refreshList.mockResolvedValue(null);
+    connect();
+
+    await expect(
+      loadChatRoute(
+        context,
+        { pathname: "/chat/retired", search: "", hash: "" },
+        "chat",
+        new AbortController().signal,
+      ),
+    ).resolves.toMatchObject({
+      kind: "route-error",
+      message: "Agent status is unavailable. Reconnect and try again.",
+    });
+  });
+
+  it("does not label an agent absent when the refreshed roster contains an invalid entry", async () => {
+    const { context, refreshList, connect } = warmRoute();
+    const malformed = {
+      ...context.agents.state.agentsList!,
+      agents: [{ id: null }],
+    } as never;
+    refreshList.mockImplementation(async () => {
+      context.agents.state.agentsList = malformed;
+      context.agents.state.agentsListCached = false;
+      return malformed;
+    });
+    connect();
+
+    await expect(
+      loadChatRoute(
+        context,
+        { pathname: "/chat/retired", search: "", hash: "" },
+        "chat",
+        new AbortController().signal,
+      ),
+    ).resolves.toMatchObject({
+      kind: "route-error",
+      message: "Agent status is unavailable. Reconnect and try again.",
+    });
   });
 
   it("keeps a global main route waiting for hello", async () => {

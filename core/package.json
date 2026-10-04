@@ -51,6 +51,7 @@
     "pnpm-workspace.yaml",
     "README.md",
     "THIRD_PARTY_NOTICES.md",
+    "assets/avatar-models/",
     "dist/",
     ".openclaw-lifecycle-pending",
     "!dist/.buildstamp",

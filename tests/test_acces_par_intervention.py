@@ -172,7 +172,7 @@ def test_employe_ne_pointe_pas_pour_un_collegue_en_mode_ombre(capacites, personn
     assert _statut(capacites, i_lea) == "en_route"
     # La tentative reste visible dans le journal des approbations (T1.4-h), avec son issue de refus :
     # jamais « en attente » du propriétaire, jamais exécutée.
-    assert [t["statut"] for t in _traces(session)] == ["executee", "executee"]
+    assert [t["statut"] for t in _traces(session)] == ["echec", "echec"]
     assert all(t["decide_par"] == "marc.fictif" and t["resultat"] == {"ok": True, "accepte": False}
                for t in _traces(session))
 

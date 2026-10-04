@@ -26,9 +26,12 @@ import {
   VoiceCallConfigSchema,
   resolveVoiceCallConfig,
   validateProviderConfig,
+  VOICE_CALL_SERVICE_RELOAD_CONFIG_PREFIXES,
   type VoiceCallConfig,
 } from "./src/config.js";
 import { createVoiceCallContinueOperationStore } from "./src/gateway-continue-operation.js";
+import { createLocalAsrTranscriptionProvider } from "./src/local-asr-transcription-provider.js";
+import { resolveVoiceCallAgentId } from "./src/resolve-call-agent-id.js";
 
 const VOICE_CALL_WRITE_METHOD_SCOPE = { scope: "operator.write" as const };
 const VOICE_CALL_READ_METHOD_SCOPE = { scope: "operator.read" as const };
@@ -95,9 +98,13 @@ const VOICE_CALL_RUNTIME_COORDINATOR_KEY = Symbol.for("openclaw.voice-call.runti
 
 type VoiceCallRuntimeGeneration = {
   retired: boolean;
+  config: VoiceCallConfig;
   serviceHealth?: Parameters<
     Parameters<OpenClawPluginApi["registerService"]>[0]["start"]
   >[0]["serviceHealth"];
+  hostMissedCallImporter?: Parameters<
+    Parameters<OpenClawPluginApi["registerService"]>[0]["start"]
+  >[0]["hostMissedCallImporter"];
 };
 
 type VoiceCallRuntimeRegistration = {
@@ -191,8 +198,8 @@ export default definePluginEntry({
   description: "Voice-call plugin with Telnyx/Twilio/Plivo providers",
   configSchema: voiceCallConfigSchema,
   register(api: OpenClawPluginApi) {
+    api.registerRealtimeTranscriptionProvider(createLocalAsrTranscriptionProvider());
     const config = resolveVoiceCallConfig(voiceCallConfigSchema.parse(api.pluginConfig));
-    const validation = validateProviderConfig(config);
 
     const runtimeCoordinator = getVoiceCallRuntimeCoordinator();
     const runtimeRegistration: VoiceCallRuntimeRegistration =
@@ -200,7 +207,7 @@ export default definePluginEntry({
         ? runtimeCoordinator.current
         : {
             epoch: ++runtimeCoordinator.epochCounter,
-            generation: { retired: false },
+            generation: { retired: false, config },
           };
     const continueOperationStore = createVoiceCallContinueOperationStore({
       config,
@@ -213,11 +220,13 @@ export default definePluginEntry({
       runtimeGeneration: VoiceCallRuntimeGeneration,
     ): Promise<VoiceCallRuntime> => {
       activateRuntimeGeneration(runtimeGeneration);
-      if (!config.enabled) {
+      const runtimeConfig = runtimeGeneration.config;
+      if (!runtimeConfig.enabled) {
         throw new Error("Voice call disabled in plugin config");
       }
-      if (!validation.valid) {
-        throw new Error(validation.errors.join("; "));
+      const runtimeValidation = validateProviderConfig(runtimeConfig);
+      if (!runtimeValidation.valid) {
+        throw new Error(runtimeValidation.errors.join("; "));
       }
 
       while (true) {
@@ -264,13 +273,14 @@ export default definePluginEntry({
         }
 
         const runtimePromise = createVoiceCallRuntime({
-          config,
+          config: runtimeConfig,
           coreConfig: api.config as OpenClawConfig,
           fullConfig: api.config,
           agentRuntime: api.runtime.agent,
           stateRuntime: api.runtime.state,
           ttsRuntime: api.runtime.tts,
           logger: api.logger,
+          hostMissedCallImporter: runtimeGeneration.hostMissedCallImporter,
         });
         const startingSlot: VoiceCallRuntimeSlot = {
           state: "starting",
@@ -562,9 +572,32 @@ export default definePluginEntry({
 
     api.registerService({
       id: "voicecall",
+      ...(config.enabled && config.missedCallIngress
+        ? {
+            hostMissedCallIngress: {
+              version: 1,
+              agentId: resolveVoiceCallAgentId(config, api.config as OpenClawConfig),
+            },
+          }
+        : {}),
+      reload: {
+        configPrefixes: [...VOICE_CALL_SERVICE_RELOAD_CONFIG_PREFIXES],
+      },
       start: (ctx) => {
         if (isCliOnlyProcess()) {
           return;
+        }
+        const serviceRaw = ctx.config.plugins?.entries?.["voice-call"]?.config ?? {};
+        const serviceConfig = resolveVoiceCallConfig(voiceCallConfigSchema.parse(serviceRaw));
+        const serviceAgentId = resolveVoiceCallAgentId(serviceConfig, ctx.config);
+        if (
+          serviceConfig.enabled &&
+          serviceConfig.missedCallIngress &&
+          (!ctx.hostMissedCallImporter || ctx.hostMissedCallImporter.agentId !== serviceAgentId)
+        ) {
+          throw new Error(
+            "missed-call ingress is enabled but its host profile capability is unavailable or stale",
+          );
         }
         try {
           if (runtimeRegistration.generation.retired) {
@@ -573,20 +606,26 @@ export default definePluginEntry({
                 "Voice call runtime generation was superseded; use the current plugin registration",
               );
             }
-            runtimeRegistration.generation = { retired: false };
+            runtimeRegistration.generation = { retired: false, config: serviceConfig };
           }
+          runtimeRegistration.generation.config = serviceConfig;
           runtimeRegistration.generation.serviceHealth = ctx.serviceHealth;
+          runtimeRegistration.generation.hostMissedCallImporter =
+            serviceConfig.enabled && serviceConfig.missedCallIngress
+              ? ctx.hostMissedCallImporter
+              : undefined;
           activateRuntimeGeneration(runtimeRegistration.generation);
         } catch (err) {
           ctx.serviceHealth?.reportFailure(err);
           api.logger.error(`[voice-call] Failed to start runtime: ${formatErrorMessage(err)}`);
           return;
         }
-        if (!config.enabled) {
+        if (!serviceConfig.enabled) {
           return;
         }
-        if (!validation.valid) {
-          const error = new Error(`setup incomplete: ${validation.errors.join("; ")}`);
+        const serviceValidation = validateProviderConfig(serviceConfig);
+        if (!serviceValidation.valid) {
+          const error = new Error(`setup incomplete: ${serviceValidation.errors.join("; ")}`);
           ctx.serviceHealth?.reportFailure(error);
           api.logger.error(`[voice-call] Runtime not started: ${error.message}`);
           return;

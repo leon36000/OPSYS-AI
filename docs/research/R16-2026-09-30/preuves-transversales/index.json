@@ -1,0 +1,86 @@
+[
+  {
+    "repository": "inventree/InvenTree",
+    "sha": "9478c25a70696feddafbff139e6f41d3b0abe78d",
+    "date": "2026-09-29T11:26:53Z",
+    "archived": false,
+    "license": {
+      "key": "mit",
+      "name": "MIT License",
+      "spdx_id": "MIT",
+      "url": "https://api.github.com/licenses/mit",
+      "node_id": "MDc6TGljZW5zZTEz"
+    },
+    "license_path": "LICENSE",
+    "license_url": "https://github.com/inventree/InvenTree/blob/9478c25a70696feddafbff139e6f41d3b0abe78d/LICENSE",
+    "description": "Open Source Inventory Management System"
+  },
+  {
+    "repository": "google/or-tools",
+    "sha": "100f66e6242ab8bf8d32feb8f3bf086db66ae2b5",
+    "date": "2026-09-17T13:02:24Z",
+    "archived": false,
+    "license": {
+      "key": "apache-2.0",
+      "name": "Apache License 2.0",
+      "spdx_id": "Apache-2.0",
+      "url": "https://api.github.com/licenses/apache-2.0",
+      "node_id": "MDc6TGljZW5zZTI="
+    },
+    "license_path": "LICENSE",
+    "license_url": "https://github.com/google/or-tools/blob/100f66e6242ab8bf8d32feb8f3bf086db66ae2b5/LICENSE",
+    "description": "Google's Operations Research tools:"
+  },
+  {
+    "repository": "networkx/networkx",
+    "sha": "92f497e2eb8192d1ce9205595f512294e4a9b696",
+    "date": "2026-09-29T01:43:28Z",
+    "archived": false,
+    "license": {
+      "key": "other",
+      "name": "Other",
+      "spdx_id": "NOASSERTION",
+      "url": null,
+      "node_id": "MDc6TGljZW5zZTA="
+    },
+    "license_path": "LICENSE.txt",
+    "license_url": "https://github.com/networkx/networkx/blob/92f497e2eb8192d1ce9205595f512294e4a9b696/LICENSE.txt",
+    "description": "Network Analysis in Python"
+  },
+  {
+    "repository": "duckdb/duckdb",
+    "sha": "028c980193d8115cff19d86e2e73e716376bf03f",
+    "date": "2026-09-30T11:31:18Z",
+    "archived": false,
+    "license": {
+      "key": "mit",
+      "name": "MIT License",
+      "spdx_id": "MIT",
+      "url": "https://api.github.com/licenses/mit",
+      "node_id": "MDc6TGljZW5zZTEz"
+    },
+    "license_path": "LICENSE",
+    "license_url": "https://github.com/duckdb/duckdb/blob/028c980193d8115cff19d86e2e73e716376bf03f/LICENSE",
+    "description": "DuckDB is an analytical in-process SQL database management system"
+  },
+  {
+    "repository": "team-simpy/simpy",
+    "host": "gitlab.com",
+    "sha": "f43816490c6f76f336ad6e457d3cab9f386894af",
+    "date": "2026-05-23T23:25:14.000-04:00",
+    "archived": null,
+    "last_activity": "2026-07-14T14:43:27.501Z",
+    "license_url": "https://gitlab.com/team-simpy/simpy/-/blob/f43816490c6f76f336ad6e457d3cab9f386894af/LICENSE.rst",
+    "license_excerpt": "The MIT License (MIT)\n\nCopyright (c) 2013 Ontje Lünsdorf and Stefan Scherfke (also see AUTHORS.txt)\n"
+  },
+  {
+    "repository": "graphviz/graphviz",
+    "host": "gitlab.com",
+    "sha": "73780af60a7d334f3d67b92afa8b7ab5980696fe",
+    "date": "2026-09-29T13:46:31.000+00:00",
+    "archived": null,
+    "last_activity": "2026-09-30T00:39:05.279Z",
+    "license_url": "https://gitlab.com/graphviz/graphviz/-/blob/73780af60a7d334f3d67b92afa8b7ab5980696fe/LICENSE",
+    "license_excerpt": "Eclipse Public License - v 2.0\n\n    THE ACCOMPANYING PROGRAM IS PROVIDED UNDER THE TERMS OF THIS ECL"
+  }
+]

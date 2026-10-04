@@ -28,7 +28,9 @@ FICTIF = True  # aucune valeur ci-dessous n'est réelle (AGENTS.md)
 
 RACINE = Path(__file__).resolve().parents[1]
 EMBEDDINGS = {"OPSYS_EMBEDDINGS_URL": "http://127.0.0.1:11434/v1", "OPSYS_EMBEDDINGS_MODELE": "bge-m3"}
-SECRETS_ATTENDUS = ["OPSYS_MCP_JETON", "OPENCLAW_GATEWAY_TOKEN", "OPSYS_CLE_M1"]
+SECRETS_ATTENDUS = [
+    "OPSYS_MCP_JETON", "OPSYS_CONTEXT_MCP_JETON", "OPENCLAW_GATEWAY_TOKEN", "OPSYS_CLE_M1",
+]
 
 
 def _mode(chemin: Path) -> int:
@@ -83,7 +85,23 @@ def test_env_cree_en_0600_avec_les_secrets_manquants(tmp_path):
     env = instance.lire_env(chemin)
     assert len(env["OPSYS_MCP_JETON"]) >= 24 and not re.search(r"\s", env["OPSYS_MCP_JETON"])  # exigé par le moteur
     assert env["OPSYS_CLE_M1"].startswith("sk-opsys-m1-")
-    assert len({env[nom] for nom in SECRETS_ATTENDUS}) == 3  # trois secrets, trois valeurs
+    assert len({env[nom] for nom in SECRETS_ATTENDUS}) == 4  # quatre secrets indépendants
+
+
+def test_une_instance_existante_garde_son_bearer_public_et_genere_le_bearer_contexte(tmp_path):
+    chemin = tmp_path / "core" / ".env"
+    chemin.parent.mkdir()
+    public = "bearer-public-existant-fictif-123456"
+    chemin.write_text(f"OPSYS_MCP_JETON={public}\n", encoding="utf-8")
+
+    rapport = instance.assurer_env(chemin, SECRETS_ATTENDUS, {})
+    env = instance.lire_env(chemin)
+
+    assert env["OPSYS_MCP_JETON"] == public
+    assert len(env["OPSYS_CONTEXT_MCP_JETON"]) >= 24
+    assert env["OPSYS_CONTEXT_MCP_JETON"] != public
+    assert "OPSYS_CONTEXT_MCP_JETON" in rapport.generees
+    assert public not in repr(rapport) and env["OPSYS_CONTEXT_MCP_JETON"] not in repr(rapport)
 
 
 def test_aucune_valeur_dans_le_rapport(tmp_path):
@@ -217,7 +235,78 @@ def test_avec_paliers_et_embeddings_la_configuration_du_core_est_generee(opsys_h
     assert metier["commande_cli"] == [sys.executable, "-m", "opsys.cli"]
     assert metier["env"] == {"OPSYS_HOME": str(opsys_home)}
     env = instance.lire_env(core / ".env")
-    assert env["OPSYS_EMBEDDINGS_MODELE"] == "bge-m3" and env["OPSYS_PASSERELLE_URL"] == "http://127.0.0.1:4000/v1"
+    assert env["OPSYS_EMBEDDINGS_MODELE"] == "bge-m3"
+    assert "OPSYS_PASSERELLE_URL" not in env  # aucun LiteLLM implicite en mode natif
+    assert "OPSYS_MODE_FOURNISSEUR" not in env
+    agents = json.loads((core / "opsys" / "agents.json").read_text(encoding="utf-8"))
+    models = json.loads((core / "opsys" / "models.json").read_text(encoding="utf-8"))
+    assert agents["entries"]["m01-front-office"]["model"] == "anthropic/claude-sonnet-5"
+    assert models["providers"]["anthropic"]["apiKey"] == "${ANTHROPIC_API_KEY}"
+
+
+def test_une_url_litellm_ancienne_seule_ne_bascule_pas_le_mode_natif(opsys_home, etat_core, palier_standard):
+    chemin_env = etat_core / ".env"
+    chemin_env.parent.mkdir(parents=True, exist_ok=True)
+    chemin_env.write_text("OPSYS_PASSERELLE_URL=http://127.0.0.1:4000/v1\n", encoding="utf-8")
+
+    resultat = _initialiser(opsys_home, environ=EMBEDDINGS)
+
+    assert resultat.etat == "pret"
+    agents = json.loads((etat_core / "opsys" / "agents.json").read_text(encoding="utf-8"))
+    models = json.loads((etat_core / "opsys" / "models.json").read_text(encoding="utf-8"))
+    assert agents["entries"]["m01-front-office"]["model"] == "anthropic/claude-sonnet-5"
+    assert all(not nom.startswith("opsys-m") for nom in models["providers"])
+    assert instance.lire_env(chemin_env)["OPSYS_PASSERELLE_URL"] == "http://127.0.0.1:4000/v1"
+
+
+def test_mode_litellm_est_opte_et_persiste_seulement_si_explicite(opsys_home, etat_core, palier_standard):
+    resultat = _initialiser(
+        opsys_home,
+        environ={**EMBEDDINGS, "OPSYS_MODE_FOURNISSEUR": "litellm",
+                 "OPSYS_PASSERELLE_URL": "http://127.0.0.1:4500/v1"},
+    )
+
+    assert resultat.etat == "pret"
+    agents = json.loads((etat_core / "opsys" / "agents.json").read_text(encoding="utf-8"))
+    models = json.loads((etat_core / "opsys" / "models.json").read_text(encoding="utf-8"))
+    assert agents["entries"]["m01-front-office"]["model"] == "opsys-m1/opsys-standard"
+    assert models["providers"]["opsys-m1"]["baseUrl"] == "http://127.0.0.1:4500/v1"
+    assert instance.lire_env(etat_core / ".env")["OPSYS_MODE_FOURNISSEUR"] == "litellm"
+
+
+def test_la_cli_instance_recoit_le_mode_litellm_seulement_avec_les_deux_options(
+    opsys_home, etat_core, palier_standard, monkeypatch, capsys
+):
+    for nom, valeur in EMBEDDINGS.items():
+        monkeypatch.setenv(nom, valeur)
+    monkeypatch.delenv("OPSYS_MODE_FOURNISSEUR", raising=False)
+    monkeypatch.delenv("OPSYS_PASSERELLE_URL", raising=False)
+
+    code = cli.main([
+        "instance", "initialiser", "--source", str(RACINE), "--mode-fournisseur", "litellm",
+        "--url-passerelle", "http://127.0.0.1:4500/v1",
+    ])
+
+    assert code == 0, capsys.readouterr()
+    agents = json.loads((etat_core / "opsys" / "agents.json").read_text(encoding="utf-8"))
+    assert agents["entries"]["m01-front-office"]["model"] == "opsys-m1/opsys-standard"
+
+
+def test_mode_litellm_sans_url_echoue_avant_migration_et_ecriture(opsys_home, etat_core, palier_standard):
+    with pytest.raises(instance.ErreurInstance, match="exige une URL explicite"):
+        _initialiser(opsys_home, mode_fournisseur="litellm", environ=EMBEDDINGS)
+
+    assert not (opsys_home / "opsys.db").exists()
+    assert not (etat_core / ".env").exists()
+
+
+def test_une_url_seule_explicitement_fournie_est_refusee(opsys_home, palier_standard):
+    with pytest.raises(instance.ErreurInstance, match="réservée à --mode-fournisseur litellm"):
+        _initialiser(
+            opsys_home,
+            url_passerelle="http://127.0.0.1:4000/v1",
+            environ=EMBEDDINGS,
+        )
 
 
 def test_aucun_secret_dans_la_configuration_generee_ni_dans_la_sortie(opsys_home, etat_core, palier_standard,

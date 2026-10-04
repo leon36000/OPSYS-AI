@@ -71,6 +71,7 @@ export default function AccueilAdmin() {
         <Link href="/chantiers" style={styles.lien}>
           {t("admin.aVoir.liens.chantiers")}
         </Link>
+        <Link href="/agents" style={styles.lien}>Configuration des agents spécialistes</Link>
       </View>
     </ScrollView>
   );

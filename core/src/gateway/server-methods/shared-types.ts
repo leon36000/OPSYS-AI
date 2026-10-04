@@ -409,6 +409,10 @@ type GatewayResidentBridgeContext = {
   modelAccountConnectService?: ReturnType<
     typeof import("../model-account-connect.js").createModelAccountConnectService
   >;
+  /** Narrow private OPSYS cron-owner access; never exposes child credentials or status. */
+  opsysCronPrivateClientService?: Readonly<{
+    getClient: () => import("../opsys-cron-private-client.js").OpsysCronPrivateClient | undefined;
+  }>;
   getRuntimeSnapshot: (options?: ChannelRuntimeSnapshotOptions) => ChannelRuntimeSnapshot;
   getEventLoopHealth?: () => GatewayEventLoopHealth | undefined;
   getConfigReloaderHotReloadStatus?: () => GatewayHotReloadStatus | undefined;

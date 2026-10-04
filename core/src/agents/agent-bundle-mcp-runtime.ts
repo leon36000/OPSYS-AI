@@ -9,8 +9,11 @@ import {
   type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import { isRecord } from "@openclaw/normalization-core/record-coerce";
+import type { OpenClawConfig } from "../config/types.openclaw.js";
+import { createOpsysCibleTicketMeta } from "../context-engine/opsys-contexte-cible-ticket.js";
 import { racePromiseWithAbortSignal } from "../infra/abort-signal.js";
 import { logWarn } from "../logger.js";
+import { resolveAgentIdFromSessionKey } from "../routing/session-key.js";
 import {
   createCombinedSessionMcpRuntime,
   mergeMcpToolCatalogs,
@@ -60,6 +63,11 @@ import { collectMcpPaginatedItems } from "./mcp-pagination.js";
 import { isMcpToolAllowed, normalizeMcpToolFilter } from "./mcp-tool-filter.js";
 import { normalizeMcpToolCatalog, type McpToolCatalogMetadata } from "./mcp-tool-metadata.js";
 import { resolveMcpTransport } from "./mcp-transport.js";
+import { createOpsysCfoGrantTicketMeta } from "./opsys-cfo-grant-ticket.js";
+import {
+  createOpsysMemoireLectureMeta,
+  OPSYS_MEMOIRE_META,
+} from "./opsys-memoire-lecture-ticket.js";
 import { recordAgentCleanupFailure } from "./run-cleanup-timeout.js";
 
 type BundleMcpSession = {
@@ -86,6 +94,46 @@ const BUNDLE_MCP_MAX_LIST_PAGES = 128;
 const BUNDLE_MCP_MAX_LIST_ITEMS = 16_384;
 const BUNDLE_MCP_MAX_LIST_BYTES = 10 * 1024 * 1024;
 let bundleMcpCatalogListTimeoutMs: number | undefined;
+
+function opsysRuntimeProfileMeta(
+  cfg: OpenClawConfig | undefined,
+  sessionKey: string | undefined,
+  serverName: string,
+): Record<string, string> | undefined {
+  if (!sessionKey) {
+    return undefined;
+  }
+  let agentId: string;
+  try {
+    agentId = resolveAgentIdFromSessionKey(sessionKey);
+  } catch {
+    if (sessionKey.includes("opsys-agent-")) {
+      throw new Error("OPSYS runtime profile session is invalid");
+    }
+    return undefined;
+  }
+  if (!/^opsys_m(?:[1-9]|10)$/u.test(serverName)) {
+    return undefined;
+  }
+  const match = /^opsys-agent-([a-z][a-z0-9-]{1,63})$/u.exec(agentId);
+  if (!match) {
+    return undefined;
+  }
+  const binding = cfg?.agents?.entries?.[agentId]?.opsysRuntimeAdmission;
+  if (
+    !binding ||
+    binding.profileId !== match[1] ||
+    !Number.isSafeInteger(binding.profileRevision) ||
+    (binding.profileRevision ?? 0) <= 0
+  ) {
+    throw new Error("OPSYS runtime profile binding is missing or stale");
+  }
+  return {
+    "opsys/runtimeProfileId": binding.profileId,
+    "opsys/runtimeProfileRevision": String(binding.profileRevision),
+    "opsys/runtimeServer": serverName,
+  };
+}
 const BUNDLE_MCP_TEST_STATE_KEY = Symbol.for("openclaw.bundleMcpTestState");
 type BundleMcpTestState = { disposeTimeoutMs?: number };
 
@@ -1055,16 +1103,92 @@ function createServerMcpRuntime(
     async callTool(requestedServer, toolName, input) {
       const session = await getActiveSession(requestedServer);
       const validateResult = session.toolMetadata?.validatorForCall(toolName);
+      const callArguments = isRecord(input) ? input : {};
+      const ambientMeta = currentMcpCallMeta();
+      const deviceMetaKeys = [
+        "opsys/idempotencyKey",
+        "opsys/appareil",
+        "opsys/horodatageAppareil",
+        "opsys/personne",
+        "opsys/role",
+      ] as const;
+      const hasAnyDeviceMeta = deviceMetaKeys.some((key) => ambientMeta?.[key] !== undefined);
+      const isAuthenticatedOpsysDeviceCall = deviceMetaKeys.every(
+        (key) => typeof ambientMeta?.[key] === "string" && ambientMeta[key].length > 0,
+      );
+      if (hasAnyDeviceMeta && !isAuthenticatedOpsysDeviceCall) {
+        throw new Error("OPSYS device call refused: authenticated metadata is incomplete");
+      }
+      const requestSignal = getSessionMcpRequestSignal() ?? new AbortController().signal;
+      if (isAuthenticatedOpsysDeviceCall && toolName === "opsys_memoire_rechercher") {
+        throw new Error("OPSYS memory refused: device memory catalogue is closed");
+      }
+      // A device call carries a host-minted, authenticated person and idempotency envelope. The
+      // Python capability revalidates that human at the effect boundary; target tickets are for
+      // model calls and must not replace the established device authorization path.
+      const cibleTicket = isAuthenticatedOpsysDeviceCall
+        ? undefined
+        : await createOpsysCibleTicketMeta({
+            cfg: params.cfg,
+            serverName: requestedServer,
+            toolName,
+            toolParams: callArguments,
+            sessionKey: params.sessionKey,
+            signal: requestSignal,
+          });
+      const cfoGrantTicket = isAuthenticatedOpsysDeviceCall
+        ? undefined
+        : await createOpsysCfoGrantTicketMeta({
+            config: params.cfg,
+            serverName: requestedServer,
+            toolName,
+            toolParams: callArguments,
+            sessionKey: params.sessionKey,
+            signal: requestSignal,
+          });
+      const memoryTicket = await createOpsysMemoireLectureMeta({
+        config: params.cfg,
+        serverName: requestedServer,
+        toolName,
+        toolParams: callArguments,
+        sessionKey: params.sessionKey,
+        signal: requestSignal,
+      });
       // OPSYS `_meta` (IDEMPOTENCE.md §7): host-minted ambient context from `/tools/invoke`
       // (`tools-invoke-shared.ts`), never a caller-supplied param — absent outside that path, so
       // every other `callTool` (agent-driven tool use, other gateway callers) is unaffected.
-      const mcpCallMeta = currentMcpCallMeta();
+      const mcpCallMeta = { ...ambientMeta };
+      delete mcpCallMeta["opsys/cibleTicket"];
+      delete mcpCallMeta["opsys/cfoGrantTicket"];
+      delete mcpCallMeta[OPSYS_MEMOIRE_META];
+      delete mcpCallMeta["opsys/runtimeProfileId"];
+      delete mcpCallMeta["opsys/runtimeProfileRevision"];
+      delete mcpCallMeta["opsys/runtimeServer"];
+      if (!isAuthenticatedOpsysDeviceCall) {
+        Object.assign(
+          mcpCallMeta,
+          opsysRuntimeProfileMeta(params.cfg, params.sessionKey, requestedServer) ?? {},
+        );
+      }
+      if (cibleTicket) {
+        Object.assign(mcpCallMeta, cibleTicket.meta);
+      }
+      if (cfoGrantTicket) {
+        Object.assign(mcpCallMeta, cfoGrantTicket.meta);
+      }
+      if (memoryTicket) {
+        Object.assign(mcpCallMeta, memoryTicket.meta);
+      }
       const result = (await runGuardedMcpRequest(session, (signal) =>
         session.client.callTool(
           {
             name: toolName,
-            arguments: isRecord(input) ? input : {},
-            ...(mcpCallMeta ? { _meta: mcpCallMeta } : {}),
+            arguments:
+              memoryTicket?.arguments ??
+              cfoGrantTicket?.arguments ??
+              cibleTicket?.arguments ??
+              callArguments,
+            ...(Object.keys(mcpCallMeta).length > 0 ? { _meta: mcpCallMeta } : {}),
           },
           undefined,
           { timeout: session.requestTimeoutMs, signal },

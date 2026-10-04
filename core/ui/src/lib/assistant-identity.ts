@@ -2,6 +2,7 @@ import { normalizeOptionalString } from "@openclaw/normalization-core/string-coe
 // Control UI module implements assistant identity behavior.
 import { truncateUtf16Safe } from "@openclaw/normalization-core/utf16-slice";
 import type { AgentIdentityResult } from "../../../packages/gateway-protocol/src/schema/agent.js";
+import { isAssistantAvatarModelId } from "../../../src/shared/assistant-avatar-model-catalog.js";
 import { isRenderableAvatarImageDataUrl } from "../../../src/shared/avatar-limits.js";
 
 // Short text/emoji avatars (e.g. "A", "PS", "🦞"). Anything longer that is not
@@ -23,6 +24,7 @@ export const DEFAULT_ASSISTANT_AVATAR = "A";
 
 export type AssistantIdentity = {
   agentId?: string | null;
+  avatarModelId?: string | null;
   name: string;
   avatar: string | null;
   avatarSource?: string | null;
@@ -71,5 +73,6 @@ export function normalizeAssistantIdentity(
   const avatarReason = normalizeAssistantValue("avatarReason", input?.avatarReason) ?? null;
   const agentId =
     typeof input?.agentId === "string" && input.agentId.trim() ? input.agentId.trim() : null;
-  return { agentId, name, avatar, avatarSource, avatarStatus, avatarReason };
+  const avatarModelId = isAssistantAvatarModelId(input?.avatarModelId) ? input.avatarModelId : null;
+  return { agentId, avatarModelId, name, avatar, avatarSource, avatarStatus, avatarReason };
 }

@@ -6,7 +6,12 @@
 // its own environment, or generates it when absent, and only ever passes it to the engine
 // through the child's environment (never argv, never a file, never a log line).
 import { randomBytes as cryptoRandomBytes } from "node:crypto";
-import { OPSYS_MCP_TOKEN_ENV } from "./opsys-metier-config.js";
+import {
+  isGatewayOwnedOpsysMetierEnvName,
+  OPSYS_CONTEXT_MCP_TOKEN_ENV,
+  OPSYS_CRON_OPERATOR_TOKEN_ENV,
+  OPSYS_MCP_TOKEN_ENV,
+} from "./opsys-metier-config.js";
 
 /** `src/opsys/serveur_mcp.py` refuses a token shorter than this. */
 const MIN_TOKEN_LENGTH = 24;
@@ -83,7 +88,9 @@ const PASSTHROUGH_PREFIXES = ["LC_", "LITELLM_", "OPSYS_", "PYTHON", "UV_", "XDG
 
 function isPassedThrough(name: string): boolean {
   const upper = name.toUpperCase();
-  return PASSTHROUGH_NAMES.has(upper) || PASSTHROUGH_PREFIXES.some((prefix) => upper.startsWith(prefix));
+  return (
+    PASSTHROUGH_NAMES.has(upper) || PASSTHROUGH_PREFIXES.some((prefix) => upper.startsWith(prefix))
+  );
 }
 
 /**
@@ -96,6 +103,10 @@ export function buildOpsysMetierChildEnv(params: {
   extra: Readonly<Record<string, string>>;
   token: string;
 }): Record<string, string> {
+  const forbiddenExtraName = Object.keys(params.extra).find(isGatewayOwnedOpsysMetierEnvName);
+  if (forbiddenExtraName !== undefined) {
+    throw new Error(`metier.json env cannot set Gateway-owned variable ${forbiddenExtraName}`);
+  }
   const env: Record<string, string> = {};
   for (const [name, value] of Object.entries(params.base)) {
     if (value !== undefined && isPassedThrough(name)) {

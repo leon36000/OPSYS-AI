@@ -3,6 +3,53 @@
 OPSYS-CORE est un **fork dur** d'OpenClaw ([ADR-0008](../docs/decisions/ADR-0008-fork-openclaw-opsys-core.md)).
 Il n'est plus synchronisé avec l'amont. Nous le modifions librement et publions nos propres versions.
 
+## Renderer Web Three.js facultatif
+
+Le renderer d'avatar du chat utilise maintenant la dépendance UI directe `three@0.186.1`
+(MIT; archive npm 4 648 523 octets, SRI
+`sha512-blFeqb49wRCSGUGj7gtpfnSGHy2lwDk94RhUmS1c/hTby70kvChbWpkJ4Pm1390LqzzvTmzgXKHPEafJwCb8jA==`).
+Le copyright upstream exact est `Copyright © 2010-2026 three.js authors`; le texte de licence MIT
+exact de 1 081 octets, SHA-256 `8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc`, est conservé dans
+`ui/public/licenses/three-MIT.txt` et aussi reproduit dans `THIRD_PARTY_NOTICES.md`. La config
+UI épingle également `@types/three@0.186.0` comme outil de développement/type seulement. Le lock
+revérifié pour l'installation a le SHA-256 `faf75ce21976f50b35a194d378a9b27af86b68bffbb8bd90fd7be212d210f395`; ROOT a confirmé l'installation
+`--frozen-lockfile` avec pnpm 12.4.0 le 2026-10-02. La validation structurelle du lock est encore
+en cours.
+
+Le code source importe Three et son `GLTFLoader` de façon paresseuse uniquement dans l'avatar; la
+licence doit accompagner le JS Three regroupé ainsi que la copie UI statique. Le build Vite et la
+présence de cette licence dans le paquet produit ne sont pas encore vérifiés. L'implémentation
+renderer est dans `ui/src/pages/chat/components/chat-agent-3d-avatar.ts`; elle ne fournit ni STT,
+TTS, ni synchronisation labiale. Le GLB décrit ci-dessous reste un actif distinct sous CC0 1.0.
+
+## Actif de modèle 3D facultatif
+
+`assets/avatar-models/robotexpressive-quaternius-cc0-v1.glb` provient de l'exemple
+RobotExpressive de Three.js, épinglé au commit `b924f0cad4058dc4dde71445c796980c3cd5b5ed`.
+Le README upstream attribue le modèle à Quaternius sous CC0 1.0 et signale des modifications de
+Don McCurdy. L'actif embarqué (463 988 octets) a le SHA-256
+`047f5e5fb3bb6d378bd1df16ca6137f2a596c99b3a1b5690b4020c05aaf6f319`. Le README de provenance et
+le texte juridique CC0 sont conservés à côté du binaire sous `assets/avatar-models/`; l'inspection
+structurelle et le reçu de téléchargement sont dans le scratch R47. Il est livré sous forme d'actif
+local optionnel, avec catalogue fermé et route Gateway authentifiée ; il n'apporte ni moteur de
+rendu ni comportement vocal.
+
+`assets/avatar-models/mpfb-human-cc0-v1.glb` est un actif statique local optionnel dérivé de
+Talking Head, commit `b3e277b3b46f88e557bf28a2c5612a5b04e075c3`, URL source exacte
+<https://raw.githubusercontent.com/met4citizen/TalkingHead/b3e277b3b46f88e557bf28a2c5612a5b04e075c3/avatars/mpfb.glb>.
+Son README primaire de ce commit (`assets/avatar-models/MPFB-README.upstream.md`, ligne 375)
+déclare l'avatar MPFB sous CC0. Le GLB source de 36 815 920 octets a Git blob SHA-1
+`cd2ebbe1fe8bcbf3d5b2dfbf1262a7f76814e68f`; le candidat transformé fait 6 600 124 octets,
+SHA-256 `47d377b91d9872e439cbcc363b20630bcf68cda057218683aa0565372509b4df`. La seule retouche
+visuelle est la cuisson des échantillons de la texture diffuse CC0 d'origine des yeux (`brown_eye`,
+image SHA-256 `4659691c7295ad6206c78b003e5fd0e5f91dcd53032fa914a229bb48cabe424b`) en attribut
+`COLOR_0`, avec conversion sRGB-vers-linéaire, UV et facteur de matériau blanc; aucune texture ou
+image externe ne reste dans le GLB. Le rapport et les scripts de transformation et les vérifications
+structurelles sont conservés dans l'archive de provenance
+`AVATAR-MPFB-CC0-STRUCTURE-ROOT-r1`. Aucun code JavaScript/TypeScript de Talking Head n'est repris.
+L'actif et son rendu morph sont qualifiés localement; audio, synchronisation labiale et ACE restent
+hors qualification.
+
 | Champ | Valeur |
 |---|---|
 | Projet d'origine | [openclaw/openclaw](https://github.com/openclaw/openclaw) |

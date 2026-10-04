@@ -79,6 +79,42 @@ def test_un_nouveau_lien_remplace_le_precedent_sans_effacer_l_historique(affaire
     assert affaires.valider_chaine()[0] is True
 
 
+def test_revoquer_liee_courante_est_un_cas_append_only_et_rejouable_seulement_par_ligne_exacte(affaires):
+    maillon, verdict = _lier(affaires)
+    assert verdict is None
+
+    revoque, refus = liaison.revoquer_session_affaire(
+        CLE_CLIENT, maillon["ligne_id"], "amina.admin", "admin", "appareil", MOTIF,
+        PLUS_TARD, affaires,
+    )
+
+    assert refus is None
+    assert revoque["type_entree"] == "session_affaire_revoquee"
+    assert revoque["cible_ligne_id"] == maillon["ligne_id"]
+    assert liaison.affaire_de_la_session(CLE_CLIENT, affaires) == {"lie": False, "affaire_id": None}
+    assert len(affaires.lire()) == 2
+    rejeu, refus_rejeu = liaison.revoquer_session_affaire(
+        CLE_CLIENT, maillon["ligne_id"], "amina.admin", "admin", "appareil", MOTIF,
+        PLUS_TARD, affaires,
+    )
+    assert rejeu is None and refus_rejeu["code"] == liaison.REJ_LIAISON_CAS_PERIME
+    assert len(affaires.lire()) == 2
+
+
+def test_revoquer_une_liaison_perimee_ou_un_lien_absent_est_refuse_sans_ecriture(affaires):
+    ancienne, _ = _lier(affaires)
+    actuelle, _ = _lier(affaires, affaire="LEAD-2", horodatage=PLUS_TARD)
+    avant = affaires.lire()
+
+    revoque, refus = liaison.revoquer_session_affaire(
+        CLE_CLIENT, ancienne["ligne_id"], "amina.admin", "admin", "appareil", MOTIF,
+        "2026-09-21T09:00:00-04:00", affaires,
+    )
+
+    assert revoque is None and refus["code"] == "REJ-LIAISON-CAS-PERIME"
+    assert affaires.lire() == avant
+
+
 @pytest.mark.parametrize(
     "cle",
     [

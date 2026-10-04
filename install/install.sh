@@ -35,6 +35,7 @@
 #
 # Options
 #   --sans-service   n'installe pas le service (démarrage à la main : `opsys gateway run`)
+#   --avec-ingestion-pdf / --sans-ingestion-pdf  choix conservé ; PDF natif Linux non-root, bwrap requis
 #   --source CHEMIN  utilise ce dépôt tel quel, sans clone (comme OPSYS_SOURCE)
 #   --ref REF        branche, étiquette ou commit à installer (comme OPSYS_REF ; défaut : main)
 #   --aide
@@ -47,8 +48,10 @@
 #   OPSYS_SOURCE, OPSYS_REPO_URL, OPSYS_REF     provenance du code (voir plus haut)
 #   OPSYS_PORT_GATEWAY (défaut : 18789), OPSYS_PORT_MOTEUR (défaut : 8765)
 #   OPSYS_EMBEDDINGS_URL, OPSYS_EMBEDDINGS_MODELE, OPSYS_EMBEDDINGS_CLE   service d'embeddings (gardés dans .env)
-#   OPSYS_PASSERELLE_URL   passerelle de modèles LiteLLM (défaut : http://127.0.0.1:4000/v1) ; NON installée ici
+#   OPSYS_MODE_FOURNISSEUR  natif (défaut) ou litellm (compatibilité explicite)
+#   OPSYS_PASSERELLE_URL   URL LiteLLM, utilisée seulement si OPSYS_MODE_FOURNISSEUR=litellm
 #   OPSYS_VERBOSE=1  affiche aussi la sortie des étapes (elle va toujours au journal)
+#   OPSYS_INGESTION_ENV_FILE  chemin absolu du fichier privé existant de clés AES (jamais lu par bash ni exporté au core)
 #
 # Code de sortie : 0 tout est prêt ; 1 une étape a échoué ; 3 installé mais il manque une décision (paliers de modèles,
 # service d'embeddings) : le message dit quoi fournir, puis on relance la même commande.
@@ -82,6 +85,11 @@ EN_ATTENTE=0
 PORT_GATEWAY=""
 PORT_MOTEUR=""
 DOSSIER_CORE=""
+MODE_FOURNISSEUR="natif"
+INGESTION_PDF=0
+CHOIX_INGESTION_PDF=""
+FICHIER_INGESTION=""
+CONFIGURER_PDF=0
 
 info() { printf '[opsys] %s\n' "$*"; }
 avertir() { printf '[opsys] AVERTISSEMENT : %s\n' "$*" >&2; }
@@ -102,9 +110,11 @@ usage() {
         "install.sh : installe OPSYS (OPSYS-CORE + moteur métier) sur Linux ou macOS." \
         "" \
         "Options : --sans-service   --source CHEMIN   --ref REF   --aide" \
+        "  --avec-ingestion-pdf / --sans-ingestion-pdf (choix persistant, défaut désactivé)" \
         "Variables : OPSYS_HOME, OPSYS_LOGICIEL, OPSYS_BIN, OPSYS_SOURCE, OPSYS_REPO_URL, OPSYS_REF," \
         "  OPSYS_PORT_GATEWAY, OPSYS_PORT_MOTEUR, OPSYS_EMBEDDINGS_URL, OPSYS_EMBEDDINGS_MODELE," \
-        "  OPSYS_EMBEDDINGS_CLE, OPSYS_PASSERELLE_URL, OPSYS_VERBOSE" \
+        "  OPSYS_EMBEDDINGS_CLE, OPSYS_MODE_FOURNISSEUR, OPSYS_PASSERELLE_URL, OPSYS_VERBOSE" \
+        "  OPSYS_INGESTION_ENV_FILE : chemin seul, fichier opérateur 0600 dans un dossier 0700" \
         "Code de sortie : 0 prêt, 1 échec d'une étape, 3 installé mais il manque une décision." \
         "Détail complet : docs/exploitation/INSTALLATION.md et l'en-tête de ce script."
 }
@@ -172,7 +182,8 @@ lire_enregistrement() {
     [ -f "$fichier" ] || return 0
     while IFS='=' read -r cle valeur || [ -n "$cle" ]; do
         case "$cle" in
-            PORT_GATEWAY | PORT_MOTEUR | DOSSIER_CORE | OPSYS_HOME | OPSYS_BIN) printf -v "ENR_$cle" '%s' "$valeur" ;;
+            PORT_GATEWAY | PORT_MOTEUR | DOSSIER_CORE | OPSYS_HOME | OPSYS_BIN | INGESTION_PDF | INGESTION_ENV_FILE)
+                printf -v "ENR_$cle" '%s' "$valeur" ;;
             *) ;;
         esac
     done <"$fichier"
@@ -196,6 +207,13 @@ analyser_arguments() {
     while [ "$#" -gt 0 ]; do
         case "$1" in
             --sans-service) AVEC_SERVICE=0 ;;
+            --avec-ingestion-pdf | --sans-ingestion-pdf)
+                local choix=0
+                if [ "$1" = "--avec-ingestion-pdf" ]; then choix=1; fi
+                [ -z "$CHOIX_INGESTION_PDF" ] || [ "$CHOIX_INGESTION_PDF" = "$choix" ] ||
+                    die "options PDF contradictoires : choisissez --avec-ingestion-pdf ou --sans-ingestion-pdf."
+                CHOIX_INGESTION_PDF="$choix"
+                ;;
             --source)
                 [ "$#" -ge 2 ] || die "--source demande un chemin."
                 OPSYS_SOURCE="$2"
@@ -233,17 +251,52 @@ resoudre_chemins() {
     # Ports : la variable, sinon la valeur de la dernière installation, sinon la valeur par défaut du logiciel.
     # Le dossier d'état du core noté par la dernière installation ne sert qu'à masquer ses secrets dès l'ouverture du
     # journal ; il est redéterminé (par le moteur Python) avant toute écriture.
-    local ENR_PORT_GATEWAY="" ENR_PORT_MOTEUR="" ENR_DOSSIER_CORE=""
+    local ENR_PORT_GATEWAY="" ENR_PORT_MOTEUR="" ENR_DOSSIER_CORE="" ENR_INGESTION_PDF="" ENR_INGESTION_ENV_FILE=""
     lire_enregistrement "$OPSYS_LOGICIEL/installation.env"
     DOSSIER_CORE="$ENR_DOSSIER_CORE"
     PORT_GATEWAY="${OPSYS_PORT_GATEWAY:-$ENR_PORT_GATEWAY}"
     PORT_MOTEUR="${OPSYS_PORT_MOTEUR:-$ENR_PORT_MOTEUR}"
     if [ -n "$PORT_GATEWAY" ]; then verifier_port OPSYS_PORT_GATEWAY "$PORT_GATEWAY"; fi
     if [ -n "$PORT_MOTEUR" ]; then verifier_port OPSYS_PORT_MOTEUR "$PORT_MOTEUR"; fi
+    case "$ENR_INGESTION_PDF" in '' | 0 | 1) ;; *) die "choix PDF enregistré invalide : installation interrompue." ;; esac
+    INGESTION_PDF="${CHOIX_INGESTION_PDF:-${ENR_INGESTION_PDF:-0}}"
+    FICHIER_INGESTION="${OPSYS_INGESTION_ENV_FILE:-$ENR_INGESTION_ENV_FILE}"
+    if [ "$INGESTION_PDF" -eq 1 ] || [ -n "$CHOIX_INGESTION_PDF" ] || [ "$ENR_INGESTION_PDF" = 1 ]; then
+        CONFIGURER_PDF=1
+    fi
+    if [ "$CHOIX_INGESTION_PDF" = 0 ]; then
+        FICHIER_INGESTION=""  # Désactivation du raccord, jamais suppression du fichier opérateur.
+    elif [ "$INGESTION_PDF" -eq 0 ] && [ -n "$FICHIER_INGESTION" ]; then
+        die "un chemin de clés seul n'active pas PDF : choisissez explicitement --avec-ingestion-pdf."
+    fi
+    if [ -n "$FICHIER_INGESTION" ]; then
+        case "$FICHIER_INGESTION" in
+            /*) ;;
+            *) die "OPSYS_INGESTION_ENV_FILE doit être un chemin absolu ; valeur non affichée." ;;
+        esac
+        case "$FICHIER_INGESTION" in
+            *$'\n'* | *$'\r'*) die "chemin de clés invalide ; valeur non affichée." ;;
+        esac
+    fi
+    unset OPSYS_INGESTION_ENV_FILE  # Seul le moteur recevra le chemin ; aucune clé n'est chargée ici.
 }
 
 # -- 1. Prérequis --------------------------------------------------------------------------------------------------------
 verifier_prerequis() {
+    if [ "$INGESTION_PDF" -eq 1 ]; then
+        [ "$(uname -s)" = Linux ] || die "PDF natif exige Linux ; aucune isolation de remplacement n'est utilisée."
+        [ "$(id -u)" -ne 0 ] || die "PDF natif exige un compte non-root ; relancez avec ce compte."
+        command -v bwrap >/dev/null 2>&1 || die "PDF natif exige bubblewrap (bwrap), à installer avec votre gestionnaire de paquets."
+        local nom
+        while IFS= read -r nom; do
+            case "$nom" in
+                OPSYS_INGESTION_CLE_REFERENCE | OPSYS_INGESTION_CLES_HISTORIQUES) ;;
+                OPSYS_INGESTION_CLE | OPSYS_INGESTION_CLE_* | OPSYS_CLE_INGESTION_* | OPSYS_CLE_PDF_* | OPSYS_CLE_CSV_*)
+                    [ -z "${!nom}" ] || die "clé d'ingestion dans l'environnement global refusée : utilisez le fichier privé, sans exporter ses clés."
+                    ;;
+            esac
+        done < <(compgen -e)
+    fi
     case "$(uname -s)" in
         Linux | Darwin) ;;
         *) die "système non pris en charge ($(uname -s)) : Linux et macOS ici, Windows par install/install.ps1." ;;
@@ -256,7 +309,43 @@ verifier_prerequis() {
     command -v uv >/dev/null 2>&1 ||
         die "uv est introuvable (il installe le moteur Python 3.11+). Installez-le : curl -LsSf https://astral.sh/uv/install.sh | sh (ou https://docs.astral.sh/uv/), puis relancez."
     command -v curl >/dev/null 2>&1 || die "curl est introuvable (sondes de santé). Installez-le avec le gestionnaire de paquets du système."
+    command -v docker >/dev/null 2>&1 ||
+        die "Docker CLI est introuvable. Installez Docker Engine ou Docker Desktop avec le moteur Linux, puis relancez."
+    local systeme_docker
+    if ! systeme_docker="$(docker info --format '{{.OSType}}' 2>/dev/null)"; then
+        die "daemon Docker inaccessible. Démarrez Docker et vérifiez que votre compte peut exécuter 'docker info', puis relancez; aucun droit ni groupe ne sera modifié par OPSYS."
+    fi
+    [ "$systeme_docker" = "linux" ] ||
+        die "le daemon Docker doit utiliser des conteneurs Linux (docker info a retourné '$systeme_docker'). Basculez Docker Desktop en mode Linux, puis relancez."
     NODE="$(command -v node)"
+}
+
+preparer_image_sandbox() {
+    local image="openclaw-sandbox:bookworm-slim" script="$SOURCE/core/scripts/sandbox-setup.sh"
+    if docker image inspect "$image" >/dev/null 2>&1; then
+        info "Image sandbox existante réutilisée : $image"
+        return 0
+    fi
+    [ -f "$script" ] || die "le code source ne contient pas le constructeur d'image sandbox attendu : $script. Vérifiez OPSYS_SOURCE."
+    CONSEIL="L'image absente est construite depuis le Dockerfile OPSYS (base Debian épinglée); vérifiez le réseau du daemon Docker vers son registre et l'espace disque, puis relancez. OPSYS ne tire aucun tag d'image arbitraire." \
+        etape "Construction de l'image sandbox $image" env OPENCLAW_SANDBOX_IMAGE="$image" bash "$script"
+    docker image inspect "$image" >/dev/null 2>&1 ||
+        die "le build s'est terminé mais l'image sandbox $image reste absente; aucun Gateway ne sera démarré."
+}
+
+verifier_mode_fournisseur() {
+    local mode="${OPSYS_MODE_FOURNISSEUR:-natif}"
+    case "$mode" in
+        natif)
+            [ -z "${OPSYS_PASSERELLE_URL:-}" ] ||
+                die "OPSYS_PASSERELLE_URL seul n'active pas LiteLLM : choisissez explicitement OPSYS_MODE_FOURNISSEUR=litellm."
+            ;;
+        litellm)
+            [ -n "${OPSYS_PASSERELLE_URL:-}" ] ||
+                die "le mode litellm exige OPSYS_PASSERELLE_URL ; aucun service externe n'est installé par ce script."
+            ;;
+        *) die "OPSYS_MODE_FOURNISSEUR doit valoir natif ou litellm." ;;
+    esac
 }
 
 # Il n'y a plus de garde « ne jamais écraser le service d'une autre installation d'OpenClaw » : sous le profil « opsys »,
@@ -403,12 +492,20 @@ moteur_python_utilisable() {
 EXTRAS_MOTEUR="tournees,soumission"
 
 installer_moteur() {
+    local extras=(--extra tournees --extra soumission)
+    if [ "$INGESTION_PDF" -eq 1 ]; then extras+=(--extra ingestion-pdf); fi
     if ! moteur_python_utilisable; then
         CONSEIL="Il faut Python 3.11 ou plus : installez-le, ou laissez uv le télécharger (accès réseau)." \
             etape "Création de l'environnement Python (uv venv)" uv venv --clear --python '>=3.11' "$VENV"
     fi
     CONSEIL="Vérifiez l'accès réseau (PyPI), puis relancez." \
-        etape "Installation du moteur métier (uv pip install)" uv pip install --python "$VENV_PY" --editable "${SOURCE}[${EXTRAS_MOTEUR}]"
+        etape "Synchronisation des dépendances selon uv.lock" env UV_PROJECT_ENVIRONMENT="$VENV" uv sync --locked \
+            --project "$SOURCE" --python "$VENV_PY" --group build --no-dev "${extras[@]}" \
+            --no-build-isolation --no-install-project
+    CONSEIL="Vérifiez l'accès réseau (PyPI), puis relancez." \
+        etape "Installation du moteur verrouillé" env UV_PROJECT_ENVIRONMENT="$VENV" uv sync --locked \
+            --project "$SOURCE" --python "$VENV_PY" --group build --no-dev "${extras[@]}" \
+            --no-build-isolation
 }
 
 # -- 4. L'instance -----------------------------------------------------------------------------------------------------------
@@ -448,6 +545,100 @@ initialiser_instance() {
     esac
     PORT_GATEWAY="$(printf '%s' "$sortie" | "$VENV_PY" -c 'import json, sys; print(json.load(sys.stdin)["port_gateway"])')"
     PORT_MOTEUR="$(printf '%s' "$sortie" | "$VENV_PY" -c 'import json, sys; print(json.load(sys.stdin)["port_moteur"])')"
+    MODE_FOURNISSEUR="$(printf '%s' "$sortie" | "$VENV_PY" -c 'import json, sys; print(json.load(sys.stdin)["mode_fournisseur"])')"
+}
+
+# Métadonnée de chemin uniquement : jamais ouvrir le fichier de clés, ni inventer un metier.json.
+# Le contrôle précède initialiser_instance, qui conserverait un env valide mais normaliserait un env mal typé.
+metadonnees_ingestion_pdf() {
+    [ "$CONFIGURER_PDF" -eq 1 ] || return 0
+    "$VENV_PY" -c '
+# opsys_pdf_metadata : mise à jour locale atomique du raccord, aucun loader de clés.
+import json, os, stat, sys, tempfile
+from pathlib import Path
+phase, nom, actif, fichier, attente = sys.argv[1:]
+chemin = Path(nom)
+temporaire = None
+try:
+    try:
+        avant = chemin.lstat()
+    except FileNotFoundError:
+        if phase == "check" or attente == "1":
+            sys.exit(0)
+        raise ValueError("configuration absente") from None
+    if not stat.S_ISREG(avant.st_mode) or avant.st_uid != os.geteuid() or avant.st_size > 1048576:
+        raise ValueError("configuration non régulière")
+    brut = chemin.read_bytes()
+    attributs = ("st_dev", "st_ino", "st_uid", "st_mode", "st_size", "st_mtime_ns", "st_ctime_ns")
+    def inchange():
+        courant = chemin.lstat()
+        return all(getattr(avant, a) == getattr(courant, a) for a in attributs) and chemin.read_bytes() == brut
+    if not inchange():
+        raise ValueError("configuration modifiée")
+    config = json.loads(brut)
+    env = config.get("env", {}) if isinstance(config, dict) else None
+    if not isinstance(config, dict) or not isinstance(env, dict) or any(
+        not isinstance(k, str) or not isinstance(v, str) for k, v in env.items()
+    ):
+        raise ValueError("structure invalide")
+    if actif == "1" and any(
+        k == "OPSYS_INGESTION_CLE" or k.startswith(("OPSYS_CLE_INGESTION_", "OPSYS_CLE_PDF_", "OPSYS_CLE_CSV_"))
+        or (k.startswith("OPSYS_INGESTION_CLE_") and k != "OPSYS_INGESTION_CLE_REFERENCE")
+        for k in env
+    ):
+        raise ValueError("clé globale refusée")
+    if phase == "check":
+        sys.exit(0)
+    precedent = dict(env)
+    if actif == "1" and fichier:
+        env["OPSYS_INGESTION_ENV_FILE"] = fichier
+    else:
+        env.pop("OPSYS_INGESTION_ENV_FILE", None)
+    if env == precedent:
+        sys.exit(0)
+    config["env"] = env
+    contenu = (json.dumps(config, ensure_ascii=False, indent=2) + "\n").encode()
+    fd, temporaire = tempfile.mkstemp(prefix=".metier.json.pdf-", dir=chemin.parent)
+    with os.fdopen(fd, "wb") as sortie:
+        os.fchmod(sortie.fileno(), stat.S_IMODE(avant.st_mode))
+        sortie.write(contenu)
+        sortie.flush()
+        os.fsync(sortie.fileno())
+    if not inchange():
+        raise ValueError("configuration modifiée")
+    os.replace(temporaire, chemin)
+    temporaire = None
+    dossier_fd = os.open(chemin.parent, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(dossier_fd)
+    finally:
+        os.close(dossier_fd)
+except Exception:
+    print("raccord PDF refusé : configuration moteur invalide, modifiée ou écriture impossible; aucune valeur affichée", file=sys.stderr)
+    sys.exit(1)
+finally:
+    if temporaire is not None:
+        Path(temporaire).unlink(missing_ok=True)
+' "$1" "$DOSSIER_CORE/opsys/metier.json" "$INGESTION_PDF" "$FICHIER_INGESTION" "$EN_ATTENTE" </dev/null ||
+        die "configuration du raccord PDF refusée : voir le diagnostic sans valeur ci-dessus."
+}
+
+verifier_ingestion_pdf() {
+    [ "$INGESTION_PDF" -eq 1 ] || return 0
+    local code=0 statuts
+    info "Vérification PDF native (SQLite, clé privée, worker isolé existant)..."
+    OPSYS_HOME="$OPSYS_HOME" OPSYS_INGESTION_ENV_FILE="$FICHIER_INGESTION" \
+        "$VENV_PY" "$SOURCE/deploy/readiness_pdf.py" --pdf-only </dev/null 2>&1 |
+        filtrer_secrets | tee -a "$JOURNAL" || {
+            statuts=("${PIPESTATUS[@]}")
+            code="${statuts[0]}"
+            if [ "${statuts[1]}" -ne 0 ] || [ "${statuts[2]}" -ne 0 ]; then code=1; fi
+        }
+    case "$code" in
+        0) ;;
+        "$CODE_EN_ATTENTE") EN_ATTENTE=1 ;;
+        *) die "contrôle PDF natif en échec (code $code) : rien n'est démarré ; aucune isolation permissive n'est utilisée." ;;
+    esac
 }
 
 # Le dossier que l'installateur a préparé doit être celui que le core lira : le core dit lui-même où est sa configuration
@@ -513,6 +704,10 @@ contenu_commande_moteur() {
     printf '%s\n' 'OPSYS_HOME="${OPSYS_HOME:-$DEFAUT}"' 'export OPSYS_HOME'
     printf 'PY=%q\n' "$VENV_PY"
     printf 'DOSSIER_CORE=%q\n' "$DOSSIER_CORE"
+    if [ "$INGESTION_PDF" -eq 1 ] && [ -n "$FICHIER_INGESTION" ]; then
+        printf 'INGESTION_DEFAUT=%q\n' "$FICHIER_INGESTION"
+        printf '%s\n' 'export OPSYS_INGESTION_ENV_FILE="${OPSYS_INGESTION_ENV_FILE:-$INGESTION_DEFAUT}"'
+    fi
     printf '%s\n' \
         "# Réglages et secrets de l'instance (les mêmes que ceux du Gateway, dans l'état du core) : lus ligne à ligne, jamais évalués." \
         'ENV_FILE="$DOSSIER_CORE/.env"' \
@@ -599,6 +794,8 @@ ecrire_enregistrement() {
         printf 'PORT_GATEWAY=%s\n' "$PORT_GATEWAY"
         printf 'PORT_MOTEUR=%s\n' "$PORT_MOTEUR"
         printf 'SERVICE=%s\n' "$SERVICE_INSTALLE"
+        printf 'INGESTION_PDF=%s\n' "$INGESTION_PDF"
+        printf 'INGESTION_ENV_FILE=%s\n' "$FICHIER_INGESTION"
         printf 'INSTALLE_LE=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     } >"$temporaire"
     mv "$temporaire" "$fichier"
@@ -636,9 +833,19 @@ afficher_bilan() {
     printf '  %-22s %s\n' "Réglages et secrets" "$DOSSIER_CORE/.env  (0600 : ne jamais partager ni versionner)"
     printf '  %-22s %s\n' "Logiciel" "$OPSYS_LOGICIEL  (commit ${SOURCE_COMMIT:0:12})"
     printf '  %-22s %s\n' "Commandes" "$OPSYS_BIN/opsys (core ; alias openclaw), $OPSYS_BIN/opsys-metier (moteur : opsys metier <commande>)"
+    if [ "$INGESTION_PDF" -eq 1 ]; then
+        printf '  %-22s %s\n' "Ingestion PDF" "option native activée ; contrôle isolé ci-dessus ; fichier de clés jamais copié"
+    else
+        printf '  %-22s %s\n' "Ingestion PDF" "désactivée ; activation explicite : --avec-ingestion-pdf"
+    fi
     if [ "$EN_ATTENTE" -eq 0 ]; then
         printf '  %-22s %s\n' "Gateway" "http://127.0.0.1:$PORT_GATEWAY  (moteur : 127.0.0.1:$PORT_MOTEUR)"
-        printf '  %-22s %s\n' "Passerelle de modèles" "non installée par ce script : attendue à l'adresse OPSYS_PASSERELLE_URL de .env"
+        if [ "$MODE_FOURNISSEUR" = "natif" ]; then
+            printf '  %-22s %s\n' "Fournisseurs de modèles" "natifs OpenClaw, selon $OPSYS_HOME/paliers.yaml (aucun service LiteLLM requis)"
+        else
+            printf '  %-22s %s\n' "Fournisseurs de modèles" "LiteLLM de compatibilité, explicitement sélectionné"
+        fi
+        printf '  %-22s %s\n' "LiteLLM optionnel" "aucun service externe n'est installé par cet installateur"
         if [ "$SERVICE_INSTALLE" -eq 1 ]; then
             printf '  %-22s %s\n' "Service" "installé (utilisateur, profil $PROFIL_CORE) ; état : opsys gateway status"
         else
@@ -661,6 +868,7 @@ main() {
     trap 'printf "[opsys] terminé par un signal.\n" >&2; exit 143' TERM
 
     analyser_arguments "$@"
+    verifier_mode_fournisseur
     resoudre_chemins
     verifier_prerequis
     ouvrir_journal
@@ -669,9 +877,13 @@ main() {
     verifier_version_node
     preparer_pnpm
     construire_core
+    preparer_image_sandbox
     installer_moteur
     determiner_dossier_core
+    metadonnees_ingestion_pdf check
     initialiser_instance
+    verifier_ingestion_pdf
+    metadonnees_ingestion_pdf write
     etape "Vérification du core (opsys --version)" noyau --version
     verifier_dossier_du_core
     installer_commandes

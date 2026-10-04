@@ -1,0 +1,252 @@
+{
+  "date_utc": "2026-09-30T06:09:23Z",
+  "inventaires": [
+    {
+      "cible": "main",
+      "revision": "fcb65bcf20980a0b36847dbd41808527ba616d52",
+      "état_git": "propre",
+      "fichiers_suivis": 1686,
+      "empreintes_recalculées": 1686,
+      "différences": []
+    },
+    {
+      "cible": "recent",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "état_git": "propre",
+      "fichiers_suivis": 37814,
+      "empreintes_recalculées": 37814,
+      "différences": []
+    }
+  ],
+  "suites": {
+    "recent_python": [
+      {
+        "suite": "m01-front-office",
+        "tests": 1550,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 1550,
+        "junit": "execution/m01-front-office.xml"
+      },
+      {
+        "suite": "m02-revenue-crm",
+        "tests": 1794,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 1794,
+        "junit": "execution/m02-revenue-crm.xml"
+      },
+      {
+        "suite": "m03-base",
+        "tests": 2125,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 1,
+        "passed": 2124,
+        "junit": "execution/m03-base.xml"
+      },
+      {
+        "suite": "m04-field-ops",
+        "tests": 2827,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 2827,
+        "junit": "execution/m04-field-ops.xml"
+      },
+      {
+        "suite": "m05-financecore",
+        "tests": 1987,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 1987,
+        "junit": "execution/m05-financecore.xml"
+      },
+      {
+        "suite": "m06-material-control",
+        "tests": 1108,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 1108,
+        "junit": "execution/m06-material-control.xml"
+      },
+      {
+        "suite": "m07-marketing",
+        "tests": 992,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 992,
+        "junit": "execution/m07-marketing.xml"
+      },
+      {
+        "suite": "m08-analytics",
+        "tests": 722,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 722,
+        "junit": "execution/m08-analytics.xml"
+      },
+      {
+        "suite": "m09-strategic-intelligence",
+        "tests": 259,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 259,
+        "junit": "execution/m09-strategic-intelligence.xml"
+      },
+      {
+        "suite": "m10-memoire",
+        "tests": 854,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 854,
+        "junit": "execution/m10-memoire.xml"
+      },
+      {
+        "suite": "socle-rerun",
+        "tests": 2097,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 77,
+        "passed": 2020,
+        "junit": "execution/socle-rerun.xml"
+      }
+    ],
+    "mobile": {
+      "passés": 2578,
+      "suites": 117,
+      "sautés": 0,
+      "échecs": 0
+    },
+    "recent_total": {
+      "passés": 18815,
+      "sautés": 78,
+      "échecs": 0
+    },
+    "main_departements": [
+      {
+        "suite": "M1-front-office",
+        "tests": 331,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 331,
+        "junit": "execution/main/M1-front-office.xml"
+      },
+      {
+        "suite": "M10-memoire",
+        "tests": 166,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 166,
+        "junit": "execution/main/M10-memoire.xml"
+      },
+      {
+        "suite": "M2-revenue-crm",
+        "tests": 533,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 533,
+        "junit": "execution/main/M2-revenue-crm.xml"
+      },
+      {
+        "suite": "M3-estimation",
+        "tests": 537,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 537,
+        "junit": "execution/main/M3-estimation.xml"
+      },
+      {
+        "suite": "M4-field-ops",
+        "tests": 427,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 427,
+        "junit": "execution/main/M4-field-ops.xml"
+      },
+      {
+        "suite": "M5-financecore",
+        "tests": 141,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 141,
+        "junit": "execution/main/M5-financecore.xml"
+      },
+      {
+        "suite": "M6-material-control",
+        "tests": 124,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 124,
+        "junit": "execution/main/M6-material-control.xml"
+      },
+      {
+        "suite": "M7-marketing",
+        "tests": 437,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 437,
+        "junit": "execution/main/M7-marketing.xml"
+      },
+      {
+        "suite": "M8-analytics",
+        "tests": 83,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 83,
+        "junit": "execution/main/M8-analytics.xml"
+      },
+      {
+        "suite": "M9-strategic-intelligence",
+        "tests": 73,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 73,
+        "junit": "execution/main/M9-strategic-intelligence.xml"
+      }
+    ],
+    "main_core_proof": {
+      "tests": 544,
+      "failures": 2,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 542,
+      "junit": "execution/main/core-proof.xml"
+    },
+    "exclusions": [
+      "Les deux méta-fichiers de mutation M3 localement exclus, CI consultée séparément."
+    ]
+  },
+  "liens": {
+    "rapports": 12,
+    "liens_locaux": 223,
+    "cassés": []
+  },
+  "précision": "Contrôle de preuves enregistrées, pas nouvelle exécution des suites.",
+  "constats_récents": {
+    "nombre": 47,
+    "niveaux": {
+      "P1": 14,
+      "P2": 30,
+      "P3": 3
+    }
+  }
+}

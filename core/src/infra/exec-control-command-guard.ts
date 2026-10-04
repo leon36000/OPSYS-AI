@@ -25,6 +25,7 @@ type ParsedExecApprovalCommand = {
 type UnsafeExecControlShellCommandKind =
   | "approve"
   | "channel-login"
+  | "opsys-metier-operator"
   | "live-state-sqlite"
   | "incomplete-analysis";
 
@@ -141,6 +142,60 @@ function parseOpenClawChannelsLoginShellCommand(raw: string): boolean {
     (openclawArgv[1] === "channels" || openclawArgv[1] === "channel") &&
     openclawArgv[2] === "login"
   );
+}
+
+function opsysMetierArgs(argv: string[]): string[] | null {
+  const command = normalizeCommandBaseName(argv[0]);
+  if (isOpenClawCommandName(argv[0]) && argv[1] === "metier") {
+    return argv.slice(2);
+  }
+  if (command === "opsys-metier") {
+    return argv.slice(1);
+  }
+  if ((command === "python" || command === "python3") && argv[1] === "-m" && argv[2] === "opsys.cli") {
+    return argv.slice(3);
+  }
+  if (command === "uv" && argv[1] === "run") {
+    return opsysMetierArgs(argv.slice(2));
+  }
+  return null;
+}
+
+/** Commands that decide for a human or mutate durable operator policy through the Python CLI. */
+function isOpsysMetierOperatorAction(argv: string[]): boolean {
+  const args = opsysMetierArgs(argv);
+  if (!args) {
+    return false;
+  }
+  const [command, action] = args;
+  if (command === "approbations") {
+    return action === "approuver" || action === "refuser";
+  }
+  if (command === "mode" || command === "base" && action === "migrer") {
+    return true;
+  }
+  if (command === "personnes") {
+    return action !== "lister";
+  }
+  if (command === "appareils") {
+    return action === "appairer" || action === "revoquer";
+  }
+  if (command === "evenements") {
+    return action === "repartir";
+  }
+  if (command === "services" || command === "equipes" || command === "meteo") {
+    return action === "declarer";
+  }
+  if (command === "paliers") {
+    return action === "definir";
+  }
+  if (command === "openclaw") {
+    return action === "configurer";
+  }
+  if (command === "instance") {
+    return action === "restaurer" || action === "exporter";
+  }
+  return command === "passerelle" && action === "cles";
 }
 
 function parseSqliteOpenCommandDatabaseToken(command: string): string | null {
@@ -313,6 +368,9 @@ export async function detectUnsafeExecControlShellCommand(
     }
   }
   for (const candidateArgv of argvCandidates) {
+    if (isOpsysMetierOperatorAction(candidateArgv)) {
+      return "opsys-metier-operator";
+    }
     if (targetsLiveStateSqliteDatabase(candidateArgv, context)) {
       return "live-state-sqlite";
     }
@@ -347,6 +405,11 @@ export async function rejectUnsafeExecControlShellCommand(command: string): Prom
         "exec cannot run interactive OpenClaw channel login commands.",
         "Run `openclaw channels login` in a terminal on the gateway host, or use the channel-specific login agent tool when available (for WhatsApp: `whatsapp_login`).",
       ].join(" "),
+    );
+  }
+  if (unsafeKind === "opsys-metier-operator") {
+    throw new Error(
+      "exec cannot run OPSYS operator decisions or mutations. Ask the human to run the authenticated `opsys metier` command outside the agent shell.",
     );
   }
 }

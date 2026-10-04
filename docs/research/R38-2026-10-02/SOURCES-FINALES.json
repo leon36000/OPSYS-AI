@@ -1,0 +1,17 @@
+{
+  "compose_produit_courant_couvert": false,
+  "controle_courant": "trois chemins code seulement ; doc actuelle et Compose produit hors qualification R38",
+  "documents_historiques": {
+    "docs/ops/EXPLOITATION.md": {
+      "actuel_non_couvert": true,
+      "capture": "/workspace/audit-opsys-2026-09-30/infra/vps-2026-10-02/R38-postgresql-reel/correction-source-r3/preimages/docs/ops/EXPLOITATION.md",
+      "sha256": "15f93d15f0564e908cd6e8810f95a79bc23779c078b35a41b3804e9deeec4ffc"
+    }
+  },
+  "inventaire_entrees_sha256": "c9a58f8e9f371e299b7d2c3495556bd6127bc633687bd6debba3ea2ba5d24e9a",
+  "sources_qualifiees": {
+    "deploy/backup.sh": "05a3f04a2184c9ec0b4a81fb10297af1aaed84aeb8060e8a03799a923f3b1edc",
+    "deploy/restore.sh": "28e0282b5432897e66e31c69a72ffdd6c4e501eb921b7e93124020e40e87daf9",
+    "tests/test_deploy_backup_restore.py": "5e2dde4afa90779d5a9fec85b57af7258267c33eb60e439510f05c18499feaf2"
+  }
+}

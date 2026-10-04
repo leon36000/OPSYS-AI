@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { fileURLToPath } from "node:url";
 import { createDeferredCore } from "../shared/deferred.js";
 import { ensureSqliteLibrarySelected } from "./bun-sqlite-library.js";
 import { resolveNodeCompileCacheEnv } from "./node-compile-cache-env.js";
@@ -20,6 +21,7 @@ import type { SqliteWorkerReply } from "./sqlite-worker-contract.js";
 import { createCpuTrackedWorker } from "./worker-cpu.js";
 
 const runOutsideCaller = AsyncLocalStorage.snapshot();
+const SOURCE_WORKER_TSCONFIG = fileURLToPath(new URL("../../tsconfig.json", import.meta.url));
 
 /** The broker retains these maps; this owner drains clients before native close custody. */
 export function createSqliteWorkerLifecycle({
@@ -47,13 +49,19 @@ export function createSqliteWorkerLifecycle({
       ensureSqliteLibrarySelected();
     }
     options.assertCurrent?.();
+    const sourceCarrier = options.carrierUrl.pathname.endsWith(".ts");
+    const inheritedWorkerEnv = resolveNodeCompileCacheEnv();
+    // TSX resolves paths relative to its selected tsconfig; Worker cwd belongs to
+    // the caller and may be outside this checkout. Source workers get the owner
+    // package config; compiled .js workers keep the existing env and no TSX loader.
+    const workerEnv = sourceCarrier
+      ? { ...inheritedWorkerEnv, TSX_TSCONFIG_PATH: SOURCE_WORKER_TSCONFIG }
+      : inheritedWorkerEnv;
     const worker = runOutsideCaller(() =>
       createCpuTrackedWorker(options.carrierUrl, {
         resourceLimits: { maxOldGenerationSizeMb: 512 },
-        env: resolveNodeCompileCacheEnv(),
-        execArgv: options.carrierUrl.pathname.endsWith(".ts")
-          ? ["--import", import.meta.resolve("tsx/esm")]
-          : [],
+        env: workerEnv,
+        execArgv: sourceCarrier ? ["--import", import.meta.resolve("tsx/esm")] : [],
       }),
     );
     const exited = createDeferredCore();

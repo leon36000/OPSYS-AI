@@ -2,17 +2,18 @@
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pytest
 from memoire.doubles import plonger, port_ferme, serveur_embeddings
 
-from opsys.memoire.embeddings import ClientEmbeddings, ErreurEmbeddings
+from opsys.memoire.embeddings import MAX_REPONSE_OCTETS, ClientEmbeddings, ErreurEmbeddings
 
 
 def test_plonge_par_lots_remet_dans_l_ordre_des_index_et_envoie_la_cle():
     textes = ["toiture", "fenêtre", "sous-sol", "peinture", "drain français"]
     with serveur_embeddings(cle="jeton-de-test", ordre_inverse=True) as serveur:
-        client = ClientEmbeddings(base_url=serveur.url, modele="BAAI/bge-m3", cle="jeton-de-test",
-                                  taille_lot=2)
+        client = ClientEmbeddings(base_url=serveur.url, modele="BAAI/bge-m3", cle="jeton-de-test", taille_lot=2)
         vecteurs = client.plonger(textes)
     assert vecteurs == [plonger(t) for t in textes]
     assert [r["chemin"] for r in serveur.requetes] == ["/v1/embeddings"] * 3
@@ -70,21 +71,48 @@ def test_entrees_invalides_refusees_avant_tout_appel():
     assert serveur.requetes == []
 
 
+def test_reponse_http_est_lue_avec_une_borne_fixe():
+    class ReponseTropGrande:
+        limite_lue = None
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def read(self, limite):
+            self.limite_lue = limite
+            return b" " * limite
+
+    reponse = ReponseTropGrande()
+    client = ClientEmbeddings(base_url="http://embeddings:8001/v1", modele="BAAI/bge-m3")
+    with (
+        patch("opsys.memoire.embeddings.urllib.request.urlopen", return_value=reponse),
+        pytest.raises(ErreurEmbeddings, match="supérieure à"),
+    ):
+        client._appeler(["texte fictif"])
+    assert reponse.limite_lue == MAX_REPONSE_OCTETS + 1
+
+
 def test_configuration_par_variables_d_environnement():
     assert ClientEmbeddings.depuis_env({}) is None  # non configuré : mode plein texte explicite
     with pytest.raises(ErreurEmbeddings, match="OPSYS_EMBEDDINGS_MODELE"):
         ClientEmbeddings.depuis_env({"OPSYS_EMBEDDINGS_URL": "http://embeddings:80/v1"})
     with pytest.raises(ErreurEmbeddings, match="http"):
         ClientEmbeddings.depuis_env({"OPSYS_EMBEDDINGS_URL": "ftp://x/v1", "OPSYS_EMBEDDINGS_MODELE": "m"})
-    client = ClientEmbeddings.depuis_env({
-        "OPSYS_EMBEDDINGS_URL": "http://embeddings:80/v1/",
-        "OPSYS_EMBEDDINGS_MODELE": "BAAI/bge-m3",
-        "OPSYS_EMBEDDINGS_CLE": "secret-embeddings",
-        "OPSYS_EMBEDDINGS_LOCAL": "1",
-    })
+    client = ClientEmbeddings.depuis_env(
+        {
+            "OPSYS_EMBEDDINGS_URL": "http://embeddings:80/v1/",
+            "OPSYS_EMBEDDINGS_MODELE": "BAAI/bge-m3",
+            "OPSYS_EMBEDDINGS_CLE": "secret-embeddings",
+            "OPSYS_EMBEDDINGS_LOCAL": "1",
+        }
+    )
     assert client is not None
     assert (client.base_url, client.modele, client.local) == ("http://embeddings:80/v1", "BAAI/bge-m3", True)
     assert "secret-embeddings" not in repr(client)
-    distant = ClientEmbeddings.depuis_env({"OPSYS_EMBEDDINGS_URL": "https://api.exemple/v1",
-                                           "OPSYS_EMBEDDINGS_MODELE": "m"})
+    distant = ClientEmbeddings.depuis_env(
+        {"OPSYS_EMBEDDINGS_URL": "https://api.exemple/v1", "OPSYS_EMBEDDINGS_MODELE": "m"}
+    )
     assert distant is not None and distant.local is False

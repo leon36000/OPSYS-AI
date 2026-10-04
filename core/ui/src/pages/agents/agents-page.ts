@@ -74,6 +74,7 @@ import {
   resetIdentityDraft,
   saveIdentityDraft,
   selectIdentityAvatar,
+  setIdentityDraftAvatarModel,
   setIdentityDraftField,
   togglePinnedAgent,
 } from "./identity-actions.ts";
@@ -1187,6 +1188,15 @@ class AgentsPage
                 this.canCall("agents.update", "operator.admin")
               ) {
                 setIdentityDraftField(this, field, value);
+              }
+            },
+            onIdentityAvatarModelChange: (modelId) => {
+              if (
+                selectedAgentId === this.resolveSelectedAgentId() &&
+                !this.identitySaving &&
+                this.canCall("agents.update", "operator.admin")
+              ) {
+                setIdentityDraftAvatarModel(this, modelId);
               }
             },
             onIdentityAvatarSelect: (file) => {

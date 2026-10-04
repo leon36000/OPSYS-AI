@@ -1,0 +1,35 @@
+{
+  "executor": "ROOT",
+  "utc": "2026-10-03T14:30:41.800959+00:00",
+  "local_file_links": 125,
+  "missing": [],
+  "anchors_and_external_network_links_verified": false,
+  "documents": [
+    {
+      "path": "docs/grs/reception/M1-APPELS-HOTE-2026-10-03.md",
+      "sha256": "b90dce9231fa8f27e6825505e24f3a41cd4d1540ee4e62d66d40ffe7f4a365a4",
+      "capsule": "/workspace/poursuite-opsys-2026-10-02-r1/M1-CORE-INGRESS-ROOT-r1/documentation-r1/docs--grs--reception--M1-APPELS-HOTE-2026-10-03.md.current.gz"
+    },
+    {
+      "path": "docs/grs/reception/M1-AUDIT-INITIAL-QUADRUPLE-A.md",
+      "sha256": "7c79171481827c7f0f901ce196a18f0bbc93ac39165430957aa1a8c957296784",
+      "capsule": "/workspace/poursuite-opsys-2026-10-02-r1/M1-CORE-INGRESS-ROOT-r1/documentation-r1/docs--grs--reception--M1-AUDIT-INITIAL-QUADRUPLE-A.md.current.gz"
+    },
+    {
+      "path": "docs/research/REPRISE-2026-10-03/README.md",
+      "sha256": "55c995ea6069eee41e9654a456ed9de739de594b1993a6e8240703c070d98c94",
+      "capsule": "/workspace/poursuite-opsys-2026-10-02-r1/M1-CORE-INGRESS-ROOT-r1/documentation-r1/docs--research--REPRISE-2026-10-03--README.md.current.gz"
+    },
+    {
+      "path": "docs/programme/RESTRUCTURATION-2026-09-30.md",
+      "sha256": "cd1938bdb3aca3b3dd9448e97592bc8a0372cc7087f860f310a06de3fba62920",
+      "capsule": "/workspace/poursuite-opsys-2026-10-02-r1/M1-CORE-INGRESS-ROOT-r1/documentation-r1/docs--programme--RESTRUCTURATION-2026-09-30.md.current.gz"
+    },
+    {
+      "path": "docs/research/REPRISE-2026-10-03/M1-BRIQUES-GITHUB-GITLAB-2026-10-03.md",
+      "sha256": "00a52d64a59826b6b83aee7216f9b32a9c65765bba0a65950cb7506404ab5513",
+      "capsule": "/workspace/poursuite-opsys-2026-10-02-r1/M1-CORE-INGRESS-ROOT-r1/documentation-r1/docs--research--REPRISE-2026-10-03--M1-BRIQUES-GITHUB-GITLAB-2026-10-03.md.current.gz"
+    }
+  ],
+  "ok": true
+}

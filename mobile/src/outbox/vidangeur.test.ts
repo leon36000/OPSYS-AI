@@ -145,6 +145,7 @@ describe("vidangeur — idempotence du socle", () => {
     const rapport = await vidangeur.vidangerFileSortante();
     expect(rapport.envoyees).toEqual([mutation.id]);
     expect((await depot.obtenir(mutation.id))?.statut).toBe("envoyee");
+    expect((await depot.obtenir(mutation.id))?.resumeAccepte).toEqual({ statut: "sur_site" });
   });
 
   test("reprise au démarrage (statut envoi retrouvé en base) : renvoyée avec la MÊME id, jamais recréée", async () => {
@@ -176,6 +177,7 @@ describe("vidangeur — resultatsAcceptes (PLAN T1.4-f)", () => {
     const rapport = await vidangeur.vidangerFileSortante();
     expect(rapport.envoyees).toEqual([mutation.id]);
     expect(rapport.resultatsAcceptes).toEqual([{ id: mutation.id, resume: { statut: "sur_site", intervention_id: "interv-1" } }]);
+    expect((await depot.obtenir(mutation.id))?.resumeAccepte).toEqual({ statut: "sur_site", intervention_id: "interv-1" });
   });
 
   test("plusieurs mutations acceptées -> un resultatsAcceptes par mutation, dans l'ordre d'envoi", async () => {
@@ -220,6 +222,40 @@ describe("vidangeur — resultatsAcceptes (PLAN T1.4-f)", () => {
 });
 
 describe("vidangeur — classification des échecs", () => {
+  test("corps HTTP interrompu conserve la mutation en attente avec le même identifiant", async () => {
+    const depot = new DepotOutboxMemoire();
+    const mutation = await inserer(depot, { type: "punch_in", chantierId: "interv-1", payload: { action: "arrivee" } });
+    let maintenant = new Date(HORLOGE.maintenant);
+    const fetchImpl = jest.fn()
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => { throw new TypeError("terminated"); } } as unknown as Response)
+      .mockResolvedValueOnce(reponseAcceptee());
+    const vidangeur = creerVidangeur(creerConfig(depot, fetchImpl as unknown as typeof fetch, () => maintenant));
+    const rapport = await vidangeur.vidangerFileSortante();
+    expect(rapport.remisesEnAttente).toEqual([mutation.id]);
+    const remise = await depot.obtenir(mutation.id);
+    expect(remise).toMatchObject({ statut: "en_attente", tentatives: 1, id: mutation.id });
+    maintenant = new Date(new Date(remise!.prochaineTentativeA!).getTime() + 1);
+    const second = await vidangeur.vidangerFileSortante();
+    expect(second.envoyees).toEqual([mutation.id]);
+    expect(corpsEnvoye(fetchImpl).idempotencyKey).toBe(mutation.id);
+    expect(corpsEnvoye(fetchImpl, 1).idempotencyKey).toBe(mutation.id);
+    expect((await depot.obtenir(mutation.id))?.statut).toBe("envoyee");
+  });
+
+  test("accusé métier de fichier inconnu reste en attente avec recul (issue serveur incertaine)", async () => {
+    const depot = new DepotOutboxMemoire();
+    const mutation = await inserer(depot, {
+      type: "fichier_bloc", chantierId: "interv-1",
+      payload: { empreinte_sha256: "sha", taille_octets: 3, type_mime: "image/jpeg", index_bloc: 0, nombre_blocs: 1, bloc_base64: "YWJj" },
+    });
+    const fetchImpl = jest.fn().mockResolvedValue(reponseHttp(200, { ok: true, result: { ok: true, resultat: {} } }));
+    const rapport = await creerVidangeur(creerConfig(depot, fetchImpl as unknown as typeof fetch, () => HORLOGE.maintenant)).vidangerFileSortante();
+    expect(rapport.remisesEnAttente).toEqual([mutation.id]);
+    expect(rapport.echecsPermanents).toEqual([]);
+    expect(await depot.obtenir(mutation.id)).toMatchObject({ statut: "en_attente", tentatives: 1, id: mutation.id });
+    expect(corpsEnvoye(fetchImpl).idempotencyKey).toBe(mutation.id);
+  });
+
   test("erreur réessayable (HTTP 500) : recul respecté, pas de renvoi avant l'heure", async () => {
     const depot = new DepotOutboxMemoire();
     const mutation = await inserer(depot, { type: "punch_in", chantierId: "interv-1", payload: { action: "arrivee" } });

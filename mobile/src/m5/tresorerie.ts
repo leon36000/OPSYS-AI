@@ -689,12 +689,18 @@ export interface DetailTaxe {
   readonly aRemettre: string;
 }
 
+export type CouvertureTaxes =
+  | { readonly statut: "PARTIELLE"; readonly detail: string }
+  | { readonly statut: "INCONNUE" };
+
 export interface TaxesNettes {
   readonly aRemettre: string;
   readonly tps: DetailTaxe;
   readonly tvq: DetailTaxe;
   readonly facturesClients: number;
   readonly facturesFournisseurs: number;
+  /** Absente dans une ancienne réponse : inconnue. M5 ne prouve pas la complétude des registres. */
+  readonly couverture: CouvertureTaxes;
 }
 
 export interface EcheanceFiscale {
@@ -751,17 +757,28 @@ function lireDetailTaxe(brut: unknown): DetailTaxe | null {
     : null;
 }
 
+function lireCouvertureTaxes(brut: unknown): CouvertureTaxes | null {
+  if (brut === undefined) {
+    return { statut: "INCONNUE" };
+  }
+  if (!estObjet(brut) || brut.statut !== "PARTIELLE" || texteOuNull(brut.detail) === null) {
+    return null;
+  }
+  return { statut: "PARTIELLE", detail: brut.detail as string };
+}
+
 function lireTaxesNettes(brut: unknown): TaxesNettes | null {
   if (!estObjet(brut)) {
     return null;
   }
   const tps = lireDetailTaxe(brut.tps);
   const tvq = lireDetailTaxe(brut.tvq);
+  const couverture = lireCouvertureTaxes(brut.couverture);
   const facturesClients = entierPositifOuNull(brut.factures_clients);
   const facturesFournisseurs = entierPositifOuNull(brut.factures_fournisseurs);
-  return !estDecimal(brut.a_remettre) || tps === null || tvq === null || facturesClients === null || facturesFournisseurs === null
+  return !estDecimal(brut.a_remettre) || tps === null || tvq === null || couverture === null || facturesClients === null || facturesFournisseurs === null
     ? null
-    : { aRemettre: brut.a_remettre, tps, tvq, facturesClients, facturesFournisseurs };
+    : { aRemettre: brut.a_remettre, tps, tvq, facturesClients, facturesFournisseurs, couverture };
 }
 
 function lireEcheance(brut: unknown): EcheanceFiscale | null {

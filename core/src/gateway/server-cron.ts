@@ -123,6 +123,11 @@ import {
   type CronStreamFireDisposition,
   resolveStreamStopReason,
 } from "./cron-stream-watchers.js";
+import { createOpsysCronLiveAuthorityValidator } from "./opsys-cron-live-validator.js";
+import {
+  reconcileOpsysCronProfile,
+  reconcileOpsysCronRetirements,
+} from "./opsys-cron-reconciler.js";
 import {
   createScheduledGatewayRunner,
   fenceScheduledGatewayContextResolver,
@@ -830,6 +835,20 @@ export function buildGatewayCronService(params: {
     runIsolatedAgentJob: async (request) => {
       const { job } = request;
       const { agentId, cfg: runtimeConfig } = resolveCronAgent(job.agentId);
+      const runtimeAdmission = findAgentEntry(runtimeConfig, agentId)?.opsysRuntimeAdmission;
+      const admissionProfileId = runtimeAdmission?.profileId;
+      const validateScheduledRuntimeAuthority = createOpsysCronLiveAuthorityValidator({
+        cron,
+        job,
+        profileId: admissionProfileId,
+        getProfileId: () =>
+          findAgentEntry(getRuntimeConfig(), agentId)?.opsysRuntimeAdmission?.profileId,
+        profileRevision: runtimeAdmission?.profileRevision,
+        getProfileRevision: () =>
+          findAgentEntry(getRuntimeConfig(), agentId)?.opsysRuntimeAdmission?.profileRevision,
+        getClient: () =>
+          scheduledGatewayContextResolver?.()?.opsysCronPrivateClientService?.getClient(),
+      });
       const sessionKey = resolveCronSessionTargetSessionKey(job.sessionTarget) ?? `cron:${job.id}`;
       const reviewAgentId = skillCollectionReviewMonitorAgentId(job);
       if (reviewAgentId && resolveSkillWorkshopConfig(runtimeConfig).autonomous.mode !== "auto") {
@@ -844,6 +863,7 @@ export function buildGatewayCronService(params: {
       try {
         return await runCronIsolatedAgentTurn({
           ...request,
+          ...(validateScheduledRuntimeAuthority ? { validateScheduledRuntimeAuthority } : {}),
           cfg: runtimeConfig,
           deps: params.deps,
           agentId,
@@ -1511,6 +1531,86 @@ export function buildGatewayCronService(params: {
           });
           assertCurrent();
           converged &&= ok;
+        }
+        const configuredProfiles = new Map<string, number>();
+        let invalidProfileBinding = false;
+        for (const [agentId, entry] of Object.entries(cfg.agents?.entries ?? {})) {
+          const binding = entry.opsysRuntimeAdmission;
+          if (binding === undefined) continue;
+          const profileId = binding.profileId;
+          const profileRevision = binding.profileRevision;
+          if (
+            typeof profileId !== "string" ||
+            typeof profileRevision !== "number" ||
+            !Number.isSafeInteger(profileRevision) ||
+            profileRevision < 1 ||
+            normalizeAgentId(agentId) !== normalizeAgentId(`opsys-agent-${profileId}`)
+          ) {
+            invalidProfileBinding = true;
+            continue;
+          }
+          const priorRevision = configuredProfiles.get(profileId);
+          if (priorRevision !== undefined && priorRevision !== profileRevision) {
+            invalidProfileBinding = true;
+            continue;
+          }
+          configuredProfiles.set(profileId, profileRevision);
+        }
+        if (invalidProfileBinding) {
+          cronServiceLogger.warn(
+            "OPSYS cron profile binding is invalid; reconciliation will retry.",
+          );
+          converged = false;
+        }
+        {
+          const context = scheduledGatewayContextResolver();
+          const client = context?.opsysCronPrivateClientService?.getClient();
+          const allowedProfileIds = new Set(configuredProfiles.keys());
+          const commitOpsysGuard = () => {
+            assertCurrent();
+            if (
+              scheduledGatewayContextResolver()?.opsysCronPrivateClientService?.getClient() !==
+              client
+            )
+              throw new Error("OPSYS cron owner changed during reconciliation");
+          };
+          // Native housekeeping survives removal of an execution profile/config binding.
+          // It never re-enables a job and drains recovered DELETE receipts before intent reads.
+          const cleanup = await reconcileOpsysCronRetirements({
+            cron,
+            client,
+            configuredProfileIds: allowedProfileIds,
+            commitGuard: commitOpsysGuard,
+          });
+          commitOpsysGuard();
+          if (!cleanup.ok) converged = false;
+          if (!client && configuredProfiles.size > 0) {
+            // Profiles are configured, so absence of the supervised owner is retryable.
+            converged = false;
+          } else if (client && cleanup.ok) {
+            for (const [profileId, profileRevision] of configuredProfiles) {
+              commitOpsysGuard();
+              const result = await reconcileOpsysCronProfile({
+                cron,
+                client,
+                profileId,
+                expectedProfileRevision: profileRevision,
+                allowedProfileIds,
+                commitGuard: commitOpsysGuard,
+              });
+              assertCurrent();
+              if (
+                scheduledGatewayContextResolver()?.opsysCronPrivateClientService?.getClient() !==
+                  client ||
+                !result.ok
+              ) {
+                converged = false;
+                cronServiceLogger.warn(
+                  "OPSYS cron reconciliation did not converge; it will retry.",
+                );
+              }
+            }
+          }
         }
         if (!converged) {
           systemJobRetryTimer = setTimeout(() => {

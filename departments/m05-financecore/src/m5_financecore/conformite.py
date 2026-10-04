@@ -822,10 +822,12 @@ def verifier_aucune_cause_signalee(repertoire: str | Path) -> tuple[bool, str]:
 # ni `cash_libre.py`, ni `analyse.py` n'ont de raison de toucher au registre des mouvements : le solde leur est
 # apporté déjà calculé) et les fonctions d'`outils.py` qui lisent le calendrier et les registres autres que celui des
 # mouvements. PLAN T4.16-d y ajoute, en STRICT, la prévision de trésorerie (`prevision.py`, pur : le solde lui est
-# apporté déjà calculé) et les aides d'`outils.py` qui lisent les registres pour elle et pour le cash libre.
+# apporté déjà calculé) et les aides d'`outils.py` qui lisent les registres pour elle et pour le cash libre. Le
+# calendrier préparatoire des autres obligations est aussi pur et ne doit ouvrir aucun registre financier.
 _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
     "comptes_a_payer": None,
     "calendrier_fiscal": None,
+    "calendrier_obligations": None,
     "cash_libre": None,
     "prevision": None,
     "constat_cash_libre": None,
@@ -847,6 +849,7 @@ _SURVEILLE_SANS_DECAISSEMENT: dict[str, tuple[str, ...] | None] = {
         "_calendrier_fiscal",
         "_taxes_par_echeance",
         "lire_echeances_fiscales",
+        "lire_calendrier_obligations",
         "_lectures_finance",
         "_resultat_cash_libre",
         "_cash_libre",

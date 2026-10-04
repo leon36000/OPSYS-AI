@@ -32,6 +32,29 @@ function result(sessions: GatewaySessionRow[]): SessionsListResult {
   };
 }
 
+function createTestAgentCapability(
+  mainKey: string,
+  ids = ["main", "roboclaw", "research", "ops", "work", "ignored"],
+  initiallyLoaded = false,
+) {
+  const agentsList = {
+    defaultId: "roboclaw",
+    mainKey,
+    scope: "per-sender",
+    agents: ids.map((id) => ({ id })),
+  };
+  const state = {
+    agentsList: initiallyLoaded ? agentsList : null,
+    agentsListCached: false,
+  };
+  const load = async () => {
+    state.agentsList = agentsList;
+    state.agentsListCached = false;
+    return agentsList;
+  };
+  return { state, ensureList: load, refreshList: load };
+}
+
 function contextFor(
   resolution: SessionsResolveResult | Error = { ok: false },
   cachedSessions: GatewaySessionRow[] = [],
@@ -80,7 +103,7 @@ function contextFor(
         return () => eventListeners.delete(listener);
       },
     },
-    agents: { state: { agentsList: { mainKey: "main" } } },
+    agents: createTestAgentCapability("main", undefined, true),
     agentSelection: { state: { selectedId: "roboclaw" } },
   } as unknown as ApplicationContext;
   const sessions = createTestSessionCapability(context.gateway, "roboclaw");
@@ -146,6 +169,7 @@ function targetLocation(target: ReturnType<typeof sessionNavigationTarget>) {
 
 export {
   contextFor as createSessionRouteContext,
+  createTestAgentCapability as createRouteTestAgentCapability,
   row as createSessionRouteRow,
   installShortResolver as installShortSessionResolver,
   result as sessionRouteListResult,

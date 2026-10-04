@@ -47,6 +47,10 @@ NOMBRE_TIRAGES = 10000
 # donnerait une autre loi que celle que le barème annonce en parlant de PERT.
 POIDS_DU_MODE_PERT = 4.0
 
+# Même domaine monétaire maximal que les factures FinanceCore ; au-delà,
+# une estimation ne pourrait pas devenir une facture supportée.
+LIMITE_FINANCECORE = 999999999999.99
+
 
 def _est_nombre_fini(valeur):
     """Vrai pour un int ou un float FINI qui n'est PAS un booléen.
@@ -58,9 +62,10 @@ def _est_nombre_fini(valeur):
     """
     if isinstance(valeur, bool) or not isinstance(valeur, (int, float)):
         return False
-    if isinstance(valeur, int):
-        return True
-    return math.isfinite(valeur)
+    try:
+        return math.isfinite(valeur)
+    except OverflowError:
+        return False
 
 
 def _echantillon_trie(parametres, quantite, graine):
@@ -222,6 +227,18 @@ def _preparer(bareme, type_travaux, quantite, graine, services):
         return None, verdicts.construire_verdict(
             "REJ-CONTRAT-INVALIDE",
             "quantite invalide : nombre fini strictement positif exigé",
+        )
+
+    couts = (parametres["cout_min"], parametres["cout_max"])
+    try:
+        montants = (*couts, *(cout * quantite for cout in couts))
+        valide = all(math.isfinite(montant) and abs(montant) <= LIMITE_FINANCECORE for montant in montants)
+    except OverflowError:
+        valide = False
+    if not valide:
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            "coût ou montant simulé hors du domaine monétaire supporté",
         )
 
     # --- 5. Graine -------------------------------------------------------

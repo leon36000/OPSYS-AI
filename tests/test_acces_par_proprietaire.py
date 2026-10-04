@@ -291,9 +291,10 @@ def test_mcp_le_jeton_decide_pas_l_auteur_ni_le_proprietaire_des_arguments(scena
     assert faux_auteur["resultat"]["verdict"]["code"] == CODE_DIFFERENTE
     assert lead_d_un_autre["resultat"]["verdict"]["code"] == CODE_NON_ASSIGNE
     assert agent_lit["resultat"]["resultat"]["devis_id"] == "devis-b"
-    # L'écriture d'un agent reste derrière l'approbation d'un humain en mode `ombre` (inchangé, T1.4-h) :
-    # rien n'est écrit dans M2, ni par le vendeur refusé, ni par l'agent en attente.
-    assert agent_ecrit["statut"] == "en_attente_approbation"
+    # Une mutation d'agent sans liaison et ticket ne crée même pas de demande d'approbation.
+    # Les accès humains précédents gardent leur contrat; aucun des refus ne modifie M2.
+    assert agent_ecrit["ok"] is False
+    assert agent_ecrit["erreur"] == "ticket_cible_requis"
     assert _maillons_m2() == avant_m2
 
 

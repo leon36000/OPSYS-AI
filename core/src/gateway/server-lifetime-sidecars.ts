@@ -93,6 +93,7 @@ export async function attachInitialGatewayLifetimeSidecars(params: {
   minimalTestGateway: boolean;
   logWarning: (message: string) => void;
   reconcileGitHubPublications?: () => Promise<void>;
+  reconcileOpsysCron?: () => Promise<unknown>;
   publishSidecars: GatewaySidecarStopOwner["publish"];
 }): Promise<void> {
   await params.chatMetadataLifecycle.attachContext(
@@ -135,9 +136,41 @@ export async function attachInitialGatewayLifetimeSidecars(params: {
     params.publishSidecars(startSecretStoreExpiryMaintenance(params.logWarning));
     // OPSYS (PLAN T0.10): launches and supervises the Python business engine when
     // `opsys/metier.json` enables it; returns nothing otherwise, so upstream behavior is intact.
-    const opsysMetier = startOpsysMetierSidecar();
+    let opsysCronReconcile: Promise<unknown> | undefined;
+    let opsysCronSidecarStopped = false;
+    const opsysMetier = startOpsysMetierSidecar({
+      onHealthy: () => {
+        if (opsysCronSidecarStopped || opsysCronReconcile || !params.reconcileOpsysCron) return;
+        const pass = Promise.resolve()
+          .then(params.reconcileOpsysCron)
+          .catch(() =>
+            params.logWarning(
+              "OPSYS cron reconciliation failed; it will retry on a later healthy probe.",
+            ),
+          )
+          .finally(() => {
+            if (opsysCronReconcile === pass) opsysCronReconcile = undefined;
+          });
+        opsysCronReconcile = pass;
+      },
+    });
     if (opsysMetier) {
-      params.publishSidecars(opsysMetier);
+      let active = true;
+      const service = opsysMetier.getPrivateCronClient
+        ? { getClient: () => (active ? opsysMetier.getPrivateCronClient?.() : undefined) }
+        : undefined;
+      if (service) params.gatewayRequestContext.opsysCronPrivateClientService = service;
+      params.publishSidecars({
+        stop: async () => {
+          active = false;
+          opsysCronSidecarStopped = true;
+          if (service && params.gatewayRequestContext.opsysCronPrivateClientService === service) {
+            delete params.gatewayRequestContext.opsysCronPrivateClientService;
+          }
+          await opsysMetier.stop();
+          await opsysCronReconcile;
+        },
+      });
     }
   }
   if (params.reconcileGitHubPublications) {

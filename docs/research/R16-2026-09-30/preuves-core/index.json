@@ -1,0 +1,267 @@
+{
+  "queried_at_utc": "2026-09-30T11:42:33.123197+00:00",
+  "repos": [
+    {
+      "repo": "openclaw/openclaw",
+      "url": "https://github.com/openclaw/openclaw",
+      "archived": false,
+      "license_api": "NOASSERTION",
+      "language": "TypeScript",
+      "pushed_at": "2026-09-30T11:40:53Z",
+      "sha": "537c33e4118ae31a96d0d0c3aee317963058bbd9",
+      "commit_date": "2026-09-30T11:40:50Z",
+      "tree_files": 52902,
+      "truncated": false,
+      "releases": [
+        {
+          "tag": "v2026.9.7",
+          "published": "2026-09-30T04:44:14Z"
+        },
+        {
+          "tag": "v2026.8.33",
+          "published": "2026-09-29T03:12:00Z"
+        },
+        {
+          "tag": "v2026.9.6",
+          "published": "2026-09-23T23:21:10Z"
+        }
+      ]
+    },
+    {
+      "repo": "badlogic/pi-mono",
+      "url": "https://github.com/earendil-works/pi",
+      "archived": false,
+      "license_api": "MIT",
+      "language": "TypeScript",
+      "pushed_at": "2026-09-30T10:39:04Z",
+      "sha": "d2931ad3d5bf6936fbdfa5dfc81fb32f875499b2",
+      "commit_date": "2026-09-30T10:10:30Z",
+      "tree_files": 2373,
+      "truncated": false,
+      "releases": [
+        {
+          "tag": "v0.99.1",
+          "published": "2026-09-29T18:27:00Z"
+        },
+        {
+          "tag": "v0.99.0",
+          "published": "2026-09-29T17:21:54Z"
+        },
+        {
+          "tag": "v0.87.1",
+          "published": "2026-09-22T19:43:43Z"
+        }
+      ]
+    },
+    {
+      "repo": "Martian-Engineering/lossless-claw",
+      "url": "https://github.com/Martian-Engineering/lossless-claw",
+      "archived": false,
+      "license_api": "MIT",
+      "language": "TypeScript",
+      "pushed_at": "2026-09-28T21:52:54Z",
+      "sha": "e05d8d34b2a44fdef556ce95dd90115b46630200",
+      "commit_date": "2026-09-28T21:52:12Z",
+      "tree_files": 387,
+      "truncated": false,
+      "releases": [
+        {
+          "tag": "v1.1.1",
+          "published": "2026-09-28T20:57:04Z"
+        },
+        {
+          "tag": "v1.1.0",
+          "published": "2026-09-19T00:19:47Z"
+        },
+        {
+          "tag": "v1.0.0",
+          "published": "2026-08-31T05:55:28Z"
+        }
+      ]
+    },
+    {
+      "repo": "maximhq/bifrost",
+      "url": "https://github.com/maximhq/bifrost",
+      "archived": false,
+      "license_api": "Apache-2.0",
+      "language": "Go",
+      "pushed_at": "2026-09-30T11:30:36Z",
+      "sha": "19ecdb510bfb3971a7d680f33e17280187e379f4",
+      "commit_date": "2026-09-30T09:50:01Z",
+      "tree_files": 5885,
+      "truncated": false,
+      "releases": [
+        {
+          "tag": "transports/v2.2.4",
+          "published": "2026-09-29T18:31:32Z"
+        },
+        {
+          "tag": "plugins/telemetry/v1.8.3",
+          "published": "2026-09-29T18:08:14Z"
+        },
+        {
+          "tag": "plugins/semanticcache/v1.6.7",
+          "published": "2026-09-29T18:08:04Z"
+        }
+      ]
+    },
+    {
+      "repo": "tensorzero/tensorzero",
+      "url": "https://github.com/tensorzero/tensorzero",
+      "archived": true,
+      "license_api": "Apache-2.0",
+      "language": "Rust",
+      "pushed_at": "2026-06-11T01:48:44Z",
+      "sha": "62eb8f63e8ec62018d70420dbf1a8c5d1c026315",
+      "commit_date": "2026-06-04T14:44:10Z",
+      "tree_files": 4265,
+      "truncated": false,
+      "releases": [
+        {
+          "tag": "2026.6.0",
+          "published": "2026-06-04T15:15:42Z"
+        },
+        {
+          "tag": "2026.5.2",
+          "published": "2026-05-20T13:48:00Z"
+        },
+        {
+          "tag": "2026.5.1",
+          "published": "2026-05-15T19:09:30Z"
+        }
+      ]
+    },
+    {
+      "repo": "langchain-ai/langmem",
+      "url": "https://github.com/langchain-ai/langmem",
+      "archived": false,
+      "license_api": "MIT",
+      "language": "Python",
+      "pushed_at": "2026-09-09T06:44:43Z",
+      "sha": "9d033b47d9ce53e37e92c92241b0496c0278932e",
+      "commit_date": "2026-09-09T06:44:42Z",
+      "tree_files": 120,
+      "truncated": false,
+      "releases": []
+    },
+    {
+      "repo": "vectorize-io/hindsight",
+      "url": "https://github.com/vectorize-io/hindsight",
+      "archived": false,
+      "license_api": "MIT",
+      "language": "Python",
+      "pushed_at": "2026-09-30T11:08:21Z",
+      "sha": "d56c4acdf59c41957613d399094cdf8c489b060c",
+      "commit_date": "2026-09-30T09:24:10Z",
+      "tree_files": 5529,
+      "truncated": false,
+      "releases": [
+        {
+          "tag": "v0.10.2",
+          "published": "2026-09-29T10:06:40Z"
+        },
+        {
+          "tag": "v0.10.1",
+          "published": "2026-09-21T15:24:30Z"
+        },
+        {
+          "tag": "v0.10.0",
+          "published": "2026-09-14T11:09:45Z"
+        }
+      ]
+    },
+    {
+      "repo": "agentskills/agentskills",
+      "url": "https://github.com/agentskills/agentskills",
+      "archived": false,
+      "license_api": "Apache-2.0",
+      "language": "Python",
+      "pushed_at": "2026-08-09T20:36:04Z",
+      "sha": "69ef37e9424c0a7ea9dd2293b559e43ec8176379",
+      "commit_date": "2026-08-09T20:36:04Z",
+      "tree_files": 198,
+      "truncated": false,
+      "releases": []
+    },
+    {
+      "repo": "astral-sh/uv",
+      "url": "https://github.com/astral-sh/uv",
+      "archived": false,
+      "license_api": "Apache-2.0",
+      "language": "Rust",
+      "pushed_at": "2026-09-30T11:15:22Z",
+      "sha": "06fdf0cdb591adae479feb5b769b0213eabb229c",
+      "commit_date": "2026-09-30T02:07:14Z",
+      "tree_files": 2256,
+      "truncated": false,
+      "releases": [
+        {
+          "tag": "0.12.21",
+          "published": "2026-09-29T21:14:06Z"
+        },
+        {
+          "tag": "0.12.20",
+          "published": "2026-09-28T23:20:35Z"
+        },
+        {
+          "tag": "0.12.19",
+          "published": "2026-09-25T00:33:02Z"
+        }
+      ]
+    },
+    {
+      "repo": "prefix-dev/pixi",
+      "url": "https://github.com/prefix-dev/pixi",
+      "archived": false,
+      "license_api": "BSD-3-Clause",
+      "language": "Rust",
+      "pushed_at": "2026-09-30T10:38:32Z",
+      "sha": "81264a2a914b25e21df4d891889a0495a6269b70",
+      "commit_date": "2026-09-30T10:38:31Z",
+      "tree_files": 3875,
+      "truncated": false,
+      "releases": [
+        {
+          "tag": "v0.81.0",
+          "published": "2026-09-15T15:07:21Z"
+        },
+        {
+          "tag": "v0.80.0",
+          "published": "2026-09-07T13:38:39Z"
+        },
+        {
+          "tag": "v0.79.0",
+          "published": "2026-09-03T15:16:32Z"
+        }
+      ]
+    },
+    {
+      "repo": "alexgarcia/sqlite-vec",
+      "error": "gh: Not Found (HTTP 404)"
+    },
+    {
+      "repo": "asg017/sqlite-vec",
+      "url": "https://github.com/asg017/sqlite-vec",
+      "archived": false,
+      "license_api": "Apache-2.0",
+      "language": "C",
+      "pushed_at": "2026-05-18T06:50:45Z",
+      "sha": "04d28bd21773981e2d266bbf6aa4efbd011eb4f6",
+      "commit_date": "2026-05-18T06:50:43Z",
+      "tree_files": 393,
+      "truncated": false
+    },
+    {
+      "repo": "obot-platform/obot",
+      "url": "https://github.com/obot-platform/obot",
+      "archived": false,
+      "license_api": "MIT",
+      "language": "Go",
+      "pushed_at": "2026-09-30T00:49:46Z",
+      "sha": "fb4b094cc1643ae5b47dff65cd6e16a5c2606b95",
+      "commit_date": "2026-09-30T00:49:46Z",
+      "tree_files": 2784,
+      "truncated": false
+    }
+  ]
+}

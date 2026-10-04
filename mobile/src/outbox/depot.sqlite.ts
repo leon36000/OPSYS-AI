@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS outbox (
   tentatives INTEGER NOT NULL DEFAULT 0,
   created_at_local TEXT NOT NULL,
   prochaine_tentative_a TEXT,
-  proprietaire TEXT
+  proprietaire TEXT,
+  resume_accepte TEXT
 );
 `.trim();
 
@@ -49,6 +50,9 @@ export async function initialiserSchemaOutbox(db: SQLiteDatabase): Promise<void>
   if (!colonnes.some((colonne) => colonne.name === "proprietaire")) {
     await db.execAsync("ALTER TABLE outbox ADD COLUMN proprietaire TEXT");
   }
+  if (!colonnes.some((colonne) => colonne.name === "resume_accepte")) {
+    await db.execAsync("ALTER TABLE outbox ADD COLUMN resume_accepte TEXT");
+  }
 }
 
 interface LigneOutboxBrute {
@@ -63,6 +67,7 @@ interface LigneOutboxBrute {
   created_at_local: string;
   prochaine_tentative_a: string | null;
   proprietaire: string | null;
+  resume_accepte: string | null;
 }
 
 function versMutation(ligne: LigneOutboxBrute): MutationOutbox {
@@ -78,6 +83,7 @@ function versMutation(ligne: LigneOutboxBrute): MutationOutbox {
     createdAtLocal: ligne.created_at_local,
     prochaineTentativeA: ligne.prochaine_tentative_a,
     proprietaire: ligne.proprietaire,
+    resumeAccepte: ligne.resume_accepte === null ? null : JSON.parse(ligne.resume_accepte) as unknown,
   };
 }
 
@@ -109,9 +115,9 @@ export function creerDepotOutboxSqlite(db: SQLiteDatabase): DepotOutbox {
       const ligne = await db.getFirstAsync<{ sequence: number }>(
         `INSERT INTO outbox
            (id, sequence, type, chantier_id, payload, depends_on, statut, tentatives, created_at_local,
-            prochaine_tentative_a, proprietaire)
+            prochaine_tentative_a, proprietaire, resume_accepte)
          VALUES
-           (?, (SELECT COALESCE(MAX(sequence), 0) + 1 FROM outbox), ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           (?, (SELECT COALESCE(MAX(sequence), 0) + 1 FROM outbox), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          RETURNING sequence`,
         [
           mutation.id,
@@ -124,6 +130,7 @@ export function creerDepotOutboxSqlite(db: SQLiteDatabase): DepotOutbox {
           mutation.createdAtLocal,
           mutation.prochaineTentativeA,
           mutation.proprietaire,
+          mutation.resumeAccepte == null ? null : JSON.stringify(mutation.resumeAccepte),
         ],
       );
       if (!ligne) {
@@ -138,7 +145,7 @@ export function creerDepotOutboxSqlite(db: SQLiteDatabase): DepotOutbox {
       await db.runAsync(
         `UPDATE outbox
          SET type = ?, chantier_id = ?, payload = ?, depends_on = ?, statut = ?, tentatives = ?,
-             created_at_local = ?, prochaine_tentative_a = ?
+             created_at_local = ?, prochaine_tentative_a = ?, resume_accepte = ?
          WHERE id = ?`,
         [
           mutation.type,
@@ -149,6 +156,7 @@ export function creerDepotOutboxSqlite(db: SQLiteDatabase): DepotOutbox {
           mutation.tentatives,
           mutation.createdAtLocal,
           mutation.prochaineTentativeA,
+          mutation.resumeAccepte == null ? null : JSON.stringify(mutation.resumeAccepte),
           mutation.id,
         ],
       );

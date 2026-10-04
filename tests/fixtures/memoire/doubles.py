@@ -174,7 +174,51 @@ def _port_publie(conteneur: str) -> int:
     return int(ligne.rsplit(":", 1)[1])
 
 
-def _attendre(url: str, conteneur: str, delai_s: float) -> None:
+def _nettoyer_secret(texte: str, mot_de_passe: str) -> str:
+    texte = texte.replace(mot_de_passe, "[SECRET]") if mot_de_passe else texte
+    return re.sub(r"(?i)(postgres(?:ql)?://[^:\s/@]+:)[^@\s]+@", r"\1[SECRET]@", texte)
+
+
+def _etat(conteneur: str) -> dict[str, Any]:
+    sortie = subprocess.run(
+        ["docker", "inspect", "--format", "{{json .State}}", conteneur],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    if sortie.returncode != 0:
+        raise RuntimeError((sortie.stderr or sortie.stdout or "docker inspect a échoué").strip())
+    try:
+        valeur = json.loads(sortie.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("docker inspect a renvoyé un état JSON invalide") from exc
+    if not isinstance(valeur, dict):
+        raise RuntimeError("docker inspect n'a pas renvoyé l'objet State attendu")
+    return valeur
+
+
+def _diagnostic(conteneur: str, mot_de_passe: str) -> str:
+    try:
+        etat = _nettoyer_secret(json.dumps(_etat(conteneur), ensure_ascii=False, sort_keys=True), mot_de_passe)
+    except Exception as exc:
+        etat = f"état indisponible: {_nettoyer_secret(str(exc), mot_de_passe)}"
+    try:
+        journal = subprocess.run(
+            ["docker", "logs", "--tail", "50", "--timestamps", conteneur],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        flux = "\n".join(part for part in (journal.stdout, journal.stderr) if part.strip())
+        flux = _nettoyer_secret(flux, mot_de_passe) or "(vide)"
+    except Exception as exc:
+        flux = f"journaux indisponibles: {_nettoyer_secret(str(exc), mot_de_passe)}"
+    return f"état: {etat}; journaux stdout/stderr:\n{flux}"
+
+
+def _attendre(url: str, conteneur: str, delai_s: float, mot_de_passe: str) -> None:
     import psycopg
 
     limite = time.monotonic() + delai_s
@@ -186,31 +230,112 @@ def _attendre(url: str, conteneur: str, delai_s: float) -> None:
                 return
         except psycopg.OperationalError as exc:
             derniere = exc
+            try:
+                etat = _etat(conteneur)
+            except Exception as erreur_etat:
+                diagnostic = _diagnostic(conteneur, mot_de_passe)
+                raise RuntimeError(
+                    f"état PostgreSQL illisible après échec de connexion "
+                    f"({_nettoyer_secret(str(erreur_etat), mot_de_passe)}) ; {diagnostic}"
+                ) from None
+            if etat.get("Status") in {"exited", "dead", "removing"}:
+                diagnostic = _diagnostic(conteneur, mot_de_passe)
+                raise RuntimeError(
+                    f"PostgreSQL a quitté avant readiness (exit={etat.get('ExitCode')}) ; {diagnostic}"
+                ) from None
             time.sleep(0.5)
-    journal = subprocess.run(["docker", "logs", "--tail", "20", conteneur], capture_output=True, text=True,
-                             timeout=30, check=False)
-    raise TimeoutError(f"PostgreSQL pas prêt après {delai_s} s ({derniere}) ; journal :\n{journal.stderr}")
+    diagnostic = _diagnostic(conteneur, mot_de_passe)
+    raise TimeoutError(
+        f"PostgreSQL pas prêt après {delai_s} s "
+        f"({_nettoyer_secret(str(derniere), mot_de_passe)}) ; {diagnostic}"
+    ) from None
 
 
 @contextlib.contextmanager
-def postgres_ephemere(delai_s: float = 120.0) -> Iterator[str]:
-    """`docker run -d --rm … -p 127.0.0.1::5432 pgvector/pgvector:pg17`, attend, rend l'URL, arrête."""
+def postgres_ephemere(delai_s: float = 120.0, *, stockage_en_memoire: bool = False) -> Iterator[str]:
+    """Crée PostgreSQL jetable; option RAM explicite, conserve les diagnostics puis nettoie sa cible."""
+    if type(stockage_en_memoire) is not bool:
+        raise TypeError("stockage_en_memoire doit être un booléen strict")
     mot_de_passe = secrets.token_hex(12)
-    lancement = subprocess.run(
-        ["docker", "run", "-d", "--rm", "-e", f"POSTGRES_PASSWORD={mot_de_passe}", "-p", "127.0.0.1::5432",
-         IMAGE_PGVECTOR],
-        capture_output=True, text=True, timeout=900, check=False,
-    )
-    if lancement.returncode != 0:
-        raise RuntimeError(f"échec du démarrage de {IMAGE_PGVECTOR} : {lancement.stderr.strip()}")
-    conteneur = lancement.stdout.strip()
+    nom_conteneur = f"opsys-pg-test-{secrets.token_hex(16)}"
+    cible = nom_conteneur
+    erreur_principale: BaseException | None = None
     try:
-        url = f"postgresql://postgres:{mot_de_passe}@127.0.0.1:{_port_publie(conteneur)}/postgres"
-        _attendre(url, conteneur, delai_s)
+        try:
+            commande_creation = [
+                "docker", "create", "--name", nom_conteneur, "-e", f"POSTGRES_PASSWORD={mot_de_passe}",
+                "-p", "127.0.0.1::5432",
+            ]
+            if stockage_en_memoire:
+                commande_creation.extend((
+                    "--pull=never",
+                    "--memory=512m",
+                    "--tmpfs", "/var/lib/postgresql/data:rw,noexec,nosuid,size=256m",
+                ))
+            commande_creation.append(IMAGE_PGVECTOR)
+            creation = subprocess.run(
+                commande_creation,
+                capture_output=True, text=True, timeout=900, check=False,
+            )
+        except Exception as exc:
+            diagnostic = _diagnostic(nom_conteneur, mot_de_passe)
+            detail = _nettoyer_secret(str(exc), mot_de_passe)
+            raise RuntimeError(f"docker create PostgreSQL a échoué ({detail}) ; {diagnostic}") from None
+        if creation.returncode != 0:
+            diagnostic = _diagnostic(nom_conteneur, mot_de_passe)
+            detail = _nettoyer_secret(creation.stderr.strip() or creation.stdout.strip(), mot_de_passe)
+            raise RuntimeError(f"docker create PostgreSQL a échoué ({detail}) ; {diagnostic}") from None
+
+        identifiant = creation.stdout.strip()
+        if re.fullmatch(r"[0-9a-f]{64}", identifiant) is None:
+            diagnostic = _diagnostic(nom_conteneur, mot_de_passe)
+            raise RuntimeError(
+                f"docker create n'a pas renvoyé un ID complet valide ; {diagnostic}"
+            ) from None
+        cible = identifiant
+
+        try:
+            demarrage = subprocess.run(
+                ["docker", "start", identifiant], capture_output=True, text=True, timeout=120, check=False
+            )
+        except Exception as exc:
+            diagnostic = _diagnostic(identifiant, mot_de_passe)
+            detail = _nettoyer_secret(str(exc), mot_de_passe)
+            raise RuntimeError(f"docker start PostgreSQL a échoué ({detail}) ; {diagnostic}") from None
+        if demarrage.returncode != 0:
+            diagnostic = _diagnostic(identifiant, mot_de_passe)
+            detail = _nettoyer_secret(demarrage.stderr.strip() or demarrage.stdout.strip(), mot_de_passe)
+            raise RuntimeError(f"docker start PostgreSQL a échoué ({detail}) ; {diagnostic}") from None
+
+        try:
+            port = _port_publie(identifiant)
+        except Exception as exc:
+            diagnostic = _diagnostic(identifiant, mot_de_passe)
+            detail = _nettoyer_secret(str(exc), mot_de_passe)
+            raise RuntimeError(
+                f"publication du port PostgreSQL impossible ({detail}) ; {diagnostic}"
+            ) from None
+        url = f"postgresql://postgres:{mot_de_passe}@127.0.0.1:{port}/postgres"
+        _attendre(url, identifiant, delai_s, mot_de_passe)
         yield url
+    except BaseException as exc:
+        erreur_principale = exc
+        raise
     finally:
-        subprocess.run(["docker", "stop", "-t", "2", conteneur], capture_output=True, text=True, timeout=120,
-                       check=False)
+        try:
+            nettoyage = subprocess.run(
+                ["docker", "rm", "-f", "-v", cible], capture_output=True, text=True, timeout=120, check=False
+            )
+            if nettoyage.returncode != 0:
+                detail = _nettoyer_secret(nettoyage.stderr.strip() or nettoyage.stdout.strip(), mot_de_passe)
+                diagnostic = _diagnostic(cible, mot_de_passe)
+                raise RuntimeError(f"nettoyage du conteneur PostgreSQL échoué ({detail}) ; {diagnostic}")
+        except Exception as exc:
+            detail = _nettoyer_secret(str(exc), mot_de_passe)
+            if erreur_principale is not None:
+                erreur_principale.add_note(f"nettoyage du conteneur PostgreSQL échoué: {detail}")
+            else:
+                raise RuntimeError(f"nettoyage du conteneur PostgreSQL échoué: {detail}") from None
 
 
 def vider(url: str) -> None:

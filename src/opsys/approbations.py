@@ -46,7 +46,12 @@ from typing import Any
 from sqlalchemy import Connection, func, insert, select, update
 
 from . import identite
-from .contexte import IdentiteAppelante, appeler_en_tant_que, demande_approuvee_en_cours, executer_demande_approuvee
+from .contexte import (
+    IdentiteAppelante,
+    appeler_en_tant_que,
+    demande_approuvee_en_cours,
+    executer_demande_approuvee,
+)
 from .departements import DEFAUT_ROLES_NIVEAU, Departement
 from .etat import journaliser
 from .idempotence import empreinte_arguments
@@ -85,22 +90,51 @@ def _maintenant() -> str:
 
 def creer_demande(
     cnx: Connection, departement: str, outil: str, arguments: Mapping[str, Any], *, niveau: Niveau,
-    motif: str = "",
+    motif: str = "", provenance_humaine: tuple[IdentiteAppelante, str, str] | None = None,
 ) -> str:
     """Enregistre une demande en attente, au niveau N figé (ADR-0009 §4) : `decider` s'y fiera pour
     savoir quels rôles peuvent trancher, même si l'outil change de niveau ensuite."""
     ident = uuid.uuid4().hex[:12]
+    niveau_fige = Niveau(niveau).value
+    signataire: IdentiteAppelante | None = None
+    if provenance_humaine is not None:
+        appelante, appareil, request_id = provenance_humaine
+        signataire = signataire_valide(cnx, appelante)
+        if (
+            signataire is None
+            or signataire.source != "appareil"
+            or signataire.role in ROLES_NON_HUMAINS
+            or not isinstance(appareil, str)
+            or not appareil.strip()
+            or not isinstance(request_id, str)
+            or not request_id.strip()
+        ):
+            raise ValueError("provenance N4 humaine invalide ou révoquée")
     cnx.execute(insert(APPROBATIONS).values(
         id=ident, cree_le=_maintenant(), departement=departement, outil=outil,
         arguments=json.dumps(dict(arguments), ensure_ascii=False), motif_demande=motif, statut="en_attente",
-        niveau=Niveau(niveau).value,
+        niveau=niveau_fige,
     ))
+    if signataire is not None:
+        details = {
+            "role": signataire.role,
+            "appareil": appareil,
+            "request_id": request_id,
+            "departement": departement,
+            "outil": outil,
+            "niveau": niveau_fige,
+            "arguments_sha256": empreinte_arguments(arguments),
+        }
+        journaliser(cnx, signataire.personne, "approbation.demander_humain", ident, details)
     return ident
 
 
 def _demande_depuis_ligne(ligne: Mapping[str, Any]) -> dict[str, Any]:
     """Une ligne de `approbations`, avec ses colonnes JSON décodées (arguments, résultat, attestation)."""
     demande = dict(ligne)
+    # Le hash d'un ticket privé est un binding de répartiteur, pas une donnée métier exposable à
+    # l'agent, à la console ni à une liste de demandes. `decider` lit la colonne directement.
+    demande.pop("ticket_cible_hash", None)
     demande["arguments"] = json.loads(demande["arguments"])
     if demande["resultat"]:
         demande["resultat"] = json.loads(demande["resultat"])
@@ -216,6 +250,21 @@ def decider(
     trace_appareil = {"appareil": appareil} if appareil else {}
     attestation_valide = _valider_attestation(attestation) if (approuver and niveau is Niveau.N5) else None
 
+    ticket_cible_hash = ligne.get("ticket_cible_hash")
+    if approuver and ticket_cible_hash:
+        # Une demande provenant d'un agent conserve le hash du ticket scellé, jamais son secret.
+        # On relit la liaison M10 et les registres métier sous le même verrou SQLite que l'exécution.
+        from . import liaison_cibles
+
+        liaison_cibles.verifier_ticket_scelle(
+            cnx,
+            ticket_cible_hash,
+            ident,
+            departement=ligne["departement"],
+            outil=ligne["outil"],
+            arguments=json.loads(ligne["arguments"]),
+        )
+
     if not approuver:
         cnx.execute(
             update(APPROBATIONS)
@@ -225,7 +274,12 @@ def decider(
         )
         journaliser(cnx, identifiant, "approbation.refuser", ident,
                    {"outil": ligne["outil"], "motif": motif, "role": role_utilise, **trace_appareil})
-        return {"id": ident, "statut": "refusee"}
+        reponse_refus = {"id": ident, "statut": "refusee"}
+        if ticket_cible_hash:
+            from . import liaison_cibles
+
+            liaison_cibles.terminer_ticket_scelle(cnx, ticket_cible_hash, ident, reponse_refus)
+        return reponse_refus
     outil = outils.get(ligne["outil"])
     if outil is None:
         raise KeyError(f"outil inconnu pour la demande {ident} : {ligne['outil']}")
@@ -244,15 +298,25 @@ def decider(
             reponse = executer_atomique(outil, json.loads(ligne["arguments"]))
     except Exception as exc:  # noqa: BLE001 — toute panne clôt la demande, sans la rejouer
         reponse = {"ok": False, "erreur": "panne_execution", "details": f"{type(exc).__name__}: {exc}"}
-    statut = "executee" if reponse["ok"] else "echec"
+    statut = "executee" if execution_reussie(reponse) else "echec"
     cnx.execute(
         update(APPROBATIONS)
         .where(APPROBATIONS.c.id == ident, APPROBATIONS.c.statut == "en_cours")
         .values(statut=statut, motif_decision=motif, resultat=json.dumps(reponse, ensure_ascii=False))
     )
+    if ticket_cible_hash:
+        from . import liaison_cibles
+
+        liaison_cibles.terminer_ticket_scelle(cnx, ticket_cible_hash, ident, reponse)
     journaliser(cnx, identifiant, "approbation.approuver", ident,
                {"outil": ligne["outil"], "statut": statut, "role": role_utilise, **trace_appareil})
     return {"id": ident, "statut": statut, "reponse": reponse}
+
+
+def execution_reussie(reponse: Mapping[str, Any]) -> bool:
+    """Un transport réussi peut porter un refus métier : celui-ci ne prouve aucun effet exécuté."""
+    resultat = reponse.get("resultat")
+    return reponse.get("ok") is True and not (isinstance(resultat, Mapping) and resultat.get("accepte") is False)
 
 
 # -- validation humaine au départ (ADR-0009 §4, addendum T1.4-h) -----------------------------------
@@ -346,7 +410,8 @@ def tracer_validation_au_depart(
     """Trace, dans la transaction de `cnx`, une action que `signataire` a lancée lui-même et que
     l'outil a déjà exécutée ; rend l'identifiant de la trace.
 
-    Deux écritures, aucune autre : (1) une ligne `approbations` au statut `executee` — qui
+    Deux écritures, aucune autre : (1) une ligne `approbations` au statut `executee` si le verdict
+    métier accepte l'action, sinon `echec` — qui
     (`decide_par`, `decide_role`), quoi (`outil`, `arguments`, `niveau`), quand (`cree_le`,
     `decide_le`), pourquoi (`motif_decision` = `MOTIF_VALIDATION_AU_DEPART`) ; c'est la même table que
     celle de la file, donc `opsys_demandes_approbation` et la console la montrent ; (2) l'entrée
@@ -369,7 +434,7 @@ def tracer_validation_au_depart(
     cnx.execute(insert(APPROBATIONS).values(
         id=ident, cree_le=maintenant, departement=departement, outil=outil,
         arguments=json.dumps(arguments_masques(arguments), ensure_ascii=False),
-        statut="executee", niveau=Niveau(niveau).value,
+        statut="executee" if execution_reussie(reponse) else "echec", niveau=Niveau(niveau).value,
         decide_par=signataire.personne, decide_role=signataire.role, decide_le=maintenant,
         motif_decision=MOTIF_VALIDATION_AU_DEPART, resultat=json.dumps(issue, ensure_ascii=False),
     ))

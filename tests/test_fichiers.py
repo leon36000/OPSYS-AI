@@ -351,3 +351,29 @@ def test_apres_effacement_un_redepot_correct_reussit(session):
             base64.b64encode(contenu).decode(), recu_le="2026-09-28T10:00:01-04:00",
         )
     assert second_echec.accepte is False and second_echec.raison == fichiers.RAISON_EMPREINTE_DISCORDANTE
+
+
+def test_lire_blob_verifie_assemble_sha_mime_et_indices(session):
+    contenu = _png_minimal()
+    empreinte = hashlib.sha256(contenu).hexdigest()
+    with session() as cnx:
+        assert _deposer(cnx, contenu, "image/png").complet
+        lecture = fichiers.lire_blob_verifie(cnx, fichiers.reference_pour(empreinte))
+    assert lecture.accepte is True
+    assert lecture.octets == contenu
+    assert lecture.type_mime == "image/png"
+
+
+def test_lire_blob_verifie_refuse_un_bloc_corrompu(session):
+    contenu = _png_minimal()
+    empreinte = hashlib.sha256(contenu).hexdigest()
+    with session() as cnx:
+        assert _deposer(cnx, contenu, "image/png").complet
+        cnx.exec_driver_sql(
+            "UPDATE fichiers_blocs SET contenu_base64 = ? WHERE empreinte_sha256 = ? AND index_bloc = 0",
+            (base64.b64encode(contenu[:-1] + b"x").decode(), empreinte),
+        )
+        lecture = fichiers.lire_blob_verifie(cnx, fichiers.reference_pour(empreinte))
+    assert lecture.accepte is False
+    assert lecture.octets is None
+    assert lecture.raison == "empreinte_discordante"

@@ -37,11 +37,18 @@ const DELAI_PAR_DEFAUT_MS = 15_000;
 export async function invoquerOutil<R = unknown>(params: ParametresAppelOutil): Promise<ResultatAppelOutil<R>> {
   const { fetchImpl, urlBase, jeton, requete, delaiMs = DELAI_PAR_DEFAUT_MS } = params;
   const controleur = new AbortController();
-  const minuteur = setTimeout(() => controleur.abort(), delaiMs);
-
-  let reponse: Response;
+  let reponse: Response | null = null;
+  let minuteur: ReturnType<typeof setTimeout> | undefined;
+  let rejeterDelai!: (erreur: Error) => void;
+  const delai = new Promise<never>((_resolve, reject) => { rejeterDelai = reject; });
+  minuteur = setTimeout(() => {
+    controleur.abort();
+    const erreur = new Error("délai dépassé pendant l'appel outil");
+    erreur.name = "AbortError";
+    rejeterDelai(erreur);
+  }, delaiMs);
   try {
-    reponse = await fetchImpl(`${urlBase}/tools/invoke`, {
+    reponse = await Promise.race([fetchImpl(`${urlBase}/tools/invoke`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -49,9 +56,28 @@ export async function invoquerOutil<R = unknown>(params: ParametresAppelOutil): 
       },
       body: JSON.stringify(requete),
       signal: controleur.signal,
-    });
+    }), delai]);
+    const corps = (await Promise.race([reponse.json(), delai])) as CorpsReponseOutilsInvoke<R>;
+    if (reponse.ok && corps?.ok === true) return { ok: true, result: corps.result };
+    const erreurCorps = corps && corps.ok === false ? corps.error : undefined;
+    return {
+      ok: false,
+      echec: {
+        origine: "http",
+        reessayable: estStatutReessayable(reponse.status),
+        message: erreurCorps?.message ?? `réponse HTTP ${reponse.status} inattendue`,
+        status: reponse.status,
+        erreur: erreurCorps,
+      },
+    };
   } catch (erreur) {
     const delaiDepasse = erreur instanceof Error && erreur.name === "AbortError";
+    if (reponse && !reponse.ok) {
+      return {
+        ok: false,
+        echec: { origine: "http", reessayable: estStatutReessayable(reponse.status), message: `lecture de la réponse HTTP ${reponse.status} interrompue`, status: reponse.status },
+      };
+    }
     return {
       ok: false,
       echec: {
@@ -61,31 +87,6 @@ export async function invoquerOutil<R = unknown>(params: ParametresAppelOutil): 
       },
     };
   } finally {
-    clearTimeout(minuteur);
+    if (minuteur !== undefined) clearTimeout(minuteur);
   }
-
-  let corps: CorpsReponseOutilsInvoke<R> | undefined;
-  try {
-    corps = (await reponse.json()) as CorpsReponseOutilsInvoke<R>;
-  } catch {
-    corps = undefined;
-  }
-
-  if (reponse.ok && corps?.ok === true) {
-    return { ok: true, result: corps.result };
-  }
-
-  const erreurCorps = corps && corps.ok === false ? corps.error : undefined;
-  return {
-    ok: false,
-    echec: {
-      origine: "http",
-      // Le fork classe ses réponses ok:false par code HTTP (400/403/404/500) ; on applique la
-      // même règle 408/429/5xx que pour le réseau, "selon ce que le code du fork renvoie".
-      reessayable: estStatutReessayable(reponse.status),
-      message: erreurCorps?.message ?? `réponse HTTP ${reponse.status} inattendue`,
-      status: reponse.status,
-      erreur: erreurCorps,
-    },
-  };
 }

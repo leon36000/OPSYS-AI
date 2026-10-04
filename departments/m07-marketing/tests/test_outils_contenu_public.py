@@ -302,8 +302,9 @@ def test_e2e_bus_reel_consentement_faux_refuse_via_loutil(base_durable, departem
 
 def test_e2e_wct_recu_enregistre_meme_si_demande_avis_refusee(base_durable, departements):
     """Le registre `wct_recus` est alimenté par le SEUL fait de la réception du bus, jamais par
-    le sort de la demande d'avis : un client insatisfait (donc demande d'avis refusée) laisse
-    quand même une trace exploitable par `m7_preparer_contenu_public`."""
+    le sort de la demande d'avis : ici le client a consenti à l'usage des photos, mais pas à être
+    contacté pour un avis. Le contenu public reste refusé pour cause d'insatisfaction, règle distincte
+    de l'éligibilité aux demandes d'avis, et le WCT reste lisible par l'outil."""
     charge = dict(
         _WCT_BASE_EVENEMENT, wct_id="wct-e2e-insatisfait", consentement_marketing=True, client_satisfait=False
     )
@@ -314,4 +315,4 @@ def test_e2e_wct_recu_enregistre_meme_si_demande_avis_refusee(base_durable, depa
     assert any(r.get("wct_id") == "wct-e2e-insatisfait" for r in recus)
 
     demandes = list(stockage.maillons("m07-marketing", "demandes_avis"))
-    assert not any(d.get("wct_id") == "wct-e2e-insatisfait" for d in demandes)  # refusée, comme avant
+    assert not any(d.get("wct_id") == "wct-e2e-insatisfait" for d in demandes)  # consentement avis absent

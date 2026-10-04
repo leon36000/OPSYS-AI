@@ -32,10 +32,26 @@ def test_depuis_meta_mcp_identite_exige_les_deux_cles():
 
 
 def test_depuis_meta_mcp_identite_valide():
-    identite = contexte.depuis_meta_mcp_identite({
-        "opsys/personne": "jdupont", "opsys/role": "employee", "opsys/idempotencyKey": "k",
-    })
+    identite = contexte.depuis_meta_mcp_identite(
+        {
+            "opsys/personne": "jdupont",
+            "opsys/role": "employee",
+            "opsys/idempotencyKey": "k",
+        }
+    )
     assert identite == contexte.IdentiteAppelante(personne="jdupont", role="employee")
+
+
+def test_meta_mcp_ne_peut_pas_declarer_une_session_console():
+    identite = contexte.depuis_meta_mcp_identite(
+        {
+            "opsys/personne": "nathan",
+            "opsys/role": "nathan_owner",
+            "opsys/source": "console",
+            "source": "console",
+        }
+    )
+    assert identite.source == "appareil"
 
 
 # -- gestionnaire de contexte : imbrication et remise à zéro ---------------------------------------
@@ -43,6 +59,18 @@ def test_depuis_meta_mcp_identite_valide():
 
 def test_appele_par_appareil_imbrique_puis_restaure():
     assert contexte.identite_appelante() is None
+
+
+def test_departement_origine_reste_distinct_du_departement_executeur():
+    assert contexte.departement_origine_appelante() is None
+    with contexte.appeler_en_tant_que("m10-memoire", origine="m01-front-office"):
+        assert contexte.DEPARTEMENT_APPELANT.get() == "m10-memoire"
+        assert contexte.departement_origine_appelante() == "m01-front-office"
+        with contexte.appeler_en_tant_que("m09-strategic-intelligence"):
+            assert contexte.DEPARTEMENT_APPELANT.get() == "m09-strategic-intelligence"
+            assert contexte.departement_origine_appelante() == "m09-strategic-intelligence"
+        assert contexte.departement_origine_appelante() == "m01-front-office"
+    assert contexte.departement_origine_appelante() is None
     exterieur = contexte.IdentiteAppelante("nathan", "nathan_owner")
     interieur = contexte.IdentiteAppelante("jdupont", "employee")
     with contexte.appele_par_appareil(exterieur):
@@ -130,7 +158,8 @@ def test_identite_appelante_ignore_les_arguments_de_loutil(departements_demo, se
 
 
 def test_identite_appelante_absente_meme_avec_un_argument_qui_pretend_en_porter_une(
-    departements_demo, session,
+    departements_demo,
+    session,
 ):
     """Même sans `_meta` du tout, un argument suggestif ne crée jamais d'identité au contexte."""
     demo_outils.IDENTITES_VUES.clear()
@@ -139,7 +168,8 @@ def test_identite_appelante_absente_meme_avec_un_argument_qui_pretend_en_porter_
     async def scenario() -> None:
         async with Client(serveur) as client:
             await client.call_tool(
-                "m9_voir_identite_avec_argument", {"pretend_role": "nathan_owner"},
+                "m9_voir_identite_avec_argument",
+                {"pretend_role": "nathan_owner"},
             )
 
     anyio.run(scenario)

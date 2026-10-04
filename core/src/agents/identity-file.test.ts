@@ -7,9 +7,11 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  createAgentIdentityConfig,
   loadAgentIdentityFromFile,
   loadAgentIdentityFromWorkspace,
   mergeIdentityMarkdownContent,
+  normalizeIdentityForFile,
 } from "./identity-file.js";
 
 const TEST_MAX_IDENTITY_FILE_BYTES = 4 * 1024 * 1024;
@@ -87,6 +89,15 @@ describe("parseIdentityMarkdown", () => {
 });
 
 describe("mergeIdentityMarkdownContent", () => {
+  it("keeps the configured 3D model out of workspace-authored IDENTITY.md", () => {
+    const identity = createAgentIdentityConfig({
+      name: "Operations",
+      avatarModelId: "robotexpressive-quaternius-cc0-v1",
+    });
+    expect(identity?.avatarModelId).toBe("robotexpressive-quaternius-cc0-v1");
+    expect(normalizeIdentityForFile(identity)).toEqual({ name: "Operations" });
+  });
+
   it("updates writable fields without clobbering richer identity sections", () => {
     const content = `
 # IDENTITY.md - Agent Identity

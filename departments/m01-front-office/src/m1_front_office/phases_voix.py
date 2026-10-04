@@ -49,6 +49,7 @@ def ouvrir_conversation(signal_id, horodatage, registre: Registre):
         "precedent_ligne_id": None,
         "payload": {
             "conversation_id": conv_id,
+            "signal_id": signal_id,
             "phase_source": None,
             "phase_cible": 0,
             "motif": "ouverture",

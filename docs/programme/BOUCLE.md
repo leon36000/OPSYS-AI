@@ -1,31 +1,30 @@
-# Boucle d'exécution OPSYS-AI (« Ralph »)
+# Boucle d'exécution OPSYS-AI
 
-Consigne relue au début de **chaque** itération. Elle ne change pas d'une itération à l'autre ;
-c'est `PLAN.md` qui avance.
+## Une itération utile
 
-## Une itération
+1. Lire la tâche du plan courant et le contexte du département, puis vérifier l'état Git. Les
+   [directives Nathan](../produit/DIRECTIVES-NATHAN.md) et ADR-0012 priment sur les méthodes anciennes.
+2. Choisir un livrable dans le périmètre autorisé, avec entrées, sortie et preuve explicites.
+   Découper les grands départements en parcours utilisables sans perdre leur périmètre cible.
+3. Inspecter l'existant ; rechercher GitHub/GitLab si une brique peut éviter une réécriture.
+   Qualifier licence, code, maintenance et coût d'adaptation. Déléguer les morceaux indépendants
+   quand cela économise du travail, avec responsabilités et fichiers distincts.
+4. Implémenter le changement et sa régression pertinente. Le code calcule, les modèles orchestrent.
+   Aucun vote de modèles, fournisseur extérieur obligatoire ni revue imposée entre chaque étape.
+5. Vérifier proportionnellement : documents → liens/cohérence/diff ; code → tests du parcours,
+   lint ; contrats/manifestes → `opsys-metier verifier` ; argent/accès/rejeu → tests négatifs ;
+   migration/backup → intégrité et restauration. Core → CI prévue par `core/AGENTS.md`.
+   Une même preuve n'est répétée que si un nouveau changement ou échec le justifie.
+6. Mettre à jour le plan et la mémoire de projet : résultat, fichiers, décision, commandes,
+   limites, statut et prochaine action. Une panne OAuth laisse un repli explicite ; elle ne
+   bloque pas les capacités internes indépendantes et ne devient pas une fausse preuve en réel.
+7. Continuer jusqu'au livrable autorisé complet. Préparer un diff révisable. Commit, push, merge
+   et déploiement suivent l'autorisation de la session ; ils ne sont pas déclenchés par la boucle.
 
-1. **Relire l'état** : `docs/programme/PLAN.md` (tâche courante, tâches bloquées) et `git log -5`.
-   Ne relire la définition produit que pour le département ou le flux touché.
-2. **Choisir** la première tâche non cochée de la tranche en cours dont les dépendances sont
-   faites. Une tâche trop grosse pour une itération est d'abord découpée dans le plan.
-3. **Exécuter jusqu'au bout**, avec des sous-agents en parallèle quand les morceaux sont
-   indépendants (fichiers distincts). TDD : le test d'abord, puis le code. Le code calcule, le LLM
-   orchestre. Les briques sont des ingrédients : licence vérifiée et inscrite dans
-   `docs/research/INGREDIENTS.md`.
-4. **Prouver** : exécuter les gates du dépôt (`pytest`, `ruff check src tests`, `opsys-metier verifier`,
-   plus les tests du département touché, et la CI du core si `core/` change). Aucun faux vert : une
-   porte fermée devient « PARTIEL — GATE NATHAN » avec son repli implémenté.
-5. **Mettre à jour `PLAN.md`** : cocher la tâche avec une ligne de preuve (commande et résultat),
-   ou la marquer `BLOQUÉ :` avec la raison. Ajouter les tâches découvertes.
-6. **Commit et push** sur la branche de travail, message en français qui dit pourquoi.
-7. **Relancer** l'itération suivante. Ne s'arrêter que si le plan est entièrement coché, ou si toutes
-   les tâches restantes attendent une décision de Nathan (les lister, une seule fois).
+## Garde-fous
 
-## Garde-fous permanents
-
-- Frontières humaines T3 : paiement, secrets de production, suppression définitive, publication
-  ou déploiement public, engagement externe. Jamais sans Nathan.
-- Ne jamais exécuter le code amont dans le bac à sable : le core se construit et se teste en CI.
-- Test de dérive (définition, §0.5) à chaque livrable.
-- Économie de tokens : lectures ciblées, sorties courtes, sous-agents pour les recherches larges.
+- Conserver les validations humaines N0–N5 pour les effets financiers, fiscaux, légaux et sensibles.
+- Revalider droits, objet et arguments au moment de l'action, avec audit et protection du rejeu.
+- Ne pas exécuter le core localement : les règles spécifiques de `core/AGENTS.md` restent applicables.
+- Décrire ce qui est prouvé et ce qui manque ; aucune promesse de « 100 % » sans critères couverts.
+- Économiser tokens et contexte ; ne pas déclencher plusieurs agents pour un calcul déterministe.

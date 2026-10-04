@@ -346,9 +346,10 @@ def test_le_proprietaire_approuve_puis_prend_le_paquet_a_publier_lui_meme(
     # L'heure de RÉCEPTION du serveur (le même instant, en UTC), pas celle du téléphone (en retard de cinq minutes).
     assert dt.datetime.fromisoformat(maillon["horodatage"]) == moteur.horloge.maintenant
     with stockage.transaction() as cnx:
-        traces = {d["decide_par"]: d for d in approbations.lister(cnx, "executee") if d["outil"] == DECIDER}
+        traces = {d["decide_par"]: d for d in approbations.lister(cnx) if d["outil"] == DECIDER}
     # Le socle trace le geste de chacun : celui du propriétaire (accepté) et la tentative de la gestionnaire (refusée).
     assert set(traces) == {"nathan", "gestionnaire"}
+    assert traces["nathan"]["statut"] == "executee" and traces["gestionnaire"]["statut"] == "echec"
     assert (traces["nathan"]["niveau"], traces["nathan"]["departement"]) == ("N3", "m07-marketing")
     assert traces["nathan"]["resultat"]["accepte"] is True and traces["gestionnaire"]["resultat"]["accepte"] is False
 

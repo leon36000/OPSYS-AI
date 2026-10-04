@@ -14,6 +14,7 @@ import {
 import type { AgentSession } from "../../sessions/index.js";
 import { withSessionManagerWrite } from "../../sessions/session-manager-write-admission.js";
 import { ackPendingAgentSteeringItems } from "../../subagents/registry/subagent-registry.js";
+import { createOpsysRuntimeAdmissionStreamFn } from "../opsys-runtime-admission.js";
 import { recordAggregateTruncation } from "../prompt-cache-observability.js";
 import { updateActiveEmbeddedRunSnapshot } from "../runs.js";
 import {
@@ -70,6 +71,14 @@ export async function submitEmbeddedAttemptPrompt(input: {
   attempt: Pick<
     EmbeddedRunAttemptParams,
     | "promptCacheKey"
+    | "runId"
+    | "contextEngineAgentId"
+    | "agentId"
+    | "getAdmissionCandidateIndex"
+    | "trigger"
+    | "validateScheduledRuntimeAuthority"
+    | "config"
+    | "abortSignal"
     | "sessionId"
     | "sessionKey"
     | "skipPreparedUserTurnMessage"
@@ -117,11 +126,47 @@ export async function submitEmbeddedAttemptPrompt(input: {
 
   const installProviderPromptHistoryTransform = (): (() => void) => {
     const baseStreamFn = activeSession.agent.streamFn;
+    const agentId = input.attempt.agentId ?? input.attempt.contextEngineAgentId;
+    const entry = agentId ? input.attempt.config?.agents?.entries?.[agentId] : undefined;
+    const admission = entry?.opsysRuntimeAdmission;
+    const scheduledStreamFn: StreamFn = async (model, context, options) => {
+      const signal = options?.signal ?? input.attempt.abortSignal ?? new AbortController().signal;
+      await input.attempt.validateScheduledRuntimeAuthority?.(signal);
+      signal.throwIfAborted();
+      return baseStreamFn(model, context, options);
+    };
+    const admissionStreamFn = admission
+      ? createOpsysRuntimeAdmissionStreamFn({
+          config: input.attempt.config,
+          agentId: agentId ?? "",
+          runId: input.attempt.runId,
+          getCandidateIndex: input.attempt.getAdmissionCandidateIndex ?? (() => -1),
+          signal: input.attempt.abortSignal,
+          streamFn: baseStreamFn,
+          beforeProviderDispatch: input.attempt.validateScheduledRuntimeAuthority,
+        })
+      : scheduledStreamFn;
     const persistThenStream: StreamFn = async (model, context, options) => {
       await input.persistToolResultProjections();
       options?.signal?.throwIfAborted();
       assertSteeringCurrent();
-      const stream = await baseStreamFn(model, context, options);
+      if (
+        admission &&
+        input.attempt.trigger === "cron" &&
+        typeof input.attempt.validateScheduledRuntimeAuthority !== "function"
+      ) {
+        throw new Error(
+          "OPSYS scheduled provider dispatch requires live host authority validation",
+        );
+      }
+      if (admission) {
+        if (!agentId || input.attempt.getAdmissionCandidateIndex === undefined) {
+          throw new Error("OPSYS runtime admission is missing the host candidate ordinal");
+        }
+        // Admission failure prevents the provider call below.
+      }
+      // A failed/ambiguous provider dispatch intentionally leaves its reservation open.
+      const stream = await admissionStreamFn(model, context, options);
       // Pre-prompt compaction has not consumed the deferred answer.
       if (captureCurrentPromptForModel) {
         pendingSteering = undefined;

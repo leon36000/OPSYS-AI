@@ -18,6 +18,7 @@ import { withCronMutationCommitHook } from "../mutation-completion.js";
 import { cronSchedulingInputsEqual } from "../schedule-identity.js";
 import { removeCronJobBaseSession } from "../session-reaper.js";
 import { removeStaleCronJobFamilyRows } from "../store.js";
+import { snapshotCronRetirementCapture } from "../store/runtime-retirement-store.js";
 import {
   isSystemMonitorDeclaration,
   systemOwnedDeclarationKeyNamespace,
@@ -56,12 +57,14 @@ import {
 import { normalizeOptionalAgentId } from "./normalize.js";
 import { resolveCurrentDefaultAgentId, resolveEffectiveJobAgentId } from "./ops-shared.js";
 import { cronRunReceiptMutationHooks } from "./run-receipts.js";
+import type { CronRemoveOptions } from "./state.js";
 import type {
   CronAddResult,
   CronAddOptions,
   CronServiceState,
   CronUpdateOptions,
   CronUpdatePrecondition,
+  CronRemovePrecondition,
   DeferredCronNotifications,
 } from "./state.js";
 import { emit } from "./state.js";
@@ -71,6 +74,7 @@ import {
   persist,
   persistOrRestore,
   persistNativeOrRestore,
+  persistRetirementOrRestore,
   pruneCronJobScratchAfterCommit,
   runPostPersistCronNotifications,
   snapshotStoreForRollback,
@@ -498,11 +502,20 @@ export async function updateWithPrecondition(
 }
 
 /** Removes a cron job by id and re-arms the timer when the in-memory store changes. */
-export async function remove(
+async function removeInternal(
   state: CronServiceState,
   id: string,
-  opts?: { systemOwned?: boolean; commitGuard?: () => void },
+  opts?: CronRemoveOptions,
+  precondition?: CronRemovePrecondition,
 ) {
+  const retirementInput = opts?.retirement;
+  const retirement = retirementInput ? snapshotCronRetirementCapture(retirementInput) : undefined;
+  if (retirement) {
+    opts = { systemOwned: opts?.systemOwned, commitGuard: opts?.commitGuard, retirement };
+  }
+  if (retirement && (!precondition || !opts?.commitGuard)) {
+    throw new Error("Cron retirement requires an owning precondition and live guard.");
+  }
   let sessionCleanup:
     | {
         activeMarker: CronActiveJobMarker | undefined;
@@ -533,7 +546,9 @@ export async function remove(
     if (isSystemMonitorDeclaration(removedJob.declarationKey) && opts?.systemOwned !== true) {
       throw new Error("system-owned monitor jobs cannot be removed by cron clients");
     }
-    const persistStore = opts?.commitGuard ? persistNativeOrRestore : persistOrRestore;
+    await precondition?.(structuredClone(removedJob), state.deps.nowMs());
+    const persistStore =
+      opts?.commitGuard || precondition ? persistNativeOrRestore : persistOrRestore;
     opts?.commitGuard?.();
     const snapshot = snapshotStoreForRollback(state);
     state.store.jobs = state.store.jobs.filter((j) => j.id !== id);
@@ -543,11 +558,27 @@ export async function remove(
       deferredNotifications: postPersistNotifications,
     });
 
-    await persistStore(state, snapshot, {
-      postPersistNotifications,
-      suppressScheduledJobId: id,
-      transactionHooks: withCronMutationCommitHook("cron.remove"),
-    });
+    if (retirement) {
+      const commitGuard = opts?.commitGuard;
+      if (!commitGuard) throw new Error("Cron retirement requires a live guard.");
+      await persistRetirementOrRestore(
+        state,
+        snapshot,
+        {
+          capture: retirement,
+          jobId: removedJob.id,
+          removedAtMs: state.deps.nowMs(),
+        },
+        commitGuard,
+        { postPersistNotifications, suppressScheduledJobId: id },
+      );
+    } else {
+      await persistStore(state, snapshot, {
+        postPersistNotifications,
+        suppressScheduledJobId: id,
+        transactionHooks: withCronMutationCommitHook("cron.remove"),
+      });
+    }
     const activeMarker = noteActiveCronJobRemoval(id, opts?.commitGuard);
     const agentId = resolveEffectiveJobAgentId(removedJob, resolveCurrentDefaultAgentId(state));
     const sessionStorePath =
@@ -611,6 +642,25 @@ export async function remove(
     throw new Error(cleanupError);
   }
   return result;
+}
+
+/** Removes a cron job by id and re-arms the timer when the in-memory store changes. */
+export async function remove(
+  state: CronServiceState,
+  id: string,
+  opts?: { systemOwned?: boolean; commitGuard?: () => void },
+) {
+  return await removeInternal(state, id, opts);
+}
+
+/** Removes only after a store-locked caller predicate passes for the current row. */
+export async function removeWithPrecondition(
+  state: CronServiceState,
+  id: string,
+  precondition: CronRemovePrecondition,
+  opts?: CronRemoveOptions,
+) {
+  return await removeInternal(state, id, opts, precondition);
 }
 
 /** Remove one agent's jobs while holding the cron lock across an external roster commit. */

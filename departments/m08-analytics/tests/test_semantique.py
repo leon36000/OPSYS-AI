@@ -1,5 +1,6 @@
 import copy
 
+import pytest
 from m8_analytics import encodage, registre, semantique
 from m8_analytics.contrats import CHAMPS_DEFINITION_METRIQUE
 
@@ -43,6 +44,45 @@ def test_deriver_metrique_retourne_la_valeur_d_un_unique_snapshot():
     assert resultat["n"] == 1
     assert resultat["fraicheur"] == 3.0
     assert resultat["version_definition"] == encodage.empreinte(definition)
+
+
+def test_nan_n_est_pas_un_echantillon_numerique_ni_une_valeur_derivable():
+    registre_cible = registre.RegistreSnapshots()
+    definition = _definition()
+    _ajouter(registre_cible, "M7-marketing", "2026-01-01T00:00:00Z", {"m7_cpl": "nan"})
+
+    resultat = semantique.deriver_metrique("M7-marketing", "m7_cpl", definition, registre_cible, "2026-01-02T00:00:00Z")
+
+    assert resultat["n"] == 0
+    assert resultat["valeur"] is None
+    assert resultat["fraicheur"] is None
+    assert resultat["valeurs_invalides"] == 1
+    assert resultat["derniere_valeur_invalide"] is True
+
+
+@pytest.mark.parametrize("valeur_brute", ["inconnu", 42, True, None])
+def test_valeur_mal_typee_ou_non_numerique_est_distincte_d_une_donnee_absente(valeur_brute):
+    registre_cible = registre.RegistreSnapshots()
+    definition = _definition()
+    _ajouter(registre_cible, "M7-marketing", "2026-01-01T00:00:00Z", {"m7_cpl": valeur_brute})
+
+    resultat = semantique.deriver_metrique(
+        "M7-marketing", "m7_cpl", definition, registre_cible, "2026-01-02T00:00:00Z",
+    )
+
+    assert resultat["n"] == 0
+    assert resultat["valeur"] is None
+    assert resultat["valeurs_invalides"] == 1
+    assert resultat["derniere_valeur_invalide"] is True
+
+
+def test_valeur_finie_reste_un_echantillon_valide():
+    registre_cible = registre.RegistreSnapshots()
+    definition = _definition()
+    _ajouter(registre_cible, "M7-marketing", "2026-01-01T00:00:00Z", {"m7_cpl": "42.5"})
+    resultat = semantique.deriver_metrique("M7-marketing", "m7_cpl", definition, registre_cible, "2026-01-02T00:00:00Z")
+    assert resultat["n"] == 1
+    assert resultat["valeur"] == 42.5
 
 
 def test_deriver_metrique_choisit_le_dernier_snapshot_par_ordre_du_registre():

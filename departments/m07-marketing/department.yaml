@@ -3,14 +3,16 @@ id: m07-marketing
 code: M7
 nom: Marketing
 mission: >-
-  Piloter le marketing d'une entreprise de rénovation extérieure au Québec : Brand Core,
-  visibilité SEO/AEO, UTM et attribution/ROI, fabrique de contenu saisonnier, réputation
-  et veille concurrentielle. Ne calcule jamais un chiffre de tête et ne fabrique jamais
+  Piloter le marketing d'une entreprise de rénovation extérieure au Québec : profil Brand Core
+  versionné et signé, visibilité SEO/AEO, UTM et attribution/ROI, observations Growth sourcées,
+  plans déterministes sur 30 jours, campagnes locales en brouillon, fabrique de contenu saisonnier,
+  calendrier éditorial lié aux contenus chantier et export manuel, réputation et veille concurrentielle.
+  Ne calcule jamais un chiffre de tête et ne fabrique jamais
   un coût, un lead ou une plateforme publicitaire quand le lien manque : le lien
   manquant devient une donnee_insuffisante explicite, jamais un zéro silencieux.
 outils: m7_marketing.outils
 mode: ombre
-dependances: [m01-front-office, m02-revenue-crm, m04-field-ops]
+dependances: [m01-front-office, m02-revenue-crm, m03-estimation, m04-field-ops, m05-financecore]
 modeles:
   defaut: standard
   extraction: rapide
@@ -19,9 +21,9 @@ planifications:
   - nom: digest-marketing
     cron: "0 7 * * 1-5"
     consigne: >-
-      Résume en 5 lignes la veille marketing : contenus proposés (file d'approbation) et
-      contenus de chantier en attente de décision du propriétaire (m7_lister_contenus_chantier),
-      avis nécessitant une réponse, alertes ROI (donnees_insuffisantes par canal).
+      Résume en 5 lignes la veille marketing : contenus proposés (file d'approbation),
+      contenus de chantier en attente (m7_lister_contenus_chantier) et créneaux éditoriaux
+      (m7_lister_calendrier), avis nécessitant une réponse, alertes ROI (donnees_insuffisantes par canal).
       Aucune publication, aucune nouvelle proposition.
 budget:
   tokens_jour: 300000
@@ -29,14 +31,14 @@ budget:
   alerte_pct: 80
 memoire:
   lecture: [clients, chantiers, campagnes, avis]
-  ecriture: [contenus_proposes, roi_snapshots]
+  ecriture: [contenus_proposes, calendrier_contenus, roi_snapshots, profils_marque, observations_growth, plans_growth, campagnes_locales]
 # PLAN T4.17-c : M7 consomme le STOP de M1 (`m1.retrait_consentement`, les leads que le client avait ouverts, par leur
 # `lead_id`) et l'inscrit comme retrait du consentement marketing. Catalogue : src/opsys/evenements/catalogue/.
 # PLAN T4.17-e : M7 publie `m7.contenu_exporte` quand le propriétaire prend le paquet manuel d'un contenu (dans la
 # transaction de l'export) : la clé de mesure `utm_content` du contenu, son chantier (`wct_id`) et son canal, jamais un
 # texte, une ville, un lead ni un contact. M8 en tire les contenus qui existent et compte les leads par `utm_content`.
 evenements:
-  consomme: [m4.travaux_termines, m1.retrait_consentement]
+  consomme: [m4.travaux_termines, m1.retrait_consentement, m2.client_associe, m3.devis_accepte, m5.rentabilite_chantier]
   publie: [m7.contenu_exporte]
 kpis:
   - id: m7_cout_par_lead_global
@@ -46,6 +48,6 @@ kpis:
   - id: m7_part_non_attribuables
     description: Part des leads CRM sans visitor_id ou hors fenêtre d'attribution de 30 jours.
 approbations:                      # ADR-0009 §5, PLAN T4.17 : qui décide un N3 de M7 dans la file du socle.
-  # N3 : approuver ou rejeter un contenu public de chantier (m7_decider_contenu). Le propriétaire
-  # seulement, comme le défaut fail-closed : la marque parle en son nom.
+  # N3 : approuver ou rejeter un contenu public (m7_decider_contenu) ou un créneau lié (m7_decider_creneau_calendrier).
+  # Le propriétaire seulement, comme le défaut fail-closed : la marque parle en son nom.
   n3: [nathan_owner]

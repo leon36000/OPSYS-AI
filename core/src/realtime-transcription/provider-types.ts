@@ -36,5 +36,7 @@ export type RealtimeTranscriptionSession = {
   connect(): Promise<void>;
   sendAudio(audio: Buffer): void;
   close(): void;
+  /** Discard buffered/request audio when the owning Talk session is cancelled. */
+  cancel?(): void;
   isConnected(): boolean;
 };

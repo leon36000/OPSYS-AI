@@ -31,7 +31,7 @@ budget:
   tokens_mois: 4000000
   alerte_pct: 80
 memoire:
-  lecture: [clients, chantiers, estimations, baremes]
+  lecture: [clients, chantiers, estimations, baremes, procedures]
   ecriture: [estimations]
 kpis:
   - id: ecart_estime_reel_pct
@@ -50,6 +50,21 @@ approbations:                      # ADR-0009 §5, PLAN T4.7
   # est lisible, sans les arguments (approbations_appareil).
   n4: [nathan_owner]
 configuration:
+  # Politique initiale d'évaluation de calibrations de durée. Valeurs explicites préenregistrées,
+  # conservatrices et non qualifiées empiriquement; elles ne modifient aucune estimation avant
+  # activation N4. Une cohorte trop petite ou non concluante reste inactive.
+  calibration_temps:
+    version: m3-time-promotion-policy/1
+    minimum_chantiers_train: 30
+    minimum_chantiers_holdout: 30
+    couverture_minimale: "0.90"
+    amelioration_relative_minimale: "0.10"
+    amelioration_minutes_minimale: "1"
+    borne_confiance: "0.95"
+    replications_bootstrap: 10000
+    p80_regression_maximale: "0.05"
+    resolution_mesure_minutes: 1
+    qualification_empirique: non_qualifiee_empiriquement
   # Seuils de la revue d'un devis avant son envoi (PLAN T4.7, DEFINITION-PRODUIT §7 M3.14 : « validation humaine
   # obligatoire si… »). VIDES à dessein : aucun seuil n'est inventé, chacun est une décision de Nathan. Un seuil
   # vide ou invalide rend son critère « seuil à configurer » dans la revue (revue_devis.py), jamais une valeur

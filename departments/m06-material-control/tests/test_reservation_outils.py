@@ -319,6 +319,11 @@ def test_l_outil_ferme_m6_consommer_materiaux_cloture_aussi_la_reservation_de_so
            "fix_gps_completion": {"latitude": 1.0, "longitude": 2.0},
            "duree_reelle_minutes": 30, "ecart_signale": False, "revue_id": None, "hash_maillon": "a" * 64,
            "consommateurs_cibles": ["M6"], "devis_id": "DEVIS-A"}
+    with stockage.transaction():
+        evenements.publier(
+            "m4.travaux_termines", "m04-field-ops", {**wct, "statut": "completed_pending_review"},
+            evenement_id=wct["wct_id"],
+        )
 
     reponse = _outil(m6, "m6_consommer_materiaux", {"wct": wct, "formulaire": {
         "wct_id": "WCT-CONS-1", "intervention_id": "int-1", "chantier_id": "CH-FICT-1",

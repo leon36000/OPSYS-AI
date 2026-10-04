@@ -1,5 +1,11 @@
 # Audit M4 — Field Operations
 
+> Audit historique du 28 septembre 2026, conservé pour traçabilité. Les évolutions ultérieures
+> ne sont pas inventoriées ici. Consulter le [plan de consolidation](../programme/RESTRUCTURATION-2026-09-30.md)
+> et les [recherches actuelles](../research/R16-2026-09-30/README.md) pour M1/M5/M7/M10. Un statut
+> ancien et un nombre de tests ne certifient pas le périmètre cible complet.
+
+
 **Date :** 2026-09-28 · **Portée :** `departments/m04-field-ops/` seul, aucune modification hors ce
 fichier. **Référence produit qui fait foi :** `docs/produit/DEFINITION-PRODUIT.md` §1, §5 (P14), §6,
 §7 (M4), §8, §9.3/9.5/9.6/9.7, §10, §13. **Autres sources :** `AGENTS.md`,

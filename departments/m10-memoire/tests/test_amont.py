@@ -35,7 +35,7 @@ from m10_memoire import (
 )
 from sqlalchemy import select
 
-from opsys import evenements, stockage
+from opsys import contexte, evenements, stockage
 from opsys.departements import charger_departements
 from opsys.evenements.schemas import erreurs_charge
 from opsys.stockage import codec
@@ -883,8 +883,10 @@ def test_le_bus_livre_lead_client_et_devis_a_m10_et_le_paquet_les_montre(base_du
         assert recu["statut"] == "traite" and recu["resultat"]["memorise"] is True
 
     with stockage.transaction():
-        paquet_m3 = outils_mod.paquet_contexte_affaire(LEAD, HORODATAGE_PAQUET, "m03-estimation")
-        paquet_m1 = outils_mod.paquet_contexte_affaire(LEAD, HORODATAGE_PAQUET, "m01-front-office")
+        with contexte.appeler_en_tant_que("m03-estimation"):
+            paquet_m3 = outils_mod.paquet_contexte_affaire(LEAD, HORODATAGE_PAQUET)
+        with contexte.appeler_en_tant_que("m01-front-office"):
+            paquet_m1 = outils_mod.paquet_contexte_affaire(LEAD, HORODATAGE_PAQUET)
         sans_agent = outils_mod.paquet_contexte_affaire(LEAD, HORODATAGE_PAQUET)
 
     assert [f["source"] for f in _faits_recents(paquet_m3)] == [TYPE_ACCEPTE, TYPE_SANS_REPONSE, TYPE_LEAD]
@@ -965,8 +967,8 @@ def test_a_l_envers_le_devis_puis_le_client_puis_le_lead_sont_tous_gardes_et_le_
     assert dernier["deja_memorise"] is False, "le lead reçu en dernier est écrit"
     assert dernier["origine_recue"] is True and dernier["verdict"] is None
     assert _types_ecrits() == sorted([TYPE_LEAD, TYPE_CLIENT, TYPE_ACCEPTE, TYPE_MONTANTS])
-    with stockage.transaction():
-        paquet = outils_mod.paquet_contexte_affaire(LEAD, HORODATAGE_PAQUET, "m01-front-office")
+    with stockage.transaction(), contexte.appeler_en_tant_que("m01-front-office"):
+        paquet = outils_mod.paquet_contexte_affaire(LEAD, HORODATAGE_PAQUET)
     assert [f["source"] for f in _faits_recents(paquet)] == [TYPE_ACCEPTE, TYPE_CLIENT, TYPE_LEAD]
 
 
@@ -979,7 +981,8 @@ def test_un_lead_inconnu_donne_un_paquet_vide_et_aucune_affaire_inventee_par_les
     _repartir()
 
     with stockage.transaction():
-        inconnu = outils_mod.paquet_contexte_affaire("LEAD-JAMAIS-VU", HORODATAGE_PAQUET, "m01-front-office")
+        with contexte.appeler_en_tant_que("m01-front-office"):
+            inconnu = outils_mod.paquet_contexte_affaire("LEAD-JAMAIS-VU", HORODATAGE_PAQUET)
         consolide = outils_mod.consolider_affaire("LEAD-JAMAIS-VU", JOUR_LEAD, HORODATAGE_PAQUET)
 
     assert all(couche["vide"] for couche in inconnu["couches"])

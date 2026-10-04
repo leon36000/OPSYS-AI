@@ -351,9 +351,9 @@ d'autres routes HTTP (lecture Control UI, routes de plugin) :
 **Ce qui reste, volontairement hors de cette tranche :** aucun outil de département ne lit encore
 `identite_appelante()` pour signer ou projeter (M3, tâche séparée) — le socle, lui, la lit depuis
 T1.4-h pour la validation humaine au départ (§8) ; l'identifiant de client OPSYS
-n'est pas câblé côté mobile ni dans `isNativeAppUiClient` ; une revue externe (code de sécurité,
-AGENTS.md) reste requise avant mise en service, comme pour toute PR touchant M5/les politiques/les
-approbations.
+n'est pas câblé côté mobile ni dans `isNativeAppUiClient`. Cette description est celle de la
+tranche citée : confronter les frontières au code et aux défauts de l'audit du 30 septembre avant
+mise en service. ADR-0012 exige des preuves ciblées de sécurité, sans revue extérieure obligatoire.
 
 ## 8. Validation humaine au départ (T1.4-h)
 

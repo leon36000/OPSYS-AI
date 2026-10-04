@@ -262,6 +262,15 @@ describe("AgentsUpdateParamsSchema", () => {
     expectAccepted(AgentsUpdateParamsSchema, { agentId: "work" }, { agentId: "work", model: null });
     expectRejected(AgentsUpdateParamsSchema, { agentId: "work", model: "" });
   });
+
+  it("accepts an explicit local avatar catalogue selection or its clear operation", () => {
+    expectAccepted(
+      AgentsUpdateParamsSchema,
+      { agentId: "work", avatarModelId: "robotexpressive-quaternius-cc0-v1" },
+      { agentId: "work", avatarModelId: null },
+    );
+    expectRejected(AgentsUpdateParamsSchema, { agentId: "work", avatarModelId: "" });
+  });
 });
 
 describe("ModelsListParamsSchema", () => {

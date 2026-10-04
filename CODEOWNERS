@@ -1,6 +1,13 @@
-# Un proprietaire par module (D-038) — completer en Phase 0
-/Modules\ M/M7-marketing/ @leon36000
-/scripts/ @leon36000
-/docs/canon/ @leon36000
+# Responsabilité des surfaces OPSYS ; la revue externe par modèles n'est pas obligatoire (ADR-0012).
+/AGENTS.md @leon36000
+/CLAUDE.md @leon36000
+/00-DIGEST.md @leon36000
+/src/opsys/ @leon36000
+/departments/ @leon36000
+/core/ @leon36000
+/mobile/ @leon36000
+/install/ @leon36000
+/deploy/ @leon36000
+/docs/produit/ @leon36000
 /docs/decisions/ @leon36000
-
+/docs/programme/ @leon36000

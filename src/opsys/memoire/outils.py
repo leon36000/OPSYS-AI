@@ -11,6 +11,7 @@ manifeste. La sortie de recherche est bornée pour le budget de tokens (RAG-PREM
 from __future__ import annotations
 
 import datetime as dt
+import json
 import os
 import re
 from typing import Any
@@ -30,6 +31,8 @@ K_DEFAUT = 5
 K_OUTIL_MAX = 10
 EXTRAIT_MAX = 800  # caractères par fragment rendu à l'agent
 TEXTE_SORTIE_MAX = 4000  # caractères de texte par réponse (≈ 1 000 à 1 300 tokens), sous la troncature Capacites
+JSON_SORTIE_MAX = 6000
+SECTION_CITATION_MAX = 200
 
 _ID_DEPARTEMENT = re.compile(r"^m(0[1-9]|10)-[a-z][a-z0-9-]+$")
 
@@ -90,12 +93,46 @@ def _sortie(recherche: Recherche, avertissement: str) -> dict[str, Any]:
         element: dict[str, Any] = {"id": resultat.fragment_id, "texte": texte, "source": resultat.source,
                                    "portee": resultat.portee, "departement": resultat.departement,
                                    "cree_le": resultat.cree_le.date().isoformat(), "score": round(resultat.score, 4)}
+        if texte != resultat.texte:
+            element["texte_tronque"] = True
+        if resultat.citations_verifiees:
+            element["contenu_non_fiable"] = True
+            citations = []
+            for citation in resultat.citations_verifiees[:1]:
+                positions = []
+                for position in citation.positions[:3]:
+                    section, reste, tronquee = [], SECTION_CITATION_MAX, False
+                    for titre_section in position.section:
+                        if reste <= 0:
+                            tronquee = True
+                            break
+                        morceau = titre_section[:reste]
+                        section.append(morceau)
+                        reste -= len(morceau)
+                        tronquee |= len(morceau) < len(titre_section)
+                    tronquee |= len(section) < len(position.section)
+                    rendu = {"debut_octets": position.debut_octets, "fin_octets": position.fin_octets,
+                             "ligne_debut": position.ligne_debut, "ligne_fin": position.ligne_fin,
+                             "section": section}
+                    if tronquee:
+                        rendu["section_tronquee"] = True
+                    positions.append(rendu)
+                citations.append({"document_id": citation.document_id, "version_sha256": citation.sha256,
+                                  "extracteur": citation.extracteur, "auteur_admission": citation.auteur_admission,
+                                  "nombre_occurrences": citation.nombre_occurrences, "positions": positions})
+            element["citations_verifiees"] = citations
         if resultat.titre:
             element["titre"] = resultat.titre
         if resultat.sujets:
             element["sujets"] = list(resultat.sujets)
         if resultat.sensibilite in ("confidentielle", "personnelle"):
             element["sensibilite"] = resultat.sensibilite
+        candidat: dict[str, Any] = {"mode": recherche.mode, "resultats": [*resultats, element]}
+        if avertissement:
+            candidat["avertissement"] = avertissement
+        if len(json.dumps(candidat, ensure_ascii=False)) > JSON_SORTIE_MAX - 64:
+            budget += len(texte)
+            break
         resultats.append(element)
     sortie: dict[str, Any] = {"mode": recherche.mode, "resultats": resultats}
     if avertissement:
@@ -124,17 +161,49 @@ def rechercher(requete: str, portees: list[str] | None = None, k: int = K_DEFAUT
     filtres: dict[str, Any] = {"portee": demandees}
     if sujet:
         filtres["sujet"] = sujet
+    from .autorite import sujets_de_lecture
+    autorite = sujets_de_lecture()
+    if autorite is not None:
+        sujets, globales = autorite
+        if sujet is not None and sujet not in sujets:
+            raise ValueError("MEMOIRE-SUJET-HORS-AUTORITE")
+        filtres["sujets_autorises"] = list(sujets)
+        filtres["portees_globales"] = list(globales)
     memoire = _memoire()
+    corpus_procedures_seul = set(demandees) == {"procedures"}
     client, avertissement = _embeddings()
     vecteur = None
-    if client is not None:
+    profil = None
+    if corpus_procedures_seul:
+        if client is None:
+            avertissement = f"procédures : recherche plein texte, {avertissement}"
+        elif not client.local:
+            avertissement = "procédures : recherche plein texte; aucun texte documentaire n'est envoyé au cloud"
+        else:
+            try:
+                lot = client.plonger_avec_profil([requete])
+                vecteur = lot.vecteurs[0]
+                profil = lot.profile_sha256
+                avertissement = ""
+            except ErreurEmbeddings as exc:
+                if exc.http_status == 413 and exc.code == "input_token_limit_exceeded":
+                    avertissement = (
+                        "procédures : question au-delà de la limite exacte de 512 tokens; "
+                        "raccourcir la question"
+                    )
+                else:
+                    avertissement = f"procédures : provider local/profil indisponible ({exc}); recherche plein texte"
+    elif client is not None:
         try:
             vecteur = client.plonger([requete])[0]
         except ErreurEmbeddings as exc:
             avertissement = f"embeddings indisponibles ({exc})"
-    if vecteur is None:
+    if vecteur is None and not corpus_procedures_seul:
         avertissement += " : recherche plein texte seule, rappel réduit"
-    return _sortie(memoire.rechercher(requete, vecteur, k, filtres), avertissement)
+    recherche = memoire.rechercher(requete, vecteur, k, filtres, embedding_profile_sha256=profil)
+    if corpus_procedures_seul and profil is not None and recherche.mode == "plein_texte":
+        avertissement = "procédures : aucun vecteur compatible avec ce profil; recherche plein texte"
+    return _sortie(recherche, avertissement)
 
 
 def ajouter(texte: str, source: str, portee: str, sensibilite: str, expire_le: str | None = None,

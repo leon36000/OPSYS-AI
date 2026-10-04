@@ -1,0 +1,362 @@
+{
+  "utc": "2026-10-03T08:33:45.178055+00:00",
+  "qualified": true,
+  "original_receipt": "/dev/shm/opsys-cron-core-assembled-root-r1/gateway-limite16-r1/RECU-ROOT.json",
+  "tests": {
+    "cases": 46,
+    "counts": {
+      "passed": 46,
+      "failure": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "files": [
+      "src/gateway/opsys-cron-live-validator.test.ts",
+      "src/gateway/opsys-cron-reconciler.test.ts",
+      "src/gateway/opsys-metier-supervisor.test.ts"
+    ],
+    "cases_by_file": {
+      "src/gateway/opsys-cron-live-validator.test.ts": 12,
+      "src/gateway/opsys-cron-reconciler.test.ts": 12,
+      "src/gateway/opsys-metier-supervisor.test.ts": 22
+    },
+    "testcases": [
+      {
+        "file": "src/gateway/opsys-cron-live-validator.test.ts",
+        "classname": "src/gateway/opsys-cron-live-validator.test.ts",
+        "name": "OPSYS cron live authority validator > rereads the enabled row and validates the same owner grant before dispatch",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-live-validator.test.ts",
+        "classname": "src/gateway/opsys-cron-live-validator.test.ts",
+        "name": "OPSYS cron live authority validator > refuses before HTTP if live revision or enabled state changed",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-live-validator.test.ts",
+        "classname": "src/gateway/opsys-cron-live-validator.test.ts",
+        "name": "OPSYS cron live authority validator > refuses a reserved declaration key after private authority and profile are stripped",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-live-validator.test.ts",
+        "classname": "src/gateway/opsys-cron-live-validator.test.ts",
+        "name": "OPSYS cron live authority validator > does not treat a recovery-required reserved row as an ordinary job without a profile",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-live-validator.test.ts",
+        "classname": "src/gateway/opsys-cron-live-validator.test.ts",
+        "name": "OPSYS cron live authority validator > blocks recovery-required and changed authority rows before HTTP",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-live-validator.test.ts",
+        "classname": "src/gateway/opsys-cron-live-validator.test.ts",
+        "name": "OPSYS cron live authority validator > refuses after the configured agent profile changes",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-live-validator.test.ts",
+        "classname": "src/gateway/opsys-cron-live-validator.test.ts",
+        "name": "OPSYS cron live authority validator > does not fall back to the captured profile after that profile is removed",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-live-validator.test.ts",
+        "classname": "src/gateway/opsys-cron-live-validator.test.ts",
+        "name": "OPSYS cron live authority validator > refuses when the configured profile revision changes during owner validation",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-live-validator.test.ts",
+        "classname": "src/gateway/opsys-cron-live-validator.test.ts",
+        "name": "OPSYS cron live authority validator > rechecks the live job after the owner response before permitting dispatch",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-live-validator.test.ts",
+        "classname": "src/gateway/opsys-cron-live-validator.test.ts",
+        "name": "OPSYS cron live authority validator > rechecks that the private client is still live after an in-flight HTTP validation",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-live-validator.test.ts",
+        "classname": "src/gateway/opsys-cron-live-validator.test.ts",
+        "name": "OPSYS cron live authority validator > does not dispatch when cancellation arrives during owner validation",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-live-validator.test.ts",
+        "classname": "src/gateway/opsys-cron-live-validator.test.ts",
+        "name": "OPSYS cron live authority validator > fails closed when Python refuses or the private HTTP owner is unavailable",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-reconciler.test.ts",
+        "classname": "src/gateway/opsys-cron-reconciler.test.ts",
+        "name": "OPSYS cron host reconciler > uses Python's intention-derived key and creates disabled, ACKs target SHA, then CAS-enables",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-reconciler.test.ts",
+        "classname": "src/gateway/opsys-cron-reconciler.test.ts",
+        "name": "OPSYS cron host reconciler > rejects the obsolete profile-scoped key before preparation or native mutation",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-reconciler.test.ts",
+        "classname": "src/gateway/opsys-cron-reconciler.test.ts",
+        "name": "OPSYS cron host reconciler > rejects an a_declarer item from an older profile revision before projection",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-reconciler.test.ts",
+        "classname": "src/gateway/opsys-cron-reconciler.test.ts",
+        "name": "OPSYS cron host reconciler > recovers a durable disabled capture after ACK loss without a second add or capability rotation",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-reconciler.test.ts",
+        "classname": "src/gateway/opsys-cron-reconciler.test.ts",
+        "name": "OPSYS cron host reconciler > does not replay a durable capability after its canonical job config has drifted",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-reconciler.test.ts",
+        "classname": "src/gateway/opsys-cron-reconciler.test.ts",
+        "name": "OPSYS cron host reconciler > rejects a sidecar outside the exact seven-field positive-epoch schema",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-reconciler.test.ts",
+        "classname": "src/gateway/opsys-cron-reconciler.test.ts",
+        "name": "OPSYS cron host reconciler > disables by native CAS, revalidates live retirement, then removes the exact intention job",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-reconciler.test.ts",
+        "classname": "src/gateway/opsys-cron-reconciler.test.ts",
+        "name": "OPSYS cron host reconciler > leaves a retired job disabled when the owner source changes before removal",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-reconciler.test.ts",
+        "classname": "src/gateway/opsys-cron-reconciler.test.ts",
+        "name": "OPSYS cron host reconciler > refuses retirement when runtime grant changes during owner revalidation at the same config SHA",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-reconciler.test.ts",
+        "classname": "src/gateway/opsys-cron-reconciler.test.ts",
+        "name": "OPSYS cron host reconciler > reconciles all sixteen owner intentions without truncating the profile",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-reconciler.test.ts",
+        "classname": "src/gateway/opsys-cron-reconciler.test.ts",
+        "name": "OPSYS cron host reconciler > still refuses incomplete owner responses and performs no native writes",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-cron-reconciler.test.ts",
+        "classname": "src/gateway/opsys-cron-reconciler.test.ts",
+        "name": "OPSYS cron host reconciler > preserves the disabled preimage if a concurrent config edit wins before the CAS",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "OPSYS business engine supervisor > launches the engine in its folder with the shared token and reports it healthy",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "OPSYS business engine supervisor > notifies on first and periodic healthy probes without waiting and withdraws the client on stop",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "OPSYS business engine supervisor > relays the engine's output line by line to the journal and masks the token",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "OPSYS business engine supervisor > keeps child secrets masked after global eviction and drops oversized lines before truncation can leak them",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "OPSYS business engine supervisor > restarts a crashing engine with a growing backoff, then gives up and reports failure",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "OPSYS business engine supervisor > starts the backoff over once the engine had been healthy for a while",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "OPSYS business engine supervisor > does not count a slow startup followed by an immediate crash as stable health",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "OPSYS business engine supervisor > restarts an engine that stays alive but stops answering its health probe",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "OPSYS business engine supervisor > recovers from a failed probe without restarting",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "OPSYS business engine supervisor > gives a slow engine its whole ready delay, then ends it and restarts",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "OPSYS business engine supervisor > retries with a backoff when the engine cannot even be launched",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "OPSYS business engine supervisor > stops waiting for the next launch when the Gateway shuts down",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "OPSYS business engine supervisor > ends the engine's process tree once, however many times it is stopped",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "OPSYS business engine supervisor > launches once however many times it is started",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "OPSYS business engine supervisor > launches nothing when it is stopped before it ever started",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "startOpsysMetierSidecar > does nothing without opsys/metier.json",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "startOpsysMetierSidecar > does nothing when opsys/metier.json does not enable supervision",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "startOpsysMetierSidecar > launches nothing and reports failure when the configuration cannot be trusted",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "startOpsysMetierSidecar > launches nothing when OPSYS_MCP_JETON is set but unusable",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "startOpsysMetierSidecar > never lets a defect in its own supervision keep the Gateway from starting",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "startOpsysMetierSidecar > supervises the engine with the operator's token until the sidecar stops",
+        "status": "passed"
+      },
+      {
+        "file": "src/gateway/opsys-metier-supervisor.test.ts",
+        "classname": "src/gateway/opsys-metier-supervisor.test.ts",
+        "name": "startOpsysMetierSidecar > generates the token when absent, shares it through the environment and never reports it",
+        "status": "passed"
+      }
+    ],
+    "ok": true
+  },
+  "scope_sha256_current": {
+    "core/src/gateway/opsys-cron-live-validator.test.ts": "8c71d8d2a4c64ad8feba8466afc0f07a0db4d866d39baf57d6ff8b1623b88272",
+    "core/src/gateway/opsys-cron-live-validator.ts": "2973d25441b2ca302f1600192b7bc28bf33e13bf74255eccf3225d4d783875a8",
+    "core/src/gateway/opsys-metier-supervisor.test.ts": "ec1e65fc187b37fed76b42cdc988b0f0480acce3f2a0c7ad87addd1e931567a0",
+    "core/src/gateway/opsys-metier-supervisor.ts": "1888e609791283156715e63c1ca8e97bedefa15c945df55eb9876d26404b2d46",
+    "core/src/gateway/server-cron.ts": "e14e965380cb724d47fcae04b2077c553322ea2bdbec8917f3c89bf6cf131e26",
+    "core/src/gateway/server-kernel-request-runtime.ts": "262b089f606232c70ab39afadcd649a2264beaed28e9a996be6a819f5c513ed2",
+    "core/src/gateway/server-lifetime-sidecars.test.ts": "05c5ad382265ea1a70d2977fbeb09629510d6e923ea6ae793fffe3dc41bf6484",
+    "core/src/gateway/server-lifetime-sidecars.ts": "18e27b22fe26bf23d1c9884a59d349c3166b8589bc981deb345a9395c457e35d",
+    "core/src/gateway/server-methods/shared-types.ts": "c344fa725e919c00319e023de2352182e7c256df8534338c71c3f6f1df877040",
+    "core/src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts": "112b48a82e23dc02bed1d7fb8e9f865199e3026daef6c1df1e646687e03901c2",
+    "core/src/agents/embedded-agent-runner/opsys-runtime-admission.ts": "5bf684e2eb31ec6da0a2bc35ecd77bd8e6b84e943023f0c237a8728eb4218860",
+    "core/src/agents/embedded-agent-runner/run/attempt-prompt-submit.cron-authority.test.ts": "5c61a620163fe171a7f59f6e1b23f6aa2eb92febf7a5f011f18c2733a35b55e4",
+    "core/src/agents/embedded-agent-runner/run/attempt-prompt-submit.ts": "17a7123fc7984dc6aa2eea21f0313338927af0ea65983fa62a63812bdaea3c9c",
+    "core/src/agents/embedded-agent-runner/run/params.ts": "9ff3d60562ea5a6d1db195d34dd5e7d20dff8a57d5ab6aa188e5b7d8c36c1c5e",
+    "core/src/agents/embedded-agent-runner/run/run-attempt-dispatch.ts": "d777123af112efae55ea4bd59139d68a2b8bbbaf905240636114a311a64c9d47",
+    "core/src/cron/isolated-agent/run-execution.types.ts": "593efce0b0dc342d9a585c068d7849b18bad0a12f7a02d7d5148105fc932b95a",
+    "core/src/cron/isolated-agent/run-executor.ts": "64928fab3743d90afad1b187160a56acb2d1fe63cfd6dd098fff768fadd6e87e",
+    "core/src/cron/isolated-agent/run-prepare-runtime.ts": "ce0db29c3d64a8af98a6408b71837ea58ba60f4c03fd1b0b0bcc86b9495c540a",
+    "core/src/cron/isolated-agent/run.ts": "57b5bc309a1c870ed4fea04c24eee5b0f10d64c7521a852749a9f26b61fffceb",
+    "core/src/gateway/opsys-cron-private-client.ts": "f008abdfaa89020ac8bd493f59308862557dd4a89c15ccfeb7fdee87673646e7",
+    "core/src/gateway/opsys-cron-private-client.test.ts": "8c1fa122dd76863c24223a0b505b5b085c3ba8a2fb4ee8e18cf0f513bb7a1c30",
+    "core/src/gateway/opsys-cron-runtime-grant.ts": "d48533e5733bcad12772f7e920851919e9128347ceef513998d8dd51c8d72ff8",
+    "core/src/cron/service.ts": "8baec347fcb136ea0596f7a18230f99cc9193382f75124ff388b6af4725f8a95",
+    "core/src/cron/service/state.ts": "0ff10bc392efee7a5c8d953293b51f3501483636775b863eacda8ca848b13ecd",
+    "core/src/cron/service/ops-mutations.ts": "27f1c3c06992d40530cdc106fd417103882265a9b1875be3c23a116669f4b858",
+    "core/src/cron/service.declarative-jobs.test.ts": "4bd238eebee03285c795e31b231dfdac056b1cedece4303cf52c5b87d8f007eb",
+    "core/src/gateway/opsys-cron-reconciler.ts": "5bc1823661536e67cde27a8dbfb2272b0b51ea943b3673dbf0216793f1892d55",
+    "core/src/gateway/opsys-cron-reconciler.test.ts": "59de84f5856ea61203278934f1ea0fa8231e73f951c7a33c34be6fcddb0465cc",
+    "core/src/gateway/opsys-cron-reconciler.native.test.ts": "7b17d1c65b1b9dac6e7a52ebd6d9bbdf70fe05f402567cba7cd1882d4902ea6e",
+    "core/test/vitest/vitest.gateway-server-paths.mjs": "2fab569f3c0966bcf4e56e19fc4c394d65f5d791fee4789b75f118cfd4548fb6"
+  },
+  "files": [
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/gateway-limite16-r1/RECU-ROOT.json",
+      "archive": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/execution-verifiee-limite16/gateway-limite16-r1/RECU-ROOT.json.gz",
+      "sha256": "2e67f81dcc11c0f8281fd43658713ec287522e5dbdca48c54c1a643402521311",
+      "bytes": 20355
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/gateway-limite16-r1/format.log",
+      "archive": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/execution-verifiee-limite16/gateway-limite16-r1/format.log.gz",
+      "sha256": "57bc889f575d9ba6a91e5b40385bd950a047029b2cea125e90e3b796e2859205",
+      "bytes": 112
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/gateway-limite16-r1/junit.xml",
+      "archive": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/execution-verifiee-limite16/gateway-limite16-r1/junit.xml.gz",
+      "sha256": "4106e53bc3d6e7468d4b24e94b3c2dc2077b806973f22e91bda69c51ffa7f1c5",
+      "bytes": 11401
+    },
+    {
+      "source": "/dev/shm/opsys-cron-core-assembled-root-r1/gateway-limite16-r1/native.log",
+      "archive": "/workspace/poursuite-opsys-2026-10-02-r1/CRON-HOTE-PRIVE-ROOT-r1/execution-verifiee-limite16/gateway-limite16-r1/native.log.gz",
+      "sha256": "73739e23b5de255bc13618119512e29df10e7eb66c200157a60713d9c313c581",
+      "bytes": 544
+    }
+  ],
+  "limitations": "Synthetic test data; no external provider, production deployment or official payroll/tax action"
+}

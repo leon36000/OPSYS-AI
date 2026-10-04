@@ -3,7 +3,7 @@
 Pour chaque département :
 - un agent OpenClaw ;
 - un espace de travail (SOUL.md, AGENTS.md, skills/) ;
-- un fournisseur de modèles dédié, qui pointe sur LiteLLM avec la clé virtuelle du département ;
+- le modèle natif du fournisseur et du palier sélectionnés dans `paliers.yaml` ;
 - des automatisations (cron).
 
 Globalement (ADR-0010, cloisonnement et mémoire native des agents) :
@@ -15,8 +15,8 @@ Globalement (ADR-0010, cloisonnement et mémoire native des agents) :
 OPSYS n'écrit que ses propres fragments, inclus par `$include` depuis le fichier racine du core (`openclaw.json` ;
 `opsys.json` dans le dossier d'instance, T0.7 lot 3 : voir `fichier_racine`). Les
 réglages faits par l'utilisateur (canaux, authentification, Control UI) ne sont donc jamais
-écrasés. Surfaces amont utilisées : `agents.entries`, `models.providers` (api
-openai-completions, `models` obligatoire), `mcp.servers` (streamable-http, headers), `tools`,
+écrasés. Surfaces amont utilisées : `agents.entries`, `models.providers` (catalogue natif et références
+de secrets), `mcp.servers` (streamable-http, headers), `tools`,
 `memory.search`, `plugins.entries.*.config`, `$include` (`core/src/config/zod-schema.*.ts`).
 
 Moteur de contexte (PLAN T3.3-suite, ADR-0010 décisions 3 et 4) : `generer(contexte_entreprise=...)` active,
@@ -30,6 +30,9 @@ PLAN T3.3-suite-b : `contexte.json` porte aussi `niveaux` (le niveau N de chaque
 exigent un contexte utilisable (N3 ou plus), et, par agent, `affaire` : `"demande"` (la ligne `affaire_id` de la
 demande, pour un agent qui ne reçoit que des demandes internes) ou `"session"` (l'affaire liée à la clé de
 session par un humain, `generer(affaire_par_session=...)`, jamais le texte d'un client).
+PLAN T3.3-suite-c : chaque outil N3+ porte une portée déclarée dans `Outil`; le core lit `cibles` pour comparer
+une mutation affaire aux identifiants canoniques du paquet M10. Un outil sans contrat de cible explicite est
+`inconnue` et refusé. Le champ `version` force la régénération des fragments d'instance antérieurs à cette règle.
 
 Canaux du public (PLAN T2.1-a, `opsys.canaux`, `docs/departements/M1-canaux.md`) : un département qui déclare
 `canaux: [sms]` reçoit le canal correspondant du core. `generer()` écrit alors `channels.json` (le canal, désactivé
@@ -59,13 +62,16 @@ import json
 import os
 import shlex
 import shutil
-from collections.abc import Mapping, Sequence
+import sys
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote
 
-from sqlalchemy import Connection
+from sqlalchemy import Connection, inspect
 
-from . import appareils, canaux
+from . import agents as profils_configurables
+from . import appareils, canaux, modeles, stockage
 from .departements import PALIERS, Departement, tous_les_outils, verifier_portees
 from .memoire.embeddings import ENV_CLE, ENV_MODELE, ENV_URL, ClientEmbeddings
 from .outils import Autonomie
@@ -103,8 +109,104 @@ DEPARTEMENT_MEMOIRE = "m10-memoire"
 OUTIL_PAQUET_CONTEXTE = "m10_paquet_contexte_affaire"
 OUTIL_DEPOT_FAITS = "m10_deposer_faits_candidats"
 OUTIL_AFFAIRE_SESSION = "m10_affaire_de_la_session"
+
+
+def configuration_cron_memoire_developpement(job_id: str) -> dict[str, Any]:
+    """Déclaration native d'un grant M10 vivant, après contrôle humain par son registre.
+
+    Cette fonction ne lance rien. Core et l'interpréteur Python doivent être disponibles
+    sur le même hôte ; le credential reste une référence de fichier, jamais un argument secret.
+    Le payload fixe l'instance SQLite, indépendamment du répertoire courant du Gateway.
+    """
+    from m10_memoire import consolidation_developpement as consolidation
+    from sqlalchemy.engine import make_url
+
+    statut = consolidation.lire_statut(job_id)
+    if not statut["active"]:
+        raise PermissionError("autorisation du job révoquée")
+    url = make_url(stockage.url_base())
+    if (
+        url.get_backend_name() != "sqlite"
+        or not url.database
+        or url.database == ":memory:"
+        or url.username
+        or url.password
+        or url.host
+        or url.query
+    ):
+        raise ValueError("cron M10 exige une base SQLite fichier sans identifiants de connexion")
+    database = Path(url.database).absolute()
+    home = stockage.dossier_opsys().absolute()
+    credential = Path(statut["credential_file"])
+    if not credential.is_absolute():
+        raise ValueError("référence du credential non absolue")
+    worker = [
+        sys.executable,
+        "-m",
+        "opsys.memoire_consolidation",
+        "executer",
+        "--job-id",
+        job_id,
+        "--credential-file",
+        str(credential),
+    ]
+    cle = f"opsys:m10-development:{job_id}"
+    argv = [
+        "opsys",
+        "automations",
+        "add",
+        f"M10 · Consolidation développement · {job_id}",
+        "--declaration-key",
+        cle,
+        "--cron",
+        "0 3 * * *",
+        "--tz",
+        statut["fuseau"],
+        "--command-argv",
+        json.dumps(worker, ensure_ascii=False),
+        "--command-cwd",
+        str(home),
+        "--command-env",
+        f"OPSYS_HOME={home}",
+        # SQLAlchemy URL.__str__ peut encoder le chemin ; SQLite attend ici le nom de
+        # fichier littéral utilisé par l'instance, y compris espaces et parenthèses.
+        "--command-env",
+        f"{stockage.ENV_URL}={url.drivername}:///{database}",
+        "--timeout-seconds",
+        str(statut["limits"]["timeout_seconds"]),
+        "--output-max-bytes",
+        "4096",
+        "--no-deliver",
+    ]
+    # Installation depuis les sources : rendre explicite le code courant, sans prendre le
+    # dépôt audité comme chemin d'import. Un wheel installé utilise ses packages habituels.
+    racine_code = Path(__file__).resolve().parents[2]
+    sources = (racine_code / "src", racine_code / "departments/m10-memoire/src")
+    if all(source.is_dir() for source in sources):
+        argv.extend(["--command-env", "PYTHONPATH=" + os.pathsep.join(map(str, sources))])
+    return {
+        "job_id": job_id,
+        "declaration_key": cle,
+        "argv": argv,
+        "transport": "core-command-same-host",
+        "note": "déclaration préparée, non installée ; Core et Python sur le même hôte requis",
+    }
+
+
 AFFAIRE_DEMANDE = "demande"
 AFFAIRE_SESSION = "session"
+FOURNISSEURS_CLES_ENV = {
+    "anthropic": "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "deepseek": "DEEPSEEK_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+    "openrouter": "OPENROUTER_API_KEY",
+    "mistral": "MISTRAL_API_KEY",
+    "xai": "XAI_API_KEY",
+    "groq": "GROQ_API_KEY",
+    "moonshot": "MOONSHOT_API_KEY",
+}
+FOURNISSEURS_SANS_CLE_API = {"ollama", "bedrock", "google-vertex", "openai-codex"}
 
 INSTRUCTIONS = """\
 # Instructions d'exploitation OPSYS
@@ -128,18 +230,27 @@ def serveur_mcp(dep: Departement) -> str:
     return f"opsys_{dep.prefixe_outils}"
 
 
+def serveur_mcp_contexte(agent_id: str) -> str:
+    """Serveur interne origin-bound : la Gateway fixe l'identité à partir de cette route."""
+    return f"opsys_context_{agent_id}"
+
+
+def serveur_mcp_runtime(agent_id: str) -> str:
+    """Endpoint MCP interne dont le chemin lie les opérations d'admission au profil."""
+    return f"opsys_runtime_{agent_id}"
+
+
 def _variable_cle(dep: Departement) -> str:
     return f"OPSYS_CLE_{dep.code}"
 
 
 def fournisseur_departement(
-    dep: Departement, paliers: Mapping[str, Mapping[str, str]], url_passerelle: str
+    dep: Departement, paliers: Mapping[str, Mapping[str, Any]], url_passerelle: str
 ) -> dict[str, Any]:
     disponibles = [p for p in PALIERS if p in paliers]
     if dep.modeles["defaut"] not in disponibles:
         raise ValueError(
-            f"{dep.id} : palier par défaut {dep.modeles['defaut']!r} non configuré "
-            "(console OPSYS → Modèles)"
+            f"{dep.id} : palier par défaut {dep.modeles['defaut']!r} non configuré (console OPSYS → Modèles)"
         )
     return {
         "baseUrl": url_passerelle,
@@ -150,9 +261,109 @@ def fournisseur_departement(
     }
 
 
-def _outils_de_l_agent(
-    dep: Departement, departements: Mapping[str, Departement], expose: bool
-) -> dict[str, Any]:
+def _fournisseur_palier(palier: str, conf: Mapping[str, Any]) -> str:
+    if conf["provider"] == "custom":
+        return f"opsys-{palier}"
+    return str(conf["provider"])
+
+
+def _reference_modele(palier: str, conf: Mapping[str, Any]) -> str:
+    return f"{_fournisseur_palier(palier, conf)}/{conf['model']}"
+
+
+def _chaine_replis(palier: str, paliers: Mapping[str, Mapping[str, Any]]) -> list[str]:
+    resultat: list[str] = []
+    vus = {palier}
+
+    def ajouter(depuis: str) -> None:
+        for repli in paliers[depuis].get("fallbacks", []):
+            if repli in vus:
+                continue
+            vus.add(repli)
+            resultat.append(repli)
+            ajouter(repli)
+
+    ajouter(palier)
+    return resultat
+
+
+def _configuration_fournisseurs_natifs(paliers: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+    """Projection des paliers YAML vers le catalogue natif providers/modeles du core.
+
+    Les noms de modèles sont ceux fournis par le propriétaire dans paliers.yaml; cette fonction ne
+    fabrique aucun alias de modèle. Les identifiants `opsys-<palier>` ne servent qu'aux endpoints
+    OpenAI-compatibles `custom`, dont le nom est configurable par palier.
+    """
+    fournisseurs: dict[str, dict[str, Any]] = {}
+    for palier, conf in paliers.items():
+        nom = _fournisseur_palier(palier, conf)
+        fournisseur = str(conf["provider"])
+        entree = fournisseurs.setdefault(nom, {"models": []})
+        if fournisseur == "custom":
+            entree.update(
+                baseUrl=conf["base_url"],
+                api="openai-completions",
+                request={"allowPrivateNetwork": True},
+            )
+            cle_env = conf.get("api_key_env")
+            if cle_env:
+                entree["apiKey"] = "${" + str(cle_env) + "}"
+            else:
+                # Marqueur non-secret accepté par les serveurs locaux qui ne demandent pas de clé.
+                entree["apiKey"] = "local"
+        else:
+            cle_env = conf.get("api_key_env") or FOURNISSEURS_CLES_ENV.get(fournisseur)
+            if cle_env is None and fournisseur not in FOURNISSEURS_SANS_CLE_API:
+                cle_env = f"{fournisseur.upper().replace('-', '_')}_API_KEY"
+            if cle_env:
+                deja = entree.get("apiKey")
+                reference = "${" + str(cle_env) + "}"
+                if deja is not None and deja != reference:
+                    raise ValueError(f"paliers du fournisseur {nom!r} déclarent des références de secrets différentes")
+                entree["apiKey"] = reference
+            elif fournisseur == "bedrock":
+                entree["auth"] = "aws-sdk"
+            if "base_url" in conf:
+                deja_url = entree.get("baseUrl")
+                if deja_url is not None and deja_url != conf["base_url"]:
+                    raise ValueError(f"paliers du fournisseur {nom!r} déclarent des base_url différentes")
+                entree["baseUrl"] = conf["base_url"]
+        modele_id = str(conf["model"])
+        existants = {modele["id"] for modele in entree["models"]}
+        if modele_id not in existants:
+            entree["models"].append({"id": modele_id, "name": modele_id})
+    return fournisseurs
+
+
+def secrets_modeles_manquants(paliers: Mapping[str, Mapping[str, Any]], environ: Mapping[str, str]) -> list[str]:
+    """Noms de secrets absents pour l'opérateur; ne lit ni ne retourne leurs valeurs."""
+    requis: set[str] = set()
+    for conf in paliers.values():
+        fournisseur = str(conf["provider"])
+        nom = conf.get("api_key_env") or FOURNISSEURS_CLES_ENV.get(fournisseur)
+        if nom is None and fournisseur not in {*FOURNISSEURS_SANS_CLE_API, "custom"}:
+            nom = f"{fournisseur.upper().replace('-', '_')}_API_KEY"
+        if nom:
+            requis.add(str(nom))
+    return sorted(nom for nom in requis if not environ.get(nom))
+
+
+def _modele_agent(
+    dep: Departement, paliers: Mapping[str, Mapping[str, Any]], mode_fournisseur: str
+) -> str | dict[str, Any]:
+    palier = dep.modeles["defaut"]
+    if palier not in paliers:
+        raise ValueError(f"{dep.id} : palier par défaut {palier!r} non configuré (console OPSYS → Modèles)")
+    if mode_fournisseur == "litellm":
+        primary = f"opsys-{dep.prefixe_outils}/{alias_palier(palier)}"
+        replis = [f"opsys-{dep.prefixe_outils}/{alias_palier(nom)}" for nom in _chaine_replis(palier, paliers)]
+    else:
+        primary = _reference_modele(palier, paliers[palier])
+        replis = [_reference_modele(nom, paliers[nom]) for nom in _chaine_replis(palier, paliers)]
+    return {"primary": primary, "fallbacks": replis} if replis else primary
+
+
+def _outils_de_l_agent(dep: Departement, departements: Mapping[str, Departement], expose: bool) -> dict[str, Any]:
     """`agents.entries.<id>.tools` : les serveurs des autres départements sont refusés (ADR-0010, cloisonnement).
 
     Un agent qui reçoit le public (`expose`, PLAN T2.1-a) a en plus une boîte à outils FERMÉE : `allow` ne
@@ -161,6 +372,9 @@ def _outils_de_l_agent(
     toujours sur l'autorisation (`core/src/agents/tool-policy-match.ts`, `createToolPolicyMatcher`).
     """
     refus = sorted(f"{serveur_mcp(autre)}__*" for autre in departements.values() if autre.id != dep.id)
+    # Internal origin-bound context servers are for the ContextEngine only. Deny for internal
+    # and public agents so model discovery/calls cannot select another agent's identity bearer.
+    refus.extend(("opsys_context_*__*", "opsys_runtime_*__*"))
     if not expose:
         return {"deny": refus}
     return {
@@ -187,7 +401,42 @@ def _configuration_outils() -> dict[str, Any]:
     return {
         "agentToAgent": {"enabled": False},
         "sessions": {"visibility": "tree"},
+        # Never resolve model-authored exec requests to the host or a remote node.
+        "exec": {"host": "sandbox"},
+        "deny": ["opsys_context_*__*", "opsys_runtime_*__*"],
     }
+
+
+def _verifier_espaces_sans_donnees_sensibles(
+    dossier_config: Path, racine_espaces: str, environ: Mapping[str, str]
+) -> None:
+    """Reject generated workspaces that contain OPSYS credentials or its SQLite database.
+
+    Core's required sandbox uses a private workspace and has no host binds. This check is an
+    additional guard for the generated on-disk workspaces and custom installations; it does not
+    claim to validate arbitrary mounts added after generation.
+    """
+    racine = Path(racine_espaces)
+    racine = (dossier_config / racine).resolve() if not racine.is_absolute() else racine.resolve()
+    home_brut = environ.get("OPSYS_HOME")
+    protects: list[Path] = []
+    if home_brut:
+        home = Path(home_brut).expanduser().resolve()
+        protects.extend((home / "secrets", home / ".env", home / "opsys.db"))
+    url_base = environ.get("OPSYS_BASE_URL", "")
+    prefixes = ("sqlite:///", "sqlite://")
+    for prefix in prefixes:
+        if url_base.startswith(prefix):
+            chemin = unquote(url_base[len(prefix) :].split("?", 1)[0].split("#", 1)[0])
+            if chemin and chemin != ":memory:":
+                protects.append(Path(chemin).expanduser().resolve())
+            break
+    state = dossier_config.resolve()
+    protects.extend((state / ".env", state / "opsys" / "metier.json", state / "secrets"))
+    for protege in protects:
+        # If the workspace root contains a protected path, files below it could be exposed.
+        if protege.is_relative_to(racine) or racine.is_relative_to(protege):
+            raise ValueError("configuration refusée : workspace OPSYS recouvre un fichier ou dossier protégé")
 
 
 def _configuration_memoire(environ: Mapping[str, str] | None = None) -> dict[str, Any]:
@@ -318,10 +567,32 @@ def _configuration_contexte(
             if nom not in outils_agent:
                 outils_agent.append(nom)
         agents[agent] = {
+            "serveur_contexte": serveur_mcp_contexte(agent),
             "depot": outils_agent,
             "affaire": AFFAIRE_SESSION if agent in sessions else AFFAIRE_DEMANDE,
         }
+    # Le contrat explicite exige le contrôle transactionnel Python; une ancienne cible
+    # inconnue reste bloquée par le Core jusqu'à régénération de ce fragment.
+    from .liaison_cibles import OUTILS_CIBLES
+
+    cibles: dict[str, Any] = {}
+    for nom, (_departement, outil) in sorted(index.items()):
+        if outil.niveau_effectif.value not in {"N3", "N4", "N5"}:
+            continue
+        if nom in OUTILS_CIBLES:
+            cibles[nom] = {"type": "ticket"}
+        elif outil.portee_contexte == "globale":
+            cibles[nom] = {"type": "globale"}
+        elif outil.portee_contexte == "affaire":
+            cibles[nom] = {
+                "type": "affaire",
+                "chemin": list(outil.cible_contexte or ()),
+                "identite": outil.identite_contexte,
+            }
+        else:
+            cibles[nom] = {"type": "inconnue"}
     return {
+        "version": 2,
         "actif": True,
         "serveur": serveur_mcp(memoire),
         "outil_paquet": OUTIL_PAQUET_CONTEXTE,
@@ -331,6 +602,7 @@ def _configuration_contexte(
         # `before_tool_call` du core bloque un appel de niveau N3 ou plus quand le contexte est inutilisable.
         # Jamais un niveau déclaré par le modèle ni par le core.
         "niveaux": {nom: outil.niveau_effectif.value for nom, (_dep, outil) in sorted(index.items())},
+        "cibles": cibles,
         "agents": agents,
     }
 
@@ -410,10 +682,7 @@ def ecrire_appareils(cnx: Connection, dossier_config: Path) -> Path:
     T1.4-c2, voir `docs/architecture/MOBILE.md`.
     """
     chemin = dossier_config / "opsys" / "appareils.json"
-    contenu = {
-        a.identifiant: {"personne": a.personne, "role": a.role}
-        for a in appareils.lister(cnx)
-    }
+    contenu = {a.identifiant: {"personne": a.personne, "role": a.role} for a in appareils.lister(cnx)}
     _ecrire_json(chemin, {"appareils": contenu})
     return chemin
 
@@ -421,17 +690,21 @@ def ecrire_appareils(cnx: Connection, dossier_config: Path) -> Path:
 def generer(
     departements: Mapping[str, Departement],
     dossier_config: Path,
-    paliers: Mapping[str, Mapping[str, str]],
+    paliers: Mapping[str, Mapping[str, Any]],
     url_mcp: str = "http://opsys:8765/mcp",
-    url_passerelle: str = "http://litellm:4000/v1",
+    url_passerelle: str | None = None,
+    mode_fournisseur: str = "natif",
     racine_espaces: str = "./opsys/espaces",
     fuseau: str = "America/Toronto",
     environ: Mapping[str, str] | None = None,
     contexte_entreprise: Mapping[str, Sequence[str]] | None = None,
     affaire_par_session: Sequence[str] = (),
+    cnx_factory: Callable[[], Any] | None = None,
 ) -> dict[str, Path]:
     """Écrit les fragments et les espaces de travail dans `<dossier_config>/opsys/`.
 
+    `mode_fournisseur` sélectionne les fournisseurs natifs par défaut ou LiteLLM en compatibilité explicite.
+    `url_passerelle` n'est utilisée que pour `mode_fournisseur="litellm"`.
     `racine_espaces` est le chemin vu par la passerelle OpenClaw, relatif au dossier de config.
     `environ` (défaut `os.environ`) fournit `OPSYS_EMBEDDINGS_{URL,MODELE,CLE}` pour la mémoire
     Couche A ; validé avant l'écriture des fragments (fail-closed, voir `_configuration_memoire`). Il dit aussi
@@ -440,6 +713,13 @@ def generer(
     voir `_configuration_contexte`. Absent (défaut) : désactivé, rien ne change pour les agents.
     `affaire_par_session` (PLAN T3.3-suite-b) : ceux de ces agents dont l'affaire vient de la session.
     """
+    if mode_fournisseur not in {"natif", "litellm"}:
+        raise ValueError("mode_fournisseur doit être 'natif' ou 'litellm'")
+    if mode_fournisseur == "litellm" and not url_passerelle:
+        raise ValueError("mode LiteLLM explicite : url_passerelle doit être configurée")
+    if mode_fournisseur == "natif" and url_passerelle:
+        raise ValueError("url_passerelle est réservée à --mode-fournisseur litellm")
+    paliers = modeles.valider_paliers(paliers)
     # Fail-closed avant toute écriture : une portée d'appareil invalide (rôle inconnu, outil T3/N5
     # déclaré) n'est jamais écrite dans `roles.json`, pas même partiellement (T1.4-j).
     problemes_portees = verifier_portees(departements)
@@ -460,17 +740,36 @@ def generer(
     configuration_canaux = canaux.configuration(departements, env_canaux, sans_include)
     base = dossier_config / "opsys"
     espaces = base / "espaces"
+    env_isolation = os.environ if environ is None else environ
+    _verifier_espaces_sans_donnees_sensibles(dossier_config, racine_espaces, env_isolation)
+    profils_actifs: list[dict[str, Any]] = []
+    if cnx_factory is not None:
+        with cnx_factory() as cnx:
+            # Pre-registry installations have no configurable-profile table yet; they export no
+            # profiles until the OPSYS migration creates it.
+            if inspect(cnx).has_table("agents_configurables"):
+                profils_actifs = profils_configurables.lister(cnx)
+    # Check every effective workspace path, including existing symlinks, before writing any file.
+    for dep in departements.values():
+        _verifier_espaces_sans_donnees_sensibles(dossier_config, f"{racine_espaces}/{dep.id}", env_isolation)
+        _verifier_espaces_sans_donnees_sensibles(dossier_config, str(espaces / dep.id), env_isolation)
+    for profil in profils_actifs:
+        _verifier_espaces_sans_donnees_sensibles(
+            dossier_config, f"{racine_espaces}/agents/{profil['id']}", env_isolation
+        )
+        _verifier_espaces_sans_donnees_sensibles(dossier_config, str(espaces / "agents" / profil["id"]), env_isolation)
     # Jamais de `rmtree(espaces)` : le core écrit dans l'espace de travail de chaque agent (`MEMORY.md`, `memory/`,
     # `USER.md`, ...) et cette fonction est rejouée à chaque mise à jour et toutes les 300 s sur le VPS. On réécrit
     # seulement ce qui appartient à OPSYS : `SOUL.md`, `AGENTS.md` et les skills déclarés du département.
     espaces.mkdir(parents=True, exist_ok=True)
 
-    fournisseurs: dict[str, Any] = {}
+    fournisseurs: dict[str, Any] = _configuration_fournisseurs_natifs(paliers) if mode_fournisseur == "natif" else {}
     agents: dict[str, Any] = {}
     automatisations: list[str] = []
     for dep in departements.values():
-        outils = [{"nom": o.nom, "autonomie": o.autonomie.value, "description": o.description}
-                  for o in dep.charger_outils()]
+        outils = [
+            {"nom": o.nom, "autonomie": o.autonomie.value, "description": o.description} for o in dep.charger_outils()
+        ]
         espace = espaces / dep.id
         (espace / "skills").mkdir(parents=True, exist_ok=True)
         for existant in (espace / "skills").iterdir():
@@ -484,7 +783,8 @@ def generer(
         (espace / "SOUL.md").write_text(rendre_soul(dep, outils), encoding="utf-8")
         (espace / "AGENTS.md").write_text(
             INSTRUCTIONS.format(code=dep.code, nom=dep.nom, mission=dep.mission, prefixe=dep.prefixe_outils)
-            + "\n" + REGLES_COMMUNES,
+            + "\n"
+            + REGLES_COMMUNES,
             encoding="utf-8",
         )
         for skill in dep.skills:
@@ -493,26 +793,105 @@ def generer(
                 shutil.rmtree(copie)
             shutil.copytree(dep.racine / "skills" / skill, copie)
 
-        nom_fournisseur = f"opsys-{dep.prefixe_outils}"
-        fournisseurs[nom_fournisseur] = fournisseur_departement(dep, paliers, url_passerelle)
+        modele_agent: str | dict[str, Any]
+        if mode_fournisseur == "litellm":
+            nom_fournisseur = f"opsys-{dep.prefixe_outils}"
+            fournisseur = fournisseur_departement(dep, paliers, str(url_passerelle))
+            fournisseurs[nom_fournisseur] = fournisseur
+            modele_agent = _modele_agent(dep, paliers, mode_fournisseur)
+        else:
+            modele_agent = _modele_agent(dep, paliers, mode_fournisseur)
         agents[dep.id] = {
             "name": f"{dep.code} · {dep.nom}",
             "workspace": f"{racine_espaces}/{dep.id}",
-            "model": f"{nom_fournisseur}/{alias_palier(dep.modeles['defaut'])}",
+            "model": modele_agent,
+            "opsysIsolation": {"exec": "sandbox-required"},
             # Chaque agent ne voit que le serveur MCP de SON département (outils `<serveur>__<outil>`) ;
             # celui qui reçoit le public n'a de plus aucun outil de messagerie du core (T2.1-a).
             "tools": _outils_de_l_agent(dep, departements, expose=dep.id in configuration_canaux.agents_exposes),
         }
         for plan in dep.planifications:
-            automatisations.append(" ".join([
-                "openclaw automations add",
-                "--name", shlex.quote(f"{dep.code} · {plan.nom}"),
-                "--cron", shlex.quote(plan.cron),
-                "--tz", shlex.quote(fuseau),
-                "--session isolated",
-                "--agent", shlex.quote(dep.id),
-                "--message", shlex.quote(plan.consigne),
-            ]))
+            automatisations.append(
+                " ".join(
+                    [
+                        "openclaw automations add",
+                        "--name",
+                        shlex.quote(f"{dep.code} · {plan.nom}"),
+                        "--cron",
+                        shlex.quote(plan.cron),
+                        "--tz",
+                        shlex.quote(fuseau),
+                        "--session isolated",
+                        "--agent",
+                        shlex.quote(dep.id),
+                        "--message",
+                        shlex.quote(plan.consigne),
+                    ]
+                )
+            )
+
+    # Profiles are model-runnable only with an explicit host-owned admission marker. The core
+    # wrapper reserves before each provider stream and reconciles its returned usage.
+    for profil in profils_actifs:
+        dep = departements.get(profil["departement"])
+        if dep is None:
+            raise ValueError(f"profil {profil['id']!r}: département absent de l'instance")
+        palier = profil["palier_modele"]
+        if palier not in paliers:
+            raise ValueError(f"profil {profil['id']!r}: palier {palier!r} non configuré (console OPSYS → Modèles)")
+        if mode_fournisseur == "litellm":
+            nom_fournisseur = f"opsys-{dep.prefixe_outils}"
+            fournisseurs.setdefault(nom_fournisseur, fournisseur_departement(dep, paliers, str(url_passerelle)))
+            primaire = f"{nom_fournisseur}/{alias_palier(palier)}"
+            replis = [f"{nom_fournisseur}/{alias_palier(nom)}" for nom in _chaine_replis(palier, paliers)]
+        else:
+            primaire = _reference_modele(palier, paliers[palier])
+            replis = [_reference_modele(nom, paliers[nom]) for nom in _chaine_replis(palier, paliers)]
+        politique = _outils_de_l_agent(dep, departements, expose=False)
+        politique["allow"] = [f"{serveur_mcp(dep)}__{nom}" for nom in profil["outils"]]
+        politique["deny"] = sorted(set(politique.get("deny", [])) | {"opsys_context_*__*", "opsys_runtime_*__*"})
+        profile_agent_id = f"opsys-agent-{profil['id']}"
+        espace_profil = espaces / "agents" / profil["id"]
+        (espace_profil / "skills").mkdir(parents=True, exist_ok=True)
+        outils_profil = [
+            {"nom": outil.nom, "autonomie": outil.autonomie.value, "description": outil.description}
+            for outil in dep.charger_outils()
+            if outil.nom in profil["outils"]
+        ]
+        (espace_profil / "SOUL.md").write_text(
+            rendre_soul(dep, outils_profil) + f"\n\n## Responsabilité de ce profil\n\n{profil['responsabilite']}\n",
+            encoding="utf-8",
+        )
+        (espace_profil / "AGENTS.md").write_text(
+            INSTRUCTIONS.format(code=dep.code, nom=dep.nom, mission=dep.mission, prefixe=dep.prefixe_outils)
+            + "\n"
+            + REGLES_COMMUNES
+            + "\n\n## Mandat et limites de ce profil\n\n"
+            + f"Responsabilité : {profil['responsabilite']}\n\n"
+            + f"Utilise uniquement les outils autorisés pour ce profil : {', '.join(profil['outils']) or 'aucun'}.\n"
+            + f"Enveloppes d'admission : {profil['budget_jour']} tokens/jour et "
+            + f"{profil['budget_mois']} tokens/mois. Les tours, replis et concurrence sont aussi contrôlés. "
+            + "Les plafonds sont des tokens, pas une garantie de dépense financière.\n",
+            encoding="utf-8",
+        )
+        for skill in dep.skills:
+            shutil.copytree(dep.racine / "skills" / skill, espace_profil / "skills" / skill, dirs_exist_ok=True)
+        agents[profile_agent_id] = {
+            "name": f"Agent OPSYS · {profil['id']}",
+            "workspace": f"{racine_espaces}/agents/{profil['id']}",
+            "model": {"primary": primaire, "fallbacks": replis} if replis else primaire,
+            "runtime": {"type": "embedded"},
+            "opsysRuntimeAdmission": {"profileId": profil["id"], "profileRevision": profil["revision"]},
+            "opsysIsolation": {"exec": "sandbox-required"},
+            "tools": politique,
+        }
+        if contexte is not None and dep.id in contexte["agents"]:
+            context_department = contexte["agents"][dep.id]
+            contexte["agents"][profile_agent_id] = {
+                "serveur_contexte": context_department["serveur_contexte"],
+                "depot": [nom for nom in context_department["depot"] if nom in profil["outils"]],
+                "affaire": context_department["affaire"],
+            }
 
     # Fail-closed avant toute écriture de fragment (les espaces de travail ci-dessus sont déjà
     # écrits, comme le reste de generer() : seule la config OpenClaw doit rester cohérente).
@@ -535,6 +914,8 @@ def generer(
         # Lu directement par OPSYS-CORE (T1.4-c2), pas via `$include` — voir la note de tête de ce
         # fichier.
         "roles": base / "roles.json",
+        "profils_en_attente": base / "profils-en-attente.json",
+        "memoire_autorites": base / "memoire-autorites.json",
     }
     _ecrire_json(fichiers["models"], {"mode": "merge", "providers": fournisseurs})
     # Économie de tokens côté Core : après une période d'inactivité, les anciens résultats
@@ -543,36 +924,98 @@ def generer(
     # `agents.ownership="explicit"` (`zod-schema.agents.ts`), sans quoi `openclaw config validate`
     # refuse la configuration (E2E T1.5-b). Chaque demande nomme son agent ; un appel d'appareil
     # passe par la porte d'appareil, sans agent (T1.4-c6).
-    _ecrire_json(fichiers["agents"], {
-        "ownership": "explicit",
-        "defaults": {"contextPruning": {"mode": "cache-ttl", "ttl": "1h"}},
-        "entries": agents,
-    })
-    _ecrire_json(fichiers["mcp"], {"servers": {
+    _ecrire_json(
+        fichiers["agents"],
+        {
+            "ownership": "explicit",
+            "defaults": {
+                "contextPruning": {"mode": "cache-ttl", "ttl": "1h"},
+                "opsysIsolation": {"exec": "sandbox-required"},
+                "sandbox": {
+                    "mode": "all",
+                    "backend": "docker",
+                    "scope": "session",
+                    "workspaceAccess": "none",
+                    "docker": {
+                        "network": "none",
+                        "readOnlyRoot": True,
+                        "capDrop": ["ALL"],
+                        "binds": [],
+                    },
+                },
+            },
+            "entries": agents,
+        },
+    )
+    serveurs_mcp = {
         serveur_mcp(dep): {
-            "url": f"{url_mcp.rstrip('/')}/{dep.id}",
+            "url": f"{url_mcp.rstrip('/')}/v1/{dep.id}",
             "transport": "streamable-http",
             "headers": {"Authorization": "Bearer ${OPSYS_MCP_JETON}"},
             "connectionTimeoutMs": 5000,
             "requestTimeoutMs": 60000,
         }
         for dep in departements.values()
-    }})
+    }
+    if contexte is not None:
+        for agent, settings in contexte["agents"].items():
+            nom_serveur = settings["serveur_contexte"]
+            origine = agent
+            if agent not in departements:
+                profil = next(p for p in profils_actifs if f"opsys-agent-{p['id']}" == agent)
+                origine = profil["departement"]
+            serveurs_mcp[nom_serveur] = {
+                "url": f"{url_mcp.rstrip('/')}/contexte/{origine}",
+                "transport": "streamable-http",
+                "headers": {"Authorization": "Bearer ${OPSYS_CONTEXT_MCP_JETON}"},
+                "connectionTimeoutMs": 5000,
+                "requestTimeoutMs": 60000,
+            }
+    for profil in profils_actifs:
+        serveurs_mcp[serveur_mcp_runtime(profil["id"])] = {
+            "url": f"{url_mcp.rstrip('/')}/runtime/{profil['id']}",
+            "transport": "streamable-http",
+            "headers": {"Authorization": "Bearer ${OPSYS_CONTEXT_MCP_JETON}"},
+            "connectionTimeoutMs": 5000,
+            "requestTimeoutMs": 10000,
+        }
+    # Classification transport persistante : une ancienne URL client ne peut tomber en mode global.
+    clients_memoire = set(affaire_par_session) | set(configuration_canaux.agents_exposes)
+    modes_memoire = {ident: "client_session" if ident in clients_memoire else "global" for ident in departements}
+    agents_memoire = {ident: {"departement": ident, "mode": mode} for ident, mode in modes_memoire.items()}
+    for profil in profils_actifs:
+        agents_memoire[f"opsys-agent-{profil['id']}"] = {
+            "departement": profil["departement"], "mode": modes_memoire[profil["departement"]],
+        }
+    _ecrire_json(fichiers["memoire_autorites"], {
+        "version": 1, "departements": modes_memoire, "agents": agents_memoire,
+        "procedures_globales": ["procedures"],
+    })
+    _ecrire_json(fichiers["mcp"], {"servers": serveurs_mcp})
     _ecrire_json(fichiers["tools"], _configuration_outils())
     _ecrire_json(fichiers["memory"], memoire_config)
-    _ecrire_json(fichiers["plugins"], _configuration_plugins(
-        fuseau, contexte_actif=contexte is not None, extensions_de_canal=configuration_canaux.plugins))
+    _ecrire_json(
+        fichiers["plugins"],
+        _configuration_plugins(
+            fuseau, contexte_actif=contexte is not None, extensions_de_canal=configuration_canaux.plugins
+        ),
+    )
     _ecrire_json(fichiers["channels"], configuration_canaux.canaux)
     _ecrire_json(fichiers["bindings"], configuration_canaux.liaisons)
     _ecrire_json(fichiers["session"], configuration_canaux.session)
     _ecrire_json(fichiers["contexte"], contexte if contexte is not None else {"actif": False})
-    _ecrire_json(fichiers["roles"], {
-        "roles": roles_outils(departements),
-        "serveurs": serveurs_outils(departements),
-    })
+    _ecrire_json(
+        fichiers["roles"],
+        {
+            "roles": roles_outils(departements),
+            "serveurs": serveurs_outils(departements),
+        },
+    )
+    _ecrire_json(fichiers["profils_en_attente"], {"profils": []})
     fichiers["automatisations"].write_text(
         "#!/bin/sh\n# Généré par `opsys-metier openclaw configurer` : automatisations des départements.\nset -e\n"
-        + "\n".join(automatisations) + "\n",
+        + "\n".join(automatisations)
+        + "\n",
         encoding="utf-8",
     )
     fichiers["automatisations"].chmod(0o755)

@@ -54,6 +54,12 @@ const MAX_WEBHOOK_BODY_BYTES = WEBHOOK_BODY_READ_DEFAULTS.preAuth.maxBytes;
 const WEBHOOK_BODY_TIMEOUT_MS = WEBHOOK_BODY_READ_DEFAULTS.preAuth.timeoutMs;
 const MISSING_REMOTE_ADDRESS_IN_FLIGHT_KEY = "__voice_call_no_remote__";
 
+type HostMissedCallImporter = NonNullable<
+  Parameters<
+    Parameters<OpenClawPluginApi["registerService"]>[0]["start"]
+  >[0]["hostMissedCallImporter"]
+>;
+
 type Logger = {
   info: (message: string) => void;
   warn: (message: string) => void;
@@ -196,6 +202,7 @@ export class VoiceCallWebhookServer {
   private logger: Logger;
   private stopStaleCallReaper: (() => void) | null = null;
   private readonly webhookInFlightLimiter = createWebhookInFlightLimiter();
+  private readonly hostMissedCallImporter?: HostMissedCallImporter;
 
   /** Media stream handler for bidirectional audio (when streaming enabled) */
   private mediaStreamHandler: MediaStreamHandler | null = null;
@@ -215,6 +222,7 @@ export class VoiceCallWebhookServer {
     fullConfig?: OpenClawConfig,
     agentRuntime?: OpenClawPluginApi["runtime"]["agent"],
     logger?: Logger,
+    hostMissedCallImporter?: HostMissedCallImporter,
   ) {
     this.config = normalizeVoiceCallConfig(config);
     this.manager = manager;
@@ -222,6 +230,7 @@ export class VoiceCallWebhookServer {
     this.coreConfig = coreConfig ?? null;
     this.fullConfig = fullConfig ?? null;
     this.agentRuntime = agentRuntime ?? null;
+    this.hostMissedCallImporter = hostMissedCallImporter;
     this.logger = logger ?? {
       info: console.log,
       warn: console.warn,
@@ -839,8 +848,11 @@ export class VoiceCallWebhookServer {
         const parsed = this.provider.parseWebhookEvent(ctx, {
           verifiedRequestKey: verification.verifiedRequestKey,
         });
-        if (!isReplay && (await this.processParsedEvents(parsed.events))) {
-          verification.releaseReplay?.();
+        if (!isReplay) {
+          await this.importVerifiedMissedCalls(parsed.events);
+          if (await this.processParsedEvents(parsed.events)) {
+            verification.releaseReplay?.();
+          }
         }
 
         return normalizeWebhookResponse(parsed);
@@ -1031,6 +1043,62 @@ export class VoiceCallWebhookServer {
         );
       default:
         return false;
+    }
+  }
+
+  private async importVerifiedMissedCalls(events: NormalizedEvent[]): Promise<void> {
+    if (!this.config.enabled || !this.config.missedCallIngress) {
+      return;
+    }
+    if (
+      this.config.skipSignatureVerification ||
+      this.config.provider === "mock" ||
+      this.provider.name !== this.config.provider
+    ) {
+      throw new Error("missed-call ingress requires an authenticated non-mock provider webhook");
+    }
+    if (!this.hostMissedCallImporter) {
+      throw new Error("missed-call ingress is enabled without a host capability");
+    }
+    for (const event of events) {
+      if (
+        event.type !== "call.ended" ||
+        event.direction !== "inbound" ||
+        (event.reason !== "no-answer" && event.reason !== "busy")
+      ) {
+        continue;
+      }
+      if (
+        !event.dedupeKey ||
+        !event.providerCallId ||
+        !event.from ||
+        !/^\+[1-9]\d{1,14}$/u.test(event.from)
+      ) {
+        continue;
+      }
+      const call = await this.manager.getCallFromMemoryOrStore(event.providerCallId);
+      if (
+        !call ||
+        call.direction !== "inbound" ||
+        call.answeredAt !== undefined ||
+        call.providerCallId !== event.providerCallId ||
+        call.from !== event.from ||
+        !Number.isFinite(call.startedAt)
+      ) {
+        continue;
+      }
+      const occurredAt = new Date(call.startedAt);
+      if (!Number.isFinite(occurredAt.getTime())) {
+        continue;
+      }
+      await this.hostMissedCallImporter.importInboundMissedCall({
+        provider: this.config.provider ?? "mock",
+        eventId: event.dedupeKey,
+        callId: event.providerCallId,
+        startedAt: occurredAt.toISOString(),
+        from: event.from,
+        terminal: event.reason,
+      });
     }
   }
 

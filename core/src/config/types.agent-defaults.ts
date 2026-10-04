@@ -43,6 +43,8 @@ export type AgentStartupContextConfig = NonNullable<SchemaAgentDefaultsConfig["s
 export type AgentContextLimitsConfig = NonNullable<z.input<typeof AgentContextLimitsSchema>>;
 
 export type AgentDefaultsConfig = SchemaAgentDefaultsConfig & {
+  /** OPSYS-owned isolation policy applied to every configured agent. */
+  opsysIsolation?: { exec: "sandbox-required" };
   /** @deprecated Doctor-only legacy input. */
   imageGenerationModel?: AgentToolModelConfig;
   /** @deprecated Doctor-only legacy input. */

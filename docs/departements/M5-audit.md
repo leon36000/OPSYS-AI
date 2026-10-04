@@ -1,5 +1,11 @@
 # Audit M5 — FinanceCore
 
+> Audit historique du 28 septembre 2026, conservé pour traçabilité. Les évolutions ultérieures
+> ne sont pas inventoriées ici. Consulter le [plan de consolidation](../programme/RESTRUCTURATION-2026-09-30.md)
+> et les [recherches actuelles](../research/R16-2026-09-30/README.md) pour M1/M5/M7/M10. Un statut
+> ancien et un nombre de tests ne certifient pas le périmètre cible complet.
+
+
 Audit statique, sans modification de code. Périmètre : `departments/m05-financecore/`. Sources
 faisant foi : `docs/produit/DEFINITION-PRODUIT.md` (§1, §5, §6, §7/M5, §8, §9, §10, §13),
 `AGENTS.md`, `docs/architecture/{ARCHITECTURE,DEPARTEMENTS,MOBILE}.md`, `docs/research/{R8-m5-m6,

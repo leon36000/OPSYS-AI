@@ -6,6 +6,10 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDeferred } from "../../test/helpers/promise.js";
 import { useAutoCleanupTempDirTracker } from "../../test/helpers/temp-dir.js";
+import {
+  isSecretValueRegisteredForRedaction,
+  registerSecretValueForRedaction,
+} from "../logging/secret-redaction-registry.js";
 import type {
   ManagedRun,
   ProcessSupervisor,
@@ -104,6 +108,7 @@ function createFixture(
     config?: Partial<OpsysMetierConfig>;
     backoff?: OpsysMetierSupervisorDeps["backoff"];
     stableRunMs?: number;
+    env?: OpsysMetierSupervisorDeps["env"];
   } = {},
 ) {
   let now = 0;
@@ -213,7 +218,7 @@ function createFixture(
     publishStatus: (status) => {
       published.push(status);
     },
-    env: { PATH: "/usr/bin" },
+    env: options.env ?? { PATH: "/usr/bin" },
   };
   const instance = createOpsysMetierSupervisor({
     config: { ...CONFIG, ...options.config },
@@ -278,6 +283,28 @@ describe("OPSYS business engine supervisor", () => {
     await fixture.instance.stop();
   });
 
+  it("notifies on first and periodic healthy probes without waiting and withdraws the client on stop", async () => {
+    const operatorToken = "operator-cron-token-that-is-long-enough-123456";
+    const fixture = createFixture({
+      env: { PATH: "/usr/bin", OPSYS_CRON_OPERATEUR_JETON: operatorToken },
+    });
+    const callbackGate = createDeferred<void>();
+    fixture.deps.onHealthy = vi.fn(() => callbackGate.promise);
+
+    fixture.instance.start();
+    const firstProbeSleep = await fixture.sleeps.next();
+    expect(fixture.instance.status().state).toBe("running");
+    expect(fixture.deps.onHealthy).toHaveBeenCalledOnce();
+    expect(fixture.instance.getPrivateCronClient()).toBeDefined();
+
+    firstProbeSleep.release();
+    await fixture.sleeps.next();
+    expect(fixture.deps.onHealthy).toHaveBeenCalledTimes(2);
+    await fixture.instance.stop();
+    expect(fixture.instance.getPrivateCronClient()).toBeUndefined();
+    callbackGate.resolve();
+  });
+
   it("relays the engine's output line by line to the journal and masks the token", async () => {
     const fixture = createFixture();
     fixture.instance.start();
@@ -308,6 +335,66 @@ describe("OPSYS business engine supervisor", () => {
       fixture.published,
     ]);
     expect(everything).not.toContain(TOKEN);
+    await fixture.instance.stop();
+  });
+
+  it("keeps child secrets masked after global eviction and drops oversized lines before truncation can leak them", async () => {
+    const contextToken = 'context-"quoted\\path-secret-value-012345';
+    const operatorToken = "operator+percent%secret/value-012345";
+    const configuredProviderSecret = "provider-secret-519-0123456789";
+    const providerEnv = Object.fromEntries(
+      Array.from({ length: 520 }, (_, index) => [
+        `LITELLM_${String(index)}_API_KEY`,
+        `provider-secret-${String(index)}-0123456789`,
+      ]),
+    );
+    const fixture = createFixture({
+      config: { env: providerEnv },
+      env: {
+        PATH: "/usr/bin",
+        OPSYS_CONTEXT_MCP_JETON: contextToken,
+        OPSYS_CRON_OPERATEUR_JETON: operatorToken,
+      },
+    });
+
+    fixture.instance.start();
+    await fixture.sleeps.next();
+    expect(childInput(fixture.runs[0]).env).toMatchObject({
+      OPSYS_MCP_JETON: TOKEN,
+      OPSYS_CONTEXT_MCP_JETON: contextToken,
+      OPSYS_CRON_OPERATEUR_JETON: operatorToken,
+      LITELLM_519_API_KEY: configuredProviderSecret,
+    });
+    for (let index = 0; index < 600; index += 1) {
+      registerSecretValueForRedaction(`unrelated-global-secret-${String(index)}-0123456789`);
+    }
+    expect(isSecretValueRegisteredForRedaction(contextToken)).toBe(false);
+    expect(isSecretValueRegisteredForRedaction(operatorToken)).toBe(false);
+    expect(isSecretValueRegisteredForRedaction(TOKEN)).toBe(false);
+
+    const { onStdout, onStderr } = childInput(fixture.runs[0]);
+    onStdout?.(`raw:${contextToken}|json:${JSON.stringify(contextToken).slice(1, -1)}|${TOKEN}\n`);
+    onStderr?.(
+      `uri:${encodeURIComponent(operatorToken)}|raw:${operatorToken}|provider:${configuredProviderSecret}\n`,
+    );
+    onStdout?.("x".repeat(3_990));
+    onStdout?.(`${contextToken} suffix\n`);
+
+    expect(fixture.log.info).toHaveBeenCalledWith("raw:***|json:***|***", { stream: "stdout" });
+    expect(fixture.log.info).toHaveBeenCalledWith("uri:***|raw:***|provider:***", {
+      stream: "stderr",
+    });
+    expect(fixture.log.info).toHaveBeenCalledWith("[oversized line omitted]", { stream: "stdout" });
+    const everything = JSON.stringify([
+      fixture.log.info.mock.calls,
+      fixture.log.warn.mock.calls,
+      fixture.log.error.mock.calls,
+    ]);
+    expect(everything).not.toContain(contextToken);
+    expect(everything).not.toContain(operatorToken);
+    expect(everything).not.toContain(TOKEN);
+    expect(everything).not.toContain(configuredProviderSecret);
+    expect(everything).not.toContain(contextToken.slice(0, 10));
     await fixture.instance.stop();
   });
 
@@ -362,6 +449,37 @@ describe("OPSYS business engine supervisor", () => {
     expect(second.ms).toBe(1_000);
     expect(fixture.instance.status()).toMatchObject({ state: "restarting", restarts: 2 });
     await fixture.instance.stop();
+  });
+
+  it("does not count a slow startup followed by an immediate crash as stable health", async () => {
+    const fixture = createFixture();
+    const delays: number[] = [];
+    fixture.instance.start();
+    try {
+      for (const index of [0, 1]) {
+        // The probe stays unready for six seconds, beyond the five-second stability threshold.
+        // A single good answer then ends the startup, but proves no healthy interval.
+        fixture.probe.mockReset();
+        for (let probe = 0; probe < 12; probe += 1) {
+          fixture.probe.mockResolvedValueOnce(false);
+        }
+        fixture.probe.mockResolvedValue(true);
+        for (let probe = 0; probe < 12; probe += 1) {
+          (await fixture.sleeps.next()).release();
+        }
+        const monitoring = await fixture.sleeps.next();
+        expect(monitoring.ms).toBe(CONFIG.probeIntervalMs);
+        fixture.runs[index]?.settle(runExit(1, null, "exit"));
+        const backoffNap = await fixture.sleeps.next();
+        delays.push(backoffNap.ms);
+        if (index === 0) {
+          backoffNap.release();
+        }
+      }
+      expect(delays).toStrictEqual([1_000, 2_000]);
+    } finally {
+      await fixture.instance.stop();
+    }
   });
 
   it("restarts an engine that stays alive but stops answering its health probe", async () => {

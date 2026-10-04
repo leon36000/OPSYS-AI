@@ -735,6 +735,19 @@ const AgentToolsSchema = z
   .optional();
 
 export const AgentEntrySchema = AgentEntryBaseSchema.extend({
+  /** OPSYS-owned marker: every provider stream is gated by durable token admission. */
+  opsysRuntimeAdmission: z
+    .object({
+      profileId: z.string().regex(/^[a-z][a-z0-9-]{1,63}$/),
+      profileRevision: z.number().int().positive().optional(),
+    })
+    .strict()
+    .optional(),
+  /** OPSYS-owned marker: model exec must stay inside the required sandbox. */
+  opsysIsolation: z
+    .object({ exec: z.literal("sandbox-required") })
+    .strict()
+    .optional(),
   memory: z
     .object({
       search: MemorySearchSchema,

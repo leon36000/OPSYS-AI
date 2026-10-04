@@ -49,12 +49,14 @@ from __future__ import annotations
 
 import dataclasses
 from datetime import date, datetime
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Context, Decimal, DecimalException, InvalidOperation, localcontext
 from typing import Any
 
 from . import taxes, validation
 
 _DEUX_DECIMALES = Decimal("0.01")
+_MONTANT_MAX = Decimal("999999999999.99")
+_CONTEXTE_MONETAIRE = Context(prec=64)
 # PLAN T1.2-d (arrondi monétaire) : ROUND_HALF_UP explicite partout où ce module arrondit de
 # l'argent, jamais le mode par défaut du module `decimal` (ROUND_HALF_EVEN, « arrondi du
 # banquier »). Même mode que M3 (`devis_durable.creer_devis`, `outils.arrondir_au_cent`) : un
@@ -149,7 +151,25 @@ def _valider_ligne(brute: Any, index: int) -> tuple[LigneFacture | None, dict | 
     if verdict is not None:
         return None, verdict
 
-    montant = (quantite * prix_unitaire).quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)
+    precision_produit = len(quantite.as_tuple().digits) + len(prix_unitaire.as_tuple().digits) + 4
+    try:
+        with localcontext(Context(prec=max(32, precision_produit))):
+            produit = quantite * prix_unitaire
+            if produit.adjusted() > 11:
+                return None, validation.construire_verdict(
+                    "REJ-FACTURE-MONTANT-INCOHERENT",
+                    detail=f"ligne {index} : montant hors domaine (maximum {_MONTANT_MAX})",
+                )
+            montant = produit.quantize(_DEUX_DECIMALES, rounding=ROUND_HALF_UP)
+    except DecimalException:
+        return None, validation.construire_verdict(
+            "REJ-FACTURE-MONTANT-INCOHERENT", detail=f"ligne {index} : calcul monétaire hors domaine"
+        )
+    if montant.copy_abs() > _MONTANT_MAX:
+        return None, validation.construire_verdict(
+            "REJ-FACTURE-MONTANT-INCOHERENT",
+            detail=f"ligne {index} : montant hors domaine (maximum {_MONTANT_MAX})",
+        )
     ligne = LigneFacture(
         description=brute["description"],
         quantite=quantite,
@@ -286,14 +306,21 @@ def creer_facture_brouillon(
     if not isinstance(lignes, (list, tuple)) or not lignes:
         return None, validation.construire_verdict("REJ-FACTURE-LIGNES-VIDES", detail="au moins une ligne est requise")
 
-    lignes_validees: list[LigneFacture] = []
-    montant_avant_taxes = Decimal("0")
-    for index, brute in enumerate(lignes):
-        ligne, verdict = _valider_ligne(brute, index)
-        if verdict is not None:
-            return None, verdict
-        lignes_validees.append(ligne)
-        montant_avant_taxes += ligne.montant
+    with localcontext(_CONTEXTE_MONETAIRE):
+        lignes_validees: list[LigneFacture] = []
+        montant_avant_taxes = Decimal("0")
+        for index, brute in enumerate(lignes):
+            ligne, verdict = _valider_ligne(brute, index)
+            if verdict is not None:
+                return None, verdict
+            lignes_validees.append(ligne)
+            montant_avant_taxes += ligne.montant
+
+        if montant_avant_taxes.copy_abs() > _MONTANT_MAX:
+            return None, validation.construire_verdict(
+                "REJ-FACTURE-MONTANT-INCOHERENT",
+                detail=f"total avant taxes hors domaine (maximum {_MONTANT_MAX})",
+            )
 
     if montant_avant_taxes_fourni is not None:
         fourni, verdict = _texte_vers_decimal(
@@ -314,16 +341,6 @@ def creer_facture_brouillon(
     if verdict_taxes is not None:
         return None, verdict_taxes
 
-    existante = facture_active_pour_devis(registre_cible, devis_id)
-    if existante is not None:
-        return None, validation.construire_verdict(
-            "REJ-FACTURE-DEVIS-DEJA-FACTURE",
-            detail=(
-                f"devis {devis_id!r} déjà facturé par {existante['facture_id']!r} "
-                f"(statut {existante['statut']!r})"
-            ),
-        )
-
     facture = FactureBrouillonV1(
         facture_id=facture_id,
         chantier_id=chantier_id,
@@ -339,6 +356,37 @@ def creer_facture_brouillon(
     )
 
     entree = {**_champs_facture(facture), "type_entree": "facture_creee"}
+
+    # `facture_id` est une identité métier immuable, y compris après envoi ou annulation.
+    # Un rejeu exact de la création rend le maillon d'origine sans écrire; toute réutilisation
+    # avec une autre charge est un conflit explicite, sans écraser la projection existante.
+    existante_id = next(
+        (
+            maillon
+            for maillon in registre_cible.lire()
+            if maillon.get("type_entree") == "facture_creee" and maillon.get("facture_id") == facture_id
+        ),
+        None,
+    )
+    if existante_id is not None:
+        champs_facture = _champs_facture(facture)
+        if all(existante_id.get(cle) == valeur for cle, valeur in champs_facture.items()):
+            return existante_id, None
+        return None, validation.construire_verdict(
+            "REJ-FACTURE-DEVIS-DEJA-FACTURE",
+            detail=f"facture_id {facture_id!r} est déjà associé à une autre charge de facture",
+        )
+
+    existante = facture_active_pour_devis(registre_cible, devis_id)
+    if existante is not None:
+        return None, validation.construire_verdict(
+            "REJ-FACTURE-DEVIS-DEJA-FACTURE",
+            detail=(
+                f"devis {devis_id!r} déjà facturé par {existante['facture_id']!r} "
+                f"(statut {existante['statut']!r})"
+            ),
+        )
+
     return _ajouter_et_retrouver(entree, registre_cible), None
 
 

@@ -1,0 +1,330 @@
+
+> opsys-mobile@0.1.0 test
+> jest --ci --runInBand --coverage --coverageDirectory=/workspace/audit-opsys-2026-09-30/proof/recent/mobile-coverage --collectCoverageFrom=src/**/*.{ts,tsx} --collectCoverageFrom=app/**/*.{ts,tsx}
+
+PASS src/ecrans/chiffres.test.ts
+PASS src/outbox/vidangeur.test.ts
+PASS src/m5/tresorerie.test.ts
+PASS src/ecrans/approvals.test.ts
+PASS src/ecrans/chantiers.test.ts
+PASS src/vendeur/chargeurDevis.test.ts
+PASS src/identite/caches.test.ts
+PASS src/approbations/contrat.test.ts
+PASS src/m4/dispatch.test.ts
+PASS src/admin/traductions.test.ts
+PASS src/vendeur/chargeurLeads.test.ts
+PASS src/today/orchestrateur.test.ts
+PASS src/ecrans/vueExecutive.test.ts
+PASS src/vendeur/chargeurFiche.test.ts
+PASS src/vendeur/reponsesMoteur.test.ts
+PASS src/admin/chiffres.test.ts
+PASS src/appairage/client.test.ts
+PASS src/m8/vueExecutive.test.ts
+PASS src/m2/interaction.test.ts
+PASS src/admin/lecture.test.ts
+PASS src/outbox/planification.test.ts
+PASS src/m4/interventions.test.ts
+PASS src/admin/reponsesMoteur.test.ts
+PASS src/outbox/suiviDuJeton.test.ts
+PASS src/outbox/mutation.test.ts
+PASS src/admin/chantiers.test.ts
+PASS src/today/reponsesMoteur.test.ts
+PASS src/m4/consentementGps.test.ts
+PASS src/m2/listeLeads.test.ts
+PASS src/m4/consentementClient.test.ts
+PASS src/ecrans/adminCommun.test.ts
+PASS src/ecrans/manquesM4.test.ts
+PASS src/identite/service.test.ts
+PASS src/vendeur/cache.test.ts
+PASS src/fichiers/envoiOrchestrateur.test.ts
+PASS src/ecrans/manquesMoteur.test.ts
+PASS src/ecrans/ecransAdmin.test.ts
+PASS src/today/statut.test.ts
+PASS src/admin/aVoir.test.ts
+PASS src/outbox/descripteurs.test.ts
+PASS src/protocole/enveloppeOutil.test.ts
+PASS src/vendeur/lectureLeads.test.ts
+PASS src/ecrans/quotes.test.ts
+PASS src/ecrans/leads.test.ts
+PASS src/ecrans/admin.test.ts
+PASS src/vendeur/ecransVendeur.test.ts
+PASS src/m3/devis.test.ts
+PASS src/ecrans/complete.test.ts
+PASS src/appairage/identite.test.ts
+PASS src/vendeur/fiche.test.ts
+PASS src/outbox/depot.sqlite.test.ts
+PASS src/m2/client360.test.ts
+PASS src/admin/enveloppe.test.ts
+PASS src/identite/etat.test.ts
+PASS src/identite/contrat.test.ts
+PASS src/identite/sessionEnvoi.test.ts
+PASS src/appairage/codeAppairage.test.ts
+PASS src/m4/completion.test.ts
+PASS src/m4/pointage.test.ts
+PASS src/identite/client.test.ts
+PASS src/m5/pagesPrevision.test.ts
+PASS src/approbations/chargeur.test.ts
+PASS src/ecrans/lead.test.ts
+PASS src/ecrans/materials.test.ts
+PASS src/m6/materiaux.test.ts
+PASS src/ecrans/today.test.ts
+PASS src/stockage/depotCleValeur.sqlite.test.ts
+PASS src/appairage/chargeV3.test.ts
+PASS src/outbox/proprietaire.test.ts
+PASS src/fichiers/protocole.test.ts
+PASS src/admin/cache.test.ts
+PASS src/protocole/client.test.ts
+PASS src/outbox/declencheurs.test.ts
+PASS src/m4/preuvesCompletion.test.ts
+PASS src/vendeur/devisConnus.test.ts
+PASS src/ecrans/punch.test.ts
+PASS src/appairage/stockage.test.ts
+PASS src/today/cache.test.ts
+PASS src/ecrans/texteSur.test.ts
+PASS src/outbox/depot.test.ts
+PASS src/identite/appliquerLecture.test.ts
+PASS src/fichiers/candidats.test.ts
+PASS src/admin/appel.test.ts
+PASS src/protocole/configuration.test.ts
+PASS src/vendeur/appel.test.ts
+PASS src/protocole/echec.test.ts
+PASS src/identite/stockage.test.ts
+PASS src/identite/ecransSansSaisie.test.ts
+PASS src/outbox/declenchement.test.ts
+PASS src/fichiers/etatEnvoi.test.ts
+PASS src/vendeur/traductions.test.ts
+PASS src/ecrans/job.test.ts
+PASS src/fichiers/decoupage.test.ts
+PASS src/roles/garde.test.ts
+PASS src/appairage/base64url.test.ts
+PASS src/admin/lecteurs.test.ts
+PASS src/checklist/logique.test.ts
+PASS src/photos/mutation.test.ts
+PASS src/stockage/depotCleValeur.test.ts
+PASS src/today/selection.test.ts
+PASS src/fichiers/empreinte.test.ts
+PASS src/m4/wctIdCompletion.test.ts
+PASS src/protocole/classification.test.ts
+PASS src/appairage/clientInfo.test.ts
+PASS src/identite/traductions.test.ts
+PASS src/fichiers/verification.test.ts
+PASS src/stockage/cles.test.ts
+PASS src/outbox/transitions.test.ts
+PASS src/signature/dataUrl.test.ts
+PASS src/signature/mutation.test.ts
+PASS src/outbox/recul.test.ts
+PASS src/checklist/cache.test.ts
+PASS src/outbox/refusAppareil.test.ts
+PASS src/fichiers/base64.test.ts
+PASS src/m4/contextePointageProvisoire.test.ts
+PASS src/photos/taille.test.ts
+PASS src/i18n/langue.test.ts
+--------------------------------|---------|----------|---------|---------|-----------------------------------------------------
+File                            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                                   
+--------------------------------|---------|----------|---------|---------|-----------------------------------------------------
+All files                       |   65.75 |    66.56 |   64.61 |   65.66 |                                                     
+ app                            |       0 |        0 |       0 |       0 |                                                     
+  _layout.tsx                   |       0 |      100 |       0 |       0 | 20-66                                               
+  index.tsx                     |       0 |        0 |       0 |       0 | 17-38                                               
+ app/(admin)                    |       0 |        0 |       0 |       0 |                                                     
+  _layout.tsx                   |       0 |        0 |       0 |       0 | 11-16                                               
+  admin.tsx                     |       0 |        0 |       0 |       0 | 30-107                                              
+  approvals.tsx                 |       0 |        0 |       0 |       0 | 59-454                                              
+  chantiers.tsx                 |       0 |        0 |       0 |       0 | 36-236                                              
+  chiffres.tsx                  |       0 |        0 |       0 |       0 | 47-178                                              
+ app/(client)                   |       0 |        0 |       0 |       0 |                                                     
+  _layout.tsx                   |       0 |        0 |       0 |       0 | 13-18                                               
+  client.tsx                    |       0 |      100 |       0 |       0 | 6-14                                                
+ app/(employee)                 |       0 |        0 |       0 |       0 |                                                     
+  _layout.tsx                   |       0 |        0 |       0 |       0 | 12-17                                               
+  consent.tsx                   |       0 |        0 |       0 |       0 | 32-147                                              
+  employee.tsx                  |       0 |      100 |       0 |       0 | 11-20                                               
+  punch.tsx                     |       0 |        0 |       0 |       0 | 38-221                                              
+  today.tsx                     |       0 |        0 |       0 |       0 | 27-102                                              
+ app/(employee)/job/[id]        |       0 |        0 |       0 |       0 |                                                     
+  checklist.tsx                 |       0 |        0 |       0 |       0 | 22-107                                              
+  complete.tsx                  |       0 |        0 |       0 |       0 | 76-377                                              
+  index.tsx                     |       0 |        0 |       0 |       0 | 35-208                                              
+  materials.tsx                 |       0 |        0 |       0 |       0 | 45-282                                              
+  photos.tsx                    |       0 |        0 |       0 |       0 | 27-147                                              
+  signature.tsx                 |       0 |        0 |       0 |       0 | 23-83                                               
+ app/(seller)                   |       0 |        0 |       0 |       0 |                                                     
+  _layout.tsx                   |       0 |        0 |       0 |       0 | 8-13                                                
+  leads.tsx                     |       0 |        0 |       0 |       0 | 42-342                                              
+  quotes.tsx                    |       0 |        0 |       0 |       0 | 24-230                                              
+  seller.tsx                    |       0 |      100 |       0 |       0 | 10-25                                               
+ app/(seller)/lead              |       0 |        0 |       0 |       0 |                                                     
+  [id].tsx                      |       0 |        0 |       0 |       0 | 34-343                                              
+ app/identite                   |       0 |        0 |       0 |       0 |                                                     
+  index.tsx                     |       0 |        0 |       0 |       0 | 19-71                                               
+ app/pairing                    |       0 |        0 |       0 |       0 |                                                     
+  index.tsx                     |       0 |        0 |       0 |       0 | 27-141                                              
+ src/admin                      |   69.01 |    41.98 |   59.82 |   68.29 |                                                     
+  aVoir.ts                      |     100 |      100 |     100 |     100 |                                                     
+  appel.ts                      |     100 |      100 |     100 |     100 |                                                     
+  cache.ts                      |     100 |      100 |     100 |     100 |                                                     
+  chantiers.ts                  |     100 |      100 |     100 |     100 |                                                     
+  chiffres.ts                   |     100 |      100 |     100 |     100 |                                                     
+  composants.tsx                |       0 |        0 |       0 |       0 | 18-136                                              
+  donneesDeTest.ts              |   89.65 |    79.16 |     100 |   88.88 | 37,45,81                                            
+  enveloppe.ts                  |     100 |      100 |     100 |     100 |                                                     
+  horloge.ts                    |     100 |      100 |     100 |     100 |                                                     
+  lecteurs.ts                   |     100 |      100 |     100 |     100 |                                                     
+  lecture.ts                    |     100 |      100 |     100 |     100 |                                                     
+  service.ts                    |       0 |        0 |       0 |       0 | 26-83                                               
+  vuesChiffres.tsx              |       0 |        0 |       0 |       0 | 25-351                                              
+ src/appairage                  |   93.96 |    91.35 |   78.26 |   96.34 |                                                     
+  base64url.ts                  |     100 |      100 |     100 |     100 |                                                     
+  chargeV3.ts                   |     100 |      100 |     100 |     100 |                                                     
+  client.ts                     |   89.77 |     84.9 |      70 |    96.2 | 84,87,106                                           
+  clientInfo.ts                 |     100 |      100 |     100 |     100 |                                                     
+  codeAppairage.ts              |     100 |      100 |     100 |     100 |                                                     
+  identite.ts                   |     100 |      100 |     100 |     100 |                                                     
+  stockage.ts                   |   80.76 |    68.42 |   55.55 |   80.76 | 33-46,66                                            
+  types.ts                      |       0 |        0 |       0 |       0 |                                                     
+ src/approbations               |   95.72 |    97.38 |   95.83 |   95.61 |                                                     
+  chargeur.ts                   |     100 |      100 |     100 |     100 |                                                     
+  contrat.ts                    |   98.96 |    98.52 |     100 |   98.93 | 169                                                 
+  service.ts                    |       0 |        0 |       0 |       0 | 14-18                                               
+ src/checklist                  |    90.9 |      100 |   84.61 |   89.47 |                                                     
+  cache.ts                      |     100 |      100 |     100 |     100 |                                                     
+  logique.ts                    |     100 |      100 |     100 |     100 |                                                     
+  service.ts                    |       0 |      100 |       0 |       0 | 9-13                                                
+  types.ts                      |       0 |        0 |       0 |       0 |                                                     
+ src/ecrans                     |   99.01 |    96.44 |     100 |   98.93 |                                                     
+  admin.ts                      |     100 |       92 |     100 |     100 | 89-93                                               
+  adminCommun.ts                |     100 |      100 |     100 |     100 |                                                     
+  approvals.ts                  |     100 |      100 |     100 |     100 |                                                     
+  chantiers.ts                  |     100 |    96.77 |     100 |     100 | 81                                                  
+  chiffres.ts                   |     100 |       94 |     100 |     100 | 323-328,339-343,373,545                             
+  complete.ts                   |     100 |      100 |     100 |     100 |                                                     
+  donneesDeVue.ts               |      92 |    71.42 |     100 |   88.88 | 32,49                                               
+  job.ts                        |     100 |      100 |     100 |     100 |                                                     
+  lead.ts                       |   95.83 |    96.55 |     100 |   95.45 | 44                                                  
+  leads.ts                      |     100 |      100 |     100 |     100 |                                                     
+  manquesM4.ts                  |     100 |      100 |     100 |     100 |                                                     
+  materials.ts                  |   97.22 |    94.11 |     100 |   96.96 | 111                                                 
+  punch.ts                      |     100 |      100 |     100 |     100 |                                                     
+  quotes.ts                     |     100 |      100 |     100 |     100 |                                                     
+  texteSur.ts                   |     100 |      100 |     100 |     100 |                                                     
+  today.ts                      |     100 |      100 |     100 |     100 |                                                     
+  vueExecutive.ts               |     100 |    92.59 |     100 |     100 | 194,241-252                                         
+ src/fichiers                   |      83 |    83.47 |   87.17 |   82.63 |                                                     
+  base64.ts                     |     100 |      100 |     100 |     100 |                                                     
+  candidats.ts                  |     100 |    96.42 |     100 |     100 | 54                                                  
+  decoupage.ts                  |     100 |      100 |     100 |     100 |                                                     
+  empreinte.ts                  |     100 |      100 |     100 |     100 |                                                     
+  envoiOrchestrateur.ts         |     100 |      100 |     100 |     100 |                                                     
+  etatEnvoi.ts                  |     100 |    88.88 |     100 |     100 | 32,51                                               
+  protocole.ts                  |   91.17 |       75 |     100 |    90.9 | 122,175,194                                         
+  service.ts                    |       0 |        0 |       0 |       0 | 23-89                                               
+  verification.ts               |     100 |      100 |     100 |     100 |                                                     
+ src/i18n                       |      75 |      100 |      50 |   81.81 |                                                     
+  index.ts                      |       0 |      100 |       0 |       0 | 9-13                                                
+  langue.ts                     |     100 |      100 |     100 |     100 |                                                     
+ src/i18n/locales               |     100 |      100 |     100 |     100 |                                                     
+  admin.en-CA.ts                |     100 |      100 |     100 |     100 |                                                     
+  admin.fr-CA.ts                |     100 |      100 |     100 |     100 |                                                     
+  en-CA.ts                      |     100 |      100 |     100 |     100 |                                                     
+  fr-CA.ts                      |     100 |      100 |     100 |     100 |                                                     
+ src/identite                   |   78.63 |    80.74 |   72.09 |    78.8 |                                                     
+  BandeauIdentite.tsx           |       0 |        0 |       0 |       0 | 18-38                                               
+  appliquerLecture.ts           |     100 |      100 |     100 |     100 |                                                     
+  caches.ts                     |     100 |      100 |     100 |     100 |                                                     
+  client.ts                     |     100 |    85.71 |     100 |     100 | 40                                                  
+  contrat.ts                    |     100 |      100 |     100 |     100 |                                                     
+  etat.ts                       |     100 |      100 |     100 |     100 |                                                     
+  hooks.ts                      |       0 |        0 |       0 |       0 | 35-113                                              
+  service.ts                    |   97.05 |    71.42 |   83.33 |   96.96 | 72                                                  
+  sessionEnvoi.ts               |     100 |      100 |     100 |     100 |                                                     
+  stockage.ts                   |     100 |    84.21 |     100 |     100 | 20,47,69                                            
+ src/m2                         |   94.32 |    91.51 |     100 |   94.14 |                                                     
+  client360.ts                  |   92.42 |    89.09 |     100 |   92.18 | 103,118,130,138,175                                 
+  interaction.ts                |     100 |    93.33 |     100 |     100 | 126,171                                             
+  listeLeads.ts                 |   93.18 |     92.5 |     100 |   93.02 | 154,166,187,198,243,255                             
+ src/m3                         |   97.56 |    98.11 |     100 |   97.43 |                                                     
+  devis.ts                      |   97.56 |    98.11 |     100 |   97.43 | 103                                                 
+ src/m4                         |   97.27 |    90.09 |     100 |   97.24 |                                                     
+  completion.ts                 |   93.75 |    73.91 |     100 |   93.75 | 135                                                 
+  consentementClient.ts         |     100 |      100 |     100 |     100 |                                                     
+  consentementGps.ts            |     100 |    94.44 |     100 |     100 | 172                                                 
+  contextePointageProvisoire.ts |     100 |      100 |     100 |     100 |                                                     
+  dispatch.ts                   |   94.44 |     93.9 |     100 |   94.31 | 100,156,168,252,264                                 
+  interventions.ts              |     100 |    86.27 |     100 |     100 | 117,198,203,218,222,225,232                         
+  pointage.ts                   |     100 |    83.33 |     100 |     100 | 165,215,226                                         
+  preuvesCompletion.ts          |     100 |      100 |     100 |     100 |                                                     
+  wctIdCompletion.ts            |     100 |      100 |     100 |     100 |                                                     
+ src/m5                         |   95.14 |    95.21 |     100 |   95.05 |                                                     
+  pagesPrevision.ts             |     100 |      100 |     100 |     100 |                                                     
+  tresorerie.ts                 |   94.92 |    94.98 |     100 |   94.86 | 410,437,444,458,467,484,529,532,550,641,756,769,811 
+ src/m6                         |   95.45 |    79.16 |     100 |   95.45 |                                                     
+  materiaux.ts                  |   95.45 |    79.16 |     100 |   95.45 | 128                                                 
+ src/m8                         |    91.6 |    89.47 |     100 |    91.6 |                                                     
+  vueExecutive.ts               |    91.6 |    89.47 |     100 |    91.6 | 171,194,204,214,238,269,280,310,327,338,360,373     
+ src/outbox                     |    85.9 |    80.53 |   83.15 |   85.85 |                                                     
+  declenchement.ts              |     100 |      100 |     100 |     100 |                                                     
+  declencheurs.ts               |     100 |    63.63 |     100 |     100 | 41-44                                               
+  depot.sqlite.ts               |   94.11 |    66.66 |     100 |   93.75 | 130                                                 
+  depot.ts                      |     100 |      100 |     100 |     100 |                                                     
+  descripteurs.ts               |     100 |      100 |     100 |     100 |                                                     
+  hooks.ts                      |       0 |        0 |       0 |       0 | 16-46                                               
+  id.ts                         |       0 |      100 |       0 |       0 | 10                                                  
+  mutation.ts                   |     100 |      100 |     100 |     100 |                                                     
+  planification.ts              |   97.22 |       88 |     100 |   96.96 | 101                                                 
+  proprietaire.ts               |     100 |      100 |     100 |     100 |                                                     
+  recul.ts                      |     100 |      100 |     100 |     100 |                                                     
+  refusAppareil.ts              |     100 |      100 |     100 |     100 |                                                     
+  service.ts                    |   17.39 |        0 |       0 |   18.18 | 33-44,56-70,85-96                                   
+  transitions.ts                |     100 |       75 |     100 |     100 | 25                                                  
+  types.ts                      |       0 |        0 |       0 |       0 |                                                     
+  vidangeur.ts                  |   98.59 |     92.5 |     100 |   98.55 | 218                                                 
+ src/photos                     |   47.61 |       85 |      60 |    47.5 |                                                     
+  mutation.ts                   |     100 |      100 |     100 |     100 |                                                     
+  service.ts                    |       0 |        0 |       0 |       0 | 27-77                                               
+  taille.ts                     |   94.11 |    93.33 |     100 |   94.11 | 30                                                  
+  types.ts                      |       0 |      100 |     100 |       0 | 4                                                   
+ src/protocole                  |   98.78 |    99.09 |   94.73 |     100 |                                                     
+  classification.ts             |     100 |      100 |     100 |     100 |                                                     
+  client.ts                     |   94.11 |    94.11 |      50 |     100 | 60                                                  
+  configuration.ts              |     100 |      100 |     100 |     100 |                                                     
+  echec.ts                      |     100 |      100 |     100 |     100 |                                                     
+  enveloppeOutil.ts             |     100 |      100 |     100 |     100 |                                                     
+  types.ts                      |       0 |        0 |       0 |       0 |                                                     
+ src/roles                      |      48 |       75 |   36.36 |   45.83 |                                                     
+  contexte.tsx                  |       0 |        0 |       0 |       0 | 13-54                                               
+  garde.ts                      |     100 |      100 |     100 |     100 |                                                     
+  types.ts                      |     100 |      100 |     100 |     100 |                                                     
+ src/signature                  |   33.33 |       50 |   57.14 |   34.37 |                                                     
+  dataUrl.ts                    |      90 |    83.33 |     100 |      90 | 26                                                  
+  mutation.ts                   |     100 |      100 |     100 |     100 |                                                     
+  service.ts                    |       0 |        0 |       0 |       0 | 25-60                                               
+ src/stockage                   |   77.14 |    83.33 |   85.71 |   77.14 |                                                     
+  cles.ts                       |     100 |      100 |     100 |     100 |                                                     
+  depotCleValeur.sqlite.ts      |     100 |      100 |     100 |     100 |                                                     
+  depotCleValeur.ts             |     100 |      100 |     100 |     100 |                                                     
+  service.ts                    |       0 |        0 |       0 |       0 | 12-24                                               
+ src/today                      |   89.28 |    84.74 |   83.33 |   88.75 |                                                     
+  cache.ts                      |     100 |      100 |     100 |     100 |                                                     
+  orchestrateur.ts              |     100 |      100 |     100 |     100 |                                                     
+  selection.ts                  |     100 |       50 |     100 |     100 | 52                                                  
+  service.ts                    |       0 |        0 |       0 |       0 | 20-46                                               
+  statut.ts                     |     100 |      100 |     100 |     100 |                                                     
+  types.ts                      |       0 |        0 |       0 |       0 |                                                     
+ src/vendeur                    |   94.31 |    92.42 |    90.9 |   94.01 |                                                     
+  appel.ts                      |     100 |      100 |     100 |     100 |                                                     
+  cache.ts                      |   97.36 |    96.66 |     100 |   97.36 | 93                                                  
+  chargeurDevis.ts              |     100 |    95.12 |     100 |     100 | 120,215                                             
+  chargeurFiche.ts              |    97.5 |    96.87 |     100 |   97.43 | 109                                                 
+  chargeurLeads.ts              |     100 |      100 |     100 |     100 |                                                     
+  devisConnus.ts                |     100 |     93.1 |     100 |     100 | 43,67                                               
+  donneesDeTest.ts              |     100 |    93.93 |     100 |     100 | 84,192                                              
+  fiche.ts                      |     100 |      100 |     100 |     100 |                                                     
+  lectureLeads.ts               |     100 |      100 |     100 |     100 |                                                     
+  service.ts                    |       0 |        0 |       0 |       0 | 25-63                                               
+--------------------------------|---------|----------|---------|---------|-----------------------------------------------------
+
+Test Suites: 117 passed, 117 total
+Tests:       2578 passed, 2578 total
+Snapshots:   0 total
+Time:        19.84 s
+Ran all test suites.

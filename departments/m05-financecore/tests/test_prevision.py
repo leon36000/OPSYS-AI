@@ -40,7 +40,7 @@ import json
 import random
 import re
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import Decimal, Inexact, Rounded, localcontext
 from pathlib import Path
 
 import pytest
@@ -422,6 +422,19 @@ def test_une_sortie_tombe_dans_la_semaine_de_sept_jours_qui_contient_sa_date(jou
     placees = {s["semaine"] for s in resultat["semaines"] if s["lignes"]}
     assert placees == {semaine}
     assert resultat["semaines"][semaine - 1]["sorties"] == D("10.00")
+
+
+def test_prevision_preserve_les_cents_sous_contexte_decimal_externe_restrictif():
+    with localcontext() as contexte:
+        contexte.prec = 8
+        contexte.traps[Inexact] = True
+        contexte.traps[Rounded] = True
+        resultat = _assembler(
+            [_flux("sortie-collision", prevision.SORTIE, "100000000.00", AUJOURD_HUI)],
+            solde=_solde("100000000.01"),
+        )
+
+    assert resultat["semaines"][0]["solde_fin"] == D("0.01")
 
 
 def test_le_lendemain_de_la_derniere_semaine_est_au_dela_de_l_horizon_et_la_veille_d_aujourd_hui_est_echue():

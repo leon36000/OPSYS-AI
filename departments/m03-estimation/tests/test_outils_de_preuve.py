@@ -9,7 +9,6 @@ produites sur une AUTRE branche — donc irreproductibles là où on les montrai
 
 import ast
 import hashlib
-import subprocess
 import sys
 from pathlib import Path
 
@@ -206,50 +205,55 @@ def test_aucun_outil_de_preuve_n_ecrit_jamais_dans_la_vraie_source():
     )
 
 
-def test_empreinte_de_la_source_reelle_identique_avant_et_apres_une_batterie_complete():
-    """Preuve DYNAMIQUE (PLAN T0.12), complément du test structurel ci-dessus.
+def _hashes_source_capture(preuve):
+    prefixe = "department:m03-estimation/src/"
+    avant = {
+        entree.chemin.removeprefix(prefixe): entree.sha256
+        for entree in preuve.avant.entrees
+        if entree.chemin.startswith(prefixe) and entree.chemin.endswith(".py")
+    }
+    apres = {
+        entree.chemin.removeprefix(prefixe): entree.sha256
+        for entree in preuve.apres.entrees
+        if entree.chemin.startswith(prefixe) and entree.chemin.endswith(".py")
+    }
+    actuel = {
+        str(Path("m3_estimation") / chemin.relative_to(_SOURCE)): hashlib.sha256(
+            chemin.read_bytes()
+        ).hexdigest()
+        for chemin in sorted(_SOURCE.rglob("*.py"))
+    }
+    return avant, apres, actuel
 
-    Empreinte SHA-256 de chaque fichier de ``src/m3_estimation`` avant et après l'exécution
-    complète d'une batterie de mutation nominale : identiques. La batterie choisie comporte à
-    la fois des mutations qui mordent ET deux redondances déclarées volontairement INERTES —
-    des mutations dont la tentative échoue délibérément à faire rougir la suite — ce qui
-    couvre « y compris si une mutation échoue » sans dépendre d'un scénario de sabotage
-    séparé : dans les deux cas, aucune écriture ne doit atteindre la vraie source.
-    """
+
+def test_capture_source_se_reconcilie_avec_les_fichiers_reels(campagne_gardes):
+    """Contrôle léger du chemin relatif entre les reçus et la source M3 réelle."""
+    preuve = campagne_gardes.sans_garde_preuve().preuve
+    avant, apres, actuel = _hashes_source_capture(preuve)
+    assert preuve.nettoyage_prouve
+    assert avant, "la capture réelle ne contient aucun fichier Python source M3"
+    assert avant == apres == actuel, (
+        "les captures autour du subprocess ou la source actuelle divergent"
+    )
+
+
+def test_empreinte_source_reelle_identique_dans_la_preuve_nominale(campagne_gardes):
+    """Vérifie les captures d'une batterie réelle, pas des hashes autour d'un accès cache."""
     outil = _OUTILS / "muter_registre.py"
     assert outil.exists(), f"outil de référence absent : {outil}"
-    # `_RACINE` ci-dessus est le DÉPARTEMENT (parents[1]) ; les outils attendent le DÉPÔT
-    # (argv[1] == RACINE dans muter_registre.py, qui reconstruit lui-même le chemin complet
-    # "departments/m03-estimation/..." à partir de là) — comme le fait `_lancer` de
-    # test_gardes_des_outils.py avec son propre `_RACINE = parents[3]`.
-    depot = Path(__file__).resolve().parents[3]
-
-    def empreintes():
-        return {
-            str(chemin.relative_to(_SOURCE)): hashlib.sha256(chemin.read_bytes()).hexdigest()
-            for chemin in sorted(_SOURCE.rglob("*.py"))
-        }
-
-    avant = empreintes()
-    resultat = subprocess.run(
-        [sys.executable, "-B", str(outil), str(depot)],
-        capture_output=True,
-        text=True,
-        cwd=depot,
+    acces = campagne_gardes.nominal(outil)
+    preuve = acces.preuve
+    acces_reutilise = campagne_gardes.nominal(outil)
+    assert acces_reutilise.processus_lance_ici is False
+    assert acces_reutilise.preuve is preuve
+    assert preuve.retour == 0, (
+        f"la batterie de référence n'est pas saine:\n{preuve.stdout}\n{preuve.stderr}"
     )
-    apres = empreintes()
-
-    assert resultat.returncode == 0, (
-        f"la batterie de référence n'est pas saine :\n{resultat.stdout}\n{resultat.stderr}"
-    )
-    ecarts = {
-        cle: (avant.get(cle), apres.get(cle))
-        for cle in set(avant) | set(apres)
-        if avant.get(cle) != apres.get(cle)
-    }
-    assert avant == apres, (
-        "la source réelle a changé pendant l'exécution de la batterie — "
-        f"écarts : {ecarts}"
+    avant, apres, actuel = _hashes_source_capture(preuve)
+    assert preuve.nettoyage_prouve, "la batterie réelle n'a pas de captures égales"
+    assert avant, "la capture réelle ne contient aucun fichier Python source M3"
+    assert avant == apres == actuel, (
+        "les captures autour du subprocess ou la source actuelle divergent"
     )
 
 

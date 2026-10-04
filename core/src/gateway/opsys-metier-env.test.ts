@@ -1,6 +1,7 @@
 // Token and environment of the OPSYS business engine (OPSYS-AI PLAN T0.10): one shared secret,
 // owned by the Gateway, handed to the engine through its environment only.
 import { describe, expect, it, vi } from "vitest";
+import { parseOpsysMetierConfig } from "./opsys-metier-config.js";
 import {
   buildOpsysMetierChildEnv,
   buildOpsysMetierCliEnv,
@@ -35,7 +36,11 @@ describe("resolveOpsysMcpToken", () => {
     const first = resolveOpsysMcpToken({ env: {} });
     const second = resolveOpsysMcpToken({ env: {} });
 
-    expect(first).toMatchObject({ ok: true, source: "generated", token: expect.stringMatching(/^[0-9a-f]{64}$/u) });
+    expect(first).toMatchObject({
+      ok: true,
+      source: "generated",
+      token: expect.stringMatching(/^[0-9a-f]{64}$/u),
+    });
     expect(second).toMatchObject({ ok: true, source: "generated" });
     expect(first).not.toStrictEqual(second);
   });
@@ -119,14 +124,47 @@ describe("buildOpsysMetierChildEnv", () => {
     });
   });
 
-  it("never lets the inherited or configured environment override the token", () => {
+  it.each([
+    "OPSYS_MCP_JETON",
+    "OPSYS_CONTEXT_MCP_JETON",
+    "OPSYS_CRON_OPERATEUR_JETON",
+    "OPENCLAW_GATEWAY_TOKEN",
+    "opsys_mcp_jeton",
+    "opsys_context_mcp_jeton",
+    "opsys_cron_operateur_jeton",
+    "openclaw_gateway_token",
+  ])("refuses metier.json.env attempts to provide Gateway credential %s", (name) => {
+    const parsed = parseOpsysMetierConfig({
+      actif: true,
+      dossier: process.cwd(),
+      env: { [name]: "forged-value" },
+    });
+    expect(parsed).toMatchObject({ kind: "invalid" });
+    expect(JSON.stringify(parsed)).not.toContain("forged-value");
+    expect(() =>
+      buildOpsysMetierChildEnv({ base: {}, extra: { [name]: "forged-value" }, token: TOKEN }),
+    ).toThrow(/Gateway-owned variable/u);
+  });
+
+  it("passes Gateway audience values and configured provider credentials to the child", () => {
+    const contextToken = "context-audience-secret-value-012345";
+    const operatorToken = "operator-audience-secret-value-012345";
+    const providerKey = "configured-provider-key-value-012345";
     const env = buildOpsysMetierChildEnv({
-      base: { OPSYS_MCP_JETON: "jeton-herite-qui-ne-doit-pas-passer-0123" },
-      extra: { OPSYS_MCP_JETON: "jeton-du-fichier-qui-ne-doit-pas-passer" },
+      base: {
+        OPSYS_CONTEXT_MCP_JETON: contextToken,
+        OPSYS_CRON_OPERATEUR_JETON: operatorToken,
+      },
+      extra: { LITELLM_API_KEY: providerKey },
       token: TOKEN,
     });
 
-    expect(env.OPSYS_MCP_JETON).toBe(TOKEN);
+    expect(env).toMatchObject({
+      OPSYS_CONTEXT_MCP_JETON: contextToken,
+      OPSYS_CRON_OPERATEUR_JETON: operatorToken,
+      OPSYS_MCP_JETON: TOKEN,
+      LITELLM_API_KEY: providerKey,
+    });
   });
 });
 

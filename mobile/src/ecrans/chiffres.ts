@@ -469,6 +469,8 @@ export interface VueEcheance {
     readonly factures: Message;
   } | null;
   readonly taxesNonChiffrees: Message | null;
+  /** Couverture fournie par M5, ou inconnue pour une ancienne réponse. */
+  readonly couvertureTaxes: Message | null;
   readonly manque: readonly Message[];
 }
 
@@ -537,6 +539,14 @@ function presenterEcheance(echeance: EcheanceFiscale, langue: LangueMontant): Vu
             }),
           },
     taxesNonChiffrees: taxesNettes === null ? message("admin.chiffres.echeances.taxesNonChiffrees") : null,
+    couvertureTaxes:
+      taxesNettes === null
+        ? null
+        : message(
+            taxesNettes.couverture.statut === "PARTIELLE"
+              ? "admin.chiffres.echeances.couverturePartielle"
+              : "admin.chiffres.echeances.couvertureInconnue",
+          ),
     manque: echeance.manque.map(ligneDeManque),
   };
 }

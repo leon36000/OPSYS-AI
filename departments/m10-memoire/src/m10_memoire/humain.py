@@ -14,7 +14,8 @@ identifié et motivé (défense en profondeur : même un appelant direct ne peut
 Deux voies, jamais une troisième :
 - ``appareil`` : la personne authentifiée du jeton d'appareil, rôle ``admin`` ;
 - ``approbation`` : la personne qui a approuvé la demande dans la file d'approbation, rôle ``admin`` ou
-  ``nathan_owner`` (celui que la politique du département autorise pour ce niveau).
+  ``nathan_owner`` (celui que la politique du département autorise pour ce niveau) ;
+- ``cli`` : authentification personnelle interactive d'un adaptateur opérateur dédié, juste avant l'écriture.
 """
 
 from __future__ import annotations
@@ -29,6 +30,7 @@ ROLE_ADMIN = "admin"
 ROLE_PROPRIETAIRE = "nathan_owner"
 SOURCE_APPAREIL = "appareil"
 SOURCE_APPROBATION = "approbation"
+SOURCE_CLI = "cli"
 
 MOTIF_MIN_CARACTERES = 10
 MOTIF_MAX_CARACTERES = 500
@@ -41,7 +43,7 @@ REJ_HUMAIN_MOTIF_INVALIDE = "REJ-HUMAIN-MOTIF-INVALIDE"
 REJ_HUMAIN_HORODATAGE_INVALIDE = "REJ-HUMAIN-HORODATAGE-INVALIDE"
 
 _ROLES_HUMAINS = frozenset({ROLE_ADMIN, ROLE_PROPRIETAIRE})
-_SOURCES_DECISION = frozenset({SOURCE_APPAREIL, SOURCE_APPROBATION})
+_SOURCES_DECISION = frozenset({SOURCE_APPAREIL, SOURCE_APPROBATION, SOURCE_CLI})
 # Même forme qu'un identifiant de personne d'OPSYS (`opsys.identite`) : minuscules, chiffres, `.`, `_`, `-`.
 _PERSONNE = re.compile(r"^[a-z][a-z0-9_.-]{1,63}$")
 

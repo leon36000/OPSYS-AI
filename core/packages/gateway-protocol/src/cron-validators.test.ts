@@ -313,6 +313,25 @@ describe("cron protocol validators", () => {
     ]);
   });
 
+  it("accepts optional remove config revisions without changing legacy selectors", () => {
+    expectCases(validateCronRemoveParams, true, [
+      { id: "job-1" },
+      { jobId: "job-2" },
+      { id: "job-1", expectedConfigRevision: "sha256:current" },
+      { jobId: "job-2", expectedConfigRevision: "x".repeat(128) },
+    ]);
+  });
+
+  it("rejects invalid remove config revisions and unknown authority fields", () => {
+    expectCases(validateCronRemoveParams, false, [
+      { id: "job-1", expectedConfigRevision: "" },
+      { id: "job-1", expectedConfigRevision: 1 },
+      { id: "job-1", expectedConfigRevision: null },
+      { id: "job-1", expectedConfigRevision: "x".repeat(129) },
+      { id: "job-1", runtimeAuthority: { version: 1 } },
+    ]);
+  });
+
   it("accepts nullable model clears only on update payload patches", () => {
     expectCases(validateCronUpdateParams, true, [
       update({ payload: { kind: "agentTurn", model: null } }),

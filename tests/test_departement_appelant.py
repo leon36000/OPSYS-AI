@@ -36,10 +36,14 @@ def _noter(note: str) -> dict:
 @pytest.fixture(autouse=True)
 def outils_communs_factices(monkeypatch):
     VUS.clear()
-    monkeypatch.setattr(capacites, "_outils_memoire", lambda: (
-        Outil("opsys_noter", "Écrit une note.", _SCHEMA, _noter, Autonomie.T1),
-        Outil("opsys_effacer", "Efface des données.", _SCHEMA, _noter, Autonomie.T3),
-    ))
+    monkeypatch.setattr(
+        capacites,
+        "_outils_memoire",
+        lambda: (
+            Outil("opsys_noter", "Écrit une note.", _SCHEMA, _noter, Autonomie.T1),
+            Outil("opsys_effacer", "Efface des données.", _SCHEMA, _noter, Autonomie.T3),
+        ),
+    )
 
 
 def test_outil_commun_sans_appelant_refuse(departements_demo, session):
@@ -56,28 +60,46 @@ def test_outil_commun_execute_au_nom_de_l_appelant(departements_demo, session, n
     index = {o.nom: o for o in cap.lister()}
     with session() as cnx:
         assert approbations.lister(cnx)[0]["departement"] == "m09-demo"
-        approbations.decider(cnx, demande["demande_id"], True, nathan, index, departements_demo,
-                             attestation=ATTESTATION_TEST)
+        approbations.decider(
+            cnx, demande["demande_id"], True, nathan, index, departements_demo, attestation=ATTESTATION_TEST
+        )
     assert VUS == ["m09-demo", "m09-demo"]  # l'exécution approuvée garde le département d'origine
 
 
-def test_outil_commun_approuve_depuis_la_console_et_la_cli(departements_demo, racine_demo, session, monkeypatch,
-                                                          capsys, nathan):
+def test_outil_commun_approuve_depuis_la_console_et_la_cli(
+    departements_demo, racine_demo, session, monkeypatch, capsys, nathan
+):
     """Une demande pour un outil commun (mémoire) doit s'exécuter quelle que soit la surface qui l'approuve."""
     cap = Capacites(departements_demo, session, appelant="m09-demo")
     par_console = cap.appeler("opsys_effacer", {"note": "console"})["demande_id"]
     par_cli = cap.appeler("opsys_effacer", {"note": "cli"})["demande_id"]
     with session() as cnx:
-        resultat = tableau_de_bord.decider_approbation(cnx, departements_demo, par_console, "approuver", nathan,
-                                                        attestation=ATTESTATION_TEST)
+        resultat = tableau_de_bord.decider_approbation(
+            cnx, departements_demo, par_console, "approuver", nathan, attestation=ATTESTATION_TEST
+        )
     assert resultat["statut"] == "executee"
 
     monkeypatch.setenv("OPSYS_DEPARTMENTS", str(racine_demo))
     capsys.readouterr()
-    assert cli.main(["approbations", "approuver", par_cli, "--par", nathan,
-                     "--attestation-nom", ATTESTATION_TEST["nom"],
-                     "--attestation-profession", ATTESTATION_TEST["profession"],
-                     "--attestation-document", ATTESTATION_TEST["reference_document"]]) == 0
+    commande = [
+        "approbations",
+        "approuver",
+        par_cli,
+        "--par",
+        nathan,
+        "--attestation-nom",
+        ATTESTATION_TEST["nom"],
+        "--attestation-profession",
+        ATTESTATION_TEST["profession"],
+        "--attestation-document",
+        ATTESTATION_TEST["reference_document"],
+    ]
+    assert cli.main(commande) != 0
+    assert VUS == ["m09-demo"]
+    capsys.readouterr()
+    monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(cli.getpass, "getpass", lambda _: "mot-de-passe-de-test-nathan-1234")
+    assert cli.main(commande) == 0
     assert json.loads(capsys.readouterr().out)["statut"] == "executee"
     assert VUS == ["m09-demo", "m09-demo"]
 
@@ -98,7 +120,10 @@ def test_isolation_des_agents_openclaw(tmp_path):
     serveurs = json.loads(fichiers["mcp"].read_text(encoding="utf-8"))["servers"]
     assert len(agents) == len(serveurs) == 10
     refus_m3 = agents["m03-estimation"]["tools"]["deny"]
-    assert "opsys_m3__*" not in refus_m3 and len(refus_m3) == 9 and "opsys_m5__*" in refus_m3
+    assert "opsys_m3__*" not in refus_m3 and "opsys_m5__*" in refus_m3
+    assert "opsys_context_*__*" in refus_m3
+    assert "opsys_runtime_*__*" in refus_m3
+    assert len([nom for nom in refus_m3 if nom not in {"opsys_context_*__*", "opsys_runtime_*__*"}]) == 9
     assert serveurs["opsys_m3"]["url"] == "http://opsys:8765/mcp/m03-estimation"
 
 

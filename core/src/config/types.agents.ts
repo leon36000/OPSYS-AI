@@ -54,6 +54,10 @@ export type AgentConfig = z.input<typeof AgentEntryBaseSchema> & {
   /** Optional per-agent sandbox overrides. */
   sandbox?: AgentSandboxConfig;
   tools?: AgentToolsConfig;
+  /** OPSYS runtime admission profile binding; never model-authored. */
+  opsysRuntimeAdmission?: { profileId: string; profileRevision?: number };
+  /** OPSYS isolation requirement; never model-authored. */
+  opsysIsolation?: { exec: "sandbox-required" };
 };
 
 export type AgentEntryConfig = Omit<AgentConfig, "id">;

@@ -1,0 +1,566 @@
+{
+  "schema": "opsys.memoire-m03-r41-evidence-capsule/v1",
+  "scope": "Historical evidence only: unit50, PG5 and one real HTTP→PostgreSQL M03 procedure test.",
+  "status": {
+    "unit50": "50 passed, zero failures/errors/skips; no model, PostgreSQL or Docker.",
+    "pg5": "R1/R2 setup reds preserved; R3 3 passed/2 failed preserved; R4 5 passed.",
+    "real1": "ROOT verified pytest 1 passed, zero failures/errors/skips and actual local model/HTTP/PG path. R1 outer conductor exited 1 after success receipt due duplicate temporary-directory removal. R2 fixes cleanup and only dry-run/AST were performed; R2 is not a campaign result."
+  },
+  "external_asset_refs": [
+    {
+      "name": "model-int8.onnx",
+      "sha256": "0826f8c1ab9edf1801db86c61919d4d108e8bfc0b809ec823ad366882ff0b77d",
+      "bytes": 569694530,
+      "included": false
+    },
+    {
+      "name": "tokenizer.json",
+      "sha256": "6710678b12670bc442b99edc952c4d996ae309a7020c1fa0096dd245c2faf790",
+      "bytes": 17082821,
+      "included": false
+    },
+    {
+      "name": "r41-requirements.lock.txt",
+      "sha256": "ab6f5a5deaeda1ab5272f749179b3734c0070d3410dc3675d7c38833d6aae6bc",
+      "bytes": 70396,
+      "included": false
+    }
+  ],
+  "entries": [
+    {
+      "label": "unit50/proofs/ROOT-unites-r1.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/ROOT-unites-r1.json",
+      "bytes": 3924,
+      "sha256": "5cd27819a6aa3fd0fcee609e849077b806bd112fbe60629c59583aa86ef05978"
+    },
+    {
+      "label": "unit50/proofs/ROOT-unites-r1.xml",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/ROOT-unites-r1.xml",
+      "bytes": 7942,
+      "sha256": "56e78232636cd64708206c339827f456207b510402721b0ac0ee18db8cc01428"
+    },
+    {
+      "label": "unit50/proofs/ROOT-unites-r1.log",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/ROOT-unites-r1.log",
+      "bytes": 100,
+      "sha256": "ea9797122106f0f1a937ece9f619c0205e76f655df4861b120a925b64a8c9484"
+    },
+    {
+      "label": "unit50/proofs/RUFF-ROOT-r1.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/RUFF-ROOT-r1.json",
+      "bytes": 1567,
+      "sha256": "3bf62b86e05df85944338e370894ff84cbda46189c71782cfbaed9e173dd10a8"
+    },
+    {
+      "label": "unit50/proofs/FREEZE-R3.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/profil-strict-r1/FREEZE-R3.json",
+      "bytes": 3988,
+      "sha256": "694e0880a5fceb4db78891e32aea464f82f8a9c664be9ac4a920e3ecd127e55d"
+    },
+    {
+      "label": "unit50/proofs/receipt-python-final3-20261002T153851Z.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/profil-strict-r1/receipt-python-final3-20261002T153851Z.json",
+      "bytes": 1706,
+      "sha256": "f5da04350aad1398aae31f84dbcc5586b37d6bd781f7011fc06f8827bfaa86a4"
+    },
+    {
+      "label": "unit50/proofs/junit-python-final3-20261002T153851Z.xml",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/profil-strict-r1/junit-python-final3-20261002T153851Z.xml",
+      "bytes": 7942,
+      "sha256": "024d22292f93f1888114622231c910d63e0e738f29decf9f61277772b9733d49"
+    },
+    {
+      "label": "unit50/proofs/pytest-python-final3-20261002T153851Z.log",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/profil-strict-r1/pytest-python-final3-20261002T153851Z.log",
+      "bytes": 80,
+      "sha256": "5952b218382e51f578768c0a348723d5418c12143cc6d5f49d527f1d1b978a79"
+    },
+    {
+      "label": "unit50/source/src/opsys/memoire/serveur_embeddings_local.py",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/serveur_embeddings_local.py",
+      "bytes": 21103,
+      "sha256": "12ee8afa10fd3397e015d0233075e2a7c87a6d40075cf6b25c4f63496178c08e"
+    },
+    {
+      "label": "unit50/source/src/opsys/memoire/embeddings.py",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/embeddings.py",
+      "bytes": 14772,
+      "sha256": "5343611a5be80565641029fcd938897cda994de0956f6a286e7f1ce3a78da75e"
+    },
+    {
+      "label": "unit50/source/src/opsys/memoire/profil_embeddings_local.py",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/profil_embeddings_local.py",
+      "bytes": 1379,
+      "sha256": "50a1339b882f2e722dfdf95d3b30ff48c4b84ec9bc74ff58dc57cfd2920ece6f"
+    },
+    {
+      "label": "unit50/source/src/opsys/memoire/schema.sql",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/schema.sql",
+      "bytes": 10495,
+      "sha256": "5f1bc9d607a92a5a10f7b9e822ab3476d65cbaa36ed5e389725d96751fdca636"
+    },
+    {
+      "label": "unit50/source/src/opsys/memoire/store.py",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/preimages/r9/store.py",
+      "bytes": 64666,
+      "sha256": "9f22207355578b5c731fefb853b51e7e5693db36c644f9b160afa677795b395e"
+    },
+    {
+      "label": "unit50/source/src/opsys/memoire/outils.py",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/outils.py",
+      "bytes": 15943,
+      "sha256": "10dc00914e82cf4b090cdf2f3503803189ec7dfb55052c7d8ee15ffc16de1ec2"
+    },
+    {
+      "label": "unit50/source/src/opsys/memoire/__main__.py",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/__main__.py",
+      "bytes": 3770,
+      "sha256": "72b0ca7d3d7ae3f978d6faae0cc28e17f0b29ae5b6134ad438ae35e1c0ccfce3"
+    },
+    {
+      "label": "unit50/source/tests/test_memoire_embeddings_procedures.py",
+      "path": "/workspace/OPSYS-AI-recent/tests/test_memoire_embeddings_procedures.py",
+      "bytes": 6300,
+      "sha256": "166f8b066d533558c18916a80ad39eeb66ef1753ccf0343f3f3340224f84b72f"
+    },
+    {
+      "label": "unit50/source/tests/test_memoire_embeddings_procedures_local_postgres.py",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/preimages/test_memoire_embeddings_procedures_local_postgres.py",
+      "bytes": 6067,
+      "sha256": "4a68c46fc021943096ec0c97db907208e43d46661d00a1a2bd76e03af905b96c"
+    },
+    {
+      "label": "unit50/source/docs/architecture/INGESTION-PROCEDURES-M3.md",
+      "path": "/workspace/OPSYS-AI-recent/docs/architecture/INGESTION-PROCEDURES-M3.md",
+      "bytes": 9601,
+      "sha256": "7bbd961ef565b5be65768bf6be6f42e7cab355cdc3d0c459a0c93e0fc0f27773"
+    },
+    {
+      "label": "unit50/source/tests/test_memoire_embeddings.py",
+      "path": "/workspace/OPSYS-AI-recent/tests/test_memoire_embeddings.py",
+      "bytes": 4911,
+      "sha256": "c5283167b995e52cd99d8f211f2c1c2583c52c11ea5d91915282bd869a55534f"
+    },
+    {
+      "label": "unit50/source/tests/test_memoire_embeddings_local.py",
+      "path": "/workspace/OPSYS-AI-recent/tests/test_memoire_embeddings_local.py",
+      "bytes": 8433,
+      "sha256": "75dcb38daf7979a059c7a985ace9215124ad8430ec216eb0f77ce9758ed392b5"
+    },
+    {
+      "label": "pg5/controls/FREEZE-R4.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/FREEZE-R4.json",
+      "bytes": 2527,
+      "sha256": "19a5429a11c323e9b5b0254697484a550d21c1e82008fdd8d315beb419bd90ea"
+    },
+    {
+      "label": "pg5/controls/FREEZE-R5.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/FREEZE-R5.json",
+      "bytes": 2474,
+      "sha256": "e7d3c26fc0cfc5df750c627a3dab5a6a7fb35278c6d7a55118418652b3cd03e5"
+    },
+    {
+      "label": "pg5/controls/FREEZE-R6.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/FREEZE-R6.json",
+      "bytes": 2761,
+      "sha256": "723d3f3844514b5356d6eed533b6d6d902cc25fdb6f2ca3e684dd4adc2ca52b5"
+    },
+    {
+      "label": "pg5/controls/FREEZE-R7.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/FREEZE-R7.json",
+      "bytes": 2745,
+      "sha256": "6c113f2fd2f2f6acdd7ff313a9d074d91cbb305c925aabcba54122fe9d5e9a8e"
+    },
+    {
+      "label": "pg5/controls/FREEZE-R8.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/FREEZE-R8.json",
+      "bytes": 2689,
+      "sha256": "2e11270b5b178567cc90dfbfb4f9a10c4e2fa240d3538c01851063eab4c70f42"
+    },
+    {
+      "label": "pg5/controls/FREEZE-R9.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/FREEZE-R9.json",
+      "bytes": 2806,
+      "sha256": "0f3846b18a091e3c0ac98f339d0c2b41cccd0ba5623d5f83ee78f4729a1368ce"
+    },
+    {
+      "label": "pg5/controls/conducteur_pg.py",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/conducteur_pg.py",
+      "bytes": 25350,
+      "sha256": "3bb0c4149d1121b0b02bb36a52a6d6b0c05967a30c0f2287532d9c54c5f2bd2a"
+    },
+    {
+      "label": "pg5/controls/VERIFICATION-PG5-ROOT-r1.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/VERIFICATION-PG5-ROOT-r1.json",
+      "bytes": 1023,
+      "sha256": "3632eb9b873630463b20f91dac4b581a49824238b1f4eabf2ae9fcc7441ef06b"
+    },
+    {
+      "label": "pg5/source/src/opsys/memoire/serveur_embeddings_local.py",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/serveur_embeddings_local.py",
+      "bytes": 21103,
+      "sha256": "12ee8afa10fd3397e015d0233075e2a7c87a6d40075cf6b25c4f63496178c08e"
+    },
+    {
+      "label": "pg5/source/src/opsys/memoire/embeddings.py",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/embeddings.py",
+      "bytes": 14772,
+      "sha256": "5343611a5be80565641029fcd938897cda994de0956f6a286e7f1ce3a78da75e"
+    },
+    {
+      "label": "pg5/source/src/opsys/memoire/profil_embeddings_local.py",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/profil_embeddings_local.py",
+      "bytes": 1379,
+      "sha256": "50a1339b882f2e722dfdf95d3b30ff48c4b84ec9bc74ff58dc57cfd2920ece6f"
+    },
+    {
+      "label": "pg5/source/src/opsys/memoire/schema.sql",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/schema.sql",
+      "bytes": 10495,
+      "sha256": "5f1bc9d607a92a5a10f7b9e822ab3476d65cbaa36ed5e389725d96751fdca636"
+    },
+    {
+      "label": "pg5/source/src/opsys/memoire/store.py",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/store.py",
+      "bytes": 64684,
+      "sha256": "9aad587d2e58fc405ac29f71ca67dc1572482368ba92f83aee20c0cb9e43445c"
+    },
+    {
+      "label": "pg5/source/src/opsys/memoire/outils.py",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/outils.py",
+      "bytes": 15943,
+      "sha256": "10dc00914e82cf4b090cdf2f3503803189ec7dfb55052c7d8ee15ffc16de1ec2"
+    },
+    {
+      "label": "pg5/source/src/opsys/memoire/__main__.py",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/__main__.py",
+      "bytes": 3770,
+      "sha256": "72b0ca7d3d7ae3f978d6faae0cc28e17f0b29ae5b6134ad438ae35e1c0ccfce3"
+    },
+    {
+      "label": "pg5/source/tests/test_memoire_embeddings_procedures.py",
+      "path": "/workspace/OPSYS-AI-recent/tests/test_memoire_embeddings_procedures.py",
+      "bytes": 6300,
+      "sha256": "166f8b066d533558c18916a80ad39eeb66ef1753ccf0343f3f3340224f84b72f"
+    },
+    {
+      "label": "pg5/source/tests/test_memoire_embeddings_procedures_local_postgres.py",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-real-r1/preimages/test_memoire_embeddings_procedures_local_postgres.py",
+      "bytes": 15540,
+      "sha256": "03c2aab4ac11a1f51aa91a16424140018a8895f264db9236270316e3ba7f895b"
+    },
+    {
+      "label": "pg5/source/docs/architecture/INGESTION-PROCEDURES-M3.md",
+      "path": "/workspace/OPSYS-AI-recent/docs/architecture/INGESTION-PROCEDURES-M3.md",
+      "bytes": 9601,
+      "sha256": "7bbd961ef565b5be65768bf6be6f42e7cab355cdc3d0c459a0c93e0fc0f27773"
+    },
+    {
+      "label": "pg5/source-history/test_memoire_embeddings_procedures_local_postgres.py-4a68c46fc021",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/preimages/test_memoire_embeddings_procedures_local_postgres.py",
+      "bytes": 6067,
+      "sha256": "4a68c46fc021943096ec0c97db907208e43d46661d00a1a2bd76e03af905b96c"
+    },
+    {
+      "label": "pg5/source-history/test_memoire_embeddings_procedures_local_postgres.py-7e893e6413db",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/preimages/r9/test_memoire_embeddings_procedures_local_postgres.py",
+      "bytes": 15548,
+      "sha256": "7e893e6413db3948a30e354599727399efe437fc07725087c2a971ae6c5cab99"
+    },
+    {
+      "label": "pg5/ROOT-EXECUTION-r1/RECU-ROOT-r1.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/ROOT-EXECUTION-r1/RECU-ROOT-r1.json",
+      "bytes": 599,
+      "sha256": "dca107bec60f7d89fd5334405ab1f37411481cc9cb2187b078b9d760246a43c8"
+    },
+    {
+      "label": "pg5/ROOT-EXECUTION-r1/execution.log",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/ROOT-EXECUTION-r1/execution.log",
+      "bytes": 910,
+      "sha256": "9837760695efb8ed5d3ad3317c13a8a38208c2e907b12b465a6237e4d5d54f7f"
+    },
+    {
+      "label": "pg5/ROOT-EXECUTION-r2/RECU-ROOT-r2.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/ROOT-EXECUTION-r2/RECU-ROOT-r2.json",
+      "bytes": 599,
+      "sha256": "5db487cdbb49751ed2f1970f7c3723d6c09fc1dec3739b6c2561f80dc70ba764"
+    },
+    {
+      "label": "pg5/ROOT-EXECUTION-r2/execution.log",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/ROOT-EXECUTION-r2/execution.log",
+      "bytes": 420,
+      "sha256": "dacb13ca14754dbcc6bb5cce4e64984bbed292398a97761825274dc2d2362ad3"
+    },
+    {
+      "label": "pg5/ROOT-EXECUTION-r3/RECU-ROOT-r3.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/ROOT-EXECUTION-r3/RECU-ROOT-r3.json",
+      "bytes": 599,
+      "sha256": "028446f3fca664da70dd35cb6a4a52cc88d0cb4e0c949a4c57820b8fdfcf0275"
+    },
+    {
+      "label": "pg5/ROOT-EXECUTION-r3/execution.log",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/ROOT-EXECUTION-r3/execution.log",
+      "bytes": 502,
+      "sha256": "3ad3780177151180d011d24f54089ccdd8fff689049431c435629bffaf2a06c9"
+    },
+    {
+      "label": "pg5/ROOT-EXECUTION-r4/RECU-ROOT-r4.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/ROOT-EXECUTION-r4/RECU-ROOT-r4.json",
+      "bytes": 599,
+      "sha256": "954a2dda691bd2a491d1a11ae60db8122a1e32e58465c7415fbd9271eeb95ab8"
+    },
+    {
+      "label": "pg5/ROOT-EXECUTION-r4/execution.log",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/ROOT-EXECUTION-r4/execution.log",
+      "bytes": 419,
+      "sha256": "51bd54802b1e344e09d74ce0f74f61de666e0536e412134184cfe1ab2fc1bbc1"
+    },
+    {
+      "label": "pg5/runs/20261002T170501Z-354551a79d1c4c189bcc0ed08b8421ee/receipt.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/run-20261002T170501Z-354551a79d1c4c189bcc0ed08b8421ee/receipt.json",
+      "bytes": 5734,
+      "sha256": "49792ab1eef8bbc093f8ddc0503c0d7b997ec37530554cfeefb62bd03a889724"
+    },
+    {
+      "label": "pg5/runs/20261002T170501Z-354551a79d1c4c189bcc0ed08b8421ee/pytest.log",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/run-20261002T170501Z-354551a79d1c4c189bcc0ed08b8421ee/pytest.log",
+      "bytes": 5344,
+      "sha256": "156619648d54d30eec4750535e54eeeefec5daadf20401d83024d814265b5a95"
+    },
+    {
+      "label": "pg5/runs/20261002T170501Z-354551a79d1c4c189bcc0ed08b8421ee/pytest.xml",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/run-20261002T170501Z-354551a79d1c4c189bcc0ed08b8421ee/pytest.xml",
+      "bytes": 6771,
+      "sha256": "441a051eba20c39019c19c0f80f4ebef95959880c4a07a7fb15750b832279024"
+    },
+    {
+      "label": "pg5/runs/20261002T170810Z-3c45789217af4b479aec9c44cef99976/receipt.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/run-20261002T170810Z-3c45789217af4b479aec9c44cef99976/receipt.json",
+      "bytes": 6317,
+      "sha256": "906f51dd8e61e27de229355eb8ca1d86ad4c551986ae46bb25b9a53891fd8d2b"
+    },
+    {
+      "label": "pg5/runs/20261002T170810Z-3c45789217af4b479aec9c44cef99976/pytest.log",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/run-20261002T170810Z-3c45789217af4b479aec9c44cef99976/pytest.log",
+      "bytes": 2408,
+      "sha256": "b1c6a4bd3d9491a45f31cc1b8a4d1c3b5ed2fd5a7c48774f5b8cae11c0c909ae"
+    },
+    {
+      "label": "pg5/runs/20261002T170810Z-3c45789217af4b479aec9c44cef99976/pytest.xml",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/run-20261002T170810Z-3c45789217af4b479aec9c44cef99976/pytest.xml",
+      "bytes": 3128,
+      "sha256": "d1d58dbd2617e9011191cc1fa555e3854e0bb660c5ed514fee7046997932468d"
+    },
+    {
+      "label": "pg5/runs/20261002T171432Z-2c69475b4eb642529fdb44f308975906/receipt.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/run-20261002T171432Z-2c69475b4eb642529fdb44f308975906/receipt.json",
+      "bytes": 6235,
+      "sha256": "db0c4ad71040daf69c87dbfebfe1fe5e0e920346ec44ab3c21a9c5c8241684b2"
+    },
+    {
+      "label": "pg5/runs/20261002T171432Z-2c69475b4eb642529fdb44f308975906/pytest.log",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/run-20261002T171432Z-2c69475b4eb642529fdb44f308975906/pytest.log",
+      "bytes": 98,
+      "sha256": "b12ebe2c13c208800f2608d0266e864dcb7171d59e467fcbfd050c8f6c4b2fc4"
+    },
+    {
+      "label": "pg5/runs/20261002T171432Z-2c69475b4eb642529fdb44f308975906/pytest.xml",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-cas-r1/run-20261002T171432Z-2c69475b4eb642529fdb44f308975906/pytest.xml",
+      "bytes": 1071,
+      "sha256": "5cad0f7dc4511d32cc2ea159212c3c179c1e823894a27848b31e266ceae08f4a"
+    },
+    {
+      "label": "real1/controls/FREEZE-REAL-R1.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-real-r1/FREEZE-REAL-R1.json",
+      "bytes": 4508,
+      "sha256": "aaeb38a061966d9a62c96d57d09e06edd223ef3185d4afd486b694e8a8836893"
+    },
+    {
+      "label": "real1/controls/FREEZE-REAL-R2.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-real-r1/FREEZE-REAL-R2.json",
+      "bytes": 4680,
+      "sha256": "02677617c8351a98da8c55d5106a16fa66977dcc11c17f02728f4df0dbe6bdc2"
+    },
+    {
+      "label": "real1/controls/conducteur_pg_reel.py",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-real-r1/conducteur_pg_reel.py",
+      "bytes": 26445,
+      "sha256": "d464624cecbdfab7689762bd0f26862837d8ea3bbb8c28bba29fb545e4a59fed"
+    },
+    {
+      "label": "real1/controls/VERIFICATION-REAL-M03-ROOT-r1.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-real-r1/VERIFICATION-REAL-M03-ROOT-r1.json",
+      "bytes": 795,
+      "sha256": "36cecc8f7a3b7928730cae645302a23776509c136b358435b7cb090423339e84"
+    },
+    {
+      "label": "real1/controls/RECU-PREPARATION-R1.md",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-real-r1/RECU-PREPARATION-R1.md",
+      "bytes": 1921,
+      "sha256": "bcf6ec433f96d449edeed0b95c35e7f8b7c99000e382e8efa070821dc69f71ce"
+    },
+    {
+      "label": "real1/controls/ADDENDUM-ROOT-EXECUTION-R1.md",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-real-r1/ADDENDUM-ROOT-EXECUTION-R1.md",
+      "bytes": 2232,
+      "sha256": "5b48534a26ab8d0f05920a56f807c286342a83f0a16dd1ad3463ad7418e0397c"
+    },
+    {
+      "label": "real1/controls/CAPSULE-PROPOSITION-R1.md",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-real-r1/CAPSULE-PROPOSITION-R1.md",
+      "bytes": 2642,
+      "sha256": "fb6c0abac636a5f0314d44fc7669c0e72d4ae5cfdeeb8470bbbb5a46f3a942d6"
+    },
+    {
+      "label": "real1/source-history/conducteur_pg_reel-r1.py",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-real-r1/preimages/conducteur_pg_reel-r1.py",
+      "bytes": 26067,
+      "sha256": "d7f933cd6d55615a7b7a3c28af974783ae3473dc810a1f7534a45d9946923360"
+    },
+    {
+      "label": "real1/source-history/test_memoire_embeddings_procedures_local_postgres.py",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-real-r1/preimages/test_memoire_embeddings_procedures_local_postgres.py",
+      "bytes": 15540,
+      "sha256": "03c2aab4ac11a1f51aa91a16424140018a8895f264db9236270316e3ba7f895b"
+    },
+    {
+      "label": "real1/source-r2/src/opsys/memoire/serveur_embeddings_local.py",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/serveur_embeddings_local.py",
+      "bytes": 21103,
+      "sha256": "12ee8afa10fd3397e015d0233075e2a7c87a6d40075cf6b25c4f63496178c08e"
+    },
+    {
+      "label": "real1/source-r2/src/opsys/memoire/embeddings.py",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/embeddings.py",
+      "bytes": 14772,
+      "sha256": "5343611a5be80565641029fcd938897cda994de0956f6a286e7f1ce3a78da75e"
+    },
+    {
+      "label": "real1/source-r2/src/opsys/memoire/profil_embeddings_local.py",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/profil_embeddings_local.py",
+      "bytes": 1379,
+      "sha256": "50a1339b882f2e722dfdf95d3b30ff48c4b84ec9bc74ff58dc57cfd2920ece6f"
+    },
+    {
+      "label": "real1/source-r2/src/opsys/memoire/schema.sql",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/schema.sql",
+      "bytes": 10495,
+      "sha256": "5f1bc9d607a92a5a10f7b9e822ab3476d65cbaa36ed5e389725d96751fdca636"
+    },
+    {
+      "label": "real1/source-r2/src/opsys/memoire/store.py",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/store.py",
+      "bytes": 64684,
+      "sha256": "9aad587d2e58fc405ac29f71ca67dc1572482368ba92f83aee20c0cb9e43445c"
+    },
+    {
+      "label": "real1/source-r2/src/opsys/memoire/outils.py",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/outils.py",
+      "bytes": 15943,
+      "sha256": "10dc00914e82cf4b090cdf2f3503803189ec7dfb55052c7d8ee15ffc16de1ec2"
+    },
+    {
+      "label": "real1/source-r2/src/opsys/memoire/__main__.py",
+      "path": "/workspace/OPSYS-AI-recent/src/opsys/memoire/__main__.py",
+      "bytes": 3770,
+      "sha256": "72b0ca7d3d7ae3f978d6faae0cc28e17f0b29ae5b6134ad438ae35e1c0ccfce3"
+    },
+    {
+      "label": "real1/source-r2/tests/test_memoire_embeddings_procedures.py",
+      "path": "/workspace/OPSYS-AI-recent/tests/test_memoire_embeddings_procedures.py",
+      "bytes": 6300,
+      "sha256": "166f8b066d533558c18916a80ad39eeb66ef1753ccf0343f3f3340224f84b72f"
+    },
+    {
+      "label": "real1/source-r2/tests/test_memoire_embeddings_procedures_local_postgres.py",
+      "path": "/workspace/OPSYS-AI-recent/tests/test_memoire_embeddings_procedures_local_postgres.py",
+      "bytes": 17104,
+      "sha256": "7d41f3c9f5a64cc8f2fb1df3a3542ded8bce0726e037a921dc1b32fad8efd471"
+    },
+    {
+      "label": "real1/source-r2/docs/architecture/INGESTION-PROCEDURES-M3.md",
+      "path": "/workspace/OPSYS-AI-recent/docs/architecture/INGESTION-PROCEDURES-M3.md",
+      "bytes": 9601,
+      "sha256": "7bbd961ef565b5be65768bf6be6f42e7cab355cdc3d0c459a0c93e0fc0f27773"
+    },
+    {
+      "label": "real1/source-r2/tests/test_memoire_embeddings_local_postgres.py",
+      "path": "/workspace/OPSYS-AI-recent/tests/test_memoire_embeddings_local_postgres.py",
+      "bytes": 14635,
+      "sha256": "48016bd959baf30ff165de672dcbc1d93d29ff15cfd9f4019a3b9eeecb2e7400"
+    },
+    {
+      "label": "real1/source-r2/tests/fixtures/memoire/doubles.py",
+      "path": "/workspace/OPSYS-AI-recent/tests/fixtures/memoire/doubles.py",
+      "bytes": 15764,
+      "sha256": "257ce778b53c58e0df33088d301c74a81e76a92c11af1728910432bce43e1bf2"
+    },
+    {
+      "label": "real1/source-r2/tests/conftest.py",
+      "path": "/workspace/OPSYS-AI-recent/tests/conftest.py",
+      "bytes": 1296,
+      "sha256": "de42150d82a17311539542a0a9ec03cae25c3899f520ed491019ed6ea729c312"
+    },
+    {
+      "label": "real1/ROOT-EXECUTION-r1/RECU-ROOT-r1.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-real-r1/ROOT-EXECUTION-r1/RECU-ROOT-r1.json",
+      "bytes": 379,
+      "sha256": "a7d6186a397575b6549f9043752e81ac2ad0212f0065d9663df6df2240e0f0a2"
+    },
+    {
+      "label": "real1/ROOT-EXECUTION-r1/execution.log",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-real-r1/ROOT-EXECUTION-r1/execution.log",
+      "bytes": 1441,
+      "sha256": "53ce8c4716a29387083837aa4bcb0cad76819bf5463090866bddc6e67a8e373a"
+    },
+    {
+      "label": "real1/run-r1/receipt.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-real-r1/run-20261002T175140Z-ed7ded3b187f464c953840490431ea53/receipt.json",
+      "bytes": 8853,
+      "sha256": "7e0cdf0ceedf4a2100f9843d0163bd2057ad6b0125392978fb699ee630e3354c"
+    },
+    {
+      "label": "real1/run-r1/pytest.log",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-real-r1/run-20261002T175140Z-ed7ded3b187f464c953840490431ea53/pytest.log",
+      "bytes": 624,
+      "sha256": "9caa0b670d01376c1858799d7d949d083a823ca7c463eb53261dd852244dd25b"
+    },
+    {
+      "label": "real1/run-r1/pytest.xml",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/memoire-m03-hybride/pg-real-r1/run-20261002T175140Z-ed7ded3b187f464c953840490431ea53/pytest.xml",
+      "bytes": 1860,
+      "sha256": "37d87594538a966c154599bc3566d101fd3ded74242eab46405375b8ec556103"
+    },
+    {
+      "label": "r35-provenance/SOURCES.md",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/recherche-model-r35/SOURCES.md",
+      "bytes": 4817,
+      "sha256": "7d2088a72ed0e27aeba167580132ca8b71f693bfae0279a9b93914da33952421"
+    },
+    {
+      "label": "r35-provenance/ETAT-RUNTIME-R1.md",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/recherche-model-r35/ETAT-RUNTIME-R1.md",
+      "bytes": 4011,
+      "sha256": "f1604d9cf6458f573e67cde0e3e275e3348f1294cd9ffc97d487e21efafa23f7"
+    },
+    {
+      "label": "r35-provenance/R41-FREEZE-R6.json",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/recherche-model-r35/R41-FREEZE-R6.json",
+      "bytes": 2896,
+      "sha256": "6d3b090c8c33ab34aaf404e06001bf1ec8bffd1bce2252ad359f3ee481d77ac7"
+    },
+    {
+      "label": "r35-provenance/R41-DESIGN-R1.md",
+      "path": "/workspace/poursuite-opsys-2026-10-02-r1/recherche-model-r35/R41-DESIGN-R1.md",
+      "bytes": 11407,
+      "sha256": "e8d7b1a7b11e5167ed45bbca628c7226b4be71963010534bf2c416f51d6b381d"
+    }
+  ],
+  "constraints": {
+    "max_capsule_bytes": 4194304,
+    "max_uncompressed_bytes": 4194304,
+    "model_weights_included": false,
+    "runtime_included": false,
+    "archive_created_by_author": false
+  }
+}

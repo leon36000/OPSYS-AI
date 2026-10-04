@@ -117,7 +117,15 @@ _STATUTS_AVANT_ACCEPTATION = ("brouillon", "envoye")
 _CHAMPS_LIGNE_REQUIS = frozenset(
     {"description", "quantite", "unite", "cout_unitaire", "reference_besoin_materiau"}
 )
-_CLES_CONTENU_DEVIS = ("lead_id", "chantier_id", "taux_marge", "lignes", "cout_total", "prix_total")
+_CLES_CONTENU_DEVIS = (
+    "lead_id",
+    "chantier_id",
+    "taux_marge",
+    "lignes",
+    "cout_total",
+    "prix_total",
+    "estimation_source_hash",
+)
 
 _ROLES_CONNUS = ("interne", "employe")
 _CLES_LIGNE_EMPLOYE = ("reference_ligne", "description", "quantite", "unite", "reference_besoin_materiau")
@@ -302,6 +310,7 @@ def creer_devis(
     horodatage: str,
     registre_cible: Any,
     prix_total_fourni: str | None = None,
+    estimation_source_hash: str | None = None,
 ) -> tuple[dict[str, Any] | None, dict | None]:
     """Crée un devis BROUILLON sur ``registre_cible`` (le registre DÉDIÉ des devis). Idempotente
     par ``devis_id`` (cf. docstring du module) : un contenu identique rend l'existant sans écrire,
@@ -316,6 +325,15 @@ def creer_devis(
         )
     if not _est_texte_non_vide(horodatage):
         return None, verdicts.construire_verdict("REJ-DEVIS-HORODATAGE-VIDE", detail="horodatage requis, non vide")
+    if estimation_source_hash is not None and (
+        not isinstance(estimation_source_hash, str)
+        or len(estimation_source_hash) != 64
+        or any(caractere not in "0123456789abcdef" for caractere in estimation_source_hash)
+    ):
+        return None, verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail="estimation_source_hash doit être absent ou un SHA-256 hexadécimal minuscule de 64 caractères",
+        )
     if not isinstance(lignes, (list, tuple)) or not lignes:
         return None, verdicts.construire_verdict("REJ-DEVIS-LIGNES-VIDES", detail="au moins une ligne est requise")
 
@@ -357,6 +375,8 @@ def creer_devis(
         "cout_total": cout_total,
         "prix_total": prix_total,
     }
+    if estimation_source_hash is not None:
+        candidat["estimation_source_hash"] = estimation_source_hash
 
     existant = _etat_devis(registre_cible, devis_id)
     if existant is not None:
@@ -512,7 +532,7 @@ def charge_evenement_devis_accepte(devis: dict[str, Any]) -> dict[str, Any]:
     fourni à ``marquer_devis_accepte``, déjà le ``horodatage`` du dernier maillon fusionné — voir
     ``_etats_courants`` — donc TOUJOURS celui de l'acceptation, jamais celui d'une création ou
     d'un envoi antérieurs)."""
-    return {
+    charge = {
         "devis_id": devis["devis_id"],
         "lead_id": devis["lead_id"],
         "chantier_id": devis["chantier_id"],
@@ -533,6 +553,10 @@ def charge_evenement_devis_accepte(devis: dict[str, Any]) -> dict[str, Any]:
         "taux_marge": str(devis["taux_marge"]),
         "horodatage_acceptation": devis["horodatage"],
     }
+    estimation_source_hash = devis.get("estimation_source_hash")
+    if estimation_source_hash is not None:
+        charge["estimation_source_hash"] = estimation_source_hash
+    return charge
 
 
 def charge_evenement_devis_envoye(devis: dict[str, Any]) -> dict[str, Any]:

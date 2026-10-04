@@ -3,6 +3,7 @@ import { parseBoolean } from "@openclaw/normalization-core/boolean-coercion";
 import { normalizeOptionalString } from "@openclaw/normalization-core/string-coerce";
 import {
   type CronListParams,
+  type CronRemoveParams,
   type CronRunsParams,
   ErrorCodes,
   errorShape,
@@ -66,6 +67,7 @@ import {
   getCronManagementAuthority,
   withCronManagementGrant,
 } from "../cron-creator-authority-grant.js";
+import { bindGatewayDeviceRevocation } from "../device-revocation.js";
 import { authorizeGatewaySessionCreation, operatorSessionCap } from "../operator-role-policy.js";
 import { getGatewayProcessInstanceId } from "../process-instance.js";
 import { resolveRequestedSessionAgentId } from "../session-request-agent.js";
@@ -1034,7 +1036,8 @@ export const cronHandlers: GatewayRequestHandlers = {
     if (!assertValidParams(params, validateCronRemoveParams, "cron.remove", respond)) {
       return;
     }
-    const jobId = resolveCronJobId(params as CronJobIdParams);
+    const p = params as CronRemoveParams;
+    const jobId = resolveCronJobId(p);
     if (!jobId) {
       respondMissingCronJobId(respond, "cron.remove");
       return;
@@ -1064,7 +1067,7 @@ export const cronHandlers: GatewayRequestHandlers = {
       : undefined;
     let result: Awaited<ReturnType<typeof context.cron.remove>>;
     try {
-      const commitGuard = resolveCronMutationCommitGuard(
+      const authorityCommitGuard = resolveCronMutationCommitGuard(
         client,
         context,
         {
@@ -1075,6 +1078,26 @@ export const cronHandlers: GatewayRequestHandlers = {
         },
         { sessionMutationCommitGuard, hasCurrentClientAuthority },
       );
+      // The remove owner holds the cron lock when invoking this synchronous guard.
+      // Compose authority first so a revoked caller cannot inspect the current revision.
+      const requestedConfigRevision = p.expectedConfigRevision;
+      const commitGuard =
+        requestedConfigRevision === undefined
+          ? authorityCommitGuard
+          : bindGatewayDeviceRevocation(() => {
+              authorityCommitGuard?.();
+              const lockedJob = context.cron.getJob(jobId);
+              if (!lockedJob) {
+                throw new TypeError(`unknown cron job id: ${jobId}`);
+              }
+              const actualConfigRevision = resolveCronJobConfigRevision(lockedJob);
+              if (actualConfigRevision !== requestedConfigRevision) {
+                throw new CronJobConfigRevisionConflictError(
+                  requestedConfigRevision,
+                  actualConfigRevision,
+                );
+              }
+            }, hasCurrentClientAuthority);
       const identity = client?.internal?.agentRuntimeIdentity;
       const validateAuthority = context.validateAgentRuntimeApprovalAuthority;
       if (identity && validateAuthority && commitGuard && callerScope?.currentJobId === jobId) {
@@ -1088,6 +1111,24 @@ export const cronHandlers: GatewayRequestHandlers = {
         ? await context.cron.remove(jobId, { commitGuard })
         : await context.cron.remove(jobId);
     } catch (error) {
+      if (error instanceof CronJobConfigRevisionConflictError) {
+        respond(
+          false,
+          undefined,
+          errorShape(
+            ErrorCodes.INVALID_REQUEST,
+            "cron job definition no longer matches the loaded version; review the latest version before retrying",
+            {
+              details: {
+                code: "CRON_JOB_CHANGED",
+                expectedConfigRevision: error.expectedConfigRevision,
+                actualConfigRevision: error.actualConfigRevision,
+              },
+            },
+          ),
+        );
+        return;
+      }
       if (error instanceof TypeError) {
         respondInvalidCronParams(respond, "cron.remove", formatErrorMessage(error));
         return;

@@ -3,7 +3,6 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
 
 
 def lire_fichier(chemin: Path) -> str:
@@ -11,7 +10,7 @@ def lire_fichier(chemin: Path) -> str:
     return chemin.read_text(encoding="utf-8")
 
 
-def extraire_enum_val(texte: str, titre: str) -> List[str]:
+def extraire_enum_val(texte: str, titre: str) -> list[str]:
     """
     Extrait les valeurs d'un énuméré depuis un tableau Markdown situé sous un titre donné.
     Cherche la ligne contenant le titre (ex: "### 4.1 NiveauConfiance"), puis lit les lignes
@@ -50,7 +49,7 @@ def extraire_enum_val(texte: str, titre: str) -> List[str]:
     return valeurs
 
 
-def extraire_enum_architecture(texte: str, nom_enum: str) -> List[str]:
+def extraire_enum_architecture(texte: str, nom_enum: str) -> list[str]:
     """Extrait les valeurs d'un énuméré tel que l'ARCHITECTURE le déclare.
 
     Le PRD présente ses énumérés en tableau Markdown ; l'architecture les déclare
@@ -84,7 +83,7 @@ def extraire_enum_architecture(texte: str, nom_enum: str) -> List[str]:
     return [v for v in valeurs if re.fullmatch(r"[A-Z][A-Z0-9_]+", v)]
 
 
-def verifier_presence(dossier: Path) -> List[str]:
+def verifier_presence(dossier: Path) -> list[str]:
     """Contrôle 1 : les trois fichiers existent et font plus de 1000 caractères."""
     erreurs = []
     for nom in ["01-BRIEF-ANALYSTE.md", "02-PRD-PM.md", "03-ARCHITECTURE.md"]:
@@ -96,7 +95,7 @@ def verifier_presence(dossier: Path) -> List[str]:
     return erreurs
 
 
-def verifier_enumeres(prd: str, archi: str) -> List[str]:
+def verifier_enumeres(prd: str, archi: str) -> list[str]:
     """Contrôle 2 : les valeurs d'énuméré du PRD et de l'architecture sont identiques."""
     erreurs = []
     for enum_nom in ("NiveauConfiance", "VerdictEstimation"):
@@ -113,7 +112,7 @@ def verifier_enumeres(prd: str, archi: str) -> List[str]:
     return erreurs
 
 
-def verifier_echappatoire(prd: str) -> List[str]:
+def verifier_echappatoire(prd: str) -> list[str]:
     """Contrôle 3 : chaque énuméré contient une valeur avec 'INDETERMINE'."""
     erreurs = []
     for enum_nom in ("NiveauConfiance", "VerdictEstimation"):
@@ -126,7 +125,7 @@ def verifier_echappatoire(prd: str) -> List[str]:
     return erreurs
 
 
-def verifier_ca_sequence(prd: str) -> List[str]:
+def verifier_ca_sequence(prd: str) -> list[str]:
     """Contrôle 4 : les identifiants CA-M3-NN forment une séquence continue, 18 à 22 éléments."""
     erreurs = []
     ids = re.findall(r"CA-M3-(\d{2})", prd)
@@ -146,7 +145,7 @@ def verifier_ca_sequence(prd: str) -> List[str]:
     return erreurs
 
 
-def decouper_stories(prd_text: str) -> Dict[str, str]:
+def decouper_stories(prd_text: str) -> dict[str, str]:
     """
     Retourne un dict {story_id: contenu} pour toutes les sous-sections de la section
     ## 7. STORIES du PRD. Les story_id sont extraits des titres ### S00N.
@@ -171,7 +170,7 @@ def decouper_stories(prd_text: str) -> Dict[str, str]:
     return result
 
 
-def verifier_proprietaire_unique(stories: Dict[str, str], prd: str) -> List[str]:
+def verifier_proprietaire_unique(stories: dict[str, str], prd: str) -> list[str]:
     """Contrôle 5 : chaque CA-M3 est cité dans exactement une story."""
     erreurs = []
     # Récupérer tous les CA depuis l'ensemble du PRD (pour avoir la liste exhaustive)
@@ -195,7 +194,7 @@ def verifier_proprietaire_unique(stories: Dict[str, str], prd: str) -> List[str]
 
 
 def extraire_s00n_depuis_architecture(archi: str,
-                                      motif_section: str = r"^##\s+\d+\.\s+CE QUE CHAQUE STORY PROUVE\s*$") -> Set[str]:
+                                      motif_section: str = r"^##\s+\d+\.\s+CE QUE CHAQUE STORY PROUVE\s*$") -> set[str]:
     """
     Extrait les identifiants S00N mentionnés dans la section spécifiée de l'architecture.
     Cherche les titres de niveau ### S00N.
@@ -211,7 +210,7 @@ def extraire_s00n_depuis_architecture(archi: str,
     return ids
 
 
-def verifier_stories_couvertes(stories_prd: Dict[str, str], archi: str) -> List[str]:
+def verifier_stories_couvertes(stories_prd: dict[str, str], archi: str) -> list[str]:
     """Contrôle 6 : les S00N du PRD et de l'architecture sont identiques."""
     erreurs = []
     prd_ids = set(stories_prd.keys())
@@ -239,7 +238,7 @@ MOTS_INTERDITS = {
 }
 
 
-def extraire_cles_yaml(bloc_yaml: str) -> Set[str]:
+def extraire_cles_yaml(bloc_yaml: str) -> set[str]:
     """
     Extrait tous les noms de clés d'un bloc YAML (commentaires ignorés).
     Retourne un ensemble de noms simples (sans préfixe d'indentation).
@@ -256,7 +255,7 @@ def extraire_cles_yaml(bloc_yaml: str) -> Set[str]:
     return cles
 
 
-def verifier_contrat_sans_date_finance(prd: str, archi: str = "") -> List[str]:
+def verifier_contrat_sans_date_finance(prd: str, archi: str = "") -> list[str]:
     """Contrôle 7 : aucun champ interdit dans le contrat gelé, des DEUX côtés.
 
     Le contrat est décrit dans le PRD ET dans l'architecture : ne contrôler que
@@ -277,7 +276,7 @@ def verifier_contrat_sans_date_finance(prd: str, archi: str = "") -> List[str]:
     return erreurs
 
 
-def _champs_interdits_du_bloc(texte: str, motif_section: str, etiquette: str) -> List[str]:
+def _champs_interdits_du_bloc(texte: str, motif_section: str, etiquette: str) -> list[str]:
     """Extrait les clés du premier bloc YAML sous la section et les confronte aux interdits."""
     erreurs = []
     match_section = re.search(motif_section, texte, re.MULTILINE)
@@ -316,7 +315,7 @@ def _champs_interdits_du_bloc(texte: str, motif_section: str, etiquette: str) ->
     return erreurs
 
 
-def verifier_ca_par_story_coherents(prd: str, archi: str) -> List[str]:
+def verifier_ca_par_story_coherents(prd: str, archi: str) -> list[str]:
     """Contrôle 9 : pour CHAQUE story, les CA cités par l'architecture sont ceux du PRD.
 
     Le gate vérifiait que les mêmes stories existent des deux côtés, mais pas que
@@ -355,7 +354,7 @@ def verifier_ca_par_story_coherents(prd: str, archi: str) -> List[str]:
     return erreurs
 
 
-def verifier_numerotation_des_sections(prd: str, archi: str) -> List[str]:
+def verifier_numerotation_des_sections(prd: str, archi: str) -> list[str]:
     """Contrôle 10 : aucune sous-section dupliquée, aucune hors de sa section mère.
 
     Trois dérapages successifs de numérotation pendant les rounds de revue — un
@@ -393,7 +392,7 @@ def verifier_numerotation_des_sections(prd: str, archi: str) -> List[str]:
     return erreurs
 
 
-def verifier_cles_du_contrat_gele(prd: str, archi: str) -> List[str]:
+def verifier_cles_du_contrat_gele(prd: str, archi: str) -> list[str]:
     """Contrôle 11 : les clés d'EstimationV1 sont IDENTIQUES dans les deux documents.
 
     Le gate comparait les valeurs des énumérés entre PRD et architecture, mais
@@ -434,7 +433,7 @@ def _cles_contrat(texte: str, motif_section: str) -> set:
     return cles
 
 
-def verifier_contrats_ont_un_proprietaire(archi: str) -> List[str]:
+def verifier_contrats_ont_un_proprietaire(archi: str) -> list[str]:
     """Contrôle 12 : tout contrat gelé déclaré en §2 a un module propriétaire en §1.
 
     LIMITE DÉCLARÉE (objection de revue scellée) : ce contrôle lit une TABLE de
@@ -467,7 +466,7 @@ def verifier_contrats_ont_un_proprietaire(archi: str) -> List[str]:
     return erreurs
 
 
-def _types_imposes_par_m2(texte_m2: str) -> Dict[str, Set[str]]:
+def _types_imposes_par_m2(texte_m2: str) -> dict[str, set[str]]:
     """Types que la source de M2 impose aux clés du contrat (formes reconnues : voir le contrôle
     13). Lit l'arbre `ast.parse` ; lève `SyntaxError` si la source n'est pas analysable. Partagée
     par le contrôle 13 (clés de la v1) et 13 ter (clés propres à la v2)."""
@@ -556,7 +555,7 @@ def _types_imposes_par_m2(texte_m2: str) -> Dict[str, Set[str]]:
 
 
 def verifier_contrat_consomme_existe_vraiment(
-        archi: str, chemin_source_m2: Optional[Path] = None) -> List[str]:
+        archi: str, chemin_source_m2: Path | None = None) -> list[str]:
     """Contrôle 13 : le contrat consommé est celui que le module PRODUCTEUR émet.
 
     Le contrôle confronte la liste des clés déclarée dans l'architecture M3 à la
@@ -777,7 +776,7 @@ def verifier_contrat_consomme_existe_vraiment(
     return []
 
 
-def _lire_source(chemin: Path, role: str) -> Tuple[Optional[str], List[str]]:
+def _lire_source(chemin: Path, role: str) -> tuple[str | None, list[str]]:
     """Lit une source confrontée ; `(None, [erreur])` si elle manque ou est illisible — jamais un
     contrôle silencieusement vert."""
     if not chemin.is_file():
@@ -794,7 +793,7 @@ def _lire_source(chemin: Path, role: str) -> Tuple[Optional[str], List[str]]:
         ]
 
 
-def _codes_catalogue_du_socle(texte_taxonomie: str) -> Optional[Set[str]]:
+def _codes_catalogue_du_socle(texte_taxonomie: str) -> set[str] | None:
     """Codes de `CATALOGUE_REFERENCE` dans `src/opsys/taxonomie.py`, lus sur l'arbre `ast.parse`
     (les appels `Service("code", ...)` de la constante). None si la constante est introuvable."""
     try:
@@ -827,8 +826,8 @@ def _codes_catalogue_du_socle(texte_taxonomie: str) -> Optional[Set[str]]:
 
 
 def verifier_contrat_v2_consomme_existe_vraiment(
-        archi: str, chemin_source_m2: Optional[Path] = None,
-        chemin_taxonomie: Optional[Path] = None) -> List[str]:
+        archi: str, chemin_source_m2: Path | None = None,
+        chemin_taxonomie: Path | None = None) -> list[str]:
     """Contrôle 13 ter (PLAN T0.13) : le LeadQualifie v2 consommé est celui que M2 accepte, et les
     services que l'architecture cite sont ceux du catalogue du socle.
 
@@ -855,7 +854,7 @@ def verifier_contrat_v2_consomme_existe_vraiment(
     if texte_taxonomie is None:
         return erreurs
 
-    def cles_de(constante: str) -> Optional[Set[str]]:
+    def cles_de(constante: str) -> set[str] | None:
         bloc = re.search(constante + r"\s*=\s*\((.*?)\)", texte_m2, re.DOTALL)
         return set(re.findall(r'"([a-z_][a-z0-9_]*)"', bloc.group(1))) if bloc else None
 
@@ -947,7 +946,7 @@ def verifier_contrat_v2_consomme_existe_vraiment(
     return []
 
 
-def verifier_marqueur_consomme_existe_vraiment(archi: str) -> List[str]:
+def verifier_marqueur_consomme_existe_vraiment(archi: str) -> list[str]:
     """Contrôle 13 bis : le marqueur de readiness consommé est celui que M2 émet.
 
     L'interface M2 → M3 a deux moitiés : le contrat `LeadQualifie`, confronté
@@ -1287,7 +1286,7 @@ def verifier_cles_soeurs_estimation(
     return erreurs
 
 
-def verifier_ca_cites_existent(prd: str) -> List[str]:
+def verifier_ca_cites_existent(prd: str) -> list[str]:
     """Contrôle 14 : tout critère cité par une story existe dans la table des CA.
 
     Retirer le DERNIER critère de la table laisse une séquence 01..N parfaitement
@@ -1317,7 +1316,7 @@ def verifier_ca_cites_existent(prd: str) -> List[str]:
     return []
 
 
-def verifier_ancres_de_docstring(prd: str, archi: str, racine_module: Path) -> List[str]:
+def verifier_ancres_de_docstring(prd: str, archi: str, racine_module: Path) -> list[str]:
     """Contrôle 15 : les promesses de docstring du PRD sont ancrées, puis tenues
     à l'emplacement promis.
 
@@ -1342,8 +1341,8 @@ def verifier_ancres_de_docstring(prd: str, archi: str, racine_module: Path) -> L
     écrites.
 
     Quand le paquet ne contient aucun module Python, le module est au statut
-    CADRE : l'exigence d'écriture dans le code n'est donc pas encore applicable, et le contrôle retourne conforme sur cette
-    étape — seules les erreurs de déclaration et de synchronisation (étapes 1
+    CADRE : l'exigence d'écriture dans le code n'est donc pas encore applicable,
+    et le contrôle retourne conforme sur cette étape — seules les erreurs de déclaration et de synchronisation (étapes 1
     et 2) sont alors rapportées.
 
     Ce sont précisément les étapes 1 et 2 qui empêchent un vert-par-vacuité :
@@ -1359,7 +1358,7 @@ def verifier_ancres_de_docstring(prd: str, archi: str, racine_module: Path) -> L
 
     EMPLACEMENTS_ADMIS = ("docstring de module", "catalogue de verdicts")
 
-    erreurs: List[str] = []
+    erreurs: list[str] = []
 
     # Étape 1 — la table d'ancres doit exister, être non vide, et chaque ligne
     # de critère doit porter une ancre exacte et un emplacement admis.
@@ -1367,7 +1366,7 @@ def verifier_ancres_de_docstring(prd: str, archi: str, racine_module: Path) -> L
     if not titre:
         return ["Section ANCRES DE DOCSTRING absente de l'architecture — "
                 "contrôle non probant."]
-    triplets: List[tuple] = []
+    triplets: list[tuple] = []
     for ligne in archi[titre.end():].splitlines():
         if re.match(r"^#{1,6}\s", ligne):
             break
@@ -1399,7 +1398,7 @@ def verifier_ancres_de_docstring(prd: str, archi: str, racine_module: Path) -> L
         return erreurs + ["Aucune ancre extraite — extracteur vide, contrôle non probant."]
 
     # Étape 2 — aucune promesse ne doit échapper à la table, et réciproquement.
-    prometteurs: Set[str] = set()
+    prometteurs: set[str] = set()
     for ligne in prd.splitlines():
         if not ligne.lstrip().startswith("|"):
             continue
@@ -1407,7 +1406,7 @@ def verifier_ancres_de_docstring(prd: str, archi: str, racine_module: Path) -> L
             continue
         for m in re.finditer(r"CA-M3-\d{2}", ligne):
             prometteurs.add(m.group(0))
-    declares: Set[str] = {t[0] for t in triplets}
+    declares: set[str] = {t[0] for t in triplets}
     manquants = sorted(prometteurs - declares)
     if manquants:
         erreurs.append(f"Critères promettant une docstring mais sans ancre déclarée : "
@@ -1425,8 +1424,8 @@ def verifier_ancres_de_docstring(prd: str, archi: str, racine_module: Path) -> L
     fichiers = sorted(src.rglob("*.py")) if src.is_dir() else []
     if not fichiers:
         return erreurs
-    docs_modules: List[str] = []
-    sources_lues: Dict[Path, str] = {}
+    docs_modules: list[str] = []
+    sources_lues: dict[Path, str] = {}
     for chemin in fichiers:
         try:
             source = chemin.read_text(encoding="utf-8")
@@ -1472,7 +1471,7 @@ def verifier_ancres_de_docstring(prd: str, archi: str, racine_module: Path) -> L
     return erreurs
 
 
-def verifier_anti_derive(prd: str) -> List[str]:
+def verifier_anti_derive(prd: str) -> list[str]:
     """Contrôle 8 : les DEUX déclarations exigées sont présentes, distinctement.
 
     L'ancrage initial sur le seul fragment « HORS PÉRIMÈTRE » était satisfait par
@@ -1502,7 +1501,7 @@ def verifier_anti_derive(prd: str) -> List[str]:
 MOTIF_COPIE_DECLAREE = r"Copié mot pour mot du PRD section (\d+(?:\.\d+)?)\."
 
 
-def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
+def verifier_copies_declarees(prd: str, archi: str) -> list[str]:
     """Contrôle 18 : les copies déclarées sont identiques, et toute copie exacte
     se déclare.
 
@@ -1568,7 +1567,7 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
     # borne les zones exactement comme un titre en colonne 0.
     motif_titre = re.compile(r"^ {0,3}#{1,6}\s", re.MULTILINE)
 
-    def lignes_de(texte: str) -> List[str]:
+    def lignes_de(texte: str) -> list[str]:
         """Découpe `texte` sur « \\n » SEUL : le scanner de blocs, les
         expressions régulières en re.MULTILINE et la comparaison de contenu
         doivent partager la MÊME notion de ligne, et .splitlines() coupe en
@@ -1580,7 +1579,7 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
         """
         return texte.split("\n")
 
-    def blocs_clotures(texte: str) -> List[Tuple[int, int, int, int]]:
+    def blocs_clotures(texte: str) -> list[tuple[int, int, int, int]]:
         """Balaye `texte` LIGNE PAR LIGNE et retourne ses blocs de code clôturés.
 
         Le découpage en lignes se fait sur « \\n » SEUL, DÉLIBÉRÉMENT, pour
@@ -1604,7 +1603,7 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
         quatre n'en est pas la fermeture. Un bloc jamais fermé s'étend jusqu'à
         la FIN du texte.
         """
-        blocs: List[Tuple[int, int, int, int]] = []
+        blocs: list[tuple[int, int, int, int]] = []
         pos = 0
         en_bloc = False
         debut = 0
@@ -1678,7 +1677,7 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
                 return ligne.rstrip()
         return ""
 
-    def tous_artefacts(texte: str) -> List[Tuple[str, str, int, int]]:
+    def tous_artefacts(texte: str) -> list[tuple[str, str, int, int]]:
         """Liste ordonnée de tous les artefacts de `texte`.
 
         Chaque élément est un quadruplet (genre, contenu, debut, fin) : genre
@@ -1696,7 +1695,7 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
         PRD, pour que les deux côtés parlent de la même chose.
         """
         blocs = blocs_clotures(texte)
-        candidats: List[Tuple[int, int, str, str]] = []
+        candidats: list[tuple[int, int, str, str]] = []
         for debut, fin, debut_contenu, fin_contenu in blocs:
             candidats.append((debut, fin, "bloc", texte[debut_contenu:fin_contenu]))
         for m_table in motif_table.finditer(texte):
@@ -1706,7 +1705,7 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
                 continue
             candidats.append((m_table.start(), m_table.end(), "table", m_table.group(0)))
         candidats.sort(key=lambda c: c[0])
-        artefacts: List[Tuple[str, str, int, int]] = []
+        artefacts: list[tuple[str, str, int, int]] = []
         pos = 0
         for debut, fin, genre, contenu in candidats:
             if debut < pos:
@@ -1763,7 +1762,7 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
                 break
         return prd[cible[1]:fin]
 
-    erreurs: List[str] = []
+    erreurs: list[str] = []
     # Les déclarations sont cherchées sur la vue masquée, comme les titres :
     # une phrase « Copié mot pour mot du PRD section N » écrite à l'intérieur
     # d'un bloc clôturé est un exemple ou une citation, pas un engagement —
@@ -1837,10 +1836,10 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
                 f"contrôle non probant pour cette copie.")
             continue
         # e. Comparaison ligne à ligne ; les espaces de fin ne sont pas du contenu.
-        lignes_prd = [l.rstrip() for l in lignes_de(contenu_prd.rstrip("\n"))]
-        lignes_arc = [l.rstrip() for l in lignes_de(contenu_arc.rstrip("\n"))]
+        lignes_prd = [ligne.rstrip() for ligne in lignes_de(contenu_prd.rstrip("\n"))]
+        lignes_arc = [ligne.rstrip() for ligne in lignes_de(contenu_arc.rstrip("\n"))]
         divergence = False
-        for i, (lp, la) in enumerate(zip(lignes_prd, lignes_arc), start=1):
+        for i, (lp, la) in enumerate(zip(lignes_prd, lignes_arc, strict=False), start=1):
             if lp != la:
                 erreurs.append(
                     f"Copie déclarée de la section PRD {numero} : divergence à la "
@@ -1862,12 +1861,12 @@ def verifier_copies_declarees(prd: str, archi: str) -> List[str]:
     # (mutation mesurée). Elle doit donc porter une déclaration dans sa propre
     # section — entre la fin du dernier titre markdown qui la précède et son
     # début.
-    normalises_prd: Dict[str, List[List[str]]] = {}
+    normalises_prd: dict[str, list[list[str]]] = {}
     for genre_p, contenu_p, _, _ in tous_artefacts(prd):
         normalises_prd.setdefault(genre_p, []).append(
-            [l.rstrip() for l in lignes_de(contenu_p.rstrip("\n"))])
+            [ligne.rstrip() for ligne in lignes_de(contenu_p.rstrip("\n"))])
     for genre_a, contenu_a, debut_a, _ in tous_artefacts(archi):
-        lignes_a = [l.rstrip() for l in lignes_de(contenu_a.rstrip("\n"))]
+        lignes_a = [ligne.rstrip() for ligne in lignes_de(contenu_a.rstrip("\n"))]
         if lignes_a not in normalises_prd.get(genre_a, []):
             # Pas une copie exacte : rien à suivre pour cette passe.
             continue
@@ -1899,7 +1898,7 @@ MOTIF_TITRE_CONTRAT_BRIEF = r"^##\s+\d+\.\s+CONTRAT D'ENTRÉE\s*$"
 MOTIF_CHAMP_BRIEF = r"^[ \t]*-[ \t]+`([a-z_][a-z0-9_]*)`"
 
 
-def champs_du_contrat_brief(brief: str) -> List[str]:
+def champs_du_contrat_brief(brief: str) -> list[str]:
     """UNIQUE extracteur des champs du « CONTRAT D'ENTRÉE » du brief, utilisé par
     le contrôle 19 comme par son message de succès.
 
@@ -1915,7 +1914,7 @@ def champs_du_contrat_brief(brief: str) -> List[str]:
     return list(dict.fromkeys(re.findall(MOTIF_CHAMP_BRIEF, section, re.MULTILINE)))
 
 
-def verifier_brief_contrat_reel(brief: str, archi: str) -> List[str]:
+def verifier_brief_contrat_reel(brief: str, archi: str) -> list[str]:
     """Contrôle 19 : le contrat d'entrée que décrit le brief est celui que M2 émet.
 
     Le brief est le premier document que lit qui implémente le module, et rien ne
@@ -1962,7 +1961,7 @@ def verifier_brief_contrat_reel(brief: str, archi: str) -> List[str]:
 
     # Étapes 4 et 5 — la confrontation est symétrique : un champ inventé trompe
     # autant qu'un champ tu.
-    erreurs: List[str] = []
+    erreurs: list[str] = []
     fantomes = sorted(champs_brief - cles_m2)
     if fantomes:
         erreurs.append(
@@ -1987,7 +1986,7 @@ GRANDEURS_FOURNIES = (
 )
 
 
-def verifier_grandeurs_fournies_declarees(prd: str, archi: str) -> List[str]:
+def verifier_grandeurs_fournies_declarees(prd: str, archi: str) -> list[str]:
     """Contrôle 20 : toute grandeur que les critères exigent comme fournie est
     déclarée dans l'interface d'entrée, sous un nom portant le fragment
     correspondant — un critère qui exige ce que l'interface ne déclare pas
@@ -2047,7 +2046,7 @@ def verifier_grandeurs_fournies_declarees(prd: str, archi: str) -> List[str]:
                 "compare rien passe toujours."]
 
     # Étape 4 — chaque grandeur employée par les critères doit être fournie.
-    erreurs: List[str] = []
+    erreurs: list[str] = []
     criteres_plies = plier(section_ca)
     for mot, fragment in GRANDEURS_FOURNIES:
         if plier(mot) not in criteres_plies:
@@ -2063,7 +2062,7 @@ def verifier_grandeurs_fournies_declarees(prd: str, archi: str) -> List[str]:
 
 
 
-def verifier_renvois_internes_valides(prd: str, archi: str) -> List[str]:
+def verifier_renvois_internes_valides(prd: str, archi: str) -> list[str]:
     """Contrôle 21 : chaque renvoi interne mesuré vise une section existante dans
     le même document.
 
@@ -2176,7 +2175,7 @@ def verifier_renvois_internes_valides(prd: str, archi: str) -> List[str]:
 
         return "".join(caracteres)
 
-    erreurs: List[str] = []
+    erreurs: list[str] = []
     motifs_renvoi = (
         re.compile(r"décrit en (\d+(?:\.\d+)?)"),
         re.compile(r"voir (\d+(?:\.\d+)?)"),
@@ -2240,10 +2239,7 @@ def verifier_renvois_internes_valides(prd: str, archi: str) -> List[str]:
     return erreurs
 
 def main(dossier_str: str = None) -> int:
-    if dossier_str is None:
-        dossier = Path(__file__).resolve().parent
-    else:
-        dossier = Path(dossier_str).resolve()
+    dossier = Path(__file__).resolve().parent if dossier_str is None else Path(dossier_str).resolve()
     if not dossier.is_dir():
         print(f"ECHEC : le dossier {dossier} n'existe pas.")
         return 1

@@ -1,0 +1,125 @@
+# Contrat de sortie du dossier M5.16, transmis depuis le prompt exact de la directive actuelle.
+# Le rapport est une lecture agrégée de FinanceCore; ce document n'autorise aucune écriture financière.
+schema_version: 1
+outil:
+  nom: m5_preparer_dossier_decision_cfo
+  autonomie: T0
+  lecture_seule: true
+  entrees:
+    aujourd_hui:
+      type: string
+      format: date
+      obligatoire: true
+      description: Date serveur injectée par la console; le formulaire n'accepte pas de date.
+    question_posee:
+      type: string
+      min_length: 1
+      max_length: 1000
+      obligatoire: true
+      description: Texte de cadrage seulement; ne prouve pas l'identité ou l'autorisation de son auteur.
+  refus:
+    - identité ou rôle actif invalide avant toute lecture financière
+    - arguments hors schéma ou période/date invalide
+    - registre ou chaîne source corrompu
+    - une erreur d'intégrité d'une source n'est pas transformée en rapport partiellement fiable
+sortie:
+  type: DOSSIER_DECISION_CFO
+  version_contrat: v1
+  statut_global: PREPARATOIRE
+  champs_requis:
+    - question_posee
+    - reference
+    - statut_global
+    - rubriques
+    - mention
+  reference:
+    aujourd_hui: date ISO
+    devise: CAD
+    snapshot_id: empreinte déterministe de la date, configuration, cash_libre_id, prevision_id et têtes exactes; question_posee exclue
+  sections_recommandation_confiance:
+    rubriques: [3, 4]
+    regle: Le contenu reste null et le statut INCONNU sans source et méthode calculable/versionnée.
+  rubriques:
+    cardinalite: 25
+    ordre_fixe: true
+    champs_requis: [numero, titre, statut, contenu]
+    champs_optionnels: [source_refs, hypotheses, manque, limites]
+    statut_enum: [CONNU, PARTIEL, INCONNU]
+    numero_unique: true
+    contenu_nullable: true
+    montants: textes décimaux CAD, jamais de nombre flottant
+    source_refs:
+      rubrique: 5
+      forme: colonnes et lignes, identiques entre elles
+      colonnes: [departement, registre, taille, tete]
+      tete: identifiant complet exact du dernier maillon; jamais réduit à un préfixe
+      aucune_donnee_personnelle: true
+    cashflow_13_semaines:
+      representation: séries CAD par semaine depuis debut_premiere_semaine à pas_jours (7); index = numéro de semaine
+      champs: [horizon_semaines, semaines_couvertes, statut_par_defaut, debut_premiere_semaine, pas_jours, entrees_cad, sorties_cad, solde_fin_cad]
+      statut_par_defaut: CALCULE
+      exceptions_statut: statuts_non_calcules contient les semaines non calculées; leurs cellules monétaires sont null
+    impact_paie:
+      rubrique: 16
+      champs: [obligations_declarees, limites]
+      champs_legacy_sans_calendrier: [paies_declarees]
+      obligations_declarees:
+        forme: tableau ordonné [cles, champs, lignes, manques]; chaque ligne correspond à sa clé et chaque valeur à son code de champ.
+        cles: chaîne avec p=paies et d=das; l'ordre associe chaque ligne.
+        champs: chaîne de codes de colonne dans l'ordre des cellules; les codes sont des caractères uniques.
+        codes_champs: {s: statut, d: montant_declare_cad, u: montant_utilisable_cad, e: echeance, t: echeance_statut, p: periode, a: autorite, q: source_montant.description, j: source_montant.au, x: source_echeance, y: annee, v: version}
+        formats_compacts: {periode: [debut, fin], source_echeance: [description, consultee_le, applicable_du, applicable_jusqu_au]}
+        champs_absents: Une colonne optionnelle est omise si aucune ligne ne fournit sa valeur; une cellule null signifie que cette valeur manque pour cette ligne, jamais zéro. Les champs s, d, u, e et t restent présents; u null est explicite si le montant n'est pas utilisable.
+        statuts_abreges:
+          statut: {i: INCOMPLETE, d: DOCUMENTEE_A_VALIDER, p: ECHEANCE_PASSEE_A_VERIFIER, x: SOURCE_PERIMEE}
+          echeance_statut: {a: A_VENIR, p: PASSEE_A_VERIFIER, n: NON_DECLAREE}
+          statut_inconnu: Conservé intégralement.
+        manques:
+          forme: Entier masque commun quand les lignes ont les mêmes catégories, liste d'entiers alignée aux clés sinon; chaque catégorie n'est comptée qu'une fois.
+          bits: {1: MONTANT-ABSENT, 2: SOURCE-MONTANT-ABSENTE, 4: ECHEANCE-ABSENTE, 8: PERIODE-SOURCE-ABSENTE, 16: SOURCE-INVALIDE, 32: PERIODE-INVALIDE, 64: DATE-SOURCE-INVALIDE, 128: ANNEE-VERSION-INVALIDE, 256: SOURCE-PERIMEE}
+          code_inconnu: L'objet {masques, codes_complets_par_ligne} conserve les codes inconnus exactement.
+          prefixes_reconstruits: REJ-CALENDRIER-PAIES- ou REJ-CALENDRIER-DAS- selon la clé de ligne.
+        regle_montant_utilisable: Seulement si statut DOCUMENTEE_A_VALIDER ou ECHEANCE_PASSEE_A_VERIFIER; null si source périmée ou déclaration incomplète.
+        statut_nested: Statut canonique du calendrier préparatoire; distinct du statut PARTIEL/INCONNU de la rubrique.
+      limites:
+        calendrier_dedie: "Déclaratif; net non calculé; pas d'exécution officielle."
+        sans_calendrier: ["montants déclaratifs, pas une paie nette calculée; aucune exécution officielle"]
+        sens: Les montants du tableau sont `montant_declare_cad`; ce texte précise qu'ils ne sont ni un net de paie calculé ni une exécution officielle.
+      compatibilite_v1: La rubrique conserve ses clés de haut niveau. Avec calendrier dédié, les obligations utilisent le tableau compact. Sans calendrier dédié, les appels historiques du compositeur conservent paies_declarees, obligations_declarees vide et les limites historiques en forme objet/liste.
+  budget_sortie: budget M5 existant; les 25 rubriques compactes sont présentes, sans troncature silencieuse
+garanties:
+  - Toutes les rubriques exactes sont toujours présentes, dans l'ordre, y compris si leur contenu est inconnu.
+  - Un manque, une erreur de service ou un chiffre absent ne devient jamais zéro.
+  - Chaque fait et calcul provient d'un registre ou d'un service canonique FinanceCore capturé dans un snapshot commun.
+  - Le snapshot est lu une seule fois et réutilisé par les projections; aucun deuxième moteur financier.
+  - Les têtes exactes, la configuration, cash_libre_id et prevision_id scellent le snapshot_id.
+  - Recommandation et confiance restent inconnues sans méthode déterministe versionnée.
+  - Les sources complètes sont centralisées dans « Données utilisées »; les manques structuraux sont regroupés dans « Données manquantes » et le statut inconnu reste explicite à chaque rubrique.
+  - Les faits fiscaux dont les sources ne sont pas validées portent cette validation; aucun conseil fiscal n'est rendu.
+  - Aucun appel n'écrit aux registres financiers, événements, approbations ou mémoire.
+rubriques:
+  - {numero: 1, titre: Question posée}
+  - {numero: 2, titre: Résumé exécutif}
+  - {numero: 3, titre: Recommandation}
+  - {numero: 4, titre: Niveau de confiance}
+  - {numero: 5, titre: Données utilisées}
+  - {numero: 6, titre: Données manquantes}
+  - {numero: 7, titre: Hypothèses}
+  - {numero: 8, titre: Scénario prudent}
+  - {numero: 9, titre: Scénario normal}
+  - {numero: 10, titre: Scénario optimiste}
+  - {numero: 11, titre: Cashflow 13 semaines}
+  - {numero: 12, titre: Projection 6 mois}
+  - {numero: 13, titre: Projection 12 mois}
+  - {numero: 14, titre: Projection 24 mois}
+  - {numero: 15, titre: Impact taxes}
+  - {numero: 16, titre: Impact paie}
+  - {numero: 17, titre: Impact dette}
+  - {numero: 18, titre: Impact marge}
+  - {numero: 19, titre: Impact croissance}
+  - {numero: 20, titre: Risques principaux}
+  - {numero: 21, titre: Conditions avant d'agir}
+  - {numero: 22, titre: Questions CPA/fiscaliste}
+  - {numero: 23, titre: Questions banque/prêteur}
+  - {numero: 24, titre: Plan d'action recommandé}
+  - {numero: 25, titre: Validation requise}

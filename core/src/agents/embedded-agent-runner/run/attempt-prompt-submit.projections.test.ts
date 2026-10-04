@@ -79,7 +79,7 @@ describe("tool-result projection persistence at dispatch", () => {
       return createAssistantResultStream(createAssistant(model, [{ type: "text", text: "done" }]));
     };
     await submitEmbeddedAttemptPrompt({
-      attempt: { sessionId },
+      attempt: { runId: "projection-dispatch-run", sessionId },
       contextTokenBudget: 8_000,
       images: [],
       modelPrompt: "read files",

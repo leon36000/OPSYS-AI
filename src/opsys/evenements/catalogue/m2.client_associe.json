@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "opsys.evenement/v1/m2.client_associe",
   "title": "M2 — Client associé à un lead",
-  "description": "Émis par M2 à l'ingestion de chaque lead, dans la MÊME transaction que l'ingestion (departments/m02-revenue-crm/src/m2_revenue_crm/outils.py::ingerer_lead, PLAN T2.2, Client 360). Porte le lien lead_id -> client_id, jamais un renseignement personnel (client_id est une empreinte SHA256 du contact, irréversible ; voir clients.py). evenement_id déterministe (f\"m2-client-associe-{lead_id}\", même patron que M3/M6) : une redélivrance est un no-op, jamais un second lien. Consommateur visé en premier lieu : M5 (departments/m05-financecore/src/m5_financecore/outils.py::_essayer_facture_brouillon documente aujourd'hui `client_id = lead_id` en attendant ce Client 360 — PLAN T2.2) ; M7 (attribution des sources, DEFINITION-PRODUIT §7 M2 M2.10) peut aussi s'y abonner.",
+  "description": "Émis par M2 à l'ingestion de chaque lead, dans la MÊME transaction que l'ingestion (PLAN T2.2, Client 360). Porte le lien lead_id -> client_id, jamais un renseignement personnel (client_id est une empreinte SHA256 du contact). evenement_id déterministe : une redélivrance est un no-op. M7 peut consommer l'UTM source/campagne validée sous forme minimisée; aucun medium, contenu, contact ou texte libre ne traverse pour cette mesure.",
   "type": "object",
   "additionalProperties": false,
   "properties": {
@@ -17,6 +17,16 @@
     "horodatage_association": {
       "type": "string",
       "description": "Horodatage RFC 3339 fourni à m2_ingerer_lead (jamais une horloge ambiante)."
+    },
+    "utm": {
+      "type": "object",
+      "description": "Attribution source/campagne minimisée, issue des UTM déjà validés par le contrat M2.",
+      "properties": {
+        "utm_source": {"type": "string"},
+        "utm_campaign": {"type": "string"}
+      },
+      "minProperties": 1,
+      "additionalProperties": false
     }
   },
   "required": ["lead_id", "client_id", "horodatage_association"]

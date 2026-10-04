@@ -1,0 +1,140 @@
+{
+  "campagnes_root": [
+    {
+      "junit_modules": [
+        "test_mesure_plan"
+      ],
+      "passed": 9,
+      "prefix": "mesure-plan-synthetique-root-r1-2026-10-02",
+      "skipped": 0,
+      "source_snapshot_delta": [],
+      "source_snapshot_files": 1107,
+      "test_ids": [
+        [
+          "departments.m03-estimation.tests.test_mesure_plan",
+          "test_homographie_perspective_projette_un_segment_en_metres_sans_promesse_terrain"
+        ],
+        [
+          "departments.m03-estimation.tests.test_mesure_plan",
+          "test_photo_reelle_est_refusee_tant_que_l_adaptateur_et_l_autorisation_n_existent_pas"
+        ],
+        [
+          "departments.m03-estimation.tests.test_mesure_plan",
+          "test_refuse_coplanarite_non_attestee"
+        ],
+        [
+          "departments.m03-estimation.tests.test_mesure_plan",
+          "test_refuse_residu_de_controle_superieur_au_seuil"
+        ],
+        [
+          "departments.m03-estimation.tests.test_mesure_plan",
+          "test_refuse_correspondances_degenerees_ou_nombre_insuffisant"
+        ],
+        [
+          "departments.m03-estimation.tests.test_mesure_plan",
+          "test_refuse_hash_profil_invalide_et_resolution_differente"
+        ],
+        [
+          "departments.m03-estimation.tests.test_mesure_plan",
+          "test_octets_bruts_ne_sont_pas_acceptes_comme_image_deja_preparee"
+        ],
+        [
+          "departments.m03-estimation.tests.test_mesure_plan",
+          "test_refuse_coordonnees_non_finies_hors_image_et_valeurs_boolennes"
+        ],
+        [
+          "departments.m03-estimation.tests.test_mesure_plan",
+          "test_refuse_longueurs_de_tableaux_et_seuils_ambigus"
+        ]
+      ],
+      "tests": 9
+    },
+    {
+      "junit_modules": [
+        "test_mesure_plan"
+      ],
+      "passed": 9,
+      "prefix": "mesure-plan-synthetique-root-r2-2026-10-02",
+      "skipped": 0,
+      "source_snapshot_delta": [],
+      "source_snapshot_files": 1112,
+      "test_ids": [
+        [
+          "departments.m03-estimation.tests.test_mesure_plan",
+          "test_homographie_perspective_projette_un_segment_en_metres_sans_promesse_terrain"
+        ],
+        [
+          "departments.m03-estimation.tests.test_mesure_plan",
+          "test_photo_reelle_est_refusee_et_extra_absent_est_nommee"
+        ],
+        [
+          "departments.m03-estimation.tests.test_mesure_plan",
+          "test_refuse_coplanarite_non_attestee"
+        ],
+        [
+          "departments.m03-estimation.tests.test_mesure_plan",
+          "test_refuse_residu_de_controle_superieur_au_seuil"
+        ],
+        [
+          "departments.m03-estimation.tests.test_mesure_plan",
+          "test_refuse_correspondances_degenerees_ou_nombre_insuffisant"
+        ],
+        [
+          "departments.m03-estimation.tests.test_mesure_plan",
+          "test_refuse_hash_profil_invalide_et_resolution_differente"
+        ],
+        [
+          "departments.m03-estimation.tests.test_mesure_plan",
+          "test_octets_bruts_ne_sont_pas_acceptes_comme_image_deja_preparee"
+        ],
+        [
+          "departments.m03-estimation.tests.test_mesure_plan",
+          "test_refuse_coordonnees_non_finies_hors_image_et_valeurs_boolennes"
+        ],
+        [
+          "departments.m03-estimation.tests.test_mesure_plan",
+          "test_refuse_longueurs_de_tableaux_et_seuils_ambigus"
+        ]
+      ],
+      "tests": 9
+    }
+  ],
+  "erreurs": [],
+  "extra_adopte": false,
+  "historique_seal": {
+    "R30_archives": 36,
+    "R30_expanded_bytes_checked": 1044621,
+    "R30_qualification_sha256": "9d377c616e769a79653d8024a4a020ef374db2be8d767241ff61d98b1490eb35",
+    "historical_files_R19_R27": 2774,
+    "lots": [
+      "R19-2026-09-30",
+      "R20-2026-10-01",
+      "R21-2026-10-02",
+      "R22-2026-10-02",
+      "R23-2026-10-02",
+      "R24-2026-10-02",
+      "R25-2026-10-02",
+      "R26-2026-10-02",
+      "R27-2026-10-02",
+      "R30-2026-10-02"
+    ]
+  },
+  "limite_preimages": "SHA-256 et tailles historiques déclarées uniquement; anciens octets indisponibles et non revalidés",
+  "mesure_terrain_qualifiee": false,
+  "octets_preimages_documentaires_disponibles": false,
+  "preuve_sans_extra_non_qualifiante": {
+    "license_receipt": true,
+    "no_extra_qualification": false,
+    "no_extra_skipped": 8,
+    "no_extra_tests": 9,
+    "wheel_sha256": "0525a3d2c0b46c611e2130b5fdebc94cf404845d8fa64d2f3a3b679572a5bd22",
+    "wheel_skipped": 0,
+    "wheel_tests": 9
+  },
+  "schema": "opsys.r29-qualification/v1",
+  "sources": {
+    "departments/m03-estimation/src/m3_estimation/mesure_plan.py": "c72a6a0548a3ddaa4ab4af310d394a84161cf095728b947e52d67a54a3ffa396",
+    "departments/m03-estimation/tests/test_mesure_plan.py": "6dca13d76fa0531ce5787689ebf1cdc0a41b6ef4a92521dd92be946ba388667b"
+  },
+  "tests_lances": false
+}

@@ -251,6 +251,17 @@ def test_un_jour_deja_consolide_n_est_plus_a_consolider(registres):
     assert paquet["consolidation"]["nb_a_consolider"] == 4
 
 
+def test_un_evenement_tardif_omis_rend_le_jour_a_consolider(registres):
+    _memoriser(registres[0], TYPE_ACCEPTE, _accepte("DEVIS-TARDIF-A", horodatage=_jour(2, "09:00:00")))
+    consolidation.consolider_affaire(LEAD, "2026-09-02", HORODATAGE_PAQUET, registres[0], registres[1])
+    _memoriser(registres[0], TYPE_ACCEPTE, _accepte("DEVIS-TARDIF-B", horodatage=_jour(2, "16:00:00")))
+    _memoriser(registres[0], TYPE_ACCEPTE, _accepte("DEVIS-TARDIF-C", horodatage=_jour(2, "17:00:00")))
+
+    paquet = _paquet(registres, n_faits_max_par_couche=1)
+
+    assert _jours_a_consolider(paquet) == ["2026-09-02"]
+
+
 def test_la_consolidation_d_une_autre_affaire_ne_compte_pas(registres):
     _huit_jours(registres)
     _memoriser(registres[0], TYPE_ACCEPTE, _accepte("DEVIS-AUTRE", "LEAD-AUTRE", _jour(2)))

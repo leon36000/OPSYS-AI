@@ -204,6 +204,19 @@ def enregistrer_pointage(
             return (None, verdicts.construire_verdict("REJ-HORODATAGE-ANTERIEUR",
                                                        detail=f"{horodatage_arg} < {dernier['horodatage']}"))
 
+    # Le statut reste `sur_site` après un départ pour permettre l'arbitrage et la complétion,
+    # mais le départ ferme la session de travail. Une pause ultérieure serait hors présence.
+    # Ce contrôle suit celui de chronologie afin qu'une saisie antidatée garde son verdict précis.
+    if action in ("pause_debut", "pause_fin") and any(
+        m.get("type_entree") == TYPE_POINTAGE
+        and m.get("intervention_id") == intervention_id
+        and m.get("action") == "depart"
+        for m in registre_cible.lire()
+    ):
+        return (None, verdicts.construire_verdict(
+            "REJ-PUNCH-SANS-INTERVENTION", detail="pause hors de la session de travail",
+        ))
+
     # -- 8. Attestation valide (fictive obligatoire)
     if not isinstance(attestation, dict) or set(attestation.keys()) != {"fictif", "appareil_id"}:
         return (None, verdicts.construire_verdict("REJ-CONTRAT-INVALIDE",

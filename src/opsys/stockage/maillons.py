@@ -68,10 +68,17 @@ class MaillonsDurables:
             texte = cnx.execute(requete).scalar_one()
         return codec.decoder(texte)
 
-    def append(self, maillon: Any) -> None:
+    def append(self, maillon: Any, *, rang_attendu: int | None = None) -> None:
+        """Ajoute un maillon; une précondition de rang protège les chaînes calculées sur snapshot."""
+        if rang_attendu is not None and (type(rang_attendu) is not int or rang_attendu < 0):
+            raise ValueError("rang_attendu doit être un entier positif ou nul")
         texte = codec.encoder(maillon)
         with self._cnx() as cnx:
             rang = len(self)
+            if rang_attendu is not None and rang != rang_attendu:
+                raise EcritureConcurrente(
+                    f"rang attendu {rang_attendu} devenu {rang} dans {self.departement}/{self.registre}"
+                )
             try:
                 with cnx.begin_nested():
                     cnx.execute(insert(REGISTRES).values(

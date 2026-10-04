@@ -30,6 +30,7 @@ from m5_financecore import facturation  # noqa: E402
 
 from opsys import evenements, stockage  # noqa: E402
 from opsys.departements import charger_departements  # noqa: E402
+from opsys.outils import executer  # noqa: E402
 
 _DEPARTEMENT = "m05-financecore"
 
@@ -208,6 +209,79 @@ def test_devis_puis_completion_cree_la_facture_brouillon_exacte(base_durable):
     assert facture["montant_apres_taxes"] == Decimal("689.85")
 
     assert _attentes() == {"attentes_devis": [], "attentes_wct_sans_devis_id": []}, "plus rien en attente"
+
+
+def test_parcours_cfo_durable_devis_accepte_facture_paiement_reserves_et_camion(base_durable, monkeypatch):
+    """Parcours SQLite complet; l'acquisition reste une demande d'approbation, jamais un achat."""
+    configuration = {
+        "fiscal": {"frequence_tps_tvq": "trimestrielle", "mois_fin_exercice": 12,
+                   "taxes_remises_jusqu_au": "2026-06-30"},
+        "obligations_declarees": {
+            cle: {"montant": "0.00", "source": "registre vérifié", "au": "2026-09-28"}
+            for cle in ("paies", "das", "dettes")
+        },
+    }
+    monkeypatch.setattr(outils_mod, "_configuration_manifeste", lambda: configuration)
+    outils_mod.enregistrer_mouvement(
+        "200000.00", "ENCAISSEMENT", "2026-09-18T09:00:00-04:00", "STANDARD", "solde bancaire vérifié")
+    evenements.publier("m2.client_associe", "m02-revenue-crm", _client_associe())
+    evenements.publier("m3.devis_accepte", "m03-estimation", _devis_accepte())
+    evenements.publier("m4.travaux_termines", "m04-field-ops", _wct())
+    resume = evenements.repartir(_deps_bus(), maintenant="2026-09-25T16:35:00-04:00")
+    assert resume["echecs"] == 0 and resume["quarantaines"] == 0
+    facture = _facture_active("DEVIS-1")
+    assert facture["statut"] == "BROUILLON" and facture["client_id"] == "CLIENT-1-fictif"
+
+    reponse = executer(next(o for o in outils_mod.outils() if o.nom == "m5_envoyer_facture"),
+                       {"facture_id": facture["facture_id"], "horodatage": "2026-09-25T17:00:00-04:00"})
+    assert reponse["resultat"]["accepte"] is True
+    reponse = executer(next(o for o in outils_mod.outils() if o.nom == "m5_enregistrer_paiement_facture"), {
+        "facture_id": facture["facture_id"], "montant_paye": "689.85", "approbateur": "Nathan",
+        "horodatage": "2026-09-27T12:00:00-04:00"})
+    assert reponse["resultat"]["accepte"] is True
+    # Le paiement bancaire est une pièce distincte : le changement d'état AR ne crée pas d'encaissement fictif.
+    outils_mod.enregistrer_mouvement(
+        "689.85", "ENCAISSEMENT", "2026-09-27T12:00:00-04:00", "STANDARD", "dépôt vérifié facture fac-DEVIS-1")
+    outils_mod.enregistrer_mouvement(
+        "20000.00", "PROVISION", "2026-09-27T12:05:00-04:00", "STANDARD", "réserve équipement décidée par Nathan")
+
+    decision = outils_mod.preparer_decision_capital(
+        "Camion de service", "95000.00", "Soumission concessionnaire C-95 valide jusqu'au 2026-10-30",
+        "2026-10-30",
+        "2026-09-30",
+        {"source": "Offre de prêt P-95", "mise_de_fonds": "5000.00", "paiement_mensuel": "1600.00", "mois": 60},
+        {"source": "Offre de location L-95", "mise_de_fonds": "3000.00", "paiement_mensuel": "1800.00", "mois": 48},
+        autorise_couts=True,
+    )
+    assert decision["accepte"] is True, decision
+    contenu = decision["resultat"]
+    assert contenu["cash_libre_actuel"] == "180600.00"
+    assert contenu["scenarios"]["achat_comptant"]["cash_libre_apres"] == "85600.00"
+    assert contenu["scenarios"]["financement"]["source_offre"] == "Offre de prêt P-95"
+    assert contenu["scenarios"]["location"]["source_offre"] == "Offre de location L-95"
+    assert contenu["action_proposee"] == "DEMANDER_APPROBATION_HUMAINE"
+    contexte = contenu["contexte_financier"]
+    assert contexte["cash_libre"]["calculable"] is True
+    assert {c["id"] for c in contexte["cash_libre"]["composantes"]} == {
+        "taxes_a_remettre", "paies", "das", "comptes_a_payer", "dettes", "reserves",
+    }
+    assert contexte["cash_libre"]["composantes"][-1]["montant"] == "20000.00"
+    assert contexte["devis_acceptes"]["nombre"] == 1
+    assert contexte["devis_acceptes"]["valeur_cad"] == "600.00"
+    assert contexte["termes_contractuels_signes"]["statut"] == "NON_DISPONIBLE"
+    assert contexte["provenance_des_offres"]["statut"] == "REFERENCE_MANUELLE_NON_VERIFIEE"
+
+    equipement = outils_mod.preparer_decision_capital(
+        "Équipement", "50000.00", "Soumission équipement E-50 valide au 2026-10-30",
+        "2026-10-30", "2026-09-30",
+        {"source": "Offre de prêt P-50", "mise_de_fonds": "8000.00", "paiement_mensuel": "950.00", "mois": 60},
+        {"source": "Offre de location L-50", "mise_de_fonds": "2500.00", "paiement_mensuel": "1100.00", "mois": 48},
+        autorise_couts=True,
+    )
+    assert equipement["accepte"] is True, equipement
+    assert equipement["resultat"]["scenarios"]["achat_comptant"]["cash_libre_apres"] == "130600.00"
+    assert equipement["resultat"]["scenarios"]["financement"]["total_paiements_cites"] == "65000.00"
+    assert equipement["resultat"]["scenarios"]["location"]["total_paiements_cites"] == "55300.00"
 
 
 def test_completion_puis_devis_produit_la_meme_facture(base_durable):

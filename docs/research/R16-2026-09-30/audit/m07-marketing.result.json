@@ -1,0 +1,13 @@
+{
+  "label": "m07-marketing",
+  "command": [
+    "/workspace/audit-opsys-2026-09-30/venv/bin/python",
+    "-m",
+    "pytest",
+    "/workspace/OPSYS-AI-recent/departments/m07-marketing/tests",
+    "-ra",
+    "--junitxml=/workspace/audit-opsys-2026-09-30/execution/m07-marketing.xml"
+  ],
+  "exit": 0,
+  "duration_s": 22.566
+}

@@ -9,6 +9,7 @@ import type { SQLiteDatabase } from "expo-sqlite";
 import { creerDepotOutboxSqlite, DDL_OUTBOX, initialiserSchemaOutbox } from "./depot.sqlite";
 import { creerMutation, marquerEnvoi, soumettreMutation } from "./mutation";
 import { avecProprietaire } from "./proprietaire";
+import { calculerEtatEnvoiFichier } from "../fichiers/etatEnvoi";
 
 type Parametres = (string | number | null)[];
 
@@ -48,7 +49,7 @@ function colonnes(brute: DatabaseSync): string[] {
 }
 
 /** La table telle qu'elle existait AVANT PLAN T1.4-l : sans `proprietaire`. */
-const DDL_AVANT_T1_4_L = DDL_OUTBOX.replace(",\n  proprietaire TEXT", "");
+const DDL_AVANT_T1_4_L = DDL_OUTBOX.replace(",\n  proprietaire TEXT,\n  resume_accepte TEXT", "");
 
 describe("initialiserSchemaOutbox : la colonne proprietaire", () => {
   test("base neuve : la table naît avec la colonne proprietaire", async () => {
@@ -91,15 +92,37 @@ describe("initialiserSchemaOutbox : la colonne proprietaire", () => {
 });
 
 describe("creerDepotOutboxSqlite : le propriétaire de chaque mutation", () => {
+  test("les accusés de reprise par indices restent durables et séparés par propriétaire", async () => {
+    const { base } = baseReelle();
+    await initialiserSchemaOutbox(base);
+    const depot = creerDepotOutboxSqlite(base);
+    const creerRecu = (id: string, index: number, proprietaire: string) => ({
+      ...creerMutation({ type: "fichier_bloc_reconcilie", chantierId: "I1", payload: { empreinte_sha256: "sha", index_bloc: index, nombre_blocs: 2 } }, () => id, HORLOGE),
+      statut: "envoyee" as const, proprietaire,
+      resumeAccepte: { existe: true, complet: false, blocsRecus: [index], reference: null },
+    });
+    await depot.inserer(creerRecu("a0", 0, "jdupont"));
+    await depot.inserer(creerRecu("b1", 1, "mtremblay"));
+    const relues = await depot.lister();
+    const a = relues.filter((m) => m.proprietaire === "jdupont");
+    expect(a).toHaveLength(1);
+    expect(a[0].resumeAccepte).toEqual({ existe: true, complet: false, blocsRecus: [0], reference: null });
+    expect(calculerEtatEnvoiFichier(a, "I1", "sha")).toMatchObject({ statut: "en_cours", blocsEnvoyes: 1, nombreBlocs: 2 });
+    await depot.inserer(creerRecu("a1", 1, "jdupont"));
+    expect(calculerEtatEnvoiFichier((await depot.lister()).filter((m) => m.proprietaire === "jdupont"), "I1", "sha"))
+      .toMatchObject({ statut: "complet", blocsEnvoyes: 2, nombreBlocs: 2 });
+  });
+
   test("inserer écrit le propriétaire, lister et obtenir le relisent, avec la sequence assignée par la base", async () => {
     const { base } = baseReelle();
     await initialiserSchemaOutbox(base);
     const depot = creerDepotOutboxSqlite(base);
 
-    const persistee = await depot.inserer({ ...nouvelleMutation(), proprietaire: "jdupont" });
+    const persistee = await depot.inserer({ ...nouvelleMutation(), proprietaire: "jdupont", resumeAccepte: { wct_id: "W1" } });
 
     expect(persistee.sequence).toBe(1);
     expect(persistee.proprietaire).toBe("jdupont");
+    expect((await depot.obtenir(persistee.id))?.resumeAccepte).toEqual({ wct_id: "W1" });
     expect((await depot.obtenir(persistee.id))?.proprietaire).toBe("jdupont");
     expect((await depot.lister())[0]).toEqual(persistee);
   });

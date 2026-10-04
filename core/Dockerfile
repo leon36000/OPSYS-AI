@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 # Opt-in plugin dependencies and supported runtime builds (space- or comma-separated ids).
 # Manifest ids and existing source-directory names are accepted.
 # Example: docker build --build-arg OPENCLAW_EXTENSIONS="diagnostics-otel,matrix" .
@@ -97,6 +98,8 @@ COPY --from=workspace-deps /out/openclaw-required-platform-packages /tmp/opencla
 # ── Production dependencies ────────────────────────────────────
 FROM dependency-inputs AS production-deps
 RUN --mount=type=cache,id=openclaw-pnpm-store,target=/root/.local/share/pnpm/store,sharing=locked \
+    --mount=type=secret,id=proxy_ca,target=/run/secrets/proxy_ca,required=false \
+    if [ -f /run/secrets/proxy_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca; fi && \
     NODE_OPTIONS=--max-old-space-size=2048 pnpm install --frozen-lockfile --prod \
       --config.supportedArchitectures.os=linux \
       --config.supportedArchitectures.cpu="$(node -p 'process.arch')" \
@@ -116,6 +119,8 @@ COPY --from=bun-binary /usr/local/bin/bun /usr/local/bin/bun
 # Reduce OOM risk on low-memory hosts during dependency installation.
 # Docker builds on small VMs may otherwise fail with "Killed" (exit 137).
 RUN --mount=type=cache,id=openclaw-pnpm-store,target=/root/.local/share/pnpm/store,sharing=locked \
+    --mount=type=secret,id=proxy_ca,target=/run/secrets/proxy_ca,required=false \
+    if [ -f /run/secrets/proxy_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca; fi && \
     NODE_OPTIONS=--max-old-space-size=2048 pnpm install --frozen-lockfile \
       --config.supportedArchitectures.os=linux \
       --config.supportedArchitectures.cpu="$(node -p 'process.arch')" \
@@ -254,21 +259,30 @@ WORKDIR /app
 RUN --mount=type=cache,id=openclaw-bookworm-apt-cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,id=openclaw-bookworm-apt-lists,target=/var/lib/apt,sharing=locked \
     apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ca-certificates && \
+    update-ca-certificates
+
+RUN --mount=type=cache,id=openclaw-bookworm-apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=openclaw-bookworm-apt-lists,target=/var/lib/apt,sharing=locked \
+    --mount=type=secret,id=proxy_ca,target=/run/secrets/proxy_ca,required=false \
+    if [ -f /run/secrets/proxy_ca ]; then \
+      install -d -m 0755 /usr/local/share/ca-certificates && \
+      cp /run/secrets/proxy_ca /usr/local/share/ca-certificates/build-proxy.crt && update-ca-certificates; \
+    fi && \
+    apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get dist-upgrade -y && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
       ca-certificates curl git hostname libgomp1 lsof openssh-client openssl procps python3 tini && \
-    update-ca-certificates
+    if [ -f /usr/local/share/ca-certificates/build-proxy.crt ]; then \
+      rm -f /usr/local/share/ca-certificates/build-proxy.crt && update-ca-certificates; \
+    else update-ca-certificates; fi
 
 # Keep npm as an operator-facing capability while replacing the base image's
 # bundled CLI dependency tree with the current release. The published package
 # omits its dev tools, so hide their metadata during the script-free refresh.
-RUN npm install --global npm@latest && \
-    npm_dir="$(npm root --global)/npm" && \
-    cp "$npm_dir/package.json" /tmp/npm-package.json && \
-    node -e 'const fs = require("node:fs"); const file = process.argv[1]; const packageJson = JSON.parse(fs.readFileSync(file, "utf8")); delete packageJson.devDependencies; fs.writeFileSync(file, `${JSON.stringify(packageJson, null, 2)}\n`);' "$npm_dir/package.json" && \
-    npm update --prefix "$npm_dir" --omit=dev --ignore-scripts --no-audit --no-fund && \
-    mv /tmp/npm-package.json "$npm_dir/package.json" && \
-    npm cache clean --force
+RUN --mount=type=secret,id=proxy_ca,target=/run/secrets/proxy_ca,required=false \
+    if [ -f /run/secrets/proxy_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca; fi && \
+    npm install --global npm@11.19.0 --ignore-scripts --no-audit --no-fund && npm cache clean --force
 
 RUN chown node:node /app
 

@@ -2398,8 +2398,7 @@ export const en: TranslationMap & {
     earlier: "Earlier",
     requestFailed: "OPSYS could not reply. Try again.",
     connectionChanged: "The Gateway connection changed. Retry to continue this setup.",
-    sessionRestarted:
-      "{error} OPSYS started a fresh session; earlier messages remain for context.",
+    sessionRestarted: "{error} OPSYS started a fresh session; earlier messages remain for context.",
     unsupportedGateway: "Update the Gateway to continue setup with OPSYS.",
     panel: {
       title: "OPSYS",
@@ -3280,6 +3279,12 @@ export const en: TranslationMap & {
   // Login copy lives in the lazy en-login catalog; the anchor keeps its merge target.
   login: {},
   chat: {
+    avatar3d: {
+      show: "Show 3D avatar",
+      hide: "Hide 3D avatar",
+      loading: "Loading avatar…",
+      unavailable: "3D avatar unavailable",
+    },
     historyRequestTimedOut: "Chat history request timed out. Retry to load the conversation.",
     clawhub: {
       retryStatus: "Status unavailable · Retry",
@@ -3366,6 +3371,8 @@ export const en: TranslationMap & {
     parentSessionUnavailable: "Parent session information is unavailable.",
     sessionRoute: {
       chooseTitle: "Choose a session",
+      agentUnavailable: "Agent unavailable",
+      agentRosterUnavailable: "Agent status is unavailable. Reconnect and try again.",
       multipleMatches: "More than one session matches {shortId}.",
       additionalMatches: "Search results remain. Use a longer id prefix.",
       notFoundTitle: "Session not found",

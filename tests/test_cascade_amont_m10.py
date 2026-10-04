@@ -28,7 +28,7 @@ from m10_memoire import classification, etapes
 from m10_memoire import outils as m10_outils
 from sqlalchemy import select
 
-from opsys import evenements, stockage, taxonomie
+from opsys import contexte, evenements, stockage, taxonomie
 from opsys.capacites import Capacites
 from opsys.departements import Departement, charger_departements
 from opsys.outils import executer_atomique
@@ -46,6 +46,7 @@ ACCEPTE_LE = "2026-09-30T10:00:00-04:00"
 CONSTAT_LE = "2026-10-08T08:00:00-04:00"
 LECTURE_LE = "2026-10-09T07:00:00-04:00"  # « maintenant » des lectures : l'heure d'aucun fait
 M3 = "m03-estimation"
+M1 = "m01-front-office"
 M10 = "m10-memoire"
 DEVIS_ACCEPTE = "DEVIS-T418-A"
 DEVIS_SANS_REPONSE = "DEVIS-T418-B"
@@ -105,8 +106,27 @@ def _maillons_m10(registre: str = "evenements") -> list[dict]:
         return list(stockage.maillons(M10, registre))
 
 
+def _paquet_m10(affaire_id: str, horodatage: str, departement: str) -> dict:
+    with contexte.appeler_en_tant_que(departement):
+        return m10_outils.paquet_contexte_affaire(affaire_id, horodatage)
+
+
 def _quarantaine_m10() -> list[dict]:
     return [ligne for ligne in evenements.etat()["quarantaine"] if ligne["consommateur"] == M10]
+
+
+def test_m10_nextrait_pas_le_hash_de_provenance_du_devis():
+    charge = {
+        "devis_id": DEVIS_ACCEPTE, "lead_id": "LEAD-T418", "chantier_id": None,
+        "horodatage_acceptation": ACCEPTE_LE, "estimation_source_hash": "a" * 64,
+        "semantique_temps": "duree_ecoulee_intervention", "prix_total": "600.00",
+        "cout_total": "480.00", "taux_marge": "0.25",
+    }
+    evenement = etapes._extraire_devis_accepte(charge)
+    financier = etapes._extraire_montants_devis_accepte(charge)
+    assert "estimation_source_hash" not in evenement
+    assert "semantique_temps" not in evenement
+    assert set(financier) == {"lead_id", "devis_id", "prix_total", "cout_total", "taux_marge", "horodatage"}
 
 
 def _creer_devis(m3, devis_id: str, lead_id: str, horodatage: str, prix_total: str) -> None:
@@ -177,8 +197,8 @@ class TestAmontParLeVraiBus:
         assert types_ecrits == sorted([*TYPES, etapes.TYPE_MONTANTS_DEVIS_ACCEPTE])
 
         with stockage.transaction():
-            paquet_m3 = m10_outils.paquet_contexte_affaire(lead_id, LECTURE_LE, "m03-estimation")
-            paquet_m1 = m10_outils.paquet_contexte_affaire(lead_id, LECTURE_LE, "m01-front-office")
+            paquet_m3 = _paquet_m10(lead_id, LECTURE_LE, M3)
+            paquet_m1 = _paquet_m10(lead_id, LECTURE_LE, M1)
             sans_agent = m10_outils.paquet_contexte_affaire(lead_id, LECTURE_LE)
 
         def sources(paquet):

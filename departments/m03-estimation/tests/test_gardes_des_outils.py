@@ -31,13 +31,12 @@ instrument ne peut pas prouver qu'un autre instrument n'est pas un leurre.
 """
 
 import ast
-from contextlib import contextmanager
 import hashlib
-from pathlib import Path
 import re
-import shutil
 import subprocess
 import sys
+from contextlib import contextmanager
+from pathlib import Path
 
 import pytest
 
@@ -349,62 +348,73 @@ def module_sans_garde():
         yield env
 
 
+def test_reference_rouge_fixture_est_reelle_et_reutilisee(campagne_gardes):
+    test_rouge = (
+        campagne_gardes.rouge.dossier_tests / f"{_NOM_SUITE_ROUGE}.py"
+    )
+    assert test_rouge.is_file(), "la copie partagée n'a pas reçu le test volontairement rouge"
+
+    for outil in (campagne_gardes.outils_mutation[0], campagne_gardes.enumerateur):
+        premier = campagne_gardes.suite_rouge(outil)
+        assert premier.processus_lance_ici or premier.recu_durable is not None
+        if premier.recu_durable is not None:
+            assert Path(premier.recu_durable).is_file()
+        assert premier.preuve.specification.scenario == "suite-rouge"
+        assert premier.preuve.commande[2] == str(outil)
+        assert premier.preuve.retour != 0
+        assert PHRASE_SUITE_ROUGE in _sortie(premier.preuve)
+        assert premier.preuve.nettoyage_prouve
+
+        replay = campagne_gardes.suite_rouge(outil)
+        assert replay.processus_lance_ici is False
+        assert replay.preuve is premier.preuve
+
+
 @pytest.mark.parametrize(
     "outil",
     _parametres_outils(),
     ids=_identifier_outil,
 )
-def test_chaque_batterie_refuse_une_suite_deja_rouge(
-    outil, suite_deja_rouge, lancer_outil
-):
+def test_chaque_batterie_refuse_une_suite_deja_rouge(outil, campagne_gardes):
     _exiger_outil(outil)
-    resultat = lancer_outil(outil, racine=suite_deja_rouge.dossier)
+    acces = campagne_gardes.suite_rouge(outil)
+    resultat = acces.preuve
+    assert resultat.nettoyage_prouve, f"{outil.name} n'a pas restauré son entrée capturée"
     sortie = _sortie(resultat)
 
-    assert resultat.returncode != 0, f"{outil.name} a accepté une suite déjà rouge"
+    assert resultat.retour != 0, f"{outil.name} a accepté une suite déjà rouge"
     assert PHRASE_SUITE_ROUGE in sortie, (
         f"{outil.name} a échoué sans identifier la suite déjà rouge :\n{sortie}"
     )
 
 
-def test_l_enumerateur_refuse_une_suite_deja_rouge(
-    suite_deja_rouge, lancer_outil
-):
-    resultat = lancer_outil(
-        _ENUMERATEUR, _module_nominal(), racine=suite_deja_rouge.dossier
-    )
+def test_l_enumerateur_refuse_une_suite_deja_rouge(campagne_gardes):
+    resultat = campagne_gardes.suite_rouge(_ENUMERATEUR).preuve
     sortie = _sortie(resultat)
 
-    assert resultat.returncode != 0, "l'énumérateur a accepté une suite déjà rouge"
+    assert resultat.retour != 0, "l'énumérateur a accepté une suite déjà rouge"
     assert PHRASE_SUITE_ROUGE in sortie, (
         "l'énumérateur a échoué sans identifier la suite déjà rouge :\n"
         f"{sortie}"
     )
 
 
-def test_l_enumerateur_refuse_un_module_sans_garde(
-    module_sans_garde, lancer_outil
-):
-    resultat = lancer_outil(
-        _ENUMERATEUR, _NOM_MODULE_SANS_GARDE, racine=module_sans_garde.dossier
-    )
+def test_l_enumerateur_refuse_un_module_sans_garde(campagne_gardes):
+    resultat = campagne_gardes.sans_garde_preuve().preuve
     sortie = _sortie(resultat)
 
-    assert resultat.returncode != 0, "l'énumérateur a accepté un module sans garde"
+    assert resultat.retour != 0, "l'énumérateur a accepté un module sans garde"
     assert PHRASE_SANS_GARDE in sortie, (
         "l'énumérateur a échoué sans identifier l'extracteur vide :\n"
         f"{sortie}"
     )
 
 
-def test_les_deux_abandons_de_l_enumerateur_sont_distincts(lancer_outil):
-    with _suite_rouge() as env_rouge:
-        resultat_rouge = lancer_outil(
-            _ENUMERATEUR, _module_nominal(), racine=env_rouge.dossier
-        )
-        sortie_rouge = _sortie(resultat_rouge)
+def test_les_deux_abandons_de_l_enumerateur_sont_distincts(campagne_gardes):
+    resultat_rouge = campagne_gardes.suite_rouge(_ENUMERATEUR).preuve
+    sortie_rouge = _sortie(resultat_rouge)
 
-    assert resultat_rouge.returncode != 0, (
+    assert resultat_rouge.retour != 0, (
         "l'énumérateur a accepté la condition de suite déjà rouge"
     )
     assert PHRASE_SUITE_ROUGE in sortie_rouge, (
@@ -415,15 +425,10 @@ def test_les_deux_abandons_de_l_enumerateur_sont_distincts(lancer_outil):
         f"{sortie_rouge}"
     )
 
-    with _module_sans_garde() as env_sans_garde:
-        resultat_vide = lancer_outil(
-            _ENUMERATEUR,
-            _NOM_MODULE_SANS_GARDE,
-            racine=env_sans_garde.dossier,
-        )
-        sortie_vide = _sortie(resultat_vide)
+    resultat_vide = campagne_gardes.sans_garde_preuve().preuve
+    sortie_vide = _sortie(resultat_vide)
 
-    assert resultat_vide.returncode != 0, (
+    assert resultat_vide.retour != 0, (
         "l'énumérateur a accepté la condition d'extracteur vide"
     )
     assert PHRASE_SANS_GARDE in sortie_vide, (
@@ -443,12 +448,14 @@ def test_les_deux_abandons_de_l_enumerateur_sont_distincts(lancer_outil):
     _parametres_tous_outils(),
     ids=_identifier_outil,
 )
-def test_chaque_outil_est_sain_avant_sabotage(outil, lancer_outil):
+def test_chaque_outil_est_sain_avant_sabotage(outil, campagne_gardes):
     _exiger_tous_les_outils(outil)
-    resultat = lancer_outil(outil, *_arguments_nominals(outil))
+    acces = campagne_gardes.nominal(outil)
+    resultat = acces.preuve
+    assert resultat.nettoyage_prouve, f"{outil.name} n'a pas restauré son entrée capturée"
     sortie = _sortie(resultat)
 
-    assert resultat.returncode == 0, (
+    assert resultat.retour == 0, (
         f"{outil.name} n'est pas sain avant sabotage :\n{sortie}"
     )
     assert PHRASE_SUITE_ROUGE not in sortie, (
@@ -463,13 +470,13 @@ def test_chaque_outil_est_sain_avant_sabotage(outil, lancer_outil):
         _assert_mutations_effectives(sortie, outil)
 
 
-def test_le_chemin_nominal_de_l_enumerateur_est_exerce(lancer_outil):
+def test_le_chemin_nominal_de_l_enumerateur_est_exerce(campagne_gardes):
     avant = _instantane_arborescence()
-    resultat = lancer_outil(_ENUMERATEUR, _module_nominal())
+    resultat = campagne_gardes.nominal(_ENUMERATEUR).preuve
     sortie = _sortie(resultat)
     apres = _instantane_arborescence()
 
-    assert resultat.returncode == 0, (
+    assert resultat.retour == 0, (
         "le chemin nominal de l'énumérateur a échoué :\n" f"{sortie}"
     )
     _assert_controles_effectifs(sortie)
@@ -482,65 +489,38 @@ def test_le_chemin_nominal_de_l_enumerateur_est_exerce(lancer_outil):
     _assert_instantanes_identiques(avant, apres)
 
 
-def test_une_mutation_non_compilable_est_signalee(lancer_outil):
+def test_une_mutation_non_compilable_est_signalee(campagne_gardes):
     assert _OUTILS_MUTATION, (
         "aucun outil de mutation trouvé : l'épreuve de mutation non compilable "
         "est absente"
     )
-    outil_original = _OUTILS_MUTATION[0]
-    module = outil_original.stem[len("muter_"):]
-
     avant = _instantane_arborescence()
-    env = EnvironnementMutation(_RACINE)
-    try:
-        # Module cible et outil sabotés : lus/écrits dans la COPIE jetable, jamais
-        # sous la vraie racine du département (voir la docstring du module).
-        source_module_copie = env.dossier_source / f"{module}.py"
-        assert source_module_copie.exists(), (
-            "sabotage non probant : le module cible dérivé de la batterie est "
-            f"absent de la copie : {source_module_copie}"
-        )
+    acces, source_outil = campagne_gardes.non_compilable_preuve(
+        _rendre_une_mutation_non_compilable
+    )
+    resultat = acces.preuve
+    sortie = _sortie(resultat)
 
-        outil_temporaire = env.dossier_tests / "outils_preuve" / "epreuve_mutation_non_compilable.py"
-        assert not outil_temporaire.exists(), (
-            f"fichier d'épreuve déjà présent dans la copie : {outil_temporaire}"
-        )
-        shutil.copyfile(outil_original, outil_temporaire)
-        source_batterie = outil_temporaire.read_text(encoding="utf-8")
-        sabotage = _rendre_une_mutation_non_compilable(
-            source_batterie,
-            source_module_copie.read_text(encoding="utf-8"),
-        )
-
-        # Une ancre ambiguë arrête la batterie à son contrôle d'ancre : le test
-        # mesurait alors un autre chemin que celui de la compilation qu'il nommait.
-        if sabotage is None:
-            pytest.fail(
-                "sabotage non probant : aucune mutation de la batterie ne possède "
-                "une ancre AVANT unique dans le module cible"
-            )
-
-        outil_temporaire.write_text(sabotage, encoding="utf-8")
-
-        resultat = lancer_outil(outil_temporaire, racine=env.dossier)
-        sortie = _sortie(resultat)
-
-        assert resultat.returncode != 0, (
-            "la batterie dont une mutation produit du Python non compilable "
-            f"a réussi :\n{sortie}"
-        )
-        assert PHRASE_NE_COMPILE_PAS in sortie, (
-            "la batterie a échoué sans atteindre la branche de compilation "
-            f"de la mutation :\n{sortie}"
-        )
-    finally:
-        env.nettoyer()
+    assert resultat.retour != 0, (
+        "la batterie dont une mutation produit du Python non compilable "
+        f"a réussi :\n{sortie}"
+    )
+    assert PHRASE_NE_COMPILE_PAS in sortie, (
+        "la batterie a échoué sans atteindre la branche de compilation "
+        f"de la mutation :\n{sortie}"
+    )
+    assert "mordent |" not in sortie, (
+        "la batterie a imprimé un bilan malgré le refus de compiler le mutant :\n"
+        f"{sortie}"
+    )
+    assert resultat.nettoyage_prouve
+    assert b"def epreuve_non_compilable" in source_outil
 
     apres = _instantane_arborescence()
     _assert_instantanes_identiques(avant, apres)
 
 
-def test_aucune_trace_apres_les_epreuves(lancer_outil):
+def test_aucune_trace_apres_les_epreuves(campagne_gardes):
     """L'épreuve complète (sain -> suite rouge -> module sans garde) ne laisse RIEN
     sous la vraie racine du département : ``EnvironnementMutation`` porte les deux
     artefacts d'un bout à l'autre, et seule sa copie temporaire est détruite.
@@ -551,58 +531,30 @@ def test_aucune_trace_apres_les_epreuves(lancer_outil):
 
     avant = _instantane_arborescence()
     for outil in _OUTILS_MUTATION:
-        resultat_normal = lancer_outil(outil)
+        acces_normal = campagne_gardes.nominal(outil)
+        resultat_normal = acces_normal.preuve
         sortie_normale = _sortie(resultat_normal)
-        assert resultat_normal.returncode == 0, (
+        assert resultat_normal.retour == 0, (
             f"l'épreuve normale de {outil.name} n'a pas abouti ; "
             "le contrôle d'absence de trace n'est pas probant :\n"
             f"{sortie_normale}"
         )
         _assert_mutations_effectives(sortie_normale, outil)
 
-    env = EnvironnementMutation(_RACINE)
-    try:
-        chemin_suite_rouge = env.dossier_tests / f"{_NOM_SUITE_ROUGE}.py"
-        chemin_suite_rouge.write_text(
-            "def test_epreuve_deliberement_rouge():\n"
-            '    assert False, "épreuve volontairement rouge des gardes"\n',
-            encoding="utf-8",
-        )
+    for outil in [*_OUTILS_MUTATION, _ENUMERATEUR]:
+        acces_rouge = campagne_gardes.suite_rouge(outil)
+        resultat_rouge = acces_rouge.preuve
+        sortie_rouge = _sortie(resultat_rouge)
+        assert resultat_rouge.retour != 0
+        assert PHRASE_SUITE_ROUGE in sortie_rouge
+        assert resultat_rouge.nettoyage_prouve
 
-        resultats_batteries = [
-            (outil, lancer_outil(outil, racine=env.dossier))
-            for outil in _OUTILS_MUTATION
-        ]
-        for outil, resultat in resultats_batteries:
-            sortie = _sortie(resultat)
-            assert resultat.returncode != 0, (
-                f"{outil.name} a accepté l'épreuve complète de suite rouge"
-            )
-            assert PHRASE_SUITE_ROUGE in sortie, (
-                f"{outil.name} n'a pas nommé la suite rouge :\n{sortie}"
-            )
-
-        chemin_suite_rouge.unlink()
-
-        chemin_module_sans_garde = env.dossier_source / f"{_NOM_MODULE_SANS_GARDE}.py"
-        chemin_module_sans_garde.write_text(
-            "def valeur_epreuve():\n"
-            "    return 1\n",
-            encoding="utf-8",
-        )
-        resultat_vide = lancer_outil(
-            _ENUMERATEUR, _NOM_MODULE_SANS_GARDE, racine=env.dossier
-        )
-        sortie_vide = _sortie(resultat_vide)
-
-        assert resultat_vide.returncode != 0, (
-            "l'énumérateur a accepté l'épreuve complète d'extracteur vide"
-        )
-        assert PHRASE_SANS_GARDE in sortie_vide, (
-            "l'énumérateur n'a pas nommé l'extracteur vide"
-        )
-    finally:
-        env.nettoyer()
+    acces_vide = campagne_gardes.sans_garde_preuve()
+    resultat_vide = acces_vide.preuve
+    sortie_vide = _sortie(resultat_vide)
+    assert resultat_vide.retour != 0
+    assert PHRASE_SANS_GARDE in sortie_vide
+    assert resultat_vide.nettoyage_prouve
 
     apres = _instantane_arborescence()
     _assert_instantanes_identiques(avant, apres)

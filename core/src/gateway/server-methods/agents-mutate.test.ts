@@ -938,6 +938,43 @@ describe("agents.update", () => {
     expect(mocks.writeConfigFile).toHaveBeenCalled();
   });
 
+  it("assigns a model only from the local avatar catalogue", async () => {
+    const { respond, promise } = makeCall("agents.update", {
+      agentId: "test-agent",
+      avatarModelId: "robotexpressive-quaternius-cc0-v1",
+    });
+    await promise;
+    expectRespondOk(respond, { ok: true, agentId: "test-agent" });
+    const update = mockCallArg(mocks.applyAgentConfig, 0, 1) as {
+      identity?: { avatarModelId?: string };
+    };
+    expect(update.identity?.avatarModelId).toBe("robotexpressive-quaternius-cc0-v1");
+  });
+
+  it("clears an existing local avatar model on explicit null", async () => {
+    const { respond, promise } = makeCall("agents.update", {
+      agentId: "test-agent",
+      avatarModelId: null,
+    });
+    await promise;
+    expectRespondOk(respond, { ok: true, agentId: "test-agent" });
+    const update = mockCallArg(mocks.applyAgentConfig, 0, 1) as {
+      identity?: { avatarModelId?: string };
+    };
+    expect(update.identity).toBeDefined();
+    expect(update.identity?.avatarModelId).toBeUndefined();
+  });
+
+  it("rejects an unknown avatar model without writing config", async () => {
+    const { respond, promise } = makeCall("agents.update", {
+      agentId: "test-agent",
+      avatarModelId: "../private.glb",
+    });
+    await promise;
+    expectRespondErrorContaining(respond, "Unknown local avatar model");
+    expect(mocks.writeConfigFile).not.toHaveBeenCalled();
+  });
+
   it("rejects updating a nonexistent agent", async () => {
     mocks.findAgentEntryIndex.mockReturnValue(-1);
 

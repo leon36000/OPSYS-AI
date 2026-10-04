@@ -190,6 +190,7 @@ qui écrit la trace et publie)."""
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable, Mapping
 from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
@@ -204,17 +205,25 @@ from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 from . import (
     acces,
     analyse,
+    brut_regulier,
     calendrier_fiscal,
+    calendrier_obligations,
     cash_libre,
     clients_recus,
     comptes_a_payer,
     constat_cash_libre,
+    contrats_salaries_horaires,
     cout_reel,
+    couts_marketing,
+    decision_capital,
     devis_recus,
+    dossier_decision_cfo,
+    echeanciers_contrats,
     etat_financier,
     facturation,
     prevision,
     soldes,
+    sources_regles_paie,
     taux_fiscaux,
     taxes,
     validation,
@@ -223,9 +232,15 @@ from . import (
 )
 from . import registre as registre_module
 
+ValidateurSnapshotCfo = Callable[
+    [list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]], dict[str, str] | None
+]
+LecteurHeuresM4 = Callable[[str, str, str, str], Mapping[str, Any]]
+
 _CHEMIN_TAUX_FISCAUX = Path(__file__).resolve().parents[2] / "contracts" / "taux_fiscaux.v1.yaml"
 # PLAN T4.16 : le calendrier fiscal versionné (années déclarées, sources citées), lu à chaque appel.
 _CHEMIN_CALENDRIER_FISCAL = Path(__file__).resolve().parents[2] / "contracts" / "calendrier_fiscal.v1.yaml"
+_CHEMIN_SOURCES_REGLES_PAIE = Path(__file__).resolve().parents[2] / "contracts" / "sources_regles_paie.v1.yaml"
 
 _DEPARTEMENT = "m05-financecore"
 _NOM_REGISTRE_MOUVEMENTS = "principal"
@@ -242,6 +257,10 @@ _NOM_REGISTRE_COMPTES_A_PAYER = "comptes_a_payer"
 # version, statut, identifiant). Toujours durable, comme `rentabilite` : l'état vient des registres lus, la charge
 # complète est au bus.
 _NOM_REGISTRE_CONSTATS = "constats_cash_libre"
+# M5.4.a : données salariales privées, sur un flux durable séparé des mouvements et des obligations.
+_NOM_REGISTRE_CONTRATS_SALARIES = "contrats_salaries_horaires"
+# M5.8a : journal append-only des échéanciers commerciaux validés par un humain.
+_NOM_REGISTRE_ECHEANCIERS_CONTRATS = "echeanciers_contrats_tresorerie"
 # `Capacites._tronquer` mesure `{"ok": true, "resultat": {"accepte": true, "resultat": {"role": ..., <la page>}}}` : une
 # centaine de caractères d'enveloppe, plus une marge. Le budget d'une page est la limite du socle moins cette réserve :
 # sous elle, jamais tronquée.
@@ -266,10 +285,14 @@ _MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
 # demande F « libre » routée par un registre interne concurrent (voir `approbation.py`, retiré des
 # outils exposés à l'agent ; rapport final de PLAN T1.3-c pour ce qui en reste).
 NIVEAU_POUR_PALIER: dict[str, Niveau] = {
-    "F0": Niveau.N0, "F1": Niveau.N1, "F2": Niveau.N2,
+    "F0": Niveau.N0,
+    "F1": Niveau.N1,
+    "F2": Niveau.N2,
     "F3": Niveau.N3,
-    "F4": Niveau.N4, "F5": Niveau.N4,
-    "F6": Niveau.N5, "F7": Niveau.N5,
+    "F4": Niveau.N4,
+    "F5": Niveau.N4,
+    "F6": Niveau.N5,
+    "F7": Niveau.N5,
 }
 NIVEAU_ENVOI_FACTURE = NIVEAU_POUR_PALIER["F4"]  # engagement client (envoi), ADR-0009 §4
 NIVEAU_PAIEMENT_FACTURE = NIVEAU_POUR_PALIER["F6"]  # argent réel constaté, ADR-0009 §4
@@ -307,7 +330,7 @@ _HISTORIQUE_MOUVEMENTS = {
 }
 _MONTANT_TEXTE = {
     "type": "string",
-    "description": "Montant décimal en texte, ex. \"125.00\" — jamais un nombre JSON (imprécision binaire).",
+    "description": 'Montant décimal en texte, ex. "125.00" — jamais un nombre JSON (imprécision binaire).',
 }
 _TYPE_MOUVEMENT = {"type": "string", "enum": ["ENCAISSEMENT", "DECAISSEMENT", "PROVISION", "AJUSTEMENT", "AUTRE"]}
 _CLASSE_RETENTION = {"type": "string", "enum": ["FISCALE_6_ANS", "STANDARD"]}
@@ -404,6 +427,20 @@ def _etat_factures(historique: list[dict[str, Any]] | None, registre_cible: regi
     return {"factures_historique": registre_cible.lire()}
 
 
+def _registre_contrats_salaries() -> registre_module.Registre | None:
+    """Le journal salarial est toujours durable; aucun repli en mémoire n'est permis."""
+    if not _stockage_durable_actif:
+        return None
+    return registre_module.Registre(maillons=stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CONTRATS_SALARIES))
+
+
+def _registre_echeanciers_contrats() -> registre_module.Registre | None:
+    """Journal durable propre aux échéanciers commerciaux; aucun repli en mémoire."""
+    if not _stockage_durable_actif:
+        return None
+    return registre_module.Registre(maillons=stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_ECHEANCIERS_CONTRATS))
+
+
 def _vers_montant_decimal(montant_texte: str) -> Decimal:
     if not isinstance(montant_texte, str):
         raise ValueError("montant doit être fourni en texte décimal (jamais un nombre JSON)")
@@ -424,9 +461,7 @@ _LIMITE_LECTURE_DEFAUT = 8
 _LIMITE_LECTURE_MAX = 12
 _ROLE_DE_LECTURE = {
     "type": ["string", "null"],
-    "description": (
-        "Appel d'appareil : omis, ou égal au rôle authentifié (sinon REJ-IDENTITE-FOURNIE-DIFFERENTE)."
-    ),
+    "description": ("Appel d'appareil : omis, ou égal au rôle authentifié (sinon REJ-IDENTITE-FOURNIE-DIFFERENTE)."),
 }
 _AUTORISE_COUTS_DE_LECTURE = {
     "type": ["boolean", "null"],
@@ -462,7 +497,12 @@ def _acteur_appareil() -> tuple[acces.Acteur | None, dict[str, Any] | None]:
                 "hors transaction)"
             ),
         )
-    return acces.acteur_de(confirmee.personne, confirmee.role, _ROLES_APPAREIL_FINANCE)
+    return acces.acteur_de(
+        confirmee.personne,
+        confirmee.role,
+        _ROLES_APPAREIL_FINANCE,
+        source=getattr(confirmee, "source", "appareil"),
+    )
 
 
 def _refus(verdict: dict[str, Any]) -> dict[str, Any]:
@@ -480,6 +520,7 @@ _BUDGET_ETAT_TRESORERIE = BUDGET_SORTIE - 500
 def _borner_etat(etat: dict[str, Any]) -> dict[str, Any]:
     """`etat` tel quel s'il tient sous `_BUDGET_ETAT_TRESORERIE` ; sinon sans les hypothèses (`hypotheses_omises` dit
     combien), puis sans le détail des composantes (`detail_omis`). Ne touche à rien d'autre."""
+
     def taille(candidat: dict[str, Any]) -> int:
         return len(json.dumps(candidat, ensure_ascii=False, default=str))
 
@@ -742,11 +783,15 @@ def _etat_chantier(devis_id: str, sources: dict[str, Any] | None = None) -> dict
     wct_recu = wct_recus.pour_devis_id(devis_id, sources["wct"])
     if wct_recu is None:
         return {
-            "statut": "en_attente_travaux_termines", "devis_id": devis_id,
+            "statut": "en_attente_travaux_termines",
+            "devis_id": devis_id,
             "chantier_id": chantier_devis or None,
         }
-    autres_wct = {m.get("wct_id") for m in sources["wct"]
-                  if m.get("devis_id") == devis_id and m.get("wct_id") not in (None, wct_recu["wct_id"])}
+    autres_wct = {
+        m.get("wct_id")
+        for m in sources["wct"]
+        if m.get("devis_id") == devis_id and m.get("wct_id") not in (None, wct_recu["wct_id"])
+    }
     signal = variance_recus.signal_retenu_pour_wct_id(wct_recu["wct_id"], sources["variance"])
     cout = cout_reel.calculer_cout_reel(wct_recu, signal, sources["livre"], sources["taux"], autres_wct)
     chantier_id = chantier_devis or (signal.get("chantier_id") if signal is not None else None) or None
@@ -754,7 +799,10 @@ def _etat_chantier(devis_id: str, sources: dict[str, Any] | None = None) -> dict
         cout, sources["factures"].get(devis_id), devis_recu, devis_id=devis_id, chantier_id=chantier_id
     )
     return {
-        "statut": "calculee", "devis_id": devis_id, "chantier_id": chantier_id, "rentabilite": rentabilite,
+        "statut": "calculee",
+        "devis_id": devis_id,
+        "chantier_id": chantier_id,
+        "rentabilite": rentabilite,
         "horodatage": wct_recu["horodatage_completion"],
     }
 
@@ -802,9 +850,7 @@ def _publier_rentabilite(rentabilite: dict[str, Any], sequence: int, horodatage:
     coût partiel. L'identifiant est déterministe (devis, rang de la trace, version des entrées) : republier la
     même trace est un no-op du bus."""
     charge = cout_reel.charge_evenement(rentabilite, sequence, horodatage)
-    evenements.publier(
-        cout_reel.TYPE_EVENEMENT_RENTABILITE, _DEPARTEMENT, charge, evenement_id=charge["evenement_id"]
-    )
+    evenements.publier(cout_reel.TYPE_EVENEMENT_RENTABILITE, _DEPARTEMENT, charge, evenement_id=charge["evenement_id"])
 
 
 def _essayer_cout_reel_pour_wct(wct_id: str) -> dict[str, Any]:
@@ -876,9 +922,7 @@ def lister_attentes_facturation() -> dict[str, Any]:
     factures_registre = _registre_factures(None)
 
     devis_ids_connus = {maillon["devis_id"] for maillon in devis_recus_registre}
-    devis_ids_connus |= {
-        maillon["devis_id"] for maillon in wct_recus_registre if maillon.get("devis_id") is not None
-    }
+    devis_ids_connus |= {maillon["devis_id"] for maillon in wct_recus_registre if maillon.get("devis_id") is not None}
 
     attentes_devis: list[dict[str, Any]] = []
     for devis_id in sorted(devis_ids_connus):
@@ -992,7 +1036,10 @@ _REFUS_HUMAIN_N4 = (
 
 
 def _acteur_humain(
-    nom_outil: str, refus_humain: str, *, roles_approbateurs: frozenset[str],
+    nom_outil: str,
+    refus_humain: str,
+    *,
+    roles_approbateurs: frozenset[str],
     personne_doit_porter: frozenset[str] | None = None,
 ) -> tuple[dict[str, str] | None, dict[str, Any] | None]:
     """Qui agit : `({par, role, voie}, None)` si c'est un humain identifié, sinon `(None, verdict)`.
@@ -1057,11 +1104,16 @@ def _suite_de_la_facture(
 def _reponse_facture(
     resultat: dict[str, Any], registre_cible: registre_module.Registre, dictionnaire_taux: dict[str, Any]
 ) -> dict[str, Any]:
-    return {"accepte": True, "resultat": analyse.avec_mention({
-        "facture": comptes_a_payer.vue_facture(resultat["facture"]),
-        "avertissements": resultat["avertissements"],
-        **_suite_de_la_facture(resultat["facture"], registre_cible, dictionnaire_taux),
-    })}
+    return {
+        "accepte": True,
+        "resultat": analyse.avec_mention(
+            {
+                "facture": comptes_a_payer.vue_facture(resultat["facture"]),
+                "avertissements": resultat["avertissements"],
+                **_suite_de_la_facture(resultat["facture"], registre_cible, dictionnaire_taux),
+            }
+        ),
+    }
 
 
 def saisir_facture_fournisseur(
@@ -1084,7 +1136,8 @@ def saisir_facture_fournisseur(
 
     N'écrit qu'au registre des comptes à payer. Aucun DECAISSEMENT, aucune écriture aux mouvements : payer est N5."""
     acteur, refus = _acteur_humain(
-        _OUTIL_SAISIE_FACTURE, _REFUS_HUMAIN_SAISIE, roles_approbateurs=_ROLES_APPROBATEURS_SAISIE)
+        _OUTIL_SAISIE_FACTURE, _REFUS_HUMAIN_SAISIE, roles_approbateurs=_ROLES_APPROBATEURS_SAISIE
+    )
     if acteur is None:
         return _refus(refus)
     dictionnaire_taux, refus_taux = _dictionnaire_taux()
@@ -1092,9 +1145,16 @@ def saisir_facture_fournisseur(
         return _refus(refus_taux)
     registre_cible = _registre_comptes_a_payer()
     resultat, verdict = comptes_a_payer.saisir_facture_fournisseur(
-        po_id=po_id, fournisseur_id=fournisseur_id, numero_facture=numero_facture, date_facture=date_facture,
-        montant_avant_taxes=montant_avant_taxes, total_facture=total_facture, saisi_par=acteur["par"],
-        voie=acteur["voie"], horodatage=_horodatage_faisant_foi(horodatage), dictionnaire_taux=dictionnaire_taux,
+        po_id=po_id,
+        fournisseur_id=fournisseur_id,
+        numero_facture=numero_facture,
+        date_facture=date_facture,
+        montant_avant_taxes=montant_avant_taxes,
+        total_facture=total_facture,
+        saisi_par=acteur["par"],
+        voie=acteur["voie"],
+        horodatage=_horodatage_faisant_foi(horodatage),
+        dictionnaire_taux=dictionnaire_taux,
         registre_cible=registre_cible,
     )
     if verdict is not None:
@@ -1128,7 +1188,8 @@ def saisir_facture_sans_po(
     configurer ». La facture entre en entier dans les comptes à payer et dans le cash libre. N'écrit qu'au registre des
     comptes à payer : aucun DECAISSEMENT, payer est N5."""
     acteur, refus = _acteur_humain(
-        _OUTIL_SAISIE_SANS_PO, _REFUS_HUMAIN_SAISIE_SANS_PO, roles_approbateurs=_ROLES_APPROBATEURS_SAISIE)
+        _OUTIL_SAISIE_SANS_PO, _REFUS_HUMAIN_SAISIE_SANS_PO, roles_approbateurs=_ROLES_APPROBATEURS_SAISIE
+    )
     if acteur is None:
         return _refus(refus)
     dictionnaire_taux, refus_taux = _dictionnaire_taux()
@@ -1136,10 +1197,17 @@ def saisir_facture_sans_po(
         return _refus(refus_taux)
     registre_cible = _registre_comptes_a_payer()
     resultat, verdict = comptes_a_payer.saisir_facture_sans_po(
-        fournisseur_id=fournisseur_id, categorie=categorie, numero_facture=numero_facture,
-        date_facture=date_facture, montant_avant_taxes=montant_avant_taxes, total_facture=total_facture,
-        saisi_par=acteur["par"], voie=acteur["voie"], horodatage=_horodatage_faisant_foi(horodatage),
-        dictionnaire_taux=dictionnaire_taux, categories_configurees=_categories_depense_sans_po(),
+        fournisseur_id=fournisseur_id,
+        categorie=categorie,
+        numero_facture=numero_facture,
+        date_facture=date_facture,
+        montant_avant_taxes=montant_avant_taxes,
+        total_facture=total_facture,
+        saisi_par=acteur["par"],
+        voie=acteur["voie"],
+        horodatage=_horodatage_faisant_foi(horodatage),
+        dictionnaire_taux=dictionnaire_taux,
+        categories_configurees=_categories_depense_sans_po(),
         registre_cible=registre_cible,
     )
     if verdict is not None:
@@ -1167,8 +1235,11 @@ def corriger_facture_fournisseur(
     sans file. Motif obligatoire ; numéro, date et montant nuls sont inchangés ; taxes et total recalculés. N'écrit
     qu'au registre des comptes à payer : aucun DECAISSEMENT."""
     acteur, refus = _acteur_humain(
-        _OUTIL_CORRECTION_FACTURE, _REFUS_HUMAIN_N4, roles_approbateurs=_ROLES_APPROBATEURS_N4,
-        personne_doit_porter=_ROLES_APPROBATEURS_N4)
+        _OUTIL_CORRECTION_FACTURE,
+        _REFUS_HUMAIN_N4,
+        roles_approbateurs=_ROLES_APPROBATEURS_N4,
+        personne_doit_porter=_ROLES_APPROBATEURS_N4,
+    )
     if acteur is None:
         return _refus(refus)
     dictionnaire_taux, refus_taux = _dictionnaire_taux()
@@ -1176,10 +1247,17 @@ def corriger_facture_fournisseur(
         return _refus(refus_taux)
     registre_cible = _registre_comptes_a_payer()
     resultat, verdict = comptes_a_payer.corriger_facture_fournisseur(
-        facture_fournisseur_id=facture_fournisseur_id, motif=motif, numero_facture=numero_facture,
-        date_facture=date_facture, montant_avant_taxes=montant_avant_taxes, total_facture=total_facture,
-        corrige_par=acteur["par"], role=acteur["role"], voie=acteur["voie"],
-        horodatage=_horodatage_faisant_foi(horodatage), dictionnaire_taux=dictionnaire_taux,
+        facture_fournisseur_id=facture_fournisseur_id,
+        motif=motif,
+        numero_facture=numero_facture,
+        date_facture=date_facture,
+        montant_avant_taxes=montant_avant_taxes,
+        total_facture=total_facture,
+        corrige_par=acteur["par"],
+        role=acteur["role"],
+        voie=acteur["voie"],
+        horodatage=_horodatage_faisant_foi(horodatage),
+        dictionnaire_taux=dictionnaire_taux,
         registre_cible=registre_cible,
     )
     if verdict is not None:
@@ -1197,8 +1275,11 @@ def annuler_facture_fournisseur(facture_fournisseur_id: str, motif: str, horodat
     rejoués). Annuler ne paie rien et n'efface pas la dette : un PO reçu et non facturé redevient un « à payer
     attendu ». N'écrit qu'au registre des comptes à payer : aucun DECAISSEMENT."""
     acteur, refus = _acteur_humain(
-        _OUTIL_ANNULATION_FACTURE, _REFUS_HUMAIN_N4, roles_approbateurs=_ROLES_APPROBATEURS_N4,
-        personne_doit_porter=_ROLES_APPROBATEURS_N4)
+        _OUTIL_ANNULATION_FACTURE,
+        _REFUS_HUMAIN_N4,
+        roles_approbateurs=_ROLES_APPROBATEURS_N4,
+        personne_doit_porter=_ROLES_APPROBATEURS_N4,
+    )
     if acteur is None:
         return _refus(refus)
     dictionnaire_taux, refus_taux = _dictionnaire_taux()
@@ -1206,8 +1287,13 @@ def annuler_facture_fournisseur(facture_fournisseur_id: str, motif: str, horodat
         return _refus(refus_taux)
     registre_cible = _registre_comptes_a_payer()
     resultat, verdict = comptes_a_payer.annuler_facture_fournisseur(
-        facture_fournisseur_id=facture_fournisseur_id, motif=motif, annule_par=acteur["par"], role=acteur["role"],
-        voie=acteur["voie"], horodatage=_horodatage_faisant_foi(horodatage), registre_cible=registre_cible,
+        facture_fournisseur_id=facture_fournisseur_id,
+        motif=motif,
+        annule_par=acteur["par"],
+        role=acteur["role"],
+        voie=acteur["voie"],
+        horodatage=_horodatage_faisant_foi(horodatage),
+        registre_cible=registre_cible,
     )
     if verdict is not None:
         return _refus(verdict)
@@ -1240,15 +1326,20 @@ def lister_comptes_a_payer(
     if verdict is not None:
         return _refus(verdict)
     if sans_po is not None and not isinstance(sans_po, bool):
-        return _refus(validation.construire_verdict(
-            "REJ-AP-LISTE-FILTRE-INVALIDE", detail="sans_po : vrai, faux ou nul"))
+        return _refus(
+            validation.construire_verdict("REJ-AP-LISTE-FILTRE-INVALIDE", detail="sans_po : vrai, faux ou nul")
+        )
     if sans_po and po_id is not None:
-        return _refus(validation.construire_verdict(
-            "REJ-AP-LISTE-FILTRE-INVALIDE",
-            detail="sans_po et po_id ne vont pas ensemble : une facture sans PO n'est d'aucun PO"))
+        return _refus(
+            validation.construire_verdict(
+                "REJ-AP-LISTE-FILTRE-INVALIDE",
+                detail="sans_po et po_id ne vont pas ensemble : une facture sans PO n'est d'aucun PO",
+            )
+        )
     if sans_po:
         page, verdict = comptes_a_payer.lister_sans_po(
-            _registre_comptes_a_payer(), depart=0 if depart is None else depart, budget_caracteres=BUDGET_SORTIE)
+            _registre_comptes_a_payer(), depart=0 if depart is None else depart, budget_caracteres=BUDGET_SORTIE
+        )
         if verdict is not None:
             return _refus(verdict)
         if not vue["autorise_couts"]:
@@ -1259,8 +1350,11 @@ def lister_comptes_a_payer(
     if refus_taux is not None:
         return _refus(refus_taux)
     page, verdict = comptes_a_payer.lister(
-        _registre_comptes_a_payer(), dictionnaire_taux, depart=0 if depart is None else depart,
-        budget_caracteres=BUDGET_SORTIE, po_id=po_id,
+        _registre_comptes_a_payer(),
+        dictionnaire_taux,
+        depart=0 if depart is None else depart,
+        budget_caracteres=BUDGET_SORTIE,
+        po_id=po_id,
     )
     if verdict is not None:
         return _refus(verdict)
@@ -1268,6 +1362,580 @@ def lister_comptes_a_payer(
         masquee = {"role": vue["role"], "nombre_po": page["total"], "montants_masques": True}
         return {"accepte": True, "resultat": analyse.avec_mention(masquee)}
     return {"accepte": True, "resultat": {"role": vue["role"], **page}}
+
+
+_ROLES_N4_CONTRAT_SALARIAL = frozenset({"finance", "nathan_owner"})
+_OUTIL_CONTRAT_SALARIAL = "m5_enregistrer_contrat_horaire"
+_OUTIL_REVOQUER_CONTRAT_SALARIAL = "m5_revoquer_contrat_horaire"
+
+
+def _identite_employe_active(employee_person_id: str) -> bool:
+    cnx = stockage.connexion_courante()
+    personne = identite.personne_active(cnx, employee_person_id) if cnx is not None else None
+    return personne is not None and "employee" in personne.roles
+
+
+def _signataire_contrat_horaire(acteur: dict[str, str]) -> dict[str, str]:
+    """Canonise le rôle N4 actif du signataire, même si le jeton porte le profil admin."""
+    roles_autorises = _ROLES_N4_CONTRAT_SALARIAL
+    role = acteur["role"]
+    voie = acteur["voie"]
+    if acteur["voie"] == "appareil":
+        cnx = stockage.connexion_courante()
+        personne = identite.personne_active(cnx, acteur["par"]) if cnx is not None else None
+        roles = personne.roles if personne is not None else frozenset()
+        role = "nathan_owner" if "nathan_owner" in roles else "finance" if "finance" in roles else ""
+        appelante = contexte.identite_appelante()
+        if appelante is not None and appelante.source == "console":
+            voie = "console"
+    if role not in roles_autorises:
+        return {}
+    return {
+        "personne": acteur["par"],
+        "role": role,
+        "voie": voie,
+        "decision_id": contexte.demande_approuvee_en_cours(),
+    }
+
+
+def enregistrer_contrat_horaire(
+    employee_person_id: str,
+    contrat_id: str,
+    valide_du: str,
+    valide_jusqu_au: str,
+    fuseau: str,
+    devise: str,
+    taux_horaire: str,
+    source_humaine: str,
+    date_source: str,
+    revision_attendue: int,
+    ligne_id_attendue: str,
+    motif: str,
+) -> dict[str, Any]:
+    """Crée ou révise un taux individuel après validation humaine N4; écrit seulement au flux salaire privé."""
+    acteur, refus = _acteur_humain(
+        _OUTIL_CONTRAT_SALARIAL,
+        "un contrat salarial horaire exige une validation humaine N4 de finance ou du propriétaire",
+        roles_approbateurs=_ROLES_N4_CONTRAT_SALARIAL,
+        personne_doit_porter=_ROLES_N4_CONTRAT_SALARIAL,
+    )
+    if acteur is None:
+        return _refus(refus)
+    if not isinstance(employee_person_id, str) or not _identite_employe_active(employee_person_id):
+        return _refus(validation.construire_verdict(
+            "REJ-SALAIRE-EMPLOYE-INVALIDE", detail="ID cible absent, inactif ou sans rôle OPSYS employee"
+        ))
+    journal = _registre_contrats_salaries()
+    if journal is None:
+        return _refus(validation.construire_verdict(
+            "REJ-SALAIRE-REGISTRE-INDISPONIBLE", detail="journal salarial durable non initialisé"
+        ))
+    signataire = _signataire_contrat_horaire(acteur)
+    if not signataire:
+        return _refus(validation.construire_verdict(
+            "REJ-SALAIRE-IDENTITE-REQUIS", detail="aucun rôle N4 humain finance/propriétaire confirmé"
+        ))
+    maillon, verdict = contrats_salaries_horaires.enregistrer(
+        journal,
+        employee_person_id=employee_person_id,
+        contrat_id=contrat_id,
+        valide_du=valide_du,
+        valide_jusqu_au=valide_jusqu_au,
+        fuseau=fuseau,
+        devise=devise,
+        taux_horaire=taux_horaire,
+        source_humaine=source_humaine,
+        date_source=date_source,
+        revision_attendue=revision_attendue,
+        ligne_id_attendue=ligne_id_attendue,
+        motif=motif,
+        approbateur=signataire,
+        horodatage=approbations._maintenant(),
+    )
+    if verdict is not None:
+        return _refus(verdict)
+    return {"accepte": True, "resultat": maillon}
+
+
+def revoquer_contrat_horaire(
+    employee_person_id: str,
+    contrat_id: str,
+    revision_attendue: int,
+    ligne_id_attendue: str,
+    motif: str,
+) -> dict[str, Any]:
+    """Ajoute la révocation N4 d'un contrat sans effacer les versions antérieures."""
+    acteur, refus = _acteur_humain(
+        _OUTIL_REVOQUER_CONTRAT_SALARIAL,
+        "une révocation de contrat salarial exige une validation humaine N4 de finance ou du propriétaire",
+        roles_approbateurs=_ROLES_N4_CONTRAT_SALARIAL,
+        personne_doit_porter=_ROLES_N4_CONTRAT_SALARIAL,
+    )
+    if acteur is None:
+        return _refus(refus)
+    if not isinstance(employee_person_id, str) or not _identite_employe_active(employee_person_id):
+        return _refus(validation.construire_verdict(
+            "REJ-SALAIRE-EMPLOYE-INVALIDE", detail="ID cible absent, inactif ou sans rôle OPSYS employee"
+        ))
+    journal = _registre_contrats_salaries()
+    if journal is None:
+        return _refus(validation.construire_verdict(
+            "REJ-SALAIRE-REGISTRE-INDISPONIBLE", detail="journal salarial durable non initialisé"
+        ))
+    signataire = _signataire_contrat_horaire(acteur)
+    if not signataire:
+        return _refus(validation.construire_verdict(
+            "REJ-SALAIRE-IDENTITE-REQUIS", detail="aucun rôle N4 humain finance/propriétaire confirmé"
+        ))
+    maillon, verdict = contrats_salaries_horaires.revoquer(
+        journal,
+        employee_person_id=employee_person_id,
+        contrat_id=contrat_id,
+        revision_attendue=revision_attendue,
+        ligne_id_attendue=ligne_id_attendue,
+        motif=motif,
+        approbateur=signataire,
+        horodatage=approbations._maintenant(),
+    )
+    if verdict is not None:
+        return _refus(verdict)
+    return {"accepte": True, "resultat": maillon}
+
+
+def lire_contrat_horaire(
+    employee_person_id: str, valide_du: str, valide_jusqu_au: str, fuseau: str,
+) -> dict[str, Any]:
+    """Lecture privée du taux courant; authentifie l'appelant et l'employé avant de lire le journal salarial."""
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return _refus(refus)
+    if acteur is None:
+        return _refus(validation.construire_verdict(
+            "REJ-SALAIRE-IDENTITE-REQUIS", detail="identité admin d'appareil ou propriétaire console requise"
+        ))
+    cnx = stockage.connexion_courante()
+    lecteur = identite.personne_active(cnx, acteur.personne) if cnx is not None else None
+    roles_privilegies = lecteur.roles if lecteur is not None else frozenset()
+    droit_admin_appareil = (
+        acteur.source == "appareil" and acteur.role == "admin"
+        and "admin" in roles_privilegies
+    )
+    droit_proprietaire_console = (
+        acteur.source == "console" and acteur.role == "nathan_owner"
+        and "nathan_owner" in roles_privilegies
+    )
+    if lecteur is None or not (droit_admin_appareil or droit_proprietaire_console):
+        return _refus(validation.construire_verdict(
+            "REJ-SALAIRE-ACCES-REFUSE",
+            detail="lecture réservée à admin appareil ou nathan_owner de source console, confirmés en base",
+        ))
+    if not isinstance(employee_person_id, str) or not _identite_employe_active(employee_person_id):
+        return _refus(validation.construire_verdict(
+            "REJ-SALAIRE-EMPLOYE-INVALIDE", detail="ID cible absent, inactif ou sans rôle OPSYS employee"
+        ))
+    journal = _registre_contrats_salaries()
+    if journal is None:
+        return _refus(validation.construire_verdict(
+            "REJ-SALAIRE-REGISTRE-INDISPONIBLE", detail="journal salarial durable non initialisé"
+        ))
+    contrat, verdict = contrats_salaries_horaires.lire(
+        journal,
+        employee_person_id=employee_person_id,
+        valide_du=valide_du,
+        valide_jusqu_au=valide_jusqu_au,
+        fuseau=fuseau,
+    )
+    if verdict is not None:
+        return _refus(verdict)
+    return {"accepte": True, "resultat": contrat}
+
+
+_ROLES_N4_ECHEANCIER_CONTRAT = frozenset({"finance", "nathan_owner"})
+_OUTIL_ECHEANCIER_CONTRAT = "m5_enregistrer_echeancier_contrat"
+_OUTIL_REVOQUER_ECHEANCIER_CONTRAT = "m5_revoquer_echeancier_contrat"
+
+
+def _signataire_echeancier_contrat(acteur: dict[str, str]) -> dict[str, str]:
+    """Enregistre le rôle N4 humain effectivement confirmé, jamais le rôle d'un argument."""
+    signataire = _signataire_contrat_horaire(acteur)
+    return signataire if signataire.get("role") in _ROLES_N4_ECHEANCIER_CONTRAT else {}
+
+
+def enregistrer_echeancier_contrat(
+    contrat_id: str,
+    devis_id: str,
+    prix_ht: str,
+    prix_ttc: str,
+    devise: str,
+    source_humaine: str,
+    date_source: str,
+    couverture_jusquau: str,
+    echeances: list[dict[str, str]],
+    revision_attendue: int,
+    ligne_id_attendue: str,
+    motif: str,
+) -> dict[str, Any]:
+    """Enregistre/révise un échéancier client après N4; n'écrit jamais au registre des mouvements."""
+    acteur, refus = _acteur_humain(
+        _OUTIL_ECHEANCIER_CONTRAT,
+        "un échéancier contractuel exige une validation N4 de finance ou du propriétaire",
+        roles_approbateurs=_ROLES_N4_ECHEANCIER_CONTRAT,
+        personne_doit_porter=_ROLES_N4_ECHEANCIER_CONTRAT,
+    )
+    if acteur is None:
+        return _refus(refus)
+    signataire = _signataire_echeancier_contrat(acteur)
+    if not signataire:
+        return _refus(validation.construire_verdict(
+            "REJ-CONTRAT-IDENTITE-REQUIS", detail="signataire N4 finance/propriétaire confirmé requis"
+        ))
+    journal = _registre_echeanciers_contrats()
+    if journal is None:
+        return _refus(validation.construire_verdict(
+            "REJ-CONTRAT-REGISTRE-INDISPONIBLE", detail="journal d'échéanciers durable non initialisé"
+        ))
+    devis_registre = list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_DEVIS_RECUS))
+    champs_devis = {"devis_id", "lead_id", "chantier_id", "lignes", "prix_total", "horodatage_acceptation"}
+    if any(not isinstance(devis, dict) or not champs_devis <= devis.keys() for devis in devis_registre):
+        return _refus(validation.construire_verdict(
+            "REJ-CONTRAT-DEVIS-INVALIDE", detail="la source devis reçue est mal formée"
+        ))
+    correspondants = [maillon for maillon in devis_registre
+                      if isinstance(maillon, dict) and maillon.get("devis_id") == devis_id]
+    if len(correspondants) != 1:
+        return _refus(validation.construire_verdict(
+            "REJ-CONTRAT-DEVIS-ABSENT", detail="un devis M3 accepté unique est requis"
+        ))
+    maillon, verdict = echeanciers_contrats.enregistrer(
+        journal,
+        devis=correspondants[0],
+        contrat_id=contrat_id,
+        devis_id=devis_id,
+        prix_ht=prix_ht,
+        prix_ttc=prix_ttc,
+        devise=devise,
+        source_humaine=source_humaine,
+        date_source=date_source,
+        couverture_jusquau=couverture_jusquau,
+        echeances=echeances,
+        revision_attendue=revision_attendue,
+        ligne_id_attendue=ligne_id_attendue,
+        motif=motif,
+        approbateur=signataire,
+        horodatage=approbations._maintenant(),
+    )
+    if verdict is not None:
+        return _refus(verdict)
+    return {"accepte": True, "resultat": maillon}
+
+
+def revoquer_echeancier_contrat(
+    contrat_id: str, devis_id: str, revision_attendue: int, ligne_id_attendue: str, motif: str,
+) -> dict[str, Any]:
+    """Révoque un échéancier par un nouveau maillon N4; l'historique demeure append-only."""
+    acteur, refus = _acteur_humain(
+        _OUTIL_REVOQUER_ECHEANCIER_CONTRAT,
+        "la révocation d'un échéancier exige une validation N4 de finance ou du propriétaire",
+        roles_approbateurs=_ROLES_N4_ECHEANCIER_CONTRAT,
+        personne_doit_porter=_ROLES_N4_ECHEANCIER_CONTRAT,
+    )
+    if acteur is None:
+        return _refus(refus)
+    signataire = _signataire_echeancier_contrat(acteur)
+    journal = _registre_echeanciers_contrats()
+    if journal is None:
+        return _refus(validation.construire_verdict(
+            "REJ-CONTRAT-REGISTRE-INDISPONIBLE", detail="journal d'échéanciers durable non initialisé"
+        ))
+    maillon, verdict = echeanciers_contrats.revoquer(
+        journal, contrat_id=contrat_id, devis_id=devis_id, revision_attendue=revision_attendue,
+        ligne_id_attendue=ligne_id_attendue, motif=motif, approbateur=signataire,
+        horodatage=approbations._maintenant(),
+    )
+    if verdict is not None:
+        return _refus(verdict)
+    return {"accepte": True, "resultat": maillon}
+
+
+def prevoir_tresorerie_contrats(aujourd_hui: str) -> dict[str, Any]:
+    """Prévision M5.8a: ajoute les seuls échéanciers humains rapprochés au forecast M5.7."""
+    appelante = contexte.identite_appelante()
+    if appelante is None:
+        return _refus(validation.construire_verdict(
+            "REJ-CONTRAT-ACCES-REFUSE", detail="lecture réservée au propriétaire confirmé via console",
+        ))
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return _refus(refus)
+    if acteur is None or acteur.source != "console" or acteur.role != "nathan_owner":
+        return _refus(validation.construire_verdict(
+            "REJ-CONTRAT-ACCES-REFUSE", detail="lecture réservée au propriétaire confirmé via console",
+        ))
+    vue, verdict = acces.resoudre_vue(acteur, None, None)
+    if verdict is not None:
+        return _refus(verdict)
+    if not vue["autorise_couts"]:
+        return _refus(validation.construire_verdict(
+            "REJ-CFO-COUTS-REQUIS", detail="la projection contractuelle contient des montants et exige le droit M5"
+        ))
+    configuration = _configuration_manifeste()
+    reglages, verdict = _reglages_prevision(aujourd_hui, None, None, 0, configuration)
+    if verdict is not None:
+        return _refus(verdict)
+    lectures = _lectures_finance(
+        _registre_mouvements(None), configuration,
+        validateur_snapshot=_valider_chaines_cfo,
+        inclure_echeanciers_contrats=True,
+    )
+    if lectures.get("verdict_chaine") is not None:
+        return _refus(lectures["verdict_chaine"])
+    journal = registre_module.Registre(maillons=lectures["maillons_echeanciers_contrats"])
+    etats, verdict = echeanciers_contrats.etats_courants(journal)
+    if verdict is not None:
+        return _refus(verdict)
+    horizon_fin = reglages["aujourd_hui"] + timedelta(days=7 * reglages["horizon"] - 1)
+    contrats = [etat for etat in etats.values() if etat.get("type_entree") == echeanciers_contrats.TYPE_ENREGISTRE]
+    flux_contrats, flux_inclus, sans_echeancier, incomplet, bloques = echeanciers_contrats.flux_prevision(
+        contrats, lectures["maillons_devis"], lectures["factures"], fin_horizon=horizon_fin,
+    )
+    cash, flux_base, seuil, verdict_seuil = _flux_connus_prevision(lectures, reglages)
+    resultat = prevision.assembler(
+        reglages["aujourd_hui"], reglages["horizon"], cash["solde"], [*flux_base, *flux_contrats],
+        seuil=seuil, verdict_seuil=verdict_seuil, cash_libre_resultat=cash,
+    )
+    page, verdict = prevision.vue_prevision(resultat, depart=0, budget_caracteres=BUDGET_SORTIE - 1200)
+    if verdict is not None:
+        return _refus(verdict)
+    bloc_contrats = {
+        "statut": "PARTIEL",
+        "couverture_incomplete": incomplet,
+        "echeances_rapprochees": flux_inclus,
+        "devis_sans_echeancier": sans_echeancier,
+        "bloques": bloques,
+        "limites": [
+            "M3 fournit un devis accepté, pas une preuve de contrat signé; seul le contrat déclaré et revu en N4 "
+            "est projeté",
+            "prix_total M3 est comparé comme HT; le TTC vient de la source contractuelle déclarée, aucune taxe "
+            "n'est calculée",
+            "une facture cliente active du même devis bloque tout l'échéancier pour éviter un double compte",
+            "PAYEE n'atteste pas un dépôt bancaire; seuls les mouvements du registre changent le solde",
+            "le registre M3 reçu n'est pas chaîné; le journal M5 d'échéanciers, lui, est vérifié avant projection",
+            "la prévision est hebdomadaire et n'expose pas un creux intrasemaine; probable et carnet non signé "
+            "restent absents",
+        ],
+    }
+    resultat_sortie = {"role": vue["role"], **page, "contrats": bloc_contrats}
+    if len(json.dumps(resultat_sortie, ensure_ascii=False, default=str)) > BUDGET_SORTIE:
+        return _refus(validation.construire_verdict(
+            "REJ-CONTRAT-PROJECTION-TROP-GROSSE",
+            detail="le rapport complet dépasserait le budget; aucune donnée tronquée",
+        ))
+    return {"accepte": True, "resultat": analyse.avec_mention(resultat_sortie)}
+
+
+def _refuser_source_brut(detail: str) -> dict[str, Any]:
+    return _refus(validation.construire_verdict("REJ-SALAIRE-STRUCTURE-INVALIDE", detail=detail))
+
+
+def _refuser_acces_brut() -> dict[str, Any]:
+    return _refus(validation.construire_verdict(
+        "REJ-SALAIRE-ACCES-REFUSE",
+        detail="le brouillon de brut est réservé au propriétaire confirmé via console",
+    ))
+
+
+def _sources_attendues_valides(sources: object) -> bool:
+    if sources is None:
+        return True
+    if not isinstance(sources, Mapping) or set(sources) != {"heures_m4", "contrat_m5"}:
+        return False
+    heures, contrat = sources.get("heures_m4"), sources.get("contrat_m5")
+    if not isinstance(heures, Mapping) or set(heures) != {"ligne_id", "revision", "empreinte_sources"}:
+        return False
+    if not isinstance(contrat, Mapping) or set(contrat) != {"contrat_id", "revision", "ligne_id"}:
+        return False
+    return (
+        _hash_source_valide(heures.get("ligne_id"))
+        and type(heures.get("revision")) is int and heures["revision"] >= 1
+        and _hash_source_valide(heures.get("empreinte_sources"))
+        and isinstance(contrat.get("contrat_id"), str) and bool(contrat["contrat_id"].strip())
+        and type(contrat.get("revision")) is int and contrat["revision"] >= 1
+        and _hash_source_valide(contrat.get("ligne_id"))
+    )
+
+
+def _hash_source_valide(valeur: object) -> bool:
+    return isinstance(valeur, str) and len(valeur) == 64 and all(c in "0123456789abcdef" for c in valeur)
+
+
+def _projection_heures_valide(
+    enveloppe: object, employee_person_id: str, debut: str, fin: str, fuseau: str,
+) -> dict[str, Any] | None:
+    if not isinstance(enveloppe, Mapping) or enveloppe.get("ok") is not True:
+        return None
+    resultat_outil = enveloppe.get("resultat")
+    if not isinstance(resultat_outil, Mapping) or resultat_outil.get("accepte") is not True:
+        return None
+    projection = resultat_outil.get("resultat")
+    champs = {
+        "technicien_id", "periode", "minutes_regulieres", "ligne_id", "revision", "empreinte_sources",
+        "couverture_complete", "classification_reguliere_confirmee",
+    }
+    if not isinstance(projection, Mapping) or set(projection) != champs:
+        return None
+    periode = projection.get("periode")
+    if not isinstance(periode, Mapping) or dict(periode) != {"debut": debut, "fin": fin, "fuseau": fuseau}:
+        return None
+    minutes = projection.get("minutes_regulieres")
+    minutes_max = brut_regulier.limite_minutes_regulieres(debut, fin, fuseau)
+    if (
+        projection.get("technicien_id") != employee_person_id
+        or type(minutes) is not int or minutes_max is None or not 0 <= minutes <= minutes_max
+        or not _hash_source_valide(projection.get("ligne_id"))
+        or type(projection.get("revision")) is not int or projection["revision"] < 1
+        or not _hash_source_valide(projection.get("empreinte_sources"))
+        or projection.get("couverture_complete") is not True
+        or projection.get("classification_reguliere_confirmee") is not True
+    ):
+        return None
+    return dict(projection)
+
+
+def preparer_brut_regulier(
+    employee_person_id: str,
+    debut: str,
+    fin: str,
+    fuseau: str,
+    politique_arrondi: str,
+    hypothese_arrondi: str,
+    sources_attendues: Mapping[str, Any] | None,
+    *,
+    lecteur_heures_m4: LecteurHeuresM4 | None,
+) -> dict[str, Any]:
+    """Produit un brouillon brut régulier calculé depuis M4 et le taux M5 courant; lecture seule."""
+    periode = brut_regulier.valider_periode(debut, fin, fuseau)
+    if periode is None:
+        return _refus(validation.construire_verdict(
+            "REJ-SALAIRE-PERIODE-INVALIDE", detail="dates inclusives ISO ordonnées et fuseau IANA requis",
+        ))
+    if not isinstance(employee_person_id, str) or not employee_person_id.strip():
+        return _refuser_source_brut("identifiant salarié OPSYS requis")
+    if not isinstance(hypothese_arrondi, str) or not 1 <= len(hypothese_arrondi.strip()) <= 300:
+        return _refuser_source_brut("hypothèse ou référence humaine d'arrondi requise (1 à 300 caractères)")
+    if politique_arrondi != brut_regulier.POLITIQUE_ARRONDI:
+        return _refuser_source_brut("une politique d'arrondi explicitement supportée est requise")
+    if not _sources_attendues_valides(sources_attendues):
+        return _refuser_source_brut(
+            "sources_attendues doit être null ou contenir les deux références M4 et M5 complètes"
+        )
+
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return _refus(refus)
+    if acteur is None:
+        return _refuser_acces_brut()
+    cnx = stockage.connexion_courante()
+    personne = identite.personne_active(cnx, acteur.personne) if cnx is not None else None
+    roles = personne.roles if personne is not None else frozenset()
+    droit_proprietaire_console = (
+        acteur.source == "console" and acteur.role == "nathan_owner" and "nathan_owner" in roles
+    )
+    if personne is None or not droit_proprietaire_console:
+        return _refuser_acces_brut()
+    if not _identite_employe_active(employee_person_id):
+        return _refus(validation.construire_verdict(
+            "REJ-SALAIRE-EMPLOYE-INVALIDE", detail="la cible doit être une personne OPSYS employee active",
+        ))
+    if lecteur_heures_m4 is None:
+        return _refuser_source_brut("lecteur M4 non raccordé ou contexte M4 absent")
+
+    journal = _registre_contrats_salaries()
+    if journal is None:
+        return _refus(validation.construire_verdict(
+            "REJ-SALAIRE-REGISTRE-INDISPONIBLE", detail="journal salarial durable non initialisé",
+        ))
+    contrat, verdict = contrats_salaries_horaires.lire(
+        journal, employee_person_id=employee_person_id, valide_du=debut, valide_jusqu_au=fin, fuseau=fuseau,
+    )
+    if verdict is not None:
+        return _refus(verdict)
+
+    projection = _projection_heures_valide(
+        lecteur_heures_m4(employee_person_id, debut, fin, fuseau), employee_person_id, debut, fin, fuseau,
+    )
+    if projection is None:
+        return _refuser_source_brut("projection M4 absente, refusée ou mal formée; aucun brut calculé")
+    references = {
+        "heures_m4": {
+            "ligne_id": projection["ligne_id"],
+            "revision": projection["revision"],
+            "empreinte_sources": projection["empreinte_sources"],
+        },
+        "contrat_m5": {
+            "contrat_id": contrat["contrat_id"],
+            "revision": contrat["revision"],
+            "ligne_id": contrat["ligne_id"],
+        },
+    }
+    if sources_attendues is not None and dict(sources_attendues) != references:
+        return _refus(validation.construire_verdict(
+            "REJ-SALAIRE-REVISION-PERIMEE",
+            detail="références M4/M5 modifiées; confirmer explicitement le nouveau snapshot",
+        ))
+    brut, verdict = brut_regulier.calculer_brut_regulier(
+        contrat["taux_horaire"], projection["minutes_regulieres"], politique_arrondi,
+    )
+    if verdict is not None:
+        return _refus(verdict)
+    sortie = analyse.avec_mention({
+        **brut,
+        "periode": {"debut": debut, "fin": fin, "fuseau": fuseau},
+        "sources": {
+            "heures_m4": references["heures_m4"],
+            "contrat_m5": {
+                **references["contrat_m5"],
+                "date_source": contrat["date_source"],
+                "source_humaine": contrat["source_humaine"],
+            },
+        },
+        "couverture_complete": projection["couverture_complete"],
+        "hypotheses": [{
+            "politique_arrondi": politique_arrondi,
+            "reference_humaine": hypothese_arrondi.strip(),
+            "verifiee": False,
+        }],
+        "manquants": [],
+        "non_calcules": ["retenues", "cotisations", "DAS", "paie_nette", "paiement"],
+        "requires_human_validation": True,
+        "official_action_blocked": True,
+    })
+    if len(json.dumps(sortie, ensure_ascii=False, separators=(",", ":"))) > BUDGET_SORTIE:
+        return _refuser_source_brut("sources et résultat dépassent le budget; aucun brut tronqué n'est présenté")
+    return {"accepte": True, "resultat": sortie}
+
+
+def _fonction_brut_regulier(lecteur_heures_m4: LecteurHeuresM4 | None) -> Callable[..., dict[str, Any]]:
+    def appeler(
+        employee_person_id: str,
+        debut: str,
+        fin: str,
+        fuseau: str,
+        politique_arrondi: str,
+        hypothese_arrondi: str,
+        sources_attendues: Mapping[str, Any] | None,
+    ) -> dict[str, Any]:
+        return preparer_brut_regulier(
+            employee_person_id,
+            debut,
+            fin,
+            fuseau,
+            politique_arrondi,
+            hypothese_arrondi,
+            sources_attendues,
+            lecteur_heures_m4=lecteur_heures_m4,
+        )
+
+    return appeler
 
 
 # ----------------------------------------------------------- cash libre réel et calendrier fiscal (T4.16)
@@ -1292,8 +1960,51 @@ def _calendrier_fiscal() -> tuple[dict[int, dict[str, Any]] | None, dict[str, An
     return calendrier, None
 
 
+def _verdict_chaine_financiere(nom: str, maillons: list[dict[str, Any]]) -> dict[str, str] | None:
+    """Valide la forme minimale des maillons puis leur empreinte, sans relire le registre."""
+    for rang, maillon in enumerate(maillons):
+        if not isinstance(maillon, dict):
+            return validation.construire_verdict(
+                "REJ-CFO-CHAINE-INVALIDE", detail=f"registre {nom}, rang {rang} : maillon non structuré"
+            )
+        champs_requis = {"ligne_id", "precedent_ligne_id", "type_entree", "horodatage"}
+        if maillon.get("type_entree") == "mouvement_enregistre":
+            champs_requis.update({"montant", "type_mouvement", "classe_retention", "source"})
+        absents = sorted(champs_requis.difference(maillon))
+        if absents:
+            return validation.construire_verdict(
+                "REJ-CFO-CHAINE-INVALIDE",
+                detail=f"registre {nom}, rang {rang} : champs de maillon absents ({', '.join(absents)})",
+            )
+    valide, detail = registre_module.Registre(maillons=maillons).valider_chaine()
+    if not valide:
+        return validation.construire_verdict("REJ-CFO-CHAINE-INVALIDE", detail=f"registre {nom} : {detail}")
+    return None
+
+
+def _valider_chaines_cfo(
+    maillons_mouvements: list[dict[str, Any]],
+    maillons_factures: list[dict[str, Any]],
+    maillons_a_payer: list[dict[str, Any]],
+) -> dict[str, str] | None:
+    """Contrôle les seules sources du dossier CFO à partir de leurs instantanés déjà capturés."""
+    for nom, maillons in (
+        ("principal", maillons_mouvements),
+        ("factures", maillons_factures),
+        ("comptes_a_payer", maillons_a_payer),
+    ):
+        verdict = _verdict_chaine_financiere(nom, maillons)
+        if verdict is not None:
+            return verdict
+    return None
+
+
 def _lectures_finance(
-    registre_mouvements: registre_module.Registre, configuration: dict[str, Any] | None = None
+    registre_mouvements: registre_module.Registre,
+    configuration: dict[str, Any] | None = None,
+    *,
+    validateur_snapshot: ValidateurSnapshotCfo | None = None,
+    inclure_echeanciers_contrats: bool = False,
 ) -> dict[str, Any]:
     """Tout ce que le cash libre (T4.16) et la prévision de trésorerie (T4.16-d) lisent, lu UNE fois : un instantané,
     donc des chiffres cohérents entre eux. Le registre des mouvements arrive déjà ouvert (la lecture seule de son
@@ -1307,13 +2018,41 @@ def _lectures_finance(
     declarees = declarees if isinstance(declarees, dict) else {}
 
     maillons_mouvements = registre_mouvements.lire()
+    maillons_factures = _registre_factures(None).lire()
+    maillons_a_payer = _registre_comptes_a_payer().lire()
+    if validateur_snapshot is not None:
+        verdict = validateur_snapshot(maillons_mouvements, maillons_factures, maillons_a_payer)
+        if verdict is not None:
+            return {"verdict_chaine": verdict}
+
+    maillons_devis = maillons_echeanciers = None
+    if inclure_echeanciers_contrats:
+        maillons_devis = list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_DEVIS_RECUS))
+        maillons_echeanciers = list(stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_ECHEANCIERS_CONTRATS))
+        verdict = _verdict_chaine_financiere(_NOM_REGISTRE_ECHEANCIERS_CONTRATS, maillons_echeanciers)
+        if verdict is not None:
+            return {"verdict_chaine": validation.construire_verdict(
+                "REJ-CONTRAT-CHAINE-INVALIDE", detail=verdict["detail"]
+            )}
+        champs_devis = {"devis_id", "lead_id", "chantier_id", "lignes", "prix_total", "horodatage_acceptation"}
+        if any(not isinstance(devis, dict) or not champs_devis <= devis.keys() for devis in maillons_devis):
+            return {"verdict_chaine": validation.construire_verdict(
+                "REJ-CONTRAT-DEVIS-INVALIDE", detail="un devis M3 reçu a une structure absente ou invalide"
+            )}
+        if any(not isinstance(devis["devis_id"], str) or not devis["devis_id"].strip() for devis in maillons_devis):
+            return {"verdict_chaine": validation.construire_verdict(
+                "REJ-CONTRAT-DEVIS-INVALIDE", detail="un devis M3 reçu porte un identifiant invalide"
+            )}
+        identifiants_devis = [devis["devis_id"] for devis in maillons_devis]
+        if len(identifiants_devis) != len(set(identifiants_devis)):
+            return {"verdict_chaine": validation.construire_verdict(
+                "REJ-CONTRAT-DEVIS-INVALIDE", detail="le registre M3 contient plusieurs événements pour un même devis"
+            )}
+
     mouvements = registre_module.Registre(maillons=maillons_mouvements)
     provisions, nombre_provisions, derniere_provision = soldes.calculer_provisions(mouvements)
-
-    maillons_factures = _registre_factures(None).lire()
     factures = registre_module.Registre(maillons=maillons_factures)
     envoyees = facturation.factures_par_statut(factures, "ENVOYEE")
-    maillons_a_payer = _registre_comptes_a_payer().lire()
     a_payer = registre_module.Registre(maillons=maillons_a_payer)
 
     fiscal = configuration.get("fiscal")
@@ -1333,18 +2072,32 @@ def _lectures_finance(
         resume, verdict_a_payer = comptes_a_payer.resume_a_payer(a_payer, dictionnaire_taux)
 
     return {
-        "fiscal": fiscal, "declarees": declarees,
-        "solde": soldes.calculer_solde(mouvements), "decrit": soldes.decrire_mouvements(mouvements),
+        "fiscal": fiscal,
+        "declarees": declarees,
+        "solde": soldes.calculer_solde(mouvements),
+        "decrit": soldes.decrire_mouvements(mouvements),
         "provisions": (provisions, nombre_provisions, derniere_provision),
-        "envoyees": envoyees, "clients": [*envoyees, *facturation.factures_par_statut(factures, "PAYEE")],
-        "fournisseurs": comptes_a_payer.factures_saisies(a_payer), "a_payer": a_payer,
-        "calendrier": calendrier, "verdict_calendrier": verdict_calendrier,
-        "remises": remises, "verdict_remise": verdict_remise,
-        "dictionnaire_taux": dictionnaire_taux, "resume": resume, "verdict_a_payer": verdict_a_payer,
+        "factures": factures,
+        "maillons_devis": maillons_devis,
+        "maillons_echeanciers_contrats": maillons_echeanciers,
+        "envoyees": envoyees,
+        "clients": [*envoyees, *facturation.factures_par_statut(factures, "PAYEE")],
+        "fournisseurs": comptes_a_payer.factures_saisies(a_payer),
+        "a_payer": a_payer,
+        "calendrier": calendrier,
+        "verdict_calendrier": verdict_calendrier,
+        "remises": remises,
+        "verdict_remise": verdict_remise,
+        "dictionnaire_taux": dictionnaire_taux,
+        "resume": resume,
+        "verdict_a_payer": verdict_a_payer,
         "registres_taxes": [
             cash_libre.registre_lu("factures", maillons_factures),
             cash_libre.registre_lu("comptes_a_payer", maillons_a_payer),
         ],
+        "maillons_mouvements": maillons_mouvements,
+        "maillons_factures": maillons_factures,
+        "maillons_a_payer": maillons_a_payer,
     }
 
 
@@ -1361,7 +2114,10 @@ def _resultat_cash_libre(lectures: dict[str, Any]) -> dict[str, Any]:
         cash_libre.composante_solde(lectures["solde"], lectures["decrit"]),
         [
             cash_libre.composante_taxes(
-                lectures["clients"], lectures["fournisseurs"], lectures["remises"], lectures["verdict_remise"],
+                lectures["clients"],
+                lectures["fournisseurs"],
+                lectures["remises"],
+                lectures["verdict_remise"],
                 lectures["registres_taxes"],
             ),
             cash_libre.composante_declaree("paies", declarees.get("paies")),
@@ -1398,10 +2154,24 @@ def _taxes_par_echeance(resultat: dict[str, Any]) -> None:
     remises = date.fromisoformat(resultat["taxes_remises_jusqu_au"])
     factures = registre_module.Registre(maillons=_registre_factures(None).lire())
     clients = [
-        *facturation.factures_par_statut(factures, "ENVOYEE"), *facturation.factures_par_statut(factures, "PAYEE"),
+        *facturation.factures_par_statut(factures, "ENVOYEE"),
+        *facturation.factures_par_statut(factures, "PAYEE"),
     ]
     a_payer = registre_module.Registre(maillons=_registre_comptes_a_payer().lire())
     fournisseurs = comptes_a_payer.factures_saisies(a_payer)
+    if not clients and not fournisseurs:
+        for echeance in resultat["echeances"]:
+            echeance["taxes_nettes"] = None
+            echeance["manque"] = [
+                validation.construire_verdict(
+                    "REJ-FISCAL-COUVERTURE-ABSENTE",
+                    detail=(
+                        "aucune pièce dans les registres clients et fournisseurs, et aucune attestation de couverture "
+                        "de la période : un zéro ne peut pas être confirmé"
+                    ),
+                )
+            ]
+        return
     for echeance in resultat["echeances"]:
         debut, fin = date.fromisoformat(echeance["periode_debut"]), date.fromisoformat(echeance["periode_fin"])
         taxes_nettes = cash_libre.calculer_taxes_nettes(
@@ -1409,11 +2179,20 @@ def _taxes_par_echeance(resultat: dict[str, Any]) -> None:
         )
         if taxes_nettes["illisibles"]:
             echeance["taxes_nettes"] = None
-            echeance["manque"] = [validation.construire_verdict(
-                "REJ-CASH-FACTURE-ILLISIBLE", detail=f"{len(taxes_nettes['illisibles'])} facture(s) illisible(s)"
-            )]
+            echeance["manque"] = [
+                validation.construire_verdict(
+                    "REJ-CASH-FACTURE-ILLISIBLE", detail=f"{len(taxes_nettes['illisibles'])} facture(s) illisible(s)"
+                )
+            ]
         else:
             echeance["taxes_nettes"] = cash_libre.vue_taxes_nettes(taxes_nettes)
+            echeance["taxes_nettes"]["couverture"] = {
+                "statut": "PARTIELLE",
+                "detail": (
+                    "les pièces admissibles aux registres sont les seules sources du calcul; aucune preuve ne confirme "
+                    "que les périodes et les registres sont complets"
+                ),
+            }
 
 
 def lire_echeances_fiscales(
@@ -1453,9 +2232,87 @@ def lire_echeances_fiscales(
     return {"accepte": True, "resultat": {"role": vue["role"], **resultat}}
 
 
+def lire_calendrier_obligations(
+    aujourd_hui: str,
+    limite: int | None = None,
+    role: str | None = None,
+    autorise_couts: bool | None = None,
+) -> dict[str, Any]:
+    """Calendrier préparatoire des échéances M5 documentées et du calendrier TPS/TVQ.
+
+    Les valeurs viennent des obligations déjà déclarées, des échéances explicites de prévision et des sources
+    annuelles que l'entreprise a déclarées. Données incomplètes restent des lignes visibles avec leur manque.
+    Une échéance passée signifie « à vérifier » : aucun paiement ni dépôt n'est inféré.
+    """
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return _refus(refus)
+    vue, verdict = acces.resoudre_vue(acteur, role, autorise_couts)
+    if verdict is not None:
+        return _refus(verdict)
+    configuration = _configuration_manifeste()
+    prevision_config = configuration.get("prevision")
+    prevision_config = prevision_config if isinstance(prevision_config, dict) else {}
+    try:
+        obligations = calendrier_obligations.lire_obligations_documentees(
+            aujourd_hui,
+            configuration.get("obligations_declarees"),
+            prevision_config.get("echeances_obligations"),
+            configuration.get("calendrier_obligations"),
+        )
+    except ValueError as exc:
+        return _refus(validation.construire_verdict("REJ-CALENDRIER-PREP-DATE-INVALIDE", detail=str(exc)))
+
+    taxes = lire_echeances_fiscales(aujourd_hui, limite=limite, role=vue["role"], autorise_couts=vue["autorise_couts"])
+    if taxes.get("accepte") is True:
+        calendrier_taxes: dict[str, Any] = {"statut": "DOCUMENTE_A_VALIDER", **taxes["resultat"]}
+    else:
+        verdict_taxes = taxes.get("verdict", {})
+        calendrier_taxes = {
+            "statut": "NON_CALCULABLE",
+            "manque": [verdict_taxes] if isinstance(verdict_taxes, dict) else [],
+        }
+
+    lignes = obligations["obligations"]
+    if not vue["autorise_couts"]:
+        for ligne in lignes:
+            ligne["montant"] = None
+            ligne["montant_utilisable"] = None
+            ligne["devise"] = None
+            ligne["manque"].append(
+                validation.construire_verdict(
+                    "REJ-AUTORISE-COUTS-REQUIS", detail="montants masqués selon le droit de l'appelant"
+                )
+            )
+    return {
+        "accepte": True,
+        "resultat": {
+            "role": vue["role"],
+            "type": "CALENDRIER_PREPARATOIRE_M5",
+            "aujourd_hui": obligations["aujourd_hui"],
+            "obligations": lignes,
+            "echeances_tps_tvq": calendrier_taxes,
+            "limites": [
+                *obligations["limites"],
+                "les échéances TPS/TVQ officielles sont versionnées et restent à valider par le CPA",
+            ],
+            "mention": analyse.MENTION_ANALYSE_PREPARATOIRE,
+        },
+    }
+
+
+def _mouvements_pour_decision_capital() -> registre_module.Registre:
+    """L'adaptateur unique du registre financier pour l'outil capital (lecture seule)."""
+    return _registre_mouvements(None)
+
+
 # --------------------------------------------------------------------- prévision de trésorerie (T4.16-d)
 def _reglages_prevision(
-    aujourd_hui: Any, horizon_semaines: Any, semaine: Any, depart: Any
+    aujourd_hui: Any,
+    horizon_semaines: Any,
+    semaine: Any,
+    depart: Any,
+    configuration: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """Ce que la prévision demande, avant de lire le moindre registre : `(réglages, None)` ou `(None, verdict)`.
 
@@ -1468,18 +2325,313 @@ def _reglages_prevision(
     jour, verdict = prevision.lire_jour(aujourd_hui)
     if verdict is not None:
         return None, verdict
-    configuration = _configuration_manifeste()
+    configuration = _configuration_manifeste() if configuration is None else configuration
     prevu, verdict = prevision.lire_reglages(configuration.get("prevision"))
     if verdict is not None:
         return None, verdict
     horizon, verdict = prevision.lire_horizon(
-        prevu.get("horizon_semaines") if horizon_semaines is None else horizon_semaines)
+        prevu.get("horizon_semaines") if horizon_semaines is None else horizon_semaines
+    )
     if verdict is not None:
         return None, verdict
     return {
-        "aujourd_hui": jour, "horizon": horizon, "semaine": semaine, "depart": 0 if depart is None else depart,
-        "configuration": configuration, "prevu": prevu,
+        "aujourd_hui": jour,
+        "horizon": horizon,
+        "semaine": semaine,
+        "depart": 0 if depart is None else depart,
+        "configuration": configuration,
+        "prevu": prevu,
     }, None
+
+
+def _projection_capital_non_calculable(horizon: Any, raison: str) -> dict[str, Any]:
+    return {
+        "statut": "NON_CALCULABLE",
+        "horizon_semaines": horizon,
+        "manque": [raison],
+        "flux_connus_inclus": [],
+        "flux_encaissements_non_comptes": [],
+        "options": {
+            nom: {
+                "statut": "NON_CALCULABLE",
+                "solde_fin": None,
+                "plus_bas": None,
+                "manque": [raison],
+                "flux_scenario": [],
+                "sorties_hors_horizon": {"nombre": 0, "total": "0.00", "non_chiffres": 0},
+            }
+            for nom in ("achat_comptant", "financement", "location")
+        },
+    }
+
+
+def _json_capital_tient_budget(rapport: dict[str, Any], role: str | None) -> bool:
+    return len(json.dumps({"role": role, **rapport}, ensure_ascii=False, default=str)) <= BUDGET_SORTIE
+
+
+def _ajouter_projection_scenarios_capital(
+    rapport: dict[str, Any],
+    sorties_scenarios: dict[str, list[dict[str, Any]] | None],
+    lectures: dict[str, Any],
+    configuration: dict[str, Any],
+    aujourd_hui: str,
+    cash: dict[str, Any],
+    role: str | None,
+) -> dict[str, Any] | None:
+    """Ajoute la projection au même snapshot; retourne un verdict si le rapport complet ne tient pas."""
+    reglages, verdict = _reglages_prevision(aujourd_hui, None, None, 0, configuration)
+    if verdict is not None:
+        code = verdict.get("code", "REJ-PREVISION-CONFIGURATION-INVALIDE")
+        rapport["projections_scenarios"] = _projection_capital_non_calculable(
+            None, f"configuration de prévision non disponible : {code}"
+        )
+    else:
+        cash_projection, flux_connus, _seuil, _verdict_seuil = _flux_connus_prevision(lectures, reglages)
+        projections = prevision.projeter_scenarios(
+            reglages["aujourd_hui"],
+            reglages["horizon"],
+            cash_projection["solde"],
+            flux_connus,
+            sorties_scenarios,
+        )
+        rapport["projections_scenarios"] = {
+            "statut": "CALCULE"
+            if all(option["statut"] == "CALCULE" for option in projections["options"].values())
+            else "PARTIEL",
+            "horizon_semaines": reglages["horizon"],
+            **projections,
+        }
+
+    rapport.pop("cash_libre_source", None)
+    rapport.pop("sources_a_valider", None)
+    rapport["cash_libre_composantes"] = [
+        {
+            "id": composante["id"],
+            "statut": composante["statut"],
+            "montant": composante["montant"],
+            "source": {
+                "de": composante["source"].get("de"),
+                "registres": composante["source"].get("registres", []),
+            },
+            "fraicheur": composante["fraicheur"],
+            "manque": composante["manque"],
+        }
+        for composante in rapport["cash_libre_composantes"]
+    ]
+    rapport["contexte_financier"]["cash_libre"] = {
+        "calculable": cash["calculable"],
+        "cash_libre": cash["cash_libre"],
+        "manque": cash["manque"],
+        "reserves": cash["reserves"],
+    }
+    rapport["contexte_financier"]["limite_flux"] = (
+        "Les soldes hypothétiques utilisent le solde du registre et les flux connus/datés du même snapshot; "
+        "les créances échues ou sans date ne sont pas comptées, et les obligations restent des déclarations saisies."
+    )
+    for cle in ("comptes_a_recevoir", "comptes_a_recevoir_manque", "comptes_a_payer", "devis_acceptes"):
+        rapport["contexte_financier"].pop(cle, None)
+
+    if _json_capital_tient_budget(rapport, role):
+        return None
+
+    rapport["projections_scenarios"] = _projection_capital_non_calculable(
+        rapport["projections_scenarios"].get("horizon_semaines"),
+        "provenance et scénarios dépassent le budget de sortie; aucun solde projeté n'est présenté",
+    )
+    if _json_capital_tient_budget(rapport, role):
+        return None
+    return validation.construire_verdict(
+        "REJ-PREVISION-REPONSE-TROP-GROSSE",
+        detail=(
+            "le rapport complet dépasse le budget après omission des soldes projetés; "
+            "aucune rubrique n'a été tronquée"
+        ),
+    )
+
+
+def _preparer_decision_capital_impl(
+    actif: str,
+    prix: str,
+    source_prix: str,
+    prix_valide_jusqua: str,
+    aujourd_hui: str,
+    offre_financement: dict[str, Any],
+    offre_location: dict[str, Any],
+    echeanciers_hypothetiques: dict[str, Any] | None = None,
+    role: str | None = None,
+    autorise_couts: bool | None = None,
+    *,
+    _agent_autorise: bool = False,
+) -> dict[str, Any]:
+    """Analyse préparatoire en lecture seule, à partir du même registre financier que l'état CFO."""
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return _refus(refus)
+    vue, verdict = (
+        ({"role": None, "autorise_couts": True}, None)
+        if _agent_autorise
+        else acces.resoudre_vue(acteur, role, autorise_couts)
+    )
+    if verdict is not None:
+        return _refus(verdict)
+    if not vue["autorise_couts"]:
+        return {"accepte": True, "resultat": analyse.avec_mention({"role": vue["role"], "montants_masques": True})}
+    sorties_scenarios, verdict_echeanciers = decision_capital.normaliser_echeanciers(
+        echeanciers_hypothetiques, prix, offre_financement, offre_location
+    )
+    if verdict_echeanciers is not None:
+        return _refus(verdict_echeanciers)
+    configuration = _configuration_manifeste()
+    lectures = _lectures_finance(
+        _mouvements_pour_decision_capital(),
+        configuration,
+        validateur_snapshot=_valider_chaines_cfo if _agent_autorise else None,
+    )
+    if _agent_autorise and lectures.get("verdict_chaine"):
+        return _refus(lectures["verdict_chaine"])
+    cash = _resultat_cash_libre(lectures)
+    snapshot = {
+        "calculable": cash["calculable"],
+        "cash_libre": cash["cash_libre"],
+        "manque": cash["manque"],
+        "sources": [c["source"]["description"] for c in [cash["solde"], *cash["composantes"]]],
+        "composantes": [
+            {
+                "id": c["id"],
+                "statut": c["statut"],
+                "montant": c["montant"],
+                "source": c["source"],
+                "fraicheur": c["fraicheur"],
+                "manque": c["manque"],
+            }
+            for c in [cash["solde"], *cash["composantes"]]
+        ],
+    }
+    resultat = decision_capital.preparer(
+        actif,
+        prix,
+        source_prix,
+        prix_valide_jusqua,
+        aujourd_hui,
+        snapshot,
+        offre_financement,
+        offre_location,
+    )
+    if not resultat["accepte"]:
+        return _refus(resultat["verdict"])
+    rapport = resultat["resultat"]
+
+    # Le rapport réutilise les mêmes registres canoniques que cash libre et comptes à recevoir.
+    # Il ne transforme pas un devis accepté en contrat légal ni un encaissement attendu en cash.
+    maillons_devis = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_DEVIS_RECUS)
+    montants_devis: list[Decimal] = []
+    manquants_devis: list[str] = []
+    for devis in maillons_devis:
+        try:
+            montant_devis = _vers_montant_decimal(str(devis.get("prix_total", "")))
+        except (ValueError, ArithmeticError):
+            manquants_devis.append("prix_total d'un devis accepté illisible")
+        else:
+            if not montant_devis.is_finite() or montant_devis < 0 or montant_devis.adjusted() > 11:
+                manquants_devis.append("prix_total d'un devis accepté hors domaine")
+            else:
+                montants_devis.append(montant_devis)
+    if len(montants_devis) != len(maillons_devis):
+        valeur_devis = None
+        statut_devis = "NON_CALCULABLE"
+    else:
+        valeur_devis = format(sum(montants_devis, Decimal("0")), ".2f")
+        statut_devis = "CALCULE"
+
+    comptes_a_recevoir, verdict_ar = facturation.comptes_a_recevoir(lectures["factures"], aujourd_hui)
+    ar_resume = (
+        None
+        if verdict_ar is not None
+        else {
+            "nombre": comptes_a_recevoir["nombre"],
+            "total_a_recevoir": format(comptes_a_recevoir["total_a_recevoir"], ".2f"),
+            "total_complet": comptes_a_recevoir["total_complet"],
+            "source": {
+                "registre": lectures["registres_taxes"][0],
+                "statut": "VERIFIE" if comptes_a_recevoir["total_complet"] else "PARTIEL_NON_CALCULABLE",
+            },
+            "illisibles": comptes_a_recevoir["illisibles"],
+        }
+    )
+    rapport["contexte_financier"] = {
+        "comptes_a_recevoir": ar_resume,
+        "comptes_a_recevoir_manque": verdict_ar,
+        "comptes_a_payer": next((c for c in snapshot["composantes"] if c["id"] == "comptes_a_payer"), None),
+        "devis_acceptes": {
+            "statut": statut_devis,
+            "nombre": len(maillons_devis),
+            "valeur_cad": valeur_devis,
+            "source": {"registre": _NOM_REGISTRE_DEVIS_RECUS, "statut": "EVENEMENTS_M3_RECUS"},
+            "manque": manquants_devis,
+            "limite": "Valeur de devis acceptés, sans échéancier contractuel ni prévision d'encaissement.",
+        },
+        "termes_contractuels_signes": {
+            "statut": "NON_DISPONIBLE",
+            "manque": ["contrat signé et échéancier de dépôts/jalons non présents dans les contrats M5 actuels"],
+        },
+        "provenance_des_offres": {
+            "statut": "REFERENCE_MANUELLE_NON_VERIFIEE",
+            "prix": source_prix,
+            "financement": offre_financement["source"],
+            "location": offre_location["source"],
+            "limite": "Références fournies par l'appelant; aucun document ni connecteur externe n'a été vérifié.",
+        },
+        "cash_libre": cash_libre.vue_cash_libre(cash),
+    }
+    if sorties_scenarios is not None:
+        verdict_budget = _ajouter_projection_scenarios_capital(
+            rapport, sorties_scenarios, lectures, configuration, aujourd_hui, cash, vue["role"]
+        )
+        if verdict_budget is not None:
+            return _refus(verdict_budget)
+    return {"accepte": True, "resultat": {"role": vue["role"], **rapport}}
+
+
+def preparer_decision_capital(
+    actif: str,
+    prix: str,
+    source_prix: str,
+    prix_valide_jusqua: str,
+    aujourd_hui: str,
+    offre_financement: dict[str, Any],
+    offre_location: dict[str, Any],
+    echeanciers_hypothetiques: dict[str, Any] | None = None,
+    role: str | None = None,
+    autorise_couts: bool | None = None,
+) -> dict[str, Any]:
+    arguments = contexte.arguments_ticket_agent_cfo() or {
+        "actif": actif,
+        "prix": prix,
+        "source_prix": source_prix,
+        "prix_valide_jusqua": prix_valide_jusqua,
+        "aujourd_hui": aujourd_hui,
+        "offre_financement": offre_financement,
+        "offre_location": offre_location,
+        **({"echeanciers_hypothetiques": echeanciers_hypothetiques} if echeanciers_hypothetiques is not None else {}),
+        **({"role": role} if role is not None else {}),
+        **({"autorise_couts": autorise_couts} if autorise_couts is not None else {}),
+    }
+    ticket = contexte.ticket_agent_cfo()
+    if ticket is None:
+        return _preparer_decision_capital_impl(**arguments)
+    from opsys import agent_cfo_grants
+
+    with stockage.transaction() as cnx:
+        agent_cfo_grants.consommer(
+            cnx,
+            ticket,
+            "m5_preparer_decision_capital",
+            arguments,
+            instance_id=agent_cfo_grants.instance_id(cnx),
+        )
+        return _preparer_decision_capital_impl(
+            **{**arguments, "role": None, "autorise_couts": True, "_agent_autorise": True}
+        )
 
 
 def _dettes_fournisseurs(lectures: dict[str, Any]) -> tuple[list[dict[str, Any]] | None, dict[str, Any] | None]:
@@ -1490,8 +2642,48 @@ def _dettes_fournisseurs(lectures: dict[str, Any]) -> tuple[list[dict[str, Any]]
     return comptes_a_payer.dettes_datables(lectures["a_payer"], lectures["dictionnaire_taux"])
 
 
+def _flux_connus_prevision(
+    lectures: dict[str, Any], reglages: dict[str, Any]
+) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, Any] | None, dict[str, Any] | None]:
+    """Monte les flux canoniques à partir d'un snapshot déjà lu, pour prévision et scénarios capital."""
+    cash = _resultat_cash_libre(lectures)
+    prevu = reglages["prevu"]
+    seuil, verdict_seuil = prevision.lire_seuil(prevu.get("seuil_alerte"))
+    delai_clients, verdict_clients = prevision.lire_delai(
+        prevu.get("delai_encaissement_clients_jours"),
+        "delai_encaissement_clients_jours",
+        "REJ-PREVISION-DELAI-CLIENTS-A-DECLARER",
+    )
+    delai_fournisseurs, verdict_fournisseurs = prevision.lire_delai(
+        prevu.get("delai_paiement_fournisseurs_jours"),
+        "delai_paiement_fournisseurs_jours",
+        "REJ-PREVISION-DELAI-FOURNISSEURS-A-DECLARER",
+    )
+    dettes, verdict_dettes = _dettes_fournisseurs(lectures)
+    flux = [
+        *prevision.flux_clients(lectures["envoyees"], delai_clients, verdict_clients),
+        *prevision.flux_fournisseurs(dettes, delai_fournisseurs, verdict_fournisseurs, verdict_dettes),
+        *prevision.flux_taxes(
+            lectures["clients"],
+            lectures["fournisseurs"],
+            lectures["calendrier"],
+            lectures["verdict_calendrier"],
+            lectures["fiscal"],
+            reglages["aujourd_hui"],
+        ),
+        *prevision.flux_obligations(
+            {c["id"]: c for c in cash["composantes"]},
+            prevision.lire_echeances_obligations(prevu.get("echeances_obligations")),
+        ),
+    ]
+    return cash, flux, seuil, verdict_seuil
+
+
 def _page_prevision(
-    registre_mouvements: registre_module.Registre, reglages: dict[str, Any]
+    registre_mouvements: registre_module.Registre,
+    reglages: dict[str, Any],
+    *,
+    lectures: dict[str, Any] | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """La prévision de trésorerie, en une page JSON sous `BUDGET_SORTIE` (jamais tronquée par le socle) : `(page,
     None)` ou `(None, verdict)`. Sans `semaine`, la série (page de semaines, `depart` en rang de semaine) ; avec, les
@@ -1502,33 +2694,22 @@ def _page_prevision(
     les paies, DAS et dettes déclarées. Ce que le propriétaire décide (`configuration.prevision` : seuil d'alerte,
     délais de paiement, date de sortie des obligations déclarées) est dit à `prevision.py`, qui date chaque flux, le
     place, additionne et dit ce qui manque : ici, rien n'est calculé."""
-    lectures = _lectures_finance(registre_mouvements, reglages["configuration"])
-    cash = _resultat_cash_libre(lectures)
-    prevu = reglages["prevu"]
-    seuil, verdict_seuil = prevision.lire_seuil(prevu.get("seuil_alerte"))
-    delai_clients, verdict_clients = prevision.lire_delai(
-        prevu.get("delai_encaissement_clients_jours"), "delai_encaissement_clients_jours",
-        "REJ-PREVISION-DELAI-CLIENTS-A-DECLARER")
-    delai_fournisseurs, verdict_fournisseurs = prevision.lire_delai(
-        prevu.get("delai_paiement_fournisseurs_jours"), "delai_paiement_fournisseurs_jours",
-        "REJ-PREVISION-DELAI-FOURNISSEURS-A-DECLARER")
-    dettes, verdict_dettes = _dettes_fournisseurs(lectures)
-    flux = [
-        *prevision.flux_clients(lectures["envoyees"], delai_clients, verdict_clients),
-        *prevision.flux_fournisseurs(dettes, delai_fournisseurs, verdict_fournisseurs, verdict_dettes),
-        *prevision.flux_taxes(
-            lectures["clients"], lectures["fournisseurs"], lectures["calendrier"], lectures["verdict_calendrier"],
-            lectures["fiscal"], reglages["aujourd_hui"]),
-        *prevision.flux_obligations(
-            {c["id"]: c for c in cash["composantes"]},
-            prevision.lire_echeances_obligations(prevu.get("echeances_obligations"))),
-    ]
+    if lectures is None:
+        lectures = _lectures_finance(registre_mouvements, reglages["configuration"])
+    cash, flux, seuil, verdict_seuil = _flux_connus_prevision(lectures, reglages)
     resultat = prevision.assembler(
-        reglages["aujourd_hui"], reglages["horizon"], cash["solde"], flux, seuil=seuil, verdict_seuil=verdict_seuil,
-        cash_libre_resultat=cash)
+        reglages["aujourd_hui"],
+        reglages["horizon"],
+        cash["solde"],
+        flux,
+        seuil=seuil,
+        verdict_seuil=verdict_seuil,
+        cash_libre_resultat=cash,
+    )
     if reglages["semaine"] is not None:
         return prevision.vue_semaine(
-            resultat, reglages["semaine"], depart=reglages["depart"], budget_caracteres=BUDGET_SORTIE)
+            resultat, reglages["semaine"], depart=reglages["depart"], budget_caracteres=BUDGET_SORTIE
+        )
     return prevision.vue_prevision(resultat, depart=reglages["depart"], budget_caracteres=BUDGET_SORTIE)
 
 
@@ -1571,6 +2752,149 @@ def prevoir_tresorerie(
     return {"accepte": True, "resultat": {"role": vue["role"], **page}}
 
 
+def _preparer_dossier_decision_cfo_impl(
+    aujourd_hui: str, question_posee: str, *, _agent_autorise: bool = False
+) -> dict[str, Any]:
+    """Compose le rapport M5.16 en lecture seule depuis les registres financiers capturés une fois."""
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return _refus(refus)
+    vue, verdict = (
+        ({"role": None, "autorise_couts": True}, None) if _agent_autorise else acces.resoudre_vue(acteur, None, None)
+    )
+    if verdict is not None:
+        return _refus(verdict)
+    if not vue["autorise_couts"]:
+        return _refus(
+            validation.construire_verdict(
+                "REJ-CFO-COUTS-REQUIS", detail="le rapport CFO contient des montants et exige le droit M5 actif"
+            )
+        )
+    if not isinstance(question_posee, str) or not 1 <= len(question_posee.strip()) <= 1000:
+        return _refus(
+            validation.construire_verdict("REJ-CFO-QUESTION-INVALIDE", detail="question_posee : 1 à 1000 caractères")
+        )
+    jour, verdict = prevision.lire_jour(aujourd_hui)
+    if verdict is not None:
+        return _refus(verdict)
+
+    configuration = _configuration_manifeste()
+    configuration_prevision = configuration.get("prevision")
+    configuration_prevision = configuration_prevision if isinstance(configuration_prevision, dict) else {}
+    try:
+        obligations_documentees = calendrier_obligations.lire_obligations_documentees(
+            jour.isoformat(),
+            configuration.get("obligations_declarees"),
+            configuration_prevision.get("echeances_obligations"),
+            configuration.get("calendrier_obligations"),
+        )
+    except ValueError as exc:
+        obligations_documentees = None
+        manques_obligations = [f"calendrier des obligations : {exc}"]
+    else:
+        manques_obligations = []
+    registre_mouvements = _mouvements_pour_decision_capital()
+    lectures = _lectures_finance(registre_mouvements, configuration, validateur_snapshot=_valider_chaines_cfo)
+    if verdict := lectures.get("verdict_chaine"):
+        return _refus(verdict)
+    cash = cash_libre.vue_cash_libre(_resultat_cash_libre(lectures))
+    ar, verdict_ar = facturation.comptes_a_recevoir(lectures["factures"], jour.isoformat())
+    ar_resume = None
+    manques_source: list[str] = list(manques_obligations)
+    if verdict_ar is not None:
+        manques_source.append(f"comptes à recevoir : {verdict_ar.get('code', 'source invalide')}")
+    elif ar is not None:
+        ar_resume = {
+            "nombre": ar["nombre"],
+            "total_a_recevoir_cad": format(ar["total_a_recevoir"], ".2f"),
+            "total_complet": ar["total_complet"],
+            "illisibles": len(ar["illisibles"]),
+        }
+        if ar["illisibles"]:
+            manques_source.append(f"{len(ar['illisibles'])} facture(s) envoyée(s) illisible(s)")
+
+    ap_resume = None
+    if lectures["resume"] is None:
+        verdict_ap = lectures["verdict_a_payer"] or {}
+        manques_source.append(f"comptes à payer : {verdict_ap.get('code', 'source invalide')}")
+    else:
+        resume = lectures["resume"]
+        ap_resume = {
+            "nombre_po": resume["nombre_po"],
+            "complet": resume["complet"],
+            "a_payer_apres_taxes_cad": (
+                format(resume["a_payer_apres_taxes"], ".2f") if resume["a_payer_apres_taxes"] is not None else None
+            ),
+            "a_payer_connu_apres_taxes_cad": format(resume["a_payer_connu_apres_taxes"], ".2f"),
+            "non_calculables": resume["non_calculables"],
+            "pieces": resume["pieces"],
+            "derniere_piece": resume["derniere_piece"],
+        }
+
+    reglages, verdict_reglages = _reglages_prevision(jour.isoformat(), 26, None, 0, configuration)
+    prevision_vue = None
+    if verdict_reglages is not None:
+        manques_source.append(f"prévision : {verdict_reglages.get('code', 'réglages invalides')}")
+    else:
+        prevision_vue, verdict_prevision = _page_prevision(registre_mouvements, reglages, lectures=lectures)
+        if verdict_prevision is not None:
+            manques_source.append(f"prévision : {verdict_prevision.get('code', 'non calculable')}")
+            prevision_vue = None
+
+    def ref(registre: str, maillons: list[dict[str, Any]]) -> dict[str, Any]:
+        return {
+            "departement": _DEPARTEMENT,
+            "registre": registre,
+            "taille": len(maillons),
+            "tete": maillons[-1].get("ligne_id") if maillons else None,
+        }
+
+    sources = [
+        ref("principal", lectures["maillons_mouvements"]),
+        ref("factures", lectures["maillons_factures"]),
+        ref("comptes_a_payer", lectures["maillons_a_payer"]),
+    ]
+    rapport = dossier_decision_cfo.composer(
+        question_posee=question_posee,
+        aujourd_hui=jour.isoformat(),
+        cash=cash,
+        comptes_a_recevoir=ar_resume,
+        comptes_a_payer=ap_resume,
+        prevision=prevision_vue,
+        source_refs=sources,
+        mention=analyse.MENTION_ANALYSE_PREPARATOIRE,
+        manques_source=manques_source,
+        configuration_id=dossier_decision_cfo.empreinte(configuration),
+        calendrier_obligations=obligations_documentees,
+    )
+    if len(json.dumps(rapport, ensure_ascii=False, default=str)) > BUDGET_SORTIE:
+        return _refus(
+            validation.construire_verdict(
+                "REJ-PREVISION-REPONSE-TROP-GROSSE",
+                detail="le rapport complet dépasse le budget; aucune rubrique n'a été tronquée",
+            )
+        )
+    return {"accepte": True, "resultat": rapport}
+
+
+def preparer_dossier_decision_cfo(aujourd_hui: str, question_posee: str) -> dict[str, Any]:
+    ticket = contexte.ticket_agent_cfo()
+    if ticket is None:
+        return _preparer_dossier_decision_cfo_impl(aujourd_hui, question_posee)
+    from opsys import agent_cfo_grants
+
+    arguments = contexte.arguments_ticket_agent_cfo() or {"aujourd_hui": aujourd_hui, "question_posee": question_posee}
+    with stockage.transaction() as cnx:
+        agent_cfo_grants.consommer(
+            cnx,
+            ticket,
+            "m5_preparer_dossier_decision_cfo",
+            arguments,
+            instance_id=agent_cfo_grants.instance_id(cnx),
+        )
+        return _preparer_dossier_decision_cfo_impl(aujourd_hui, question_posee, _agent_autorise=True)
+
+
 # ------------------------------------------------------------ constat du cash libre au bus (T4.19-b)
 def _constater_cash_libre(registre_mouvements: registre_module.Registre, jour: date) -> dict[str, Any]:
     """Calcule le cash libre, le trace et le publie : `{"deja_constate", "publie", "constat"}`. Écrit, donc jamais
@@ -1593,7 +2917,8 @@ def _constater_cash_libre(registre_mouvements: registre_module.Registre, jour: d
     rang = len(constats)
     dernier = constats[-1] if rang else None
     if dernier is not None and (dernier["date_reference"], dernier["version_donnees"]) == (
-        jour.isoformat(), resultat["cash_libre_id"]
+        jour.isoformat(),
+        resultat["cash_libre_id"],
     ):
         charge = constat_cash_libre.charge_evenement(resultat, jour, dernier["sequence"])
         resume = {**constat_cash_libre.resume(charge), "evenement_id": dernier["evenement_id"]}
@@ -1635,20 +2960,24 @@ def constater_cash_libre(
     if verdict is not None:
         return _refus(verdict)
     if not vue["autorise_couts"]:
-        return _refus(validation.construire_verdict(
-            "REJ-CONSTAT-COUTS-REQUIS",
-            detail="un constat du cash libre publie des montants : il exige le droit de voir les coûts "
-                   "(autorise_couts vrai)",
-        ))
+        return _refus(
+            validation.construire_verdict(
+                "REJ-CONSTAT-COUTS-REQUIS",
+                detail="un constat du cash libre publie des montants : il exige le droit de voir les coûts "
+                "(autorise_couts vrai)",
+            )
+        )
     jour, verdict = constat_cash_libre.lire_jour(aujourd_hui)
     if verdict is not None:
         return _refus(verdict)
     if not _stockage_durable_actif:
-        return _refus(validation.construire_verdict(
-            "REJ-CONSTAT-STOCKAGE-NON-DURABLE",
-            detail="le registre des mouvements n'est pas adossé au stockage durable : aucun registre réel à "
-                   "constater, aucun bus où publier",
-        ))
+        return _refus(
+            validation.construire_verdict(
+                "REJ-CONSTAT-STOCKAGE-NON-DURABLE",
+                detail="le registre des mouvements n'est pas adossé au stockage durable : aucun registre réel à "
+                "constater, aucun bus où publier",
+            )
+        )
     constat = _constater_cash_libre(_registre_mouvements(None), jour)
     return {"accepte": True, "resultat": analyse.avec_mention({"role": vue["role"], **constat})}
 
@@ -1797,34 +3126,40 @@ def attentes() -> list[dict[str, Any]]:
 
     items: list[dict[str, Any]] = []
     for attente in brut["attentes_devis"]:
-        items.append({
-            "type": f"facturation_{attente['statut']}",
-            "id": attente["devis_id"],
-            "resume": f"Devis {attente['devis_id']} : {attente['statut']}",
-            "niveau": "N3",
-            "depuis": _depuis_attente_devis(attente["devis_id"], attente["statut"], devis_registre, wct_registre),
-            "action_proposee": "compléter",
-        })
+        items.append(
+            {
+                "type": f"facturation_{attente['statut']}",
+                "id": attente["devis_id"],
+                "resume": f"Devis {attente['devis_id']} : {attente['statut']}",
+                "niveau": "N3",
+                "depuis": _depuis_attente_devis(attente["devis_id"], attente["statut"], devis_registre, wct_registre),
+                "action_proposee": "compléter",
+            }
+        )
     for attente in brut["attentes_wct_sans_devis_id"]:
         wct_recu = wct_recus.pour_wct_id(attente["wct_id"], wct_registre)
-        items.append({
-            "type": "wct_sans_devis_id",
-            "id": attente["wct_id"],
-            "resume": f"Intervention {attente['intervention_id']} sans devis relié (wct {attente['wct_id']})",
-            "niveau": "N3",
-            "depuis": wct_recu["horodatage_completion"],
-            "action_proposee": "relier un devis",
-        })
+        items.append(
+            {
+                "type": "wct_sans_devis_id",
+                "id": attente["wct_id"],
+                "resume": f"Intervention {attente['intervention_id']} sans devis relié (wct {attente['wct_id']})",
+                "niveau": "N3",
+                "depuis": wct_recu["horodatage_completion"],
+                "action_proposee": "relier un devis",
+            }
+        )
 
     for facture in _factures_brouillon():
-        items.append({
-            "type": "facture_brouillon",
-            "id": facture["facture_id"],
-            "resume": f"Facture {facture['facture_id']} prête à envoyer ({facture['montant_apres_taxes']} $)",
-            "niveau": "N4",
-            "depuis": facture["horodatage"],
-            "action_proposee": "envoyer",
-        })
+        items.append(
+            {
+                "type": "facture_brouillon",
+                "id": facture["facture_id"],
+                "resume": f"Facture {facture['facture_id']} prête à envoyer ({facture['montant_apres_taxes']} $)",
+                "niveau": "N4",
+                "depuis": facture["horodatage"],
+                "action_proposee": "envoyer",
+            }
+        )
         variance = _variance_critique_pour_facture(facture, wct_registre, variance_registre)
         if variance is not None:
             items.append(variance)
@@ -1889,14 +3224,19 @@ def lire_rentabilite_chantier(
 
     plafond = _LIMITE_LECTURE_DEFAUT if limite is None else limite
     if isinstance(plafond, bool) or not isinstance(plafond, int) or not 1 <= plafond <= _LIMITE_LECTURE_MAX:
-        return _refus(validation.construire_verdict(
-            "REJ-RENTABILITE-LIMITE-INVALIDE",
-            detail=f"limite doit être un entier de 1 à {_LIMITE_LECTURE_MAX}",
-        ))
+        return _refus(
+            validation.construire_verdict(
+                "REJ-RENTABILITE-LIMITE-INVALIDE",
+                detail=f"limite doit être un entier de 1 à {_LIMITE_LECTURE_MAX}",
+            )
+        )
     sources = _sources_cout_reel()
     filtre = devis_id is not None or chantier_id is not None
-    recus = list(dict.fromkeys(  # ordre de réception, sans doublon
-        m["devis_id"] for m in sources["devis"] if isinstance(m.get("devis_id"), str)))
+    recus = list(
+        dict.fromkeys(  # ordre de réception, sans doublon
+            m["devis_id"] for m in sources["devis"] if isinstance(m.get("devis_id"), str)
+        )
+    )
     etats = []
     for candidat in reversed(recus):  # le plus récemment reçu d'abord
         if devis_id is not None and candidat != devis_id:
@@ -1906,15 +3246,25 @@ def lire_rentabilite_chantier(
             continue
         etats.append(etat)
     if filtre and not etats:
-        return _refus(validation.construire_verdict(
-            "REJ-RENTABILITE-CHANTIER-INCONNU",
-            detail="aucun devis accepté reçu ne correspond à ce devis_id / chantier_id",
-        ))
+        return _refus(
+            validation.construire_verdict(
+                "REJ-RENTABILITE-CHANTIER-INCONNU",
+                detail="aucun devis accepté reçu ne correspond à ce devis_id / chantier_id",
+            )
+        )
     affiches = etats[:plafond]
-    return {"accepte": True, "resultat": analyse.avec_mention({
-        "role": vue["role"], "nombre": len(etats), "affichees": len(affiches), "reste": len(etats) - len(affiches),
-        "chantiers": [_vue_chantier(e, sources, vue["autorise_couts"], detail=filtre) for e in affiches],
-    })}
+    return {
+        "accepte": True,
+        "resultat": analyse.avec_mention(
+            {
+                "role": vue["role"],
+                "nombre": len(etats),
+                "affichees": len(affiches),
+                "reste": len(etats) - len(affiches),
+                "chantiers": [_vue_chantier(e, sources, vue["autorise_couts"], detail=filtre) for e in affiches],
+            }
+        ),
+    }
 
 
 def lire_comptes_a_recevoir(
@@ -1936,12 +3286,550 @@ def lire_comptes_a_recevoir(
     if verdict is not None:
         return _refus(verdict)
     if not vue["autorise_couts"]:
-        return {"accepte": True, "resultat": {
-            "role": vue["role"], "nombre": resultat["nombre"], "montants_masques": True}}
+        return {
+            "accepte": True,
+            "resultat": {"role": vue["role"], "nombre": resultat["nombre"], "montants_masques": True},
+        }
     return {"accepte": True, "resultat": {"role": vue["role"], **resultat}}
 
 
-def outils() -> tuple[Outil, ...]:
+def _charger_catalogue_sources_paie() -> Any:
+    """Charge la déclaration serveur; aucun document ou fournisseur n'est consulté à l'exécution."""
+    return yaml.safe_load(_CHEMIN_SOURCES_REGLES_PAIE.read_text(encoding="utf-8"))
+
+
+def lire_sources_regles_paie(
+    juridiction: str,
+    date_paie: str,
+    periode_debut: str,
+    periode_fin: str,
+    fuseau: str,
+    frequence: str,
+) -> dict[str, Any]:
+    """Expose l'état du catalogue de références, sans calculer ni certifier un résultat de paie."""
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return _refus(refus)
+    if acteur is None:
+        return _refus(validation.construire_verdict(
+            "REJ-PAIE-ACCES-REFUSE", detail="lecture réservée au propriétaire confirmé via console",
+        ))
+    cnx = stockage.connexion_courante()
+    personne = identite.personne_active(cnx, acteur.personne) if cnx is not None else None
+    roles = personne.roles if personne is not None else frozenset()
+    if (personne is None or acteur.source != "console" or acteur.role != "nathan_owner"
+            or "nathan_owner" not in roles):
+        return _refus(validation.construire_verdict(
+            "REJ-PAIE-ACCES-REFUSE", detail="lecture réservée au propriétaire confirmé via console",
+        ))
+    try:
+        catalogue = _charger_catalogue_sources_paie()
+    except (OSError, yaml.YAMLError) as exc:
+        return _refus(validation.construire_verdict(
+            "REJ-PAIE-CATALOGUE-INDISPONIBLE", detail=f"catalogue déclaré illisible ({type(exc).__name__})",
+        ))
+    resultat, verdict = sources_regles_paie.evaluer_sources(
+        catalogue,
+        racine=_CHEMIN_SOURCES_REGLES_PAIE.parent,
+        juridiction=juridiction,
+        date_paie=date_paie,
+        periode_debut=periode_debut,
+        periode_fin=periode_fin,
+        fuseau=fuseau,
+        frequence=frequence,
+    )
+    if verdict is not None:
+        return _refus(verdict)
+    return {"accepte": True, "resultat": resultat}
+
+
+_CHAMPS_MONTANTS_FISCAUX_INCONNUS = (
+    "impot_federal",
+    "impot_quebec",
+    "rrq_employe",
+    "rqap_employe",
+    "ae_employe",
+    "retenues_totales",
+    "net",
+    "rrq_employeur",
+    "rqap_employeur",
+    "fss",
+    "cnesst",
+    "das",
+)
+_CHAMPS_PAIE_MANQUANTS = (
+    {"id": "TP1015_3_CODE", "description": "Code de retenue et renseignements personnels du formulaire TP-1015.3."},
+    {"id": "TP1016", "description": "Réduction autorisée des retenues, si applicable."},
+    {"id": "TP1017", "description": "Retenue supplémentaire demandée, si applicable."},
+    {"id": "TD1", "description": "Crédits personnels fédéraux et état TD1 courant."},
+    {"id": "DONNEES_CUMUL_ANNUEL", "description": "Cumuls annuels par salarié pour RRQ, RQAP et AE."},
+    {
+        "id": "ASSIETTES_AVANTAGES",
+        "description": "Avantages imposables et assiettes applicables, à confirmer humainement.",
+    },
+    {"id": "EMPLOYEUR_FSS_CNESST", "description": "Paramètres employeur, FSS, CNESST et autres contributions."},
+    {"id": "DAS", "description": "Classe de remettant, fréquence et échéance de remise à confirmer."},
+)
+_LIENS_PAIE_OFFICIELS = (
+    {
+        "id": "webras",
+        "url": "https://www.revenuquebec.ca/fr/services-en-ligne/outils/webras-calculer-les-retenues-a-la-source/",
+        "usage": "Calcul humain des retenues à la source et cotisations; aucun appel automatisé par OPSYS.",
+    },
+    {
+        "id": "rq_tp1015",
+        "url": "https://www.revenuquebec.ca/fr/entreprises/retenues-a-la-source-et-cotisations-de-lemployeur/trousse-employeur/",
+        "usage": "Références Revenu Québec; les éditions et leur applicabilité restent à confirmer.",
+    },
+    {
+        "id": "cra_pdoc",
+        "url": "https://www.canada.ca/en/revenue-agency/services/e-services/digital-services-businesses/payroll-deductions-online-calculator.html",
+        "usage": "Calcul humain fédéral; aucun appel automatisé par OPSYS.",
+    },
+    {
+        "id": "cra_t4127",
+        "url": "https://www.canada.ca/en/revenue-agency/services/forms-publications/payroll/t4127-payroll-deductions-formulas.html",
+        "usage": "Référence fédérale; ne couvre pas à elle seule l'impôt provincial du Québec.",
+    },
+)
+
+
+def _frequence_webras(periodes_annuelles: int) -> str | None:
+    return {12: "mensuelle", 24: "bimensuelle", 26: "bihebdomadaire", 52: "hebdomadaire"}.get(periodes_annuelles)
+
+
+def preparer_dossier_webras(
+    employee_person_id: str,
+    debut: str,
+    fin: str,
+    fuseau: str,
+    politique_arrondi: str,
+    hypothese_arrondi: str,
+    sources_attendues: Mapping[str, Any] | None,
+    date_paie: str,
+    periodes_annuelles: int,
+    revenu_imposable_cad: str | None,
+    reference_revenu_imposable: str | None,
+    *,
+    lecteur_heures_m4: LecteurHeuresM4 | None,
+) -> dict[str, Any]:
+    """Prépare un paquet privé de calcul humain; aucune retenue ou paie nette n'est estimée."""
+    acteur, refus = _acteur_appareil()
+    if refus is not None:
+        return _refus(refus)
+    cnx = stockage.connexion_courante()
+    personne = identite.personne_active(cnx, acteur.personne) if cnx is not None and acteur is not None else None
+    if (
+        personne is None
+        or acteur is None
+        or acteur.source != "console"
+        or acteur.role != "nathan_owner"
+        or "nathan_owner" not in personne.roles
+    ):
+        return _refus(
+            validation.construire_verdict(
+                "REJ-PAIE-ACCES-REFUSE",
+                detail="dossier réservé au propriétaire confirmé via console",
+            )
+        )
+    if not isinstance(date_paie, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", date_paie):
+        return _refus(validation.construire_verdict("REJ-PAIE-DATE-INVALIDE", detail="date de paie ISO requise"))
+    try:
+        date_paie_iso = date.fromisoformat(date_paie)
+        fin_iso = date.fromisoformat(fin)
+    except (TypeError, ValueError):
+        return _refus(validation.construire_verdict("REJ-PAIE-DATE-INVALIDE", detail="date de paie ou fin invalide"))
+    if date_paie_iso.isoformat() != date_paie or date_paie_iso < fin_iso:
+        return _refus(
+            validation.construire_verdict(
+                "REJ-PAIE-DATE-INVALIDE",
+                detail="date de paie canonique requise, égale ou postérieure à la période",
+            )
+        )
+    frequence = _frequence_webras(periodes_annuelles) if type(periodes_annuelles) is int else None
+    if frequence is None:
+        return _refus(
+            validation.construire_verdict(
+                "REJ-PAIE-FREQUENCE-INVALIDE",
+                detail="périodes annuelles explicites requises: 12, 24, 26 ou 52",
+            )
+        )
+    if revenu_imposable_cad is not None:
+        if (
+            not isinstance(revenu_imposable_cad, str)
+            or not re.fullmatch(r"(?:0|[1-9][0-9]{0,8})\.[0-9]{2}", revenu_imposable_cad)
+            or not isinstance(reference_revenu_imposable, str)
+            or not 1 <= len(reference_revenu_imposable.strip()) <= 240
+        ):
+            return _refus(
+                validation.construire_verdict(
+                    "REJ-PAIE-ASSIETTE-INVALIDE",
+                    detail="montant déclaré en CAD au centime et référence humaine requis",
+                )
+            )
+        assiette_declaree: dict[str, Any] = {
+            "montant_cad": revenu_imposable_cad,
+            "reference_humaine": reference_revenu_imposable.strip(),
+            "rapprochee_au_brut_m5": False,
+            "qualification": "déclaration humaine; OPSYS ne la qualifie pas comme revenu imposable",
+        }
+    elif reference_revenu_imposable is not None:
+        return _refus(
+            validation.construire_verdict(
+                "REJ-PAIE-ASSIETTE-INVALIDE",
+                detail="une référence d'assiette sans montant déclaré est refusée",
+            )
+        )
+    else:
+        assiette_declaree = {
+            "montant_cad": "UNKNOWN",
+            "reference_humaine": None,
+            "qualification": "assiette imposable non fournie et non estimée",
+        }
+    if sources_attendues is None or not _sources_attendues_valides(sources_attendues):
+        return _refus(
+            validation.construire_verdict(
+                "REJ-PAIE-SNAPSHOT-REQUIS",
+                detail="les références M4 et M5 doivent être épinglées explicitement",
+            )
+        )
+    brut = _fonction_brut_regulier(lecteur_heures_m4)(
+        employee_person_id,
+        debut,
+        fin,
+        fuseau,
+        politique_arrondi,
+        hypothese_arrondi,
+        sources_attendues,
+    )
+    if brut.get("accepte") is not True:
+        return brut
+    connu = brut["resultat"]
+    catalogue = lire_sources_regles_paie("QC", date_paie, debut, fin, fuseau, frequence)
+    if catalogue.get("accepte") is not True:
+        return catalogue
+    source_catalogue = catalogue["resultat"]
+    dossier = analyse.avec_mention(
+        {
+            "schema": "opsys.dossier-webras-preparatoire/v1",
+            "portee": (
+                "Dossier d'aide à une saisie et un calcul humains dans les services officiels; aucune paie officielle."
+            ),
+            "known_info": {
+                "juridiction_declaree": "QC",
+                "employee_person_id": employee_person_id,
+                "periode": {"debut": debut, "fin": fin, "fuseau": fuseau, "bornes": "inclusives"},
+                "date_paie": date_paie,
+                "periodes_annuelles_declarees": periodes_annuelles,
+                "frequence_catalogue": frequence,
+                "brut_regulier_m5": {
+                    "montant_cad": connu.get("brut_brouillon", "UNKNOWN"),
+                    "minutes_regulieres": connu.get("minutes_regulieres"),
+                    "sources": connu.get("sources"),
+                    "politique_arrondi": connu.get("hypotheses"),
+                },
+                "revenu_imposable_declare": assiette_declaree,
+            },
+            "source_catalogue": {
+                "statut": source_catalogue["statut"],
+                "juridiction": source_catalogue["juridiction"],
+                "date_paie": source_catalogue["date_paie"],
+                "frequence": source_catalogue["frequence"],
+                "references_declarees": [
+                    {
+                        "id": reference["id"],
+                        "edition": reference["edition"],
+                        "effet": [reference["applicable_du"], reference["applicable_au"]],
+                        "statut": reference["statut_declare"],
+                        "sha256": reference["sha256_declare"],
+                    }
+                    for reference in source_catalogue["references_catalogue"]
+                ],
+                "sources_verifiees": source_catalogue["sources_verifiees"],
+                "manques": source_catalogue["manques"],
+                "couverture_catalogue": source_catalogue["couverture_catalogue"],
+            },
+            "liens_officiels": list(_LIENS_PAIE_OFFICIELS),
+            "champs_fiscaux_manquants": list(_CHAMPS_PAIE_MANQUANTS),
+            "montants_fiscaux": {champ: "UNKNOWN" for champ in _CHAMPS_MONTANTS_FISCAUX_INCONNUS},
+            "requires_human_calculation": True,
+            "actions_officielles_bloquees": True,
+            "do_not_treat_gross_as_taxable_income": True,
+        }
+    )
+    if len(json.dumps(dossier, ensure_ascii=False, separators=(",", ":"))) > BUDGET_SORTIE:
+        return _refus(
+            validation.construire_verdict(
+                "REJ-PAIE-DOSSIER-TROP-GROS",
+                detail="le dossier dépasse le budget de sortie; aucun contenu tronqué",
+            )
+        )
+    return {"accepte": True, "resultat": dossier}
+
+
+def _fonction_dossier_webras(lecteur_heures_m4: LecteurHeuresM4 | None) -> Callable[..., dict[str, Any]]:
+    def appeler(
+        employee_person_id: str,
+        debut: str,
+        fin: str,
+        fuseau: str,
+        politique_arrondi: str,
+        hypothese_arrondi: str,
+        sources_attendues: Mapping[str, Any] | None,
+        date_paie: str,
+        periodes_annuelles: int,
+        revenu_imposable_cad: str | None,
+        reference_revenu_imposable: str | None,
+    ) -> dict[str, Any]:
+        return preparer_dossier_webras(
+            employee_person_id,
+            debut,
+            fin,
+            fuseau,
+            politique_arrondi,
+            hypothese_arrondi,
+            sources_attendues,
+            date_paie,
+            periodes_annuelles,
+            revenu_imposable_cad,
+            reference_revenu_imposable,
+            lecteur_heures_m4=lecteur_heures_m4,
+        )
+
+    return appeler
+
+
+def _autorite_couts_marketing(nom: str | None = None) -> str:
+    cnx = stockage.connexion_courante()
+    if cnx is None:
+        raise couts_marketing.CoutErreur("TRANSACTION-REQUISE")
+    if cnx.dialect.name != "sqlite":
+        raise couts_marketing.CoutErreur("BACKEND-NON-PRIS-EN-CHARGE")
+    if nom is not None:
+        acteur = approbations.approbateur_en_cours(cnx, nom, _DEPARTEMENT, roles=frozenset({"nathan_owner"}))
+        demande_id = contexte.demande_approuvee_en_cours()
+        demande = approbations.lire(cnx, demande_id) if demande_id else None
+        if acteur is None or demande is None or demande["niveau"] != "N4":
+            raise couts_marketing.CoutErreur("OWNER-N4-REQUIS")
+        return acteur.personne
+    appelante = contexte.identite_appelante()
+    if appelante is None or appelante.source != "console" or appelante.role not in {"admin", "nathan_owner"}:
+        raise couts_marketing.CoutErreur("ACCES-REFUSE")
+    confirmee = approbations.signataire_valide(cnx, appelante)
+    if confirmee is None:
+        raise couts_marketing.CoutErreur("ACCES-REFUSE")
+    return confirmee.personne
+
+
+def _snapshot_couts_marketing(nom: str) -> list[dict]:
+    """SQL/octet/nœuds avant restauration ; seulement les deux registres M5 autorisés."""
+    import json
+    import math
+
+    from sqlalchemy import LargeBinary, cast, func, select
+
+    from opsys.stockage import codec
+    from opsys.stockage.schema import REGISTRES
+
+    if nom not in {_NOM_REGISTRE_COMPTES_A_PAYER, couts_marketing.REGISTRE}:
+        raise couts_marketing.CoutErreur("REGISTRE-INVALIDE")
+    cnx = stockage.connexion_courante()
+    if cnx is None or cnx.dialect.name != "sqlite":
+        raise couts_marketing.CoutErreur("BACKEND-NON-PRIS-EN-CHARGE")
+    filtre = (REGISTRES.c.departement == _DEPARTEMENT) & (REGISTRES.c.registre == nom)
+    octets = func.length(cast(REGISTRES.c.maillon, LargeBinary))
+    nombre, premier, dernier, total, maximum = cnx.execute(select(
+        func.count(), func.min(REGISTRES.c.rang), func.max(REGISTRES.c.rang),
+        func.coalesce(func.sum(octets), 0), func.coalesce(func.max(octets), 0),
+    ).where(filtre)).one()
+    if nombre > 10_000 or total > 8 * 1024 * 1024 or maximum > 64 * 1024:
+        raise couts_marketing.CoutErreur("BORNE-SOURCE")
+    if nombre and (premier != 0 or dernier != nombre - 1):
+        raise couts_marketing.CoutErreur("PREFIXE-INVALIDE")
+    lignes = cnx.execute(select(REGISTRES.c.rang, REGISTRES.c.maillon).where(filtre).order_by(
+        REGISTRES.c.rang).limit(10_001)).all()
+    if len(lignes) != nombre:
+        raise couts_marketing.CoutErreur("PREFIXE-INVALIDE")
+
+    def objet(paires):
+        resultat = {}
+        for cle, valeur in paires:
+            if cle in resultat:
+                raise ValueError("clé répétée")
+            resultat[cle] = valeur
+        return resultat
+
+    def constante(_valeur):
+        raise ValueError("nombre non fini")
+
+    captures = []
+    nombre_total = 0
+    try:
+        for rang, ligne in enumerate(lignes):
+            if ligne.rang != rang:
+                raise ValueError("rang discontinu")
+            brut = json.loads(ligne.maillon, parse_constant=constante, object_pairs_hook=objet)
+            pile, noeuds = [(brut, 0)], 0
+            while pile:
+                valeur, profondeur = pile.pop()
+                noeuds += 1
+                nombre_total += 1
+                if profondeur > 16 or noeuds > 2048 or nombre_total > 500_000:
+                    raise ValueError("borne JSON")
+                if isinstance(valeur, float) and not math.isfinite(valeur):
+                    raise ValueError("nombre non fini")
+                if isinstance(valeur, dict):
+                    pile.extend((v, profondeur + 1) for v in valeur.values())
+                elif isinstance(valeur, list):
+                    pile.extend((v, profondeur + 1) for v in valeur)
+            maillon = codec.decoder(ligne.maillon)
+            if not isinstance(maillon, dict):
+                raise ValueError("objet requis")
+            captures.append(maillon)
+        couts_marketing.snapshot(captures)
+    except (ArithmeticError, AttributeError, KeyError, TypeError, ValueError, RecursionError):
+        raise couts_marketing.CoutErreur("CHAINE-INVALIDE") from None
+    return captures
+
+
+def _campagne_couts_marketing(lecteur: Callable, campagne_id: str) -> dict:
+    import json
+
+    try:
+        reponse = lecteur(campagne_id)
+    except PermissionError:
+        raise couts_marketing.CoutErreur("ACCES-REFUSE") from None
+    try:
+        if len(json.dumps(reponse, ensure_ascii=False, allow_nan=False).encode("utf-8")) > 32 * 1024:
+            raise ValueError
+        if reponse.get("ok") is not True:
+            raise ValueError
+        charge = reponse["resultat"]
+        if charge.get("statut") != "ok":
+            raise ValueError
+        source = couts_marketing.campagne_valide(charge["source_couts"])
+        if source["campagne_id"] != campagne_id:
+            raise ValueError
+        return source
+    except (ArithmeticError, AttributeError, KeyError, TypeError, ValueError, RecursionError):
+        raise couts_marketing.CoutErreur("CAMPAGNE-INVALIDE") from None
+
+
+def _borner_couts_marketing(resultat: dict) -> dict:
+    import json
+
+    while len(json.dumps(resultat, ensure_ascii=False, allow_nan=False).encode("utf-8")) > 31 * 1024:
+        candidats = [(len(resultat[cle]), cle, page) for cle, page in (
+            ("affectations", "pagination"), ("pieces_eligibles", "pagination_pieces"),
+        ) if len(resultat[cle]) > 1]
+        if not candidats:
+            raise couts_marketing.CoutErreur("BORNE-SORTIE")
+        _taille, cle, page = max(candidats)
+        resultat[cle].pop()
+        pagination = resultat[page]
+        pagination["affichees"] -= 1
+        pagination["reste"] += 1
+        pagination["suivant"] = pagination["offset"] + pagination["affichees"]
+    return resultat
+
+
+def _outils_couts_marketing(lecteur: Callable) -> tuple[Outil, ...]:
+    """Projection privée uniquement ; ces noms n'entrent jamais dans le catalogue MCP par défaut."""
+    import uuid
+    from datetime import UTC, datetime
+
+    ident = {"type": "string", "minLength": 1, "maxLength": 128}
+    fp = {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    entier = {"type": "integer", "minimum": 0}
+    tete = {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+
+    def objet(champs, requis=None):
+        return {"type": "object", "properties": champs, "required": list(champs) if requis is None else requis,
+                "additionalProperties": False}
+
+    snap = objet({"nombre": entier, "tete": tete})
+    ref_campagne = objet({"revision": {"type": "integer", "minimum": 1}, "empreinte": fp})
+    sources = objet({"ap": objet({"nombre": entier, "tete": tete, "etat_sha256": fp}),
+                     "campagne": ref_campagne,
+                     "affectations": objet({"nombre": entier, "tete": tete, "version": entier})})
+    dates = {"debut": {"type": "string", "format": "date"}, "fin": {"type": "string", "format": "date"}}
+    motif = {"type": "string", "minLength": 1, "maxLength": 300}
+
+    def lire(campagne_id, debut, fin, offset_affectations=0, offset_pieces=0, snapshot_attendu=None):
+        _autorite_couts_marketing()
+        ap_maillons = _snapshot_couts_marketing(_NOM_REGISTRE_COMPTES_A_PAYER)
+        parts = _snapshot_couts_marketing(couts_marketing.REGISTRE)
+        campagne = _campagne_couts_marketing(lecteur, campagne_id)
+        resultat = couts_marketing.projeter(ap_maillons, parts, campagne, debut=debut, fin=fin,
+                                           offset_affectations=offset_affectations, offset_pieces=offset_pieces,
+                                           snapshot_attendu=snapshot_attendu)
+        resultat["lue_le"] = datetime.now(UTC).isoformat()
+        resultat = _borner_couts_marketing(resultat)
+        if campagne != _campagne_couts_marketing(lecteur, campagne_id):
+            raise couts_marketing.CoutErreur("SNAPSHOT-PERIME")
+        for nom, avant in ((_NOM_REGISTRE_COMPTES_A_PAYER, ap_maillons), (couts_marketing.REGISTRE, parts)):
+            if avant != _snapshot_couts_marketing(nom):
+                raise couts_marketing.CoutErreur("SNAPSHOT-PERIME")
+        _autorite_couts_marketing()
+        return {"accepte": True, "resultat": resultat}
+
+    def muter(nom, arguments):
+        auteur = _autorite_couts_marketing(nom)
+        ap_maillons = _snapshot_couts_marketing(_NOM_REGISTRE_COMPTES_A_PAYER)
+        parts = _snapshot_couts_marketing(couts_marketing.REGISTRE)
+        couts_marketing.etats_ap(ap_maillons)
+        maintenant = datetime.now(UTC).isoformat()
+        campagne = None
+        if nom == "m5_affecter_cout_marketing":
+            campagne = _campagne_couts_marketing(lecteur, arguments["campagne_id"])
+            corps = couts_marketing.preparer_affectation(
+                ap_maillons, parts, campagne, arguments, auteur=auteur, horodatage=maintenant,
+                nouvel_id="cout-" + uuid.uuid4().hex,
+            )
+            if campagne != _campagne_couts_marketing(lecteur, arguments["campagne_id"]):
+                raise couts_marketing.CoutErreur("SNAPSHOT-PERIME")
+        else:
+            corps = couts_marketing.preparer_retrait(
+                parts, arguments["affectation_id"], arguments["version_attendue"], arguments["snapshot_attendu"],
+                arguments["motif"], auteur=auteur, horodatage=maintenant,
+            )
+        for registre_nom, avant in ((_NOM_REGISTRE_COMPTES_A_PAYER, ap_maillons), (couts_marketing.REGISTRE, parts)):
+            if avant != _snapshot_couts_marketing(registre_nom):
+                raise couts_marketing.CoutErreur("SNAPSHOT-PERIME")
+        if _autorite_couts_marketing(nom) != auteur:
+            raise couts_marketing.CoutErreur("ACCES-REFUSE")
+        precedent = parts[-1]["ligne_id"] if parts else None
+        maillon = {**corps, "precedent_ligne_id": precedent,
+                   "ligne_id": couts_marketing.encodage.empreinte(corps, precedent)}
+        stockage.maillons(_DEPARTEMENT, couts_marketing.REGISTRE).append(maillon, rang_attendu=len(parts))
+        _autorite_couts_marketing(nom)
+        return {"accepte": True, "resultat": {"affectation": corps}}
+
+    champs = {"facture_fournisseur_id": ident, "campagne_id": ident, **dates, "devise": {"enum": ["CAD"]},
+              "base": {"enum": ["HT", "TTC"]}, "montant_alloue_cad": {"type": "string", "maxLength": 15},
+              "motif": motif, "sources_attendues": sources}
+    schema = objet({**champs, "affectation_id": ident}, list(champs))
+    schema_retrait = objet({"affectation_id": ident, "version_attendue": {"type": "integer", "minimum": 1},
+                           "snapshot_attendu": snap, "motif": motif})
+    schema_lire = objet({"campagne_id": ident, **dates, "offset_affectations": entier, "offset_pieces": entier,
+                        "snapshot_attendu": {"type": ["object", "null"], "properties": {
+                            "ap": snap, "affectations": snap, "campagne": ref_campagne,
+                        }, "required": ["ap", "affectations", "campagne"], "additionalProperties": False}},
+                       ["campagne_id", "debut", "fin"])
+    return (
+        Outil("m5_affecter_cout_marketing", "Affectation analytique humaine AP sans PO à campagne locale, CAD déclaré; "
+              "N4 propriétaire réel, sans paiement ou ROI. Port privé console seulement.", schema,
+              lambda **args: muter("m5_affecter_cout_marketing", args), Autonomie.T2, niveau=Niveau.N4),
+        Outil("m5_revoquer_affectation_cout_marketing", "Retire une répartition humaine avec CAS; aucune pièce AP "
+              "supprimée, aucun paiement. N4 propriétaire réel, port privé console seulement.", schema_retrait,
+              lambda **args: muter("m5_revoquer_affectation_cout_marketing", args), Autonomie.T2, niveau=Niveau.N4),
+        Outil("m5_lire_couts_marketing_affectes", "Projection privée AP/affectations vérifiées, bases séparées, "
+              "paiements/ROI/exhaustivité inconnus; identité admin/propriétaire DB console.", schema_lire, lire),
+    )
+
+
+def outils(*, lecteur_heures_m4: LecteurHeuresM4 | None = None,
+           lecteur_campagne_m7: Callable | None = None) -> tuple[Outil, ...]:
     return (
         Outil(
             nom="m5_etat_tresorerie",
@@ -2095,7 +3983,9 @@ def outils() -> tuple[Outil, ...]:
                     "chantier_id": {"type": ["string", "null"], "description": "Filtre : lire ce chantier."},
                     "devis_id": {"type": ["string", "null"], "description": "Filtre : lire ce devis."},
                     "limite": {
-                        "type": ["integer", "null"], "minimum": 1, "maximum": _LIMITE_LECTURE_MAX,
+                        "type": ["integer", "null"],
+                        "minimum": 1,
+                        "maximum": _LIMITE_LECTURE_MAX,
                         "description": (
                             f"Nombre de devis rendus, du plus récent au plus ancien (défaut {_LIMITE_LECTURE_DEFAUT}, "
                             f"au plus {_LIMITE_LECTURE_MAX}) ; `reste` dit ce qui n'est pas affiché."
@@ -2155,14 +4045,15 @@ def outils() -> tuple[Outil, ...]:
                 "properties": {
                     "po_id": {"type": "string", "description": "Bon de commande de M6 déjà reçu, au moins en partie."},
                     "fournisseur_id": {
-                        "type": "string", "description": "Fournisseur imprimé sur la facture : celui du PO.",
+                        "type": "string",
+                        "description": "Fournisseur imprimé sur la facture : celui du PO.",
                     },
                     "numero_facture": {"type": "string", "description": "Numéro TEL QU'IMPRIMÉ sur la facture."},
                     "date_facture": {"type": "string", "description": "AAAA-MM-JJ, telle qu'imprimée sur la facture."},
                     "montant_avant_taxes": {
                         "type": "string",
                         "description": (
-                            "Total avant taxes de la facture, texte décimal à 2 décimales au plus, ex. \"1234.50\"."
+                            'Total avant taxes de la facture, texte décimal à 2 décimales au plus, ex. "1234.50".'
                         ),
                     },
                     "total_facture": {
@@ -2176,7 +4067,12 @@ def outils() -> tuple[Outil, ...]:
                     "horodatage": {"type": "string", "description": "ISO 8601 avec fuseau, moment de la saisie."},
                 },
                 "required": [
-                    "po_id", "fournisseur_id", "numero_facture", "date_facture", "montant_avant_taxes", "total_facture",
+                    "po_id",
+                    "fournisseur_id",
+                    "numero_facture",
+                    "date_facture",
+                    "montant_avant_taxes",
+                    "total_facture",
                     "horodatage",
                 ],
                 "additionalProperties": False,
@@ -2214,7 +4110,7 @@ def outils() -> tuple[Outil, ...]:
                     "date_facture": {"type": "string", "description": "AAAA-MM-JJ, telle qu'imprimée sur la facture."},
                     "montant_avant_taxes": {
                         "type": "string",
-                        "description": "Total avant taxes, texte décimal à 2 décimales au plus, ex. \"84.50\".",
+                        "description": 'Total avant taxes, texte décimal à 2 décimales au plus, ex. "84.50".',
                     },
                     "total_facture": {
                         "type": ["string", "null"],
@@ -2226,8 +4122,13 @@ def outils() -> tuple[Outil, ...]:
                     "horodatage": {"type": "string", "description": "ISO 8601 avec fuseau, moment de la saisie."},
                 },
                 "required": [
-                    "fournisseur_id", "categorie", "numero_facture", "date_facture", "montant_avant_taxes",
-                    "total_facture", "horodatage",
+                    "fournisseur_id",
+                    "categorie",
+                    "numero_facture",
+                    "date_facture",
+                    "montant_avant_taxes",
+                    "total_facture",
+                    "horodatage",
                 ],
                 "additionalProperties": False,
             },
@@ -2252,12 +4153,14 @@ def outils() -> tuple[Outil, ...]:
                 "type": "object",
                 "properties": {
                     "facture_fournisseur_id": {
-                        "type": "string", "description": "Identifiant lu dans les comptes à payer (apf-...).",
+                        "type": "string",
+                        "description": "Identifiant lu dans les comptes à payer (apf-...).",
                     },
                     "motif": {"type": "string", "description": "Pourquoi : une ligne, 300 caractères au plus."},
                     "numero_facture": {"type": ["string", "null"], "description": "Nouveau numéro ; nul : inchangé."},
                     "date_facture": {
-                        "type": ["string", "null"], "description": "Nouvelle date AAAA-MM-JJ ; nul : inchangée.",
+                        "type": ["string", "null"],
+                        "description": "Nouvelle date AAAA-MM-JJ ; nul : inchangée.",
                     },
                     "montant_avant_taxes": {
                         "type": ["string", "null"],
@@ -2270,8 +4173,13 @@ def outils() -> tuple[Outil, ...]:
                     "horodatage": {"type": "string", "description": "ISO 8601 avec fuseau, moment de la correction."},
                 },
                 "required": [
-                    "facture_fournisseur_id", "motif", "numero_facture", "date_facture", "montant_avant_taxes",
-                    "total_facture", "horodatage",
+                    "facture_fournisseur_id",
+                    "motif",
+                    "numero_facture",
+                    "date_facture",
+                    "montant_avant_taxes",
+                    "total_facture",
+                    "horodatage",
                 ],
                 "additionalProperties": False,
             },
@@ -2297,7 +4205,8 @@ def outils() -> tuple[Outil, ...]:
                 "type": "object",
                 "properties": {
                     "facture_fournisseur_id": {
-                        "type": "string", "description": "Identifiant lu dans les comptes à payer (apf-...).",
+                        "type": "string",
+                        "description": "Identifiant lu dans les comptes à payer (apf-...).",
                     },
                     "motif": {"type": "string", "description": "Pourquoi : une ligne, 300 caractères au plus."},
                     "horodatage": {"type": "string", "description": "ISO 8601 avec fuseau, moment de l'annulation."},
@@ -2335,7 +4244,8 @@ def outils() -> tuple[Outil, ...]:
                 "properties": {
                     "po_id": {"type": ["string", "null"], "description": "Filtre : le détail de ce PO seulement."},
                     "depart": {
-                        "type": ["integer", "null"], "minimum": 0,
+                        "type": ["integer", "null"],
+                        "minimum": 0,
                         "description": (
                             "Rang du premier PO (ou de la première facture) rendu (0 par défaut) ; reprendre à "
                             "prochain_depart."
@@ -2374,7 +4284,9 @@ def outils() -> tuple[Outil, ...]:
                         "description": "Jour de référence, AAAA-MM-JJ (jamais deviné : M5 n'a pas d'horloge).",
                     },
                     "limite": {
-                        "type": ["integer", "null"], "minimum": 1, "maximum": 12,
+                        "type": ["integer", "null"],
+                        "minimum": 1,
+                        "maximum": 12,
                         "description": "Nombre maximal d'échéances rendues (4 par défaut, 12 au plus).",
                     },
                     "role": _ROLE_DE_LECTURE,
@@ -2384,6 +4296,142 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=lire_echeances_fiscales,
+            autonomie=Autonomie.T0,
+            roles_appareil=_ROLES_APPAREIL_FINANCE,
+        ),
+        Outil(
+            nom="m5_lire_calendrier_obligations",
+            description=(
+                "Calendrier préparatoire M5 : TPS/TVQ officielles et obligations déclarées de paie, DAS et dettes. "
+                "Pour chaque obligation, expose l'autorité, la période, la date d'échéance, le montant connu ou le "
+                "manque, la source du montant et de la date, l'année et la version si elles sont déclarées. Une source "
+                "plus ancienne que le début de sa période est marquée périmée et son montant n'est pas utilisable. "
+                "Un délai passé est à vérifier : aucun paiement/dépôt n'est présumé. Sans métadonnées, affiche "
+                "la ligne "
+                "incomplète; aucune date, autorité, période ou règle n'est inférée. Aucune formule de paie, remise, "
+                "déclaration, transmission, écriture ou paiement. Lecture seule, analyse préparatoire. "
+                "Même règle d'accès que m5_etat_tresorerie : admin seulement ; autorise_couts peut restreindre."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "aujourd_hui": {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Jour de référence AAAA-MM-JJ, fourni par la plateforme; jamais deviné par M5.",
+                    },
+                    "limite": {
+                        "type": ["integer", "null"],
+                        "minimum": 1,
+                        "maximum": 12,
+                        "description": "Nombre maximal d'échéances TPS/TVQ rendues (4 par défaut, 12 au plus).",
+                    },
+                    "role": _ROLE_DE_LECTURE,
+                    "autorise_couts": _AUTORISE_COUTS_DE_LECTURE,
+                },
+                "required": ["aujourd_hui"],
+                "additionalProperties": False,
+            },
+            fonction=lire_calendrier_obligations,
+            autonomie=Autonomie.T0,
+            roles_appareil=_ROLES_APPAREIL_FINANCE,
+        ),
+        Outil(
+            nom="m5_preparer_decision_capital",
+            description=(
+                "Prépare une comparaison indicative comptant, financement et location pour un camion ou équipement. "
+                "Si des échéanciers hypothétiques datés sont fournis, projette leurs sorties sur les flux connus "
+                "du même "
+                "snapshot M5 (maximum huit sorties par option); une option sans échéancier reste incomplète. "
+                "Lit le cash libre réel depuis les registres M5, qui incluent AR, AP, taxes, paie, dettes et réserves; "
+                "refuse si une composante manque. Le prix et les conditions doivent provenir d'offres identifiées et "
+                "datées; aucun taux, frais, avantage fiscal ou valeur résiduelle n'est inventé. Analyse préparatoire "
+                "avec questions CPA. Lecture seule : recommande de demander une approbation humaine; ne commande, "
+                "ne signe et ne paie rien."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "actif": {"type": "string", "maxLength": 120},
+                    "prix": {"type": "string", "pattern": "^[0-9]{1,12}(\\.[0-9]{1,2})?$"},
+                    "source_prix": {"type": "string", "maxLength": 120},
+                    "prix_valide_jusqua": {"type": "string", "format": "date"},
+                    "aujourd_hui": {"type": "string", "format": "date"},
+                    "offre_financement": {
+                        "type": "object",
+                        "properties": {
+                            "source": {"type": "string", "minLength": 1, "maxLength": 120},
+                            "mise_de_fonds": _MONTANT_TEXTE,
+                            "paiement_mensuel": _MONTANT_TEXTE,
+                            "mois": {"type": "integer", "minimum": 1, "maximum": 600},
+                        },
+                        "required": ["source", "mise_de_fonds", "paiement_mensuel", "mois"],
+                        "additionalProperties": False,
+                    },
+                    "offre_location": {
+                        "type": "object",
+                        "properties": {
+                            "source": {"type": "string", "minLength": 1, "maxLength": 120},
+                            "mise_de_fonds": _MONTANT_TEXTE,
+                            "paiement_mensuel": _MONTANT_TEXTE,
+                            "mois": {"type": "integer", "minimum": 1, "maximum": 600},
+                        },
+                        "required": ["source", "mise_de_fonds", "paiement_mensuel", "mois"],
+                        "additionalProperties": False,
+                    },
+                    "echeanciers_hypothetiques": {
+                        "type": "object",
+                        "description": (
+                            "Facultatif et préparatoire : pour chaque option, flux datés, type de sortie et date "
+                            "jusqu'à laquelle la liste est déclarée complète. Références manuelles non vérifiées. "
+                            "Une couverture insuffisante reste incomplète; aucune échéance n'est générée."
+                        ),
+                        "properties": {
+                            nom: {
+                                "type": "object",
+                                "properties": {
+                                    "couvre_jusquau": {"type": "string", "format": "date"},
+                                    "flux_sorties": {
+                                        "type": "array",
+                                        "maxItems": 8,
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "type_sortie": {"type": "string", "enum": [
+                                                    "prix", "mise_de_fonds", "paiement_mensuel", "autre"
+                                                ]},
+                                                "montant": _MONTANT_TEXTE,
+                                                "date": {"type": "string", "format": "date"},
+                                                "source": {"type": "string", "minLength": 1, "maxLength": 80},
+                                                "hypothese": {"type": "string", "minLength": 1, "maxLength": 80},
+                                            },
+                                            "required": ["type_sortie", "montant", "date", "source", "hypothese"],
+                                            "additionalProperties": False,
+                                        },
+                                    },
+                                },
+                                "required": ["couvre_jusquau", "flux_sorties"],
+                                "additionalProperties": False,
+                            }
+                            for nom in ("achat_comptant", "financement", "location")
+                        },
+                        "additionalProperties": False,
+                    },
+                    "role": _ROLE_DE_LECTURE,
+                    "autorise_couts": _AUTORISE_COUTS_DE_LECTURE,
+                },
+                "required": [
+                    "actif",
+                    "prix",
+                    "source_prix",
+                    "prix_valide_jusqua",
+                    "aujourd_hui",
+                    "offre_financement",
+                    "offre_location",
+                ],
+                "additionalProperties": False,
+            },
+            fonction=preparer_decision_capital,
             autonomie=Autonomie.T0,
             roles_appareil=_ROLES_APPAREIL_FINANCE,
         ),
@@ -2409,18 +4457,23 @@ def outils() -> tuple[Outil, ...]:
                         "description": "Jour de départ, AAAA-MM-JJ (jamais deviné : M5 n'a pas d'horloge).",
                     },
                     "horizon_semaines": {
-                        "type": ["integer", "null"], "minimum": 1, "maximum": prevision.HORIZON_MAX,
+                        "type": ["integer", "null"],
+                        "minimum": 1,
+                        "maximum": prevision.HORIZON_MAX,
                         "description": (
                             f"Nombre de semaines (1 à {prevision.HORIZON_MAX}). Omis : celui du propriétaire "
                             "(configuration.prevision.horizon_semaines) ; absent aussi : refus, jamais supposé."
                         ),
                     },
                     "semaine": {
-                        "type": ["integer", "null"], "minimum": 1, "maximum": prevision.HORIZON_MAX,
+                        "type": ["integer", "null"],
+                        "minimum": 1,
+                        "maximum": prevision.HORIZON_MAX,
                         "description": "Rend les LIGNES (avec leur source) de cette semaine plutôt que la série.",
                     },
                     "depart": {
-                        "type": ["integer", "null"], "minimum": 0,
+                        "type": ["integer", "null"],
+                        "minimum": 0,
                         "description": (
                             "Rang du premier élément rendu (semaine de la série, ou ligne de la semaine) ; reprendre à "
                             "prochain_depart."
@@ -2435,6 +4488,41 @@ def outils() -> tuple[Outil, ...]:
             fonction=prevoir_tresorerie,
             autonomie=Autonomie.T0,
             # §9.5 M5 (trésorerie) : l'admin seul, comme le cash libre. L'identité est confirmée en base (T1.4-k2).
+            roles_appareil=_ROLES_APPAREIL_FINANCE,
+        ),
+        Outil(
+            nom="m5_preparer_dossier_decision_cfo",
+            description=(
+                "Assemble le rapport CFO M5.16 complet en 25 rubriques exactes depuis une seule lecture cohérente des "
+                "registres M5 : cash libre, réserves, factures envoyées à recevoir, comptes à payer et prévision des "
+                "seuls flux connus/datés jusqu'à 26 semaines. Les titres restent présents même quand leurs sources "
+                "manquent. Scénarios, projections 12/24 mois, impact de décision, recommandation ou confiance restent "
+                "INCONNUS sans méthode déterministe et données adaptées. Un devis accepté n'est ni un contrat signé "
+                "ni un encaissement. Aucun montant, rôle ou droit n'est reçu en argument. T0, lecture seule, aucune "
+                "écriture, approbation, paiement ou action externe; CPA et validations humaines restent nécessaires."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "aujourd_hui": {
+                        "type": "string",
+                        "format": "date",
+                        "description": (
+                            "Date de référence ISO issue de la plateforme; le modèle ne choisit pas l'horloge."
+                        ),
+                    },
+                    "question_posee": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000,
+                        "description": "Question de cadrage uniquement; elle ne prouve pas l'identité de son auteur.",
+                    },
+                },
+                "required": ["aujourd_hui", "question_posee"],
+                "additionalProperties": False,
+            },
+            fonction=preparer_dossier_decision_cfo,
+            autonomie=Autonomie.T0,
             roles_appareil=_ROLES_APPAREIL_FINANCE,
         ),
         Outil(
@@ -2534,4 +4622,288 @@ def outils() -> tuple[Outil, ...]:
             autonomie=Autonomie.T3,
             niveau=NIVEAU_PAIEMENT_FACTURE,
         ),
-    )
+        Outil(
+            nom="m5_enregistrer_contrat_horaire",
+            description=(
+                "Enregistre ou révise un contrat horaire individuel après validation humaine N4 signée par finance ou "
+                "le propriétaire. Le taux est la source humaine fournie, CAD décimal texte; période fin exclusive, "
+                "fuseau et référence sont explicites. Révision compare le numéro et l'empreinte courants. Journal "
+                "salarial privé distinct des mouvements; aucune paie ni écriture de trésorerie."
+            ),
+            parametres={"type": "object", "properties": {
+                "employee_person_id": {"type": "string", "minLength": 1, "maxLength": 128},
+                "contrat_id": {"type": "string", "minLength": 1, "maxLength": 64},
+                "valide_du": {"type": "string", "format": "date", "description": "Date incluse du contrat."},
+                "valide_jusqu_au": {"type": "string", "format": "date", "description": "Borne exclusive."},
+                "fuseau": {"type": "string", "minLength": 1, "maxLength": 64},
+                "devise": {"type": "string", "enum": ["CAD"]},
+                "taux_horaire": {"type": "string", "minLength": 1, "maxLength": 16},
+                "source_humaine": {"type": "string", "minLength": 1, "maxLength": 500},
+                "date_source": {"type": "string", "format": "date"},
+                "revision_attendue": {"type": "integer", "minimum": 0},
+                "ligne_id_attendue": {"type": "string", "maxLength": 64},
+                "motif": {"type": "string", "minLength": 1, "maxLength": 500},
+            }, "required": [
+                "employee_person_id", "contrat_id", "valide_du", "valide_jusqu_au", "fuseau", "devise",
+                "taux_horaire", "source_humaine", "date_source", "revision_attendue", "ligne_id_attendue", "motif",
+            ], "additionalProperties": False},
+            fonction=enregistrer_contrat_horaire,
+            autonomie=Autonomie.T2,
+            niveau=Niveau.N4,
+            roles_appareil=_ROLES_APPAREIL_FINANCE,
+        ),
+        Outil(
+            nom="m5_revoquer_contrat_horaire",
+            description=(
+                "Révoque un contrat horaire individuel après validation humaine N4; ajoute une pièce avec motif, "
+                "signataire, révision et tête attendue, sans effacer l'historique. "
+                "Aucune écriture de paie ou de caisse."
+            ),
+            parametres={"type": "object", "properties": {
+                "employee_person_id": {"type": "string", "minLength": 1, "maxLength": 128},
+                "contrat_id": {"type": "string", "minLength": 1, "maxLength": 64},
+                "revision_attendue": {"type": "integer", "minimum": 1},
+                "ligne_id_attendue": {"type": "string", "minLength": 64, "maxLength": 64},
+                "motif": {"type": "string", "minLength": 1, "maxLength": 500},
+            }, "required": ["employee_person_id", "contrat_id", "revision_attendue", "ligne_id_attendue", "motif"],
+                "additionalProperties": False},
+            fonction=revoquer_contrat_horaire,
+            autonomie=Autonomie.T2,
+            niveau=Niveau.N4,
+            roles_appareil=_ROLES_APPAREIL_FINANCE,
+        ),
+        Outil(
+            nom="m5_lire_contrat_horaire",
+            description=(
+                "Lecture privée du taux horaire individuel courant qui couvre entièrement les dates inclusives "
+                "demandées. Réservée à l'admin confirmé ou au propriétaire via console; refuse trous, taux "
+                "multiples, chaîne invalide et identité non autorisée. Ne calcule aucune paie."
+            ),
+            parametres={"type": "object", "properties": {
+                "employee_person_id": {"type": "string", "minLength": 1, "maxLength": 128},
+                "valide_du": {"type": "string", "format": "date", "description": "Date de début incluse demandée."},
+                "valide_jusqu_au": {
+                    "type": "string", "format": "date",
+                    "description": "Date de fin incluse demandée; le contrat stocke sa borne de fin exclusive.",
+                },
+                "fuseau": {"type": "string", "minLength": 1, "maxLength": 64},
+            }, "required": ["employee_person_id", "valide_du", "valide_jusqu_au", "fuseau"],
+                "additionalProperties": False},
+            fonction=lire_contrat_horaire,
+            autonomie=Autonomie.T0,
+            roles_appareil=_ROLES_APPAREIL_FINANCE,
+        ),
+        Outil(
+            nom="m5_preparer_brut_regulier",
+            description=(
+                "Prépare une estimation provisoire du brut régulier depuis les minutes M4 complètes et le taux horaire "
+                "M5 courant. Dates de requête inclusives, taux CAD et politique d'arrondi explicitement choisie avec "
+                "une référence humaine non vérifiée. Accepte `sources_attendues: null` pour les sources courantes, "
+                "ou les références M4 et M5 exactes pour refuser toute révision silencieuse. Réservé au propriétaire "
+                "confirmé via console, seule origine autorisée par le port M4. Aucun impôt, retenue, cotisation, DAS, "
+                "net, paiement ou action officielle calculé. Validation humaine Nathan/CPA requise."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "employee_person_id": {"type": "string", "minLength": 1, "maxLength": 128},
+                    "debut": {"type": "string", "format": "date", "description": "Premier jour inclus."},
+                    "fin": {"type": "string", "format": "date", "description": "Dernier jour inclus."},
+                    "fuseau": {"type": "string", "minLength": 1, "maxLength": 64},
+                    "politique_arrondi": {"type": "string", "enum": [brut_regulier.POLITIQUE_ARRONDI]},
+                    "hypothese_arrondi": {
+                        "type": "string", "minLength": 1, "maxLength": 300,
+                        "description": "Référence ou hypothèse déclarée par l'humain, non authentifiée par OPSYS.",
+                    },
+                    "sources_attendues": {
+                        "type": ["object", "null"],
+                        "description": (
+                            "null = snapshot courant; sinon les références M4 et M5 à comparer avant calcul."
+                        ),
+                        "properties": {
+                            "heures_m4": {
+                                "type": "object",
+                                "properties": {
+                                    "ligne_id": {"type": "string", "minLength": 64, "maxLength": 64},
+                                    "revision": {"type": "integer", "minimum": 1},
+                                    "empreinte_sources": {"type": "string", "minLength": 64, "maxLength": 64},
+                                },
+                                "required": ["ligne_id", "revision", "empreinte_sources"],
+                                "additionalProperties": False,
+                            },
+                            "contrat_m5": {
+                                "type": "object",
+                                "properties": {
+                                    "contrat_id": {"type": "string", "minLength": 1, "maxLength": 64},
+                                    "revision": {"type": "integer", "minimum": 1},
+                                    "ligne_id": {"type": "string", "minLength": 64, "maxLength": 64},
+                                },
+                                "required": ["contrat_id", "revision", "ligne_id"],
+                                "additionalProperties": False,
+                            },
+                        },
+                        "required": ["heures_m4", "contrat_m5"],
+                        "additionalProperties": False,
+                    },
+                },
+                "required": [
+                    "employee_person_id", "debut", "fin", "fuseau", "politique_arrondi", "hypothese_arrondi",
+                    "sources_attendues",
+                ],
+                "additionalProperties": False,
+            },
+            fonction=_fonction_brut_regulier(lecteur_heures_m4),
+            autonomie=Autonomie.T0,
+            # Ce premier raccord est propriétaire-console uniquement; aucune capacité mobile n'est annoncée.
+            roles_appareil=frozenset(),
+        ),
+        Outil(
+            nom="m5_lire_sources_regles_paie",
+            description=(
+                "Expose au propriétaire confirmé par console l'état des références de règles de paie pour une "
+                "juridiction, une date, une période, un fuseau et une fréquence fermés. Le catalogue serveur est "
+                "la seule déclaration d'état; aucun argument ne peut valider une source. Les références ARC/RQ "
+                "actuelles sont NON_QUALIFIEES, les lacunes restent PARTIEL et bloquent tout calcul. Aucun taux, "
+                "retenue, contribution, montant, dépôt, déclaration ou action officielle n'est produit."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "juridiction": {"type": "string", "minLength": 2, "maxLength": 8},
+                    "date_paie": {"type": "string", "format": "date"},
+                    "periode_debut": {"type": "string", "format": "date"},
+                    "periode_fin": {"type": "string", "format": "date"},
+                    "fuseau": {"type": "string", "minLength": 1, "maxLength": 64},
+                    "frequence": {"type": "string", "enum": [
+                        "hebdomadaire", "bihebdomadaire", "bimensuelle", "mensuelle",
+                    ]},
+                },
+                "required": ["juridiction", "date_paie", "periode_debut", "periode_fin", "fuseau", "frequence"],
+                "additionalProperties": False,
+            },
+            fonction=lire_sources_regles_paie,
+            autonomie=Autonomie.T0,
+            # Phase propriétaire-console seulement; aucun accès appareil ou grant d'agent n'est ajouté.
+            roles_appareil=frozenset(),
+        ),
+        Outil(
+            nom="m5_preparer_dossier_webras",
+            description=(
+                "Prépare un JSON privé borné pour saisie et calcul humains dans WebRAS/PDOC. Réutilise le brut "
+                "régulier M4/M5 et le catalogue documentaire épinglé; une assiette humaine est facultative, et le "
+                "brut régulier n'est jamais assimilé au revenu imposable. Tous impôts, cotisations, retenues, net "
+                "et DAS restent UNKNOWN. Aucun appel WebRAS, paiement ou action officielle. "
+                "Propriétaire console uniquement."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "employee_person_id": {"type": "string", "minLength": 1, "maxLength": 128},
+                    "debut": {"type": "string", "format": "date"},
+                    "fin": {"type": "string", "format": "date"},
+                    "fuseau": {"type": "string", "minLength": 1, "maxLength": 64},
+                    "politique_arrondi": {"type": "string", "enum": [brut_regulier.POLITIQUE_ARRONDI]},
+                    "hypothese_arrondi": {"type": "string", "minLength": 1, "maxLength": 300},
+                    "sources_attendues": {"type": ["object", "null"]},
+                    "date_paie": {"type": "string", "format": "date"},
+                    "periodes_annuelles": {"type": "integer", "enum": [12, 24, 26, 52]},
+                    "revenu_imposable_cad": {
+                        "type": ["string", "null"],
+                        "pattern": "^(?:0|[1-9][0-9]{0,8})\\.[0-9]{2}$",
+                    },
+                    "reference_revenu_imposable": {"type": ["string", "null"], "maxLength": 240},
+                },
+                "required": [
+                    "employee_person_id",
+                    "debut",
+                    "fin",
+                    "fuseau",
+                    "politique_arrondi",
+                    "hypothese_arrondi",
+                    "sources_attendues",
+                    "date_paie",
+                    "periodes_annuelles",
+                    "revenu_imposable_cad",
+                    "reference_revenu_imposable",
+                ],
+                "additionalProperties": False,
+            },
+            fonction=_fonction_dossier_webras(lecteur_heures_m4),
+            autonomie=Autonomie.T0,
+            roles_appareil=frozenset(),
+        ),
+        Outil(
+            nom="m5_enregistrer_echeancier_contrat",
+            description=(
+                "Enregistre ou révise un échéancier d'encaissement d'un contrat client après validation humaine N4. "
+                "Rapproche le prix HT déclaré au prix_total HT du devis M3; le TTC, les échéances datées, la source "
+                "et la couverture sont saisis explicitement depuis la pièce humaine. Maximum 8 échéances. Aucune taxe "
+                "n'est calculée et aucun mouvement financier n'est écrit. Voie propriétaire/approbation seulement; "
+                "aucun accès appareil n'est déclaré."
+            ),
+            parametres={"type": "object", "properties": {
+                "contrat_id": {"type": "string", "minLength": 1, "maxLength": 64},
+                "devis_id": {"type": "string", "minLength": 1, "maxLength": 128},
+                "prix_ht": {"type": "string", "pattern": "^(?:0|[1-9][0-9]{0,11})(?:\\.[0-9]{1,2})?$"},
+                "prix_ttc": {"type": "string", "pattern": "^(?:0|[1-9][0-9]{0,11})(?:\\.[0-9]{1,2})?$"},
+                "devise": {"type": "string", "enum": ["CAD"]},
+                "source_humaine": {"type": "string", "minLength": 1, "maxLength": 500},
+                "date_source": {"type": "string", "format": "date"},
+                "couverture_jusquau": {"type": "string", "format": "date"},
+                "echeances": {"type": "array", "minItems": 1, "maxItems": 8, "items": {
+                    "type": "object", "properties": {
+                        "date": {"type": "string", "format": "date"},
+                        "montant_ttc": {"type": "string", "pattern": "^(?:0|[1-9][0-9]{0,11})(?:\\.[0-9]{1,2})?$"},
+                    }, "required": ["date", "montant_ttc"], "additionalProperties": False,
+                }},
+                "revision_attendue": {"type": "integer", "minimum": 0},
+                "ligne_id_attendue": {"type": "string", "maxLength": 64},
+                "motif": {"type": "string", "minLength": 1, "maxLength": 500},
+            }, "required": [
+                "contrat_id", "devis_id", "prix_ht", "prix_ttc", "devise", "source_humaine", "date_source",
+                "couverture_jusquau", "echeances", "revision_attendue", "ligne_id_attendue", "motif",
+            ], "additionalProperties": False},
+            fonction=enregistrer_echeancier_contrat,
+            autonomie=Autonomie.T2,
+            niveau=Niveau.N4,
+            roles_appareil=frozenset(),
+        ),
+        Outil(
+            nom="m5_revoquer_echeancier_contrat",
+            description=(
+                "Révoque un échéancier contractuel par un nouveau maillon N4 append-only, avec tête attendue et motif. "
+                "Ne supprime pas l'historique et n'écrit aucun mouvement. Voie propriétaire/approbation seulement; "
+                "aucun accès appareil n'est déclaré."
+            ),
+            parametres={"type": "object", "properties": {
+                "contrat_id": {"type": "string", "minLength": 1, "maxLength": 64},
+                "devis_id": {"type": "string", "minLength": 1, "maxLength": 128},
+                "revision_attendue": {"type": "integer", "minimum": 1},
+                "ligne_id_attendue": {"type": "string", "minLength": 64, "maxLength": 64},
+                "motif": {"type": "string", "minLength": 1, "maxLength": 500},
+            }, "required": ["contrat_id", "devis_id", "revision_attendue", "ligne_id_attendue", "motif"],
+                "additionalProperties": False},
+            fonction=revoquer_echeancier_contrat,
+            autonomie=Autonomie.T2,
+            niveau=Niveau.N4,
+            roles_appareil=frozenset(),
+        ),
+        Outil(
+            nom="m5_prevoir_tresorerie_contrats",
+            description=(
+                "Prévision M5.8a à partir du solde et des obligations M5.7 existants, plus les échéanciers "
+                "explicitement "
+                "saisis et revus en N4. Compare HT au devis M3 et TTC à la somme déclarée des échéances; ne calcule "
+                "aucune taxe. Une facture active du devis bloque l'échéancier pour éviter un double compte; "
+                "PAYEE n'est "
+                "pas une preuve de dépôt bancaire. Rapport PARTIEL, prévision hebdomadaire et lecture CFO avant toute "
+                "lecture sensible. Propriétaire console confirmé seulement; aucun nouvel accès agent/appareil."
+            ),
+            parametres={"type": "object", "properties": {
+                "aujourd_hui": {"type": "string", "format": "date"},
+            }, "required": ["aujourd_hui"], "additionalProperties": False},
+            fonction=prevoir_tresorerie_contrats,
+            autonomie=Autonomie.T0,
+            roles_appareil=frozenset(),
+        ),
+    ) + (_outils_couts_marketing(lecteur_campagne_m7) if lecteur_campagne_m7 is not None else ())

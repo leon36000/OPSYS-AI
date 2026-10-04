@@ -43,7 +43,14 @@ vi.mock("./github-oauth-lifecycle.js", () => ({
 }));
 
 const opsysMetier = vi.hoisted(() => ({
-  start: vi.fn<() => { stop: () => Promise<void> } | undefined>(),
+  start: vi.fn<
+    (params?: { onHealthy?: () => void | Promise<void> }) =>
+      | {
+          stop: () => Promise<void>;
+          getPrivateCronClient?: () => unknown;
+        }
+      | undefined
+  >(),
 }));
 
 vi.mock("./opsys-metier-supervisor.js", () => ({
@@ -373,6 +380,43 @@ describe("gateway lifetime sidecars", () => {
     expect(owner.snapshot()).toContain(engine);
     await owner.stop();
     expect(engine.stop).toHaveBeenCalledOnce();
+  });
+
+  test("publishes only a live private-client getter and coalesces healthy reconciliation", async () => {
+    const owner = createGatewaySidecarStopOwner();
+    const client = { validate: vi.fn() };
+    let clientAvailable = true;
+    let onHealthy: (() => void | Promise<void>) | undefined;
+    const context = { getRuntimeConfig: vi.fn(() => ({})) } as GatewayRequestContext;
+    const reconcileOpsysCron = vi.fn(async () => "converged");
+    const stop = vi.fn(async () => {
+      expect(context.opsysCronPrivateClientService).toBeUndefined();
+    });
+    opsysMetier.start.mockImplementationOnce((params) => {
+      onHealthy = params?.onHealthy;
+      return { stop, getPrivateCronClient: () => (clientAvailable ? client : undefined) };
+    });
+
+    await attachInitialGatewayLifetimeSidecars({
+      chatMetadataLifecycle: { attachContext: vi.fn(async () => {}) } as never,
+      gatewayRequestContext: context,
+      flushPendingSessionsChangedEvents: vi.fn(),
+      minimalTestGateway: false,
+      logWarning: vi.fn(),
+      reconcileOpsysCron,
+      publishSidecars: owner.publish,
+    });
+    expect(context.opsysCronPrivateClientService?.getClient()).toBe(client);
+    onHealthy?.();
+    onHealthy?.();
+    await Promise.resolve();
+    expect(reconcileOpsysCron).toHaveBeenCalledOnce();
+    clientAvailable = false;
+    expect(context.opsysCronPrivateClientService?.getClient()).toBeUndefined();
+
+    await owner.stop();
+    expect(context.opsysCronPrivateClientService).toBeUndefined();
+    expect(stop).toHaveBeenCalledOnce();
   });
 
   test("adds a sidecar only when OPSYS engine supervision is on", async () => {

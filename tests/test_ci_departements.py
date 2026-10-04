@@ -64,6 +64,7 @@ def test_la_matrice_ci_couvre_exactement_les_departements():
     matrice = _ci()["jobs"]["departement"]["strategy"]["matrix"]["dossier"]
     assert sorted(matrice) == _dossiers_departements()
     assert len(matrice) == len(set(matrice))
+    assert _ci()["jobs"]["socle"]["timeout-minutes"] >= 35
 
 
 def test_gates_exige_le_succes_de_chaque_job_requis():

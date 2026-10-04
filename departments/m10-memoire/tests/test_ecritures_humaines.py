@@ -14,17 +14,26 @@ from __future__ import annotations
 import dataclasses
 import datetime as dt
 import json
+import socket
+import threading
+import time
 from pathlib import Path
 
+import anyio
 import pytest
-from m10_memoire import liaison, signaux
+import uvicorn
+from m10_memoire import amont, etapes, liaison, signaux, wct
 from m10_memoire import outils as outils_m10
+from mcp.client.session import ClientSession
+from mcp.client.streamable_http import streamable_http_client
+from mcp.shared._httpx_utils import create_mcp_http_client
 from sqlalchemy import update
 
 from opsys import approbations, contexte, idempotence, identite, openclaw, stockage
 from opsys.capacites import Capacites, outils_executables
 from opsys.departements import PolitiqueApprobation, charger_departements
 from opsys.outils import Niveau, executer, executer_atomique
+from opsys.serveur_mcp import application_http_departements
 from opsys.stockage.schema import APPROBATIONS
 
 FICTIF = True
@@ -35,6 +44,12 @@ CLE_CLIENT = "agent:m01-front-office:whatsapp:direct:+15145550101"
 MOTIF = "Écart expliqué avec le client : la gouttière a été refaite."
 HORLOGE_APPAREIL_DEREGLEE = "2000-01-01T00:00:00+00:00"
 HORODATAGE = "2030-01-01T12:00:00+00:00"
+
+
+def _port_libre():
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
 
 
 # -- installation -----------------------------------------------------------------------------------
@@ -322,14 +337,15 @@ def test_l_approbation_d_une_demande_ne_sert_ni_apres_elle_ni_a_un_autre_outil(c
 @pytest.mark.parametrize("par, role", [("gestion", "manager"), ("employe.fictif", "employee"),
                                        ("robot", "system_agent")])
 def test_un_role_que_la_file_admet_mais_que_l_outil_ne_reconnait_pas_n_ecrit_rien(capacites, signal, par, role):
-    """Le manifeste peut élargir la politique N3 : la file exécute alors la demande, mais l'outil n'admet comme
+    """Le manifeste peut élargir la politique N3 : le moteur appelle l'outil, qui refuse et fait échouer la demande;
+    il n'admet comme
     humains que `admin` et `nathan_owner` (`humain.roles_humains()`)."""
     _personnes_de_roles_larges()
 
     decision = _approuver_sous_une_politique_elargie(
         capacites, "m10_prendre_en_compte_signal", _args_signal(), par, {role, "nathan_owner"})
 
-    assert decision["statut"] == "executee", decision
+    assert decision["statut"] == "echec", decision
     assert decision["reponse"]["resultat"]["accepte"] is False
     assert decision["reponse"]["resultat"]["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
     assert _traitements() == []
@@ -345,8 +361,8 @@ def test_un_admin_que_la_file_admet_ecrit_sous_son_role_par_la_voie_approbation(
 
 
 def test_une_demande_d_un_autre_departement_n_autorise_pas_l_outil_de_m10(capacites, signal):
-    """`decider` exécute l'outil que la demande nomme, mais la demande porte sur `m03-estimation` : M10 ne reconnaît
-    que les demandes de son propre département."""
+    """`decider` appelle l'outil nommé, mais échoue le résultat car la demande porte sur `m03-estimation` : M10 ne
+    reconnaît que les demandes de son propre département."""
     with stockage.transaction() as cnx:
         ident = approbations.creer_demande(
             cnx, "m03-estimation", "m10_prendre_en_compte_signal", _args_signal(), niveau=Niveau.N3)
@@ -355,7 +371,8 @@ def test_une_demande_d_un_autre_departement_n_autorise_pas_l_outil_de_m10(capaci
             cnx, ident, True, "nathan", outils_executables(capacites.departements, stockage.transaction),
             capacites.departements)
 
-    assert decision["statut"] == "executee", decision
+    assert decision["statut"] == "echec", decision
+    assert decision["reponse"]["resultat"]["accepte"] is False
     assert decision["reponse"]["resultat"]["verdict"]["code"] == "REJ-HUMAIN-REQUIS"
     assert _traitements() == []
 
@@ -533,21 +550,151 @@ def test_le_paquet_de_l_outil_montre_l_etat_des_signaux_et_le_filtre_de_l_agent(
     _approuver(capacites, capacites.appeler("m10_prendre_en_compte_signal", _args_signal())["demande_id"])
 
     reponse = capacites.appeler("m10_paquet_contexte_affaire",
-                                {"affaire_id": "LEAD-1", "horodatage": HORODATAGE, "agent": "m03-estimation"})
+                                {"affaire_id": "LEAD-1", "horodatage": HORODATAGE})
 
     paquet = reponse["resultat"]
     assert paquet["signaux"] == {"nb_ouverts": 0, "nb_pris_en_compte": 1, "nb_clos": 0}
-    assert paquet["confidentialite"] == {"agent": "m03-estimation", "regle": "v1", "nb_retenus": 0}
+    assert paquet["confidentialite"] == {"agent": "m10-memoire", "regle": "v1", "nb_retenus": 0}
     couche = next(c for c in paquet["couches"] if c["nom"] == "signaux_non_resolus")
     assert couche["faits"][0]["etat"] == "pris_en_compte" and couche["faits"][0]["traite_par"] == "nathan"
     assert json.dumps(paquet)  # sérialisable tel quel pour le core
+
+
+def test_le_paquet_derive_le_destinataire_du_contexte_et_ignore_une_usurpation(capacites, instance):
+    amont.memoriser(
+        etapes.TYPE_CLIENT_ASSOCIE,
+        {"lead_id": "LEAD-PRIVE", "client_id": "CLIENT-PRIVE", "horodatage_association": HORODATAGE},
+        outils_m10._REGISTRE_EVENEMENTS,
+    )
+    args = {"affaire_id": "LEAD-PRIVE", "horodatage": HORODATAGE}
+
+    # Le répartiteur prend l'origine de sa configuration serveur; le propriétaire de l'outil
+    # M10 n'écrase pas cette origine fiable.
+    origine_m1 = Capacites(charger_departements(RACINE_DEPARTEMENTS), stockage.transaction,
+                           appelant="m01-front-office", memoire=False)
+    origine_m3 = Capacites(charger_departements(RACINE_DEPARTEMENTS), stockage.transaction,
+                           appelant="m03-estimation", memoire=False)
+    refuse_argument = origine_m3.appeler("m10_paquet_contexte_affaire", {**args, "agent": "m01-front-office"})
+    paquet_m1 = origine_m1.appeler("m10_paquet_contexte_affaire", args)["resultat"]
+    paquet_m3 = origine_m3.appeler("m10_paquet_contexte_affaire", args)["resultat"]
+
+    assert refuse_argument["ok"] is False and refuse_argument["erreur"] == "arguments_invalides"
+    assert paquet_m1["confidentialite"]["agent"] == "m01-front-office"
+    assert paquet_m1["confidentialite"]["nb_retenus"] == 0
+    assert "CLIENT-PRIVE" in json.dumps(paquet_m1)
+    assert paquet_m3["confidentialite"]["agent"] == "m03-estimation"
+    assert paquet_m3["confidentialite"]["nb_retenus"] == 1
+    assert "CLIENT-PRIVE" not in json.dumps(paquet_m3)
+
+
+def test_consolidation_persistante_reprend_un_wct_arrive_apres(capacites, instance):
+    with stockage.transaction():
+        wct.memoriser_wct(_wct("WCT-TARDIF-1"), outils_m10._REGISTRE_EVENEMENTS)
+        premier = outils_m10.consolider_affaire("LEAD-1", "2026-09-15", HORODATAGE)
+        wct.memoriser_wct(_wct("WCT-TARDIF-2"), outils_m10._REGISTRE_EVENEMENTS)
+        tardif = outils_m10.consolider_affaire("LEAD-1", "2026-09-15", HORODATAGE)
+        rejoue = outils_m10.consolider_affaire("LEAD-1", "2026-09-15", HORODATAGE)
+        paquet = outils_m10.paquet_contexte_affaire("LEAD-1", HORODATAGE)
+        faits_persistes = [
+            m for m in outils_m10._REGISTRE_AFFAIRES.lire()
+            if m.get("cle_consolidation") == "LEAD-1:2026-09-15"
+        ]
+
+    assert premier["ecrit"] is True and tardif["ecrit"] is True
+    assert [s["identifiant"] for s in tardif["fait"]["sources"]] == ["WCT-TARDIF-1", "WCT-TARDIF-2"]
+    assert rejoue["ecrit"] is False and rejoue["fait"]["ligne_id"] == tardif["fait"]["ligne_id"]
+    assert len(faits_persistes) == 2  # maillon initial conservé, une nouvelle version agrégée
+    couche_faits = next(c for c in paquet["couches"] if c["nom"] == "faits_affaire")
+    assert couche_faits["nb_total"] == 1 and "2 travaux terminés" in couche_faits["faits"][0]["resume"]
+
+
+def test_transport_contexte_lie_vue_privee_a_la_route_et_refuse_le_bearer_public(instance, monkeypatch):
+    monkeypatch.setenv("OPSYS_EVENEMENTS_REPARTITEUR", "0")
+    with stockage.transaction():
+        amont.memoriser(
+            etapes.TYPE_CLIENT_ASSOCIE,
+            {"lead_id": "LEAD-HTTP", "client_id": "CLIENT-HTTP", "horodatage_association": HORODATAGE},
+            outils_m10._REGISTRE_EVENEMENTS,
+        )
+    public_token = "public-bearer-fictif-1234567890"
+    context_token = "context-bearer-fictif-1234567890"
+    with pytest.raises(ValueError, match="doit être distinct"):
+        application_http_departements(
+            charger_departements(RACINE_DEPARTEMENTS), stockage.transaction, public_token,
+            hote="127.0.0.1", jeton_contexte=public_token,
+        )
+    port = _port_libre()
+    app = application_http_departements(
+        charger_departements(RACINE_DEPARTEMENTS), stockage.transaction, public_token,
+        hote="127.0.0.1", jeton_contexte=context_token,
+    )
+    serveur = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
+    fil = threading.Thread(target=serveur.run, daemon=True)
+    fil.start()
+    for _ in range(100):
+        if serveur.started:
+            break
+        time.sleep(0.05)
+
+    async def appeler(chemin, jeton, arguments):
+        client = create_mcp_http_client(headers={"Authorization": f"Bearer {jeton}"})
+        async with (
+            client,
+            streamable_http_client(f"http://127.0.0.1:{port}{chemin}", http_client=client) as flux,
+            ClientSession(flux[0], flux[1]) as session_mcp,
+        ):
+            await session_mcp.initialize()
+            outils_disponibles = {o.name for o in (await session_mcp.list_tools()).tools}
+            resultat = await session_mcp.call_tool("m10_paquet_contexte_affaire", arguments)
+            return outils_disponibles, resultat
+
+    try:
+        outils_m1, reponse_m1 = anyio.run(
+            appeler, "/mcp/contexte/m01-front-office", context_token,
+            {"affaire_id": "LEAD-HTTP", "horodatage": HORODATAGE},
+        )
+        outils_m3, reponse_m3 = anyio.run(
+            appeler, "/mcp/contexte/m03-estimation", context_token,
+            {"affaire_id": "LEAD-HTTP", "horodatage": HORODATAGE},
+        )
+        _, usurpation = anyio.run(
+            appeler, "/mcp/contexte/m03-estimation", context_token,
+            {"affaire_id": "LEAD-HTTP", "horodatage": HORODATAGE, "agent": "m01-front-office"},
+        )
+        _, usurpation_publique = anyio.run(
+            appeler, "/mcp/m10-memoire", public_token,
+            {"affaire_id": "LEAD-HTTP", "horodatage": HORODATAGE, "agent": "m01-front-office"},
+        )
+        import httpx
+
+        with httpx.Client() as client_http:
+            public_vers_route_contexte = client_http.get(
+                f"http://127.0.0.1:{port}/mcp/contexte/m01-front-office",
+                headers={"Authorization": f"Bearer {public_token}"},
+            )
+    finally:
+        serveur.should_exit = True
+        fil.join(timeout=5)
+
+    paquet_m1 = json.loads(reponse_m1.content[0].text)["resultat"]
+    paquet_m3 = json.loads(reponse_m3.content[0].text)["resultat"]
+    assert outils_m1 == outils_m3 == {
+        "m10_paquet_contexte_affaire", "opsys_contexte_creer_ticket_cible"
+    }
+    assert paquet_m1["confidentialite"] == {"agent": "m01-front-office", "regle": "v1", "nb_retenus": 0}
+    assert paquet_m3["confidentialite"] == {"agent": "m03-estimation", "regle": "v1", "nb_retenus": 1}
+    assert "CLIENT-HTTP" in json.dumps(paquet_m1)
+    assert "CLIENT-HTTP" not in json.dumps(paquet_m3)
+    assert reponse_m1.is_error is False and reponse_m3.is_error is False
+    assert usurpation.is_error is True and usurpation_publique.is_error is True
+    assert public_vers_route_contexte.status_code == 401
 
 
 def test_un_agent_qui_n_est_pas_un_departement_est_un_refus_metier_de_l_outil(par_nom, instance):
     reponse = executer(par_nom["m10_paquet_contexte_affaire"],
                        {"affaire_id": "LEAD-1", "horodatage": HORODATAGE, "agent": "un-texte-de-client"})
 
-    assert reponse["ok"] is False and reponse["erreur"] == "refus_metier" and "agent invalide" in reponse["details"]
+    assert reponse["ok"] is False and reponse["erreur"] == "arguments_invalides"
 
 
 def test_journaliser_une_decision_marquee_et_refuser_un_niveau_inconnu(par_nom, instance):

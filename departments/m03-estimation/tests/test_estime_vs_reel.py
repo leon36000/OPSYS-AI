@@ -107,7 +107,7 @@ def _creer_devis(registre_devis, devis_id="M3-DEVIS-001", **surcharges):
     return devis
 
 
-def _maillon_estimation(devis_id="M3-DEVIS-001", **surcharges):
+def _maillon_estimation(devis_id="M3-DEVIS-001", hash_maillon="x", **surcharges):
     """Maillon plausible de registre.py (S008) : la forme réelle {rang, charge, ...} — voir
     devis_durable/registre.py pour les 6 clés requises de charge."""
     charge = {
@@ -119,7 +119,8 @@ def _maillon_estimation(devis_id="M3-DEVIS-001", **surcharges):
         "graine_monte_carlo": 314159,
     }
     charge.update(surcharges)
-    return {"rang": 0, "charge": charge, "hash_precedent": "0" * 68, "hash_maillon": "x", "cout_reel": None}
+    return {"rang": 0, "charge": charge, "hash_precedent": "0" * 64, "hash_maillon": hash_maillon,
+            "cout_reel": None}
 
 
 # -- ecart_relatif : formule citée -------------------------------------------------------------
@@ -186,7 +187,7 @@ def test_wct_devis_id_sans_devis_ni_estimation_connus_de_m3():
     assert resultat["main_doeuvre"]["verdict"]["code"] == "REJ-ECART-ESTIMATION-ORIGINE-ABSENTE"
 
 
-def test_duree_estimee_trouvee_sur_le_devis_calcule_lecart():
+def test_duree_legacy_directement_sur_devis_ne_devient_pas_mesure():
     registre_cible, registre_devis, maillons_estimations = [], [], []
     _creer_devis(registre_devis)
     # Convention posée par ce module (cf. docstring) : duree_estimee_minutes en texte décimal,
@@ -213,16 +214,21 @@ def test_duree_estimee_trouvee_sur_le_devis_calcule_lecart():
         _charge_wct(duree_reelle_minutes=120), registre_devis, maillons_estimations, registre_cible
     )
     main_doeuvre = resultat["main_doeuvre"]
-    assert main_doeuvre["verdict"] is None
-    assert main_doeuvre["duree_estimee_minutes"] == Decimal("100")
-    assert main_doeuvre["duree_reelle_minutes"] == Decimal("120")
-    assert main_doeuvre["ecart_relatif"] == Decimal("0.2")
+    assert main_doeuvre["verdict"]["code"] == "REJ-ECART-ESTIMATION-ORIGINE-ABSENTE"
+    assert main_doeuvre["duree_estimee_minutes"] is None
+    assert main_doeuvre["ecart_relatif"] is None
 
 
-def test_duree_estimee_trouvee_sur_lestimation_dorigine_si_absente_du_devis():
+def test_duree_estimee_liee_par_hash_exact_si_absente_du_devis():
     registre_cible, registre_devis, maillons_estimations = [], [], []
-    _creer_devis(registre_devis)  # devis SANS duree_estimee_minutes
-    maillons_estimations.append(_maillon_estimation(duree_estimee_minutes="80"))
+    source_hash = "a" * 64
+    _creer_devis(registre_devis, estimation_source_hash=source_hash)  # source explicite, durée pas copiée au devis
+    maillons_estimations.append(_maillon_estimation(
+        hash_maillon=source_hash, duree_estimee_minutes="80",
+        trace_calibration_temps={
+            "version_schema": 2, "semantique_temps": "duree_ecoulee_intervention", "duree_estimee_minutes": "80",
+        },
+    ))
     resultat = estime_vs_reel.enregistrer_travaux_termines(
         _charge_wct(duree_reelle_minutes=100), registre_devis, maillons_estimations, registre_cible
     )
@@ -232,7 +238,76 @@ def test_duree_estimee_trouvee_sur_lestimation_dorigine_si_absente_du_devis():
     assert main_doeuvre["ecart_relatif"] == Decimal("0.25")
 
 
-def test_duree_estimee_du_devis_prioritaire_sur_celle_de_lestimation_dorigine():
+def test_wct_cross_lead_ne_recoit_pas_la_duree_du_devis_et_le_rejeu_reste_idempotent():
+    registre_cible, registre_devis = [], []
+    source_hash = "a" * 64
+    _creer_devis(registre_devis, lead_id="lead-A", estimation_source_hash=source_hash)
+    maillons_estimations = [
+        _maillon_estimation(
+            lead_id="lead-A",
+            hash_maillon=source_hash,
+            duree_estimee_minutes="80",
+            trace_calibration_temps={
+                "version_schema": 2,
+                "semantique_temps": "duree_ecoulee_intervention",
+                "duree_estimee_minutes": "80",
+            },
+        )
+    ]
+
+    resultat = estime_vs_reel.enregistrer_travaux_termines(
+        _charge_wct(lead_id="lead-B", duree_reelle_minutes=100),
+        registre_devis,
+        maillons_estimations,
+        registre_cible,
+    )
+    main_doeuvre = resultat["main_doeuvre"]
+    assert resultat["lead_id"] == "lead-B"  # le travail réel reste enregistré pour son lead déclaré
+    assert main_doeuvre["duree_reelle_minutes"] == Decimal("100")
+    assert main_doeuvre["duree_estimee_minutes"] is None
+    assert main_doeuvre["ecart_relatif"] is None
+    assert "lead du WCT" in main_doeuvre["verdict"]["detail"]
+    assert "lead-A" in main_doeuvre["verdict"]["detail"]
+
+    resultat_rejoue = estime_vs_reel.enregistrer_travaux_termines(
+        _charge_wct(lead_id="lead-B", duree_reelle_minutes=100),
+        registre_devis,
+        maillons_estimations,
+        registre_cible,
+    )
+    assert resultat_rejoue == resultat
+    assert len(registre_cible) == 1
+
+
+def test_wct_du_meme_lead_que_devis_utilise_la_source_exacte():
+    registre_cible, registre_devis = [], []
+    source_hash = "a" * 64
+    _creer_devis(registre_devis, lead_id="lead-A", estimation_source_hash=source_hash)
+    maillons_estimations = [
+        _maillon_estimation(
+            lead_id="lead-A",
+            hash_maillon=source_hash,
+            duree_estimee_minutes="80",
+            trace_calibration_temps={
+                "version_schema": 2,
+                "semantique_temps": "duree_ecoulee_intervention",
+                "duree_estimee_minutes": "80",
+            },
+        )
+    ]
+
+    resultat = estime_vs_reel.enregistrer_travaux_termines(
+        _charge_wct(lead_id="lead-A", duree_reelle_minutes=100),
+        registre_devis,
+        maillons_estimations,
+        registre_cible,
+    )
+    assert resultat["main_doeuvre"]["duree_estimee_minutes"] == Decimal("80")
+    assert resultat["main_doeuvre"]["ecart_relatif"] == Decimal("0.25")
+    assert resultat["main_doeuvre"]["verdict"] is None
+
+
+def test_duree_nonqualifiee_sur_un_devis_historique_ne_devient_pas_mesure():
     registre_cible, registre_devis, maillons_estimations = [], [], []
     registre_devis.append(
         {
@@ -246,27 +321,39 @@ def test_duree_estimee_du_devis_prioritaire_sur_celle_de_lestimation_dorigine():
     resultat = estime_vs_reel.enregistrer_travaux_termines(
         _charge_wct(duree_reelle_minutes=120), registre_devis, maillons_estimations, registre_cible
     )
-    assert resultat["main_doeuvre"]["duree_estimee_minutes"] == Decimal("100")
+    assert resultat["main_doeuvre"]["duree_estimee_minutes"] is None
 
 
-def test_duree_estimee_derniere_estimation_dorigine_retenue_si_plusieurs():
+def test_duree_estimee_source_exacte_retenue_si_estimation_plus_recente_existe():
     registre_cible, registre_devis = [], []
-    _creer_devis(registre_devis)
+    source_hash = "a" * 64
+    _creer_devis(registre_devis, estimation_source_hash=source_hash)
     maillons_estimations = [
-        _maillon_estimation(duree_estimee_minutes="50"),
-        _maillon_estimation(duree_estimee_minutes="90"),  # la plus récente (rang le plus élevé)
+        _maillon_estimation(hash_maillon=source_hash, duree_estimee_minutes="50",
+                            trace_calibration_temps={"version_schema": 2,
+                                                     "semantique_temps": "duree_ecoulee_intervention",
+                                                     "duree_estimee_minutes": "50"}),
+        _maillon_estimation(hash_maillon="b" * 64, duree_estimee_minutes="90",
+                            trace_calibration_temps={"version_schema": 2,
+                                                     "semantique_temps": "duree_ecoulee_intervention",
+                                                     "duree_estimee_minutes": "90"}),
     ]
     resultat = estime_vs_reel.enregistrer_travaux_termines(
         _charge_wct(duree_reelle_minutes=90), registre_devis, maillons_estimations, registre_cible
     )
-    assert resultat["main_doeuvre"]["duree_estimee_minutes"] == Decimal("90")
+    assert resultat["main_doeuvre"]["duree_estimee_minutes"] == Decimal("50")
 
 
 @pytest.mark.parametrize("brute", ["pas un nombre", "0", "-10"])
 def test_duree_estimee_invalide_rejetee(brute):
     registre_devis = []
-    _creer_devis(registre_devis)
-    maillons_estimations = [_maillon_estimation(duree_estimee_minutes=brute)]
+    source_hash = "a" * 64
+    _creer_devis(registre_devis, estimation_source_hash=source_hash)
+    maillons_estimations = [_maillon_estimation(
+        hash_maillon=source_hash, duree_estimee_minutes=brute,
+        trace_calibration_temps={"version_schema": 2, "semantique_temps": "duree_ecoulee_intervention",
+                                 "duree_estimee_minutes": brute},
+    )]
     resultat = estime_vs_reel.enregistrer_travaux_termines(_charge_wct(), registre_devis, maillons_estimations, [])
     assert resultat["main_doeuvre"]["verdict"]["code"] == "REJ-ECART-DUREE-ESTIMEE-INVALIDE"
 

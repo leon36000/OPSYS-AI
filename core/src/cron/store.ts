@@ -1,15 +1,25 @@
+import { randomUUID } from "node:crypto";
 /** Public cron store load/save API backed entirely by shared SQLite state. */
 import path from "node:path";
 import type { DatabaseSync } from "node:sqlite";
+import { isRecord } from "@openclaw/normalization-core/record-coerce";
 import { pruneMapToMaxSize } from "../infra/map-size.js";
 import { deferSqlitePostCommitPublication } from "../infra/sqlite-post-commit.js";
-import type { SqliteWorkerStore } from "../infra/sqlite-worker-store.js";
+import type {
+  SqliteWorkerNativeSettlementOwner,
+  SqliteWorkerOperationSettlement,
+} from "../infra/sqlite-worker-operation-settlement.js";
+import {
+  createSqliteWorkerWriteAdmission,
+  type SqliteWorkerStore,
+} from "../infra/sqlite-worker-store.js";
 import type { OpenClawStateDatabase } from "../state/openclaw-state-db-contract.js";
 import {
   openOpenClawStateDatabase,
   runOpenClawStateWriteTransaction,
 } from "../state/openclaw-state-db.js";
 import { captureOpenClawStateWorkerContext } from "../state/openclaw-state-worker-context.js";
+import type { OpenClawStateWorkerOperationOptions } from "../state/openclaw-state-worker-contract.js";
 import { runOpenClawStateWorkerOperation } from "../state/openclaw-state-worker-store.js";
 import { cronStoreKey } from "./store/key.js";
 import { restoreCronLoadError } from "./store/load-error.js";
@@ -25,6 +35,10 @@ import {
   readCronJobsFingerprint,
 } from "./store/row-codec.js";
 import type { CronJobFamilyIdentity } from "./store/row-codec.js";
+import {
+  snapshotCronRetirementCapture,
+  type CronRetirementCapture,
+} from "./store/runtime-retirement-store.js";
 import { CronJobsStoreChangedError, restoreCronSaveError } from "./store/save-error.js";
 import type {
   CronStoreSaveWorkerOperations,
@@ -203,29 +217,118 @@ async function saveCronStoreWithWorker<Value>(
   operation: (
     scope: Pick<SqliteWorkerStore<CronStoreSaveWorkerOperations>, "execute">,
   ) => Promise<CronStoreWriteResult<Value>>,
+  options?: OpenClawStateWorkerOperationOptions,
 ): Promise<CronStoreCommit<Value>> {
   const observedRevision = getCronJobsStoreRevision(storeKey);
   const context = captureOpenClawStateWorkerContext();
   let received = false;
   try {
-    return await runOpenClawStateWorkerOperation(context, async (scope) => {
-      const result = await operation(scope);
-      received = true;
-      const revision =
-        result.committed || !result.ok
-          ? publishCronStoreSaveRevision(storeKey, observedRevision)
-          : observedRevision;
-      if (!result.ok) {
-        throw restoreCronSaveError(result.error);
-      }
-      return { value: result.value, revision };
-    });
+    return await runOpenClawStateWorkerOperation(
+      context,
+      async (scope) => {
+        const result = await operation(scope);
+        received = true;
+        const revision =
+          result.committed || !result.ok
+            ? publishCronStoreSaveRevision(storeKey, observedRevision)
+            : observedRevision;
+        if (!result.ok) {
+          throw restoreCronSaveError(result.error);
+        }
+        return { value: result.value, revision };
+      },
+      options,
+    );
   } catch (error) {
     if (!received) {
       // A missing result cannot certify that no write committed. Never replay the mutation.
       noteCronJobsStoreCommit(storeKey);
     }
     throw error;
+  }
+}
+
+/** Private retirement data is applied by saveCronStoreChangesInDatabase on its owning worker. */
+export async function saveCronJobsStoreRetirementWithRevision(
+  storePath: string,
+  previous: CronStoreFile,
+  next: CronStoreFile,
+  retirement: { capture: CronRetirementCapture; jobId: string; removedAtMs: number },
+  assertCurrent: () => void,
+  afterCommit?: () => undefined,
+  options?: CronStoreChangesOptions,
+): Promise<CronStoreCommit<CronStoreFile>> {
+  assertCurrent();
+  assertCronStoreCanPersist(next);
+  const storeKey = cronStoreKey(path.resolve(storePath));
+  const capture = snapshotCronRetirementCapture(retirement.capture);
+  const jobId = retirement.jobId;
+  const removedAtMs = retirement.removedAtMs;
+  const changes = prepareCronStoreChanges(previous, next);
+  if (
+    typeof jobId !== "string" ||
+    !changes.previousById.has(jobId) ||
+    changes.nextById.has(jobId) ||
+    !changes.changedIds.has(jobId) ||
+    !Number.isSafeInteger(removedAtMs) ||
+    removedAtMs <= 0
+  ) {
+    throw new Error("Cron retirement mutation differs from its captured DELETE.");
+  }
+  const nonce = randomUUID();
+  // Only the supported data option crosses the worker boundary, never legacy transaction hooks.
+  const workerOptions =
+    options?.preserveConcurrentAdds === true ? { preserveConcurrentAdds: true } : undefined;
+  const input = structuredClone({
+    storeKey,
+    changes,
+    options: workerOptions,
+    retirement: { capture, jobId, removedAtMs, nonce },
+  });
+  const context = captureOpenClawStateWorkerContext();
+  const guard = () => {
+    context.admission.assertCurrent();
+    assertCurrent();
+  };
+  const createAdmission = createSqliteWorkerWriteAdmission(guard, [context.admission.databasePath]);
+  let native: SqliteWorkerNativeSettlementOwner | undefined;
+  let settlement: Promise<SqliteWorkerOperationSettlement> | undefined;
+  let published = false;
+  const publishCommitted = () => {
+    const facts = native?.committed?.facts;
+    if (
+      published ||
+      !isRecord(facts) ||
+      Object.keys(facts).length !== 4 ||
+      facts.kind !== "cron.retirement" ||
+      facts.nonce !== nonce ||
+      facts.receiptId !== capture.receiptId ||
+      facts.jobId !== jobId
+    )
+      return;
+    published = true;
+    afterCommit?.();
+  };
+  try {
+    return await saveCronStoreWithWorker(
+      storeKey,
+      async (scope) => await scope.execute({ type: "cron.saveChanges", input }),
+      {
+        assertCurrent: guard,
+        requireStateLifecycle: true,
+        createAdmission(retained) {
+          settlement = retained.settled;
+          const owner = createAdmission(retained);
+          native = owner.admission;
+          return owner;
+        },
+      },
+    );
+  } finally {
+    // The native receipt survives a lost result or fallible coordinator cleanup.
+    // It records only this operation's actual commit and never grants permission.
+    await settlement;
+    publishCommitted();
   }
 }
 

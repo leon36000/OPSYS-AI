@@ -36,7 +36,15 @@ if str(_SRC) not in sys.path:
 from m3_estimation import contrats, hierarchie_echelle, revue_devis, scenarios  # noqa: E402
 from m3_estimation import outils as outils_m3  # noqa: E402
 
-from opsys import approbations, approbations_appareil, contexte, idempotence, identite, stockage  # noqa: E402
+from opsys import (  # noqa: E402
+    approbations,
+    approbations_appareil,
+    contexte,
+    idempotence,
+    identite,
+    liaison_cibles,
+    stockage,
+)
 from opsys.capacites import Capacites  # noqa: E402
 from opsys.departements import lire_manifeste  # noqa: E402
 from opsys.outils import executer_atomique  # noqa: E402
@@ -89,7 +97,7 @@ def departements(base_durable):
 
 @pytest.fixture
 def capacites(departements):
-    return Capacites(departements, stockage.transaction, memoire=False)
+    return Capacites(departements, stockage.transaction, appelant=DEP, memoire=False)
 
 
 @pytest.fixture
@@ -152,6 +160,43 @@ def _creer_devis_au_prix_du_scenario(devis_id, scenario):
         "taux_marge": scenario["taux_marge"], "horodatage": _HORODATAGE,
     })
     assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse
+    _assurer_lead_m2_et_liaison(LEAD)
+
+
+def _assurer_lead_m2_et_liaison(lead_id):
+    """Prépare les registres canoniques M2/M10 nécessaires à un ticket privé M3."""
+    from m2_revenue_crm import ingestion, statuts
+    from m2_revenue_crm import registre as registre_m2
+    from m10_memoire import liaison as liaison_m10
+    from m10_memoire import registre as registre_m10
+
+    with stockage.transaction():
+        reg_m2 = registre_m2.Registre(maillons=stockage.maillons("m02-revenue-crm", "principal"))
+        if statuts.statut_courant(reg_m2, lead_id) is None:
+            contrat = {
+                "lead_id": lead_id, "conversation_id": f"conv-{lead_id}",
+                "contact": {"nom": f"Client {lead_id}", "telephone": "555-0101"},
+                "type_travaux": "renovation_totale", "ville": "Québec",
+                "urgence_declaree": False, "canal": "telephone",
+            }
+            nouveau = registre_m2.Registre()
+            _, verdict = ingestion.ingerer(contrat, nouveau, _HORODATAGE)
+            assert verdict is None
+            stockage.maillons("m02-revenue-crm", "principal").extend(nouveau.lire())
+
+    cle_session = f"agent:{DEP}:tests:{lead_id}"
+    with stockage.transaction():
+        reg_m10 = registre_m10.Registre(maillons=stockage.maillons("m10-memoire", "affaires"))
+        active = liaison_m10.liaison_courante(cle_session, reg_m10)
+        if active is None:
+            _, refus = liaison_m10.lier_session_affaire(
+                cle_session, lead_id, "proprio", "admin", "appareil", "liaison M3 de fixture fictive",
+                _HORODATAGE, reg_m10,
+            )
+            assert refus is None
+        else:
+            assert active["affaire_id"] == lead_id
+    return cle_session
 
 
 def _etat_du_devis(devis_id):
@@ -171,9 +216,28 @@ def _contexte_revue(resultat):
 
 
 def _demander(capacites, devis_id, contexte_revue, cle="cle-risque-1"):
-    meta = idempotence.Meta(cle=cle, appareil=APPAREIL, horodatage_appareil="2026-09-29T10:15:00-04:00")
-    with contexte.appele_par_appareil(VENDEUR):
-        return capacites.appeler(NOM_ENVOI, {"devis_id": devis_id, "contexte_revue": contexte_revue}, meta)
+    arguments = {"devis_id": devis_id, "contexte_revue": contexte_revue}
+    cache = getattr(capacites, "_tickets_fixture_m3", None)
+    if cache is None:
+        cache = {}
+        capacites._tickets_fixture_m3 = cache
+    cle_cache = (cle, idempotence.empreinte_arguments(arguments))
+    if cle_cache not in cache:
+        devis, verdict = outils_m3.devis_durable.lire_devis(
+            outils_m3.registre_devis_production(), devis_id
+        )
+        assert verdict is None and devis is not None
+        cle_session = _assurer_lead_m2_et_liaison(devis["lead_id"])
+        with stockage.transaction() as cnx:
+            ticket = liaison_cibles.emettre_ticket(
+                cnx, departement=DEP, agent_id=DEP, cle_session=cle_session,
+                affaire_id=devis["lead_id"], origine_affaire="session",
+                outil=NOM_ENVOI, arguments=arguments,
+            )
+        cache[cle_cache] = ticket["ticket"]
+    return capacites.appeler(
+        NOM_ENVOI, arguments, ticket_cible=liaison_cibles.TicketMeta(cache[cle_cache])
+    )
 
 
 def _file(departements):

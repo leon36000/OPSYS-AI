@@ -17,6 +17,7 @@ import {
   ensureCronRunReceiptSchema,
 } from "./run-receipt-store.js";
 import type { CronRunReceiptHandle } from "./run-receipt.types.js";
+import type { CronRetirementWorkerOperations } from "./runtime-retirement.worker.js";
 import type { CronRuntimeWorkerOperations } from "./runtime-worker.types.js";
 import type { CronStoreSaveWorkerOperations } from "./save-worker.types.js";
 import { executeCronStoreSaveCommand } from "./save.worker.js";
@@ -25,8 +26,20 @@ const loadRecovery = createLazyRuntimeModule(() => import("./run-recovery.worker
 let recovery: typeof import("./run-recovery.worker.js") | undefined;
 const loadMaintenance = createLazyRuntimeModule(() => import("./runtime-maintenance.worker.js"));
 let maintenance: typeof import("./runtime-maintenance.worker.js") | undefined;
+const loadRetirements = createLazyRuntimeModule(() => import("./runtime-retirement.worker.js"));
+let retirements: typeof import("./runtime-retirement.worker.js") | undefined;
 
 export function prepareCronStateWorkerCommand(type: PropertyKey): Promise<void> | undefined {
+  if (
+    (type === "cron.retirementList" ||
+      type === "cron.retirementRead" ||
+      type === "cron.retirementAcknowledge") &&
+    !retirements
+  ) {
+    return loadRetirements().then((loaded) => {
+      retirements = loaded;
+    });
+  }
   if (
     (type === "cron.scheduleUnowned" || type === "cron.recordFailureAlertOutcome") &&
     !maintenance
@@ -54,7 +67,7 @@ export type CronStateWorkerOperations = CronStoreWorkerOperations &
       input: { handle: CronRunReceiptHandle; binding: ExecutionOwnerBinding };
       output: ExecutionOwnerBindingResult;
     };
-  };
+  } & CronRetirementWorkerOperations;
 
 export function isCronStateWorkerCommand(command: {
   type: string;
@@ -69,6 +82,9 @@ export function isCronStateWorkerCommand(command: {
     case "cron.save":
     case "cron.saveChanges":
     case "cron.bindReceiptExecution":
+    case "cron.retirementList":
+    case "cron.retirementRead":
+    case "cron.retirementAcknowledge":
       return true;
     default:
       return false;
@@ -80,6 +96,11 @@ export function executeCronStateCommand(
   database: OpenClawStateDatabase,
 ): CronStateWorkerOperations[keyof CronStateWorkerOperations]["output"] {
   switch (command.type) {
+    case "cron.retirementList":
+    case "cron.retirementRead":
+    case "cron.retirementAcknowledge":
+      if (!retirements) throw new Error("Cron retirement worker is not prepared");
+      return retirements.executeCronRetirementCommand(command, database);
     case "cron.loadMutable":
       return loadMutableCronStoreInWorker(database, command.input.storeKey);
     case "cron.repairRun":

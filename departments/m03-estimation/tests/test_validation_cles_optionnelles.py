@@ -22,8 +22,8 @@ _SOURCE_M2 = (
     / "departments" / "m02-revenue-crm" / "src" / "m2_revenue_crm" / "contrats.py"
 )
 
-from m3_estimation import contrats
-from m3_estimation import validation
+# Import après l'ajout du src local, nécessaire à l'exécution directe hors pytest.
+from m3_estimation import contrats, validation  # noqa: E402
 
 _CLES_ACCUSE = {"lead_id", "type_travaux", "ville", "empreinte_marqueur_m2", "nombre_photos"}
 

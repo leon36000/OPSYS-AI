@@ -180,6 +180,8 @@ const adminEnCA: RessourcesAdmin = {
       tvq: "QST: collected {{collectee}}, input tax refunds {{credits}}, net {{nette}}, to remit {{aRemettre}}.",
       factures: "Invoices counted: {{clients}} customer, {{fournisseurs}} supplier.",
       taxesNonChiffrees: "Taxes not calculated by M5: see what is missing.",
+      couverturePartielle: "Calculated from received records; coverage is partial.",
+      couvertureInconnue: "Coverage is unconfirmed; the total may be incomplete.",
       illisibles: "{{nombre}} deadline(s) unreadable by this version of the app: not shown.",
       nonAffichees: "{{nombre}} deadline(s) not shown.",
       connuJusquAu: "Calendar known until {{date}}",

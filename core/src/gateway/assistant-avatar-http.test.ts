@@ -5,6 +5,7 @@ import path from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import { useAutoCleanupTempDirTracker } from "../../test/helpers/temp-dir.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
+import * as boundaryFileRead from "../infra/boundary-file-read.js";
 import { readImageMetadataFromHeader } from "../media/image-ops.js";
 import { encodePngRgba } from "../media/png-encode.js";
 import { AVATAR_MAX_BYTES } from "../shared/avatar-limits.js";
@@ -35,6 +36,104 @@ it("bounds decoded data bytes independently of the encoded URL limit", async () 
       dataUrl: `data:image/svg+xml,${"x".repeat(AVATAR_MAX_BYTES + 1)}`,
     }),
   ).rejects.toThrow("Avatar data URL exceeds size limit");
+});
+
+it("serves only the explicitly assigned local GLB through the model route", async () => {
+  const config: OpenClawConfig = {
+    agents: {
+      list: [
+        {
+          id: "main",
+          identity: { avatarModelId: "robotexpressive-quaternius-cc0-v1" },
+        },
+      ],
+    },
+  };
+  const expected = fs.readFileSync(
+    new URL("../../assets/avatar-models/robotexpressive-quaternius-cc0-v1.glb", import.meta.url),
+  );
+  const response = makeMockHttpResponse();
+  const handled = await handleControlUiAvatarRequest(
+    {
+      url: "/avatar-model/main",
+      method: "GET",
+      headers: { authorization: "Bearer model-test-token" },
+      socket: { remoteAddress: "127.0.0.1" },
+    } as IncomingMessage,
+    response.res,
+    { config, auth: { mode: "token", token: "model-test-token", allowTailscale: false } },
+  );
+  expect(handled).toBe(true);
+  expect(response.res.statusCode).toBe(200);
+  expect(response.end).toHaveBeenCalledWith(expected);
+  expect(response.setHeader).toHaveBeenCalledWith("Content-Type", "model/gltf-binary");
+  expect(response.setHeader).toHaveBeenCalledWith("Cache-Control", "private, no-store");
+
+  const unauthorized = makeMockHttpResponse();
+  await handleControlUiAvatarRequest(
+    {
+      url: "/avatar-model/main",
+      method: "HEAD",
+      headers: {},
+      socket: { remoteAddress: "127.0.0.1" },
+    } as IncomingMessage,
+    unauthorized.res,
+    { config, auth: { mode: "token", token: "model-test-token", allowTailscale: false } },
+  );
+  expect(unauthorized.res.statusCode).toBe(401);
+  expect(unauthorized.setHeader).not.toHaveBeenCalledWith(
+    "Content-Length",
+    String(expected.length),
+  );
+});
+
+it("hides a local model unless the agent has explicitly selected it", async () => {
+  const config: OpenClawConfig = {
+    agents: {
+      list: [
+        {
+          id: "main",
+          identity: { avatarModelId: "robotexpressive-quaternius-cc0-v1" },
+        },
+      ],
+    },
+  };
+  const response = makeMockHttpResponse();
+  const handled = await handleControlUiAvatarRequest(
+    { url: "/avatar-model/ghost", method: "GET", headers: {} } as IncomingMessage,
+    response.res,
+    { config },
+  );
+  expect(handled).toBe(true);
+  expect(response.res.statusCode).toBe(404);
+  expect(response.end).not.toHaveBeenCalledWith(expect.any(Buffer));
+});
+
+it("does not finish a model response after the operator unassigns it during the read", async () => {
+  const config: OpenClawConfig = {
+    agents: {
+      list: [
+        {
+          id: "main",
+          identity: { avatarModelId: "robotexpressive-quaternius-cc0-v1" },
+        },
+      ],
+    },
+  };
+  const originalRead = boundaryFileRead.readFileDescriptorBounded;
+  vi.spyOn(boundaryFileRead, "readFileDescriptorBounded").mockImplementation(async (fd, limit) => {
+    config.agents!.list![0]!.identity = {};
+    return await originalRead(fd, limit);
+  });
+  const response = makeMockHttpResponse();
+  const handled = await handleControlUiAvatarRequest(
+    { url: "/avatar-model/main", method: "GET", headers: {} } as IncomingMessage,
+    response.res,
+    { config, getRuntimeConfig: () => config },
+  );
+  expect(handled).toBe(true);
+  expect(response.res.statusCode).toBe(404);
+  expect(response.end).not.toHaveBeenCalledWith(expect.any(Buffer));
 });
 
 // Two 2×2 red/blue frames encoded with img2webp; VP8X animation flag and timing are retained.

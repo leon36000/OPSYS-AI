@@ -14,6 +14,8 @@ _TYPES_ENTREE_VALIDES = {
     "alerte",
     "suivi_conversation",
     "transfert",
+    "appel_importe",
+    "voicemail_stt_termine",
 }
 
 _CANAUX_VALIDES = {"telephone", "courriel", "formulaire", "texte"}
@@ -116,6 +118,11 @@ class Registre:
         Retourne (True, None) si ok, sinon (False, verdict REJ-CHAINE-ALTEREE).
         """
         if not self._entrees:
+            if ancre_attendue is not None:
+                return False, verdicts.construire_verdict(
+                    "REJ-CHAINE-ALTEREE",
+                    detail=f"Ancre externe attendue {ancre_attendue!r}, obtenue None",
+                )
             return True, None
 
         precedent_ligne_id = None

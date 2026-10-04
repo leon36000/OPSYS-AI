@@ -32,7 +32,7 @@ def _dernier_cout_unitaire_connu(chantier_id, materiau_id, registre):
     return None
 
 
-def consommer_materiaux(wct, formulaire, registre) -> tuple[dict | None, str | None]:
+def consommer_materiaux(wct, formulaire, registre, *, wct_id=None) -> tuple[dict | None, str | None]:
     ok, code = validation.valider_wct(wct)
     if not ok:
         return None, code
@@ -43,6 +43,11 @@ def consommer_materiaux(wct, formulaire, registre) -> tuple[dict | None, str | N
 
     if not isinstance(formulaire["lignes_consommees"], list):
         return None, "REJ-FORMULAIRE-LIGNE-INVALIDE"
+
+    # L'outil historique est maintenant lié au fait métier WCT. La clé de transport
+    # (_meta/idempotence) peut varier au rejeu : l'unicité porte sur l'identifiant M4.
+    if wct_id is not None and any(maillon.get("wct_id") == wct_id for maillon in registre.lire()):
+        return None, "REJ-DECLARATION-DEJA-SOUMISE"
 
     cles_ligne_attendues = {"materiau_id", "quantite"}
     for ligne in formulaire["lignes_consommees"]:
@@ -88,6 +93,7 @@ def consommer_materiaux(wct, formulaire, registre) -> tuple[dict | None, str | N
                 "materiau_id": ligne["materiau_id"],
                 "quantite": -ligne["quantite"],
                 "cout_unitaire": cout,
+                **({"wct_id": wct_id} if wct_id is not None else {}),
             }
         )
 

@@ -35,7 +35,9 @@ type Registered = {
   methods: Map<string, unknown>;
   methodScopes: Map<string, string | undefined>;
   tools: unknown[];
+  transcriptionProviders: unknown[];
   service?: Parameters<OpenClawPluginApi["registerService"]>[0];
+  serviceContext: Parameters<Parameters<OpenClawPluginApi["registerService"]>[0]["start"]>[0];
 };
 type MockCallSource = {
   mock: {
@@ -117,9 +119,11 @@ function createCallRecord(overrides: Partial<CallRecord> = {}): CallRecord {
   };
 }
 
-function createServiceContext(): Parameters<NonNullable<Registered["service"]>["start"]>[0] {
+function createServiceContext(
+  pluginConfig: Record<string, unknown>,
+): Parameters<NonNullable<Registered["service"]>["start"]>[0] {
   return {
-    config: {},
+    config: { plugins: { entries: { "voice-call": { config: pluginConfig } } } },
     stateDir: os.tmpdir(),
     logger: noopLogger,
   } as Parameters<NonNullable<Registered["service"]>["start"]>[0];
@@ -132,6 +136,7 @@ function setup(
   const methods = new Map<string, unknown>();
   const methodScopes = new Map<string, string | undefined>();
   const tools: unknown[] = [];
+  const transcriptionProviders: unknown[] = [];
   let service: Registered["service"];
   const api = createTestPluginApi({
     id: "voice-call",
@@ -140,7 +145,7 @@ function setup(
     version: "0",
     source: "test",
     registrationMode: "full",
-    config: {},
+    config: createServiceContext(config).config,
     pluginConfig: config,
     runtime: { tts: { textToSpeechTelephony: vi.fn() } } as unknown as OpenClawPluginApi["runtime"],
     logger: noopLogger,
@@ -148,6 +153,8 @@ function setup(
       methods.set(method, handler);
       methodScopes.set(method, opts?.scope);
     },
+    registerRealtimeTranscriptionProvider: (provider: unknown) =>
+      transcriptionProviders.push(provider),
     registerTool: (tool: unknown) =>
       tools.push(
         typeof tool === "function"
@@ -161,7 +168,14 @@ function setup(
     resolvePath: (p: string) => p,
   });
   plugin.register(api);
-  return { methods, methodScopes, tools, service };
+  return {
+    methods,
+    methodScopes,
+    tools,
+    transcriptionProviders,
+    service,
+    serviceContext: createServiceContext(config),
+  };
 }
 
 function envRef(id: string) {
@@ -223,6 +237,7 @@ async function registerVoiceCallCli(
     runtime: { tts: { textToSpeechTelephony: vi.fn() } },
     logger: noopLogger,
     registerGatewayMethod: () => {},
+    registerRealtimeTranscriptionProvider: () => {},
     registerTool: () => {},
     registerCli,
     registerService: () => {},
@@ -262,6 +277,38 @@ describe("voice-call plugin", () => {
     ];
   });
 
+  it("registers the optional local clip transcription provider", () => {
+    const { transcriptionProviders } = setup({});
+    expect(transcriptionProviders).toHaveLength(1);
+    expect(transcriptionProviders[0]).toMatchObject({
+      id: "voice-call-local-clip",
+      label: "Local clip transcription",
+    });
+  });
+
+  it("registers local transcription without starting a disabled Voice Call runtime", async () => {
+    const { service, serviceContext, transcriptionProviders } = setup({
+      enabled: false,
+      provider: "mock",
+      streaming: {
+        enabled: false,
+        provider: "voice-call-local-clip",
+        providers: {
+          "voice-call-local-clip": {
+            baseUrl: "http://127.0.0.1:9000",
+            model: "whisper-local",
+          },
+        },
+      },
+    });
+
+    await service?.start(serviceContext);
+
+    expect(transcriptionProviders).toHaveLength(1);
+    expect(transcriptionProviders[0]).toMatchObject({ id: "voice-call-local-clip" });
+    expect(createVoiceCallRuntime).not.toHaveBeenCalled();
+  });
+
   it("keeps config presentation metadata manifest-owned", () => {
     const manifest = JSON.parse(
       fs.readFileSync(new URL("./openclaw.plugin.json", import.meta.url), "utf8"),
@@ -290,9 +337,9 @@ describe("voice-call plugin", () => {
   });
 
   it("defaults canonical plugin config to an enabled mock runtime", async () => {
-    const { service } = setup({});
+    const { service, serviceContext } = setup({});
 
-    await service?.start(createServiceContext());
+    await service?.start(serviceContext);
 
     expect(createVoiceCallRuntime).toHaveBeenCalledTimes(1);
     expect(firstRuntimeConfig()).toMatchObject({
@@ -318,9 +365,9 @@ describe("voice-call plugin", () => {
 
   it("does not start the webhook runtime for CLI-only plugin loading", async () => {
     vi.stubEnv("OPENCLAW_CLI", "1");
-    const { service } = setup({ provider: "mock" });
+    const { service, serviceContext } = setup({ provider: "mock" });
 
-    await service?.start(createServiceContext());
+    await service?.start(serviceContext);
 
     expect(createVoiceCallRuntime).not.toHaveBeenCalled();
   });
@@ -329,25 +376,71 @@ describe("voice-call plugin", () => {
     const previousArgv = process.argv;
     vi.stubEnv("OPENCLAW_CLI", "1");
     process.argv = ["node", "openclaw", "gateway", "run"];
-    const { service } = setup({ provider: "mock" });
+    const { service, serviceContext } = setup({ provider: "mock" });
 
     try {
-      await service?.start(createServiceContext());
+      await service?.start(serviceContext);
       expect(createVoiceCallRuntime).toHaveBeenCalledTimes(1);
     } finally {
       process.argv = previousArgv;
     }
   });
 
+  it("refuses service start when live config changes the ingress agent but the host descriptor is stale", async () => {
+    const { service, serviceContext } = setup({
+      enabled: true,
+      provider: "twilio",
+      fromNumber: "+15550001234",
+      twilio: { accountSid: "AC123", authToken: envRef("TWILIO_AUTH_TOKEN") },
+      missedCallIngress: true,
+      agentId: "opsys-agent-demo-a",
+    });
+    const importerA = {
+      agentId: "opsys-agent-demo-a",
+      importInboundMissedCall: vi.fn(async () => ({
+        ok: true as const,
+        source: "voice-call:twilio" as const,
+        call_id: "CA-stale",
+        status: "manque" as const,
+      })),
+    };
+    const liveConfigForAgentB = createServiceContext({
+      enabled: true,
+      provider: "twilio",
+      fromNumber: "+15550001234",
+      twilio: { accountSid: "AC123", authToken: envRef("TWILIO_AUTH_TOKEN") },
+      missedCallIngress: true,
+      agentId: "opsys-agent-demo-b",
+    }).config;
+
+    expect(service).toBeDefined();
+    expect(service?.hostMissedCallIngress).toMatchObject({
+      version: 1,
+      agentId: "opsys-agent-demo-a",
+    });
+    await expect(
+      Promise.resolve().then(() =>
+        service!.start({
+          ...serviceContext,
+          config: liveConfigForAgentB,
+          hostMissedCallImporter: importerA,
+        }),
+      ),
+    ).rejects.toThrow(/host profile capability is unavailable or stale/u);
+
+    expect(createVoiceCallRuntime).not.toHaveBeenCalled();
+    expect(importerA.importInboundMissedCall).not.toHaveBeenCalled();
+  });
+
   it("reports degraded service health when provider setup is incomplete", async () => {
     vi.stubEnv("TWILIO_ACCOUNT_SID", "");
     vi.stubEnv("TWILIO_AUTH_TOKEN", "");
     vi.stubEnv("TWILIO_FROM_NUMBER", "");
-    const { service } = setup({ provider: "twilio" });
+    const { service, serviceContext } = setup({ provider: "twilio" });
     const reportFailure = vi.fn();
 
     await service?.start({
-      ...createServiceContext(),
+      ...serviceContext,
       serviceHealth: { reportFailure, clearFailure: vi.fn() },
     });
 
@@ -363,7 +456,7 @@ describe("voice-call plugin", () => {
 
   it("registers Twilio configs with SecretRef auth tokens", async () => {
     const authToken = envRef("TWILIO_AUTH_TOKEN");
-    const { service } = setup({
+    const { service, serviceContext } = setup({
       enabled: true,
       provider: "twilio",
       fromNumber: "+15550001234",
@@ -373,7 +466,7 @@ describe("voice-call plugin", () => {
       },
     });
 
-    await service?.start(createServiceContext());
+    await service?.start(serviceContext);
 
     expect(createVoiceCallRuntime).toHaveBeenCalledTimes(1);
     expect(firstRuntimeConfig()?.twilio?.authToken).toEqual(authToken);

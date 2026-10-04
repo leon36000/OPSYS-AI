@@ -14,6 +14,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAutoCleanupTempDirTracker } from "../../test/helpers/temp-dir.js";
 import { OPSYS_CONTEXTE_CONFIG_FILENAME } from "../context-engine/opsys-contexte-config.js";
+import { createMcpServerToolDenyMatcher, isToolAllowedByPolicyName } from "./tool-policy-match.js";
 import {
   checkOpsysContexteToolCall,
   OPSYS_GUARD_MAX_AGE_MS,
@@ -38,14 +39,25 @@ const AGENT = "m03-estimation";
 const SESSION = `agent:${AGENT}:main`;
 const OTHER_SESSION = `agent:${AGENT}:autre-session`;
 const TOOL_N3 = "opsys_m3__m3_estimer_projet";
-const PARAMS = { fictif: true, lead_id: "LEAD-001" };
+const PARAMS = { fictif: true, contrat: { lead_id: "LEAD-001" } };
 const LAISSE_PASSER = { blocked: false, params: PARAMS };
 
 // Ce que `openclaw.py` génère : les niveaux N0 à N5 des outils OPSYS et l'agent que le moteur sert.
 const CONTEXTE_ACTIF = {
+  version: 2,
   fictif: true,
   actif: true,
-  agents: { [AGENT]: { depot: ["m3_estimer_projet"] } },
+  agents: {
+    [AGENT]: {
+      depot: ["m3_estimer_projet"],
+      serveur_contexte: "opsys_context_m03-estimation",
+    },
+  },
+  cibles: {
+    m3_estimer_projet: { type: "affaire", chemin: ["contrat", "lead_id"], identite: "lead" },
+    m4_notifier_client_completion: { type: "inconnue" },
+    m5_enregistrer_mouvement: { type: "inconnue" },
+  },
   niveaux: {
     m3_estimer_projet: "N3",
     m3_lire_devis: "N0",
@@ -173,6 +185,31 @@ describe("greffe OPSYS de runBeforeToolCallHook : garde de contexte des outils N
       expect(requireVeto(await callTool()).reason).toContain("Action bloquée");
     });
 
+    it("refuse un lead cible différent du paquet M10 de la session", async () => {
+      opsysContexteGuardStore.set(SESSION, ready(0));
+      const outcome = await runBeforeToolCallHook({
+        toolName: TOOL_N3,
+        params: { fictif: true, contrat: { lead_id: "LEAD-002" } },
+        ctx: { sessionKey: SESSION, agentId: AGENT },
+      });
+
+      const veto = requireVeto(outcome);
+      expect(veto.reason).toContain("contrat.lead_id");
+      expect(veto.params).toStrictEqual({ fictif: true, contrat: { lead_id: "LEAD-002" } });
+    });
+
+    it("revalide la cible après qu'un plugin trusted hook a réécrit les paramètres", async () => {
+      opsysContexteGuardStore.set(SESSION, ready(0));
+      registerBeforeToolCallHook(() => ({
+        params: { fictif: true, contrat: { lead_id: "LEAD-002" } },
+      }));
+
+      const veto = requireVeto(await callTool());
+
+      expect(veto.reason).toContain("contrat.lead_id");
+      expect(veto.params).toStrictEqual({ fictif: true, contrat: { lead_id: "LEAD-002" } });
+    });
+
     it("refuse tant qu'un signal critique est ouvert, puis laisse passer une fois pris en compte", async () => {
       opsysContexteGuardStore.set(SESSION, ready(2));
 
@@ -292,6 +329,28 @@ describe("greffe OPSYS de runBeforeToolCallHook : garde de contexte des outils N
       writeContexte(CONTEXTE_ACTIF);
       expect(requireVeto(await callTool()).reason).toContain("Action bloquée");
     });
+
+    it("refuse avec le motif si le moteur est sélectionné mais sa configuration est invalide", async () => {
+      writeContexte({ ...CONTEXTE_ACTIF, niveaux: undefined });
+
+      const veto = requireVeto(await callTool());
+
+      expect(veto.reason).toContain("configuration de contexte invalide");
+      expect(veto.reason).toContain('"niveaux"');
+      expect(await callTool({ toolName: "read" })).toStrictEqual(LAISSE_PASSER);
+    });
+  });
+
+  it("the runtime tool policy matcher denies every origin-bound context MCP tool", () => {
+    const policy = { deny: ["opsys_context_*__*"] };
+    const denyServer = createMcpServerToolDenyMatcher(policy.deny);
+    for (const name of [
+      "opsys_context_m03-estimation__m10_paquet_contexte_affaire",
+      "opsys_context_m01-front-office__m10_paquet_contexte_affaire",
+    ]) {
+      expect(isToolAllowedByPolicyName(name, policy)).toBe(false);
+      expect(denyServer(name.slice(0, name.indexOf("__")))).toBe(true);
+    }
   });
 
   describe("place du garde dans la chaîne before_tool_call", () => {

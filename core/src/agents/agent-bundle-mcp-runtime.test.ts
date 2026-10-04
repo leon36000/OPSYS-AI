@@ -11,6 +11,7 @@ import type { CallToolResult, ReadResourceResult } from "@modelcontextprotocol/s
 import { expectDefined } from "@openclaw/normalization-core";
 import { materializeRequesterScopedMcpToolsForHarnessRun } from "openclaw/plugin-sdk/agent-harness-runtime";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import { createDeferred, withTestTimeout } from "../../test/helpers/promise.js";
 import {
   cleanupTempDirs,
@@ -28,6 +29,7 @@ import {
   unopenedMcpConfig,
 } from "./agent-bundle-mcp-manager.test-support.js";
 import { createMcpProbeFixture } from "./agent-bundle-mcp-probe.test-support.js";
+import { withMcpCallMeta } from "./mcp-call-meta.js";
 import { runWithSessionMcpRequestSignal } from "./agent-bundle-mcp-request-context.js";
 import { SESSION_MCP_RUNTIME_MANAGER_KEY } from "./agent-bundle-mcp-runtime-shared.js";
 import {
@@ -94,13 +96,23 @@ const LIST_TOOLS_SERVER_LOG_TIMEOUT_MS = 2_000;
 const LIST_TOOLS_TEST_DEADLINE_MS = 4_000;
 const SHA256_HEX_PATTERN = /^[0-9a-f]{64}$/;
 
-async function startRequesterScopedMcpProofServer(): Promise<{
+async function startRequesterScopedMcpProofServer(
+  options: { includeProfileProbe?: boolean } = {},
+): Promise<{
   url: string;
-  session: { current?: string; closed?: string };
+  session: {
+    current?: string;
+    closed?: string;
+    calls: Array<{ tool: string; args: Record<string, unknown>; meta?: Record<string, unknown> }>;
+  };
   close: () => Promise<void>;
 }> {
   const server = new McpServer({ name: "openclaw-requester-proof", version: "1.0.0" });
-  const session: { current?: string; closed?: string } = {};
+  const session: {
+    current?: string;
+    closed?: string;
+    calls: Array<{ tool: string; args: Record<string, unknown>; meta?: Record<string, unknown> }>;
+  } = { calls: [] };
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: randomUUID,
     onsessioninitialized(nextSessionId) {
@@ -115,6 +127,24 @@ async function startRequesterScopedMcpProofServer(): Promise<{
     { description: "Return the live requester-scoped MCP transport identity" },
     async () => ({ content: [{ type: "text", text: session.current ?? "missing-session" }] }),
   );
+  if (options.includeProfileProbe) {
+    server.registerTool(
+      "m5_profile_probe",
+      {
+        description: "Record host metadata for a synthetic OPSYS profile call",
+        inputSchema: { revision: z.number() },
+      },
+      async (args, extra) => {
+        const routedMeta = (extra as { _meta?: Record<string, unknown> } | undefined)?._meta;
+        session.calls.push({
+          tool: "m5_profile_probe",
+          args,
+          ...(routedMeta ? { meta: routedMeta } : {}),
+        });
+        return { content: [{ type: "text", text: "recorded" }] };
+      },
+    );
+  }
   await server.connect(transport);
   const httpServer = http.createServer((request, response) => {
     if (request.url !== "/mcp" || request.headers.authorization !== "Bearer proof-token") {
@@ -727,6 +757,138 @@ afterEach(async () => {
 });
 
 describe("session MCP runtime", () => {
+  it("binds profile admission metadata from host session/config and strips ambient spoofing", async () => {
+    const server = await startRequesterScopedMcpProofServer({ includeProfileProbe: true });
+    const unconfiguredServer = await startRequesterScopedMcpProofServer({ includeProfileProbe: true });
+    const legacyServer = await startRequesterScopedMcpProofServer({ includeProfileProbe: true });
+    const configured = createSessionMcpRuntime({
+      sessionId: "session-profile-admission-meta",
+      sessionKey: "agent:opsys-agent-m5-profile:main",
+      workspaceDir: "/workspace",
+      cfg: {
+        agents: {
+          entries: {
+            "opsys-agent-m5-profile": {
+              opsysRuntimeAdmission: { profileId: "m5-profile", profileRevision: 7 },
+            },
+          },
+        },
+        mcp: {
+          servers: {
+            opsys_m5: {
+              url: server.url,
+              transport: "streamable-http",
+              headers: { Authorization: "Bearer proof-token" },
+            },
+          },
+        },
+      },
+    });
+    const unconfigured = createSessionMcpRuntime({
+      sessionId: "session-profile-admission-legacy",
+      sessionKey: "agent:unconfigured-profile:main",
+      workspaceDir: "/workspace",
+      cfg: {
+        mcp: {
+          servers: {
+            opsys_m5: {
+              url: unconfiguredServer.url,
+              transport: "streamable-http",
+              headers: { Authorization: "Bearer proof-token" },
+            },
+          },
+        },
+      },
+    });
+    const legacyRevision = createSessionMcpRuntime({
+      sessionId: "session-profile-admission-stale-config",
+      sessionKey: "agent:opsys-agent-m5-profile:main",
+      workspaceDir: "/workspace",
+      cfg: {
+        agents: {
+          entries: {
+            "opsys-agent-m5-profile": {
+              opsysRuntimeAdmission: { profileId: "m5-profile" },
+            },
+          },
+        },
+        mcp: {
+          servers: {
+            opsys_m5: {
+              url: legacyServer.url,
+              transport: "streamable-http",
+              headers: { Authorization: "Bearer proof-token" },
+            },
+          },
+        },
+      },
+    });
+    try {
+      const configuredCatalog = await configured.getCatalog();
+      const unconfiguredCatalog = await unconfigured.getCatalog();
+      await legacyRevision.getCatalog();
+      expect(configuredCatalog.tools.map((tool) => tool.toolName)).toContain("m5_profile_probe");
+      expect(unconfiguredCatalog.tools.map((tool) => tool.toolName)).toContain("m5_profile_probe");
+      await withMcpCallMeta(
+        {
+          "opsys/runtimeProfileId": "model-spoof",
+          "opsys/runtimeProfileRevision": "999",
+          "opsys/runtimeServer": "opsys_m1",
+        },
+        async () => {
+          await configured.callTool("opsys_m5", "m5_profile_probe", { revision: 999 });
+          await withMcpCallMeta(
+            {
+              "opsys/idempotencyKey": "device-call-key-0001",
+              "opsys/appareil": "device-fixture",
+              "opsys/horodatageAppareil": "2026-10-01T12:00:00Z",
+              "opsys/personne": "owner-fixture",
+              "opsys/role": "admin",
+              "opsys/runtimeProfileId": "model-device-spoof",
+              "opsys/runtimeProfileRevision": "999",
+              "opsys/runtimeServer": "opsys_m1",
+            },
+            async () => configured.callTool("opsys_m5", "m5_profile_probe", { revision: 998 }),
+          );
+          await unconfigured.callTool("opsys_m5", "m5_profile_probe", { revision: 999 });
+        },
+      );
+      await expect(legacyRevision.callTool("opsys_m5", "m5_profile_probe", { revision: 997 })).rejects.toThrow(
+        /binding is missing or stale/u,
+      );
+      expect(legacyServer.session.calls).toHaveLength(0);
+      expect(server.session.calls).toHaveLength(2);
+      expect(unconfiguredServer.session.calls).toHaveLength(1);
+      expect(server.session.calls[0]).toMatchObject({
+        args: { revision: 999 },
+        meta: {
+          "opsys/runtimeProfileId": "m5-profile",
+          "opsys/runtimeProfileRevision": "7",
+          "opsys/runtimeServer": "opsys_m5",
+        },
+      });
+      expect(server.session.calls[1]).toMatchObject({
+        args: { revision: 998 },
+        meta: {
+          "opsys/idempotencyKey": "device-call-key-0001",
+          "opsys/appareil": "device-fixture",
+          "opsys/personne": "owner-fixture",
+          "opsys/role": "admin",
+        },
+      });
+      expect(server.session.calls[1]?.meta).not.toHaveProperty("opsys/runtimeProfileId");
+      expect(unconfiguredServer.session.calls[0]).toMatchObject({ args: { revision: 999 } });
+      expect(unconfiguredServer.session.calls[0]?.meta).toBeUndefined();
+    } finally {
+      await configured.dispose();
+      await unconfigured.dispose();
+      await legacyRevision.dispose();
+      await server.close();
+      await unconfiguredServer.close();
+      await legacyServer.close();
+    }
+  });
+
   it("advertises the stable MCP Apps client extension only when enabled", () => {
     expect(testing.buildMcpClientCapabilities(false)).toEqual({});
     expect(testing.buildMcpClientCapabilities(true)).toEqual({

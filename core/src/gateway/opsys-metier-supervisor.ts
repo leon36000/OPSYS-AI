@@ -18,13 +18,18 @@ import { RetrySupervisor } from "../../packages/retry/src/index.js";
 import { type BackoffPolicy, sleepWithAbort } from "../infra/backoff.js";
 import { formatErrorMessage } from "../infra/errors.js";
 import {
+  createSecretValueRedactor,
   redactRegisteredSecretValues,
   registerSecretValueForRedaction,
 } from "../logging/secret-redaction-registry.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { getProcessSupervisor } from "../process/supervisor/index.js";
 import type { ManagedRun, ProcessSupervisor, RunExit } from "../process/supervisor/types.js";
+import { isSensitiveEnvName } from "../secrets/secret-env-name.js";
+import { OpsysCronPrivateClient } from "./opsys-cron-private-client.js";
 import {
+  OPSYS_CONTEXT_MCP_TOKEN_ENV,
+  OPSYS_CRON_OPERATOR_TOKEN_ENV,
   OPSYS_MCP_TOKEN_ENV,
   readOpsysMetierConfig,
   type OpsysMetierConfig,
@@ -40,6 +45,36 @@ const DEFAULT_BACKOFF: BackoffPolicy = { initialMs: 1_000, maxMs: 60_000, factor
 const STARTUP_PROBE_INTERVAL_MS = 500;
 const PROBE_TIMEOUT_MS = 2_000;
 const MAX_LINE_CHARS = 4_000;
+const OVERSIZED_LINE_NOTICE = "[oversized line omitted]";
+
+function createChildEnvSecretRedactor(
+  env: Readonly<Record<string, string>>,
+): (text: string) => string {
+  const values = new Set<string>();
+  for (const [name, value] of Object.entries(env)) {
+    const normalizedName = name.toUpperCase();
+    if (
+      !isSensitiveEnvName(name) &&
+      normalizedName !== OPSYS_MCP_TOKEN_ENV &&
+      normalizedName !== OPSYS_CONTEXT_MCP_TOKEN_ENV &&
+      normalizedName !== OPSYS_CRON_OPERATOR_TOKEN_ENV
+    ) {
+      continue;
+    }
+    if (value.length < 6) {
+      continue;
+    }
+    values.add(value);
+    try {
+      values.add(encodeURIComponent(value));
+    } catch {
+      // A malformed UTF-16 value has no URI encoding; raw and JSON-escaped forms remain covered.
+    }
+    values.add(JSON.stringify(value).slice(1, -1));
+  }
+  const redact = createSecretValueRedactor([...values]);
+  return (text) => redact(text, () => "***");
+}
 
 export type OpsysMetierLog = {
   info: (message: string, meta?: Record<string, unknown>) => void;
@@ -61,6 +96,8 @@ export type OpsysMetierSupervisorDeps = {
   stableRunMs?: number;
   startupProbeIntervalMs?: number;
   publishStatus?: (status: OpsysMetierStatus | undefined) => void;
+  /** Host-local notification for an already-successful health probe; never blocks supervision. */
+  onHealthy?: () => void | Promise<void>;
   /** Environment the child env and the token are derived from. Defaults to `process.env`. */
   env?: NodeJS.ProcessEnv;
 };
@@ -70,43 +107,73 @@ export type OpsysMetierSupervisor = {
   /** Stops supervision, then ends the engine's process tree. Safe to call twice. */
   stop: () => Promise<void>;
   status: () => OpsysMetierStatus;
+  /** Returns the captured private client only while this same child is healthy. */
+  getPrivateCronClient: () => OpsysCronPrivateClient | undefined;
+};
+
+export type OpsysMetierSidecarHandle = GatewayPostReadySidecarHandle & {
+  getPrivateCronClient?: () => OpsysCronPrivateClient | undefined;
 };
 
 type RunCause = "stopped" | "exited" | "unhealthy" | "not-ready" | "spawn-failed";
 
 type RunOutcome = {
   cause: RunCause;
-  becameReady: boolean;
-  ranMs: number;
+  /** Longest continuous interval confirmed by successful probes, excluding startup. */
+  healthyMs: number;
   detail: string;
 };
 
-/** Splits decoded stdout/stderr chunks into journal lines, with a bound on an unfinished line. */
+/** Splits stdout/stderr into bounded journal lines, discarding overlong lines before redaction. */
 function createLineRelay(emit: (line: string) => void) {
   let pending = "";
+  let droppingOversizedLine = false;
   const emitLine = (raw: string): void => {
     const line = raw.replace(/\r$/u, "").trimEnd();
     if (line) {
-      emit(line.length > MAX_LINE_CHARS ? `${line.slice(0, MAX_LINE_CHARS)}...` : line);
+      emit(line);
     }
   };
   return {
     push: (chunk: string): void => {
-      pending += chunk;
-      let newline = pending.indexOf("\n");
-      while (newline !== -1) {
-        emitLine(pending.slice(0, newline));
-        pending = pending.slice(newline + 1);
-        newline = pending.indexOf("\n");
-      }
-      if (pending.length > MAX_LINE_CHARS) {
-        emitLine(pending);
-        pending = "";
+      let remaining = chunk;
+      while (remaining.length > 0) {
+        if (droppingOversizedLine) {
+          const newline = remaining.indexOf("\n");
+          if (newline === -1) {
+            return;
+          }
+          remaining = remaining.slice(newline + 1);
+          droppingOversizedLine = false;
+          continue;
+        }
+        const newline = remaining.indexOf("\n");
+        if (newline !== -1) {
+          if (pending.length + newline > MAX_LINE_CHARS) {
+            emit(OVERSIZED_LINE_NOTICE);
+          } else {
+            emitLine(pending + remaining.slice(0, newline));
+          }
+          pending = "";
+          remaining = remaining.slice(newline + 1);
+          continue;
+        }
+        if (pending.length + remaining.length > MAX_LINE_CHARS) {
+          pending = "";
+          droppingOversizedLine = true;
+          emit(OVERSIZED_LINE_NOTICE);
+          return;
+        }
+        pending += remaining;
+        return;
       }
     },
     flush: (): void => {
-      emitLine(pending);
+      if (!droppingOversizedLine) {
+        emitLine(pending);
+      }
       pending = "";
+      droppingOversizedLine = false;
     },
   };
 }
@@ -162,12 +229,41 @@ export function createOpsysMetierSupervisor(params: {
     extra: config.env,
     token: params.token,
   });
-  // The registry masks the token in every journal line the Gateway writes, including the
-  // engine's own output relayed below (which is masked here too, without keeping a prefix).
+  // Construct from the exact private child environment this supervisor will pass to spawn.
+  // The Gateway receives only this client getter, never the environment or its credentials.
+  let privateCronClient: OpsysCronPrivateClient | undefined;
+  const operatorToken = childEnv[OPSYS_CRON_OPERATOR_TOKEN_ENV];
+  const publicToken = childEnv[OPSYS_MCP_TOKEN_ENV];
+  if (operatorToken && publicToken) {
+    try {
+      privateCronClient = new OpsysCronPrivateClient({
+        healthUrl: config.healthUrl,
+        operatorToken,
+        publicMcpToken: publicToken,
+        ...(childEnv[OPSYS_CONTEXT_MCP_TOKEN_ENV]
+          ? { contextToken: childEnv[OPSYS_CONTEXT_MCP_TOKEN_ENV] }
+          : {}),
+      });
+    } catch {
+      // A collision or malformed audience credential disables private RPCs without logging it.
+      privateCronClient = undefined;
+    }
+  }
+  // Keep a per-child redactor independent of the process-wide bounded registry: later credentials
+  // from unrelated subsystems must not evict this child’s active tokens before stdout/stderr logs.
+  const redactChildSecrets = createChildEnvSecretRedactor(childEnv);
+  for (const name of [OPSYS_CONTEXT_MCP_TOKEN_ENV, OPSYS_CRON_OPERATOR_TOKEN_ENV]) {
+    const token = childEnv[name];
+    if (token !== undefined) {
+      registerSecretValueForRedaction(token);
+    }
+  }
   registerSecretValueForRedaction(params.token);
-  const maskSecrets = (text: string): string => redactRegisteredSecretValues(text, () => "***");
+  const maskSecrets = (text: string): string =>
+    redactRegisteredSecretValues(redactChildSecrets(text), () => "***");
 
   const abort = new AbortController();
+  let active = true;
   let status: OpsysMetierStatus = {
     state: "starting",
     restarts: 0,
@@ -177,6 +273,16 @@ export function createOpsysMetierSupervisor(params: {
   const setStatus = (patch: Partial<OpsysMetierStatus>): void => {
     status = { ...status, ...patch };
     publishStatus(status);
+    if (patch.state === "running" && privateCronClient && active && deps.onHealthy) {
+      try {
+        const notification = deps.onHealthy();
+        void Promise.resolve(notification).catch(() =>
+          log.warn("OPSYS healthy-probe reconciliation callback failed."),
+        );
+      } catch {
+        log.warn("OPSYS healthy-probe reconciliation callback failed.");
+      }
+    }
   };
 
   /** A sleep that ends early, without failing, when `signal` aborts. */
@@ -216,8 +322,7 @@ export function createOpsysMetierSupervisor(params: {
     } catch (error) {
       return {
         cause: abort.signal.aborted ? "stopped" : "spawn-failed",
-        becameReady: false,
-        ranMs: nowMs() - startedAtMs,
+        healthyMs: 0,
         detail: `launch failed: ${formatErrorMessage(error)}`,
       };
     }
@@ -264,10 +369,13 @@ export function createOpsysMetierSupervisor(params: {
     let cause: RunCause = "exited";
     let detail = "";
     let becameReady = false;
+    let healthySinceMs: number | undefined;
+    let healthyMs = 0;
     const readyDeadlineMs = startedAtMs + config.readyTimeoutMs;
     while (!shouldStop()) {
       if (await probeOnce()) {
         becameReady = true;
+        healthySinceMs = nowMs();
         break;
       }
       if (shouldStop()) {
@@ -295,8 +403,11 @@ export function createOpsysMetierSupervisor(params: {
             log.info(`the OPSYS engine answers again after ${String(failures)} failed probe(s)`);
           }
           failures = 0;
+          healthySinceMs ??= nowMs();
+          healthyMs = Math.max(healthyMs, nowMs() - healthySinceMs);
           setStatus({ state: "running", lastHealthyAtMs: nowMs(), error: undefined });
         } else if (!shouldStop()) {
+          healthySinceMs = undefined;
           failures += 1;
           const progress = `${String(failures)}/${String(config.maxProbeFailures)}`;
           setStatus({ state: "unhealthy", error: `health probe failed (${progress})` });
@@ -333,7 +444,7 @@ export function createOpsysMetierSupervisor(params: {
         atMs: nowMs(),
       },
     });
-    return { cause, becameReady, ranMs: nowMs() - startedAtMs, detail };
+    return { cause, healthyMs, detail };
   };
 
   const superviseLoop = async (): Promise<void> => {
@@ -345,7 +456,7 @@ export function createOpsysMetierSupervisor(params: {
       }
       // Only a run that was healthy for a while proves the engine can stay up: a crash loop
       // keeps counting toward giving up.
-      if (outcome.becameReady && outcome.ranMs >= stableRunMs) {
+      if (outcome.healthyMs >= stableRunMs) {
         retry.reset();
       }
       const next = retry.next(abort.signal);
@@ -398,6 +509,7 @@ export function createOpsysMetierSupervisor(params: {
       return stopping;
     }
     const pending = (async () => {
+      active = false;
       abort.abort();
       await loop;
       try {
@@ -416,7 +528,13 @@ export function createOpsysMetierSupervisor(params: {
     return pending;
   };
 
-  return { start, stop, status: () => status };
+  return {
+    start,
+    stop,
+    status: () => status,
+    getPrivateCronClient: () =>
+      active && status.state === "running" ? privateCronClient : undefined,
+  };
 }
 
 type SidecarParams = {
@@ -425,6 +543,8 @@ type SidecarParams = {
   env?: NodeJS.ProcessEnv;
   log?: OpsysMetierLog;
   deps?: OpsysMetierSupervisorDeps;
+  /** Called without awaiting after first and periodic successful health probes. */
+  onHealthy?: () => void | Promise<void>;
 };
 
 /** Launches nothing, says why in the journal and in the health payloads, and stops cleanly. */
@@ -449,7 +569,7 @@ function resolveSidecarLog(params: SidecarParams): OpsysMetierLog {
 function startConfiguredSidecar(
   params: SidecarParams,
   publishStatus: (status: OpsysMetierStatus | undefined) => void,
-): GatewayPostReadySidecarHandle | undefined {
+): OpsysMetierSidecarHandle | undefined {
   const env = params.env ?? process.env;
   const configured = readOpsysMetierConfig({ dir: params.dir, env });
   if (configured.kind === "absent" || configured.kind === "disabled") {
@@ -471,10 +591,13 @@ function startConfiguredSidecar(
     config: configured.config,
     token: token.token,
     tokenSource: token.source,
-    deps: { ...params.deps, log, env, publishStatus },
+    deps: { ...params.deps, onHealthy: params.onHealthy, log, env, publishStatus },
   });
   supervisor.start();
-  return { stop: () => supervisor.stop() };
+  return {
+    stop: () => supervisor.stop(),
+    getPrivateCronClient: supervisor.getPrivateCronClient,
+  };
 }
 
 /**
@@ -486,7 +609,7 @@ function startConfiguredSidecar(
  */
 export function startOpsysMetierSidecar(
   params: SidecarParams = {},
-): GatewayPostReadySidecarHandle | undefined {
+): OpsysMetierSidecarHandle | undefined {
   const publishStatus = params.deps?.publishStatus ?? setOpsysMetierStatus;
   try {
     return startConfiguredSidecar(params, publishStatus);

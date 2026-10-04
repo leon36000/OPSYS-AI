@@ -43,6 +43,7 @@ export const OPSYS_METIER_MOVED_COMMANDS: readonly string[] = [
   "appareils",
   "instance",
   "passerelle",
+  "memoire-developpement",
 ];
 
 export type OpsysMetierInvocation =

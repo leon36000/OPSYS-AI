@@ -43,7 +43,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable, Mapping
 from datetime import date, datetime, timedelta
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, Context, Decimal, localcontext
 from typing import Any
 
 from . import analyse, encodage, validation
@@ -64,6 +64,7 @@ __all__ = [
 
 _CENT = Decimal("0.01")
 _ZERO = Decimal("0")
+_CONTEXTE_MONETAIRE = Context(prec=64)
 # Les deux taxes, telles que `taux_fiscaux.v1.yaml` les nomme (ce sont les identifiants du contrat, pas des taux).
 _IDS_TAXES = ("tps_federale", "tvq_quebec")
 _ETIQUETTE_TAXE = {"tps_federale": "tps", "tvq_quebec": "tvq"}
@@ -440,7 +441,7 @@ def composante_reserves(
 
 
 # ------------------------------------------------------------------------------------ l'assemblage
-def calculer_cash_libre(solde: Mapping[str, Any], composantes: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+def _calculer_cash_libre(solde: Mapping[str, Any], composantes: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
     """Le cash libre : le solde moins les six composantes, dans l'ordre de la définition produit.
 
     `cash_libre` est `None` (non calculable) dès que le solde ou une composante l'est ; `manque` dit alors quoi
@@ -485,6 +486,12 @@ def calculer_cash_libre(solde: Mapping[str, Any], composantes: Iterable[Mapping[
         "reserves": reserves,
     }
     return {**contenu, "cash_libre_id": encodage.empreinte(contenu)}
+
+
+def calculer_cash_libre(solde: Mapping[str, Any], composantes: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
+    """Assemble le cash libre avec une précision locale indépendante du contexte appelant."""
+    with localcontext(_CONTEXTE_MONETAIRE):
+        return _calculer_cash_libre(solde, composantes)
 
 
 def _lecture(resultat: Mapping[str, Any]) -> str:

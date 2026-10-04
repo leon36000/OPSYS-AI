@@ -73,6 +73,14 @@ def test_estimer_projet_autonomie_t1_car_il_ecrit_desormais_au_registre():
     assert outil.autonomie == Autonomie.T1
 
 
+def test_estimer_projet_declare_la_cible_affaire_du_contrat_valide():
+    outil = next(o for o in outils() if o.nom == "m3_estimer_projet")
+
+    assert outil.portee_contexte == "affaire"
+    assert outil.cible_contexte == ("contrat", "lead_id")
+    assert outil.identite_contexte == "lead"
+
+
 def test_estimer_projet_arguments_invalides_ne_touche_jamais_le_stockage():
     """Un rejet de SCHÉMA (contrat manquant) court-circuite `executer()` avant tout appel à
     `estimer_projet`, donc avant tout accès au registre durable — même patron que

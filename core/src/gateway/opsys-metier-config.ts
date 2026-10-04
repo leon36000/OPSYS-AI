@@ -34,6 +34,20 @@ import { formatErrorMessage } from "../infra/errors.js";
 export const OPSYS_METIER_CONFIG_FILENAME = "metier.json";
 /** Env var shared by the engine (`src/opsys/serveur_mcp.py`) and the `mcp.servers` headers. */
 export const OPSYS_MCP_TOKEN_ENV = "OPSYS_MCP_JETON";
+/** Private Gateway audiences must never be supplied by the engine config file. */
+export const OPSYS_CONTEXT_MCP_TOKEN_ENV = "OPSYS_CONTEXT_MCP_JETON";
+export const OPSYS_CRON_OPERATOR_TOKEN_ENV = "OPSYS_CRON_OPERATEUR_JETON";
+const GATEWAY_OWNED_OPSYS_TOKEN_ENVS = new Set([
+  OPSYS_MCP_TOKEN_ENV,
+  OPSYS_CONTEXT_MCP_TOKEN_ENV,
+  OPSYS_CRON_OPERATOR_TOKEN_ENV,
+]);
+
+/** Names that would let metier.json inject or replace a Gateway-owned credential. */
+export function isGatewayOwnedOpsysMetierEnvName(name: string): boolean {
+  const normalized = name.toUpperCase();
+  return GATEWAY_OWNED_OPSYS_TOKEN_ENVS.has(normalized) || normalized.startsWith("OPENCLAW_");
+}
 /** Path of the engine's unauthenticated liveness endpoint (`GET`, no business data). */
 export const OPSYS_METIER_HEALTH_PATH = "/sante";
 
@@ -154,8 +168,14 @@ export function parseOpsysMetierConfig(raw: unknown): OpsysMetierConfigResult {
     if (!isStringRecord(extraEnv)) {
       return invalid('"env" must map variable names to strings');
     }
-    if (Object.hasOwn(extraEnv, OPSYS_MCP_TOKEN_ENV)) {
-      return invalid(`"env" must not set ${OPSYS_MCP_TOKEN_ENV}: the Gateway owns the engine token`);
+    const gatewayOwnedName = Object.keys(extraEnv).find(isGatewayOwnedOpsysMetierEnvName);
+    if (gatewayOwnedName !== undefined) {
+      if (gatewayOwnedName.toUpperCase() === OPSYS_MCP_TOKEN_ENV) {
+        return invalid(
+          `"env" must not set ${OPSYS_MCP_TOKEN_ENV}: the Gateway owns the engine token`,
+        );
+      }
+      return invalid(`"env" must not set Gateway-owned variable ${gatewayOwnedName}`);
     }
     env = extraEnv;
   }
@@ -165,7 +185,12 @@ export function parseOpsysMetierConfig(raw: unknown): OpsysMetierConfigResult {
     return invalid(`"delai_pret_ms" must be ${rangeText(readyRange)}`);
   }
   const intervalRange = { min: 100, max: 600_000 };
-  const interval = readInteger(raw, "intervalle_sante_ms", DEFAULT_PROBE_INTERVAL_MS, intervalRange);
+  const interval = readInteger(
+    raw,
+    "intervalle_sante_ms",
+    DEFAULT_PROBE_INTERVAL_MS,
+    intervalRange,
+  );
   if (!interval.ok) {
     return invalid(`"intervalle_sante_ms" must be ${rangeText(intervalRange)}`);
   }

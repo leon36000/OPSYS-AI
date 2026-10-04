@@ -38,6 +38,19 @@ describe("exec control command guard", () => {
   it("leaves the other `opsys` commands alone", async () => {
     await expect(detectUnsafeExecControlShellCommand("opsys channels status")).resolves.toBeNull();
     await expect(detectUnsafeExecControlShellCommand("opsys metier base etat")).resolves.toBeNull();
+    await expect(detectUnsafeExecControlShellCommand("opsys metier budgets")).resolves.toBeNull();
+    await expect(detectUnsafeExecControlShellCommand("opsys metier memoire lister")).resolves.toBeNull();
+  });
+
+  it.each([
+    "opsys metier approbations approuver demande-1 --par nathan",
+    "env -u OPENCLAW_SHELL opsys metier approbations approuver demande-1 --par nathan",
+    "opsys metier mode m03-estimation autonome --par nathan",
+    "opsys-metier approbations refuser demande-1 --par nathan",
+    "python -m opsys.cli approbations approuver demande-1 --par nathan",
+  ])("rejects operator decisions even if a command removes the shell marker: `%s`", async (command) => {
+    await expect(detectUnsafeExecControlShellCommand(command)).resolves.toBe("opsys-metier-operator");
+    await expect(rejectUnsafeExecControlShellCommand(command)).rejects.toThrow(/operator decisions or mutations/);
   });
 
   it("rejects commands that exceed the explanation work limit", async () => {

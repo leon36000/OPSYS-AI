@@ -65,6 +65,7 @@ import {
 } from "../session-registry.js";
 import { requirePreparedTalkSessionTarget } from "../session-target.js";
 import {
+  cancelTalkTranscriptionRelaySession,
   createTalkTranscriptionRelaySession,
   sendTalkTranscriptionRelayAudio,
   stopTalkTranscriptionRelaySession,
@@ -632,16 +633,37 @@ export const talkSessionHandlers: GatewayRequestHandlers = {
       const session = getUnifiedTalkSession(params.sessionId);
       if (session.kind === "realtime-relay") {
         const connId = requireUnifiedTalkSessionConn(session, client?.connId);
+        if (params.discardAudio) {
+          respondInvalidRequest(
+            respond,
+            "discardAudio is only supported for transcription sessions",
+          );
+          return;
+        }
         await stopTalkRealtimeRelaySession({ relaySessionId: session.relaySessionId, connId });
       } else if (session.kind === "transcription-relay") {
         const connId = requireUnifiedTalkSessionConn(session, client?.connId);
-        stopTalkTranscriptionRelaySession({
-          transcriptionSessionId: session.transcriptionSessionId,
-          connId,
-        });
+        if (params.discardAudio) {
+          cancelTalkTranscriptionRelaySession({
+            transcriptionSessionId: session.transcriptionSessionId,
+            connId,
+          });
+        } else {
+          stopTalkTranscriptionRelaySession({
+            transcriptionSessionId: session.transcriptionSessionId,
+            connId,
+          });
+        }
       } else {
         if (!canCloseManagedRoomSession(session, client?.connId)) {
           respond(false, undefined, managedRoomOwnershipError("close"));
+          return;
+        }
+        if (params.discardAudio) {
+          respondInvalidRequest(
+            respond,
+            "discardAudio is only supported for transcription sessions",
+          );
           return;
         }
         const result = revokeTalkHandoff(session.handoffId);
@@ -651,7 +673,9 @@ export const talkSessionHandlers: GatewayRequestHandlers = {
           events: result.events,
         });
       }
-      forgetUnifiedTalkSession(params.sessionId);
+      if (session.kind !== "transcription-relay") {
+        forgetUnifiedTalkSession(params.sessionId);
+      }
       respondOk(respond);
     } catch (err) {
       respondUnavailable(respond, err);

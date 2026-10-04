@@ -299,6 +299,7 @@ def composer_faits(
     contacts = {
         "canal": "Contact : celui du correspondant, vérifié par le canal (porté à part).",
         "texte": "Contact : écrit par le client dans son message (porté à part).",
+        "numéro transmis par l'hôte": "Contact : numéro transmis par l'hôte (porté à part).",
     }
     phrases.append(contacts.get(contact_source or "", "Contact : aucun connu."))
     phrases.append("Les messages du client se lisent avec `m1_lire_transfert`.")

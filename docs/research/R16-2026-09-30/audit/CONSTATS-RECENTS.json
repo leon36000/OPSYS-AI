@@ -1,0 +1,435 @@
+{
+  "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+  "niveaux": {
+    "P1": 14,
+    "P2": 30,
+    "P3": 3
+  },
+  "constats": [
+    {
+      "id": "DEP-001",
+      "niveau": "P1",
+      "titre": "Collision de facture et créance masquée",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DEP-002",
+      "niveau": "P1",
+      "titre": "Identité de destinataire privé M10 fournie par l’appelant",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DEP-003",
+      "niveau": "P1",
+      "titre": "Ancien chemin M6 : WCT affirmé, mauvaise intervention et rejeu",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DEP-004",
+      "niveau": "P2",
+      "titre": "Pauses après départ et durée WCT négative sous revue",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DEP-005",
+      "niveau": "P2",
+      "titre": "Retrait marketing antérieur au WCT sans rattachement ultérieur au lead",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DEP-006",
+      "niveau": "P2",
+      "titre": "Consolidation journalière ne couvrant pas les événements tardifs",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DEP-007",
+      "niveau": "P2",
+      "titre": "Texte nan converti en métrique sans alerte qualité",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DEP-008",
+      "niveau": "P2",
+      "titre": "Contradiction masquée par représentations temporelles équivalentes",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DEP-009",
+      "niveau": "P2",
+      "titre": "WCT changé dédupliqué sans conflit de contenu",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DEP-010",
+      "niveau": "P2",
+      "titre": "Conversation forgée acceptée sans historique canonique",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DEP-011",
+      "niveau": "P2",
+      "titre": "Primitive M7 : auteur et contenu approuvés depuis objet mutable",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DEP-012",
+      "niveau": "P2",
+      "titre": "Script injectable par couleur CSS de configuration locale",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DEP-013",
+      "niveau": "P2",
+      "titre": "Seuil photo NaN permissif au répartiteur Python",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DEP-014",
+      "niveau": "P2",
+      "titre": "Exactitude financière dépendante du contexte Decimal ambiant",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DEP-015",
+      "niveau": "P3",
+      "titre": "Débordement numérique M3 et exception publique non nommée",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DEP-016",
+      "niveau": "P3",
+      "titre": "Montant extrême M5 et exception Decimal non nommée",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DEP-017",
+      "niveau": "P3",
+      "titre": "Chaîne vide validée malgré ancre extérieure non vide",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "departements-rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DON-01",
+      "niveau": "P1",
+      "titre": "Autorisations et révocation console insuffisantes",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "donnees/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DON-02",
+      "niveau": "P1",
+      "titre": "Restauration échouée sans retour cohérent",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "donnees/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DON-03",
+      "niveau": "P1",
+      "titre": "Révision déclarée non comparée à la base réelle",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "donnees/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DON-04",
+      "niveau": "P2",
+      "titre": "Import historique interrompu non repris automatiquement",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "donnees/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DON-05",
+      "niveau": "P2",
+      "titre": "Artefact lisible depuis autre département connaissant son ID",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "donnees/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "DON-06",
+      "niveau": "P2",
+      "titre": "Déduplication RAG reclassant fragment et rétention après ajout approuvé",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "donnees/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "MOB-01",
+      "niveau": "P1",
+      "titre": "Captures de A transformées et envoyées au nom de B",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "proof/recent/rapport-mobile.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "MOB-02",
+      "niveau": "P1",
+      "titre": "Accusé WCT utile non persisté hors écran",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "proof/recent/rapport-mobile.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "MOB-03",
+      "niveau": "P2",
+      "titre": "Reprise serveur non réconciliée avec état fichier local",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "proof/recent/rapport-mobile.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "MOB-04",
+      "niveau": "P2",
+      "titre": "Enfilage partiel des blocs non réparable",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "proof/recent/rapport-mobile.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "MOB-05",
+      "niveau": "P2",
+      "titre": "Préparations concurrentes et indices dupliqués",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "proof/recent/rapport-mobile.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "MOB-06",
+      "niveau": "P2",
+      "titre": "Timeout ne couvrant pas lecture du corps HTTP",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "proof/recent/rapport-mobile.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "MOB-07",
+      "niveau": "P2",
+      "titre": "Corps HTTP 200 interrompu traité comme échec permanent",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "proof/recent/rapport-mobile.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "MOB-08",
+      "niveau": "P2",
+      "titre": "Session changée pendant purge non revalidée après attente",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "proof/recent/rapport-mobile.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "MOB-09",
+      "niveau": "P1",
+      "titre": "Accusé métier inconnu accepté",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "proof/recent/rapport-mobile.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "INFRA-R01",
+      "niveau": "P1",
+      "titre": "Noms incompatibles des archives de volumes backup/restore",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "infra/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "INFRA-R02",
+      "niveau": "P1",
+      "titre": "Garde de désinstallation textuelle et chemins physiques protégés",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "infra/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "INFRA-R03",
+      "niveau": "P1",
+      "titre": "Contexte image pouvant inclure sauvegardes et secrets locaux",
+      "preuve_dominante": "lecture-source",
+      "rapport": "infra/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "INFRA-R04",
+      "niveau": "P2",
+      "titre": "Backup et restore positifs malgré éléments requis manquants",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "infra/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "INFRA-R05",
+      "niveau": "P2",
+      "titre": "Modèle env VPS requis absent du dépôt",
+      "preuve_dominante": "lecture-source",
+      "rapport": "infra/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "INFRA-R06",
+      "niveau": "P2",
+      "titre": "Permissions des sauvegardes conditionnellement publiques sur hôte",
+      "preuve_dominante": "reproduction-bornée",
+      "rapport": "infra/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "INFRA-R07",
+      "niveau": "P2",
+      "titre": "Gate Python et absence de CI générale complète au HEAD",
+      "preuve_dominante": "source-et-métadonnées-distantes",
+      "rapport": "infra/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "INFRA-R08",
+      "niveau": "P2",
+      "titre": "Avis de sécurité npm et absence de scan dans workflows racine",
+      "preuve_dominante": "source-et-métadonnées-distantes",
+      "rapport": "infra/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "INFRA-R09",
+      "niveau": "P2",
+      "titre": "Installations Python et outils sans verrou reproductible",
+      "preuve_dominante": "lecture-source",
+      "rapport": "infra/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "C01",
+      "niveau": "P1",
+      "titre": "Frontière CLI humain/agent reposant sur environnement effaçable",
+      "preuve_dominante": "lecture-source-et-contrats",
+      "rapport": "docs-audit/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "C02",
+      "niveau": "P1",
+      "titre": "Garde contexte non liée à cible des arguments métier",
+      "preuve_dominante": "lecture-source-et-contrats",
+      "rapport": "docs-audit/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "C03",
+      "niveau": "P2",
+      "titre": "Configuration sélectionnée invalide ouvrant la garde",
+      "preuve_dominante": "lecture-source-et-contrats",
+      "rapport": "docs-audit/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "C04",
+      "niveau": "P2",
+      "titre": "Démarrage long inclus dans durée saine de reprise",
+      "preuve_dominante": "lecture-source-et-contrats",
+      "rapport": "docs-audit/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "C05",
+      "niveau": "P2",
+      "titre": "Documentation de référence non réconciliée avec architecture",
+      "preuve_dominante": "lecture-source-et-contrats",
+      "rapport": "docs-audit/recent/rapport.md",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Voir le constat individuel dans le rapport ; aucune exploitation distante générale déduite."
+    },
+    {
+      "id": "G01",
+      "niveau": "P2",
+      "titre": "CODEOWNERS conserve les anciens chemins",
+      "preuve_dominante": "lecture-source",
+      "rapport": "RAPPORT-CONSOLIDE.md",
+      "source": "/workspace/OPSYS-AI-recent/CODEOWNERS:2",
+      "revision": "2e56c0d5605dfe575bde9244f38924d5390f2674",
+      "préconditions_et_limites": "Attribution automatique dans ce fichier seulement ; exigences serveur main inaccessibles."
+    }
+  ],
+  "portée": "Constats qualifiés récents seulement ; historiques, observations et manque de preuve séparés."
+}

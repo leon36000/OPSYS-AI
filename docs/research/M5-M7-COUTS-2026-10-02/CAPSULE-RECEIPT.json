@@ -1,0 +1,46 @@
+{
+  "archive": "M5-M7-COUTS-capsule-r1.tar.gz",
+  "archive_bytes": 488937,
+  "archive_sha256": "77012f54b754f93281ca4eec763932c914635b514f880eb55e97e0c2936b242b",
+  "created_utc": "2026-10-02T18:43:33.950833+00:00",
+  "destination": "/workspace/OPSYS-AI-recent/docs/research/M5-M7-COUTS-2026-10-02",
+  "destination_absente": true,
+  "exact_member_set_and_raw_sha_roundtrip": true,
+  "gzip_mtime": 0,
+  "helper_sha256": "9dd5aa0d584f96951d6c8f2e2f1ef7080a7eb6b55a65cc72a1be048cf56cb9be",
+  "index_sha256": "9b75e92115e53950626aa6e49c6f37dd02072967289f6ee64ca6f1fe1b4d6573",
+  "manifest_sha256": "27c76e41e135fdce73d4e4d4d304486e05d8880e599f31c77b08bad5cfdb4f95",
+  "membres": 87,
+  "mode": "PUBLIE_ROOT",
+  "octets_bruts": 2198415,
+  "plafond": 4194304,
+  "root": {
+    "author_55_subset_verified": true,
+    "conductor_elapsed_seconds": 120.67576631199336,
+    "excluded_source_observation": [
+      "departments/m05-financecore/src/m5_financecore/cotisations_rrq_regulieres.py",
+      "departments/m05-financecore/tests/test_cotisations_rrq_regulieres.py"
+    ],
+    "finished_utc": "2026-10-02T18:26:55.913310+00:00",
+    "junit": {
+      "errors": 0,
+      "failures": 0,
+      "passed": 1522,
+      "skipped": 0,
+      "tests": 1522
+    },
+    "junit_seconds": 119.187,
+    "limits": {
+      "SQLite_fictitious_only": true,
+      "costs_are_allocations_not_payments_or_ROI": true,
+      "not_whole_repo_test_qualification": true
+    },
+    "minimum_headroom_octets": 1390669824,
+    "not_whole_repo_freeze_or_test_qualification": true,
+    "oom_delta": false,
+    "peak_group_rss_octets": 237367296,
+    "source_count_stable": 1136,
+    "started_utc": "2026-10-02T18:24:55.237543+00:00"
+  },
+  "status": "ROOT_VERT_RELU"
+}

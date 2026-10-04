@@ -1,0 +1,12 @@
+{
+  "controle_courant": "deux sources; aucun contrôle global1107",
+  "documents": {
+    "docs/architecture/CALIBRATION-COHORTES-TEMPS.md": "505464065c76a41aee679fafba776400b5c71a783e26cea21c9a9810ec1addd5",
+    "docs/programme/LOT-COHORTES-TEMPS.md": "ea7e1afb048796e7f3b4ef246e261fb635290f4559cd0759775d9bec61992595"
+  },
+  "inventaire_entrees_sha256": "949f87481ee4ed4a7caf7e858b3d0393c4d5e532b4eeba8ed9dc2c0b4d21c01e",
+  "sources_qualifiees": {
+    "departments/m03-estimation/src/m3_estimation/calibration_cohortes.py": "76c07eb743e3a7468328bd15513966814626f133bb65bd90d548355c0dc63571",
+    "departments/m03-estimation/tests/test_calibration_cohortes.py": "124008e136db9e271f01c6251d47e4e794f41491d7bf474d1c9e210afc6dfce4"
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "capsule": {
+    "at": "2026-10-02T11:39:56.176154+00:00",
+    "files": [
+      {
+        "bytes": 33265,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r4/capsule-sources/src/opsys/capacites.py",
+        "path": "src/opsys/capacites.py",
+        "sha256": "f25cc417cd5c4c86da890e80bbe5c682dae7e0760f0a8f0f5a9433148bfb689e"
+      },
+      {
+        "bytes": 27811,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r4/capsule-sources/src/opsys/serveur_mcp.py",
+        "path": "src/opsys/serveur_mcp.py",
+        "sha256": "8803060081592fb69ee716bd1131750b15da24bb4ed3ee59883a5bf57d8897fa"
+      },
+      {
+        "bytes": 56854,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r4/capsule-sources/src/opsys/openclaw.py",
+        "path": "src/opsys/openclaw.py",
+        "sha256": "9a8dfcdb26d4491e146671537fe0027622d9c1f4209ec94dee408e3d5d2335ab"
+      },
+      {
+        "bytes": 14815,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r4/capsule-sources/src/opsys/memoire/outils.py",
+        "path": "src/opsys/memoire/outils.py",
+        "sha256": "ebfbdbb129ffe30ab1b5f7a3b2d8708534f73018234f3fcd985490e46f7346d4"
+      },
+      {
+        "bytes": 54864,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r4/capsule-sources/src/opsys/memoire/store.py",
+        "path": "src/opsys/memoire/store.py",
+        "sha256": "bcf523dfe50ce51b22f160d119ccb22e12d94ad09d615ed791d9df6aee3fb74e"
+      },
+      {
+        "bytes": 49269,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r4/capsule-sources/core/src/agents/agent-bundle-mcp-runtime.ts",
+        "path": "core/src/agents/agent-bundle-mcp-runtime.ts",
+        "sha256": "bc578b092e9370f7c87dc484c47dd9f174eb7d1287aebac1a75921ee6849a6f9"
+      },
+      {
+        "bytes": 22210,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r4/capsule-sources/tests/test_serveur_mcp_http.py",
+        "path": "tests/test_serveur_mcp_http.py",
+        "sha256": "c9f9348db4358e6073b5544cafbdbfdb7c0ad405e5c147af237471a17714a38c"
+      },
+      {
+        "bytes": 10655,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r4/capsule-sources/src/opsys/memoire/autorite.py",
+        "path": "src/opsys/memoire/autorite.py",
+        "sha256": "49c5f844803c25d90889abb876d9ff39d6f4e56de220d963359fef71def42c83"
+      },
+      {
+        "bytes": 15916,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r4/capsule-sources/tests/test_memoire_autorite.py",
+        "path": "tests/test_memoire_autorite.py",
+        "sha256": "f39597b4c893fd02232d94c7047d91166e7afdeff506d6cd7cb9f8643ec57894"
+      },
+      {
+        "bytes": 6562,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r4/capsule-sources/tests/test_memoire_autorite_postgres.py",
+        "path": "tests/test_memoire_autorite_postgres.py",
+        "sha256": "86848c653262cba29f390b8922e60e3b596d39949a37c77791cd0fb5bb8fd9cc"
+      },
+      {
+        "bytes": 6671,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r4/capsule-sources/core/src/agents/opsys-memoire-lecture-ticket.ts",
+        "path": "core/src/agents/opsys-memoire-lecture-ticket.ts",
+        "sha256": "e411f8b36c3d9ddb305a7e262eac072d2b534671015f73dc1b47faa20a20309d"
+      },
+      {
+        "bytes": 6781,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r4/capsule-sources/core/src/agents/opsys-memoire-lecture-ticket.test.ts",
+        "path": "core/src/agents/opsys-memoire-lecture-ticket.test.ts",
+        "sha256": "8755e6abe066e928876407d76ab870b4cc470fdece658085b697939204e5972c"
+      },
+      {
+        "bytes": 6891,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r4/capsule-sources/core/src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts",
+        "path": "core/src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts",
+        "sha256": "4a41fc5c903db6da757eacee003f492ff00c88990544b79a9691606672d0cfdc"
+      },
+      {
+        "bytes": 4054,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r4/capsule-sources/docs/memory/AUTORITE-LECTURE-CLIENT.md",
+        "path": "docs/memory/AUTORITE-LECTURE-CLIENT.md",
+        "sha256": "8868f8d54156e5d301c3077e151b80fbeadebede98a534bd646418b679cd8ee7"
+      },
+      {
+        "bytes": 1645,
+        "capsule": "/workspace/restructuration-opsys-2026-10-02/memoire-premium-autorite-r33-r4/capsule-sources/tests/fixtures/memoire/autorite.py",
+        "path": "tests/fixtures/memoire/autorite.py",
+        "sha256": "740c294b51a0e5e955a4859e3ab35ee3334ca6ebc856503e7f51bd8faf299b30"
+      }
+    ],
+    "no_runtime_execution": true,
+    "source_count": 15
+  },
+  "controle_courant": "15 chemins R33 seulement",
+  "inventaire_entrees_sha256": "c205044b08a04e8ebe33eb9940c8740cb33cc28021a00a4d72042d0ed72a9888",
+  "sources": {
+    "core/src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts": "4a41fc5c903db6da757eacee003f492ff00c88990544b79a9691606672d0cfdc",
+    "core/src/agents/agent-bundle-mcp-runtime.ts": "bc578b092e9370f7c87dc484c47dd9f174eb7d1287aebac1a75921ee6849a6f9",
+    "core/src/agents/opsys-memoire-lecture-ticket.test.ts": "8755e6abe066e928876407d76ab870b4cc470fdece658085b697939204e5972c",
+    "core/src/agents/opsys-memoire-lecture-ticket.ts": "e411f8b36c3d9ddb305a7e262eac072d2b534671015f73dc1b47faa20a20309d",
+    "docs/memory/AUTORITE-LECTURE-CLIENT.md": "8868f8d54156e5d301c3077e151b80fbeadebede98a534bd646418b679cd8ee7",
+    "src/opsys/capacites.py": "f25cc417cd5c4c86da890e80bbe5c682dae7e0760f0a8f0f5a9433148bfb689e",
+    "src/opsys/memoire/autorite.py": "49c5f844803c25d90889abb876d9ff39d6f4e56de220d963359fef71def42c83",
+    "src/opsys/memoire/outils.py": "ebfbdbb129ffe30ab1b5f7a3b2d8708534f73018234f3fcd985490e46f7346d4",
+    "src/opsys/memoire/store.py": "bcf523dfe50ce51b22f160d119ccb22e12d94ad09d615ed791d9df6aee3fb74e",
+    "src/opsys/openclaw.py": "9a8dfcdb26d4491e146671537fe0027622d9c1f4209ec94dee408e3d5d2335ab",
+    "src/opsys/serveur_mcp.py": "8803060081592fb69ee716bd1131750b15da24bb4ed3ee59883a5bf57d8897fa",
+    "tests/fixtures/memoire/autorite.py": "740c294b51a0e5e955a4859e3ab35ee3334ca6ebc856503e7f51bd8faf299b30",
+    "tests/test_memoire_autorite.py": "f39597b4c893fd02232d94c7047d91166e7afdeff506d6cd7cb9f8643ec57894",
+    "tests/test_memoire_autorite_postgres.py": "86848c653262cba29f390b8922e60e3b596d39949a37c77791cd0fb5bb8fd9cc",
+    "tests/test_serveur_mcp_http.py": "c9f9348db4358e6073b5544cafbdbfdb7c0ad405e5c147af237471a17714a38c"
+  }
+}

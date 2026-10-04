@@ -429,6 +429,29 @@ def test_wct_recus_idempotent_par_wct_id_redelivrance_sans_doublon(base_durable)
     assert _compte_sortants("m6.variance_chantier") == 1, "aucun doublon d'événement"
 
 
+def test_wct_deja_recu_avec_contenu_different_est_un_conflit_sans_mutation(base_durable):
+    m6 = {o.nom: o for o in outils()}
+    _enregistrer_besoins(m6, "C1", "DEVIS-1", quantite_estimee=10.0)
+    _declarer_materiaux(m6, "wct-1", "int-1", "C1", quantite=10.0)
+    charge_originale = _wct_charge()
+
+    with stockage.transaction():
+        consommateurs()["m4.travaux_termines"](charge_originale)
+    wct_avant = list(stockage.maillons("m06-material-control", "wct_recus"))
+    stock_avant = _mouvements_du_registre()
+    evenements_avant = _charges_publiees()
+
+    charge_modifiee = {**charge_originale, "duree_reelle_minutes": 90}
+    with stockage.transaction():
+        resultat = consommateurs()["m4.travaux_termines"](charge_modifiee)
+
+    assert resultat["statut_variance"] == "conflit"
+    assert resultat["code"] == "CONFLIT-WCT-CONTENU"
+    assert list(stockage.maillons("m06-material-control", "wct_recus")) == wct_avant
+    assert _mouvements_du_registre() == stock_avant
+    assert _charges_publiees() == evenements_avant
+
+
 def test_double_appel_declarer_materiaux_utilises_naucun_doublon(base_durable):
     """Une seconde déclaration pour le même wct_id est refusée (REJ-DECLARATION-DEJA-SOUMISE,
     T1.1-d2, inchangé) avant même d'atteindre la réévaluation : aucun événement supplémentaire."""

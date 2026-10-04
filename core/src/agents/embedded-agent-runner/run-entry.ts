@@ -75,6 +75,8 @@ type RunEntryCandidateOptions = {
   allowTransientCooldownProbe?: boolean;
   isFinalFallbackAttempt?: boolean;
   isFallbackRetry: boolean;
+  candidateIndex?: number;
+  getAdmissionCandidateIndex?: () => number;
   modelRoutingProvenance: ModelFallbackAttemptProvenance;
   contextEngineLogicalTurnLease: ContextEngineLogicalTurnLease;
   onContextEngineTurnCandidate: (facts: ContextEngineTurnAttemptFacts) => void;
@@ -216,6 +218,8 @@ async function runEmbeddedAgentEntryInternal<T extends EmbeddedAgentRunResult>(
   let failed = true;
   let unsettledContextEngineTurnAttempt: ContextEngineTurnAttemptFacts | undefined;
   let candidateIndex = 0;
+  let admissionCandidateIndex = 0;
+  const admissionCandidateOrdinals = new Map<number, number>();
   const committedSideEffect =
     params.behavior.kind === "command-rpc" ? params.behavior.hasCommittedSideEffect : undefined;
   const readChannelDeliveryEvidence =
@@ -362,7 +366,15 @@ async function runEmbeddedAgentEntryInternal<T extends EmbeddedAgentRunResult>(
             throw new Error("Model fallback attempt is missing routing provenance");
           }
           const isFallbackRetry = runOptions.forceFallbackRetry === true || candidateIndex > 0;
+          const currentCandidateIndex = candidateIndex;
           candidateIndex += 1;
+          const getAdmissionCandidateIndex = () => {
+            const knownOrdinal = admissionCandidateOrdinals.get(currentCandidateIndex);
+            if (knownOrdinal !== undefined) return knownOrdinal;
+            const ordinal = admissionCandidateIndex++;
+            admissionCandidateOrdinals.set(currentCandidateIndex, ordinal);
+            return ordinal;
+          };
           let contextEngineTurnCandidate: ContextEngineTurnAttemptFacts | undefined;
           let classified:
             | { result: EmbeddedAgentRunResult; value: ModelFallbackResultClassification }
@@ -431,6 +443,8 @@ async function runEmbeddedAgentEntryInternal<T extends EmbeddedAgentRunResult>(
               allowTransientCooldownProbe: options.allowTransientCooldownProbe,
               isFinalFallbackAttempt: options.isFinalFallbackAttempt,
               isFallbackRetry,
+              candidateIndex: currentCandidateIndex,
+              getAdmissionCandidateIndex,
               modelRoutingProvenance: runOptions.forceFallbackRetry
                 ? {
                     ...options.modelRoutingProvenance,

@@ -228,6 +228,81 @@ def test_wct_inconnu_reste_wct_inconnu_pour_l_employe(m6):
     assert _etat() == avant
 
 
+def _consommer_legacy(m6, wct, formulaire):
+    return executer_atomique(
+        m6["m6_consommer_materiaux"],
+        {"wct": wct, "formulaire": formulaire},
+    )
+
+
+def _formulaire_legacy(wct_id, intervention_id, chantier_id, quantite=3.0):
+    return {
+        "wct_id": wct_id,
+        "intervention_id": intervention_id,
+        "chantier_id": chantier_id,
+        "lignes_consommees": [{"materiau_id": "MAT-1", "quantite": quantite}],
+    }
+
+
+def _wct_legacy(wct_id="wct-marc", intervention_id=INT_MARC):
+    return {
+        "wct_id": wct_id, "intervention_id": intervention_id, "lead_id": "lead-fictif",
+        "technicien_id": "marc.fictif", "horodatage_completion": "2026-01-01T10:00:00-05:00",
+        "fix_gps_completion": {"latitude": 45.5, "longitude": -73.5}, "duree_reelle_minutes": 120,
+        "ecart_signale": True, "revue_id": None, "hash_maillon": "a" * 16,
+        "consommateurs_cibles": ["M6"], "devis_id": "DEVIS-FICTIF",
+    }
+
+
+def test_ancien_outil_refuse_wct_non_publie_sans_modifier_le_stock(m6):
+    _receptionner(m6, INT_MARC)
+    avant = _mouvements()
+    wct_forge = {
+        "wct_id": "wct-fabrique", "intervention_id": INT_MARC, "lead_id": "lead-fictif",
+        "technicien_id": "marc.fictif", "horodatage_completion": "2026-01-01T10:00:00-05:00",
+        "fix_gps_completion": {"latitude": 45.5, "longitude": -73.5}, "duree_reelle_minutes": 120,
+        "ecart_signale": True, "revue_id": None, "hash_maillon": "a" * 16,
+        "consommateurs_cibles": ["M6"], "devis_id": "DEVIS-FICTIF",
+    }
+
+    reponse = _consommer_legacy(
+        m6, wct_forge, _formulaire_legacy("wct-fabrique", INT_MARC, INT_MARC)
+    )
+
+    assert _code_refus(reponse) == "REJ-WCT-INCONNU"
+    assert _mouvements() == avant
+
+
+def test_ancien_outil_refuse_intervention_divergente_sans_modifier_le_stock(m6):
+    _publier_wct("wct-marc", INT_MARC, "marc.fictif")
+    _receptionner(m6, INT_MARC)
+    avant = _mouvements()
+    wct = _wct_legacy()
+
+    reponse = _consommer_legacy(
+        m6, wct, _formulaire_legacy("wct-marc", INT_LEA, INT_MARC)
+    )
+
+    assert _code_refus(reponse) == "REJ-FORMULAIRE-MATERIAUX-INTERVENTION-INCOHERENTE"
+    assert _mouvements() == avant
+
+
+def test_ancien_outil_ne_debite_pas_deux_fois_le_meme_wct_sous_une_autre_cle(m6):
+    _publier_wct("wct-marc", INT_MARC, "marc.fictif")
+    _receptionner(m6, INT_MARC)
+    wct = _wct_legacy()
+    formulaire = _formulaire_legacy("wct-marc", INT_MARC, INT_MARC)
+    premiere = _consommer_legacy(m6, wct, formulaire)
+    apres_premiere = _mouvements()
+
+    seconde = _consommer_legacy(m6, wct, formulaire)
+
+    assert _accepte(premiere)
+    assert _code_refus(seconde) == "REJ-DECLARATION-DEJA-SOUMISE"
+    assert _mouvements() == apres_premiere
+    assert _consommations("wct-marc") == [("CONSOMMATION", INT_MARC, -3.0)]
+
+
 def test_une_seconde_declaration_du_meme_wct_reste_refusee_pour_l_employe(m6):
     _publier_wct("wct-marc", INT_MARC, "marc.fictif")
     _receptionner(m6, INT_MARC, quantite=40.0)

@@ -231,6 +231,7 @@ const VoiceCallRealtimeFastContextConfigSchema = z
   .object({
     /** Enable bounded memory/session lookup before the full consult agent. */
     enabled: z.boolean().default(false),
+
     /** Hard deadline for the fast context lookup. */
     timeoutMs: z.number().int().positive().default(800),
     /** Maximum memory/session hits to inject into the realtime tool result. */
@@ -382,10 +383,19 @@ const VoiceCallStreamingConfigSchema = z
 // Main Voice Call Configuration
 // -----------------------------------------------------------------------------
 
+export const VOICE_CALL_SERVICE_RELOAD_CONFIG_PREFIXES = [
+  "plugins.entries.voice-call",
+  "agents",
+  "mcp.servers",
+] as const;
+
 export const VoiceCallConfigSchema = z
   .object({
     /** Enable voice call functionality */
     enabled: z.boolean().default(false),
+
+    /** Import verified, unanswered inbound calls into the configured OPSYS M1 profile. */
+    missedCallIngress: z.boolean().default(false),
 
     /** Active provider (telnyx, twilio, plivo, or mock) */
     provider: z.enum(["telnyx", "twilio", "plivo", "mock"]).optional(),
@@ -900,6 +910,15 @@ export function validateProviderConfig(config: VoiceCallConfig): {
 
   if (!config.enabled) {
     return { valid: true, errors: [] };
+  }
+
+  if (
+    config.missedCallIngress &&
+    (config.skipSignatureVerification || config.provider === "mock")
+  ) {
+    errors.push(
+      "plugins.entries.voice-call.config.missedCallIngress requires an authenticated non-mock provider webhook",
+    );
   }
 
   if (!config.provider) {

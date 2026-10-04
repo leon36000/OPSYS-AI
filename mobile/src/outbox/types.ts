@@ -36,6 +36,8 @@ export type TypeMutation =
   | "signature_capture"
   | "po_receive_scan"
   | "fichier_bloc"
+  /** Reçu local durable des indices confirmés par `m4_etat_fichier`; jamais envoyé. */
+  | "fichier_bloc_reconcilie"
   | "job_completion"
   | "gps_consent_change"
   | "approval_decision"
@@ -84,4 +86,6 @@ export interface MutationOutbox {
    * encore insérée) — même traitement, fail-closed : jamais envoyée.
    */
   readonly proprietaire: string | null;
+  /** Accusé métier conservé avec le statut terminal pour permettre la reprise hors écran. */
+  readonly resumeAccepte?: unknown | null;
 }

@@ -23,32 +23,35 @@
                                    base de l'instance · fichiers (photos, preuves)
 ```
 
-Une installation, une commande, partout (portable, serveur, VPS). La section suivante décrit l'état
-**transitoire** actuel (OpenClaw consommé de l'extérieur), remplacé au fil des tâches T0 de
-[`PLAN.md`](../programme/PLAN.md).
+Le dépôt contient une installation autonome, le core `opsys`, le moteur métier Python et l'app Expo
+à quatre profils. Le générateur `src/opsys/openclaw.py::generer` configure les fournisseurs natifs
+par défaut. Les champs `api_key_env` et les noms de clés conventionnels sont des références à des
+variables d'environnement; la valeur du secret n'est pas écrite dans le JSON. Une clé requise
+manquante bloque le readiness. LiteLLM et `OPSYS_CLE_Mn` restent pris en charge en compatibilité
+explicite avec une URL de passerelle. Les tests sans credentials ne valident pas d'appels à un
+fournisseur réel; la présence des scripts d'installation et de déploiement ne certifie pas un parcours
+de production.
 
-## En une image (état transitoire)
+Direction actuelle : [ADR-0012](../decisions/ADR-0012-reutilisation-profondeur-productivite.md),
+[périmètre complet](../produit/PERIMETRE-MODULES.md) et
+[plan de consolidation](../programme/RESTRUCTURATION-2026-09-30.md).
 
-```
-                 ┌────────────────────────────── VPS (docker compose) ──────────────────────────────┐
- Clients ─SMS/   │  Caddy (TLS)  ├─ <domaine>         → Control UI OpenClaw (agents, canaux)        │
- WhatsApp/courriel│              └─ console.<domaine> → Console OPSYS (départements, approbations,  │
- Apps mobiles ──►│                                       budgets, modèles, journal)                 │
- (iOS/Android)   │                                                                                  │
-                 │  OPSYS-CORE = OpenClaw épinglé (passerelle, canaux, mémoire native, cron)       │
-                 │   ├─ agent m01-front-office (canaux clients)   ├─ agents m02…m10               │
-                 │   └─ mémoire d'agent : paliers + provenance + « dreaming »                      │
-                 │          │ MCP HTTP /mcp/<département> (jeton)     │ modèles : clé virtuelle      │
-                 │          ▼                                         ▼ par département             │
-                 │  opsys (Python)                            LiteLLM (alias opsys-local/rapide/    │
-                 │   ├─ opsys-mcp : outils déterministes            standard/fort ; tpd_limit ;     │
-                 │   │   des départements, politiques T0–T3,        cache Valkey)                   │
-                 │   │   approbations, troncature, budgets     ──► fournisseurs cloud / Ollama local │
-                 │   ├─ console OPSYS                                                               │
-                 │   └─ init : config OpenClaw, clés LiteLLM, schéma + purge mémoire                │
-                 │  PostgreSQL 17 + pgvector : métier + base de connaissances d'entreprise (RAG)    │
-                 └──────────────────────────────────────────────────────────────────────────────────┘
-```
+## Symbiose des départements et agents (cible)
+
+Les agents spécialisés sont configurables par département depuis le dashboard : responsabilités,
+modèles, outils, droits, mémoire, budgets et déclencheurs. Les manifestes actuels génèrent surtout
+un agent par département ; le registre multi-agents complet est une extension à livrer.
+
+Un événement durable ou une demande précise déclenche les seules capacités utiles. L'outbox,
+les corrélations et identifiants de rejeu relient les départements ; la base métier conserve
+la vérité, M10 le contexte sourcé. Les messages partagent références et résultats autorisés,
+jamais l'ensemble des données client par défaut. La disponibilité de plusieurs agents ne
+requiert pas un débat entre modèles. Chaque effet de bord revalide le principal, l'objet,
+les arguments, l'approbation et les droits vivants.
+
+Les budgets doivent être réservés avant l'appel fournisseur puis réconciliés sur usage réel,
+y compris sous-agents, retries et compaction. Le mécanisme Python existant et une clé LiteLLM
+optionnelle ne prouvent pas encore cette garantie de bout en bout.
 
 ## Supervision du moteur métier (PLAN T0.10)
 
@@ -81,12 +84,27 @@ La greffe est dans `core/` (liste : `core/PROVENANCE.md`, « Greffes OPSYS »).
 
 ## Moteur de contexte (PLAN T3.3-suite)
 
+**Frontière vérifiée pour la voie de contexte M10 :** l'origine est prise du serveur sélectionné
+par le core, jamais d'un argument libre de l'outil. Pour chaque agent configuré, `openclaw.py`
+déclare `opsys_context_<agent>` sur `/mcp/contexte/<agent>` avec le secret dédié
+`OPSYS_CONTEXT_MCP_JETON`. Le serveur attribue l'appel à cet agent, n'expose que
+`m10_paquet_contexte_affaire`, et refuse le secret public `OPSYS_MCP_JETON` sur cette route.
+Les noms `opsys_context_*__*` sont refusés par la politique des outils du modèle. Le moteur de
+contexte les appelle par sa configuration privée `contextServers`.
+
+Le garde C02 compare aussi la cible typée de l'appel avec l'affaire du PREFLIGHT : pour le cas
+M3 `m3_estimer_projet`, seul `contrat.lead_id` correspondant au lead canonique connu est admis.
+Champ absent, mal formé ou lead inconnu/mal apparié : refus. Cette correction ne valide pas les
+autres classes C02 ni leurs liaisons d'affaires. Pour C03, une configuration explicitement
+active mais invalide bloque les outils OPSYS concernés; l'absence ou la désactivation explicite
+du moteur reste une configuration inactive. Détails et limites : [ADR-0010](../decisions/ADR-0010-memoire.md).
+
 La « RAM » d'ADR-0010 : un moteur de contexte du core (`core/src/context-engine/opsys-contexte-*.ts`, liste :
 `core/PROVENANCE.md`), choisi par `plugins.slots.contextEngine: "opsys"`.
 
 ```
  tour d'un agent de département ──► assemble()  ──► M10 : m10_paquet_contexte_affaire (T0)
-        (ligne « affaire_id: … »)       │                 MCP HTTP /mcp/m10-memoire, jeton OPSYS_MCP_JETON
+        (session + cible typée)         │                 /mcp/contexte/<agentId>, OPSYS_CONTEXT_MCP_JETON
                                         └─► systemPromptAddition : le paquet, ou « contexte d'entreprise indisponible »
  fin du tour ────────────────────► afterTurn() ──► M10 : m10_deposer_faits_candidats (T1, N2)
                                                       ce que les outils ont fait, jamais le texte du modèle
@@ -97,29 +115,32 @@ La « RAM » d'ADR-0010 : un moteur de contexte du core (`core/src/context-engin
   `plugins.slots.contextEngine` ensemble. Sans l'option, le moteur n'est pas choisi.
 - **Le code calcule.** M10 calcule le paquet, son budget et sa troncature. Le core ne fait que le valider et
   le rendre ; il ne le tronque jamais.
-- **Fail-closed, sans blocage.** Moteur injoignable, trop lent (`delai_ms`), paquet invalide, aucune affaire :
-  le tour continue sans paquet, avec le marqueur dans le contexte et une ligne du journal `opsys-contexte`.
+- **Fail-closed.** Moteur injoignable, trop lent (`delai_ms`), paquet invalide ou sans affaire : le PREFLIGHT
+  n'injecte pas de paquet et le garde refuse une action N3+ exigeant ce PREFLIGHT. Une configuration active
+  invalide bloque les appels OPSYS. La configuration désactivée reste sans garde.
 - **L'affaire elle-même** (T4.18-b). Une affaire est un lead ou l'opportunité `<lead>~opp~<wct_id>` que M2 ouvre : une forme
   bornée, écrite dans M10 et dans le core, testée des deux côtés contre la même liste de cas. Le paquet porte, hors de ses quatre couches, un
   bloc `affaire` (connue ou inconnue, étape d'origine reçue ou non, verdict) et un bloc `consolidation` (les jours omis à
   consolider) ; le core les valide et les rend, sans changer le garde. Budget du paquet et décisions : ADR-0010, « T4.18-b ».
-- **Ce qui manque** est listé dans ADR-0010, « Mise en œuvre » (blocage `before_tool_call`, clôture des signaux
-  critiques, affaire liée à la session, consolidation des candidats).
+- **Limites restantes** : liaison automatique d'une session à un lead, intégration des faits POSTFLIGHT à la
+  consolidation durable, réutilisation de connexion, paquet spécialisé estimé/réel et essais d'un tour agent réel.
+  Les corrections C02/C03 couvertes sont délimitées dans ADR-0010; elles ne valent pas correction de toutes les
+  familles de cibles C02.
 
 ## Couches
 
 | Couche | Rôle | Où |
 |---|---|---|
-| **OPSYS-CORE** | Boucle d'agents, canaux (SMS, WhatsApp, courriel, chat, voix), mémoire d'agent, automatisations, Control UI, apps mobiles | Fork dur d'OpenClaw (ADR-0008) : `core/`, provenance `core/PROVENANCE.md` |
-| **Capacités (MCP)** | Outils des départements et outils communs (`opsys_*`, dont la mémoire). Un point d'accès par département (`/mcp/<id>`) : les outils communs s'exécutent au nom de ce département, jamais d'un nom choisi par le modèle. Applique autonomie, approbations, budget et troncature | `src/opsys/serveur_mcp.py`, `capacites.py`, `contexte.py` |
+| **OPSYS-CORE** | Boucle d'agents, canaux, mémoire native, automatisations, Control UI ; capacités amont à qualifier par canal et configuration | Fork dur d'OpenClaw (ADR-0008) : `core/`, provenance `core/PROVENANCE.md` |
+| **Capacités (MCP)** | Outils des départements et outils communs (`opsys_*`). `/mcp/<id>` fixe l'exécuteur départemental. La voie privée `/mcp/contexte/<agentId>` fixe séparément l'origine de lecture M10, utilise `OPSYS_CONTEXT_MCP_JETON` et n'expose que le paquet d'affaire au moteur de contexte; le namespace est refusé aux outils LLM | `src/opsys/serveur_mcp.py`, `capacites.py`, `contexte.py`, `openclaw.py` |
 | **Départements M1–M10** | Code métier déterministe, manifeste, SOUL, skills, tests | `departments/mNN-*/` |
 | **Configuration du Core** | Un agent par département, fournisseur de modèles dédié, serveur MCP dédié (`opsys_mN`) et refus des serveurs des autres départements (`tools.deny`), `$include` | `src/opsys/openclaw.py` |
-| **Passerelle de modèles** | LiteLLM : paliers → fournisseurs cloud ou locaux, clé virtuelle et plafonds par département, cache | `src/opsys/passerelle.py`, `modeles.py` |
-| **Mémoire** | 2 couches : mémoire d'agent OpenClaw + base de connaissances d'entreprise PostgreSQL/pgvector (MCP) | `docs/memory/RAG-PREMIUM.md`, `src/opsys/memoire/` |
+| **Modèles** | Fournisseurs natifs du core par défaut, cloud/local; références de clés par variables d'environnement; LiteLLM optionnel en compatibilité explicite. Les appels réels exigent des clés et un fournisseur joignable | `src/opsys/openclaw.py`, `modeles.py`, `src/opsys/passerelle.py` |
+| **Mémoire** | A : native des agents ; B : connaissance gouvernée par M10. Base métier SQLite par défaut, PostgreSQL optionnel ; RAG actuel pgvector, cible légère ADR-0010 à qualifier. Domaines métier/développement séparés | `docs/memory/RAG-PREMIUM.md`, `src/opsys/memoire/` |
 | **Taxonomie métier** | Une seule liste des services de l'entreprise (catalogue de référence + profil `$OPSYS_HOME/entreprise.yaml`), lue par M1, M2 et M3 ; fail-closed sans profil ; contrat `LeadQualifie` v2 | `src/opsys/taxonomie.py`, `docs/architecture/TAXONOMIE.md` |
 | **Garde-fou de texte** | Un catalogue de familles de règles nommées (prix, date, engagement, aveu, avis légal, adresse, coordonnées, nom de client, garantie…) que chaque département choisit : réponse à un client (M1), texte public (M7). Le refus nomme la règle ; fail-closed ; module pur | `src/opsys/garde_fou_texte/`, `docs/architecture/DEPARTEMENTS.md` |
 | **Console OPSYS** | Départements (modes), approbations, budgets, paliers de modèles | `src/opsys/console/`, `tableau_de_bord.py` |
-| **Mobile** | Nouvelle app Expo Router (pas un fork OpenClaw — ADR-0008, R12) : routage gardé par rôle, file sortante et client `/tools/invoke` en logique pure ; squelette seulement (PLAN T1.4-a), aucun écran métier | `mobile/`, `docs/architecture/MOBILE.md` |
+| **Mobile** | App Expo Router à quatre profils, écrans métier, capture terrain et file hors ligne ; couverture et défauts de reprise/isolation à qualifier, pas seulement un squelette | `mobile/`, `docs/architecture/MOBILE.md` |
 | **Déploiement** | compose, `install.sh`, sauvegardes | `deploy/`, `docs/ops/` |
 
 ## Principes non négociables
@@ -132,8 +153,9 @@ La « RAM » d'ADR-0010 : un moteur de contexte du core (`core/src/context-engin
    ou app mobile). T3 n'est jamais autonome.
 4. **Économie de tokens en couches** : [ECONOMIE-TOKENS](ECONOMIE-TOKENS.md).
 5. **Une installation = une entreprise = un VPS.** OpenClaw est mono-tenant.
-6. **Interfaces publiques vers l'amont uniquement** (MCP, configuration, `$include`, CLI). Les patchs
-   amont sont l'exception, et ils sont versionnés.
+6. **Fork maintenu par OPSYS.** Modifier le core et intégrer des ingrédients sous licence est
+   autorisé ; préserver provenance, contrats, migrations et veille de sécurité. Aucune synchro
+   automatique avec l'amont ; une interface stable reste préférable à un couplage privé fragile.
 7. **Aucune installation automatique de skills depuis un registre public** (ClawHub) : les capacités
    viennent des départements OPSYS, relus et testés.
 
@@ -148,5 +170,6 @@ La « RAM » d'ADR-0010 : un moteur de contexte du core (`core/src/context-engin
 4. **Approbation.** L'envoi du devis est une action T2. Il devient une demande d'approbation, que le
    patron approuve dans la console ou depuis l'app mobile. L'outil s'exécute alors avec les
    arguments exacts enregistrés.
-5. **Comptabilité.** Chaque appel de modèle passe par la clé LiteLLM du département : dépense
-   visible et plafond de tokens par jour appliqué par la passerelle.
+5. **Coût et mémoire.** Le modèle utilise son provider/palier configuré ; les usages sont
+   attribués au département, les effets métier à M10. Réservation du budget avant appel et
+   couverture des retries/sous-agents font partie du plan de consolidation, sans LiteLLM requis.

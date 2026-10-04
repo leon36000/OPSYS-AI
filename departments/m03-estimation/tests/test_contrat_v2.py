@@ -24,6 +24,7 @@ _SOURCE_M2 = (
 
 from m3_estimation import contrats, estimation, monte_carlo, registre, validation  # noqa: E402
 from m3_estimation import outils as outils_m3  # noqa: E402
+
 from opsys import taxonomie  # noqa: E402
 from opsys.outils import executer  # noqa: E402
 
@@ -97,7 +98,7 @@ def test_champs_contrat_v2_copie_m2_ne_derive_pas():
 
 
 def test_version_v2_copie_m2_ne_derive_pas():
-    assert contrats.VERSION_CONTRAT_V2 == _constante_m2("VERSION_CONTRAT_V2")
+    assert _constante_m2("VERSION_CONTRAT_V2") == contrats.VERSION_CONTRAT_V2
 
 
 def test_m3_ne_garde_aucune_copie_de_la_liste_des_services():
@@ -260,7 +261,11 @@ def test_m3_simuler_intervalle_refuse_un_service_non_declare_avec_la_consigne(de
 
 
 def test_m3_simuler_intervalle_accepte_toujours_un_type_v1():
-    bareme = {"version": "1", "unite": "pi2", "postes": {"ravalement": {"cout_unitaire_min": 1.0, "cout_unitaire_max": 2.0}}}
+    bareme = {
+        "version": "1",
+        "unite": "pi2",
+        "postes": {"ravalement": {"cout_unitaire_min": 1.0, "cout_unitaire_max": 2.0}},
+    }
     reponse = executer(_outil("m3_simuler_intervalle"), {
         "bareme": bareme, "type_travaux": "ravalement", "quantite": 10, "graine": 1})
     assert reponse["resultat"]["accepte"] is True

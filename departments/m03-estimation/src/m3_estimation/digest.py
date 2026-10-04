@@ -24,7 +24,6 @@ from __future__ import annotations
 import re
 from typing import Any
 
-
 _FORMAT_HORODATAGE = re.compile(
     r"^(\d{4})-(\d{2})-(\d{2})T"
     r"(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?"

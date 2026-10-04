@@ -10,7 +10,11 @@ le commit AVANT le renommage et l'état courant. Il importe réellement les deux
 plutôt que de lire leur texte — c'est la valeur à l'exécution qui importe, pas la forme
 écrite. Il sort non-zéro au moindre écart.
 """
-import ast, importlib, pathlib, subprocess, sys, tempfile
+import importlib
+import pathlib
+import subprocess
+import sys
+import tempfile
 
 RACINE = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else ".").resolve()
 AVANT = sys.argv[2] if len(sys.argv) > 2 else "c203e35^"
@@ -98,7 +102,10 @@ sys.path.insert(0, str((RACINE / REL).parent))
 for m in list(sys.modules):
     if m.startswith("m3_estimation"):
         del sys.modules[m]
-from m3_estimation import contrats as _c
+# L'import suit volontairement le changement de sys.path : ce script de preuve
+# peut aussi être lancé directement, hors du pythonpath configuré par pytest.
+from m3_estimation import contrats as _c  # noqa: E402
+
 invariants = [(f"VERDICT_{v}", v) for v in _c.VERDICTS_ESTIMATION]
 brises = [n for n, v in invariants if getattr(_c, n, None) != v]
 print("invariant de substitution (constante nommee == litteral remplace) :",

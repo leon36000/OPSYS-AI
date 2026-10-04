@@ -50,7 +50,7 @@ def _wct_consenti(**overrides):
 
 
 # ---------------------------------------------------------------------------
-# Autorisation : consentement à la demande d'avis vrai ET prouvé, client pas connu insatisfait
+# Éligibilité : consentement vrai et prouvé ; satisfaction sans effet sur la sélection
 # ---------------------------------------------------------------------------
 def test_consentement_prouve_produit_un_brouillon_propose():
     charge = _wct_consenti(ville="Repentigny", type_travaux="gouttières", client_satisfait=True)
@@ -147,11 +147,20 @@ def test_une_preuve_vide_ou_mal_typee_refuse(vide):
     assert motif == demande_avis.REFUS_PREUVE_ABSENTE
 
 
-def test_client_insatisfait_refuse():
+def test_client_insatisfait_recoit_la_meme_demande_neutre_et_un_brouillon_a_approuver():
     charge = _wct_consenti(client_satisfait=False)
     brouillon, motif = demande_avis.construire_brouillon(charge)
-    assert brouillon is None
-    assert motif == demande_avis.REFUS_CLIENT_INSATISFAIT
+    assert motif is None
+    assert brouillon["approval_status"] == "PROPOSE"
+    assert "Si vous le souhaitez" in brouillon["texte"]
+    assert "honnête" in brouillon["texte"]
+
+
+@pytest.mark.parametrize("satisfaction", [False, None])
+def test_satisfaction_ne_change_pas_l_eligibilite_a_la_demande_d_avis(satisfaction):
+    brouillon, motif = demande_avis.construire_brouillon(_wct_consenti(client_satisfait=satisfaction))
+    assert motif is None
+    assert brouillon["approval_status"] == "PROPOSE"
 
 
 # ---------------------------------------------------------------------------

@@ -105,6 +105,7 @@ export async function prepareGatewayKernelRequestRuntime(params: {
       flushPendingSessionsChangedEvents: shutdownRuntime.flushPendingSessionsChangedEvents,
       minimalTestGateway,
       logWarning: (message) => log.warn(message),
+      reconcileOpsysCron: () => runtimeState.cronState.reconcileSystemJobs(),
       ...(!workerPlacementRuntime && githubPublicationRuntime
         ? { reconcileGitHubPublications: githubPublicationRuntime.reconcilePublications }
         : {}),
