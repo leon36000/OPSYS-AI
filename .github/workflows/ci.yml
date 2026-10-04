@@ -57,6 +57,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends bubblewrap
           bwrap --version
+          # Le runner Ubuntu applique un profil générique qui refuse net_admin/setpcap.
+          # Opt-in par binaire uniquement : aucun sysctl global ni option bwrap changé.
+          sudo install -o root -g root -m 0644 .github/ci/bwrap.apparmor /etc/apparmor.d/opsys-ci-bwrap
+          sudo apparmor_parser -a /etc/apparmor.d/opsys-ci-bwrap
+          sudo grep -Fx '/usr/bin/bwrap (unconfined)' /sys/kernel/security/apparmor/profiles
           python - <<'PY'
           import subprocess
           from opsys.fusion_pdf import _commande_isolee

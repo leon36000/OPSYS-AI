@@ -46,3 +46,55 @@ restent inchangées. OPSYS-AI reste PARTIEL; le gate mobile reste rouge.
 
 [Archive](preuves/PDF-RUNNER-UBUNTU-r1.tar.xz) et
 [inventaire SHA256](preuves/PDF-RUNNER-UBUNTU-r1.json).
+
+## Déni natif identifié et correctif ciblé
+
+Le job [`111361096509`](https://github.com/leon36000/OPSYS-AI/actions/runs/37175983441/job/111361096509),
+associé au head `e7f96d3066186201cccaa95d96586c5c49425eb3`, conserve le même refus
+`RTM_NEWADDR`. Son diagnostic kernel identifie maintenant la cause :
+
+- `apparmor_restrict_unprivileged_userns=1`, `unprivileged_userns_clone=1`;
+- transition de `/usr/bin/bwrap`, initialement `unconfined`, vers `unprivileged_userns`;
+- refus `apparmor="DENIED"`, opération `capable`, pour `net_admin` et `setpcap`.
+
+Ces journaux remplacent l'hypothèse précédente par une observation native. Ils
+montrent un refus de capacités après la création du namespace, et non un refus
+de création lui-même. Les tests du socle restent non exécutés sur ce head.
+
+Le correctif ajoute le profil [bwrap.apparmor](../../../.github/ci/bwrap.apparmor)
+limité à `/usr/bin/bwrap`, avec `allow userns create,`, selon le mécanisme Ubuntu
+documenté. La CI le copie avec propriétaire root et mode 0644, le charge avec
+`apparmor_parser -a`, exige sa présence dans les profils kernel, puis relance
+le même prévol bloquant. Un échec de chargement ou du prévol arrête le job.
+
+Le mode `unconfined` est une exception de création de namespaces par binaire,
+pas une sandbox AppArmor supplémentaire. Toute invocation de ce binaire sur
+le runner jetable bénéficie de cette exception; ses descendants peuvent
+hériter du profil. Le confinement du worker demeure assuré par bubblewrap et
+ses gardes existantes. Aucun sysctl global, setuid, réseau hôte ni fallback
+de parsing sans isolation n'est ajouté. Ce fichier est une configuration de
+runner CI uniquement; il n'est pas installé sur les VPS du produit.
+
+Sur `e7f96d3`, les métadonnées GitHub confirment dix jobs départementaux et
+neuf jobs de preuves M3 réussis, ainsi que les workflows core, E2E core,
+installateur et dependency-audit. Le workflow mobile et le gate général sont
+rouges. Ce succès des départements ne certifie pas tous les critères métier
+de leurs périmètres cibles.
+
+Le correctif est qualifié localement par Ruff, actionlint et dix tests CI
+entiers sans ignoré (`qa-r68`), puis par Gitleaks sans alerte brute sur les
+deux fichiers de configuration (`qa-r69`). Les reçus figent les sources et
+contrôlent les ressources, sans héritage de secrets. La validation kernel
+Ubuntu et l'exécution complète du socle restent à obtenir sur le nouveau
+head; ces contrôles locaux ne prouvent pas encore la résolution native.
+
+Le parser officiel Noble 4.0.1, extrait en RAM du DEB
+`apparmor 4.0.1really4.0.1-0ubuntu0.24.04.8 amd64`, accepte également le
+profil avec `-Q` (sans chargement kernel). L'ABI 4.0 et la règle sont donc
+valides pour cette version; cela ne remplace pas le prévol Ubuntu natif.
+Ce contrôle a été repris par ROOT avec sources figées, budget de ressources
+et compteurs OOM inchangés (`qa-r70`).
+
+Les preuves de cette reprise sont conservées dans
+[l'archive r2](preuves/PDF-RUNNER-UBUNTU-r2.tar.xz) et son
+[inventaire](preuves/PDF-RUNNER-UBUNTU-r2.json); l'archive r1 demeure intacte.

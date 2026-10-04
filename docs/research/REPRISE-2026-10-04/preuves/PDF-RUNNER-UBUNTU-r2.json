@@ -1,0 +1,144 @@
+{
+  "archive": "PDF-RUNNER-UBUNTU-r2.tar.xz",
+  "sha256": "37e0847671584144dcac78c65ea77f238f99449be7e4fe34450a71d3a1aa22fd",
+  "bytes": 138988,
+  "head_observed": "e7f96d3066186201cccaa95d96586c5c49425eb3",
+  "qualification": "AppArmor cause native identified; targeted CI fix passes local checks; new head native kernel preflight and socle pending",
+  "entries": [
+    {
+      "path": "native/native-111361096509.log",
+      "bytes": 214369,
+      "sha256": "28f2b4c2af0bbc898da765b09cdffb35512f93f4621f22fd88e7146714cecac0"
+    },
+    {
+      "path": "native/native-ci-jobs-e7f96d3.json",
+      "bytes": 39903,
+      "sha256": "09a1972adaa27d8816eab787cc1ed7cd75b8b6c3a3c8a15d2071364d0e3f82fa"
+    },
+    {
+      "path": "native/native-runs-e7f96d3.json",
+      "bytes": 2292,
+      "sha256": "72670623f8a5532cb73828f6f6e0dd8ca4af107ecc223b940af0c901c9c007eb"
+    },
+    {
+      "path": "qa/drivers/guard_helpers_r2.py",
+      "bytes": 13311,
+      "sha256": "145395c894c7621bc0f2534ba5b6ce282810ae523b0eca203a87ad55afeed844"
+    },
+    {
+      "path": "qa/drivers/qa_root_r68.py",
+      "bytes": 3626,
+      "sha256": "17a7258f446defebf0577bf0ef56ac9e607c13d5fcd363e2018329bce40ca389"
+    },
+    {
+      "path": "qa/drivers/qa_root_r69.py",
+      "bytes": 3181,
+      "sha256": "f7e6cd082ada7057b9c794fca5cb3f9cb7935cd16155ba6864be1b3ab5706d9f"
+    },
+    {
+      "path": "qa/drivers/qa_root_r70.py",
+      "bytes": 3181,
+      "sha256": "c1180cd150a20af6a569d3a5e1f8c5b1b2f5779e7b1e9d5c69c46fbdb51277bd"
+    },
+    {
+      "path": "qa/qa-r68/execution-r1/actionlint.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "qa/qa-r68/execution-r1/pytest.log",
+      "bytes": 80,
+      "sha256": "7040371af15613c02e821ec0eecc1d1330f691ace4cef93a41bfa358822c4103"
+    },
+    {
+      "path": "qa/qa-r68/execution-r1/pytest.xml",
+      "bytes": 2040,
+      "sha256": "0d0e9a4fdfb01d837bcc6f309f2ff7001d1647234ecd2b0ce458f606e0618d65"
+    },
+    {
+      "path": "qa/qa-r68/execution-r1/ruff.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "qa/qa-r68/freeze.json",
+      "bytes": 153301,
+      "sha256": "178bb4dca28bff81b074b43850f26b7a806976268b72571aaa894f1d469df2e8"
+    },
+    {
+      "path": "qa/qa-r68/receipt.json",
+      "bytes": 317174,
+      "sha256": "057e90c46dfd4be6f1321e37c48b4df76c8294555e83b1552229c99b96aea8f2"
+    },
+    {
+      "path": "qa/qa-r69/execution-r1/gitleaks.log",
+      "bytes": 130,
+      "sha256": "e9527ce2c40033db8e106995e24cc7f61592f81709e8a875e61f6eef15a6e4b8"
+    },
+    {
+      "path": "qa/qa-r69/freeze.json",
+      "bytes": 200,
+      "sha256": "adffad017a39eaedd41ecff8dda022548ad38a5d0f0ad979776de9a939c72de8"
+    },
+    {
+      "path": "qa/qa-r69/receipt.json",
+      "bytes": 2746,
+      "sha256": "caf68fe72b943b0b46e1330c38fac464f3ce6011e43f74b00de90bda5f273e03"
+    },
+    {
+      "path": "qa/qa-r69/scan.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    {
+      "path": "qa/qa-r70/execution-r1/apparmor-syntax.log",
+      "bytes": 289,
+      "sha256": "182d8aff23441fd4120c5d4f3aa204f35f648dbb7429b1fef10459cb545c4040"
+    },
+    {
+      "path": "qa/qa-r70/freeze.json",
+      "bytes": 102,
+      "sha256": "d315b3acee0ff8618bee4c65425ac94774ababac049771611ac046327cdddb7e"
+    },
+    {
+      "path": "qa/qa-r70/receipt.json",
+      "bytes": 2511,
+      "sha256": "c90e71c714b3f02f582cec7bdd7a441700390e23820eb83da5c13f78c50517f7"
+    },
+    {
+      "path": "source/.github/ci/bwrap.apparmor",
+      "bytes": 322,
+      "sha256": "4f3a1fa84dfd7f6de59043c441edf3d69b9c50d3c356a94a3aeb25208f54798a"
+    },
+    {
+      "path": "source/.github/workflows/ci.yml",
+      "bytes": 10922,
+      "sha256": "942af50fedae463e06eb5512de413703ae3ae5c55697edf0c588ffcac8df3d53"
+    },
+    {
+      "path": "source/docs/research/REPRISE-2026-10-04/CI-PUBLICATION.md",
+      "bytes": 8243,
+      "sha256": "e0f9b814262dca13be34679c6fc713443d137b517334ccfdfbff36e53eb19d6f"
+    },
+    {
+      "path": "source/docs/research/REPRISE-2026-10-04/PDF-RUNNER-UBUNTU.md",
+      "bytes": 6079,
+      "sha256": "cb2e5889d15bfebd2488798f75fde7a620ee9191322a7632497fde448176124b"
+    },
+    {
+      "path": "tools/actionlint-checksums.txt",
+      "bytes": 1119,
+      "sha256": "ac22e6577b8d133c7cd779682e65712ef722e719a297633699a4da05e9f351e0"
+    },
+    {
+      "path": "tools/apparmor-package.json",
+      "bytes": 452,
+      "sha256": "fbab1f91ba3b4be521120fc5e89facd9c731acb82c0cfdb3ccfd45311cbb3b85"
+    },
+    {
+      "path": "tools/gitleaks-checksums.txt",
+      "bytes": 1099,
+      "sha256": "78e53de2429bde6500a6f22793546babe6ae75634a0c250c37e3a07703856a90"
+    }
+  ]
+}

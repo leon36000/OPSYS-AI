@@ -1,0 +1,8 @@
+# Exception de namespace limitée au binaire du runner CI Ubuntu jetable.
+# L'isolation du worker PDF reste fournie par bubblewrap, pas par ce profil.
+# https://documentation.ubuntu.com/security/security-features/privilege-restriction/apparmor/
+abi <abi/4.0>,
+
+/usr/bin/bwrap flags=(unconfined) {
+  allow userns create,
+}
