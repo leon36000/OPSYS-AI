@@ -162,7 +162,7 @@ jobs:
           uv sync --locked --group build --extra dev --no-build-isolation --no-install-project
           uv sync --locked --group build --extra dev --no-build-isolation
           echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
-          python -m pytest tests/test_installateur_scripts.py tests/test_installateur_powershell.py tests/test_installateur_windows.py tests/test_installateur_powershell_faux.py tests/test_installateur_bout_en_bout.py tests/test_installateur_workflow.py tests/test_commande_metier.py tests/test_instance.py tests/test_exportation.py -q --import-mode=importlib -p no:cacheprovider
+          uv run --locked --no-sync python -m pytest tests/test_installateur_scripts.py tests/test_installateur_powershell.py tests/test_installateur_windows.py tests/test_installateur_powershell_faux.py tests/test_installateur_bout_en_bout.py tests/test_installateur_workflow.py tests/test_commande_metier.py tests/test_instance.py tests/test_exportation.py -q --import-mode=importlib -p no:cacheprovider
       - name: "Docker : CLI et daemon Linux requis avant le vrai E2E"
         run: |
           command -v docker
@@ -209,7 +209,7 @@ jobs:
           uv sync --locked --group build --extra dev --no-build-isolation --no-install-project
           uv sync --locked --group build --extra dev --no-build-isolation
           echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
-          python -m pytest tests/test_installateur_scripts.py tests/test_instance.py tests/test_exportation.py -q --import-mode=importlib -p no:cacheprovider
+          uv run --locked --no-sync python -m pytest tests/test_installateur_scripts.py tests/test_instance.py tests/test_exportation.py -q --import-mode=importlib -p no:cacheprovider
 
   # Runner hosted : exécute les vérifications Windows/fakes. L'E2E réel a son job poste séparé et opt-in.
   installation-windows:
@@ -246,7 +246,7 @@ jobs:
         run: |
           uv sync --locked --group build --extra dev --no-build-isolation --no-install-project
           uv sync --locked --group build --extra dev --no-build-isolation
-          python -m pytest tests/test_installateur_powershell.py tests/test_installateur_windows.py tests/test_installateur_powershell_faux.py tests/test_instance.py tests/test_exportation.py -q --import-mode=importlib -p no:cacheprovider
+          uv run --locked --no-sync python -m pytest tests/test_installateur_powershell.py tests/test_installateur_windows.py tests/test_installateur_powershell_faux.py tests/test_instance.py tests/test_exportation.py -q --import-mode=importlib -p no:cacheprovider
 
   # Qualification E2E réelle, opérée uniquement sur demande et sur le poste du propriétaire. L'opérateur doit avoir
   # enregistré le runner avec les labels ci-dessous et avoir préparé Docker Desktop en mode Linux. Le workflow ne

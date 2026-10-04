@@ -10,7 +10,7 @@ import copy
 import re
 from collections import Counter
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from . import comptes_a_payer as ap
@@ -61,7 +61,7 @@ def montant(valeur: Any) -> Decimal:
 
 def _source_montant(valeur: Any) -> Decimal:
     if (not isinstance(valeur, Decimal) or not valeur.is_finite() or valeur < 0
-            or valeur != valeur.quantize(Decimal('.01'))):
+            or valeur != valeur.quantize(Decimal(".01"), rounding=ROUND_HALF_UP)):
         raise CoutErreur("SOURCE-MONTANT-INVALIDE")
     return valeur
 

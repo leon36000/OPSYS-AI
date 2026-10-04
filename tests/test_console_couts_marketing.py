@@ -131,6 +131,7 @@ def test_post_reel_n4_owner_rejeu_et_sources_durables(navigateur):
     assert projection["totaux_par_base"] == {"HT": "60.00", "TTC": None}
     assert projection["paiement_cad"] is None and projection["roi"] is None
     assert projection["affectations"][0]["valide_par"] == "owner.fictif"
+    assert projection["affectations"][0]["affectation_id"] == "cout-" + decision["id"]
     with stockage.transaction() as cnx:
         assert cnx.execute(select(REGISTRES)).all() == avant
     charge["arguments"]["montant_alloue_cad"] = "50.00"

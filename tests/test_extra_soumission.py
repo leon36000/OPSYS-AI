@@ -82,7 +82,9 @@ def test_l_image_docker_installe_l_extra_soumission():
     assert len(commandes) == 3
     for commande in commandes[:2]:  # avec et sans certificat du proxy
         assert "--require-hashes" in commande
-        assert "-r /opt/opsys/requirements-runtime.lock.txt" in commande
+        assert '-r "$opsys_lock"' in commande
+    assert "0) opsys_lock=/opt/opsys/requirements-runtime.lock.txt ;;" in dockerfile
+    assert "1) opsys_lock=/opt/opsys/requirements-ingestion-pdf.lock.txt ;;" in dockerfile
     assert "--no-deps" in commandes[2] and "--no-build-isolation -e /opt/opsys" in commandes[2]
     assert "--extra soumission" in verrou.splitlines()[1]
     reportlab = re.search(r"(?m)^reportlab==([^\s]+) \\\n((?:[ \t]+--hash=sha256:[0-9a-f]{64}[^\n]*\n)+)", verrou)

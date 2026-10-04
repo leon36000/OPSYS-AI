@@ -297,7 +297,7 @@ def preparer_configuration(instance: Instance, pile: contextlib.ExitStack) -> No
            "roles.json doit permettre à l'employé les outils du scénario, portés par le serveur opsys_m4",
            employee=roles["roles"][ROLE][:5])
     mcp = json.loads((instance.dossier_opsys / "mcp.json").read_text(encoding="utf-8"))
-    exiger(mcp["servers"]["opsys_m4"]["url"] == f"{instance.url_mcp}/{DEPARTEMENT_TERRAIN}",
+    exiger(mcp["servers"]["opsys_m4"]["url"] == f"{instance.url_mcp}/v1/{DEPARTEMENT_TERRAIN}",
            "mcp.json doit pointer le moteur de ce scénario", serveur=mcp["servers"]["opsys_m4"])
 
     # Le core refuse une variable absente : les clés fournisseur natives sont fictives dans ce
@@ -534,7 +534,7 @@ def derouler(
     (deviceId, jeton d'appareil) : la vraie poignée de main (`appairer_comme_l_app`), ou celle de la répétition
     sans core. Rend les latences de tous les appels, dans l'ordre où l'app les a faits."""
     mesures: list[dict[str, Any]] = []
-    direct = LectureDirecte(f"{instance.url_mcp}/{DEPARTEMENT_TERRAIN}", instance.jeton_mcp)
+    direct = LectureDirecte(f"{instance.url_mcp}/v1/{DEPARTEMENT_TERRAIN}", instance.jeton_mcp)
     base = EtatDeLaJournee()
 
     etape("4. appairage de l'employée comme l'app, approbation par la CLI du core")

@@ -211,7 +211,7 @@ class EtatDuMoteur:
 class LectureDirecte:
     """Le moteur, appelé sans le core avec le `_meta` que le core pose : l'étalon de « reçu tel quel »."""
 
-    url_departement: str  # ex. http://127.0.0.1:8765/mcp/m04-field-ops
+    url_departement: str  # ex. http://127.0.0.1:8765/mcp/v1/m04-field-ops
     jeton_mcp: str
 
     def lire(self, outil: str, args: dict[str, Any], appareil: Appareil) -> dict[str, Any]:

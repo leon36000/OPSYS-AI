@@ -5,6 +5,10 @@ par surface; leurs nombres ne sont pas additionnés, car plusieurs campagnes se
 recouvrent. Le code en cours d'intégration n'est pas une preuve d'exécution.
 OPSYS-AI et ses départements restent partiels.
 
+La reprise est maintenant publiée dans la [PR #623](https://github.com/leon36000/OPSYS-AI/pull/623).
+Le [bilan CI du 4 octobre](../REPRISE-2026-10-04/CI-PUBLICATION.md) distingue la construction
+core réussie, les corrections qualifiées et les contrôles encore rouges.
+
 | Surface | Dernière qualification dans cette portée | Limites |
 |---|---|---|
 | M5, déclarations et rapprochement humain | [93 cas et Ruff](preuves/m5-rapprochement/VERIFICATION-ROOT.json), huit fichiers de tests complets | SQLite et données fictives; deux parcours HTTP réels. Cash CFO privé seulement, aucun paiement ou calcul de paie nette. |

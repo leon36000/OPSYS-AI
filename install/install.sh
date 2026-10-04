@@ -492,7 +492,10 @@ moteur_python_utilisable() {
 EXTRAS_MOTEUR="tournees,soumission"
 
 installer_moteur() {
-    local extras=(--extra tournees --extra soumission)
+    local extra
+    local extras=() base_extras=()
+    IFS="," read -r -a base_extras <<< "$EXTRAS_MOTEUR"
+    for extra in "${base_extras[@]}"; do extras+=(--extra "$extra"); done
     if [ "$INGESTION_PDF" -eq 1 ]; then extras+=(--extra ingestion-pdf); fi
     if ! moteur_python_utilisable; then
         CONSEIL="Il faut Python 3.11 ou plus : installez-le, ou laissez uv le télécharger (accès réseau)." \

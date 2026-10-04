@@ -2,16 +2,29 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
+import sys
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
-from memoire.doubles import postgres_ephemere, raison_sans_docker
 
 from opsys import identite, stockage
 from opsys.console import memoire_api, securite
+
+# Canonical fixture owner, including department-only pytest collection in CI.
+_SPEC = importlib.util.spec_from_file_location(
+    "opsys_m10_api_pg_fixture", Path(__file__).resolve().parents[3] / "tests/fixtures/memoire/doubles.py"
+)
+assert _SPEC is not None and _SPEC.loader is not None
+_PG_FIXTURE = importlib.util.module_from_spec(_SPEC)
+sys.modules[_SPEC.name] = _PG_FIXTURE
+_SPEC.loader.exec_module(_PG_FIXTURE)
+postgres_ephemere = _PG_FIXTURE.postgres_ephemere
+raison_sans_docker = _PG_FIXTURE.raison_sans_docker
 
 SECRET_SESSION = "secret-session-test-" + "x" * 32
 ADMIN = "admin.dev"

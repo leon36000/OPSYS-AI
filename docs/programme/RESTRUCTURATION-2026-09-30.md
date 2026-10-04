@@ -24,6 +24,11 @@ configurables et limites fournisseur vérifiées avant appel.
 
 ## État de départ et priorité
 
+**Publication du 4 octobre :** la [PR de reprise #623](https://github.com/leon36000/OPSYS-AI/pull/623)
+est ouverte en brouillon sur la base de Claude. Le [bilan de CI et ses preuves](../research/REPRISE-2026-10-04/CI-PUBLICATION.md)
+confirme la construction complète du premier core publié et documente les corrections d'installation,
+M3/M4/M5/M10 et E2E. Le gate mobile reste rouge ; aucune fusion ni promotion globale.
+
 Base auditée : `2e56c0d5605dfe575bde9244f38924d5390f2674`, branche récente de Claude.
 18 815 tests locaux passés et 78 sautés lors de l'audit ; core/mobile CI verts sur l'arbre consulté,
 CI socle expirée au délai de 20 minutes et gates rouges au HEAD. Ces résultats sont **historiques**,

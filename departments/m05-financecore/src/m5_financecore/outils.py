@@ -3735,8 +3735,6 @@ def _borner_couts_marketing(resultat: dict) -> dict:
 
 def _outils_couts_marketing(lecteur: Callable) -> tuple[Outil, ...]:
     """Projection privée uniquement ; ces noms n'entrent jamais dans le catalogue MCP par défaut."""
-    import uuid
-    from datetime import UTC, datetime
 
     ident = {"type": "string", "minLength": 1, "maxLength": 128}
     fp = {"type": "string", "pattern": "^[0-9a-f]{64}$"}
@@ -3763,7 +3761,7 @@ def _outils_couts_marketing(lecteur: Callable) -> tuple[Outil, ...]:
         resultat = couts_marketing.projeter(ap_maillons, parts, campagne, debut=debut, fin=fin,
                                            offset_affectations=offset_affectations, offset_pieces=offset_pieces,
                                            snapshot_attendu=snapshot_attendu)
-        resultat["lue_le"] = datetime.now(UTC).isoformat()
+        resultat["lue_le"] = approbations._maintenant()
         resultat = _borner_couts_marketing(resultat)
         if campagne != _campagne_couts_marketing(lecteur, campagne_id):
             raise couts_marketing.CoutErreur("SNAPSHOT-PERIME")
@@ -3774,17 +3772,20 @@ def _outils_couts_marketing(lecteur: Callable) -> tuple[Outil, ...]:
         return {"accepte": True, "resultat": resultat}
 
     def muter(nom, arguments):
+        demande_id = contexte.demande_approuvee_en_cours()
         auteur = _autorite_couts_marketing(nom)
+        if demande_id is None:
+            raise couts_marketing.CoutErreur("OWNER-N4-REQUIS")
         ap_maillons = _snapshot_couts_marketing(_NOM_REGISTRE_COMPTES_A_PAYER)
         parts = _snapshot_couts_marketing(couts_marketing.REGISTRE)
         couts_marketing.etats_ap(ap_maillons)
-        maintenant = datetime.now(UTC).isoformat()
+        maintenant = approbations._maintenant()
         campagne = None
         if nom == "m5_affecter_cout_marketing":
             campagne = _campagne_couts_marketing(lecteur, arguments["campagne_id"])
             corps = couts_marketing.preparer_affectation(
                 ap_maillons, parts, campagne, arguments, auteur=auteur, horodatage=maintenant,
-                nouvel_id="cout-" + uuid.uuid4().hex,
+                nouvel_id="cout-" + demande_id,
             )
             if campagne != _campagne_couts_marketing(lecteur, arguments["campagne_id"]):
                 raise couts_marketing.CoutErreur("SNAPSHOT-PERIME")

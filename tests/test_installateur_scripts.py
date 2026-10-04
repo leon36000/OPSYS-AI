@@ -1418,7 +1418,8 @@ def test_les_scripts_sont_executables_et_sans_faute_de_syntaxe():
 
 # Les extras qui ne servent qu'à Docker Compose (`postgres`, `console`) ou aux contributeurs (`dev`) ; tout autre extra
 # de pyproject.toml est une dépendance d'exécution du moteur que les deux installateurs doivent poser (T0.11-c).
-EXTRAS_HORS_INSTALLATEUR = {"postgres", "console", "dev"}
+# Ingestion et embeddings locaux sont des capacités optionnelles, activées séparément.
+EXTRAS_HORS_INSTALLATEUR = {"postgres", "console", "dev", "ingestion", "ingestion-pdf", "embeddings-local"}
 
 
 def test_les_installateurs_posent_tous_les_extras_d_execution_du_moteur() -> None:

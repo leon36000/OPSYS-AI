@@ -802,7 +802,9 @@ def test_l_image_installe_l_extra_tournees_a_la_version_que_le_code_epingle():
 
     dockerfile = (_RACINE / "deploy" / "Dockerfile").read_text(encoding="utf-8")
     assert "--require-hashes" in dockerfile
-    assert "-r /opt/opsys/requirements-runtime.lock.txt" in dockerfile
+    assert '-r "$opsys_lock"' in dockerfile
+    assert '0) opsys_lock=/opt/opsys/requirements-runtime.lock.txt ;;' in dockerfile
+    assert '1) opsys_lock=/opt/opsys/requirements-ingestion-pdf.lock.txt ;;' in dockerfile
     assert "--no-deps" in dockerfile and "--no-build-isolation -e /opt/opsys" in dockerfile
 
     verrou = (_RACINE / "requirements-runtime.lock.txt").read_text(encoding="utf-8")

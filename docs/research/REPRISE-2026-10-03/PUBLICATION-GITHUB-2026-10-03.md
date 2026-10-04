@@ -1,7 +1,7 @@
 # Publication de la reprise — 3 octobre 2026
 
-La branche de reprise vise `codex/restructuration-2026-09-30` sur le dépôt privé
-`leon36000/OPSYS-AI`. La PR est préparée en brouillon contre
+La branche de reprise `codex/restructuration-2026-09-30` est publiée sur le dépôt privé
+`leon36000/OPSYS-AI`. La [PR #623](https://github.com/leon36000/OPSYS-AI/pull/623) est ouverte en brouillon contre
 `claude/opsys-ai-analysis-x4jt87`, base `2e56c0d5605dfe575bde9244f38924d5390f2674`.
 Cette base isole notre reprise : comparer immédiatement à `main` ajouterait les
 525 commits de la refonte historique. La publication ne fusionne aucune branche.
@@ -25,9 +25,9 @@ pas être assimilé à une livraison production ni au produit entièrement termi
 
 Les huit fichiers natifs M1 sont inscrits dans le job CI `tests-opsys` existant,
 qui prépare déjà le Python verrouillé et `OPSYS_TEST_PYTHON`. Les résultats de cette
-CI distante seront évalués après publication, sans les annoncer à l'avance.
+CI distante sont analysés dans le [point du 4 octobre](../REPRISE-2026-10-04/CI-PUBLICATION.md).
 
-Le build complet, les exports SDK générés, le profilage du plugin compilé, les
+Le build complet du premier commit publié réussit en CI. Les exports SDK générés, le profilage du plugin compilé, les
 parcours Gateway de récupération, la téléphonie réelle et l'installation sur VPS
 restent à qualifier. M5 CFO complet, M7 CMO autonome, assimilation massive M10,
 précision géospatiale réelle et interaction ACE de production restent partiels.

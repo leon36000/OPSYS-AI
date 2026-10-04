@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1.7
 # Opt-in plugin dependencies and supported runtime builds (space- or comma-separated ids).
 # Manifest ids and existing source-directory names are accepted.
 # Example: docker build --build-arg OPENCLAW_EXTENSIONS="diagnostics-otel,matrix" .
