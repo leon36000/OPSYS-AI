@@ -1,5 +1,29 @@
 # Publication et corrections de CI — 4 octobre 2026
 
+## Contrat OCR — tranche 27 qualifiée localement
+
+[Rapport du contrat](../../grs/compta/M5-OCR-CONTRAT-RAPPORT-2026-10-04.md) :
+ROOT r161, **202/202 sur quatre fichiers complets**, zéro échec/erreur/skip;
+82 cas OCR, 63 PDF, 49 console PDF et 8 provenance. Ruff/vérificateur verts,
+1 249 sources inchangées; r159/r160 rouges conservés. r162 relit 55 + 55 mots
+historiques fictifs et leurs erreurs intactes, sans nouveau lancement OCR.
+ROOT r163 contrôle les secrets dans six fichiers sans exclusion ajoutée.
+[Capsule](preuves/M5-OCR-CONTRAT-r1.tar.xz) et [manifeste](preuves/M5-OCR-CONTRAT-r1.json).
+Ce contrat n'active pas de worker ni d'OCR produit; la CI du prochain commit
+reste à observer sur son SHA exact.
+
+## Relevé CI du head 26 — 4 octobre 2026 à 20:28:03 UTC
+
+| Commit | CI | Core | E2E | Mobile | Dépendances | Installateur |
+|---|---|---|---|---|---|---|
+| `76e949b9540269b4d1f9639a557255d55301622c` | En cours | En cours | En cours | Succès | Succès | En cours |
+
+Capture API unique sans lecture des logs, relance ou annulation. Deux jobs
+Docker Desktop ignorés et l'étape « Diagnostic du confinement PDF » ignorée
+sont conservés explicitement; les métadonnées ne signalent aucun échec visible.
+Aucun succès de workflow en cours ou du futur head27 n'en est déduit. Le
+snapshot et les empreintes figurent dans la capsule du contrat OCR ci-dessus.
+
 ## Provenance PDF → M10 — tranche 26 qualifiée localement
 
 Le [raccord documentaire](../../grs/memory/M10-PROVENANCE-PDF-RAPPORT-2026-10-04.md)

@@ -87,10 +87,21 @@ et résultats chiffrés ; aucune indexation, vectorisation ou classification
 universelle. SQLite, transaction commune, bornes avant décodage/après append,
 chaînage interne sans ancre externe ; ancien lot absent sans backfill GET/rejeu.
 ROOT r156 passe **1 401/1 401 sur 52 fichiers complets**, sans échec/erreur/skip,
-179,504 s JUnit, Ruff/vérificateur verts, 1 247 sources sans dérive/OOM.
+181,250 s JUnit, Ruff/vérificateur verts, 1 247 sources sans dérive/OOM.
 Les rouges r152/r153 restent conservés. Le test M10 de développement sur vrai
 PostgreSQL en RAM est distinct du raccord financier PDF SQLite, sans DDL.
-M10 et Fusion **PARTIEL** ; le futur commit26 doit obtenir sa propre CI.
+M10 et Fusion **PARTIEL** ; le commit26 publié `76e949b9` possède sa propre
+CI, distinguée dans le bilan par head. La durée ci-dessus corrige une valeur
+intermédiaire de r154 conservée par erreur dans ce programme.
+
+**M5, tranche 27 qualifiée localement :** le [contrat candidat OCR JSON/TSV](../grs/compta/M5-OCR-CONTRAT-RAPPORT-2026-10-04.md)
+lie un résultat non fiable à source/lot/révision/configuration et profil attendus.
+ROOT r161 réussit **202/202 sur quatre fichiers complets**, incluant 82 cas OCR
+et les parcours PDF/console/provenance; Ruff/vérificateur verts, 1 249 sources
+stables. r159/r160 rouges conservés; r162 relit deux ensembles historiques de
+55 mots fictifs sans changer leurs erreurs ni exécuter un nouvel OCR. Contrat
+pur seulement : worker, chiffrement durable, revue console, Docker et mobile
+restent à livrer; aucune saisie AP ou mémoire financière automatique.
 
 Le head `79b49669` a désormais réussi les six workflows natifs, dont
 3 815 tests du socle/17 ignorés. Cela ne remplace pas la CI du prochain commit;
