@@ -59,3 +59,12 @@ Aucun candidat n’est adopté, aucune donnée facture réelle n’a été charg
 
 
 Revue ROOT : les licences de code capturées ont été relues et cinq textes primaires revérifiés à l’identique. Le tag annoté OCRmyPDF est résolu vers le même commit; sa réponse JSON a une mise en forme différente à la recapture, sans changement de contenu. La note annexe `sources-r3.json` confond l’objet de tag Tesseract `0995615022dc368f65c6b88f31784d8bc384f855` avec son commit : le pin de déploiement examiné est bien `3b7c70e34dea179549ed3e995872e2e019eb8477`, comme le prouvent les captures `resolve-tesseract-ocr-tesseract.json` et `tree-tesseract-ocr-tesseract.json`. L’annexe originale est conservée avec cette correction explicite.
+
+
+## Essai suivant, séparé de cette recherche documentaire
+
+Le [pilote CPU sur deux fixtures](M5-OCR-PILOTE-CPU-2026-10-04.md) exerce ensuite
+les versions **déjà installées** PDFium/Tesseract dans une isolation bornée.
+ROOT télécharge le seul pack français public épinglé; aucun OCRmyPDF/Docling
+n’est installé. L’erreur de numéro sur l’image inclinée reste explicitement
+conservée, et aucune intégration produit ni précision fr-CA n’est revendiquée.

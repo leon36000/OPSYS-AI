@@ -1,0 +1,943 @@
+{
+  "archive": "M5-OCR-PILOTE-CPU-r1.tar.xz",
+  "bytes": 1139160,
+  "sha256": "3dc087c92acfdf57691fc50e6fc9fb94baf3ec962fcd8a06850ec7d24f82b098",
+  "timestamp_utc": "2026-10-04T12:23:57.222385+00:00",
+  "qualification": "ROOT r133: isolated CPU OCR on two fictitious single-page image PDFs; exact line matches 10/10 and 4/10, identifier error preserved. Not OCR accuracy, fr-CA, VPS or production qualification. ROOT r132 RED preserved. Gitleaks r136 zero alerts on final 5 docs and 3 prototype scripts, no exclusions.",
+  "source_sha256": {
+    "/dev/shm/opsys-m5-ocr-pilote-r1/generator-r1/generate_ocr_fixtures.py": "32b240e0eb863a07dd38ee7dc4ec20c789628cbae2663d12fa1b5e314521b6ca",
+    "/dev/shm/opsys-m5-ocr-pilote-r1/root-r1/orchestrator-r2.py": "44ca16518b530a0b2b88c2e1f9e71938f956724d5a13bcb0033eac1f005041ed",
+    "/dev/shm/opsys-m5-ocr-pilote-r1/root-r1/worker-r2.py": "45f98ded709f06d06adeedd936a992aaa72879a4a241a4ea08841d5614ae3f1a",
+    "docs/programme/RESTRUCTURATION-2026-09-30.md": "52d61c3698b96cdae63079dc06ce613595e40c2a7b2321ba28c09929f30e296c",
+    "docs/research/INGREDIENTS.md": "77181ab15ee6988e301f554f2260277b2008a90f0f4d3f7a46d4175056ea6e15",
+    "docs/research/REPRISE-2026-10-04/CI-PUBLICATION.md": "9a387d79539a6ac1236329f75832df29ce60f8f1272791fd025ea9c49deca249",
+    "docs/research/REPRISE-2026-10-04/M5-OCR-GITHUB-GITLAB.md": "850207cad378dd2658c76f5237790f5ef744fa47aa8b82aea11e8540e79625aa",
+    "docs/research/REPRISE-2026-10-04/M5-OCR-PILOTE-CPU-2026-10-04.md": "037d7307e35bd5fb307c7f22231abcdab51da1a3c2b5d348a5ae992ee618482d"
+  },
+  "parent_publication": "4e9beea082140ab007419af935d1f082e4a2624f",
+  "runtime_environment": "installed Tesseract5.5.0/Leptonica1.84.1/pypdfium2 5.3.0; public fra fast payload pinned and downloaded privately by ROOT; native PDFium source commit unresolved. No product code changed.",
+  "payloads_excluded": [
+    "fra.traineddata",
+    "native engines and binary dependencies",
+    "fonts"
+  ],
+  "entries": [
+    {
+      "path": "drivers/guard_helpers_r2.py",
+      "bytes": 13311,
+      "sha256": "145395c894c7621bc0f2534ba5b6ce282810ae523b0eca203a87ad55afeed844",
+      "raw_sha256": "145395c894c7621bc0f2534ba5b6ce282810ae523b0eca203a87ad55afeed844",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/package-proof-r1.py",
+      "bytes": 3485,
+      "sha256": "0513444e57a59ffe24bb353c895f8045003099b9bb759729a4591a85c780adf5",
+      "raw_sha256": "0513444e57a59ffe24bb353c895f8045003099b9bb759729a4591a85c780adf5",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/qa_root_r132.py",
+      "bytes": 4989,
+      "sha256": "6ceecfb07442adbbd4de24df30b24a949d0b7995388cc41af402f05852cc5768",
+      "raw_sha256": "6ceecfb07442adbbd4de24df30b24a949d0b7995388cc41af402f05852cc5768",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/qa_root_r133.py",
+      "bytes": 4989,
+      "sha256": "fc8f1f78b9f1bb6d7d1505adf6a1a9c18b2f461a850178af1dd0c03b29bb5fa4",
+      "raw_sha256": "fc8f1f78b9f1bb6d7d1505adf6a1a9c18b2f461a850178af1dd0c03b29bb5fa4",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/qa_root_r134.py",
+      "bytes": 3632,
+      "sha256": "a0a964937bc07497785fe80c8876a04a81fb68d628a3a5a8b4996c33b81c732c",
+      "raw_sha256": "a0a964937bc07497785fe80c8876a04a81fb68d628a3a5a8b4996c33b81c732c",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/qa_root_r135.py",
+      "bytes": 3686,
+      "sha256": "5c5c5266ca4b160b4117544946b5234477744e63fa1fe1a66720629b6a96dd62",
+      "raw_sha256": "5c5c5266ca4b160b4117544946b5234477744e63fa1fe1a66720629b6a96dd62",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "drivers/qa_root_r136.py",
+      "bytes": 3686,
+      "sha256": "621835fdada603825ea189edf1495fb8a600735bb23ffbb1b583cc7f14e069e7",
+      "raw_sha256": "621835fdada603825ea189edf1495fb8a600735bb23ffbb1b583cc7f14e069e7",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "native/NATIVE-CI-head19-21-r1.json",
+      "bytes": 6571,
+      "sha256": "5d5d012dc7e58138d2cf0998c69e60f15f6bcadf9ec52dbc1d9bb72404ecc646",
+      "raw_sha256": "5d5d012dc7e58138d2cf0998c69e60f15f6bcadf9ec52dbc1d9bb72404ecc646",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r132/execution-r1/ocr-pilot.log",
+      "bytes": 224,
+      "sha256": "ed170d194c0e8eecf0a9459c816aca91ddad1777e19db0fc54073dc14e5ee9b1",
+      "raw_sha256": "ed170d194c0e8eecf0a9459c816aca91ddad1777e19db0fc54073dc14e5ee9b1",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r132/freeze.json",
+      "bytes": 156768,
+      "sha256": "3f98e787a91fe62a09e44cbccc5ecddb7f2081e1bdd913d379cb874253679d7c",
+      "raw_sha256": "3f98e787a91fe62a09e44cbccc5ecddb7f2081e1bdd913d379cb874253679d7c",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r132/receipt.json",
+      "bytes": 320718,
+      "sha256": "02d8f633f2815ecd4114229cdf9cd8fa6750c4b2005914506860b5b9417896f9",
+      "raw_sha256": "02d8f633f2815ecd4114229cdf9cd8fa6750c4b2005914506860b5b9417896f9",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r133/execution-r1/ocr-pilot.log",
+      "bytes": 440,
+      "sha256": "8be7a4a6f581e27acd00e79be645b3105f175485ffb967e59c32540a4947e874",
+      "raw_sha256": "8be7a4a6f581e27acd00e79be645b3105f175485ffb967e59c32540a4947e874",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r133/freeze.json",
+      "bytes": 156768,
+      "sha256": "7dfaf0be333ef06c937d6332165fd66457fa06a6d26ec5fbcd74e4c43a633dc1",
+      "raw_sha256": "7dfaf0be333ef06c937d6332165fd66457fa06a6d26ec5fbcd74e4c43a633dc1",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r133/receipt.json",
+      "bytes": 320717,
+      "sha256": "d5ece513e50f4dcb6146d54e9aea444980ba230969ddd9ffb1006dd3fd7ec636",
+      "raw_sha256": "d5ece513e50f4dcb6146d54e9aea444980ba230969ddd9ffb1006dd3fd7ec636",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r134/execution-r1/gitleaks.log",
+      "bytes": 135,
+      "sha256": "478ecf602053460b0d13ed254ce6ca43726a76b03f77df798de7584d65645b9b",
+      "raw_sha256": "478ecf602053460b0d13ed254ce6ca43726a76b03f77df798de7584d65645b9b",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r134/freeze.json",
+      "bytes": 892,
+      "sha256": "5933f442c0de007517c760bb4051ed8b9705ec7f9814eddac13c0e1a5de49676",
+      "raw_sha256": "5933f442c0de007517c760bb4051ed8b9705ec7f9814eddac13c0e1a5de49676",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r134/receipt.json",
+      "bytes": 4157,
+      "sha256": "4e07f95b77461d30b0f180ccb0142bf4ab63868ef4bd9e756b0ce1d2b33a3a83",
+      "raw_sha256": "4e07f95b77461d30b0f180ccb0142bf4ab63868ef4bd9e756b0ce1d2b33a3a83",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r134/scan.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "raw_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r135/execution-r1/gitleaks.log",
+      "bytes": 135,
+      "sha256": "23ff1eb307874df1a1345966da1dc30cbf80a37b9acc4a5f257bfaacb96130b5",
+      "raw_sha256": "23ff1eb307874df1a1345966da1dc30cbf80a37b9acc4a5f257bfaacb96130b5",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r135/freeze.json",
+      "bytes": 1016,
+      "sha256": "1392da8dd3cab757ea2b0e6c1ad07eeab247ee66ed6017c3eaad7b0b14508c99",
+      "raw_sha256": "1392da8dd3cab757ea2b0e6c1ad07eeab247ee66ed6017c3eaad7b0b14508c99",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r135/receipt.json",
+      "bytes": 4408,
+      "sha256": "5b6b2eb6f4598052b9b83b153cec40ffc0f59c94edecf0bb48a5e1abcfd348e8",
+      "raw_sha256": "5b6b2eb6f4598052b9b83b153cec40ffc0f59c94edecf0bb48a5e1abcfd348e8",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r135/scan.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "raw_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r136/execution-r1/gitleaks.log",
+      "bytes": 135,
+      "sha256": "1546b864ae6758f6fcbff54031c91e50aa336f7d0ff9a319054c1d0516efee8e",
+      "raw_sha256": "1546b864ae6758f6fcbff54031c91e50aa336f7d0ff9a319054c1d0516efee8e",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r136/freeze.json",
+      "bytes": 1016,
+      "sha256": "503f11e5e55e43ce262ae71dda50235036992fc588b4f32e38ec14f691001f33",
+      "raw_sha256": "503f11e5e55e43ce262ae71dda50235036992fc588b4f32e38ec14f691001f33",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r136/receipt.json",
+      "bytes": 4408,
+      "sha256": "136ab3025ca02a9b242a87db3c1277baf62f3da6e35177bfb3c86cfa1de45756",
+      "raw_sha256": "136ab3025ca02a9b242a87db3c1277baf62f3da6e35177bfb3c86cfa1de45756",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "qa-r136/scan.json",
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "raw_sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "review/DOC-REVIEW-r1.md",
+      "bytes": 6820,
+      "sha256": "514613e0986492ae3740cb63345a49ef984a70d8117e5b4b878160e4e02d76bc",
+      "raw_sha256": "514613e0986492ae3740cb63345a49ef984a70d8117e5b4b878160e4e02d76bc",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/programme/RESTRUCTURATION-2026-09-30.md",
+      "bytes": 49504,
+      "sha256": "52d61c3698b96cdae63079dc06ce613595e40c2a7b2321ba28c09929f30e296c",
+      "raw_sha256": "52d61c3698b96cdae63079dc06ce613595e40c2a7b2321ba28c09929f30e296c",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/research/INGREDIENTS.md",
+      "bytes": 78007,
+      "sha256": "77181ab15ee6988e301f554f2260277b2008a90f0f4d3f7a46d4175056ea6e15",
+      "raw_sha256": "77181ab15ee6988e301f554f2260277b2008a90f0f4d3f7a46d4175056ea6e15",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/research/REPRISE-2026-10-04/CI-PUBLICATION.md",
+      "bytes": 19762,
+      "sha256": "9a387d79539a6ac1236329f75832df29ce60f8f1272791fd025ea9c49deca249",
+      "raw_sha256": "9a387d79539a6ac1236329f75832df29ce60f8f1272791fd025ea9c49deca249",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/research/REPRISE-2026-10-04/M5-OCR-GITHUB-GITLAB.md",
+      "bytes": 17376,
+      "sha256": "850207cad378dd2658c76f5237790f5ef744fa47aa8b82aea11e8540e79625aa",
+      "raw_sha256": "850207cad378dd2658c76f5237790f5ef744fa47aa8b82aea11e8540e79625aa",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/docs/research/REPRISE-2026-10-04/M5-OCR-PILOTE-CPU-2026-10-04.md",
+      "bytes": 5839,
+      "sha256": "037d7307e35bd5fb307c7f22231abcdab51da1a3c2b5d348a5ae992ee618482d",
+      "raw_sha256": "037d7307e35bd5fb307c7f22231abcdab51da1a3c2b5d348a5ae992ee618482d",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/research-pilot/generate_ocr_fixtures.py",
+      "bytes": 8372,
+      "sha256": "32b240e0eb863a07dd38ee7dc4ec20c789628cbae2663d12fa1b5e314521b6ca",
+      "raw_sha256": "32b240e0eb863a07dd38ee7dc4ec20c789628cbae2663d12fa1b5e314521b6ca",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/research-pilot/orchestrator-r2.py",
+      "bytes": 3918,
+      "sha256": "44ca16518b530a0b2b88c2e1f9e71938f956724d5a13bcb0033eac1f005041ed",
+      "raw_sha256": "44ca16518b530a0b2b88c2e1f9e71938f956724d5a13bcb0033eac1f005041ed",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "sources/research-pilot/worker-r2.py",
+      "bytes": 3932,
+      "sha256": "45f98ded709f06d06adeedd936a992aaa72879a4a241a4ea08841d5614ae3f1a",
+      "raw_sha256": "45f98ded709f06d06adeedd936a992aaa72879a4a241a4ea08841d5614ae3f1a",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-preimages-r1/docs/programme/RESTRUCTURATION-2026-09-30.md",
+      "bytes": 49132,
+      "sha256": "478a537e044f33eccac0f1f20d16b38b793741dfe7cb60a488366253aacf1880",
+      "raw_sha256": "478a537e044f33eccac0f1f20d16b38b793741dfe7cb60a488366253aacf1880",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-preimages-r1/docs/research/INGREDIENTS.md",
+      "bytes": 77460,
+      "sha256": "facc48b4eb2d53ffc04bc2dc86b3d6d1efda65f119ae0b30b4330a500af46a92",
+      "raw_sha256": "facc48b4eb2d53ffc04bc2dc86b3d6d1efda65f119ae0b30b4330a500af46a92",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-preimages-r1/docs/research/REPRISE-2026-10-04/CI-PUBLICATION.md",
+      "bytes": 18721,
+      "sha256": "d022b21cceb25b758bcbe3c1d9519c2d28bbf791d6560d13dc3b624ca85e7450",
+      "raw_sha256": "d022b21cceb25b758bcbe3c1d9519c2d28bbf791d6560d13dc3b624ca85e7450",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/doc-preimages-r1/docs/research/REPRISE-2026-10-04/M5-OCR-GITHUB-GITLAB.md",
+      "bytes": 16899,
+      "sha256": "c78bdbec75887b35dc903e6066334cd8db4209af5f4fbed7435f8c7cf140c555",
+      "raw_sha256": "c78bdbec75887b35dc903e6066334cd8db4209af5f4fbed7435f8c7cf140c555",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/execution-r1/facture_propre.png",
+      "bytes": 101054,
+      "sha256": "f7ef3014c89b3c0a0800b5077ffa42830694134c063f0ea43bdde73c8e926392",
+      "raw_sha256": "f7ef3014c89b3c0a0800b5077ffa42830694134c063f0ea43bdde73c8e926392",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/execution-r1/facture_propre.tsv",
+      "bytes": 363,
+      "sha256": "b71900154c12db0398b14b44531a2f7cc25fc565df91e5b134bb891890d2d42e",
+      "raw_sha256": "b71900154c12db0398b14b44531a2f7cc25fc565df91e5b134bb891890d2d42e",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/execution-r2/RESULT-r1.json",
+      "bytes": 27837,
+      "sha256": "949685f68c1b573c631150629daf07e0f0284a532f683ea9c601fb5ffa432c18",
+      "raw_sha256": "949685f68c1b573c631150629daf07e0f0284a532f683ea9c601fb5ffa432c18",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/execution-r2/facture_inclinee_8deg_faible_contraste.json",
+      "bytes": 10706,
+      "sha256": "131eecba03d94fbf390e87831a0197dc189e659b8d537d174b5a84cd43969c0f",
+      "raw_sha256": "131eecba03d94fbf390e87831a0197dc189e659b8d537d174b5a84cd43969c0f",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/execution-r2/facture_inclinee_8deg_faible_contraste.png",
+      "bytes": 201487,
+      "sha256": "cd5bcf97c4935f44f80d90a5c668ca80fa96f1613fef4d8390661b131f931c5d",
+      "raw_sha256": "cd5bcf97c4935f44f80d90a5c668ca80fa96f1613fef4d8390661b131f931c5d",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/execution-r2/facture_inclinee_8deg_faible_contraste.tsv",
+      "bytes": 2999,
+      "sha256": "fec3109da12e5d8705095b2590cbe13b5d81f0d83c55d3efdc82c096d73e54de",
+      "raw_sha256": "fec3109da12e5d8705095b2590cbe13b5d81f0d83c55d3efdc82c096d73e54de",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/execution-r2/facture_propre.json",
+      "bytes": 10688,
+      "sha256": "ba8fa8c86f94d417f1cc5caca0833ce0b33747c30b49cbaa67e93b9986c896ad",
+      "raw_sha256": "ba8fa8c86f94d417f1cc5caca0833ce0b33747c30b49cbaa67e93b9986c896ad",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/execution-r2/facture_propre.png",
+      "bytes": 101054,
+      "sha256": "f7ef3014c89b3c0a0800b5077ffa42830694134c063f0ea43bdde73c8e926392",
+      "raw_sha256": "f7ef3014c89b3c0a0800b5077ffa42830694134c063f0ea43bdde73c8e926392",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/execution-r2/facture_propre.tsv",
+      "bytes": 3196,
+      "sha256": "8eb2b01d638e5b96befa4cb720829d1b6445ca7a07caa0161e45c136a567f505",
+      "raw_sha256": "8eb2b01d638e5b96befa4cb720829d1b6445ca7a07caa0161e45c136a567f505",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/fixtures-r1/ground_truth.json",
+      "bytes": 2014,
+      "sha256": "9dd71953069d5878733a5b4242d88197b1607bdac9542a889148047992f5b396",
+      "raw_sha256": "9dd71953069d5878733a5b4242d88197b1607bdac9542a889148047992f5b396",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/fixtures-r1/images/facture_inclinee_8deg_faible_contraste.png",
+      "bytes": 231643,
+      "sha256": "6d7aa8a7eaa282b1a2b882c95c13f7dfe35c99eca8769e29f8f2d78af724acaa",
+      "raw_sha256": "6d7aa8a7eaa282b1a2b882c95c13f7dfe35c99eca8769e29f8f2d78af724acaa",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/fixtures-r1/images/facture_propre.png",
+      "bytes": 75699,
+      "sha256": "9922c4e2e17ea600213564195d4fd3031ec0a639e459e7b8d59fa70e6e05a68b",
+      "raw_sha256": "9922c4e2e17ea600213564195d4fd3031ec0a639e459e7b8d59fa70e6e05a68b",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/fixtures-r1/pdf/facture_inclinee_8deg_faible_contraste.pdf",
+      "bytes": 289910,
+      "sha256": "032881448a37d7ceb4de82d466ce39abc8f17864de2656d9e899b2190b4c1973",
+      "raw_sha256": "032881448a37d7ceb4de82d466ce39abc8f17864de2656d9e899b2190b4c1973",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/fixtures-r1/pdf/facture_propre.pdf",
+      "bytes": 69672,
+      "sha256": "8ca8a223ae2a43de894bf7dce78ab6aa3729c7a9a829880e60c83e9f0880d71f",
+      "raw_sha256": "8ca8a223ae2a43de894bf7dce78ab6aa3729c7a9a829880e60c83e9f0880d71f",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/generator-r1/generate_ocr_fixtures.py",
+      "bytes": 8372,
+      "sha256": "32b240e0eb863a07dd38ee7dc4ec20c789628cbae2663d12fa1b5e314521b6ca",
+      "raw_sha256": "32b240e0eb863a07dd38ee7dc4ec20c789628cbae2663d12fa1b5e314521b6ca",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/LICENCES-ET-PINS.md",
+      "bytes": 5630,
+      "sha256": "da773da27fbc27209fd838bca7405698554f0a976531770950b1d6660a77ba00",
+      "raw_sha256": "da773da27fbc27209fd838bca7405698554f0a976531770950b1d6660a77ba00",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/SHA256SUMS",
+      "bytes": 7255,
+      "sha256": "6f574f0157b617884f782e7674f43167d1965db318da93c974d63479430b8cab",
+      "raw_sha256": "6f574f0157b617884f782e7674f43167d1965db318da93c974d63479430b8cab",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/SHA256SUMS.sha256",
+      "bytes": 77,
+      "sha256": "6a890b0bd2552783044b35e6681bc024b913ae305a6e6d032a18e14547b4994f",
+      "raw_sha256": "6a890b0bd2552783044b35e6681bc024b913ae305a6e6d032a18e14547b4994f",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/leptonica-README.html",
+      "bytes": 57775,
+      "sha256": "184edf638cfa042d0ca0bc1f0d659157034c64c385662a551b3ff2d38f42ecd3",
+      "raw_sha256": "184edf638cfa042d0ca0bc1f0d659157034c64c385662a551b3ff2d38f42ecd3",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/leptonica-leptonica-license.txt",
+      "bytes": 1521,
+      "sha256": "87829abb5bbb00b55a107365da89e9a33f86c4250169e5a1e5588505be7d5806",
+      "raw_sha256": "87829abb5bbb00b55a107365da89e9a33f86c4250169e5a1e5588505be7d5806",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/leptonica-tag.json",
+      "bytes": 353,
+      "sha256": "dbf774c44608e92effcce59d05223d250022b798e1ee70d94ec68555b8e2b98b",
+      "raw_sha256": "dbf774c44608e92effcce59d05223d250022b798e1ee70d94ec68555b8e2b98b",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/leptonica-tree.json",
+      "bytes": 229822,
+      "sha256": "5e03ff2d1d6115ea97964d9ce3f1dc1f2c7074100f35ad638fff455d24211791",
+      "raw_sha256": "5e03ff2d1d6115ea97964d9ce3f1dc1f2c7074100f35ad638fff455d24211791",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/pdfium-binary-tag-lookup-results.json",
+      "bytes": 549,
+      "sha256": "aa12a774ced725fac6da1c1c4317346641dca94166fc95f83dfa6350fac8aef1",
+      "raw_sha256": "aa12a774ced725fac6da1c1c4317346641dca94166fc95f83dfa6350fac8aef1",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/pypdfium2-BUILD_LICENSES_pdfium-binaries.txt",
+      "bytes": 1177,
+      "sha256": "18f922f766364a25a6327e7b1b8287d7c36cf8bbea80767d014fb453e2fe4a50",
+      "raw_sha256": "18f922f766364a25a6327e7b1b8287d7c36cf8bbea80767d014fb453e2fe4a50",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/pypdfium2-BUILD_LICENSES_pdfium.txt",
+      "bytes": 12896,
+      "sha256": "1fe9dea718fbd75cf149adaf4d8a22a4335604d964ddb76d1b45383dec8668c9",
+      "raw_sha256": "1fe9dea718fbd75cf149adaf4d8a22a4335604d964ddb76d1b45383dec8668c9",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/pypdfium2-LICENSES_Apache-2.0.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "raw_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/pypdfium2-LICENSES_BSD-3-Clause.txt",
+      "bytes": 1459,
+      "sha256": "a6d11f0694c0137e9b02924b9d33a159f6c72f220fa4655bb2e1ea3654377d39",
+      "raw_sha256": "a6d11f0694c0137e9b02924b9d33a159f6c72f220fa4655bb2e1ea3654377d39",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/pypdfium2-release-5.3.0.json",
+      "bytes": 57146,
+      "sha256": "93d657cfdad0ba4fd421fff4f2250165858f4671c4e081d62e4ca74dc676a8c7",
+      "raw_sha256": "93d657cfdad0ba4fd421fff4f2250165858f4671c4e081d62e4ca74dc676a8c7",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/pypdfium2-tag-object.json",
+      "bytes": 671,
+      "sha256": "f1a01643b67e9e57d1755a8f90592af265aa1d3992aed338726e2b05207cdc90",
+      "raw_sha256": "f1a01643b67e9e57d1755a8f90592af265aa1d3992aed338726e2b05207cdc90",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/pypdfium2-tag.json",
+      "bytes": 340,
+      "sha256": "500d361cb1d03d52c71854ca3223f982d38121d0aa3f2405f6827aa6abcf4a67",
+      "raw_sha256": "500d361cb1d03d52c71854ca3223f982d38121d0aa3f2405f6827aa6abcf4a67",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/pypdfium2-tree.json",
+      "bytes": 56052,
+      "sha256": "2657b58567bcd4c08bd27ebe468a5a08713096ba3c11aa26024bcc29b0ad46d4",
+      "raw_sha256": "2657b58567bcd4c08bd27ebe468a5a08713096ba3c11aa26024bcc29b0ad46d4",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/tessdata_fast-LICENSE",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "raw_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/tessdata_fast-README.md",
+      "bytes": 4353,
+      "sha256": "22fee9835bff02fb7013aa9786a2144ae3d4c219083089375985a62808e7215e",
+      "raw_sha256": "22fee9835bff02fb7013aa9786a2144ae3d4c219083089375985a62808e7215e",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/tessdata_fast-commit.json",
+      "bytes": 4358,
+      "sha256": "8b63053ad3bdd7b131b45c8364d6c289ece15972678dab4392ee11c76dd42706",
+      "raw_sha256": "8b63053ad3bdd7b131b45c8364d6c289ece15972678dab4392ee11c76dd42706",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/tessdata_fast-fra-file.json",
+      "bytes": 1054,
+      "sha256": "98adbe8cd6bf07387b0d2c9df95d9ea6d993aa09a256eadf4c5e38f9f9636a9d",
+      "raw_sha256": "98adbe8cd6bf07387b0d2c9df95d9ea6d993aa09a256eadf4c5e38f9f9636a9d",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/tessdata_fast-license-file.json",
+      "bytes": 16648,
+      "sha256": "a69dbdedae8323fe0d52655f123a9869e81ae467a23d01ba210bc13fe719ae3a",
+      "raw_sha256": "a69dbdedae8323fe0d52655f123a9869e81ae467a23d01ba210bc13fe719ae3a",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/tesseract-LICENSE",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "raw_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/tesseract-tag-object.json",
+      "bytes": 2572,
+      "sha256": "719d7e0cd74e8d5b54d4a4d296efe811938a2a4017450f17b3d8e74975d8e451",
+      "raw_sha256": "719d7e0cd74e8d5b54d4a4d296efe811938a2a4017450f17b3d8e74975d8e451",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/tesseract-tag.json",
+      "bytes": 343,
+      "sha256": "c598b05a1d25e50a656d50d6b1940c3547f53fd817238fc0f059e825b289aac0",
+      "raw_sha256": "c598b05a1d25e50a656d50d6b1940c3547f53fd817238fc0f059e825b289aac0",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/captures/tesseract-tree.json",
+      "bytes": 185621,
+      "sha256": "9086a640cfbf11bf541c8cd35483babde7a1fef5f95b748faae18895eff34858",
+      "raw_sha256": "9086a640cfbf11bf541c8cd35483babde7a1fef5f95b748faae18895eff34858",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/comparisons.json",
+      "bytes": 1823,
+      "sha256": "80564f712a5917b1f820be7c600222b8b46ddc3078618ba9bf4449fa4b42b71a",
+      "raw_sha256": "80564f712a5917b1f820be7c600222b8b46ddc3078618ba9bf4449fa4b42b71a",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/libleptonica6-copyright",
+      "bytes": 1766,
+      "sha256": "cff4f0cb5db14528a8b84f4a3389012d5c6e0f5a75a882509367b2147c05a83e",
+      "raw_sha256": "cff4f0cb5db14528a8b84f4a3389012d5c6e0f5a75a882509367b2147c05a83e",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/libleptonica6-dpkg-status.txt",
+      "bytes": 1347,
+      "sha256": "6ff975feec5d294ad2bda62af68a47e5e7cfa25f8151cc3b72a00322c936bdd9",
+      "raw_sha256": "6ff975feec5d294ad2bda62af68a47e5e7cfa25f8151cc3b72a00322c936bdd9",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/libtesseract5-copyright",
+      "bytes": 2473,
+      "sha256": "88a60e74ee421a24f89b5a33ede6300bf51fc12f0144f41cd311909f9445d346",
+      "raw_sha256": "88a60e74ee421a24f89b5a33ede6300bf51fc12f0144f41cd311909f9445d346",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/libtesseract5-dpkg-status.txt",
+      "bytes": 830,
+      "sha256": "ffb6ebf91920cff5566093ef405b1fbcecbd3e3fa66510628aaebdd7b0d6814c",
+      "raw_sha256": "ffb6ebf91920cff5566093ef405b1fbcecbd3e3fa66510628aaebdd7b0d6814c",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pillow/licenses/LICENSE",
+      "bytes": 70307,
+      "sha256": "dda12a98c1979cf3d94df1cff45d27a4cb3f04a60c76f76902ac54cac03ec0ce",
+      "raw_sha256": "dda12a98c1979cf3d94df1cff45d27a4cb3f04a60c76f76902ac54cac03ec0ce",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdf/licenses/LICENSE",
+      "bytes": 1605,
+      "sha256": "a97ac230e5f33ef10a5367a850eb01f91f1a0b064e34742c7794d2294557f524",
+      "raw_sha256": "a97ac230e5f33ef10a5367a850eb01f91f1a0b064e34742c7794d2294557f524",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/METADATA",
+      "bytes": 67807,
+      "sha256": "5bad06feb6d54b0b53017e986c1c1eb7ac1580cd83b1c46cf245799657bf641d",
+      "raw_sha256": "5bad06feb6d54b0b53017e986c1c1eb7ac1580cd83b1c46cf245799657bf641d",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/WHEEL",
+      "bytes": 145,
+      "sha256": "7c585b297f9d51aa00915e9f31d3ec057079f64b5755cda767757987863df0b3",
+      "raw_sha256": "7c585b297f9d51aa00915e9f31d3ec057079f64b5755cda767757987863df0b3",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/licenses/LICENSES/Apache-2.0.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "raw_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/licenses/LICENSES/BSD-3-Clause.txt",
+      "bytes": 1459,
+      "sha256": "a6d11f0694c0137e9b02924b9d33a159f6c72f220fa4655bb2e1ea3654377d39",
+      "raw_sha256": "a6d11f0694c0137e9b02924b9d33a159f6c72f220fa4655bb2e1ea3654377d39",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/licenses/LICENSES/CC-BY-4.0.txt",
+      "bytes": 14527,
+      "sha256": "419896aea50c15d6e40c5b4baf4bd346f78223b9a354c7357ad00262afdc08ec",
+      "raw_sha256": "419896aea50c15d6e40c5b4baf4bd346f78223b9a354c7357ad00262afdc08ec",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/licenses/data/linux_x64/BUILD_LICENSES/abseil.txt",
+      "bytes": 11361,
+      "sha256": "c79a7fea0e3cac04cd43f20e7b648e5a0ff8fa5344e644b0ee09ca1162b62747",
+      "raw_sha256": "c79a7fea0e3cac04cd43f20e7b648e5a0ff8fa5344e644b0ee09ca1162b62747",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/licenses/data/linux_x64/BUILD_LICENSES/agg23.txt",
+      "bytes": 725,
+      "sha256": "c110d3ea2ad77467ce0dcff7d3337e6c8be8049a5103f4b9bd5fd911a77972e5",
+      "raw_sha256": "c110d3ea2ad77467ce0dcff7d3337e6c8be8049a5103f4b9bd5fd911a77972e5",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/licenses/data/linux_x64/BUILD_LICENSES/fast_float.txt",
+      "bytes": 1079,
+      "sha256": "e562f3f974ced7e69dd1db77b820b36bcf8f30377f1aa105723fba449c53c4e6",
+      "raw_sha256": "e562f3f974ced7e69dd1db77b820b36bcf8f30377f1aa105723fba449c53c4e6",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/licenses/data/linux_x64/BUILD_LICENSES/freetype.txt",
+      "bytes": 6741,
+      "sha256": "f4b133e25df1f86ad3ffea453aa0e613f0474f34778dbbb3e437e7b2724937d8",
+      "raw_sha256": "f4b133e25df1f86ad3ffea453aa0e613f0474f34778dbbb3e437e7b2724937d8",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/licenses/data/linux_x64/BUILD_LICENSES/icu.txt",
+      "bytes": 26487,
+      "sha256": "451167c55c0fa447cc2d5632714f5e3c567fe4f1e1badefab2c1333852198aca",
+      "raw_sha256": "451167c55c0fa447cc2d5632714f5e3c567fe4f1e1badefab2c1333852198aca",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/licenses/data/linux_x64/BUILD_LICENSES/lcms.txt",
+      "bytes": 1354,
+      "sha256": "5132b7530ae5acab7058634da86470d3d38bb01d70c2b67ba10c96bc62ced1af",
+      "raw_sha256": "5132b7530ae5acab7058634da86470d3d38bb01d70c2b67ba10c96bc62ced1af",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/licenses/data/linux_x64/BUILD_LICENSES/libjpeg_turbo.ijg",
+      "bytes": 12799,
+      "sha256": "75815e3bf6484201a3c3d17a1bbf10f2e8e3237f84df10a2357ea896db2a81d6",
+      "raw_sha256": "75815e3bf6484201a3c3d17a1bbf10f2e8e3237f84df10a2357ea896db2a81d6",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/licenses/data/linux_x64/BUILD_LICENSES/libjpeg_turbo.md",
+      "bytes": 5620,
+      "sha256": "96f5b328adbb78eeaaec6980d73fd558cb1e4d62560ed615646bc3cf5e532430",
+      "raw_sha256": "96f5b328adbb78eeaaec6980d73fd558cb1e4d62560ed615646bc3cf5e532430",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/licenses/data/linux_x64/BUILD_LICENSES/libopenjpeg.txt",
+      "bytes": 1794,
+      "sha256": "c5ab0890a737c2dfa7ba675036554f6d17741d98629b0c2a145354d00617e6b2",
+      "raw_sha256": "c5ab0890a737c2dfa7ba675036554f6d17741d98629b0c2a145354d00617e6b2",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/licenses/data/linux_x64/BUILD_LICENSES/libpng.txt",
+      "bytes": 5345,
+      "sha256": "bf5e22b9dce8464064ae17a48ea1133c3369ac9e1d80ef9e320e5219aa14ea9b",
+      "raw_sha256": "bf5e22b9dce8464064ae17a48ea1133c3369ac9e1d80ef9e320e5219aa14ea9b",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/licenses/data/linux_x64/BUILD_LICENSES/libtiff.txt",
+      "bytes": 1139,
+      "sha256": "92b72ba97e6c2749c2a94bc0ef646b47080217f1e772a482b33cf5a5f98a6506",
+      "raw_sha256": "92b72ba97e6c2749c2a94bc0ef646b47080217f1e772a482b33cf5a5f98a6506",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/licenses/data/linux_x64/BUILD_LICENSES/llvm-libc.txt",
+      "bytes": 15140,
+      "sha256": "ebcd9bbf783a73d05c53ba4d586b8d5813dcdf3bbec50265860ccc885e606f47",
+      "raw_sha256": "ebcd9bbf783a73d05c53ba4d586b8d5813dcdf3bbec50265860ccc885e606f47",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/licenses/data/linux_x64/BUILD_LICENSES/pdfium-binaries.txt",
+      "bytes": 1177,
+      "sha256": "ba26c1263131696b86c10496b5066b918a20b7161822a80c274d0080105f6c93",
+      "raw_sha256": "ba26c1263131696b86c10496b5066b918a20b7161822a80c274d0080105f6c93",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/licenses/data/linux_x64/BUILD_LICENSES/pdfium.txt",
+      "bytes": 12818,
+      "sha256": "961eacd9633fff6d051db7208b755e9210e30efac7adec3e6a6d52798f0ccf0e",
+      "raw_sha256": "961eacd9633fff6d051db7208b755e9210e30efac7adec3e6a6d52798f0ccf0e",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/licenses/data/linux_x64/BUILD_LICENSES/zlib.txt",
+      "bytes": 1328,
+      "sha256": "02421fcfbfb1d656ef0b6ff4cd3c39f2946f08c3219fa42db482add7ce1f53ea",
+      "raw_sha256": "02421fcfbfb1d656ef0b6ff4cd3c39f2946f08c3219fa42db482add7ce1f53ea",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/pdfium-version.json",
+      "bytes": 143,
+      "sha256": "090154c9ca89cdf8a900004f808b35eaae910dc6857a1bcec0913b2cc06a1df4",
+      "raw_sha256": "090154c9ca89cdf8a900004f808b35eaae910dc6857a1bcec0913b2cc06a1df4",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/pypdfium2/python-version.json",
+      "bytes": 160,
+      "sha256": "dfbca7c47fefd73533f146d2f82103ecb917beb2f4ffe3f3c99cfc400cdbefa9",
+      "raw_sha256": "dfbca7c47fefd73533f146d2f82103ecb917beb2f4ffe3f3c99cfc400cdbefa9",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/reportlab/licenses/LICENSE",
+      "bytes": 1707,
+      "sha256": "ef831761646313921375fc2cb888e8eeaf7da213d0b92852c10c42f3a0b4d138",
+      "raw_sha256": "ef831761646313921375fc2cb888e8eeaf7da213d0b92852c10c42f3a0b4d138",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/reportlab/reportlab/fonts/DarkGarden-copying-gpl.txt",
+      "bytes": 17976,
+      "sha256": "1b2a567f289f66a143c56353e7b3d4fa5862514a5e3c5cfdf8b02ee5e5aaa953",
+      "raw_sha256": "1b2a567f289f66a143c56353e7b3d4fa5862514a5e3c5cfdf8b02ee5e5aaa953",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/reportlab/reportlab/fonts/DarkGarden-copying.txt",
+      "bytes": 1318,
+      "sha256": "3cd1020510efa7f6b3166a5a2740f92bd664a695ea179e0bda442e74cd0ef3a4",
+      "raw_sha256": "3cd1020510efa7f6b3166a5a2740f92bd664a695ea179e0bda442e74cd0ef3a4",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/reportlab/reportlab/fonts/bitstream-vera-license.txt",
+      "bytes": 5954,
+      "sha256": "3361d054759a2fc686a2c058be82deaf9c2e6fe549be9004d7935a6c1736315d",
+      "raw_sha256": "3361d054759a2fc686a2c058be82deaf9c2e6fe549be9004d7935a6c1736315d",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/tesseract-ocr-copyright",
+      "bytes": 2473,
+      "sha256": "88a60e74ee421a24f89b5a33ede6300bf51fc12f0144f41cd311909f9445d346",
+      "raw_sha256": "88a60e74ee421a24f89b5a33ede6300bf51fc12f0144f41cd311909f9445d346",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/tesseract-ocr-dpkg-status.txt",
+      "bytes": 1032,
+      "sha256": "f9922b9acd8717cfb9e631a39622398e1127029ca0b64c2ccfe5bbb7496267b7",
+      "raw_sha256": "f9922b9acd8717cfb9e631a39622398e1127029ca0b64c2ccfe5bbb7496267b7",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/tesseract-ocr-eng-copyright",
+      "bytes": 1245,
+      "sha256": "33fb8161898e34fcf5c6b8585d6be97642d7e8f34a922e783c6c5c970d0b09ad",
+      "raw_sha256": "33fb8161898e34fcf5c6b8585d6be97642d7e8f34a922e783c6c5c970d0b09ad",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/tesseract-ocr-eng-dpkg-status.txt",
+      "bytes": 754,
+      "sha256": "af561b48f841afe7c283378087b88a3047218b01fb31ea758ad940a416f58191",
+      "raw_sha256": "af561b48f841afe7c283378087b88a3047218b01fb31ea758ad940a416f58191",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/tesseract-ocr-osd-copyright",
+      "bytes": 1245,
+      "sha256": "33fb8161898e34fcf5c6b8585d6be97642d7e8f34a922e783c6c5c970d0b09ad",
+      "raw_sha256": "33fb8161898e34fcf5c6b8585d6be97642d7e8f34a922e783c6c5c970d0b09ad",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/installed/tesseract-ocr-osd-dpkg-status.txt",
+      "bytes": 767,
+      "sha256": "70cc3bb2e4ad51202a86c73d7e89ed8bba3fd4b75be5e0f5bb4af18896a1e61d",
+      "raw_sha256": "70cc3bb2e4ad51202a86c73d7e89ed8bba3fd4b75be5e0f5bb4af18896a1e61d",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/inventory.json",
+      "bytes": 8150,
+      "sha256": "bf0dda872c61f4a49beab54db3040008e4d3c5f7af74a6022df1e82af58ac50c",
+      "raw_sha256": "bf0dda872c61f4a49beab54db3040008e4d3c5f7af74a6022df1e82af58ac50c",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/licences-r1/sources.json",
+      "bytes": 8634,
+      "sha256": "061f6ec1a3d20bb8f9c8df6d95d88f55f1ec568169f61a6cbea1beb4bc1a5168",
+      "raw_sha256": "061f6ec1a3d20bb8f9c8df6d95d88f55f1ec568169f61a6cbea1beb4bc1a5168",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-r1/DESIGN-r1.md",
+      "bytes": 1968,
+      "sha256": "ae941751e72354b9aaaab5bc1853a4d01b432d986c00d4641b1ebe9f833e3e43",
+      "raw_sha256": "ae941751e72354b9aaaab5bc1853a4d01b432d986c00d4641b1ebe9f833e3e43",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-r1/EXTRA-RUNTIME-PINS-r1.json",
+      "bytes": 492,
+      "sha256": "e132c474aed922745cde997aba71d23bff22695f5567857e8cc2f403424c9883",
+      "raw_sha256": "e132c474aed922745cde997aba71d23bff22695f5567857e8cc2f403424c9883",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-r1/LANGUAGE-PAYLOAD-r1.json",
+      "bytes": 447,
+      "sha256": "1803af4a48ca3b66e06e68530717d2cfe247532a6b17f4d2fb9a4673b92f33cc",
+      "raw_sha256": "1803af4a48ca3b66e06e68530717d2cfe247532a6b17f4d2fb9a4673b92f33cc",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-r1/ROOT-REVIEW-r1.json",
+      "bytes": 834,
+      "sha256": "1a86cac70cca12f1801b650bb5cc536f5d4bdbce1275f9395cfb778fa3eb31d9",
+      "raw_sha256": "1a86cac70cca12f1801b650bb5cc536f5d4bdbce1275f9395cfb778fa3eb31d9",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-r1/font-notices/fonts-dejavu",
+      "bytes": 3859,
+      "sha256": "63d3ba759d12804c5b31a9d5940d855c1820d1f5999e6b0872eb1c7ff045fbc9",
+      "raw_sha256": "63d3ba759d12804c5b31a9d5940d855c1820d1f5999e6b0872eb1c7ff045fbc9",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-r1/font-notices/fonts-dejavu-core",
+      "bytes": 3859,
+      "sha256": "63d3ba759d12804c5b31a9d5940d855c1820d1f5999e6b0872eb1c7ff045fbc9",
+      "raw_sha256": "63d3ba759d12804c5b31a9d5940d855c1820d1f5999e6b0872eb1c7ff045fbc9",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-r1/generator-preimage-r1.py",
+      "bytes": 8382,
+      "sha256": "85ca99ef528ece9f55fb56bffe1ab98f6ee9b124646172314b8e8d2501fe2afd",
+      "raw_sha256": "85ca99ef528ece9f55fb56bffe1ab98f6ee9b124646172314b8e8d2501fe2afd",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-r1/orchestrator-r1.py",
+      "bytes": 3812,
+      "sha256": "bab1ee191309e75d5076bad8afa828c3eb1e7021a0580046406618c2a67dc47e",
+      "raw_sha256": "bab1ee191309e75d5076bad8afa828c3eb1e7021a0580046406618c2a67dc47e",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-r1/orchestrator-r2.py",
+      "bytes": 3918,
+      "sha256": "44ca16518b530a0b2b88c2e1f9e71938f956724d5a13bcb0033eac1f005041ed",
+      "raw_sha256": "44ca16518b530a0b2b88c2e1f9e71938f956724d5a13bcb0033eac1f005041ed",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-r1/worker-r1.py",
+      "bytes": 3517,
+      "sha256": "d01d5f3739325fbb86101f2a9d46d2fb85d5fe6ce2e74732a43d7da8591f2231",
+      "raw_sha256": "d01d5f3739325fbb86101f2a9d46d2fb85d5fe6ce2e74732a43d7da8591f2231",
+      "qa_dsn_redactions": 0
+    },
+    {
+      "path": "work/root-r1/worker-r2.py",
+      "bytes": 3932,
+      "sha256": "45f98ded709f06d06adeedd936a992aaa72879a4a241a4ea08841d5614ae3f1a",
+      "raw_sha256": "45f98ded709f06d06adeedd936a992aaa72879a4a241a4ea08841d5614ae3f1a",
+      "qa_dsn_redactions": 0
+    }
+  ]
+}

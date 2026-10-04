@@ -501,3 +501,13 @@ la revue et les régressions qualifient les correctifs, pas le seul décompte d�
 [Analyse, sources, contrats et profils](REPRISE-2026-10-04/M5-OCR-GITHUB-GITLAB.md).
 Recherche bornée GitHub et GitLab; aucun moteur, modèle, fournisseur ou donnée client
 exécuté. OCR prépare des fragments citables à revoir, sans approbation, saisie M5 ou paiement.
+
+
+### Premier essai OCR CPU, versions existantes
+
+[pilote isolé](REPRISE-2026-10-04/M5-OCR-PILOTE-CPU-2026-10-04.md): PDFium via
+pypdfium2 5.3.0 (`04b411aa95642d5ff58244363326f761d51e2c10` pour le wrapper),
+Tesseract 5.5.0 (`64eab6c457b2337dd690746a5fde5c222b40d5f8` amont), Leptonica 1.84.1
+et `fra` fast épinglé. Deux fixtures : 10/10 puis 4/10 lignes strictement identiques,
+avec erreur d’identifiant. Notices installées/bundle et limites conservées;
+commit source PDFium natif non résolu. Prototype sans adoption ni automatisation AP.

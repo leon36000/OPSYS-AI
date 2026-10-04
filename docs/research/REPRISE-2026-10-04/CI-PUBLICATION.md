@@ -1,5 +1,20 @@
 # Publication et corrections de CI — 4 octobre 2026
 
+## Pilote OCR — relevé du 4 octobre à 12:20 UTC
+
+| Commit | CI | Core | E2E | Mobile | Dépendances | Installateur |
+|---|---|---|---|---|---|---|
+| `bfc5b8d463cbcdf706ac2657eb39720717473888` | Succès | Succès | Succès | Succès | Succès | Succès |
+| `1f08a4a3dff86b43ee72414d5cf20d2670d133b8` | En cours | Succès | Succès | Succès | Succès | Annulé |
+| `4e9beea082140ab007419af935d1f082e4a2624f` | En attente | En cours | Succès | Succès | Succès | En cours |
+
+L’annulation de l’installateur `37198918400` ne vaut ni réussite ni échec de test.
+Les captures API par commit sont conservées dans la [capsule du pilote OCR](preuves/M5-OCR-PILOTE-CPU-r1.tar.xz).
+Ces observations ne qualifient pas le prochain commit. Le [pilote](M5-OCR-PILOTE-CPU-2026-10-04.md)
+exerce deux scans fictifs en isolation : 10/10 puis 4/10 lignes exactes, avec un
+chiffre du numéro altéré. Aucune intégration produit, précision client/fr-CA ou
+mise en production n’est déduite. Les relevés horodatés précédents sont conservés.
+
 ## Consultation AP — tranche 21, relevé du 4 octobre à 11:46 UTC
 
 | Commit | CI | Core | E2E | Mobile | Dépendances | Installateur |

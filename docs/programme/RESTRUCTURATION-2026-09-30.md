@@ -44,6 +44,11 @@ admin+finance et intégrité sont revalidées ; une corruption refuse 503. Les
 préconditions PDF du GET demeurent. ROOT r130 réussit 668/668 cas sur 21 fichiers complets, sans échec/erreur/skip,
 en 104,600 s JUnit ; Ruff vert sur 16 fichiers, 1 240 sources gelées inchangées.
 M5 global reste PARTIEL.
+Le [pilote OCR CPU](../research/REPRISE-2026-10-04/M5-OCR-PILOTE-CPU-2026-10-04.md)
+réutilise PDFium/Tesseract sur deux scans fictifs, isolés et bornés. Il conserve
+une erreur de numéro sur l’image inclinée; aucune proposition AP automatique,
+adoption de moteur ou précision réelle n’est déclarée. La preuve ne change
+pas le lecteur natif ni le statut de M5.
 
 Le head `79b49669` a désormais réussi les six workflows natifs, dont
 3 815 tests du socle/17 ignorés. Cela ne remplace pas la CI du prochain commit;
