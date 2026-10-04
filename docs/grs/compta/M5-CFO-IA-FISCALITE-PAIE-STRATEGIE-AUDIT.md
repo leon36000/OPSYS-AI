@@ -15,6 +15,7 @@ droits, révocation au rendu, intégrité et absence d'effet sont vérifiés.
 | Proposition chiffrée PDF/AP et reprise | Existant conservé, `A_REVOIR` |
 | Vérification préalable PO/fournisseur/taxes/total/doublons | QUALIFIÉE LOCAL — SQLite, PDF natif fictif, contrôle explicite privé |
 | Saisie AP depuis Fusion avec provenance et approbation | QUALIFIÉE LOCALEMENT — [étape 20](M5-AP-SAISIE-RAPPORT-2026-10-04.md), second POST confirmé, N3/idempotence/provenance 0024, facture interne `SAISIE` sans paiement ; ROOT r124 637 cas ciblés sur 18 fichiers, M5 global PARTIEL |
+| Consultation durable de la saisie et état M5 courant | QUALIFIÉE LOCALEMENT — ROOT r130, 668/668, SQLite/PDF natif fictif — [tranche 21](M5-AP-CONSULTATION-RAPPORT-2026-10-04.md), GET existant, quatre champs, owner ou admin+finance, corrections canoniques ; aucun effet financier |
 | OCR/image, factures réelles représentatives, ingestion massive | PARTIEL / À QUALIFIER |
 
 La CI de la tranche doit être suivie sur son propre commit. M5 complet, fiscalité

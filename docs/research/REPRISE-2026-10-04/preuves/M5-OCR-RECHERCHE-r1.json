@@ -1,0 +1,1494 @@
+{
+  "archive": "M5-OCR-RECHERCHE-r1.tar.xz",
+  "bytes": 566432,
+  "sha256": "b2ed7e20a47f016c1c414d50543b791038c9256cc19e634bcca6c7e3e479fbcf",
+  "timestamp_utc": "2026-10-04T11:58:36.095166+00:00",
+  "qualification": "read-only bounded GitHub/GitLab primary-source research, versions/licences; ROOT literal licence rechecks; r1/r2/r3 preserved with explicit corrections; no install/model/wheel/inference/private upload/runtime/OCR/frCA benchmark",
+  "entries": [
+    {
+      "path": "research/PROPOSITION-r1.md",
+      "bytes": 13394,
+      "sha256": "e2dbc48b1aeb90846f41a762f11c741a9992749b4ed948024e433db4e3e027ae"
+    },
+    {
+      "path": "research/SHA256SUMS",
+      "bytes": 8520,
+      "sha256": "641e23e1a5ec8c4b0fb770fffc9eca5ea1749f462a03588316a22217631c4c02"
+    },
+    {
+      "path": "research/SHA256SUMS.sha256",
+      "bytes": 112,
+      "sha256": "077e18cc10fe6a9a89c341729cf47324c8637751e100e17d9ff44511df1c9bf9"
+    },
+    {
+      "path": "research/captures/api.github.com_repos_PaddlePaddle_PaddleOCR_commits_main.txt",
+      "bytes": 108420,
+      "sha256": "d65d82801bc07f957f6deeb156841d5999978d1871827aa0372714ba84c34bc1"
+    },
+    {
+      "path": "research/captures/api.github.com_repos_docling-project_docling_commits_main.txt",
+      "bytes": 10106,
+      "sha256": "1a893a7107fd8dcc53a2d6f30a528105830074642a3c686c69da3d108a488ce6"
+    },
+    {
+      "path": "research/captures/api.github.com_repos_ocrmypdf_OCRmyPDF_commits_main.txt",
+      "bytes": 5423,
+      "sha256": "1142f592392f308264856f90642c38f83440f05202f0658c12ce466226a8810e"
+    },
+    {
+      "path": "research/captures/github-OCRmyPDF-commits-main.json",
+      "bytes": 5423,
+      "sha256": "1142f592392f308264856f90642c38f83440f05202f0658c12ce466226a8810e"
+    },
+    {
+      "path": "research/captures/github-OCRmyPDF-latest-release.json",
+      "bytes": 16973,
+      "sha256": "15a1ee954502071036edf9a28e9e8746e8d1559be8cdd56ad0b48c72d6550463"
+    },
+    {
+      "path": "research/captures/github-OCRmyPDF-repo.json",
+      "bytes": 7035,
+      "sha256": "91b1e5ec09a6fd12f1c6610b16d19cc7a8fa61e9574c62cb458079c51844225c"
+    },
+    {
+      "path": "research/captures/github-PaddleOCR-commits-main.json",
+      "bytes": 108420,
+      "sha256": "d65d82801bc07f957f6deeb156841d5999978d1871827aa0372714ba84c34bc1"
+    },
+    {
+      "path": "research/captures/github-PaddleOCR-latest-release.json",
+      "bytes": 4000,
+      "sha256": "c98b413ffb593adf25d0afe9930ab0cd5e9aec34ef38c683faa5786f77048622"
+    },
+    {
+      "path": "research/captures/github-PaddleOCR-repo.json",
+      "bytes": 7645,
+      "sha256": "84ea7dc74e035784a73ff4aedb890944ae5f3a2cd1a4f4c814a7bd1427111e1d"
+    },
+    {
+      "path": "research/captures/github-PaddleOCR-tag.json",
+      "bytes": 392,
+      "sha256": "ebc126c65d4659ece6a84daa94a9d6eeed0a50dcd9d4c0c9bddf7146192044d4"
+    },
+    {
+      "path": "research/captures/github-PaddlePaddle-PaddleOCR-b03f46425e8ff4442b268ce449e3eef758146cd4-LICENSE",
+      "bytes": 11376,
+      "sha256": "3840c5c0c61c294264d2dd77b8777be6ddd90121ef4e0e64abcd22edea581d6e"
+    },
+    {
+      "path": "research/captures/github-PaddlePaddle-PaddleOCR-b03f46425e8ff4442b268ce449e3eef758146cd4-README.md",
+      "bytes": 25959,
+      "sha256": "a09fd50989858c64bdfb35ec50e9b7c58dd18bd42858176dd19e0665545c743d"
+    },
+    {
+      "path": "research/captures/github-PaddlePaddle-PaddleOCR-b03f46425e8ff4442b268ce449e3eef758146cd4-pyproject.toml",
+      "bytes": 2707,
+      "sha256": "63e8bfa19e197e47649a95dad422bcb09c1d2959367cafd40b0a7f19e4452412"
+    },
+    {
+      "path": "research/captures/github-docling-commits-main.json",
+      "bytes": 10106,
+      "sha256": "1a893a7107fd8dcc53a2d6f30a528105830074642a3c686c69da3d108a488ce6"
+    },
+    {
+      "path": "research/captures/github-docling-latest-release.json",
+      "bytes": 4476,
+      "sha256": "b97f6e4ad26318b2fda3010aba43af90b1201d19cdb18d2a953046df34cf7135"
+    },
+    {
+      "path": "research/captures/github-docling-project-docling-b0315ea356298e4659c9727e9f5191dd2001860a-LICENSE",
+      "bytes": 1072,
+      "sha256": "edb765d1e3e60d0c7a7d5fba5f2bb2c3c29f7465cecb5c22cf1185c884954e4c"
+    },
+    {
+      "path": "research/captures/github-docling-project-docling-b0315ea356298e4659c9727e9f5191dd2001860a-README.md",
+      "bytes": 8535,
+      "sha256": "4f55583e9c57442b635a2bdf0c718a9919752a73a18b710b0b5cb57ef23c0aed"
+    },
+    {
+      "path": "research/captures/github-docling-project-docling-b0315ea356298e4659c9727e9f5191dd2001860a-pyproject.toml",
+      "bytes": 16154,
+      "sha256": "d1e847414703bd1cd86407654e3c846dfb1827f37b5ac3181e97984bdba3f596"
+    },
+    {
+      "path": "research/captures/github-docling-repo.json",
+      "bytes": 7543,
+      "sha256": "4b9b1472a228c8095a167460bbea7146186e4e618f7e397ed04924aa4707b9e1"
+    },
+    {
+      "path": "research/captures/github-docling-tag.json",
+      "bytes": 393,
+      "sha256": "e09d27b15368f662903087a65101f6bb641a2ced52205be05c7038298eb46e82"
+    },
+    {
+      "path": "research/captures/github-ocrmypdf-tag-object.json",
+      "bytes": 772,
+      "sha256": "614a1879ca23b0c376d0f05c5e0f572086b7dbcb7faa9680da7bcd80f89ec8f3"
+    },
+    {
+      "path": "research/captures/github-ocrmypdf-tag-tree.json",
+      "bytes": 217170,
+      "sha256": "0d57bcbfa237102d33dc82d2ad6ae45b7a5c95c7245740c2986fdec8c2e7bd47"
+    },
+    {
+      "path": "research/captures/github-ocrmypdf-tag.json",
+      "bytes": 380,
+      "sha256": "4515fa592f37de7913e6a17fdee22c9ad3c4876435e4afb18f40b91e0b16c06f"
+    },
+    {
+      "path": "research/captures/github-tessdata-fast-head.json",
+      "bytes": 4958,
+      "sha256": "aed16fdd6e9b46ad5281fd204415cebd4a765b5ef097bd3f81c448b6abe36bf6"
+    },
+    {
+      "path": "research/captures/github-tessdata-fast-license-meta.json",
+      "bytes": 16539,
+      "sha256": "ec762a1070c2bf6cde90010eb247c7b98c1b050a9389f1e78eab71ab51d815b8"
+    },
+    {
+      "path": "research/captures/github-tessdata-fra-file-meta.json",
+      "bytes": 945,
+      "sha256": "38ba96dc26f1633b1ccb507535f8ff5e726666e077cf4dbe1c40d5164ec04fb2"
+    },
+    {
+      "path": "research/captures/gitlab-do-invparse-releases.json",
+      "bytes": 2,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "path": "research/captures/gitlab-do-invparse-repository-tags.json",
+      "bytes": 2,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "path": "research/captures/gitlab-domodex-do-invparse-commit.json",
+      "bytes": 1257,
+      "sha256": "6fb9d843977483179a24a39cbc18befedd8181653854468af3f0a8ee8d9d2850"
+    },
+    {
+      "path": "research/captures/gitlab-domodex-do-invparse-meta.json",
+      "bytes": 1056,
+      "sha256": "2383edf153a00d3b54323f799acc28c8cf36e77f92fbde0891ca075082181d5e"
+    },
+    {
+      "path": "research/captures/gitlab-domodex-do-invparse-tree.json",
+      "bytes": 4225,
+      "sha256": "abfce997b9ed84d35195466c725b0f193d123431d9842d8eb2078d884ea422f4"
+    },
+    {
+      "path": "research/captures/gitlab-search-invoice-OCR.json",
+      "bytes": 10629,
+      "sha256": "8a2ecbde5a67990bac936662f5d4504e1d6be6f2ecdf25efb96a3fd378ef9d24"
+    },
+    {
+      "path": "research/captures/gitlab-search-invoice-extraction.json",
+      "bytes": 8126,
+      "sha256": "752b6178025daf72d0dc820f2cd9f034eee00fd1a666ebbd2bdb442a51fbee57"
+    },
+    {
+      "path": "research/captures/gitlab-search-paddleocr.json",
+      "bytes": 16834,
+      "sha256": "b881323564414f843e3af83dda46f832c9fa36e63dd2587a4150379d0cf7d002"
+    },
+    {
+      "path": "research/captures/gitlab-shashankchakraborty712005-docuflow-commit.json",
+      "bytes": 1106,
+      "sha256": "036822100050a1dcdc09ebe7df29dbcbc434354d47f22f9001a980eda0bd5917"
+    },
+    {
+      "path": "research/captures/gitlab-shashankchakraborty712005-docuflow-meta.json",
+      "bytes": 1201,
+      "sha256": "f6ee7a0a260f5e8decb0bc08886c14691df5af0597e7c4c2f7a52df7c1a67fa8"
+    },
+    {
+      "path": "research/captures/gitlab-shashankchakraborty712005-docuflow-tree.json",
+      "bytes": 1919,
+      "sha256": "e1ce1136997d499f4eef49ea157fefe8faa39b0381fec63da33ff6742cec0d3a"
+    },
+    {
+      "path": "research/captures/gitlab.com_api_v4_projects_domodexx2Fdo-invparse_repository_files_Cargo.toml_raw_ref_6c0205666604cd3acbe547110e9a02104d460cc4.txt",
+      "bytes": 3380,
+      "sha256": "94f6de941341411b1210855892212bd47588bc87b9fbf29a3e62c27c7399c510"
+    },
+    {
+      "path": "research/captures/gitlab.com_api_v4_projects_domodexx2Fdo-invparse_repository_files_DESIGN.md_raw_ref_6c0205666604cd3acbe547110e9a02104d460cc4.txt",
+      "bytes": 4520,
+      "sha256": "815046ef24c30391ea3a0abf62212cfca5b048768304bdb5f6d8dcfe6e36b6e5"
+    },
+    {
+      "path": "research/captures/gitlab.com_api_v4_projects_domodexx2Fdo-invparse_repository_files_LICENSE-APACHE_raw_ref_6c0205666604cd3acbe547110e9a02104d460cc4.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "research/captures/gitlab.com_api_v4_projects_domodexx2Fdo-invparse_repository_files_LICENSE-MIT_raw_ref_6c0205666604cd3acbe547110e9a02104d460cc4.txt",
+      "bytes": 1081,
+      "sha256": "1fd50205142998e5b1482f6676e8f4e75203c4750ccd8b468dc43014012e4677"
+    },
+    {
+      "path": "research/captures/gitlab.com_api_v4_projects_domodexx2Fdo-invparse_repository_files_README.md_raw_ref_6c0205666604cd3acbe547110e9a02104d460cc4.txt",
+      "bytes": 5008,
+      "sha256": "24e90d7a6068a2b7042eff217f80bde788130b3ca312b13f2a623827cfe56086"
+    },
+    {
+      "path": "research/captures/hf-PaddlePaddle-PP-OCRv5_server_det-README.md",
+      "bytes": 15912,
+      "sha256": "4fd4cf7c6fc3239ede7274c3877e7a0c4424ffa7f56b2775e4e7961c24b1f107"
+    },
+    {
+      "path": "research/captures/hf-PaddlePaddle-PP-OCRv5_server_det-meta.json",
+      "bytes": 1013,
+      "sha256": "39c007fb98fb4bfb851e28e848c3e58f3b784277def90a3e0eac66c6e45cd4c5"
+    },
+    {
+      "path": "research/captures/hf-PaddlePaddle-PP-OCRv5_server_det-tree.json",
+      "bytes": 5920,
+      "sha256": "18dba52134e53d15a9308ca13d85d5b06943b531aac700ea1c1cfd1e7acc9151"
+    },
+    {
+      "path": "research/captures/hf-PaddlePaddle-PP-OCRv5_server_rec-README.md",
+      "bytes": 15892,
+      "sha256": "519eba1704ddeb8d3e68c4f54221dde11074be0644197cdc4d5581b6d74bd62c"
+    },
+    {
+      "path": "research/captures/hf-PaddlePaddle-PP-OCRv5_server_rec-meta.json",
+      "bytes": 1017,
+      "sha256": "a9f8a82748a1525ff4345fae61880e355abcc50f3d2ba1d3f278417b5795a77e"
+    },
+    {
+      "path": "research/captures/hf-PaddlePaddle-PP-OCRv5_server_rec-tree.json",
+      "bytes": 5927,
+      "sha256": "7eb196e48278b856c4d729e28ce89807c50bc3c9c7e9940a7f226e6b4cb22565"
+    },
+    {
+      "path": "research/captures/hf-PaddlePaddle-PaddleOCR-VL-1.5-README.md",
+      "bytes": 22955,
+      "sha256": "0eeebf42ca617495dec7343909667a79840b240d7cb6c5572e221fad0b128557"
+    },
+    {
+      "path": "research/captures/hf-PaddlePaddle-PaddleOCR-VL-1.5-meta.json",
+      "bytes": 4997,
+      "sha256": "9346b6bd5fcd834179beafc4b3ed5ab7abaeb5add8cb0dcfdbdf0fd40810f3c2"
+    },
+    {
+      "path": "research/captures/hf-PaddlePaddle-PaddleOCR-VL-1.5-tree.json",
+      "bytes": 20742,
+      "sha256": "a6ced1076641471de815d5ac4f982385d9ec68cc963057c91ff140feaad99f8b"
+    },
+    {
+      "path": "research/captures/hf-docling-models-README.md",
+      "bytes": 3428,
+      "sha256": "638053f2c976547e6d3de9f4ff1efb386715f1795e8fe9500a5150245845b591"
+    },
+    {
+      "path": "research/captures/hf-docling-project-docling-layout-heron-onnx-README.md",
+      "bytes": 294,
+      "sha256": "48de0f07390f6823a225ce8aab348e7b57408534b56b71f1433ed6280456597f"
+    },
+    {
+      "path": "research/captures/hf-docling-project-docling-layout-heron-onnx-meta.json",
+      "bytes": 1029,
+      "sha256": "c04e2d3346aa5d443ad38fc72801b291ec65b8dd5abeeeab1766b18c2a4ff655"
+    },
+    {
+      "path": "research/captures/hf-docling-project-docling-layout-heron-onnx-tree.json",
+      "bytes": 4878,
+      "sha256": "0986d03f5224afaa8da8e5a823ce37b745ce499f842a3390df74e682e50d7175"
+    },
+    {
+      "path": "research/captures/hf-docling-project-docling-models-README.md",
+      "bytes": 3428,
+      "sha256": "638053f2c976547e6d3de9f4ff1efb386715f1795e8fe9500a5150245845b591"
+    },
+    {
+      "path": "research/captures/hf-docling-project-docling-models-meta.json",
+      "bytes": 1348,
+      "sha256": "f09199ed860410058ceca0ab5602166daf2d95d4d3a9ec0d86606e632ac9e6d2"
+    },
+    {
+      "path": "research/captures/hf-docling-project-docling-models-tree.json",
+      "bytes": 9391,
+      "sha256": "f83e50d540c80d288bf01c2a1a04dc9f28f90bee8835464ff32ad2a4774f61d0"
+    },
+    {
+      "path": "research/captures/hf-ibm-granite-granite-docling-258M-meta.json",
+      "bytes": 3937,
+      "sha256": "db717906fbc0febbd5144f0d4fdb0df541a2c09fd68bf16154f43f43e6c7b1d1"
+    },
+    {
+      "path": "research/captures/huggingface.co_api_models_search_docling_limit_10.txt",
+      "bytes": 4650,
+      "sha256": "2890169be9589f84dd8ebac914d34af0093ff278ad23d9b957002969f9e8ced9"
+    },
+    {
+      "path": "research/captures/ocrmypdf-v17.13.0-LICENSE",
+      "bytes": 16725,
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5"
+    },
+    {
+      "path": "research/captures/ocrmypdf-v17.13.0-README.md",
+      "bytes": 9893,
+      "sha256": "6cb5020b784072a4e3724c28dc7399a25d1d700e98691984cd479c871ac0192e"
+    },
+    {
+      "path": "research/captures/ocrmypdf-v17.13.0-doc-installation.md",
+      "bytes": 32711,
+      "sha256": "1743643f3303effd094364128d366957d0af2ce5d1603778274464e7a8de0788"
+    },
+    {
+      "path": "research/captures/ocrmypdf-v17.13.0-pyproject.toml",
+      "bytes": 6060,
+      "sha256": "8cbe3c29507b7c35d4b196c96f37774790207ec4a4e688946be4425462ae18e8"
+    },
+    {
+      "path": "research/captures/pdfium2_readme.txt",
+      "bytes": 60310,
+      "sha256": "cd68315b8d00157d2140749932fb4ec3945ded28572e66ef6a75ad6e41253e91"
+    },
+    {
+      "path": "research/captures/pdfium_license.txt",
+      "bytes": 12896,
+      "sha256": "1fe9dea718fbd75cf149adaf4d8a22a4335604d964ddb76d1b45383dec8668c9"
+    },
+    {
+      "path": "research/captures/pypdfium-tag-object.json",
+      "bytes": 674,
+      "sha256": "ffeb47b7c1aef8f1719b3b7353647b088e5b1b06d02af956e13f784c6b22f37e"
+    },
+    {
+      "path": "research/captures/pypdfium2-team_pypdfium2_commits_main.json",
+      "bytes": 7110,
+      "sha256": "f09baaf303373529922e9d1aaa691657a89b3f7fdc07e498a4f19188ba3addc4"
+    },
+    {
+      "path": "research/captures/pypdfium2-team_pypdfium2_releases_latest.json",
+      "bytes": 110735,
+      "sha256": "6c2efcd681247efac13529e6c7718e1f44edf4699b82f7eafe1d2400cf1cba59"
+    },
+    {
+      "path": "research/captures/pypdfium2-v5.14.0b1-BUILD_LICENSES_pdfium-binaries.txt",
+      "bytes": 1177,
+      "sha256": "18f922f766364a25a6327e7b1b8287d7c36cf8bbea80767d014fb453e2fe4a50"
+    },
+    {
+      "path": "research/captures/pypdfium2-v5.14.0b1-BUILD_LICENSES_pdfium.txt",
+      "bytes": 12896,
+      "sha256": "1fe9dea718fbd75cf149adaf4d8a22a4335604d964ddb76d1b45383dec8668c9"
+    },
+    {
+      "path": "research/captures/pypdfium2-v5.14.0b1-LICENSES_Apache-2.0.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "research/captures/pypdfium2-v5.14.0b1-LICENSES_BSD-3-Clause.txt",
+      "bytes": 1459,
+      "sha256": "a6d11f0694c0137e9b02924b9d33a159f6c72f220fa4655bb2e1ea3654377d39"
+    },
+    {
+      "path": "research/captures/pypdfium2-v5.14.0b1-README.md",
+      "bytes": 60310,
+      "sha256": "cd68315b8d00157d2140749932fb4ec3945ded28572e66ef6a75ad6e41253e91"
+    },
+    {
+      "path": "research/captures/pypdfium2-v5.14.0b1-pyproject.toml",
+      "bytes": 7124,
+      "sha256": "26ccae4ddec34be3d6e0bc939479f5ae92abc978223f983ab96c31829df696e7"
+    },
+    {
+      "path": "research/captures/pypdfium2-v5.14.0b1-tree.json",
+      "bytes": 65281,
+      "sha256": "69f0deefdc0869d9f61a77a63c4675c6bd3d250903f498b6d64bc5cd17eec3f3"
+    },
+    {
+      "path": "research/captures/pypdfium2_git_ref_tags_5.14.0b1.json",
+      "bytes": 350,
+      "sha256": "25ca18fc1ac49c4f4933bfa42375c655411150b28945c0edb9e61da45e57521a"
+    },
+    {
+      "path": "research/captures/tess_license.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "research/captures/tessdata-fast-LICENSE",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "research/captures/tessdata-fast-README.md",
+      "bytes": 4353,
+      "sha256": "22fee9835bff02fb7013aa9786a2144ae3d4c219083089375985a62808e7215e"
+    },
+    {
+      "path": "research/captures/tesseract-doc-command-line.html",
+      "bytes": 21828,
+      "sha256": "eac5b07c38f94fba1b363414393ee1f830d6cf6d5be2fdd0267ff47d6dfdf1c5"
+    },
+    {
+      "path": "research/captures/tesseract-ocr_tesseract_git_ref_tags_5.5.1.json",
+      "bytes": 343,
+      "sha256": "7e3c61344ee98756a31cba76bea99dabddb3b826e7afad8f3f0be976207964f7"
+    },
+    {
+      "path": "research/captures/tree-chromium-pdfium.json",
+      "bytes": 1152892,
+      "sha256": "08de184f632ddab86ac24e7f2b32ae8b5bfa6202b1ce5889a128a2560fc06b9f"
+    },
+    {
+      "path": "research/captures/tree-pypdfium2-team-pypdfium2.json",
+      "bytes": 65281,
+      "sha256": "f7606231c1d36b61c1b83160dbe8b84e1ed2cc6bf20d4e2fcdbc74273546b57e"
+    },
+    {
+      "path": "research/captures/tree-tesseract-ocr-tesseract.json",
+      "bytes": 184918,
+      "sha256": "499dfc532aa4dca5d2f86724cf8f055a985bb90309b7a7a999a71d141846ad5c"
+    },
+    {
+      "path": "research/package-proof-r1.py",
+      "bytes": 1455,
+      "sha256": "e1a65799671d4111e3d152b5762e37b4f0e269da42a02e7e0ca10c92830bf22d"
+    },
+    {
+      "path": "research/r2/PROPOSITION-r2.md",
+      "bytes": 16112,
+      "sha256": "184a5c72ecb37dab2105e6611888a5ffe41b4bb16bbb06f158f8b24a19ee0b69"
+    },
+    {
+      "path": "research/r2/SHA256SUMS",
+      "bytes": 11163,
+      "sha256": "41678d35fb76c5ff129aaad57f1fd758adbe548b2f0c266eb98f968a953464fc"
+    },
+    {
+      "path": "research/r2/SHA256SUMS.sha256",
+      "bytes": 77,
+      "sha256": "a98a4eff369a382c61058335392a8a0c1c131d5fb4af0bdc8ff1eb6776d1b6d5"
+    },
+    {
+      "path": "research/r2/captures/api.github.com_repos_PaddlePaddle_PaddleOCR_commits_main.txt",
+      "bytes": 108420,
+      "sha256": "d65d82801bc07f957f6deeb156841d5999978d1871827aa0372714ba84c34bc1"
+    },
+    {
+      "path": "research/r2/captures/api.github.com_repos_docling-project_docling_commits_main.txt",
+      "bytes": 10106,
+      "sha256": "1a893a7107fd8dcc53a2d6f30a528105830074642a3c686c69da3d108a488ce6"
+    },
+    {
+      "path": "research/r2/captures/api.github.com_repos_ocrmypdf_OCRmyPDF_commits_main.txt",
+      "bytes": 5423,
+      "sha256": "1142f592392f308264856f90642c38f83440f05202f0658c12ce466226a8810e"
+    },
+    {
+      "path": "research/r2/captures/github-OCRmyPDF-commits-main.json",
+      "bytes": 5423,
+      "sha256": "1142f592392f308264856f90642c38f83440f05202f0658c12ce466226a8810e"
+    },
+    {
+      "path": "research/r2/captures/github-OCRmyPDF-latest-release.json",
+      "bytes": 16973,
+      "sha256": "15a1ee954502071036edf9a28e9e8746e8d1559be8cdd56ad0b48c72d6550463"
+    },
+    {
+      "path": "research/r2/captures/github-OCRmyPDF-repo.json",
+      "bytes": 7035,
+      "sha256": "91b1e5ec09a6fd12f1c6610b16d19cc7a8fa61e9574c62cb458079c51844225c"
+    },
+    {
+      "path": "research/r2/captures/github-PaddleOCR-commits-main.json",
+      "bytes": 108420,
+      "sha256": "d65d82801bc07f957f6deeb156841d5999978d1871827aa0372714ba84c34bc1"
+    },
+    {
+      "path": "research/r2/captures/github-PaddleOCR-latest-release.json",
+      "bytes": 4000,
+      "sha256": "c98b413ffb593adf25d0afe9930ab0cd5e9aec34ef38c683faa5786f77048622"
+    },
+    {
+      "path": "research/r2/captures/github-PaddleOCR-repo.json",
+      "bytes": 7645,
+      "sha256": "84ea7dc74e035784a73ff4aedb890944ae5f3a2cd1a4f4c814a7bd1427111e1d"
+    },
+    {
+      "path": "research/r2/captures/github-PaddleOCR-tag.json",
+      "bytes": 392,
+      "sha256": "ebc126c65d4659ece6a84daa94a9d6eeed0a50dcd9d4c0c9bddf7146192044d4"
+    },
+    {
+      "path": "research/r2/captures/github-PaddlePaddle-PaddleOCR-b03f46425e8ff4442b268ce449e3eef758146cd4-LICENSE",
+      "bytes": 11376,
+      "sha256": "3840c5c0c61c294264d2dd77b8777be6ddd90121ef4e0e64abcd22edea581d6e"
+    },
+    {
+      "path": "research/r2/captures/github-PaddlePaddle-PaddleOCR-b03f46425e8ff4442b268ce449e3eef758146cd4-README.md",
+      "bytes": 25959,
+      "sha256": "a09fd50989858c64bdfb35ec50e9b7c58dd18bd42858176dd19e0665545c743d"
+    },
+    {
+      "path": "research/r2/captures/github-PaddlePaddle-PaddleOCR-b03f46425e8ff4442b268ce449e3eef758146cd4-pyproject.toml",
+      "bytes": 2707,
+      "sha256": "63e8bfa19e197e47649a95dad422bcb09c1d2959367cafd40b0a7f19e4452412"
+    },
+    {
+      "path": "research/r2/captures/github-docling-commits-main.json",
+      "bytes": 10106,
+      "sha256": "1a893a7107fd8dcc53a2d6f30a528105830074642a3c686c69da3d108a488ce6"
+    },
+    {
+      "path": "research/r2/captures/github-docling-latest-release.json",
+      "bytes": 4476,
+      "sha256": "b97f6e4ad26318b2fda3010aba43af90b1201d19cdb18d2a953046df34cf7135"
+    },
+    {
+      "path": "research/r2/captures/github-docling-project-docling-b0315ea356298e4659c9727e9f5191dd2001860a-LICENSE",
+      "bytes": 1072,
+      "sha256": "edb765d1e3e60d0c7a7d5fba5f2bb2c3c29f7465cecb5c22cf1185c884954e4c"
+    },
+    {
+      "path": "research/r2/captures/github-docling-project-docling-b0315ea356298e4659c9727e9f5191dd2001860a-README.md",
+      "bytes": 8535,
+      "sha256": "4f55583e9c57442b635a2bdf0c718a9919752a73a18b710b0b5cb57ef23c0aed"
+    },
+    {
+      "path": "research/r2/captures/github-docling-project-docling-b0315ea356298e4659c9727e9f5191dd2001860a-pyproject.toml",
+      "bytes": 16154,
+      "sha256": "d1e847414703bd1cd86407654e3c846dfb1827f37b5ac3181e97984bdba3f596"
+    },
+    {
+      "path": "research/r2/captures/github-docling-repo.json",
+      "bytes": 7543,
+      "sha256": "4b9b1472a228c8095a167460bbea7146186e4e618f7e397ed04924aa4707b9e1"
+    },
+    {
+      "path": "research/r2/captures/github-docling-tag.json",
+      "bytes": 393,
+      "sha256": "e09d27b15368f662903087a65101f6bb641a2ced52205be05c7038298eb46e82"
+    },
+    {
+      "path": "research/r2/captures/github-ocrmypdf-tag-object.json",
+      "bytes": 772,
+      "sha256": "614a1879ca23b0c376d0f05c5e0f572086b7dbcb7faa9680da7bcd80f89ec8f3"
+    },
+    {
+      "path": "research/r2/captures/github-ocrmypdf-tag-tree.json",
+      "bytes": 217170,
+      "sha256": "0d57bcbfa237102d33dc82d2ad6ae45b7a5c95c7245740c2986fdec8c2e7bd47"
+    },
+    {
+      "path": "research/r2/captures/github-ocrmypdf-tag.json",
+      "bytes": 380,
+      "sha256": "4515fa592f37de7913e6a17fdee22c9ad3c4876435e4afb18f40b91e0b16c06f"
+    },
+    {
+      "path": "research/r2/captures/github-tessdata-fast-head.json",
+      "bytes": 4958,
+      "sha256": "aed16fdd6e9b46ad5281fd204415cebd4a765b5ef097bd3f81c448b6abe36bf6"
+    },
+    {
+      "path": "research/r2/captures/github-tessdata-fast-license-meta.json",
+      "bytes": 16539,
+      "sha256": "ec762a1070c2bf6cde90010eb247c7b98c1b050a9389f1e78eab71ab51d815b8"
+    },
+    {
+      "path": "research/r2/captures/github-tessdata-fra-file-meta.json",
+      "bytes": 945,
+      "sha256": "38ba96dc26f1633b1ccb507535f8ff5e726666e077cf4dbe1c40d5164ec04fb2"
+    },
+    {
+      "path": "research/r2/captures/gitlab-do-invparse-releases.json",
+      "bytes": 2,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "path": "research/r2/captures/gitlab-do-invparse-repository-tags.json",
+      "bytes": 2,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "path": "research/r2/captures/gitlab-domodex-do-invparse-commit.json",
+      "bytes": 1257,
+      "sha256": "6fb9d843977483179a24a39cbc18befedd8181653854468af3f0a8ee8d9d2850"
+    },
+    {
+      "path": "research/r2/captures/gitlab-domodex-do-invparse-meta.json",
+      "bytes": 1056,
+      "sha256": "2383edf153a00d3b54323f799acc28c8cf36e77f92fbde0891ca075082181d5e"
+    },
+    {
+      "path": "research/r2/captures/gitlab-domodex-do-invparse-tree.json",
+      "bytes": 4225,
+      "sha256": "abfce997b9ed84d35195466c725b0f193d123431d9842d8eb2078d884ea422f4"
+    },
+    {
+      "path": "research/r2/captures/gitlab-search-invoice-OCR.json",
+      "bytes": 10629,
+      "sha256": "8a2ecbde5a67990bac936662f5d4504e1d6be6f2ecdf25efb96a3fd378ef9d24"
+    },
+    {
+      "path": "research/r2/captures/gitlab-search-invoice-extraction.json",
+      "bytes": 8126,
+      "sha256": "752b6178025daf72d0dc820f2cd9f034eee00fd1a666ebbd2bdb442a51fbee57"
+    },
+    {
+      "path": "research/r2/captures/gitlab-search-paddleocr.json",
+      "bytes": 16834,
+      "sha256": "b881323564414f843e3af83dda46f832c9fa36e63dd2587a4150379d0cf7d002"
+    },
+    {
+      "path": "research/r2/captures/gitlab-shashankchakraborty712005-docuflow-commit.json",
+      "bytes": 1106,
+      "sha256": "036822100050a1dcdc09ebe7df29dbcbc434354d47f22f9001a980eda0bd5917"
+    },
+    {
+      "path": "research/r2/captures/gitlab-shashankchakraborty712005-docuflow-meta.json",
+      "bytes": 1201,
+      "sha256": "f6ee7a0a260f5e8decb0bc08886c14691df5af0597e7c4c2f7a52df7c1a67fa8"
+    },
+    {
+      "path": "research/r2/captures/gitlab-shashankchakraborty712005-docuflow-tree.json",
+      "bytes": 1919,
+      "sha256": "e1ce1136997d499f4eef49ea157fefe8faa39b0381fec63da33ff6742cec0d3a"
+    },
+    {
+      "path": "research/r2/captures/gitlab.com_api_v4_projects_domodexx2Fdo-invparse_repository_files_Cargo.toml_raw_ref_6c0205666604cd3acbe547110e9a02104d460cc4.txt",
+      "bytes": 3380,
+      "sha256": "94f6de941341411b1210855892212bd47588bc87b9fbf29a3e62c27c7399c510"
+    },
+    {
+      "path": "research/r2/captures/gitlab.com_api_v4_projects_domodexx2Fdo-invparse_repository_files_DESIGN.md_raw_ref_6c0205666604cd3acbe547110e9a02104d460cc4.txt",
+      "bytes": 4520,
+      "sha256": "815046ef24c30391ea3a0abf62212cfca5b048768304bdb5f6d8dcfe6e36b6e5"
+    },
+    {
+      "path": "research/r2/captures/gitlab.com_api_v4_projects_domodexx2Fdo-invparse_repository_files_LICENSE-APACHE_raw_ref_6c0205666604cd3acbe547110e9a02104d460cc4.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "research/r2/captures/gitlab.com_api_v4_projects_domodexx2Fdo-invparse_repository_files_LICENSE-MIT_raw_ref_6c0205666604cd3acbe547110e9a02104d460cc4.txt",
+      "bytes": 1081,
+      "sha256": "1fd50205142998e5b1482f6676e8f4e75203c4750ccd8b468dc43014012e4677"
+    },
+    {
+      "path": "research/r2/captures/gitlab.com_api_v4_projects_domodexx2Fdo-invparse_repository_files_README.md_raw_ref_6c0205666604cd3acbe547110e9a02104d460cc4.txt",
+      "bytes": 5008,
+      "sha256": "24e90d7a6068a2b7042eff217f80bde788130b3ca312b13f2a623827cfe56086"
+    },
+    {
+      "path": "research/r2/captures/hf-PaddlePaddle-PP-OCRv5_server_det-README.md",
+      "bytes": 15912,
+      "sha256": "4fd4cf7c6fc3239ede7274c3877e7a0c4424ffa7f56b2775e4e7961c24b1f107"
+    },
+    {
+      "path": "research/r2/captures/hf-PaddlePaddle-PP-OCRv5_server_det-meta.json",
+      "bytes": 1013,
+      "sha256": "39c007fb98fb4bfb851e28e848c3e58f3b784277def90a3e0eac66c6e45cd4c5"
+    },
+    {
+      "path": "research/r2/captures/hf-PaddlePaddle-PP-OCRv5_server_det-tree.json",
+      "bytes": 5920,
+      "sha256": "18dba52134e53d15a9308ca13d85d5b06943b531aac700ea1c1cfd1e7acc9151"
+    },
+    {
+      "path": "research/r2/captures/hf-PaddlePaddle-PP-OCRv5_server_rec-README.md",
+      "bytes": 15892,
+      "sha256": "519eba1704ddeb8d3e68c4f54221dde11074be0644197cdc4d5581b6d74bd62c"
+    },
+    {
+      "path": "research/r2/captures/hf-PaddlePaddle-PP-OCRv5_server_rec-meta.json",
+      "bytes": 1017,
+      "sha256": "a9f8a82748a1525ff4345fae61880e355abcc50f3d2ba1d3f278417b5795a77e"
+    },
+    {
+      "path": "research/r2/captures/hf-PaddlePaddle-PP-OCRv5_server_rec-tree.json",
+      "bytes": 5927,
+      "sha256": "7eb196e48278b856c4d729e28ce89807c50bc3c9c7e9940a7f226e6b4cb22565"
+    },
+    {
+      "path": "research/r2/captures/hf-PaddlePaddle-PaddleOCR-VL-1.5-README.md",
+      "bytes": 22955,
+      "sha256": "0eeebf42ca617495dec7343909667a79840b240d7cb6c5572e221fad0b128557"
+    },
+    {
+      "path": "research/r2/captures/hf-PaddlePaddle-PaddleOCR-VL-1.5-meta.json",
+      "bytes": 4997,
+      "sha256": "9346b6bd5fcd834179beafc4b3ed5ab7abaeb5add8cb0dcfdbdf0fd40810f3c2"
+    },
+    {
+      "path": "research/r2/captures/hf-PaddlePaddle-PaddleOCR-VL-1.5-tree.json",
+      "bytes": 20742,
+      "sha256": "a6ced1076641471de815d5ac4f982385d9ec68cc963057c91ff140feaad99f8b"
+    },
+    {
+      "path": "research/r2/captures/hf-docling-models-README.md",
+      "bytes": 3428,
+      "sha256": "638053f2c976547e6d3de9f4ff1efb386715f1795e8fe9500a5150245845b591"
+    },
+    {
+      "path": "research/r2/captures/hf-docling-project-docling-layout-heron-onnx-README.md",
+      "bytes": 294,
+      "sha256": "48de0f07390f6823a225ce8aab348e7b57408534b56b71f1433ed6280456597f"
+    },
+    {
+      "path": "research/r2/captures/hf-docling-project-docling-layout-heron-onnx-meta.json",
+      "bytes": 1029,
+      "sha256": "c04e2d3346aa5d443ad38fc72801b291ec65b8dd5abeeeab1766b18c2a4ff655"
+    },
+    {
+      "path": "research/r2/captures/hf-docling-project-docling-layout-heron-onnx-tree.json",
+      "bytes": 4878,
+      "sha256": "0986d03f5224afaa8da8e5a823ce37b745ce499f842a3390df74e682e50d7175"
+    },
+    {
+      "path": "research/r2/captures/hf-docling-project-docling-models-README.md",
+      "bytes": 3428,
+      "sha256": "638053f2c976547e6d3de9f4ff1efb386715f1795e8fe9500a5150245845b591"
+    },
+    {
+      "path": "research/r2/captures/hf-docling-project-docling-models-meta.json",
+      "bytes": 1348,
+      "sha256": "f09199ed860410058ceca0ab5602166daf2d95d4d3a9ec0d86606e632ac9e6d2"
+    },
+    {
+      "path": "research/r2/captures/hf-docling-project-docling-models-tree.json",
+      "bytes": 9391,
+      "sha256": "f83e50d540c80d288bf01c2a1a04dc9f28f90bee8835464ff32ad2a4774f61d0"
+    },
+    {
+      "path": "research/r2/captures/hf-ibm-granite-granite-docling-258M-meta.json",
+      "bytes": 3937,
+      "sha256": "db717906fbc0febbd5144f0d4fdb0df541a2c09fd68bf16154f43f43e6c7b1d1"
+    },
+    {
+      "path": "research/r2/captures/huggingface.co_api_models_search_docling_limit_10.txt",
+      "bytes": 4650,
+      "sha256": "2890169be9589f84dd8ebac914d34af0093ff278ad23d9b957002969f9e8ced9"
+    },
+    {
+      "path": "research/r2/captures/ocrmypdf-v17.13.0-LICENSE",
+      "bytes": 16725,
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5"
+    },
+    {
+      "path": "research/r2/captures/ocrmypdf-v17.13.0-README.md",
+      "bytes": 9893,
+      "sha256": "6cb5020b784072a4e3724c28dc7399a25d1d700e98691984cd479c871ac0192e"
+    },
+    {
+      "path": "research/r2/captures/ocrmypdf-v17.13.0-doc-installation.md",
+      "bytes": 32711,
+      "sha256": "1743643f3303effd094364128d366957d0af2ce5d1603778274464e7a8de0788"
+    },
+    {
+      "path": "research/r2/captures/ocrmypdf-v17.13.0-pyproject.toml",
+      "bytes": 6060,
+      "sha256": "8cbe3c29507b7c35d4b196c96f37774790207ec4a4e688946be4425462ae18e8"
+    },
+    {
+      "path": "research/r2/captures/pdfium2_readme.txt",
+      "bytes": 60310,
+      "sha256": "cd68315b8d00157d2140749932fb4ec3945ded28572e66ef6a75ad6e41253e91"
+    },
+    {
+      "path": "research/r2/captures/pdfium_license.txt",
+      "bytes": 12896,
+      "sha256": "1fe9dea718fbd75cf149adaf4d8a22a4335604d964ddb76d1b45383dec8668c9"
+    },
+    {
+      "path": "research/r2/captures/pypdfium-tag-object.json",
+      "bytes": 674,
+      "sha256": "ffeb47b7c1aef8f1719b3b7353647b088e5b1b06d02af956e13f784c6b22f37e"
+    },
+    {
+      "path": "research/r2/captures/pypdfium2-releases-latest20.json",
+      "bytes": 1379928,
+      "sha256": "b1c1d6346d28d8d24b680c8ed68a64869802b6860f89a8e1d57225c2bc2117e4"
+    },
+    {
+      "path": "research/r2/captures/pypdfium2-tag-5.13.0.json",
+      "bytes": 343,
+      "sha256": "79f9c4badae24f8e0df7a45da972c6f12fc56aa108a04021d9bd6c3ce457afee"
+    },
+    {
+      "path": "research/r2/captures/pypdfium2-team_pypdfium2_commits_main.json",
+      "bytes": 7110,
+      "sha256": "f09baaf303373529922e9d1aaa691657a89b3f7fdc07e498a4f19188ba3addc4"
+    },
+    {
+      "path": "research/r2/captures/pypdfium2-team_pypdfium2_releases_latest.json",
+      "bytes": 110735,
+      "sha256": "6c2efcd681247efac13529e6c7718e1f44edf4699b82f7eafe1d2400cf1cba59"
+    },
+    {
+      "path": "research/r2/captures/pypdfium2-v5.14.0b1-BUILD_LICENSES_pdfium-binaries.txt",
+      "bytes": 1177,
+      "sha256": "18f922f766364a25a6327e7b1b8287d7c36cf8bbea80767d014fb453e2fe4a50"
+    },
+    {
+      "path": "research/r2/captures/pypdfium2-v5.14.0b1-BUILD_LICENSES_pdfium.txt",
+      "bytes": 12896,
+      "sha256": "1fe9dea718fbd75cf149adaf4d8a22a4335604d964ddb76d1b45383dec8668c9"
+    },
+    {
+      "path": "research/r2/captures/pypdfium2-v5.14.0b1-LICENSES_Apache-2.0.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "research/r2/captures/pypdfium2-v5.14.0b1-LICENSES_BSD-3-Clause.txt",
+      "bytes": 1459,
+      "sha256": "a6d11f0694c0137e9b02924b9d33a159f6c72f220fa4655bb2e1ea3654377d39"
+    },
+    {
+      "path": "research/r2/captures/pypdfium2-v5.14.0b1-README.md",
+      "bytes": 60310,
+      "sha256": "cd68315b8d00157d2140749932fb4ec3945ded28572e66ef6a75ad6e41253e91"
+    },
+    {
+      "path": "research/r2/captures/pypdfium2-v5.14.0b1-pyproject.toml",
+      "bytes": 7124,
+      "sha256": "26ccae4ddec34be3d6e0bc939479f5ae92abc978223f983ab96c31829df696e7"
+    },
+    {
+      "path": "research/r2/captures/pypdfium2-v5.14.0b1-tree.json",
+      "bytes": 65281,
+      "sha256": "69f0deefdc0869d9f61a77a63c4675c6bd3d250903f498b6d64bc5cd17eec3f3"
+    },
+    {
+      "path": "research/r2/captures/pypdfium2_git_ref_tags_5.14.0b1.json",
+      "bytes": 350,
+      "sha256": "25ca18fc1ac49c4f4933bfa42375c655411150b28945c0edb9e61da45e57521a"
+    },
+    {
+      "path": "research/r2/captures/resolve-pypdfium2-team-pypdfium2.json",
+      "bytes": 674,
+      "sha256": "ffeb47b7c1aef8f1719b3b7353647b088e5b1b06d02af956e13f784c6b22f37e"
+    },
+    {
+      "path": "research/r2/captures/resolve-tesseract-ocr-tesseract.json",
+      "bytes": 2572,
+      "sha256": "9916fbe08cbed3227a180fd4a6b523cdd9377b68514c6e3a99292b144163f7dd"
+    },
+    {
+      "path": "research/r2/captures/tess_license.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "research/r2/captures/tessdata-fast-LICENSE",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "research/r2/captures/tessdata-fast-README.md",
+      "bytes": 4353,
+      "sha256": "22fee9835bff02fb7013aa9786a2144ae3d4c219083089375985a62808e7215e"
+    },
+    {
+      "path": "research/r2/captures/tesseract-5.5.1-3b7c70e34dea179549ed3e995872e2e019eb8477-LICENSE",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "research/r2/captures/tesseract-doc-command-line.html",
+      "bytes": 21828,
+      "sha256": "eac5b07c38f94fba1b363414393ee1f830d6cf6d5be2fdd0267ff47d6dfdf1c5"
+    },
+    {
+      "path": "research/r2/captures/tesseract-ocr_tesseract_git_ref_tags_5.5.1.json",
+      "bytes": 343,
+      "sha256": "7e3c61344ee98756a31cba76bea99dabddb3b826e7afad8f3f0be976207964f7"
+    },
+    {
+      "path": "research/r2/captures/tree-chromium-pdfium.json",
+      "bytes": 1152892,
+      "sha256": "08de184f632ddab86ac24e7f2b32ae8b5bfa6202b1ce5889a128a2560fc06b9f"
+    },
+    {
+      "path": "research/r2/captures/tree-pypdfium2-team-pypdfium2.json",
+      "bytes": 65281,
+      "sha256": "f7606231c1d36b61c1b83160dbe8b84e1ed2cc6bf20d4e2fcdbc74273546b57e"
+    },
+    {
+      "path": "research/r2/captures/tree-tesseract-ocr-tesseract.json",
+      "bytes": 184918,
+      "sha256": "499dfc532aa4dca5d2f86724cf8f055a985bb90309b7a7a999a71d141846ad5c"
+    },
+    {
+      "path": "research/r2/sources-r2.json",
+      "bytes": 18192,
+      "sha256": "bdbfc903c737755230b2cd7673f906bfaa6c327a0f68dfd9b6a4032306f5d128"
+    },
+    {
+      "path": "research/r3/PROPOSITION-r3.md",
+      "bytes": 16130,
+      "sha256": "3ef969945f3a379ec670f049687f43591418c5fb9a2fde2bde1d811e2d9fc4d6"
+    },
+    {
+      "path": "research/r3/SHA256SUMS",
+      "bytes": 12076,
+      "sha256": "4154b8fa102e3dcd4901443c523114718f94855d16a35cabbacb77ab8d86441c"
+    },
+    {
+      "path": "research/r3/SHA256SUMS.sha256",
+      "bytes": 77,
+      "sha256": "921667034501186b9d56489518b9a030977e698d4738432a83965d8e84d70ccd"
+    },
+    {
+      "path": "research/r3/captures/api.github.com_repos_PaddlePaddle_PaddleOCR_commits_main.txt",
+      "bytes": 108420,
+      "sha256": "d65d82801bc07f957f6deeb156841d5999978d1871827aa0372714ba84c34bc1"
+    },
+    {
+      "path": "research/r3/captures/api.github.com_repos_docling-project_docling_commits_main.txt",
+      "bytes": 10106,
+      "sha256": "1a893a7107fd8dcc53a2d6f30a528105830074642a3c686c69da3d108a488ce6"
+    },
+    {
+      "path": "research/r3/captures/api.github.com_repos_ocrmypdf_OCRmyPDF_commits_main.txt",
+      "bytes": 5423,
+      "sha256": "1142f592392f308264856f90642c38f83440f05202f0658c12ce466226a8810e"
+    },
+    {
+      "path": "research/r3/captures/github-OCRmyPDF-commits-main.json",
+      "bytes": 5423,
+      "sha256": "1142f592392f308264856f90642c38f83440f05202f0658c12ce466226a8810e"
+    },
+    {
+      "path": "research/r3/captures/github-OCRmyPDF-latest-release.json",
+      "bytes": 16973,
+      "sha256": "15a1ee954502071036edf9a28e9e8746e8d1559be8cdd56ad0b48c72d6550463"
+    },
+    {
+      "path": "research/r3/captures/github-OCRmyPDF-repo.json",
+      "bytes": 7035,
+      "sha256": "91b1e5ec09a6fd12f1c6610b16d19cc7a8fa61e9574c62cb458079c51844225c"
+    },
+    {
+      "path": "research/r3/captures/github-PaddleOCR-commits-main.json",
+      "bytes": 108420,
+      "sha256": "d65d82801bc07f957f6deeb156841d5999978d1871827aa0372714ba84c34bc1"
+    },
+    {
+      "path": "research/r3/captures/github-PaddleOCR-latest-release.json",
+      "bytes": 4000,
+      "sha256": "c98b413ffb593adf25d0afe9930ab0cd5e9aec34ef38c683faa5786f77048622"
+    },
+    {
+      "path": "research/r3/captures/github-PaddleOCR-repo.json",
+      "bytes": 7645,
+      "sha256": "84ea7dc74e035784a73ff4aedb890944ae5f3a2cd1a4f4c814a7bd1427111e1d"
+    },
+    {
+      "path": "research/r3/captures/github-PaddleOCR-tag.json",
+      "bytes": 392,
+      "sha256": "ebc126c65d4659ece6a84daa94a9d6eeed0a50dcd9d4c0c9bddf7146192044d4"
+    },
+    {
+      "path": "research/r3/captures/github-PaddlePaddle-PaddleOCR-b03f46425e8ff4442b268ce449e3eef758146cd4-LICENSE",
+      "bytes": 11376,
+      "sha256": "3840c5c0c61c294264d2dd77b8777be6ddd90121ef4e0e64abcd22edea581d6e"
+    },
+    {
+      "path": "research/r3/captures/github-PaddlePaddle-PaddleOCR-b03f46425e8ff4442b268ce449e3eef758146cd4-README.md",
+      "bytes": 25959,
+      "sha256": "a09fd50989858c64bdfb35ec50e9b7c58dd18bd42858176dd19e0665545c743d"
+    },
+    {
+      "path": "research/r3/captures/github-PaddlePaddle-PaddleOCR-b03f46425e8ff4442b268ce449e3eef758146cd4-pyproject.toml",
+      "bytes": 2707,
+      "sha256": "63e8bfa19e197e47649a95dad422bcb09c1d2959367cafd40b0a7f19e4452412"
+    },
+    {
+      "path": "research/r3/captures/github-docling-commits-main.json",
+      "bytes": 10106,
+      "sha256": "1a893a7107fd8dcc53a2d6f30a528105830074642a3c686c69da3d108a488ce6"
+    },
+    {
+      "path": "research/r3/captures/github-docling-latest-release.json",
+      "bytes": 4476,
+      "sha256": "b97f6e4ad26318b2fda3010aba43af90b1201d19cdb18d2a953046df34cf7135"
+    },
+    {
+      "path": "research/r3/captures/github-docling-project-docling-b0315ea356298e4659c9727e9f5191dd2001860a-LICENSE",
+      "bytes": 1072,
+      "sha256": "edb765d1e3e60d0c7a7d5fba5f2bb2c3c29f7465cecb5c22cf1185c884954e4c"
+    },
+    {
+      "path": "research/r3/captures/github-docling-project-docling-b0315ea356298e4659c9727e9f5191dd2001860a-README.md",
+      "bytes": 8535,
+      "sha256": "4f55583e9c57442b635a2bdf0c718a9919752a73a18b710b0b5cb57ef23c0aed"
+    },
+    {
+      "path": "research/r3/captures/github-docling-project-docling-b0315ea356298e4659c9727e9f5191dd2001860a-pyproject.toml",
+      "bytes": 16154,
+      "sha256": "d1e847414703bd1cd86407654e3c846dfb1827f37b5ac3181e97984bdba3f596"
+    },
+    {
+      "path": "research/r3/captures/github-docling-repo.json",
+      "bytes": 7543,
+      "sha256": "4b9b1472a228c8095a167460bbea7146186e4e618f7e397ed04924aa4707b9e1"
+    },
+    {
+      "path": "research/r3/captures/github-docling-tag.json",
+      "bytes": 393,
+      "sha256": "e09d27b15368f662903087a65101f6bb641a2ced52205be05c7038298eb46e82"
+    },
+    {
+      "path": "research/r3/captures/github-ocrmypdf-tag-object.json",
+      "bytes": 772,
+      "sha256": "614a1879ca23b0c376d0f05c5e0f572086b7dbcb7faa9680da7bcd80f89ec8f3"
+    },
+    {
+      "path": "research/r3/captures/github-ocrmypdf-tag-tree.json",
+      "bytes": 217170,
+      "sha256": "0d57bcbfa237102d33dc82d2ad6ae45b7a5c95c7245740c2986fdec8c2e7bd47"
+    },
+    {
+      "path": "research/r3/captures/github-ocrmypdf-tag.json",
+      "bytes": 380,
+      "sha256": "4515fa592f37de7913e6a17fdee22c9ad3c4876435e4afb18f40b91e0b16c06f"
+    },
+    {
+      "path": "research/r3/captures/github-tessdata-fast-head.json",
+      "bytes": 4958,
+      "sha256": "aed16fdd6e9b46ad5281fd204415cebd4a765b5ef097bd3f81c448b6abe36bf6"
+    },
+    {
+      "path": "research/r3/captures/github-tessdata-fast-license-meta.json",
+      "bytes": 16539,
+      "sha256": "ec762a1070c2bf6cde90010eb247c7b98c1b050a9389f1e78eab71ab51d815b8"
+    },
+    {
+      "path": "research/r3/captures/github-tessdata-fra-file-meta.json",
+      "bytes": 945,
+      "sha256": "38ba96dc26f1633b1ccb507535f8ff5e726666e077cf4dbe1c40d5164ec04fb2"
+    },
+    {
+      "path": "research/r3/captures/gitlab-do-invparse-releases.json",
+      "bytes": 2,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "path": "research/r3/captures/gitlab-do-invparse-repository-tags.json",
+      "bytes": 2,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "path": "research/r3/captures/gitlab-domodex-do-invparse-commit.json",
+      "bytes": 1257,
+      "sha256": "6fb9d843977483179a24a39cbc18befedd8181653854468af3f0a8ee8d9d2850"
+    },
+    {
+      "path": "research/r3/captures/gitlab-domodex-do-invparse-meta.json",
+      "bytes": 1056,
+      "sha256": "2383edf153a00d3b54323f799acc28c8cf36e77f92fbde0891ca075082181d5e"
+    },
+    {
+      "path": "research/r3/captures/gitlab-domodex-do-invparse-tree.json",
+      "bytes": 4225,
+      "sha256": "abfce997b9ed84d35195466c725b0f193d123431d9842d8eb2078d884ea422f4"
+    },
+    {
+      "path": "research/r3/captures/gitlab-search-invoice-OCR.json",
+      "bytes": 10629,
+      "sha256": "8a2ecbde5a67990bac936662f5d4504e1d6be6f2ecdf25efb96a3fd378ef9d24"
+    },
+    {
+      "path": "research/r3/captures/gitlab-search-invoice-extraction.json",
+      "bytes": 8126,
+      "sha256": "752b6178025daf72d0dc820f2cd9f034eee00fd1a666ebbd2bdb442a51fbee57"
+    },
+    {
+      "path": "research/r3/captures/gitlab-search-paddleocr.json",
+      "bytes": 16834,
+      "sha256": "b881323564414f843e3af83dda46f832c9fa36e63dd2587a4150379d0cf7d002"
+    },
+    {
+      "path": "research/r3/captures/gitlab-shashankchakraborty712005-docuflow-commit.json",
+      "bytes": 1106,
+      "sha256": "036822100050a1dcdc09ebe7df29dbcbc434354d47f22f9001a980eda0bd5917"
+    },
+    {
+      "path": "research/r3/captures/gitlab-shashankchakraborty712005-docuflow-meta.json",
+      "bytes": 1201,
+      "sha256": "f6ee7a0a260f5e8decb0bc08886c14691df5af0597e7c4c2f7a52df7c1a67fa8"
+    },
+    {
+      "path": "research/r3/captures/gitlab-shashankchakraborty712005-docuflow-tree.json",
+      "bytes": 1919,
+      "sha256": "e1ce1136997d499f4eef49ea157fefe8faa39b0381fec63da33ff6742cec0d3a"
+    },
+    {
+      "path": "research/r3/captures/gitlab.com_api_v4_projects_domodexx2Fdo-invparse_repository_files_Cargo.toml_raw_ref_6c0205666604cd3acbe547110e9a02104d460cc4.txt",
+      "bytes": 3380,
+      "sha256": "94f6de941341411b1210855892212bd47588bc87b9fbf29a3e62c27c7399c510"
+    },
+    {
+      "path": "research/r3/captures/gitlab.com_api_v4_projects_domodexx2Fdo-invparse_repository_files_DESIGN.md_raw_ref_6c0205666604cd3acbe547110e9a02104d460cc4.txt",
+      "bytes": 4520,
+      "sha256": "815046ef24c30391ea3a0abf62212cfca5b048768304bdb5f6d8dcfe6e36b6e5"
+    },
+    {
+      "path": "research/r3/captures/gitlab.com_api_v4_projects_domodexx2Fdo-invparse_repository_files_LICENSE-APACHE_raw_ref_6c0205666604cd3acbe547110e9a02104d460cc4.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "research/r3/captures/gitlab.com_api_v4_projects_domodexx2Fdo-invparse_repository_files_LICENSE-MIT_raw_ref_6c0205666604cd3acbe547110e9a02104d460cc4.txt",
+      "bytes": 1081,
+      "sha256": "1fd50205142998e5b1482f6676e8f4e75203c4750ccd8b468dc43014012e4677"
+    },
+    {
+      "path": "research/r3/captures/gitlab.com_api_v4_projects_domodexx2Fdo-invparse_repository_files_README.md_raw_ref_6c0205666604cd3acbe547110e9a02104d460cc4.txt",
+      "bytes": 5008,
+      "sha256": "24e90d7a6068a2b7042eff217f80bde788130b3ca312b13f2a623827cfe56086"
+    },
+    {
+      "path": "research/r3/captures/hf-PaddlePaddle-PP-OCRv5_server_det-README.md",
+      "bytes": 15912,
+      "sha256": "4fd4cf7c6fc3239ede7274c3877e7a0c4424ffa7f56b2775e4e7961c24b1f107"
+    },
+    {
+      "path": "research/r3/captures/hf-PaddlePaddle-PP-OCRv5_server_det-meta.json",
+      "bytes": 1013,
+      "sha256": "39c007fb98fb4bfb851e28e848c3e58f3b784277def90a3e0eac66c6e45cd4c5"
+    },
+    {
+      "path": "research/r3/captures/hf-PaddlePaddle-PP-OCRv5_server_det-tree.json",
+      "bytes": 5920,
+      "sha256": "18dba52134e53d15a9308ca13d85d5b06943b531aac700ea1c1cfd1e7acc9151"
+    },
+    {
+      "path": "research/r3/captures/hf-PaddlePaddle-PP-OCRv5_server_rec-README.md",
+      "bytes": 15892,
+      "sha256": "519eba1704ddeb8d3e68c4f54221dde11074be0644197cdc4d5581b6d74bd62c"
+    },
+    {
+      "path": "research/r3/captures/hf-PaddlePaddle-PP-OCRv5_server_rec-meta.json",
+      "bytes": 1017,
+      "sha256": "a9f8a82748a1525ff4345fae61880e355abcc50f3d2ba1d3f278417b5795a77e"
+    },
+    {
+      "path": "research/r3/captures/hf-PaddlePaddle-PP-OCRv5_server_rec-tree.json",
+      "bytes": 5927,
+      "sha256": "7eb196e48278b856c4d729e28ce89807c50bc3c9c7e9940a7f226e6b4cb22565"
+    },
+    {
+      "path": "research/r3/captures/hf-PaddlePaddle-PaddleOCR-VL-1.5-README.md",
+      "bytes": 22955,
+      "sha256": "0eeebf42ca617495dec7343909667a79840b240d7cb6c5572e221fad0b128557"
+    },
+    {
+      "path": "research/r3/captures/hf-PaddlePaddle-PaddleOCR-VL-1.5-meta.json",
+      "bytes": 4997,
+      "sha256": "9346b6bd5fcd834179beafc4b3ed5ab7abaeb5add8cb0dcfdbdf0fd40810f3c2"
+    },
+    {
+      "path": "research/r3/captures/hf-PaddlePaddle-PaddleOCR-VL-1.5-tree.json",
+      "bytes": 20742,
+      "sha256": "a6ced1076641471de815d5ac4f982385d9ec68cc963057c91ff140feaad99f8b"
+    },
+    {
+      "path": "research/r3/captures/hf-docling-models-README.md",
+      "bytes": 3428,
+      "sha256": "638053f2c976547e6d3de9f4ff1efb386715f1795e8fe9500a5150245845b591"
+    },
+    {
+      "path": "research/r3/captures/hf-docling-project-docling-layout-heron-onnx-README.md",
+      "bytes": 294,
+      "sha256": "48de0f07390f6823a225ce8aab348e7b57408534b56b71f1433ed6280456597f"
+    },
+    {
+      "path": "research/r3/captures/hf-docling-project-docling-layout-heron-onnx-meta.json",
+      "bytes": 1029,
+      "sha256": "c04e2d3346aa5d443ad38fc72801b291ec65b8dd5abeeeab1766b18c2a4ff655"
+    },
+    {
+      "path": "research/r3/captures/hf-docling-project-docling-layout-heron-onnx-tree.json",
+      "bytes": 4878,
+      "sha256": "0986d03f5224afaa8da8e5a823ce37b745ce499f842a3390df74e682e50d7175"
+    },
+    {
+      "path": "research/r3/captures/hf-docling-project-docling-models-README.md",
+      "bytes": 3428,
+      "sha256": "638053f2c976547e6d3de9f4ff1efb386715f1795e8fe9500a5150245845b591"
+    },
+    {
+      "path": "research/r3/captures/hf-docling-project-docling-models-meta.json",
+      "bytes": 1348,
+      "sha256": "f09199ed860410058ceca0ab5602166daf2d95d4d3a9ec0d86606e632ac9e6d2"
+    },
+    {
+      "path": "research/r3/captures/hf-docling-project-docling-models-tree.json",
+      "bytes": 9391,
+      "sha256": "f83e50d540c80d288bf01c2a1a04dc9f28f90bee8835464ff32ad2a4774f61d0"
+    },
+    {
+      "path": "research/r3/captures/hf-ibm-granite-granite-docling-258M-meta.json",
+      "bytes": 3937,
+      "sha256": "db717906fbc0febbd5144f0d4fdb0df541a2c09fd68bf16154f43f43e6c7b1d1"
+    },
+    {
+      "path": "research/r3/captures/huggingface.co_api_models_search_docling_limit_10.txt",
+      "bytes": 4650,
+      "sha256": "2890169be9589f84dd8ebac914d34af0093ff278ad23d9b957002969f9e8ced9"
+    },
+    {
+      "path": "research/r3/captures/ocrmypdf-v17.13.0-LICENSE",
+      "bytes": 16725,
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5"
+    },
+    {
+      "path": "research/r3/captures/ocrmypdf-v17.13.0-README.md",
+      "bytes": 9893,
+      "sha256": "6cb5020b784072a4e3724c28dc7399a25d1d700e98691984cd479c871ac0192e"
+    },
+    {
+      "path": "research/r3/captures/ocrmypdf-v17.13.0-doc-installation.md",
+      "bytes": 32711,
+      "sha256": "1743643f3303effd094364128d366957d0af2ce5d1603778274464e7a8de0788"
+    },
+    {
+      "path": "research/r3/captures/ocrmypdf-v17.13.0-pyproject.toml",
+      "bytes": 6060,
+      "sha256": "8cbe3c29507b7c35d4b196c96f37774790207ec4a4e688946be4425462ae18e8"
+    },
+    {
+      "path": "research/r3/captures/pdfium2_readme.txt",
+      "bytes": 60310,
+      "sha256": "cd68315b8d00157d2140749932fb4ec3945ded28572e66ef6a75ad6e41253e91"
+    },
+    {
+      "path": "research/r3/captures/pdfium_license.txt",
+      "bytes": 12896,
+      "sha256": "1fe9dea718fbd75cf149adaf4d8a22a4335604d964ddb76d1b45383dec8668c9"
+    },
+    {
+      "path": "research/r3/captures/pypdfium-tag-object.json",
+      "bytes": 674,
+      "sha256": "ffeb47b7c1aef8f1719b3b7353647b088e5b1b06d02af956e13f784c6b22f37e"
+    },
+    {
+      "path": "research/r3/captures/pypdfium2-releases-latest20.json",
+      "bytes": 1379928,
+      "sha256": "b1c1d6346d28d8d24b680c8ed68a64869802b6860f89a8e1d57225c2bc2117e4"
+    },
+    {
+      "path": "research/r3/captures/pypdfium2-tag-5.13.0.json",
+      "bytes": 343,
+      "sha256": "79f9c4badae24f8e0df7a45da972c6f12fc56aa108a04021d9bd6c3ce457afee"
+    },
+    {
+      "path": "research/r3/captures/pypdfium2-tagobject-5.13.0.json",
+      "bytes": 672,
+      "sha256": "c756e2b7ac8169e4a851028b227b09c5bbae922e922f51c1a8ba38d1a975ccc6"
+    },
+    {
+      "path": "research/r3/captures/pypdfium2-team_pypdfium2_commits_main.json",
+      "bytes": 7110,
+      "sha256": "f09baaf303373529922e9d1aaa691657a89b3f7fdc07e498a4f19188ba3addc4"
+    },
+    {
+      "path": "research/r3/captures/pypdfium2-team_pypdfium2_releases_latest.json",
+      "bytes": 110735,
+      "sha256": "6c2efcd681247efac13529e6c7718e1f44edf4699b82f7eafe1d2400cf1cba59"
+    },
+    {
+      "path": "research/r3/captures/pypdfium2-v5.13.0-BUILD_LICENSES_pdfium-binaries.txt",
+      "bytes": 1177,
+      "sha256": "18f922f766364a25a6327e7b1b8287d7c36cf8bbea80767d014fb453e2fe4a50"
+    },
+    {
+      "path": "research/r3/captures/pypdfium2-v5.13.0-BUILD_LICENSES_pdfium.txt",
+      "bytes": 12896,
+      "sha256": "1fe9dea718fbd75cf149adaf4d8a22a4335604d964ddb76d1b45383dec8668c9"
+    },
+    {
+      "path": "research/r3/captures/pypdfium2-v5.13.0-LICENSES_Apache-2.0.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "research/r3/captures/pypdfium2-v5.13.0-LICENSES_BSD-3-Clause.txt",
+      "bytes": 1459,
+      "sha256": "a6d11f0694c0137e9b02924b9d33a159f6c72f220fa4655bb2e1ea3654377d39"
+    },
+    {
+      "path": "research/r3/captures/pypdfium2-v5.13.0-README.md",
+      "bytes": 64324,
+      "sha256": "ffcdbf6d1b7970ddad89fa0ed51209bbbee2d1f44ba83f1fd458e374d29b9c9e"
+    },
+    {
+      "path": "research/r3/captures/pypdfium2-v5.13.0-tree.json",
+      "bytes": 68140,
+      "sha256": "9ced004362f14d3fc5aa932293c77f22c816169c1e84b5777a3b18276d8ad618"
+    },
+    {
+      "path": "research/r3/captures/pypdfium2-v5.14.0b1-BUILD_LICENSES_pdfium-binaries.txt",
+      "bytes": 1177,
+      "sha256": "18f922f766364a25a6327e7b1b8287d7c36cf8bbea80767d014fb453e2fe4a50"
+    },
+    {
+      "path": "research/r3/captures/pypdfium2-v5.14.0b1-BUILD_LICENSES_pdfium.txt",
+      "bytes": 12896,
+      "sha256": "1fe9dea718fbd75cf149adaf4d8a22a4335604d964ddb76d1b45383dec8668c9"
+    },
+    {
+      "path": "research/r3/captures/pypdfium2-v5.14.0b1-LICENSES_Apache-2.0.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "research/r3/captures/pypdfium2-v5.14.0b1-LICENSES_BSD-3-Clause.txt",
+      "bytes": 1459,
+      "sha256": "a6d11f0694c0137e9b02924b9d33a159f6c72f220fa4655bb2e1ea3654377d39"
+    },
+    {
+      "path": "research/r3/captures/pypdfium2-v5.14.0b1-README.md",
+      "bytes": 60310,
+      "sha256": "cd68315b8d00157d2140749932fb4ec3945ded28572e66ef6a75ad6e41253e91"
+    },
+    {
+      "path": "research/r3/captures/pypdfium2-v5.14.0b1-pyproject.toml",
+      "bytes": 7124,
+      "sha256": "26ccae4ddec34be3d6e0bc939479f5ae92abc978223f983ab96c31829df696e7"
+    },
+    {
+      "path": "research/r3/captures/pypdfium2-v5.14.0b1-tree.json",
+      "bytes": 65281,
+      "sha256": "69f0deefdc0869d9f61a77a63c4675c6bd3d250903f498b6d64bc5cd17eec3f3"
+    },
+    {
+      "path": "research/r3/captures/pypdfium2_git_ref_tags_5.14.0b1.json",
+      "bytes": 350,
+      "sha256": "25ca18fc1ac49c4f4933bfa42375c655411150b28945c0edb9e61da45e57521a"
+    },
+    {
+      "path": "research/r3/captures/resolve-pypdfium2-team-pypdfium2.json",
+      "bytes": 674,
+      "sha256": "ffeb47b7c1aef8f1719b3b7353647b088e5b1b06d02af956e13f784c6b22f37e"
+    },
+    {
+      "path": "research/r3/captures/resolve-tesseract-ocr-tesseract.json",
+      "bytes": 2572,
+      "sha256": "9916fbe08cbed3227a180fd4a6b523cdd9377b68514c6e3a99292b144163f7dd"
+    },
+    {
+      "path": "research/r3/captures/tess_license.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "research/r3/captures/tessdata-fast-LICENSE",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "research/r3/captures/tessdata-fast-README.md",
+      "bytes": 4353,
+      "sha256": "22fee9835bff02fb7013aa9786a2144ae3d4c219083089375985a62808e7215e"
+    },
+    {
+      "path": "research/r3/captures/tesseract-5.5.1-3b7c70e34dea179549ed3e995872e2e019eb8477-LICENSE",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "research/r3/captures/tesseract-doc-command-line.html",
+      "bytes": 21828,
+      "sha256": "eac5b07c38f94fba1b363414393ee1f830d6cf6d5be2fdd0267ff47d6dfdf1c5"
+    },
+    {
+      "path": "research/r3/captures/tesseract-ocr_tesseract_git_ref_tags_5.5.1.json",
+      "bytes": 343,
+      "sha256": "7e3c61344ee98756a31cba76bea99dabddb3b826e7afad8f3f0be976207964f7"
+    },
+    {
+      "path": "research/r3/captures/tree-chromium-pdfium.json",
+      "bytes": 1152892,
+      "sha256": "08de184f632ddab86ac24e7f2b32ae8b5bfa6202b1ce5889a128a2560fc06b9f"
+    },
+    {
+      "path": "research/r3/captures/tree-pypdfium2-team-pypdfium2.json",
+      "bytes": 65281,
+      "sha256": "f7606231c1d36b61c1b83160dbe8b84e1ed2cc6bf20d4e2fcdbc74273546b57e"
+    },
+    {
+      "path": "research/r3/captures/tree-tesseract-ocr-tesseract.json",
+      "bytes": 184918,
+      "sha256": "499dfc532aa4dca5d2f86724cf8f055a985bb90309b7a7a999a71d141846ad5c"
+    },
+    {
+      "path": "research/r3/sources-r3.json",
+      "bytes": 20122,
+      "sha256": "79e5fb0679233abb577d641644840a6980ceffb8049194fa60dc991361f8f10a"
+    },
+    {
+      "path": "research/root-preimage-r1/INGREDIENTS.md",
+      "bytes": 75876,
+      "sha256": "813a0bea3c7db7066f0d308541da601ee3eeaedcf2626943491bde62d26a08e2"
+    },
+    {
+      "path": "research/root-primary-r1/ROOT-PRIMARY-CHECK-r1.json",
+      "bytes": 2006,
+      "sha256": "b8fc595e8920e3d5995ae220724677d818afcffbbc08e748f5b6e0aaaaf32d1e"
+    },
+    {
+      "path": "research/root-primary-r1/ROOT-REVIEW-r1.json",
+      "bytes": 447,
+      "sha256": "2c5e950bd54b8945478a5c17ae8b41fb748fe856efccc0002e6729eb1a4debf3"
+    },
+    {
+      "path": "research/root-primary-r1/TAG-SEMANTIC-CHECK-r1.json",
+      "bytes": 470,
+      "sha256": "373eb7db71136f2bdb0daed27b8e7c2fb51b3635b183ca824228b7c385d3167e"
+    },
+    {
+      "path": "research/root-primary-r1/github-docling-project-docling-b0315ea356298e4659c9727e9f5191dd2001860a-LICENSE",
+      "bytes": 1072,
+      "sha256": "edb765d1e3e60d0c7a7d5fba5f2bb2c3c29f7465cecb5c22cf1185c884954e4c"
+    },
+    {
+      "path": "research/root-primary-r1/github-ocrmypdf-tag-object.json",
+      "bytes": 663,
+      "sha256": "80c80fa8e3c3f001397c19a27367fbfd5c2abdd595b190bb189122a1c1df59af"
+    },
+    {
+      "path": "research/root-primary-r1/gitlab.com_api_v4_projects_domodexx2Fdo-invparse_repository_files_LICENSE-APACHE_raw_ref_6c0205666604cd3acbe547110e9a02104d460cc4.txt",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "research/root-primary-r1/gitlab.com_api_v4_projects_domodexx2Fdo-invparse_repository_files_LICENSE-MIT_raw_ref_6c0205666604cd3acbe547110e9a02104d460cc4.txt",
+      "bytes": 1081,
+      "sha256": "1fd50205142998e5b1482f6676e8f4e75203c4750ccd8b468dc43014012e4677"
+    },
+    {
+      "path": "research/root-primary-r1/ocrmypdf-v17.13.0-LICENSE",
+      "bytes": 16725,
+      "sha256": "1f256ecad192880510e84ad60474eab7589218784b9a50bc7ceee34c2b91f1d5"
+    },
+    {
+      "path": "research/root-primary-r1/tessdata-fast-LICENSE",
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    {
+      "path": "research/sources.json",
+      "bytes": 12997,
+      "sha256": "732efdcf5408c8eb828742007fbce794ef0fff6a3b2b2c12d96b8b402afdae12"
+    },
+    {
+      "path": "sources/docs/research/INGREDIENTS.md",
+      "bytes": 77460,
+      "sha256": "facc48b4eb2d53ffc04bc2dc86b3d6d1efda65f119ae0b30b4330a500af46a92"
+    },
+    {
+      "path": "sources/docs/research/REPRISE-2026-10-04/M5-OCR-GITHUB-GITLAB.md",
+      "bytes": 16899,
+      "sha256": "c78bdbec75887b35dc903e6066334cd8db4209af5f4fbed7435f8c7cf140c555"
+    }
+  ]
+}

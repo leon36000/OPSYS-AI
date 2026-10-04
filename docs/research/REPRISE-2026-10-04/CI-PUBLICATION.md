@@ -1,5 +1,20 @@
 # Publication et corrections de CI — 4 octobre 2026
 
+## Consultation AP — tranche 21, relevé du 4 octobre à 11:46 UTC
+
+| Commit | CI | Core | E2E | Mobile | Dépendances | Installateur |
+|---|---|---|---|---|---|---|
+| `bfc5b8d463cbcdf706ac2657eb39720717473888` | Succès | Succès | Succès | Succès | Succès | En cours |
+| `1f08a4a3dff86b43ee72414d5cf20d2670d133b8` | En cours | En cours | Succès | Succès | Succès | En attente |
+
+Métadonnées GitHub conservées dans la capsule de consultation. Les résultats de
+chaque commit restent distincts ; ces états ne qualifient pas la prochaine publication.
+La [consultation AP](../../grs/compta/M5-AP-CONSULTATION-RAPPORT-2026-10-04.md)
+passe localement ROOT r130 : 668/668 sur 21 fichiers complets, sans skip,
+104,600 s JUnit, Ruff sur 16 fichiers et 1 240 sources inchangées. r127 garde le
+vrai défaut Unicode, r128 le lint rouge et r129 les deux erreurs de fixture.
+La CI native de la consultation reste à suivre sur son commit après publication.
+
 ## Relevé de la tranche de saisie AP — 4 octobre, 11:24 UTC
 
 `0b2d34f83151eea3ff094fec8a4d08834d5a5831` a réussi les six workflows natifs :

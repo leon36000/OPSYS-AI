@@ -37,6 +37,14 @@ Ruff vert sur 12 fichiers et 1 236 sources inchangées. Reçus dans le rapport; 
 étape à suivre sur son propre commit. Ces campagnes se recouvrent et ne
 s'additionnent pas. M5 global demeure PARTIEL.
 
+L'[étape 21 AP](../grs/compta/M5-AP-CONSULTATION-RAPPORT-2026-10-04.md) étend le
+GET de revue existant : référence durable après reconnexion et statut/corrections
+projetés par M5, sans écrire ni relire les taux actuels. Autorité owner ou
+admin+finance et intégrité sont revalidées ; une corruption refuse 503. Les
+préconditions PDF du GET demeurent. ROOT r130 réussit 668/668 cas sur 21 fichiers complets, sans échec/erreur/skip,
+en 104,600 s JUnit ; Ruff vert sur 16 fichiers, 1 240 sources gelées inchangées.
+M5 global reste PARTIEL.
+
 Le head `79b49669` a désormais réussi les six workflows natifs, dont
 3 815 tests du socle/17 ignorés. Cela ne remplace pas la CI du prochain commit;
 le [bilan par head](../research/REPRISE-2026-10-04/CI-PUBLICATION.md) sépare succès,

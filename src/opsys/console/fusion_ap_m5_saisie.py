@@ -262,9 +262,9 @@ def saisir(
                 if (preuve.get("mapping_sha256") != mapping_sha or preuve.get("arguments_sha256") != hash_args
                         or ancien["commande_sha256"] != snapshot_attendu):
                     raise _erreur("CONFLIT_MUTATION")
-                commande_attendue = hashlib.sha256(_json({
+                commande_attendue = hashlib.sha256(json.dumps({
                     "snapshot_id": preuve.get("snapshot_id"), "po_id": po_id, "fournisseur_id": fournisseur_id,
-                }).encode()).hexdigest()
+                }, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
                 if commande_attendue != ancien["commande_sha256"]:
                     raise _erreur("CONFLIT_MUTATION")
                 _verifier_recu(cnx, ancien, preuve, source, args6, calcul_actuel)

@@ -134,3 +134,17 @@ M5 global reste PARTIEL. Suite utile : corpus de factures fournisseurs réelles
 autorisées, mesure des refus/mappings/citations et politique de rétention ;
 OCR/scans, sans PO, pont PostgreSQL, mobile et connecteurs exigent leurs propres
 tranches. Cette qualification ne clôt aucun des dix lots d'ambition.
+
+
+## Point de reprise M5 — tranche 21, 4 octobre 2026
+
+La [consultation durable AP](../grs/compta/M5-AP-CONSULTATION-RAPPORT-2026-10-04.md)
+est implémentée sur le GET existant : quatre champs de référence/état M5,
+reconnexion et corrections, sans nouvelle écriture ni taux recalculé. Liaison
+0024 et projecteur M5 réutilisés ; corruption 503, autorité financière vivante
+et préconditions PDF conservées. Le rejeu Unicode de la tranche 20 respecte
+désormais la sérialisation historique du hash de commande. ROOT r127 rouge et
+r128 imports Ruff et r129 (657P/2F de fixtures) restent conservés. ROOT r130 :
+668/668 sur 21 fichiers complets, 104,600 s JUnit, sans échec/erreur/skip ;
+Ruff vert sur 16 fichiers et 1 240 sources inchangées. Pas de promotion globale
+de M5, paiement ou ledger final.

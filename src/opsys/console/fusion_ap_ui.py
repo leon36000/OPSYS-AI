@@ -176,7 +176,14 @@ def _editeur(
     )
 
 
-def _resume(prefixe: str, session: Session, lot: Mapping[str, Any], brouillon: Mapping[str, Any] | None) -> str:
+def _resume(
+    prefixe: str,
+    session: Session,
+    lot: Mapping[str, Any],
+    brouillon: Mapping[str, Any] | None,
+    *,
+    saisie_referencee: bool = False,
+) -> str:
     if brouillon is None:
         status = "Aucun brouillon AP"
         revision_ap = 0
@@ -193,7 +200,7 @@ def _resume(prefixe: str, session: Session, lot: Mapping[str, Any], brouillon: M
             f'<input type="hidden" name="revision_ap" value="{revision_ap}">'
             '<button type="submit">Afficher les champs enregistrés</button></form>'
         )
-        if session.roles.intersection({"finance", "nathan_owner"}):
+        if session.roles.intersection({"finance", "nathan_owner"}) and not saisie_referencee:
             form += (
                 f'<form method="post" action="{pages.e(prefixe)}/fusion/pdf/lots/{pages.e(lot["lot_id"])}'
                 '/ap/verifier-m5" class="pile">'
@@ -292,7 +299,37 @@ def _confirmation_saisie_m5(
     )
 
 
-def _recu_saisie_m5(resultat: Mapping[str, Any]) -> str:
+def _reference_saisie_m5(resultat: Mapping[str, Any] | None) -> str:
+    if resultat is None:
+        return ""
+    if not isinstance(resultat, Mapping) or set(resultat) != {
+        "facture_id", "approbation_id", "statut_m5", "corrections",
+    }:
+        raise HTTPException(503, {"code": "REFERENCE_SAISIE_M5_INDISPONIBLE"})
+    facture_id, approbation_id = resultat.get("facture_id"), resultat.get("approbation_id")
+    statut, corrections = resultat.get("statut_m5"), resultat.get("corrections")
+    if (
+        not isinstance(facture_id, str) or not facture_id or len(facture_id) > 128 or not facture_id.isprintable()
+        or not isinstance(approbation_id, str) or not approbation_id or len(approbation_id) > 128
+        or not approbation_id.isprintable()
+        or not isinstance(statut, str) or statut not in {"SAISIE", "CORRIGEE", "ANNULEE"}
+        or type(corrections) is not int or not 0 <= corrections <= 10_000
+    ):
+        raise HTTPException(503, {"code": "REFERENCE_SAISIE_M5_INDISPONIBLE"})
+    return (
+        '<section class="carte pile"><h2>Référence de saisie M5</h2>'
+        f'<p>Facture : {pages.e(facture_id)}.</p>'
+        f'<p>Approbation N3 : {pages.e(approbation_id)}.</p>'
+        f'<p>État courant M5 : {pages.e(statut)}.</p>'
+        f'<p>Corrections enregistrées : {corrections}.</p>'
+        '<p>Référence historique de la saisie d’origine, distincte du brouillon A_REVOIR. Le statut courant '
+        'et le compte des corrections proviennent de M5.</p></section>'
+    )
+
+
+def _recu_saisie_m5(
+    resultat: Mapping[str, Any], *, prefixe: str | None = None, lot_id: str | None = None,
+) -> str:
     status = resultat.get("statut")
     facture_id = resultat.get("facture_id")
     approbation_id = resultat.get("approbation_id")
@@ -304,6 +341,12 @@ def _recu_saisie_m5(resultat: Mapping[str, Any]) -> str:
         or type(rejoue) is not bool
     ):
         raise HTTPException(503, {"code": "SAISIE_M5_INDISPONIBLE"})
+    liens = ""
+    if prefixe is not None and lot_id is not None:
+        liens = (
+            f'<p><a href="{pages.e(prefixe)}/fusion/pdf/lots/{pages.e(lot_id)}/ap">Retrouver la référence</a></p>'
+            f'<p><a href="{pages.e(prefixe)}/finance">Finance</a></p>'
+        )
     return (
         '<section class="carte pile"><h2>Référence de saisie M5</h2>'
         f'<p>État : {pages.e(status)}.</p>'
@@ -312,7 +355,7 @@ def _recu_saisie_m5(resultat: Mapping[str, Any]) -> str:
         f'<p>Rejeu idempotent : {"oui" if rejoue else "non"}.</p>'
         '<p>Cette référence conserve la saisie interne d’origine dans M5. Consultez M5 pour son état courant '
         'et ses éventuelles corrections ou annulations. Aucun paiement n’a été lancé; le brouillon Fusion '
-        'demeure A_REVOIR.</p></section>'
+        'demeure A_REVOIR.</p>' + liens + '</section>'
     )
 
 
@@ -476,8 +519,36 @@ def creer_router(
                     request, session, f'<section class="carte pile"><h1>Revue AP</h1>{contenu}</section>'
                 )
             return echec_prive(request, session, exc)
-        contenu = _resume(prefixe, session, lot, brouillon)
-        return rendre_prive(request, session, f'<section class="carte pile"><h1>Revue AP</h1>{contenu}</section>')
+        reference_html = ""
+        saisie_referencee = False
+        if session.roles.intersection({"finance", "nathan_owner"}):
+            try:
+                from . import fusion_ap_m5_reference
+
+                reference = await bloquant(fusion_ap_m5_reference.lire, cnx_factory, session.utilisateur, lot_id)
+            except Exception:
+                session = session_vivante(request, session.utilisateur)
+                verifier_role_finance(session)
+                return echec_prive(
+                    request, session, HTTPException(503, {"code": "REFERENCE_SAISIE_M5_INDISPONIBLE"})
+                )
+            session = session_vivante(request, session.utilisateur)
+            verifier_role_finance(session)
+            try:
+                reference_html = _reference_saisie_m5(reference)
+            except Exception:
+                session = session_vivante(request, session.utilisateur)
+                verifier_role_finance(session)
+                return echec_prive(
+                    request, session, HTTPException(503, {"code": "REFERENCE_SAISIE_M5_INDISPONIBLE"})
+                )
+            saisie_referencee = reference is not None
+        contenu = _resume(prefixe, session, lot, brouillon, saisie_referencee=saisie_referencee) + reference_html
+        reponse = rendre_prive(request, session, f'<section class="carte pile"><h1>Revue AP</h1>{contenu}</section>')
+        if saisie_referencee:
+            session = session_vivante(request, session.utilisateur)
+            verifier_role_finance(session)
+        return reponse
 
     @router.post("/fusion/pdf/lots/{lot_id}/ap/lire", response_class=HTMLResponse)
     async def lire_ap(lot_id: str, request: Request) -> HTMLResponse:
@@ -685,7 +756,7 @@ def creer_router(
             )
             session = session_vivante(request, session.utilisateur)
             verifier_role_finance(session)
-            contenu = _recu_saisie_m5(resultat)
+            contenu = _recu_saisie_m5(resultat, prefixe=prefixe, lot_id=lot_id)
         except HTTPException as exc:
             session = session_vivante(request, session.utilisateur)
             return echec_prive(request, session, exc)
