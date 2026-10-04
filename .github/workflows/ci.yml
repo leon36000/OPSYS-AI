@@ -65,6 +65,34 @@ jobs:
           commande[-2:] = ["-I", "-c", "pass"]
           subprocess.run(commande, check=True, env={}, timeout=10)
           PY
+      - name: Diagnostic du confinement PDF
+        if: failure()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          for chemin in (
+              "/proc/sys/kernel/apparmor_restrict_unprivileged_userns",
+              "/proc/sys/kernel/unprivileged_userns_clone",
+              "/proc/self/attr/current",
+          ):
+              try:
+                  valeur = Path(chemin).read_text().strip()
+              except OSError as exc:
+                  valeur = type(exc).__name__
+              print(json.dumps({"source": chemin, "valeur": valeur}))
+          for commande in (
+              ["sudo", "aa-status"],
+              ["sudo", "journalctl", "-k", "--no-pager", "--since=-5min", "-n", "64",
+               "--grep=apparmor.*(bwrap|unprivileged_userns)"],
+          ):
+              resultat = subprocess.run(commande, capture_output=True, text=True, timeout=10)
+              print(json.dumps({"commande": commande, "code": resultat.returncode,
+                                "stdout": resultat.stdout[:16384], "stderr": resultat.stderr[:2048]}))
+          PY
       - name: Tests du socle
         run: pytest
 

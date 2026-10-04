@@ -1,0 +1,85 @@
+{
+  "archive": "PDF-RUNNER-UBUNTU-r1.tar.xz",
+  "sha256": "d1140ce1ca7f1b6c4d085c20475cdb92797645e3853bcb4da15eec790efb368e",
+  "bytes": 139788,
+  "parent": "0c265cc13dec0dc23093b1d362d59c32aa26af6e",
+  "qualification": "Diagnostic seul: Ruff/actionlint, 10 tests CI sans ignoré, Gitleaks workflow sans alerte brute. Refus natif non résolu, socle non exécuté.",
+  "entries": {
+    "native/native-metadata-r1.json": {
+      "bytes": 3866,
+      "sha256": "8c0bd53ffbd58aaf87a074ee6374e3902350de41e2d06d86df32678ab7981348"
+    },
+    "native/native.log": {
+      "bytes": 208228,
+      "sha256": "c579f1a9fc6892d90e3893fd51e2e625b4208c4925e3b84ab266f80a35840c00"
+    },
+    "native/network.txt": {
+      "bytes": 5367,
+      "sha256": "b1cc8ea1669cf8067e0ec340b97f0b19ece5e59226b24f73db8726546324a39e"
+    },
+    "qa/drivers/guard_helpers_r2.py": {
+      "bytes": 13311,
+      "sha256": "145395c894c7621bc0f2534ba5b6ce282810ae523b0eca203a87ad55afeed844"
+    },
+    "qa/drivers/qa_root_r66.py": {
+      "bytes": 3656,
+      "sha256": "83f1c97956dcc3927783756ec342804b8dd27943d1f3b6153ac4e7a895ff9abf"
+    },
+    "qa/drivers/qa_root_r67.py": {
+      "bytes": 3184,
+      "sha256": "660a21d180bcbcddf3b9a6884f14f1a3e20ce8bd8e7421273393f33145cbd9e0"
+    },
+    "qa/qa-r66/execution-r1/actionlint.log": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "qa/qa-r66/execution-r1/pytest.log": {
+      "bytes": 80,
+      "sha256": "7040371af15613c02e821ec0eecc1d1330f691ace4cef93a41bfa358822c4103"
+    },
+    "qa/qa-r66/execution-r1/pytest.xml": {
+      "bytes": 2040,
+      "sha256": "488cb39ddcaff5edf484731d935f2b0b23964f55e3fa4982c69087af10e85a30"
+    },
+    "qa/qa-r66/execution-r1/ruff.log": {
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    "qa/qa-r66/freeze.json": {
+      "bytes": 153301,
+      "sha256": "4cd1f690f448c25a30074adf9d48ba49be7e11bf9c3585f4ee1c48d70e1904b6"
+    },
+    "qa/qa-r66/receipt.json": {
+      "bytes": 317223,
+      "sha256": "fd0e417f97a5401736672e1e74e66ecce8484d7aa8ef19dc6e4d15c838c1c96c"
+    },
+    "qa/qa-r67/execution-r1/gitleaks.log": {
+      "bytes": 131,
+      "sha256": "e02c6158f6ba902ca53032904e9c4a855572e94db6e1e103dd1b2a1d0e978964"
+    },
+    "qa/qa-r67/freeze.json": {
+      "bytes": 101,
+      "sha256": "b5d076fbaff79dde9c796ba9c61c937e183610657e59554423ba5c5bb2b1c789"
+    },
+    "qa/qa-r67/receipt.json": {
+      "bytes": 2591,
+      "sha256": "a63b4ab0153d674c439464cec3d9ca01420bb1173b06c8e708746473ecf5c088"
+    },
+    "qa/qa-r67/scan.json": {
+      "bytes": 3,
+      "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+    },
+    "source/.github/workflows/ci.yml": {
+      "bytes": 10481,
+      "sha256": "58cc5ea4520122cb82b51e5642cc051ffbb9b2969b89080059d49554bad8cac9"
+    },
+    "source/docs/research/REPRISE-2026-10-04/PDF-RUNNER-UBUNTU.md": {
+      "bytes": 2949,
+      "sha256": "9de6102b2820cecc7e289107149f02200aaa56674864f269500a60e3baf8a333"
+    },
+    "source/docs/research/REPRISE-2026-10-04/SOCLE-CONTRATS-M7.md": {
+      "bytes": 7711,
+      "sha256": "b1f68a123e359fdd82c5ad173bd76c350eca42dd99527d65e9ccaef291e76481"
+    }
+  }
+}

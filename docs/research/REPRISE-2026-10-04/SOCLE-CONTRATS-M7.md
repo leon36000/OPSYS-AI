@@ -1,5 +1,9 @@
 # Socle Python : correction des contrats et des mutations M7
 
+Le [diagnostic natif suivant](PDF-RUNNER-UBUNTU.md) décrit le refus de réseau
+isolé du runner sur `0c265cc1`. Les qualifications locales ci-dessous sont
+conservées; ce refus empêche encore la suite complète du socle de démarrer.
+
 ## État natif avant ce correctif
 
 La PR #623, head `b005c4e6240da73651b84076451c7cadf64ab678`, a terminé ses workflows
