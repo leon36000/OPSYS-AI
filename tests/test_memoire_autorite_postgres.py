@@ -94,8 +94,10 @@ def test_pg_lecture_reelle_revalide_apres_sql(memoire_client, tmp_path, monkeypa
          "expire_le": dt.datetime.now(dt.UTC) + dt.timedelta(days=1)})
     appels = []
     class LecturePuisRetrait:
-        def rechercher(self, *args):
-            result = memoire_client.rechercher(*args)
+        def rechercher(self, *args, **kwargs):
+            assert "embedding_profile_sha256" in kwargs
+            assert kwargs["embedding_profile_sha256"] is None
+            result = memoire_client.rechercher(*args, **kwargs)
             appels.append(result)
             if retirer:
                 with stockage.transaction():

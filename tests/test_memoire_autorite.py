@@ -29,7 +29,8 @@ def base_memoire_autorite(tmp_path, monkeypatch):
     cap._memoire_versionnee = True
     appels = []
     class MemoireFictive:
-        def rechercher(self, requete, embedding, k, filtres):
+        def rechercher(self, requete, embedding, k, filtres, *, embedding_profile_sha256=None):
+            assert embedding_profile_sha256 is None
             appels.append(filtres)
             ligne = SimpleNamespace(fragment_id=2, texte="Fictif: préférence du client B", source="fictif:B",
                 portee="signaux", departement=dep.id, cree_le=dt.datetime.now(dt.UTC), score=.1,
@@ -139,8 +140,9 @@ def test_retrait_liaison_avant_ou_pendant_lecture_ne_retourne_pas_resultat(base_
     if pendant:
         original = outils._memoire()
         class RetraitPendantLecture:
-            def rechercher(self, *args):
-                resultat = original.rechercher(*args)
+            def rechercher(self, *args, embedding_profile_sha256=None):
+                assert embedding_profile_sha256 is None
+                resultat = original.rechercher(*args, embedding_profile_sha256=embedding_profile_sha256)
                 retirer()
                 return resultat
         monkeypatch.setattr(outils, "_memoire", RetraitPendantLecture)
@@ -212,15 +214,18 @@ def test_procedures_globales_seules_bornees_sans_affaire(tmp_path, monkeypatch):
         "agents": {dep.id: {"departement": dep.id, "mode": "client_session"}}, "procedures_globales": ["procedures"]}
     appels = []
     class MemoireProcedures:
-        def rechercher(self, requete, embedding, k, filtres):
+        def rechercher(self, requete, embedding, k, filtres, *, embedding_profile_sha256=None):
+            assert embedding is None and embedding_profile_sha256 is None
             appels.append(filtres)
             return SimpleNamespace(mode="plein_texte", resultats=())
     monkeypatch.setattr(outils, "_memoire", MemoireProcedures)
-    monkeypatch.setattr(outils, "_embeddings", lambda: pytest.fail("aucun embedding pour procédures"))
+    monkeypatch.setattr(outils, "_embeddings", lambda: (None, "provider fictif indisponible"))
     cap = Capacites({dep.id: dep}, stockage.transaction, appelant=dep.id,
         memoire_politique=lambda: policy, memoire_versionnee=True)
     try:
-        assert cap.appeler(autorite.NOM_OUTIL, {"requete": "procédure", "portees": ["procedures"]})["ok"] is True
+        reponse = cap.appeler(autorite.NOM_OUTIL, {"requete": "procédure", "portees": ["procedures"]})
+        assert reponse["ok"] is True and reponse["resultat"]["mode"] == "plein_texte"
+        assert "provider fictif indisponible" in reponse["resultat"]["avertissement"]
         assert appels == [{"portee": ["procedures"], "sujets_autorises": [], "portees_globales": ["procedures"]}]
     finally:
         stockage.liberer()

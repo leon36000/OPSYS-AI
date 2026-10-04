@@ -323,6 +323,55 @@ def test_outil_hors_de_la_portee_du_role_est_refuse_par_une_erreur_nommee(capaci
     assert renvoi["erreur"] == "hors_portee_role" and renvoi["rejoue"] is True
 
 
+def test_role_refuse_ne_recoit_jamais_un_succes_deja_en_cache(capacites, personnes, session):
+    """Un reçu fictif antérieur reste intact, mais ne remplace jamais la portée actuelle."""
+    cle = "recu-prive-role-retire-fictif"
+    succes = {"ok": True, "resultat": {"devis_prive_fictif": "PRIVE-FICTIF-95000"}}
+    with session() as cnx:
+        reclame = idempotence.reclamer(cnx, _meta(cle), "m3_creer_devis", {}, dt.datetime.now(dt.UTC))
+        assert reclame.rejouee is False
+        idempotence.finaliser(cnx, _meta(cle), succes)
+
+    for _ in range(2):
+        reponse = _appeler(capacites, "m3_creer_devis", {}, EMPLOYE, cle)
+        assert reponse["ok"] is False and reponse["erreur"] == "hors_portee_role"
+        assert reponse["rejoue"] is False
+        assert "resultat" not in reponse and "PRIVE-FICTIF-95000" not in json.dumps(reponse)
+
+    with session() as cnx:
+        recu = idempotence.reclamer(cnx, _meta(cle), "m3_creer_devis", {}, dt.datetime.now(dt.UTC))
+        assert recu.rejouee is True and recu.reponse == succes
+        assert cnx.execute(select(MUTATIONS_APPLIQUEES)).mappings().all()[0]["statut"] == "ok"
+    assert _demandes(session) == []
+    assert _entrees_journal(session) == []
+
+
+@pytest.mark.parametrize("outil_avant,arguments_avant", [
+    ("outil_prive_fictif", {}),
+    ("m3_creer_devis", {"reference_privee_fictive": "REF-PRIVEE-FICTIVE"}),
+])
+def test_role_refuse_ne_revele_pas_un_conflit_de_cle(
+    capacites, personnes, session, outil_avant, arguments_avant,
+):
+    cle = "cle-occupee-privee-fictive"
+    succes = {"ok": True, "resultat": {"fictif": True}}
+    with session() as cnx:
+        assert idempotence.reclamer(
+            cnx, _meta(cle), outil_avant, arguments_avant, dt.datetime.now(dt.UTC),
+        ).rejouee is False
+        idempotence.finaliser(cnx, _meta(cle), succes)
+        avant = dict(cnx.execute(select(MUTATIONS_APPLIQUEES)).mappings().one())
+
+    reponse = _appeler(capacites, "m3_creer_devis", {}, EMPLOYE, cle)
+    assert reponse["ok"] is False and reponse["erreur"] == "hors_portee_role"
+    assert reponse["rejoue"] is False
+    assert "outil_prive_fictif" not in json.dumps(reponse)
+    assert "REF-PRIVEE-FICTIVE" not in json.dumps(reponse)
+    with session() as cnx:
+        assert dict(cnx.execute(select(MUTATIONS_APPLIQUEES)).mappings().one()) == avant
+    assert _demandes(session) == [] and _entrees_journal(session) == []
+
+
 def test_n4_par_un_admin_va_toujours_au_proprietaire(capacites, personnes, session):
     """`m4_resoudre_revue_completion` est N4 (écriture finale) ; il est dans la portée d'`admin`,
     mais la validation au départ s'arrête à N3 : mise en attente, exécution seulement après décision."""

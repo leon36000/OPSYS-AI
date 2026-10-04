@@ -34,6 +34,7 @@ import m3_estimation.outils as m3_outils
 import m5_financecore.outils as m5_outils
 import pytest
 import yaml
+from m3_estimation import trace_calibration_temps
 from m4_field_ops import cedule
 from m8_analytics import outils as m8_outils
 from sqlalchemy import select
@@ -167,7 +168,10 @@ def _m2_amener_pret_pour_readiness(m2, lead_id: str, base: dt.datetime) -> dict:
     return r["resultat"]["resultat"]
 
 
-def _m3_creer_devis(m3, devis_id: str, lead_id: str, chantier_id: str, base: dt.datetime) -> None:
+def _m3_creer_devis(
+    m3, devis_id: str, lead_id: str, chantier_id: str, base: dt.datetime,
+    estimation_source_hash: str | None = None,
+) -> None:
     """Devis fictif : 40 pi de gouttière (8.00 $/pi) + main d'oeuvre forfaitaire (160.00 $), marge 25 % :
     coût total 480.00 $, prix total 600.00 $, donc marge prévue 120.00 $."""
     lignes = [
@@ -179,6 +183,7 @@ def _m3_creer_devis(m3, devis_id: str, lead_id: str, chantier_id: str, base: dt.
     r = executer_atomique(m3["m3_creer_devis"], {
         "devis_id": devis_id, "lead_id": lead_id, "chantier_id": chantier_id, "lignes": lignes,
         "taux_marge": "0.25", "horodatage": _iso(base, 200), "prix_total": "600.00",
+        **({"estimation_source_hash": estimation_source_hash} if estimation_source_hash is not None else {}),
     })
     assert r["ok"] and r["resultat"]["accepte"], r
 
@@ -318,15 +323,29 @@ TYPE_M5 = "m5.rentabilite_chantier"
 MONTANTS_M5 = ("52.00", "-68.00", "548.00", "120.00")  # marge réelle, écart, coût réel, marge prévue du scénario 1
 
 
-def _m3_ecrire_estimation(devis_id: str, lead_id: str, duree_estimee_minutes: str) -> None:
-    """L'estimation d'origine du devis (registre « principal » de M3), telle que l'orchestrateur l'écrit : c'est
-    d'elle que `m3_marquer_devis_accepte` tire la durée estimée qu'il publie."""
+def _m3_ecrire_estimation(devis_id: str, lead_id: str, duree_estimee_minutes: str) -> str:
+    """Écrit une estimation fictive qualifiée et renvoie son hash exact pour l'épingler au devis."""
+    bareme = {
+        "version": "v1-fictif",
+        "unite": "pi",
+        "semantique_temps": "duree_ecoulee_intervention",
+    }
+    trace, verdict = trace_calibration_temps.construire_trace(
+        bareme=bareme,
+        type_service="gouttieres",
+        quantite="40",
+        taux_minutes_par_unite=Decimal(duree_estimee_minutes) / Decimal("40"),
+        duree_estimee_minutes=duree_estimee_minutes,
+    )
+    assert verdict is None and trace is not None, verdict
     with stockage.transaction():
-        _, verdict = m3_outils.registre_production().ajouter({
+        maillon, verdict = m3_outils.registre_production().ajouter({
             "devis_id": devis_id, "lead_id": lead_id, "empreinte_marqueur_m2": "e" * 64, "niveau_confiance": 0.9,
-            "bareme_version": "v1-fictif", "graine_monte_carlo": 7, "duree_estimee_minutes": duree_estimee_minutes,
+            "bareme_version": "v1-fictif", "graine_monte_carlo": 7,
+            "duree_estimee_minutes": duree_estimee_minutes, "trace_calibration_temps": trace,
         })
     assert verdict is None, verdict
+    return maillon["hash_maillon"]
 
 
 def _m6_prix_au_livre(m6, prix: float = 8.0) -> None:
@@ -343,9 +362,10 @@ def _chantier_termine(deps, base: dt.datetime, lead_id: str, devis_id: str, chan
     m2, m3, m4, m6 = (_outils(deps, d) for d in
                        ("m02-revenue-crm", "m03-estimation", "m04-field-ops", "m06-material-control"))
     marqueur = _m2_amener_pret_pour_readiness(m2, lead_id, base)
-    _m3_creer_devis(m3, devis_id, lead_id, chantier_id, base)
-    if duree_estimee is not None:
-        _m3_ecrire_estimation(devis_id, lead_id, duree_estimee)
+    estimation_source_hash = (
+        _m3_ecrire_estimation(devis_id, lead_id, duree_estimee) if duree_estimee is not None else None
+    )
+    _m3_creer_devis(m3, devis_id, lead_id, chantier_id, base, estimation_source_hash)
     _m2_transitionner(m2, lead_id, "converti", base, 300, reference_devis_m3=devis_id)
     _m3_accepter_devis(m3, devis_id, base)
     _m2_transitionner(m2, lead_id, "cedule", base, 660)

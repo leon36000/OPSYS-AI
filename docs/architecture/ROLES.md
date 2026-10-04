@@ -70,7 +70,7 @@ qui travaille sur un toit, un gestionnaire qui reprend un dossier).
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 116 outils sur 202 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 122 outils sur 213 sont déclarés.
 
 ### `employee` (14 outils) : §9.3, le terrain
 
@@ -118,7 +118,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (116 outils) : §9.5 + employé + vendeur
+### `admin` (122 outils) : §9.5 + employé + vendeur
 
 Les 14 outils de l'employé, les 14 du vendeur, et :
 
@@ -129,7 +129,9 @@ Les 14 outils de l'employé, les 14 du vendeur, et :
 | M1 | `m1_lire_transfert` (T0), `m1_clore_transfert` (N3) | §7 M1.8, M1.12 et §9.5 M1 « plaintes, transferts, prendre en charge » (T4.5) : l'admin lit le contexte d'une plainte, d'une urgence de sécurité ou d'un transfert (résumé, contact, messages du client) puis le clôt. La clôture est une décision HUMAINE : voir « Les transferts à un humain de M1 » plus bas. Ni l'employé ni le vendeur : le contact et les mots d'un client qui se plaint sont pour le propriétaire. |
 | M2 | `m2_produire_digest`, `m2_detecter_doublons`, `m2_signaler_doublon`, `m2_arbitrer_doublon` | §9.5 M2 : pipeline, leads chauds, doublons. |
 | M2 | `m2_reassigner_lead` (N3), `m2_republier_assignations` (N3) | §9.5 (le propriétaire ou son gestionnaire reprend le dossier d'un vendeur ; T1.4-m). La réassignation est une décision HUMAINE : voir « La réassignation d'un lead » plus bas. La republication remet au bus le fait de propriété que les leads qualifiés avant T1.4-k2 n'ont jamais publié ; outil de mise en service, idempotent, dérivé du registre. Ni l'employé ni le vendeur (un vendeur ne « prend » ni ne « cède » un lead). |
+| M3 | `m3_evaluer_calibration_cohortes`, `m3_proposer_calibration_temps` (N2), `m3_evaluer_candidate_calibration` (N2), `m3_activer_candidate_calibration`, `m3_rollback_candidate_calibration` (N4) | Boucle de calibration du temps à partir des cohortes et faits M4 vérifiés. Les candidates restent inactives jusqu'à une décision N4 du seul propriétaire; activation et rollback ne réécrivent jamais les devis ou estimations historiques. Aucun prix, coût ou facteur photo n'est modifié. |
 | M4 | `m4_lister_pending_review`, `m4_volumetrie_pending_review`, `m4_produire_digest` | §9.5 M4 : dispatch du jour, file de complétion. |
+| M4 | `m4_lire_faits_calibration_m3` (T0) | Projection en lecture seule des WCT et pointages dont la chaîne M4 et les statuts sont vérifiés; source des évaluations de cohorte de M3, sans temps de déplacement ni heures-personnes. |
 | M4 | `m4_resoudre_demande`, `m4_resoudre_revue_completion` (N4) | §9.5 M4 : approbation des complétions. |
 | M4 | `m4_produire_brouillon_temps` | §9.3 : brouillon de feuille de temps envoyé à M5. |
 | M4 | `m4_previsualiser_heures_regulieres` (T0), `m4_lire_heures_regulieres_validees` (T0) | Sources horaires individuelles privées : aperçu recalculé depuis les pointages et lecture de la validation N4 courante. Identité admin confirmée et technicien OPSYS actif avec rôle employee requis; chaîne altérée, intervalle incomplet ou hors période refusés. La lecture ne valide pas les heures : leur approbation N4 conserve le contrôle des sources et de la validation précédente attendue (CAS). Aucun salaire ni brut rendu; aucun accès employee/seller. |

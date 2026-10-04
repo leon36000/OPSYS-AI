@@ -1,5 +1,9 @@
 # Publication et corrections de CI — 4 octobre 2026
 
+Les résultats récents du head `b005c4e6`, le diagnostic des 79 échecs du socle
+et son correctif qualifié sont dans [Socle : contrats et mutations M7](SOCLE-CONTRATS-M7.md).
+Les observations historiques ci-dessous restent rattachées à leurs commits.
+
 La reprise est publiée dans la [PR privée #623](https://github.com/leon36000/OPSYS-AI/pull/623),
 branche `codex/restructuration-2026-09-30`, sur la base de Claude
 `claude/opsys-ai-analysis-x4jt87`. Aucun merge de `main`, déploiement ni action métier externe.

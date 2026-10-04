@@ -56,7 +56,7 @@ def test_fragments_openclaw(departements_demo, tmp_path):
     }
 
     mcp = json.loads(fichiers["mcp"].read_text(encoding="utf-8"))["servers"]["opsys_m9"]
-    assert mcp["url"] == "http://opsys:8765/mcp/m09-demo"
+    assert mcp["url"] == "http://opsys:8765/mcp/v1/m09-demo"
     assert mcp["transport"] == "streamable-http"
     assert mcp["headers"] == {"Authorization": "Bearer ${OPSYS_MCP_JETON}"}
 

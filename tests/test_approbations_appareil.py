@@ -1054,7 +1054,8 @@ def test_une_identite_sans_appel_d_appareil_idempotent_ne_decide_pas(session, ca
     with contexte.appele_par_appareil(PROPRIO):
         decision = capacites.appeler("m9_decider_demande_approbation", {"demande_id": ident, "decision": "approuver"})
 
-    assert decision["resultat"]["verdict"]["code"] == "appareil_inconnu"
+    # Le garde idempotence précède la résolution de l'appareil et le dispatch de décision.
+    assert decision["ok"] is False and decision["erreur"] == "idempotence_appareil_requise"
     with session() as cnx:
         assert approbations.lire(cnx, ident)["statut"] == "en_attente"
 

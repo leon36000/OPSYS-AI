@@ -884,6 +884,8 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=enregistrer_consentement_reference,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
             roles_appareil=frozenset({"admin", "employee"}),
         ),
         Outil(
@@ -1427,7 +1429,7 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=reputation_inbox.importer_avis_manuel,
-            autonomie=Autonomie.T0,
+            autonomie=Autonomie.T1,
             niveau=Niveau.N2,
             roles_appareil=frozenset({"admin", "employee"}),
         ),
@@ -1489,6 +1491,8 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=reputation_inbox.exporter_reponse_avis_manuel,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N2,
             roles_appareil=frozenset({"admin"}),
         ),
         Outil(

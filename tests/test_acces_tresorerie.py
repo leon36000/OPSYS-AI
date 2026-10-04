@@ -166,8 +166,8 @@ def test_un_agent_sans_identite_d_appareil_choisit_encore_sa_vue(capacites, pers
 
 # -- 3. par MCP : l'identité vient du `_meta`, jamais des arguments -----------------------------------------
 def _meta(personne, role):
-    return {"opsys/appareil": "tel-fictif-t1-4-k2", "opsys/horodatageAppareil": "2026-09-28T10:15:00-04:00",
-            "opsys/personne": personne, "opsys/role": role}
+    # Lecture sans clé: identité seule. Les champs appareil/horodatage sans clé sont invalides.
+    return {"opsys/personne": personne, "opsys/role": role}
 
 
 def test_mcp_le_schema_publie_ne_rend_plus_role_ni_autorise_couts_obligatoires(capacites, personnes):

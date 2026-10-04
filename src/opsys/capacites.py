@@ -274,6 +274,19 @@ class Capacites:
             return self._appeler_memoire(args, ticket_memoire)
         if ticket_memoire is not None:
             return {"ok": False, "erreur": "memoire_ticket_hors_portee"}
+        # Les outils cibles sortent du dispatch normal ci-dessous. Appliquer ici la même
+        # portée d'appareil que le chemin `_valider_au_depart`, avant les refus de ticket,
+        # sinon un rôle non autorisé observe `ticket_cible_requis` au lieu du refus de portée.
+        if (appelante is not None and appelante.source == "appareil" and nom in liaison_cibles.OUTILS_CIBLES
+                and nom not in self._outils_du_role(appelante.role)):
+            if meta is not None:
+                return self._appeler_idempotent(nom, args, meta, role_refuse=appelante.role)
+            return {
+                "ok": False,
+                "erreur": "hors_portee_role",
+                "details": f"{nom} est hors de la portée du rôle {appelante.role} "
+                           "(openclaw.roles_outils) : ni exécuté ni mis en attente.",
+            }
         if ticket_cible is not None:
             return self._appeler_avec_ticket(nom, args, ticket_cible)
         if nom in liaison_cibles.OUTILS_CIBLES:
@@ -419,7 +432,7 @@ class Capacites:
     def _appeler_idempotent(
         self, nom: str, arguments: dict[str, Any], meta: idempotence.Meta, *,
         revalider_humain_n3: bool = False, revalider_humain_cible: bool = False,
-        demander_n4_humain: bool = False,
+        demander_n4_humain: bool = False, role_refuse: str | None = None,
     ) -> dict[str, Any]:
         """Réclame `(appareil, cle)` puis exécute, dans une seule transaction : un renvoi de la
         même clé, du même outil et des mêmes arguments rejoue la réponse enregistrée sans
@@ -448,10 +461,27 @@ class Capacites:
                         "erreur": "ticket_cible_requis",
                         "details": "Identité humaine inactive ou autorisation retirée avant la création de la demande.",
                     }
+            refus_role = None
+            if role_refuse is not None:
+                refus_role = {
+                    "ok": False,
+                    "erreur": "hors_portee_role",
+                    "details": f"{nom} est hors de la portée du rôle {role_refuse} "
+                               "(openclaw.roles_outils) : ni exécuté ni mis en attente.",
+                }
             try:
                 reclamation = idempotence.reclamer(cnx, meta, nom, arguments, recu_le)
             except idempotence.MutationConflit as exc:
+                if refus_role is not None:
+                    return {**refus_role, "rejoue": False}
                 return {"ok": False, "erreur": "mutation_conflit", "details": str(exc)}
+            if refus_role is not None:
+                # Un refus de portée est rejouable, mais ne peut jamais dévoiler une ancienne
+                # réponse réussie ni la nature d'un conflit : l'autorité précède toute restitution.
+                if not reclamation.rejouee:
+                    idempotence.finaliser(cnx, meta, refus_role)
+                refus_rejoue = reclamation.rejouee and reclamation.reponse.get("erreur") == "hors_portee_role"
+                return {**refus_role, "rejoue": refus_rejoue}
             if reclamation.rejouee:
                 return {**reclamation.reponse, "rejoue": True}
             if demander_n4_humain:

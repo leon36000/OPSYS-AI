@@ -12,7 +12,7 @@ import pytest
 from mcp import Client
 from sqlalchemy import select
 
-from opsys import contexte
+from opsys import contexte, identite
 from opsys.capacites import Capacites
 from opsys.departements import charger_departements
 from opsys.outils import Autonomie, Niveau
@@ -116,28 +116,101 @@ def test_mcp_mutation_sans_identite_garde_le_protocole_agent(departements_demo, 
     assert not _etat(session)[MUTATIONS_APPLIQUEES.name]
 
 
-@pytest.mark.parametrize("departement,nom,arguments", [
+@pytest.mark.parametrize("departement,nom,arguments,identite_meta", [
     ("m04-field-ops", "m4_demarrer_route", {
         "intervention_id": "intervention-fictive", "technicien_id": "employe-fictif",
         "horodatage": "2026-10-04T00:00:00Z",
-    }),
-    ("m07-marketing", "m7_importer_avis_manuel", {}),
+    }, IDENTITE),
+    ("m07-marketing", "m7_importer_avis_manuel", {}, IDENTITE),
+    ("m07-marketing", "m7_exporter_reponse_avis_manuel", {"avis_id": "avis-fictif"},
+     {"opsys/personne": "proprio-fictif", "opsys/role": "admin"}),
 ])
-def test_registre_metier_reel_refuse_mutations_appareil_sans_cle(session, departement, nom, arguments):
+def test_registre_metier_reel_refuse_mutations_appareil_sans_cle(
+    session, departement, nom, arguments, identite_meta,
+):
     departements = charger_departements(Path(__file__).resolve().parents[1] / "departments")
     cap = Capacites(departements, session, filtre={departement}, appelant=departement)
     outil = cap.index[nom][1]
-    assert outil.roles_appareil & {"admin", "employee"}
+    assert identite_meta["opsys/role"] in outil.roles_appareil
     avant = _etat(session)
 
     async def scenario():
         async with Client(creer_serveur(cap)) as client:
-            resultat = await client.call_tool(nom, arguments, meta=IDENTITE)
+            resultat = await client.call_tool(nom, arguments, meta=identite_meta)
             assert resultat.is_error is True
             assert json.loads(resultat.content[0].text)["erreur"] == "idempotence_appareil_requise"
 
     anyio.run(scenario)
     assert _etat(session) == avant
+
+
+@pytest.fixture
+def consentement_marketing(session):
+    with session() as cnx:
+        identite.creer_personne(cnx, "employe-fictif", "Employé fictif", "mot-de-passe-fictif-1234", ["employee"])
+    departements = charger_departements(Path(__file__).resolve().parents[1] / "departments")
+    cap = Capacites(departements, session, filtre={"m07-marketing"}, appelant="m07-marketing")
+    arguments = {
+        "consentement_id": "consentement-fictif",
+        "personne_ref": "client-fictif",
+        "texte_consentement": "Consentement fictif à une référence locale",
+        "source_preuve": "preuve-fictive",
+        "horodatage": "2026-10-04T00:00:00Z",
+    }
+    return cap, arguments
+
+
+def test_consentement_marketing_sans_cle_ne_cree_aucune_preuve(session, consentement_marketing):
+    cap, arguments = consentement_marketing
+    avant = _etat(session)
+
+    async def scenario():
+        async with Client(creer_serveur(cap)) as client:
+            resultat = await client.call_tool("m7_enregistrer_consentement_reference", arguments, meta=IDENTITE)
+            assert resultat.is_error is True
+            assert json.loads(resultat.content[0].text)["erreur"] == "idempotence_appareil_requise"
+
+    anyio.run(scenario)
+    assert _etat(session) == avant
+
+
+def test_consentement_marketing_avec_cle_rejoue_une_seule_preuve(session, consentement_marketing):
+    cap, arguments = consentement_marketing
+    meta = {**IDENTITE, "opsys/idempotencyKey": "consentement-fictif",
+            "opsys/appareil": "tel-fictif", "opsys/horodatageAppareil": "2026-10-04T00:00:00Z"}
+
+    async def scenario():
+        async with Client(creer_serveur(cap)) as client:
+            for rejouee in (False, True):
+                resultat = await client.call_tool("m7_enregistrer_consentement_reference", arguments, meta=meta)
+                donnees = json.loads(resultat.content[0].text)
+                assert resultat.is_error is False
+                assert donnees["resultat"]["statut"] == "consentement_enregistre"
+                assert donnees["rejoue"] is rejouee
+
+    anyio.run(scenario)
+    with session() as cnx:
+        preuves = [json.loads(ligne["maillon"]) for ligne in cnx.execute(select(REGISTRES)).mappings()
+                   if ligne["registre"] == "local_campaigns"
+                   and json.loads(ligne["maillon"]).get("type") == "consentement_reference"]
+        assert len(preuves) == 1
+        assert preuves[0]["saisi_par"] == "employe-fictif"
+    assert len(_etat(session)[MUTATIONS_APPLIQUEES.name]) == 1
+
+
+@pytest.mark.parametrize("nom", [
+    "m7_enregistrer_consentement_reference", "m7_exporter_reponse_avis_manuel", "m7_importer_avis_manuel",
+])
+def test_catalogue_mcp_ne_presente_pas_les_ecritures_marketing_comme_lectures(session, nom):
+    departements = charger_departements(Path(__file__).resolve().parents[1] / "departments")
+    cap = Capacites(departements, session, filtre={"m07-marketing"}, appelant="m07-marketing")
+
+    async def scenario():
+        async with Client(creer_serveur(cap)) as client:
+            catalogue = {outil.name: outil for outil in (await client.list_tools()).tools}
+            assert catalogue[nom].annotations.read_only_hint is False
+
+    anyio.run(scenario)
 
 
 def test_identite_appareil_ne_peut_pas_lire_la_memoire(departements_demo, session):

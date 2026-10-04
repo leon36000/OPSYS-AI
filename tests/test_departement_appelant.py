@@ -124,7 +124,7 @@ def test_isolation_des_agents_openclaw(tmp_path):
     assert "opsys_context_*__*" in refus_m3
     assert "opsys_runtime_*__*" in refus_m3
     assert len([nom for nom in refus_m3 if nom not in {"opsys_context_*__*", "opsys_runtime_*__*"}]) == 9
-    assert serveurs["opsys_m3"]["url"] == "http://opsys:8765/mcp/m03-estimation"
+    assert serveurs["opsys_m3"]["url"] == "http://opsys:8765/mcp/v1/m03-estimation"
 
 
 def _port_libre() -> int:

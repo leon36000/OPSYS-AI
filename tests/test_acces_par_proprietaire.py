@@ -252,10 +252,12 @@ def test_client_360_d_un_client_partage_ne_montre_au_vendeur_que_ses_opportunite
 
 # -- 4. par MCP : l'identité vient du `_meta`, jamais des arguments ---------------------------------------------
 def _meta_mcp(personne, role, cle=None):
-    meta = {"opsys/appareil": "tel-fictif-t1-4-k2", "opsys/horodatageAppareil": "2026-09-29T10:15:00-04:00",
-            "opsys/personne": personne, "opsys/role": role}
+    # Sans clé: identité seule (lecture T0/N0). Appareil + horodatage sans clé forment une
+    # enveloppe d'idempotence partielle et doivent rester refusés par le parseur MCP.
+    meta = {"opsys/personne": personne, "opsys/role": role}
     if cle is not None:
-        meta["opsys/idempotencyKey"] = cle
+        meta.update({"opsys/idempotencyKey": cle, "opsys/appareil": "tel-fictif-t1-4-k2",
+                     "opsys/horodatageAppareil": "2026-09-29T10:15:00-04:00"})
     return meta
 
 

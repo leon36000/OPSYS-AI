@@ -177,7 +177,7 @@ def test_portees_bornees_par_le_manifeste_du_departement_appelant(base, embeddin
 
 
 @avec_docker
-def test_m03_lit_procedures_en_plein_texte_sans_appel_embeddings_et_ne_peut_pas_ecrire(base, embeddings):
+def test_m03_lit_procedures_si_profil_local_indisponible_et_ne_peut_pas_ecrire(base, embeddings):
     base.setenv("OPSYS_DEPARTMENTS", str(RACINE / "departments"))
     base.setenv("OPSYS_DEPARTEMENT", "m03-estimation")
     refus = _appel("opsys_memoire_ajouter", texte="pas de write", source="fictif:procedure",
@@ -186,7 +186,9 @@ def test_m03_lit_procedures_en_plein_texte_sans_appel_embeddings_et_ne_peut_pas_
     reponse = _appel("opsys_memoire_rechercher", requete="procédure de toiture", portees=["procedures"])
     assert reponse["ok"] is True
     assert reponse["resultat"]["mode"] == "plein_texte"
-    assert "aucun appel d'embeddings" in reponse["resultat"]["avertissement"]
+    avertissement = reponse["resultat"]["avertissement"]
+    assert "provider local/profil indisponible" in avertissement
+    assert "handshake" in avertissement and "recherche plein texte" in avertissement
     assert embeddings.requetes == []
 
 

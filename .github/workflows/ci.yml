@@ -50,6 +50,21 @@ jobs:
       # depuis le core, éprouvé par le job installateur).
       - name: Cohérence des départements (manifestes, outils, dépendances)
         run: OPSYS_HOME="$RUNNER_TEMP/opsys" opsys-metier verifier
+      - name: Vérification de l’isolation PDF native
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bubblewrap
+          bwrap --version
+          python - <<'PY'
+          import subprocess
+          from opsys.fusion_pdf import _commande_isolee
+
+          commande = _commande_isolee()
+          commande[-2:] = ["-I", "-c", "pass"]
+          subprocess.run(commande, check=True, env={}, timeout=10)
+          PY
       - name: Tests du socle
         run: pytest
 

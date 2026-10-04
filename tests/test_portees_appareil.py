@@ -53,9 +53,13 @@ ADMIN_SEUL = frozenset({
     "m2_arbitrer_doublon", "m2_detecter_doublons", "m2_produire_digest", "m2_signaler_doublon",
     # réassigner un lead (décision humaine) et republier le fait de propriété d'avant T1.4-k2 (T1.4-m)
     "m2_reassigner_lead", "m2_republier_assignations",
+    # Calibration du temps M3 : lecture/évaluation, candidate inactive et demandes de décision N4.
+    "m3_evaluer_calibration_cohortes", "m3_proposer_calibration_temps", "m3_evaluer_candidate_calibration",
+    "m3_activer_candidate_calibration", "m3_rollback_candidate_calibration",
     "m4_appliquer_cedule", "m4_confirmer_localisation", "m4_lire_position_gps", "m4_lister_pending_review",
     "m4_produire_brouillon_temps", "m4_produire_digest", "m4_proposer_cedule", "m4_proposer_localisation",
     "m4_resoudre_demande", "m4_resoudre_revue_completion", "m4_verifier_preparation",  # préparation (T4.10-b)
+    "m4_lire_faits_calibration_m3",  # preuve M4 vérifiée consommée par la calibration de M3
     "m4_verifier_meteo_creneau",  # la météo d'un plan de cédule : dispatch de l'admin (T4.13)
     "m4_lire_meteo_intervention",  # la météo du créneau d'une intervention, sans plan_id : dispatch (T4.27-a)
     "m4_lire_retards_incidents",  # les reports en cours et les incidents ouverts : dispatch de l'admin (T4.27-a)

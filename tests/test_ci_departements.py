@@ -109,6 +109,28 @@ def test_le_job_socle_lint_toujours_le_socle():
     assert "ruff check src tests" in commandes
 
 
+def test_le_job_socle_installe_et_eprouve_l_isolation_pdf_avant_pytest():
+    socle = _ci()["jobs"]["socle"]
+    assert socle["runs-on"] == "ubuntu-latest"
+    etapes = socle["steps"]
+    (etape,) = [e for e in etapes if e.get("name") == "Vérification de l’isolation PDF native"]
+    commande = etape["run"]
+    assert etape["shell"] == "bash"
+    assert "set -euo pipefail" in commande
+    assert "sudo apt-get update" in commande
+    assert "sudo apt-get install -y --no-install-recommends bubblewrap" in commande
+    assert "bwrap --version" in commande
+    assert "from opsys.fusion_pdf import _commande_isolee" in commande
+    assert "commande = _commande_isolee()" in commande
+    assert "subprocess.run(commande, check=True, env={}, timeout=10)" in commande
+    assert "continue-on-error" not in etape
+    assert "|| true" not in commande
+    assert "skip" not in commande.lower()
+    assert not etape.get("if")
+    noms = [e.get("name", "") for e in etapes]
+    assert noms.index(etape["name"]) < noms.index("Tests du socle")
+
+
 def test_chaque_departement_de_la_liste_de_lint_est_propre_selon_ruff():
     for dossier in _departements_lintes():
         resultat = _ruff_check(RACINE / "departments" / dossier)
