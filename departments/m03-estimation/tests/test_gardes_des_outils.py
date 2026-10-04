@@ -329,6 +329,20 @@ def _rendre_une_mutation_non_compilable(
     return source_batterie[:debut] + fragment_invalide + source_batterie[fin:]
 
 
+@pytest.fixture(autouse=True)
+def aucune_trace_dans_le_departement():
+    """Chaque scénario garde l’empreinte réelle, même si son assertion échoue.
+
+    Les cas nominaux/rouges/sans-garde portent déjà les invocations probantes.
+    Les empreinter séparément évite de les rejouer dans une campagne agrégée.
+    """
+    avant = _instantane_arborescence()
+    try:
+        yield
+    finally:
+        _assert_instantanes_identiques(avant, _instantane_arborescence())
+
+
 @pytest.fixture
 def lancer_outil():
     yield _lancer
@@ -390,6 +404,7 @@ def test_chaque_batterie_refuse_une_suite_deja_rouge(outil, campagne_gardes):
 
 def test_l_enumerateur_refuse_une_suite_deja_rouge(campagne_gardes):
     resultat = campagne_gardes.suite_rouge(_ENUMERATEUR).preuve
+    assert resultat.nettoyage_prouve
     sortie = _sortie(resultat)
 
     assert resultat.retour != 0, "l'énumérateur a accepté une suite déjà rouge"
@@ -401,6 +416,7 @@ def test_l_enumerateur_refuse_une_suite_deja_rouge(campagne_gardes):
 
 def test_l_enumerateur_refuse_un_module_sans_garde(campagne_gardes):
     resultat = campagne_gardes.sans_garde_preuve().preuve
+    assert resultat.nettoyage_prouve
     sortie = _sortie(resultat)
 
     assert resultat.retour != 0, "l'énumérateur a accepté un module sans garde"
@@ -515,46 +531,6 @@ def test_une_mutation_non_compilable_est_signalee(campagne_gardes):
     )
     assert resultat.nettoyage_prouve
     assert b"def epreuve_non_compilable" in source_outil
-
-    apres = _instantane_arborescence()
-    _assert_instantanes_identiques(avant, apres)
-
-
-def test_aucune_trace_apres_les_epreuves(campagne_gardes):
-    """L'épreuve complète (sain -> suite rouge -> module sans garde) ne laisse RIEN
-    sous la vraie racine du département : ``EnvironnementMutation`` porte les deux
-    artefacts d'un bout à l'autre, et seule sa copie temporaire est détruite.
-    """
-    assert _OUTILS_MUTATION, (
-        "aucun outil de mutation trouvé : l'épreuve de suite rouge est absente"
-    )
-
-    avant = _instantane_arborescence()
-    for outil in _OUTILS_MUTATION:
-        acces_normal = campagne_gardes.nominal(outil)
-        resultat_normal = acces_normal.preuve
-        sortie_normale = _sortie(resultat_normal)
-        assert resultat_normal.retour == 0, (
-            f"l'épreuve normale de {outil.name} n'a pas abouti ; "
-            "le contrôle d'absence de trace n'est pas probant :\n"
-            f"{sortie_normale}"
-        )
-        _assert_mutations_effectives(sortie_normale, outil)
-
-    for outil in [*_OUTILS_MUTATION, _ENUMERATEUR]:
-        acces_rouge = campagne_gardes.suite_rouge(outil)
-        resultat_rouge = acces_rouge.preuve
-        sortie_rouge = _sortie(resultat_rouge)
-        assert resultat_rouge.retour != 0
-        assert PHRASE_SUITE_ROUGE in sortie_rouge
-        assert resultat_rouge.nettoyage_prouve
-
-    acces_vide = campagne_gardes.sans_garde_preuve()
-    resultat_vide = acces_vide.preuve
-    sortie_vide = _sortie(resultat_vide)
-    assert resultat_vide.retour != 0
-    assert PHRASE_SANS_GARDE in sortie_vide
-    assert resultat_vide.nettoyage_prouve
 
     apres = _instantane_arborescence()
     _assert_instantanes_identiques(avant, apres)
@@ -675,7 +651,7 @@ def test_empreinte_de_src_et_tests_identique_apres_confection_d_une_epreuve():
     — mais sur la CONFECTION DES ARTEFACTS de cette épreuve elle-même, pas sur une
     batterie de mutation (déjà empreintée autour d'un appel d'outil par
     ``test_le_chemin_nominal_de_l_enumerateur_est_exerce``, ``test_une_mutation_non_
-    compilable_est_signalee`` et ``test_aucune_trace_apres_les_epreuves`` ci-dessus).
+    compilable_est_signalee`` et la fixture d’empreinte appliquée à chaque cas).
 
     Fabrique réellement les deux ``EnvironnementMutation`` (test rouge, module sans
     garde), vérifie que chaque artefact existe dans SA copie et nulle part sous la
@@ -710,3 +686,33 @@ def test_empreinte_de_src_et_tests_identique_apres_confection_d_une_epreuve():
 
     apres = _instantane_arborescence()
     _assert_instantanes_identiques(avant, apres)
+
+
+@pytest.mark.parametrize("trace", ["apparu", "disparu", "contenu", "mode", "exception"])
+def test_la_garde_d_empreinte_refuse_une_trace_reelle(tmp_path, monkeypatch, trace):
+    """Éprouve le teardown réel avec une copie locale, y compris après une erreur."""
+    source_locale = tmp_path / "src"
+    tests_locaux = tmp_path / "tests"
+    source_locale.mkdir()
+    tests_locaux.mkdir()
+    cible = source_locale / "epreuve.py"
+    cible.write_text("valeur = 1\n", encoding="utf-8")
+    with monkeypatch.context() as contexte:
+        contexte.setitem(globals(), "_M3", tmp_path)
+        contexte.setitem(globals(), "_TESTS", tests_locaux)
+        garde = aucune_trace_dans_le_departement.__wrapped__()
+        next(garde)
+        if trace == "apparu":
+            (tests_locaux / "trace.py").write_text("valeur = 2\n", encoding="utf-8")
+        elif trace == "disparu":
+            cible.unlink()
+        elif trace == "mode":
+            cible.chmod((cible.stat().st_mode & 0o7777) ^ 0o100)
+        else:
+            cible.write_text("valeur = 2\n", encoding="utf-8")
+        attendu = "contenu" if trace == "exception" else trace
+        with pytest.raises(AssertionError, match=attendu):
+            if trace == "exception":
+                garde.throw(RuntimeError("échec fictif de l’épreuve"))
+            else:
+                garde.close()

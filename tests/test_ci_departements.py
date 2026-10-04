@@ -134,15 +134,11 @@ def test_les_outils_de_preuve_de_m3_tournent_une_fois_et_une_seule():
         du_fichier = [p for p in parts if p["fichier"] == fichier and "seul" not in p]
         (total,) = {p["parts"] for p in du_fichier}
         assert sorted(p["part"] for p in du_fichier) == list(range(total))
-    # Les cas isolés (un exécuteur chacun) sont exactement ceux de `CAS_SEULS`, que le tourniquet retire, et
-    # chacun est une vraie fonction de test du fichier : aucun cas n'est oublié ni joué deux fois.
-    seuls = [p for p in parts if "seul" in p]
-    assert sorted(p["seul"] for p in seuls) == sorted(ci["jobs"]["m03-preuves"]["env"]["CAS_SEULS"].split())
-    for entree in seuls:
-        texte = (RACINE / "departments" / "m03-estimation" / "tests" / entree["fichier"]).read_text(encoding="utf-8")
-        assert f"def {entree['seul']}(" in texte, entree
+    assert not any("seul" in p for p in parts)
+    assert "CAS_SEULS" not in ci["jobs"]["m03-preuves"].get("env", {})
     etape_preuves = next(e for e in ci["jobs"]["m03-preuves"]["steps"] if "Outils de preuve de M3" in e.get("name", ""))
-    assert "est_seul" in etape_preuves["run"] and "CAS_SEULS" in etape_preuves["run"]
+    assert "i % PARTS == PART" in etape_preuves["run"]
+    assert 'test "${#retenus[@]}" -gt 0' in etape_preuves["run"]
     for fichier in fichiers:
         assert (RACINE / "departments" / "m03-estimation" / "tests" / fichier).is_file()
     nom = "Tests du département ${{ matrix.dossier }}"
