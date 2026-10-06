@@ -248,3 +248,25 @@ extensions/voice-call/src/config.missed-call-ingress.test.ts
 extensions/voice-call/src/webhook.missed-call.test.ts
 extensions/voice-call/src/webhook.test.ts
 extensions/voice-call/index.test.ts
+
+# Reprise légère : intentions POSTFLIGHT, collecte/remise/ACK M10, lecture opérateur
+# et voisins du cycle attempt. Même lanceur canonique et broker hôte que la qualification locale.
+src/agents/embedded-agent-runner/run/attempt-phase-lifecycle.test.ts
+src/agents/embedded-agent-runner/run/attempt-prompt-submit.test.ts
+src/agents/harness/context-engine-turn-outbox.test.ts
+src/agents/harness/opsys-postflight-collector.sqlite.test.ts
+src/agents/harness/opsys-postflight-collector.test.ts
+src/agents/harness/opsys-postflight-delivery.python-http.integration.test.ts
+src/agents/harness/opsys-postflight-delivery.test.ts
+src/agents/harness/opsys-postflight-intents.test.ts
+src/agents/harness/opsys-postflight-outbox.test.ts
+src/cli/opsys-postflight-diagnostic.test.ts
+src/cli/program/register.database.import-boundary.test.ts
+src/cli/program/register.database.postflight.test.ts
+
+# Retrait cron et preuves d’autorité : ces voisins ne sont pas garantis par test:fast.
+src/cron/store.test.ts
+src/cron/store/runtime-retirement-store.integration.test.ts
+src/cron/store/runtime-authority-crypto.integration.test.ts
+src/gateway/opsys-cron-reconciler.native.test.ts
+src/gateway/server-cron.test.ts

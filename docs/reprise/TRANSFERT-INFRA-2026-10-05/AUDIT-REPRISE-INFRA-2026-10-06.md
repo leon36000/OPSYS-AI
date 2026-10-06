@@ -55,3 +55,14 @@ Les fenêtresH0/H24 d'octobre5 sont historiques, pas un daemon24h. Reprise aprè
 4. **Surfaces utilisateurs** : dashboard agents/modèles/outils/droits/secretrefs/coûts, mobile quatre profils hors ligne, texte/audio/avatar3D avec identité et permissions communes. Résultats/coûts/latence mesurés, aucun gain inventé.
 
 Le CoreOpenClaw, CRM, comptabilité, bus/outbox et ambitions des dix départements sont conservés. Donnée manquante=inconnue/refus nommé. Argent réel, déclarations, engagements, achats/publications sensibles et suppressions définitives gardent leurs validations humaines. Conversations absentes et mémoire personnelle du modèle ne sont pas déclarées archivées.
+
+## Suivi de la première CI de reprise — 2026-10-06T05:12:10.680562-04:00
+
+Le commit d'intégration `44e388245253b6697391002415b2d0212b1e60cb` est publié sans force. Sa première CI révèle deux causes corrigibles : verrou mobile `source-map-js1.2.1`, et catalogue historique M3 resté à13outils avant les3lectures transportées. Les résultats de ce parent demeurent séparés; le nouveau commit de correction exige sa propre CI.
+
+- Mobile : correctif amont `source-map-js1.2.2` ([avis GitHub](https://github.com/advisories/GHSA-68fv-2mgg-jv7q)), seule entrée du verrou changée (version/URL/intégrité). Audit au seuilhigh passé de1high à0high,35moderates conservées, aucun seuil/exclusion abaissé; npmci puis2693tests/123suites, types et17régressions verts.
+- M3 : ensemble exact du catalogue conservé, trois lectures explicitement nommées et contraintes àT0; aucune nouvelle mutation pour les scénarios. Rouge local1F/26P conservé; fichiers scénarios/preuves verts33/33, batterie de référence et captures réelles avant/après incluses. Département2240P/9S hors deux batteries réparties séparément dans la CI; aucun skip ajouté.
+- CI Core :12tests transportés et5voisins cron ajoutés à la liste explicite,183cibles sans doublon; vérification rouge17absents puis verte. Les suites locales305Core/270cron qualifient déjà ces fichiers via le même lanceur canonique; les runners restent une preuve séparée.
+- PostgreSQL : jobM10 du parent réussi après téléchargement explicite `pgvector/pgvector:pg17`. Cela ne qualifie pas les testsPostgreSQLM3, les appareils réels ou une restaurationVPS.
+
+[Capsule de suivi](PREUVES-REPRISE-2026-10-06-r2.tar.xz), SHA256 `079c176e26ce9d1831fd61c487f831495b7fb22c38371d41004bbe52b03c51a5`, conserve les nouveaux reçus rouges/verts et les snapshots/journaux de la première CI. La capsule r1 reste intacte. Le registre distingue désormais25suppléments de qualification. [File verticale et critères de jonction](CONTINUITE-VERTICALE-2026-10-06.md) : sous-parcours actuels distincts d'un scénario unique non livré. OPSYS-AI reste **PARTIEL**.

@@ -5334,6 +5334,27 @@
       "transport_sha256": "923a03b53cf500f52e2a94619aeb8a60cad5ffe1655ad652d7d24e1077561332",
       "final_sha256": "3e1df3017f465a8edf9882321ab8ad6ad7c1ea9b5dff54b087f53f4ae4e53511",
       "disposition": "programme actualisé avec audit et file de lots"
+    },
+    {
+      "path": "mobile/package-lock.json",
+      "base_sha256": "03af7d4f63e502a0e919af9ee5bb474af31f2ed24fd3de77b64f720359c3fa5e",
+      "transport_sha256": null,
+      "final_sha256": "cbdf7a73644990a447f02d710c322cffd70c6e9653e84f40a87aed323a74d105",
+      "disposition": "suivi CI exact44e38824; mise à jour ciblée source-map-js, catalogue M3 T0 et liste explicite Core; voir audit/diff"
+    },
+    {
+      "path": "departments/m03-estimation/tests/test_outils_scenarios.py",
+      "base_sha256": "68709f76ac90da7a1f103a9fd14f1479b3fe1647a098bd66e3d4448f5e85fe83",
+      "transport_sha256": null,
+      "final_sha256": "c69527a45994e0538adf667948b6f4035a0560d30c4b736e734559482016b7fb",
+      "disposition": "suivi CI exact44e38824; mise à jour ciblée source-map-js, catalogue M3 T0 et liste explicite Core; voir audit/diff"
+    },
+    {
+      "path": "core/test/opsys-tests-cibles.txt",
+      "base_sha256": "d82ce594a8c5a8de351d6ed9ba4fdf898e7a855ba6a3150af1a0fa19ab08d328",
+      "transport_sha256": null,
+      "final_sha256": "51d72a310297c47e369b517cc9a54aec10e190aa73ff0d4c0a3264276510ab94",
+      "disposition": "suivi CI exact44e38824; mise à jour ciblée source-map-js, catalogue M3 T0 et liste explicite Core; voir audit/diff"
     }
   ],
   "observation_toronto": "2026-10-06T04:54:57.683714-04:00",
@@ -5384,6 +5405,46 @@
       "log_sha256": "89db0113529b5f4d4ace124f0cf24f08f43567753d5d23ce06b07b9bb4b9eabb",
       "receipt_path": "admin-fixture-generation-r1.json",
       "receipt_sha256": "730e21e7b99e494d21fa352f983d1679a5da320d3cce8f693a93b711affac607"
+    },
+    {
+      "label": "ci-targets-r1",
+      "command": [
+        "python3",
+        "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/verify_ci_targets.py"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-06T09:05:54.894792+00:00",
+      "completed_utc": "2026-10-06T09:05:57.007756+00:00",
+      "exit_code": 1,
+      "wall_seconds": 1.314,
+      "peak_process_tree_rss_bytes": 0,
+      "guard_triggered": null,
+      "source_sha256_before": "6891eede6eaab28a809dab1c0f20fc1759e418c0b2d84b407546bc421fffc6df",
+      "source_sha256_after": "6891eede6eaab28a809dab1c0f20fc1759e418c0b2d84b407546bc421fffc6df",
+      "sources_unchanged": true,
+      "log_sha256": "472dde3b00235be79517ed62422e49c3fe0d59c9b61e46a8ef1e8264fff182c3",
+      "receipt_path": "ci-targets-r1.json",
+      "receipt_sha256": "c9d5b03c415b84a5de7c32aa2480308eee76cf9272267db50f105cea2a6e36c4"
+    },
+    {
+      "label": "ci-targets-r2",
+      "command": [
+        "python3",
+        "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/verify_ci_targets.py"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-06T09:12:02.027272+00:00",
+      "completed_utc": "2026-10-06T09:12:04.163235+00:00",
+      "exit_code": 0,
+      "wall_seconds": 1.313,
+      "peak_process_tree_rss_bytes": 0,
+      "guard_triggered": null,
+      "source_sha256_before": "92b815390a2741d2dc373015f3b7db67a0e9dea488ba8aa5fe1935fa29f82fb7",
+      "source_sha256_after": "92b815390a2741d2dc373015f3b7db67a0e9dea488ba8aa5fe1935fa29f82fb7",
+      "sources_unchanged": true,
+      "log_sha256": "903f6be4be31f6ac42e6006708a3ea5f6e1522dba8a7ee7d3b660a2a785f5aaa",
+      "receipt_path": "ci-targets-r2.json",
+      "receipt_sha256": "adbff344feeb705f234f606ae4f1e7bae408f9f6bc9a3d46efba1858ca028c3a"
     },
     {
       "label": "core-build-r1",
@@ -6036,6 +6097,105 @@
       "receipt_sha256": "94bb7e71d7f112b1f521aa314234431059b2b870c2f793c7ed52892729bab111"
     },
     {
+      "label": "m3-catalogue-r1",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "departments/m03-estimation/tests/test_outils_scenarios.py",
+        "--junitxml=/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/m3-catalogue-r1.xml"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-06T09:03:18.347414+00:00",
+      "completed_utc": "2026-10-06T09:03:20.985884+00:00",
+      "exit_code": 1,
+      "wall_seconds": 1.842,
+      "peak_process_tree_rss_bytes": 74510336,
+      "guard_triggered": null,
+      "source_sha256_before": "6012cd6cc0f54c78964c54e8b40cb1f2f2c4fa872815153f451e00f082da6bba",
+      "source_sha256_after": "6012cd6cc0f54c78964c54e8b40cb1f2f2c4fa872815153f451e00f082da6bba",
+      "sources_unchanged": true,
+      "log_sha256": "80875b4c4c82b3672d855cab4d49b27c5bb0a2b2e35f5787f4a1cd585cdedcee",
+      "receipt_path": "m3-catalogue-r1.json",
+      "receipt_sha256": "2dfddd65f0d5e913211779301d82359815f3cecb0ab5ab4cd4949924486e1235"
+    },
+    {
+      "label": "m3-departement-r2",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "departments/m03-estimation/tests",
+        "-q",
+        "--import-mode=importlib",
+        "-p",
+        "no:cacheprovider",
+        "--deselect",
+        "departments/m03-estimation/tests/test_gardes_des_outils.py",
+        "--deselect",
+        "departments/m03-estimation/tests/test_outils_de_preuve.py",
+        "--junitxml=/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/m3-departement-r2.xml"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-06T09:06:17.460770+00:00",
+      "completed_utc": "2026-10-06T09:06:53.733308+00:00",
+      "exit_code": 0,
+      "wall_seconds": 35.485,
+      "peak_process_tree_rss_bytes": 152952832,
+      "guard_triggered": null,
+      "source_sha256_before": "6891eede6eaab28a809dab1c0f20fc1759e418c0b2d84b407546bc421fffc6df",
+      "source_sha256_after": "6891eede6eaab28a809dab1c0f20fc1759e418c0b2d84b407546bc421fffc6df",
+      "sources_unchanged": true,
+      "log_sha256": "4a21674e971e2a1c739b5c9f231a7df9d65a302440b13bdf8586d6c3ba60ebd9",
+      "receipt_path": "m3-departement-r2.json",
+      "receipt_sha256": "9fea79b082a4af1727e237cfa26bbf8fc8bac422757d6f7f4bbce392675b1a7d"
+    },
+    {
+      "label": "m3-lint-r1",
+      "command": [
+        "ruff",
+        "check",
+        "departments/m03-estimation/tests/test_outils_scenarios.py"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-06T09:03:37.827636+00:00",
+      "completed_utc": "2026-10-06T09:03:39.959925+00:00",
+      "exit_code": 0,
+      "wall_seconds": 1.322,
+      "peak_process_tree_rss_bytes": 0,
+      "guard_triggered": null,
+      "source_sha256_before": "6891eede6eaab28a809dab1c0f20fc1759e418c0b2d84b407546bc421fffc6df",
+      "source_sha256_after": "6891eede6eaab28a809dab1c0f20fc1759e418c0b2d84b407546bc421fffc6df",
+      "sources_unchanged": true,
+      "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "receipt_path": "m3-lint-r1.json",
+      "receipt_sha256": "85aecd2176b78c62a4d1f1ba5df4df23ed0614eb85831eecc067a036a78c2f00"
+    },
+    {
+      "label": "m3-preuves-r2",
+      "command": [
+        "python",
+        "-m",
+        "pytest",
+        "departments/m03-estimation/tests/test_outils_scenarios.py",
+        "departments/m03-estimation/tests/test_outils_de_preuve.py",
+        "--junitxml=/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/m3-preuves-r2.xml"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+      "started_utc": "2026-10-06T09:03:36.679741+00:00",
+      "completed_utc": "2026-10-06T09:10:59.511064+00:00",
+      "exit_code": 0,
+      "wall_seconds": 442.04,
+      "peak_process_tree_rss_bytes": 295739392,
+      "guard_triggered": null,
+      "source_sha256_before": "6891eede6eaab28a809dab1c0f20fc1759e418c0b2d84b407546bc421fffc6df",
+      "source_sha256_after": "6891eede6eaab28a809dab1c0f20fc1759e418c0b2d84b407546bc421fffc6df",
+      "sources_unchanged": true,
+      "log_sha256": "421ec2aac3ed646d9497d0c33dae4e520afa62be4a5d97233048696e354fefc1",
+      "receipt_path": "m3-preuves-r2.json",
+      "receipt_sha256": "9080a731b82f92d6f59d1aeacadb2e026d89206da9385cff0fed3a338f95462c"
+    },
+    {
       "label": "manifestes-r1",
       "command": [
         "opsys-metier",
@@ -6053,6 +6213,29 @@
       "log_sha256": "474c156de198e68f60fd508b3b3d5a7be826fbb3c3bc90bb4bb93269fb7a7cea",
       "receipt_path": "manifestes-r1.json",
       "receipt_sha256": "dbe26a79020979842bbadc4f92f41109fce50acd451cb4bd11402a335daa9ace"
+    },
+    {
+      "label": "mobile-audit-r2",
+      "command": [
+        "npm",
+        "audit",
+        "--package-lock-only",
+        "--ignore-scripts",
+        "--audit-level=high"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/mobile",
+      "started_utc": "2026-10-06T09:02:26.002741+00:00",
+      "completed_utc": "2026-10-06T09:02:28.681868+00:00",
+      "exit_code": 0,
+      "wall_seconds": 1.85,
+      "peak_process_tree_rss_bytes": 156819456,
+      "guard_triggered": null,
+      "source_sha256_before": "6012cd6cc0f54c78964c54e8b40cb1f2f2c4fa872815153f451e00f082da6bba",
+      "source_sha256_after": "6012cd6cc0f54c78964c54e8b40cb1f2f2c4fa872815153f451e00f082da6bba",
+      "sources_unchanged": true,
+      "log_sha256": "27ab7aa8b09938f603088438fd167b1fc5a124d19dce7ad85f79394276a547c5",
+      "receipt_path": "mobile-audit-r2.json",
+      "receipt_sha256": "8abb0aac326cc1826174563932a71d6bb04617ace19187e7f533595c464993c8"
     },
     {
       "label": "mobile-dependencies-r1",
@@ -6074,6 +6257,27 @@
       "log_sha256": "370038afda9207c8a558b9e5f067398fcee60f9a87160d95fa2a052e45867346",
       "receipt_path": "mobile-dependencies-r1.json",
       "receipt_sha256": "29b318c0ac89c44fd07e54cd28740b0e01510ef4d090f9b756c5927091c175e0"
+    },
+    {
+      "label": "mobile-dependencies-r2",
+      "command": [
+        "npm",
+        "run",
+        "test:dependencies"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/mobile",
+      "started_utc": "2026-10-06T09:02:52.444024+00:00",
+      "completed_utc": "2026-10-06T09:02:54.589237+00:00",
+      "exit_code": 0,
+      "wall_seconds": 1.323,
+      "peak_process_tree_rss_bytes": 59314176,
+      "guard_triggered": null,
+      "source_sha256_before": "6012cd6cc0f54c78964c54e8b40cb1f2f2c4fa872815153f451e00f082da6bba",
+      "source_sha256_after": "6012cd6cc0f54c78964c54e8b40cb1f2f2c4fa872815153f451e00f082da6bba",
+      "sources_unchanged": true,
+      "log_sha256": "bf4dfdeedd221044bbe48c707dd3c0b3f6534b1a498bff8160044145dcd130b0",
+      "receipt_path": "mobile-dependencies-r2.json",
+      "receipt_sha256": "9122f52e543a7c3eb61f06748ffb2ab2fb4076982a0fd2f78ce6f83b80602b17"
     },
     {
       "label": "mobile-fixture-red-r1",
@@ -6171,6 +6375,29 @@
       "receipt_sha256": "f7e076cdde1dca6f191ced7ac80f09c7368a30c3b774b6839bcc9c9d204a8390"
     },
     {
+      "label": "mobile-jest-r4",
+      "command": [
+        "npm",
+        "test",
+        "--",
+        "--ci",
+        "--maxWorkers=2"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/mobile",
+      "started_utc": "2026-10-06T09:02:52.452772+00:00",
+      "completed_utc": "2026-10-06T09:02:57.724295+00:00",
+      "exit_code": 0,
+      "wall_seconds": 4.475,
+      "peak_process_tree_rss_bytes": 1366208512,
+      "guard_triggered": null,
+      "source_sha256_before": "6012cd6cc0f54c78964c54e8b40cb1f2f2c4fa872815153f451e00f082da6bba",
+      "source_sha256_after": "6012cd6cc0f54c78964c54e8b40cb1f2f2c4fa872815153f451e00f082da6bba",
+      "sources_unchanged": true,
+      "log_sha256": "7984976667a1b16c76134eed4e2cc201c794986ebe77f593365abc00d98ed36b",
+      "receipt_path": "mobile-jest-r4.json",
+      "receipt_sha256": "c6a83965e0ac8064ecdebef98f7c7c53551e4741a6f8164f3be3b3ed3b665849"
+    },
+    {
       "label": "mobile-types-r1",
       "command": [
         "npm",
@@ -6190,6 +6417,27 @@
       "log_sha256": "8111087e92cb5a47fda610344b457f3b808a3a637625368acc03b77a29a37f3a",
       "receipt_path": "mobile-types-r1.json",
       "receipt_sha256": "2a53d168360df23cd72c00cedaf444d9d599013ba436b4aa8c22f9c1f526db66"
+    },
+    {
+      "label": "mobile-types-r2",
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/mobile",
+      "started_utc": "2026-10-06T09:02:52.438897+00:00",
+      "completed_utc": "2026-10-06T09:02:56.695959+00:00",
+      "exit_code": 0,
+      "wall_seconds": 3.444,
+      "peak_process_tree_rss_bytes": 728727552,
+      "guard_triggered": null,
+      "source_sha256_before": "6012cd6cc0f54c78964c54e8b40cb1f2f2c4fa872815153f451e00f082da6bba",
+      "source_sha256_after": "6012cd6cc0f54c78964c54e8b40cb1f2f2c4fa872815153f451e00f082da6bba",
+      "sources_unchanged": true,
+      "log_sha256": "8111087e92cb5a47fda610344b457f3b808a3a637625368acc03b77a29a37f3a",
+      "receipt_path": "mobile-types-r2.json",
+      "receipt_sha256": "52906af7eb3413b6383c19a3adfc283ed774a6019eadbc8859d8211eba7b2d11"
     },
     {
       "label": "r392-r1",
@@ -6399,6 +6647,26 @@
       "path": "admin-fixture-generation-r1.xml",
       "bytes": 396,
       "sha256": "9b32a68795ef00566c889a161a2415a05366c3415aca3425d0e5996174b29038"
+    },
+    {
+      "path": "ci-targets-r1.json",
+      "bytes": 802,
+      "sha256": "c9d5b03c415b84a5de7c32aa2480308eee76cf9272267db50f105cea2a6e36c4"
+    },
+    {
+      "path": "ci-targets-r1.log",
+      "bytes": 1348,
+      "sha256": "472dde3b00235be79517ed62422e49c3fe0d59c9b61e46a8ef1e8264fff182c3"
+    },
+    {
+      "path": "ci-targets-r2.json",
+      "bytes": 802,
+      "sha256": "adbff344feeb705f234f606ae4f1e7bae408f9f6bc9a3d46efba1858ca028c3a"
+    },
+    {
+      "path": "ci-targets-r2.log",
+      "bytes": 48,
+      "sha256": "903f6be4be31f6ac42e6006708a3ea5f6e1522dba8a7ee7d3b660a2a785f5aaa"
     },
     {
       "path": "core-build-r1.json",
@@ -6681,6 +6949,61 @@
       "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
     },
     {
+      "path": "m3-catalogue-r1.json",
+      "bytes": 923,
+      "sha256": "2dfddd65f0d5e913211779301d82359815f3cecb0ab5ab4cd4949924486e1235"
+    },
+    {
+      "path": "m3-catalogue-r1.log",
+      "bytes": 1802,
+      "sha256": "80875b4c4c82b3672d855cab4d49b27c5bb0a2b2e35f5787f4a1cd585cdedcee"
+    },
+    {
+      "path": "m3-catalogue-r1.xml",
+      "bytes": 6488,
+      "sha256": "f3d7a283c9bb913e106de70e6259739034e49fa867428ea12b5d9443a53a2233"
+    },
+    {
+      "path": "m3-departement-r2.json",
+      "bytes": 1146,
+      "sha256": "9fea79b082a4af1727e237cfa26bbf8fc8bac422757d6f7f4bbce392675b1a7d"
+    },
+    {
+      "path": "m3-departement-r2.log",
+      "bytes": 2560,
+      "sha256": "4a21674e971e2a1c739b5c9f231a7df9d65a302440b13bdf8586d6c3ba60ebd9"
+    },
+    {
+      "path": "m3-departement-r2.xml",
+      "bytes": 381699,
+      "sha256": "3b010d5a3f001a4b4938c7303857a296535497082e95da5f87ee137026c5ab0b"
+    },
+    {
+      "path": "m3-lint-r1.json",
+      "bytes": 759,
+      "sha256": "85aecd2176b78c62a4d1f1ba5df4df23ed0614eb85831eecc067a036a78c2f00"
+    },
+    {
+      "path": "m3-lint-r1.log",
+      "bytes": 19,
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "path": "m3-preuves-r2.json",
+      "bytes": 986,
+      "sha256": "9080a731b82f92d6f59d1aeacadb2e026d89206da9385cff0fed3a338f95462c"
+    },
+    {
+      "path": "m3-preuves-r2.log",
+      "bytes": 111,
+      "sha256": "421ec2aac3ed646d9497d0c33dae4e520afa62be4a5d97233048696e354fefc1"
+    },
+    {
+      "path": "m3-preuves-r2.xml",
+      "bytes": 5801,
+      "sha256": "e8a36b063cc3aa48fc565c5363ce06ae896749231f4edf8afcca992067ae87d7"
+    },
+    {
       "path": "manifestes-r1.json",
       "bytes": 659,
       "sha256": "dbe26a79020979842bbadc4f92f41109fce50acd451cb4bd11402a335daa9ace"
@@ -6691,6 +7014,16 @@
       "sha256": "474c156de198e68f60fd508b3b3d5a7be826fbb3c3bc90bb4bb93269fb7a7cea"
     },
     {
+      "path": "mobile-audit-r2.json",
+      "bytes": 789,
+      "sha256": "8abb0aac326cc1826174563932a71d6bb04617ace19187e7f533595c464993c8"
+    },
+    {
+      "path": "mobile-audit-r2.log",
+      "bytes": 7291,
+      "sha256": "27ab7aa8b09938f603088438fd167b1fc5a124d19dce7ad85f79394276a547c5"
+    },
+    {
       "path": "mobile-dependencies-r1.json",
       "bytes": 741,
       "sha256": "29b318c0ac89c44fd07e54cd28740b0e01510ef4d090f9b756c5927091c175e0"
@@ -6699,6 +7032,16 @@
       "path": "mobile-dependencies-r1.log",
       "bytes": 1603,
       "sha256": "370038afda9207c8a558b9e5f067398fcee60f9a87160d95fa2a052e45867346"
+    },
+    {
+      "path": "mobile-dependencies-r2.json",
+      "bytes": 742,
+      "sha256": "9122f52e543a7c3eb61f06748ffb2ab2fb4076982a0fd2f78ce6f83b80602b17"
+    },
+    {
+      "path": "mobile-dependencies-r2.log",
+      "bytes": 1605,
+      "sha256": "bf4dfdeedd221044bbe48c707dd3c0b3f6534b1a498bff8160044145dcd130b0"
     },
     {
       "path": "mobile-fixture-red-r1.json",
@@ -6741,12 +7084,32 @@
       "sha256": "0387da904bff923690613ca1c0be415dcabf6846b1739b3bd46e4e428f99f8c9"
     },
     {
+      "path": "mobile-jest-r4.json",
+      "bytes": 756,
+      "sha256": "c6a83965e0ac8064ecdebef98f7c7c53551e4741a6f8164f3be3b3ed3b665849"
+    },
+    {
+      "path": "mobile-jest-r4.log",
+      "bytes": 4475,
+      "sha256": "7984976667a1b16c76134eed4e2cc201c794986ebe77f593365abc00d98ed36b"
+    },
+    {
       "path": "mobile-types-r1.json",
       "bytes": 728,
       "sha256": "2a53d168360df23cd72c00cedaf444d9d599013ba436b4aa8c22f9c1f526db66"
     },
     {
       "path": "mobile-types-r1.log",
+      "bytes": 48,
+      "sha256": "8111087e92cb5a47fda610344b457f3b808a3a637625368acc03b77a29a37f3a"
+    },
+    {
+      "path": "mobile-types-r2.json",
+      "bytes": 728,
+      "sha256": "52906af7eb3413b6383c19a3adfc283ed774a6019eadbc8859d8211eba7b2d11"
+    },
+    {
+      "path": "mobile-types-r2.log",
       "bytes": 48,
       "sha256": "8111087e92cb5a47fda610344b457f3b808a3a637625368acc03b77a29a37f3a"
     },
@@ -6865,6 +7228,19 @@
   "generated_deliverables": [
     "AUDIT-REPRISE-INFRA-2026-10-06.md",
     "REGISTRE-REPRISE-INFRA-2026-10-06.json",
-    "PREUVES-REPRISE-2026-10-06-r1.tar.xz"
-  ]
+    "PREUVES-REPRISE-2026-10-06-r1.tar.xz",
+    "CONTINUITE-VERTICALE-2026-10-06.md",
+    "PREUVES-REPRISE-2026-10-06-r2.tar.xz"
+  ],
+  "ci_followup": {
+    "parent_head": "44e388245253b6697391002415b2d0212b1e60cb",
+    "observed_at_toronto": "2026-10-06T05:12:10.680562-04:00",
+    "proof_archive": {
+      "name": "PREUVES-REPRISE-2026-10-06-r2.tar.xz",
+      "bytes": 186872,
+      "sha256": "079c176e26ce9d1831fd61c487f831495b7fb22c38371d41004bbe52b03c51a5"
+    },
+    "applicable_core_targets": 183,
+    "status": "CORRECTIONS_LOCALES_VERIFIEES_NOUVEAU_COMMIT_CI_A_OBTENIR"
+  }
 }
