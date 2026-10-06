@@ -85,6 +85,7 @@ export async function createMcpOAuthClientProvider(params: {
   identity: McpOAuthIdentity;
   config?: McpOAuthConfig;
   allowAuthorizationRedirect?: boolean;
+  refreshOnly?: boolean;
   suppressStoredTokens?: boolean;
   lease: OpenClawStateAsyncLeaseContext;
   login?: McpOAuthLoginLifecycle;
@@ -154,12 +155,14 @@ export async function createMcpOAuthClientProvider(params: {
     }
     return prepared;
   };
+  const authorizationRequiredError = () =>
+    new Error(
+      `MCP server "${params.identity.serverName}" requires OAuth authorization. Run openclaw mcp login ${params.identity.serverName}.`,
+    );
   const assertAuthorizationRedirectAllowed = () => {
     params.login?.assertCurrent();
     if (params.allowAuthorizationRedirect !== true) {
-      throw new Error(
-        `MCP server "${params.identity.serverName}" requires OAuth authorization. Run openclaw mcp login ${params.identity.serverName}.`,
-      );
+      throw authorizationRequiredError();
     }
   };
   return {
@@ -192,11 +195,32 @@ export async function createMcpOAuthClientProvider(params: {
       const store = await readStore();
       params.login?.assertCurrent();
       const clientInformation = store.clientInformation;
+      const clientIssuer = normalizeOptionalString(clientInformation?.issuer);
+      if (params.refreshOnly === true) {
+        const establishedIssuer = clientIssuer ?? store.tokensAuthorizationServerUrl;
+        const discoveredIssuer = normalizeOptionalString(
+          store.discoveryState?.authorizationServerUrl,
+        );
+        // A refresh must not let SDK rediscovery register or adopt a new client before state().
+        // Only provenance established before this challenge can authorize existing credentials.
+        // Validate the raw stamp too: trim() can hide characters the SDK's URL parser rejects.
+        if (
+          !clientInformation ||
+          (clientInformation.issuer !== undefined &&
+            (!clientIssuer || !URL.canParse(clientInformation.issuer))) ||
+          !establishedIssuer ||
+          !URL.canParse(establishedIssuer) ||
+          establishedIssuer !== discoveredIssuer ||
+          (clientInformation.client_secret !== undefined &&
+            (!clientIssuer || !URL.canParse(clientIssuer)))
+        ) {
+          throw authorizationRequiredError();
+        }
+      }
       if (clientInformation?.client_secret !== undefined) {
-        const issuer = normalizeOptionalString(clientInformation.issuer);
         // Legacy secrets must not bind to whichever issuer the MCP server next advertises.
         // Keep the stored record intact; explicit login can register fresh bound credentials.
-        if (!issuer || !URL.canParse(issuer)) {
+        if (!clientIssuer || !URL.canParse(clientIssuer)) {
           return undefined;
         }
       }

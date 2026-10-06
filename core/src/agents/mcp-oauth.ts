@@ -178,6 +178,7 @@ export async function resolveMcpOAuthAccessToken(
       const provider = await createMcpOAuthClientProvider({
         identity: params.identity,
         config: params.config,
+        refreshOnly: true,
         lease,
         storeContext: context,
       });
