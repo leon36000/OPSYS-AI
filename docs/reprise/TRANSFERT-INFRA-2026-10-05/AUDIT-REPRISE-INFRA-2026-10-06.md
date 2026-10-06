@@ -74,3 +74,11 @@ La CI Core du premier commit de reprise révèle un unique cas rouge dans les13p
 Le hook `beforeEach` retournait le mock de `mockReset`; Vitest5 l'appelait comme fonction de nettoyage sans argument. Hook à retourvoid et suppression de l'affectationunused, setup conservé. Reprise r2 rouge et r3 verte conservées : **93/93 sur5fichiers complets**, y compris le véritable MCP Python HTTP, sources figées; lint ciblé vert. Aucun nouveau build requis pour cette fixture seule; les octets de production restent ceux déjà qualifiés.
 
 [Capsule r3](PREUVES-REPRISE-2026-10-06-r3.tar.xz), SHA256 `30b298ff60bc318abc9ca01d8f52d94a6de612c632363512b192eab3f2ed6ddf`, avec journal CI et reçus rouges/verts. Registre **26 suppléments**; les302sources du transport et104absences restent rapprochées. Le commit de correction doit obtenir sa CI applicable propre; aucun succès du parent attribué. OPSYS-AI reste **PARTIEL**.
+
+## Budget de la qualification du socle — 2026-10-06T06:34:03.351447-04:00
+
+Le HEAD0753f4c3 réussit les dix départements et les neuf batteries M3. Son socle est interrompu par GitHub à45minutes, pytest vers68%, aucunF visible avant interruption : annotation « maximum execution time of45m0s ». Le statut est cancelled et gates échoue correctement; aucune qualification globale verte n'est déduite de ce journal incomplet. L'ancêtre44e avait obtenu4486P/17S en40m55 surunautrerunner; ce succès n'est pas attribué au HEAD0753.
+
+Seul le budgetwallclock du socle passe à90minutes, comme les batteriesM3, pour conserver la suite complète. Commandepytest, collecte, tests, gardes, quotas et seuils inchangés; pas de tests ignorés/désélectionnés ajoutés. ContratsCI existants :10/10, sources figées. Le choix90min offre une marge après45min/0.68≈66min (estimation, pas une mesure de durée finale). Coût : occupationrunner pluslongue, un défaut réel peut toujours faireéchouer le job.
+
+[Capsule r4](PREUVES-REPRISE-2026-10-06-r4.tar.xz), SHA256 `315ba335c909676ad618e7db74e86da1d9a482b133150971e25f6b7049eb4e92`, conserve l'annotation, le journal interrompu, la référence et la vérificationCI locale. Le registre distingue27suppléments;295/302sources restentidentiques autransport, septmodifiées parqualification. Les104absences restenttracées. Le nouveaucommit de budget doit obtenir sespropres workflows applicables; OPSYS-AI reste **PARTIEL**.

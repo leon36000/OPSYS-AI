@@ -19,7 +19,9 @@ jobs:
   # Socle : lint, cohérence des départements, tests du socle.
   socle:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # La suite complète n'est pas tronquée : le runner du HEAD 0753f4c3 a atteint
+    # 45 minutes à 68 % malgré une référence verte en 41 minutes sur un autre runner.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
