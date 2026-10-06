@@ -582,16 +582,35 @@ def test_restore_volumes_historiques_resolus_malgre_profils_inactifs(banc_docker
     assert any("config" in c and "litellm" in c for c in calls)
 
 
-@pytest.mark.parametrize("sante", ["starting-puis-healthy", "timeout", "unhealthy"])
+@pytest.mark.parametrize("sante", ["starting-puis-healthy", "timeout", "timeout-avant-observation", "unhealthy"])
 def test_backup_attente_sante_reprise_bornee_sans_recreation(banc_docker, sante):
     deploy, _, env, tmp_path = banc_docker
     state_file = Path(env["FAKE_COMPOSE_STATE"])
     initial = json.loads(state_file.read_text())
     initial["caddy"] = "exited"
     state_file.write_text(json.dumps(initial))
-    env["FAKE_START_HEALTH_DELAY"] = "0.4" if sante == "starting-puis-healthy" else "60" if sante == "timeout" else "0"
+    env["FAKE_START_HEALTH_DELAY"] = (
+        "0.4" if sante == "starting-puis-healthy" else "60" if sante.startswith("timeout") else "0"
+    )
     env["FAKE_START_HEALTH_RESULT"] = "unhealthy" if sante == "unhealthy" else "healthy"
     env["OPSYS_BACKUP_START_TIMEOUT_SECONDS"] = "2" if sante == "starting-puis-healthy" else "1"
+
+    if sante == "timeout-avant-observation":
+        # Le start aboutit, puis le parent ne reprend son CPU qu'après la limite commune.
+        # Le wrapper ne modifie pas le script réel ni ses gardes.
+        timeout = Path(env["PATH"].split(os.pathsep)[0]) / "timeout"
+        timeout.write_text(
+            """#!/usr/bin/env python3
+import subprocess, sys, time
+args = sys.argv[1:]
+result = subprocess.run(["/usr/bin/timeout", *args], check=False)
+if "start" in args and result.returncode == 0:
+    time.sleep(1.1)
+raise SystemExit(result.returncode)
+""",
+            encoding="utf-8",
+        )
+        timeout.chmod(0o755)
 
     result = _run(deploy / "backup.sh", "--out", str(tmp_path / "backups"), env=env)
 
@@ -601,7 +620,17 @@ def test_backup_attente_sante_reprise_bornee_sans_recreation(banc_docker, sante)
     calls = [json.loads(x) for x in Path(env["FAKE_DOCKER_LOG"]).read_text().splitlines()]
     starts = [i for i, c in enumerate(calls) if c[:1] == ["compose"] and "start" in c]
     assert len(starts) == 1 and "caddy" not in calls[starts[0]] and "litellm" not in calls[starts[0]]
-    assert any(c[:1] == ["compose"] and "ps" in c for c in calls[starts[0] + 1:])
+    observations = [c for c in calls[starts[0] + 1:] if c[:1] == ["compose"] and "ps" in c]
+    if sante == "timeout-avant-observation":
+        assert observations == []
+    elif not sante.startswith("timeout"):
+        assert observations
+    if sante.startswith("timeout"):
+        assert any(message in result.stderr for message in (
+            "reprise hors délai; archives conservées.",
+            "reprise non vérifiable; archives conservées.",
+        )), result.stderr
+
     assert not any(c[:1] == ["compose"] and "up" in c for c in calls)
     if sante != "starting-puis-healthy":
         assert "PREUVE :" not in result.stdout
