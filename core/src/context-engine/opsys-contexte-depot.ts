@@ -115,6 +115,35 @@ export function collectDepositFacts(params: {
   return facts;
 }
 
+/** Parse one observed runtime result with the same conservative rules as transcript collection. */
+export function collectDepositFactForToolResult(params: {
+  sessionId: string;
+  toolCallId: string;
+  toolName: string;
+  content: unknown;
+  isError: boolean;
+  depositTools: readonly string[];
+}): OpsysDepositFact | undefined {
+  if (params.isError) {
+    return undefined;
+  }
+  const tool = matchDepositTool(params.toolName, params.depositTools);
+  const text = textOf(params.content);
+  if (tool === undefined || text === undefined) {
+    return undefined;
+  }
+  const outcome = readOutcome(text);
+  if (!outcome) {
+    return undefined;
+  }
+  return {
+    cle: depositKey(params.sessionId, params.toolCallId),
+    outil: tool,
+    resultat: outcome.resultat,
+    code: outcome.code,
+  };
+}
+
 /** The text a person or a system sent in the turn: user messages only, runtime carriers excluded. */
 export function collectUserText(messages: readonly unknown[]): string {
   const parts: string[] = [];

@@ -238,6 +238,12 @@ export async function completeEmbeddedAttemptAfterTurn(
             modelId: attempt.modelId,
             modelContextWindow: attempt.modelContextWindow,
             tokenBudget: attempt.contextTokenBudget,
+            ...(attempt.opsysPostflightCollector
+              ? {
+                  opsysDeferredPostflight:
+                    attempt.opsysPostflightCollector.getDeferredDepositReceipt(),
+                }
+              : {}),
           },
         });
       }

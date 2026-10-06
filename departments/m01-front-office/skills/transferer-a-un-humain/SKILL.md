@@ -1,15 +1,15 @@
 ---
 name: transferer-a-un-humain
-description: Procédure quand un client se plaint, signale un danger ou demande ce que tu ne dois pas traiter seule : lire ce que le code a escaladé, transférer avec un résumé, ne rien écrire au client, ne jamais clore.
+description: "Procédure quand un client se plaint, signale un danger ou demande ce que tu ne dois pas traiter seule : lire ce que le code a escaladé, transférer avec un résumé, ne rien écrire au client, ne jamais clore."
 ---
 
 # Transférer à un humain
 
-Une plainte ou une urgence de sécurité n'est **jamais un lead**. Le code la reconnaît avant toute qualification
+Une plainte ou une urgence suit la voie humaine, sans nouvelle qualification commerciale automatique. Le code la reconnaît selon le profil avant la qualification
 (les mots sont ceux de l'entreprise) et ouvre un transfert que le propriétaire voit dans « À voir ».
 
 1. Après `m1_recevoir_message_canal`, lis `decision` :
-   - `ESCALADE_PLAINTE` ou `ESCALADE_URGENCE` : c'est fait, par le code. Aucun lead n'existe. `plainte` dit ce qui a été
+   - `ESCALADE_PLAINTE` ou `ESCALADE_URGENCE` : c'est fait, par le code. Aucun nouveau lead n’est créé par cette branche; un dossier antérieur peut exister. `plainte` dit ce qui a été
      reconnu, `transfert` dit le type, le niveau et le destinataire. Si `transfert.verdict_destinataire` est présent, le
      destinataire n'est pas configuré : dis-le, n'en choisis pas un.
    - `TRANSFERT_EN_COURS` : la conversation a déjà un transfert ouvert ; ce message y est rattaché, aucun lead ne s'ouvre.
@@ -31,3 +31,7 @@ Une plainte ou une urgence de sécurité n'est **jamais un lead**. Le code la re
 6. Tu ne clos jamais un transfert : `m1_clore_transfert` est une décision humaine (l'app admin ou la console).
    Sans elle, l'attente reste dans « À voir » : c'est voulu.
 7. Jamais un avis légal, jamais un tort reconnu, jamais un prix ni une date, dans aucun texte que tu prépares.
+
+Transfert créé et destinataire configuré ne prouvent pas qu'une personne l'a accepté.
+La reprise d'un voicemail après STT conserve le transfert ouvert. Ne le ferme pas
+et ne recrée pas son rappel parce qu'une transcription apparaît plus tard.

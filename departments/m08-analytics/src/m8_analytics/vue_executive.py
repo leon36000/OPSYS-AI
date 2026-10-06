@@ -6,9 +6,10 @@ lit les faits et les attentes de M6, puis appelle ``assembler``. Quatre sections
 
 1. ``entonnoir`` — les métriques gouvernées de ``entonnoir.py`` (version de définition et propriétaire de chacune),
    les événements reçus et leur fraîcheur, les devis qui attendent, les seuils à configurer (GATE NATHAN) ;
-2. ``marge_reelle`` — la marge réelle de chaque chantier TELLE QUE M5 l'a publiée (``m5.rentabilite_chantier``), texte
-   décimal repris sans un seul calcul : aucune somme, aucun arrondi, aucun écart. Un chantier que M5 n'a pas chiffré
-   dit pourquoi, avec les codes de M5 ;
+2. ``marge_reelle`` — la marge de chaque chantier telle que M5 l'a publiée (``m5.rentabilite_chantier``), affichée
+   seulement si le verdict est ``CALCULEE``, le coût complet et ``prix_definitif is True``. M8 reprend le montant
+   sans un seul calcul : aucune somme, aucun arrondi, aucun écart. Facture brouillon ou finalité historique inconnue
+   est exclue avec un motif ; les autres manques nomment les codes de M5 ;
 3. ``stock_a_commander`` — les besoins de commande TELS QUE M6 les publie à la file du propriétaire (``attentes()``),
    avec son résumé et son action proposée : M8 n'a aucun stock, aucun seuil ni aucune quantité à lui ;
 4. ``cash_libre`` — le DERNIER constat que M5 a publié (``m5.cash_libre_constate``), tel quel, avec son âge
@@ -30,7 +31,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from . import cash_libre, entonnoir
+from . import cash_libre, entonnoir, mesures_chantier
 
 _LIMITE_LISTE = 3
 _TYPE_ATTENTE_BESOIN_COMMANDE = "besoin_commande"
@@ -138,8 +139,10 @@ def _rang_recent(ligne: dict[str, Any]) -> tuple[Any, ...]:
 
 
 def section_marge_reelle(faits_chantier: list[dict[str, Any]], limite: int = _LIMITE_LISTE) -> dict[str, Any]:
-    """Une ligne par chantier terminé que M8 connaît (``m4.travaux_termines``) : la marge réelle de M5, verbatim, ou
-    pourquoi M5 ne l'a pas chiffrée. AUCUNE somme, moyenne ni arrondi de ces montants : ce sont ceux de M5."""
+    """Une ligne par chantier terminé : la marge M5 qualifiée, verbatim, ou la raison de son exclusion.
+
+    Une marge sans verdict calculé, coût complet et prix définitif n'est pas déclarée réelle. AUCUNE somme,
+    moyenne ni arrondi : un montant qualifié est exactement celui de M5."""
     rentabilites = _rentabilite_courante(faits_chantier)
     lignes: list[dict[str, Any]] = []
     vus: set[str] = set()
@@ -149,20 +152,31 @@ def section_marge_reelle(faits_chantier: list[dict[str, Any]], limite: int = _LI
             continue
         vus.add(wct_id)
         rentabilite = rentabilites.get(wct_id)
-        marge = rentabilite.get("marge_reelle_cad") if rentabilite is not None else None
+        raison_qualification = (
+            mesures_chantier.raison_marge_reelle_non_qualifiee(rentabilite)
+            if rentabilite is not None else None
+        )
+        marge = (
+            rentabilite.get("marge_reelle_cad")
+            if rentabilite is not None and raison_qualification is None else None
+        )
         ligne: dict[str, Any] = {
             "wct_id": wct_id, "devis_id": wct.get("devis_id"),
             "horodatage_completion": wct.get("horodatage_completion"),
             "statut": entonnoir.STATUT_CALCULEE if marge is not None else entonnoir.STATUT_NON_CALCULABLE,
             "marge_reelle_cad": marge,
         }
+        # La source M5 est commune à la section : ne pas la répéter avec verdict/coût
+        # sur chaque ligne, pour préserver le budget de sortie et les trois cas ordinaires.
+        if rentabilite is not None and "prix_definitif" in rentabilite:
+            ligne["prix_definitif"] = rentabilite["prix_definitif"]
         if marge is None:
-            ligne["raison"] = _raison_marge_absente(rentabilite)
+            ligne["raison"] = raison_qualification or _raison_marge_absente(rentabilite)
         lignes.append(ligne)
     lignes.sort(key=_rang_recent)
     connues = len([ligne for ligne in lignes if ligne["marge_reelle_cad"] is not None])
     return {
-        "source": "M5 (m5.rentabilite_chantier), reprise sans aucun calcul",
+        "source": "M5 (m5.rentabilite_chantier), prix définitif/coût complet, reprise sans aucun calcul",
         "n_chantiers": len(lignes), "n_marge_connue": connues, "n_non_calculable": len(lignes) - connues,
         "chantiers": lignes[:limite], "reste": max(len(lignes) - limite, 0),
     }

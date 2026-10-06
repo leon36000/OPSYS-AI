@@ -434,9 +434,22 @@ const enCA: RessourcesCommunes = {
         ville: "City: {{ville}}",
         canal: "Channel: {{canal}}",
         source: "Source: {{source}}",
+        campagne: "Campaign: {{campagne}}",
+        utm: "UTM: {{utm}}",
         prochaineAction: "Next action on record: {{description}} (due {{echeance}})",
         illisibles: "{{nombre}} item(s) unreadable for this app version: see the console.",
         refus: "Client 360 unavailable ({{code}}): {{detail}}",
+      },
+      readiness: {
+        titre: "Estimate readiness (M2)",
+        chargement: "Checking…",
+        pret: "M2 reports its gate is satisfied for the request at {{date}}.",
+        limite: "This does not validate photos, an estimate, or an M3 price.",
+        refus: "M2 refused this check ({{code}}): {{detail}}",
+        nonVerifie: "Not verified ({{code}}): {{detail}}",
+        ficheEnCache: "The lead file came from cache; readiness remains unknown.",
+        sessionIndisponible: "The current session could not be confirmed for this read.",
+        reessayer: "Check again",
       },
       historique: {
         titre: "History",
@@ -469,8 +482,15 @@ const enCA: RessourcesCommunes = {
     quotes: {
       titre: "My quotes",
       limiteListe:
-        "No tool lists your quotes. This list shows the ones your leads cite (accepted quote to schedule, sent quote " +
-        "left unanswered). For another one, enter its number.",
+        "This list comes from the M3 register and loads in pages. Offline, no old list is presented as current; " +
+        "you can enter a quote number to open one quote directly.",
+      liste: {
+        consulteLe: "Consulted at {{date}} on this device.",
+        suite: "Load more",
+        refus: "The server refused the list ({{code}}). Refresh after checking your connection.",
+        indisponible: "The M3 list is unavailable ({{code}}). No old list is shown.",
+        illisible: "The M3 list response is unreadable ({{code}}); no quote is shown.",
+      },
       prixSeulement: "Status and price only: no cost, no margin.",
       numero: {
         etiquette: "Quote number",
@@ -489,6 +509,7 @@ const enCA: RessourcesCommunes = {
       origine: {
         lead_converti: "Accepted quote: job to schedule",
         soumission_perimee: "Sent, left unanswered",
+        liste_vendeur: "Current M3 register list",
         saisi: "Opened by its number",
       },
       voirLignes: "Show the lines",

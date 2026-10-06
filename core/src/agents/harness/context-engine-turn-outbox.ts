@@ -15,6 +15,7 @@ import {
 import { ensureContextEngineTurnOutboxSchema } from "../../state/openclaw-agent-context-engine-turn-outbox-schema.js";
 import type { DB as OpenClawAgentDatabaseSchema } from "../../state/openclaw-agent-db.generated.js";
 import type { OpenClawAgentDatabase } from "../../state/openclaw-agent-db.js";
+import type { OpsysDeferredPostflightReceipt } from "./opsys-postflight-collector.js";
 
 type ContextEngineTurnOutboxDatabase = Pick<
   OpenClawAgentDatabaseSchema,
@@ -27,12 +28,13 @@ type PendingContextEngineTurn = Readonly<{
   session_id: string;
 }>;
 
-/** Persist only resolved model facts, never live capabilities or credential-bearing config. */
+/** Persist resolved facts and closed host receipts, never live capabilities or credentials. */
 export type ContextEngineTurnRuntimeContext = Readonly<{
   provider?: string;
   modelId?: string;
   modelContextWindow?: number;
   tokenBudget?: number;
+  opsysDeferredPostflight?: OpsysDeferredPostflightReceipt;
 }>;
 
 type AdmittedContextEngineTurnOutboxPayload = Readonly<{

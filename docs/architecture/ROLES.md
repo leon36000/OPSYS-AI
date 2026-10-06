@@ -65,12 +65,13 @@ du propriétaire est appairé `admin` ; sa portée N5 dépend de la PERSONNE, ja
 3. **Un nouvel outil ne s'ouvre pas tout seul.** Ajouter `admin` à un outil est une ligne ; l'enlever
    après coup à un outil déjà utilisé par une app ne l'est pas.
 
-L'admin reçoit ce que §9.5 lui donne, plus les gestes de l'employé et du vendeur (un propriétaire
-qui travaille sur un toit, un gestionnaire qui reprend un dossier).
+L'admin reçoit ce que §9.5 lui donne et les outils qui déclarent explicitement ce rôle. Le
+lecteur paginé `m3_lister_devis` reste réservé au vendeur courant : un admin ne prend pas son
+identité pour consulter cette liste. Les lectures apprentissage et couverture sont admin seulement.
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 122 outils sur 213 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 125 outils sur 217 sont déclarés.
 
 ### `employee` (14 outils) : §9.3, le terrain
 
@@ -97,7 +98,7 @@ Rien qui lise les données des autres (`m4_lire_outbox`, `m4_lire_position_gps`,
 M10. Les trois outils M7 bornés à l'import d'avis, à la liste filtrée et au consentement de référence
 sont décrits ci-dessus; décisions, exportations et publication restent fermées à l'employé.
 
-### `seller` (14 outils) : §9.4, ses leads, ses relances et ses soumissions
+### `seller` (15 outils) : §9.4, ses leads, ses relances et ses soumissions
 
 | Outil | Pourquoi |
 |---|---|
@@ -110,6 +111,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 | `m2_evaluer_readiness` | §9.4 M3 « lead prêt pour l'estimation ». Ses leads seulement. |
 | `m2_transitionner_statut` | §9.4 « pipeline personnel » (perdu avec motif, converti). Ses leads seulement. |
 | `m2_enregistrer_interaction` | §9.4 « notes ». Ses leads seulement, sous son propre nom. |
+| `m3_lister_devis` (T0) | Inventaire paginé de ses devis courants, sans numéro préalable. Personne et assignation M2 relues à chaque page; curseur de tri sans autorité, pas de total global. La réponse serveur utilise la vue interne avec coûts/marges; l'application mobile les retire de son affichage et de son cache. [Preuves et limites](../grs/estimation/M3-INVENTAIRE-VENDEUR-RAPPORT-2026-10-05.md). |
 | `m3_lire_devis` | §9.4 M3 « voir risques et marge » ; « ne voit pas les coûts internes au-delà de sa soumission ». Les devis de ses leads seulement. |
 | `m3_generer_soumission_brouillon` | §9.4 « soumissions ». HTML ou PDF (`format`), mêmes gardes. Sans coût ni marge. Les devis de ses leads seulement. |
 | `m3_demander_envoi_devis` (T2, **N4**) | §9.4 « soumissions », §7 M3.14 « revue et approbation humaine » (T4.7). Il DEMANDE : le socle met la demande dans la file du propriétaire, rien n'est envoyé, rien ne change. Il ne décide jamais (voir « L'envoi d'un devis par approbation N4 » plus bas). |
@@ -118,7 +120,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (122 outils) : §9.5 + employé + vendeur
+### `admin` (124 outils) : §9.5 + employé + vendeur
 
 Les 14 outils de l'employé, les 14 du vendeur, et :
 
@@ -131,6 +133,8 @@ Les 14 outils de l'employé, les 14 du vendeur, et :
 | M2 | `m2_reassigner_lead` (N3), `m2_republier_assignations` (N3) | §9.5 (le propriétaire ou son gestionnaire reprend le dossier d'un vendeur ; T1.4-m). La réassignation est une décision HUMAINE : voir « La réassignation d'un lead » plus bas. La republication remet au bus le fait de propriété que les leads qualifiés avant T1.4-k2 n'ont jamais publié ; outil de mise en service, idempotent, dérivé du registre. Ni l'employé ni le vendeur (un vendeur ne « prend » ni ne « cède » un lead). |
 | M3 | `m3_evaluer_calibration_cohortes`, `m3_proposer_calibration_temps` (N2), `m3_evaluer_candidate_calibration` (N2), `m3_activer_candidate_calibration`, `m3_rollback_candidate_calibration` (N4) | Boucle de calibration du temps à partir des cohortes et faits M4 vérifiés. Les candidates restent inactives jusqu'à une décision N4 du seul propriétaire; activation et rollback ne réécrivent jamais les devis ou estimations historiques. Aucun prix, coût ou facteur photo n'est modifié. |
 | M4 | `m4_lister_pending_review`, `m4_volumetrie_pending_review`, `m4_produire_digest` | §9.5 M4 : dispatch du jour, file de complétion. |
+| M3 | `m3_lire_apprentissage_chantier` (T0) | Lecture jointe M3/M4/M6/M5/M8 d’un WCT et d’une coupure UTC; admin appareil actif. Sources relues, marges seulement finales/comparables; aucun GPS, identité terrain ou activation. |
+| M3 | `m3_auditer_couverture_apprentissage` (T0) | Diagnostic SQLite sans paramètres : compare les identités de publication M4 du bus aux reçus M3. Admin appareil actif seulement; ni console ni appel sans identité. Aucun payload/GPS/montant, ingestion, rejeu ou activation; réception par identité ne certifie pas le contenu WCT ou la couverture terrain. |
 | M4 | `m4_lire_faits_calibration_m3` (T0) | Projection en lecture seule des WCT et pointages dont la chaîne M4 et les statuts sont vérifiés; source des évaluations de cohorte de M3, sans temps de déplacement ni heures-personnes. |
 | M4 | `m4_resoudre_demande`, `m4_resoudre_revue_completion` (N4) | §9.5 M4 : approbation des complétions. |
 | M4 | `m4_produire_brouillon_temps` | §9.3 : brouillon de feuille de temps envoyé à M5. |

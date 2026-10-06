@@ -53,7 +53,10 @@ qualifié) et de M3 (devis envoyé, accepté, sans réponse). Présente la répo
   pas « aucun lead », c'est « rien reçu » ;
 - `sources` dit combien de faits M8 a reçus par événement et jusqu'à quel instant : c'est la fraîcheur de l'entonnoir ;
 - `marge_reelle` est le texte que M5 a publié, chantier par chantier. N'additionne rien, ne calcule aucune moyenne
-  ni aucun écart : si une marge est `non_calculable`, cite la `raison` (les codes de M5) ;
+  ni aucun écart. Une marge réelle exige que le fait M5 reçu porte simultanément `verdict: CALCULEE`,
+  `cout_reel_complet: true` et `prix_definitif: true`. Sinon, cite `non_calculable` et la `raison`
+  renvoyée par le code, y compris la garde de finalité M8. Ce fait publié ne certifie pas à lui seul
+  que les entrées du registre M5 sont toujours à jour ;
 - `stock_a_commander` est ce que M6 met à la file du propriétaire, avec son résumé et son action proposée ;
   `seuils_a_configurer` vrai veut dire que M6 attend des seuils de réapprovisionnement ;
 - `cash_libre` est le DERNIER constat que M5 a publié (`constat`), tel quel : montants en texte, `statut`, `manque`

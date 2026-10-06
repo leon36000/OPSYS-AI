@@ -223,6 +223,31 @@ export interface MessageToolRunOutcomes {
   session_key: string;
 }
 
+export interface OpsysPostflightIntents {
+  created_at: number;
+  fact_key: string;
+  payload_json: string;
+  state: string;
+}
+
+export interface OpsysPostflightOutbox {
+  affaire_id: string;
+  attempt_count: Generated<number>;
+  created_at: number;
+  departement_source: string;
+  engine_id: string;
+  last_attempt_at: number | null;
+  last_error_code: string | null;
+  lot_key: string;
+  needs_review_at: number | null;
+  next_attempt_at: number | null;
+  payload_json: string;
+  profil_id: string;
+  revision_admission: number;
+  state: string;
+  updated_at: number;
+}
+
 export interface SchemaMeta {
   agent_id: string | null;
   app_version: string | null;
@@ -580,6 +605,8 @@ export interface DB {
   memory_index_state: MemoryIndexState;
   memory_session_tombstones: MemorySessionTombstones;
   message_tool_run_outcomes: MessageToolRunOutcomes;
+  opsys_postflight_intents: OpsysPostflightIntents;
+  opsys_postflight_outbox: OpsysPostflightOutbox;
   schema_meta: SchemaMeta;
   session_canonical_validation_pending: SessionCanonicalValidationPending;
   session_conversations: SessionConversations;

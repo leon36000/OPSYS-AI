@@ -57,6 +57,14 @@ describe.each(LANGUES)("textes du profil vendeur (%s)", (_langue, ressources) =>
     expect(Object.keys(ressources.vendeur.quotes.origine).sort()).toEqual([...ORIGINES_DEVIS].sort());
   });
 
+  test("la readiness précise la provenance de son heure et ses limites M3", () => {
+    expect(ressources.vendeur.lead.readiness.pret).toContain("{{date}}");
+    expect(ressources.vendeur.lead.readiness.limite).toMatch(/photo/i);
+    expect(ressources.vendeur.lead.readiness.limite).toMatch(/M3/);
+    expect(ressources.vendeur.lead.client.campagne).toContain("{{campagne}}");
+    expect(ressources.vendeur.lead.client.utm).toContain("{{utm}}");
+  });
+
   test("un segment non calculable et une note refusée disent le verdict du serveur (code et détail)", () => {
     expect(ressources.vendeur.leads.segmentNonCalculable).toContain("{{detail}}");
     expect(ressources.vendeur.lead.notes.resultat.refusee).toContain("{{code}}");

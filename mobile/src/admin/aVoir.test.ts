@@ -18,7 +18,7 @@ describe("l'accueil « À voir » : les demandes en attente et les attentes des 
     }
     const liste = lu.valeur;
     expect(liste).toMatchObject({ totalEnAttente: 0, reste: 0, proprietaire: true, illisibles: 0 });
-    expect(liste.attentes).toMatchObject({ total: 7, reste: 4, suivant: 3, decalage: 0 });
+    expect(liste.attentes).toMatchObject({ total: 6, reste: 3, suivant: 3, decalage: 0 });
     expect(liste.attentes?.items.map((a) => a.type)).toEqual(["facture_brouillon", "chantier_a_reviser", "completion_en_revue"]);
     expect(liste.attentes?.items[2]).toMatchObject({ niveau: "N4", departementNom: "Field Ops" });
   });

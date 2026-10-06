@@ -68,10 +68,24 @@ def _sources(cnx: Any, acteur: str, lot_id: str, revision_pdf: int, revision_ap:
     _finance(cnx, acteur)
     if type(revision_ap) is not int or revision_ap < 1:
         raise _erreur("REVISION_AP_INVALIDE", 400)
-    lot, resultat = fusion_ap._verifier_pdf(cnx, lot_id, revision_pdf)
-    # Vérifie aussi le PDF chiffré lui-même, puis abandonne les octets clairs.
-    fusion_pdf._source(lot)
-    brouillon, proposition = fusion_ap._lire_brouillon(cnx, lot, resultat)
+    lot = fusion_pdf._lot(cnx, lot_id)
+    fusion_pdf._compatible(lot)
+    source_ocr = fusion_ap._source_ocr_enregistree(cnx, lot)
+    if source_ocr is None:
+        # Garder le chemin natif historique inchangé, y compris sa validation du PDF chiffré.
+        lot, resultat = fusion_ap._verifier_pdf(cnx, lot_id, revision_pdf)
+        fusion_pdf._source(lot)
+        brouillon, proposition = fusion_ap._lire_brouillon(cnx, lot, resultat)
+        provenance: dict[str, Any] = {}
+    else:
+        # Le lot OCR est volontairement REFUSE côté parseur natif. Le lecteur OCR
+        # vérifie dans cette transaction run, PDF courant, chiffrement/AAD et citations.
+        if type(revision_pdf) is not int or revision_pdf < 1 or lot["revision"] != revision_pdf:
+            raise _erreur("CONFLIT_REVISION_PDF")
+        provenance, _ = source_ocr
+        brouillon, proposition = fusion_ap._lire_brouillon(
+            cnx, lot, dechiffrer_ocr=True,
+        )
     if brouillon["revision"] != revision_ap:
         raise _erreur("CONFLIT_REVISION")
     if proposition is None:
@@ -86,7 +100,7 @@ def _sources(cnx: Any, acteur: str, lot_id: str, revision_pdf: int, revision_ap:
             proposition, sort_keys=True, ensure_ascii=False, separators=(",", ":"),
         ).encode("utf-8")).hexdigest(),
         "registre": refs, "taux_sha256": hashlib.sha256(raw).hexdigest(),
-    }
+    } | provenance
     return source, proposition["champs"], rows, raw
 
 

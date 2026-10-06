@@ -104,6 +104,47 @@ describe("Client 360", () => {
     expect("system:m3".startsWith(PREFIXE_AUTEUR_SYSTEME)).toBe(true);
   });
 
+  test("la provenance expose campagne et UTM serveur; les champs absents restent inconnus", () => {
+    const brut = client360Brut();
+    const opportunities = brut.opportunites as Array<Record<string, unknown>>;
+    opportunities[0] = {
+      ...opportunities[0],
+      source: "facebook",
+      campagne: "automne-2026",
+      utm: { utm_source: "facebook", utm_campaign: "automne-2026", utm_content: "gouttieres-a1" },
+    };
+    const lecture = interpreterResultatClient360(enveloppeAcceptee(brut));
+    expect(lecture.ok && lecture.valeur.opportunites[0]).toMatchObject({
+      source: "facebook",
+      campagne: "automne-2026",
+      utm: { utm_source: "facebook", utm_campaign: "automne-2026", utm_content: "gouttieres-a1" },
+    });
+    expect(lecture.ok && lecture.valeur.opportunites[1].utm).toBeNull();
+  });
+
+  test("UTM absent (ou propriété omise) demeure inconnu", () => {
+    const brut = client360Brut();
+    const opportunities = brut.opportunites as Array<Record<string, unknown>>;
+    opportunities[0] = { ...opportunities[0], utm: undefined, source: undefined, campagne: undefined };
+    const lecture = interpreterResultatClient360(enveloppeAcceptee(brut));
+    expect(lecture.ok && lecture.valeur.opportunites[0]).toMatchObject({ source: null, campagne: null, utm: null });
+  });
+
+  test.each([
+    ["clé inconnue", { utm_source: "facebook", utm_id: "inventé" }],
+    ["valeur non texte", { utm_source: 12 }],
+    ["valeur vide", { utm_source: " " }],
+    ["objet vide", {}],
+    ["UTM non objet", "utm_source=facebook"],
+  ])("une provenance UTM mal formée (%s) invalide seulement son opportunité et est comptée", (_cas, utm) => {
+    const brut = client360Brut();
+    const opportunities = brut.opportunites as Array<Record<string, unknown>>;
+    opportunities[0] = { ...opportunities[0], utm };
+    const lecture = interpreterResultatClient360(enveloppeAcceptee(brut));
+    expect(lecture.ok && lecture.valeur.opportunites).toHaveLength(1);
+    expect(lecture.ok && lecture.valeur.illisibles).toBe(1);
+  });
+
   test("le contact absent ou nul est nul : dit absent par l'écran, jamais inventé", () => {
     for (const contact of [null, undefined]) {
       const lecture = interpreterResultatClient360(enveloppeAcceptee(client360Brut({ contact })));

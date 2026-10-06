@@ -96,6 +96,19 @@ def test_la_charge_de_test_est_conforme_au_catalogue():
     assert erreurs_charge(TYPE, _rentabilite(verdict="PARTIELLE")) == []
 
 
+def test_memoriser_preserve_la_finalite_ou_son_absence_historique(registres):
+    registre_evenements, _ = registres
+    recente = _rentabilite(prix_definitif=False)
+    ancienne = _rentabilite(sequence=2)
+    ancienne.pop("prix_definitif", None)
+
+    maillon_recent, _ = rentabilite.memoriser_rentabilite(recente, registre_evenements)
+    maillon_ancien, _ = rentabilite.memoriser_rentabilite(ancienne, registre_evenements)
+
+    assert maillon_recent["prix_definitif"] is False
+    assert "prix_definitif" not in maillon_ancien
+
+
 def test_memoriser_ecrit_un_evenement_memorise_au_niveau_financial(registres):
     registre_evenements, _ = registres
 

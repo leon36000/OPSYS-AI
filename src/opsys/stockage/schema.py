@@ -562,6 +562,21 @@ FUSION_AP_BROUILLONS = Table(
     CheckConstraint("proposition_cipher_octets BETWEEN 17 AND 8208", name="proposition_taille"),
 )
 
+# Source OCR immuable d'un brouillon AP. L'absence de ligne signifie PDF_NATIF.
+FUSION_AP_OCR_SOURCES = Table(
+    "fusion_ap_ocr_sources", META,
+    Column("lot_id", String(36), ForeignKey("fusion_ap_brouillons.lot_id"), primary_key=True),
+    Column("source_type", String(24), nullable=False),
+    Column("ocr_run_id", String(36), ForeignKey("fusion_pdf_ocr_runs.ocr_run_id"), nullable=False),
+    Column("revision_run", Integer, nullable=False),
+    Column("ocr_configuration_sha256", String(64), nullable=False),
+    Column("ocr_profil_id", String(32), nullable=False),
+    CheckConstraint("source_type = 'OCR_CANDIDAT'", name="source_type_ocr_candidat"),
+    CheckConstraint("revision_run > 0", name="revision_run_positive"),
+    CheckConstraint("length(ocr_configuration_sha256) = 64", name="configuration_sha256_taille"),
+    CheckConstraint("length(ocr_profil_id) BETWEEN 1 AND 32", name="profil_id_taille"),
+)
+
 FUSION_AP_COMMANDES = Table(
     "fusion_ap_commandes", META,
     Column("lot_id", String(36), ForeignKey("fusion_ap_brouillons.lot_id"), primary_key=True),
@@ -855,4 +870,83 @@ AGENTS_DECLENCHEURS_REMISES = Table(
                     "((native_config_revision IS NOT NULL AND native_config_fingerprint IS NULL) OR "
                     "(native_config_revision IS NULL AND native_config_fingerprint IS NOT NULL)))",
                     name="agents_cron_remises_ack"),
+)
+
+# Candidats OCR liés aux lots PDF natifs : stockage et quota indépendants de PDF/AP/CSV.
+FUSION_PDF_OCR_RUNS = Table(
+    "fusion_pdf_ocr_runs", META,
+    Column("ocr_run_id", String(36), primary_key=True),
+    Column("pdf_lot_id", String(36), ForeignKey("fusion_pdf_lots.lot_id"), nullable=False),
+    Column("acteur", String(64), nullable=False),
+    Column("source_sha256", String(64), nullable=False),
+    Column("revision_pdf_source", Integer, nullable=False),
+    Column("configuration_sha256", String(64), nullable=False),
+    Column("profil_id", String(32), nullable=False),
+    Column("cle_reference", String(64), nullable=False),
+    Column("version_format", Integer, nullable=False),
+    Column("revision_run", Integer, nullable=False),
+    Column("statut", String(24), nullable=False),
+    Column("reserve_octets", Integer, nullable=False),
+    Column("resultat_nonce", String(24)),
+    Column("resultat_cipher", Text),
+    Column("resultat_cipher_octets", Integer, nullable=False),
+    Column("code", String(64)),
+    Column("cree_le", Text, nullable=False),
+    Column("modifie_le", Text, nullable=False),
+    UniqueConstraint(
+        "pdf_lot_id", "source_sha256", "revision_pdf_source", "configuration_sha256",
+        name="uq_fusion_pdf_ocr_runs_source_profil",
+    ),
+    CheckConstraint("length(ocr_run_id) = 36 AND length(pdf_lot_id) = 36", name="run_ids_taille"),
+    CheckConstraint("length(acteur) BETWEEN 1 AND 64", name="acteur_taille"),
+    CheckConstraint("length(source_sha256) = 64 AND length(configuration_sha256) = 64", name="empreintes"),
+    CheckConstraint("revision_pdf_source BETWEEN 1 AND 2147483647", name="revision_pdf_source_borne"),
+    CheckConstraint("length(profil_id) BETWEEN 1 AND 32", name="profil_taille"),
+    CheckConstraint("length(cle_reference) BETWEEN 1 AND 64", name="cle_reference_taille"),
+    CheckConstraint("version_format = 1", name="version_format"),
+    CheckConstraint("revision_run BETWEEN 1 AND 2147483647", name="revision_run_borne"),
+    CheckConstraint(
+        "statut IN ('RESERVE','A_REVOIR','REFUSE','ERREUR_REPRENABLE','PERIME')", name="statut_valide",
+    ),
+    CheckConstraint("reserve_octets BETWEEN 0 AND 262160", name="reserve_octets_borne"),
+    CheckConstraint("resultat_cipher_octets BETWEEN 0 AND 262160", name="resultat_taille"),
+    CheckConstraint("code IS NULL OR length(code) BETWEEN 1 AND 64", name="code_taille"),
+    CheckConstraint(
+        "(statut = 'RESERVE' AND reserve_octets = 262160 AND resultat_nonce IS NULL "
+        "AND resultat_cipher IS NULL AND resultat_cipher_octets = 0 AND code IS NULL) OR "
+        "(statut = 'A_REVOIR' AND reserve_octets = 0 AND resultat_nonce IS NOT NULL "
+        "AND length(resultat_nonce) = 16 AND resultat_cipher IS NOT NULL "
+        "AND resultat_cipher_octets BETWEEN 17 AND 262160 "
+        "AND length(resultat_cipher) BETWEEN 24 AND 349548 "
+        "AND length(resultat_cipher) = 4 * ((resultat_cipher_octets + 2) / 3) AND code IS NULL) OR "
+        "(statut IN ('REFUSE','ERREUR_REPRENABLE','PERIME') AND reserve_octets = 0 "
+        "AND resultat_nonce IS NULL AND resultat_cipher IS NULL AND resultat_cipher_octets = 0 "
+        "AND code IS NOT NULL AND length(code) BETWEEN 1 AND 64)",
+        name="etat_payload_reservation",
+    ),
+)
+Index("ix_fusion_pdf_ocr_runs_cree", FUSION_PDF_OCR_RUNS.c.cree_le)
+
+FUSION_PDF_OCR_COMMANDES = Table(
+    "fusion_pdf_ocr_commandes", META,
+    Column("acteur", String(64), primary_key=True),
+    Column("mutation_id", String(128), primary_key=True),
+    Column("empreinte_requete", String(64), nullable=False),
+    Column("ocr_run_id", String(36), ForeignKey("fusion_pdf_ocr_runs.ocr_run_id"), nullable=False),
+    Column("cree_le", Text, nullable=False),
+    CheckConstraint("length(acteur) BETWEEN 1 AND 64", name="acteur_taille"),
+    CheckConstraint("length(mutation_id) BETWEEN 1 AND 128", name="mutation_taille"),
+    CheckConstraint("length(empreinte_requete) = 64", name="empreinte_taille"),
+    CheckConstraint("length(ocr_run_id) = 36", name="run_id_taille"),
+)
+Index("ix_fusion_pdf_ocr_commandes_run", FUSION_PDF_OCR_COMMANDES.c.ocr_run_id)
+
+FUSION_PDF_OCR_QUOTA = Table(
+    "fusion_pdf_ocr_quota", META,
+    Column("id", Integer, primary_key=True),
+    Column("lots", Integer, nullable=False),
+    Column("octets_cipher", Integer, nullable=False),
+    CheckConstraint("id = 1", name="singleton"),
+    CheckConstraint("lots BETWEEN 0 AND 16", name="lots_borne"),
+    CheckConstraint("octets_cipher BETWEEN 0 AND 4194304", name="octets_bornes"),
 )

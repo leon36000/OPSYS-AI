@@ -2,9 +2,9 @@
 
 M8 range la marge rapportée par M5 dans son registre `faits_chantier` (le fait `rentabilite` que
 `mesures_chantier.py` attendait) et remesure le chantier. La métrique « marge réelle » devient calculable
-quand M5 l'a chiffrée ; sinon elle reste « non calculable, manque marge_reelle_cad » et dit pourquoi, avec les
-codes de M5. Les seuils ne changent pas (vides par défaut : un rappel « seuil à configurer », jamais une alerte
-inventée).
+seulement si M5 la chiffre sur coût complet et fournit `prix_definitif=true`; facture brouillon ou finalité
+historique inconnue restent non calculables avec un motif. Les autres manques gardent les codes de M5.
+Les seuils ne changent pas (vides par défaut : un rappel « seuil à configurer », jamais une alerte inventée).
 
 Deux étages : des fonctions pures (`fait_rentabilite`, `assembler_faits`, `mesurer_chantier`) et le VRAI bus
 (`opsys.evenements.repartir`, manifestes réels, M8 seul abonné, base SQLite temporaire migrée). Les charges de M5
@@ -45,6 +45,7 @@ def _m5(sequence=1, verdict="CALCULEE", wct_id="wct-m8-1", **surcharges):
         "evenement_id": f"m5-rentabilite-devis-m8-1-{sequence}-{sequence:016x}", "devis_id": "devis-m8-1",
         "chantier_id": "ch-1", "wct_id": wct_id, "sequence": sequence, "version_entrees": f"{sequence:064x}",
         "horodatage_completion": "2026-09-28T14:00:00-04:00", "verdict": verdict, "devise": "CAD",
+        "prix_definitif": True,
         "cout_reel_complet": complete, "cout_reel_cad": "486.00" if complete else None,
         "cout_connu_cad": "486.00" if complete else "150.00",
         "marge_reelle_cad": "114.00" if complete else None, "marge_prevue_cad": "120.00",
@@ -102,8 +103,19 @@ def test_le_fait_rentabilite_garde_la_marge_de_m5_telle_quelle_et_ses_codes():
 
     assert fait == {
         "type_entree": "rentabilite", "wct_id": "wct-m8-1", "devis_id": "devis-m8-1", "sequence": 1,
-        "verdict": "CALCULEE", "marge_reelle_cad": "114.00", "manque": [],
+        "verdict": "CALCULEE", "prix_definitif": True, "cout_reel_complet": True,
+        "version_entrees": "0000000000000000000000000000000000000000000000000000000000000001",
+        "marge_reelle_cad": "114.00", "manque": [],
     }
+
+
+def test_le_fait_preserve_la_finalite_et_laisse_l_historique_inconnu():
+    assert mc.fait_rentabilite(_m5(prix_definitif=False))["prix_definitif"] is False
+    assert mc.fait_rentabilite(_m5(prix_definitif=True))["prix_definitif"] is True
+    historique = _m5()
+    historique.pop("prix_definitif", None)
+    assert "prix_definitif" not in mc.fait_rentabilite(historique)
+    assert mc.fait_rentabilite(historique)["version_entrees"] == historique["version_entrees"]
 
 
 def test_le_fait_rentabilite_d_un_cout_partiel_n_a_aucune_marge_et_garde_les_codes_de_m5():
@@ -169,6 +181,32 @@ def test_une_marge_chiffree_par_m5_rend_les_trois_mesures_de_marge_calculables()
     assert mesures["m8_ecart_marge_cad"]["valeur"] == "-6.00"  # 114 - 120, négatif : marge plus faible que prévu
     assert mesures["m8_ecart_marge_pct"]["valeur"] == "-5.00"  # -6 / 120
     assert {mesures[m]["statut"] for m in _METRIQUES_DE_MARGE} == {"calculee"}
+
+
+@pytest.mark.parametrize(
+    ("finalite", "raison"),
+    [
+        (False, "facture brouillon ou prix non définitif (prix_definitif=false)"),
+        (None, "finalité de facture inconnue (prix_definitif absent du fait M5)"),
+    ],
+)
+def test_un_prix_m5_non_final_ne_devient_pas_une_marge_reelle(base_durable, departements, finalite, raison):
+    _publier("wct")
+    _publier("devis")
+    charge = _m5()
+    if finalite is None:
+        charge.pop("prix_definitif")
+    else:
+        charge["prix_definitif"] = finalite
+    _publier("m5", charge)
+    _livrer(departements)
+
+    resultat = _lire()
+    mesures = _par_metrique(resultat)
+    for metric_id in _METRIQUES_DE_MARGE:
+        assert mesures[metric_id]["statut"] == "non_calculable", metric_id
+        assert mesures[metric_id]["valeur"] is None, metric_id
+    assert {m["raison"] for m in resultat["manques"] if m["champ"] == "marge_reelle_cad"} == {raison}
 
 
 def test_un_cout_partiel_laisse_les_trois_mesures_de_marge_non_calculables_avec_la_raison_de_m5():
@@ -281,9 +319,13 @@ def test_le_fait_ecrit_est_celui_que_mesures_chantier_attendait(base_durable, de
     _livrer(departements)
 
     (fait,) = [f for f in _faits() if f["type_entree"] == "rentabilite"]
-    # Les trois clés que `mesures_chantier.py` lit : type_entree, wct_id, marge_reelle_cad.
+    # Les faits M5 consommés : clés de jointure, verdict, finalité, complétude, version et marge.
     assert fait["wct_id"] == "wct-m8-1" and fait["marge_reelle_cad"] == "114.00"
-    assert set(fait) == {"type_entree", "wct_id", "devis_id", "sequence", "verdict", "marge_reelle_cad", "manque"}
+    assert set(fait) == {
+        "type_entree", "wct_id", "devis_id", "sequence", "verdict", "prix_definitif", "cout_reel_complet",
+        "version_entrees", "marge_reelle_cad", "manque",
+    }
+    assert fait["version_entrees"] == _m5()["version_entrees"]
     assert "cout_reel_cad" not in fait and "cout_connu_cad" not in fait  # M8 ne garde pas les coûts de M5
 
 

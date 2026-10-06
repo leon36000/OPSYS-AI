@@ -14,30 +14,38 @@ en Python d'après le fork) :
 - M1 qualifie : le lead porte le MÊME `utm` que le lien, publié au bus ; M2 le consomme (le lead de M2 porte le même
   `utm`, lisible dans le Client 360 par la porte d'appareil) ; M8 compte ce lead pour CE contenu et aucun autre.
 
-Ce que ces tests ne prouvent PAS : le navigateur (le script du formulaire est gardé par `test_formulaire_site.py`, sa
-forme, et a été vérifié à la main), le récepteur du formulaire (rien ne le reçoit encore : la mise en ligne reste T3),
-ni le core. Données fictives (`fictif`), adresses en `.test`.
+Les cinq scénarios historiques simulent le récepteur; le scénario de reprise ajouté le 4 octobre
+(5 octobre UTC) traverse la vraie route HTTP interne de la console et sa recréation sur la même base.
+Ce que ces tests ne prouvent PAS : le navigateur (le script du formulaire est gardé par
+`test_formulaire_site.py`), la réception du formulaire public (toujours non connecté), le retry de
+l'émetteur hors délai, le téléphone physique ni le core. Données fictives, adresses en `.test`.
 """
 
 from __future__ import annotations
 
 import dataclasses
 import datetime as dt
+import hashlib
+import hmac
 import json
 import re
+import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl, urlsplit
 
 import pytest
+from fastapi.testclient import TestClient
 from harnais_e2e import Moteur, iso
 from m1_front_office import outils as m1_outils
 from m7_marketing.brand import profil_client
 from m7_marketing.social import postiz_adapter
 from sqlalchemy import select
 
-from opsys import evenements, stockage, taxonomie
-from opsys.capacites import Capacites
+from opsys import approbations, evenements, liaison_cibles, stockage, taxonomie
+from opsys.capacites import Capacites, outils_executables
+from opsys.console.application import creer_application
+from opsys.console.securite import Configuration
 from opsys.stockage import codec
 from opsys.stockage.schema import EVENEMENTS_SORTANTS
 
@@ -226,6 +234,64 @@ def _preparer_les_paquets(moteur: Moteur, equipe, plateformes=("facebook", "inst
 # =====================================================================================================================
 # Le trajet : du lien de M7 au lead que M8 compte
 # =====================================================================================================================
+@SQLITE_SEULEMENT
+def test_e2e_pont_http_signe_repris_rejoint_client_360_et_attribution_sans_second_lead(moteur, equipe, m1):
+    """Vraie route privée M1 et vrai moteur MCP, sans navigateur ni core TypeScript.
+
+    La soumission serveur conserve le même nonce et les mêmes octets après recréation
+    de la console; cela ne qualifie pas un émetteur public ni une reprise hors délai.
+    """
+    admin = equipe["admin"]
+    facebook = _preparer_les_paquets(moteur, equipe, ("facebook",))["facebook"]
+    charge = _soumission(facebook["lien_utm"], ADRESSES["facebook"])
+    # Le pont refuse explicitement les contacts secondaires non conservés par M1.
+    charge["nom"] = ""
+    corps = json.dumps(charge, ensure_ascii=False, separators=(",", ":")).encode()
+    chemin, site = "/interne/m1/formulaire", "site-e2e-fictif"
+    cle = b"cle-pont-e2e-fictive-" + b"z" * 32
+    date, nonce = str(int(time.time())), "nonce-e2e-reprise-fictif-0001"
+    signe = f"v1\nPOST\n{chemin}\n{site}\n{date}\n{nonce}\n".encode() + corps
+    entetes = {
+        "content-type": "application/json", "x-m1-site": site,
+        "x-m1-timestamp": date, "x-m1-nonce": nonce,
+        "x-m1-signature": hmac.new(cle, signe, hashlib.sha256).hexdigest(),
+    }
+    config = Configuration("cle-console-e2e-fictive-" + "x" * 32, cookie_securise=False)
+
+    def console():
+        return TestClient(creer_application(
+            config, moteur.departements, stockage.transaction,
+            site_formulaire=site, secret_formulaire=cle,
+        ))
+
+    with console() as client:
+        refus = client.post(chemin, content=corps, headers={**entetes, "x-m1-signature": "0" * 64})
+        assert refus.status_code == 403 and _publies("m1.lead_qualifie") == []
+        recu = client.post(chemin, content=corps, headers=entetes)
+        assert recu.status_code == 202 and recu.json() == {"ok": True, "received": True}
+
+    (evenement,) = _publies("m1.lead_qualifie")
+    lead = evenement["lead"]
+    attendu = dict(parse_qsl(urlsplit(facebook["lien_utm"]).query))
+    assert lead["utm"] == attendu
+    assert lead["contact"] == {"courriel": ADRESSES["facebook"]}
+    _drainer(moteur, _de_lead(moteur))
+    assert _opportunite_m2(admin, lead["lead_id"])["utm"] == attendu
+    avant = moteur.empreinte_etat()
+
+    # Nouvelle application, même base : ni second événement M1 ni seconde attribution.
+    with console() as client:
+        rejeu = client.post(chemin, content=corps, headers=entetes)
+        assert rejeu.status_code == 202 and rejeu.json() == {"ok": True, "received": True}
+    _drainer(moteur, _de_lead(moteur))
+    assert moteur.empreinte_etat() == avant
+    assert _publies("m1.lead_qualifie") == [evenement]
+    mesures = _mesures(admin)
+    assert mesures["metriques"]["m8_leads_par_contenu"]["valeur"] == "1"
+    assert mesures["contenus"][facebook["utm_content"]]["leads"] == 1
+    assert ADRESSES["facebook"] not in json.dumps(mesures["vue"])
+
+
 @SQLITE_SEULEMENT
 def test_e2e_du_lien_de_m7_au_formulaire_a_m1_au_lead_de_m2_m8_compte_le_lead_pour_ce_contenu(moteur, equipe, m1):
     admin = equipe["admin"]
@@ -416,3 +482,317 @@ def test_e2e_une_demande_incomplete_ne_donne_pas_de_lead_et_le_dit_avec_son_utm_
     _drainer(moteur, _de_lead(moteur))
     assert _publies("m1.lead_qualifie") == []
     _aucun_lead_compte(_mesures(admin), facebook["utm_content"])
+
+
+@SQLITE_SEULEMENT
+def test_e2e_demande_utm_jusqua_readiness_m3_sans_prix_ni_envoi(moteur, equipe, m1, monkeypatch):
+    """Même lead fictif : route M1 signée, bus M2/M8, qualification humaine, vendeur réel,
+    marqueur M2 puis blocage photo M3. Approbations d'exécution interne en mode ombre.
+    Aucune conversion, approbation d'envoi ni livraison."""
+    admin = equipe["admin"]
+    moteur.creer_personne("vendeur.a", "Vendeur A (fictif)", ["seller"], monkeypatch)
+    moteur.creer_personne("vendeur.b", "Vendeur B (fictif)", ["seller"], monkeypatch)
+    vendeur_a = moteur.appairer("vendeur.a", "seller")
+    vendeur_b = moteur.appairer("vendeur.b", "seller")
+
+    facebook = _preparer_les_paquets(moteur, equipe, ("facebook",))["facebook"]
+    charge = _soumission(facebook["lien_utm"], ADRESSES["facebook"])
+    # Le pont privé accepte seulement les champs canoniques M1; les champs contact secondaires sont vides.
+    charge["nom"] = ""
+    corps = json.dumps(charge, ensure_ascii=False, separators=(",", ":")).encode()
+    chemin, site = "/interne/m1/formulaire", "site-e2e-fictif"
+    cle = b"cle-pont-lot2-fictive-" + b"q" * 32
+    date, nonce = str(int(time.time())), "nonce-e2e-lot2-fictif-0001"
+    signe = f"v1\nPOST\n{chemin}\n{site}\n{date}\n{nonce}\n".encode() + corps
+    entetes = {
+        "content-type": "application/json", "x-m1-site": site,
+        "x-m1-timestamp": date, "x-m1-nonce": nonce,
+        "x-m1-signature": hmac.new(cle, signe, hashlib.sha256).hexdigest(),
+    }
+    config = Configuration("cle-console-lot2-fictive-" + "y" * 32, cookie_securise=False)
+
+    def console():
+        return TestClient(creer_application(
+            config, moteur.departements, stockage.transaction,
+            site_formulaire=site, secret_formulaire=cle,
+        ))
+
+    with console() as client:
+        recu = client.post(chemin, content=corps, headers=entetes)
+        assert recu.status_code == 202 and recu.json() == {"ok": True, "received": True}
+
+    (evenement,) = _publies("m1.lead_qualifie")
+    lead = evenement["lead"]  # conserver le contrat M1 v2 exact pour M2 et M3
+    attendu_utm = dict(parse_qsl(urlsplit(facebook["lien_utm"]).query))
+    assert lead["schema_version"] == 2 and "service" in lead and "type_travaux" not in lead
+    assert lead["utm"] == attendu_utm
+    assert lead["source"] == "formulaire"
+    assert lead["contact"] == {"courriel": ADRESSES["facebook"]}
+
+    # Le fait unique circule vers les deux consommateurs déjà prévus, M2 et M8.
+    livraison = _drainer(moteur, _de_lead(moteur))
+    assert livraison["traites"] >= 2 and livraison["echecs"] == 0 and livraison["quarantaines"] == 0
+    opp = _opportunite_m2(admin, lead["lead_id"])
+    assert opp["utm"] == attendu_utm and opp["source"] == lead["source"]
+    mesure_avant_qualification = _mesures(admin)
+    assert mesure_avant_qualification["metriques"]["m8_leads_par_contenu"]["valeur"] == "1"
+    assert mesure_avant_qualification["contenus"][facebook["utm_content"]]["leads"] == 1
+
+    # Le pont porte son recu_le sur l'horloge murale. Aligner l'horloge du harnais après ce reçu avant les gestes
+    # humains datés; garder les étapes strictement monotones.
+    recu_m1 = dt.datetime.fromtimestamp(int(date), dt.UTC)
+    qualification_le = max(dt.datetime.now(dt.UTC), recu_m1 + dt.timedelta(seconds=1)).replace(microsecond=0)
+    moteur.horloge.maintenant = qualification_le
+    qualification = admin.appeler(
+        "m2_transitionner_statut",
+        {
+            "lead_id": lead["lead_id"], "statut_cible": "qualifie", "horodatage": iso(qualification_le),
+            "owner": "vendeur.a",
+            "prochaine_action": {
+                "description": "Demander les photos de façade au client (fictif)",
+                "echeance": iso(qualification_le + dt.timedelta(days=1)),
+            },
+        },
+        cle="lot2-qualification-admin-fictive-0001", horodatage_appareil=iso(qualification_le),
+    )
+    assert qualification.statut == 200 and qualification.metier["accepte"] is True, qualification.corps
+    assert qualification.resultat["statut"] == "qualifie"
+
+    # La qualification vient de publier m2.lead_assigne. Livrer ce fait avant de prendre le
+    # témoin du rejeu : son éventuel traitement M8 est un effet légitime de la qualification,
+    # pas un effet du rejeu HTTP qui suit.
+    assignation_livree = _drainer(moteur, _de_lead(moteur))
+    assert assignation_livree["echecs"] == 0 and assignation_livree["quarantaines"] == 0
+
+    # Même nonce, même signature et mêmes octets, cette fois après la qualification humaine : l'état complet
+    # reste identique, le bus ne crée ni lead ni attribution supplémentaire.
+    avant_rejeu = moteur.empreinte_etat()
+    with console() as client:
+        rejeu = client.post(chemin, content=corps, headers=entetes)
+        assert rejeu.status_code == 202 and rejeu.json() == {"ok": True, "received": True}
+    _drainer(moteur, _de_lead(moteur))
+    assert moteur.empreinte_etat() == avant_rejeu
+    assert _publies("m1.lead_qualifie") == [evenement]
+    assert _opportunite_m2(admin, lead["lead_id"])["statut"] == "qualifie"
+
+    # Lecture, readiness et interaction sont bornées au vendeur propriétaire; lead inconnu est le contrôle négatif.
+    def refus(porte, outil: str, arguments: dict[str, Any], *, cle: str | None = None) -> dict[str, Any]:
+        # Toute interaction T1 doit passer la validation idempotence de la vraie porte HTTP,
+        # même quand l'autorisation métier la refusera. Les essais ont chacun leur propre clé.
+        options = {"cle": cle, "horodatage_appareil": iso(qualification_le)} if cle else {}
+        reponse = porte.appeler(outil, arguments, **options)
+        assert reponse.statut == 200 and reponse.metier["accepte"] is False, reponse.corps
+        return reponse.metier["verdict"]
+
+    def meme_refus(outil: str, reel: dict[str, Any], inconnu: dict[str, Any], token_reel: str,
+                   token_inconnu: str, *, interaction: bool = False) -> None:
+        verdict_reel = refus(vendeur_b, outil, reel, cle=f"lot2-refus-b-{outil}-reel" if interaction else None)
+        verdict_inconnu = refus(vendeur_b, outil, inconnu,
+                               cle=f"lot2-refus-b-{outil}-inconnu" if interaction else None)
+        assert verdict_reel["code"] == verdict_inconnu["code"] == "REJ-LEAD-NON-ASSIGNE", outil
+        assert verdict_reel["detail"].replace(token_reel, "<id>") == verdict_inconnu["detail"].replace(
+            token_inconnu, "<id>"
+        ), outil
+
+    client_id = admin.appeler("m2_trouver_client_de_lead", {"lead_id": lead["lead_id"]}).resultat["client_id"]
+    avant_refus = moteur.empreinte_etat()
+    id_inconnu = "lead-fantome-lot2"
+    meme_refus("m2_trouver_client_de_lead",
+               {"lead_id": lead["lead_id"]}, {"lead_id": id_inconnu}, lead["lead_id"], id_inconnu)
+    client_inconnu = "m2-client-v1:fantome-lot2"
+    meme_refus("m2_obtenir_client_360",
+               {"client_id": client_id}, {"client_id": client_inconnu}, client_id, client_inconnu)
+    meme_refus("m2_evaluer_readiness",
+               {"lead_id": lead["lead_id"], "horodatage": iso(qualification_le)},
+               {"lead_id": id_inconnu, "horodatage": iso(qualification_le)}, lead["lead_id"], id_inconnu)
+    meme_refus("m2_enregistrer_interaction",
+               {"lead_id": lead["lead_id"], "resume": "Appel fictif non autorisé",
+                "horodatage": iso(qualification_le + dt.timedelta(seconds=1))},
+               {"lead_id": id_inconnu, "resume": "Appel fictif non autorisé",
+                "horodatage": iso(qualification_le + dt.timedelta(seconds=1))}, lead["lead_id"], id_inconnu,
+               interaction=True)
+    apres_refus = moteur.empreinte_etat()
+    # La porte peut journaliser des tentatives T1 refusées; aucun registre métier ni attribution ne change.
+    assert apres_refus["registres"] == avant_refus["registres"]
+    assert _publies("m1.lead_qualifie") == [evenement]
+    assert len(_publies("m2.lead_assigne")) == 1
+    assert _mesures(admin)["metriques"]["m8_leads_par_contenu"]["valeur"] == "1"
+
+    interaction_le = qualification_le + dt.timedelta(seconds=2)
+    moteur.horloge.maintenant = interaction_le
+    note_args = {
+        "lead_id": lead["lead_id"], "resume": "Appel de suivi effectué; photos demandées (fictif)",
+        "horodatage": iso(interaction_le),
+    }
+    note = vendeur_a.appeler(
+        "m2_enregistrer_interaction", note_args, cle="lot2-note-vendeur-a-fictive-0001",
+        horodatage_appareil=iso(interaction_le),
+    )
+    assert note.statut == 200 and note.metier["accepte"] is True, note.corps
+    assert note.resultat["lead_id"] == lead["lead_id"]
+    apres_note = moteur.empreinte_etat()
+    rejeu_note = vendeur_a.appeler(
+        "m2_enregistrer_interaction", note_args, cle="lot2-note-vendeur-a-fictive-0001",
+        horodatage_appareil=iso(interaction_le),
+    )
+    assert rejeu_note.enveloppe["rejoue"] is True and rejeu_note.resultat == note.resultat
+    assert moteur.empreinte_etat() == apres_note
+    client_id = admin.appeler("m2_trouver_client_de_lead", {"lead_id": lead["lead_id"]}).resultat["client_id"]
+    vue_client = admin.appeler("m2_obtenir_client_360", {"client_id": client_id}).resultat
+    notes = [i for i in vue_client["interactions_recentes"] if i["lead_id"] == lead["lead_id"]]
+    assert len(notes) == 1 and notes[0]["auteur"] == "vendeur.a"
+
+    readiness_le = interaction_le + dt.timedelta(seconds=1)
+    moteur.horloge.maintenant = readiness_le
+    avant_gate = moteur.empreinte_etat()
+    gate = vendeur_a.appeler(
+        "m2_evaluer_readiness", {"lead_id": lead["lead_id"], "horodatage": iso(readiness_le)}
+    )
+    assert moteur.empreinte_etat() == avant_gate, "le marqueur readiness est une lecture pure"
+    assert gate.statut == 200 and gate.metier["accepte"] is True, gate.corps
+    marqueur = gate.resultat
+    assert marqueur["readiness_ok"] is True and marqueur["lead_id"] == lead["lead_id"]
+
+    # Fixture purement fictive, jamais un barème commercial : bornes 10..12 tirées de
+    # departments/m03-estimation/tests/test_scenarios.py (poste gouttieres), unité pi_lin et quantité 30
+    # tirées de test_outils_agent.py (_LIGNE_DEVIS_VALIDE). Le contrat v2 reste service=gouttieres.
+    bareme_fictif_gouttieres = {
+        "version": "fictif-test-2026.1", "unite": "pi_lin",
+        "postes": {"gouttieres": {"cout_unitaire_min": 10.0, "cout_unitaire_max": 12.0}},
+    }
+    estimateur = Capacites(
+        moteur.departements, stockage.transaction, filtre={"m03-estimation"},
+        appelant="m03-estimation", memoire=False,
+    )
+    def approuver_execution_interne(nom_outil: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        # Le manifeste M3 reste en mode ombre. La porte agent prépare une demande, pas un résultat;
+        # le propriétaire fictif décide via le vrai moteur d'approbations, sans modifier ce mode.
+        avant_demande = moteur.empreinte_etat()["registres"]
+        ticket_meta = None
+        if nom_outil == "m3_creer_devis":
+            from m10_memoire import liaison as liaison_m10
+            from m10_memoire import registre as registre_m10
+
+            cle_session = "agent:m03-estimation:webchat:direct:lot2-fictif"
+            # Liaison autorisée par le propriétaire fictif via le vrai registre M10;
+            # le ticket est émis par la plateforme, jamais fourni comme argument métier.
+            with stockage.transaction() as cnx:
+                reg = registre_m10.Registre(maillons=stockage.maillons("m10-memoire", "affaires"))
+                lien, refus = liaison_m10.lier_session_affaire(
+                    cle_session, lead["lead_id"], "nathan", "admin", "appareil",
+                    "Liaison du dossier fictif pour le test intégré", iso(readiness_le), reg,
+                )
+                assert refus is None and lien is not None
+                ticket = liaison_cibles.emettre_ticket(
+                    cnx, departement="m03-estimation", agent_id="m03-estimation",
+                    cle_session=cle_session, affaire_id=lead["lead_id"], origine_affaire="session",
+                    outil=nom_outil, arguments=arguments,
+                )
+            ticket_meta = liaison_cibles.TicketMeta(ticket["ticket"])
+            avant_demande = moteur.empreinte_etat()["registres"]
+        demande = estimateur.appeler(nom_outil, arguments, ticket_cible=ticket_meta)
+        assert demande.get("ok") is True and demande.get("statut") == "en_attente_approbation", demande
+        assert "resultat" not in demande
+        assert moteur.empreinte_etat()["registres"] == avant_demande
+        with stockage.transaction() as cnx:
+            decision = approbations.decider(
+                cnx, demande["demande_id"], True, "nathan",
+                outils_executables(moteur.departements, stockage.transaction), moteur.departements,
+            )
+        assert decision["statut"] == "executee", decision
+        assert decision["reponse"]["ok"] is True, decision
+        return decision["reponse"]
+
+    estimation_initiale = approuver_execution_interne("m3_estimer_projet", {
+        "contrat": lead,
+        "marqueur": marqueur,
+        "photos": [],
+        "seuils": {"resolution_minimale": 1000, "eclairage_minimal": 4},
+        "bareme": bareme_fictif_gouttieres,
+        "quantite": 30,
+        "plancher_rentable": 0,
+    })
+    assert estimation_initiale["ok"] is True, estimation_initiale
+    sortie_m3 = estimation_initiale["resultat"]
+    assert sortie_m3["accepte"] is True and sortie_m3["etape"] == "complet", sortie_m3
+    assert sortie_m3["estimation"]["lead_id"] == lead["lead_id"]
+    assert sortie_m3["estimation"]["verdict_estimation"] == "QUALITE_ENTREE_INSUFFISANTE"
+    assert sortie_m3["estimation"]["prix_bloque"] is True
+    assert sortie_m3["estimation"]["intervalle_confiance"] == {
+        "borne_basse": None, "borne_haute": None, "niveau": 0.9,
+    }
+    assert sortie_m3["elements_manquants"] == ["aucune entrée visuelle n'a été fournie"]
+    assert sortie_m3["signal_relance_m2"] == {
+        "type": "DEMANDE_ENTREES_VISUELLES", "lead_id": lead["lead_id"],
+        "devis_id": sortie_m3["estimation"]["devis_id"],
+        "elements_manquants": ["aucune entrée visuelle n'a été fournie"], "emission_count": 1,
+    }
+
+    # Correction test-only sur le même dossier, avec une photo de qualité issue du helper de
+    # test_estimation.py (3000x2000, éclairage 7, porte à dimensions connues). Ce n'est pas une image réelle.
+    photos_corrigees_fictives = [{
+        "photo_id": "photo-gouttieres-lot2-fictive-001",
+        "resolution_largeur": 3000,
+        "resolution_hauteur": 2000,
+        "eclairage": 7,
+        "angle": "face",
+        "reference_echelle": {"type": "porte", "dimensions_connues": True},
+    }]
+    estimation_corrigee = approuver_execution_interne("m3_estimer_projet", {
+        "contrat": lead,
+        "marqueur": marqueur,
+        "photos": photos_corrigees_fictives,
+        "seuils": {"resolution_minimale": 1000, "eclairage_minimal": 4},
+        "bareme": bareme_fictif_gouttieres,
+        "quantite": 30,
+        "plancher_rentable": 0,
+    })
+    assert estimation_corrigee["ok"] is True, estimation_corrigee
+    sortie_corrigee = estimation_corrigee["resultat"]
+    assert sortie_corrigee["accepte"] is True and sortie_corrigee["etape"] == "complet", sortie_corrigee
+    assert sortie_corrigee["estimation"]["lead_id"] == lead["lead_id"]
+    assert sortie_corrigee["estimation"]["devis_id"] == sortie_m3["estimation"]["devis_id"]
+    assert sortie_corrigee["estimation"]["prix_bloque"] is False
+    intervalle_corrige = sortie_corrigee["estimation"]["intervalle_confiance"]
+    assert 0 < intervalle_corrige["borne_basse"] <= intervalle_corrige["borne_haute"]
+
+    # Création interne du devis puis rendu HTML T0; les fixtures de devis durable fournissent
+    # explicitement la ligne (30 pi_lin, coût unitaire 10.00) et le taux fictif 0.20. Aucun prix
+    # n'est fourni au code : M3 le recalcule. Les outils décrivent ces opérations comme brouillon,
+    # sans envoi; aucune capacité ni approbation d'envoi n'est appelée.
+    horodatage_brouillon = iso(readiness_le + dt.timedelta(seconds=1))
+    devis = approuver_execution_interne("m3_creer_devis", {
+        "devis_id": sortie_corrigee["estimation"]["devis_id"],
+        "estimation_source_hash": sortie_corrigee["estimation"]["hash_maillon"],
+        "lead_id": lead["lead_id"],
+        "chantier_id": None,
+        "lignes": [{
+            "description": "Gouttière alu 5 po (fictif)",
+            "quantite": "30",
+            "unite": "pi_lin",
+            "cout_unitaire": "10.00",
+            "reference_besoin_materiau": None,
+        }],
+        "taux_marge": "0.20",
+        "horodatage": horodatage_brouillon,
+    })
+    assert devis["ok"] is True and devis["resultat"]["accepte"] is True, devis
+    assert devis["resultat"]["resultat"]["statut"] == "brouillon"
+    soumission = estimateur.appeler("m3_generer_soumission_brouillon", {
+        "devis_id": sortie_corrigee["estimation"]["devis_id"], "format": "html",
+    })
+    assert soumission["ok"] is True and soumission["resultat"]["accepte"] is True, soumission
+    html_brouillon = soumission["resultat"]["resultat"]
+    assert "BROUILLON — non envoyé, sujet à approbation." in html_brouillon
+    assert "Gouttière alu 5 po (fictif)" in html_brouillon and "360.00" in html_brouillon
+    assert "cout_unitaire" not in html_brouillon and "taux_marge" not in html_brouillon
+
+    # Le rendu reste un brouillon interne : aucun envoi/acceptation, conversion, ni attribution nouvelle.
+    assert _opportunite_m2(admin, lead["lead_id"])["statut"] == "qualifie"
+    assert len(_publies("m1.lead_qualifie")) == 1
+    assert len(_publies("m2.lead_assigne")) == 1
+    assert _publies("m3.devis_envoye") == []
+    assert _publies("m3.devis_accepte") == []
+    mesures_finales = _mesures(admin)
+    assert mesures_finales["metriques"]["m8_leads_par_contenu"]["valeur"] == "1"
+    assert mesures_finales["contenus"][facebook["utm_content"]]["leads"] == 1

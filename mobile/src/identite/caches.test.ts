@@ -6,7 +6,7 @@ import { STATUTS_DU_DISPATCH } from "../m4/dispatch";
 import { ecrireChecklist } from "../checklist/cache";
 import { OUTIL_OBTENIR_CLIENT_360, OUTIL_SUGGERER_PROCHAINE_ACTION, OUTIL_TROUVER_CLIENT_DE_LEAD } from "../m2/client360";
 import { OUTIL_LISTER_LEADS } from "../m2/listeLeads";
-import { OUTIL_LIRE_DEVIS } from "../m3/devis";
+import { OUTIL_LIRE_DEVIS, OUTIL_LISTER_DEVIS } from "../m3/devis";
 import { ecrireWctIdCompletion } from "../m4/wctIdCompletion";
 import { creerChargeurChantiers } from "../today/orchestrateur";
 import { invoquerOutil } from "../protocole/client";
@@ -94,6 +94,8 @@ async function remplirParLesVraisChargeurs(depot: DepotCleValeurMemoire, personn
     [OUTIL_SUGGERER_PROCHAINE_ACTION]: () => enveloppeAcceptee(SUGGESTION_BRUTE),
     [OUTIL_TROUVER_CLIENT_DE_LEAD]: () => enveloppeAcceptee(CLIENT_DE_LEAD_BRUT),
     [OUTIL_OBTENIR_CLIENT_360]: () => enveloppeAcceptee(client360Brut()),
+    [OUTIL_LISTER_DEVIS]: () =>
+      enveloppeAcceptee({ devis: [devisInterneBrut("devis-a-01")], curseur_suivant: null }),
     [OUTIL_LIRE_DEVIS]: () => enveloppeAcceptee(devisInterneBrut("devis-a-01")),
   });
   const vendeur = {
@@ -107,7 +109,9 @@ async function remplirParLesVraisChargeurs(depot: DepotCleValeurMemoire, personn
   };
   await creerChargeurLeads(vendeur).chargerLeads({ statut: null, segment: null });
   await creerChargeurFiche(vendeur).chargerFiche("lead-a-01");
-  await creerChargeurDevis(vendeur).chargerDevis();
+  const devis = creerChargeurDevis(vendeur);
+  await devis.chargerInventaire();
+  await devis.ouvrirParNumero("devis-a-01");
 
   // Le profil employé : les chantiers.
   const fetchImpl = jest.fn(

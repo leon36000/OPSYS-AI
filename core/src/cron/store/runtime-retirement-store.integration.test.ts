@@ -46,7 +46,9 @@ beforeAll(async () => {
 });
 afterAll(async () => {
   env.restore();
-  if (keyDirectory) await fs.rm(keyDirectory, { recursive: true, force: true });
+  if (keyDirectory) {
+    await fs.rm(keyDirectory, { recursive: true, force: true });
+  }
 });
 
 function declaration(): CronJobCreate {
@@ -90,7 +92,7 @@ async function fixture(cronEnabled = false) {
   };
   const service = create();
   const wire = declaration();
-  const job = await service.add(
+  const added = await service.add(
     { ...wire, enabled: false },
     {
       commitGuard: () => {},
@@ -110,6 +112,10 @@ async function fixture(cronEnabled = false) {
       }),
     },
   );
+  const job = await service.readJob(added.id);
+  if (!job) {
+    throw new Error("expected committed native fixture job");
+  }
   const capture: CronRetirementCapture = {
     receiptId: "b".repeat(64),
     sourceHash: "c".repeat(64),
@@ -127,7 +133,9 @@ async function fixture(cronEnabled = false) {
     capture,
     partition: cronStoreKey(storePath),
     stop: async () => {
-      for (const owner of services) owner.stop();
+      for (const owner of services) {
+        owner.stop();
+      }
       await Promise.all(services.map((owner) => owner.stopAndDrain?.() ?? Promise.resolve()));
     },
   };
@@ -157,8 +165,10 @@ describe("Cron retirement durable encrypted owner", () => {
         expect(proof?.purpose).toBe("opsys-cron-retirement");
         expect(proof?.authority.payload.capabilite).toBe(CAPABILITY);
         const row = db
-          .prepare("SELECT ciphertext FROM cron_job_runtime_retirements WHERE receipt_id=?")
-          .get(item.capture.receiptId);
+          .prepare(
+            "SELECT ciphertext FROM cron_job_runtime_retirements WHERE store_key=? AND receipt_id=?",
+          )
+          .get(item.partition, item.capture.receiptId);
         expect(typeof row?.ciphertext).toBe("string");
         expect(String(row?.ciphertext)).not.toContain(CAPABILITY);
         expect(
@@ -239,9 +249,9 @@ describe("Cron retirement durable encrypted owner", () => {
         const row = db
           .prepare(
             "SELECT count(*) AS n, min(acknowledged_at_ms) AS ack " +
-              "FROM cron_job_runtime_retirements WHERE receipt_id=?",
+              "FROM cron_job_runtime_retirements WHERE store_key=? AND receipt_id=?",
           )
-          .get(item.capture.receiptId);
+          .get(item.partition, item.capture.receiptId);
         expect(row).toMatchObject({ n: 1, ack: 1_800_000_000_000 });
       } finally {
         db.close();
@@ -268,7 +278,9 @@ describe("Cron retirement durable encrypted owner", () => {
           .mockImplementation((admit, attachment) =>
             realAdmission((request, grant) => {
               stages.push(request.stage);
-              if (request.stage === refusalStage) live = false;
+              if (request.stage === refusalStage) {
+                live = false;
+              }
               admit(request, grant);
             }, attachment),
           );
@@ -278,7 +290,9 @@ describe("Cron retirement durable encrypted owner", () => {
               item.capture.receiptId,
               item.capture.sourceHash,
               () => {
-                if (!live) throw new Error("ACK operator withdrawn fictif");
+                if (!live) {
+                  throw new Error("ACK operator withdrawn fictif");
+                }
               },
             ),
           ).rejects.toThrow("ACK operator withdrawn fictif");
@@ -298,9 +312,9 @@ describe("Cron retirement durable encrypted owner", () => {
           expect(
             db
               .prepare(
-                "SELECT acknowledged_at_ms FROM cron_job_runtime_retirements WHERE receipt_id=?",
+                "SELECT acknowledged_at_ms FROM cron_job_runtime_retirements WHERE store_key=? AND receipt_id=?",
               )
-              .get(item.capture.receiptId)?.acknowledged_at_ms,
+              .get(item.partition, item.capture.receiptId)?.acknowledged_at_ms,
           ).toBeNull();
         } finally {
           db.close();
@@ -381,7 +395,9 @@ describe("Cron retirement durable encrypted owner", () => {
       try {
         try {
           const completion = createCronMutationCompletion("cron.remove");
-          if (!completion) throw new Error("missing native mutation completion owner");
+          if (!completion) {
+            throw new Error("missing native mutation completion owner");
+          }
           await expect(
             completion.run(
               async () =>
@@ -429,10 +445,13 @@ describe("Cron retirement durable encrypted owner", () => {
       .spyOn(operationAdmission, "createSqliteWorkerOperationAdmission")
       .mockImplementation((admit, attachment) =>
         realAdmission((request, grant) => {
-          if (request.stage === "transaction" || request.stage === "commit")
+          if (request.stage === "transaction" || request.stage === "commit") {
             stages.push(request.stage);
+          }
           // Withdraw the operator after the worker's row writes, before the native commit.
-          if (request.stage === "commit") live = false;
+          if (request.stage === "commit") {
+            live = false;
+          }
           admit(request, grant);
         }, attachment),
       );
@@ -441,10 +460,16 @@ describe("Cron retirement durable encrypted owner", () => {
         item.service.removeWithPrecondition(item.job.id, () => {}, {
           retirement: item.capture,
           commitGuard: () => {
-            if (!live) throw new Error("operator withdrawn fictif");
+            if (!live) {
+              throw new Error("operator withdrawn fictif");
+            }
           },
         }),
-      ).rejects.toThrow("operator withdrawn fictif");
+      ).rejects.toMatchObject({
+        name: "SqliteWorkerError",
+        code: "closed",
+        message: "SQLite transaction admission was refused",
+      });
       expect(stages).toEqual(["transaction", "commit"]);
       expect(await item.service.readJob(item.job.id)).toBeDefined();
       const db = new DatabaseSync(resolveOpenClawStateSqlitePath());
@@ -470,7 +495,9 @@ describe("Cron retirement durable encrypted owner", () => {
         });
       try {
         const completion = createCronMutationCompletion("cron.remove");
-        if (!completion) throw new Error("missing native mutation completion owner");
+        if (!completion) {
+          throw new Error("missing native mutation completion owner");
+        }
         const result = await completion.run(
           async () =>
             await item.service.removeWithPrecondition(item.job.id, () => {}, {

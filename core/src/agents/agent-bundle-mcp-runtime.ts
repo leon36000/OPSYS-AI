@@ -1100,8 +1100,9 @@ function createServerMcpRuntime(
     markUsed() {
       lastUsedAt = Date.now();
     },
-    async callTool(requestedServer, toolName, input) {
+    async callTool(requestedServer, toolName, input, postflight) {
       const session = await getActiveSession(requestedServer);
+      postflight?.checkCurrent();
       const validateResult = session.toolMetadata?.validatorForCall(toolName);
       const callArguments = isRecord(input) ? input : {};
       const ambientMeta = currentMcpCallMeta();
@@ -1137,6 +1138,9 @@ function createServerMcpRuntime(
       // internal/shared-secret call does not establish a device identity. The
       // Python capability revalidates that human at the effect boundary; target tickets are for
       // model calls and must not replace the established device authorization path.
+      let cibleReceipt:
+        | import("../context-engine/opsys-contexte-cible-ticket.js").OpsysCibleTicketReceipt
+        | undefined;
       const cibleTicket = isAuthenticatedOpsysDeviceCall
         ? undefined
         : await createOpsysCibleTicketMeta({
@@ -1146,7 +1150,13 @@ function createServerMcpRuntime(
             toolParams: callArguments,
             sessionKey: params.sessionKey,
             signal: requestSignal,
+            onIssued: (receipt) => {
+              cibleReceipt = receipt;
+            },
           });
+      // A target ticket may have been issued while the run was replaced or revoked. Recheck
+      // attempt authority before crossing the business-tool effect boundary.
+      postflight?.checkCurrent();
       const cfoGrantTicket = isAuthenticatedOpsysDeviceCall
         ? undefined
         : await createOpsysCfoGrantTicketMeta({
@@ -1190,22 +1200,51 @@ function createServerMcpRuntime(
       if (memoryTicket) {
         Object.assign(mcpCallMeta, memoryTicket.meta);
       }
-      const result = (await runGuardedMcpRequest(session, (signal) =>
-        session.client.callTool(
-          {
-            name: toolName,
-            arguments:
-              memoryTicket?.arguments ??
-              cfoGrantTicket?.arguments ??
-              cibleTicket?.arguments ??
-              callArguments,
-            ...(Object.keys(mcpCallMeta).length > 0 ? { _meta: mcpCallMeta } : {}),
-          },
-          undefined,
-          { timeout: session.requestTimeoutMs, signal },
-        ),
-      )) as CallToolResult;
-      validateResult?.(result);
+      const result = (await runGuardedMcpRequest(session, async (signal) => {
+        // Private grant/ticket helpers and guarded-request setup may await. Reserve the
+        // bounded slot at the final MCP boundary, immediately before the business effect.
+        if (postflight) {
+          if (!cibleReceipt) {
+            throw new Error(
+              "OPSYS postflight durable reservation requires a private target receipt",
+            );
+          }
+          await postflight.assertBeforeEffect(cibleReceipt);
+          // Durable reservation awaits native storage; authority and abort must be fenced again.
+          postflight.checkCurrent();
+        }
+        signal.throwIfAborted();
+        let observed: CallToolResult;
+        try {
+          observed = (await session.client.callTool(
+            {
+              name: toolName,
+              arguments:
+                memoryTicket?.arguments ??
+                cfoGrantTicket?.arguments ??
+                cibleTicket?.arguments ??
+                callArguments,
+              ...(Object.keys(mcpCallMeta).length > 0 ? { _meta: mcpCallMeta } : {}),
+            },
+            undefined,
+            { timeout: session.requestTimeoutMs, signal },
+          )) as CallToolResult;
+        } catch (error) {
+          postflight?.recordUnknownOutcome();
+          throw error;
+        }
+        if (cibleReceipt && postflight) {
+          let authorityCurrent = true;
+          try {
+            postflight.checkCurrent();
+          } catch {
+            authorityCurrent = false;
+          }
+          await postflight.observe(cibleReceipt, observed, { authorityCurrent });
+        }
+        validateResult?.(observed);
+        return observed;
+      })) as CallToolResult;
       return result;
     },
     async listTools(requestedServer, requestParams) {

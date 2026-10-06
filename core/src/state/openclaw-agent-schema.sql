@@ -675,6 +675,48 @@ CREATE TABLE IF NOT EXISTS context_engine_turn_outbox (
 CREATE INDEX IF NOT EXISTS idx_agent_context_engine_turn_outbox_engine
   ON context_engine_turn_outbox(engine_id, created_at);
 
+-- OPSYS postflight stores only a bounded, closed tool-outcome envelope. It is
+-- not an authenticated provenance receipt and is intentionally not connected
+-- to the context-engine turn transcript outbox.
+CREATE TABLE IF NOT EXISTS opsys_postflight_outbox (
+  lot_key TEXT NOT NULL PRIMARY KEY,
+  affaire_id TEXT NOT NULL,
+  departement_source TEXT NOT NULL,
+  profil_id TEXT NOT NULL,
+  revision_admission INTEGER NOT NULL CHECK (revision_admission > 0),
+  engine_id TEXT NOT NULL,
+  payload_json TEXT NOT NULL CHECK (
+    json_valid(payload_json) AND length(CAST(payload_json AS BLOB)) <= 1048576
+  ),
+  state TEXT NOT NULL CHECK (state IN ('pending', 'retry', 'needs_review')),
+  attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count BETWEEN 0 AND 8),
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  next_attempt_at INTEGER,
+  last_attempt_at INTEGER,
+  last_error_code TEXT,
+  needs_review_at INTEGER,
+  CHECK (
+    (state = 'needs_review' AND needs_review_at IS NOT NULL AND next_attempt_at IS NULL)
+    OR (state != 'needs_review' AND needs_review_at IS NULL AND next_attempt_at IS NOT NULL)
+  )
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS idx_agent_opsys_postflight_outbox_due
+  ON opsys_postflight_outbox(state, next_attempt_at, created_at);
+
+-- A reservation before source RPC is deliberately uncertain, including a crash
+-- before dispatch. It is not a final fact or permission to replay the source tool.
+-- No implicit expiration: unresolved intents retain their capacity for review.
+CREATE TABLE IF NOT EXISTS opsys_postflight_intents (
+  fact_key TEXT NOT NULL PRIMARY KEY,
+  payload_json TEXT NOT NULL CHECK (
+    json_valid(payload_json) AND length(CAST(payload_json AS BLOB)) <= 2048
+  ),
+  state TEXT NOT NULL CHECK (state = 'uncertain'),
+  created_at INTEGER NOT NULL CHECK (created_at >= 0)
+) STRICT;
+
 CREATE TABLE IF NOT EXISTS cache_entries (
   scope TEXT NOT NULL,
   key TEXT NOT NULL,

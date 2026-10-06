@@ -159,6 +159,26 @@ export async function ecrireDevisConnus(
   await depot.ecrire(cle(personne, "devis_connus"), JSON.stringify(devis));
 }
 
+/** Efface la copie d'un devis refusé et enlève son identifiant connu, sans toucher au reste du profil. */
+export async function supprimerCacheDevis(
+  depot: DepotCleValeur,
+  personne: string,
+  devisId: string,
+): Promise<void> {
+  await depot.supprimer(cle(personne, `devis:${devisId}`));
+  const connus = await lireDevisConnus(depot, personne);
+  const restants = connus.filter((devis) => devis.devisId !== devisId);
+  if (restants.length !== connus.length) {
+    await ecrireDevisConnus(depot, personne, restants);
+  }
+}
+
+/** Efface les copies de devis de cette personne après un refus M3; les fiches/leads restent intacts. */
+export async function purgerCachesDevis(depot: DepotCleValeur, personne: string): Promise<void> {
+  await depot.supprimerParPrefixe(cleDeCachePersonne(PREFIXE_CACHE_VENDEUR, personne, "devis:"));
+  await depot.supprimer(cle(personne, "devis_connus"));
+}
+
 /** Les numéros gardés ; `[]` si rien n'est gardé ou si la valeur est illisible (jamais un numéro deviné). */
 export async function lireDevisConnus(depot: DepotCleValeur, personne: string): Promise<readonly DevisConnu[]> {
   const valeur = await lireJson(depot, cle(personne, "devis_connus"));

@@ -11,6 +11,8 @@ import {
   lireCacheFiche,
   lireCacheLeads,
   lireDevisConnus,
+  purgerCachesDevis,
+  supprimerCacheDevis,
 } from "./cache";
 import { CLIENT_DE_LEAD_BRUT, SUGGESTION_BRUTE, client360Brut, devisInterneBrut, leadBrut, pageBrute } from "./donneesDeTest";
 import type { FicheBrute } from "./fiche";
@@ -177,5 +179,42 @@ describe("numéros de devis connus", () => {
       JSON.stringify([{ devisId: "d1", leadId: null, origine: "saisi" }, { devisId: "" }]),
     );
     expect(await lireDevisConnus(depot, MOI)).toEqual([]);
+  });
+});
+
+
+describe("purge ciblée du cache des devis vendeur", () => {
+  const devis = lireDevisVendeur(devisInterneBrut("devis-a-01"))!;
+  const autre = lireDevisVendeur(devisInterneBrut("devis-b-01"))!;
+
+  test("un refus par devis supprime sa copie et sa référence, sans toucher aux autres devis", async () => {
+    const depot = new DepotCleValeurMemoire();
+    await ecrireCacheDevis(depot, MOI, devis, T0);
+    await ecrireCacheDevis(depot, MOI, autre, T0);
+    await ecrireDevisConnus(depot, MOI, [
+      { devisId: devis.devisId, leadId: devis.leadId, origine: "saisi" },
+      { devisId: autre.devisId, leadId: autre.leadId, origine: "saisi" },
+    ]);
+
+    await supprimerCacheDevis(depot, MOI, devis.devisId);
+
+    expect(await lireCacheDevis(depot, MOI, devis.devisId)).toBeNull();
+    expect(await lireCacheDevis(depot, MOI, autre.devisId)).not.toBeNull();
+    expect((await lireDevisConnus(depot, MOI)).map((d) => d.devisId)).toEqual([autre.devisId]);
+  });
+
+  test("refus d'inventaire purge seulement les devis et IDs de cette personne", async () => {
+    const depot = new DepotCleValeurMemoire();
+    await ecrireCacheDevis(depot, MOI, devis, T0);
+    await ecrireDevisConnus(depot, MOI, [{ devisId: devis.devisId, leadId: devis.leadId, origine: "saisi" }]);
+    await ecrireCacheDevis(depot, AUTRE, autre, T0);
+    await depot.ecrire(`vendeur:${MOI}:fiche:lead-a-01_v1`, "fiche-conservee");
+
+    await purgerCachesDevis(depot, MOI);
+
+    expect(await lireCacheDevis(depot, MOI, devis.devisId)).toBeNull();
+    expect(await lireDevisConnus(depot, MOI)).toEqual([]);
+    expect(await lireCacheDevis(depot, AUTRE, autre.devisId)).not.toBeNull();
+    expect(await depot.lire(`vendeur:${MOI}:fiche:lead-a-01_v1`)).toBe("fiche-conservee");
   });
 });

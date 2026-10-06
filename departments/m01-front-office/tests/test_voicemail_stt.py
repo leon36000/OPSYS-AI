@@ -371,3 +371,33 @@ def test_chemin_fichier_n_est_pas_une_entree_de_l_adaptateur(capacites_m1, serve
     assert resultat["code"] == "REJ-AUDIO-INVALIDE"
     assert resultat["m1"]["resultat"]["transcription_conservee"] is False
     assert _ServeurSTT.requetes == []
+
+
+def test_transcription_reussie_apres_panne_stt_reprend_le_voicemail_sans_second_rappel(
+    capacites_m1, serveur_stt, tmp_path
+):
+    fichier = _wav(tmp_path / "appel-reprise-fictif.wav")
+    audio = fichier.read_bytes()
+    configuration = _client(serveur_stt)
+    _ServeurSTT.mode = "http_error"
+
+    premiere = voicemail_stt.transcrire_et_importer(
+        audio, suffixe=".wav", capacites=capacites_m1, configuration=configuration, **_args()
+    )
+
+    assert premiere["statut"] == "refuse" and premiere["code"] == "REJ-STT-HTTP"
+    assert premiere["m1"]["ok"] is True
+    rappel_initial = premiere["m1"]["resultat"]["tache_rappel"]["transfert_id"]
+    assert rappel_initial
+    assert len(_ServeurSTT.requetes) == 1
+
+    _ServeurSTT.mode = "success"
+    reprise = voicemail_stt.transcrire_et_importer(
+        audio, suffixe=".wav", capacites=capacites_m1, configuration=configuration, **_args()
+    )
+
+    assert reprise["statut"] == "transcrit", reprise
+    assert reprise["m1"]["ok"] is True
+    assert reprise["m1"]["resultat"]["transcription_conservee"] is True
+    assert reprise["m1"]["resultat"]["tache_rappel"]["transfert_id"] == rappel_initial
+    assert len(_ServeurSTT.requetes) == 2

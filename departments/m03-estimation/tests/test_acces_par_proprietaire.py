@@ -14,7 +14,9 @@ comme le fait `Capacites.appeler` (`executer_atomique`), vraies personnes. Chaqu
 
 from __future__ import annotations
 
+import base64
 import contextlib
+import json
 import sys
 from pathlib import Path
 
@@ -24,7 +26,8 @@ _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from m3_estimation.outils import outils  # noqa: E402
+from m3_estimation import devis_durable  # noqa: E402
+from m3_estimation.outils import outils, registre_devis_production  # noqa: E402
 from sqlalchemy import select  # noqa: E402
 
 from opsys import contexte, evenements, identite, stockage  # noqa: E402
@@ -39,6 +42,7 @@ VENDEUR_UN = contexte.IdentiteAppelante(personne="vendeur.un", role="seller")
 VENDEUR_DEUX = contexte.IdentiteAppelante(personne="vendeur.deux", role="seller")
 ADMIN = contexte.IdentiteAppelante(personne="admin.un", role="admin")
 EMPLOYE = contexte.IdentiteAppelante(personne="employe.un", role="employee")
+INACTIF = contexte.IdentiteAppelante(personne="inactif.un", role="seller")
 
 CODE_INTROUVABLE = "REJ-DEVIS-INTROUVABLE"
 CODE_INVALIDE = "REJ-IDENTITE-APPAREIL-INVALIDE"
@@ -286,3 +290,145 @@ def test_le_fait_de_propriete_n_est_pas_lisible_hors_transaction():
     assert module_outils._proprietaire_du_lead("lead-un") is None
     assert module_outils._proprietaire_du_lead("") is None
     assert module_outils._proprietaire_du_lead(None) is None
+
+# =========================================================================================
+# 3. Inventaire vendeur M3 : lecture seule, pagination stable, sans divulgation inter-vendeurs
+# =========================================================================================
+def test_m3_lister_devis_est_un_outil_t0_pagine_sans_argument_de_proprietaire():
+    outil = _outil("m3_lister_devis")
+    assert outil.autonomie.value == "T0"
+    assert outil.roles_appareil == frozenset({"seller"})
+    assert set(outil.parametres["properties"]) == {"limite", "curseur"}
+    assert "required" not in outil.parametres or outil.parametres["required"] == []
+    assert "proprietaire" not in outil.parametres["properties"]
+    assert outil.parametres["additionalProperties"] is False
+
+
+def test_m3_lister_devis_refuse_absence_appareil_et_roles_non_vendeur(scenario):
+    for appareil in (None, EMPLOYE, ADMIN, INACTIF):
+        verdict = _verdict(_appeler("m3_lister_devis", {}, appareil))
+        assert verdict["code"] == "REJ-IDENTITE-APPAREIL-INVALIDE"
+
+
+def test_m3_lister_devis_ne_rend_que_le_proprietaire_et_est_rejouable_sans_ecriture(scenario):
+    avant = _instantane_base()
+    premiere = _accepte(_appeler("m3_lister_devis", {}, VENDEUR_UN))
+    rejouee = _accepte(_appeler("m3_lister_devis", {}, VENDEUR_UN))
+
+    assert premiere == rejouee
+    assert [devis["devis_id"] for devis in premiere["devis"]] == [DEVIS_UN]
+    assert premiere["devis"][0]["statut"] == "brouillon"
+    assert premiere["curseur_suivant"] is None
+    assert "total" not in premiere and "nombre_total" not in premiere
+    assert _instantane_base() == avant
+
+
+def test_m3_lister_devis_pagine_dans_un_ordre_stable_et_lie_au_vendeur(scenario):
+    for devis_id, lead_id in (
+        ("M3-DEVIS-prop-000", "lead-un-0"),
+        ("M3-DEVIS-prop-004", "lead-un-4"),
+    ):
+        _creer_devis(devis_id, lead_id)
+        _lead_assigne(lead_id, "vendeur.un")
+    with stockage.transaction():
+        registre = registre_devis_production()
+        _, rejet = devis_durable.marquer_devis_envoye(
+            "M3-DEVIS-prop-000", _HORODATAGE, registre
+        )
+        assert rejet is None
+        _, rejet = devis_durable.marquer_devis_envoye(
+            "M3-DEVIS-prop-004", _HORODATAGE, registre
+        )
+        assert rejet is None
+        _, rejet = devis_durable.marquer_devis_accepte(
+            "M3-DEVIS-prop-004", "humain ayant constaté l'acceptation", _HORODATAGE, registre
+        )
+        assert rejet is None
+    avant = _instantane_base()
+
+    page1 = _accepte(_appeler("m3_lister_devis", {"limite": 1}, VENDEUR_UN))
+    page2 = _accepte(_appeler("m3_lister_devis", {"limite": 1, "curseur": page1["curseur_suivant"]}, VENDEUR_UN))
+    page3 = _accepte(_appeler("m3_lister_devis", {"limite": 1, "curseur": page2["curseur_suivant"]}, VENDEUR_UN))
+
+    assert [
+        page1["devis"][0]["devis_id"],
+        page2["devis"][0]["devis_id"],
+        page3["devis"][0]["devis_id"],
+    ] == ["M3-DEVIS-prop-000", DEVIS_UN, "M3-DEVIS-prop-004"]
+    assert [page1["devis"][0]["statut"], page2["devis"][0]["statut"], page3["devis"][0]["statut"]] == [
+        "envoye", "brouillon", "accepte",
+    ]
+    assert page1["curseur_suivant"] and page2["curseur_suivant"]
+    assert page3["curseur_suivant"] is None
+    assert all("devis_id" not in page for page in (page1, page2, page3))
+    assert _instantane_base() == avant
+
+    croise = _verdict(_appeler(
+        "m3_lister_devis", {"limite": 1, "curseur": page1["curseur_suivant"]}, VENDEUR_DEUX
+    ))
+    assert croise["code"] == "REJ-CONTRAT-INVALIDE"
+
+    for identifiant_inconnu_ou_autre in (DEVIS_DEUX, DEVIS_INCONNU):
+        charge = json.dumps(
+            {"version": 1, "personne": "vendeur.un", "devis_id": identifiant_inconnu_ou_autre},
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        ).encode("utf-8")
+        curseur_forge = base64.urlsafe_b64encode(charge).decode("ascii").rstrip("=")
+        verdict = _verdict(_appeler(
+            "m3_lister_devis", {"limite": 1, "curseur": curseur_forge}, VENDEUR_UN
+        ))
+        assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
+        assert verdict["detail"] == "curseur invalide"
+
+
+@pytest.mark.parametrize("arguments", [
+    {"limite": 0}, {"limite": 51}, {"limite": True}, {"limite": "1"}, {"curseur": "%%"},
+])
+def test_m3_lister_devis_refuse_limites_et_curseurs_invalides_sans_ecriture(scenario, arguments):
+    avant = _instantane_base()
+    reponse = _appeler("m3_lister_devis", arguments, VENDEUR_UN)
+    assert reponse["ok"] is False or reponse["resultat"]["accepte"] is False
+    if reponse["ok"]:
+        assert reponse["resultat"]["verdict"]["code"] == "REJ-CONTRAT-INVALIDE"
+    assert _instantane_base() == avant
+
+
+def test_m3_lister_devis_refuse_un_role_vendeur_retire(scenario):
+    with stockage.transaction() as cnx:
+        identite.retirer_role(cnx, "vendeur.un", "seller")
+    avant = _instantane_base()
+    verdict = _verdict(_appeler("m3_lister_devis", {}, VENDEUR_UN))
+    assert verdict["code"] == "REJ-IDENTITE-APPAREIL-INVALIDE"
+    assert _instantane_base() == avant
+
+
+def test_m3_lister_devis_invalide_le_curseur_si_le_lead_repere_est_reassigne(scenario):
+    _creer_devis("M3-DEVIS-prop-000", "lead-un-0")
+    _lead_assigne("lead-un-0", "vendeur.un")
+    _creer_devis("M3-DEVIS-prop-004", "lead-un-4")
+    _lead_assigne("lead-un-4", "vendeur.un")
+    page = _accepte(_appeler("m3_lister_devis", {"limite": 1}, VENDEUR_UN))
+    assert page["devis"][0]["devis_id"] == "M3-DEVIS-prop-000"
+
+    with stockage.transaction():
+        evenements.publier(
+            "m2.lead_assigne",
+            "m02-revenue-crm",
+            {
+                "lead_id": "lead-un-0",
+                "proprietaire": "vendeur.deux",
+                "horodatage_assignation": "2026-09-29T15:00:00-04:00",
+                "rang": 2,
+                "proprietaire_precedent": "vendeur.un",
+            },
+            evenement_id="m2-lead-reassigne-2-lead-un-0",
+        )
+    verdict = _verdict(_appeler(
+        "m3_lister_devis",
+        {"limite": 1, "curseur": page["curseur_suivant"]},
+        VENDEUR_UN,
+    ))
+    assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
+    assert verdict["detail"] == "curseur invalide"

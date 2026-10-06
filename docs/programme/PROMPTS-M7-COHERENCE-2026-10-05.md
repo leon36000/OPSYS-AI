@@ -1,0 +1,19 @@
+# M7 — prompts cohérents avec les capacités réelles
+
+Correction éditoriale du 5 octobre 2026, sans changement runtime ou dépendance. Le SOUL conserve le département complet Marketing & Croissance : marque, contenu/social, Growth, réputation, SEO/AEO, paid, attribution, concurrence, marketing local et conseil CMO. Il prend services et zones dans le profil client configuré au lieu d’en attribuer une liste supposée à toute entreprise.
+
+## Écarts corrigés
+
+- Le préparateur photo legacy requiert `wct_id`, `photos` et `seuil_confiance` ; l’ancienne consigne « seulement wct_id » contredisait son schéma. Son détecteur par défaut refuse aussi lorsque OpenCV est importable, car aucun adaptateur réel n’est branché. Le SOUL ne promet plus de floutage automatique et n’invite pas le modèle à fabriquer pixels, seuils, consentements ou marque. Il oriente la remise vers les variantes préparées humainement, la revue propriétaire et l’export manuel M7.3a. Une approbation/export ne certifie pas la sûreté d’une photo.
+- Le transfert fidèle de valeurs reçues d’une source identifiée reste possible ; inventer, remplacer ou élargir un fait métier est interdit. Les champs de consentement et de marque lus par le serveur restent canoniques. Cette précision ne crée aucune nouvelle permission ni source de vérité.
+- `m7_calculer_roi` est décrit comme démonstration fictive dans son contrat actuel. Ses chiffres ne sont pas des faits financiers du client ou un fondement de budget. Le SOUL demande des sources M5/M8 compatibles et qualifiées pour un ROI réel, en conservant les inconnues.
+- Les contrôles SEO/AEO lisent des fichiers locaux. Le guide nomme le dossier `site_dir`, la page `html_path`, la source et l’heure réellement fournie. Un type LocalBusiness conforme ne prouve ni présence ni absence chez Google ou les assistants IA. Deux audits locaux verts signifient « contrôles locaux passés », pas publication autorisée, indexation ou visibilité obtenue.
+- Une observation humaine déclarée, fixture ou donnée locale n’est pas présentée comme mesure fournisseur vérifiée. L’approbation d’un programme CMO ne donne aucun droit de publication ou de dépense. La restitution relie constats/source/période, données manquantes, proposition réalisable et validation nécessaire.
+
+## Contrôle et méthode
+
+Une revue Luna en lecture seule a confronté SOUL, skills, matrice et programme CMO aux fonctions/schémas actuels. ROOT a relu les sources, constaté en plus le contrat ROI explicitement fictif, puis corrigé deux documents opérationnels : SOUL et skill `audit-seo-local`. Le guide `superpowers:writing-skills` a servi à la structure de référence et au déclencheur concret ; les contrôles restent proportionnés à cette correction factuelle réversible, suivant les directives Nathan. Aucun consensus de modèles ou attente d’un arbitre extérieur.
+
+Le YAML du skill est valide et ses champs sont fermés ; **quinze noms d’outils du SOUL existent** dans le propriétaire courant. Le diff a été relu avec les sources, empreintes et préimages conservées. Aucun test qui copie les formulations n’a été ajouté. Aucune exécution de modèle, évaluation statistique de comportement, amélioration de qualité ou économie de tokens mesurée n’est revendiquée. Les mots de mission ne prouvent aucune capacité supplémentaire. M7 reste PARTIEL ; l’autonomie CMO, les sources externes et les outils photo réels restent à construire/qualifier.
+
+[Capsule de contrôle](../research/REPRISE-2026-10-05/preuves/PROMPTS-M7-COHERENCE-r1.tar.xz) ; [inventaire, SHA et portée](../research/REPRISE-2026-10-05/preuves/PROMPTS-M7-COHERENCE-r1.json). r365 scanne les quatre documents du patch, onze références, le rapport Luna et le plan ROOT avec la configuration de secrets par défaut, sans exception ajoutée. Ce contrôle ne prétend pas scanner tout le dépôt ou l’archive. Les quatre documents du patch, leurs liens locaux et les références sont revérifiés avant préparation Git isolée.

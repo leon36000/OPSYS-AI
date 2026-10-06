@@ -2,6 +2,8 @@ import {
   assertContextEngineHostSupport,
   OPENCLAW_EMBEDDED_CONTEXT_ENGINE_HOST,
 } from "../../../context-engine/host-compat.js";
+import { isOpsysCibleTicketTool } from "../../../context-engine/opsys-contexte-cibles.js";
+import { readOpsysContexteConfig } from "../../../context-engine/opsys-contexte-config.js";
 import { resolveContextEngineOwnerPluginId } from "../../../context-engine/registry.js";
 import { runWithAsyncWorkResources } from "../../../shared/async-work-resources.js";
 import { getAsyncWorkSignal } from "../../../shared/async-work-scope.js";
@@ -15,6 +17,7 @@ import {
 } from "../../agent-run-terminal-outcome.js";
 import { resolveAgentDir } from "../../agent-scope.js";
 import { buildExecAutoReviewTranscript } from "../../exec-auto-review-transcript.js";
+import { OpsysPostflightCollector } from "../../harness/opsys-postflight-collector.js";
 import { recordAgentCleanupFailure, runOwnedAgentCleanup } from "../../run-cleanup-timeout.js";
 import {
   clearToolSearchCatalog,
@@ -97,7 +100,6 @@ async function runEmbeddedAttemptOwned(
     sandboxSessionKey,
     sessionAgentId,
   } = setup;
-
   let restoreSkillEnv: (() => void) | undefined;
   const executionState: EmbeddedAttemptExecutionState = {
     beforeAgentRunBlockedBy: undefined,
@@ -161,6 +163,35 @@ async function runEmbeddedAttemptOwned(
     params.admittedRunContext,
     params.abortSignal,
   );
+  const runtimeAdmission = params.config?.agents?.entries?.[sessionAgentId]?.opsysRuntimeAdmission;
+  const opsysContext =
+    params.contextEngine?.info.id === "opsys" ? readOpsysContexteConfig() : undefined;
+  if (
+    runtimeAdmission?.profileId &&
+    opsysContext?.kind === "enabled" &&
+    params.sessionKey &&
+    params.userTurnTranscriptRecorder &&
+    assertActiveRun
+  ) {
+    const depositTools = opsysContext.config.agents.get(sessionAgentId) ?? [];
+    if (depositTools.some(isOpsysCibleTicketTool)) {
+      params = {
+        ...params,
+        opsysPostflightCollector: new OpsysPostflightCollector({
+          runId: params.runId,
+          sessionId: params.sessionId,
+          sessionKey: params.sessionKey,
+          agentId: sessionAgentId,
+          recorder: params.userTurnTranscriptRecorder,
+          depositTools,
+          assertCurrent: () => {
+            externalAbortController.throwIfFired();
+            assertActiveRun();
+          },
+        }),
+      };
+    }
+  }
   try {
     const preparedSkills = await prepare("attempt.skills", () =>
       prepareEmbeddedSkills({
@@ -447,6 +478,23 @@ async function runEmbeddedAttemptOwned(
           },
         },
       });
+      if (params.opsysPostflightCollector && opsysContext?.kind === "enabled") {
+        try {
+          const delivered = await params.opsysPostflightCollector.deliverPending({
+            config: params.config,
+            timeoutMs: opsysContext.config.timeoutMs,
+            signal: runAbortController.signal,
+          });
+          if (delivered.failed > 0 || delivered.acknowledgementFailures > 0) {
+            log.warn(
+              `OPSYS postflight delivery pending: failed=${delivered.failed} ackFailures=${delivered.acknowledgementFailures}`,
+            );
+          }
+        } catch {
+          // Closed diagnostic only. The durable lot is retained; never repeat its source tool.
+          log.warn("OPSYS postflight delivery deferred; retry requires another admitted attempt.");
+        }
+      }
       // Read catalog counters before the finally-phase cleanup clears the
       // run-scoped catalog session; afterwards the counts are gone.
       const catalogSession = toolSearchCatalogRef?.current;
@@ -514,6 +562,16 @@ async function runEmbeddedAttemptOwned(
     }
     throw error;
   } finally {
+    const postflightStatus = await params.opsysPostflightCollector?.flushPending();
+    if (postflightStatus && (postflightStatus.remaining > 0 || postflightStatus.failures > 0)) {
+      log.warn(
+        `OPSYS postflight capture incomplete: pending=${postflightStatus.remaining} failures=${postflightStatus.failures} revokedAfterEffect=${postflightStatus.revokedAfterEffect}`,
+      );
+    } else if (postflightStatus?.revokedAfterEffect) {
+      log.warn(
+        `OPSYS postflight observed authority revocation after effect: count=${postflightStatus.revokedAfterEffect}`,
+      );
+    }
     const resolveCleanupReason = () => {
       const terminal = projectAgentRunAttemptTerminal(executionState.terminal);
       return terminal.timedOut ||

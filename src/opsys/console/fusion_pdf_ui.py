@@ -7,6 +7,7 @@ import uuid
 from collections.abc import Callable, Mapping
 from datetime import datetime
 from email.message import Message
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -16,7 +17,7 @@ from starlette.datastructures import UploadFile
 from starlette.requests import Request as StarletteRequest
 
 from .. import fusion_pdf, identite
-from . import pages, securite
+from . import fusion_pdf_ocr_ui, pages, securite
 from .securite import Session
 
 _SOURCE_MAX = fusion_pdf.SOURCE_MAX
@@ -206,7 +207,9 @@ def _liste(
     )
 
 
-def _detail(prefixe: str, session: Session, lot: Mapping[str, Any], erreur: str = "") -> str:
+def _detail(
+    prefixe: str, session: Session, lot: Mapping[str, Any], erreur: str = "", *, ocr_actif: bool = False,
+) -> str:
     statut = str(lot.get("statut", ""))
     if statut not in _STATUTS:
         raise HTTPException(502, "état de lot invalide")
@@ -236,6 +239,7 @@ def _detail(prefixe: str, session: Session, lot: Mapping[str, Any], erreur: str 
         )
     elif statut == "REFUSE":
         contenu.append("<p>Le worker a refusé le document. Aucun extrait n’est disponible.</p>")
+        contenu.append(fusion_pdf_ocr_ui.action_ocr(prefixe, session, lot, actif=ocr_actif))
     return '<section class="carte pile"><h2>Lot PDF</h2>' + "".join(contenu) + "</section>"
 
 
@@ -388,6 +392,7 @@ def creer_router(
     session_page: Callable[..., Session],
     prefixe: str,
     cnx_factory: Callable[..., Any],
+    bundle_ocr: Path | None = None,
 ) -> APIRouter:
     router = APIRouter()
 
@@ -510,7 +515,9 @@ def creer_router(
             lot = lecture["lot"]
             provenance = appeler(_provenance, lot, lecture["provenance"])
             session = session_vivante(request, session.utilisateur)
-            reponse = _reponse(prefixe, session, _detail(prefixe, session, lot) + provenance)
+            reponse = _reponse(
+                prefixe, session, _detail(prefixe, session, lot, ocr_actif=bundle_ocr is not None) + provenance,
+            )
         except HTTPException as exc:
             return page_erreur(request, session, exc)
         session_vivante(request, session.utilisateur)

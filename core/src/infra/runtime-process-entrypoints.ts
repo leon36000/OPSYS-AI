@@ -94,6 +94,11 @@ export const runtimeProcessEntrypoints = {
     sourceWorkerName: "heartbeat-outcome-store.worker",
     distWorkerPath: "infra/heartbeat-outcome-store.worker.js",
   },
+  opsysPostflightOutbox: {
+    currentModuleUrl,
+    sourceWorkerName: "../agents/harness/opsys-postflight-outbox.worker",
+    distWorkerPath: "agents/harness/opsys-postflight-outbox.worker.js",
+  },
   sqliteStore: {
     currentModuleUrl,
     sourceWorkerName: "sqlite-store.worker",

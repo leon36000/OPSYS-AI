@@ -8,7 +8,8 @@ mission: >-
   alors pas de prix, seulement la liste de ce qui manque.
 outils: m3_estimation.outils
 mode: ombre
-dependances: [m02-revenue-crm, m04-field-ops, m06-material-control]
+# Lecture d'apprentissage T0 admin : prix/cout M5 et mesures de fait M8, via leurs outils bornés.
+dependances: [m02-revenue-crm, m04-field-ops, m05-financecore, m06-material-control, m08-analytics]
 modeles:
   defaut: standard
   extraction: rapide

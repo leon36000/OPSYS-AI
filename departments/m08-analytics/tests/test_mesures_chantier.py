@@ -55,7 +55,10 @@ def _variance(**surcharges):
 
 
 def _rentabilite(**surcharges):
-    base = {"type_entree": "rentabilite", "wct_id": "wct-fictif-1", "marge_reelle_cad": "90.00"}
+    base = {
+        "type_entree": "rentabilite", "wct_id": "wct-fictif-1", "verdict": "CALCULEE",
+        "cout_reel_complet": True, "prix_definitif": True, "marge_reelle_cad": "90.00",
+    }
     base.update(surcharges)
     return base
 
@@ -177,7 +180,7 @@ def test_chaque_mesure_porte_nom_unite_et_la_version_de_sa_definition_gouvernee(
 def test_la_mesure_de_materiaux_cite_le_materiau_et_le_verdict_de_m6_sans_le_recalculer():
     entrees = _mesures(_wct(), _variance())["m8_ecart_materiaux_max_pct"]["entrees"]
     assert entrees == {
-        "materiau": "gouttiere-fictif", "quantite_prevue": "40", "quantite_reelle": "56",
+        "materiau": "gouttiere-fictif", "unite": "pi", "quantite_prevue": "40", "quantite_reelle": "56",
         "signal_critique_m6": True,
     }
 
@@ -256,6 +259,69 @@ def test_sans_marge_reelle_de_m5_la_marge_reelle_et_ses_ecarts_sont_non_calculab
         assert [c["champ"] for c in m[metric_id]["manque"]] == ["marge_reelle_cad"]
         assert m[metric_id]["manque"][0]["source"] == "M5 (rentabilité du chantier)"
     assert m["m8_marge_prevue_cad"]["statut"] == mc.STATUT_CALCULEE  # le prévu n'attend pas M5
+
+
+@pytest.mark.parametrize(
+    ("finalite", "raison"),
+    [
+        (False, "facture brouillon ou prix non définitif"),
+        (None, "finalité de facture inconnue"),
+    ],
+)
+def test_une_marge_m5_non_finale_est_exclue_avec_une_raison_nommée(finalite, raison):
+    rentabilite = _rentabilite()
+    if finalite is None:
+        rentabilite.pop("prix_definitif")
+    else:
+        rentabilite["prix_definitif"] = finalite
+    m = _mesures(_wct(), _devis(), rentabilite)
+
+    for metric_id in ("m8_marge_reelle_cad", "m8_ecart_marge_cad", "m8_ecart_marge_pct"):
+        assert m[metric_id]["statut"] == mc.STATUT_NON_CALCULABLE
+        assert m[metric_id]["valeur"] is None
+        assert m[metric_id]["manque"][0]["source"] == "M5 (rentabilité du chantier)"
+        assert raison in m[metric_id]["manque"][0]["raison"]
+        assert "prix_definitif" not in m[metric_id]["entrees"]
+
+
+def test_une_marge_m5_definitive_et_un_cout_complet_restent_calculables():
+    m = _mesures(_wct(), _devis(), _rentabilite(prix_definitif=True, cout_reel_complet=True))
+
+    assert m["m8_marge_reelle_cad"]["valeur"] == "90.00"
+    assert m["m8_ecart_marge_cad"]["valeur"] == "-30.00"
+    assert m["m8_ecart_marge_pct"]["valeur"] == "-25.00"
+    for metric_id in ("m8_marge_reelle_cad", "m8_ecart_marge_cad", "m8_ecart_marge_pct"):
+        assert m[metric_id]["entrees"]["prix_definitif"] is True
+        assert m[metric_id]["entrees"]["prix_definitif_source"] == "M5 (rentabilité du chantier)"
+
+
+def test_version_entrees_m5_est_propagee_optionnellement_sans_defaut_historique():
+    version = "a" * 64
+    avec_version = _mesures(_wct(), _devis(), _rentabilite(version_entrees=version))
+    sans_version = _mesures(_wct(), _devis(), _rentabilite())
+
+    assert avec_version["m8_marge_reelle_cad"]["entrees"]["version_entrees"] == version
+    assert "version_entrees" not in sans_version["m8_marge_reelle_cad"]["entrees"]
+
+
+def test_une_marge_m5_sans_preuve_de_cout_complet_est_exclue():
+    m = _mesures(_wct(), _devis(), _rentabilite(cout_reel_complet=False))
+
+    for metric_id in ("m8_marge_reelle_cad", "m8_ecart_marge_cad", "m8_ecart_marge_pct"):
+        assert m[metric_id]["statut"] == mc.STATUT_NON_CALCULABLE
+        assert m[metric_id]["valeur"] is None
+        assert "coût réel partiel" in m[metric_id]["manque"][0]["raison"]
+
+
+def test_une_completude_absente_ne_devient_pas_un_cout_complet_par_defaut():
+    rentabilite = _rentabilite()
+    rentabilite.pop("cout_reel_complet")
+    m = _mesures(_wct(), _devis(), rentabilite)
+
+    for metric_id in ("m8_marge_reelle_cad", "m8_ecart_marge_cad", "m8_ecart_marge_pct"):
+        assert m[metric_id]["statut"] == mc.STATUT_NON_CALCULABLE
+        assert m[metric_id]["valeur"] is None
+        assert "complétude du coût réel inconnue" in m[metric_id]["manque"][0]["raison"]
 
 
 def test_une_marge_prevue_nulle_rend_l_ecart_relatif_indefini_pas_une_division_par_zero():

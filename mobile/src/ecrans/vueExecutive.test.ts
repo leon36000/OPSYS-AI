@@ -164,7 +164,7 @@ describe("la vue d'ensemble : l'entonnoir", () => {
 describe("la vue d'ensemble : la marge réelle des chantiers (M5), reprise sans calcul", () => {
   test("le résumé de M5 et chaque chantier : une marge chiffrée, ou « non calculable » avec la raison de M5", () => {
     const marge = vue().margeReelle;
-    expect(marge.source).toBe("M5 (m5.rentabilite_chantier), reprise sans aucun calcul");
+    expect(marge.source).toBe("M5 (m5.rentabilite_chantier), prix définitif/coût complet, reprise sans aucun calcul");
     expect(marge.resume).toEqual({ cle: "admin.chiffres.vue.margeResume", params: { n: 2, connue: 1, nonCalculable: 1 } });
     expect(marge.chantiers).toHaveLength(2);
     const [chiffre, nonChiffre] = marge.chantiers;
@@ -181,7 +181,7 @@ describe("la vue d'ensemble : la marge réelle des chantiers (M5), reprise sans 
     expect(nonChiffre.marge).toEqual({
       cle: "admin.chiffres.vue.margeNonCalculable",
       params: {
-        raison: "M5 n'a pas chiffré la marge réelle : REJ-COUT-PRIX-NON-DISPONIBLE, REJ-COUT-TAUX-HORAIRE-A-CONFIGURER",
+        raison: "facture brouillon ou prix non définitif (prix_definitif=false)",
       },
     });
   });
@@ -295,7 +295,7 @@ describe("la vue d'ensemble : le stock à commander (M6) et le cash libre", () =
   });
 
   test("la portée de la vue est celle que M8 écrit, telle quelle", () => {
-    expect(vue().portee).toContain("Tous les faits reçus par M8, sans fenêtre de période.");
+    expect(vue().portee).toContain("Tous les faits reçus, sans fenêtre de période.");
   });
 
   test("une vue vide (aucun fait reçu) ne montre aucun chiffre inventé : toute mesure calculée ou non l'est par le serveur", () => {

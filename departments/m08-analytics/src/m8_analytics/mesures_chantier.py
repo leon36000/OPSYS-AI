@@ -28,11 +28,10 @@ Faits reçus (un dictionnaire par fait, ajoutés en lecture seule au registre ``
 - ``devis``    : ``m3.devis_accepte`` (prix total, coût total et, s'il est fourni, durée estimée) ;
 - ``variance`` : ``m6.variance_chantier`` (verdict d'écart de matériaux, ligne par ligne) ;
 - ``rentabilite`` : la marge réelle rapportée par M5 (``m5.rentabilite_chantier``), ``{type_entree, wct_id,
-  sequence, marge_reelle_cad, manque, ...}``, ``marge_reelle_cad`` en texte décimal. M5 la chiffre seulement
-  quand son coût réel est complet et que la facture existe : sinon la marge est ``None`` et ``manque`` porte
-  les codes de ce que M5 n'a pas pu chiffrer. Tant qu'aucun fait de ce type n'existe, ou tant qu'il porte
-  une marge ``None``, la marge réelle et ses écarts sont « non calculables, manque marge_reelle_cad (M5) »,
-  avec la raison que M5 a donnée. Le fait de plus grand ``sequence`` est l'état courant.
+  sequence, marge_reelle_cad, manque, ...}``, ``marge_reelle_cad`` en texte décimal. Les métriques de marge
+  réelle exigent un coût complet, un verdict M5 calculé et ``prix_definitif is True`` (facture envoyée ou payée).
+  Facture brouillon ou finalité historique inconnue reste non calculable, avec la raison nommée. Le fait de plus
+  grand ``sequence`` est l'état courant.
 """
 
 from __future__ import annotations
@@ -157,9 +156,12 @@ def fait_rentabilite(charge: dict[str, Any]) -> dict[str, Any]:
     comptabilité) et, si M5 n'a pas pu la chiffrer, les codes de ce qui manque.
 
     Fail-closed : la marge n'est retenue que pour un verdict ``CALCULEE`` dont le coût réel est complet. Une
-    charge qui porterait une marge malgré un coût partiel (le catalogue la refuse déjà) n'en garde aucune."""
+    charge qui porterait une marge malgré un coût partiel (le catalogue la refuse déjà) n'en garde aucune.
+    Les preuves optionnelles de finalité, de complétude et de version sont conservées quand M5 les fournit;
+    une clé absente d'un fait historique reste absente, jamais remplacée par ``False``. Cette projection ne
+    réécrit ni ne requalifie les faits M8 déjà persistés."""
     calculee = charge["verdict"] == "CALCULEE" and charge["cout_reel_complet"] is True
-    return {
+    fait = {
         "type_entree": "rentabilite",
         "wct_id": charge["wct_id"],
         "devis_id": charge["devis_id"],
@@ -168,6 +170,10 @@ def fait_rentabilite(charge: dict[str, Any]) -> dict[str, Any]:
         "marge_reelle_cad": charge["marge_reelle_cad"] if calculee else None,
         "manque": list(charge["manque"]),
     }
+    for cle in ("prix_definitif", "cout_reel_complet", "version_entrees"):
+        if cle in charge:
+            fait[cle] = charge[cle]
+    return fait
 
 
 def wcts_du_devis(entrees: list[dict[str, Any]], devis_id: str) -> list[str]:
@@ -256,10 +262,25 @@ def _raison_valeur_absente(fait: dict[str, Any], nom_fait: str) -> str:
     return f"M5 n'a pas chiffré la marge réelle (verdict {fait['verdict']})"
 
 
+def raison_marge_reelle_non_qualifiee(fait: dict[str, Any]) -> str | None:
+    """Une marge M5 n'est dite réelle que si finalité et complétude sont prouvées."""
+    if "prix_definitif" not in fait:
+        return "finalité de facture inconnue (prix_definitif absent du fait M5)"
+    if fait.get("prix_definitif") is not True:
+        return "facture brouillon ou prix non définitif (prix_definitif=false)"
+    if fait.get("verdict") != "CALCULEE":
+        return _raison_valeur_absente(fait, "rentabilite")
+    if fait.get("cout_reel_complet") is not True:
+        if fait.get("cout_reel_complet") is False:
+            return "coût réel partiel selon M5 (cout_reel_complet=false)"
+        return "complétude du coût réel inconnue (cout_reel_complet absent du fait M5)"
+    return None
+
+
 def _lire_entrees(
-    faits: dict[str, Any], champs: tuple[str, ...]
-) -> tuple[dict[str, Decimal], list[dict[str, str]]]:
-    valeurs: dict[str, Decimal] = {}
+    faits: dict[str, Any], champs: tuple[str, ...], *, inclure_version_entrees: bool = False,
+) -> tuple[dict[str, Any], list[dict[str, str]]]:
+    valeurs: dict[str, Any] = {}
     manque: list[dict[str, str]] = []
     for champ in champs:
         nom_fait, cle, source = _LOCALISATEURS[champ]
@@ -267,6 +288,16 @@ def _lire_entrees(
         if fait is None:
             manque.append({"champ": champ, "source": source, "raison": _raison_fait_absent(faits, nom_fait)})
             continue
+        if champ == "marge_reelle_cad":
+            raison = raison_marge_reelle_non_qualifiee(fait)
+            if raison is not None:
+                manque.append({"champ": champ, "source": source, "raison": raison})
+                continue
+            # Publier la preuve du garde-fou avec chaque mesure de marge qui a passé.
+            valeurs["prix_definitif"] = True
+            valeurs["prix_definitif_source"] = source
+            if inclure_version_entrees and "version_entrees" in fait:
+                valeurs["version_entrees"] = fait["version_entrees"]
         brute = fait.get(cle)
         if brute is None:
             manque.append({"champ": champ, "source": source, "raison": _raison_valeur_absente(fait, nom_fait)})
@@ -314,7 +345,7 @@ def _marge_prevue_cad(faits: dict[str, Any]) -> Resultat:
 
 
 def _marge_reelle_cad(faits: dict[str, Any]) -> Resultat:
-    v, manque = _lire_entrees(faits, ("marge_reelle_cad",))
+    v, manque = _lire_entrees(faits, ("marge_reelle_cad",), inclure_version_entrees=True)
     if manque:
         return None, v, manque
     return v["marge_reelle_cad"], v, []
@@ -362,6 +393,7 @@ def _ecart_materiaux_max_pct(faits: dict[str, Any]) -> Resultat:
     ecart_max, ligne = max(definis, key=lambda paire: paire[0])
     entrees = {
         "materiau": ligne["materiau"],
+        "unite": ligne.get("unite"),
         "quantite_prevue": ligne["quantite_prevue"],
         "quantite_reelle": ligne["quantite_reelle"],
         "signal_critique_m6": variance["signal_critique"],

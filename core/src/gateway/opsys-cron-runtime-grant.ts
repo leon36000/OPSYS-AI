@@ -106,6 +106,7 @@ export function decodeOpsysCronRuntimeDeclaration(
     delivery: { mode: "none" },
   };
   const cron: CronJobCreate = {
+    enabled: false,
     name: `OPSYS profil ${profileId}`,
     declarationKey: `opsys-profile:${intentionId}`,
     agentId: `opsys-agent-${profileId}`,
@@ -119,13 +120,16 @@ export function decodeOpsysCronRuntimeDeclaration(
 }
 
 function revisionFromDeclaration(value: unknown, profileId: string): number | undefined {
-  if (!isRecord(value) || !isRecord(value.payload) || typeof value.payload.message !== "string")
+  if (!isRecord(value) || !isRecord(value.payload) || typeof value.payload.message !== "string") {
     return undefined;
+  }
   const match = new RegExp(
     `^Exécute le mandat interne canonique du profil ${profileId}, révision ([1-9][0-9]*)\\.$`,
     "u",
   ).exec(value.payload.message);
-  if (!match?.[1]) return undefined;
+  if (!match?.[1]) {
+    return undefined;
+  }
   const revision = Number(match[1]);
   return Number.isSafeInteger(revision) && revision > 0 ? revision : undefined;
 }
@@ -136,7 +140,9 @@ export function decodeOpsysCronRuntimeGrant(
   expected: OpsysCronRuntimeGrantExpectation = {},
 ): OpsysCronRuntimeGrant | undefined {
   const value: unknown = job;
-  if (!isRecord(value) || value.runtimeAuthorityRecoveryRequired === true) return undefined;
+  if (!isRecord(value) || value.runtimeAuthorityRecoveryRequired === true) {
+    return undefined;
+  }
   return decodeOpsysCronRuntimeAuthority(value.runtimeAuthority, expected);
 }
 
@@ -152,8 +158,9 @@ export function decodeOpsysCronRuntimeAuthority(
     authority.runtimeId !== OPSYS_CRON_RUNTIME_AUTHORITY_RUNTIME ||
     authority.namespace !== OPSYS_CRON_RUNTIME_AUTHORITY_NAMESPACE ||
     !isRecord(authority.payload)
-  )
+  ) {
     return undefined;
+  }
   const payload = authority.payload;
   if (
     !hasExactKeys(payload, [
@@ -179,22 +186,28 @@ export function decodeOpsysCronRuntimeAuthority(
     typeof payload.capabilite !== "string" ||
     !/^[a-f0-9]{64}$/u.test(payload.capabilite) ||
     !isRecord(payload.declaration)
-  )
+  ) {
     return undefined;
+  }
   if (
     (expected.profileId !== undefined && expected.profileId !== payload.profil_id) ||
     (expected.intentionId !== undefined && expected.intentionId !== payload.intention_id)
-  )
+  ) {
     return undefined;
+  }
   const profileRevision = revisionFromDeclaration(payload.declaration, payload.profil_id);
-  if (profileRevision === undefined) return undefined;
+  if (profileRevision === undefined) {
+    return undefined;
+  }
   const declaration = decodeOpsysCronRuntimeDeclaration(
     payload.declaration,
     payload.profil_id,
     payload.intention_id,
     profileRevision,
   );
-  if (!declaration) return undefined;
+  if (!declaration) {
+    return undefined;
+  }
   return {
     capability: payload.capabilite,
     epoch: payload.epoch,
@@ -226,9 +239,12 @@ export function opsysCronRuntimeDeclarationMatchesJob(
     "createdActor",
     "skillLibrarySelections",
   ];
-  if (unsupportedConfigKeys.some((key) => Reflect.get(job, key) !== undefined)) return false;
-  if (!isDeepStrictEqual(job.scheduledToolPolicy, createTrustedCronScheduledToolPolicy()))
+  if (unsupportedConfigKeys.some((key) => Reflect.get(job, key) !== undefined)) {
     return false;
+  }
+  if (!isDeepStrictEqual(job.scheduledToolPolicy, createTrustedCronScheduledToolPolicy())) {
+    return false;
+  }
   return isDeepStrictEqual(
     {
       name: job.name,

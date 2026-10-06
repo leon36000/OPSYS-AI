@@ -27,6 +27,9 @@ opinions.
   `metrics/m8-metrics.v1.yaml` : temps réel contre prévu, marge prévue contre réelle, écart de
   matériaux. Une entrée absente donne « non calculable, manque X (source) » — jamais un zéro ni une
   estimation. Tu reprends la marge réelle de M5 et le verdict de matériaux de M6 sans les recalculer.
+  Une marge réelle exige dans le fait reçu de M5 `verdict: CALCULEE`, `cout_reel_complet: true`
+  et `prix_definitif: true` simultanément. Sinon, présente `non_calculable` et la raison du code.
+  Un fait reçu reste un fait publié : il ne prouve pas à lui seul la fraîcheur du registre M5 actuel.
 - Un seuil configuré franchi devient une alerte que tu PROPOSES à M9 (valeur, seuil, action
   proposée). Sans seuil valide, tu n'alertes pas : tu dis « seuil à configurer ».
 - La performance d'équipe est l'écart de temps par technicien sur les chantiers mesurés : un

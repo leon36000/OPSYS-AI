@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import fnmatch
+import hashlib
 import json
 import os
 import shutil
@@ -207,6 +208,93 @@ def _run(script: Path, *args: str, env: dict[str, str], permissive_umask: bool =
     return subprocess.run(
         ["bash", str(script), *args], env=env, capture_output=True, text=True, check=False, preexec_fn=prepare
     )
+
+
+def test_restore_conserve_faits_m10_et_outbox_core_sqlite_reelles(banc_docker, monkeypatch):
+    """Scripts réels et bases réelles; orchestration Docker factice, aucune reprise de worker."""
+    from m10_memoire import faits_candidats, registre
+
+    from opsys import stockage
+
+    deploy, volumes, env, tmp_path = banc_docker
+    metier = volumes / f"{PROJET}_opsys_data" / "opsys.db"
+    core = volumes / f"{PROJET}_openclaw_config" / "agents/m03-estimation/agent/openclaw-agent.sqlite"
+    core.parent.mkdir(parents=True)
+    monkeypatch.setenv(stockage.ENV_URL, f"sqlite:///{metier}")
+    faits = [dict(cle="tc-" + "a" * 40, outil="m3_estimer_projet", resultat="ok", code=None)]
+    stockage.liberer()
+    try:
+        revision = stockage.migrer()
+        journal = registre.Registre(stockage.maillons("m10-memoire", "affaires"))
+        resultat, verdict = faits_candidats.deposer_faits_candidats(
+            "LEAD-RESTORE-FICTIF", "m03-estimation", faits, "2030-01-01T10:00:00Z", journal
+        )
+        assert verdict is None and resultat["ecrits"] == 1
+        avant = journal.lire()
+        assert journal.valider_chaine() == (True, "")
+    finally:
+        # Aucun handle du moteur métier n'est retenu pendant l'archivage/remplacement.
+        stockage.liberer()
+
+    payload = json.dumps({
+        "affaire_id": "LEAD-RESTORE-FICTIF", "departement_source": "m03-estimation",
+        "profil_id": "profil-restore-fictif", "revision": 7, "engine_id": "opsys", "faits": faits,
+    }, sort_keys=True)
+    with sqlite3.connect(core) as db:
+        db.executescript((ROOT / "core/src/state/openclaw-agent-schema.sql").read_text())
+        for etat, cle, nombre in (("pending", "b", 0), ("retry", "a", 1)):
+            fait_lot = {**faits[0], "cle": "tc-" + cle * 40}
+            lot_payload = json.dumps({**json.loads(payload), "faits": [fait_lot]}, sort_keys=True)
+            lot_key = "postflight-" + hashlib.sha256(fait_lot["cle"].encode()).hexdigest()
+            db.execute(
+                "INSERT INTO opsys_postflight_outbox "
+                "(lot_key, affaire_id, departement_source, profil_id, revision_admission, engine_id, "
+                "payload_json, state, attempt_count, created_at, updated_at, next_attempt_at, "
+                "last_attempt_at, last_error_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (lot_key, "LEAD-RESTORE-FICTIF", "m03-estimation", "profil-restore-fictif",
+                 7, "opsys", lot_payload, etat, nombre, 1000, 1000, 2000,
+                 1000 if nombre else None, "M10_ACK_INCONNU" if nombre else None),
+            )
+        attendu_core = db.execute("SELECT * FROM opsys_postflight_outbox ORDER BY lot_key").fetchall()
+
+    sauvegarde = _run(deploy / "backup.sh", "--out", str(tmp_path / "backups"), env=env)
+    assert sauvegarde.returncode == 0, sauvegarde.stderr
+    [archive] = list((tmp_path / "backups").iterdir())
+    for logique, relatif in (("opsys_data", "opsys.db"),
+                            ("openclaw_config", "agents/m03-estimation/agent/openclaw-agent.sqlite")):
+        with tarfile.open(archive / f"volume-{logique}.tar.gz") as contenu:
+            assert "./" + relatif in contenu.getnames()
+    # Une restauration doit remettre les générations archivées, pas lire les bases restées en place.
+    for base in (metier, core):
+        base.unlink()
+        for suffixe in ("-wal", "-shm"):
+            Path(str(base) + suffixe).unlink(missing_ok=True)
+        with sqlite3.connect(base) as db:
+            db.execute("CREATE TABLE generation_remplacee (fictif INTEGER)")
+            db.execute("INSERT INTO generation_remplacee VALUES (1)")
+
+    restauration = _run(deploy / "restore.sh", "--from", str(archive), "--yes", env=env)
+    assert restauration.returncode == 0, restauration.stderr
+    for base in (metier, core):
+        with sqlite3.connect(base) as db:
+            assert db.execute("PRAGMA integrity_check").fetchall() == [("ok",)]
+            assert not db.execute(
+                "SELECT name FROM sqlite_master WHERE name='generation_remplacee'"
+            ).fetchall()
+    with sqlite3.connect(core) as db:
+        assert db.execute("SELECT * FROM opsys_postflight_outbox ORDER BY lot_key").fetchall() == attendu_core
+    try:
+        assert stockage.revision_courante() == revision
+        journal = registre.Registre(stockage.maillons("m10-memoire", "affaires"))
+        assert journal.lire() == avant
+        assert journal.valider_chaine() == (True, "")
+        resultat, verdict = faits_candidats.deposer_faits_candidats(
+            "LEAD-RESTORE-FICTIF", "m03-estimation", faits, "2030-01-02T10:00:00Z", journal
+        )
+        assert verdict is None and resultat["ecrits"] == 0 and resultat["deja_deposes"] == 1
+        assert journal.lire() == avant
+    finally:
+        stockage.liberer()
 
 
 @pytest.mark.parametrize("format_historique", [False, True])

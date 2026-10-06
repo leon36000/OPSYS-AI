@@ -4,7 +4,8 @@ import path from "node:path";
 import { OUTIL_OBTENIR_CLIENT_360, OUTIL_SUGGERER_PROCHAINE_ACTION, OUTIL_TROUVER_CLIENT_DE_LEAD } from "../m2/client360";
 import { OUTIL_ENREGISTRER_INTERACTION } from "../m2/interaction";
 import { OUTIL_LISTER_LEADS } from "../m2/listeLeads";
-import { OUTIL_LIRE_DEVIS } from "../m3/devis";
+import { OUTIL_EVALUER_READINESS } from "../m2/readiness";
+import { OUTIL_LIRE_DEVIS, OUTIL_LISTER_DEVIS } from "../m3/devis";
 import { DESCRIPTEURS_MUTATION } from "../outbox/descripteurs";
 
 /**
@@ -31,7 +32,7 @@ function fichiers(dossier: string, filtre: (nom: string) => boolean): string[] {
     .sort();
 }
 
-/** Les dix outils de la portée `seller` (`docs/architecture/ROLES.md`, table « `seller` (10 outils) »), épinglés par
+/** Les onze outils de la portée `seller` (`docs/architecture/ROLES.md`), épinglés par
  * `tests/test_portees_appareil.py` côté socle. */
 const OUTILS_DU_VENDEUR: readonly string[] = [
   "m2_lister_leads",
@@ -42,6 +43,7 @@ const OUTILS_DU_VENDEUR: readonly string[] = [
   "m2_transitionner_statut",
   "m2_enregistrer_interaction",
   "m3_lire_devis",
+  "m3_lister_devis",
   "m3_generer_soumission_brouillon",
   "m3_qualifier_photos",
 ];
@@ -53,6 +55,8 @@ const OUTILS_DE_L_APP: readonly string[] = [
   OUTIL_SUGGERER_PROCHAINE_ACTION,
   OUTIL_ENREGISTRER_INTERACTION,
   OUTIL_LIRE_DEVIS,
+  OUTIL_LISTER_DEVIS,
+  OUTIL_EVALUER_READINESS,
 ];
 
 describe("tout passe par la porte d'appareil : nom nu, portée seller", () => {
@@ -62,8 +66,26 @@ describe("tout passe par la porte d'appareil : nom nu, portée seller", () => {
     expect(OUTILS_DU_VENDEUR).toContain(outil);
   });
 
-  test("les six outils sont six outils distincts", () => {
-    expect(new Set(OUTILS_DE_L_APP).size).toBe(6);
+  test("la readiness reste une lecture MCP du rôle vendeur, sans mutation", () => {
+    expect(OUTILS_DE_L_APP).toContain("m2_evaluer_readiness");
+    expect([...DESCRIPTEURS_MUTATION.values()].some((descripteur) => descripteur.tool === OUTIL_EVALUER_READINESS)).toBe(false);
+    const fiche = lire(path.join(APP_VENDEUR, "lead", "[id].tsx"));
+    expect(fiche).toContain("chargerReadiness(leadId, personneLue)");
+    expect(fiche).toContain("ficheLiveLisible");
+    expect(fiche).toContain("ficheEnCache");
+    expect(fiche).not.toContain("m2_transitionner_statut");
+    expect(fiche).not.toMatch(/prix|estimation\.lancer/i);
+  });
+
+  test("la fiche affiche uniquement les champs d'attribution du Client 360 serveur", () => {
+    const fiche = lire(path.join(APP_VENDEUR, "lead", "[id].tsx"));
+    expect(fiche).toContain("opportunite.campagne");
+    expect(fiche).toContain("opportunite.utm");
+    expect(fiche).toContain("opportunite.source");
+  });
+
+  test("les huit outils sont huit outils distincts", () => {
+    expect(new Set(OUTILS_DE_L_APP).size).toBe(8);
   });
 
   test("la note du vendeur part par la file sortante, sous le nom nu de l'outil, et aucun outil de l'admin n'est appelé", () => {
@@ -77,7 +99,7 @@ describe("tout passe par la porte d'appareil : nom nu, portée seller", () => {
     const sources = [
       ...fichiers(APP_VENDEUR, (nom) => nom.endsWith(".tsx")),
       ...fichiers(path.join(SRC, "vendeur"), (nom) => nom.endsWith(".ts") && !nom.endsWith(".test.ts") && nom !== "service.ts"),
-      ...["m2/listeLeads.ts", "m2/client360.ts", "m2/interaction.ts", "m3/devis.ts", "ecrans/leads.ts", "ecrans/lead.ts", "ecrans/quotes.ts"].map(
+      ...["m2/listeLeads.ts", "m2/client360.ts", "m2/interaction.ts", "m2/readiness.ts", "m3/devis.ts", "ecrans/leads.ts", "ecrans/lead.ts", "ecrans/quotes.ts"].map(
         (relatif) => path.join(SRC, relatif),
       ),
     ];
@@ -90,6 +112,25 @@ describe("tout passe par la porte d'appareil : nom nu, portée seller", () => {
       });
       expect(texte).not.toMatch(/["']\/tools\/invoke/); // jamais l'URL de la porte en dur : `invoquerOutil` la connaît
     }
+  });
+
+  test("le devis vendeur passe par le registre paginé M3 et le parcours manuel reste disponible", () => {
+    const ecran = lire(path.join(APP_VENDEUR, "quotes.tsx"));
+    const service = lire(path.join(SRC, "vendeur", "service.ts"));
+    expect(ecran).toContain("chargerSuiteDevis");
+    expect(ecran).toContain("ouvrirDevisParNumero");
+    expect(service).toContain("chargerInventaire");
+    expect(service).toContain("obtenirSessionEnvoi()");
+    expect(OUTILS_DE_L_APP).toContain(OUTIL_LISTER_DEVIS);
+  });
+
+  test("l'écran Soumissions lie ses cartes et les lectures différées à l'identité courante", () => {
+    const ecran = lire(path.join(APP_VENDEUR, "quotes.tsx"));
+    expect(ecran).toContain("useEtatIdentite()");
+    expect(ecran).toContain("key={cleIdentite}");
+    expect(ecran).toContain("inventaireVisiblePourPersonne(resultat, personne)");
+    expect(ecran).toContain("peutAppliquerReponseInventaire(");
+    expect(ecran).toContain("sequence.current += 1");
   });
 
   test("le câblage réel lit le jeton COURANT et la personne confirmée pour ce jeton, jamais une session gardée", () => {

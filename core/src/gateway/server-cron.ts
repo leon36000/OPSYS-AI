@@ -1536,7 +1536,9 @@ export function buildGatewayCronService(params: {
         let invalidProfileBinding = false;
         for (const [agentId, entry] of Object.entries(cfg.agents?.entries ?? {})) {
           const binding = entry.opsysRuntimeAdmission;
-          if (binding === undefined) continue;
+          if (binding === undefined) {
+            continue;
+          }
           const profileId = binding.profileId;
           const profileRevision = binding.profileRevision;
           if (
@@ -1563,16 +1565,17 @@ export function buildGatewayCronService(params: {
           converged = false;
         }
         {
-          const context = scheduledGatewayContextResolver();
+          const context = scheduledGatewayContextResolver?.();
           const client = context?.opsysCronPrivateClientService?.getClient();
           const allowedProfileIds = new Set(configuredProfiles.keys());
           const commitOpsysGuard = () => {
             assertCurrent();
             if (
-              scheduledGatewayContextResolver()?.opsysCronPrivateClientService?.getClient() !==
+              scheduledGatewayContextResolver?.()?.opsysCronPrivateClientService?.getClient() !==
               client
-            )
+            ) {
               throw new Error("OPSYS cron owner changed during reconciliation");
+            }
           };
           // Native housekeeping survives removal of an execution profile/config binding.
           // It never re-enables a job and drains recovered DELETE receipts before intent reads.
@@ -1583,7 +1586,9 @@ export function buildGatewayCronService(params: {
             commitGuard: commitOpsysGuard,
           });
           commitOpsysGuard();
-          if (!cleanup.ok) converged = false;
+          if (!cleanup.ok) {
+            converged = false;
+          }
           if (!client && configuredProfiles.size > 0) {
             // Profiles are configured, so absence of the supervised owner is retryable.
             converged = false;
@@ -1600,7 +1605,7 @@ export function buildGatewayCronService(params: {
               });
               assertCurrent();
               if (
-                scheduledGatewayContextResolver()?.opsysCronPrivateClientService?.getClient() !==
+                scheduledGatewayContextResolver?.()?.opsysCronPrivateClientService?.getClient() !==
                   client ||
                 !result.ok
               ) {

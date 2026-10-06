@@ -7,6 +7,12 @@ que les capacités ci-dessous sont livrées. L'état initial du 30 septembre est
 le [registre actualisé](../programme/REGISTRE-AUDIT-2026-09-30.md) distingue les corrections
 locales des constats partiels. Les critères de profondeur ci-dessous restent le périmètre cible.
 
+État de direction courant, soirée du 4 octobre à Toronto :
+[audit transversal](../programme/AUDIT-DIRECTION-2026-10-04.md) et
+[programme de 24 heures](../programme/PROGRAMME-24H-2026-10-04.md).
+Ils précisent les reprises locales ultérieures sans remplacer les critères cible par
+les seules fonctions déjà codées. Les rapports techniques du 5 octobre sont datés UTC.
+
 ## Adaptations communes
 
 | Héritage | Application à OPSYS |

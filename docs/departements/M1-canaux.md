@@ -754,7 +754,13 @@ Le script recopie `utm_source`, `utm_medium`, `utm_campaign` et `utm_content` de
 créés seulement pour les paramètres présents et non vides. Il ne garde rien (ni témoin ni stockage), ne complète rien et n'appelle
 aucun autre site. Il a été vérifié à la main avec un faux DOM ; les tests gardent sa forme, pas son exécution dans un navigateur.
 
-### 13.6 Ce que le récepteur doit faire (à construire ; la mise en ligne reste T3)
+### 13.6 Ce que le récepteur public doit faire (à construire ; la mise en ligne reste T3)
+
+Reprise du 5 octobre 2026 : un [pont serveur interne qualifié localement](../grs/reception/M1-FORMULAIRE-INTERNE-RAPPORT-2026-10-05.md)
+est désormais montable dans la console, désactivé par défaut, avec HMAC dédié et chemin canonique M1→M2.
+Il accepte le protocole court courriel/message/UTM et refuse les contacts secondaires non pris en charge.
+Ce pont ne reçoit pas directement le navigateur : l’extrait HTML demeure débranché et les exigences
+du serveur public, de reprise et de déploiement ci-dessous restent ouvertes.
 
 Aucun code ne reçoit encore le POST du formulaire. Le récepteur (côté serveur : jamais un secret dans la page) remet la soumission à
 l'agent M1, qui appelle `m1_recevoir_message_canal` :

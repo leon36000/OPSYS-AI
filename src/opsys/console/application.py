@@ -44,6 +44,7 @@ from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from .. import admission_agents, agents, agents_declencheurs, contexte, etat, identite, stockage, tableau_de_bord
+from ..capacites import Capacites
 from ..departements import Departement, charger_departements
 from ..stockage import base_cron_operateur
 from ..stockage.schema import AGENTS_POLITIQUE_ENTREPRISE
@@ -55,10 +56,13 @@ from . import (
     calendrier_marketing_ui,
     cfo_ui,
     connecteurs_ui,
+    estimation_apprentissage_ui,
     finance_snapshot_prive,
     finance_ui,
+    formulaire_recepteur,
     frontoffice_marketing,
     fusion_ap_ui,
+    fusion_pdf_ocr_ui,
     fusion_pdf_ui,
     fusion_synthese,
     fusion_ui,
@@ -195,13 +199,36 @@ def creer_application(
     departements: Mapping[str, Departement] | None = None,
     cnx_factory: FabriqueConnexion = etat.session,
     chemin_paliers: Path | None = None,
+    *,
+    bundle_ocr: Path | None = None,
+    site_formulaire: str | None = None,
+    secret_formulaire: bytes | None = None,
 ) -> FastAPI:
     """Application de la console. Les départements sont chargés une fois (défaut : les manifestes)."""
+    from .ocr_configuration import valider_choix
+
+    bundle_ocr = valider_choix(bundle_ocr)
+    if isinstance(secret_formulaire, bytes) and secret_formulaire == configuration.secret.encode("utf-8"):
+        raise ValueError("configuration formulaire invalide : clé dédiée requise")
     deps = dict(charger_departements() if departements is None else departements)
     prefixe = configuration.prefixe
     # Pas de /docs : ces pages chargent leurs scripts depuis un CDN et exposeraient le schéma sans session.
     app = FastAPI(title="Console OPSYS", docs_url=None, redoc_url=None, openapi_url=None, root_path=prefixe)
     app.add_middleware(_EntetesSecurite)
+
+    # Livraison serveur-à-serveur : aucune session humaine n'est fabriquée. Le nom
+    # de l'outil, l'origine M1 et le profil de l'instance sont fixés ici, hors requête.
+    m1 = "m01-front-office"
+    pont_m1 = Capacites(deps, cnx_factory, filtre={m1}, appelant=m1, memoire=False) if m1 in deps else None
+
+    def recevoir_formulaire(nom: str, arguments: Mapping[str, Any]) -> Mapping[str, Any]:
+        if pont_m1 is None or nom != "m1_recevoir_message_canal":
+            return {"ok": False, "erreur": "outil_indisponible"}
+        return pont_m1.appeler("m1_recevoir_message_canal", arguments)
+
+    app.include_router(formulaire_recepteur.creer_router(
+        invoquer=recevoir_formulaire, site_id=site_formulaire, secret=secret_formulaire,
+    ))
 
     # -- sessions et jetons ----------------------------------------------------------------------
     def session_de(request: Request) -> Session | None:
@@ -276,6 +303,11 @@ def creer_application(
         session_page=session_page, session_api=session_api, cnx_factory=cnx_factory,
         deps=deps, prefixe=prefixe, ecriture_api=ecriture_api, objet_json=_objet_json, chemin_paliers=chemin_paliers,
     ))
+    app.include_router(estimation_apprentissage_ui.creer_router(
+        session_page=session_page, session_api=session_api, cnx_factory=cnx_factory,
+        verifier_administration=verifier_administration, revalider_administration=administration,
+        deps=deps, prefixe=prefixe,
+    ))
     callbacks_metier = {
         "session_page": session_page,
         "session_api": session_api,
@@ -330,6 +362,13 @@ def creer_application(
             session_page=session_page,
             prefixe=prefixe,
             cnx_factory=cnx_factory,
+            bundle_ocr=bundle_ocr,
+        )
+    )
+    app.include_router(
+        fusion_pdf_ocr_ui.creer_router(
+            session_page=session_page, prefixe=prefixe,
+            cnx_factory=cnx_factory, bundle_ocr=bundle_ocr,
         )
     )
     app.include_router(
@@ -1135,7 +1174,12 @@ def lancer(argv: list[str] | None = None, environ: Mapping[str, str] | None = No
     args = parseur.parse_args(argv)
     stockage.migrer()  # base de l'instance à jour avant la première approbation (ADR-0009)
     try:
-        application = creer_application(Configuration.depuis_environnement(os.environ if environ is None else environ))
+        from .ocr_configuration import chemin_bundle
+
+        choix_environ = os.environ if environ is None else environ
+        application = creer_application(
+            Configuration.depuis_environnement(choix_environ), bundle_ocr=chemin_bundle(choix_environ),
+        )
     except (OSError, ValueError) as exc:
         print(f"opsys-console : {exc}", file=sys.stderr)
         return 2

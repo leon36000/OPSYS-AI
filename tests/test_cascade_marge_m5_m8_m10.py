@@ -39,7 +39,8 @@ from m4_field_ops import cedule
 from m8_analytics import outils as m8_outils
 from sqlalchemy import select
 
-from opsys import contexte, evenements, stockage
+from opsys import approbations, contexte, evenements, identite, stockage
+from opsys.capacites import Capacites, outils_executables
 from opsys.departements import charger_departements
 from opsys.outils import executer_atomique
 from opsys.stockage import codec
@@ -439,6 +440,162 @@ def _drainer_sans_echec(deps, base: dt.datetime) -> dict:
     return total
 
 
+@pytest.mark.parametrize(
+    ("quantite_reelle", "facture_finale", "facture_payee", "panne_publication"),
+    [(40.0, False, False, False), (56.0, False, False, False),
+     (40.0, True, False, False), (40.0, True, True, False), (40.0, True, False, True)],
+)
+def test_lecture_apprentissage_utilise_la_chaine_reelle_et_exclut_la_facture_brouillon(
+    base_durable, taux_m5, monkeypatch, quantite_reelle, facture_finale, facture_payee, panne_publication,
+):
+    """Le lecteur M3 joint les vrais outils et conserve les gardes de finalité M5/M8."""
+    taux_m5("50.00")
+    deps = charger_departements()
+    base = dt.datetime(2026, 9, 16, 7, 0, 0, tzinfo=DT_TZ)
+    _m6_prix_au_livre(_outils(deps, "m06-material-control"), 8.0)
+    lead_id, devis_id, chantier_id = (
+        "LEAD-APPRENTISSAGE-fictif", "DEVIS-APPRENTISSAGE-fictif", "CH-APPRENTISSAGE-fictif",
+    )
+    wct_id, _ = _chantier_termine(deps, base, lead_id, devis_id, chantier_id, quantite_reelle)
+    _drainer_sans_echec(deps, base + dt.timedelta(hours=1))
+    with stockage.transaction() as cnx:
+        identite.creer_personne(
+            cnx, "admin-apprentissage-fictif", "Admin apprentissage (fictif)",
+            "un-mot-de-passe-suffisamment-long", ["admin"],
+        )
+    if facture_finale:
+        # Transition interne fictive via la vraie approbation N4 : aucun transport courriel.
+        with stockage.transaction() as cnx:
+            identite.creer_personne(
+                cnx, "finance-apprentissage-fictif", "Finance (fictif)",
+                "un-autre-mot-de-passe-suffisamment-long", ["finance"],
+            )
+            factures = list(stockage.maillons("m05-financecore", "factures"))
+        facture = next(f for f in factures if f.get("devis_id") == devis_id)
+        facture_id = facture["facture_id"]
+        avant_transition = (_compte_des_ecritures(), factures)
+        if panne_publication:
+            def _panne(*args):
+                raise RuntimeError("panne publication fictive")
+            monkeypatch.setattr(m5_outils, "_publier_rentabilite", _panne)
+        cap_finance = Capacites({"m05-financecore": deps["m05-financecore"]}, stockage.transaction)
+        demande = cap_finance.appeler("m5_envoyer_facture", {
+            "facture_id": facture_id, "horodatage": _iso(base, 12000),
+        })
+        assert demande["statut"] == "en_attente_approbation", demande
+        with stockage.transaction() as cnx:
+            decision = approbations.decider(
+                cnx, demande["demande_id"], True, "finance-apprentissage-fictif",
+                outils_executables(deps, stockage.transaction), deps,
+            )
+        if panne_publication:
+            assert decision["statut"] == "echec", decision
+            assert decision["reponse"]["ok"] is False
+            with stockage.transaction():
+                apres_factures = list(stockage.maillons("m05-financecore", "factures"))
+            assert (_compte_des_ecritures(), apres_factures) == avant_transition
+            return  # La facture reste brouillon; ni trace ni événement partiellement validés.
+        assert decision["statut"] == "executee" and decision["reponse"]["resultat"]["accepte"], decision
+        if facture_payee:
+            with stockage.transaction() as cnx:
+                identite.creer_personne(
+                    cnx, "owner-apprentissage-fictif", "Propriétaire (fictif)",
+                    "un-mot-de-passe-owner-suffisamment-long", ["nathan_owner"],
+                )
+            demande = cap_finance.appeler("m5_enregistrer_paiement_facture", {
+                "facture_id": facture_id, "montant_paye": str(facture["montant_apres_taxes"]),
+                "approbateur": "Propriétaire (fictif)", "horodatage": _iso(base, 13000),
+            })
+            assert demande["statut"] == "en_attente_approbation", demande
+            with stockage.transaction() as cnx:
+                decision = approbations.decider(
+                    cnx, demande["demande_id"], True, "owner-apprentissage-fictif",
+                    outils_executables(deps, stockage.transaction), deps,
+                    attestation={"nom": "CPA (fictif)", "profession": "CPA",
+                                 "reference_document": "DEPOT-APPRENTISSAGE-fictif"},
+                )
+            assert decision["statut"] == "executee" and decision["reponse"]["resultat"]["accepte"], decision
+        # Rejouer la décision n'exécute ni la transition ni sa publication une seconde fois.
+        avant_rejeu = _compte_des_ecritures()
+        with stockage.transaction() as cnx, pytest.raises(ValueError, match="déjà traitée"):
+            approbations.decider(
+                cnx, demande["demande_id"], True,
+                "owner-apprentissage-fictif" if facture_payee else "finance-apprentissage-fictif",
+                outils_executables(deps, stockage.transaction), deps,
+            )
+        assert _compte_des_ecritures() == avant_rejeu
+        with stockage.transaction():
+            assert list(stockage.maillons("m05-financecore", "principal")) == []
+        _drainer_sans_echec(deps, base + dt.timedelta(hours=4))
+
+    admin = contexte.IdentiteAppelante(
+        personne="admin-apprentissage-fictif", role="admin", source="appareil",
+    )
+    def _instantane_metier():
+        noms = (
+            ("m03-estimation", "principal"), ("m03-estimation", "devis"),
+            ("m03-estimation", "estime_vs_reel"), ("m03-estimation", "calibration_versions"),
+            ("m04-field-ops", "principal"), ("m05-financecore", "principal"),
+            ("m05-financecore", "rentabilite"), ("m05-financecore", "factures"),
+            ("m05-financecore", "devis_recus"), ("m05-financecore", "wct_recus"),
+            ("m05-financecore", "variance_recue"), ("m06-material-control", "principal"),
+            ("m08-analytics", "faits_chantier"),
+        )
+        with stockage.transaction() as cnx:
+            registres = {f"{dep}/{nom}": list(stockage.maillons(dep, nom)) for dep, nom in noms}
+            sorties = cnx.execute(select(EVENEMENTS_SORTANTS.c.evenement_id)).all()
+            recus = cnx.execute(select(EVENEMENTS_RECUS.c.evenement_id, EVENEMENTS_RECUS.c.consommateur)).all()
+        return registres, sorties, recus
+
+    avant_lecture = _instantane_metier()
+    capacites_m3 = Capacites(
+        {"m03-estimation": deps["m03-estimation"]}, stockage.transaction,
+        appelant="m03-estimation", memoire=False,
+    )
+    with contexte.appele_par_appareil(admin):
+        reponse = capacites_m3.appeler("m3_lire_apprentissage_chantier", {
+            "wct_id": wct_id, "coupure_utc": "2026-10-05T00:00:00Z",
+        })
+    apres_lecture = _instantane_metier()
+
+    assert reponse["ok"] is True, reponse
+    rapport = reponse["resultat"]
+    assert apres_lecture == avant_lecture, "lecture sans mutation des registres métier ou du bus"
+    if quantite_reelle == 56.0:
+        assert rapport["statut"] == "exclu", rapport
+        assert "statut_courant_non_verifie" in rapport["exclusions"]
+        assert rapport["cause"] is None
+        return
+    assert rapport["statut"] == "observee", rapport
+    assert rapport["sources"]["wct_id"] == wct_id
+    assert rapport["sources"]["devis_id"] == devis_id
+    assert len(rapport["sources"]["estimation_hash"]) == 64
+    assert len(rapport["sources"]["wct_hash"]) == 64
+    assert rapport["sources"]["partition_calibration"] in {"train", "holdout"}
+    assert rapport["temps"]["unite"] == "minute"
+    assert rapport["temps"]["paie_heures_personnes"] == "non mesurees par ces sources"
+    assert rapport["rentabilite"]["verdict_m5"] == "CALCULEE"
+    assert rapport["rentabilite"]["cout_reel_complet"] is True
+    assert rapport["rentabilite"]["prix_definitif"] is facture_finale
+    if facture_finale:
+        assert rapport["rentabilite"]["statut"] == "qualifiee", rapport["rentabilite"]
+        assert rapport["rentabilite"]["trace_m5_a_jour"] is True
+        assert rapport["rentabilite"]["version_entrees_m5"] == rapport["rentabilite"]["version_entrees_m8"]
+        assert rapport["rentabilite"]["montant_marge_reelle_cad"] == _publies_m5()[-1]["marge_reelle_cad"]
+        assert rapport["rentabilite"]["exclusions"] == []
+    else:
+        assert rapport["rentabilite"]["statut"] == "exclue"
+        assert rapport["rentabilite"]["montant_marge_reelle_cad"] is None
+        assert "facture_brouillon_ou_prix_non_definitif" in rapport["rentabilite"]["exclusions"]
+    assert rapport["cause"] is None and rapport["variance_materiaux"]["cause"] is None
+    assert rapport["coupure_utc"] == "2026-10-05T00:00:00Z"
+    assert "snapshot transactionnel commun" in rapport["lecture_intermodules"]
+    assert apres_lecture == avant_lecture, "la lecture ne modifie ni les registres métier ni le bus"
+    texte = json.dumps(rapport, ensure_ascii=True)
+    for interdit in (lead_id, "Client Fictif", TECHNICIEN, "latitude", "longitude"):
+        assert interdit not in texte, interdit
+
+
 # =============================================================================================
 # 1. Coût complet : M5 chiffre la marge -> M8 la mesure (et le temps prévu) -> M10 la mémorise
 # =============================================================================================
@@ -481,18 +638,21 @@ def test_la_marge_reelle_de_m5_atteint_m8_qui_la_mesure_et_m10_qui_la_memorise_s
         assert interdit not in texte_m5, interdit
     assert list(stockage.maillons("m05-financecore", "principal")) == []  # aucune écriture comptable
 
-    # -- M8 : la marge réelle et ses écarts sont calculables ; le temps prévu aussi --------------------------
+    # -- M8 : le prix brouillon exclut les marges; temps et matériaux restent calculables --------------------------
     resultat = _mesures_de_m8(deps, wct_id)
     mesures = {m["metric_id"]: m for m in resultat["mesures"]}
-    assert mesures["m8_marge_reelle_cad"]["valeur"] == "52.00"
+    assert final["prix_definitif"] is False
+    for metric_id in ("m8_marge_reelle_cad", "m8_ecart_marge_cad", "m8_ecart_marge_pct"):
+        assert mesures[metric_id]["statut"] == "non_calculable"
+        assert mesures[metric_id]["valeur"] is None
+        assert mesures[metric_id]["manque"] == ["marge_reelle_cad"]
     assert mesures["m8_marge_prevue_cad"]["valeur"] == "120.00"
-    assert mesures["m8_ecart_marge_cad"]["valeur"] == "-68.00"
-    assert mesures["m8_ecart_marge_pct"]["valeur"] == "-56.67"  # -68 / 120
     assert mesures["m8_ecart_duree_minutes"]["valeur"] == "30.00"  # 120 réelles - 90 estimées
     assert mesures["m8_ecart_duree_pct"]["valeur"] == "33.33"
     assert mesures["m8_ecart_materiaux_max_pct"]["valeur"] == "40.00"
-    assert {m["statut"] for m in mesures.values()} == {"calculee"}  # plus rien de « non calculable »
-    assert resultat["manques"] == []
+    assert {m["statut"] for m in mesures.values()} == {"calculee", "non_calculable"}
+    (manque_finalite,) = resultat["manques"]
+    assert manque_finalite["raison"] == "facture brouillon ou prix non définitif (prix_definitif=false)"
     (fait,) = [f for f in stockage.maillons("m08-analytics", "faits_chantier")
                if f["type_entree"] == "rentabilite" and f["sequence"] == final["sequence"]]
     assert fait["marge_reelle_cad"] == "52.00"
@@ -500,10 +660,7 @@ def test_la_marge_reelle_de_m5_atteint_m8_qui_la_mesure_et_m10_qui_la_memorise_s
     # -- M8 : seuil configuré (-20 %) franchi -> alerte proposée avec preuve chiffrée ------------------------
     franchis = [a for a in _alertes_publiees() if a["type_alerte"] == "MESURE-SEUIL-FRANCHI"
                 and a["metric_id"] == "m8_ecart_marge_pct"]
-    assert len(franchis) == 1
-    assert franchis[0]["a_qui"] == "m05-financecore"
-    assert (franchis[0]["preuve"]["valeur"], franchis[0]["preuve"]["seuil"]) == ("-56.67", "-20.00")
-    assert franchis[0]["preuve"]["wct_id"] == wct_id
+    assert franchis == []  # un montant provisoire ne justifie aucune alerte de marge réelle
 
     # -- M10 : l'écart de marge est mémorisé (FINANCIAL), un maillon par version publiée par M5 --------------
     lecons = _m10_rentabilites()
@@ -584,8 +741,8 @@ def test_un_cout_partiel_ne_porte_aucune_marge_de_m5_a_m8_et_m10_et_le_dit(base_
         assert mesures[metric_id]["manque"] == ["marge_reelle_cad"]
     (manque,) = [m for m in resultat["manques"] if m["champ"] == "marge_reelle_cad"]
     assert manque["source"].startswith("M5")
-    assert manque["raison"] == (
-        "M5 n'a pas chiffré la marge réelle : REJ-COUT-PRIX-NON-DISPONIBLE, REJ-COUT-TAUX-HORAIRE-A-CONFIGURER")
+    assert final["prix_definitif"] is False
+    assert manque["raison"] == "facture brouillon ou prix non définitif (prix_definitif=false)"
     assert mesures["m8_marge_prevue_cad"]["valeur"] == "120.00"
     assert mesures["m8_ecart_duree_minutes"]["valeur"] == "30.00"  # le temps prévu, lui, est calculé
     assert mesures["m8_ecart_materiaux_max_pct"]["valeur"] == "40.00"
@@ -627,11 +784,14 @@ def test_le_prix_ajoute_apres_coup_remplace_le_partiel_par_la_marge_a_tous_les_e
     assert (complet["cout_reel_cad"], complet["marge_reelle_cad"]) == ("436.00", "164.00")  # 42 x 8,00 + 100,00
     assert complet["ecart_marge_cad"] == "44.00"  # plus que prévu : moins de main-d'oeuvre que le forfait du devis
     apres = {m["metric_id"]: m for m in _mesures_de_m8(deps, wct_id)["mesures"]}
-    assert apres["m8_marge_reelle_cad"]["valeur"] == "164.00"
-    assert apres["m8_ecart_marge_cad"]["valeur"] == "44.00" and apres["m8_ecart_marge_pct"]["valeur"] == "36.67"
+    assert complet["prix_definitif"] is False
+    for metric_id in ("m8_marge_reelle_cad", "m8_ecart_marge_cad", "m8_ecart_marge_pct"):
+        assert apres[metric_id]["statut"] == "non_calculable"
+        assert apres[metric_id]["valeur"] is None
     assert apres["m8_ecart_duree_pct"]["manque"] == ["duree_estimee_minutes"]  # la durée reste non calculable
     lecons = _m10_rentabilites()
     assert [(m["sequence"], m["marge_reelle_cad"]) for m in lecons][-2:] == [
         (partiel["sequence"], None), (complet["sequence"], "164.00")]
-    # M8 reprend la marge de M5 sans la recalculer.
-    assert Decimal(complet["marge_reelle_cad"]) == Decimal(apres["m8_marge_reelle_cad"]["valeur"])
+    # M5/M10 conservent le montant provisoire; M8 conserve le fait sans le présenter comme marge réelle.
+    assert complet["marge_reelle_cad"] == "164.00"
+    assert apres["m8_marge_reelle_cad"]["valeur"] is None

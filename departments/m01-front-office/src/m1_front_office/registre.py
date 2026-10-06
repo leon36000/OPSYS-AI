@@ -15,6 +15,7 @@ _TYPES_ENTREE_VALIDES = {
     "suivi_conversation",
     "transfert",
     "appel_importe",
+    "appel_voicemail_enrichi",
     "voicemail_stt_termine",
 }
 

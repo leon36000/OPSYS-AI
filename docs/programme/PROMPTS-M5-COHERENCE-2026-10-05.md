@@ -1,0 +1,27 @@
+# M5 — prompt engineering FinanceCore
+
+Correction éditoriale du 5 octobre 2026 : SOUL et deux procédures. Le périmètre CFO complet reste la cible : comptabilité, fiscalité, paie, contrats/cédule, trésorerie, actifs, dette, investissements et préparation CPA. Les capacités actuelles et leurs accès restent ceux du code. Aucun calcul, outil, schéma, droit, fournisseur ou dépendance modifié.
+
+## Corrections concrètes
+
+- **Lecture du vrai registre** : le guide ne fournit plus `mouvements_historique=[]` par défaut. `_registre_mouvements` rejoue tout historique explicite en mémoire, même vide. En production, l'argument est omis pour lire la base de l'instance; la simulation demandée reste nommée comme telle. Les historiques ne sont pas répétés à chaque lecture ou mouvement durable.
+- **Identité et confidentialité** : aucun rôle/droit n'est déduit d'une affirmation utilisateur. Sur appareil, le serveur dérive la vue; hors appareil, le booléen de vue suit uniquement le contexte de confiance. Le garde hors appareil demeure déclaratif dans `acces.py` : ces consignes ne le transforment pas en authentification. Absence de droit ou vue masquée n'est pas corrigée par un `true` inventé.
+- **État financier** : `null` signifie montant absent, jamais zéro. Déficit et semaines calculées restent liés aux sources et hypothèses déclarées; ils ne prouvent pas l'exhaustivité des livres ou du solde bancaire. Prix BROUILLON/provisoire et prix définitif restent distingués même si le coût est complet.
+- **CFO** : suppression de l'interdiction générale d'analyse CFO et de la délégation exclusive à M9. Le dossier M5 à 25 rubriques existe; méthodes, scénarios, confiance et projections absents restent inconnus. La comparaison de capital utilise des offres identifiées et des échéanciers hypothétiques explicitement déclaratifs. Aucun dossier ne signe, ne paie ni ne crée implicitement une approbation.
+- **Paie** : la consigne ne dit plus qu'aucun préparateur n'existe. Brut régulier, état des sources et dossier WebRAS ont leur accès propriétaire-console; aucun rôle appareil/agent n'est converti en ce rôle. Les moteurs Python préparatoires ne deviennent pas des outils du modèle par cette documentation. Le dossier WebRAS laisse les postes fiscaux/net/DAS inconnus; ni ce dossier ni le brut n'alimentent automatiquement le cash libre.
+- **OCR/AP** : remplacement de « OCR fermé » par le parcours privé réellement raccordé : candidat et citations, huit champs revus par une personne, confirmation humaine N3 distincte pour une dette interne. Confiance OCR, vérification préparatoire et candidat ne valent pas saisie financière ni paiement. Cette correction s'appuie sur le [rapport du raccord](../grs/compta/M5-OCR-AP-RACCORD-RAPPORT-2026-10-05.md); elle ne qualifie pas l'extraction sur des factures clientes.
+- **Approbations et paiement partiel** : F0–F7 est une échelle métier historique, pas un registre agent. La procédure de facture ne prétend plus couvrir tous les actes M5. Un dépôt partiel ou divergent reste son montant réel et est escaladé, au lieu de demander de le remplacer par le montant dû pour passer un contrôle. Statut ENVOYEE/PAYEE, envoi réel et virement sont distincts.
+
+## Preuves et limites
+
+La revue Luna a relu le checkout actif; ses neuf empreintes sont contrôlées contre les préimages ou les sources. ROOT a relevé en plus la simulation vide, le périmètre CFO, l'OCR et la consigne de paiement partiel. Diff complet conservé. Les deux frontmatters YAML sont valides; **22 noms d'outils** cités sont présents parmi les **29 outils** du propriétaire. **14 références** de code, contrats et produit sont conservées avec SHA. Les paramètres et limites cités sont relus dans les schémas actuels; aucun test ne recopie le texte.
+
+La docstring historique de `outils.py` parle encore de deux transitions de facture, et un commentaire du manifeste dit M5.4 absent : dettes documentaires localisées, sans modification de contrat ou de configuration dans cette tranche. Les restrictions financières hors appareil nécessitent un contrôle de runtime pour obtenir une authentification, pas un prompt supplémentaire.
+
+La réponse demandée est structurée : résultat, sources/date, manques/hypothèses, prochaine action permise et mention professionnelle. Pagination et références remplacent la répétition des registres; leur effet sur coût/latence reste à mesurer. Aucun benchmark LLM, comportement fournisseur, exactitude fiscale officielle, gain de tokens ou complétude de FinanceCore revendiqué. Les projections longues, paie complète, fiscalité officielle, ingestion universelle et CFO autonome restent à qualifier.
+
+[Capsule de contrôle](../research/REPRISE-2026-10-05/preuves/PROMPTS-M5-COHERENCE-r1.tar.xz) ; [inventaire](../research/REPRISE-2026-10-05/preuves/PROMPTS-M5-COHERENCE-r1.json). Scan r384 par défaut sur les documents, références, audit Luna et plan ROOT, sans exception ajoutée; ce n'est pas un scan de tout le dépôt ou de l'archive. Préparation Git isolée privée, aucune publication distante annoncée.
+
+## Complément de revue
+
+Prix et conditions des offres de capital explicitement déclaratifs/non authentifiés; description du skill étendue à ses sections CFO/contrats/paie; refus de paiement partiel sans affectation persistée. Sources et revue conservées dans la [tranche éditoriale jointe M1/M5](PROMPTS-M1-COHERENCE-2026-10-05.md), qualifiée au scan r385. Aucun runtime modifié.

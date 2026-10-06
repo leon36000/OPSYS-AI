@@ -13,5 +13,7 @@ export default function LayoutAdmin() {
   if (!verdict.autorise) {
     return <Redirect href={verdict.redirectionVers} />;
   }
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return <Stack screenOptions={{ headerShown: false }}>
+    <Stack.Screen name="marketing" />
+  </Stack>;
 }

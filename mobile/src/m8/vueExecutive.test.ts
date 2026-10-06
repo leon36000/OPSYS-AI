@@ -64,7 +64,7 @@ describe("la vue exécutive, telle que le moteur la rend", () => {
     expect(vue.margeReelle).toMatchObject({ nChantiers: 2, nMargeConnue: 1, nNonCalculable: 1, reste: 0, illisibles: 0 });
     expect(vue.margeReelle.chantiers.map((c) => [c.devisId, c.margeReelleCad, c.raison])).toEqual([
       ["DEVIS-ADM-E-fictif", "114.00", null],
-      ["DEVIS-ADM-A-fictif", null, "M5 n'a pas chiffré la marge réelle : REJ-COUT-PRIX-NON-DISPONIBLE, REJ-COUT-TAUX-HORAIRE-A-CONFIGURER"],
+      ["DEVIS-ADM-A-fictif", null, "facture brouillon ou prix non définitif (prix_definitif=false)"],
     ]);
 
     // Le stock à commander : le résumé de M6, mot pour mot.
@@ -75,9 +75,9 @@ describe("la vue exécutive, telle que le moteur la rend", () => {
     // Le cash libre : M8 ne le lit pas, l'app ne le remplace par aucun chiffre.
     expect(vue.cashLibre).toEqual({
       genre: "manque",
-      source: "M5 (m5_etat_tresorerie, T4.16)",
+      source: "M5 (m5.cash_libre_constate)",
       manque: ["cash_libre"],
-      aLire: "m5_etat_tresorerie (admin), avec la décomposition du cash libre",
+      aLire: "m5_etat_tresorerie (admin), avec la décomposition du cash libre ; m5_constater_cash_libre (admin) le publie à M8",
     });
     expect(vue.manques.map((m) => m.champ)).toEqual(["m3.devis_envoye", "cash_libre"]);
     expect(vue.manques[1].raison).toContain("ne peut ni le lire ni le recalculer");

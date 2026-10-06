@@ -5,6 +5,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import urllib.request
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -45,6 +46,9 @@ def test_page_connecteurs_accessible_depuis_navigation(client_connecteurs):
     assert '<a href="/opsys/connecteurs" aria-current="page">Connecteurs</a>' in response.text
     assert "OPSYS_M1_STT_URL" in response.text
     assert "Audio2Face" in response.text
+    assert "Capacité de préparation d’un devis M3" in response.text
+    assert "Outil M3 d’estimation présent au catalogue." in response.text
+    assert "Aucune exécution d’estimation n’est observée ici." in response.text
 
 
 def test_api_connecteurs_decrit_les_prerequis_sans_probe(client_connecteurs):
@@ -56,6 +60,12 @@ def test_api_connecteurs_decrit_les_prerequis_sans_probe(client_connecteurs):
     assert {row["id"] for row in payload["connecteurs"]} == {
         "sms-m1", "stt-m1", "memoire-entreprise", "embeddings-memoire",
     }
+    assert any(
+        row["departements"] == "M3"
+        and row["capacite"] == "Mesure photographique et géospatiale"
+        and row["limite"] == "Échelle, sources, droits et précision à qualifier."
+        for row in payload["a_construire"]
+    )
 
 
 @pytest.mark.parametrize("chemin", ["/connecteurs", "/api/connecteurs"])
@@ -74,6 +84,7 @@ def test_roles_metier_ne_voient_pas_la_configuration(client_connecteurs, session
         response = client_connecteurs.get(chemin, follow_redirects=False)
         assert response.status_code == 403
         assert "OPSYS_M1_STT_URL" not in response.text
+        assert "Capacité de préparation d’un devis M3" not in response.text
 
 
 def test_administrateur_actif_accede(client_connecteurs, session):
@@ -150,6 +161,49 @@ def test_presence_vide_et_sources_absentes_restent_explicitement_limitees():
     deps["m01-front-office"] = dataclasses.replace(deps["m01-front-office"], canaux=())
     sans_sms = connecteurs_ui.etat_connecteurs({}, deps)
     assert next(x for x in sans_sms["connecteurs"] if x["id"] == "sms-m1")["statut"] == "source_indisponible"
+
+
+def test_capacite_m3_distinguera_catalogue_present_absent_et_non_verifiable():
+    departement_present = SimpleNamespace(
+        module_outils="m3_estimation.outils",
+        charger_outils=lambda: (
+            SimpleNamespace(nom="m3_estimer_projet"),
+            SimpleNamespace(nom="m3_qualifier_photos"),
+        ),
+    )
+    presente = connecteurs_ui._capacite_devis_m3({"m03-estimation": departement_present})
+    assert presente == {"catalogue": "verifie", "estimation": "present", "photos": "present"}
+
+    departement_sans_outils = SimpleNamespace(
+        module_outils="m3_estimation.outils", charger_outils=lambda: (),
+    )
+    absente = connecteurs_ui._capacite_devis_m3({"m03-estimation": departement_sans_outils})
+    assert absente == {"catalogue": "verifie", "estimation": "absent", "photos": "absent"}
+
+    def catalogue_en_erreur():
+        raise RuntimeError("détail interne non affichable")
+
+    erreur = connecteurs_ui._capacite_devis_m3({"m03-estimation": SimpleNamespace(
+        module_outils="m3_estimation.outils", charger_outils=catalogue_en_erreur,
+    )})
+    assert erreur == {"catalogue": "non_verifie", "estimation": "non_verifie", "photos": "non_verifie"}
+    assert "détail interne" not in connecteurs_ui._capacite_devis_m3_html({"m03-estimation": SimpleNamespace(
+        module_outils="m3_estimation.outils", charger_outils=catalogue_en_erreur,
+    )})
+
+
+def test_capacite_m3_ne_promet_ni_mesure_ni_photos_ni_prix():
+    departement = SimpleNamespace(
+        module_outils="m3_estimation.outils",
+        charger_outils=lambda: (SimpleNamespace(nom="m3_estimer_projet"),),
+    )
+    rendu = connecteurs_ui._capacite_devis_m3_html({"m03-estimation": departement})
+    assert "Outil M3 d’estimation présent au catalogue." in rendu
+    assert "Contrôle de qualité des photos M3 absent du catalogue courant." in rendu
+    assert "ne confirme pas que des photos ont été reçues" in rendu
+    assert "mesure géométrique à partir de photos reste non qualifiée" in rendu
+    assert "OSRM en M4 sert au calcul d’itinéraires" in rendu
+    assert "prix" not in rendu.casefold()
 
 
 def test_catalogue_stateless_et_lectures_sans_mutation_ni_reseau(client_connecteurs, session, monkeypatch):

@@ -661,16 +661,18 @@ def test_du_lead_qualifie_au_chantier_termine_la_vue_executive_montre_l_entonnoi
     }
     assert lignes["m8_devis_acceptes"]["valeur"] == "1" and lignes["m8_devis_sans_reponse"]["valeur"] == "1"
 
-    # -- 2. la marge réelle : le texte que M5 a publié, jamais un chiffre de M8 --------------------------------------
+    # -- 2. M5 garde son résultat calculé, M8 exclut la marge tant que le prix reste brouillon ----------------------
     publies_m5 = sorted(_charges_publiees_du_type("m5.rentabilite_chantier"), key=lambda charge: charge["sequence"])
     final = publies_m5[-1]
     assert (final["verdict"], final["marge_reelle_cad"]) == ("CALCULEE", "52.00")  # 600 - (56 x 8,00 + 2 h x 50,00)
+    assert final["cout_reel_complet"] is True and final["prix_definitif"] is False
     marge = vue["marge_reelle"]
-    assert (marge["n_chantiers"], marge["n_marge_connue"], marge["n_non_calculable"], marge["reste"]) == (1, 1, 0, 0)
+    assert (marge["n_chantiers"], marge["n_marge_connue"], marge["n_non_calculable"], marge["reste"]) == (1, 0, 1, 0)
     assert marge["chantiers"] == [{
         "wct_id": wct_id, "devis_id": devis_a, "horodatage_completion": _charge_publiee(
             "m4.travaux_termines", wct_id)["horodatage_completion"],
-        "statut": "calculee", "marge_reelle_cad": final["marge_reelle_cad"],
+        "statut": "non_calculable", "marge_reelle_cad": None, "prix_definitif": False,
+        "raison": "facture brouillon ou prix non définitif (prix_definitif=false)",
     }]
 
     # -- 3. le stock à commander : ce que M6 met à la file du propriétaire, mot pour mot -----------------------------

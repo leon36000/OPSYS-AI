@@ -82,6 +82,7 @@ export async function submitEmbeddedAttemptPrompt(input: {
     | "sessionId"
     | "sessionKey"
     | "skipPreparedUserTurnMessage"
+    | "opsysPostflightCollector"
     | "userTurnTranscriptRecorder"
   >;
   activeSession: PromptSubmissionSession;
@@ -131,6 +132,7 @@ export async function submitEmbeddedAttemptPrompt(input: {
     const admission = entry?.opsysRuntimeAdmission;
     const scheduledStreamFn: StreamFn = async (model, context, options) => {
       const signal = options?.signal ?? input.attempt.abortSignal ?? new AbortController().signal;
+      await input.attempt.opsysPostflightCollector?.prepareBeforeProviderDispatch(signal);
       await input.attempt.validateScheduledRuntimeAuthority?.(signal);
       signal.throwIfAborted();
       return baseStreamFn(model, context, options);
@@ -143,7 +145,16 @@ export async function submitEmbeddedAttemptPrompt(input: {
           getCandidateIndex: input.attempt.getAdmissionCandidateIndex ?? (() => -1),
           signal: input.attempt.abortSignal,
           streamFn: baseStreamFn,
-          beforeProviderDispatch: input.attempt.validateScheduledRuntimeAuthority,
+          beforeProviderDispatch: async (signal) => {
+            await input.attempt.opsysPostflightCollector?.prepareBeforeProviderDispatch(signal);
+            await input.attempt.validateScheduledRuntimeAuthority?.(signal);
+          },
+          ...(input.attempt.opsysPostflightCollector
+            ? {
+                onAdmitted: (receipt) =>
+                  input.attempt.opsysPostflightCollector?.recordRuntimeAdmission(receipt),
+              }
+            : {}),
         })
       : scheduledStreamFn;
     const persistThenStream: StreamFn = async (model, context, options) => {

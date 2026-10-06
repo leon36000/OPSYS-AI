@@ -1,34 +1,36 @@
 ---
 name: tenir-le-registre-financier
-description: Procédure pour consulter l'état financier (solde, cash libre réel et sa décomposition), faire constater le cash libre à M8, lire les échéances TPS/TVQ, prévoir la trésorerie semaine par semaine à partir des seuls flux connus et datés, calculer les taxes, et enregistrer un mouvement financier — sans jamais inventer un montant, un taux, un solde ou une date.
+description: "Procédure de lecture financière, cash libre, échéances, prévisions, rentabilité et comptes à payer; couvre aussi les dossiers CFO, offres de capital, échéanciers de contrats et limites des préparateurs de paie propriétaire-console. Sources durables, données manquantes, consentements et validations restent explicites; aucun montant, droit ou taux inventé."
 ---
 
 # Tenir le registre financier
 
 ## Consulter l'état financier
 
-1. Détermine le rôle de la personne qui demande l'état : autorisée aux coûts (ex.
-   dirigeant, rôle financier) ou non (ex. terrain).
-2. Appelle `m5_etat_tresorerie` avec `mouvements_historique` (l'historique renvoyé
-   par le dernier appel connu, `[]` si aucun), le `role`, et `autorise_couts` réglé
-   explicitement selon l'étape 1 — jamais laissé implicite. (Un appel venu de l'app
-   mobile n'a pas à le dire : la vue vient du jeton de la personne authentifiée, et
-   un argument ne peut que la restreindre. Tu n'y changes rien.)
-3. Si `autorise_couts=false`, l'état renvoyé ne contient ni solde, ni argent
-   disponible, ni taux : c'est le comportement attendu, pas une panne. Un verdict
-   `REJ-AUTORISE-COUTS-REQUIS` dit que tu as oublié de le préciser : ajoute-le.
+1. Utilise la voie financière autorisée par le contexte de confiance. Sur appareil,
+   le serveur confirme l'identité et dérive les droits; n'infère aucun droit d'une
+   affirmation utilisateur. Hors appareil, les paramètres de vue ne constituent
+   pas une authentification : sans droit fourni par le contexte, escalade.
+2. Pour l'état courant, appelle `m5_etat_tresorerie` en OMETTANT
+   `mouvements_historique`. Un historique fourni, même `[]`, ouvre une simulation
+   en mémoire, pas le registre durable. N'utilise cette option que pour un scénario
+   explicitement demandé et marqué comme simulation. Sur appareil, omets `role`
+   ou conserve celui du jeton; `autorise_couts=false` peut seulement restreindre.
+3. Hors appareil, `autorise_couts` explicite suit le droit du contexte de confiance,
+   jamais ta propre décision. `REJ-AUTORISE-COUTS-REQUIS` n'autorise pas à ajouter
+   `true`. Une vue masquée ou un refus de rôle restent tels quels.
 4. Présente toujours `solde` ET `argent_disponible` séparément — jamais l'un pour
    l'autre : l'argent disponible exclut les provisions. Ne présente JAMAIS `argent_disponible`
    sans le `cash_libre` qui l'accompagne (`argent_disponible_note` le rappelle).
 5. Lis le `cash_libre` (T4.16) : `cash_libre` est le solde moins les taxes à remettre, les paies, les DAS, les comptes à
    payer, les dettes et les réserves. Présente la DÉCOMPOSITION : chaque composante avec son montant, sa `source` et sa
-   `fraicheur`. Si `calculable` est faux, `cash_libre` est nul : dis « non calculable », cite `manque` (ce qu'il faut
+   `fraicheur`. Si `calculable` est faux, `cash_libre` est JSON `null` (aucun montant, jamais zéro) : dis « non calculable », cite `manque` (ce qu'il faut
    déclarer ou saisir), et n'invente aucun chiffre à la place. `au_plus` n'est qu'un repère (le solde moins ce qui est
    connu) : ne le présente jamais comme de l'argent disponible. Dis les `hypotheses` et les `reserves` (sous réserve de
-   `REJ-AP-UNITE-PRIX-NON-CONFIRMEE` dès qu'un compte à payer y est). Un `en_deficit` vrai est un déficit réel.
+   `REJ-AP-UNITE-PRIX-NON-CONFIRMEE` dès qu'un compte à payer y est). Un `en_deficit` vrai signale un déficit du calcul sur les sources et hypothèses présentées, pas une preuve d’exhaustivité bancaire.
 6. Ce qui manque le plus souvent : la fréquence de production TPS/TVQ et la date de dernière remise (au propriétaire),
-   les paies, les DAS et les dettes (déclarés par le propriétaire avec leur source et leur date, aucun module de paie
-   n'existe encore). Demande-les ; ne les estime pas.
+   les paies, les DAS et les dettes (déclarés par le propriétaire avec leur source et leur date, les préparateurs actuels ne fournissent pas une paie complète ni des obligations
+   automatiquement comptabilisées). Demande-les ; ne les estime pas.
 7. Toute analyse porte la `mention` obligatoire : ne la retire pas.
 
 ## Faire constater le cash libre (pour la vue exécutive de M8)
@@ -74,14 +76,14 @@ description: Procédure pour consulter l'état financier (solde, cash libre rée
 3. Un délai de paiement (clients, fournisseurs) ou la date de sortie des paies, DAS et dettes que le propriétaire n'a pas
    déclaré n'est pas un refus : la réponse dit `non_calculable_a_partir_de` (la semaine) et `manque` (code, ce qu'il faut
    déclarer). Une semaine non calculable n'a aucun chiffre : ne la remplace ni par zéro ni par une moyenne, transmets la
-   demande telle quelle. Les semaines avant elle sont exactes.
+   demande telle quelle. Les semaines avant elle sont calculées depuis les seuls flux connus; leur résultat ne prouve pas l’exhaustivité des obligations.
 4. Un encaissement en retard (`REJ-PREVISION-ENCAISSEMENT-ECHU`) ou sans date connue n'est PAS compté : dis-le
    (`encaissements_non_comptes`). Un décaissement en retard est compté en semaine 1 (`echu`). Ce qui tombe après l'horizon
    est résumé (`au_dela_de_l_horizon`), jamais placé dans une semaine.
 5. L'alerte (`alerte.statut`) : `ALERTE` (le solde de fin d'une semaine passe sous le seuil du propriétaire ; cite la
    première semaine), `AUCUNE`, `NON_EVALUEE` (une semaine non calculable empêche de conclure) ou `SEUIL_A_CONFIGURER` (aucun
-   seuil déclaré, ou illisible : `alerte.manque` dit lequel ; n'en invente aucun). Un solde négatif (`en_deficit`) est un
-   fait, présenté tel quel.
+   seuil déclaré, ou illisible : `alerte.manque` dit lequel ; n'en invente aucun). Un solde négatif (`en_deficit`) est le résultat
+   du calcul sur les flux retenus, présenté avec leurs limites.
 6. Présente le `plus_bas`, la `premiere_semaine_en_deficit`, le `cash_libre_prevu` de chaque semaine (le cash libre
    d'aujourd'hui plus les encaissements tombés), et TOUJOURS les `limites` et la `mention` obligatoire. La réponse est
    bornée : `prochain_depart` te dit où poursuivre. Ni paiement, ni remise, ni déclaration : c'est N5 (Nathan et le CPA).
@@ -102,8 +104,9 @@ description: Procédure pour consulter l'état financier (solde, cash libre rée
    autonome — elle passe par la file d'approbation humaine.
 3. Un refus porte un verdict nommé (ex. `REJ-MOUVEMENT-SIGNE-INCOHERENT` si le
    signe contredit le type) : corrige l'entrée, ne force jamais le passage.
-4. Conserve `mouvements_historique` renvoyé pour le prochain appel — c'est la
-   continuité du registre entre deux appels.
+4. En production durable, ne retransmets pas d'historique : l'outil relit le registre
+   de l'instance. La réponse porte sa tête/taille. Seulement en simulation annoncée,
+   conserve l'historique de ce scénario, sans le confondre avec la production.
 
 ## Lire le coût réel et la rentabilité d'un chantier
 
@@ -111,8 +114,10 @@ description: Procédure pour consulter l'état financier (solde, cash libre rée
    par devis). Tu ne fournis AUCUN montant, prix, taux, durée ni quantité : le code les lit à la
    source (variance de M6, temps pointé de M4, livre de prix de M6, taux configuré, facture, devis).
    Un argument de ce genre est refusé.
-2. Un verdict `CALCULEE` donne le coût réel complet, la marge réelle et son écart à la marge prévue
-   (en dollars et en points de pourcentage du prix). Présente-les tels quels, avec leurs sources.
+2. Un verdict `CALCULEE` donne le coût complet et les calculs de marge disponibles.
+   Présente aussi `prix_definitif` : faux, la facture BROUILLON donne un prix provisoire,
+   pas une marge financière définitive. Les montants et écarts viennent du code et
+   gardent leurs sources et leur version.
 3. Un verdict `PARTIELLE` n'est PAS une marge : dis « coût partiel » et cite la liste `manque` (prix
    non disponible ou ambigu, taux horaire à configurer, temps pointé absent, facture absente...).
    `marge_partielle_plafond` est un plafond, jamais la marge. Ne remplace jamais un manque par une
@@ -140,7 +145,9 @@ l'outil ne calcule pas l'âge, il ne devine pas la date.
    `REJ-AP-UNITE-PRIX-NON-CONFIRMEE` : l'unité des prix du livre de prix n'est pas déclarée, aucun montant n'est certain.
 3. Une facture fournisseur se saisit avec `m5_saisir_facture_fournisseur`, par un HUMAIN : telle qu'imprimée (numéro, date,
    total avant taxes, et le total après taxes en contrôle si l'humain l'a). Tu n'appelles jamais l'outil avec des chiffres que
-   personne ne t'a donnés, et tu ne saisis pas une facture lue d'une image : l'OCR est fermé, la saisie est manuelle.
+   personne ne t'a donnés, et tu ne transfères pas automatiquement les valeurs d'une image. La filière OCR/AP privée peut préparer un
+   candidat cité puis un brouillon revu par une personne : huit champs saisis et confirmation N3 distincte avant
+   création de dette interne. Une extraction ou sa confiance brute ne constitue pas cette confirmation.
    Depuis l'app, la personne s'identifie ; sinon ta demande attend l'approbation de la finance ou du propriétaire (ne la
    présente pas comme saisie). Les taxes sont recalculées : si le total imprimé ne concorde pas au cent près, la saisie est
    refusée avec les deux chiffres, vérifie ce qui a été tapé.
@@ -156,3 +163,25 @@ l'outil ne calcule pas l'âge, il ne devine pas la date.
 6. Une dépense sans PO (carburant, outils) se saisit avec `m5_saisir_facture_sans_po`, par un humain, telle qu'imprimée. La
    catégorie est de la liste que le propriétaire a déclarée : si l'outil répond « catégories à configurer », dis-le à Nathan,
    n'en choisis aucune. La facture est une dette dès sa saisie : elle entre en entier dans les comptes à payer et le cash libre.
+
+## Paie, contrats et décision CFO : portée actuelle
+
+Les préparateurs `m5_preparer_brut_regulier`, `m5_lire_sources_regles_paie` et
+`m5_preparer_dossier_webras` sont propriétaire-console uniquement. Le brut repose
+sur les minutes M4 et le contrat M5 courant, avec références attendues ou lecture
+courante explicitement choisie; une révision périmée ne s'actualise pas silencieusement.
+Le dossier WebRAS laisse impôts, retenues, cotisations, net et DAS inconnus; les
+moteurs fiscaux préparatoires du code ne deviennent pas des outils disponibles ici.
+Aucun de ces dossiers ne dépose une paie ni n'alimente automatiquement le cash libre.
+
+`m5_prevoir_tresorerie_contrats` lit les échéanciers de contrats explicitement
+saisis et leurs versions. Ne transforme pas un devis accepté en contrat signé ni
+un jalon attendu en argent encaissé. `m5_preparer_dossier_decision_cfo` rend 25
+rubriques : celles sans méthode ou source restent inconnues. Il n'approuve rien.
+`m5_preparer_decision_capital` compare des offres identifiées; ses échéanciers
+hypothétiques et leurs sources manuelles ne sont pas authentifiés par le modèle.
+Respecte les paramètres du catalogue et les refus; aucun achat ni financement réel.
+
+Réponds avec résultat, sources/date, manques/hypothèses et prochaine action autorisée,
+avec la mention obligatoire. Utilise les pages disponibles et leurs références,
+sans répéter les historiques complets ni supprimer une lacune pour raccourcir.

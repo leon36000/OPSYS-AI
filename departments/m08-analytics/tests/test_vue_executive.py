@@ -81,15 +81,18 @@ def _wct(wct_id, devis_id, quand="2026-10-05T14:00:00-04:00"):
     })
 
 
-def _marge(wct_id, devis_id, sequence, marge, manque=(), verdict=None):
+def _marge(wct_id, devis_id, sequence, marge, manque=(), verdict=None, prix_definitif=True):
     """Le fait de M5 tel que `mesures_chantier.fait_rentabilite` le range : la marge en texte, ou `None` avec les
     codes de ce que M5 n'a pas pu chiffrer."""
     calculee = marge is not None
-    return mesures_chantier.fait_rentabilite({
+    charge = {
         "wct_id": wct_id, "devis_id": devis_id, "sequence": sequence, "marge_reelle_cad": marge,
         "verdict": verdict or ("CALCULEE" if calculee else "PARTIELLE"), "cout_reel_complet": calculee,
         "manque": list(manque),
-    })
+    }
+    if prix_definitif is not None:
+        charge["prix_definitif"] = prix_definitif
+    return mesures_chantier.fait_rentabilite(charge)
 
 
 def _par_nom(faits_entonnoir=None, faits_chantier=None, faits_cash_libre=None):
@@ -478,7 +481,7 @@ def test_la_marge_reelle_est_celle_de_m5_en_texte_sans_somme_ni_arrondi_ni_ecart
     assert [c["marge_reelle_cad"] for c in marge["chantiers"]] == ["52.00", "-1234.50", None]  # verbatim
     assert marge["chantiers"][0] == {
         "wct_id": "w-recent", "devis_id": "D3", "horodatage_completion": "2026-10-07T14:00:00-04:00",
-        "statut": "calculee", "marge_reelle_cad": "52.00",
+        "statut": "calculee", "marge_reelle_cad": "52.00", "prix_definitif": True,
     }
     texte = json.dumps(marge)
     for chiffre_calcule in ("-1182.50", "1182.50", "-591.25", "17.33", "-1234.5 ", "1286.50"):
@@ -503,6 +506,27 @@ def test_une_marge_que_m5_n_a_pas_chiffree_dit_pourquoi_avec_les_codes_de_m5(m6_
     assert lignes["w-rien"]["raison"] == "M5 n'a rien publié pour ce chantier (m5.rentabilite_chantier)"
     for ligne in lignes.values():
         assert ligne["statut"] == "non_calculable" and ligne["marge_reelle_cad"] is None
+
+
+def test_la_vue_exclut_les_marges_de_facture_brouillon_ou_finalite_historique_inconnue(m6_de_test):
+    m6_de_test()
+    chantiers = [
+        _wct("w-brouillon", "D1"),
+        _marge("w-brouillon", "D1", 1, "90.00", prix_definitif=False),
+        _wct("w-historique", "D2"),
+        _marge("w-historique", "D2", 1, "80.00", prix_definitif=None),
+    ]
+
+    section = _vue(_par_nom(faits_chantier=chantiers))["marge_reelle"]
+    lignes = {ligne["wct_id"]: ligne for ligne in section["chantiers"]}
+
+    assert section["n_marge_connue"] == 0 and section["n_non_calculable"] == 2
+    assert lignes["w-brouillon"]["marge_reelle_cad"] is None
+    assert lignes["w-brouillon"]["prix_definitif"] is False
+    assert "facture brouillon" in lignes["w-brouillon"]["raison"]
+    assert lignes["w-historique"]["marge_reelle_cad"] is None
+    assert "prix_definitif" not in lignes["w-historique"]
+    assert "finalité de facture inconnue" in lignes["w-historique"]["raison"]
 
 
 def test_le_plus_grand_rang_de_m5_fait_foi_quel_que_soit_l_ordre_de_livraison(m6_de_test):

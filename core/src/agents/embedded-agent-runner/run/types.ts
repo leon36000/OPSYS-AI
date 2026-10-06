@@ -145,6 +145,8 @@ export type EmbeddedRunAttemptTrajectoryRecorder = {
 };
 
 export type EmbeddedRunAttemptParams = EmbeddedRunAttemptBase & {
+  /** Private, attempt-local collector; never retained by the shared session MCP runtime. */
+  opsysPostflightCollector?: import("../../harness/opsys-postflight-collector.js").OpsysPostflightCollector;
   /** Recomputed by the host for this attempt; never inherited from the requesting turn. */
   githubPublicationAvailable?: boolean;
   disableToolSearch?: true;

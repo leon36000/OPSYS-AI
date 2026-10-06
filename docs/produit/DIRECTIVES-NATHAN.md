@@ -105,3 +105,20 @@ audio/3D, mémoire et apprentissage reçues séparément. Son état historique F
 adapté au dépôt OPSYS actuel, sans réintroduire ses chemins ni ses statuts de juin comme faits.
 La poursuite de l'implémentation et la délégation utile restent autorisées sans confirmations
 routinières. Les actions publiques, financières et irréversibles gardent leurs limites explicites.
+
+## Poursuite et consignes aux agents — 5 octobre 2026 UTC
+
+Nathan demande de poursuivre de façon autonome et d’utiliser le prompt engineering. Le
+[brief de travail versionné](../programme/BRIEFS-OUVRIERS-2026-10-05.md) traduit cette demande
+en consignes courtes : parcours métier, sources exactes, contrats, permissions, preuves et limites.
+Les ouvriers préparent des tranches indépendantes; le chef de projet contrôle la jonction réelle,
+les droits, les erreurs de reprise et les résultats avant intégration. Une réponse bien formulée
+ou un rapport d’agent ne remplace pas une preuve d’exécution.
+
+Cette instruction maintient l’autorisation de poursuite et de délégation utile, sans ajouter
+un consensus obligatoire ni une promesse de fonctionnement continu de 24 heures. Les étapes
+de publication suivent les autorisations et les accès réellement disponibles de la session.
+
+## Transmission à Codex sur l’infra — 5 octobre 2026, Toronto
+
+Nathan demande un pack complet et un prompt pour reprendre sur son infrastructure connectée à GitHub. Le [cahier consolidé](CAHIER-AMBITIONS-TRANSMISSION-2026-10-05.md) affirme explicitement que chaque département octroie aux agents des capacités/outils/logiciels métier de premier ordre, avec profondeur, autonomie sous permissions et critères mesurables. Le [guide de transmission](../reprise/TRANSFERT-INFRA-2026-10-05/README.md) distingue snapshot local/distant, fichiers originaux/adaptations et ambitions/livraison; il transporte les derniers changements non poussés. Aucun archivage intégral de conversations non reçues, état global terminé ou opération de production n’est induit par ce transfert.

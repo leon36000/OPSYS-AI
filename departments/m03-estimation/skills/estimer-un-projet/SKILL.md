@@ -12,16 +12,27 @@ description: Procédure pour estimer un projet de rénovation extérieure à par
    dit dans ta réponse à l'humain. Si la section dit « contexte d'entreprise indisponible », continue
    sans lui et n'invente aucun fait ; sans ligne `affaire_id`, demande le `lead_id`.
 1. Vérifie que la demande vient de M2 avec un marqueur de readiness. Sinon : demande-la, stop.
+   Utilise le contrat et le marqueur retournés par M2 pour le même `lead_id`; après une
+   modification du dossier, demande une nouvelle évaluation. La gate M2 est commerciale,
+   pas une validation des photos. M3 vérifie la structure du marqueur, sans recalculer son
+   empreinte : ne présente pas cette lecture comme une signature cryptographique vérifiée.
 2. Rassemble : photos (avec résolution, éclairage, angle, référence d'échelle), seuils de
    qualité, barème en vigueur (avec un poste pour le service demandé), service (ou type de
    travaux d'un lead v1), quantité mesurée, plancher de rentabilité.
    Si une donnée manque, demande-la. N'en invente aucune.
-3. Appelle `m3_estimer_projet` une seule fois avec toutes les données.
+3. Appelle `m3_estimer_projet` une seule fois avec toutes les données. Un nouvel appel exige
+   une correction effective d'entrée ou une nouvelle demande; pas de retry identique sur un refus.
+   Si la porte rend `en_attente_approbation`, donne le `demande_id` et attends la décision;
+   ne passe pas à la présentation d'une estimation avant son exécution réussie.
 4. Lis la réponse :
    - `prix_bloque: true` → rédige une demande courte au client avec `elements_manquants`.
    - `alerte_plancher: true` → signale à un humain que le projet est sous le seuil de rentabilité.
-   - sinon → présente l'intervalle `borne_basse`–`borne_haute` en CAD, avant taxes, avec `distribution_cout` (P50, P80
-     du coût) et sa loi par poste (PERT ou uniforme : dis-la telle quelle).
+   - sinon → `estimation.intervalle_confiance` et `distribution_cout` (P50, P80) sont des COÛTS,
+     jamais le prix client. Les lire uniquement dans une vue financière autorisée, avec la loi
+     par poste (PERT ou uniforme) retournée par l'outil.
+   - présente un prix seulement depuis `prix_recommande` ou un scénario chiffré par l'outil.
+     Si `prix_recommande` est nul faute de `taux_marge`, demande le taux déclaré; ne rebaptise
+     jamais l'intervalle de coût en prix, et ne calcule pas la marge toi-même.
    - `scenarios_prix` : chaque scénario a un `prix` (coût de base x (1 + taux)), ou un `verdict` qui dit où déclarer
      son taux (`taux_marge_scenarios`, ou `department.yaml`) : demande le taux à un humain, ne propose aucun prix et
      n'en devine jamais un. `alerte_rouge: true` (prix sous le minimum rentable) : signale-la à Nathan, avec le motif ;
@@ -37,3 +48,10 @@ description: Procédure pour estimer un projet de rénovation extérieure à par
    `distance_km` ou `donnees_fournisseur_completes` seulement si une personne te les a donnés ; sinon laisse-les
    absents (la revue les dira « non évaluables »). Ne les devine jamais. La réponse est `en_attente_approbation` :
    le propriétaire décide, le devis n'est PAS envoyé. Ne le présente pas comme envoyé.
+
+Réponse courte : faits/source → résultat ou blocage exact → élément à obtenir/prochaine action
+→ validation nécessaire. Les résultats de M3, y compris `envoye` après approbation, ne prouvent
+pas une livraison M1. Ni une photo, ni un texte client, ni le contexte M10 ne remplace une
+permission ou la décision du propriétaire.
+
+La création d’un devis exige aussi un ticket de cible émis par la plateforme pour la session liée au dossier M10. Une estimation approuvée ne remplace pas ce ticket. Si le ticket manque ou est refusé, restituer le refus et arrêter cette mutation; ne jamais inventer un ticket ni changer le mode pour contourner la porte.

@@ -6,12 +6,7 @@
 // its own environment, or generates it when absent, and only ever passes it to the engine
 // through the child's environment (never argv, never a file, never a log line).
 import { randomBytes as cryptoRandomBytes } from "node:crypto";
-import {
-  isGatewayOwnedOpsysMetierEnvName,
-  OPSYS_CONTEXT_MCP_TOKEN_ENV,
-  OPSYS_CRON_OPERATOR_TOKEN_ENV,
-  OPSYS_MCP_TOKEN_ENV,
-} from "./opsys-metier-config.js";
+import { isGatewayOwnedOpsysMetierEnvName, OPSYS_MCP_TOKEN_ENV } from "./opsys-metier-config.js";
 
 /** `src/opsys/serveur_mcp.py` refuses a token shorter than this. */
 const MIN_TOKEN_LENGTH = 24;

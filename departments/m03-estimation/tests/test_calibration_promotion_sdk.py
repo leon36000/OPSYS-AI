@@ -396,3 +396,48 @@ def test_n4_owner_role_retire_pendant_attente_ne_peut_pas_activer(base_promotion
         demande = approbations.lire(cnx, attente["demande_id"])
     assert demande["statut"] == "en_attente"
     assert calibration_versions_active() is None
+
+
+def test_couverture_source_m4_reelle_avant_apres_reception_m3(base_promotion):
+    """Le diagnostic observe la publication réelle sans déclencher le répartiteur."""
+    from sqlalchemy import select
+
+    from opsys.stockage.schema import EVENEMENTS_SORTANTS, REGISTRES
+
+    departements = charger_departements()
+    par_nom = {**_outils_m3(), **{outil.nom: outil for outil in outils_m4()}}
+    wct_id, _, _ = _terminer_wct(par_nom, 801, DEBUT_TRAIN)
+    capacites = Capacites(departements, stockage.transaction, appelant=DEP, limite_sortie=6_000, memoire=False)
+
+    def sources():
+        with stockage.transaction() as cnx:
+            return (list(cnx.execute(select(EVENEMENTS_SORTANTS))), list(cnx.execute(select(REGISTRES))))
+
+    def lire():
+        with contexte.appele_par_appareil(contexte.IdentiteAppelante("proprio-calibration", "admin")):
+            reponse = capacites.appeler("m3_auditer_couverture_apprentissage", {})
+        assert reponse["ok"], reponse
+        return reponse["resultat"]
+
+    avant = sources()
+    sans_reception = lire()
+    assert sans_reception["statut"] == "ecarts"
+    assert sans_reception["compteurs"] == {
+        "publications_m4": 1, "recus_m3": 0, "recoupes": 0, "manquants_m3": 1, "hors_univers_m4": 0,
+    }
+    assert sans_reception["manquants_m3"] == {"exemples": [wct_id], "omis": 0}
+    assert sources() == avant
+
+    _livrer_bus(departements)  # Action séparée, volontaire du test; jamais du diagnostic.
+    apres_livraison = sources()
+    reception = lire()
+    assert reception["statut"] == "identites_recues"
+    assert reception["compteurs"] == {
+        "publications_m4": 1, "recus_m3": 1, "recoupes": 1, "manquants_m3": 0, "hors_univers_m4": 0,
+    }
+    assert reception["contenu_wct_verifie"] is False and reception["candidate_active"] is False
+    assert reception["completude_corpus_m4"] == "non_prouvee"
+    assert not any(_contient_cle(reception, cle) for cle in (
+        "fix_gps_completion", "technicien_id", "lead_id", "devis_id", "main_doeuvre", "materiaux",
+    ))
+    assert sources() == apres_livraison

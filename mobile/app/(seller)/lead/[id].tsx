@@ -9,6 +9,7 @@ import type { IssueNote } from "@/ecrans/lead";
 import { BandeauIdentite } from "@/identite/BandeauIdentite";
 import type { Client360, Opportunite } from "@/m2/client360";
 import { creerMutationNote, notesEnFile, RESUME_LONGUEUR_MAX, validerNote } from "@/m2/interaction";
+import type { ResultatReadiness } from "@/m2/readiness";
 import type { NoteEnFile } from "@/m2/interaction";
 import { demarrerDeclencheursVidange } from "@/outbox/declencheurs";
 import { genererMutationId } from "@/outbox/id";
@@ -17,7 +18,7 @@ import { obtenirConfigurationAppel } from "@/protocole/configuration";
 import { usePersonneAppairee } from "@/roles/contexte";
 import type { ResultatFiche } from "@/vendeur/chargeurFiche";
 import { historiqueDuLead } from "@/vendeur/fiche";
-import { chargerFiche } from "@/vendeur/service";
+import { chargerFiche, chargerReadiness } from "@/vendeur/service";
 
 /**
  * `lead/[id].tsx` (§9.4 « prochaine meilleure action », « Client 360 », « notes » ; M2.2, M2.6 ; PLAN T4.8) : la fiche
@@ -37,6 +38,7 @@ export default function EcranLead() {
   const personne = usePersonneAppairee();
 
   const [resultat, setResultat] = useState<ResultatFiche | null | undefined>(undefined);
+  const [readiness, setReadiness] = useState<ResultatReadiness | null>(null);
   const [chargement, setChargement] = useState(true);
   const [enFile, setEnFile] = useState<readonly NoteEnFile[]>([]);
   const [texte, setTexte] = useState("");
@@ -48,31 +50,60 @@ export default function EcranLead() {
   const sequence = useRef(0);
 
   const charger = useCallback(async () => {
+    const numero = ++sequence.current;
     if (leadId === "") {
+      setResultat(undefined);
+      setReadiness(null);
       setChargement(false);
       return;
     }
-    const numero = ++sequence.current;
     setChargement(true);
+    setResultat(undefined); // masque toute fiche et toute readiness pendant la nouvelle lecture
+    setReadiness(null); // un ancien marqueur ne décrit plus nécessairement la tête actuelle du registre
+    const personneLue = personne;
     try {
       const depot = await obtenirDepot().catch(() => null);
-      const [fiche, mutations] = await Promise.all([chargerFiche(leadId), depot ? depot.lister() : Promise.resolve([])]);
+      const [fiche, preparation, mutations] = await Promise.all([
+        chargerFiche(leadId),
+        personneLue ? chargerReadiness(leadId, personneLue) : Promise.resolve(null),
+        depot ? depot.lister() : Promise.resolve([]),
+      ]);
       if (numero !== sequence.current) {
         return;
       }
       setResultat(fiche);
+      // Le badge « prêt » exige deux réponses live de la même personne. Une fiche en cache est un état inconnu.
+      const ficheLiveLisible =
+        fiche?.source === "serveur" &&
+        fiche.fiche.suggestion.genre === "lue" &&
+        fiche.fiche.client.genre === "lue" &&
+        opportunitesDuClient(fiche.fiche.client.valeur, leadId).courante !== null;
+      if (ficheLiveLisible) {
+        setReadiness(preparation);
+      } else if (fiche?.source === "cache") {
+        setReadiness({
+          genre: "non_verifie",
+          verdict: { code: "fiche_en_cache", detail: t("vendeur.lead.readiness.ficheEnCache") },
+        });
+      } else {
+        setReadiness(null);
+      }
       setEnFile(notesEnFile(mutations, leadId));
     } finally {
       if (numero === sequence.current) {
         setChargement(false);
       }
     }
-  }, [leadId]);
+  }, [leadId, personne, t]);
 
   useEffect(() => {
     void charger();
     // Une note restée en file part au premier plan et au retour du réseau : la fiche se relit alors.
-    return demarrerDeclencheursVidange({ aoDeclenchement: () => void charger() });
+    const arreterDeclencheurs = demarrerDeclencheursVidange({ aoDeclenchement: () => void charger() });
+    return () => {
+      sequence.current += 1;
+      arreterDeclencheurs();
+    };
   }, [charger]);
 
   const ajouterNote = useCallback(async () => {
@@ -113,6 +144,13 @@ export default function EcranLead() {
 
   const decalageMinutesUTC = -new Date().getTimezoneOffset();
   const vue = resultat === undefined ? null : vueFiche(resultat);
+  const ficheLiveLisible =
+    vue?.genre === "fiche" &&
+    vue.cache === null &&
+    vue.fiche.suggestion.genre === "lue" &&
+    vue.fiche.client.genre === "lue" &&
+    opportunitesDuClient(vue.fiche.client.valeur, leadId).courante !== null;
+  const ficheEnCache = vue?.genre === "fiche" && vue.cache !== null;
 
   if (leadId === "") {
     return (
@@ -130,6 +168,33 @@ export default function EcranLead() {
       <Pressable style={styles.boutonSecondaire} disabled={chargement} onPress={() => void charger()}>
         <Text style={styles.boutonSecondaireTexte}>{t("vendeur.commun.rafraichir")}</Text>
       </Pressable>
+
+      {(chargement || ficheLiveLisible || ficheEnCache) ? (
+      <View style={styles.carte}>
+        <Text style={styles.sousTitre}>{t("vendeur.lead.readiness.titre")}</Text>
+        {chargement && readiness === null ? (
+          <Text style={styles.avis}>{t("vendeur.lead.readiness.chargement")}</Text>
+        ) : null}
+        {!chargement && readiness === null ? (
+          <Text style={styles.avis}>{t("vendeur.lead.readiness.sessionIndisponible")}</Text>
+        ) : null}
+        {readiness?.genre === "pret" ? (
+          <>
+            <Text style={styles.succes}>{t("vendeur.lead.readiness.pret", { date: formaterDepuis(readiness.marqueur.horodatage, decalageMinutesUTC) })}</Text>
+            <Text style={styles.avis}>{t("vendeur.lead.readiness.limite")}</Text>
+          </>
+        ) : null}
+        {readiness?.genre === "refus" ? (
+          <Text style={styles.erreur}>{t("vendeur.lead.readiness.refus", { code: readiness.verdict.code, detail: readiness.verdict.detail })}</Text>
+        ) : null}
+        {readiness?.genre === "non_verifie" ? (
+          <Text style={styles.avis}>{t("vendeur.lead.readiness.nonVerifie", { code: readiness.verdict.code, detail: readiness.verdict.detail })}</Text>
+        ) : null}
+        <Pressable style={styles.boutonSecondaire} disabled={chargement} onPress={() => void charger()}>
+          <Text style={styles.boutonSecondaireTexte}>{t("vendeur.lead.readiness.reessayer")}</Text>
+        </Pressable>
+      </View>
+      ) : null}
 
       {chargement ? <ActivityIndicator /> : null}
       {vue?.genre === "sans_appairage" ? <Text style={styles.erreur}>{t("vendeur.commun.sansSession")}</Text> : null}
@@ -292,7 +357,9 @@ function CarteOpportunite({ opportunite, decalageMinutesUTC }: { readonly opport
       <Text style={styles.meta}>{t("vendeur.lead.client.travaux", { travaux: travauxDeOpportunite(opportunite) ?? absent })}</Text>
       <Text style={styles.meta}>{t("vendeur.lead.client.ville", { ville: opportunite.ville ?? absent })}</Text>
       <Text style={styles.meta}>{t("vendeur.lead.client.canal", { canal: opportunite.canal ?? absent })}</Text>
-      {opportunite.source !== null ? <Text style={styles.meta}>{t("vendeur.lead.client.source", { source: opportunite.source })}</Text> : null}
+      <Text style={styles.meta}>{t("vendeur.lead.client.source", { source: opportunite.source ?? absent })}</Text>
+      <Text style={styles.meta}>{t("vendeur.lead.client.campagne", { campagne: opportunite.campagne ?? absent })}</Text>
+      <Text style={styles.meta}>{t("vendeur.lead.client.utm", { utm: opportunite.utm === null ? absent : Object.entries(opportunite.utm).map(([cle, valeur]) => `${cle}=${valeur}`).join(" · ") })}</Text>
       {opportunite.prochaineAction !== null ? (
         <Text style={styles.meta}>
           {t("vendeur.lead.client.prochaineAction", {

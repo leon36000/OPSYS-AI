@@ -134,3 +134,105 @@ def test_transcription_sans_consentement_n_est_pas_persistée(capacites_m1):
     signal = next(ligne for ligne in _lignes("m01-front-office") if ligne.get("type_entree") == "signal")
     assert "Gouttières" not in signal["contenu_filtre"]
     assert resultat["tache_rappel"] is not None
+
+
+def test_reprise_voicemail_clos_ajoute_une_note_sans_reouvrir_ni_perdre_motif(capacites_m1):
+    from m1_front_office import transferts
+
+    premier = _importer(capacites_m1, {**BASE, "statut": "voicemail"})
+    transfert_id = premier["tache_rappel"]["transfert_id"]
+    with stockage.transaction():
+        reg = outils_m1._obtenir_registre()
+        etat = next(e for e in transferts.lire(reg.lire()) if e.identifiant == transfert_id)
+        reg.ajouter(transferts.ligne_de_cloture(
+            etat, par="admin-fictif", role="admin", voie="appareil",
+            motif="Rappel complété, la demande a été prise en charge.", horodatage="2026-09-29T10:00:00-04:00",
+        ))
+    avant = _lignes("m01-front-office")
+    assert len(transferts.lire(avant)) == 1 and not transferts.lire(avant)[0].ouvert
+
+    enrichi = _importer(capacites_m1, {
+        **BASE, "statut": "voicemail", "transcription": "Bonjour, mes gouttières fuient à Laval.",
+        "consentement_enregistrement": "accorde",
+    })
+
+    assert enrichi["accepte"] is True
+    assert enrichi["traitement"]["decision"] == "TRANSFERT_CLOS_NOTE_AJOUTEE"
+    assert enrichi["tache_rappel"]["transfert_id"] == transfert_id
+    assert enrichi["tache_rappel"]["statut"] == "clos"
+    apres = _lignes("m01-front-office")
+    etats = transferts.lire(apres)
+    assert len(etats) == 1 and not etats[0].ouvert
+    vue = transferts.vue(etats[0], apres)
+    assert vue["cloture"]["motif"] == "Rappel complété, la demande a été prise en charge."
+    assert len(vue["messages_suivants"]) == 1
+    assert "Bonjour, mes gouttières fuient à Laval." in vue["messages_suivants"][0]["texte"]
+    assert len([ligne for ligne in apres if ligne.get("type_entree") == "appel_voicemail_enrichi"]) == 1
+    assert not any(ligne.get("type_entree") == "lead_emis" for ligne in apres)
+
+
+def test_reprise_refuse_consentement_absent_ou_metadonnees_changees_sans_mutation(capacites_m1):
+    _importer(capacites_m1, {**BASE, "statut": "voicemail"})
+    avant = _lignes("m01-front-office")
+    transcript = "Bonjour, mes gouttières fuient à Laval."
+    cas = [
+        {**BASE, "statut": "voicemail", "transcription": transcript},
+        {**BASE, "telephone": "+15145550143", "statut": "voicemail", "transcription": transcript,
+         "consentement_enregistrement": "accorde"},
+        {**BASE, "recu_le": "2026-09-29T10:15:00-04:00", "statut": "voicemail",
+         "transcription": transcript, "consentement_enregistrement": "accorde"},
+    ]
+    for tentative in cas:
+        refuse = capacites_m1.appeler("m1_importer_appel_manuellement", tentative)
+        assert refuse["ok"] is False and "REJ-APPEL" in refuse["details"]
+        assert _lignes("m01-front-office") == avant
+
+
+def test_rejeu_transcription_enrichie_stable_et_contenu_divergent_sans_mutation(capacites_m1):
+    fallback = _importer(capacites_m1, {**BASE, "statut": "voicemail"})
+    transcription = "Bonjour, mes gouttières fuient à Laval."
+    arguments = {**BASE, "statut": "voicemail", "transcription": transcription,
+                 "consentement_enregistrement": "accorde"}
+    premiere = _importer(capacites_m1, arguments)
+    apres = _lignes("m01-front-office")
+    rejeu = _importer(capacites_m1, {**arguments, "evenement_id": "evt-relivre-fictif"})
+    assert rejeu == premiere
+    assert _lignes("m01-front-office") == apres
+    assert premiere["tache_rappel"]["transfert_id"] == fallback["tache_rappel"]["transfert_id"]
+
+    refuse = capacites_m1.appeler("m1_importer_appel_manuellement", {
+        **arguments, "evenement_id": "evt-contradictoire-fictif",
+        "transcription": "Je demande une toiture à Québec.",
+    })
+    assert refuse["ok"] is False and "REJ-APPEL-CONTRADICTOIRE" in refuse["details"]
+    assert _lignes("m01-front-office") == apres
+
+
+def test_echec_final_enrichissement_annule_note_consentement_et_reprise_reussit(capacites_m1, monkeypatch):
+    from m1_front_office.registre import Registre
+
+    fallback = _importer(capacites_m1, {**BASE, "statut": "voicemail"})
+    avant = _lignes("m01-front-office")
+    arguments = {**BASE, "statut": "voicemail", "transcription": "Bonjour, mes gouttières fuient à Laval.",
+                 "consentement_enregistrement": "accorde"}
+    ajouter = Registre.ajouter
+
+    def echec_fin(self, entree):
+        if entree.get("type_entree") == "appel_voicemail_enrichi":
+            raise ValueError("REJ-TEST-PANNE-FICTIVE: écriture finale indisponible")
+        return ajouter(self, entree)
+
+    with monkeypatch.context() as temporaire:
+        temporaire.setattr(Registre, "ajouter", echec_fin)
+        refuse = capacites_m1.appeler("m1_importer_appel_manuellement", arguments)
+        assert refuse["ok"] is False and "REJ-TEST-PANNE-FICTIVE" in refuse["details"]
+        assert _lignes("m01-front-office") == avant
+
+    outils_m1.utiliser_stockage_durable()
+    reprise = _importer(capacites_m1, arguments)
+    assert reprise["tache_rappel"]["transfert_id"] == fallback["tache_rappel"]["transfert_id"]
+    apres = _lignes("m01-front-office")
+    assert apres[:len(avant)] == avant
+    assert len([ligne for ligne in apres if ligne.get("type_entree") == "appel_voicemail_enrichi"]) == 1
+    with stockage.transaction():
+        assert outils_m1._obtenir_registre().valider_chaine() == (True, None)

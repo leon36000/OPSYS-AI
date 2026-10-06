@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import uuid
 from collections.abc import Mapping
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -22,6 +23,9 @@ _OUTIL = "m5_saisir_facture_fournisseur"
 _SOURCE_KEYS = frozenset({
     "revision_pdf", "revision_ap", "source_sha256", "configuration_sha256",
     "proposition_sha256", "registre", "taux_sha256",
+})
+_OCR_SOURCE_KEYS = _SOURCE_KEYS | frozenset({
+    "source_type", "ocr_run_id", "revision_run", "ocr_configuration_sha256", "ocr_profil_id",
 })
 _PREUVE_KEYS = frozenset({
     "schema", "source", "snapshot_id", "mapping_sha256", "arguments_sha256",
@@ -73,7 +77,7 @@ def _preuve_valide(lot_id: str, ligne: Mapping[str, Any], preuve: Any) -> dict[s
     ):
         raise _erreur()
     source = preuve["source"]
-    if not isinstance(source, dict) or set(source) != _SOURCE_KEYS:
+    if not isinstance(source, dict) or frozenset(source) not in {_SOURCE_KEYS, _OCR_SOURCE_KEYS}:
         raise _erreur()
     if (
         type(source["revision_pdf"]) is not int or source["revision_pdf"] < 1
@@ -83,6 +87,20 @@ def _preuve_valide(lot_id: str, ligne: Mapping[str, Any], preuve: Any) -> dict[s
         ))
     ):
         raise _erreur()
+    if set(source) == _OCR_SOURCE_KEYS:
+        run_id = source["ocr_run_id"]
+        try:
+            run_uuid = uuid.UUID(run_id) if isinstance(run_id, str) else None
+        except (ValueError, AttributeError):
+            run_uuid = None
+        if (
+            source["source_type"] != "OCR_CANDIDAT"
+            or run_uuid is None or str(run_uuid) != run_id
+            or type(source["revision_run"]) is not int or source["revision_run"] < 1
+            or not _est_sha(source["ocr_configuration_sha256"])
+            or source["ocr_profil_id"] != "ocr-scan-2"
+        ):
+            raise _erreur()
     registre = source["registre"]
     if (
         not isinstance(registre, dict) or set(registre) != {"taille", "tete"}

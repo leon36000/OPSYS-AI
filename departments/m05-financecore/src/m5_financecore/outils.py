@@ -3039,6 +3039,26 @@ def consommateurs() -> dict[str, Callable[[dict], dict]]:
     }
 
 
+def _actualiser_rentabilite_apres_transition_facture(
+    facture_id: str,
+    registre_cible: registre_module.Registre,
+    factures_historique: list[dict[str, Any]] | None,
+) -> None:
+    """Dans la transaction humaine : état courant de la facture → trace et événement dérivés.
+
+    Le maillon de transition ne contient pas le devis : retrouver celui-ci dans la vue canonique,
+    sans refaire la fusion des maillons. Les simulations avec historique injecté restent isolées.
+    Une panne de publication annule aussi la transition via `executer_atomique`.
+    """
+    if factures_historique is not None or not _stockage_durable_actif:
+        return
+    devis_id = next(
+        devis_id for devis_id, facture in facturation.factures_actives_par_devis(registre_cible).items()
+        if facture["facture_id"] == facture_id
+    )
+    _essayer_cout_reel(devis_id)
+
+
 def envoyer_facture(
     facture_id: str,
     horodatage: str,
@@ -3051,6 +3071,7 @@ def envoyer_facture(
     resultat, verdict = facturation.envoyer_facture(facture_id, horodatage, registre_cible)
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
+    _actualiser_rentabilite_apres_transition_facture(facture_id, registre_cible, factures_historique)
     return {"accepte": True, "resultat": resultat, **_etat_factures(factures_historique, registre_cible)}
 
 
@@ -3071,6 +3092,7 @@ def enregistrer_paiement_facture(
     )
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
+    _actualiser_rentabilite_apres_transition_facture(facture_id, registre_cible, factures_historique)
     return {"accepte": True, "resultat": resultat, **_etat_factures(factures_historique, registre_cible)}
 
 

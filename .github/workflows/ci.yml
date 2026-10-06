@@ -158,6 +158,18 @@ jobs:
       - name: Lint du département ${{ matrix.dossier }}
         if: contains(fromJSON(env.DEPARTEMENTS_LINT), matrix.dossier)
         run: ruff check "departments/${{ matrix.dossier }}"
+      # Le test PostgreSQL en RAM refuse tout téléchargement implicite (--pull=never).
+      # Le runner hébergé a un cache vide : préparer la même image que la fixture.
+      - name: Préparation PostgreSQL pour les tests M10 en RAM
+        if: matrix.dossier == 'm10-memoire'
+        run: |
+          python - <<'PY'
+          import runpy
+          import subprocess
+
+          image = runpy.run_path("tests/fixtures/memoire/doubles.py")["IMAGE_PGVECTOR"]
+          subprocess.run(["docker", "pull", image], check=True, timeout=900)
+          PY
       # M3 : les deux fichiers des outils de preuve (batteries de mutations) tournent dans `m03-preuves`,
       # en parallèle ; ensemble, ils dépassaient le délai de 45 minutes de ce job (CI 1929).
       - name: Tests du département ${{ matrix.dossier }}

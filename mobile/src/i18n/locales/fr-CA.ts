@@ -390,9 +390,22 @@ export interface RessourcesCommunes {
         ville: string;
         canal: string;
         source: string;
+        campagne: string;
+        utm: string;
         prochaineAction: string;
         illisibles: string;
         refus: string;
+      };
+      readiness: {
+        titre: string;
+        chargement: string;
+        pret: string;
+        limite: string;
+        refus: string;
+        nonVerifie: string;
+        ficheEnCache: string;
+        sessionIndisponible: string;
+        reessayer: string;
       };
       historique: {
         titre: string;
@@ -425,6 +438,7 @@ export interface RessourcesCommunes {
     quotes: {
       titre: string;
       limiteListe: string;
+      liste: { consulteLe: string; suite: string; refus: string; indisponible: string; illisible: string };
       prixSeulement: string;
       numero: {
         etiquette: string;
@@ -901,9 +915,22 @@ const frCA: RessourcesCommunes = {
         ville: "Ville : {{ville}}",
         canal: "Canal : {{canal}}",
         source: "Source : {{source}}",
+        campagne: "Campagne : {{campagne}}",
+        utm: "UTM : {{utm}}",
         prochaineAction: "Prochaine action consignée : {{description}} (échéance {{echeance}})",
         illisibles: "{{nombre}} élément(s) illisible(s) pour cette version de l'app : à voir à la console.",
         refus: "Client 360 indisponible ({{code}}) : {{detail}}",
+      },
+      readiness: {
+        titre: "Préparation à l’estimation (M2)",
+        chargement: "Vérification en cours…",
+        pret: "M2 indique que la gate est satisfaite pour la consultation du {{date}}.",
+        limite: "Cela ne valide ni les photos ni une estimation ou un prix M3.",
+        refus: "M2 refuse cette vérification ({{code}}) : {{detail}}",
+        nonVerifie: "État non vérifié ({{code}}) : {{detail}}",
+        ficheEnCache: "La fiche provient du cache; la readiness reste inconnue.",
+        sessionIndisponible: "Session courante non confirmée pour cette lecture.",
+        reessayer: "Vérifier de nouveau",
       },
       historique: {
         titre: "Historique",
@@ -936,8 +963,15 @@ const frCA: RessourcesCommunes = {
     quotes: {
       titre: "Mes soumissions",
       limiteListe:
-        "Aucun outil ne liste vos soumissions. Cette liste montre celles que vos leads citent (soumission acceptée à " +
-        "planifier, soumission envoyée restée sans réponse). Pour une autre, entrez son numéro.",
+        "Cette liste vient du registre M3 et se charge par pages. Hors ligne, aucune ancienne liste n'est présentée " +
+        "comme actuelle; vous pouvez entrer le numéro d'une soumission pour l'ouvrir individuellement.",
+      liste: {
+        consulteLe: "Consultée à {{date}} sur cet appareil.",
+        suite: "Charger la suite",
+        refus: "Le serveur refuse la liste ({{code}}). Actualisez après avoir vérifié votre connexion.",
+        indisponible: "La liste M3 est indisponible ({{code}}). Aucune ancienne liste n'est affichée.",
+        illisible: "La réponse de liste M3 est illisible ({{code}}); aucune soumission n'est affichée.",
+      },
       prixSeulement: "Statut et prix seulement : ni coût ni marge.",
       numero: {
         etiquette: "Numéro d'une soumission",
@@ -956,6 +990,7 @@ const frCA: RessourcesCommunes = {
       origine: {
         lead_converti: "Soumission acceptée : chantier à planifier",
         soumission_perimee: "Envoyée, restée sans réponse",
+        liste_vendeur: "Liste actuelle du registre M3",
         saisi: "Ouverte par son numéro",
       },
       voirLignes: "Voir les lignes",

@@ -1,11 +1,13 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { acquireOpsysContextTestConfig } from "../../test/helpers/opsys-context-test-config.js";
 import { cleanupTempDirs, makeTempDir } from "../../test/helpers/temp-dir.js";
 import { opsysContexteGuardStore } from "../context-engine/opsys-contexte-garde.js";
 import { getSessionMcpRuntimeManagerForTesting } from "./agent-bundle-mcp-manager-api.js";
 import { getOrCreateSessionMcpRuntime } from "./agent-bundle-mcp-manager.test-support.js";
+import { runWithSessionMcpRequestSignal } from "./agent-bundle-mcp-request-context.js";
 import { SESSION_MCP_RUNTIME_MANAGER_KEY } from "./agent-bundle-mcp-runtime-shared.js";
 import { withMcpCallMeta } from "./mcp-call-meta.js";
 
@@ -40,6 +42,7 @@ afterEach(async () => {
   await releaseContextConfig?.();
   releaseContextConfig = undefined;
   await resetSessionMcpRuntimeManagerGeneration();
+  vi.restoreAllMocks();
 });
 
 async function writeServer(params: {
@@ -47,21 +50,42 @@ async function writeServer(params: {
   serverName: string;
   toolName: string;
   response: Record<string, unknown>;
+  outputSchema?: Record<string, unknown>;
+  structuredContent?: Record<string, unknown>;
 }): Promise<{ command: string; args: string[]; env: Record<string, string> }> {
   const scriptPath = path.join(params.root, `${params.serverName}.mjs`);
   const logPath = path.join(params.root, `${params.serverName}.calls.jsonl`);
-  const responseJson = JSON.stringify(params.response);
-  const toolName = JSON.stringify(params.toolName);
+  const toolSpec = JSON.stringify({
+    name: params.toolName,
+    inputSchema: { type: "object", additionalProperties: true },
+    ...(params.outputSchema ? { outputSchema: params.outputSchema } : {}),
+  });
+  const toolResult = JSON.stringify({
+    content: [{ type: "text", text: JSON.stringify(params.response) }],
+    ...(params.structuredContent ? { structuredContent: params.structuredContent } : {}),
+  });
   await fs.writeFile(
     scriptPath,
     `import fs from "node:fs";\nimport readline from "node:readline";\n` +
-      `const toolName = ${toolName};\nconst answer = ${responseJson};\n` +
-      `async function handle(message) { let result; ` +
-      `if (message.method === "initialize") result = { protocolVersion: message.params.protocolVersion, capabilities: { tools: {} }, serverInfo: { name: "${params.serverName}", version: "1" } }; ` +
-      `if (message.method === "tools/list") result = { tools: [{ name: toolName, inputSchema: { type: "object", additionalProperties: true } }] }; ` +
-      `if (message.method === "tools/call") { fs.appendFileSync(process.env.OPSYS_PROBE_CALLS, JSON.stringify(message.params) + "\\n"); result = { content: [{ type: "text", text: JSON.stringify(answer) }] }; } ` +
-      `if (result) process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: message.id, result }) + "\\n"); }\n` +
-      `for await (const line of readline.createInterface({ input: process.stdin })) void handle(JSON.parse(line));\n`,
+      `async function handle(message) {\n` +
+      `  let result;\n` +
+      `  if (message.method === "initialize") {\n` +
+      `    result = { protocolVersion: message.params.protocolVersion, capabilities: { tools: {} },\n` +
+      `      serverInfo: { name: "${params.serverName}", version: "1" } };\n` +
+      `  }\n` +
+      `  if (message.method === "tools/list") result = { tools: [${toolSpec}] };\n` +
+      `  if (message.method === "tools/call") {\n` +
+      `    fs.appendFileSync(process.env.OPSYS_PROBE_CALLS, JSON.stringify(message.params) + "\\n");\n` +
+      `    result = ${toolResult};\n` +
+      `  }\n` +
+      `  if (result) {\n` +
+      `    const reply = JSON.stringify({ jsonrpc: "2.0", id: message.id, result });\n` +
+      `    process.stdout.write(reply + "\\n");\n` +
+      `  }\n` +
+      `}\n` +
+      `for await (const line of readline.createInterface({ input: process.stdin })) {\n` +
+      `  void handle(JSON.parse(line));\n` +
+      `}\n`,
     { mode: 0o600 },
   );
   return { command: process.execPath, args: [scriptPath], env: { OPSYS_PROBE_CALLS: logPath } };
@@ -75,6 +99,10 @@ async function setup(
       expire_le: new Date(Date.now() + 120_000).toISOString(),
     },
   },
+  options: {
+    businessOutputSchema?: Record<string, unknown>;
+    businessStructuredContent?: Record<string, unknown>;
+  } = {},
 ) {
   const root = makeTempDir(tempDirs, "opsys-cible-ticket-wire-");
   const business = await writeServer({
@@ -82,6 +110,10 @@ async function setup(
     serverName: "opsys_m3",
     toolName: TOOL,
     response: { ok: true, resultat: { accepted: true } },
+    ...(options.businessOutputSchema ? { outputSchema: options.businessOutputSchema } : {}),
+    ...(options.businessStructuredContent
+      ? { structuredContent: options.businessStructuredContent }
+      : {}),
   });
   const context = await writeServer({
     root,
@@ -119,8 +151,14 @@ async function readCalls(root: string, serverName: string): Promise<Record<strin
 describe("OPSYS target tickets on the final MCP call boundary", () => {
   it("issues against the canonical case and attaches the opaque ticket only to business _meta", async () => {
     const { root, runtime } = await setup();
+    const postflight = {
+      checkCurrent: vi.fn(),
+      assertBeforeEffect: vi.fn(),
+      recordUnknownOutcome: vi.fn(),
+      observe: vi.fn(async () => undefined),
+    };
 
-    const result = await runtime.callTool("opsys_m3", TOOL, FINAL_ARGS);
+    const result = await runtime.callTool("opsys_m3", TOOL, FINAL_ARGS, postflight);
     const ticketCalls = await readCalls(root, "opsys_context_m03-estimation");
     const businessCalls = await readCalls(root, "opsys_m3");
     const ticketArgs = ticketCalls[0]?.arguments as Record<string, unknown>;
@@ -140,6 +178,57 @@ describe("OPSYS target tickets on the final MCP call boundary", () => {
     expect(Object.keys(businessMeta ?? {})).toStrictEqual(["opsys/cibleTicket"]);
     expect(businessMeta?.["opsys/cibleTicket"] === "synthetic-opaque-ticket").toBe(true);
     expect(JSON.stringify(result)).not.toContain("synthetic-opaque-ticket");
+    expect(postflight.observe).toHaveBeenCalledExactlyOnceWith(
+      {
+        agentId: "m03-estimation",
+        sessionKey: SESSION,
+        affaireId: "LEAD-001",
+        serverName: "opsys_m3",
+        toolName: TOOL,
+      },
+      result,
+      { authorityCurrent: true },
+    );
+    expect(JSON.stringify(postflight.observe.mock.calls)).not.toContain("synthetic-opaque-ticket");
+  });
+
+  it("waits for durable reservation and refuses dispatch on reservation failure", async () => {
+    const { root, runtime } = await setup();
+    const postflight = {
+      checkCurrent: vi.fn(),
+      assertBeforeEffect: vi.fn(async () => {
+        throw new Error("SYNTHETIC_DURABLE_QUOTA_REFUSED");
+      }),
+      recordUnknownOutcome: vi.fn(),
+      observe: vi.fn(async () => undefined),
+    };
+    await expect(runtime.callTool("opsys_m3", TOOL, FINAL_ARGS, postflight)).rejects.toThrow(
+      "SYNTHETIC_DURABLE_QUOTA_REFUSED",
+    );
+    expect(await readCalls(root, "opsys_m3")).toHaveLength(0);
+    expect(postflight.observe).not.toHaveBeenCalled();
+  });
+
+  it("checks authority again after an awaited durable reservation", async () => {
+    const { root, runtime } = await setup();
+    let current = true;
+    const postflight = {
+      checkCurrent: vi.fn(() => {
+        if (!current) {
+          throw new Error("SYNTHETIC_REVOKED_DURING_RESERVE");
+        }
+      }),
+      assertBeforeEffect: vi.fn(async () => {
+        current = false;
+      }),
+      recordUnknownOutcome: vi.fn(),
+      observe: vi.fn(async () => undefined),
+    };
+    await expect(runtime.callTool("opsys_m3", TOOL, FINAL_ARGS, postflight)).rejects.toThrow(
+      "SYNTHETIC_REVOKED_DURING_RESERVE",
+    );
+    expect(await readCalls(root, "opsys_m3")).toHaveLength(0);
+    expect(postflight.observe).not.toHaveBeenCalled();
   });
 
   it("does not dispatch the business tool when the private ticket authority refuses", async () => {
@@ -148,11 +237,141 @@ describe("OPSYS target tickets on the final MCP call boundary", () => {
       erreur: "refus_metier",
       details: "REJ-LIAISON-CIBLE",
     });
+    const postflight = {
+      checkCurrent: vi.fn(),
+      assertBeforeEffect: vi.fn(),
+      recordUnknownOutcome: vi.fn(),
+      observe: vi.fn(async () => undefined),
+    };
 
-    await expect(runtime.callTool("opsys_m3", TOOL, FINAL_ARGS)).rejects.toThrow(/target ticket/i);
+    await expect(runtime.callTool("opsys_m3", TOOL, FINAL_ARGS, postflight)).rejects.toThrow(
+      /target ticket/i,
+    );
 
     expect(await readCalls(root, "opsys_context_m03-estimation")).toHaveLength(1);
     expect(await readCalls(root, "opsys_m3")).toHaveLength(0);
+    expect(postflight.observe).not.toHaveBeenCalled();
+  });
+
+  it("observes a decodable result before a later output-schema validator rejects it", async () => {
+    const { root, runtime } = await setup(undefined, {
+      businessOutputSchema: {
+        type: "object",
+        properties: { accepted: { type: "string" } },
+        required: ["accepted"],
+      },
+      businessStructuredContent: { accepted: 42 },
+    });
+    const postflight = {
+      checkCurrent: vi.fn(),
+      assertBeforeEffect: vi.fn(),
+      recordUnknownOutcome: vi.fn(),
+      observe: vi.fn(async () => undefined),
+    };
+
+    await expect(runtime.callTool("opsys_m3", TOOL, FINAL_ARGS, postflight)).rejects.toThrow(
+      /output schema/i,
+    );
+    expect(postflight.observe).toHaveBeenCalledOnce();
+    expect(postflight.observe.mock.calls[0]?.[1].content[0]).toMatchObject({
+      type: "text",
+      text: JSON.stringify({ ok: true, resultat: { accepted: true } }),
+    });
+    expect(await readCalls(root, "opsys_m3")).toHaveLength(1);
+  });
+
+  it("observes the resolved MCP result before propagating an abort at the return boundary", async () => {
+    const { root, runtime } = await setup();
+    const controller = new AbortController();
+    const postflight = {
+      checkCurrent: vi.fn(),
+      assertBeforeEffect: vi.fn(),
+      recordUnknownOutcome: vi.fn(),
+      observe: vi.fn(async () => controller.abort(new Error("abort after remote result"))),
+    };
+
+    await expect(
+      runWithSessionMcpRequestSignal(controller.signal, () =>
+        runtime.callTool("opsys_m3", TOOL, FINAL_ARGS, postflight),
+      ),
+    ).rejects.toThrow(/abort after remote result/);
+
+    expect(await readCalls(root, "opsys_m3")).toHaveLength(1);
+    expect(postflight.observe).toHaveBeenCalledOnce();
+    expect(postflight.assertBeforeEffect).toHaveBeenCalledOnce();
+  });
+
+  it("observes a structured result returned by client.callTool after that client aborts", async () => {
+    const { runtime } = await setup();
+    const controller = new AbortController();
+    const postflight = {
+      checkCurrent: vi.fn(),
+      assertBeforeEffect: vi.fn(),
+      recordUnknownOutcome: vi.fn(),
+      observe: vi.fn(async () => undefined),
+    };
+    const originalCallTool = Client.prototype.callTool;
+    let businessEffects = 0;
+    const clientCall = vi
+      .spyOn(Client.prototype, "callTool")
+      .mockImplementation(async function (request, resultSchema, options) {
+        if (request.name === TOOL) {
+          businessEffects += 1;
+          controller.abort(new Error("abort before client resolves"));
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({ ok: true, resultat: { accepted: true } }),
+              },
+            ],
+          };
+        }
+        return await originalCallTool.call(this, request, resultSchema, options);
+      });
+
+    await expect(
+      runWithSessionMcpRequestSignal(controller.signal, () =>
+        runtime.callTool("opsys_m3", TOOL, FINAL_ARGS, postflight),
+      ),
+    ).rejects.toThrow(/abort before client resolves/);
+
+    expect(businessEffects).toBe(1);
+    expect(clientCall).toHaveBeenCalledTimes(2);
+    expect(postflight.observe).toHaveBeenCalledOnce();
+  });
+
+  it("does not invent a fact when callTool aborts before returning a result", async () => {
+    const { runtime } = await setup();
+    const controller = new AbortController();
+    const postflight = {
+      checkCurrent: vi.fn(),
+      assertBeforeEffect: vi.fn(),
+      recordUnknownOutcome: vi.fn(),
+      observe: vi.fn(async () => undefined),
+    };
+    const originalCallTool = Client.prototype.callTool;
+    let businessEffects = 0;
+    vi.spyOn(Client.prototype, "callTool").mockImplementation(
+      async function (request, resultSchema, options) {
+        if (request.name === TOOL) {
+          businessEffects += 1;
+          controller.abort(new Error("abort with unknown tool outcome"));
+          throw controller.signal.reason;
+        }
+        return await originalCallTool.call(this, request, resultSchema, options);
+      },
+    );
+
+    await expect(
+      runWithSessionMcpRequestSignal(controller.signal, () =>
+        runtime.callTool("opsys_m3", TOOL, FINAL_ARGS, postflight),
+      ),
+    ).rejects.toThrow(/abort with unknown tool outcome/);
+
+    expect(businessEffects).toBe(1);
+    expect(postflight.observe).not.toHaveBeenCalled();
+    expect(postflight.recordUnknownOutcome).toHaveBeenCalledOnce();
   });
 
   it("rejects tool/server mismatch before issuing a private ticket or dispatching", async () => {

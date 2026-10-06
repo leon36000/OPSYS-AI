@@ -1,5 +1,29 @@
 # Publication et corrections de CI — 4 octobre 2026
 
+## M10 : échec natif expliqué et préparation corrigée — tranche 28
+
+Le relevé API du **4 octobre à 20:56:07 UTC** constate un échec M10 sur le
+head26 `76e949b9540269b4d1f9639a557255d55301622c` (CI37232080654,
+job111523766752). Core/E2E/mobile/dépendances réussissent sur ce head ;
+CI et installateur restent en cours, deux jobs Docker Desktop sont ignorés.
+Les logs natifs obtenus séparément prouvent `No such image: pgvector/pgvector:pg17`.
+Le cache local masquait l'absence de préparation du runner hébergé pour le
+test PostgreSQL en RAM avec `--pull=never`.
+
+Le [correctif et sa vérification](../../grs/memory/M10-CI-POSTGRESQL-2026-10-04.md)
+préparent explicitement l'image canonique, uniquement dans le job M10.
+ROOT r164 passe **1 020/1 020 sur 35 fichiers complets**, zéro échec/erreur/skip,
+45,315 s JUnit ; Ruff/actionlint/vérificateur et diagnostic du bloc CI réussissent,
+1 250 sources inchangées. Aucun test ou contrôle produit n'est assoupli.
+[Preuves](preuves/M10-CI-POSTGRESQL-r1.tar.xz), [inventaire](preuves/M10-CI-POSTGRESQL-r1.json).
+La réussite native du prochain head28 reste à obtenir ; aucun workflow
+précédent n'est relancé ni annulé par cette correction.
+
+Au même relevé, le head27 `3f38364284a917239441b86b14e948dbdbaaac6f` réussit
+mobile/dépendances, Core/E2E sont en cours et CI/installateur en attente sans
+jobs retournés. Ces états sont conservés séparément ; aucun résultat futur
+n'en est déduit. Les anciens snapshots ci-dessous restent historiques.
+
 ## Contrat OCR — tranche 27 qualifiée localement
 
 [Rapport du contrat](../../grs/compta/M5-OCR-CONTRAT-RAPPORT-2026-10-04.md) :

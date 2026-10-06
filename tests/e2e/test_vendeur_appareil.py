@@ -71,9 +71,9 @@ def _liste_ts(source: str, nom: str) -> list[str]:
 
 
 def _outils_de_l_app() -> dict[str, str]:
-    """Les six outils que l'app appelle : `OUTIL_*` des contrats du vendeur, lus dans leur source."""
+    """Les sept outils que l'app appelle : `OUTIL_*` des contrats du vendeur, lus dans leur source."""
     outils: dict[str, str] = {}
-    for relatif in ("m2/listeLeads.ts", "m2/client360.ts", "m2/interaction.ts", "m3/devis.ts"):
+    for relatif in ("m2/listeLeads.ts", "m2/client360.ts", "m2/interaction.ts", "m2/readiness.ts", "m3/devis.ts"):
         outils.update(re.findall(r'export const (OUTIL_[A-Z_0-9]+) = "([^"]+)"', _source(relatif)))
     return outils
 
@@ -462,9 +462,12 @@ def test_le_serveur_rend_au_vendeur_la_vue_interne_avec_cout_et_marge_donc_l_app
     assert lu_par_l_app <= set(interne)
     assert {"reference_ligne", "description", "quantite", "unite", "prix_unitaire", "prix_ligne"} <= set(
         interne["lignes"][0])
-    for cle in re.findall(r"brut\.(\w+)|valeur\.(\w+)", source):
-        nom = cle[0] or cle[1]
+    for nom in re.findall(r"(?<![\w.])(?:brut|valeur)\.(\w+)", source):
         assert nom in set(interne) | set(interne["lignes"][0]), f"l'app lit `{nom}`, que le serveur ne rend pas"
+    page = _lire(a, "m3_lister_devis", {"limite": 10}).resultat
+    assert set(page) == {"devis", "curseur_suivant"}
+    assert page["devis"] and len(page["devis"]) <= 10
+    assert all(devis["lead_id"].startswith("lead-a-") for devis in page["devis"])
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -478,7 +481,7 @@ def test_les_catalogues_et_les_noms_d_outils_de_l_app_sont_ceux_du_serveur():
     outils = _outils_de_l_app()
     assert set(outils.values()) == {
         "m2_lister_leads", "m2_obtenir_client_360", "m2_trouver_client_de_lead", "m2_suggerer_prochaine_action",
-        "m2_enregistrer_interaction", "m3_lire_devis"}
+        "m2_enregistrer_interaction", "m2_evaluer_readiness", "m3_lire_devis", "m3_lister_devis"}
     portee_vendeur = set(openclaw.roles_outils(charger_departements())["seller"])
     assert set(outils.values()) <= portee_vendeur, "l'app appelle un outil hors de la portée du vendeur"
     assert not any(outil.startswith(("mcp", "m0", "m1")) or "." in outil for outil in outils.values())

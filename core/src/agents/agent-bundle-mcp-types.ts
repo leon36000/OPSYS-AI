@@ -10,6 +10,7 @@ import type { SessionToolOverrides } from "../config/sessions/types.js";
 import type { McpCodexToolApprovalMode, McpServerToolFilterConfig } from "../config/types.mcp.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import type { PluginManifestRegistry } from "../plugins/manifest-registry.types.js";
+import type { OpsysPostflightCallObserver } from "./harness/opsys-postflight-collector.js";
 import type { McpCodexToolAnnotations } from "./mcp-codex-tool-approval.js";
 import type { AnyAgentTool } from "./tools/common.js";
 
@@ -156,7 +157,12 @@ export type SessionMcpRuntime = {
   /** Returns the configured request timeout for a server from the connected session, without touching the catalog. */
   getServerRequestTimeoutMs?: (serverName: string) => number | undefined;
   markUsed: () => void;
-  callTool: (serverName: string, toolName: string, input: unknown) => Promise<CallToolResult>;
+  callTool: (
+    serverName: string,
+    toolName: string,
+    input: unknown,
+    postflight?: OpsysPostflightCallObserver,
+  ) => Promise<CallToolResult>;
   listTools?: (serverName: string, params?: { cursor?: string }) => Promise<ListToolsResult>;
   listResources?: (serverName: string, options?: McpRequestOptions) => Promise<unknown>;
   readResource?: (serverName: string, uri: string, options?: McpRequestOptions) => Promise<unknown>;

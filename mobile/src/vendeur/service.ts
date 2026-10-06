@@ -1,7 +1,13 @@
 import { creerChargeurDevis } from "./chargeurDevis";
-import type { EntreeDevis, ResultatDevis } from "./chargeurDevis";
+import type { EntreeDevis, ResultatInventaireDevis } from "./chargeurDevis";
 import { creerChargeurFiche } from "./chargeurFiche";
 import type { ResultatFiche } from "./chargeurFiche";
+import {
+  chargerReadiness as chargerReadinessSansCache,
+  memeSessionReadiness,
+  resultatSiMemeSession,
+} from "./chargeurReadiness";
+import type { ResultatReadiness } from "../m2/readiness";
 import { creerChargeurLeads } from "./chargeurLeads";
 import type { ResultatLeads, SuiteLeads } from "./chargeurLeads";
 import type { LeadsLus } from "./lectureLeads";
@@ -10,6 +16,7 @@ import type { FiltreLeads } from "../m2/listeLeads";
 import { invoquerOutil } from "../protocole/client";
 import { obtenirSessionEnvoi } from "../protocole/configuration";
 import { obtenirDepotLocal } from "../stockage/service";
+import { supprimerCacheDevis, purgerCachesDevis } from "./cache";
 
 /**
  * Câblage RÉEL des chargeurs du profil vendeur (`(seller)/leads.tsx`, `lead/[id].tsx`, `quotes.tsx`, PLAN T4.8) :
@@ -52,13 +59,78 @@ export async function chargerFiche(leadId: string): Promise<ResultatFiche | null
   return config ? creerChargeurFiche(config).chargerFiche(leadId) : null;
 }
 
-export async function chargerDevis(): Promise<ResultatDevis | null> {
-  const config = await configuration();
-  return config ? creerChargeurDevis(config).chargerDevis() : null;
+/** Lecture fraîche de la gate M2 : aucun cache local ne peut affirmer qu'une tête de registre est encore valide. */
+export async function chargerReadiness(leadId: string, personneAttendue: string): Promise<ResultatReadiness | null> {
+  try {
+    const config = await configuration();
+    if (config === null || config.personne !== personneAttendue || !memeSessionReadiness(config, obtenirSessionEnvoi())) {
+      return null;
+    }
+    const resultat = await chargerReadinessSansCache(config, leadId);
+    return resultatSiMemeSession(config, obtenirSessionEnvoi(), resultat);
+  } catch {
+    return null;
+  }
+}
+
+export async function chargerDevis(): Promise<ResultatInventaireDevis | null> {
+  try {
+    const config = await configuration();
+    if (config === null) {
+      return null;
+    }
+    const resultat = await creerChargeurDevis(config).chargerInventaire();
+    return resultatSiMemeSession(config, obtenirSessionEnvoi(), resultat);
+  } catch {
+    return null;
+  }
+}
+
+/** Charge une suite seulement sous la même personne que celle qui a reçu le curseur précédent. */
+export async function chargerSuiteDevis(
+  curseur: string,
+  personneAttendue: string,
+): Promise<ResultatInventaireDevis | null> {
+  try {
+    const config = await configuration();
+    if (config === null || config.personne !== personneAttendue) {
+      return null;
+    }
+    const resultat = await creerChargeurDevis(config).chargerInventaire(curseur);
+    return resultatSiMemeSession(config, obtenirSessionEnvoi(), resultat);
+  } catch {
+    return null;
+  }
 }
 
 /** `undefined` : pas de session. `null` : numéro vide, rien n'a été demandé. */
 export async function ouvrirDevisParNumero(numero: string): Promise<EntreeDevis | null | undefined> {
-  const config = await configuration();
-  return config ? creerChargeurDevis(config).ouvrirParNumero(numero) : undefined;
+  try {
+    const config = await configuration();
+    if (config === null) {
+      return undefined;
+    }
+    const entree = await creerChargeurDevis(config).ouvrirParNumero(numero);
+    if (!memeSessionReadiness(config, obtenirSessionEnvoi())) {
+      return undefined;
+    }
+    if (entree?.etat.genre === "refus") {
+      const { code } = entree.etat.verdict;
+      if (code === "REJ-DEVIS-INTROUVABLE") {
+        await supprimerCacheDevis(config.depot, config.personne, entree.connu.devisId);
+      } else if ([
+        "REJ-IDENTITE-APPAREIL-INVALIDE",
+        "tool_call_blocked",
+        "http_401",
+        "http_403",
+        "hors_portee_role",
+        "refus_metier",
+      ].includes(code)) {
+        await purgerCachesDevis(config.depot, config.personne);
+      }
+    }
+    return entree;
+  } catch {
+    return undefined;
+  }
 }

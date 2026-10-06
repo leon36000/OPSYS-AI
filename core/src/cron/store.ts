@@ -217,7 +217,7 @@ async function saveCronStoreWithWorker<Value>(
   operation: (
     scope: Pick<SqliteWorkerStore<CronStoreSaveWorkerOperations>, "execute">,
   ) => Promise<CronStoreWriteResult<Value>>,
-  options?: OpenClawStateWorkerOperationOptions,
+  options?: OpenClawStateWorkerOperationOptions & { existingOnly?: false },
 ): Promise<CronStoreCommit<Value>> {
   const observedRevision = getCronJobsStoreRevision(storeKey);
   const context = captureOpenClawStateWorkerContext();
@@ -304,8 +304,9 @@ export async function saveCronJobsStoreRetirementWithRevision(
       facts.nonce !== nonce ||
       facts.receiptId !== capture.receiptId ||
       facts.jobId !== jobId
-    )
+    ) {
       return;
+    }
     published = true;
     afterCommit?.();
   };

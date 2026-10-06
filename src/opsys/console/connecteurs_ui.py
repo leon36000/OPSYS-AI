@@ -37,6 +37,51 @@ _A_CONSTRUIRE = (
 )
 
 
+def _capacite_devis_m3(deps: Mapping[str, Departement]) -> dict[str, str]:
+    """Décrit le catalogue local M3 sans inférer la disponibilité des données ni l'exécution."""
+    departement = deps.get("m03-estimation")
+    if departement is None or departement.module_outils != "m3_estimation.outils":
+        return {"catalogue": "non_verifie", "estimation": "non_verifie", "photos": "non_verifie"}
+    try:
+        noms = {outil.nom for outil in departement.charger_outils()}
+    except Exception:
+        return {"catalogue": "non_verifie", "estimation": "non_verifie", "photos": "non_verifie"}
+    return {
+        "catalogue": "verifie",
+        "estimation": "present" if "m3_estimer_projet" in noms else "absent",
+        "photos": "present" if "m3_qualifier_photos" in noms else "absent",
+    }
+
+
+def _capacite_devis_m3_html(deps: Mapping[str, Departement]) -> str:
+    capacite = _capacite_devis_m3(deps)
+    e = pages.e
+    if capacite["catalogue"] != "verifie":
+        estimation = "Catalogue d’outils M3 non consultable; disponibilité non vérifiée."
+        photos = "Contrôle de qualité des photos M3 non vérifié."
+    else:
+        estimation = (
+            "Outil M3 d’estimation présent au catalogue."
+            if capacite["estimation"] == "present"
+            else "Outil M3 d’estimation absent du catalogue courant."
+        )
+        photos = (
+            "Contrôle de qualité des photos M3 présent au catalogue; il ne mesure pas les dimensions."
+            if capacite["photos"] == "present"
+            else "Contrôle de qualité des photos M3 absent du catalogue courant."
+        )
+    return (
+        '<section class="carte pile"><h2>Capacité de préparation d’un devis M3</h2>'
+        f'<p>{e(estimation)}</p><p>{e(photos)}</p>'
+        '<p>Un devis ne peut être calculé qu’à partir d’une demande CRM qualifiée, '
+        'des renseignements utiles au projet, '
+        'de photos suffisantes avec une référence d’échelle et d’un barème applicable. Cette page ne vérifie pas un '
+        'dossier et ne confirme pas que des photos ont été reçues.</p>'
+        '<p>La mesure géométrique à partir de photos reste non qualifiée. OSRM en M4 sert au calcul d’itinéraires; '
+        'il ne mesure pas les dimensions du bâtiment. Aucune exécution d’estimation n’est observée ici.</p></section>'
+    )
+
+
 def etat_connecteurs(environ: Mapping[str, str], deps: Mapping[str, Departement]) -> dict[str, Any]:
     """Présence seulement : une valeur non vide, même invalide, ne prouve aucune intégration."""
     specifications = (
@@ -80,7 +125,7 @@ def etat_connecteurs(environ: Mapping[str, str], deps: Mapping[str, Departement]
     }
 
 
-def contenu(resultat: Mapping[str, Any], prefixe: str) -> str:
+def contenu(resultat: Mapping[str, Any], prefixe: str, deps: Mapping[str, Departement]) -> str:
     html = [
         '<section class="carte pile"><h2>Prérequis des connexions</h2>',
         "<p>La présence d’une configuration ne prouve pas une connexion réussie. "
@@ -107,6 +152,14 @@ def contenu(resultat: Mapping[str, Any], prefixe: str) -> str:
             f'<p>Variables requises : {requis}</p><p>Optionnelles : {optionnels}</p>'
             f'<p>Variables manquantes : {absentes}</p><p>{pages.e(ligne["note"])}</p></section>'
         )
+    html.append(_capacite_devis_m3_html(deps))
+    html.append(
+        '<section class="carte pile"><h2>Réception des chantiers pour l’apprentissage M3</h2>'
+        '<p>Comparer les identités publiées par M4 avec les reçus M3 de cette instance. '
+        'Ce diagnostic n’active aucun barème et ne certifie pas la précision des mesures.</p>'
+        f'<p><a href="{pages.e(prefixe + "/estimation/apprentissage/couverture")}">'
+        'Consulter les écarts de réception M4 → M3</a></p></section>'
+    )
     html.append('<section class="carte pile"><h2>Capacités à construire et qualifier</h2><ul>')
     for ligne in resultat["a_construire"]:
         html.append(
@@ -341,7 +394,7 @@ def creer_router(
         dashboard = projection(session)
         return reponse_bornee(HTMLResponse(
             pages.gabarit("Connecteurs", configuration_contenu(dashboard, prefixe) + formulaire
-                          + contenu(resultat, prefixe), prefixe=prefixe,
+                          + contenu(resultat, prefixe, deps), prefixe=prefixe,
                           session=session, actif="connecteurs"), headers=_HEADERS,
         ), session)
 

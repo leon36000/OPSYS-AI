@@ -41,7 +41,7 @@ VENDEUR = frozenset({
     "m2_suggerer_prochaine_action", "m2_transitionner_statut", "m2_trouver_client_de_lead",
     # relances autorisées (§9.4, T4.9) : SES relances, le consentement qu'il a recueilli, une relance préparée
     "m2_lister_relances", "m2_preparer_relance", "m2_enregistrer_consentement_contact",
-    "m3_generer_soumission_brouillon", "m3_lire_devis", "m3_qualifier_photos",
+    "m3_generer_soumission_brouillon", "m3_lire_devis", "m3_lister_devis", "m3_qualifier_photos",
     "m3_demander_envoi_devis",  # DEMANDE l'envoi d'un devis (N4, T4.7) : le propriétaire décide dans la file
 })
 
@@ -56,6 +56,7 @@ ADMIN_SEUL = frozenset({
     # Calibration du temps M3 : lecture/évaluation, candidate inactive et demandes de décision N4.
     "m3_evaluer_calibration_cohortes", "m3_proposer_calibration_temps", "m3_evaluer_candidate_calibration",
     "m3_activer_candidate_calibration", "m3_rollback_candidate_calibration",
+    "m3_auditer_couverture_apprentissage", "m3_lire_apprentissage_chantier",  # lectures admin confirmées
     "m4_appliquer_cedule", "m4_confirmer_localisation", "m4_lire_position_gps", "m4_lister_pending_review",
     "m4_produire_brouillon_temps", "m4_produire_digest", "m4_proposer_cedule", "m4_proposer_localisation",
     "m4_resoudre_demande", "m4_resoudre_revue_completion", "m4_verifier_preparation",  # préparation (T4.10-b)
@@ -101,7 +102,9 @@ ADMIN_SEUL = frozenset({
     "m10_arbitrer_revision", "m10_paquet_contexte_affaire", "m10_statut_decision", "m10_statut_revision",
     "m10_lister_signaux", "m10_prendre_en_compte_signal", "m10_clore_signal", "m10_lier_session_affaire",
 })
-ADMIN = EMPLOYE | VENDEUR | ADMIN_SEUL
+# Le lecteur paginé M3 est réservé au vendeur courant : l'admin ne choisit pas un vendeur
+# par argument et ne reçoit pas ce tool. Le lecteur de chantier et le diagnostic sont admin.
+ADMIN = (EMPLOYE | VENDEUR | ADMIN_SEUL) - {"m3_lister_devis"}
 
 # Outils de l'usine à contenu (T4.17) : jamais l'employé ni le vendeur (le contenu du propriétaire, ses décisions,
 # le retrait d'un consentement) ; `m7_proposer_contenus_chantier` et `m7_lire_matiere_chantier` sont ceux de l'agent

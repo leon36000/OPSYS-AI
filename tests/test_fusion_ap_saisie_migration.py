@@ -12,7 +12,14 @@ from sqlalchemy.exc import IntegrityError
 
 from opsys import approbations, stockage
 from opsys.outils import Niveau
-from opsys.stockage.schema import FUSION_AP_SAISIES, META
+from opsys.stockage.schema import (
+    FUSION_AP_OCR_SOURCES,
+    FUSION_AP_SAISIES,
+    FUSION_PDF_OCR_COMMANDES,
+    FUSION_PDF_OCR_QUOTA,
+    FUSION_PDF_OCR_RUNS,
+    META,
+)
 
 FICTIF = True
 _SPEC = importlib.util.spec_from_file_location(
@@ -32,9 +39,16 @@ def _migration(revision: str, *, descendre: bool = False):
 
 
 def _anciennes():
+    # Ce scénario compare les tables antérieures à 0024, y compris lors du
+    # retour à 0023. Les compartiments OCR/AP OCR ajoutés après 0024 ont des
+    # scénarios distincts de conservation et de rollback.
+    nouvelles = {t.name for t in (
+        FUSION_AP_SAISIES, FUSION_AP_OCR_SOURCES,
+        FUSION_PDF_OCR_RUNS, FUSION_PDF_OCR_COMMANDES, FUSION_PDF_OCR_QUOTA,
+    )}
     with stockage.transaction() as cnx:
         return {nom: [dict(r) for r in cnx.execute(select(t)).mappings()]
-                for nom, t in META.tables.items() if nom != FUSION_AP_SAISIES.name}
+                for nom, t in META.tables.items() if nom not in nouvelles}
 
 
 def _ligne(contexte):
@@ -71,9 +85,10 @@ def test_downgrade_refuse_provenance_existante_sans_perte(ap_m5):
     with stockage.transaction() as cnx:
         cnx.execute(FUSION_AP_SAISIES.insert().values(**row))
     before = _anciennes()
+    revision_avant = stockage.revision_courante()
     with pytest.raises(RuntimeError, match="provenances de saisie"):
         _migration("0023", descendre=True)
-    assert stockage.revision_courante() == "0024"
+    assert stockage.revision_courante() == revision_avant
     assert _anciennes() == before
     with stockage.transaction() as cnx:
         assert dict(cnx.execute(select(FUSION_AP_SAISIES)).mappings().one()) == row

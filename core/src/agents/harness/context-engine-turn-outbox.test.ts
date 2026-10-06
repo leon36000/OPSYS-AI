@@ -10,6 +10,7 @@ import type {
   TranscriptTurnAdmission,
   TranscriptTurnBoundary,
 } from "../../config/sessions/transcript-entry-anchor.js";
+import { depositKey } from "../../context-engine/opsys-contexte-depot.js";
 import type { ContextEngine } from "../../context-engine/types.js";
 import { createUserTurnTranscriptRecorder } from "../../sessions/user-turn-transcript.js";
 import { openOpenClawAgentDatabase } from "../../state/openclaw-agent-db.js";
@@ -241,6 +242,12 @@ describe("context-engine turn outbox", () => {
         modelId: "claude-sonnet-4-6",
         tokenBudget: 180_000,
         modelContextWindow: 200_000,
+        opsysDeferredPostflight: {
+          sessionId: target.sessionId,
+          sessionKey: target.sessionKey,
+          agentId: target.agentId,
+          factKeys: [depositKey(target.sessionId, "synthetic-owned-call")],
+        },
       },
     });
     const current = await appendTranscriptMessage(target, {
@@ -310,6 +317,12 @@ describe("context-engine turn outbox", () => {
           modelId: "claude-sonnet-4-6",
           tokenBudget: 180_000,
           modelContextWindow: 200_000,
+          opsysDeferredPostflight: {
+            sessionId: target.sessionId,
+            sessionKey: target.sessionKey,
+            agentId: target.agentId,
+            factKeys: [depositKey(target.sessionId, "synthetic-owned-call")],
+          },
         },
         messages: [
           { role: "user", content: "first" },

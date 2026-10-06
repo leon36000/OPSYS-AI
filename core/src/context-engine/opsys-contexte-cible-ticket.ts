@@ -26,6 +26,15 @@ type TicketIssuer = (params: {
   signal: AbortSignal;
 }) => Promise<unknown>;
 
+/** Internal receipt; intentionally excludes the private ticket and frozen business arguments. */
+export type OpsysCibleTicketReceipt = Readonly<{
+  agentId: string;
+  sessionKey: string;
+  affaireId: string;
+  serverName: string;
+  toolName: string;
+}>;
+
 export type OpsysCibleTicketDeps = {
   readConfig?: () => OpsysContexteConfigResult;
   guardStore?: OpsysContexteGuardStore;
@@ -43,7 +52,9 @@ function snapshotToolArguments(value: unknown): Record<string, unknown> {
   }
   let snapshot: unknown;
   try {
-    snapshot = JSON.parse(JSON.stringify(value));
+    // Snapshot the exact JSON wire representation, rather than cloning non-JSON types.
+    const serialized = JSON.stringify(value);
+    snapshot = JSON.parse(serialized);
   } catch {
     throw new Error("OPSYS target ticket cannot serialize final tool arguments");
   }
@@ -65,6 +76,7 @@ export async function createOpsysCibleTicketMeta(
     toolParams: unknown;
     sessionKey: string | undefined;
     signal: AbortSignal;
+    onIssued?: (receipt: OpsysCibleTicketReceipt) => void;
   },
   deps: OpsysCibleTicketDeps = {},
 ): Promise<{ arguments: Record<string, unknown>; meta: Record<string, string> } | undefined> {
@@ -154,5 +166,14 @@ export async function createOpsysCibleTicketMeta(
   ) {
     throw new Error("OPSYS target ticket service returned an invalid or expired ticket");
   }
+  params.onIssued?.(
+    Object.freeze({
+      agentId,
+      sessionKey,
+      affaireId: state.affaireId,
+      serverName: params.serverName,
+      toolName: params.toolName,
+    }),
+  );
   return { arguments: args, meta: { "opsys/cibleTicket": ticket } };
 }

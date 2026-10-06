@@ -358,6 +358,20 @@ export interface CronJobRuntimeAuthorities {
   store_key: string;
 }
 
+export interface CronJobRuntimeRetirements {
+  acknowledged_at_ms: number | null;
+  ciphertext: string;
+  epoch: number;
+  input_fingerprint: string;
+  intention_id: string;
+  job_id: string;
+  profile_id: string;
+  receipt_id: string;
+  removed_at_ms: number;
+  source_hash: string;
+  store_key: string;
+}
+
 export interface CronJobScratch {
   content: string | null;
   job_id: string;
@@ -1801,6 +1815,7 @@ export interface DB {
   config_machine_state: ConfigMachineState;
   config_revision_keys: ConfigRevisionKeys;
   cron_job_runtime_authorities: CronJobRuntimeAuthorities;
+  cron_job_runtime_retirements: CronJobRuntimeRetirements;
   cron_job_scratch: CronJobScratch;
   cron_jobs: CronJobs;
   cron_run_receipts: CronRunReceipts;

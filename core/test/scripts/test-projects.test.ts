@@ -2306,6 +2306,8 @@ describe("scripts/test-projects changed-target routing", () => {
     "src/agents/command/session-store.test.ts",
     "src/state/openclaw-state-db.test.ts",
     "src/worker/worker.runtime.test.ts",
+    "src/agents/harness/opsys-postflight-collector.sqlite.test.ts",
+    "src/agents/embedded-agent-runner/run/attempt-phase-lifecycle.test.ts",
   ])("routes native shared-state consumer %s exactly once to its broker owner", (testFile) => {
     expectSingleVitestRunPlan(buildVitestRunPlans([testFile]), {
       config: "test/vitest/vitest.infra.config.ts",

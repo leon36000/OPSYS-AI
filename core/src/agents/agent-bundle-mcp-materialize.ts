@@ -26,6 +26,7 @@ import type {
   McpToolCatalog,
   SessionMcpRuntime,
 } from "./agent-bundle-mcp-types.js";
+import type { OpsysPostflightCollector } from "./harness/opsys-postflight-collector.js";
 import {
   projectMcpCallToolResult,
   projectMcpGetPromptResult,
@@ -427,6 +428,8 @@ export function buildBundleMcpToolsFromCatalog(params: {
 export async function materializeBundleMcpToolsForRun(params: {
   runtime: SessionMcpRuntime;
   agentId?: string;
+  /** Attempt-owned observer; never stored on the session-shared runtime. */
+  opsysPostflightCollector?: OpsysPostflightCollector;
   reservedToolNames?: Iterable<string>;
   /** Transfer the lease admitted by the manager before returning this runtime. */
   releaseLease?: () => void;
@@ -485,7 +488,12 @@ export async function materializeBundleMcpToolsForRun(params: {
           }
           runtime.markUsed();
           const { serverName, toolName } = tool;
-          const result = await runtime.callTool(serverName, toolName, input);
+          const postflight = params.opsysPostflightCollector?.beginToolCall({
+            toolCallId,
+            toolName,
+            serverName,
+          });
+          const result = await runtime.callTool(serverName, toolName, input, postflight);
           const agentResult = projectMcpCallToolResult(result, {
             mcpServer: serverName,
             mcpTool: toolName,

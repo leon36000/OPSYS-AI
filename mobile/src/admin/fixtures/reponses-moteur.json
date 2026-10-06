@@ -232,7 +232,7 @@
    "ok": true,
    "resultat": {
     "vue": "executive",
-    "portee": "Tous les faits reçus par M8, sans fenêtre de période. M8 calcule l'entonnoir ; la marge réelle (M5) et le stock à commander (M6) sont repris tels que ces départements les publient, sans recalcul.",
+    "portee": "Tous les faits reçus, sans fenêtre de période. M8 calcule l'entonnoir ; marge réelle, cash libre (M5) et stock à commander (M6) sont repris tels que publiés, sans recalcul.",
     "entonnoir": {
      "mesures": [
       {
@@ -381,7 +381,7 @@
      }
     },
     "marge_reelle": {
-     "source": "M5 (m5.rentabilite_chantier), reprise sans aucun calcul",
+     "source": "M5 (m5.rentabilite_chantier), prix définitif/coût complet, reprise sans aucun calcul",
      "n_chantiers": 0,
      "n_marge_connue": 0,
      "n_non_calculable": 0,
@@ -397,12 +397,12 @@
      "seuils_a_configurer": false
     },
     "cash_libre": {
-     "source": "M5 (m5_etat_tresorerie, T4.16)",
+     "source": "M5 (m5.cash_libre_constate)",
      "statut": "manque",
      "manque": [
       "cash_libre"
      ],
-     "a_lire": "m5_etat_tresorerie (admin), avec la décomposition du cash libre"
+     "a_lire": "m5_etat_tresorerie (admin), avec la décomposition du cash libre ; m5_constater_cash_libre (admin) le publie à M8"
     },
     "manques": [
      {
@@ -432,8 +432,8 @@
      },
      {
       "champ": "cash_libre",
-      "source": "M5 (m5_etat_tresorerie, T4.16)",
-      "raison": "M5 calcule le cash libre à chaque lecture de m5_etat_tresorerie et ne le publie sur aucun événement du bus : M8 ne peut ni le lire ni le recalculer, il ne fait pas la comptabilité"
+      "source": "M5 (m5.cash_libre_constate)",
+      "raison": "M5 n'a publié aucun constat du cash libre (m5.cash_libre_constate) : M8 ne peut ni le lire ni le recalculer, il ne fait pas la comptabilité ; l'admin le fait constater par m5_constater_cash_libre"
      }
     ]
    }
@@ -2401,7 +2401,7 @@
     "resultat": {
      "date_cible": "2026-09-21",
      "horodatage_reference": "2026-09-21T18:00:00-04:00",
-     "ancre_registre": "fb032ad013302ca80aa583a371e7c1c27774015b51b973b852a2503585c3bf36",
+     "ancre_registre": "4ca3446ffa7f1d09b1bc1d9e815a4a8d7e6e1f45391195315826cbbbedc1612c",
      "interventions_terminees": [
       {
        "intervention_id": "b1903e5166860713cd4116bf5905c4520e9bb99f17274c8f0026ff6b4e6330f7",
@@ -2417,7 +2417,7 @@
       "anomalie_pointage": 0
      },
      "interventions_bloquees_en_revue": [],
-     "empreinte": "457f5c91831e6d5b0b33ac9a1d90ca09dbd5c48aec598e9dc99ce4f1d947187b"
+     "empreinte": "61325f3a4e17cbb424563c8d55ff3a4dc760cf4d56428d686ceaed372ffc8b07"
     }
    }
   },
@@ -2474,7 +2474,7 @@
        "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
       }
      ],
-     "empreinte": "2b131a0242ccfb26407a82eaa953dbbb074e8aa98c9b256b2b6f1cc1b64e7dd5"
+     "empreinte": "a2ac8ccd671c9cbc65cccb23ffd203ef0a9eb20b1b236440bf0f2b663f78469a"
     }
    }
   },
@@ -2531,7 +2531,7 @@
        "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
       }
      ],
-     "empreinte": "0c215bca2e5c97f70845d5bcc22574ef9e0966763659d1f34958b8c98493b2a1"
+     "empreinte": "3ba1d3b60a2987310a9bea13fdf11e5bcf4597ea2fc02a256e7e43ce326fb5e3"
     }
    }
   },
@@ -2588,7 +2588,7 @@
        "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
       }
      ],
-     "empreinte": "1189b475824fa1255e391c7a1c2a6db4a1ec87f2f7e2b71f091291b584aee72b"
+     "empreinte": "c7e705b46d693b76d693f4ca30c6ed3c638ed555117eccf9684a4f0058aa259b"
     }
    }
   },
@@ -2645,9 +2645,9 @@
        "action_proposee": "m4_resoudre_revue_completion : verifiee (confirme) ou correction (nomme le problème)"
       }
      ],
-     "total_attentes": 7,
+     "total_attentes": 6,
      "attentes_affichees": 3,
-     "attentes_reste": 4,
+     "attentes_reste": 3,
      "attentes_decalage": 0,
      "attentes_suivant": 3,
      "attentes_illisibles": []
@@ -2661,13 +2661,13 @@
     "resultat": {
      "demandes": [
       {
-       "id": "0d2570487ea4",
+       "id": "80142b904b40",
        "departement": "m04-field-ops",
        "departement_nom": "Field Ops",
        "outil": "m4_resoudre_revue_completion",
        "description_outil": "Revue HUMAINE d'une complétion completed_pending_review (PLAN T1.3-b), jamais un agent seul : decision=verifiee confirme (-> completed_verified, comme le ferait un signal M6 sans dépassement, mais dé…",
        "niveau": "N4",
-       "depuis": "2026-09-29T13:42:46+00:00",
+       "depuis": "2026-10-06T08:25:31+00:00",
        "motif_demande": null,
        "arguments": {
         "intervention_id": "b1903e5166860713cd4116bf5905c4520e9bb99f17274c8f0026ff6b4e6330f7",
@@ -2715,9 +2715,9 @@
        "action_proposee": "m4_resoudre_revue_completion : verifiee (confirme) ou correction (nomme le problème)"
       }
      ],
-     "total_attentes": 7,
+     "total_attentes": 6,
      "attentes_affichees": 3,
-     "attentes_reste": 4,
+     "attentes_reste": 3,
      "attentes_decalage": 0,
      "attentes_suivant": 3,
      "attentes_illisibles": []
@@ -2728,7 +2728,7 @@
    "ok": true,
    "resultat": {
     "vue": "executive",
-    "portee": "Tous les faits reçus par M8, sans fenêtre de période. M8 calcule l'entonnoir ; la marge réelle (M5) et le stock à commander (M6) sont repris tels que ces départements les publient, sans recalcul.",
+    "portee": "Tous les faits reçus, sans fenêtre de période. M8 calcule l'entonnoir ; marge réelle, cash libre (M5) et stock à commander (M6) sont repris tels que publiés, sans recalcul.",
     "entonnoir": {
      "mesures": [
       {
@@ -2874,7 +2874,7 @@
      }
     },
     "marge_reelle": {
-     "source": "M5 (m5.rentabilite_chantier), reprise sans aucun calcul",
+     "source": "M5 (m5.rentabilite_chantier), prix définitif/coût complet, reprise sans aucun calcul",
      "n_chantiers": 2,
      "n_marge_connue": 1,
      "n_non_calculable": 1,
@@ -2884,7 +2884,8 @@
        "devis_id": "DEVIS-ADM-E-fictif",
        "horodatage_completion": "2026-09-22T15:00:00+00:00",
        "statut": "calculee",
-       "marge_reelle_cad": "114.00"
+       "marge_reelle_cad": "114.00",
+       "prix_definitif": true
       },
       {
        "wct_id": "24be933c9957a809a00b0fec00ad64193ae1e629b89c42de8676a220962b8b5c",
@@ -2892,7 +2893,8 @@
        "horodatage_completion": "2026-09-21T15:00:00+00:00",
        "statut": "non_calculable",
        "marge_reelle_cad": null,
-       "raison": "M5 n'a pas chiffré la marge réelle : REJ-COUT-PRIX-NON-DISPONIBLE, REJ-COUT-TAUX-HORAIRE-A-CONFIGURER"
+       "prix_definitif": false,
+       "raison": "facture brouillon ou prix non définitif (prix_definitif=false)"
       }
      ],
      "reste": 0
@@ -2913,12 +2915,12 @@
      "seuils_a_configurer": false
     },
     "cash_libre": {
-     "source": "M5 (m5_etat_tresorerie, T4.16)",
+     "source": "M5 (m5.cash_libre_constate)",
      "statut": "manque",
      "manque": [
       "cash_libre"
      ],
-     "a_lire": "m5_etat_tresorerie (admin), avec la décomposition du cash libre"
+     "a_lire": "m5_etat_tresorerie (admin), avec la décomposition du cash libre ; m5_constater_cash_libre (admin) le publie à M8"
     },
     "manques": [
      {
@@ -2928,8 +2930,8 @@
      },
      {
       "champ": "cash_libre",
-      "source": "M5 (m5_etat_tresorerie, T4.16)",
-      "raison": "M5 calcule le cash libre à chaque lecture de m5_etat_tresorerie et ne le publie sur aucun événement du bus : M8 ne peut ni le lire ni le recalculer, il ne fait pas la comptabilité"
+      "source": "M5 (m5.cash_libre_constate)",
+      "raison": "M5 n'a publié aucun constat du cash libre (m5.cash_libre_constate) : M8 ne peut ni le lire ni le recalculer, il ne fait pas la comptabilité ; l'admin le fait constater par m5_constater_cash_libre"
      }
     ]
    }

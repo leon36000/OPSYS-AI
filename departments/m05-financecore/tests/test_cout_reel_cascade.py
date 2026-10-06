@@ -413,12 +413,17 @@ def test_la_facture_envoyee_rend_le_prix_definitif_dans_un_nouvel_etat(base_dura
     for piece in ("devis", "wct", "variance"):
         _publier(piece)
     _livrer()
-    assert _traces()[-1]["rentabilite"]["prix_definitif"] is False
+    avant = _traces()
+    assert avant[-1]["rentabilite"]["prix_definitif"] is False
     envoyer = next(o for o in outils_mod.outils() if o.nom == "m5_envoyer_facture")
     reponse = executer_atomique(envoyer, {"facture_id": "fac-DEVIS-1", "horodatage": COMPLETION})
     assert reponse["ok"] and reponse["resultat"]["accepte"], reponse
 
-    assert _essayer() == {"statut": "tracee"}
+    # La transition trace et publie immédiatement; un rattrapage est désormais un rejeu.
+    assert len(_traces()) == len(avant) + 1
+    assert _traces()[:len(avant)] == avant
+    assert _essayer() == {"statut": "deja_tracee"}
+    assert len(_traces()) == len(avant) + 1
 
     derniere = _traces()[-1]["rentabilite"]
     assert (derniere["statut_facture"], derniere["prix_definitif"]) == ("ENVOYEE", True)

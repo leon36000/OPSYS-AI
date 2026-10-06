@@ -157,6 +157,8 @@ def test_revue_ap_privee_ne_lit_pas_sur_get_et_echappe_apres_post(client_ap):
         data={"csrf": _csrf(meta.text), "revision_pdf": str(revision_pdf), "revision_ap": "1"},
     )
     assert read.status_code == 200 and read.headers["cache-control"] == "private, no-store, max-age=0"
+    assert fusion_ap.lire(stockage.transaction, "nathan", lot_id)["source_type"] == "PDF_NATIF"
+    assert "des fragments natifs à consulter" in read.text and "Index du token" not in read.text
     assert _MARQUEUR not in read.text and "&lt;img src=x onerror=alert(1)&gt;" in read.text
     again = client.get(f"/fusion/pdf/lots/{lot_id}/ap")
     assert again.status_code == 200 and _MARQUEUR not in again.text

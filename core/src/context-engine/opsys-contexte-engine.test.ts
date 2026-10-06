@@ -75,9 +75,26 @@ function harness(
   const guardStore = new OpsysContexteGuardStore();
   const handler: Handler =
     options.handler ??
-    (async (call) => (call.tool === "m10_paquet_contexte_affaire" ? ENVELOPE_PAQUET : DEPOSIT_OK));
+    (async (call) => {
+      if (call.tool === "m10_paquet_contexte_affaire") {
+        return ENVELOPE_PAQUET;
+      }
+      const count = Array.isArray(call.args.faits) ? call.args.faits.length : 1;
+      return {
+        ok: true,
+        resultat: {
+          accepte: true,
+          resultat: {
+            ecrits: count,
+            deja_deposes: 0,
+            lignes: Array.from({ length: count }, (_, index) => `synthetic-row-${index}`),
+          },
+        },
+      };
+    });
   const engine = createOpsysContextEngine(undefined, {
-    readConfig: options.readConfig ?? (() => options.config ?? { kind: "enabled", config: CONFIG_M3 }),
+    readConfig:
+      options.readConfig ?? (() => options.config ?? { kind: "enabled", config: CONFIG_M3 }),
     callTool: async (call) => {
       calls.push(call);
       return await handler(call);
@@ -109,7 +126,9 @@ function toolResultMessage(toolName: string, toolCallId: string, answer: unknown
   };
 }
 
-function assembleParams(overrides: { prompt?: string; sessionKey?: string; tokenBudget?: number } = {}) {
+function assembleParams(
+  overrides: { prompt?: string; sessionKey?: string; tokenBudget?: number } = {},
+) {
   const messages = [userMessage("bonjour")];
   return {
     sessionId: "session-1",
@@ -157,7 +176,9 @@ describe("OpsysContextEngine identity", () => {
     expect(engine.info.id).toBe(OPSYS_CONTEXT_ENGINE_ID);
     expect(engine.info.id).not.toBe("legacy");
     expect(engine.info.ownsCompaction).toBe(false);
-    expect(engine.info.acceptedHostParams).toEqual(expect.arrayContaining(["sessionKey", "prompt"]));
+    expect(engine.info.acceptedHostParams).toEqual(
+      expect.arrayContaining(["sessionKey", "prompt"]),
+    );
     expect(engine.info.hostRequirements?.["agent-run"]?.requiredCapabilities).toStrictEqual([
       "assemble-before-prompt",
       "after-turn",
@@ -171,7 +192,9 @@ describe("OpsysContextEngine identity", () => {
   it("leaves ingestion to the session manager, like the legacy engine", async () => {
     const { engine } = harness();
 
-    await expect(engine.ingest({ sessionId: "s", message: userMessage("x") })).resolves.toStrictEqual({
+    await expect(
+      engine.ingest({ sessionId: "s", message: userMessage("x") }),
+    ).resolves.toStrictEqual({
       ingested: false,
     });
   });
@@ -243,7 +266,9 @@ describe("OpsysContextEngine assemble (PREFLIGHT)", () => {
   it("finds the case whatever surrounds the marker line in the request", async () => {
     const { engine, calls } = harness();
 
-    await engine.assemble(assembleParams({ prompt: "Peux-tu estimer ?\n  affaire_id: LEAD-001  \nMerci !" }));
+    await engine.assemble(
+      assembleParams({ prompt: "Peux-tu estimer ?\n  affaire_id: LEAD-001  \nMerci !" }),
+    );
 
     expect(calls[0]?.args).toMatchObject({ affaire_id: "LEAD-001" });
   });
@@ -337,7 +362,7 @@ describe("OpsysContextEngine assemble (PREFLIGHT)", () => {
     const { engine, logs, timers } = harness({
       handler: async (call) => {
         called.resolve(call);
-        return await new Promise<never>(() => undefined);
+        return await new Promise<never>(() => {});
       },
     });
 
@@ -397,7 +422,9 @@ describe("OpsysContextEngine assemble (PREFLIGHT)", () => {
       config: { kind: "invalid", reason: '"agents" must map an agent' },
     });
 
-    const result = await engine.assemble(assembleParams({ sessionKey: "agent:m01-front-office:main" }));
+    const result = await engine.assemble(
+      assembleParams({ sessionKey: "agent:m01-front-office:main" }),
+    );
 
     expect(result.systemPromptAddition).toContain(MARKER);
     expect(result.systemPromptAddition).toContain("configuration invalide");
@@ -556,7 +583,9 @@ describe("OpsysContextEngine afterTurn (POSTFLIGHT)", () => {
 
     await engine.afterTurn(afterTurnParams([userMessage("affaire_id: LEAD-001"), ...results]));
 
-    const sizes = calls.map((call) => (Array.isArray(call.args.faits) ? call.args.faits.length : -1));
+    const sizes = calls.map((call) =>
+      Array.isArray(call.args.faits) ? call.args.faits.length : -1,
+    );
     expect(sizes).toStrictEqual([20, 20, 5]);
   });
 
@@ -593,12 +622,72 @@ describe("OpsysContextEngine afterTurn (POSTFLIGHT)", () => {
     expect(logs.warn[0]).toContain("m03-estimation");
   });
 
+  it.each([
+    { title: "missing counters", counts: undefined },
+    { title: "empty counters", counts: {} },
+    { title: "missing written", counts: { deja_deposes: 1 } },
+    { title: "missing already-deposited", counts: { ecrits: 1 } },
+    { title: "string count", counts: { ecrits: "1", deja_deposes: 0 } },
+    { title: "boolean count", counts: { ecrits: true, deja_deposes: 0 } },
+    { title: "negative count", counts: { ecrits: -1, deja_deposes: 2 } },
+    { title: "fractional counts", counts: { ecrits: 0.5, deja_deposes: 0.5 } },
+    { title: "unsafe count", counts: { ecrits: Number.MAX_SAFE_INTEGER + 1, deja_deposes: 0 } },
+    { title: "incomplete total", counts: { ecrits: 0, deja_deposes: 0 } },
+    { title: "excess total", counts: { ecrits: 1, deja_deposes: 1 } },
+  ])("does not report a successful deposit for $title", async ({ counts }) => {
+    const { engine, calls, logs } = harness({
+      handler: async () => ({ ok: true, resultat: { accepte: true, resultat: counts } }),
+    });
+    await engine.afterTurn(afterTurnParams([userMessage("affaire_id: LEAD-001"), ESTIMATION_OK]));
+    expect(calls).toHaveLength(1);
+    expect(logs.info).toStrictEqual([]);
+    expect(logs.warn).toHaveLength(1);
+    expect(logs.warn[0]).toContain("compteurs");
+  });
+
+  it("reports an exact already-deposited count without claiming a new write", async () => {
+    const { engine, calls, logs } = harness({
+      handler: async () => ({
+        ok: true,
+        resultat: { accepte: true, resultat: { ecrits: 0, deja_deposes: 1, lignes: [] } },
+      }),
+    });
+    await engine.afterTurn(afterTurnParams([userMessage("affaire_id: LEAD-001"), ESTIMATION_OK]));
+    expect(calls).toHaveLength(1);
+    expect(logs.warn).toStrictEqual([]);
+    expect(logs.info).toHaveLength(1);
+    expect(logs.info[0]).toContain("0 écrit(s), 1 déjà déposé(s)");
+  });
+
+  it("accepts an exact mixed batch of new and already-deposited facts", async () => {
+    const { engine, calls, logs } = harness({
+      handler: async () => ({
+        ok: true,
+        resultat: {
+          accepte: true,
+          resultat: { ecrits: 1, deja_deposes: 1, lignes: ["synthetic-row"] },
+        },
+      }),
+    });
+    const second = toolResultMessage("opsys_m3__m3_estimer_projet", "second-mixed-call", {
+      ok: true,
+      resultat: {},
+    });
+    await engine.afterTurn(
+      afterTurnParams([userMessage("affaire_id: LEAD-001"), ESTIMATION_OK, second]),
+    );
+    expect(calls).toHaveLength(1);
+    expect(logs.warn).toStrictEqual([]);
+    expect(logs.info).toHaveLength(1);
+    expect(logs.info[0]).toContain("1 écrit(s), 1 déjà déposé(s)");
+  });
+
   it("stops waiting for an engine that is too slow", async () => {
     const called = createDeferred<Call>();
     const { engine, logs, timers } = harness({
       handler: async (call) => {
         called.resolve(call);
-        return await new Promise<never>(() => undefined);
+        return await new Promise<never>(() => {});
       },
     });
 
@@ -637,27 +726,40 @@ describe("OpsysContextEngine memory guidance", () => {
 
     const result = await engine.assemble(assembleParams());
 
-    expect(result.systemPromptAddition?.startsWith(`${GUIDANCE}\n\n## Contexte d'entreprise`)).toBe(true);
+    expect(result.systemPromptAddition?.startsWith(`${GUIDANCE}\n\n## Contexte d'entreprise`)).toBe(
+      true,
+    );
     expect(result.systemPromptAddition).toContain("Toujours confirmer la longueur des gouttières");
   });
 
   it.each([
-    { title: "no contexte.json", config: { kind: "absent" } as const, sessionKey: "agent:m03-estimation:main" },
-    { title: "a contexte.json that is not active", config: { kind: "disabled" } as const, sessionKey: "agent:m03-estimation:main" },
+    {
+      title: "no contexte.json",
+      config: { kind: "absent" } as const,
+      sessionKey: "agent:m03-estimation:main",
+    },
+    {
+      title: "a contexte.json that is not active",
+      config: { kind: "disabled" } as const,
+      sessionKey: "agent:m03-estimation:main",
+    },
     {
       title: "an agent the file does not name",
       config: { kind: "enabled", config: CONFIG_M3 } as const,
       sessionKey: "agent:m01-front-office:main",
     },
-  ])("keeps the native memory guidance, and only that, with $title", async ({ config, sessionKey }) => {
-    registerTestMemoryPromptBuilder(() => ["## Memory Recall", "use memory_search first", ""]);
-    const { engine, calls } = harness({ config });
+  ])(
+    "keeps the native memory guidance, and only that, with $title",
+    async ({ config, sessionKey }) => {
+      registerTestMemoryPromptBuilder(() => ["## Memory Recall", "use memory_search first", ""]);
+      const { engine, calls } = harness({ config });
 
-    const result = await engine.assemble(assembleParams({ sessionKey }));
+      const result = await engine.assemble(assembleParams({ sessionKey }));
 
-    expect(result.systemPromptAddition).toBe(GUIDANCE);
-    expect(calls).toStrictEqual([]);
-  });
+      expect(result.systemPromptAddition).toBe(GUIDANCE);
+      expect(calls).toStrictEqual([]);
+    },
+  );
 
   it("never lets a failure of the memory path cost the turn its packet", async () => {
     registerTestMemoryPromptBuilder(() => {
@@ -741,15 +843,18 @@ describe("OpsysContextEngine records what the guard needs (PLAN T3.3-suite-b)", 
       handler: async () => "<html>502 Bad Gateway</html>",
       reason: "not an object",
     },
-  ])("records that the context is unavailable, and why, for $title", async ({ prompt, handler, reason }) => {
-    const { engine, guardStore } = harness(handler ? { handler } : {});
+  ])(
+    "records that the context is unavailable, and why, for $title",
+    async ({ prompt, handler, reason }) => {
+      const { engine, guardStore } = harness(handler ? { handler } : {});
 
-    await engine.assemble(assembleParams(prompt === undefined ? {} : { prompt }));
+      await engine.assemble(assembleParams(prompt === undefined ? {} : { prompt }));
 
-    const state = guardStore.get(SESSION_M3);
-    expect(state).toMatchObject({ kind: "unavailable", atMs: Date.parse(NOW) });
-    expect(state?.kind === "unavailable" ? state.reason : "").toContain(reason);
-  });
+      const state = guardStore.get(SESSION_M3);
+      expect(state).toMatchObject({ kind: "unavailable", atMs: Date.parse(NOW) });
+      expect(state?.kind === "unavailable" ? state.reason : "").toContain(reason);
+    },
+  );
 
   it("records that the context is unavailable when the packet does not fit the budget it was refused for", async () => {
     const { engine, guardStore } = harness();
@@ -909,17 +1014,24 @@ describe("the guard reads what the engine recorded, end to end", () => {
 
   it("does not block an N3 tool on a case M10 knows nothing about: that is the owner's decision (PLAN T4.18-b)", async () => {
     // Blocking would stop every case that predates M10's consumers, which have no fact and never will.
-    const h = harness({ handler: async () => ({ ok: true, resultat: emptyPaquet("LEAD-INCONNU") }) });
+    const h = harness({
+      handler: async () => ({ ok: true, resultat: emptyPaquet("LEAD-INCONNU") }),
+    });
     await h.engine.assemble(assembleParams({ prompt: "Estime.\naffaire_id: LEAD-INCONNU" }));
 
     expect(
-      decide(h, "opsys_m3__m3_estimer_projet", SESSION_M3, { contrat: { lead_id: "LEAD-INCONNU" } }),
+      decide(h, "opsys_m3__m3_estimer_projet", SESSION_M3, {
+        contrat: { lead_id: "LEAD-INCONNU" },
+      }),
     ).toStrictEqual({ block: false });
   });
 });
 
 describe("OpsysContextEngine: the case comes from the session, never from the client's text", () => {
-  const LINKED = { ok: true, resultat: { lie: true, affaire_id: "LEAD-777", lie_par: "amina.admin", lie_le: NOW } };
+  const LINKED = {
+    ok: true,
+    resultat: { lie: true, affaire_id: "LEAD-777", lie_par: "amina.admin", lie_le: NOW },
+  };
   const PAQUET_M1 = {
     ...PAQUET_M10,
     affaire_id: "LEAD-777",
@@ -938,7 +1050,9 @@ describe("OpsysContextEngine: the case comes from the session, never from the cl
           if (call.tool === "m10_affaire_de_la_session") {
             return LINKED;
           }
-          return call.tool === "m10_paquet_contexte_affaire" ? { ok: true, resultat: PAQUET_M1 } : DEPOSIT_OK;
+          return call.tool === "m10_paquet_contexte_affaire"
+            ? { ok: true, resultat: PAQUET_M1 }
+            : DEPOSIT_OK;
         }),
     });
   }
@@ -973,7 +1087,9 @@ describe("OpsysContextEngine: the case comes from the session, never from the cl
       }),
     );
 
-    expect(JSON.stringify(calls.map((call) => call.args))).not.toContain("LEAD-DE-QUELQU-UN-D-AUTRE");
+    expect(JSON.stringify(calls.map((call) => call.args))).not.toContain(
+      "LEAD-DE-QUELQU-UN-D-AUTRE",
+    );
     expect(calls[1]?.args).toMatchObject({ affaire_id: "LEAD-777" });
   });
 
@@ -1036,7 +1152,7 @@ describe("OpsysContextEngine: the case comes from the session, never from the cl
     const called = createDeferred<Call>();
     const { engine, timers } = sessionHarness(async (call) => {
       called.resolve(call);
-      return await new Promise<never>(() => undefined);
+      return await new Promise<never>(() => {});
     });
 
     const running = engine.assemble(assembleParams({ sessionKey: SESSION_CLIENT }));
@@ -1119,7 +1235,9 @@ describe("OpsysContextEngine: what M10 says of the case itself (PLAN T4.18-b)", 
     });
 
     const result = await engine.assemble(
-      assembleParams({ prompt: `Estime le chantier suivant.\naffaire_id: ${AFFAIRE_M10_OPPORTUNITE}` }),
+      assembleParams({
+        prompt: `Estime le chantier suivant.\naffaire_id: ${AFFAIRE_M10_OPPORTUNITE}`,
+      }),
     );
 
     expect(calls[0]?.args).toMatchObject({
@@ -1145,7 +1263,9 @@ describe("OpsysContextEngine: what M10 says of the case itself (PLAN T4.18-b)", 
     );
     expect(result.systemPromptAddition).not.toContain(MARKER);
     expect(
-      logs.info.some((line) => line.includes("affaire inconnue de la mémoire") && line.includes("LEAD-INCONNU")),
+      logs.info.some(
+        (line) => line.includes("affaire inconnue de la mémoire") && line.includes("LEAD-INCONNU"),
+      ),
     ).toBe(true);
     expect(logs.warn).toStrictEqual([]);
     expect(guardStore.get("agent:m03-estimation:main")).toMatchObject({
@@ -1165,12 +1285,78 @@ describe("OpsysContextEngine: what M10 says of the case itself (PLAN T4.18-b)", 
 
   it("refuses a packet that calls the case unknown while it carries its events, and says so", async () => {
     const contradiction = { ...PAQUET_M10, affaire: emptyPaquet("LEAD-001").affaire };
-    const { engine, logs } = harness({ handler: async () => ({ ok: true, resultat: contradiction }) });
+    const { engine, logs } = harness({
+      handler: async () => ({ ok: true, resultat: contradiction }),
+    });
 
     const result = await engine.assemble(assembleParams());
 
     expect(result.systemPromptAddition).toContain(MARKER);
-    expect(result.systemPromptAddition).toContain("calls the case unknown but carries its events or signals");
+    expect(result.systemPromptAddition).toContain(
+      "calls the case unknown but carries its events or signals",
+    );
     expect(logs.warn.some((line) => line.includes("paquet inutilisable"))).toBe(true);
+  });
+});
+
+describe("POSTFLIGHT handoff to the actual collector", () => {
+  const receipt = {
+    sessionId: "session-1",
+    sessionKey: "agent:m03-estimation:main",
+    agentId: "m03-estimation",
+    factKeys: [depositKey("session-1", "call_1")],
+  };
+
+  it("never deposits a collector-owned key using the affair guessed from conversation text", async () => {
+    const { engine, calls } = harness();
+    await engine.afterTurn({
+      ...afterTurnParams([userMessage("affaire_id: LEAD-WRONG"), ESTIMATION_OK]),
+      runtimeContext: { opsysDeferredPostflight: receipt },
+    });
+    expect(calls).toEqual([]);
+  });
+
+  it("still deposits other calls of the same tool from this turn", async () => {
+    const { engine, calls } = harness();
+    const other = toolResultMessage("opsys_m3__m3_estimer_projet", "not-owned", {
+      ok: true,
+      resultat: {},
+    });
+    await engine.afterTurn({
+      ...afterTurnParams([userMessage("affaire_id: LEAD-001"), ESTIMATION_OK, other]),
+      runtimeContext: { opsysDeferredPostflight: receipt },
+    });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.args.faits).toEqual([
+      {
+        cle: depositKey("session-1", "not-owned"),
+        outil: "m3_estimer_projet",
+        resultat: "ok",
+        code: null,
+      },
+    ]);
+  });
+
+  it.each([
+    { ...receipt, sessionId: "other-session" },
+    { ...receipt, sessionKey: "agent:m03-estimation:other" },
+    { ...receipt, agentId: "m05-financecore" },
+    { ...receipt, factKeys: ["not-a-canonical-key"] },
+    { ...receipt, factKeys: Array.from({ length: 21 }, () => receipt.factKeys[0]) },
+  ])("keeps the legacy path for an invalid or unrelated host receipt %#", async (wrong) => {
+    const { engine, calls } = harness();
+    await engine.afterTurn({
+      ...afterTurnParams([userMessage("affaire_id: LEAD-001"), ESTIMATION_OK]),
+      runtimeContext: { opsysDeferredPostflight: wrong },
+    });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.args.faits).toEqual([
+      {
+        cle: depositKey("session-1", "call_1"),
+        outil: "m3_estimer_projet",
+        resultat: "ok",
+        code: null,
+      },
+    ]);
   });
 });

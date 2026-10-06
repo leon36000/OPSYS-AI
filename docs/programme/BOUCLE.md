@@ -25,6 +25,7 @@
 
 - Conserver les validations humaines N0–N5 pour les effets financiers, fiscaux, légaux et sensibles.
 - Revalider droits, objet et arguments au moment de l'action, avec audit et protection du rejeu.
-- Ne pas exécuter le core localement : les règles spécifiques de `core/AGENTS.md` restent applicables.
+- Les tests ciblés et la construction du Core sont permis localement, avec les dépendances verrouillées
+  et les contrôles décrits dans `core/AGENTS.md`; cette qualification ne vaut pas déploiement.
 - Décrire ce qui est prouvé et ce qui manque ; aucune promesse de « 100 % » sans critères couverts.
 - Économiser tokens et contexte ; ne pas déclencher plusieurs agents pour un calcul déterministe.

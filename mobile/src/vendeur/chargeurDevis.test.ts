@@ -1,9 +1,14 @@
 import { CODE_SEGMENT_NON_CALCULABLE, OUTIL_LISTER_LEADS } from "../m2/listeLeads";
-import { OUTIL_LIRE_DEVIS } from "../m3/devis";
+import { LIMITE_PAGE_LISTE_DEVIS, OUTIL_LIRE_DEVIS, OUTIL_LISTER_DEVIS, lireDevisVendeur } from "../m3/devis";
 import { DepotCleValeurMemoire } from "../stockage/depotCleValeur";
 import type { DepotCleValeur } from "../stockage/depotCleValeur";
 import type { ConfigurationChargeurVendeur } from "./appel";
-import { lireCacheDevis, lireDevisConnus } from "./cache";
+import {
+  ecrireCacheDevis,
+  ecrireDevisConnus,
+  lireCacheDevis,
+  lireDevisConnus,
+} from "./cache";
 import { MAX_PAGES_DECOUVERTE, creerChargeurDevis } from "./chargeurDevis";
 import {
   ECHECS_QUI_SONT_UN_REFUS,
@@ -432,5 +437,180 @@ describe("chargerDevis — un appareil refusé ne relit JAMAIS ses devis gardés
     expect(lire).not.toHaveBeenCalled();
     expect(ecrire).not.toHaveBeenCalled();
     expect(await depot.lire(CLE_CONNUS)).toBe(connus);
+  });
+});
+
+
+describe("inventaire vendeur `m3_lister_devis`", () => {
+  const page = (devis: Record<string, unknown>[], curseur_suivant: string | null) =>
+    enveloppeAcceptee({ devis, curseur_suivant });
+
+  test(
+    "la page M3 courante remplace les IDs gardés, conserve tous les statuts et filtre les montants sensibles",
+    async () => {
+      const depot = new DepotCleValeurMemoire();
+      const ancienne = lireDevisVendeur(devisInterneBrut("ancien-devis"))!;
+      await ecrireCacheDevis(depot, "vendeur.a", ancienne, HORLOGE.maintenant.toISOString());
+      await ecrireDevisConnus(depot, "vendeur.a", [
+        { devisId: "ancien-devis", leadId: "lead-ancien", origine: "saisi" },
+      ]);
+      const transport = fauxTransport({
+        [OUTIL_LISTER_DEVIS]: () =>
+          page(
+            [
+              devisInterneBrut("M3-DEVIS-001", { statut: "brouillon" }),
+              devisInterneBrut("M3-DEVIS-002", { statut: "envoye" }),
+              devisInterneBrut("M3-DEVIS-003", { statut: "accepte" }),
+            ],
+            null,
+          ),
+      });
+
+      const resultat = await creerChargeurDevis(config(transport, depot)).chargerInventaire();
+
+      expect(resultat.entrees.map((entree) => [
+        entree.connu.devisId,
+        entree.connu.origine,
+        entree.etat.genre === "serveur" ? entree.etat.devis.statut : "erreur",
+      ])).toEqual([
+        ["M3-DEVIS-001", "liste_vendeur", "brouillon"],
+        ["M3-DEVIS-002", "liste_vendeur", "envoye"],
+        ["M3-DEVIS-003", "liste_vendeur", "accepte"],
+      ]);
+      expect(resultat.etat.genre).toBe("serveur");
+      expect(resultat.curseurSuivant).toBeNull();
+      expect(JSON.stringify(resultat)).not.toMatch(/cout|marge|taux/i);
+      expect(JSON.stringify(resultat)).not.toContain("ancien-devis");
+      expect(transport).toHaveBeenCalledTimes(1);
+      expect(transport.mock.calls[0][0].requete).toEqual({
+        tool: OUTIL_LISTER_DEVIS,
+        args: { limite: LIMITE_PAGE_LISTE_DEVIS },
+      });
+      expect(JSON.stringify(transport.mock.calls[0][0].requete)).not.toContain("vendeur.a");
+    },
+  );
+
+  test("la suite envoie seulement le curseur opaque et ne duplique pas les pages", async () => {
+    const transport = fauxTransport({
+      [OUTIL_LISTER_DEVIS]: (args: Record<string, unknown>) => args.curseur === undefined
+        ? page([devisInterneBrut("M3-DEVIS-001")], "suite-opaque")
+        : page([devisInterneBrut("M3-DEVIS-002")], null),
+    });
+    const chargeur = creerChargeurDevis(config(transport));
+    const premiere = await chargeur.chargerInventaire();
+    const suite = await chargeur.chargerInventaire(premiere.curseurSuivant ?? undefined);
+
+    expect(premiere.curseurSuivant).toBe("suite-opaque");
+    expect(suite.entrees.map((e) => e.connu.devisId)).toEqual(["M3-DEVIS-002"]);
+    expect(transport.mock.calls.map((appel) => appel[0].requete.args)).toEqual([
+      { limite: LIMITE_PAGE_LISTE_DEVIS },
+      { limite: LIMITE_PAGE_LISTE_DEVIS, curseur: "suite-opaque" },
+    ]);
+  });
+
+  test("le chargeur arrête une suite dont le curseur ne progresse pas", async () => {
+    const transport = fauxTransport({
+      [OUTIL_LISTER_DEVIS]: () => page([devisInterneBrut("M3-DEVIS-001")], "curseur-courant"),
+    });
+
+    const resultat = await creerChargeurDevis(config(transport)).chargerInventaire("curseur-courant");
+
+    expect(resultat.entrees).toEqual([]);
+    expect(resultat.curseurSuivant).toBeNull();
+    expect(resultat.etat.genre).toBe("illisible");
+    expect(transport.mock.calls[0][0].requete.args).toEqual({
+      limite: LIMITE_PAGE_LISTE_DEVIS,
+      curseur: "curseur-courant",
+    });
+  });
+
+  test("une page M3 au-delà de la borne ne produit aucune carte ni écriture de cache", async () => {
+    const depot = new DepotCleValeurMemoire();
+    const ecrire = jest.spyOn(depot, "ecrire");
+    const devis = Array.from({ length: LIMITE_PAGE_LISTE_DEVIS + 1 }, (_, index) =>
+      devisInterneBrut(`M3-DEVIS-${String(index).padStart(3, "0")}`),
+    );
+    const transport = fauxTransport({ [OUTIL_LISTER_DEVIS]: () => page(devis, null) });
+
+    const resultat = await creerChargeurDevis(config(transport, depot)).chargerInventaire();
+
+    expect(resultat.entrees).toEqual([]);
+    expect(resultat.etat.genre).toBe("illisible");
+    expect(ecrire).not.toHaveBeenCalled();
+  });
+
+  test("un refus du serveur purge les devis de cette personne, jamais ceux d'une autre", async () => {
+    const depot = new DepotCleValeurMemoire();
+    const devisA = lireDevisVendeur(devisInterneBrut("devis-a"))!;
+    const devisB = lireDevisVendeur(devisInterneBrut("devis-b"))!;
+    await ecrireCacheDevis(depot, "vendeur.a", devisA, HORLOGE.maintenant.toISOString());
+    await ecrireCacheDevis(depot, "vendeur.b", devisB, HORLOGE.maintenant.toISOString());
+    const transport = fauxTransport({
+      [OUTIL_LISTER_DEVIS]: () => enveloppeRefusee("REJ-IDENTITE-APPAREIL-INVALIDE", "rôle retiré"),
+    });
+
+    const resultat = await creerChargeurDevis(config(transport, depot)).chargerInventaire();
+
+    expect(resultat).toMatchObject({ entrees: [], curseurSuivant: null, etat: { genre: "refus" } });
+    expect(await lireCacheDevis(depot, "vendeur.a", "devis-a")).toBeNull();
+    expect(await lireCacheDevis(depot, "vendeur.b", "devis-b")).not.toBeNull();
+  });
+
+  test.each(ECHECS_QUI_SONT_UN_REFUS)(
+    "un accès M3 refusé (%s) vide l'inventaire et purge les copies de cette personne",
+    async (_nom, status, type) => {
+      const depot = new DepotCleValeurMemoire();
+      await ecrireCacheDevis(
+        depot,
+        "vendeur.a",
+        lireDevisVendeur(devisInterneBrut("devis-a"))!,
+        HORLOGE.maintenant.toISOString(),
+      );
+      await ecrireCacheDevis(
+        depot,
+        "vendeur.b",
+        lireDevisVendeur(devisInterneBrut("devis-b"))!,
+        HORLOGE.maintenant.toISOString(),
+      );
+
+      const resultat = await creerChargeurDevis(config(transportEnEchec(status, type), depot)).chargerInventaire();
+
+      expect(resultat.entrees).toEqual([]);
+      expect(resultat.curseurSuivant).toBeNull();
+      expect(resultat.etat.genre).toBe("refus");
+      expect(await lireCacheDevis(depot, "vendeur.a", "devis-a")).toBeNull();
+      expect(await lireCacheDevis(depot, "vendeur.b", "devis-b")).not.toBeNull();
+    },
+  );
+
+  test("hors ligne, la liste est indisponible et ne relit aucun cache par numéro", async () => {
+    const depot = new DepotCleValeurMemoire();
+    const devis = lireDevisVendeur(devisInterneBrut("devis-cache"))!;
+    await ecrireCacheDevis(depot, "vendeur.a", devis, HORLOGE.maintenant.toISOString());
+    const lire = jest.spyOn(depot, "lire");
+
+    const resultat = await creerChargeurDevis(config(transportHorsLigne(), depot)).chargerInventaire();
+
+    expect(resultat.entrees).toEqual([]);
+    expect(resultat.curseurSuivant).toBeNull();
+    expect(resultat.etat).toMatchObject({ genre: "indisponible" });
+    expect(lire).not.toHaveBeenCalled();
+  });
+
+  test("réponse illisible ne sert jamais un cache ancien", async () => {
+    const depot = new DepotCleValeurMemoire();
+    await ecrireCacheDevis(
+      depot,
+      "vendeur.a",
+      lireDevisVendeur(devisInterneBrut("devis-cache"))!,
+      HORLOGE.maintenant.toISOString(),
+    );
+    const transport = fauxTransport({ [OUTIL_LISTER_DEVIS]: () => page([{ devis_id: "partiel" }], null) });
+
+    const resultat = await creerChargeurDevis(config(transport, depot)).chargerInventaire();
+
+    expect(resultat.entrees).toEqual([]);
+    expect(resultat.etat).toMatchObject({ genre: "illisible" });
+    expect(await lireCacheDevis(depot, "vendeur.a", "devis-cache")).toBeNull();
   });
 });

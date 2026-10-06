@@ -1,5 +1,11 @@
 # Consolidation OPSYS-AI — plan d'exécution
 
+> Pilotage courant, soirée du 4 octobre à Toronto :
+> [audit majeur de direction](AUDIT-DIRECTION-2026-10-04.md) et
+> [programme des 24 prochaines heures](PROGRAMME-24H-2026-10-04.md).
+> Priorité : raccords métier, vérité financière, reprise et assimilation mesurée.
+> Les tranches historiques ci-dessous conservent leurs preuves et leurs limites.
+
 **Objectif :** conserver le travail utile, corriger les invariants de l'audit et atteindre la
 profondeur métier demandée en réutilisant des briques qualifiées.
 **Architecture :** fork OPSYS-CORE existant, socle métier transactionnel et app Expo ; un propriétaire
@@ -23,6 +29,15 @@ configurables et limites fournisseur vérifiées avant appel.
 - Chaque lot produit comportement, régression utile, interface, traces, docs et statut avec limites.
 
 ## État de départ et priorité
+
+**CI M10, tranche 28 :** un échec distant du head26 est expliqué par l'image
+PostgreSQL absente du runner neuf, alors que la fixture en RAM exige
+`--pull=never`. Le [correctif CI borné](../grs/memory/M10-CI-POSTGRESQL-2026-10-04.md)
+prépare l'image de la fixture avant les tests M10, sans modifier le produit ni
+assouplir le test. ROOT r164 réussit 1 020/1 020 sur 35 fichiers complets,
+zéro échec/erreur/skip, 45,315 s JUnit, Ruff/actionlint/vérificateur verts et
+1 250 sources stables. Le cache local est préexistant ; la CI native du nouveau
+head doit confirmer le correctif. M10 demeure PARTIEL.
 
 **Actualisation M5 du 4 octobre :** la [vérification AP Fusion → M5](../grs/compta/M5-AP-VERIFICATION-REPRISE-2026-10-04.md)
 réutilise maintenant les contrôles métier avant saisie, sans ajouter une facture
@@ -490,3 +505,108 @@ Le profil v2 exige une empreinte de clé hôte publique épinglée. Les tests re
 Après append R15, le registre R20 comptera **1 057 archives** : le [reçu R14](../research/R20-2026-10-01/preuves/r15-r20-append-r14-root-capture--append-r14-receipt.json.gz) et le [lecteur indépendant](../research/R20-2026-10-01/preuves/r15-preuves--r20-independant-root-r14-2026-10-01.json.gz) vérifient le point de départ de 1 035 archives; la [revue root R14](../research/R20-2026-10-01/preuves/r15-programme-r14-revue-root-r1--coherence.json.gz) confirme quatre documents et 199 liens locaux.
 
 C01 reste **PARTIEL**; runtime et VPS demeurent **NON QUALIFIÉS**. Aucun démarrage rootless, échange SSH, déploiement VPS, image serveur complète ou parcours Gateway n’a été exercé par cette suite. Les six chemins de correction TOCTOU restent candidats en attente de révision, de preuves closes et de revue root; ils ne sont pas affirmés dans ce jalon.
+
+## Reprise locale — OCR candidat et textes M7 mobile, 4 octobre 2026
+
+Le pilote OCR exécute réellement le candidat pypdfium2 5.13.0 / PDFium
+153.0-7999 et Tesseract 5.5.0 en confinement sur deux scans fictifs. Les sorties
+passent le contrat, avec 82 tests ROOT verts. Le scan incliné conserve des
+erreurs, dont le numéro de facture : aucune saisie comptable automatique.
+[Qualification et limites](../research/REPRISE-2026-10-04/M5-OCR-RUNTIME-PDFIUM-2026-10-04.md).
+
+La revue des textes de chantier est ajoutée au mobile Admin : lecture complète
+bornée, décision propriétaire en ligne, refus métier et relecture sans renvoi
+automatique. ROOT confirme 225/225 Jest sur neuf fichiers, le typage de toute
+l'application et 261/261 tests backend ciblés. Déconnexion, changement de
+serveur/session, retrait du consentement et mutation concurrente sont contrôlés.
+Aucune publication ni gestion des médias n'est ajoutée.
+[Rapport, preuves et limites](../grs/marketing/M7-MOBILE-REVUE-TEXTES-2026-10-04.md).
+
+Ces tranches restent **locales** : l'accès GitHub retourne 401 au premier appel
+de lecture. La correction CI M10 déjà qualifiée reste aussi non publiée.
+[Blocage et reprise](../research/REPRISE-2026-10-04/PUBLICATION-ATTENTE-2026-10-04.md).
+Les reçus ne prouvent ni un essai sur téléphone physique, ni toute la CI native
+au SHA courant, ni l'achèvement de M5, M7, M10 ou OPSYS-AI.
+
+
+## Reprise locale — frontières OCR M5, 4 octobre 2026
+
+La classification prudente passe 179/179 en r182 et six lectures réelles
+confinées ; les deux anciens scans sont refusés par sa grammaire actuelle.
+[Structure, preuve et limites](../grs/compta/M5-OCR-STRUCTURE-PDF-2026-10-04.md).
+
+Le worker OCR opt-in et son bundle sont ensuite qualifiés en r190 : 245/245
+sur six fichiers complets, Ruff/verificateur réussis, nouveau PDF fictif avec
+bitmap valide effectivement rendu et reconnu sous bubblewrap. Le résultat
+reste un candidat lié à source/lot/révision/profil, sans vérité comptable.
+Le profil corrigé fixe aussi la résolution Tesseract et contrôle pypdf avant
+import. Les anciennes tentatives, échecs et preuves restent conservés.
+[Worker, preuves et limites](../grs/compta/M5-OCR-WORKER-2026-10-04.md).
+
+Ces totaux se recouvrent ; ils ne forment pas une suite globale cumulée.
+Restent la revue privée humaine, l’installateur/image
+et le prévol VPS. Aucun endpoint OCR, saisie AP ou paiement n’est ajouté par
+ce composant. M5 et OPSYS-AI restent **PARTIEL**, et ces changements restent
+locaux tant que l’authentification GitHub n’est pas rétablie.
+
+## Reprise locale — stockage OCR, 4 octobre 2026
+
+Le [stockage des candidats OCR](../grs/compta/M5-OCR-STOCKAGE-2026-10-04.md)
+et la migration additive0025 sont qualifiés localement en r198 : **410/410**
+sur13 fichiers complets, Ruff et vérificateur métier réussis,1299 chemins
+source/ressources stables,45,691s. Ces tests recouvrent les qualifications
+précédentes ; ils ne s’additionnent pas à elles. Le vrai parcours utilise un
+PDF bitmap fictif, l’extracteur natif, le worker OCR confiné et AES-GCM/SQLite.
+Le service réserve avant calcul, vérifie source/acteur après calcul, borne
+les commandes et finalise par CAS avec quota atomique. La concurrence et les
+corruptions sont testées. Aucun endpoint OCR ni écriture comptable automatique.
+
+r195 conserve l’échec PostgreSQL `initdb ENOSPC` sur disque. Les campagnes
+r196/r198 utilisent explicitement un vrai PostgreSQL17 jetable en tmpfs borné,
+avec les assertions de tests inchangées ; cela ne qualifie ni persistance
+PostgreSQL sur disque, ni service OCR PostgreSQL, ni VPS. La reprise des
+réservations abandonnées après révocation/panne reste à construire. M5 et
+OPSYS-AI restent **PARTIEL** ; GitHub reste bloqué par l’authentification connue.
+
+## Reprise locale — revue privée OCR, 4 octobre 2026
+
+La [console de revue OCR](../grs/compta/M5-OCR-CONSOLE-2026-10-04.md) est
+qualifiée localement en r206 : **179/179** sur huit fichiers complets,
+Ruff/vérificateur et parcours réel application → PDF natif → OCR sous
+bubblewrap → SQLite/AES → rendu privé. Opt-in exclusivement serveur,
+contrôles rôle courant/CSRF/source/lot-run, pagination et texte échappé. Les
+états refusé/interrompu/périmé/réservé sont lisibles sans recalcul, avec cinq
+régressions initialement rouges en r205 puis corrigées.
+Le GET et le rejeu laissent les tables contrôlées inchangées ; aucun paiement,
+interprétation financière ou saisie AP automatique. Ces preuves ne qualifient
+ni l’image ni le VPS ni un corpus client. Le prochain lot est un diagnostic
+manuel des prérequis OCR pour l’opérateur ; aucun contournement du confinement.
+OPSYS-AI reste **PARTIEL**, changements non publiés (authentification GitHub 401).
+
+## Reprise locale — diagnostic OCR opérateur, 4 octobre 2026
+
+Le [prévol manuel OCR](../ops/INGESTION-OCR-PREFLIGHT.md) est qualifié localement
+r212 : **117/117**, cinq fichiers complets, Ruff/vérificateur et vraie CLI sur
+fixture fixe sous bubblewrap. Il distingue opt-in absent, profil indisponible,
+arguments invalides et reconnaissance réussie, sans clé ni base métier.
+La correction non bloquante de lecture de fixture est précédée d’un échec FIFO
+constaté. Aucun bundle ou modèle n’est installé ou téléchargé, aucune capacité
+Docker n’est modifiée. Image, VPS et précision client restent non qualifiés ;
+OPSYS-AI reste **PARTIEL** et ces changements restent non publiés.
+
+## Reprise locale — demandes du site et audit d’apprentissage, 5 octobre 2026
+
+Le [pont interne M1](../grs/reception/M1-FORMULAIRE-INTERNE-RAPPORT-2026-10-05.md)
+est qualifié localement en r220 : **438/438**, 14 fichiers complets, Ruff et
+vérificateur, 1 323 sources/ressources stables. Montage désactivé par défaut,
+configuration serveur dédiée, signature d’enveloppe, vrai registre/outbox M1 et
+consommateur M2 sur SQLite. Les erreurs de profil et de budget restent réessayables.
+Le formulaire public, ses contacts secondaires et sa reprise durable restent ouverts ;
+aucun message client ou déploiement n’a eu lieu.
+
+L’[audit M3 d’apprentissage](../grs/estimation/M3-APPRENTISSAGE-AUDIT-2026-10-05.md)
+confirme la boucle de durées M3/M4 déjà raccordée, versionnée et gouvernée,
+empiriquement non qualifiée. Il identifie les frontières de cause/unité M6 et de
+finalité/complétude M5 avant une future calibration de matériaux/coûts. Lecture seule,
+30 empreintes revérifiées, aucune nouvelle mesure de qualité sur corpus client.
+OPSYS-AI reste **PARTIEL** ; GitHub reste bloqué par HTTP 401.

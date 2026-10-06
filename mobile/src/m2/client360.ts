@@ -58,6 +58,8 @@ export interface Opportunite {
   readonly canal: string | null;
   readonly source: string | null;
   readonly campagne: string | null;
+  /** UTM canoniques réellement fournis à M2; null signifie absent/inconnu, jamais déduit du canal. */
+  readonly utm: Readonly<Record<string, string>> | null;
   readonly prochaineAction: ProchaineActionOpportunite | null;
 }
 
@@ -133,13 +135,34 @@ function lireProchaineAction(brut: unknown): ProchaineActionOpportunite | null |
   return description === null ? undefined : { description, echeance: texteOuNull(brut.echeance) };
 }
 
+const CLES_UTM = new Set(["utm_source", "utm_medium", "utm_campaign", "utm_content"]);
+
+/** undefined = UTM mal formé; null = non fourni par le serveur. */
+function lireUTM(brut: unknown): Readonly<Record<string, string>> | null | undefined {
+  if (brut === null || brut === undefined) {
+    return null;
+  }
+  if (!estObjet(brut) || Object.keys(brut).length === 0) {
+    return undefined;
+  }
+  const utm: Record<string, string> = {};
+  for (const [cle, valeur] of Object.entries(brut)) {
+    if (!CLES_UTM.has(cle) || typeof valeur !== "string" || valeur.trim() === "") {
+      return undefined;
+    }
+    utm[cle] = valeur;
+  }
+  return utm;
+}
+
 function lireOpportunite(brut: unknown): Opportunite | null {
   if (!estObjet(brut)) {
     return null;
   }
   const leadId = texteOuNull(brut.lead_id);
   const prochaineAction = lireProchaineAction(brut.prochaine_action);
-  if (leadId === null || prochaineAction === undefined) {
+  const utm = lireUTM(brut.utm);
+  if (leadId === null || prochaineAction === undefined || utm === undefined) {
     return null;
   }
   return {
@@ -151,6 +174,7 @@ function lireOpportunite(brut: unknown): Opportunite | null {
     canal: texteOuNull(brut.canal),
     source: texteOuNull(brut.source),
     campagne: texteOuNull(brut.campagne),
+    utm,
     prochaineAction,
   };
 }

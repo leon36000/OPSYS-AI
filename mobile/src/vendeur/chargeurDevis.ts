@@ -1,11 +1,24 @@
 import { CODE_SEGMENT_NON_CALCULABLE } from "../m2/listeLeads";
-import { construireArgumentsLireDevis, lireDevisVendeur, OUTIL_LIRE_DEVIS } from "../m3/devis";
+import {
+  construireArgumentsLireDevis,
+  construireArgumentsListerDevis,
+  interpreterResultatListerDevis,
+  lireDevisVendeur,
+  OUTIL_LIRE_DEVIS,
+  OUTIL_LISTER_DEVIS,
+} from "../m3/devis";
 import type { DevisVendeur } from "../m3/devis";
 import type { VerdictServeur } from "../outbox/vidangeur";
 import { lireEnveloppeMetier, VERDICT_REPONSE_ILLISIBLE } from "../protocole/enveloppeOutil";
 import { appelerLecture, ecrireSansEchouer } from "./appel";
 import type { ConfigurationChargeurVendeur } from "./appel";
-import { ecrireCacheDevis, ecrireDevisConnus, lireCacheDevis, lireDevisConnus } from "./cache";
+import {
+  ecrireCacheDevis,
+  ecrireDevisConnus,
+  lireCacheDevis,
+  lireDevisConnus,
+  purgerCachesDevis,
+} from "./cache";
 import { creerChargeurLeads } from "./chargeurLeads";
 import type { ChargeurLeads } from "./chargeurLeads";
 import {
@@ -18,11 +31,12 @@ import {
 import type { DevisConnu } from "./devisConnus";
 
 /**
- * Chargeur des devis du vendeur (`(seller)/quotes.tsx`, PLAN T4.8) : `m3_lire_devis` sur chaque devis que le vendeur
- * connaît. Lecture d'abord, cache hors ligne marqué comme tel. Orchestration PURE, testée avec un faux transport et un
- * dépôt mémoire (`chargeurDevis.test.ts`).
+ * Chargeur vendeur : inventaire courant par `m3_lister_devis`; saisie manuelle par `m3_lire_devis`, avec cache
+ * individuel marqué hors ligne. L'ancien chargement issu des leads reste disponible aux consommateurs existants,
+ * mais l'écran Soumissions utilise `chargerInventaire` comme seule liste canonique. Orchestration pure, couverte par
+ * un faux transport et un dépôt mémoire (`chargeurDevis.test.ts`).
  *
- * **Aucun outil ne liste les devis d'un vendeur** (voir `devisConnus.ts`). Les numéros viennent donc de deux sources :
+ * Ancienne découverte par lead (conservée pour compatibilité interne). Les numéros viennent de deux sources :
  *  - la DÉCOUVERTE : les leads que M2 range dans `won_pending_schedule` (devis accepté) et `quote_stale` (devis envoyé
  *    resté sans réponse), lus par `m2_lister_leads` filtré par segment ; leur `donnee` cite le numéro du devis ;
  *  - la SAISIE : le numéro d'une soumission que le vendeur a en main (`ouvrirParNumero`).
@@ -80,10 +94,25 @@ export interface ResultatDevis {
   readonly sources: readonly SourceDevis[];
 }
 
+export type EtatInventaireDevis =
+  | { readonly genre: "serveur"; readonly consulteLe: string }
+  | { readonly genre: "refus"; readonly verdict: VerdictServeur }
+  | { readonly genre: "indisponible"; readonly verdict: VerdictServeur }
+  | { readonly genre: "illisible"; readonly verdict: VerdictServeur };
+
+export interface ResultatInventaireDevis {
+  /** Personne confirmée par la configuration locale; jamais envoyée dans les arguments de l'outil. */
+  readonly personne: string;
+  readonly entrees: readonly EntreeDevis[];
+  readonly curseurSuivant: string | null;
+  readonly etat: EtatInventaireDevis;
+}
+
 export interface ChargeurDevis {
-  /** Découvre les devis cités par les leads, les réunit aux numéros déjà connus, puis lit chacun. Ne lève jamais pour
-   * une raison réseau ou HTTP. */
+  /** Ancien parcours de découverte par leads, conservé pour ses consommateurs et tests existants. */
   chargerDevis(): Promise<ResultatDevis>;
+  /** Une page bornée du registre M3 réel; aucune ancienne liste ou copie en cache n'est fusionnée. */
+  chargerInventaire(curseur?: string): Promise<ResultatInventaireDevis>;
   /** Lit le devis dont le vendeur a le numéro ; `null` si le numéro est vide (rien n'est demandé). Un numéro lu avec
    * succès est gardé avec les numéros connus ; un refus ou un échec ne l'est jamais. */
   ouvrirParNumero(numero: string): Promise<EntreeDevis | null>;
@@ -176,8 +205,52 @@ export function creerChargeurDevis(
     };
   }
 
+  async function chargerInventaire(curseur?: string): Promise<ResultatInventaireDevis> {
+    const personne = config.personne;
+    const appel = await appelerLecture(config, OUTIL_LISTER_DEVIS, construireArgumentsListerDevis(curseur));
+    if (appel.genre === "refuse") {
+      await ecrireSansEchouer(() => purgerCachesDevis(config.depot, personne));
+      return { personne, entrees: [], curseurSuivant: null, etat: { genre: "refus", verdict: appel.verdict } };
+    }
+    if (appel.genre === "injoignable") {
+      return {
+        personne,
+        entrees: [],
+        curseurSuivant: null,
+        etat: { genre: "indisponible", verdict: appel.verdict },
+      };
+    }
+    const lecture = interpreterResultatListerDevis(appel.resultat, curseur);
+    if (!lecture.ok) {
+      if (lecture.genre === "refus" || lecture.genre === "illisible") {
+        await ecrireSansEchouer(() => purgerCachesDevis(config.depot, personne));
+      }
+      return {
+        personne,
+        entrees: [],
+        curseurSuivant: null,
+        etat: {
+          genre: lecture.genre === "technique" ? "indisponible" : lecture.genre,
+          verdict: lecture.verdict,
+        },
+      };
+    }
+    const consulteLe = config.horloge().maintenant.toISOString();
+    return {
+      personne,
+      entrees: lecture.page.devis.map((devis) => ({
+        connu: { devisId: devis.devisId, leadId: devis.leadId, origine: "liste_vendeur" },
+        etat: { genre: "serveur", devis, misAJourLe: consulteLe },
+      })),
+      curseurSuivant: lecture.page.curseurSuivant,
+      etat: { genre: "serveur", consulteLe },
+    };
+  }
+
   return {
+    chargerInventaire,
     async chargerDevis(): Promise<ResultatDevis> {
+
       const sources: SourceDevis[] = [];
       let decouverts: readonly DevisConnu[] = [];
       for (const segment of SEGMENTS_DECOUVERTE) {

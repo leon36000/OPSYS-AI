@@ -6,6 +6,17 @@ import { createFreshLlmBoundaryTokenEstimator } from "../sessions/context-token-
 
 const TIMEOUT_MS = 10_000;
 
+/** Minimal admission evidence safe for an attempt-local collector; excludes captured config/id. */
+export type OpsysRuntimeAdmissionReceipt = Readonly<{
+  agentId: string;
+  profileId: string;
+  profileRevision: number;
+  departement: string;
+  runId: string;
+  attemptId: string;
+  cycleId: string;
+}>;
+
 type RuntimeProfileBinding = { profileId?: unknown; profileRevision?: unknown };
 type RuntimeReservationCapture = {
   readonly config: OpenClawConfig | undefined;
@@ -18,6 +29,8 @@ type RuntimeReservationCapture = {
   readonly cycleId: string;
   readonly candidateIndex: number;
   readonly streamOrdinal: number;
+  readonly tokensPlafond: number;
+  readonly departement: string;
 };
 
 function admissionBinding(
@@ -65,7 +78,9 @@ function integer(value: unknown): number | undefined {
 }
 
 function resultObject(value: unknown): Record<string, unknown> | undefined {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) return undefined;
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
   const envelope = value as Record<string, unknown>;
   if (envelope.ok !== true || envelope.resultat === null || typeof envelope.resultat !== "object") {
     return undefined;
@@ -73,8 +88,45 @@ function resultObject(value: unknown): Record<string, unknown> | undefined {
   return envelope.resultat as Record<string, unknown>;
 }
 
+function canonicalDepartment(value: unknown): value is string {
+  return typeof value === "string" && /^m(?:0[1-9]|10)-[a-z][a-z0-9-]+$/.test(value);
+}
+
+function reservationMatchesCapture(
+  reservation: Record<string, unknown> | undefined,
+  capture: Omit<RuntimeReservationCapture, "config">,
+  status: "reservee" | "conciliee" | "liberee",
+  tokensReels: number | null,
+): boolean {
+  return Boolean(
+    reservation &&
+    typeof reservation.id === "string" &&
+    /^[0-9a-f]{32}$/.test(reservation.id) &&
+    reservation.id === capture.reservationId &&
+    reservation.agent_id === capture.profileId &&
+    canonicalDepartment(reservation.departement) &&
+    reservation.departement === capture.departement &&
+    reservation.cle_idempotence === capture.cycleId &&
+    reservation.tokens_plafond === capture.tokensPlafond &&
+    reservation.tokens_reels === tokensReels &&
+    reservation.execution_id === capture.runId &&
+    reservation.tours === 1 &&
+    reservation.reessais === capture.candidateIndex &&
+    reservation.statut === status &&
+    reservation.attempt_id === capture.attemptId &&
+    reservation.cycle_id === capture.cycleId &&
+    reservation.candidate_index === capture.candidateIndex &&
+    reservation.stream_ordinal === capture.streamOrdinal &&
+    reservation.is_fallback_retry === capture.candidateIndex > 0 &&
+    (reservation.revision_profil === undefined ||
+      reservation.revision_profil === capture.profileRevision),
+  );
+}
+
 function throwRefusal(value: unknown): void {
-  if (value === null || typeof value !== "object") return;
+  if (value === null || typeof value !== "object") {
+    return;
+  }
   const envelope = value as Record<string, unknown>;
   if (envelope.ok === false) {
     const reason =
@@ -107,8 +159,9 @@ async function reserveCapturedOpsysRuntimeAdmission(params: {
     throw new Error("OPSYS runtime admission configuration could not be captured");
   }
   const profileId = admissionProfile(config, agentId);
-  if (!profileId)
+  if (!profileId) {
     throw new Error(`OPSYS runtime admission is required but missing for agent ${agentId}`);
+  }
   const revision = profileRevision(config, agentId);
   const runId = params.runId;
   const candidateIndex = params.candidateIndex;
@@ -140,8 +193,31 @@ async function reserveCapturedOpsysRuntimeAdmission(params: {
     value !== null && typeof value === "object"
       ? (value as Record<string, unknown>).accord_neuf === true
       : false;
-  if (!accordNeuf || typeof reservation?.id !== "string" || reservation.id.length < 8) {
+  if (
+    !accordNeuf ||
+    typeof reservation?.id !== "string" ||
+    !/^[0-9a-f]{32}$/.test(reservation.id)
+  ) {
     throw new Error("OPSYS runtime admission did not return a reservation id");
+  }
+  if (!canonicalDepartment(reservation.departement)) {
+    throw new Error("OPSYS runtime admission receipt does not match the captured request");
+  }
+  const captureWithoutConfig = {
+    agentId,
+    reservationId: reservation.id,
+    profileId,
+    profileRevision: revision,
+    runId,
+    attemptId,
+    cycleId,
+    candidateIndex,
+    streamOrdinal,
+    tokensPlafond: params.tokensPlafond,
+    departement: reservation.departement,
+  };
+  if (!reservationMatchesCapture(reservation, captureWithoutConfig, "reservee", null)) {
+    throw new Error("OPSYS runtime admission receipt does not match the captured request");
   }
   return Object.freeze({
     config,
@@ -154,6 +230,8 @@ async function reserveCapturedOpsysRuntimeAdmission(params: {
     cycleId,
     candidateIndex,
     streamOrdinal,
+    tokensPlafond: params.tokensPlafond,
+    departement: reservation.departement,
   });
 }
 
@@ -185,16 +263,7 @@ async function releaseBeforeProviderDispatch(capture: RuntimeReservationCapture)
   });
   throwRefusal(value);
   const reservation = resultObject(value);
-  if (
-    reservation?.id !== capture.reservationId ||
-    reservation.statut !== "liberee" ||
-    reservation.agent_id !== capture.profileId ||
-    reservation.execution_id !== capture.runId ||
-    reservation.attempt_id !== capture.attemptId ||
-    reservation.cycle_id !== capture.cycleId ||
-    reservation.candidate_index !== capture.candidateIndex ||
-    reservation.stream_ordinal !== capture.streamOrdinal
-  ) {
+  if (!reservationMatchesCapture(reservation, capture, "liberee", null)) {
     throw new Error("OPSYS runtime admission could not confirm pre-dispatch release");
   }
 }
@@ -233,6 +302,30 @@ export async function verifyOpsysRuntimeToolCall(params: {
   }
 }
 
+async function reconcileCapturedOpsysRuntimeAdmission(params: {
+  capture: RuntimeReservationCapture;
+  tokensReels: number;
+  signal: AbortSignal;
+}): Promise<void> {
+  if (integer(params.tokensReels) === undefined) {
+    throw new Error("invalid provider usage for OPSYS admission");
+  }
+  const value = await callOpsysMcpTool({
+    config: params.capture.config,
+    server: `opsys_runtime_${params.capture.profileId}`,
+    tool: "opsys_runtime_concilier",
+    args: { reservation_id: params.capture.reservationId, tokens_reels: params.tokensReels },
+    timeoutMs: TIMEOUT_MS,
+    signal: params.signal,
+  });
+  throwRefusal(value);
+  const reservation = resultObject(value);
+  if (!reservationMatchesCapture(reservation, params.capture, "conciliee", params.tokensReels)) {
+    throw new Error("OPSYS runtime admission could not verify the reconciled provider usage");
+  }
+}
+
+/** Retain the existing exported API for non-stream internal callers. */
 export async function reconcileOpsysRuntimeAdmission(params: {
   config: OpenClawConfig | undefined;
   agentId: string;
@@ -241,10 +334,12 @@ export async function reconcileOpsysRuntimeAdmission(params: {
   signal: AbortSignal;
 }): Promise<void> {
   const profileId = admissionProfile(params.config, params.agentId);
-  if (!profileId)
+  if (!profileId) {
     throw new Error(`OPSYS runtime admission is required but missing for agent ${params.agentId}`);
-  if (integer(params.tokensReels) === undefined)
+  }
+  if (integer(params.tokensReels) === undefined) {
     throw new Error("invalid provider usage for OPSYS admission");
+  }
   const value = await callOpsysMcpTool({
     config: params.config,
     server: `opsys_runtime_${profileId}`,
@@ -255,7 +350,13 @@ export async function reconcileOpsysRuntimeAdmission(params: {
   });
   throwRefusal(value);
   const reservation = resultObject(value);
-  if (reservation?.statut !== "conciliee" || reservation.tokens_reels !== params.tokensReels) {
+  if (
+    reservation?.id !== params.reservationId ||
+    reservation.agent_id !== profileId ||
+    !canonicalDepartment(reservation.departement) ||
+    reservation.statut !== "conciliee" ||
+    reservation.tokens_reels !== params.tokensReels
+  ) {
     throw new Error("OPSYS runtime admission could not verify the reconciled provider usage");
   }
 }
@@ -293,6 +394,8 @@ export function createOpsysRuntimeAdmissionStreamFn(params: {
   streamFn: StreamFn;
   /** Rechecks live host authority after budget admission and just before provider dispatch. */
   beforeProviderDispatch?: (signal: AbortSignal) => Promise<void>;
+  /** Receives the admitted receipt only after its request match and live-authority recheck. */
+  onAdmitted?: (receipt: OpsysRuntimeAdmissionReceipt) => void;
 }): StreamFn {
   let streamOrdinal = 0;
   return async (model, context, options) => {
@@ -318,6 +421,17 @@ export function createOpsysRuntimeAdmissionStreamFn(params: {
     try {
       await params.beforeProviderDispatch?.(signal);
       signal.throwIfAborted();
+      params.onAdmitted?.(
+        Object.freeze({
+          agentId: capture.agentId,
+          profileId: capture.profileId,
+          profileRevision: capture.profileRevision,
+          departement: capture.departement,
+          runId: capture.runId,
+          attemptId: capture.attemptId,
+          cycleId: capture.cycleId,
+        }),
+      );
     } catch (error) {
       try {
         await releaseBeforeProviderDispatch(capture);
@@ -340,10 +454,8 @@ export function createOpsysRuntimeAdmissionStreamFn(params: {
             "provider returned no reliable token usage; OPSYS reservation remains open",
           );
         }
-        await reconcileOpsysRuntimeAdmission({
-          config: capture.config,
-          agentId: capture.agentId,
-          reservationId: capture.reservationId,
+        await reconcileCapturedOpsysRuntimeAdmission({
+          capture,
           tokensReels,
           signal,
         });

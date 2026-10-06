@@ -31,6 +31,8 @@ import type { VerdictServeur } from "../outbox/vidangeur";
  */
 
 export const OUTIL_LIRE_DEVIS = "m3_lire_devis";
+export const OUTIL_LISTER_DEVIS = "m3_lister_devis";
+export const LIMITE_PAGE_LISTE_DEVIS = 10;
 
 /** `devis_durable.STATUTS_DEVIS`. `envoye` n'est posé par aucun outil avant T4.7 ; l'app le lit quand il viendra. */
 export const STATUTS_DEVIS: readonly string[] = ["brouillon", "envoye", "accepte"];
@@ -66,6 +68,66 @@ export type InterpretationDevis =
  * `employe` retire le prix) ni une personne. */
 export function construireArgumentsLireDevis(devisId: string): { devis_id: string } {
   return { devis_id: devisId };
+}
+
+export interface PageListeDevisVendeur {
+  readonly devis: readonly DevisVendeur[];
+  readonly curseurSuivant: string | null;
+}
+
+export type InterpretationListeDevis =
+  | { readonly ok: true; readonly page: PageListeDevisVendeur }
+  | { readonly ok: false; readonly genre: "refus" | "technique" | "illisible"; readonly verdict: VerdictServeur };
+
+/** Arguments du contrat serveur r2 : limite bornée, curseur opaque facultatif, aucun owner ni lead. */
+export function construireArgumentsListerDevis(curseur?: string): { limite: number; curseur?: string } {
+  return curseur === undefined
+    ? { limite: LIMITE_PAGE_LISTE_DEVIS }
+    : { limite: LIMITE_PAGE_LISTE_DEVIS, curseur };
+}
+
+/** Lit strictement la page r2 puis applique la même liste blanche que `m3_lire_devis` à chaque devis. */
+export function interpreterResultatListerDevis(
+  resultatBrut: unknown,
+  curseurCourant?: string,
+): InterpretationListeDevis {
+  const lecture = lireEnveloppeMetier(resultatBrut);
+  if (!lecture.ok) {
+    return lecture;
+  }
+  if (
+    !estObjet(lecture.valeur) ||
+    Object.keys(lecture.valeur).sort().join(",") !== "curseur_suivant,devis" ||
+    !Array.isArray(lecture.valeur.devis) ||
+    lecture.valeur.devis.length > LIMITE_PAGE_LISTE_DEVIS ||
+    !(lecture.valeur.curseur_suivant === null ||
+      (typeof lecture.valeur.curseur_suivant === "string" &&
+        lecture.valeur.curseur_suivant.length > 0 &&
+        lecture.valeur.curseur_suivant.length <= 2048))
+  ) {
+    return { ok: false, genre: "illisible", verdict: VERDICT_REPONSE_ILLISIBLE };
+  }
+  const curseurSuivant = lecture.valeur.curseur_suivant as string | null;
+  if (
+    (lecture.valeur.devis.length === 0 && curseurSuivant !== null) ||
+    (curseurCourant !== undefined && curseurSuivant === curseurCourant)
+  ) {
+    return { ok: false, genre: "illisible", verdict: VERDICT_REPONSE_ILLISIBLE };
+  }
+  const devis = lecture.valeur.devis.map(lireDevisVendeur);
+  if (devis.some((item) => item === null)) {
+    return { ok: false, genre: "illisible", verdict: VERDICT_REPONSE_ILLISIBLE };
+  }
+  const lus = devis as DevisVendeur[];
+  for (let index = 1; index < lus.length; index += 1) {
+    if (lus[index - 1].devisId >= lus[index].devisId) {
+      return { ok: false, genre: "illisible", verdict: VERDICT_REPONSE_ILLISIBLE };
+    }
+  }
+  return {
+    ok: true,
+    page: { devis: lus, curseurSuivant },
+  };
 }
 
 const DECIMAL = /^-?\d+(\.\d+)?$/;

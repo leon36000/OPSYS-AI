@@ -49,7 +49,11 @@ import {
   type OpsysContexteConfig,
   type OpsysContexteConfigResult,
 } from "./opsys-contexte-config.js";
-import { collectDepositFacts, collectUserText, type OpsysDepositFact } from "./opsys-contexte-depot.js";
+import {
+  collectDepositFacts,
+  collectUserText,
+  type OpsysDepositFact,
+} from "./opsys-contexte-depot.js";
 import { opsysContexteGuardStore, type OpsysContexteGuardStore } from "./opsys-contexte-garde.js";
 import {
   extractAffaireId,
@@ -301,7 +305,10 @@ export class OpsysContextEngine implements ContextEngine {
       };
     }
     if (sessionKey === undefined) {
-      return { kind: "unresolved", reason: "aucune clé de session : l'affaire ne peut pas en être lue" };
+      return {
+        kind: "unresolved",
+        reason: "aucune clé de session : l'affaire ne peut pas en être lue",
+      };
     }
     let envelope: unknown;
     try {
@@ -332,7 +339,11 @@ export class OpsysContextEngine implements ContextEngine {
     if (settings.kind === "invalid") {
       // A broken configuration is loud: the operator selected this engine, so the turn says it is
       // running without the context it was promised.
-      return this.unavailable(agentId ?? "agent inconnu", undefined, `configuration invalide (${settings.reason})`);
+      return this.unavailable(
+        agentId ?? "agent inconnu",
+        undefined,
+        `configuration invalide (${settings.reason})`,
+      );
     }
     const { config } = settings;
     if (agentId === undefined || !config.agents.has(agentId)) {
@@ -352,7 +363,12 @@ export class OpsysContextEngine implements ContextEngine {
     const { affaireId } = resolution;
     const contextServer = config.contextServers.get(agentId);
     if (contextServer === undefined) {
-      return this.unavailable(agentId, affaireId, "aucun serveur de contexte lié à cet agent", sessionKey);
+      return this.unavailable(
+        agentId,
+        affaireId,
+        "aucun serveur de contexte lié à cet agent",
+        sessionKey,
+      );
     }
 
     let envelope: unknown;
@@ -378,7 +394,12 @@ export class OpsysContextEngine implements ContextEngine {
     }
     const parsed = parsePaquetEnvelope(envelope, affaireId, agentId);
     if (!parsed.ok) {
-      return this.unavailable(agentId, affaireId, `paquet inutilisable (${parsed.reason})`, sessionKey);
+      return this.unavailable(
+        agentId,
+        affaireId,
+        `paquet inutilisable (${parsed.reason})`,
+        sessionKey,
+      );
     }
     const rendered = renderPaquet(parsed.paquet);
     // M10 computed the budget; the core does not shorten the packet to fit, it refuses it.
@@ -441,11 +462,12 @@ export class OpsysContextEngine implements ContextEngine {
       return;
     }
     const turnMessages = params.messages.slice(params.prePromptMessageCount);
+    const deferredKeys = deferredPostflightKeys(params, agentId);
     const facts = collectDepositFacts({
       sessionId: params.sessionId,
       messages: turnMessages,
       depositTools,
-    });
+    }).filter((fact) => !deferredKeys.has(fact.cle));
     if (facts.length === 0) {
       return;
     }
@@ -462,7 +484,12 @@ export class OpsysContextEngine implements ContextEngine {
       return;
     }
     for (let start = 0; start < facts.length; start += DEPOSIT_BATCH_SIZE) {
-      await this.depositBatch(config, agentId, resolution.affaireId, facts.slice(start, start + DEPOSIT_BATCH_SIZE));
+      await this.depositBatch(
+        config,
+        agentId,
+        resolution.affaireId,
+        facts.slice(start, start + DEPOSIT_BATCH_SIZE),
+      );
     }
   }
 
@@ -494,7 +521,7 @@ export class OpsysContextEngine implements ContextEngine {
       );
       return;
     }
-    const outcome = readDepositOutcome(envelope);
+    const outcome = readDepositOutcome(envelope, facts.length);
     if (outcome.ok) {
       this.log.info(
         `opsys-contexte: POSTFLIGHT (${agentId}, affaire ${affaireId}) : ${String(outcome.ecrits)} écrit(s), ${String(outcome.dejaDeposes)} déjà déposé(s)`,
@@ -512,6 +539,23 @@ export class OpsysContextEngine implements ContextEngine {
   }
 }
 
+/** Only host evidence from the exact session can withdraw a key from the legacy path. */
+function deferredPostflightKeys(params: Parameters<AfterTurn>[0], agentId: string): Set<string> {
+  const receipt = params.runtimeContext?.opsysDeferredPostflight;
+  if (
+    !isRecord(receipt) ||
+    receipt.sessionId !== params.sessionId ||
+    receipt.sessionKey !== params.sessionKey ||
+    receipt.agentId !== agentId ||
+    !Array.isArray(receipt.factKeys) ||
+    receipt.factKeys.length > 20 ||
+    !receipt.factKeys.every((key) => typeof key === "string" && /^tc-[a-f0-9]{40}$/u.test(key))
+  ) {
+    return new Set();
+  }
+  return new Set(receipt.factKeys);
+}
+
 function agentIdOf(sessionKey: string | undefined): string | undefined {
   const parsed = parseAgentSessionKey(sessionKey);
   return parsed?.agentId ? normalizeAgentId(parsed.agentId) : undefined;
@@ -521,26 +565,42 @@ type DepositOutcome =
   | { ok: true; ecrits: number; dejaDeposes: number }
   | { ok: false; reason: string };
 
-function readDepositOutcome(envelope: unknown): DepositOutcome {
+function readDepositOutcome(envelope: unknown, expectedFactCount: number): DepositOutcome {
   if (!isRecord(envelope)) {
     return { ok: false, reason: "réponse illisible" };
   }
   if (envelope.ok !== true) {
-    return { ok: false, reason: typeof envelope.erreur === "string" ? envelope.erreur : "erreur inconnue" };
+    return {
+      ok: false,
+      reason: typeof envelope.erreur === "string" ? envelope.erreur : "erreur inconnue",
+    };
   }
   const answer = envelope.resultat;
   if (!isRecord(answer)) {
     return { ok: false, reason: "réponse sans résultat" };
   }
   if (answer.accepte !== true) {
-    return { ok: false, reason: typeof answer.verdict === "string" ? answer.verdict : "refus sans verdict" };
+    return {
+      ok: false,
+      reason: typeof answer.verdict === "string" ? answer.verdict : "refus sans verdict",
+    };
   }
-  const counts = isRecord(answer.resultat) ? answer.resultat : {};
-  return {
-    ok: true,
-    ecrits: typeof counts.ecrits === "number" ? counts.ecrits : 0,
-    dejaDeposes: typeof counts.deja_deposes === "number" ? counts.deja_deposes : 0,
-  };
+  const counts = answer.resultat;
+  if (
+    !isRecord(counts) ||
+    typeof counts.ecrits !== "number" ||
+    typeof counts.deja_deposes !== "number" ||
+    !Number.isSafeInteger(counts.ecrits) ||
+    !Number.isSafeInteger(counts.deja_deposes) ||
+    counts.ecrits < 0 ||
+    counts.deja_deposes < 0
+  ) {
+    return { ok: false, reason: "compteurs de dépôt absents ou invalides" };
+  }
+  if (counts.ecrits + counts.deja_deposes !== expectedFactCount) {
+    return { ok: false, reason: "compteurs de dépôt différents du nombre de faits envoyés" };
+  }
+  return { ok: true, ecrits: counts.ecrits, dejaDeposes: counts.deja_deposes };
 }
 
 /** Factory for the registry: one engine per resolution, bound to the runtime configuration. */

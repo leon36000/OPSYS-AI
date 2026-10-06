@@ -684,12 +684,13 @@ def _dans_base_cron_operateur(
 
 def _creer_serveur_admission(departements: Mapping[str, Departement], cnx_factory: Any, agent_id: str) -> Server[Any]:
     """Private token admission endpoint whose profile identity is fixed by the route."""
-    from . import admission_agents
+    from . import admission_agents, postflight_runtime
 
     noms = frozenset(
         {
             "opsys_runtime_admettre",
             "opsys_runtime_importer_appel_manque",
+            postflight_runtime.NOM,
             "opsys_runtime_concilier",
             "opsys_runtime_liberer_avant_dispatch",
             "opsys_runtime_verifier_outil",
@@ -806,6 +807,11 @@ def _creer_serveur_admission(departements: Mapping[str, Departement], cnx_factor
                     inputSchema=appel_manque_schema,
                 ),
                 types.Tool(
+                    name=postflight_runtime.NOM,
+                    description="Dépose les faits candidats observés par l’hôte sous l’origine du profil courant.",
+                    inputSchema=postflight_runtime.schema(departements),
+                ),
+                types.Tool(
                     name="opsys_runtime_verifier_outil",
                     description="Revalide un outil du profil courant avant son dispatch Core.",
                     inputSchema=verify_tool_schema,
@@ -833,12 +839,18 @@ def _creer_serveur_admission(departements: Mapping[str, Departement], cnx_factor
                     resultat = await anyio.to_thread.run_sync(_liberer_avant_dispatch, arguments)
                 elif params.name == "opsys_runtime_importer_appel_manque":
                     resultat = await anyio.to_thread.run_sync(_importer_appel_manque, arguments)
+                elif params.name == postflight_runtime.NOM:
+                    resultat = await anyio.to_thread.run_sync(
+                        partial(postflight_runtime.deposer, departements, cnx_factory, agent_id, arguments)
+                    )
                 elif params.name == "opsys_runtime_verifier_outil":
                     resultat = await anyio.to_thread.run_sync(_verifier_outil, arguments)
                 else:
                     resultat = await anyio.to_thread.run_sync(_emettre_cfo_ticket, arguments)
             except Exception as exc:
-                resultat = ({"ok": False, "erreur": "import_appel_refuse"}
+                resultat = ({"ok": False, "erreur": "depot_postflight_refuse"}
+                            if params.name == postflight_runtime.NOM
+                            else {"ok": False, "erreur": "import_appel_refuse"}
                             if params.name == "opsys_runtime_importer_appel_manque"
                             else {"ok": False, "erreur": "admission_refusee", "details": str(exc)})
         return types.CallToolResult(

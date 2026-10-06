@@ -1,9 +1,13 @@
 import {
+  LIMITE_PAGE_LISTE_DEVIS,
   OUTIL_LIRE_DEVIS,
+  OUTIL_LISTER_DEVIS,
   STATUTS_DEVIS,
   construireArgumentsLireDevis,
+  construireArgumentsListerDevis,
   estDevisVendeurValide,
   interpreterResultatLireDevis,
+  interpreterResultatListerDevis,
   lireDevisVendeur,
 } from "./devis";
 import { devisInterneBrut, enveloppeAcceptee, enveloppeRefusee } from "../vendeur/donneesDeTest";
@@ -164,5 +168,74 @@ describe("estDevisVendeurValide — ce que le cache relit", () => {
     ["un texte", "devis"],
   ])("refusé : %s", (_nom, valeur) => {
     expect(estDevisVendeurValide(valeur)).toBe(false);
+  });
+});
+
+
+describe("inventaire M3 paginé des devis vendeur", () => {
+  test("le nom et les arguments n'envoient jamais personne, lead, rôle ou propriétaire", () => {
+    expect(OUTIL_LISTER_DEVIS).toBe("m3_lister_devis");
+    expect(LIMITE_PAGE_LISTE_DEVIS).toBeGreaterThan(0);
+    expect(construireArgumentsListerDevis()).toEqual({ limite: LIMITE_PAGE_LISTE_DEVIS });
+    expect(construireArgumentsListerDevis("curseur-opaque")).toEqual({
+      limite: LIMITE_PAGE_LISTE_DEVIS,
+      curseur: "curseur-opaque",
+    });
+  });
+
+  test("une page valide garde l'ordre et ne conserve ni coût ni marge", () => {
+    const a = devisAvecCout({ devis_id: "M3-DEVIS-001" });
+    const b = devisAvecCout({ devis_id: "M3-DEVIS-002" });
+    const page = interpreterResultatListerDevis(
+      enveloppeAcceptee({ devis: [a, b], curseur_suivant: "opaque-suite" }),
+    );
+    expect(page.ok).toBe(true);
+    if (!page.ok) return;
+    expect(page.page.devis.map((devis) => devis.devisId)).toEqual(["M3-DEVIS-001", "M3-DEVIS-002"]);
+    expect(page.page.curseurSuivant).toBe("opaque-suite");
+    expect(JSON.stringify(page.page)).not.toMatch(/cout|marge|taux/i);
+    expect(JSON.stringify(page.page)).not.toContain(COUT_TOTAL);
+  });
+
+  test.each([
+    ["champs de page supplémentaires", { devis: [], curseur_suivant: null, total: 2 }],
+    ["devis illisible", { devis: [{ devis_id: "x" }], curseur_suivant: null }],
+    [
+      "ordre non strict",
+      { devis: [devisAvecCout({ devis_id: "z" }), devisAvecCout({ devis_id: "a" })], curseur_suivant: null },
+    ],
+    ["curseur vide", { devis: [], curseur_suivant: " " }],
+    ["curseur trop long", { devis: [], curseur_suivant: "x".repeat(2049) }],
+  ])("refuse une page invalide (%s)", (_nom, valeur) => {
+    expect(interpreterResultatListerDevis(enveloppeAcceptee(valeur))).toMatchObject({ ok: false, genre: "illisible" });
+  });
+
+  test("refuse une page au-delà de la limite avant de projeter ses devis", () => {
+    const devis = Array.from({ length: LIMITE_PAGE_LISTE_DEVIS + 1 }, (_, index) =>
+      devisAvecCout({ devis_id: `M3-DEVIS-${String(index).padStart(3, "0")}` }),
+    );
+    expect(
+      interpreterResultatListerDevis(enveloppeAcceptee({ devis, curseur_suivant: null })),
+    ).toMatchObject({ ok: false, genre: "illisible" });
+  });
+
+  test("une page vide ne peut annoncer une suite et un curseur doit progresser", () => {
+    const videAvecSuite = interpreterResultatListerDevis(
+      enveloppeAcceptee({ devis: [], curseur_suivant: "suite" }),
+    );
+    const curseurRepete = interpreterResultatListerDevis(
+      enveloppeAcceptee({ devis: [devisAvecCout({ devis_id: "M3-DEVIS-001" })], curseur_suivant: "courant" }),
+      "courant",
+    );
+    expect(videAvecSuite).toMatchObject({ ok: false, genre: "illisible" });
+    expect(curseurRepete).toMatchObject({ ok: false, genre: "illisible" });
+  });
+
+  test("le refus serveur reste distinct d'une panne et son verdict est conservé", () => {
+    expect(interpreterResultatListerDevis(enveloppeRefusee("REJ-CONTRAT-INVALIDE", "curseur invalide"))).toEqual({
+      ok: false,
+      genre: "refus",
+      verdict: { code: "REJ-CONTRAT-INVALIDE", detail: "curseur invalide" },
+    });
   });
 });

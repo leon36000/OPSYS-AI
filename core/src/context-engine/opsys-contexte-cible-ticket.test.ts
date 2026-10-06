@@ -74,8 +74,9 @@ function setup(
 describe("createOpsysCibleTicketMeta", () => {
   it("issues an origin-bound ticket for exact final params and returns only the private _meta field", async () => {
     const { params, deps, callTool } = setup();
+    const onIssued = vi.fn();
 
-    const meta = await createOpsysCibleTicketMeta(params, deps);
+    const meta = await createOpsysCibleTicketMeta({ ...params, onIssued }, deps);
 
     expect(callTool).toHaveBeenCalledOnce();
     expect(callTool).toHaveBeenCalledWith(
@@ -96,6 +97,14 @@ describe("createOpsysCibleTicketMeta", () => {
       arguments: INPUT,
       meta: { "opsys/cibleTicket": "opaque-ticket-secret" },
     });
+    expect(onIssued).toHaveBeenCalledExactlyOnceWith({
+      agentId: "m03-estimation",
+      sessionKey: SESSION,
+      affaireId: "LEAD-001",
+      serverName: "opsys_m3",
+      toolName: TOOL,
+    });
+    expect(JSON.stringify(onIssued.mock.calls)).not.toContain("opaque-ticket-secret");
   });
 
   it("marks session-linked cases as session origin", async () => {
@@ -141,7 +150,11 @@ describe("createOpsysCibleTicketMeta", () => {
     const malformed = setup({
       response: { ok: true, resultat: { ticket: "", expire_le: "invalid" } },
     });
-    await expect(createOpsysCibleTicketMeta(malformed.params, malformed.deps)).rejects.toThrow();
+    const onIssued = vi.fn();
+    await expect(
+      createOpsysCibleTicketMeta({ ...malformed.params, onIssued }, malformed.deps),
+    ).rejects.toThrow();
+    expect(onIssued).not.toHaveBeenCalled();
 
     const expired = setup({
       response: {

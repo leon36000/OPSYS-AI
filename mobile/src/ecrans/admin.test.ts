@@ -33,8 +33,8 @@ describe("l'accueil « À voir » du propriétaire", () => {
     expect(completion.geste?.params?.geste).toContain("m4_resoudre_revue_completion");
     // « Depuis » est l'instant du serveur ramené à l'heure de l'appareil.
     expect(facture.depuis).toEqual({ cle: "approvals.depuis", params: { date: "2026-09-21 11:00" } });
-    // Quatre autres attentes existent que le serveur n'a pas montrées : dit, avec le renvoi à l'écran des approbations.
-    expect(vue.attentes.reste).toEqual({ cle: "admin.aVoir.attentes.reste", params: { nombre: 4 } });
+    // Trois autres attentes restent après l'envoi fictif de la facture E, avec renvoi aux approbations.
+    expect(vue.attentes.reste).toEqual({ cle: "admin.aVoir.attentes.reste", params: { nombre: 3 } });
     expect(vue.attentes.illisibles).toBeNull();
     expect(vue.attentes.departementsIllisibles).toBeNull();
   });

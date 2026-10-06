@@ -54,6 +54,7 @@ OUTILS_M2_DU_VENDEUR = {
     "m2_lister_relances", "m2_preparer_relance", "m2_enregistrer_consentement_contact",
 }
 OUTILS_M3_DU_VENDEUR = {
+    "m3_lister_devis",  # Inventaire courant de ses devis, sans devoir connaître leur numéro.
     "m3_lire_devis", "m3_generer_soumission_brouillon", "m3_qualifier_photos",
     "m3_demander_envoi_devis",  # DEMANDE l'envoi (N4, T4.7) : le propriétaire décide dans la file
 }
@@ -340,3 +341,29 @@ def test_l_employe_n_a_ni_les_outils_m2_ni_les_devis_meme_en_les_appelant_par_mc
     assert devis["ok"] is True
     for cle in ("cout_total", "prix_total", "taux_marge"):
         assert cle not in devis["resultat"]["resultat"]
+
+
+def test_mcp_liste_les_devis_du_vendeur_puis_revalide_sa_desactivation(scenario, capacites, session):
+    """M2 réel publie l'assignation; le MCP réel transmet l'identité à la lecture M3."""
+    serveur = creer_serveur(capacites)
+
+    async def lister(personne):
+        async with Client(serveur) as client:
+            resultat = await client.call_tool(
+                "m3_lister_devis", {"limite": 1}, meta=_meta_mcp(personne, "seller")
+            )
+            return json.loads(resultat.content[0].text)
+
+    avant = _instantane_base()
+    un = _accepte(anyio.run(lister, "vendeur.un"))
+    deux = _accepte(anyio.run(lister, "vendeur.deux"))
+    assert [devis["devis_id"] for devis in un["devis"]] == ["devis-a"]
+    assert [devis["devis_id"] for devis in deux["devis"]] == ["devis-b"]
+    assert un["curseur_suivant"] is None and deux["curseur_suivant"] is None
+    assert _instantane_base() == avant
+
+    with session() as cnx:
+        identite.activer(cnx, "vendeur.un", False)
+    avant_refus = _instantane_base()
+    assert _verdict(anyio.run(lister, "vendeur.un"))["code"] == CODE_INVALIDE
+    assert _instantane_base() == avant_refus

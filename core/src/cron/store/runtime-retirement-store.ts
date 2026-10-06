@@ -20,6 +20,7 @@ import {
   OPSYS_CRON_AUTHORITY_RUNTIME_ID,
   openOpsysCronAuthority,
   sealOpsysCronAuthority,
+  type OpsysCronAuthorityBinding,
 } from "./opsys-runtime-authority-crypto.js";
 import { loadCronRows, loadedCronStoreFromRows } from "./row-codec.js";
 import { loadCronRuntimeAuthorities } from "./runtime-authority-store.js";
@@ -77,7 +78,9 @@ function refuse(): never {
   throw new Error("Cron retirement proof refused.");
 }
 function transaction(db: DatabaseSync): void {
-  if (!db.isTransaction) refuse();
+  if (!db.isTransaction) {
+    refuse();
+  }
 }
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -113,18 +116,23 @@ export function snapshotCronRetirementCapture(input: CronRetirementCapture): Cro
       !PROFILE.test(snapshot.profileId) ||
       typeof snapshot.nativeRevision !== "string" ||
       !REVISION.test(snapshot.nativeRevision)
-    )
+    ) {
       refuse();
+    }
     return Object.freeze(snapshot);
   } catch {
-    refuse();
+    return refuse();
   }
 }
 
 function fingerprint(capture: CronRetirementCapture, jobId: string): string {
   return `retirement-v1:${createHash("sha256").update(stableStringify({ capture, jobId })).digest("hex")}`;
 }
-function binding(storeKey: string, jobId: string, inputFingerprint: string) {
+function binding(
+  storeKey: string,
+  jobId: string,
+  inputFingerprint: string,
+): OpsysCronAuthorityBinding {
   return {
     storeKey,
     jobId,
@@ -150,8 +158,9 @@ function authorityMatches(
     typeof payload.capabilite !== "string" ||
     !HEX.test(payload.capabilite) ||
     !isRecord(payload.declaration)
-  )
+  ) {
     return false;
+  }
   registerSecretValueForRedaction(payload.capabilite);
   return (
     createHash("sha256").update(Buffer.from(payload.capabilite, "hex")).digest("hex") ===
@@ -172,11 +181,11 @@ export function recordCronRetirementBeforeDelete(
   db: DatabaseSync,
   storeKey: string,
   expectedJob: CronStoredJob,
-  capture: CronRetirementCapture,
+  captureInput: CronRetirementCapture,
   removedAtMs: number,
 ): void {
   transaction(db);
-  capture = snapshotCronRetirementCapture(capture);
+  const capture = snapshotCronRetirementCapture(captureInput);
   if (
     !integer(removedAtMs) ||
     !JOB.test(expectedJob.id) ||
@@ -184,23 +193,29 @@ export function recordCronRetirementBeforeDelete(
     expectedJob.declarationKey !== `opsys-profile:${capture.intentionId}` ||
     expectedJob.agentId !== `opsys-agent-${capture.profileId}` ||
     resolveCronJobConfigRevision(expectedJob) !== capture.nativeRevision
-  )
+  ) {
     refuse();
+  }
   const currentJobs = loadedCronStoreFromRows(loadCronRows(db, storeKey, new Set([expectedJob.id])))
     .store.jobs;
-  if (currentJobs.length !== 1) refuse();
+  if (currentJobs.length !== 1) {
+    refuse();
+  }
   loadCronRuntimeAuthorities({ db, storeKey, jobs: currentJobs });
   const current = currentJobs[0]!;
   const authority = normalizeCronRuntimeAuthority(current.runtimeAuthority);
+  const expectedAuthority = normalizeCronRuntimeAuthority(expectedJob.runtimeAuthority);
   if (
     current.enabled ||
     resolveCronJobConfigRevision(current) !== capture.nativeRevision ||
     current.runtimeAuthorityRecoveryRequired === true ||
     !authority ||
-    !isDeepStrictEqual(current.runtimeAuthority, expectedJob.runtimeAuthority) ||
+    !expectedAuthority ||
+    !isDeepStrictEqual(authority, expectedAuthority) ||
     !authorityMatches(authority, capture)
-  )
+  ) {
     refuse();
+  }
   ensure(db);
   const database = getNodeSqliteKysely<RetirementDatabase>(db);
   const existing = executeSqliteQueryTakeFirstSync(
@@ -211,7 +226,9 @@ export function recordCronRetirementBeforeDelete(
       .where("store_key", "=", storeKey)
       .where("receipt_id", "=", capture.receiptId),
   );
-  if (existing) refuse(); // A committed receipt's deleted job cannot be recreated for this operation.
+  if (existing) {
+    refuse();
+  } // A committed receipt's deleted job cannot be recreated for this operation.
   const pending = executeSqliteQueryTakeFirstSync(
     db,
     database
@@ -221,7 +238,9 @@ export function recordCronRetirementBeforeDelete(
       .where("profile_id", "=", capture.profileId)
       .where("acknowledged_at_ms", "is", null),
   );
-  if (!pending || pending.total >= MAX_PENDING) refuse();
+  if (!pending || pending.total >= MAX_PENDING) {
+    refuse();
+  }
   const inputFingerprint = fingerprint(capture, current.id);
   const proof: CronRetirementProof = {
     version: 1,
@@ -235,7 +254,9 @@ export function recordCronRetirementBeforeDelete(
     binding(storeKey, current.id, inputFingerprint),
     JSON.stringify(proof),
   );
-  if (!ciphertext) refuse();
+  if (!ciphertext) {
+    refuse();
+  }
   executeSqliteQuerySync(
     db,
     database.insertInto(TABLE).values({
@@ -260,8 +281,12 @@ export function readCronRetirementProof(
   storeKey: string,
   receiptId: string,
 ): CronRetirementProof | undefined {
-  if (!HEX.test(receiptId)) refuse();
-  if (!tableExists(db, TABLE)) return undefined;
+  if (!HEX.test(receiptId)) {
+    refuse();
+  }
+  if (!tableExists(db, TABLE)) {
+    return undefined;
+  }
   const database = getNodeSqliteKysely<RetirementDatabase>(db);
   const query = database
     .selectFrom(TABLE)
@@ -271,17 +296,27 @@ export function readCronRetirementProof(
     db,
     query.select((eb) => eb.fn<number>("length", [eb.cast("ciphertext", "blob")]).as("bytes")),
   );
-  if (!size) return undefined;
-  if (size.bytes > 96 * 1024) refuse();
+  if (!size) {
+    return undefined;
+  }
+  if (size.bytes > 96 * 1024) {
+    refuse();
+  }
   const row = executeSqliteQueryTakeFirstSync(db, query.selectAll());
-  if (!row) refuse();
-  if (Buffer.byteLength(row.ciphertext, "utf8") > 96 * 1024) refuse();
+  if (!row) {
+    refuse();
+  }
+  if (Buffer.byteLength(row.ciphertext, "utf8") > 96 * 1024) {
+    refuse();
+  }
   try {
     const text = openOpsysCronAuthority(
       binding(storeKey, row.job_id, row.input_fingerprint),
       row.ciphertext,
     );
-    if (!text) refuse();
+    if (!text) {
+      refuse();
+    }
     const value: unknown = JSON.parse(text);
     if (
       !isRecord(value) ||
@@ -290,8 +325,9 @@ export function readCronRetirementProof(
       !isRecord(value.capture) ||
       value.jobId !== row.job_id ||
       value.removedAtMs !== row.removed_at_ms
-    )
+    ) {
       refuse();
+    }
     const raw = value.capture;
     // Bounded JSON was sealed by this owner; still validate every restored field.
     if (
@@ -303,8 +339,9 @@ export function readCronRetirementProof(
       typeof raw.capabilityFingerprint !== "string" ||
       typeof raw.declarationHash !== "string" ||
       typeof raw.nativeRevision !== "string"
-    )
+    ) {
       refuse();
+    }
     const capture = snapshotCronRetirementCapture({
       receiptId: raw.receiptId,
       sourceHash: raw.sourceHash,
@@ -326,8 +363,9 @@ export function readCronRetirementProof(
       !authority ||
       !authorityMatches(authority, capture) ||
       loadCronRows(db, storeKey, new Set([row.job_id])).length !== 0
-    )
+    ) {
       refuse();
+    }
     const rebound = executeSqliteQueryTakeFirstSync(
       db,
       getCronStoreKysely(db)
@@ -337,7 +375,9 @@ export function readCronRetirementProof(
         .where("declaration_key", "=", `opsys-profile:${capture.intentionId}`)
         .limit(1),
     );
-    if (rebound) refuse();
+    if (rebound) {
+      refuse();
+    }
     return {
       version: 1,
       purpose: PURPOSE,
@@ -347,7 +387,7 @@ export function readCronRetirementProof(
       authority,
     };
   } catch {
-    refuse();
+    return refuse();
   }
 }
 
@@ -357,8 +397,12 @@ export function listPendingCronRetirementIds(
   storeKey: string,
   profileId: string,
 ): string[] {
-  if (!PROFILE.test(profileId)) refuse();
-  if (!tableExists(db, TABLE)) return [];
+  if (!PROFILE.test(profileId)) {
+    refuse();
+  }
+  if (!tableExists(db, TABLE)) {
+    return [];
+  }
   const database = getNodeSqliteKysely<RetirementDatabase>(db);
   const query = database
     .selectFrom(TABLE)
@@ -369,7 +413,9 @@ export function listPendingCronRetirementIds(
     db,
     query.select((eb) => eb.fn.countAll<number>().as("total")),
   );
-  if (!count || count.total > MAX_PENDING) refuse();
+  if (!count || count.total > MAX_PENDING) {
+    refuse();
+  }
   return executeSqliteQuerySync(
     db,
     query.select("receipt_id").orderBy("removed_at_ms").orderBy("receipt_id").limit(MAX_PENDING),
@@ -382,14 +428,20 @@ export function listPendingCronRetirements(
   storeKey: string,
   profileId?: string,
 ): PendingCronRetirements {
-  if (profileId !== undefined && !PROFILE.test(profileId)) refuse();
-  if (!tableExists(db, TABLE)) return { total: 0, items: [] };
+  if (profileId !== undefined && !PROFILE.test(profileId)) {
+    refuse();
+  }
+  if (!tableExists(db, TABLE)) {
+    return { total: 0, items: [] };
+  }
   const database = getNodeSqliteKysely<RetirementDatabase>(db);
   let query = database
     .selectFrom(TABLE)
     .where("store_key", "=", storeKey)
     .where("acknowledged_at_ms", "is", null);
-  if (profileId !== undefined) query = query.where("profile_id", "=", profileId);
+  if (profileId !== undefined) {
+    query = query.where("profile_id", "=", profileId);
+  }
   const count = executeSqliteQueryTakeFirstSync(
     db,
     query.select((eb) => eb.fn.countAll<number>().as("total")),
@@ -399,8 +451,9 @@ export function listPendingCronRetirements(
     !Number.isSafeInteger(count.total) ||
     count.total < 0 ||
     (profileId !== undefined && count.total > MAX_PENDING)
-  )
+  ) {
     refuse();
+  }
   const rows = executeSqliteQuerySync(
     db,
     query
@@ -409,7 +462,9 @@ export function listPendingCronRetirements(
       .orderBy("receipt_id")
       .limit(MAX_PENDING),
   ).rows;
-  if (rows.some((row) => !HEX.test(row.receipt_id) || !PROFILE.test(row.profile_id))) refuse();
+  if (rows.some((row) => !HEX.test(row.receipt_id) || !PROFILE.test(row.profile_id))) {
+    refuse();
+  }
   return {
     total: count.total,
     items: rows.map((row) => ({ receiptId: row.receipt_id, profileId: row.profile_id })),
@@ -425,9 +480,13 @@ export function acknowledgeCronRetirementProof(
   nowMs: number,
 ): void {
   transaction(db);
-  if (!HEX.test(sourceHash) || !integer(nowMs)) refuse();
+  if (!HEX.test(sourceHash) || !integer(nowMs)) {
+    refuse();
+  }
   const proof = readCronRetirementProof(db, storeKey, receiptId);
-  if (!proof || proof.capture.sourceHash !== sourceHash) refuse();
+  if (!proof || proof.capture.sourceHash !== sourceHash) {
+    refuse();
+  }
   const database = getNodeSqliteKysely<RetirementDatabase>(db);
   executeSqliteQuerySync(
     db,

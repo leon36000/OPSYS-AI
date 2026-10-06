@@ -32,6 +32,7 @@ from . import (
     calibration_raccord,
     calibration_versions,
     contrats,
+    couverture_apprentissage,
     devis_durable,
     devis_relance,
     estimation,
@@ -581,6 +582,121 @@ def lire_devis(devis_id: str, role: str | None = None) -> dict[str, Any]:
     return depuis_couple(devis_durable.projeter_devis(devis, vue["role"]))
 
 
+
+def _curseur_devis_vendeur(personne: str, devis_id: str) -> str:
+    """Encode un repère de pagination lié à une personne; ce jeton ne confère aucun droit."""
+    charge = json.dumps(
+        {"version": 1, "personne": personne, "devis_id": devis_id},
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return base64.urlsafe_b64encode(charge).decode("ascii").rstrip("=")
+
+
+def _lire_curseur_devis_vendeur(curseur: Any) -> dict[str, str] | None:
+    """Décode uniquement la forme canonique émise par _curseur_devis_vendeur."""
+    if not isinstance(curseur, str) or not 1 <= len(curseur) <= 2048:
+        return None
+    if re.fullmatch(r"[A-Za-z0-9_-]+", curseur) is None:
+        return None
+    try:
+        charge = base64.b64decode(
+            curseur + "=" * (-len(curseur) % 4), altchars=b"-_", validate=True
+        )
+        objet = json.loads(charge.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if (
+        not isinstance(objet, dict)
+        or set(objet) != {"version", "personne", "devis_id"}
+        or type(objet.get("version")) is not int
+        or objet["version"] != 1
+        or not isinstance(objet.get("personne"), str)
+        or not objet["personne"]
+        or not isinstance(objet.get("devis_id"), str)
+        or not objet["devis_id"]
+        or _curseur_devis_vendeur(objet["personne"], objet["devis_id"]) != curseur
+    ):
+        return None
+    return {"personne": objet["personne"], "devis_id": objet["devis_id"]}
+
+
+def lister_devis_vendeur(limite: int = 20, curseur: str | None = None) -> dict[str, Any]:
+    """Liste une page des devis du vendeur d'appareil authentifié, tous statuts courants confondus.
+
+    La propriété est relue depuis M2 pour chaque devis dans la transaction courante. Le curseur est
+    un repère de tri seulement : personne et appartenance sont revalidées à chaque appel.
+    """
+    appareil = contexte.identite_appelante()
+    if appareil is None or appareil.role != _ROLE_VENDEUR:
+        return {
+            "accepte": False,
+            "verdict": verdicts.construire_verdict(
+                "REJ-IDENTITE-APPAREIL-INVALIDE",
+                detail="un vendeur humain authentifié est requis",
+            ),
+        }
+    vue = _vue_projection_effective(None)
+    if not vue["accepte"]:
+        return {"accepte": False, "verdict": vue["verdict"]}
+    if vue["role_appareil"] != _ROLE_VENDEUR:
+        return {
+            "accepte": False,
+            "verdict": verdicts.construire_verdict(
+                "REJ-IDENTITE-APPAREIL-INVALIDE",
+                detail="un vendeur humain authentifié est requis",
+            ),
+        }
+    if type(limite) is not int or not 1 <= limite <= 50:
+        return {
+            "accepte": False,
+            "verdict": verdicts.construire_verdict(
+                "REJ-CONTRAT-INVALIDE", detail="limite doit être un entier entre 1 et 50"
+            ),
+        }
+
+    repere = None
+    if curseur is not None:
+        repere = _lire_curseur_devis_vendeur(curseur)
+        if repere is None or repere["personne"] != vue["personne"]:
+            return {
+                "accepte": False,
+                "verdict": verdicts.construire_verdict(
+                    "REJ-CONTRAT-INVALIDE", detail="curseur invalide"
+                ),
+            }
+
+    devis_vendeur = [
+        devis for devis in devis_durable.lister_devis(registre_devis_production())
+        if _proprietaire_du_lead(devis.get("lead_id")) == vue["personne"]
+    ]
+    if repere is not None:
+        identifiants = {devis.get("devis_id") for devis in devis_vendeur}
+        if repere["devis_id"] not in identifiants:
+            return {
+                "accepte": False,
+                "verdict": verdicts.construire_verdict(
+                    "REJ-CONTRAT-INVALIDE", detail="curseur invalide"
+                ),
+            }
+        devis_vendeur = [devis for devis in devis_vendeur if devis["devis_id"] > repere["devis_id"]]
+
+    page = devis_vendeur[:limite]
+    projection = []
+    for devis in page:
+        projete, rejet = devis_durable.projeter_devis(devis, "interne")
+        if rejet is not None:
+            return {"accepte": False, "verdict": rejet}
+        projection.append(projete)
+    suivant = (
+        _curseur_devis_vendeur(vue["personne"], page[-1]["devis_id"])
+        if len(devis_vendeur) > limite
+        else None
+    )
+    return depuis_couple(({"devis": projection, "curseur_suivant": suivant}, None))
+
+
 def marquer_devis_accepte(devis_id: str, approbateur: str, horodatage: str) -> dict[str, Any]:
     """Marque un devis ACCEPTE et publie `m3.devis_accepte` dans la MÊME transaction (ADR-0009
     §3) — seulement quand la transition réussit réellement (`verdict is None`) : un rejet
@@ -918,6 +1034,384 @@ def lire_ecarts_estime_reel(
     return depuis_couple(
         estime_vs_reel.lire_ecarts(registre_estime_vs_reel_production(), devis_id, depuis, jusqua)
     )
+
+
+def auditer_couverture_apprentissage() -> dict[str, Any]:
+    """Diagnostic des publications M4 reçues par M3, réservé à l'admin appareil."""
+    def autorise() -> bool:
+        appareil = contexte.identite_appelante()
+        cnx = stockage.connexion_courante()
+        if cnx is None or appareil is None or appareil.source != "appareil" or appareil.role != "admin":
+            return False
+        personne = identite.personne_active(cnx, appareil.personne)
+        return personne is not None and "admin" in personne.roles
+
+    return couverture_apprentissage.auditer(lire_prefixe=_prefixe_recu_wct, autorise=autorise)
+
+
+def lire_apprentissage_chantier(wct_id: str, coupure_utc: str) -> dict[str, Any]:
+    """Lecture M3 bornée d'un chantier, sans promotion, mutation ni inférence causale.
+
+    Les sources aval sont lues par leurs outils T0 existants, sous l'identité admin de l'appel
+    d'appareil. Le rapport de raccord M3 reste l'autorité de la jointure estimation/devis/WCT.
+    """
+    appareil = contexte.identite_appelante()
+    cnx = stockage.connexion_courante()
+    personne = identite.personne_active(cnx, appareil.personne) if cnx is not None and appareil else None
+    if (
+        appareil is None or getattr(appareil, "source", None) != "appareil" or appareil.role != "admin"
+        or personne is None or "admin" not in personne.roles
+    ):
+        return {"statut": "refuse", "raison": "identite_admin_authentifiee_requise"}
+    if not isinstance(wct_id, str) or not wct_id or len(wct_id) > 128:
+        return {"statut": "refuse", "raison": "wct_id_invalide"}
+    try:
+        horodatage = datetime.fromisoformat(coupure_utc.replace("Z", "+00:00"))
+    except (AttributeError, TypeError, ValueError):
+        return {"statut": "refuse", "raison": "coupure_utc_invalide"}
+    if horodatage.tzinfo is None or horodatage.utcoffset() != timedelta(0):
+        return {"statut": "refuse", "raison": "coupure_utc_invalide"}
+
+    try:
+        from opsys.capacites import Capacites
+        from opsys.departements import charger_departements
+
+        departements = charger_departements()
+        cibles = {nom: departements[nom] for nom in (
+            "m03-estimation", "m04-field-ops", "m05-financecore", "m08-analytics",
+        )}
+        capacites = Capacites(
+            cibles, stockage.transaction, appelant="m03-estimation", limite_sortie=6_000, memoire=False,
+        )
+        projection = capacites.appeler("m4_lire_faits_calibration_m3", {"wct_ids": [wct_id]})
+        if not projection.get("ok") or not isinstance(projection.get("resultat"), dict):
+            return {"statut": "exclu", "wct_id": wct_id, "exclusions": ["projection_m4_indisponible"], "cause": None}
+        projection_m4 = projection["resultat"]
+        observations_m4 = projection_m4.get("observations", [])
+        exactes_m4 = [
+            o for o in observations_m4
+            if isinstance(o, dict) and isinstance(o.get("wct"), dict) and o["wct"].get("wct_id") == wct_id
+        ]
+        if len(exactes_m4) != 1:
+            refus = [
+                str(m.get("motif", "fait_m4_refuse")) for m in projection_m4.get("refus", [])
+                if isinstance(m, dict) and m.get("wct_id") in (None, wct_id)
+            ]
+            raison = "wct_m4_absent" if not exactes_m4 else "wct_m4_ambigu"
+            return {"statut": "exclu", "wct_id": wct_id,
+                    "exclusions": sorted(set(refus + [raison])), "cause": None}
+        projections = {"observations": observations_m4, "refus": projection_m4.get("refus", [])}
+        journal_estimations = registre_production()
+        journal_devis = registre_devis_production()
+        maillons_estimations = journal_estimations.lire()
+        if not isinstance(maillons_estimations, list):
+            return {"statut": "refuse", "wct_id": wct_id, "raison": "registre_estimations_illisible"}
+        if len(maillons_estimations) > 20_000:
+            return {"statut": "refuse", "wct_id": wct_id, "raison": "limite_registre_estimations_depassee"}
+        if len(journal_devis) > 10_000:
+            return {"statut": "refuse", "wct_id": wct_id, "raison": "limite_registre_devis_depassee"}
+        rapport_m3 = calibration_raccord.construire_rapport(
+            coupure_utc=coupure_utc,
+            registre_estimations=journal_estimations,
+            registre_devis=journal_devis,
+            projections_m4=projections,
+            _inclure_observations=True,
+        )
+        observations_m3 = [
+            o for o in rapport_m3.get("_observations_qualifiees", [])
+            if isinstance(o, dict) and o.get("wct_id") == wct_id
+        ]
+        if len(observations_m3) != 1:
+            compteurs = rapport_m3.get("refus_jointure_m3", {})
+            exclusions = [f"jointure_m3:{code}" for code, nombre in compteurs.items() if nombre]
+            if not exclusions:
+                exclusions = ["jointure_m3_absente_ou_ambigu"]
+            return {"statut": "exclu", "wct_id": wct_id,
+                    "exclusions": sorted(exclusions), "cause": None}
+        observation = observations_m3[0]
+        preuve = observation.get("preuve", {})
+        provenance_m3 = [
+            p for p in rapport_m3.get("provenance_observations", [])
+            if isinstance(p, dict) and p.get("wct_id") == wct_id
+        ]
+        if len(provenance_m3) != 1:
+            exclusions_calibration = [
+                f"calibration:{raison}"
+                for ligne in rapport_m3.get("exclusions", [])
+                if isinstance(ligne, dict) and ligne.get("wct_id") == wct_id
+                for raison in ligne.get("raisons", [])
+            ]
+            if not exclusions_calibration:
+                exclusions_calibration = ["observation_non_admise_par_calibration_cohortes"]
+            return {"statut": "exclu", "wct_id": wct_id,
+                    "exclusions": sorted(exclusions_calibration), "cause": None}
+        admission = provenance_m3[0]
+        if (
+            admission.get("m3_source_hash") != preuve.get("m3_source_hash")
+            or admission.get("m4_wct_hash") != preuve.get("m4_wct_hash")
+            or admission.get("partition") not in {"train", "holdout"}
+        ):
+            return {"statut": "exclu", "wct_id": wct_id,
+                    "exclusions": ["provenance_calibration_absente_ou_divergente"], "cause": None}
+        devis_id = observation.get("devis_id")
+        if not isinstance(devis_id, str) or not devis_id:
+            return {"statut": "exclu", "wct_id": wct_id,
+                    "exclusions": ["devis_id_absent_de_la_jointure_m3"], "cause": None}
+
+        resultat_m5 = capacites.appeler(
+            "m5_lire_rentabilite_chantier", {"devis_id": devis_id, "limite": 1},
+        )
+        if not resultat_m5.get("ok") or not isinstance(resultat_m5.get("resultat"), dict):
+            return {"statut": "exclu", "wct_id": wct_id, "devis_id": devis_id,
+                    "exclusions": ["lecture_m5_indisponible"], "cause": None}
+        resultat_m5 = resultat_m5["resultat"].get("resultat", {})
+        chantiers_m5 = resultat_m5.get("chantiers", [])
+        chantiers_exactes = [c for c in chantiers_m5 if isinstance(c, dict) and c.get("devis_id") == devis_id]
+        if (
+            resultat_m5.get("nombre") != 1 or resultat_m5.get("affichees") != 1
+            or resultat_m5.get("reste") != 0 or len(chantiers_exactes) != 1
+        ):
+            return {"statut": "exclu", "wct_id": wct_id, "devis_id": devis_id,
+                    "exclusions": ["rentabilite_m5_absente_ou_ambiguite_devis"], "cause": None}
+        chantier_m5 = chantiers_exactes[0]
+        def _detail_rentabilite(ligne: dict[str, Any]) -> dict[str, Any]:
+            # Le filtre devis_id demande la vue DETAIL M5 : cout_reel.complet et
+            # marge_reelle. Les clés de l'événement M5 ne sont pas celles de cet outil.
+            detail = ligne.get("rentabilite")
+            detail = detail if isinstance(detail, dict) else {}
+            cout = detail.get("cout_reel")
+            cout = cout if isinstance(cout, dict) else {}
+            return {
+                "verdict": detail.get("verdict"),
+                "prix_definitif": detail.get("prix_definitif"),
+                "cout_reel_complet": cout.get("complet"),
+                "marge_reelle_cad": detail.get("marge_reelle"),
+            }
+
+        rentabilite = _detail_rentabilite(chantier_m5)
+        trace_m5 = chantier_m5.get("trace")
+        trace_m5 = trace_m5 if isinstance(trace_m5, dict) else {}
+        version_m5 = trace_m5.get("version_entrees")
+
+        resultat_m8 = capacites.appeler("m8_lire_mesures_chantier", {"wct_id": wct_id})
+        if not resultat_m8.get("ok") or not isinstance(resultat_m8.get("resultat"), dict):
+            return {"statut": "exclu", "wct_id": wct_id, "devis_id": devis_id,
+                    "exclusions": ["lecture_m8_indisponible"], "cause": None}
+        resultat_m5_apres = capacites.appeler(
+            "m5_lire_rentabilite_chantier", {"devis_id": devis_id, "limite": 1},
+        )
+        if not resultat_m5_apres.get("ok") or not isinstance(resultat_m5_apres.get("resultat"), dict):
+            return {"statut": "refuse", "wct_id": wct_id,
+                    "raison": "relecture_m5_indisponible_pendant_controle_de_coherence"}
+        resultat_m5_apres = resultat_m5_apres["resultat"].get("resultat", {})
+        chantiers_m5_apres = resultat_m5_apres.get("chantiers", [])
+        chantiers_m5_apres = [c for c in chantiers_m5_apres if isinstance(c, dict) and c.get("devis_id") == devis_id]
+        if (
+            resultat_m5_apres.get("nombre") != 1 or resultat_m5_apres.get("affichees") != 1
+            or resultat_m5_apres.get("reste") != 0 or len(chantiers_m5_apres) != 1
+        ):
+            return {"statut": "refuse", "wct_id": wct_id,
+                    "raison": "rentabilite_m5_ambigue_pendant_controle_de_coherence"}
+        m5_apres = chantiers_m5_apres[0]
+        trace_m5_apres = m5_apres.get("trace")
+        trace_m5_apres = trace_m5_apres if isinstance(trace_m5_apres, dict) else {}
+        if (
+            not isinstance(m5_apres.get("rentabilite"), dict)
+            or trace_m5_apres.get("version_entrees") != version_m5
+            or trace_m5_apres.get("a_jour") != trace_m5.get("a_jour")
+            or _detail_rentabilite(m5_apres) != rentabilite
+        ):
+            return {"statut": "refuse", "wct_id": wct_id,
+                    "raison": "version_ou_trace_m5_changee_pendant_lecture"}
+        resultat_m8_apres = capacites.appeler("m8_lire_mesures_chantier", {"wct_id": wct_id})
+        if not resultat_m8_apres.get("ok") or not isinstance(resultat_m8_apres.get("resultat"), dict):
+            return {"statut": "refuse", "wct_id": wct_id,
+                    "raison": "relecture_m8_indisponible_pendant_controle_de_coherence"}
+        mesures_m8 = resultat_m8["resultat"].get("mesures", [])
+        def _metrics(lignes: Any, metric_id: str) -> list[dict[str, Any]]:
+            return [m for m in lignes if isinstance(m, dict) and m.get("metric_id") == metric_id]
+
+        marges_m8 = _metrics(mesures_m8, "m8_marge_reelle_cad")
+        variances_m8 = _metrics(mesures_m8, "m8_ecart_materiaux_max_pct")
+        if len(marges_m8) > 1 or len(variances_m8) > 1:
+            return {"statut": "refuse", "wct_id": wct_id,
+                    "raison": "metrique_m8_dupliquee"}
+        marge_m8 = marges_m8[0] if marges_m8 else {}
+        entrees_m8 = marge_m8.get("entrees", {})
+        mesures_m8_apres = resultat_m8_apres["resultat"].get("mesures", [])
+        marges_m8_apres = _metrics(mesures_m8_apres, "m8_marge_reelle_cad")
+        variances_m8_apres = _metrics(mesures_m8_apres, "m8_ecart_materiaux_max_pct")
+        if len(variances_m8_apres) > 1:
+            return {"statut": "refuse", "wct_id": wct_id,
+                    "raison": "metrique_variance_m8_dupliquee_pendant_controle_de_coherence"}
+        if len(marges_m8_apres) > 1:
+            return {"statut": "refuse", "wct_id": wct_id,
+                    "raison": "metrique_m8_dupliquee_pendant_controle_de_coherence"}
+        marge_m8_apres = marges_m8_apres[0] if marges_m8_apres else {}
+        if (
+            marge_m8_apres.get("statut") != marge_m8.get("statut")
+            or marge_m8_apres.get("valeur") != marge_m8.get("valeur")
+            or marge_m8_apres.get("entrees", {}).get("version_entrees") != entrees_m8.get("version_entrees")
+        ):
+            return {"statut": "refuse", "wct_id": wct_id,
+                    "raison": "version_ou_mesure_m8_changee_pendant_lecture"}
+        variance_m8_apres = variances_m8_apres[0] if variances_m8_apres else {}
+        variance_m8_changee = (
+            any(variance_m8_apres.get(cle) != variances_m8[0].get(cle) for cle in (
+                "statut", "valeur", "unite", "entrees", "version_definition",
+            )) if variances_m8 else bool(variances_m8_apres)
+        )
+        if variance_m8_changee:
+            return {"statut": "refuse", "wct_id": wct_id,
+                    "raison": "variance_m8_changee_pendant_lecture"}
+        projection_finale = capacites.appeler("m4_lire_faits_calibration_m3", {"wct_ids": [wct_id]})
+        if not projection_finale.get("ok") or not isinstance(projection_finale.get("resultat"), dict):
+            return {"statut": "refuse", "wct_id": wct_id,
+                    "raison": "relecture_m4_indisponible_pendant_controle_de_coherence"}
+        observations_finales_m4 = [
+            o for o in projection_finale["resultat"].get("observations", [])
+            if isinstance(o, dict) and isinstance(o.get("wct"), dict) and o["wct"].get("wct_id") == wct_id
+        ]
+        if len(observations_finales_m4) != 1 or (
+            observations_finales_m4[0].get("wct_hash") != exactes_m4[0].get("wct_hash")
+            or observations_finales_m4[0].get("horodatage_completion") != exactes_m4[0].get("horodatage_completion")
+        ):
+            return {"statut": "refuse", "wct_id": wct_id,
+                    "raison": "preuve_wct_m4_changee_pendant_lecture"}
+        estimations_finales = registre_production()
+        devis_finaux = registre_devis_production()
+        maillons_estimations_finaux = estimations_finales.lire()
+        if not isinstance(maillons_estimations_finaux, list):
+            return {"statut": "refuse", "wct_id": wct_id,
+                    "raison": "registre_estimations_illisible_pendant_lecture"}
+        if len(maillons_estimations_finaux) > 20_000 or len(devis_finaux) > 10_000:
+            return {"statut": "refuse", "wct_id": wct_id,
+                    "raison": "limite_registre_m3_depassee_pendant_lecture"}
+        rapport_m3_final = calibration_raccord.construire_rapport(
+            coupure_utc=coupure_utc, registre_estimations=estimations_finales, registre_devis=devis_finaux,
+            projections_m4={"observations": projection_finale["resultat"].get("observations", []),
+                            "refus": projection_finale["resultat"].get("refus", [])},
+            _inclure_observations=True,
+        )
+        observations_finales_m3 = [
+            o for o in rapport_m3_final.get("_observations_qualifiees", [])
+            if isinstance(o, dict) and o.get("wct_id") == wct_id
+        ]
+        if len(observations_finales_m3) != 1 or (
+            observations_finales_m3[0].get("preuve", {}).get("m3_source_hash")
+            != preuve.get("m3_source_hash")
+            or observations_finales_m3[0].get("preuve", {}).get("m4_wct_hash")
+            != preuve.get("m4_wct_hash")
+            or observations_finales_m3[0].get("duree_estimee_minutes") != observation.get("duree_estimee_minutes")
+            or observations_finales_m3[0].get("duree_reelle_minutes") != observation.get("duree_reelle_minutes")
+        ):
+            return {"statut": "refuse", "wct_id": wct_id,
+                    "raison": "jointure_m3_changee_pendant_lecture"}
+        admissions_finales = [
+            p for p in rapport_m3_final.get("provenance_observations", [])
+            if isinstance(p, dict) and p.get("wct_id") == wct_id
+        ]
+        if len(admissions_finales) != 1 or any(
+            admissions_finales[0].get(cle) != admission.get(cle)
+            for cle in ("m3_source_hash", "m4_wct_hash", "partition")
+        ):
+            return {"statut": "refuse", "wct_id": wct_id,
+                    "raison": "admission_calibration_changee_pendant_lecture"}
+        exclusions_marge = []
+        if "prix_definitif" not in rentabilite:
+            exclusions_marge.append("finalite_facture_inconnue")
+        elif rentabilite.get("prix_definitif") is not True:
+            exclusions_marge.append("facture_brouillon_ou_prix_non_definitif")
+        if rentabilite.get("cout_reel_complet") is not True:
+            exclusions_marge.append("cout_reel_incomplet_ou_inconnu")
+        if rentabilite.get("verdict") != "CALCULEE":
+            exclusions_marge.append("verdict_m5_non_calculee")
+        version_m8 = entrees_m8.get("version_entrees")
+        if not isinstance(version_m5, str) or not version_m5:
+            exclusions_marge.append("version_entrees_m5_absente")
+        if not isinstance(version_m8, str) or not version_m8:
+            exclusions_marge.append("version_entrees_m8_absente")
+        elif version_m8 != version_m5:
+            exclusions_marge.append("version_entrees_m8_divergente_de_m5")
+        if trace_m5.get("a_jour") is not True:
+            exclusions_marge.append("trace_m5_non_a_jour")
+        if marge_m8.get("statut") != "calculee" or marge_m8.get("valeur") != rentabilite.get("marge_reelle_cad"):
+            exclusions_marge.append("mesure_marge_m8_absente_ou_divergente")
+
+        variance_m8 = variances_m8[0] if variances_m8 else {}
+        variance = {
+            "statut": variance_m8.get("statut", "non_calculable"),
+            "valeur": variance_m8.get("valeur"),
+            "unite": variance_m8.get("unite"),
+            "source": "M6 via faits reçus par M8",
+            "cause": None,
+        }
+        exclusions_variance = []
+        if variance["statut"] != "calculee":
+            exclusions_variance.append("variance_m6_absente_ou_non_evaluee")
+        unite_materiau = variance_m8.get("entrees", {}).get("unite")
+        if not isinstance(unite_materiau, str) or not unite_materiau.strip():
+            exclusions_variance.append("unite_materiau_absente_ou_inconnue")
+        if variance["unite"] != "pourcentage":
+            exclusions_variance.append("unite_variance_absente_ou_inconnue")
+        variance["unite_materiau"] = unite_materiau if not exclusions_variance else None
+        if exclusions_variance:
+            variance.update({"statut": "exclue", "valeur": None, "exclusions": exclusions_variance})
+
+        def _json_metier(valeur: Any) -> Any:
+            if isinstance(valeur, Decimal):
+                return format(valeur, "f")
+            if valeur is None or type(valeur) in (str, int, bool):
+                return valeur
+            return None
+
+        sortie = {
+            "statut": "observee",
+            "coupure_utc": coupure_utc,
+            "sources": {
+                "wct_id": wct_id, "devis_id": devis_id,
+                "estimation_hash": preuve.get("m3_source_hash"),
+                "wct_hash": preuve.get("m4_wct_hash"),
+                "version_calibration": observation.get("calibration_version_id"),
+                "partition_calibration": admission["partition"],
+                "horodatage_completion_utc": observation.get("horodatage_completion"),
+            },
+            "temps": {
+                "estime_minutes": _json_metier(observation.get("duree_estimee_minutes")),
+                "ecoule_reel_minutes": _json_metier(observation.get("duree_reelle_minutes")),
+                "semantique": observation.get("preuve", {}).get("semantique_reel"),
+                "unite": observation.get("preuve", {}).get("unite_duree_reelle"),
+                "paie_heures_personnes": "non mesurees par ces sources",
+                "trace_m3": {k: _json_metier(observation.get(k)) for k in (
+                    "type_service", "quantite", "unite_quantite", "taux_minutes_par_unite", "bareme_version",
+                )},
+            },
+            "variance_materiaux": variance,
+            "rentabilite": {
+                "statut": "exclue" if exclusions_marge else "qualifiee",
+                "montant_marge_reelle_cad": None if exclusions_marge else rentabilite.get("marge_reelle_cad"),
+                "prix_definitif": rentabilite.get("prix_definitif"),
+                "cout_reel_complet": rentabilite.get("cout_reel_complet"),
+                "verdict_m5": rentabilite.get("verdict"),
+                "version_entrees_m5": version_m5,
+                "version_entrees_m8": version_m8,
+                "trace_m5_a_jour": trace_m5.get("a_jour"),
+                "exclusions": sorted(set(exclusions_marge)),
+            },
+            "cause": None,
+            "lecture_intermodules": "sources relues séquentiellement; aucun snapshot transactionnel commun garanti",
+        }
+        # Revalider l'identité active juste avant la réponse; les T0 du dispatcher ne suffisent pas.
+        personne_finale = identite.personne_active(stockage.connexion_courante(), appareil.personne)
+        if personne_finale is None or "admin" not in personne_finale.roles:
+            return {"statut": "refuse", "raison": "identite_admin_revoquee_pendant_lecture"}
+        enveloppe = {"ok": True, "resultat": sortie}
+        if len(json.dumps(enveloppe, ensure_ascii=False)) > 6_000:
+            return {"statut": "refuse", "wct_id": wct_id, "raison": "rapport_trop_volumineux"}
+        return sortie
+    except (AttributeError, ImportError, KeyError, TypeError, ValueError, RecursionError):
+        return {"statut": "exclu", "wct_id": wct_id,
+                "exclusions": ["source_ou_projection_illisible"], "cause": None}
 
 
 def evaluer_calibration_cohortes(
@@ -1562,6 +2056,26 @@ def outils() -> tuple[Outil, ...]:
             roles_appareil=frozenset({"seller", "admin"}),
         ),
         Outil(
+            nom="m3_lister_devis",
+            description=(
+                "Liste de façon paginée les devis des leads actuellement assignés au vendeur humain "
+                "authentifié. Inclut tous les statuts courants. La propriété est relue depuis M2; "
+                "aucun identifiant de propriétaire n'est accepté. Ne rend que les devis de la page, "
+                "sans total global."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "limite": {"type": "integer", "minimum": 1, "maximum": 50, "default": 20},
+                    "curseur": {"type": ["string", "null"]},
+                },
+                "additionalProperties": False,
+            },
+            fonction=lister_devis_vendeur,
+            autonomie=Autonomie.T0,
+            roles_appareil=frozenset({_ROLE_VENDEUR}),
+        ),
+        Outil(
             nom="m3_marquer_devis_accepte",
             description=(
                 "Marque un devis (brouillon ou envoyé) ACCEPTE et publie m3.devis_accepte dans la "
@@ -1622,6 +2136,40 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=evaluer_calibration_cohortes,
+            autonomie=Autonomie.T0,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m3_auditer_couverture_apprentissage",
+            description=(
+                "Diagnostic admin appareil actif, sans paramètres : compare les identités des publications "
+                "M4 présentes dans le bus aux reçus M3. Compteurs et exemples bornés, aucun payload ni GPS. "
+                "Ne vérifie ni le contenu des WCT, ni toutes les complétions terrain, ni la qualité "
+                "des mesures; aucun reçu, rejeu, barème ou prix modifié. SQLite uniquement."
+            ),
+            parametres={"type": "object", "properties": {}, "additionalProperties": False},
+            fonction=auditer_couverture_apprentissage, autonomie=Autonomie.T0,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m3_lire_apprentissage_chantier",
+            description=(
+                "Lecture bornée d'un seul chantier pour rapprocher la trace M3, le temps écoulé M4, "
+                "la variance M6 via M8 et la rentabilité M5. Exige une coupure UTC explicite et une "
+                "identité admin confirmée; aucun barème, montant ou registre n'est modifié. Le temps "
+                "écoulé n'est pas une paie ni des heures-personnes; une association n'établit jamais "
+                "une cause. Les faits absents, ambigus, périmés ou d'unité inconnue sont exclus et nommés."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "wct_id": {"type": "string", "minLength": 1, "maxLength": 128},
+                    "coupure_utc": {"type": "string", "format": "date-time", "maxLength": 40},
+                },
+                "required": ["wct_id", "coupure_utc"],
+                "additionalProperties": False,
+            },
+            fonction=lire_apprentissage_chantier,
             autonomie=Autonomie.T0,
             roles_appareil=frozenset({"admin"}),
         ),

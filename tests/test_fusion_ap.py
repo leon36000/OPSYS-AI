@@ -4,21 +4,25 @@ from __future__ import annotations
 
 import base64
 import concurrent.futures
+import hashlib
 import io
 import json
 import threading
 
 import pytest
+from alembic import command
 from reportlab.pdfgen import canvas
 from sqlalchemy import func, select, text, update
 
-from opsys import etat, fusion_ap, fusion_pdf, stockage
+from opsys import etat, fusion_ap, fusion_pdf, fusion_pdf_ocr, stockage
 from opsys.stockage.schema import (
     FUSION_AP_BROUILLONS,
     FUSION_AP_COMMANDES,
+    FUSION_AP_OCR_SOURCES,
     FUSION_COMMANDES,
     FUSION_LOTS,
     FUSION_PDF_LOTS,
+    FUSION_PDF_OCR_RUNS,
     FUSION_PDF_QUOTA,
     PERSONNES,
     REGISTRES,
@@ -94,6 +98,283 @@ def _payload(resultat: dict, *, total: str = "114.98 CAD") -> dict:
             )
         },
     }
+
+
+def _lot_ocr_fictif(acteur: str, suffixe: str, monkeypatch, tmp_path) -> tuple[dict, dict]:
+    pdf_octets = f"%PDF-1.7\n% FIXTURE OCR FINANCIERE FICTIVE {suffixe}\n%%EOF\n".encode("ascii")
+    lot = fusion_pdf.creer(
+        stockage.transaction, acteur, mutation_id=f"ap-ocr-pdf-{suffixe}", pdf_octets=pdf_octets,
+    )
+    with stockage.transaction() as cnx:
+        cnx.execute(update(FUSION_PDF_LOTS).where(
+            FUSION_PDF_LOTS.c.lot_id == lot["lot_id"],
+        ).values(statut="REFUSE", code="PDF_IMAGE_OU_MIXTE", revision=2))
+
+    bundle = tmp_path / f"bundle-ocr-fictif-{suffixe}"
+    bundle.mkdir()
+    monkeypatch.setattr(fusion_pdf_ocr, "valider_bundle", lambda _path: {"rasterizer/fictif": "0" * 64})
+
+    def extraire(source: bytes, *, lot_id: str, revision_source: int, bundle):
+        from opsys.ocr_runtime import contexte_ocr
+
+        contexte = contexte_ocr(source, lot_id=lot_id, revision_source=revision_source)
+        return {
+            "schema_version": 1, "genre": "m5.ocr_scan_candidat", "statut": "CANDIDAT_A_REVOIR",
+            "lot_id": contexte.lot_id, "source_sha256": contexte.source_sha256,
+            "revision_source": contexte.revision_source,
+            "configuration_sha256": contexte.configuration_sha256,
+            "profil": {
+                "rasteriseur": contexte.rasteriseur, "moteur": contexte.moteur,
+                "leptonica": contexte.leptonica, "pdfium_sha256": contexte.pdfium_sha256,
+                "modele_sha256": contexte.modele_sha256, "langue": "fra",
+            },
+            "page": {"numero": 1, "largeur_px": 100, "hauteur_px": 100, "tokens": [
+                {"texte": "FOURNISSEUR OCR FICTIF", "x0": 1, "y0": 1, "x1": 40, "y1": 10,
+                 "confiance_brute": 91},
+                {"texte": "114.98", "x0": 1, "y0": 12, "x1": 20, "y1": 20,
+                 "confiance_brute": 82},
+            ]},
+        }
+
+    monkeypatch.setattr(fusion_pdf_ocr, "extraire_candidat", extraire)
+    run = fusion_pdf_ocr.preparer(
+        stockage.transaction, acteur, lot["lot_id"], 2, f"ap-ocr-run-{suffixe}", bundle=bundle,
+    )
+    return {**lot, "revision": 2}, run
+
+
+def _payload_ocr(candidat: dict, *, altered_hash: bool = False) -> dict:
+    token = candidat["page"]["tokens"][0]
+    empreinte = hashlib.sha256(json.dumps(
+        token, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")).hexdigest()
+    champs = {cle: "" for cle in fusion_ap._CHAMPS}
+    champs["fournisseur"] = "FOURNISSEUR HUMAIN FICTIF"
+    return {
+        "schema_version": 1,
+        "champs": champs,
+        "citations": {"fournisseur": [{
+            "page": 1, "token_index": 0, "token_sha256": "0" * 64 if altered_hash else empreinte,
+        }]},
+    }
+
+
+def _migration_ap(revision: str, *, descendre: bool = False) -> None:
+    cfg = stockage._config()
+    with stockage.moteur().begin() as cnx:
+        cfg.attributes["connection"] = cnx
+        (command.downgrade if descendre else command.upgrade)(cfg, revision)
+
+
+def test_brouillon_ocr_fictif_vide_puis_saisie_humaine_citee_rejeu_et_aad(
+    nathan, monkeypatch, tmp_path,
+):
+    monkeypatch.setenv("OPSYS_INGESTION_CLE", base64.b64encode(b"z" * 32).decode())
+    lot, run = _lot_ocr_fictif(nathan, "parcours", monkeypatch, tmp_path)
+    candidat = fusion_pdf_ocr.lire_resultat(stockage.transaction, nathan, run["ocr_run_id"])
+    source = {"ocr_run_id": run["ocr_run_id"], "revision_run": run["revision_run"]}
+
+    cree = fusion_ap.creer_brouillon_ocr(
+        stockage.transaction, nathan, lot["lot_id"], mutation_id="ap-ocr-cree-fictif",
+        revision_pdf_attendue=lot["revision"], **source,
+    )
+    assert cree["source_type"] == "OCR_CANDIDAT" and cree["revision_run"] == run["revision_run"]
+    assert fusion_ap.lire_champs(stockage.transaction, nathan, lot["lot_id"]) == {
+        "schema_version": 1,
+        "champs": {cle: "" for cle in fusion_ap._CHAMPS},
+        "citations": {},
+    }
+    proposition = _payload_ocr(candidat)
+    modifie = fusion_ap.enregistrer_ocr(
+        stockage.transaction, nathan, lot["lot_id"], mutation_id="ap-ocr-saisie-fictive",
+        revision_pdf_attendue=lot["revision"], revision_attendue=1, **source, proposition=proposition,
+    )
+    assert modifie["revision"] == 2 and modifie["source_type"] == "OCR_CANDIDAT"
+    assert fusion_ap.lire_revue_privee(stockage.transaction, nathan, lot["lot_id"])["proposition"] == proposition
+    assert fusion_ap.creer_brouillon_ocr(
+        stockage.transaction, nathan, lot["lot_id"], mutation_id="ap-ocr-cree-fictif",
+        revision_pdf_attendue=lot["revision"], **source,
+    )["revision_appliquee"] == 1
+
+    with stockage.transaction() as cnx:
+        source_row = dict(cnx.execute(select(FUSION_AP_OCR_SOURCES)).mappings().one())
+        brouillon = dict(cnx.execute(select(FUSION_AP_BROUILLONS)).mappings().one())
+        assert cnx.execute(select(func.count()).select_from(FUSION_LOTS)).scalar_one() == 0
+        assert cnx.execute(select(func.count()).select_from(FUSION_AP_COMMANDES)).scalar_one() == 2
+        assert "FOURNISSEUR OCR FICTIF" not in brouillon["proposition_cipher"]
+    assert source_row["source_type"] == "OCR_CANDIDAT"
+    # Même proposition et même lot, mais autre identité OCR: l'AAD ne déchiffre plus.
+    mauvais = {**brouillon, **source_row, "ocr_run_id": "00000000-0000-4000-8000-000000000099"}
+    with pytest.raises(fusion_ap.FusionAPErreur) as erreur:
+        fusion_ap._dechiffrer(mauvais)
+    assert erreur.value.code == "CIPHER_INVALIDE"
+
+
+def test_rejeu_commande_native_heriteree_apres_migration_0026(nathan, monkeypatch):
+    monkeypatch.setenv("OPSYS_INGESTION_CLE", base64.b64encode(b"h" * 32).decode())
+    pdf = _pdf_prete(nathan, "ap-native-heritage")
+    resultat = fusion_pdf.lire_resultat(stockage.transaction, nathan, pdf["lot_id"])
+    proposition = fusion_ap._valider_proposition(_payload(resultat), resultat)
+    mutation_id = "ap-native-avant-0026"
+    cree = fusion_ap.enregistrer(
+        stockage.transaction, nathan, pdf["lot_id"], mutation_id=mutation_id,
+        revision_pdf_attendue=pdf["revision"], revision_attendue=0, proposition=proposition,
+    )
+    empreinte_ancienne = hashlib.sha256(json.dumps(
+        {"revision_pdf": pdf["revision"], "revision_ap": 0, "proposition": proposition},
+        ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")).hexdigest()
+    with stockage.transaction() as cnx:
+        commande_native = cnx.execute(select(FUSION_AP_COMMANDES).where(
+            FUSION_AP_COMMANDES.c.lot_id == pdf["lot_id"],
+            FUSION_AP_COMMANDES.c.mutation_id == mutation_id,
+        )).mappings().one()
+        assert commande_native["empreinte_requete"] == empreinte_ancienne
+
+    _migration_ap("0025", descendre=True)
+    _migration_ap("head")
+    reprise = fusion_ap.enregistrer(
+        stockage.transaction, nathan, pdf["lot_id"], mutation_id=mutation_id,
+        revision_pdf_attendue=pdf["revision"], revision_attendue=0, proposition=proposition,
+    )
+    assert cree["revision_appliquee"] == reprise["revision_appliquee"] == 1
+
+
+def test_brouillon_ocr_refuse_hash_mauvais_lot_stale_et_quota_sans_mutation(
+    nathan, monkeypatch, tmp_path,
+):
+    monkeypatch.setenv("OPSYS_INGESTION_CLE", base64.b64encode(b"q" * 32).decode())
+    lot, run = _lot_ocr_fictif(nathan, "refus", monkeypatch, tmp_path)
+    candidat = fusion_pdf_ocr.lire_resultat(stockage.transaction, nathan, run["ocr_run_id"])
+    source = {"ocr_run_id": run["ocr_run_id"], "revision_run": run["revision_run"]}
+    mauvais_hash = _payload_ocr(candidat, altered_hash=True)
+    with pytest.raises(fusion_ap.FusionAPErreur) as erreur:
+        fusion_ap.enregistrer_ocr(
+            stockage.transaction, nathan, lot["lot_id"], mutation_id="ap-ocr-hash-refuse",
+            revision_pdf_attendue=lot["revision"], revision_attendue=0, **source, proposition=mauvais_hash,
+        )
+    assert erreur.value.code == "CITATION_INVALIDE"
+
+    with stockage.transaction() as cnx:
+        quota_avant = cnx.execute(select(FUSION_PDF_QUOTA.c.octets_cipher)).scalar_one()
+    with pytest.raises(fusion_ap.FusionAPErreur) as erreur:
+        fusion_ap.enregistrer_ocr(
+            stockage.transaction, nathan, lot["lot_id"], mutation_id="ap-ocr-direct-nonvide",
+            revision_pdf_attendue=lot["revision"], revision_attendue=0,
+            **source, proposition=_payload_ocr(candidat),
+        )
+    assert erreur.value.code == "BROUILLON_AP_ABSENT"
+    with stockage.transaction() as cnx:
+        assert cnx.execute(select(func.count()).select_from(FUSION_AP_BROUILLONS)).scalar_one() == 0
+        assert cnx.execute(select(func.count()).select_from(FUSION_AP_OCR_SOURCES)).scalar_one() == 0
+        assert cnx.execute(select(func.count()).select_from(FUSION_AP_COMMANDES)).scalar_one() == 0
+        assert cnx.execute(select(FUSION_PDF_QUOTA.c.octets_cipher)).scalar_one() == quota_avant
+
+    autre, autre_run = _lot_ocr_fictif(nathan, "mauvais-lot", monkeypatch, tmp_path)
+    assert autre["lot_id"] != lot["lot_id"] and autre_run["ocr_run_id"] != run["ocr_run_id"]
+    with pytest.raises(fusion_ap.FusionAPErreur) as erreur:
+        fusion_ap.creer_brouillon_ocr(
+            stockage.transaction, nathan, autre["lot_id"], mutation_id="ap-ocr-mauvais-lot",
+            revision_pdf_attendue=autre["revision"], **source,
+        )
+    assert erreur.value.code == "SOURCE_OCR_OBSOLETE"
+    assert autre_run["ocr_run_id"] != run["ocr_run_id"]
+
+    with stockage.transaction() as cnx:
+        cnx.execute(update(FUSION_PDF_OCR_RUNS).where(
+            FUSION_PDF_OCR_RUNS.c.ocr_run_id == run["ocr_run_id"],
+        ).values(revision_run=run["revision_run"] + 1))
+    with pytest.raises(fusion_ap.FusionAPErreur):
+        fusion_ap.creer_brouillon_ocr(
+            stockage.transaction, nathan, lot["lot_id"], mutation_id="ap-ocr-run-obsolete",
+            revision_pdf_attendue=lot["revision"], **source,
+        )
+    with stockage.transaction() as cnx:
+        assert cnx.execute(select(func.count()).select_from(FUSION_AP_BROUILLONS)).scalar_one() == 0
+        assert cnx.execute(select(func.count()).select_from(FUSION_AP_OCR_SOURCES)).scalar_one() == 0
+        assert cnx.execute(select(func.count()).select_from(FUSION_AP_COMMANDES)).scalar_one() == 0
+
+
+def test_brouillon_ocr_relecture_refuse_source_run_ou_ciphertext_modifies(
+    nathan, monkeypatch, tmp_path,
+):
+    monkeypatch.setenv("OPSYS_INGESTION_CLE", base64.b64encode(b"w" * 32).decode())
+    lot, run = _lot_ocr_fictif(nathan, "perime", monkeypatch, tmp_path)
+    created = fusion_ap.creer_brouillon_ocr(
+        stockage.transaction, nathan, lot["lot_id"], mutation_id="ap-ocr-perime-cree",
+        revision_pdf_attendue=lot["revision"], ocr_run_id=run["ocr_run_id"],
+        revision_run=run["revision_run"],
+    )
+    with stockage.transaction() as cnx:
+        cnx.execute(update(FUSION_PDF_LOTS).where(
+            FUSION_PDF_LOTS.c.lot_id == lot["lot_id"],
+        ).values(source_sha256="0" * 64))
+    with pytest.raises(fusion_ap.FusionAPErreur) as erreur:
+        fusion_ap.lire_revue_privee(stockage.transaction, nathan, lot["lot_id"])
+    assert erreur.value.code == "OCR_RESULTAT_INDISPONIBLE"
+    with pytest.raises(fusion_ap.FusionAPErreur):
+        fusion_ap.creer_brouillon_ocr(
+            stockage.transaction, nathan, lot["lot_id"], mutation_id="ap-ocr-perime-nouvelle-tentative",
+            revision_pdf_attendue=lot["revision"], ocr_run_id=run["ocr_run_id"],
+            revision_run=run["revision_run"],
+        )
+    with stockage.transaction() as cnx:
+        source_row = dict(cnx.execute(select(FUSION_AP_OCR_SOURCES)).mappings().one())
+        assert source_row["ocr_run_id"] == run["ocr_run_id"]
+        assert source_row["revision_run"] == run["revision_run"]
+        assert cnx.execute(select(func.count()).select_from(FUSION_AP_BROUILLONS)).scalar_one() == 1
+    assert created["revision"] == 1
+
+
+def test_brouillon_ocr_ciphertext_corrompu_refuse_sans_perdre_provenance(
+    nathan, monkeypatch, tmp_path,
+):
+    monkeypatch.setenv("OPSYS_INGESTION_CLE", base64.b64encode(b"z" * 32).decode())
+    lot, run = _lot_ocr_fictif(nathan, "cipher-corrompu", monkeypatch, tmp_path)
+    fusion_ap.creer_brouillon_ocr(
+        stockage.transaction, nathan, lot["lot_id"], mutation_id="ap-ocr-cipher-cree",
+        revision_pdf_attendue=lot["revision"], ocr_run_id=run["ocr_run_id"],
+        revision_run=run["revision_run"],
+    )
+    with stockage.transaction() as cnx:
+        row = cnx.execute(select(FUSION_AP_BROUILLONS)).mappings().one()
+        cipher = row["proposition_cipher"]
+        emplacement = 8
+        remplacement = "A" if cipher[emplacement] != "A" else "B"
+        cnx.execute(update(FUSION_AP_BROUILLONS).where(
+            FUSION_AP_BROUILLONS.c.lot_id == lot["lot_id"],
+        ).values(proposition_cipher=cipher[:emplacement] + remplacement + cipher[emplacement + 1:]))
+    with pytest.raises(fusion_ap.FusionAPErreur) as erreur:
+        fusion_ap.lire_revue_privee(stockage.transaction, nathan, lot["lot_id"])
+    assert erreur.value.code == "CIPHER_INVALIDE"
+    with stockage.transaction() as cnx:
+        source = cnx.execute(select(FUSION_AP_OCR_SOURCES)).mappings().one()
+        assert source["ocr_run_id"] == run["ocr_run_id"]
+        assert source["revision_run"] == run["revision_run"]
+
+
+def test_brouillon_ocr_quota_refuse_rollback_sans_modifier_quota_ocr_ou_source(
+    nathan, monkeypatch, tmp_path,
+):
+    monkeypatch.setenv("OPSYS_INGESTION_CLE", base64.b64encode(b"r" * 32).decode())
+    lot, run = _lot_ocr_fictif(nathan, "quota", monkeypatch, tmp_path)
+    with stockage.transaction() as cnx:
+        cnx.execute(FUSION_PDF_QUOTA.update().where(FUSION_PDF_QUOTA.c.id == 1).values(
+            octets_cipher=fusion_pdf.QUOTA_CIPHER_MAX,
+        ))
+    with pytest.raises(fusion_ap.FusionAPErreur) as erreur:
+        fusion_ap.creer_brouillon_ocr(
+            stockage.transaction, nathan, lot["lot_id"], mutation_id="ap-ocr-quota-refuse",
+            revision_pdf_attendue=lot["revision"], ocr_run_id=run["ocr_run_id"],
+            revision_run=run["revision_run"],
+        )
+    assert erreur.value.code == "PDF_QUOTA_ATTEINT"
+    with stockage.transaction() as cnx:
+        assert cnx.execute(select(func.count()).select_from(FUSION_AP_BROUILLONS)).scalar_one() == 0
+        assert cnx.execute(select(func.count()).select_from(FUSION_AP_OCR_SOURCES)).scalar_one() == 0
+        assert cnx.execute(select(func.count()).select_from(FUSION_AP_COMMANDES)).scalar_one() == 0
+        assert cnx.execute(select(FUSION_PDF_QUOTA.c.octets_cipher)).scalar_one() == fusion_pdf.QUOTA_CIPHER_MAX
+        assert cnx.execute(select(FUSION_PDF_OCR_RUNS.c.statut)).scalar_one() == "A_REVOIR"
 
 
 def test_brouillon_ap_chiffre_cite_idempotent_et_sans_ecriture_comptable(nathan, monkeypatch):

@@ -26,21 +26,70 @@ function envelope(resultat: Record<string, unknown>, accord_neuf?: boolean) {
   return { ok: true, resultat, ...(accord_neuf === undefined ? {} : { accord_neuf }) };
 }
 
-function released(id: string, run: string, candidate = 0, ordinal = 0) {
-  return envelope({
+type RuntimeRequest = { tool: string; args: Record<string, unknown> };
+
+function runtimeReceipt(
+  request: RuntimeRequest,
+  id: string,
+  statut: string,
+  tokensReels: number | null,
+): Record<string, unknown> {
+  const args = request.args;
+  return {
     id,
-    statut: "liberee",
     agent_id: "demo",
-    execution_id: run,
-    attempt_id: `${run}:${candidate}`,
-    cycle_id: `${run}:${candidate}:${ordinal}`,
-    candidate_index: candidate,
-    stream_ordinal: ordinal,
+    departement: "m01-front-office",
+    cle_idempotence: args.cle_idempotence,
+    tokens_plafond: args.tokens_plafond,
+    tokens_reels: tokensReels,
+    execution_id: args.execution_id,
+    tours: args.tours,
+    reessais: args.candidate_index,
+    statut,
+    attempt_id: args.attempt_id,
+    cycle_id: args.cycle_id,
+    candidate_index: args.candidate_index,
+    stream_ordinal: args.stream_ordinal,
+    is_fallback_retry: args.is_fallback_retry,
+  };
+}
+
+function installRuntimeReplies(ids: string[]): void {
+  let nextId = 0;
+  const receipts = new Map<string, Record<string, unknown>>();
+  mocks.callOpsysMcpTool.mockImplementation(async (request: RuntimeRequest) => {
+    if (request.tool === "opsys_runtime_admettre") {
+      const id = ids[nextId++];
+      if (!id) {
+        throw new Error("unexpected admission request in test fixture");
+      }
+      const receipt = runtimeReceipt(request, id, "reservee", null);
+      receipts.set(id, receipt);
+      return envelope(receipt, true);
+    }
+    const id = request.args.reservation_id;
+    const previous = typeof id === "string" ? receipts.get(id) : undefined;
+    if (!previous) {
+      throw new Error("unexpected reservation id in test fixture");
+    }
+    if (request.tool === "opsys_runtime_concilier") {
+      return envelope({
+        ...previous,
+        statut: "conciliee",
+        tokens_reels: request.args.tokens_reels,
+      });
+    }
+    if (request.tool === "opsys_runtime_liberer_avant_dispatch") {
+      return envelope({ ...previous, statut: "liberee" });
+    }
+    throw new Error(`unexpected runtime tool in test fixture: ${request.tool}`);
   });
 }
 
 describe("OPSYS runtime provider admission", () => {
-  beforeEach(() => mocks.callOpsysMcpTool.mockReset());
+  beforeEach(() => {
+    mocks.callOpsysMcpTool.mockReset();
+  });
 
   it("refuses generic compaction only for agents with configured runtime admission", () => {
     expect(opsysRuntimeCompactionRefusal(config, "opsys-agent-demo")).toContain(
@@ -69,11 +118,7 @@ describe("OPSYS runtime provider admission", () => {
   });
 
   it("dispatches only on a fresh grant, then reconciles normalized usage", async () => {
-    mocks.callOpsysMcpTool
-      .mockResolvedValueOnce(envelope({ id: "reservation-0001" }, true))
-      .mockResolvedValueOnce(
-        envelope({ id: "reservation-0001", statut: "conciliee", tokens_reels: 9 }),
-      );
+    installRuntimeReplies(["4e66faedf8a702dc9e534b3ffe91e2e8"]);
     const message = { usage: { totalTokens: 9 } };
     const provider = vi.fn(async () => ({ result: async () => message })) as unknown as StreamFn;
     const guarded = createOpsysRuntimeAdmissionStreamFn({
@@ -109,12 +154,14 @@ describe("OPSYS runtime provider admission", () => {
     expect(requestedEnvelope).toBeGreaterThan(0);
     expect(mocks.callOpsysMcpTool.mock.calls[1]?.[0]).toMatchObject({
       tool: "opsys_runtime_concilier",
-      args: { reservation_id: "reservation-0001", tokens_reels: 9 },
+      args: { reservation_id: "4e66faedf8a702dc9e534b3ffe91e2e8", tokens_reels: 9 },
     });
   });
 
   it("keeps an existing cycle from authorizing a second provider dispatch", async () => {
-    mocks.callOpsysMcpTool.mockResolvedValueOnce(envelope({ id: "reservation-0001" }, false));
+    mocks.callOpsysMcpTool.mockResolvedValueOnce(
+      envelope({ id: "4e66faedf8a702dc9e534b3ffe91e2e8" }, false),
+    );
     const provider = vi.fn(async () => ({
       result: async () => ({ usage: { totalTokens: 1 } }),
     })) as unknown as StreamFn;
@@ -130,6 +177,98 @@ describe("OPSYS runtime provider admission", () => {
       guarded({ contextWindow: 64, maxTokens: 16 } as never, { messages: [] } as never),
     ).rejects.toThrow("did not return a reservation id");
     expect(provider).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["execution_id", "another-run"],
+    ["agent_id", "another-profile"],
+    ["cycle_id", "another-cycle"],
+    ["attempt_id", "another-attempt"],
+    ["cle_idempotence", "another-cycle-key"],
+    ["is_fallback_retry", true],
+    ["tokens_plafond", 1],
+    ["stream_ordinal", 99],
+  ])("refuses a fresh receipt whose %s differs from the captured request", async (field, value) => {
+    const provider = vi.fn(async () => ({
+      result: async () => ({ usage: { totalTokens: 1 } }),
+    })) as unknown as StreamFn;
+    mocks.callOpsysMcpTool.mockImplementationOnce(async (request: RuntimeRequest) =>
+      envelope(
+        {
+          ...runtimeReceipt(request, "e1331a2dd75c467e8fe891e5d7525a57", "reservee", null),
+          [field]: value,
+        },
+        true,
+      ),
+    );
+    const guarded = createOpsysRuntimeAdmissionStreamFn({
+      config,
+      agentId: "opsys-agent-demo",
+      runId: "run-receipt-check-001",
+      getCandidateIndex: () => 0,
+      streamFn: provider,
+    });
+
+    await expect(
+      guarded({ contextWindow: 64, maxTokens: 16 } as never, { messages: [] } as never),
+    ).rejects.toThrow("receipt does not match");
+    expect(mocks.callOpsysMcpTool).toHaveBeenCalledTimes(1);
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  it("refuses an admission receipt whose identifier is not 32-character truncated SHA-256 hex", async () => {
+    const provider = vi.fn(async () => ({
+      result: async () => ({ usage: { totalTokens: 1 } }),
+    })) as unknown as StreamFn;
+    mocks.callOpsysMcpTool.mockImplementationOnce(async (request: RuntimeRequest) =>
+      envelope(runtimeReceipt(request, "not-a-uuid", "reservee", null), true),
+    );
+    const guarded = createOpsysRuntimeAdmissionStreamFn({
+      config,
+      agentId: "opsys-agent-demo",
+      runId: "run-receipt-id-001",
+      getCandidateIndex: () => 0,
+      streamFn: provider,
+    });
+
+    await expect(
+      guarded({ contextWindow: 64, maxTokens: 16 } as never, { messages: [] } as never),
+    ).rejects.toThrow("did not return a reservation id");
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  it("rejects a reconciliation receipt bound to a different admitted profile", async () => {
+    let admitted: Record<string, unknown> | undefined;
+    mocks.callOpsysMcpTool.mockImplementation(async (request: RuntimeRequest) => {
+      if (request.tool === "opsys_runtime_admettre") {
+        admitted = runtimeReceipt(request, "6a86117288b4f9ed098ef7c83218fca4", "reservee", null);
+        return envelope(admitted, true);
+      }
+      return envelope({
+        ...admitted,
+        agent_id: "other-profile",
+        statut: "conciliee",
+        tokens_reels: request.args.tokens_reels,
+      });
+    });
+    const provider = vi.fn(async () => ({
+      result: async () => ({ usage: { totalTokens: 1 } }),
+    })) as unknown as StreamFn;
+    const guarded = createOpsysRuntimeAdmissionStreamFn({
+      config,
+      agentId: "opsys-agent-demo",
+      runId: "run-reconcile-check-001",
+      getCandidateIndex: () => 0,
+      streamFn: provider,
+    });
+
+    const stream = await guarded(
+      { contextWindow: 64, maxTokens: 16 } as never,
+      { messages: [] } as never,
+    );
+    await expect(stream.result()).rejects.toThrow("could not verify the reconciled provider usage");
+    expect(provider).toHaveBeenCalledOnce();
+    expect(mocks.callOpsysMcpTool).toHaveBeenCalledTimes(2);
   });
 
   it("fails closed on a legacy profile marker without a host-owned revision", async () => {
@@ -158,15 +297,7 @@ describe("OPSYS runtime provider admission", () => {
   });
 
   it("counts tool-continuation streams as new cycles for the same candidate", async () => {
-    mocks.callOpsysMcpTool
-      .mockResolvedValueOnce(envelope({ id: "reservation-0001" }, true))
-      .mockResolvedValueOnce(
-        envelope({ id: "reservation-0001", statut: "conciliee", tokens_reels: 2 }),
-      )
-      .mockResolvedValueOnce(envelope({ id: "reservation-0002" }, true))
-      .mockResolvedValueOnce(
-        envelope({ id: "reservation-0002", statut: "conciliee", tokens_reels: 2 }),
-      );
+    installRuntimeReplies(["4e66faedf8a702dc9e534b3ffe91e2e8", "bbdd3f841ce0bb004a0a8a45e12b2f51"]);
     const provider = vi.fn(async () => ({
       result: async () => ({ usage: { totalTokens: 2 } }),
     })) as unknown as StreamFn;
@@ -202,7 +333,7 @@ describe("OPSYS runtime provider admission", () => {
   });
 
   it("keeps the reservation open when provider usage is missing or zero", async () => {
-    mocks.callOpsysMcpTool.mockResolvedValueOnce(envelope({ id: "reservation-unknown-1" }, true));
+    installRuntimeReplies(["f324814ccb38d729f542746a1b00680c"]);
     const provider = vi.fn(async () => ({
       result: async () => ({ usage: { totalTokens: 0 } }),
     })) as unknown as StreamFn;
@@ -225,13 +356,18 @@ describe("OPSYS runtime provider admission", () => {
 });
 
 describe("OPSYS scheduled final provider authority", () => {
-  beforeEach(() => mocks.callOpsysMcpTool.mockReset());
+  beforeEach(() => {
+    mocks.callOpsysMcpTool.mockReset();
+  });
 
   it("revalidates host authority after budget admission and before provider dispatch", async () => {
     const order: string[] = [];
-    mocks.callOpsysMcpTool.mockImplementation(async () => {
+    mocks.callOpsysMcpTool.mockImplementation(async (request: RuntimeRequest) => {
       order.push("budget");
-      return envelope({ id: "reservation-final-0001" }, true);
+      return envelope(
+        runtimeReceipt(request, "505b943d84d673119ac48e46b15d35dc", "reservee", null),
+        true,
+      );
     });
     const provider = vi.fn(async () => {
       order.push("provider");
@@ -256,9 +392,7 @@ describe("OPSYS scheduled final provider authority", () => {
   });
 
   it("releases only the fresh pre-dispatch reservation when live authority is withdrawn", async () => {
-    mocks.callOpsysMcpTool
-      .mockResolvedValueOnce(envelope({ id: "reservation-final-0002" }, true))
-      .mockResolvedValueOnce(released("reservation-final-0002", "run-final-0002"));
+    installRuntimeReplies(["d5277750b2d68d76da0e06a293cea344"]);
     const provider = vi.fn() as unknown as StreamFn;
     const guarded = createOpsysRuntimeAdmissionStreamFn({
       config,
@@ -280,7 +414,7 @@ describe("OPSYS scheduled final provider authority", () => {
       server: "opsys_runtime_demo",
       tool: "opsys_runtime_liberer_avant_dispatch",
       args: {
-        reservation_id: "reservation-final-0002",
+        reservation_id: "d5277750b2d68d76da0e06a293cea344",
         execution_id: "run-final-0002",
         attempt_id: "run-final-0002:0",
         cycle_id: "run-final-0002:0:0",
@@ -291,11 +425,52 @@ describe("OPSYS scheduled final provider authority", () => {
     });
   });
 
+  it("releases an admitted reservation when collector receipt publication fails before provider", async () => {
+    const order: string[] = [];
+    installRuntimeReplies(["71d2f9a60f5e86d4283c02d18fa794f3"]);
+    const runtimeReply = mocks.callOpsysMcpTool.getMockImplementation();
+    if (!runtimeReply) {
+      throw new Error("expected runtime admission mock implementation");
+    }
+    mocks.callOpsysMcpTool.mockImplementation(async (request: RuntimeRequest) => {
+      if (request.tool === "opsys_runtime_admettre") {
+        order.push("admission");
+      } else if (request.tool === "opsys_runtime_liberer_avant_dispatch") {
+        order.push("release");
+      }
+      return await runtimeReply(request);
+    });
+    const provider = vi.fn<StreamFn>(() => {
+      order.push("provider");
+      throw new Error("unexpected provider dispatch");
+    });
+    const receiptFailure = new Error("collector rejected malformed admission");
+    const guarded = createOpsysRuntimeAdmissionStreamFn({
+      config,
+      agentId: "opsys-agent-demo",
+      runId: "run-collector-receipt-failure",
+      getCandidateIndex: () => 0,
+      streamFn: provider,
+      onAdmitted: () => {
+        order.push("collector");
+        throw receiptFailure;
+      },
+    });
+
+    await expect(
+      guarded({ contextWindow: 64, maxTokens: 16 } as never, { messages: [] } as never),
+    ).rejects.toBe(receiptFailure);
+
+    expect(order).toEqual(["admission", "collector", "release"]);
+    expect(provider).not.toHaveBeenCalled();
+    expect(mocks.callOpsysMcpTool).toHaveBeenCalledTimes(2);
+    expect(mocks.callOpsysMcpTool.mock.calls[1]?.[0].tool).toBe(
+      "opsys_runtime_liberer_avant_dispatch",
+    );
+  });
+
   it("checks authority again for every stream and fallback candidate", async () => {
-    mocks.callOpsysMcpTool
-      .mockResolvedValueOnce(envelope({ id: "reservation-final-0003" }, true))
-      .mockResolvedValueOnce(envelope({ id: "reservation-fallback-0003" }, true))
-      .mockResolvedValueOnce(released("reservation-fallback-0003", "run-final-0003", 1, 1));
+    installRuntimeReplies(["a7ac07e9cd061d8a32af466d86351e0c", "fc78aec1ba5409e1bf83374cd0a337af"]);
     let candidateIndex = 0;
     const provider = vi.fn(async () => ({
       result: async () => ({ usage: { totalTokens: 4 } }),
@@ -326,15 +501,17 @@ describe("OPSYS scheduled final provider authority", () => {
     });
     expect(mocks.callOpsysMcpTool.mock.calls[2]?.[0]).toMatchObject({
       tool: "opsys_runtime_liberer_avant_dispatch",
-      args: { reservation_id: "reservation-fallback-0003", candidate_index: 1, stream_ordinal: 1 },
+      args: {
+        reservation_id: "fc78aec1ba5409e1bf83374cd0a337af",
+        candidate_index: 1,
+        stream_ordinal: 1,
+      },
     });
   });
 
   it("does not dispatch when the host aborts during final authority validation", async () => {
     const controller = new AbortController();
-    mocks.callOpsysMcpTool
-      .mockResolvedValueOnce(envelope({ id: "reservation-final-0004" }, true))
-      .mockResolvedValueOnce(released("reservation-final-0004", "run-final-0004"));
+    installRuntimeReplies(["b8809c51bcc82e596cc123b3380976a5"]);
     const provider = vi.fn() as unknown as StreamFn;
     const guarded = createOpsysRuntimeAdmissionStreamFn({
       config,
@@ -361,7 +538,9 @@ describe("OPSYS scheduled final provider authority", () => {
 });
 
 describe("OPSYS provider cleanup certainty boundary", () => {
-  beforeEach(() => mocks.callOpsysMcpTool.mockReset());
+  beforeEach(() => {
+    mocks.callOpsysMcpTool.mockReset();
+  });
   const model = makeProviderModelFixture({
     id: "fictif",
     provider: "openai",
@@ -376,11 +555,11 @@ describe("OPSYS provider cleanup certainty boundary", () => {
     "retains admission when the invoked provider throws %s",
     async (mode) => {
       const failure = new Error("provider result unknown fictif");
-      mocks.callOpsysMcpTool.mockResolvedValueOnce(
-        envelope({ id: "reservation-unknown-provider" }, true),
-      );
+      installRuntimeReplies(["bb003591bfb3fd7048c6ff6ab4aed72b"]);
       const provider = vi.fn<StreamFn>(() => {
-        if (mode === "sync") throw failure;
+        if (mode === "sync") {
+          throw failure;
+        }
         return Promise.reject(failure);
       });
       const guarded = createOpsysRuntimeAdmissionStreamFn({
@@ -398,9 +577,7 @@ describe("OPSYS provider cleanup certainty boundary", () => {
 
   it("retains admission when the dispatched stream result rejects", async () => {
     const failure = new Error("provider stream lost fictif");
-    mocks.callOpsysMcpTool.mockResolvedValueOnce(
-      envelope({ id: "reservation-unknown-result" }, true),
-    );
+    installRuntimeReplies(["833bf4bf41a6aa54f594403a6c488842"]);
     const provider = vi.fn<StreamFn>(async () => ({
       result: async () => {
         throw failure;
@@ -422,8 +599,10 @@ describe("OPSYS provider cleanup certainty boundary", () => {
 
   it("preserves the exact authority error when cleanup cannot be confirmed, without retry", async () => {
     const failure = new Error("authority withdrawn fictif");
+    installRuntimeReplies(["25a443de3492a3f98c45dd8d7698944b"]);
+    const validReplies = mocks.callOpsysMcpTool.getMockImplementation();
     mocks.callOpsysMcpTool
-      .mockResolvedValueOnce(envelope({ id: "reservation-release-lost" }, true))
+      .mockImplementationOnce(validReplies!)
       .mockRejectedValueOnce(new Error("private cleanup reply lost fictif"));
     const provider = vi.fn<StreamFn>(() => {
       throw new Error("unexpected dispatch");
@@ -475,9 +654,7 @@ describe("OPSYS provider cleanup certainty boundary", () => {
       mcp: { servers: { opsys_runtime_demo: server } },
     };
     const failure = new Error("authority withdrawn after config update fictif");
-    mocks.callOpsysMcpTool
-      .mockResolvedValueOnce(envelope({ id: "reservation-captured" }, true))
-      .mockResolvedValueOnce(released("reservation-captured", "run-captured"));
+    installRuntimeReplies(["c7bf02ef74b89975ffdff334a04b4a64"]);
     const provider = vi.fn<StreamFn>(() => {
       throw new Error("unexpected dispatch");
     });
@@ -500,7 +677,7 @@ describe("OPSYS provider cleanup certainty boundary", () => {
     expect(mocks.callOpsysMcpTool.mock.calls[1]?.[0]).toMatchObject({
       server: "opsys_runtime_demo",
       args: {
-        reservation_id: "reservation-captured",
+        reservation_id: "c7bf02ef74b89975ffdff334a04b4a64",
         revision_profil: 1,
         cycle_id: "run-captured:0:0",
       },
@@ -535,11 +712,7 @@ describe("OPSYS provider cleanup certainty boundary", () => {
       stopReason: "stop",
       timestamp: 1,
     };
-    mocks.callOpsysMcpTool
-      .mockResolvedValueOnce(envelope({ id: "reservation-conciliation-captured" }, true))
-      .mockResolvedValueOnce(
-        envelope({ id: "reservation-conciliation-captured", statut: "conciliee", tokens_reels: 3 }),
-      );
+    installRuntimeReplies(["c603623e2286db59e60ff1a2f1a2f8a0"]);
     const provider = vi.fn<StreamFn>(async () => {
       binding.profileId = "other";
       binding.profileRevision = 2;
@@ -568,7 +741,7 @@ describe("OPSYS provider cleanup certainty boundary", () => {
     expect(mocks.callOpsysMcpTool.mock.calls[1]?.[0]).toMatchObject({
       server: "opsys_runtime_demo",
       tool: "opsys_runtime_concilier",
-      args: { reservation_id: "reservation-conciliation-captured", tokens_reels: 3 },
+      args: { reservation_id: "c603623e2286db59e60ff1a2f1a2f8a0", tokens_reels: 3 },
     });
     const reservedConfig = mocks.callOpsysMcpTool.mock.calls[0]?.[0].config;
     const reconciledConfig = mocks.callOpsysMcpTool.mock.calls[1]?.[0].config;

@@ -383,6 +383,14 @@ def _enregistrer_la_journee(moteur: Moteur, equipe: dict[str, Any], tmp_path: Pa
     _prix_au_livre_de_m6(moteur)
     _declarer_m5(tmp_path, monkeypatch, {**CONFIGURATION_M5, "taux_horaire_main_d_oeuvre": "50.00"})
     chantier_e = _chantier_termine(moteur, equipe, "ADM-E", 22, 42.0)
+    # Préparation fictive : la facture existante est envoyée par le contrat M5 canonique.
+    # Un chantier chiffré avec facture encore brouillon ne certifie pas une marge définitive.
+    envoyer = next(outil for outil in m5_outils.outils() if outil.nom == "m5_envoyer_facture")
+    envoi = executer_atomique(envoyer, {
+        "facture_id": "fac-DEVIS-ADM-E-fictif", "horodatage": iso(moteur.horloge.maintenant),
+    })
+    assert envoi["ok"] and envoi["resultat"]["accepte"], envoi
+    moteur.drainer_bus(moteur.horloge.maintenant)
     chantier_b = _chantier_planifie(moteur, "ADM-B", 23, version_lead=2)
     chantier_c = _chantier_planifie(moteur, "ADM-C", 24, version_lead=1)
     moteur.horloge.maintenant = debut_de_journee(25)
@@ -618,4 +626,3 @@ def test_les_catalogues_et_les_noms_d_outils_de_l_app_sont_ceux_du_serveur():
     # La liste est écrite une fois (`protocole/enveloppeOutil.ts`), lue par l'admin ET par le vendeur (PLAN T1.4-n).
     passageres = set(_liste_ts(_source("protocole/enveloppeOutil.ts"), "ERREURS_PASSAGERES"))
     assert passageres == set(idempotence.ERREURS_PASSAGERES)
-

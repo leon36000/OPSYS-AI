@@ -1,0 +1,25 @@
+{
+  "created_by": "ROOT",
+  "date": "2026-10-05",
+  "copies": [
+    {
+      "source_ram": "/dev/shm/opsys-lot5-reprise-design-r1/REPORT.md",
+      "path": "docs/research/REPRISE-2026-10-05/conceptions/LOT5-REPRISE-CONCEPTION-r1.md",
+      "sha256": "0c1c7f9ed339efd42ad0525257aecf72eeac9776c9194f87c6a3f34c1f0f8ce2",
+      "nature": "conception historique non implementee ni qualifiee"
+    },
+    {
+      "source_ram": "/dev/shm/opsys-lot5-outbox-design-r1/REPORT.md",
+      "path": "docs/research/REPRISE-2026-10-05/conceptions/LOT5-OUTBOX-CONCEPTION-r1.md",
+      "sha256": "00bb6e8594671f439deb55d993001877beed367f3ed3d7c8474c7c20d2c6d94f",
+      "nature": "conception historique non implementee ni qualifiee"
+    },
+    {
+      "source_ram": "/dev/shm/opsys-lot5-provenance-design-r1/REPORT.md",
+      "path": "docs/research/REPRISE-2026-10-05/conceptions/LOT5-PROVENANCE-CONCEPTION-r1.md",
+      "sha256": "53e20df1547784901c6855dd4673ecc630b7c653c11a9660d0e6110193468fb7",
+      "nature": "conception historique non implementee ni qualifiee"
+    }
+  ],
+  "note": "Les constats sur le garde admission sont ceux des preimages source citees; patch admission en verification r270. Cron/outbox/postflight demeurent non qualifies."
+}

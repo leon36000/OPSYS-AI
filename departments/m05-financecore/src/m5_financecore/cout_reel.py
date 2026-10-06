@@ -530,6 +530,7 @@ def charge_evenement(rentabilite: Mapping[str, Any], sequence: int, horodatage: 
         "horodatage_completion": horodatage,
         "verdict": "CALCULEE" if calculee else "PARTIELLE",
         "devise": rentabilite["devise"],
+        "prix_definitif": rentabilite["prix_definitif"] is True,
         "cout_reel_complet": cout["complet"] is True,
         "cout_reel_cad": _texte_decimal(cout["cout_total"]) if cout["complet"] is True else None,
         "cout_connu_cad": _texte_decimal(cout["cout_total_connu"]),

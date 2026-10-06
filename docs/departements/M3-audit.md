@@ -5,6 +5,11 @@
 > et les [recherches actuelles](../research/R16-2026-09-30/README.md) pour M1/M5/M7/M10. Un statut
 > ancien et un nombre de tests ne certifient pas le périmètre cible complet.
 
+> Direction actuelle : [audit de l'apprentissage M3](../grs/estimation/M3-APPRENTISSAGE-AUDIT-2026-10-05.md)
+> et [audit transversal du 4 octobre](../programme/AUDIT-DIRECTION-2026-10-04.md).
+> Les constats ci-dessous « aucun appelant » et « aucune boucle M4/M6 » décrivent le
+> 28 septembre; l'orchestration, les devis durables et la calibration raccordée existent depuis.
+
 
 **Date :** 28 septembre 2026. **Auditeur :** agent d'audit (lecture seule + `pytest` M3).
 **Sources de vérité utilisées :** `docs/produit/DEFINITION-PRODUIT.md` (§1, §5, §6, §7-M3, §8, §9,

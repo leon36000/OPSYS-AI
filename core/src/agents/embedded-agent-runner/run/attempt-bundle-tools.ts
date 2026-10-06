@@ -144,6 +144,9 @@ export async function prepareEmbeddedAttemptBundleTools(params: {
     ? await materializeBundleMcpToolsForRun({
         ...bundleMcpAcquisition,
         agentId: params.setup.sessionAgentId,
+        ...(params.attempt.opsysPostflightCollector
+          ? { opsysPostflightCollector: params.attempt.opsysPostflightCollector }
+          : {}),
         reservedToolNames: [
           ...tools.map((tool) => tool.name),
           ...(clientTools?.map((tool) => tool.function.name) ?? []),

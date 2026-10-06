@@ -1,5 +1,7 @@
 // These consumers need the host-owned SQLite broker, which runs in forked processes.
 export const databaseWorkerCoreTestFiles = [
+  "src/agents/harness/opsys-postflight-collector.sqlite.test.ts",
+  "src/agents/embedded-agent-runner/run/attempt-phase-lifecycle.test.ts",
   "src/config/sessions/disk-budget.physical-usage.test.ts",
   "src/agents/agent-bundle-mcp-requester-connect.read.test.ts",
   "src/agents/mcp-oauth-provider.read.test.ts",

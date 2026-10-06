@@ -2,19 +2,24 @@ import type { LeadListe } from "../m2/listeLeads";
 import { estObjet, texteOuNull } from "../protocole/enveloppeOutil";
 
 /**
- * Les devis que le vendeur peut lire (`(seller)/quotes.tsx`, PLAN T4.8). LIMITE DE FOND : aucun outil ne liste les
- * devis d'un vendeur. `m3_lire_devis` lit un devis PAR SON NUMÉRO (`devis_id`), et le seul endroit où un numéro
- * arrive à l'app est la donnée que M2 cite pour deux segments de `m2_lister_leads` :
+ * Compatibilité du parcours historique de découverte par leads. L'écran Soumissions utilise maintenant l'inventaire
+ * courant `m3_lister_devis`; il ne fusionne pas cette liste avec les numéros gardés ici. Le parcours historique lit
+ * `m3_lire_devis` par numéro, et reconnaît les citations M2 suivantes :
  *  - `won_pending_schedule` (lead converti) : `donnee.reference_devis_m3`, le devis accepté ;
  *  - `quote_stale` (lead qualifié) : `donnee.devis_id`, le devis envoyé resté sans réponse.
  * Un devis dont ni l'un ni l'autre ne parle (un brouillon, un devis envoyé pas encore périmé, un devis d'un lead
- * déjà cédulé ou facturé) n'est pas listable : le vendeur peut l'ouvrir en saisissant son numéro. L'écran le dit ;
- * ce module ne devine jamais un numéro. Il manque un outil au vendeur (dit dans le rapport de T4.8).
+ * déjà cédulé ou facturé) ne figure pas dans ces segments. Ces fonctions restent utilisées par le chargeur
+ * historique et les consommateurs existants; elles ne définissent pas la liste canonique de l'écran.
  */
 
-export type OrigineDevis = "lead_converti" | "soumission_perimee" | "saisi";
+export type OrigineDevis = "lead_converti" | "soumission_perimee" | "liste_vendeur" | "saisi";
 
-export const ORIGINES_DEVIS: readonly OrigineDevis[] = ["lead_converti", "soumission_perimee", "saisi"];
+export const ORIGINES_DEVIS: readonly OrigineDevis[] = [
+  "lead_converti",
+  "soumission_perimee",
+  "liste_vendeur",
+  "saisi",
+];
 
 /** Les segments dont la donnée cite un devis. */
 export const SEGMENT_DEVIS_ACCEPTE = "won_pending_schedule";

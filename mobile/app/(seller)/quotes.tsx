@@ -3,27 +3,35 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, 
 import { useTranslation } from "react-i18next";
 
 import { formaterDepuis } from "@/ecrans/approvals";
-import { avisDesSources, presenterEntree } from "@/ecrans/quotes";
+import { presenterEntree } from "@/ecrans/quotes";
 import type { CarteDevis, LangueMontant, VueEntreeDevis } from "@/ecrans/quotes";
 import { BandeauIdentite } from "@/identite/BandeauIdentite";
-import type { EntreeDevis, ResultatDevis } from "@/vendeur/chargeurDevis";
-import { chargerDevis, ouvrirDevisParNumero } from "@/vendeur/service";
+import { identiteDepuisEtat } from "@/identite/etat";
+import { useEtatIdentite } from "@/roles/contexte";
+import type { EntreeDevis, ResultatInventaireDevis } from "@/vendeur/chargeurDevis";
+import { chargerDevis, chargerSuiteDevis, ouvrirDevisParNumero } from "@/vendeur/service";
+import { inventaireVisiblePourPersonne, peutAppliquerReponseInventaire } from "@/vendeur/visibiliteInventaire";
 
 /**
- * `quotes.tsx` (§9.4 « soumissions » ; M3 ; PLAN T4.8) : les devis du vendeur par `m3_lire_devis` — statut et prix,
- * JAMAIS le coût ni la marge (la vue interne que M3 rend au vendeur est réduite à sa liste blanche avant tout
- * affichage et tout cache : `src/m3/devis.ts`). Lecture d'abord, cache SQLite hors ligne marqué comme tel.
+ * `quotes.tsx` (§9.4 « soumissions » ; M3) : inventaire courant par `m3_lister_devis`, et lecture manuelle par
+ * `m3_lire_devis`. L'app réduit chaque réponse à statut et prix, jamais coût ni marge, avant affichage ou cache
+ * individuel (`src/m3/devis.ts`). La liste n'est pas gardée hors ligne.
  *
- * Aucun outil ne liste les devis d'un vendeur : la liste montre ceux que les leads citent (`m2_lister_leads`,
- * segments `won_pending_schedule` et `quote_stale`), et le vendeur ouvre les autres par leur numéro. L'écran le dit ;
- * un segment non calculable, une lecture partielle ou en échec l'est aussi (`avisDesSources`). Toute la logique est
- * dans `src/ecrans/quotes.ts` et `src/vendeur/`, testée là ; ce fichier n'est que le câblage React (non couvert en
- * rendu, même limite que les autres écrans).
+ * Une panne vide l'inventaire affiché; le vendeur peut toujours ouvrir manuellement un devis dont il a le numéro,
+ * avec copie locale explicitement marquée si le serveur est injoignable. La logique de contrat et de cache est dans
+ * `src/m3/` et `src/vendeur/`. Ce fichier câble React et reste à vérifier dans un environnement de rendu natif.
  */
 export default function EcranSoumissions() {
+  const identite = identiteDepuisEtat(useEtatIdentite());
+  const personne = identite?.role === "seller" ? identite.personne : null;
+  const cleIdentite = personne === null ? "sans-identite" : `${identite?.appareilId}:${personne}`;
+  return <EcranSoumissionsParPersonne key={cleIdentite} personne={personne} />;
+}
+
+function EcranSoumissionsParPersonne({ personne }: { readonly personne: string | null }) {
   const { t, i18n } = useTranslation();
   const langue: LangueMontant = i18n.language === "en-CA" ? "en-CA" : "fr-CA";
-  const [resultat, setResultat] = useState<ResultatDevis | null | undefined>(undefined);
+  const [resultat, setResultat] = useState<ResultatInventaireDevis | null | undefined>(undefined);
   const [chargement, setChargement] = useState(true);
   const [numero, setNumero] = useState("");
   const [ouverts, setOuverts] = useState<readonly EntreeDevis[]>([]);
@@ -32,13 +40,41 @@ export default function EcranSoumissions() {
   const [ouverture, setOuverture] = useState(false);
   const [lignesVisibles, setLignesVisibles] = useState<ReadonlySet<string>>(new Set());
   const sequence = useRef(0);
+  const personneCourante = useRef(personne);
+  personneCourante.current = personne;
 
   const charger = useCallback(async () => {
     const numeroLecture = ++sequence.current;
+    setResultat(null);
+    setOuverts([]);
+    setSansSession(false);
+    setOuverture(false);
     setChargement(true);
     try {
+      if (personne === null) {
+        setResultat(null);
+        setSansSession(true);
+        return;
+      }
       const lu = await chargerDevis();
       if (numeroLecture !== sequence.current) {
+        return;
+      }
+      if (lu === null) {
+        setResultat(null);
+        setSansSession(true);
+        return;
+      }
+      if (
+        !peutAppliquerReponseInventaire(
+          lu.personne,
+          personneCourante.current,
+          numeroLecture,
+          sequence.current,
+        )
+      ) {
+        setResultat(null);
+        setSansSession(true);
         return;
       }
       setResultat(lu);
@@ -48,18 +84,93 @@ export default function EcranSoumissions() {
         setChargement(false);
       }
     }
-  }, []);
+  }, [personne]);
+
+  const chargerSuite = useCallback(async () => {
+    const courant = resultat;
+    if (courant === null || courant === undefined || courant.curseurSuivant === null) {
+      return;
+    }
+    const numeroLecture = ++sequence.current;
+    setOuverts([]);
+    setOuverture(false);
+    setChargement(true);
+    try {
+      const suite = await chargerSuiteDevis(courant.curseurSuivant, courant.personne);
+      if (numeroLecture !== sequence.current) {
+        return;
+      }
+      if (suite === null) {
+        setResultat(null);
+        setSansSession(true);
+        return;
+      }
+      if (
+        !peutAppliquerReponseInventaire(
+          suite.personne,
+          personneCourante.current,
+          numeroLecture,
+          sequence.current,
+        )
+      ) {
+        setResultat(null);
+        setSansSession(true);
+        return;
+      }
+      if (suite.etat.genre !== "serveur") {
+        setResultat(suite);
+        setSansSession(false);
+        return;
+      }
+      setResultat((precedent) => {
+        if (precedent === null || precedent === undefined || precedent.personne !== suite.personne) {
+          return suite;
+        }
+        const parId = new Map(precedent.entrees.map((entree) => [entree.connu.devisId, entree]));
+        for (const entree of suite.entrees) {
+          parId.set(entree.connu.devisId, entree);
+        }
+        return { ...suite, entrees: [...parId.values()] };
+      });
+      setSansSession(false);
+    } finally {
+      if (numeroLecture === sequence.current) {
+        setChargement(false);
+      }
+    }
+  }, [resultat]);
 
   useEffect(() => {
-    void charger();
-  }, [charger]);
+    if (personne === null) {
+      setChargement(false);
+      setSansSession(true);
+    } else {
+      void charger();
+    }
+    return () => {
+      sequence.current += 1;
+    };
+  }, [charger, personne]);
 
   const ouvrir = useCallback(async () => {
+    const numeroLecture = ++sequence.current;
+    setResultat(null);
+    setOuverts([]);
     setNumeroVide(false);
+    setSansSession(false);
+    setChargement(false);
     setOuverture(true);
     try {
+      if (personne === null) {
+        setSansSession(true);
+        return;
+      }
       const entree = await ouvrirDevisParNumero(numero);
+      if (numeroLecture !== sequence.current) {
+        return;
+      }
       if (entree === undefined) {
+        setResultat(null);
         setSansSession(true);
         return;
       }
@@ -67,13 +178,22 @@ export default function EcranSoumissions() {
         setNumeroVide(true);
         return;
       }
-      setSansSession(false);
-      setOuverts((precedents) => [entree, ...precedents.filter((e) => e.connu.devisId !== entree.connu.devisId)]);
+      if (entree.etat.genre === "refus" && entree.etat.verdict.code !== "REJ-DEVIS-INTROUVABLE") {
+        setResultat(null);
+        setSansSession(true);
+      } else if (entree.etat.genre === "refus") {
+        setResultat((precedent) => precedent === null || precedent === undefined
+          ? precedent
+          : { ...precedent, entrees: precedent.entrees.filter((e) => e.connu.devisId !== entree.connu.devisId) });
+      }
+      setOuverts([entree]);
       setNumero("");
     } finally {
-      setOuverture(false);
+      if (numeroLecture === sequence.current) {
+        setOuverture(false);
+      }
     }
-  }, [numero]);
+  }, [numero, personne]);
 
   const basculerLignes = useCallback((devisId: string) => {
     setLignesVisibles((precedentes) => {
@@ -88,7 +208,8 @@ export default function EcranSoumissions() {
   }, []);
 
   const decalageMinutesUTC = -new Date().getTimezoneOffset();
-  const entrees = resultat?.entrees ?? [];
+  const resultatVisible = inventaireVisiblePourPersonne(resultat, personne) ? resultat : null;
+  const entrees = resultatVisible?.entrees ?? [];
   const dejaAffiches = new Set(entrees.map((e) => e.connu.devisId));
   const ouvertsEnPlus = ouverts.filter((e) => !dejaAffiches.has(e.connu.devisId));
 
@@ -109,7 +230,11 @@ export default function EcranSoumissions() {
       <Text style={styles.meta}>{t("vendeur.quotes.prixSeulement")}</Text>
       <Text style={styles.avis}>{t("vendeur.quotes.limiteListe")}</Text>
 
-      <Pressable style={styles.boutonSecondaire} disabled={chargement} onPress={() => void charger()}>
+      <Pressable
+        style={styles.boutonSecondaire}
+        disabled={chargement || personne === null}
+        onPress={() => void charger()}
+      >
         <Text style={styles.boutonSecondaireTexte}>{t("vendeur.commun.rafraichir")}</Text>
       </Pressable>
 
@@ -122,10 +247,14 @@ export default function EcranSoumissions() {
           onChangeText={setNumero}
           autoCapitalize="none"
           autoCorrect={false}
-          editable={!ouverture}
+          editable={!ouverture && personne !== null}
         />
         {numeroVide ? <Text style={styles.erreur}>{t("vendeur.quotes.numero.vide")}</Text> : null}
-        <Pressable style={({ pressed }) => [styles.bouton, pressed ? styles.boutonPresse : null]} disabled={ouverture} onPress={() => void ouvrir()}>
+        <Pressable
+          style={({ pressed }) => [styles.bouton, pressed ? styles.boutonPresse : null]}
+          disabled={ouverture || personne === null}
+          onPress={() => void ouvrir()}
+        >
           <Text style={styles.boutonTexte}>{t("vendeur.quotes.numero.ouvrir")}</Text>
         </Pressable>
       </View>
@@ -133,25 +262,41 @@ export default function EcranSoumissions() {
       {chargement ? <ActivityIndicator /> : null}
       {sansSession ? <Text style={styles.erreur}>{t("vendeur.commun.sansSession")}</Text> : null}
 
-      {resultat
-        ? avisDesSources(resultat.sources).map((avis) => (
-            <Text key={`${avis.segment}:${avis.genre}`} style={avis.genre === "echouee" ? styles.erreur : styles.avis}>
-              {avis.genre === "non_calculable"
-                ? t("vendeur.quotes.avis.non_calculable", { segment: avis.segment, manque: avis.manque })
-                : avis.genre === "echouee"
-                  ? t("vendeur.quotes.avis.echouee", { segment: avis.segment, code: avis.verdict.code, detail: avis.verdict.detail })
-                  : avis.genre === "partielle"
-                    ? t("vendeur.quotes.avis.partielle", { segment: avis.segment, reste: avis.reste })
-                    : t("vendeur.quotes.avis.depuis_cache", { segment: avis.segment, code: avis.raison.code })}
-            </Text>
-          ))
-        : null}
+      {resultatVisible?.etat.genre === "serveur" ? (
+        <Text style={styles.trace}>
+          {t("vendeur.quotes.liste.consulteLe", {
+            date: formaterDepuis(resultatVisible.etat.consulteLe, decalageMinutesUTC),
+          })}
+        </Text>
+      ) : null}
+      {resultatVisible?.etat.genre === "refus" ? (
+        <Text style={styles.erreur}>
+          {t("vendeur.quotes.liste.refus", { code: resultatVisible.etat.verdict.code })}
+        </Text>
+      ) : null}
+      {resultatVisible?.etat.genre === "indisponible" ? (
+        <Text style={styles.erreur}>
+          {t("vendeur.quotes.liste.indisponible", { code: resultatVisible.etat.verdict.code })}
+        </Text>
+      ) : null}
+      {resultatVisible?.etat.genre === "illisible" ? (
+        <Text style={styles.erreur}>
+          {t("vendeur.quotes.liste.illisible", { code: resultatVisible.etat.verdict.code })}
+        </Text>
+      ) : null}
 
       {ouvertsEnPlus.length > 0 ? <Text style={styles.sousTitre}>{t("vendeur.quotes.numero.ouvertsTitre")}</Text> : null}
       {ouvertsEnPlus.map(carte)}
 
-      {resultat && entrees.length === 0 && ouvertsEnPlus.length === 0 ? <Text style={styles.vide}>{t("vendeur.quotes.aucune")}</Text> : null}
+      {resultatVisible?.etat.genre === "serveur" && entrees.length === 0 && ouvertsEnPlus.length === 0 ? (
+        <Text style={styles.vide}>{t("vendeur.quotes.aucune")}</Text>
+      ) : null}
       {entrees.map(carte)}
+      {resultatVisible?.etat.genre === "serveur" && resultatVisible.curseurSuivant !== null ? (
+        <Pressable style={styles.boutonSecondaire} disabled={chargement} onPress={() => void chargerSuite()}>
+          <Text style={styles.boutonSecondaireTexte}>{t("vendeur.quotes.liste.suite")}</Text>
+        </Pressable>
+      ) : null}
     </ScrollView>
   );
 }

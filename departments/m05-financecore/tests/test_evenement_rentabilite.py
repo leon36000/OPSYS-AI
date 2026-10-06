@@ -43,7 +43,7 @@ COMPLETION = "2026-09-25T16:30:00-04:00"
 _CLES = {
     "evenement_id", "devis_id", "chantier_id", "wct_id", "sequence", "version_entrees", "horodatage_completion",
     "verdict", "devise", "cout_reel_complet", "cout_reel_cad", "cout_connu_cad", "marge_reelle_cad",
-    "marge_prevue_cad", "ecart_marge_cad", "manque",
+    "marge_prevue_cad", "ecart_marge_cad", "manque", "prix_definitif",
 }
 
 
@@ -68,8 +68,8 @@ def _prix(prix=8.0):
             "date_effet": "2026-09-01", "source_document": None}
 
 
-def _facture(montant="600.00"):
-    return {"facture_id": "fac-DEVIS-1", "statut": "BROUILLON", "montant_avant_taxes": Decimal(montant)}
+def _facture(montant="600.00", statut="BROUILLON"):
+    return {"facture_id": "fac-DEVIS-1", "statut": statut, "montant_avant_taxes": Decimal(montant)}
 
 
 def _devis(**surcharges):
@@ -99,12 +99,27 @@ def test_la_marge_calculee_sort_en_texte_decimal_avec_tout_ce_qui_l_explique():
         "evenement_id": f"m5-rentabilite-DEVIS-1-1-{r['version_entrees'][:16]}",
         "devis_id": "DEVIS-1", "chantier_id": "CH-1", "wct_id": "WCT-1", "sequence": 1,
         "version_entrees": r["version_entrees"], "horodatage_completion": COMPLETION,
-        "verdict": "CALCULEE", "devise": "CAD",
+        "verdict": "CALCULEE", "devise": "CAD", "prix_definitif": False,
         "cout_reel_complet": True, "cout_reel_cad": "486.00", "cout_connu_cad": "486.00",  # 42 x 8,00 + 3 h x 50,00 $
         "marge_reelle_cad": "114.00", "marge_prevue_cad": "120.00", "ecart_marge_cad": "-6.00", "manque": [],
     }
     assert erreurs_charge(TYPE, charge) == []
     assert not [v for v in charge.values() if isinstance(v, float)]  # jamais un nombre JSON pour un montant
+
+
+def test_finalite_est_emise_selon_le_statut_et_absence_de_facture():
+    charges = []
+    for statut, attendu in (("BROUILLON", False), ("ENVOYEE", True), ("PAYEE", True)):
+        charge = _charge(_rentabilite(facture=_facture(statut=statut)))
+        assert charge["prix_definitif"] is attendu
+        assert erreurs_charge(TYPE, charge) == []
+        charges.append(charge)
+
+    assert len({charge["version_entrees"] for charge in charges}) == 3  # le statut continue de versionner les entrées
+
+    sans_facture = _charge(_rentabilite(facture=None))
+    assert sans_facture["prix_definitif"] is False
+    assert sans_facture["marge_reelle_cad"] is None
 
 
 def test_un_cout_partiel_ne_porte_jamais_de_marge_seulement_ce_qui_manque():
@@ -213,13 +228,22 @@ def test_le_catalogue_refuse_une_calculee_sans_marge_et_un_ecart_sans_ses_deux_m
     assert erreurs_charge(TYPE, {**complete, "marge_prevue_cad": None})  # un écart sans marge prévue
 
 
+def test_finalite_est_facultative_pour_historique_et_strictement_booleenne():
+    actuelle = _charge()
+    historique = {cle: valeur for cle, valeur in actuelle.items() if cle != "prix_definitif"}
+    assert erreurs_charge(TYPE, historique) == []  # ancien payload: inconnu, jamais vrai par défaut
+    assert erreurs_charge(TYPE, {**actuelle, "prix_definitif": "false"})
+    assert erreurs_charge(TYPE, {**actuelle, "prix_definitif": 0})
+    assert erreurs_charge(TYPE, {**actuelle, "prix_definitif": None})
+
+
 def test_le_catalogue_est_ferme_et_refuse_un_champ_de_plus_ou_de_moins_ou_un_montant_json():
     complete = _charge()
 
     assert erreurs_charge(TYPE, {**complete, "prix_unitaire": "8.00"})
     assert erreurs_charge(TYPE, {**complete, "taux_horaire": "50.00"})
     assert erreurs_charge(TYPE, {**complete, "lead_id": "LEAD-1"})
-    for champ in _CLES:
+    for champ in _CLES - {"prix_definitif"}:
         sans = {cle: valeur for cle, valeur in complete.items() if cle != champ}
         assert erreurs_charge(TYPE, sans), champ
     assert erreurs_charge(TYPE, {**complete, "marge_reelle_cad": 114.0})  # un nombre JSON n'est pas un texte décimal
@@ -384,6 +408,7 @@ def test_un_rejeu_ou_une_redelivrance_ne_publie_rien_de_plus(base_durable, taux_
     _livrer("2026-09-25T19:00:00-04:00")
 
     assert [p[0] for p in _publies()] == [p[0] for p in avant]
+    assert all(p[2]["prix_definitif"] is False for p in avant)  # BROUILLON reste explicitement provisoire au rejeu
 
 
 def test_un_prix_ajoute_apres_coup_publie_un_nouvel_etat_qui_remplace_le_partiel(base_durable, taux_configure):
@@ -398,6 +423,7 @@ def test_un_prix_ajoute_apres_coup_publie_un_nouvel_etat_qui_remplace_le_partiel
     (_, _, complet) = publies[-1]
     assert complet["sequence"] == partiel["sequence"] + 1 and complet["verdict"] == "CALCULEE"
     assert complet["marge_reelle_cad"] == "114.00" and complet["manque"] == []
+    assert partiel["prix_definitif"] is False and complet["prix_definitif"] is False
     assert publies[-2][2]["marge_reelle_cad"] is None, "l'historique reste : le partiel n'a jamais porté de marge"
 
 
@@ -424,6 +450,7 @@ def test_un_retour_a_une_version_anterieure_publie_un_evenement_distinct(base_du
     assert troisieme["version_entrees"] == premier_etat["version_entrees"], "la même version qu'au départ"
     assert troisieme["evenement_id"] != premier_etat["evenement_id"]
     assert troisieme["sequence"] == depart + 2 and troisieme["marge_reelle_cad"] == "114.00"
+    assert deuxieme["prix_definitif"] is False and troisieme["prix_definitif"] is False
     assert len({p[0] for p in publies}) == len(publies)
 
 
@@ -455,6 +482,7 @@ def test_le_catalogue_du_socle_porte_le_type_et_son_schema_est_versionne():
     schema = evenements.schema(TYPE)
     assert schema["$id"] == f"opsys.evenement/v1/{TYPE}"
     assert schema["additionalProperties"] is False
-    assert set(schema["required"]) == set(schema["properties"]) == _CLES
+    assert set(schema["required"]) == _CLES - {"prix_definitif"}
+    assert set(schema["properties"]) == _CLES
     fichier = Path(evenements.schemas.__file__).parent / "catalogue" / f"{TYPE}.json"
     assert fichier.is_file()

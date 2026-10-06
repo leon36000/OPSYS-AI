@@ -8,12 +8,14 @@ import {
   readActiveTranscriptEntryAnchor,
   upsertSessionEntryCore,
 } from "../../../config/sessions/session-accessor.js";
+import { depositKey } from "../../../context-engine/opsys-contexte-depot.js";
 import { createNestedToolActivity } from "../../../sessions/nested-tool-activity.js";
 import { createUserTurnTranscriptRecorder } from "../../../sessions/user-turn-transcript.js";
 import { createDeferredCore } from "../../../shared/deferred.js";
 import { closeOpenClawAgentDatabasesForTest } from "../../../state/openclaw-agent-db.js";
 import { runOpenClawAgentWorkerWrite } from "../../../state/openclaw-agent-write-admission.js";
 import { FULL_BOOTSTRAP_COMPLETED_CUSTOM_TYPE } from "../../bootstrap-files.js";
+import { OpsysPostflightCollector } from "../../harness/opsys-postflight-collector.js";
 import { installSessionToolResultGuard } from "../../session-tool-result-guard.js";
 import { SessionManager } from "../../sessions/session-manager.js";
 import { makeAgentAssistantMessage } from "../../test-helpers/agent-message-fixtures.js";
@@ -379,6 +381,43 @@ describe("embedded attempt phase lifecycle state", () => {
         bytesFreed: 0,
         rewrittenEntries: 0,
       }));
+      const collector =
+        boundary === "complete"
+          ? new OpsysPostflightCollector({
+              runId: "run-1",
+              sessionId: target.sessionId,
+              sessionKey: target.sessionKey,
+              agentId: "main",
+              recorder,
+              depositTools: ["m3_creer_devis"],
+              assertCurrent: () => undefined,
+            })
+          : undefined;
+      if (collector) {
+        collector.recordRuntimeAdmission({
+          runId: "run-1",
+          agentId: "main",
+          profileId: "profile-test",
+          profileRevision: 1,
+          departement: "m03-estimation",
+          attemptId: "candidate-attempt",
+          cycleId: "candidate-cycle",
+        });
+        await collector.prepareBeforeProviderDispatch();
+        await collector
+          .beginToolCall({
+            toolCallId: "candidate-owned-call",
+            toolName: "m3_creer_devis",
+            serverName: "opsys_m3",
+          })
+          ?.assertBeforeEffect({
+            agentId: "main",
+            sessionKey: target.sessionKey,
+            affaireId: "LEAD-CANDIDATE",
+            serverName: "opsys_m3",
+            toolName: "m3_creer_devis",
+          });
+      }
       const onContextEngineTurnCandidate = vi.fn();
       await completeEmbeddedAttemptAfterTurn(
         {
@@ -395,6 +434,7 @@ describe("embedded attempt phase lifecycle state", () => {
             contextTokenBudget: 180_000,
             userTurnTranscriptRecorder: recorder,
             onContextEngineTurnCandidate,
+            opsysPostflightCollector: collector,
           } as never,
           activeContextEngine: {
             info: { id: "test", name: "Test" },
@@ -454,6 +494,12 @@ describe("embedded attempt phase lifecycle state", () => {
               modelId: "model",
               modelContextWindow: 200_000,
               tokenBudget: 180_000,
+              opsysDeferredPostflight: {
+                sessionId: target.sessionId,
+                sessionKey: target.sessionKey,
+                agentId: "main",
+                factKeys: [depositKey(target.sessionId, "candidate-owned-call")],
+              },
             },
           }),
         );

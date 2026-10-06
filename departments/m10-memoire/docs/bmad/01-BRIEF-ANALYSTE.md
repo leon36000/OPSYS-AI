@@ -1,5 +1,18 @@
 # BRIEF ANALYSTE — MODULE M10 (MÉMOIRE LONG TERME & CONSCIENCE OPÉRATIONNELLE)
 
+> **Brief historique — état initial, non applicable comme inventaire courant (5 octobre 2026).**
+> Le corps est conservé pour la provenance des décisions. Ses affirmations « aucun code M10 »
+> et « PREFLIGHT/POSTFLIGHT nulle part / application hors produit GATED » sont dépassées : le
+> paquet Python et le moteur Core ont désormais des implémentations. Le garde Core reste
+> conditionnel à son activation et aux contrats de cible ; le préflight structurel ne prouve
+> pas la vérité d'un dossier. Les intentions durables et dépôts candidats ne constituent pas
+> une mémoire complète ou une preuve de succès métier. État et limites actuels :
+> [raccord Core](../../../../docs/grs/memory/M10-COLLECTEUR-RACCORD-RAPPORT-2026-10-05.md),
+> [intentions durables](../../../../docs/grs/memory/M10-INTENTIONS-DURABLES-RAPPORT-2026-10-05.md),
+> [diagnostic opérateur](../../../../docs/grs/memory/M10-DIAGNOSTIC-POSTFLIGHT-RAPPORT-2026-10-05.md).
+> Ces preuves locales ne ratifient pas rétroactivement toutes les déclarations de livraison
+> ou de production du brief, ni l'ensemble du protocole D-014.
+
 Module au statut PARTICULIER dans ADR-0003 Q2 : il ne figure pas dans la séquence
 M7→M1→M2→M4→M3→M6→M8→M5→M9, mais la ratification précise « **M10 : shim en Phase 0 (déjà fait),
 build complet APRÈS M8** ». M8, M5 et M9 étant livrés (EPICs J, K, L fermées), M10 est le module

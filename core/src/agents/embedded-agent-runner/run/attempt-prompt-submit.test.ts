@@ -10,6 +10,7 @@ import { createUserTurnTranscriptRecorder } from "../../../sessions/user-turn-tr
 import { withOpenClawTestState } from "../../../test-utils/openclaw-test-state.js";
 import { prepareSystemAgentRunAdmission } from "../../admitted-run-context.js";
 import { readBtwTranscriptMessages } from "../../btw-transcript.js";
+import { OpsysPostflightCollector } from "../../harness/opsys-postflight-collector.js";
 import type { AgentMessage } from "../../runtime/index.js";
 import {
   createAssistant,
@@ -792,6 +793,104 @@ describe("submitEmbeddedAttemptPrompt", () => {
       }
     },
   );
+
+  it("waits for the persisted receipt at the real provider-stream boundary", async () => {
+    const { activeSession } = createSession();
+    const input = createBaseInput();
+    let releasePersistence!: () => void;
+    const waitForReceipt = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          releasePersistence = resolve;
+        }),
+    );
+    const baseStreamFn = vi.fn(() =>
+      createAssistantResultStream(createAssistant(testModel, [{ type: "text", text: "ready" }])),
+    );
+    activeSession.agent.streamFn = baseStreamFn as unknown as StreamFn;
+    const collector = new OpsysPostflightCollector({
+      runId: "attempt-prompt-submit-run",
+      sessionId,
+      sessionKey: `agent:main:${sessionId}`,
+      agentId: "main",
+      recorder: {
+        waitForRuntimePersistence: async () => undefined,
+        getAdmissionReceipt: () => undefined,
+      },
+      depositTools: ["m3_creer_devis"],
+      assertCurrent: () => undefined,
+    });
+    vi.spyOn(collector, "prepareBeforeProviderDispatch").mockImplementation(waitForReceipt);
+
+    await submitEmbeddedAttemptPrompt({
+      ...input,
+      attempt: {
+        runId: "attempt-prompt-submit-run",
+        sessionId,
+        opsysPostflightCollector: collector,
+      },
+      activeSession,
+      promptActiveSession: async () => {
+        const pendingStream = activeSession.agent.streamFn(
+          {} as never,
+          { messages: activeSession.messages } as never,
+          {} as never,
+        );
+        await Promise.resolve();
+        expect(waitForReceipt).toHaveBeenCalledOnce();
+        expect(baseStreamFn).not.toHaveBeenCalled();
+        releasePersistence();
+        await (await pendingStream).result();
+      },
+    });
+
+    expect(baseStreamFn).toHaveBeenCalledOnce();
+  });
+
+  it("does not invoke the provider when receipt preparation rejects at the stream boundary", async () => {
+    const { activeSession } = createSession();
+    const input = createBaseInput();
+    const baseStreamFn = vi.fn(() =>
+      createAssistantResultStream(createAssistant(testModel, [{ type: "text", text: "no" }])),
+    );
+    activeSession.agent.streamFn = baseStreamFn as unknown as StreamFn;
+
+    const collector = new OpsysPostflightCollector({
+      runId: "attempt-prompt-submit-run",
+      sessionId,
+      sessionKey: `agent:main:${sessionId}`,
+      agentId: "main",
+      recorder: {
+        waitForRuntimePersistence: async () => undefined,
+        getAdmissionReceipt: () => undefined,
+      },
+      depositTools: ["m3_creer_devis"],
+      assertCurrent: () => undefined,
+    });
+    vi.spyOn(collector, "prepareBeforeProviderDispatch").mockRejectedValue(
+      new Error("transcript receipt mismatch"),
+    );
+    await expect(
+      submitEmbeddedAttemptPrompt({
+        ...input,
+        attempt: {
+          runId: "attempt-prompt-submit-run",
+          sessionId,
+          opsysPostflightCollector: collector,
+        },
+        activeSession,
+        promptActiveSession: async () => {
+          await activeSession.agent.streamFn(
+            {} as never,
+            { messages: activeSession.messages } as never,
+            {} as never,
+          );
+        },
+      }),
+    ).rejects.toThrow(/transcript receipt mismatch/);
+
+    expect(baseStreamFn).not.toHaveBeenCalled();
+  });
 
   it("submits runtime-only prompts without images and acknowledges steering", async () => {
     const { activeSession, baseStreamFn, originalTransformContext } = createSession();

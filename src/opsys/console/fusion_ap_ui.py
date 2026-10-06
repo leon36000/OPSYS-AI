@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
+import math
 import re
 import uuid
 from collections.abc import Callable, Mapping
@@ -13,7 +16,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from starlette.concurrency import run_in_threadpool
 
-from .. import fusion_ap, fusion_pdf
+from .. import fusion_ap, fusion_pdf, fusion_pdf_ocr
 from . import fusion_ap_m5, pages, securite
 from .securite import Session
 
@@ -94,6 +97,81 @@ def _revision(valeur: str, *, positive: bool = False) -> int:
     if not _REVISION.fullmatch(valeur) or (positive and valeur == "0"):
         raise HTTPException(400, "révision invalide")
     return int(valeur)
+
+
+def _admin(session: Session) -> None:
+    if not session.roles.intersection({"admin", "nathan_owner"}):
+        raise HTTPException(403, {"code": "ACCES_AP_REFUSE"})
+
+
+def _tokens_courants(candidat: Mapping[str, Any]) -> list[Mapping[str, Any]]:
+    page = candidat.get("page")
+    tokens = page.get("tokens") if isinstance(page, Mapping) and page.get("numero") == 1 else None
+    if not isinstance(tokens, list) or not 1 <= len(tokens) <= 2_048:
+        raise HTTPException(409, {"code": "SOURCE_OCR_OBSOLETE"})
+    for token in tokens:
+        score = token.get("confiance_brute") if isinstance(token, Mapping) else None
+        if (
+            not isinstance(token, Mapping) or not isinstance(token.get("texte"), str)
+            or type(score) not in (int, float) or not math.isfinite(score) or not 0 <= score <= 100
+        ):
+            raise HTTPException(409, {"code": "SOURCE_OCR_OBSOLETE"})
+    return tokens
+
+
+def _sha_token(token: Mapping[str, Any]) -> str:
+    canonique = json.dumps(dict(token), ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonique.encode("utf-8", "strict")).hexdigest()
+
+
+def _editeur_ocr(
+    prefixe: str,
+    session: Session,
+    lot_id: str,
+    run_id: str,
+    revision_pdf: int,
+    revision_ap: int,
+    tokens: list[Mapping[str, Any]],
+    proposition: Mapping[str, Any],
+    *,
+    saisie_referencee: bool = False,
+) -> str:
+    champs, citations = proposition["champs"], proposition["citations"]
+    sections: list[str] = []
+    for cle, libelle in _CHAMPS:
+        valeurs = citations.get(cle, [])
+        indices = [reference["token_index"] for reference in valeurs]
+        inputs = []
+        for index in range(1, 4):
+            selection = indices[index - 1] if index <= len(indices) else ""
+            inputs.append(
+                f'<label>Index du token, page 1 (0 à {len(tokens) - 1})'
+                f'<input type="number" name="citation.{pages.e(cle)}.{index}" min="0" '
+                f'max="{len(tokens) - 1}" value="{pages.e(selection)}"></label>'
+            )
+        sections.append(
+            f'<fieldset><legend>{pages.e(libelle)}</legend>'
+            f'<label>{pages.e(libelle)}<input name="champ.{pages.e(cle)}" maxlength="128" '
+            f'value="{pages.e(champs.get(cle, ""))}"></label>{"".join(inputs)}</fieldset>'
+        )
+    mutation = uuid.uuid4().hex
+    m5 = ""
+    if session.roles.intersection({"finance", "nathan_owner"}) and not saisie_referencee:
+        m5 = _formulaire_verifier_m5(prefixe, session, lot_id, revision_pdf, revision_ap)
+    return (
+        f'<p><a target="_blank" rel="noopener" href="{pages.e(prefixe)}/fusion/pdf/lots/{pages.e(lot_id)}'
+        f'/ocr/{pages.e(run_id)}?bloc=1">Consulter les tokens OCR (128 par bloc)</a></p>'
+        '<p>Les valeurs sont saisies ou corrigées par une personne. Les citations sont des index de tokens '
+        'du run courant; la confiance affichée est brute et non calibrée. Aucun montant n’est prérempli.</p>'
+        f'<form method="post" action="{pages.e(prefixe)}/fusion/pdf/lots/{pages.e(lot_id)}'
+        f'/ap/ocr/{pages.e(run_id)}/enregistrer" class="pile">'
+        f'<input type="hidden" name="csrf" value="{pages.e(session.csrf)}">'
+        f'<input type="hidden" name="mutation_id" value="{mutation}">'
+        f'<input type="hidden" name="revision_pdf" value="{revision_pdf}">'
+        f'<input type="hidden" name="revision_ap" value="{revision_ap}">'
+        f'{"".join(sections)}'
+        '<button class="principal" type="submit">Enregistrer la correction humaine</button></form>' + m5
+    )
 
 
 def _refs(resultat: Mapping[str, Any]) -> dict[str, dict[str, Any]]:
@@ -201,19 +279,8 @@ def _resume(
             '<button type="submit">Afficher les champs enregistrés</button></form>'
         )
         if session.roles.intersection({"finance", "nathan_owner"}) and not saisie_referencee:
-            form += (
-                f'<form method="post" action="{pages.e(prefixe)}/fusion/pdf/lots/{pages.e(lot["lot_id"])}'
-                '/ap/verifier-m5" class="pile">'
-                f'<input type="hidden" name="csrf" value="{pages.e(session.csrf)}">'
-                f'<input type="hidden" name="revision_pdf" value="{pages.e(lot["revision"])}">'
-                f'<input type="hidden" name="revision_ap" value="{pages.e(revision_ap)}">'
-                '<label>Bon de commande reçu choisi dans M5'
-                '<input name="po_id" maxlength="64" required autocomplete="off"></label>'
-                '<label>Fournisseur canonique choisi dans M5'
-                '<input name="fournisseur_id" maxlength="64" required autocomplete="off"></label>'
-                '<label><input type="checkbox" name="correspondance_confirmee" value="oui" required>'
-                'J’atteste que le PO et le fournisseur choisis correspondent aux identifiants imprimés sur la facture.'
-                '</label><button class="principal" type="submit">Vérifier les contrôles M5</button></form>'
+            form += _formulaire_verifier_m5(
+                prefixe, session, lot["lot_id"], lot["revision"], revision_ap,
             )
     return (
         f'<p><a href="{pages.e(prefixe)}/fusion/pdf/lots/{pages.e(lot["lot_id"])}">Retour au lot PDF</a></p>'
@@ -236,6 +303,18 @@ def _resultat_m5(resultat: Mapping[str, Any]) -> str:
     if not isinstance(taxes, list) or not isinstance(avertissements, list):
         raise HTTPException(503, {"code": "VERIFICATION_M5_INDISPONIBLE"})
     lignes_taxes: list[str] = []
+    source_ocr_html = ""
+    if source.get("source_type") == "OCR_CANDIDAT":
+        run_id, revision_run = source.get("ocr_run_id"), source.get("revision_run")
+        if (
+            not isinstance(run_id, str) or not _UUID.fullmatch(run_id)
+            or type(revision_run) is not int or revision_run < 1
+        ):
+            raise HTTPException(503, {"code": "VERIFICATION_M5_INDISPONIBLE"})
+        source_ocr_html = (
+            f'<p>Source de la revue : OCR_CANDIDAT — candidat {pages.e(run_id)} '
+            f'révision {pages.e(revision_run)}.</p>'
+        )
     for taxe in taxes:
         if not isinstance(taxe, Mapping) or any(
             not isinstance(taxe.get(key), str) for key in ("id", "version", "source", "montant")
@@ -254,7 +333,8 @@ def _resultat_m5(resultat: Mapping[str, Any]) -> str:
         f'<p>{pages.e(resultat.get("statut", ""))} — observé le {pages.e(resultat.get("observe_le", ""))}</p>'
         f'<p>Snapshot {pages.e(resultat.get("snapshot_id", ""))}; révisions PDF/AP '
         f'{pages.e(source.get("revision_pdf", ""))}/{pages.e(source.get("revision_ap", ""))}.</p>'
-        '<dl class="meta">'
+        + source_ocr_html
+        + '<dl class="meta">'
         f'<dt>Montant avant taxes</dt><dd>{pages.e(montants[0])} CAD</dd>'
         f'<dt>Total des taxes</dt><dd>{pages.e(montants[1])} CAD</dd>'
         f'<dt>Montant après taxes</dt><dd>{pages.e(montants[2])} CAD</dd></dl>'
@@ -262,6 +342,25 @@ def _resultat_m5(resultat: Mapping[str, Any]) -> str:
         f'<h3>Codes d’avertissement</h3><ul>{codes}</ul>'
         '<p>Observation préparatoire, A_REVOIR conservé; aucune facture, dette, approbation ni paiement créé.</p>'
         '</section>'
+    )
+
+
+def _formulaire_verifier_m5(
+    prefixe: str, session: Session, lot_id: str, revision_pdf: int, revision_ap: int,
+) -> str:
+    return (
+        f'<form method="post" action="{pages.e(prefixe)}/fusion/pdf/lots/{pages.e(lot_id)}'
+        '/ap/verifier-m5" class="pile">'
+        f'<input type="hidden" name="csrf" value="{pages.e(session.csrf)}">'
+        f'<input type="hidden" name="revision_pdf" value="{pages.e(revision_pdf)}">'
+        f'<input type="hidden" name="revision_ap" value="{pages.e(revision_ap)}">'
+        '<label>Bon de commande reçu choisi dans M5'
+        '<input name="po_id" maxlength="64" required autocomplete="off"></label>'
+        '<label>Fournisseur canonique choisi dans M5'
+        '<input name="fournisseur_id" maxlength="64" required autocomplete="off"></label>'
+        '<label><input type="checkbox" name="correspondance_confirmee" value="oui" required>'
+        'J’atteste que le PO et le fournisseur choisis correspondent aux identifiants imprimés sur la facture.'
+        '</label><button class="principal" type="submit">Vérifier les contrôles M5</button></form>'
     )
 
 
@@ -365,21 +464,33 @@ def _liste_a_revoir(prefixe: str, rows: list[Mapping[str, Any]]) -> str:
     items: list[str] = []
     for row in rows:
         lot_id = row.get("lot_id")
+        run_id = row.get("ocr_run_id")
+        source_ocr = row.get("source_type") == "OCR_CANDIDAT"
+        is_ocr = source_ocr and isinstance(run_id, str) and _UUID.fullmatch(run_id) is not None
         revision = row.get("revision")
         if row.get("etat_source") == "A_REVALIDER" and isinstance(lot_id, str):
             label = "À rouvrir et revalider"
-            link = (
-                f'<a href="{pages.e(prefixe)}/fusion/pdf/lots/{pages.e(lot_id)}/ap">'
-                "Ouvrir la revue AP</a>"
-            )
+            if source_ocr and not is_ocr:
+                label, link = "Indisponible — à revalider", "Lien de revue indisponible"
+            else:
+                href = (
+                    f"{pages.e(prefixe)}/fusion/pdf/lots/{pages.e(lot_id)}/ap/ocr/{pages.e(run_id)}"
+                    if is_ocr else f"{pages.e(prefixe)}/fusion/pdf/lots/{pages.e(lot_id)}/ap"
+                )
+                link = f'<a href="{href}">Ouvrir la revue AP</a>'
         else:
             label = "Indisponible — à revalider"
-            link = (
-                f'<a href="{pages.e(prefixe)}/fusion/pdf/lots/{pages.e(lot_id)}/ap">'
-                "Rouvrir pour vérifier</a>"
-                if isinstance(lot_id, str)
-                else "Lien de revue indisponible"
-            )
+            if isinstance(lot_id, str):
+                if source_ocr and not is_ocr:
+                    link = "Lien de revue indisponible"
+                else:
+                    href = (
+                        f"{pages.e(prefixe)}/fusion/pdf/lots/{pages.e(lot_id)}/ap/ocr/{pages.e(run_id)}"
+                        if is_ocr else f"{pages.e(prefixe)}/fusion/pdf/lots/{pages.e(lot_id)}/ap"
+                    )
+                    link = f'<a href="{href}">Rouvrir pour vérifier</a>'
+            else:
+                link = "Lien de revue indisponible"
         date = row.get("modifie_le")
         date_html = f'<span>Modifié le {pages.e(date)}</span>' if isinstance(date, str) else ""
         revision_html = f"<span>Révision AP {pages.e(revision)}</span>" if type(revision) is int else ""
@@ -461,6 +572,161 @@ def creer_router(
         if courant["statut"] != "EXTRAIT_PREPARATOIRE" or courant["revision"] != revision:
             raise HTTPException(409, {"code": "CONFLIT_REVISION_PDF"})
         return courant, resultat, _refs(resultat)
+
+    async def source_ap_ocr(request: Request, utilisateur: str, lot_id: str, run_id: str):
+        revue = await bloquant(fusion_ap.lire_revue_privee, cnx_factory, utilisateur, lot_id)
+        _admin(session_vivante(request, utilisateur))
+        brouillon = revue.get("brouillon")
+        if (
+            not isinstance(brouillon, Mapping) or brouillon.get("source_type") != "OCR_CANDIDAT"
+            or brouillon.get("ocr_run_id") != run_id or type(brouillon.get("revision_run")) is not int
+        ):
+            raise HTTPException(409, {"code": "SOURCE_OCR_OBSOLETE"})
+        candidat = await bloquant(fusion_pdf_ocr.lire_resultat, cnx_factory, utilisateur, run_id)
+        _admin(session_vivante(request, utilisateur))
+        if (
+            not isinstance(candidat, Mapping) or candidat.get("statut") != "CANDIDAT_A_REVOIR"
+            or candidat.get("lot_id") != lot_id or candidat.get("revision_source") != brouillon.get("revision_pdf")
+        ):
+            raise HTTPException(409, {"code": "SOURCE_OCR_OBSOLETE"})
+        tokens = _tokens_courants(candidat)
+        return brouillon, revue.get("proposition"), candidat, tokens
+
+    @router.get("/fusion/pdf/lots/{lot_id}/ap/ocr/{run_id}", response_class=HTMLResponse)
+    async def lire_ap_ocr(lot_id: str, run_id: str, request: Request) -> HTMLResponse:
+        session = session_vivante(request)
+        _admin(session)
+        sans_query(request)
+        valider_lot(lot_id)
+        if not _UUID.fullmatch(run_id):
+            raise HTTPException(400, "identifiant OCR invalide")
+        try:
+            brouillon, proposition, _, tokens = await source_ap_ocr(
+                request, session.utilisateur, lot_id, run_id,
+            )
+            session = session_vivante(request, session.utilisateur)
+            _admin(session)
+            reference_html = ""
+            saisie_referencee = False
+            if session.roles.intersection({"finance", "nathan_owner"}):
+                try:
+                    from . import fusion_ap_m5_reference
+
+                    reference = await bloquant(
+                        fusion_ap_m5_reference.lire, cnx_factory, session.utilisateur, lot_id,
+                    )
+                except Exception as exc:
+                    session = session_vivante(request, session.utilisateur)
+                    _admin(session)
+                    raise HTTPException(503, {"code": "REFERENCE_SAISIE_M5_INDISPONIBLE"}) from exc
+                session = session_vivante(request, session.utilisateur)
+                _admin(session)
+                verifier_role_finance(session)
+                reference_html = _reference_saisie_m5(reference)
+                saisie_referencee = reference is not None
+                brouillon, proposition, _, tokens = await source_ap_ocr(
+                    request, session.utilisateur, lot_id, run_id,
+                )
+                session = session_vivante(request, session.utilisateur)
+                _admin(session)
+                verifier_role_finance(session)
+            if (
+                not isinstance(proposition, Mapping) or type(brouillon.get("revision_pdf")) is not int
+                or type(brouillon.get("revision")) is not int
+            ):
+                raise HTTPException(503, {"code": "BROUILLON_AP_INDISPONIBLE"})
+            contenu = (
+                '<section class="carte pile"><h1>Revue AP issue d’un candidat OCR</h1>'
+                f'<p>PDF révision {pages.e(brouillon["revision_pdf"])}; candidat '
+                f'{pages.e(run_id)} révision {pages.e(brouillon["revision_run"])}.</p>'
+                f'<p>État {pages.e(brouillon["statut"])} — révision AP {pages.e(brouillon["revision"])}.</p>'
+                + reference_html
+                + _editeur_ocr(
+                    prefixe, session, lot_id, run_id, brouillon["revision_pdf"], brouillon["revision"],
+                    tokens, proposition, saisie_referencee=saisie_referencee,
+                )
+                + '</section>'
+            )
+            reponse = rendre_prive(request, session, contenu)
+            if reference_html:
+                session = session_vivante(request, session.utilisateur)
+                _admin(session)
+                verifier_role_finance(session)
+            return reponse
+        except HTTPException as exc:
+            session = session_vivante(request, session.utilisateur)
+            return echec_prive(request, session, exc)
+        except Exception:
+            session = session_vivante(request, session.utilisateur)
+            return echec_prive(request, session, HTTPException(503, {"code": "SOURCE_OCR_OBSOLETE"}))
+
+    @router.post("/fusion/pdf/lots/{lot_id}/ap/ocr/{run_id}/enregistrer", response_class=Response)
+    async def enregistrer_ap_ocr(lot_id: str, run_id: str, request: Request) -> Response:
+        session = session_vivante(request)
+        _admin(session)
+        sans_query(request)
+        valider_lot(lot_id)
+        if not _UUID.fullmatch(run_id):
+            raise HTTPException(400, "identifiant OCR invalide")
+        attendus = {"csrf", "mutation_id", "revision_pdf", "revision_ap"}
+        attendus.update(f"champ.{cle}" for cle, _ in _CHAMPS)
+        attendus.update(f"citation.{cle}.{index}" for cle, _ in _CHAMPS for index in range(1, 4))
+        fields = await _formulaire(request, attendus)
+        session_vivante(request, session.utilisateur)
+        valider_csrf(fields, session)
+        if not _MUTATION.fullmatch(fields["mutation_id"]):
+            raise HTTPException(400, "identifiant de mutation invalide")
+        revision_pdf = _revision(fields["revision_pdf"], positive=True)
+        revision_ap = _revision(fields["revision_ap"], positive=True)
+        for cle, _ in _CHAMPS:
+            value = fields[f"champ.{cle}"]
+            if len(value) > 128 or len(value.encode("utf-8")) > 128:
+                raise HTTPException(400, "valeur de champ hors limite")
+        try:
+            brouillon, _, _, tokens = await source_ap_ocr(request, session.utilisateur, lot_id, run_id)
+            session = session_vivante(request, session.utilisateur)
+            if brouillon["revision_pdf"] != revision_pdf:
+                raise HTTPException(409, {"code": "CONFLIT_REVISION"})
+            champs = {cle: fields[f"champ.{cle}"] for cle, _ in _CHAMPS}
+            citations: dict[str, list[dict[str, Any]]] = {}
+            for cle, _ in _CHAMPS:
+                brut = [fields[f"citation.{cle}.{index}"] for index in range(1, 4)]
+                if any(value and not re.fullmatch(r"(?:0|[1-9][0-9]{0,3})", value) for value in brut):
+                    raise HTTPException(400, {"code": "CITATION_INVALIDE"})
+                selection = [int(value) for value in brut if value]
+                if len(set(selection)) != len(selection):
+                    raise HTTPException(400, {"code": "CITATION_INVALIDE"})
+                if not champs[cle] and selection:
+                    raise HTTPException(400, {"code": "CITATION_INVALIDE"})
+                if champs[cle]:
+                    if not 1 <= len(selection) <= 3 or any(index >= len(tokens) for index in selection):
+                        raise HTTPException(400, {"code": "CITATION_INVALIDE"})
+                    citations[cle] = [
+                        {"page": 1, "token_index": index, "token_sha256": _sha_token(tokens[index])}
+                        for index in selection
+                    ]
+            run_revision = brouillon["revision_run"]
+            session = session_vivante(request, session.utilisateur)
+            _admin(session)
+            await bloquant(
+                fusion_ap.enregistrer_ocr, cnx_factory, session.utilisateur, lot_id,
+                mutation_id=fields["mutation_id"], revision_pdf_attendue=revision_pdf,
+                revision_attendue=revision_ap, ocr_run_id=run_id, revision_run=run_revision,
+                proposition={"schema_version": 1, "champs": champs, "citations": citations},
+            )
+            session = session_vivante(request, session.utilisateur)
+            _admin(session)
+        except HTTPException as exc:
+            session = session_vivante(request, session.utilisateur)
+            return echec_prive(request, session, exc)
+        except Exception:
+            session = session_vivante(request, session.utilisateur)
+            return echec_prive(request, session, HTTPException(409, {"code": "SOURCE_OCR_OBSOLETE"}))
+        reponse = _privee(RedirectResponse(
+            f"{prefixe}/fusion/pdf/lots/{lot_id}/ap/ocr/{run_id}", status_code=303,
+        ))
+        session_vivante(request, session.utilisateur)
+        return reponse
 
     @router.get("/fusion/pdf/ap/a-revoir", response_class=HTMLResponse)
     async def liste_ap_a_revoir(request: Request) -> HTMLResponse:

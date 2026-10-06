@@ -474,6 +474,7 @@ type AfterTurnRuntimeContextAttempt = Pick<
   | "authProfileIdSource"
   | "runtimePlan"
   | "userTurnTranscriptRecorder"
+  | "opsysPostflightCollector"
 > & {
   sessionId?: EmbeddedRunAttemptParams["sessionId"];
 };
@@ -520,7 +521,9 @@ export function buildAfterTurnRuntimeContext(params: {
     attempt: params.attempt,
     activeAgentId: params.activeAgentId,
   });
+  const deferredPostflight = params.attempt.opsysPostflightCollector?.getDeferredDepositReceipt();
   return {
+    ...(deferredPostflight ? { opsysDeferredPostflight: deferredPostflight } : {}),
     ...buildEmbeddedCompactionRuntimeContext({
       sessionKey: params.attempt.sessionKey,
       sandboxSessionKey: params.attempt.sandboxSessionKey,

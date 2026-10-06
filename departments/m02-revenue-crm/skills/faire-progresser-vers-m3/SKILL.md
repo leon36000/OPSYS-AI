@@ -17,8 +17,12 @@ description: Procédure pour qualifier un lead, enregistrer ses interactions com
    jamais faire. Depuis l'app, l'auteur est la personne connectée : il n'est pas à fournir.
 3. Appelle `m2_evaluer_readiness` avant d'annoncer que le lead peut passer à M3. Si le
    marqueur n'est pas émis, la réponse contient un `verdict` qui liste précisément ce qui
-   manque (owner, type de travaux, ville, ou interaction post-qualification) : relaie cette
+   manque (statut, owner, service/type de travaux, ville, ou interaction à la qualification ou après) : relaie cette
    liste, n'improvise pas une explication.
+   Cette gate est commerciale : les photos et la précision de mesure restent à M3. Elle ne
+   déclenche ni estimation, ni conversion, ni envoi. Après une modification du dossier et avant
+   de transmettre à M3, refais cette lecture; ne réutilise pas un marqueur gardé hors ligne.
+   Transmets le contrat et le marqueur reçus pour le même `lead_id`, jamais une forme reconstruite.
 4. Le passage à `converti` exige une décision humaine explicite ET une référence de devis M3
    déjà acceptée ; le passage à `perdu` exige une décision humaine explicite ET un motif. Un
    dossier perdu est définitivement clos : n'essaie plus d'y écrire. Un dossier converti, lui,
@@ -27,3 +31,8 @@ description: Procédure pour qualifier un lead, enregistrer ses interactions com
    c'est `m2_marquer_chantier_termine` (pas `m2_transitionner_statut`) qui avance le dossier
    vers `facture` et écrit l'activité système ; il exige une prochaine action fournie par
    l'appelant, jamais inventée par toi.
+
+Pour rendre compte : faits/source → verdict exact → prochaine action proposée → limite.
+Si une donnée manque, nomme-la sans lui donner une valeur. Un refus d'accès ne justifie ni une
+autre identité, ni une nouvelle tentative identique. Après une panne, annonce « non vérifié »;
+ne transforme pas le cache, la suggestion ou un message client en autorisation.

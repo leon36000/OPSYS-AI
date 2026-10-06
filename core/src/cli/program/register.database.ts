@@ -84,6 +84,27 @@ export function registerDatabaseCommand(program: Command): void {
     .addHelpText("after", `\nDocs: ${OPENCLAW_DATABASE_SCHEMA_DOCS_URL}\n`);
 
   database
+    .command("postflight")
+    .description(
+      "Inspect OPSYS M10 open intents and delivery lots without replaying or changing them",
+    )
+    .requiredOption("--agent-id <id>", "exact canonical agent owner ID; no implicit default")
+    .option("--json", "emit machine-readable JSON", false)
+    .action(async (options: DatabaseOutputOptions & { agentId: string }) => {
+      const { inspectOpsysPostflightDiagnostic, formatOpsysPostflightDiagnostic } =
+        await import("../opsys-postflight-diagnostic.js");
+      const result = inspectOpsysPostflightDiagnostic({ agentId: options.agentId });
+      if (options.json) {
+        writeRuntimeJson(defaultRuntime, result);
+      } else {
+        writeRuntimeStdout(defaultRuntime, formatOpsysPostflightDiagnostic(result));
+      }
+      if (result.status === "unavailable") {
+        defaultRuntime.exit(1);
+      }
+    });
+
+  database
     .command("preflight")
     .description("Compare one copied SQLite file with this release's state schema")
     .argument("<path>", "explicit copied SQLite database path")

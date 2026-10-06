@@ -1,0 +1,9 @@
+# Revue RO du garde build r292 — seuils effectifs
+
+Sources SHA-256 : `qa_root_r292.py` `d0d5d085cc3261e03c98588d777f1d49512168bcc4345969a716ad30f16d3ba4`; `guard_helpers_core_r271.py` `a1d399c76f2f3fb953904ea7cda89dae75ea29c4b9bacaea614134b1b3db7896`; `managed-child-process.mts` `bde3de4497142aa34289b41f91f8a1824ae5f48332a023c63e2e1efa939a5c59`; `tsdown-build.mts` `ac49d26dabaedb3b64c3febb766e22a4df87ab59cfebd91ef5251794759be722`; receipt `f4c56aff515d06bd65950218a76a36b6c484066fd568d37a70ae1e72b6ae9dba`.
+
+Le helper définit par défaut un cap PG RSS de 1 GiB, mais le driver r292 le remplace explicitement par 6 GiB et règle l’admission initiale à 7 GiB (`qa_root_r292.py` l.19–20); il passe aussi `NODE_OPTIONS=--max-old-space-size=4352` et `OPENCLAW_TSDOWN_MAX_OLD_SPACE_MB=4352` (l.31). Le seuil d’exécution RSS est donc 6 GiB, pas le défaut du helper. Le receipt rapporte un pic du PG root de `271,691,776 B` (~259 MiB), largement sous ce cap.
+
+La garde réellement déclenchée reste indépendante : `hard_raw_quota_floor_256MiB`, à `minimum_raw_room=260,849,664 B`, donc sous 256 MiB. Les compteurs cgroup OOM avant/après restent tous zéro. `group_members` et le pic RSS couvrent uniquement le PG du processus `pnpm`; la commande `tsdown-build.mts` détache un PG enfant POSIX. Son wrapper relaie TERM/KILL et vérifie l’extinction de ce groupe, mais le receipt n’en contient pas le PGID ni le RSS : aucune garantie d’un plafond RSS agrégé à 6 GiB pour les groupes séparés.
+
+Le cleanup receipt prouve zéro survivant et deux enfants réadoptés seulement dans le PG root. ROOT a observé après arrêt avec `ps` qu’aucun processus correspondant à la commande build-source ne subsistait; c’est une observation ponctuelle, pas une preuve générale de toute l’arborescence à tout instant. `source_delta={}` pour 36 953 sources; les SHA avant/après des scripts Core sont identiques. Le build s’est arrêté avec le code `-15`, il n’a pas terminé.

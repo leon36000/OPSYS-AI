@@ -673,3 +673,65 @@ def test_rejeu_identifiant_avec_espaces_externes_reutilise_stt(
     marqueurs = [ligne for ligne in lignes if ligne.get("type_entree") == "voicemail_stt_termine"]
     assert len(imports) == len(marqueurs) == 1
     assert imports[0][champ] == valeur.strip()
+
+
+def test_echec_stt_puis_reprise_consentie_garde_le_meme_handoff_et_rejeu_routeur(
+    client_voicemail, serveur_stt, monkeypatch
+):
+    from m1_front_office import transferts
+
+    monkeypatch.setenv("OPSYS_M1_STT_URL", serveur_stt)
+    monkeypatch.setenv("OPSYS_M1_STT_MODELE", "whisper-test-fictif")
+    monkeypatch.setenv("OPSYS_M1_STT_LOCAL", "1")
+    csrf = connecter_admin(client_voicemail)
+    _ServeurSTT.statut_http = 503
+
+    panne = _upload(client_voicemail, _champs(csrf), _wav())
+
+    assert panne.status_code == 200, panne.text
+    assert "sans transcription" in panne.text
+    assert _ServeurSTT.requetes == 1
+    lignes_initiales = list(stockage.maillons("m01-front-office", "principal"))
+    appels = [ligne for ligne in lignes_initiales if ligne.get("type_entree") == "appel_importe"]
+    assert len(appels) == 1
+    assert appels[0]["reponse"]["transcription_conservee"] is False
+    transfert_id = appels[0]["reponse"]["tache_rappel"]["transfert_id"]
+    assert "Bonjour, mes gouttières fuient à Laval." not in str(lignes_initiales)
+
+    _ServeurSTT.statut_http = 200
+    reprise = _upload(
+        client_voicemail, _champs(csrf, mutation_id="mutation-voicemail-retry-fictif-002"), _wav()
+    )
+
+    assert reprise.status_code == 200, reprise.text
+    assert "transcription reçue" in reprise.text
+    assert _ServeurSTT.requetes == 2
+    lignes = list(stockage.maillons("m01-front-office", "principal"))
+    imports = [ligne for ligne in lignes if ligne.get("type_entree") == "appel_importe"]
+    enrichis = [ligne for ligne in lignes if ligne.get("type_entree") == "appel_voicemail_enrichi"]
+    assert len(imports) == 1 and len(enrichis) == 1
+    assert enrichis[0]["consentement_enregistrement"] == "accorde"
+    assert enrichis[0]["transfert_id"] == transfert_id
+    assert enrichis[0]["reponse"]["traitement"]["decision"] == "TRANSFERT_EN_COURS"
+    assert enrichis[0]["reponse"]["traitement"]["qualification_en_attente"] == "transfert_humain_ouvert"
+    etats = transferts.lire(lignes)
+    assert len(etats) == 1 and etats[0].identifiant == transfert_id and etats[0].ouvert
+    vue = transferts.vue(etats[0], lignes)
+    assert len(vue["messages_suivants"]) == 1
+    assert "Bonjour, mes gouttières fuient à Laval." in vue["messages_suivants"][0]["texte"]
+    assert all("audio" not in cle for ligne in enrichis for cle in ligne)
+    with stockage.transaction() as cnx:
+        publies = cnx.execute(
+            select(EVENEMENTS_SORTANTS).where(EVENEMENTS_SORTANTS.c.type_evenement == "m1.lead_qualifie")
+        ).all()
+    assert publies == [], "un transfert humain ouvert ne force pas un lead vers M2/M10"
+
+    replay = _upload(
+        client_voicemail, _champs(csrf, mutation_id="mutation-voicemail-replay-fictif-003"), _wav()
+    )
+    assert replay.status_code == 200, replay.text
+    assert "transcription reçue" in replay.text
+    assert _ServeurSTT.requetes == 2, "le reçu STT opaque évite un troisième appel au mock local"
+    lignes_rejouees = list(stockage.maillons("m01-front-office", "principal"))
+    assert len([ligne for ligne in lignes_rejouees if ligne.get("type_entree") == "appel_voicemail_enrichi"]) == 1
+    assert len([e for e in transferts.lire(lignes_rejouees) if e.identifiant == transfert_id]) == 1
