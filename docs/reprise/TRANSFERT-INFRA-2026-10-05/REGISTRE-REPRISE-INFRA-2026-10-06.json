@@ -5355,6 +5355,13 @@
       "transport_sha256": null,
       "final_sha256": "51d72a310297c47e369b517cc9a54aec10e190aa73ff0d4c0a3264276510ab94",
       "disposition": "suivi CI exact44e38824; mise à jour ciblée source-map-js, catalogue M3 T0 et liste explicite Core; voir audit/diff"
+    },
+    {
+      "path": "core/src/agents/embedded-agent-runner/run-entry.admission.integration.test.ts",
+      "base_sha256": "ded16a523ddc8c18de5f9c41062429b3cc732e62baeb4c6f561ccbb4316f48fe",
+      "transport_sha256": null,
+      "final_sha256": "5b0a340084961d4406d3a68126dd892ab3dc9a95684058e07d732013d058bc6e",
+      "disposition": "fixture voisin admission/fallback alignée au reçu canonique; hook préparation void; runtime strict conservé; RED/GREEN93cas"
     }
   ],
   "observation_toronto": "2026-10-06T04:54:57.683714-04:00",
@@ -6558,6 +6565,120 @@
       "receipt_sha256": "468822e869558c67535467609c26c1ce485eb8679b0efacf15c8a4b64c514145"
     },
     {
+      "label": "run-entry-admission-r1",
+      "command": [
+        "pnpm",
+        "test",
+        "src/agents/embedded-agent-runner/run-entry.admission.integration.test.ts",
+        "src/agents/embedded-agent-runner/run-entry.test.ts"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/core",
+      "started_utc": "2026-10-06T09:21:43.227653+00:00",
+      "completed_utc": "2026-10-06T09:22:14.770457+00:00",
+      "exit_code": 1,
+      "wall_seconds": 30.749,
+      "peak_process_tree_rss_bytes": 2431221760,
+      "guard_triggered": null,
+      "source_sha256_before": "0ce4147ca2915c8988b20875093459e0075514f5be35fac330a26fa3d58c3199",
+      "source_sha256_after": "0ce4147ca2915c8988b20875093459e0075514f5be35fac330a26fa3d58c3199",
+      "sources_unchanged": true,
+      "log_sha256": "b5562c763a729db56cc9746f7b9430f8c46579033f11dee0ecf213026abe3d18",
+      "receipt_path": "run-entry-admission-r1.json",
+      "receipt_sha256": "4491a043340be799e837ef548f17b790daa9c3dc4a4f09b66a3e3aacd318004c"
+    },
+    {
+      "label": "run-entry-admission-r2",
+      "command": [
+        "pnpm",
+        "test",
+        "src/agents/embedded-agent-runner/run-entry.admission.integration.test.ts",
+        "src/agents/embedded-agent-runner/run-entry.test.ts",
+        "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "src/agents/embedded-agent-runner/opsys-runtime-admission.python-http.integration.test.ts",
+        "src/agents/embedded-agent-runner/system-prompt.test.ts"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/core",
+      "started_utc": "2026-10-06T09:22:36.101100+00:00",
+      "completed_utc": "2026-10-06T09:22:59.224514+00:00",
+      "exit_code": 1,
+      "wall_seconds": 22.339,
+      "peak_process_tree_rss_bytes": 2417233920,
+      "guard_triggered": null,
+      "source_sha256_before": "875c052cb1310a41bfffd8f5eca0f19a46567fa1d5f81738119163cb5240b0c1",
+      "source_sha256_after": "875c052cb1310a41bfffd8f5eca0f19a46567fa1d5f81738119163cb5240b0c1",
+      "sources_unchanged": true,
+      "log_sha256": "cc621c45c697ebfe2082218c535613afd31659ed861b719ebaf9e8eaf6d04aed",
+      "receipt_path": "run-entry-admission-r2.json",
+      "receipt_sha256": "19064e228f9f8c8b88b458b2bdd36b9e7d1f6ddb84078f796d95fbec0b69d69e"
+    },
+    {
+      "label": "run-entry-admission-r3",
+      "command": [
+        "pnpm",
+        "test",
+        "src/agents/embedded-agent-runner/run-entry.admission.integration.test.ts",
+        "src/agents/embedded-agent-runner/run-entry.test.ts",
+        "src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts",
+        "src/agents/embedded-agent-runner/opsys-runtime-admission.python-http.integration.test.ts",
+        "src/agents/embedded-agent-runner/system-prompt.test.ts"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/core",
+      "started_utc": "2026-10-06T09:24:32.032973+00:00",
+      "completed_utc": "2026-10-06T09:24:49.116645+00:00",
+      "exit_code": 0,
+      "wall_seconds": 16.289,
+      "peak_process_tree_rss_bytes": 2221023232,
+      "guard_triggered": null,
+      "source_sha256_before": "40c9ccad546a263757ac06361e1033c04a2efc183ba7cf95f7d13c910cea2cad",
+      "source_sha256_after": "40c9ccad546a263757ac06361e1033c04a2efc183ba7cf95f7d13c910cea2cad",
+      "sources_unchanged": true,
+      "log_sha256": "bb41b095b87153bbd416baaab83dd05e4b700d8593d0ff45a5fb0cd2d9b9d197",
+      "receipt_path": "run-entry-admission-r3.json",
+      "receipt_sha256": "9dd409866a8056a9f5ec44e9e2a1a39ea9a9a4fea73a810c17c2ebbf8b3d6b54"
+    },
+    {
+      "label": "run-entry-lint-r1",
+      "command": [
+        "node",
+        "scripts/run-oxlint.mjs",
+        "src/agents/embedded-agent-runner/run-entry.admission.integration.test.ts"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/core",
+      "started_utc": "2026-10-06T09:23:07.102845+00:00",
+      "completed_utc": "2026-10-06T09:23:27.064923+00:00",
+      "exit_code": 1,
+      "wall_seconds": 19.178,
+      "peak_process_tree_rss_bytes": 6671441920,
+      "guard_triggered": null,
+      "source_sha256_before": "875c052cb1310a41bfffd8f5eca0f19a46567fa1d5f81738119163cb5240b0c1",
+      "source_sha256_after": "875c052cb1310a41bfffd8f5eca0f19a46567fa1d5f81738119163cb5240b0c1",
+      "sources_unchanged": true,
+      "log_sha256": "04403c8a273fc1ce3d330fe961b0fce6be3c9b3338058eb39803e0dbdb21a48b",
+      "receipt_path": "run-entry-lint-r1.json",
+      "receipt_sha256": "97e8f62fe5b4784222378bc84b12961ec6122a07adb38dac1e97511d28a7fe27"
+    },
+    {
+      "label": "run-entry-lint-r2",
+      "command": [
+        "node",
+        "scripts/run-oxlint.mjs",
+        "src/agents/embedded-agent-runner/run-entry.admission.integration.test.ts"
+      ],
+      "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/core",
+      "started_utc": "2026-10-06T09:24:42.644170+00:00",
+      "completed_utc": "2026-10-06T09:25:03.163657+00:00",
+      "exit_code": 0,
+      "wall_seconds": 19.725,
+      "peak_process_tree_rss_bytes": 6645022720,
+      "guard_triggered": null,
+      "source_sha256_before": "40c9ccad546a263757ac06361e1033c04a2efc183ba7cf95f7d13c910cea2cad",
+      "source_sha256_after": "40c9ccad546a263757ac06361e1033c04a2efc183ba7cf95f7d13c910cea2cad",
+      "sources_unchanged": true,
+      "log_sha256": "65ea5d43566d667e9333e9906db5d6bb3e6fa316268017a0de45a97429a20187",
+      "receipt_path": "run-entry-lint-r2.json",
+      "receipt_sha256": "00364d72808b87af5349ebc1f8d209fcbf8d885b1e293b4cc07912256b08dbb3"
+    },
+    {
       "label": "schema-generation-r1",
       "command": [
         "pnpm",
@@ -7169,6 +7290,56 @@
       "sha256": "a7781d6dc6bb97b287cfadd2757428b17b63b2d83e591dbf86c349d7e7a5fcb8"
     },
     {
+      "path": "run-entry-admission-r1.json",
+      "bytes": 858,
+      "sha256": "4491a043340be799e837ef548f17b790daa9c3dc4a4f09b66a3e3aacd318004c"
+    },
+    {
+      "path": "run-entry-admission-r1.log",
+      "bytes": 10265,
+      "sha256": "b5562c763a729db56cc9746f7b9430f8c46579033f11dee0ecf213026abe3d18"
+    },
+    {
+      "path": "run-entry-admission-r2.json",
+      "bytes": 1088,
+      "sha256": "19064e228f9f8c8b88b458b2bdd36b9e7d1f6ddb84078f796d95fbec0b69d69e"
+    },
+    {
+      "path": "run-entry-admission-r2.log",
+      "bytes": 23091,
+      "sha256": "cc621c45c697ebfe2082218c535613afd31659ed861b719ebaf9e8eaf6d04aed"
+    },
+    {
+      "path": "run-entry-admission-r3.json",
+      "bytes": 1088,
+      "sha256": "9dd409866a8056a9f5ec44e9e2a1a39ea9a9a4fea73a810c17c2ebbf8b3d6b54"
+    },
+    {
+      "path": "run-entry-admission-r3.log",
+      "bytes": 22046,
+      "sha256": "bb41b095b87153bbd416baaab83dd05e4b700d8593d0ff45a5fb0cd2d9b9d197"
+    },
+    {
+      "path": "run-entry-lint-r1.json",
+      "bytes": 813,
+      "sha256": "97e8f62fe5b4784222378bc84b12961ec6122a07adb38dac1e97511d28a7fe27"
+    },
+    {
+      "path": "run-entry-lint-r1.log",
+      "bytes": 305,
+      "sha256": "04403c8a273fc1ce3d330fe961b0fce6be3c9b3338058eb39803e0dbdb21a48b"
+    },
+    {
+      "path": "run-entry-lint-r2.json",
+      "bytes": 813,
+      "sha256": "00364d72808b87af5349ebc1f8d209fcbf8d885b1e293b4cc07912256b08dbb3"
+    },
+    {
+      "path": "run-entry-lint-r2.log",
+      "bytes": 42,
+      "sha256": "65ea5d43566d667e9333e9906db5d6bb3e6fa316268017a0de45a97429a20187"
+    },
+    {
       "path": "schema-generation-r1.json",
       "bytes": 670,
       "sha256": "c41f76a8f37141c09dc68372c421c5d8d76b6538cf21db019a9d3895444aa976"
@@ -7230,7 +7401,8 @@
     "REGISTRE-REPRISE-INFRA-2026-10-06.json",
     "PREUVES-REPRISE-2026-10-06-r1.tar.xz",
     "CONTINUITE-VERTICALE-2026-10-06.md",
-    "PREUVES-REPRISE-2026-10-06-r2.tar.xz"
+    "PREUVES-REPRISE-2026-10-06-r2.tar.xz",
+    "PREUVES-REPRISE-2026-10-06-r3.tar.xz"
   ],
   "ci_followup": {
     "parent_head": "44e388245253b6697391002415b2d0212b1e60cb",
@@ -7242,5 +7414,14 @@
     },
     "applicable_core_targets": 183,
     "status": "CORRECTIONS_LOCALES_VERIFIEES_NOUVEAU_COMMIT_CI_A_OBTENIR"
+  },
+  "admission_fixture_followup": {
+    "parent_head": "835cd13c5db421ea0c6a30efd709336706dc1bf7",
+    "status": "CORRECTION_FIXTURE_VERIFIEE_CI_NOUVEAU_HEAD_A_OBTENIR",
+    "proof_archive": {
+      "name": "PREUVES-REPRISE-2026-10-06-r3.tar.xz",
+      "sha256": "30b298ff60bc318abc9ca01d8f52d94a6de612c632363512b192eab3f2ed6ddf",
+      "bytes": 116788
+    }
   }
 }

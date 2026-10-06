@@ -66,3 +66,11 @@ Le commit d'intégration `44e388245253b6697391002415b2d0212b1e60cb` est publié 
 - PostgreSQL : jobM10 du parent réussi après téléchargement explicite `pgvector/pgvector:pg17`. Cela ne qualifie pas les testsPostgreSQLM3, les appareils réels ou une restaurationVPS.
 
 [Capsule de suivi](PREUVES-REPRISE-2026-10-06-r2.tar.xz), SHA256 `079c176e26ce9d1831fd61c487f831495b7fb22c38371d41004bbe52b03c51a5`, conserve les nouveaux reçus rouges/verts et les snapshots/journaux de la première CI. La capsule r1 reste intacte. Le registre distingue désormais25suppléments de qualification. [File verticale et critères de jonction](CONTINUITE-VERTICALE-2026-10-06.md) : sous-parcours actuels distincts d'un scénario unique non livré. OPSYS-AI reste **PARTIEL**.
+
+## Reçu canonique du voisin fallback — 2026-10-06T05:26:41.489779-04:00
+
+La CI Core du premier commit de reprise révèle un unique cas rouge dans les13partitions OPSYS : fixture historique `run-entry.admission.integration.test.ts` restée au reçu partiel `reservation-0001`. Reproduction locale1F/35P; la fixture retourne désormais une identité hex32 et un reçu complet lié aux vrais arguments de capture, puis la même réservation conciliée. L'assertion fournisseur unique, candidat0 après échec avant admission et les2appels MCP exacts sont conservés. Les guards de production restent stricts et inchangés.
+
+Le hook `beforeEach` retournait le mock de `mockReset`; Vitest5 l'appelait comme fonction de nettoyage sans argument. Hook à retourvoid et suppression de l'affectationunused, setup conservé. Reprise r2 rouge et r3 verte conservées : **93/93 sur5fichiers complets**, y compris le véritable MCP Python HTTP, sources figées; lint ciblé vert. Aucun nouveau build requis pour cette fixture seule; les octets de production restent ceux déjà qualifiés.
+
+[Capsule r3](PREUVES-REPRISE-2026-10-06-r3.tar.xz), SHA256 `30b298ff60bc318abc9ca01d8f52d94a6de612c632363512b192eab3f2ed6ddf`, avec journal CI et reçus rouges/verts. Registre **26 suppléments**; les302sources du transport et104absences restent rapprochées. Le commit de correction doit obtenir sa CI applicable propre; aucun succès du parent attribué. OPSYS-AI reste **PARTIEL**.
