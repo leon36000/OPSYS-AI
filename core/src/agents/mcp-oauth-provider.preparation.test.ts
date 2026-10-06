@@ -44,6 +44,7 @@ it("keeps acknowledged metadata when an earlier read completes later", async () 
   } satisfies McpOAuthStore;
   read.mockResolvedValueOnce(original);
   const provider = await createMcpOAuthClientProvider({
+    allowAuthorizationRedirect: true,
     lease,
     storeContext: context,
     identity: {
@@ -71,6 +72,7 @@ it("requires an acknowledged read after a write reports an uncertain result", as
   const committed = { redirectUrl: "https://callback.example.test/committed" };
   read.mockResolvedValueOnce(original);
   const provider = await createMcpOAuthClientProvider({
+    allowAuthorizationRedirect: true,
     lease,
     storeContext: context,
     identity: {

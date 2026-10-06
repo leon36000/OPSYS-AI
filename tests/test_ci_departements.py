@@ -69,7 +69,7 @@ def test_la_matrice_ci_couvre_exactement_les_departements():
 
 def test_gates_exige_le_succes_de_chaque_job_requis():
     gates = _ci()["jobs"]["gates"]
-    assert set(gates["needs"]) == {"socle", "departement", "m03-preuves", "verticale-postgresql"}
+    assert set(gates["needs"]) == {"socle", "departement", "m03-preuves", "frontiere-postgresql"}
     assert gates["if"] == "always()"
     commandes = "\n".join(etape.get("run", "") for etape in gates["steps"])
     for job in gates["needs"]:
@@ -177,11 +177,13 @@ def test_la_preuve_postgresql_exige_des_scenarios_executes_sans_ignorance(tmp_pa
     """Exécute le contrôle réel du job contre un rapport : un job sans preuve ne passe pas."""
     import xml.etree.ElementTree as ET
 
-    job = _ci()["jobs"]["verticale-postgresql"]
+    job = _ci()["jobs"]["frontiere-postgresql"]
     assert not job.get("if") and not job.get("continue-on-error")
-    etape = next(e for e in job["steps"] if e.get("name") == "Une affaire durable sur PostgreSQL réel")
+    etape = next(
+        e for e in job["steps"] if e.get("name") == "Refus C02 réel sur PostgreSQL (verticale complète bloquée)"
+    )
     commande = etape["run"]
-    assert "-k postgresql" in commande and "tests/e2e/test_verticale_affaire_durable.py" in commande
+    assert "tests/e2e/test_verticale_postgresql_refus_c02.py" in commande
     script = commande.split("python - <<'PYTHON'\n", 1)[1].rsplit("\nPYTHON", 1)[0]
     racine = ET.Element("testsuites")
     suite = ET.SubElement(racine, "testsuite")
@@ -189,7 +191,7 @@ def test_la_preuve_postgresql_exige_des_scenarios_executes_sans_ignorance(tmp_pa
         cas = ET.SubElement(suite, "testcase", name="affaire-fictive")
         if etat != "ok":
             ET.SubElement(cas, etat)
-    ET.ElementTree(racine).write(tmp_path / "verticale-postgresql.xml", encoding="utf-8")
+    ET.ElementTree(racine).write(tmp_path / "frontiere-postgresql.xml", encoding="utf-8")
     monkeypatch.setenv("RUNNER_TEMP", str(tmp_path))
     resultat = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, check=False)
     assert (resultat.returncode == 0) is accepte, resultat.stderr

@@ -1,5 +1,6 @@
 /** MCP SDK OAuth provider backed by canonical OpenClaw state. */
 import { randomUUID } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import type { OAuthClientProvider } from "@modelcontextprotocol/sdk/client/auth.js";
 import type { OAuthClientMetadata, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
 import type { FetchLike } from "@modelcontextprotocol/sdk/shared/transport.js";
@@ -190,9 +191,39 @@ export async function createMcpOAuthClientProvider(params: {
     async clientInformation() {
       const store = await readStore();
       params.login?.assertCurrent();
-      return store.clientInformation;
+      const clientInformation = store.clientInformation;
+      if (clientInformation?.client_secret !== undefined) {
+        const issuer = normalizeOptionalString(clientInformation.issuer);
+        // Legacy secrets must not bind to whichever issuer the MCP server next advertises.
+        // Keep the stored record intact; explicit login can register fresh bound credentials.
+        if (!issuer || !URL.canParse(issuer)) {
+          return undefined;
+        }
+      }
+      return clientInformation;
     },
     async saveClientInformation(clientInformation) {
+      if (params.allowAuthorizationRedirect !== true) {
+        const store = await readStore();
+        const existing = store.clientInformation;
+        if (existing && !isDeepStrictEqual(existing, clientInformation)) {
+          const issuer = normalizeOptionalString(clientInformation.issuer);
+          // The SDK may stamp a successfully refreshed legacy registration. Discovery written
+          // during this attempt cannot establish where the existing credentials belong.
+          const existingIssuer =
+            normalizeOptionalString(existing.issuer) ?? store.tokensAuthorizationServerUrl;
+          if (
+            !issuer ||
+            !URL.canParse(issuer) ||
+            issuer !== existingIssuer ||
+            !isDeepStrictEqual({ ...existing, issuer }, clientInformation)
+          ) {
+            throw new Error(
+              `MCP server "${params.identity.serverName}" requires explicit OAuth login before replacing stored client information.`,
+            );
+          }
+        }
+      }
       await updateStore({ kind: "clientInformation", clientInformation });
       params.login?.assertCurrent();
     },

@@ -234,7 +234,7 @@ jobs:
   # `gates` reste le contexte requis par la protection de branche historique. Le job mobile a un
   # nom distinct (`mobile-gates`). Ce contrôle tourne toujours (`if: always()`) et échoue si un
   # job Python requis a été sauté ou annulé.
-  verticale-postgresql:
+  frontiere-postgresql:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -244,7 +244,7 @@ jobs:
           python-version: "3.12"
       - name: uv (version verrouillée)
         run: python -m pip install --quiet uv==0.12.19 && uv --version
-      - name: Installation verrouillée pour la verticale métier
+      - name: Installation verrouillée pour la frontière PostgreSQL
         run: |
           uv sync --locked --group build --extra dev --extra postgres --no-build-isolation --no-install-project
           uv sync --locked --group build --extra dev --extra postgres --no-build-isolation
@@ -257,23 +257,23 @@ jobs:
           image = runpy.run_path("tests/fixtures/memoire/doubles.py")["IMAGE_PGVECTOR"]
           subprocess.run(["docker", "pull", image], check=True, timeout=900)
           PYTHON
-      - name: Une affaire durable sur PostgreSQL réel
+      - name: Refus C02 réel sur PostgreSQL (verticale complète bloquée)
         run: |
-          python -m pytest tests/e2e/test_verticale_affaire_durable.py -k postgresql --junitxml="$RUNNER_TEMP/verticale-postgresql.xml"
+          python -m pytest tests/e2e/test_verticale_postgresql_refus_c02.py --junitxml="$RUNNER_TEMP/frontiere-postgresql.xml"
           python - <<'PYTHON'
           import os
           import xml.etree.ElementTree as ET
           from pathlib import Path
-          rapport = ET.parse(Path(os.environ["RUNNER_TEMP"]) / "verticale-postgresql.xml")
+          rapport = ET.parse(Path(os.environ["RUNNER_TEMP"]) / "frontiere-postgresql.xml")
           cas = list(rapport.iter("testcase"))
           assert cas, "aucune qualification PostgreSQL exécutée"
           assert all(c.find("skipped") is None for c in cas), "PostgreSQL ne doit pas être ignoré sur le runner"
           assert all(c.find("failure") is None and c.find("error") is None for c in cas)
-          print(f"{len(cas)} scénarios PostgreSQL réels qualifiés")
+          print(f"{len(cas)} refus PostgreSQL réels qualifiés ; verticale C02 complète bloquée")
           PYTHON
 
   gates:
-    needs: [socle, departement, m03-preuves, verticale-postgresql]
+    needs: [socle, departement, m03-preuves, frontiere-postgresql]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -283,4 +283,4 @@ jobs:
           test "${{ needs.socle.result }}" = "success"
           test "${{ needs.departement.result }}" = "success"
           test "${{ needs.m03-preuves.result }}" = "success"
-          test "${{ needs.verticale-postgresql.result }}" = "success"
+          test "${{ needs.frontiere-postgresql.result }}" = "success"

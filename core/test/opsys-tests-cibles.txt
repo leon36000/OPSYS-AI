@@ -270,3 +270,13 @@ src/cron/store/runtime-retirement-store.integration.test.ts
 src/cron/store/runtime-authority-crypto.integration.test.ts
 src/gateway/opsys-cron-reconciler.native.test.ts
 src/gateway/server-cron.test.ts
+
+# GHSA-6qxp-vccf-f47h : issuer OAuth, secrets hérités, persistance et migration.
+src/agents/mcp-oauth-provider.read.test.ts
+src/agents/mcp-oauth-provider.preparation.test.ts
+src/agents/mcp-oauth-refresh-issuer.test.ts
+src/agents/mcp-oauth-refresh.test.ts
+src/agents/mcp-oauth.test.ts
+src/agents/mcp-oauth-store.test.ts
+src/agents/mcp-oauth-writes.test.ts
+src/infra/state-migrations.mcp-oauth.test.ts

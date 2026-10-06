@@ -64,3 +64,16 @@ test("valid SHA256 signatures and the Expo signing consumer remain supported", (
   const certificate = forge.pki.createCertificate(); certificate.publicKey = publicKey;
   assert.equal(expo.signBufferRSASHA256AndVerify(forgePair.privateKey, certificate, content), signature.toString("base64"));
 });
+
+// GHSA-pqg4-j6r4-53mv: resolve the dependency through its actual React DevTools consumer.
+const requireReactDevtools = createRequire(requireMobile.resolve("react-devtools-core/package.json"));
+const shellQuote = requireReactDevtools("shell-quote");
+for (const terminator of ["\n", "\r", "\u2028", "\u2029"]) {
+  test(`shell-quote rejects a line terminator after a comment (${terminator.codePointAt(0)})`, () => {
+    assert.throws(() => shellQuote.quote(["echo", "fictif", { comment: "commentaire fictif" }, `a${terminator}echo fictif;#`]), TypeError);
+  });
+}
+test("shell-quote retains ordinary quoted arguments and comments", () => {
+  assert.deepEqual(shellQuote.parse(shellQuote.quote(["echo", "argument fictif avec espaces"])), ["echo", "argument fictif avec espaces"]);
+  assert.doesNotThrow(() => shellQuote.quote(["echo", { comment: "fictif" }, "fin fictive sans retour"]));
+});

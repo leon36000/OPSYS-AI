@@ -20,7 +20,7 @@ type GatewayContext = ReturnType<typeof readAvatarGatewayContext>;
 
 @customElement("openclaw-chat-agent-3d-avatar")
 export class ChatAgent3DAvatar extends LitElement {
-  static styles = css`
+  static override styles = css`
     :host {
       display: inline-flex;
       align-items: center;
@@ -83,11 +83,9 @@ export class ChatAgent3DAvatar extends LitElement {
   private unregisterGatewayReset?: () => void;
   private three?: typeof import("three");
   private renderer?: import("three").WebGLRenderer;
-  private scene?: import("three").Scene;
-  private camera?: import("three").PerspectiveCamera;
   private modelRoot?: import("three").Object3D;
 
-  protected willUpdate(changed: Map<PropertyKey, unknown>) {
+  protected override willUpdate(changed: Map<PropertyKey, unknown>) {
     if (changed.has("agentId") || changed.has("avatarModelId") || changed.has("connected")) {
       this.closeRenderer();
       this.expanded = false;
@@ -286,8 +284,6 @@ export class ChatAgent3DAvatar extends LitElement {
       renderer.setClearColor(0x000000, 0);
       renderer.render(scene, camera);
 
-      this.scene = scene;
-      this.camera = camera;
       this.modelRoot = gltf.scene;
       this.status = "ready";
     } catch {
@@ -311,13 +307,11 @@ export class ChatAgent3DAvatar extends LitElement {
     }
     this.renderer?.dispose();
     this.renderer = undefined;
-    this.scene = undefined;
-    this.camera = undefined;
     this.modelRoot = undefined;
     this.three = undefined;
   }
 
-  protected render() {
+  protected override render() {
     if (!this.isAvailable()) {
       return nothing;
     }

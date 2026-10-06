@@ -8,6 +8,7 @@ export function createVoiceCallBaseConfig(params?: {
 }): VoiceCallConfig {
   return {
     enabled: true,
+    missedCallIngress: false,
     provider: params?.provider ?? "mock",
     fromNumber: "+15550001234",
     inboundPolicy: "disabled",

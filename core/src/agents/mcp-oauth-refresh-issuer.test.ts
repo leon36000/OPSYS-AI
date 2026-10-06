@@ -55,8 +55,10 @@ function createOAuthNetwork(config: {
   challengeMetadataUrl: string;
   issuer: string;
   mintedAccessToken: string;
+  supportsRegistration?: boolean;
 }) {
   const tokenRequests: Array<{ url: string; body: string }> = [];
+  const registrationRequests: Array<{ url: string; body: string }> = [];
   const fetchFn: FetchLike = async (input, init) => {
     const url = new URL(String(input instanceof Request ? input.url : input));
     if (url.href === SERVER_URL) {
@@ -84,6 +86,17 @@ function createOAuthNetwork(config: {
         token_endpoint: `${config.issuer}/token`,
         response_types_supported: ["code"],
         grant_types_supported: ["authorization_code", "refresh_token"],
+        ...(config.supportsRegistration
+          ? { registration_endpoint: `${config.issuer}/register` }
+          : {}),
+      });
+    }
+    if (config.supportsRegistration && url.href === `${config.issuer}/register`) {
+      registrationRequests.push({ url: url.href, body: bodyText(init?.body) });
+      return Response.json({
+        client_id: "replacement-client-id",
+        client_secret: "replacement-client-secret",
+        redirect_uris: ["http://127.0.0.1:8989/oauth/callback"],
       });
     }
     if (url.href === `${config.issuer}/token`) {
@@ -97,7 +110,7 @@ function createOAuthNetwork(config: {
     }
     return new Response(null, { status: 404 });
   };
-  return { fetchFn, tokenRequests };
+  return { fetchFn, tokenRequests, registrationRequests };
 }
 
 async function seedAuthorizedStore(
@@ -152,6 +165,58 @@ describe("MCP OAuth refresh issuer binding", () => {
     await closeOpenClawStateDatabaseAsync();
     closeOpenClawStateDatabaseForTest();
   });
+
+  it.each(["legacy", "bound"])(
+    "preserves the %s client when a replacement issuer registers before a background redirect is refused",
+    async (binding) => {
+      await withTempHome(
+        async () => {
+          const originalClient = {
+            client_id: "stored-client-id",
+            client_secret: "stored-client-secret-fictif",
+            ...(binding === "bound" ? { issuer: ORIGINAL_ISSUER } : {}),
+          };
+          await withMcpOAuthProviderForTest({ identity: IDENTITY }, async (provider) => {
+            await provider.saveDiscoveryState?.({
+              authorizationServerUrl: ORIGINAL_ISSUER,
+              resourceMetadataUrl: ORIGINAL_METADATA_URL,
+            });
+            await provider.saveClientInformation?.(originalClient);
+            await provider.saveTokens({
+              access_token: STORED_ACCESS,
+              refresh_token: STORED_REFRESH,
+              token_type: "Bearer",
+              expires_in: 3600,
+            });
+          });
+          const before = await readStore();
+          const network = createOAuthNetwork({
+            challengeMetadataUrl: REPLACEMENT_METADATA_URL,
+            issuer: REPLACEMENT_ISSUER,
+            mintedAccessToken: "attacker-access",
+            supportsRegistration: true,
+          });
+          const refusal: unknown = await buildOAuthFetch(network.fetchFn)(SERVER_URL, {
+            method: "POST",
+            body: "{}",
+          }).catch((error: unknown) => error);
+
+          // SDK discovery can POST registration before the callback; it must never send old secrets.
+          expect(network.registrationRequests).toHaveLength(1);
+          expect(network.registrationRequests[0]?.body).not.toContain(originalClient.client_secret);
+          expect(network.tokenRequests).toEqual([]);
+          const after = await readStore();
+          expect(after.clientInformation).toEqual(originalClient);
+          expect(after.tokens).toEqual(before.tokens);
+          expect(after.tokensAuthorizationServerUrl).toBe(ORIGINAL_ISSUER);
+          expect(refusal).toMatchObject({
+            message: `MCP server "${SERVER_NAME}" requires explicit OAuth login before replacing stored client information.`,
+          });
+        },
+        { prefix: `openclaw-mcp-oauth-dcr-${binding}-`, ...TEMP_HOME_OPTIONS },
+      );
+    },
+  );
 
   it("does not send the stored refresh token to a different issuer from a challenge", async () => {
     await withTempHome(
@@ -287,9 +352,13 @@ describe("MCP OAuth refresh issuer binding", () => {
           issuer: REPLACEMENT_ISSUER,
           mintedAccessToken: "attacker-access",
         });
+        // SDK 1.31 discards client information bound to the old issuer. The replacement
+        // AS has no registration_endpoint, so it refuses registration before a token POST.
         await expect(
           buildOAuthFetch(newIssuer.fetchFn)(SERVER_URL, { method: "POST", body: "{}" }),
-        ).rejects.toThrow(/requires OAuth authorization/);
+        ).rejects.toMatchObject({
+          message: "Incompatible auth server: does not support dynamic client registration",
+        });
 
         expect(newIssuer.tokenRequests).toEqual([]);
         expect((await readStore()).tokensAuthorizationServerUrl).toBe(ORIGINAL_ISSUER);

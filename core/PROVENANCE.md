@@ -648,3 +648,11 @@ jour `src/opsys/openclaw.py` et ses tests dans le même commit.
 | `opsys/appareils.json` (hors schéma Zod) | appareil -> personne et rôle OPSYS (T1.4-c2, c4) ; rendu aussi à l'appareil par `GET /opsys/identite` (T1.4-c5). Format inchangé | `src/gateway/opsys-device-roles.ts` |
 | `opsys/contexte.json` (hors schéma Zod) | active et règle le moteur de contexte OPSYS (T3.3-suite) ; écrit par `openclaw.py` (`contexte_entreprise`, `affaire_par_session`) ; porte aussi `niveaux` (niveau N de chaque outil, pour le garde), `outil_affaire` et l'`affaire` de chaque agent (T3.3-suite-b) | `src/context-engine/opsys-contexte-config.ts` |
 | `plugins.slots.contextEngine` | choisit le moteur `opsys` quand `contexte.json` est actif ; absent sinon (moteur « legacy ») | `src/config/zod-schema.root-shape.ts`, `src/context-engine/registry-selection.ts` |
+
+## Qualification de sécurité du 6 octobre 2026 (Toronto)
+
+Le SDK MCP existant passe de1.30.0 à1.31.0; les dépendances directes UI client/core passent de2.0.0 à2.2.0. L’override SDK inclut les consommateurs transitifs, sans renouvellement général. Ces versions publiées le28septembre dépassent le délai de maturation de sept jours; aucune exception de maturation ajoutée. [Avis et conditions du correctif OAuth](https://github.com/advisories/GHSA-6qxp-vccf-f47h).
+
+Le LICENSE du SDK1.31 est MIT. Les LICENSE client/core2.2 indiquent la transition MIT vers Apache-2.0 pour les nouvelles contributions de code, et CC-BY-4.0 pour la documentation hors spécifications. Leurs notices restent distribuées dans les paquets; aucun nouveau fichier source amont copié dans le fork. Empreintes et preuves : complémentV1 dans `docs/reprise/VERTICALE-AFFAIRE-2026-10-06-V1/`.
+
+Le provider OPSYS conserve l’issuer et les extensions persistées. Un secret hérité sans issuer valide n’est plus fourni au SDK; le remplacement d’un client existant exige la capacité interne de connexion explicite. Seuls un objet identique ou l’ajout d’un issuer déjà prouvé par l’ancienne provenance peuvent être sauvegardés en arrière-plan. Un POST d’inscription dynamique peut précéder le refus du callback; la preuve protège les credentials persistés et ne revendique pas zéro effet réseau OAuth.

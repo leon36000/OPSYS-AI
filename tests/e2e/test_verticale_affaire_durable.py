@@ -39,6 +39,10 @@ from opsys.console.securite import Configuration
 from opsys.stockage import codec
 from opsys.stockage.schema import APPROBATIONS, EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, META, REGISTRES
 
+# La liaison C02 de production refuse PostgreSQL : qualifier ce parcours sur SQLite.
+# La frontière PostgreSQL demeure couverte séparément par son refus HTTP sans mutation.
+pytestmark = pytest.mark.parametrize("moteur", ["sqlite"], indirect=True)
+
 ROOT = Path(__file__).resolve().parents[2]
 JETON_CONTEXTE_FICTIF = "jeton-contexte-vertical-fictif-distinct-long"
 CLE_SESSION_FICTIVE = "agent:m03-estimation:webchat:direct:verticale-fictive"

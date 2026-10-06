@@ -21,6 +21,129 @@ import { countMcpOAuthPrincipals } from "./mcp-oauth.js";
 import { seedMcpOAuthStoreForTest, withMcpOAuthProviderForTest } from "./mcp-oauth.test-support.js";
 
 describe("MCP OAuth worker reads", () => {
+  it.each([undefined, "", " ", "not-an-issuer"])(
+    "withholds a client secret without a valid stored issuer (%s) before and after rediscovery",
+    async (issuer) => {
+      await withOpenClawTestState({ prefix: "openclaw-mcp-oauth-unbound-client-" }, async () => {
+        const identity = operatorMcpOAuthIdentity("legacy-client", "https://mcp.example.test/rpc");
+        const clientInformation = {
+          client_id: "fixture-client",
+          client_secret: "fixture-client-secret",
+          ...(issuer === undefined ? {} : { issuer }),
+        };
+        seedMcpOAuthStoreForTest(identity.storeKey, { clientInformation });
+        await withMcpOAuthProviderForTest({ identity }, async (provider) => {
+          expect(await provider.clientInformation()).toBeUndefined();
+          await provider.saveDiscoveryState?.({
+            authorizationServerUrl: "https://replacement-issuer.example.test",
+          });
+          expect(await provider.clientInformation()).toBeUndefined();
+        });
+        expect((await readMcpOAuthStore(identity.storeKey)).clientInformation).toEqual(
+          clientInformation,
+        );
+      });
+    },
+  );
+
+  it("preserves issuer-bound client information and tokens through save and store reopen", async () => {
+    await withOpenClawTestState({ prefix: "openclaw-mcp-oauth-bound-client-" }, async () => {
+      const identity = operatorMcpOAuthIdentity("bound-client", "https://mcp.example.test/rpc");
+      const clientInformation = {
+        client_id: "fixture-client",
+        client_secret: "fixture-client-secret",
+        issuer: "https://issuer.example.test",
+        vendor_extension: "fixture-client-extension",
+      };
+      const tokens = {
+        access_token: "fixture-access",
+        refresh_token: "fixture-refresh",
+        token_type: "Bearer",
+        issuer: clientInformation.issuer,
+      };
+      await withMcpOAuthProviderForTest({ identity }, async (provider) => {
+        await provider.saveDiscoveryState?.({ authorizationServerUrl: clientInformation.issuer });
+        await provider.saveClientInformation?.(clientInformation);
+        await provider.saveTokens(tokens);
+        expect(await provider.clientInformation()).toEqual(clientInformation);
+        expect(await provider.tokens()).toEqual(tokens);
+      });
+      await closeOpenClawStateDatabaseAsync();
+      await withMcpOAuthProviderForTest({ identity }, async (provider) => {
+        expect(await provider.clientInformation()).toEqual(clientInformation);
+        expect(await provider.tokens()).toEqual(tokens);
+      });
+    });
+  });
+
+  it("refuses to bind an existing secret using only newly discovered issuer metadata", async () => {
+    await withOpenClawTestState(
+      { prefix: "openclaw-mcp-oauth-client-new-discovery-" },
+      async () => {
+        const identity = operatorMcpOAuthIdentity("unbound-client", "https://mcp.example.test/rpc");
+        const original = { client_id: "fixture-client", client_secret: "fixture-client-secret" };
+        seedMcpOAuthStoreForTest(identity.storeKey, { clientInformation: original });
+        await withMcpOAuthProviderForTest({ identity }, async (provider) => {
+          const issuer = "https://replacement-issuer.example.test";
+          await provider.saveDiscoveryState?.({ authorizationServerUrl: issuer });
+          await expect(
+            provider.saveClientInformation?.({ ...original, issuer }),
+          ).rejects.toMatchObject({
+            message:
+              'MCP server "unbound-client" requires explicit OAuth login before replacing stored client information.',
+          });
+        });
+        expect((await readMcpOAuthStore(identity.storeKey)).clientInformation).toEqual(original);
+      },
+    );
+  });
+
+  it("allows background issuer enrichment from previously bound token provenance", async () => {
+    await withOpenClawTestState({ prefix: "openclaw-mcp-oauth-client-enrichment-" }, async () => {
+      const identity = operatorMcpOAuthIdentity("upgrade-client", "https://mcp.example.test/rpc");
+      const original = { client_id: "fixture-client", client_secret: "fixture-client-secret" };
+      const issuer = "https://issuer.example.test";
+      seedMcpOAuthStoreForTest(identity.storeKey, {
+        clientInformation: original,
+        tokens: { access_token: "fixture-access", token_type: "Bearer" },
+        tokensAuthorizationServerUrl: issuer,
+      });
+      await withMcpOAuthProviderForTest({ identity }, async (provider) => {
+        await provider.saveClientInformation?.({ ...original, issuer });
+        expect(await provider.clientInformation()).toEqual({ ...original, issuer });
+      });
+      expect((await readMcpOAuthStore(identity.storeKey)).clientInformation).toEqual({
+        ...original,
+        issuer,
+      });
+    });
+  });
+
+  it("allows explicit CLI authorization to replace an existing unbound client", async () => {
+    await withOpenClawTestState(
+      { prefix: "openclaw-mcp-oauth-client-explicit-login-" },
+      async () => {
+        const identity = operatorMcpOAuthIdentity("cli-client", "https://mcp.example.test/rpc");
+        seedMcpOAuthStoreForTest(identity.storeKey, {
+          clientInformation: { client_id: "old-client", client_secret: "old-client-secret-fictif" },
+        });
+        const replacement = {
+          client_id: "replacement-client",
+          client_secret: "replacement-client-secret-fictif",
+          issuer: "https://issuer.example.test",
+        };
+        await withMcpOAuthProviderForTest(
+          { identity, allowAuthorizationRedirect: true },
+          async (provider) => {
+            await provider.saveClientInformation?.(replacement);
+            expect(await provider.clientInformation()).toEqual(replacement);
+          },
+        );
+        expect((await readMcpOAuthStore(identity.storeKey)).clientInformation).toEqual(replacement);
+      },
+    );
+  });
+
   it("prepares provider facts and reopens persisted reads without parent SQL", async () => {
     await withOpenClawTestState({ prefix: "openclaw-mcp-oauth-worker-read-" }, async () => {
       const { DatabaseSync, StatementSync } = requireNodeSqlite();
