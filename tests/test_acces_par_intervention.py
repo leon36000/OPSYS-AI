@@ -250,7 +250,7 @@ def test_l_employe_ne_retire_pas_le_consentement_d_un_collegue(capacites, person
 
 # -- 3. M4 -> M6 : le WCT réel porte le technicien, M6 ne laisse déclarer que lui ----------------------------
 def test_les_materiaux_ne_se_declarent_que_pour_son_propre_wct_de_la_completion_a_la_declaration(
-        capacites, personnes, session):
+        capacites, personnes, session, monkeypatch):
     i_marc = _preparer(capacites, "L-T1-4-K-M6", "marc.fictif")
     for action, horodatage in (("arrivee", "2025-06-02T09:00:00+00:00"), ("depart", "2025-06-02T11:30:00+00:00")):
         r = executer_atomique(_outil(capacites, "m4_pointer"), {
@@ -283,6 +283,10 @@ def test_les_materiaux_ne_se_declarent_que_pour_son_propre_wct_de_la_completion_
         "lignes_materiaux": [{"type_ligne": "prevu", "materiau_id": "MAT-1", "quantite": 10.0,
                               "unite": "boite", "quantite_estimee": 10.0}]}}
 
+    # Deux secondes distinctes rendent observable l'ordre récent-d'abord du lecteur.
+    dates_traces = iter(("2026-10-06T11:00:00+00:00", "2026-10-06T11:00:01+00:00"))
+    monkeypatch.setattr(approbations, "_maintenant", lambda: next(dates_traces))
+
     # Léa (employée, autre technicien) ne peut pas déclarer pour le chantier de Marc.
     refuse = _appeler(capacites, "m6_declarer_materiaux_utilises", arguments, LEA, "mut-m6-lea")
     assert refuse["ok"] is True and refuse["resultat"]["verdict"]["code"] == CODE_NON_ASSIGNEE
@@ -296,8 +300,10 @@ def test_les_materiaux_ne_se_declarent_que_pour_son_propre_wct_de_la_completion_
         ecrits = [m for m in stockage.maillons("m06-material-control", "principal") if m.get("wct_id") == wct_id]
     assert [(m["type_mouvement"], m["chantier_id"], m["quantite"]) for m in ecrits] == [
         ("CONSOMMATION", i_marc, -10.0)]
-    assert [(t["outil"], t["decide_par"]) for t in _traces(session) if t["outil"].startswith("m6_")] == [
-        ("m6_declarer_materiaux_utilises", "lea.fictif"), ("m6_declarer_materiaux_utilises", "marc.fictif")]
+    assert [(t["outil"], t["decide_par"], t["statut"], t["cree_le"])
+            for t in _traces(session) if t["outil"].startswith("m6_")] == [
+        ("m6_declarer_materiaux_utilises", "marc.fictif", "executee", "2026-10-06T11:00:01+00:00"),
+        ("m6_declarer_materiaux_utilises", "lea.fictif", "echec", "2026-10-06T11:00:00+00:00")]
 
 
 # -- 4. par MCP : l'identité vient du `_meta`, jamais des arguments --------------------------------------------

@@ -82,3 +82,11 @@ Le HEAD0753f4c3 réussit les dix départements et les neuf batteries M3. Son soc
 Seul le budgetwallclock du socle passe à90minutes, comme les batteriesM3, pour conserver la suite complète. Commandepytest, collecte, tests, gardes, quotas et seuils inchangés; pas de tests ignorés/désélectionnés ajoutés. ContratsCI existants :10/10, sources figées. Le choix90min offre une marge après45min/0.68≈66min (estimation, pas une mesure de durée finale). Coût : occupationrunner pluslongue, un défaut réel peut toujours faireéchouer le job.
 
 [Capsule r4](PREUVES-REPRISE-2026-10-06-r4.tar.xz), SHA256 `315ba335c909676ad618e7db74e86da1d9a482b133150971e25f6b7049eb4e92`, conserve l'annotation, le journal interrompu, la référence et la vérificationCI locale. Le registre distingue27suppléments;295/302sources restentidentiques autransport, septmodifiées parqualification. Les104absences restenttracées. Le nouveaucommit de budget doit obtenir sespropres workflows applicables; OPSYS-AI reste **PARTIEL**.
+
+## Chronologie déterministe des traces M6 — 2026-10-06T07:36:30.992360-04:00
+
+Le socle du HEAD228c91ef termine en37m30, avec1échec/4485réussites/17ignorés. L'unique échec attendait Léa→Marc alorsque le lecteurcanonical `approbations.lister` rend lesplusrécentesd'abord; lesdates àla seconde faisaientparfois passerunordreaccidentel. Lescontrôles d'accès/refus/absenceécritures métier et consommationM6 étaientdéjàcorrects. Aucun défaut d'autorisation déduit de cette seule comparaison.
+
+Fixture avecdeuxsecondes distinctes : reproduction1F/6P, puis assertionexactedeuxtraces outil/acteur/statut/date, Marc/exécutée/date1 suivi de Léa/échec/date0. Aucuntriadditionnel ni ensemble qui cacheraitdoublons/manques; aucun lecteur, droit ou guardproduction changé. **202/202 surquatre fichiers complets d'accès M4/M6 et d'approbation**, Ruffvert et sourcesfigées. NouvelleCI aucommit de correction requise.
+
+[Capsule r5](PREUVES-REPRISE-2026-10-06-r5.tar.xz), SHA256 `5a2f93f248a438754cb64ed69e33e4e24c30a2fd411155b45405ab893b0e7754`, conservejournalCI et rouges/verts. Registre28suppléments, toujours302sources rapprochées,295identiquesautransport et104absences conservées. OPSYS-AI reste **PARTIEL**.
