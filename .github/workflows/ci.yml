@@ -234,8 +234,46 @@ jobs:
   # `gates` reste le contexte requis par la protection de branche historique. Le job mobile a un
   # nom distinct (`mobile-gates`). Ce contrôle tourne toujours (`if: always()`) et échoue si un
   # job Python requis a été sauté ou annulé.
+  verticale-postgresql:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.12"
+      - name: uv (version verrouillée)
+        run: python -m pip install --quiet uv==0.12.19 && uv --version
+      - name: Installation verrouillée pour la verticale métier
+        run: |
+          uv sync --locked --group build --extra dev --extra postgres --no-build-isolation --no-install-project
+          uv sync --locked --group build --extra dev --extra postgres --no-build-isolation
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
+      - name: Préparation explicite de PostgreSQL
+        run: |
+          python - <<'PYTHON'
+          import runpy
+          import subprocess
+          image = runpy.run_path("tests/fixtures/memoire/doubles.py")["IMAGE_PGVECTOR"]
+          subprocess.run(["docker", "pull", image], check=True, timeout=900)
+          PYTHON
+      - name: Une affaire durable sur PostgreSQL réel
+        run: |
+          python -m pytest tests/e2e/test_verticale_affaire_durable.py -k postgresql --junitxml="$RUNNER_TEMP/verticale-postgresql.xml"
+          python - <<'PYTHON'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          rapport = ET.parse(Path(os.environ["RUNNER_TEMP"]) / "verticale-postgresql.xml")
+          cas = list(rapport.iter("testcase"))
+          assert cas, "aucune qualification PostgreSQL exécutée"
+          assert all(c.find("skipped") is None for c in cas), "PostgreSQL ne doit pas être ignoré sur le runner"
+          assert all(c.find("failure") is None and c.find("error") is None for c in cas)
+          print(f"{len(cas)} scénarios PostgreSQL réels qualifiés")
+          PYTHON
+
   gates:
-    needs: [socle, departement, m03-preuves]
+    needs: [socle, departement, m03-preuves, verticale-postgresql]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -245,3 +283,4 @@ jobs:
           test "${{ needs.socle.result }}" = "success"
           test "${{ needs.departement.result }}" = "success"
           test "${{ needs.m03-preuves.result }}" = "success"
+          test "${{ needs.verticale-postgresql.result }}" = "success"

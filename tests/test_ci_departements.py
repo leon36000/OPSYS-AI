@@ -69,7 +69,7 @@ def test_la_matrice_ci_couvre_exactement_les_departements():
 
 def test_gates_exige_le_succes_de_chaque_job_requis():
     gates = _ci()["jobs"]["gates"]
-    assert set(gates["needs"]) == {"socle", "departement", "m03-preuves"}
+    assert set(gates["needs"]) == {"socle", "departement", "m03-preuves", "verticale-postgresql"}
     assert gates["if"] == "always()"
     commandes = "\n".join(etape.get("run", "") for etape in gates["steps"])
     for job in gates["needs"]:
@@ -168,3 +168,28 @@ def test_les_outils_de_preuve_de_m3_tournent_une_fois_et_une_seule():
     for fichier in fichiers:
         assert f"departments/m03-estimation/tests/{fichier}" in etape["run"]
     assert "matrix.dossier == 'm03-estimation'" in etape["run"]
+
+
+@pytest.mark.parametrize(
+    "etat,accepte", [("ok", True), ("vide", False), ("skipped", False), ("failure", False), ("error", False)]
+)
+def test_la_preuve_postgresql_exige_des_scenarios_executes_sans_ignorance(tmp_path, monkeypatch, etat, accepte):
+    """Exécute le contrôle réel du job contre un rapport : un job sans preuve ne passe pas."""
+    import xml.etree.ElementTree as ET
+
+    job = _ci()["jobs"]["verticale-postgresql"]
+    assert not job.get("if") and not job.get("continue-on-error")
+    etape = next(e for e in job["steps"] if e.get("name") == "Une affaire durable sur PostgreSQL réel")
+    commande = etape["run"]
+    assert "-k postgresql" in commande and "tests/e2e/test_verticale_affaire_durable.py" in commande
+    script = commande.split("python - <<'PYTHON'\n", 1)[1].rsplit("\nPYTHON", 1)[0]
+    racine = ET.Element("testsuites")
+    suite = ET.SubElement(racine, "testsuite")
+    if etat != "vide":
+        cas = ET.SubElement(suite, "testcase", name="affaire-fictive")
+        if etat != "ok":
+            ET.SubElement(cas, etat)
+    ET.ElementTree(racine).write(tmp_path / "verticale-postgresql.xml", encoding="utf-8")
+    monkeypatch.setenv("RUNNER_TEMP", str(tmp_path))
+    resultat = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, check=False)
+    assert (resultat.returncode == 0) is accepte, resultat.stderr

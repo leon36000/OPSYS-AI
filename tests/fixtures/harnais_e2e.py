@@ -197,9 +197,10 @@ class Moteur:
     """Le moteur réel : base migrée, dix départements, application HTTP MCP sur un vrai uvicorn, fragments
     de configuration du core, et la table des mesures de tous les appels."""
 
-    def __init__(self, dossier: Path, url_base: str) -> None:
+    def __init__(self, dossier: Path, url_base: str, *, jeton_contexte: str | None = None) -> None:
         self.dossier = dossier
         self.url_base = url_base
+        self.jeton_contexte = jeton_contexte
         self.config_dir = dossier / "config-core"
         self.mesures: list[Mesure] = []
         self.departements: dict[str, Departement] = charger_departements()
@@ -210,7 +211,9 @@ class Moteur:
     # -- cycle de vie ----------------------------------------------------------------------------
     def demarrer(self) -> None:
         self.port = _port_libre()
-        app = application_http_departements(self.departements, etat.session, JETON_MCP, hote="127.0.0.1")
+        app = application_http_departements(
+            self.departements, etat.session, JETON_MCP, hote="127.0.0.1", jeton_contexte=self.jeton_contexte
+        )
         self._serveur, self._fil = _serveur_http(app, self.port)
         openclaw.generer(self.departements, self.config_dir, PALIERS, url_mcp=f"http://127.0.0.1:{self.port}/mcp",
                          environ=ENVIRON_EMBEDDINGS)

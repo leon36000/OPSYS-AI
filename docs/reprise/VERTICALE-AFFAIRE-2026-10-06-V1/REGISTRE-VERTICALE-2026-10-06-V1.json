@@ -1,0 +1,291 @@
+{
+  "date_toronto": "2026-10-06T14:31:17.955303-04:00",
+  "parent": "e9c886a56f33f38c4ea32de107b1522e5327cc21",
+  "statut_produit": "PARTIEL",
+  "fichiers": [
+    {
+      "chemin": "tests/e2e/test_verticale_affaire_durable.py",
+      "sha256": "5d0144d02e9df1bb505399ab33b0e1eef76c42bfda17057ab94fb416b79493d1",
+      "origine": "nouveau scénario métier",
+      "verification": "verticale-v1-revue-r1 / verticale-v1-ruff-revue-r1",
+      "limite": "moteur métier et harnais Python; CI PostgreSQL à obtenir"
+    },
+    {
+      "chemin": "tests/fixtures/harnais_e2e.py",
+      "sha256": "b8d501122b4de8faa4478b787822606cb2eb610b3f6888cf4eb08d479cd0e978",
+      "origine": "adaptation bornée du parent",
+      "verification": "verticale-v1-revue-r1 / verticale-v1-ruff-revue-r1",
+      "limite": "moteur métier et harnais Python; CI PostgreSQL à obtenir"
+    },
+    {
+      "chemin": "tests/test_ci_departements.py",
+      "sha256": "651ea2966cdd72c662c02c9c6de24790c98448a4d90d9cb10f60a0796af9ac38",
+      "origine": "adaptation bornée du parent",
+      "verification": "verticale-v1-revue-r1 / verticale-v1-ruff-revue-r1",
+      "limite": "moteur métier et harnais Python; CI PostgreSQL à obtenir"
+    },
+    {
+      "chemin": ".github/workflows/ci.yml",
+      "sha256": "7bb76fd0b494b5622cc6fdd339d8e15f1edfc73fd0cde61e15d11c26efbe7deb",
+      "origine": "adaptation bornée du parent",
+      "verification": "verticale-v1-revue-r1 / verticale-v1-ruff-revue-r1",
+      "limite": "moteur métier et harnais Python; CI PostgreSQL à obtenir"
+    }
+  ],
+  "capsule": {
+    "nom": "PREUVES-VERTICALE-2026-10-06-V1-r1.tar.xz",
+    "sha256": "6cf157e08d6cb2ef89c6662d1d22854d8ee4eb9535d215cd9d89831bfacc50b7",
+    "fichiers": 53
+  },
+  "preuves": [
+    {
+      "chemin": "verticale-v1-ci-rouge-r1.json",
+      "sha256": "64f77023d343a1b545ec4fbf89d3169c0c5cea0aec44eb71d207e8ebff8d0327"
+    },
+    {
+      "chemin": "verticale-v1-ci-rouge-r1.log",
+      "sha256": "558e2c20e05b970800f0e4e3b7892aa73578790a61beb6a44173313d91cde45a"
+    },
+    {
+      "chemin": "verticale-v1-entiere-r1.json",
+      "sha256": "393c2d72b59b2c284178ca464dae585bd5a62a67c1359446928d973283fd139c"
+    },
+    {
+      "chemin": "verticale-v1-entiere-r1.log",
+      "sha256": "8c96e3dfa1fc96696e4b00c28f6d1e14d8e6b545e9d2918a30a8dc7e9bb09a2f"
+    },
+    {
+      "chemin": "verticale-v1-entiere-r1.xml",
+      "sha256": "252ad24241c55e660166674a1e9fb9bd56445982a17c598040e5fe0258e9fae3"
+    },
+    {
+      "chemin": "verticale-v1-entiere-r2.json",
+      "sha256": "2d83d1bd0d6c40679fe1af086e46fb7f44e9e6a2df3a602a08145076dfc5325b"
+    },
+    {
+      "chemin": "verticale-v1-entiere-r2.log",
+      "sha256": "41498162f291a1e90795231be82ea74e09869275d66770845f21dcc84dbabdad"
+    },
+    {
+      "chemin": "verticale-v1-entiere-r2.xml",
+      "sha256": "b992e7ae4cc945911a06eec3f732e4e2d4498c2de414236bf4574e60a568ae99"
+    },
+    {
+      "chemin": "verticale-v1-entiere-r3.json",
+      "sha256": "7a0bf68c4839ac360b2f37bb3a304ff6c870b76f4bd86923f17b86113249c164"
+    },
+    {
+      "chemin": "verticale-v1-entiere-r3.log",
+      "sha256": "71881e625d1c6a71c24155c41e730d80846bbd1b3e4a390d3e974eb8e2aef29d"
+    },
+    {
+      "chemin": "verticale-v1-entiere-r3.xml",
+      "sha256": "6dc1e9343a061f0ece85794b1f00a055109580e988284ae8cbababe4a3a58bef"
+    },
+    {
+      "chemin": "verticale-v1-final-local-r1.json",
+      "sha256": "f0deb14af5386117fb5cfea5e6bed101e48f9808cc1344ee1fe67047ffaecac4"
+    },
+    {
+      "chemin": "verticale-v1-final-local-r1.log",
+      "sha256": "ff7f5b2e5c727406c66fe73c9205475bade59b91d42a4becdafaddbe39ca80fc"
+    },
+    {
+      "chemin": "verticale-v1-final-local-r1.xml",
+      "sha256": "c185bf8153305ffc29b6e92fe28e0ebcaa11ca978b51f0f3c4557022d7a6a510"
+    },
+    {
+      "chemin": "verticale-v1-negatifs-r1.json",
+      "sha256": "c4cbd0b7974331d8ea504550fec260d5664f3569b2b1e8c5402f8438212e41e9"
+    },
+    {
+      "chemin": "verticale-v1-negatifs-r1.log",
+      "sha256": "6257d31cb9ca0054417c3f1b74dcb0e63e0a70847c653fa21ff95bd8690487f5"
+    },
+    {
+      "chemin": "verticale-v1-negatifs-r1.xml",
+      "sha256": "3c8cd2528233668e0c30567fb8b6a76e0337bb43ff021037e991b154abdc71e5"
+    },
+    {
+      "chemin": "verticale-v1-premiere-r1.json",
+      "sha256": "b74e09115e01139f3c9db0ae8bd8a8b82e0283f65b1124d8ef84d515a9c2185f"
+    },
+    {
+      "chemin": "verticale-v1-premiere-r1.log",
+      "sha256": "6b9de01226c13ca9995dee435dbb307007bba4337b6662dc3d7f67eba328df83"
+    },
+    {
+      "chemin": "verticale-v1-premiere-r1.xml",
+      "sha256": "1ffdce85c528207426f54a41dabebb2a5b9e58ce256a54ff4835381900f42947"
+    },
+    {
+      "chemin": "verticale-v1-premiere-r2.json",
+      "sha256": "01ca97555c8cf86a3c689da65ff7721cf75373285a3fbf2c7ed8a02955c41f5a"
+    },
+    {
+      "chemin": "verticale-v1-premiere-r2.log",
+      "sha256": "23d324c0e7b237112655aa807ba34f9b282093cae29d3a2771e3ab392b849d49"
+    },
+    {
+      "chemin": "verticale-v1-premiere-r2.xml",
+      "sha256": "d85171acc08eaaeb106e732ca11eb270469c4304e9d454481eb5542d682f2378"
+    },
+    {
+      "chemin": "verticale-v1-premiere-r3.json",
+      "sha256": "cb717af911ffd6d37c9e54276814a31a455fcbc6fbe8551e0ab559dc397d80fa"
+    },
+    {
+      "chemin": "verticale-v1-premiere-r3.log",
+      "sha256": "062d1a66db0e216a9fb562ab13b24dac1a21cb3347d790e7df52ee7bbf7b2ef2"
+    },
+    {
+      "chemin": "verticale-v1-premiere-r3.xml",
+      "sha256": "bc38319a6dcb928f6848b4e07852a82dda3150ccb882860d908805d6d8a57e54"
+    },
+    {
+      "chemin": "verticale-v1-premiere-r4.json",
+      "sha256": "d5e738f09b38d3295794cd8d2f4dc748d4871a55569abc299ce6e213da1d4394"
+    },
+    {
+      "chemin": "verticale-v1-premiere-r4.log",
+      "sha256": "cf63436afd1420480f23a6a8601d2d3bbbedb17553c914d121adbec3f4845362"
+    },
+    {
+      "chemin": "verticale-v1-premiere-r4.xml",
+      "sha256": "a5e8f81730a3984ad0fa3c00cff38937b73fa959d96f8074072dbd6dcd370a12"
+    },
+    {
+      "chemin": "verticale-v1-premiere-r5.json",
+      "sha256": "6966aa5b73b5ffc2218a0cde7e01036ff9b3117a31d40a0d2567aeca2fb80acf"
+    },
+    {
+      "chemin": "verticale-v1-premiere-r5.log",
+      "sha256": "aabbfedb1ccf4170fcf1f77749ac31417443dc7a87bd93df51c8dca0216c473a"
+    },
+    {
+      "chemin": "verticale-v1-premiere-r5.xml",
+      "sha256": "d21377fd825a3e5f18913af7936bf51ffd2e07dd695fd60a9af094e9583d5234"
+    },
+    {
+      "chemin": "verticale-v1-premiere-r6.json",
+      "sha256": "4084e02fb521afda1536c1a6f26320c0608b3321479ecba0ac6540ba4fccdbd1"
+    },
+    {
+      "chemin": "verticale-v1-premiere-r6.log",
+      "sha256": "055e5d85977b967783a02e610df250c515320e5ecdc8777fdc6fa4642dde986e"
+    },
+    {
+      "chemin": "verticale-v1-premiere-r6.xml",
+      "sha256": "0aebff8de2fb7ecc892ce80acde2a6b6d6b67df85c4fba354b5e90cce3772c9e"
+    },
+    {
+      "chemin": "verticale-v1-regressions-r1.json",
+      "sha256": "b653a07486ee44a77e79c3e8cc9b8698de0ecd26743472ed97998336649d14c2"
+    },
+    {
+      "chemin": "verticale-v1-regressions-r1.log",
+      "sha256": "a8a93360001ea40c02cf92e3754da2469ca4d4bae79684b7c64d6ee0d1c1e53e"
+    },
+    {
+      "chemin": "verticale-v1-regressions-r1.xml",
+      "sha256": "166d5239d82b15ff5bd9289698cac4f4d4b3af8d834b0840a67a9e42ccd37486"
+    },
+    {
+      "chemin": "verticale-v1-revue-r1.json",
+      "sha256": "96d530c24bdda71f848bd898d6f33ab69d8a69de2ffa8ab96ced2570cb599265"
+    },
+    {
+      "chemin": "verticale-v1-revue-r1.log",
+      "sha256": "20498eeed4b172f256fa6635bc3f4d0247942ab110d31c0191577bd4c1adfc20"
+    },
+    {
+      "chemin": "verticale-v1-revue-r1.xml",
+      "sha256": "9e5361eb32548961c187e3288e364c435770927308d1bd010da9503c3bfdbb75"
+    },
+    {
+      "chemin": "verticale-v1-rollback-r1.json",
+      "sha256": "767d0bc1df8ceef0f5b0e1e4735ef43f398642ee4be113a31f37079ac6ee21f9"
+    },
+    {
+      "chemin": "verticale-v1-rollback-r1.log",
+      "sha256": "8c38aecc757e9605ea9a4a8d6c5b72312e7842a919abf6c4f6c0edda756a67b7"
+    },
+    {
+      "chemin": "verticale-v1-rollback-r1.xml",
+      "sha256": "6454da7f20e917c932d899c556089456a21026717b0fc6e4b12460808fc178c4"
+    },
+    {
+      "chemin": "verticale-v1-ruff-r1.json",
+      "sha256": "86771d77f9a5b187d96eabac23eec32a37dda91fc9627d909ce8c36bbae2965d"
+    },
+    {
+      "chemin": "verticale-v1-ruff-r1.log",
+      "sha256": "defd664ab7f150132e9611307257a2438dbf034f92fefd18dd5dc3835dee5311"
+    },
+    {
+      "chemin": "verticale-v1-ruff-r2.json",
+      "sha256": "2d3504c131ef44bef7b2b72c4adb366379464d1125b2735e99f531ea348999f4"
+    },
+    {
+      "chemin": "verticale-v1-ruff-r2.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "chemin": "verticale-v1-ruff-r3.json",
+      "sha256": "2023b26febb2fb50e716aaa146766e74ff15e38e93f0d2c682942548bcfcce23"
+    },
+    {
+      "chemin": "verticale-v1-ruff-r3.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    },
+    {
+      "chemin": "verticale-v1-ruff-revue-r1.json",
+      "sha256": "2a527e2c5051dc323f0cc5984376e2ff3eadc26ee0331262e9b116fa8770d7b4"
+    },
+    {
+      "chemin": "verticale-v1-ruff-revue-r1.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18"
+    }
+  ],
+  "historique_outputs_sha256": {
+    "PREUVES-REPRISE-2026-10-06-r6.tar.xz": "96467b842c76026bfc4257c34c3d5b005a4fc7e696cc878719afda0451bbf051",
+    "PREUVES-REPRISE-2026-10-06-r2.tar.xz": "079c176e26ce9d1831fd61c487f831495b7fb22c38371d41004bbe52b03c51a5",
+    "REGISTRE-REPRISE-2026-10-06.json": "d1c60612d64a9944e60d02095679116422c27490a7480b5795d66735ace8debc",
+    "AUDIT-REPRISE-2026-10-06.md": "163f26c00b27ffe387eb997fda8e4b2988fa4a05c85b6fa15c67a616013dd87a",
+    "PREUVES-CI-FINALE-2026-10-06.tar.xz": "6453b5b2bd3e8fb4a970a23f18f655c70f3bc380a5910f4705528992a0702fd1",
+    "PREUVES-REPRISE-2026-10-06-r5.tar.xz": "5a2f93f248a438754cb64ed69e33e4e24c30a2fd411155b45405ab893b0e7754",
+    "VERIFICATION-FINALE-REPRISE-2026-10-06.json": "176c7609c11ee401268e01286e40e009e2cf7e4f5f2b446454178e0a5b7fd6a8",
+    "CI-REPRISE-2026-10-06.json": "72faecbe7a157dd3f8bbb8edfca4f9ba2f7870c499820f2b3011a61b11291749",
+    "CONTINUITE-VERTICALE-2026-10-06.md": "0465072957ec069f81021d380ebbcb455f09586904cbf151e09240becd5f86fd",
+    "PREUVES-REPRISE-2026-10-06-r3.tar.xz": "30b298ff60bc318abc9ca01d8f52d94a6de612c632363512b192eab3f2ed6ddf",
+    "REPRISE-ETAT-2026-10-06.json": "5993bffc70c3874a46f18acfc04d927abd2803e021a164e3a3569d355209999a",
+    "PREUVES-REPRISE-2026-10-06-r1.tar.xz": "3cc62e5ad8f48101234475895dea348c0499de129c336e31af3afdb8c1afe797",
+    "PREUVES-REPRISE-2026-10-06-r4.tar.xz": "315ba335c909676ad618e7db74e86da1d9a482b133150971e25f6b7049eb4e92"
+  },
+  "qualifications": [
+    {
+      "label": "verticale-v1-regressions-r1",
+      "receipt_sha256": "b653a07486ee44a77e79c3e8cc9b8698de0ecd26743472ed97998336649d14c2",
+      "sources_sha256": "b9e206441ea701f71fbf2a19d608d955a3f5cb12604bd66e20321d66fea482aa",
+      "duree_secondes": 186.58,
+      "total": 300,
+      "ignores": 33,
+      "echecs": 0
+    },
+    {
+      "label": "verticale-v1-revue-r1",
+      "receipt_sha256": "96d530c24bdda71f848bd898d6f33ab69d8a69de2ffa8ab96ced2570cb599265",
+      "sources_sha256": "0b04bb27b927fbf4f307a089f59ffca36605b016fea4f47a7feca744e2769adb",
+      "duree_secondes": 18.045,
+      "total": 29,
+      "ignores": 7,
+      "echecs": 0
+    },
+    {
+      "label": "verticale-v1-ruff-revue-r1",
+      "receipt_sha256": "2a527e2c5051dc323f0cc5984376e2ff3eadc26ee0331262e9b116fa8770d7b4",
+      "sources_sha256": "0b04bb27b927fbf4f307a089f59ffca36605b016fea4f47a7feca744e2769adb",
+      "duree_secondes": 1.31
+    }
+  ]
+}
