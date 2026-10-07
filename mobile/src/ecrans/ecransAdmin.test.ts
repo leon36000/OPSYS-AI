@@ -122,7 +122,9 @@ describe("les écrans : câblage mince, lecture seule", () => {
 
   test("le câblage réel passe par la session de l'appareil, le transport du core et le dépôt local ; aucun jeton ni personne en dur", () => {
     const source = code("src/admin/service.ts");
-    expect(source).toContain("obtenirSessionEnvoi()");
+    expect(source).toContain("capturerSessionLecture()");
+    expect(source).toContain("session = capture.session");
+    expect(source).toContain("depotSousGardeLecture(depot, capture.courante)");
     expect(source).toContain("appelerOutil: invoquerOutil");
     expect(source).toContain("obtenirDepotLocal()");
     expect(source).toContain("personne: session.personne");

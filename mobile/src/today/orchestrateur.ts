@@ -1,3 +1,4 @@
+import { capturerGardeLecture, depotSousGardeLecture, VERDICT_LECTURE_REMPLACEE } from "../stockage/lecturesEnVol";
 import { interpreterResultatListerInterventions } from "../m4/interventions";
 import type { InterventionM4, StatutInterventionM4, VerdictServeurM4 } from "../m4/interventions";
 import type { ParametresAppelOutil, ResultatAppelOutil } from "../protocole/client";
@@ -86,7 +87,7 @@ function reunir(groupes: readonly Groupe[]): readonly InterventionM4[] {
   return [...parId.values()];
 }
 
-export function creerChargeurChantiers(config: ConfigurationChargeurChantiers): ChargeurChantiers {
+function creerChargeurChantiersInterne(config: ConfigurationChargeurChantiers): ChargeurChantiers {
   async function depuisCache(raisonHorsLigne: VerdictServeurM4): Promise<ResultatChargementChantiers> {
     const cache = await lireCacheChantiers(config.depot, config.personne);
     if (!cache) {
@@ -149,6 +150,18 @@ export function creerChargeurChantiers(config: ConfigurationChargeurChantiers): 
 
       await ecrireCacheChantiers(config.depot, config.personne, { interventions, misAJourLe });
       return { source: "serveur", items: filtrerChantiersActifs(interventions), misAJourLe };
+    },
+  };
+}
+
+export function creerChargeurChantiers(config: ConfigurationChargeurChantiers): ChargeurChantiers {
+  const garde = capturerGardeLecture(config.depot);
+  const chargeur = creerChargeurChantiersInterne({ ...config, depot: depotSousGardeLecture(config.depot, garde.courante) });
+  return {
+    async chargerChantiersAujourdhui() {
+      if (!garde.courante()) return { source: "aucune", raisonHorsLigne: VERDICT_LECTURE_REMPLACEE };
+      const result = await chargeur.chargerChantiersAujourdhui();
+      return garde.courante() ? result : { source: "aucune", raisonHorsLigne: VERDICT_LECTURE_REMPLACEE };
     },
   };
 }

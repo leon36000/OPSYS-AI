@@ -1,3 +1,4 @@
+import { depotSousGardeLecture } from "../stockage/lecturesEnVol";
 import { creerChargeurDevis } from "./chargeurDevis";
 import type { EntreeDevis, ResultatInventaireDevis } from "./chargeurDevis";
 import { creerChargeurFiche } from "./chargeurFiche";
@@ -14,7 +15,7 @@ import type { LeadsLus } from "./lectureLeads";
 import type { ConfigurationChargeurVendeur } from "./appel";
 import type { FiltreLeads } from "../m2/listeLeads";
 import { invoquerOutil } from "../protocole/client";
-import { obtenirSessionEnvoi } from "../protocole/configuration";
+import { capturerSessionLecture, obtenirSessionEnvoi } from "../protocole/configuration";
 import { obtenirDepotLocal } from "../stockage/service";
 import { supprimerCacheDevis, purgerCachesDevis } from "./cache";
 
@@ -29,12 +30,15 @@ import { supprimerCacheDevis, purgerCachesDevis } from "./cache";
  * est relue à chaque appel (jamais gardée) : après un nouvel appairage, le cache d'une autre personne n'est plus lu.
  */
 async function configuration(): Promise<ConfigurationChargeurVendeur | null> {
-  const session = obtenirSessionEnvoi();
+  const capture = capturerSessionLecture();
+  const session = capture.session;
   if (!session) {
     return null;
   }
+  const depot = await obtenirDepotLocal();
+  if (!capture.courante()) return null;
   return {
-    depot: await obtenirDepotLocal(),
+    depot: depotSousGardeLecture(depot, capture.courante),
     appelerOutil: invoquerOutil,
     fetchImpl: fetch,
     urlBase: session.urlBase,

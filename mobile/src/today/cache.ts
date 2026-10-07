@@ -1,3 +1,4 @@
+import { ecrireCacheSousGarde } from "../stockage/lecturesEnVol";
 import { estInterventionM4 } from "../m4/interventions";
 import type { InterventionM4 } from "../m4/interventions";
 import { cleDeCachePersonne, PREFIXE_CACHE_EMPLOYE } from "../stockage/cles";
@@ -43,7 +44,7 @@ export async function lireCacheChantiers(depot: DepotCleValeur, personne: string
 }
 
 export async function ecrireCacheChantiers(depot: DepotCleValeur, personne: string, cache: ChantiersCache): Promise<void> {
-  await depot.ecrire(cle(personne), JSON.stringify(cache));
+  await ecrireCacheSousGarde(depot, () => depot.ecrire(cle(personne), JSON.stringify(cache)));
 }
 
 /** Cherche une intervention précise dans le dernier cache écrit pour cette personne (`job/[id]/index.tsx`, repli

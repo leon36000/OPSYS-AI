@@ -1,3 +1,4 @@
+import { cacheRequiertPurge, commencerTransitionCaches, serialiserCaches } from "../stockage/lecturesEnVol";
 import { CLES_HERITEES_SANS_PERSONNE, PREFIXES_DES_CACHES_PAR_PERSONNE } from "../stockage/cles";
 import type { DepotCleValeur } from "../stockage/depotCleValeur";
 import { estRoleNomme } from "./contrat";
@@ -57,13 +58,22 @@ export async function ecrireProprietaireDesCaches(depot: DepotCleValeur, proprie
  * Efface tous les caches lus au serveur, de toutes les personnes (`PREFIXES_DES_CACHES_PAR_PERSONNE`), et les clés d'avant
  * qui n'avaient pas de personne. N'efface ni le marqueur, ni les brouillons, ni rien d'autre.
  */
-export async function purgerCachesDeLaPersonne(depot: DepotCleValeur): Promise<void> {
+async function purgerCachesDirectement(depot: DepotCleValeur): Promise<void> {
   for (const prefixe of PREFIXES_DES_CACHES_PAR_PERSONNE) {
     await depot.supprimerParPrefixe(prefixe);
   }
   for (const cle of CLES_HERITEES_SANS_PERSONNE) {
     await depot.supprimer(cle);
   }
+}
+
+export async function purgerCachesDeLaPersonne(depot: DepotCleValeur): Promise<void> {
+  const terminer = commencerTransitionCaches(depot);
+  let reussie = false;
+  try {
+    await serialiserCaches(depot, () => purgerCachesDirectement(depot));
+    reussie = true;
+  } finally { terminer(reussie); }
 }
 
 export type DecisionCaches =
@@ -100,18 +110,29 @@ export function decisionCaches(marqueur: ProprietaireDesCaches | null, etat: Eta
  */
 export async function synchroniserCaches(depot: DepotCleValeur, etat: EtatIdentite, sessionToujoursCourante: () => boolean = () => true): Promise<DecisionCaches> {
   if (!sessionToujoursCourante()) return { genre: "conserver" };
-  const decision = decisionCaches(await lireProprietaireDesCaches(depot), etat);
-  if (!sessionToujoursCourante()) return { genre: "conserver" };
-  if (decision.genre === "purger_puis_marquer") {
-    await purgerCachesDeLaPersonne(depot);
-    if (!sessionToujoursCourante()) return { genre: "conserver" };
-    await ecrireProprietaireDesCaches(depot, decision.proprietaire);
-  } else if (decision.genre === "purger_puis_oublier") {
-    await purgerCachesDeLaPersonne(depot);
-    if (!sessionToujoursCourante()) return { genre: "conserver" };
-    await depot.supprimer(CLE_PROPRIETAIRE_DES_CACHES);
+  let decision = decisionCaches(await lireProprietaireDesCaches(depot), etat);
+  // Un marqueur conservé après une purge échouée ne prouve pas que ses caches sont utilisables.
+  if (etat.genre === "confirmee" && decision.genre === "conserver" && cacheRequiertPurge(depot)) {
+    decision = { genre: "purger_puis_marquer", proprietaire: { personne: etat.identite.personne, role: etat.identite.role } };
   }
-  return decision;
+  if (!sessionToujoursCourante()) return { genre: "conserver" };
+  if (decision.genre === "conserver") return decision;
+  const terminer = commencerTransitionCaches(depot);
+  let reussie = false;
+  try {
+    return await serialiserCaches(depot, async () => {
+      if (!sessionToujoursCourante()) return { genre: "conserver" } as const;
+      await purgerCachesDirectement(depot);
+      if (!sessionToujoursCourante()) return { genre: "conserver" } as const;
+      if (decision.genre === "purger_puis_marquer") {
+        await ecrireProprietaireDesCaches(depot, decision.proprietaire);
+      } else {
+        await depot.supprimer(CLE_PROPRIETAIRE_DES_CACHES);
+      }
+      reussie = true;
+      return decision;
+    });
+  } finally { terminer(reussie); }
 }
 
 /**

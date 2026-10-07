@@ -1,3 +1,4 @@
+import { capturerGardeLecture, depotSousGardeLecture, VERDICT_LECTURE_REMPLACEE } from "../stockage/lecturesEnVol";
 import {
   construireArgumentsClient360,
   construireArgumentsSuggerer,
@@ -55,7 +56,7 @@ type Lecture =
   | { readonly genre: "refusee"; readonly verdict: VerdictServeur }
   | { readonly genre: "indisponible"; readonly verdict: VerdictServeur };
 
-export function creerChargeurFiche(config: ConfigurationChargeurVendeur): ChargeurFiche {
+function creerChargeurFicheInterne(config: ConfigurationChargeurVendeur): ChargeurFiche {
   /**
    * Une lecture : les mots du serveur (donnée ou verdict métier), le refus de la requête, ou l'impossibilité de les
    * avoir (cache possible). Un verdict métier (`accepte: false`) fait partie de la fiche ; un refus de la requête n'en
@@ -137,6 +138,18 @@ export function creerChargeurFiche(config: ConfigurationChargeurVendeur): Charge
         await ecrireSansEchouer(() => ecrireCacheFiche(config.depot, config.personne, leadId, brute));
       }
       return { source: "serveur", fiche: composerFiche(leadId, brute) };
+    },
+  };
+}
+
+export function creerChargeurFiche(config: ConfigurationChargeurVendeur): ChargeurFiche {
+  const garde = capturerGardeLecture(config.depot);
+  const chargeur = creerChargeurFicheInterne({ ...config, depot: depotSousGardeLecture(config.depot, garde.courante) });
+  return {
+    async chargerFiche(leadId) {
+      if (!garde.courante()) return { source: "aucune", raison: VERDICT_LECTURE_REMPLACEE };
+      const result = await chargeur.chargerFiche(leadId);
+      return garde.courante() ? result : { source: "aucune", raison: VERDICT_LECTURE_REMPLACEE };
     },
   };
 }

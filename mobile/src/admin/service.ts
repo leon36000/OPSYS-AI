@@ -1,9 +1,10 @@
+import { depotSousGardeLecture } from "../stockage/lecturesEnVol";
 import type { EcheancesFiscales, EtatTresorerie, PrevisionLue, PrevisionTresorerie } from "../m5/tresorerie";
 import type { DigestDuJour, Preparation } from "../m4/dispatch";
 import type { VueExecutive } from "../m8/vueExecutive";
 import type { ListeApprobations } from "../approbations/contrat";
 import { invoquerOutil } from "../protocole/client";
-import { obtenirSessionEnvoi } from "../protocole/configuration";
+import { capturerSessionLecture } from "../protocole/configuration";
 import { obtenirDepotLocal } from "../stockage/service";
 import type { ConfigurationChargeurAdmin } from "./appel";
 import { creerChargeurAVoir } from "./aVoir";
@@ -23,12 +24,15 @@ import type { ResultatSection } from "./lecture";
  * est relue à chaque appel (jamais gardée) : après un nouvel appairage, le cache d'une autre personne n'est plus lu.
  */
 async function configuration(): Promise<ConfigurationChargeurAdmin | null> {
-  const session = obtenirSessionEnvoi();
+  const capture = capturerSessionLecture();
+  const session = capture.session;
   if (!session) {
     return null;
   }
+  const depot = await obtenirDepotLocal();
+  if (!capture.courante()) return null;
   return {
-    depot: await obtenirDepotLocal(),
+    depot: depotSousGardeLecture(depot, capture.courante),
     appelerOutil: invoquerOutil,
     fetchImpl: fetch,
     urlBase: session.urlBase,

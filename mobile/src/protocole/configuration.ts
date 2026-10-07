@@ -19,6 +19,7 @@ export interface ConfigurationAppel {
  * un composant.
  */
 let configurationActuelle: ConfigurationAppel | null = null;
+let generationLectures = 0;
 
 /**
  * Source de la configuration de connexion. Renvoie `null` tant qu'aucun appairage réel n'a eu
@@ -41,6 +42,8 @@ export function obtenirConfigurationAppel(): ConfigurationAppel | null {
  * configuration (ou inversement, `null`, après une révocation/déconnexion — non câblé dans cette
  * tranche, aucun écran ne le déclenche encore). */
 export function definirConfigurationAppel(configuration: ConfigurationAppel | null): void {
+  if (configurationActuelle?.urlBase !== configuration?.urlBase || configurationActuelle?.jeton !== configuration?.jeton ||
+      configurationActuelle?.appareilId !== configuration?.appareilId) generationLectures += 1;
   configurationActuelle = configuration;
 }
 
@@ -54,12 +57,16 @@ export interface PersonneConfirmee {
   readonly jeton: string;
   readonly appareilId: string;
   readonly personne: string;
+  /** Named role confirmed by the identity reader; not sent as request authority. */
+  readonly role?: string;
 }
 
 let personneConfirmee: PersonneConfirmee | null = null;
 
 /** Posé par le cycle d'identité (`src/identite/sessionEnvoi.ts`) ; `null` quand aucune personne n'est confirmée. */
 export function definirPersonneConfirmee(confirmee: PersonneConfirmee | null): void {
+  if (personneConfirmee?.jeton !== confirmee?.jeton || personneConfirmee?.appareilId !== confirmee?.appareilId ||
+      personneConfirmee?.personne !== confirmee?.personne || personneConfirmee?.role !== confirmee?.role) generationLectures += 1;
   personneConfirmee = confirmee;
 }
 
@@ -86,4 +93,12 @@ export function obtenirSessionEnvoi(): SessionEnvoi | null {
     return null;
   }
   return { ...configuration, personne: confirmee.personne };
+}
+
+/** Captures authority before an async read. Identical confirmations preserve it;
+ * token, device, person or named-role changes invalidate it. No token is persisted. */
+export function capturerSessionLecture(): { readonly session: SessionEnvoi | null; readonly courante: () => boolean } {
+  const session = obtenirSessionEnvoi();
+  const generation = generationLectures;
+  return { session, courante: () => session !== null && generation === generationLectures && obtenirSessionEnvoi() !== null };
 }

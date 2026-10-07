@@ -1,3 +1,4 @@
+import { capturerGardeLecture, depotSousGardeLecture, VERDICT_LECTURE_REMPLACEE } from "../stockage/lecturesEnVol";
 import { interpreterResultatStatutIntervention } from "../m4/interventions";
 import type { StatutInterventionM4, VerdictServeurM4 } from "../m4/interventions";
 import type { ParametresAppelOutil, ResultatAppelOutil } from "../protocole/client";
@@ -40,7 +41,7 @@ export function statutAffichable(resultat: ResultatStatutChantier | null): Statu
   return resultat !== null && (resultat.source === "serveur" || resultat.source === "cache") ? resultat.statut : null;
 }
 
-export async function obtenirStatutChantier(
+async function obtenirStatutChantierInterne(
   config: ConfigurationStatutChantier,
   interventionId: string,
 ): Promise<ResultatStatutChantier> {
@@ -69,4 +70,11 @@ export async function obtenirStatutChantier(
     return interpretation.genre === "refus" ? { source: "refus", verdict: interpretation.verdict } : depuisCache(interpretation.verdict);
   }
   return { source: "serveur", statut: interpretation.statut };
+}
+
+export async function obtenirStatutChantier(config: ConfigurationStatutChantier, interventionId: string): Promise<ResultatStatutChantier> {
+  const garde = capturerGardeLecture(config.depot);
+  if (!garde.courante()) return { source: "aucune", raisonHorsLigne: VERDICT_LECTURE_REMPLACEE };
+  const result = await obtenirStatutChantierInterne({ ...config, depot: depotSousGardeLecture(config.depot, garde.courante) }, interventionId);
+  return garde.courante() ? result : { source: "aucune", raisonHorsLigne: VERDICT_LECTURE_REMPLACEE };
 }

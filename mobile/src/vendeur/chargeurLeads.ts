@@ -1,3 +1,4 @@
+import { capturerGardeLecture, depotSousGardeLecture, VERDICT_LECTURE_REMPLACEE } from "../stockage/lecturesEnVol";
 import { construireArgumentsListerLeads, lirePageLeads, OUTIL_LISTER_LEADS } from "../m2/listeLeads";
 import type { FiltreLeads } from "../m2/listeLeads";
 import { formaterHorodatageLocal } from "../outbox/mutation";
@@ -52,7 +53,7 @@ type LecturePage =
   | { readonly genre: "refus"; readonly verdict: VerdictServeur; readonly requete: boolean }
   | { readonly genre: "indisponible"; readonly verdict: VerdictServeur };
 
-export function creerChargeurLeads(config: ConfigurationChargeurVendeur): ChargeurLeads {
+function creerChargeurLeadsInterne(config: ConfigurationChargeurVendeur): ChargeurLeads {
   /** Une page du serveur : sa lecture, son refus, ou l'impossibilité de la lire (cache possible). */
   async function lirePage(filtre: FiltreLeads, decalage: number): Promise<LecturePage> {
     const appel = await appelerLecture(
@@ -117,6 +118,23 @@ export function creerChargeurLeads(config: ConfigurationChargeurVendeur): Charge
       }
       await ecrireSansEchouer(() => ecrireCacheLeads(config.depot, config.personne, fusion.lus));
       return fusion;
+    },
+  };
+}
+
+export function creerChargeurLeads(config: ConfigurationChargeurVendeur): ChargeurLeads {
+  const garde = capturerGardeLecture(config.depot);
+  const chargeur = creerChargeurLeadsInterne({ ...config, depot: depotSousGardeLecture(config.depot, garde.courante) });
+  return {
+    async chargerLeads(filtre) {
+      if (!garde.courante()) return { source: "aucune", raison: VERDICT_LECTURE_REMPLACEE };
+      const result = await chargeur.chargerLeads(filtre);
+      return garde.courante() ? result : { source: "aucune", raison: VERDICT_LECTURE_REMPLACEE };
+    },
+    async chargerSuite(lues) {
+      if (!garde.courante()) return { genre: "echec", verdict: VERDICT_LECTURE_REMPLACEE };
+      const result = await chargeur.chargerSuite(lues);
+      return garde.courante() ? result : { genre: "echec", verdict: VERDICT_LECTURE_REMPLACEE };
     },
   };
 }

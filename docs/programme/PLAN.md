@@ -2309,6 +2309,10 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       retombe sur le cache ; employé : une réponse tronquée lue comme une liste vide, `a_planifier`
       absent des statuts ; caches par personne non purgés à la révocation ni au ré-appairage ;
       manques de M4 montrés avec un chemin du serveur).
+      Complément reprise 2026-10-06 : lectures tardives invalidées après purge/session changée,
+      écriture engagée ordonnée avant purge, reprise après échec même identité ; huit régressions,
+      mobile2701P/124suites +types/lint locaux. [Audit](../reprise/CACHE-REPRISE-2026-10-06/AUDIT-CACHE-REPRISE-2026-10-06-r1.md).
+      CI nouveau commit en attente ; téléphone/pont Expo réels hors preuve.
       Preuve (79c79eb à 8a8111a) :
       - une règle pour les trois profils (`src/protocole/echec.ts`) : une panne (réseau, délai, 408,
         429, 5xx) peut montrer le cache marqué ; un refus (401, 403, `refus_metier`, personne

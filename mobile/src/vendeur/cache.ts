@@ -1,3 +1,4 @@
+import { ecrireCacheSousGarde } from "../stockage/lecturesEnVol";
 import { lirePageLeads } from "../m2/listeLeads";
 import type { FiltreLeads } from "../m2/listeLeads";
 import { estDevisVendeurValide } from "../m3/devis";
@@ -59,10 +60,10 @@ function cleLeads(personne: string, filtre: FiltreLeads): string {
 
 /** Écrit ce que l'écran a lu pour ce filtre : les pages brutes du serveur, et la date de la première. */
 export async function ecrireCacheLeads(depot: DepotCleValeur, personne: string, lus: LeadsLus): Promise<void> {
-  await depot.ecrire(
+  await ecrireCacheSousGarde(depot, () => depot.ecrire(
     cleLeads(personne, lus.filtre),
     JSON.stringify({ filtre: lus.filtre, pages: lus.pagesBrutes, misAJourLe: lus.misAJourLe }),
-  );
+  ));
 }
 
 /** Relit la liste de ce filtre en recollant les pages écrites, par les mêmes règles que la lecture en ligne. `null`
@@ -108,7 +109,7 @@ export async function ecrireCacheFiche(
   leadId: string,
   fiche: FicheBrute,
 ): Promise<void> {
-  await depot.ecrire(cle(personne, `fiche:${leadId}`), JSON.stringify(fiche));
+  await ecrireCacheSousGarde(depot, () => depot.ecrire(cle(personne, `fiche:${leadId}`), JSON.stringify(fiche)));
 }
 
 export async function lireCacheFiche(depot: DepotCleValeur, personne: string, leadId: string): Promise<FicheBrute | null> {
@@ -129,7 +130,7 @@ export async function ecrireCacheDevis(
   devis: DevisVendeur,
   misAJourLe: string,
 ): Promise<void> {
-  await depot.ecrire(cle(personne, `devis:${devis.devisId}`), JSON.stringify({ devis, misAJourLe }));
+  await ecrireCacheSousGarde(depot, () => depot.ecrire(cle(personne, `devis:${devis.devisId}`), JSON.stringify({ devis, misAJourLe })));
 }
 
 export async function lireCacheDevis(
@@ -156,7 +157,7 @@ export async function ecrireDevisConnus(
   personne: string,
   devis: readonly DevisConnu[],
 ): Promise<void> {
-  await depot.ecrire(cle(personne, "devis_connus"), JSON.stringify(devis));
+  await ecrireCacheSousGarde(depot, () => depot.ecrire(cle(personne, "devis_connus"), JSON.stringify(devis)));
 }
 
 /** Efface la copie d'un devis refusé et enlève son identifiant connu, sans toucher au reste du profil. */
@@ -165,18 +166,20 @@ export async function supprimerCacheDevis(
   personne: string,
   devisId: string,
 ): Promise<void> {
-  await depot.supprimer(cle(personne, `devis:${devisId}`));
-  const connus = await lireDevisConnus(depot, personne);
-  const restants = connus.filter((devis) => devis.devisId !== devisId);
-  if (restants.length !== connus.length) {
-    await ecrireDevisConnus(depot, personne, restants);
-  }
+  await ecrireCacheSousGarde(depot, async () => {
+    await depot.supprimer(cle(personne, `devis:${devisId}`));
+    const connus = await lireDevisConnus(depot, personne);
+    const restants = connus.filter((devis) => devis.devisId !== devisId);
+    if (restants.length !== connus.length) await depot.ecrire(cle(personne, "devis_connus"), JSON.stringify(restants));
+  });
 }
 
 /** Efface les copies de devis de cette personne après un refus M3; les fiches/leads restent intacts. */
 export async function purgerCachesDevis(depot: DepotCleValeur, personne: string): Promise<void> {
-  await depot.supprimerParPrefixe(cleDeCachePersonne(PREFIXE_CACHE_VENDEUR, personne, "devis:"));
-  await depot.supprimer(cle(personne, "devis_connus"));
+  await ecrireCacheSousGarde(depot, async () => {
+    await depot.supprimerParPrefixe(cleDeCachePersonne(PREFIXE_CACHE_VENDEUR, personne, "devis:"));
+    await depot.supprimer(cle(personne, "devis_connus"));
+  });
 }
 
 /** Les numéros gardés ; `[]` si rien n'est gardé ou si la valeur est illisible (jamais un numéro deviné). */

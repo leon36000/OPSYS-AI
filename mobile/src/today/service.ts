@@ -1,9 +1,10 @@
+import { depotSousGardeLecture } from "../stockage/lecturesEnVol";
 import { creerChargeurChantiers } from "./orchestrateur";
 import type { ConfigurationChargeurChantiers, ResultatChargementChantiers } from "./orchestrateur";
 import { obtenirStatutChantier as obtenirStatutChantierPur } from "./statut";
 import type { ConfigurationStatutChantier, ResultatStatutChantier } from "./statut";
 import { invoquerOutil } from "../protocole/client";
-import { obtenirSessionEnvoi } from "../protocole/configuration";
+import { capturerSessionLecture } from "../protocole/configuration";
 import { obtenirDepotLocal } from "../stockage/service";
 
 /**
@@ -17,12 +18,15 @@ import { obtenirDepotLocal } from "../stockage/service";
  * et le cache n'avait pas de personne.
  */
 async function connexion(): Promise<(ConfigurationChargeurChantiers & ConfigurationStatutChantier) | null> {
-  const session = obtenirSessionEnvoi();
+  const capture = capturerSessionLecture();
+  const session = capture.session;
   if (!session) {
     return null;
   }
+  const depot = await obtenirDepotLocal();
+  if (!capture.courante()) return null;
   return {
-    depot: await obtenirDepotLocal(),
+    depot: depotSousGardeLecture(depot, capture.courante),
     appelerOutil: invoquerOutil,
     fetchImpl: fetch,
     urlBase: session.urlBase,

@@ -21,6 +21,7 @@ export function synchroniserPersonneConfirmee(etat: EtatIdentite, configuration:
       jeton: configuration.jeton,
       appareilId: configuration.appareilId,
       personne: identite.personne,
+      role: identite.role,
     });
     return;
   }

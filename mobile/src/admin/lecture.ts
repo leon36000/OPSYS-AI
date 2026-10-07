@@ -1,3 +1,4 @@
+import { capturerGardeLecture, VERDICT_LECTURE_REMPLACEE } from "../stockage/lecturesEnVol";
 import type { VerdictServeur } from "../outbox/vidangeur";
 import { appelerLecture, ecrireSansEchouer } from "./appel";
 import type { ConfigurationChargeurAdmin } from "./appel";
@@ -47,8 +48,13 @@ export async function lireSection<T>(
   config: ConfigurationChargeurAdmin,
   section: DefinitionSection<T>,
 ): Promise<ResultatSection<T>> {
+  const garde = capturerGardeLecture(config.depot);
+  const remplacee = (): ResultatSection<T> => ({ source: "aucune", raison: VERDICT_LECTURE_REMPLACEE });
+  if (!garde.courante()) return remplacee();
   async function depuisCache(raisonHorsLigne: VerdictServeur): Promise<ResultatSection<T>> {
+    if (!garde.cachePermis()) return remplacee();
     const gardee = await lireCacheSection(config.depot, config.personne, section.cache);
+    if (!garde.cachePermis()) return remplacee();
     if (gardee === null) {
       return { source: "aucune", raison: raisonHorsLigne };
     }
@@ -59,6 +65,7 @@ export async function lireSection<T>(
   }
 
   const appel = await appelerLecture(config, section.outil, section.args);
+  if (!garde.courante()) return remplacee();
   if (appel.genre === "refuse") {
     return { source: "refus", verdict: appel.verdict };
   }
@@ -72,5 +79,6 @@ export async function lireSection<T>(
   const misAJourLe = config.horloge().maintenant.toISOString();
   const agarder = section.epurerPourLeCache ? section.epurerPourLeCache(appel.resultat) : appel.resultat;
   await ecrireSansEchouer(() => ecrireCacheSection(config.depot, config.personne, section.cache, agarder, misAJourLe));
+  if (!garde.courante()) return remplacee();
   return { source: "serveur", valeur: lue.valeur, misAJourLe };
 }

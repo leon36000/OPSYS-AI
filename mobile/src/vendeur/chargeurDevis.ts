@@ -1,3 +1,4 @@
+import { capturerGardeLecture, depotSousGardeLecture, VERDICT_LECTURE_REMPLACEE } from "../stockage/lecturesEnVol";
 import { CODE_SEGMENT_NON_CALCULABLE } from "../m2/listeLeads";
 import {
   construireArgumentsLireDevis,
@@ -120,7 +121,7 @@ export interface ChargeurDevis {
 
 const SEGMENTS_DECOUVERTE: readonly string[] = [SEGMENT_DEVIS_ACCEPTE, SEGMENT_DEVIS_SANS_REPONSE];
 
-export function creerChargeurDevis(
+function creerChargeurDevisInterne(
   config: ConfigurationChargeurVendeur,
   chargeurLeads: ChargeurLeads = creerChargeurLeads(config),
 ): ChargeurDevis {
@@ -290,6 +291,43 @@ export function creerChargeurDevis(
         }
       }
       return entree;
+    },
+  };
+}
+
+export function creerChargeurDevis(
+  config: ConfigurationChargeurVendeur,
+  chargeurLeads?: ChargeurLeads,
+): ChargeurDevis {
+  const garde = capturerGardeLecture(config.depot);
+  const chargeur = creerChargeurDevisInterne(
+    { ...config, depot: depotSousGardeLecture(config.depot, garde.courante) }, chargeurLeads,
+  );
+  const inventaireRemplace = (): ResultatInventaireDevis => ({
+    personne: config.personne, entrees: [], curseurSuivant: null,
+    etat: { genre: "indisponible", verdict: VERDICT_LECTURE_REMPLACEE },
+  });
+  const devisRemplaces = (): ResultatDevis => ({
+    entrees: [],
+    sources: SEGMENTS_DECOUVERTE.map((segment) => ({
+      segment, etat: { genre: "echouee", verdict: VERDICT_LECTURE_REMPLACEE, refuse: false },
+    })),
+  });
+  return {
+    async chargerDevis() {
+      if (!garde.courante()) return devisRemplaces();
+      const result = await chargeur.chargerDevis();
+      return garde.courante() ? result : devisRemplaces();
+    },
+    async chargerInventaire(curseur) {
+      if (!garde.courante()) return inventaireRemplace();
+      const result = await chargeur.chargerInventaire(curseur);
+      return garde.courante() ? result : inventaireRemplace();
+    },
+    async ouvrirParNumero(numero) {
+      if (!garde.courante()) return null;
+      const result = await chargeur.ouvrirParNumero(numero);
+      return garde.courante() ? result : null;
     },
   };
 }

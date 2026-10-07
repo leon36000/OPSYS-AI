@@ -1,3 +1,4 @@
+import { ecrireCacheSousGarde } from "../stockage/lecturesEnVol";
 import { estObjet } from "../protocole/enveloppeOutil";
 import { cleDeCachePersonne, PREFIXE_CACHE_ADMIN } from "../stockage/cles";
 import type { DepotCleValeur } from "../stockage/depotCleValeur";
@@ -41,7 +42,7 @@ export async function ecrireCacheSection(
   resultat: unknown,
   misAJourLe: string,
 ): Promise<void> {
-  await depot.ecrire(cle(personne, nom), JSON.stringify({ resultat, misAJourLe }));
+  await ecrireCacheSousGarde(depot, () => depot.ecrire(cle(personne, nom), JSON.stringify({ resultat, misAJourLe })));
 }
 
 /** `null` : rien n'est gardé pour cette personne sous ce nom, ou la valeur gardée est illisible. */

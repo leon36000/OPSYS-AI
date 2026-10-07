@@ -1,6 +1,6 @@
 import { Redirect, Stack } from "expo-router";
 
-import { useSessionAppareil } from "@/roles/contexte";
+import { useSessionAppareil, usePersonneAppairee } from "@/roles/contexte";
 import { evaluerGarde } from "@/roles/garde";
 
 /**
@@ -9,11 +9,12 @@ import { evaluerGarde } from "@/roles/garde";
  */
 export default function LayoutAdmin() {
   const session = useSessionAppareil();
+  const personne = usePersonneAppairee();
   const verdict = evaluerGarde(session, "admin");
   if (!verdict.autorise) {
     return <Redirect href={verdict.redirectionVers} />;
   }
-  return <Stack screenOptions={{ headerShown: false }}>
+  return <Stack key={JSON.stringify([personne, session.presente ? session.role : null])} screenOptions={{ headerShown: false }}>
     <Stack.Screen name="marketing" />
   </Stack>;
 }
