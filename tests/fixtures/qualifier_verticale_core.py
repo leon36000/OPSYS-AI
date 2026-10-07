@@ -6,6 +6,7 @@ Evidence directories are unique and never overwritten, including failed executio
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 import signal
@@ -19,6 +20,53 @@ CASE = (
     "tests/e2e/test_verticale_affaire_durable.py::"
     "test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire[42.0-True-114.00-sqlite]"
 )
+
+
+def owned_process_groups(pid: int) -> set[int]:
+    """Find Linux descendants before terminating a fixture tree with nested sessions."""
+    rows = {}
+    for path in Path("/proc").glob("[0-9]*/stat"):
+        try:
+            data = path.read_text(encoding="utf-8")
+            fields = data[data.rindex(")") + 2 :].split()
+            rows[int(path.parent.name)] = (int(fields[1]), int(fields[2]))
+        except (OSError, ValueError, IndexError):
+            continue
+    descendants = {pid}
+    while True:
+        more = {child for child, (parent, _) in rows.items() if parent in descendants}
+        if more <= descendants:
+            break
+        descendants |= more
+    return {pid} | {rows[child][1] for child in descendants if child in rows}
+
+
+def wait_qualification(child, destination: Path, *, timeout: float) -> int:
+    """Cancel all owned groups, including the separately-sessioned restore backend."""
+    try:
+        return child.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        # Freeze the outer group before discovery so it cannot spawn a new session
+        # between the process-tree snapshot and cancellation. Existing descendants
+        # inherit the backend's captured group.
+        with contextlib.suppress(ProcessLookupError):
+            os.killpg(child.pid, signal.SIGSTOP)
+        groups = owned_process_groups(child.pid)
+        for group in groups:
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(group, signal.SIGTERM)
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(group, signal.SIGCONT)
+        with contextlib.suppress(subprocess.TimeoutExpired):
+            child.wait(timeout=10)
+        for group in groups:
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(group, signal.SIGKILL)
+        child.wait(timeout=10)
+        for pattern in ("restauration-entree-fictive.json", "restauration-*-manifest-fictif.json"):
+            for manifest in destination.glob(pattern):
+                manifest.unlink(missing_ok=True)
+        raise
 
 
 def main() -> None:
@@ -36,6 +84,8 @@ def main() -> None:
         "PYTHONPATH": str(ROOT / "tests/fixtures"),
         "OPSYS_PROFIL_QUALIFICATION_PREUVE": str(destination / "profil.json"),
         "OPSYS_MEMOIRE_QUALIFICATION_PREUVE": str(destination / "memoire.json"),
+        "OPSYS_DEV_QUALIFICATION_PREUVE": str(destination / "dev.json"),
+        "OPSYS_RESTAURATION_QUALIFICATION_PREUVE": str(destination / "restauration.json"),
     }
     command = [
         sys.executable,
@@ -43,7 +93,7 @@ def main() -> None:
         "pytest",
         CASE,
         "-p",
-        "core_verticale_memoire_plugin",
+        "core_verticale_developpement_plugin",
         "-q",
         f"--junitxml={destination / 'junit.xml'}",
     ]
@@ -56,16 +106,7 @@ def main() -> None:
             stderr=subprocess.STDOUT,
             start_new_session=True,
         )
-        try:
-            code = child.wait(timeout=300)
-        except subprocess.TimeoutExpired:
-            os.killpg(child.pid, signal.SIGTERM)
-            try:
-                child.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                os.killpg(child.pid, signal.SIGKILL)
-                child.wait(timeout=10)
-            raise
+        code = wait_qualification(child, destination, timeout=300)
     print((destination / "pytest.log").read_text(encoding="utf-8"))
     if code:
         raise SystemExit(code)
@@ -77,16 +118,19 @@ def verify_evidence(destination: Path) -> None:
     cases = ET.parse(destination / "junit.xml").findall(".//testcase")
     assert len(cases) == 1 and cases[0].get("name") == CASE.split("::")[1]
     assert not cases[0].findall("skipped") and not cases[0].findall("error") and not cases[0].findall("failure")
-    profile = json.loads((destination / "profil.json").read_text(encoding="utf-8"))
-    memory = json.loads((destination / "memoire.json").read_text(encoding="utf-8"))
-    assert profile["fictif"] is memory["fictif"] is True
-    assert len(profile["phases"]) == 13 and len(memory["phases"]) == 9
-    assert profile["wct_id"] == memory["wct_id"] and profile["devis_id"] == memory["devis_id"]
-    for label, proof in (("profil", profile), ("memoire", memory)):
+    expected = {"profil": 13, "memoire": 9, "dev": 10, "restauration-parent": 8}
+    proofs = {name: json.loads((destination / f"{name}.json").read_text(encoding="utf-8")) for name in expected}
+    profile = proofs["profil"]
+    restored = proofs["restauration-parent"]
+    assert restored["backend_pid"] != restored["parent_pid"]
+    assert restored["source_unchanged_after_export"] is True
+    for label, proof in proofs.items():
+        assert proof["fictif"] is True
+        assert proof["wct_id"] == profile["wct_id"] and proof["devis_id"] == profile["devis_id"]
         phases = [phase["phase"] for phase in proof["phases"]]
-        assert len(set(phases)) == len(phases)
+        assert len(phases) == expected[label] and len(set(phases)) == len(phases)
         print(json.dumps({"qualification": label, "phases": phases, "limites": proof["limites"]}, ensure_ascii=False))
-    print("Core→HTTP réel : 1 affaire SQLite fictive, 13 phases profil + 9 phases mémoire, zéro skip.")
+    print("Core→HTTP réel : 1 affaire SQLite fictive, 40 phases profil/mémoire/isolation/restauration, zéro skip.")
 
 
 if __name__ == "__main__":

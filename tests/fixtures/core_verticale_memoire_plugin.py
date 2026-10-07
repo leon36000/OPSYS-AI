@@ -241,7 +241,7 @@ def qualifier_memoire_affaire(qualifier_raccord_core, request):
                     "liaison de session ne constitue pas une ACL objet client",
                     "FINANCIAL non restitué même à M5 ; conservation interne comparée aux montants source",
                     "pas d'indexation/recherche vectorielle ni preuve RAG",
-                    "aucun corpus développement injecté, isolation métier/développement non exercée ici",
+                    "isolation métier/développement qualifiée par le reçu dev distinct du parcours composé",
                     "test intégré au job Core tests-opsys ; pas de RAG",
                     "aucun téléphone ou orchestration modèle complète",
                 ],

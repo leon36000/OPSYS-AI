@@ -125,7 +125,7 @@ jobs:
           mapfile -t cibles < <(grep -vE '^[[:space:]]*(#|$)' test/opsys-tests-cibles.txt)
           echo "${#cibles[@]} fichiers ciblés"
           pnpm test "${cibles[@]}" 2>&1 | tee "$RUNNER_TEMP/vitest.log"
-      - name: Verticale Core HTTP M8/M10 (quotas, reprise, confidentialité)
+      - name: Verticale Core HTTP M8/M10 et corpus/restauration (40 phases)
         working-directory: ${{ github.workspace }}
         timeout-minutes: 7
         run: |
@@ -136,7 +136,15 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2, MIT
         with:
           name: verticale-core-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/verticale-core-${{ github.run_id }}-${{ github.run_attempt }}/*
+          # Deliberate allowlist: no native backups, databases, generated Core state or input manifests.
+          path: |
+            ${{ runner.temp }}/verticale-core-${{ github.run_id }}-${{ github.run_attempt }}/*.log
+            ${{ runner.temp }}/verticale-core-${{ github.run_id }}-${{ github.run_attempt }}/junit.xml
+            ${{ runner.temp }}/verticale-core-${{ github.run_id }}-${{ github.run_attempt }}/profil.json
+            ${{ runner.temp }}/verticale-core-${{ github.run_id }}-${{ github.run_attempt }}/memoire.json
+            ${{ runner.temp }}/verticale-core-${{ github.run_id }}-${{ github.run_attempt }}/dev.json
+            ${{ runner.temp }}/verticale-core-${{ github.run_id }}-${{ github.run_attempt }}/restauration.json
+            ${{ runner.temp }}/verticale-core-${{ github.run_id }}-${{ github.run_attempt }}/restauration-parent.json
           if-no-files-found: warn
           retention-days: 30
           overwrite: false

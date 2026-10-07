@@ -1292,7 +1292,9 @@ def preflight(module: str, task: str, *, files: list[str], repository: str | Pat
         if source["module"].upper() in {module.upper(), "CORE", "OPSYS"}:
             sources_by_event.setdefault(source["event_id"], []).append(source)
 
-    def rank_record(event_id: str) -> tuple[int, int, float]:
+    sequence_by_event = {row["event_id"]: row["seq"] for row in rows}
+
+    def rank_record(event_id: str) -> tuple[int, int, float, int]:
         record = eligible[event_id]
         known_freshness = [freshness_for_source(source) for source in sources_by_event.get(event_id, [])]
         freshness_rank = (
@@ -1301,7 +1303,8 @@ def preflight(module: str, task: str, *, files: list[str], repository: str | Pat
             2
         )
         timestamp = datetime.fromisoformat(record["recorded_at"]).timestamp()
-        return (-scores[event_id], freshness_rank, -timestamp)
+        # Sets of anchors/endpoints must not change a bounded selection across processes.
+        return (-scores[event_id], freshness_rank, -timestamp, -sequence_by_event[event_id])
 
     file_order = {path: index for index, path in enumerate(safe_files)}
     ordered_events: list[str] = []

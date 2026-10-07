@@ -1557,3 +1557,57 @@ def test_incident_hyphene_suffixe_point_n_est_pas_ancre(base_dev, depot_git):
 
     assert exact["counts"]["lineage_anchors"] == 1
     assert suffixed["counts"]["lineage_anchors"] == 0
+
+
+def test_preflight_classement_ex_aequo_stable_entre_processus(base_dev):
+    """Equal score/freshness/time must preserve both order and the bounded membership."""
+    count = memoire_dev.MAX_PREFLIGHT_MUST_KNOW + 1
+    prompt_ids = [f"rappel-fictif-{index:03d}" for index in range(count)]
+    event_ids = []
+    with contexte.appele_par_appareil(ADMIN):
+        for prompt_id in prompt_ids:
+            row = memoire_dev.enregistrer_prompt(
+                prompt_id,
+                "Souvenir technique fictif de même rang.",
+                version=1,
+                module="M7",
+                objectif="Classement déterministe fictif",
+                horodatage=HORODATAGE,
+            )
+            event_ids.append(row["event_id"])
+    with stockage.transaction():
+        before = list(stockage.maillons("m10-memoire", "developpement"))
+    repository = Path(__file__).resolve().parents[3]
+    code = """
+import json, sys
+from m10_memoire import developpement
+from opsys import contexte, stockage
+with contexte.appele_par_appareil(contexte.IdentiteAppelante('admin.dev', 'admin')):
+    result = developpement.preflight('M7', sys.argv[1], files=[])
+print(json.dumps({'ids': [item['event_id'] for item in result['must_know']], 'counts': result['counts']}))
+stockage.liberer()
+"""
+    env = {
+        "PATH": os.environ["PATH"],
+        "HOME": str(base_dev),
+        "OPSYS_HOME": os.environ["OPSYS_HOME"],
+        stockage.ENV_URL: os.environ[stockage.ENV_URL],
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONPATH": os.pathsep.join([str(repository / "src"), str(repository / "departments/m10-memoire/src")]),
+    }
+    expected = list(reversed(event_ids))[: memoire_dev.MAX_PREFLIGHT_MUST_KNOW]
+    for seed in ("1", "2", "3"):
+        result = subprocess.run(
+            [sys.executable, "-c", code, " ".join(prompt_ids)],
+            cwd=repository,
+            env={**env, "PYTHONHASHSEED": seed},
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=True,
+        )
+        packet = json.loads(result.stdout)
+        assert packet["ids"] == expected, seed
+        assert packet["counts"]["candidates_omitted"] == 1
+    with stockage.transaction():
+        assert list(stockage.maillons("m10-memoire", "developpement")) == before
