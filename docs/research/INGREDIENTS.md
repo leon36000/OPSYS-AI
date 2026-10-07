@@ -546,3 +546,7 @@ Aucun candidat n’a de latence end-to-end mesurée sur OPSYS ni de validation f
 
 Publication : le README TalkingHead contient un JWT public d’exemple expurgé dans la capsule r2.
 Son manifeste conserve le hash original et le hash expurgé. La capture brute r1 reste locale, exclue de publication.
+
+## Conservation des preuves Core HTTP — 6 octobre 2026
+
+Réutilisation du scénario métier durable et des installations Python/Node déjà verrouillées ; aucune dépendance d'application ajoutée. L'action officielle [actions/upload-artifact v4.6.2](https://github.com/actions/upload-artifact/releases/tag/v4.6.2), commit `ea165f8d65b6e75b540449e92b4886f43607fa02`, conserve JUnit, JSON et journal de qualification dans le dépôt privé pendant 30 jours, y compris après un échec. [Licence MIT vérifiée](https://github.com/actions/upload-artifact/blob/ea165f8d65b6e75b540449e92b4886f43607fa02/LICENSE). Action JavaScript précompilée, runtime déclaré Node20 dans son action.yml ; le scénario reste sous Node24. Aucun code de cette action n'est copié dans le Core. Une archive locale immuable complète la rétention limitée du runner. Les manifestes temporaires à jetons fictifs restent exclus de l'artefact.

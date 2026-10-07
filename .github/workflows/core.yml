@@ -3,9 +3,9 @@ on:
   workflow_dispatch:
   push:
     branches: [main, "claude/**"]
-    paths: ["core/**", ".github/workflows/core.yml"]
+    paths: ["core/**", "src/**", "departments/**", "tests/**", "conftest.py", "pyproject.toml", "uv.lock", ".github/workflows/core.yml"]
   pull_request:
-    paths: ["core/**", ".github/workflows/core.yml"]
+    paths: ["core/**", "src/**", "departments/**", "tests/**", "conftest.py", "pyproject.toml", "uv.lock", ".github/workflows/core.yml"]
 
 permissions:
   contents: read
@@ -125,6 +125,21 @@ jobs:
           mapfile -t cibles < <(grep -vE '^[[:space:]]*(#|$)' test/opsys-tests-cibles.txt)
           echo "${#cibles[@]} fichiers ciblés"
           pnpm test "${cibles[@]}" 2>&1 | tee "$RUNNER_TEMP/vitest.log"
+      - name: Verticale Core HTTP M8/M10 (quotas, reprise, confidentialité)
+        working-directory: ${{ github.workspace }}
+        timeout-minutes: 7
+        run: |
+          .venv/bin/python tests/fixtures/qualifier_verticale_core.py \
+            --preuve-dir "$RUNNER_TEMP/verticale-core-${{ github.run_id }}-${{ github.run_attempt }}"
+      - name: Conserver les preuves de la verticale, y compris les échecs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2, MIT
+        with:
+          name: verticale-core-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/verticale-core-${{ github.run_id }}-${{ github.run_attempt }}/*
+          if-no-files-found: warn
+          retention-days: 30
+          overwrite: false
       - name: Tests en échec (résumé en fin de journal)
         if: failure()
         shell: bash
