@@ -37,6 +37,10 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
       - name: Construction
         run: pnpm build
+      - name: Vérifier les budgets du Control UI construit
+        # La construction imprime aussi les dépassements, mais ne les fait pas échouer.
+        # Ce contrôle applique les mêmes seuils canoniques sans les relever.
+        run: node --import ./scripts/tsx.mjs scripts/check-control-ui-performance.mts
       - name: Profil mémoire de l'extension vocale après construction
         env:
           OPENCLAW_LOCAL_CHECK: "0"

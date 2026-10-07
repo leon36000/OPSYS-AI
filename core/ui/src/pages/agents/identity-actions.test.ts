@@ -177,7 +177,7 @@ describe("agent identity actions", () => {
       agents,
       agentIdentity,
       runtimeConfig: {
-        runExternalMutation: async (task) => ({
+        runExternalMutation: async <T>(task: (client: GatewayBrowserClient) => Promise<T>) => ({
           ok: true as const,
           value: await task(client),
           refresh: { ok: true as const },
@@ -223,7 +223,7 @@ describe("agent identity actions", () => {
       agents,
       agentIdentity,
       runtimeConfig: {
-        runExternalMutation: async (task) => ({
+        runExternalMutation: async <T>(task: (client: GatewayBrowserClient) => Promise<T>) => ({
           ok: true as const,
           value: await task(client),
           refresh: { ok: true as const },

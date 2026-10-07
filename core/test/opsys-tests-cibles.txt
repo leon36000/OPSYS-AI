@@ -123,6 +123,16 @@ ui/src/components/settings-sidebar.test.ts
 ui/src/components/sidebar-attention.test.ts
 ui/src/components/app-sidebar.people.test.ts
 ui/src/lib/sessions/worktree-preservation.test.ts
+# Ouverture de configuration différée : erreurs/chunks/connexions retirées et copie facultative.
+# Ces tests UI ne sont pas couverts par test:fast.
+ui/src/lib/config/config-gateway-operations.test.ts
+ui/src/lib/config/runtime-config-capability.test.ts
+ui/src/lib/config/runtime-config-capability.loading.test.ts
+ui/src/lib/config/runtime-config-capability.schema-access.test.ts
+ui/src/lib/clipboard.test.ts
+# Fixtures d'identité/avatars alignées sur leurs propriétaires réels après typage natif complet.
+ui/src/pages/agents/agents-page.selection.test.ts
+ui/src/pages/agents/identity-actions.test.ts
 ui/src/pages/about/view.test.ts
 ui/src/pages/apps/view.test.ts
 ui/src/pages/chat/chat-model-runtime.test.ts

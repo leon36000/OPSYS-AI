@@ -48,6 +48,8 @@ export function createRuntimeConfigCapability(gateway: RuntimeConfigGateway) {
       method === "config.schema" ? "operator.read" : "operator.admin",
       options,
     );
+  const canOpenFile = () =>
+    !disposed && canCallConfigMethod("config.openFile", { requireAdvertisement: false });
   const publish = () => {
     if (disposed) {
       return;
@@ -164,7 +166,7 @@ export function createRuntimeConfigCapability(gateway: RuntimeConfigGateway) {
       return canCallConfigMethod("config.patch");
     },
     get canOpenFile() {
-      return canCallConfigMethod("config.openFile", { requireAdvertisement: false });
+      return canOpenFile();
     },
     ensureLoaded,
     ensureSchemaLoaded,
@@ -189,9 +191,7 @@ export function createRuntimeConfigCapability(gateway: RuntimeConfigGateway) {
     retry: writes.retry,
     apply: writes.apply,
     openFile: () =>
-      canCallConfigMethod("config.openFile", { requireAdvertisement: false })
-        ? run(() => openConfigFile(state))
-        : Promise.resolve(),
+      canOpenFile() ? run(() => openConfigFile(state, canOpenFile)) : Promise.resolve(),
     agentEntry: (agentId: string, options?: { ensure?: boolean }) =>
       agentConfigEntry(state, agentId, options),
     stageDefaultAgent: writes.stageDefaultAgent,

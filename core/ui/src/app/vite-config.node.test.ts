@@ -674,8 +674,7 @@ describe("Control UI Vite config", () => {
           "config-hint",
           {
             cache_key: "config-hint",
-            model: "test",
-            provider: "test",
+            provider: "curated-local",
             segment_id: key,
             source_path: "test",
             src_lang: "en",
@@ -703,8 +702,7 @@ describe("Control UI Vite config", () => {
           "stale-config-hint",
           {
             cache_key: "stale-config-hint",
-            model: "test",
-            provider: "test",
+            provider: "curated-local",
             segment_id: oldKey,
             source_path: "test",
             src_lang: "en",

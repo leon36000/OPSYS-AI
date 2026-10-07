@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createDeferred as deferred } from "../../../../test/helpers/promise.js";
 import type { GatewayBrowserClient } from "../../api/gateway.ts";
 import type { ConfigSnapshot } from "../../api/types.ts";
+import { gatewayHelloForMethods } from "../../test-helpers/gateway-methods.ts";
 import {
   CONFIG_FORM_AUTO_SAVE_DEBOUNCE_MS,
   createGatewayHarness,
@@ -85,6 +86,293 @@ describe("config gateway operations", () => {
     expect(runtimeConfig.state.lastError).toContain("File path copied to clipboard");
     runtimeConfig.dispose();
   });
+
+  it.each([false, true])(
+    "preserves the config failure and path when the clipboard transport throws (RPC error: %s)",
+    async (rpcError) => {
+      vi.stubGlobal("navigator", {});
+      const request = vi.fn(async (method: string) => {
+        if (method === "config.get") {
+          return {
+            config: {},
+            hash: "hash-1",
+            path: "/tmp/openclaw.json",
+            valid: true,
+            issues: [],
+          };
+        }
+        if (method === "config.openFile") {
+          if (rpcError) {
+            throw new Error("gateway refused config open");
+          }
+          return { ok: false, error: "not supported", path: "/tmp/openclaw.json" };
+        }
+        return {};
+      });
+      const { runtimeConfig } = createConfigCapabilityHarness(
+        request as GatewayBrowserClient["request"],
+      );
+      await runtimeConfig.ensureLoaded();
+
+      await expect(runtimeConfig.openFile()).resolves.toBeUndefined();
+      expect(runtimeConfig.state.lastError).toContain(
+        rpcError ? "gateway refused config open" : "not supported",
+      );
+      expect(runtimeConfig.state.lastError).toContain("File path: /tmp/openclaw.json");
+      expect(runtimeConfig.state.lastError).not.toContain("copied to clipboard");
+      runtimeConfig.dispose();
+    },
+  );
+
+  it("keeps config available and preserves the open-file failure when the clipboard module cannot load", async () => {
+    vi.resetModules();
+    vi.doMock("../clipboard.ts", () => {
+      throw new Error("clipboard chunk unavailable");
+    });
+    try {
+      const moduleLoad = import("./runtime-config-capability.ts");
+      await expect(moduleLoad).resolves.toBeDefined();
+      const { createRuntimeConfigCapability: createCapability } = await moduleLoad;
+      const request = vi.fn(async (method: string) => {
+        if (method === "config.get") {
+          return {
+            config: {},
+            hash: "hash-1",
+            path: "/tmp/openclaw.json",
+            valid: true,
+            issues: [],
+          };
+        }
+        return { ok: false, error: "not supported", path: "/tmp/openclaw.json" };
+      });
+      const { gateway } = createGatewayHarness({ request } as unknown as GatewayBrowserClient);
+      const runtimeConfig = createCapability(gateway);
+      await runtimeConfig.ensureLoaded();
+
+      await expect(runtimeConfig.openFile()).resolves.toBeUndefined();
+      expect(runtimeConfig.state.lastError).toContain("not supported");
+      expect(runtimeConfig.state.lastError).toContain("File path: /tmp/openclaw.json");
+      expect(runtimeConfig.state.lastError).not.toContain("clipboard chunk unavailable");
+      runtimeConfig.dispose();
+    } finally {
+      vi.doUnmock("../clipboard.ts");
+      vi.resetModules();
+    }
+  });
+
+  it.each(["connection", "scope"] as const)(
+    "does not copy or replace feedback after %s retirement during clipboard loading",
+    async (retirement) => {
+      const clipboardLoad = deferred();
+      const clipboardStarted = deferred();
+      const writeText = vi.fn(async () => undefined);
+      vi.stubGlobal("navigator", { clipboard: { writeText } } as unknown as Navigator);
+      vi.resetModules();
+      vi.doMock("../clipboard.ts", async (importOriginal) => {
+        clipboardStarted.resolve();
+        await clipboardLoad.promise;
+        return importOriginal<typeof import("../clipboard.ts")>();
+      });
+      let runtimeConfig: ReturnType<typeof createRuntimeConfigCapability> | undefined;
+      try {
+        const { createRuntimeConfigCapability: createCapability } =
+          await import("./runtime-config-capability.ts");
+        const request = vi.fn(async (method: string) => {
+          if (method === "config.get") {
+            return {
+              config: {},
+              hash: "hash-1",
+              path: "/tmp/openclaw.json",
+              valid: true,
+              issues: [],
+            };
+          }
+          return { ok: false, error: "not supported", path: "/tmp/openclaw.json" };
+        });
+        const client = { request } as unknown as GatewayBrowserClient;
+        const { gateway, publish } = createGatewayHarness(client);
+        runtimeConfig = createCapability(gateway);
+        await runtimeConfig.ensureLoaded();
+
+        const opening = runtimeConfig.openFile();
+        await clipboardStarted.promise;
+        if (retirement === "connection") {
+          publish(false);
+        } else {
+          publish(true, client, gatewayHelloForMethods(["config.openFile"], ["operator.read"]));
+        }
+        runtimeConfig.state.lastError = "current connection feedback";
+        clipboardLoad.resolve();
+        await opening;
+
+        expect(writeText).not.toHaveBeenCalled();
+        expect(runtimeConfig.state.lastError).toBe("current connection feedback");
+      } finally {
+        clipboardLoad.resolve();
+        runtimeConfig?.dispose();
+        vi.doUnmock("../clipboard.ts");
+        vi.resetModules();
+      }
+    },
+  );
+
+  it("reports an unavailable open-file action with the config path without dispatching an RPC", async () => {
+    vi.resetModules();
+    vi.doMock("./config-open-file.runtime.ts", () => {
+      throw new Error("config action chunk unavailable");
+    });
+    let runtimeConfig: ReturnType<typeof createRuntimeConfigCapability> | undefined;
+    try {
+      const { createRuntimeConfigCapability: createCapability } =
+        await import("./runtime-config-capability.ts");
+      const request = vi.fn(async (method: string) =>
+        method === "config.get"
+          ? {
+              config: {},
+              hash: "hash-1",
+              path: "/tmp/openclaw.json?token=synthetic-secret-123456",
+              valid: true,
+              issues: [],
+            }
+          : { ok: true },
+      );
+      const { gateway } = createGatewayHarness({ request } as unknown as GatewayBrowserClient);
+      runtimeConfig = createCapability(gateway);
+      await runtimeConfig.ensureLoaded();
+
+      await expect(runtimeConfig.openFile()).resolves.toBeUndefined();
+      expect(request.mock.calls.map(([method]) => method)).not.toContain("config.openFile");
+      expect(runtimeConfig.state.lastError).toContain("config action chunk unavailable");
+      expect(runtimeConfig.state.lastError).toContain("File path: /tmp/openclaw.json");
+      expect(runtimeConfig.state.lastError).not.toContain("synthetic-secret-123456");
+    } finally {
+      runtimeConfig?.dispose();
+      vi.doUnmock("./config-open-file.runtime.ts");
+      vi.resetModules();
+    }
+  });
+
+  it("does not dispatch or replace feedback after the connection retires during action loading", async () => {
+    const actionLoad = deferred();
+    vi.resetModules();
+    vi.doMock("./config-open-file.runtime.ts", async (importOriginal) => {
+      await actionLoad.promise;
+      return importOriginal<typeof import("./config-open-file.runtime.ts")>();
+    });
+    let runtimeConfig: ReturnType<typeof createRuntimeConfigCapability> | undefined;
+    try {
+      const { createRuntimeConfigCapability: createCapability } =
+        await import("./runtime-config-capability.ts");
+      const request = vi.fn(async (method: string) =>
+        method === "config.get"
+          ? {
+              config: {},
+              hash: "hash-1",
+              path: "/tmp/openclaw.json",
+              valid: true,
+              issues: [],
+            }
+          : { ok: true },
+      );
+      const { gateway, publish } = createGatewayHarness({
+        request,
+      } as unknown as GatewayBrowserClient);
+      runtimeConfig = createCapability(gateway);
+      await runtimeConfig.ensureLoaded();
+
+      const opening = runtimeConfig.openFile();
+      publish(false);
+      runtimeConfig.state.lastError = "current connection feedback";
+      actionLoad.resolve();
+      await opening;
+
+      expect(request.mock.calls.map(([method]) => method)).not.toContain("config.openFile");
+      expect(runtimeConfig.state.lastError).toBe("current connection feedback");
+    } finally {
+      actionLoad.resolve();
+      runtimeConfig?.dispose();
+      vi.doUnmock("./config-open-file.runtime.ts");
+      vi.resetModules();
+    }
+  });
+
+  it.each([
+    {
+      name: "withdrawn admin scope",
+      scopes: ["operator.read"],
+      methods: ["config.openFile"],
+      regrant: false,
+      rpc: 0,
+    },
+    {
+      name: "withdrawn method advertisement",
+      scopes: ["operator.admin"],
+      methods: [],
+      regrant: false,
+      rpc: 1,
+    },
+    {
+      name: "legacy absent method catalogue",
+      scopes: ["operator.admin"],
+      methods: undefined,
+      regrant: false,
+      rpc: 1,
+    },
+    {
+      name: "current admin regrant",
+      scopes: ["operator.read"],
+      methods: [],
+      regrant: true,
+      rpc: 1,
+    },
+  ])(
+    "rechecks $name on the same connection after loading the action",
+    async ({ scopes, methods, regrant, rpc }) => {
+      const actionLoad = deferred();
+      vi.resetModules();
+      vi.doMock("./config-open-file.runtime.ts", async (importOriginal) => {
+        await actionLoad.promise;
+        return importOriginal<typeof import("./config-open-file.runtime.ts")>();
+      });
+      let runtimeConfig: ReturnType<typeof createRuntimeConfigCapability> | undefined;
+      try {
+        const { createRuntimeConfigCapability: createCapability } =
+          await import("./runtime-config-capability.ts");
+        const request = vi.fn(async (method: string) =>
+          method === "config.get"
+            ? { config: {}, hash: "hash-1", path: "/tmp/openclaw.json", valid: true, issues: [] }
+            : { ok: true },
+        );
+        const client = { request } as unknown as GatewayBrowserClient;
+        const { gateway, publish } = createGatewayHarness(client);
+        runtimeConfig = createCapability(gateway);
+        await runtimeConfig.ensureLoaded();
+
+        const opening = runtimeConfig.openFile();
+        const hello = gatewayHelloForMethods(methods ?? [], scopes);
+        if (methods === undefined) {
+          delete hello.features;
+        }
+        publish(true, client, hello);
+        if (regrant) {
+          publish(true, client, gatewayHelloForMethods([], ["operator.admin"]));
+        }
+        runtimeConfig.state.lastError = "current scope feedback";
+        actionLoad.resolve();
+        await opening;
+
+        expect(request.mock.calls.filter(([method]) => method === "config.openFile")).toHaveLength(
+          rpc,
+        );
+        expect(runtimeConfig.state.lastError).toBe("current scope feedback");
+      } finally {
+        actionLoad.resolve();
+        runtimeConfig?.dispose();
+        vi.doUnmock("./config-open-file.runtime.ts");
+        vi.resetModules();
+      }
+    },
+  );
 
   it("reports a base-hash conflict distinctly and recovers via discarding reload", async () => {
     vi.useFakeTimers();

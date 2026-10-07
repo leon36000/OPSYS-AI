@@ -19,6 +19,7 @@ import {
   type TestAgentsPage,
 } from "./agents-page.test-support.ts";
 import "./agents-page.ts";
+import { setIdentityDraftAvatarModel } from "./identity-actions.ts";
 
 const files = (agentId: string, workspace: string) => ({ agentId, workspace, files: [] });
 
@@ -368,8 +369,8 @@ describe("AgentsPage routing", () => {
       name: null,
       emoji: null,
       avatar: null,
-      avatarModelId: "robotexpressive-quaternius-cc0-v1",
     };
+    setIdentityDraftAvatarModel(page, "robotexpressive-quaternius-cc0-v1");
 
     page.saveIdentityDraft();
     expect(runExternalMutation).toHaveBeenCalledOnce();

@@ -4,7 +4,6 @@ import { err as failure, ok, type Result } from "@openclaw/normalization-core/re
 import { GatewayRequestError, type GatewayBrowserClient } from "../../api/gateway.ts";
 import type { ConfigSchemaResponse, ConfigSnapshot } from "../../api/types.ts";
 import { t } from "../../i18n/index.ts";
-import { copyToClipboard } from "../clipboard.ts";
 import { serializeConfigForm } from "../config-form-utils.ts";
 import { formatUiError, formatUiExternalText } from "../format-error.ts";
 import { showToast } from "../toast.ts";
@@ -674,47 +673,33 @@ export async function lookupConfigSchemaPath(
   }
 }
 
-export async function openConfigFile(state: RuntimeConfigState): Promise<void> {
+export async function openConfigFile(
+  state: RuntimeConfigState,
+  canDispatch: () => boolean = () => true,
+): Promise<void> {
   const client = state.client;
-  if (!client || !state.connected) {
+  if (!client || !state.connected || !canDispatch()) {
     return;
   }
   const connectionEpoch = currentConfigConnectionEpoch(state);
-  const isCurrent = () => isCurrentConfigConnection(state, client, connectionEpoch);
+  const isCurrent = () =>
+    isCurrentConfigConnection(state, client, connectionEpoch) && canDispatch();
   state.lastError = null;
   state.chatError = null;
-  const publishFailure = async (error: string, path?: string | null) => {
-    if (!isCurrent()) {
-      return;
-    }
-    let message = error;
-    if (path) {
-      message += (await copyToClipboard(path))
-        ? `\n\nFile path copied to clipboard: ${path}`
-        : `\n\nFile path: ${path}`;
-    }
+  let action: typeof import("./config-open-file.runtime.ts");
+  try {
+    action = await import("./config-open-file.runtime.ts");
+  } catch (error) {
     if (isCurrent()) {
-      state.lastError = formatUiExternalText(message);
+      const path = state.configSnapshot?.path;
+      state.lastError = formatUiExternalText(
+        `${formatUiError(error)}${path ? `\n\nFile path: ${path}` : ""}`,
+      );
       showToast({ message: state.lastError });
     }
-  };
-  try {
-    const res = await client.request<{ ok: boolean; path?: string; error?: string }>(
-      "config.openFile",
-      {},
-    );
-    if (!isCurrent()) {
-      return;
-    }
-    if (!res.ok) {
-      await publishFailure(
-        formatUiExternalText(res.error, "Failed to open config file"),
-        res.path || state.configSnapshot?.path,
-      );
-      return;
-    }
-    showToast({ message: t("configView.fileOpenedOnGateway") });
-  } catch (err) {
-    await publishFailure(formatUiError(err), state.configSnapshot?.path);
+    return;
+  }
+  if (isCurrent()) {
+    await action.openConfigFile(state, client, connectionEpoch, canDispatch);
   }
 }
