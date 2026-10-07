@@ -1,3 +1,4 @@
+import { creerChargeurComptes } from "./comptes";
 import { creerChargeurBriefing } from "./briefing";
 import type { SectionBriefing } from "../m9/briefing";
 import { depotSousGardeLecture } from "../stockage/lecturesEnVol";
@@ -104,4 +105,17 @@ export async function chargerAlertesM9(depart = 0) {
 export async function chargerEtatConsolideM9() {
   const config = await configuration();
   return config ? creerChargeurBriefing(config).chargerEtat() : null;
+}
+
+export async function chargerCreancesM5() {
+  const config = await configuration();
+  return config ? creerChargeurComptes(config).chargerCreances() : null;
+}
+export async function chargerComptesAPM5(sansPO = false, depart = 0) {
+  const config = await configuration();
+  return config ? creerChargeurComptes(config).chargerAP(sansPO, depart) : null;
+}
+export async function chargerAttentesFacturationM5() {
+  const config = await configuration();
+  return config ? creerChargeurComptes(config).chargerAttentes() : null;
 }

@@ -26,7 +26,7 @@ ils ne prouvent ni le rendu sur téléphone ni le pont natif Expo SQLite.
 |---|---|---|
 | Employé | `today`, `job/[id]` (statut, checklist, photos, signature, matériaux, terminer), `punch`, `consent` | `m4_*`, `m6_declarer_materiaux_utilises` |
 | Vendeur | `leads`, `lead/[id]`, `quotes` | `m2_lister_leads`, `m2_suggerer_prochaine_action`, `m2_trouver_client_de_lead`, `m2_obtenir_client_360`, `m2_enregistrer_interaction`, `m3_lire_devis` |
-| Admin | `admin` (« À voir »), `approvals`, `chiffres`, `chantiers`, `briefing` | `m9_lister_demandes_approbation`, `m9_decider_demande_approbation`, `m8_lire_vue_executive`, `m5_etat_tresorerie`, `m5_prevoir_tresorerie`, `m5_lire_echeances_fiscales`, `m4_lister_interventions`, `m4_verifier_preparation`, `m4_produire_digest`, `m9_produire_briefing_matin`, `m9_lire_suite_briefing`, `m9_lire_alertes_m8`, `m9_lire_etat_consolide` |
+| Admin | `admin` (« À voir »), `approvals`, `chiffres`, `chantiers`, `briefing`, `comptes` | `m9_lister_demandes_approbation`, `m9_decider_demande_approbation`, `m8_lire_vue_executive`, `m5_etat_tresorerie`, `m5_prevoir_tresorerie`, `m5_lire_echeances_fiscales`, `m4_lister_interventions`, `m4_verifier_preparation`, `m4_produire_digest`, `m9_produire_briefing_matin`, `m9_lire_suite_briefing`, `m9_lire_alertes_m8`, `m9_lire_etat_consolide`, `m5_lire_comptes_a_recevoir`, `m5_lister_comptes_a_payer`, `m5_lister_attentes_facturation` |
 
 ### Employé (PLAN T1.4-e, T1.4-n)
 
@@ -136,3 +136,11 @@ propriétaire · `today/` (`fixtures/` : vraies réponses du moteur), `checklist
 `ecrans/` logique pure des écrans (`admin`, `chiffres`, `vueExecutive`, `chantiers` : modèles de vue dont chaque texte à
 variables est un `Message`, clé i18n et variables ; `manquesM4` et `texteSur` : les manques de M4 en mots simples) · `i18n/`
 textes (`locales/admin.*.ts` : le profil admin).
+
+### Comptes admin (PLAN T4.22)
+
+Depuis « À voir », `/comptes` présente trois lectures indépendantes : créances envoyées, comptes à payer et prérequis manquants de facturation. Les montants et totaux viennent de M5 ; un inconnu reste inconnu. L’âge des créances commence à l’envoi, sans inventer une échéance. Les deux vues AP ne sont jamais additionnées.
+
+Le cache est personnel, normalisé et limité à la première page AP ; celui des créances dépend du jour local. Les suites AP sont des pages courantes en ligne qui remplacent la page affichée. Une réponse devenue ancienne après changement de filtre, rafraîchissement ou départ de l’écran est écartée. Les refus ne sont pas remplacés par le cache. Aucun paiement, envoi ni application du rapprochement proposé.
+
+Preuves et limites : [audit du 7 octobre](../docs/reprise/COMPTES-M5-2026-10-07/AUDIT-COMPTES-M5-2026-10-07-r1.md). L’export JavaScript et le rendu React contrôlé ne qualifient pas Hermes, Expo SQLite ou un téléphone natif.

@@ -1850,3 +1850,11 @@ Le pont des contrats est testé sur HTTP MCP/SQLite natifs avec la porte Core si
 et le composant React avec Router/i18n/transport contrôlés. Ces preuves ne couvrent pas téléphone,
 routeur Expo natif ou pont Expo SQLite. Le CLI d’appairage accepte admin/employee/seller ; un appareil
 client authentifié n’est pas qualifié ici. Les quatre groupes de routes restent conservés et le produit PARTIEL.
+
+## Comptes admin : lectures financières courantes (PLAN T4.22)
+
+`mobile/app/(admin)/comptes.tsx` réutilise les gardes, les états de section et le cache personnel admin. Les trois lectures M5 restent indépendantes. Le serveur dérive les permissions ; aucun rôle ou droit aux coûts n’est envoyé par l’écran. Révocation, changement de propriétaire et purge invalident les lectures en vol. Une génération AP supplémentaire invalide la réponse initiale lors d’un changement de filtre.
+
+Créances : factures envoyées uniquement, âge depuis l’envoi au jour local, anomalies et total incomplet visibles. AP : totaux serveur sur la sélection complète, plancher connu distingué d’une dette totale, mentions/hypothèses/versions fiscales conservées ; les totaux PO peuvent comprendre les factures sans PO actives. Attentes : pièces et liens manquants pour préparer une facture, sans confusion avec une approbation.
+
+Première page AP seule en cache, suites remplacées en ligne, aucun snapshot figé ni exhaustivité inter-pages promise. Audit : [COMPTES-M5-2026-10-07](../reprise/COMPTES-M5-2026-10-07/AUDIT-COMPTES-M5-2026-10-07-r1.md). La qualification native mobile reste à obtenir ; M5 demeure un département profond dont cet écran ne clôt pas le périmètre.

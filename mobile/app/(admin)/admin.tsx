@@ -68,6 +68,7 @@ export default function AccueilAdmin() {
         <Link href="/marketing" style={styles.lien}>
           Marketing · contenus de chantier
         </Link>
+        <Link href="/comptes" style={styles.lien}>{t("admin.comptes.titre")}</Link>
         <Link href="/briefing" style={styles.lien}>
           {t("admin.aVoir.liens.briefing")}
         </Link>

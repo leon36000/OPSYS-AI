@@ -2250,11 +2250,16 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       sources/dates/manques/contradictions, cache personnel normalisé, refus jamais cache,
       suites en ligne remplacées comme pages courantes, rafraîchissement depuis zéro.
       Contrats contre fixtures HTTP MCP natives ; rendu React contrôlé et compilation Metro Android.
-      Qualification CI du nouveau commit à obtenir ; téléphone/Expo natifs et rôle client authentifié hors preuve.
+      CI du commit 453545df réussie (six workflows) ; téléphone/Expo natifs et rôle client authentifié hors preuve.
       Aucune garantie de snapshot figé ou d’exhaustivité entre pages.
 
 - [ ] T4.22 Mobile admin : à recevoir et à payer de M5 (`m5_lire_comptes_a_recevoir`,
       `m5_lister_comptes_a_payer`, `m5_lister_attentes_facturation`).
+      Source implémentée selon conception approuvée le 7 octobre : `/comptes`, trois lectures indépendantes,
+      cache personnel, première page AP seule en cache, pages courantes en ligne remplacées.
+      2761 tests mobiles /133 suites, types, contrats HTTP/SQLite et export Android JavaScript locaux qualifiés.
+      CI du nouveau commit à obtenir ; Hermes/téléphone/Expo natifs et client authentifié hors preuve.
+      Aucun paiement, envoi ou application de rapprochement ; capacités profondes M5 restantes conservées.
 - [ ] T4.23 Mobile admin : stock de M6 (`m6_produire_digest`, `m6_lire_disponibilite`).
 - [ ] T4.24 Mobile admin : file de M7 (`m7_lister_file_approbation`, `m7_lister_demandes_avis`,
       `m7_lister_contenus_chantier`) ; les décisions passent par la file sortante, sur le patron
