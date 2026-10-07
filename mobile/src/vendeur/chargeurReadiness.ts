@@ -1,3 +1,4 @@
+import { capturerGardeLecture, VERDICT_LECTURE_REMPLACEE } from "../stockage/lecturesEnVol";
 import { formaterHorodatageLocal } from "../outbox/mutation";
 import { appelerLecture } from "./appel";
 import type { ConfigurationChargeurVendeur } from "./appel";
@@ -11,10 +12,13 @@ export async function chargerReadiness(
   config: ConfigurationChargeurVendeur,
   leadId: string,
 ): Promise<ResultatReadiness> {
+  const garde = capturerGardeLecture(config.depot);
+  if (!garde.courante()) return { genre: "non_verifie", verdict: VERDICT_LECTURE_REMPLACEE };
   const horloge = config.horloge();
   const appel = await appelerLecture(config, OUTIL_EVALUER_READINESS, {
     ...construireArgumentsReadiness(leadId, formaterHorodatageLocal(horloge)),
   });
+  if (!garde.courante()) return { genre: "non_verifie", verdict: VERDICT_LECTURE_REMPLACEE };
   if (appel.genre === "refuse") {
     return { genre: "refus", verdict: appel.verdict };
   }

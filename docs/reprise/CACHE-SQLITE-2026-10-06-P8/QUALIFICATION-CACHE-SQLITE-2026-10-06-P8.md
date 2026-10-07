@@ -1,0 +1,9 @@
+# Qualification externe du cache mobile sur SQL réel
+
+Toronto : 2026-10-06T23:27:33.590904-04:00. Commit `6069c9e61309e4ffd0a1ea33a8e6892c857d5286`, sources figées et checkout propre. **Trois scénarios réussis**, relecture des mêmes trois fichiers dans un nouveau Node PID318203.
+
+SQL exact de l’adaptateur `creerDepotCleValeurSqlite`, moteur `node:sqlite` via interface asynchrone : réponse admin tardive après purge, écriture déjà engagée avant suppression, purge refusée deux fois puis confirmation de la même identité et cache frais réutilisable. Les anciens caches sont absents dans les deux premiers fichiers ; le troisième contient uniquement la nouvelle valeur888 après réussite. Le brouillon fictif de la même table reste présent avant/après et dans l’enfant. Les bases sont exclues de la capsule et ont leurs SHA/dispositions au registre.
+
+Le **diagnostic original inchangé** est rejoué sur le correctif : réponse `aucune`, aucun cache ancien recréé ni survivant à la confirmation suivante. L’observation rouge publiée antérieurement demeure historique. R1 de cette campagne a échoué sur le cwd du loader ; R2 sur une forme incorrecte du faux transport hors ligne (`verdict` au lieu de `echec`). R3 ferme ces erreurs de helper et accomplit les trois scénarios et la relecture enfant ; aucun défaut de production déduit des deux erreurs de montage.
+
+P8 externe : aucun test ajouté à la CI par cette opération, aucun code modifié, pas de pont Expo, rendu téléphone, mutation outbox, réseau ou effet réel. Produit **PARTIEL**, CI nouveau commit en cours ; cette qualification ne revendique pas son succès. Registre `REGISTRE-CACHE-SQLITE-2026-10-06-P8.json`, capsule `PREUVES-CACHE-SQLITE-2026-10-06-P8.tar.xz`, SHA-256 `d7b76b2196e0d26c3f29a2e5b8434ef4db511578f92ad72e71498a8d1719e6aa`, 12 membres réguliers sans DB. Les74 sorties antérieures sont immuables,104preuves originales absentes et supplément absent restent distincts.

@@ -1,3 +1,4 @@
+import { capturerGardeLecture, VERDICT_LECTURE_REMPLACEE } from "../stockage/lecturesEnVol";
 import { fusionnerPagePrevision } from "../m5/pagesPrevision";
 import type { RaisonRelecturePrevision } from "../m5/pagesPrevision";
 import {
@@ -100,12 +101,15 @@ export function creerChargeurChiffres(config: ConfigurationChargeurAdmin): Charg
     chargerEcheances: () => lireSection(config, sectionEcheances(aujourdHui())),
 
     async chargerSuitePrevision(lue: PrevisionTresorerie): Promise<SuitePrevision> {
+      const garde = capturerGardeLecture(config.depot);
+      if (!garde.courante()) return { genre: "echec", verdict: VERDICT_LECTURE_REMPLACEE };
       if (lue.prochainDepart === null) {
         return { genre: "sans_suite" };
       }
       // Le jour de la suite est celui de la première page : une prévision qui traverse minuit n'est pas recollée à une
       // autre (son empreinte changerait ; `aujourd_hui` de la première page est ce que M5 a dit).
       const appel = await appelerLecture(config, OUTIL_PREVOIR_TRESORERIE, construireArgumentsPrevision(lue.aujourdHui, lue.prochainDepart));
+      if (!garde.courante()) return { genre: "echec", verdict: VERDICT_LECTURE_REMPLACEE };
       if (appel.genre === "refuse") {
         return { genre: "refus", verdict: appel.verdict };
       }

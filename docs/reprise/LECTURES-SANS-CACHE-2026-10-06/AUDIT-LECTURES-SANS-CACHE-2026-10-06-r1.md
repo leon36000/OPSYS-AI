@@ -1,0 +1,11 @@
+# Invalidation des lectures mobiles sans cache
+
+Toronto : 2026-10-06T23:32:50.799750-04:00. Parent `6069c9e61309e4ffd0a1ea33a8e6892c857d5286`. Diagnostic exact : après retrait du rôle, capture de session invalidée mais pagination M5 rendait encore `fusionnee` et readiness M2 `pret`. La garde du dépôt n’était jamais consultée par ces deux chemins sans cache. Aucune divulgation UI ni écriture métier démontrée ; remontage du profil et cleanup vendeur bornent la portée UI.
+
+Correction minimale : `capturerGardeLecture(config.depot)` avant appel et contrôle après attente. Invalidation retourne `echec` M5 /`non_verifie` M2, verdict `lecture_remplacee`. Aucun cache, pouvoir serveur, dépendance ou nouvel écran. Les requêtes déjà parties peuvent finir ; leur résultat est écarté. Le diagnostic inchangé rejoué rend ces deux verdicts, sans cache.
+
+Huit régressions réellement rouges8F puis vertes : M5/M2 × rôle/purge × avant/pendant. Avant invalide zéro invocation ; pendant une seule ; aucune écriture cache. Local final **2709 tests /125 suites**, types stricts et lint des trois chemins réussis, sources figées `d77628828691f666fd1ece3b4f4f14e8993f5054552764af49ac06b8c4a9340d`. Typecheck r1 rouge sur le narrowing de la fixture dans une closure corrigé avec constante après validation ; rouge conservé. Revue indépendante statique sans finding matériel.
+
+302 sources rapprochées ;124supports et104 références absentes conservés. Trois chemins avec préimage/SHA/origine/statut/vérification/limite. Les77 sorties antérieures sont immuables. Capsule `PREUVES-LECTURES-SANS-CACHE-2026-10-06-r1.tar.xz` SHA-256 `23197be2ee299812e9cab8e2de4088f1b88d310a5f309c75c880a757b083300b`, 25 membres sûrs. Registre `REGISTRE-LECTURES-SANS-CACHE-2026-10-06-r1.json`. P8 externe sur parent6069 : trois scénarios SQL réel et relecture même DB dans nouveau Node, hors CI/téléphone, preuves copiées séparément.
+
+**CI6069 en cours ; complément non publié à cette rédaction, CI nouvelle à obtenir.** Produit PARTIEL. T4.21 non implémenté/conception attendue, PostgreSQL positif C02/104preuves originales absentes/startup232B hors budget restent distincts. Aucune fusion, force-push ou production. Qualification mémoire/SQL Node ne vaut pas pont Expo ni téléphone réel.

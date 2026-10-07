@@ -1,3 +1,5 @@
+import { creerChargeurBriefing } from "./briefing";
+import type { SectionBriefing } from "../m9/briefing";
 import { depotSousGardeLecture } from "../stockage/lecturesEnVol";
 import type { EcheancesFiscales, EtatTresorerie, PrevisionLue, PrevisionTresorerie } from "../m5/tresorerie";
 import type { DigestDuJour, Preparation } from "../m4/dispatch";
@@ -85,4 +87,21 @@ export async function chargerDigestDuJour(): Promise<ResultatSection<DigestDuJou
 export async function chargerPreparation(interventionId: string): Promise<ResultatSection<Preparation> | null> {
   const config = await configuration();
   return config ? creerChargeurChantiers(config).chargerPreparation(interventionId) : null;
+}
+
+export async function chargerBriefingM9(maintenant: string) {
+  const config = await configuration();
+  return config ? creerChargeurBriefing(config).chargerBriefing(maintenant) : null;
+}
+export async function chargerSuiteBriefingM9(maintenant: string, section: SectionBriefing, depart: number) {
+  const config = await configuration();
+  return config ? creerChargeurBriefing(config).chargerSuite(maintenant, section, depart) : null;
+}
+export async function chargerAlertesM9(depart = 0) {
+  const config = await configuration();
+  return config ? creerChargeurBriefing(config).chargerAlertes(depart) : null;
+}
+export async function chargerEtatConsolideM9() {
+  const config = await configuration();
+  return config ? creerChargeurBriefing(config).chargerEtat() : null;
 }

@@ -1830,3 +1830,23 @@ le remplacer) ; pas de purge post-confirmation des fichiers locaux une fois un e
 photos/signatures restent indéfiniment dans `Paths.document/opsys-photos|opsys-signatures/`
 même après un envoi réussi, même limite que celle documentée par T1.4-e avant que la route
 d'envoi n'existe, non résolue par cette tranche faute de temps/périmètre restant).
+
+
+## Briefing admin : pages courantes (PLAN T4.21)
+
+L’écran `mobile/app/(admin)/briefing.tsx`, accessible depuis « À voir », lit les quatre outils M9
+existants : briefing du matin, suite par section, alertes M8 reçues, état consolidé. Il affiche les
+sources, dates, manques et contradictions ; il n’exécute aucune décision ni aucun calcul financier.
+Premières lectures en cache par personne, marqué avec sa date/raison ; refus jamais remplacé par cache.
+Suites exclusivement en ligne, pages remplacées séparément, rafraîchissement depuis le début.
+
+Le backend relit des sources courantes entre appels ; `maintenant` fixe une fenêtre de dates,
+pas un snapshot figé. L’écran ne prétend pas récupérer exhaustivement le briefing initial.
+Un état consolidé tronqué reste illisible. Gardes de session et numéros de requête écartent les
+retours tardifs ; les caches ne sont pas repeuplés après purge. Une purge échouée reste bloquante
+jusqu’à sa réussite, même à confirmation identique ; les lectures M2/M5 sans cache sont aussi gardées.
+
+Le pont des contrats est testé sur HTTP MCP/SQLite natifs avec la porte Core simulée Python,
+et le composant React avec Router/i18n/transport contrôlés. Ces preuves ne couvrent pas téléphone,
+routeur Expo natif ou pont Expo SQLite. Le CLI d’appairage accepte admin/employee/seller ; un appareil
+client authentifié n’est pas qualifié ici. Les quatre groupes de routes restent conservés et le produit PARTIEL.

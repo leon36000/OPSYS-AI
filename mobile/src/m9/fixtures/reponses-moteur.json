@@ -1,0 +1,844 @@
+{
+  "fictif": true,
+  "maintenant": "2026-10-06T07:00:00-04:00",
+  "appels": {
+    "briefing": {
+      "outil": "m9_produire_briefing_matin",
+      "args": {
+        "maintenant": "2026-10-06T07:00:00-04:00"
+      }
+    },
+    "suite_decisions_en_attente": {
+      "outil": "m9_lire_suite_briefing",
+      "args": {
+        "maintenant": "2026-10-06T07:00:00-04:00",
+        "section": "decisions_en_attente",
+        "depart": 5
+      }
+    },
+    "suite_alertes_m8": {
+      "outil": "m9_lire_suite_briefing",
+      "args": {
+        "maintenant": "2026-10-06T07:00:00-04:00",
+        "section": "alertes_m8",
+        "depart": 4
+      }
+    },
+    "alertes": {
+      "outil": "m9_lire_alertes_m8",
+      "args": {
+        "depart": 0
+      }
+    },
+    "etat": {
+      "outil": "m9_lire_etat_consolide",
+      "args": {}
+    }
+  },
+  "reponses": {
+    "briefing": {
+      "ok": true,
+      "resultat": {
+        "type": "BRIEFING_MATIN",
+        "jour": "2026-10-06",
+        "veille": "2026-10-05",
+        "ordre_sections": [
+          "decisions_en_attente",
+          "alertes_m8",
+          "faits_veille",
+          "manques_pour_conclure"
+        ],
+        "sections": {
+          "decisions_en_attente": {
+            "items": [
+              {
+                "type": "approbation",
+                "id": "e484499c2938",
+                "resume": "m6_creer_bon_commande (m06-material-control)",
+                "niveau": "N4",
+                "depuis": "2026-10-01T00:00:00+00:00",
+                "action_proposee": "approuver ou refuser",
+                "departement": "m06-material-control"
+              },
+              {
+                "type": "approbation",
+                "id": "06b3bd9963f9",
+                "resume": "m6_creer_bon_commande (m06-material-control)",
+                "niveau": "N4",
+                "depuis": "2026-10-01T00:01:00+00:00",
+                "action_proposee": "approuver ou refuser",
+                "departement": "m06-material-control"
+              },
+              {
+                "type": "approbation",
+                "id": "d1f6d9f3e0cf",
+                "resume": "m6_creer_bon_commande (m06-material-control)",
+                "niveau": "N4",
+                "depuis": "2026-10-01T00:02:00+00:00",
+                "action_proposee": "approuver ou refuser",
+                "departement": "m06-material-control"
+              },
+              {
+                "type": "approbation",
+                "id": "4906a392c658",
+                "resume": "m6_creer_bon_commande (m06-material-control)",
+                "niveau": "N4",
+                "depuis": "2026-10-01T00:03:00+00:00",
+                "action_proposee": "approuver ou refuser",
+                "departement": "m06-material-control"
+              },
+              {
+                "type": "approbation",
+                "id": "4e1a836ded11",
+                "resume": "m6_creer_bon_commande (m06-material-control)",
+                "niveau": "N4",
+                "depuis": "2026-10-01T00:04:00+00:00",
+                "action_proposee": "approuver ou refuser",
+                "departement": "m06-material-control"
+              }
+            ],
+            "vide": false
+          },
+          "alertes_m8": {
+            "items": [
+              {
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-000",
+                "metric_id": "m8_ecart_duree_pct",
+                "type_alerte": "MESURE-SEUIL-FRANCHI",
+                "quoi": "Écart de durée du chantier wct-fictif-0 : 100.00 %.",
+                "a_qui": "m04-field-ops",
+                "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+                "preuve": {
+                  "metric_id": "m8_ecart_duree_pct",
+                  "wct_id": "wct-fictif-0",
+                  "valeur": "100.00",
+                  "unite": "pourcentage",
+                  "sens": "au_dessus",
+                  "seuil": "50.00",
+                  "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                },
+                "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+                "horodatage_reference": "2026-10-06T07:00:00-04:00"
+              },
+              {
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-001",
+                "metric_id": "m8_ecart_duree_pct",
+                "type_alerte": "MESURE-SEUIL-FRANCHI",
+                "quoi": "Écart de durée du chantier wct-fictif-1 : 100.00 %.",
+                "a_qui": "m04-field-ops",
+                "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+                "preuve": {
+                  "metric_id": "m8_ecart_duree_pct",
+                  "wct_id": "wct-fictif-1",
+                  "valeur": "100.00",
+                  "unite": "pourcentage",
+                  "sens": "au_dessus",
+                  "seuil": "50.00",
+                  "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                },
+                "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+                "horodatage_reference": "2026-10-06T07:00:00-04:00"
+              },
+              {
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-002",
+                "metric_id": "m8_ecart_duree_pct",
+                "type_alerte": "MESURE-SEUIL-FRANCHI",
+                "quoi": "Écart de durée du chantier wct-fictif-2 : 100.00 %.",
+                "a_qui": "m04-field-ops",
+                "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+                "preuve": {
+                  "metric_id": "m8_ecart_duree_pct",
+                  "wct_id": "wct-fictif-2",
+                  "valeur": "100.00",
+                  "unite": "pourcentage",
+                  "sens": "au_dessus",
+                  "seuil": "50.00",
+                  "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                },
+                "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+                "horodatage_reference": "2026-10-06T07:00:00-04:00"
+              },
+              {
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-003",
+                "metric_id": "m8_ecart_duree_pct",
+                "type_alerte": "MESURE-SEUIL-FRANCHI",
+                "quoi": "Écart de durée du chantier wct-fictif-3 : 100.00 %.",
+                "a_qui": "m04-field-ops",
+                "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+                "preuve": {
+                  "metric_id": "m8_ecart_duree_pct",
+                  "wct_id": "wct-fictif-3",
+                  "valeur": "100.00",
+                  "unite": "pourcentage",
+                  "sens": "au_dessus",
+                  "seuil": "50.00",
+                  "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                },
+                "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+                "horodatage_reference": "2026-10-06T07:00:00-04:00"
+              }
+            ],
+            "vide": false
+          },
+          "faits_veille": {
+            "items": [
+              {
+                "index": 0,
+                "module_source": "m04-field-ops",
+                "horodatage": "2026-10-05T18:00:00Z",
+                "valeurs": {
+                  "m4_wct_id": "wct-fictif",
+                  "m4_duree_reelle_minutes": "245"
+                },
+                "hash_precedent": "",
+                "hash_maillon": "5fe1f41bffaf5501c903b1607bb657a486b5f155c4f04ce3b3cd0bde0e0089ed"
+              },
+              {
+                "index": 1,
+                "module_source": "m04-field-ops",
+                "horodatage": "2026-10-05T18:00:00Z",
+                "valeurs": {
+                  "m4_wct_id": "wct-fictif",
+                  "m4_duree_reelle_minutes": "246"
+                },
+                "hash_precedent": "5fe1f41bffaf5501c903b1607bb657a486b5f155c4f04ce3b3cd0bde0e0089ed",
+                "hash_maillon": "420453f5c61a8f7ee407a5f7ed108336cd1a0b5d11c2463c6cd2bf10b6f037c3"
+              }
+            ],
+            "vide": false
+          },
+          "manques_pour_conclure": {
+            "items": [],
+            "vide": true
+          }
+        },
+        "affichage": {
+          "borne_caracteres": 5900,
+          "taille_caracteres": 5674,
+          "complet": false,
+          "n_non_affiches": 51,
+          "non_affiches": {
+            "decisions_en_attente": 35,
+            "alertes_m8": 16,
+            "faits_veille": 0
+          },
+          "message": "51 autres éléments non affichés (decisions_en_attente : 35, alertes_m8 : 16). Pour les lire, appeler m9_lire_suite_briefing avec la section et le depart indiqués dans lire_la_suite.",
+          "lire_la_suite": [
+            {
+              "section": "decisions_en_attente",
+              "reste": 35,
+              "outil": "m9_lire_suite_briefing",
+              "arguments": {
+                "maintenant": "2026-10-06T07:00:00-04:00",
+                "section": "decisions_en_attente",
+                "depart": 5
+              }
+            },
+            {
+              "section": "alertes_m8",
+              "reste": 16,
+              "outil": "m9_lire_suite_briefing",
+              "arguments": {
+                "maintenant": "2026-10-06T07:00:00-04:00",
+                "section": "alertes_m8",
+                "depart": 4
+              }
+            }
+          ]
+        },
+        "briefing_id": "6a52dab2fd3579c8742767182bd448ae91260f0667d4daa856703c0ecd32375e"
+      }
+    },
+    "suite_decisions_en_attente": {
+      "ok": true,
+      "resultat": {
+        "type": "BRIEFING_MATIN_SUITE",
+        "jour": "2026-10-06",
+        "section": "decisions_en_attente",
+        "depart": 5,
+        "total": 40,
+        "affiches": 23,
+        "reste": 12,
+        "prochain_depart": 28,
+        "message": "12 autres éléments non affichés dans cette section : poursuivre avec depart=28.",
+        "items": [
+          {
+            "type": "approbation",
+            "id": "35025bd6b006",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:05:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "b0a8f2881b71",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:06:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "25e6b0ecf544",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:07:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "78d788aa14b7",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:08:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "8714ae0a3a41",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:09:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "8d5a8f75289e",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:10:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "c70b54ce5b6c",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:11:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "68c8187cecff",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:12:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "81b6ceda22dc",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:13:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "ce635df92dc4",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:14:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "f5c1a306174d",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:15:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "a6868e4d5405",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:16:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "0b17e1d695ef",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:17:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "01166eabdf45",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:18:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "d2b44b50220a",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:19:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "aa44f4682996",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:20:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "c992cbae768e",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:21:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "6ec35df6e5a6",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:22:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "b121db57bd92",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:23:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "d0b8dad1a500",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:24:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "86c1c8aeb04d",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:25:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "97063c6ac6ec",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:26:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          },
+          {
+            "type": "approbation",
+            "id": "830fbd88418e",
+            "resume": "m6_creer_bon_commande (m06-material-control)",
+            "niveau": "N4",
+            "depuis": "2026-10-01T00:27:00+00:00",
+            "action_proposee": "approuver ou refuser",
+            "departement": "m06-material-control"
+          }
+        ]
+      }
+    },
+    "suite_alertes_m8": {
+      "ok": true,
+      "resultat": {
+        "type": "BRIEFING_MATIN_SUITE",
+        "jour": "2026-10-06",
+        "section": "alertes_m8",
+        "depart": 4,
+        "total": 20,
+        "affiches": 8,
+        "reste": 8,
+        "prochain_depart": 12,
+        "message": "8 autres éléments non affichés dans cette section : poursuivre avec depart=12.",
+        "items": [
+          {
+            "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-004",
+            "metric_id": "m8_ecart_duree_pct",
+            "type_alerte": "MESURE-SEUIL-FRANCHI",
+            "quoi": "Écart de durée du chantier wct-fictif-4 : 100.00 %.",
+            "a_qui": "m04-field-ops",
+            "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+            "preuve": {
+              "metric_id": "m8_ecart_duree_pct",
+              "wct_id": "wct-fictif-4",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+            "horodatage_reference": "2026-10-06T07:00:00-04:00"
+          },
+          {
+            "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-005",
+            "metric_id": "m8_ecart_duree_pct",
+            "type_alerte": "MESURE-SEUIL-FRANCHI",
+            "quoi": "Écart de durée du chantier wct-fictif-5 : 100.00 %.",
+            "a_qui": "m04-field-ops",
+            "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+            "preuve": {
+              "metric_id": "m8_ecart_duree_pct",
+              "wct_id": "wct-fictif-5",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+            "horodatage_reference": "2026-10-06T07:00:00-04:00"
+          },
+          {
+            "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-006",
+            "metric_id": "m8_ecart_duree_pct",
+            "type_alerte": "MESURE-SEUIL-FRANCHI",
+            "quoi": "Écart de durée du chantier wct-fictif-6 : 100.00 %.",
+            "a_qui": "m04-field-ops",
+            "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+            "preuve": {
+              "metric_id": "m8_ecart_duree_pct",
+              "wct_id": "wct-fictif-6",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+            "horodatage_reference": "2026-10-06T07:00:00-04:00"
+          },
+          {
+            "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-007",
+            "metric_id": "m8_ecart_duree_pct",
+            "type_alerte": "MESURE-SEUIL-FRANCHI",
+            "quoi": "Écart de durée du chantier wct-fictif-7 : 100.00 %.",
+            "a_qui": "m04-field-ops",
+            "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+            "preuve": {
+              "metric_id": "m8_ecart_duree_pct",
+              "wct_id": "wct-fictif-7",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+            "horodatage_reference": "2026-10-06T07:00:00-04:00"
+          },
+          {
+            "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-008",
+            "metric_id": "m8_ecart_duree_pct",
+            "type_alerte": "MESURE-SEUIL-FRANCHI",
+            "quoi": "Écart de durée du chantier wct-fictif-8 : 100.00 %.",
+            "a_qui": "m04-field-ops",
+            "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+            "preuve": {
+              "metric_id": "m8_ecart_duree_pct",
+              "wct_id": "wct-fictif-8",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+            "horodatage_reference": "2026-10-06T07:00:00-04:00"
+          },
+          {
+            "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-009",
+            "metric_id": "m8_ecart_duree_pct",
+            "type_alerte": "MESURE-SEUIL-FRANCHI",
+            "quoi": "Écart de durée du chantier wct-fictif-9 : 100.00 %.",
+            "a_qui": "m04-field-ops",
+            "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+            "preuve": {
+              "metric_id": "m8_ecart_duree_pct",
+              "wct_id": "wct-fictif-9",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+            "horodatage_reference": "2026-10-06T07:00:00-04:00"
+          },
+          {
+            "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-010",
+            "metric_id": "m8_ecart_duree_pct",
+            "type_alerte": "MESURE-SEUIL-FRANCHI",
+            "quoi": "Écart de durée du chantier wct-fictif-10 : 100.00 %.",
+            "a_qui": "m04-field-ops",
+            "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+            "preuve": {
+              "metric_id": "m8_ecart_duree_pct",
+              "wct_id": "wct-fictif-10",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+            "horodatage_reference": "2026-10-06T07:00:00-04:00"
+          },
+          {
+            "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-011",
+            "metric_id": "m8_ecart_duree_pct",
+            "type_alerte": "MESURE-SEUIL-FRANCHI",
+            "quoi": "Écart de durée du chantier wct-fictif-11 : 100.00 %.",
+            "a_qui": "m04-field-ops",
+            "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+            "preuve": {
+              "metric_id": "m8_ecart_duree_pct",
+              "wct_id": "wct-fictif-11",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+            "horodatage_reference": "2026-10-06T07:00:00-04:00"
+          }
+        ]
+      }
+    },
+    "alertes": {
+      "ok": true,
+      "resultat": {
+        "type": "ALERTES_M8",
+        "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+        "ordre": "horodatage_reference décroissant (le plus récent d'abord), puis evenement_id croissant",
+        "total": 20,
+        "depart": 0,
+        "affichees": 8,
+        "reste": 12,
+        "prochain_depart": 8,
+        "message": "12 autres alertes non affichées : poursuivre avec depart=8.",
+        "alertes": [
+          {
+            "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-000",
+            "metric_id": "m8_ecart_duree_pct",
+            "type_alerte": "MESURE-SEUIL-FRANCHI",
+            "quoi": "Écart de durée du chantier wct-fictif-0 : 100.00 %.",
+            "a_qui": "m04-field-ops",
+            "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+            "preuve": {
+              "metric_id": "m8_ecart_duree_pct",
+              "wct_id": "wct-fictif-0",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+            "horodatage_reference": "2026-10-06T07:00:00-04:00"
+          },
+          {
+            "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-001",
+            "metric_id": "m8_ecart_duree_pct",
+            "type_alerte": "MESURE-SEUIL-FRANCHI",
+            "quoi": "Écart de durée du chantier wct-fictif-1 : 100.00 %.",
+            "a_qui": "m04-field-ops",
+            "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+            "preuve": {
+              "metric_id": "m8_ecart_duree_pct",
+              "wct_id": "wct-fictif-1",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+            "horodatage_reference": "2026-10-06T07:00:00-04:00"
+          },
+          {
+            "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-002",
+            "metric_id": "m8_ecart_duree_pct",
+            "type_alerte": "MESURE-SEUIL-FRANCHI",
+            "quoi": "Écart de durée du chantier wct-fictif-2 : 100.00 %.",
+            "a_qui": "m04-field-ops",
+            "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+            "preuve": {
+              "metric_id": "m8_ecart_duree_pct",
+              "wct_id": "wct-fictif-2",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+            "horodatage_reference": "2026-10-06T07:00:00-04:00"
+          },
+          {
+            "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-003",
+            "metric_id": "m8_ecart_duree_pct",
+            "type_alerte": "MESURE-SEUIL-FRANCHI",
+            "quoi": "Écart de durée du chantier wct-fictif-3 : 100.00 %.",
+            "a_qui": "m04-field-ops",
+            "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+            "preuve": {
+              "metric_id": "m8_ecart_duree_pct",
+              "wct_id": "wct-fictif-3",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+            "horodatage_reference": "2026-10-06T07:00:00-04:00"
+          },
+          {
+            "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-004",
+            "metric_id": "m8_ecart_duree_pct",
+            "type_alerte": "MESURE-SEUIL-FRANCHI",
+            "quoi": "Écart de durée du chantier wct-fictif-4 : 100.00 %.",
+            "a_qui": "m04-field-ops",
+            "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+            "preuve": {
+              "metric_id": "m8_ecart_duree_pct",
+              "wct_id": "wct-fictif-4",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+            "horodatage_reference": "2026-10-06T07:00:00-04:00"
+          },
+          {
+            "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-005",
+            "metric_id": "m8_ecart_duree_pct",
+            "type_alerte": "MESURE-SEUIL-FRANCHI",
+            "quoi": "Écart de durée du chantier wct-fictif-5 : 100.00 %.",
+            "a_qui": "m04-field-ops",
+            "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+            "preuve": {
+              "metric_id": "m8_ecart_duree_pct",
+              "wct_id": "wct-fictif-5",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+            "horodatage_reference": "2026-10-06T07:00:00-04:00"
+          },
+          {
+            "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-006",
+            "metric_id": "m8_ecart_duree_pct",
+            "type_alerte": "MESURE-SEUIL-FRANCHI",
+            "quoi": "Écart de durée du chantier wct-fictif-6 : 100.00 %.",
+            "a_qui": "m04-field-ops",
+            "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+            "preuve": {
+              "metric_id": "m8_ecart_duree_pct",
+              "wct_id": "wct-fictif-6",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+            "horodatage_reference": "2026-10-06T07:00:00-04:00"
+          },
+          {
+            "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-fictif-007",
+            "metric_id": "m8_ecart_duree_pct",
+            "type_alerte": "MESURE-SEUIL-FRANCHI",
+            "quoi": "Écart de durée du chantier wct-fictif-7 : 100.00 %.",
+            "a_qui": "m04-field-ops",
+            "pourquoi": "100.00 % atteint le seuil déclaré 50.00 %.",
+            "preuve": {
+              "metric_id": "m8_ecart_duree_pct",
+              "wct_id": "wct-fictif-7",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "version_definition": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+            },
+            "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+            "horodatage_reference": "2026-10-06T07:00:00-04:00"
+          }
+        ]
+      }
+    },
+    "etat": {
+      "ok": true,
+      "resultat": {
+        "type": "ETAT_CONSOLIDE",
+        "faits_par_module": {
+          "m04-field-ops": {
+            "index": 1,
+            "module_source": "m04-field-ops",
+            "horodatage": "2026-10-05T18:00:00Z",
+            "valeurs": {
+              "m4_wct_id": "wct-fictif",
+              "m4_duree_reelle_minutes": "246"
+            },
+            "hash_precedent": "5fe1f41bffaf5501c903b1607bb657a486b5f155c4f04ce3b3cd0bde0e0089ed",
+            "hash_maillon": "420453f5c61a8f7ee407a5f7ed108336cd1a0b5d11c2463c6cd2bf10b6f037c3"
+          }
+        },
+        "contradictions": [
+          {
+            "ligne_id_a": 0,
+            "ligne_id_b": 1,
+            "module_source": "m04-field-ops",
+            "horodatage": "2026-10-05T18:00:00Z",
+            "horodatage_utc": "2026-10-05T18:00:00+00:00",
+            "horodatages_sources": [
+              "2026-10-05T18:00:00Z"
+            ]
+          }
+        ],
+        "etat_id": "8b8d805f097bb3a9501a9e2453a436de50bfc833a5d76f18e493da6a55248c18"
+      }
+    }
+  }
+}

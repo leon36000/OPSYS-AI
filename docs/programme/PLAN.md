@@ -2246,6 +2246,13 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       attend la décision du propriétaire (GATE NATHAN de T4.19-b).
 - [ ] T4.21 Mobile admin : briefing du matin de M9 (`m9_produire_briefing_matin`,
       `m9_lire_etat_consolide`, `m9_lire_alertes_m8`, `m9_lire_suite_briefing`).
+      Implémentation source validée par le propriétaire : `/briefing` depuis « À voir »,
+      sources/dates/manques/contradictions, cache personnel normalisé, refus jamais cache,
+      suites en ligne remplacées comme pages courantes, rafraîchissement depuis zéro.
+      Contrats contre fixtures HTTP MCP natives ; rendu React contrôlé et compilation Metro Android.
+      Qualification CI du nouveau commit à obtenir ; téléphone/Expo natifs et rôle client authentifié hors preuve.
+      Aucune garantie de snapshot figé ou d’exhaustivité entre pages.
+
 - [ ] T4.22 Mobile admin : à recevoir et à payer de M5 (`m5_lire_comptes_a_recevoir`,
       `m5_lister_comptes_a_payer`, `m5_lister_attentes_facturation`).
 - [ ] T4.23 Mobile admin : stock de M6 (`m6_produire_digest`, `m6_lire_disponibilite`).
@@ -2309,6 +2316,9 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       retombe sur le cache ; employé : une réponse tronquée lue comme une liste vide, `a_planifier`
       absent des statuts ; caches par personne non purgés à la révocation ni au ré-appairage ;
       manques de M4 montrés avec un chemin du serveur).
+      Complément lectures sans cache 2026-10-06 : suite M5 et readiness M2 invalidées avant/après
+      rôle ou purge ; huit régressions supplémentaires, mobile2709P/125suites/types/lint locaux.
+      [Audit](../reprise/LECTURES-SANS-CACHE-2026-10-06/AUDIT-LECTURES-SANS-CACHE-2026-10-06-r1.md), CI nouveau commit à obtenir.
       Complément reprise 2026-10-06 : lectures tardives invalidées après purge/session changée,
       écriture engagée ordonnée avant purge, reprise après échec même identité ; huit régressions,
       mobile2701P/124suites +types/lint locaux. [Audit](../reprise/CACHE-REPRISE-2026-10-06/AUDIT-CACHE-REPRISE-2026-10-06-r1.md).

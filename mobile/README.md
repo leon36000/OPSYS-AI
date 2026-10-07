@@ -16,8 +16,9 @@ npx expo start           # développement
 ```
 
 Le bac à sable de développement n'exécute pas le core : il se construit et se teste en CI (`.github/workflows/mobile.yml`
-pour cette app). Les écrans (`app/`) ne sont pas testés en rendu (pas de `@testing-library/react-native`) : leur
-logique vit dans `src/`, en fonctions pures, testées.
+pour cette app). La logique des écrans vit dans `src/`, en fonctions pures testées. Le briefing dispose aussi de
+tests ReactTestRenderer de rafraîchissement et de hors ligne, avec Router/i18n/transport contrôlés ;
+ils ne prouvent ni le rendu sur téléphone ni le pont natif Expo SQLite.
 
 ## Écrans par profil
 
@@ -25,7 +26,7 @@ logique vit dans `src/`, en fonctions pures, testées.
 |---|---|---|
 | Employé | `today`, `job/[id]` (statut, checklist, photos, signature, matériaux, terminer), `punch`, `consent` | `m4_*`, `m6_declarer_materiaux_utilises` |
 | Vendeur | `leads`, `lead/[id]`, `quotes` | `m2_lister_leads`, `m2_suggerer_prochaine_action`, `m2_trouver_client_de_lead`, `m2_obtenir_client_360`, `m2_enregistrer_interaction`, `m3_lire_devis` |
-| Admin | `admin` (« À voir »), `approvals`, `chiffres`, `chantiers` | `m9_lister_demandes_approbation`, `m9_decider_demande_approbation`, `m8_lire_vue_executive`, `m5_etat_tresorerie`, `m5_prevoir_tresorerie`, `m5_lire_echeances_fiscales`, `m4_lister_interventions`, `m4_verifier_preparation`, `m4_produire_digest` |
+| Admin | `admin` (« À voir »), `approvals`, `chiffres`, `chantiers`, `briefing` | `m9_lister_demandes_approbation`, `m9_decider_demande_approbation`, `m8_lire_vue_executive`, `m5_etat_tresorerie`, `m5_prevoir_tresorerie`, `m5_lire_echeances_fiscales`, `m4_lister_interventions`, `m4_verifier_preparation`, `m4_produire_digest`, `m9_produire_briefing_matin`, `m9_lire_suite_briefing`, `m9_lire_alertes_m8`, `m9_lire_etat_consolide` |
 
 ### Employé (PLAN T1.4-e, T1.4-n)
 
@@ -50,7 +51,29 @@ logique vit dans `src/`, en fonctions pures, testées.
   quand le serveur ne répond pas. Un refus (401, 403, personne désactivée, segment non calculable, devis introuvable) n'est
   **jamais** remplacé par le cache, et n'écrit rien.
 
-### Admin, le propriétaire (PLAN T4.20, §9.5)
+#
+### Briefing admin (PLAN T4.21)
+
+Accessible depuis « À voir ». Les quatre sections du briefing (décisions, alertes, faits de la veille,
+manques) conservent leurs sources et dates ; les alertes reçues et l’état consolidé/contradictions se lisent
+séparément. Aucun montant n’est recalculé, aucune décision n’est proposée par l’app ni appliquée.
+
+Les premières lectures peuvent servir leur cache personnel normalisé, avec date et raison ;
+les preuves M8 non affichées sont retirées, hormis la référence WCT. un refus serveur ne
+les remplace jamais par ce cache. Les suites restent en ligne. Chaque suite **remplace** la page de sa
+section : les sources peuvent changer entre pages, `maintenant` ne fige pas un snapshot. Rafraîchir
+abandonne les suites et recommence depuis le début ; une réponse tardive est écartée, également après
+changement de session/purge. L’état consolidé non paginé peut être tronqué : cette sortie est illisible,
+jamais un état vide. Les références techniques internes ne sont pas affichées sur téléphone.
+
+Preuves : contrats TypeScript contre réponses natives fictives, HTTP MCP réel/SQLite avec porte Core
+simulée Python (admin permis, employee/seller refusés, tables inchangées), tests React contrôlés.
+Compilation Metro Android JavaScript réussie, sans bytecode/APK ni publication ; cette gate est
+ajoutée à la CI mobile avec dotenv/injection de variables désactivés.
+Le CLI d’appairage ne supporte actuellement pas `client` : aucun client authentifié n’est prétendu
+qualifié par ces tests. Téléphone, navigation Expo native et pont Expo SQLite restent à vérifier.
+
+## Admin, le propriétaire (PLAN T4.20, §9.5)
 
 Trois écrans de **lecture seule** au-delà des approbations (seul `approvals` décide, par la file sortante) :
 
