@@ -6,6 +6,51 @@ import type { RessourcesAdmin } from "./admin.fr-CA";
  * says so in words too: never a dash, never a zero.
  */
 const adminEnCA: RessourcesAdmin = {
+  stock: {
+  "titre": "Stock",
+  "disponibilite": "Material availability",
+  "reservations": "Reservations by quote",
+  "ecarts": "Recorded inventory observations",
+  "physiqueNonFourni": "Theoretical and reserved quantities; no current physical stock is provided. Inventory variances do not adjust these theoretical quantities.",
+  "manquesHorsSelection": "Reservation shortages may include materials outside the displayed list.",
+  "articlesTronques": "Read limited to the first 15 items. Other items are not displayed.",
+  "reservationsTronquees": "Read limited to the first 10 active reservations. Other reservations are not displayed.",
+  "articlesVides": "No item in this read.",
+  "reservationsVides": "No active reservation in this read.",
+  "disponible": "Available according to the register: {{quantite}}.",
+  "enMain": "On hand according to the register: {{quantite}}.",
+  "reserve": "Reserved: {{quantite}}.",
+  "theorique": "Theoretical stock, before variances: {{quantite}}.",
+  "horsMain": "Off hand (supplier, return, scrap): {{quantite}}.",
+  "uniteInconnue": "No unit is provided for this quantity.",
+  "negatif": "Negative quantity: verify the data before making a decision.",
+  "emplacement": "Assigned to {{nom}}: {{quantite}}.",
+  "emplacementInconnu": "Unreadable location: {{quantite}}.",
+  "chantier": "Job: {{valeur}}.",
+  "chantierInconnu": "No linked job.",
+  "materiau": "Material: {{valeur}}.",
+  "materiauInconnu": "Unreadable material reference.",
+  "unitePrevue": "Unit of planned need: {{valeur}}.",
+  "unitePrevueInconnu": "Unit of planned need is not provided.",
+  "besoin": "Planned need: {{quantite}}.",
+  "manquant": "Shortage according to the reservation: {{quantite}}.",
+  "historique": "These observations cover the register, with no daily window or observation date provided.",
+  "seuilsNonFournis": "No threshold was provided for this calculation. An empty suggestion list does not mean no purchase is needed.",
+  "constats": "Recorded observations in this read: {{nombre}}.",
+  "constatsVides": "No observation in this read.",
+  "ecart": "Recorded variance: {{quantite}}.",
+  "referenceInconnue": "Unreadable reference",
+  "statuts": {
+    "pret": "Materials reserved",
+    "partiel": "Partial reservation",
+    "a_commander": "Need not covered by the reservation"
+  },
+  "verdicts": {
+    "AUCUN_ECART": "No observed variance",
+    "STOCK_INFERIEUR_AU_THEORIQUE": "Count below theoretical stock",
+    "STOCK_SUPERIEUR_AU_THEORIQUE": "Count above theoretical stock"
+  }
+},
   comptes: {
   "versionFiscale": "Tax version {{taxe}}: {{version}}.",
   "titre": "Accounts",

@@ -10,6 +10,51 @@
  * montre tel quel.
  */
 const adminFrCA = {
+  stock: {
+  "titre": "Stock",
+  "disponibilite": "Disponibilité des matériaux",
+  "reservations": "Réservations par devis",
+  "ecarts": "Constats d’inventaire enregistrés",
+  "physiqueNonFourni": "Quantités théoriques et réservées ; aucun stock physique courant fourni. Les variances d’inventaire ne corrigent pas ces quantités théoriques.",
+  "manquesHorsSelection": "Les manques des réservations peuvent inclure des matériaux hors de la liste affichée.",
+  "articlesTronques": "Lecture limitée aux 15 premiers articles. D’autres articles ne sont pas affichés.",
+  "reservationsTronquees": "Lecture limitée aux 10 premières réservations actives. D’autres réservations ne sont pas affichées.",
+  "articlesVides": "Aucun article dans cette lecture.",
+  "reservationsVides": "Aucune réservation active dans cette lecture.",
+  "disponible": "Disponible selon le registre : {{quantite}}.",
+  "enMain": "En main selon le registre : {{quantite}}.",
+  "reserve": "Réservé : {{quantite}}.",
+  "theorique": "Stock théorique, avant variances : {{quantite}}.",
+  "horsMain": "Hors main (fournisseur, retour, rebut) : {{quantite}}.",
+  "uniteInconnue": "Unité non renseignée pour cette quantité.",
+  "negatif": "Quantité négative : données à vérifier avant décision.",
+  "emplacement": "Affecté à {{nom}} : {{quantite}}.",
+  "emplacementInconnu": "Emplacement non lisible : {{quantite}}.",
+  "chantier": "Chantier : {{valeur}}.",
+  "chantierInconnu": "Chantier non lié.",
+  "materiau": "Matériau : {{valeur}}.",
+  "materiauInconnu": "Référence matériau non lisible.",
+  "unitePrevue": "Unité du besoin prévu : {{valeur}}.",
+  "unitePrevueInconnu": "Unité du besoin prévu non renseignée.",
+  "besoin": "Besoin prévu : {{quantite}}.",
+  "manquant": "Manquant selon la réservation : {{quantite}}.",
+  "historique": "Ces constats couvrent le registre, sans fenêtre quotidienne ni date de constat fournie.",
+  "seuilsNonFournis": "Aucun seuil fourni pour ce calcul. Une liste de suggestions vide ne signifie pas absence de besoin d’achat.",
+  "constats": "Constats enregistrés dans cette lecture : {{nombre}}.",
+  "constatsVides": "Aucun constat dans cette lecture.",
+  "ecart": "Écart enregistré : {{quantite}}.",
+  "referenceInconnue": "Référence non lisible",
+  "statuts": {
+    "pret": "Matériel réservé",
+    "partiel": "Réservation partielle",
+    "a_commander": "Besoin non couvert par la réservation"
+  },
+  "verdicts": {
+    "AUCUN_ECART": "Aucun écart constaté",
+    "STOCK_INFERIEUR_AU_THEORIQUE": "Comptage inférieur au théorique",
+    "STOCK_SUPERIEUR_AU_THEORIQUE": "Comptage supérieur au théorique"
+  }
+},
   comptes: {
   "versionFiscale": "Version fiscale {{taxe}} : {{version}}.",
   "titre": "Comptes",

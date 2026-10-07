@@ -26,7 +26,7 @@ ils ne prouvent ni le rendu sur téléphone ni le pont natif Expo SQLite.
 |---|---|---|
 | Employé | `today`, `job/[id]` (statut, checklist, photos, signature, matériaux, terminer), `punch`, `consent` | `m4_*`, `m6_declarer_materiaux_utilises` |
 | Vendeur | `leads`, `lead/[id]`, `quotes` | `m2_lister_leads`, `m2_suggerer_prochaine_action`, `m2_trouver_client_de_lead`, `m2_obtenir_client_360`, `m2_enregistrer_interaction`, `m3_lire_devis` |
-| Admin | `admin` (« À voir »), `approvals`, `chiffres`, `chantiers`, `briefing`, `comptes` | `m9_lister_demandes_approbation`, `m9_decider_demande_approbation`, `m8_lire_vue_executive`, `m5_etat_tresorerie`, `m5_prevoir_tresorerie`, `m5_lire_echeances_fiscales`, `m4_lister_interventions`, `m4_verifier_preparation`, `m4_produire_digest`, `m9_produire_briefing_matin`, `m9_lire_suite_briefing`, `m9_lire_alertes_m8`, `m9_lire_etat_consolide`, `m5_lire_comptes_a_recevoir`, `m5_lister_comptes_a_payer`, `m5_lister_attentes_facturation` |
+| Admin | `admin` (« À voir »), `approvals`, `chiffres`, `chantiers`, `briefing`, `comptes`, `stock` | `m9_lister_demandes_approbation`, `m9_decider_demande_approbation`, `m8_lire_vue_executive`, `m5_etat_tresorerie`, `m5_prevoir_tresorerie`, `m5_lire_echeances_fiscales`, `m4_lister_interventions`, `m4_verifier_preparation`, `m4_produire_digest`, `m9_produire_briefing_matin`, `m9_lire_suite_briefing`, `m9_lire_alertes_m8`, `m9_lire_etat_consolide`, `m5_lire_comptes_a_recevoir`, `m5_lister_comptes_a_payer`, `m5_lister_attentes_facturation` |
 
 ### Employé (PLAN T1.4-e, T1.4-n)
 
@@ -144,3 +144,11 @@ Depuis « À voir », `/comptes` présente trois lectures indépendantes : créa
 Le cache est personnel, normalisé et limité à la première page AP ; celui des créances dépend du jour local. Les suites AP sont des pages courantes en ligne qui remplacent la page affichée. Une réponse devenue ancienne après changement de filtre, rafraîchissement ou départ de l’écran est écartée. Les refus ne sont pas remplacés par le cache. Aucun paiement, envoi ni application du rapprochement proposé.
 
 Preuves et limites : [audit du 7 octobre](../docs/reprise/COMPTES-M5-2026-10-07/AUDIT-COMPTES-M5-2026-10-07-r1.md). L’export JavaScript et le rendu React contrôlé ne qualifient pas Hermes, Expo SQLite ou un téléphone natif.
+
+### Stock admin (PLAN T4.23)
+
+Depuis « À voir », `/stock` lit disponibilité et digest M6 dans deux sections indépendantes. Les quantités décimales natives sont conservées, y compris les valeurs négatives à vérifier. Les unités ne sont pas fournies pour le stock ; le comptage physique n’est pas déduit du théorique. Les unités des lignes manquantes restent propres à ces lignes.
+
+La disponibilité est une fenêtre native de 15 articles et 10 réservations actives, avec deux indicateurs de troncature distincts. Il n’existe ni total ni curseur ni suite fournie par ces outils. Le digest couvre les écarts enregistrés, même nuls, sans fenêtre journalière ; l’appel sans seuils ne calcule aucune suggestion et ne prouve pas l’absence de besoin d’achat.
+
+Cache personnel minimal et normalisé, gardes avant/après chaque lecture ; refus sans repli, résultat ancien écarté après refresh/purge/changement de session. Aucun mouvement, commande ou inventaire n’est écrit par l’écran. [Audit et limites](../docs/reprise/STOCK-M6-2026-10-07/AUDIT-STOCK-M6-2026-10-07-r1.md). Le rendu React contrôlé et l’export JavaScript ne qualifient pas un téléphone natif.

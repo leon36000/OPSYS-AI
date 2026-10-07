@@ -1192,6 +1192,9 @@ def produire_digest(
     registre_historique: list[dict[str, Any]] | None = None,
     seuils_reorder: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    _, verdict = _acteur_admin_ou_agent()
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
     registre_cible = _registre_de_l_appel(registre_historique)
     return digest.produire_digest_quotidien(registre_cible, seuils_reorder or [])
 

@@ -2258,9 +2258,20 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       Source implémentée selon conception approuvée le 7 octobre : `/comptes`, trois lectures indépendantes,
       cache personnel, première page AP seule en cache, pages courantes en ligne remplacées.
       2761 tests mobiles /133 suites, types, contrats HTTP/SQLite et export Android JavaScript locaux qualifiés.
-      CI du nouveau commit à obtenir ; Hermes/téléphone/Expo natifs et client authentifié hors preuve.
+      CI exacte du commit 47ae1200 réussie : six workflows, 37 jobs exécutés, deux Docker Desktop opt-in ignorés.
+      Hermes/téléphone/Expo natifs et client authentifié hors preuve.
       Aucun paiement, envoi ou application de rapprochement ; capacités profondes M5 restantes conservées.
 - [ ] T4.23 Mobile admin : stock de M6 (`m6_produire_digest`, `m6_lire_disponibilite`).
+      Source `/stock` implémentée : deux lectures indépendantes, cache personnel normalisé, gardes
+      de session et réponses tardives écartées. Garde admin vivant ajoutée au digest avant registre.
+      Fenêtres natives 15 articles/10 réservations avec deux indicateurs distincts ; aucun total
+      ou curseur fourni. Quantités théoriques calculées par M6 ; unités et stock physique inconnus
+      explicites. Digest historique sans fenêtre journalière ; appel sans seuils, aucune suggestion.
+      Qualification intégrée : 2842 tests mobiles/137 suites, 1315 tests métier/2 skips PostgreSQL
+      faute de Docker local, types, Ruff, vérificateur métier et export Android JavaScript verts.
+      CI exacte nouvelle à obtenir ; téléphone/Expo SQLite/Hermes et client natifs hors preuve.
+      [Audit et registre](../reprise/STOCK-M6-2026-10-07/AUDIT-STOCK-M6-2026-10-07-r1.md).
+      Catalogue profond, prix, commandes, inventaire physique et autres capacités M6 restent requis.
 - [ ] T4.24 Mobile admin : file de M7 (`m7_lister_file_approbation`, `m7_lister_demandes_avis`,
       `m7_lister_contenus_chantier`) ; les décisions passent par la file sortante, sur le patron
       d'`approvals`.

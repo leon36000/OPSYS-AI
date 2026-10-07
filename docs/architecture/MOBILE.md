@@ -1858,3 +1858,13 @@ client authentifié n’est pas qualifié ici. Les quatre groupes de routes rest
 Créances : factures envoyées uniquement, âge depuis l’envoi au jour local, anomalies et total incomplet visibles. AP : totaux serveur sur la sélection complète, plancher connu distingué d’une dette totale, mentions/hypothèses/versions fiscales conservées ; les totaux PO peuvent comprendre les factures sans PO actives. Attentes : pièces et liens manquants pour préparer une facture, sans confusion avec une approbation.
 
 Première page AP seule en cache, suites remplacées en ligne, aucun snapshot figé ni exhaustivité inter-pages promise. Audit : [COMPTES-M5-2026-10-07](../reprise/COMPTES-M5-2026-10-07/AUDIT-COMPTES-M5-2026-10-07-r1.md). La qualification native mobile reste à obtenir ; M5 demeure un département profond dont cet écran ne clôt pas le périmètre.
+
+## Stock admin : projections M6 natives (PLAN T4.23)
+
+`mobile/app/(admin)/stock.tsx` réutilise les états de section, le cache personnel et la configuration admin. Le chargeur appelle les deux outils avec `{}`. `m6_lire_disponibilite` est une enveloppe couple ; `m6_produire_digest` est un résultat direct. Les lecteurs valident les propriétés propres, limites 15/10, décimales finies, compteurs sûrs et cohérents et empreinte du digest. Une réponse héritée, un accesseur ou une donnée manquante produit un échec lisible ; aucune ligne malformée n’est silencieusement supprimée.
+
+La garde native du digest réutilise la validation de signataire M6 avant de lire le registre. Les appels internes sans contexte appareil conservent leur contrat ; un appareil doit porter une personne admin active. Le client n’envoie aucun rôle. Les tests HTTP MCP/SQLite emploient une porte Core Python simulée : ils ne prouvent pas le raccord natif du téléphone. Les captures portent `fictif: true` et leurs empreintes de sources.
+
+Le cache conserve les projections normalisées minimales par personne ; refus, purge et retrait de session restent prioritaires. Les générations de lecture empêchent un résultat initial ou rafraîchi ancien de remplacer le contexte courant. La présentation conserve les calculs serveur, les quantités signées, l’emplacement inconnu et les unités propres aux lignes manquantes. Les écarts du digest sont historiques, sans date métier inventée. Aucun bouton de mutation ou pagination ; les outils ne fournissent pas de suite.
+
+[Registre et qualification](../reprise/STOCK-M6-2026-10-07/AUDIT-STOCK-M6-2026-10-07-r1.md). M6 demeure un département profond ; ce viewport ne clôt ni l’inventaire physique ni les prix ou commandes fournisseurs.

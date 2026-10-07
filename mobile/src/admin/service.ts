@@ -1,3 +1,4 @@
+import { creerChargeurStock } from "./stock";
 import { creerChargeurComptes } from "./comptes";
 import { creerChargeurBriefing } from "./briefing";
 import type { SectionBriefing } from "../m9/briefing";
@@ -118,4 +119,13 @@ export async function chargerComptesAPM5(sansPO = false, depart = 0) {
 export async function chargerAttentesFacturationM5() {
   const config = await configuration();
   return config ? creerChargeurComptes(config).chargerAttentes() : null;
+}
+
+export async function chargerDisponibiliteM6() {
+  const config = await configuration();
+  return config ? creerChargeurStock(config).chargerDisponibilite() : null;
+}
+export async function chargerDigestM6() {
+  const config = await configuration();
+  return config ? creerChargeurStock(config).chargerDigest() : null;
 }
