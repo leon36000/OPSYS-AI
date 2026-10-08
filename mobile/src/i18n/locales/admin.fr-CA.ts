@@ -714,6 +714,33 @@ const adminFrCA = {
     "nonMesurable": "Retard sur la cédule non mesurable : calendrier civil absent."
   }
 },
+  cashConstatM8: {
+  "manque": "M5 n’a publié aucun constat de cash libre.",
+  "inconnu": "Statut de constat inconnu : {{statut}}. Aucun montant interprété.",
+  "source": "Source : {{source}}",
+  "sourceMasquee": "Source non montrable.",
+  "nConstats": "{{nombre}} constat(s) reçu(s) par M8.",
+  "constat": "Constat {{sequence}} ; date de référence {{date}}.",
+  "age": "Âge déclaré : {{jours}} jour(s), au {{jour}}.",
+  "jourAge": "Jour d’origine de cet âge : {{jour}}.",
+  "ageInconnu": "Âge inconnu : {{raison}}",
+  "ageRaisonMasquee": "Âge inconnu ; détail technique masqué.",
+  "CALCULE": "Cash libre calculé par M5.",
+  "NON_CALCULABLE": "Cash libre non calculable : voir les manques.",
+  "montant": "Cash libre du constat : {{montant}} CAD",
+  "auPlus": "Repère au plus {{montant}} CAD ; ce n’est pas de l’argent disponible.",
+  "deficit": "Déficit déclaré par M5.",
+  "composantesOmises": "{{nombre}} composante(s) omise(s) ; détail dans Trésorerie.",
+  "manqueLigne": "Manque : {{manque}}",
+  "manqueMasque": "Manque non montrable.",
+  "reserve": "Réserve : {{code}}",
+  "reserveMasquee": "Réserve non montrable.",
+  "lectureMasquee": "Lecture non montrable.",
+  "mentionMasquee": "Mention de validation non montrable ; montant masqué.",
+  "nonReprisMasque": "Détail non repris non montrable.",
+  "renvoiTresorerie": "Consulter Trésorerie pour les sources, la fraîcheur et les hypothèses détaillées.",
+  "statutMasque": "Statut non montrable ; aucun montant interprété."
+},
   chantiers: {
     titre: "Chantiers du jour",
     lectureSeule: "Lecture seule : aucune cédule n'est proposée ni appliquée depuis cet écran.",

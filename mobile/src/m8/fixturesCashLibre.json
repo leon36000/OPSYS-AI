@@ -1,0 +1,2339 @@
+{
+  "fictif": true,
+  "provenance": {
+    "type": "modules purs natifs, fixtures validées par catalogue M5; pas de HTTP/DB",
+    "sources_sha256": {
+      "departments/m08-analytics/tests/test_cash_libre.py": "0d1e0192177b1af13edd47e46264ea52183ac5ed1b6443a937251e9ca6872166",
+      "departments/m08-analytics/src/m8_analytics/cash_libre.py": "2c4507303785b5db2bdfde387e49053f8e04bcb73eb013ad5464f3aa104d5ebd",
+      "src/opsys/evenements/catalogue/m5.cash_libre_constate.json": "a85ee5cc8a18b60812db8a4f6b56b532f3d2a29b27df74900fd14bec607e89fc",
+      "departments/m08-analytics/tests/test_vue_executive_cash_libre.py": "9009ff56d53e1ae1bccc3b71baa51492f9c299f683d028e848531a2846f2efa7"
+    },
+    "generation": "qualification/m5m8-cash-fixtures-pures-r2.py; modules purs uniquement, fixture du catalogue M5 validée avant projection",
+    "generation_sha256": "d1f54d7f120d35de3a7f52803cb1337003377e7cbcebdb468f7c0ad04420dbd9",
+    "generation_premier_jour": "qualification/m5m8-cash-fixtures-pures-r3.py: _constat_premier_jour catalogue-validé, projection native pure",
+    "generation_premier_jour_sha256": "c402a36fc024a0b41c210ad7d7f3f3bddf39d32bdef7ec3ad4f33ae9784bb1de"
+  },
+  "manque": {
+    "source": "M5 (m5.cash_libre_constate)",
+    "statut": "manque",
+    "manque": [
+      "cash_libre"
+    ],
+    "a_lire": "m5_etat_tresorerie (admin), avec la décomposition du cash libre ; m5_constater_cash_libre (admin) le publie à M8"
+  },
+  "calcule": {
+    "source": "M5 (m5.cash_libre_constate)",
+    "statut": "lu",
+    "n_constats_recus": 1,
+    "constat": {
+      "sequence": 1,
+      "date_reference": "2026-09-29",
+      "statut": "CALCULE",
+      "cash_libre_cad": "27861.98",
+      "au_plus_cad": null,
+      "en_deficit": false,
+      "lecture": "Cash libre : 27861.98 $ (solde moins toutes les obligations ci-dessous). Sous réserve : REJ-AP-UNITE-PRIX-NON-CONFIRMEE.",
+      "composantes": {
+        "solde": "37654.33",
+        "taxes_a_remettre": "1981.69",
+        "paies": "4200.00",
+        "das": "1350.75",
+        "comptes_a_payer": "459.91",
+        "dettes": "800.00",
+        "reserves": "1000.00"
+      },
+      "manque": [],
+      "reserves": [
+        "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+      ],
+      "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    },
+    "age": {
+      "jours": 1,
+      "aujourd_hui": "2026-09-30"
+    },
+    "non_repris": "source et fraîcheur de chaque composante, hypothèses",
+    "a_lire": "m5_etat_tresorerie (admin)"
+  },
+  "nonCalculable": {
+    "source": "M5 (m5.cash_libre_constate)",
+    "statut": "lu",
+    "n_constats_recus": 1,
+    "constat": {
+      "sequence": 1,
+      "date_reference": "2026-09-29",
+      "statut": "NON_CALCULABLE",
+      "cash_libre_cad": null,
+      "au_plus_cad": "32061.98",
+      "en_deficit": null,
+      "lecture": "Cash libre non calculable : 1 manque(s) (voir manque). Au plus 32061.98 $ : le solde moins ce qui est connu ; ce qui manque ne peut que le réduire. Ce n'est PAS de l'argent disponible.",
+      "composantes": {
+        "solde": "37654.33",
+        "taxes_a_remettre": "1981.69",
+        "paies": null,
+        "das": "1350.75",
+        "comptes_a_payer": "459.91",
+        "dettes": "800.00",
+        "reserves": "1000.00"
+      },
+      "manque": [
+        "paies : REJ-CASH-PAIE-A-DECLARER"
+      ],
+      "reserves": [
+        "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+      ],
+      "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    },
+    "age": {
+      "jours": 1,
+      "aujourd_hui": "2026-09-30"
+    },
+    "non_repris": "source et fraîcheur de chaque composante, hypothèses",
+    "a_lire": "m5_etat_tresorerie (admin)"
+  },
+  "sansAge": {
+    "source": "M5 (m5.cash_libre_constate)",
+    "statut": "lu",
+    "n_constats_recus": 1,
+    "constat": {
+      "sequence": 1,
+      "date_reference": "2026-09-29",
+      "statut": "CALCULE",
+      "cash_libre_cad": "27861.98",
+      "au_plus_cad": null,
+      "en_deficit": false,
+      "lecture": "Cash libre : 27861.98 $ (solde moins toutes les obligations ci-dessous). Sous réserve : REJ-AP-UNITE-PRIX-NON-CONFIRMEE.",
+      "composantes": {
+        "solde": "37654.33",
+        "taxes_a_remettre": "1981.69",
+        "paies": "4200.00",
+        "das": "1350.75",
+        "comptes_a_payer": "459.91",
+        "dettes": "800.00",
+        "reserves": "1000.00"
+      },
+      "manque": [],
+      "reserves": [
+        "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+      ],
+      "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    },
+    "age": {
+      "jours": null,
+      "raison": "aujourd_hui non fourni : M8 n'a pas d'horloge"
+    },
+    "non_repris": "source et fraîcheur de chaque composante, hypothèses",
+    "a_lire": "m5_etat_tresorerie (admin)"
+  },
+  "dateFuture": {
+    "source": "M5 (m5.cash_libre_constate)",
+    "statut": "lu",
+    "n_constats_recus": 1,
+    "constat": {
+      "sequence": 1,
+      "date_reference": "2026-09-29",
+      "statut": "CALCULE",
+      "cash_libre_cad": "27861.98",
+      "au_plus_cad": null,
+      "en_deficit": false,
+      "lecture": "Cash libre : 27861.98 $ (solde moins toutes les obligations ci-dessous). Sous réserve : REJ-AP-UNITE-PRIX-NON-CONFIRMEE.",
+      "composantes": {
+        "solde": "37654.33",
+        "taxes_a_remettre": "1981.69",
+        "paies": "4200.00",
+        "das": "1350.75",
+        "comptes_a_payer": "459.91",
+        "dettes": "800.00",
+        "reserves": "1000.00"
+      },
+      "manque": [],
+      "reserves": [
+        "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+      ],
+      "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    },
+    "age": {
+      "jours": null,
+      "aujourd_hui": "2026-09-28",
+      "raison": "la date de référence du constat (2026-09-29) est postérieure à aujourd_hui"
+    },
+    "non_repris": "source et fraîcheur de chaque composante, hypothèses",
+    "a_lire": "m5_etat_tresorerie (admin)"
+  },
+  "reduit": {
+    "source": "M5 (m5.cash_libre_constate)",
+    "statut": "lu",
+    "n_constats_recus": 1,
+    "constat": {
+      "sequence": 1,
+      "date_reference": "2026-09-29",
+      "statut": "NON_CALCULABLE",
+      "cash_libre_cad": null,
+      "au_plus_cad": "32061.98",
+      "en_deficit": null,
+      "lecture": "Cash libre non calculable : 1 manque(s) (voir manque). Au plus 32061.98 $ : le solde moins ce qui est connu ; ce qui manque ne peut que le réduire. Ce n'est PAS de l'argent disponible.",
+      "manque": [
+        "paies : REJ-CASH-PAIE-A-DECLARER"
+      ],
+      "reserves": [
+        "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+      ],
+      "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle.",
+      "composantes_omises": 7
+    },
+    "age": {
+      "jours": 1,
+      "aujourd_hui": "2026-09-30"
+    },
+    "non_repris": "décomposition, source et fraîcheur de chaque composante, hypothèses",
+    "a_lire": "m5_etat_tresorerie (admin)"
+  },
+  "deficit": {
+    "source": "M5 (m5.cash_libre_constate)",
+    "statut": "lu",
+    "n_constats_recus": 1,
+    "constat": {
+      "sequence": 1,
+      "date_reference": "2026-09-29",
+      "statut": "CALCULE",
+      "cash_libre_cad": "-7792.35",
+      "au_plus_cad": null,
+      "en_deficit": true,
+      "lecture": "Déficit : 7792.35 $. Ce n’est PAS de l’argent disponible.",
+      "composantes": {
+        "solde": "2000.00",
+        "taxes_a_remettre": "1981.69",
+        "paies": "4200.00",
+        "das": "1350.75",
+        "comptes_a_payer": "459.91",
+        "dettes": "800.00",
+        "reserves": "1000.00"
+      },
+      "manque": [],
+      "reserves": [
+        "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+      ],
+      "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    },
+    "age": {
+      "jours": 1,
+      "aujourd_hui": "2026-09-30"
+    },
+    "non_repris": "source et fraîcheur de chaque composante, hypothèses",
+    "a_lire": "m5_etat_tresorerie (admin)"
+  },
+  "planchers": {
+    "source": "M5 (m5.cash_libre_constate)",
+    "statut": "lu",
+    "n_constats_recus": 1,
+    "constat": {
+      "sequence": 1,
+      "date_reference": "2026-09-29",
+      "statut": "NON_CALCULABLE",
+      "cash_libre_cad": null,
+      "au_plus_cad": "27861.98",
+      "en_deficit": null,
+      "lecture": "Cash libre non calculable : 1 manque(s). Au plus 27861.98 $ : ce n'est PAS de l'argent disponible.",
+      "composantes": {
+        "solde": "37654.33",
+        "taxes_a_remettre": "1981.69",
+        "paies": "4200.00",
+        "das": "1350.75",
+        "comptes_a_payer": null,
+        "dettes": "800.00",
+        "reserves": "1000.00"
+      },
+      "planchers_cad": {
+        "comptes_a_payer": "459.91"
+      },
+      "manque": [
+        "comptes_a_payer : REJ-CASH-COMPTES-A-PAYER-INCOMPLETS"
+      ],
+      "reserves": [
+        "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+      ],
+      "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    },
+    "age": {
+      "jours": 1,
+      "aujourd_hui": "2026-09-30"
+    },
+    "non_repris": "source et fraîcheur de chaque composante, hypothèses",
+    "a_lire": "m5_etat_tresorerie (admin)"
+  },
+  "precision": {
+    "source": "M5 (m5.cash_libre_constate)",
+    "statut": "lu",
+    "n_constats_recus": 1,
+    "constat": {
+      "sequence": 1,
+      "date_reference": "2026-09-29",
+      "statut": "CALCULE",
+      "cash_libre_cad": "27861.980",
+      "au_plus_cad": null,
+      "en_deficit": false,
+      "lecture": "Cash libre : 27861.98 $ (solde moins toutes les obligations ci-dessous). Sous réserve : REJ-AP-UNITE-PRIX-NON-CONFIRMEE.",
+      "composantes": {
+        "solde": "37654.330",
+        "taxes_a_remettre": "1981.69",
+        "paies": "4200.00",
+        "das": "1350.75",
+        "comptes_a_payer": "459.91",
+        "dettes": "800.00",
+        "reserves": "1000.00"
+      },
+      "manque": [],
+      "reserves": [
+        "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+      ],
+      "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    },
+    "age": {
+      "jours": 0,
+      "aujourd_hui": "2026-09-29"
+    },
+    "non_repris": "source et fraîcheur de chaque composante, hypothèses",
+    "a_lire": "m5_etat_tresorerie (admin)"
+  },
+  "soldeAbsent": {
+    "source": "M5 (m5.cash_libre_constate)",
+    "statut": "lu",
+    "n_constats_recus": 1,
+    "constat": {
+      "sequence": 1,
+      "date_reference": "2026-09-29",
+      "statut": "NON_CALCULABLE",
+      "cash_libre_cad": null,
+      "au_plus_cad": null,
+      "en_deficit": null,
+      "lecture": "Cash libre non calculable : solde absent, données fictives.",
+      "composantes": {
+        "solde": null,
+        "taxes_a_remettre": "1981.69",
+        "paies": "4200.00",
+        "das": "1350.75",
+        "comptes_a_payer": "459.91",
+        "dettes": "800.00",
+        "reserves": "1000.00"
+      },
+      "manque": [
+        "solde : REJ-CASH-SOLDE-ABSENT"
+      ],
+      "reserves": [
+        "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+      ],
+      "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    },
+    "age": {
+      "jours": 1,
+      "aujourd_hui": "2026-09-30"
+    },
+    "non_repris": "source et fraîcheur de chaque composante, hypothèses",
+    "a_lire": "m5_etat_tresorerie (admin)"
+  },
+  "calculeReduit": {
+    "source": "M5 (m5.cash_libre_constate)",
+    "statut": "lu",
+    "n_constats_recus": 1,
+    "constat": {
+      "sequence": 1,
+      "date_reference": "2026-09-29",
+      "statut": "CALCULE",
+      "cash_libre_cad": "27861.98",
+      "au_plus_cad": null,
+      "en_deficit": false,
+      "lecture": "Cash libre : 27861.98 $ (solde moins toutes les obligations ci-dessous). Sous réserve : REJ-AP-UNITE-PRIX-NON-CONFIRMEE.",
+      "manque": [],
+      "reserves": [
+        "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+      ],
+      "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle.",
+      "composantes_omises": 7
+    },
+    "age": {
+      "jours": 1,
+      "aujourd_hui": "2026-09-30"
+    },
+    "non_repris": "décomposition, source et fraîcheur de chaque composante, hypothèses",
+    "a_lire": "m5_etat_tresorerie (admin)"
+  },
+  "premierJour": {
+    "source": "M5 (m5.cash_libre_constate)",
+    "statut": "lu",
+    "n_constats_recus": 1,
+    "constat": {
+      "sequence": 1,
+      "date_reference": "2026-09-29",
+      "statut": "NON_CALCULABLE",
+      "cash_libre_cad": null,
+      "au_plus_cad": null,
+      "en_deficit": null,
+      "lecture": "Cash libre non calculable : le solde n'est pas connu (voir manque). Aucun chiffre n'est donné.",
+      "composantes": {
+        "solde": null,
+        "taxes_a_remettre": null,
+        "paies": null,
+        "das": null,
+        "comptes_a_payer": "0.00",
+        "dettes": null,
+        "reserves": null
+      },
+      "manque": [
+        "solde : REJ-CASH-SOLDE-ABSENT",
+        "taxes_a_remettre : REJ-FISCAL-FREQUENCE-A-DECLARER",
+        "paies : REJ-CASH-PAIE-A-DECLARER",
+        "das : REJ-CASH-DAS-A-DECLARER",
+        "dettes : REJ-CASH-DETTES-A-DECLARER",
+        "reserves : REJ-CASH-RESERVES-A-DECLARER"
+      ],
+      "reserves": [],
+      "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+    },
+    "age": {
+      "jours": 0,
+      "aujourd_hui": "2026-09-29"
+    },
+    "non_repris": "source et fraîcheur de chaque composante, hypothèses",
+    "a_lire": "m5_etat_tresorerie (admin)"
+  },
+  "capturesHttp": {
+    "provenance": "Lectures Gateway/HTTP MCP/SQLite de m1_gateway_native sur MAIN 8bf; préparation M5 fictive séparée. Omissions : fixture catalogue extrême existante via vrai bus, pas résultat calculateur M5. Aucun téléphone, aucun calcul financier côté mobile.",
+    "lectures": {
+      "aucun-constat": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source": "qualification/cash-libre-native-public-r2/dto-aucun-constat.json",
+        "source_sha256": "d937336f95ae1cb96bdc511f22c406293b80b57a9f5a53cc540acf42043cd8b0",
+        "parent": "8bf106eb6239777725b9678b5b0ff4ae8be125c9",
+        "all_entire_tables_unchanged": true,
+        "preparation": "constats M5 réels fictifs; préparation séparée de la lecture",
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "vue": "executive",
+            "portee": "Tous les faits reçus, sans fenêtre de période. M8 calcule l'entonnoir ; marge réelle, cash libre (M5) et stock à commander (M6) sont repris tels que publiés, sans recalcul.",
+            "entonnoir": {
+              "mesures": [
+                {
+                  "metric_id": "m8_leads_recus",
+                  "nom": "Leads reçus",
+                  "valeur": null,
+                  "unite": "leads",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "8ad34274c0c6fe29a0dfe7fedc1839ee8011bcdeb9635bfeb12ea8bd1f185377",
+                  "manque": [
+                    "m2.client_associe"
+                  ]
+                },
+                {
+                  "metric_id": "m8_leads_qualifies",
+                  "nom": "Leads qualifiés",
+                  "valeur": null,
+                  "unite": "leads",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "39b8d0932069407a5efbdd305a8abe153e4c3513a16b419b3b3a908cf2c6080d",
+                  "manque": [
+                    "m2.lead_assigne"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_envoyes",
+                  "nom": "Devis envoyés",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "b5fc972a3a5196f721b8c88ad655cee287bbfc553a5e5a2f4055574d892fa5d7",
+                  "manque": [
+                    "m3.devis_envoye"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_acceptes",
+                  "nom": "Devis acceptés",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "e4ab4c60e7c5a5f645b1ebe2690ad4c1f17a0a5d659f644bd3edd85fe5e39aac",
+                  "manque": [
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_sans_reponse",
+                  "nom": "Devis sans réponse",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "34cbdca729aca0ccd1027eb39ac88e69d4512ce9626a42130c382d0f451c220e",
+                  "manque": [
+                    "m3.devis_sans_reponse"
+                  ]
+                },
+                {
+                  "metric_id": "m8_taux_acceptation_pct",
+                  "nom": "Taux d'acceptation des devis",
+                  "valeur": null,
+                  "unite": "pourcentage",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "8c933aa9445cbf41cefec35288f388b4e126f286013af51d251ff4de0f23f734",
+                  "manque": [
+                    "m3.devis_envoye",
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_delai_lead_acceptation_jours",
+                  "nom": "Délai du lead à l'acceptation",
+                  "valeur": null,
+                  "unite": "jours",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "76872c2b5f8ac1acb41c478cc8ca8ae1d9d6e83d9837105867051f72b4c9dcbe",
+                  "manque": [
+                    "m2.client_associe",
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_carnet_signe_cad",
+                  "nom": "Carnet signé",
+                  "valeur": null,
+                  "unite": "CAD",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "3ecb658bef2af8ea7890dcbcb28f20904500bebdca5af835344ddc3dd9545ba2",
+                  "manque": [
+                    "m3.devis_accepte"
+                  ]
+                }
+              ],
+              "sources": [
+                {
+                  "evenement": "m2.client_associe",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m2.lead_assigne",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_envoye",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_accepte",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_sans_reponse",
+                  "n": 0,
+                  "dernier_fait_le": null
+                }
+              ],
+              "devis_en_attente": {
+                "sans_reponse": {
+                  "n": 0,
+                  "devis": [],
+                  "reste": 0
+                },
+                "brouillons_en_retard": {
+                  "n": 0,
+                  "devis": [],
+                  "reste": 0
+                }
+              },
+              "seuils": {
+                "a_configurer": [],
+                "invalides": [],
+                "ignores": [],
+                "evalues": []
+              }
+            },
+            "marge_reelle": {
+              "source": "M5 (m5.rentabilite_chantier), prix définitif/coût complet, reprise sans aucun calcul",
+              "n_chantiers": 0,
+              "n_marge_connue": 0,
+              "n_non_calculable": 0,
+              "chantiers": [],
+              "reste": 0
+            },
+            "stock_a_commander": {
+              "source": "M6 (attentes du propriétaire, type besoin_commande)",
+              "statut": "lu",
+              "n_articles": 0,
+              "articles": [],
+              "reste": 0,
+              "seuils_a_configurer": false
+            },
+            "cash_libre": {
+              "source": "M5 (m5.cash_libre_constate)",
+              "statut": "manque",
+              "manque": [
+                "cash_libre"
+              ],
+              "a_lire": "m5_etat_tresorerie (admin), avec la décomposition du cash libre ; m5_constater_cash_libre (admin) le publie à M8"
+            },
+            "manques": [
+              {
+                "champ": "m2.client_associe",
+                "source": "M2 (m2.client_associe)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m2.lead_assigne",
+                "source": "M2 (m2.lead_assigne)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_envoye",
+                "source": "M3 (m3.devis_envoye)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_accepte",
+                "source": "M3 (m3.devis_accepte)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_sans_reponse",
+                "source": "M3 (m3.devis_sans_reponse)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "cash_libre",
+                "source": "M5 (m5.cash_libre_constate)",
+                "raison": "M5 n'a publié aucun constat du cash libre (m5.cash_libre_constate) : M8 ne peut ni le lire ni le recalculer, il ne fait pas la comptabilité ; l'admin le fait constater par m5_constater_cash_libre"
+              }
+            ]
+          }
+        }
+      },
+      "premier-jour": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source": "qualification/cash-libre-native-public-r2/dto-premier-jour.json",
+        "source_sha256": "0e982585aa05aad140183880877da70be9c5e1f7a84bfb874cdb844d6b14942f",
+        "parent": "8bf106eb6239777725b9678b5b0ff4ae8be125c9",
+        "all_entire_tables_unchanged": true,
+        "preparation": "constats M5 réels fictifs; préparation séparée de la lecture",
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "vue": "executive",
+            "portee": "Tous les faits reçus, sans fenêtre de période. M8 calcule l'entonnoir ; marge réelle, cash libre (M5) et stock à commander (M6) sont repris tels que publiés, sans recalcul.",
+            "entonnoir": {
+              "mesures": [
+                {
+                  "metric_id": "m8_leads_recus",
+                  "nom": "Leads reçus",
+                  "valeur": null,
+                  "unite": "leads",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "8ad34274c0c6fe29a0dfe7fedc1839ee8011bcdeb9635bfeb12ea8bd1f185377",
+                  "manque": [
+                    "m2.client_associe"
+                  ]
+                },
+                {
+                  "metric_id": "m8_leads_qualifies",
+                  "nom": "Leads qualifiés",
+                  "valeur": null,
+                  "unite": "leads",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "39b8d0932069407a5efbdd305a8abe153e4c3513a16b419b3b3a908cf2c6080d",
+                  "manque": [
+                    "m2.lead_assigne"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_envoyes",
+                  "nom": "Devis envoyés",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "b5fc972a3a5196f721b8c88ad655cee287bbfc553a5e5a2f4055574d892fa5d7",
+                  "manque": [
+                    "m3.devis_envoye"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_acceptes",
+                  "nom": "Devis acceptés",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "e4ab4c60e7c5a5f645b1ebe2690ad4c1f17a0a5d659f644bd3edd85fe5e39aac",
+                  "manque": [
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_sans_reponse",
+                  "nom": "Devis sans réponse",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "34cbdca729aca0ccd1027eb39ac88e69d4512ce9626a42130c382d0f451c220e",
+                  "manque": [
+                    "m3.devis_sans_reponse"
+                  ]
+                },
+                {
+                  "metric_id": "m8_taux_acceptation_pct",
+                  "nom": "Taux d'acceptation des devis",
+                  "valeur": null,
+                  "unite": "pourcentage",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "8c933aa9445cbf41cefec35288f388b4e126f286013af51d251ff4de0f23f734",
+                  "manque": [
+                    "m3.devis_envoye",
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_delai_lead_acceptation_jours",
+                  "nom": "Délai du lead à l'acceptation",
+                  "valeur": null,
+                  "unite": "jours",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "76872c2b5f8ac1acb41c478cc8ca8ae1d9d6e83d9837105867051f72b4c9dcbe",
+                  "manque": [
+                    "m2.client_associe",
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_carnet_signe_cad",
+                  "nom": "Carnet signé",
+                  "valeur": null,
+                  "unite": "CAD",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "3ecb658bef2af8ea7890dcbcb28f20904500bebdca5af835344ddc3dd9545ba2",
+                  "manque": [
+                    "m3.devis_accepte"
+                  ]
+                }
+              ],
+              "sources": [
+                {
+                  "evenement": "m2.client_associe",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m2.lead_assigne",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_envoye",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_accepte",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_sans_reponse",
+                  "n": 0,
+                  "dernier_fait_le": null
+                }
+              ],
+              "devis_en_attente": {
+                "sans_reponse": {
+                  "n": 0,
+                  "devis": [],
+                  "reste": 0
+                },
+                "brouillons_en_retard": {
+                  "n": 0,
+                  "devis": [],
+                  "reste": 0
+                }
+              },
+              "seuils": {
+                "a_configurer": [],
+                "invalides": [],
+                "ignores": [],
+                "evalues": []
+              }
+            },
+            "marge_reelle": {
+              "source": "M5 (m5.rentabilite_chantier), prix définitif/coût complet, reprise sans aucun calcul",
+              "n_chantiers": 0,
+              "n_marge_connue": 0,
+              "n_non_calculable": 0,
+              "chantiers": [],
+              "reste": 0
+            },
+            "stock_a_commander": {
+              "source": "M6 (attentes du propriétaire, type besoin_commande)",
+              "statut": "lu",
+              "n_articles": 0,
+              "articles": [],
+              "reste": 0,
+              "seuils_a_configurer": false
+            },
+            "cash_libre": {
+              "source": "M5 (m5.cash_libre_constate)",
+              "statut": "lu",
+              "n_constats_recus": 1,
+              "constat": {
+                "sequence": 1,
+                "date_reference": "2026-09-29",
+                "statut": "NON_CALCULABLE",
+                "cash_libre_cad": null,
+                "au_plus_cad": null,
+                "en_deficit": null,
+                "lecture": "Cash libre non calculable : le solde n'est pas connu (voir manque). Aucun chiffre n'est donné.",
+                "composantes": {
+                  "solde": null,
+                  "taxes_a_remettre": null,
+                  "paies": null,
+                  "das": null,
+                  "comptes_a_payer": "0.00",
+                  "dettes": null,
+                  "reserves": null
+                },
+                "manque": [
+                  "solde : REJ-CASH-SOLDE-ABSENT",
+                  "taxes_a_remettre : REJ-FISCAL-FREQUENCE-A-DECLARER",
+                  "paies : REJ-CASH-PAIE-A-DECLARER",
+                  "das : REJ-CASH-DAS-A-DECLARER",
+                  "dettes : REJ-CASH-DETTES-A-DECLARER",
+                  "reserves : REJ-CASH-RESERVES-A-DECLARER"
+                ],
+                "reserves": [],
+                "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+              },
+              "age": {
+                "jours": 3,
+                "aujourd_hui": "2026-10-02"
+              },
+              "non_repris": "source et fraîcheur de chaque composante, hypothèses",
+              "a_lire": "m5_etat_tresorerie (admin)"
+            },
+            "manques": [
+              {
+                "champ": "m2.client_associe",
+                "source": "M2 (m2.client_associe)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m2.lead_assigne",
+                "source": "M2 (m2.lead_assigne)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_envoye",
+                "source": "M3 (m3.devis_envoye)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_accepte",
+                "source": "M3 (m3.devis_accepte)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_sans_reponse",
+                "source": "M3 (m3.devis_sans_reponse)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "cash_libre",
+                "source": "M5 (m5.cash_libre_constate)",
+                "raison": "M5 a constaté le cash libre « non calculable » le 2026-09-29 : voir cash_libre.constat.manque"
+              }
+            ]
+          }
+        }
+      },
+      "calcule": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source": "qualification/cash-libre-native-public-r2/dto-calcule.json",
+        "source_sha256": "89e0f61952e965c1434b28beb2954550735d3bc3a7a1b85cb21c4ee8a2ee1a2c",
+        "parent": "8bf106eb6239777725b9678b5b0ff4ae8be125c9",
+        "all_entire_tables_unchanged": true,
+        "preparation": "constats M5 réels fictifs; préparation séparée de la lecture",
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "vue": "executive",
+            "portee": "Tous les faits reçus, sans fenêtre de période. M8 calcule l'entonnoir ; marge réelle, cash libre (M5) et stock à commander (M6) sont repris tels que publiés, sans recalcul.",
+            "entonnoir": {
+              "mesures": [
+                {
+                  "metric_id": "m8_leads_recus",
+                  "nom": "Leads reçus",
+                  "valeur": null,
+                  "unite": "leads",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "8ad34274c0c6fe29a0dfe7fedc1839ee8011bcdeb9635bfeb12ea8bd1f185377",
+                  "manque": [
+                    "m2.client_associe"
+                  ]
+                },
+                {
+                  "metric_id": "m8_leads_qualifies",
+                  "nom": "Leads qualifiés",
+                  "valeur": null,
+                  "unite": "leads",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "39b8d0932069407a5efbdd305a8abe153e4c3513a16b419b3b3a908cf2c6080d",
+                  "manque": [
+                    "m2.lead_assigne"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_envoyes",
+                  "nom": "Devis envoyés",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "b5fc972a3a5196f721b8c88ad655cee287bbfc553a5e5a2f4055574d892fa5d7",
+                  "manque": [
+                    "m3.devis_envoye"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_acceptes",
+                  "nom": "Devis acceptés",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "e4ab4c60e7c5a5f645b1ebe2690ad4c1f17a0a5d659f644bd3edd85fe5e39aac",
+                  "manque": [
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_sans_reponse",
+                  "nom": "Devis sans réponse",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "34cbdca729aca0ccd1027eb39ac88e69d4512ce9626a42130c382d0f451c220e",
+                  "manque": [
+                    "m3.devis_sans_reponse"
+                  ]
+                },
+                {
+                  "metric_id": "m8_taux_acceptation_pct",
+                  "nom": "Taux d'acceptation des devis",
+                  "valeur": null,
+                  "unite": "pourcentage",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "8c933aa9445cbf41cefec35288f388b4e126f286013af51d251ff4de0f23f734",
+                  "manque": [
+                    "m3.devis_envoye",
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_delai_lead_acceptation_jours",
+                  "nom": "Délai du lead à l'acceptation",
+                  "valeur": null,
+                  "unite": "jours",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "76872c2b5f8ac1acb41c478cc8ca8ae1d9d6e83d9837105867051f72b4c9dcbe",
+                  "manque": [
+                    "m2.client_associe",
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_carnet_signe_cad",
+                  "nom": "Carnet signé",
+                  "valeur": null,
+                  "unite": "CAD",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "3ecb658bef2af8ea7890dcbcb28f20904500bebdca5af835344ddc3dd9545ba2",
+                  "manque": [
+                    "m3.devis_accepte"
+                  ]
+                }
+              ],
+              "sources": [
+                {
+                  "evenement": "m2.client_associe",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m2.lead_assigne",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_envoye",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_accepte",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_sans_reponse",
+                  "n": 0,
+                  "dernier_fait_le": null
+                }
+              ],
+              "devis_en_attente": {
+                "sans_reponse": {
+                  "n": 0,
+                  "devis": [],
+                  "reste": 0
+                },
+                "brouillons_en_retard": {
+                  "n": 0,
+                  "devis": [],
+                  "reste": 0
+                }
+              },
+              "seuils": {
+                "a_configurer": [],
+                "invalides": [],
+                "ignores": [],
+                "evalues": []
+              }
+            },
+            "marge_reelle": {
+              "source": "M5 (m5.rentabilite_chantier), prix définitif/coût complet, reprise sans aucun calcul",
+              "n_chantiers": 0,
+              "n_marge_connue": 0,
+              "n_non_calculable": 0,
+              "chantiers": [],
+              "reste": 0
+            },
+            "stock_a_commander": {
+              "source": "M6 (attentes du propriétaire, type besoin_commande)",
+              "statut": "lu",
+              "n_articles": 0,
+              "articles": [],
+              "reste": 0,
+              "seuils_a_configurer": false
+            },
+            "cash_libre": {
+              "source": "M5 (m5.cash_libre_constate)",
+              "statut": "lu",
+              "n_constats_recus": 2,
+              "constat": {
+                "sequence": 2,
+                "date_reference": "2026-09-29",
+                "statut": "CALCULE",
+                "cash_libre_cad": "14106.32",
+                "au_plus_cad": null,
+                "en_deficit": false,
+                "lecture": "Cash libre : 14106.32 $ (solde moins toutes les obligations ci-dessous). Sous réserve : REJ-AP-UNITE-PRIX-NON-CONFIRMEE.",
+                "composantes": {
+                  "solde": "20000.00",
+                  "taxes_a_remettre": "748.75",
+                  "paies": "3000.00",
+                  "das": "900.00",
+                  "comptes_a_payer": "344.93",
+                  "dettes": "400.00",
+                  "reserves": "500.00"
+                },
+                "manque": [],
+                "reserves": [
+                  "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+                ],
+                "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+              },
+              "age": {
+                "jours": 3,
+                "aujourd_hui": "2026-10-02"
+              },
+              "non_repris": "source et fraîcheur de chaque composante, hypothèses",
+              "a_lire": "m5_etat_tresorerie (admin)"
+            },
+            "manques": [
+              {
+                "champ": "m2.client_associe",
+                "source": "M2 (m2.client_associe)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m2.lead_assigne",
+                "source": "M2 (m2.lead_assigne)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_envoye",
+                "source": "M3 (m3.devis_envoye)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_accepte",
+                "source": "M3 (m3.devis_accepte)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_sans_reponse",
+                "source": "M3 (m3.devis_sans_reponse)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              }
+            ]
+          }
+        }
+      },
+      "non-calculable": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source": "qualification/cash-libre-native-public-r2/dto-non-calculable.json",
+        "source_sha256": "66533e424af6f82f1ac4d8f6feb425c4bbee144eee3184ad45e5092610f7c99f",
+        "parent": "8bf106eb6239777725b9678b5b0ff4ae8be125c9",
+        "all_entire_tables_unchanged": true,
+        "preparation": "constats M5 réels fictifs; préparation séparée de la lecture",
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "vue": "executive",
+            "portee": "Tous les faits reçus, sans fenêtre de période. M8 calcule l'entonnoir ; marge réelle, cash libre (M5) et stock à commander (M6) sont repris tels que publiés, sans recalcul.",
+            "entonnoir": {
+              "mesures": [
+                {
+                  "metric_id": "m8_leads_recus",
+                  "nom": "Leads reçus",
+                  "valeur": null,
+                  "unite": "leads",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "8ad34274c0c6fe29a0dfe7fedc1839ee8011bcdeb9635bfeb12ea8bd1f185377",
+                  "manque": [
+                    "m2.client_associe"
+                  ]
+                },
+                {
+                  "metric_id": "m8_leads_qualifies",
+                  "nom": "Leads qualifiés",
+                  "valeur": null,
+                  "unite": "leads",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "39b8d0932069407a5efbdd305a8abe153e4c3513a16b419b3b3a908cf2c6080d",
+                  "manque": [
+                    "m2.lead_assigne"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_envoyes",
+                  "nom": "Devis envoyés",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "b5fc972a3a5196f721b8c88ad655cee287bbfc553a5e5a2f4055574d892fa5d7",
+                  "manque": [
+                    "m3.devis_envoye"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_acceptes",
+                  "nom": "Devis acceptés",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "e4ab4c60e7c5a5f645b1ebe2690ad4c1f17a0a5d659f644bd3edd85fe5e39aac",
+                  "manque": [
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_sans_reponse",
+                  "nom": "Devis sans réponse",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "34cbdca729aca0ccd1027eb39ac88e69d4512ce9626a42130c382d0f451c220e",
+                  "manque": [
+                    "m3.devis_sans_reponse"
+                  ]
+                },
+                {
+                  "metric_id": "m8_taux_acceptation_pct",
+                  "nom": "Taux d'acceptation des devis",
+                  "valeur": null,
+                  "unite": "pourcentage",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "8c933aa9445cbf41cefec35288f388b4e126f286013af51d251ff4de0f23f734",
+                  "manque": [
+                    "m3.devis_envoye",
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_delai_lead_acceptation_jours",
+                  "nom": "Délai du lead à l'acceptation",
+                  "valeur": null,
+                  "unite": "jours",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "76872c2b5f8ac1acb41c478cc8ca8ae1d9d6e83d9837105867051f72b4c9dcbe",
+                  "manque": [
+                    "m2.client_associe",
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_carnet_signe_cad",
+                  "nom": "Carnet signé",
+                  "valeur": null,
+                  "unite": "CAD",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "3ecb658bef2af8ea7890dcbcb28f20904500bebdca5af835344ddc3dd9545ba2",
+                  "manque": [
+                    "m3.devis_accepte"
+                  ]
+                }
+              ],
+              "sources": [
+                {
+                  "evenement": "m2.client_associe",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m2.lead_assigne",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_envoye",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_accepte",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_sans_reponse",
+                  "n": 0,
+                  "dernier_fait_le": null
+                }
+              ],
+              "devis_en_attente": {
+                "sans_reponse": {
+                  "n": 0,
+                  "devis": [],
+                  "reste": 0
+                },
+                "brouillons_en_retard": {
+                  "n": 0,
+                  "devis": [],
+                  "reste": 0
+                }
+              },
+              "seuils": {
+                "a_configurer": [],
+                "invalides": [],
+                "ignores": [],
+                "evalues": []
+              }
+            },
+            "marge_reelle": {
+              "source": "M5 (m5.rentabilite_chantier), prix définitif/coût complet, reprise sans aucun calcul",
+              "n_chantiers": 0,
+              "n_marge_connue": 0,
+              "n_non_calculable": 0,
+              "chantiers": [],
+              "reste": 0
+            },
+            "stock_a_commander": {
+              "source": "M6 (attentes du propriétaire, type besoin_commande)",
+              "statut": "lu",
+              "n_articles": 0,
+              "articles": [],
+              "reste": 0,
+              "seuils_a_configurer": false
+            },
+            "cash_libre": {
+              "source": "M5 (m5.cash_libre_constate)",
+              "statut": "lu",
+              "n_constats_recus": 3,
+              "constat": {
+                "sequence": 3,
+                "date_reference": "2026-09-29",
+                "statut": "NON_CALCULABLE",
+                "cash_libre_cad": null,
+                "au_plus_cad": "17106.32",
+                "en_deficit": null,
+                "lecture": "Cash libre non calculable : 1 manque(s) (voir manque). Au plus 17106.32 $ : le solde moins ce qui est connu ; ce qui manque ne peut que le réduire. Ce n'est PAS de l'argent disponible.",
+                "composantes": {
+                  "solde": "20000.00",
+                  "taxes_a_remettre": "748.75",
+                  "paies": null,
+                  "das": "900.00",
+                  "comptes_a_payer": "344.93",
+                  "dettes": "400.00",
+                  "reserves": "500.00"
+                },
+                "manque": [
+                  "paies : REJ-CASH-PAIE-A-DECLARER"
+                ],
+                "reserves": [
+                  "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+                ],
+                "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+              },
+              "age": {
+                "jours": 3,
+                "aujourd_hui": "2026-10-02"
+              },
+              "non_repris": "source et fraîcheur de chaque composante, hypothèses",
+              "a_lire": "m5_etat_tresorerie (admin)"
+            },
+            "manques": [
+              {
+                "champ": "m2.client_associe",
+                "source": "M2 (m2.client_associe)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m2.lead_assigne",
+                "source": "M2 (m2.lead_assigne)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_envoye",
+                "source": "M3 (m3.devis_envoye)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_accepte",
+                "source": "M3 (m3.devis_accepte)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_sans_reponse",
+                "source": "M3 (m3.devis_sans_reponse)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "cash_libre",
+                "source": "M5 (m5.cash_libre_constate)",
+                "raison": "M5 a constaté le cash libre « non calculable » le 2026-09-29 : voir cash_libre.constat.manque"
+              }
+            ]
+          }
+        }
+      },
+      "plancher": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source": "qualification/cash-libre-native-public-r2/dto-plancher.json",
+        "source_sha256": "b8991e668a9994ef8ed07087d6cec1cfb6d94ec4fd3b628623bf8e09b5e0c284",
+        "parent": "8bf106eb6239777725b9678b5b0ff4ae8be125c9",
+        "all_entire_tables_unchanged": true,
+        "preparation": "constats M5 réels fictifs; préparation séparée de la lecture",
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "vue": "executive",
+            "portee": "Tous les faits reçus, sans fenêtre de période. M8 calcule l'entonnoir ; marge réelle, cash libre (M5) et stock à commander (M6) sont repris tels que publiés, sans recalcul.",
+            "entonnoir": {
+              "mesures": [
+                {
+                  "metric_id": "m8_leads_recus",
+                  "nom": "Leads reçus",
+                  "valeur": null,
+                  "unite": "leads",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "8ad34274c0c6fe29a0dfe7fedc1839ee8011bcdeb9635bfeb12ea8bd1f185377",
+                  "manque": [
+                    "m2.client_associe"
+                  ]
+                },
+                {
+                  "metric_id": "m8_leads_qualifies",
+                  "nom": "Leads qualifiés",
+                  "valeur": null,
+                  "unite": "leads",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "39b8d0932069407a5efbdd305a8abe153e4c3513a16b419b3b3a908cf2c6080d",
+                  "manque": [
+                    "m2.lead_assigne"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_envoyes",
+                  "nom": "Devis envoyés",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "b5fc972a3a5196f721b8c88ad655cee287bbfc553a5e5a2f4055574d892fa5d7",
+                  "manque": [
+                    "m3.devis_envoye"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_acceptes",
+                  "nom": "Devis acceptés",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "e4ab4c60e7c5a5f645b1ebe2690ad4c1f17a0a5d659f644bd3edd85fe5e39aac",
+                  "manque": [
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_sans_reponse",
+                  "nom": "Devis sans réponse",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "34cbdca729aca0ccd1027eb39ac88e69d4512ce9626a42130c382d0f451c220e",
+                  "manque": [
+                    "m3.devis_sans_reponse"
+                  ]
+                },
+                {
+                  "metric_id": "m8_taux_acceptation_pct",
+                  "nom": "Taux d'acceptation des devis",
+                  "valeur": null,
+                  "unite": "pourcentage",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "8c933aa9445cbf41cefec35288f388b4e126f286013af51d251ff4de0f23f734",
+                  "manque": [
+                    "m3.devis_envoye",
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_delai_lead_acceptation_jours",
+                  "nom": "Délai du lead à l'acceptation",
+                  "valeur": null,
+                  "unite": "jours",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "76872c2b5f8ac1acb41c478cc8ca8ae1d9d6e83d9837105867051f72b4c9dcbe",
+                  "manque": [
+                    "m2.client_associe",
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_carnet_signe_cad",
+                  "nom": "Carnet signé",
+                  "valeur": null,
+                  "unite": "CAD",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "3ecb658bef2af8ea7890dcbcb28f20904500bebdca5af835344ddc3dd9545ba2",
+                  "manque": [
+                    "m3.devis_accepte"
+                  ]
+                }
+              ],
+              "sources": [
+                {
+                  "evenement": "m2.client_associe",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m2.lead_assigne",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_envoye",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_accepte",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_sans_reponse",
+                  "n": 0,
+                  "dernier_fait_le": null
+                }
+              ],
+              "devis_en_attente": {
+                "sans_reponse": {
+                  "n": 0,
+                  "devis": [],
+                  "reste": 0
+                },
+                "brouillons_en_retard": {
+                  "n": 0,
+                  "devis": [],
+                  "reste": 0
+                }
+              },
+              "seuils": {
+                "a_configurer": [],
+                "invalides": [],
+                "ignores": [],
+                "evalues": []
+              }
+            },
+            "marge_reelle": {
+              "source": "M5 (m5.rentabilite_chantier), prix définitif/coût complet, reprise sans aucun calcul",
+              "n_chantiers": 0,
+              "n_marge_connue": 0,
+              "n_non_calculable": 0,
+              "chantiers": [],
+              "reste": 0
+            },
+            "stock_a_commander": {
+              "source": "M6 (attentes du propriétaire, type besoin_commande)",
+              "statut": "lu",
+              "n_articles": 0,
+              "articles": [],
+              "reste": 0,
+              "seuils_a_configurer": false
+            },
+            "cash_libre": {
+              "source": "M5 (m5.cash_libre_constate)",
+              "statut": "lu",
+              "n_constats_recus": 4,
+              "constat": {
+                "sequence": 4,
+                "date_reference": "2026-09-29",
+                "statut": "NON_CALCULABLE",
+                "cash_libre_cad": null,
+                "au_plus_cad": "17151.25",
+                "en_deficit": null,
+                "lecture": "Cash libre non calculable : 2 manque(s) (voir manque). Au plus 17151.25 $ : le solde moins ce qui est connu ; ce qui manque ne peut que le réduire. Ce n'est PAS de l'argent disponible.",
+                "composantes": {
+                  "solde": "20000.00",
+                  "taxes_a_remettre": "703.82",
+                  "paies": null,
+                  "das": "900.00",
+                  "comptes_a_payer": null,
+                  "dettes": "400.00",
+                  "reserves": "500.00"
+                },
+                "planchers_cad": {
+                  "comptes_a_payer": "344.93"
+                },
+                "manque": [
+                  "paies : REJ-CASH-PAIE-A-DECLARER",
+                  "comptes_a_payer : REJ-CASH-COMPTES-A-PAYER-INCOMPLETS"
+                ],
+                "reserves": [
+                  "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+                ],
+                "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+              },
+              "age": {
+                "jours": 3,
+                "aujourd_hui": "2026-10-02"
+              },
+              "non_repris": "source et fraîcheur de chaque composante, hypothèses",
+              "a_lire": "m5_etat_tresorerie (admin)"
+            },
+            "manques": [
+              {
+                "champ": "m2.client_associe",
+                "source": "M2 (m2.client_associe)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m2.lead_assigne",
+                "source": "M2 (m2.lead_assigne)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_envoye",
+                "source": "M3 (m3.devis_envoye)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_accepte",
+                "source": "M3 (m3.devis_accepte)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_sans_reponse",
+                "source": "M3 (m3.devis_sans_reponse)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "cash_libre",
+                "source": "M5 (m5.cash_libre_constate)",
+                "raison": "M5 a constaté le cash libre « non calculable » le 2026-09-29 : voir cash_libre.constat.manque"
+              }
+            ]
+          }
+        }
+      },
+      "age-inconnu": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source": "qualification/cash-libre-native-public-r2/dto-age-inconnu.json",
+        "source_sha256": "9aa4a17b944c12425ba899c1254e9d9e1a46b7b85bc4dfe247156b435acc9882",
+        "parent": "8bf106eb6239777725b9678b5b0ff4ae8be125c9",
+        "all_entire_tables_unchanged": true,
+        "preparation": "constats M5 réels fictifs; préparation séparée de la lecture",
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "vue": "executive",
+            "portee": "Tous les faits reçus, sans fenêtre de période. M8 calcule l'entonnoir ; marge réelle, cash libre (M5) et stock à commander (M6) sont repris tels que publiés, sans recalcul.",
+            "entonnoir": {
+              "mesures": [
+                {
+                  "metric_id": "m8_leads_recus",
+                  "nom": "Leads reçus",
+                  "valeur": null,
+                  "unite": "leads",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "8ad34274c0c6fe29a0dfe7fedc1839ee8011bcdeb9635bfeb12ea8bd1f185377",
+                  "manque": [
+                    "m2.client_associe"
+                  ]
+                },
+                {
+                  "metric_id": "m8_leads_qualifies",
+                  "nom": "Leads qualifiés",
+                  "valeur": null,
+                  "unite": "leads",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "39b8d0932069407a5efbdd305a8abe153e4c3513a16b419b3b3a908cf2c6080d",
+                  "manque": [
+                    "m2.lead_assigne"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_envoyes",
+                  "nom": "Devis envoyés",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "b5fc972a3a5196f721b8c88ad655cee287bbfc553a5e5a2f4055574d892fa5d7",
+                  "manque": [
+                    "m3.devis_envoye"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_acceptes",
+                  "nom": "Devis acceptés",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "e4ab4c60e7c5a5f645b1ebe2690ad4c1f17a0a5d659f644bd3edd85fe5e39aac",
+                  "manque": [
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_sans_reponse",
+                  "nom": "Devis sans réponse",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "34cbdca729aca0ccd1027eb39ac88e69d4512ce9626a42130c382d0f451c220e",
+                  "manque": [
+                    "m3.devis_sans_reponse"
+                  ]
+                },
+                {
+                  "metric_id": "m8_taux_acceptation_pct",
+                  "nom": "Taux d'acceptation des devis",
+                  "valeur": null,
+                  "unite": "pourcentage",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "8c933aa9445cbf41cefec35288f388b4e126f286013af51d251ff4de0f23f734",
+                  "manque": [
+                    "m3.devis_envoye",
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_delai_lead_acceptation_jours",
+                  "nom": "Délai du lead à l'acceptation",
+                  "valeur": null,
+                  "unite": "jours",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "76872c2b5f8ac1acb41c478cc8ca8ae1d9d6e83d9837105867051f72b4c9dcbe",
+                  "manque": [
+                    "m2.client_associe",
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_carnet_signe_cad",
+                  "nom": "Carnet signé",
+                  "valeur": null,
+                  "unite": "CAD",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "3ecb658bef2af8ea7890dcbcb28f20904500bebdca5af835344ddc3dd9545ba2",
+                  "manque": [
+                    "m3.devis_accepte"
+                  ]
+                }
+              ],
+              "sources": [
+                {
+                  "evenement": "m2.client_associe",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m2.lead_assigne",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_envoye",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_accepte",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_sans_reponse",
+                  "n": 0,
+                  "dernier_fait_le": null
+                }
+              ],
+              "devis_en_attente": {
+                "sans_reponse": {
+                  "n": 0,
+                  "devis": [],
+                  "reste": 0
+                },
+                "brouillons_en_retard": {
+                  "n": 0,
+                  "devis": [],
+                  "reste": 0
+                }
+              },
+              "seuils": {
+                "a_configurer": [],
+                "invalides": [],
+                "ignores": [],
+                "evalues": []
+              }
+            },
+            "marge_reelle": {
+              "source": "M5 (m5.rentabilite_chantier), prix définitif/coût complet, reprise sans aucun calcul",
+              "n_chantiers": 0,
+              "n_marge_connue": 0,
+              "n_non_calculable": 0,
+              "chantiers": [],
+              "reste": 0
+            },
+            "stock_a_commander": {
+              "source": "M6 (attentes du propriétaire, type besoin_commande)",
+              "statut": "lu",
+              "n_articles": 0,
+              "articles": [],
+              "reste": 0,
+              "seuils_a_configurer": false
+            },
+            "cash_libre": {
+              "source": "M5 (m5.cash_libre_constate)",
+              "statut": "lu",
+              "n_constats_recus": 2,
+              "constat": {
+                "sequence": 2,
+                "date_reference": "2026-09-29",
+                "statut": "CALCULE",
+                "cash_libre_cad": "14106.32",
+                "au_plus_cad": null,
+                "en_deficit": false,
+                "lecture": "Cash libre : 14106.32 $ (solde moins toutes les obligations ci-dessous). Sous réserve : REJ-AP-UNITE-PRIX-NON-CONFIRMEE.",
+                "composantes": {
+                  "solde": "20000.00",
+                  "taxes_a_remettre": "748.75",
+                  "paies": "3000.00",
+                  "das": "900.00",
+                  "comptes_a_payer": "344.93",
+                  "dettes": "400.00",
+                  "reserves": "500.00"
+                },
+                "manque": [],
+                "reserves": [
+                  "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+                ],
+                "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+              },
+              "age": {
+                "jours": null,
+                "raison": "aujourd_hui non fourni : M8 n'a pas d'horloge"
+              },
+              "non_repris": "source et fraîcheur de chaque composante, hypothèses",
+              "a_lire": "m5_etat_tresorerie (admin)"
+            },
+            "manques": [
+              {
+                "champ": "m2.client_associe",
+                "source": "M2 (m2.client_associe)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m2.lead_assigne",
+                "source": "M2 (m2.lead_assigne)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_envoye",
+                "source": "M3 (m3.devis_envoye)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_accepte",
+                "source": "M3 (m3.devis_accepte)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_sans_reponse",
+                "source": "M3 (m3.devis_sans_reponse)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              }
+            ]
+          }
+        }
+      },
+      "reference-future": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source": "qualification/cash-libre-native-public-r2/dto-reference-future.json",
+        "source_sha256": "f88792646fb7dce9d250d2c96f4153c4afc15bca57a05504da55bf7217e60a4a",
+        "parent": "8bf106eb6239777725b9678b5b0ff4ae8be125c9",
+        "all_entire_tables_unchanged": true,
+        "preparation": "constats M5 réels fictifs; préparation séparée de la lecture",
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "vue": "executive",
+            "portee": "Tous les faits reçus, sans fenêtre de période. M8 calcule l'entonnoir ; marge réelle, cash libre (M5) et stock à commander (M6) sont repris tels que publiés, sans recalcul.",
+            "entonnoir": {
+              "mesures": [
+                {
+                  "metric_id": "m8_leads_recus",
+                  "nom": "Leads reçus",
+                  "valeur": null,
+                  "unite": "leads",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "8ad34274c0c6fe29a0dfe7fedc1839ee8011bcdeb9635bfeb12ea8bd1f185377",
+                  "manque": [
+                    "m2.client_associe"
+                  ]
+                },
+                {
+                  "metric_id": "m8_leads_qualifies",
+                  "nom": "Leads qualifiés",
+                  "valeur": null,
+                  "unite": "leads",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "39b8d0932069407a5efbdd305a8abe153e4c3513a16b419b3b3a908cf2c6080d",
+                  "manque": [
+                    "m2.lead_assigne"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_envoyes",
+                  "nom": "Devis envoyés",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "b5fc972a3a5196f721b8c88ad655cee287bbfc553a5e5a2f4055574d892fa5d7",
+                  "manque": [
+                    "m3.devis_envoye"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_acceptes",
+                  "nom": "Devis acceptés",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "e4ab4c60e7c5a5f645b1ebe2690ad4c1f17a0a5d659f644bd3edd85fe5e39aac",
+                  "manque": [
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_sans_reponse",
+                  "nom": "Devis sans réponse",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "34cbdca729aca0ccd1027eb39ac88e69d4512ce9626a42130c382d0f451c220e",
+                  "manque": [
+                    "m3.devis_sans_reponse"
+                  ]
+                },
+                {
+                  "metric_id": "m8_taux_acceptation_pct",
+                  "nom": "Taux d'acceptation des devis",
+                  "valeur": null,
+                  "unite": "pourcentage",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "8c933aa9445cbf41cefec35288f388b4e126f286013af51d251ff4de0f23f734",
+                  "manque": [
+                    "m3.devis_envoye",
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_delai_lead_acceptation_jours",
+                  "nom": "Délai du lead à l'acceptation",
+                  "valeur": null,
+                  "unite": "jours",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "76872c2b5f8ac1acb41c478cc8ca8ae1d9d6e83d9837105867051f72b4c9dcbe",
+                  "manque": [
+                    "m2.client_associe",
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_carnet_signe_cad",
+                  "nom": "Carnet signé",
+                  "valeur": null,
+                  "unite": "CAD",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "3ecb658bef2af8ea7890dcbcb28f20904500bebdca5af835344ddc3dd9545ba2",
+                  "manque": [
+                    "m3.devis_accepte"
+                  ]
+                }
+              ],
+              "sources": [
+                {
+                  "evenement": "m2.client_associe",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m2.lead_assigne",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_envoye",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_accepte",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_sans_reponse",
+                  "n": 0,
+                  "dernier_fait_le": null
+                }
+              ],
+              "devis_en_attente": {
+                "sans_reponse": {
+                  "n": 0,
+                  "devis": [],
+                  "reste": 0
+                },
+                "brouillons_en_retard": {
+                  "n": 0,
+                  "devis": [],
+                  "reste": 0
+                }
+              },
+              "seuils": {
+                "a_configurer": [],
+                "invalides": [],
+                "ignores": [],
+                "evalues": []
+              }
+            },
+            "marge_reelle": {
+              "source": "M5 (m5.rentabilite_chantier), prix définitif/coût complet, reprise sans aucun calcul",
+              "n_chantiers": 0,
+              "n_marge_connue": 0,
+              "n_non_calculable": 0,
+              "chantiers": [],
+              "reste": 0
+            },
+            "stock_a_commander": {
+              "source": "M6 (attentes du propriétaire, type besoin_commande)",
+              "statut": "lu",
+              "n_articles": 0,
+              "articles": [],
+              "reste": 0,
+              "seuils_a_configurer": false
+            },
+            "cash_libre": {
+              "source": "M5 (m5.cash_libre_constate)",
+              "statut": "lu",
+              "n_constats_recus": 2,
+              "constat": {
+                "sequence": 2,
+                "date_reference": "2026-09-29",
+                "statut": "CALCULE",
+                "cash_libre_cad": "14106.32",
+                "au_plus_cad": null,
+                "en_deficit": false,
+                "lecture": "Cash libre : 14106.32 $ (solde moins toutes les obligations ci-dessous). Sous réserve : REJ-AP-UNITE-PRIX-NON-CONFIRMEE.",
+                "composantes": {
+                  "solde": "20000.00",
+                  "taxes_a_remettre": "748.75",
+                  "paies": "3000.00",
+                  "das": "900.00",
+                  "comptes_a_payer": "344.93",
+                  "dettes": "400.00",
+                  "reserves": "500.00"
+                },
+                "manque": [],
+                "reserves": [
+                  "REJ-AP-UNITE-PRIX-NON-CONFIRMEE"
+                ],
+                "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle."
+              },
+              "age": {
+                "jours": null,
+                "aujourd_hui": "2026-09-28",
+                "raison": "la date de référence du constat (2026-09-29) est postérieure à aujourd_hui"
+              },
+              "non_repris": "source et fraîcheur de chaque composante, hypothèses",
+              "a_lire": "m5_etat_tresorerie (admin)"
+            },
+            "manques": [
+              {
+                "champ": "m2.client_associe",
+                "source": "M2 (m2.client_associe)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m2.lead_assigne",
+                "source": "M2 (m2.lead_assigne)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_envoye",
+                "source": "M3 (m3.devis_envoye)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_accepte",
+                "source": "M3 (m3.devis_accepte)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_sans_reponse",
+                "source": "M3 (m3.devis_sans_reponse)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              }
+            ]
+          }
+        }
+      },
+      "composantes-omises": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source": "qualification/cash-libre-native-public-r2/dto-composantes-omises.json",
+        "source_sha256": "e8a1671ae967376377dcd5c20af0ce697c13b3fd9ac46f2a6ee2f87657b43eb4",
+        "parent": "8bf106eb6239777725b9678b5b0ff4ae8be125c9",
+        "all_entire_tables_unchanged": true,
+        "preparation": "fixture catalogue M5 extrême via bus, pas calculateur M5",
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "vue": "executive",
+            "portee": "Tous les faits reçus, sans fenêtre de période. M8 calcule l'entonnoir ; marge réelle, cash libre (M5) et stock à commander (M6) sont repris tels que publiés, sans recalcul.",
+            "entonnoir": {
+              "mesures": [
+                {
+                  "metric_id": "m8_leads_recus",
+                  "nom": "Leads reçus",
+                  "valeur": null,
+                  "unite": "leads",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "8ad34274c0c6fe29a0dfe7fedc1839ee8011bcdeb9635bfeb12ea8bd1f185377",
+                  "manque": [
+                    "m2.client_associe"
+                  ]
+                },
+                {
+                  "metric_id": "m8_leads_qualifies",
+                  "nom": "Leads qualifiés",
+                  "valeur": null,
+                  "unite": "leads",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "39b8d0932069407a5efbdd305a8abe153e4c3513a16b419b3b3a908cf2c6080d",
+                  "manque": [
+                    "m2.lead_assigne"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_envoyes",
+                  "nom": "Devis envoyés",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "b5fc972a3a5196f721b8c88ad655cee287bbfc553a5e5a2f4055574d892fa5d7",
+                  "manque": [
+                    "m3.devis_envoye"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_acceptes",
+                  "nom": "Devis acceptés",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "e4ab4c60e7c5a5f645b1ebe2690ad4c1f17a0a5d659f644bd3edd85fe5e39aac",
+                  "manque": [
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_devis_sans_reponse",
+                  "nom": "Devis sans réponse",
+                  "valeur": null,
+                  "unite": "devis",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "34cbdca729aca0ccd1027eb39ac88e69d4512ce9626a42130c382d0f451c220e",
+                  "manque": [
+                    "m3.devis_sans_reponse"
+                  ]
+                },
+                {
+                  "metric_id": "m8_taux_acceptation_pct",
+                  "nom": "Taux d'acceptation des devis",
+                  "valeur": null,
+                  "unite": "pourcentage",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "8c933aa9445cbf41cefec35288f388b4e126f286013af51d251ff4de0f23f734",
+                  "manque": [
+                    "m3.devis_envoye",
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_delai_lead_acceptation_jours",
+                  "nom": "Délai du lead à l'acceptation",
+                  "valeur": null,
+                  "unite": "jours",
+                  "statut": "non_calculable",
+                  "proprietaire": "m02-revenue-crm",
+                  "version_definition": "76872c2b5f8ac1acb41c478cc8ca8ae1d9d6e83d9837105867051f72b4c9dcbe",
+                  "manque": [
+                    "m2.client_associe",
+                    "m3.devis_accepte"
+                  ]
+                },
+                {
+                  "metric_id": "m8_carnet_signe_cad",
+                  "nom": "Carnet signé",
+                  "valeur": null,
+                  "unite": "CAD",
+                  "statut": "non_calculable",
+                  "proprietaire": "m03-estimation",
+                  "version_definition": "3ecb658bef2af8ea7890dcbcb28f20904500bebdca5af835344ddc3dd9545ba2",
+                  "manque": [
+                    "m3.devis_accepte"
+                  ]
+                }
+              ],
+              "sources": [
+                {
+                  "evenement": "m2.client_associe",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m2.lead_assigne",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_envoye",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_accepte",
+                  "n": 0,
+                  "dernier_fait_le": null
+                },
+                {
+                  "evenement": "m3.devis_sans_reponse",
+                  "n": 0,
+                  "dernier_fait_le": null
+                }
+              ],
+              "devis_en_attente": {
+                "sans_reponse": {
+                  "n": 0,
+                  "devis": [],
+                  "reste": 0
+                },
+                "brouillons_en_retard": {
+                  "n": 0,
+                  "devis": [],
+                  "reste": 0
+                }
+              },
+              "seuils": {
+                "a_configurer": [],
+                "invalides": [],
+                "ignores": [],
+                "evalues": []
+              }
+            },
+            "marge_reelle": {
+              "source": "M5 (m5.rentabilite_chantier), prix définitif/coût complet, reprise sans aucun calcul",
+              "n_chantiers": 0,
+              "n_marge_connue": 0,
+              "n_non_calculable": 0,
+              "chantiers": [],
+              "reste": 0
+            },
+            "stock_a_commander": {
+              "source": "M6 (attentes du propriétaire, type besoin_commande)",
+              "statut": "lu",
+              "n_articles": 0,
+              "articles": [],
+              "reste": 0,
+              "seuils_a_configurer": false
+            },
+            "cash_libre": {
+              "source": "M5 (m5.cash_libre_constate)",
+              "statut": "lu",
+              "n_constats_recus": 5,
+              "constat": {
+                "sequence": 99,
+                "date_reference": "2026-09-29",
+                "statut": "NON_CALCULABLE",
+                "cash_libre_cad": null,
+                "au_plus_cad": "36654.33",
+                "en_deficit": null,
+                "lecture": "Cash libre non calculable : 7 manque(s) (voir manque). Au plus 36654.33 $ : le solde moins ce qui est connu ; ce qui manque ne peut que le réduire. Ce n'est PAS de l'argent disponible.",
+                "manque": [
+                  "taxes_a_remettre : REJ-FISCAL-FREQUENCE-A-DECLARER",
+                  "paies : REJ-CASH-PAIE-A-DECLARER",
+                  "das : REJ-CASH-DAS-A-DECLARER",
+                  "comptes_a_payer : REJ-CASH-COMPTES-A-PAYER-INCOMPLETS",
+                  "dettes : REJ-CASH-DETTES-A-DECLARER",
+                  "reserves : REJ-CASH-RESERVES-A-DECLARER",
+                  "comptes_a_payer : REJ-CASH-FACTURE-ILLISIBLE"
+                ],
+                "reserves": [
+                  "REJ-AP-UNITE-PRIX-NON-CONFIRMEE",
+                  "REJ-CASH-DECLARATION-INVALIDE",
+                  "REJ-FISCAL-FREQUENCE-A-DECLARER"
+                ],
+                "mention": "Analyse préparatoire IA — validation Nathan/CPA/fiscaliste requise avant toute décision officielle ou action réelle.",
+                "composantes_omises": 7
+              },
+              "age": {
+                "jours": null,
+                "raison": "aujourd_hui non fourni : M8 n'a pas d'horloge"
+              },
+              "non_repris": "décomposition, source et fraîcheur de chaque composante, hypothèses",
+              "a_lire": "m5_etat_tresorerie (admin)"
+            },
+            "manques": [
+              {
+                "champ": "m2.client_associe",
+                "source": "M2 (m2.client_associe)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m2.lead_assigne",
+                "source": "M2 (m2.lead_assigne)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_envoye",
+                "source": "M3 (m3.devis_envoye)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_accepte",
+                "source": "M3 (m3.devis_accepte)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "m3.devis_sans_reponse",
+                "source": "M3 (m3.devis_sans_reponse)",
+                "raison": "aucun fait de l'entonnoir reçu : rien publié par le département, ou rien livré par le bus"
+              },
+              {
+                "champ": "cash_libre",
+                "source": "M5 (m5.cash_libre_constate)",
+                "raison": "M5 a constaté le cash libre « non calculable » le 2026-09-29 : voir cash_libre.constat.manque"
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

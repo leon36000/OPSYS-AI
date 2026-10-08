@@ -85,7 +85,16 @@ Trois écrans de **lecture seule** au-delà des approbations (seul `approvals` d
   jamais montré), prévision semaine par semaine (« Voir plus » ne prolonge qu'une lecture faite à l'instant, jamais une copie ;
   les pages ne se recollent que si `prevision_id` est le même), échéances TPS/TVQ, vue d'ensemble de M8. Chaque section se charge
   pour elle-même. Un « non calculable » ou un « à configurer » dit ce qui manque avec les mots du serveur, jamais un zéro ; la
-  mention « Analyse préparatoire IA » de M5 est montrée avec la donnée.
+  mention « Analyse préparatoire IA » de M5 est montrée avec la donnée. La vue M8 reprend le dernier
+  constat publié par M5 : rang, date de référence, âge fourni par M8, montants textes, composantes,
+  planchers, manques, réserves et omissions. Sans constat ou en cas de statut inconnu, elle le dit.
+  Un repère « au plus » non calculable n'est pas du cash disponible. Aucun constat ni paiement ne
+  se déclenche depuis cet écran. Le jour envoyé par l'app sert à l'âge ; la copie locale garde son
+  jour et son âge d'origine, sans les recalculer. Un slot M8 par personne conserve seulement les
+  champs du contrat. Un refus invalide cette copie ; si l'écriture échoue, la garde bloque le cache
+  dans le processus. Sa persistance après perte du processus reste à qualifier sur Expo SQLite.
+  L'écran capture le rôle admin avant dépôt ou HTTP et masque les réponses supplantées ou reçues
+  après changement de session ; la connectivité connue hors ligne utilise la copie datée.
 - **`chantiers`** : sept groupes par statut, pages courantes de huit interventions. Le curseur reçu sert à lire la
   suivante, qui remplace la page affichée ; la première page peut être relue. Total, reste et borne sont visibles, sans
   snapshot garanti entre appels. Digest et préparation gardent les manques métier explicites. Météo : dernier plan

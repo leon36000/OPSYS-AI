@@ -25,6 +25,14 @@ function serveurQuiRepond(reponse: unknown) {
 }
 
 describe("lireSection : la lecture d'une section, ses quatre issues", () => {
+  test("une section opt-in invalide sa copie après refus connu avant une reprise hors ligne", async () => {
+    const depot = new DepotCleValeurMemoire(), section = { ...SECTION, invaliderCacheSurRefus: true };
+    await lireSection(config(serveurQuiRepond(enveloppeCouple({ n: 7 })), { depot }), section);
+    expect(await lireSection(config(serveurQuiRepond(enveloppeRefusee("REJ-ACCES-INTERDIT")), { depot }), section))
+      .toMatchObject({ source: "refus", verdict: { code: "REJ-ACCES-INTERDIT" } });
+    expect(await lireSection({ ...config(transportHorsLigne(), { depot }), enLigne: () => false }, section))
+      .toMatchObject({ source: "aucune" });
+  });
   test("un interprète de cache opt-in ne sert jamais à interpréter la réponse du transport", async () => {
     const depot = new DepotCleValeurMemoire();
     const interpreterCache = jest.fn(() => ({ ok: true as const, valeur: { n: 42 } }));

@@ -2768,3 +2768,20 @@ multi-instances, sauvegardes, observabilité, veille de sécurité du fork (mens
 - **Prompts maîtres d'origine des départements** (annexe A de la définition) : ils portent le
   détail fonctionnel (routes, tables, KPI, scénarios de test). Exemple : les 21 sections du rapport
   de décision M9, dont la définition ne liste qu'une douzaine (audit M9).
+
+
+## Constat M5 repris par M8 sur mobile — 8 octobre 2026, Toronto
+
+T4.19-c prolonge T4.19-b avec les outils existants. L'écran admin Chiffres reprend le dernier
+constat publié par M5, sa date/rang, son âge natif, ses montants textes, manques, planchers,
+réserves et omissions ; sans calcul financier ni constat déclenché par une lecture. Un repère
+« au plus » non calculable ne devient pas du cash disponible. Une copie datée garde son âge
+d'origine. Rôle admin avant dépôt/HTTP, réponse tardive masquée, refus invalidant la copie
+et projection des seuls champs du contrat ; blocage en mémoire si l'écriture locale échoue.
+La survie de cette garde à la perte du processus et le téléphone/Expo SQLite/Hermes restent
+à qualifier. Les huit captures HTTP Gateway ont une provenance distincte des cas extrêmes
+du catalogue. Les suites mobiles et TypeScript passent ; qualification principale et nouvelle
+CI exacte sont requises avant clôture de la publication. Backend M5/M8 et Core inchangés.
+Les six workflows du parent 8bf106eb sont verts ; ils ne qualifient pas le commit suivant.
+[Audit, preuves et limites](../reprise/CASH-M5-M8-2026-10-08/AUDIT-CASH-M5-M8-2026-10-08-r1.md).
+OPSYS-AI reste PARTIEL ; prochaines capacités M8/M9/M10 conservées avec leurs critères.

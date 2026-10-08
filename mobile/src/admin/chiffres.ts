@@ -1,3 +1,6 @@
+import { epurerVueExecutive } from "./cacheVueExecutive";
+import { copierJsonLecture, JSON_LECTURE_INVALIDE } from "../protocole/jsonLecture";
+import { estJourCashLibre } from "../m8/cashLibre";
 import { capturerGardeLecture, VERDICT_LECTURE_REMPLACEE } from "../stockage/lecturesEnVol";
 import { fusionnerPagePrevision } from "../m5/pagesPrevision";
 import type { RaisonRelecturePrevision } from "../m5/pagesPrevision";
@@ -40,6 +43,40 @@ export const SECTION_VUE_EXECUTIVE: DefinitionSection<VueExecutive> = {
   cache: "vue_executive",
   interpreter: (brut) => interpreter(brut, "directe", lireVueExecutive),
 };
+
+/** Un slot personnel versionné ; l'âge de la copie reste lié à son jour d'origine. */
+export function sectionVueExecutive(aujourdHui: string): DefinitionSection<VueExecutive> {
+  function propre(v: unknown, cle: string): unknown {
+    if (typeof v !== "object" || v === null) return undefined;
+    try { const d = Object.getOwnPropertyDescriptor(v, cle); return d && "value" in d ? d.value : undefined; }
+    catch { return undefined; }
+  }
+  function lire(brut: unknown, jour: string) {
+    const copie = copierJsonLecture(brut);
+    const refusMetier = propre(propre(brut, "resultat"), "accepte") === false;
+    if (copie === JSON_LECTURE_INVALIDE) return { ok: false as const, genre: refusMetier || propre(brut, "ok") === false ? "refus" as const : "illisible" as const,
+      verdict: { code: "reponse_illisible", detail: "" } };
+    if (refusMetier && propre(copie, "ok") === false) return { ok: false as const, genre: "refus" as const,
+      verdict: { code: "reponse_illisible", detail: "" } };
+    return interpreter(copie, "directe", valeur => {
+      const vue = lireVueExecutive(valeur);
+      return vue !== null && (vue.cashLibre.genre !== "lu" || vue.cashLibre.age.aujourdHui === jour) ? vue : null;
+    });
+  }
+  const args = construireArgumentsVueExecutive(aujourdHui);
+  return {
+    outil: OUTIL_VUE_EXECUTIVE, args, cache: "vue_executive_constat", invaliderCacheSurRefus: true,
+    interpreter: v => lire(v, aujourdHui),
+    interpreterCache: v => {
+      const copie = copierJsonLecture(v);
+      if (copie === JSON_LECTURE_INVALIDE || typeof copie !== "object" || copie === null || Array.isArray(copie) ||
+          Object.keys(copie).length !== 2 || !Object.hasOwn(copie, "aujourd_hui") || !Object.hasOwn(copie, "enveloppe") ||
+          !estJourCashLibre(copie.aujourd_hui)) return { ok: false, genre: "illisible", verdict: { code: "reponse_illisible", detail: "" } };
+      return lire(copie.enveloppe, copie.aujourd_hui);
+    },
+    epurerPourLeCache: v => ({ aujourd_hui: aujourdHui, enveloppe: epurerVueExecutive(v) }),
+  };
+}
 
 export const SECTION_TRESORERIE: DefinitionSection<EtatTresorerie> = {
   outil: OUTIL_ETAT_TRESORERIE,
@@ -95,7 +132,7 @@ export interface ChargeurChiffres {
 export function creerChargeurChiffres(config: ConfigurationChargeurAdmin): ChargeurChiffres {
   const aujourdHui = () => jourLocal(config.horloge());
   return {
-    chargerVueExecutive: () => lireSection(config, SECTION_VUE_EXECUTIVE),
+    chargerVueExecutive: () => lireSection(config, sectionVueExecutive(aujourdHui())),
     chargerTresorerie: () => lireSection(config, SECTION_TRESORERIE),
     chargerPrevision: () => lireSection(config, sectionPrevision(aujourdHui())),
     chargerEcheances: () => lireSection(config, sectionEcheances(aujourdHui())),

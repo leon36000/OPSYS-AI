@@ -9,11 +9,48 @@ import {
   UNITES_CONNUES,
 } from "./vueExecutive";
 import type { VueExecutive } from "./vueExecutive";
+import cashFictif from "./fixturesCashLibre.json";
 
 /** La vue telle que le moteur la rend (`resultat` de l'enveloppe directe). */
 function brute(nom: string): any {
   return reponse(nom).resultat;
 }
+
+test("T4.19-c : un constat natif M5 reçu par M8 reste lisible avec ses omissions", () => {
+  expect(cashFictif.fictif).toBe(true);
+  const vue = lireVueExecutive({ ...brute("vue_executive"), cash_libre: cashFictif.calcule });
+  expect(vue?.cashLibre).toMatchObject({ genre: "lu", source: cashFictif.calcule.source,
+    nConstatsRecus: 1, constat: { cashLibreCad: "27861.98", mention: cashFictif.calcule.constat.mention } });
+});
+
+test("T4.19-c : aujourd_hui explicite est transmis sans horloge, absence conserve v1", () => {
+  expect(construireArgumentsVueExecutive()).toEqual({});
+  expect(construireArgumentsVueExecutive("2026-09-30")).toEqual({ aujourd_hui: "2026-09-30" });
+});
+
+test.each(Object.entries(cashFictif.capturesHttp.lectures))(
+  "T4.19-c HTTP MCP natif direct : %s", (_nom, capture) => {
+    expect(capture.fictif).toBe(true);
+    expect(capture.all_entire_tables_unchanged).toBe(true);
+    expect(capture.source_sha256).toMatch(/^[0-9a-f]{64}$/);
+    const resultat = interpreter(capture.enveloppe, "directe", lireVueExecutive);
+    expect(resultat.ok).toBe(true);
+    if (!resultat.ok) throw new Error("capture native M8 illisible");
+    const brut = capture.enveloppe.resultat.cash_libre;
+    expect(resultat.valeur.cashLibre.genre).toBe(brut.statut);
+    if (resultat.valeur.cashLibre.genre === "lu" && "constat" in brut) {
+      const cash = resultat.valeur.cashLibre;
+      expect(cash.constat.cashLibreCad).toBe(brut.constat.cash_libre_cad);
+      expect(cash.constat.auPlusCad).toBe(brut.constat.au_plus_cad);
+      expect(cash.constat.manque).toEqual(brut.constat.manque);
+      expect(cash.constat.reserves).toEqual(brut.constat.reserves);
+      expect(cash.constat.mention).toBe(brut.constat.mention);
+      expect(cash.age.jours).toBe(brut.age.jours);
+      expect(cash.nConstatsRecus).toBe(brut.n_constats_recus);
+      expect(cash.nonRepris).toBe(brut.non_repris);
+    }
+  },
+);
 
 function lue(nom: string): VueExecutive {
   const vue = lireVueExecutive(brute(nom));

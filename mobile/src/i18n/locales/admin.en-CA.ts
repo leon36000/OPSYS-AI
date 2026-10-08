@@ -704,6 +704,33 @@ const adminEnCA: RessourcesAdmin = {
     "nonMesurable": "Schedule delay cannot be measured: calendar dates are missing."
   }
 },
+  cashConstatM8: {
+  "manque": "M5 has not published a free cash statement.",
+  "inconnu": "Unknown statement status: {{statut}}. No amount interpreted.",
+  "source": "Source: {{source}}",
+  "sourceMasquee": "Source cannot be displayed.",
+  "nConstats": "{{nombre}} statement(s) received by M8.",
+  "constat": "Statement {{sequence}}; reference date {{date}}.",
+  "age": "Reported age: {{jours}} day(s), as of {{jour}}.",
+  "jourAge": "Original day of this age: {{jour}}.",
+  "ageInconnu": "Unknown age: {{raison}}",
+  "ageRaisonMasquee": "Unknown age; technical detail hidden.",
+  "CALCULE": "Free cash calculated by M5.",
+  "NON_CALCULABLE": "Free cash cannot be calculated: see missing information.",
+  "montant": "Free cash in this statement: {{montant}} CAD",
+  "auPlus": "Reference of at most {{montant}} CAD; this is not available money.",
+  "deficit": "Deficit reported by M5.",
+  "composantesOmises": "{{nombre}} omitted component(s); details in Treasury.",
+  "manqueLigne": "Missing: {{manque}}",
+  "manqueMasque": "Missing information cannot be displayed.",
+  "reserve": "Reserve: {{code}}",
+  "reserveMasquee": "Reserve cannot be displayed.",
+  "lectureMasquee": "Statement explanation cannot be displayed.",
+  "mentionMasquee": "Validation notice cannot be displayed; amount hidden.",
+  "nonReprisMasque": "Omitted detail cannot be displayed.",
+  "renvoiTresorerie": "See Treasury for detailed sources, freshness and assumptions.",
+  "statutMasque": "Status cannot be displayed; no amount interpreted."
+},
   chantiers: {
     titre: "Today's jobs",
     lectureSeule: "Read only: no scheduling is proposed or applied from this screen.",

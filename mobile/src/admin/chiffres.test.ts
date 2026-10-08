@@ -47,7 +47,7 @@ describe("les quatre sections de « Chiffres », chacune lue pour elle-même", (
     await chargeur.chargerEcheances();
 
     expect(transport.mock.calls.map((appel) => appel[0].requete)).toEqual([
-      { tool: "m8_lire_vue_executive", args: {} },
+      { tool: "m8_lire_vue_executive", args: { aujourd_hui: "2026-09-29" } },
       { tool: "m5_etat_tresorerie", args: {} },
       { tool: "m5_prevoir_tresorerie", args: { aujourd_hui: "2026-09-29" } },
       { tool: "m5_lire_echeances_fiscales", args: { aujourd_hui: "2026-09-29" } },
@@ -86,7 +86,7 @@ describe("les quatre sections de « Chiffres », chacune lue pour elle-même", (
     for (const lu of [vue, tresorerie, prevision, echeances]) {
       expect(lu.source).toBe("serveur");
     }
-    for (const nom of ["vue_executive", "tresorerie", "prevision", "echeances"]) {
+    for (const nom of ["vue_executive_constat", "tresorerie", "prevision", "echeances"]) {
       expect(await lireCacheSection(depot, "nathan", nom)).not.toBeNull();
       expect(await lireCacheSection(depot, "sophie", nom)).toBeNull();
     }

@@ -1,4 +1,3 @@
-import { prototypeJsonValide } from "../m10/json";
 import { horodatageM10Valide } from "../m10/contrat";
 import { entierPositifOuNull, estObjet, listeDeTextes, lireListe, texteNullable, texteOuNull } from "../admin/lecteurs";
 
@@ -307,40 +306,8 @@ export function lireDigest(brut: unknown): DigestDuJour | null {
 
 // Lecteurs T4.27-m : snapshot JSON avant tout accès à une enveloppe ou à un DTO.
 // La frontière de prototype est celle de M10, y compris Response.json d'un autre realm.
-export const JSON_DISPATCH_INVALIDE = Symbol("JSON_DISPATCH_INVALIDE");
-export type JsonDispatch = null | string | boolean | number | JsonDispatch[] | { [cle: string]: JsonDispatch };
-export function copierJsonDispatch(brut: unknown, profondeur = 16): JsonDispatch | typeof JSON_DISPATCH_INVALIDE {
-  const vus = new Set<object>();
-  function copie(v: unknown, p: number): JsonDispatch | typeof JSON_DISPATCH_INVALIDE {
-    if (p < 0) return JSON_DISPATCH_INVALIDE;
-    if (v === null || typeof v === "string" || typeof v === "boolean") return v;
-    if (typeof v === "number") return Number.isFinite(v) && (!Number.isInteger(v) || Number.isSafeInteger(v)) ? v : JSON_DISPATCH_INVALIDE;
-    if (typeof v !== "object" || vus.has(v)) return JSON_DISPATCH_INVALIDE;
-    try {
-      vus.add(v);
-      if (!prototypeJsonValide(v) || Reflect.ownKeys(v).some(k => typeof k !== "string")) return JSON_DISPATCH_INVALIDE;
-      const ds = Object.getOwnPropertyDescriptors(v);
-      if (Array.isArray(v)) {
-        const n = ds.length?.value;
-        if (!Number.isSafeInteger(n) || n < 0 || Object.keys(ds).length !== n + 1) return JSON_DISPATCH_INVALIDE;
-        const sortie: JsonDispatch[] = [];
-        for (let i = 0; i < n; i++) {
-          const d = ds[String(i)];
-          if (!d || !("value" in d) || !d.enumerable) return JSON_DISPATCH_INVALIDE;
-          const lu = copie(d.value, p - 1); if (lu === JSON_DISPATCH_INVALIDE) return lu; sortie.push(lu);
-        }
-        return sortie;
-      }
-      const sortie: { [cle: string]: JsonDispatch } = Object.create(null);
-      for (const [k, d] of Object.entries(ds)) {
-        if (!("value" in d) || !d.enumerable) return JSON_DISPATCH_INVALIDE;
-        const lu = copie(d.value, p - 1); if (lu === JSON_DISPATCH_INVALIDE) return lu; sortie[k] = lu;
-      }
-      return sortie;
-    } catch { return JSON_DISPATCH_INVALIDE; } finally { vus.delete(v); }
-  }
-  return Number.isSafeInteger(profondeur) && profondeur >= 0 ? copie(brut, profondeur) : JSON_DISPATCH_INVALIDE;
-}
+export { JSON_LECTURE_INVALIDE as JSON_DISPATCH_INVALIDE, copierJsonLecture as copierJsonDispatch } from "../protocole/jsonLecture";
+export type { JsonLecture as JsonDispatch } from "../protocole/jsonLecture";
 export function objetDispatch(v: unknown): v is Record<string, unknown> { return v !== null && typeof v === "object" && !Array.isArray(v); }
 /** À appeler uniquement après copierJsonDispatch. */
 export function clesDispatch(v: Record<string, unknown>, requises: readonly string[], optionnelles: readonly string[] = []): boolean {

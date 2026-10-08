@@ -1,4 +1,4 @@
-import { capturerGardeLecture, VERDICT_LECTURE_REMPLACEE } from "../stockage/lecturesEnVol";
+import { capturerGardeLecture, commencerTransitionCaches, VERDICT_LECTURE_REMPLACEE } from "../stockage/lecturesEnVol";
 import type { VerdictServeur } from "../outbox/vidangeur";
 import { appelerLecture, ecrireSansEchouer } from "./appel";
 import type { ConfigurationChargeurAdmin } from "./appel";
@@ -41,6 +41,8 @@ export interface DefinitionSection<T> {
   readonly interpreter: (resultatBrut: unknown) => LectureSection<T>;
   /** Option explicite pour un cache épuré avec ses arguments d'origine. Jamais utilisée pour une réponse HTTP. */
   readonly interpreterCache?: (resultatBrut: unknown) => LectureSection<T>;
+  /** Une copie informative devient inutilisable dès un refus connu. Défaut historique conservé. */
+  readonly invaliderCacheSurRefus?: boolean;
   /** Retire de l'enveloppe ce que l'écran ne montre pas avant de la garder (minimisation : Loi 25). Le résultat doit
    * rester lisible par `interpreter`. */
   readonly epurerPourLeCache?: (resultatBrut: unknown) => unknown;
@@ -53,6 +55,17 @@ export async function lireSection<T>(
   const garde = capturerGardeLecture(config.depot);
   const remplacee = (): ResultatSection<T> => ({ source: "aucune", raison: VERDICT_LECTURE_REMPLACEE });
   if (!garde.courante()) return remplacee();
+  async function refus(verdict: VerdictServeur): Promise<ResultatSection<T>> {
+    if (section.invaliderCacheSurRefus) {
+      try { await ecrireCacheSection(config.depot, config.personne, section.cache, null, config.horloge().maintenant.toISOString()); }
+      catch {
+        if (!garde.courante()) return remplacee();
+        const terminer = commencerTransitionCaches(config.depot); terminer(false);
+        return { source: "refus", verdict };
+      }
+    }
+    return garde.courante() ? { source: "refus", verdict } : remplacee();
+  }
   async function depuisCache(raisonHorsLigne: VerdictServeur): Promise<ResultatSection<T>> {
     if (!garde.cachePermis()) return remplacee();
     const gardee = await lireCacheSection(config.depot, config.personne, section.cache);
@@ -70,14 +83,14 @@ export async function lireSection<T>(
   const appel = await appelerLecture(config, section.outil, section.args);
   if (!garde.courante()) return remplacee();
   if (appel.genre === "refuse") {
-    return { source: "refus", verdict: appel.verdict };
+    return refus(appel.verdict);
   }
   if (appel.genre === "injoignable") {
     return depuisCache(appel.verdict);
   }
   const lue = section.interpreter(appel.resultat);
   if (!lue.ok) {
-    return lue.genre === "refus" ? { source: "refus", verdict: lue.verdict } : depuisCache(lue.verdict);
+    return lue.genre === "refus" ? refus(lue.verdict) : depuisCache(lue.verdict);
   }
   const misAJourLe = config.horloge().maintenant.toISOString();
   const agarder = section.epurerPourLeCache ? section.epurerPourLeCache(appel.resultat) : appel.resultat;

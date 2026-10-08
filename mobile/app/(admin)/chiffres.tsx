@@ -1,9 +1,13 @@
+import { useNetInfo } from "@react-native-community/netinfo";
+import { capturerSessionAdminLecture } from "@/protocole/configuration";
+import { useEtatIdentite } from "@/roles/contexte";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { ScrollView, Text } from "react-native";
 import { useTranslation } from "react-i18next";
 
 import {
+  actualiserConnectiviteChiffres,
   chargerEcheances,
   chargerPrevision,
   chargerSuitePrevision,
@@ -48,6 +52,8 @@ const EN_CHARGEMENT = { genre: "chargement" } as const;
 
 export default function EcranChiffres() {
   const { t, i18n } = useTranslation();
+  const identite = useEtatIdentite(), connectee = useNetInfo().isConnected === true;
+  const garde = useRef<(() => boolean) | null>(null);
   const langue: LangueMontant = i18n.language === "en-CA" ? "en-CA" : "fr-CA";
   const decalage = -new Date().getTimezoneOffset();
 
@@ -61,13 +67,18 @@ export default function EcranChiffres() {
   const sequence = useRef(0);
 
   const charger = useCallback(async () => {
-    const numero = ++sequence.current;
-    setAvisSuite(null);
+    const numero = ++sequence.current, capture = capturerSessionAdminLecture();
+    garde.current = capture.session ? capture.courante : null;
+    actualiserConnectiviteChiffres(connectee);
+    setAvisSuite(null); setSuiteEnCours(false);
+    setTresorerie(EN_CHARGEMENT); setPrevision(EN_CHARGEMENT); setEcheances(EN_CHARGEMENT); setVue(EN_CHARGEMENT);
+    setSansSession(!capture.session || !capture.courante());
+    if (!capture.session || !capture.courante()) return;
     // Chaque section arrive à son rythme ; une lecture qui n'est plus la dernière demandée est ignorée.
     const arrivee =
       <T,>(poser: (etat: Chargement<T>) => void) =>
       (lu: ResultatSection<T> | null) => {
-        if (numero !== sequence.current) {
+        if (numero !== sequence.current || garde.current?.() !== true) {
           return;
         }
         if (lu === null) {
@@ -78,21 +89,22 @@ export default function EcranChiffres() {
         poser({ genre: "pret", lu });
       };
     await Promise.all([
-      chargerTresorerie().then(arrivee(setTresorerie)),
-      chargerPrevision().then(arrivee(setPrevision)),
-      chargerEcheances().then(arrivee(setEcheances)),
-      chargerVueExecutive().then(arrivee(setVue)),
+      chargerTresorerie().then(arrivee(setTresorerie)).catch(() => arrivee(setTresorerie)({ source: "aucune", raison: { code: "lecture_indisponible", detail: "" } })),
+      chargerPrevision().then(arrivee(setPrevision)).catch(() => arrivee(setPrevision)({ source: "aucune", raison: { code: "lecture_indisponible", detail: "" } })),
+      chargerEcheances().then(arrivee(setEcheances)).catch(() => arrivee(setEcheances)({ source: "aucune", raison: { code: "lecture_indisponible", detail: "" } })),
+      chargerVueExecutive().then(arrivee(setVue)).catch(() => arrivee(setVue)({ source: "aucune", raison: { code: "lecture_indisponible", detail: "" } })),
     ]);
-  }, []);
+  }, [connectee]);
 
   useFocusEffect(
     useCallback(() => {
       void charger();
-    }, [charger]),
+      return () => { ++sequence.current; garde.current = null; };
+    }, [charger, identite]),
   );
 
   const voirPlus = useCallback(async () => {
-    if (prevision.genre !== "pret") {
+    if (!connectee || garde.current?.() !== true || prevision.genre !== "pret") {
       return;
     }
     const aPoursuivre = previsionAPoursuivre(prevision.lu);
@@ -104,7 +116,7 @@ export default function EcranChiffres() {
     setAvisSuite(null);
     try {
       const suite = await chargerSuitePrevision(aPoursuivre);
-      if (numero !== sequence.current) {
+      if (numero !== sequence.current || garde.current?.() !== true) {
         // Un rafraîchissement est passé entre-temps : ces semaines ne se recollent pas à une autre lecture.
         return;
       }
@@ -118,16 +130,16 @@ export default function EcranChiffres() {
       } else if (decision.genre === "relire") {
         setAvisSuite(decision.avis);
         const relue = await chargerPrevision();
-        if (relue !== null) {
+        if (numero === sequence.current && garde.current?.() === true && relue !== null) {
           setPrevision({ genre: "pret", lu: relue });
         }
       } else if (decision.genre === "avis") {
         setAvisSuite(decision.avis);
       }
     } finally {
-      setSuiteEnCours(false);
+      if (numero === sequence.current && garde.current?.() === true) setSuiteEnCours(false);
     }
-  }, [prevision]);
+  }, [prevision, connectee]);
 
   const vueTres: VueSection<VueTresorerie> | undefined =
     tresorerie.genre === "pret" ? vueTresorerie(tresorerie.lu, langue, decalage) : undefined;
@@ -143,7 +155,7 @@ export default function EcranChiffres() {
       <Text style={styles.titre}>{t("admin.chiffres.titre")}</Text>
       <BandeauIdentite />
       <BoutonSecondaire texte={t("admin.commun.rafraichir")} onPress={() => void charger()} />
-      {sansSession ? (
+      {sansSession || garde.current?.() !== true ? (
         <Text style={styles.erreur}>{t("admin.commun.sansSession")}</Text>
       ) : (
         <>

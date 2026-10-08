@@ -8,7 +8,7 @@ import type { DigestDuJour, Preparation } from "../m4/dispatch";
 import type { VueExecutive } from "../m8/vueExecutive";
 import type { ListeApprobations } from "../approbations/contrat";
 import { invoquerOutil } from "../protocole/client";
-import { capturerSessionLecture } from "../protocole/configuration";
+import { capturerSessionAdminLecture } from "../protocole/configuration";
 import { obtenirDepotLocal } from "../stockage/service";
 import type { ConfigurationChargeurAdmin } from "./appel";
 import { creerChargeurAVoir } from "./aVoir";
@@ -27,16 +27,22 @@ import type { ResultatSection } from "./lecture";
  * La session est `obtenirSessionEnvoi` : le jeton COURANT et la personne que le serveur a confirmée POUR CE JETON. Elle
  * est relue à chaque appel (jamais gardée) : après un nouvel appairage, le cache d'une autre personne n'est plus lu.
  */
-async function configuration(): Promise<ConfigurationChargeurAdmin | null> {
-  const capture = capturerSessionLecture();
+let connectiviteChiffres = false;
+let numeroVueExecutive = 0;
+/** NetInfo du seul écran Chiffres ; les autres services admin gardent leur propre contexte. */
+export function actualiserConnectiviteChiffres(connectee: boolean): void { connectiviteChiffres = connectee; }
+async function configuration(finance = false, encoreCourante: () => boolean = () => true): Promise<ConfigurationChargeurAdmin | null> {
+  const capture = capturerSessionAdminLecture();
   const session = capture.session;
   if (!session) {
     return null;
   }
+  if (!encoreCourante()) return null;
   const depot = await obtenirDepotLocal();
-  if (!capture.courante()) return null;
+  if (!capture.courante() || !encoreCourante()) return null;
   return {
-    depot: depotSousGardeLecture(depot, capture.courante),
+    depot: depotSousGardeLecture(depot, () => capture.courante() && encoreCourante()),
+    ...(finance ? { enLigne: () => connectiviteChiffres } : {}),
     appelerOutil: invoquerOutil,
     fetchImpl: fetch,
     urlBase: session.urlBase,
@@ -52,27 +58,29 @@ export async function chargerAVoir(): Promise<ResultatSection<ListeApprobations>
 }
 
 export async function chargerVueExecutive(): Promise<ResultatSection<VueExecutive> | null> {
-  const config = await configuration();
+  const numero = ++numeroVueExecutive;
+  const config = await configuration(true, () => numero === numeroVueExecutive);
   return config ? creerChargeurChiffres(config).chargerVueExecutive() : null;
 }
 
 export async function chargerTresorerie(): Promise<ResultatSection<EtatTresorerie> | null> {
-  const config = await configuration();
+  const config = await configuration(true);
   return config ? creerChargeurChiffres(config).chargerTresorerie() : null;
 }
 
 export async function chargerPrevision(): Promise<ResultatSection<PrevisionLue> | null> {
-  const config = await configuration();
+  const config = await configuration(true);
   return config ? creerChargeurChiffres(config).chargerPrevision() : null;
 }
 
 export async function chargerEcheances(): Promise<ResultatSection<EcheancesFiscales> | null> {
-  const config = await configuration();
+  const config = await configuration(true);
   return config ? creerChargeurChiffres(config).chargerEcheances() : null;
 }
 
 export async function chargerSuitePrevision(lue: PrevisionTresorerie): Promise<SuitePrevision | null> {
-  const config = await configuration();
+  const config = await configuration(true);
+  if (config && !connectiviteChiffres) return { genre: "echec", verdict: { code: "hors_ligne", detail: "" } };
   return config ? creerChargeurChiffres(config).chargerSuitePrevision(lue) : null;
 }
 

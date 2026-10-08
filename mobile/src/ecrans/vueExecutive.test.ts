@@ -267,16 +267,16 @@ describe("la vue d'ensemble : le stock à commander (M6) et le cash libre", () =
     });
   });
 
-  test("LE CASH LIBRE n'est pas dans cette vue : elle renvoie à la trésorerie, sans chiffre", () => {
+  test("sans constat M5, la vue renvoie à la trésorerie sans chiffre", () => {
     expect(vue().cashLibre).toEqual({ cle: "admin.chiffres.vue.cashLibreAilleurs" });
   });
 
   test("un statut de cash libre que cette version ne connaît pas est dit tel quel, jamais lu comme un chiffre", () => {
     const brut = reponse("vue_executive");
-    brut.resultat.cash_libre = { source: "M5", statut: "lu", montant: "14106.32" };
+    brut.resultat.cash_libre = { source: "M5", statut: "futur", montant: "14106.32" };
     expect(presenterVueExecutive(vueDeBrut(brut), "fr-CA", DECALAGE).cashLibre).toEqual({
       cle: "admin.chiffres.vue.cashLibreInconnu",
-      params: { statut: "lu" },
+      params: { statut: "futur" },
     });
   });
 

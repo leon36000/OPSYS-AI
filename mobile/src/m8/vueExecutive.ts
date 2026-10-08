@@ -8,6 +8,10 @@ import {
   texteOuNull,
 } from "../admin/lecteurs";
 import type { ListeLue } from "../admin/lecteurs";
+import { estJourCashLibre, lireCashLibreDeM8 } from "./cashLibre";
+import { copierJsonLecture, JSON_LECTURE_INVALIDE } from "../protocole/jsonLecture";
+import type { CashLibreDeM8 } from "./cashLibre";
+export type { CashLibreDeM8, ConstatCashLibre, AgeConstatCashLibre } from "./cashLibre";
 
 /**
  * Contrat mobile de `m8_lire_vue_executive` (§9.5 M8 « tableau de bord exécutif », PLAN T4.19 ; écran
@@ -25,15 +29,17 @@ import type { ListeLue } from "../admin/lecteurs";
  *  - une mesure « calculée » a une valeur, une mesure « non calculable » n'en a pas : une contradiction (une valeur sur
  *    une mesure non calculable, un statut inconnu) rend la mesure illisible, jamais un zéro montré à sa place ;
  *  - un zéro écrit par le serveur (« 0 » devis envoyés) est un zéro : il est lu comme tel ;
- *  - le cash libre est « manque » (M5 ne le publie pas, T4.19-b) : l'app ne le remplace par aucun chiffre ; un statut
+ *  - le cash libre reprend le constat publié par M5, ou son absence, sans calcul ; un statut
  *    que cette version ne connaît pas est dit inconnu, il ne casse pas la vue et n'est pas deviné.
  */
 
 export const OUTIL_VUE_EXECUTIVE = "m8_lire_vue_executive";
 
-/** `m8_lire_vue_executive` n'a aucun paramètre : aucun argument ne peut élargir ni restreindre la vue. */
-export function construireArgumentsVueExecutive(): Record<string, never> {
-  return {};
+/** Jour explicitement fourni, utilisé par M8 pour l'âge seulement ; absent conserve l'appel v1. */
+export function construireArgumentsVueExecutive(aujourdHui?: string): { aujourd_hui?: string } {
+  if (aujourdHui === undefined) return {};
+  if (!estJourCashLibre(aujourdHui)) throw new Error("aujourd_hui doit être une date AAAA-MM-JJ valide");
+  return { aujourd_hui: aujourdHui };
 }
 
 /** `mesures_chantier.py` (`STATUT_CALCULEE`, `STATUT_NON_CALCULABLE`). */
@@ -141,12 +147,6 @@ export type StockACommander =
       readonly seuilsAConfigurer: boolean;
     }
   | { readonly genre: "manque"; readonly source: string; readonly manque: readonly string[] };
-
-export type CashLibreDeM8 =
-  /** Le cas d'aujourd'hui : M8 ne le lit ni ne le recalcule. La valeur est à lire dans `m5_etat_tresorerie`. */
-  | { readonly genre: "manque"; readonly source: string; readonly manque: readonly string[]; readonly aLire: string | null }
-  /** Un statut que cette version de l'app ne connaît pas : dit tel quel, jamais lu comme un chiffre. */
-  | { readonly genre: "inconnu"; readonly statut: string };
 
 export interface ManqueDeLaVue {
   readonly champ: string;
@@ -350,24 +350,6 @@ function lireStock(brut: unknown): StockACommander | null {
   return null;
 }
 
-// -- le cash libre : M5 ne le publie pas -------------------------------------------------------------------------------
-function lireCashLibre(brut: unknown): CashLibreDeM8 | null {
-  if (!estObjet(brut)) {
-    return null;
-  }
-  const statut = texteOuNull(brut.statut);
-  if (statut === null) {
-    return null;
-  }
-  if (statut !== "manque") {
-    return { genre: "inconnu", statut };
-  }
-  const source = texteOuNull(brut.source);
-  const manque = listeDeTextes(brut.manque);
-  const aLire = texteNullable(brut.a_lire);
-  return source === null || manque === null || aLire === undefined ? null : { genre: "manque", source, manque, aLire };
-}
-
 function lireManque(brut: unknown): ManqueDeLaVue | null {
   if (!estObjet(brut)) {
     return null;
@@ -384,6 +366,8 @@ function lireManque(brut: unknown): ManqueDeLaVue | null {
  * liste (une mesure, un chantier, un article) est compté, jamais deviné.
  */
 export function lireVueExecutive(brut: unknown): VueExecutive | null {
+  brut = copierJsonLecture(brut);
+  if (brut === JSON_LECTURE_INVALIDE) return null;
   if (!estObjet(brut) || brut.vue !== "executive") {
     return null;
   }
@@ -391,7 +375,7 @@ export function lireVueExecutive(brut: unknown): VueExecutive | null {
   const entonnoir = lireEntonnoir(brut.entonnoir);
   const margeReelle = lireMargeReelle(brut.marge_reelle);
   const stock = lireStock(brut.stock_a_commander);
-  const cashLibre = lireCashLibre(brut.cash_libre);
+  const cashLibre = lireCashLibreDeM8(brut.cash_libre);
   const manques: ListeLue<ManqueDeLaVue> | null = lireListe(brut.manques, lireManque);
   if (portee === null || entonnoir === null || margeReelle === null || stock === null || cashLibre === null || manques === null) {
     return null;

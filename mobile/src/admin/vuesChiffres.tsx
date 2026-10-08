@@ -362,7 +362,18 @@ export function VueDEnsembleUI({ vue }: { readonly vue: VueVueExecutive }) {
       <Text style={styles.trace}>{vue.stock.source}</Text>
       <StockUI stock={vue.stock} />
 
-      <Ligne m={vue.cashLibre} style={styles.avis} />
+      {vue.cashConstat === null ? <Ligne m={vue.cashLibre} style={styles.avis} /> :
+        <Carte>
+          <Lignes items={vue.cashConstat.lignes} style={styles.meta} />
+          {vue.cashConstat.composantes.map(c => <View key={c.id}>
+            <Ligne m={c.libelle} style={styles.petitTitre} /><Ligne m={c.valeur} style={styles.meta} />
+            {c.plancher !== null ? <Ligne m={c.plancher} style={styles.avis} /> : null}
+          </View>)}
+          <Lignes items={vue.cashConstat.manques} style={styles.avis} /><Lignes items={vue.cashConstat.reserves} style={styles.meta} />
+          {vue.cashConstat.lecture !== null ? <Text selectable>{vue.cashConstat.lecture}</Text> : null}
+          {vue.cashConstat.nonRepris !== null ? <Text style={styles.avis}>{vue.cashConstat.nonRepris}</Text> : null}
+          {vue.cashConstat.mention !== null ? <Text style={styles.mention}>{vue.cashConstat.mention}</Text> : null}
+        </Carte>}
 
       {vue.manques.length > 0 || vue.manquesIllisibles !== null ? (
         <>

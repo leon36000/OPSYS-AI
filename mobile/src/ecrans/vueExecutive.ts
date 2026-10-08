@@ -12,6 +12,8 @@ import {
 } from "./adminCommun";
 import type { Message, VueSection } from "./adminCommun";
 import type { LangueMontant } from "./quotes";
+import { presenterCashConstatM8 } from "./cashConstatM8";
+import type { VueCashConstatM8 } from "./cashConstatM8";
 
 /**
  * Logique PURE de la « vue d'ensemble » de l'écran « Chiffres » (`(admin)/chiffres.tsx`, PLAN T4.20, §9.5 M8) : ce que
@@ -21,8 +23,8 @@ import type { LangueMontant } from "./quotes";
  *
  * **Une mesure non calculable dit ce qui lui manque** (les champs des faits attendus, tels que M8 les nomme), jamais « 0 ».
  * Un « 0 » est un zéro que le serveur a écrit. Des seuils « à configurer » (GATE NATHAN) ne sont pas une alerte : c'est
- * un manque nommé, avec l'endroit où le déclarer. Le cash libre n'est pas dans cette vue (M8 ne le lit ni ne le
- * recalcule) : elle renvoie à la section Trésorerie. Tout texte à variables est un `Message` (voir `adminCommun.ts`).
+ * un manque nommé, avec l'endroit où le déclarer. Le dernier constat de cash libre publié par M5 est repris par M8
+ * avec son âge et ses limites ; l'état détaillé se lit dans Trésorerie. Tout texte à variables est un `Message`.
  */
 
 export interface VueMesure {
@@ -116,8 +118,9 @@ export interface VueVueExecutive {
   readonly entonnoir: VueEntonnoir;
   readonly margeReelle: VueMargeReelle;
   readonly stock: VueStock;
-  /** Le cash libre n'est pas repris ici : il se lit dans la section Trésorerie. */
+  /** Message v1 de provenance ; le constat natif détaillé est présenté dans cashConstat. */
   readonly cashLibre: Message;
+  readonly cashConstat: VueCashConstatM8 | null;
   readonly manques: readonly Message[];
   readonly manquesIllisibles: Message | null;
 }
@@ -258,6 +261,7 @@ function presenterStock(stock: StockACommander, decalage: number): VueStock {
 }
 
 function presenterCashLibreDeM8(cash: CashLibreDeM8): Message {
+  if (cash.genre === "lu") return message("admin.cashConstatM8.source", { source: cash.source });
   return cash.genre === "manque"
     ? message("admin.chiffres.vue.cashLibreAilleurs")
     : message("admin.chiffres.vue.cashLibreInconnu", { statut: cash.statut });
@@ -270,6 +274,7 @@ export function presenterVueExecutive(vue: VueExecutive, langue: LangueMontant, 
     margeReelle: presenterMarge(vue.margeReelle, langue, decalage),
     stock: presenterStock(vue.stock, decalage),
     cashLibre: presenterCashLibreDeM8(vue.cashLibre),
+    cashConstat: presenterCashConstatM8(vue.cashLibre, langue, decalage),
     manques: vue.manques.map((manque) =>
       message("admin.chiffres.vue.manque", { champ: manque.champ, source: manque.source, raison: manque.raison }),
     ),
