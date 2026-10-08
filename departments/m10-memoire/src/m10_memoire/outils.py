@@ -40,10 +40,11 @@ ici, et seulement ici, que le paquet touche `opsys` (stockage et bus).
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from typing import Any
 
-from opsys import approbations, stockage
+from opsys import approbations, jetons, stockage
 from opsys import contexte as contexte_appel
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
@@ -419,6 +420,28 @@ def paquet_contexte_affaire(affaire_id: str, horodatage: str) -> dict[str, Any]:
     )
 
 
+def lire_paquet_affaire_appareil(affaire_id: str, horodatage: str) -> dict[str, Any]:
+    """Lecture admin distincte du contexte privé Core : filtre restrictif et sortie sans artefact."""
+    if contexte_appel.identite_appelante() is None:
+        return _verdict(
+            "REJ-IDENTITE-APPAREIL-INVALIDE", "cette lecture exige une personne admin active confirmée en base"
+        )
+    refus = _refus_lecture_admin()
+    if refus is not None:
+        return refus
+    paquet = paquets.assembler_paquet_contexte(
+        affaire_id, horodatage, _REGISTRE_EVENEMENTS, _REGISTRE_AFFAIRES, agent=None,
+    )
+    # Capacites mesure l'enveloppe entière. Le budget des faits du Core reste inchangé.
+    taille = len(json.dumps({"ok": True, "resultat": paquet}, ensure_ascii=False))
+    if taille > jetons.LIMITE_SORTIE_DEFAUT - 100:
+        return _verdict(
+            "REJ-PAQUET-AFFAIRE-SORTIE-TROP-VOLUMINEUSE",
+            "le paquet dépasse la borne de lecture appareil ; aucun détail partiel n'est transmis",
+        )
+    return paquet
+
+
 def consolider_affaire(affaire_id: str, jour: str, horodatage: str) -> dict[str, Any]:
     """Consolidation nocturne d'une affaire (PLAN T3.3, `consolidation.py`) : idempotente tant que
     l'ensemble des sources du jour n'a pas changé; reprend les événements arrivés tard."""
@@ -765,6 +788,22 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=paquet_contexte_affaire,
             # §7 M10 mobile (admin : recherche dans la mémoire).
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m10_lire_paquet_affaire_appareil",
+            description=(
+                "Lecture admin du dossier d'une affaire : quatre couches ordonnées, provenance, "
+                "omissions et jours restant à consolider. Vue restrictive PUBLIC_INTERNAL/INTERNAL ; "
+                "aucune consolidation ni écriture. Identité appareil admin actuelle obligatoire."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"affaire_id": _AFFAIRE_ID, "horodatage": {"type": "string"}},
+                "required": ["affaire_id", "horodatage"],
+                "additionalProperties": False,
+            },
+            fonction=lire_paquet_affaire_appareil,
             roles_appareil=frozenset({"admin"}),
         ),
         Outil(

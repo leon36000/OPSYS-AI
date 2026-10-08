@@ -7,6 +7,11 @@ import { FIXTURES_DOSSIER_M10 } from "../m10/fixturesDossier";
 import { lireDossierRevisionM10 } from "../m10/dossier";
 import adminFr from "../i18n/locales/admin.fr-CA";
 import adminEn from "../i18n/locales/admin.en-CA";
+import { FIXTURES_M10 } from "../m10/fixtures";
+import { lireSignauxM10 } from "../m10/contrat";
+import fixturesPaquet from "../m10/fixturesPaquetAffaire.json";
+import fixturesPaquetNative from "../m10/fixturesPaquetAffaireNative.json";
+import { lirePaquetAffaire } from "../m10/paquetAffaire";
 
 let mockGeneration = 0, mockConnected = true;
 let mockSession = { presente: true, role: "admin" };
@@ -21,15 +26,18 @@ jest.mock("@/protocole/configuration", () => ({ capturerSessionAdminLecture: () 
   return { session: mockSession.role === "admin" ? { personne: "admin-fictif", jeton: "fictif" } : null,
     courante: () => epoch === mockGeneration && mockSession.role === "admin" };
 } }), { virtual: true });
-jest.mock("@/m10/service", () => ({ controleMemoire: {
+jest.mock("@/m10/service", () => ({ chargerPaquetAffaireMemoire: jest.fn(), controleMemoire: {
   etat: jest.fn(() => mockState), charger: jest.fn(async () => undefined), chargerSuite: jest.fn(async () => undefined),
   ouvrirRevision: jest.fn(async () => undefined), lireDecision: jest.fn(async () => undefined),
   arbitrer: jest.fn(async () => undefined), peutArbitrer: jest.fn(() => false), invalider: jest.fn(), actualiserConnectivite: jest.fn(),
 } }), { virtual: true });
 jest.mock("@/admin/composants", () => jest.requireActual("../admin/composants"), { virtual: true });
 jest.mock("@/ecrans/adminCommun", () => jest.requireActual("./adminCommun"), { virtual: true });
+jest.mock("@/ecrans/paquetAffaire", () => jest.requireActual("./paquetAffaire"), { virtual: true });
+jest.mock("@/m10/paquetAffaire", () => jest.requireActual("../m10/paquetAffaire"), { virtual: true });
 jest.mock("@/identite/BandeauIdentite", () => ({ BandeauIdentite: () => null }), { virtual: true });
 const control = require("@/m10/service").controleMemoire;
+const chargerPaquet = require("@/m10/service").chargerPaquetAffaireMemoire as jest.Mock;
 const Ecran = require("../../app/(admin)/memoire").default;
 const serveur = <T,>(valeur: T) => ({ source: "serveur" as const, valeur, misAJourLe: "2026-10-07T12:00:00Z" });
 const dossier = lireDossierRevisionM10(FIXTURES_DOSSIER_M10.reponses.dossier_complet.enveloppe);
@@ -39,12 +47,29 @@ let arbre: ReactTestRenderer | undefined;
 beforeEach(() => {
   jest.clearAllMocks(); mockGeneration = 0; mockConnected = true; mockSession = { presente: true, role: "admin" };
   control.peutArbitrer.mockReturnValue(false); control.arbitrer.mockResolvedValue(undefined);
+  chargerPaquet.mockResolvedValue({ source: "aucune", raison: { code: "fictif_absent", detail: "" } });
   Reflect.set(globalThis, "IS_REACT_ACT_ENVIRONMENT", true);
   mockState = { statut: "pret", enLigne: true, signaux: serveur({ signaux: [], nb_total: 50, nb_omis: 50, nb_ouverts: 50, nb_pris_en_compte: 0, nb_clos: 0 }),
     catalogue: serveur({ decisions: [], revisions: [natif.revision], decalage: 0, suivant: 8, reste: 10, total: 11, affichees: 1, limite: 8,
       borne_caracteres: 5400, taille_caracteres: 1700, confidentialite: { regle: "v1", nb_retenus: 3 } }),
     dossier: null, statutDecision: null, statutRevision: null, decisionId: null, revisionId: null,
     intentions: [], messageCode: null, message: null, sourceDate: null };
+});
+
+test("un affaire_id serveur permet la seule lecture du dossier, sans arbitrage ni nouvelle intention", async () => {
+  const signaux = lireSignauxM10(FIXTURES_M10.reponses.signaux_ouverts.enveloppe);
+  if (!signaux.ok) throw new Error("signaux fictifs illisibles");
+  const premier = signaux.value.signaux.find(v => v.affaire_id !== null);
+  if (!premier) throw new Error("fixture sans affaire serveur");
+  mockState = { ...mockState, signaux: serveur({ ...signaux.value, signaux: [premier] }) };
+  await act(async () => { arbre = create(<Ecran />); });
+  const bouton = arbre!.root.findAllByType(BoutonSecondaire).find(v => v.props.texte === "admin.paquetAffaire.ouvrir");
+  expect(bouton).toBeDefined();
+  await act(async () => bouton!.props.onPress());
+  expect(chargerPaquet).toHaveBeenCalledTimes(1);
+  expect(chargerPaquet.mock.calls[0][0]).toBe(premier.affaire_id);
+  expect(chargerPaquet.mock.calls[0][1]).toMatch(/^\d{4}-\d\d-\d\dT/);
+  expect(control.arbitrer).not.toHaveBeenCalled();
 });
 afterEach(async () => { if (arbre) await act(async () => arbre!.unmount()); arbre = undefined; });
 const texte = () => JSON.stringify(arbre!.toJSON());
@@ -121,4 +146,92 @@ test("catalogues bilingues M10 ont les mêmes clés et variables", () => {
     for (const k of Object.keys(a as object)) verifier(Reflect.get(a as object, k), Reflect.get(b as object, k));
   }
   verifier(adminFr.memoire, adminEn.memoire);
+});
+
+const paquetFictif = fixturesPaquet.reponses.origine_recue;
+const paquetLu = lirePaquetAffaire(paquetFictif.enveloppe, paquetFictif.arguments.affaire_id, paquetFictif.arguments.horodatage);
+if (!paquetLu.ok) throw new Error("paquet pur fictif illisible");
+const paquetValeur = paquetLu.value;
+function signalPourPaquet(affaireId = paquetValeur.affaire_id) {
+  const lu = lireSignauxM10(FIXTURES_M10.reponses.signaux_ouverts.enveloppe);
+  if (!lu.ok) throw new Error("signal fictif illisible");
+  mockState = { ...mockState, signaux: serveur({ ...lu.value, signaux: [{ ...lu.value.signaux[0], affaire_id: affaireId }] }) };
+}
+
+test("perte réseau pendant arbitrage ferme le paquet et sa réponse tardive, même après reconnexion", async () => {
+  signalPourPaquet();
+  let finir!: (v: unknown) => void;
+  chargerPaquet.mockImplementationOnce(() => new Promise(r => { finir = r; }));
+  await act(async () => { arbre = create(<Ecran />); });
+  await act(async () => bouton("admin.paquetAffaire.ouvrir").props.onPress());
+  mockState = { ...mockState, statut: "arbitrage_en_cours" }; mockConnected = false;
+  await act(async () => arbre!.update(<Ecran />));
+  await act(async () => finir(serveur(paquetValeur)));
+  mockConnected = true;
+  await act(async () => arbre!.update(<Ecran />));
+  expect(texte()).not.toContain("admin.paquetAffaire.identification");
+  expect(texte()).not.toContain("admin.paquetAffaire.titre");
+  expect(control.arbitrer).not.toHaveBeenCalled();
+});
+
+test("sélections A→B→A : seule la dernière demande peut afficher le dossier", async () => {
+  signalPourPaquet();
+  const fins: ((v: unknown) => void)[] = [];
+  chargerPaquet.mockImplementation(() => new Promise(r => { fins.push(r); }));
+  await act(async () => { arbre = create(<Ecran />); });
+  await act(async () => bouton("admin.paquetAffaire.ouvrir").props.onPress());
+  signalPourPaquet("affaire-B-fictive");
+  await act(async () => arbre!.update(<Ecran />));
+  await act(async () => bouton("admin.paquetAffaire.ouvrir").props.onPress());
+  signalPourPaquet();
+  await act(async () => arbre!.update(<Ecran />));
+  await act(async () => bouton("admin.paquetAffaire.ouvrir").props.onPress());
+  await act(async () => { fins[0](serveur(paquetValeur)); fins[1](serveur(paquetValeur)); });
+  expect(texte()).not.toContain("admin.paquetAffaire.identification");
+  await act(async () => fins[2](serveur(paquetValeur)));
+  expect(texte()).toContain("admin.paquetAffaire.identification");
+  expect(chargerPaquet.mock.calls.map(v => v[0])).toEqual([paquetValeur.affaire_id, "affaire-B-fictive", paquetValeur.affaire_id]);
+});
+
+test("retrait du rôle masque un dossier tardif et une panne reste propre à sa carte", async () => {
+  signalPourPaquet();
+  chargerPaquet.mockRejectedValueOnce(new Error("panne fictive"));
+  await act(async () => { arbre = create(<Ecran />); });
+  await act(async () => bouton("admin.paquetAffaire.ouvrir").props.onPress());
+  expect(texte()).toContain("admin.memoire.references");
+  expect(texte()).not.toContain("admin.paquetAffaire.identification");
+  let finir!: (v: unknown) => void;
+  chargerPaquet.mockImplementationOnce(() => new Promise(r => { finir = r; }));
+  await act(async () => bouton("admin.paquetAffaire.ouvrir").props.onPress());
+  mockGeneration++; mockSession = { presente: true, role: "employee" };
+  await act(async () => arbre!.update(<Ecran />));
+  await act(async () => finir(serveur(paquetValeur)));
+  expect(texte()).toContain("admin.commun.sansSession");
+  expect(texte()).not.toContain("admin.paquetAffaire.titre");
+});
+
+test("traductions du dossier portent toutes les clés et variables du présentateur", () => {
+  expect(Object.keys(adminFr.paquetAffaire).sort()).toEqual(Object.keys(adminEn.paquetAffaire).sort());
+  for (const cle of Object.keys(adminFr.paquetAffaire) as (keyof typeof adminFr.paquetAffaire)[]) {
+    expect(adminFr.paquetAffaire[cle].match(/{{[^}]+}}/g)?.sort() ?? [])
+      .toEqual(adminEn.paquetAffaire[cle].match(/{{[^}]+}}/g)?.sort() ?? []);
+  }
+});
+
+// Le service est simulé ; le DTO issu du vrai Gateway traverse le lecteur et le rendu sans altération.
+test.each(Object.entries(fixturesPaquetNative.positives))("dossier DEVICE %s : couches, état et omissions au rendu, aucun effet métier", async (_nom, e) => {
+  const lu = lirePaquetAffaire(e.enveloppe, e.arguments.affaire_id, e.arguments.horodatage);
+  if (!lu.ok) throw new Error(lu.code);
+  signalPourPaquet(e.arguments.affaire_id);
+  chargerPaquet.mockResolvedValueOnce(serveur(lu.value));
+  await act(async () => { arbre = create(<Ecran />); });
+  await act(async () => bouton("admin.paquetAffaire.ouvrir").props.onPress());
+  expect(texte()).toContain("admin.paquetAffaire.identification");
+  for (const cle of ["coucheRegles", "coucheFaits", "coucheEvenements", "coucheSignaux", "consolidationInformative", "vueRestrictive"])
+    expect(texte()).toContain(`admin.paquetAffaire.${cle}`);
+  expect(texte()).toContain(lu.value.affaire.connue ? "admin.paquetAffaire.connue" : "admin.paquetAffaire.inconnue");
+  expect(texte()).toContain(lu.value.affaire.origine_recue ? "admin.paquetAffaire.origineRecue" : "admin.paquetAffaire.origineManquante");
+  expect(chargerPaquet).toHaveBeenCalledTimes(1); expect(chargerPaquet.mock.calls[0][0]).toBe(e.arguments.affaire_id);
+  expect(control.arbitrer).not.toHaveBeenCalled(); expect(control.ouvrirRevision).not.toHaveBeenCalled();
+  expect(arbre!.root.findAllByType(BoutonSecondaire).some(b => /consolider/.test(b.props.texte))).toBe(false);
 });

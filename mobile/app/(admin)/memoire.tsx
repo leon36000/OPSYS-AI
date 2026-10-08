@@ -3,16 +3,19 @@ import { ScrollView, Text, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { useTranslation } from "react-i18next";
-import { controleMemoire } from "@/m10/service";
+import { controleMemoire, chargerPaquetAffaireMemoire } from "@/m10/service";
 import type { ChoixArbitrageMemoire } from "@/m10/arbitrageOutbox";
 import type { JsonMetier } from "@/m10/dossier";
 import type { ReferenceM10 } from "@/m10/contrat";
 import type { ResultatSection } from "@/admin/lecture";
-import { BoutonSecondaire, Carte, EtatSection, stylesAdmin as styles } from "@/admin/composants";
+import { BoutonSecondaire, Carte, EtatSection, Ligne, Lignes, stylesAdmin as styles } from "@/admin/composants";
 import { presenterSection } from "@/ecrans/adminCommun";
 import { capturerSessionAdminLecture } from "@/protocole/configuration";
 import { useSessionAppareil } from "@/roles/contexte";
 import { BandeauIdentite } from "@/identite/BandeauIdentite";
+import { presenterPaquetAffaire } from "@/ecrans/paquetAffaire";
+import type { PaquetAffaireM10 } from "@/m10/paquetAffaire";
+import { estAffairePaquetM10Valide } from "@/m10/paquetAffaire";
 
 const choix: readonly ChoixArbitrageMemoire[] = ["distincts_confirmes", "obsolete_marquee", "indetermine", "en_attente"];
 
@@ -23,6 +26,10 @@ export default function MemoireAdmin() {
   const connected = useNetInfo().isConnected === true;
   const [, render] = useState(0);
   const [erreurAction, setErreurAction] = useState(false);
+  const [paquet, setPaquet] = useState<ResultatSection<PaquetAffaireM10>>();
+  const [affaire, setAffaire] = useState<string | null>(null);
+  const [paquetEnCours, setPaquetEnCours] = useState(false);
+  const demandePaquet = useRef(0);
   const sequence = useRef(0);
   const garde = useRef<(() => boolean) | null>(null);
   const refresh = useCallback(() => render(v => v + 1), []);
@@ -31,6 +38,7 @@ export default function MemoireAdmin() {
     const capture = capturerSessionAdminLecture();
     garde.current = capture.session ? capture.courante : null;
     const n = ++sequence.current;
+    ++demandePaquet.current; setPaquet(undefined); setAffaire(null); setPaquetEnCours(false);
     setErreurAction(false);
     if (!capture.session || !capture.courante()) { controleMemoire.invalider(); refresh(); return; }
     const operation = controleMemoire.charger(); refresh();
@@ -38,13 +46,28 @@ export default function MemoireAdmin() {
     if (n === sequence.current && capture.courante()) refresh();
   }, [refresh]);
   useEffect(() => {
+    // La lecture du dossier ferme même quand une intention bloque le rafraîchissement du contrôleur.
+    ++demandePaquet.current; setPaquet(undefined); setAffaire(null); setPaquetEnCours(false);
     controleMemoire.actualiserConnectivite(connected); refresh();
     if (garde.current?.()) void charger();
   }, [connected, charger, refresh]);
   useFocusEffect(useCallback(() => {
     void charger();
-    return () => { ++sequence.current; garde.current = null; controleMemoire.invalider(); };
+    return () => { ++sequence.current; ++demandePaquet.current; garde.current = null; controleMemoire.invalider(); };
   }, [charger, session]));
+  async function lireAffaire(affaireId: string) {
+    if (!connected || garde.current?.() !== true || !estAffairePaquetM10Valide(affaireId) ||
+        controleMemoire.etat().statut === "arbitrage_en_cours") return;
+    const n = sequence.current, demande = ++demandePaquet.current;
+    const courante = () => n === sequence.current && demande === demandePaquet.current && connected && garde.current?.() === true;
+    setAffaire(affaireId); setPaquet(undefined); setPaquetEnCours(true);
+    try {
+      const lu = await chargerPaquetAffaireMemoire(affaireId, new Date().toISOString());
+      if (courante()) setPaquet(lu ?? { source: "aucune", raison: { code: "lecture_indisponible", detail: "" } });
+    } catch {
+      if (courante()) setPaquet({ source: "aucune", raison: { code: "lecture_indisponible", detail: "" } });
+    } finally { if (courante()) setPaquetEnCours(false); }
+  }
   async function executer(operation: () => Promise<unknown>) {
     if (!garde.current?.()) return;
     const n = sequence.current;
@@ -74,12 +97,24 @@ export default function MemoireAdmin() {
           {v.signaux.map(s => <Carte key={s.signal_id}>
             <Text>{t("admin.memoire.signal", { reference: s.signal_id })}</Text>
             <Text>{t("admin.memoire.affaire", { reference: s.affaire_id ?? t("admin.memoire.inconnu") })}</Text>
+            {estAffairePaquetM10Valide(s.affaire_id) ? <BoutonSecondaire texte={t("admin.paquetAffaire.ouvrir")}
+              desactive={!connected || state.statut === "arbitrage_en_cours"}
+              onPress={() => void lireAffaire(s.affaire_id!)} /> : null}
             <Text>{statut("etatsSignal", s.etat)} · {s.horodatage}</Text>
             {s.traite_par ? <Text>{t("admin.memoire.traitement", { personne: s.traite_par, date: s.traite_le ?? t("admin.memoire.inconnu") })}</Text> : null}
             {s.motif !== null ? <Text>{s.motif}</Text> : null}
           </Carte>)}
         </>} />
       </Carte>
+      {connected && affaire !== null ? <Carte><Text style={styles.sousTitre}>{t("admin.paquetAffaire.titre")}</Text>
+        <EtatSection vue={paquetEnCours ? undefined : paquet ? presenterSection(paquet, decalage, v => presenterPaquetAffaire(v, decalage)) : undefined}
+          rendre={v => <>
+            <Lignes items={v.lignes} /><Lignes items={v.etatAffaire} />
+            {v.couches.map(c => <View key={c.nom}><Ligne m={c.titre} style={styles.sousTitre} /><Lignes items={c.lignes} />
+              {c.faits.map((f, i) => <View key={i}><Ligne m={f.titre} style={styles.petitTitre} /><Lignes items={f.lignes} /></View>)}</View>)}
+            <Lignes items={v.confidentialite} /><Lignes items={v.signaux} /><Lignes items={v.consolidation} />
+          </>} />
+      </Carte> : null}
       <Carte><Text style={styles.sousTitre}>{t("admin.memoire.references")}</Text>
         <Text style={styles.avis}>{t("admin.memoire.pagesCourantes")}</Text>
         <EtatSection vue={vue(state.catalogue)} rendre={v => <>

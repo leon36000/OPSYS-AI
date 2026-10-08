@@ -1,0 +1,1296 @@
+{
+  "fictif": true,
+  "horodatage": "2026-10-01T08:00:00-04:00",
+  "provenance": {
+    "origine": "Modules purs M10 et fixtures existantes, registresRAM uniquement; aucuneDB/HTTP/consolidation réelle. Sorties agentNone obtenues par assemblage natif, jamais modifiées a posteriori. Premier fait long=cas extrême fictif distinct.",
+    "parent": "d717f94839fb6120e7097a61f45a0429d075a188",
+    "sources_sha256": {
+      "departments/m10-memoire/src/m10_memoire/paquets.py": "cf58e2f6a74d5e335ec222f32711f205753a52bb9543b57d2a0b0867881c9a85",
+      "departments/m10-memoire/src/m10_memoire/amont.py": "d024e34055ba836b7c707cfbea92a1673bc62e1e5bada9e3f22940947a78b361",
+      "departments/m10-memoire/src/m10_memoire/confidentialite.py": "86d947bef9134189bd7acc2b7821356c23cfc8cb7b3d9e8ec9322c66d47e890b",
+      "departments/m10-memoire/src/m10_memoire/affaire.py": "750734cbe7d1dd00cae96244f2d45994489e1606f24e7a757afe6af401de978b",
+      "departments/m10-memoire/tests/test_paquet_affaire.py": "dd3c786861b44d3da5baf070361ea86b89e1add01f125677659ad89e2f11b52d",
+      "departments/m10-memoire/tests/test_paquets.py": "398b1fff3ad3682eb877edfbab80a38b48a175c5f0b17b0d1dd5646557ad6dfd",
+      "departments/m10-memoire/tests/test_signaux.py": "bf8e310f2bc6aea24ead868b07eaf0724f4fde68d16f23a347257d9da41833b8",
+      "departments/m10-memoire/src/m10_memoire/signaux.py": "094890a723b85746a17c1def5f39f884b4ffdd73586a23ba80b62d08184ee235"
+    },
+    "generation_sha256": "f88e5c62e15b93f2c44c5d2f6ea076ff43b45514ad813907217096f1e626c7d2"
+  },
+  "reponses": {
+    "inconnue": {
+      "arguments": {
+        "affaire_id": "LEAD-INCONNUE-fictif",
+        "horodatage": "2026-10-01T08:00:00-04:00"
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "affaire_id": "LEAD-INCONNUE-fictif",
+          "horodatage": "2026-10-01T08:00:00-04:00",
+          "budget_caracteres": 4000,
+          "caracteres_utilises": 0,
+          "couches": [
+            {
+              "nom": "regles_entreprise",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "faits_affaire",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "evenements_recents",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "signaux_non_resolus",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            }
+          ],
+          "signaux": {
+            "nb_ouverts": 0,
+            "nb_pris_en_compte": 0,
+            "nb_clos": 0
+          },
+          "confidentialite": {
+            "agent": null,
+            "regle": "v1",
+            "nb_retenus": 0
+          },
+          "affaire": {
+            "connue": false,
+            "origine_recue": false,
+            "origine": null,
+            "verdict": "AMONT-AFFAIRE-INCONNUE"
+          },
+          "consolidation": {
+            "a_consolider": [],
+            "nb_a_consolider": 0
+          }
+        }
+      }
+    },
+    "origine_absente": {
+      "arguments": {
+        "affaire_id": "LEAD-B-1",
+        "horodatage": "2026-10-01T08:00:00-04:00"
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "affaire_id": "LEAD-B-1",
+          "horodatage": "2026-10-01T08:00:00-04:00",
+          "budget_caracteres": 4000,
+          "caracteres_utilises": 180,
+          "couches": [
+            {
+              "nom": "regles_entreprise",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "faits_affaire",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "evenements_recents",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 1,
+              "nb_inclus": 1,
+              "nb_omis": 0,
+              "caracteres": 180,
+              "faits": [
+                {
+                  "identifiant": "WCT-B-1",
+                  "horodatage": "2026-09-15T14:00:00-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-B-1 : durée réelle 90 min",
+                  "confidentialite": "INTERNAL"
+                }
+              ]
+            },
+            {
+              "nom": "signaux_non_resolus",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            }
+          ],
+          "signaux": {
+            "nb_ouverts": 0,
+            "nb_pris_en_compte": 0,
+            "nb_clos": 0
+          },
+          "confidentialite": {
+            "agent": null,
+            "regle": "v1",
+            "nb_retenus": 0
+          },
+          "affaire": {
+            "connue": true,
+            "origine_recue": false,
+            "origine": null,
+            "verdict": "AMONT-ORIGINE-NON-RECUE"
+          },
+          "consolidation": {
+            "a_consolider": [],
+            "nb_a_consolider": 0
+          }
+        }
+      }
+    },
+    "origine_recue": {
+      "arguments": {
+        "affaire_id": "LEAD-B-1",
+        "horodatage": "2026-10-01T08:00:00-04:00"
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "affaire_id": "LEAD-B-1",
+          "horodatage": "2026-10-01T08:00:00-04:00",
+          "budget_caracteres": 4000,
+          "caracteres_utilises": 569,
+          "couches": [
+            {
+              "nom": "regles_entreprise",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "faits_affaire",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "evenements_recents",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 3,
+              "nb_inclus": 3,
+              "nb_omis": 0,
+              "caracteres": 569,
+              "faits": [
+                {
+                  "identifiant": "WCT-B-1",
+                  "horodatage": "2026-09-15T14:00:00-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-B-1 : durée réelle 90 min",
+                  "confidentialite": "INTERNAL"
+                },
+                {
+                  "identifiant": "DEVIS-FICTIF",
+                  "horodatage": "2026-09-14T16:00:00-04:00",
+                  "source": "m3.devis_accepte",
+                  "resume": "Devis DEVIS-FICTIF accepté",
+                  "confidentialite": "INTERNAL"
+                },
+                {
+                  "identifiant": "LEAD-B-1",
+                  "horodatage": "2026-09-01T09:15:00-04:00",
+                  "source": "m1.lead_qualifie",
+                  "resume": "Lead qualifié : service gouttieres, canal texte, urgence non déclarée",
+                  "confidentialite": "INTERNAL"
+                }
+              ]
+            },
+            {
+              "nom": "signaux_non_resolus",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            }
+          ],
+          "signaux": {
+            "nb_ouverts": 0,
+            "nb_pris_en_compte": 0,
+            "nb_clos": 0
+          },
+          "confidentialite": {
+            "agent": null,
+            "regle": "v1",
+            "nb_retenus": 2
+          },
+          "affaire": {
+            "connue": true,
+            "origine_recue": true,
+            "origine": "m1.lead_qualifie",
+            "verdict": null
+          },
+          "consolidation": {
+            "a_consolider": [],
+            "nb_a_consolider": 0
+          }
+        }
+      }
+    },
+    "quatre_couches": {
+      "arguments": {
+        "affaire_id": "LEAD-B-1",
+        "horodatage": "2026-10-01T08:00:00-04:00"
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "affaire_id": "LEAD-B-1",
+          "horodatage": "2026-10-01T08:00:00-04:00",
+          "budget_caracteres": 4000,
+          "caracteres_utilises": 1027,
+          "couches": [
+            {
+              "nom": "regles_entreprise",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 1,
+              "nb_inclus": 1,
+              "nb_omis": 0,
+              "caracteres": 225,
+              "faits": [
+                {
+                  "identifiant": "313fab31dcdb2f82b9d98ef28bf1db4fc199ae33db6abe284aff1e28d8361631",
+                  "horodatage": "2026-09-15T14:00:00-04:00",
+                  "source": "m10:decision",
+                  "resume": "Raison suffisante et tracée.",
+                  "confidentialite": "INTERNAL"
+                }
+              ]
+            },
+            {
+              "nom": "faits_affaire",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 1,
+              "nb_inclus": 1,
+              "nb_omis": 0,
+              "caracteres": 233,
+              "faits": [
+                {
+                  "identifiant": "620ed22669d7bd89650ed3f47d0ff6b22fc7f18830b38543956d37b125a8e4ea",
+                  "horodatage": "2026-10-01T08:00:00-04:00",
+                  "source": "m10:consolidation",
+                  "resume": "2026-09-15 : 1 travaux terminés",
+                  "confidentialite": "INTERNAL"
+                }
+              ]
+            },
+            {
+              "nom": "evenements_recents",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 3,
+              "nb_inclus": 3,
+              "nb_omis": 0,
+              "caracteres": 569,
+              "faits": [
+                {
+                  "identifiant": "WCT-B-1",
+                  "horodatage": "2026-09-15T14:00:00-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-B-1 : durée réelle 90 min",
+                  "confidentialite": "INTERNAL"
+                },
+                {
+                  "identifiant": "DEVIS-FICTIF",
+                  "horodatage": "2026-09-14T16:00:00-04:00",
+                  "source": "m3.devis_accepte",
+                  "resume": "Devis DEVIS-FICTIF accepté",
+                  "confidentialite": "INTERNAL"
+                },
+                {
+                  "identifiant": "LEAD-B-1",
+                  "horodatage": "2026-09-01T09:15:00-04:00",
+                  "source": "m1.lead_qualifie",
+                  "resume": "Lead qualifié : service gouttieres, canal texte, urgence non déclarée",
+                  "confidentialite": "INTERNAL"
+                }
+              ]
+            },
+            {
+              "nom": "signaux_non_resolus",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            }
+          ],
+          "signaux": {
+            "nb_ouverts": 0,
+            "nb_pris_en_compte": 0,
+            "nb_clos": 0
+          },
+          "confidentialite": {
+            "agent": null,
+            "regle": "v1",
+            "nb_retenus": 2
+          },
+          "affaire": {
+            "connue": true,
+            "origine_recue": true,
+            "origine": "m1.lead_qualifie",
+            "verdict": null
+          },
+          "consolidation": {
+            "a_consolider": [],
+            "nb_a_consolider": 0
+          }
+        }
+      }
+    },
+    "signal_ouvert": {
+      "arguments": {
+        "affaire_id": "LEAD-B-1",
+        "horodatage": "2026-10-01T08:00:00-04:00"
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "affaire_id": "LEAD-B-1",
+          "horodatage": "2026-10-01T08:00:00-04:00",
+          "budget_caracteres": 4000,
+          "caracteres_utilises": 1533,
+          "couches": [
+            {
+              "nom": "regles_entreprise",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 1,
+              "nb_inclus": 1,
+              "nb_omis": 0,
+              "caracteres": 225,
+              "faits": [
+                {
+                  "identifiant": "313fab31dcdb2f82b9d98ef28bf1db4fc199ae33db6abe284aff1e28d8361631",
+                  "horodatage": "2026-09-15T14:00:00-04:00",
+                  "source": "m10:decision",
+                  "resume": "Raison suffisante et tracée.",
+                  "confidentialite": "INTERNAL"
+                }
+              ]
+            },
+            {
+              "nom": "faits_affaire",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 1,
+              "nb_inclus": 1,
+              "nb_omis": 0,
+              "caracteres": 233,
+              "faits": [
+                {
+                  "identifiant": "620ed22669d7bd89650ed3f47d0ff6b22fc7f18830b38543956d37b125a8e4ea",
+                  "horodatage": "2026-10-01T08:00:00-04:00",
+                  "source": "m10:consolidation",
+                  "resume": "2026-09-15 : 1 travaux terminés",
+                  "confidentialite": "INTERNAL"
+                }
+              ]
+            },
+            {
+              "nom": "evenements_recents",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 4,
+              "nb_inclus": 4,
+              "nb_omis": 0,
+              "caracteres": 780,
+              "faits": [
+                {
+                  "identifiant": "WCT-B-1",
+                  "horodatage": "2026-09-15T14:00:00-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-B-1 : durée réelle 90 min",
+                  "confidentialite": "INTERNAL"
+                },
+                {
+                  "identifiant": "EVT-SIGNAL-FICTIF",
+                  "horodatage": "2026-09-15T14:00:00-04:00",
+                  "source": "m6.variance_chantier",
+                  "resume": "Variance EVT-SIGNAL-FICTIF : evaluee, signal critique",
+                  "confidentialite": "INTERNAL"
+                },
+                {
+                  "identifiant": "DEVIS-FICTIF",
+                  "horodatage": "2026-09-14T16:00:00-04:00",
+                  "source": "m3.devis_accepte",
+                  "resume": "Devis DEVIS-FICTIF accepté",
+                  "confidentialite": "INTERNAL"
+                },
+                {
+                  "identifiant": "LEAD-B-1",
+                  "horodatage": "2026-09-01T09:15:00-04:00",
+                  "source": "m1.lead_qualifie",
+                  "resume": "Lead qualifié : service gouttieres, canal texte, urgence non déclarée",
+                  "confidentialite": "INTERNAL"
+                }
+              ]
+            },
+            {
+              "nom": "signaux_non_resolus",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 1,
+              "nb_inclus": 1,
+              "nb_omis": 0,
+              "caracteres": 295,
+              "faits": [
+                {
+                  "identifiant": "EVT-SIGNAL-FICTIF",
+                  "horodatage": "2026-09-15T14:00:00-04:00",
+                  "source": "m6.variance_chantier",
+                  "resume": "Variance EVT-SIGNAL-FICTIF : critique, OUVERT, personne n'en a pris connaissance",
+                  "confidentialite": "INTERNAL",
+                  "etat": "ouvert",
+                  "traite_par": null,
+                  "traite_le": null
+                }
+              ]
+            }
+          ],
+          "signaux": {
+            "nb_ouverts": 1,
+            "nb_pris_en_compte": 0,
+            "nb_clos": 0
+          },
+          "confidentialite": {
+            "agent": null,
+            "regle": "v1",
+            "nb_retenus": 2
+          },
+          "affaire": {
+            "connue": true,
+            "origine_recue": true,
+            "origine": "m1.lead_qualifie",
+            "verdict": null
+          },
+          "consolidation": {
+            "a_consolider": [],
+            "nb_a_consolider": 0
+          }
+        }
+      }
+    },
+    "omis_jours": {
+      "arguments": {
+        "affaire_id": "LEAD-B-1",
+        "horodatage": "2026-10-01T08:00:00-04:00"
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "affaire_id": "LEAD-B-1",
+          "horodatage": "2026-10-01T08:00:00-04:00",
+          "budget_caracteres": 4000,
+          "caracteres_utilises": 960,
+          "couches": [
+            {
+              "nom": "regles_entreprise",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "faits_affaire",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "evenements_recents",
+              "vide": false,
+              "tronque": true,
+              "nb_total": 16,
+              "nb_inclus": 5,
+              "nb_omis": 11,
+              "caracteres": 960,
+              "faits": [
+                {
+                  "identifiant": "WCT-FICTIF-16",
+                  "horodatage": "2026-09-16T16:00:00-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-FICTIF-16 : durée réelle 90 min",
+                  "confidentialite": "INTERNAL"
+                },
+                {
+                  "identifiant": "WCT-FICTIF-15",
+                  "horodatage": "2026-09-15T16:00:00-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-FICTIF-15 : durée réelle 90 min",
+                  "confidentialite": "INTERNAL"
+                },
+                {
+                  "identifiant": "WCT-FICTIF-14",
+                  "horodatage": "2026-09-14T16:00:00-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-FICTIF-14 : durée réelle 90 min",
+                  "confidentialite": "INTERNAL"
+                },
+                {
+                  "identifiant": "WCT-FICTIF-13",
+                  "horodatage": "2026-09-13T16:00:00-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-FICTIF-13 : durée réelle 90 min",
+                  "confidentialite": "INTERNAL"
+                },
+                {
+                  "identifiant": "WCT-FICTIF-12",
+                  "horodatage": "2026-09-12T16:00:00-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-FICTIF-12 : durée réelle 90 min",
+                  "confidentialite": "INTERNAL"
+                }
+              ]
+            },
+            {
+              "nom": "signaux_non_resolus",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            }
+          ],
+          "signaux": {
+            "nb_ouverts": 0,
+            "nb_pris_en_compte": 0,
+            "nb_clos": 0
+          },
+          "confidentialite": {
+            "agent": null,
+            "regle": "v1",
+            "nb_retenus": 0
+          },
+          "affaire": {
+            "connue": true,
+            "origine_recue": false,
+            "origine": null,
+            "verdict": "AMONT-ORIGINE-NON-RECUE"
+          },
+          "consolidation": {
+            "a_consolider": [
+              {
+                "affaire_id": "LEAD-B-1",
+                "jour": "2026-09-01"
+              },
+              {
+                "affaire_id": "LEAD-B-1",
+                "jour": "2026-09-02"
+              },
+              {
+                "affaire_id": "LEAD-B-1",
+                "jour": "2026-09-03"
+              },
+              {
+                "affaire_id": "LEAD-B-1",
+                "jour": "2026-09-04"
+              },
+              {
+                "affaire_id": "LEAD-B-1",
+                "jour": "2026-09-05"
+              },
+              {
+                "affaire_id": "LEAD-B-1",
+                "jour": "2026-09-06"
+              },
+              {
+                "affaire_id": "LEAD-B-1",
+                "jour": "2026-09-07"
+              },
+              {
+                "affaire_id": "LEAD-B-1",
+                "jour": "2026-09-08"
+              },
+              {
+                "affaire_id": "LEAD-B-1",
+                "jour": "2026-09-09"
+              },
+              {
+                "affaire_id": "LEAD-B-1",
+                "jour": "2026-09-10"
+              }
+            ],
+            "nb_a_consolider": 11
+          }
+        }
+      }
+    },
+    "premier_fait_hors_budget": {
+      "arguments": {
+        "affaire_id": "LEAD-B-1",
+        "horodatage": "2026-10-01T08:00:00-04:00"
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "affaire_id": "LEAD-B-1",
+          "horodatage": "2026-10-01T08:00:00-04:00",
+          "budget_caracteres": 4000,
+          "caracteres_utilises": 1451,
+          "couches": [
+            {
+              "nom": "regles_entreprise",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "faits_affaire",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "evenements_recents",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 1,
+              "nb_inclus": 1,
+              "nb_omis": 0,
+              "caracteres": 1451,
+              "faits": [
+                {
+                  "identifiant": "WCT-FICTIF-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                  "horodatage": "2026-09-15T14:00:00-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-FICTIF-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…",
+                  "confidentialite": "INTERNAL"
+                }
+              ]
+            },
+            {
+              "nom": "signaux_non_resolus",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            }
+          ],
+          "signaux": {
+            "nb_ouverts": 0,
+            "nb_pris_en_compte": 0,
+            "nb_clos": 0
+          },
+          "confidentialite": {
+            "agent": null,
+            "regle": "v1",
+            "nb_retenus": 0
+          },
+          "affaire": {
+            "connue": true,
+            "origine_recue": false,
+            "origine": null,
+            "verdict": "AMONT-ORIGINE-NON-RECUE"
+          },
+          "consolidation": {
+            "a_consolider": [],
+            "nb_a_consolider": 0
+          }
+        }
+      }
+    },
+    "devis_meme_identifiant": {
+      "arguments": {
+        "affaire_id": "LEAD-B-1",
+        "horodatage": "2026-10-01T08:00:00-04:00"
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "affaire_id": "LEAD-B-1",
+          "horodatage": "2026-10-01T08:00:00-04:00",
+          "budget_caracteres": 4000,
+          "caracteres_utilises": 575,
+          "couches": [
+            {
+              "nom": "regles_entreprise",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "faits_affaire",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "evenements_recents",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 3,
+              "nb_inclus": 3,
+              "nb_omis": 0,
+              "caracteres": 575,
+              "faits": [
+                {
+                  "identifiant": "DEVIS-FICTIF",
+                  "horodatage": "2026-09-14T16:00:00-04:00",
+                  "source": "m3.devis_accepte",
+                  "resume": "Devis DEVIS-FICTIF accepté",
+                  "confidentialite": "INTERNAL"
+                },
+                {
+                  "identifiant": "DEVIS-FICTIF",
+                  "horodatage": "2026-09-01T09:15:30-04:00",
+                  "source": "m3.devis_envoye",
+                  "resume": "Devis DEVIS-FICTIF approuvé pour envoi",
+                  "confidentialite": "INTERNAL"
+                },
+                {
+                  "identifiant": "LEAD-B-1",
+                  "horodatage": "2026-09-01T09:15:00-04:00",
+                  "source": "m1.lead_qualifie",
+                  "resume": "Lead qualifié : service gouttieres, canal texte, urgence non déclarée",
+                  "confidentialite": "INTERNAL"
+                }
+              ]
+            },
+            {
+              "nom": "signaux_non_resolus",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            }
+          ],
+          "signaux": {
+            "nb_ouverts": 0,
+            "nb_pris_en_compte": 0,
+            "nb_clos": 0
+          },
+          "confidentialite": {
+            "agent": null,
+            "regle": "v1",
+            "nb_retenus": 1
+          },
+          "affaire": {
+            "connue": true,
+            "origine_recue": true,
+            "origine": "m1.lead_qualifie",
+            "verdict": null
+          },
+          "consolidation": {
+            "a_consolider": [],
+            "nb_a_consolider": 0
+          }
+        }
+      }
+    },
+    "opportunite": {
+      "arguments": {
+        "affaire_id": "LEAD-B-1~opp~WCT-B-9",
+        "horodatage": "2026-10-01T08:00:00-04:00"
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "affaire_id": "LEAD-B-1~opp~WCT-B-9",
+          "horodatage": "2026-10-01T08:00:00-04:00",
+          "budget_caracteres": 4000,
+          "caracteres_utilises": 0,
+          "couches": [
+            {
+              "nom": "regles_entreprise",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "faits_affaire",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "evenements_recents",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "signaux_non_resolus",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            }
+          ],
+          "signaux": {
+            "nb_ouverts": 0,
+            "nb_pris_en_compte": 0,
+            "nb_clos": 0
+          },
+          "confidentialite": {
+            "agent": null,
+            "regle": "v1",
+            "nb_retenus": 1
+          },
+          "affaire": {
+            "connue": true,
+            "origine_recue": true,
+            "origine": "m2.client_associe",
+            "verdict": null
+          },
+          "consolidation": {
+            "a_consolider": [],
+            "nb_a_consolider": 0
+          }
+        }
+      }
+    },
+    "inconnue_regle_globale": {
+      "arguments": {
+        "affaire_id": "LEAD-INCONNUE-fictif",
+        "horodatage": "2026-10-01T08:00:00-04:00"
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "affaire_id": "LEAD-INCONNUE-fictif",
+          "horodatage": "2026-10-01T08:00:00-04:00",
+          "budget_caracteres": 4000,
+          "caracteres_utilises": 225,
+          "couches": [
+            {
+              "nom": "regles_entreprise",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 1,
+              "nb_inclus": 1,
+              "nb_omis": 0,
+              "caracteres": 225,
+              "faits": [
+                {
+                  "identifiant": "313fab31dcdb2f82b9d98ef28bf1db4fc199ae33db6abe284aff1e28d8361631",
+                  "horodatage": "2026-09-15T14:00:00-04:00",
+                  "source": "m10:decision",
+                  "resume": "Raison suffisante et tracée.",
+                  "confidentialite": "INTERNAL"
+                }
+              ]
+            },
+            {
+              "nom": "faits_affaire",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "evenements_recents",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            },
+            {
+              "nom": "signaux_non_resolus",
+              "vide": true,
+              "tronque": false,
+              "nb_total": 0,
+              "nb_inclus": 0,
+              "nb_omis": 0,
+              "caracteres": 0,
+              "faits": []
+            }
+          ],
+          "signaux": {
+            "nb_ouverts": 0,
+            "nb_pris_en_compte": 0,
+            "nb_clos": 0
+          },
+          "confidentialite": {
+            "agent": null,
+            "regle": "v1",
+            "nb_retenus": 0
+          },
+          "affaire": {
+            "connue": false,
+            "origine_recue": false,
+            "origine": null,
+            "verdict": "AMONT-AFFAIRE-INCONNUE"
+          },
+          "consolidation": {
+            "a_consolider": [],
+            "nb_a_consolider": 0
+          }
+        }
+      }
+    },
+    "signal_pris_en_compte": {
+      "arguments": {
+        "affaire_id": "LEAD-B-1",
+        "horodatage": "2026-10-01T08:00:00-04:00"
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "affaire_id": "LEAD-B-1",
+          "horodatage": "2026-10-01T08:00:00-04:00",
+          "budget_caracteres": 4000,
+          "caracteres_utilises": 1641,
+          "couches": [
+            {
+              "nom": "regles_entreprise",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 1,
+              "nb_inclus": 1,
+              "nb_omis": 0,
+              "caracteres": 225,
+              "faits": [
+                {
+                  "identifiant": "313fab31dcdb2f82b9d98ef28bf1db4fc199ae33db6abe284aff1e28d8361631",
+                  "horodatage": "2026-09-15T14:00:00-04:00",
+                  "source": "m10:decision",
+                  "resume": "Raison suffisante et tracée.",
+                  "confidentialite": "INTERNAL"
+                }
+              ]
+            },
+            {
+              "nom": "faits_affaire",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 1,
+              "nb_inclus": 1,
+              "nb_omis": 0,
+              "caracteres": 233,
+              "faits": [
+                {
+                  "identifiant": "620ed22669d7bd89650ed3f47d0ff6b22fc7f18830b38543956d37b125a8e4ea",
+                  "horodatage": "2026-10-01T08:00:00-04:00",
+                  "source": "m10:consolidation",
+                  "resume": "2026-09-15 : 1 travaux terminés",
+                  "confidentialite": "INTERNAL"
+                }
+              ]
+            },
+            {
+              "nom": "evenements_recents",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 4,
+              "nb_inclus": 4,
+              "nb_omis": 0,
+              "caracteres": 780,
+              "faits": [
+                {
+                  "identifiant": "WCT-B-1",
+                  "horodatage": "2026-09-15T14:00:00-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-B-1 : durée réelle 90 min",
+                  "confidentialite": "INTERNAL"
+                },
+                {
+                  "identifiant": "EVT-SIGNAL-FICTIF",
+                  "horodatage": "2026-09-15T14:00:00-04:00",
+                  "source": "m6.variance_chantier",
+                  "resume": "Variance EVT-SIGNAL-FICTIF : evaluee, signal critique",
+                  "confidentialite": "INTERNAL"
+                },
+                {
+                  "identifiant": "DEVIS-FICTIF",
+                  "horodatage": "2026-09-14T16:00:00-04:00",
+                  "source": "m3.devis_accepte",
+                  "resume": "Devis DEVIS-FICTIF accepté",
+                  "confidentialite": "INTERNAL"
+                },
+                {
+                  "identifiant": "LEAD-B-1",
+                  "horodatage": "2026-09-01T09:15:00-04:00",
+                  "source": "m1.lead_qualifie",
+                  "resume": "Lead qualifié : service gouttieres, canal texte, urgence non déclarée",
+                  "confidentialite": "INTERNAL"
+                }
+              ]
+            },
+            {
+              "nom": "signaux_non_resolus",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 1,
+              "nb_inclus": 1,
+              "nb_omis": 0,
+              "caracteres": 403,
+              "faits": [
+                {
+                  "identifiant": "EVT-SIGNAL-FICTIF",
+                  "horodatage": "2026-09-15T14:00:00-04:00",
+                  "source": "m6.variance_chantier",
+                  "resume": "Variance EVT-SIGNAL-FICTIF : critique, pris en compte par amina.admin le 2026-09-16 : Dépassement expliqué : gouttière refaite en cours de chantier.",
+                  "confidentialite": "INTERNAL",
+                  "etat": "pris_en_compte",
+                  "traite_par": "amina.admin",
+                  "traite_le": "2026-09-16T09:00:00-04:00"
+                }
+              ]
+            }
+          ],
+          "signaux": {
+            "nb_ouverts": 0,
+            "nb_pris_en_compte": 1,
+            "nb_clos": 0
+          },
+          "confidentialite": {
+            "agent": null,
+            "regle": "v1",
+            "nb_retenus": 2
+          },
+          "affaire": {
+            "connue": true,
+            "origine_recue": true,
+            "origine": "m1.lead_qualifie",
+            "verdict": null
+          },
+          "consolidation": {
+            "a_consolider": [],
+            "nb_a_consolider": 0
+          }
+        }
+      }
+    },
+    "signal_clos": {
+      "arguments": {
+        "affaire_id": "LEAD-B-1",
+        "horodatage": "2026-10-01T08:00:00-04:00"
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "affaire_id": "LEAD-B-1",
+          "horodatage": "2026-10-01T08:00:00-04:00",
+          "budget_caracteres": 4000,
+          "caracteres_utilises": 1621,
+          "couches": [
+            {
+              "nom": "regles_entreprise",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 1,
+              "nb_inclus": 1,
+              "nb_omis": 0,
+              "caracteres": 225,
+              "faits": [
+                {
+                  "identifiant": "313fab31dcdb2f82b9d98ef28bf1db4fc199ae33db6abe284aff1e28d8361631",
+                  "horodatage": "2026-09-15T14:00:00-04:00",
+                  "source": "m10:decision",
+                  "resume": "Raison suffisante et tracée.",
+                  "confidentialite": "INTERNAL"
+                }
+              ]
+            },
+            {
+              "nom": "faits_affaire",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 1,
+              "nb_inclus": 1,
+              "nb_omis": 0,
+              "caracteres": 233,
+              "faits": [
+                {
+                  "identifiant": "620ed22669d7bd89650ed3f47d0ff6b22fc7f18830b38543956d37b125a8e4ea",
+                  "horodatage": "2026-10-01T08:00:00-04:00",
+                  "source": "m10:consolidation",
+                  "resume": "2026-09-15 : 1 travaux terminés",
+                  "confidentialite": "INTERNAL"
+                }
+              ]
+            },
+            {
+              "nom": "evenements_recents",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 4,
+              "nb_inclus": 4,
+              "nb_omis": 0,
+              "caracteres": 780,
+              "faits": [
+                {
+                  "identifiant": "WCT-B-1",
+                  "horodatage": "2026-09-15T14:00:00-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-B-1 : durée réelle 90 min",
+                  "confidentialite": "INTERNAL"
+                },
+                {
+                  "identifiant": "EVT-SIGNAL-FICTIF",
+                  "horodatage": "2026-09-15T14:00:00-04:00",
+                  "source": "m6.variance_chantier",
+                  "resume": "Variance EVT-SIGNAL-FICTIF : evaluee, signal critique",
+                  "confidentialite": "INTERNAL"
+                },
+                {
+                  "identifiant": "DEVIS-FICTIF",
+                  "horodatage": "2026-09-14T16:00:00-04:00",
+                  "source": "m3.devis_accepte",
+                  "resume": "Devis DEVIS-FICTIF accepté",
+                  "confidentialite": "INTERNAL"
+                },
+                {
+                  "identifiant": "LEAD-B-1",
+                  "horodatage": "2026-09-01T09:15:00-04:00",
+                  "source": "m1.lead_qualifie",
+                  "resume": "Lead qualifié : service gouttieres, canal texte, urgence non déclarée",
+                  "confidentialite": "INTERNAL"
+                }
+              ]
+            },
+            {
+              "nom": "signaux_non_resolus",
+              "vide": false,
+              "tronque": false,
+              "nb_total": 1,
+              "nb_inclus": 1,
+              "nb_omis": 0,
+              "caracteres": 383,
+              "faits": [
+                {
+                  "identifiant": "EVT-SIGNAL-FICTIF",
+                  "horodatage": "2026-09-15T14:00:00-04:00",
+                  "source": "m6.variance_chantier",
+                  "resume": "Variance EVT-SIGNAL-FICTIF : critique, CLOS par amina.admin le 2026-09-16 : Dépassement expliqué : gouttière refaite en cours de chantier.",
+                  "confidentialite": "INTERNAL",
+                  "etat": "clos",
+                  "traite_par": "amina.admin",
+                  "traite_le": "2026-09-16T09:00:00-04:00"
+                }
+              ]
+            }
+          ],
+          "signaux": {
+            "nb_ouverts": 0,
+            "nb_pris_en_compte": 0,
+            "nb_clos": 1
+          },
+          "confidentialite": {
+            "agent": null,
+            "regle": "v1",
+            "nb_retenus": 2
+          },
+          "affaire": {
+            "connue": true,
+            "origine_recue": true,
+            "origine": "m1.lead_qualifie",
+            "verdict": null
+          },
+          "consolidation": {
+            "a_consolider": [],
+            "nb_a_consolider": 0
+          }
+        }
+      }
+    }
+  }
+}

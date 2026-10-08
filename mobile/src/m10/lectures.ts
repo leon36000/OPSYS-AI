@@ -12,6 +12,7 @@ import type { HorlogeAppareil } from "../outbox/mutation";
 import type { Reponse } from "../m7/contrat";
 import { lireReferencesM10, lireSignauxM10, lireStatutDecisionM10, lireStatutRevisionM10 } from "./contrat";
 import { lireDossierRevisionM10 } from "./dossier";
+import { construireArgumentsPaquetAffaire, lirePaquetAffaire } from "./paquetAffaire";
 
 export interface DependancesLecturesMemoire {
   readonly capturerSession: () => { readonly session: SessionEnvoi | null; readonly courante: () => boolean };
@@ -73,6 +74,13 @@ export function creerChargeurLecturesMemoire(d: DependancesLecturesMemoire) {
     } catch { return capture.courante() ? indisponible() : remplacee(); }
   }
   return {
+    chargerPaquetAffaire: async (affaireId: string, horodatage: string) => {
+      let args: { affaire_id: string; horodatage: string };
+      try { args = construireArgumentsPaquetAffaire(affaireId, horodatage); }
+      catch { return indisponible(); }
+      const resultat = await lire("m10_lire_paquet_affaire_appareil", args, v => lirePaquetAffaire(v, affaireId, horodatage));
+      return resultat?.source === "serveur" && !d.enLigne() ? horsLigne() : resultat;
+    },
     chargerSignaux: () => lire("m10_lister_signaux", {}, lireSignauxM10, "memoire_signaux"),
     chargerReferences: (decalage = 0) => lire("m10_lister_references", { limite: 8, decalage }, v => {
       const r = lireReferencesM10(v);

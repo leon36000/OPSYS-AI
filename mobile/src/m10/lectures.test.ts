@@ -5,6 +5,7 @@ import { DepotCleValeurMemoire } from "../stockage/depotCleValeur";
 import { capturerSessionAdminLecture, definirConfigurationAppel, definirPersonneConfirmee } from "../protocole/configuration";
 import type { ParametresAppelOutil, ResultatAppelOutil } from "../protocole/client";
 import { lireCacheSection } from "../admin/cache";
+import fixturesPaquet from "./fixturesPaquetAffaire.json";
 
 const session = { urlBase: "https://core.fictif.test", jeton: "jeton-fictif", appareilId: "appareil-fictif" };
 const personne = { jeton: session.jeton, appareilId: session.appareilId, personne: "gestionnaire.fictif", role: "admin" };
@@ -88,4 +89,46 @@ test("dossier/statuts servent sans SQLite ; la panne cache n'empêche pas une le
 test("une page d'un autre décalage ne remplace pas la page demandée", async () => {
   const h = setup();
   expect((await h.chargeur.chargerReferences(8))?.source).toBe("aucune");
+});
+
+const dossierAffaireFictif = fixturesPaquet.reponses.origine_recue;
+const argsPaquet = dossierAffaireFictif.arguments;
+test("paquet : façade appareil et arguments exacts, sans démarrer SQLite ni écrire de cache", async () => {
+  const h = setup(); h.appeler.mockResolvedValue({ ok: true, result: dossierAffaireFictif.enveloppe });
+  expect((await h.chargeur.chargerPaquetAffaire(argsPaquet.affaire_id, argsPaquet.horodatage))?.source).toBe("serveur");
+  expect(h.appeler.mock.calls.map(v => v[0].requete)).toEqual([{ tool: "m10_lire_paquet_affaire_appareil", args: argsPaquet }]);
+  expect(h.obtenirDepot).not.toHaveBeenCalled();
+  h.horsLigne(); h.appeler.mockClear();
+  expect((await h.chargeur.chargerPaquetAffaire(argsPaquet.affaire_id, argsPaquet.horodatage))?.source).toBe("aucune");
+  expect(h.appeler).not.toHaveBeenCalled(); expect(h.obtenirDepot).not.toHaveBeenCalled();
+});
+test.each(["seller", "employee", "client"])("paquet : rôle %s refusé avant HTTP et dépôt", async role => {
+  const h = setup(); definirPersonneConfirmee({ ...personne, role });
+  expect(await h.chargeur.chargerPaquetAffaire(argsPaquet.affaire_id, argsPaquet.horodatage)).toBeNull();
+  expect(h.appeler).not.toHaveBeenCalled(); expect(h.obtenirDepot).not.toHaveBeenCalled();
+});
+test("paquet : arguments invalides et réponse liée à une autre affaire ferment sans fallback", async () => {
+  const h = setup();
+  expect((await h.chargeur.chargerPaquetAffaire("../fictif", argsPaquet.horodatage))?.source).toBe("aucune");
+  expect(h.appeler).not.toHaveBeenCalled();
+  h.appeler.mockResolvedValue({ ok: true, result: dossierAffaireFictif.enveloppe });
+  expect((await h.chargeur.chargerPaquetAffaire("autre-fictive", argsPaquet.horodatage))?.source).toBe("aucune");
+  expect(h.obtenirDepot).not.toHaveBeenCalled();
+});
+test("paquet : retrait rôle à personne et jeton égaux masque la réponse tardive", async () => {
+  const h = setup(); let finir!: (v: ResultatAppelOutil) => void;
+  h.appeler.mockImplementationOnce(() => new Promise(r => { finir = r; }));
+  const lecture = h.chargeur.chargerPaquetAffaire(argsPaquet.affaire_id, argsPaquet.horodatage);
+  definirPersonneConfirmee({ ...personne, role: "employee" });
+  finir({ ok: true, result: dossierAffaireFictif.enveloppe });
+  expect(await lecture).toMatchObject({ source: "aucune", raison: { code: "lecture_remplacee" } });
+  expect(h.obtenirDepot).not.toHaveBeenCalled();
+});
+test("paquet : réseau perdu pendant HTTP ferme une réponse valide sans cache", async () => {
+  const h = setup(); let finir!: (v: ResultatAppelOutil) => void;
+  h.appeler.mockImplementationOnce(() => new Promise(r => { finir = r; }));
+  const lecture = h.chargeur.chargerPaquetAffaire(argsPaquet.affaire_id, argsPaquet.horodatage);
+  h.horsLigne(); finir({ ok: true, result: dossierAffaireFictif.enveloppe });
+  expect(await lecture).toMatchObject({ source: "aucune", raison: { code: "hors_ligne" } });
+  expect(h.obtenirDepot).not.toHaveBeenCalled();
 });

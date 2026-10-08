@@ -2810,3 +2810,17 @@ du processus ne sont pas qualifiés. OPSYS-AI reste PARTIEL. Les critères profo
 départements demeurent ouverts ; suite M10 par un affaire_id canonique reçu du serveur,
 paquet partiel sans données privées/financières ni mémoire développement, sans consolidation
 ou conversion WCT→lead inventée. Gardes et budget HTTP à qualifier avant ce raccord.
+
+
+## Dossier d'affaire M10 — 8 octobre 2026, Toronto
+
+L'admin ouvre une lecture courante depuis un affaire_id serveur : quatre couches, sources/dates,
+connue/inconnue et origine reçue/manquante, signaux, confidentialité, omissions/jours non consolidés.
+Façade appareil distincte du contexte privé Core ; identité admin actuelle avant les registres,
+agent=None, enveloppe bornée avant artefact. Aucun cache, arbitrage, vidange ou consolidation.
+Native DEVICE20 lectures/15 MCP/4 HTTP 403/privé404,49 tables inchangées/restart exact ; révocation0/0,
+volume refusé sans ARTEFACTS. Mobile3769/178 suites, types,1305 backend/1skipDockerdevPG, Ruff/verifier
+220 outils/128 appareil et bundle réel qualifiés. CI nouveau commit exacte suivante ; OPSYS PARTIEL.
+[Audit et registre exacts](../reprise/PAQUET-AFFAIRE-M10-2026-10-08/AUDIT-PAQUET-AFFAIRE-M10-2026-10-08-r2.md).
+Limite privée conservée : troncature crée un artefact ; prochain lot d'examen séparé. Téléphone/
+Expo SQLite/Hermes/profondeurs restent ouverts, sans promesse permanente de mémoire ou d'exécution.

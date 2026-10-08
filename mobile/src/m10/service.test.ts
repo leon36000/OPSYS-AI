@@ -12,7 +12,8 @@ jest.mock("../protocole/client", () => ({ invoquerOutil: (p: unknown) => mockInv
 jest.mock("../stockage/service", () => ({ obtenirDepotLocal: () => mockDepotLocal() }));
 jest.mock("../outbox/service", () => ({ obtenirDepot: () => mockDepotOutbox(), declencherVidange: (c: () => boolean) => mockVidanger(c) }));
 jest.mock("../outbox/id", () => ({ genererMutationId: () => "uuid-service-m10" }));
-import { controleMemoire } from "./service";
+import { controleMemoire, chargerPaquetAffaireMemoire } from "./service";
+import fixturesPaquet from "./fixturesPaquetAffaire.json";
 import { DepotCleValeurMemoire } from "../stockage/depotCleValeur";
 import { DepotOutboxMemoire } from "../outbox/depot";
 import { avecProprietaire } from "../outbox/proprietaire";
@@ -124,4 +125,20 @@ test("scope retiré pendant bootstrap KV refuse les deux lectures avant HTTP et 
   await chargement;
   expect(mockInvoquer).not.toHaveBeenCalled(); expect(controleMemoire.etat().catalogue).toBeNull();
   expect(controleMemoire.etat().signaux).toBeNull();
+});
+
+test("lecture du paquet câblée à la façade : aucune ouverture de cache/outbox ni vidange des intentions", async () => {
+  const dto = fixturesPaquet.reponses.origine_recue;
+  mockInvoquer.mockResolvedValue({ ok: true, result: dto.enveloppe });
+  expect((await chargerPaquetAffaireMemoire(dto.arguments.affaire_id, dto.arguments.horodatage))?.source).toBe("serveur");
+  expect(mockInvoquer).toHaveBeenCalledTimes(1);
+  expect(mockInvoquer.mock.calls[0][0].requete).toEqual({ tool: "m10_lire_paquet_affaire_appareil", args: dto.arguments });
+  expect(mockDepotLocal).not.toHaveBeenCalled(); expect(mockDepotOutbox).not.toHaveBeenCalled();
+  expect(mockVidanger).not.toHaveBeenCalled();
+});
+test("paquet sans rôle admin : aucun réseau ni dépôt ou vidange", async () => {
+  mockAdmin = false; const dto = fixturesPaquet.reponses.origine_recue;
+  expect(await chargerPaquetAffaireMemoire(dto.arguments.affaire_id, dto.arguments.horodatage)).toBeNull();
+  expect(mockInvoquer).not.toHaveBeenCalled(); expect(mockDepotLocal).not.toHaveBeenCalled();
+  expect(mockDepotOutbox).not.toHaveBeenCalled(); expect(mockVidanger).not.toHaveBeenCalled();
 });

@@ -19,6 +19,8 @@ const lectures = creerChargeurLecturesMemoire({
   horloge,
   enLigne,
 });
+/** Paquet courant informatif : aucun dépôt, cache, mutation ou consolidation. */
+export const chargerPaquetAffaireMemoire = lectures.chargerPaquetAffaire;
 /** NetInfo est transmis par actualiserConnectivite ; aucune décision issue du cache. */
 export const controleMemoire = creerControleMemoire({
   ...lectures,
