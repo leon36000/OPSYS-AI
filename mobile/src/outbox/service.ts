@@ -6,13 +6,13 @@ import { creerDepotOutboxSqlite, initialiserSchemaOutbox } from "./depot.sqlite"
 import { avecProprietaire } from "./proprietaire";
 import { creerVidangeur, type RapportVidange, type Vidangeur } from "./vidangeur";
 import { invoquerOutil } from "../protocole/client";
-import { obtenirSessionEnvoi } from "../protocole/configuration";
+import { capturerSessionLecture, obtenirSessionEnvoi } from "../protocole/configuration";
 import type { DepotOutbox } from "./depot";
 
 /**
  * Câblage RÉEL du vidangeur (SQLite + `fetch` + configuration de connexion) — le seul fichier de
  * `src/outbox` qui touche `expo-sqlite`/le réseau en dur, et donc, comme `depot.sqlite.ts`
- * lui-même, non exercé par les tests Jest (pas de SQLite natif dans cet environnement — voir la
+ * lui-même, qualifié avec SQLite simulé dans Jest (pas de SQLite natif dans cet environnement — voir la
  * docstring de `depot.sqlite.ts`). La logique qu'il assemble (`creerVidangeur`,
  * `creerDepotOutboxSqlite`, `invoquerOutil`) est, elle, intégralement testée ailleurs.
  */
@@ -61,6 +61,7 @@ function obtenirVidangeur(): Promise<Vidangeur> {
         appelerOutil: invoquerOutil,
         fetchImpl: fetch,
         session: obtenirSessionEnvoi,
+        capturerGardeSession: () => capturerSessionLecture().courante,
         maintenant: () => new Date(),
       }))().catch((erreur: unknown) => {
       vidangeurPromesse = null;
@@ -81,10 +82,19 @@ function obtenirVidangeur(): Promise<Vidangeur> {
  * écran peut choisir de la propager). Un refus de l'APPAREIL par le serveur arrête la passe et est signalé
  * à l'app (`refusAppareil.ts`) : voir `declenchement.ts`.
  */
-export const declencherVidange: () => Promise<RapportVidange | null> = creerDeclencheurVidange({
-  sessionDisponible: () => obtenirSessionEnvoi() !== null,
-  obtenirVidangeur,
-});
+export function declencherVidange(couranteExterne?: () => boolean): Promise<RapportVidange | null> {
+  // Avant l'ouverture asynchrone SQLite : aucune capture partagée entre appels.
+  const capture = capturerSessionLecture();
+  const courante = () => capture.courante() && (couranteExterne?.() ?? true);
+  return creerDeclencheurVidange({
+    sessionDisponible: () => capture.session !== null && courante(),
+    obtenirVidangeur: async () => {
+      const singleton = await obtenirVidangeur();
+      // Façade par appel, même vidangeur et même verrou pour tous les déclencheurs.
+      return { vidangerFileSortante: () => singleton.vidangerFileSortante(courante) };
+    },
+  })();
+}
 
 /**
  * Une vidange lancée hors d'un écran (fin d'un appairage, redémarrage) : jamais attendue, jamais bloquante,

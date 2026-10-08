@@ -202,8 +202,8 @@ describe("un appareil à travers ses appairages successifs", () => {
   });
 });
 
-describe("le câblage réel de service.ts (non exécutable sous Jest : pas de SQLite natif)", () => {
-  // `service.ts` ouvre `expo-sqlite` : on lit sa source, comme `ecransSansSaisie.test.ts`, pour que le
+describe("le câblage réel de service.ts, SQLite simulé pour le comportement", () => {
+  // Quelques invariants structurels lisent la source, comme `ecransSansSaisie.test.ts`, pour que le
   // défaut corrigé par T1.4-l (un jeton gardé jusqu'au redémarrage) ne puisse pas revenir sans faire échouer un test.
   const source = fs.readFileSync(path.join(__dirname, "service.ts"), "utf8");
 
@@ -224,8 +224,45 @@ describe("le câblage réel de service.ts (non exécutable sous Jest : pas de SQ
     expect(source).toContain("avecProprietaire(creerDepotOutboxSqlite(base)");
   });
 
-  test("sans session, aucune vidange n'est tentée ; un refus d'appareil est signalé par le déclencheur", () => {
-    expect(source).toContain("sessionDisponible: () => obtenirSessionEnvoi() !== null");
-    expect(source).toContain("creerDeclencheurVidange(");
+  test("sans session, aucune vidange n'est tentée ; un refus d'appareil est signalé par le déclencheur", async () => {
+    const base = new DepotOutboxMemoire();
+    const openDatabaseAsync = jest.fn(async () => ({}));
+    const fetchImpl = jest.spyOn(globalThis, "fetch").mockResolvedValue(refuse401());
+    jest.doMock("expo-sqlite", () => ({ openDatabaseAsync }));
+    jest.doMock("./depot.sqlite", () => ({ initialiserSchemaOutbox: jest.fn(async () => undefined),
+      creerDepotOutboxSqlite: () => base }));
+    try {
+      await jest.isolateModulesAsync(async () => {
+        const configuration: typeof import("../protocole/configuration") = require("../protocole/configuration");
+        const service: typeof import("./service") = require("./service");
+        const refus: typeof import("./refusAppareil") = require("./refusAppareil");
+        const signal = jest.fn(), retirer = refus.ecouterRefusAppareil(signal);
+        try {
+          expect(await service.declencherVidange()).toBeNull();
+          configuration.definirConfigurationAppel({ urlBase: URL_BASE, jeton: "jeton-fictif", appareilId: APPAREIL });
+          // Un appairage seul ne confirme ni la personne ni l'autorité du jeton.
+          expect(await service.declencherVidange()).toBeNull();
+          expect(openDatabaseAsync).not.toHaveBeenCalled();
+          expect(fetchImpl).not.toHaveBeenCalled();
+          expect(signal).not.toHaveBeenCalled();
+          configuration.definirPersonneConfirmee({ jeton: "jeton-fictif", appareilId: APPAREIL,
+            personne: "personne.fictive", role: "employee" });
+          const m = await avecProprietaire(base, () => "personne.fictive").inserer(soumettreMutation(creerMutation({
+            type: "punch_in", chantierId: "chantier-fictif", payload: { action: "arrivee" },
+          }, idDeterministe, HORLOGE)));
+          expect((await service.declencherVidange())?.arret).toMatchObject({ genre: "appareil_refuse", mutationId: m.id });
+          expect(openDatabaseAsync).toHaveBeenCalledTimes(1);
+          expect(fetchImpl).toHaveBeenCalledTimes(1);
+          expect(new Headers(fetchImpl.mock.calls[0][1]?.headers).get("authorization")).toBe("Bearer jeton-fictif");
+          expect(signal).toHaveBeenCalledTimes(1);
+          expect(await base.obtenir(m.id)).toMatchObject({ id: m.id, payload: m.payload,
+            proprietaire: "personne.fictive", statut: "en_attente", tentatives: 0 });
+        } finally { retirer(); }
+      });
+    } finally {
+      fetchImpl.mockRestore();
+      jest.dontMock("expo-sqlite");
+      jest.dontMock("./depot.sqlite");
+    }
   });
 });

@@ -55,6 +55,95 @@ const adminFrCA = {
     "STOCK_SUPERIEUR_AU_THEORIQUE": "Comptage supérieur au théorique"
   }
 },
+  marketing: {
+  messages: {
+    connexion: "Connexion indisponible.",
+    reponseInvalide: "La réponse du serveur est invalide. Rechargez la liste.",
+    stockageLecture: "Stockage local indisponible ; aucune nouvelle décision possible.",
+    lectureImpossible: "Lecture serveur impossible.",
+    motifInvalide: "Le motif doit contenir entre 5 et 500 caractères.",
+    dejaEnFile: "Une intention existe déjà pour ce contenu. Consultez la file sortante.",
+    stockageDecision: "Stockage local indisponible ; consultez la file avant toute nouvelle décision.",
+    relectureImpossible: "Décision persistée ; relecture impossible. Consultez la file sans créer une nouvelle intention.",
+    decisionIncertaine: "Réponse de décision incertaine ; l’état a été relu. La même intention reste en file.",
+    consentementRetire: "Consentement retiré ; le contenu reste bloqué.",
+    refusServeur: "Décision refusée par le serveur ; la liste a été relue.",
+  },
+
+  "sourceDate": "Lu à {{date}}",
+  "motsClics": "Mots-clics : {{texte}}",
+  "lien": "Lien de suivi : {{texte}}",
+  "origine": "Origine du texte : {{texte}}",
+  "surfaces": {
+    "google_aio": "Google, aperçus IA",
+    "perplexity": "Perplexity",
+    "assistants_ia": "Assistants IA"
+  },
+  "types": {
+    "post_social": "Publication sociale",
+    "page_seo": "Page SEO",
+    "fiche_gbp": "Fiche Google",
+    "article_blog": "Article de blogue"
+  }
+,
+  "erreurAction": "Décision impossible à confirmer. Relire la liste et la file avant une nouvelle intention.",
+  "titre": "Marketing",
+  "note": "Propositions et consentements lus depuis le serveur. Une décision prépare un contenu ; elle ne le publie pas.",
+  "contenus": "Contenus de chantier conservés",
+  "historique": "Propositions historiques",
+  "avis": "Demandes d’avis préparées",
+  "volatil": "Cette file historique est en mémoire et peut être perdue au redémarrage. Aucun bouton de décision n’est disponible pour ces propositions.",
+  "avisNote": "Consentement à une demande d’avis, distinct du consentement marketing. Aucun envoi depuis cet écran.",
+  "pagesCourantes": "Les pages sont courantes et peuvent changer entre deux lectures. La suivante remplace la page affichée.",
+  "suite": "Lire la page suivante",
+  "chargement": "Lecture en cours…",
+  "connexion": "Connexion requise pour relire les propositions. Les intentions déjà enregistrées restent en file.",
+  "lectureSeule": "Lecture seule : le propriétaire n’est pas confirmé ou les conditions de décision ne sont pas réunies.",
+  "vide": "Aucun élément dans cette lecture.",
+  "consentement": "Consentement indiqué : {{personne}}, {{date}} · {{version}}",
+  "marque": "Source de marque : {{source}} · fraîcheur : {{fraicheur}}",
+  "revision": "{{plateforme}} · {{statut}} · révision {{revision}}",
+  "chantier": "Chantier {{reference}}",
+
+  "motif": "Motif du rejet (5 à 500 caractères)",
+  "approuver": "Approuver",
+  "rejeter": "Rejeter",
+  "resteAvis": "{{nombre}} demande(s) supplémentaire(s) non affichée(s).",
+  "totalAvis": "{{nombre}} demande(s) préparée(s) selon cette lecture.",
+  "inconnue": "Non renseigné",
+  "proposition": "{{surface}} · {{type}} · {{statut}}",
+  "proposeLe": "Proposé par {{personne}} le {{date}}.",
+  "approuveLe": "Décidé par {{personne}} le {{date}}.",
+  "intentions": "Décisions enregistrées sur cet appareil",
+  "intention": "{{reference}} · {{decision}} · {{statut}} · personne : {{personne}}",
+  "attente": "Une intention ouverte bloque une nouvelle décision sur son contenu. Un résultat inconnu conserve sa clé et sera repris par la file sortante.",
+  "statuts": {
+    "PROPOSE": "À examiner",
+    "APPROVED": "Approuvé",
+    "REJECTED": "Rejeté",
+    "CONSENTEMENT_RETIRE": "Consentement retiré"
+  },
+  "fraicheurs": {
+    "courante": "courante",
+    "perimee": "ancienne",
+    "preuve_absente": "non établie"
+  },
+  "sources": {
+    "brand_profiles": "profil de marque",
+    "yaml_legacy": "configuration antérieure"
+  },
+  "decisions": {
+    "approuver": "approbation",
+    "rejeter": "rejet"
+  },
+  "etatsFile": {
+    "brouillon": "brouillon",
+    "en_attente": "en attente",
+    "envoi": "issue de l’envoi à confirmer",
+    "envoyee": "accusé reçu",
+    "echec_permanent": "refus définitif"
+  }
+},
   comptes: {
   "versionFiscale": "Version fiscale {{taxe}} : {{version}}.",
   "titre": "Comptes",

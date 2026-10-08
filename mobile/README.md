@@ -152,3 +152,11 @@ Depuis « À voir », `/stock` lit disponibilité et digest M6 dans deux section
 La disponibilité est une fenêtre native de 15 articles et 10 réservations actives, avec deux indicateurs de troncature distincts. Il n’existe ni total ni curseur ni suite fournie par ces outils. Le digest couvre les écarts enregistrés, même nuls, sans fenêtre journalière ; l’appel sans seuils ne calcule aucune suggestion et ne prouve pas l’absence de besoin d’achat.
 
 Cache personnel minimal et normalisé, gardes avant/après chaque lecture ; refus sans repli, résultat ancien écarté après refresh/purge/changement de session. Aucun mouvement, commande ou inventaire n’est écrit par l’écran. [Audit et limites](../docs/reprise/STOCK-M6-2026-10-07/AUDIT-STOCK-M6-2026-10-07-r1.md). Le rendu React contrôlé et l’export JavaScript ne qualifient pas un téléphone natif.
+
+### Marketing admin (PLAN T4.24)
+
+La route `/marketing` présente trois objets natifs indépendants. Les propositions historiques vivent en mémoire et peuvent disparaître au redémarrage ; aucun outil MCP ne décide leurs IDs. Les demandes d’avis conservées montrent le consentement propre à la demande d’avis, distinct du consentement marketing ; aucun envoi depuis cet écran. Les contenus durables de chantier ont des pages courantes : une suite remplace la page affichée, sans snapshot ni promesse d’exhaustivité entre lectures. La date « Lu à » est celle du client à la fin de la lecture.
+
+Seul un contenu durable proposé, à preuve de marque courante, peut afficher une décision avec preuve propriétaire actuelle. Le serveur revalide consentement, révision et identité. L’intention `marketing_decision` est enregistrée dans l’outbox avant réseau ; son UUID, ses arguments et sa personne sont conservés à la reprise. Un résultat inconnu ou reçu terminal illisible bloque la série du contenu sans créer de nouvelle clé. Une décision prépare le contenu et ne le publie pas.
+
+Les droits vivants, refresh et réponses tardives sont gardés. Hors ligne, les lectures ne partent pas ; les intentions restent persistées, mais leur projection dans cet écran revient à une lecture en ligne. Il n’y a pas de cache de décision M7. Tests de rendu contrôlés et SQLite mobile simulé : aucun téléphone natif qualifié. [Contrats, résultats et limites](../docs/reprise/MARKETING-M7-2026-10-07/AUDIT-MARKETING-M7-2026-10-07-r1.md).

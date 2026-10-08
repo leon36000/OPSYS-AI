@@ -41,6 +41,8 @@ export type TypeMutation =
   | "job_completion"
   | "gps_consent_change"
   | "approval_decision"
+  /** Décision humaine M7 ; preuve locale dans payload JSON, args RPC projetés par son descripteur. */
+  | "marketing_decision"
   | "lead_note";
 
 /**

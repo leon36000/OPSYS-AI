@@ -6,6 +6,7 @@ import { interpreterResultatDeciderDemande } from "../approbations/contrat";
 import { interpreterResultatDeclarerMateriauxUtilises } from "../m6/materiaux";
 import { interpreterResultatDeposerFichier } from "../fichiers/protocole";
 import { interpreterResultatEnregistrerInteraction } from "../m2/interaction";
+import { construireArgumentsDecisionMarketing, interpreterDecisionMarketing } from "../m7/decisionOutbox";
 import type { DescripteurTypeMutation, InterpretationResultatMetier } from "./vidangeur";
 import type { TypeMutation } from "./types";
 
@@ -130,7 +131,7 @@ function versInterpretationGeneriqueNote(resultatBrut: unknown): InterpretationR
  * `lead_note` -> `m2_enregistrer_interaction` : PLAN T4.8 (le vendeur note un échange sur SON lead,
  * `src/m2/interaction.ts`).
  */
-export const DESCRIPTEURS_MUTATION: ReadonlyMap<TypeMutation, DescripteurTypeMutation> = new Map([
+export const DESCRIPTEURS_MUTATION: ReadonlyMap<TypeMutation, DescripteurTypeMutation> = new Map<TypeMutation, DescripteurTypeMutation>([
   ["punch_in", { tool: "m4_pointer", interpreterResultat: versInterpretationGenerique }],
   ["punch_out", { tool: "m4_pointer", interpreterResultat: versInterpretationGenerique }],
   ["job_status_change", { tool: "m4_demarrer_route", interpreterResultat: versInterpretationGeneriqueDemarrerRoute }],
@@ -139,5 +140,9 @@ export const DESCRIPTEURS_MUTATION: ReadonlyMap<TypeMutation, DescripteurTypeMut
   ["materials_submit", { tool: "m6_declarer_materiaux_utilises", interpreterResultat: versInterpretationGeneriqueMateriaux }],
   ["gps_consent_change", { tool: "m4_definir_consentement_gps", interpreterResultat: versInterpretationGeneriqueConsentementGps }],
   ["approval_decision", { tool: "m9_decider_demande_approbation", interpreterResultat: versInterpretationGeneriqueDecisionApprobation }],
+  ["marketing_decision", { tool: "m7_decider_contenu", construireArguments: construireArgumentsDecisionMarketing,
+    interpreterResultat: interpreterDecisionMarketing, serialiserParChantier: true,
+    validerRecuEnvoye: mutation => interpreterDecisionMarketing({ ok: true,
+      resultat: { accepte: true, resultat: mutation.resumeAccepte } }, mutation).accepte }],
   ["lead_note", { tool: "m2_enregistrer_interaction", interpreterResultat: versInterpretationGeneriqueNote }],
 ]);

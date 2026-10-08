@@ -34,7 +34,13 @@ export type InterpretationResultatMetier =
  */
 export interface DescripteurTypeMutation {
   readonly tool: string;
-  readonly interpreterResultat: (resultatBrut: unknown) => InterpretationResultatMetier;
+  readonly interpreterResultat: (resultatBrut: unknown, mutation?: MutationOutbox) => InterpretationResultatMetier;
+  /** Projection RPC pour les types portant aussi une preuve locale persistée. null : aucun envoi deviné. */
+  readonly construireArguments?: (mutation: MutationOutbox) => Readonly<Record<string, unknown>> | null;
+  /** Une intention non terminale du groupe bloque les suivantes, même en recul/quarantaine. */
+  readonly serialiserParChantier?: boolean;
+  /** Un statut envoyé ne libère la série que si son reçu durable est lié à cette intention. */
+  readonly validerRecuEnvoye?: (mutation: MutationOutbox) => boolean;
 }
 
 export interface ConfigurationVidangeur {
@@ -53,6 +59,8 @@ export interface ConfigurationVidangeur {
    * (src/protocole/types.ts). Une mutation ne part que si `session.personne` est SON propriétaire.
    */
   readonly session: () => SessionEnvoi | null;
+  /** Capture par passe avant stockage ; rôle/URL/génération sont revalidés avant chaque RPC. */
+  readonly capturerGardeSession?: () => () => boolean;
   /** Injecté plutôt que lu via `Date.now()` (fonction pure, même principe que `recul.ts` et
    * `selectionnerProchainesEnvoyables`). */
   readonly maintenant: () => Date;
@@ -118,7 +126,7 @@ export interface RapportVidange {
   /** Remises `en_attente` après un échec réessayable (recul appliqué). */
   readonly remisesEnAttente: readonly string[];
   readonly echecsPermanents: readonly EchecMutation[];
-  /** `identifierMutationsBloqueesParEchecPermanent`, recalculé APRÈS cette passe (R12 §4 : « ne
+  /** Dépendances d'échec permanent et intentions bloquées par une série de groupe, recalculées dans cette passe (R12 §4 : « ne
    * jamais perdre silencieusement un événement mis en file ») — pour affichage/alerte, jamais
    * utilisé pour décider quoi que ce soit ici (la sélection l'exclut déjà correctement). */
   readonly bloquees: readonly string[];
@@ -165,14 +173,31 @@ export interface Vidangeur {
    * classification (réseau/HTTP puis, si l'appel a réussi, le verdict business). Ne démarre
    * JAMAIS une deuxième passe concurrente (verrou simple) : voir `RapportVidange.ignoreeVerrouActif`.
    */
-  vidangerFileSortante(): Promise<RapportVidange>;
+  vidangerFileSortante(courante?: () => boolean): Promise<RapportVidange>;
 }
 
 type IssueEnvoi =
   | { readonly genre: "envoyee"; readonly resume: unknown }
   | { readonly genre: "remise_en_attente" }
   | { readonly genre: "echec_permanent"; readonly verdict: VerdictServeur }
+  | { readonly genre: "bloquee_serie" }
   | { readonly genre: "arret"; readonly arret: ArretVidange };
+
+/** Politique optionnelle : une intention inconnue/en recul/quarantaine n'est jamais contournée.
+ * Les champs d'ordre viennent du dépôt. Une série sans ordre sûr reste fermée. */
+function terminaliteVerifiee(mutation: MutationOutbox, descripteur?: DescripteurTypeMutation): boolean {
+  return mutation.statut === "echec_permanent" || (mutation.statut === "envoyee" &&
+    (!descripteur?.validerRecuEnvoye || descripteur.validerRecuEnvoye(mutation) === true));
+}
+
+function premiereIntentionDuGroupe(mutation: MutationOutbox, toutes: readonly MutationOutbox[], descripteur: DescripteurTypeMutation): boolean {
+  const serie = toutes.filter(m => m.type === mutation.type && m.chantierId === mutation.chantierId &&
+    !terminaliteVerifiee(m, descripteur));
+  if (serie.some(m => m.sequence === null || !Number.isSafeInteger(m.sequence) || m.sequence < 1)) return false;
+  if (new Set(serie.map(m => m.sequence)).size !== serie.length) return false;
+  const premiere = serie.slice().sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))[0];
+  return premiere?.id === mutation.id && premiere.proprietaire === mutation.proprietaire;
+}
 
 /** Le refus d'un jeton n'est un refus d'APPAREIL que si ce jeton est encore celui de la session : un
  * refus qui arrive après un nouvel appairage vise l'ancien jeton, pas l'appareil tel qu'il est maintenant. */
@@ -201,7 +226,24 @@ function verdictDepuisEchecHttp(echec: { readonly message: string; readonly erre
 export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
   let vidangeEnCours = false;
 
-  async function envoyerUneMutation(mutation: MutationOutbox): Promise<IssueEnvoi> {
+  async function arreterGardeSession(mutation: MutationOutbox): Promise<IssueEnvoi> {
+    // Le reçu peut avoir été persisté pendant une attente précédente : jamais le rouvrir.
+    const actuelle = await config.depot.obtenir(mutation.id);
+    if (actuelle?.statut === "envoi" && actuelle.proprietaire === mutation.proprietaire) {
+      await config.depot.mettreAJour(remettreEnAttenteSansFaute(actuelle));
+    }
+    return { genre: "arret", arret: { genre: "session_changee" } };
+  }
+
+  async function envoyerUneMutation(mutation: MutationOutbox, courante: () => boolean): Promise<IssueEnvoi> {
+    const descripteur = config.descripteurs.get(mutation.type);
+    if (descripteur?.serialiserParChantier) {
+      const actuelles = await config.depot.lister();
+      const courante = actuelles.find(m => m.id === mutation.id);
+      if (!courante || !premiereIntentionDuGroupe(mutation, actuelles, descripteur) ||
+        (courante.statut !== "en_attente" && courante.statut !== "envoi")) return { genre: "bloquee_serie" };
+      mutation = courante;
+    }
     // Reprise (statut déjà `envoi` retrouvé au démarrage) : ne PAS transitionner à nouveau —
     // `envoi -> envoi` n'existe pas dans le graphe (transitions.ts) — et surtout renvoyer avec
     // LA MÊME mutation (donc la même `id` = idempotencyKey), jamais en la recréant (R12 §4).
@@ -209,13 +251,27 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
     if (enEnvoi !== mutation) {
       await config.depot.mettreAJour(enEnvoi);
     }
+    if (!descripteur) throw new Error(`aucun descripteur enregistré pour le type de mutation « ${mutation.type} »`);
 
-    const descripteur = config.descripteurs.get(mutation.type);
-    if (!descripteur) {
-      // Fail-closed délibéré : un type de mutation envoyable sans descripteur enregistré est une
-      // erreur de programmation (une tranche future a créé un type sans l'enregistrer dans
-      // src/outbox/descripteurs.ts), jamais un cas à deviner silencieusement.
-      throw new Error(`aucun descripteur enregistré pour le type de mutation « ${mutation.type} »`);
+    if (descripteur.serialiserParChantier) {
+      const actuelles = await config.depot.lister();
+      const courante = actuelles.find(m => m.id === mutation.id);
+      // Une réception concurrente déjà durable est terminale : jamais rouvrir/écraser son reçu.
+      if (!courante || courante.statut === "envoyee" || courante.statut === "echec_permanent") return { genre: "bloquee_serie" };
+      if (!premiereIntentionDuGroupe(enEnvoi, actuelles, descripteur)) {
+        if (courante.statut === "envoi" && courante.proprietaire === enEnvoi.proprietaire) {
+          await config.depot.mettreAJour(remettreEnAttenteSansFaute(courante));
+        }
+        return { genre: "bloquee_serie" };
+      }
+    }
+    if (!courante()) {
+      return arreterGardeSession(enEnvoi);
+    }
+    const argumentsRpc = descripteur.construireArguments ? descripteur.construireArguments(enEnvoi) : { ...mutation.payload };
+    if (argumentsRpc === null) {
+      await config.depot.mettreAJour(marquerEchecReessayable(enEnvoi, config.maintenant()));
+      return { genre: "remise_en_attente" };
     }
 
     // La session est lue AU DERNIER MOMENT, juste avant l'appel : le jeton envoyé est le jeton courant, et
@@ -223,6 +279,7 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
     // instantané, jamais de deux lectures : la mutation d'une personne ne part jamais avec le jeton d'une
     // autre. Si la session a changé depuis la sélection, la mutation redevient `en_attente`, intacte.
     const session = config.session();
+    if (!courante()) return arreterGardeSession(enEnvoi);
     if (session === null || session.personne !== mutation.proprietaire) {
       await config.depot.mettreAJour(remettreEnAttenteSansFaute(enEnvoi));
       return { genre: "arret", arret: { genre: "session_changee" } };
@@ -234,7 +291,7 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
       jeton: session.jeton,
       requete: {
         tool: descripteur.tool,
-        args: { ...mutation.payload },
+        args: { ...argumentsRpc },
         idempotencyKey: mutation.id,
         deviceId: session.appareilId,
         deviceTimestamp: mutation.createdAtLocal,
@@ -267,7 +324,7 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
       return { genre: "echec_permanent", verdict: verdictDepuisEchecHttp(resultatAppel.echec) };
     }
 
-    const interpretation = descripteur.interpreterResultat(resultatAppel.result);
+    const interpretation = descripteur.interpreterResultat(resultatAppel.result, enEnvoi);
     if (interpretation.accepte) {
       await config.depot.mettreAJour(marquerEnvoyee(enEnvoi, interpretation.resume));
       return { genre: "envoyee", resume: interpretation.resume };
@@ -285,7 +342,8 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
     return { genre: "echec_permanent", verdict: interpretation.verdict };
   }
 
-  async function vidangerUneFois(): Promise<RapportVidange> {
+  async function vidangerUneFois(courante: () => boolean): Promise<RapportVidange> {
+    if (!courante()) return { ...RAPPORT_SANS_SESSION, arret: { genre: "session_changee" } };
     const sessionDebut = config.session();
     if (sessionDebut === null) {
       return RAPPORT_SANS_SESSION;
@@ -303,18 +361,33 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
     const resultatsAcceptes: MutationAcceptee[] = [];
     const remisesEnAttente: string[] = [];
     const echecsPermanents: EchecMutation[] = [];
+    const bloqueesSerie = new Set<string>();
+    const seriesTraitees = new Set<string>();
     let arret: ArretVidange | null = null;
 
     // Séquentiel, jamais Promise.all : l'ordre chantier/sequence de selectionnerProchainesEnvoyables
     // n'a de sens que si les envois se succèdent, et deux appels concurrents pour la MÊME mutation
     // (reprise) briseraient le verrou simple visé par la mission.
     for (const mutation of envoyables) {
-      const issue = await envoyerUneMutation(mutation);
+      if (!courante()) {
+        arret = { genre: "session_changee" };
+        break;
+      }
+      const enSerie = config.descripteurs.get(mutation.type)?.serialiserParChantier === true;
+      const cleSerie = JSON.stringify([mutation.type, mutation.chantierId]);
+      if (enSerie && seriesTraitees.has(cleSerie)) {
+        bloqueesSerie.add(mutation.id);
+        continue;
+      }
+      const issue = await envoyerUneMutation(mutation, courante);
+      if (enSerie && issue.genre !== "bloquee_serie") seriesTraitees.add(cleSerie);
       if (issue.genre === "arret") {
         arret = issue.arret;
         break;
       }
-      if (issue.genre === "envoyee") {
+      if (issue.genre === "bloquee_serie") {
+        bloqueesSerie.add(mutation.id);
+      } else if (issue.genre === "envoyee") {
         envoyees.push(mutation.id);
         resultatsAcceptes.push({ id: mutation.id, resume: issue.resume });
       } else if (issue.genre === "remise_en_attente") {
@@ -325,7 +398,9 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
     }
 
     const toutesApres = await config.depot.lister();
-    const bloquees = identifierMutationsBloqueesParEchecPermanent(toutesApres).map((m) => m.id);
+    const serieEncoreBloquee = [...bloqueesSerie].filter(id => toutesApres.some(m => m.id === id &&
+      !terminaliteVerifiee(m, config.descripteurs.get(m.type))));
+    const bloquees = [...new Set([...identifierMutationsBloqueesParEchecPermanent(toutesApres).map(m => m.id), ...serieEncoreBloquee])];
     const personneFin = config.session()?.personne ?? sessionDebut.personne;
     const quarantaine = identifierEnQuarantaine(toutesApres, personneFin).map((m) => m.id);
 
@@ -342,7 +417,7 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
   }
 
   return {
-    async vidangerFileSortante(): Promise<RapportVidange> {
+    async vidangerFileSortante(couranteExterne?: () => boolean): Promise<RapportVidange> {
       if (vidangeEnCours) {
         // Verrou simple (mission item 1) : jamais deux vidanges concurrentes. On ne bloque PAS
         // l'appelant derrière celle déjà en cours — un déclencheur (premier plan, retour réseau)
@@ -352,7 +427,9 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
       }
       vidangeEnCours = true;
       try {
-        return await vidangerUneFois();
+        const garde = config.capturerGardeSession?.();
+        const courante = () => (garde?.() ?? true) && (couranteExterne?.() ?? true);
+        return await vidangerUneFois(courante);
       } finally {
         vidangeEnCours = false;
       }

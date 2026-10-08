@@ -51,6 +51,95 @@ const adminEnCA: RessourcesAdmin = {
     "STOCK_SUPERIEUR_AU_THEORIQUE": "Count above theoretical stock"
   }
 },
+  marketing: {
+  messages: {
+    connexion: "Connection unavailable.",
+    reponseInvalide: "The server response is invalid. Read the list again.",
+    stockageLecture: "Local storage unavailable; no new decision can be made.",
+    lectureImpossible: "The server could not be read.",
+    motifInvalide: "The reason must contain between 5 and 500 characters.",
+    dejaEnFile: "An intention already exists for this content. Check the outbox.",
+    stockageDecision: "Local storage unavailable; check the outbox before any new decision.",
+    relectureImpossible: "Decision recorded; the list could not be read again. Check the outbox without creating a new intention.",
+    decisionIncertaine: "Decision outcome unconfirmed; the state was read again. The same intention remains queued.",
+    consentementRetire: "Consent withdrawn; this content remains blocked.",
+    refusServeur: "The server refused the decision; the list was read again.",
+  },
+
+  "sourceDate": "Read at {{date}}",
+  "motsClics": "Hashtags: {{texte}}",
+  "lien": "Tracking link: {{texte}}",
+  "origine": "Text source: {{texte}}",
+  "surfaces": {
+    "google_aio": "Google AI overviews",
+    "perplexity": "Perplexity",
+    "assistants_ia": "AI assistants"
+  },
+  "types": {
+    "post_social": "Social post",
+    "page_seo": "SEO page",
+    "fiche_gbp": "Google profile",
+    "article_blog": "Blog post"
+  }
+,
+  "erreurAction": "Decision could not be confirmed. Read the list and outbox again before creating a new intention.",
+  "titre": "Marketing",
+  "note": "Proposals and consent read from the server. A decision prepares content; it does not publish it.",
+  "contenus": "Stored job content",
+  "historique": "Historical proposals",
+  "avis": "Prepared review requests",
+  "volatil": "This historical queue is held in memory and may be lost on restart. These proposals have no decision button.",
+  "avisNote": "Consent to request a review is separate from marketing consent. Nothing is sent from this screen.",
+  "pagesCourantes": "Pages are current and may change between reads. The next page replaces the displayed page.",
+  "suite": "Read the next page",
+  "chargement": "Reading…",
+  "connexion": "Connection required to read proposals again. Previously recorded intentions remain queued.",
+  "lectureSeule": "Read only: the owner is unconfirmed or decision conditions are not met.",
+  "vide": "No items in this read.",
+  "consentement": "Recorded consent: {{personne}}, {{date}} · {{version}}",
+  "marque": "Brand source: {{source}} · freshness: {{fraicheur}}",
+  "revision": "{{plateforme}} · {{statut}} · revision {{revision}}",
+  "chantier": "Job {{reference}}",
+
+  "motif": "Rejection reason (5 to 500 characters)",
+  "approuver": "Approve",
+  "rejeter": "Reject",
+  "resteAvis": "{{nombre}} additional request(s) not shown.",
+  "totalAvis": "{{nombre}} prepared request(s) in this read.",
+  "inconnue": "Not provided",
+  "proposition": "{{surface}} · {{type}} · {{statut}}",
+  "proposeLe": "Proposed by {{personne}} on {{date}}.",
+  "approuveLe": "Decided by {{personne}} on {{date}}.",
+  "intentions": "Decisions recorded on this device",
+  "intention": "{{reference}} · {{decision}} · {{statut}} · person: {{personne}}",
+  "attente": "An open intention blocks a new decision on its content. An unknown result retains its key and will be resumed by the outbox.",
+  "statuts": {
+    "PROPOSE": "To review",
+    "APPROVED": "Approved",
+    "REJECTED": "Rejected",
+    "CONSENTEMENT_RETIRE": "Consent withdrawn"
+  },
+  "fraicheurs": {
+    "courante": "current",
+    "perimee": "old",
+    "preuve_absente": "unconfirmed"
+  },
+  "sources": {
+    "brand_profiles": "brand profile",
+    "yaml_legacy": "previous configuration"
+  },
+  "decisions": {
+    "approuver": "approval",
+    "rejeter": "rejection"
+  },
+  "etatsFile": {
+    "brouillon": "draft",
+    "en_attente": "pending",
+    "envoi": "sending outcome unconfirmed",
+    "envoyee": "acknowledgement received",
+    "echec_permanent": "permanent refusal"
+  }
+},
   comptes: {
   "versionFiscale": "Tax version {{taxe}}: {{version}}.",
   "titre": "Accounts",

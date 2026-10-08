@@ -1,9 +1,16 @@
 const mockObtenirSessionEnvoi = jest.fn();
 const mockInvoquerOutil = jest.fn();
+const mockObtenirDepot = jest.fn();
+const mockDeclencherVidange = jest.fn();
+let mockGenerationSession = 0;
 const mockGenererMutationId = jest.fn(() => "uuid-m7-1");
 
 jest.mock("../protocole/configuration", () => ({
   obtenirSessionEnvoi: () => mockObtenirSessionEnvoi(),
+  capturerSessionLecture: () => {
+    const session = mockObtenirSessionEnvoi(), generation = mockGenerationSession;
+    return { session, courante: () => session !== null && generation === mockGenerationSession && mockObtenirSessionEnvoi() !== null };
+  },
 }));
 jest.mock("../protocole/client", () => ({
   invoquerOutil: (params: unknown) => mockInvoquerOutil(params),
@@ -12,6 +19,15 @@ jest.mock("../outbox/id", () => ({
   genererMutationId: () => mockGenererMutationId(),
 }));
 
+jest.mock("../outbox/service", () => ({
+  obtenirDepot: () => mockObtenirDepot(),
+  declencherVidange: (courante?: () => boolean) => mockDeclencherVidange(courante),
+}));
+
+import { DepotOutboxMemoire } from "../outbox/depot";
+import { avecProprietaire } from "../outbox/proprietaire";
+import { creerVidangeur } from "../outbox/vidangeur";
+import { DESCRIPTEURS_MUTATION } from "../outbox/descripteurs";
 import { controleMarketing } from "./service";
 
 const session = {
@@ -23,6 +39,7 @@ const session = {
 const preuve = { source: "brand_profiles", revision: 3, sha256: "a".repeat(64) };
 let status: "PROPOSE" | "APPROVED" | "REJECTED" | "CONSENTEMENT_RETIRE";
 let refusDecision = false;
+let depot: DepotOutboxMemoire;
 
 function enveloppe(value: unknown) {
   return { ok: true, resultat: { accepte: true, resultat: value } };
@@ -67,6 +84,18 @@ function resultatDecision(decision: "approuver" | "rejeter") {
 
 beforeEach(() => {
   mockInvoquerOutil.mockClear();
+  mockObtenirDepot.mockReset();
+  mockDeclencherVidange.mockReset();
+  mockGenerationSession++;
+  depot = new DepotOutboxMemoire();
+  const proprietaire = avecProprietaire(depot, () => mockObtenirSessionEnvoi()?.personne ?? null);
+  mockObtenirDepot.mockResolvedValue(proprietaire);
+  const vidangeur = creerVidangeur({ depot: proprietaire, descripteurs: DESCRIPTEURS_MUTATION,
+    fetchImpl: jest.fn(), session: () => mockObtenirSessionEnvoi(), maintenant: () => new Date(),
+    capturerGardeSession: () => { const generation = mockGenerationSession; return () => generation === mockGenerationSession; },
+    appelerOutil: params => mockInvoquerOutil(params),
+  });
+  mockDeclencherVidange.mockImplementation((courante?: () => boolean) => vidangeur.vidangerFileSortante(courante));
   status = "PROPOSE";
   refusDecision = false;
   mockObtenirSessionEnvoi.mockReturnValue(session);
@@ -76,8 +105,11 @@ beforeEach(() => {
       return { ok: true, result: enveloppe({ demandes: [], proprietaire: true, total_en_attente: 0, affichees: 0, reste: 0 }) };
     }
     if (requete.tool === "m7_lister_contenus_chantier") {
-      return { ok: true, result: enveloppe({ total: 1, marque_courante: preuve, contenus: [ligne()], decalage: 0, suivant: null, reste: 0 }) };
+      return { ok: true, result: { ok: true, resultat: { total: 1, marque_courante: preuve, contenus: [ligne()], decalage: 0, suivant: null, reste: 0 } } };
     }
+    const rows = await depot.lister();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: "uuid-m7-1", statut: "envoi", proprietaire: "nathan" });
     if (refusDecision) {
       return { ok: true, result: { ok: true, resultat: { accepte: false, verdict: { code: "REJ-CONTENU-PERIME", detail: "détail backend" } } } };
     }
@@ -130,4 +162,39 @@ test("un refus métier transporté en HTTP réussi reste un refus après relectu
   expect(result).toEqual({ ok: false, code: "refus_serveur_relue" });
   expect(controleMarketing.etat().statut).toBe("pret");
   expect(controleMarketing.etat().message).toBe("Décision refusée par le serveur; la liste a été relue.");
+});
+
+
+test("le dépôt durable conserve le reçu accepté et la preuve locale reste hors HTTP", async () => {
+  await controleMarketing.charger();
+  await controleMarketing.decider("contenu-1", "approuver");
+  const mutation = await depot.obtenir("uuid-m7-1");
+  expect(mutation).toMatchObject({ statut: "envoyee", resumeAccepte: resultatDecision("approuver") });
+  expect(mutation?.payload).toHaveProperty("_marketing_local");
+  const requete = mockInvoquerOutil.mock.calls.map(([p]) => p.requete).find(r => r.tool === "m7_decider_contenu");
+  expect(requete.args).not.toHaveProperty("_marketing_local");
+  expect(mockDeclencherVidange).toHaveBeenCalledWith(expect.any(Function));
+});
+
+test("le changement de rôle à personne et tuple identiques retire les lectures et les actions", async () => {
+  await controleMarketing.charger();
+  mockGenerationSession++;
+  expect(controleMarketing.etat().items).toEqual([]);
+  expect(await controleMarketing.decider("contenu-1", "approuver")).toEqual({ ok: false, code: "action_indisponible" });
+  expect(mockDeclencherVidange).not.toHaveBeenCalled();
+  expect(await depot.lister()).toEqual([]);
+});
+
+test("un changement de rôle pendant le transport lecture masque la réponse tardive", async () => {
+  let release!: (value: unknown) => void;
+  let commence!: () => void;
+  const enVol = new Promise<void>(resolve => { commence = resolve; });
+  mockInvoquerOutil.mockImplementation(() => { commence(); return new Promise(resolve => { release = resolve; }); });
+  const lecture = controleMarketing.charger();
+  await enVol;
+  mockGenerationSession++;
+  release({ ok: true, result: enveloppe({ demandes: [], proprietaire: true, total_en_attente: 0, affichees: 0, reste: 0 }) });
+  await lecture;
+  expect(controleMarketing.etat().items).toEqual([]);
+  expect(mockInvoquerOutil).toHaveBeenCalledTimes(1);
 });

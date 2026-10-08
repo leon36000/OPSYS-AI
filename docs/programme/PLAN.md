@@ -2275,6 +2275,20 @@ météo et GPS M4, vision M3, conseil d'agents M9…
 - [ ] T4.24 Mobile admin : file de M7 (`m7_lister_file_approbation`, `m7_lister_demandes_avis`,
       `m7_lister_contenus_chantier`) ; les décisions passent par la file sortante, sur le patron
       d'`approvals`.
+      Source implémentée et candidate locale T4.24 : trois objets distincts, historique en mémoire
+      sans action, demandes d’avis conservées sans envoi, contenus de chantier durables à pages
+      courantes. La page suivante remplace l’affichage, sans snapshot figé. Les trois lectures
+      revalident l’admin actif avant données ; aucune mutation métier pendant une lecture.
+      Décision propriétaire via la file sortante existante, persistée avant réseau ; même clé et
+      payload à la reprise, personne et reçu liés, série bloquée par un résultat inconnu ou reçu
+      terminal invalide. Aucun envoi public ni action sur un ID historique/demande d’avis.
+      Qualification intégrée : 2966 tests mobiles/143 suites, 1264 métier sans skip, types,
+      Ruff/vérificateur, export Android JavaScript1543modules ; CI nouveau commit à obtenir.
+      Hors ligne : lectures désactivées, intentions conservées dans le dépôt ; leur affichage M7
+      requiert une nouvelle lecture en ligne. Aucun cache n’autorise une décision.
+      [Audit et registre](../reprise/MARKETING-M7-2026-10-07/AUDIT-MARKETING-M7-2026-10-07-r2.md).
+      Le département profond reste requis : calendriers, SEO/GEO, GBP, publication T3 et résultats.
+
 - [ ] T4.25 Mobile admin : signaux de M10 (`m10_lister_signaux`, `m10_statut_decision`,
       `m10_statut_revision`, `m10_arbitrer_revision`).
 - [ ] T4.26 Mobile admin : transferts de M1 (`m1_lire_transfert`, `m1_produire_digest`).

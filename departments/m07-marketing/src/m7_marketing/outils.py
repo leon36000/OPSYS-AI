@@ -389,9 +389,12 @@ def proposer_contenu(
     return item
 
 
-def lister_file_approbation(statut: str | None = None) -> list[dict[str, Any]]:
+def lister_file_approbation(statut: str | None = None) -> list[dict[str, Any]] | dict[str, Any]:
     """Liste les content-items de la file d'approbation 0-6, filtrés par statut
     (PROPOSE | APPROVED | REJECTED) si fourni."""
+    refus = usine_service._refus_lecture_admin()
+    if refus is not None:
+        return {"accepte": False, "verdict": refus}
     return content_approval.list_items(statut)
 
 
@@ -723,6 +726,9 @@ def lister_demandes_avis(limite: int = _LIMITE_DEMANDES_AVIS_DEFAUT) -> dict[str
     lecture seule du registre durable `demandes_avis`, sans écrire ni envoyer quoi que ce soit. Chaque
     ligne dit ce qu'on écrirait au client et sur quel consentement (qui l'a recueilli, quand, quel texte).
     `total` compte tous les brouillons ; `reste` ceux que `limite` ne montre pas."""
+    refus = usine_service._refus_lecture_admin()
+    if refus is not None:
+        return {"accepte": False, "verdict": refus}
     if isinstance(limite, bool) or not isinstance(limite, int) or not 1 <= limite <= _LIMITE_DEMANDES_AVIS_MAX:
         raise ValueError(f"limite : un entier de 1 à {_LIMITE_DEMANDES_AVIS_MAX} est attendu")
     demandes = list(stockage.maillons(*_REGISTRE_DEMANDES_AVIS))

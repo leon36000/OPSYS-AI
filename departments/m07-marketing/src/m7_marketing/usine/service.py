@@ -804,6 +804,19 @@ def _appelant_confirme() -> contexte_appel.IdentiteAppelante | None:
     return approbations.signataire_valide(cnx, appelante)
 
 
+def _refus_lecture_admin() -> dict[str, Any] | None:
+    """Confirme l'admin avant une lecture ; la voie interne sans identité reste disponible."""
+    if contexte_appel.identite_appelante() is None:
+        return None
+    appelante = _appelant_confirme()
+    if appelante is None or appelante.role != "admin":
+        return verdicts.verdict(
+            "REJ-IDENTITE-APPAREIL-INVALIDE",
+            "lecture marketing réservée à une personne active portant le rôle admin confirmé en base",
+        )
+    return None
+
+
 def _qui_appelle() -> tuple[str, str]:
     """`(personne, source)` : la personne du jeton confirmé, sinon « agent ». Sert la provenance, jamais un droit."""
     confirmee = _appelant_confirme()
@@ -1054,6 +1067,9 @@ def lister_contenus_chantier(
     chaque plateforme de chaque chantier), les plus récents d'abord, avec leur statut, leur texte ENTIER (on ne
     décide pas ce qu'on n'a pas lu), leur décision et la preuve du consentement. Bornée : `Capacites` tronque
     à 6 000 caractères ; `suivant` est le `decalage` de la page suivante, `null` quand rien ne suit."""
+    refus = _refus_lecture_admin()
+    if refus is not None:
+        return _refus(refus)
     if isinstance(limite, bool) or not isinstance(limite, int) or not 1 <= limite <= LIMITE_LISTE_MAX:
         raise ValueError(f"limite : un entier de 1 à {LIMITE_LISTE_MAX} est attendu")
     if isinstance(decalage, bool) or not isinstance(decalage, int) or decalage < 0:
