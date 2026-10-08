@@ -3,6 +3,7 @@ import type { ResultatSection } from "../admin/lecture";
 import { cleAttente, formaterDepuis, vueAttentes } from "./approvals";
 import { message, presenterSection } from "./adminCommun";
 import type { Message, VueSection } from "./adminCommun";
+import { referenceTransfertM1 } from "../m1/selection";
 
 /**
  * Logique PURE de l'accueil du propriétaire, `(admin)/admin.tsx` (PLAN T4.20, §9.5 « Approbations » et alertes) : ce que
@@ -30,6 +31,8 @@ export interface LigneDemande {
 
 export interface LigneAttente {
   readonly cle: string;
+  /** Référence M1 pour une relecture serveur ; aucune fiche de contact mise en cache ici. */
+  readonly transfertId: string | null;
   readonly departement: Message;
   /** Ce que le département a écrit de l'attente, tel quel. */
   readonly resume: string;
@@ -86,6 +89,7 @@ function ligneDemande(demande: DemandeApprobation, decalageMinutesUTC: number): 
 function ligneAttente(attente: AttenteDepartement, decalageMinutesUTC: number): LigneAttente {
   return {
     cle: cleAttente(attente),
+    transfertId: referenceTransfertM1(attente),
     departement: message("approvals.departement", { nom: attente.departementNom ?? attente.departement }),
     resume: attente.resume,
     niveau: niveauAffiche(attente.niveau),

@@ -1,5 +1,21 @@
 import { presenterAVoir, vueAccueil } from "./admin";
 import { aVoirDe, duCache, duServeur } from "./donneesDeVue";
+import { FIXTURES_M1 } from "../m1/fixtures";
+
+test.each(["plainte_escaladee", "urgence_escaladee", "transfert_humain"])(
+  "l'attente M1 %s transmet sa référence canonique pour une relecture serveur", type => {
+    const base = aVoirDe("a_voir_vide"), id = FIXTURES_M1.reponses.plainte_ouverte.args.transfert_id;
+    const attente = { type, id, departement: "m01-front-office", departementNom: null, resume: "Transfert fictif",
+      niveau: "N4", depuis: "2026-10-07T12:00:00Z", actionProposee: null };
+    const vue = presenterAVoir({ ...base, attentes: { items: [attente], total: 1, reste: 0, decalage: 0, suivant: null,
+      illisibles: 0, departementsIllisibles: [] } }, -240);
+    expect(vue.attentes).toMatchObject({ genre: "presentes", items: [{ transfertId: id }] });
+    for (const surcharge of [{ id: "conversation-fictive" }, { departement: "m05-financecore" }, { type: "facture_brouillon" }]) {
+      const autre = presenterAVoir({ ...base, attentes: { items: [{ ...attente, ...surcharge }], total: 1, reste: 0,
+        decalage: 0, suivant: null, illisibles: 0, departementsIllisibles: [] } }, -240);
+      expect(autre.attentes).toMatchObject({ genre: "presentes", items: [{ transfertId: null }] });
+    }
+  });
 
 describe("l'accueil « À voir » du propriétaire", () => {
   test("le serveur dit qu'il n'y a rien : « rien à voir », et seulement dans ce cas", () => {

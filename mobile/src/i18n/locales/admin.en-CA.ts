@@ -6,6 +6,53 @@ import type { RessourcesAdmin } from "./admin.fr-CA";
  * says so in words too: never a dash, never a zero.
  */
 const adminEnCA: RessourcesAdmin = {
+  reception: {
+    "titre": "Reception · transfers",
+    "note": "Informational reads. No sending, closing or assignment from this screen.",
+    "digest": "Reception summary",
+    "date": "Requested date (UTC)",
+    "dateInvalide": "Enter a valid date in YYYY-MM-DD format.",
+    "dateNote": "Events from the requested date and current follow-ups returned by the server. These reads do not form a frozen history.",
+    "fiche": "Transfer details",
+    "serveurSeul": "Contacts and messages are read from the server only; no detail record is available in the cache.",
+    "selection": "Choose an M1 transfer in “To see”. Other pending items remain on their business screen.",
+    "referenceInvalide": "Invalid transfer reference. Return to “To see”.",
+    "connexion": "Connect to read the record again. Previous contacts and messages are hidden.",
+    "inconnu": "Unknown",
+    "lead": "Lead: {{id}}",
+    "destinataire": "Recipient: {{personne}}",
+    "resume": "Summary · origin: {{origine}}",
+    "categories": "Server categories: {{categories}}",
+    "contact": "Declared contact",
+    "stop": "The client has opted out of messages. No sending offered.",
+    "messagesCouverts": "Messages covered by the transfer",
+    "messagesSuivants": "Following messages",
+    "messagesVides": "No message in this read.",
+    "omis": "Messages not displayed: {{nombre}}.",
+    "rappel": "Callback follow-up",
+    "responsable": "Assigned person: {{personne}}",
+    "tentatives": "Attempts without contact: {{nombre}}",
+    "derniere": "Last attempt: {{date}}",
+    "prochaine": "Next attempt: {{date}}",
+    "brouillon": "Draft returned by the server",
+    "nonEnvoye": "This draft has not been sent. No sending offered here.",
+    "cloture": "Closed by {{personne}} on {{date}}: {{motif}}",
+    "ouvrir": "Read transfer",
+    "statuts": {
+      "ouvert": "Open",
+      "clos": "Closed"
+    },
+    "types": {
+      "ventes": "Sales",
+      "estimation": "Estimation",
+      "admin": "Administration",
+      "finance": "Finance",
+      "plainte": "Complaint",
+      "urgence": "Emergency",
+      "technique": "Technical",
+      "proprietaire": "Owner"
+    }
+  },
   memoire: {
   "titre": "Business memory",
   "note": "Business register: signals, recorded decisions and revisions to compare.",

@@ -836,7 +836,39 @@ def abandonner_conversation(conversation: dict[str, Any], horodatage: str) -> di
     return {"accepte": True, "verdict": verdict, "conversation": canonique}
 
 
-def produire_digest(date_reference: str) -> str:
+def _refus_lecture_admin() -> dict[str, Any] | None:
+    """Confirme l'admin actif ou le propriétaire réel de console avant de lire le registre.
+
+    La provenance console est posée par l'adaptateur serveur, jamais par les arguments ou
+    le `_meta` MCP. Un appel interne sans identité conserve sa voie existante.
+    """
+    appelante = contexte_appel.identite_appelante()
+    if appelante is None:
+        return None
+    cnx = stockage.connexion_courante()
+    confirmee = approbations.signataire_valide(cnx, appelante) if cnx is not None else None
+    if confirmee is None or not (
+        confirmee.role == "admin"
+        or (confirmee.role == "nathan_owner" and confirmee.source == "console")
+    ):
+        return _verdict_refus(
+            "REJ-IDENTITE-APPAREIL-INVALIDE",
+            "lecture réservée à une personne admin active ou au propriétaire confirmé de la console",
+        )
+    return None
+
+
+def produire_digest(date_reference: str) -> str | dict[str, Any]:
+    refus = _refus_lecture_admin()
+    if refus is not None:
+        return refus
+    try:
+        if (not isinstance(date_reference, str)
+                or re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", date_reference, re.ASCII) is None
+                or dt.date.fromisoformat(date_reference).isoformat() != date_reference):
+            raise ValueError
+    except ValueError:
+        return _verdict_refus("REJ-DIGEST-DATE-INVALIDE", "date_reference doit être une date calendaire YYYY-MM-DD")
     return digest.produire_digest(_obtenir_registre().lire(), date_reference)
 
 
@@ -1573,6 +1605,9 @@ def consigner_suivi_rappel(
 def lire_transfert(transfert_id: str) -> dict[str, Any]:
     """Ce qu'une personne lit d'un transfert : résumé, destinataire, contact, messages, et le brouillon de réponse d'une
     plainte ou d'une urgence encore ouverte (jamais envoyé). Lecture seule."""
+    refus = _refus_lecture_admin()
+    if refus is not None:
+        return refus
     reg = _obtenir_registre()
     lignes = reg.lire()
     etat = _etat_du_transfert(lignes, transfert_id)

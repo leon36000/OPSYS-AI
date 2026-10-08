@@ -2304,6 +2304,12 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       [Audit intégré](../reprise/MEMOIRE-M10-2026-10-07/AUDIT-MEMOIRE-M10-2026-10-07-r2.md).
       Le département M10 profond et les deux domaines de mémoire restent PARTIEL.
 - [ ] T4.26 Mobile admin : transferts de M1 (`m1_lire_transfert`, `m1_produire_digest`).
+      Intégration sur91d : digest personnel/daté, fiche serveur sans cache contacts/messages,
+      références canoniques des attentes courantes ; aucune action d’envoi/clôture/prise en charge.
+      3205tests mobiles/160suites,1672Python sansskip, types/Ruff/vérificateur verts.
+      Gateway Node réelle18appels, refus/reboot et zéro mutation des tables vérifiés séparément.
+      CI du nouveau commit exact et téléphone/ExpoSQLite/Hermes restent à qualifier.
+      [Audit](../reprise/RECEPTION-M1-2026-10-07/AUDIT-RECEPTION-M1-2026-10-07-r1.md).
 - [ ] T4.27 Serveur : les outils de §9.5 qui manquent encore. M1 : boîte omnicanal, appels manqués
       et rappels, « prendre en charge », « rappeler », « envoyer la réponse approuvée ». M4 : météo
       d'un créneau en lecture pure, retards, incidents, pagination de `m4_lister_interventions`.

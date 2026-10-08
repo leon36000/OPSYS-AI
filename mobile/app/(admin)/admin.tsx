@@ -62,6 +62,7 @@ export default function AccueilAdmin() {
       )}
 
       <View style={{ gap: 12 }}>
+        <Link href="/reception" style={styles.lien}>{t("admin.reception.titre")}</Link>
         <Link href="/approvals" style={styles.lien}>
           {t("admin.aVoir.liens.approbations")}
         </Link>
@@ -120,6 +121,8 @@ function ContenuAVoir({ vue }: { readonly vue: VueAVoir }) {
               <Ligne m={attente.niveau} style={styles.meta} />
               <Ligne m={attente.depuis} style={styles.trace} />
               {attente.geste !== null ? <Ligne m={attente.geste} style={styles.avis} /> : null}
+              {attente.transfertId !== null ? <Link href={{ pathname: "/reception", params: { transfert: attente.transfertId } }}
+                style={styles.lien}>{t("admin.reception.ouvrir")}</Link> : null}
             </Carte>
           ))}
           {vue.attentes.reste !== null ? <Ligne m={vue.attentes.reste} style={styles.avis} /> : null}

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
+import { Link } from "expo-router";
+import { referenceTransfertM1 } from "@/m1/selection";
 
 import { chargerDemandesApprobation } from "@/approbations/service";
 import type { AccuseDecision, AttentesDepartements, DecisionApprobation, DemandeApprobation, ListeApprobations, VerdictServeurApprobation } from "@/approbations/contrat";
@@ -236,8 +238,9 @@ interface ProprietesAttentes {
 }
 
 /** Les attentes des départements (PLAN T1.5) : l'alerte d'écart de matériaux, la facture prête, le chantier à
- * réviser. Pour information, sans bouton : ce que le département a écrit est montré tel quel, et le geste qu'il
- * propose est dit, jamais offert. Un département muet ou une attente illisible est dit, jamais tu. */
+ * réviser. Pour information, sans décision : ce que le département a écrit est montré tel quel, et le geste qu'il
+ * propose est dit, jamais offert. Un transfert M1 peut être relu à son écran. Un département muet ou une attente
+ * illisible est dit, jamais tu. */
 function SectionAttentes({ attentes, decalageMinutesUTC, suite, onVoirPlus }: ProprietesAttentes) {
   const { t } = useTranslation();
   const vue = vueAttentes(attentes);
@@ -261,6 +264,8 @@ function SectionAttentes({ attentes, decalageMinutesUTC, suite, onVoirPlus }: Pr
             {t("approvals.depuis", { date: formaterDepuis(attente.depuis, decalageMinutesUTC) })}
           </Text>
           {attente.actionProposee ? <Text style={styles.description}>{t("approvals.attentes.geste", { geste: attente.actionProposee })}</Text> : null}
+          {referenceTransfertM1(attente) !== null ? <Link href={{ pathname: "/reception", params: { transfert: attente.id } }}
+            style={styles.description}>{t("admin.reception.ouvrir")}</Link> : null}
         </View>
       ))}
       {vue.suivant !== null ? (

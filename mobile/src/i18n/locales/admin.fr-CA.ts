@@ -10,6 +10,53 @@
  * montre tel quel.
  */
 const adminFrCA = {
+  reception: {
+    "titre": "Réception · transferts",
+    "note": "Lectures informatives. Aucun envoi, clôture ni prise en charge depuis cet écran.",
+    "digest": "Synthèse de réception",
+    "date": "Date demandée (UTC)",
+    "dateInvalide": "Entrez une date valide au format AAAA-MM-JJ.",
+    "dateNote": "Événements de la date demandée et suivis courants rendus par le serveur. Ces lectures ne forment pas un historique figé.",
+    "fiche": "Fiche du transfert",
+    "serveurSeul": "Contacts et messages lus au serveur seulement ; aucune fiche disponible dans le cache.",
+    "selection": "Choisissez un transfert M1 dans « À voir ». Les autres attentes restent à leur écran métier.",
+    "referenceInvalide": "Référence de transfert invalide. Revenez à « À voir ».",
+    "connexion": "Connexion nécessaire pour relire la fiche. Les contacts et messages précédents sont masqués.",
+    "inconnu": "Non connu",
+    "lead": "Lead : {{id}}",
+    "destinataire": "Destinataire : {{personne}}",
+    "resume": "Résumé · origine : {{origine}}",
+    "categories": "Catégories du serveur : {{categories}}",
+    "contact": "Contact déclaré",
+    "stop": "Le client s’est retiré des messages. Aucun envoi proposé.",
+    "messagesCouverts": "Messages couverts par le transfert",
+    "messagesSuivants": "Messages suivants",
+    "messagesVides": "Aucun message dans cette lecture.",
+    "omis": "Messages non affichés : {{nombre}}.",
+    "rappel": "Suivi du rappel",
+    "responsable": "Responsable : {{personne}}",
+    "tentatives": "Tentatives sans contact : {{nombre}}",
+    "derniere": "Dernière tentative : {{date}}",
+    "prochaine": "Prochaine tentative : {{date}}",
+    "brouillon": "Brouillon fourni par le serveur",
+    "nonEnvoye": "Ce brouillon n’a pas été envoyé. Aucun envoi proposé ici.",
+    "cloture": "Clôturé par {{personne}} le {{date}} : {{motif}}",
+    "ouvrir": "Lire le transfert",
+    "statuts": {
+      "ouvert": "Ouvert",
+      "clos": "Clos"
+    },
+    "types": {
+      "ventes": "Ventes",
+      "estimation": "Estimation",
+      "admin": "Administration",
+      "finance": "Finance",
+      "plainte": "Plainte",
+      "urgence": "Urgence",
+      "technique": "Technique",
+      "proprietaire": "Propriétaire"
+    }
+  },
   memoire: {
   "titre": "Mémoire métier",
   "note": "Registre d’affaires : signaux, décisions enregistrées et révisions à comparer.",
