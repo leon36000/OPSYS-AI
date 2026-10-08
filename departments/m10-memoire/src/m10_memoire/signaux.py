@@ -34,6 +34,7 @@ lecture : ce module n'écrit rien pour elle.
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from typing import Any
 
@@ -52,6 +53,7 @@ REGLE_VARIANCE_REEVALUEE = "regle:variance_reevaluee_sans_depassement"
 MOTIF_REGLE_VARIANCE_REEVALUEE = "M6 a réévalué la variance de ce WCT : plus aucun dépassement"
 
 NB_SIGNAUX_LISTES_MAX = 50
+CARACTERES_LISTE_MAX = 5400
 
 REJ_SIGNAL_ACTION_INCONNUE = "REJ-SIGNAL-ACTION-INCONNUE"
 REJ_SIGNAL_INCONNU = "REJ-SIGNAL-INCONNU"
@@ -207,29 +209,31 @@ def lister(
     affaire_id: str | None, maillons_evenements: list[dict[str, Any]], maillons_affaires: list[dict[str, Any]]
 ) -> dict[str, Any]:
     """Vue compacte pour l'écran d'un humain : les signaux (d'une affaire, ou de toutes), ouverts d'abord,
-    au plus ``NB_SIGNAUX_LISTES_MAX`` ; ce qui dépasse est DIT (``nb_omis``), jamais tu."""
+    au plus ``NB_SIGNAUX_LISTES_MAX`` et 5400 caractères JSON ; les omissions sont DITES (``nb_omis``)."""
     tous = _signaux_avec_etat(maillons_evenements, maillons_affaires)
     if affaire_id is not None:
         tous = [s for s in tous if s["affaire_id"] == affaire_id]
     ordonnes = _ordonner(tous)
-    retenus = ordonnes[:NB_SIGNAUX_LISTES_MAX]
-    return {
-        "signaux": [
-            {
-                "signal_id": s["signal_id"],
-                "affaire_id": s["affaire_id"],
-                "horodatage": s["horodatage"],
-                "etat": s["etat"],
-                "traite_par": s["traite_par"],
-                "traite_le": s["traite_le"],
-                "motif": s["motif"],
-            }
-            for s in retenus
-        ],
+    vue = {
+        "signaux": [],
         "nb_total": len(ordonnes),
-        "nb_omis": len(ordonnes) - len(retenus),
+        "nb_omis": len(ordonnes),
         **decompte(ordonnes),
     }
+    for s in ordonnes[:NB_SIGNAUX_LISTES_MAX]:
+        ligne = {
+            "signal_id": s["signal_id"],
+            "affaire_id": s["affaire_id"],
+            "horodatage": s["horodatage"],
+            "etat": s["etat"],
+            "traite_par": s["traite_par"],
+            "traite_le": s["traite_le"],
+            "motif": s["motif"],
+        }
+        candidate = {**vue, "signaux": [*vue["signaux"], ligne], "nb_omis": vue["nb_omis"] - 1}
+        if len(json.dumps(candidate, ensure_ascii=False)) <= CARACTERES_LISTE_MAX:
+            vue = candidate
+    return vue
 
 
 def traiter_signal(

@@ -61,8 +61,12 @@ def enregistrer_usage(
     usage: Mapping[str, Any] | None,
     jour: dt.date | None = None,
 ) -> dict[str, int]:
+    """Compte l'usage au jour UTC par défaut, comme l'admission des agents.
+
+    Un jour explicite reste inchangé ; aucune ligne historique n'est reclassée.
+    """
     compteurs = normaliser_usage(usage)
-    cle_jour = (jour or dt.date.today()).isoformat()
+    cle_jour = (jour or dt.datetime.now(dt.UTC).date()).isoformat()
     insertion = inserer(cnx)(USAGE_TOKENS).values(
         jour=cle_jour, departement=departement, modele=modele or "inconnu", appels=1,
         tokens_entree=compteurs["tokens_entree"], tokens_sortie=compteurs["tokens_sortie"],
@@ -136,8 +140,8 @@ def consommation(cnx: Connection, departement: str, depuis: dt.date, jusqu_a: dt
 def etat_budget(
     cnx: Connection, departement: str, budget: Budget, jour: dt.date | None = None
 ) -> dict[str, Any]:
-    """Niveau 'ok' / 'alerte' / 'epuise' sur le jour et le mois en cours."""
-    aujourd_hui = jour or dt.date.today()
+    """Niveau 'ok' / 'alerte' / 'epuise' sur le jour/mois UTC, ou le jour explicite fourni."""
+    aujourd_hui = jour or dt.datetime.now(dt.UTC).date()
     jour_utilise = consommation(cnx, departement, aujourd_hui, aujourd_hui)
     mois_utilise = consommation(cnx, departement, aujourd_hui.replace(day=1), aujourd_hui)
     pct_jour = 100 * jour_utilise / budget.tokens_jour

@@ -43,6 +43,8 @@ export type TypeMutation =
   | "approval_decision"
   /** Décision humaine M7 ; preuve locale dans payload JSON, args RPC projetés par son descripteur. */
   | "marketing_decision"
+  /** Arbitrage humain M10 d’un signalement réel ; aucun acteur fourni dans le payload. */
+  | "memory_revision_arbitration"
   | "lead_note";
 
 /**

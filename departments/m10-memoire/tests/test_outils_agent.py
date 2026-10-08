@@ -26,7 +26,7 @@ from m10_memoire.outils import (
     verifier_reference,
 )
 
-from opsys import stockage
+from opsys import contexte, identite, stockage
 from opsys.departements import lire_manifeste
 from opsys.outils import Autonomie, Niveau, executer
 from opsys.politiques import approbation_requise_niveau
@@ -174,11 +174,16 @@ def test_signaler_puis_arbitrer_une_revision_sur_le_registre_affaires():
     assert signalement["accepte"] is True
     revision_ligne_id = signalement["resultat"]["ligne_id"]
 
-    arbitrage = arbitrer_revision(revision_ligne_id, "distincts_confirmes", HORODATAGE)
+    with stockage.transaction() as cnx:
+        identite.creer_personne(cnx, "admin.fictif", "Admin Fictive", "mot-de-passe-fictif-1234", ["admin"])
+        with contexte.appele_par_appareil(contexte.IdentiteAppelante("admin.fictif", "admin")):
+            arbitrage = arbitrer_revision(revision_ligne_id, "distincts_confirmes", HORODATAGE)
+            refus = arbitrer_revision("ligne-jamais-signalee", "obsolete_marquee", HORODATAGE)
     assert arbitrage["accepte"] is True
     assert arbitrage["resultat"]["statut"] == "distincts_confirmes"
+    assert arbitrage["resultat"]["par"] == "admin.fictif"
+    assert arbitrage["resultat"]["source_decision"] == "appareil"
 
-    refus = arbitrer_revision("ligne-jamais-signalee", "obsolete_marquee", HORODATAGE)
     assert refus["accepte"] is False
 
 

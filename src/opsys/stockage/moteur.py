@@ -40,7 +40,7 @@ def url_base() -> str:
     if url:
         return url
     dossier = dossier_opsys()
-    dossier.mkdir(parents=True, exist_ok=True)
+    dossier.mkdir(mode=0o700, parents=True, exist_ok=True)
     return f"sqlite:///{dossier / 'opsys.db'}"
 
 

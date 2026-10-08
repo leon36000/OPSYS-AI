@@ -25,6 +25,17 @@ function serveurQuiRepond(reponse: unknown) {
 }
 
 describe("lireSection : la lecture d'une section, ses quatre issues", () => {
+  test("déconnexion connue : cache personnel daté, sans appeler le réseau", async () => {
+    const depot = new DepotCleValeurMemoire();
+    await ecrireCacheSection(depot, "nathan", "section_de_test", enveloppeCouple({ n: 5 }), "2026-09-28T12:00:00.000Z");
+    const transport = serveurQuiRepond(enveloppeCouple({ n: 9 }));
+    const lu = await lireSection({ ...config(transport, { depot }), enLigne: () => false }, SECTION);
+    expect(transport).not.toHaveBeenCalled();
+    expect(lu).toMatchObject({ source: "cache", valeur: { n: 5 }, misAJourLe: "2026-09-28T12:00:00.000Z", raisonHorsLigne: { code: "hors_ligne" } });
+    const autre = await lireSection({ ...config(transport, { depot, personne: "autre.fictif" }), enLigne: () => false }, SECTION);
+    expect(autre).toMatchObject({ source: "aucune", raison: { code: "hors_ligne" } });
+    expect(transport).not.toHaveBeenCalled();
+  });
   test("SERVEUR : la valeur lue, la date de l'appareil, et le cache écrit", async () => {
     const depot = new DepotCleValeurMemoire();
     const c = config(serveurQuiRepond(enveloppeCouple({ n: 7 })), { depot });

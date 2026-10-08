@@ -7,6 +7,7 @@ import { interpreterResultatDeclarerMateriauxUtilises } from "../m6/materiaux";
 import { interpreterResultatDeposerFichier } from "../fichiers/protocole";
 import { interpreterResultatEnregistrerInteraction } from "../m2/interaction";
 import { construireArgumentsDecisionMarketing, interpreterDecisionMarketing } from "../m7/decisionOutbox";
+import { construireArgumentsArbitrageMemoire, interpreterArbitrageMemoire } from "../m10/arbitrageOutbox";
 import type { DescripteurTypeMutation, InterpretationResultatMetier } from "./vidangeur";
 import type { TypeMutation } from "./types";
 
@@ -143,6 +144,10 @@ export const DESCRIPTEURS_MUTATION: ReadonlyMap<TypeMutation, DescripteurTypeMut
   ["marketing_decision", { tool: "m7_decider_contenu", construireArguments: construireArgumentsDecisionMarketing,
     interpreterResultat: interpreterDecisionMarketing, serialiserParChantier: true,
     validerRecuEnvoye: mutation => interpreterDecisionMarketing({ ok: true,
+      resultat: { accepte: true, resultat: mutation.resumeAccepte } }, mutation).accepte }],
+  ["memory_revision_arbitration", { tool: "m10_arbitrer_revision", construireArguments: construireArgumentsArbitrageMemoire,
+    interpreterResultat: interpreterArbitrageMemoire, serialiserParChantier: true,
+    validerRecuEnvoye: mutation => interpreterArbitrageMemoire({ ok: true,
       resultat: { accepte: true, resultat: mutation.resumeAccepte } }, mutation).accepte }],
   ["lead_note", { tool: "m2_enregistrer_interaction", interpreterResultat: versInterpretationGeneriqueNote }],
 ]);

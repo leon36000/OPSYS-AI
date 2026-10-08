@@ -2291,6 +2291,18 @@ météo et GPS M4, vision M3, conseil d'agents M9…
 
 - [ ] T4.25 Mobile admin : signaux de M10 (`m10_lister_signaux`, `m10_statut_decision`,
       `m10_statut_revision`, `m10_arbitrer_revision`).
+      Candidate isolée sur a3853e8a : gardes admin natives, réception/auteur humain,
+      catalogue de références métier sous confidentialité et dossier des deux faits avant arbitrage.
+      Cache personnel informatif signaux/références seulement ; pages courantes remplacées,
+      aucun dossier ou statut cache n’autorise un choix. Outbox existante, même UUID avant réseau,
+      ACK11champs/hash/personne/cible/choix ; résultat inconnu garde intention et bloque nouvelle clé.
+      Étape candidate initiale :3122tests/153suites. Intégration sur21ab50cd :3140tests/154suites,
+      TypeScript et1291Python affectés/1skip verts ; Gateway Node réelle13phases, arrêt/rejeu/reprise
+      et refus de rôle vérifiés séparément. Core complet local construit. Socle4367P/224skips/3F :
+      deux oracles cpu.max absents ; assertion HermesUTC corrigée puis95P/5skips voisins.
+      CI du prochain commit exact requise. Téléphone/ExpoSQLite/Hermes natifs non qualifiés.
+      [Audit intégré](../reprise/MEMOIRE-M10-2026-10-07/AUDIT-MEMOIRE-M10-2026-10-07-r2.md).
+      Le département M10 profond et les deux domaines de mémoire restent PARTIEL.
 - [ ] T4.26 Mobile admin : transferts de M1 (`m1_lire_transfert`, `m1_produire_digest`).
 - [ ] T4.27 Serveur : les outils de §9.5 qui manquent encore. M1 : boîte omnicanal, appels manqués
       et rappels, « prendre en charge », « rappeler », « envoyer la réponse approuvée ». M4 : météo

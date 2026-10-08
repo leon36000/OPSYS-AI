@@ -50,11 +50,13 @@ from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 from . import (
     amont,
     audit,
+    catalogue_references,
     classification,
     consolidation,
     contexte,
     contrats,
     decisions,
+    dossier_revision,
     etapes,
     faits_candidats,
     humain,
@@ -371,17 +373,28 @@ def signaler_revision(ligne_id_a: str, ligne_id_b: str, horodatage: str) -> dict
 
 
 def arbitrer_revision(revision_ligne_id: str, statut: str, horodatage: str) -> dict[str, Any]:
+    acteur, refus = _acteur_humain("m10_arbitrer_revision")
+    if acteur is None:
+        return refus or _verdict(humain.REJ_HUMAIN_REQUIS, "acteur humain introuvable")
     return depuis_couple(
-        revision.arbitrer_revision(_REGISTRE_AFFAIRES, revision_ligne_id, statut, horodatage)
+        revision.arbitrer_revision(
+            _REGISTRE_AFFAIRES, revision_ligne_id, statut, _horodatage_faisant_foi(horodatage), acteur=acteur
+        )
     )
 
 
 def statut_decision(decision_id: str) -> dict[str, Any]:
     """Statut courant, TOUJOURS calculé par relecture de la chaîne (jamais un champ positionnable)."""
+    refus = _refus_lecture_admin()
+    if refus is not None:
+        return refus
     return {"statut": decisions.statut_courant(_REGISTRE_AFFAIRES, decision_id)}
 
 
 def statut_revision(revision_ligne_id: str) -> dict[str, Any]:
+    refus = _refus_lecture_admin()
+    if refus is not None:
+        return refus
     return {"statut": revision.statut_revision(_REGISTRE_AFFAIRES, revision_ligne_id)}
 
 
@@ -437,6 +450,20 @@ _DEPARTEMENT = "m10-memoire"
 
 def _verdict(code: str, detail: str) -> dict[str, Any]:
     return {"accepte": False, "verdict": validation.construire_verdict(code, detail)}
+
+
+def _refus_lecture_admin() -> dict[str, Any] | None:
+    """Préserve la lecture interne ; confirme l'admin d'appareil avant tout registre."""
+    appelante = contexte_appel.identite_appelante()
+    if appelante is None:
+        return None
+    cnx = stockage.connexion_courante()
+    confirmee = approbations.signataire_valide(cnx, appelante) if cnx is not None else None
+    if confirmee is None or confirmee.role != humain.ROLE_ADMIN:
+        return _verdict(
+            "REJ-IDENTITE-APPAREIL-INVALIDE", "cette lecture exige une personne admin active confirmée en base"
+        )
+    return None
 
 
 def _acteur_humain(nom_outil: str) -> tuple[dict[str, str] | None, dict[str, Any] | None]:
@@ -519,7 +546,32 @@ def clore_signal(signal_id: str, motif: str, horodatage: str) -> dict[str, Any]:
 
 def lister_signaux(affaire_id: str | None = None) -> dict[str, Any]:
     """Les signaux critiques (d'une affaire, ou de toutes), ouverts d'abord (PLAN T3.3-suite-b)."""
+    refus = _refus_lecture_admin()
+    if refus is not None:
+        return refus
     return signaux.lister(affaire_id, _REGISTRE_EVENEMENTS.lire(), _REGISTRE_AFFAIRES.lire())
+
+
+def lire_revision(revision_ligne_id: str) -> dict[str, Any]:
+    """Dossier métier complet : deux faits exacts, jamais un fragment de comparaison."""
+    refus = _refus_lecture_admin()
+    if refus is not None:
+        return refus
+    snapshot = registre.Registre(maillons=_REGISTRE_AFFAIRES.lire())
+    return depuis_couple(dossier_revision.lire_revision(snapshot, revision_ligne_id))
+
+
+def lister_references(limite: int = 8, decalage: int = 0) -> dict[str, Any]:
+    """Catalogue métier : une copie des Affaires après confirmation de l'admin d'appareil."""
+    refus = _refus_lecture_admin()
+    if refus is not None:
+        return refus
+    if type(limite) is not int or not 1 <= limite <= 8 or type(decalage) is not int or decalage < 0:
+        return _verdict(
+            "REJ-CATALOGUE-PAGINATION-INVALIDE", "limite entière de 1 à 8 et décalage entier positif ou nul"
+        )
+    snapshot = registre.Registre(maillons=_REGISTRE_AFFAIRES.lire())
+    return depuis_couple(catalogue_references.lister_references(snapshot, limite, decalage))
 
 
 def lier_session_affaire(cle_session: str, affaire_id: str, motif: str, horodatage: str) -> dict[str, Any]:
@@ -779,6 +831,44 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=lister_signaux,
             # §7 M10 mobile (admin : alertes critiques, contradictions) ; lecture.
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m10_lire_revision",
+            description=(
+                "Lit les deux faits métier exacts d'une révision signalée et son dernier statut, "
+                "avec leurs références vérifiables. Refuse tout le dossier si une pièce est retenue, "
+                "non comparable, non JSON ou si la sortie complète dépasse le budget."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {"revision_ligne_id": {"type": "string"}},
+                "required": ["revision_ligne_id"],
+                "additionalProperties": False,
+            },
+            fonction=lire_revision,
+            autonomie=Autonomie.T0,
+            niveau=Niveau.N0,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m10_lister_references",
+            description=(
+                "Catalogue métier paginé des décisions et révisions visibles du registre Affaires : "
+                "statuts courants et références vérifiables, sans textes libres ni tête privée. "
+                "La mémoire de développement n'est pas consultée."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "limite": {"type": "integer", "minimum": 1, "maximum": 8, "default": 8},
+                    "decalage": {"type": "integer", "minimum": 0, "default": 0},
+                },
+                "additionalProperties": False,
+            },
+            fonction=lister_references,
+            autonomie=Autonomie.T0,
+            niveau=Niveau.N0,
             roles_appareil=frozenset({"admin"}),
         ),
         Outil(

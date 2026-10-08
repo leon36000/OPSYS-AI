@@ -121,6 +121,7 @@ class Poste:
     def __init__(self, tmp_path: Path, *, macos: bool) -> None:
         self.macos = macos
         racine = tmp_path / ("macos" if macos else "linux")  # deux postes dans un même test : deux dossiers
+        self.logs_core = racine / "logs-core-fictifs"
         self.hote = racine / "hote"
         self.travail = racine / "travail"
         self.faux = racine / "faux"
@@ -165,6 +166,7 @@ class Poste:
             "FAUX_PYTHON": sys.executable, "FAUX_CORE": str(FAUX_CORE), "FAUX_PNPM_VERSION": _version_pnpm(),
             "FAUX_LAUNCHD": str(self.hote / ".faux-launchd"), "FAUX_JOURNAL": str(self.travail / "appels.log"),
             "FAUX_DOCKER_ARGV": str(self.travail / "docker-argv.jsonl"),
+            "OPSYS_DIAGNOSTIC_CORE_LOG_DIR": str(self.logs_core),
         })
         env.update(supplement)
         return env
@@ -625,6 +627,9 @@ def _monde_du_diagnostic(poste: Poste) -> None:
     journaux = poste.hote / "Library" / "Logs" / "openclaw"
     journaux.mkdir(parents=True)
     (journaux / "gateway-opsys.log").write_text(f"ligne du service\njeton={JETON}\n", encoding="utf-8")
+    poste.logs_core.mkdir()
+    (poste.logs_core / "legacy-fictif.log").write_text(
+        f"le core temporaire dit {JETON} et {CLE}\n", encoding="utf-8")
 
 
 @pytest.mark.parametrize("systeme", ["macos", "linux"])
@@ -641,6 +646,12 @@ def test_le_diagnostic_imprime_les_journaux_sans_jamais_un_secret_ni_le_contenu_
     imprime = _sans_masque(sortie)
     assert JETON not in imprime and CLE not in imprime, "un secret est imprimé en clair"
     assert "le moteur dit *** et ***" in imprime  # la fin du journal de l'installateur, secrets remplacés
+    if systeme == "macos":
+        # Un booléen garde le rouge lisible sans imprimer les journaux globaux du poste hôte.
+        legacy_fictif_lu = "le core temporaire dit *** et ***" in imprime
+        assert legacy_fictif_lu
+        assert str(poste.logs_core / "legacy-fictif.log") in imprime
+        assert "/tmp/openclaw/" not in imprime
     assert "RIEN=ceci" not in imprime and "OPSYS_MCP_JETON" not in imprime  # jamais le contenu de .env
     assert "::group::" in resultat.stdout
     assert resultat.stdout.count("::group::") == resultat.stdout.count("::endgroup::")

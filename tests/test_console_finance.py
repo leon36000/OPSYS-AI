@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -16,7 +16,7 @@ if str(_M5_SRC) not in sys.path:
 import m5_financecore.outils as m5_outils  # noqa: E402
 
 from opsys import contexte, identite, stockage  # noqa: E402
-from opsys.console import application  # noqa: E402
+from opsys.console import application, metier  # noqa: E402
 from opsys.console.securite import Configuration  # noqa: E402
 from opsys.departements import charger_departements  # noqa: E402
 
@@ -24,6 +24,18 @@ SECRET = "secret-finance-console-test-" + "x" * 32
 PREFIXE = "/opsys"
 NOM = "nathan.fictif"
 MOT_DE_PASSE = "mot-de-passe-finance-fictif-123"
+
+
+def _horloge_serveur_utc(monkeypatch):
+    maintenant = datetime(2026, 10, 8, 0, 0, 1, tzinfo=UTC)
+
+    class Horloge(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return maintenant.astimezone(tz) if tz is not None else maintenant.replace(tzinfo=None)
+
+    monkeypatch.setattr(metier, "datetime", Horloge)
+    return maintenant
 
 
 @pytest.fixture
@@ -96,14 +108,15 @@ def test_finance_get_lit_projection_et_authentifie_sans_trace_metier(client_fina
     assert "script-src 'self'" in page.headers["content-security-policy"]
 
 
-def test_finance_calendrier_utilise_la_date_serveur_et_garde_les_manques(client_finance):
+def test_finance_calendrier_utilise_la_date_serveur_et_garde_les_manques(client_finance, monkeypatch):
+    maintenant = _horloge_serveur_utc(monkeypatch)
     client = _connecter(client_finance)
     with stockage.transaction():
         avant = list(stockage.maillons("m05-financecore", "principal"))
     retour = client.get("/api/finance/obligations")
     assert retour.status_code == 200, retour.text
     calendrier = retour.json()["etat"]["resultat"]
-    assert calendrier["aujourd_hui"] == date.today().isoformat()
+    assert calendrier["aujourd_hui"] == maintenant.date().isoformat()
     assert {ligne["id"] for ligne in calendrier["obligations"]} == {"paies", "das", "dettes"}
     assert all(ligne["statut"] == "INCOMPLETE" for ligne in calendrier["obligations"])
     assert all(ligne["montant_utilisable"] is None for ligne in calendrier["obligations"])
@@ -184,7 +197,7 @@ def test_finance_decision_canonique_echoue_fermee_quand_obligations_manquent(cli
 
 
 def test_finance_decision_compare_scenarios_depuis_meme_registre_m5(client_finance, monkeypatch):
-    aujourd_hui = date.today()
+    aujourd_hui = _horloge_serveur_utc(monkeypatch).date()
     monkeypatch.setattr(
         m5_outils,
         "_configuration_manifeste",
@@ -217,7 +230,8 @@ def test_finance_decision_compare_scenarios_depuis_meme_registre_m5(client_finan
     )
     assert reserve["accepte"] is True
     client = _connecter(client_finance)
-    commande = _commande(mutation_id="decision-camion-95-complete-fictif")
+    commande = _commande(mutation_id="decision-camion-95-complete-fictif",
+                         prix_valide_jusqua=(aujourd_hui + timedelta(days=15)).isoformat())
     retour = client.post("/api/finance/decision", json=commande, headers={"x-csrf-token": _csrf(client)})
     assert retour.status_code == 200, retour.text
     corps = retour.json()["resultat"]

@@ -3,12 +3,36 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from threading import Event
+from types import SimpleNamespace
 
 import pytest
 from memoire.doubles import postgres_ephemere, raison_sans_docker
 from sqlalchemy import select
 
 from opsys import admission_agents, agents, identite, jetons
+
+
+def _horloge_budget_utc(monkeypatch, heure_utc=0):
+    """Minuit UTC puis 23h Toronto le même soir local, sans changer le TZ du processus."""
+    import datetime as dt
+    from zoneinfo import ZoneInfo
+
+    instant = dt.datetime(2026, 10, 8, heure_utc, 0, 1, tzinfo=dt.UTC)
+    locale = instant.astimezone(ZoneInfo("America/Toronto"))
+
+    class DateLocale(dt.date):
+        @classmethod
+        def today(cls):
+            return locale.date()
+
+    class Horloge(dt.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return instant.astimezone(tz) if tz is not None else locale.replace(tzinfo=None)
+
+    monkeypatch.setattr(admission_agents, "_maintenant", lambda: instant)
+    monkeypatch.setattr(jetons, "dt", SimpleNamespace(date=DateLocale, datetime=Horloge, UTC=dt.UTC))
+    return instant
 
 
 def _setup(session, departements_demo, *, budget=100, budget_mois=None):
@@ -108,18 +132,19 @@ def test_aggregat_usage_externe_superieur_i64_refuse_sans_overflow_sqlite(sessio
             _reserve(cnx, departements_demo, "usage-overflow-run", "usage-overflow-key", 1)
 
 
-def test_conciliation_refuse_overflow_ledger_sans_modifier_reservation_ni_historique(session, departements_demo):
-    from datetime import date
-
+def test_conciliation_refuse_overflow_ledger_sans_modifier_reservation_ni_historique(
+    session, departements_demo, monkeypatch,
+):
     from opsys.stockage.schema import USAGE_TOKENS
 
+    maintenant = _horloge_budget_utc(monkeypatch)
     _setup(session, departements_demo)
     _policy(session)
     maximum = (1 << 63) - 1
     with session() as cnx:
         reservation = _reserve(cnx, departements_demo, "ledger-overflow-run", "ledger-overflow-key", 1)
         cnx.execute(USAGE_TOKENS.insert().values(
-            jour=date.today().isoformat(), departement="m09-demo", modele="agent:m09-admission",
+            jour=maintenant.date().isoformat(), departement="m09-demo", modele="agent:m09-admission",
             appels=1, tokens_entree=maximum, tokens_sortie=0, tokens_cache_lus=0,
         ))
         with pytest.raises(admission_agents.AdmissionRefusee, match="compteur d'usage"):
@@ -130,16 +155,15 @@ def test_conciliation_refuse_overflow_ledger_sans_modifier_reservation_ni_histor
     assert len(history) == 1
 
 
-def test_conciliation_upsert_returning_met_a_jour_une_ligne_sqlite_existante(session, departements_demo):
-    from datetime import date
-
+def test_conciliation_upsert_returning_met_a_jour_une_ligne_sqlite_existante(session, departements_demo, monkeypatch):
     from opsys.stockage.schema import USAGE_TOKENS
 
+    maintenant = _horloge_budget_utc(monkeypatch)
     _setup(session, departements_demo)
     _policy(session)
     with session() as cnx:
         cnx.execute(USAGE_TOKENS.insert().values(
-            jour=date.today().isoformat(), departement="m09-demo", modele="agent:m09-admission",
+            jour=maintenant.date().isoformat(), departement="m09-demo", modele="agent:m09-admission",
             appels=1, tokens_entree=4, tokens_sortie=0, tokens_cache_lus=0,
         ))
         reservation = _reserve(cnx, departements_demo, "ledger-conflict-run", "ledger-conflict-key", 1)
@@ -279,13 +303,49 @@ def test_depassement_reel_est_trace_et_bloque_les_admissions_suivantes(session, 
             _reserve(cnx, departements_demo, "execution-after-overrun", "overrun-key-0002", 26)
 
 
-def test_usage_departement_existant_deducted_before_agent_reservation(session, departements_demo):
+def test_usage_departement_existant_deducted_before_agent_reservation(session, departements_demo, monkeypatch):
+    _horloge_budget_utc(monkeypatch)
     _setup(session, departements_demo, budget=500)
     _policy(session, day=1000, month=20000)
     with session() as cnx:
         jetons.enregistrer_usage(cnx, "m09-demo", "modele-existant", {"input_tokens": 950})
         with pytest.raises(admission_agents.AdmissionRefusee, match="budget departement insuffisant"):
             _reserve(cnx, departements_demo, "execution-department", "department-key-0001", 51)
+
+
+@pytest.mark.parametrize("heure_utc", [0, 3], ids=["minuit_utc_soir_toronto", "23h_toronto_jour_utc_suivant"])
+def test_ports_budget_partagent_jour_utc_et_preservent_jour_explicite_historique(
+    session, departements_demo, monkeypatch, heure_utc,
+):
+    """La lecture/écriture externe et l'admission partagent la période, sans réécrire le passé."""
+    from datetime import date
+
+    from opsys.stockage.schema import USAGE_TOKENS
+
+    maintenant = _horloge_budget_utc(monkeypatch, heure_utc)
+    _setup(session, departements_demo, budget=500)
+    _policy(session, day=1000, month=20000)
+    with session() as cnx:
+        jour_historique = date(2026, 10, 7)
+        jetons.enregistrer_usage(cnx, "m09-demo", "historique-fictif", {"input_tokens": 11}, jour=jour_historique)
+        historique = cnx.execute(select(USAGE_TOKENS).where(
+            USAGE_TOKENS.c.modele == "historique-fictif",
+        )).mappings().one()
+        jetons.enregistrer_usage(cnx, "m09-demo", "modele-existant", {"input_tokens": 950})
+        # Une réservation de51 dépasserait le solde de50 : refus réel, pas seulement un format de date.
+        with pytest.raises(admission_agents.AdmissionRefusee, match="budget departement insuffisant"):
+            _reserve(cnx, departements_demo, "frontiere-refus", "frontiere-refus-key", 51)
+        assert jetons.etat_budget(cnx, "m09-demo", departements_demo["m09-demo"].budget)["jour"]["utilise"] == 950
+        assert jetons.etat_budget(cnx, "m09-demo", departements_demo["m09-demo"].budget,
+                                 jour=jour_historique)["jour"]["utilise"] == 11
+        admise = _reserve(cnx, departements_demo, "frontiere-acceptee", "frontiere-acceptee-key", 50)
+        assert admise["jour"] == maintenant.date().isoformat()
+        finale = admission_agents.concilier(cnx, admise["id"], 3)
+        assert finale["statut"] == "conciliee"
+        assert jetons.etat_budget(cnx, "m09-demo", departements_demo["m09-demo"].budget)["jour"]["utilise"] == 953
+        assert cnx.execute(select(USAGE_TOKENS).where(
+            USAGE_TOKENS.c.modele == "historique-fictif",
+        )).mappings().one() == historique
 
 
 def test_plafond_entreprise_requires_admin_and_revision_compare_swap(session, departements_demo):

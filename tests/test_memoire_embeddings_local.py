@@ -90,12 +90,15 @@ if _MODULE_SPEC is not None:
         assert erreur.value.code == 401
         assert CLE not in corps and texte not in corps and "x" * 32 not in corps
 
-    def test_refuse_batch_superieur_a_un_et_modele_inconnu():
+    @pytest.mark.parametrize("payload", [
+        {"model": MODELE, "input": ["a", "b"]},
+        {"model": "autre", "input": "texte fictif"},
+    ], ids=["batch", "modele"])
+    def test_refuse_batch_superieur_a_un_et_modele_inconnu(payload):
         with _serveur(_Moteur()) as base:
-            for payload in ({"model": MODELE, "input": ["a", "b"]}, {"model": "autre", "input": "texte fictif"}):
-                with pytest.raises(urllib.error.HTTPError) as erreur:
-                    _post(base, CLE, payload)
-                assert erreur.value.code == 422
+            with pytest.raises(urllib.error.HTTPError) as erreur:
+                _post(base, CLE, payload)
+            assert erreur.value.code == 422
 
     @pytest.mark.parametrize(
         ("brut", "content_type", "statut"),

@@ -18,6 +18,8 @@ export { classerEchec, verdictDepuisEchec };
  * cache, et n'est JAMAIS envoyée au serveur (il la tient du jeton d'appareil).
  */
 export interface ConfigurationChargeurAdmin {
+  /** Quand fourni, une déconnexion connue relit seulement le cache personnel. */
+  readonly enLigne?: () => boolean;
   readonly depot: DepotCleValeur;
   readonly appelerOutil: (params: ParametresAppelOutil) => Promise<ResultatAppelOutil>;
   readonly fetchImpl: typeof fetch;
@@ -46,7 +48,7 @@ export type AppelLecture =
  * HTTP : elle devient `injoignable` ou `refuse`, avec le verdict de l'échec.
  */
 export async function appelerLecture(
-  config: ConfigurationChargeurAdmin,
+  config: Pick<ConfigurationChargeurAdmin, "appelerOutil" | "fetchImpl" | "urlBase" | "jeton">,
   tool: string,
   args: Readonly<Record<string, unknown>>,
 ): Promise<AppelLecture> {

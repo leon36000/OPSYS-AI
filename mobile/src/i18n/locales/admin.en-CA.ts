@@ -6,6 +6,93 @@ import type { RessourcesAdmin } from "./admin.fr-CA";
  * says so in words too: never a dash, never a zero.
  */
 const adminEnCA: RessourcesAdmin = {
+  memoire: {
+  "titre": "Business memory",
+  "note": "Business register: signals, recorded decisions and revisions to compare.",
+  "signaux": "Critical signals",
+  "references": "Decisions and revisions",
+  "decisions": "Recorded decisions",
+  "revisions": "Flagged revisions",
+  "pagesCourantes": "Current pages: each page replaces the previous one. The register may change between reads.",
+  "page": "Offset {{debut}}: {{affichees}} references shown, {{reste}} remaining out of {{total}} accessible.",
+  "confidentialite": "{{nombre}} references withheld by the confidentiality rule.",
+  "comptesSignaux": "{{total}} signals: {{ouverts}} open, {{pris}} acknowledged, {{clos}} closed; {{omis}} not shown.",
+  "signal": "Signal: {{reference}}.",
+  "affaire": "Job: {{reference}}.",
+  "traitement": "Handled by {{personne}} on {{date}}.",
+  "vide": "No items in this read.",
+  "inconnu": "Not provided",
+  "oui": "Yes",
+  "non": "No",
+  "reference": "Source: business register, entry {{ligne}}.",
+  "lireDecision": "Read the current decision status",
+  "ouvrirRevision": "Compare the two facts",
+  "suite": "Read the next current page",
+  "statutDecision": "Current status: {{reference}}",
+  "comparer": "Revision comparison",
+  "arbitrageNote": "Your choice adds a human record. It does not delete or merge the compared facts.",
+  "fait": "Fact {{lettre}}",
+  "lectureSeule": "Informational read: arbitration requires a consistent server dossier and a resolved previous intention.",
+  "intentions": "Arbitrations recorded on this device",
+  "attente": "An unknown network result keeps the same intention and blocks another choice for this revision.",
+  "intention": "{{id}} · revision {{reference}} · {{choix}} · {{statut}} · {{personne}}",
+  "etatsSignal": {
+    "ouvert": "Open",
+    "pris_en_compte": "Acknowledged",
+    "clos": "Closed"
+  },
+  "etatsDecision": {
+    "proposee": "Proposed",
+    "validee": "Validated",
+    "remplacee": "Replaced",
+    "annulee": "Cancelled",
+    "indetermine": "Undetermined"
+  },
+  "etatsRevision": {
+    "en_attente": "Pending",
+    "distincts_confirmes": "Distinct facts confirmed",
+    "obsolete_marquee": "Revision marked obsolete",
+    "indetermine": "Undetermined"
+  },
+  "choix": {
+    "distincts_confirmes": "Confirm distinct facts",
+    "obsolete_marquee": "Mark the revision obsolete",
+    "indetermine": "Mark undetermined",
+    "en_attente": "Keep pending"
+  },
+  "typesFait": {
+    "decision_enregistree": "Recorded decision",
+    "evenement_memorise": "Remembered event",
+    "fait_consolide": "Consolidated fact",
+    "fait_candidat": "Candidate fact",
+    "provenance_documentaire": "Document provenance"
+  },
+  "champs": {
+    "raison": "Reason",
+    "options_ecartees": "Rejected options",
+    "raisons": "Reasons",
+    "options_rejetees": "Rejected options",
+    "decision_id": "Decision",
+    "affaire_id": "Job",
+    "resume": "Summary",
+    "texte": "Text",
+    "sources": "Sources",
+    "preuves": "Evidence"
+  },
+  "messages": {
+    "connexion": "Connect to read facts and arbitrate. Personal copies remain informational.",
+    "lectureImpossible": "Read temporarily unavailable.",
+    "dossierInvalide": "The two facts and current status are not consistent enough to arbitrate.",
+    "actionIndisponible": "Arbitration currently unavailable.",
+    "stockageLecture": "The local queue cannot be read: no new choice allowed.",
+    "stockageDecision": "The intention could not be recorded on this device.",
+    "dejaEnFile": "An arbitration already exists for this revision. Wait for its resolution.",
+    "decisionIncertaine": "Unknown result: retain the same intention before another choice.",
+    "relectureImpossible": "The receipt is retained; the current dossier cannot be read yet.",
+    "refusServeur": "The server refused this arbitration or read.",
+    "relue": "Arbitration confirmed and current dossier read."
+  }
+},
   stock: {
   "titre": "Stock",
   "disponibilite": "Material availability",

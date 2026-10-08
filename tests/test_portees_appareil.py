@@ -100,7 +100,8 @@ ADMIN_SEUL = frozenset({
     "m9_decider_demande_approbation", "m9_lire_alertes_m8", "m9_lire_etat_consolide", "m9_lire_suite_briefing",
     "m9_lister_demandes_approbation", "m9_produire_briefing_matin", "m9_produire_lecture_strategique",
     "m10_arbitrer_revision", "m10_paquet_contexte_affaire", "m10_statut_decision", "m10_statut_revision",
-    "m10_lister_signaux", "m10_prendre_en_compte_signal", "m10_clore_signal", "m10_lier_session_affaire",
+    "m10_lister_signaux", "m10_lister_references", "m10_lire_revision", "m10_prendre_en_compte_signal",
+    "m10_clore_signal", "m10_lier_session_affaire",
 })
 # Le lecteur paginé M3 est réservé au vendeur courant : l'admin ne choisit pas un vendeur
 # par argument et ne reçoit pas ce tool. Le lecteur de chantier et le diagnostic sont admin.

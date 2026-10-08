@@ -102,3 +102,10 @@ export function capturerSessionLecture(): { readonly session: SessionEnvoi | nul
   const generation = generationLectures;
   return { session, courante: () => session !== null && generation === generationLectures && obtenirSessionEnvoi() !== null };
 }
+
+/** Les projections de mémoire ne sont lisibles que dans une session admin confirmée. */
+export function capturerSessionAdminLecture(): { readonly session: SessionEnvoi | null; readonly courante: () => boolean } {
+  const capture = capturerSessionLecture();
+  if (personneConfirmee?.role !== "admin") return { session: null, courante: () => false };
+  return { session: capture.session, courante: () => capture.courante() && personneConfirmee?.role === "admin" };
+}

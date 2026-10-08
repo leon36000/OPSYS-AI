@@ -12,7 +12,8 @@
 #
 # Sortie : un groupe repliable (::group::) par sujet sous GitHub Actions, des titres « == sujet » ailleurs.
 # Variables : OPSYS_TRAVAIL (dossier de travail de bout_en_bout.sh), OPSYS_LOGICIEL (défaut : <travail>/logiciel),
-# OPSYS_PORT_GATEWAY, OPSYS_PORT_MOTEUR (défauts 18789 et 8765), HOME.
+# OPSYS_PORT_GATEWAY, OPSYS_PORT_MOTEUR (défauts 18789 et 8765), HOME,
+# OPSYS_DIAGNOSTIC_CORE_LOG_DIR (journaux temporaires du core, défaut : /tmp/openclaw).
 set -uo pipefail
 
 SYSTEME="$(uname -s)"
@@ -23,6 +24,7 @@ ANCIEN_PROFIL="${HOME:-/nonexistent}/.openclaw-opsys"
 PORT_GATEWAY="${OPSYS_PORT_GATEWAY:-18789}"
 PORT_MOTEUR="${OPSYS_PORT_MOTEUR:-8765}"
 LIGNES="${OPSYS_DIAGNOSTIC_LIGNES:-300}"
+LOGS_CORE="${OPSYS_DIAGNOSTIC_CORE_LOG_DIR:-/tmp/openclaw}"
 FILTRE=""
 trap '[ -z "$FILTRE" ] || rm -f "$FILTRE"' EXIT
 
@@ -101,7 +103,7 @@ case "$SYSTEME" in
         noms_et_modes "$HOME/Library/LaunchAgents" 1
         noms_et_modes "$HOME/Library/Logs/openclaw" 1
         fin_sujet
-        for journal in "$HOME"/Library/Logs/openclaw/*.log /tmp/openclaw/*.log; do
+        for journal in "$HOME"/Library/Logs/openclaw/*.log "$LOGS_CORE"/*.log; do
             [ -f "$journal" ] && fin_du_fichier "$journal"
         done
         ;;

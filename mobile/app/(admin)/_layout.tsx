@@ -16,5 +16,6 @@ export default function LayoutAdmin() {
   }
   return <Stack key={JSON.stringify([personne, session.presente ? session.role : null])} screenOptions={{ headerShown: false }}>
     <Stack.Screen name="marketing" />
+    <Stack.Screen name="memoire" />
   </Stack>;
 }

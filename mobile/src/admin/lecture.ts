@@ -64,6 +64,7 @@ export async function lireSection<T>(
       : { source: "aucune", raison: raisonHorsLigne };
   }
 
+  if (config.enLigne?.() === false) return depuisCache({ code: "hors_ligne", detail: "" });
   const appel = await appelerLecture(config, section.outil, section.args);
   if (!garde.courante()) return remplacee();
   if (appel.genre === "refuse") {

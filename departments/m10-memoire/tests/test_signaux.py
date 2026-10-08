@@ -6,6 +6,8 @@ imposé, un maillon qui n'a pas la forme d'un humain identifié ne ferme rien, l
 clôture est la règle de réévaluation écrite dans le module, et un refus n'écrit jamais rien.
 """
 
+import json
+
 import pytest
 from m10_memoire import paquets, registre, signaux, variance, wct
 
@@ -521,9 +523,9 @@ def test_lister_borne_la_liste_et_dit_ce_qu_il_omet(registres):
 
     liste = signaux.lister("LEAD-1", evenements.lire(), affaires.lire())
 
-    assert len(liste["signaux"]) == signaux.NB_SIGNAUX_LISTES_MAX
+    assert 0 < len(liste["signaux"]) <= signaux.NB_SIGNAUX_LISTES_MAX
     assert liste["nb_total"] == signaux.NB_SIGNAUX_LISTES_MAX + 7
-    assert liste["nb_omis"] == 7
+    assert liste["nb_omis"] == liste["nb_total"] - len(liste["signaux"])
     assert liste["nb_ouverts"] == signaux.NB_SIGNAUX_LISTES_MAX + 7  # le décompte n'est pas tronqué
 
 
@@ -535,3 +537,33 @@ def test_lister_montre_qui_et_pourquoi(un_signal):
 
     assert (signal["etat"], signal["traite_par"], signal["traite_le"], signal["motif"]) == (
         "clos", "amina.admin", LE_17, MOTIF_CLOS)
+
+
+def test_liste_borne_texte_sans_couper_motif_et_compte_toute_selection(registres):
+    evenements, affaires = registres
+    wct.memoriser_wct(_wct(), evenements)
+    motif = "Écart fictif expliqué : " + "é" * 476
+    for numero in range(50):
+        ident = f"EVT-VOLUME-FICTIF-{numero:03d}"
+        variance.memoriser_variance(_variance(ident), evenements)
+        assert _traiter(registres, signaux.ACTION_PRISE_EN_COMPTE, signal_id=ident, motif=motif)[1] is None
+    variance.memoriser_variance(_variance("EVT-OUVERT-PRIORITAIRE"), evenements)
+    avant = (evenements.lire(), affaires.lire())
+    liste = signaux.lister(None, *avant)
+    assert len(json.dumps(liste, ensure_ascii=False)) <= 5400
+    assert 0 < len(liste["signaux"]) < 50
+    assert liste["signaux"][0]["signal_id"] == "EVT-OUVERT-PRIORITAIRE"
+    assert all(s["motif"] == motif for s in liste["signaux"][1:])
+    assert (liste["nb_total"], liste["nb_pris_en_compte"], liste["nb_ouverts"], liste["nb_clos"]) == (51, 50, 1, 0)
+    assert liste["nb_omis"] == 51 - len(liste["signaux"])
+    assert (evenements.lire(), affaires.lire()) == avant
+
+
+def test_ligne_hors_budget_est_omise_explicitement_sans_couper_identifiant(registres):
+    evenements, affaires = registres
+    wct.memoriser_wct(_wct(), evenements)
+    variance.memoriser_variance(_variance("fictif-" + "x" * 6000), evenements)
+    liste = signaux.lister(None, evenements.lire(), affaires.lire())
+    assert liste["signaux"] == []
+    assert liste["nb_total"] == liste["nb_omis"] == liste["nb_ouverts"] == 1
+    assert len(json.dumps(liste, ensure_ascii=False)) <= 5400

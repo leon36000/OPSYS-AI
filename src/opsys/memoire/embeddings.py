@@ -16,6 +16,7 @@ import json
 import math
 import os
 import re
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -164,7 +165,11 @@ class ClientEmbeddings:
         return _valider_profil(donnees.get("opsys_embedding_profile"), self.modele, self.dimension)
 
     def plonger_avec_profil(self, textes: Sequence[str]) -> EmbeddingsProfil:
-        """Vectorise après handshake; chaque réponse doit porter la même recette fingerprintée."""
+        """Vectorise après handshake; chaque réponse porte la même recette fingerprintée.
+
+        Un 503 local connu autorise une seule reprise par lot après une seconde : le worker
+        précédent peut terminer sa fermeture. `delai_s` borne chaque requête HTTP, pas le lot.
+        """
         liste = list(textes)
         for position, texte in enumerate(liste):
             if not isinstance(texte, str) or not texte.strip():
@@ -172,7 +177,14 @@ class ClientEmbeddings:
         profil = self.verifier_profil_local()
         vecteurs: list[tuple[float, ...]] = []
         for debut in range(0, len(liste), self.taille_lot):
-            groupe, profil_reponse = self._appeler_reponse(liste[debut : debut + self.taille_lot])
+            lot = liste[debut : debut + self.taille_lot]
+            try:
+                groupe, profil_reponse = self._appeler_reponse(lot)
+            except ErreurEmbeddings as exc:
+                if not self.local or exc.http_status != 503:
+                    raise
+                time.sleep(1)
+                groupe, profil_reponse = self._appeler_reponse(lot)
             if profil_reponse != profil:
                 raise ErreurEmbeddings("empreinte de réponse différente du handshake du provider")
             vecteurs.extend(tuple(v) for v in groupe)

@@ -1,4 +1,4 @@
-from . import contrats
+from . import contrats, humain, validation
 
 _TYPE_ENTREE_REVISION = "revision_signalee"
 _STATUT_INITIAL = "en_attente"
@@ -57,7 +57,15 @@ def signaler_revision(registre_cible, ligne_id_a, ligne_id_b, horodatage):
     return _retrouver_maillon(registre_cible, ligne_id), None
 
 
-def arbitrer_revision(registre_cible, revision_ligne_id, statut, horodatage):
+def arbitrer_revision(registre_cible, revision_ligne_id, statut, horodatage, acteur=None):
+    # None conserve le contrat historique des appels purs à quatre arguments.
+    if acteur is not None and (
+        not isinstance(acteur, dict)
+        or not humain.acteur_valide(acteur.get("par"), acteur.get("role"), acteur.get("source"))
+    ):
+        return None, validation.construire_verdict(
+            humain.REJ_HUMAIN_ACTEUR_INVALIDE, "l'arbitrage exige un acteur humain identifié"
+        )
     if statut not in contrats.STATUT_REVISION:
         return None, REJ_REVISION_STATUT_INCONNU
 
@@ -72,6 +80,10 @@ def arbitrer_revision(registre_cible, revision_ligne_id, statut, horodatage):
             "ligne_id_b": None,
             "statut": statut,
             "revision_ligne_id": revision_ligne_id,
+            **(
+                {"par": acteur["par"], "role": acteur["role"], "source_decision": acteur["source"]}
+                if acteur is not None else {}
+            ),
         }
     )
     return _retrouver_maillon(registre_cible, ligne_id), None

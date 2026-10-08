@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 125 outils sur 217 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 127 outils sur 219 sont déclarés.
 
 ### `employee` (14 outils) : §9.3, le terrain
 
@@ -120,7 +120,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (124 outils) : §9.5 + employé + vendeur
+### `admin` (126 outils) : §9.5 + employé + vendeur
 
 Les 14 outils de l'employé, les 14 du vendeur, et :
 
@@ -172,6 +172,8 @@ Les 14 outils de l'employé, les 14 du vendeur, et :
 | M9 | `m9_produire_briefing_matin`, `m9_lire_alertes_m8`, `m9_lire_etat_consolide` | §7 M9 mobile : « Admin/Nathan seulement ». |
 | M9 | `m9_lister_demandes_approbation` (T0), `m9_decider_demande_approbation` (T1, N2) | §9.2 « le propriétaire approuve tout depuis le téléphone », §9.5 « Approbations » (T1.4-f). Règles ci-dessous : `admin` ouvre l'outil, la PERSONNE doit être le propriétaire. |
 | M10 | `m10_statut_decision`, `m10_statut_revision`, `m10_arbitrer_revision`, `m10_paquet_contexte_affaire` | §7 M10 mobile : décisions à valider, contradictions, recherche dans la mémoire. |
+| M10 | `m10_lister_references` (T0/N0) | T4.25 : vraies références du registre métier `affaires` uniquement, jamais développement ; pages courantes de huit éléments au plus et budget5400, derniers états filtrés selon confidentialité (PUBLIC_INTERNAL/INTERNAL). Les signalements de révision sont liés aux deux lignes et au dernier arbitrage ; aucune raison, option ou texte libre exposé par ce catalogue. Garde admin actif avant registre, autres profils refusés. |
+| M10 | `m10_lire_revision` (T0/N0) | T4.25 : comparaison des deux faits métier référencés par une révision, avec leurs champs JSON intègres, dates et provenance. Confidentialité contrôlée sur le signalement, les deux faits et le dernier arbitrage. Dossier entier refusé au-delà du budget 5400, sans tronquer une pièce. Garde admin actif avant registre ; aucune écriture ni mémoire développement exposée. |
 | M10 | `m10_lister_signaux` (T0), `m10_prendre_en_compte_signal`, `m10_clore_signal`, `m10_lier_session_affaire` (N3) | §9.5 « alertes critiques » (T3.3-suite-b). Les trois écritures sont des décisions HUMAINES : voir « Les écritures humaines de M10 » plus bas. |
 
 Les outils de M8 qui ingèrent un snapshot ou une définition fournis par l'appelant (`m8_rapport_metriques`,
@@ -191,6 +193,8 @@ dans un département en mode `supervise` ou `autonome`, où un N3 s'exécute san
 le nom de la personne, sa voie (`appareil` ou `approbation`), son rôle et son motif ; l'heure de réception du serveur
 fait foi pour un appel d'appareil. `m10_affaire_de_la_session` (lecture du lien) reste fermé à tous les appareils :
 le moteur de contexte du core est son seul appelant.
+
+T4.25 applique aussi la garde humaine à `m10_arbitrer_revision` avant le registre, avec réception serveur. Le nouveau maillon append-only conserve `par`, `role`, `source_decision` (11champs), sans motif inventé. Les maillons historiques et appels purs à quatre arguments restent lisibles. Aucune fusion ou suppression ; les statuts sont relus depuis la chaîne. Les trois lecteurs historiques confirment également l’admin actif avant données.
 
 ### L'usine à contenu de M7 (T4.17)
 

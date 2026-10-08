@@ -7,6 +7,7 @@ import json
 import threading
 from contextlib import contextmanager
 from copy import deepcopy
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
@@ -21,24 +22,170 @@ from opsys.memoire.serveur_embeddings_local import (
 
 
 class _MoteurFictif:
+    def __init__(self):
+        self.textes = []
+
     def embed_one(self, texte: str, delai_s: float):
+        self.textes.append(texte)
         if texte == "limite tokens fictive":
             raise ErreurRequete("entrée au-delà du maximum tokens", "input_token_limit_exceeded")
         return [1.0] + [0.0] * 1023, 9
 
 
 @contextmanager
-def _provider_fictif():
-    serveur = ServeurEmbeddingsLocal(("127.0.0.1", 0), cle="x" * 32, moteur=_MoteurFictif(), delai_s=1)
+def _provider_fictif(*, moteur=None, instrumenter_slot=None):
+    serveur = ServeurEmbeddingsLocal(
+        ("127.0.0.1", 0), cle="x" * 32, moteur=moteur or _MoteurFictif(), delai_s=1
+    )
+    slot = instrumenter_slot(serveur._slot) if instrumenter_slot else None
+    if slot is not None:
+        serveur._slot = slot
     thread = threading.Thread(target=serveur.serve_forever, daemon=True)
     thread.start()
     try:
         host, port = serveur.server_address
         yield f"http://{host}:{port}/v1"
     finally:
+        if slot is not None:
+            slot.debloquer()
         serveur.shutdown()
         serveur.server_close()
         thread.join(2)
+
+
+class _SlotFinReponseRetardee:
+    """Gate de test après fermeture HTTP, avant libération du slot réel du provider."""
+
+    def __init__(self, slot, *, nombre=1, liberer_au_refus=True):
+        self.slot = slot
+        self.gates = [threading.Event() for _ in range(nombre)]
+        self.liberer_au_refus = liberer_au_refus
+        self.refus = 0
+        self.liberations = 0
+
+    def acquire(self, *args, **kwargs):
+        pris = self.slot.acquire(*args, **kwargs)
+        if not pris:
+            self.refus += 1
+            if self.liberer_au_refus:
+                self.gates[min(self.refus - 1, len(self.gates) - 1)].set()
+        return pris
+
+    def release(self):
+        index = self.liberations
+        self.liberations += 1
+        if index < len(self.gates):
+            assert self.gates[index].wait(5), "gate de qualification non libérée"
+        self.slot.release()
+
+    def debloquer(self):
+        for gate in self.gates:
+            gate.set()
+
+
+@pytest.mark.parametrize("texte,code", [
+    ("limite tokens fictive", "input_token_limit_exceeded"),
+    ("x" * 20_001, "input_character_limit_exceeded"),
+], ids=["tokens", "caracteres"])
+def test_reprise_503_apres_handshake_conserve_413_et_code_exact(texte, code):
+    moteur = _MoteurFictif()
+    slots = []
+
+    def instrumenter(slot):
+        retarde = _SlotFinReponseRetardee(slot)
+        slots.append(retarde)
+        return retarde
+
+    with _provider_fictif(moteur=moteur, instrumenter_slot=instrumenter) as url:
+        client = ClientEmbeddings(url, "BAAI/bge-m3", cle="x" * 32, local=True, taille_lot=1)
+        with pytest.raises(ErreurEmbeddings) as erreur:
+            client.plonger_avec_profil([texte])
+    assert erreur.value.http_status == 413
+    assert erreur.value.code == code
+    assert slots[0].refus == 1
+    assert moteur.textes == ([texte] if code == "input_token_limit_exceeded" else [])
+
+
+def test_reprise_503_par_lot_apres_handshake_et_reponse_precedente():
+    moteur = _MoteurFictif()
+    slots = []
+
+    def instrumenter(slot):
+        retarde = _SlotFinReponseRetardee(slot, nombre=2)
+        slots.append(retarde)
+        return retarde
+
+    with _provider_fictif(moteur=moteur, instrumenter_slot=instrumenter) as url:
+        client = ClientEmbeddings(url, "BAAI/bge-m3", cle="x" * 32, local=True, taille_lot=1)
+        lot = client.plonger_avec_profil(["premier fait fictif", "second fait fictif"])
+    assert len(lot.vecteurs) == 2
+    assert lot.profile_sha256 == _profil_embedding()["id"]
+    assert slots[0].refus == 2
+    assert moteur.textes == ["premier fait fictif", "second fait fictif"]
+
+
+def test_reprise_503_est_bornee_a_deux_tentatives_sans_inference():
+    moteur = _MoteurFictif()
+    slots = []
+
+    def instrumenter(slot):
+        retarde = _SlotFinReponseRetardee(slot, liberer_au_refus=False)
+        slots.append(retarde)
+        return retarde
+
+    with _provider_fictif(moteur=moteur, instrumenter_slot=instrumenter) as url:
+        client = ClientEmbeddings(url, "BAAI/bge-m3", cle="x" * 32, local=True, taille_lot=1)
+        with pytest.raises(ErreurEmbeddings) as erreur:
+            client.plonger_avec_profil(["fait fictif jamais calculé"])
+    assert erreur.value.http_status == 503
+    assert slots[0].refus == 2
+    assert moteur.textes == []
+
+
+@pytest.mark.parametrize("status", [400, 401, 413, None], ids=["400", "401", "413", "timeout"])
+def test_reprise_ne_rejoue_pas_les_autres_refus_http(status):
+    """SDK contre HTTP local fictif : une erreur connue ne déclenche aucun nouvel appel."""
+    appels = []
+    publier = threading.Event()
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            return
+
+        def repondre(self, code, corps):
+            brut = json.dumps(corps).encode()
+            self.send_response(code)
+            self.send_header("Content-Length", str(len(brut)))
+            self.end_headers()
+            self.wfile.write(brut)
+
+        def do_GET(self):
+            self.repondre(200, {"status": "ready", "model": "BAAI/bge-m3", "dimension": 1024,
+                               "opsys_embedding_profile": _profil_embedding()})
+
+        def do_POST(self):
+            appels.append(self.rfile.read(int(self.headers["Content-Length"])))
+            if status is None:
+                publier.wait(3)
+                return
+            self.repondre(status, {"error": {"code": "refus_http_fictif", "message": "refus"}})
+
+    serveur = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=serveur.serve_forever, daemon=True)
+    thread.start()
+    try:
+        client = ClientEmbeddings(f"http://127.0.0.1:{serveur.server_port}/v1", "BAAI/bge-m3",
+                                  cle="x" * 32, local=True, taille_lot=1, delai_s=0.2)
+        with pytest.raises(ErreurEmbeddings) as erreur:
+            client.plonger_avec_profil(["fait fictif"])
+        assert erreur.value.http_status == status
+        assert erreur.value.code == ("refus_http_fictif" if status is not None else None)
+    finally:
+        publier.set()
+        serveur.shutdown()
+        serveur.server_close()
+        thread.join(2)
+    assert len(appels) == 1
 
 
 def test_recette_fingerprint_couvre_revision_tokenisation_pooling_normalisation_et_prefixes():

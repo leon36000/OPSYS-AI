@@ -490,6 +490,31 @@ def test_la_liste_des_signaux_est_une_lecture_sans_approbation_ni_ecriture(capac
     assert _traitements() == [] and _demandes() == []
 
 
+def test_arbitrage_revision_par_approbation_trace_le_proprietaire(capacites, instance):
+    lignes = []
+    for numero in (1, 2):
+        decision = outils_m10.journaliser_decision({
+            "decision_id": f"DEC-APPROBATION-FICTIVE-{numero}", "raison": "Révision métier fictive tracée.",
+            "statut": "proposee", "options_ecartees": "Ne rien faire",
+        }, HORODATAGE)
+        assert decision["accepte"] is True
+        lignes.append(decision["decision"]["ligne_id"])
+    revision_id = outils_m10.signaler_revision(*lignes, HORODATAGE)["resultat"]["ligne_id"]
+    avant = outils_m10._REGISTRE_AFFAIRES.lire()
+    demande = capacites.appeler("m10_arbitrer_revision", {
+        "revision_ligne_id": revision_id, "statut": "obsolete_marquee", "horodatage": HORODATAGE,
+    })["demande_id"]
+    assert outils_m10._REGISTRE_AFFAIRES.lire() == avant
+    resultat = _approuver(capacites, demande)
+    assert resultat["statut"] == "executee"
+    maillon = resultat["reponse"]["resultat"]["resultat"]
+    assert (maillon["par"], maillon["role"], maillon["source_decision"]) == ("nathan", "nathan_owner", "approbation")
+    assert maillon["horodatage"] == HORODATAGE and maillon["statut"] == "obsolete_marquee"
+    assert outils_m10._REGISTRE_AFFAIRES.lire()[:-1] == avant
+    assert outils_m10.arbitrer_revision(revision_id, "distincts_confirmes", HORODATAGE)["verdict"]["code"] == (
+        "REJ-HUMAIN-REQUIS")
+
+
 def test_lier_une_session_par_approbation_puis_la_lire(capacites, instance):
     arguments = {"cle_session": CLE_CLIENT, "affaire_id": "LEAD-1", "motif": "Le client a écrit depuis ce numéro.",
                  "horodatage": HORODATAGE}

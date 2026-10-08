@@ -10,6 +10,93 @@
  * montre tel quel.
  */
 const adminFrCA = {
+  memoire: {
+  "titre": "Mémoire métier",
+  "note": "Registre d’affaires : signaux, décisions enregistrées et révisions à comparer.",
+  "signaux": "Signaux critiques",
+  "references": "Décisions et révisions",
+  "decisions": "Décisions enregistrées",
+  "revisions": "Révisions signalées",
+  "pagesCourantes": "Pages courantes : chaque page remplace la précédente. Le registre peut évoluer entre deux lectures.",
+  "page": "Décalage {{debut}} : {{affichees}} références affichées, {{reste}} restantes sur {{total}} accessibles.",
+  "confidentialite": "{{nombre}} références retenues par la règle de confidentialité.",
+  "comptesSignaux": "{{total}} signaux : {{ouverts}} ouverts, {{pris}} pris en compte, {{clos}} clos ; {{omis}} non affichés.",
+  "signal": "Signal : {{reference}}.",
+  "affaire": "Affaire : {{reference}}.",
+  "traitement": "Traité par {{personne}} le {{date}}.",
+  "vide": "Aucun élément dans cette lecture.",
+  "inconnu": "Non renseigné",
+  "oui": "Oui",
+  "non": "Non",
+  "reference": "Source : registre d’affaires, ligne {{ligne}}.",
+  "lireDecision": "Relire le statut de la décision",
+  "ouvrirRevision": "Comparer les deux faits",
+  "suite": "Lire la page courante suivante",
+  "statutDecision": "Statut courant : {{reference}}",
+  "comparer": "Comparaison de la révision",
+  "arbitrageNote": "Le choix ajoute une trace humaine au registre. Il ne supprime ni ne fusionne les faits comparés.",
+  "fait": "Fait {{lettre}}",
+  "lectureSeule": "Lecture informative : aucun arbitrage disponible sans dossier serveur cohérent et intention précédente résolue.",
+  "intentions": "Arbitrages enregistrés sur cet appareil",
+  "attente": "Un résultat réseau inconnu garde la même intention et bloque un nouveau choix sur cette révision.",
+  "intention": "{{id}} · révision {{reference}} · {{choix}} · {{statut}} · {{personne}}",
+  "etatsSignal": {
+    "ouvert": "Ouvert",
+    "pris_en_compte": "Pris en compte",
+    "clos": "Clos"
+  },
+  "etatsDecision": {
+    "proposee": "Proposée",
+    "validee": "Validée",
+    "remplacee": "Remplacée",
+    "annulee": "Annulée",
+    "indetermine": "Indéterminée"
+  },
+  "etatsRevision": {
+    "en_attente": "En attente",
+    "distincts_confirmes": "Faits distincts confirmés",
+    "obsolete_marquee": "Révision marquée obsolète",
+    "indetermine": "Indéterminée"
+  },
+  "choix": {
+    "distincts_confirmes": "Confirmer des faits distincts",
+    "obsolete_marquee": "Marquer la révision obsolète",
+    "indetermine": "Marquer indéterminée",
+    "en_attente": "Garder en attente"
+  },
+  "typesFait": {
+    "decision_enregistree": "Décision enregistrée",
+    "evenement_memorise": "Événement mémorisé",
+    "fait_consolide": "Fait consolidé",
+    "fait_candidat": "Fait candidat",
+    "provenance_documentaire": "Provenance documentaire"
+  },
+  "champs": {
+    "raison": "Raison",
+    "options_ecartees": "Options écartées",
+    "raisons": "Raisons",
+    "options_rejetees": "Options rejetées",
+    "decision_id": "Décision",
+    "affaire_id": "Affaire",
+    "resume": "Résumé",
+    "texte": "Texte",
+    "sources": "Sources",
+    "preuves": "Preuves"
+  },
+  "messages": {
+    "connexion": "Connexion nécessaire pour relire les faits et arbitrer. Les copies personnelles restent informatives.",
+    "lectureImpossible": "Lecture momentanément impossible.",
+    "dossierInvalide": "Les deux faits et le statut courant ne sont pas suffisamment cohérents pour arbitrer.",
+    "actionIndisponible": "Arbitrage actuellement indisponible.",
+    "stockageLecture": "La file locale ne peut pas être lue : aucun nouveau choix permis.",
+    "stockageDecision": "L’intention n’a pas pu être enregistrée sur cet appareil.",
+    "dejaEnFile": "Un arbitrage existe déjà pour cette révision. Attendre sa résolution.",
+    "decisionIncertaine": "Résultat incertain : conserver la même intention avant tout nouveau choix.",
+    "relectureImpossible": "Le reçu est conservé ; la relecture du dossier courant reste impossible.",
+    "refusServeur": "Le serveur a refusé cet arbitrage ou cette lecture.",
+    "relue": "Arbitrage confirmé et dossier courant relu."
+  }
+},
   stock: {
   "titre": "Stock",
   "disponibilite": "Disponibilité des matériaux",

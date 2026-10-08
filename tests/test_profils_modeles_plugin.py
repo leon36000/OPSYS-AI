@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -83,7 +85,16 @@ def test_register_branche_les_hooks(monkeypatch, opsys_home, racine_demo):
     assert set(ctx.hooks) == {"post_api_request", "post_auxiliary_call", "pre_llm_call", "transform_tool_result"}
 
 
-def test_hooks_comptent_alertent_et_tronquent(departements_demo, session):
+def test_hooks_comptent_alertent_et_tronquent(departements_demo, session, monkeypatch):
+    # Même période UTC que jetons/admission, figée pour traverser minuit sans changer de jour au milieu du test.
+    instant = datetime(2026, 10, 8, 0, 0, 1, tzinfo=UTC)
+
+    class Horloge(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return instant.astimezone(tz) if tz is not None else instant.replace(tzinfo=None)
+
+    monkeypatch.setattr(jetons, "dt", SimpleNamespace(datetime=Horloge, UTC=UTC))
     plugin = PluginOpsys("m09-demo", departements_demo, session, limite_sortie=500)
     assert plugin.pre_llm_call(session_id="s") is None
     plugin.post_api_request(model="claude-sonnet-5", usage={"input_tokens": 700, "output_tokens": 150})
@@ -93,7 +104,7 @@ def test_hooks_comptent_alertent_et_tronquent(departements_demo, session):
     plugin.post_api_request(model="claude-sonnet-5", usage={"input_tokens": 200})
     assert "ÉPUISÉ" in plugin.pre_llm_call(session_id="s")["context"]
     with session() as cnx:
-        assert jetons.consommation(cnx, "m09-demo", *[__import__("datetime").date.today()] * 2) == 1050
+        assert jetons.consommation(cnx, "m09-demo", instant.date(), instant.date()) == 1050
 
     long = "x" * 2000
     tronque = plugin.transform_tool_result(tool_name="web_extract", result=long)

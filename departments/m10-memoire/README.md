@@ -2,6 +2,14 @@
 
 Mémoire Long Terme — non-oubli, PREFLIGHT tracé (POSTFLIGHT applicatif hors périmètre v1).
 
+## Mémoire admin mobile — tranche T4.25 candidate
+
+Les lecteurs natifs de signaux et de statuts confirment l’admin actif avant registre ; la voie interne sans identité reste disponible. Le catalogue `m10_lister_references` expose les derniers états des décisions et révisions du registre Affaires, sous confidentialité, en pages courantes de huit éléments au plus et budget 5400 caractères. Le dossier `m10_lire_revision` montre les deux faits exacts (champs JSON, date, type, référence), sans mémoire développement ni coupe silencieuse. Une pièce privée, une chaîne invalide ou un dossier hors budget refuse tout le dossier.
+
+L’arbitrage appareil confirme l’acteur humain et utilise la réception serveur : nouveau maillon onze champs avec auteur, rôle et source. Les maillons historiques et l’API pure à quatre arguments restent conservés. Le mobile réutilise l’outbox existante : même UUID et arguments persistés avant HTTP, contrôle de cible/personne/choix et hash du reçu, intention incertaine conservée et blocage du nouvel effet sur sa révision. Cache personnel informatif seulement pour signaux/références ; comparaison et statuts relus au serveur avant action.
+
+Source isolée non publiée ; qualification locale mobile 3122 tests/153 suites et TypeScript. Les captures HTTP/SQLite sont réelles avec porte Core Python rejouée ; Gateway Node et CI du prochain commit restent à qualifier séparément. Téléphone, Expo SQLite et Hermes natifs ne sont pas inférés. Cette tranche ne clôt pas la mémoire profonde définie au §7 M10 du produit.
+
 ## Provenance PDF Finance — tranche 26 qualifiée localement
 
 **M10 global et Fusion restent PARTIEL.** Le raccord inscrit des métadonnées
@@ -120,3 +128,6 @@ PLAN T4.18-b ajoute une forme d'affaire COMMUNE et deux blocs au paquet, sans to
 Vector memory, graphe de connaissances inféré, context injector et l'application effective du
 PREFLIGHT/POSTFLIGHT (D-014, hook applicatif) restent GATED (hors périmètre v1, cf.
 `docs/bmad/02-PRD-PM.md` §3.2 et `docs/research/R4-memory-rag.md`).
+
+
+Qualification intégrée T4.25 (Toronto,7octobre2026) :3140tests mobiles/154suites,1291Python affectés/1skip, types/Ruff/vérificateur219outils/127déclarations verts ; Gateway Node réelle13phases et Core complet local construits séparément. Socle local4367P/224skips/3F conservé : deux oracles cgroup sans cpu.max ; assertion de test Hermes locale corrigée au jourUTC, puis95P/5skips voisins. CI du futur commit exact requise. Téléphone/ExpoSQLite/Hermes natifs non qualifiés. [Audit](../../docs/reprise/MEMOIRE-M10-2026-10-07/AUDIT-MEMOIRE-M10-2026-10-07-r2.md).
