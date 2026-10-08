@@ -25,6 +25,17 @@ function serveurQuiRepond(reponse: unknown) {
 }
 
 describe("lireSection : la lecture d'une section, ses quatre issues", () => {
+  test("un interprète de cache opt-in ne sert jamais à interpréter la réponse du transport", async () => {
+    const depot = new DepotCleValeurMemoire();
+    const interpreterCache = jest.fn(() => ({ ok: true as const, valeur: { n: 42 } }));
+    const section = { ...SECTION, interpreterCache };
+    expect(await lireSection(config(serveurQuiRepond(enveloppeCouple({ n: 7 })), { depot }), section))
+      .toMatchObject({ source: "serveur", valeur: { n: 7 } });
+    expect(interpreterCache).not.toHaveBeenCalled();
+    expect(await lireSection({ ...config(transportHorsLigne(), { depot }), enLigne: () => false }, section))
+      .toMatchObject({ source: "cache", valeur: { n: 42 } });
+    expect(interpreterCache).toHaveBeenCalledTimes(1);
+  });
   test("déconnexion connue : cache personnel daté, sans appeler le réseau", async () => {
     const depot = new DepotCleValeurMemoire();
     await ecrireCacheSection(depot, "nathan", "section_de_test", enveloppeCouple({ n: 5 }), "2026-09-28T12:00:00.000Z");

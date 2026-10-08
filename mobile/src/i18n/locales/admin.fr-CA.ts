@@ -640,12 +640,85 @@ const adminFrCA = {
       manquesIllisibles: "{{nombre}} manque(s) illisible(s) pour cette version de l'app : non affichés.",
     },
   },
+  dispatch: {
+  "pageCourante": "Pages courantes : chaque lecture peut voir un état différent. La page suivante remplace la page affichée.",
+  "retardsTitre": "Reports et incidents",
+  "retardsServeur": "Lecture au serveur seulement. Les âges sont ceux de la référence fournie par cet appareil.",
+  "meteoTitre": "Météo des interventions",
+  "dateNote": "Date civile explicite du créneau (AAAA-MM-JJ). Laisser vide pour lire les manques ; aucune date ni prévision ne sera supposée.",
+  "dateEtiquette": "Date météo du créneau",
+  "dateInvalide": "Date civile invalide. Utilisez AAAA-MM-JJ.",
+  "recommencer": "Relire la première page",
+  "suivante": "Lire la page suivante",
+  "lireMeteo": "Lire la météo",
+  "texteMasque": "Un détail technique a été masqué.",
+  "page": {
+    "resume": "{{affichees}} affichée(s) sur {{total}} ; {{reste}} après cette page.",
+    "ordre": "Ordre : identifiant d’intervention croissant.",
+    "courante": "Page courante, sans snapshot figé.",
+    "borne": "La borne de taille de la réponse a été atteinte.",
+    "illisibles": "{{nombre}} intervention(s) non lisible(s)."
+  },
+  "meteo": {
+    "intervention": "Intervention {{id}}",
+    "plan": "Plan {{id}}",
+    "planAbsent": "Plan absent.",
+    "statuts": {
+      "ok": "Conditions vérifiées pour ce créneau.",
+      "inconnu": "Conditions inconnues : voir les sources et manques.",
+      "validation_requise": "Validation météo requise.",
+      "bloquant": "Conditions bloquantes."
+    },
+    "creneau": "Équipe {{equipe}} ; jour de cédule {{jour}} ; {{debut}}–{{fin}}.",
+    "date": "Date civile : {{date}}",
+    "dateAbsente": "Date civile absente.",
+    "service": "Service : {{nom}}",
+    "serviceAbsent": "Service absent.",
+    "planPerime": "Le plan est périmé.",
+    "planCourant": "Le serveur indique un plan courant.",
+    "regle": "Risque {{risque}} : {{statut}}",
+    "sansObjet": "Risque {{risque}} : déclaré sans objet.",
+    "aConfigurer": "À configurer : {{manque}}",
+    "prevision": "Source {{source}} ; émission {{date}}",
+    "heureType": "Type de date : {{type}}",
+    "saisiPar": "Saisie par {{personne}}",
+    "reference": "Référence : {{reference}}",
+    "licence": "Licence : {{licence}}",
+    "forfait": "Forfait : {{forfait}}",
+    "collection": "Collection : {{collection}}",
+    "pageMeteo": "Page source : {{page}}",
+    "previsionAbsente": "Aucune prévision fournie.",
+    "attribution": "{{source}} : {{attribution}}",
+    "attributionsAbsentes": "Aucune attribution fournie.",
+    "cause": "Cause : {{code}}"
+  },
+  "retards": {
+    "referenceAppelant": "Référence de l’appelant, avec fuseau : {{date}}",
+    "seuil": "Seuil déclaré : {{heures}} h",
+    "reports": "Reports : {{total}} au total ; {{affiches}} affichés ; {{reste}} omis.",
+    "incidents": "Incidents : {{total}} au total ; {{affiches}} affichés ; {{reste}} omis ; {{bloques}} bloqués.",
+    "omis": "{{nombre}} élément(s) omis.",
+    "suiteNonLue": "La suite reste à lire ; aucune donnée supplémentaire supposée.",
+    "vide": "Aucun élément dans cette liste.",
+    "report": "Intervention {{intervention}} ; motif {{motif}}",
+    "incident": "Intervention {{intervention}} ; demande {{demande}} ; type {{type}}",
+    "depuis": "Depuis {{date}}",
+    "origine": {
+      "serveur": "Heure du fait produite par le serveur.",
+      "appelant": "Heure du fait fournie par l’appelant."
+    },
+    "heures": "Âge à cette référence : {{heures}} h",
+    "heuresInconnues": "Âge inconnu à cette référence.",
+    "bloquee": "Demande bloquée selon le seuil du serveur.",
+    "nonBloquee": "Demande non bloquée selon le seuil du serveur.",
+    "nonMesurable": "Retard sur la cédule non mesurable : calendrier civil absent."
+  }
+},
   chantiers: {
     titre: "Chantiers du jour",
     lectureSeule: "Lecture seule : aucune cédule n'est proposée ni appliquée depuis cet écran.",
     meteo:
-      "Météo : non lue ici. La préparation dit seulement si les règles météo de l'entreprise sont déclarées ; la " +
-      "prévision d'un créneau se juge quand une cédule est proposée, ce que cet écran ne fait pas.",
+      "Météo : lecture du créneau avec sa date explicite, ses sources et ses manques. Aucune prévision supposée.",
     dispatchTitre: "Interventions par statut",
     statuts: {
       en_route: "En route",

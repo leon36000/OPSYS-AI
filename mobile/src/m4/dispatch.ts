@@ -1,3 +1,5 @@
+import { prototypeJsonValide } from "../m10/json";
+import { horodatageM10Valide } from "../m10/contrat";
 import { entierPositifOuNull, estObjet, listeDeTextes, lireListe, texteNullable, texteOuNull } from "../admin/lecteurs";
 
 /**
@@ -10,8 +12,9 @@ import { entierPositifOuNull, estObjet, listeDeTextes, lireListe, texteNullable,
  * **Le dispatch est par statut, pas par jour.** `m4_lister_interventions` ne rend aucune date : `fenetre_planifiee` est
  * toujours nulle (le registre ne porte aucune fenêtre, `etats.lister_interventions`). L'app ne dit donc jamais « du
  * jour » d'une intervention, et n'invente ni date ni créneau. Un appel par statut (`STATUTS_DU_DISPATCH`) : la réponse
- * de l'outil n'a pas de pagination et le socle la tronque au-delà de 6 000 caractères ; un groupe trop gros est dit trop
- * gros (`reponse_tronquee`) sans cacher les autres, et l'historique terminé ou annulé n'est jamais demandé.
+ * de l'outil reste la liste v1 sans les arguments de page. T4.27-m utilise `paginationDispatch.ts` : page courante
+ * bornée par le serveur, curseur opaque et totaux recalculés à chaque lecture. Les lecteurs v1 restent disponibles ;
+ * l'historique terminé ou annulé n'est jamais demandé par le dispatch.
  *
  * **La préparation est celle de M4, volet par volet.** Un verdict « prêt » n'est montré que si le serveur le dit ET que
  * chaque volet est `ok` (une contradiction rend la réponse illisible : jamais un « prêt » supposé) ; un volet qui manque
@@ -300,4 +303,58 @@ export function lireDigest(brut: unknown): DigestDuJour | null {
     bloquees: bloquees.items,
     illisibles: terminees.illisibles + bloquees.illisibles,
   };
+}
+
+// Lecteurs T4.27-m : snapshot JSON avant tout accès à une enveloppe ou à un DTO.
+// La frontière de prototype est celle de M10, y compris Response.json d'un autre realm.
+export const JSON_DISPATCH_INVALIDE = Symbol("JSON_DISPATCH_INVALIDE");
+export type JsonDispatch = null | string | boolean | number | JsonDispatch[] | { [cle: string]: JsonDispatch };
+export function copierJsonDispatch(brut: unknown, profondeur = 16): JsonDispatch | typeof JSON_DISPATCH_INVALIDE {
+  const vus = new Set<object>();
+  function copie(v: unknown, p: number): JsonDispatch | typeof JSON_DISPATCH_INVALIDE {
+    if (p < 0) return JSON_DISPATCH_INVALIDE;
+    if (v === null || typeof v === "string" || typeof v === "boolean") return v;
+    if (typeof v === "number") return Number.isFinite(v) && (!Number.isInteger(v) || Number.isSafeInteger(v)) ? v : JSON_DISPATCH_INVALIDE;
+    if (typeof v !== "object" || vus.has(v)) return JSON_DISPATCH_INVALIDE;
+    try {
+      vus.add(v);
+      if (!prototypeJsonValide(v) || Reflect.ownKeys(v).some(k => typeof k !== "string")) return JSON_DISPATCH_INVALIDE;
+      const ds = Object.getOwnPropertyDescriptors(v);
+      if (Array.isArray(v)) {
+        const n = ds.length?.value;
+        if (!Number.isSafeInteger(n) || n < 0 || Object.keys(ds).length !== n + 1) return JSON_DISPATCH_INVALIDE;
+        const sortie: JsonDispatch[] = [];
+        for (let i = 0; i < n; i++) {
+          const d = ds[String(i)];
+          if (!d || !("value" in d) || !d.enumerable) return JSON_DISPATCH_INVALIDE;
+          const lu = copie(d.value, p - 1); if (lu === JSON_DISPATCH_INVALIDE) return lu; sortie.push(lu);
+        }
+        return sortie;
+      }
+      const sortie: { [cle: string]: JsonDispatch } = Object.create(null);
+      for (const [k, d] of Object.entries(ds)) {
+        if (!("value" in d) || !d.enumerable) return JSON_DISPATCH_INVALIDE;
+        const lu = copie(d.value, p - 1); if (lu === JSON_DISPATCH_INVALIDE) return lu; sortie[k] = lu;
+      }
+      return sortie;
+    } catch { return JSON_DISPATCH_INVALIDE; } finally { vus.delete(v); }
+  }
+  return Number.isSafeInteger(profondeur) && profondeur >= 0 ? copie(brut, profondeur) : JSON_DISPATCH_INVALIDE;
+}
+export function objetDispatch(v: unknown): v is Record<string, unknown> { return v !== null && typeof v === "object" && !Array.isArray(v); }
+/** À appeler uniquement après copierJsonDispatch. */
+export function clesDispatch(v: Record<string, unknown>, requises: readonly string[], optionnelles: readonly string[] = []): boolean {
+  return requises.every(k => Object.hasOwn(v, k)) && Object.keys(v).every(k => requises.includes(k) || optionnelles.includes(k));
+}
+export function texteDispatch(v: unknown): v is string { return typeof v === "string" && v.trim().length > 0; }
+export function hashDispatch(v: unknown): v is string { return typeof v === "string" && /^[a-f0-9]{64}$/.test(v); }
+export function entierDispatch(v: unknown): v is number { return Number.isSafeInteger(v) && (v as number) >= 0; }
+export function dateCivileDispatch(v: unknown): v is string {
+  if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const [a,m,j] = v.split("-").map(Number); const d = new Date(0); d.setUTCFullYear(a,m-1,j); d.setUTCHours(0,0,0,0);
+  return a >= 1 && d.getUTCFullYear() === a && d.getUTCMonth() === m-1 && d.getUTCDate() === j;
+}
+export function horodatageDispatch(v: unknown): v is string {
+  // Python accepte également les minutes seules ; ajout réservé à la validation, jamais au DTO affiché.
+  return typeof v === "string" && horodatageM10Valide(v.replace(/^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2})(Z|[+-]\d{2}:\d{2})$/, "$1:00$2"));
 }

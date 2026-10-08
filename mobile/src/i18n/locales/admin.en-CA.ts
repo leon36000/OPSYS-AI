@@ -630,12 +630,85 @@ const adminEnCA: RessourcesAdmin = {
       manquesIllisibles: "{{nombre}} gap(s) unreadable by this version of the app: not shown.",
     },
   },
+  dispatch: {
+  "pageCourante": "Current pages: each read can see a different state. The next page replaces the displayed page.",
+  "retardsTitre": "Postponements and incidents",
+  "retardsServeur": "Server read only. Ages use the reference supplied by this device.",
+  "meteoTitre": "Job weather",
+  "dateNote": "Explicit calendar date for the slot (YYYY-MM-DD). Leave blank to read missing information; no date or forecast is assumed.",
+  "dateEtiquette": "Weather slot date",
+  "dateInvalide": "Invalid calendar date. Use YYYY-MM-DD.",
+  "recommencer": "Read the first page again",
+  "suivante": "Read the next page",
+  "lireMeteo": "Read weather",
+  "texteMasque": "A technical detail has been hidden.",
+  "page": {
+    "resume": "{{affichees}} displayed out of {{total}}; {{reste}} after this page.",
+    "ordre": "Order: ascending job identifier.",
+    "courante": "Current page, without a fixed snapshot.",
+    "borne": "The response size limit was reached.",
+    "illisibles": "{{nombre}} unreadable job(s)."
+  },
+  "meteo": {
+    "intervention": "Job {{id}}",
+    "plan": "Plan {{id}}",
+    "planAbsent": "Plan missing.",
+    "statuts": {
+      "ok": "Conditions verified for this slot.",
+      "inconnu": "Unknown conditions: see sources and missing information.",
+      "validation_requise": "Weather approval required.",
+      "bloquant": "Blocking conditions."
+    },
+    "creneau": "Team {{equipe}}; schedule day {{jour}}; {{debut}}–{{fin}}.",
+    "date": "Calendar date: {{date}}",
+    "dateAbsente": "Calendar date missing.",
+    "service": "Service: {{nom}}",
+    "serviceAbsent": "Service missing.",
+    "planPerime": "The plan is stale.",
+    "planCourant": "The server reports a current plan.",
+    "regle": "Risk {{risque}}: {{statut}}",
+    "sansObjet": "Risk {{risque}}: declared not applicable.",
+    "aConfigurer": "Needs configuration: {{manque}}",
+    "prevision": "Source {{source}}; issued {{date}}",
+    "heureType": "Date type: {{type}}",
+    "saisiPar": "Entered by {{personne}}",
+    "reference": "Reference: {{reference}}",
+    "licence": "Licence: {{licence}}",
+    "forfait": "Plan: {{forfait}}",
+    "collection": "Collection: {{collection}}",
+    "pageMeteo": "Source page: {{page}}",
+    "previsionAbsente": "No forecast supplied.",
+    "attribution": "{{source}}: {{attribution}}",
+    "attributionsAbsentes": "No attribution supplied.",
+    "cause": "Cause: {{code}}"
+  },
+  "retards": {
+    "referenceAppelant": "Caller reference, with time zone: {{date}}",
+    "seuil": "Declared threshold: {{heures}} h",
+    "reports": "Postponements: {{total}} total; {{affiches}} displayed; {{reste}} omitted.",
+    "incidents": "Incidents: {{total}} total; {{affiches}} displayed; {{reste}} omitted; {{bloques}} blocked.",
+    "omis": "{{nombre}} omitted item(s).",
+    "suiteNonLue": "The rest has not been read; no further data assumed.",
+    "vide": "No items in this list.",
+    "report": "Job {{intervention}}; reason {{motif}}",
+    "incident": "Job {{intervention}}; request {{demande}}; type {{type}}",
+    "depuis": "Since {{date}}",
+    "origine": {
+      "serveur": "Fact timestamp supplied by the server.",
+      "appelant": "Fact timestamp supplied by the caller."
+    },
+    "heures": "Age at this reference: {{heures}} h",
+    "heuresInconnues": "Unknown age at this reference.",
+    "bloquee": "Request blocked under the server threshold.",
+    "nonBloquee": "Request not blocked under the server threshold.",
+    "nonMesurable": "Schedule delay cannot be measured: calendar dates are missing."
+  }
+},
   chantiers: {
     titre: "Today's jobs",
     lectureSeule: "Read only: no scheduling is proposed or applied from this screen.",
     meteo:
-      "Weather: not read here. The preparation only says whether the company's weather rules are declared; a " +
-      "time slot's forecast is judged when a schedule is proposed, which this screen does not do.",
+      "Weather: read the slot with its explicit date, sources and missing information. No forecast assumed.",
     dispatchTitre: "Interventions by status",
     statuts: {
       en_route: "On the way",

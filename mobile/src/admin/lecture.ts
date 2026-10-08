@@ -39,6 +39,8 @@ export interface DefinitionSection<T> {
   readonly cache: string;
   /** Lit l'enveloppe du serveur ; sert aussi à relire le cache : mêmes règles en ligne et hors ligne. */
   readonly interpreter: (resultatBrut: unknown) => LectureSection<T>;
+  /** Option explicite pour un cache épuré avec ses arguments d'origine. Jamais utilisée pour une réponse HTTP. */
+  readonly interpreterCache?: (resultatBrut: unknown) => LectureSection<T>;
   /** Retire de l'enveloppe ce que l'écran ne montre pas avant de la garder (minimisation : Loi 25). Le résultat doit
    * rester lisible par `interpreter`. */
   readonly epurerPourLeCache?: (resultatBrut: unknown) => unknown;
@@ -58,7 +60,7 @@ export async function lireSection<T>(
     if (gardee === null) {
       return { source: "aucune", raison: raisonHorsLigne };
     }
-    const relue = section.interpreter(gardee.resultat);
+    const relue = (section.interpreterCache ?? section.interpreter)(gardee.resultat);
     return relue.ok
       ? { source: "cache", valeur: relue.valeur, misAJourLe: gardee.misAJourLe, raisonHorsLigne }
       : { source: "aucune", raison: raisonHorsLigne };

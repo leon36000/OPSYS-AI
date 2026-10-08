@@ -2238,7 +2238,7 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       rend à l'employé que ses interventions, forme des réponses = fixture lue par Jest, catalogues
       de l'app égaux à ceux du serveur) ; CI `mobile` verte (run 18) ; socle 1 908 passés et 141
       sautés sur l'état intégré (T4.20, lot 3 et T4.17-g2).
-      Reste : la météo d'un créneau (aucun outil ne la rend sans écrire : T4.27), T3 diffusion.
+      Reste historique T4.20 : météo et pagination reprises par T4.27-a puis T4.27-m ; T3 diffusion demeure ouverte.
 - [ ] T4.19-c Mobile : l'écran « Chiffres » lit le cash libre que M8 publie depuis T4.19-b (un
       statut inconnu de l'app est affiché « inconnu », jamais un montant : fail-closed voulu).
       Contrat (T4.19-b) : `m8_lire_vue_executive` prend `aujourd_hui` (« AAAA-MM-JJ », jour local de
@@ -2366,6 +2366,12 @@ météo et GPS M4, vision M3, conseil d'agents M9…
         incidents, et pagine la liste par `curseur` (contrat exact dans le rapport de T4.27-a, repris
         dans `departments/m04-field-ops/README.md`) ; corriger les mentions « météo non lue » et « pas de
         pagination » de `MOBILE.md`, `mobile/README.md`, `src/m4/dispatch.ts` et `tests/e2e/test_admin_appareil.py`.
+        Implémentation locale 2026-10-08 : pages courantes8 remplaçantes, météo/date explicite et manques, retards sans
+        cache, rôle admin avant dépôt/HTTP, dix slots personnels bornés, tombstones après refus et lecture tardive masquée.
+        3323tests/166suites mobiles et types verts ; Gateway réel29appels, cinq403, tables métier intactes et reprise.
+        Les rouges de qualification et findings sont conservés ; CI exacte suivante et téléphone/ExpoSQLite/Hermes restent
+        distincts. Deux oracles météo corrigés sans changer le moteur :242réussites/8fichiers complets, zéro skip.
+        [Audit et registre](../reprise/DISPATCH-M4-2026-10-08/AUDIT-DISPATCH-M4-2026-10-08-r1.md).
 - [x] T1.4-n Mobile : les constats de T4.20 hors de son périmètre (vendeur : un 401 ou un 403
       retombe sur le cache ; employé : une réponse tronquée lue comme une liste vide, `a_planifier`
       absent des statuts ; caches par personne non purgés à la révocation ni au ré-appairage ;

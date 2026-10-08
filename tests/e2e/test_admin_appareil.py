@@ -2,9 +2,11 @@
 d'appareil (E2E moteur).
 
 DEFINITION-PRODUIT §9.5 : « le propriétaire approuve tout depuis le téléphone » ; « M4 : dispatch du jour, retards,
-file de complétion » ; « M5 : trésorerie et cash libre réel » ; « M8 : tableau de bord exécutif ». Les écrans de
-`mobile/app/(admin)/` (`admin`, `chiffres`, `chantiers`) appellent huit outils de la portée `admin` ; ce test les
-appelle comme l'app, sous le nom nu, avec le rôle `admin`, par la même règle que le core (`PorteAppareil`, relue dans
+file de complétion » ; « M5 : trésorerie et cash libre réel » ; « M8 : tableau de bord exécutif ».
+Le contrat historique T4.20 de `mobile/app/(admin)/` porte huit outils de la portée `admin` ; ce test les
+appelle selon ce contrat. T4.27-m utilise aussi les lectures météo/retards et la pagination, qualifiées séparément
+par `test_lectures_admin_m4_appareil.py` et les captures natives M4. Les appels restent sous le nom nu, avec le rôle
+`admin`, par la même règle que le core (`PorteAppareil`, relue dans
 le fork, appliquée au vrai moteur HTTP MCP sur une base temporaire).
 
 La journée du propriétaire, dans l'ordre où l'app la lirait (les dates sont fictives ; l'instant du serveur est celui

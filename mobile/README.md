@@ -86,22 +86,29 @@ Trois écrans de **lecture seule** au-delà des approbations (seul `approvals` d
   les pages ne se recollent que si `prevision_id` est le même), échéances TPS/TVQ, vue d'ensemble de M8. Chaque section se charge
   pour elle-même. Un « non calculable » ou un « à configurer » dit ce qui manque avec les mots du serveur, jamais un zéro ; la
   mention « Analyse préparatoire IA » de M5 est montrée avec la donnée.
-- **`chantiers`** : les interventions par statut (un appel par statut : la réponse de `m4_lister_interventions` n'a pas de
-  pagination et le socle la tronque à 6 000 caractères), le digest du jour, la préparation d'une intervention à la demande, volet
-  par volet. **Un manque se dit en mots simples** (fr-CA, en-CA), par une phrase de l'app choisie d'après le code du manque
-  (`src/ecrans/manquesM4.ts`) : jamais le texte de M4, qui cite le fichier du serveur et les commandes `opsys-metier`. Un manque
-  que l'app ne connaît pas se dit « à configurer côté serveur » avec son code. **La météo d'un créneau n'est pas lue** :
-  aucun outil ne la rend sans écrire (`m4_verifier_meteo_creneau` exige un `plan_id` de `m4_proposer_cedule`) ; le volet
-  « météo » de la préparation ne dit que si les RÈGLES météo sont déclarées, et l'écran le dit.
+- **`chantiers`** : sept groupes par statut, pages courantes de huit interventions. Le curseur reçu sert à lire la
+  suivante, qui remplace la page affichée ; la première page peut être relue. Total, reste et borne sont visibles, sans
+  snapshot garanti entre appels. Digest et préparation gardent les manques métier explicites. Météo : dernier plan
+  appliqué, date civile explicite ou absence de date, sources/émission/règles/attributions ; aucune prévision supposée ou
+  envoyée. Reports et incidents restent serveur seulement, avec référence ISO de l'appelant et âge du serveur, origine
+  du fait et omissions. La cédule sans calendrier reste non mesurable.
+  Cache Dispatch : dix slots au plus par personne, arguments d'origine vérifiés ; refus connu invalide la copie même
+  après panne/réouverture du dépôt. Les réponses tardives sont masquées après rôle, session, purge, page, date ou sortie.
+  Les lectures utilisent `src/admin/dispatchService.ts` avec capture admin avant le dépôt et le transport.
+  [Audit et limites](../docs/reprise/DISPATCH-M4-2026-10-08/AUDIT-DISPATCH-M4-2026-10-08-r1.md).
 - **Hors ligne** : lecture d'abord ; le cache SQLite (une clé par personne, `admin:<personne>:<section>_v1`) est rendu marqué
   (date et raison). Un refus du serveur (401, 403, personne désactivée, « à déclarer ») n'est **jamais** remplacé par le
-  cache, et n'écrit rien. Le jour de référence de M5 et de M4 est celui de l'heure locale de l'appareil.
-- **Preuves** : `tests/e2e/test_admin_appareil.py` appelle les huit outils par la vraie porte d'appareil (200 pour `admin`,
+  cache. Le dispatch invalide sa copie locale après un refus ; aucune mutation métier. Le jour de référence de M5 et de M4 est celui de l'heure locale de l'appareil.
+- **Preuves historiques T4.20** : `tests/e2e/test_admin_appareil.py` appelle les huit outils par la vraie porte d'appareil (200 pour `admin`,
   403 pour `seller` et `employee`, sans rien écrire) et enregistre les vraies réponses dans `src/admin/fixtures/` ; Jest les
   fait passer par les lecteurs, les chargeurs et les modèles de vue. `tests/e2e/test_manques_m4_appareil.py` épingle la table
   des manques de l'app à ce que M4 produit (dans les deux sens). Régénération :
   `OPSYS_REGENERER_FIXTURES_MOBILE=1 pytest tests/e2e/test_admin_appareil.py -k fixture` (idem pour
   `test_manques_m4_appareil.py`, `test_vendeur_appareil.py` et `test_liste_employe_appareil.py`).
+
+La qualification T4.27-m ajoute les lectures M4 de `test_lectures_admin_m4_appareil.py`, les captures fictives
+Gateway DEVICE/MCP/SQLite et les tests de rendu : 3323 tests mobiles / 166 suites et TypeScript verts localement.
+Téléphone, Expo SQLite, Hermes et la CI du nouveau commit restent des qualifications distinctes.
 
 ## Règles de l'app
 

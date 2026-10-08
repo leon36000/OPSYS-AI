@@ -3,6 +3,8 @@ import path from "node:path";
 
 import { OUTIL_LISTER_DEMANDES } from "../approbations/chargeur";
 import { OUTIL_LISTER_INTERVENTIONS, OUTIL_PRODUIRE_DIGEST, OUTIL_VERIFIER_PREPARATION } from "../m4/dispatch";
+import { OUTIL_LIRE_METEO_INTERVENTION } from "../m4/meteoIntervention";
+import { OUTIL_LIRE_RETARDS_INCIDENTS } from "../m4/retardsIncidents";
 import { OUTIL_ECHEANCES_FISCALES, OUTIL_ETAT_TRESORERIE, OUTIL_PREVOIR_TRESORERIE } from "../m5/tresorerie";
 import { OUTIL_VUE_EXECUTIVE } from "../m8/vueExecutive";
 
@@ -51,6 +53,8 @@ const CHARGEURS_ET_LECTEURS = [
   "src/admin/aVoir.ts",
   "src/admin/chiffres.ts",
   "src/admin/chantiers.ts",
+  "src/admin/dispatchCourant.ts",
+  "src/admin/dispatchService.ts",
   "src/m4/dispatch.ts",
   "src/m5/tresorerie.ts",
   "src/m5/pagesPrevision.ts",
@@ -66,13 +70,17 @@ const OUTILS_DE_LECTURE = [
   OUTIL_LISTER_INTERVENTIONS,
   OUTIL_VERIFIER_PREPARATION,
   OUTIL_PRODUIRE_DIGEST,
+  OUTIL_LIRE_METEO_INTERVENTION,
+  OUTIL_LIRE_RETARDS_INCIDENTS,
 ];
 
 describe("les outils que le profil admin appelle", () => {
-  test("les huit sont exactement ceux de la mission, sous leur nom NU, et ce sont des lectures", () => {
+  test("les dix sont exactement ceux de la mission, sous leur nom NU, et ce sont des lectures", () => {
     expect([...OUTILS_DE_LECTURE].sort()).toEqual(
       [
         "m4_lister_interventions",
+        "m4_lire_meteo_intervention",
+        "m4_lire_retards_incidents",
         "m4_produire_digest",
         "m4_verifier_preparation",
         "m5_etat_tresorerie",
@@ -115,9 +123,9 @@ describe("les écrans : câblage mince, lecture seule", () => {
     expect(source).not.toMatch(/approuver|refuser|decider/i);
   });
 
-  test.each(ECRANS)("%s ne lit que par `@/admin/service`", (fichier) => {
-    const importsDeDonnees = [...code(fichier).matchAll(/from\s+"@\/(admin\/service|approbations\/[a-z]+|protocole\/[a-zA-Z]+)"/g)].map((m) => m[1]);
-    expect([...new Set(importsDeDonnees)]).toEqual(["admin/service"]);
+  test.each(ECRANS)("%s ne lit que par son service admin et sa garde de session", (fichier) => {
+    const importsDeDonnees = [...code(fichier).matchAll(/from\s+"@\/(admin\/(?:service|dispatchService)|approbations\/[a-z]+|protocole\/[a-zA-Z]+)"/g)].map((m) => m[1]);
+    expect([...new Set(importsDeDonnees)]).toEqual(fichier.endsWith("chantiers.tsx") ? ["admin/dispatchService", "protocole/configuration"] : ["admin/service"]);
   });
 
   test("le câblage réel passe par la session de l'appareil, le transport du core et le dépôt local ; aucun jeton ni personne en dur", () => {

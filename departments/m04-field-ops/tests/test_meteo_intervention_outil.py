@@ -28,6 +28,7 @@ import copy
 import datetime as dt
 import json
 import socket
+from collections import Counter
 from pathlib import Path
 
 import pytest
@@ -382,8 +383,12 @@ def test_un_vent_fort_le_jour_du_creneau_bloque_le_ravalement_et_cite_les_valeur
     assert resultat["statut"] == "bloquant"
     (creneau,) = resultat["creneaux"]
     assert creneau["statut"] == "bloquant" and creneau["date"] == date
+    # Le choix de route dépend du solveur disponible, pas la règle météo : toutes les
+    # heures de cette saisie portent 55 km/h. La première heure recouvre le début planifié.
+    _, debut, _ = monde["visites"][premier]
+    heure = f"{debut // 60:02d}:00"
     assert [r["detail"] for r in creneau["regles"] if r["statut"] == "bloquant"] == [
-        "vent_kmh : 55 km/h à 08:00, blocage >= 40"
+        f"vent_kmh : 55 km/h à {heure}, blocage >= 40"
     ], "le créneau garde le détail de ses règles"
     assert all(set(r) == {"risque", "statut", "detail"} for r in creneau["regles"])
     assert set(creneau["prevision"]) == {"source", "emise_le", "heure_type", "saisi_par", "reference"}
@@ -438,9 +443,25 @@ def test_sous_un_vent_fort_le_verdict_et_les_regles_qui_bloquent_sont_celles_du_
     saisie = _saisie(dates_vent_fort=[CALENDRIER[jour_venteux]])
     par_intervention, vue = _du_plan(par_nom, monde, saisie)
     statuts = set()
+    ok_par_jour = Counter()
+    non_ok = set()
     for identifiant in monde["interventions"].values():
         resultat = _resultat(_lire(par_nom, identifiant, _date_de(monde, identifiant), saisie))
         creneau = resultat["creneaux"][0]
+        assert resultat["statut"] == creneau["statut"]
+        assert creneau["prevision"] == {
+            "source": "saisie_manuelle", "emise_le": saisie["emise_le"],
+            "heure_type": "heure_d_emission_saisie", "saisi_par": saisie["saisi_par"], "reference": saisie["source"],
+        }
+        statuts.add(resultat["statut"])
+        if creneau["statut"] == "ok":
+            ok_par_jour[(creneau["jour"], creneau["date"])] += 1
+        else:
+            non_ok.add(identifiant)
+        if identifiant not in par_intervention:
+            # À partir du niveau 2, seuls les OK sont remplacés par un résumé exhaustif.
+            assert "ok_resume" in vue and creneau["statut"] == "ok"
+            continue
         du_plan = par_intervention[identifiant]
         assert creneau["statut"] == du_plan["statut"] and resultat["statut"] == du_plan["statut"]
         assert creneau["prevision"] == du_plan["prevision"]
@@ -448,7 +469,14 @@ def test_sous_un_vent_fort_le_verdict_et_les_regles_qui_bloquent_sont_celles_du_
             # une vue de plan très résumée (`ok_resume`) ne garde que les règles qui ne sont pas « ok »
             regles = [r for r in creneau["regles"] if r["statut"] != "ok"] if "ok_resume" in vue else creneau["regles"]
             assert regles == du_plan["regles"]
-        statuts.add(resultat["statut"])
+    if "ok_resume" in vue:
+        assert set(par_intervention) == non_ok, "aucun créneau à regarder ne doit disparaître"
+        assert vue["ok_resume"] == [
+            {"jour": jour, "date": date, "nombre": nombre}
+            for (jour, date), nombre in sorted(ok_par_jour.items())
+        ], "les créneaux OK omis du détail restent tous comptés, une fois par jour/date"
+    else:
+        assert set(par_intervention) == set(monde["interventions"].values())
     assert statuts == {"bloquant", "ok"}
 
 

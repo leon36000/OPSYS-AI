@@ -21,9 +21,8 @@ import type { DefinitionSection, ResultatSection } from "./lecture";
  * Les lectures de l'écran « Chantiers du jour » (`(admin)/chantiers.tsx`, PLAN T4.20, §9.5 M4 « dispatch du jour,
  * retards, file de complétion ») : les interventions par statut, le digest du jour et la préparation d'une intervention.
  * Que des lectures : aucune cédule n'est proposée ni appliquée, aucune intervention ne change d'état, aucun report
- * n'est signalé. La MÉTÉO d'un créneau n'est pas lue : `m4_verifier_meteo_creneau` exige le `plan_id` d'une cédule
- * PROPOSÉE (`m4_proposer_cedule`, qui écrit un maillon au registre) et des dates que l'appelant fournirait ; il n'existe
- * aucun outil qui rende la météo sans écrire (voir la réponse de PLAN T4.20).
+ * n'est signalé. Ce chargeur conserve le contrat historique T4.20 pour ses tests et consommateurs existants.
+ * L'écran courant utilise `dispatchCourant.ts` : pages bornées, météo sans mutation et retards serveur seulement.
  *
  * Un groupe par statut (`STATUTS_DU_DISPATCH`), chacun lu SÉPARÉMENT : un groupe trop gros pour la réponse du serveur, ou
  * refusé, ne cache pas les autres. Lecture d'abord, cache marqué (date, raison), une clé par personne ; un refus du

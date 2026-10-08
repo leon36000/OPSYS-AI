@@ -1728,7 +1728,7 @@ section « Admin, le propriétaire ».
 |---|---|---|
 | `admin.tsx` (« À voir ») | demandes d'approbation en attente et attentes des départements, liens vers `approvals`, `chiffres`, `chantiers` | `m9_lister_demandes_approbation` |
 | `chiffres.tsx` | trésorerie et cash libre, prévision semaine par semaine, échéances TPS/TVQ, vue d'ensemble de M8 | `m5_etat_tresorerie`, `m5_prevoir_tresorerie`, `m5_lire_echeances_fiscales`, `m8_lire_vue_executive` |
-| `chantiers.tsx` | interventions par statut, digest du jour, préparation d'une intervention à la demande | `m4_lister_interventions`, `m4_produire_digest`, `m4_verifier_preparation` |
+| `chantiers.tsx` | pages courantes par statut, digest, préparation, météo explicite et reports/incidents | `m4_lister_interventions`, `m4_produire_digest`, `m4_verifier_preparation`, `m4_lire_meteo_intervention`, `m4_lire_retards_incidents` |
 
 - **Aucun calcul dans l'app.** Aucun montant, pourcentage ni date n'y est calculé : chaque valeur est affichée telle que
   le serveur la rend. Un « non calculable » ou un « à configurer » dit ce qui manque avec les mots du serveur, jamais un
@@ -1736,11 +1736,26 @@ section « Admin, le propriétaire ».
   suit la donnée.
 - **Lecture d'abord, cache marqué par personne.** Clé `admin:<personne>:<section>_v1`, rendue avec sa date et sa raison.
   Un refus du serveur (401, 403, verdict de M5 ou de M4, personne désactivée) n'est **jamais** remplacé par le cache et
-  n'écrit rien. Le jour de référence de M5 et de M4 est le jour local de l'appareil.
+  ne garde aucune réponse refusée. Le dispatch peut invalider sa copie locale ; le jour de référence de M5 et de M4 est le jour local de l'appareil.
 - **« Voir plus »** ne prolonge qu'une lecture faite à l'instant ; deux pages ne se recollent que si `prevision_id` est
   le même.
-- **La météo d'un créneau n'est pas lue** : aucun outil ne la rend sans écrire (`m4_verifier_meteo_creneau` exige le
-  `plan_id` d'une cédule proposée). Le volet « météo » de la préparation dit seulement si les règles sont déclarées.
+- **Dispatch courant (T4.27-m).** Sept pages de huit éléments, une par statut ; « suivante » remplace la page et
+  « première page » relit l'état courant. Total, reste, borne et curseur viennent du serveur ; aucune promesse de snapshot.
+  La météo utilise le dernier plan appliqué et une date civile saisie explicitement, ou `null` pour lire les manques.
+  Sources, émission, type de date, règles, attributions et absences sont montrés ; aucune prévision fournie par le mobile.
+  `ok` sans prévision reste possible si tous les risques sont déclarés sans objet. Les détails km/h et mm/h sûrs restent
+  visibles ; chemins et commandes sont masqués. Les retards sont serveur seulement : référence ISO de l'appelant intacte,
+  origine de l'heure du fait, âge fourni, omissions et cédule non mesurable ; aucun âge recalculé hors ligne.
+- **Cache Dispatch borné.** Dix slots au plus par personne : sept statuts et la dernière météo, préparation et digest.
+  Chaque copie conserve les arguments d'origine. Cible/date/curseur doivent correspondre exactement ; le digest peut
+  relire la même date avec sa référence historique explicitement marquée cache. Une réponse HTTP exige la référence
+  courante exacte. Refus connu : copie invalidée par tombstone, y compris à la réouverture du dépôt après panne ; une
+  panne de cette invalidation bloque le cache via la garde commune. Session/rôle, purge, nouvelle demande, date et sortie
+  d'écran masquent les réponses tardives. Aucun jeton, rôle ou personne n'est écrit dans ces slots.
+- **Qualification courante.** 3323 tests / 166 suites mobiles, TypeScript et contrôles métier locaux. Le parcours Gateway
+  DEVICE/MCP/SQLite M4 a 29 appels, cinq refus HTTP403, aucune mutation pendant les lectures et reprise vérifiée.
+  Le rendu Jest utilise des captures explicitement fictives ; téléphone, Expo SQLite et Hermes restent à qualifier.
+  [Audit daté et limites](../reprise/DISPATCH-M4-2026-10-08/AUDIT-DISPATCH-M4-2026-10-08-r1.md).
 - **Preuves.** `tests/e2e/test_admin_appareil.py` : les huit outils répondent à l'appareil `admin` par la vraie porte
   (200, sans troncature, rien d'écrit) ; `seller` reçoit 403 sur les huit et `employee` sur sept
   (`m4_lister_interventions` lui rend ses seules interventions) ; les réponses enregistrées dans
