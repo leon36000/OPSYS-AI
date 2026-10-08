@@ -81,9 +81,13 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from sqlalchemy import select
 
 from opsys import approbations, contexte, evenements, stockage
+from opsys.evenements.schemas import erreurs_charge
 from opsys.outils import Autonomie, Niveau, Outil
+from opsys.stockage import codec
+from opsys.stockage.schema import EVENEMENTS_SORTANTS, REGISTRES
 
 from . import (
     acces,
@@ -97,6 +101,7 @@ from . import (
     fournisseurs,
     livre_prix,
     materiel,
+    pertes_appareil,
     reapprovisionnement,
     reception,
     reservations,
@@ -1222,6 +1227,9 @@ def evaluer_variance_chantier(
     d'autres outils T0 qui lisent sans écrire), et utilisé seulement si `lignes_declarees`
     est omis. `lignes_declarees` explicite reste utilisable tel quel (entrée directe
     gardée, comme demandé)."""
+    _, verdict = _acteur_admin_ou_agent()
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdict}
     registre_cible = _registre_de_l_appel(registre_historique)
     resultat, code = variance_chantier.evaluer(
         chantier_id,
@@ -1560,6 +1568,62 @@ def lire_disponibilite(materiau_ids: list[str] | None = None) -> dict[str, Any]:
         ],
         "reservations_tronquees": len(touchees) > _LIMITE_RESERVATIONS_LUES,
     }}
+
+
+
+def _snapshots_pertes_appareil(wct_id: str | None = None) -> dict[str, Any]:
+    """Copie les sources dans la transaction courante ; les rangs viennent du stockage réel."""
+    cnx = stockage.connexion_courante()
+    lignes = cnx.execute(select(REGISTRES.c.rang, REGISTRES.c.maillon).where(
+        REGISTRES.c.departement == _DEPARTEMENT, REGISTRES.c.registre == _NOM_REGISTRE_WCT_RECUS
+    ).order_by(REGISTRES.c.rang)).all()
+    recus = [{"rang": r.rang, "maillon": codec.decoder(r.maillon)} for r in lignes]
+    ids = ([wct_id, *[f"m6-variance-{wct_id}-{statut}" for statut in pertes_appareil.statuts_historique()]]
+           if wct_id is not None else [r["maillon"].get("wct_id") for r in recus
+                                      if isinstance(r["maillon"], dict)
+                                      and isinstance(r["maillon"].get("wct_id"), str)])
+    publications = [{"evenement_id": r.evenement_id, "type": r.type_evenement, "producteur": r.producteur,
+                     "charge": codec.decoder(r.charge)} for r in cnx.execute(
+        select(EVENEMENTS_SORTANTS.c.evenement_id, EVENEMENTS_SORTANTS.c.type_evenement,
+               EVENEMENTS_SORTANTS.c.producteur, EVENEMENTS_SORTANTS.c.charge)
+        .where(EVENEMENTS_SORTANTS.c.evenement_id.in_(ids))).all()]
+    mouvements = _registre_de_l_appel(None).lire() if wct_id is not None else []
+    sources = {"recus": recus, "publications": publications, "mouvements": mouvements}
+    # La limite de traitement est après toutes les copies ; ce n'est pas une borne allocation.
+    if sum(len(rows) for rows in sources.values()) <= pertes_appareil.PLAFOND_LIGNES:
+        for publication in publications:
+            publication["catalogue_valide"] = not erreurs_charge(publication["type"], publication["charge"])
+    return sources
+
+
+def _lecture_pertes_appareil(
+    wct_id: str | None, decalage: int, limite: int, *, detail: bool
+) -> dict[str, Any]:
+    if contexte.identite_appelante() is None:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-IDENTITE-APPAREIL-INVALIDE", detail="cette lecture exige une personne admin active confirmée en base")}
+    _, verdict = _acteur_admin_ou_agent()
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-IDENTITE-APPAREIL-INVALIDE", detail="cette lecture exige une personne admin active confirmée en base")}
+    prefixe = "REJ-M6-PERTES-" if detail else "REJ-M6-WCT-"
+    if ((detail and not pertes_appareil.texte(wct_id))
+            or not pertes_appareil.arguments_valides(decalage, limite, wct_id)):
+        return pertes_appareil.refuser(prefixe, "ARGUMENTS-INVALIDES")
+    try:
+        sources = _snapshots_pertes_appareil(wct_id)
+    except Exception:
+        return pertes_appareil.refuser(prefixe, "REGISTRE-INVALIDE")
+    return (pertes_appareil.lister(sources, decalage, limite) if not detail
+            else pertes_appareil.lire(sources, wct_id, decalage, limite))
+
+
+def lister_wct_pertes_appareil(decalage: int = 0, limite: int = 8) -> dict[str, Any]:
+    return _lecture_pertes_appareil(None, decalage, limite, detail=False)
+
+
+def lire_pertes_alertes_wct_appareil(wct_id: str | None = None, decalage: int = 0, limite: int = 8) -> dict[str, Any]:
+    return _lecture_pertes_appareil(wct_id, decalage, limite, detail=True)
 
 
 def outils() -> tuple[Outil, ...]:
@@ -2065,6 +2129,28 @@ def outils() -> tuple[Outil, ...]:
             autonomie=Autonomie.T0,
             # §7 M6 tableau de bord : « stock réservé et disponible », « chantiers sans matériel prêt ».
             roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m6_lister_wct_pertes_appareil",
+            description=("WCT réellement reçus M6 et rapprochés des publications M4, par page courante. "
+                         "Références durables natives ; identité DEVICE admin active obligatoire, aucune écriture."),
+            parametres={"type": "object", "properties": {
+                "decalage": {"type": "integer", "minimum": 0, "maximum": 10000},
+                "limite": {"type": "integer", "minimum": 1, "maximum": 8}},
+                "required": ["decalage", "limite"], "additionalProperties": False},
+            fonction=lister_wct_pertes_appareil, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m6_lire_pertes_alertes_wct_appareil",
+            description=("PERTE/BRIS déclarés pour un WCT exact, sources signées et historique fixe des quatre "
+                         "statuts de variance publiés. Date/unité des pertes inconnues ; aucune cause attribuée, "
+                         "aucun stock courant/réapprovisionnement/coût ; admin DEVICE active, aucune écriture."),
+            parametres={"type": "object", "properties": {
+                "wct_id": {"type": "string", "maxLength": 256},
+                "decalage": {"type": "integer", "minimum": 0, "maximum": 10000},
+                "limite": {"type": "integer", "minimum": 1, "maximum": 8}},
+                "required": ["wct_id", "decalage", "limite"], "additionalProperties": False},
+            fonction=lire_pertes_alertes_wct_appareil, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
         ),
     )
 

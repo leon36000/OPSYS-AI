@@ -9,7 +9,7 @@ import type { DefinitionSection, ResultatSection } from "./lecture";
 
 function section<T>(outil: string, forme: FormeReponse, cache: string, lire: (v: unknown) => T | null): DefinitionSection<T> {
   return {
-    outil, args: {}, cache,
+    outil, args: {}, cache, invaliderCacheSurRefus: true,
     interpreter: brut => interpreter(brut, forme, lire),
     epurerPourLeCache: brut => {
       const lu = interpreter(brut, forme, lire);
@@ -25,10 +25,11 @@ export const SECTION_DIGEST_STOCK = section(OUTIL_DIGEST, "directe", "stock_dige
 export function creerChargeurStock(config: ConfigurationChargeurAdmin) {
   const garde = capturerGardeLecture(config.depot);
   const remplacee = <T>(): ResultatSection<T> => ({ source: "aucune", raison: VERDICT_LECTURE_REMPLACEE });
-  async function courante<T>(operation: () => Promise<ResultatSection<T>>): Promise<ResultatSection<T>> {
-    if (!garde.courante()) return remplacee();
-    const lu = await operation();
-    return garde.courante() ? lu : remplacee();
+  function courante<T>(operation: () => Promise<ResultatSection<T>>): Promise<ResultatSection<T>> {
+    if (!garde.courante()) return Promise.resolve(remplacee());
+    // lireSection contrôle ses awaits et ferme elle-même la génération en cas de purge échouée.
+    // Son refus connu reste un refus ; le chargeur retenu protège l'entrée de la lecture.
+    return operation();
   }
   return {
     chargerDisponibilite(): Promise<ResultatSection<DisponibiliteStock>> {

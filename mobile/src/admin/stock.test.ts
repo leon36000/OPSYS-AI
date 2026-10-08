@@ -5,6 +5,7 @@ import { OUTIL_DIGEST, OUTIL_DISPONIBILITE } from "../m6/stock";
 import { DepotCleValeurMemoire } from "../stockage/depotCleValeur";
 import { synchroniserCaches, ecrireProprietaireDesCaches } from "../identite/caches";
 import type { ResultatAppelOutil } from "../protocole/client";
+import { depotSousGardeLecture } from "../stockage/lecturesEnVol";
 
 const horloge = { maintenant: new Date("2026-10-07T12:00:00Z"), decalageMinutesUTC: -240 };
 const succes = () => fauxTransport({
@@ -12,6 +13,73 @@ const succes = () => fauxTransport({
   [OUTIL_DIGEST]: () => reponseStock("digest_sans_seuil_fictif"),
 });
 const noms = ["chargerDisponibilite", "chargerDigest"] as const;
+
+test.each(noms)("un refus connu invalide le cache %s pour les lectures réseau suivantes", async nom => {
+  const depot = new DepotCleValeurMemoire();
+  await creerChargeurStock(config(succes(), { depot, horloge }))[nom]();
+  const refus = fauxTransport({
+    [OUTIL_DISPONIBILITE]: () => reponseStock("refus_admin_desactive_m6_lire_disponibilite_fictif"),
+    [OUTIL_DIGEST]: () => reponseStock("refus_admin_desactive_m6_produire_digest_fictif"),
+  });
+  expect((await creerChargeurStock(config(refus, { depot, horloge }))[nom]()).source).toBe("refus");
+  expect((await creerChargeurStock(config(transportHorsLigne(), { depot, horloge }))[nom]()).source).toBe("aucune");
+});
+test.each(noms)("une réponse %s partie avant le refus ne ressuscite pas le cache", async nom => {
+  const depot = new DepotCleValeurMemoire();
+  await creerChargeurStock(config(succes(), { depot, horloge }))[nom]();
+  let finir!: (v: ResultatAppelOutil) => void;
+  const ancienne = creerChargeurStock(config(jest.fn(() => new Promise<ResultatAppelOutil>(r => { finir = r; })), { depot, horloge }))[nom]();
+  await Promise.resolve();
+  const refus = fauxTransport({
+    [OUTIL_DISPONIBILITE]: () => reponseStock("refus_admin_desactive_m6_lire_disponibilite_fictif"),
+    [OUTIL_DIGEST]: () => reponseStock("refus_admin_desactive_m6_produire_digest_fictif"),
+  });
+  expect((await creerChargeurStock(config(refus, { depot, horloge }))[nom]()).source).toBe("refus");
+  finir({ ok: true, result: reponseStock(nom === "chargerDisponibilite" ? "disponibilite_fictif" : "digest_sans_seuil_fictif") });
+  expect(await ancienne).toMatchObject({ source: "aucune", raison: { code: "lecture_remplacee" } });
+  expect((await creerChargeurStock(config(transportHorsLigne(), { depot, horloge }))[nom]()).source).toBe("aucune");
+});
+test("le refus d'une section laisse l'autre lecture et son cache valides", async () => {
+  const depot = new DepotCleValeurMemoire();
+  await creerChargeurStock(config(succes(), { depot, horloge })).chargerDigest();
+  let finir!: (v: ResultatAppelOutil) => void;
+  const digest = creerChargeurStock(config(jest.fn(() => new Promise<ResultatAppelOutil>(r => { finir = r; })), { depot, horloge })).chargerDigest();
+  await Promise.resolve();
+  const refus = fauxTransport({ [OUTIL_DISPONIBILITE]: () => ({ ok: false, erreur: "refus_metier", details: "Refus de source fictif" }) });
+  expect((await creerChargeurStock(config(refus, { depot, horloge })).chargerDisponibilite()).source).toBe("refus");
+  finir({ ok: true, result: reponseStock("digest_sans_seuil_fictif") });
+  expect((await digest).source).toBe("serveur");
+  expect((await creerChargeurStock(config(transportHorsLigne(), { depot, horloge })).chargerDigest()).source).toBe("cache");
+});
+test.each(noms)("les deux vues du même dépôt partagent le refus du slot %s", async nom => {
+  const depot = new DepotCleValeurMemoire();
+  let finir!: (v: ResultatAppelOutil) => void;
+  const ancienne = creerChargeurStock(config(jest.fn(() => new Promise<ResultatAppelOutil>(r => { finir = r; })),
+    { depot: depotSousGardeLecture(depot, () => true), horloge }))[nom]();
+  await Promise.resolve();
+  const refus = fauxTransport({ [OUTIL_DISPONIBILITE]: () => ({ ok: false, erreur: "refus_metier", details: "fictif" }),
+    [OUTIL_DIGEST]: () => ({ ok: false, erreur: "refus_metier", details: "fictif" }) });
+  expect((await creerChargeurStock(config(refus, { depot: depotSousGardeLecture(depot, () => true), horloge }))[nom]()).source).toBe("refus");
+  finir({ ok: true, result: reponseStock(nom === "chargerDisponibilite" ? "disponibilite_fictif" : "digest_sans_seuil_fictif") });
+  expect(await ancienne).toMatchObject({ source: "aucune", raison: { code: "lecture_remplacee" } });
+});
+test.each(noms)("un tombstone %s durable admet ensuite une nouvelle réussite, pas l'ancienne", async nom => {
+  const depot = new DepotCleValeurMemoire();
+  await creerChargeurStock(config(succes(), { depot, horloge }))[nom]();
+  const refus = jest.fn(async () => echecHttp(403, "tool_call_blocked"));
+  expect((await creerChargeurStock(config(refus, { depot, horloge }))[nom]()).source).toBe("refus");
+  expect((await creerChargeurStock(config(transportHorsLigne(), { depot, horloge }))[nom]()).source).toBe("aucune");
+  expect((await creerChargeurStock(config(succes(), { depot, horloge }))[nom]()).source).toBe("serveur");
+  expect((await creerChargeurStock(config(transportHorsLigne(), { depot, horloge }))[nom]()).source).toBe("cache");
+});
+test.each(noms)("une purge du cache %s échouée ferme la copie pour le processus courant", async nom => {
+  const depot = new DepotCleValeurMemoire();
+  await creerChargeurStock(config(succes(), { depot, horloge }))[nom]();
+  const ecriture = jest.spyOn(depot, "ecrire").mockRejectedValueOnce(new Error("SQLite fictive inaccessible"));
+  expect((await creerChargeurStock(config(jest.fn(async () => echecHttp(403, "tool_call_blocked")), { depot, horloge }))[nom]()).source).toBe("refus");
+  expect((await creerChargeurStock(config(transportHorsLigne(), { depot, horloge }))[nom]()).source).toBe("aucune");
+  ecriture.mockRestore();
+});
 
 test("deux lectures indépendantes, noms nus et arguments toujours vides", async () => {
   const appeler = succes();

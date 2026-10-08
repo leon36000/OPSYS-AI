@@ -1,4 +1,4 @@
-import { capturerGardeLecture, commencerTransitionCaches, VERDICT_LECTURE_REMPLACEE } from "../stockage/lecturesEnVol";
+import { capturerGardeLecture, capturerGardeSection, commencerTransitionCaches, depotSousGardeLecture, invaliderLecturesSection, VERDICT_LECTURE_REMPLACEE } from "../stockage/lecturesEnVol";
 import type { VerdictServeur } from "../outbox/vidangeur";
 import { appelerLecture, ecrireSansEchouer } from "./appel";
 import type { ConfigurationChargeurAdmin } from "./appel";
@@ -52,23 +52,30 @@ export async function lireSection<T>(
   config: ConfigurationChargeurAdmin,
   section: DefinitionSection<T>,
 ): Promise<ResultatSection<T>> {
-  const garde = capturerGardeLecture(config.depot);
+  const autorite = capturerGardeLecture(config.depot);
+  const cleSection = JSON.stringify([config.personne, section.cache]);
+  const garde = section.invaliderCacheSurRefus ? capturerGardeSection(config.depot, cleSection) : autorite;
+  const depotLecture = section.invaliderCacheSurRefus ? depotSousGardeLecture(config.depot, garde.courante) : config.depot;
   const remplacee = (): ResultatSection<T> => ({ source: "aucune", raison: VERDICT_LECTURE_REMPLACEE });
   if (!garde.courante()) return remplacee();
   async function refus(verdict: VerdictServeur): Promise<ResultatSection<T>> {
     if (section.invaliderCacheSurRefus) {
+      if (!garde.courante()) return remplacee();
+      // Fermer avant la purge : les écritures déjà admises finissent avant le tombstone,
+      // les réponses encore en vol ne peuvent plus ni s'afficher ni écrire ce slot.
+      invaliderLecturesSection(config.depot, cleSection);
       try { await ecrireCacheSection(config.depot, config.personne, section.cache, null, config.horloge().maintenant.toISOString()); }
       catch {
-        if (!garde.courante()) return remplacee();
+        if (!autorite.courante()) return remplacee();
         const terminer = commencerTransitionCaches(config.depot); terminer(false);
         return { source: "refus", verdict };
       }
     }
-    return garde.courante() ? { source: "refus", verdict } : remplacee();
+    return autorite.courante() ? { source: "refus", verdict } : remplacee();
   }
   async function depuisCache(raisonHorsLigne: VerdictServeur): Promise<ResultatSection<T>> {
     if (!garde.cachePermis()) return remplacee();
-    const gardee = await lireCacheSection(config.depot, config.personne, section.cache);
+    const gardee = await lireCacheSection(depotLecture, config.personne, section.cache);
     if (!garde.cachePermis()) return remplacee();
     if (gardee === null) {
       return { source: "aucune", raison: raisonHorsLigne };
@@ -94,7 +101,7 @@ export async function lireSection<T>(
   }
   const misAJourLe = config.horloge().maintenant.toISOString();
   const agarder = section.epurerPourLeCache ? section.epurerPourLeCache(appel.resultat) : appel.resultat;
-  await ecrireSansEchouer(() => ecrireCacheSection(config.depot, config.personne, section.cache, agarder, misAJourLe));
+  await ecrireSansEchouer(() => ecrireCacheSection(depotLecture, config.personne, section.cache, agarder, misAJourLe));
   if (!garde.courante()) return remplacee();
   return { source: "serveur", valeur: lue.valeur, misAJourLe };
 }

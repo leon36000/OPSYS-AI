@@ -8,6 +8,7 @@ interface EtatLectures {
   operations: Promise<void>;
   transitions: number;
   cacheBloque: boolean;
+  sections: Map<string, object>;
 }
 const etats = new WeakMap<DepotCleValeur, EtatLectures>();
 const vues = new WeakMap<DepotCleValeur, { base: DepotCleValeur; garde: GardeLecture }>();
@@ -19,7 +20,7 @@ function etat(depot: DepotCleValeur): EtatLectures {
   const original = base(depot);
   let value = etats.get(original);
   if (!value) {
-    value = { generation: {}, operations: Promise.resolve(), transitions: 0, cacheBloque: false };
+    value = { generation: {}, operations: Promise.resolve(), transitions: 0, cacheBloque: false, sections: new Map() };
     etats.set(original, value);
   }
   return value;
@@ -62,6 +63,18 @@ export function serialiserCaches<T>(
   return result;
 }
 
+/** Un refus d'un slot invalide ses réponses parties avant ce refus, sans fermer les autres slots. */
+export function capturerGardeSection(depot: DepotCleValeur, cle: string): GardeLecture {
+  const state = etat(depot), globale = capturerGardeLecture(depot);
+  let generation = state.sections.get(cle);
+  if (!generation) { generation = {}; state.sections.set(cle, generation); }
+  const courante = () => globale.courante() && state.sections.get(cle) === generation;
+  return { courante, cachePermis: () => courante() && globale.cachePermis() };
+}
+export function invaliderLecturesSection(depot: DepotCleValeur, cle: string): void {
+  etat(depot).sections.set(cle, {});
+}
+
 /** Invalide avant d’attendre les écritures admises. Une purge échouée bloque le cache
  * jusqu’à une confirmation ultérieure réussie ; les lectures fraîches du serveur peuvent reprendre. */
 export function cacheRequiertPurge(depot: DepotCleValeur): boolean {
@@ -72,6 +85,7 @@ export function commencerTransitionCaches(depot: DepotCleValeur): (reussie: bool
   const state = etat(depot);
   const generation = {};
   state.generation = generation;
+  state.sections.clear();
   state.transitions += 1;
   state.cacheBloque = true;
   let terminee = false;

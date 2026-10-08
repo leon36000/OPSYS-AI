@@ -16,6 +16,11 @@ jest.mock("@/admin/composants", () => jest.requireActual("../admin/composants"),
 jest.mock("@/ecrans/adminCommun", () => jest.requireActual("./adminCommun"), { virtual: true });
 jest.mock("@/ecrans/stock", () => jest.requireActual("./stock"), { virtual: true });
 jest.mock("@/identite/BandeauIdentite", () => ({ BandeauIdentite: () => null }), { virtual: true });
+// La nouvelle lecture WCT est qualifiée séparément ; ce voisin conserve son périmètre global.
+jest.mock("@/admin/PertesAlertesM6", () => ({ PertesAlertesM6: () => null }), { virtual: true });
+jest.mock("@react-native-community/netinfo", () => ({ useNetInfo: () => ({ isConnected: true }) }));
+jest.mock("@/protocole/configuration", () => ({ capturerSessionAdminLecture: () => ({ session: { personne: "admin-fictif" }, courante: () => true }) }), { virtual: true });
+jest.mock("@/roles/contexte", () => ({ useSessionAppareil: () => "admin-fictif" }), { virtual: true });
 const service = require("@/admin/service") as Record<string, jest.Mock>;
 const Ecran = require("../../app/(admin)/stock").default;
 const serveur = <T,>(valeur: T) => ({ source: "serveur", valeur, misAJourLe: "2026-10-07T12:00:00Z" });
