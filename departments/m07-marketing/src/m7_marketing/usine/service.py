@@ -805,11 +805,19 @@ def _appelant_confirme() -> contexte_appel.IdentiteAppelante | None:
 
 
 def _refus_lecture_admin() -> dict[str, Any] | None:
-    """Confirme l'admin avant une lecture ; la voie interne sans identité reste disponible."""
+    """Confirme l'admin ou le propriétaire de console avant une lecture.
+
+    La provenance console vient de l'adaptateur serveur, jamais des arguments ou du `_meta`
+    MCP. Le propriétaire conserve son rôle réel, confirmé en base, sans devenir un admin
+    d'appareil. La voie interne sans identité reste disponible.
+    """
     if contexte_appel.identite_appelante() is None:
         return None
     appelante = _appelant_confirme()
-    if appelante is None or appelante.role != "admin":
+    if appelante is None or not (
+        appelante.role == "admin"
+        or (appelante.source == "console" and appelante.role == "nathan_owner")
+    ):
         return verdicts.verdict(
             "REJ-IDENTITE-APPAREIL-INVALIDE",
             "lecture marketing réservée à une personne active portant le rôle admin confirmé en base",

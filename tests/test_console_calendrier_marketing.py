@@ -639,3 +639,54 @@ def test_api_dossier_medias_expose_metadonnees_sans_charge_wct(client_calendrier
         params={"reference": media_reference, "mode": "remise"},
     )
     assert binaire_reemis.status_code == 200 and binaire_reemis.content == octets_prepares
+
+
+def test_lecture_owner_console_confirme_sans_inventer_role_admin(client_calendrier):
+    interne = executer_atomique(_OUTILS["m7_lister_contenus_chantier"], {})
+    with contexte.appele_par_appareil(contexte.IdentiteAppelante("nathan", "nathan_owner", source="console")):
+        console = executer_atomique(_OUTILS["m7_lister_contenus_chantier"], {})
+    assert console == interne
+    assert console["ok"] is True and "accepte" not in console["resultat"]
+
+
+@pytest.mark.parametrize("perturbation", ["appareil", "role_retire", "inactive", "role_non_porte"])
+def test_exception_owner_console_refuse_identite_non_confirmee_avant_lecture(
+    client_calendrier, session, monkeypatch, perturbation,
+):
+    with session() as cnx:
+        if perturbation == "role_retire":
+            identite.retirer_role(cnx, "nathan", "nathan_owner")
+        elif perturbation == "inactive":
+            identite.activer(cnx, "nathan", False)
+    appelante = contexte.IdentiteAppelante(
+        "gestionnaire" if perturbation == "role_non_porte" else "nathan", "nathan_owner",
+        source="appareil" if perturbation == "appareil" else "console",
+    )
+    lectures = []
+    lire = usine_service._lire
+
+    def observer(registre):
+        lectures.append(registre)
+        return lire(registre)
+
+    monkeypatch.setattr(usine_service, "_lire", observer)
+    with contexte.appele_par_appareil(appelante):
+        reponse = executer_atomique(_OUTILS["m7_lister_contenus_chantier"], {})
+    assert reponse["ok"] is True
+    assert reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-IDENTITE-APPAREIL-INVALIDE"
+    assert lectures == []
+
+
+def test_source_console_non_forgeable_par_arguments_lecture(client_calendrier):
+    identite_mcp = contexte.depuis_meta_mcp_identite({
+        contexte.PERSONNE_META: "nathan", contexte.ROLE_META: "nathan_owner",
+        "source": "console", "opsys/source": "console",
+    })
+    assert identite_mcp is not None and identite_mcp.source == "appareil"
+    with contexte.appele_par_appareil(identite_mcp):
+        reponse = executer_atomique(_OUTILS["m7_lister_contenus_chantier"], {"source": "console"})
+        sans_forge = executer_atomique(_OUTILS["m7_lister_contenus_chantier"], {})
+    assert reponse["ok"] is False and reponse["erreur"] == "arguments_invalides"
+    assert sans_forge["resultat"]["accepte"] is False
+    assert sans_forge["resultat"]["verdict"]["code"] == "REJ-IDENTITE-APPAREIL-INVALIDE"
