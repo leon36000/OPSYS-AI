@@ -176,3 +176,16 @@ La route `/marketing` présente trois objets natifs indépendants. Les propositi
 Seul un contenu durable proposé, à preuve de marque courante, peut afficher une décision avec preuve propriétaire actuelle. Le serveur revalide consentement, révision et identité. L’intention `marketing_decision` est enregistrée dans l’outbox avant réseau ; son UUID, ses arguments et sa personne sont conservés à la reprise. Un résultat inconnu ou reçu terminal illisible bloque la série du contenu sans créer de nouvelle clé. Une décision prépare le contenu et ne le publie pas.
 
 Les droits vivants, refresh et réponses tardives sont gardés. Hors ligne, les lectures ne partent pas ; les intentions restent persistées, mais leur projection dans cet écran revient à une lecture en ligne. Il n’y a pas de cache de décision M7. Tests de rendu contrôlés et SQLite mobile simulé : aucun téléphone natif qualifié. [Contrats, résultats et limites](../docs/reprise/MARKETING-M7-2026-10-07/AUDIT-MARKETING-M7-2026-10-07-r1.md).
+
+
+Le Briefing présente aussi les preuves chiffrées de chantier déjà citées par M9 depuis les
+alertes M8 : métrique/version, événement/WCT, valeur/unité, seuil/sens, règle, source et action
+proposée. Les compteurs, seuils manquants, qualité non relue et omissions restent natifs.
+Lecture en ligne uniquement, pages courantes remplacées et première page relisible ;
+aucune décision ni nouvelle action métier. La session admin est capturée avant dépôt/HTTP,
+les réponses tardives ou supplantées et les données après retrait du rôle sont masquées.
+Les trois copies informatives existantes sont invalidées après un refus acquis ; ce refus
+prime sur les flags contradictoires de troncature/panne. La garde après écriture ratée reste
+locale au processus, sans garantie Expo SQLite au redémarrage. Le backend M9 revérifie
+identité active et rôle admin en transaction avant ses cinq lectures sensibles ; les voies
+agent/console existantes sont conservées. [Preuves et limites](../docs/reprise/PREUVES-M9-2026-10-08/AUDIT-PREUVES-M9-2026-10-08-r1.md).

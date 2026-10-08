@@ -2785,3 +2785,28 @@ CI exacte sont requises avant clôture de la publication. Backend M5/M8 et Core 
 Les six workflows du parent 8bf106eb sont verts ; ils ne qualifient pas le commit suivant.
 [Audit, preuves et limites](../reprise/CASH-M5-M8-2026-10-08/AUDIT-CASH-M5-M8-2026-10-08-r1.md).
 OPSYS-AI reste PARTIEL ; prochaines capacités M8/M9/M10 conservées avec leurs critères.
+
+
+## Preuves de chantier M9 — 8 octobre 2026, Toronto
+
+La continuation réutilise `m9_produire_lecture_strategique` dans le Briefing admin :
+métrique/version, WCT/événement, valeur/unité, seuil/sens, source, règle et action proposée
+par M8. Les compteurs, manques, qualité non relue et bornes restent ceux de M9 ; la décision
+reste explicitement au propriétaire. Pages courantes remplacées, première page relisible,
+référence ISO conservée, aucun cache de cette nouvelle lecture, aucun calcul ou effet ajouté.
+Les copies informatives M9 sont invalidées après un refus connu. Un refus acquis prime aussi
+sur une enveloppe contradictoire/tronquée ; le voisin M8 a reçu le même correctif borné.
+
+La campagne de référence a confirmé que les cinq lecteurs M9 exposaient encore des données
+après retrait du rôle admin. Ce rouge est conservé. Le candidat revalide maintenant identité
+active/rôle courant avant registres et file, en transaction, avec voie agents/console préservée.
+La qualification Gateway distincte du candidat refuse avant ces accès et préserve toutes les
+tables. La mémoire et l'origine économique ne sont pas déduites d'un WCT seul.
+
+[Audit, registres et qualifications exactes](../reprise/PREUVES-M9-2026-10-08/AUDIT-PREUVES-M9-2026-10-08-r1.md).
+La CI applicable du nouveau commit reste distincte des preuves locales et du parent032c.
+Téléphone/Expo SQLite/Hermes et survie du blocage de cache après échec d'écriture puis perte
+du processus ne sont pas qualifiés. OPSYS-AI reste PARTIEL. Les critères profonds des dix
+départements demeurent ouverts ; suite M10 par un affaire_id canonique reçu du serveur,
+paquet partiel sans données privées/financières ni mémoire développement, sans consolidation
+ou conversion WCT→lead inventée. Gardes et budget HTTP à qualifier avant ce raccord.

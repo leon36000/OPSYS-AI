@@ -22,6 +22,25 @@ import type {
 } from "../m9/briefing";
 import { capturerGardeLecture, VERDICT_LECTURE_REMPLACEE } from "../stockage/lecturesEnVol";
 import { VERDICT_REPONSE_ILLISIBLE } from "../protocole/enveloppeOutil";
+import { copierJsonLecture, JSON_LECTURE_INVALIDE } from "../protocole/jsonLecture";
+import { construireArgumentsLectureStrategique, lireLectureStrategique, OUTIL_LECTURE_STRATEGIQUE } from "../m9/lectureStrategique";
+import type { LectureStrategiqueM9 } from "../m9/lectureStrategique";
+
+/** Copie entière avant ouverture. Un refus acquis ne devient pas une panne permettant le cache. */
+function interpreterM9<T>(raw: unknown, reader: (v: unknown) => T | null) {
+  const propre = (objet: unknown, cle: string): unknown => {
+    if (typeof objet !== "object" || objet === null) return undefined;
+    try { const d = Object.getOwnPropertyDescriptor(objet, cle); return d && "value" in d ? d.value : undefined; }
+    catch { return undefined; }
+  };
+  const refusMetier = propre(propre(raw, "resultat"), "accepte") === false;
+  const copie = copierJsonLecture(raw);
+  if (copie === JSON_LECTURE_INVALIDE)
+    return { ok: false as const, genre: refusMetier || propre(raw, "ok") === false ? "refus" as const : "illisible" as const,
+      verdict: VERDICT_REPONSE_ILLISIBLE };
+  if (refusMetier) return interpreter({ ok: true, resultat: propre(copie, "resultat") }, "directe", reader);
+  return interpreter(copie, "directe", reader);
+}
 
 /** Projection lisible par le même contrat ; seules les références WCT de la preuve M8 sont affichées. */
 function epurerAlerte<T extends { readonly preuve: Readonly<Record<string, unknown>> }>(
@@ -35,7 +54,7 @@ function cacheNormalise<T>(
   projection: (lu: T) => unknown = (lu) => lu,
 ) {
   return (raw: unknown) => {
-    const lue = interpreter(raw, "directe", reader);
+    const lue = interpreterM9(raw, reader);
     return lue.ok ? { ok: true, resultat: projection(lue.valeur) } : raw;
   };
 }
@@ -60,11 +79,12 @@ export function creerChargeurBriefing(config: ConfigurationChargeurAdmin) {
     reader: (raw: unknown) => T | null,
   ): Promise<ResultatSection<T>> {
     return courante(async () => {
+      if (config.enLigne?.() === false) return { source: "aucune", raison: { code: "hors_ligne", detail: "" } };
       const appel = await appelerLecture(config, outil, args);
       if (!garde.courante()) return remplacee<T>();
       if (appel.genre === "refuse") return { source: "refus", verdict: appel.verdict };
       if (appel.genre === "injoignable") return { source: "aucune", raison: appel.verdict };
-      const lue = interpreter(appel.resultat, "directe", reader);
+      const lue = interpreterM9(appel.resultat, reader);
       if (!lue.ok)
         return lue.genre === "refus"
           ? { source: "refus", verdict: lue.verdict }
@@ -77,12 +97,19 @@ export function creerChargeurBriefing(config: ConfigurationChargeurAdmin) {
     });
   }
   return {
+    chargerLectureStrategique(maintenant: string, depart = 0): Promise<ResultatSection<LectureStrategiqueM9>> {
+      let args: { maintenant: string; depart: number };
+      try { args = construireArgumentsLectureStrategique(maintenant, depart); }
+      catch { return Promise.resolve({ source: "aucune", raison: VERDICT_REPONSE_ILLISIBLE }); }
+      return pageEnLigne(OUTIL_LECTURE_STRATEGIQUE, args, v => lireLectureStrategique(v, maintenant, depart));
+    },
     chargerBriefing(maintenant: string): Promise<ResultatSection<BriefingM9>> {
       return courante(() =>
         lireSection(config, {
           outil: OUTIL_BRIEFING,
           args: { maintenant },
           cache: `briefing_m9:${maintenant.slice(0, 10)}`,
+          invaliderCacheSurRefus: true,
           epurerPourLeCache: cacheNormalise(lireBriefing, (b) => ({
             ...b,
             sections: {
@@ -94,7 +121,7 @@ export function creerChargeurBriefing(config: ConfigurationChargeurAdmin) {
             },
           })),
           interpreter: (raw) =>
-            interpreter(raw, "directe", (v) => {
+            interpreterM9(raw, (v) => {
               const lu = lireBriefing(v);
               return lu?.jour === maintenant.slice(0, 10) ? lu : null;
             }),
@@ -120,6 +147,7 @@ export function creerChargeurBriefing(config: ConfigurationChargeurAdmin) {
               outil: OUTIL_ALERTES_M9,
               args: { depart: 0 },
               cache: "alertes_m9",
+              invaliderCacheSurRefus: true,
               epurerPourLeCache: cacheNormalise(
                 (v) => lireAlertesM9(v, 0),
                 (a) => ({
@@ -135,7 +163,7 @@ export function creerChargeurBriefing(config: ConfigurationChargeurAdmin) {
                   alertes: a.alertes.map(epurerAlerte),
                 }),
               ),
-              interpreter: (raw) => interpreter(raw, "directe", (v) => lireAlertesM9(v, 0)),
+              interpreter: (raw) => interpreterM9(raw, (v) => lireAlertesM9(v, 0)),
             }),
           )
         : pageEnLigne(OUTIL_ALERTES_M9, { depart }, (v) => lireAlertesM9(v, depart));
@@ -146,8 +174,9 @@ export function creerChargeurBriefing(config: ConfigurationChargeurAdmin) {
           outil: OUTIL_ETAT_M9,
           args: {},
           cache: "etat_m9",
+          invaliderCacheSurRefus: true,
           epurerPourLeCache: cacheNormalise(lireEtatConsolide),
-          interpreter: (raw) => interpreter(raw, "directe", lireEtatConsolide),
+          interpreter: (raw) => interpreterM9(raw, lireEtatConsolide),
         }),
       );
     },

@@ -46,7 +46,7 @@ from typing import Any
 
 import yaml
 
-from opsys import approbations, approbations_appareil, contexte, jetons, stockage
+from opsys import approbations, approbations_appareil, contexte, identite, jetons, stockage
 from opsys.departements import charger_departements
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
@@ -98,6 +98,26 @@ def _fenetre_alertes_jours() -> int:
     if isinstance(fenetre, bool) or not isinstance(fenetre, int) or fenetre < 0:
         return 0
     return fenetre
+
+
+def _exiger_admin_pour_appareil() -> None:
+    """Revérifie le rôle courant en transaction avant tout registre sensible, comme M8.
+
+    La voie des agents/console sans identité d'appareil conserve ses permissions existantes.
+    Un rôle admin dans un ancien jeton ne suffit pas : personne active et rôle encore porté.
+    """
+    appelante = contexte.identite_appelante()
+    if appelante is None:
+        return
+    cnx = stockage.connexion_courante()
+    personne = (
+        identite.personne_active(cnx, appelante.personne) if cnx is not None and appelante.role == "admin" else None
+    )
+    if personne is None or "admin" not in personne.roles:
+        raise ValueError(
+            "REJ-IDENTITE-APPAREIL-INVALIDE : les lectures M9 sont réservées à l'admin authentifié "
+            "(personne active portant encore le rôle admin)"
+        )
 
 
 def valider_snapshot(snapshot: dict[str, Any]) -> dict[str, Any]:
@@ -159,6 +179,7 @@ def outils(
 
     def lire_etat_consolide() -> dict[str, Any]:
         """État consolidé courant par relecture pure du registre — n'ingère rien de nouveau."""
+        _exiger_admin_pour_appareil()
         return etat_consolide_module.construire_etat_consolide(registre_cible)
 
     def etat_consolide(snapshot: dict[str, Any]) -> dict[str, Any]:
@@ -180,6 +201,7 @@ def outils(
         """Alertes M8 déjà reçues (`m8.alerte_proposee`), sans filtre — relecture pure, n'ingère
         rien de nouveau (même esprit que `lire_etat_consolide`). BORNÉE (T1.5-d) : une page à la fois, le
         plus récent d'abord, sous la limite de sortie du socle ; `depart` reprend à `prochain_depart`."""
+        _exiger_admin_pour_appareil()
         return lecture_alertes.lire_alertes_m8(
             [dict(alerte) for alerte in alertes_cible], depart, budget_caracteres=BUDGET_SORTIE,
         )
@@ -205,6 +227,7 @@ def outils(
 
         Borné sous la limite de sortie du socle (T1.5-d) : ce qui ne tient pas est compté dans `affichage`
         et se lit par `m9_lire_suite_briefing`."""
+        _exiger_admin_pour_appareil()
         decisions, alertes, faits = sources_du_briefing()
         return briefing_matin.assembler_briefing_matin(
             maintenant, decisions, alertes, faits,
@@ -214,6 +237,7 @@ def outils(
     def lire_suite_briefing(maintenant: str, section: str, depart: int = 0) -> dict[str, Any]:
         """La suite d'une section du briefing à partir de `depart` (T1.5-d) : mêmes sources, même filtre,
         même ordre que `produire_briefing_matin`, une page bornée à la fois."""
+        _exiger_admin_pour_appareil()
         decisions, alertes, faits = sources_du_briefing()
         return briefing_matin.lire_suite_section(
             maintenant, section, depart, decisions, alertes, faits,
@@ -223,6 +247,7 @@ def outils(
     def produire_lecture_strategique(maintenant: str, depart: int = 0) -> dict[str, Any]:
         """Lecture stratégique des alertes de mesure de M8 (T1.5-d) : preuves citées, décision au
         propriétaire, jamais prise par M9. Relecture pure du registre d'alertes reçues (T0)."""
+        _exiger_admin_pour_appareil()
         return lecture_strategique.assembler_lecture_strategique(
             maintenant, [dict(alerte) for alerte in alertes_cible],
             fenetre_alertes_jours=_fenetre_alertes_jours(), depart=depart, budget_caracteres=BUDGET_SORTIE,

@@ -1,0 +1,2394 @@
+{
+  "fictif": true,
+  "maintenant": "2026-09-28T07:00:00-04:00",
+  "provenance": {
+    "origine": "M9 module pur natif depuis fixtures existantes validées catalogue M8, pas HTTP ni calculateur M8",
+    "repo_parent": "032c6228ec1228e8c37d9aa3553df308fec3744f",
+    "sources_sha256": {
+      "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/lecture_strategique.py": "825cdc4f8915104f356981131ffa74593e59b570d5ec3ba12e54f415e0a8b7db",
+      "departments/m09-strategic-intelligence/src/m9_strategic_intelligence/outils.py": "9c470d86bd82a8647ace25f35e707499145cb27465a2a12610660b9e2997872d",
+      "departments/m09-strategic-intelligence/tests/test_lecture_strategique.py": "bd66269fa1db9549ddff94bec9b624aa173b1bc100b940d2d37b716dc6e5e1a8",
+      "src/opsys/evenements/catalogue/m8.alerte_proposee.json": "6e7b5490b9491ff39264358b40b6ac0b6c043f78a60970a88304cc2095895e39"
+    },
+    "generation": "qualification/m9-preuves-fixtures-pures-r1.py",
+    "generation_sha256": "e27708ba754661623318ee28b59a4b1b17d94b2be7dc3a37ff919e84e8d3ac3b"
+  },
+  "reponses": {
+    "mesure": {
+      "arguments": {
+        "maintenant": "2026-09-28T07:00:00-04:00",
+        "depart": 0
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "type": "LECTURE_STRATEGIQUE_M8",
+          "jour": "2026-09-28",
+          "periode": {
+            "du": "2026-09-25",
+            "au": "2026-09-28"
+          },
+          "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+          "resume": "1 alerte(s) de mesure proposée(s) par M8 sur 1 chantier(s), 1 métrique(s) : m8_ecart_duree_pct. Aucune décision n'est prise par M9 : elle revient au propriétaire (nathan_owner).",
+          "decision": {
+            "prise_par_m9": false,
+            "a_prendre_par": "nathan_owner",
+            "requise": true
+          },
+          "preuves_m8": [
+            "m8_ecart_duree_pct"
+          ],
+          "par_metrique": [
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "nb_alertes": 1,
+              "nb_chantiers": 1,
+              "a_qui": [
+                "m04-field-ops"
+              ]
+            }
+          ],
+          "manques": {
+            "seuils_a_configurer": [],
+            "alertes_de_qualite_non_relues": 0
+          },
+          "lectures": [
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "version_definition": "abababababababababababababababababababababababababababababababab",
+              "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0001",
+              "chantier": "wct-fictif-1",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+              "a_qui": "m04-field-ops",
+              "action_proposee_par_m8": "Revoir le chantier wct-fictif-1 avec m04-field-ops.",
+              "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+              "statut_decision": "en_attente_du_proprietaire"
+            }
+          ],
+          "affichage": {
+            "borne_caracteres": 5900,
+            "taille_caracteres": 1484,
+            "n_lectures": 1,
+            "depart": 0,
+            "affichees": 1,
+            "reste": 0,
+            "prochain_depart": null,
+            "message": null
+          }
+        }
+      }
+    },
+    "premiere": {
+      "arguments": {
+        "maintenant": "2026-09-28T07:00:00-04:00",
+        "depart": 0
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "type": "LECTURE_STRATEGIQUE_M8",
+          "jour": "2026-09-28",
+          "periode": {
+            "du": "2026-09-25",
+            "au": "2026-09-28"
+          },
+          "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+          "resume": "20 alerte(s) de mesure proposée(s) par M8 sur 20 chantier(s), 1 métrique(s) : m8_ecart_duree_pct. Aucune décision n'est prise par M9 : elle revient au propriétaire (nathan_owner).",
+          "decision": {
+            "prise_par_m9": false,
+            "a_prendre_par": "nathan_owner",
+            "requise": true
+          },
+          "preuves_m8": [
+            "m8_ecart_duree_pct"
+          ],
+          "par_metrique": [
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "nb_alertes": 20,
+              "nb_chantiers": 20,
+              "a_qui": [
+                "m04-field-ops"
+              ]
+            }
+          ],
+          "manques": {
+            "seuils_a_configurer": [],
+            "alertes_de_qualite_non_relues": 0
+          },
+          "lectures": [
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "version_definition": "abababababababababababababababababababababababababababababababab",
+              "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0000",
+              "chantier": "wct-fictif-0",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+              "a_qui": "m04-field-ops",
+              "action_proposee_par_m8": "Revoir le chantier wct-fictif-0 avec m04-field-ops.",
+              "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+              "statut_decision": "en_attente_du_proprietaire"
+            },
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "version_definition": "abababababababababababababababababababababababababababababababab",
+              "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0001",
+              "chantier": "wct-fictif-1",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+              "a_qui": "m04-field-ops",
+              "action_proposee_par_m8": "Revoir le chantier wct-fictif-1 avec m04-field-ops.",
+              "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+              "statut_decision": "en_attente_du_proprietaire"
+            },
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "version_definition": "abababababababababababababababababababababababababababababababab",
+              "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0002",
+              "chantier": "wct-fictif-2",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+              "a_qui": "m04-field-ops",
+              "action_proposee_par_m8": "Revoir le chantier wct-fictif-2 avec m04-field-ops.",
+              "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+              "statut_decision": "en_attente_du_proprietaire"
+            },
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "version_definition": "abababababababababababababababababababababababababababababababab",
+              "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0003",
+              "chantier": "wct-fictif-3",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+              "a_qui": "m04-field-ops",
+              "action_proposee_par_m8": "Revoir le chantier wct-fictif-3 avec m04-field-ops.",
+              "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+              "statut_decision": "en_attente_du_proprietaire"
+            },
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "version_definition": "abababababababababababababababababababababababababababababababab",
+              "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0004",
+              "chantier": "wct-fictif-4",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+              "a_qui": "m04-field-ops",
+              "action_proposee_par_m8": "Revoir le chantier wct-fictif-4 avec m04-field-ops.",
+              "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+              "statut_decision": "en_attente_du_proprietaire"
+            },
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "version_definition": "abababababababababababababababababababababababababababababababab",
+              "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0005",
+              "chantier": "wct-fictif-5",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+              "a_qui": "m04-field-ops",
+              "action_proposee_par_m8": "Revoir le chantier wct-fictif-5 avec m04-field-ops.",
+              "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+              "statut_decision": "en_attente_du_proprietaire"
+            },
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "version_definition": "abababababababababababababababababababababababababababababababab",
+              "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0006",
+              "chantier": "wct-fictif-6",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+              "a_qui": "m04-field-ops",
+              "action_proposee_par_m8": "Revoir le chantier wct-fictif-6 avec m04-field-ops.",
+              "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+              "statut_decision": "en_attente_du_proprietaire"
+            },
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "version_definition": "abababababababababababababababababababababababababababababababab",
+              "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0007",
+              "chantier": "wct-fictif-7",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+              "a_qui": "m04-field-ops",
+              "action_proposee_par_m8": "Revoir le chantier wct-fictif-7 avec m04-field-ops.",
+              "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+              "statut_decision": "en_attente_du_proprietaire"
+            }
+          ],
+          "affichage": {
+            "borne_caracteres": 5900,
+            "taille_caracteres": 5752,
+            "n_lectures": 20,
+            "depart": 0,
+            "affichees": 8,
+            "reste": 12,
+            "prochain_depart": 8,
+            "message": "12 autres lectures non affichées : poursuivre avec depart=8."
+          }
+        }
+      }
+    },
+    "suite": {
+      "arguments": {
+        "maintenant": "2026-09-28T07:00:00-04:00",
+        "depart": 8
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "type": "LECTURE_STRATEGIQUE_M8",
+          "jour": "2026-09-28",
+          "periode": {
+            "du": "2026-09-25",
+            "au": "2026-09-28"
+          },
+          "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+          "resume": "20 alerte(s) de mesure proposée(s) par M8 sur 20 chantier(s), 1 métrique(s) : m8_ecart_duree_pct. Aucune décision n'est prise par M9 : elle revient au propriétaire (nathan_owner).",
+          "decision": {
+            "prise_par_m9": false,
+            "a_prendre_par": "nathan_owner",
+            "requise": true
+          },
+          "preuves_m8": [
+            "m8_ecart_duree_pct"
+          ],
+          "par_metrique": [
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "nb_alertes": 20,
+              "nb_chantiers": 20,
+              "a_qui": [
+                "m04-field-ops"
+              ]
+            }
+          ],
+          "manques": {
+            "seuils_a_configurer": [],
+            "alertes_de_qualite_non_relues": 0
+          },
+          "lectures": [
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "version_definition": "abababababababababababababababababababababababababababababababab",
+              "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0008",
+              "chantier": "wct-fictif-8",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+              "a_qui": "m04-field-ops",
+              "action_proposee_par_m8": "Revoir le chantier wct-fictif-8 avec m04-field-ops.",
+              "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+              "statut_decision": "en_attente_du_proprietaire"
+            },
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "version_definition": "abababababababababababababababababababababababababababababababab",
+              "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0009",
+              "chantier": "wct-fictif-9",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+              "a_qui": "m04-field-ops",
+              "action_proposee_par_m8": "Revoir le chantier wct-fictif-9 avec m04-field-ops.",
+              "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+              "statut_decision": "en_attente_du_proprietaire"
+            },
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "version_definition": "abababababababababababababababababababababababababababababababab",
+              "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0010",
+              "chantier": "wct-fictif-10",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+              "a_qui": "m04-field-ops",
+              "action_proposee_par_m8": "Revoir le chantier wct-fictif-10 avec m04-field-ops.",
+              "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+              "statut_decision": "en_attente_du_proprietaire"
+            },
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "version_definition": "abababababababababababababababababababababababababababababababab",
+              "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0011",
+              "chantier": "wct-fictif-11",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+              "a_qui": "m04-field-ops",
+              "action_proposee_par_m8": "Revoir le chantier wct-fictif-11 avec m04-field-ops.",
+              "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+              "statut_decision": "en_attente_du_proprietaire"
+            },
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "version_definition": "abababababababababababababababababababababababababababababababab",
+              "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0012",
+              "chantier": "wct-fictif-12",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+              "a_qui": "m04-field-ops",
+              "action_proposee_par_m8": "Revoir le chantier wct-fictif-12 avec m04-field-ops.",
+              "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+              "statut_decision": "en_attente_du_proprietaire"
+            },
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "version_definition": "abababababababababababababababababababababababababababababababab",
+              "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0013",
+              "chantier": "wct-fictif-13",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+              "a_qui": "m04-field-ops",
+              "action_proposee_par_m8": "Revoir le chantier wct-fictif-13 avec m04-field-ops.",
+              "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+              "statut_decision": "en_attente_du_proprietaire"
+            },
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "version_definition": "abababababababababababababababababababababababababababababababab",
+              "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0014",
+              "chantier": "wct-fictif-14",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+              "a_qui": "m04-field-ops",
+              "action_proposee_par_m8": "Revoir le chantier wct-fictif-14 avec m04-field-ops.",
+              "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+              "statut_decision": "en_attente_du_proprietaire"
+            },
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "version_definition": "abababababababababababababababababababababababababababababababab",
+              "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0015",
+              "chantier": "wct-fictif-15",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+              "a_qui": "m04-field-ops",
+              "action_proposee_par_m8": "Revoir le chantier wct-fictif-15 avec m04-field-ops.",
+              "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+              "statut_decision": "en_attente_du_proprietaire"
+            }
+          ],
+          "affichage": {
+            "borne_caracteres": 5900,
+            "taille_caracteres": 5764,
+            "n_lectures": 20,
+            "depart": 8,
+            "affichees": 8,
+            "reste": 4,
+            "prochain_depart": 16,
+            "message": "4 autres lectures non affichées : poursuivre avec depart=16."
+          }
+        }
+      }
+    },
+    "fin": {
+      "arguments": {
+        "maintenant": "2026-09-28T07:00:00-04:00",
+        "depart": 20
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "type": "LECTURE_STRATEGIQUE_M8",
+          "jour": "2026-09-28",
+          "periode": {
+            "du": "2026-09-25",
+            "au": "2026-09-28"
+          },
+          "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+          "resume": "20 alerte(s) de mesure proposée(s) par M8 sur 20 chantier(s), 1 métrique(s) : m8_ecart_duree_pct. Aucune décision n'est prise par M9 : elle revient au propriétaire (nathan_owner).",
+          "decision": {
+            "prise_par_m9": false,
+            "a_prendre_par": "nathan_owner",
+            "requise": true
+          },
+          "preuves_m8": [
+            "m8_ecart_duree_pct"
+          ],
+          "par_metrique": [
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "nb_alertes": 20,
+              "nb_chantiers": 20,
+              "a_qui": [
+                "m04-field-ops"
+              ]
+            }
+          ],
+          "manques": {
+            "seuils_a_configurer": [],
+            "alertes_de_qualite_non_relues": 0
+          },
+          "lectures": [],
+          "affichage": {
+            "borne_caracteres": 5900,
+            "taille_caracteres": 890,
+            "n_lectures": 20,
+            "depart": 20,
+            "affichees": 0,
+            "reste": 0,
+            "prochain_depart": null,
+            "message": null
+          }
+        }
+      }
+    },
+    "vide": {
+      "arguments": {
+        "maintenant": "2026-09-28T07:00:00-04:00",
+        "depart": 0
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "type": "LECTURE_STRATEGIQUE_M8",
+          "jour": "2026-09-28",
+          "periode": {
+            "du": "2026-09-25",
+            "au": "2026-09-28"
+          },
+          "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+          "resume": "Aucune alerte de mesure de M8 dans la période : rien à lire.",
+          "decision": {
+            "prise_par_m9": false,
+            "a_prendre_par": "nathan_owner",
+            "requise": false
+          },
+          "preuves_m8": [],
+          "par_metrique": [],
+          "manques": {
+            "seuils_a_configurer": [],
+            "alertes_de_qualite_non_relues": 0
+          },
+          "lectures": [],
+          "affichage": {
+            "borne_caracteres": 5900,
+            "taille_caracteres": 649,
+            "n_lectures": 0,
+            "depart": 0,
+            "affichees": 0,
+            "reste": 0,
+            "prochain_depart": null,
+            "message": null
+          }
+        }
+      }
+    },
+    "manques": {
+      "arguments": {
+        "maintenant": "2026-09-28T07:00:00-04:00",
+        "depart": 0
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "type": "LECTURE_STRATEGIQUE_M8",
+          "jour": "2026-09-28",
+          "periode": {
+            "du": "2026-09-25",
+            "au": "2026-09-28"
+          },
+          "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+          "resume": "Aucune alerte de mesure de M8 dans la période : rien à lire.",
+          "decision": {
+            "prise_par_m9": false,
+            "a_prendre_par": "nathan_owner",
+            "requise": false
+          },
+          "preuves_m8": [],
+          "par_metrique": [],
+          "manques": {
+            "seuils_a_configurer": [
+              "m8_ecart_marge_pct"
+            ],
+            "alertes_de_qualite_non_relues": 0
+          },
+          "lectures": [],
+          "affichage": {
+            "borne_caracteres": 5900,
+            "taille_caracteres": 669,
+            "n_lectures": 0,
+            "depart": 0,
+            "affichees": 0,
+            "reste": 0,
+            "prochain_depart": null,
+            "message": null
+          }
+        }
+      }
+    },
+    "qualite": {
+      "arguments": {
+        "maintenant": "2026-09-28T07:00:00-04:00",
+        "depart": 0
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "type": "LECTURE_STRATEGIQUE_M8",
+          "jour": "2026-09-28",
+          "periode": {
+            "du": "2026-09-25",
+            "au": "2026-09-28"
+          },
+          "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+          "resume": "Aucune alerte de mesure de M8 dans la période : rien à lire.",
+          "decision": {
+            "prise_par_m9": false,
+            "a_prendre_par": "nathan_owner",
+            "requise": false
+          },
+          "preuves_m8": [],
+          "par_metrique": [],
+          "manques": {
+            "seuils_a_configurer": [],
+            "alertes_de_qualite_non_relues": 1
+          },
+          "lectures": [],
+          "affichage": {
+            "borne_caracteres": 5900,
+            "taille_caracteres": 649,
+            "n_lectures": 0,
+            "depart": 0,
+            "affichees": 0,
+            "reste": 0,
+            "prochain_depart": null,
+            "message": null
+          }
+        }
+      }
+    },
+    "sans_action": {
+      "arguments": {
+        "maintenant": "2026-09-28T07:00:00-04:00",
+        "depart": 0
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "type": "LECTURE_STRATEGIQUE_M8",
+          "jour": "2026-09-28",
+          "periode": {
+            "du": "2026-09-25",
+            "au": "2026-09-28"
+          },
+          "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+          "resume": "1 alerte(s) de mesure proposée(s) par M8 sur 1 chantier(s), 1 métrique(s) : m8_ecart_duree_pct. Aucune décision n'est prise par M9 : elle revient au propriétaire (nathan_owner).",
+          "decision": {
+            "prise_par_m9": false,
+            "a_prendre_par": "nathan_owner",
+            "requise": true
+          },
+          "preuves_m8": [
+            "m8_ecart_duree_pct"
+          ],
+          "par_metrique": [
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "nb_alertes": 1,
+              "nb_chantiers": 1,
+              "a_qui": [
+                "m04-field-ops"
+              ]
+            }
+          ],
+          "manques": {
+            "seuils_a_configurer": [],
+            "alertes_de_qualite_non_relues": 0
+          },
+          "lectures": [
+            {
+              "metric_id": "m8_ecart_duree_pct",
+              "version_definition": "abababababababababababababababababababababababababababababababab",
+              "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0001",
+              "chantier": "wct-fictif-1",
+              "valeur": "100.00",
+              "unite": "pourcentage",
+              "sens": "au_dessus",
+              "seuil": "50.00",
+              "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+              "a_qui": "m04-field-ops",
+              "action_proposee_par_m8": null,
+              "source": "M4 m4.travaux_termines ; M3 m3.devis_accepte",
+              "statut_decision": "en_attente_du_proprietaire"
+            }
+          ],
+          "affichage": {
+            "borne_caracteres": 5900,
+            "taille_caracteres": 1435,
+            "n_lectures": 1,
+            "depart": 0,
+            "affichees": 1,
+            "reste": 0,
+            "prochain_depart": null,
+            "message": null
+          }
+        }
+      }
+    }
+  },
+  "capturesHttp": {
+    "provenance": "Gateway/HTTP MCP/SQLite réel R032c. Ordinaire : même WCT réel fictif, M8 calcule 40.00 contre seuil fictif30.00. Qualité et pages nombreuses : catalogue extrême distinct via vrai bus, pas un calculateur métier. Campagne r1 rouge sur retrait admin ; ces lectures positives ne prouvent pas refus rôle.",
+    "lectures": {
+      "vide": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source_path": "qualification/m9-strategique-native-public-r1/dto-vide.json",
+        "source_sha256": "1f8e865b9553d02ee99965a7cafc7e8e3b05b013d1305491d10523305ce373c7",
+        "parent": "032c6228ec1228e8c37d9aa3553df308fec3744f",
+        "all_entire_tables_unchanged": true,
+        "arguments": {
+          "maintenant": "2026-10-08T07:00:00-04:00",
+          "depart": 0
+        },
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "type": "LECTURE_STRATEGIQUE_M8",
+            "jour": "2026-10-08",
+            "periode": {
+              "du": "2026-10-05",
+              "au": "2026-10-08"
+            },
+            "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+            "resume": "Aucune alerte de mesure de M8 dans la période : rien à lire.",
+            "decision": {
+              "prise_par_m9": false,
+              "a_prendre_par": "nathan_owner",
+              "requise": false
+            },
+            "preuves_m8": [],
+            "par_metrique": [],
+            "manques": {
+              "seuils_a_configurer": [],
+              "alertes_de_qualite_non_relues": 0
+            },
+            "lectures": [],
+            "affichage": {
+              "borne_caracteres": 5900,
+              "taille_caracteres": 649,
+              "n_lectures": 0,
+              "depart": 0,
+              "affichees": 0,
+              "reste": 0,
+              "prochain_depart": null,
+              "message": null
+            }
+          }
+        }
+      },
+      "ordinaire-40-30": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source_path": "qualification/m9-strategique-native-public-r1/dto-ordinaire-40-30.json",
+        "source_sha256": "fe57f97211534e28d2893b88394fccb48f662748348fcde5829cd7ed943b958b",
+        "parent": "032c6228ec1228e8c37d9aa3553df308fec3744f",
+        "all_entire_tables_unchanged": true,
+        "arguments": {
+          "maintenant": "2026-10-09T11:15:30-04:00",
+          "depart": 0
+        },
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "type": "LECTURE_STRATEGIQUE_M8",
+            "jour": "2026-10-09",
+            "periode": {
+              "du": "2026-10-06",
+              "au": "2026-10-09"
+            },
+            "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+            "resume": "1 alerte(s) de mesure proposée(s) par M8 sur 1 chantier(s), 1 métrique(s) : m8_ecart_materiaux_max_pct. Aucune décision n'est prise par M9 : elle revient au propriétaire (nathan_owner).",
+            "decision": {
+              "prise_par_m9": false,
+              "a_prendre_par": "nathan_owner",
+              "requise": true
+            },
+            "preuves_m8": [
+              "m8_ecart_materiaux_max_pct"
+            ],
+            "par_metrique": [
+              {
+                "metric_id": "m8_ecart_materiaux_max_pct",
+                "nb_alertes": 1,
+                "nb_chantiers": 1,
+                "a_qui": [
+                  "m06-material-control"
+                ]
+              }
+            ],
+            "manques": {
+              "seuils_a_configurer": [
+                "m8_ecart_duree_pct"
+              ],
+              "alertes_de_qualite_non_relues": 0
+            },
+            "lectures": [
+              {
+                "metric_id": "m8_ecart_materiaux_max_pct",
+                "version_definition": "db98dea358392c834b1261bde2d416deae2df826c8060dd5eb8daa089e9f8200",
+                "evenement_id": "m8-alerte-m8_ecart_materiaux_max_pct-MESURE-SEUIL-FRANCHI-6f09f0efaf5ceb5a",
+                "chantier": "e36d9748d1f4806da4e15fc08bce3939dcc10e3247d921b281fdd091f198498e",
+                "valeur": "40.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "30.00",
+                "regle": "valeur 40.00 % atteint ou dépasse le seuil configuré 30.00 %.",
+                "a_qui": "m06-material-control",
+                "action_proposee_par_m8": "Revoir le chantier e36d9748d1f4806da4e15fc08bce3939dcc10e3247d921b281fdd091f198498e avec m06-material-control (Plus grand écart de matériaux d'un chantier : 40.00 %, seuil 30.00 %).",
+                "source": "M6 m6.variance_chantier (lignes, statut evaluee)",
+                "statut_decision": "en_attente_du_proprietaire"
+              }
+            ],
+            "affichage": {
+              "borne_caracteres": 5900,
+              "taille_caracteres": 1754,
+              "n_lectures": 1,
+              "depart": 0,
+              "affichees": 1,
+              "reste": 0,
+              "prochain_depart": null,
+              "message": null
+            }
+          }
+        }
+      },
+      "qualite-non-relue": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source_path": "qualification/m9-strategique-native-public-r1/dto-qualite-non-relue.json",
+        "source_sha256": "63d01b64b4272cc9443909996874346a8972780cfefbb97d5e2233620caefe7f",
+        "parent": "032c6228ec1228e8c37d9aa3553df308fec3744f",
+        "all_entire_tables_unchanged": true,
+        "arguments": {
+          "maintenant": "2026-10-09T11:15:30-04:00",
+          "depart": 0
+        },
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "type": "LECTURE_STRATEGIQUE_M8",
+            "jour": "2026-10-09",
+            "periode": {
+              "du": "2026-10-06",
+              "au": "2026-10-09"
+            },
+            "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+            "resume": "1 alerte(s) de mesure proposée(s) par M8 sur 1 chantier(s), 1 métrique(s) : m8_ecart_materiaux_max_pct. Aucune décision n'est prise par M9 : elle revient au propriétaire (nathan_owner).",
+            "decision": {
+              "prise_par_m9": false,
+              "a_prendre_par": "nathan_owner",
+              "requise": true
+            },
+            "preuves_m8": [
+              "m8_ecart_materiaux_max_pct"
+            ],
+            "par_metrique": [
+              {
+                "metric_id": "m8_ecart_materiaux_max_pct",
+                "nb_alertes": 1,
+                "nb_chantiers": 1,
+                "a_qui": [
+                  "m06-material-control"
+                ]
+              }
+            ],
+            "manques": {
+              "seuils_a_configurer": [
+                "m8_ecart_duree_pct"
+              ],
+              "alertes_de_qualite_non_relues": 1
+            },
+            "lectures": [
+              {
+                "metric_id": "m8_ecart_materiaux_max_pct",
+                "version_definition": "db98dea358392c834b1261bde2d416deae2df826c8060dd5eb8daa089e9f8200",
+                "evenement_id": "m8-alerte-m8_ecart_materiaux_max_pct-MESURE-SEUIL-FRANCHI-6f09f0efaf5ceb5a",
+                "chantier": "e36d9748d1f4806da4e15fc08bce3939dcc10e3247d921b281fdd091f198498e",
+                "valeur": "40.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "30.00",
+                "regle": "valeur 40.00 % atteint ou dépasse le seuil configuré 30.00 %.",
+                "a_qui": "m06-material-control",
+                "action_proposee_par_m8": "Revoir le chantier e36d9748d1f4806da4e15fc08bce3939dcc10e3247d921b281fdd091f198498e avec m06-material-control (Plus grand écart de matériaux d'un chantier : 40.00 %, seuil 30.00 %).",
+                "source": "M6 m6.variance_chantier (lignes, statut evaluee)",
+                "statut_decision": "en_attente_du_proprietaire"
+              }
+            ],
+            "affichage": {
+              "borne_caracteres": 5900,
+              "taille_caracteres": 1754,
+              "n_lectures": 1,
+              "depart": 0,
+              "affichees": 1,
+              "reste": 0,
+              "prochain_depart": null,
+              "message": null
+            }
+          }
+        }
+      },
+      "page-0": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source_path": "qualification/m9-strategique-native-public-r1/dto-page-0.json",
+        "source_sha256": "3c7afbead7f4d53964aed961beb565ceb41d50a27be47b54958b52c1028bbfe4",
+        "parent": "032c6228ec1228e8c37d9aa3553df308fec3744f",
+        "all_entire_tables_unchanged": true,
+        "arguments": {
+          "maintenant": "2026-10-09T11:15:30-04:00",
+          "depart": 0
+        },
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "type": "LECTURE_STRATEGIQUE_M8",
+            "jour": "2026-10-09",
+            "periode": {
+              "du": "2026-10-06",
+              "au": "2026-10-09"
+            },
+            "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+            "resume": "41 alerte(s) de mesure proposée(s) par M8 sur 41 chantier(s), 2 métrique(s) : m8_ecart_duree_pct, m8_ecart_materiaux_max_pct. Aucune décision n'est prise par M9 : elle revient au propriétaire (nathan_owner).",
+            "decision": {
+              "prise_par_m9": false,
+              "a_prendre_par": "nathan_owner",
+              "requise": true
+            },
+            "preuves_m8": [
+              "m8_ecart_duree_pct",
+              "m8_ecart_materiaux_max_pct"
+            ],
+            "par_metrique": [
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "nb_alertes": 40,
+                "nb_chantiers": 40,
+                "a_qui": [
+                  "m04-field-ops"
+                ]
+              },
+              {
+                "metric_id": "m8_ecart_materiaux_max_pct",
+                "nb_alertes": 1,
+                "nb_chantiers": 1,
+                "a_qui": [
+                  "m06-material-control"
+                ]
+              }
+            ],
+            "manques": {
+              "seuils_a_configurer": [
+                "m8_ecart_duree_pct"
+              ],
+              "alertes_de_qualite_non_relues": 1
+            },
+            "lectures": [
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0a5ca2a68e139016",
+                "chantier": "wct-m8m9-native-fictif-27",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-27 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-1651dd1f73fe4dd3",
+                "chantier": "wct-m8m9-native-fictif-25",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-25 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-18ca289f452573d8",
+                "chantier": "wct-m8m9-native-fictif-33",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-33 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-1f01d2ec6ba3d300",
+                "chantier": "wct-m8m9-native-fictif-34",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-34 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-1ff3f63496f449e7",
+                "chantier": "wct-m8m9-native-fictif-16",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-16 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-20612b7f9b970a1a",
+                "chantier": "wct-m8m9-native-fictif-13",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-13 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              }
+            ],
+            "affichage": {
+              "borne_caracteres": 5900,
+              "taille_caracteres": 5692,
+              "n_lectures": 41,
+              "depart": 0,
+              "affichees": 6,
+              "reste": 35,
+              "prochain_depart": 6,
+              "message": "35 autres lectures non affichées : poursuivre avec depart=6."
+            }
+          }
+        }
+      },
+      "page-1": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source_path": "qualification/m9-strategique-native-public-r1/dto-page-1.json",
+        "source_sha256": "6f77499c74c83825b6c30f9ecd97cc131fe3029bbb6376ff02047e7df46b203b",
+        "parent": "032c6228ec1228e8c37d9aa3553df308fec3744f",
+        "all_entire_tables_unchanged": true,
+        "arguments": {
+          "maintenant": "2026-10-09T11:15:30-04:00",
+          "depart": 6
+        },
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "type": "LECTURE_STRATEGIQUE_M8",
+            "jour": "2026-10-09",
+            "periode": {
+              "du": "2026-10-06",
+              "au": "2026-10-09"
+            },
+            "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+            "resume": "41 alerte(s) de mesure proposée(s) par M8 sur 41 chantier(s), 2 métrique(s) : m8_ecart_duree_pct, m8_ecart_materiaux_max_pct. Aucune décision n'est prise par M9 : elle revient au propriétaire (nathan_owner).",
+            "decision": {
+              "prise_par_m9": false,
+              "a_prendre_par": "nathan_owner",
+              "requise": true
+            },
+            "preuves_m8": [
+              "m8_ecart_duree_pct",
+              "m8_ecart_materiaux_max_pct"
+            ],
+            "par_metrique": [
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "nb_alertes": 40,
+                "nb_chantiers": 40,
+                "a_qui": [
+                  "m04-field-ops"
+                ]
+              },
+              {
+                "metric_id": "m8_ecart_materiaux_max_pct",
+                "nb_alertes": 1,
+                "nb_chantiers": 1,
+                "a_qui": [
+                  "m06-material-control"
+                ]
+              }
+            ],
+            "manques": {
+              "seuils_a_configurer": [
+                "m8_ecart_duree_pct"
+              ],
+              "alertes_de_qualite_non_relues": 1
+            },
+            "lectures": [
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-3036ea2469c69421",
+                "chantier": "wct-m8m9-native-fictif-19",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-19 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-3840f4ab5d1264a6",
+                "chantier": "wct-m8m9-native-fictif-29",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-29 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-4716722adb9f4a24",
+                "chantier": "wct-m8m9-native-fictif-4",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-4 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-4f3f683a7849ead2",
+                "chantier": "wct-m8m9-native-fictif-9",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-9 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-5c2b0f79275acd88",
+                "chantier": "wct-m8m9-native-fictif-35",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-35 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-5db00dcdbfc6fe1e",
+                "chantier": "wct-m8m9-native-fictif-31",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-31 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              }
+            ],
+            "affichage": {
+              "borne_caracteres": 5900,
+              "taille_caracteres": 5690,
+              "n_lectures": 41,
+              "depart": 6,
+              "affichees": 6,
+              "reste": 29,
+              "prochain_depart": 12,
+              "message": "29 autres lectures non affichées : poursuivre avec depart=12."
+            }
+          }
+        }
+      },
+      "page-2": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source_path": "qualification/m9-strategique-native-public-r1/dto-page-2.json",
+        "source_sha256": "6b0943e6b709fc13d74ce9e72584eb9ef1487fe8a0a6741125ab1283a421b151",
+        "parent": "032c6228ec1228e8c37d9aa3553df308fec3744f",
+        "all_entire_tables_unchanged": true,
+        "arguments": {
+          "maintenant": "2026-10-09T11:15:30-04:00",
+          "depart": 12
+        },
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "type": "LECTURE_STRATEGIQUE_M8",
+            "jour": "2026-10-09",
+            "periode": {
+              "du": "2026-10-06",
+              "au": "2026-10-09"
+            },
+            "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+            "resume": "41 alerte(s) de mesure proposée(s) par M8 sur 41 chantier(s), 2 métrique(s) : m8_ecart_duree_pct, m8_ecart_materiaux_max_pct. Aucune décision n'est prise par M9 : elle revient au propriétaire (nathan_owner).",
+            "decision": {
+              "prise_par_m9": false,
+              "a_prendre_par": "nathan_owner",
+              "requise": true
+            },
+            "preuves_m8": [
+              "m8_ecart_duree_pct",
+              "m8_ecart_materiaux_max_pct"
+            ],
+            "par_metrique": [
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "nb_alertes": 40,
+                "nb_chantiers": 40,
+                "a_qui": [
+                  "m04-field-ops"
+                ]
+              },
+              {
+                "metric_id": "m8_ecart_materiaux_max_pct",
+                "nb_alertes": 1,
+                "nb_chantiers": 1,
+                "a_qui": [
+                  "m06-material-control"
+                ]
+              }
+            ],
+            "manques": {
+              "seuils_a_configurer": [
+                "m8_ecart_duree_pct"
+              ],
+              "alertes_de_qualite_non_relues": 1
+            },
+            "lectures": [
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-5e019b0f965bcc75",
+                "chantier": "wct-m8m9-native-fictif-8",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-8 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-60bdb75998e5ab66",
+                "chantier": "wct-m8m9-native-fictif-2",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-2 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-61bfa3f46994ef8c",
+                "chantier": "wct-m8m9-native-fictif-5",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-5 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-632ea485df56d781",
+                "chantier": "wct-m8m9-native-fictif-1",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-1 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-7205435d4b4e7e3b",
+                "chantier": "wct-m8m9-native-fictif-28",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-28 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-7705fedc5896bf8b",
+                "chantier": "wct-m8m9-native-fictif-14",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-14 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              }
+            ],
+            "affichage": {
+              "borne_caracteres": 5900,
+              "taille_caracteres": 5687,
+              "n_lectures": 41,
+              "depart": 12,
+              "affichees": 6,
+              "reste": 23,
+              "prochain_depart": 18,
+              "message": "23 autres lectures non affichées : poursuivre avec depart=18."
+            }
+          }
+        }
+      },
+      "page-3": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source_path": "qualification/m9-strategique-native-public-r1/dto-page-3.json",
+        "source_sha256": "0701f428cc9895316589f0f273ac86046b4f5f21fc3a48f3441a7cc4de9f3a03",
+        "parent": "032c6228ec1228e8c37d9aa3553df308fec3744f",
+        "all_entire_tables_unchanged": true,
+        "arguments": {
+          "maintenant": "2026-10-09T11:15:30-04:00",
+          "depart": 18
+        },
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "type": "LECTURE_STRATEGIQUE_M8",
+            "jour": "2026-10-09",
+            "periode": {
+              "du": "2026-10-06",
+              "au": "2026-10-09"
+            },
+            "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+            "resume": "41 alerte(s) de mesure proposée(s) par M8 sur 41 chantier(s), 2 métrique(s) : m8_ecart_duree_pct, m8_ecart_materiaux_max_pct. Aucune décision n'est prise par M9 : elle revient au propriétaire (nathan_owner).",
+            "decision": {
+              "prise_par_m9": false,
+              "a_prendre_par": "nathan_owner",
+              "requise": true
+            },
+            "preuves_m8": [
+              "m8_ecart_duree_pct",
+              "m8_ecart_materiaux_max_pct"
+            ],
+            "par_metrique": [
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "nb_alertes": 40,
+                "nb_chantiers": 40,
+                "a_qui": [
+                  "m04-field-ops"
+                ]
+              },
+              {
+                "metric_id": "m8_ecart_materiaux_max_pct",
+                "nb_alertes": 1,
+                "nb_chantiers": 1,
+                "a_qui": [
+                  "m06-material-control"
+                ]
+              }
+            ],
+            "manques": {
+              "seuils_a_configurer": [
+                "m8_ecart_duree_pct"
+              ],
+              "alertes_de_qualite_non_relues": 1
+            },
+            "lectures": [
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-775e944ca841305f",
+                "chantier": "wct-m8m9-native-fictif-26",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-26 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-7a1f651db6c070a0",
+                "chantier": "wct-m8m9-native-fictif-39",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-39 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-80ff7136afe6a235",
+                "chantier": "wct-m8m9-native-fictif-10",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-10 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-88e6f49680f334e3",
+                "chantier": "wct-m8m9-native-fictif-18",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-18 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-8a3b07bda536633a",
+                "chantier": "wct-m8m9-native-fictif-30",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-30 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-8e757413dda22a63",
+                "chantier": "wct-m8m9-native-fictif-32",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-32 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              }
+            ],
+            "affichage": {
+              "borne_caracteres": 5900,
+              "taille_caracteres": 5695,
+              "n_lectures": 41,
+              "depart": 18,
+              "affichees": 6,
+              "reste": 17,
+              "prochain_depart": 24,
+              "message": "17 autres lectures non affichées : poursuivre avec depart=24."
+            }
+          }
+        }
+      },
+      "page-4": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source_path": "qualification/m9-strategique-native-public-r1/dto-page-4.json",
+        "source_sha256": "70cad43901794fbfc798d5ce2d6644001a2866196fbee1dc3a7704e0e7f7c8ec",
+        "parent": "032c6228ec1228e8c37d9aa3553df308fec3744f",
+        "all_entire_tables_unchanged": true,
+        "arguments": {
+          "maintenant": "2026-10-09T11:15:30-04:00",
+          "depart": 24
+        },
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "type": "LECTURE_STRATEGIQUE_M8",
+            "jour": "2026-10-09",
+            "periode": {
+              "du": "2026-10-06",
+              "au": "2026-10-09"
+            },
+            "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+            "resume": "41 alerte(s) de mesure proposée(s) par M8 sur 41 chantier(s), 2 métrique(s) : m8_ecart_duree_pct, m8_ecart_materiaux_max_pct. Aucune décision n'est prise par M9 : elle revient au propriétaire (nathan_owner).",
+            "decision": {
+              "prise_par_m9": false,
+              "a_prendre_par": "nathan_owner",
+              "requise": true
+            },
+            "preuves_m8": [
+              "m8_ecart_duree_pct",
+              "m8_ecart_materiaux_max_pct"
+            ],
+            "par_metrique": [
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "nb_alertes": 40,
+                "nb_chantiers": 40,
+                "a_qui": [
+                  "m04-field-ops"
+                ]
+              },
+              {
+                "metric_id": "m8_ecart_materiaux_max_pct",
+                "nb_alertes": 1,
+                "nb_chantiers": 1,
+                "a_qui": [
+                  "m06-material-control"
+                ]
+              }
+            ],
+            "manques": {
+              "seuils_a_configurer": [
+                "m8_ecart_duree_pct"
+              ],
+              "alertes_de_qualite_non_relues": 1
+            },
+            "lectures": [
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-92d156f48185cb1a",
+                "chantier": "wct-m8m9-native-fictif-17",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-17 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-93f26c1705f771e4",
+                "chantier": "wct-m8m9-native-fictif-7",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-7 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-963063105c2d62bf",
+                "chantier": "wct-m8m9-native-fictif-11",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-11 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-9c4ecb817957c883",
+                "chantier": "wct-m8m9-native-fictif-24",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-24 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-9ef137118c7a162f",
+                "chantier": "wct-m8m9-native-fictif-21",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-21 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-accd4660c5d2d406",
+                "chantier": "wct-m8m9-native-fictif-20",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-20 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              }
+            ],
+            "affichage": {
+              "borne_caracteres": 5900,
+              "taille_caracteres": 5693,
+              "n_lectures": 41,
+              "depart": 24,
+              "affichees": 6,
+              "reste": 11,
+              "prochain_depart": 30,
+              "message": "11 autres lectures non affichées : poursuivre avec depart=30."
+            }
+          }
+        }
+      },
+      "page-5": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source_path": "qualification/m9-strategique-native-public-r1/dto-page-5.json",
+        "source_sha256": "24855fabe70a82b081c589bc94e1896d96bd97007cc493d97d5c9626540cb7e4",
+        "parent": "032c6228ec1228e8c37d9aa3553df308fec3744f",
+        "all_entire_tables_unchanged": true,
+        "arguments": {
+          "maintenant": "2026-10-09T11:15:30-04:00",
+          "depart": 30
+        },
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "type": "LECTURE_STRATEGIQUE_M8",
+            "jour": "2026-10-09",
+            "periode": {
+              "du": "2026-10-06",
+              "au": "2026-10-09"
+            },
+            "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+            "resume": "41 alerte(s) de mesure proposée(s) par M8 sur 41 chantier(s), 2 métrique(s) : m8_ecart_duree_pct, m8_ecart_materiaux_max_pct. Aucune décision n'est prise par M9 : elle revient au propriétaire (nathan_owner).",
+            "decision": {
+              "prise_par_m9": false,
+              "a_prendre_par": "nathan_owner",
+              "requise": true
+            },
+            "preuves_m8": [
+              "m8_ecart_duree_pct",
+              "m8_ecart_materiaux_max_pct"
+            ],
+            "par_metrique": [
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "nb_alertes": 40,
+                "nb_chantiers": 40,
+                "a_qui": [
+                  "m04-field-ops"
+                ]
+              },
+              {
+                "metric_id": "m8_ecart_materiaux_max_pct",
+                "nb_alertes": 1,
+                "nb_chantiers": 1,
+                "a_qui": [
+                  "m06-material-control"
+                ]
+              }
+            ],
+            "manques": {
+              "seuils_a_configurer": [
+                "m8_ecart_duree_pct"
+              ],
+              "alertes_de_qualite_non_relues": 1
+            },
+            "lectures": [
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-b991287f22bbc7c4",
+                "chantier": "wct-m8m9-native-fictif-36",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-36 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-ba6853168f603c3b",
+                "chantier": "wct-m8m9-native-fictif-6",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-6 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-ba964fdb9ba67bf0",
+                "chantier": "wct-m8m9-native-fictif-15",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-15 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-bf57043a43cf58c8",
+                "chantier": "wct-m8m9-native-fictif-37",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-37 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-d4d1bec6d2158b9c",
+                "chantier": "wct-m8m9-native-fictif-23",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-23 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-d760b95fb5942869",
+                "chantier": "wct-m8m9-native-fictif-22",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-22 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              }
+            ],
+            "affichage": {
+              "borne_caracteres": 5900,
+              "taille_caracteres": 5691,
+              "n_lectures": 41,
+              "depart": 30,
+              "affichees": 6,
+              "reste": 5,
+              "prochain_depart": 36,
+              "message": "5 autres lectures non affichées : poursuivre avec depart=36."
+            }
+          }
+        }
+      },
+      "page-6": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source_path": "qualification/m9-strategique-native-public-r1/dto-page-6.json",
+        "source_sha256": "368945be65a20b382683ed0fa7a219b3fd46aced7744cc3828eaa3c8bb17723d",
+        "parent": "032c6228ec1228e8c37d9aa3553df308fec3744f",
+        "all_entire_tables_unchanged": true,
+        "arguments": {
+          "maintenant": "2026-10-09T11:15:30-04:00",
+          "depart": 36
+        },
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "type": "LECTURE_STRATEGIQUE_M8",
+            "jour": "2026-10-09",
+            "periode": {
+              "du": "2026-10-06",
+              "au": "2026-10-09"
+            },
+            "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+            "resume": "41 alerte(s) de mesure proposée(s) par M8 sur 41 chantier(s), 2 métrique(s) : m8_ecart_duree_pct, m8_ecart_materiaux_max_pct. Aucune décision n'est prise par M9 : elle revient au propriétaire (nathan_owner).",
+            "decision": {
+              "prise_par_m9": false,
+              "a_prendre_par": "nathan_owner",
+              "requise": true
+            },
+            "preuves_m8": [
+              "m8_ecart_duree_pct",
+              "m8_ecart_materiaux_max_pct"
+            ],
+            "par_metrique": [
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "nb_alertes": 40,
+                "nb_chantiers": 40,
+                "a_qui": [
+                  "m04-field-ops"
+                ]
+              },
+              {
+                "metric_id": "m8_ecart_materiaux_max_pct",
+                "nb_alertes": 1,
+                "nb_chantiers": 1,
+                "a_qui": [
+                  "m06-material-control"
+                ]
+              }
+            ],
+            "manques": {
+              "seuils_a_configurer": [
+                "m8_ecart_duree_pct"
+              ],
+              "alertes_de_qualite_non_relues": 1
+            },
+            "lectures": [
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-db334175945d8e5a",
+                "chantier": "wct-m8m9-native-fictif-3",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-3 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-ec63744021062cab",
+                "chantier": "wct-m8m9-native-fictif-0",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-0 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-f0b3e4328db45c9a",
+                "chantier": "wct-m8m9-native-fictif-12",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-12 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-ff7a60ce34049d51",
+                "chantier": "wct-m8m9-native-fictif-38",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-38 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_materiaux_max_pct",
+                "version_definition": "db98dea358392c834b1261bde2d416deae2df826c8060dd5eb8daa089e9f8200",
+                "evenement_id": "m8-alerte-m8_ecart_materiaux_max_pct-MESURE-SEUIL-FRANCHI-6f09f0efaf5ceb5a",
+                "chantier": "e36d9748d1f4806da4e15fc08bce3939dcc10e3247d921b281fdd091f198498e",
+                "valeur": "40.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "30.00",
+                "regle": "valeur 40.00 % atteint ou dépasse le seuil configuré 30.00 %.",
+                "a_qui": "m06-material-control",
+                "action_proposee_par_m8": "Revoir le chantier e36d9748d1f4806da4e15fc08bce3939dcc10e3247d921b281fdd091f198498e avec m06-material-control (Plus grand écart de matériaux d'un chantier : 40.00 %, seuil 30.00 %).",
+                "source": "M6 m6.variance_chantier (lignes, statut evaluee)",
+                "statut_decision": "en_attente_du_proprietaire"
+              }
+            ],
+            "affichage": {
+              "borne_caracteres": 5900,
+              "taille_caracteres": 4935,
+              "n_lectures": 41,
+              "depart": 36,
+              "affichees": 5,
+              "reste": 0,
+              "prochain_depart": null,
+              "message": null
+            }
+          }
+        }
+      },
+      "fin": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source_path": "qualification/m9-strategique-native-public-r1/dto-fin.json",
+        "source_sha256": "efe5885c0c912ab17a8d6ff5b5a64a9af9c86ef05792bbbb35e86d15074c9f0b",
+        "parent": "032c6228ec1228e8c37d9aa3553df308fec3744f",
+        "all_entire_tables_unchanged": true,
+        "arguments": {
+          "maintenant": "2026-10-09T11:15:30-04:00",
+          "depart": 41
+        },
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "type": "LECTURE_STRATEGIQUE_M8",
+            "jour": "2026-10-09",
+            "periode": {
+              "du": "2026-10-06",
+              "au": "2026-10-09"
+            },
+            "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+            "resume": "41 alerte(s) de mesure proposée(s) par M8 sur 41 chantier(s), 2 métrique(s) : m8_ecart_duree_pct, m8_ecart_materiaux_max_pct. Aucune décision n'est prise par M9 : elle revient au propriétaire (nathan_owner).",
+            "decision": {
+              "prise_par_m9": false,
+              "a_prendre_par": "nathan_owner",
+              "requise": true
+            },
+            "preuves_m8": [
+              "m8_ecart_duree_pct",
+              "m8_ecart_materiaux_max_pct"
+            ],
+            "par_metrique": [
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "nb_alertes": 40,
+                "nb_chantiers": 40,
+                "a_qui": [
+                  "m04-field-ops"
+                ]
+              },
+              {
+                "metric_id": "m8_ecart_materiaux_max_pct",
+                "nb_alertes": 1,
+                "nb_chantiers": 1,
+                "a_qui": [
+                  "m06-material-control"
+                ]
+              }
+            ],
+            "manques": {
+              "seuils_a_configurer": [
+                "m8_ecart_duree_pct"
+              ],
+              "alertes_de_qualite_non_relues": 1
+            },
+            "lectures": [],
+            "affichage": {
+              "borne_caracteres": 5900,
+              "taille_caracteres": 1085,
+              "n_lectures": 41,
+              "depart": 41,
+              "affichees": 0,
+              "reste": 0,
+              "prochain_depart": null,
+              "message": null
+            }
+          }
+        }
+      },
+      "page-courante": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source_path": "qualification/m9-strategique-native-public-r1/dto-page-courante.json",
+        "source_sha256": "ca234e311880ceca4699f0eeb891b4d9559c5a051ae087a593b946620e111c79",
+        "parent": "032c6228ec1228e8c37d9aa3553df308fec3744f",
+        "all_entire_tables_unchanged": true,
+        "arguments": {
+          "maintenant": "2026-10-09T11:15:30-04:00",
+          "depart": 0
+        },
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "type": "LECTURE_STRATEGIQUE_M8",
+            "jour": "2026-10-09",
+            "periode": {
+              "du": "2026-10-06",
+              "au": "2026-10-09"
+            },
+            "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+            "resume": "42 alerte(s) de mesure proposée(s) par M8 sur 42 chantier(s), 2 métrique(s) : m8_ecart_duree_pct, m8_ecart_materiaux_max_pct. Aucune décision n'est prise par M9 : elle revient au propriétaire (nathan_owner).",
+            "decision": {
+              "prise_par_m9": false,
+              "a_prendre_par": "nathan_owner",
+              "requise": true
+            },
+            "preuves_m8": [
+              "m8_ecart_duree_pct",
+              "m8_ecart_materiaux_max_pct"
+            ],
+            "par_metrique": [
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "nb_alertes": 41,
+                "nb_chantiers": 41,
+                "a_qui": [
+                  "m04-field-ops"
+                ]
+              },
+              {
+                "metric_id": "m8_ecart_materiaux_max_pct",
+                "nb_alertes": 1,
+                "nb_chantiers": 1,
+                "a_qui": [
+                  "m06-material-control"
+                ]
+              }
+            ],
+            "manques": {
+              "seuils_a_configurer": [
+                "m8_ecart_duree_pct"
+              ],
+              "alertes_de_qualite_non_relues": 1
+            },
+            "lectures": [
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0a5ca2a68e139016",
+                "chantier": "wct-m8m9-native-fictif-27",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-27 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-1651dd1f73fe4dd3",
+                "chantier": "wct-m8m9-native-fictif-25",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-25 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-18ca289f452573d8",
+                "chantier": "wct-m8m9-native-fictif-33",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-33 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-1f01d2ec6ba3d300",
+                "chantier": "wct-m8m9-native-fictif-34",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-34 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-1ff3f63496f449e7",
+                "chantier": "wct-m8m9-native-fictif-16",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-16 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-20612b7f9b970a1a",
+                "chantier": "wct-m8m9-native-fictif-13",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-13 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              }
+            ],
+            "affichage": {
+              "borne_caracteres": 5900,
+              "taille_caracteres": 5692,
+              "n_lectures": 42,
+              "depart": 0,
+              "affichees": 6,
+              "reste": 36,
+              "prochain_depart": 6,
+              "message": "36 autres lectures non affichées : poursuivre avec depart=6."
+            }
+          }
+        }
+      },
+      "restart": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source_path": "qualification/m9-strategique-native-public-r1/dto-restart.json",
+        "source_sha256": "a45734d5d01dd381d452dc1ba558e34fbbeb25000f054cde6a10899785f29db0",
+        "parent": "032c6228ec1228e8c37d9aa3553df308fec3744f",
+        "all_entire_tables_unchanged": true,
+        "arguments": {
+          "maintenant": "2026-10-09T11:15:30-04:00",
+          "depart": 0
+        },
+        "enveloppe": {
+          "ok": true,
+          "resultat": {
+            "type": "LECTURE_STRATEGIQUE_M8",
+            "jour": "2026-10-09",
+            "periode": {
+              "du": "2026-10-06",
+              "au": "2026-10-09"
+            },
+            "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
+            "resume": "42 alerte(s) de mesure proposée(s) par M8 sur 42 chantier(s), 2 métrique(s) : m8_ecart_duree_pct, m8_ecart_materiaux_max_pct. Aucune décision n'est prise par M9 : elle revient au propriétaire (nathan_owner).",
+            "decision": {
+              "prise_par_m9": false,
+              "a_prendre_par": "nathan_owner",
+              "requise": true
+            },
+            "preuves_m8": [
+              "m8_ecart_duree_pct",
+              "m8_ecart_materiaux_max_pct"
+            ],
+            "par_metrique": [
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "nb_alertes": 41,
+                "nb_chantiers": 41,
+                "a_qui": [
+                  "m04-field-ops"
+                ]
+              },
+              {
+                "metric_id": "m8_ecart_materiaux_max_pct",
+                "nb_alertes": 1,
+                "nb_chantiers": 1,
+                "a_qui": [
+                  "m06-material-control"
+                ]
+              }
+            ],
+            "manques": {
+              "seuils_a_configurer": [
+                "m8_ecart_duree_pct"
+              ],
+              "alertes_de_qualite_non_relues": 1
+            },
+            "lectures": [
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-0a5ca2a68e139016",
+                "chantier": "wct-m8m9-native-fictif-27",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-27 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-1651dd1f73fe4dd3",
+                "chantier": "wct-m8m9-native-fictif-25",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-25 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-18ca289f452573d8",
+                "chantier": "wct-m8m9-native-fictif-33",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-33 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-1f01d2ec6ba3d300",
+                "chantier": "wct-m8m9-native-fictif-34",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-34 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-1ff3f63496f449e7",
+                "chantier": "wct-m8m9-native-fictif-16",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-16 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              },
+              {
+                "metric_id": "m8_ecart_duree_pct",
+                "version_definition": "1acbddef7feae69050da755c8698757ecb295824b34a443b986681c8b07e4823",
+                "evenement_id": "m8-alerte-m8_ecart_duree_pct-MESURE-SEUIL-FRANCHI-20612b7f9b970a1a",
+                "chantier": "wct-m8m9-native-fictif-13",
+                "valeur": "100.00",
+                "unite": "pourcentage",
+                "sens": "au_dessus",
+                "seuil": "50.00",
+                "regle": "valeur 100.00 % atteint ou dépasse le seuil configuré 50.00 %.",
+                "a_qui": "m04-field-ops",
+                "action_proposee_par_m8": "Revoir le chantier wct-m8m9-native-fictif-13 avec m04-field-ops (Écart de durée d'un chantier, en pourcentage : 100.00 %, seuil 50.00 %).",
+                "source": "M4 m4.travaux_termines (duree_reelle_minutes) ; M3 m3.devis_accepte (duree_estimee_minutes)",
+                "statut_decision": "en_attente_du_proprietaire"
+              }
+            ],
+            "affichage": {
+              "borne_caracteres": 5900,
+              "taille_caracteres": 5692,
+              "n_lectures": 42,
+              "depart": 0,
+              "affichees": 6,
+              "reste": 36,
+              "prochain_depart": 6,
+              "message": "36 autres lectures non affichées : poursuivre avec depart=6."
+            }
+          }
+        }
+      }
+    },
+    "refus": {
+      "depart-hors-borne": {
+        "fictif": true,
+        "origin": "fresh real opaque DEVICE Gateway/HTTP MCP/SQLite",
+        "source_path": "qualification/m9-strategique-native-public-r1/dto-depart-hors-borne.json",
+        "source_sha256": "53abf1ebd251074562e26cc6fed2700ad0f8e4c005404fd5904e1c615166abc4",
+        "parent": "032c6228ec1228e8c37d9aa3553df308fec3744f",
+        "all_entire_tables_unchanged": true,
+        "arguments": {
+          "maintenant": "2026-10-09T11:15:30-04:00",
+          "depart": 42
+        },
+        "enveloppe": {
+          "ok": false,
+          "erreur": "refus_metier",
+          "details": "depart 42 au-delà de la fin des lectures (41)"
+        }
+      }
+    }
+  }
+}

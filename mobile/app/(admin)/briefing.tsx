@@ -1,3 +1,6 @@
+import { useNetInfo } from "@react-native-community/netinfo";
+import { capturerSessionAdminLecture } from "@/protocole/configuration";
+import { useEtatIdentite } from "@/roles/contexte";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
@@ -7,6 +10,8 @@ import {
   chargerSuiteBriefingM9,
   chargerAlertesM9,
   chargerEtatConsolideM9,
+  chargerLectureStrategiqueM9,
+  actualiserConnectiviteBriefingM9,
 } from "@/admin/service";
 import {
   BoutonSecondaire,
@@ -20,6 +25,8 @@ import type { ResultatSection } from "@/admin/lecture";
 import { instantLocal } from "@/admin/horloge";
 import { presenterSection, message } from "@/ecrans/adminCommun";
 import { presenterItemM9, presenterManqueM9, presenterContradictionM9 } from "@/ecrans/briefing";
+import { presenterLectureStrategique } from "@/ecrans/lectureStrategique";
+import type { LectureStrategiqueM9 } from "@/m9/lectureStrategique";
 import { BandeauIdentite } from "@/identite/BandeauIdentite";
 import { SECTIONS_BRIEFING } from "@/m9/briefing";
 import type {
@@ -35,9 +42,12 @@ type Pages = Partial<Record<SectionBriefing, ResultatSection<SuiteBriefingM9>>>;
 /** T4.21 : des pages courantes séparées ; aucune concaténation qui prétendrait reconstituer un snapshot. */
 export default function EcranBriefing() {
   const { t } = useTranslation();
+  const identite = useEtatIdentite(), connectee = useNetInfo().isConnected === true;
+  const garde = useRef<(() => boolean) | null>(null);
   const [briefing, setBriefing] = useState<ResultatSection<BriefingM9>>();
   const [alertes, setAlertes] = useState<ResultatSection<AlertesM9>>();
   const [etat, setEtat] = useState<ResultatSection<EtatConsolideM9>>();
+  const [strategique, setStrategique] = useState<ResultatSection<LectureStrategiqueM9>>();
   const [pages, setPages] = useState<Pages>({});
   const [sansSession, setSansSession] = useState(false);
   const [enCours, setEnCours] = useState<readonly string[]>([]);
@@ -46,7 +56,9 @@ export default function EcranBriefing() {
   const demandes = useRef(new Set<string>());
   const decalage = -new Date().getTimezoneOffset();
   const charger = useCallback(async () => {
-    const numero = ++sequence.current;
+    const numero = ++sequence.current, capture = capturerSessionAdminLecture();
+    garde.current = capture.session ? capture.courante : null;
+    actualiserConnectiviteBriefingM9(connectee);
     reference.current = instantLocal({
       maintenant: new Date(),
       decalageMinutesUTC: -new Date().getTimezoneOffset(),
@@ -58,10 +70,13 @@ export default function EcranBriefing() {
     setBriefing(undefined);
     setAlertes(undefined);
     setEtat(undefined);
+    setStrategique(undefined);
+    setSansSession(!capture.session || !capture.courante());
+    if (!capture.session || !capture.courante()) return;
     const recevoir =
       <T,>(poser: (v: ResultatSection<T>) => void) =>
       (lu: ResultatSection<T> | null) => {
-        if (numero !== sequence.current) return;
+        if (numero !== sequence.current || garde.current?.() !== true) return;
         if (lu === null) {
           setSansSession(true);
           return;
@@ -70,42 +85,56 @@ export default function EcranBriefing() {
         poser(lu);
       };
     await Promise.all([
-      chargerBriefingM9(maintenant).then(recevoir(setBriefing)),
-      chargerAlertesM9().then(recevoir(setAlertes)),
-      chargerEtatConsolideM9().then(recevoir(setEtat)),
+      chargerBriefingM9(maintenant).then(recevoir(setBriefing)).catch(() => recevoir(setBriefing)(indisponible)),
+      chargerAlertesM9().then(recevoir(setAlertes)).catch(() => recevoir(setAlertes)(indisponible)),
+      chargerEtatConsolideM9().then(recevoir(setEtat)).catch(() => recevoir(setEtat)(indisponible)),
+      chargerLectureStrategiqueM9(maintenant).then(recevoir(setStrategique)).catch(() => recevoir(setStrategique)(indisponible)),
     ]);
-  }, []);
+  }, [connectee]);
   useFocusEffect(
     useCallback(() => {
       void charger();
       return () => {
         sequence.current += 1;
+        garde.current = null;
       };
-    }, [charger]),
+    }, [charger, identite]),
   );
-  const suite = async (cle: SectionBriefing | "registre_alertes", depart: number) => {
-    if (demandes.current.has(cle)) return;
+  const suite = async (cle: SectionBriefing | "registre_alertes" | "preuves", depart: number) => {
+    if (!connectee || garde.current?.() !== true || demandes.current.has(cle)) return;
     const numero = sequence.current,
       requetes = demandes.current;
     requetes.add(cle);
     setEnCours([...requetes]);
     try {
-      if (cle === "registre_alertes") {
+      if (cle === "preuves") {
+        const lu = await chargerLectureStrategiqueM9(reference.current, depart);
+        if (numero === sequence.current && garde.current?.() === true) {
+          if (lu === null) setSansSession(true);
+          else setStrategique(lu);
+        }
+      } else if (cle === "registre_alertes") {
         const lu = await chargerAlertesM9(depart);
-        if (numero === sequence.current) {
+        if (numero === sequence.current && garde.current?.() === true) {
           if (lu === null) setSansSession(true);
           else setAlertes(lu);
         }
       } else {
         const lu = await chargerSuiteBriefingM9(reference.current, cle, depart);
-        if (numero === sequence.current) {
+        if (numero === sequence.current && garde.current?.() === true) {
           if (lu === null) setSansSession(true);
           else setPages((old) => ({ ...old, [cle]: lu }));
         }
       }
+    } catch {
+      if (numero === sequence.current && garde.current?.() === true) {
+        if (cle === "preuves") setStrategique(indisponible);
+        else if (cle === "registre_alertes") setAlertes(indisponible);
+        else setPages(old => ({ ...old, [cle]: indisponible }));
+      }
     } finally {
       requetes.delete(cle);
-      if (numero === sequence.current) setEnCours([...requetes]);
+      if (numero === sequence.current && garde.current?.() === true) setEnCours([...requetes]);
     }
   };
   const vue = <T,>(lu: ResultatSection<T> | undefined) =>
@@ -117,10 +146,27 @@ export default function EcranBriefing() {
       <Text style={styles.avis}>{t("admin.briefing.courant")}</Text>
       <Text style={styles.trace}>{t("admin.briefing.aucuneDecision")}</Text>
       <BoutonSecondaire texte={t("admin.commun.rafraichir")} onPress={() => void charger()} />
-      {sansSession ? (
+      {sansSession || garde.current?.() !== true ? (
         <Text style={styles.erreur}>{t("admin.commun.sansSession")}</Text>
       ) : (
         <>
+          <Carte>
+            <Text style={styles.sousTitre}>{t("admin.lectureStrategique.titre")}</Text>
+            <EtatSection vue={strategique ? presenterSection(strategique, decalage, v => presenterLectureStrategique(v, decalage)) : undefined}
+              rendre={v => <>
+                <Lignes items={v.lignes} />
+                <Lignes items={v.preuves} />
+                {v.metriques.map((m, i) => <View key={i}><Ligne m={m.titre} style={styles.sousTitre} /><Lignes items={m.lignes} /></View>)}
+                <Lignes items={v.manques} />
+                {v.lectures.map((m, i) => <View key={i}><Ligne m={m.titre} style={styles.sousTitre} /><Lignes items={m.lignes} /></View>)}
+                <Lignes items={v.pagination} />
+                {strategique?.source === "serveur" && strategique.valeur.affichage.prochain_depart !== null ?
+                  <BoutonSecondaire texte={t("admin.lectureStrategique.suivante")} desactive={!connectee || enCours.includes("preuves")}
+                    onPress={() => void suite("preuves", strategique.valeur.affichage.prochain_depart!)} /> : null}
+                <BoutonSecondaire texte={t("admin.lectureStrategique.relire")} desactive={!connectee || enCours.includes("preuves")}
+                  onPress={() => void suite("preuves", 0)} />
+              </>} />
+          </Carte>
           <EtatSection
             vue={vue(briefing)}
             rendre={(b) => (
@@ -255,6 +301,8 @@ export default function EcranBriefing() {
     </ScrollView>
   );
 }
+
+const indisponible = { source: "aucune", raison: { code: "lecture_indisponible", detail: "" } } as const;
 function Items({
   items,
   decalage,

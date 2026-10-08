@@ -29,9 +29,12 @@ import type { ResultatSection } from "./lecture";
  */
 let connectiviteChiffres = false;
 let numeroVueExecutive = 0;
+let connectiviteBriefingM9 = false;
+let numeroLectureStrategique = 0;
 /** NetInfo du seul écran Chiffres ; les autres services admin gardent leur propre contexte. */
 export function actualiserConnectiviteChiffres(connectee: boolean): void { connectiviteChiffres = connectee; }
-async function configuration(finance = false, encoreCourante: () => boolean = () => true): Promise<ConfigurationChargeurAdmin | null> {
+export function actualiserConnectiviteBriefingM9(connectee: boolean): void { connectiviteBriefingM9 = connectee; }
+async function configuration(finance = false, encoreCourante: () => boolean = () => true, enLigne?: () => boolean): Promise<ConfigurationChargeurAdmin | null> {
   const capture = capturerSessionAdminLecture();
   const session = capture.session;
   if (!session) {
@@ -42,7 +45,7 @@ async function configuration(finance = false, encoreCourante: () => boolean = ()
   if (!capture.courante() || !encoreCourante()) return null;
   return {
     depot: depotSousGardeLecture(depot, () => capture.courante() && encoreCourante()),
-    ...(finance ? { enLigne: () => connectiviteChiffres } : {}),
+    ...(finance ? { enLigne: () => connectiviteChiffres } : enLigne ? { enLigne } : {}),
     appelerOutil: invoquerOutil,
     fetchImpl: fetch,
     urlBase: session.urlBase,
@@ -100,20 +103,25 @@ export async function chargerPreparation(interventionId: string): Promise<Result
 }
 
 export async function chargerBriefingM9(maintenant: string) {
-  const config = await configuration();
+  const config = await configuration(false, () => true, () => connectiviteBriefingM9);
   return config ? creerChargeurBriefing(config).chargerBriefing(maintenant) : null;
 }
 export async function chargerSuiteBriefingM9(maintenant: string, section: SectionBriefing, depart: number) {
-  const config = await configuration();
+  const config = await configuration(false, () => true, () => connectiviteBriefingM9);
   return config ? creerChargeurBriefing(config).chargerSuite(maintenant, section, depart) : null;
 }
 export async function chargerAlertesM9(depart = 0) {
-  const config = await configuration();
+  const config = await configuration(false, () => true, () => connectiviteBriefingM9);
   return config ? creerChargeurBriefing(config).chargerAlertes(depart) : null;
 }
 export async function chargerEtatConsolideM9() {
-  const config = await configuration();
+  const config = await configuration(false, () => true, () => connectiviteBriefingM9);
   return config ? creerChargeurBriefing(config).chargerEtat() : null;
+}
+export async function chargerLectureStrategiqueM9(maintenant: string, depart = 0) {
+  const numero = ++numeroLectureStrategique;
+  const config = await configuration(false, () => numero === numeroLectureStrategique, () => connectiviteBriefingM9);
+  return config ? creerChargeurBriefing(config).chargerLectureStrategique(maintenant, depart) : null;
 }
 
 export async function chargerCreancesM5() {

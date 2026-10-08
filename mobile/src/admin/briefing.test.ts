@@ -72,6 +72,38 @@ test("hors ligne les premières lectures personnelles sont marquées cache ; un 
   expect(depot.cles()).toEqual(keys);
 });
 
+test("refus acquis : les trois copies informatives ne réapparaissent pas hors ligne", async () => {
+  const depot = new DepotCleValeurMemoire();
+  const initial = creerChargeurBriefing(config(good(), { depot }));
+  await initial.chargerBriefing(NOW); await initial.chargerAlertes(); await initial.chargerEtat();
+  const interdit = creerChargeurBriefing(config(jest.fn(async () => echecHttp(403)), { depot }));
+  for (const lu of [await interdit.chargerBriefing(NOW), await interdit.chargerAlertes(), await interdit.chargerEtat()])
+    expect(lu.source).toBe("refus");
+  const offline = creerChargeurBriefing({ ...config(transportHorsLigne(), { depot }), enLigne: () => false });
+  for (const lu of [await offline.chargerBriefing(NOW), await offline.chargerAlertes(), await offline.chargerEtat()])
+    expect(lu.source).toBe("aucune");
+});
+
+test("refus malformé combiné à panne passagère : aucune copie reprise, aucun getter exécuté", async () => {
+  const depot = new DepotCleValeurMemoire(), initial = creerChargeurBriefing(config(good(), { depot }));
+  await initial.chargerBriefing(NOW);
+  const getter = jest.fn(() => "donnée-fictive"), brut = { ok: false, erreur: "budget_epuise", resultat: { accepte: false } };
+  Object.defineProperty(brut, "extra", { get: getter });
+  const refuse = creerChargeurBriefing(config(jest.fn(async () => ({ ok: true, result: brut })), { depot }));
+  expect((await refuse.chargerBriefing(NOW)).source).toBe("refus");
+  expect(getter).not.toHaveBeenCalled();
+});
+test("refus acquis prioritaire sur tronque : verdict natif conservé", async () => {
+  const depot = new DepotCleValeurMemoire(), initial = creerChargeurBriefing(config(good(), { depot }));
+  await initial.chargerBriefing(NOW);
+  const brut = { ok: true, tronque: true, resultat: { accepte: false,
+    verdict: { code: "REJ-ACCES-FICTIF", detail: "Refus fictif" } } };
+  const refuse = creerChargeurBriefing(config(jest.fn(async () => ({ ok: true, result: brut })), { depot }));
+  expect(await refuse.chargerBriefing(NOW)).toMatchObject({ source: "refus", verdict: { code: "REJ-ACCES-FICTIF" } });
+  const offline = creerChargeurBriefing({ ...config(transportHorsLigne(), { depot }), enLigne: () => false });
+  expect((await offline.chargerBriefing(NOW)).source).toBe("aucune");
+});
+
 test("une suite courante ne lit et n'écrit aucun cache ; une page incohérente est écartée", async () => {
   const depot = new DepotCleValeurMemoire();
   const lire = jest.spyOn(depot, "lire"),

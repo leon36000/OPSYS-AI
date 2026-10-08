@@ -125,7 +125,7 @@ describe("les écrans : câblage mince, lecture seule", () => {
 
   test.each(ECRANS)("%s ne lit que par son service admin et sa garde de session", (fichier) => {
     const importsDeDonnees = [...code(fichier).matchAll(/from\s+"@\/(admin\/(?:service|dispatchService)|approbations\/[a-z]+|protocole\/[a-zA-Z]+)"/g)].map((m) => m[1]);
-    expect([...new Set(importsDeDonnees)]).toEqual(fichier.endsWith("chantiers.tsx") ? ["admin/dispatchService", "protocole/configuration"] : fichier.endsWith("chiffres.tsx") ? ["protocole/configuration", "admin/service"] : ["admin/service"]);
+    expect([...new Set(importsDeDonnees)]).toEqual(fichier.endsWith("chantiers.tsx") ? ["admin/dispatchService", "protocole/configuration"] : (fichier.endsWith("chiffres.tsx") || fichier.endsWith("briefing.tsx")) ? ["protocole/configuration", "admin/service"] : ["admin/service"]);
   });
 
   test("le câblage réel passe par la session de l'appareil, le transport du core et le dépôt local ; aucun jeton ni personne en dur", () => {

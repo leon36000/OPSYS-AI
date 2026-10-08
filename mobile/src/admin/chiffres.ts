@@ -56,8 +56,7 @@ export function sectionVueExecutive(aujourdHui: string): DefinitionSection<VueEx
     const refusMetier = propre(propre(brut, "resultat"), "accepte") === false;
     if (copie === JSON_LECTURE_INVALIDE) return { ok: false as const, genre: refusMetier || propre(brut, "ok") === false ? "refus" as const : "illisible" as const,
       verdict: { code: "reponse_illisible", detail: "" } };
-    if (refusMetier && propre(copie, "ok") === false) return { ok: false as const, genre: "refus" as const,
-      verdict: { code: "reponse_illisible", detail: "" } };
+    if (refusMetier) return interpreter({ ok: true, resultat: propre(copie, "resultat") }, "directe", lireVueExecutive);
     return interpreter(copie, "directe", valeur => {
       const vue = lireVueExecutive(valeur);
       return vue !== null && (vue.cashLibre.genre !== "lu" || vue.cashLibre.age.aujourdHui === jour) ? vue : null;

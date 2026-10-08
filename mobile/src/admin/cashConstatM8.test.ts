@@ -45,6 +45,13 @@ test("getter malformé + refus métier : pas de cache ni getter exécuté", asyn
   expect(await h.chargeur.chargerVueExecutive()).toMatchObject({ source: "refus" });
   expect(getter).not.toHaveBeenCalled(); h.horsLigne(); expect(await h.chargeur.chargerVueExecutive()).toMatchObject({ source: "aucune" });
 });
+test("refus acquis prioritaire sur tronque : verdict conservé et aucune copie reprise", async () => {
+  const h = harnais(); await h.chargeur.chargerVueExecutive();
+  h.transport.mockResolvedValue({ ok: true, result: { ok: true, tronque: true,
+    resultat: { accepte: false, verdict: { code: "REJ-ACCES-FICTIF", detail: "Rôle retiré (fictif)" } } } });
+  expect(await h.chargeur.chargerVueExecutive()).toMatchObject({ source: "refus", verdict: { code: "REJ-ACCES-FICTIF" } });
+  h.horsLigne(); expect(await h.chargeur.chargerVueExecutive()).toMatchObject({ source: "aucune" });
+});
 test("cache minimal : aucun champ financier ou contact non projeté conservé", async () => {
   const h = harnais(), brut = reponse("vue_executive_vide");
   brut.resultat.cash_libre = JSON.parse(JSON.stringify(fixture.calcule));
