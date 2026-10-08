@@ -16,6 +16,7 @@ import { BandeauIdentite } from "@/identite/BandeauIdentite";
 import { presenterPaquetAffaire } from "@/ecrans/paquetAffaire";
 import type { PaquetAffaireM10 } from "@/m10/paquetAffaire";
 import { estAffairePaquetM10Valide } from "@/m10/paquetAffaire";
+import { RechercheAffaireM10 } from "@/admin/RechercheAffaireM10";
 
 const choix: readonly ChoixArbitrageMemoire[] = ["distincts_confirmes", "obsolete_marquee", "indetermine", "en_attente"];
 
@@ -33,6 +34,9 @@ export default function MemoireAdmin() {
   const sequence = useRef(0);
   const garde = useRef<(() => boolean) | null>(null);
   const refresh = useCallback(() => render(v => v + 1), []);
+  const fermerPaquet = useCallback(() => {
+    ++demandePaquet.current; setPaquet(undefined); setAffaire(null); setPaquetEnCours(false);
+  }, []);
   const charger = useCallback(async () => {
     if (controleMemoire.etat().statut === "arbitrage_en_cours") return;
     const capture = capturerSessionAdminLecture();
@@ -90,6 +94,8 @@ export default function MemoireAdmin() {
       {erreurAction ? <Text accessibilityRole="alert">{t("admin.memoire.messages.lectureImpossible")}</Text> : null}
       {state.messageCode ? <Text accessibilityRole="alert" style={styles.avis}>{t(`admin.memoire.messages.${state.messageCode}`)}</Text> : null}
       {state.message ? <Text accessibilityRole="alert">{state.message}</Text> : null}
+      <RechercheAffaireM10 connected={connected} bloque={state.statut === "arbitrage_en_cours"}
+        autorisee={() => garde.current?.() === true} onOuvrir={id => void lireAffaire(id)} onInvalider={fermerPaquet} />
       <Carte><Text style={styles.sousTitre}>{t("admin.memoire.signaux")}</Text>
         <EtatSection vue={vue(state.signaux)} rendre={v => <>
           <Text>{t("admin.memoire.comptesSignaux", { total: v.nb_total, ouverts: v.nb_ouverts, pris: v.nb_pris_en_compte, clos: v.nb_clos, omis: v.nb_omis })}</Text>

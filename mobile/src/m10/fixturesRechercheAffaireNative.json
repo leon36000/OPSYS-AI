@@ -1,0 +1,2042 @@
+{
+  "fictif": true,
+  "provenance": {
+    "scope": "Captures DEVICE opaque réelles via Gateway/HTTP MCP/SQLite fictif. Rejeu client local seulement : aucun téléphone ni nouvel appel HTTP.",
+    "projection": "Chaque capture conserve exactement phase/request/status/response, nombre et SHA des octets HTTP natifs et invariance de tables. 30 sources DTO ; avant_restart_exact provient de native-proof.json/phases. Le hash projection porte le JSON compact UTF-8 de capture ; il ne remplace pas le hash des octets HTTP originaux.",
+    "envelope": "HTTP 200 outer ok:true -> response.result, sans modification.",
+    "parent": "8541cccf0b2ec0c88a92c148a37e49d8f91a6665",
+    "candidate_source": {
+      "basis": "Main frozen by ROOT before activation; HEAD plus attested candidate diff",
+      "freeze_receipt_sha256": "07ee5e71b7f8113db651e87777f3dbdfce347c2eae757acbd34f5a978128caed",
+      "full_diff_before_sha256": "155d635dbdd5d97537a4b42389fa61937bb0b14979e8fd64be24b41bb3dc9b85"
+    },
+    "closure_path": "qualification/M10-recherche-affaire-native-r1/CLOTURE-PUBLIC-r1/receipt.json",
+    "closure_sha256": "75d35e31f3abbf06df5c9e129e35d7a99568150e8741985d15a2e9e4dbde94c5",
+    "public_manifest_path": "qualification/M10-recherche-affaire-native-public-r1/SHA256.json",
+    "public_manifest_sha256": "8c543ba65dba01f9c63645f71a60c0a1939953e6ca0b4d6927fa9934e9912d5e",
+    "native_proof_sha256": "89c354b3363f0354e9d0c1bd5b6f7f5b118f1e6df398ebddf9b58e6304d3b79a",
+    "producer_sha256": "38d09cc2a5c899d56b35a75b30b0fff85f5e805f768b9521eb7b2bc6c05a0117",
+    "all_source_manifest_sha256": "31e9456fbcdc27d64d4ee92031dd2a1257fc14ba53f680690bc45c4cfac96b7a",
+    "limits": [
+      "physical phone",
+      "Expo SQLite",
+      "Hermes",
+      "live provider",
+      "strategic agents council",
+      "CPA/legal/accounting validation",
+      "payment/production disbursement",
+      "future candidate mobile and exact-head CI"
+    ]
+  },
+  "captures": [
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-inconnue.json",
+        "sha256": "3af2e298da31499f7e628122754f8695ae1dcce5842ef5a5d0b243813ca2e337",
+        "projection_sha256": "348b6c2f3079fe0aae8b75dcd8ff5633bf4625c02ca66f10bc21e75e983ce5bd"
+      },
+      "capture": {
+        "phase": "affaire_inconnue",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "LEAD-RECHERCHE-JAMAIS-RECU-FICTIF",
+            "requete": "",
+            "limite": 8,
+            "decalage": 0
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "affaire_id": "LEAD-RECHERCHE-JAMAIS-RECU-FICTIF",
+              "requete": "",
+              "mode": "litteral_nfc_casefold_v1",
+              "corpus": "evenements_et_consolidations_affaire_v1",
+              "resultats": [],
+              "affaire": {
+                "connue": false,
+                "origine_recue": false,
+                "origine": null,
+                "verdict": "AMONT-AFFAIRE-INCONNUE"
+              },
+              "pagination": {
+                "decalage": 0,
+                "limite": 8,
+                "affichees": 0,
+                "total": 0,
+                "suivant": null,
+                "reste": 0,
+                "courante": true
+              },
+              "couverture": {
+                "projections": "resume_200_caracteres",
+                "sources_parcourues": "completes",
+                "historique_consolidations": "derniere_version_par_cle",
+                "hors_corpus": [
+                  "decisions_globales",
+                  "revisions",
+                  "signaux_traitements",
+                  "developpement",
+                  "documents_generiques"
+                ],
+                "plafond_lignes": 10000
+              },
+              "confidentialite": {
+                "agent": null,
+                "regle": "v1",
+                "niveaux": [
+                  "PUBLIC_INTERNAL",
+                  "INTERNAL"
+                ]
+              },
+              "borne_caracteres": 5400,
+              "taille_caracteres": 861
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 819,
+        "Gateway_HTTP_response_body_sha256": "c931509acf567bf8c0b49ad664c3a18f375daef1e78de5414086a88fc85f7e70",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-canonique.json",
+        "sha256": "59df102219a85247b9e0999743933c47aa81c130865ef6bd8ccaf25c1a2d2442",
+        "projection_sha256": "98ccf4ddb7abe07641ba3ff1148dcb74484626a97e3094e72887d69a6535a7a2"
+      },
+      "capture": {
+        "phase": "affaire_canonique_pipeline_durable",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 8,
+            "decalage": 0
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+              "requete": "",
+              "mode": "litteral_nfc_casefold_v1",
+              "corpus": "evenements_et_consolidations_affaire_v1",
+              "resultats": [
+                {
+                  "genre": "evenement",
+                  "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "identifiant": "17e93274e5e518c6db1b787989e3228326f5e975bc71257415191ab5917a24ab",
+                  "horodatage": "2026-10-09T15:04:30+00:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT 17e93274e5e518c6db1b787989e3228326f5e975bc71257415191ab5917a24ab : durée réelle 180 min",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "5a3b01d7028f6de8c6d1dc6761a2014d94c0d53c2c16bed2b288b0ddfeabe969",
+                    "registre": "evenements",
+                    "hash_tete": "5a3b01d7028f6de8c6d1dc6761a2014d94c0d53c2c16bed2b288b0ddfeabe969"
+                  }
+                },
+                {
+                  "genre": "evenement",
+                  "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "identifiant": "m6-variance-17e93274e5e518c6db1b787989e3228326f5e975bc71257415191ab5917a24ab-evaluee",
+                  "horodatage": "2026-10-09T15:04:30+00:00",
+                  "source": "m6.variance_chantier",
+                  "resume": "Variance m6-variance-17e93274e5e518c6db1b787989e3228326f5e975bc71257415191ab5917a24ab-evaluee : evaluee, signal critique",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "98f7248630981cb8ba031def7071e8d1dd3984654cc009fef0d6747c3c73b38d",
+                    "registre": "evenements",
+                    "hash_tete": "98f7248630981cb8ba031def7071e8d1dd3984654cc009fef0d6747c3c73b38d"
+                  }
+                },
+                {
+                  "genre": "evenement",
+                  "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "identifiant": "M3-DEVIS-e66e5513a8413a67",
+                  "horodatage": "2026-10-08T07:08:48-04:00",
+                  "source": "m3.devis_accepte",
+                  "resume": "Devis M3-DEVIS-e66e5513a8413a67 accepté, chantier fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "dcc1cc20d6a52ee2d82c4803aa8c1e8166618d3db96e3aca31f6f27f1f86fe2a",
+                    "registre": "evenements",
+                    "hash_tete": "dcc1cc20d6a52ee2d82c4803aa8c1e8166618d3db96e3aca31f6f27f1f86fe2a"
+                  }
+                },
+                {
+                  "genre": "evenement",
+                  "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "identifiant": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "horodatage": "2026-10-08T11:04:18+00:00",
+                  "source": "m1.lead_qualifie",
+                  "resume": "Lead qualifié : service gouttieres, canal formulaire, urgence non déclarée",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "c285c278a7b4c02a2972815873cf7b609d5aad3da64f283f3400d2abbb9d76cf",
+                    "registre": "evenements",
+                    "hash_tete": "c285c278a7b4c02a2972815873cf7b609d5aad3da64f283f3400d2abbb9d76cf"
+                  }
+                }
+              ],
+              "affaire": {
+                "connue": true,
+                "origine_recue": true,
+                "origine": "m1.lead_qualifie",
+                "verdict": null
+              },
+              "pagination": {
+                "decalage": 0,
+                "limite": 8,
+                "affichees": 4,
+                "total": 4,
+                "suivant": null,
+                "reste": 0,
+                "courante": true
+              },
+              "couverture": {
+                "projections": "resume_200_caracteres",
+                "sources_parcourues": "completes",
+                "historique_consolidations": "derniere_version_par_cle",
+                "hors_corpus": [
+                  "decisions_globales",
+                  "revisions",
+                  "signaux_traitements",
+                  "developpement",
+                  "documents_generiques"
+                ],
+                "plafond_lignes": 10000
+              },
+              "confidentialite": {
+                "agent": null,
+                "regle": "v1",
+                "niveaux": [
+                  "PUBLIC_INTERNAL",
+                  "INTERNAL"
+                ]
+              },
+              "borne_caracteres": 5400,
+              "taille_caracteres": 3306
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 3187,
+        "Gateway_HTTP_response_body_sha256": "10923b21ea7ec66f649905a6d41bed69ca1978a0c29409c05c6a31ed5b6b7bb6",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-agent-body-identique.json",
+        "sha256": "396e81c61a0fc5683996e8f038d2c68d6e8536e76049dedbe466c71f0d863b94",
+        "projection_sha256": "6f000a3e368801f7a2300a8f84df2a5f2848d19e154479585cf4333413d1c212"
+      },
+      "capture": {
+        "phase": "agent_body_forge_vue_identique",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 8,
+            "decalage": 0
+          },
+          "agentId": "m01-front-office"
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+              "requete": "",
+              "mode": "litteral_nfc_casefold_v1",
+              "corpus": "evenements_et_consolidations_affaire_v1",
+              "resultats": [
+                {
+                  "genre": "evenement",
+                  "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "identifiant": "17e93274e5e518c6db1b787989e3228326f5e975bc71257415191ab5917a24ab",
+                  "horodatage": "2026-10-09T15:04:30+00:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT 17e93274e5e518c6db1b787989e3228326f5e975bc71257415191ab5917a24ab : durée réelle 180 min",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "5a3b01d7028f6de8c6d1dc6761a2014d94c0d53c2c16bed2b288b0ddfeabe969",
+                    "registre": "evenements",
+                    "hash_tete": "5a3b01d7028f6de8c6d1dc6761a2014d94c0d53c2c16bed2b288b0ddfeabe969"
+                  }
+                },
+                {
+                  "genre": "evenement",
+                  "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "identifiant": "m6-variance-17e93274e5e518c6db1b787989e3228326f5e975bc71257415191ab5917a24ab-evaluee",
+                  "horodatage": "2026-10-09T15:04:30+00:00",
+                  "source": "m6.variance_chantier",
+                  "resume": "Variance m6-variance-17e93274e5e518c6db1b787989e3228326f5e975bc71257415191ab5917a24ab-evaluee : evaluee, signal critique",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "98f7248630981cb8ba031def7071e8d1dd3984654cc009fef0d6747c3c73b38d",
+                    "registre": "evenements",
+                    "hash_tete": "98f7248630981cb8ba031def7071e8d1dd3984654cc009fef0d6747c3c73b38d"
+                  }
+                },
+                {
+                  "genre": "evenement",
+                  "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "identifiant": "M3-DEVIS-e66e5513a8413a67",
+                  "horodatage": "2026-10-08T07:08:48-04:00",
+                  "source": "m3.devis_accepte",
+                  "resume": "Devis M3-DEVIS-e66e5513a8413a67 accepté, chantier fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "dcc1cc20d6a52ee2d82c4803aa8c1e8166618d3db96e3aca31f6f27f1f86fe2a",
+                    "registre": "evenements",
+                    "hash_tete": "dcc1cc20d6a52ee2d82c4803aa8c1e8166618d3db96e3aca31f6f27f1f86fe2a"
+                  }
+                },
+                {
+                  "genre": "evenement",
+                  "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "identifiant": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "horodatage": "2026-10-08T11:04:18+00:00",
+                  "source": "m1.lead_qualifie",
+                  "resume": "Lead qualifié : service gouttieres, canal formulaire, urgence non déclarée",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "c285c278a7b4c02a2972815873cf7b609d5aad3da64f283f3400d2abbb9d76cf",
+                    "registre": "evenements",
+                    "hash_tete": "c285c278a7b4c02a2972815873cf7b609d5aad3da64f283f3400d2abbb9d76cf"
+                  }
+                }
+              ],
+              "affaire": {
+                "connue": true,
+                "origine_recue": true,
+                "origine": "m1.lead_qualifie",
+                "verdict": null
+              },
+              "pagination": {
+                "decalage": 0,
+                "limite": 8,
+                "affichees": 4,
+                "total": 4,
+                "suivant": null,
+                "reste": 0,
+                "courante": true
+              },
+              "couverture": {
+                "projections": "resume_200_caracteres",
+                "sources_parcourues": "completes",
+                "historique_consolidations": "derniere_version_par_cle",
+                "hors_corpus": [
+                  "decisions_globales",
+                  "revisions",
+                  "signaux_traitements",
+                  "developpement",
+                  "documents_generiques"
+                ],
+                "plafond_lignes": 10000
+              },
+              "confidentialite": {
+                "agent": null,
+                "regle": "v1",
+                "niveaux": [
+                  "PUBLIC_INTERNAL",
+                  "INTERNAL"
+                ]
+              },
+              "borne_caracteres": 5400,
+              "taille_caracteres": 3306
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 3187,
+        "Gateway_HTTP_response_body_sha256": "10923b21ea7ec66f649905a6d41bed69ca1978a0c29409c05c6a31ed5b6b7bb6",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-ancien.json",
+        "sha256": "089920be4fcd8f1059f6700921ea019563600a6206184e3972550632c17f83f1",
+        "projection_sha256": "cca9463b8775891ed2e4c4c2c8ce3376807b4a5b493496b9444d841d1328521e"
+      },
+      "capture": {
+        "phase": "match_ancien_hors_cinq_faits",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "ANCIEN-FICTIF-0",
+            "limite": 8,
+            "decalage": 0
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+              "requete": "ANCIEN-FICTIF-0",
+              "mode": "litteral_nfc_casefold_v1",
+              "corpus": "evenements_et_consolidations_affaire_v1",
+              "resultats": [
+                {
+                  "genre": "evenement",
+                  "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "identifiant": "WCT-RECHERCHE-ANCIEN-FICTIF-0",
+                  "horodatage": "2026-09-01T12:00:00-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-RECHERCHE-ANCIEN-FICTIF-0 : durée réelle 90 min",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "00ac9354f3f85ea8de9299bfe8cdd8ad9f6f3e74d6d96006306ffbf37de16a11",
+                    "registre": "evenements",
+                    "hash_tete": "00ac9354f3f85ea8de9299bfe8cdd8ad9f6f3e74d6d96006306ffbf37de16a11"
+                  }
+                }
+              ],
+              "affaire": {
+                "connue": true,
+                "origine_recue": true,
+                "origine": "m1.lead_qualifie",
+                "verdict": null
+              },
+              "pagination": {
+                "decalage": 0,
+                "limite": 8,
+                "affichees": 1,
+                "total": 1,
+                "suivant": null,
+                "reste": 0,
+                "courante": true
+              },
+              "couverture": {
+                "projections": "resume_200_caracteres",
+                "sources_parcourues": "completes",
+                "historique_consolidations": "derniere_version_par_cle",
+                "hors_corpus": [
+                  "decisions_globales",
+                  "revisions",
+                  "signaux_traitements",
+                  "developpement",
+                  "documents_generiques"
+                ],
+                "plafond_lignes": 10000
+              },
+              "confidentialite": {
+                "agent": null,
+                "regle": "v1",
+                "niveaux": [
+                  "PUBLIC_INTERNAL",
+                  "INTERNAL"
+                ]
+              },
+              "borne_caracteres": 5400,
+              "taille_caracteres": 1430
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 1370,
+        "Gateway_HTTP_response_body_sha256": "7f88a2fed2586e5bc4ba070c8a41f2d883ec48b420542b2f163295cd43315779",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-consolidation.json",
+        "sha256": "afc50bc393142e8f729a74757ec527dc1d5e2d19f8011a9e791951c9f91096a8",
+        "projection_sha256": "41c13b32e4b00a85184df8ab0d0d37024ddb995664674145ac0b420f24a209e5"
+      },
+      "capture": {
+        "phase": "consolidation_source_reelle_visible",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "m10:consolidation",
+            "limite": 8,
+            "decalage": 0
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+              "requete": "m10:consolidation",
+              "mode": "litteral_nfc_casefold_v1",
+              "corpus": "evenements_et_consolidations_affaire_v1",
+              "resultats": [
+                {
+                  "genre": "fait_consolide",
+                  "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "identifiant": "96f5624c45ae7485b8af1a01b2a1e74551849fb4ead25f4bd1845e70036481fc",
+                  "horodatage": "2026-10-09T11:15:30-04:00",
+                  "source": "m10:consolidation",
+                  "resume": "2026-09-01 : 1 travaux terminés",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "96f5624c45ae7485b8af1a01b2a1e74551849fb4ead25f4bd1845e70036481fc",
+                    "registre": "affaires",
+                    "hash_tete": "96f5624c45ae7485b8af1a01b2a1e74551849fb4ead25f4bd1845e70036481fc"
+                  }
+                }
+              ],
+              "affaire": {
+                "connue": true,
+                "origine_recue": true,
+                "origine": "m1.lead_qualifie",
+                "verdict": null
+              },
+              "pagination": {
+                "decalage": 0,
+                "limite": 8,
+                "affichees": 1,
+                "total": 1,
+                "suivant": null,
+                "reste": 0,
+                "courante": true
+              },
+              "couverture": {
+                "projections": "resume_200_caracteres",
+                "sources_parcourues": "completes",
+                "historique_consolidations": "derniere_version_par_cle",
+                "hors_corpus": [
+                  "decisions_globales",
+                  "revisions",
+                  "signaux_traitements",
+                  "developpement",
+                  "documents_generiques"
+                ],
+                "plafond_lignes": 10000
+              },
+              "confidentialite": {
+                "agent": null,
+                "regle": "v1",
+                "niveaux": [
+                  "PUBLIC_INTERNAL",
+                  "INTERNAL"
+                ]
+              },
+              "borne_caracteres": 5400,
+              "taille_caracteres": 1444
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 1383,
+        "Gateway_HTTP_response_body_sha256": "4b5e4964f1898fca5ecf0ff29ad4470adc3dadb52806c7ef496375c94bebdd76",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-page-premiere.json",
+        "sha256": "4e1914ba51e0610a517f7f1fecb9efb13cac6460c0fa871930e95fa08f23fbf5",
+        "projection_sha256": "4848e4317c7d5cb075d59ea0932b14f2b27de454695d00b19c7686fb2c64e9f7"
+      },
+      "capture": {
+        "phase": "page_courante_premiere",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 2,
+            "decalage": 0
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+              "requete": "",
+              "mode": "litteral_nfc_casefold_v1",
+              "corpus": "evenements_et_consolidations_affaire_v1",
+              "resultats": [
+                {
+                  "genre": "fait_consolide",
+                  "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "identifiant": "96f5624c45ae7485b8af1a01b2a1e74551849fb4ead25f4bd1845e70036481fc",
+                  "horodatage": "2026-10-09T11:15:30-04:00",
+                  "source": "m10:consolidation",
+                  "resume": "2026-09-01 : 1 travaux terminés",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "96f5624c45ae7485b8af1a01b2a1e74551849fb4ead25f4bd1845e70036481fc",
+                    "registre": "affaires",
+                    "hash_tete": "96f5624c45ae7485b8af1a01b2a1e74551849fb4ead25f4bd1845e70036481fc"
+                  }
+                },
+                {
+                  "genre": "evenement",
+                  "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "identifiant": "17e93274e5e518c6db1b787989e3228326f5e975bc71257415191ab5917a24ab",
+                  "horodatage": "2026-10-09T15:04:30+00:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT 17e93274e5e518c6db1b787989e3228326f5e975bc71257415191ab5917a24ab : durée réelle 180 min",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "5a3b01d7028f6de8c6d1dc6761a2014d94c0d53c2c16bed2b288b0ddfeabe969",
+                    "registre": "evenements",
+                    "hash_tete": "5a3b01d7028f6de8c6d1dc6761a2014d94c0d53c2c16bed2b288b0ddfeabe969"
+                  }
+                }
+              ],
+              "affaire": {
+                "connue": true,
+                "origine_recue": true,
+                "origine": "m1.lead_qualifie",
+                "verdict": null
+              },
+              "pagination": {
+                "decalage": 0,
+                "limite": 2,
+                "affichees": 2,
+                "total": 14,
+                "suivant": 2,
+                "reste": 12,
+                "courante": true
+              },
+              "couverture": {
+                "projections": "resume_200_caracteres",
+                "sources_parcourues": "completes",
+                "historique_consolidations": "derniere_version_par_cle",
+                "hors_corpus": [
+                  "decisions_globales",
+                  "revisions",
+                  "signaux_traitements",
+                  "developpement",
+                  "documents_generiques"
+                ],
+                "plafond_lignes": 10000
+              },
+              "confidentialite": {
+                "agent": null,
+                "regle": "v1",
+                "niveaux": [
+                  "PUBLIC_INTERNAL",
+                  "INTERNAL"
+                ]
+              },
+              "borne_caracteres": 5400,
+              "taille_caracteres": 2029
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 1949,
+        "Gateway_HTTP_response_body_sha256": "5d192d5094d15affb6f036a9c74f05fc00719211334c44f83985a69e06cb304f",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-page-suivante.json",
+        "sha256": "6302b87de333c5a7343eb4d70e94196fe7e59b3c632056e1b14dfc75f4d7dd9c",
+        "projection_sha256": "436324ef01d33243b85363e2b165f68cefbb9ddf64b8dc8cd59050670cbd5891"
+      },
+      "capture": {
+        "phase": "page_courante_suivante",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 2,
+            "decalage": 2
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+              "requete": "",
+              "mode": "litteral_nfc_casefold_v1",
+              "corpus": "evenements_et_consolidations_affaire_v1",
+              "resultats": [
+                {
+                  "genre": "evenement",
+                  "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "identifiant": "m6-variance-17e93274e5e518c6db1b787989e3228326f5e975bc71257415191ab5917a24ab-evaluee",
+                  "horodatage": "2026-10-09T15:04:30+00:00",
+                  "source": "m6.variance_chantier",
+                  "resume": "Variance m6-variance-17e93274e5e518c6db1b787989e3228326f5e975bc71257415191ab5917a24ab-evaluee : evaluee, signal critique",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "98f7248630981cb8ba031def7071e8d1dd3984654cc009fef0d6747c3c73b38d",
+                    "registre": "evenements",
+                    "hash_tete": "98f7248630981cb8ba031def7071e8d1dd3984654cc009fef0d6747c3c73b38d"
+                  }
+                },
+                {
+                  "genre": "evenement",
+                  "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "identifiant": "M3-DEVIS-e66e5513a8413a67",
+                  "horodatage": "2026-10-08T07:08:48-04:00",
+                  "source": "m3.devis_accepte",
+                  "resume": "Devis M3-DEVIS-e66e5513a8413a67 accepté, chantier fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "dcc1cc20d6a52ee2d82c4803aa8c1e8166618d3db96e3aca31f6f27f1f86fe2a",
+                    "registre": "evenements",
+                    "hash_tete": "dcc1cc20d6a52ee2d82c4803aa8c1e8166618d3db96e3aca31f6f27f1f86fe2a"
+                  }
+                }
+              ],
+              "affaire": {
+                "connue": true,
+                "origine_recue": true,
+                "origine": "m1.lead_qualifie",
+                "verdict": null
+              },
+              "pagination": {
+                "decalage": 2,
+                "limite": 2,
+                "affichees": 2,
+                "total": 14,
+                "suivant": 4,
+                "reste": 10,
+                "courante": true
+              },
+              "couverture": {
+                "projections": "resume_200_caracteres",
+                "sources_parcourues": "completes",
+                "historique_consolidations": "derniere_version_par_cle",
+                "hors_corpus": [
+                  "decisions_globales",
+                  "revisions",
+                  "signaux_traitements",
+                  "developpement",
+                  "documents_generiques"
+                ],
+                "plafond_lignes": 10000
+              },
+              "confidentialite": {
+                "agent": null,
+                "regle": "v1",
+                "niveaux": [
+                  "PUBLIC_INTERNAL",
+                  "INTERNAL"
+                ]
+              },
+              "borne_caracteres": 5400,
+              "taille_caracteres": 2119
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 2037,
+        "Gateway_HTTP_response_body_sha256": "546ca2e624e395ddf5fcf5b43e7cbfae2facdaf2e64cec56c3b4f1cc6c7dd71c",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-hors-total.json",
+        "sha256": "183b533cbaca4e901eec03547607b03b76a836a3b6e064d311737f60ab0676aa",
+        "projection_sha256": "b192ff590fa3b646a82a10a25c6396e24d995820c74d3f0cc78e07589ee61873"
+      },
+      "capture": {
+        "phase": "offset_hors_total_legal",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 8,
+            "decalage": 10000
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+              "requete": "",
+              "mode": "litteral_nfc_casefold_v1",
+              "corpus": "evenements_et_consolidations_affaire_v1",
+              "resultats": [],
+              "affaire": {
+                "connue": true,
+                "origine_recue": true,
+                "origine": "m1.lead_qualifie",
+                "verdict": null
+              },
+              "pagination": {
+                "decalage": 10000,
+                "limite": 8,
+                "affichees": 0,
+                "total": 14,
+                "suivant": null,
+                "reste": 0,
+                "courante": true
+              },
+              "couverture": {
+                "projections": "resume_200_caracteres",
+                "sources_parcourues": "completes",
+                "historique_consolidations": "derniere_version_par_cle",
+                "hors_corpus": [
+                  "decisions_globales",
+                  "revisions",
+                  "signaux_traitements",
+                  "developpement",
+                  "documents_generiques"
+                ],
+                "plafond_lignes": 10000
+              },
+              "confidentialite": {
+                "agent": null,
+                "regle": "v1",
+                "niveaux": [
+                  "PUBLIC_INTERNAL",
+                  "INTERNAL"
+                ]
+              },
+              "borne_caracteres": 5400,
+              "taille_caracteres": 889
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 847,
+        "Gateway_HTTP_response_body_sha256": "59ebae6f6fbba936041ce48cb1666088fb6b8471ab85c4cf28b16dd7323cc0dc",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-zero-hit-9.json",
+        "sha256": "4010fb7817e31c58d41e5f35a722ef11443832f7e5dff3357512e5a7f7ce3325",
+        "projection_sha256": "4a1295568a9b40ae0ef5b8fb4cb647bcfeb6cace0f745e9fc851581c44f5133d"
+      },
+      "capture": {
+        "phase": "zero_hit_8",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "RETENU",
+            "limite": 8,
+            "decalage": 0
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+              "requete": "RETENU",
+              "mode": "litteral_nfc_casefold_v1",
+              "corpus": "evenements_et_consolidations_affaire_v1",
+              "resultats": [],
+              "affaire": {
+                "connue": true,
+                "origine_recue": true,
+                "origine": "m1.lead_qualifie",
+                "verdict": null
+              },
+              "pagination": {
+                "decalage": 0,
+                "limite": 8,
+                "affichees": 0,
+                "total": 0,
+                "suivant": null,
+                "reste": 0,
+                "courante": true
+              },
+              "couverture": {
+                "projections": "resume_200_caracteres",
+                "sources_parcourues": "completes",
+                "historique_consolidations": "derniere_version_par_cle",
+                "hors_corpus": [
+                  "decisions_globales",
+                  "revisions",
+                  "signaux_traitements",
+                  "developpement",
+                  "documents_generiques"
+                ],
+                "plafond_lignes": 10000
+              },
+              "confidentialite": {
+                "agent": null,
+                "regle": "v1",
+                "niveaux": [
+                  "PUBLIC_INTERNAL",
+                  "INTERNAL"
+                ]
+              },
+              "borne_caracteres": 5400,
+              "taille_caracteres": 890
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 848,
+        "Gateway_HTTP_response_body_sha256": "790f4dbab3414eb22895ed2da8b451b193a8cde8b222bb581828d2db8649fa14",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-zero-hit-10.json",
+        "sha256": "e609ebf690ef48cca33a7810e0e3767ed41819fd5cd52947edba8bd9f9f3a3d3",
+        "projection_sha256": "e79efd0b20d29385360020ca3c7e33e231590e122d4c1ae8fa8f266c17cc2ab9"
+      },
+      "capture": {
+        "phase": "zero_hit_9",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "rentabilité",
+            "limite": 8,
+            "decalage": 0
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+              "requete": "rentabilité",
+              "mode": "litteral_nfc_casefold_v1",
+              "corpus": "evenements_et_consolidations_affaire_v1",
+              "resultats": [],
+              "affaire": {
+                "connue": true,
+                "origine_recue": true,
+                "origine": "m1.lead_qualifie",
+                "verdict": null
+              },
+              "pagination": {
+                "decalage": 0,
+                "limite": 8,
+                "affichees": 0,
+                "total": 0,
+                "suivant": null,
+                "reste": 0,
+                "courante": true
+              },
+              "couverture": {
+                "projections": "resume_200_caracteres",
+                "sources_parcourues": "completes",
+                "historique_consolidations": "derniere_version_par_cle",
+                "hors_corpus": [
+                  "decisions_globales",
+                  "revisions",
+                  "signaux_traitements",
+                  "developpement",
+                  "documents_generiques"
+                ],
+                "plafond_lignes": 10000
+              },
+              "confidentialite": {
+                "agent": null,
+                "regle": "v1",
+                "niveaux": [
+                  "PUBLIC_INTERNAL",
+                  "INTERNAL"
+                ]
+              },
+              "borne_caracteres": 5400,
+              "taille_caracteres": 895
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 854,
+        "Gateway_HTTP_response_body_sha256": "07c04f0a3f61248fcd4bd25de93cbda80b99cdf6a6f79fe1ae403497c9f88c97",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-zero-hit-11.json",
+        "sha256": "f5beea7a0066b5a0ee3a9e9652b9bdee5990537e4b0cf44bb5be2745046affd5",
+        "projection_sha256": "2124f3ead9751ffe1ce68d661960d917c41c677ff5eab75437bb53a015939bc3"
+      },
+      "capture": {
+        "phase": "zero_hit_10",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": ".*ANCIEN+",
+            "limite": 8,
+            "decalage": 0
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+              "requete": ".*ANCIEN+",
+              "mode": "litteral_nfc_casefold_v1",
+              "corpus": "evenements_et_consolidations_affaire_v1",
+              "resultats": [],
+              "affaire": {
+                "connue": true,
+                "origine_recue": true,
+                "origine": "m1.lead_qualifie",
+                "verdict": null
+              },
+              "pagination": {
+                "decalage": 0,
+                "limite": 8,
+                "affichees": 0,
+                "total": 0,
+                "suivant": null,
+                "reste": 0,
+                "courante": true
+              },
+              "couverture": {
+                "projections": "resume_200_caracteres",
+                "sources_parcourues": "completes",
+                "historique_consolidations": "derniere_version_par_cle",
+                "hors_corpus": [
+                  "decisions_globales",
+                  "revisions",
+                  "signaux_traitements",
+                  "developpement",
+                  "documents_generiques"
+                ],
+                "plafond_lignes": 10000
+              },
+              "confidentialite": {
+                "agent": null,
+                "regle": "v1",
+                "niveaux": [
+                  "PUBLIC_INTERNAL",
+                  "INTERNAL"
+                ]
+              },
+              "borne_caracteres": 5400,
+              "taille_caracteres": 893
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 851,
+        "Gateway_HTTP_response_body_sha256": "92b72d9f94ad1738ce01682de47b380e46c3acf7502a0e2a5545f5ff1db2fe8b",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-page-bornee.json",
+        "sha256": "1cc9866d0cf7b30540a78d96c9ec652765ed4c8bdb33a7e24621032b0f983053",
+        "projection_sha256": "6e6a384b9e86d8d1835a173f53b6d60452ae2fac64a48d6db6b321ea40504f92"
+      },
+      "capture": {
+        "phase": "projection_volume_page_reduite_catalogue_distinct",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "LEAD-RECHERCHE-VOLUME-FICTIF",
+            "requete": "",
+            "limite": 8,
+            "decalage": 0
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "affaire_id": "LEAD-RECHERCHE-VOLUME-FICTIF",
+              "requete": "",
+              "mode": "litteral_nfc_casefold_v1",
+              "corpus": "evenements_et_consolidations_affaire_v1",
+              "resultats": [
+                {
+                  "genre": "evenement",
+                  "affaire_id": "LEAD-RECHERCHE-VOLUME-FICTIF",
+                  "identifiant": "WCT-VOLUME-1-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                  "horodatage": "2026-10-09T11:15:30-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-VOLUME-1-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX : durée réelle 90 min",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "489e0f03cf7d1d96c93644d18cd1d3e681d2b08d5b7e9ecdc7500e0123be5dc4",
+                    "registre": "evenements",
+                    "hash_tete": "489e0f03cf7d1d96c93644d18cd1d3e681d2b08d5b7e9ecdc7500e0123be5dc4"
+                  }
+                },
+                {
+                  "genre": "evenement",
+                  "affaire_id": "LEAD-RECHERCHE-VOLUME-FICTIF",
+                  "identifiant": "WCT-VOLUME-6-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                  "horodatage": "2026-10-09T11:15:30-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-VOLUME-6-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX : durée réelle 90 min",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "4edc737db3a6b3643d2b9bc1de96c34a9243dd4056b63bf89b207c9869ae59df",
+                    "registre": "evenements",
+                    "hash_tete": "4edc737db3a6b3643d2b9bc1de96c34a9243dd4056b63bf89b207c9869ae59df"
+                  }
+                },
+                {
+                  "genre": "evenement",
+                  "affaire_id": "LEAD-RECHERCHE-VOLUME-FICTIF",
+                  "identifiant": "WCT-VOLUME-3-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                  "horodatage": "2026-10-09T11:15:30-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-VOLUME-3-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX : durée réelle 90 min",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "5d6093893e2b5437bc1c23777b80f504c609e99800433d772fe062a359f64527",
+                    "registre": "evenements",
+                    "hash_tete": "5d6093893e2b5437bc1c23777b80f504c609e99800433d772fe062a359f64527"
+                  }
+                },
+                {
+                  "genre": "evenement",
+                  "affaire_id": "LEAD-RECHERCHE-VOLUME-FICTIF",
+                  "identifiant": "WCT-VOLUME-0-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                  "horodatage": "2026-10-09T11:15:30-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-VOLUME-0-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX : durée réelle 90 min",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "61aaf4ff1bccfdce2b50e31309b34f0d695d0e7c40ff5b1df231ad254acda4a6",
+                    "registre": "evenements",
+                    "hash_tete": "61aaf4ff1bccfdce2b50e31309b34f0d695d0e7c40ff5b1df231ad254acda4a6"
+                  }
+                },
+                {
+                  "genre": "evenement",
+                  "affaire_id": "LEAD-RECHERCHE-VOLUME-FICTIF",
+                  "identifiant": "WCT-VOLUME-2-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                  "horodatage": "2026-10-09T11:15:30-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-VOLUME-2-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX : durée réelle 90 min",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "7021cc5044a77cec8644bf5179e53ef068bf0438f72d1ce6b87b0bb34cc2246b",
+                    "registre": "evenements",
+                    "hash_tete": "7021cc5044a77cec8644bf5179e53ef068bf0438f72d1ce6b87b0bb34cc2246b"
+                  }
+                },
+                {
+                  "genre": "evenement",
+                  "affaire_id": "LEAD-RECHERCHE-VOLUME-FICTIF",
+                  "identifiant": "WCT-VOLUME-5-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                  "horodatage": "2026-10-09T11:15:30-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-VOLUME-5-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX : durée réelle 90 min",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "d66426da498ef28e39cdf2d56776c00770fdd472d8d6c55a70057028cb5437c3",
+                    "registre": "evenements",
+                    "hash_tete": "d66426da498ef28e39cdf2d56776c00770fdd472d8d6c55a70057028cb5437c3"
+                  }
+                }
+              ],
+              "affaire": {
+                "connue": true,
+                "origine_recue": false,
+                "origine": null,
+                "verdict": "AMONT-ORIGINE-NON-RECUE"
+              },
+              "pagination": {
+                "decalage": 0,
+                "limite": 8,
+                "affichees": 6,
+                "total": 8,
+                "suivant": 6,
+                "reste": 2,
+                "courante": true
+              },
+              "couverture": {
+                "projections": "resume_200_caracteres",
+                "sources_parcourues": "completes",
+                "historique_consolidations": "derniere_version_par_cle",
+                "hors_corpus": [
+                  "decisions_globales",
+                  "revisions",
+                  "signaux_traitements",
+                  "developpement",
+                  "documents_generiques"
+                ],
+                "plafond_lignes": 10000
+              },
+              "confidentialite": {
+                "agent": null,
+                "regle": "v1",
+                "niveaux": [
+                  "PUBLIC_INTERNAL",
+                  "INTERNAL"
+                ]
+              },
+              "borne_caracteres": 5400,
+              "taille_caracteres": 5016
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 4861,
+        "Gateway_HTTP_response_body_sha256": "3b8f308abdae3c6f44c6c10289eaf0727bdbdc4af833da26865c8e5ab7bfc053",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-origine-absente.json",
+        "sha256": "ef1d7fa8c6b8b4b8a0f6ee36ce13592daaef3fbbd9ef91bb1851a9edb68c0373",
+        "projection_sha256": "a98692d0bb68a11fb6c233fd8effce7537a8e59c6e4cb79d270f8f56ec69e1f0"
+      },
+      "capture": {
+        "phase": "origine_absente_connue",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "LEAD-M10-ORIGINE-NON-RECUE-FICTIVE",
+            "requete": "",
+            "limite": 8,
+            "decalage": 0
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "affaire_id": "LEAD-M10-ORIGINE-NON-RECUE-FICTIVE",
+              "requete": "",
+              "mode": "litteral_nfc_casefold_v1",
+              "corpus": "evenements_et_consolidations_affaire_v1",
+              "resultats": [
+                {
+                  "genre": "evenement",
+                  "affaire_id": "LEAD-M10-ORIGINE-NON-RECUE-FICTIVE",
+                  "identifiant": "WCT-M10-ORIGINE-FICTIVE",
+                  "horodatage": "2026-10-09T11:15:30-04:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT WCT-M10-ORIGINE-FICTIVE : durée réelle 90 min",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "fe4d83548763cd9289e121dbec95e7f238c1113793d7e1787f7851d56a2ffd13",
+                    "registre": "evenements",
+                    "hash_tete": "fe4d83548763cd9289e121dbec95e7f238c1113793d7e1787f7851d56a2ffd13"
+                  }
+                }
+              ],
+              "affaire": {
+                "connue": true,
+                "origine_recue": false,
+                "origine": null,
+                "verdict": "AMONT-ORIGINE-NON-RECUE"
+              },
+              "pagination": {
+                "decalage": 0,
+                "limite": 8,
+                "affichees": 1,
+                "total": 1,
+                "suivant": null,
+                "reste": 0,
+                "courante": true
+              },
+              "couverture": {
+                "projections": "resume_200_caracteres",
+                "sources_parcourues": "completes",
+                "historique_consolidations": "derniere_version_par_cle",
+                "hors_corpus": [
+                  "decisions_globales",
+                  "revisions",
+                  "signaux_traitements",
+                  "developpement",
+                  "documents_generiques"
+                ],
+                "plafond_lignes": 10000
+              },
+              "confidentialite": {
+                "agent": null,
+                "regle": "v1",
+                "niveaux": [
+                  "PUBLIC_INTERNAL",
+                  "INTERNAL"
+                ]
+              },
+              "borne_caracteres": 5400,
+              "taille_caracteres": 1351
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 1291,
+        "Gateway_HTTP_response_body_sha256": "d5cb0ce61ae91d64eaabd85e79a1a1298a86a95b75793c0838229c6ff41ce18f",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-agent_arg_forge.json",
+        "sha256": "21fa6b9a2ad926706283a71d8f448314cd4d0a26643ae3fde36ce10aedc23b05",
+        "projection_sha256": "872c508d8625953abfe4f35efee45b56345145c346df481997fea976d06a4863"
+      },
+      "capture": {
+        "phase": "agent_arg_forge",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 8,
+            "decalage": 0,
+            "agent": "m01-front-office"
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": false,
+            "erreur": "arguments_invalides",
+            "details": [
+              "paramètre inconnu : agent"
+            ]
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 105,
+        "Gateway_HTTP_response_body_sha256": "92275ab3f21e1c917ce6b931392c039166d799dd3706addf5e2fb54b5c18d714",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-auteur_arg_forge.json",
+        "sha256": "9878b77f95bb1fd7fd2edbefaa7bd7a7e404789f4f58bf00ee7e0b33691bb9b3",
+        "projection_sha256": "f881c16ba309f5615986bd65a14b57a196ec24bef594a15380e086a8b0b0b708"
+      },
+      "capture": {
+        "phase": "auteur_arg_forge",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 8,
+            "decalage": 0,
+            "auteur": "imposteur.fictif"
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": false,
+            "erreur": "arguments_invalides",
+            "details": [
+              "paramètre inconnu : auteur"
+            ]
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 106,
+        "Gateway_HTTP_response_body_sha256": "64d449a7f62c980c5883205b619ec5f36ed549b5480fdce890b041a42f5f2677",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-role_arg_forge.json",
+        "sha256": "c3d38954dc20c9148e17f6769541f11736ce31843ee880b59075ff5fa25de832",
+        "projection_sha256": "985f9a708a35484de18055f68ea2ddef2d4a3112ffc232b4b6f03e453c67d4b4"
+      },
+      "capture": {
+        "phase": "role_arg_forge",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 8,
+            "decalage": 0,
+            "role": "admin"
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": false,
+            "erreur": "arguments_invalides",
+            "details": [
+              "paramètre inconnu : role"
+            ]
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 104,
+        "Gateway_HTTP_response_body_sha256": "4f277c234ec3f7f7b62eb0dba94e94092250b5126dc0683bab74a090e199f6af",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-budget_arg_forge.json",
+        "sha256": "f4700289525d6b00d216a3cffded459abad9958b81ba77f24225183155d0c9c5",
+        "projection_sha256": "3f461a5ade80ece9844794cfaaca8bb35238cef33ecd4306fa63102a21b37232"
+      },
+      "capture": {
+        "phase": "budget_arg_forge",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 8,
+            "decalage": 0,
+            "budget": 99999
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": false,
+            "erreur": "arguments_invalides",
+            "details": [
+              "paramètre inconnu : budget"
+            ]
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 106,
+        "Gateway_HTTP_response_body_sha256": "1bbc6f74c15ead1049920c280c3d3bf2122a9aaeee65b5b7367c7b2c0ba5b8fc",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-limite9.json",
+        "sha256": "03ee4ed2f5fc18ce4aa2334f0e15962137b22dc1936c74fbf6beb39da7ff5c46",
+        "projection_sha256": "a587997c0edb1f5300bb176122168443858ad4e3faaa81eaec76a850dc0fa6ef"
+      },
+      "capture": {
+        "phase": "limite9",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 9,
+            "decalage": 0
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "accepte": false,
+              "verdict": {
+                "code": "REJ-RECHERCHE-AFFAIRE-ARGUMENTS-INVALIDES",
+                "detail": "les arguments sortent du contrat de recherche par affaire"
+              }
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 193,
+        "Gateway_HTTP_response_body_sha256": "7ddeb38ea35e2889b76c8f76ee568b4446222e8bdc801e9b59033710d32176ea",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-offsetnegatif.json",
+        "sha256": "4672bc379cd2dd433f46820c9ac2a70641411c882deedd41b7a542c947872c51",
+        "projection_sha256": "2a498ae8bebbff0e7585884c74e71ea74fbdce4d00cea25218e995afbaafcce4"
+      },
+      "capture": {
+        "phase": "offsetnegatif",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 8,
+            "decalage": -1
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "accepte": false,
+              "verdict": {
+                "code": "REJ-RECHERCHE-AFFAIRE-ARGUMENTS-INVALIDES",
+                "detail": "les arguments sortent du contrat de recherche par affaire"
+              }
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 193,
+        "Gateway_HTTP_response_body_sha256": "7ddeb38ea35e2889b76c8f76ee568b4446222e8bdc801e9b59033710d32176ea",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-offset10001.json",
+        "sha256": "60e18fb791e20e096b7f5a5ba5360c0ca295dff2abd141e17daced2bd20368a4",
+        "projection_sha256": "b7926fff901b388a6305902c8b555d29cb4859f8021612d660cd355c019e6150"
+      },
+      "capture": {
+        "phase": "offset10001",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 8,
+            "decalage": 10001
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "accepte": false,
+              "verdict": {
+                "code": "REJ-RECHERCHE-AFFAIRE-ARGUMENTS-INVALIDES",
+                "detail": "les arguments sortent du contrat de recherche par affaire"
+              }
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 193,
+        "Gateway_HTTP_response_body_sha256": "7ddeb38ea35e2889b76c8f76ee568b4446222e8bdc801e9b59033710d32176ea",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-query201.json",
+        "sha256": "2576a3fe9058158b70379b2e6ef328403e04f238c9294e734fd57ad27d5b7bb6",
+        "projection_sha256": "0ecd753cdbb35e22a571adb21c756badcdbd6204d5b07aa371a0f787bd2aa4ed"
+      },
+      "capture": {
+        "phase": "query201",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            "limite": 8,
+            "decalage": 0
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "accepte": false,
+              "verdict": {
+                "code": "REJ-RECHERCHE-AFFAIRE-ARGUMENTS-INVALIDES",
+                "detail": "les arguments sortent du contrat de recherche par affaire"
+              }
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 193,
+        "Gateway_HTTP_response_body_sha256": "7ddeb38ea35e2889b76c8f76ee568b4446222e8bdc801e9b59033710d32176ea",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-affaireinvalide.json",
+        "sha256": "9a34a84c521be7d2b3a614f71e10d40e69f2d3add400793ee4bce019c200d4ca",
+        "projection_sha256": "9ec428adb0581fcf11f4250e5725587fee4406bc57e341325bd163a77801f71a"
+      },
+      "capture": {
+        "phase": "affaireinvalide",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "../INVALIDE",
+            "requete": "",
+            "limite": 8,
+            "decalage": 0
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "accepte": false,
+              "verdict": {
+                "code": "REJ-RECHERCHE-AFFAIRE-ARGUMENTS-INVALIDES",
+                "detail": "les arguments sortent du contrat de recherche par affaire"
+              }
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 193,
+        "Gateway_HTTP_response_body_sha256": "7ddeb38ea35e2889b76c8f76ee568b4446222e8bdc801e9b59033710d32176ea",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-employee-refus.json",
+        "sha256": "e65235a51308af962e3bb4cab2d4a6101f923007ae8e828e764294ae96af9c04",
+        "projection_sha256": "6961c8a6066385dbb4784dc6618bfd5e8d2b59a0762ceaa8cd4958f01623b44c"
+      },
+      "capture": {
+        "phase": "employee_refus",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 8,
+            "decalage": 0
+          }
+        },
+        "status": 403,
+        "response": {
+          "ok": false,
+          "error": {
+            "type": "tool_call_blocked",
+            "message": "OPSYS device is not authorized to call \"m10_rechercher_affaire_appareil\" (tool_out_of_scope)."
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 157,
+        "Gateway_HTTP_response_body_sha256": "f35a7e233a417925433d8331f107ba45c478e82769aefcd653300ced8ffd2e28",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-seller-refus.json",
+        "sha256": "6a6cc2be15370ee6704952088f80a000084a947dabafbffca8e5b6b0c4b6a38a",
+        "projection_sha256": "a5e62d08c2d319859a19f2d796ae2de66d2c9c009eb2623235ad52f085df04b4"
+      },
+      "capture": {
+        "phase": "seller_refus",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 8,
+            "decalage": 0
+          }
+        },
+        "status": 403,
+        "response": {
+          "ok": false,
+          "error": {
+            "type": "tool_call_blocked",
+            "message": "OPSYS device is not authorized to call \"m10_rechercher_affaire_appareil\" (tool_out_of_scope)."
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 157,
+        "Gateway_HTTP_response_body_sha256": "f35a7e233a417925433d8331f107ba45c478e82769aefcd653300ced8ffd2e28",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-device_mismatch.json",
+        "sha256": "e912ee0efc1bd6214df63805501512951a8bf49a47bb46f212fa8b70397e662b",
+        "projection_sha256": "670c9ab7525b2a64e2181c73ea5d0ef58c7aba8b8f5db3f6c2be9c9b3d44c66e"
+      },
+      "capture": {
+        "phase": "device_mismatch",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 8,
+            "decalage": 0
+          },
+          "deviceId": "9ced053cc668f3a68b1c9f8825449b1588eba23daca8d4d9d917bcfdcfdfeee0"
+        },
+        "status": 403,
+        "response": {
+          "ok": false,
+          "error": {
+            "type": "tool_call_blocked",
+            "message": "Request body deviceId does not match the authenticated device."
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 124,
+        "Gateway_HTTP_response_body_sha256": "391652e06a7ac29270bc0526500ccc15d1572d818a151b7c51cdc38e0af694b5",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-device_forge.json",
+        "sha256": "8e4f15c8e1865a7c757e59f16eadf20a01b7a4465687794d86a008949810f1d7",
+        "projection_sha256": "56c9ca6c18158d8cae2c4cba4c579992fe14e46eeeca4dc9cd1b463c549d40f2"
+      },
+      "capture": {
+        "phase": "device_forge",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 8,
+            "decalage": 0
+          },
+          "deviceId": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "status": 403,
+        "response": {
+          "ok": false,
+          "error": {
+            "type": "tool_call_blocked",
+            "message": "Request body deviceId does not match the authenticated device."
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 124,
+        "Gateway_HTTP_response_body_sha256": "391652e06a7ac29270bc0526500ccc15d1572d818a151b7c51cdc38e0af694b5",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/native-proof.json",
+        "sha256": "89c354b3363f0354e9d0c1bd5b6f7f5b118f1e6df398ebddf9b58e6304d3b79a",
+        "projection_sha256": "9d4022ce5f25745e12cc34fcbdc1b631e0eefe84850a3d2663fe4e4e2ef63e09"
+      },
+      "capture": {
+        "phase": "avant_restart_exact",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 2,
+            "decalage": 0
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+              "requete": "",
+              "mode": "litteral_nfc_casefold_v1",
+              "corpus": "evenements_et_consolidations_affaire_v1",
+              "resultats": [
+                {
+                  "genre": "fait_consolide",
+                  "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "identifiant": "96f5624c45ae7485b8af1a01b2a1e74551849fb4ead25f4bd1845e70036481fc",
+                  "horodatage": "2026-10-09T11:15:30-04:00",
+                  "source": "m10:consolidation",
+                  "resume": "2026-09-01 : 1 travaux terminés",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "96f5624c45ae7485b8af1a01b2a1e74551849fb4ead25f4bd1845e70036481fc",
+                    "registre": "affaires",
+                    "hash_tete": "96f5624c45ae7485b8af1a01b2a1e74551849fb4ead25f4bd1845e70036481fc"
+                  }
+                },
+                {
+                  "genre": "evenement",
+                  "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "identifiant": "17e93274e5e518c6db1b787989e3228326f5e975bc71257415191ab5917a24ab",
+                  "horodatage": "2026-10-09T15:04:30+00:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT 17e93274e5e518c6db1b787989e3228326f5e975bc71257415191ab5917a24ab : durée réelle 180 min",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "5a3b01d7028f6de8c6d1dc6761a2014d94c0d53c2c16bed2b288b0ddfeabe969",
+                    "registre": "evenements",
+                    "hash_tete": "5a3b01d7028f6de8c6d1dc6761a2014d94c0d53c2c16bed2b288b0ddfeabe969"
+                  }
+                }
+              ],
+              "affaire": {
+                "connue": true,
+                "origine_recue": true,
+                "origine": "m1.lead_qualifie",
+                "verdict": null
+              },
+              "pagination": {
+                "decalage": 0,
+                "limite": 2,
+                "affichees": 2,
+                "total": 14,
+                "suivant": 2,
+                "reste": 12,
+                "courante": true
+              },
+              "couverture": {
+                "projections": "resume_200_caracteres",
+                "sources_parcourues": "completes",
+                "historique_consolidations": "derniere_version_par_cle",
+                "hors_corpus": [
+                  "decisions_globales",
+                  "revisions",
+                  "signaux_traitements",
+                  "developpement",
+                  "documents_generiques"
+                ],
+                "plafond_lignes": 10000
+              },
+              "confidentialite": {
+                "agent": null,
+                "regle": "v1",
+                "niveaux": [
+                  "PUBLIC_INTERNAL",
+                  "INTERNAL"
+                ]
+              },
+              "borne_caracteres": 5400,
+              "taille_caracteres": 2029
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 1949,
+        "Gateway_HTTP_response_body_sha256": "5d192d5094d15affb6f036a9c74f05fc00719211334c44f83985a69e06cb304f",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-restart.json",
+        "sha256": "2997a84ff695edf354e8e0418227839f351c93ddc5ec66c4df3b93a228fc8e6d",
+        "projection_sha256": "c77291678b1bdaf3b7a828f83c7781bd7df6903d45d73d4e1d8b6a9f64f612e7"
+      },
+      "capture": {
+        "phase": "relecture_exacte_apres_restart",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 2,
+            "decalage": 0
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+              "requete": "",
+              "mode": "litteral_nfc_casefold_v1",
+              "corpus": "evenements_et_consolidations_affaire_v1",
+              "resultats": [
+                {
+                  "genre": "fait_consolide",
+                  "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "identifiant": "96f5624c45ae7485b8af1a01b2a1e74551849fb4ead25f4bd1845e70036481fc",
+                  "horodatage": "2026-10-09T11:15:30-04:00",
+                  "source": "m10:consolidation",
+                  "resume": "2026-09-01 : 1 travaux terminés",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "96f5624c45ae7485b8af1a01b2a1e74551849fb4ead25f4bd1845e70036481fc",
+                    "registre": "affaires",
+                    "hash_tete": "96f5624c45ae7485b8af1a01b2a1e74551849fb4ead25f4bd1845e70036481fc"
+                  }
+                },
+                {
+                  "genre": "evenement",
+                  "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+                  "identifiant": "17e93274e5e518c6db1b787989e3228326f5e975bc71257415191ab5917a24ab",
+                  "horodatage": "2026-10-09T15:04:30+00:00",
+                  "source": "m4.travaux_termines",
+                  "resume": "WCT 17e93274e5e518c6db1b787989e3228326f5e975bc71257415191ab5917a24ab : durée réelle 180 min",
+                  "confidentialite": "INTERNAL",
+                  "reference": {
+                    "ligne_id": "5a3b01d7028f6de8c6d1dc6761a2014d94c0d53c2c16bed2b288b0ddfeabe969",
+                    "registre": "evenements",
+                    "hash_tete": "5a3b01d7028f6de8c6d1dc6761a2014d94c0d53c2c16bed2b288b0ddfeabe969"
+                  }
+                }
+              ],
+              "affaire": {
+                "connue": true,
+                "origine_recue": true,
+                "origine": "m1.lead_qualifie",
+                "verdict": null
+              },
+              "pagination": {
+                "decalage": 0,
+                "limite": 2,
+                "affichees": 2,
+                "total": 14,
+                "suivant": 2,
+                "reste": 12,
+                "courante": true
+              },
+              "couverture": {
+                "projections": "resume_200_caracteres",
+                "sources_parcourues": "completes",
+                "historique_consolidations": "derniere_version_par_cle",
+                "hors_corpus": [
+                  "decisions_globales",
+                  "revisions",
+                  "signaux_traitements",
+                  "developpement",
+                  "documents_generiques"
+                ],
+                "plafond_lignes": 10000
+              },
+              "confidentialite": {
+                "agent": null,
+                "regle": "v1",
+                "niveaux": [
+                  "PUBLIC_INTERNAL",
+                  "INTERNAL"
+                ]
+              },
+              "borne_caracteres": 5400,
+              "taille_caracteres": 2029
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 1949,
+        "Gateway_HTTP_response_body_sha256": "5d192d5094d15affb6f036a9c74f05fc00719211334c44f83985a69e06cb304f",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-admin-retire.json",
+        "sha256": "3abf7ea5d694ca84132bd29439075c6961e933ea61cff3a3dd86990a5e5a7add",
+        "projection_sha256": "61b01439351bf5d4f8a715e87b5338348cb3b66f52b7d2c48a3ff4f8931b224d"
+      },
+      "capture": {
+        "phase": "admin_retire_avant_2registres",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 8,
+            "decalage": 0
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "accepte": false,
+              "verdict": {
+                "code": "REJ-IDENTITE-APPAREIL-INVALIDE",
+                "detail": "cette lecture exige une personne admin active confirmée en base"
+              }
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 189,
+        "Gateway_HTTP_response_body_sha256": "5283fc2411d2755be0b7c223f587c023b6f05b4d54c999724110c5e5e57cdd92",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-corruption.json",
+        "sha256": "869a435b414e738983eb1c406af140ed05ab7f8c36c79db871c6d55a565d4a04",
+        "projection_sha256": "2be8af3552f89ed38b2fd30f039e0fa9d6f17f3852b96af5955e04c07e251dd8"
+      },
+      "capture": {
+        "phase": "corruption_snapshot_refus_catalogue_distinct",
+        "request": {
+          "tool": "m10_rechercher_affaire_appareil",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "requete": "",
+            "limite": 8,
+            "decalage": 0
+          }
+        },
+        "status": 200,
+        "response": {
+          "ok": true,
+          "result": {
+            "ok": true,
+            "resultat": {
+              "accepte": false,
+              "verdict": {
+                "code": "REJ-RECHERCHE-AFFAIRE-REGISTRE-INVALIDE",
+                "detail": "un registre métier ne satisfait pas son contrat d'intégrité"
+              }
+            }
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 196,
+        "Gateway_HTTP_response_body_sha256": "0284c479634bca0fb2edbbb5e0f04c44a8ba0537c0d661857c60f74d56f28fe2",
+        "all_entire_tables_unchanged": true
+      }
+    },
+    {
+      "source": {
+        "path": "qualification/M10-recherche-affaire-native-public-r1/dto-original-prive-public404.json",
+        "sha256": "42fa2d7003b498adfb8182e62a71be0c1286a037747fd78ee122e41043034029",
+        "projection_sha256": "005eed7b52bd11d9a05155103bcc1a35f3dc52d823a95c2f0592c27ed1c2dc04"
+      },
+      "capture": {
+        "phase": "original_packet_prive_public404",
+        "request": {
+          "tool": "m10_paquet_contexte_affaire",
+          "args": {
+            "affaire_id": "fc78222feb486ca6537aea61fc7f0660f49a7de544608863dd898fcfe8ebf508",
+            "horodatage": "2026-09-29T11:00:00-04:00"
+          }
+        },
+        "status": 404,
+        "response": {
+          "ok": false,
+          "error": {
+            "type": "not_found",
+            "message": "Tool not available: m10_paquet_contexte_affaire"
+          }
+        },
+        "Gateway_HTTP_response_body_bytes": 101,
+        "Gateway_HTTP_response_body_sha256": "bac76103ee3a144437046369857d8273f02c2b3b39258ae34be57177ca6e99e4",
+        "all_entire_tables_unchanged": true
+      }
+    }
+  ]
+}

@@ -34,6 +34,7 @@ jest.mock("@/m10/service", () => ({ chargerPaquetAffaireMemoire: jest.fn(), cont
 jest.mock("@/admin/composants", () => jest.requireActual("../admin/composants"), { virtual: true });
 jest.mock("@/ecrans/adminCommun", () => jest.requireActual("./adminCommun"), { virtual: true });
 jest.mock("@/ecrans/paquetAffaire", () => jest.requireActual("./paquetAffaire"), { virtual: true });
+jest.mock("@/admin/RechercheAffaireM10", () => ({ RechercheAffaireM10: jest.fn(() => null) }), { virtual: true });
 jest.mock("@/m10/paquetAffaire", () => jest.requireActual("../m10/paquetAffaire"), { virtual: true });
 jest.mock("@/identite/BandeauIdentite", () => ({ BandeauIdentite: () => null }), { virtual: true });
 const control = require("@/m10/service").controleMemoire;
@@ -234,4 +235,20 @@ test.each(Object.entries(fixturesPaquetNative.positives))("dossier DEVICE %s : c
   expect(chargerPaquet).toHaveBeenCalledTimes(1); expect(chargerPaquet.mock.calls[0][0]).toBe(e.arguments.affaire_id);
   expect(control.arbitrer).not.toHaveBeenCalled(); expect(control.ouvrirRevision).not.toHaveBeenCalled();
   expect(arbre!.root.findAllByType(BoutonSecondaire).some(b => /consolider/.test(b.props.texte))).toBe(false);
+});
+
+// Jonction écran/composant seulement : le composant réel a ses propres tests de rendu.
+test("recherche raccordée au rôle courant, à la connectivité et à la fermeture du paquet", async () => {
+  const recherche = require("@/admin/RechercheAffaireM10").RechercheAffaireM10 as jest.Mock;
+  await act(async () => { arbre = create(<Ecran />); });
+  const p = recherche.mock.calls.at(-1)![0];
+  expect(p.connected).toBe(true); expect(p.bloque).toBe(false); expect(p.autorisee()).toBe(true);
+  chargerPaquet.mockResolvedValueOnce(serveur(paquetValeur));
+  await act(async () => p.onOuvrir(paquetValeur.affaire_id));
+  expect(chargerPaquet).toHaveBeenCalledWith(paquetValeur.affaire_id, expect.any(String));
+  expect(texte()).toContain("admin.paquetAffaire.titre");
+  await act(async () => p.onInvalider()); expect(texte()).not.toContain("admin.paquetAffaire.titre");
+  mockState = { ...mockState, statut: "arbitrage_en_cours" }; mockConnected = false;
+  await act(async () => arbre!.update(<Ecran />));
+  const fermee = recherche.mock.calls.at(-1)![0]; expect(fermee.connected).toBe(false); expect(fermee.bloque).toBe(true);
 });

@@ -669,6 +669,20 @@ class Capacites:
                     "aucun détail partiel n'est transmis"
                 ),
             }
+        refus_lecture_appareil = {
+            "m10_lire_paquet_affaire_appareil": "REJ-PAQUET-AFFAIRE-SORTIE-TROP-VOLUMINEUSE",
+            "m10_rechercher_affaire_appareil": "REJ-RECHERCHE-AFFAIRE-SORTIE-TROP-VOLUMINEUSE",
+        }.get(source)
+        if refus_lecture_appareil is not None:
+            # Le plafond de cette capacité peut être inférieur au budget fixe du producteur.
+            return {
+                "ok": False,
+                "erreur": refus_lecture_appareil,
+                "details": (
+                    "la lecture dépasse la borne de sortie appareil ; "
+                    "aucun détail partiel n'est transmis"
+                ),
+            }
         departement_artifact = departement or contexte_appel.DEPARTEMENT_APPELANT.get()
         origine_artifact = origine or contexte_appel.departement_origine_appelante()
         with self._cnx_factory() as cnx:

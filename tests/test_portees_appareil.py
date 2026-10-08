@@ -103,7 +103,7 @@ ADMIN_SEUL = frozenset({
     "m10_lister_signaux", "m10_lister_references", "m10_lire_revision", "m10_prendre_en_compte_signal",
     "m10_clore_signal", "m10_lier_session_affaire",
     # Lecture DEVICE distincte du contexte privé Core : admin actuel, agent=None, sans artefact.
-    "m10_lire_paquet_affaire_appareil",
+    "m10_lire_paquet_affaire_appareil", "m10_rechercher_affaire_appareil",
 })
 # Le lecteur paginé M3 est réservé au vendeur courant : l'admin ne choisit pas un vendeur
 # par argument et ne reçoit pas ce tool. Le lecteur de chantier et le diagnostic sont admin.
@@ -236,7 +236,7 @@ def test_outils_qui_lisent_ou_approuvent_pour_les_autres_absents_de_l_employe(ro
     "m4_produire_digest", "m6_approuver_po", "m6_annuler_po", "m6_consommer_materiaux",
     "m6_receptionner_commande", "m6_soumettre_comptage", "m6_produire_digest", "m5_etat_tresorerie",
     "m3_lire_devis", "m2_transitionner_statut", "m10_paquet_contexte_affaire",
-    "m10_lire_paquet_affaire_appareil",
+    "m10_lire_paquet_affaire_appareil", "m10_rechercher_affaire_appareil",
     "m4_confirmer_localisation", "m4_proposer_localisation",  # l'adresse d'un client : jamais l'employé (T4.1-a)
     "m4_proposer_cedule", "m4_appliquer_cedule",  # la cédule par tournées : dispatch de l'admin (T4.1-d)
     "m4_verifier_preparation",  # l'état d'un chantier de client : dispatch de l'admin (T4.10-b)

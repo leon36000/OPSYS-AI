@@ -132,3 +132,35 @@ test("paquet : réseau perdu pendant HTTP ferme une réponse valide sans cache",
   expect(await lecture).toMatchObject({ source: "aucune", raison: { code: "hors_ligne" } });
   expect(h.obtenirDepot).not.toHaveBeenCalled();
 });
+
+// Recherche par affaire : faux transport uniquement, aucune prétention d’intégration HTTP.
+test("recherche : appel littéral normalisé exact sans dépôt ni outbox", async () => {
+  const h = setup();
+  h.appeler.mockResolvedValue({ ok: true, result: { ok: true, resultat: { accepte: false, verdict: { code: "REJ-FICTIF", detail: "" } } } });
+  expect((await h.chargeur.chargerRechercheAffaire("LEAD-FICTIF~opp~WCT-FICTIF", "cafe\u0301", 0))?.source).toBe("refus");
+  expect(h.appeler.mock.calls.map(v => v[0].requete)).toEqual([{ tool: "m10_rechercher_affaire_appareil",
+    args: { affaire_id: "LEAD-FICTIF~opp~WCT-FICTIF", requete: "café", limite: 8, decalage: 0 } }]);
+  expect(h.obtenirDepot).not.toHaveBeenCalled();
+});
+test.each(["seller", "employee", "client"])("recherche : rôle %s fermé avant HTTP et dépôt", async role => {
+  const h = setup(); definirPersonneConfirmee({ ...personne, role });
+  expect(await h.chargeur.chargerRechercheAffaire("LEAD-FICTIF", "", 0)).toBeNull();
+  expect(h.appeler).not.toHaveBeenCalled(); expect(h.obtenirDepot).not.toHaveBeenCalled();
+});
+test("recherche : hors ligne et arguments invalides n’appellent pas le réseau", async () => {
+  const h = setup();
+  expect((await h.chargeur.chargerRechercheAffaire("../fictif", "", 0))?.source).toBe("aucune");
+  expect((await h.chargeur.chargerRechercheAffaire("LEAD-FICTIF", "X".repeat(201), 0))?.source).toBe("aucune");
+  h.horsLigne();
+  expect((await h.chargeur.chargerRechercheAffaire("LEAD-FICTIF", "", 0))?.source).toBe("aucune");
+  expect(h.appeler).not.toHaveBeenCalled(); expect(h.obtenirDepot).not.toHaveBeenCalled();
+});
+test("recherche : session retirée pendant HTTP ne rend aucune réponse tardive", async () => {
+  const h = setup(); let finir!: (v: ResultatAppelOutil) => void;
+  h.appeler.mockImplementationOnce(() => new Promise(r => { finir = r; }));
+  const lecture = h.chargeur.chargerRechercheAffaire("LEAD-FICTIF", "", 0);
+  definirPersonneConfirmee({ ...personne, role: "employee" });
+  finir({ ok: true, result: { ok: false, erreur: "REJ-FICTIF", details: "" } });
+  expect(await lecture).toMatchObject({ source: "aucune", raison: { code: "lecture_remplacee" } });
+  expect(h.obtenirDepot).not.toHaveBeenCalled();
+});

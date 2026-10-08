@@ -63,6 +63,7 @@ from . import (
     humain,
     liaison,
     paquets,
+    recherche_affaire,
     registre,
     rentabilite,
     revision,
@@ -442,6 +443,22 @@ def lire_paquet_affaire_appareil(affaire_id: str, horodatage: str) -> dict[str, 
     return paquet
 
 
+def rechercher_affaire_appareil(
+    affaire_id: str, requete: str = "", limite: int = 8, decalage: int = 0
+) -> dict[str, Any]:
+    """Recherche métier restrictive, identité admin actuelle avant les deux snapshots."""
+    if contexte_appel.identite_appelante() is None:
+        return _verdict(
+            "REJ-IDENTITE-APPAREIL-INVALIDE", "cette lecture exige une personne admin active confirmée en base"
+        )
+    refus = _refus_lecture_admin()
+    if refus is not None:
+        return refus
+    return recherche_affaire.rechercher(
+        affaire_id, requete, limite, decalage, _REGISTRE_EVENEMENTS, _REGISTRE_AFFAIRES
+    )
+
+
 def consolider_affaire(affaire_id: str, jour: str, horodatage: str) -> dict[str, Any]:
     """Consolidation nocturne d'une affaire (PLAN T3.3, `consolidation.py`) : idempotente tant que
     l'ensemble des sources du jour n'a pas changé; reprend les événements arrivés tard."""
@@ -804,6 +821,27 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=lire_paquet_affaire_appareil,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m10_rechercher_affaire_appareil",
+            description=(
+                "Recherche littérale NFC/casefold dans les identifiants, sources et résumés métier "
+                "visibles d'une affaire : événements et dernières consolidations avec provenance. "
+                "Page courante bornée ; aucune écriture ni recherche documentaire. Admin appareil actif requis."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "affaire_id": _AFFAIRE_ID,
+                    "requete": {"type": "string", "maxLength": 200},
+                    "limite": {"type": "integer", "minimum": 1, "maximum": 8},
+                    "decalage": {"type": "integer", "minimum": 0, "maximum": 10000},
+                },
+                "required": ["affaire_id", "requete", "limite", "decalage"],
+                "additionalProperties": False,
+            },
+            fonction=rechercher_affaire_appareil,
             roles_appareil=frozenset({"admin"}),
         ),
         Outil(

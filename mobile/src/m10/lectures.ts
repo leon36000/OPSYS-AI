@@ -13,6 +13,7 @@ import type { Reponse } from "../m7/contrat";
 import { lireReferencesM10, lireSignauxM10, lireStatutDecisionM10, lireStatutRevisionM10 } from "./contrat";
 import { lireDossierRevisionM10 } from "./dossier";
 import { construireArgumentsPaquetAffaire, lirePaquetAffaire } from "./paquetAffaire";
+import { construireArgumentsRechercheAffaire, lireRechercheAffaire, OUTIL_RECHERCHE_AFFAIRE } from "./rechercheAffaire";
 
 export interface DependancesLecturesMemoire {
   readonly capturerSession: () => { readonly session: SessionEnvoi | null; readonly courante: () => boolean };
@@ -74,6 +75,13 @@ export function creerChargeurLecturesMemoire(d: DependancesLecturesMemoire) {
     } catch { return capture.courante() ? indisponible() : remplacee(); }
   }
   return {
+    chargerRechercheAffaire: async (affaireId: string, requete: string, decalage = 0) => {
+      let args;
+      try { args = construireArgumentsRechercheAffaire(affaireId, requete, decalage); }
+      catch { return indisponible(); }
+      const resultat = await lire(OUTIL_RECHERCHE_AFFAIRE, { ...args }, v => lireRechercheAffaire(v, args));
+      return resultat?.source === "serveur" && !d.enLigne() ? horsLigne() : resultat;
+    },
     chargerPaquetAffaire: async (affaireId: string, horodatage: string) => {
       let args: { affaire_id: string; horodatage: string };
       try { args = construireArgumentsPaquetAffaire(affaireId, horodatage); }

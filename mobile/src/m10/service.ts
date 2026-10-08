@@ -21,6 +21,8 @@ const lectures = creerChargeurLecturesMemoire({
 });
 /** Paquet courant informatif : aucun dépôt, cache, mutation ou consolidation. */
 export const chargerPaquetAffaireMemoire = lectures.chargerPaquetAffaire;
+/** Recherche littérale courante : aucun dépôt, cache, mutation ou provider. */
+export const rechercherAffaireMemoire = lectures.chargerRechercheAffaire;
 /** NetInfo est transmis par actualiserConnectivite ; aucune décision issue du cache. */
 export const controleMemoire = creerControleMemoire({
   ...lectures,

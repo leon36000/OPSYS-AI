@@ -12,7 +12,7 @@ jest.mock("../protocole/client", () => ({ invoquerOutil: (p: unknown) => mockInv
 jest.mock("../stockage/service", () => ({ obtenirDepotLocal: () => mockDepotLocal() }));
 jest.mock("../outbox/service", () => ({ obtenirDepot: () => mockDepotOutbox(), declencherVidange: (c: () => boolean) => mockVidanger(c) }));
 jest.mock("../outbox/id", () => ({ genererMutationId: () => "uuid-service-m10" }));
-import { controleMemoire, chargerPaquetAffaireMemoire } from "./service";
+import { controleMemoire, chargerPaquetAffaireMemoire, rechercherAffaireMemoire } from "./service";
 import fixturesPaquet from "./fixturesPaquetAffaire.json";
 import { DepotCleValeurMemoire } from "../stockage/depotCleValeur";
 import { DepotOutboxMemoire } from "../outbox/depot";
@@ -139,6 +139,19 @@ test("lecture du paquet câblée à la façade : aucune ouverture de cache/outbo
 test("paquet sans rôle admin : aucun réseau ni dépôt ou vidange", async () => {
   mockAdmin = false; const dto = fixturesPaquet.reponses.origine_recue;
   expect(await chargerPaquetAffaireMemoire(dto.arguments.affaire_id, dto.arguments.horodatage)).toBeNull();
+  expect(mockInvoquer).not.toHaveBeenCalled(); expect(mockDepotLocal).not.toHaveBeenCalled();
+  expect(mockDepotOutbox).not.toHaveBeenCalled(); expect(mockVidanger).not.toHaveBeenCalled();
+});
+
+test("recherche câblée à la façade sans réveiller cache/outbox ni les intentions durables", async () => {
+  mockInvoquer.mockResolvedValue({ ok: true, result: { ok: true, resultat: { accepte: false, verdict: { code: "REJ-FICTIF", detail: "" } } } });
+  expect((await rechercherAffaireMemoire("LEAD-FICTIF", "cafe\u0301", 0))?.source).toBe("refus");
+  expect(mockInvoquer.mock.calls.map(c => c[0].requete)).toEqual([{ tool: "m10_rechercher_affaire_appareil",
+    args: { affaire_id: "LEAD-FICTIF", requete: "café", limite: 8, decalage: 0 } }]);
+  expect(mockDepotLocal).not.toHaveBeenCalled(); expect(mockDepotOutbox).not.toHaveBeenCalled(); expect(mockVidanger).not.toHaveBeenCalled();
+});
+test("recherche sans admin n’appelle aucun effet ou lecture", async () => {
+  mockAdmin = false; expect(await rechercherAffaireMemoire("LEAD-FICTIF", "", 0)).toBeNull();
   expect(mockInvoquer).not.toHaveBeenCalled(); expect(mockDepotLocal).not.toHaveBeenCalled();
   expect(mockDepotOutbox).not.toHaveBeenCalled(); expect(mockVidanger).not.toHaveBeenCalled();
 });
