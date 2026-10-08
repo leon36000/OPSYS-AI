@@ -101,6 +101,10 @@ _NOM_REGISTRE = "principal"
 # `department.yaml` : source des seuils de segmentation (`configuration.segments`), relue à chaque appel comme
 # M6 et M8 relisent la leur (l'admin l'édite sans toucher au code ; un test la remplace).
 _MANIFESTE = Path(__file__).resolve().parents[2] / "department.yaml"
+
+# T4.8-b : la saisie de notes est bornée; les traces générées par les cascades internes
+# conservent le contrat de leur primitive interactions.enregistrer.
+RESUME_NOTE_LONGUEUR_MAX = 300
 # `Capacites._tronquer` mesure `{"ok": true, "resultat": ...}` : l'enveloppe et le `{"accepte": true, ...}` de
 # M2 tiennent dans cette réserve. Sous ce budget, une page de `m2_lister_leads` n'est jamais tronquée (même
 # calcul que M8 et M9).
@@ -563,7 +567,9 @@ def enregistrer_interaction(
     Sans identité d'appareil : `auteur` est celui de l'appelant, obligatoire (`REJ-CHAMP-VIDE` sinon, qui
     remplace l'ancien refus de schéma `arguments_invalides`). `resume` et `horodatage` restent requis par le
     schéma de l'outil : leurs valeurs par défaut ne servent qu'à un appel Python direct, qui obtient alors le
-    verdict du champ vide plutôt qu'une exception."""
+    verdict du champ vide plutôt qu'une exception. Le champ `resume` reçu est limité à
+    300 points Unicode, sans troncature, après contrôle de l'identité et du lead.
+    La primitive interne des cascades M3/M4 et les historiques restent inchangés."""
     acteur, verdict_acteur = _acteur_appareil(acces.ROLES_LEADS)
     if verdict_acteur is not None:
         return _refus(verdict_acteur)
@@ -574,6 +580,11 @@ def enregistrer_interaction(
     verdict_lead = acces.controler_lead(reg, lead_id, acteur)
     if verdict_lead is not None:
         return _refus(verdict_lead)
+    if isinstance(resume, str) and resume.strip() and len(resume) > RESUME_NOTE_LONGUEUR_MAX:
+        return _refus(verdicts.construire_verdict(
+            "REJ-CONTRAT-INVALIDE",
+            detail=f"resume dépasse {RESUME_NOTE_LONGUEUR_MAX} caractères : raccourcir la note avant saisie",
+        ))
     accuse, verdict = interactions.enregistrer(lead_id, auteur_consigne, resume, reg, horodatage)
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
@@ -1958,7 +1969,7 @@ def outils() -> tuple[Outil, ...]:
                 "Pendant un appel d'appareil authentifié (PLAN T1.4-k2), auteur est la personne "
                 "authentifiée : omis, il vaut cette personne ; différent, c'est un refus nommé, jamais "
                 "un remplacement silencieux ; un vendeur n'écrit que sur SES leads. Sans appareil "
-                "(agent), auteur est obligatoire."
+                "(agent), auteur est obligatoire. Résumé de note limité à 300 caractères, sans troncature."
             ),
             parametres={
                 "type": "object",
@@ -1971,7 +1982,7 @@ def outils() -> tuple[Outil, ...]:
                             "authentifiée."
                         ),
                     },
-                    "resume": {"type": "string"},
+                    "resume": {"type": "string", "maxLength": RESUME_NOTE_LONGUEUR_MAX},
                     "horodatage": _HORODATAGE,
                 },
                 "required": ["lead_id", "resume", "horodatage"],

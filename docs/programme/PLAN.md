@@ -1719,6 +1719,12 @@ météo et GPS M4, vision M3, conseil d'agents M9…
       viennent que des segments `won_pending_schedule` et `quote_stale`) ; `resume` d'une
       interaction borné côté serveur ; la règle `doublon_en_attente` ne suggère plus au vendeur un
       arbitrage réservé à l'admin ; l'écran `quotes` suit la décision sur la marge du vendeur.
+      Sous-tranche notes, 2026-10-08 : façade canonique bornée à300pointsUnicode, refus nommé,
+      primitive/cascades et historiques inchangés. 1849Python département/verticale sansskip,
+      121requalification principale, Ruff/vérificateur verts et revue indépendante30cas.
+      Rejeu du refus, conflit et nouvelle intention qualifiés par HTTP MCP/SQLite (portePython).
+      [Audit des notes](../reprise/NOTES-M2-2026-10-08/AUDIT-NOTES-M2-2026-10-08-r1.md).
+      Publication/CI exactes à obtenir ; suggestion doublon et marge restent ouvertes.
 - [x] T4.9 M2 : relances dues, avec consentement et fréquence limitée (M2.7, M2.13).
       Écart (§7 M2.7, M2.13 ; audit M2 §1.3, §5 point 3 ; reste de T2.3-c) : les relances ne sont
       visibles qu'au Client 360, sans consentement modélisé.

@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
+import socket
 import threading
+import time
 from contextlib import contextmanager
 from copy import deepcopy
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from unittest.mock import patch
 
 import pytest
 
@@ -32,9 +36,37 @@ class _MoteurFictif:
         return [1.0] + [0.0] * 1023, 9
 
 
+class _ProviderRefusHttpConnu(ServeurEmbeddingsLocal):
+    """Fixture de HTTP503 connu : le corps arrive avant le rejet du slot réel.
+
+    Le provider de production peut rejeter avant upload, auquel cas le SDK peut
+    observer une rupture de transport inconnue plutôt qu'un HTTP503 lisible.
+    """
+
+    def process_request(self, request, client_address):
+        request.settimeout(5)
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            brut = request.recv(64 * 1024, socket.MSG_PEEK)
+            entetes, fin, corps = brut.partition(b"\r\n\r\n")
+            if fin:
+                longueur = next(
+                    (int(ligne.split(b":", 1)[1]) for ligne in entetes.split(b"\r\n")
+                     if ligne.lower().startswith(b"content-length:")), 0
+                )
+                if len(corps) >= longueur:
+                    break
+            assert brut, "client fictif fermé avant sa requête complète"
+            time.sleep(0.005)
+        else:
+            raise AssertionError("corps fictif non reçu dans les cinq secondes")
+        super().process_request(request, client_address)
+
+
 @contextmanager
-def _provider_fictif(*, moteur=None, instrumenter_slot=None):
-    serveur = ServeurEmbeddingsLocal(
+def _provider_fictif(*, moteur=None, instrumenter_slot=None, refus_http_connu=False):
+    classe = _ProviderRefusHttpConnu if refus_http_connu else ServeurEmbeddingsLocal
+    serveur = classe(
         ("127.0.0.1", 0), cle="x" * 32, moteur=moteur or _MoteurFictif(), delai_s=1
     )
     slot = instrumenter_slot(serveur._slot) if instrumenter_slot else None
@@ -49,8 +81,28 @@ def _provider_fictif(*, moteur=None, instrumenter_slot=None):
         if slot is not None:
             slot.debloquer()
         serveur.shutdown()
+        workers = tuple(serveur._threads)
         serveur.server_close()
         thread.join(2)
+        assert not thread.is_alive(), "thread HTTP fictif non fermé après attente"
+        assert all(not worker.is_alive() for worker in workers), "worker du provider fictif non fermé"
+
+
+@contextmanager
+def _upload_progressif():
+    """Même pacing réel pour chaque oracle exigeant une réponse HTTP503 connue."""
+    original_send = http.client.HTTPConnection.send
+
+    def envoyer(connection, data):
+        if isinstance(data, bytes) and data.startswith(b"{"):
+            time.sleep(0.03)
+            original_send(connection, data[:1])
+            time.sleep(0.01)
+            return original_send(connection, data[1:])
+        return original_send(connection, data)
+
+    with patch.object(http.client.HTTPConnection, "send", envoyer):
+        yield
 
 
 class _SlotFinReponseRetardee:
@@ -96,7 +148,10 @@ def test_reprise_503_apres_handshake_conserve_413_et_code_exact(texte, code):
         slots.append(retarde)
         return retarde
 
-    with _provider_fictif(moteur=moteur, instrumenter_slot=instrumenter) as url:
+    with (
+        _upload_progressif(),
+        _provider_fictif(moteur=moteur, instrumenter_slot=instrumenter, refus_http_connu=True) as url,
+    ):
         client = ClientEmbeddings(url, "BAAI/bge-m3", cle="x" * 32, local=True, taille_lot=1)
         with pytest.raises(ErreurEmbeddings) as erreur:
             client.plonger_avec_profil([texte])
@@ -115,7 +170,10 @@ def test_reprise_503_par_lot_apres_handshake_et_reponse_precedente():
         slots.append(retarde)
         return retarde
 
-    with _provider_fictif(moteur=moteur, instrumenter_slot=instrumenter) as url:
+    with (
+        _upload_progressif(),
+        _provider_fictif(moteur=moteur, instrumenter_slot=instrumenter, refus_http_connu=True) as url,
+    ):
         client = ClientEmbeddings(url, "BAAI/bge-m3", cle="x" * 32, local=True, taille_lot=1)
         lot = client.plonger_avec_profil(["premier fait fictif", "second fait fictif"])
     assert len(lot.vecteurs) == 2
@@ -133,7 +191,10 @@ def test_reprise_503_est_bornee_a_deux_tentatives_sans_inference():
         slots.append(retarde)
         return retarde
 
-    with _provider_fictif(moteur=moteur, instrumenter_slot=instrumenter) as url:
+    with (
+        _upload_progressif(),
+        _provider_fictif(moteur=moteur, instrumenter_slot=instrumenter, refus_http_connu=True) as url,
+    ):
         client = ClientEmbeddings(url, "BAAI/bge-m3", cle="x" * 32, local=True, taille_lot=1)
         with pytest.raises(ErreurEmbeddings) as erreur:
             client.plonger_avec_profil(["fait fictif jamais calculé"])
@@ -307,3 +368,58 @@ def test_limite_cli_invalide_refusee_sans_conversion_non_bornee(valeur):
 
     with pytest.raises(ArgumentTypeError):
         _limite_bornee(valeur)
+
+
+def test_upload_rompu_sans_reponse_http_reste_inconnu_et_ne_rejoue_pas(monkeypatch):
+    """Un socket réel fermé pendant upload n'autorise aucune reprise HTTP503."""
+    requetes = []
+    fermeture = threading.Event()
+    envois_corps = []
+    original_send = http.client.HTTPConnection.send
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            return
+
+        def do_GET(self):
+            brut = json.dumps({"status": "ready", "model": "BAAI/bge-m3", "dimension": 1024,
+                               "opsys_embedding_profile": _profil_embedding()}).encode()
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(brut)))
+            self.end_headers()
+            self.wfile.write(brut)
+
+        def do_POST(self):
+            requetes.append(self.path)
+            self.close_connection = True
+            self.connection.shutdown(socket.SHUT_RDWR)
+            self.connection.close()
+            fermeture.set()
+
+    def envoyer_apres_fermeture(connection, data):
+        if isinstance(data, bytes) and data.startswith(b"{"):
+            envois_corps.append(len(data))
+            assert fermeture.wait(2), "fermeture HTTP fictive non observée"
+            original_send(connection, data[:1])
+            time.sleep(0.01)
+            return original_send(connection, data[1:])
+        return original_send(connection, data)
+
+    serveur = HTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=serveur.serve_forever, daemon=True)
+    thread.start()
+    try:
+        client = ClientEmbeddings(f"http://127.0.0.1:{serveur.server_port}/v1", "BAAI/bge-m3",
+                                  cle="x" * 32, local=True, taille_lot=1, delai_s=2)
+        monkeypatch.setattr(http.client.HTTPConnection, "send", envoyer_apres_fermeture)
+        with pytest.raises(ErreurEmbeddings) as erreur:
+            client.plonger_avec_profil(["x" * 20_001])
+        assert erreur.value.http_status is None
+        assert erreur.value.code is None
+        assert requetes == ["/v1/embeddings"]
+        assert envois_corps == [20_040]
+    finally:
+        serveur.shutdown()
+        serveur.server_close()
+        thread.join(2)
+        assert not thread.is_alive(), "thread de rupture fictif non fermé après attente"

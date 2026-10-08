@@ -28,10 +28,10 @@ import type { VerdictServeur } from "../outbox/vidangeur";
 export const OUTIL_ENREGISTRER_INTERACTION = "m2_enregistrer_interaction";
 
 /**
- * Longueur maximale d'une note. Le serveur n'en fixe aucune, mais le Client 360 rend les DIX dernières
- * interactions dans UNE réponse que le socle tronque au-delà de 6 000 caractères (`Capacites._tronquer`) : une
- * note trop longue rendrait l'historique illisible pour tout le monde. 10 × 300 = 3 000 laisse la place du
- * contact et des opportunités.
+ * Longueur maximale d'une note : 300 unités UTF16 ici, 300 points Unicode sur la façade serveur
+ * `m2_enregistrer_interaction` (T4.8-b). Les notes admises ici respectent la borne serveur. Le Client 360
+ * rend les dix dernières interactions dans une réponse bornée par le socle; ce plafond des nouvelles notes
+ * ne garantit pas la taille de toute fiche (historique, contacts, opportunités et échappement).
  */
 export const RESUME_LONGUEUR_MAX = 300;
 
@@ -62,7 +62,7 @@ export type ValidationNote =
   | { readonly ok: false; readonly raison: "vide" | "trop_longue" };
 
 /** Ce que l'écran laisse partir : un résumé non vide une fois épuré, d'au plus `RESUME_LONGUEUR_MAX` caractères.
- * Le serveur refuse le reste (`REJ-CHAMP-VIDE`) : l'app ne met pas en file ce qu'elle sait refusé. */
+ * Le serveur refuse le vide (`REJ-CHAMP-VIDE`) ou une note trop longue (`REJ-CONTRAT-INVALIDE`). */
 export function validerNote(texte: string): ValidationNote {
   const resume = texte.trim();
   if (resume === "") {

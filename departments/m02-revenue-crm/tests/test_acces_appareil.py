@@ -146,6 +146,70 @@ def _interactions(lead_id):
             if m.get("type_entree") == "interaction" and m.get("lead_id") == lead_id]
 
 
+@pytest.mark.parametrize(
+    "resume", ["é" * 301, "😀" * 301, " " + "n" * 300],
+    ids=["accent-301", "astral-301", "champ-brut-301"],
+)
+@pytest.mark.parametrize("acteur", [None, ADMIN, VENDEUR_UN], ids=["agent", "admin", "seller"])
+def test_note_trop_longue_refusee_sans_aucune_ecriture(par_nom, leads, resume, acteur):
+    avant = _instantane_base()
+    arguments = {"lead_id": "lead-un", "resume": resume, "horodatage": H2}
+    if acteur is None:
+        # L'auteur fourni ne doit pas contourner la borne de la façade.
+        arguments["auteur"] = "system:m3"
+    reponse = _appeler(par_nom, "m2_enregistrer_interaction", arguments, acteur)
+    verdict = _verdict(reponse)
+    assert verdict["code"] == "REJ-CONTRAT-INVALIDE"
+    assert "300" in verdict["detail"] and resume not in verdict["detail"]
+    assert _instantane_base() == avant
+
+
+@pytest.mark.parametrize(
+    "resume", ["n" * 299, "é" * 300, "😀" * 300, '"' * 300, " " + "n" * 298 + " "],
+    ids=["299", "accent-300", "astral-300", "echappement-300", "champ-brut-300"],
+)
+def test_note_dans_la_borne_garde_son_texte_epure(par_nom, leads, resume):
+    avant = len(_interactions("lead-un"))
+    accuse = _accepte(_appeler(par_nom, "m2_enregistrer_interaction", {
+        "lead_id": "lead-un", "resume": resume, "horodatage": H2,
+    }, VENDEUR_UN))
+    notes = _interactions("lead-un")
+    assert len(notes) == avant + 1
+    assert notes[-1]["resume"] == resume.strip()
+    assert notes[-1]["auteur"] == "vendeur.un"
+    assert notes[-1]["ligne_id"] == accuse["ligne_id"]
+
+
+def test_schema_publie_la_borne_des_notes(par_nom):
+    assert par_nom["m2_enregistrer_interaction"].parametres["properties"]["resume"]["maxLength"] == 300
+
+
+@pytest.mark.parametrize("lead_id", ["lead-deux", "lead-inconnu"])
+def test_note_longue_garde_le_refus_identique_d_un_lead_non_visible(par_nom, leads, lead_id):
+    avant = _instantane_base()
+    verdict = _verdict(_appeler(par_nom, "m2_enregistrer_interaction", {
+        "lead_id": lead_id, "resume": "n" * 301, "horodatage": H2,
+    }, VENDEUR_UN))
+    assert verdict["code"] == CODE_NON_ASSIGNE
+    assert _instantane_base() == avant
+
+
+def test_borne_note_ne_change_pas_la_primitive_interne_ni_un_historique_long(par_nom, leads):
+    from m2_revenue_crm import interactions
+
+    texte = "Trace interne historique fictive " + "n" * 1000
+    with stockage.transaction():
+        accuse, verdict = interactions.enregistrer("lead-un", "system:m4", texte, outils._obtenir_registre(), H2)
+        assert verdict is None and accuse["lead_id"] == "lead-un"
+    client_id = _accepte(_appeler(
+        par_nom, "m2_trouver_client_de_lead", {"lead_id": "lead-un"}, VENDEUR_UN,
+    ))["client_id"]
+    avant = _instantane_base()
+    vue = _accepte(_appeler(par_nom, "m2_obtenir_client_360", {"client_id": client_id}, VENDEUR_UN))
+    assert any(i["resume"] == texte for i in vue["interactions_recentes"])
+    assert _instantane_base() == avant
+
+
 # Outils de lecture ou d'écriture qui portent un lead, avec les arguments d'un appel valide sur `lead_id`.
 _OUTILS_PAR_LEAD = {
     "m2_transitionner_statut": lambda lead_id: {"lead_id": lead_id, "statut_cible": "perdu", "horodatage": H2,

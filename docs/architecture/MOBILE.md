@@ -1706,9 +1706,10 @@ rendu, comme les autres écrans).
   outils de l'admin et sur tout nom non nu, rejeu d'une note sans double effet (état du moteur comparé avant et
   après), la forme des réponses comparée à la fixture, les catalogues et noms d'outils lus dans le code de l'app.
 - **Limites.** (1) Aucun outil ne liste les soumissions, ni ne rend « le prix sans coût ni marge » : dit ci-dessus, pas
-  ajouté ici (`departments/` n'est pas touché). (2) La borne de 300 caractères est celle de l'app ; le serveur ne
-  borne pas `resume`, et une note plus longue écrite par un agent peut tronquer la réponse du Client 360 : l'écran
-  dit alors `reponse_tronquee` plutôt que d'afficher un extrait. (3) La règle `doublon_en_attente` suggère au vendeur
+  ajouté ici (`departments/` n'est pas touché). (2) La façade serveur de saisie borne désormais le champ reçu à 300 points Unicode, sans troncature
+  (T4.8-b, 2026-10-08), après identité/auteur/lead. Le mobile compte 300 unités UTF16 sur le texte épuré.
+  Les cascades internes et historiques longs restent inchangés ; contacts, opportunités et échappement peuvent
+  encore dépasser la réponse bornée : l'écran dit `reponse_tronquee` plutôt que d'afficher un extrait. (3) La règle `doublon_en_attente` suggère au vendeur
   « d'arbitrer le doublon », geste réservé à l'admin (`m2_arbitrer_doublon`) ; l'app montre la règle telle quelle.
   (4) L'instant de référence de `m2_lister_leads` et de la suggestion est l'heure de l'appareil (un appareil qui la
   falsifie ne change que sa propre vue, `liste_leads.py`). (5) Pas de rafraîchissement automatique au retour du

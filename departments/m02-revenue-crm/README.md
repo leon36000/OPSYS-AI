@@ -165,3 +165,23 @@ validation humaine au départ), §9.4 « relances autorisées ». Déclarés dan
   `test_consommer_devis_envoye.py`, `test_consommer_retrait_consentement.py`, `test_relances_outils.py` (493 tests) et,
   du socle, `tests/test_cascade_relances.py` (le vrai M1, le vrai M3, le vrai bus) et
   `tests/e2e/test_relances_vendeur_appareil.py` (la vraie porte d'appareil).
+
+
+## Notes commerciales — borne de la façade (T4.8-b, 2026-10-08)
+
+`m2_enregistrer_interaction` refuse un `resume` reçu non vide de plus de 300 points Unicode,
+après identité courante, auteur et contrôle du lead. Refus `REJ-CONTRAT-INVALIDE`, sans copier
+ou tronquer le texte. `maxLength: 300` est publié par le schéma ; la garde métier est appliquée
+par la façade, car le validateur minimal du socle ne traite pas ce mot-clé. Le mobile compte
+300 unités UTF16 sur son texte épuré, ce qui respecte cette borne.
+
+La primitive interne et les traces des cascades M3/M4 gardent leur contrat. Aucun historique
+n’est réécrit et la taille de toute réponse Client360 n’est pas garantie par cette borne.
+En HTTP, un refus métier garde ses traces d’approbation/idempotence : même clé et même payload
+rejouent le refus, même clé et autre payload font un conflit ; une correction est une nouvelle
+intention. Les données métier restent inchangées.
+
+Qualification locale : 1 849 tests département/verticale sans skip, puis 121 tests sur le
+principal ; Ruff et vérificateur verts, revue indépendante de 30 cas. Porte Python du harnais
+vers HTTP MCP/SQLite, Gateway TypeScript et téléphone distincts. Publication et CI exactes
+suivantes requises. [Audit et limites](../../docs/reprise/NOTES-M2-2026-10-08/AUDIT-NOTES-M2-2026-10-08-r1.md).

@@ -405,6 +405,7 @@ def test_la_borne_des_notes_de_l_app_tient_dix_notes_dans_la_reponse_du_client_3
     trouve = re.search(r"export const RESUME_LONGUEUR_MAX = (\d+);", _source("m2/interaction.ts"))
     assert trouve is not None, "la borne n'est plus dans l'app"
     borne = int(trouve.group(1))
+    assert _m2(moteur)["m2_enregistrer_interaction"].parametres["properties"]["resume"]["maxLength"] == borne
     for i in range(12):
         texte = f"{i:02d}" + "é" * (borne - 2)  # la longueur maximale, en caractères accentués
         assert len(texte) == borne
@@ -415,6 +416,38 @@ def test_la_borne_des_notes_de_l_app_tient_dix_notes_dans_la_reponse_du_client_3
     assert reponse.mesure.octets_texte < LIMITE_TRONCATURE
     assert len(reponse.resultat["interactions_recentes"]) == 10
     print("MESURE-CLIENT-360 " + json.dumps({"borne": borne, "notes": 10, "octets": reponse.mesure.octets_texte}))
+
+
+@SQLITE_SEULEMENT
+def test_borne_note_serveur_refus_puis_rejeu_et_conflit_sans_effet_supplementaire(moteur, vente):
+    a = vente["a"]
+    avant = moteur.empreinte_etat()
+    refusee = _note(moteur, a, "lead-a-3", "é" * 301, "e2e-note-hors-borne")
+    assert refusee.enveloppe["ok"] is True and refusee.metier["accepte"] is False
+    assert refusee.metier["verdict"]["code"] == "REJ-CONTRAT-INVALIDE"
+    apres_refus = moteur.empreinte_etat()
+    assert apres_refus == {**avant, "journal": avant["journal"] + 1,
+        "mutations": avant["mutations"] + 1, "approbations": avant["approbations"] + 1}
+    assert _interactions(a, "lead-a-3") == []
+    rejeu_refus = _note(moteur, a, "lead-a-3", "é" * 301, "e2e-note-hors-borne")
+    assert rejeu_refus.enveloppe["rejoue"] is True and rejeu_refus.metier == refusee.metier
+    assert moteur.empreinte_etat() == apres_refus
+
+    # Une intention admise reste immuable, y compris quand le métier la refuse.
+    texte = "é" * 300
+    changement = _note(moteur, a, "lead-a-3", texte, "e2e-note-hors-borne")
+    assert changement.enveloppe["erreur"] == "mutation_conflit"
+    assert moteur.empreinte_etat() == apres_refus
+    premiere = _note(moteur, a, "lead-a-3", texte, "e2e-note-corrigee")
+    assert premiere.statut == 200 and premiere.enveloppe["rejoue"] is False
+    apres = moteur.empreinte_etat()
+    rejeu = _note(moteur, a, "lead-a-3", texte, "e2e-note-corrigee")
+    assert rejeu.enveloppe["rejoue"] is True and rejeu.resultat == premiere.resultat
+    assert moteur.empreinte_etat() == apres
+    conflit = _note(moteur, a, "lead-a-3", "autre contenu", "e2e-note-corrigee")
+    assert conflit.enveloppe["erreur"] == "mutation_conflit"
+    assert moteur.empreinte_etat() == apres
+    assert [i["resume"] for i in _interactions(a, "lead-a-3")] == [texte]
 
 
 # ---------------------------------------------------------------------------------------------------------

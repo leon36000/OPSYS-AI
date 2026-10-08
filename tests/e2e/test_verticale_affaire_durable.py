@@ -3,6 +3,8 @@
 Première couche : moteur HTTP MCP réel, base durable et répartiteur dans un processus neuf.
 La porte d'appareil du harnais reproduit la règle Core en Python : elle ne prouve pas le
 Core TypeScript, un téléphone physique, un fournisseur ni une publication marketing.
+Photos descriptives, barème de temps et montants sont fictifs : aucune mesure pixel,
+calibration empirique, provenance économique des lignes ni opération d'argent réel.
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ import os
 import subprocess
 import sys
 import time
+from decimal import Decimal
 from pathlib import Path
 from urllib.parse import parse_qsl, urlsplit
 
@@ -379,6 +382,13 @@ def _preparer_affaire(moteur, affaire):
         cle="visite-verticale",
     )
     assert note.metier["accepte"] is True, note.corps
+    avant = _empreinte(moteur)
+    readiness = _app(
+        moteur, affaire["vendeur"], "m2_evaluer_readiness", {"lead_id": lead_id, "horodatage": heure}
+    )
+    assert _empreinte(moteur) == avant, "la préparation commerciale est une lecture pure"
+    marqueur = readiness.resultat
+    assert marqueur["readiness_ok"] is True and marqueur["lead_id"] == lead_id
     liaison = _app(
         moteur,
         admin,
@@ -392,7 +402,63 @@ def _preparer_affaire(moteur, affaire):
         cle="liaison-verticale",
     )
     assert liaison.metier["accepte"] is True, liaison.corps
-    devis_id = "devis-vertical-fictif"
+    # Adaptation déclarée de test_estimation.BAREME_AVEC_DUREE (8..14 et 2.5 minutes/unité)
+    # au service gouttieres et à l'unité pi de CE scénario. Ce n'est pas un tarif terrain.
+    # Sans matières dans le barème : le besoin définitif M6 vient encore des lignes acceptées.
+    bareme_fictif = {
+        "version": "verticale-m3-temps-fictif/1", "unite": "pi",
+        "semantique_temps": "duree_ecoulee_intervention",
+        "postes": {"gouttieres": {
+            "cout_unitaire_min": 8.0, "cout_unitaire_max": 14.0, "duree_minutes_par_unite": 2.5,
+        }},
+    }
+
+    def estimer(photos):
+        decision = _agent(moteur, admin, "m03-estimation", "m3_estimer_projet", {
+            "contrat": lead, "marqueur": marqueur, "photos": photos,
+            "seuils": {"resolution_minimale": 1000, "eclairage_minimal": 4},
+            "bareme": bareme_fictif, "quantite": 40, "plancher_rentable": 0,
+            "graine": 7000, "taux_marge": "0.25",
+        }, niveau_attendu="N3")
+        # Mode ombre conservé : la demande seule ne serait pas une estimation exécutée.
+        assert decision["statut"] == "executee", decision
+        # La projection M9 appareil garde une issue bornée, pas la réponse M3 complète.
+        # Assertion serveur du test seulement : reçu canonique de CETTE décision HTTP.
+        with stockage.transaction() as cnx:
+            recue = approbations.lire(cnx, decision["demande_id"])
+        assert recue is not None and recue["statut"] == "executee"
+        assert (recue["outil"], recue["departement"], recue["niveau"]) == (
+            "m3_estimer_projet", "m03-estimation", "N3",
+        )
+        return _donnee(recue["resultat"])
+
+    sans_photos = estimer([])
+    assert sans_photos["etape"] == "complet" and sans_photos["estimation"]["lead_id"] == lead_id
+    assert sans_photos["estimation"]["prix_bloque"] is True
+    assert sans_photos["estimation"]["verdict_estimation"] == "QUALITE_ENTREE_INSUFFISANTE"
+    assert sans_photos["estimation"]["intervalle_confiance"]["borne_basse"] is None
+    assert sans_photos["estimation"]["intervalle_confiance"]["borne_haute"] is None
+    assert sans_photos["elements_manquants"] == ["aucune entrée visuelle n'a été fournie"]
+    assert sans_photos["signal_relance_m2"]["lead_id"] == lead_id
+    assert _evenements("m3.devis_accepte") == []
+    # Métadonnées synthétiques issues de test_estimation._photo / scénario formulaire M3,
+    # sans image/pixel ni preuve géométrique réelle. Même lead, readiness et UTM.
+    corrigee = estimer([{
+        "photo_id": "photo-verticale-m3-fictive", "resolution_largeur": 3000,
+        "resolution_hauteur": 2000, "eclairage": 7, "angle": "face",
+        "reference_echelle": {"type": "porte", "dimensions_connues": True},
+    }])
+    estimation = corrigee["estimation"]
+    assert corrigee["etape"] == "complet" and estimation["lead_id"] == lead_id
+    assert estimation["prix_bloque"] is False
+    assert estimation["devis_id"] == sans_photos["estimation"]["devis_id"]
+    assert 0 < estimation["intervalle_confiance"]["borne_basse"] <= estimation["intervalle_confiance"]["borne_haute"]
+    assert Decimal(corrigee["duree_estimee_minutes"]) == Decimal("100")
+    devis_id, source_hash = estimation["devis_id"], estimation["hash_maillon"]
+    assert source_hash != sans_photos["estimation"]["hash_maillon"]
+    assert len(source_hash) == 64
+    # Le hash lie l'estimation au lead/devis ; il n'atteste PAS la provenance économique
+    # des lignes/coûts ci-dessous. Elles restent les entrées commerciales fictives existantes.
     _agent(
         moteur,
         admin,
@@ -400,6 +466,7 @@ def _preparer_affaire(moteur, affaire):
         "m3_creer_devis",
         {
             "devis_id": devis_id,
+            "estimation_source_hash": source_hash,
             "lead_id": lead_id,
             "chantier_id": lead_id,
             "lignes": [
@@ -433,6 +500,9 @@ def _preparer_affaire(moteur, affaire):
     preuve = _livrer_dans_un_processus_neuf(moteur)
     evenement_id, devis = _evenements("m3.devis_accepte")[0]
     assert (devis["lead_id"], devis["devis_id"], devis["prix_total"]) == (lead_id, devis_id, "600.00")
+    assert devis["estimation_source_hash"] == source_hash
+    assert Decimal(devis["duree_estimee_minutes"]) == Decimal("100")
+    assert _evenements("m3.besoins_materiaux") == [], "aucune matière provisoire ajoutée à cette tranche"
     with stockage.transaction() as cnx:
         recu = cnx.execute(
             select(EVENEMENTS_RECUS).where(
@@ -499,6 +569,10 @@ def _preparer_affaire(moteur, affaire):
 def test_affaire_recue_cree_une_seule_intervention_et_reprend_sa_preparation(moteur, affaire):
     chantier, lead, preuve = _preparer_affaire(moteur, affaire)
     assert chantier.lead_id == lead["lead_id"] and preuve["livres"] > 0
+    _, devis = _evenements("m3.devis_accepte")[0]
+    assert isinstance(devis.get("estimation_source_hash"), str), "la verticale doit conserver sa source M3"
+    assert len(devis["estimation_source_hash"]) == 64
+    assert Decimal(devis["duree_estimee_minutes"]) == Decimal("100")
 
 
 @pytest.fixture
@@ -516,6 +590,26 @@ def _mesures(moteur, admin, wct_id):
     reponse = _app(moteur, admin, "m8_lire_mesures_chantier", {"wct_id": wct_id})
     donnees = _donnee(reponse.enveloppe)
     return {mesure["metric_id"]: mesure for mesure in donnees["mesures"]}
+
+
+def _apprentissage(moteur, admin, wct_id):
+    """Lecture native T0 du WCT courant ; aucun fait, paiement ou barème n'est écrit."""
+    avant = _empreinte(moteur)
+    coupure = moteur.horloge.maintenant.astimezone(dt.UTC).isoformat()
+    reponse = _app(moteur, admin, "m3_lire_apprentissage_chantier", {
+        "wct_id": wct_id, "coupure_utc": coupure,
+    })
+    assert _empreinte(moteur) == avant
+    rapport = _donnee(reponse.enveloppe)
+    if rapport["statut"] == "observee":
+        assert rapport["sources"]["wct_id"] == wct_id
+    else:
+        assert rapport["wct_id"] == wct_id
+    assert rapport["cause"] is None
+    texte = json.dumps(rapport, ensure_ascii=False)
+    for interdit in ("latitude", "longitude", "Rue Fictive", "etienne"):
+        assert interdit not in texte
+    return rapport
 
 
 @pytest.mark.parametrize(
@@ -551,12 +645,20 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
     assert completion.metier["accepte"] is True, completion.corps
     wct_id = completion.resultat["wct_id"]
     assert completion.resultat["intervention_id"] == chantier.intervention_id
+    origine = _evenements("m1.lead_qualifie")[0][1]["lead"]
+    assert origine["lead_id"] == chantier.lead_id and origine["utm"] == lead["utm"]
+    wcts = [charge for _, charge in _evenements("m4.travaux_termines") if charge["wct_id"] == wct_id]
+    assert len(wcts) == 1
+    assert (wcts[0]["lead_id"], wcts[0]["devis_id"]) == (lead["lead_id"], chantier.devis_id)
     declaration = app.declarer_materiaux(wct_id, quantite)
     assert declaration.metier["accepte"] is True, declaration.corps
     _drainer(moteur)
     statut = app.statut().resultat["statut"]
     assert statut == ("completed_pending_review" if quantite == 56 else "completed_verified")
     if quantite == 56:
+        non_verifie = _apprentissage(moteur, admin, wct_id)
+        assert non_verifie["statut"] == "exclu", non_verifie
+        assert "statut_courant_non_verifie" in non_verifie["exclusions"]
         avant = _empreinte(moteur)
         lecture = _app(moteur, admin, "m9_produire_lecture_strategique", {"maintenant": iso(moteur.horloge.maintenant)})
         assert lecture.resultat["decision"]["prise_par_m9"] is False
@@ -601,6 +703,11 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
     assert provisoire["m8_marge_reelle_cad"]["valeur"] is None
     assert provisoire["m8_marge_reelle_cad"]["statut"] == "non_calculable"
     assert _empreinte(moteur) == avant
+    apprentissage_provisoire = _apprentissage(moteur, admin, wct_id)
+    assert apprentissage_provisoire["statut"] == "observee", apprentissage_provisoire
+    assert apprentissage_provisoire["rentabilite"]["statut"] == "exclue"
+    assert apprentissage_provisoire["rentabilite"]["montant_marge_reelle_cad"] is None
+    assert "facture_brouillon_ou_prix_non_definitif" in apprentissage_provisoire["rentabilite"]["exclusions"]
     lien = _app(
         moteur,
         admin,
@@ -630,6 +737,28 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
     if not prix_present:
         assert finales["m8_marge_reelle_cad"]["statut"] == "non_calculable"
     assert _empreinte(moteur) == avant
+    apprentissage_final = _apprentissage(moteur, admin, wct_id)
+    assert apprentissage_final["statut"] == "observee", apprentissage_final
+    _, devis_accepte = _evenements("m3.devis_accepte")[0]
+    assert apprentissage_final["sources"]["devis_id"] == chantier.devis_id
+    assert apprentissage_final["sources"]["estimation_hash"] == devis_accepte["estimation_source_hash"]
+    assert apprentissage_final["sources"]["partition_calibration"] in {"train", "holdout"}
+    assert Decimal(apprentissage_final["temps"]["estime_minutes"]) == Decimal("100")
+    assert apprentissage_final["temps"]["ecoule_reel_minutes"] == 180
+    assert apprentissage_final["temps"]["unite"] == "minute"
+    assert apprentissage_final["temps"]["semantique"] == "duree_ecoulee_intervention"
+    assert apprentissage_final["temps"]["trace_m3"]["unite_quantite"] == "pi"
+    assert apprentissage_final["temps"]["paie_heures_personnes"] == "non mesurees par ces sources"
+    assert apprentissage_final["variance_materiaux"]["cause"] is None
+    rentabilite = apprentissage_final["rentabilite"]
+    assert rentabilite["prix_definitif"] is True
+    assert rentabilite["montant_marge_reelle_cad"] == marge_attendue
+    assert rentabilite["statut"] == ("qualifiee" if prix_present else "exclue")
+    if prix_present:
+        assert rentabilite["cout_reel_complet"] is True and rentabilite["exclusions"] == []
+        assert rentabilite["version_entrees_m5"] == rentabilite["version_entrees_m8"]
+    else:
+        assert "cout_reel_incomplet_ou_inconnu" in rentabilite["exclusions"]
     rentabilites = _evenements("m5.rentabilite_chantier")
     assert rentabilites and all(charge["wct_id"] == wct_id for _, charge in rentabilites)
     with stockage.transaction() as cnx:
