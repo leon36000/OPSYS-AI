@@ -16,6 +16,7 @@ import {
   OpsysContexteGuardStore,
   type OpsysGuardState,
 } from "./opsys-contexte-garde.js";
+import { parsePaquetEnvelope } from "./opsys-contexte-paquet.js";
 import { CONFIG_M3 } from "./opsys-contexte.test-support.js";
 
 const NOW = Date.parse("2026-09-28T10:15:00.000+00:00");
@@ -423,5 +424,49 @@ describe("checkOpsysContexteToolCall", () => {
         nowMs: () => NOW + OPSYS_GUARD_MAX_AGE_MS + 1,
       }).block,
     ).toBe(true);
+  });
+});
+
+// FICTIVE capture from real Python Capacites._tronquer on synthetic JSON, not HTTP.
+// qualification/m10-prive-refus-python-r1.json; source SHA256
+// bf8fcaf7627e31947d89958c05b45076b68a8b0336dfb9520e55ab5bb452e112.
+// Exact three-field envelope copied for CI; no private payload or external-path import.
+const PRIVATE_PACKET_VOLUME_REFUSAL = {
+  ok: false,
+  erreur: "REJ-PAQUET-AFFAIRE-SORTIE-TROP-VOLUMINEUSE",
+  details:
+    "le paquet dépasse la borne de sortie du contexte privé ; aucun détail partiel n'est transmis",
+};
+
+describe("guard admission after the exact private packet volume refusal", () => {
+  function refusedState(): OpsysGuardState {
+    const parsed = parsePaquetEnvelope(PRIVATE_PACKET_VOLUME_REFUSAL, "LEAD-001", "m03-estimation");
+    if (parsed.ok) {
+      throw new Error("the private packet refusal is not context");
+    }
+    return unavailable(parsed.reason);
+  }
+  it.each([
+    { tool: "m3_lire_devis", level: "N0", block: false },
+    { tool: "m4_proposer_cedule", level: "N1", block: false },
+    { tool: "m10_deposer_faits_candidats", level: "N2", block: false },
+    { tool: "m3_estimer_projet", level: "N3", block: true },
+    { tool: "m4_notifier_client_completion", level: "N4", block: true },
+    { tool: "m5_enregistrer_mouvement", level: "N5", block: true },
+  ])("returns block=$block for $level $tool with the named refusal", ({ tool, block }) => {
+    const decision = decide({ toolName: tool, state: refusedState() });
+    expect(decision.block).toBe(block);
+    if (block) {
+      expect(reasonOf(decision)).toContain(PRIVATE_PACKET_VOLUME_REFUSAL.erreur);
+    } else {
+      expect(decision).toStrictEqual({ block: false });
+    }
+  });
+  it("preserves disabled configuration and unconfigured-agent behavior with the same refusal", () => {
+    const state = refusedState();
+    expect(decide({ state, config: { kind: "disabled" } })).toStrictEqual({ block: false });
+    expect(decide({ state, sessionKey: "agent:m01-front-office:main" })).toStrictEqual({
+      block: false,
+    });
   });
 });

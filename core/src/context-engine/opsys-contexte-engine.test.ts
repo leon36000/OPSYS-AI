@@ -1360,3 +1360,99 @@ describe("POSTFLIGHT handoff to the actual collector", () => {
     ]);
   });
 });
+
+// FICTIVE capture from real Python Capacites._tronquer on synthetic JSON, not HTTP.
+// qualification/m10-prive-refus-python-r1.json; source SHA256
+// bf8fcaf7627e31947d89958c05b45076b68a8b0336dfb9520e55ab5bb452e112.
+// Exact three-field envelope copied for CI; no private payload or external-path import.
+const PRIVATE_PACKET_VOLUME_REFUSAL = {
+  ok: false,
+  erreur: "REJ-PAQUET-AFFAIRE-SORTIE-TROP-VOLUMINEUSE",
+  details:
+    "le paquet dépasse la borne de sortie du contexte privé ; aucun détail partiel n'est transmis",
+};
+
+describe("private packet volume refusal: preflight and guard contract", () => {
+  function guard(
+    h: ReturnType<typeof harness>,
+    toolName: string,
+    config: OpsysContexteConfigResult = { kind: "enabled", config: CONFIG_M3 },
+  ) {
+    return checkOpsysContexteToolCall(
+      {
+        toolName,
+        sessionKey: SESSION_M3,
+        agentId: undefined,
+        toolParams: { contrat: { lead_id: "LEAD-001" } },
+      },
+      {
+        readConfig: () => config,
+        store: h.guardStore,
+        nowMs: () => Date.parse(NOW),
+      },
+    );
+  }
+  it("replaces an earlier ready state with a fresh refusal for this session without retrieving an artefact", async () => {
+    const h = harness({ handler: async () => PRIVATE_PACKET_VOLUME_REFUSAL });
+    const previous = {
+      kind: "ready",
+      affaireId: "LEAD-001",
+      nbOuverts: 0,
+      atMs: Date.parse(NOW) - 1000,
+    } as const;
+    h.guardStore.set(SESSION_M3, previous);
+    h.guardStore.set("agent:m03-estimation:other", previous);
+    const params = assembleParams(),
+      result = await h.engine.assemble(params);
+    expect(result.messages).toBe(params.messages);
+    expect(result.systemPromptAddition).toContain(MARKER);
+    expect(result.systemPromptAddition).toContain(PRIVATE_PACKET_VOLUME_REFUSAL.erreur);
+    expect(result.systemPromptAddition).not.toContain("Règles de l'entreprise");
+    expect(result.systemPromptAddition).not.toContain("WCT-001");
+    expect(h.guardStore.get(SESSION_M3)).toMatchObject({
+      kind: "unavailable",
+      atMs: Date.parse(NOW),
+      reason: expect.stringContaining("REJ-PAQUET-AFFAIRE-SORTIE-TROP-VOLUMINEUSE"),
+    });
+    expect(h.guardStore.get("agent:m03-estimation:other")).toStrictEqual(previous);
+    expect(h.calls.map((call) => call.tool)).toStrictEqual(["m10_paquet_contexte_affaire"]);
+    expect(h.logs.warn).toHaveLength(1);
+    expect(h.logs.warn[0]).toContain(PRIVATE_PACKET_VOLUME_REFUSAL.erreur);
+  });
+  it.each([
+    { tool: "m3_estimer_projet", level: "N3" },
+    { tool: "m4_notifier_client_completion", level: "N4" },
+    { tool: "m5_enregistrer_mouvement", level: "N5" },
+  ])(
+    "vetoes $level $tool from the fresh named refusal before a tool could execute",
+    async ({ tool }) => {
+      const h = harness({ handler: async () => PRIVATE_PACKET_VOLUME_REFUSAL });
+      await h.engine.assemble(assembleParams());
+      const decision = guard(h, tool);
+      expect(decision.block).toBe(true);
+      expect(decision.block ? decision.reason : "").toContain(PRIVATE_PACKET_VOLUME_REFUSAL.erreur);
+      expect(h.calls.map((call) => call.tool)).toStrictEqual(["m10_paquet_contexte_affaire"]);
+    },
+  );
+  it.each(["m3_lire_devis", "m4_proposer_cedule", "m10_deposer_faits_candidats"])(
+    "preserves lower-level permission for %s despite the private packet refusal",
+    async (tool) => {
+      const h = harness({ handler: async () => PRIVATE_PACKET_VOLUME_REFUSAL });
+      await h.engine.assemble(assembleParams());
+      expect(guard(h, tool)).toStrictEqual({ block: false });
+    },
+  );
+  it.each([{ kind: "absent" } as const, { kind: "disabled" } as const])(
+    "does not fetch the refusal or add a marker with inactive configuration $kind",
+    async (config) => {
+      const h = harness({ config, handler: async () => PRIVATE_PACKET_VOLUME_REFUSAL });
+      const params = assembleParams(),
+        result = await h.engine.assemble(params);
+      expect(result.messages).toBe(params.messages);
+      expect(result).not.toHaveProperty("systemPromptAddition");
+      expect(h.calls).toStrictEqual([]);
+      expect(h.guardStore.get(SESSION_M3)).toBeUndefined();
+      expect(guard(h, "m3_estimer_projet", config)).toStrictEqual({ block: false });
+    },
+  );
+});

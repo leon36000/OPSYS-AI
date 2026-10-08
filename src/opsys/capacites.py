@@ -659,6 +659,16 @@ class Capacites:
         texte = json.dumps(reponse, ensure_ascii=False)
         if len(texte) <= self._limite:
             return reponse
+        if source == "m10_paquet_contexte_affaire":
+            # Le moteur Core refuse déjà ce contexte ; sa lecture ne doit pas créer d'artefact.
+            return {
+                "ok": False,
+                "erreur": "REJ-PAQUET-AFFAIRE-SORTIE-TROP-VOLUMINEUSE",
+                "details": (
+                    "le paquet dépasse la borne de sortie du contexte privé ; "
+                    "aucun détail partiel n'est transmis"
+                ),
+            }
         departement_artifact = departement or contexte_appel.DEPARTEMENT_APPELANT.get()
         origine_artifact = origine or contexte_appel.departement_origine_appelante()
         with self._cnx_factory() as cnx:

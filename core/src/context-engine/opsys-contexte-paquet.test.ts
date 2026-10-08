@@ -903,3 +903,34 @@ describe("renderPaquet: the case and the days to consolidate", () => {
     expect(text.length).toBeGreaterThan(bodyChars);
   });
 });
+
+// FICTIVE capture from real Python Capacites._tronquer on synthetic JSON, not HTTP.
+// qualification/m10-prive-refus-python-r1.json; source SHA256
+// bf8fcaf7627e31947d89958c05b45076b68a8b0336dfb9520e55ab5bb452e112.
+// Exact three-field envelope copied for CI; no private payload or external-path import.
+const PRIVATE_PACKET_VOLUME_REFUSAL = {
+  ok: false,
+  erreur: "REJ-PAQUET-AFFAIRE-SORTIE-TROP-VOLUMINEUSE",
+  details:
+    "le paquet dépasse la borne de sortie du contexte privé ; aucun détail partiel n'est transmis",
+};
+
+describe("private packet volume refusal contract", () => {
+  it("keeps the named Python refusal and renders only an unavailable marker, never partial facts", () => {
+    const parsed = parsePaquetEnvelope(PRIVATE_PACKET_VOLUME_REFUSAL, "LEAD-001", AGENT);
+    expect(parsed).toStrictEqual({
+      ok: false,
+      reason: "the engine refused the request (REJ-PAQUET-AFFAIRE-SORTIE-TROP-VOLUMINEUSE)",
+    });
+    if (parsed.ok) {
+      throw new Error("a refusal cannot be a packet");
+    }
+    const marker = renderUnavailable(parsed.reason);
+    expect(marker).toContain("contexte d'entreprise indisponible");
+    expect(marker).toContain("REJ-PAQUET-AFFAIRE-SORTIE-TROP-VOLUMINEUSE");
+    expect(marker).toContain("Ne présume aucun fait d'entreprise");
+    expect(marker).not.toContain("Règles de l'entreprise");
+    expect(marker).not.toContain("WCT-001");
+    expect(parsed).not.toHaveProperty("paquet");
+  });
+});
