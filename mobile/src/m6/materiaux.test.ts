@@ -3,6 +3,7 @@ import {
   construireFormulaireMateriauxUtilises,
   construireLigneDeclaree,
   interpreterResultatDeclarerMateriauxUtilises,
+  validerRecuDeclarerMateriauxUtilises,
 } from "./materiaux";
 
 describe("construireLigneDeclaree", () => {
@@ -70,13 +71,24 @@ describe("construireFormulaireMateriauxUtilises / construireArgumentsDeclarerMat
   });
 });
 
+// Fixtures RAM fictives ; forme confirmée par contrats_sortie.py, sans faux écho WCT/personne/UUID.
+import { creerMutation, soumettreMutation } from "../outbox/mutation";
+const LIGNE_FICTIVE = construireLigneDeclaree({ typeLigne: "perte", materiauId: "MAT-FICTIF", quantite: 2, unite: "m" });
+function mutationFictive() {
+  const formulaire = construireFormulaireMateriauxUtilises("WCT-FICTIF", "INTERVENTION-FICTIVE", "CHANTIER-FICTIF", [LIGNE_FICTIVE]);
+  return { ...soumettreMutation(creerMutation({ type: "materials_submit", chantierId: formulaire.intervention_id,
+    payload: { ...construireArgumentsDeclarerMateriauxUtilises(formulaire) } }, () => "UUID-FICTIF",
+    { maintenant: new Date("2026-10-08T12:00:00Z"), decalageMinutesUTC: -240 })), proprietaire: "PERSONNE-FICTIVE" };
+}
+function confirmationFictive() {
+  // Output byte-shape du constructeur Python pur, Q/M6-ACK-INTENTION-r1/confirmation-pure-source-r1.json.
+  return { intervention_id: "INTERVENTION-FICTIVE", chantier_id: "CHANTIER-FICTIF", lignes_declarees: [LIGNE_FICTIVE] };
+}
+function ackFictif() { return { ok: true, resultat: { accepte: true, resultat: confirmationFictive(), registre: { taille: 4, hash_tete: "a".repeat(64) } } }; }
 describe("interpreterResultatDeclarerMateriauxUtilises", () => {
   test("accepté -> accepte:true avec le résultat", () => {
-    const resultat = interpreterResultatDeclarerMateriauxUtilises({
-      ok: true,
-      resultat: { accepte: true, resultat: { statut: "ok" }, registre: { taille: 4, hash_tete: "h" } },
-    });
-    expect(resultat).toEqual({ accepte: true, resultat: { statut: "ok" } });
+    const resultat = interpreterResultatDeclarerMateriauxUtilises(ackFictif(), mutationFictive());
+    expect(resultat).toEqual({ accepte: true, resultat: confirmationFictive() });
   });
 
   test("rejet SANS detail (forme réelle confirmée en lisant outils.py, ligne 649) -> detail vide, jamais un plantage", () => {
@@ -109,5 +121,46 @@ describe("interpreterResultatDeclarerMateriauxUtilises", () => {
   test("erreur technique -> accepte:false", () => {
     const resultat = interpreterResultatDeclarerMateriauxUtilises({ ok: false, erreur: "invalid_request", details: "formulaire invalide" });
     expect(resultat).toEqual({ accepte: false, verdict: { code: "invalid_request", detail: "formulaire invalide" } });
+  });
+});
+
+
+describe("ACK M6 — JSON strict et contexte persistant", () => {
+  test("ancienne pseudo-confirmation et contexte absent sont inconnus, jamais succès null", () => {
+    for (const r of [{ ok: true, resultat: { accepte: true, resultat: { statut: "ok" }, registre: { taille: 4, hash_tete: "h" } } }, ackFictif(), {}, null]) {
+      expect(interpreterResultatDeclarerMateriauxUtilises(r)).toMatchObject({ accepte: false, verdict: { code: "accuse_invalide" } });
+    }
+  });
+  test("rejeu booléen réel et tuple source conservé sans ajouter wct_id ou personne", () => {
+    const r = { ...ackFictif(), rejoue: true }, attendu = confirmationFictive();
+    expect(interpreterResultatDeclarerMateriauxUtilises(r, mutationFictive())).toEqual({ accepte: true, resultat: attendu });
+    expect(Object.keys(attendu).sort()).toEqual(["chantier_id", "intervention_id", "lignes_declarees"]);
+  });
+  test("WCT extérieur du payload doit être celui du formulaire, propriétaire/type/objet concordants", () => {
+    const muters = [
+      (m: ReturnType<typeof mutationFictive>) => { m.proprietaire = ""; },
+      (m: ReturnType<typeof mutationFictive>) => { Reflect.set(m, "type", "punch_in"); },
+      (m: ReturnType<typeof mutationFictive>) => { m.chantierId = "AUTRE-INTERVENTION"; },
+      (m: ReturnType<typeof mutationFictive>) => { Reflect.set(m.payload, "wct_id", "WCT-AUTRE"); },
+      (m: ReturnType<typeof mutationFictive>) => { Reflect.set(m.payload, "registre", { fictif: true }); },
+    ];
+    for (const muter of muters) { const m = mutationFictive(); muter(m);
+      expect(interpreterResultatDeclarerMateriauxUtilises(ackFictif(), m)).toMatchObject({ accepte: false, verdict: { code: "accuse_invalide" } }); }
+  });
+  test("getters/prototypes/symboles/cycles ne déclenchent pas de lecture ou succès", () => {
+    let appels = 0; const r = ackFictif(); Object.defineProperty(r.resultat, "resultat", { get: () => { appels++; return confirmationFictive(); } });
+    const m = mutationFictive(); Object.defineProperty(m.payload, "formulaire", { get: () => { appels++; return {}; } });
+    const proto = Object.create({ ok: true }); Reflect.set(proto, "resultat", ackFictif().resultat);
+    const symbol = ackFictif(); Reflect.set(symbol, Symbol("fictif"), true);
+    const cycle = ackFictif(); Reflect.set(cycle, "cycle", cycle);
+    for (const x of [r, proto, symbol, cycle]) expect(interpreterResultatDeclarerMateriauxUtilises(x, mutationFictive())).toMatchObject({ accepte: false, verdict: { code: "accuse_invalide" } });
+    expect(interpreterResultatDeclarerMateriauxUtilises(ackFictif(), m)).toMatchObject({ accepte: false, verdict: { code: "accuse_invalide" } }); expect(appels).toBe(0);
+  });
+  test("résumé envoyé valide lié, null/artifact/partiel/ligne étrangère restent non terminaux", () => {
+    const m = { ...mutationFictive(), statut: "envoyee" as const, resumeAccepte: confirmationFictive() };
+    expect(validerRecuDeclarerMateriauxUtilises(m)).toBe(true);
+    for (const resumeAccepte of [null, "artefact://fictif", { intervention_id: "INTERVENTION-FICTIVE" }, { ...confirmationFictive(), chantier_id: "AUTRE" }]) {
+      expect(validerRecuDeclarerMateriauxUtilises({ ...m, resumeAccepte })).toBe(false);
+    }
   });
 });

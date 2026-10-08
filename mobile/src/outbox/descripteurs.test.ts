@@ -1,4 +1,5 @@
 import { DESCRIPTEURS_MUTATION } from "./descripteurs";
+import { creerMutation, soumettreMutation } from "./mutation";
 
 describe("DESCRIPTEURS_MUTATION", () => {
   test("punch_in/punch_out -> m4_pointer", () => {
@@ -142,9 +143,17 @@ describe("DESCRIPTEURS_MUTATION", () => {
   describe("interprète materials_submit (m6_declarer_materiaux_utilises)", () => {
     const interpreter = DESCRIPTEURS_MUTATION.get("materials_submit")!.interpreterResultat;
 
-    test("accepté -> accepte:true", () => {
-      const resultat = interpreter({ ok: true, resultat: { accepte: true, resultat: { ok: true } } });
-      expect(resultat).toEqual({ accepte: true, resume: { ok: true } });
+    test("confirmation canonique liée -> accepte:true (fixture RAM fictive)", () => {
+      const lignes = [{ type_ligne: "perte", materiau_id: "MAT-FICTIF", quantite: 2, unite: "m" }];
+      const formulaire = { wct_id: "WCT-FICTIF", intervention_id: "INTERVENTION-FICTIVE", chantier_id: "CHANTIER-FICTIF", lignes_materiaux: lignes };
+      const mutation = { ...soumettreMutation(creerMutation({ type: "materials_submit", chantierId: formulaire.intervention_id,
+        payload: { wct_id: formulaire.wct_id, formulaire } }, () => "UUID-FICTIF",
+        { maintenant: new Date("2026-10-08T12:00:00Z"), decalageMinutesUTC: -240 })), proprietaire: "PERSONNE-FICTIVE", sequence: 1 };
+      // Trois champs exacts de contrats_sortie.py ; aucun écho WCT/personne/UUID inventé.
+      const confirmation = { intervention_id: formulaire.intervention_id, chantier_id: formulaire.chantier_id, lignes_declarees: lignes };
+      const resultat = interpreter({ ok: true, resultat: { accepte: true, resultat: confirmation,
+        registre: { taille: 3, hash_tete: "a".repeat(64) } } }, mutation);
+      expect(resultat).toEqual({ accepte: true, resume: confirmation });
     });
 
     test("rejet sans detail (forme réelle du contrat M6) -> verdict avec detail vide", () => {

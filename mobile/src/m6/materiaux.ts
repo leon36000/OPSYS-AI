@@ -1,3 +1,6 @@
+import type { MutationOutbox } from "../outbox/types";
+import { copierJsonLecture, JSON_LECTURE_INVALIDE } from "../protocole/jsonLecture";
+
 /**
  * Contrat mobile de `m6_declarer_materiaux_utilises` (M6.10, PLAN T1.4-f, DEFINITION-PRODUIT.md
  * §9.3/§9.7 étape 3 ; PLAN T1.4-i pour l'origine du WCT).
@@ -86,46 +89,103 @@ export type InterpretationDeclarerMateriauxUtilises =
   | { readonly accepte: true; readonly resultat: unknown }
   | { readonly accepte: false; readonly verdict: VerdictServeurMateriaux };
 
-function estObjet(valeur: unknown): valeur is Record<string, unknown> {
-  return typeof valeur === "object" && valeur !== null;
+function objet(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
 }
-
-function texteOu(valeur: unknown, repli: string): string {
-  return typeof valeur === "string" ? valeur : repli;
+function ferme(v: unknown, cles: readonly string[]): v is Record<string, unknown> {
+  return objet(v) && Object.keys(v).length === cles.length && cles.every(c => Object.hasOwn(v, c));
 }
-
-function verdictDepuisErreurTechnique(enveloppe: Record<string, unknown>): VerdictServeurMateriaux {
-  return { code: texteOu(enveloppe.erreur, "erreur_inconnue"), detail: texteOu(enveloppe.details, "") };
+const texte = (v: unknown): v is string => typeof v === "string" && v.length > 0;
+const quantite = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v > 0;
+const typeLigne = (v: unknown): v is TypeLigneMateriaux => TYPES_LIGNE_MATERIAUX.some(t => t === v);
+function ligne(v: unknown): v is LigneDeclareeChantierM6 {
+  if (!objet(v) || !typeLigne(v.type_ligne)) return false;
+  const cles = ["type_ligne", "materiau_id", "quantite", "unite",
+    ...(v.type_ligne === "prevu" ? ["quantite_estimee"] : []),
+    ...(v.type_ligne === "achat_terrain" ? ["photo_fournie", "recu_fourni"] : [])];
+  return ferme(v, cles) && texte(v.materiau_id) && texte(v.unite) && quantite(v.quantite) &&
+    (v.type_ligne !== "prevu" || quantite(v.quantite_estimee)) &&
+    (v.type_ligne !== "achat_terrain" || (typeof v.photo_fournie === "boolean" && typeof v.recu_fourni === "boolean" && (v.photo_fournie || v.recu_fourni)));
 }
-
-/**
- * Interprète la réponse BUSINESS de `m6_declarer_materiaux_utilises` — même patron défensif que
- * `interpreterResultatPointage`. **Différence de forme confirmée en lisant `outils.py`
- * (`declarer_materiaux_utilises`) : le verdict de refus ne porte que `{"code": code}`,
- * JAMAIS de `detail`** (contrairement à `verdicts.construire_verdict` utilisé par M4) — `detail`
- * est donc TOUJOURS lu défensivement (`texteOu(..., "")`) ici, une chaîne vide n'étant pas une
- * erreur de lecture mais la forme réelle et attendue de cette réponse précise. Les codes `REJ-*`
- * cités par `materiel.soumettre_materiaux_utilises` (`REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE`,
- * `REJ-DECLARATION-DEJA-SOUMISE`, `REJ-COUT-UNITAIRE-INTROUVABLE`, `REJ-WCT-INCONNU` (T1.4-i), et ceux de
- * `validation.valider_wct`/`valider_formulaire_materiaux_utilises`, non lus ici) sont affichés
- * TEL QUELS par `materials.tsx`, jamais retraduits en dur dans ce module (même discipline que
- * `complete.tsx`, mission item 2).
- */
-export function interpreterResultatDeclarerMateriauxUtilises(resultatBrut: unknown): InterpretationDeclarerMateriauxUtilises {
-  const enveloppe = estObjet(resultatBrut) ? resultatBrut : {};
-  if (enveloppe.ok === false) {
-    return { accepte: false, verdict: verdictDepuisErreurTechnique(enveloppe) };
+export interface ConfirmationMateriauxUtilisesM6 {
+  readonly intervention_id: string;
+  readonly chantier_id: string;
+  readonly lignes_declarees: readonly LigneDeclareeChantierM6[];
+}
+function formulaireMutation(v: unknown): FormulaireMateriauxUtilisesM6 | null {
+  if (!objet(v) || v.type !== "materials_submit" || !texte(v.proprietaire) ||
+    !ferme(v.payload, ["wct_id", "formulaire"]) || !texte(v.payload.wct_id)) return null;
+  const f = v.payload.formulaire;
+  if (!ferme(f, ["wct_id", "intervention_id", "chantier_id", "lignes_materiaux"]) ||
+    !texte(f.wct_id) || f.wct_id !== v.payload.wct_id || !texte(f.intervention_id) || v.chantierId !== f.intervention_id ||
+    !texte(f.chantier_id) || !Array.isArray(f.lignes_materiaux) || f.lignes_materiaux.length === 0 || !f.lignes_materiaux.every(ligne)) return null;
+  return { wct_id: f.wct_id, intervention_id: f.intervention_id, chantier_id: f.chantier_id, lignes_materiaux: f.lignes_materiaux };
+}
+function confirmation(v: unknown, f: FormulaireMateriauxUtilisesM6): ConfirmationMateriauxUtilisesM6 | null {
+  if (!ferme(v, ["intervention_id", "chantier_id", "lignes_declarees"]) || v.intervention_id !== f.intervention_id ||
+    v.chantier_id !== f.chantier_id || !Array.isArray(v.lignes_declarees) || v.lignes_declarees.length !== f.lignes_materiaux.length ||
+    !v.lignes_declarees.every(ligne)) return null;
+  for (let i = 0; i < v.lignes_declarees.length; i++) {
+    const recue = v.lignes_declarees[i], attendue = f.lignes_materiaux[i];
+    if (Object.keys(recue).some(k => Reflect.get(recue, k) !== Reflect.get(attendue, k))) return null;
   }
-  const resultatMetier = estObjet(enveloppe.resultat) ? enveloppe.resultat : undefined;
-
-  if (resultatMetier?.accepte === false) {
-    const v = estObjet(resultatMetier.verdict) ? resultatMetier.verdict : {};
-    return { accepte: false, verdict: { code: texteOu(v.code, "REJ-INCONNU"), detail: texteOu(v.detail, "") } };
+  return { intervention_id: f.intervention_id, chantier_id: f.chantier_id, lignes_declarees: v.lignes_declarees };
+}
+const INCONNU: InterpretationDeclarerMateriauxUtilises = { accepte: false,
+  verdict: { code: "accuse_invalide", detail: "Confirmation des matériaux inconnue ou non liée : intention conservée." } };
+const codeRefus = (v: unknown): v is string => typeof v === "string" && /^REJ-[A-Z0-9]+(?:-[A-Z0-9]+)*$/.test(v);
+// Ce refus d'identité natif précède toute écriture (_declarant_appareil/acces.acteur_de).
+// Il n'est pas une faute irréversible du formulaire ni une autorisation rétablie.
+function conserverRefusIdentite(detail: string): InterpretationDeclarerMateriauxUtilises {
+  return { accepte: false, verdict: { code: "accuse_invalide", detail: `REJ-IDENTITE-APPAREIL-INVALIDE : ${detail}` } };
+}
+const ERREURS_REFUS = ["invalid_request", "arguments_invalides", "hors_portee_role", "refus_metier", "outil_introuvable"];
+/** Confirmation native de contrats_sortie.py : intervention/chantier/lignes, sans écho WCT,
+ * UUID ni personne. Le contexte persistant lie ce tuple aux args et vérifie les deux WCT du
+ * payload ; il ne crée aucun champ de preuve absent de la réponse. Toute ambiguïté conserve
+ * l'intention (accuse_invalide), jamais un succès null ou un refus permanent inventé. */
+export function interpreterResultatDeclarerMateriauxUtilises(
+  resultatBrut: unknown, mutation?: MutationOutbox,
+): InterpretationDeclarerMateriauxUtilises {
+  const r = copierJsonLecture(resultatBrut);
+  if (r === JSON_LECTURE_INVALIDE || !objet(r)) return INCONNU;
+  const cles = Object.hasOwn(r, "rejoue") ? ["ok", "resultat", "rejoue"] : ["ok", "resultat"];
+  if (Object.hasOwn(r, "rejoue") && typeof r.rejoue !== "boolean") return INCONNU;
+  if (r.ok === false) {
+    if (!ferme(r, ["ok", "erreur", "details"]) || !texte(r.erreur) ||
+      !(codeRefus(r.erreur) || ERREURS_REFUS.includes(r.erreur)) || typeof r.details !== "string") return INCONNU;
+    return r.erreur === "REJ-IDENTITE-APPAREIL-INVALIDE" ? conserverRefusIdentite(r.details)
+      : { accepte: false, verdict: { code: r.erreur, detail: r.details } };
   }
-  if (resultatMetier?.accepte === true) {
-    return { accepte: true, resultat: resultatMetier.resultat ?? null };
+  if (!ferme(r, cles) || r.ok !== true || !objet(r.resultat)) return INCONNU;
+  const m = r.resultat;
+  if (m.accepte === false) {
+    if (!ferme(m, ["accepte", "verdict"]) || !objet(m.verdict)) return INCONNU;
+    const vc = Object.hasOwn(m.verdict, "detail") ? ["code", "detail"] : ["code"];
+    if (!ferme(m.verdict, vc) || !codeRefus(m.verdict.code) ||
+      (Object.hasOwn(m.verdict, "detail") && typeof m.verdict.detail !== "string")) return INCONNU;
+    const detail = typeof m.verdict.detail === "string" ? m.verdict.detail : "";
+    return m.verdict.code === "REJ-IDENTITE-APPAREIL-INVALIDE" ? conserverRefusIdentite(detail)
+      : { accepte: false, verdict: { code: m.verdict.code, detail } };
   }
-  return { accepte: true, resultat: null };
+  if (!ferme(m, ["accepte", "resultat", "registre"]) || m.accepte !== true ||
+    !ferme(m.registre, ["taille", "hash_tete"]) || typeof m.registre.taille !== "number" ||
+    !Number.isSafeInteger(m.registre.taille) || m.registre.taille < 1 || typeof m.registre.hash_tete !== "string" ||
+    !/^[0-9a-f]{64}$/.test(m.registre.hash_tete)) return INCONNU;
+  const c = copierJsonLecture(mutation);
+  if (c === JSON_LECTURE_INVALIDE) return INCONNU;
+  const f = formulaireMutation(c);
+  if (!f || m.registre.taille < f.lignes_materiaux.length) return INCONNU;
+  const resultat = confirmation(m.resultat, f);
+  return resultat ? { accepte: true, resultat } : INCONNU;
+}
+/** Un ancien statut envoyé ne libère une nouvelle intention que si son reçu persistant
+ * possède la vraie forme et correspond exactement au formulaire de cette intention. */
+export function validerRecuDeclarerMateriauxUtilises(mutation: MutationOutbox): boolean {
+  const c = copierJsonLecture(mutation);
+  if (c === JSON_LECTURE_INVALIDE || !objet(c) || c.statut !== "envoyee") return false;
+  const f = formulaireMutation(c);
+  return f !== null && confirmation(c.resumeAccepte, f) !== null;
 }
 
 /**

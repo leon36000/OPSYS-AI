@@ -3,13 +3,13 @@ import { interpreterResultatDefinirConsentementGps } from "../m4/consentementGps
 import { interpreterResultatDemarrerRoute } from "../m4/interventions";
 import { interpreterResultatPointage } from "../m4/pointage";
 import { interpreterResultatDeciderDemande } from "../approbations/contrat";
-import { interpreterResultatDeclarerMateriauxUtilises } from "../m6/materiaux";
+import { interpreterResultatDeclarerMateriauxUtilises, validerRecuDeclarerMateriauxUtilises } from "../m6/materiaux";
 import { interpreterResultatDeposerFichier } from "../fichiers/protocole";
 import { interpreterResultatEnregistrerInteraction } from "../m2/interaction";
 import { construireArgumentsDecisionMarketing, interpreterDecisionMarketing } from "../m7/decisionOutbox";
 import { construireArgumentsArbitrageMemoire, interpreterArbitrageMemoire } from "../m10/arbitrageOutbox";
 import type { DescripteurTypeMutation, InterpretationResultatMetier } from "./vidangeur";
-import type { TypeMutation } from "./types";
+import type { MutationOutbox, TypeMutation } from "./types";
 
 /**
  * Adapte `interpreterResultatPointage` (src/m4/pointage.ts, vocabulaire M4 — `accuse`) à la
@@ -60,8 +60,8 @@ function versInterpretationGeneriqueCompletion(resultatBrut: unknown): Interpret
 
 /** Même rôle, pour `m6_declarer_materiaux_utilises` (`src/m6/materiaux.ts`, PLAN T1.4-f) —
  * `materials.tsx`, M6.10. */
-function versInterpretationGeneriqueMateriaux(resultatBrut: unknown): InterpretationResultatMetier {
-  const interpretation = interpreterResultatDeclarerMateriauxUtilises(resultatBrut);
+function versInterpretationGeneriqueMateriaux(resultatBrut: unknown, mutation?: MutationOutbox): InterpretationResultatMetier {
+  const interpretation = interpreterResultatDeclarerMateriauxUtilises(resultatBrut, mutation);
   if (interpretation.accepte) {
     return { accepte: true, resume: interpretation.resultat };
   }
@@ -138,7 +138,8 @@ export const DESCRIPTEURS_MUTATION: ReadonlyMap<TypeMutation, DescripteurTypeMut
   ["job_status_change", { tool: "m4_demarrer_route", interpreterResultat: versInterpretationGeneriqueDemarrerRoute }],
   ["fichier_bloc", { tool: "m4_deposer_fichier", interpreterResultat: versInterpretationGeneriqueDeposerFichier }],
   ["job_completion", { tool: "m4_completer_intervention", interpreterResultat: versInterpretationGeneriqueCompletion }],
-  ["materials_submit", { tool: "m6_declarer_materiaux_utilises", interpreterResultat: versInterpretationGeneriqueMateriaux }],
+  ["materials_submit", { tool: "m6_declarer_materiaux_utilises", interpreterResultat: versInterpretationGeneriqueMateriaux,
+    serialiserParChantier: true, validerRecuEnvoye: validerRecuDeclarerMateriauxUtilises }],
   ["gps_consent_change", { tool: "m4_definir_consentement_gps", interpreterResultat: versInterpretationGeneriqueConsentementGps }],
   ["approval_decision", { tool: "m9_decider_demande_approbation", interpreterResultat: versInterpretationGeneriqueDecisionApprobation }],
   ["marketing_decision", { tool: "m7_decider_contenu", construireArguments: construireArgumentsDecisionMarketing,

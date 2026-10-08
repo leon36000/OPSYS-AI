@@ -1,0 +1,440 @@
+{
+  "fictif": true,
+  "scope": "Actual Cap Device context/idempotence and realM6writers/cataloguedM4publication SQLite; no Gateway/HTTP/phone, fixture photo_fournie boolean not actualphoto proof",
+  "created_utc": "2026-10-08T15:54:36.963949+00:00",
+  "source_sha256": {
+    "src/opsys/capacites.py": "09775fc2c4da31c83dbcffc155dea7b9524d817231a1cf3dcfe6b53beb528ccd",
+    "src/opsys/idempotence.py": "92d71470391035996c9b773a1f3bd47e8b798bc0809ab2ba5663383bafb8d7f3",
+    "departments/m06-material-control/src/m6_material_control/outils.py": "b2d55d41ffd7d002e7655153c6521a9b7bfd64dbb127b451a0f2a206dad13b86",
+    "departments/m06-material-control/src/m6_material_control/contrats_sortie.py": "050870343f810da7b6d38b663c732b58d63048a1cfdd8d9f1874d1ea1025100a",
+    "departments/m06-material-control/src/m6_material_control/materiel.py": "3cf92c791ce30fe385fe9fdf7969a4718b8e39305a80985d04bba67fc7748a69"
+  },
+  "sources_unchanged": true,
+  "captures": [
+    {
+      "phase": "six_types_confirmation_reelle",
+      "request": {
+        "wct_id": "WCT-ACK-SIX-LIGNES-FICTIF",
+        "formulaire": {
+          "wct_id": "WCT-ACK-SIX-LIGNES-FICTIF",
+          "intervention_id": "INT-ACK-FICTIF",
+          "chantier_id": "CH-REAPPRO-FICTIF",
+          "lignes_materiaux": [
+            {
+              "type_ligne": "prevu",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi",
+              "quantite_estimee": 1.25
+            },
+            {
+              "type_ligne": "non_prevu",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "retour",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "perte",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "bris",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "achat_terrain",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi",
+              "photo_fournie": true,
+              "recu_fourni": false
+            }
+          ]
+        }
+      },
+      "idempotencyKey": "UUID-ACK-SQL-FICTIF",
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "intervention_id": "INT-ACK-FICTIF",
+            "chantier_id": "CH-REAPPRO-FICTIF",
+            "lignes_declarees": [
+              {
+                "type_ligne": "prevu",
+                "materiau_id": "MAT-REAPPRO-FICTIF",
+                "quantite": 1.25,
+                "unite": "pi",
+                "quantite_estimee": 1.25
+              },
+              {
+                "type_ligne": "non_prevu",
+                "materiau_id": "MAT-REAPPRO-FICTIF",
+                "quantite": 1.25,
+                "unite": "pi"
+              },
+              {
+                "type_ligne": "retour",
+                "materiau_id": "MAT-REAPPRO-FICTIF",
+                "quantite": 1.25,
+                "unite": "pi"
+              },
+              {
+                "type_ligne": "perte",
+                "materiau_id": "MAT-REAPPRO-FICTIF",
+                "quantite": 1.25,
+                "unite": "pi"
+              },
+              {
+                "type_ligne": "bris",
+                "materiau_id": "MAT-REAPPRO-FICTIF",
+                "quantite": 1.25,
+                "unite": "pi"
+              },
+              {
+                "type_ligne": "achat_terrain",
+                "materiau_id": "MAT-REAPPRO-FICTIF",
+                "quantite": 1.25,
+                "unite": "pi",
+                "photo_fournie": true,
+                "recu_fourni": false
+              }
+            ]
+          },
+          "registre": {
+            "taille": 7,
+            "hash_tete": "866b57d59397f8161832df0792b054ad71cf72def40ffee0fb0fb7433f54ed4e"
+          }
+        },
+        "rejoue": false
+      },
+      "tables_compared": 49,
+      "changed_tables": [
+        "approbations",
+        "journal",
+        "mutations_appliquees",
+        "registres_maillons"
+      ],
+      "artefacts_before": 0,
+      "artefacts_after": 0
+    },
+    {
+      "phase": "meme_UUID_rejoue",
+      "request": {
+        "wct_id": "WCT-ACK-SIX-LIGNES-FICTIF",
+        "formulaire": {
+          "wct_id": "WCT-ACK-SIX-LIGNES-FICTIF",
+          "intervention_id": "INT-ACK-FICTIF",
+          "chantier_id": "CH-REAPPRO-FICTIF",
+          "lignes_materiaux": [
+            {
+              "type_ligne": "prevu",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi",
+              "quantite_estimee": 1.25
+            },
+            {
+              "type_ligne": "non_prevu",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "retour",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "perte",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "bris",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "achat_terrain",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi",
+              "photo_fournie": true,
+              "recu_fourni": false
+            }
+          ]
+        }
+      },
+      "idempotencyKey": "UUID-ACK-SQL-FICTIF",
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "intervention_id": "INT-ACK-FICTIF",
+            "chantier_id": "CH-REAPPRO-FICTIF",
+            "lignes_declarees": [
+              {
+                "type_ligne": "prevu",
+                "materiau_id": "MAT-REAPPRO-FICTIF",
+                "quantite": 1.25,
+                "unite": "pi",
+                "quantite_estimee": 1.25
+              },
+              {
+                "type_ligne": "non_prevu",
+                "materiau_id": "MAT-REAPPRO-FICTIF",
+                "quantite": 1.25,
+                "unite": "pi"
+              },
+              {
+                "type_ligne": "retour",
+                "materiau_id": "MAT-REAPPRO-FICTIF",
+                "quantite": 1.25,
+                "unite": "pi"
+              },
+              {
+                "type_ligne": "perte",
+                "materiau_id": "MAT-REAPPRO-FICTIF",
+                "quantite": 1.25,
+                "unite": "pi"
+              },
+              {
+                "type_ligne": "bris",
+                "materiau_id": "MAT-REAPPRO-FICTIF",
+                "quantite": 1.25,
+                "unite": "pi"
+              },
+              {
+                "type_ligne": "achat_terrain",
+                "materiau_id": "MAT-REAPPRO-FICTIF",
+                "quantite": 1.25,
+                "unite": "pi",
+                "photo_fournie": true,
+                "recu_fourni": false
+              }
+            ]
+          },
+          "registre": {
+            "taille": 7,
+            "hash_tete": "866b57d59397f8161832df0792b054ad71cf72def40ffee0fb0fb7433f54ed4e"
+          }
+        },
+        "rejoue": true
+      },
+      "tables_compared": 49,
+      "changed_tables": [],
+      "artefacts_before": 0,
+      "artefacts_after": 0
+    },
+    {
+      "phase": "identite_inactive_mode_ombre_demande",
+      "request": {
+        "wct_id": "WCT-ACK-SIX-LIGNES-FICTIF",
+        "formulaire": {
+          "wct_id": "WCT-ACK-SIX-LIGNES-FICTIF",
+          "intervention_id": "INT-ACK-FICTIF",
+          "chantier_id": "CH-REAPPRO-FICTIF",
+          "lignes_materiaux": [
+            {
+              "type_ligne": "prevu",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi",
+              "quantite_estimee": 1.25
+            },
+            {
+              "type_ligne": "non_prevu",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "retour",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "perte",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "bris",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "achat_terrain",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi",
+              "photo_fournie": true,
+              "recu_fourni": false
+            }
+          ]
+        }
+      },
+      "idempotencyKey": "UUID-ACK-AUTH-SQL-FICTIF",
+      "response": {
+        "ok": true,
+        "statut": "en_attente_approbation",
+        "demande_id": "67ea21f57ab6",
+        "details": "Action T1 (N3) en mode ombre : un humain doit l'approuver dans la console OPSYS. Ne la présente pas comme faite.",
+        "rejoue": false
+      },
+      "tables_compared": 49,
+      "changed_tables": [
+        "approbations",
+        "mutations_appliquees"
+      ],
+      "artefacts_before": 0,
+      "artefacts_after": 0
+    },
+    {
+      "phase": "direct_outil_identite_inactive_sans_Cap_idempotence",
+      "request": {
+        "wct_id": "WCT-ACK-SIX-LIGNES-FICTIF",
+        "formulaire": {
+          "wct_id": "WCT-ACK-SIX-LIGNES-FICTIF",
+          "intervention_id": "INT-ACK-FICTIF",
+          "chantier_id": "CH-REAPPRO-FICTIF",
+          "lignes_materiaux": [
+            {
+              "type_ligne": "prevu",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi",
+              "quantite_estimee": 1.25
+            },
+            {
+              "type_ligne": "non_prevu",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "retour",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "perte",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "bris",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "achat_terrain",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi",
+              "photo_fournie": true,
+              "recu_fourni": false
+            }
+          ]
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": false,
+          "verdict": {
+            "code": "REJ-IDENTITE-APPAREIL-INVALIDE",
+            "detail": "personne 'admin.reappro.fictif' inconnue, inactive, ou ne porte plus le rôle 'admin' porté par le jeton d'appareil (ou identité non vérifiable hors transaction)"
+          }
+        }
+      },
+      "scope": "actual executer_atomique Device context, not publicCap idempotent path"
+    },
+    {
+      "phase": "meme_UUID_apres_reactivation_rejoue_demande",
+      "request": {
+        "wct_id": "WCT-ACK-SIX-LIGNES-FICTIF",
+        "formulaire": {
+          "wct_id": "WCT-ACK-SIX-LIGNES-FICTIF",
+          "intervention_id": "INT-ACK-FICTIF",
+          "chantier_id": "CH-REAPPRO-FICTIF",
+          "lignes_materiaux": [
+            {
+              "type_ligne": "prevu",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi",
+              "quantite_estimee": 1.25
+            },
+            {
+              "type_ligne": "non_prevu",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "retour",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "perte",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "bris",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi"
+            },
+            {
+              "type_ligne": "achat_terrain",
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "quantite": 1.25,
+              "unite": "pi",
+              "photo_fournie": true,
+              "recu_fourni": false
+            }
+          ]
+        }
+      },
+      "idempotencyKey": "UUID-ACK-AUTH-SQL-FICTIF",
+      "response": {
+        "ok": true,
+        "statut": "en_attente_approbation",
+        "demande_id": "67ea21f57ab6",
+        "details": "Action T1 (N3) en mode ombre : un humain doit l'approuver dans la console OPSYS. Ne la présente pas comme faite.",
+        "rejoue": true
+      },
+      "tables_compared": 49,
+      "changed_tables": [],
+      "artefacts_before": 0,
+      "artefacts_after": 0
+    }
+  ]
+}
