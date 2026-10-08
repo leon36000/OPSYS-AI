@@ -87,6 +87,7 @@ ADMIN_SEUL = frozenset({
     # réservation, emplacements, disponibilité : l'admin seulement (T4.14) ; jamais l'employé ni le vendeur
     "m6_reserver_materiel", "m6_liberer_reservation", "m6_transferer_stock", "m6_lire_disponibilite",
     "m6_lister_wct_pertes_appareil", "m6_lire_pertes_alertes_wct_appareil",
+    "m6_lire_reapprovisionnement_appareil",
     "m7_lister_file_approbation", "m7_lister_demandes_avis",  # avis à relire avant d'écrire au client (T1.5-d)
     "m7_approuver_budget_campagne", "m7_configurer_profil_marque",  # décisions propriétaires Brand/Growth
     "m7_decider_creneau_calendrier", "m7_decider_reponse_avis",  # décisions propriétaires avant tout export
@@ -246,7 +247,7 @@ def test_outils_qui_lisent_ou_approuvent_pour_les_autres_absents_de_l_employe(ro
     "m4_lire_retards_incidents",  # les reports et les incidents de tous : dispatch de l'admin (T4.27-a)
     "m6_reserver_materiel", "m6_liberer_reservation",  # réservation par chantier (T4.14)
     "m6_transferer_stock", "m6_lire_disponibilite", "m6_lister_wct_pertes_appareil",
-    "m6_lire_pertes_alertes_wct_appareil",  # emplacements et stock réservé et disponible (T4.14)
+    "m6_lire_pertes_alertes_wct_appareil", "m6_lire_reapprovisionnement_appareil",  # lectures admin M6
 ])
 def test_l_employe_ne_lit_ni_n_approuve_rien_des_autres(roles_reels, outil):
     assert outil not in roles_reels["employee"]
@@ -259,7 +260,8 @@ def test_l_employe_ne_lit_ni_n_approuve_rien_des_autres(roles_reels, outil):
     "m4_confirmer_localisation", "m4_proposer_localisation", "m4_proposer_cedule", "m4_appliquer_cedule",
     "m4_verifier_preparation", "m4_verifier_meteo_creneau", "m6_reserver_materiel", "m6_liberer_reservation",
     "m6_transferer_stock", "m6_lire_disponibilite", "m6_lister_wct_pertes_appareil",
-    "m6_lire_pertes_alertes_wct_appareil", "m4_lire_meteo_intervention", "m4_lire_retards_incidents",
+    "m6_lire_pertes_alertes_wct_appareil", "m6_lire_reapprovisionnement_appareil",
+    "m4_lire_meteo_intervention", "m4_lire_retards_incidents",
 ])
 def test_le_vendeur_n_a_ni_finances_ni_couts_du_proprietaire(roles_reels, outil):
     assert outil not in roles_reels["seller"]

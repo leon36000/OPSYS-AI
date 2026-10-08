@@ -23,6 +23,7 @@ jest.mock("../admin/pertesAlertes", () => ({
 jest.mock("@/admin/service", () => ({ chargerDisponibiliteM6: jest.fn(), chargerDigestM6: jest.fn() }), { virtual: true });
 // Le child, ses modèles et ses gardes de configuration sont réellement composés par la route.
 jest.mock("@/admin/PertesAlertesM6", () => jest.requireActual("../admin/PertesAlertesM6"), { virtual: true });
+jest.mock("@/admin/ReapprovisionnementM6", () => ({ ReapprovisionnementM6: () => null }), { virtual: true });
 jest.mock("@/admin/composants", () => jest.requireActual("../admin/composants"), { virtual: true });
 jest.mock("@/ecrans/adminCommun", () => jest.requireActual("./adminCommun"), { virtual: true });
 jest.mock("@/ecrans/stock", () => jest.requireActual("./stock"), { virtual: true });

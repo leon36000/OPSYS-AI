@@ -103,6 +103,7 @@ from . import (
     materiel,
     pertes_appareil,
     reapprovisionnement,
+    reapprovisionnement_appareil,
     reception,
     reservations,
     stock,
@@ -1626,6 +1627,80 @@ def lire_pertes_alertes_wct_appareil(wct_id: str | None = None, decalage: int = 
     return _lecture_pertes_appareil(wct_id, decalage, limite, detail=True)
 
 
+def _configuration_reapprovisionnement_appareil() -> dict[str, Any]:
+    contenu = _MANIFESTE.read_bytes()
+    import hashlib
+
+    empreinte = hashlib.sha256(contenu).hexdigest()
+    try:
+        document = yaml.safe_load(contenu.decode("utf-8"))
+        if document is None:
+            document = {}
+        configuration = document.get("configuration", {}) if isinstance(document, dict) else None
+        if configuration is None and isinstance(document, dict):
+            configuration = {}
+        section = configuration.get("reapprovisionnement") if isinstance(configuration, dict) else False
+        if section is None:
+            articles = {}
+        elif isinstance(section, dict):
+            articles = section.get("articles", {})
+            if articles is None:
+                articles = {}
+            elif not isinstance(articles, dict):
+                articles = None
+        else:
+            articles = None
+    except (UnicodeDecodeError, yaml.YAMLError):
+        articles = None
+    return {"sha256": empreinte, "articles": articles}
+
+
+def _sources_reapprovisionnement_appareil() -> dict[str, Any]:
+    configuration = _configuration_reapprovisionnement_appareil()
+    cnx = stockage.connexion_courante()
+    copies = {}
+    for nom in ("besoins_commande", "principal", "reservations", "emplacements", "wct_recus"):
+        lignes = cnx.execute(select(REGISTRES.c.rang, REGISTRES.c.maillon).where(
+            REGISTRES.c.departement == _DEPARTEMENT, REGISTRES.c.registre == nom
+        ).order_by(REGISTRES.c.rang)).all()
+        copies[nom] = [{"rang": r.rang, "maillon": codec.decoder(r.maillon)} for r in lignes]
+    derniers = {}
+    for ligne in copies["besoins_commande"]:
+        m = ligne["maillon"]
+        if isinstance(m, dict) and isinstance(m.get("materiau_id"), str):
+            derniers[m["materiau_id"]] = m.get("evenement_declencheur")
+    ids = [id_ for id_ in derniers.values() if isinstance(id_, str)]
+    publications = [{"evenement_id": r.evenement_id, "type": r.type_evenement, "producteur": r.producteur,
+                     "charge": codec.decoder(r.charge)} for r in cnx.execute(
+        select(EVENEMENTS_SORTANTS.c.evenement_id, EVENEMENTS_SORTANTS.c.type_evenement,
+               EVENEMENTS_SORTANTS.c.producteur, EVENEMENTS_SORTANTS.c.charge)
+        .where(EVENEMENTS_SORTANTS.c.evenement_id.in_(ids)).order_by(EVENEMENTS_SORTANTS.c.evenement_id)).all()]
+    if sum(len(v) for v in copies.values()) + len(publications) <= reapprovisionnement_appareil.PLAFOND_LIGNES:
+        for p in publications:
+            p["catalogue_valide"] = not erreurs_charge(p["type"], p["charge"])
+    recus = copies.pop("wct_recus")
+    return {"registres": copies, "recus_m6": recus, "publications": publications, "configuration": configuration}
+
+
+def lire_reapprovisionnement_appareil(decalage: int = 0, limite: int = 8) -> dict[str, Any]:
+    if contexte.identite_appelante() is None:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-IDENTITE-APPAREIL-INVALIDE", detail="cette lecture exige une personne admin active confirmée en base")}
+    _, verdict = _acteur_admin_ou_agent()
+    if verdict is not None:
+        return {"accepte": False, "verdict": verdicts.construire_verdict(
+            "REJ-IDENTITE-APPAREIL-INVALIDE", detail="cette lecture exige une personne admin active confirmée en base")}
+    if not reapprovisionnement_appareil.arguments_valides(decalage, limite):
+        return reapprovisionnement_appareil.refuser("ARGUMENTS-INVALIDES")
+    try:
+        sources = _sources_reapprovisionnement_appareil()
+    except OSError:
+        return reapprovisionnement_appareil.refuser("CONFIGURATION-ILLISIBLE")
+    except Exception:
+        return reapprovisionnement_appareil.refuser("REGISTRE-INVALIDE")
+    return reapprovisionnement_appareil.lire(sources, decalage, limite)
+
+
 def outils() -> tuple[Outil, ...]:
     return (
         Outil(
@@ -2151,6 +2226,17 @@ def outils() -> tuple[Outil, ...]:
                 "limite": {"type": "integer", "minimum": 1, "maximum": 8}},
                 "required": ["wct_id", "decalage", "limite"], "additionalProperties": False},
             fonction=lire_pertes_alertes_wct_appareil, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m6_lire_reapprovisionnement_appareil",
+            description=("État courant des articles déjà constatés M6, paramètres de réapprovisionnement et "
+                         "références du dernier constat. Stock théorique/disponible, unité non confirmée ; "
+                         "DEVICE admin active, page courante, aucune commande ni écriture."),
+            parametres={"type": "object", "properties": {
+                "decalage": {"type": "integer", "minimum": 0, "maximum": 10000},
+                "limite": {"type": "integer", "minimum": 1, "maximum": 8}},
+                "required": ["decalage", "limite"], "additionalProperties": False},
+            fonction=lire_reapprovisionnement_appareil, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
         ),
     )
 

@@ -4,6 +4,7 @@ import { ScrollView, Text } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useNetInfo } from "@react-native-community/netinfo";
 import { PertesAlertesM6 } from "@/admin/PertesAlertesM6";
+import { ReapprovisionnementM6 } from "@/admin/ReapprovisionnementM6";
 import { chargerDisponibiliteM6, chargerDigestM6 } from "@/admin/service";
 import { BoutonSecondaire, Carte, Depliant, EtatSection, Lignes, stylesAdmin as styles } from "@/admin/composants";
 import type { ResultatSection } from "@/admin/lecture";
@@ -64,6 +65,7 @@ export default function EcranStock() {
     <Text style={styles.titre}>{t("admin.stock.titre")}</Text>
     <BandeauIdentite />
     <PertesAlertesM6 connected={connected} />
+    <ReapprovisionnementM6 connected={connected} />
     <BoutonSecondaire texte={t("admin.commun.rafraichir")} desactive={!captureRendu.session || !captureRendu.courante()}
       onPress={() => { if (captureRendu.session && captureRendu.courante() && sequenceRendu === sequence.current) void charger(); }} />
     {sessionAbsente ? <Text style={styles.erreur}>{t("admin.commun.sansSession")}</Text> : <>

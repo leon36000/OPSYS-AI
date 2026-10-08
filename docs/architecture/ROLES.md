@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 131 outils sur 223 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 132 outils sur 224 sont déclarés.
 
 ### `employee` (14 outils) : §9.3, le terrain
 
@@ -120,7 +120,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (130 outils) : §9.5 + employé + vendeur
+### `admin` (131 outils) : §9.5 + employé + vendeur
 
 Les 14 outils de l'employé, les 14 du vendeur, et :
 
@@ -160,6 +160,7 @@ Les 14 outils de l'employé, les 14 du vendeur, et :
 | M6 | `m6_receptionner_commande`, `m6_soumettre_comptage` | §9.5 « réception rapide » ; §9 « inventaire ». |
 | M6 | `m6_produire_digest`, `m6_evaluer_variance_chantier` | §9.5 « stock critique », « écarts de chantier ». Ces calculs préexistants gardent la voie interne ; rôle admin courant revérifié avant registre pour une identité appareil. Le digest décrit les variances d’inventaire, pas les lignes PERTE/BRIS. |
 | M6 | `m6_lister_wct_pertes_appareil`, `m6_lire_pertes_alertes_wct_appareil` (T0/N0) | T4.27-b : WCT reçus M6 rapprochés des publications M4, PERTE/BRIS déclarés signés et historique fixe des quatre statuts M6 publiés. Identité DEVICE admin actuelle obligatoire avant sources ; références natives, unité/date des pertes inconnues, aucune cause ou personne attribuée. Pages courantes et enveloppe5400 ; sans stock courant, réapprovisionnement, coût, effet ni artefact. |
+| M6 | `m6_lire_reapprovisionnement_appareil` (T0/N0) | Réapprovisionnement courant : articles déjà constatés M6, stock théorique/en main/disponible, seuils et cible du seul manifeste, dernier constat rapproché de M4. DEVICE admin actuel avant configuration/SQL ; pages courantes, unité homogène inconnue, aucune commande, réconciliation, écriture ou artefact. |
 | M6 | `m6_reserver_materiel` (N2), `m6_liberer_reservation` (N2), `m6_transferer_stock` (T1, N3), `m6_lire_disponibilite` (T0) | §7 M6.8 « réservation par chantier », M6.9 « emplacements de stock », §9.5 tableau de bord « stock réservé et disponible », « chantiers sans matériel prêt » (T4.14). L'admin réserve le matériel d'un devis accepté (le bus le fait déjà à l'acceptation ; l'outil sert au prévu saisi à la main et à re-réserver), libère une réservation (annulation : N2, rien n'est dépensé ni supprimé, la trace reste), déplace du stock entre emplacements (audité : acteur, motif, avant et après ; N3 par défaut, l'humain qui agit lui-même n'attend rien) et lit ce qui est en main, réservé et disponible, et où. Fermés à l'employé : un transfert vers le rebut ou le fournisseur retire du stock de ce qu'on peut réserver, et la lecture porte des quantités sur tous les chantiers. Les quatre refusent aussi, dans le code, tout rôle d'appareil autre qu'`admin` (`REJ-IDENTITE-APPAREIL-INVALIDE`) : le socle n'applique pas `roles_appareil` à la lecture (T0) hors du core. Aucun ne crée de bon de commande. |
 | M7 | `m7_lister_file_approbation` | §9.5 M7 : contenus et réponses aux avis à approuver. |
 | M7 | `m7_lire_performance_campagnes` (T0) | Lecture des cohortes attribuées aux campagnes depuis M2, des devis acceptés depuis M3 et des marges publiées par M5. Réservée à l'admin; une marge attribuée ne prouve pas un encaissement. Coût publicitaire, impressions, clics et ROI restent inconnus sans leurs sources. Aucun budget modifié ni publication. |

@@ -18,6 +18,7 @@ jest.mock("@/ecrans/stock", () => jest.requireActual("./stock"), { virtual: true
 jest.mock("@/identite/BandeauIdentite", () => ({ BandeauIdentite: () => null }), { virtual: true });
 // La nouvelle lecture WCT est qualifiée séparément ; ce voisin conserve son périmètre global.
 jest.mock("@/admin/PertesAlertesM6", () => ({ PertesAlertesM6: () => null }), { virtual: true });
+jest.mock("@/admin/ReapprovisionnementM6", () => ({ ReapprovisionnementM6: () => null }), { virtual: true });
 jest.mock("@react-native-community/netinfo", () => ({ useNetInfo: () => ({ isConnected: true }) }));
 jest.mock("@/protocole/configuration", () => ({ capturerSessionAdminLecture: () => ({ session: { personne: "admin-fictif" }, courante: () => true }) }), { virtual: true });
 jest.mock("@/roles/contexte", () => ({ useSessionAppareil: () => "admin-fictif" }), { virtual: true });

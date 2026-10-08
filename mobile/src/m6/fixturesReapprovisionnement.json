@@ -1,0 +1,2599 @@
+{
+  "fictif": true,
+  "scope": "Python executer_atomique/SQLite réel ; vrai writer M6 et publication M4 cataloguée via bus ; M4completion/Gateway pas exécutés ici",
+  "parent_supplied_ROOT": "4ee2d616c1863df19c06c3560a4d7c1cb7727ec9",
+  "source_sha256": {
+    "departments/m06-material-control/src/m6_material_control/reapprovisionnement_appareil.py": "1d7e17c51df4751fcb69a6cc2ef9da04b8c9a50443e7f37393eeb5ffedab227c",
+    "departments/m06-material-control/src/m6_material_control/outils.py": "b2d55d41ffd7d002e7655153c6521a9b7bfd64dbb127b451a0f2a206dad13b86",
+    "departments/m06-material-control/tests/test_lecture_reapprovisionnement_appareil.py": "d23ab366ce3b441aa1f5ee621b913bb5b148ac8f319915af8dff18e9ad11efcf",
+    "departments/m06-material-control/docs/LECTURE-REAPPROVISIONNEMENT-APPAREIL.md": "91ff2057774792c79dbdf83e84fc931a9dabfc6b872e69f8ad3b1ebc10d3c686",
+    "tests/test_portees_appareil.py": "93a185875a47498ff2b7ab6c401901e3f47e59ed3b51d56c882c27842be483f7",
+    "docs/architecture/ROLES.md": "faf24ce2030d7cc5c9305eec9ca284fe2440d7bfe4f926b21cde1d3be26c964c"
+  },
+  "sources_owned_inchangees": true,
+  "contrat_sha256": "24f8f7927de85556277b2fb6e737b53aa54d8d586d7fc5cc39ecdf8057a9a66a",
+  "captures": [
+    {
+      "phase": "corpus-vide",
+      "request": {
+        "toolName": "m6_lire_reapprovisionnement_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "articles": [],
+          "source_configuration": {
+            "fichier": "departments/m06-material-control/department.yaml",
+            "chemin": "configuration.reapprovisionnement.articles",
+            "sha256": "4fb2d54cc366285cc33f7c054b39a44fe9210c1e7d9d51ffcc630eeeb9fcaf0d"
+          },
+          "sources_registres": [
+            {
+              "registre": "besoins_commande",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            {
+              "registre": "principal",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            {
+              "registre": "reservations",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            {
+              "registre": "emplacements",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          ],
+          "source_publications": {
+            "evenements": {
+              "type": "m4.travaux_termines",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "recus_m6": {
+              "registre": "wct_recus",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          },
+          "couverture": {
+            "articles": "articles_deja_constates",
+            "stock": "theorique_disponible",
+            "unites": "homogeneite_non_confirmee",
+            "horodatage": "dernier_constat_sans_date_calcul",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 0,
+            "total": 0,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 1512
+        }
+      },
+      "envelope": {
+        "articles": [],
+        "source_configuration": {
+          "fichier": "departments/m06-material-control/department.yaml",
+          "chemin": "configuration.reapprovisionnement.articles",
+          "sha256": "4fb2d54cc366285cc33f7c054b39a44fe9210c1e7d9d51ffcc630eeeb9fcaf0d"
+        },
+        "sources_registres": [
+          {
+            "registre": "besoins_commande",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          {
+            "registre": "principal",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          {
+            "registre": "reservations",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          {
+            "registre": "emplacements",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        ],
+        "source_publications": {
+          "evenements": {
+            "type": "m4.travaux_termines",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          "recus_m6": {
+            "registre": "wct_recus",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "couverture": {
+          "articles": "articles_deja_constates",
+          "stock": "theorique_disponible",
+          "unites": "homogeneite_non_confirmee",
+          "horodatage": "dernier_constat_sans_date_calcul",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 0,
+          "total": 0,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 1512
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "stock-bas-vrai-writer",
+      "request": {
+        "toolName": "m6_lire_reapprovisionnement_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "articles": [
+            {
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "statut": "stock_bas",
+              "chiffres": {
+                "stock_theorique": "144",
+                "hors_main": "0",
+                "en_main": "144",
+                "reserve": "0",
+                "disponible": "144"
+              },
+              "seuil_reapprovisionnement": "150",
+              "quantite_cible": "300",
+              "quantite_a_commander": "156",
+              "stock_negatif": false,
+              "code_configuration": null,
+              "unite": null,
+              "unite_dernier_constat": "pi",
+              "dernier_constat": {
+                "reference": {
+                  "registre": "besoins_commande",
+                  "rang": 0,
+                  "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+                },
+                "type_entree": "besoin_commande",
+                "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+                "horodatage": "2026-09-15T12:00:00+00:00",
+                "chantier_id": "CH-REAPPRO-FICTIF",
+                "reference_bus": {
+                  "type": "m4.travaux_termines",
+                  "evenement_id": "WCT-REAPPRO-FICTIF"
+                }
+              }
+            }
+          ],
+          "source_configuration": {
+            "fichier": "departments/m06-material-control/department.yaml",
+            "chemin": "configuration.reapprovisionnement.articles",
+            "sha256": "4fb2d54cc366285cc33f7c054b39a44fe9210c1e7d9d51ffcc630eeeb9fcaf0d"
+          },
+          "sources_registres": [
+            {
+              "registre": "besoins_commande",
+              "lignes": 1,
+              "empreinte_snapshot": "bb37b2ae8588ef624bd9d5c0952fc470df3cadc12d090b20aed9152cc54ff28e"
+            },
+            {
+              "registre": "principal",
+              "lignes": 2,
+              "empreinte_snapshot": "cb50504739cf6f060009ae0567eff7db876c7d82ba16b06bb7efb631ab0ce00c"
+            },
+            {
+              "registre": "reservations",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            {
+              "registre": "emplacements",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          ],
+          "source_publications": {
+            "evenements": {
+              "type": "m4.travaux_termines",
+              "lignes": 1,
+              "empreinte_snapshot": "ac0471ce2cb73fa6fec19395377355897dd930d9f90eadf196e34132591fab6f"
+            },
+            "recus_m6": {
+              "registre": "wct_recus",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          },
+          "couverture": {
+            "articles": "articles_deja_constates",
+            "stock": "theorique_disponible",
+            "unites": "homogeneite_non_confirmee",
+            "horodatage": "dernier_constat_sans_date_calcul",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 1,
+            "total": 1,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 2292
+        }
+      },
+      "envelope": {
+        "articles": [
+          {
+            "materiau_id": "MAT-REAPPRO-FICTIF",
+            "statut": "stock_bas",
+            "chiffres": {
+              "stock_theorique": "144",
+              "hors_main": "0",
+              "en_main": "144",
+              "reserve": "0",
+              "disponible": "144"
+            },
+            "seuil_reapprovisionnement": "150",
+            "quantite_cible": "300",
+            "quantite_a_commander": "156",
+            "stock_negatif": false,
+            "code_configuration": null,
+            "unite": null,
+            "unite_dernier_constat": "pi",
+            "dernier_constat": {
+              "reference": {
+                "registre": "besoins_commande",
+                "rang": 0,
+                "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+              },
+              "type_entree": "besoin_commande",
+              "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+              "horodatage": "2026-09-15T12:00:00+00:00",
+              "chantier_id": "CH-REAPPRO-FICTIF",
+              "reference_bus": {
+                "type": "m4.travaux_termines",
+                "evenement_id": "WCT-REAPPRO-FICTIF"
+              }
+            }
+          }
+        ],
+        "source_configuration": {
+          "fichier": "departments/m06-material-control/department.yaml",
+          "chemin": "configuration.reapprovisionnement.articles",
+          "sha256": "4fb2d54cc366285cc33f7c054b39a44fe9210c1e7d9d51ffcc630eeeb9fcaf0d"
+        },
+        "sources_registres": [
+          {
+            "registre": "besoins_commande",
+            "lignes": 1,
+            "empreinte_snapshot": "bb37b2ae8588ef624bd9d5c0952fc470df3cadc12d090b20aed9152cc54ff28e"
+          },
+          {
+            "registre": "principal",
+            "lignes": 2,
+            "empreinte_snapshot": "cb50504739cf6f060009ae0567eff7db876c7d82ba16b06bb7efb631ab0ce00c"
+          },
+          {
+            "registre": "reservations",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          {
+            "registre": "emplacements",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        ],
+        "source_publications": {
+          "evenements": {
+            "type": "m4.travaux_termines",
+            "lignes": 1,
+            "empreinte_snapshot": "ac0471ce2cb73fa6fec19395377355897dd930d9f90eadf196e34132591fab6f"
+          },
+          "recus_m6": {
+            "registre": "wct_recus",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "couverture": {
+          "articles": "articles_deja_constates",
+          "stock": "theorique_disponible",
+          "unites": "homogeneite_non_confirmee",
+          "horodatage": "dernier_constat_sans_date_calcul",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 1,
+          "total": 1,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 2292
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "stock-suffisant-courant",
+      "request": {
+        "toolName": "m6_lire_reapprovisionnement_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "articles": [
+            {
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "statut": "stock_suffisant",
+              "chiffres": {
+                "stock_theorique": "150",
+                "hors_main": "0",
+                "en_main": "150",
+                "reserve": "0",
+                "disponible": "150"
+              },
+              "seuil_reapprovisionnement": "150",
+              "quantite_cible": "300",
+              "quantite_a_commander": null,
+              "stock_negatif": false,
+              "code_configuration": null,
+              "unite": null,
+              "unite_dernier_constat": "pi",
+              "dernier_constat": {
+                "reference": {
+                  "registre": "besoins_commande",
+                  "rang": 0,
+                  "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+                },
+                "type_entree": "besoin_commande",
+                "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+                "horodatage": "2026-09-15T12:00:00+00:00",
+                "chantier_id": "CH-REAPPRO-FICTIF",
+                "reference_bus": {
+                  "type": "m4.travaux_termines",
+                  "evenement_id": "WCT-REAPPRO-FICTIF"
+                }
+              }
+            }
+          ],
+          "source_configuration": {
+            "fichier": "departments/m06-material-control/department.yaml",
+            "chemin": "configuration.reapprovisionnement.articles",
+            "sha256": "4fb2d54cc366285cc33f7c054b39a44fe9210c1e7d9d51ffcc630eeeb9fcaf0d"
+          },
+          "sources_registres": [
+            {
+              "registre": "besoins_commande",
+              "lignes": 1,
+              "empreinte_snapshot": "bb37b2ae8588ef624bd9d5c0952fc470df3cadc12d090b20aed9152cc54ff28e"
+            },
+            {
+              "registre": "principal",
+              "lignes": 3,
+              "empreinte_snapshot": "5abfe01caac629302d8380d07c70092fc20750f626a58f221ccf6a8eb458e65e"
+            },
+            {
+              "registre": "reservations",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            {
+              "registre": "emplacements",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          ],
+          "source_publications": {
+            "evenements": {
+              "type": "m4.travaux_termines",
+              "lignes": 1,
+              "empreinte_snapshot": "ac0471ce2cb73fa6fec19395377355897dd930d9f90eadf196e34132591fab6f"
+            },
+            "recus_m6": {
+              "registre": "wct_recus",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          },
+          "couverture": {
+            "articles": "articles_deja_constates",
+            "stock": "theorique_disponible",
+            "unites": "homogeneite_non_confirmee",
+            "horodatage": "dernier_constat_sans_date_calcul",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 1,
+            "total": 1,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 2297
+        }
+      },
+      "envelope": {
+        "articles": [
+          {
+            "materiau_id": "MAT-REAPPRO-FICTIF",
+            "statut": "stock_suffisant",
+            "chiffres": {
+              "stock_theorique": "150",
+              "hors_main": "0",
+              "en_main": "150",
+              "reserve": "0",
+              "disponible": "150"
+            },
+            "seuil_reapprovisionnement": "150",
+            "quantite_cible": "300",
+            "quantite_a_commander": null,
+            "stock_negatif": false,
+            "code_configuration": null,
+            "unite": null,
+            "unite_dernier_constat": "pi",
+            "dernier_constat": {
+              "reference": {
+                "registre": "besoins_commande",
+                "rang": 0,
+                "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+              },
+              "type_entree": "besoin_commande",
+              "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+              "horodatage": "2026-09-15T12:00:00+00:00",
+              "chantier_id": "CH-REAPPRO-FICTIF",
+              "reference_bus": {
+                "type": "m4.travaux_termines",
+                "evenement_id": "WCT-REAPPRO-FICTIF"
+              }
+            }
+          }
+        ],
+        "source_configuration": {
+          "fichier": "departments/m06-material-control/department.yaml",
+          "chemin": "configuration.reapprovisionnement.articles",
+          "sha256": "4fb2d54cc366285cc33f7c054b39a44fe9210c1e7d9d51ffcc630eeeb9fcaf0d"
+        },
+        "sources_registres": [
+          {
+            "registre": "besoins_commande",
+            "lignes": 1,
+            "empreinte_snapshot": "bb37b2ae8588ef624bd9d5c0952fc470df3cadc12d090b20aed9152cc54ff28e"
+          },
+          {
+            "registre": "principal",
+            "lignes": 3,
+            "empreinte_snapshot": "5abfe01caac629302d8380d07c70092fc20750f626a58f221ccf6a8eb458e65e"
+          },
+          {
+            "registre": "reservations",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          {
+            "registre": "emplacements",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        ],
+        "source_publications": {
+          "evenements": {
+            "type": "m4.travaux_termines",
+            "lignes": 1,
+            "empreinte_snapshot": "ac0471ce2cb73fa6fec19395377355897dd930d9f90eadf196e34132591fab6f"
+          },
+          "recus_m6": {
+            "registre": "wct_recus",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "couverture": {
+          "articles": "articles_deja_constates",
+          "stock": "theorique_disponible",
+          "unites": "homogeneite_non_confirmee",
+          "horodatage": "dernier_constat_sans_date_calcul",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 1,
+          "total": 1,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 2297
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "seuil-absent",
+      "request": {
+        "toolName": "m6_lire_reapprovisionnement_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "articles": [
+            {
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "statut": "seuil_absent",
+              "chiffres": {
+                "stock_theorique": "150",
+                "hors_main": "0",
+                "en_main": "150",
+                "reserve": "0",
+                "disponible": "150"
+              },
+              "seuil_reapprovisionnement": null,
+              "quantite_cible": null,
+              "quantite_a_commander": null,
+              "stock_negatif": false,
+              "code_configuration": null,
+              "unite": null,
+              "unite_dernier_constat": "pi",
+              "dernier_constat": {
+                "reference": {
+                  "registre": "besoins_commande",
+                  "rang": 0,
+                  "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+                },
+                "type_entree": "besoin_commande",
+                "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+                "horodatage": "2026-09-15T12:00:00+00:00",
+                "chantier_id": "CH-REAPPRO-FICTIF",
+                "reference_bus": {
+                  "type": "m4.travaux_termines",
+                  "evenement_id": "WCT-REAPPRO-FICTIF"
+                }
+              }
+            }
+          ],
+          "source_configuration": {
+            "fichier": "departments/m06-material-control/department.yaml",
+            "chemin": "configuration.reapprovisionnement.articles",
+            "sha256": "f472af8eb189955ad3c68aa5035e2992b49c31c0807bac0300a6c83411c40458"
+          },
+          "sources_registres": [
+            {
+              "registre": "besoins_commande",
+              "lignes": 1,
+              "empreinte_snapshot": "bb37b2ae8588ef624bd9d5c0952fc470df3cadc12d090b20aed9152cc54ff28e"
+            },
+            {
+              "registre": "principal",
+              "lignes": 3,
+              "empreinte_snapshot": "5abfe01caac629302d8380d07c70092fc20750f626a58f221ccf6a8eb458e65e"
+            },
+            {
+              "registre": "reservations",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            {
+              "registre": "emplacements",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          ],
+          "source_publications": {
+            "evenements": {
+              "type": "m4.travaux_termines",
+              "lignes": 1,
+              "empreinte_snapshot": "ac0471ce2cb73fa6fec19395377355897dd930d9f90eadf196e34132591fab6f"
+            },
+            "recus_m6": {
+              "registre": "wct_recus",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          },
+          "couverture": {
+            "articles": "articles_deja_constates",
+            "stock": "theorique_disponible",
+            "unites": "homogeneite_non_confirmee",
+            "horodatage": "dernier_constat_sans_date_calcul",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 1,
+            "total": 1,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 2292
+        }
+      },
+      "envelope": {
+        "articles": [
+          {
+            "materiau_id": "MAT-REAPPRO-FICTIF",
+            "statut": "seuil_absent",
+            "chiffres": {
+              "stock_theorique": "150",
+              "hors_main": "0",
+              "en_main": "150",
+              "reserve": "0",
+              "disponible": "150"
+            },
+            "seuil_reapprovisionnement": null,
+            "quantite_cible": null,
+            "quantite_a_commander": null,
+            "stock_negatif": false,
+            "code_configuration": null,
+            "unite": null,
+            "unite_dernier_constat": "pi",
+            "dernier_constat": {
+              "reference": {
+                "registre": "besoins_commande",
+                "rang": 0,
+                "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+              },
+              "type_entree": "besoin_commande",
+              "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+              "horodatage": "2026-09-15T12:00:00+00:00",
+              "chantier_id": "CH-REAPPRO-FICTIF",
+              "reference_bus": {
+                "type": "m4.travaux_termines",
+                "evenement_id": "WCT-REAPPRO-FICTIF"
+              }
+            }
+          }
+        ],
+        "source_configuration": {
+          "fichier": "departments/m06-material-control/department.yaml",
+          "chemin": "configuration.reapprovisionnement.articles",
+          "sha256": "f472af8eb189955ad3c68aa5035e2992b49c31c0807bac0300a6c83411c40458"
+        },
+        "sources_registres": [
+          {
+            "registre": "besoins_commande",
+            "lignes": 1,
+            "empreinte_snapshot": "bb37b2ae8588ef624bd9d5c0952fc470df3cadc12d090b20aed9152cc54ff28e"
+          },
+          {
+            "registre": "principal",
+            "lignes": 3,
+            "empreinte_snapshot": "5abfe01caac629302d8380d07c70092fc20750f626a58f221ccf6a8eb458e65e"
+          },
+          {
+            "registre": "reservations",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          {
+            "registre": "emplacements",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        ],
+        "source_publications": {
+          "evenements": {
+            "type": "m4.travaux_termines",
+            "lignes": 1,
+            "empreinte_snapshot": "ac0471ce2cb73fa6fec19395377355897dd930d9f90eadf196e34132591fab6f"
+          },
+          "recus_m6": {
+            "registre": "wct_recus",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "couverture": {
+          "articles": "articles_deja_constates",
+          "stock": "theorique_disponible",
+          "unites": "homogeneite_non_confirmee",
+          "horodatage": "dernier_constat_sans_date_calcul",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 1,
+          "total": 1,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 2292
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "configuration-invalide",
+      "request": {
+        "toolName": "m6_lire_reapprovisionnement_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "articles": [
+            {
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "statut": "configuration_invalide",
+              "chiffres": {
+                "stock_theorique": "150",
+                "hors_main": "0",
+                "en_main": "150",
+                "reserve": "0",
+                "disponible": "150"
+              },
+              "seuil_reapprovisionnement": null,
+              "quantite_cible": null,
+              "quantite_a_commander": null,
+              "stock_negatif": false,
+              "code_configuration": "REJ-REAPPRO-CONFIGURATION-ILLISIBLE",
+              "unite": null,
+              "unite_dernier_constat": "pi",
+              "dernier_constat": {
+                "reference": {
+                  "registre": "besoins_commande",
+                  "rang": 0,
+                  "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+                },
+                "type_entree": "besoin_commande",
+                "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+                "horodatage": "2026-09-15T12:00:00+00:00",
+                "chantier_id": "CH-REAPPRO-FICTIF",
+                "reference_bus": {
+                  "type": "m4.travaux_termines",
+                  "evenement_id": "WCT-REAPPRO-FICTIF"
+                }
+              }
+            }
+          ],
+          "source_configuration": {
+            "fichier": "departments/m06-material-control/department.yaml",
+            "chemin": "configuration.reapprovisionnement.articles",
+            "sha256": "3adb7af4b4cc2d6f8f73a5becab73f0c5797729bd55dfe1958201fc02c1d1031"
+          },
+          "sources_registres": [
+            {
+              "registre": "besoins_commande",
+              "lignes": 1,
+              "empreinte_snapshot": "bb37b2ae8588ef624bd9d5c0952fc470df3cadc12d090b20aed9152cc54ff28e"
+            },
+            {
+              "registre": "principal",
+              "lignes": 3,
+              "empreinte_snapshot": "5abfe01caac629302d8380d07c70092fc20750f626a58f221ccf6a8eb458e65e"
+            },
+            {
+              "registre": "reservations",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            {
+              "registre": "emplacements",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          ],
+          "source_publications": {
+            "evenements": {
+              "type": "m4.travaux_termines",
+              "lignes": 1,
+              "empreinte_snapshot": "ac0471ce2cb73fa6fec19395377355897dd930d9f90eadf196e34132591fab6f"
+            },
+            "recus_m6": {
+              "registre": "wct_recus",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          },
+          "couverture": {
+            "articles": "articles_deja_constates",
+            "stock": "theorique_disponible",
+            "unites": "homogeneite_non_confirmee",
+            "horodatage": "dernier_constat_sans_date_calcul",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 1,
+            "total": 1,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 2335
+        }
+      },
+      "envelope": {
+        "articles": [
+          {
+            "materiau_id": "MAT-REAPPRO-FICTIF",
+            "statut": "configuration_invalide",
+            "chiffres": {
+              "stock_theorique": "150",
+              "hors_main": "0",
+              "en_main": "150",
+              "reserve": "0",
+              "disponible": "150"
+            },
+            "seuil_reapprovisionnement": null,
+            "quantite_cible": null,
+            "quantite_a_commander": null,
+            "stock_negatif": false,
+            "code_configuration": "REJ-REAPPRO-CONFIGURATION-ILLISIBLE",
+            "unite": null,
+            "unite_dernier_constat": "pi",
+            "dernier_constat": {
+              "reference": {
+                "registre": "besoins_commande",
+                "rang": 0,
+                "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+              },
+              "type_entree": "besoin_commande",
+              "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+              "horodatage": "2026-09-15T12:00:00+00:00",
+              "chantier_id": "CH-REAPPRO-FICTIF",
+              "reference_bus": {
+                "type": "m4.travaux_termines",
+                "evenement_id": "WCT-REAPPRO-FICTIF"
+              }
+            }
+          }
+        ],
+        "source_configuration": {
+          "fichier": "departments/m06-material-control/department.yaml",
+          "chemin": "configuration.reapprovisionnement.articles",
+          "sha256": "3adb7af4b4cc2d6f8f73a5becab73f0c5797729bd55dfe1958201fc02c1d1031"
+        },
+        "sources_registres": [
+          {
+            "registre": "besoins_commande",
+            "lignes": 1,
+            "empreinte_snapshot": "bb37b2ae8588ef624bd9d5c0952fc470df3cadc12d090b20aed9152cc54ff28e"
+          },
+          {
+            "registre": "principal",
+            "lignes": 3,
+            "empreinte_snapshot": "5abfe01caac629302d8380d07c70092fc20750f626a58f221ccf6a8eb458e65e"
+          },
+          {
+            "registre": "reservations",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          {
+            "registre": "emplacements",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        ],
+        "source_publications": {
+          "evenements": {
+            "type": "m4.travaux_termines",
+            "lignes": 1,
+            "empreinte_snapshot": "ac0471ce2cb73fa6fec19395377355897dd930d9f90eadf196e34132591fab6f"
+          },
+          "recus_m6": {
+            "registre": "wct_recus",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "couverture": {
+          "articles": "articles_deja_constates",
+          "stock": "theorique_disponible",
+          "unites": "homogeneite_non_confirmee",
+          "horodatage": "dernier_constat_sans_date_calcul",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 1,
+          "total": 1,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 2335
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "dernier-constat-sans-recu-m6-legitime",
+      "request": {
+        "toolName": "m6_lire_reapprovisionnement_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "articles": [
+            {
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "statut": "stock_suffisant",
+              "chiffres": {
+                "stock_theorique": "150",
+                "hors_main": "0",
+                "en_main": "150",
+                "reserve": "0",
+                "disponible": "150"
+              },
+              "seuil_reapprovisionnement": "150",
+              "quantite_cible": "300",
+              "quantite_a_commander": null,
+              "stock_negatif": false,
+              "code_configuration": null,
+              "unite": null,
+              "unite_dernier_constat": "pi",
+              "dernier_constat": {
+                "reference": {
+                  "registre": "besoins_commande",
+                  "rang": 0,
+                  "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+                },
+                "type_entree": "besoin_commande",
+                "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+                "horodatage": "2026-09-15T12:00:00+00:00",
+                "chantier_id": "CH-REAPPRO-FICTIF",
+                "reference_bus": {
+                  "type": "m4.travaux_termines",
+                  "evenement_id": "WCT-REAPPRO-FICTIF"
+                }
+              }
+            }
+          ],
+          "source_configuration": {
+            "fichier": "departments/m06-material-control/department.yaml",
+            "chemin": "configuration.reapprovisionnement.articles",
+            "sha256": "4fb2d54cc366285cc33f7c054b39a44fe9210c1e7d9d51ffcc630eeeb9fcaf0d"
+          },
+          "sources_registres": [
+            {
+              "registre": "besoins_commande",
+              "lignes": 1,
+              "empreinte_snapshot": "bb37b2ae8588ef624bd9d5c0952fc470df3cadc12d090b20aed9152cc54ff28e"
+            },
+            {
+              "registre": "principal",
+              "lignes": 3,
+              "empreinte_snapshot": "5abfe01caac629302d8380d07c70092fc20750f626a58f221ccf6a8eb458e65e"
+            },
+            {
+              "registre": "reservations",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            {
+              "registre": "emplacements",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          ],
+          "source_publications": {
+            "evenements": {
+              "type": "m4.travaux_termines",
+              "lignes": 1,
+              "empreinte_snapshot": "ac0471ce2cb73fa6fec19395377355897dd930d9f90eadf196e34132591fab6f"
+            },
+            "recus_m6": {
+              "registre": "wct_recus",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          },
+          "couverture": {
+            "articles": "articles_deja_constates",
+            "stock": "theorique_disponible",
+            "unites": "homogeneite_non_confirmee",
+            "horodatage": "dernier_constat_sans_date_calcul",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 1,
+            "total": 1,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 2297
+        }
+      },
+      "envelope": {
+        "articles": [
+          {
+            "materiau_id": "MAT-REAPPRO-FICTIF",
+            "statut": "stock_suffisant",
+            "chiffres": {
+              "stock_theorique": "150",
+              "hors_main": "0",
+              "en_main": "150",
+              "reserve": "0",
+              "disponible": "150"
+            },
+            "seuil_reapprovisionnement": "150",
+            "quantite_cible": "300",
+            "quantite_a_commander": null,
+            "stock_negatif": false,
+            "code_configuration": null,
+            "unite": null,
+            "unite_dernier_constat": "pi",
+            "dernier_constat": {
+              "reference": {
+                "registre": "besoins_commande",
+                "rang": 0,
+                "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+              },
+              "type_entree": "besoin_commande",
+              "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+              "horodatage": "2026-09-15T12:00:00+00:00",
+              "chantier_id": "CH-REAPPRO-FICTIF",
+              "reference_bus": {
+                "type": "m4.travaux_termines",
+                "evenement_id": "WCT-REAPPRO-FICTIF"
+              }
+            }
+          }
+        ],
+        "source_configuration": {
+          "fichier": "departments/m06-material-control/department.yaml",
+          "chemin": "configuration.reapprovisionnement.articles",
+          "sha256": "4fb2d54cc366285cc33f7c054b39a44fe9210c1e7d9d51ffcc630eeeb9fcaf0d"
+        },
+        "sources_registres": [
+          {
+            "registre": "besoins_commande",
+            "lignes": 1,
+            "empreinte_snapshot": "bb37b2ae8588ef624bd9d5c0952fc470df3cadc12d090b20aed9152cc54ff28e"
+          },
+          {
+            "registre": "principal",
+            "lignes": 3,
+            "empreinte_snapshot": "5abfe01caac629302d8380d07c70092fc20750f626a58f221ccf6a8eb458e65e"
+          },
+          {
+            "registre": "reservations",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          {
+            "registre": "emplacements",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        ],
+        "source_publications": {
+          "evenements": {
+            "type": "m4.travaux_termines",
+            "lignes": 1,
+            "empreinte_snapshot": "ac0471ce2cb73fa6fec19395377355897dd930d9f90eadf196e34132591fab6f"
+          },
+          "recus_m6": {
+            "registre": "wct_recus",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        },
+        "couverture": {
+          "articles": "articles_deja_constates",
+          "stock": "theorique_disponible",
+          "unites": "homogeneite_non_confirmee",
+          "horodatage": "dernier_constat_sans_date_calcul",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 1,
+          "total": 1,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 2297
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "ancien-recu-etranger-sans-empreinte-admis",
+      "request": {
+        "toolName": "m6_lire_reapprovisionnement_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "articles": [
+            {
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "statut": "stock_suffisant",
+              "chiffres": {
+                "stock_theorique": "150",
+                "hors_main": "0",
+                "en_main": "150",
+                "reserve": "0",
+                "disponible": "150"
+              },
+              "seuil_reapprovisionnement": "150",
+              "quantite_cible": "300",
+              "quantite_a_commander": null,
+              "stock_negatif": false,
+              "code_configuration": null,
+              "unite": null,
+              "unite_dernier_constat": "pi",
+              "dernier_constat": {
+                "reference": {
+                  "registre": "besoins_commande",
+                  "rang": 0,
+                  "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+                },
+                "type_entree": "besoin_commande",
+                "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+                "horodatage": "2026-09-15T12:00:00+00:00",
+                "chantier_id": "CH-REAPPRO-FICTIF",
+                "reference_bus": {
+                  "type": "m4.travaux_termines",
+                  "evenement_id": "WCT-REAPPRO-FICTIF"
+                }
+              }
+            }
+          ],
+          "source_configuration": {
+            "fichier": "departments/m06-material-control/department.yaml",
+            "chemin": "configuration.reapprovisionnement.articles",
+            "sha256": "4fb2d54cc366285cc33f7c054b39a44fe9210c1e7d9d51ffcc630eeeb9fcaf0d"
+          },
+          "sources_registres": [
+            {
+              "registre": "besoins_commande",
+              "lignes": 1,
+              "empreinte_snapshot": "bb37b2ae8588ef624bd9d5c0952fc470df3cadc12d090b20aed9152cc54ff28e"
+            },
+            {
+              "registre": "principal",
+              "lignes": 3,
+              "empreinte_snapshot": "5abfe01caac629302d8380d07c70092fc20750f626a58f221ccf6a8eb458e65e"
+            },
+            {
+              "registre": "reservations",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            {
+              "registre": "emplacements",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          ],
+          "source_publications": {
+            "evenements": {
+              "type": "m4.travaux_termines",
+              "lignes": 1,
+              "empreinte_snapshot": "ac0471ce2cb73fa6fec19395377355897dd930d9f90eadf196e34132591fab6f"
+            },
+            "recus_m6": {
+              "registre": "wct_recus",
+              "lignes": 1,
+              "empreinte_snapshot": "ccb62f4447a5413292e25061395fee5d3c11d2ff552b72e40f41bca36feeb59d"
+            }
+          },
+          "couverture": {
+            "articles": "articles_deja_constates",
+            "stock": "theorique_disponible",
+            "unites": "homogeneite_non_confirmee",
+            "horodatage": "dernier_constat_sans_date_calcul",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 1,
+            "total": 1,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 2297
+        }
+      },
+      "envelope": {
+        "articles": [
+          {
+            "materiau_id": "MAT-REAPPRO-FICTIF",
+            "statut": "stock_suffisant",
+            "chiffres": {
+              "stock_theorique": "150",
+              "hors_main": "0",
+              "en_main": "150",
+              "reserve": "0",
+              "disponible": "150"
+            },
+            "seuil_reapprovisionnement": "150",
+            "quantite_cible": "300",
+            "quantite_a_commander": null,
+            "stock_negatif": false,
+            "code_configuration": null,
+            "unite": null,
+            "unite_dernier_constat": "pi",
+            "dernier_constat": {
+              "reference": {
+                "registre": "besoins_commande",
+                "rang": 0,
+                "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+              },
+              "type_entree": "besoin_commande",
+              "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+              "horodatage": "2026-09-15T12:00:00+00:00",
+              "chantier_id": "CH-REAPPRO-FICTIF",
+              "reference_bus": {
+                "type": "m4.travaux_termines",
+                "evenement_id": "WCT-REAPPRO-FICTIF"
+              }
+            }
+          }
+        ],
+        "source_configuration": {
+          "fichier": "departments/m06-material-control/department.yaml",
+          "chemin": "configuration.reapprovisionnement.articles",
+          "sha256": "4fb2d54cc366285cc33f7c054b39a44fe9210c1e7d9d51ffcc630eeeb9fcaf0d"
+        },
+        "sources_registres": [
+          {
+            "registre": "besoins_commande",
+            "lignes": 1,
+            "empreinte_snapshot": "bb37b2ae8588ef624bd9d5c0952fc470df3cadc12d090b20aed9152cc54ff28e"
+          },
+          {
+            "registre": "principal",
+            "lignes": 3,
+            "empreinte_snapshot": "5abfe01caac629302d8380d07c70092fc20750f626a58f221ccf6a8eb458e65e"
+          },
+          {
+            "registre": "reservations",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          {
+            "registre": "emplacements",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        ],
+        "source_publications": {
+          "evenements": {
+            "type": "m4.travaux_termines",
+            "lignes": 1,
+            "empreinte_snapshot": "ac0471ce2cb73fa6fec19395377355897dd930d9f90eadf196e34132591fab6f"
+          },
+          "recus_m6": {
+            "registre": "wct_recus",
+            "lignes": 1,
+            "empreinte_snapshot": "ccb62f4447a5413292e25061395fee5d3c11d2ff552b72e40f41bca36feeb59d"
+          }
+        },
+        "couverture": {
+          "articles": "articles_deja_constates",
+          "stock": "theorique_disponible",
+          "unites": "homogeneite_non_confirmee",
+          "horodatage": "dernier_constat_sans_date_calcul",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 1,
+          "total": 1,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 2297
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "recu-lie-rang1-apres-etranger-admis",
+      "request": {
+        "toolName": "m6_lire_reapprovisionnement_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "articles": [
+            {
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "statut": "stock_suffisant",
+              "chiffres": {
+                "stock_theorique": "150",
+                "hors_main": "0",
+                "en_main": "150",
+                "reserve": "0",
+                "disponible": "150"
+              },
+              "seuil_reapprovisionnement": "150",
+              "quantite_cible": "300",
+              "quantite_a_commander": null,
+              "stock_negatif": false,
+              "code_configuration": null,
+              "unite": null,
+              "unite_dernier_constat": "pi",
+              "dernier_constat": {
+                "reference": {
+                  "registre": "besoins_commande",
+                  "rang": 0,
+                  "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+                },
+                "type_entree": "besoin_commande",
+                "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+                "horodatage": "2026-09-15T12:00:00+00:00",
+                "chantier_id": "CH-REAPPRO-FICTIF",
+                "reference_bus": {
+                  "type": "m4.travaux_termines",
+                  "evenement_id": "WCT-REAPPRO-FICTIF"
+                }
+              }
+            }
+          ],
+          "source_configuration": {
+            "fichier": "departments/m06-material-control/department.yaml",
+            "chemin": "configuration.reapprovisionnement.articles",
+            "sha256": "4fb2d54cc366285cc33f7c054b39a44fe9210c1e7d9d51ffcc630eeeb9fcaf0d"
+          },
+          "sources_registres": [
+            {
+              "registre": "besoins_commande",
+              "lignes": 1,
+              "empreinte_snapshot": "bb37b2ae8588ef624bd9d5c0952fc470df3cadc12d090b20aed9152cc54ff28e"
+            },
+            {
+              "registre": "principal",
+              "lignes": 3,
+              "empreinte_snapshot": "5abfe01caac629302d8380d07c70092fc20750f626a58f221ccf6a8eb458e65e"
+            },
+            {
+              "registre": "reservations",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            {
+              "registre": "emplacements",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          ],
+          "source_publications": {
+            "evenements": {
+              "type": "m4.travaux_termines",
+              "lignes": 1,
+              "empreinte_snapshot": "ac0471ce2cb73fa6fec19395377355897dd930d9f90eadf196e34132591fab6f"
+            },
+            "recus_m6": {
+              "registre": "wct_recus",
+              "lignes": 2,
+              "empreinte_snapshot": "6b195e644b7f8ac9a7360086dd917a031d8c0248225743c5bb83079947d08197"
+            }
+          },
+          "couverture": {
+            "articles": "articles_deja_constates",
+            "stock": "theorique_disponible",
+            "unites": "homogeneite_non_confirmee",
+            "horodatage": "dernier_constat_sans_date_calcul",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 1,
+            "total": 1,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 2297
+        }
+      },
+      "envelope": {
+        "articles": [
+          {
+            "materiau_id": "MAT-REAPPRO-FICTIF",
+            "statut": "stock_suffisant",
+            "chiffres": {
+              "stock_theorique": "150",
+              "hors_main": "0",
+              "en_main": "150",
+              "reserve": "0",
+              "disponible": "150"
+            },
+            "seuil_reapprovisionnement": "150",
+            "quantite_cible": "300",
+            "quantite_a_commander": null,
+            "stock_negatif": false,
+            "code_configuration": null,
+            "unite": null,
+            "unite_dernier_constat": "pi",
+            "dernier_constat": {
+              "reference": {
+                "registre": "besoins_commande",
+                "rang": 0,
+                "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+              },
+              "type_entree": "besoin_commande",
+              "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+              "horodatage": "2026-09-15T12:00:00+00:00",
+              "chantier_id": "CH-REAPPRO-FICTIF",
+              "reference_bus": {
+                "type": "m4.travaux_termines",
+                "evenement_id": "WCT-REAPPRO-FICTIF"
+              }
+            }
+          }
+        ],
+        "source_configuration": {
+          "fichier": "departments/m06-material-control/department.yaml",
+          "chemin": "configuration.reapprovisionnement.articles",
+          "sha256": "4fb2d54cc366285cc33f7c054b39a44fe9210c1e7d9d51ffcc630eeeb9fcaf0d"
+        },
+        "sources_registres": [
+          {
+            "registre": "besoins_commande",
+            "lignes": 1,
+            "empreinte_snapshot": "bb37b2ae8588ef624bd9d5c0952fc470df3cadc12d090b20aed9152cc54ff28e"
+          },
+          {
+            "registre": "principal",
+            "lignes": 3,
+            "empreinte_snapshot": "5abfe01caac629302d8380d07c70092fc20750f626a58f221ccf6a8eb458e65e"
+          },
+          {
+            "registre": "reservations",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          {
+            "registre": "emplacements",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        ],
+        "source_publications": {
+          "evenements": {
+            "type": "m4.travaux_termines",
+            "lignes": 1,
+            "empreinte_snapshot": "ac0471ce2cb73fa6fec19395377355897dd930d9f90eadf196e34132591fab6f"
+          },
+          "recus_m6": {
+            "registre": "wct_recus",
+            "lignes": 2,
+            "empreinte_snapshot": "6b195e644b7f8ac9a7360086dd917a031d8c0248225743c5bb83079947d08197"
+          }
+        },
+        "couverture": {
+          "articles": "articles_deja_constates",
+          "stock": "theorique_disponible",
+          "unites": "homogeneite_non_confirmee",
+          "horodatage": "dernier_constat_sans_date_calcul",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 1,
+          "total": 1,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 2297
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "seuil-grand-entier-texte-exact",
+      "request": {
+        "toolName": "m6_lire_reapprovisionnement_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "articles": [
+            {
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "statut": "stock_bas",
+              "chiffres": {
+                "stock_theorique": "150",
+                "hors_main": "0",
+                "en_main": "150",
+                "reserve": "0",
+                "disponible": "150"
+              },
+              "seuil_reapprovisionnement": "9007199254740992",
+              "quantite_cible": "9007199254740993",
+              "quantite_a_commander": "9007199254740843",
+              "stock_negatif": false,
+              "code_configuration": null,
+              "unite": null,
+              "unite_dernier_constat": "pi",
+              "dernier_constat": {
+                "reference": {
+                  "registre": "besoins_commande",
+                  "rang": 0,
+                  "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+                },
+                "type_entree": "besoin_commande",
+                "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+                "horodatage": "2026-09-15T12:00:00+00:00",
+                "chantier_id": "CH-REAPPRO-FICTIF",
+                "reference_bus": {
+                  "type": "m4.travaux_termines",
+                  "evenement_id": "WCT-REAPPRO-FICTIF"
+                }
+              }
+            }
+          ],
+          "source_configuration": {
+            "fichier": "departments/m06-material-control/department.yaml",
+            "chemin": "configuration.reapprovisionnement.articles",
+            "sha256": "99c92448d71632a377b1353d12f78057200afb009cb0de9f0c255e1de5596fba"
+          },
+          "sources_registres": [
+            {
+              "registre": "besoins_commande",
+              "lignes": 1,
+              "empreinte_snapshot": "bb37b2ae8588ef624bd9d5c0952fc470df3cadc12d090b20aed9152cc54ff28e"
+            },
+            {
+              "registre": "principal",
+              "lignes": 3,
+              "empreinte_snapshot": "5abfe01caac629302d8380d07c70092fc20750f626a58f221ccf6a8eb458e65e"
+            },
+            {
+              "registre": "reservations",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            {
+              "registre": "emplacements",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          ],
+          "source_publications": {
+            "evenements": {
+              "type": "m4.travaux_termines",
+              "lignes": 1,
+              "empreinte_snapshot": "ac0471ce2cb73fa6fec19395377355897dd930d9f90eadf196e34132591fab6f"
+            },
+            "recus_m6": {
+              "registre": "wct_recus",
+              "lignes": 2,
+              "empreinte_snapshot": "6b195e644b7f8ac9a7360086dd917a031d8c0248225743c5bb83079947d08197"
+            }
+          },
+          "couverture": {
+            "articles": "articles_deja_constates",
+            "stock": "theorique_disponible",
+            "unites": "homogeneite_non_confirmee",
+            "horodatage": "dernier_constat_sans_date_calcul",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 1,
+            "total": 1,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 2331
+        }
+      },
+      "envelope": {
+        "articles": [
+          {
+            "materiau_id": "MAT-REAPPRO-FICTIF",
+            "statut": "stock_bas",
+            "chiffres": {
+              "stock_theorique": "150",
+              "hors_main": "0",
+              "en_main": "150",
+              "reserve": "0",
+              "disponible": "150"
+            },
+            "seuil_reapprovisionnement": "9007199254740992",
+            "quantite_cible": "9007199254740993",
+            "quantite_a_commander": "9007199254740843",
+            "stock_negatif": false,
+            "code_configuration": null,
+            "unite": null,
+            "unite_dernier_constat": "pi",
+            "dernier_constat": {
+              "reference": {
+                "registre": "besoins_commande",
+                "rang": 0,
+                "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+              },
+              "type_entree": "besoin_commande",
+              "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+              "horodatage": "2026-09-15T12:00:00+00:00",
+              "chantier_id": "CH-REAPPRO-FICTIF",
+              "reference_bus": {
+                "type": "m4.travaux_termines",
+                "evenement_id": "WCT-REAPPRO-FICTIF"
+              }
+            }
+          }
+        ],
+        "source_configuration": {
+          "fichier": "departments/m06-material-control/department.yaml",
+          "chemin": "configuration.reapprovisionnement.articles",
+          "sha256": "99c92448d71632a377b1353d12f78057200afb009cb0de9f0c255e1de5596fba"
+        },
+        "sources_registres": [
+          {
+            "registre": "besoins_commande",
+            "lignes": 1,
+            "empreinte_snapshot": "bb37b2ae8588ef624bd9d5c0952fc470df3cadc12d090b20aed9152cc54ff28e"
+          },
+          {
+            "registre": "principal",
+            "lignes": 3,
+            "empreinte_snapshot": "5abfe01caac629302d8380d07c70092fc20750f626a58f221ccf6a8eb458e65e"
+          },
+          {
+            "registre": "reservations",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          {
+            "registre": "emplacements",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        ],
+        "source_publications": {
+          "evenements": {
+            "type": "m4.travaux_termines",
+            "lignes": 1,
+            "empreinte_snapshot": "ac0471ce2cb73fa6fec19395377355897dd930d9f90eadf196e34132591fab6f"
+          },
+          "recus_m6": {
+            "registre": "wct_recus",
+            "lignes": 2,
+            "empreinte_snapshot": "6b195e644b7f8ac9a7360086dd917a031d8c0248225743c5bb83079947d08197"
+          }
+        },
+        "couverture": {
+          "articles": "articles_deja_constates",
+          "stock": "theorique_disponible",
+          "unites": "homogeneite_non_confirmee",
+          "horodatage": "dernier_constat_sans_date_calcul",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 1,
+          "total": 1,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 2331
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "id256-et-unicode-feff",
+      "request": {
+        "toolName": "m6_lire_reapprovisionnement_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "articles": [
+            {
+              "materiau_id": "﻿",
+              "statut": "seuil_absent",
+              "chiffres": {
+                "stock_theorique": "144",
+                "hors_main": "0",
+                "en_main": "144",
+                "reserve": "0",
+                "disponible": "144"
+              },
+              "seuil_reapprovisionnement": null,
+              "quantite_cible": null,
+              "quantite_a_commander": null,
+              "stock_negatif": false,
+              "code_configuration": null,
+              "unite": null,
+              "unite_dernier_constat": "pi",
+              "dernier_constat": {
+                "reference": {
+                  "registre": "besoins_commande",
+                  "rang": 1,
+                  "empreinte_snapshot": "9394e6ea0fab57a090b3c3155021a813b39e4cdc9b628850b83b2c6404e32301"
+                },
+                "type_entree": "seuil_a_configurer",
+                "evenement_declencheur": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "horodatage": "2026-09-15T12:00:00+00:00",
+                "chantier_id": "CH-REAPPRO-FICTIF",
+                "reference_bus": {
+                  "type": "m4.travaux_termines",
+                  "evenement_id": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                }
+              }
+            },
+            {
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "statut": "stock_suffisant",
+              "chiffres": {
+                "stock_theorique": "150",
+                "hors_main": "0",
+                "en_main": "150",
+                "reserve": "0",
+                "disponible": "150"
+              },
+              "seuil_reapprovisionnement": "150",
+              "quantite_cible": "300",
+              "quantite_a_commander": null,
+              "stock_negatif": false,
+              "code_configuration": null,
+              "unite": null,
+              "unite_dernier_constat": "pi",
+              "dernier_constat": {
+                "reference": {
+                  "registre": "besoins_commande",
+                  "rang": 0,
+                  "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+                },
+                "type_entree": "besoin_commande",
+                "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+                "horodatage": "2026-09-15T12:00:00+00:00",
+                "chantier_id": "CH-REAPPRO-FICTIF",
+                "reference_bus": {
+                  "type": "m4.travaux_termines",
+                  "evenement_id": "WCT-REAPPRO-FICTIF"
+                }
+              }
+            }
+          ],
+          "source_configuration": {
+            "fichier": "departments/m06-material-control/department.yaml",
+            "chemin": "configuration.reapprovisionnement.articles",
+            "sha256": "4fb2d54cc366285cc33f7c054b39a44fe9210c1e7d9d51ffcc630eeeb9fcaf0d"
+          },
+          "sources_registres": [
+            {
+              "registre": "besoins_commande",
+              "lignes": 2,
+              "empreinte_snapshot": "aee50f245898131519c115754b5331ea69a859888cde7b3f7817138032c7abc7"
+            },
+            {
+              "registre": "principal",
+              "lignes": 5,
+              "empreinte_snapshot": "aac2d70e0f81d233dc59f07d862e836e951c0453d36ccde916c1b674949174e0"
+            },
+            {
+              "registre": "reservations",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            {
+              "registre": "emplacements",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            }
+          ],
+          "source_publications": {
+            "evenements": {
+              "type": "m4.travaux_termines",
+              "lignes": 2,
+              "empreinte_snapshot": "bcac10d7ea8a88cc8bae175ec4eb5689ebbfda635ba057ea8cb94ca9b1a692b0"
+            },
+            "recus_m6": {
+              "registre": "wct_recus",
+              "lignes": 2,
+              "empreinte_snapshot": "6b195e644b7f8ac9a7360086dd917a031d8c0248225743c5bb83079947d08197"
+            }
+          },
+          "couverture": {
+            "articles": "articles_deja_constates",
+            "stock": "theorique_disponible",
+            "unites": "homogeneite_non_confirmee",
+            "horodatage": "dernier_constat_sans_date_calcul",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 2,
+            "total": 2,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 3541
+        }
+      },
+      "envelope": {
+        "articles": [
+          {
+            "materiau_id": "﻿",
+            "statut": "seuil_absent",
+            "chiffres": {
+              "stock_theorique": "144",
+              "hors_main": "0",
+              "en_main": "144",
+              "reserve": "0",
+              "disponible": "144"
+            },
+            "seuil_reapprovisionnement": null,
+            "quantite_cible": null,
+            "quantite_a_commander": null,
+            "stock_negatif": false,
+            "code_configuration": null,
+            "unite": null,
+            "unite_dernier_constat": "pi",
+            "dernier_constat": {
+              "reference": {
+                "registre": "besoins_commande",
+                "rang": 1,
+                "empreinte_snapshot": "9394e6ea0fab57a090b3c3155021a813b39e4cdc9b628850b83b2c6404e32301"
+              },
+              "type_entree": "seuil_a_configurer",
+              "evenement_declencheur": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+              "horodatage": "2026-09-15T12:00:00+00:00",
+              "chantier_id": "CH-REAPPRO-FICTIF",
+              "reference_bus": {
+                "type": "m4.travaux_termines",
+                "evenement_id": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+              }
+            }
+          },
+          {
+            "materiau_id": "MAT-REAPPRO-FICTIF",
+            "statut": "stock_suffisant",
+            "chiffres": {
+              "stock_theorique": "150",
+              "hors_main": "0",
+              "en_main": "150",
+              "reserve": "0",
+              "disponible": "150"
+            },
+            "seuil_reapprovisionnement": "150",
+            "quantite_cible": "300",
+            "quantite_a_commander": null,
+            "stock_negatif": false,
+            "code_configuration": null,
+            "unite": null,
+            "unite_dernier_constat": "pi",
+            "dernier_constat": {
+              "reference": {
+                "registre": "besoins_commande",
+                "rang": 0,
+                "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+              },
+              "type_entree": "besoin_commande",
+              "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+              "horodatage": "2026-09-15T12:00:00+00:00",
+              "chantier_id": "CH-REAPPRO-FICTIF",
+              "reference_bus": {
+                "type": "m4.travaux_termines",
+                "evenement_id": "WCT-REAPPRO-FICTIF"
+              }
+            }
+          }
+        ],
+        "source_configuration": {
+          "fichier": "departments/m06-material-control/department.yaml",
+          "chemin": "configuration.reapprovisionnement.articles",
+          "sha256": "4fb2d54cc366285cc33f7c054b39a44fe9210c1e7d9d51ffcc630eeeb9fcaf0d"
+        },
+        "sources_registres": [
+          {
+            "registre": "besoins_commande",
+            "lignes": 2,
+            "empreinte_snapshot": "aee50f245898131519c115754b5331ea69a859888cde7b3f7817138032c7abc7"
+          },
+          {
+            "registre": "principal",
+            "lignes": 5,
+            "empreinte_snapshot": "aac2d70e0f81d233dc59f07d862e836e951c0453d36ccde916c1b674949174e0"
+          },
+          {
+            "registre": "reservations",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          {
+            "registre": "emplacements",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          }
+        ],
+        "source_publications": {
+          "evenements": {
+            "type": "m4.travaux_termines",
+            "lignes": 2,
+            "empreinte_snapshot": "bcac10d7ea8a88cc8bae175ec4eb5689ebbfda635ba057ea8cb94ca9b1a692b0"
+          },
+          "recus_m6": {
+            "registre": "wct_recus",
+            "lignes": 2,
+            "empreinte_snapshot": "6b195e644b7f8ac9a7360086dd917a031d8c0248225743c5bb83079947d08197"
+          }
+        },
+        "couverture": {
+          "articles": "articles_deja_constates",
+          "stock": "theorique_disponible",
+          "unites": "homogeneite_non_confirmee",
+          "horodatage": "dernier_constat_sans_date_calcul",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 2,
+          "total": 2,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 3541
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "transfert-id257-non-projete-admis",
+      "request": {
+        "toolName": "m6_lire_reapprovisionnement_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "articles": [
+            {
+              "materiau_id": "﻿",
+              "statut": "seuil_absent",
+              "chiffres": {
+                "stock_theorique": "144",
+                "hors_main": "0",
+                "en_main": "144",
+                "reserve": "0",
+                "disponible": "144"
+              },
+              "seuil_reapprovisionnement": null,
+              "quantite_cible": null,
+              "quantite_a_commander": null,
+              "stock_negatif": false,
+              "code_configuration": null,
+              "unite": null,
+              "unite_dernier_constat": "pi",
+              "dernier_constat": {
+                "reference": {
+                  "registre": "besoins_commande",
+                  "rang": 1,
+                  "empreinte_snapshot": "9394e6ea0fab57a090b3c3155021a813b39e4cdc9b628850b83b2c6404e32301"
+                },
+                "type_entree": "seuil_a_configurer",
+                "evenement_declencheur": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "horodatage": "2026-09-15T12:00:00+00:00",
+                "chantier_id": "CH-REAPPRO-FICTIF",
+                "reference_bus": {
+                  "type": "m4.travaux_termines",
+                  "evenement_id": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                }
+              }
+            },
+            {
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "statut": "stock_bas",
+              "chiffres": {
+                "stock_theorique": "150",
+                "hors_main": "10",
+                "en_main": "140",
+                "reserve": "0",
+                "disponible": "140"
+              },
+              "seuil_reapprovisionnement": "150",
+              "quantite_cible": "300",
+              "quantite_a_commander": "160",
+              "stock_negatif": false,
+              "code_configuration": null,
+              "unite": null,
+              "unite_dernier_constat": "pi",
+              "dernier_constat": {
+                "reference": {
+                  "registre": "besoins_commande",
+                  "rang": 0,
+                  "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+                },
+                "type_entree": "besoin_commande",
+                "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+                "horodatage": "2026-09-15T12:00:00+00:00",
+                "chantier_id": "CH-REAPPRO-FICTIF",
+                "reference_bus": {
+                  "type": "m4.travaux_termines",
+                  "evenement_id": "WCT-REAPPRO-FICTIF"
+                }
+              }
+            }
+          ],
+          "source_configuration": {
+            "fichier": "departments/m06-material-control/department.yaml",
+            "chemin": "configuration.reapprovisionnement.articles",
+            "sha256": "4fb2d54cc366285cc33f7c054b39a44fe9210c1e7d9d51ffcc630eeeb9fcaf0d"
+          },
+          "sources_registres": [
+            {
+              "registre": "besoins_commande",
+              "lignes": 2,
+              "empreinte_snapshot": "aee50f245898131519c115754b5331ea69a859888cde7b3f7817138032c7abc7"
+            },
+            {
+              "registre": "principal",
+              "lignes": 5,
+              "empreinte_snapshot": "aac2d70e0f81d233dc59f07d862e836e951c0453d36ccde916c1b674949174e0"
+            },
+            {
+              "registre": "reservations",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            {
+              "registre": "emplacements",
+              "lignes": 1,
+              "empreinte_snapshot": "02042a53d3595aa5ded1f345ac2ac41d0dfae6f541f4d290a03e95f3d608e446"
+            }
+          ],
+          "source_publications": {
+            "evenements": {
+              "type": "m4.travaux_termines",
+              "lignes": 2,
+              "empreinte_snapshot": "bcac10d7ea8a88cc8bae175ec4eb5689ebbfda635ba057ea8cb94ca9b1a692b0"
+            },
+            "recus_m6": {
+              "registre": "wct_recus",
+              "lignes": 2,
+              "empreinte_snapshot": "6b195e644b7f8ac9a7360086dd917a031d8c0248225743c5bb83079947d08197"
+            }
+          },
+          "couverture": {
+            "articles": "articles_deja_constates",
+            "stock": "theorique_disponible",
+            "unites": "homogeneite_non_confirmee",
+            "horodatage": "dernier_constat_sans_date_calcul",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 2,
+            "total": 2,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 3537
+        }
+      },
+      "envelope": {
+        "articles": [
+          {
+            "materiau_id": "﻿",
+            "statut": "seuil_absent",
+            "chiffres": {
+              "stock_theorique": "144",
+              "hors_main": "0",
+              "en_main": "144",
+              "reserve": "0",
+              "disponible": "144"
+            },
+            "seuil_reapprovisionnement": null,
+            "quantite_cible": null,
+            "quantite_a_commander": null,
+            "stock_negatif": false,
+            "code_configuration": null,
+            "unite": null,
+            "unite_dernier_constat": "pi",
+            "dernier_constat": {
+              "reference": {
+                "registre": "besoins_commande",
+                "rang": 1,
+                "empreinte_snapshot": "9394e6ea0fab57a090b3c3155021a813b39e4cdc9b628850b83b2c6404e32301"
+              },
+              "type_entree": "seuil_a_configurer",
+              "evenement_declencheur": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+              "horodatage": "2026-09-15T12:00:00+00:00",
+              "chantier_id": "CH-REAPPRO-FICTIF",
+              "reference_bus": {
+                "type": "m4.travaux_termines",
+                "evenement_id": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+              }
+            }
+          },
+          {
+            "materiau_id": "MAT-REAPPRO-FICTIF",
+            "statut": "stock_bas",
+            "chiffres": {
+              "stock_theorique": "150",
+              "hors_main": "10",
+              "en_main": "140",
+              "reserve": "0",
+              "disponible": "140"
+            },
+            "seuil_reapprovisionnement": "150",
+            "quantite_cible": "300",
+            "quantite_a_commander": "160",
+            "stock_negatif": false,
+            "code_configuration": null,
+            "unite": null,
+            "unite_dernier_constat": "pi",
+            "dernier_constat": {
+              "reference": {
+                "registre": "besoins_commande",
+                "rang": 0,
+                "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+              },
+              "type_entree": "besoin_commande",
+              "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+              "horodatage": "2026-09-15T12:00:00+00:00",
+              "chantier_id": "CH-REAPPRO-FICTIF",
+              "reference_bus": {
+                "type": "m4.travaux_termines",
+                "evenement_id": "WCT-REAPPRO-FICTIF"
+              }
+            }
+          }
+        ],
+        "source_configuration": {
+          "fichier": "departments/m06-material-control/department.yaml",
+          "chemin": "configuration.reapprovisionnement.articles",
+          "sha256": "4fb2d54cc366285cc33f7c054b39a44fe9210c1e7d9d51ffcc630eeeb9fcaf0d"
+        },
+        "sources_registres": [
+          {
+            "registre": "besoins_commande",
+            "lignes": 2,
+            "empreinte_snapshot": "aee50f245898131519c115754b5331ea69a859888cde7b3f7817138032c7abc7"
+          },
+          {
+            "registre": "principal",
+            "lignes": 5,
+            "empreinte_snapshot": "aac2d70e0f81d233dc59f07d862e836e951c0453d36ccde916c1b674949174e0"
+          },
+          {
+            "registre": "reservations",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          {
+            "registre": "emplacements",
+            "lignes": 1,
+            "empreinte_snapshot": "02042a53d3595aa5ded1f345ac2ac41d0dfae6f541f4d290a03e95f3d608e446"
+          }
+        ],
+        "source_publications": {
+          "evenements": {
+            "type": "m4.travaux_termines",
+            "lignes": 2,
+            "empreinte_snapshot": "bcac10d7ea8a88cc8bae175ec4eb5689ebbfda635ba057ea8cb94ca9b1a692b0"
+          },
+          "recus_m6": {
+            "registre": "wct_recus",
+            "lignes": 2,
+            "empreinte_snapshot": "6b195e644b7f8ac9a7360086dd917a031d8c0248225743c5bb83079947d08197"
+          }
+        },
+        "couverture": {
+          "articles": "articles_deja_constates",
+          "stock": "theorique_disponible",
+          "unites": "homogeneite_non_confirmee",
+          "horodatage": "dernier_constat_sans_date_calcul",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 2,
+          "total": 2,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 3537
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "transfert-id-newline-non-projete-admis",
+      "request": {
+        "toolName": "m6_lire_reapprovisionnement_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "articles": [
+            {
+              "materiau_id": "﻿",
+              "statut": "seuil_absent",
+              "chiffres": {
+                "stock_theorique": "144",
+                "hors_main": "0",
+                "en_main": "144",
+                "reserve": "0",
+                "disponible": "144"
+              },
+              "seuil_reapprovisionnement": null,
+              "quantite_cible": null,
+              "quantite_a_commander": null,
+              "stock_negatif": false,
+              "code_configuration": null,
+              "unite": null,
+              "unite_dernier_constat": "pi",
+              "dernier_constat": {
+                "reference": {
+                  "registre": "besoins_commande",
+                  "rang": 1,
+                  "empreinte_snapshot": "9394e6ea0fab57a090b3c3155021a813b39e4cdc9b628850b83b2c6404e32301"
+                },
+                "type_entree": "seuil_a_configurer",
+                "evenement_declencheur": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+                "horodatage": "2026-09-15T12:00:00+00:00",
+                "chantier_id": "CH-REAPPRO-FICTIF",
+                "reference_bus": {
+                  "type": "m4.travaux_termines",
+                  "evenement_id": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                }
+              }
+            },
+            {
+              "materiau_id": "MAT-REAPPRO-FICTIF",
+              "statut": "stock_bas",
+              "chiffres": {
+                "stock_theorique": "150",
+                "hors_main": "20",
+                "en_main": "130",
+                "reserve": "0",
+                "disponible": "130"
+              },
+              "seuil_reapprovisionnement": "150",
+              "quantite_cible": "300",
+              "quantite_a_commander": "170",
+              "stock_negatif": false,
+              "code_configuration": null,
+              "unite": null,
+              "unite_dernier_constat": "pi",
+              "dernier_constat": {
+                "reference": {
+                  "registre": "besoins_commande",
+                  "rang": 0,
+                  "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+                },
+                "type_entree": "besoin_commande",
+                "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+                "horodatage": "2026-09-15T12:00:00+00:00",
+                "chantier_id": "CH-REAPPRO-FICTIF",
+                "reference_bus": {
+                  "type": "m4.travaux_termines",
+                  "evenement_id": "WCT-REAPPRO-FICTIF"
+                }
+              }
+            }
+          ],
+          "source_configuration": {
+            "fichier": "departments/m06-material-control/department.yaml",
+            "chemin": "configuration.reapprovisionnement.articles",
+            "sha256": "4fb2d54cc366285cc33f7c054b39a44fe9210c1e7d9d51ffcc630eeeb9fcaf0d"
+          },
+          "sources_registres": [
+            {
+              "registre": "besoins_commande",
+              "lignes": 2,
+              "empreinte_snapshot": "aee50f245898131519c115754b5331ea69a859888cde7b3f7817138032c7abc7"
+            },
+            {
+              "registre": "principal",
+              "lignes": 5,
+              "empreinte_snapshot": "aac2d70e0f81d233dc59f07d862e836e951c0453d36ccde916c1b674949174e0"
+            },
+            {
+              "registre": "reservations",
+              "lignes": 0,
+              "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            {
+              "registre": "emplacements",
+              "lignes": 2,
+              "empreinte_snapshot": "fed3830ccb17b4914ba678e340f9c9f32fd5c3ae9c1962229f5f6a1611b20962"
+            }
+          ],
+          "source_publications": {
+            "evenements": {
+              "type": "m4.travaux_termines",
+              "lignes": 2,
+              "empreinte_snapshot": "bcac10d7ea8a88cc8bae175ec4eb5689ebbfda635ba057ea8cb94ca9b1a692b0"
+            },
+            "recus_m6": {
+              "registre": "wct_recus",
+              "lignes": 2,
+              "empreinte_snapshot": "6b195e644b7f8ac9a7360086dd917a031d8c0248225743c5bb83079947d08197"
+            }
+          },
+          "couverture": {
+            "articles": "articles_deja_constates",
+            "stock": "theorique_disponible",
+            "unites": "homogeneite_non_confirmee",
+            "horodatage": "dernier_constat_sans_date_calcul",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 2,
+            "total": 2,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 3537
+        }
+      },
+      "envelope": {
+        "articles": [
+          {
+            "materiau_id": "﻿",
+            "statut": "seuil_absent",
+            "chiffres": {
+              "stock_theorique": "144",
+              "hors_main": "0",
+              "en_main": "144",
+              "reserve": "0",
+              "disponible": "144"
+            },
+            "seuil_reapprovisionnement": null,
+            "quantite_cible": null,
+            "quantite_a_commander": null,
+            "stock_negatif": false,
+            "code_configuration": null,
+            "unite": null,
+            "unite_dernier_constat": "pi",
+            "dernier_constat": {
+              "reference": {
+                "registre": "besoins_commande",
+                "rang": 1,
+                "empreinte_snapshot": "9394e6ea0fab57a090b3c3155021a813b39e4cdc9b628850b83b2c6404e32301"
+              },
+              "type_entree": "seuil_a_configurer",
+              "evenement_declencheur": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+              "horodatage": "2026-09-15T12:00:00+00:00",
+              "chantier_id": "CH-REAPPRO-FICTIF",
+              "reference_bus": {
+                "type": "m4.travaux_termines",
+                "evenement_id": "WCT-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+              }
+            }
+          },
+          {
+            "materiau_id": "MAT-REAPPRO-FICTIF",
+            "statut": "stock_bas",
+            "chiffres": {
+              "stock_theorique": "150",
+              "hors_main": "20",
+              "en_main": "130",
+              "reserve": "0",
+              "disponible": "130"
+            },
+            "seuil_reapprovisionnement": "150",
+            "quantite_cible": "300",
+            "quantite_a_commander": "170",
+            "stock_negatif": false,
+            "code_configuration": null,
+            "unite": null,
+            "unite_dernier_constat": "pi",
+            "dernier_constat": {
+              "reference": {
+                "registre": "besoins_commande",
+                "rang": 0,
+                "empreinte_snapshot": "fc877e338bcf1835c3540e41669d9dadf738655b205a2362653af0620d685a22"
+              },
+              "type_entree": "besoin_commande",
+              "evenement_declencheur": "WCT-REAPPRO-FICTIF",
+              "horodatage": "2026-09-15T12:00:00+00:00",
+              "chantier_id": "CH-REAPPRO-FICTIF",
+              "reference_bus": {
+                "type": "m4.travaux_termines",
+                "evenement_id": "WCT-REAPPRO-FICTIF"
+              }
+            }
+          }
+        ],
+        "source_configuration": {
+          "fichier": "departments/m06-material-control/department.yaml",
+          "chemin": "configuration.reapprovisionnement.articles",
+          "sha256": "4fb2d54cc366285cc33f7c054b39a44fe9210c1e7d9d51ffcc630eeeb9fcaf0d"
+        },
+        "sources_registres": [
+          {
+            "registre": "besoins_commande",
+            "lignes": 2,
+            "empreinte_snapshot": "aee50f245898131519c115754b5331ea69a859888cde7b3f7817138032c7abc7"
+          },
+          {
+            "registre": "principal",
+            "lignes": 5,
+            "empreinte_snapshot": "aac2d70e0f81d233dc59f07d862e836e951c0453d36ccde916c1b674949174e0"
+          },
+          {
+            "registre": "reservations",
+            "lignes": 0,
+            "empreinte_snapshot": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+          },
+          {
+            "registre": "emplacements",
+            "lignes": 2,
+            "empreinte_snapshot": "fed3830ccb17b4914ba678e340f9c9f32fd5c3ae9c1962229f5f6a1611b20962"
+          }
+        ],
+        "source_publications": {
+          "evenements": {
+            "type": "m4.travaux_termines",
+            "lignes": 2,
+            "empreinte_snapshot": "bcac10d7ea8a88cc8bae175ec4eb5689ebbfda635ba057ea8cb94ca9b1a692b0"
+          },
+          "recus_m6": {
+            "registre": "wct_recus",
+            "lignes": 2,
+            "empreinte_snapshot": "6b195e644b7f8ac9a7360086dd917a031d8c0248225743c5bb83079947d08197"
+          }
+        },
+        "couverture": {
+          "articles": "articles_deja_constates",
+          "stock": "theorique_disponible",
+          "unites": "homogeneite_non_confirmee",
+          "horodatage": "dernier_constat_sans_date_calcul",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 2,
+          "total": 2,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 3537
+      },
+      "tables_integrales_inchangees": 49
+    },
+    {
+      "phase": "recu-lie-sans-empreinte-refus-nominal",
+      "request": {
+        "toolName": "m6_lire_reapprovisionnement_appareil",
+        "args": {
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": false,
+          "verdict": {
+            "code": "REJ-M6-REAPPRO-SOURCE-INVALIDE",
+            "detail": "une source requise ne satisfait pas le contrat de lecture"
+          }
+        }
+      },
+      "envelope": {
+        "accepte": false,
+        "verdict": {
+          "code": "REJ-M6-REAPPRO-SOURCE-INVALIDE",
+          "detail": "une source requise ne satisfait pas le contrat de lecture"
+        }
+      },
+      "tables_integrales_inchangees": 49
+    }
+  ]
+}
