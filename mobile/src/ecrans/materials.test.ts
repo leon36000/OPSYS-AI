@@ -62,7 +62,7 @@ describe("validerLigne / convertirLigne", () => {
   });
 
   test("virgule décimale (fr-CA) acceptée pour la quantité", () => {
-    expect(validerLigne(ligne({ materiauId: "clou", unite: "boite", quantiteTexte: "3,5" }))).toBeNull();
+    expect(validerLigne(ligne({ materiauId: "clou", unite: "boite", quantiteTexte: "3,5", quantiteEstimeeTexte: "2" }))).toBeNull();
   });
 
   test("type 'prevu', quantite_estimee non numérique renseignée -> quantite_estimee_invalide", () => {
@@ -70,9 +70,9 @@ describe("validerLigne / convertirLigne", () => {
     expect(validerLigne(l)).toBe("quantite_estimee_invalide");
   });
 
-  test("type 'prevu', quantite_estimee vide -> valide (optionnelle)", () => {
+  test("type 'prevu', quantité prévue vide -> refus conforme au serveur", () => {
     const l = ligne({ materiauId: "clou", unite: "boite", quantiteTexte: "3", quantiteEstimeeTexte: "" });
-    expect(validerLigne(l)).toBeNull();
+    expect(validerLigne(l)).toBe("quantite_estimee_invalide");
   });
 
   test("type 'achat_terrain' sans photo ni reçu -> achat_terrain_preuve_manquante", () => {
@@ -90,8 +90,8 @@ describe("validerLigne / convertirLigne", () => {
   });
 
   test("convertirLigne : ligne valide -> LigneDeclareeChantierM6 exacte", () => {
-    const l = ligne({ materiauId: " clou ", unite: " boite ", quantiteTexte: "3,5" });
-    expect(convertirLigne(l)).toEqual({ type_ligne: "prevu", materiau_id: "clou", quantite: 3.5, unite: "boite" });
+    const l = ligne({ materiauId: " clou ", unite: " boite ", quantiteTexte: "3,5", quantiteEstimeeTexte: "2" });
+    expect(convertirLigne(l)).toEqual({ type_ligne: "prevu", materiau_id: " clou ", quantite: 3.5, unite: " boite ", quantite_estimee: 2 });
   });
 
   test("convertirLigne : quantite_estimee incluse seulement si renseignée et type prevu", () => {
@@ -111,7 +111,7 @@ describe("evaluerPreparationFormulaire", () => {
   });
 
   test("toutes les lignes valides -> pret avec le formulaire exact, wct_id/intervention_id/chantier_id corrects", () => {
-    const lignes = [ligne({ materiauId: "clou", unite: "boite", quantiteTexte: "1" })];
+    const lignes = [ligne({ materiauId: "clou", unite: "boite", quantiteTexte: "1", quantiteEstimeeTexte: "2" })];
     const resultat = evaluerPreparationFormulaire("W1", "I1", "I1", lignes);
     expect(resultat).toEqual({
       pret: true,
@@ -119,7 +119,7 @@ describe("evaluerPreparationFormulaire", () => {
         wct_id: "W1",
         intervention_id: "I1",
         chantier_id: "I1",
-        lignes_materiaux: [{ type_ligne: "prevu", materiau_id: "clou", quantite: 1, unite: "boite" }],
+        lignes_materiaux: [{ type_ligne: "prevu", materiau_id: "clou", quantite: 1, unite: "boite", quantite_estimee: 2 }],
       },
     });
   });

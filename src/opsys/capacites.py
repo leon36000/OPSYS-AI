@@ -675,6 +675,7 @@ class Capacites:
             "m6_lister_wct_pertes_appareil": "REJ-M6-WCT-SORTIE-TROP-VOLUMINEUSE",
             "m6_lire_pertes_alertes_wct_appareil": "REJ-M6-PERTES-SORTIE-TROP-VOLUMINEUSE",
             "m6_lire_reapprovisionnement_appareil": "REJ-M6-REAPPRO-SORTIE-TROP-VOLUMINEUSE",
+            "m6_lire_contexte_materiaux_appareil": "REJ-M6-CONTEXTE-SORTIE-TROP-VOLUMINEUSE",
         }.get(source)
         if refus_lecture_appareil is not None:
             # Le plafond de cette capacité peut être inférieur au budget fixe du producteur.

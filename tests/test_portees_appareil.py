@@ -29,6 +29,7 @@ EMPLOYE = frozenset({
     "m4_completer_intervention", "m4_creer_demande_ecart", "m4_definir_consentement_gps",
     "m4_demarrer_route", "m4_deposer_fichier", "m4_etat_fichier", "m4_lister_interventions", "m4_pointer",
     "m4_signaler_report", "m4_statut_intervention", "m6_declarer_materiaux_utilises",
+    "m6_lire_contexte_materiaux_appareil",
     # M7 : enregistrer un consentement de référence et importer/lire les avis non privés;
     # les plaintes privées et les décisions/exports/publications restent fermés à ce rôle.
     "m7_enregistrer_consentement_reference", "m7_importer_avis_manuel", "m7_lister_inbox_reputation",
@@ -255,7 +256,8 @@ def test_l_employe_ne_lit_ni_n_approuve_rien_des_autres(roles_reels, outil):
 
 @pytest.mark.parametrize("outil", [
     "m5_etat_tresorerie", "m5_lister_attentes_facturation", "m6_approuver_po", "m6_receptionner_commande",
-    "m6_produire_digest", "m6_enregistrer_prix", "m3_lire_ecarts_estime_reel", "m3_creer_devis",
+    "m6_produire_digest", "m6_lire_contexte_materiaux_appareil", "m6_enregistrer_prix",
+    "m3_lire_ecarts_estime_reel", "m3_creer_devis",
     "m3_estimer_projet", "m4_lire_outbox", "m9_produire_briefing_matin", "m8_rapport_metriques",
     "m4_confirmer_localisation", "m4_proposer_localisation", "m4_proposer_cedule", "m4_appliquer_cedule",
     "m4_verifier_preparation", "m4_verifier_meteo_creneau", "m6_reserver_materiel", "m6_liberer_reservation",

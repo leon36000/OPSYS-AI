@@ -94,6 +94,7 @@ from . import (
     besoins_materiaux_recus,
     besoins_prevus,
     bons_commande,
+    contexte_materiaux_appareil,
     digest,
     emplacements,
     encodage,
@@ -1701,6 +1702,118 @@ def lire_reapprovisionnement_appareil(decalage: int = 0, limite: int = 8) -> dic
     return reapprovisionnement_appareil.lire(sources, decalage, limite)
 
 
+def _admission_m4_contexte(intervention_id: str, acteur: acces.Acteur) -> dict[str, Any]:
+    from m4_field_ops import etats as etats_m4
+    from m4_field_ops import outbox as outbox_m4
+    from m4_field_ops import registre as registre_m4
+
+    cnx = stockage.connexion_courante()
+    rows = cnx.execute(
+        select(REGISTRES.c.rang, REGISTRES.c.maillon)
+        .where(REGISTRES.c.departement == "m04-field-ops", REGISTRES.c.registre == "principal")
+        .order_by(REGISTRES.c.rang)
+    ).all()
+    copies = [codec.decoder(r.maillon) for r in rows]
+    if len(copies) > contexte_materiaux_appareil.PLAFOND_LIGNES:
+        raise contexte_materiaux_appareil.Refus("BORNE-SOURCES")
+    reg = registre_m4.Registre(copies)
+    if not reg.valider_chaine():
+        raise contexte_materiaux_appareil.Refus("SOURCE-INVALIDE")
+    if acteur.role == "employee" and etats_m4.technicien_assigne(reg, intervention_id) != acteur.personne:
+        raise contexte_materiaux_appareil.Refus("INTERVENTION-NON-ASSIGNEE")
+    if not outbox_m4.verifier_invariants_outbox(reg)[0]:
+        raise contexte_materiaux_appareil.Refus("SOURCE-INVALIDE")
+    found = [m["wct"] for m in copies if m.get("intervention_id") == intervention_id and isinstance(m.get("wct"), dict)]
+    if len(found) != 1 or etats_m4.statut_courant(reg, intervention_id) not in outbox_m4.STATUTS_COMPLETION:
+        raise contexte_materiaux_appareil.Refus("WCT-INCONNU")
+    return {"completion": found[0], "admission_lignes": len(copies)}
+
+
+def _wct_m4_contexte(wct_id: str, admission: dict[str, Any], acteur: acces.Acteur) -> dict[str, Any]:
+    cnx = stockage.connexion_courante()
+    r = cnx.execute(
+        select(
+            EVENEMENTS_SORTANTS.c.evenement_id,
+            EVENEMENTS_SORTANTS.c.type_evenement,
+            EVENEMENTS_SORTANTS.c.producteur,
+            EVENEMENTS_SORTANTS.c.charge,
+        ).where(EVENEMENTS_SORTANTS.c.evenement_id == wct_id)
+    ).one_or_none()
+    if r is None:
+        raise contexte_materiaux_appareil.Refus("WCT-INCONNU")
+    charge = codec.decoder(r.charge)
+    if (
+        r.type_evenement != "m4.travaux_termines"
+        or r.producteur != "m04-field-ops"
+        or erreurs_charge(r.type_evenement, charge)
+    ):
+        raise contexte_materiaux_appareil.Refus("SOURCE-INVALIDE")
+    if charge != admission["completion"] or charge["wct_id"] != wct_id:
+        raise contexte_materiaux_appareil.Refus("LIAISON-INCOHERENTE")
+    if acteur.role == "employee" and charge["technicien_id"] != acteur.personne:
+        raise contexte_materiaux_appareil.Refus("INTERVENTION-NON-ASSIGNEE")
+    return {
+        **admission,
+        "wct": {
+            "evenement_id": r.evenement_id,
+            "type": r.type_evenement,
+            "producteur": r.producteur,
+            "charge": charge,
+            "catalogue_valide": True,
+        },
+    }
+
+
+def _sources_m6_contexte(wct_id: str, admission: dict[str, Any]) -> dict[str, Any]:
+    cnx = stockage.connexion_courante()
+    rows = cnx.execute(
+        select(REGISTRES.c.rang, REGISTRES.c.maillon)
+        .where(REGISTRES.c.departement == _DEPARTEMENT, REGISTRES.c.registre == "besoins_prevus")
+        .order_by(REGISTRES.c.rang)
+    ).all()
+    prevus = [{"rang": r.rang, "maillon": codec.decoder(r.maillon)} for r in rows]
+    records = cnx.execute(
+        select(
+            EVENEMENTS_SORTANTS.c.evenement_id,
+            EVENEMENTS_SORTANTS.c.type_evenement,
+            EVENEMENTS_SORTANTS.c.producteur,
+            EVENEMENTS_SORTANTS.c.charge,
+        ).where(EVENEMENTS_SORTANTS.c.type_evenement.in_(("m3.besoins_materiaux", "m3.devis_accepte")))
+    ).all()
+    pubs = [
+        {
+            "evenement_id": r.evenement_id,
+            "type": r.type_evenement,
+            "producteur": r.producteur,
+            "charge": codec.decoder(r.charge),
+        }
+        for r in records
+    ]
+    if len(prevus) + len(pubs) + admission["admission_lignes"] + 1 <= contexte_materiaux_appareil.PLAFOND_LIGNES:
+        for pub in pubs:
+            pub["catalogue_valide"] = not erreurs_charge(pub["type"], pub["charge"])
+    return {**admission, "prevus": prevus, "m3": pubs}
+
+
+def lire_contexte_materiaux_appareil(
+    intervention_id: str, wct_id: str, decalage: int = 0, limite: int = 8
+) -> dict[str, Any]:
+    acteur, verdict = _declarant_appareil()
+    if acteur is None or verdict is not None:
+        return contexte_materiaux_appareil.refuser("IDENTITE-INVALIDE")
+    if not contexte_materiaux_appareil.arguments_valides(intervention_id, wct_id, decalage, limite):
+        return contexte_materiaux_appareil.refuser("ARGUMENTS-INVALIDES")
+    try:
+        admission = _admission_m4_contexte(intervention_id, acteur)
+        admission = _wct_m4_contexte(wct_id, admission, acteur)
+        sources = _sources_m6_contexte(wct_id, admission)
+    except contexte_materiaux_appareil.Refus as exc:
+        return contexte_materiaux_appareil.refuser(exc.suffixe)
+    except Exception:
+        return contexte_materiaux_appareil.refuser("SOURCE-INVALIDE")
+    return contexte_materiaux_appareil.lire(sources, intervention_id, wct_id, acteur, decalage, limite)
+
+
 def outils() -> tuple[Outil, ...]:
     return (
         Outil(
@@ -2237,6 +2350,25 @@ def outils() -> tuple[Outil, ...]:
                 "limite": {"type": "integer", "minimum": 1, "maximum": 8}},
                 "required": ["decalage", "limite"], "additionalProperties": False},
             fonction=lire_reapprovisionnement_appareil, autonomie=Autonomie.T0, roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m6_lire_contexte_materiaux_appareil",
+            description=("Lit le contexte et le prévu réel du WCT choisi, sans coût ni quantité réellement utilisée, "
+                         "après admission de la personne."),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "intervention_id": {"type": "string", "minLength": 1, "maxLength": 256},
+                    "wct_id": {"type": "string", "minLength": 1, "maxLength": 256},
+                    "decalage": {"type": "integer", "minimum": 0, "maximum": 10000},
+                    "limite": {"type": "integer", "minimum": 1, "maximum": 8},
+                },
+                "required": ["intervention_id", "wct_id", "decalage", "limite"],
+                "additionalProperties": False,
+            },
+            fonction=lire_contexte_materiaux_appareil,
+            autonomie=Autonomie.T0,
+            roles_appareil=frozenset({"employee", "admin"}),
         ),
     )
 

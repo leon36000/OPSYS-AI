@@ -1,0 +1,2051 @@
+{
+  "fictif": true,
+  "scope": "actual M4completion tool + fictive CAS; actual M6 writer/consumer; real Python executer_atomique/SQLite with DEVICE context. No paired opaque DEVICE, Node Gateway, HTTP, phone or provider. M3 source payloads prepared fixtures, catalogue publication+M6 receiver executed; no claim real M3 estimation/acceptance producer.",
+  "parent_ROOT_supplied": "5ae7ca8ee11e680e5e6da63b63f7c213a6d06b65",
+  "source_sha256": {
+    "departments/m06-material-control/src/m6_material_control/contexte_materiaux_appareil.py": "6fa4385b305cc81b6ee30cc070a3250da84afe4bd4b122cbe10a4d49e6cbe7eb",
+    "departments/m06-material-control/src/m6_material_control/outils.py": "f2dd35c7b6e3e8d4424a61fee4fa737e0f3f4e41ca8d7e44b642820f929122a5",
+    "departments/m06-material-control/tests/test_contexte_materiaux_appareil.py": "d3112123b78ecce64b5172c5ecd2839d9d144d7b3b990e0de456a5b0361fa06b",
+    "departments/m06-material-control/docs/LECTURE-CONTEXTE-MATERIAUX-APPAREIL.md": "b401f6e02b7a6213660acc1f23ea8fc74b26ea3e8c62de9b2f942a26837fd4e5",
+    "tests/test_portees_appareil.py": "b9d500fbad9da42ac659c6a4f2d220e24b07fb41e08987b9c70bf0bf20761dba",
+    "docs/architecture/ROLES.md": "4abc9cfd0a9e5acef718feecb6fe10fa46018522b9dfe32435abea3dff2a594a"
+  },
+  "contract_sha256": "954ecd730ec22bcadedf4e37ec032dbe00bec47cec09eb46b0918021482b4d4f",
+  "captures": [
+    {
+      "phase": "employee-prevu-absent",
+      "preparation": "actual M4 completion Outil/CAS fictive bytes; ",
+      "request": {
+        "toolName": "m6_lire_contexte_materiaux_appareil",
+        "args": {
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+            "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+            "devis_id": null,
+            "horodatage_completion": "2025-06-02T11:30:00+00:00",
+            "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+            }
+          },
+          "chantier": {
+            "chantier_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+            "origine": "intervention_employee"
+          },
+          "prevu": {
+            "statut": "absent",
+            "source": null
+          },
+          "lignes": [],
+          "manques": [
+            "devis_absent",
+            "prevu_absent"
+          ],
+          "couverture": {
+            "objet": "contexte_et_prevu_du_wct",
+            "quantite_reelle": "non_renseignee",
+            "pages": "courantes",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 0,
+            "total": 0,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 1038
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "devis_id": null,
+          "horodatage_completion": "2025-06-02T11:30:00+00:00",
+          "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+          }
+        },
+        "chantier": {
+          "chantier_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "origine": "intervention_employee"
+        },
+        "prevu": {
+          "statut": "absent",
+          "source": null
+        },
+        "lignes": [],
+        "manques": [
+          "devis_absent",
+          "prevu_absent"
+        ],
+        "couverture": {
+          "objet": "contexte_et_prevu_du_wct",
+          "quantite_reelle": "non_renseignee",
+          "pages": "courantes",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 0,
+          "total": 0,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 1038
+      },
+      "all_entire_tables_unchanged": 49,
+      "tables_sha256_before": "8ba1ab4fa51d3bba44dfa7b9a950c2b2c0ce413afea4cd70a8d9c19e8f38fc46",
+      "tables_sha256_after": "8ba1ab4fa51d3bba44dfa7b9a950c2b2c0ce413afea4cd70a8d9c19e8f38fc46",
+      "artefacts_before": 0,
+      "artefacts_after": 0,
+      "disposition": "DTO"
+    },
+    {
+      "phase": "admin-chantier-inconnu",
+      "preparation": "actual M4 completion Outil/CAS fictive bytes; ",
+      "request": {
+        "toolName": "m6_lire_contexte_materiaux_appareil",
+        "args": {
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+            "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+            "devis_id": null,
+            "horodatage_completion": "2025-06-02T11:30:00+00:00",
+            "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+            }
+          },
+          "chantier": {
+            "chantier_id": null,
+            "origine": "absent_admin"
+          },
+          "prevu": {
+            "statut": "absent",
+            "source": null
+          },
+          "lignes": [],
+          "manques": [
+            "devis_absent",
+            "prevu_absent",
+            "chantier_source_absent"
+          ],
+          "couverture": {
+            "objet": "contexte_et_prevu_du_wct",
+            "quantite_reelle": "non_renseignee",
+            "pages": "courantes",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 0,
+            "total": 0,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 992
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "devis_id": null,
+          "horodatage_completion": "2025-06-02T11:30:00+00:00",
+          "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+          }
+        },
+        "chantier": {
+          "chantier_id": null,
+          "origine": "absent_admin"
+        },
+        "prevu": {
+          "statut": "absent",
+          "source": null
+        },
+        "lignes": [],
+        "manques": [
+          "devis_absent",
+          "prevu_absent",
+          "chantier_source_absent"
+        ],
+        "couverture": {
+          "objet": "contexte_et_prevu_du_wct",
+          "quantite_reelle": "non_renseignee",
+          "pages": "courantes",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 0,
+          "total": 0,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 992
+      },
+      "all_entire_tables_unchanged": 49,
+      "tables_sha256_before": "058e4339cfc5d6acfd6fae083497a891962a4c2865d4afb3737910f72484f5f4",
+      "tables_sha256_after": "058e4339cfc5d6acfd6fae083497a891962a4c2865d4afb3737910f72484f5f4",
+      "artefacts_before": 0,
+      "artefacts_after": 0,
+      "disposition": "DTO"
+    },
+    {
+      "phase": "employee-prevu-definitif",
+      "preparation": "actual M4 completion Outil/CAS fictive bytes; actual M6 manual prévu Outil",
+      "request": {
+        "toolName": "m6_lire_contexte_materiaux_appareil",
+        "args": {
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+            "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+            "devis_id": "DEVIS-CONTEXTE-FICTIF",
+            "horodatage_completion": "2025-06-02T11:30:00+00:00",
+            "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+            }
+          },
+          "chantier": {
+            "chantier_id": "CH-M3-FICTIF",
+            "origine": "prevu_m6"
+          },
+          "prevu": {
+            "statut": "definitif",
+            "source": {
+              "registre": "besoins_prevus",
+              "rang": 0,
+              "empreinte_snapshot": "b0bcd36cbdd521dc14a32966f6a5c6bf808f0f0ad6e17f0003705ad42e298063",
+              "estimation_id": null,
+              "rang_m3": null,
+              "bareme_version": null,
+              "horodatage": null,
+              "reference_m3": null
+            }
+          },
+          "lignes": [
+            {
+              "position_source": 0,
+              "materiau_id": "MAT-CONTEXTE-FICTIF",
+              "unite": "pi",
+              "quantite_estimee": "40",
+              "origine_quantite": "nombre_m6_persiste"
+            }
+          ],
+          "manques": [
+            "horodatage_prevu_absent",
+            "provenance_m3_absente"
+          ],
+          "couverture": {
+            "objet": "contexte_et_prevu_du_wct",
+            "quantite_reelle": "non_renseignee",
+            "pages": "courantes",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 1,
+            "total": 1,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 1391
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "devis_id": "DEVIS-CONTEXTE-FICTIF",
+          "horodatage_completion": "2025-06-02T11:30:00+00:00",
+          "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+          }
+        },
+        "chantier": {
+          "chantier_id": "CH-M3-FICTIF",
+          "origine": "prevu_m6"
+        },
+        "prevu": {
+          "statut": "definitif",
+          "source": {
+            "registre": "besoins_prevus",
+            "rang": 0,
+            "empreinte_snapshot": "b0bcd36cbdd521dc14a32966f6a5c6bf808f0f0ad6e17f0003705ad42e298063",
+            "estimation_id": null,
+            "rang_m3": null,
+            "bareme_version": null,
+            "horodatage": null,
+            "reference_m3": null
+          }
+        },
+        "lignes": [
+          {
+            "position_source": 0,
+            "materiau_id": "MAT-CONTEXTE-FICTIF",
+            "unite": "pi",
+            "quantite_estimee": "40",
+            "origine_quantite": "nombre_m6_persiste"
+          }
+        ],
+        "manques": [
+          "horodatage_prevu_absent",
+          "provenance_m3_absente"
+        ],
+        "couverture": {
+          "objet": "contexte_et_prevu_du_wct",
+          "quantite_reelle": "non_renseignee",
+          "pages": "courantes",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 1,
+          "total": 1,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 1391
+      },
+      "all_entire_tables_unchanged": 49,
+      "tables_sha256_before": "8e9f50020136ff44f2fbeed4191d809c03295b20bdc6d578f980d2d4bb17c73e",
+      "tables_sha256_after": "8e9f50020136ff44f2fbeed4191d809c03295b20bdc6d578f980d2d4bb17c73e",
+      "artefacts_before": 0,
+      "artefacts_after": 0,
+      "disposition": "DTO"
+    },
+    {
+      "phase": "prevu-vide-connu",
+      "preparation": "actual M4 completion Outil/CAS fictive bytes; catalogued fictive M3 accepted payload + real M6 consumer",
+      "request": {
+        "toolName": "m6_lire_contexte_materiaux_appareil",
+        "args": {
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+            "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+            "devis_id": "DEVIS-CONTEXTE-FICTIF",
+            "horodatage_completion": "2025-06-02T11:30:00+00:00",
+            "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+            }
+          },
+          "chantier": {
+            "chantier_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+            "origine": "intervention_employee"
+          },
+          "prevu": {
+            "statut": "definitif",
+            "source": {
+              "registre": "besoins_prevus",
+              "rang": 0,
+              "empreinte_snapshot": "5ade5ea252e122a00dd5b8e98774657283041e8cb990cf75a43e8096c9152e53",
+              "estimation_id": null,
+              "rang_m3": null,
+              "bareme_version": null,
+              "horodatage": "2025-06-01T08:00:00+00:00",
+              "reference_m3": {
+                "type": "m3.devis_accepte",
+                "evenement_id": "M3-DEVIS-CONTEXTE-FICTIF"
+              }
+            }
+          },
+          "lignes": [],
+          "manques": [],
+          "couverture": {
+            "objet": "contexte_et_prevu_du_wct",
+            "quantite_reelle": "non_renseignee",
+            "pages": "courantes",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 0,
+            "total": 0,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 1354
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "devis_id": "DEVIS-CONTEXTE-FICTIF",
+          "horodatage_completion": "2025-06-02T11:30:00+00:00",
+          "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+          }
+        },
+        "chantier": {
+          "chantier_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "origine": "intervention_employee"
+        },
+        "prevu": {
+          "statut": "definitif",
+          "source": {
+            "registre": "besoins_prevus",
+            "rang": 0,
+            "empreinte_snapshot": "5ade5ea252e122a00dd5b8e98774657283041e8cb990cf75a43e8096c9152e53",
+            "estimation_id": null,
+            "rang_m3": null,
+            "bareme_version": null,
+            "horodatage": "2025-06-01T08:00:00+00:00",
+            "reference_m3": {
+              "type": "m3.devis_accepte",
+              "evenement_id": "M3-DEVIS-CONTEXTE-FICTIF"
+            }
+          }
+        },
+        "lignes": [],
+        "manques": [],
+        "couverture": {
+          "objet": "contexte_et_prevu_du_wct",
+          "quantite_reelle": "non_renseignee",
+          "pages": "courantes",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 0,
+          "total": 0,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 1354
+      },
+      "all_entire_tables_unchanged": 49,
+      "tables_sha256_before": "603efa913d4a783e705ba51ebd03f8f1ce037befe3dc31c442fa879ca3b802bd",
+      "tables_sha256_after": "603efa913d4a783e705ba51ebd03f8f1ce037befe3dc31c442fa879ca3b802bd",
+      "artefacts_before": 0,
+      "artefacts_after": 0,
+      "disposition": "DTO"
+    },
+    {
+      "phase": "m3-devis-accepte-texte-verifie",
+      "preparation": "actual M4 completion Outil/CAS fictive bytes; catalogued fictive M3 accepted payload + real M6 consumer",
+      "request": {
+        "toolName": "m6_lire_contexte_materiaux_appareil",
+        "args": {
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+            "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+            "devis_id": "DEVIS-CONTEXTE-FICTIF",
+            "horodatage_completion": "2025-06-02T11:30:00+00:00",
+            "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+            }
+          },
+          "chantier": {
+            "chantier_id": "CH-M3-FICTIF",
+            "origine": "prevu_m6"
+          },
+          "prevu": {
+            "statut": "definitif",
+            "source": {
+              "registre": "besoins_prevus",
+              "rang": 0,
+              "empreinte_snapshot": "f9b9a17d1192ddff5f49cc892c464b40572a0be77a88a53b946e0428baaa9c61",
+              "estimation_id": null,
+              "rang_m3": null,
+              "bareme_version": null,
+              "horodatage": "2025-06-01T08:00:00+00:00",
+              "reference_m3": {
+                "type": "m3.devis_accepte",
+                "evenement_id": "M3-DEVIS-CONTEXTE-FICTIF"
+              }
+            }
+          },
+          "lignes": [
+            {
+              "position_source": 0,
+              "materiau_id": "MAT-CONTEXTE-FICTIF",
+              "unite": "pi",
+              "quantite_estimee": "040.00",
+              "origine_quantite": "texte_m3_verifie"
+            }
+          ],
+          "manques": [],
+          "couverture": {
+            "objet": "contexte_et_prevu_du_wct",
+            "quantite_reelle": "non_renseignee",
+            "pages": "courantes",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 1,
+            "total": 1,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 1434
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "devis_id": "DEVIS-CONTEXTE-FICTIF",
+          "horodatage_completion": "2025-06-02T11:30:00+00:00",
+          "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+          }
+        },
+        "chantier": {
+          "chantier_id": "CH-M3-FICTIF",
+          "origine": "prevu_m6"
+        },
+        "prevu": {
+          "statut": "definitif",
+          "source": {
+            "registre": "besoins_prevus",
+            "rang": 0,
+            "empreinte_snapshot": "f9b9a17d1192ddff5f49cc892c464b40572a0be77a88a53b946e0428baaa9c61",
+            "estimation_id": null,
+            "rang_m3": null,
+            "bareme_version": null,
+            "horodatage": "2025-06-01T08:00:00+00:00",
+            "reference_m3": {
+              "type": "m3.devis_accepte",
+              "evenement_id": "M3-DEVIS-CONTEXTE-FICTIF"
+            }
+          }
+        },
+        "lignes": [
+          {
+            "position_source": 0,
+            "materiau_id": "MAT-CONTEXTE-FICTIF",
+            "unite": "pi",
+            "quantite_estimee": "040.00",
+            "origine_quantite": "texte_m3_verifie"
+          }
+        ],
+        "manques": [],
+        "couverture": {
+          "objet": "contexte_et_prevu_du_wct",
+          "quantite_reelle": "non_renseignee",
+          "pages": "courantes",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 1,
+          "total": 1,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 1434
+      },
+      "all_entire_tables_unchanged": 49,
+      "tables_sha256_before": "03a37848c367baa7c2207c7ecfd2f0468240f4570608f965911a88adf7cf3161",
+      "tables_sha256_after": "03a37848c367baa7c2207c7ecfd2f0468240f4570608f965911a88adf7cf3161",
+      "artefacts_before": 0,
+      "artefacts_after": 0,
+      "disposition": "DTO"
+    },
+    {
+      "phase": "m3-besoins-provisoire",
+      "preparation": "actual M4 completion Outil/CAS fictive bytes; catalogued fictive M3 estimation payload + real M6 consumer",
+      "request": {
+        "toolName": "m6_lire_contexte_materiaux_appareil",
+        "args": {
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+            "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+            "devis_id": "DEVIS-CONTEXTE-FICTIF",
+            "horodatage_completion": "2025-06-02T11:30:00+00:00",
+            "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+            }
+          },
+          "chantier": {
+            "chantier_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+            "origine": "intervention_employee"
+          },
+          "prevu": {
+            "statut": "provisoire_estimation_m3",
+            "source": {
+              "registre": "besoins_prevus",
+              "rang": 0,
+              "empreinte_snapshot": "ed63fa1ac53d23e07806b773903e384f294c0ba93493785cbf3d2e10f6afc411",
+              "estimation_id": "1111111111111111111111111111111111111111111111111111111111111111",
+              "rang_m3": 0,
+              "bareme_version": "BAREME-FICTIF",
+              "horodatage": null,
+              "reference_m3": {
+                "type": "m3.besoins_materiaux",
+                "evenement_id": "M3-BESOINS-CONTEXTE-FICTIF-0"
+              }
+            }
+          },
+          "lignes": [
+            {
+              "position_source": 0,
+              "materiau_id": "MAT-CONTEXTE-FICTIF",
+              "unite": "pi",
+              "quantite_estimee": "040.00",
+              "origine_quantite": "texte_m3_verifie"
+            }
+          ],
+          "manques": [
+            "horodatage_prevu_absent"
+          ],
+          "couverture": {
+            "objet": "contexte_et_prevu_du_wct",
+            "quantite_reelle": "non_renseignee",
+            "pages": "courantes",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 1,
+            "total": 1,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 1594
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "devis_id": "DEVIS-CONTEXTE-FICTIF",
+          "horodatage_completion": "2025-06-02T11:30:00+00:00",
+          "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+          }
+        },
+        "chantier": {
+          "chantier_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "origine": "intervention_employee"
+        },
+        "prevu": {
+          "statut": "provisoire_estimation_m3",
+          "source": {
+            "registre": "besoins_prevus",
+            "rang": 0,
+            "empreinte_snapshot": "ed63fa1ac53d23e07806b773903e384f294c0ba93493785cbf3d2e10f6afc411",
+            "estimation_id": "1111111111111111111111111111111111111111111111111111111111111111",
+            "rang_m3": 0,
+            "bareme_version": "BAREME-FICTIF",
+            "horodatage": null,
+            "reference_m3": {
+              "type": "m3.besoins_materiaux",
+              "evenement_id": "M3-BESOINS-CONTEXTE-FICTIF-0"
+            }
+          }
+        },
+        "lignes": [
+          {
+            "position_source": 0,
+            "materiau_id": "MAT-CONTEXTE-FICTIF",
+            "unite": "pi",
+            "quantite_estimee": "040.00",
+            "origine_quantite": "texte_m3_verifie"
+          }
+        ],
+        "manques": [
+          "horodatage_prevu_absent"
+        ],
+        "couverture": {
+          "objet": "contexte_et_prevu_du_wct",
+          "quantite_reelle": "non_renseignee",
+          "pages": "courantes",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 1,
+          "total": 1,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 1594
+      },
+      "all_entire_tables_unchanged": 49,
+      "tables_sha256_before": "e579c10af4b966cc073ab83d3d487cc4b3ede08288e1e77726ca45108c637203",
+      "tables_sha256_after": "e579c10af4b966cc073ab83d3d487cc4b3ede08288e1e77726ca45108c637203",
+      "artefacts_before": 0,
+      "artefacts_after": 0,
+      "disposition": "DTO"
+    },
+    {
+      "phase": "m3-provisoire-remplace-page",
+      "preparation": "actual M4 completion Outil/CAS fictive bytes; catalogued fictive M3 estimation payload + real M6 consumer",
+      "request": {
+        "toolName": "m6_lire_contexte_materiaux_appareil",
+        "args": {
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+            "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+            "devis_id": "DEVIS-CONTEXTE-FICTIF",
+            "horodatage_completion": "2025-06-02T11:30:00+00:00",
+            "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+            }
+          },
+          "chantier": {
+            "chantier_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+            "origine": "intervention_employee"
+          },
+          "prevu": {
+            "statut": "provisoire_estimation_m3",
+            "source": {
+              "registre": "besoins_prevus",
+              "rang": 1,
+              "empreinte_snapshot": "70b7279f19cd2425b20790dfeb1ad34b60ae19255870f22c61d7c161537e9278",
+              "estimation_id": "2222222222222222222222222222222222222222222222222222222222222222",
+              "rang_m3": 1,
+              "bareme_version": "BAREME-FICTIF",
+              "horodatage": null,
+              "reference_m3": {
+                "type": "m3.besoins_materiaux",
+                "evenement_id": "M3-BESOINS-CONTEXTE-FICTIF-1"
+              }
+            }
+          },
+          "lignes": [
+            {
+              "position_source": 0,
+              "materiau_id": "MAT-CONTEXTE-FICTIF",
+              "unite": "pi",
+              "quantite_estimee": "42",
+              "origine_quantite": "texte_m3_verifie"
+            }
+          ],
+          "manques": [
+            "horodatage_prevu_absent"
+          ],
+          "couverture": {
+            "objet": "contexte_et_prevu_du_wct",
+            "quantite_reelle": "non_renseignee",
+            "pages": "courantes",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 1,
+            "total": 1,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 1590
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "devis_id": "DEVIS-CONTEXTE-FICTIF",
+          "horodatage_completion": "2025-06-02T11:30:00+00:00",
+          "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+          }
+        },
+        "chantier": {
+          "chantier_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "origine": "intervention_employee"
+        },
+        "prevu": {
+          "statut": "provisoire_estimation_m3",
+          "source": {
+            "registre": "besoins_prevus",
+            "rang": 1,
+            "empreinte_snapshot": "70b7279f19cd2425b20790dfeb1ad34b60ae19255870f22c61d7c161537e9278",
+            "estimation_id": "2222222222222222222222222222222222222222222222222222222222222222",
+            "rang_m3": 1,
+            "bareme_version": "BAREME-FICTIF",
+            "horodatage": null,
+            "reference_m3": {
+              "type": "m3.besoins_materiaux",
+              "evenement_id": "M3-BESOINS-CONTEXTE-FICTIF-1"
+            }
+          }
+        },
+        "lignes": [
+          {
+            "position_source": 0,
+            "materiau_id": "MAT-CONTEXTE-FICTIF",
+            "unite": "pi",
+            "quantite_estimee": "42",
+            "origine_quantite": "texte_m3_verifie"
+          }
+        ],
+        "manques": [
+          "horodatage_prevu_absent"
+        ],
+        "couverture": {
+          "objet": "contexte_et_prevu_du_wct",
+          "quantite_reelle": "non_renseignee",
+          "pages": "courantes",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 1,
+          "total": 1,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 1590
+      },
+      "all_entire_tables_unchanged": 49,
+      "tables_sha256_before": "8669f53e4272f02d8c0c3c4ed5bf1ad2475f05540cd06718893dd4c3b6328bf0",
+      "tables_sha256_after": "8669f53e4272f02d8c0c3c4ed5bf1ad2475f05540cd06718893dd4c3b6328bf0",
+      "artefacts_before": 0,
+      "artefacts_after": 0,
+      "disposition": "DTO"
+    },
+    {
+      "phase": "ids-unites-feff-verbatim",
+      "preparation": "actual M4 completion Outil/CAS fictive bytes; actual M6 manual prévu Outil",
+      "request": {
+        "toolName": "m6_lire_contexte_materiaux_appareil",
+        "args": {
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+            "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+            "devis_id": "DEVIS-CONTEXTE-FICTIF",
+            "horodatage_completion": "2025-06-02T11:30:00+00:00",
+            "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+            }
+          },
+          "chantier": {
+            "chantier_id": "CH-M3-FICTIF",
+            "origine": "prevu_m6"
+          },
+          "prevu": {
+            "statut": "definitif",
+            "source": {
+              "registre": "besoins_prevus",
+              "rang": 0,
+              "empreinte_snapshot": "a5443c4c993ee95ea4eb4be2a26c8b05b77843d2b19d4525304bd3ccb244e524",
+              "estimation_id": null,
+              "rang_m3": null,
+              "bareme_version": null,
+              "horodatage": null,
+              "reference_m3": null
+            }
+          },
+          "lignes": [
+            {
+              "position_source": 0,
+              "materiau_id": "﻿",
+              "unite": "﻿",
+              "quantite_estimee": "1",
+              "origine_quantite": "nombre_m6_persiste"
+            }
+          ],
+          "manques": [
+            "horodatage_prevu_absent",
+            "provenance_m3_absente"
+          ],
+          "couverture": {
+            "objet": "contexte_et_prevu_du_wct",
+            "quantite_reelle": "non_renseignee",
+            "pages": "courantes",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 1,
+            "total": 1,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 1371
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "devis_id": "DEVIS-CONTEXTE-FICTIF",
+          "horodatage_completion": "2025-06-02T11:30:00+00:00",
+          "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+          }
+        },
+        "chantier": {
+          "chantier_id": "CH-M3-FICTIF",
+          "origine": "prevu_m6"
+        },
+        "prevu": {
+          "statut": "definitif",
+          "source": {
+            "registre": "besoins_prevus",
+            "rang": 0,
+            "empreinte_snapshot": "a5443c4c993ee95ea4eb4be2a26c8b05b77843d2b19d4525304bd3ccb244e524",
+            "estimation_id": null,
+            "rang_m3": null,
+            "bareme_version": null,
+            "horodatage": null,
+            "reference_m3": null
+          }
+        },
+        "lignes": [
+          {
+            "position_source": 0,
+            "materiau_id": "﻿",
+            "unite": "﻿",
+            "quantite_estimee": "1",
+            "origine_quantite": "nombre_m6_persiste"
+          }
+        ],
+        "manques": [
+          "horodatage_prevu_absent",
+          "provenance_m3_absente"
+        ],
+        "couverture": {
+          "objet": "contexte_et_prevu_du_wct",
+          "quantite_reelle": "non_renseignee",
+          "pages": "courantes",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 1,
+          "total": 1,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 1371
+      },
+      "all_entire_tables_unchanged": 49,
+      "tables_sha256_before": "2ec0c1e5bcad79c2923eb4d9c5afe51129f851acd9f0e69de7c05ff9467f18da",
+      "tables_sha256_after": "2ec0c1e5bcad79c2923eb4d9c5afe51129f851acd9f0e69de7c05ff9467f18da",
+      "artefacts_before": 0,
+      "artefacts_after": 0,
+      "disposition": "DTO"
+    },
+    {
+      "phase": "quantite-grande-texte",
+      "preparation": "actual M4 completion Outil/CAS fictive bytes; actual M6 manual prévu Outil",
+      "request": {
+        "toolName": "m6_lire_contexte_materiaux_appareil",
+        "args": {
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+            "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+            "devis_id": "DEVIS-CONTEXTE-FICTIF",
+            "horodatage_completion": "2025-06-02T11:30:00+00:00",
+            "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+            }
+          },
+          "chantier": {
+            "chantier_id": "CH-M3-FICTIF",
+            "origine": "prevu_m6"
+          },
+          "prevu": {
+            "statut": "definitif",
+            "source": {
+              "registre": "besoins_prevus",
+              "rang": 0,
+              "empreinte_snapshot": "8da5cb14e1a78d464367e3764547d7612b52f09ecb2e013d94956cf49407386d",
+              "estimation_id": null,
+              "rang_m3": null,
+              "bareme_version": null,
+              "horodatage": null,
+              "reference_m3": null
+            }
+          },
+          "lignes": [
+            {
+              "position_source": 0,
+              "materiau_id": "MAT-CONTEXTE-FICTIF",
+              "unite": "pi",
+              "quantite_estimee": "1267650600228229401496703205376",
+              "origine_quantite": "nombre_m6_persiste"
+            }
+          ],
+          "manques": [
+            "horodatage_prevu_absent",
+            "provenance_m3_absente"
+          ],
+          "couverture": {
+            "objet": "contexte_et_prevu_du_wct",
+            "quantite_reelle": "non_renseignee",
+            "pages": "courantes",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 1,
+            "total": 1,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 1420
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "devis_id": "DEVIS-CONTEXTE-FICTIF",
+          "horodatage_completion": "2025-06-02T11:30:00+00:00",
+          "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+          }
+        },
+        "chantier": {
+          "chantier_id": "CH-M3-FICTIF",
+          "origine": "prevu_m6"
+        },
+        "prevu": {
+          "statut": "definitif",
+          "source": {
+            "registre": "besoins_prevus",
+            "rang": 0,
+            "empreinte_snapshot": "8da5cb14e1a78d464367e3764547d7612b52f09ecb2e013d94956cf49407386d",
+            "estimation_id": null,
+            "rang_m3": null,
+            "bareme_version": null,
+            "horodatage": null,
+            "reference_m3": null
+          }
+        },
+        "lignes": [
+          {
+            "position_source": 0,
+            "materiau_id": "MAT-CONTEXTE-FICTIF",
+            "unite": "pi",
+            "quantite_estimee": "1267650600228229401496703205376",
+            "origine_quantite": "nombre_m6_persiste"
+          }
+        ],
+        "manques": [
+          "horodatage_prevu_absent",
+          "provenance_m3_absente"
+        ],
+        "couverture": {
+          "objet": "contexte_et_prevu_du_wct",
+          "quantite_reelle": "non_renseignee",
+          "pages": "courantes",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 1,
+          "total": 1,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 1420
+      },
+      "all_entire_tables_unchanged": 49,
+      "tables_sha256_before": "1d6ee323d8c735172ce352fdd4aa113872c40a7dc4a9defc30fca72505fa6dfd",
+      "tables_sha256_after": "1d6ee323d8c735172ce352fdd4aa113872c40a7dc4a9defc30fca72505fa6dfd",
+      "artefacts_before": 0,
+      "artefacts_after": 0,
+      "disposition": "DTO"
+    },
+    {
+      "phase": "page-premiere",
+      "preparation": "actual M4 completion Outil/CAS fictive bytes; actual M6 manual prévu Outil",
+      "request": {
+        "toolName": "m6_lire_contexte_materiaux_appareil",
+        "args": {
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 0,
+          "limite": 2
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+            "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+            "devis_id": "DEVIS-CONTEXTE-FICTIF",
+            "horodatage_completion": "2025-06-02T11:30:00+00:00",
+            "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+            }
+          },
+          "chantier": {
+            "chantier_id": "CH-M3-FICTIF",
+            "origine": "prevu_m6"
+          },
+          "prevu": {
+            "statut": "definitif",
+            "source": {
+              "registre": "besoins_prevus",
+              "rang": 0,
+              "empreinte_snapshot": "e989483df761710509c01b13f85954ceffadebecc69afe840896c7cc6498530f",
+              "estimation_id": null,
+              "rang_m3": null,
+              "bareme_version": null,
+              "horodatage": null,
+              "reference_m3": null
+            }
+          },
+          "lignes": [
+            {
+              "position_source": 0,
+              "materiau_id": "MAT-FICTIF-0",
+              "unite": "pi",
+              "quantite_estimee": "1",
+              "origine_quantite": "nombre_m6_persiste"
+            },
+            {
+              "position_source": 1,
+              "materiau_id": "MAT-FICTIF-1",
+              "unite": "pi",
+              "quantite_estimee": "2",
+              "origine_quantite": "nombre_m6_persiste"
+            }
+          ],
+          "manques": [
+            "horodatage_prevu_absent",
+            "provenance_m3_absente"
+          ],
+          "couverture": {
+            "objet": "contexte_et_prevu_du_wct",
+            "quantite_reelle": "non_renseignee",
+            "pages": "courantes",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 2,
+            "affichees": 2,
+            "total": 10,
+            "suivant": 2,
+            "reste": 8,
+            "courante": true
+          },
+          "taille_caracteres": 1518
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "devis_id": "DEVIS-CONTEXTE-FICTIF",
+          "horodatage_completion": "2025-06-02T11:30:00+00:00",
+          "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+          }
+        },
+        "chantier": {
+          "chantier_id": "CH-M3-FICTIF",
+          "origine": "prevu_m6"
+        },
+        "prevu": {
+          "statut": "definitif",
+          "source": {
+            "registre": "besoins_prevus",
+            "rang": 0,
+            "empreinte_snapshot": "e989483df761710509c01b13f85954ceffadebecc69afe840896c7cc6498530f",
+            "estimation_id": null,
+            "rang_m3": null,
+            "bareme_version": null,
+            "horodatage": null,
+            "reference_m3": null
+          }
+        },
+        "lignes": [
+          {
+            "position_source": 0,
+            "materiau_id": "MAT-FICTIF-0",
+            "unite": "pi",
+            "quantite_estimee": "1",
+            "origine_quantite": "nombre_m6_persiste"
+          },
+          {
+            "position_source": 1,
+            "materiau_id": "MAT-FICTIF-1",
+            "unite": "pi",
+            "quantite_estimee": "2",
+            "origine_quantite": "nombre_m6_persiste"
+          }
+        ],
+        "manques": [
+          "horodatage_prevu_absent",
+          "provenance_m3_absente"
+        ],
+        "couverture": {
+          "objet": "contexte_et_prevu_du_wct",
+          "quantite_reelle": "non_renseignee",
+          "pages": "courantes",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 2,
+          "affichees": 2,
+          "total": 10,
+          "suivant": 2,
+          "reste": 8,
+          "courante": true
+        },
+        "taille_caracteres": 1518
+      },
+      "all_entire_tables_unchanged": 49,
+      "tables_sha256_before": "000e8ee3fe4a1ff299325254152c389d155f830e4712cdd51c0333bbb6c00ade",
+      "tables_sha256_after": "000e8ee3fe4a1ff299325254152c389d155f830e4712cdd51c0333bbb6c00ade",
+      "artefacts_before": 0,
+      "artefacts_after": 0,
+      "disposition": "DTO"
+    },
+    {
+      "phase": "page-suivante",
+      "preparation": "actual M4 completion Outil/CAS fictive bytes; actual M6 manual prévu Outil",
+      "request": {
+        "toolName": "m6_lire_contexte_materiaux_appareil",
+        "args": {
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 2,
+          "limite": 2
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+            "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+            "devis_id": "DEVIS-CONTEXTE-FICTIF",
+            "horodatage_completion": "2025-06-02T11:30:00+00:00",
+            "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+            }
+          },
+          "chantier": {
+            "chantier_id": "CH-M3-FICTIF",
+            "origine": "prevu_m6"
+          },
+          "prevu": {
+            "statut": "definitif",
+            "source": {
+              "registre": "besoins_prevus",
+              "rang": 0,
+              "empreinte_snapshot": "e989483df761710509c01b13f85954ceffadebecc69afe840896c7cc6498530f",
+              "estimation_id": null,
+              "rang_m3": null,
+              "bareme_version": null,
+              "horodatage": null,
+              "reference_m3": null
+            }
+          },
+          "lignes": [
+            {
+              "position_source": 2,
+              "materiau_id": "MAT-FICTIF-2",
+              "unite": "pi",
+              "quantite_estimee": "3",
+              "origine_quantite": "nombre_m6_persiste"
+            },
+            {
+              "position_source": 3,
+              "materiau_id": "MAT-FICTIF-3",
+              "unite": "pi",
+              "quantite_estimee": "4",
+              "origine_quantite": "nombre_m6_persiste"
+            }
+          ],
+          "manques": [
+            "horodatage_prevu_absent",
+            "provenance_m3_absente"
+          ],
+          "couverture": {
+            "objet": "contexte_et_prevu_du_wct",
+            "quantite_reelle": "non_renseignee",
+            "pages": "courantes",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 2,
+            "limite": 2,
+            "affichees": 2,
+            "total": 10,
+            "suivant": 4,
+            "reste": 6,
+            "courante": true
+          },
+          "taille_caracteres": 1518
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "devis_id": "DEVIS-CONTEXTE-FICTIF",
+          "horodatage_completion": "2025-06-02T11:30:00+00:00",
+          "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+          }
+        },
+        "chantier": {
+          "chantier_id": "CH-M3-FICTIF",
+          "origine": "prevu_m6"
+        },
+        "prevu": {
+          "statut": "definitif",
+          "source": {
+            "registre": "besoins_prevus",
+            "rang": 0,
+            "empreinte_snapshot": "e989483df761710509c01b13f85954ceffadebecc69afe840896c7cc6498530f",
+            "estimation_id": null,
+            "rang_m3": null,
+            "bareme_version": null,
+            "horodatage": null,
+            "reference_m3": null
+          }
+        },
+        "lignes": [
+          {
+            "position_source": 2,
+            "materiau_id": "MAT-FICTIF-2",
+            "unite": "pi",
+            "quantite_estimee": "3",
+            "origine_quantite": "nombre_m6_persiste"
+          },
+          {
+            "position_source": 3,
+            "materiau_id": "MAT-FICTIF-3",
+            "unite": "pi",
+            "quantite_estimee": "4",
+            "origine_quantite": "nombre_m6_persiste"
+          }
+        ],
+        "manques": [
+          "horodatage_prevu_absent",
+          "provenance_m3_absente"
+        ],
+        "couverture": {
+          "objet": "contexte_et_prevu_du_wct",
+          "quantite_reelle": "non_renseignee",
+          "pages": "courantes",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 2,
+          "limite": 2,
+          "affichees": 2,
+          "total": 10,
+          "suivant": 4,
+          "reste": 6,
+          "courante": true
+        },
+        "taille_caracteres": 1518
+      },
+      "all_entire_tables_unchanged": 49,
+      "tables_sha256_before": "ea827c77c8e016a3175247b0e9592ed09d8a164fdaa1366ea45d1de02a24d289",
+      "tables_sha256_after": "ea827c77c8e016a3175247b0e9592ed09d8a164fdaa1366ea45d1de02a24d289",
+      "artefacts_before": 0,
+      "artefacts_after": 0,
+      "disposition": "DTO"
+    },
+    {
+      "phase": "page-hors-total",
+      "preparation": "actual M4 completion Outil/CAS fictive bytes; actual M6 manual prévu Outil",
+      "request": {
+        "toolName": "m6_lire_contexte_materiaux_appareil",
+        "args": {
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 10000,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+            "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+            "devis_id": "DEVIS-CONTEXTE-FICTIF",
+            "horodatage_completion": "2025-06-02T11:30:00+00:00",
+            "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+            }
+          },
+          "chantier": {
+            "chantier_id": "CH-M3-FICTIF",
+            "origine": "prevu_m6"
+          },
+          "prevu": {
+            "statut": "definitif",
+            "source": {
+              "registre": "besoins_prevus",
+              "rang": 0,
+              "empreinte_snapshot": "e989483df761710509c01b13f85954ceffadebecc69afe840896c7cc6498530f",
+              "estimation_id": null,
+              "rang_m3": null,
+              "bareme_version": null,
+              "horodatage": null,
+              "reference_m3": null
+            }
+          },
+          "lignes": [],
+          "manques": [
+            "horodatage_prevu_absent",
+            "provenance_m3_absente"
+          ],
+          "couverture": {
+            "objet": "contexte_et_prevu_du_wct",
+            "quantite_reelle": "non_renseignee",
+            "pages": "courantes",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 10000,
+            "limite": 8,
+            "affichees": 0,
+            "total": 10,
+            "suivant": null,
+            "reste": 0,
+            "courante": true
+          },
+          "taille_caracteres": 1253
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "devis_id": "DEVIS-CONTEXTE-FICTIF",
+          "horodatage_completion": "2025-06-02T11:30:00+00:00",
+          "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+          }
+        },
+        "chantier": {
+          "chantier_id": "CH-M3-FICTIF",
+          "origine": "prevu_m6"
+        },
+        "prevu": {
+          "statut": "definitif",
+          "source": {
+            "registre": "besoins_prevus",
+            "rang": 0,
+            "empreinte_snapshot": "e989483df761710509c01b13f85954ceffadebecc69afe840896c7cc6498530f",
+            "estimation_id": null,
+            "rang_m3": null,
+            "bareme_version": null,
+            "horodatage": null,
+            "reference_m3": null
+          }
+        },
+        "lignes": [],
+        "manques": [
+          "horodatage_prevu_absent",
+          "provenance_m3_absente"
+        ],
+        "couverture": {
+          "objet": "contexte_et_prevu_du_wct",
+          "quantite_reelle": "non_renseignee",
+          "pages": "courantes",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 10000,
+          "limite": 8,
+          "affichees": 0,
+          "total": 10,
+          "suivant": null,
+          "reste": 0,
+          "courante": true
+        },
+        "taille_caracteres": 1253
+      },
+      "all_entire_tables_unchanged": 49,
+      "tables_sha256_before": "32285b4ecf316963200b4b36e2ca8b6f7f5ce148dd69b31f31f6bc7eb23b080e",
+      "tables_sha256_after": "32285b4ecf316963200b4b36e2ca8b6f7f5ce148dd69b31f31f6bc7eb23b080e",
+      "artefacts_before": 0,
+      "artefacts_after": 0,
+      "disposition": "DTO"
+    },
+    {
+      "phase": "page-reduite5400",
+      "preparation": "actual M4 completion Outil/CAS fictive bytes; actual M6 manual prévu Outil",
+      "request": {
+        "toolName": "m6_lire_contexte_materiaux_appareil",
+        "args": {
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "wct": {
+            "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+            "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+            "devis_id": "DEVIS-CONTEXTE-FICTIF",
+            "horodatage_completion": "2025-06-02T11:30:00+00:00",
+            "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+            "reference_bus": {
+              "type": "m4.travaux_termines",
+              "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+            }
+          },
+          "chantier": {
+            "chantier_id": "CH-M3-FICTIF",
+            "origine": "prevu_m6"
+          },
+          "prevu": {
+            "statut": "definitif",
+            "source": {
+              "registre": "besoins_prevus",
+              "rang": 0,
+              "empreinte_snapshot": "f503c7c78efe189934def9eb33a45017070e7781509444e01a6eb97382c5a48f",
+              "estimation_id": null,
+              "rang_m3": null,
+              "bareme_version": null,
+              "horodatage": null,
+              "reference_m3": null
+            }
+          },
+          "lignes": [
+            {
+              "position_source": 0,
+              "materiau_id": "0XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+              "unite": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU",
+              "quantite_estimee": "1",
+              "origine_quantite": "nombre_m6_persiste"
+            },
+            {
+              "position_source": 1,
+              "materiau_id": "1XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+              "unite": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU",
+              "quantite_estimee": "1",
+              "origine_quantite": "nombre_m6_persiste"
+            },
+            {
+              "position_source": 2,
+              "materiau_id": "2XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+              "unite": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU",
+              "quantite_estimee": "1",
+              "origine_quantite": "nombre_m6_persiste"
+            },
+            {
+              "position_source": 3,
+              "materiau_id": "3XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+              "unite": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU",
+              "quantite_estimee": "1",
+              "origine_quantite": "nombre_m6_persiste"
+            },
+            {
+              "position_source": 4,
+              "materiau_id": "4XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+              "unite": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU",
+              "quantite_estimee": "1",
+              "origine_quantite": "nombre_m6_persiste"
+            },
+            {
+              "position_source": 5,
+              "materiau_id": "5XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+              "unite": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU",
+              "quantite_estimee": "1",
+              "origine_quantite": "nombre_m6_persiste"
+            }
+          ],
+          "manques": [
+            "horodatage_prevu_absent",
+            "provenance_m3_absente"
+          ],
+          "couverture": {
+            "objet": "contexte_et_prevu_du_wct",
+            "quantite_reelle": "non_renseignee",
+            "pages": "courantes",
+            "plafond_lignes": 10000
+          },
+          "borne_caracteres": 5400,
+          "pagination": {
+            "decalage": 0,
+            "limite": 8,
+            "affichees": 6,
+            "total": 8,
+            "suivant": 6,
+            "reste": 2,
+            "courante": true
+          },
+          "taille_caracteres": 5053
+        }
+      },
+      "envelope": {
+        "wct": {
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "devis_id": "DEVIS-CONTEXTE-FICTIF",
+          "horodatage_completion": "2025-06-02T11:30:00+00:00",
+          "hash_maillon": "029ab38ec46b43515c476ff5fc4ae97c11cdfcfc2bc489ab63214abc21d171a8",
+          "reference_bus": {
+            "type": "m4.travaux_termines",
+            "evenement_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564"
+          }
+        },
+        "chantier": {
+          "chantier_id": "CH-M3-FICTIF",
+          "origine": "prevu_m6"
+        },
+        "prevu": {
+          "statut": "definitif",
+          "source": {
+            "registre": "besoins_prevus",
+            "rang": 0,
+            "empreinte_snapshot": "f503c7c78efe189934def9eb33a45017070e7781509444e01a6eb97382c5a48f",
+            "estimation_id": null,
+            "rang_m3": null,
+            "bareme_version": null,
+            "horodatage": null,
+            "reference_m3": null
+          }
+        },
+        "lignes": [
+          {
+            "position_source": 0,
+            "materiau_id": "0XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            "unite": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU",
+            "quantite_estimee": "1",
+            "origine_quantite": "nombre_m6_persiste"
+          },
+          {
+            "position_source": 1,
+            "materiau_id": "1XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            "unite": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU",
+            "quantite_estimee": "1",
+            "origine_quantite": "nombre_m6_persiste"
+          },
+          {
+            "position_source": 2,
+            "materiau_id": "2XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            "unite": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU",
+            "quantite_estimee": "1",
+            "origine_quantite": "nombre_m6_persiste"
+          },
+          {
+            "position_source": 3,
+            "materiau_id": "3XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            "unite": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU",
+            "quantite_estimee": "1",
+            "origine_quantite": "nombre_m6_persiste"
+          },
+          {
+            "position_source": 4,
+            "materiau_id": "4XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            "unite": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU",
+            "quantite_estimee": "1",
+            "origine_quantite": "nombre_m6_persiste"
+          },
+          {
+            "position_source": 5,
+            "materiau_id": "5XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            "unite": "UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUU",
+            "quantite_estimee": "1",
+            "origine_quantite": "nombre_m6_persiste"
+          }
+        ],
+        "manques": [
+          "horodatage_prevu_absent",
+          "provenance_m3_absente"
+        ],
+        "couverture": {
+          "objet": "contexte_et_prevu_du_wct",
+          "quantite_reelle": "non_renseignee",
+          "pages": "courantes",
+          "plafond_lignes": 10000
+        },
+        "borne_caracteres": 5400,
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "affichees": 6,
+          "total": 8,
+          "suivant": 6,
+          "reste": 2,
+          "courante": true
+        },
+        "taille_caracteres": 5053
+      },
+      "all_entire_tables_unchanged": 49,
+      "tables_sha256_before": "7028f8e3aeaee37a5f8ecb18453e4a18e64813a7ab4fe533abc0b9520ca4bde5",
+      "tables_sha256_after": "7028f8e3aeaee37a5f8ecb18453e4a18e64813a7ab4fe533abc0b9520ca4bde5",
+      "artefacts_before": 0,
+      "artefacts_after": 0,
+      "disposition": "DTO"
+    },
+    {
+      "phase": "refus-wct-inconnu",
+      "preparation": "actual M4 completion Outil/CAS fictive bytes; unknown argument target",
+      "request": {
+        "toolName": "m6_lire_contexte_materiaux_appareil",
+        "args": {
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "wct_id": "WCT-INCONNU-FICTIF",
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": false,
+          "verdict": {
+            "code": "REJ-M6-CONTEXTE-WCT-INCONNU",
+            "detail": "aucun WCT publié admissible ne correspond à cette cible"
+          }
+        }
+      },
+      "envelope": {
+        "accepte": false,
+        "verdict": {
+          "code": "REJ-M6-CONTEXTE-WCT-INCONNU",
+          "detail": "aucun WCT publié admissible ne correspond à cette cible"
+        }
+      },
+      "all_entire_tables_unchanged": 49,
+      "tables_sha256_before": "4477f32e843f65f0952049ad18decda41c25e276e3ed0c8bcc039fc6e664d50d",
+      "tables_sha256_after": "4477f32e843f65f0952049ad18decda41c25e276e3ed0c8bcc039fc6e664d50d",
+      "artefacts_before": 0,
+      "artefacts_after": 0,
+      "disposition": "refus_nominal"
+    },
+    {
+      "phase": "refus-admin-revoque",
+      "preparation": "actual M4 completion Outil/CAS fictive bytes; actual role withdrawal, separate fixture preparation",
+      "request": {
+        "toolName": "m6_lire_contexte_materiaux_appareil",
+        "args": {
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": false,
+          "verdict": {
+            "code": "REJ-M6-CONTEXTE-IDENTITE-INVALIDE",
+            "detail": "cette lecture exige une personne active et un rôle terrain confirmé"
+          }
+        }
+      },
+      "envelope": {
+        "accepte": false,
+        "verdict": {
+          "code": "REJ-M6-CONTEXTE-IDENTITE-INVALIDE",
+          "detail": "cette lecture exige une personne active et un rôle terrain confirmé"
+        }
+      },
+      "all_entire_tables_unchanged": 49,
+      "tables_sha256_before": "ce9972036ce9c04fe0962e0dd05f16b7ae736e65ae0844ba89676e4acdbd319d",
+      "tables_sha256_after": "ce9972036ce9c04fe0962e0dd05f16b7ae736e65ae0844ba89676e4acdbd319d",
+      "artefacts_before": 0,
+      "artefacts_after": 0,
+      "disposition": "refus_nominal"
+    },
+    {
+      "phase": "refus-arguments-limite",
+      "preparation": "actual M4 completion Outil/CAS fictive bytes; ",
+      "request": {
+        "toolName": "m6_lire_contexte_materiaux_appareil",
+        "args": {
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 0,
+          "limite": 9
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": false,
+          "verdict": {
+            "code": "REJ-M6-CONTEXTE-ARGUMENTS-INVALIDES",
+            "detail": "les arguments sortent du contrat de lecture du contexte matériaux"
+          }
+        }
+      },
+      "envelope": {
+        "accepte": false,
+        "verdict": {
+          "code": "REJ-M6-CONTEXTE-ARGUMENTS-INVALIDES",
+          "detail": "les arguments sortent du contrat de lecture du contexte matériaux"
+        }
+      },
+      "all_entire_tables_unchanged": 49,
+      "tables_sha256_before": "f60827c24a2f55bc820e6bd4c7e16ac5c72820bb0855f27ac867d394b0555cd0",
+      "tables_sha256_after": "f60827c24a2f55bc820e6bd4c7e16ac5c72820bb0855f27ac867d394b0555cd0",
+      "artefacts_before": 0,
+      "artefacts_after": 0,
+      "disposition": "refus_nominal"
+    },
+    {
+      "phase": "refus-source-copie",
+      "preparation": "actual M4 completion Outil/CAS fictive bytes; copy exception test seam",
+      "request": {
+        "toolName": "m6_lire_contexte_materiaux_appareil",
+        "args": {
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": false,
+          "verdict": {
+            "code": "REJ-M6-CONTEXTE-SOURCE-INVALIDE",
+            "detail": "une source requise ne satisfait pas son contrat d’intégrité"
+          }
+        }
+      },
+      "envelope": {
+        "accepte": false,
+        "verdict": {
+          "code": "REJ-M6-CONTEXTE-SOURCE-INVALIDE",
+          "detail": "une source requise ne satisfait pas son contrat d’intégrité"
+        }
+      },
+      "all_entire_tables_unchanged": 49,
+      "tables_sha256_before": "7559298fb08c61aee2de10dfed9775fa6f6f02908bc0a8a78ecc9aa1fec4190d",
+      "tables_sha256_after": "7559298fb08c61aee2de10dfed9775fa6f6f02908bc0a8a78ecc9aa1fec4190d",
+      "artefacts_before": 0,
+      "artefacts_after": 0,
+      "disposition": "refus_nominal"
+    },
+    {
+      "phase": "refus-volume-premiere-ligne",
+      "preparation": "actual M4 completion Outil/CAS fictive bytes; actual M6 manual prévu Outil, oversized separate fixture",
+      "request": {
+        "toolName": "m6_lire_contexte_materiaux_appareil",
+        "args": {
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "response": {
+        "ok": true,
+        "resultat": {
+          "accepte": false,
+          "verdict": {
+            "code": "REJ-M6-CONTEXTE-SORTIE-TROP-VOLUMINEUSE",
+            "detail": "le contexte dépasse la borne de sortie ; aucun détail partiel n’est transmis"
+          }
+        }
+      },
+      "envelope": {
+        "accepte": false,
+        "verdict": {
+          "code": "REJ-M6-CONTEXTE-SORTIE-TROP-VOLUMINEUSE",
+          "detail": "le contexte dépasse la borne de sortie ; aucun détail partiel n’est transmis"
+        }
+      },
+      "all_entire_tables_unchanged": 49,
+      "tables_sha256_before": "2a042c692e7e05506a99b36035cdcad1f0c2c9cd22c889692195a9359588577e",
+      "tables_sha256_after": "2a042c692e7e05506a99b36035cdcad1f0c2c9cd22c889692195a9359588577e",
+      "artefacts_before": 0,
+      "artefacts_after": 0,
+      "disposition": "refus_nominal"
+    }
+  ],
+  "private_DB_removed": true
+}

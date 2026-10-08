@@ -1,186 +1,81 @@
-import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
+import { useNetInfo } from "@react-native-community/netinfo";
 import * as Crypto from "expo-crypto";
 import { useTranslation } from "react-i18next";
-
-import {
-  ajouterLigne,
-  creerLigneVide,
-  evaluerPreparationFormulaire,
-  modifierLigne,
-  retirerLigne,
-  TYPES_LIGNE_MATERIAUX,
-  validerLigne,
-} from "@/ecrans/materials";
+import { ajouterLigne, creerLigneVide, modifierLigne, retirerLigne, TYPES_LIGNE_MATERIAUX, validerLigne } from "@/ecrans/materials";
 import type { LigneEnSaisie } from "@/ecrans/materials";
-import { construireArgumentsDeclarerMateriauxUtilises } from "@/m6/materiaux";
-import type { VerdictServeurMateriaux } from "@/m6/materiaux";
-import { lireWctIdCompletion } from "@/m4/wctIdCompletion";
-import { genererMutationId } from "@/outbox/id";
-import { creerMutation, formaterHorodatageLocal, soumettreMutation } from "@/outbox/mutation";
-import { declencherVidange, obtenirDepot } from "@/outbox/service";
-import { obtenirConfigurationAppel } from "@/protocole/configuration";
-import { obtenirDepotLocal } from "@/stockage/service";
+import { estimationEnNombreExact } from "@/m6/contexteMateriaux";
+import { useDeclarationMateriaux } from "@/terrain/useDeclarationMateriaux";
 
-/**
- * `materials.tsx` (M6.10, R12 §5 étape 5, PLAN T1.4-f) : formulaire des matériaux utilisés,
- * ouvert APRÈS « Terminer » (`complete.tsx`) — DEFINITION-PRODUIT.md §9.7 étape 3. Envoie
- * `m6_declarer_materiaux_utilises` par la file sortante (mission item 3).
- *
- * **Aucune quantité ni prix proposés par défaut** — `src/ecrans/materials.ts::creerLigneVide` ne
- * pré-remplit rien : l'employé saisit, le serveur calcule le coût unitaire
- * (`_dernier_cout_unitaire_connu`, jamais transmis par le mobile).
- *
- * **Seul le `wct_id` de l'accusé de complétion est envoyé, avec le formulaire** (PLAN T1.4-i) : il a
- * été mémorisé par `complete.tsx` (`src/m4/wctIdCompletion.ts`) ; M6 relit lui-même le WCT publié par
- * M4 pour cet identifiant et refuse un `wct_id` qu'il ne connaît pas (`REJ-WCT-INCONNU`, affiché tel
- * quel). Aucun `wct_id` mémorisé -> `materials.aucunWct`, formulaire bloqué (fail-closed, jamais un
- * identifiant deviné) : l'employé doit retourner à l'écran « Terminer ».
- *
- * Écran non testé en rendu (même limite que les autres écrans de cette tranche) :
- * `src/ecrans/materials.ts`, `src/m6/materiaux.ts` portent la logique, testée là.
- */
+const RAISONS_LOCALES = ["cible_absente", "cible_changee", "source_changee", "prevu_absent", "prevu_vide", "page_deja_importee", "estimation_non_importable", "trop_de_lignes", "identifiants_invalides", "intention_en_attente", "aucune_ligne", "lignes_invalides", "lecture_indisponible"];
+
+/** Lecture actuelle M4/M3/M6 sans cache ; les seuls éléments persistés sont la saisie et
+ * sa cible/provenance. Le WCT mémorisé n'est pas un droit d'accès. */
 export default function EcranMateriaux() {
-  const { t } = useTranslation();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const interventionId = typeof id === "string" ? id : "";
-
-  const [wctId, setWctId] = useState<string | null>(null);
-  const [charge, setCharge] = useState(false);
-  const [lignes, setLignes] = useState<LigneEnSaisie[]>([]);
-  const [enTraitement, setEnTraitement] = useState(false);
-  const [erreurAppareil, setErreurAppareil] = useState(false);
-  const [blocage, setBlocage] = useState<"aucune_ligne" | "lignes_invalides" | null>(null);
-  const [dernierVerdict, setDernierVerdict] = useState<VerdictServeurMateriaux | null>(null);
-  const [soumis, setSoumis] = useState(false);
-  const [enAttenteConfirmation, setEnAttenteConfirmation] = useState(false);
-
-  const rafraichirWctId = useCallback(async () => {
-    if (!interventionId) {
-      return;
-    }
-    const valeur = await lireWctIdCompletion(await obtenirDepotLocal(), interventionId);
-    setWctId(valeur);
-    setCharge(true);
-  }, [interventionId]);
-
-  useEffect(() => {
-    void rafraichirWctId();
-  }, [rafraichirWctId]);
-
-  const surAjouterLigne = useCallback(() => {
-    setLignes((actuelles) => ajouterLigne(actuelles, creerLigneVide(Crypto.randomUUID())));
-  }, []);
-
-  const surSoumettre = useCallback(async () => {
-    if (!interventionId || !wctId) {
-      return;
-    }
-    const configuration = obtenirConfigurationAppel();
-    if (!configuration) {
-      setErreurAppareil(true);
-      return;
-    }
-    setErreurAppareil(false);
-    setDernierVerdict(null);
-    setEnTraitement(true);
-    try {
-      const etat = evaluerPreparationFormulaire(wctId, interventionId, interventionId, lignes);
-      if (!etat.pret) {
-        setBlocage(etat.raison);
-        return;
-      }
-      setBlocage(null);
-
-      const args = construireArgumentsDeclarerMateriauxUtilises(etat.formulaire);
-      const horloge = { maintenant: new Date(), decalageMinutesUTC: -new Date().getTimezoneOffset() };
-
-      const depot = await obtenirDepot();
-      const toutes = await depot.lister();
-      // Lien de traçabilité vers la complétion dont ce `wct_id` provient (P3) — sans effet sur
-      // l'envoi lui-même : au moment où ce formulaire est soumissible, le `wct_id` est déjà connu,
-      // donc sa mutation `job_completion` est nécessairement déjà `envoyee` (voir
-      // src/m4/wctIdCompletion.ts).
-      const completion = toutes.find((m) => m.type === "job_completion" && m.chantierId === interventionId && m.statut === "envoyee");
-
-      const brouillon = creerMutation(
-        { type: "materials_submit", chantierId: interventionId, payload: { ...args }, dependsOn: completion?.id ?? null },
-        genererMutationId,
-        horloge,
-      );
-      const enAttente = soumettreMutation(brouillon);
-      await depot.inserer(enAttente);
-
-      const rapport = await declencherVidange();
-      if (!rapport) {
-        setEnAttenteConfirmation(true);
-        return;
-      }
-
-      const echec = rapport.echecsPermanents.find((e) => e.id === enAttente.id);
-      if (echec) {
-        setDernierVerdict(echec.verdict);
-        return;
-      }
-      const accepte = rapport.resultatsAcceptes.find((r) => r.id === enAttente.id);
-      if (accepte) {
-        setSoumis(true);
-        return;
-      }
-      setEnAttenteConfirmation(true);
-    } finally {
-      setEnTraitement(false);
-    }
-  }, [interventionId, wctId, lignes]);
-
-  return (
-    <ScrollView contentContainerStyle={styles.conteneur}>
-      <Text style={styles.titre}>{t("materials.titre")}</Text>
-      <Text style={styles.identifiant}>{interventionId}</Text>
-
-      {!charge ? <ActivityIndicator /> : null}
-      {charge && !wctId ? <Text style={styles.erreur}>{t("materials.aucunWct")}</Text> : null}
-
-      {wctId ? (
-        <>
-          {lignes.length === 0 ? <Text style={styles.vide}>{t("materials.aucuneLigne")}</Text> : null}
-
-          {lignes.map((ligne) => (
-            <LigneMateriau
-              key={ligne.id}
-              ligne={ligne}
-              enTraitement={enTraitement}
-              onChange={(patch) => setLignes((actuelles) => modifierLigne(actuelles, ligne.id, patch))}
-              onRetirer={() => setLignes((actuelles) => retirerLigne(actuelles, ligne.id))}
-            />
-          ))}
-
-          <Pressable style={styles.boutonSecondaire} disabled={enTraitement} onPress={surAjouterLigne}>
-            <Text style={styles.boutonSecondaireTexte}>{t("materials.ajouterLigne")}</Text>
-          </Pressable>
-
-          {erreurAppareil ? <Text style={styles.erreur}>{t("materials.appareilNonAppaire")}</Text> : null}
-          {blocage ? <Text style={styles.avis}>{t(`materials.blocages.${blocage}`)}</Text> : null}
-          {dernierVerdict ? (
-            <Text style={styles.erreur}>
-              {t("materials.verdict.echecPermanentAvecVerdict", { code: dernierVerdict.code, detail: dernierVerdict.detail })}
-            </Text>
-          ) : null}
-          {enAttenteConfirmation && !soumis ? <Text style={styles.avis}>{t("materials.enAttenteEnvoi")}</Text> : null}
-          {soumis ? <Text style={styles.succes}>{t("materials.succes")}</Text> : null}
-
-          <Pressable
-            style={({ pressed }) => [styles.bouton, pressed ? styles.boutonPresse : null]}
-            disabled={enTraitement || soumis}
-            onPress={() => void surSoumettre()}
-          >
-            {enTraitement ? <ActivityIndicator color="#fff" /> : <Text style={styles.boutonTexte}>{t("materials.bouton")}</Text>}
-          </Pressable>
-        </>
-      ) : null}
-    </ScrollView>
-  );
+  const { t } = useTranslation(), { id } = useLocalSearchParams<{id:string}>();
+  const interventionId=typeof id==="string"?id:"", enLigne=useNetInfo().isConnected===true;
+  const v=useDeclarationMateriaux(interventionId,enLigne), c=v.contexte, d=v.brouillon;
+  const desactive=v.verrouille||v.traitement, suivant=c?.pagination.suivant;
+  const bouton=(cle:string,action:()=>void,disabled=false)=><Pressable accessibilityLabel={cle} style={styles.boutonSecondaire} disabled={disabled} onPress={action}><Text style={styles.boutonSecondaireTexte}>{t(cle)}</Text></Pressable>;
+  return <ScrollView contentContainerStyle={styles.conteneur}>
+    <Text style={styles.titre}>{t("materials.titre")}</Text>
+    {v.autorisee?<Text style={styles.identifiant}>{interventionId}</Text>:<Text style={styles.erreur}>{t("materials.appareilNonAppaire")}</Text>}
+    {v.autorisee&&!v.charge?<ActivityIndicator/>:null}
+    <Text>{t("materials.contexte.lectureSeule")}</Text>
+    {!enLigne?<Text style={styles.avis}>{t("materials.contexte.horsLigne")}</Text>:null}
+    {v.charge&&!v.wctLecture?<Text style={styles.erreur}>{t("materials.aucunWct")}</Text>:null}
+    {bouton("materials.contexte.charger",()=>void v.charger(0),!v.autorisee||!v.charge||!v.wctLecture||!enLigne||v.chargementContexte)}
+    {v.chargementContexte&&enLigne?<ActivityIndicator/>:null}
+    {c?<View style={styles.ligneCarte}>
+      <Text>{t("materials.contexte.wct",{valeur:c.wct.wct_id})}</Text>
+      <Text>{t("materials.contexte.dateCompletion",{valeur:c.wct.horodatage_completion})}</Text>
+      <Text>{t("materials.contexte.hashWct",{valeur:c.wct.hash_maillon})}</Text>
+      <Text>{t("materials.contexte.bus",{type:c.wct.reference_bus.type,id:c.wct.reference_bus.evenement_id})}</Text>
+      <Text>{c.wct.devis_id===null?t("materials.contexte.devisAbsent"):t("materials.contexte.devis",{valeur:c.wct.devis_id})}</Text>
+      <Text>{c.chantier.chantier_id===null?t("materials.contexte.chantierAbsent"):t("materials.contexte.chantier",{valeur:c.chantier.chantier_id})}</Text>
+      <Text>{t(`materials.contexte.origine_${c.chantier.origine}`)}</Text>
+      <Text>{t(`materials.contexte.statut_${c.prevu.statut}`)}</Text>
+      {c.prevu.source?<>
+        <Text>{t("materials.contexte.sourcePrevu",{registre:c.prevu.source.registre,rang:c.prevu.source.rang,hash:c.prevu.source.empreinte_snapshot})}</Text>
+        <Text>{c.prevu.source.horodatage===null?t("materials.contexte.datePrevuAbsente"):t("materials.contexte.datePrevu",{valeur:c.prevu.source.horodatage})}</Text>
+        <Text>{c.prevu.source.reference_m3===null?t("materials.contexte.provenanceAbsente"):t("materials.contexte.sourceM3",{type:c.prevu.source.reference_m3.type,id:c.prevu.source.reference_m3.evenement_id})}</Text>
+        {c.prevu.source.estimation_id!==null&&c.prevu.source.rang_m3==null&&c.prevu.source.bareme_version==null?<Text>{t("materials.contexte.estimation",{id:c.prevu.source.estimation_id,rang:c.prevu.source.rang_m3,bareme:c.prevu.source.bareme_version})}</Text>:null}
+      </>:null}
+      {c.manques.map(m=><Text key={m}>{t(`materials.contexte.manque_${m}`)}</Text>)}
+      <Text>{t("materials.contexte.page",{decalage:c.pagination.decalage,affichees:c.pagination.affichees,total:c.pagination.total,reste:c.pagination.reste})}</Text>
+      {c.lignes.length===0?<Text>{t(c.prevu.statut==="absent"?"materials.contexte.prevuAbsent":"materials.contexte.pageVide")}</Text>:null}
+      {c.lignes.map(l=><View key={l.position_source}>
+        <Text>{t("materials.contexte.ligne",{position:l.position_source,materiau:l.materiau_id,quantite:l.quantite_estimee,unite:l.unite})}</Text>
+        <Text>{t(`materials.contexte.quantite_${l.origine_quantite}`)}</Text>
+        {estimationEnNombreExact(l.quantite_estimee)===null?<Text style={styles.avis}>{t("materials.contexte.nonImportable")}</Text>:null}
+      </View>)}
+      <Text>{t("materials.contexte.bornes",{taille:c.taille_caracteres,borne:c.borne_caracteres,plafond:c.couverture.plafond_lignes})}</Text>
+      {bouton("materials.contexte.adopter",v.adopterCible,desactive||c.chantier.chantier_id===null)}
+      {bouton("materials.contexte.importer",v.importer,desactive||c.lignes.length===0)}
+      {c.pagination.decalage!==0?bouton("materials.contexte.premiere",()=>void v.charger(0),v.chargementContexte):null}
+      {suivant!==undefined&&suivant!==null?bouton("materials.contexte.suivante",()=>void v.charger(suivant),v.chargementContexte):null}
+    </View>:null}
+    <Text>{t("materials.contexte.reelVide")}</Text>
+    {d.wctId?<Text>{t("materials.contexte.cibleBrouillon",{wct:d.wctId,chantier:d.chantierId??t("materials.contexte.chantierAbsent")})}</Text>:null}
+    {d.sourcePrevu?<Text>{t("materials.contexte.provenanceBrouillon",{hash:d.sourcePrevu})}</Text>:null}
+    {d.lignes.length===0?<Text style={styles.vide}>{t("materials.aucuneLigne")}</Text>:null}
+    {d.lignes.map(l=><LigneMateriau key={l.id} ligne={l} enTraitement={desactive}
+      onChange={patch=>v.changerLignes(ls=>modifierLigne(ls,l.id,patch))} onRetirer={()=>v.changerLignes(ls=>retirerLigne(ls,l.id))}/>)}
+    {bouton("materials.ajouterLigne",()=>v.changerLignes(ls=>ajouterLigne(ls,creerLigneVide(Crypto.randomUUID()))),desactive)}
+    {v.stockage?<Text style={styles.erreur}>{t(`materials.contexte.stockage_${v.stockage}`)}</Text>:null}
+    {v.stockage==="echec"?bouton("materials.contexte.sauver",()=>void v.sauver(),!v.autorisee):null}
+    {v.avis?<Text style={styles.avis}>{RAISONS_LOCALES.includes(v.avis)?t(`materials.contexte.raison_${v.avis}`):t("materials.contexte.refus",{code:v.avis})}{v.detailAvis?` — ${v.detailAvis}`:""}</Text>:null}
+    {v.enQuarantaine?<Text style={styles.avis}>{t("materials.contexte.quarantaine")}</Text>:null}
+    {v.intention?<Text>{t("materials.contexte.intention",{id:v.intention.id,statut:v.intention.statut})}</Text>:d.intentionId?<Text>{t("materials.contexte.intentionInconnue",{id:d.intentionId})}</Text>:null}
+    {v.intention&&!v.confirme?<Text>{t(v.intention.statut==="echec_permanent"?"materials.contexte.refusPermanent":"materials.contexte.intentionConservee")}</Text>:null}
+    {v.confirme?<Text style={styles.succes}>{t("materials.succes")}</Text>:null}
+    {(v.intention||d.intentionId)?bouton("materials.contexte.statut",()=>void v.rafraichirStatut(),!v.autorisee||v.traitement):null}
+    <Text>{t("materials.contexte.limitePreuves")}</Text>
+    <Pressable accessibilityLabel="materials.bouton" style={styles.bouton} disabled={desactive||!d.wctId||!d.chantierId} onPress={()=>void v.soumettre()}>
+      {v.traitement?<ActivityIndicator color="#fff"/>:<Text style={styles.boutonTexte}>{t("materials.bouton")}</Text>}
+    </Pressable>
+  </ScrollView>;
 }
 
 interface ProprietesLigneMateriau {

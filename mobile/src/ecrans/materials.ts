@@ -1,5 +1,6 @@
 import { construireFormulaireMateriauxUtilises, construireLigneDeclaree, TYPES_LIGNE_MATERIAUX } from "../m6/materiaux";
 import type { FormulaireMateriauxUtilisesM6, LigneDeclareeChantierM6, TypeLigneMateriaux } from "../m6/materiaux";
+import { estimationEnNombreExact } from "../m6/contexteMateriaux";
 
 /**
  * Logique PURE de `app/(employee)/job/[id]/materials.tsx` (M6.10, R12 §5 étape 5, PLAN T1.4-f),
@@ -24,8 +25,7 @@ export interface LigneEnSaisie {
   readonly materiauId: string;
   readonly quantiteTexte: string;
   readonly unite: string;
-  /** Utilisé seulement si `typeLigne === "prevu"` (voir `src/m6/materiaux.ts`) — vide toléré
-   * (`quantite_estimee` reste optionnelle côté contrat, même quand `type_ligne === "prevu"`). */
+  /** Requis pour une ligne prévue par le contrat serveur ; jamais déduit du réel. */
   readonly quantiteEstimeeTexte: string;
   /** Utilisés seulement si `typeLigne === "achat_terrain"` — au moins un des deux doit être vrai
    * (`REJ-ACHAT-TERRAIN-PREUVE-MANQUANTE`, `materiel.py`, lu). */
@@ -75,24 +75,26 @@ function parseNombre(texte: string): number | null {
   if (nettoye === "") {
     return null;
   }
-  const valeur = Number(nettoye);
-  return Number.isFinite(valeur) ? valeur : null;
+  // La comparaison exacte porte sur la valeur JSON envoyée au writer existant.
+  // Les formes décimales usuelles restent admises, sans arrondir une saisie.
+  const decimal = nettoye.replace(/^\./, "0.").replace(/\.$/, ".0");
+  return estimationEnNombreExact(decimal);
 }
 
 /** Ordre des contrôles épinglé (même discipline que `preuves.py`, lu) : matériau -> unité ->
- * quantité -> quantité estimée (si "prevu" et renseignée) -> preuve d'achat terrain (si
+ * quantité -> quantité estimée requise (si "prevu") -> preuve d'achat terrain (si
  * "achat_terrain"). Première faute rencontrée. */
 export function validerLigne(ligne: LigneEnSaisie): ErreurLigne | null {
-  if (ligne.materiauId.trim() === "") {
+  if (/^\p{White_Space}*$/u.test(ligne.materiauId)) {
     return "materiau_id_manquant";
   }
-  if (ligne.unite.trim() === "") {
+  if (/^\p{White_Space}*$/u.test(ligne.unite)) {
     return "unite_manquante";
   }
   if (parseNombre(ligne.quantiteTexte) === null) {
     return "quantite_invalide";
   }
-  if (ligne.typeLigne === "prevu" && ligne.quantiteEstimeeTexte.trim() !== "" && parseNombre(ligne.quantiteEstimeeTexte) === null) {
+  if (ligne.typeLigne === "prevu" && parseNombre(ligne.quantiteEstimeeTexte) === null) {
     return "quantite_estimee_invalide";
   }
   if (ligne.typeLigne === "achat_terrain" && !ligne.photoFournie && !ligne.recuFourni) {
@@ -113,9 +115,9 @@ export function convertirLigne(ligne: LigneEnSaisie): LigneDeclareeChantierM6 | 
   const quantiteEstimeeBrute = ligne.typeLigne === "prevu" ? parseNombre(ligne.quantiteEstimeeTexte) : null;
   return construireLigneDeclaree({
     typeLigne: ligne.typeLigne,
-    materiauId: ligne.materiauId.trim(),
+    materiauId: ligne.materiauId,
     quantite,
-    unite: ligne.unite.trim(),
+    unite: ligne.unite,
     quantiteEstimee: quantiteEstimeeBrute ?? undefined,
     photoFournie: ligne.photoFournie,
     recuFourni: ligne.recuFourni,

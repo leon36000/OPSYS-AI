@@ -109,3 +109,11 @@ export function capturerSessionAdminLecture(): { readonly session: SessionEnvoi 
   if (personneConfirmee?.role !== "admin") return { session: null, courante: () => false };
   return { session: capture.session, courante: () => capture.courante() && personneConfirmee?.role === "admin" };
 }
+
+/** Le contexte de déclaration est réservé aux profils terrain et admin confirmés. */
+export function capturerSessionMateriauxLecture(): { readonly session: SessionEnvoi | null; readonly courante: () => boolean } {
+  const capture = capturerSessionLecture();
+  const autorisee = () => personneConfirmee?.role === "employee" || personneConfirmee?.role === "admin";
+  if (!autorisee()) return { session: null, courante: () => false };
+  return { session: capture.session, courante: () => capture.courante() && autorisee() };
+}

@@ -71,9 +71,9 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 132 outils sur 224 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 133 outils sur 225 sont déclarés.
 
-### `employee` (14 outils) : §9.3, le terrain
+### `employee` (15 outils) : §9.3, le terrain
 
 Chaque outil qui porte une identité ou une intervention ne s'exécute que pour la personne authentifiée et
 pour SES interventions (section « Contrôle d'accès par personne et par intervention » plus bas, T1.4-k).
@@ -89,6 +89,7 @@ pour SES interventions (section « Contrôle d'accès par personne et par interv
 | `m4_completer_intervention` | §9.7 « Terminer ». Sa propre intervention. |
 | `m4_definir_consentement_gps` | POLITIQUE-geolocalisation §4 « l'employé peut retirer son consentement via l'app employé », §7 droit de retrait à tout moment. SON consentement seulement (`technicien_id` = sa personne), jamais celui d'un autre. |
 | `m6_declarer_materiaux_utilises` | §9.3 Inventaire et §9.7 étape 3 : formulaire des matériaux utilisés, « aucun coût affiché ». Le WCT de sa propre intervention seulement. |
+| `m6_lire_contexte_materiaux_appareil` (T0/N0) | Contexte et prévu du WCT choisi : identité active et rôle employee/admin courants ; employé individuellement assigné admis par M4 avant bus WCT/prévu M6. IDs intervention/WCT exacts, chantier selon `acces.chantier_attendu`, références natives M4/M3/M6 et estimé sans coût. Pages courantes, enveloppe5400, sources10000 ; aucun cache ajouté, quantité réelle, écriture ou artefact. |
 | `m7_enregistrer_consentement_reference` | Consentement qu'il recueille pour une référence; n'autorise pas l'employé à préparer ou publier un contenu public. |
 | `m7_importer_avis_manuel`, `m7_lister_inbox_reputation` | Saisie manuelle et consultation de l'inbox; le texte des plaintes/urgences privées n'est pas rendu à l'employé. Il ne décide ni n'exporte de réponse. |
 
@@ -120,9 +121,9 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (131 outils) : §9.5 + employé + vendeur
+### `admin` (132 outils) : §9.5 + employé + vendeur
 
-Les 14 outils de l'employé, les 14 du vendeur, et :
+Les 15 outils de l'employé, les 14 du vendeur, et :
 
 | Département | Outils réservés à l'admin | Pourquoi |
 |---|---|---|
