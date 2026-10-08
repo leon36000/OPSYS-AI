@@ -9,6 +9,9 @@ import { estAccuseCompletionM4 } from "../m4/completion";
 import { evaluerPreparationFormulaire } from "../ecrans/materials";
 import type { LigneEnSaisie } from "../ecrans/materials";
 import { construireArgumentsDeclarerMateriauxUtilises, validerRecuDeclarerMateriauxUtilises } from "../m6/materiaux";
+import { validerRecuMateriauxAvecPreuves } from "../m6/materiauxAvecPreuves";
+import { figerPreuvesMateriaux, listerCapturesPreuves } from "./preuvesMateriaux";
+import type { CapturePreuve, PreuveEnSaisie } from "./preuvesMateriaux";
 import type { ContexteMateriauxM6 } from "../m6/contexteMateriaux";
 import type { MutationOutbox } from "../outbox/types";
 import { creerMutation, soumettreMutation } from "../outbox/mutation";
@@ -25,10 +28,11 @@ function wctMutation(m: MutationOutbox): string | null {
   const p = copierJsonLecture(m.payload);
   return p !== JSON_LECTURE_INVALIDE && p !== null && typeof p === "object" && !Array.isArray(p) && typeof p.wct_id === "string" ? p.wct_id : null;
 }
+function recuValide(m:MutationOutbox){return m.type==="materials_submit_with_proofs"?validerRecuMateriauxAvecPreuves(m):validerRecuDeclarerMateriauxUtilises(m);}
 /** Même objet physique : un ancien propriétaire/inconnu ne libère pas une intention incertaine. */
 function retrouver(mutations: readonly MutationOutbox[], intervention: string, wct: string | null, id: string | null, personne: string) {
-  const memes = mutations.filter(m => m.type === "materials_submit" && m.chantierId === intervention).sort((a,b)=>(a.sequence??0)-(b.sequence??0));
-  return memes.find(m => m.statut !== "echec_permanent" && (m.statut !== "envoyee" || !validerRecuDeclarerMateriauxUtilises(m)))
+  const memes = mutations.filter(m => (m.type === "materials_submit" || m.type === "materials_submit_with_proofs") && m.chantierId === intervention).sort((a,b)=>(a.sequence??0)-(b.sequence??0));
+  return memes.find(m => m.statut !== "echec_permanent" && (m.statut !== "envoyee" || !recuValide(m)))
     ?? memes.find(m => m.id === id && m.proprietaire === personne)
     ?? memes.find(m => m.proprietaire === personne && wctMutation(m) === wct) ?? null;
 }
@@ -45,6 +49,7 @@ export function useDeclarationMateriaux(interventionId: string, enLigne: boolean
   const [charge,setCharge] = useState(false), [wctLecture,setWctLecture] = useState<string|null>(null);
   const [stockage,setStockage] = useState<"illisible"|"echec"|null>(null), [avis,setAvis] = useState<string|null>(null), [detailAvis,setDetailAvis] = useState("");
   const [traitement,setTraitement] = useState(false), [chargementContexte,setChargementContexte] = useState(false);
+  const [captures,setCaptures] = useState<readonly CapturePreuve[]>([]);
   const [intention,setIntention] = useState<MutationOutbox|null>(null), [lectureRefusee,setLectureRefusee] = useState(false);
   const [reponse,setReponse] = useState<{ valeur:ContexteMateriauxM6; courante:()=>boolean }|null>(null);
   const cibleRef = useRef<CibleBrouillonMateriaux|null>(null), sale = useRef(false);
@@ -63,7 +68,7 @@ export function useDeclarationMateriaux(interventionId: string, enLigne: boolean
     const capture = capturerSessionMateriauxLecture(), s = capture.session;
     const valide = () => active.current && generation === epoch.current && capture.courante();
     const refuse=refusRef.current?.cle===cleAutorite ? refusRef.current : null;
-    verrou.current=false; setTraitement(false); setChargementContexte(false); setReponse(null); setCharge(false); setAvis(refuse?.code??null);setDetailAvis(refuse?.detail??""); setIntention(null); setLectureRefusee(refuse!==null); setStockage(null);
+    verrou.current=false; setTraitement(false); setChargementContexte(false); setReponse(null); setCharge(false); setAvis(refuse?.code??null);setDetailAvis(refuse?.detail??""); setIntention(null); setCaptures([]); setLectureRefusee(refuse!==null); setStockage(null);
     if (!s || !interventionId) return () => {active.current=false; epoch.current++;};
     const cible: CibleBrouillonMateriaux = { urlBase:s.urlBase, appareilId:s.appareilId, personne:s.personne, interventionId };
     if (JSON.stringify(cibleRef.current) !== JSON.stringify(cible)) { ref.current=vide(); setBrouillon(ref.current); sale.current=false; edition.current++; }
@@ -81,7 +86,7 @@ export function useDeclarationMateriaux(interventionId: string, enLigne: boolean
           if(lu.genre==="illisible")setStockage("illisible");
         }
         const m= retrouver(mutations,interventionId,ref.current.wctId??wct,ref.current.intentionId,s.personne);
-        setIntention(m); setWctLecture(wct); setCharge(true);
+        setIntention(m); setCaptures(listerCapturesPreuves(mutations,s.personne,interventionId)); setWctLecture(wct); setCharge(true);
       } catch { if(valide()){setStockage("illisible");setCharge(true);} }
     })();
     return () => {active.current=false; epoch.current++; requete.current++;};
@@ -148,21 +153,33 @@ export function useDeclarationMateriaux(interventionId: string, enLigne: boolean
       if(courantContexte && (courantContexte.wct.wct_id!==d.wctId || courantContexte.chantier.chantier_id!==d.chantierId)){setAvis("cible_changee");return;}
       const etat=evaluerPreparationFormulaire(d.wctId,interventionId,d.chantierId,d.lignes);
       if(!etat.pret){setAvis(etat.raison);return;}
-      const args=construireArgumentsDeclarerMateriauxUtilises(etat.formulaire), maintenant=new Date();
+      const avecPreuves=d.lignes.some(l=>l.typeLigne==="perte"||l.typeLigne==="bris");
+      let payload:Readonly<Record<string,unknown>>;
+      if(avecPreuves){
+        if(d.lignes.some(l=>l.typeLigne==="achat_terrain")){setAvis("achat_terrain_hors_preuves");return;}
+        try {const f=figerPreuvesMateriaux(d.lignes,etat.formulaire,d.preuves??[],listerCapturesPreuves(toutes,session.personne,interventionId));payload={...f.args,_fichiers_locaux:f.fichiers};}
+        catch(e){setAvis(e instanceof Error && ["preuve_manquante","capture_indisponible","preuves_invalides"].includes(e.message)?e.message:"preuves_invalides");return;}
+      } else payload={...construireArgumentsDeclarerMateriauxUtilises(etat.formulaire)};
+      const maintenant=new Date();
       const completion=toutes.find(m=>m.type==="job_completion"&&m.chantierId===interventionId&&m.proprietaire===session.personne&&m.statut==="envoyee"&&estAccuseCompletionM4(m.resumeAccepte)&&m.resumeAccepte.wct_id===d.wctId);
-      const m=soumettreMutation(creerMutation({type:"materials_submit",chantierId:interventionId,payload:{...args},dependsOn:completion?.id??null},genererMutationId,{maintenant,decalageMinutesUTC:-maintenant.getTimezoneOffset()}));
+      const m=soumettreMutation(creerMutation({type:avecPreuves?"materials_submit_with_proofs":"materials_submit",chantierId:interventionId,payload,dependsOn:completion?.id??null},genererMutationId,{maintenant,decalageMinutesUTC:-maintenant.getTimezoneOffset()}));
       const reserve={...d,intentionId:m.id};ref.current=reserve;setBrouillon(reserve);sale.current=true;
       // L'outbox est la seconde preuve durable si sauver le brouillon échoue.
-      try {const inseree=await depot.inserer(m);if(courante())setIntention(inseree);}
+      try {const inseree=await depot.inserer({...m,proprietaire:session.personne});if(courante())setIntention(inseree);}
       finally {await persister(reserve);}
       if(!courante())return;
       await rafraichirStatut();
     } catch {if(courante())setStockage("echec");}
     finally {if(generationRendu===epoch.current){verrou.current=false;if(courante())setTraitement(false);}}
   }
-  const confirme=montrer && intention?.proprietaire===session?.personne && intention?.statut==="envoyee" && validerRecuDeclarerMateriauxUtilises(intention);
+  const confirme=montrer && intention?.proprietaire===session?.personne && intention?.statut==="envoyee" && recuValide(intention);
   return { charge:montrer&&charge, wctLecture:montrer?wctLecture:null, brouillon:montrer?brouillon:vide(), contexte:montrer?courantContexte:null,
     stockage:montrer?stockage:null, avis:montrer?avis:null, detailAvis:montrer?detailAvis:"", enQuarantaine:montrer&&intention!==null&&intention.proprietaire!==session?.personne, traitement, chargementContexte, autorisee:montrer, verrouille:!montrer||!charge||verrouille,
-    intention:montrer?intention:null, confirme, changerLignes:(miseAJour:readonly LigneEnSaisie[]|((lignes:readonly LigneEnSaisie[])=>readonly LigneEnSaisie[]))=>changer({...ref.current,lignes:typeof miseAJour==="function"?miseAJour(ref.current.lignes):miseAJour}),
+    intention:montrer?intention:null, confirme, captures:montrer?captures:[],
+    changerPreuve:(ligneId:string,patch:Partial<Pick<PreuveEnSaisie,"note"|"captureIds">>)=>{
+      if(!ref.current.lignes.some(l=>l.id===ligneId))return;
+      const existante=(ref.current.preuves??[]).find(p=>p.ligneId===ligneId)??{ligneId,note:"",captureIds:[]};
+      changer({...ref.current,preuves:[...(ref.current.preuves??[]).filter(p=>p.ligneId!==ligneId),{...existante,...patch}]});
+    }, changerLignes:(miseAJour:readonly LigneEnSaisie[]|((lignes:readonly LigneEnSaisie[])=>readonly LigneEnSaisie[]))=>changer({...ref.current,lignes:typeof miseAJour==="function"?miseAJour(ref.current.lignes):miseAJour}),
     charger, adopterCible, importer, soumettre, rafraichirStatut, sauver:()=>persister(ref.current) };
 }

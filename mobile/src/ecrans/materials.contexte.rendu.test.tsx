@@ -20,7 +20,7 @@ let mockConnected = true, mockId = "", mockUUID = 0;
 let mockKV: DepotCleValeurMemoire, mockOutbox: ReturnType<typeof avecProprietaire>;
 const mockCharger = jest.fn(), mockVidanger = jest.fn();
 let mockFetch: jest.Mock, mockNow=new Date(), mockFocus:()=>void|(()=>void), mockBlur:(()=>void)|void;
-jest.mock("expo-router", () => ({ useLocalSearchParams: () => ({ id: mockId }), useFocusEffect: (f: () => void | (() => void)) => require("react").useEffect(()=>{mockFocus=f;const cleanup=f();mockBlur=cleanup;return cleanup;}, [f]) }));
+jest.mock("expo-router", () => ({ useRouter: () => ({push:jest.fn()}), useLocalSearchParams: () => ({ id: mockId }), useFocusEffect: (f: () => void | (() => void)) => require("react").useEffect(()=>{mockFocus=f;const cleanup=f();mockBlur=cleanup;return cleanup;}, [f]) }));
 jest.mock("expo-crypto", () => ({ randomUUID: () => `00000000-0000-4000-8000-${String(++mockUUID).padStart(12,"0")}` }));
 const mockT=(k:string,p?:Record<string,unknown>)=>{
   const lire=(locale:unknown):unknown=>k.split(".").reduce<unknown>((o,cle)=>o!==null&&typeof o==="object"?Reflect.get(o,cle):undefined,locale);
@@ -60,7 +60,7 @@ beforeEach(async () => {
   mockCharger.mockImplementation(async (i:string,w:string,d:number) => { const args={intervention_id:i,wct_id:w,decalage:d,limite:8}; const lu=lireContexteMateriaux(capture.response,args); if (!lu.ok) return {source:"aucune",raison:{code:lu.code,detail:lu.detail}}; return {source:"serveur",valeur:lu.value}; });
   mockNow=new Date("2026-10-08T17:00:00Z");
   mockFetch=jest.fn(async (_input:RequestInfo|URL,_init?:RequestInit)=>new Response(JSON.stringify({ok:true,result:{}}),{status:200}));
-  const vidangeur=creerVidangeur({depot:mockOutbox,descripteurs:DESCRIPTEURS_MUTATION,appelerOutil:invoquerOutil,fetchImpl:mockFetch,session:obtenirSessionEnvoi,capturerGardeSession:()=>capturerSessionMateriauxLecture().courante,maintenant:()=>mockNow});
+  const vidangeur=creerVidangeur({depot:mockOutbox,descripteurs:DESCRIPTEURS_MUTATION,appelerOutil:invoquerOutil,fetchImpl:mockFetch,session:obtenirSessionEnvoi,capturerGardeSession:()=>capturerSessionMateriauxLecture().courante,maintenant:()=>mockNow,verifierAvantEnvoi:async(_m,_s,courante)=>courante() && capturerSessionMateriauxLecture().courante()});
   mockVidanger.mockImplementation((garde?:()=>boolean)=>vidangeur.vidangerFileSortante(garde)); Reflect.set(globalThis,"IS_REACT_ACT_ENVIRONMENT",true);
 });
 afterEach(async()=>{ if(arbre) await act(async()=>arbre!.unmount()); arbre=undefined; definirConfigurationAppel(null);definirPersonneConfirmee(null); });
@@ -241,4 +241,15 @@ test("le focus conserve un refus connu du contexte jusqu'à une nouvelle lecture
   const b=arbre!.root.findAllByProps({accessibilityLabel:"materials.bouton"}).find(x=>typeof x.props.onPress==="function")!;expect(b.props.disabled).toBe(true);
   expect(mockFetch).not.toHaveBeenCalled();await appuyer("materials.contexte.charger");
   expect(arbre!.root.findAllByProps({accessibilityLabel:"materials.bouton"}).find(x=>typeof x.props.onPress==="function")!.props.disabled).toBe(false);
+});
+
+test("perte : note durable par ligne, réel inchangé et intention inconnue verrouillée",async()=>{
+ const ligne={...creerLigneVide("L-PERTE-FICTIVE"),typeLigne:"perte" as const,materiauId:"SKU-FICTIF",quantiteTexte:"2",unite:"pi"};
+ await sauverBrouillonMateriaux(mockKV,cible(),{wctId:capture.request.args.wct_id,chantierId:"CH-FICTIF",sourcePrevu:null,positionsImportees:[],intentionId:null,lignes:[ligne],preuves:[]});
+ await monter();const note=arbre!.root.findAllByProps({testID:"note-L-PERTE-FICTIVE"}).find(n=>typeof n.props.onChangeText==="function")!;
+ await act(async()=>note.props.onChangeText("FICTIF dommage observé"));
+ expect((await lireBrouillonMateriaux(mockKV,cible()))).toMatchObject({genre:"present",valeur:{preuves:[{ligneId:ligne.id,note:"FICTIF dommage observé",captureIds:[]}],lignes:[{quantiteTexte:"2"}]}});
+ await appuyer("materials.bouton");const file=await mockOutbox.lister();expect(file).toHaveLength(1);expect(file[0].type).toBe("materials_submit_with_proofs");expect(file[0].payload).toMatchObject({preuves_lignes:[{position_ligne:0,note:"FICTIF dommage observé",photos:[]}]});
+ expect(arbre!.root.findAllByProps({testID:"note-L-PERTE-FICTIVE"}).find(n=>typeof n.props.onChangeText==="function")!.props.editable).toBe(false);
+ await appuyer("materials.contexte.statut");expect(await mockOutbox.lister()).toHaveLength(1);
 });

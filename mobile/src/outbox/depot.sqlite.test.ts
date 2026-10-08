@@ -96,21 +96,34 @@ describe("creerDepotOutboxSqlite : le propriétaire de chaque mutation", () => {
     const { base } = baseReelle();
     await initialiserSchemaOutbox(base);
     const depot = creerDepotOutboxSqlite(base);
+    // État serveur FICTIF, conservé comme historique local avec son contexte lié. Pas un pret live.
+    const SHA = "f".repeat(64);
+    const contexte = { empreinte_sha256: SHA, taille_octets: 262145, type_mime: "image/png", nombre_blocs: 2 };
     const creerRecu = (id: string, index: number, proprietaire: string) => ({
-      ...creerMutation({ type: "fichier_bloc_reconcilie", chantierId: "I1", payload: { empreinte_sha256: "sha", index_bloc: index, nombre_blocs: 2 } }, () => id, HORLOGE),
+      ...creerMutation({ type: "fichier_bloc_reconcilie", chantierId: "I1", payload: { ...contexte, index_bloc: index } }, () => id, HORLOGE),
       statut: "envoyee" as const, proprietaire,
-      resumeAccepte: { existe: true, complet: false, blocsRecus: [index], reference: null },
+      resumeAccepte: { genre: "etat_fichier", contexte,
+        etat: { existe: true, complet: index === 1, blocsRecus: index === 1 ? [0, 1] : [0], reference: index === 1 ? `fichier:sha256:${SHA}` : null } },
     });
     await depot.inserer(creerRecu("a0", 0, "jdupont"));
     await depot.inserer(creerRecu("b1", 1, "mtremblay"));
     const relues = await depot.lister();
     const a = relues.filter((m) => m.proprietaire === "jdupont");
     expect(a).toHaveLength(1);
-    expect(a[0].resumeAccepte).toEqual({ existe: true, complet: false, blocsRecus: [0], reference: null });
-    expect(calculerEtatEnvoiFichier(a, "I1", "sha")).toMatchObject({ statut: "en_cours", blocsEnvoyes: 1, nombreBlocs: 2 });
+    expect(a[0].resumeAccepte).toEqual({ genre: "etat_fichier", contexte,
+      etat: { existe: true, complet: false, blocsRecus: [0], reference: null } });
+    expect(calculerEtatEnvoiFichier(a, "I1", SHA)).toMatchObject({ statut: "en_cours", blocsEnvoyes: 1, nombreBlocs: 2 });
     await depot.inserer(creerRecu("a1", 1, "jdupont"));
-    expect(calculerEtatEnvoiFichier((await depot.lister()).filter((m) => m.proprietaire === "jdupont"), "I1", "sha"))
+    expect(calculerEtatEnvoiFichier((await depot.lister()).filter((m) => m.proprietaire === "jdupont"), "I1", SHA))
       .toMatchObject({ statut: "complet", blocsEnvoyes: 2, nombreBlocs: 2 });
+  });
+
+  test("legacy reconcilie illisible reste durable sans être promu en fichier complet", async()=>{
+    const {base}=baseReelle();await initialiserSchemaOutbox(base);const depot=creerDepotOutboxSqlite(base);
+    const legacy={...creerMutation({type:"fichier_bloc_reconcilie",chantierId:"I-LEGACY-FICTIF",payload:{empreinte_sha256:"f".repeat(64),index_bloc:0,nombre_blocs:1}},()=>"LEGACY-FICTIF",HORLOGE),statut:"envoyee" as const,proprietaire:"jdupont",resumeAccepte:{existe:true,complet:true,blocsRecus:[0],reference:"fichier:sha256:"+"f".repeat(64)}};
+    await depot.inserer(legacy);const relue=await depot.obtenir(legacy.id);
+    expect(relue).toMatchObject({id:legacy.id,payload:legacy.payload,resumeAccepte:legacy.resumeAccepte,statut:"envoyee"});
+    expect(calculerEtatEnvoiFichier(await depot.lister(),"I-LEGACY-FICTIF","f".repeat(64))).toMatchObject({statut:"en_cours",reference:null,blocsEnvoyes:0});
   });
 
   test("inserer écrit le propriétaire, lister et obtenir le relisent, avec la sequence assignée par la base", async () => {

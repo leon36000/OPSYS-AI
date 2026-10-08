@@ -245,7 +245,10 @@ class Capacites:
             return {"ok": False, "erreur": "admission_profil_refusee", "details": str(exc)}
 
     def appeler(
-        self, nom: str, arguments: Mapping[str, Any] | None, meta: idempotence.Meta | None = None,
+        self,
+        nom: str,
+        arguments: Mapping[str, Any] | None,
+        meta: idempotence.Meta | None = None,
         ticket_cible: liaison_cibles.TicketMeta | None = None,
         ticket_memoire: str | None = None,
     ) -> dict[str, Any]:
@@ -258,6 +261,19 @@ class Capacites:
         args = dict(arguments or {})
         appelante = identite_appelante()
         entree = self.index.get(nom)
+        if nom == "m6_lire_preuves_pertes_wct_appareil" and meta is not None:
+            return {"ok": False, "erreur": "idempotence_hors_portee_lecture",
+                    "details": "Cette lecture pure n’admet aucune enveloppe de mutation."}
+        if nom == "m6_declarer_materiaux_avec_preuves_appareil" and entree is not None and meta is None:
+            with self._cnx_factory():
+                refus = self._garder_preuves_m6(args)
+            if refus is not None:
+                return refus
+            return {
+                "ok": False,
+                "erreur": "idempotence_appareil_requise",
+                "details": "Cette déclaration exige la mutation DEVICE persistée.",
+            }
         if meta is None and appelante is not None and appelante.source == "appareil" and entree is not None:
             outil = entree[1]
             # Autonomie T0 alone is insufficient: some internal drafts/tasks explicitly use N1/N2.
@@ -277,15 +293,19 @@ class Capacites:
         # Les outils cibles sortent du dispatch normal ci-dessous. Appliquer ici la même
         # portée d'appareil que le chemin `_valider_au_depart`, avant les refus de ticket,
         # sinon un rôle non autorisé observe `ticket_cible_requis` au lieu du refus de portée.
-        if (appelante is not None and appelante.source == "appareil" and nom in liaison_cibles.OUTILS_CIBLES
-                and nom not in self._outils_du_role(appelante.role)):
+        if (
+            appelante is not None
+            and appelante.source == "appareil"
+            and nom in liaison_cibles.OUTILS_CIBLES
+            and nom not in self._outils_du_role(appelante.role)
+        ):
             if meta is not None:
                 return self._appeler_idempotent(nom, args, meta, role_refuse=appelante.role)
             return {
                 "ok": False,
                 "erreur": "hors_portee_role",
                 "details": f"{nom} est hors de la portée du rôle {appelante.role} "
-                           "(openclaw.roles_outils) : ni exécuté ni mis en attente.",
+                "(openclaw.roles_outils) : ni exécuté ni mis en attente.",
             }
         if ticket_cible is not None:
             return self._appeler_avec_ticket(nom, args, ticket_cible)
@@ -302,17 +322,12 @@ class Capacites:
                 return {
                     "ok": False,
                     "erreur": "ticket_cible_requis",
-                    "details": (
-                        "Cette mutation exige un ticket de session, sauf action N3 "
-                        "authentifiée d'un humain."
-                    ),
+                    "details": ("Cette mutation exige un ticket de session, sauf action N3 authentifiée d'un humain."),
                 }
             if validation_au_depart_possible(outil.niveau_effectif) and self._humain_n3_cible_valide(nom):
                 return self._appeler_idempotent(nom, args, meta, revalider_humain_n3=True)
             if outil.niveau_effectif is Niveau.N4 and self._humain_appareil_cible_valide(nom):
-                return self._appeler_idempotent(
-                    nom, args, meta, revalider_humain_cible=True, demander_n4_humain=True
-                )
+                return self._appeler_idempotent(nom, args, meta, revalider_humain_cible=True, demander_n4_humain=True)
             return {
                 "ok": False,
                 "erreur": "ticket_cible_requis",
@@ -429,10 +444,46 @@ class Capacites:
         except (KeyError, liaison_cibles.CibleRefusee) as exc:
             return {"ok": False, "erreur": "cible_refusee", "details": str(exc)}
 
+    @staticmethod
+    def _garder_preuves_m6(arguments: dict[str, Any]) -> dict[str, Any] | None:
+        from m6_material_control import contexte_materiaux_appareil as c
+        from m6_material_control import outils as outils_m6
+        from m6_material_control import preuves_pertes_bris_appareil as p
+
+        try:
+            outils_m6.autoriser_declaration_preuves(arguments.get("wct_id"))
+        except (p.Refus, c.Refus) as exc:
+            return {
+                "ok": False,
+                "erreur": "REJ-M6-PREUVES-" + exc.suffixe,
+                "details": "Identité, cible ou formulaire non admis ; aucune mutation réclamée ou rejouée.",
+            }
+        return None
+
+    @staticmethod
+    def _confirmation_preuves_inconnue() -> dict[str, Any]:
+        return {
+            "ok": False,
+            "erreur": "confirmation_transport_indisponible",
+            "issue": "inconnue",
+            "details": "La confirmation entière ne tient pas dans le quota ; conserver et rejouer la même clé.",
+        }
+
+    def _borner_confirmation_preuves(self, reponse: dict[str, Any]) -> dict[str, Any]:
+        if len(json.dumps(reponse, ensure_ascii=False)) > min(5400, self._limite):
+            return self._confirmation_preuves_inconnue()
+        return reponse
+
     def _appeler_idempotent(
-        self, nom: str, arguments: dict[str, Any], meta: idempotence.Meta, *,
-        revalider_humain_n3: bool = False, revalider_humain_cible: bool = False,
-        demander_n4_humain: bool = False, role_refuse: str | None = None,
+        self,
+        nom: str,
+        arguments: dict[str, Any],
+        meta: idempotence.Meta,
+        *,
+        revalider_humain_n3: bool = False,
+        revalider_humain_cible: bool = False,
+        demander_n4_humain: bool = False,
+        role_refuse: str | None = None,
     ) -> dict[str, Any]:
         """Réclame `(appareil, cle)` puis exécute, dans une seule transaction : un renvoi de la
         même clé, du même outil et des mêmes arguments rejoue la réponse enregistrée sans
@@ -446,6 +497,10 @@ class Capacites:
         """
         recu_le = dt.datetime.now(dt.UTC)
         with self._cnx_factory() as cnx:
+            if nom == "m6_declarer_materiaux_avec_preuves_appareil":
+                refus = self._garder_preuves_m6(arguments)
+                if refus is not None:
+                    return refus
             if revalider_humain_n3 and not self._humain_n3_cible_valide(nom, cnx):
                 return {
                     "ok": False,
@@ -467,7 +522,7 @@ class Capacites:
                     "ok": False,
                     "erreur": "hors_portee_role",
                     "details": f"{nom} est hors de la portée du rôle {role_refuse} "
-                               "(openclaw.roles_outils) : ni exécuté ni mis en attente.",
+                    "(openclaw.roles_outils) : ni exécuté ni mis en attente.",
                 }
             try:
                 reclamation = idempotence.reclamer(cnx, meta, nom, arguments, recu_le)
@@ -483,7 +538,10 @@ class Capacites:
                 refus_rejoue = reclamation.rejouee and reclamation.reponse.get("erreur") == "hors_portee_role"
                 return {**refus_role, "rejoue": refus_rejoue}
             if reclamation.rejouee:
-                return {**reclamation.reponse, "rejoue": True}
+                reponse = {**reclamation.reponse, "rejoue": True}
+                if nom == "m6_declarer_materiaux_avec_preuves_appareil":
+                    return self._borner_confirmation_preuves(reponse)
+                return reponse
             if demander_n4_humain:
                 if signataire_n4 is None:
                     raise ValueError("création N4 humaine sans signataire revérifié en base")
@@ -518,9 +576,16 @@ class Capacites:
                 recu_le=recu_le,
             )
             with receptionne_de(horodatage):
-                reponse = self._distribuer(nom, arguments, appel_appareil=True, meta=meta)
+                if nom == "m6_declarer_materiaux_avec_preuves_appareil":
+                    with contexte_appel.sortie_bornee(min(5400, self._limite)):
+                        reponse = self._distribuer(nom, arguments, appel_appareil=True, meta=meta)
+                else:
+                    reponse = self._distribuer(nom, arguments, appel_appareil=True, meta=meta)
             idempotence.finaliser(cnx, meta, reponse)
-            return {**reponse, "rejoue": False}
+            finale = {**reponse, "rejoue": False}
+            if nom == "m6_declarer_materiaux_avec_preuves_appareil":
+                return self._borner_confirmation_preuves(finale)
+            return finale
 
     def _distribuer(
         self, nom: str, arguments: Mapping[str, Any] | None, *, appel_appareil: bool = False,
@@ -634,39 +699,61 @@ class Capacites:
         if signataire is None:
             return None
         if outil.nom not in self._outils_du_role(signataire.role):
-            return {"ok": False, "erreur": "hors_portee_role",
-                    "details": f"{outil.nom} est hors de la portée du rôle {signataire.role} "
-                               "(openclaw.roles_outils) : ni exécuté ni mis en attente."}
+            return {
+                "ok": False,
+                "erreur": "hors_portee_role",
+                "details": f"{outil.nom} est hors de la portée du rôle {signataire.role} "
+                "(openclaw.roles_outils) : ni exécuté ni mis en attente.",
+            }
         reception = horodatage_reception()
         with cnx.begin_nested():
             origine = self.appelant.id if self.appelant else None
             with appeler_en_tant_que(departement.id, origine=origine):
                 reponse = executer_atomique(outil, arguments)
-            if reponse.get("ok"):
+            if reponse.get("ok") and (
+                outil.nom != "m6_declarer_materiaux_avec_preuves_appareil"
+                or reponse.get("resultat", {}).get("accepte") is True
+            ):
                 approbations.tracer_validation_au_depart(
-                    cnx, departement.id, outil.nom, arguments, niveau=outil.niveau_effectif,
-                    signataire=signataire, reponse=reponse,
-                    appareil=reception.appareil if reception is not None else None)
+                    cnx,
+                    departement.id,
+                    outil.nom,
+                    arguments,
+                    niveau=outil.niveau_effectif,
+                    signataire=signataire,
+                    reponse=reponse,
+                    appareil=reception.appareil if reception is not None else None,
+                )
         return self._tronquer(
-            reponse, outil.nom, departement=departement.id,
+            reponse,
+            outil.nom,
+            departement=departement.id,
             origine=self.appelant.id if self.appelant else None,
         )
 
     def _tronquer(
-        self, reponse: dict[str, Any], source: str, *, departement: str | None = None,
+        self,
+        reponse: dict[str, Any],
+        source: str,
+        *,
+        departement: str | None = None,
         origine: str | None = None,
     ) -> dict[str, Any]:
+        if source == "m6_declarer_materiaux_avec_preuves_appareil" and reponse.get("erreur") == "arguments_invalides":
+            reponse = {"ok": False, "erreur": "arguments_invalides",
+                       "details": "La demande ne satisfait pas le contrat fermé de déclaration."}
         texte = json.dumps(reponse, ensure_ascii=False)
         if len(texte) <= self._limite:
             return reponse
+        if source == "m6_declarer_materiaux_avec_preuves_appareil":
+            return self._confirmation_preuves_inconnue()
         if source == "m10_paquet_contexte_affaire":
             # Le moteur Core refuse déjà ce contexte ; sa lecture ne doit pas créer d'artefact.
             return {
                 "ok": False,
                 "erreur": "REJ-PAQUET-AFFAIRE-SORTIE-TROP-VOLUMINEUSE",
                 "details": (
-                    "le paquet dépasse la borne de sortie du contexte privé ; "
-                    "aucun détail partiel n'est transmis"
+                    "le paquet dépasse la borne de sortie du contexte privé ; aucun détail partiel n'est transmis"
                 ),
             }
         refus_lecture_appareil = {
@@ -676,22 +763,27 @@ class Capacites:
             "m6_lire_pertes_alertes_wct_appareil": "REJ-M6-PERTES-SORTIE-TROP-VOLUMINEUSE",
             "m6_lire_reapprovisionnement_appareil": "REJ-M6-REAPPRO-SORTIE-TROP-VOLUMINEUSE",
             "m6_lire_contexte_materiaux_appareil": "REJ-M6-CONTEXTE-SORTIE-TROP-VOLUMINEUSE",
+            "m6_lire_preuves_pertes_wct_appareil": "REJ-M6-PREUVES-SORTIE-TROP-VOLUMINEUSE",
         }.get(source)
         if refus_lecture_appareil is not None:
             # Le plafond de cette capacité peut être inférieur au budget fixe du producteur.
             return {
                 "ok": False,
                 "erreur": refus_lecture_appareil,
-                "details": (
-                    "la lecture dépasse la borne de sortie appareil ; "
-                    "aucun détail partiel n'est transmis"
-                ),
+                "details": ("la lecture dépasse la borne de sortie appareil ; aucun détail partiel n'est transmis"),
             }
         departement_artifact = departement or contexte_appel.DEPARTEMENT_APPELANT.get()
         origine_artifact = origine or contexte_appel.departement_origine_appelante()
         with self._cnx_factory() as cnx:
-            return {"ok": reponse.get("ok", False), "tronque": True,
-                    "apercu": jetons.tronquer(
-                        cnx, texte, source, self._limite,
-                        departement=departement_artifact, origine=origine_artifact,
-                    )}
+            return {
+                "ok": reponse.get("ok", False),
+                "tronque": True,
+                "apercu": jetons.tronquer(
+                    cnx,
+                    texte,
+                    source,
+                    self._limite,
+                    departement=departement_artifact,
+                    origine=origine_artifact,
+                ),
+            }

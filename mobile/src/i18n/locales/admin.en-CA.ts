@@ -50,6 +50,22 @@ const adminEnCA: RessourcesAdmin = {
     referenceInconnue: "Reference detail unavailable for display.",
     statuts: { stock_bas: "Stock below threshold", stock_suffisant: "Available stock sufficient according to threshold", seuil_absent: "Threshold to configure", configuration_invalide: "Invalid configuration" },
   },
+  preuvesMateriaux: {
+    "titre": "Evidence linked to losses and breakage",
+    "limites": "Current pages. A note or linked file does not establish the scene, cause or date of the damage.",
+    "charger": "Read current evidence",
+    "suite": "Next current page",
+    "page": "{{affichees}} movement(s) shown out of {{total}} currently",
+    "uniteInconnue": "unit unknown",
+    "absente": "No evidence recorded for this movement",
+    "note_seule": "Note only, no photo declared",
+    "photos_declarees": "Note and declared files",
+    "enregistre": "Recorded on server: {{date}}",
+    "declare": "Device-declared time: {{date}}",
+    "disponible": "Verify and view this file",
+    "indisponible": "File or read unavailable. Read current evidence again.",
+    "fermer": "Close and delete preview"
+},
   pertesAlertes: {
     titre: "Job losses, breakage and alerts",
     note: "Choose a completed job received by M6. Movements and alerts are read again from the server.",

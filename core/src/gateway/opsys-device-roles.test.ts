@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { cleanupTempDirs, makeTempDir } from "../../test/helpers/temp-dir.js";
 import {
   authorizeOpsysDeviceTool,
+  authorizeOpsysDeviceToolFresh,
   resetOpsysDeviceRolesCacheForTesting,
   resolveOpsysDeviceIdentity,
 } from "./opsys-device-roles.js";
@@ -374,5 +375,47 @@ describe("resolveOpsysDeviceIdentity (PLAN T1.4-c5)", () => {
 
     writeFragments(dir, { appareils: { appareils: {} } });
     expect(resolveOpsysDeviceIdentity("tel-1", dir)).toEqual({ ok: false, reason: "device_unknown" });
+  });
+});
+
+describe("fresh named photo authority", () => {
+  it("does not reuse same-size, same-mtime attribution or scope fragments", () => {
+    const dir = makeTempDir(tempDirs, "opsys-photo-fresh-");
+    const tool = "m6_lire_preuves_pertes_wct_appareil";
+    writeFragments(dir, {
+      roles: { roles: { admin: [tool] }, serveurs: { [tool]: "opsys_m6" } },
+      appareils: { appareils: { "tel-1": { personne: "alice", role: "admin" } } },
+    });
+    const file = path.join(dir, "appareils.json");
+    const rolesFile = path.join(dir, "roles.json");
+    fs.utimesSync(file, 1000, 1000);
+    fs.utimesSync(rolesFile, 1000, 1000);
+    const stat = fs.statSync(file);
+    expect(authorizeOpsysDeviceTool("tel-1", tool, dir).ok).toBe(true);
+    fs.writeFileSync(
+      file,
+      JSON.stringify({ appareils: { "tel-1": { personne: "other", role: "admin" } } }),
+    );
+    fs.utimesSync(file, stat.atime, stat.mtime);
+    expect(fs.statSync(file).mtimeMs).toBe(stat.mtimeMs);
+    expect(fs.statSync(file).size).toBe(stat.size);
+    expect(authorizeOpsysDeviceTool("tel-1", tool, dir)).toMatchObject({ personne: "alice" });
+    const fresh = authorizeOpsysDeviceToolFresh;
+    expect(fresh("tel-1", tool, dir)).toEqual({
+      ok: true,
+      personne: "other",
+      role: "admin",
+      serveur: "opsys_m6",
+    });
+    fs.writeFileSync(
+      path.join(dir, "roles.json"),
+      JSON.stringify({
+        roles: { admin: [tool.replace("appareil", "appareiX")] },
+        serveurs: { [tool]: "opsys_m6" },
+      }),
+    );
+    fs.utimesSync(rolesFile, 1000, 1000);
+    expect(authorizeOpsysDeviceTool("tel-1", tool, dir).ok).toBe(true);
+    expect(fresh("tel-1", tool, dir)).toEqual({ ok: false, reason: "tool_out_of_scope" });
   });
 });

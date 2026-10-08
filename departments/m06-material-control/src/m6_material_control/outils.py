@@ -83,10 +83,11 @@ from typing import Any
 import yaml
 from sqlalchemy import select
 
-from opsys import approbations, contexte, evenements, stockage
+from opsys import approbations, contexte, evenements, fichiers, stockage
 from opsys.evenements.schemas import erreurs_charge
 from opsys.outils import Autonomie, Niveau, Outil
 from opsys.stockage import codec
+from opsys.stockage.maillons import EcritureConcurrente
 from opsys.stockage.schema import EVENEMENTS_SORTANTS, REGISTRES
 
 from . import (
@@ -103,6 +104,8 @@ from . import (
     livre_prix,
     materiel,
     pertes_appareil,
+    preuves_pertes_bris,
+    preuves_pertes_bris_appareil,
     reapprovisionnement,
     reapprovisionnement_appareil,
     reception,
@@ -1572,7 +1575,6 @@ def lire_disponibilite(materiau_ids: list[str] | None = None) -> dict[str, Any]:
     }}
 
 
-
 def _snapshots_pertes_appareil(wct_id: str | None = None) -> dict[str, Any]:
     """Copie les sources dans la transaction courante ; les rangs viennent du stockage réel."""
     cnx = stockage.connexion_courante()
@@ -1812,6 +1814,304 @@ def lire_contexte_materiaux_appareil(
     except Exception:
         return contexte_materiaux_appareil.refuser("SOURCE-INVALIDE")
     return contexte_materiaux_appareil.lire(sources, intervention_id, wct_id, acteur, decalage, limite)
+
+
+def autoriser_declaration_preuves(wct_id: str, formulaire: dict[str, Any] | None = None):
+    """Garde fraîche nommée, appelée avant claim/rejeu et avant l'exécution."""
+    p = preuves_pertes_bris_appareil
+    appelante = contexte.identite_appelante()
+    acteur, verdict = _declarant_appareil()
+    if appelante is None or appelante.source != "appareil" or acteur is None or verdict is not None:
+        raise p.Refus("IDENTITE-INVALIDE")
+    if not p.texte(wct_id):
+        raise p.Refus("ARGUMENTS-INVALIDES")
+    try:
+        wct = _wct_publie_par_m4(wct_id)
+        if wct is None:
+            raise p.Refus("WCT-INCONNU")
+        ok, code = validation.valider_wct(wct)
+        if not ok:
+            raise p.Refus("SOURCE-INVALIDE")
+        if acces.controler_declarant(wct, acteur) is not None:
+            raise p.Refus("INTERVENTION-NON-ASSIGNEE")
+        admission = _admission_m4_contexte(wct["intervention_id"], acteur)
+        _wct_m4_contexte(wct_id, admission, acteur)
+    except (ValueError, TypeError, KeyError):
+        raise p.Refus("SOURCE-INVALIDE") from None
+    if not all(p.texte(wct[k]) for k in ("wct_id", "intervention_id")):
+        raise p.Refus("PROJECTION-INVALIDE")
+    besoin, nombre_prevus = _besoin_preuves(wct)
+    if formulaire is not None:
+        ok, code = validation.valider_formulaire_materiaux_utilises(formulaire, wct)
+        if not ok:
+            raise p.Refus("FORMULAIRE-INVALIDE")
+        if not p.texte(formulaire["chantier_id"]) or any(
+            not p.texte(x["materiau_id"]) or not p.texte(x["unite"]) for x in formulaire["lignes_materiaux"]
+        ):
+            raise p.Refus("PROJECTION-INVALIDE")
+        if any(
+            not p.nombre_projectable(ligne[k])
+            for ligne in formulaire["lignes_materiaux"]
+            for k in ("quantite", "quantite_estimee") if k in ligne
+        ):
+            raise p.Refus("PROJECTION-INVALIDE")
+        if acces.controler_chantier(formulaire, wct, besoin, acteur) is not None:
+            raise p.Refus("CHANTIER-INCOHERENT")
+    nombre_sources = admission["admission_lignes"] + 1 + nombre_prevus
+    if nombre_sources > p.PLAFOND_LIGNES:
+        raise p.Refus("BORNE-SOURCES")
+    return acteur, wct, nombre_sources, besoin
+
+
+def _besoin_preuves(wct):
+    p = preuves_pertes_bris_appareil
+    try:
+        copies = list(_besoins_prevus_de_l_appel(None))
+        if len(copies) > p.PLAFOND_LIGNES:
+            raise p.Refus("BORNE-SOURCES")
+        if any(type(x) is not dict for x in copies):
+            raise p.Refus("SOURCE-INVALIDE")
+        besoin = besoins_prevus.pour_devis(wct.get("devis_id"), copies)
+        if besoin is not None and besoin.get("chantier_id") is not None and not p.texte(besoin["chantier_id"]):
+            raise p.Refus("SOURCE-INVALIDE")
+        return besoin, len(copies)
+    except (ValueError, TypeError, KeyError):
+        raise p.Refus("SOURCE-INVALIDE") from None
+
+
+def _snapshots_preuves(lignes_autorisation=0):
+    p = preuves_pertes_bris_appareil
+    try:
+        principal = list(stockage.maillons(_DEPARTEMENT, "principal"))
+        preuves = list(stockage.maillons(_DEPARTEMENT, "preuves_pertes_bris"))
+    except (ValueError, TypeError):
+        raise p.Refus("REGISTRE-INVALIDE") from None
+    if len(principal) + len(preuves) + lignes_autorisation > p.PLAFOND_LIGNES:
+        raise p.Refus("BORNE-SOURCES")
+    p.valider_snapshots(principal, preuves)
+    return principal, preuves
+
+
+def _photo_verifiee(reference: str):
+    cnx = stockage.connexion_courante()
+    blob = fichiers.lire_blob_verifie(cnx, reference)
+    if not blob.accepte or blob.octets is None or blob.type_mime not in fichiers.TYPES_MIME_PERMIS:
+        raise preuves_pertes_bris_appareil.Refus("PHOTO-INDISPONIBLE")
+    return {
+        "reference": reference,
+        "empreinte_sha256": fichiers.empreinte_depuis_reference(reference),
+        "type_mime": blob.type_mime,
+        "taille_octets": len(blob.octets),
+    }
+
+
+def _ajouter_preuve(maillon):
+    stockage.maillons(_DEPARTEMENT, "preuves_pertes_bris").append(maillon, rang_attendu=maillon["index"])
+
+
+def _postflight_preuves(reponse):
+    preuves_pertes_bris_appareil.verifier_borne(reponse, contexte.limite_sortie() or 5400, mutation=True)
+
+
+def declarer_materiaux_avec_preuves_appareil(wct_id: str, formulaire: dict[str, Any], preuves_lignes: list):
+    p = preuves_pertes_bris_appareil
+    try:
+        acteur, wct, nombre_sources, _ = autoriser_declaration_preuves(wct_id, formulaire)
+        plan, code = preuves_pertes_bris.valider_preuves_lignes(formulaire["lignes_materiaux"], preuves_lignes)
+        if code:
+            return {"accepte": False, "verdict": {"code": code}}
+        horodatage = contexte.horodatage_reception()
+        if horodatage is None:
+            raise p.Refus("CONTEXTE-MUTATION-ABSENT")
+        avant, anciennes = _snapshots_preuves(nombre_sources)
+        if any(m.get("wct_id") == wct_id for m in avant):
+            raise p.Refus("DECLARATION-DEJA-SOUMISE")
+        # Placeholders de SHA de taille fixe : mesure uniquement, jamais exportés comme références.
+        liens = [
+            {
+                "position_ligne": x["position_ligne"],
+                "reference_mouvement": {
+                    "registre": "principal",
+                    "index": len(avant) + x["position_ligne"],
+                    "hash_maillon": "0" * 64,
+                },
+                "reference_preuve": {
+                    "registre": "preuves_pertes_bris",
+                    "index": len(anciennes) + k,
+                    "hash_maillon": "0" * 64,
+                },
+                "nombre_photos": len(x["photos"]),
+            }
+            for k, x in enumerate(plan)
+        ]
+        _postflight_preuves(p.ack(wct, formulaire, liens, len(avant) + len(formulaire["lignes_materiaux"]), "0" * 64))
+        verifiees = []
+        for x in plan:
+            verifiees.append([_photo_verifiee(ref) for ref in x["photos"]])
+        cnx = stockage.connexion_courante()
+        with cnx.begin_nested():
+            resultat = declarer_materiaux_utilises(wct_id, formulaire)
+            if not resultat.get("accepte"):
+                raise p.Refus("DECLARATION-REFUSEE")
+            apres, _ = _snapshots_preuves(nombre_sources)
+            ajouts = p.lier_ajouts(avant, apres, formulaire)
+            pred = anciennes[-1]["hash_maillon"] if anciennes else ""
+            liens = []
+            for k, x in enumerate(plan):
+                preuve = p.construire_preuve(
+                    len(anciennes) + k,
+                    pred,
+                    wct,
+                    formulaire,
+                    x,
+                    ajouts[x["position_ligne"]],
+                    verifiees[k],
+                    acteur,
+                    horodatage,
+                )
+                _ajouter_preuve(preuve)
+                pred = preuve["hash_maillon"]
+                liens.append(
+                    {
+                        "position_ligne": x["position_ligne"],
+                        "reference_mouvement": preuve["reference_mouvement"],
+                        "reference_preuve": p.reference("preuves_pertes_bris", preuve),
+                        "nombre_photos": len(preuve["photos"]),
+                    }
+                )
+            final, final_preuves = _snapshots_preuves(nombre_sources)
+            if final != apres or len(final_preuves) != len(anciennes) + len(plan):
+                raise p.Refus("LIAISON-INCOHERENTE")
+            reponse = p.ack(wct, formulaire, liens, len(final), final[-1]["hash_maillon"])
+            _postflight_preuves(reponse)
+        return reponse
+    except (p.Refus, contexte_materiaux_appareil.Refus) as exc:
+        return p.refuser(exc.suffixe)
+    except EcritureConcurrente:
+        raise
+    except Exception as exc:
+        # Ces types sont capturés par executer comme refus métier ; une panne après
+        # écriture doit au contraire remonter et annuler aussi la réclamation Cap.
+        raise RuntimeError("échec technique de la déclaration atomique avec preuves") from exc
+
+
+
+def _autoriser_admin_preuves(wct_id):
+    p = preuves_pertes_bris_appareil
+    ident = contexte.identite_appelante()
+    acteur, verdict = _declarant_appareil()
+    if ident is None or ident.source != "appareil" or acteur is None or verdict is not None or acteur.role != "admin":
+        raise p.Refus("IDENTITE-INVALIDE")
+    acteur, wct, nombre_sources, besoin = autoriser_declaration_preuves(wct_id)
+    return acteur, wct, nombre_sources, besoin
+
+
+def _photo_est_disponible(photo):
+    try:
+        return _photo_verifiee(photo["reference"]) == photo
+    except preuves_pertes_bris_appareil.Refus:
+        return False
+
+
+def lire_preuves_pertes_wct_appareil(wct_id: str, decalage: int = 0, limite: int = 8):
+    p = preuves_pertes_bris_appareil
+    try:
+        _, wct, nombre_sources, _ = _autoriser_admin_preuves(wct_id)
+        principal, preuves = _snapshots_preuves(nombre_sources)
+        dto = p.lire(wct, principal, preuves, decalage, limite, _photo_est_disponible)
+        p.verifier_borne(dto, contexte.limite_sortie() or 5400)
+        return dto
+    except (p.Refus, contexte_materiaux_appareil.Refus) as exc:
+        return p.refuser(exc.suffixe)
+
+
+def _selection_photo(wct_id, preuve, position_photo):
+    p = preuves_pertes_bris_appareil
+    acteur, wct, nombre_sources, besoin = _autoriser_admin_preuves(wct_id)
+    if (
+        type(preuve) is not dict
+        or set(preuve) != {"index", "hash_maillon"}
+        or type(preuve["index"]) is not int
+        or preuve["index"] < 0
+        or type(preuve["hash_maillon"]) is not str
+        or not p._hash(preuve["hash_maillon"])
+        or type(position_photo) is not int
+        or not 0 <= position_photo < 3
+    ):
+        raise p.Refus("ARGUMENTS-INVALIDES")
+    principal, preuves = _snapshots_preuves(nombre_sources)
+    if preuve["index"] >= len(preuves):
+        raise p.Refus("PHOTO-INCONNUE")
+    choisie = preuves[preuve["index"]]
+    if (
+        choisie["hash_maillon"] != preuve["hash_maillon"]
+        or choisie["wct_id"] != wct_id
+        or choisie["intervention_id"] != wct["intervention_id"]
+        or position_photo >= len(choisie["photos"])
+    ):
+        raise p.Refus("LIAISON-INCOHERENTE")
+    try:
+        attendu = acces.chantier_attendu(wct, besoin, acteur)
+    except (ValueError, TypeError, KeyError):
+        raise p.Refus("SOURCE-INVALIDE") from None
+    if attendu is not None and choisie["chantier_id"] != attendu:
+        raise p.Refus("LIAISON-INCOHERENTE")
+    return acteur, choisie["photos"][position_photo]
+
+
+def revalider_autorite_photo(wct_id, preuve, position_photo, *, cnx_factory=stockage.transaction):
+    """Nouvelle transaction courte, rôle et liens actuels ; ne lit jamais de pixels/CAS."""
+    p = preuves_pertes_bris_appareil
+    if stockage.connexion_courante() is not None:
+        raise RuntimeError("la revalidation photo exige une transaction fraîche")
+    try:
+        with cnx_factory() as cnx:
+            if stockage.connexion_courante() is not cnx:
+                raise RuntimeError("connexion photo non canonique")
+            acteur, photo = _selection_photo(wct_id, preuve, position_photo)
+            return {
+                "accepte": True,
+                **photo,
+                "autorite": {
+                    "personne": acteur.personne,
+                    "role": acteur.role,
+                    "source": contexte.identite_appelante().source,
+                },
+            }
+    except (p.Refus, contexte_materiaux_appareil.Refus) as exc:
+        return p.refuser(exc.suffixe)
+
+
+def autoriser_et_lire_photo(wct_id, preuve, position_photo, *, cnx_factory=stockage.transaction):
+    """Helper privé D : sélection métier fermée et CAS complet revérifié, jamais hash libre."""
+    p = preuves_pertes_bris_appareil
+    if stockage.connexion_courante() is not None:
+        raise RuntimeError("l’admission photo exige une transaction fraîche")
+    try:
+        with cnx_factory() as cnx:
+            if stockage.connexion_courante() is not cnx:
+                raise RuntimeError("connexion photo non canonique")
+            acteur, photo = _selection_photo(wct_id, preuve, position_photo)
+            blob = fichiers.lire_blob_verifie(cnx, photo["reference"])
+            if (
+                not blob.accepte
+                or blob.octets is None
+                or blob.type_mime != photo["type_mime"]
+                or len(blob.octets) != photo["taille_octets"]
+            ):
+                raise p.Refus("PHOTO-INDISPONIBLE")
+            return {
+                "accepte": True,
+                **photo,
+                "octets": blob.octets,
+                "autorite": {
+                    "personne": acteur.personne,
+                    "role": acteur.role,
+                    "source": contexte.identite_appelante().source,
+                },
+            }
+    except (p.Refus, contexte_materiaux_appareil.Refus) as exc:
+        return p.refuser(exc.suffixe)
 
 
 def outils() -> tuple[Outil, ...]:
@@ -2369,6 +2669,60 @@ def outils() -> tuple[Outil, ...]:
             fonction=lire_contexte_materiaux_appareil,
             autonomie=Autonomie.T0,
             roles_appareil=frozenset({"employee", "admin"}),
+        ),
+        Outil(
+            nom="m6_declarer_materiaux_avec_preuves_appareil",
+            description=("Déclaration DEVICE atomique avec notes de pertes/bris et références CAS vérifiées ; "
+                         "aucun achat terrain."),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "wct_id": {"type": "string", "minLength": 1, "maxLength": 256},
+                    "formulaire": {**_FORMULAIRE_MATERIAUX_UTILISES, "additionalProperties": False,
+                    "properties": {**_FORMULAIRE_MATERIAUX_UTILISES["properties"],
+                        "lignes_materiaux": {"type": "array", "minItems": 1, "maxItems": 24,
+                            "items": _LIGNE_DECLAREE_CHANTIER}}},
+                    "preuves_lignes": {
+                        "type": "array",
+                        "maxItems": 8,
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "position_ligne": {"type": "integer", "minimum": 0, "maximum": 23},
+                                "note": {"type": "string", "minLength": 1, "maxLength": 500},
+                                "photos": {"type": "array", "maxItems": 3, "items": {"type": "string"}},
+                            },
+                            "required": ["position_ligne", "note", "photos"],
+                            "additionalProperties": False,
+                        },
+                    },
+                },
+                "required": ["wct_id", "formulaire", "preuves_lignes"],
+                "additionalProperties": False,
+            },
+            fonction=declarer_materiaux_avec_preuves_appareil,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N3,
+            roles_appareil=frozenset({"employee", "admin"}),
+        ),
+        Outil(
+            nom="m6_lire_preuves_pertes_wct_appareil",
+            description=("Lecture admin des notes/photo associées aux vrais mouvements PERTE/BRIS ; "
+                         "pages courantes sans coûts."),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "wct_id": {"type": "string", "minLength": 1, "maxLength": 256},
+                    "decalage": {"type": "integer", "minimum": 0, "maximum": 10000},
+                    "limite": {"type": "integer", "minimum": 1, "maximum": 8},
+                },
+                "required": ["wct_id", "decalage", "limite"],
+                "additionalProperties": False,
+            },
+            fonction=lire_preuves_pertes_wct_appareil,
+            autonomie=Autonomie.T0,
+            niveau=Niveau.N0,
+            roles_appareil=frozenset({"admin"}),
         ),
     )
 

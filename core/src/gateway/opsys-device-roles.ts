@@ -80,6 +80,20 @@ function readJsonFileCached<T>(
   return value;
 }
 
+// Byte delivery must observe revocation even if the file clock and size alias.
+function readJsonFileFresh<T>(
+  filePath: string,
+  _cache: Map<string, CachedFile<T>>,
+  parse: (raw: unknown) => T,
+  empty: T,
+): T {
+  try {
+    return parse(JSON.parse(fs.readFileSync(filePath, "utf8")));
+  } catch {
+    return empty;
+  }
+}
+
 function parseRoles(raw: unknown): Record<string, readonly string[]> {
   const roles = (raw as { roles?: unknown } | null)?.roles;
   if (!roles || typeof roles !== "object" || Array.isArray(roles)) {
@@ -144,18 +158,18 @@ type ResolvedOpsysDevice =
  * member is never read as inherited state. Shared by the tool door and the identity read so the two
  * can never disagree on who a device is.
  */
-function resolveOpsysDevice(deviceId: string, opsysDir: string): ResolvedOpsysDevice {
-  const appareils = readJsonFileCached(
-    path.join(opsysDir, "appareils.json"),
-    appareilsCache,
-    parseAppareils,
-    {},
-  );
+function resolveOpsysDevice(
+  deviceId: string,
+  opsysDir: string,
+  fresh = false,
+): ResolvedOpsysDevice {
+  const read = fresh ? readJsonFileFresh : readJsonFileCached;
+  const appareils = read(path.join(opsysDir, "appareils.json"), appareilsCache, parseAppareils, {});
   const appareil = Object.hasOwn(appareils, deviceId) ? appareils[deviceId] : undefined;
   if (!appareil) {
     return { ok: false, reason: "device_unknown" };
   }
-  const rolesFile = readJsonFileCached(
+  const rolesFile = read(
     path.join(opsysDir, "roles.json"),
     rolesCache,
     parseRolesFile,
@@ -195,8 +209,9 @@ export function authorizeOpsysDeviceTool(
   deviceId: string,
   toolName: string,
   opsysDir: string = defaultOpsysDir(),
+  fresh = false,
 ): OpsysDeviceAuthorization {
-  const device = resolveOpsysDevice(deviceId, opsysDir);
+  const device = resolveOpsysDevice(deviceId, opsysDir, fresh);
   if (!device.ok) {
     return { ok: false, reason: device.reason };
   }
@@ -210,6 +225,15 @@ export function authorizeOpsysDeviceTool(
     return { ok: false, reason: "server_unknown" };
   }
   return { ok: true, personne: device.appareil.personne, role: device.appareil.role, serveur };
+}
+
+/** Uncached attribution and scope, for every privileged byte emission. */
+export function authorizeOpsysDeviceToolFresh(
+  deviceId: string,
+  toolName: string,
+  opsysDir: string = defaultOpsysDir(),
+): OpsysDeviceAuthorization {
+  return authorizeOpsysDeviceTool(deviceId, toolName, opsysDir, true);
 }
 
 export type OpsysDeviceIdentity =

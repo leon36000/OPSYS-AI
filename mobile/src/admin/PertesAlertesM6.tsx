@@ -1,3 +1,4 @@
+import { PreuvesMateriauxM6 } from './PreuvesMateriauxM6';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { useFocusEffect } from "expo-router";
@@ -95,5 +96,7 @@ export function PertesAlertesM6({ connected }: { readonly connected: boolean }) 
       {pageDetail?.pagination.suivant != null && selection ? <BoutonSecondaire texte={t("admin.pertesAlertes.suiteDetail")}
         desactive={!permis()} onPress={() => void lire(selection, pageDetail.pagination.suivant!)} /> : null}
     </>} /> : null}
+    {pageDetail && selection ? <PreuvesMateriauxM6 key={selection.wct_id} wctId={selection.wct_id}
+      connected={connected} surRefus={invalider} /> : null}
   </Carte>;
 }

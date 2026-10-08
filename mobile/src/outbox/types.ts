@@ -30,6 +30,7 @@ export type TypeMutation =
   | "punch_out"
   | "job_status_change"
   | "materials_submit"
+  | "materials_submit_with_proofs"
   | "checklist_step"
   | "incident_report"
   | "photo_upload"

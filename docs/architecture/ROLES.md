@@ -71,9 +71,9 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 133 outils sur 225 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 135 outils sur 227 sont déclarés.
 
-### `employee` (15 outils) : §9.3, le terrain
+### `employee` (16 outils) : §9.3, le terrain
 
 Chaque outil qui porte une identité ou une intervention ne s'exécute que pour la personne authentifiée et
 pour SES interventions (section « Contrôle d'accès par personne et par intervention » plus bas, T1.4-k).
@@ -89,6 +89,7 @@ pour SES interventions (section « Contrôle d'accès par personne et par interv
 | `m4_completer_intervention` | §9.7 « Terminer ». Sa propre intervention. |
 | `m4_definir_consentement_gps` | POLITIQUE-geolocalisation §4 « l'employé peut retirer son consentement via l'app employé », §7 droit de retrait à tout moment. SON consentement seulement (`technicien_id` = sa personne), jamais celui d'un autre. |
 | `m6_declarer_materiaux_utilises` | §9.3 Inventaire et §9.7 étape 3 : formulaire des matériaux utilisés, « aucun coût affiché ». Le WCT de sa propre intervention seulement. |
+| `m6_declarer_materiaux_avec_preuves_appareil` (T1/N3) | Déclaration DEVICE employee/admin active et WCT courant avant claim/rejeu ; mêmes mouvements/cascades historiques, notes de PERTE/BRIS et CAS associés atomiquement. ACK entier préflight au quota effectif min5400, sans coût ni artefact ; un rejeu hors quota réduit reste une issue de transport inconnue, même clé conservée. |
 | `m6_lire_contexte_materiaux_appareil` (T0/N0) | Contexte et prévu du WCT choisi : identité active et rôle employee/admin courants ; employé individuellement assigné admis par M4 avant bus WCT/prévu M6. IDs intervention/WCT exacts, chantier selon `acces.chantier_attendu`, références natives M4/M3/M6 et estimé sans coût. Pages courantes, enveloppe5400, sources10000 ; aucun cache ajouté, quantité réelle, écriture ou artefact. |
 | `m7_enregistrer_consentement_reference` | Consentement qu'il recueille pour une référence; n'autorise pas l'employé à préparer ou publier un contenu public. |
 | `m7_importer_avis_manuel`, `m7_lister_inbox_reputation` | Saisie manuelle et consultation de l'inbox; le texte des plaintes/urgences privées n'est pas rendu à l'employé. Il ne décide ni n'exporte de réponse. |
@@ -121,7 +122,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (132 outils) : §9.5 + employé + vendeur
+### `admin` (134 outils) : §9.5 + employé + vendeur
 
 Les 15 outils de l'employé, les 14 du vendeur, et :
 
@@ -158,6 +159,7 @@ Les 15 outils de l'employé, les 14 du vendeur, et :
 | M5 | `m5_lister_comptes_a_payer` (T0), `m5_saisir_facture_fournisseur` (T1, N3) | §7 M5.2 « comptes à payer », M6.16, §9.5 M5 « dépenses à valider » (T4.15) : ce que l'entreprise doit aux fournisseurs, par PO reçu (l'« à payer attendu » de ce que M6 a réceptionné, le facturé, le rapprochement PROPOSÉ avec ses écarts), et la saisie d'une facture fournisseur, repli documenté de l'OCR fermé. Finances : jamais pour l'employé ni le vendeur (§9.2, §9.4). La lecture a la même règle d'accès que la trésorerie et rend des pages sous la limite de 6 000 caractères ; la saisie exige un HUMAIN (section plus bas). Depuis T4.15-c, la lecture rend l'état COURANT des factures et compte les factures sans PO ; `sans_po=true` les liste une à une. Aucun outil ne paie un fournisseur : c'est N5, Nathan et le CPA. |
 | M5 | `m5_saisir_facture_sans_po` (T1, N3), `m5_corriger_facture_fournisseur` (T2, **N4**), `m5_annuler_facture_fournisseur` (T2, **N4**) | §7 M5.2 et §9.5 M5 « dépenses à valider » (T4.15-c) : une dépense que M6 n'a pas commandée (carburant, outils), et la correction ou l'annulation d'une facture fournisseur saisie, sans jamais modifier la facture d'origine (une pièce s'ajoute au registre, motif obligatoire). Finances : jamais pour l'employé ni le vendeur. Les trois exigent un HUMAIN, et les deux N4 attendent la décision du propriétaire ou de la finance : section « Corriger, annuler et saisir sans PO » plus bas. |
 | M6 | `m6_approuver_po`, `m6_annuler_po` | §9.2 « le propriétaire approuve les bons de commande » ; §9.5 « PO à approuver ». |
+| M6 | `m6_lire_preuves_pertes_wct_appareil` (T0/N0) | Notes et photos déclarées associées aux vrais mouvements PERTE/BRIS, admin DEVICE actuel avant sources/CAS. Ancienne preuve absente = inconnue, note seule distincte ; CAS actuellement disponible seulement après vérification. Pages courantes, source10000/JSON5400, aucun prix, identité d’employé ou pixels en JSON. |
 | M6 | `m6_receptionner_commande`, `m6_soumettre_comptage` | §9.5 « réception rapide » ; §9 « inventaire ». |
 | M6 | `m6_produire_digest`, `m6_evaluer_variance_chantier` | §9.5 « stock critique », « écarts de chantier ». Ces calculs préexistants gardent la voie interne ; rôle admin courant revérifié avant registre pour une identité appareil. Le digest décrit les variances d’inventaire, pas les lignes PERTE/BRIS. |
 | M6 | `m6_lister_wct_pertes_appareil`, `m6_lire_pertes_alertes_wct_appareil` (T0/N0) | T4.27-b : WCT reçus M6 rapprochés des publications M4, PERTE/BRIS déclarés signés et historique fixe des quatre statuts M6 publiés. Identité DEVICE admin actuelle obligatoire avant sources ; références natives, unité/date des pertes inconnues, aucune cause ou personne attribuée. Pages courantes et enveloppe5400 ; sans stock courant, réapprovisionnement, coût, effet ni artefact. |

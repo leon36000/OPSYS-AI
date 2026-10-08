@@ -40,3 +40,8 @@ test('jeton et contexte serveur ne sont jamais stockés dans le brouillon', asyn
   const depot = new DepotCleValeurMemoire(); await sauverBrouillonMateriaux(depot, cible, draft());
   const valeur = await depot.lire(depot.cles()[0]); expect(valeur).not.toMatch(/jeton|source_configuration|hash_maillon|prix|cout/);
 });
+test("v2 conserve notes brutes/captures/UUID après réouverture sans stocker DTO courant",async()=>{
+ const d=new DepotCleValeurMemoire(),valeur={...draft(),intentionId:"UUID-FICTIF",preuves:[{ligneId:"LIGNE-FICTIVE",note:"FICTIF note inachevée\n",captureIds:["CAPTURE-FICTIVE"]}]};
+ await sauverBrouillonMateriaux(d,cible,valeur);const nouveau=new DepotCleValeurMemoire();for(const k of d.cles()){const raw=await d.lire(k);if(raw!==null){expect(JSON.parse(raw).version).toBe(2);await nouveau.ecrire(k,raw);}}
+ expect(await lireBrouillonMateriaux(nouveau,cible)).toEqual({genre:"present",valeur});
+});

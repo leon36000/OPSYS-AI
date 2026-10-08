@@ -1,0 +1,50 @@
+{
+  "fictif": true,
+  "provenance": {
+    "scope": "Cap DEVICE-injected SQLite, not Gateway/HTTP/phone",
+    "source_receipt_sha256": "38e770a908838795cfe98e223f25de7fd1000b61c66ddae9d17809bfb3c11f35",
+    "manifest_sha256": "412a2ee2b177e142c06e6d7e76851414c7285ddf4451494b36e8db1910e24111",
+    "current_page_no_frozen_snapshot": true
+  },
+  "captures": [
+    {
+      "phase": "lecture-photo",
+      "requete": {
+        "toolName": "m6_lire_preuves_pertes_wct_appareil",
+        "args": {
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 0,
+          "limite": 1
+        }
+      },
+      "reponse_utf8": "{\"ok\":true,\"resultat\":{\"wct_id\":\"491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564\",\"intervention_id\":\"33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e\",\"decalage\":0,\"limite\":1,\"total\":2,\"decalage_suivant\":1,\"pertes_bris\":[{\"reference_mouvement\":{\"registre\":\"principal\",\"index\":1,\"hash_maillon\":\"f34e3a6265f06a77ebf7bdccb914b66b9b09bb4b3d17eafb4e92a9569879f13b\"},\"materiau_id\":\"MAT-CONTEXTE-FICTIF\",\"type_mouvement\":\"PERTE\",\"quantite\":\"-1\",\"unite\":null,\"preuve\":{\"etat\":\"photos_declarees\",\"reference\":{\"registre\":\"preuves_pertes_bris\",\"index\":0,\"hash_maillon\":\"1fc1a38cb5c61cf9eae49e0201ac0498eb51f5ae4b7aeddb7a300413e06ba627\"},\"position_ligne\":0,\"note\":\"FICTIF note de perte\",\"enregistre_le\":\"2026-10-08T19:43:42.790573+00:00\",\"horodatage_appareil_declare\":\"2025-06-02T11:35:00+00:00\",\"photos\":[{\"position_photo\":0,\"reference\":\"fichier:sha256:5c9bdf49399f7dde28026bcb7c03d8a69dda81e428104cf2b552454cc7f6774e\",\"empreinte_sha256\":\"5c9bdf49399f7dde28026bcb7c03d8a69dda81e428104cf2b552454cc7f6774e\",\"type_mime\":\"image/png\",\"taille_octets\":307899,\"etat_actuel\":\"disponible\"}]}}],\"couverture\":{\"preuves\":\"declarations_associees_aux_mouvements\",\"photos\":\"integrite_et_association_sans_authenticite_scene\",\"dates\":\"reception_serveur_et_heure_appareil_sans_date_du_dommage\",\"plafond_lignes\":10000}}}\n",
+      "source_sha256": "4a79334012367db9252a301364c2a50e3a459078324105e2f4523d8f90b9afa5"
+    },
+    {
+      "phase": "lecture-note-seule",
+      "requete": {
+        "toolName": "m6_lire_preuves_pertes_wct_appareil",
+        "args": {
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 1,
+          "limite": 1
+        }
+      },
+      "reponse_utf8": "{\"ok\":true,\"resultat\":{\"wct_id\":\"491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564\",\"intervention_id\":\"33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e\",\"decalage\":1,\"limite\":1,\"total\":2,\"decalage_suivant\":null,\"pertes_bris\":[{\"reference_mouvement\":{\"registre\":\"principal\",\"index\":2,\"hash_maillon\":\"405082e19c83e8d4fda26e1b5b7f5063f9d4dee57ca3e34ed6c221fef3efad75\"},\"materiau_id\":\"MAT-CONTEXTE-FICTIF\",\"type_mouvement\":\"PERTE\",\"quantite\":\"-1\",\"unite\":null,\"preuve\":{\"etat\":\"note_seule\",\"reference\":{\"registre\":\"preuves_pertes_bris\",\"index\":1,\"hash_maillon\":\"17f84c315307e02bac40884032aacba69bd24c03a43f2b3564f4fa7bcad66d74\"},\"position_ligne\":1,\"note\":\"FICTIF note de perte\",\"enregistre_le\":\"2026-10-08T19:43:42.790573+00:00\",\"horodatage_appareil_declare\":\"2025-06-02T11:35:00+00:00\",\"photos\":[]}}],\"couverture\":{\"preuves\":\"declarations_associees_aux_mouvements\",\"photos\":\"integrite_et_association_sans_authenticite_scene\",\"dates\":\"reception_serveur_et_heure_appareil_sans_date_du_dommage\",\"plafond_lignes\":10000}}}\n",
+      "source_sha256": "19b21aa65031dcea3bde49e7146cf615b48a91d1833ce0e2a9dc587aff6591fc"
+    },
+    {
+      "phase": "lecture-preuve-ancienne-absente",
+      "requete": {
+        "toolName": "m6_lire_preuves_pertes_wct_appareil",
+        "args": {
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 0,
+          "limite": 1
+        }
+      },
+      "reponse_utf8": "{\"ok\":true,\"resultat\":{\"wct_id\":\"491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564\",\"intervention_id\":\"33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e\",\"decalage\":0,\"limite\":1,\"total\":1,\"decalage_suivant\":null,\"pertes_bris\":[{\"reference_mouvement\":{\"registre\":\"principal\",\"index\":1,\"hash_maillon\":\"f34e3a6265f06a77ebf7bdccb914b66b9b09bb4b3d17eafb4e92a9569879f13b\"},\"materiau_id\":\"MAT-CONTEXTE-FICTIF\",\"type_mouvement\":\"PERTE\",\"quantite\":\"-1\",\"unite\":null,\"preuve\":{\"etat\":\"absente\",\"reference\":null,\"position_ligne\":null,\"note\":null,\"enregistre_le\":null,\"horodatage_appareil_declare\":null,\"photos\":[]}}],\"couverture\":{\"preuves\":\"declarations_associees_aux_mouvements\",\"photos\":\"integrite_et_association_sans_authenticite_scene\",\"dates\":\"reception_serveur_et_heure_appareil_sans_date_du_dommage\",\"plafond_lignes\":10000}}}\n",
+      "source_sha256": "5e9edaa1e81ab6409c1a51373b49906048d37e587b7ddd99f6a2e0bd64c76aa4"
+    }
+  ]
+}

@@ -163,6 +163,7 @@ export interface RessourcesCommunes {
     };
   };
   photos: {
+    echecEnregistrement: string;
     titre: string;
     natures: {
       avant: string;
@@ -226,6 +227,7 @@ export interface RessourcesCommunes {
   };
   materials: {
     contexte: Record<string, string>;
+    preuves: Record<string, string>;
     titre: string;
     aucunWct: string;
     champMateriau: string;
@@ -659,6 +661,7 @@ const frCA: RessourcesCommunes = {
     },
   },
   photos: {
+    echecEnregistrement: 'Photo non enregistrée. Vérifiez la session et reprenez la capture.',
     titre: "Photos",
     natures: {
       avant: "Avant",
@@ -724,7 +727,27 @@ const frCA: RessourcesCommunes = {
     lienMateriaux: "Continuer vers les matériaux utilisés",
   },
   materials: {
+    preuves: {
+          "titre": "Preuves des pertes et bris",
+          "note": "Note de cette ligne (obligatoire)",
+          "ouvrirPhotos": "Prendre ou revoir une photo du chantier",
+          "photo": "{{nature}} · {{taille}} octets",
+          "associer": "Associer cette capture",
+          "dissocier": "Dissocier cette capture",
+          "noteSeule": "Aucune photo sélectionnée : note seule.",
+          "selection": "{{nombre}} photo(s) sélectionnée(s)",
+          "limites": "Fichiers vérifiés et associés à la déclaration. Cela ne prouve ni la scène, ni la cause, ni le lieu ou la date du dommage.",
+          "nature_avant": "Avant",
+          "nature_pendant": "Pendant",
+          "nature_apres": "Après"
+    },
     contexte: {
+      "raison_preuve_manquante": "Ajoutez une note à chaque perte ou bris. Votre saisie est conservée.",
+      "raison_capture_indisponible": "Une capture choisie est indisponible pour cette session ou ce chantier. La saisie est conservée.",
+      "raison_preuves_invalides": "Corrigez les notes et associations de captures avant de soumettre. La saisie est conservée.",
+      "raison_fichiers_en_attente": "Les fichiers ne sont pas encore prêts côté serveur. Vérifiez leur statut ; aucun nouvel effet créé.",
+      "raison_achat_terrain_hors_preuves": "Un achat terrain suit son circuit distinct. Séparez-le de cette déclaration de pertes et bris ; votre saisie est conservée.",
+
       "raison_cible_absente": "Relisez le contexte et choisissez une cible chantier avant de soumettre.",
       "raison_cible_changee": "Le WCT ou le chantier a changé. La saisie est conservée ; aucune nouvelle cible n’a remplacé des lignes existantes.",
       "raison_source_changee": "La source du prévu a changé. Les lignes déjà saisies ne sont ni remplacées ni mélangées avec une autre source.",

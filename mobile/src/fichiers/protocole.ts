@@ -1,3 +1,7 @@
+import type { MutationOutbox } from "../outbox/types";
+import { copierJsonLecture, JSON_LECTURE_INVALIDE } from "../protocole/jsonLecture";
+import { TAILLE_BLOC_OCTETS, TAILLE_FICHIER_MAX_OCTETS, NOMBRE_BLOCS_MAX } from "./decoupage";
+
 /**
  * Contrat mobile de `m4_deposer_fichier`/`m4_etat_fichier` (PLAN T1.4-f).
  *
@@ -17,10 +21,9 @@
  *    "blocs_recus", "reference"}}` — MÊME patron `accepte`/`resultat`|`verdict`, pour reprendre
  *    un envoi interrompu sans réémettre les blocs déjà reçus.
  *
- * Même discipline que `src/m4/interventions.ts` (en-tête) : les petits utilitaires de lecture
- * défensive (`estObjet`/`texteOu`) sont RÉÉCRITS ici plutôt qu'importés de `src/m4/pointage.ts` —
- * risque de régression d'un refactor partagé jugé plus coûteux que la duplication d'une dizaine
- * de lignes (AGENTS.md : économie de tokens, jamais au prix de casser un écran qui marche déjà).
+ * FILE_ACK_BOUND : le dépôt utilise le snapshot JSON commun avant toute lecture et exige
+ * la mutation persistée. B1 ferme aussi l'état sous contexte local léger et l'observation
+ * live de readiness ; le statut local historique ne constitue jamais une permission.
  */
 
 /** `m4_deposer_fichier` n'accepte que ces deux types — CONTRAT FIXE. Les photos capturées par
@@ -109,99 +112,192 @@ function estObjet(valeur: unknown): valeur is Record<string, unknown> {
   return typeof valeur === "object" && valeur !== null;
 }
 
-function texteOu(valeur: unknown, repli: string): string {
-  return typeof valeur === "string" ? valeur : repli;
+const ACK_INCONNU: { readonly accepte: false; readonly verdict: VerdictServeurFichier } = { accepte: false,
+  verdict: { code: "accuse_invalide", detail: "Réponse métier de dépôt de fichier inconnue." } };
+function objetFerme(v: unknown, cles: readonly string[]): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v) &&
+    Object.keys(v).length === cles.length && cles.every(c => Object.hasOwn(v, c));
+}
+function entierBorne(v: unknown, min: number, max: number): v is number {
+  return typeof v === "number" && Number.isSafeInteger(v) && v >= min && v <= max;
+}
+/** Après snapshot entier uniquement : forme exacte de l'appel persistant, jamais une réparation.
+ * Bornes du socle fichiers.py : 10MiB, blocs de 262144 octets, 64 blocs maximum. */
+function argumentsMutation(v: unknown): ArgumentsM4DeposerFichier | null {
+  if (!estObjet(v) || v.type !== "fichier_bloc" || typeof v.id !== "string" || !v.id ||
+    typeof v.proprietaire !== "string" || !v.proprietaire || typeof v.chantierId !== "string" || !v.chantierId) return null;
+  const p = v.payload;
+  if (!objetFerme(p, ["empreinte_sha256", "taille_octets", "type_mime", "index_bloc", "nombre_blocs", "bloc_base64"]) ||
+    typeof p.empreinte_sha256 !== "string" || !/^[0-9a-f]{64}$/.test(p.empreinte_sha256) ||
+    !entierBorne(p.taille_octets, 1, TAILLE_FICHIER_MAX_OCTETS) || !entierBorne(p.nombre_blocs, 1, NOMBRE_BLOCS_MAX) ||
+    !entierBorne(p.index_bloc, 0, p.nombre_blocs - 1) ||
+    (p.type_mime !== "image/jpeg" && p.type_mime !== "image/png") ||
+    typeof p.bloc_base64 !== "string") return null;
+  if (p.nombre_blocs !== Math.ceil(p.taille_octets / TAILLE_BLOC_OCTETS)) return null;
+  const b64 = p.bloc_base64;
+  // Longueur bornée avant regex ; pas de décodeur natif ni de lecture de fichier à cette frontière.
+  const octets = Math.min(TAILLE_BLOC_OCTETS, p.taille_octets - p.index_bloc * TAILLE_BLOC_OCTETS);
+  if (b64.length !== 4 * Math.ceil(octets / 3) || !/^[A-Za-z0-9+/]*={0,2}$/.test(b64)) return null;
+  const padding = b64.endsWith("==") ? 2 : b64.endsWith("=") ? 1 : 0;
+  if (b64.length / 4 * 3 - padding !== octets) return null;
+  return { empreinte_sha256: p.empreinte_sha256, taille_octets: p.taille_octets, type_mime: p.type_mime,
+    index_bloc: p.index_bloc, nombre_blocs: p.nombre_blocs, bloc_base64: b64 };
+}
+function confirmationBloc(v: unknown, args: ArgumentsM4DeposerFichier, durable = false): ResultatDepotBloc | null {
+  const cle = durable ? "blocsRecus" : "blocs_recus";
+  if (!objetFerme(v, ["reference", "complet", cle]) || typeof v.complet !== "boolean") return null;
+  const reference = v.reference;
+  if (reference !== null && typeof reference !== "string") return null;
+  const indices = v[cle];
+  if (!Array.isArray(indices) || indices.length > args.nombre_blocs ||
+    !indices.every((i): i is number => entierBorne(i, 0, args.nombre_blocs - 1)) ||
+    new Set(indices).size !== indices.length || !indices.includes(args.index_bloc)) return null;
+  if (v.complet) {
+    if (indices.length !== args.nombre_blocs || v.reference !== construireReferenceFichier(args.empreinte_sha256)) return null;
+  } else if (v.reference !== null || indices.length === args.nombre_blocs) return null;
+  return { reference, complet: v.complet, blocsRecus: indices };
+}
+const REFUS_DEPOT = ["REJ-FICHIER-PARAMETRES-INVALIDES", "REJ-FICHIER-TROP-VOLUMINEUX",
+  "REJ-FICHIER-INCOHERENT", "REJ-FICHIER-EMPREINTE-DISCORDANTE", "REJ-FICHIER-TYPE-NON-PERMIS",
+  "REJ-CONTRAT-INVALIDE"]; // m4.deposer_fichier : absence de connexion durable.
+/** Un ACK partiel ne porte aucun SHA : confirmation du bloc demandé dans ce RPC seulement.
+ * La référence finale porte le SHA attendu ; le CAS serveur vérifie séparément les octets.
+ * Aucun contexte, identité refusée, attente d'approbation ou réponse mal liée => même intention. */
+export function interpreterResultatDeposerFichier(
+  resultatBrut: unknown, mutation?: MutationOutbox,
+): InterpretationDeposerFichier {
+  const r = copierJsonLecture(resultatBrut), c = copierJsonLecture(mutation);
+  if (r === JSON_LECTURE_INVALIDE || c === JSON_LECTURE_INVALIDE) return ACK_INCONNU;
+  const args = argumentsMutation(c);
+  if (!args || !estObjet(r)) return ACK_INCONNU;
+  const rejoue = Object.hasOwn(r, "rejoue") ? ["rejoue"] : [];
+  if (rejoue.length && typeof r.rejoue !== "boolean") return ACK_INCONNU;
+  if (r.ok === false) {
+    // Autorité/refus métier générique non attribuable : pas de terminalité fabriquée.
+    if (!objetFerme(r, ["ok", "erreur", "details", ...rejoue]) || typeof r.details !== "string" ||
+      typeof r.erreur !== "string" || ![...REFUS_DEPOT, "invalid_request", "arguments_invalides"].includes(r.erreur)) return ACK_INCONNU;
+    return { accepte: false, verdict: { code: r.erreur, detail: r.details } };
+  }
+  if (!objetFerme(r, ["ok", "resultat", ...rejoue]) || r.ok !== true || !estObjet(r.resultat)) return ACK_INCONNU;
+  const m = r.resultat;
+  if (m.accepte === false) {
+    if (!objetFerme(m, ["accepte", "verdict"]) || !estObjet(m.verdict)) return ACK_INCONNU;
+    const v = m.verdict;
+    const statut = Object.hasOwn(v, "statut") ? ["statut"] : [];
+    if (!objetFerme(v, ["code", "detail", ...statut]) || typeof v.code !== "string" ||
+      !REFUS_DEPOT.includes(v.code) || typeof v.detail !== "string" ||
+      (statut.length && typeof v.statut !== "string")) return ACK_INCONNU;
+    return { accepte: false, verdict: { code: v.code, detail: v.detail } };
+  }
+  if (!objetFerme(m, ["accepte", "resultat"]) || m.accepte !== true) return ACK_INCONNU;
+  const resultat = confirmationBloc(m.resultat, args);
+  return resultat ? { accepte: true, resultat } : ACK_INCONNU;
+}
+/** Validation locale, pas signature du reçu : ne promeut jamais un legacy sans contexte.
+ * Le caller doit l'appliquer avant sa propre décision de disponibilité/terminalité. */
+export function validerRecuDeposerFichier(mutation: unknown): boolean {
+  const c = copierJsonLecture(mutation);
+  if (c === JSON_LECTURE_INVALIDE || !estObjet(c) || c.statut !== "envoyee") return false;
+  const args = argumentsMutation(c);
+  return args !== null && confirmationBloc(c.resumeAccepte, args, true) !== null;
 }
 
-function texteOuNul(valeur: unknown): string | null {
-  return typeof valeur === "string" ? valeur : null;
+/** Métadonnées LOCALES vérifiées avant la query SHA ; le serveur ne les réémet pas. */
+export interface ContexteEtatFichierM4 {
+  readonly empreinte_sha256: string;
+  readonly taille_octets: number;
+  readonly type_mime: TypeMimeFichier;
+  readonly nombre_blocs: number;
+}
+function contexteEtatValide(v: unknown): ContexteEtatFichierM4 | null {
+  if (!objetFerme(v, ["empreinte_sha256", "taille_octets", "type_mime", "nombre_blocs"]) ||
+    typeof v.empreinte_sha256 !== "string" || !/^[0-9a-f]{64}$/.test(v.empreinte_sha256) ||
+    !entierBorne(v.taille_octets, 1, TAILLE_FICHIER_MAX_OCTETS) || !entierBorne(v.nombre_blocs, 1, NOMBRE_BLOCS_MAX) ||
+    (v.type_mime !== "image/jpeg" && v.type_mime !== "image/png") ||
+    v.nombre_blocs !== Math.ceil(v.taille_octets / TAILLE_BLOC_OCTETS)) return null;
+  return { empreinte_sha256: v.empreinte_sha256, taille_octets: v.taille_octets,
+    type_mime: v.type_mime, nombre_blocs: v.nombre_blocs };
+}
+function etatFichierValide(v: unknown, c: ContexteEtatFichierM4, durable = false): ResultatEtatFichier | null {
+  const cle = durable ? "blocsRecus" : "blocs_recus";
+  if (!objetFerme(v, ["existe", "complet", cle, "reference"]) || typeof v.existe !== "boolean" || typeof v.complet !== "boolean") return null;
+  const indices = v[cle], reference = v.reference;
+  if (reference !== null && typeof reference !== "string") return null;
+  if (!Array.isArray(indices) || indices.length > c.nombre_blocs ||
+    !indices.every((i): i is number => entierBorne(i, 0, c.nombre_blocs - 1)) || new Set(indices).size !== indices.length) return null;
+  if (!v.existe && (v.complet || indices.length || reference !== null)) return null;
+  if (v.complet ? (indices.length !== c.nombre_blocs || reference !== construireReferenceFichier(c.empreinte_sha256))
+    : (reference !== null || indices.length === c.nombre_blocs)) return null;
+  return { existe: v.existe, complet: v.complet, blocsRecus: indices, reference };
+}
+/** État lu sous la capture actuelle, lié au SHA demandé et au découpage vérifié localement.
+ * Sans contexte ou réponse inconnue : aucune absence/complétude fabriquée. */
+export function interpreterResultatEtatFichier(brut: unknown, contexte?: ContexteEtatFichierM4): InterpretationEtatFichier {
+  const r = copierJsonLecture(brut), cs = copierJsonLecture(contexte);
+  if (r === JSON_LECTURE_INVALIDE || cs === JSON_LECTURE_INVALIDE) return ACK_INCONNU;
+  const c = contexteEtatValide(cs);
+  if (!c || !objetFerme(r, ["ok", "resultat"]) || r.ok !== true || !estObjet(r.resultat)) return ACK_INCONNU;
+  const m = r.resultat;
+  if (m.accepte === false) {
+    const v = m.verdict;
+    if (!objetFerme(m, ["accepte", "verdict"]) || !estObjet(v)) return ACK_INCONNU;
+    const statut = Object.hasOwn(v, "statut") ? ["statut"] : [];
+    if (!objetFerme(v, ["code", "detail", ...statut]) || typeof v.code !== "string" || typeof v.detail !== "string" ||
+      (statut.length && typeof v.statut !== "string") ||
+      ![...REFUS_DEPOT, "REJ-IDENTITE-APPAREIL-INVALIDE"].includes(v.code)) return ACK_INCONNU;
+    return { accepte: false, verdict: { code: v.code, detail: v.detail } };
+  }
+  if (!objetFerme(m, ["accepte", "resultat"]) || m.accepte !== true) return ACK_INCONNU;
+  const resultat = etatFichierValide(m.resultat, c);
+  return resultat ? { accepte: true, resultat } : ACK_INCONNU;
+}
+/** Relit une preuve de bloc locale ; reconcilie legacy à trois champs reste illisible. */
+export function lireContexteBlocFichier(mutation: unknown): { readonly contexte: ContexteEtatFichierM4; readonly index: number } | null {
+  const m = copierJsonLecture(mutation);
+  if (m === JSON_LECTURE_INVALIDE || !estObjet(m) || typeof m.proprietaire !== "string" || !m.proprietaire) return null;
+  if (m.type === "fichier_bloc") {
+    const a = argumentsMutation(m); return a ? { contexte: { empreinte_sha256: a.empreinte_sha256,
+      taille_octets: a.taille_octets, type_mime: a.type_mime, nombre_blocs: a.nombre_blocs }, index: a.index_bloc } : null;
+  }
+  if (m.type !== "fichier_bloc_reconcilie" || !objetFerme(m.payload,
+    ["empreinte_sha256", "taille_octets", "type_mime", "nombre_blocs", "index_bloc"])) return null;
+  const p = m.payload, c = contexteEtatValide({ empreinte_sha256: p.empreinte_sha256,
+    taille_octets: p.taille_octets, type_mime: p.type_mime, nombre_blocs: p.nombre_blocs });
+  return c && entierBorne(p.index_bloc, 0, c.nombre_blocs - 1) ? { contexte: c, index: p.index_bloc } : null;
+}
+/** Historique local distinct de l'ACK dépôt, jamais une permission mise en cache. */
+export function validerRecuEtatFichier(mutation: unknown): boolean {
+  const m = copierJsonLecture(mutation), bloc = lireContexteBlocFichier(mutation);
+  if (m === JSON_LECTURE_INVALIDE || !estObjet(m) || m.statut !== "envoyee" || !bloc ||
+    !objetFerme(m.resumeAccepte, ["genre", "contexte", "etat"]) || m.resumeAccepte.genre !== "etat_fichier") return false;
+  const c = contexteEtatValide(m.resumeAccepte.contexte);
+  if (!c || Object.keys(c).some(k => Reflect.get(c, k) !== Reflect.get(bloc.contexte, k))) return false;
+  const e = etatFichierValide(m.resumeAccepte.etat, c, true);
+  return e !== null && e.existe && e.blocsRecus.includes(bloc.index);
+}
+export function validerRecuFichier(mutation: unknown): boolean {
+  return validerRecuDeposerFichier(mutation) || validerRecuEtatFichier(mutation);
 }
 
-function tableauIndices(valeur: unknown): number[] {
-  if (!Array.isArray(valeur)) {
-    return [];
+/** Copie typée des seules lignes fichier ; autres types ignorés après snapshot entier. */
+export function lireMutationsFichiers(v: unknown): MutationOutbox[] | null {
+  const copie = copierJsonLecture(v); if (copie === JSON_LECTURE_INVALIDE || !Array.isArray(copie)) return null;
+  const sortie: MutationOutbox[] = [];
+  for (const m of copie) {
+    if (!estObjet(m) || Array.isArray(m)) return null;
+    if (m.type !== "fichier_bloc" && m.type !== "fichier_bloc_reconcilie") continue;
+    if (typeof m.id !== "string" || !m.id || typeof m.chantierId !== "string" ||
+      !estObjet(m.payload) || Array.isArray(m.payload) ||
+      !(m.sequence === null || entierBorne(m.sequence,1,Number.MAX_SAFE_INTEGER)) ||
+      !(m.dependsOn === null || typeof m.dependsOn === "string") ||
+      !(m.statut === "brouillon" || m.statut === "en_attente" || m.statut === "envoi" || m.statut === "envoyee" || m.statut === "echec_permanent") ||
+      !entierBorne(m.tentatives,0,Number.MAX_SAFE_INTEGER) || typeof m.createdAtLocal !== "string" ||
+      !(m.prochaineTentativeA === null || typeof m.prochaineTentativeA === "string") ||
+      !(m.proprietaire === null || typeof m.proprietaire === "string")) return null;
+    sortie.push({id:m.id,sequence:m.sequence,type:m.type,chantierId:m.chantierId,payload:m.payload,
+      dependsOn:m.dependsOn,statut:m.statut,tentatives:m.tentatives,createdAtLocal:m.createdAtLocal,
+      prochaineTentativeA:m.prochaineTentativeA,proprietaire:m.proprietaire,
+      ...(Object.hasOwn(m,"resumeAccepte") ? {resumeAccepte:m.resumeAccepte} : {})});
   }
-  return valeur.filter((v): v is number => typeof v === "number" && Number.isInteger(v));
-}
-
-function verdictDepuisBrut(valeur: unknown): VerdictServeurFichier {
-  const brut = estObjet(valeur) ? valeur : {};
-  return { code: texteOu(brut.code, "REJ-INCONNU"), detail: texteOu(brut.detail, "") };
-}
-
-/** Erreur TECHNIQUE de `outils.executer` (`{"ok": false, ...}`) — distincte d'un rejet MÉTIER
- * (`accepte: false`), même distinction que partout ailleurs dans `src/m4`/`src/today`. */
-function verdictDepuisErreurTechnique(enveloppe: Record<string, unknown>): VerdictServeurFichier {
-  return { code: texteOu(enveloppe.erreur, "erreur_inconnue"), detail: texteOu(enveloppe.details, "") };
-}
-
-/**
- * Interprète la réponse BUSINESS de `m4_deposer_fichier` — lecture DÉFENSIVE (même esprit que
- * `interpreterResultatPointage`) : une forme non reconnue à l'intérieur d'un `accepte: true` est
- * traitée comme « pas encore complet, aucune référence » plutôt qu'un blocage — jamais un succès
- * FAUSSÉ en un rejet, ni l'inverse. Jamais vérifiée contre un serveur réel dans ce bac à sable :
- * à confirmer au premier test de bout en bout contre le vrai contrat (T1.5), voir MOBILE.md.
- */
-export function interpreterResultatDeposerFichier(resultatBrut: unknown): InterpretationDeposerFichier {
-  const enveloppe = estObjet(resultatBrut) ? resultatBrut : {};
-  if (enveloppe.ok === false) {
-    return { accepte: false, verdict: verdictDepuisErreurTechnique(enveloppe) };
-  }
-  const resultatMetier = estObjet(enveloppe.resultat) ? enveloppe.resultat : undefined;
-
-  if (resultatMetier?.accepte === false) {
-    return { accepte: false, verdict: verdictDepuisBrut(resultatMetier.verdict) };
-  }
-  if (resultatMetier?.accepte === true) {
-    const r = estObjet(resultatMetier.resultat) ? resultatMetier.resultat : null;
-    if (
-      !r || typeof r.complet !== "boolean" || !(r.reference === null || (typeof r.reference === "string" && r.reference.length > 0)) ||
-      !Array.isArray(r.blocs_recus) || r.blocs_recus.some((v) => typeof v !== "number" || !Number.isInteger(v) || v < 0) ||
-      (r.complet === true && typeof r.reference !== "string")
-    ) {
-      return { accepte: false, verdict: { code: "accuse_invalide", detail: "Accusé de dépôt de fichier incomplet ou invalide." } };
-    }
-    return {
-      accepte: true,
-      resultat: { reference: r.reference, complet: r.complet, blocsRecus: tableauIndices(r.blocs_recus) },
-    };
-  }
-  return { accepte: false, verdict: { code: "accuse_invalide", detail: "Réponse métier de dépôt de fichier inconnue." } };
-}
-
-/**
- * Interprète la réponse de `m4_etat_fichier` — MÊME patron `accepte`/`resultat`|`verdict` que
- * `m4_deposer_fichier` ci-dessus (contrat donné), lecture tout aussi défensive : une forme non
- * reconnue rend « n'existe pas encore » plutôt qu'un blocage — cet appel sert uniquement à
- * DÉCIDER quels blocs (re)envoyer (`envoiOrchestrateur.ts`), jamais à marquer quoi que ce soit
- * comme envoyé : seul un `m4_deposer_fichier` accepté fait foi pour ça (voir `descripteurs.ts`).
- */
-export function interpreterResultatEtatFichier(resultatBrut: unknown): InterpretationEtatFichier {
-  const enveloppe = estObjet(resultatBrut) ? resultatBrut : {};
-  if (enveloppe.ok === false) {
-    return { accepte: false, verdict: verdictDepuisErreurTechnique(enveloppe) };
-  }
-  const resultatMetier = estObjet(enveloppe.resultat) ? enveloppe.resultat : undefined;
-
-  if (resultatMetier?.accepte === false) {
-    return { accepte: false, verdict: verdictDepuisBrut(resultatMetier.verdict) };
-  }
-  if (resultatMetier?.accepte === true) {
-    const r = estObjet(resultatMetier.resultat) ? resultatMetier.resultat : {};
-    if (typeof r.existe !== "boolean" || typeof r.complet !== "boolean" || !Array.isArray(r.blocs_recus) ||
-      r.blocs_recus.some((v) => typeof v !== "number" || !Number.isInteger(v) || v < 0) ||
-      !(r.reference === null || (typeof r.reference === "string" && r.reference.length > 0)) || (r.complet && !r.reference)) {
-      return { accepte: false, verdict: { code: "accuse_invalide", detail: "État de fichier incomplet ou invalide." } };
-    }
-    return {
-      accepte: true,
-      resultat: {
-        existe: r.existe === true,
-        complet: r.complet === true,
-        blocsRecus: tableauIndices(r.blocs_recus),
-        reference: texteOuNul(r.reference),
-      },
-    };
-  }
-  return { accepte: false, verdict: { code: "accuse_invalide", detail: "Réponse métier d'état de fichier inconnue." } };
+  return sortie;
 }

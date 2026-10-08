@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useFocusEffect } from "expo-router";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useTranslation } from "react-i18next";
 
+import { capturerSessionMateriauxLecture } from "@/protocole/configuration";
+import { useSessionAppareil } from "@/roles/contexte";
 import { choisirTaillePhoto } from "@/photos/taille";
 import { enregistrerPhotoCapturee, listerPhotosCapturees } from "@/photos/service";
 import { NATURES_PHOTO } from "@/photos/types";
@@ -28,6 +30,11 @@ export default function EcranPhotos() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const interventionId = typeof id === "string" ? id : "";
 
+  const profil=useSessionAppareil(), captureRendu=capturerSessionMateriauxLecture();
+  const autorite=JSON.stringify([captureRendu.session,profil]);
+  const active=useRef(false),generation=useRef(0),natureCourante=useRef<NaturePhoto>("avant"),cibleCourante=useRef(interventionId);
+  cibleCourante.current=interventionId;
+  const [erreur,setErreur]=useState(false);
   const [nature, setNature] = useState<NaturePhoto>("avant");
   const [photos, setPhotos] = useState<MutationOutbox[]>([]);
   const [permission, demanderPermission] = useCameraPermissions();
@@ -36,56 +43,66 @@ export default function EcranPhotos() {
   const [enregistrement, setEnregistrement] = useState(false);
   const cameraRef = useRef<CameraView | null>(null);
 
-  const rafraichir = useCallback(async () => {
-    if (!interventionId) {
-      return;
-    }
-    setPhotos(await listerPhotosCapturees(interventionId));
-  }, [interventionId]);
+  natureCourante.current=nature;
+  useFocusEffect(useCallback(()=>{
+    generation.current++;active.current=true;setPhotos([]);setCameraOuverte(false);setEnregistrement(false);setErreur(false);
+    return ()=>{active.current=false;generation.current++;};
+  },[interventionId,autorite]));
+  // Autorité et génération du rendu : un ancien callback ne capture jamais le nouvel acteur.
+  const generationRendu=generation.current;
+  const capturerGarde=()=>()=>captureRendu.courante()&&active.current&&generationRendu===generation.current&&
+    cibleCourante.current===interventionId&&natureCourante.current===nature;
+  async function rafraichir() {
+    const courante=capturerGarde();if(!interventionId||!courante())return;
+    const nouvelles=await listerPhotosCapturees(interventionId);if(courante())setPhotos(nouvelles);
+  }
+  useEffect(() => { void rafraichir(); }, [interventionId,nature,autorite,generationRendu]);
 
-  useEffect(() => {
-    void rafraichir();
-  }, [rafraichir]);
-
-  const photosDeCetteNature = photos.filter((photo) => photo.payload.nature === nature);
+  const autorisee=active.current&&captureRendu.courante();
+  const photosDeCetteNature = (autorisee?photos:[]).filter((photo) => photo.payload.nature === nature);
 
   const surOuvrirCamera = useCallback(async () => {
+    const courante=capturerGarde();if(!courante())return;
     if (!permission?.granted) {
       const reponse = await demanderPermission();
-      if (!reponse.granted) {
+      if (!courante() || !reponse.granted) {
         return;
       }
     }
     setCameraOuverte(true);
-  }, [permission, demanderPermission]);
+  }, [permission, demanderPermission,capturerGarde]);
 
   const surCameraPrete = useCallback(async () => {
+    const courante=capturerGarde();if(!courante())return;
     const tailles = await cameraRef.current?.getAvailablePictureSizesAsync();
-    if (tailles) {
+    if (courante()&&tailles) {
       setTaillePhoto(choisirTaillePhoto(tailles) ?? undefined);
     }
-  }, []);
+  }, [capturerGarde]);
 
   const surCapture = useCallback(async () => {
-    if (!cameraRef.current || !interventionId) {
+    const courante=capturerGarde();
+    if (!courante() || enregistrement || !cameraRef.current || !interventionId) {
       return;
     }
-    setEnregistrement(true);
+    setEnregistrement(true);setErreur(false);
     try {
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.8, imageType: "jpg" });
+      if(!courante())return;
       await enregistrerPhotoCapturee({
         uriTemporaire: photo.uri,
         largeur: photo.width,
         hauteur: photo.height,
         nature,
         chantierId: interventionId,
-      });
+      },courante);
+      if(!courante())return;
       setCameraOuverte(false);
       await rafraichir();
-    } finally {
-      setEnregistrement(false);
+    } catch {if(courante())setErreur(true);} finally {
+      if(courante())setEnregistrement(false);
     }
-  }, [interventionId, nature, rafraichir]);
+  }, [interventionId, nature, rafraichir,capturerGarde,enregistrement]);
 
   return (
     <View style={styles.conteneur}>
@@ -96,7 +113,8 @@ export default function EcranPhotos() {
           <Pressable
             key={valeur}
             style={[styles.onglet, nature === valeur ? styles.ongletActif : null]}
-            onPress={() => setNature(valeur)}
+            disabled={enregistrement||!autorisee}
+            onPress={() => { if(capturerGarde()())setNature(valeur); }}
           >
             <Text style={nature === valeur ? styles.ongletTexteActif : styles.ongletTexte}>
               {t(`photos.natures.${valeur}`)}
@@ -105,7 +123,7 @@ export default function EcranPhotos() {
         ))}
       </View>
 
-      {cameraOuverte ? (
+      {cameraOuverte && autorisee ? (
         <View style={styles.camera}>
           <CameraView
             ref={cameraRef}
@@ -114,15 +132,16 @@ export default function EcranPhotos() {
             pictureSize={taillePhoto}
             onCameraReady={() => void surCameraPrete()}
           />
-          <Pressable style={styles.obturateur} disabled={enregistrement} onPress={() => void surCapture()}>
+          <Pressable style={styles.obturateur} disabled={enregistrement||!autorisee} onPress={() => void surCapture()}>
             {enregistrement ? <ActivityIndicator color="#fff" /> : <Text style={styles.obturateurTexte}>{t("photos.capturer")}</Text>}
           </Pressable>
         </View>
       ) : (
-        <Pressable style={styles.boutonCapturer} onPress={() => void surOuvrirCamera()}>
+        <Pressable style={styles.boutonCapturer} disabled={!autorisee} onPress={() => void surOuvrirCamera()}>
           <Text style={styles.boutonCapturerTexte}>{t("photos.capturer")}</Text>
         </Pressable>
       )}
+      {erreur?<Text style={styles.erreur}>{t("photos.echecEnregistrement")}</Text>:null}
       {permission && !permission.granted && !permission.canAskAgain ? (
         <Text style={styles.erreur}>{t("photos.permissionRefusee")}</Text>
       ) : null}

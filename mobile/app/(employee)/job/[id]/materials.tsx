@@ -1,5 +1,5 @@
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useNetInfo } from "@react-native-community/netinfo";
 import * as Crypto from "expo-crypto";
 import { useTranslation } from "react-i18next";
@@ -8,11 +8,12 @@ import type { LigneEnSaisie } from "@/ecrans/materials";
 import { estimationEnNombreExact } from "@/m6/contexteMateriaux";
 import { useDeclarationMateriaux } from "@/terrain/useDeclarationMateriaux";
 
-const RAISONS_LOCALES = ["cible_absente", "cible_changee", "source_changee", "prevu_absent", "prevu_vide", "page_deja_importee", "estimation_non_importable", "trop_de_lignes", "identifiants_invalides", "intention_en_attente", "aucune_ligne", "lignes_invalides", "lecture_indisponible"];
+const RAISONS_LOCALES = ["cible_absente", "cible_changee", "source_changee", "prevu_absent", "prevu_vide", "page_deja_importee", "estimation_non_importable", "trop_de_lignes", "identifiants_invalides", "intention_en_attente", "aucune_ligne", "lignes_invalides", "lecture_indisponible","preuve_manquante","capture_indisponible","preuves_invalides","fichiers_en_attente","achat_terrain_hors_preuves"];
 
 /** Lecture actuelle M4/M3/M6 sans cache ; les seuls éléments persistés sont la saisie et
  * sa cible/provenance. Le WCT mémorisé n'est pas un droit d'accès. */
 export default function EcranMateriaux() {
+  const router=useRouter();
   const { t } = useTranslation(), { id } = useLocalSearchParams<{id:string}>();
   const interventionId=typeof id==="string"?id:"", enLigne=useNetInfo().isConnected===true;
   const v=useDeclarationMateriaux(interventionId,enLigne), c=v.contexte, d=v.brouillon;
@@ -60,8 +61,26 @@ export default function EcranMateriaux() {
     {d.wctId?<Text>{t("materials.contexte.cibleBrouillon",{wct:d.wctId,chantier:d.chantierId??t("materials.contexte.chantierAbsent")})}</Text>:null}
     {d.sourcePrevu?<Text>{t("materials.contexte.provenanceBrouillon",{hash:d.sourcePrevu})}</Text>:null}
     {d.lignes.length===0?<Text style={styles.vide}>{t("materials.aucuneLigne")}</Text>:null}
-    {d.lignes.map(l=><LigneMateriau key={l.id} ligne={l} enTraitement={desactive}
-      onChange={patch=>v.changerLignes(ls=>modifierLigne(ls,l.id,patch))} onRetirer={()=>v.changerLignes(ls=>retirerLigne(ls,l.id))}/>)}
+    {d.lignes.map(l=><View key={l.id}><LigneMateriau ligne={l} enTraitement={desactive}
+      onChange={patch=>v.changerLignes(ls=>modifierLigne(ls,l.id,patch))} onRetirer={()=>v.changerLignes(ls=>retirerLigne(ls,l.id))}/>
+      {(l.typeLigne==="perte"||l.typeLigne==="bris")?<View style={styles.ligneCarte} testID={`preuve-${l.id}`}>
+        <Text>{t("materials.preuves.titre")}</Text>
+        <TextInput accessibilityLabel={t("materials.preuves.note")} testID={`note-${l.id}`} editable={!desactive}
+          multiline value={d.preuves?.find(p=>p.ligneId===l.id)?.note??""}
+          onChangeText={note=>v.changerPreuve(l.id,{note})}/>
+        <Text>{t("materials.preuves.limites")}</Text>
+        {bouton("materials.preuves.ouvrirPhotos",()=>{if(v.autorisee&&!desactive)router.push({pathname:"/(employee)/job/[id]/photos",params:{id:interventionId}});},desactive)}
+        {v.captures.map(photo=>{
+          const ids=d.preuves?.find(p=>p.ligneId===l.id)?.captureIds??[],selectionnee=ids.includes(photo.capture_id);
+          return <View key={photo.capture_id}><Text>{t("materials.preuves.photo",{nature:t(`materials.preuves.nature_${photo.nature}`),taille:photo.taille_octets})}</Text>
+            <Pressable testID={`capture-${l.id}-${photo.capture_id}`} disabled={desactive||(!selectionnee&&ids.length>=3)}
+              onPress={()=>v.changerPreuve(l.id,{captureIds:selectionnee?ids.filter(id=>id!==photo.capture_id):[...ids,photo.capture_id]})}>
+              <Text>{t(selectionnee?"materials.preuves.dissocier":"materials.preuves.associer")}</Text>
+            </Pressable></View>;
+        })}
+        <Text>{(d.preuves?.find(p=>p.ligneId===l.id)?.captureIds.length??0)===0?t("materials.preuves.noteSeule"):t("materials.preuves.selection",{nombre:d.preuves?.find(p=>p.ligneId===l.id)?.captureIds.length??0})}</Text>
+      </View>:null}
+    </View>)}
     {bouton("materials.ajouterLigne",()=>v.changerLignes(ls=>ajouterLigne(ls,creerLigneVide(Crypto.randomUUID()))),desactive)}
     {v.stockage?<Text style={styles.erreur}>{t(`materials.contexte.stockage_${v.stockage}`)}</Text>:null}
     {v.stockage==="echec"?bouton("materials.contexte.sauver",()=>void v.sauver(),!v.autorisee):null}

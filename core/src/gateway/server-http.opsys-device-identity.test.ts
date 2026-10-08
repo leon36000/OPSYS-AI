@@ -65,3 +65,12 @@ describe("gateway HTTP route /opsys/identite", () => {
     });
   });
 });
+
+describe("gateway HTTP route /opsys/m6/preuves/photo", () => {
+  it("mounts the protected photo route before generic fallthrough", async () => {
+    await withListeningGateway(async (origin) => {
+      const res = await fetch(`${origin}/opsys/m6/preuves/photo`, { method: "POST" });
+      expect(res.status).toBe(401);
+    });
+  });
+});

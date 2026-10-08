@@ -9,7 +9,7 @@ import { genererMutationId } from "../outbox/id";
 import { formaterHorodatageLocal } from "../outbox/mutation";
 import { obtenirDepot } from "../outbox/service";
 import type { MutationOutbox } from "../outbox/types";
-import { obtenirSessionEnvoi } from "../protocole/configuration";
+import { capturerSessionMateriauxLecture } from "../protocole/configuration";
 
 /**
  * Câblage RÉEL de la capture photo (`photos.tsx`) : copie le fichier TEMPORAIRE produit par
@@ -21,9 +21,8 @@ import { obtenirSessionEnvoi } from "../protocole/configuration";
  * `photo_upload` (délibérément `brouillon`, voir `mutation.ts`) dans la file sortante RÉELLE
  * (`src/outbox/service.ts`, même base `expo-sqlite`).
  *
- * Non testé unitairement : `expo-camera`/`expo-file-system` natifs, même limite que
- * `src/outbox/service.ts`/`src/appairage/stockage.ts`. Chaque étape pure (hachage, choix de
- * taille, construction de mutation) est testée ailleurs.
+ * Les gardes et courses sont testées avec un stockage natif simulé ; caméra et appareil réels
+ * restent à qualifier. Un fichier vérifié ne prouve pas la vérité de la scène photographiée.
  */
 const digestSha256Expo: FonctionDigestSha256 = (octets) => Crypto.digest(Crypto.CryptoDigestAlgorithm.SHA256, octets);
 
@@ -46,37 +45,43 @@ export interface ParametresPhotoCapturee {
 
 /** Copie + hache + persiste une photo fraîchement capturée. Renvoie la mutation `photo_upload`
  * (brouillon) telle qu'insérée dans la file sortante. */
-export async function enregistrerPhotoCapturee(params: ParametresPhotoCapturee): Promise<MutationOutbox> {
-  const repertoire = repertoirePhotos(params.chantierId, params.nature);
+export async function enregistrerPhotoCapturee(params: ParametresPhotoCapturee, couranteOrigine:()=>boolean=()=>true): Promise<MutationOutbox> {
+  const capture = capturerSessionMateriauxLecture(), session = capture.session;
+  if (!session || !couranteOrigine() || !capture.courante() || !/^[^/\\?#\p{Cc}\p{Cs}]+$/u.test(params.chantierId) ||
+      params.chantierId === "." || params.chantierId === ".." || !params.uriTemporaire.startsWith("file://")) throw new Error("capture_indisponible");
+  const cible = { ...params };
+  const repertoire = repertoirePhotos(cible.chantierId, cible.nature);
   const destination = new File(repertoire, `${genererMutationId()}.jpg`);
-  const source = new File(params.uriTemporaire);
-  await source.copy(destination, { overwrite: true });
-
-  const octets = await destination.bytes();
-  const sha256 = await empreinteSha256(octets, digestSha256Expo);
-
-  const photo: PhotoCapturee = {
-    uri: destination.uri,
-    sha256,
-    tailleOctets: destination.size,
-    largeur: params.largeur,
-    hauteur: params.hauteur,
-    nature: params.nature,
-    chantierId: params.chantierId,
-  };
-
-  const horloge = { maintenant: new Date(), decalageMinutesUTC: -new Date().getTimezoneOffset() };
-  const mutation = construireMutationPhotoUpload(photo, genererMutationId, horloge);
-  const depot = await obtenirDepot();
-  return depot.inserer(mutation);
+  let insertionCommencee = false;
+  const verifier = () => { if (!capture.courante() || !couranteOrigine()) throw new Error("session_changee"); };
+  try {
+    verifier();
+    await new File(cible.uriTemporaire).copy(destination, { overwrite: true }); verifier();
+    const octets = await destination.bytes(); verifier();
+    const sha256 = await empreinteSha256(octets, digestSha256Expo); verifier();
+    const photo: PhotoCapturee = { uri: destination.uri, sha256, tailleOctets: destination.size,
+      largeur: cible.largeur, hauteur: cible.hauteur, nature: cible.nature, chantierId: cible.chantierId };
+    const maintenant = new Date();
+    const mutation = { ...construireMutationPhotoUpload(photo, genererMutationId,
+      { maintenant, decalageMinutesUTC: -maintenant.getTimezoneOffset() }), proprietaire: session.personne };
+    const depot = await obtenirDepot(); verifier();
+    // Une insertion de résultat inconnu peut déjà avoir persisté la ligne : conserver son fichier.
+    insertionCommencee = true;
+    const inseree = await depot.inserer(mutation); verifier();
+    return inseree;
+  } catch (erreur) {
+    if (!insertionCommencee) { try { if (destination.exists) destination.delete(); } catch { /* Ne jamais purger un autre chemin. */ } }
+    throw erreur;
+  }
 }
 
 /** Photos déjà capturées pour ce chantier (toutes natures), pour les vignettes de `photos.tsx`. */
 export async function listerPhotosCapturees(chantierId: string): Promise<MutationOutbox[]> {
-  const depot = await obtenirDepot();
-  const toutes = await depot.lister();
-  const session = obtenirSessionEnvoi();
-  return session ? listerPhotosDuChantier(toutes, chantierId, session.personne) : [];
+  const capture = capturerSessionMateriauxLecture(), session = capture.session;
+  if (!session || !capture.courante()) return [];
+  const depot = await obtenirDepot(); if (!capture.courante()) return [];
+  const toutes = await depot.lister(); if (!capture.courante()) return [];
+  return listerPhotosDuChantier(toutes, chantierId, session.personne);
 }
 
 // Réexporté pour que `photos.tsx` n'ait besoin d'importer que ce fichier pour le formatage

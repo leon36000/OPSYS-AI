@@ -1,3 +1,4 @@
+import type { PreuveEnSaisie } from "./preuvesMateriaux";
 import type { DepotCleValeur } from "../stockage/depotCleValeur";
 import type { LigneEnSaisie } from "../ecrans/materials";
 import { TYPES_LIGNE_MATERIAUX } from "../m6/materiaux";
@@ -11,6 +12,7 @@ export interface BrouillonMateriaux {
   /** Provenance des lignes importées, jamais autorisation ni cache de réponse serveur. */
   readonly sourcePrevu: string | null; readonly positionsImportees: readonly number[];
   readonly intentionId: string | null; readonly lignes: readonly LigneEnSaisie[];
+  readonly preuves?:readonly PreuveEnSaisie[];
 }
 export type LectureBrouillonMateriaux = { readonly genre: "absent" } | { readonly genre: "illisible" }
   | { readonly genre: "present"; readonly valeur: BrouillonMateriaux };
@@ -30,7 +32,7 @@ function ligne(v: unknown): v is LigneEnSaisie {
     && typeof v.photoFournie === "boolean" && typeof v.recuFourni === "boolean";
 }
 function valider(v: unknown): v is BrouillonMateriaux {
-  return ferme(v, ["wctId", "chantierId", "sourcePrevu", "positionsImportees", "intentionId", "lignes"])
+  return ferme(v, ["wctId", "chantierId", "sourcePrevu", "positionsImportees", "intentionId", "lignes",...(estObjet(v)&&Object.hasOwn(v,"preuves")?["preuves"]:[])])
     && nullable(v.wctId) && nullable(v.chantierId) && nullable(v.intentionId)
     && (v.sourcePrevu === null || (typeof v.sourcePrevu === "string" && /^[0-9a-f]{64}$/.test(v.sourcePrevu)))
     && Array.isArray(v.positionsImportees) && v.positionsImportees.length <= 128
@@ -38,7 +40,8 @@ function valider(v: unknown): v is BrouillonMateriaux {
     && new Set(v.positionsImportees).size === v.positionsImportees.length
     && (v.sourcePrevu !== null || v.positionsImportees.length === 0)
     && Array.isArray(v.lignes) && v.lignes.length <= 128 && v.lignes.every(ligne)
-    && new Set(v.lignes.map(l => l.id)).size === v.lignes.length;
+    && new Set(v.lignes.map(l => l.id)).size === v.lignes.length
+    && (!Object.hasOwn(v,"preuves")||(Array.isArray(v.preuves)&&v.preuves.length<=24&&v.preuves.every(p=>ferme(p,["ligneId","note","captureIds"])&&texte(p.ligneId)&&typeof p.note==="string"&&[...p.note].length<=4096&&Array.isArray(p.captureIds)&&p.captureIds.length<=3&&p.captureIds.every(texte)&&new Set(p.captureIds).size===p.captureIds.length)&&new Set(v.preuves.map(p=>p.ligneId)).size===v.preuves.length));
 }
 
 /** Saisie brute inachevée conservée ; un contenu illisible n'est ni effacé ni remplacé. */
@@ -48,10 +51,10 @@ export async function lireBrouillonMateriaux(d: DepotCleValeur, cible: CibleBrou
     if (raw === null) return { genre: "absent" };
     if (raw.length > 600000) return { genre: "illisible" };
     const v = copierJsonLecture(JSON.parse(raw));
-    if (v === JSON_LECTURE_INVALIDE || !ferme(v, ["version", "cible", "brouillon"]) || v.version !== 1
+    if (v === JSON_LECTURE_INVALIDE || !ferme(v, ["version", "cible", "brouillon"]) || (v.version !== 1 && v.version !== 2)
       || !ferme(v.cible, ["urlBase", "appareilId", "personne", "interventionId"])) return { genre: "illisible" };
     const cibleSauvee = v.cible;
-    if (Object.keys(cibleSauvee).some(k => cibleSauvee[k] !== Reflect.get(cible, k)) || !valider(v.brouillon)) return { genre: "illisible" };
+    if (Object.keys(cibleSauvee).some(k => cibleSauvee[k] !== Reflect.get(cible, k)) || !valider(v.brouillon) || (v.version===2)!==Object.hasOwn(v.brouillon,"preuves")) return { genre: "illisible" };
     return { genre: "present", valeur: v.brouillon };
   } catch { return { genre: "illisible" }; }
 }
@@ -62,7 +65,7 @@ export async function sauverBrouillonMateriaux(d: DepotCleValeur, cible: CibleBr
   if (b === JSON_LECTURE_INVALIDE || c === JSON_LECTURE_INVALIDE || !valider(b)
     || !ferme(c, ["urlBase", "appareilId", "personne", "interventionId"])) throw new Error("Brouillon de matériaux invalide.");
   const key = cle(c as unknown as CibleBrouillonMateriaux);
-  const raw = JSON.stringify({ version: 1, cible: c, brouillon: b });
+  const raw = JSON.stringify({ version: Object.hasOwn(b,"preuves")?2:1, cible: c, brouillon: b });
   if (raw.length > 600000) throw new Error("Brouillon de matériaux trop volumineux.");
   let queue = files.get(d); if (!queue) { queue = new Map(); files.set(d, queue); }
   const precedent = queue.get(key) ?? Promise.resolve();

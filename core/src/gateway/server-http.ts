@@ -78,6 +78,7 @@ import {
   getOpenAiHttpModule,
   getOpenResponsesHttpModule,
   getOpsysDeviceIdentityHttpModule,
+  getOpsysPreuvesPhotoHttpModule,
   getSessionHistoryHttpModule,
   getSessionKillHttpModule,
   getToolsInvokeHttpModule,
@@ -497,6 +498,13 @@ export function createGatewayHttpServer(opts: {
       // handler module stays lazily loaded.
       addAdmittedStage(scopedRequestPath === "/opsys/identite", async () =>
         (await getOpsysDeviceIdentityHttpModule()).handleOpsysDeviceIdentityHttpRequest(
+          req,
+          res,
+          routeAuth,
+        ),
+      );
+      addAdmittedStage(scopedRequestPath === "/opsys/m6/preuves/photo", async () =>
+        (await getOpsysPreuvesPhotoHttpModule()).handleOpsysPreuvesPhotoHttpRequest(
           req,
           res,
           routeAuth,

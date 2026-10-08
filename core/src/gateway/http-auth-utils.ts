@@ -436,6 +436,67 @@ export async function authorizeGatewayHttpRequestOrReply(
   );
 }
 
+/** DEVICE-only byte delivery: the same paired grant must remain live after every await. */
+export async function authorizePairedDeviceGatewayHttpRequestOrReply(
+  params: GatewayHttpRequestAuthParams,
+): Promise<(AuthorizedGatewayHttpRequest & GatewayHttpResponseAuthority) | null> {
+  const admitted = await authorizeScopedGatewayHttpRequestOrReply({
+    ...params,
+    operatorMethod: "health",
+    resolveOperatorScopes: resolveToolsInvokeHttpOperatorScopes,
+    allowDeviceToken: true,
+  });
+  if (!admitted) {
+    return null;
+  }
+  const auth = admitted.requestAuth;
+  if (auth.authMethod !== "device-token" || !auth.deviceId) {
+    sendJson(params.res, 403, { ok: false, erreur: "photo_appareil_requis" });
+    return null;
+  }
+  const token = getBearerToken(params.req);
+  const deviceId = auth.deviceId;
+  const requiredDeviceScopes = [...(auth.deviceOperatorScopes ?? [])];
+  const admittedAssert = auth.assertCurrent;
+  // Generic reply authority can send JSON on expiry. Once pixels are committed,
+  // consume its non-responding liveness predicate instead and terminate only.
+  auth.assertCurrent = () => {
+    if (!params.res.headersSent) {
+      admittedAssert();
+    } else if (!auth.hasCurrentClientAuthority()) {
+      params.res.destroy();
+      throw new Error("Unauthorized");
+    }
+  };
+  auth.revalidate = async () => {
+    auth.assertCurrent();
+    const current = await checkHttpOperatorCredentials(
+      {
+        ...params,
+        auth: params.getResolvedAuth?.() ?? params.auth,
+        token,
+        requiredDeviceScopes,
+        rateLimiter: undefined,
+      },
+      authorizeHttpGatewayConnect,
+    );
+    auth.assertCurrent();
+    if (
+      !current.authResult.ok ||
+      current.authResult.method !== "device-token" ||
+      current.deviceId !== deviceId
+    ) {
+      if (params.res.headersSent) {
+        params.res.destroy();
+      } else {
+        sendUnauthorized(params.res);
+      }
+      throw new Error("Unauthorized");
+    }
+  };
+  return auth;
+}
+
 export function setControlUiPluginAuthCookieForRequest(
   req: IncomingMessage,
   res: ServerResponse,
@@ -502,7 +563,7 @@ export async function authorizePluginGatewayHttpRequestOrReply(
     const revalidate = requestAuth.revalidate;
     requestAuth.revalidate = async () => {
       await revalidate();
-      const { authResult } = await checkHttpOperatorCredentials(
+      const { authResult, deviceId } = await checkHttpOperatorCredentials(
         {
           ...params,
           auth: params.getResolvedAuth?.() ?? params.auth,
@@ -514,7 +575,11 @@ export async function authorizePluginGatewayHttpRequestOrReply(
         authorizeHttpGatewayConnect,
       );
       await revalidate();
-      if (!authResult.ok || authResult.method !== "device-token") {
+      if (
+        !authResult.ok ||
+        authResult.method !== "device-token" ||
+        deviceId !== requestAuth.deviceId
+      ) {
         sendUnauthorized(params.res);
         throw new Error("Unauthorized");
       }

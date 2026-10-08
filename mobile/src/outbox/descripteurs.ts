@@ -1,10 +1,11 @@
+import { OUTIL_MATERIAUX_AVEC_PREUVES, argumentsRpcMateriauxAvecPreuves, interpreterMateriauxAvecPreuves, validerRecuMateriauxAvecPreuves } from "../m6/materiauxAvecPreuves";
 import { interpreterResultatCompleterIntervention } from "../m4/completion";
 import { interpreterResultatDefinirConsentementGps } from "../m4/consentementGps";
 import { interpreterResultatDemarrerRoute } from "../m4/interventions";
 import { interpreterResultatPointage } from "../m4/pointage";
 import { interpreterResultatDeciderDemande } from "../approbations/contrat";
 import { interpreterResultatDeclarerMateriauxUtilises, validerRecuDeclarerMateriauxUtilises } from "../m6/materiaux";
-import { interpreterResultatDeposerFichier } from "../fichiers/protocole";
+import { interpreterResultatDeposerFichier, validerRecuDeposerFichier } from "../fichiers/protocole";
 import { interpreterResultatEnregistrerInteraction } from "../m2/interaction";
 import { construireArgumentsDecisionMarketing, interpreterDecisionMarketing } from "../m7/decisionOutbox";
 import { construireArgumentsArbitrageMemoire, interpreterArbitrageMemoire } from "../m10/arbitrageOutbox";
@@ -38,8 +39,8 @@ function versInterpretationGeneriqueDemarrerRoute(resultatBrut: unknown): Interp
 
 /** Même rôle que `versInterpretationGenerique` ci-dessus, pour `m4_deposer_fichier`
  * (`src/fichiers/protocole.ts`, PLAN T1.4-f) — un bloc par mutation `fichier_bloc`. */
-function versInterpretationGeneriqueDeposerFichier(resultatBrut: unknown): InterpretationResultatMetier {
-  const interpretation = interpreterResultatDeposerFichier(resultatBrut);
+function versInterpretationGeneriqueDeposerFichier(resultatBrut: unknown, mutation?: MutationOutbox): InterpretationResultatMetier {
+  const interpretation = interpreterResultatDeposerFichier(resultatBrut, mutation);
   if (interpretation.accepte) {
     return { accepte: true, resume: interpretation.resultat };
   }
@@ -136,10 +137,13 @@ export const DESCRIPTEURS_MUTATION: ReadonlyMap<TypeMutation, DescripteurTypeMut
   ["punch_in", { tool: "m4_pointer", interpreterResultat: versInterpretationGenerique }],
   ["punch_out", { tool: "m4_pointer", interpreterResultat: versInterpretationGenerique }],
   ["job_status_change", { tool: "m4_demarrer_route", interpreterResultat: versInterpretationGeneriqueDemarrerRoute }],
-  ["fichier_bloc", { tool: "m4_deposer_fichier", interpreterResultat: versInterpretationGeneriqueDeposerFichier }],
+  ["fichier_bloc", { tool: "m4_deposer_fichier", interpreterResultat: versInterpretationGeneriqueDeposerFichier, validerRecuEnvoye: validerRecuDeposerFichier }],
   ["job_completion", { tool: "m4_completer_intervention", interpreterResultat: versInterpretationGeneriqueCompletion }],
-  ["materials_submit", { tool: "m6_declarer_materiaux_utilises", interpreterResultat: versInterpretationGeneriqueMateriaux,
+  ["materials_submit", { groupeSerie:"materiaux", tool: "m6_declarer_materiaux_utilises", interpreterResultat: versInterpretationGeneriqueMateriaux,
     serialiserParChantier: true, validerRecuEnvoye: validerRecuDeclarerMateriauxUtilises }],
+  ["materials_submit_with_proofs", {tool:OUTIL_MATERIAUX_AVEC_PREUVES,construireArguments:argumentsRpcMateriauxAvecPreuves,
+    interpreterResultat:(r,m)=>{const i=interpreterMateriauxAvecPreuves(r,m);return i.accepte?{accepte:true,resume:i.resultat}:i;},
+    serialiserParChantier:true,groupeSerie:"materiaux",verifierAvantEnvoi:true,validerRecuEnvoye:validerRecuMateriauxAvecPreuves}],
   ["gps_consent_change", { tool: "m4_definir_consentement_gps", interpreterResultat: versInterpretationGeneriqueConsentementGps }],
   ["approval_decision", { tool: "m9_decider_demande_approbation", interpreterResultat: versInterpretationGeneriqueDecisionApprobation }],
   ["marketing_decision", { tool: "m7_decider_contenu", construireArguments: construireArgumentsDecisionMarketing,

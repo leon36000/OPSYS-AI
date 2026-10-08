@@ -50,3 +50,7 @@ export const getHttpAuthUtilsModule = createLazyRuntimeModule(() => import("./ht
 export const getPluginRouteRuntimeScopesModule = createLazyRuntimeModule(
   () => import("./server/plugin-route-runtime-scopes.js"),
 );
+
+export const getOpsysPreuvesPhotoHttpModule = createLazyRuntimeModule(
+  () => import("./opsys-preuves-photo-http.js"),
+);

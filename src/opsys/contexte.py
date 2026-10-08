@@ -211,3 +211,22 @@ def depuis_meta_mcp_identite(meta: Mapping[str, Any] | None) -> IdentiteAppelant
     if not isinstance(personne, str) or not personne.strip() or not isinstance(role, str) or not role.strip():
         return None
     return IdentiteAppelante(personne=personne.strip(), role=role.strip())
+
+
+_LIMITE_SORTIE: contextvars.ContextVar[int | None] = contextvars.ContextVar("opsys_limite_sortie", default=None)
+
+
+@contextlib.contextmanager
+def sortie_bornee(limite: int) -> Iterator[None]:
+    """Quota fiable du répartiteur, jamais lu des arguments ou du _meta client."""
+    if type(limite) is not int or limite < 1:
+        raise ValueError("quota de sortie invalide")
+    token = _LIMITE_SORTIE.set(limite)
+    try:
+        yield
+    finally:
+        _LIMITE_SORTIE.reset(token)
+
+
+def limite_sortie() -> int | None:
+    return _LIMITE_SORTIE.get()

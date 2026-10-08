@@ -54,6 +54,22 @@ const adminFrCA = {
     referenceInconnue: "Détail de référence indisponible à l’affichage.",
     statuts: { stock_bas: "Stock sous le seuil", stock_suffisant: "Stock disponible suffisant selon le seuil", seuil_absent: "Seuil à configurer", configuration_invalide: "Configuration invalide" },
   },
+  preuvesMateriaux: {
+    "titre": "Preuves associées aux pertes et bris",
+    "limites": "Pages courantes. Une note ou un fichier associé ne prouve ni la scène, ni la cause ou la date du dommage.",
+    "charger": "Lire les preuves courantes",
+    "suite": "Page courante suivante",
+    "page": "{{affichees}} mouvement(s) affiché(s) sur {{total}} actuellement",
+    "uniteInconnue": "unité inconnue",
+    "absente": "Aucune preuve enregistrée pour ce mouvement",
+    "note_seule": "Note seule, sans photo déclarée",
+    "photos_declarees": "Note et fichiers déclarés",
+    "enregistre": "Enregistré au serveur : {{date}}",
+    "declare": "Heure déclarée par l’appareil : {{date}}",
+    "disponible": "Vérifier et voir ce fichier",
+    "indisponible": "Fichier ou lecture indisponible. Relisez les preuves courantes.",
+    "fermer": "Fermer et supprimer l’aperçu"
+},
   pertesAlertes: {
     titre: "Pertes, bris et alertes du chantier",
     note: "Choisissez un chantier terminé reçu par M6. Les mouvements et alertes sont relus sur le serveur.",

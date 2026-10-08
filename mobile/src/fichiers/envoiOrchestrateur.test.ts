@@ -20,8 +20,8 @@ beforeEach(() => {
 /** Digest FACTICE : ne calcule jamais un vrai SHA-256, renvoie toujours le même octet — suffit
  * à tester la logique de comparaison (verifierEmpreinteFichier), pas l'algorithme lui-même (déjà
  * couvert par `empreinte.test.ts`/`verification.test.ts` contre l'oracle Node `crypto`). */
-const digestFixe: FonctionDigestSha256 = async () => Uint8Array.from([0xab]).buffer as ArrayBuffer;
-const SHA_ATTENDU_PAR_DIGEST_FIXE = "ab";
+const digestFixe: FonctionDigestSha256 = async () => new Uint8Array(32).fill(0xab).buffer as ArrayBuffer;
+const SHA_ATTENDU_PAR_DIGEST_FIXE = "ab".repeat(32);
 
 const FICHIER_1600_OCTETS: CandidatFichierM4 = {
   mutationId: "photo-1",
@@ -44,13 +44,16 @@ function creerConfig(
     digest: digestFixe,
     genererId: idDeterministe,
     horloge: HORLOGE,
-    obtenirEtatServeur: jest.fn().mockResolvedValue(null),
+    obtenirEtatServeur: jest.fn().mockResolvedValue({ existe:false,complet:false,blocsRecus:[],reference:null }),
+    courante:()=>true, proprietaire:"jdupont",verifierCandidat:async()=>true,
     ...overrides,
   };
 }
 
 function octetsDeTaille(taille: number): Uint8Array<ArrayBuffer> {
-  return Uint8Array.from({ length: taille }, (_, i) => i % 256) as Uint8Array<ArrayBuffer>;
+  const octets = Uint8Array.from({ length: taille }, (_, i) => i % 256);
+  if(taille>=3)octets.set([0xff,0xd8,0xff]); // magic fictive JPEG, pas décodage/photo authentique
+  return octets;
 }
 
 describe("preparerEnvoiFichier — cas nominal", () => {
@@ -60,7 +63,7 @@ describe("preparerEnvoiFichier — cas nominal", () => {
     const config = creerConfig(depot, octets);
 
     const resultat = await preparerEnvoiFichier(config, FICHIER_1600_OCTETS, []);
-    expect(resultat).toEqual({ ok: true, blocsEnfiles: 2 });
+    expect(resultat).toEqual({ ok: true, blocsEnfiles: 2, pret:false });
 
     const lignes = await depot.lister();
     expect(lignes).toHaveLength(2);
@@ -94,11 +97,11 @@ describe("preparerEnvoiFichier — cas nominal", () => {
     const enFile = await depot.lister();
 
     const resultat = await preparerEnvoiFichier(config, FICHIER_1600_OCTETS, enFile);
-    expect(resultat).toEqual({ ok: true, blocsEnfiles: 0 });
+    expect(resultat).toEqual({ ok: true, blocsEnfiles: 0, pret:false });
     expect(await depot.lister()).toHaveLength(2); // jamais dupliqué
   });
 
-  test("déjà complet (tous les blocs envoyee) -> rien à refaire", async () => {
+  test("legacy envoyé sans état live reste indisponible, pas de nouvelle clé", async () => {
     const depot = new DepotOutboxMemoire();
     const config = creerConfig(depot, octetsDeTaille(FICHIER_1600_OCTETS.tailleOctets));
 
@@ -111,8 +114,8 @@ describe("preparerEnvoiFichier — cas nominal", () => {
     (config.lireOctets as jest.Mock).mockClear(); // ne compter que les appels de CE second essai
 
     const resultat = await preparerEnvoiFichier(config, FICHIER_1600_OCTETS, complet);
-    expect(resultat).toEqual({ ok: true, blocsEnfiles: 0 });
-    expect(config.lireOctets).not.toHaveBeenCalled(); // court-circuit : jamais de relecture disque inutile
+    expect(resultat).toEqual({ ok: false, pret:false, raison:"etat_indisponible" });
+    expect(config.lireOctets).toHaveBeenCalledTimes(1); // statuts legacy ne dispensent jamais de relecture
   });
 });
 
@@ -125,20 +128,20 @@ describe("preparerEnvoiFichier — reprise via m4_etat_fichier (mission item 1)"
     });
 
     const resultat = await preparerEnvoiFichier(config, FICHIER_1600_OCTETS, []);
-    expect(resultat).toEqual({ ok: true, blocsEnfiles: 1 });
+    expect(resultat).toEqual({ ok: true, blocsEnfiles: 1, pret:false });
     const lignes = await depot.lister();
-    expect(lignes).toHaveLength(2);
+    expect(lignes).toHaveLength(1); // pas de nouvel UUID pour un reçu serveur seul
     expect(lignes.find((m) => m.type === "fichier_bloc")?.payload.index_bloc).toBe(1);
     let etat = await depot.lister();
-    expect(calculerEtatEnvoiFichier(etat, "I1", SHA_ATTENDU_PAR_DIGEST_FIXE)).toMatchObject({ statut: "en_cours", blocsEnvoyes: 1, nombreBlocs: 2 });
+    expect(calculerEtatEnvoiFichier(etat, "I1", SHA_ATTENDU_PAR_DIGEST_FIXE)).toMatchObject({ statut: "en_cours", blocsEnvoyes: 0, nombreBlocs: 2 });
     const blocManquant = etat.find((m) => m.type === "fichier_bloc")!;
     await depot.mettreAJour({ ...blocManquant, statut: "envoyee" }); // accusé valide après vidange
     etat = await depot.lister();
-    expect(calculerEtatEnvoiFichier(etat, "I1", SHA_ATTENDU_PAR_DIGEST_FIXE)).toMatchObject({ statut: "complet", blocsEnvoyes: 2, nombreBlocs: 2 });
+    expect(calculerEtatEnvoiFichier(etat, "I1", SHA_ATTENDU_PAR_DIGEST_FIXE)).toMatchObject({ statut: "en_cours", blocsEnvoyes: 0, nombreBlocs: 2 });
     expect(evaluerPreparationCompletion({
       checklistComplete: true, photosApresSha256: [SHA_ATTENDU_PAR_DIGEST_FIXE], signatureSha256: null,
       signatureRequise: false, notes: "", mutations: etat, chantierId: "I1",
-    })).toMatchObject({ pret: true });
+    })).toMatchObject({ pret: false });
   });
 
   test("si le serveur a déjà tous les blocs, l'état durable devient complet sans nouvel envoi", async () => {
@@ -146,8 +149,8 @@ describe("preparerEnvoiFichier — reprise via m4_etat_fichier (mission item 1)"
     const config = creerConfig(depot, octetsDeTaille(FICHIER_1600_OCTETS.tailleOctets), {
       obtenirEtatServeur: jest.fn().mockResolvedValue({ existe: true, complet: true, blocsRecus: [0, 1], reference: `fichier:sha256:${SHA_ATTENDU_PAR_DIGEST_FIXE}` }),
     });
-    expect(await preparerEnvoiFichier(config, FICHIER_1600_OCTETS, [])).toEqual({ ok: true, blocsEnfiles: 0 });
-    expect(calculerEtatEnvoiFichier(await depot.lister(), "I1", SHA_ATTENDU_PAR_DIGEST_FIXE).statut).toBe("complet");
+    expect(await preparerEnvoiFichier(config, FICHIER_1600_OCTETS, [])).toEqual({ ok: true, blocsEnfiles: 0, pret:true });
+    expect(await depot.lister()).toEqual([]); // disponibilité live, aucun UUID/permission en cache
   });
 
   test("redémarrage après insertion partielle enfile uniquement les indices absents", async () => {
@@ -161,7 +164,7 @@ describe("preparerEnvoiFichier — reprise via m4_etat_fichier (mission item 1)"
     const config = creerConfig(depot, octetsDeTaille(FICHIER_1600_OCTETS.tailleOctets));
     await expect(preparerEnvoiFichier(config, FICHIER_1600_OCTETS, [])).rejects.toThrow("disk full");
     const reprises = creerConfig(depot, octetsDeTaille(FICHIER_1600_OCTETS.tailleOctets));
-    expect(await preparerEnvoiFichier(reprises, FICHIER_1600_OCTETS, await base.lister())).toEqual({ ok: true, blocsEnfiles: 1 });
+    expect(await preparerEnvoiFichier(reprises, FICHIER_1600_OCTETS, await base.lister())).toEqual({ ok: true, blocsEnfiles: 1, pret:false });
     expect((await base.lister()).map((m) => m.payload.index_bloc).sort()).toEqual([0, 1]);
   });
 
@@ -184,20 +187,21 @@ describe("preparerEnvoiFichier — reprise via m4_etat_fichier (mission item 1)"
     });
 
     const resultat = await preparerEnvoiFichier(config, FICHIER_1600_OCTETS, []);
-    expect(resultat).toEqual({ ok: true, blocsEnfiles: 2 });
+    expect(resultat).toEqual({ ok: false, pret:false, raison:"etat_indisponible" });
+    expect(await depot.lister()).toEqual([]);
   });
 });
 
 describe("preparerEnvoiFichier — refus fail-closed, jamais d'envoi", () => {
   test("empreinte relue différente de celle capturée -> refusé, aucun bloc enfilé", async () => {
     const depot = new DepotOutboxMemoire();
-    const octetsDifferents = octetsDeTaille(500);
+    const octetsDifferents = octetsDeTaille(FICHIER_1600_OCTETS.tailleOctets);
     const config = creerConfig(depot, octetsDifferents, {
-      digest: async () => Uint8Array.from([0xcd]).buffer as ArrayBuffer, // hex "cd" != sha256 capturé "ab"
+      digest: async () => new Uint8Array(32).fill(0xcd).buffer as ArrayBuffer, // hex "cd" != sha256 capturé "ab"
     });
 
     const resultat = await preparerEnvoiFichier(config, FICHIER_1600_OCTETS, []);
-    expect(resultat).toEqual({ ok: false, raison: "empreinte_discordante", sha256Capture: "ab", sha256Relu: "cd" });
+    expect(resultat).toEqual({ ok: false, pret:false, raison: "empreinte_discordante", sha256Capture: "ab".repeat(32), sha256Relu: "cd".repeat(32) });
     expect(await depot.lister()).toEqual([]);
   });
 
@@ -207,7 +211,7 @@ describe("preparerEnvoiFichier — refus fail-closed, jamais d'envoi", () => {
     const fichier: CandidatFichierM4 = { ...FICHIER_1600_OCTETS, typeMime: null };
 
     const resultat = await preparerEnvoiFichier(config, fichier, []);
-    expect(resultat).toEqual({ ok: false, raison: "type_non_permis" });
+    expect(resultat).toEqual({ ok: false, pret:false, raison: "type_non_permis" });
     expect(config.lireOctets).not.toHaveBeenCalled();
     expect(await depot.lister()).toEqual([]);
   });
@@ -234,7 +238,7 @@ describe("preparerEnvoiFichier — refus fail-closed, jamais d'envoi", () => {
       sequence: 1,
       type: "fichier_bloc" as const,
       chantierId: "I1",
-      payload: { empreinte_sha256: SHA_ATTENDU_PAR_DIGEST_FIXE, index_bloc: 0, nombre_blocs: 2, bloc_base64: "QQ==" },
+      payload: { empreinte_sha256: SHA_ATTENDU_PAR_DIGEST_FIXE, index_bloc: 0, nombre_blocs: 2, type_mime:"image/jpeg",taille_octets:FICHIER_1600_OCTETS.tailleOctets, bloc_base64: encoderBase64Standard(octetsDeTaille(262144)) },
       dependsOn: null,
       statut: "echec_permanent" as const,
       tentatives: 3,
@@ -243,8 +247,48 @@ describe("preparerEnvoiFichier — refus fail-closed, jamais d'envoi", () => {
       proprietaire: "jdupont",
     };
 
+    await depot.inserer(mutationEnEchec);
     const resultat = await preparerEnvoiFichier(config, FICHIER_1600_OCTETS, [mutationEnEchec]);
-    expect(resultat).toEqual({ ok: false, raison: "echec_permanent" });
+    expect(resultat).toEqual({ ok: false, pret:false, raison: "echec_permanent" });
     expect(config.lireOctets).not.toHaveBeenCalled();
+  });
+});
+
+// B1 rouges : statuts legacy ne constituent pas une lecture live ni une permission.
+describe("readiness live B1 (fictif)", () => {
+  test("legacy envoyé est relu et absence serveur ne produit jamais prêt", async () => {
+    const depot = new DepotOutboxMemoire(), config = creerConfig(depot, octetsDeTaille(FICHIER_1600_OCTETS.tailleOctets));
+    await preparerEnvoiFichier(config, FICHIER_1600_OCTETS, []);
+    for (const m of await depot.lister()) await depot.mettreAJour({ ...m, statut: "envoyee", resumeAccepte: null });
+    const lire = jest.fn(async () => octetsDeTaille(FICHIER_1600_OCTETS.tailleOctets));
+    const serveur = jest.fn(async () => ({ existe: false, complet: false, blocsRecus: [], reference: null }));
+    const c = { ...config, lireOctets: lire, obtenirEtatServeur: serveur };
+    const r = await preparerEnvoiFichier(c, FICHIER_1600_OCTETS, await depot.lister());
+    expect(lire).toHaveBeenCalledTimes(1); expect(serveur).toHaveBeenCalledTimes(1);
+    expect(r).toMatchObject({ pret: false }); expect((await depot.lister()).map(m => m.id)).toEqual(["mut-1", "mut-2"]);
+  });
+  test("révocation pendant hash interdit lecture serveur et nouvelle mutation", async () => {
+    const depot = new DepotOutboxMemoire(); let actuelle = true;
+    const serveur = jest.fn(async () => ({ existe: false, complet: false, blocsRecus: [], reference: null }));
+    const config = { ...creerConfig(depot, octetsDeTaille(FICHIER_1600_OCTETS.tailleOctets)), courante: () => actuelle,
+      digest: async () => { actuelle = false; return new Uint8Array(32).fill(0xab).buffer; }, obtenirEtatServeur: serveur };
+    expect(await preparerEnvoiFichier(config, FICHIER_1600_OCTETS, [])).toMatchObject({ ok: false, raison: "contexte_change", pret: false });
+    expect(serveur).not.toHaveBeenCalled(); expect(await depot.lister()).toEqual([]);
+  });
+});
+
+describe("B1 snapshots et captures indépendantes (fictif)",()=>{
+  test("état callback getter/prototype fermé sans lecture du getter",async()=>{
+    const depot=new DepotOutboxMemoire();let n=0;const etat={existe:true,complet:false,blocsRecus:[0],reference:null};
+    Object.defineProperty(etat,"complet",{enumerable:true,get:()=>{n++;return false;}});
+    const c=creerConfig(depot,octetsDeTaille(FICHIER_1600_OCTETS.tailleOctets),{obtenirEtatServeur:async()=>etat});
+    expect(await preparerEnvoiFichier(c,FICHIER_1600_OCTETS,[])).toMatchObject({pret:false,raison:"etat_indisponible"});expect(n).toBe(0);expect(await depot.lister()).toEqual([]);
+  });
+  test("seconde invocation ne partage pas le prêt d'une capture précédente",async()=>{
+    const depot=new DepotOutboxMemoire();const c=creerConfig(depot,octetsDeTaille(FICHIER_1600_OCTETS.tailleOctets),{
+      obtenirEtatServeur:async()=>({existe:true,complet:true,blocsRecus:[0,1],reference:`fichier:sha256:${SHA_ATTENDU_PAR_DIGEST_FIXE}`})});
+    const premier=preparerEnvoiFichier(c,FICHIER_1600_OCTETS,[]);
+    const second=preparerEnvoiFichier({...c,courante:()=>false},FICHIER_1600_OCTETS,[]);
+    expect(await premier).toMatchObject({pret:true});expect(await second).toMatchObject({pret:false,raison:"contexte_change"});
   });
 });

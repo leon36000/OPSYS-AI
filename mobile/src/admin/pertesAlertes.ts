@@ -1,3 +1,5 @@
+import { construireArgumentsPreuves, lirePreuvesPertesWct, OUTIL_PREUVES_PERTES_M6 } from '../m6/preuvesLecture';
+import type { PagePreuvesM6 } from '../m6/preuvesLecture';
 import { appelerLecture } from "./appel";
 import type { ResultatSection } from "./lecture";
 import type { ParametresAppelOutil, ResultatAppelOutil } from "../protocole/client";
@@ -50,6 +52,11 @@ export function creerChargeurPertesAlertesM6(d: DependancesPertesAlertesM6) {
     } catch { return aucune(courante() ? "lecture_indisponible" : "lecture_remplacee"); }
   }
   return {
+    chargerPreuves: async (wctId: string, decalage = 0): Promise<ResultatSection<PagePreuvesM6> | null> => {
+      let args;
+      try { args = construireArgumentsPreuves(wctId, decalage); } catch { return aucune("lecture_indisponible"); }
+      return lire(OUTIL_PREUVES_PERTES_M6, { ...args }, v => lirePreuvesPertesWct(v, args));
+    },
     chargerWcts: async (decalage = 0): Promise<ResultatSection<ListeWctPertesM6> | null> => {
       let args;
       try { args = construireArgumentsListeWct(decalage); } catch { return aucune("lecture_indisponible"); }
@@ -81,3 +88,5 @@ const lectures = creerChargeurPertesAlertesM6({
 });
 export const chargerWctsPertesM6 = lectures.chargerWcts;
 export const chargerPertesAlertesWctM6 = lectures.chargerPertes;
+
+export const chargerPreuvesPertesWctM6 = (wctId: string, decalage = 0) => lectures.chargerPreuves(wctId, decalage);

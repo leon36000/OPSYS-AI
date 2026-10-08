@@ -178,6 +178,7 @@ const enCA: RessourcesCommunes = {
     },
   },
   photos: {
+    echecEnregistrement: 'Photo not saved. Check the session and capture it again.',
     titre: "Photos",
     natures: {
       avant: "Before",
@@ -243,7 +244,27 @@ const enCA: RessourcesCommunes = {
     lienMateriaux: "Continue to materials used",
   },
   materials: {
+    preuves: {
+          "titre": "Loss and breakage evidence",
+          "note": "Note for this line (required)",
+          "ouvrirPhotos": "Take or review a job photo",
+          "photo": "{{nature}} · {{taille}} bytes",
+          "associer": "Attach this capture",
+          "dissocier": "Remove this capture",
+          "noteSeule": "No photo selected: note only.",
+          "selection": "{{nombre}} photo(s) selected",
+          "limites": "Files verified and linked to the declaration. This does not establish the scene, cause, location or date of the damage.",
+          "nature_avant": "Before",
+          "nature_pendant": "During",
+          "nature_apres": "After"
+    },
     contexte: {
+      "raison_preuve_manquante": "Add a note to each loss or breakage. Your input is preserved.",
+      "raison_capture_indisponible": "A selected capture is unavailable for this session or job. Your input is preserved.",
+      "raison_preuves_invalides": "Correct notes and capture associations before submitting. Your input is preserved.",
+      "raison_fichiers_en_attente": "Files are not yet ready on the server. Check their status; no new effect has been created.",
+      "raison_achat_terrain_hors_preuves": "A field purchase follows its separate workflow. Separate it from this loss and breakage declaration; your input is preserved.",
+
       "raison_cible_absente": "Reread the context and choose a job target before submitting.",
       "raison_cible_changee": "The WCT or job changed. Input is retained; no new target replaced existing lines.",
       "raison_source_changee": "The planned source changed. Existing input was neither overwritten nor mixed with another source.",

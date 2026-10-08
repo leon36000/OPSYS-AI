@@ -1,3 +1,4 @@
+import { copierJsonLecture, JSON_LECTURE_INVALIDE } from "../protocole/jsonLecture";
 import {
   marquerEchecPermanent,
   marquerEchecReessayable,
@@ -34,6 +35,8 @@ export type InterpretationResultatMetier =
  */
 export interface DescripteurTypeMutation {
   readonly tool: string;
+  readonly groupeSerie?:string;
+  readonly verifierAvantEnvoi?:boolean;
   readonly interpreterResultat: (resultatBrut: unknown, mutation?: MutationOutbox) => InterpretationResultatMetier;
   /** Projection RPC pour les types portant aussi une preuve locale persistée. null : aucun envoi deviné. */
   readonly construireArguments?: (mutation: MutationOutbox) => Readonly<Record<string, unknown>> | null;
@@ -64,6 +67,7 @@ export interface ConfigurationVidangeur {
   /** Injecté plutôt que lu via `Date.now()` (fonction pure, même principe que `recul.ts` et
    * `selectionnerProchainesEnvoyables`). */
   readonly maintenant: () => Date;
+  readonly verifierAvantEnvoi?:(mutation:MutationOutbox,session:SessionEnvoi,courante:()=>boolean)=>Promise<boolean>;
 }
 
 /** Un échec permanent, avec le verdict à afficher à l'employé (mission item 2 : « échec
@@ -190,9 +194,11 @@ function terminaliteVerifiee(mutation: MutationOutbox, descripteur?: Descripteur
     (!descripteur?.validerRecuEnvoye || descripteur.validerRecuEnvoye(mutation) === true));
 }
 
-function premiereIntentionDuGroupe(mutation: MutationOutbox, toutes: readonly MutationOutbox[], descripteur: DescripteurTypeMutation): boolean {
-  const serie = toutes.filter(m => m.type === mutation.type && m.chantierId === mutation.chantierId &&
-    !terminaliteVerifiee(m, descripteur));
+function premiereIntentionDuGroupe(mutation: MutationOutbox, toutes: readonly MutationOutbox[], descripteur: DescripteurTypeMutation,
+  descripteurs:ReadonlyMap<TypeMutation,DescripteurTypeMutation>): boolean {
+  const groupe=descripteur.groupeSerie??mutation.type;
+  const serie = toutes.filter(m => (descripteurs.get(m.type)?.groupeSerie??m.type)===groupe && m.chantierId === mutation.chantierId &&
+    !terminaliteVerifiee(m, descripteurs.get(m.type)));
   if (serie.some(m => m.sequence === null || !Number.isSafeInteger(m.sequence) || m.sequence < 1)) return false;
   if (new Set(serie.map(m => m.sequence)).size !== serie.length) return false;
   const premiere = serie.slice().sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0))[0];
@@ -240,7 +246,7 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
     if (descripteur?.serialiserParChantier) {
       const actuelles = await config.depot.lister();
       const courante = actuelles.find(m => m.id === mutation.id);
-      if (!courante || !premiereIntentionDuGroupe(mutation, actuelles, descripteur) ||
+      if (!courante || !premiereIntentionDuGroupe(mutation, actuelles, descripteur, config.descripteurs) ||
         (courante.statut !== "en_attente" && courante.statut !== "envoi")) return { genre: "bloquee_serie" };
       mutation = courante;
     }
@@ -258,7 +264,7 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
       const courante = actuelles.find(m => m.id === mutation.id);
       // Une réception concurrente déjà durable est terminale : jamais rouvrir/écraser son reçu.
       if (!courante || courante.statut === "envoyee" || courante.statut === "echec_permanent") return { genre: "bloquee_serie" };
-      if (!premiereIntentionDuGroupe(enEnvoi, actuelles, descripteur)) {
+      if (!premiereIntentionDuGroupe(enEnvoi, actuelles, descripteur, config.descripteurs)) {
         if (courante.statut === "envoi" && courante.proprietaire === enEnvoi.proprietaire) {
           await config.depot.mettreAJour(remettreEnAttenteSansFaute(courante));
         }
@@ -283,6 +289,30 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
     if (session === null || session.personne !== mutation.proprietaire) {
       await config.depot.mettreAJour(remettreEnAttenteSansFaute(enEnvoi));
       return { genre: "arret", arret: { genre: "session_changee" } };
+    }
+
+    if(descripteur.verifierAvantEnvoi){
+      let pret=false;
+      try {pret=await config.verifierAvantEnvoi?.(enEnvoi,session,courante)===true;} catch {pret=false;}
+      if(!courante()||!memeSession(session,config.session())||session.urlBase!==config.session()?.urlBase)return arreterGardeSession(enEnvoi);
+      const observe=await config.depot.obtenir(enEnvoi.id);
+      if(!courante())return arreterGardeSession(enEnvoi);
+      if(copierJsonLecture(observe)===JSON_LECTURE_INVALIDE)return {genre:"bloquee_serie"};
+      if(!observe||observe.statut==="envoyee"||observe.statut==="echec_permanent")return {genre:"bloquee_serie"};
+      const avant=copierJsonLecture(enEnvoi.payload),apres=copierJsonLecture(observe.payload);
+      if(observe.statut!=="envoi"||observe.proprietaire!==enEnvoi.proprietaire||observe.type!==enEnvoi.type||
+        observe.chantierId!==enEnvoi.chantierId||observe.createdAtLocal!==enEnvoi.createdAtLocal||avant===JSON_LECTURE_INVALIDE||apres===JSON_LECTURE_INVALIDE||JSON.stringify(avant)!==JSON.stringify(apres)){
+        return {genre:"bloquee_serie"};
+      }
+      if(!pret){await config.depot.mettreAJour(marquerEchecReessayable(observe,config.maintenant()));return {genre:"remise_en_attente"};}
+      const ensemble=await config.depot.lister();
+      if(!courante())return arreterGardeSession(enEnvoi);
+      if(copierJsonLecture(ensemble)===JSON_LECTURE_INVALIDE)return {genre:"bloquee_serie"};
+      const finale=ensemble.find(m=>m.id===enEnvoi.id),chargeFinale=copierJsonLecture(finale?.payload);
+      if(!finale||finale.statut!=="envoi"||finale.proprietaire!==enEnvoi.proprietaire||finale.type!==enEnvoi.type||
+        finale.chantierId!==enEnvoi.chantierId||finale.createdAtLocal!==enEnvoi.createdAtLocal||chargeFinale===JSON_LECTURE_INVALIDE||JSON.stringify(chargeFinale)!==JSON.stringify(avant))return {genre:"bloquee_serie"};
+      if(descripteur.serialiserParChantier&&!premiereIntentionDuGroupe(enEnvoi,ensemble,descripteur,config.descripteurs))return arreterGardeSession(enEnvoi);
+      if(!courante()||!memeSession(session,config.session())||session.urlBase!==config.session()?.urlBase)return arreterGardeSession(enEnvoi);
     }
 
     const resultatAppel = await config.appelerOutil({
@@ -374,7 +404,7 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
         break;
       }
       const enSerie = config.descripteurs.get(mutation.type)?.serialiserParChantier === true;
-      const cleSerie = JSON.stringify([mutation.type, mutation.chantierId]);
+      const cleSerie = JSON.stringify([config.descripteurs.get(mutation.type)?.groupeSerie??mutation.type, mutation.chantierId]);
       if (enSerie && seriesTraitees.has(cleSerie)) {
         bloqueesSerie.add(mutation.id);
         continue;

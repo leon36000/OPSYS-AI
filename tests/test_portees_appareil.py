@@ -29,7 +29,7 @@ EMPLOYE = frozenset({
     "m4_completer_intervention", "m4_creer_demande_ecart", "m4_definir_consentement_gps",
     "m4_demarrer_route", "m4_deposer_fichier", "m4_etat_fichier", "m4_lister_interventions", "m4_pointer",
     "m4_signaler_report", "m4_statut_intervention", "m6_declarer_materiaux_utilises",
-    "m6_lire_contexte_materiaux_appareil",
+    "m6_lire_contexte_materiaux_appareil", "m6_declarer_materiaux_avec_preuves_appareil",
     # M7 : enregistrer un consentement de référence et importer/lire les avis non privés;
     # les plaintes privées et les décisions/exports/publications restent fermés à ce rôle.
     "m7_enregistrer_consentement_reference", "m7_importer_avis_manuel", "m7_lister_inbox_reputation",
@@ -88,7 +88,7 @@ ADMIN_SEUL = frozenset({
     # réservation, emplacements, disponibilité : l'admin seulement (T4.14) ; jamais l'employé ni le vendeur
     "m6_reserver_materiel", "m6_liberer_reservation", "m6_transferer_stock", "m6_lire_disponibilite",
     "m6_lister_wct_pertes_appareil", "m6_lire_pertes_alertes_wct_appareil",
-    "m6_lire_reapprovisionnement_appareil",
+    "m6_lire_reapprovisionnement_appareil", "m6_lire_preuves_pertes_wct_appareil",
     "m7_lister_file_approbation", "m7_lister_demandes_avis",  # avis à relire avant d'écrire au client (T1.5-d)
     "m7_approuver_budget_campagne", "m7_configurer_profil_marque",  # décisions propriétaires Brand/Growth
     "m7_decider_creneau_calendrier", "m7_decider_reponse_avis",  # décisions propriétaires avant tout export

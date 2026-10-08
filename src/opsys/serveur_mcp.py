@@ -245,8 +245,10 @@ class _ExigerJeton:
         jeton: str,
         jeton_contexte: str | None = None,
         jeton_cron_operateur: str | None = None,
+        pont_photos: Any = None,
     ) -> None:
         self._application = application
+        self._pont_photos = pont_photos
         self._attendu = f"Bearer {jeton}".encode()
         self._attendu_contexte = f"Bearer {jeton_contexte}".encode() if jeton_contexte else None
         self._attendu_cron_operateur = (
@@ -266,6 +268,17 @@ class _ExigerJeton:
             await send(message)
 
         if scope["type"] == "http":
+            from .preuves_photo_bridge import CHEMIN as chemin_photos
+
+            if chemin == chemin_photos or chemin.startswith(chemin_photos + "/"):
+                if self._pont_photos is None:
+                    await envoyer({"type": "http.response.start", "status": 404,
+                                   "headers": [(b"content-type", b"application/json"),
+                                               (b"cache-control", b"no-store")]})
+                    await envoyer({"type": "http.response.body", "body": b'{"erreur":"not found"}'})
+                else:
+                    await self._pont_photos(scope, receive, envoyer)
+                return
             if scope.get("path") == CHEMIN_SANTE:
                 await _repondre_sante(scope, envoyer)
                 return
@@ -349,6 +362,7 @@ def application_http_departements(
         ):
             raise ValueError(f"{ENV_CRON_OPERATEUR_JETON} doit être distinct des jetons MCP")
         identite_base_cron = _verifier_base_cron_operateur(cnx_factory)
+    pont_photos = _creer_pont_photos_http(departements, cnx_factory, jeton, jeton_contexte, jeton_cron_operateur)
     from starlette.applications import Starlette
     from starlette.responses import JSONResponse
     from starlette.routing import Route
@@ -664,7 +678,53 @@ def application_http_departements(
                   methods=["POST"]),
         ])
     return _ExigerJeton(Starlette(routes=routes, lifespan=cycle_de_vie), jeton, jeton_contexte,
-                        jeton_cron_operateur)
+                        jeton_cron_operateur, pont_photos)
+
+
+def _creer_pont_photos_http(departements, cnx_factory, *jetons_existants):
+    """Bind the private transport to this application's canonical database and credential."""
+    from sqlalchemy.engine import make_url
+
+    from .preuves_photo_bridge import creer_pont_photos_preuves
+
+    nom = "OPSYS_M6_PREUVES_BRIDGE_JETON"
+    jeton = os.environ.get(nom, "")
+    if not jeton:
+        return None
+    if (len(jeton) < 24 or any(ord(c) <= 32 or ord(c) >= 127 for c in jeton)
+            or any(hmac.compare_digest(jeton, autre) for autre in jetons_existants if autre)):
+        raise ValueError("le jeton privé photo doit être valide et distinct des jetons MCP")
+    if "m06-material-control" not in departements:
+        raise ValueError("le département M6 est requis pour le canal photo")
+    from m6_material_control.outils import autoriser_et_lire_photo, revalider_autorite_photo
+
+    canonique = make_url(stockage.url_base())
+    with cnx_factory() as cnx:
+        if stockage.connexion_courante() is not cnx or cnx.engine.url != canonique:
+            raise ValueError("le canal photo exige la base canonique de cette instance")
+
+    def autorite_transport():
+        if not hmac.compare_digest(os.environ.get(nom, ""), jeton):
+            raise PermissionError("le canal photo a été révoqué")
+
+    @contextlib.contextmanager
+    def base_liee():
+        autorite_transport()
+        if make_url(stockage.url_base()) != canonique:
+            raise PermissionError("base photo non autorisée")
+        with cnx_factory() as cnx:
+            if (stockage.connexion_courante() is not cnx or cnx.engine.url != canonique
+                    or make_url(stockage.url_base()) != canonique):
+                raise PermissionError("base photo non autorisée")
+            yield cnx
+
+    def lecture(*arguments):
+        return autoriser_et_lire_photo(*arguments, cnx_factory=base_liee)
+
+    def revalidation(*arguments):
+        return revalider_autorite_photo(*arguments, cnx_factory=base_liee)
+
+    return creer_pont_photos_preuves(jeton, lecteur=lecture, revalider=revalidation)
 
 
 

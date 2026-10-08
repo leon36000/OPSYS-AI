@@ -1,19 +1,8 @@
-import { construireReferenceFichier } from "./protocole";
+import { construireReferenceFichier, lireContexteBlocFichier, validerRecuFichier, lireMutationsFichiers } from "./protocole";
 import type { MutationOutbox } from "../outbox/types";
 
-/**
- * État d'envoi d'UN fichier (une empreinte SHA-256, sur un chantier), calculé PUREMENT depuis
- * les mutations `fichier_bloc` déjà en file — jamais un appel réseau ici (voir
- * `envoiOrchestrateur.ts`/`service.ts` pour la lecture directe optionnelle de `m4_etat_fichier`,
- * utile pour la REPRISE après interruption, distincte de cette lecture LOCALE).
- *
- * `complet` est déterminé UNIQUEMENT par le statut `envoyee` de CHAQUE bloc attendu — jamais par
- * un appel à `m4_etat_fichier` : l'outbox (`src/outbox/vidangeur.ts`) ne marque `envoyee` qu'à
- * l'ACCUSÉ de réception du serveur pour ce bloc précis (R12 §4), donc « tous les blocs envoyee »
- * est déjà la même vérité que le serveur porterait dans `blocs_recus`/`complet` — recalculer
- * cette évidence par un appel réseau supplémentaire à chaque rendu d'écran serait un aller-retour
- * inutile (P11, économie de tokens/réseau).
- */
+/** État LOCAL des reçus stricts. Même « complet » reste historique ; seul le préparer
+ * après octets + query serveur sous capture actuelle donne pret live, jamais persisté. */
 export type StatutEnvoiFichier = "non_demarre" | "en_cours" | "complet" | "echec_permanent";
 
 export interface EtatEnvoiFichier {
@@ -27,44 +16,18 @@ export interface EtatEnvoiFichier {
   readonly nombreBlocs: number;
 }
 
-function nombreBlocsDeclare(mutation: MutationOutbox): number | null {
-  const valeur = mutation.payload.nombre_blocs;
-  return typeof valeur === "number" && Number.isInteger(valeur) && valeur > 0 ? valeur : null;
-}
-
-export function calculerEtatEnvoiFichier(
-  mutations: readonly MutationOutbox[],
-  chantierId: string,
-  sha256: string,
-): EtatEnvoiFichier {
-  const blocs = mutations.filter(
-    (m) => (m.type === "fichier_bloc" || m.type === "fichier_bloc_reconcilie") && m.chantierId === chantierId && m.payload.empreinte_sha256 === sha256,
-  );
-
-  if (blocs.length === 0) {
-    return { statut: "non_demarre", reference: null, blocsEnvoyes: 0, nombreBlocs: 0 };
-  }
-
-  // Tous les blocs d'un même fichier portent la MÊME valeur (posée une seule fois au découpage,
-  // envoiOrchestrateur.ts) — le premier bloc trouvé fait foi ; `null` (payload incohérent,
-  // ne devrait jamais arriver) laisse `nombreBlocs` à 0, jamais une valeur devinée.
-  const nombreBlocs = nombreBlocsDeclare(blocs[0]) ?? 0;
-  const indicesEnvoyes = new Set(blocs.filter((m) => m.statut === "envoyee").map((m) => m.payload.index_bloc).filter((i): i is number => typeof i === "number" && Number.isInteger(i) && i >= 0));
-  const blocsEnvoyes = indicesEnvoyes.size;
-
-  // Un SEUL bloc en échec permanent condamne tout le fichier : redécouper et renvoyer les MÊMES
-  // octets sous une NOUVELLE clé d'idempotence ne changerait pas l'issue d'un rejet business
-  // (empreinte/type/taille), voir `envoiOrchestrateur.ts` — priorité sur "complet" même si les
-  // AUTRES blocs ont déjà réussi : le fichier, dans son ensemble, ne peut plus jamais devenir
-  // complet par cette voie.
-  if (blocs.some((m) => m.statut === "echec_permanent")) {
-    return { statut: "echec_permanent", reference: null, blocsEnvoyes, nombreBlocs };
-  }
-
-  const tousIndicesRecus = nombreBlocs > 0 && Array.from({ length: nombreBlocs }, (_, i) => i).every((i) => indicesEnvoyes.has(i));
-  if (tousIndicesRecus) {
-    return { statut: "complet", reference: construireReferenceFichier(sha256), blocsEnvoyes, nombreBlocs };
-  }
-
-  return { statut: "en_cours", reference: null, blocsEnvoyes, nombreBlocs };
+export function calculerEtatEnvoiFichier(mutations: readonly MutationOutbox[], chantierId: string, sha256: string): EtatEnvoiFichier {
+  const enCours: EtatEnvoiFichier = { statut: "en_cours", reference: null, blocsEnvoyes: 0, nombreBlocs: 0 };
+  // Snapshot complet : aucun getter du dépôt/sélecteur n'est exécuté en lisant les champs.
+  const snapshot = lireMutationsFichiers(mutations); if (!snapshot) return enCours;
+  const blocs = snapshot.filter(m => m.chantierId === chantierId && m.payload.empreinte_sha256 === sha256);
+  if (!blocs.length) return { statut: "non_demarre", reference: null, blocsEnvoyes: 0, nombreBlocs: 0 };
+  const contexts = blocs.map(lireContexteBlocFichier), premier = contexts[0];
+  if (!premier || contexts.some(c => !c || Object.keys(premier.contexte).some(k => Reflect.get(c.contexte, k) !== Reflect.get(premier.contexte, k)))) return enCours;
+  const nombreBlocs = premier.contexte.nombre_blocs;
+  const recus = new Set(blocs.filter(m => validerRecuFichier(m)).map(m => lireContexteBlocFichier(m)?.index));
+  if (blocs.some(m => m.statut === "echec_permanent")) return { statut: "echec_permanent", reference: null, blocsEnvoyes: recus.size, nombreBlocs };
+  if (new Set(contexts.map(c => c?.index)).size !== blocs.length) return { ...enCours, blocsEnvoyes: recus.size, nombreBlocs };
+  return { statut: recus.size === nombreBlocs ? "complet" : "en_cours",
+    reference: recus.size === nombreBlocs ? construireReferenceFichier(sha256) : null, blocsEnvoyes: recus.size, nombreBlocs };
 }

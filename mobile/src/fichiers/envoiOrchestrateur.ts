@@ -1,10 +1,11 @@
+import { copierJsonLecture, JSON_LECTURE_INVALIDE } from "../protocole/jsonLecture";
 import { encoderBase64Standard } from "./base64";
 import { candidatsPhotosApres, candidatSignature } from "./candidats";
 import type { CandidatFichierM4 } from "./candidats";
 import { calculerEtatEnvoiFichier } from "./etatEnvoi";
 import type { EtatEnvoiFichier } from "./etatEnvoi";
-import { construireArgumentsDeposerFichier, construireReferenceFichier } from "./protocole";
-import type { ResultatEtatFichier, VerdictServeurFichier } from "./protocole";
+import { construireArgumentsDeposerFichier, interpreterResultatEtatFichier, lireContexteBlocFichier, lireMutationsFichiers } from "./protocole";
+import type { ResultatEtatFichier, VerdictServeurFichier, ContexteEtatFichierM4 } from "./protocole";
 import { validerTailleFichier, decouperEnBlocs } from "./decoupage";
 import { verifierEmpreinteFichier } from "./verification";
 import type { FonctionDigestSha256 } from "./empreinte";
@@ -37,154 +38,114 @@ export interface ConfigurationEnvoiFichier {
   readonly digest: FonctionDigestSha256;
   readonly genererId: () => string;
   readonly horloge: HorlogeAppareil;
-  /**
-   * Lecture DIRECTE de `m4_etat_fichier` (comme `m4_statut_intervention`, PAS par la file — c'est
-   * une LECTURE, R12 §4) pour la REPRISE (mission item 1 : « reprise par m4_etat_fichier après
-   * interruption ») : évite de ré-enfiler des blocs que le serveur a déjà reçus lors d'une
-   * tentative précédente dont l'issue locale a été perdue (redémarrage avant que le vidangeur
-   * n'ait pu marquer `envoyee`). `null` tant qu'aucune configuration de connexion n'existe
-   * (même philosophie que `src/today/service.ts`) — dans ce cas, l'envoi se base SEULEMENT sur
-   * l'état LOCAL de la file (jamais bloquant : hors ligne, la file accumule en sécurité et sera
-   * rejouée telle quelle par les déclencheurs génériques, `src/outbox/declencheurs.ts`). Un
-   * ÉCHEC de cet appel (réseau, technique) n'est PAS non plus bloquant : traité comme « aucune
-   * information de reprise disponible », jamais une erreur qui empêcherait l'envoi.
-   */
-  readonly obtenirEtatServeur: (sha256: string) => Promise<ResultatEtatFichier | null>;
+  /** Query directe sous capture actuelle, après relecture taille/MIME/hash des octets.
+   * Null ou refus ferme pret et conserve les captures/intentions ; aucun fallback local.
+   * Le contexte4 est local, les seuls args RPC restent l'empreinte SHA. */
+  readonly obtenirEtatServeur: (contexte: ContexteEtatFichierM4) => Promise<ResultatEtatFichier | { readonly refus: VerdictServeurFichier } | null>;
+  readonly proprietaire: string;
+  readonly courante: () => boolean;
+  /** Relit la capture persistée/owner/cible/URI/hash avant chaque frontière, sans permission persistée. */
+  readonly verifierCandidat: (fichier: CandidatFichierM4) => Promise<boolean>;
 }
 
 export type ResultatPreparationEnvoiFichier =
-  | { readonly ok: true; readonly blocsEnfiles: number }
-  | { readonly ok: false; readonly raison: "taille_invalide"; readonly verdict: VerdictServeurFichier }
-  | { readonly ok: false; readonly raison: "type_non_permis" }
-  | { readonly ok: false; readonly raison: "empreinte_discordante"; readonly sha256Capture: string; readonly sha256Relu: string }
-  | { readonly ok: false; readonly raison: "echec_permanent" };
-
-/**
- * Prépare/poursuit l'envoi d'UN fichier candidat : vérifie l'empreinte contre les octets RELUS
- * sur disque (fail-closed, mission item 1 — jamais un envoi si le fichier a changé depuis la
- * capture), consulte l'état déjà connu (local + optionnellement serveur) pour ne RÉ-ENFILER que
- * les blocs manquants (idempotent : un appel répété sur un fichier déjà complet/déjà en file ne
- * duplique jamais de blocs), et enfile chaque bloc manquant comme sa PROPRE mutation
- * `fichier_bloc` (sa propre clé d'idempotence = son propre `mutation.id`, comme toute mutation de
- * la file sortante — R12 §4).
- *
- * Ne DÉCLENCHE jamais elle-même de vidange (`declencherVidange`) : ce choix reste à l'appelant
- * (écran), même discipline que `src/photos/service.ts` (capture) vs `job/[id]/index.tsx`
- * (déclenchement) — cette fonction ne fait qu'ENFILER en sécurité, jamais un aller-retour réseau
- * implicite en plus de la lecture optionnelle de `m4_etat_fichier`.
- */
-async function preparerSousVerrou(
-  config: ConfigurationEnvoiFichier,
-  fichier: CandidatFichierM4,
-  mutationsExistantes: readonly MutationOutbox[],
-): Promise<ResultatPreparationEnvoiFichier> {
-  if (fichier.typeMime === null) {
-    return { ok: false, raison: "type_non_permis" };
-  }
-
-  const verdictTaille = validerTailleFichier(fichier.tailleOctets);
-  if (verdictTaille) {
-    return { ok: false, raison: "taille_invalide", verdict: verdictTaille };
-  }
-
-  const enBase = await config.depot.lister();
-  const mutationsInitiales = [...new Map([...mutationsExistantes, ...enBase].map((m) => [m.id, m])).values()]
-    .filter((m) => m.proprietaire === fichier.proprietaire);
-  const etatLocal = calculerEtatEnvoiFichier(mutationsInitiales, fichier.chantierId, fichier.sha256);
-  if (etatLocal.statut === "complet") {
-    return { ok: true, blocsEnfiles: 0 };
-  }
-  if (etatLocal.statut === "echec_permanent") {
-    // Un bloc de CE fichier a déjà été refusé de façon définitive (voir etatEnvoi.ts) : renvoyer
-    // les MÊMES octets ne changerait pas l'issue (REJ-* du contrat, tous liés au contenu/aux
-    // paramètres, jamais à un aléa réseau). L'appelant (écran) doit dire à l'employé de reprendre
-    // la photo/signature — jamais une nouvelle tentative automatique silencieuse ici.
-    return { ok: false, raison: "echec_permanent" };
-  }
-
-  const octets = await config.lireOctets(fichier.uri);
+  | { readonly ok: true; readonly blocsEnfiles: number; readonly pret: boolean }
+  | { readonly ok: false; readonly pret: false; readonly raison: "etat_refuse"; readonly verdict: VerdictServeurFichier }
+  | { readonly ok: false; readonly pret: false; readonly raison: "taille_invalide"; readonly verdict: VerdictServeurFichier }
+  | { readonly ok: false; readonly pret: false; readonly raison: "empreinte_discordante"; readonly sha256Capture: string; readonly sha256Relu: string }
+  | { readonly ok: false; readonly pret: false; readonly raison: "type_non_permis" | "echec_permanent" | "contexte_change" |
+      "etat_indisponible" | "fichier_invalide" | "taille_discordante" | "echec_lecture" };
+const change = (): ResultatPreparationEnvoiFichier => ({ ok: false, pret: false, raison: "contexte_change" });
+async function preparerSousVerrou(config: ConfigurationEnvoiFichier, fichier: CandidatFichierM4): Promise<ResultatPreparationEnvoiFichier> {
+  const courant = () => config.courante() && config.proprietaire === fichier.proprietaire;
+  const garde = async () => courant() && await config.verifierCandidat(fichier) && courant();
+  if (!courant() || !await garde()) return change();
+  if (fichier.typeMime === null) return { ok: false, pret: false, raison: "type_non_permis" };
+  const verdict = validerTailleFichier(fichier.tailleOctets);
+  if (verdict) return { ok: false, pret: false, raison: "taille_invalide", verdict };
+  if (!/^[0-9a-f]{64}$/.test(fichier.sha256)) return { ok: false, pret: false, raison: "fichier_invalide" };
+  const enBase = lireMutationsFichiers(await config.depot.lister()); if (!await garde() || !courant()) return change();
+  if (!enBase) return { ok:false,pret:false,raison:"fichier_invalide" };
+  const etatLocal = calculerEtatEnvoiFichier(enBase.filter(m => m.proprietaire === fichier.proprietaire), fichier.chantierId, fichier.sha256);
+  if (etatLocal.statut === "echec_permanent") return { ok: false, pret: false, raison: "echec_permanent" };
+  let octets: Uint8Array<ArrayBuffer>;
+  try { if (!await garde() || !courant()) return change(); octets = await config.lireOctets(fichier.uri); }
+  catch { return courant() ? { ok: false, pret: false, raison: "echec_lecture" } : change(); }
+  if (!await garde() || !courant()) return change();
+  if (octets.byteLength !== fichier.tailleOctets) return { ok: false, pret: false, raison: "taille_discordante" };
+  // Même signature que fichiers.py ; vérification de format, ni décodage ni véracité de scène.
+  const signature = fichier.typeMime === "image/jpeg" ? [0xff,0xd8,0xff] : [0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a];
+  if (!signature.every((octet,index) => octets[index] === octet)) return { ok:false,pret:false,raison:"type_non_permis" };
   const verification = await verifierEmpreinteFichier(octets, fichier.sha256, config.digest);
-  if (!verification.ok) {
-    return { ok: false, raison: "empreinte_discordante", sha256Capture: verification.sha256Capture, sha256Relu: verification.sha256Relu };
+  if (!await garde() || !courant()) return change();
+  if (!verification.ok) return { ...verification, pret: false, raison: "empreinte_discordante" };
+  const blocs = decouperEnBlocs(octets);
+  const contexte: ContexteEtatFichierM4 = { empreinte_sha256: fichier.sha256, taille_octets: octets.byteLength,
+    type_mime: fichier.typeMime, nombre_blocs: blocs.length };
+  if (!await garde() || !courant()) return change();
+  let observe: ResultatEtatFichier | { readonly refus: VerdictServeurFichier } | null;
+  try { observe = await config.obtenirEtatServeur(contexte); } catch { observe = null; }
+  if (!await garde() || !courant()) return change();
+  // L'adaptateur decode la réponse entière ; une seconde validation ferme aussi les fakes/callers.
+  const es = copierJsonLecture(observe);
+  if (es !== JSON_LECTURE_INVALIDE && typeof es === "object" && es !== null && !Array.isArray(es) &&
+    Object.keys(es).length === 1 && Object.hasOwn(es,"refus") && typeof es.refus === "object" && es.refus !== null && !Array.isArray(es.refus) &&
+    Object.keys(es.refus).length === 2 && typeof es.refus.code === "string" && typeof es.refus.detail === "string")
+    return { ok:false,pret:false,raison:"etat_refuse",verdict:{code:es.refus.code,detail:es.refus.detail} };
+  if (es === JSON_LECTURE_INVALIDE || typeof es !== "object" || es === null || Array.isArray(es) ||
+    Object.keys(es).length !== 4 || !["existe","complet","blocsRecus","reference"].every(k => Object.hasOwn(es,k)))
+    return { ok:false,pret:false,raison:"etat_indisponible" };
+  const interpretation = interpreterResultatEtatFichier({ ok: true, resultat: { accepte: true,
+    resultat: { existe: es.existe, complet: es.complet, blocs_recus: es.blocsRecus, reference: es.reference } } }, contexte);
+  if (!interpretation.accepte) return { ok: false, pret: false, raison: "etat_indisponible" };
+  const etat = interpretation.resultat;
+  const actuelles = lireMutationsFichiers(await config.depot.lister()); if (!await garde() || !courant()) return change();
+  if (!actuelles) return { ok:false,pret:false,raison:"fichier_invalide" };
+  const proches = actuelles.filter(m => (m.type === "fichier_bloc" || m.type === "fichier_bloc_reconcilie") &&
+    m.chantierId === fichier.chantierId && m.payload.empreinte_sha256 === fichier.sha256);
+  // Une absence actuelle ne justifie jamais de redéposer un ancien fichier annoncé envoyé.
+  if (!etat.existe && proches.some(m => m.statut === "envoyee" || m.type === "fichier_bloc_reconcilie"))
+    return { ok:false,pret:false,raison:"etat_indisponible" };
+  for (const m of proches) {
+    if (m.proprietaire !== fichier.proprietaire || m.statut === "echec_permanent") continue;
+    const c = lireContexteBlocFichier(m);
+    if (!c || Object.keys(contexte).some(k => Reflect.get(c.contexte,k) !== Reflect.get(contexte,k)) || !etat.blocsRecus.includes(c.index)) continue;
+    if (!await garde() || !courant()) return change();
+    await config.depot.mettreAJour({ ...m, statut: "envoyee", resumeAccepte: { genre: "etat_fichier", contexte, etat } });
+    if (!await garde() || !courant()) return change();
   }
-
-  const tousLesBlocs = decouperEnBlocs(octets);
-  const nombreBlocs = tousLesBlocs.length;
-
-  let etatServeur = await config.obtenirEtatServeur(fichier.sha256).catch(() => null);
-  if (etatServeur) {
-    const indicesUniques = new Set(etatServeur.blocsRecus);
-    const tousRecus = indicesUniques.size === nombreBlocs && Array.from({ length: nombreBlocs }, (_, i) => indicesUniques.has(i)).every(Boolean);
-    const indicesValides = etatServeur.blocsRecus.every((i) => i >= 0 && i < nombreBlocs) && indicesUniques.size === etatServeur.blocsRecus.length;
-    const referenceCoherente = etatServeur.complet
-      ? etatServeur.reference === construireReferenceFichier(fichier.sha256)
-      : etatServeur.reference === null;
-    if (!indicesValides || etatServeur.complet !== tousRecus || !referenceCoherente) etatServeur = null;
-  }
-  const blocsDejaRecusParLeServeur = new Set<number>(etatServeur?.blocsRecus ?? []);
-
-  // Réconcilie chaque accusé distant dans le dépôt avant de décider quoi envoyer. Les reçus
-  // distants qui n'ont pas de mutation locale sont des lignes terminales locales, jamais envoyables.
-  if (etatServeur) {
-    const actuelles = (await config.depot.lister()).filter((m) => m.proprietaire === fichier.proprietaire);
-    for (const mutation of actuelles.filter((m) => m.type === "fichier_bloc" && m.chantierId === fichier.chantierId && m.payload.empreinte_sha256 === fichier.sha256 && blocsDejaRecusParLeServeur.has(m.payload.index_bloc as number))) {
-      if (mutation.statut !== "envoyee") await config.depot.mettreAJour({ ...mutation, statut: "envoyee", resumeAccepte: etatServeur });
-    }
-    const indicesLocaux = new Set(actuelles.filter((m) => m.type === "fichier_bloc" && m.chantierId === fichier.chantierId && m.payload.empreinte_sha256 === fichier.sha256).map((m) => m.payload.index_bloc));
-    for (const index of blocsDejaRecusParLeServeur) {
-      if (indicesLocaux.has(index)) continue;
-      const recu = creerMutation({
-        type: "fichier_bloc_reconcilie", chantierId: fichier.chantierId,
-        payload: { empreinte_sha256: fichier.sha256, index_bloc: index, nombre_blocs: nombreBlocs },
-      }, config.genererId, config.horloge);
-      await config.depot.inserer({ ...recu, statut: "envoyee", proprietaire: fichier.proprietaire, resumeAccepte: etatServeur });
-    }
-  }
-
+  const occupes = new Set(proches.map(m => m.payload.index_bloc));
   let blocsEnfiles = 0;
-  const lignesApresReconciliation = (await config.depot.lister()).filter((m) => m.proprietaire === fichier.proprietaire);
-  const indicesDejaLocaux = new Set(lignesApresReconciliation
-    .filter((m) => (m.type === "fichier_bloc" || m.type === "fichier_bloc_reconcilie") && m.chantierId === fichier.chantierId && m.payload.empreinte_sha256 === fichier.sha256)
-    .map((m) => m.payload.index_bloc));
-  for (let index = 0; index < tousLesBlocs.length; index += 1) {
-    if (indicesDejaLocaux.has(index) || blocsDejaRecusParLeServeur.has(index)) continue;
-    const args = construireArgumentsDeposerFichier(
-      fichier.sha256,
-      fichier.tailleOctets,
-      fichier.typeMime,
-      index,
-      nombreBlocs,
-      encoderBase64Standard(tousLesBlocs[index]),
-    );
-    const brouillon = creerMutation(
-      { type: "fichier_bloc", chantierId: fichier.chantierId, payload: { ...args } },
-      config.genererId,
-      config.horloge,
-    );
-    await config.depot.inserer({ ...soumettreMutation(brouillon), proprietaire: fichier.proprietaire });
-    blocsEnfiles += 1;
+  for (let index = 0; index < blocs.length; index++) {
+    // Aucune nouvelle clé pour contourner ancien owner/legacy/issue inconnue de cet indice.
+    if (occupes.has(index) || etat.blocsRecus.includes(index)) continue;
+    if (!await garde() || !courant()) return change();
+    const args = construireArgumentsDeposerFichier(fichier.sha256, octets.byteLength, fichier.typeMime, index, blocs.length, encoderBase64Standard(blocs[index]));
+    const m = soumettreMutation(creerMutation({ type: "fichier_bloc", chantierId: fichier.chantierId, payload: { ...args } }, config.genererId, config.horloge));
+    await config.depot.inserer({ ...m, proprietaire: fichier.proprietaire });
+    blocsEnfiles++; if (!await garde() || !courant()) return change();
   }
-
-  return { ok: true, blocsEnfiles };
+  if (!await garde() || !courant()) return change();
+  return { ok: true, blocsEnfiles, pret: etat.complet };
 }
-
-const preparationsActives = new Map<string, Promise<ResultatPreparationEnvoiFichier>>();
-
-/** Sérialise les préparations par propriétaire, chantier et empreinte; une seconde invocation
- * relit ensuite le dépôt et ne crée que les indices encore absents. */
-export function preparerEnvoiFichier(
-  config: ConfigurationEnvoiFichier,
-  fichier: CandidatFichierM4,
-  mutationsExistantes: readonly MutationOutbox[],
-): Promise<ResultatPreparationEnvoiFichier> {
-  const cle = `${fichier.proprietaire}\u0000${fichier.chantierId}\u0000${fichier.sha256}`;
-  const dejaEnCours = preparationsActives.get(cle);
-  if (dejaEnCours) return dejaEnCours;
-  const travail = preparerSousVerrou(config, fichier, mutationsExistantes).finally(() => {
-    if (preparationsActives.get(cle) === travail) preparationsActives.delete(cle);
-  });
-  preparationsActives.set(cle, travail);
-  return travail;
+const preparationsActives = new WeakMap<DepotOutbox, Map<string, Promise<ResultatPreparationEnvoiFichier>>>();
+/** Sérialise, mais ne partage jamais le résultat/la capture d'une autre invocation. */
+export function preparerEnvoiFichier(config: ConfigurationEnvoiFichier, candidat: CandidatFichierM4,
+  _mutationsExistantes: readonly MutationOutbox[]): Promise<ResultatPreparationEnvoiFichier> {
+  const copie = copierJsonLecture(candidat);
+  if (copie === JSON_LECTURE_INVALIDE || typeof copie !== "object" || copie === null || Array.isArray(copie) ||
+    Object.keys(copie).length !== 7 || typeof copie.mutationId !== "string" || !copie.mutationId || typeof copie.proprietaire !== "string" || !copie.proprietaire ||
+    typeof copie.chantierId !== "string" || !copie.chantierId || typeof copie.uri !== "string" || !copie.uri || typeof copie.sha256 !== "string" ||
+    typeof copie.tailleOctets !== "number" || !(copie.typeMime === null || copie.typeMime === "image/jpeg" || copie.typeMime === "image/png"))
+    return Promise.resolve({ ok: false, pret: false, raison: "fichier_invalide" });
+  const fichier: CandidatFichierM4 = { mutationId: copie.mutationId, proprietaire: copie.proprietaire, chantierId: copie.chantierId,
+    uri: copie.uri, sha256: copie.sha256, tailleOctets: copie.tailleOctets, typeMime: copie.typeMime };
+  let map = preparationsActives.get(config.depot); if (!map) { map = new Map(); preparationsActives.set(config.depot,map); }
+  const cle = JSON.stringify([fichier.proprietaire,fichier.chantierId,fichier.sha256,fichier.uri]);
+  const precedente = map.get(cle);
+  const travail = (precedente ? precedente.catch(() => undefined) : Promise.resolve()).then(() => preparerSousVerrou(config,fichier))
+    .finally(() => { if (map.get(cle) === travail) map.delete(cle); });
+  map.set(cle,travail);return travail;
 }
 
 // Réexportés pour que les écrans/tests n'aient qu'un seul module à importer pour préparer la

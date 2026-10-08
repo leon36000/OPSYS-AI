@@ -1,3 +1,4 @@
+import { lireChargeMateriauxAvecPreuves } from "../m6/materiauxAvecPreuves";
 import * as SQLite from "expo-sqlite";
 
 import { creerDeclencheurVidange } from "./declenchement";
@@ -6,7 +7,7 @@ import { creerDepotOutboxSqlite, initialiserSchemaOutbox } from "./depot.sqlite"
 import { avecProprietaire } from "./proprietaire";
 import { creerVidangeur, type RapportVidange, type Vidangeur } from "./vidangeur";
 import { invoquerOutil } from "../protocole/client";
-import { capturerSessionLecture, obtenirSessionEnvoi } from "../protocole/configuration";
+import { capturerSessionLecture, capturerSessionMateriauxLecture, obtenirSessionEnvoi } from "../protocole/configuration";
 import type { DepotOutbox } from "./depot";
 
 /**
@@ -63,6 +64,14 @@ function obtenirVidangeur(): Promise<Vidangeur> {
         session: obtenirSessionEnvoi,
         capturerGardeSession: () => capturerSessionLecture().courante,
         maintenant: () => new Date(),
+        verifierAvantEnvoi:async(mutation,session,courante)=>{
+          const gardeMateriaux=capturerSessionMateriauxLecture();const charge=lireChargeMateriauxAvecPreuves(mutation);if(!charge||!courante()||!gardeMateriaux.session||!gardeMateriaux.courante())return false;
+          const verifier=()=>{const s=obtenirSessionEnvoi();return courante()&&gardeMateriaux.courante()&&s!==null&&s.urlBase===session.urlBase&&s.jeton===session.jeton&&s.personne===session.personne&&s.appareilId===session.appareilId;};
+          if(!charge.fichiers.length)return verifier();
+          const {envoyerFichiersPreuvesSelectionnes}=await import("../fichiers/service");if(!verifier())return false;
+          const r=await envoyerFichiersPreuvesSelectionnes(mutation.chantierId,charge.fichiers,verifier);
+          return verifier()&&r.length===charge.fichiers.length&&r.every((e,i)=>e.mutationId===charge.fichiers[i].capture_id&&e.sha256===charge.fichiers[i].empreinte_sha256&&e.resultat.pret);
+        },
       }))().catch((erreur: unknown) => {
       vidangeurPromesse = null;
       throw erreur;
