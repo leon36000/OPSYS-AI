@@ -1,0 +1,22 @@
+{
+  "recorded_toronto": "2026-10-09T08:45:07.248672-04:00",
+  "parent": "1253abed1639708a51eed0fb93e9db6508d42275",
+  "source_files": [
+    {
+      "path": "tests/test_validation_au_depart.py",
+      "sha256": "9ec230790bc5765bbd345f52cec4a6156e9c348d5fada3aa23eb0ef3d42a5c85",
+      "preimage_sha256": "b9d32e78895fdf8203019e2a8bb69a44ddf67760d62965892a1ed2746ccc4ceb",
+      "origin": "Root isolated D/independent review",
+      "status": "qualified local63,Ruff0;newexactCIpending"
+    }
+  ],
+  "CI_parent": "FAIL_EXACT_RUN",
+  "review_receipt_sha256": "71ae9f100fdc6877d524b0a6af900a2464646e290197396a73fcb7f0328475b5",
+  "capsule_sha256": "ba59647a61c9c1d49ae220d8cd5d24236c0068a83acf75b79e309954935301e1",
+  "limits": [
+    "PARTIEL",
+    "no productioncodechange",
+    "104refs unavailable",
+    "new exactCIpending"
+  ]
+}

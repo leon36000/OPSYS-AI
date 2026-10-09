@@ -373,20 +373,33 @@ def test_role_refuse_ne_revele_pas_un_conflit_de_cle(
 
 
 def test_n4_par_un_admin_va_toujours_au_proprietaire(capacites, personnes, session):
-    """`m4_resoudre_revue_completion` est N4 (écriture finale) ; il est dans la portée d'`admin`,
-    mais la validation au départ s'arrête à N3 : mise en attente, exécution seulement après décision."""
-    outil = _outil(capacites, "m4_resoudre_revue_completion")
+    """Une action N4 dans la portée admin reste en attente de son propriétaire.
+
+    Le chemin DEVICE M4 legacy exige désormais une nouvelle proposition liée aux
+    sources ; il ne représente plus une action N4 admissible pour ce test de politique.
+    """
+    outil = _outil(capacites, "m3_activer_candidate_calibration")
     assert outil.niveau_effectif is Niveau.N4
     assert outil.nom in openclaw.roles_outils(capacites.departements)["admin"]
+    assert capacites.departements["m03-estimation"].roles_autorises(Niveau.N4) == frozenset({"nathan_owner"})
 
-    reponse = _appeler(capacites, "m4_resoudre_revue_completion", {
-        "intervention_id": "INT-INEXISTANTE-FICTIVE", "decision": "verifiee",
-        "horodatage": "2026-09-28T12:00:00+00:00", "motif": "Vérifié (fictif).",
+    reponse = _appeler(capacites, outil.nom, {
+        "candidate_id": "f" * 64, "active_version_attendue": None,
     }, ADMIN)
 
     assert reponse["ok"] is True and reponse["statut"] == "en_attente_approbation"
     [demande] = _demandes(session)
     assert (demande["statut"], demande["niveau"], demande["decide_par"]) == ("en_attente", "N4", None)
+    assert _entrees_journal(session) == []
+
+
+def test_revue_m4_device_legacy_refusee_avant_demande_claim_et_trace(capacites, personnes, session):
+    reponse = _appeler(capacites, "m4_resoudre_revue_completion", {
+        "intervention_id": "INT-INEXISTANTE-FICTIVE", "decision": "verifiee",
+        "horodatage": "2026-09-28T12:00:00+00:00", "motif": "Vérifié (fictif).",
+    }, ADMIN)
+    assert reponse["ok"] is False and reponse["erreur"] == "REJ-SOURCES-CHANGEES"
+    assert _demandes(session) == [] and _reclamations(session) == []
     assert _entrees_journal(session) == []
 
 
