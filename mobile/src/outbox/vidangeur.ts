@@ -37,6 +37,8 @@ export interface DescripteurTypeMutation {
   readonly tool: string;
   readonly groupeSerie?:string;
   readonly verifierAvantEnvoi?:boolean;
+  /** Opt-in : un refus de transport ne prouve pas l’absence d’un effet antérieur. */
+  readonly conserverRefusHttpIncertains?: boolean;
   readonly interpreterResultat: (resultatBrut: unknown, mutation?: MutationOutbox) => InterpretationResultatMetier;
   /** Projection RPC pour les types portant aussi une preuve locale persistée. null : aucun envoi deviné. */
   readonly construireArguments?: (mutation: MutationOutbox) => Readonly<Record<string, unknown>> | null;
@@ -346,7 +348,7 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
           },
         };
       }
-      if (resultatAppel.echec.reessayable) {
+      if (resultatAppel.echec.reessayable || descripteur.conserverRefusHttpIncertains === true) {
         await config.depot.mettreAJour(marquerEchecReessayable(enEnvoi, config.maintenant()));
         return { genre: "remise_en_attente" };
       }

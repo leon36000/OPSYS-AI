@@ -1,0 +1,133 @@
+{
+  "fictif": true,
+  "origin": "Cap Python réelle avec SQLite et writers fixture M4/M6 réels; identité appareil injectée, aucun HTTP/Gateway/téléphone",
+  "case": "NON_PREVU: besoin vide connu, perte réelle matériau non prévu",
+  "request": {
+    "nom": "m6_lister_variances_classables_wct_appareil",
+    "arguments": {
+      "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+      "decalage": 0,
+      "limite": 8
+    },
+    "limite_cap": 6000
+  },
+  "response": {
+    "ok": true,
+    "resultat": {
+      "accepte": true,
+      "resultat": {
+        "wct": {
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+          "chantier_id": "CH-M3-FICTIF"
+        },
+        "source_variance": {
+          "type": "m6.variance_chantier",
+          "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+          "empreinte_charge": "18a7eecc42ab3130e60b111b5424d8aff465f6e24c1577504b2b03661caf5e29",
+          "statut_variance": "evaluee",
+          "horodatage_completion": "2025-06-02T11:30:00+00:00"
+        },
+        "lignes": [
+          {
+            "selection": {
+              "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+              "reference_variance": {
+                "type": "m6.variance_chantier",
+                "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+                "empreinte_charge": "18a7eecc42ab3130e60b111b5424d8aff465f6e24c1577504b2b03661caf5e29"
+              },
+              "position_ligne": 0,
+              "materiau_id": "MAT-CONTEXTE-FICTIF"
+            },
+            "source_ligne": {
+              "materiau": "MAT-CONTEXTE-FICTIF",
+              "unite": null,
+              "quantite_prevue": "0.0",
+              "quantite_reelle": "1.0",
+              "ecart_pourcentage": null,
+              "critique": false
+            },
+            "pieces_disponibles_a_selectionner": [
+              {
+                "reference_mouvement": {
+                  "registre": "principal",
+                  "index": 1,
+                  "hash_maillon": "f34e3a6265f06a77ebf7bdccb914b66b9b09bb4b3d17eafb4e92a9569879f13b"
+                },
+                "reference_preuve": {
+                  "registre": "preuves_pertes_bris",
+                  "index": 0,
+                  "hash_maillon": "0282e670d5d31bbc562d88bc9db6863d233374c91507d371bf445e6d7d53c062"
+                },
+                "positions_photos": []
+              }
+            ],
+            "classement_courant": null
+          }
+        ],
+        "pagination": {
+          "decalage": 0,
+          "limite": 8,
+          "total": 1,
+          "affichees": 1,
+          "reste": 0,
+          "decalage_suivant": null,
+          "borne_atteinte": false
+        },
+        "couverture": {
+          "eligibilite": "critique_publiee_ou_perte_bris_liee",
+          "autres_ecarts": "hors_perimetre",
+          "preuves": "association_sans_inference_de_cause_ni_authenticite_scene",
+          "dates": "reception_serveur_sans_date_du_dommage",
+          "plafond_sources": 10000
+        }
+      }
+    }
+  },
+  "response_utf8": "{\"ok\":true,\"resultat\":{\"accepte\":true,\"resultat\":{\"wct\":{\"wct_id\":\"491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564\",\"intervention_id\":\"33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e\",\"chantier_id\":\"CH-M3-FICTIF\"},\"source_variance\":{\"type\":\"m6.variance_chantier\",\"evenement_id\":\"m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee\",\"empreinte_charge\":\"18a7eecc42ab3130e60b111b5424d8aff465f6e24c1577504b2b03661caf5e29\",\"statut_variance\":\"evaluee\",\"horodatage_completion\":\"2025-06-02T11:30:00+00:00\"},\"lignes\":[{\"selection\":{\"wct_id\":\"491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564\",\"reference_variance\":{\"type\":\"m6.variance_chantier\",\"evenement_id\":\"m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee\",\"empreinte_charge\":\"18a7eecc42ab3130e60b111b5424d8aff465f6e24c1577504b2b03661caf5e29\"},\"position_ligne\":0,\"materiau_id\":\"MAT-CONTEXTE-FICTIF\"},\"source_ligne\":{\"materiau\":\"MAT-CONTEXTE-FICTIF\",\"unite\":null,\"quantite_prevue\":\"0.0\",\"quantite_reelle\":\"1.0\",\"ecart_pourcentage\":null,\"critique\":false},\"pieces_disponibles_a_selectionner\":[{\"reference_mouvement\":{\"registre\":\"principal\",\"index\":1,\"hash_maillon\":\"f34e3a6265f06a77ebf7bdccb914b66b9b09bb4b3d17eafb4e92a9569879f13b\"},\"reference_preuve\":{\"registre\":\"preuves_pertes_bris\",\"index\":0,\"hash_maillon\":\"0282e670d5d31bbc562d88bc9db6863d233374c91507d371bf445e6d7d53c062\"},\"positions_photos\":[]}],\"classement_courant\":null}],\"pagination\":{\"decalage\":0,\"limite\":8,\"total\":1,\"affichees\":1,\"reste\":0,\"decalage_suivant\":null,\"borne_atteinte\":false},\"couverture\":{\"eligibilite\":\"critique_publiee_ou_perte_bris_liee\",\"autres_ecarts\":\"hors_perimetre\",\"preuves\":\"association_sans_inference_de_cause_ni_authenticite_scene\",\"dates\":\"reception_serveur_sans_date_du_dommage\",\"plafond_sources\":10000}}}}\n",
+  "response_sha256": "e6cf443f5690fae5e68f8fa63a17a6545d04426b1226e3f975aff63bb82c3f32",
+  "published_variance": {
+    "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+    "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+    "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+    "chantier_id": "CH-M3-FICTIF",
+    "statut_variance": "evaluee",
+    "signal_critique": false,
+    "seuil_pourcentage": 0.3,
+    "horodatage_completion": "2025-06-02T11:30:00+00:00",
+    "lignes": [
+      {
+        "materiau": "MAT-CONTEXTE-FICTIF",
+        "unite": null,
+        "quantite_prevue": "0.0",
+        "quantite_reelle": "1.0",
+        "ecart_pourcentage": null,
+        "critique": false
+      }
+    ]
+  },
+  "writer_provenance": [
+    "fixture M4 _seed + m4_completer_intervention",
+    "consommateur M6 m4.travaux_termines",
+    "m6_enregistrer_besoins_prevus lignes=[]",
+    "m6_receptionner_commande",
+    "m6_declarer_materiaux_avec_preuves_appareil note seule"
+  ],
+  "source_sha256": {
+    "src/opsys/capacites.py": "d0c57a5b7c435b71a85c72c45f4209de08b0fd35444bf9592d8220b74700073c",
+    "src/opsys/contexte.py": "80130062994587d84e2f9810f36557085c17d76e3acdd3d14d8fcbea52194cbe",
+    "src/opsys/idempotence.py": "92d71470391035996c9b773a1f3bd47e8b798bc0809ab2ba5663383bafb8d7f3",
+    "src/opsys/approbations.py": "b5eef97145a66b4d2a08c7a0531c9ff5a9507f15ab76e3cd5818d8c3e07a321b",
+    "src/opsys/outils.py": "03b045a850dfad5380a468a3165ad2208cc4513ddac7c2f5fea48b8a189d2ec7",
+    "src/opsys/evenements/catalogue/m6.variance_chantier.json": "790d69dc9a1bddb7a4875fe262acfc3d41f0d9dfc55328fd5d1bfba858e3225e",
+    "departments/m06-material-control/src/m6_material_control/outils.py": "124e8d1b2ca29d26154666260ff982c54e1dcbacf8c83470228f331aab97c9c1",
+    "departments/m06-material-control/src/m6_material_control/classement_variance_appareil.py": "803b04c0fdbde806a97e050218821c6d9b2e292a000f1f386b6773f67d70f9bc",
+    "departments/m06-material-control/src/m6_material_control/variance_chantier.py": "b876c9b79dce6c59953aa9a12667d3441b97719e113fae5f6230a62872969df9",
+    "departments/m06-material-control/tests/test_classement_variance_appareil.py": "436d75aa73984a450855307b465bd37a89a4f6105497a110d5ad061362c7bc06",
+    "departments/m06-material-control/tests/test_preuves_pertes_bris_appareil.py": "664447fc23f00735fcf89f3433be6593121925f038d1b6aec4045aaf83a66396",
+    "departments/m06-material-control/tests/test_contexte_materiaux_appareil.py": "d3112123b78ecce64b5172c5ecd2839d9d144d7b3b990e0de456a5b0361fa06b",
+    "departments/m04-field-ops/src/m4_field_ops/outils.py": "7303a22f610c8a6bd9b1e7454e99d0bd3f0b5427882c2fe10370ea9d3f68cfad",
+    "departments/m04-field-ops/tests/test_outbox.py": "986104256b5d6f3496e42511f7a793d6177c287ac32e35c26820750f3d89f969"
+  }
+}

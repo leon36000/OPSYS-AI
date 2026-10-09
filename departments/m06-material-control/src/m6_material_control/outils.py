@@ -95,7 +95,9 @@ from . import (
     besoins_materiaux_recus,
     besoins_prevus,
     bons_commande,
+    classement_variance_appareil,
     contexte_materiaux_appareil,
+    contrats,
     digest,
     emplacements,
     encodage,
@@ -2114,6 +2116,274 @@ def autoriser_et_lire_photo(wct_id, preuve, position_photo, *, cnx_factory=stock
         return p.refuser(exc.suffixe)
 
 
+
+# T4.27-b : annotation humaine révisable; aucune écriture stock/coût/M4/M10.
+def _sources_classement_variance(wct_id):
+    c = classement_variance_appareil
+    try:
+        acteur, wct, nombre_sources, besoin = _autoriser_admin_preuves(wct_id)
+    except (
+        preuves_pertes_bris_appareil.Refus,
+        contexte_materiaux_appareil.Refus,
+    ) as exc:
+        raise c.Refus(exc.suffixe) from None
+    cnx = stockage.connexion_courante()
+    acces_classement = acces
+    from opsys.stockage.schema import EVENEMENTS_SORTANTS
+
+    from . import preuves_pertes_bris_appareil as p
+
+    ident = f"m6-variance-{wct_id}-evaluee"
+    row = cnx.execute(
+        select(
+            EVENEMENTS_SORTANTS.c.type_evenement,
+            EVENEMENTS_SORTANTS.c.producteur,
+            EVENEMENTS_SORTANTS.c.charge,
+        ).where(EVENEMENTS_SORTANTS.c.evenement_id == ident)
+    ).one_or_none()
+    if row is None:
+        raise c.Refus("VARIANCE-NON-FINALISEE")
+    try:
+        charge = codec.decoder(row.charge)
+    except (ValueError, TypeError, KeyError):
+        raise c.Refus("SOURCE-INVALIDE") from None
+    if (
+        row.type_evenement != "m6.variance_chantier"
+        or row.producteur != _DEPARTEMENT
+        or erreurs_charge("m6.variance_chantier", charge)
+    ):
+        raise c.Refus("SOURCE-INVALIDE")
+    try:
+        chantier = acces_classement.chantier_attendu(wct, besoin, acteur)
+        if chantier is not None and charge["chantier_id"] != chantier:
+            raise c.Refus("LIAISON-INCOHERENTE")
+        principal, preuves = _snapshots_preuves(nombre_sources)
+    except (p.Refus, contexte_materiaux_appareil.Refus) as exc:
+        raise c.Refus(exc.suffixe) from None
+    try:
+        classes = list(stockage.maillons(_DEPARTEMENT, c.REGISTRE))
+    except (ValueError, TypeError, KeyError):
+        raise c.Refus("REGISTRE-INVALIDE") from None
+    source = c.valider_source(wct, charge, principal, preuves, classes, nombre_sources)
+    return acteur, source
+
+
+def autoriser_classement_variance_appareil(
+    arguments, *, nom="m6_classer_cause_variance_appareil"
+):
+    """Admission actuelle avant claim/cache; aucune précondition de dernière révision."""
+    c = classement_variance_appareil
+    if nom not in c.NOMS or type(arguments) is not dict:
+        raise c.Refus("ARGUMENTS-INVALIDES")
+    ident = contexte.identite_appelante()
+    acteur, verdict = _declarant_appareil()
+    if (
+        ident is None
+        or ident.source != "appareil"
+        or acteur is None
+        or verdict is not None
+        or acteur.role != "admin"
+    ):
+        raise c.Refus("IDENTITE-INVALIDE")
+    sel = arguments.get("selection")
+    if nom == c.LISTE:
+        wct_id = arguments.get("wct_id")
+        if not c.texte(wct_id):
+            raise c.Refus("ARGUMENTS-INVALIDES")
+    else:
+        if not c.selection_valide(sel):
+            raise c.Refus("ARGUMENTS-INVALIDES")
+        wct_id = sel["wct_id"]
+    acteur, source = _sources_classement_variance(wct_id)
+    if sel is not None:
+        c.choisir(source, sel)
+    return acteur, source
+
+
+def _ajouter_classement_variance(maillon):
+    stockage.maillons(_DEPARTEMENT, classement_variance_appareil.REGISTRE).append(
+        maillon, rang_attendu=maillon["index"]
+    )
+
+
+def classer_cause_variance_appareil(
+    selection, cause, motif, classement_attendu, references_pieces
+):
+    c = classement_variance_appareil
+    try:
+        args = {
+            "selection": selection,
+            "cause": cause,
+            "motif": motif,
+            "classement_attendu": classement_attendu,
+            "references_pieces": references_pieces,
+        }
+        acteur, source = autoriser_classement_variance_appareil(args)
+        reception = contexte.horodatage_reception()
+        if reception is None:
+            raise c.Refus("CONTEXTE-MUTATION-ABSENT")
+        auteur = {
+            "personne": acteur.personne,
+            "role": acteur.role,
+            "source": "appareil",
+        }
+        nouveau = c.construire(
+            source,
+            selection,
+            cause,
+            motif,
+            classement_attendu,
+            references_pieces,
+            auteur,
+            reception,
+        )
+        limite = contexte.limite_sortie() or c.BORNE_SORTIE
+        c.verifier_borne(c.ack(nouveau), limite, mutation=True)
+        with stockage.connexion_courante().begin_nested():
+            _ajouter_classement_variance(nouveau)
+            actuel = list(stockage.maillons(_DEPARTEMENT, c.REGISTRE))
+            c.valider_classements(actuel)
+            if actuel[-1] != nouveau:
+                raise c.Refus("LIAISON-INCOHERENTE")
+            response = c.ack(actuel[-1])
+            c.verifier_borne(response, limite, mutation=True)
+        return response
+    except c.Refus as exc:
+        return c.refuser(exc.suffixe)
+    except EcritureConcurrente:
+        raise
+    except Exception as exc:
+        raise RuntimeError(
+            "échec technique du classement atomique de variance"
+        ) from exc
+
+
+def verifier_rejeu_classement_variance_appareil(arguments, reponse):
+    """Référence propre persistée, jamais latest/rang historique ni lecture CAS."""
+    c = classement_variance_appareil
+    _, source = autoriser_classement_variance_appareil(arguments)
+    if type(reponse) is not dict or reponse.get("ok") is not True:
+        return
+    ack = reponse.get("resultat")
+    if type(ack) is not dict:
+        raise c.Refus("REJEU-INCOHERENT")
+    if ack.get("accepte") is False:
+        return
+    if (
+        set(ack) != {"accepte", "resultat", "registre"}
+        or ack.get("accepte") is not True
+    ):
+        raise c.Refus("REJEU-INCOHERENT")
+    result = ack["resultat"]
+    if type(result) is not dict or not c.reference_valide(
+        result.get("reference"), c.REGISTRE
+    ):
+        raise c.Refus("REJEU-INCOHERENT")
+    ref = result["reference"]
+    if ref["index"] >= len(source["classements"]):
+        raise c.Refus("REJEU-INCOHERENT")
+    maillon = source["classements"][ref["index"]]
+    if (
+        c.ack(maillon) != ack
+        or any(
+            result.get(k) != arguments.get(k)
+            for k in ["selection", "cause", "motif", "references_pieces"]
+        )
+        or result.get("reference_precedente") != arguments.get("classement_attendu")
+    ):
+        raise c.Refus("REJEU-INCOHERENT")
+
+
+def lister_variances_classables_wct_appareil(wct_id, decalage=0, limite=8):
+    c = classement_variance_appareil
+    try:
+        _, source = autoriser_classement_variance_appareil(
+            {"wct_id": wct_id}, nom=c.LISTE
+        )
+        return {
+            "accepte": True,
+            "resultat": c.lire(
+                source,
+                decalage,
+                limite,
+                borne=contexte.limite_sortie() or c.BORNE_SORTIE,
+            ),
+        }
+    except c.Refus as exc:
+        return c.refuser(exc.suffixe)
+
+
+def lire_historique_classement_variance_appareil(selection, decalage=0, limite=8):
+    c = classement_variance_appareil
+    try:
+        _, source = autoriser_classement_variance_appareil(
+            {"selection": selection}, nom=c.HISTO
+        )
+        return {
+            "accepte": True,
+            "resultat": c.lire(
+                source,
+                decalage,
+                limite,
+                selection,
+                borne=contexte.limite_sortie() or c.BORNE_SORTIE,
+            ),
+        }
+    except c.Refus as exc:
+        return c.refuser(exc.suffixe)
+
+
+_REFERENCE_CLASSEMENT = {
+    "type": "object",
+    "properties": {
+        "registre": {"type": "string", "enum": ["classements_variance"]},
+        "index": {"type": "integer", "minimum": 0},
+        "hash_maillon": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    },
+    "required": ["registre", "index", "hash_maillon"],
+    "additionalProperties": False,
+}
+_SELECTION_VARIANCE = {
+    "type": "object",
+    "properties": {
+        "wct_id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "reference_variance": {
+            "type": "object",
+            "properties": {
+                "type": {"type": "string", "enum": ["m6.variance_chantier"]},
+                "evenement_id": {"type": "string", "maxLength": 300},
+                "empreinte_charge": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            },
+            "required": ["type", "evenement_id", "empreinte_charge"],
+            "additionalProperties": False,
+        },
+        "position_ligne": {"type": "integer", "minimum": 0, "maximum": 9999},
+        "materiau_id": {"type": "string", "minLength": 1, "maxLength": 256},
+    },
+    "required": ["wct_id", "reference_variance", "position_ligne", "materiau_id"],
+    "additionalProperties": False,
+}
+_REFERENCE_PIECE = {
+    **_REFERENCE_CLASSEMENT,
+    "properties": {
+        **_REFERENCE_CLASSEMENT["properties"],
+        "registre": {"type": "string", "enum": ["principal"]},
+    },
+}
+_REFERENCE_PREUVE_CLASSEMENT = {
+    **_REFERENCE_CLASSEMENT,
+    "type": ["object", "null"],
+    "properties": {
+        **_REFERENCE_CLASSEMENT["properties"],
+        "registre": {"type": "string", "enum": ["preuves_pertes_bris"]},
+    },
+}
+_PAGE_CLASSEMENT = {
+    "decalage": {"type": "integer", "minimum": 0, "maximum": 10000},
+    "limite": {"type": "integer", "minimum": 1, "maximum": 8},
+}
+
+
 def outils() -> tuple[Outil, ...]:
     return (
         Outil(
@@ -2720,6 +2990,100 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=lire_preuves_pertes_wct_appareil,
+            autonomie=Autonomie.T0,
+            niveau=Niveau.N0,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m6_lister_variances_classables_wct_appareil",
+            description=("Lecture admin DEVICE des seules lignes terminales critiques ou liées à PERTE/BRIS, "
+                         "sans inférence de cause."),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "wct_id": {"type": "string", "maxLength": 256},
+                    **_PAGE_CLASSEMENT,
+                },
+                "required": ["wct_id", "decalage", "limite"],
+                "additionalProperties": False,
+            },
+            fonction=lister_variances_classables_wct_appareil,
+            autonomie=Autonomie.T0,
+            niveau=Niveau.N0,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m6_classer_cause_variance_appareil",
+            description=("Annotation interne admin DEVICE, six causes humaines explicites et révision append-only; "
+                         "aucun effet stock/coût/M4/M10."),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "selection": _SELECTION_VARIANCE,
+                    "cause": {
+                        "type": "string",
+                        "enum": sorted(contrats.CAUSES_VARIANCE_CHANTIER),
+                    },
+                    "motif": {"type": "string", "minLength": 1, "maxLength": 500},
+                    "classement_attendu": {
+                        **_REFERENCE_CLASSEMENT,
+                        "type": ["object", "null"],
+                    },
+                    "references_pieces": {
+                        "type": "array",
+                        "maxItems": 8,
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "reference_mouvement": _REFERENCE_PIECE,
+                                "reference_preuve": _REFERENCE_PREUVE_CLASSEMENT,
+                                "positions_photos": {
+                                    "type": "array",
+                                    "maxItems": 3,
+                                    "items": {
+                                        "type": "integer",
+                                        "minimum": 0,
+                                        "maximum": 2,
+                                    },
+                                },
+                            },
+                            "required": [
+                                "reference_mouvement",
+                                "reference_preuve",
+                                "positions_photos",
+                            ],
+                            "additionalProperties": False,
+                        },
+                    },
+                },
+                "required": [
+                    "selection",
+                    "cause",
+                    "motif",
+                    "classement_attendu",
+                    "references_pieces",
+                ],
+                "additionalProperties": False,
+            },
+            fonction=classer_cause_variance_appareil,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N3,
+            roles_appareil=frozenset({"admin"}),
+            portee_contexte="affaire",
+            cible_contexte=("selection", "wct_id"),
+            identite_contexte="wct",
+        ),
+        Outil(
+            nom="m6_lire_historique_classement_variance_appareil",
+            description=("Historique admin DEVICE des révisions humaines de cette sélection exacte; "
+                         "lectures sans effet."),
+            parametres={
+                "type": "object",
+                "properties": {"selection": _SELECTION_VARIANCE, **_PAGE_CLASSEMENT},
+                "required": ["selection", "decalage", "limite"],
+                "additionalProperties": False,
+            },
+            fonction=lire_historique_classement_variance_appareil,
             autonomie=Autonomie.T0,
             niveau=Niveau.N0,
             roles_appareil=frozenset({"admin"}),

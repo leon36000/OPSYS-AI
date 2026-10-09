@@ -1,3 +1,4 @@
+import { ClassementVariancesM6 } from "./ClassementVariancesM6";
 import { PreuvesMateriauxM6 } from './PreuvesMateriauxM6';
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
@@ -96,6 +97,9 @@ export function PertesAlertesM6({ connected }: { readonly connected: boolean }) 
       {pageDetail?.pagination.suivant != null && selection ? <BoutonSecondaire texte={t("admin.pertesAlertes.suiteDetail")}
         desactive={!permis()} onPress={() => void lire(selection, pageDetail.pagination.suivant!)} /> : null}
     </>} /> : null}
+    <ClassementVariancesM6 wctId={pageDetail && selection ? selection.wct_id : null} connected={connected}
+      autorisee={() => focus.current && reseau.current && captureRendu.courante() && gardeDetail.current?.() === true}
+      surRefus={invalider} />
     {pageDetail && selection ? <PreuvesMateriauxM6 key={selection.wct_id} wctId={selection.wct_id}
       connected={connected} surRefus={invalider} /> : null}
   </Carte>;

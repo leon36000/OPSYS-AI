@@ -41,6 +41,11 @@ from .politiques import approbation_requise_niveau, validation_au_depart_possibl
 
 _SCHEMA_VIDE = {"type": "object", "properties": {}, "additionalProperties": False}
 logger = logging.getLogger("opsys.capacites")
+_MUTATION_CLASSEMENT_M6 = "m6_classer_cause_variance_appareil"
+_LECTURES_CLASSEMENT_M6 = frozenset({
+    "m6_lister_variances_classables_wct_appareil",
+    "m6_lire_historique_classement_variance_appareil",
+})
 
 
 def _outils_memoire() -> tuple[Outil, ...]:
@@ -261,9 +266,24 @@ class Capacites:
         args = dict(arguments or {})
         appelante = identite_appelante()
         entree = self.index.get(nom)
-        if nom == "m6_lire_preuves_pertes_wct_appareil" and meta is not None:
+        if (nom == "m6_lire_preuves_pertes_wct_appareil" or nom in _LECTURES_CLASSEMENT_M6) and meta is not None:
             return {"ok": False, "erreur": "idempotence_hors_portee_lecture",
                     "details": "Cette lecture pure n’admet aucune enveloppe de mutation."}
+        if entree is not None and meta is None and (
+            nom == _MUTATION_CLASSEMENT_M6 or nom in _LECTURES_CLASSEMENT_M6
+        ):
+            with self._cnx_factory():
+                refus = self._garder_classement_m6(nom, args)
+                if refus is not None:
+                    return refus
+                if nom in _LECTURES_CLASSEMENT_M6:
+                    with contexte_appel.sortie_bornee(min(5400, self._limite)):
+                        return self._distribuer(nom, args)
+            return {
+                "ok": False,
+                "erreur": "idempotence_appareil_requise",
+                "details": "Ce classement exige la mutation DEVICE persistée.",
+            }
         if nom == "m6_declarer_materiaux_avec_preuves_appareil" and entree is not None and meta is None:
             with self._cnx_factory():
                 refus = self._garder_preuves_m6(args)
@@ -474,6 +494,39 @@ class Capacites:
             return self._confirmation_preuves_inconnue()
         return reponse
 
+    @staticmethod
+    def _refus_classement_inconnu(suffixe: str) -> dict[str, Any]:
+        return {
+            "ok": False,
+            "erreur": "REJ-M6-CLASSEMENT-" + suffixe,
+            "issue": "inconnue",
+            "details": "La confirmation actuelle est indisponible ; conserver la même clé et ses arguments.",
+        }
+
+    @staticmethod
+    def _garder_classement_m6(nom: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+        from m6_material_control import classement_variance_appareil as c
+        from m6_material_control import outils as outils_m6
+
+        try:
+            outils_m6.autoriser_classement_variance_appareil(arguments, nom=nom)
+        except c.Refus as exc:
+            return Capacites._refus_classement_inconnu(exc.suffixe)
+        return None
+
+    @staticmethod
+    def _verifier_rejeu_classement_m6(
+        arguments: dict[str, Any], reponse: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        from m6_material_control import classement_variance_appareil as c
+        from m6_material_control import outils as outils_m6
+
+        try:
+            outils_m6.verifier_rejeu_classement_variance_appareil(arguments, reponse)
+        except c.Refus as exc:
+            return Capacites._refus_classement_inconnu(exc.suffixe)
+        return None
+
     def _appeler_idempotent(
         self,
         nom: str,
@@ -497,6 +550,10 @@ class Capacites:
         """
         recu_le = dt.datetime.now(dt.UTC)
         with self._cnx_factory() as cnx:
+            if nom == _MUTATION_CLASSEMENT_M6:
+                refus = self._garder_classement_m6(nom, arguments)
+                if refus is not None:
+                    return refus
             if nom == "m6_declarer_materiaux_avec_preuves_appareil":
                 refus = self._garder_preuves_m6(arguments)
                 if refus is not None:
@@ -539,6 +596,11 @@ class Capacites:
                 return {**refus_role, "rejoue": refus_rejoue}
             if reclamation.rejouee:
                 reponse = {**reclamation.reponse, "rejoue": True}
+                if nom == _MUTATION_CLASSEMENT_M6:
+                    refus = self._verifier_rejeu_classement_m6(arguments, reclamation.reponse)
+                    if refus is not None:
+                        return refus
+                    return self._borner_confirmation_preuves(reponse)
                 if nom == "m6_declarer_materiaux_avec_preuves_appareil":
                     return self._borner_confirmation_preuves(reponse)
                 return reponse
@@ -576,13 +638,20 @@ class Capacites:
                 recu_le=recu_le,
             )
             with receptionne_de(horodatage):
-                if nom == "m6_declarer_materiaux_avec_preuves_appareil":
+                if nom in {"m6_declarer_materiaux_avec_preuves_appareil", _MUTATION_CLASSEMENT_M6}:
                     with contexte_appel.sortie_bornee(min(5400, self._limite)):
                         reponse = self._distribuer(nom, arguments, appel_appareil=True, meta=meta)
                 else:
                     reponse = self._distribuer(nom, arguments, appel_appareil=True, meta=meta)
-            idempotence.finaliser(cnx, meta, reponse)
             finale = {**reponse, "rejoue": False}
+            if nom == _MUTATION_CLASSEMENT_M6 and (
+                reponse.get("erreur") == "confirmation_transport_indisponible"
+                or len(json.dumps(finale, ensure_ascii=False)) > min(5400, self._limite)
+            ):
+                # Le producteur pré/postflight avant son commit. Une divergence technique
+                # ne doit sceller ni l'append, ni sa trace, ni la réclamation extérieure.
+                raise RuntimeError("confirmation fraîche de classement hors de sa borne atomique")
+            idempotence.finaliser(cnx, meta, reponse)
             if nom == "m6_declarer_materiaux_avec_preuves_appareil":
                 return self._borner_confirmation_preuves(finale)
             return finale
@@ -711,7 +780,7 @@ class Capacites:
             with appeler_en_tant_que(departement.id, origine=origine):
                 reponse = executer_atomique(outil, arguments)
             if reponse.get("ok") and (
-                outil.nom != "m6_declarer_materiaux_avec_preuves_appareil"
+                outil.nom not in {"m6_declarer_materiaux_avec_preuves_appareil", _MUTATION_CLASSEMENT_M6}
                 or reponse.get("resultat", {}).get("accepte") is True
             ):
                 approbations.tracer_validation_au_depart(
@@ -739,6 +808,20 @@ class Capacites:
         departement: str | None = None,
         origine: str | None = None,
     ) -> dict[str, Any]:
+        if source == _MUTATION_CLASSEMENT_M6 or source in _LECTURES_CLASSEMENT_M6:
+            if reponse.get("erreur") == "arguments_invalides":
+                reponse = {"ok": False, "erreur": "arguments_invalides",
+                           "details": "La demande ne satisfait pas le contrat fermé de classement."}
+            entiere = {**reponse, "rejoue": False} if source == _MUTATION_CLASSEMENT_M6 else reponse
+            if len(json.dumps(entiere, ensure_ascii=False)) <= min(5400, self._limite):
+                return reponse
+            if source == _MUTATION_CLASSEMENT_M6:
+                return self._confirmation_preuves_inconnue()
+            return {
+                "ok": False,
+                "erreur": "REJ-M6-CLASSEMENT-SORTIE-TROP-VOLUMINEUSE",
+                "details": "La lecture entière dépasse la borne ; aucun détail partiel n'est transmis.",
+            }
         if source == "m6_declarer_materiaux_avec_preuves_appareil" and reponse.get("erreur") == "arguments_invalides":
             reponse = {"ok": False, "erreur": "arguments_invalides",
                        "details": "La demande ne satisfait pas le contrat fermé de déclaration."}

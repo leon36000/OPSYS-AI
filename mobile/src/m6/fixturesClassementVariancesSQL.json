@@ -1,0 +1,676 @@
+{
+  "fictif": true,
+  "status": "intermediate_actual_producteur; pasgel/livraison/HTTP",
+  "announced_base": "1a600a459463116dd181b870810828395565df5f",
+  "source_sha256": {
+    "departments/m06-material-control/src/m6_material_control/outils.py": "6bd8c1d253c99ad267aa723e2ac37f3d5b0f50ba32b4619acfd3241a1162544a",
+    "departments/m06-material-control/src/m6_material_control/classement_variance_appareil.py": "f6c8c7cbd66a2d30c2a6216ae567fce988dd86da5b3916fb642371e268c71c02",
+    "departments/m06-material-control/tests/test_classement_variance_appareil.py": "a87b646090dc5cc755f685017547646f7ccfa971cf727070472522b93140021a"
+  },
+  "captures": [
+    {
+      "phase": "liste_initiale",
+      "fictif": true,
+      "scope": "actual producteur exécuté SQLite/contexte appareil fictif; aucunHTTP/Gateway",
+      "request": {
+        "tool": "m6_lister_variances_classables_wct_appareil",
+        "arguments": {
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "wct": {
+              "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+              "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+              "chantier_id": "CH-M3-FICTIF"
+            },
+            "source_variance": {
+              "type": "m6.variance_chantier",
+              "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+              "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84",
+              "statut_variance": "evaluee",
+              "horodatage_completion": "2025-06-02T11:30:00+00:00"
+            },
+            "lignes": [
+              {
+                "selection": {
+                  "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+                  "reference_variance": {
+                    "type": "m6.variance_chantier",
+                    "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+                    "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+                  },
+                  "position_ligne": 0,
+                  "materiau_id": "MAT-CONTEXTE-FICTIF"
+                },
+                "source_ligne": {
+                  "materiau": "MAT-CONTEXTE-FICTIF",
+                  "unite": "pi",
+                  "quantite_prevue": "40.0",
+                  "quantite_reelle": "2.0",
+                  "ecart_pourcentage": "0.95",
+                  "critique": true
+                },
+                "pieces_disponibles_a_selectionner": [
+                  {
+                    "reference_mouvement": {
+                      "registre": "principal",
+                      "index": 1,
+                      "hash_maillon": "f34e3a6265f06a77ebf7bdccb914b66b9b09bb4b3d17eafb4e92a9569879f13b"
+                    },
+                    "reference_preuve": {
+                      "registre": "preuves_pertes_bris",
+                      "index": 0,
+                      "hash_maillon": "0282e670d5d31bbc562d88bc9db6863d233374c91507d371bf445e6d7d53c062"
+                    },
+                    "positions_photos": []
+                  },
+                  {
+                    "reference_mouvement": {
+                      "registre": "principal",
+                      "index": 2,
+                      "hash_maillon": "405082e19c83e8d4fda26e1b5b7f5063f9d4dee57ca3e34ed6c221fef3efad75"
+                    },
+                    "reference_preuve": {
+                      "registre": "preuves_pertes_bris",
+                      "index": 1,
+                      "hash_maillon": "a6a25f06a85369bd84efa8efbbc87e6b8c4f4811d72a1ddb10707681ed6c5881"
+                    },
+                    "positions_photos": []
+                  }
+                ],
+                "classement_courant": null
+              }
+            ],
+            "pagination": {
+              "decalage": 0,
+              "limite": 8,
+              "total": 1,
+              "affichees": 1,
+              "reste": 0,
+              "decalage_suivant": null,
+              "borne_atteinte": false
+            },
+            "couverture": {
+              "eligibilite": "critique_publiee_ou_perte_bris_liee",
+              "autres_ecarts": "hors_perimetre",
+              "preuves": "association_sans_inference_de_cause_ni_authenticite_scene",
+              "dates": "reception_serveur_sans_date_du_dommage",
+              "plafond_sources": 10000
+            }
+          }
+        }
+      },
+      "enveloppe_utf8": "{\"ok\":true,\"resultat\":{\"accepte\":true,\"resultat\":{\"wct\":{\"wct_id\":\"491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564\",\"intervention_id\":\"33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e\",\"chantier_id\":\"CH-M3-FICTIF\"},\"source_variance\":{\"type\":\"m6.variance_chantier\",\"evenement_id\":\"m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee\",\"empreinte_charge\":\"351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84\",\"statut_variance\":\"evaluee\",\"horodatage_completion\":\"2025-06-02T11:30:00+00:00\"},\"lignes\":[{\"selection\":{\"wct_id\":\"491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564\",\"reference_variance\":{\"type\":\"m6.variance_chantier\",\"evenement_id\":\"m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee\",\"empreinte_charge\":\"351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84\"},\"position_ligne\":0,\"materiau_id\":\"MAT-CONTEXTE-FICTIF\"},\"source_ligne\":{\"materiau\":\"MAT-CONTEXTE-FICTIF\",\"unite\":\"pi\",\"quantite_prevue\":\"40.0\",\"quantite_reelle\":\"2.0\",\"ecart_pourcentage\":\"0.95\",\"critique\":true},\"pieces_disponibles_a_selectionner\":[{\"reference_mouvement\":{\"registre\":\"principal\",\"index\":1,\"hash_maillon\":\"f34e3a6265f06a77ebf7bdccb914b66b9b09bb4b3d17eafb4e92a9569879f13b\"},\"reference_preuve\":{\"registre\":\"preuves_pertes_bris\",\"index\":0,\"hash_maillon\":\"0282e670d5d31bbc562d88bc9db6863d233374c91507d371bf445e6d7d53c062\"},\"positions_photos\":[]},{\"reference_mouvement\":{\"registre\":\"principal\",\"index\":2,\"hash_maillon\":\"405082e19c83e8d4fda26e1b5b7f5063f9d4dee57ca3e34ed6c221fef3efad75\"},\"reference_preuve\":{\"registre\":\"preuves_pertes_bris\",\"index\":1,\"hash_maillon\":\"a6a25f06a85369bd84efa8efbbc87e6b8c4f4811d72a1ddb10707681ed6c5881\"},\"positions_photos\":[]}],\"classement_courant\":null}],\"pagination\":{\"decalage\":0,\"limite\":8,\"total\":1,\"affichees\":1,\"reste\":0,\"decalage_suivant\":null,\"borne_atteinte\":false},\"couverture\":{\"eligibilite\":\"critique_publiee_ou_perte_bris_liee\",\"autres_ecarts\":\"hors_perimetre\",\"preuves\":\"association_sans_inference_de_cause_ni_authenticite_scene\",\"dates\":\"reception_serveur_sans_date_du_dommage\",\"plafond_sources\":10000}}}}",
+      "enveloppe_sha256": "84417e24e068d51117fe21f2f51b386bb8c86b8979bc00f6821e5d013a5dd315",
+      "tables": 49,
+      "changed": [],
+      "artefacts": 0
+    },
+    {
+      "phase": "classement_v1",
+      "fictif": true,
+      "scope": "actual producteur exécuté SQLite/contexte appareil fictif; aucunHTTP/Gateway",
+      "request": {
+        "tool": "m6_classer_cause_variance_appareil",
+        "arguments": {
+          "selection": {
+            "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+            "reference_variance": {
+              "type": "m6.variance_chantier",
+              "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+              "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+            },
+            "position_ligne": 0,
+            "materiau_id": "MAT-CONTEXTE-FICTIF"
+          },
+          "cause": "waste",
+          "motif": "FICTIF : cause choisie par admin",
+          "classement_attendu": null,
+          "references_pieces": []
+        }
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "reference": {
+              "registre": "classements_variance",
+              "index": 0,
+              "hash_maillon": "0a8a03d2e39b2332ac049b607039933fd95c7582b2274b3173eb6d79c5e0281c"
+            },
+            "selection": {
+              "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+              "reference_variance": {
+                "type": "m6.variance_chantier",
+                "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+                "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+              },
+              "position_ligne": 0,
+              "materiau_id": "MAT-CONTEXTE-FICTIF"
+            },
+            "cause": "waste",
+            "motif": "FICTIF : cause choisie par admin",
+            "reference_precedente": null,
+            "auteur": {
+              "personne": "admin.contexte.fictif",
+              "role": "admin",
+              "source": "appareil"
+            },
+            "appareil_id": "APP-CLASSEMENT-FICTIF",
+            "classe_le": "2026-10-08T17:00:00+00:00",
+            "horodatage_appareil_declare": "2026-10-08T17:00:00+00:00",
+            "references_pieces": []
+          },
+          "registre": {
+            "taille": 1,
+            "hash_tete": "0a8a03d2e39b2332ac049b607039933fd95c7582b2274b3173eb6d79c5e0281c"
+          }
+        }
+      },
+      "enveloppe_utf8": "{\"ok\":true,\"resultat\":{\"accepte\":true,\"resultat\":{\"reference\":{\"registre\":\"classements_variance\",\"index\":0,\"hash_maillon\":\"0a8a03d2e39b2332ac049b607039933fd95c7582b2274b3173eb6d79c5e0281c\"},\"selection\":{\"wct_id\":\"491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564\",\"reference_variance\":{\"type\":\"m6.variance_chantier\",\"evenement_id\":\"m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee\",\"empreinte_charge\":\"351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84\"},\"position_ligne\":0,\"materiau_id\":\"MAT-CONTEXTE-FICTIF\"},\"cause\":\"waste\",\"motif\":\"FICTIF : cause choisie par admin\",\"reference_precedente\":null,\"auteur\":{\"personne\":\"admin.contexte.fictif\",\"role\":\"admin\",\"source\":\"appareil\"},\"appareil_id\":\"APP-CLASSEMENT-FICTIF\",\"classe_le\":\"2026-10-08T17:00:00+00:00\",\"horodatage_appareil_declare\":\"2026-10-08T17:00:00+00:00\",\"references_pieces\":[]},\"registre\":{\"taille\":1,\"hash_tete\":\"0a8a03d2e39b2332ac049b607039933fd95c7582b2274b3173eb6d79c5e0281c\"}}}",
+      "enveloppe_sha256": "0547d17ffe8cfe4b3826c912d2228a6975ab54871601fdc48718575c1d40e868",
+      "tables": 49,
+      "changed": [
+        "registres_maillons"
+      ],
+      "artefacts": 0
+    },
+    {
+      "phase": "liste_classee",
+      "fictif": true,
+      "scope": "actual producteur exécuté SQLite/contexte appareil fictif; aucunHTTP/Gateway",
+      "request": {
+        "tool": "m6_lister_variances_classables_wct_appareil",
+        "arguments": {
+          "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "wct": {
+              "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+              "intervention_id": "33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e",
+              "chantier_id": "CH-M3-FICTIF"
+            },
+            "source_variance": {
+              "type": "m6.variance_chantier",
+              "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+              "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84",
+              "statut_variance": "evaluee",
+              "horodatage_completion": "2025-06-02T11:30:00+00:00"
+            },
+            "lignes": [
+              {
+                "selection": {
+                  "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+                  "reference_variance": {
+                    "type": "m6.variance_chantier",
+                    "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+                    "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+                  },
+                  "position_ligne": 0,
+                  "materiau_id": "MAT-CONTEXTE-FICTIF"
+                },
+                "source_ligne": {
+                  "materiau": "MAT-CONTEXTE-FICTIF",
+                  "unite": "pi",
+                  "quantite_prevue": "40.0",
+                  "quantite_reelle": "2.0",
+                  "ecart_pourcentage": "0.95",
+                  "critique": true
+                },
+                "pieces_disponibles_a_selectionner": [
+                  {
+                    "reference_mouvement": {
+                      "registre": "principal",
+                      "index": 1,
+                      "hash_maillon": "f34e3a6265f06a77ebf7bdccb914b66b9b09bb4b3d17eafb4e92a9569879f13b"
+                    },
+                    "reference_preuve": {
+                      "registre": "preuves_pertes_bris",
+                      "index": 0,
+                      "hash_maillon": "0282e670d5d31bbc562d88bc9db6863d233374c91507d371bf445e6d7d53c062"
+                    },
+                    "positions_photos": []
+                  },
+                  {
+                    "reference_mouvement": {
+                      "registre": "principal",
+                      "index": 2,
+                      "hash_maillon": "405082e19c83e8d4fda26e1b5b7f5063f9d4dee57ca3e34ed6c221fef3efad75"
+                    },
+                    "reference_preuve": {
+                      "registre": "preuves_pertes_bris",
+                      "index": 1,
+                      "hash_maillon": "a6a25f06a85369bd84efa8efbbc87e6b8c4f4811d72a1ddb10707681ed6c5881"
+                    },
+                    "positions_photos": []
+                  }
+                ],
+                "classement_courant": {
+                  "reference": {
+                    "registre": "classements_variance",
+                    "index": 0,
+                    "hash_maillon": "0a8a03d2e39b2332ac049b607039933fd95c7582b2274b3173eb6d79c5e0281c"
+                  },
+                  "selection": {
+                    "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+                    "reference_variance": {
+                      "type": "m6.variance_chantier",
+                      "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+                      "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+                    },
+                    "position_ligne": 0,
+                    "materiau_id": "MAT-CONTEXTE-FICTIF"
+                  },
+                  "cause": "waste",
+                  "motif": "FICTIF : cause choisie par admin",
+                  "reference_precedente": null,
+                  "auteur": {
+                    "personne": "admin.contexte.fictif",
+                    "role": "admin",
+                    "source": "appareil"
+                  },
+                  "appareil_id": "APP-CLASSEMENT-FICTIF",
+                  "classe_le": "2026-10-08T17:00:00+00:00",
+                  "horodatage_appareil_declare": "2026-10-08T17:00:00+00:00",
+                  "references_pieces": []
+                }
+              }
+            ],
+            "pagination": {
+              "decalage": 0,
+              "limite": 8,
+              "total": 1,
+              "affichees": 1,
+              "reste": 0,
+              "decalage_suivant": null,
+              "borne_atteinte": false
+            },
+            "couverture": {
+              "eligibilite": "critique_publiee_ou_perte_bris_liee",
+              "autres_ecarts": "hors_perimetre",
+              "preuves": "association_sans_inference_de_cause_ni_authenticite_scene",
+              "dates": "reception_serveur_sans_date_du_dommage",
+              "plafond_sources": 10000
+            }
+          }
+        }
+      },
+      "enveloppe_utf8": "{\"ok\":true,\"resultat\":{\"accepte\":true,\"resultat\":{\"wct\":{\"wct_id\":\"491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564\",\"intervention_id\":\"33944ae1040aa87d5060b52eab9b4357c054b274868b23bdb87ca338cda4ff6e\",\"chantier_id\":\"CH-M3-FICTIF\"},\"source_variance\":{\"type\":\"m6.variance_chantier\",\"evenement_id\":\"m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee\",\"empreinte_charge\":\"351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84\",\"statut_variance\":\"evaluee\",\"horodatage_completion\":\"2025-06-02T11:30:00+00:00\"},\"lignes\":[{\"selection\":{\"wct_id\":\"491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564\",\"reference_variance\":{\"type\":\"m6.variance_chantier\",\"evenement_id\":\"m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee\",\"empreinte_charge\":\"351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84\"},\"position_ligne\":0,\"materiau_id\":\"MAT-CONTEXTE-FICTIF\"},\"source_ligne\":{\"materiau\":\"MAT-CONTEXTE-FICTIF\",\"unite\":\"pi\",\"quantite_prevue\":\"40.0\",\"quantite_reelle\":\"2.0\",\"ecart_pourcentage\":\"0.95\",\"critique\":true},\"pieces_disponibles_a_selectionner\":[{\"reference_mouvement\":{\"registre\":\"principal\",\"index\":1,\"hash_maillon\":\"f34e3a6265f06a77ebf7bdccb914b66b9b09bb4b3d17eafb4e92a9569879f13b\"},\"reference_preuve\":{\"registre\":\"preuves_pertes_bris\",\"index\":0,\"hash_maillon\":\"0282e670d5d31bbc562d88bc9db6863d233374c91507d371bf445e6d7d53c062\"},\"positions_photos\":[]},{\"reference_mouvement\":{\"registre\":\"principal\",\"index\":2,\"hash_maillon\":\"405082e19c83e8d4fda26e1b5b7f5063f9d4dee57ca3e34ed6c221fef3efad75\"},\"reference_preuve\":{\"registre\":\"preuves_pertes_bris\",\"index\":1,\"hash_maillon\":\"a6a25f06a85369bd84efa8efbbc87e6b8c4f4811d72a1ddb10707681ed6c5881\"},\"positions_photos\":[]}],\"classement_courant\":{\"reference\":{\"registre\":\"classements_variance\",\"index\":0,\"hash_maillon\":\"0a8a03d2e39b2332ac049b607039933fd95c7582b2274b3173eb6d79c5e0281c\"},\"selection\":{\"wct_id\":\"491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564\",\"reference_variance\":{\"type\":\"m6.variance_chantier\",\"evenement_id\":\"m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee\",\"empreinte_charge\":\"351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84\"},\"position_ligne\":0,\"materiau_id\":\"MAT-CONTEXTE-FICTIF\"},\"cause\":\"waste\",\"motif\":\"FICTIF : cause choisie par admin\",\"reference_precedente\":null,\"auteur\":{\"personne\":\"admin.contexte.fictif\",\"role\":\"admin\",\"source\":\"appareil\"},\"appareil_id\":\"APP-CLASSEMENT-FICTIF\",\"classe_le\":\"2026-10-08T17:00:00+00:00\",\"horodatage_appareil_declare\":\"2026-10-08T17:00:00+00:00\",\"references_pieces\":[]}}],\"pagination\":{\"decalage\":0,\"limite\":8,\"total\":1,\"affichees\":1,\"reste\":0,\"decalage_suivant\":null,\"borne_atteinte\":false},\"couverture\":{\"eligibilite\":\"critique_publiee_ou_perte_bris_liee\",\"autres_ecarts\":\"hors_perimetre\",\"preuves\":\"association_sans_inference_de_cause_ni_authenticite_scene\",\"dates\":\"reception_serveur_sans_date_du_dommage\",\"plafond_sources\":10000}}}}",
+      "enveloppe_sha256": "18a596602f819e9956cab4321569b3ef07adeb35faf3566415f4ed85c845bfcb",
+      "tables": 49,
+      "changed": [],
+      "artefacts": 0
+    },
+    {
+      "phase": "classement_v2",
+      "fictif": true,
+      "scope": "actual producteur exécuté SQLite/contexte appareil fictif; aucunHTTP/Gateway",
+      "request": {
+        "tool": "m6_classer_cause_variance_appareil",
+        "arguments": {
+          "selection": {
+            "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+            "reference_variance": {
+              "type": "m6.variance_chantier",
+              "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+              "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+            },
+            "position_ligne": 0,
+            "materiau_id": "MAT-CONTEXTE-FICTIF"
+          },
+          "cause": "breakage",
+          "motif": "FICTIF : cause choisie par admin",
+          "classement_attendu": {
+            "registre": "classements_variance",
+            "index": 0,
+            "hash_maillon": "0a8a03d2e39b2332ac049b607039933fd95c7582b2274b3173eb6d79c5e0281c"
+          },
+          "references_pieces": []
+        }
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "reference": {
+              "registre": "classements_variance",
+              "index": 1,
+              "hash_maillon": "a2d67971e2edca1a7622a1abbea6c02369f3c4c73ba3e9738682c96c17e8fe02"
+            },
+            "selection": {
+              "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+              "reference_variance": {
+                "type": "m6.variance_chantier",
+                "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+                "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+              },
+              "position_ligne": 0,
+              "materiau_id": "MAT-CONTEXTE-FICTIF"
+            },
+            "cause": "breakage",
+            "motif": "FICTIF : cause choisie par admin",
+            "reference_precedente": {
+              "registre": "classements_variance",
+              "index": 0,
+              "hash_maillon": "0a8a03d2e39b2332ac049b607039933fd95c7582b2274b3173eb6d79c5e0281c"
+            },
+            "auteur": {
+              "personne": "admin.contexte.fictif",
+              "role": "admin",
+              "source": "appareil"
+            },
+            "appareil_id": "APP-CLASSEMENT-FICTIF",
+            "classe_le": "2026-10-08T17:00:00+00:00",
+            "horodatage_appareil_declare": "2026-10-08T17:00:00+00:00",
+            "references_pieces": []
+          },
+          "registre": {
+            "taille": 2,
+            "hash_tete": "a2d67971e2edca1a7622a1abbea6c02369f3c4c73ba3e9738682c96c17e8fe02"
+          }
+        }
+      },
+      "enveloppe_utf8": "{\"ok\":true,\"resultat\":{\"accepte\":true,\"resultat\":{\"reference\":{\"registre\":\"classements_variance\",\"index\":1,\"hash_maillon\":\"a2d67971e2edca1a7622a1abbea6c02369f3c4c73ba3e9738682c96c17e8fe02\"},\"selection\":{\"wct_id\":\"491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564\",\"reference_variance\":{\"type\":\"m6.variance_chantier\",\"evenement_id\":\"m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee\",\"empreinte_charge\":\"351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84\"},\"position_ligne\":0,\"materiau_id\":\"MAT-CONTEXTE-FICTIF\"},\"cause\":\"breakage\",\"motif\":\"FICTIF : cause choisie par admin\",\"reference_precedente\":{\"registre\":\"classements_variance\",\"index\":0,\"hash_maillon\":\"0a8a03d2e39b2332ac049b607039933fd95c7582b2274b3173eb6d79c5e0281c\"},\"auteur\":{\"personne\":\"admin.contexte.fictif\",\"role\":\"admin\",\"source\":\"appareil\"},\"appareil_id\":\"APP-CLASSEMENT-FICTIF\",\"classe_le\":\"2026-10-08T17:00:00+00:00\",\"horodatage_appareil_declare\":\"2026-10-08T17:00:00+00:00\",\"references_pieces\":[]},\"registre\":{\"taille\":2,\"hash_tete\":\"a2d67971e2edca1a7622a1abbea6c02369f3c4c73ba3e9738682c96c17e8fe02\"}}}",
+      "enveloppe_sha256": "6f187a427cf101224a1ff4dd37de55bd4e1455149ba564147e15bc0c1196c8d5",
+      "tables": 49,
+      "changed": [
+        "registres_maillons"
+      ],
+      "artefacts": 0
+    },
+    {
+      "phase": "historique_v1_v2",
+      "fictif": true,
+      "scope": "actual producteur exécuté SQLite/contexte appareil fictif; aucunHTTP/Gateway",
+      "request": {
+        "tool": "m6_lire_historique_classement_variance_appareil",
+        "arguments": {
+          "selection": {
+            "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+            "reference_variance": {
+              "type": "m6.variance_chantier",
+              "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+              "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+            },
+            "position_ligne": 0,
+            "materiau_id": "MAT-CONTEXTE-FICTIF"
+          },
+          "decalage": 0,
+          "limite": 8
+        }
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "selection": {
+              "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+              "reference_variance": {
+                "type": "m6.variance_chantier",
+                "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+                "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+              },
+              "position_ligne": 0,
+              "materiau_id": "MAT-CONTEXTE-FICTIF"
+            },
+            "source_variance": {
+              "type": "m6.variance_chantier",
+              "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+              "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84",
+              "statut_variance": "evaluee",
+              "horodatage_completion": "2025-06-02T11:30:00+00:00"
+            },
+            "historique": [
+              {
+                "reference": {
+                  "registre": "classements_variance",
+                  "index": 0,
+                  "hash_maillon": "0a8a03d2e39b2332ac049b607039933fd95c7582b2274b3173eb6d79c5e0281c"
+                },
+                "selection": {
+                  "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+                  "reference_variance": {
+                    "type": "m6.variance_chantier",
+                    "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+                    "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+                  },
+                  "position_ligne": 0,
+                  "materiau_id": "MAT-CONTEXTE-FICTIF"
+                },
+                "cause": "waste",
+                "motif": "FICTIF : cause choisie par admin",
+                "reference_precedente": null,
+                "auteur": {
+                  "personne": "admin.contexte.fictif",
+                  "role": "admin",
+                  "source": "appareil"
+                },
+                "appareil_id": "APP-CLASSEMENT-FICTIF",
+                "classe_le": "2026-10-08T17:00:00+00:00",
+                "horodatage_appareil_declare": "2026-10-08T17:00:00+00:00",
+                "references_pieces": []
+              },
+              {
+                "reference": {
+                  "registre": "classements_variance",
+                  "index": 1,
+                  "hash_maillon": "a2d67971e2edca1a7622a1abbea6c02369f3c4c73ba3e9738682c96c17e8fe02"
+                },
+                "selection": {
+                  "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+                  "reference_variance": {
+                    "type": "m6.variance_chantier",
+                    "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+                    "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+                  },
+                  "position_ligne": 0,
+                  "materiau_id": "MAT-CONTEXTE-FICTIF"
+                },
+                "cause": "breakage",
+                "motif": "FICTIF : cause choisie par admin",
+                "reference_precedente": {
+                  "registre": "classements_variance",
+                  "index": 0,
+                  "hash_maillon": "0a8a03d2e39b2332ac049b607039933fd95c7582b2274b3173eb6d79c5e0281c"
+                },
+                "auteur": {
+                  "personne": "admin.contexte.fictif",
+                  "role": "admin",
+                  "source": "appareil"
+                },
+                "appareil_id": "APP-CLASSEMENT-FICTIF",
+                "classe_le": "2026-10-08T17:00:00+00:00",
+                "horodatage_appareil_declare": "2026-10-08T17:00:00+00:00",
+                "references_pieces": []
+              }
+            ],
+            "pagination": {
+              "decalage": 0,
+              "limite": 8,
+              "total": 2,
+              "affichees": 2,
+              "reste": 0,
+              "decalage_suivant": null,
+              "borne_atteinte": false
+            },
+            "couverture": {
+              "eligibilite": "critique_publiee_ou_perte_bris_liee",
+              "autres_ecarts": "hors_perimetre",
+              "preuves": "association_sans_inference_de_cause_ni_authenticite_scene",
+              "dates": "reception_serveur_sans_date_du_dommage",
+              "plafond_sources": 10000
+            }
+          }
+        }
+      },
+      "enveloppe_utf8": "{\"ok\":true,\"resultat\":{\"accepte\":true,\"resultat\":{\"selection\":{\"wct_id\":\"491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564\",\"reference_variance\":{\"type\":\"m6.variance_chantier\",\"evenement_id\":\"m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee\",\"empreinte_charge\":\"351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84\"},\"position_ligne\":0,\"materiau_id\":\"MAT-CONTEXTE-FICTIF\"},\"source_variance\":{\"type\":\"m6.variance_chantier\",\"evenement_id\":\"m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee\",\"empreinte_charge\":\"351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84\",\"statut_variance\":\"evaluee\",\"horodatage_completion\":\"2025-06-02T11:30:00+00:00\"},\"historique\":[{\"reference\":{\"registre\":\"classements_variance\",\"index\":0,\"hash_maillon\":\"0a8a03d2e39b2332ac049b607039933fd95c7582b2274b3173eb6d79c5e0281c\"},\"selection\":{\"wct_id\":\"491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564\",\"reference_variance\":{\"type\":\"m6.variance_chantier\",\"evenement_id\":\"m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee\",\"empreinte_charge\":\"351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84\"},\"position_ligne\":0,\"materiau_id\":\"MAT-CONTEXTE-FICTIF\"},\"cause\":\"waste\",\"motif\":\"FICTIF : cause choisie par admin\",\"reference_precedente\":null,\"auteur\":{\"personne\":\"admin.contexte.fictif\",\"role\":\"admin\",\"source\":\"appareil\"},\"appareil_id\":\"APP-CLASSEMENT-FICTIF\",\"classe_le\":\"2026-10-08T17:00:00+00:00\",\"horodatage_appareil_declare\":\"2026-10-08T17:00:00+00:00\",\"references_pieces\":[]},{\"reference\":{\"registre\":\"classements_variance\",\"index\":1,\"hash_maillon\":\"a2d67971e2edca1a7622a1abbea6c02369f3c4c73ba3e9738682c96c17e8fe02\"},\"selection\":{\"wct_id\":\"491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564\",\"reference_variance\":{\"type\":\"m6.variance_chantier\",\"evenement_id\":\"m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee\",\"empreinte_charge\":\"351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84\"},\"position_ligne\":0,\"materiau_id\":\"MAT-CONTEXTE-FICTIF\"},\"cause\":\"breakage\",\"motif\":\"FICTIF : cause choisie par admin\",\"reference_precedente\":{\"registre\":\"classements_variance\",\"index\":0,\"hash_maillon\":\"0a8a03d2e39b2332ac049b607039933fd95c7582b2274b3173eb6d79c5e0281c\"},\"auteur\":{\"personne\":\"admin.contexte.fictif\",\"role\":\"admin\",\"source\":\"appareil\"},\"appareil_id\":\"APP-CLASSEMENT-FICTIF\",\"classe_le\":\"2026-10-08T17:00:00+00:00\",\"horodatage_appareil_declare\":\"2026-10-08T17:00:00+00:00\",\"references_pieces\":[]}],\"pagination\":{\"decalage\":0,\"limite\":8,\"total\":2,\"affichees\":2,\"reste\":0,\"decalage_suivant\":null,\"borne_atteinte\":false},\"couverture\":{\"eligibilite\":\"critique_publiee_ou_perte_bris_liee\",\"autres_ecarts\":\"hors_perimetre\",\"preuves\":\"association_sans_inference_de_cause_ni_authenticite_scene\",\"dates\":\"reception_serveur_sans_date_du_dommage\",\"plafond_sources\":10000}}}}",
+      "enveloppe_sha256": "0f03953308fb999adc73b3df70a22b7cff3a75f5d7f65e51f4bebbb057b49109",
+      "tables": 49,
+      "changed": [],
+      "artefacts": 0
+    },
+    {
+      "phase": "historique_page1",
+      "fictif": true,
+      "scope": "actual producteur exécuté SQLite/contexte appareil fictif; aucunHTTP/Gateway",
+      "request": {
+        "tool": "m6_lire_historique_classement_variance_appareil",
+        "arguments": {
+          "selection": {
+            "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+            "reference_variance": {
+              "type": "m6.variance_chantier",
+              "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+              "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+            },
+            "position_ligne": 0,
+            "materiau_id": "MAT-CONTEXTE-FICTIF"
+          },
+          "decalage": 1,
+          "limite": 1
+        }
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "selection": {
+              "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+              "reference_variance": {
+                "type": "m6.variance_chantier",
+                "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+                "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+              },
+              "position_ligne": 0,
+              "materiau_id": "MAT-CONTEXTE-FICTIF"
+            },
+            "source_variance": {
+              "type": "m6.variance_chantier",
+              "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+              "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84",
+              "statut_variance": "evaluee",
+              "horodatage_completion": "2025-06-02T11:30:00+00:00"
+            },
+            "historique": [
+              {
+                "reference": {
+                  "registre": "classements_variance",
+                  "index": 1,
+                  "hash_maillon": "a2d67971e2edca1a7622a1abbea6c02369f3c4c73ba3e9738682c96c17e8fe02"
+                },
+                "selection": {
+                  "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+                  "reference_variance": {
+                    "type": "m6.variance_chantier",
+                    "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+                    "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+                  },
+                  "position_ligne": 0,
+                  "materiau_id": "MAT-CONTEXTE-FICTIF"
+                },
+                "cause": "breakage",
+                "motif": "FICTIF : cause choisie par admin",
+                "reference_precedente": {
+                  "registre": "classements_variance",
+                  "index": 0,
+                  "hash_maillon": "0a8a03d2e39b2332ac049b607039933fd95c7582b2274b3173eb6d79c5e0281c"
+                },
+                "auteur": {
+                  "personne": "admin.contexte.fictif",
+                  "role": "admin",
+                  "source": "appareil"
+                },
+                "appareil_id": "APP-CLASSEMENT-FICTIF",
+                "classe_le": "2026-10-08T17:00:00+00:00",
+                "horodatage_appareil_declare": "2026-10-08T17:00:00+00:00",
+                "references_pieces": []
+              }
+            ],
+            "pagination": {
+              "decalage": 1,
+              "limite": 1,
+              "total": 2,
+              "affichees": 1,
+              "reste": 0,
+              "decalage_suivant": null,
+              "borne_atteinte": false
+            },
+            "couverture": {
+              "eligibilite": "critique_publiee_ou_perte_bris_liee",
+              "autres_ecarts": "hors_perimetre",
+              "preuves": "association_sans_inference_de_cause_ni_authenticite_scene",
+              "dates": "reception_serveur_sans_date_du_dommage",
+              "plafond_sources": 10000
+            }
+          }
+        }
+      },
+      "enveloppe_utf8": "{\"ok\":true,\"resultat\":{\"accepte\":true,\"resultat\":{\"selection\":{\"wct_id\":\"491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564\",\"reference_variance\":{\"type\":\"m6.variance_chantier\",\"evenement_id\":\"m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee\",\"empreinte_charge\":\"351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84\"},\"position_ligne\":0,\"materiau_id\":\"MAT-CONTEXTE-FICTIF\"},\"source_variance\":{\"type\":\"m6.variance_chantier\",\"evenement_id\":\"m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee\",\"empreinte_charge\":\"351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84\",\"statut_variance\":\"evaluee\",\"horodatage_completion\":\"2025-06-02T11:30:00+00:00\"},\"historique\":[{\"reference\":{\"registre\":\"classements_variance\",\"index\":1,\"hash_maillon\":\"a2d67971e2edca1a7622a1abbea6c02369f3c4c73ba3e9738682c96c17e8fe02\"},\"selection\":{\"wct_id\":\"491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564\",\"reference_variance\":{\"type\":\"m6.variance_chantier\",\"evenement_id\":\"m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee\",\"empreinte_charge\":\"351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84\"},\"position_ligne\":0,\"materiau_id\":\"MAT-CONTEXTE-FICTIF\"},\"cause\":\"breakage\",\"motif\":\"FICTIF : cause choisie par admin\",\"reference_precedente\":{\"registre\":\"classements_variance\",\"index\":0,\"hash_maillon\":\"0a8a03d2e39b2332ac049b607039933fd95c7582b2274b3173eb6d79c5e0281c\"},\"auteur\":{\"personne\":\"admin.contexte.fictif\",\"role\":\"admin\",\"source\":\"appareil\"},\"appareil_id\":\"APP-CLASSEMENT-FICTIF\",\"classe_le\":\"2026-10-08T17:00:00+00:00\",\"horodatage_appareil_declare\":\"2026-10-08T17:00:00+00:00\",\"references_pieces\":[]}],\"pagination\":{\"decalage\":1,\"limite\":1,\"total\":2,\"affichees\":1,\"reste\":0,\"decalage_suivant\":null,\"borne_atteinte\":false},\"couverture\":{\"eligibilite\":\"critique_publiee_ou_perte_bris_liee\",\"autres_ecarts\":\"hors_perimetre\",\"preuves\":\"association_sans_inference_de_cause_ni_authenticite_scene\",\"dates\":\"reception_serveur_sans_date_du_dommage\",\"plafond_sources\":10000}}}}",
+      "enveloppe_sha256": "31a61b660f4ed69917588dd9e305187c916c57fe94b558a87451a0d0627c2700",
+      "tables": 49,
+      "changed": [],
+      "artefacts": 0
+    },
+    {
+      "phase": "revision_perimee",
+      "fictif": true,
+      "scope": "actual producteur exécuté SQLite/contexte appareil fictif; aucunHTTP/Gateway",
+      "request": {
+        "tool": "m6_classer_cause_variance_appareil",
+        "arguments": {
+          "selection": {
+            "wct_id": "491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564",
+            "reference_variance": {
+              "type": "m6.variance_chantier",
+              "evenement_id": "m6-variance-491297daf122f43a179c6d028921cd228e748d7b2979b5aa6d902a714f862564-evaluee",
+              "empreinte_charge": "351822adaa27a28f711ab7bd3a1cfab02a66a9754e0e1268e0096e82c329bb84"
+            },
+            "position_ligne": 0,
+            "materiau_id": "MAT-CONTEXTE-FICTIF"
+          },
+          "cause": "breakage",
+          "motif": "FICTIF : cause choisie par admin",
+          "classement_attendu": {
+            "registre": "classements_variance",
+            "index": 0,
+            "hash_maillon": "0a8a03d2e39b2332ac049b607039933fd95c7582b2274b3173eb6d79c5e0281c"
+          },
+          "references_pieces": []
+        }
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "accepte": false,
+          "verdict": {
+            "code": "REJ-M6-CLASSEMENT-REVISION-PERIMEE",
+            "detail": "le classement ne satisfait pas son contrat ; aucun détail partiel n’est transmis"
+          }
+        }
+      },
+      "enveloppe_utf8": "{\"ok\":true,\"resultat\":{\"accepte\":false,\"verdict\":{\"code\":\"REJ-M6-CLASSEMENT-REVISION-PERIMEE\",\"detail\":\"le classement ne satisfait pas son contrat ; aucun détail partiel n’est transmis\"}}}",
+      "enveloppe_sha256": "02640029c4ff5c9102da8cdd21b1ec52074daecbea65fd3b4d8b995e77af4c50",
+      "tables": 49,
+      "changed": [],
+      "artefacts": 0
+    }
+  ]
+}

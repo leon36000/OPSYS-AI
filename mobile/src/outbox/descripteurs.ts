@@ -1,3 +1,4 @@
+import { OUTIL_CLASSEMENT_VARIANCE, argumentsRpcClassementVariance, interpreterClassementGenerique, validerRecuClassementVariance } from "../m6/classementVariance";
 import { OUTIL_MATERIAUX_AVEC_PREUVES, argumentsRpcMateriauxAvecPreuves, interpreterMateriauxAvecPreuves, validerRecuMateriauxAvecPreuves } from "../m6/materiauxAvecPreuves";
 import { interpreterResultatCompleterIntervention } from "../m4/completion";
 import { interpreterResultatDefinirConsentementGps } from "../m4/consentementGps";
@@ -144,6 +145,9 @@ export const DESCRIPTEURS_MUTATION: ReadonlyMap<TypeMutation, DescripteurTypeMut
   ["materials_submit_with_proofs", {tool:OUTIL_MATERIAUX_AVEC_PREUVES,construireArguments:argumentsRpcMateriauxAvecPreuves,
     interpreterResultat:(r,m)=>{const i=interpreterMateriauxAvecPreuves(r,m);return i.accepte?{accepte:true,resume:i.resultat}:i;},
     serialiserParChantier:true,groupeSerie:"materiaux",verifierAvantEnvoi:true,validerRecuEnvoye:validerRecuMateriauxAvecPreuves}],
+  ["variance_cause_classification", { tool: OUTIL_CLASSEMENT_VARIANCE, construireArguments: argumentsRpcClassementVariance,
+    interpreterResultat: interpreterClassementGenerique, serialiserParChantier: true,
+    conserverRefusHttpIncertains: true, verifierAvantEnvoi: true, validerRecuEnvoye: validerRecuClassementVariance }],
   ["gps_consent_change", { tool: "m4_definir_consentement_gps", interpreterResultat: versInterpretationGeneriqueConsentementGps }],
   ["approval_decision", { tool: "m9_decider_demande_approbation", interpreterResultat: versInterpretationGeneriqueDecisionApprobation }],
   ["marketing_decision", { tool: "m7_decider_contenu", construireArguments: construireArgumentsDecisionMarketing,

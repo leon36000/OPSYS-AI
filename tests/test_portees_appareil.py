@@ -89,6 +89,9 @@ ADMIN_SEUL = frozenset({
     "m6_reserver_materiel", "m6_liberer_reservation", "m6_transferer_stock", "m6_lire_disponibilite",
     "m6_lister_wct_pertes_appareil", "m6_lire_pertes_alertes_wct_appareil",
     "m6_lire_reapprovisionnement_appareil", "m6_lire_preuves_pertes_wct_appareil",
+    # Classement humain des six causes : annotation N3, lecteurs N0, admin DEVICE seulement.
+    "m6_lister_variances_classables_wct_appareil", "m6_classer_cause_variance_appareil",
+    "m6_lire_historique_classement_variance_appareil",
     "m7_lister_file_approbation", "m7_lister_demandes_avis",  # avis à relire avant d'écrire au client (T1.5-d)
     "m7_approuver_budget_campagne", "m7_configurer_profil_marque",  # décisions propriétaires Brand/Growth
     "m7_decider_creneau_calendrier", "m7_decider_reponse_avis",  # décisions propriétaires avant tout export
@@ -195,6 +198,28 @@ def test_les_compteurs_ecrits_dans_roles_md_suivent_les_manifestes(departements_
         titre = re.search(rf"^### `{role}` \((\d+) outils\)", texte, re.MULTILINE)
         assert titre is not None, f"ROLES.md : pas de section « ### `{role}` (K outils) »"
         assert int(titre.group(1)) == len(outils), role
+
+
+@pytest.mark.parametrize(("nom", "autonomie", "niveau"), [
+    ("m6_lister_variances_classables_wct_appareil", "T0", "N0"),
+    ("m6_classer_cause_variance_appareil", "T1", "N3"),
+    ("m6_lire_historique_classement_variance_appareil", "T0", "N0"),
+])
+def test_classement_variance_humain_reste_admin_et_annotation_interne(
+    departements_reels, roles_reels, nom, autonomie, niveau,
+):
+    index = tous_les_outils(departements_reels.values())
+    assert nom in index, "les trois outils réels doivent être enregistrés avant leur projection"
+    outil = index[nom][1]
+    assert outil.roles_appareil == frozenset({"admin"})
+    assert nom in roles_reels["admin"]
+    assert nom not in roles_reels["employee"] and nom not in roles_reels["seller"]
+    assert outil.autonomie.value == autonomie and outil.niveau_effectif.value == niveau
+    assert not outil.frontiere_humaine
+    if autonomie == "T1":
+        assert outil.portee_contexte == "affaire"
+        assert outil.cible_contexte == ("selection", "wct_id")
+        assert outil.identite_contexte == "wct"
 
 
 def test_l_usine_a_contenu_est_au_proprietaire_et_l_agent_seul_ecrit_les_brouillons(roles_reels, departements_reels):

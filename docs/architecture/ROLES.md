@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 135 outils sur 227 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 138 outils sur 230 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -122,7 +122,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (134 outils) : §9.5 + employé + vendeur
+### `admin` (137 outils) : §9.5 + employé + vendeur
 
 Les 15 outils de l'employé, les 14 du vendeur, et :
 
@@ -159,6 +159,7 @@ Les 15 outils de l'employé, les 14 du vendeur, et :
 | M5 | `m5_lister_comptes_a_payer` (T0), `m5_saisir_facture_fournisseur` (T1, N3) | §7 M5.2 « comptes à payer », M6.16, §9.5 M5 « dépenses à valider » (T4.15) : ce que l'entreprise doit aux fournisseurs, par PO reçu (l'« à payer attendu » de ce que M6 a réceptionné, le facturé, le rapprochement PROPOSÉ avec ses écarts), et la saisie d'une facture fournisseur, repli documenté de l'OCR fermé. Finances : jamais pour l'employé ni le vendeur (§9.2, §9.4). La lecture a la même règle d'accès que la trésorerie et rend des pages sous la limite de 6 000 caractères ; la saisie exige un HUMAIN (section plus bas). Depuis T4.15-c, la lecture rend l'état COURANT des factures et compte les factures sans PO ; `sans_po=true` les liste une à une. Aucun outil ne paie un fournisseur : c'est N5, Nathan et le CPA. |
 | M5 | `m5_saisir_facture_sans_po` (T1, N3), `m5_corriger_facture_fournisseur` (T2, **N4**), `m5_annuler_facture_fournisseur` (T2, **N4**) | §7 M5.2 et §9.5 M5 « dépenses à valider » (T4.15-c) : une dépense que M6 n'a pas commandée (carburant, outils), et la correction ou l'annulation d'une facture fournisseur saisie, sans jamais modifier la facture d'origine (une pièce s'ajoute au registre, motif obligatoire). Finances : jamais pour l'employé ni le vendeur. Les trois exigent un HUMAIN, et les deux N4 attendent la décision du propriétaire ou de la finance : section « Corriger, annuler et saisir sans PO » plus bas. |
 | M6 | `m6_approuver_po`, `m6_annuler_po` | §9.2 « le propriétaire approuve les bons de commande » ; §9.5 « PO à approuver ». |
+| M6 | `m6_lister_variances_classables_wct_appareil`, `m6_lire_historique_classement_variance_appareil` (T0/N0), `m6_classer_cause_variance_appareil` (T1/N3) | Classement humain des six causes canoniques sur une ligne publiée critique ou associée à une vraie PERTE/BRIS du même WCT/matériau/chantier. DEVICE admin actif SQL avant sources, claim et replay. Annotation interne par révisions append-only, auteur issu du contexte fiable ; précondition de dernière révision seulement fraîche, ancienne réponse liée à sa propre référence persistée après correction. Pages courantes, ACK entier min5400/quota, refus sans artefact. Aucun recalcul de variance, accusation, ajustement stock/coût, libération M4 N4 ou ingestion M10. |
 | M6 | `m6_lire_preuves_pertes_wct_appareil` (T0/N0) | Notes et photos déclarées associées aux vrais mouvements PERTE/BRIS, admin DEVICE actuel avant sources/CAS. Ancienne preuve absente = inconnue, note seule distincte ; CAS actuellement disponible seulement après vérification. Pages courantes, source10000/JSON5400, aucun prix, identité d’employé ou pixels en JSON. |
 | M6 | `m6_receptionner_commande`, `m6_soumettre_comptage` | §9.5 « réception rapide » ; §9 « inventaire ». |
 | M6 | `m6_produire_digest`, `m6_evaluer_variance_chantier` | §9.5 « stock critique », « écarts de chantier ». Ces calculs préexistants gardent la voie interne ; rôle admin courant revérifié avant registre pour une identité appareil. Le digest décrit les variances d’inventaire, pas les lignes PERTE/BRIS. |

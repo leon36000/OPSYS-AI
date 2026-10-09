@@ -1,3 +1,4 @@
+import { verifierDestinationClassementVariance } from "../m6/classementVariance";
 import { lireChargeMateriauxAvecPreuves } from "../m6/materiauxAvecPreuves";
 import * as SQLite from "expo-sqlite";
 
@@ -7,7 +8,7 @@ import { creerDepotOutboxSqlite, initialiserSchemaOutbox } from "./depot.sqlite"
 import { avecProprietaire } from "./proprietaire";
 import { creerVidangeur, type RapportVidange, type Vidangeur } from "./vidangeur";
 import { invoquerOutil } from "../protocole/client";
-import { capturerSessionLecture, capturerSessionMateriauxLecture, obtenirSessionEnvoi } from "../protocole/configuration";
+import { capturerSessionLecture, capturerSessionMateriauxLecture, capturerSessionAdminLecture, obtenirSessionEnvoi } from "../protocole/configuration";
 import type { DepotOutbox } from "./depot";
 
 /**
@@ -65,6 +66,12 @@ function obtenirVidangeur(): Promise<Vidangeur> {
         capturerGardeSession: () => capturerSessionLecture().courante,
         maintenant: () => new Date(),
         verifierAvantEnvoi:async(mutation,session,courante)=>{
+          if (mutation.type === "variance_cause_classification") {
+            const admin = capturerSessionAdminLecture();
+            return courante() && admin.courante() && admin.session !== null && admin.session.personne === session.personne &&
+              admin.session.appareilId === session.appareilId && admin.session.urlBase === session.urlBase &&
+              admin.session.jeton === session.jeton && verifierDestinationClassementVariance(mutation, session);
+          }
           const gardeMateriaux=capturerSessionMateriauxLecture();const charge=lireChargeMateriauxAvecPreuves(mutation);if(!charge||!courante()||!gardeMateriaux.session||!gardeMateriaux.courante())return false;
           const verifier=()=>{const s=obtenirSessionEnvoi();return courante()&&gardeMateriaux.courante()&&s!==null&&s.urlBase===session.urlBase&&s.jeton===session.jeton&&s.personne===session.personne&&s.appareilId===session.appareilId;};
           if(!charge.fichiers.length)return verifier();

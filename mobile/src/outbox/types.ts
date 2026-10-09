@@ -31,6 +31,8 @@ export type TypeMutation =
   | "job_status_change"
   | "materials_submit"
   | "materials_submit_with_proofs"
+  /** Classement humain M6 : annotation révisable, même intention jusqu’à confirmation. */
+  | "variance_cause_classification"
   | "checklist_step"
   | "incident_report"
   | "photo_upload"

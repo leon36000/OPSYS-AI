@@ -1,0 +1,397 @@
+{
+  "recorded_toronto": "2026-10-08T23:16:58.277361-04:00",
+  "parent": "1a600a459463116dd181b870810828395565df5f",
+  "product": "PARTIEL",
+  "source_files": [
+    {
+      "path": "departments/m06-material-control/docs/CLASSEMENT-VARIANCE-APPAREIL.md",
+      "sha256": "d673ed6fe78c1f05c476fa0ab539344c0dacaf885e8dad2acd0de495d1faa035",
+      "preimage_sha256": null,
+      "origin": "backend delegate",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "new_file_dependencies_checked",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "departments/m06-material-control/src/m6_material_control/classement_variance_appareil.py",
+      "sha256": "803b04c0fdbde806a97e050218821c6d9b2e292a000f1f386b6773f67d70f9bc",
+      "preimage_sha256": null,
+      "origin": "backend delegate",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "new_file_dependencies_checked",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "departments/m06-material-control/src/m6_material_control/outils.py",
+      "sha256": "b358a3817e60c4a40239886619abf0fac805f3ec9e7591abd5f7d4a30cafc83d",
+      "preimage_sha256": "7df4470962cb7abeb0e885c527f378d0e12e5f402f37051a4e94726880b45a09",
+      "origin": "backend delegate; Root restored historical declaration order, AST-equivalent calls",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "modified_preimage_verified",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "departments/m06-material-control/tests/test_classement_variance_appareil.py",
+      "sha256": "436d75aa73984a450855307b465bd37a89a4f6105497a110d5ad061362c7bc06",
+      "preimage_sha256": null,
+      "origin": "backend delegate",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "new_file_dependencies_checked",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "docs/architecture/ROLES.md",
+      "sha256": "73a59d5cfc44f4d9eb42e1fe3dfc30963480ebc0b39fbd9d394621d6e7738c0a",
+      "preimage_sha256": "d943de33389ea5acd44be315f912c44d93ec3123723c9c04b4c0d31a4134508a",
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "modified_preimage_verified",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "mobile/src/admin/ClassementVariancesM6.test.tsx",
+      "sha256": "e1cc3730791810ac3b6e7decf2057317c26d05604991b9d7847f6e7ae7dc2e45",
+      "preimage_sha256": null,
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "new_file_dependencies_checked",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "mobile/src/admin/ClassementVariancesM6.tsx",
+      "sha256": "fc2c23b78cad9debd908cf5e371b7dec15d7d46038089d66fdabd221f10c35dc",
+      "preimage_sha256": null,
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "new_file_dependencies_checked",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "mobile/src/admin/PertesAlertesM6.tsx",
+      "sha256": "8b0f0752e3b8717333b2993fdee63046f95c6eb73b6550df39d2f76971262497",
+      "preimage_sha256": "b1dd7a1b00a6aacd4181bc38c9b8540d0d37a8c18d4ac5bf68b69c45f1f9159b",
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "modified_preimage_verified",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "mobile/src/admin/classementVariances.test.ts",
+      "sha256": "8723f524fb8237211c4a78a6c2a49153c6d8cf98369c74ae3f11f1ef66aedca1",
+      "preimage_sha256": null,
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "new_file_dependencies_checked",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "mobile/src/admin/classementVariances.ts",
+      "sha256": "87d80901372c414911bc3c4836e3f59de314961fe546f79018ff7bfb1bc8a62f",
+      "preimage_sha256": null,
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "new_file_dependencies_checked",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "mobile/src/i18n/locales/admin.en-CA.ts",
+      "sha256": "a4acd9642713677b4face527ec85f0a144a00816c75be7ca9fcec63ce19296a5",
+      "preimage_sha256": "ee36de7e07d0975da79df81b7a2ffca7e4ca5dfb565f1a14a205b1b6f7000b0e",
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "modified_preimage_verified",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "mobile/src/i18n/locales/admin.fr-CA.ts",
+      "sha256": "67b8fcda788cbea356ee0a28e11f2d5ddf88afedcbf3d5ce5dbf612bab665856",
+      "preimage_sha256": "ca7e2bc80307f809d9e935a74261250d33fd6a79f81bdec1de17ebd95939e94c",
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "modified_preimage_verified",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "mobile/src/m6/classementCapSQL.test.ts",
+      "sha256": "7ff59c3450513902f4cfee2d2d5ddcf2aefb31fbe0ff25543723c139e305ae5f",
+      "preimage_sha256": null,
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "new_file_dependencies_checked",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "mobile/src/m6/classementVariance.test.ts",
+      "sha256": "369bf92f2df35aa26df5d8d4ced1b66141b4d5cc98eae740a21f4f5931866647",
+      "preimage_sha256": null,
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "new_file_dependencies_checked",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "mobile/src/m6/classementVariance.ts",
+      "sha256": "9a445a5c506548fa1b8026e1dd591b33df0d93d8b6ddbb8b43e499f431d43ba0",
+      "preimage_sha256": null,
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "new_file_dependencies_checked",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "mobile/src/m6/fixturesClassementCapSQL.json",
+      "sha256": "bdc90a2e745c96cb09fb29d78b71c6d216cd180e8ef26c6c119648bd36a86aa7",
+      "preimage_sha256": null,
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "new_file_dependencies_checked",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "mobile/src/m6/fixturesClassementNullSQL.json",
+      "sha256": "b78cd76ca4f8f196891d37c0f48926d8b6f6ac3efab3f8eced3b7703e859084c",
+      "preimage_sha256": null,
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "new_file_dependencies_checked",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "mobile/src/m6/fixturesClassementVariancesSQL.json",
+      "sha256": "f3cbaf3c12ed72a2c7d7ffbf6151bc70ac24b072856df3a14116bd3548563dab",
+      "preimage_sha256": null,
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "new_file_dependencies_checked",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "mobile/src/outbox/classementVariance.test.ts",
+      "sha256": "d2b2cb0486e4234c9354958aa7f056a6d183739c3def7ea526c85598b1966bb8",
+      "preimage_sha256": null,
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "new_file_dependencies_checked",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "mobile/src/outbox/descripteurs.ts",
+      "sha256": "db13142c401b6f0367095751fd1987a19245641a806e82c707c65ad038e6de1b",
+      "preimage_sha256": "1e582ca80607adf3537b7460beb1cd4f6ab63c5a57202c71d2010e5d933a4137",
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "modified_preimage_verified",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "mobile/src/outbox/service.ts",
+      "sha256": "49d1d99db2ea435168fde47207e6abe56dcbb4d3c9443474f700d727f21c4be7",
+      "preimage_sha256": "663ae49686f656e37c4b7ef716ff50ac8d40258ce3249bd78fb55e3bab5f25b5",
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "modified_preimage_verified",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "mobile/src/outbox/types.ts",
+      "sha256": "6b323637b32582681d8fa8f45477e5680737d6a60b69678fd05c2bdc6bda2769",
+      "preimage_sha256": "a668c54141c54128355d71265f8285eea1138a6af5b5264183c1015d1c62671b",
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "modified_preimage_verified",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "mobile/src/outbox/vidangeur.ts",
+      "sha256": "d3cac77081a4c077be960e481cf34167b73ff7e31dd76128b6c280e543c27ffa",
+      "preimage_sha256": "b220d253649d9026b6bcc3e09f74f742eadadd6c54b30531db0b0130812f5aeb",
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "modified_preimage_verified",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "src/opsys/capacites.py",
+      "sha256": "d0c57a5b7c435b71a85c72c45f4209de08b0fd35444bf9592d8220b74700073c",
+      "preimage_sha256": "797526e561754002dba05a0fa58efa0963304a351579b72a3fe62f94ac6dc175",
+      "origin": "Cap delegate",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "modified_preimage_verified",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "tests/test_classement_variance_appareil_atomique.py",
+      "sha256": "ae0d0858e56ba3505cd2fb92d0203b7f11a14909ee47cf394aea84abd495a598",
+      "preimage_sha256": null,
+      "origin": "Cap delegate",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "new_file_dependencies_checked",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    },
+    {
+      "path": "tests/test_portees_appareil.py",
+      "sha256": "b5a5ad8c38e3b1d81f12963653f590aa32c5f30e097c305f928983437fad38bb",
+      "preimage_sha256": "03cfc4804e54932e4ebb1909d51420db5a884ddfb7724c37ff634774da4b2587",
+      "origin": "Root mobile/metadata",
+      "base": "1a600a459463116dd181b870810828395565df5f",
+      "integration": "modified_preimage_verified",
+      "verification": "fresh local qualifications plus exact source/evidence registry",
+      "limit": "new exact commit CI required; device execution remains separate"
+    }
+  ],
+  "excluded_paths": [
+    {
+      "path": "mobile/node_modules",
+      "disposition": "workspace dependency symlink, excluded from Git and delivery",
+      "verification": "points to primary canonical locked dependency directory"
+    }
+  ],
+  "dispositions": {
+    "Claude-F1": {
+      "status": "fixed",
+      "evidence": "real nullable Cap/SQLite capture; 1 product red then targeted/full green",
+      "change": "ratio string|null, unknown UI label, no invented zero"
+    },
+    "Claude-F2": {
+      "status": "known_limit_retained",
+      "evidence": "global source aggregation in actual code",
+      "limit": "10000 cap applies globally after copies including principal/proofs/classifications and nested admission, not per WCT",
+      "followup": "versioned bounded SQL projection and historical replay/scaling qualification, preserve global chain/index invariants"
+    },
+    "Claude-F3": {
+      "status": "fixed",
+      "evidence": "clean 1F reproduction on frozen old UI; stale page/history cleared after confirmation/refusal",
+      "infra_red": "first test oracle compared React instances recursively, RSS guard; preserved, not a product red"
+    },
+    "Claude-F4": {
+      "status": "not_reproduced_hypothesis",
+      "evidence": "canonical admin path validates WCT/source; chantier_attendu uses dict lookup and employee-only index branch",
+      "limit": "not an exhaustive refutation for noncanonical/custom factory exceptions; no broad catch added"
+    },
+    "Claude-F5": {
+      "status": "wording_followup",
+      "limit": "shared unknown message mentions same key for T0 despite no mutation/intent/claim",
+      "followup": "separate read/write refusal wording with focused no-claim regressions"
+    },
+    "peer-P2-01": {
+      "status": "fixed",
+      "evidence": "old A callback after B selection and old motif callback rejected via selection/saisie generations"
+    },
+    "peer-P2-02": {
+      "status": "fixed",
+      "evidence": "validated snapshot before await; mutations/getters cannot change queued intent"
+    },
+    "Root-ACK-device": {
+      "status": "fixed",
+      "evidence": "different appareil ACK product red, original device/url destination checked before RPC and ACK"
+    },
+    "Root-order": {
+      "status": "fixed",
+      "evidence": "1580P1F historical first-tool regression; only 3 declarations moved, fresh1581P and Native r3"
+    },
+    "Root-verifier-r1": {
+      "status": "excluded_from_candidate_qualification",
+      "evidence": "editable Python entry imported primary227/135 despite B cwd",
+      "correction": "r2 asserts CLI and all230 callable module paths in B, actual230/138"
+    },
+    "Native-r2": {
+      "status": "historical_old_order",
+      "replacement": "fresh r3 PUBLIC-FINAL-r2, sources hashed; no relabelling"
+    },
+    "duplicate-parent-CI": {
+      "status": "separate_run_unknown_cause",
+      "run": 37872149236,
+      "limit": "no results/artifacts mixed with primary37872149029; no manual rerun/cancel"
+    },
+    "Root-capsule-preparation-r1": {
+      "status": "infra_red_preserved",
+      "evidence": "overbroad filename guard rejected sanitized private-core-tests-projection-r1.json in approved public CI manifest",
+      "correction": "private directory exclusion retained; metadata projection inspected; new r2 directory, partial r1 intact"
+    }
+  },
+  "capsule": {
+    "path": "PREUVES-CLASSEMENT-VARIANCES-M6-2026-10-08-r1.tar.xz",
+    "sha256": "9257d973e79cc4d487fa22da67d22c0ea683e57a38df7583a40c718048ad0799",
+    "members": 561
+  },
+  "local": {
+    "backend": "1581P",
+    "mobile": "4997P/217 suites",
+    "types": 0,
+    "ruff": 0,
+    "business": {
+      "tools": 230,
+      "DEVICE": 138,
+      "admin": 137,
+      "employee": 16,
+      "seller": 15,
+      "actual_callable_modules_checked_in_B": 230
+    },
+    "android_export": 0,
+    "source_digest": "a1d4aeb07ea6bf0abe7d015a94bd63fa09789d016afc8c829408168429bd3df9",
+    "counts_overlap": true
+  },
+  "native_current": {
+    "Gateway": 51,
+    "MCP": 40,
+    "unchanged49table_pairs": 41,
+    "accepted_write_pairs": 8,
+    "fresh_refusal_idem_only_pairs": 2,
+    "receipt_sha256": "c3e6d5d54375a815f7151d4f69cf4c5ba831698eae33302dc0b6e0b9c2dc8582"
+  },
+  "parent_CI": {
+    "head": "1a600a459463116dd181b870810828395565df5f",
+    "run": 37872149029,
+    "verdict": "PASS_EXACT_RUN",
+    "jobs": {
+      "total": 40,
+      "conclusions": {
+        "success": 38,
+        "failure": 0,
+        "skipped": 2,
+        "cancelled": 0,
+        "timed_out": 0
+      }
+    },
+    "gates": "success"
+  },
+  "new_exact_CI": "pending",
+  "limits": [
+    "new exact commit CI pending; parent CI is not inherited",
+    "global aggregate cap10000 after copy; historical intents remain unknown/blocked at cap",
+    "no phone/Hermes/ExpoSQLite; Android JavaScript export only",
+    "Native SQLite; PostgreSQL applicable runner qualification remains distinct",
+    "consumer loss fictive receiver on real Gateway bytes; production SDK/outbox checked separately with captured responses",
+    "no new stock/cost/M4 N4 resolution/M10 ingestion; annotations only",
+    "associated evidence is not proof it existed at calculation time; no source input hash retained",
+    "six human causes cover this slice, not all eight deep alert families/recurrent alerts",
+    "104 transferred proof references absent; supplement/conversations unknown",
+    "only observed processes and sampled RSS; no OOM cause or permanent execution claim"
+  ],
+  "continuation": "M7→M1→M2→M3→M4/M6→M5→M8/M9/M10, preserve common IDs and restart proofs"
+}
