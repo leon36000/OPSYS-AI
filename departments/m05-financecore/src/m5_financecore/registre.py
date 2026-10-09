@@ -18,6 +18,8 @@ __all__ = ["Registre", "enregistrer_mouvement"]
 # (relecture après redémarrage) reflète donc immédiatement l'état réel dès sa création.
 
 _TYPE_ENTREE_VALIDES = {
+    "declaration_obligation_preparee",
+    "retrait_obligation_preparee",
     "mouvement_enregistre",
     "demande_creee",
     "transition_approbation",

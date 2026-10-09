@@ -1,7 +1,7 @@
 import { useNetInfo } from "@react-native-community/netinfo";
 import { capturerSessionAdminLecture } from "@/protocole/configuration";
 import { useEtatIdentite } from "@/roles/contexte";
-import { useFocusEffect } from "expo-router";
+import { Link, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { ScrollView, Text } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -159,6 +159,7 @@ export default function EcranChiffres() {
         <Text style={styles.erreur}>{t("admin.commun.sansSession")}</Text>
       ) : (
         <>
+          <Link href="/(admin)/obligations" style={styles.lien}>{t("admin.obligationsM5.ouvrir")}</Link>
           <Carte>
             <Text style={styles.sousTitre}>{t("admin.chiffres.sections.tresorerie")}</Text>
             <EtatSection vue={vueTres} rendre={(contenu) => <TresorerieUI vue={contenu} />} />

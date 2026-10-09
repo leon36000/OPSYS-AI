@@ -216,6 +216,9 @@ def test_l_outil_ne_declare_que_l_admin_comme_role_d_appareil(par_nom):
     lectures |= {
         "m5_enregistrer_contrat_horaire", "m5_revoquer_contrat_horaire", "m5_lire_contrat_horaire",
     }  # M5.4.a : lecture privée et mutations N4 accessibles à l'admin appareil seulement
+    lectures |= {
+        "m5_lire_obligations_preparees_appareil", "m5_enregistrer_obligation_preparee_appareil",
+    }  # Déclarations preparatoires T0/N0 et T1/N3, identité admin DEVICE courante obligatoire
     for nom in lectures:
         assert par_nom[nom].roles_appareil == frozenset({"admin"}), nom
     assert {nom for nom, o in par_nom.items() if o.roles_appareil} == lectures

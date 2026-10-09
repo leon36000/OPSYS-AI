@@ -79,6 +79,8 @@ ADMIN_SEUL = frozenset({
     "m5_saisir_facture_sans_po", "m5_corriger_facture_fournisseur", "m5_annuler_facture_fournisseur",
     "m5_lire_echeances_fiscales",  # calendrier fiscal vivant, TPS/TVQ (T4.16)
     "m5_lire_calendrier_obligations",  # échéances avec origine et fraîcheur, lecture admin seulement (T4.16)
+    # Déclarations préparatoires séparées : lecture pure et annotation interne DEVICE, sans flux financiers.
+    "m5_lire_obligations_preparees_appareil", "m5_enregistrer_obligation_preparee_appareil",
     "m5_prevoir_tresorerie",  # prévision de trésorerie des flux connus et datés, lecture pure (T4.16-d)
     "m5_preparer_decision_capital",  # comparaison financière indicative, sans commande ni paiement
     "m5_preparer_dossier_decision_cfo",  # dossier préparatoire de direction, lecture pure des sources M5

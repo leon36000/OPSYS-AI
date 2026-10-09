@@ -54,6 +54,8 @@ export type TypeMutation =
   | "memory_revision_arbitration"
   /** Prise interne M1 ; groupe rappel:<transfert_id>, aucun chantier métier. */
   | "prise_en_charge_rappel"
+  /** Déclaration M5 interne préparatoire ; aucune écriture bancaire ou paie finale. */
+  | "obligation_preparee"
   | "lead_note";
 
 /**

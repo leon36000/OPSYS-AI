@@ -12,6 +12,7 @@ import { interpreterResultatEnregistrerInteraction } from "../m2/interaction";
 import { construireArgumentsDecisionMarketing, interpreterDecisionMarketing } from "../m7/decisionOutbox";
 import { construireArgumentsArbitrageMemoire, interpreterArbitrageMemoire } from "../m10/arbitrageOutbox";
 import { OUTIL_PRISE_RAPPEL_M1, argumentsRpcPriseRappelM1, interpreterPriseRappelM1, validerRecuPriseRappelM1 } from "../m1/rappelsAppareil";
+import { OUTIL_ENREGISTRER_OBLIGATION_PREPAREE, argumentsRpcObligationPreparee, interpreterObligationPreparee, validerRecuObligationPreparee } from "../m5/obligationsPreparees";
 import type { DescripteurTypeMutation, InterpretationResultatMetier } from "./vidangeur";
 import type { MutationOutbox, TypeMutation } from "./types";
 import { argumentsRpcRevueCompletion, interpreterRevueCompletion, validerRecuRevueCompletion } from "../m4/revueCompletionOutbox";
@@ -155,6 +156,9 @@ export const DESCRIPTEURS_MUTATION: ReadonlyMap<TypeMutation, DescripteurTypeMut
   ["prise_en_charge_rappel", { tool: OUTIL_PRISE_RAPPEL_M1, construireArguments: argumentsRpcPriseRappelM1,
     interpreterResultat: interpreterPriseRappelM1, groupeSerie: "rappel", serialiserParChantier: true,
     conserverRefusHttpIncertains: true, verifierAvantEnvoi: true, validerRecuEnvoye: validerRecuPriseRappelM1 }],
+  ["obligation_preparee", { tool: OUTIL_ENREGISTRER_OBLIGATION_PREPAREE, construireArguments: argumentsRpcObligationPreparee,
+    interpreterResultat: interpreterObligationPreparee, groupeSerie: "obligation-m5", serialiserParChantier: true,
+    conserverRefusHttpIncertains: true, verifierAvantEnvoi: true, validerRecuEnvoye: validerRecuObligationPreparee }],
   ["punch_in", { tool: "m4_pointer", interpreterResultat: versInterpretationGenerique }],
   ["punch_out", { tool: "m4_pointer", interpreterResultat: versInterpretationGenerique }],
   ["job_status_change", { tool: "m4_demarrer_route", interpreterResultat: versInterpretationGeneriqueDemarrerRoute }],

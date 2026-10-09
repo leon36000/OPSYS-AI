@@ -10,6 +10,21 @@
  * montre tel quel.
  */
 const adminFrCA = {
+  obligationsM5: {
+    sourceMontantNormalisee: "Source du montant, projection normalisée", sourceEcheanceNormalisee: "Source de l'échéance, projection normalisée",
+    ouvrir: "Ouvrir les déclarations préparatoires internes",
+    titre: "Obligations préparatoires", note: "Déclarations internes de paies, DAS et dettes. Montants déclarés, non attestés : aucun versement, calcul fiscal, solde bancaire ou état de paiement. Le cash, le calendrier existant et le CFO ne sont pas alimentés par cette lecture.",
+    aujourdHui: "Date de lecture explicite", lire: "Relire la première page", suite: "Lire la page suivante", choisir: "Choisir cette catégorie", pagesCourantes: "Pages courantes : chaque lecture remplace la page et les déclarations peuvent changer.",
+    page: "Décalage {{debut}} · {{nombre}} catégorie(s) sur {{total}}", inconnu: "Non déclaré", horsLigne: "Hors ligne : aucune page mise en cache n'est autorisée. Les intentions locales sont conservées.",
+    echeanceDeclaree: "Échéance déclarée, sans statut de paiement", projection: "Projection préparatoire normalisée", saisieNote: "Renseignez uniquement les données et sources que vous déclarez. Une case vide reste inconnue. Les valeurs courantes ne remplissent pas automatiquement cette saisie.",
+    montant: "Montant déclaré (texte CAD, sans calcul)", source: "Source déclarée du montant", au: "Date du montant déclaré", echeance: "Échéance déclarée", motif: "Motif interne (500 caractères maximum)",
+    calendrier: "Afficher ou masquer la provenance d'échéance", autorite: "Autorité déclarée", periode_debut: "Début de période déclaré", periode_fin: "Fin de période déclarée", echeance_source: "Source déclarée de l'échéance",
+    source_consultee_le: "Date de consultation déclarée", source_applicable_du: "Validité déclarée : début", source_applicable_jusqu_au: "Validité déclarée : fin", annee: "Année déclarée", version: "Version déclarée de la source",
+    declarer: "Enregistrer cette déclaration interne N3", retirer: "Retirer cette déclaration avec le motif saisi", reprendre: "Réessayer l'intention originale", enAttente: "Confirmation inconnue ou en attente : la même clé et le même corps sont conservés. Toute nouvelle intention de cette catégorie reste bloquée.",
+    confirmee: "Déclaration interne confirmée par son maillon propre. Relisez la page pour connaître l'état courant.", refusee: "Ancienne intention locale en échec : aucun nouveau statut de paiement n'est déduit.", quarantaine: "Une intention non résolue appartient à une autre personne, à un autre appareil ou à une autre destination. Elle reste conservée et bloque cette catégorie.", indisponible: "Intention indisponible ; aucune nouvelle déclaration n'est lancée.",
+    categories: { paies: "Paies", das: "Déductions à la source (DAS)", dettes: "Dettes déclarées" }, etats: { ABSENTE: "Déclaration absente", DECLAREE: "Déclaration présente", RETIREE: "Déclaration retirée" },
+    statuts: { SOURCE_PERIMEE: "Source déclarée périmée", INCOMPLETE: "Documentation incomplète", ECHEANCE_PASSEE_A_VERIFIER: "Échéance passée à vérifier", DOCUMENTEE_A_VALIDER: "Documentation à valider" },
+  },
   revueCompletion: {
     legacyHorsLigne: "La dernière liste lue reste informative hors ligne. Seules les décisions legacy déjà offertes peuvent être mises en file ; la revue avec sources doit être relue en ligne.",
     titre: "Revue de complétion avec sources", limites: "La proposition crée une demande N4. Seul le propriétaire autorisé peut décider ; une preuve propre confirme ensuite la décision. Aucun stock, coût ou classement n’est corrigé automatiquement.",

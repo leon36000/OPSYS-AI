@@ -1,0 +1,1079 @@
+{
+  "fictif": true,
+  "origin": "real SQLite direct façade only, no Cap/Gateway/HTTP/phone",
+  "source_root": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m5-preparation-20261009",
+  "source_before": {
+    "departments/m05-financecore/src/m5_financecore/obligations_preparees.py": "bf02773e4ee5591b5f391e88ea83b1f3a5c9d26aebcc3cfe3a7f736ba7be393b",
+    "departments/m05-financecore/src/m5_financecore/outils.py": "25fdaf3f7a60f5851e4d0a1631d6e017255f3b0b162fef14d6d93e918f929cfe",
+    "departments/m05-financecore/src/m5_financecore/registre.py": "ab98888fa1f0d781c75e466c666cd368f45ebcfd5a115f4482aff4aaff54da36",
+    "departments/m05-financecore/tests/test_obligations_preparees.py": "26b830114c910da7c227b8bbe01a68a4bddfce77e21a30783f9c554de9b93288",
+    "departments/m05-financecore/tests/test_obligations_preparees_appareil.py": "05a37467dcb2d5d1ec31afe3163d0eae9812df4267a3648da23f85e5a4532a77",
+    "departments/m05-financecore/docs/OBLIGATIONS-PREPARATOIRES-APPAREIL.md": "b5cef0626dd6b93b944165e86b49b39d77928f685dbb1148cb903a886e91bffa",
+    "departments/m05-financecore/src/m5_financecore/calendrier_obligations.py": "dacc443ad4fe7820f90efc2cc834887368927a4f321d30a2ff02726ed4bb80cd",
+    "departments/m05-financecore/src/m5_financecore/encodage.py": "ca3d7b1a839a0254fdcb2efac75bdf8f161207d1e9662b095821dd1e3eb6e9e4"
+  },
+  "source_after": {
+    "departments/m05-financecore/src/m5_financecore/obligations_preparees.py": "bf02773e4ee5591b5f391e88ea83b1f3a5c9d26aebcc3cfe3a7f736ba7be393b",
+    "departments/m05-financecore/src/m5_financecore/outils.py": "25fdaf3f7a60f5851e4d0a1631d6e017255f3b0b162fef14d6d93e918f929cfe",
+    "departments/m05-financecore/src/m5_financecore/registre.py": "ab98888fa1f0d781c75e466c666cd368f45ebcfd5a115f4482aff4aaff54da36",
+    "departments/m05-financecore/tests/test_obligations_preparees.py": "26b830114c910da7c227b8bbe01a68a4bddfce77e21a30783f9c554de9b93288",
+    "departments/m05-financecore/tests/test_obligations_preparees_appareil.py": "05a37467dcb2d5d1ec31afe3163d0eae9812df4267a3648da23f85e5a4532a77",
+    "departments/m05-financecore/docs/OBLIGATIONS-PREPARATOIRES-APPAREIL.md": "b5cef0626dd6b93b944165e86b49b39d77928f685dbb1148cb903a886e91bffa",
+    "departments/m05-financecore/src/m5_financecore/calendrier_obligations.py": "dacc443ad4fe7820f90efc2cc834887368927a4f321d30a2ff02726ed4bb80cd",
+    "departments/m05-financecore/src/m5_financecore/encodage.py": "ca3d7b1a839a0254fdcb2efac75bdf8f161207d1e9662b095821dd1e3eb6e9e4"
+  },
+  "sources_unchanged": true,
+  "captures": [
+    {
+      "name": "lecture-absente",
+      "request": {
+        "outil": "m5_lire_obligations_preparees_appareil",
+        "arguments": {
+          "aujourd_hui": "2026-10-09",
+          "decalage": 0,
+          "limite": 1
+        }
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "type": "DECLARATIONS_PREPARATOIRES_OBLIGATIONS",
+            "version_schema": 1,
+            "aujourd_hui": "2026-10-09",
+            "source_canonique": "REGISTRE_PREPARATOIRE_DURABLE",
+            "registre": "obligations_preparees",
+            "decalage": 0,
+            "limite": 1,
+            "total": 3,
+            "decalage_suivant": 1,
+            "obligations": [
+              {
+                "categorie": "paies",
+                "etat_declaration": "ABSENTE",
+                "declaration": null,
+                "reference": null,
+                "revision_precedente": null,
+                "auteur": null,
+                "intention": null,
+                "enregistree_le": null,
+                "horodatage_appareil_declare": null,
+                "calendrier_preparatoire": {
+                  "id": "paies",
+                  "nom": "Paies",
+                  "autorite": null,
+                  "periode": {
+                    "debut": null,
+                    "fin": null
+                  },
+                  "echeance": null,
+                  "montant": null,
+                  "devise": null,
+                  "source_montant": {
+                    "description": null,
+                    "au": null
+                  },
+                  "source_echeance": {
+                    "description": null,
+                    "consultee_le": null,
+                    "applicable_du": null,
+                    "applicable_jusqu_au": null
+                  },
+                  "annee": null,
+                  "version": null,
+                  "montant_utilisable": null,
+                  "echeance_statut": "NON_DECLAREE",
+                  "statut": "INCOMPLETE",
+                  "manque": [
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-MONTANT-ABSENT",
+                      "detail": "montant paies absent ou invalide dans configuration.obligations_declarees.paies"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-SOURCE-MONTANT-ABSENTE",
+                      "detail": "source et date de la déclaration paies requises"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-ECHEANCE-ABSENTE",
+                      "detail": "échéance paies à déclarer dans configuration.prevision.echeances_obligations.paies"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-PERIODE-SOURCE-ABSENTE",
+                      "detail": "autorité, période, source d'échéance, année et version à déclarer pour paies"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-SOURCE-INVALIDE",
+                      "detail": "autorité, source d'échéance et version explicites exigées"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-PERIODE-INVALIDE",
+                      "detail": "période de début et de fin valide exigée"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-DATE-SOURCE-INVALIDE",
+                      "detail": "dates de consultation et de validité déclarée de la source d'échéance exigées"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-ANNEE-VERSION-INVALIDE",
+                      "detail": "année déclarée entière et égale à l'année de fin de période exigée"
+                    }
+                  ]
+                }
+              }
+            ],
+            "mention": "Analyse préparatoire IA",
+            "couverture": {
+              "categories": "paies_das_dettes_seulement",
+              "echeances": "a_verifier_sans_etat_paiement",
+              "montants": "declares_non_attestes",
+              "pages": "courantes_non_figees",
+              "plafond_lignes": 10000,
+              "source": "registre_preparatoire_sans_activation_YAML_cash_CFO"
+            }
+          }
+        }
+      },
+      "body_path": "lecture-absente.json",
+      "body_sha256": "1f3aebbd37299d26fe1010c0367034edf2f9fc2ac272a90ad862eb23eace14c2",
+      "body_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"resultat\": {\"type\": \"DECLARATIONS_PREPARATOIRES_OBLIGATIONS\", \"version_schema\": 1, \"aujourd_hui\": \"2026-10-09\", \"source_canonique\": \"REGISTRE_PREPARATOIRE_DURABLE\", \"registre\": \"obligations_preparees\", \"decalage\": 0, \"limite\": 1, \"total\": 3, \"decalage_suivant\": 1, \"obligations\": [{\"categorie\": \"paies\", \"etat_declaration\": \"ABSENTE\", \"declaration\": null, \"reference\": null, \"revision_precedente\": null, \"auteur\": null, \"intention\": null, \"enregistree_le\": null, \"horodatage_appareil_declare\": null, \"calendrier_preparatoire\": {\"id\": \"paies\", \"nom\": \"Paies\", \"autorite\": null, \"periode\": {\"debut\": null, \"fin\": null}, \"echeance\": null, \"montant\": null, \"devise\": null, \"source_montant\": {\"description\": null, \"au\": null}, \"source_echeance\": {\"description\": null, \"consultee_le\": null, \"applicable_du\": null, \"applicable_jusqu_au\": null}, \"annee\": null, \"version\": null, \"montant_utilisable\": null, \"echeance_statut\": \"NON_DECLAREE\", \"statut\": \"INCOMPLETE\", \"manque\": [{\"code\": \"REJ-CALENDRIER-PAIES-MONTANT-ABSENT\", \"detail\": \"montant paies absent ou invalide dans configuration.obligations_declarees.paies\"}, {\"code\": \"REJ-CALENDRIER-PAIES-SOURCE-MONTANT-ABSENTE\", \"detail\": \"source et date de la déclaration paies requises\"}, {\"code\": \"REJ-CALENDRIER-PAIES-ECHEANCE-ABSENTE\", \"detail\": \"échéance paies à déclarer dans configuration.prevision.echeances_obligations.paies\"}, {\"code\": \"REJ-CALENDRIER-PAIES-PERIODE-SOURCE-ABSENTE\", \"detail\": \"autorité, période, source d'échéance, année et version à déclarer pour paies\"}, {\"code\": \"REJ-CALENDRIER-PAIES-SOURCE-INVALIDE\", \"detail\": \"autorité, source d'échéance et version explicites exigées\"}, {\"code\": \"REJ-CALENDRIER-PAIES-PERIODE-INVALIDE\", \"detail\": \"période de début et de fin valide exigée\"}, {\"code\": \"REJ-CALENDRIER-PAIES-DATE-SOURCE-INVALIDE\", \"detail\": \"dates de consultation et de validité déclarée de la source d'échéance exigées\"}, {\"code\": \"REJ-CALENDRIER-PAIES-ANNEE-VERSION-INVALIDE\", \"detail\": \"année déclarée entière et égale à l'année de fin de période exigée\"}]}}], \"mention\": \"Analyse préparatoire IA\", \"couverture\": {\"categories\": \"paies_das_dettes_seulement\", \"echeances\": \"a_verifier_sans_etat_paiement\", \"montants\": \"declares_non_attestes\", \"pages\": \"courantes_non_figees\", \"plafond_lignes\": 10000, \"source\": \"registre_preparatoire_sans_activation_YAML_cash_CFO\"}}}}",
+      "tables_count": 49,
+      "all_tables_unchanged": true,
+      "changed_tables": [],
+      "fictif": true,
+      "origin": "SQLite réel / executer_atomique façade directe, identité+Meta injectées ; sans Cap/HTTP/Gateway"
+    },
+    {
+      "name": "ack-partielle",
+      "request": {
+        "outil": "m5_enregistrer_obligation_preparee_appareil",
+        "arguments": {
+          "categorie": "paies",
+          "operation": "declarer",
+          "declaration": {
+            "montant": null,
+            "source": null,
+            "au": null,
+            "echeance": null,
+            "calendrier": null
+          },
+          "revision_attendue": null,
+          "motif": "FICTIF é 😀\t\r\n"
+        }
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "version_schema": 1,
+          "resultat": {
+            "categorie": "paies",
+            "etat_declaration": "DECLAREE",
+            "declaration": {
+              "montant": null,
+              "source": null,
+              "au": null,
+              "echeance": null,
+              "calendrier": null
+            },
+            "reference": {
+              "registre": "obligations_preparees",
+              "index": 0,
+              "ligne_id": "4298568d8d9d29895009d2f74e5fb1f43756b50f1e83ff95b2369a44e0e6b120",
+              "precedent_ligne_id": null
+            },
+            "revision_precedente": null,
+            "auteur": {
+              "personne": "admin.fictif",
+              "role": "admin",
+              "source": "appareil"
+            },
+            "intention": {
+              "appareil_id": "device-fictif",
+              "intention_uuid": "uuid-fictif-1",
+              "empreinte_arguments": "f21fc46294e67e8eaadc3a88f59de966998861ab34c80d0c922ac63a8ca60464"
+            },
+            "enregistree_le": "2026-10-09T12:00:00+00:00",
+            "horodatage_appareil_declare": "2026-10-09T12:00:00+00:00"
+          },
+          "registre": "obligations_preparees"
+        }
+      },
+      "body_path": "ack-partielle.json",
+      "body_sha256": "f5bf0c9aefa160d3e420eadffb62e3660da59f35f8d258131e2f6b7e3a375029",
+      "body_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"version_schema\": 1, \"resultat\": {\"categorie\": \"paies\", \"etat_declaration\": \"DECLAREE\", \"declaration\": {\"montant\": null, \"source\": null, \"au\": null, \"echeance\": null, \"calendrier\": null}, \"reference\": {\"registre\": \"obligations_preparees\", \"index\": 0, \"ligne_id\": \"4298568d8d9d29895009d2f74e5fb1f43756b50f1e83ff95b2369a44e0e6b120\", \"precedent_ligne_id\": null}, \"revision_precedente\": null, \"auteur\": {\"personne\": \"admin.fictif\", \"role\": \"admin\", \"source\": \"appareil\"}, \"intention\": {\"appareil_id\": \"device-fictif\", \"intention_uuid\": \"uuid-fictif-1\", \"empreinte_arguments\": \"f21fc46294e67e8eaadc3a88f59de966998861ab34c80d0c922ac63a8ca60464\"}, \"enregistree_le\": \"2026-10-09T12:00:00+00:00\", \"horodatage_appareil_declare\": \"2026-10-09T12:00:00+00:00\"}, \"registre\": \"obligations_preparees\"}}",
+      "tables_count": 49,
+      "all_tables_unchanged": false,
+      "changed_tables": [
+        "registres_maillons"
+      ],
+      "fictif": true,
+      "origin": "SQLite réel / executer_atomique façade directe, identité+Meta injectées ; sans Cap/HTTP/Gateway"
+    },
+    {
+      "name": "lecture-partielle",
+      "request": {
+        "outil": "m5_lire_obligations_preparees_appareil",
+        "arguments": {
+          "aujourd_hui": "2026-10-09",
+          "decalage": 0,
+          "limite": 1
+        }
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "type": "DECLARATIONS_PREPARATOIRES_OBLIGATIONS",
+            "version_schema": 1,
+            "aujourd_hui": "2026-10-09",
+            "source_canonique": "REGISTRE_PREPARATOIRE_DURABLE",
+            "registre": "obligations_preparees",
+            "decalage": 0,
+            "limite": 1,
+            "total": 3,
+            "decalage_suivant": 1,
+            "obligations": [
+              {
+                "categorie": "paies",
+                "etat_declaration": "DECLAREE",
+                "declaration": {
+                  "montant": null,
+                  "source": null,
+                  "au": null,
+                  "echeance": null,
+                  "calendrier": null
+                },
+                "reference": {
+                  "registre": "obligations_preparees",
+                  "index": 0,
+                  "ligne_id": "4298568d8d9d29895009d2f74e5fb1f43756b50f1e83ff95b2369a44e0e6b120",
+                  "precedent_ligne_id": null
+                },
+                "revision_precedente": null,
+                "auteur": {
+                  "personne": "admin.fictif",
+                  "role": "admin",
+                  "source": "appareil"
+                },
+                "intention": {
+                  "appareil_id": "device-fictif",
+                  "intention_uuid": "uuid-fictif-1",
+                  "empreinte_arguments": "f21fc46294e67e8eaadc3a88f59de966998861ab34c80d0c922ac63a8ca60464"
+                },
+                "enregistree_le": "2026-10-09T12:00:00+00:00",
+                "horodatage_appareil_declare": "2026-10-09T12:00:00+00:00",
+                "calendrier_preparatoire": {
+                  "id": "paies",
+                  "nom": "Paies",
+                  "autorite": null,
+                  "periode": {
+                    "debut": null,
+                    "fin": null
+                  },
+                  "echeance": null,
+                  "montant": null,
+                  "devise": null,
+                  "source_montant": {
+                    "description": null,
+                    "au": null
+                  },
+                  "source_echeance": {
+                    "description": null,
+                    "consultee_le": null,
+                    "applicable_du": null,
+                    "applicable_jusqu_au": null
+                  },
+                  "annee": null,
+                  "version": null,
+                  "montant_utilisable": null,
+                  "echeance_statut": "NON_DECLAREE",
+                  "statut": "INCOMPLETE",
+                  "manque": [
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-MONTANT-ABSENT",
+                      "detail": "montant paies absent ou invalide dans configuration.obligations_declarees.paies"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-SOURCE-MONTANT-ABSENTE",
+                      "detail": "source et date de la déclaration paies requises"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-ECHEANCE-ABSENTE",
+                      "detail": "échéance paies à déclarer dans configuration.prevision.echeances_obligations.paies"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-PERIODE-SOURCE-ABSENTE",
+                      "detail": "autorité, période, source d'échéance, année et version à déclarer pour paies"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-SOURCE-INVALIDE",
+                      "detail": "autorité, source d'échéance et version explicites exigées"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-PERIODE-INVALIDE",
+                      "detail": "période de début et de fin valide exigée"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-DATE-SOURCE-INVALIDE",
+                      "detail": "dates de consultation et de validité déclarée de la source d'échéance exigées"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-ANNEE-VERSION-INVALIDE",
+                      "detail": "année déclarée entière et égale à l'année de fin de période exigée"
+                    }
+                  ]
+                }
+              }
+            ],
+            "mention": "Analyse préparatoire IA",
+            "couverture": {
+              "categories": "paies_das_dettes_seulement",
+              "echeances": "a_verifier_sans_etat_paiement",
+              "montants": "declares_non_attestes",
+              "pages": "courantes_non_figees",
+              "plafond_lignes": 10000,
+              "source": "registre_preparatoire_sans_activation_YAML_cash_CFO"
+            }
+          }
+        }
+      },
+      "body_path": "lecture-partielle.json",
+      "body_sha256": "a7ce6fcde4d53e61303b7d276278ee0312319b9125869c0621f24e2a6973b090",
+      "body_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"resultat\": {\"type\": \"DECLARATIONS_PREPARATOIRES_OBLIGATIONS\", \"version_schema\": 1, \"aujourd_hui\": \"2026-10-09\", \"source_canonique\": \"REGISTRE_PREPARATOIRE_DURABLE\", \"registre\": \"obligations_preparees\", \"decalage\": 0, \"limite\": 1, \"total\": 3, \"decalage_suivant\": 1, \"obligations\": [{\"categorie\": \"paies\", \"etat_declaration\": \"DECLAREE\", \"declaration\": {\"montant\": null, \"source\": null, \"au\": null, \"echeance\": null, \"calendrier\": null}, \"reference\": {\"registre\": \"obligations_preparees\", \"index\": 0, \"ligne_id\": \"4298568d8d9d29895009d2f74e5fb1f43756b50f1e83ff95b2369a44e0e6b120\", \"precedent_ligne_id\": null}, \"revision_precedente\": null, \"auteur\": {\"personne\": \"admin.fictif\", \"role\": \"admin\", \"source\": \"appareil\"}, \"intention\": {\"appareil_id\": \"device-fictif\", \"intention_uuid\": \"uuid-fictif-1\", \"empreinte_arguments\": \"f21fc46294e67e8eaadc3a88f59de966998861ab34c80d0c922ac63a8ca60464\"}, \"enregistree_le\": \"2026-10-09T12:00:00+00:00\", \"horodatage_appareil_declare\": \"2026-10-09T12:00:00+00:00\", \"calendrier_preparatoire\": {\"id\": \"paies\", \"nom\": \"Paies\", \"autorite\": null, \"periode\": {\"debut\": null, \"fin\": null}, \"echeance\": null, \"montant\": null, \"devise\": null, \"source_montant\": {\"description\": null, \"au\": null}, \"source_echeance\": {\"description\": null, \"consultee_le\": null, \"applicable_du\": null, \"applicable_jusqu_au\": null}, \"annee\": null, \"version\": null, \"montant_utilisable\": null, \"echeance_statut\": \"NON_DECLAREE\", \"statut\": \"INCOMPLETE\", \"manque\": [{\"code\": \"REJ-CALENDRIER-PAIES-MONTANT-ABSENT\", \"detail\": \"montant paies absent ou invalide dans configuration.obligations_declarees.paies\"}, {\"code\": \"REJ-CALENDRIER-PAIES-SOURCE-MONTANT-ABSENTE\", \"detail\": \"source et date de la déclaration paies requises\"}, {\"code\": \"REJ-CALENDRIER-PAIES-ECHEANCE-ABSENTE\", \"detail\": \"échéance paies à déclarer dans configuration.prevision.echeances_obligations.paies\"}, {\"code\": \"REJ-CALENDRIER-PAIES-PERIODE-SOURCE-ABSENTE\", \"detail\": \"autorité, période, source d'échéance, année et version à déclarer pour paies\"}, {\"code\": \"REJ-CALENDRIER-PAIES-SOURCE-INVALIDE\", \"detail\": \"autorité, source d'échéance et version explicites exigées\"}, {\"code\": \"REJ-CALENDRIER-PAIES-PERIODE-INVALIDE\", \"detail\": \"période de début et de fin valide exigée\"}, {\"code\": \"REJ-CALENDRIER-PAIES-DATE-SOURCE-INVALIDE\", \"detail\": \"dates de consultation et de validité déclarée de la source d'échéance exigées\"}, {\"code\": \"REJ-CALENDRIER-PAIES-ANNEE-VERSION-INVALIDE\", \"detail\": \"année déclarée entière et égale à l'année de fin de période exigée\"}]}}], \"mention\": \"Analyse préparatoire IA\", \"couverture\": {\"categories\": \"paies_das_dettes_seulement\", \"echeances\": \"a_verifier_sans_etat_paiement\", \"montants\": \"declares_non_attestes\", \"pages\": \"courantes_non_figees\", \"plafond_lignes\": 10000, \"source\": \"registre_preparatoire_sans_activation_YAML_cash_CFO\"}}}}",
+      "tables_count": 49,
+      "all_tables_unchanged": true,
+      "changed_tables": [],
+      "fictif": true,
+      "origin": "SQLite réel / executer_atomique façade directe, identité+Meta injectées ; sans Cap/HTTP/Gateway"
+    },
+    {
+      "name": "ack-correction",
+      "request": {
+        "outil": "m5_enregistrer_obligation_preparee_appareil",
+        "arguments": {
+          "categorie": "paies",
+          "operation": "declarer",
+          "declaration": {
+            "montant": "000.10",
+            "source": "  déclaration FICTIVE é 😀  ",
+            "au": "2026-10-09",
+            "echeance": "2026-09-30",
+            "calendrier": null
+          },
+          "revision_attendue": {
+            "registre": "obligations_preparees",
+            "index": 0,
+            "ligne_id": "4298568d8d9d29895009d2f74e5fb1f43756b50f1e83ff95b2369a44e0e6b120",
+            "precedent_ligne_id": null
+          },
+          "motif": "FICTIF é 😀\t\r\n"
+        }
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "version_schema": 1,
+          "resultat": {
+            "categorie": "paies",
+            "etat_declaration": "DECLAREE",
+            "declaration": {
+              "montant": "000.10",
+              "source": "  déclaration FICTIVE é 😀  ",
+              "au": "2026-10-09",
+              "echeance": "2026-09-30",
+              "calendrier": null
+            },
+            "reference": {
+              "registre": "obligations_preparees",
+              "index": 1,
+              "ligne_id": "4fbbcc7a4a6a86961d81a2cd45c8a5f6ad09f609dc21806c621018444a1ce7f0",
+              "precedent_ligne_id": "4298568d8d9d29895009d2f74e5fb1f43756b50f1e83ff95b2369a44e0e6b120"
+            },
+            "revision_precedente": {
+              "registre": "obligations_preparees",
+              "index": 0,
+              "ligne_id": "4298568d8d9d29895009d2f74e5fb1f43756b50f1e83ff95b2369a44e0e6b120",
+              "precedent_ligne_id": null
+            },
+            "auteur": {
+              "personne": "admin.fictif",
+              "role": "admin",
+              "source": "appareil"
+            },
+            "intention": {
+              "appareil_id": "device-fictif",
+              "intention_uuid": "uuid-fictif-2",
+              "empreinte_arguments": "0419a05c409f54ef671125a256db2480c9a8777b397e0eb592e289a0f5a14e74"
+            },
+            "enregistree_le": "2026-10-09T12:00:00+00:00",
+            "horodatage_appareil_declare": "2026-10-09T12:00:00+00:00"
+          },
+          "registre": "obligations_preparees"
+        }
+      },
+      "body_path": "ack-correction.json",
+      "body_sha256": "d1d8bf5e6b6dea891a1a2ebe229c345fa09034440d8f58112a178ff14b3e0e6f",
+      "body_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"version_schema\": 1, \"resultat\": {\"categorie\": \"paies\", \"etat_declaration\": \"DECLAREE\", \"declaration\": {\"montant\": \"000.10\", \"source\": \"  déclaration FICTIVE é 😀  \", \"au\": \"2026-10-09\", \"echeance\": \"2026-09-30\", \"calendrier\": null}, \"reference\": {\"registre\": \"obligations_preparees\", \"index\": 1, \"ligne_id\": \"4fbbcc7a4a6a86961d81a2cd45c8a5f6ad09f609dc21806c621018444a1ce7f0\", \"precedent_ligne_id\": \"4298568d8d9d29895009d2f74e5fb1f43756b50f1e83ff95b2369a44e0e6b120\"}, \"revision_precedente\": {\"registre\": \"obligations_preparees\", \"index\": 0, \"ligne_id\": \"4298568d8d9d29895009d2f74e5fb1f43756b50f1e83ff95b2369a44e0e6b120\", \"precedent_ligne_id\": null}, \"auteur\": {\"personne\": \"admin.fictif\", \"role\": \"admin\", \"source\": \"appareil\"}, \"intention\": {\"appareil_id\": \"device-fictif\", \"intention_uuid\": \"uuid-fictif-2\", \"empreinte_arguments\": \"0419a05c409f54ef671125a256db2480c9a8777b397e0eb592e289a0f5a14e74\"}, \"enregistree_le\": \"2026-10-09T12:00:00+00:00\", \"horodatage_appareil_declare\": \"2026-10-09T12:00:00+00:00\"}, \"registre\": \"obligations_preparees\"}}",
+      "tables_count": 49,
+      "all_tables_unchanged": false,
+      "changed_tables": [
+        "registres_maillons"
+      ],
+      "fictif": true,
+      "origin": "SQLite réel / executer_atomique façade directe, identité+Meta injectées ; sans Cap/HTTP/Gateway"
+    },
+    {
+      "name": "lecture-courante",
+      "request": {
+        "outil": "m5_lire_obligations_preparees_appareil",
+        "arguments": {
+          "aujourd_hui": "2026-10-09",
+          "decalage": 0,
+          "limite": 1
+        }
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "type": "DECLARATIONS_PREPARATOIRES_OBLIGATIONS",
+            "version_schema": 1,
+            "aujourd_hui": "2026-10-09",
+            "source_canonique": "REGISTRE_PREPARATOIRE_DURABLE",
+            "registre": "obligations_preparees",
+            "decalage": 0,
+            "limite": 1,
+            "total": 3,
+            "decalage_suivant": 1,
+            "obligations": [
+              {
+                "categorie": "paies",
+                "etat_declaration": "DECLAREE",
+                "declaration": {
+                  "montant": "000.10",
+                  "source": "  déclaration FICTIVE é 😀  ",
+                  "au": "2026-10-09",
+                  "echeance": "2026-09-30",
+                  "calendrier": null
+                },
+                "reference": {
+                  "registre": "obligations_preparees",
+                  "index": 1,
+                  "ligne_id": "4fbbcc7a4a6a86961d81a2cd45c8a5f6ad09f609dc21806c621018444a1ce7f0",
+                  "precedent_ligne_id": "4298568d8d9d29895009d2f74e5fb1f43756b50f1e83ff95b2369a44e0e6b120"
+                },
+                "revision_precedente": {
+                  "registre": "obligations_preparees",
+                  "index": 0,
+                  "ligne_id": "4298568d8d9d29895009d2f74e5fb1f43756b50f1e83ff95b2369a44e0e6b120",
+                  "precedent_ligne_id": null
+                },
+                "auteur": {
+                  "personne": "admin.fictif",
+                  "role": "admin",
+                  "source": "appareil"
+                },
+                "intention": {
+                  "appareil_id": "device-fictif",
+                  "intention_uuid": "uuid-fictif-2",
+                  "empreinte_arguments": "0419a05c409f54ef671125a256db2480c9a8777b397e0eb592e289a0f5a14e74"
+                },
+                "enregistree_le": "2026-10-09T12:00:00+00:00",
+                "horodatage_appareil_declare": "2026-10-09T12:00:00+00:00",
+                "calendrier_preparatoire": {
+                  "id": "paies",
+                  "nom": "Paies",
+                  "autorite": null,
+                  "periode": {
+                    "debut": null,
+                    "fin": null
+                  },
+                  "echeance": "2026-09-30",
+                  "montant": "000.10",
+                  "devise": "CAD",
+                  "source_montant": {
+                    "description": "déclaration FICTIVE é 😀",
+                    "au": "2026-10-09"
+                  },
+                  "source_echeance": {
+                    "description": null,
+                    "consultee_le": null,
+                    "applicable_du": null,
+                    "applicable_jusqu_au": null
+                  },
+                  "annee": null,
+                  "version": null,
+                  "montant_utilisable": "000.10",
+                  "echeance_statut": "PASSEE_A_VERIFIER",
+                  "statut": "INCOMPLETE",
+                  "manque": [
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-PERIODE-SOURCE-ABSENTE",
+                      "detail": "autorité, période, source d'échéance, année et version à déclarer pour paies"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-SOURCE-INVALIDE",
+                      "detail": "autorité, source d'échéance et version explicites exigées"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-PERIODE-INVALIDE",
+                      "detail": "période de début et de fin valide exigée"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-DATE-SOURCE-INVALIDE",
+                      "detail": "dates de consultation et de validité déclarée de la source d'échéance exigées"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-ANNEE-VERSION-INVALIDE",
+                      "detail": "année déclarée entière et égale à l'année de fin de période exigée"
+                    }
+                  ]
+                }
+              }
+            ],
+            "mention": "Analyse préparatoire IA",
+            "couverture": {
+              "categories": "paies_das_dettes_seulement",
+              "echeances": "a_verifier_sans_etat_paiement",
+              "montants": "declares_non_attestes",
+              "pages": "courantes_non_figees",
+              "plafond_lignes": 10000,
+              "source": "registre_preparatoire_sans_activation_YAML_cash_CFO"
+            }
+          }
+        }
+      },
+      "body_path": "lecture-courante.json",
+      "body_sha256": "f07465d3fdef45ec53fd5a11e2664f2a5f2bb53389df79f6c216f542109e2309",
+      "body_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"resultat\": {\"type\": \"DECLARATIONS_PREPARATOIRES_OBLIGATIONS\", \"version_schema\": 1, \"aujourd_hui\": \"2026-10-09\", \"source_canonique\": \"REGISTRE_PREPARATOIRE_DURABLE\", \"registre\": \"obligations_preparees\", \"decalage\": 0, \"limite\": 1, \"total\": 3, \"decalage_suivant\": 1, \"obligations\": [{\"categorie\": \"paies\", \"etat_declaration\": \"DECLAREE\", \"declaration\": {\"montant\": \"000.10\", \"source\": \"  déclaration FICTIVE é 😀  \", \"au\": \"2026-10-09\", \"echeance\": \"2026-09-30\", \"calendrier\": null}, \"reference\": {\"registre\": \"obligations_preparees\", \"index\": 1, \"ligne_id\": \"4fbbcc7a4a6a86961d81a2cd45c8a5f6ad09f609dc21806c621018444a1ce7f0\", \"precedent_ligne_id\": \"4298568d8d9d29895009d2f74e5fb1f43756b50f1e83ff95b2369a44e0e6b120\"}, \"revision_precedente\": {\"registre\": \"obligations_preparees\", \"index\": 0, \"ligne_id\": \"4298568d8d9d29895009d2f74e5fb1f43756b50f1e83ff95b2369a44e0e6b120\", \"precedent_ligne_id\": null}, \"auteur\": {\"personne\": \"admin.fictif\", \"role\": \"admin\", \"source\": \"appareil\"}, \"intention\": {\"appareil_id\": \"device-fictif\", \"intention_uuid\": \"uuid-fictif-2\", \"empreinte_arguments\": \"0419a05c409f54ef671125a256db2480c9a8777b397e0eb592e289a0f5a14e74\"}, \"enregistree_le\": \"2026-10-09T12:00:00+00:00\", \"horodatage_appareil_declare\": \"2026-10-09T12:00:00+00:00\", \"calendrier_preparatoire\": {\"id\": \"paies\", \"nom\": \"Paies\", \"autorite\": null, \"periode\": {\"debut\": null, \"fin\": null}, \"echeance\": \"2026-09-30\", \"montant\": \"000.10\", \"devise\": \"CAD\", \"source_montant\": {\"description\": \"déclaration FICTIVE é 😀\", \"au\": \"2026-10-09\"}, \"source_echeance\": {\"description\": null, \"consultee_le\": null, \"applicable_du\": null, \"applicable_jusqu_au\": null}, \"annee\": null, \"version\": null, \"montant_utilisable\": \"000.10\", \"echeance_statut\": \"PASSEE_A_VERIFIER\", \"statut\": \"INCOMPLETE\", \"manque\": [{\"code\": \"REJ-CALENDRIER-PAIES-PERIODE-SOURCE-ABSENTE\", \"detail\": \"autorité, période, source d'échéance, année et version à déclarer pour paies\"}, {\"code\": \"REJ-CALENDRIER-PAIES-SOURCE-INVALIDE\", \"detail\": \"autorité, source d'échéance et version explicites exigées\"}, {\"code\": \"REJ-CALENDRIER-PAIES-PERIODE-INVALIDE\", \"detail\": \"période de début et de fin valide exigée\"}, {\"code\": \"REJ-CALENDRIER-PAIES-DATE-SOURCE-INVALIDE\", \"detail\": \"dates de consultation et de validité déclarée de la source d'échéance exigées\"}, {\"code\": \"REJ-CALENDRIER-PAIES-ANNEE-VERSION-INVALIDE\", \"detail\": \"année déclarée entière et égale à l'année de fin de période exigée\"}]}}], \"mention\": \"Analyse préparatoire IA\", \"couverture\": {\"categories\": \"paies_das_dettes_seulement\", \"echeances\": \"a_verifier_sans_etat_paiement\", \"montants\": \"declares_non_attestes\", \"pages\": \"courantes_non_figees\", \"plafond_lignes\": 10000, \"source\": \"registre_preparatoire_sans_activation_YAML_cash_CFO\"}}}}",
+      "tables_count": 49,
+      "all_tables_unchanged": true,
+      "changed_tables": [],
+      "fictif": true,
+      "origin": "SQLite réel / executer_atomique façade directe, identité+Meta injectées ; sans Cap/HTTP/Gateway"
+    },
+    {
+      "name": "ack-autre-categorie",
+      "request": {
+        "outil": "m5_enregistrer_obligation_preparee_appareil",
+        "arguments": {
+          "categorie": "dettes",
+          "operation": "declarer",
+          "declaration": {
+            "montant": null,
+            "source": null,
+            "au": null,
+            "echeance": null,
+            "calendrier": null
+          },
+          "revision_attendue": null,
+          "motif": "FICTIF é 😀\t\r\n"
+        }
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "version_schema": 1,
+          "resultat": {
+            "categorie": "dettes",
+            "etat_declaration": "DECLAREE",
+            "declaration": {
+              "montant": null,
+              "source": null,
+              "au": null,
+              "echeance": null,
+              "calendrier": null
+            },
+            "reference": {
+              "registre": "obligations_preparees",
+              "index": 2,
+              "ligne_id": "086000d7b55265e61644c7f7812e0041b6a87bda5b1c22a1bcc599f1e0615bf0",
+              "precedent_ligne_id": "4fbbcc7a4a6a86961d81a2cd45c8a5f6ad09f609dc21806c621018444a1ce7f0"
+            },
+            "revision_precedente": null,
+            "auteur": {
+              "personne": "admin.fictif",
+              "role": "admin",
+              "source": "appareil"
+            },
+            "intention": {
+              "appareil_id": "device-fictif",
+              "intention_uuid": "uuid-fictif-3",
+              "empreinte_arguments": "8e95eab65d7efa3f7ae7a454cef6f02662c74a0aa01c49109098295b647a79dd"
+            },
+            "enregistree_le": "2026-10-09T12:00:00+00:00",
+            "horodatage_appareil_declare": "2026-10-09T12:00:00+00:00"
+          },
+          "registre": "obligations_preparees"
+        }
+      },
+      "body_path": "ack-autre-categorie.json",
+      "body_sha256": "060b7469d0c840f994891d885e5afafb5afcb5b71d05134c4b0ca78772a09fa7",
+      "body_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"version_schema\": 1, \"resultat\": {\"categorie\": \"dettes\", \"etat_declaration\": \"DECLAREE\", \"declaration\": {\"montant\": null, \"source\": null, \"au\": null, \"echeance\": null, \"calendrier\": null}, \"reference\": {\"registre\": \"obligations_preparees\", \"index\": 2, \"ligne_id\": \"086000d7b55265e61644c7f7812e0041b6a87bda5b1c22a1bcc599f1e0615bf0\", \"precedent_ligne_id\": \"4fbbcc7a4a6a86961d81a2cd45c8a5f6ad09f609dc21806c621018444a1ce7f0\"}, \"revision_precedente\": null, \"auteur\": {\"personne\": \"admin.fictif\", \"role\": \"admin\", \"source\": \"appareil\"}, \"intention\": {\"appareil_id\": \"device-fictif\", \"intention_uuid\": \"uuid-fictif-3\", \"empreinte_arguments\": \"8e95eab65d7efa3f7ae7a454cef6f02662c74a0aa01c49109098295b647a79dd\"}, \"enregistree_le\": \"2026-10-09T12:00:00+00:00\", \"horodatage_appareil_declare\": \"2026-10-09T12:00:00+00:00\"}, \"registre\": \"obligations_preparees\"}}",
+      "tables_count": 49,
+      "all_tables_unchanged": false,
+      "changed_tables": [
+        "registres_maillons"
+      ],
+      "fictif": true,
+      "origin": "SQLite réel / executer_atomique façade directe, identité+Meta injectées ; sans Cap/HTTP/Gateway"
+    },
+    {
+      "name": "ack-retrait",
+      "request": {
+        "outil": "m5_enregistrer_obligation_preparee_appareil",
+        "arguments": {
+          "categorie": "paies",
+          "operation": "retirer",
+          "declaration": null,
+          "revision_attendue": {
+            "registre": "obligations_preparees",
+            "index": 1,
+            "ligne_id": "4fbbcc7a4a6a86961d81a2cd45c8a5f6ad09f609dc21806c621018444a1ce7f0",
+            "precedent_ligne_id": "4298568d8d9d29895009d2f74e5fb1f43756b50f1e83ff95b2369a44e0e6b120"
+          },
+          "motif": "Retrait FICTIF"
+        }
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "version_schema": 1,
+          "resultat": {
+            "categorie": "paies",
+            "etat_declaration": "RETIREE",
+            "declaration": null,
+            "reference": {
+              "registre": "obligations_preparees",
+              "index": 3,
+              "ligne_id": "9f486c8f7850ac4640648454978868fa5a2fd0665f4613b1ccd1c9d702d0d86f",
+              "precedent_ligne_id": "086000d7b55265e61644c7f7812e0041b6a87bda5b1c22a1bcc599f1e0615bf0"
+            },
+            "revision_precedente": {
+              "registre": "obligations_preparees",
+              "index": 1,
+              "ligne_id": "4fbbcc7a4a6a86961d81a2cd45c8a5f6ad09f609dc21806c621018444a1ce7f0",
+              "precedent_ligne_id": "4298568d8d9d29895009d2f74e5fb1f43756b50f1e83ff95b2369a44e0e6b120"
+            },
+            "auteur": {
+              "personne": "admin.fictif",
+              "role": "admin",
+              "source": "appareil"
+            },
+            "intention": {
+              "appareil_id": "device-fictif",
+              "intention_uuid": "uuid-fictif-4",
+              "empreinte_arguments": "e409a5595a36273623ab72969416476038e376420622d0cecae257cf43fc82d7"
+            },
+            "enregistree_le": "2026-10-09T12:00:00+00:00",
+            "horodatage_appareil_declare": "2026-10-09T12:00:00+00:00"
+          },
+          "registre": "obligations_preparees"
+        }
+      },
+      "body_path": "ack-retrait.json",
+      "body_sha256": "de6f2822f1efda37ce2082835f08df68eceee89b533f7ac2935690c59a1275ae",
+      "body_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"version_schema\": 1, \"resultat\": {\"categorie\": \"paies\", \"etat_declaration\": \"RETIREE\", \"declaration\": null, \"reference\": {\"registre\": \"obligations_preparees\", \"index\": 3, \"ligne_id\": \"9f486c8f7850ac4640648454978868fa5a2fd0665f4613b1ccd1c9d702d0d86f\", \"precedent_ligne_id\": \"086000d7b55265e61644c7f7812e0041b6a87bda5b1c22a1bcc599f1e0615bf0\"}, \"revision_precedente\": {\"registre\": \"obligations_preparees\", \"index\": 1, \"ligne_id\": \"4fbbcc7a4a6a86961d81a2cd45c8a5f6ad09f609dc21806c621018444a1ce7f0\", \"precedent_ligne_id\": \"4298568d8d9d29895009d2f74e5fb1f43756b50f1e83ff95b2369a44e0e6b120\"}, \"auteur\": {\"personne\": \"admin.fictif\", \"role\": \"admin\", \"source\": \"appareil\"}, \"intention\": {\"appareil_id\": \"device-fictif\", \"intention_uuid\": \"uuid-fictif-4\", \"empreinte_arguments\": \"e409a5595a36273623ab72969416476038e376420622d0cecae257cf43fc82d7\"}, \"enregistree_le\": \"2026-10-09T12:00:00+00:00\", \"horodatage_appareil_declare\": \"2026-10-09T12:00:00+00:00\"}, \"registre\": \"obligations_preparees\"}}",
+      "tables_count": 49,
+      "all_tables_unchanged": false,
+      "changed_tables": [
+        "registres_maillons"
+      ],
+      "fictif": true,
+      "origin": "SQLite réel / executer_atomique façade directe, identité+Meta injectées ; sans Cap/HTTP/Gateway"
+    },
+    {
+      "name": "lecture-retiree",
+      "request": {
+        "outil": "m5_lire_obligations_preparees_appareil",
+        "arguments": {
+          "aujourd_hui": "2026-10-09",
+          "decalage": 0,
+          "limite": 1
+        }
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "type": "DECLARATIONS_PREPARATOIRES_OBLIGATIONS",
+            "version_schema": 1,
+            "aujourd_hui": "2026-10-09",
+            "source_canonique": "REGISTRE_PREPARATOIRE_DURABLE",
+            "registre": "obligations_preparees",
+            "decalage": 0,
+            "limite": 1,
+            "total": 3,
+            "decalage_suivant": 1,
+            "obligations": [
+              {
+                "categorie": "paies",
+                "etat_declaration": "RETIREE",
+                "declaration": null,
+                "reference": {
+                  "registre": "obligations_preparees",
+                  "index": 3,
+                  "ligne_id": "9f486c8f7850ac4640648454978868fa5a2fd0665f4613b1ccd1c9d702d0d86f",
+                  "precedent_ligne_id": "086000d7b55265e61644c7f7812e0041b6a87bda5b1c22a1bcc599f1e0615bf0"
+                },
+                "revision_precedente": {
+                  "registre": "obligations_preparees",
+                  "index": 1,
+                  "ligne_id": "4fbbcc7a4a6a86961d81a2cd45c8a5f6ad09f609dc21806c621018444a1ce7f0",
+                  "precedent_ligne_id": "4298568d8d9d29895009d2f74e5fb1f43756b50f1e83ff95b2369a44e0e6b120"
+                },
+                "auteur": {
+                  "personne": "admin.fictif",
+                  "role": "admin",
+                  "source": "appareil"
+                },
+                "intention": {
+                  "appareil_id": "device-fictif",
+                  "intention_uuid": "uuid-fictif-4",
+                  "empreinte_arguments": "e409a5595a36273623ab72969416476038e376420622d0cecae257cf43fc82d7"
+                },
+                "enregistree_le": "2026-10-09T12:00:00+00:00",
+                "horodatage_appareil_declare": "2026-10-09T12:00:00+00:00",
+                "calendrier_preparatoire": {
+                  "id": "paies",
+                  "nom": "Paies",
+                  "autorite": null,
+                  "periode": {
+                    "debut": null,
+                    "fin": null
+                  },
+                  "echeance": null,
+                  "montant": null,
+                  "devise": null,
+                  "source_montant": {
+                    "description": null,
+                    "au": null
+                  },
+                  "source_echeance": {
+                    "description": null,
+                    "consultee_le": null,
+                    "applicable_du": null,
+                    "applicable_jusqu_au": null
+                  },
+                  "annee": null,
+                  "version": null,
+                  "montant_utilisable": null,
+                  "echeance_statut": "NON_DECLAREE",
+                  "statut": "INCOMPLETE",
+                  "manque": [
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-MONTANT-ABSENT",
+                      "detail": "montant paies absent ou invalide dans configuration.obligations_declarees.paies"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-SOURCE-MONTANT-ABSENTE",
+                      "detail": "source et date de la déclaration paies requises"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-ECHEANCE-ABSENTE",
+                      "detail": "échéance paies à déclarer dans configuration.prevision.echeances_obligations.paies"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-PERIODE-SOURCE-ABSENTE",
+                      "detail": "autorité, période, source d'échéance, année et version à déclarer pour paies"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-SOURCE-INVALIDE",
+                      "detail": "autorité, source d'échéance et version explicites exigées"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-PERIODE-INVALIDE",
+                      "detail": "période de début et de fin valide exigée"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-DATE-SOURCE-INVALIDE",
+                      "detail": "dates de consultation et de validité déclarée de la source d'échéance exigées"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-PAIES-ANNEE-VERSION-INVALIDE",
+                      "detail": "année déclarée entière et égale à l'année de fin de période exigée"
+                    }
+                  ]
+                }
+              }
+            ],
+            "mention": "Analyse préparatoire IA",
+            "couverture": {
+              "categories": "paies_das_dettes_seulement",
+              "echeances": "a_verifier_sans_etat_paiement",
+              "montants": "declares_non_attestes",
+              "pages": "courantes_non_figees",
+              "plafond_lignes": 10000,
+              "source": "registre_preparatoire_sans_activation_YAML_cash_CFO"
+            }
+          }
+        }
+      },
+      "body_path": "lecture-retiree.json",
+      "body_sha256": "808697c92e9b69a65ed31697b4dc113b07daf99cbb3493304b52e7a7d494d966",
+      "body_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"resultat\": {\"type\": \"DECLARATIONS_PREPARATOIRES_OBLIGATIONS\", \"version_schema\": 1, \"aujourd_hui\": \"2026-10-09\", \"source_canonique\": \"REGISTRE_PREPARATOIRE_DURABLE\", \"registre\": \"obligations_preparees\", \"decalage\": 0, \"limite\": 1, \"total\": 3, \"decalage_suivant\": 1, \"obligations\": [{\"categorie\": \"paies\", \"etat_declaration\": \"RETIREE\", \"declaration\": null, \"reference\": {\"registre\": \"obligations_preparees\", \"index\": 3, \"ligne_id\": \"9f486c8f7850ac4640648454978868fa5a2fd0665f4613b1ccd1c9d702d0d86f\", \"precedent_ligne_id\": \"086000d7b55265e61644c7f7812e0041b6a87bda5b1c22a1bcc599f1e0615bf0\"}, \"revision_precedente\": {\"registre\": \"obligations_preparees\", \"index\": 1, \"ligne_id\": \"4fbbcc7a4a6a86961d81a2cd45c8a5f6ad09f609dc21806c621018444a1ce7f0\", \"precedent_ligne_id\": \"4298568d8d9d29895009d2f74e5fb1f43756b50f1e83ff95b2369a44e0e6b120\"}, \"auteur\": {\"personne\": \"admin.fictif\", \"role\": \"admin\", \"source\": \"appareil\"}, \"intention\": {\"appareil_id\": \"device-fictif\", \"intention_uuid\": \"uuid-fictif-4\", \"empreinte_arguments\": \"e409a5595a36273623ab72969416476038e376420622d0cecae257cf43fc82d7\"}, \"enregistree_le\": \"2026-10-09T12:00:00+00:00\", \"horodatage_appareil_declare\": \"2026-10-09T12:00:00+00:00\", \"calendrier_preparatoire\": {\"id\": \"paies\", \"nom\": \"Paies\", \"autorite\": null, \"periode\": {\"debut\": null, \"fin\": null}, \"echeance\": null, \"montant\": null, \"devise\": null, \"source_montant\": {\"description\": null, \"au\": null}, \"source_echeance\": {\"description\": null, \"consultee_le\": null, \"applicable_du\": null, \"applicable_jusqu_au\": null}, \"annee\": null, \"version\": null, \"montant_utilisable\": null, \"echeance_statut\": \"NON_DECLAREE\", \"statut\": \"INCOMPLETE\", \"manque\": [{\"code\": \"REJ-CALENDRIER-PAIES-MONTANT-ABSENT\", \"detail\": \"montant paies absent ou invalide dans configuration.obligations_declarees.paies\"}, {\"code\": \"REJ-CALENDRIER-PAIES-SOURCE-MONTANT-ABSENTE\", \"detail\": \"source et date de la déclaration paies requises\"}, {\"code\": \"REJ-CALENDRIER-PAIES-ECHEANCE-ABSENTE\", \"detail\": \"échéance paies à déclarer dans configuration.prevision.echeances_obligations.paies\"}, {\"code\": \"REJ-CALENDRIER-PAIES-PERIODE-SOURCE-ABSENTE\", \"detail\": \"autorité, période, source d'échéance, année et version à déclarer pour paies\"}, {\"code\": \"REJ-CALENDRIER-PAIES-SOURCE-INVALIDE\", \"detail\": \"autorité, source d'échéance et version explicites exigées\"}, {\"code\": \"REJ-CALENDRIER-PAIES-PERIODE-INVALIDE\", \"detail\": \"période de début et de fin valide exigée\"}, {\"code\": \"REJ-CALENDRIER-PAIES-DATE-SOURCE-INVALIDE\", \"detail\": \"dates de consultation et de validité déclarée de la source d'échéance exigées\"}, {\"code\": \"REJ-CALENDRIER-PAIES-ANNEE-VERSION-INVALIDE\", \"detail\": \"année déclarée entière et égale à l'année de fin de période exigée\"}]}}], \"mention\": \"Analyse préparatoire IA\", \"couverture\": {\"categories\": \"paies_das_dettes_seulement\", \"echeances\": \"a_verifier_sans_etat_paiement\", \"montants\": \"declares_non_attestes\", \"pages\": \"courantes_non_figees\", \"plafond_lignes\": 10000, \"source\": \"registre_preparatoire_sans_activation_YAML_cash_CFO\"}}}}",
+      "tables_count": 49,
+      "all_tables_unchanged": true,
+      "changed_tables": [],
+      "fictif": true,
+      "origin": "SQLite réel / executer_atomique façade directe, identité+Meta injectées ; sans Cap/HTTP/Gateway"
+    },
+    {
+      "name": "lecture-suite",
+      "request": {
+        "outil": "m5_lire_obligations_preparees_appareil",
+        "arguments": {
+          "aujourd_hui": "2026-10-09",
+          "decalage": 1,
+          "limite": 1
+        }
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "type": "DECLARATIONS_PREPARATOIRES_OBLIGATIONS",
+            "version_schema": 1,
+            "aujourd_hui": "2026-10-09",
+            "source_canonique": "REGISTRE_PREPARATOIRE_DURABLE",
+            "registre": "obligations_preparees",
+            "decalage": 1,
+            "limite": 1,
+            "total": 3,
+            "decalage_suivant": 2,
+            "obligations": [
+              {
+                "categorie": "das",
+                "etat_declaration": "ABSENTE",
+                "declaration": null,
+                "reference": null,
+                "revision_precedente": null,
+                "auteur": null,
+                "intention": null,
+                "enregistree_le": null,
+                "horodatage_appareil_declare": null,
+                "calendrier_preparatoire": {
+                  "id": "das",
+                  "nom": "Déductions à la source (DAS)",
+                  "autorite": null,
+                  "periode": {
+                    "debut": null,
+                    "fin": null
+                  },
+                  "echeance": null,
+                  "montant": null,
+                  "devise": null,
+                  "source_montant": {
+                    "description": null,
+                    "au": null
+                  },
+                  "source_echeance": {
+                    "description": null,
+                    "consultee_le": null,
+                    "applicable_du": null,
+                    "applicable_jusqu_au": null
+                  },
+                  "annee": null,
+                  "version": null,
+                  "montant_utilisable": null,
+                  "echeance_statut": "NON_DECLAREE",
+                  "statut": "INCOMPLETE",
+                  "manque": [
+                    {
+                      "code": "REJ-CALENDRIER-DAS-MONTANT-ABSENT",
+                      "detail": "montant das absent ou invalide dans configuration.obligations_declarees.das"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-DAS-SOURCE-MONTANT-ABSENTE",
+                      "detail": "source et date de la déclaration das requises"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-DAS-ECHEANCE-ABSENTE",
+                      "detail": "échéance das à déclarer dans configuration.prevision.echeances_obligations.das"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-DAS-PERIODE-SOURCE-ABSENTE",
+                      "detail": "autorité, période, source d'échéance, année et version à déclarer pour das"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-DAS-SOURCE-INVALIDE",
+                      "detail": "autorité, source d'échéance et version explicites exigées"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-DAS-PERIODE-INVALIDE",
+                      "detail": "période de début et de fin valide exigée"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-DAS-DATE-SOURCE-INVALIDE",
+                      "detail": "dates de consultation et de validité déclarée de la source d'échéance exigées"
+                    },
+                    {
+                      "code": "REJ-CALENDRIER-DAS-ANNEE-VERSION-INVALIDE",
+                      "detail": "année déclarée entière et égale à l'année de fin de période exigée"
+                    }
+                  ]
+                }
+              }
+            ],
+            "mention": "Analyse préparatoire IA",
+            "couverture": {
+              "categories": "paies_das_dettes_seulement",
+              "echeances": "a_verifier_sans_etat_paiement",
+              "montants": "declares_non_attestes",
+              "pages": "courantes_non_figees",
+              "plafond_lignes": 10000,
+              "source": "registre_preparatoire_sans_activation_YAML_cash_CFO"
+            }
+          }
+        }
+      },
+      "body_path": "lecture-suite.json",
+      "body_sha256": "57f601b1dc4ff511e88a125ff234eb1c4e4235010da1995185ff966fced4b144",
+      "body_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"resultat\": {\"type\": \"DECLARATIONS_PREPARATOIRES_OBLIGATIONS\", \"version_schema\": 1, \"aujourd_hui\": \"2026-10-09\", \"source_canonique\": \"REGISTRE_PREPARATOIRE_DURABLE\", \"registre\": \"obligations_preparees\", \"decalage\": 1, \"limite\": 1, \"total\": 3, \"decalage_suivant\": 2, \"obligations\": [{\"categorie\": \"das\", \"etat_declaration\": \"ABSENTE\", \"declaration\": null, \"reference\": null, \"revision_precedente\": null, \"auteur\": null, \"intention\": null, \"enregistree_le\": null, \"horodatage_appareil_declare\": null, \"calendrier_preparatoire\": {\"id\": \"das\", \"nom\": \"Déductions à la source (DAS)\", \"autorite\": null, \"periode\": {\"debut\": null, \"fin\": null}, \"echeance\": null, \"montant\": null, \"devise\": null, \"source_montant\": {\"description\": null, \"au\": null}, \"source_echeance\": {\"description\": null, \"consultee_le\": null, \"applicable_du\": null, \"applicable_jusqu_au\": null}, \"annee\": null, \"version\": null, \"montant_utilisable\": null, \"echeance_statut\": \"NON_DECLAREE\", \"statut\": \"INCOMPLETE\", \"manque\": [{\"code\": \"REJ-CALENDRIER-DAS-MONTANT-ABSENT\", \"detail\": \"montant das absent ou invalide dans configuration.obligations_declarees.das\"}, {\"code\": \"REJ-CALENDRIER-DAS-SOURCE-MONTANT-ABSENTE\", \"detail\": \"source et date de la déclaration das requises\"}, {\"code\": \"REJ-CALENDRIER-DAS-ECHEANCE-ABSENTE\", \"detail\": \"échéance das à déclarer dans configuration.prevision.echeances_obligations.das\"}, {\"code\": \"REJ-CALENDRIER-DAS-PERIODE-SOURCE-ABSENTE\", \"detail\": \"autorité, période, source d'échéance, année et version à déclarer pour das\"}, {\"code\": \"REJ-CALENDRIER-DAS-SOURCE-INVALIDE\", \"detail\": \"autorité, source d'échéance et version explicites exigées\"}, {\"code\": \"REJ-CALENDRIER-DAS-PERIODE-INVALIDE\", \"detail\": \"période de début et de fin valide exigée\"}, {\"code\": \"REJ-CALENDRIER-DAS-DATE-SOURCE-INVALIDE\", \"detail\": \"dates de consultation et de validité déclarée de la source d'échéance exigées\"}, {\"code\": \"REJ-CALENDRIER-DAS-ANNEE-VERSION-INVALIDE\", \"detail\": \"année déclarée entière et égale à l'année de fin de période exigée\"}]}}], \"mention\": \"Analyse préparatoire IA\", \"couverture\": {\"categories\": \"paies_das_dettes_seulement\", \"echeances\": \"a_verifier_sans_etat_paiement\", \"montants\": \"declares_non_attestes\", \"pages\": \"courantes_non_figees\", \"plafond_lignes\": 10000, \"source\": \"registre_preparatoire_sans_activation_YAML_cash_CFO\"}}}}",
+      "tables_count": 49,
+      "all_tables_unchanged": true,
+      "changed_tables": [],
+      "fictif": true,
+      "origin": "SQLite réel / executer_atomique façade directe, identité+Meta injectées ; sans Cap/HTTP/Gateway"
+    },
+    {
+      "name": "lecture-fin",
+      "request": {
+        "outil": "m5_lire_obligations_preparees_appareil",
+        "arguments": {
+          "aujourd_hui": "2026-10-09",
+          "decalage": 3,
+          "limite": 1
+        }
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "accepte": true,
+          "resultat": {
+            "type": "DECLARATIONS_PREPARATOIRES_OBLIGATIONS",
+            "version_schema": 1,
+            "aujourd_hui": "2026-10-09",
+            "source_canonique": "REGISTRE_PREPARATOIRE_DURABLE",
+            "registre": "obligations_preparees",
+            "decalage": 3,
+            "limite": 1,
+            "total": 3,
+            "decalage_suivant": null,
+            "obligations": [],
+            "mention": "Analyse préparatoire IA",
+            "couverture": {
+              "categories": "paies_das_dettes_seulement",
+              "echeances": "a_verifier_sans_etat_paiement",
+              "montants": "declares_non_attestes",
+              "pages": "courantes_non_figees",
+              "plafond_lignes": 10000,
+              "source": "registre_preparatoire_sans_activation_YAML_cash_CFO"
+            }
+          }
+        }
+      },
+      "body_path": "lecture-fin.json",
+      "body_sha256": "0f871045be4fe19339e150dcec8912357dbef3fe7960c54a5a4c73175eba55b6",
+      "body_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": true, \"resultat\": {\"type\": \"DECLARATIONS_PREPARATOIRES_OBLIGATIONS\", \"version_schema\": 1, \"aujourd_hui\": \"2026-10-09\", \"source_canonique\": \"REGISTRE_PREPARATOIRE_DURABLE\", \"registre\": \"obligations_preparees\", \"decalage\": 3, \"limite\": 1, \"total\": 3, \"decalage_suivant\": null, \"obligations\": [], \"mention\": \"Analyse préparatoire IA\", \"couverture\": {\"categories\": \"paies_das_dettes_seulement\", \"echeances\": \"a_verifier_sans_etat_paiement\", \"montants\": \"declares_non_attestes\", \"pages\": \"courantes_non_figees\", \"plafond_lignes\": 10000, \"source\": \"registre_preparatoire_sans_activation_YAML_cash_CFO\"}}}}",
+      "tables_count": 49,
+      "all_tables_unchanged": true,
+      "changed_tables": [],
+      "fictif": true,
+      "origin": "SQLite réel / executer_atomique façade directe, identité+Meta injectées ; sans Cap/HTTP/Gateway"
+    },
+    {
+      "name": "refus-revision",
+      "request": {
+        "outil": "m5_enregistrer_obligation_preparee_appareil",
+        "arguments": {
+          "categorie": "paies",
+          "operation": "declarer",
+          "declaration": {
+            "montant": null,
+            "source": null,
+            "au": null,
+            "echeance": null,
+            "calendrier": null
+          },
+          "revision_attendue": null,
+          "motif": "FICTIF é 😀\t\r\n"
+        }
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "accepte": false,
+          "verdict": {
+            "code": "REJ-M5-OBLIGATIONS-REVISION-PERIMEE",
+            "detail": "la révision courante de cette catégorie a changé"
+          }
+        }
+      },
+      "body_path": "refus-revision.json",
+      "body_sha256": "4fc86fc1efd5a47b5ee4fd472256ba0cf3cc4f60441d7c7036e4fd8436cc833a",
+      "body_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": false, \"verdict\": {\"code\": \"REJ-M5-OBLIGATIONS-REVISION-PERIMEE\", \"detail\": \"la révision courante de cette catégorie a changé\"}}}",
+      "tables_count": 49,
+      "all_tables_unchanged": true,
+      "changed_tables": [],
+      "fictif": true,
+      "origin": "SQLite réel / executer_atomique façade directe, identité+Meta injectées ; sans Cap/HTTP/Gateway"
+    },
+    {
+      "name": "refus-quota",
+      "request": {
+        "outil": "m5_enregistrer_obligation_preparee_appareil",
+        "arguments": {
+          "categorie": "das",
+          "operation": "declarer",
+          "declaration": {
+            "montant": null,
+            "source": null,
+            "au": null,
+            "echeance": null,
+            "calendrier": null
+          },
+          "revision_attendue": null,
+          "motif": "FICTIF é 😀\t\r\n"
+        }
+      },
+      "enveloppe": {
+        "ok": true,
+        "resultat": {
+          "accepte": false,
+          "verdict": {
+            "code": "REJ-M5-OBLIGATIONS-SORTIE-TROP-VOLUMINEUSE",
+            "detail": "enveloppe préparatoire au-delà de la borne courante"
+          }
+        }
+      },
+      "body_path": "refus-quota.json",
+      "body_sha256": "b9411b2a526b606c02cd4916d5563cc11e72e5efe1b8249be3b079f764215ab0",
+      "body_utf8": "{\"ok\": true, \"resultat\": {\"accepte\": false, \"verdict\": {\"code\": \"REJ-M5-OBLIGATIONS-SORTIE-TROP-VOLUMINEUSE\", \"detail\": \"enveloppe préparatoire au-delà de la borne courante\"}}}",
+      "tables_count": 49,
+      "all_tables_unchanged": true,
+      "changed_tables": [],
+      "fictif": true,
+      "origin": "SQLite réel / executer_atomique façade directe, identité+Meta injectées ; sans Cap/HTTP/Gateway"
+    },
+    {
+      "name": "rejeu-propre-verification-apres-restart",
+      "fictif": true,
+      "proof_only": true,
+      "verified_original_envelope_sha256": "f5bf0c9aefa160d3e420eadffb62e3660da59f35f8d258131e2f6b7e3a375029",
+      "all_tables_unchanged": true,
+      "tables_count": 49,
+      "no_Cap_cached_response_claim": true
+    }
+  ],
+  "private_SQL_cleaned": true,
+  "no_runtime_or_provider": true
+}

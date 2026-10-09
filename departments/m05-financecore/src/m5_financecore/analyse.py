@@ -45,6 +45,14 @@ SORTIES_D_ANALYSE = frozenset({
 
 # Les autres outils de M5, chacun avec la raison pour laquelle sa sortie n'est pas une analyse.
 SORTIES_HORS_ANALYSE = {
+    "m5_lire_obligations_preparees_appareil": (
+        "inventorie les déclarations humaines non attestées et les lacunes de leurs sources, "
+        "sans projection de flux, calcul de paie ou décision financière"
+    ),
+    "m5_enregistrer_obligation_preparee_appareil": (
+        "accuse la saisie ou le retrait brut dans le registre préparatoire séparé, "
+        "sans mouvement ni activation du calendrier financier"
+    ),
     "m5_calculer_taxes_tps_tvq": "calcul déterministe avec taux versionnés et sourcés, sans interprétation",
     "m5_enregistrer_mouvement": "écriture d'un mouvement (T3) : la sortie est le maillon écrit",
     "m5_creer_facture_brouillon": "écriture d'un brouillon (T1) : la sortie est la facture recalculée",

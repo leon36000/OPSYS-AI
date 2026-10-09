@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "expo-router";
 import { act, create, type ReactTestRenderer } from "react-test-renderer";
 import { BoutonSecondaire, Ligne } from "../admin/composants";
 import { lireVueExecutive } from "../m8/vueExecutive";
@@ -9,7 +10,7 @@ import en from "../i18n/locales/admin.en-CA";
 let mockEpoch = 0, mockConnected = true;
 let mockIdentite = { genre: "confirmee", personne: "admin-fictif", role: "admin" };
 const mockVue = jest.fn(), mockConnecter = jest.fn(), mockTres = jest.fn(), mockPrev = jest.fn(), mockEch = jest.fn(), mockSuite = jest.fn();
-jest.mock("expo-router", () => ({ useFocusEffect: (f: () => void | (() => void)) => require("react").useEffect(f, [f]) }));
+jest.mock("expo-router", () => ({ Link: ({ children, ...props }: { children: React.ReactNode; href: string }) => require("react").createElement(require("react-native").Text, props, children), useFocusEffect: (f: () => void | (() => void)) => require("react").useEffect(f, [f]) }));
 jest.mock("react-i18next", () => ({ useTranslation: () => ({ i18n: { language: "fr-CA" }, t: (k: string, p?: unknown) => k + (p ? JSON.stringify(p) : "") }) }));
 jest.mock("@react-native-community/netinfo", () => ({ useNetInfo: () => ({ isConnected: mockConnected }) }));
 jest.mock("@/roles/contexte", () => ({ useEtatIdentite: () => mockIdentite }), { virtual: true });
@@ -37,6 +38,9 @@ const messages = () => arbre!.root.findAllByType(Ligne).map(l => l.props.m);
 async function monter() { await act(async () => { arbre = create(<Ecran />); }); }
 test("constat calculé : provenance, âge, montant, composantes et mention, un seul geste de lecture", async () => {
   await monter(); expect(mockConnecter).toHaveBeenCalledWith(true);
+  expect(arbre!.root.findAllByType(Link)).toHaveLength(1);
+  expect(arbre!.root.findByType(Link).props.href).toBe("/(admin)/obligations");
+  expect(mockTres).toHaveBeenCalledTimes(1); expect(mockPrev).toHaveBeenCalledTimes(1); expect(mockEch).toHaveBeenCalledTimes(1); expect(mockVue).toHaveBeenCalledTimes(1);
   expect(messages()).toContainEqual({ cle: "admin.cashConstatM8.age", params: { jours: 1, jour: "2026-09-30" } });
   expect(messages().some(m => m.cle === "admin.cashConstatM8.montant")).toBe(true);
   expect(texte()).toContain(fixture.calcule.constat.mention); expect(texte()).toContain("admin.chiffres.composantes.solde");

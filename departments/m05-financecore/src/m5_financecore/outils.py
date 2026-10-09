@@ -189,6 +189,7 @@ qui écrit la trace et publie)."""
 
 from __future__ import annotations
 
+import copy
 import json
 import re
 from collections.abc import Callable, Mapping
@@ -4933,4 +4934,655 @@ def outils(*, lecteur_heures_m4: LecteurHeuresM4 | None = None,
             autonomie=Autonomie.T0,
             roles_appareil=frozenset(),
         ),
-    ) + (_outils_couts_marketing(lecteur_campagne_m7) if lecteur_campagne_m7 is not None else ())
+    ) + (
+        _outils_couts_marketing(lecteur_campagne_m7) if lecteur_campagne_m7 is not None else ()
+    ) + _outils_obligations_preparees()
+
+
+# DEVICE préparatoire, hors registre des mouvements et hors consommateurs YAML.
+def _autorite_obligations_preparees():
+    from . import obligations_preparees as ob
+
+    cnx = stockage.connexion_courante()
+    actor = contexte.identite_appelante()
+    if (
+        cnx is None
+        or actor is None
+        or actor.source != "appareil"
+        or actor.role != "admin"
+    ):
+        raise ob.Refus("IDENTITE-INVALIDE")
+    valid = approbations.signataire_valide(cnx, actor)
+    if valid is None or valid.role != "admin":
+        raise ob.Refus("IDENTITE-INVALIDE")
+    return {"personne": valid.personne, "role": "admin", "source": "appareil"}
+
+
+def _snapshot_obligations_preparees():
+    from . import obligations_preparees as ob
+
+    try:
+        snapshot = list(stockage.maillons(_DEPARTEMENT, ob.REGISTRE))
+    except (ValueError, TypeError, KeyError):
+        raise ob.Refus("REGISTRE-INVALIDE") from None
+    ob.snapshot_courant(snapshot)
+    return snapshot
+
+
+def _intention_obligations_preparees(arguments):
+    from opsys import idempotence, intentions_obligations_m5
+
+    from . import obligations_preparees as ob
+
+    current = intentions_obligations_m5.intention_courante()
+    if current is None:
+        raise ob.Refus("CONTEXTE-ABSENT")
+    meta, copied = current
+    reception = contexte.horodatage_reception()
+    if (
+        copied != arguments
+        or reception is None
+        or reception.appareil != meta.appareil
+        or not ob.texte(meta.appareil)
+        or not ob.texte(meta.cle)
+    ):
+        raise ob.Refus("CONTEXTE-ABSENT")
+    try:
+        ob.instant(meta.horodatage_appareil)
+    except ob.Refus:
+        raise ob.Refus("CONTEXTE-ABSENT") from None
+    intent = {
+        "appareil_id": meta.appareil,
+        "intention_uuid": meta.cle,
+        "empreinte_arguments": idempotence.empreinte_arguments(copied),
+    }
+    return meta, intent, reception.recu_le.isoformat()
+
+
+def _ack_obligations_preparees(maillon, index):
+    from . import obligations_preparees as ob
+
+    return {
+        "accepte": True,
+        "version_schema": 1,
+        "resultat": ob.projection(maillon, ob.reference(maillon, index)),
+        "registre": ob.REGISTRE,
+    }
+
+
+def _borner_obligations_preparees(business):
+    from . import obligations_preparees as ob
+
+    limit = contexte.limite_sortie()
+    if type(limit) is not int:
+        raise ob.Refus("CONTEXTE-ABSENT")
+    for replay in (False, True):
+        whole = {"ok": True, "resultat": business, "rejoue": replay}
+        if len(json.dumps(whole, ensure_ascii=False)) > min(5400, limit):
+            raise ob.Refus("SORTIE-TROP-VOLUMINEUSE")
+    return business
+
+
+def autoriser_obligation_preparee_appareil(
+    arguments, *, nom="m5_enregistrer_obligation_preparee_appareil"
+):
+    from . import obligations_preparees as ob
+
+    auteur = _autorite_obligations_preparees()
+    if nom == "m5_lire_obligations_preparees_appareil":
+        ob.valider_lecture(arguments)
+        _snapshot_obligations_preparees()
+        return
+    if nom != "m5_enregistrer_obligation_preparee_appareil":
+        raise ob.Refus("ARGUMENTS-INVALIDES")
+    a = ob.valider_mutation(arguments)
+    meta, intent, hora = _intention_obligations_preparees(a)
+    snapshot = _snapshot_obligations_preparees()
+    # Cached-success size is measured against its own prefix, not a later category head.
+    own = [
+        i
+        for i, m in enumerate(snapshot)
+        if m["intention"]["appareil_id"] == meta.appareil
+        and m["intention"]["intention_uuid"] == meta.cle
+    ]
+    if own:
+        _borner_obligations_preparees(
+            _ack_obligations_preparees(snapshot[own[0]], own[0])
+        )
+    else:
+        entry = ob.construire_entree(a, auteur, intent, hora, meta.horodatage_appareil)
+        proposed = registre_module.Registre(copy.deepcopy(snapshot))
+        proposed.ajouter(entry)
+        _borner_obligations_preparees(
+            _ack_obligations_preparees(proposed.lire()[-1], len(snapshot))
+        )
+
+
+def verifier_rejeu_obligation_preparee_appareil(arguments, reponse):
+    from . import obligations_preparees as ob
+
+    autoriser_obligation_preparee_appareil(arguments)
+    auteur = _autorite_obligations_preparees()
+    meta, intent, _ = _intention_obligations_preparees(arguments)
+    snapshot = _snapshot_obligations_preparees()
+    if (
+        type(reponse) is not dict
+        or set(reponse) != {"ok", "resultat"}
+        or reponse["ok"] is not True
+    ):
+        raise ob.Refus("REJEU-INCOHERENT")
+    found = [
+        i
+        for i, m in enumerate(snapshot)
+        if m["intention"] == intent
+        and m["auteur"] == auteur
+        and m["horodatage_appareil_declare"] == meta.horodatage_appareil
+    ]
+    if len(found) != 1:
+        raise ob.Refus("REJEU-INCOHERENT")
+    expected = _ack_obligations_preparees(snapshot[found[0]], found[0])
+    try:
+        identical = json.dumps(
+            reponse["resultat"], ensure_ascii=False, sort_keys=True, allow_nan=False
+        ) == json.dumps(expected, ensure_ascii=False, sort_keys=True, allow_nan=False)
+    except (ValueError, TypeError):
+        identical = False
+    if not identical:
+        raise ob.Refus("REJEU-INCOHERENT")
+    _borner_obligations_preparees(expected)
+
+
+def lire_obligations_preparees_appareil(aujourd_hui, decalage, limite):
+    from . import obligations_preparees as ob
+
+    try:
+        _autorite_obligations_preparees()
+        ob.valider_lecture(
+            {"aujourd_hui": aujourd_hui, "decalage": decalage, "limite": limite}
+        )
+        result = ob.lire(
+            _snapshot_obligations_preparees(), aujourd_hui, decalage, limite
+        )
+        business = {"accepte": True, "resultat": result}
+        # T0 has no replay metadata in its actual transport envelope.
+        bound = contexte.limite_sortie()
+        if type(bound) is not int or len(
+            json.dumps({"ok": True, "resultat": business}, ensure_ascii=False)
+        ) > min(5400, bound):
+            raise ob.Refus("SORTIE-TROP-VOLUMINEUSE")
+        return business
+    except ob.Refus as exc:
+        return {"accepte": False, "verdict": exc.verdict}
+
+
+def enregistrer_obligation_preparee_appareil(
+    categorie, operation, declaration, revision_attendue, motif
+):
+    from . import obligations_preparees as ob
+
+    arguments = {
+        "categorie": categorie,
+        "operation": operation,
+        "declaration": declaration,
+        "revision_attendue": revision_attendue,
+        "motif": motif,
+    }
+    try:
+        autoriser_obligation_preparee_appareil(arguments)
+        auteur = _autorite_obligations_preparees()
+        meta, intent, hora = _intention_obligations_preparees(arguments)
+        snapshot = _snapshot_obligations_preparees()
+        ob.verifier_revision(ob.snapshot_courant(snapshot), arguments)
+        entry = ob.construire_entree(
+            arguments, auteur, intent, hora, meta.horodatage_appareil
+        )
+        proposed = registre_module.Registre(copy.deepcopy(snapshot))
+        proposed.ajouter(entry)
+        preflight = _borner_obligations_preparees(
+            _ack_obligations_preparees(proposed.lire()[-1], len(snapshot))
+        )
+    except ob.Refus as exc:
+        return {"accepte": False, "verdict": exc.verdict}
+    # Every technical/postappend failure escapes to the external transaction rollback.
+    try:
+        durable = registre_module.Registre(stockage.maillons(_DEPARTEMENT, ob.REGISTRE))
+        line = durable.ajouter(entry)
+        persisted = durable.lire()
+        ob.snapshot_courant(persisted)
+        if len(persisted) != len(snapshot) + 1 or persisted[-1]["ligne_id"] != line:
+            raise RuntimeError("confirmation durable M5 incohérente")
+        ack = _borner_obligations_preparees(
+            _ack_obligations_preparees(persisted[-1], len(snapshot))
+        )
+        if ack != preflight:
+            raise RuntimeError("confirmation durable M5 divergente")
+        return ack
+    except Exception as exc:
+        raise RuntimeError("échec technique après écriture préparatoire M5") from exc
+
+
+def _outils_obligations_preparees():
+    return (
+        Outil(
+            nom="m5_lire_obligations_preparees_appareil",
+            description="Déclaration humaine préparatoire non attestée ; aucun mouvement financier ni activation cash.",
+            parametres={
+                "additionalProperties": False,
+                "properties": {
+                    "aujourd_hui": {
+                        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                        "type": "string",
+                    },
+                    "decalage": {"maximum": 10000, "minimum": 0, "type": "integer"},
+                    "limite": {"maximum": 8, "minimum": 1, "type": "integer"},
+                },
+                "required": ["aujourd_hui", "decalage", "limite"],
+                "type": "object",
+            },
+            fonction=lire_obligations_preparees_appareil,
+            autonomie=Autonomie.T0,
+            roles_appareil=frozenset({"admin"}),
+            portee_contexte="globale",
+        ),
+        Outil(
+            nom="m5_enregistrer_obligation_preparee_appareil",
+            description="Déclaration humaine préparatoire non attestée ; aucun mouvement financier ni activation cash.",
+            parametres={
+                "additionalProperties": False,
+                "allOf": [
+                    {
+                        "if": {"properties": {"operation": {"const": "declarer"}}},
+                        "then": {
+                            "properties": {
+                                "declaration": {
+                                    "additionalProperties": False,
+                                    "properties": {
+                                        "au": {
+                                            "anyOf": [
+                                                {
+                                                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                                                    "type": "string",
+                                                },
+                                                {"type": "null"},
+                                            ]
+                                        },
+                                        "calendrier": {
+                                            "anyOf": [
+                                                {
+                                                    "additionalProperties": False,
+                                                    "properties": {
+                                                        "annee": {
+                                                            "anyOf": [
+                                                                {
+                                                                    "maximum": 9999,
+                                                                    "minimum": 1,
+                                                                    "type": "integer",
+                                                                },
+                                                                {"type": "null"},
+                                                            ]
+                                                        },
+                                                        "autorite": {
+                                                            "anyOf": [
+                                                                {
+                                                                    "maxLength": 240,
+                                                                    "minLength": 1,
+                                                                    "type": "string",
+                                                                },
+                                                                {"type": "null"},
+                                                            ]
+                                                        },
+                                                        "echeance_source": {
+                                                            "anyOf": [
+                                                                {
+                                                                    "maxLength": 240,
+                                                                    "minLength": 1,
+                                                                    "type": "string",
+                                                                },
+                                                                {"type": "null"},
+                                                            ]
+                                                        },
+                                                        "periode_debut": {
+                                                            "anyOf": [
+                                                                {
+                                                                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                                                                    "type": "string",
+                                                                },
+                                                                {"type": "null"},
+                                                            ]
+                                                        },
+                                                        "periode_fin": {
+                                                            "anyOf": [
+                                                                {
+                                                                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                                                                    "type": "string",
+                                                                },
+                                                                {"type": "null"},
+                                                            ]
+                                                        },
+                                                        "source_applicable_du": {
+                                                            "anyOf": [
+                                                                {
+                                                                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                                                                    "type": "string",
+                                                                },
+                                                                {"type": "null"},
+                                                            ]
+                                                        },
+                                                        "source_applicable_jusqu_au": {
+                                                            "anyOf": [
+                                                                {
+                                                                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                                                                    "type": "string",
+                                                                },
+                                                                {"type": "null"},
+                                                            ]
+                                                        },
+                                                        "source_consultee_le": {
+                                                            "anyOf": [
+                                                                {
+                                                                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                                                                    "type": "string",
+                                                                },
+                                                                {"type": "null"},
+                                                            ]
+                                                        },
+                                                        "version": {
+                                                            "anyOf": [
+                                                                {
+                                                                    "maxLength": 240,
+                                                                    "minLength": 1,
+                                                                    "type": "string",
+                                                                },
+                                                                {"type": "null"},
+                                                            ]
+                                                        },
+                                                    },
+                                                    "required": [
+                                                        "autorite",
+                                                        "periode_debut",
+                                                        "periode_fin",
+                                                        "echeance_source",
+                                                        "source_consultee_le",
+                                                        "source_applicable_du",
+                                                        "source_applicable_jusqu_au",
+                                                        "annee",
+                                                        "version",
+                                                    ],
+                                                    "type": "object",
+                                                },
+                                                {"type": "null"},
+                                            ]
+                                        },
+                                        "echeance": {
+                                            "anyOf": [
+                                                {
+                                                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                                                    "type": "string",
+                                                },
+                                                {"type": "null"},
+                                            ]
+                                        },
+                                        "montant": {
+                                            "anyOf": [
+                                                {
+                                                    "pattern": "^[0-9]{1,12}(\\.[0-9]{1,2})?$",
+                                                    "type": "string",
+                                                },
+                                                {"type": "null"},
+                                            ]
+                                        },
+                                        "source": {
+                                            "anyOf": [
+                                                {
+                                                    "maxLength": 120,
+                                                    "minLength": 1,
+                                                    "type": "string",
+                                                },
+                                                {"type": "null"},
+                                            ]
+                                        },
+                                    },
+                                    "required": [
+                                        "montant",
+                                        "source",
+                                        "au",
+                                        "echeance",
+                                        "calendrier",
+                                    ],
+                                    "type": "object",
+                                }
+                            }
+                        },
+                    },
+                    {
+                        "if": {"properties": {"operation": {"const": "retirer"}}},
+                        "then": {
+                            "properties": {
+                                "declaration": {"type": "null"},
+                                "motif": {
+                                    "maxLength": 500,
+                                    "minLength": 1,
+                                    "type": "string",
+                                },
+                            }
+                        },
+                    },
+                ],
+                "properties": {
+                    "categorie": {"enum": ["paies", "das", "dettes"]},
+                    "declaration": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": False,
+                                "properties": {
+                                    "au": {
+                                        "anyOf": [
+                                            {
+                                                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                                                "type": "string",
+                                            },
+                                            {"type": "null"},
+                                        ]
+                                    },
+                                    "calendrier": {
+                                        "anyOf": [
+                                            {
+                                                "additionalProperties": False,
+                                                "properties": {
+                                                    "annee": {
+                                                        "anyOf": [
+                                                            {
+                                                                "maximum": 9999,
+                                                                "minimum": 1,
+                                                                "type": "integer",
+                                                            },
+                                                            {"type": "null"},
+                                                        ]
+                                                    },
+                                                    "autorite": {
+                                                        "anyOf": [
+                                                            {
+                                                                "maxLength": 240,
+                                                                "minLength": 1,
+                                                                "type": "string",
+                                                            },
+                                                            {"type": "null"},
+                                                        ]
+                                                    },
+                                                    "echeance_source": {
+                                                        "anyOf": [
+                                                            {
+                                                                "maxLength": 240,
+                                                                "minLength": 1,
+                                                                "type": "string",
+                                                            },
+                                                            {"type": "null"},
+                                                        ]
+                                                    },
+                                                    "periode_debut": {
+                                                        "anyOf": [
+                                                            {
+                                                                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                                                                "type": "string",
+                                                            },
+                                                            {"type": "null"},
+                                                        ]
+                                                    },
+                                                    "periode_fin": {
+                                                        "anyOf": [
+                                                            {
+                                                                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                                                                "type": "string",
+                                                            },
+                                                            {"type": "null"},
+                                                        ]
+                                                    },
+                                                    "source_applicable_du": {
+                                                        "anyOf": [
+                                                            {
+                                                                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                                                                "type": "string",
+                                                            },
+                                                            {"type": "null"},
+                                                        ]
+                                                    },
+                                                    "source_applicable_jusqu_au": {
+                                                        "anyOf": [
+                                                            {
+                                                                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                                                                "type": "string",
+                                                            },
+                                                            {"type": "null"},
+                                                        ]
+                                                    },
+                                                    "source_consultee_le": {
+                                                        "anyOf": [
+                                                            {
+                                                                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                                                                "type": "string",
+                                                            },
+                                                            {"type": "null"},
+                                                        ]
+                                                    },
+                                                    "version": {
+                                                        "anyOf": [
+                                                            {
+                                                                "maxLength": 240,
+                                                                "minLength": 1,
+                                                                "type": "string",
+                                                            },
+                                                            {"type": "null"},
+                                                        ]
+                                                    },
+                                                },
+                                                "required": [
+                                                    "autorite",
+                                                    "periode_debut",
+                                                    "periode_fin",
+                                                    "echeance_source",
+                                                    "source_consultee_le",
+                                                    "source_applicable_du",
+                                                    "source_applicable_jusqu_au",
+                                                    "annee",
+                                                    "version",
+                                                ],
+                                                "type": "object",
+                                            },
+                                            {"type": "null"},
+                                        ]
+                                    },
+                                    "echeance": {
+                                        "anyOf": [
+                                            {
+                                                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+                                                "type": "string",
+                                            },
+                                            {"type": "null"},
+                                        ]
+                                    },
+                                    "montant": {
+                                        "anyOf": [
+                                            {
+                                                "pattern": "^[0-9]{1,12}(\\.[0-9]{1,2})?$",
+                                                "type": "string",
+                                            },
+                                            {"type": "null"},
+                                        ]
+                                    },
+                                    "source": {
+                                        "anyOf": [
+                                            {
+                                                "maxLength": 120,
+                                                "minLength": 1,
+                                                "type": "string",
+                                            },
+                                            {"type": "null"},
+                                        ]
+                                    },
+                                },
+                                "required": [
+                                    "montant",
+                                    "source",
+                                    "au",
+                                    "echeance",
+                                    "calendrier",
+                                ],
+                                "type": "object",
+                            },
+                            {"type": "null"},
+                        ]
+                    },
+                    "motif": {"maxLength": 500, "type": "string"},
+                    "operation": {"enum": ["declarer", "retirer"]},
+                    "revision_attendue": {
+                        "anyOf": [
+                            {
+                                "additionalProperties": False,
+                                "properties": {
+                                    "index": {
+                                        "maximum": 9999,
+                                        "minimum": 0,
+                                        "type": "integer",
+                                    },
+                                    "ligne_id": {
+                                        "pattern": "^[0-9a-f]{64}$",
+                                        "type": "string",
+                                    },
+                                    "precedent_ligne_id": {
+                                        "anyOf": [
+                                            {
+                                                "pattern": "^[0-9a-f]{64}$",
+                                                "type": "string",
+                                            },
+                                            {"type": "null"},
+                                        ]
+                                    },
+                                    "registre": {"const": "obligations_preparees"},
+                                },
+                                "required": [
+                                    "registre",
+                                    "index",
+                                    "ligne_id",
+                                    "precedent_ligne_id",
+                                ],
+                                "type": "object",
+                            },
+                            {"type": "null"},
+                        ]
+                    },
+                },
+                "required": [
+                    "categorie",
+                    "operation",
+                    "declaration",
+                    "revision_attendue",
+                    "motif",
+                ],
+                "type": "object",
+            },
+            fonction=enregistrer_obligation_preparee_appareil,
+            autonomie=Autonomie.T1,
+            roles_appareil=frozenset({"admin"}),
+            portee_contexte="globale",
+        ),
+    )

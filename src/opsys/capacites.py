@@ -51,6 +51,8 @@ _MUTATION_RAPPEL_M1 = "m1_prendre_en_charge_rappel_appareil"
 _LECTURE_REVUE_M4 = "m4_lire_dossier_revue_completion_appareil"
 _PROPOSITION_REVUE_M4 = "m4_resoudre_revue_completion_sources"
 _LEGACY_REVUE_M4 = "m4_resoudre_revue_completion"
+_LECTURE_OBLIGATIONS_M5 = "m5_lire_obligations_preparees_appareil"
+_MUTATION_OBLIGATIONS_M5 = "m5_enregistrer_obligation_preparee_appareil"
 
 
 def _outils_memoire() -> tuple[Outil, ...]:
@@ -271,6 +273,8 @@ class Capacites:
         args = dict(arguments or {})
         appelante = identite_appelante()
         entree = self.index.get(nom)
+        if entree is not None and nom in {_LECTURE_OBLIGATIONS_M5, _MUTATION_OBLIGATIONS_M5}:
+            return self._appeler_obligations_m5(nom, args, meta, ticket_cible, ticket_memoire)
         if nom == _LEGACY_REVUE_M4 and (
             meta is not None or (appelante is not None and appelante.source == "appareil")
         ):
@@ -402,6 +406,86 @@ class Capacites:
         if meta is None:
             return self._distribuer(nom, args)
         return self._appeler_idempotent(nom, args, meta)
+
+    @staticmethod
+    def _confirmation_obligations_m5_inconnue():
+        return {"ok": False, "erreur": "confirmation_transport_indisponible",
+                "details": "L’intention M5 reste inconnue et doit conserver son identité originale."}
+
+    def _appeler_obligations_m5(self, nom, arguments, meta, ticket_cible, ticket_memoire):
+        """Chemin DEVICE fermé des seules déclarations préparatoires, transaction unique."""
+        from m5_financecore import obligations_preparees as domaine
+        from m5_financecore import outils as facade
+        from sqlalchemy import select
+
+        from . import intentions_obligations_m5 as liaison
+        from .stockage.schema import MUTATIONS_APPLIQUEES
+
+        actor = identite_appelante()
+        if (
+            actor is None or actor.source != "appareil" or actor.role != "admin"
+            or nom not in self._outils_du_role(actor.role)
+        ):
+            return {"ok": False, "erreur": "hors_portee_role",
+                    "details": "La déclaration préparatoire exige la portée admin DEVICE courante."}
+        if ticket_cible is not None or ticket_memoire is not None:
+            return {"ok": False, "erreur": "ticket_hors_portee_obligations_preparees"}
+        lecture = nom == _LECTURE_OBLIGATIONS_M5
+        if lecture and meta is not None:
+            return {"ok": False, "erreur": "idempotence_hors_portee_lecture"}
+        if not lecture and not isinstance(meta, idempotence.Meta):
+            return {"ok": False, "erreur": "idempotence_appareil_requise"}
+        with self._cnx_factory() as cnx, contexte_appel.sortie_bornee(min(5400, self._limite)):
+            if lecture:
+                try:
+                    facade.autoriser_obligation_preparee_appareil(arguments, nom=nom)
+                except domaine.Refus as exc:
+                    return {"ok": False, "erreur": exc.verdict["code"], "details": exc.verdict["detail"]}
+                return self._distribuer(nom, arguments, appel_appareil=True)
+            try:
+                # Closed domain validation rejects NaN and Unicode surrogates before
+                # publication of the JSON correlation context, claim or business source.
+                domaine.valider_mutation(arguments)
+            except domaine.Refus as exc:
+                return {"ok": False, "erreur": exc.verdict["code"], "details": exc.verdict["detail"]}
+            try:
+                reception = dt.datetime.now(dt.UTC)
+                heure = HorodatageAppareil(
+                    meta.appareil, dt.datetime.fromisoformat(meta.horodatage_appareil), reception,
+                )
+            except (TypeError, ValueError):
+                return self._confirmation_obligations_m5_inconnue()
+            with liaison.contexte_intention(meta, arguments), receptionne_de(heure):
+                try:
+                    facade.autoriser_obligation_preparee_appareil(arguments, nom=nom)
+                except domaine.Refus as exc:
+                    return {"ok": False, "erreur": exc.verdict["code"], "details": exc.verdict["detail"]}
+                # The generic claim compares arguments, but not its original hour/status.
+                row = cnx.execute(select(MUTATIONS_APPLIQUEES).where(
+                    MUTATIONS_APPLIQUEES.c.appareil == meta.appareil,
+                    MUTATIONS_APPLIQUEES.c.cle_idempotence == meta.cle,
+                )).mappings().first()
+                if row is not None and (
+                    row["outil"] != nom or row["empreinte_arguments"] != idempotence.empreinte_arguments(arguments)
+                    or row["horodatage_appareil"] != meta.horodatage_appareil or row["statut"] != "ok"
+                ):
+                    return self._confirmation_obligations_m5_inconnue()
+                try:
+                    claim = idempotence.reclamer(cnx, meta, nom, arguments, reception)
+                except (ValueError, TypeError):
+                    return self._confirmation_obligations_m5_inconnue()
+                if claim.rejouee:
+                    try:
+                        facade.verifier_rejeu_obligation_preparee_appareil(arguments, claim.reponse)
+                    except (domaine.Refus, TypeError, ValueError):
+                        return self._confirmation_obligations_m5_inconnue()
+                    return {**claim.reponse, "rejoue": True}
+                response = self._distribuer(nom, arguments, appel_appareil=True, meta=meta)
+                if any(len(json.dumps({**response, "rejoue": flag}, ensure_ascii=False))
+                       > min(5400, self._limite) for flag in (False, True)):
+                    raise RuntimeError("confirmation M5 hors borne après exécution atomique")
+                idempotence.finaliser(cnx, meta, response)
+                return {**response, "rejoue": False}
 
     def _appeler_memoire(self, args: dict[str, Any], ticket: str | None) -> dict[str, Any]:
         from .memoire import autorite
@@ -1046,7 +1130,8 @@ class Capacites:
             with appeler_en_tant_que(departement.id, origine=origine):
                 reponse = executer_atomique(outil, arguments)
             if reponse.get("ok") and (
-                outil.nom not in {"m6_declarer_materiaux_avec_preuves_appareil", _MUTATION_CLASSEMENT_M6}
+                outil.nom not in {"m6_declarer_materiaux_avec_preuves_appareil", _MUTATION_CLASSEMENT_M6,
+                                 _MUTATION_OBLIGATIONS_M5}
                 or reponse.get("resultat", {}).get("accepte") is True
             ):
                 approbations.tracer_validation_au_depart(
@@ -1088,6 +1173,16 @@ class Capacites:
                 return reponse
             return {"ok": False, "erreur": "confirmation_transport_indisponible", "issue": "inconnue",
                     "details": "La lecture complète dépasse sa borne ; aucun artefact n’est créé."}
+        if source in {_MUTATION_OBLIGATIONS_M5, _LECTURE_OBLIGATIONS_M5}:
+            frames = (
+                [{**reponse, "rejoue": flag} for flag in (False, True)]
+                if source == _MUTATION_OBLIGATIONS_M5 else [reponse]
+            )
+            if all(len(json.dumps(frame, ensure_ascii=False)) <= min(5400, self._limite) for frame in frames):
+                return reponse
+            if source == _MUTATION_OBLIGATIONS_M5:
+                raise RuntimeError("confirmation M5 hors borne dans la transaction métier")
+            return {"ok": False, "erreur": "REJ-M5-OBLIGATIONS-SORTIE-TROP-VOLUMINEUSE"}
         if source in {_LECTURE_RAPPELS_M1, _MUTATION_RAPPEL_M1}:
             if reponse.get("erreur") == "arguments_invalides":
                 reponse = {

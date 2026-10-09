@@ -6,6 +6,21 @@ import type { RessourcesAdmin } from "./admin.fr-CA";
  * says so in words too: never a dash, never a zero.
  */
 const adminEnCA: RessourcesAdmin = {
+  obligationsM5: {
+    sourceMontantNormalisee: "Amount source, normalized projection", sourceEcheanceNormalisee: "Due date source, normalized projection",
+    ouvrir: "Open internal preparatory declarations",
+    titre: "Preparatory obligations", note: "Internal payroll, source deductions and debt declarations. Declared, unattested amounts: no payment, tax calculation, bank balance or payment status. This read does not feed cash, the existing calendar or the CFO.",
+    aujourdHui: "Explicit read date", lire: "Read the first page again", suite: "Read the next page", choisir: "Choose this category", pagesCourantes: "Current pages: every read replaces the page and declarations may change.",
+    page: "Offset {{debut}} · {{nombre}} of {{total}} category/categories", inconnu: "Not declared", horsLigne: "Offline: no cached page is authorized. Local intentions are retained.",
+    echeanceDeclaree: "Declared due date, without payment status", projection: "Normalized preparatory projection", saisieNote: "Enter only the data and sources you declare. An empty field stays unknown. Current values do not automatically fill this form.",
+    montant: "Declared amount (CAD text, no calculation)", source: "Declared amount source", au: "Declared amount date", echeance: "Declared due date", motif: "Internal reason (500 characters maximum)",
+    calendrier: "Show or hide due date provenance", autorite: "Declared authority", periode_debut: "Declared period start", periode_fin: "Declared period end", echeance_source: "Declared due date source",
+    source_consultee_le: "Declared consultation date", source_applicable_du: "Declared validity: start", source_applicable_jusqu_au: "Declared validity: end", annee: "Declared year", version: "Declared source version",
+    declarer: "Record this internal N3 declaration", retirer: "Retire this declaration with the entered reason", reprendre: "Retry the original intention", enAttente: "Confirmation unknown or pending: the same key and body are retained. A new intention in this category remains blocked.",
+    confirmee: "Internal declaration confirmed by its own record. Read again to learn the current state.", refusee: "An older local intention failed: no new payment status is inferred.", quarantaine: "An unresolved intention belongs to another person, device or destination. It is retained and blocks this category.", indisponible: "Intention unavailable; no new declaration is dispatched.",
+    categories: { paies: "Payroll", das: "Source deductions (DAS)", dettes: "Declared debts" }, etats: { ABSENTE: "Declaration absent", DECLAREE: "Declaration present", RETIREE: "Declaration retired" },
+    statuts: { SOURCE_PERIMEE: "Declared source expired", INCOMPLETE: "Incomplete documentation", ECHEANCE_PASSEE_A_VERIFIER: "Past due date to verify", DOCUMENTEE_A_VALIDER: "Documentation to validate" },
+  },
   revueCompletion: {
     legacyHorsLigne: "The last read list is informational while offline. Only already offered legacy decisions can be queued; the review with sources must be read again online.",
     titre: "Completion review with sources", limites: "The proposal creates an N4 request. Only the authorized owner can decide; its own proof then confirms that decision. No stock, cost or classification is corrected automatically.",
