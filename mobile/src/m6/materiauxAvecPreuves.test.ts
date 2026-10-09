@@ -61,3 +61,56 @@ test.each(["mouvement_position","preuve_index","legacy_envoyee"])("vrai sender %
  expect(await d.obtenir(premiere.id)).toMatchObject({id:premiere.id,payload:premiere.payload,statut:cas==="legacy_envoyee"?"envoyee":"en_attente"});
  expect(await d.obtenir(seconde.id)).toMatchObject({id:seconde.id,payload:seconde.payload,tentatives:0,statut:"en_attente"});
 });
+
+import refusSQL from "./fixturesRefusPreuvesSQL.json";
+function captureRefus(phase:string){
+ const stored=refusSQL.captures.find(c=>c.phase===phase);if(!stored)throw new Error("Capture SQL absente");
+ expect(createHash("sha256").update(stored.capture_utf8).digest("hex")).toBe(stored.capture_sha256);
+ expect(createHash("sha256").update(stored.response_utf8).digest("hex")).toBe(stored.response_sha256);
+ const capture=JSON.parse(stored.capture_utf8);expect(capture.response).toEqual(JSON.parse(stored.response_utf8));return capture;
+}
+function mutationRefusSQL(){
+ const c=captureRefus("succes_initial_reponse_perdue");
+ return {...mutation(),id:c.request.mutation.idempotencyKey,createdAtLocal:c.request.mutation.deviceTimestamp,
+  proprietaire:c.authority.personne,chantierId:c.request.args.formulaire.intervention_id,
+  payload:{...c.request.args,_fichiers_locaux:[]}};
+}
+test.each(["role_retire_preclaim","source_10001_preclaim"])("Cap SQLite %s préclaim conserve UNKNOWN",phase=>{
+ const c=captureRefus(phase);expect(c.response.ok).toBe(false);
+ expect(c.tables_pair.count).toBe(49);expect(c.tables_pair.changed).toEqual([]);expect(c.artefacts_after).toBe(0);
+ expect(interpreterMateriauxAvecPreuves(c.response,mutationRefusSQL())).toMatchObject({accepte:false,verdict:{code:"accuse_invalide"}});
+});
+test.each(["REJ-IDENTITE-APPAREIL-INVALIDE","REJ-M6-PREUVES-IDENTITE-INVALIDE"])("identité %s reste incertaine dans les deux enveloppes",code=>{
+ const m=mutationRefusSQL();
+ for(const r of [{ok:false,erreur:code,details:"FICTIF"},{ok:true,resultat:{accepte:false,verdict:{code,detail:"FICTIF"}}}]){
+  expect(interpreterMateriauxAvecPreuves(r,m)).toMatchObject({accepte:false,verdict:{code:"accuse_invalide"}});
+ }
+});
+test("refus interne frais Cap reste métier certain ; pas de reclassification générique",()=>{
+ const c=captureRefus("refus_interne_frais_quota800");expect(c.response.ok).toBe(true);expect(c.response.resultat.accepte).toBe(false);
+ expect(c.tables_pair.changed).toEqual(["mutations_appliquees"]);expect(c.artefacts_after).toBe(0);
+ expect(interpreterMateriauxAvecPreuves(c.response,mutationRefusSQL())).toEqual({accepte:false,verdict:c.response.resultat.verdict});
+ expect(interpreterMateriauxAvecPreuves({ok:false,erreur:"REJ-FICTIF-CERTAIN",details:"FICTIF"},mutationRefusSQL())).toEqual({accepte:false,verdict:{code:"REJ-FICTIF-CERTAIN",detail:"FICTIF"}});
+});
+test.each([["role_retire_preclaim","role_retabli_cachedsuccess"],["source_10001_preclaim","source_retablie_cachedsuccess"]])(
+ "succès Cap perdu puis %s : SDK/dépôt/vidangeur rejouent même intention avant suivante",async(phase,reprise)=>{
+ const original=mutationRefusSQL(),source=captureRefus("succes_initial_reponse_perdue"),refuse=captureRefus(phase),replay=captureRefus(reprise);
+ expect(replay.response.rejoue).toBe(true);expect(replay.response.resultat).toEqual(source.response.resultat);expect(replay.tables_pair.changed).toEqual([]);
+ const d=new DepotOutboxMemoire(),premiere=await d.inserer(original);
+ const seconde=await d.inserer({...original,id:"7dd03819-38d9-448a-adab-2452b75d3e95"});
+ const ids:string[]=[],bodies:unknown[]=[],stages=[refuse.response,replay.response];let now=new Date("2026-10-08T12:00:00Z");
+ const fetchImpl=jest.fn(async(_url:unknown,init?:RequestInit)=>{
+  const body=JSON.parse(String(init?.body));bodies.push(body);ids.push(body.idempotencyKey);
+  if(ids.length===1||body.idempotencyKey!==original.id)throw new TypeError("FICTIF réponse initiale perdue / aucune capture pour suivante");
+  return new Response(JSON.stringify({ok:true,result:stages.shift()}),{status:200});
+ });
+ const v=creerVidangeur({depot:d,descripteurs:DESCRIPTEURS_MUTATION,appelerOutil:invoquerOutil,fetchImpl,
+  session:()=>({urlBase:"https://fictif.invalid",jeton:"FICTIF",appareilId:source.request.mutation.deviceId,personne:original.proprietaire}),
+  maintenant:()=>now,verifierAvantEnvoi:async()=>true});
+ await v.vidangerFileSortante();now=new Date(now.getTime()+300000);const refus=await v.vidangerFileSortante();
+ const apresRefus=await d.obtenir(premiere.id);now=new Date(now.getTime()+300000);await v.vidangerFileSortante();
+ expect(ids).toEqual([original.id,original.id,original.id]);expect(bodies[0]).toEqual(bodies[1]);expect(bodies[1]).toEqual(bodies[2]);
+ expect(refus.echecsPermanents).toEqual([]);expect(apresRefus).toMatchObject({id:original.id,payload:original.payload,statut:"en_attente"});
+ expect(await d.obtenir(premiere.id)).toMatchObject({id:original.id,payload:original.payload,statut:"envoyee",resumeAccepte:{preuves:replay.response.resultat.resultat.preuves}});
+ expect(await d.obtenir(seconde.id)).toMatchObject({id:seconde.id,payload:seconde.payload,statut:"en_attente",tentatives:0});
+});

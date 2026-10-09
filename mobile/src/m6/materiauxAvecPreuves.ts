@@ -71,12 +71,13 @@ export function interpreterMateriauxAvecPreuves(brut:unknown,mutation?:MutationO
   if(s===JSON_LECTURE_INVALIDE||!obj(s)||!charge)return inconnu;
   const keys=Object.hasOwn(s,"rejoue")?["ok","resultat","rejoue"]:["ok","resultat"];
   if(Object.hasOwn(s,"rejoue")&&typeof s.rejoue!=="boolean")return inconnu;
+  // Préclaim Cap : ce refus peut masquer un succès ancien dont la réponse a été perdue.
   if(s.ok===false){
-    if(!ferme(s,["ok","erreur","details",...(Object.hasOwn(s,"rejoue")?["rejoue"]:[])])||typeof s.erreur!=="string"||typeof s.details!=="string"||!/^REJ-[A-Z0-9]+(?:-[A-Z0-9]+)*$/.test(s.erreur)||s.erreur==="REJ-IDENTITE-APPAREIL-INVALIDE")return inconnu;
+    if(!ferme(s,["ok","erreur","details",...(Object.hasOwn(s,"rejoue")?["rejoue"]:[])])||typeof s.erreur!=="string"||typeof s.details!=="string"||!/^REJ-[A-Z0-9]+(?:-[A-Z0-9]+)*$/.test(s.erreur)||s.erreur==="REJ-IDENTITE-APPAREIL-INVALIDE"||s.erreur.startsWith("REJ-M6-PREUVES-"))return inconnu;
     return {accepte:false,verdict:{code:s.erreur,detail:s.details}};
   }
   if(!ferme(s,keys)||s.ok!==true||!obj(s.resultat))return inconnu;const m=s.resultat;
-  if(m.accepte===false){const v=m.verdict;if(!ferme(m,["accepte","verdict"])||!obj(v)||typeof v.code!=="string"||!/^REJ-[A-Z0-9]+(?:-[A-Z0-9]+)*$/.test(v.code)||v.code==="REJ-IDENTITE-APPAREIL-INVALIDE"||typeof v.detail!=="string"||!ferme(v,["code","detail",...(Object.hasOwn(v,"statut")?["statut"]:[])]))return inconnu;return {accepte:false,verdict:{code:v.code,detail:v.detail}};}
+  if(m.accepte===false){const v=m.verdict;if(!ferme(m,["accepte","verdict"])||!obj(v)||typeof v.code!=="string"||!/^REJ-[A-Z0-9]+(?:-[A-Z0-9]+)*$/.test(v.code)||v.code==="REJ-IDENTITE-APPAREIL-INVALIDE"||v.code==="REJ-M6-PREUVES-IDENTITE-INVALIDE"||typeof v.detail!=="string"||!ferme(v,["code","detail",...(Object.hasOwn(v,"statut")?["statut"]:[])]))return inconnu;return {accepte:false,verdict:{code:v.code,detail:v.detail}};}
   if(!ferme(m,["accepte","resultat","registre"])||m.accepte!==true||!ferme(m.registre,["taille","hash_tete"])||!entier(m.registre.taille)||!hash(m.registre.hash_tete))return inconnu;
   const taille=m.registre.taille;const c=confirmation(m.resultat,charge.args,taille);if(!c)return inconnu;
   return {accepte:true,resultat:{...c,registre_confirmation:{taille,hash_tete:m.registre.hash_tete}}};
