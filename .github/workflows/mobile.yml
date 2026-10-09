@@ -1,17 +1,11 @@
 name: mobile
 on:
-  push:
-    branches: [main, "claude/**"]
-    paths: ["mobile/**", ".github/workflows/mobile.yml"]
-  pull_request:
-    paths: ["mobile/**", ".github/workflows/mobile.yml"]
+  workflow_call:
 
 permissions:
   contents: read
 
-concurrency:
-  group: mobile-${{ github.ref }}
-  cancel-in-progress: true
+# Les appels automatiques sont sérialisés par ci.yml.
 
 defaults:
   run:

@@ -1,18 +1,6 @@
 name: dependency-audit
 on:
-  push:
-    branches: [main, "claude/**"]
-    paths:
-      - "core/package.json"
-      - "core/pnpm-lock.yaml"
-      - "core/pnpm-workspace.yaml"
-      - ".github/workflows/dependency-audit.yml"
-  pull_request:
-    paths:
-      - "core/package.json"
-      - "core/pnpm-lock.yaml"
-      - "core/pnpm-workspace.yaml"
-      - ".github/workflows/dependency-audit.yml"
+  workflow_call:
 
 permissions:
   contents: read

@@ -64,6 +64,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterable, Mapping
+from fractions import Fraction
 from typing import Any
 
 from . import contrats, encodage, evenement_reception, fournisseurs, frontieres, livre_prix, stock, verdicts
@@ -542,7 +543,10 @@ def detecter_ecarts_prix(
         if prix_prevu is None or prix_reel is None or prix_prevu == 0:
             continue
         ecart_pourcentage = abs(prix_reel - prix_prevu) / prix_prevu
-        if ecart_pourcentage >= seuil_pourcentage:
+        # Décider sur les valeurs décimales reçues : 1.20 / 1.00 doit atteindre
+        # exactement 20 %, même si la projection float ci-dessus vaut un peu moins.
+        ecart_exact = abs(Fraction(str(prix_reel)) - Fraction(str(prix_prevu))) / Fraction(str(prix_prevu))
+        if ecart_exact >= Fraction(str(seuil_pourcentage)):
             signaux.append(
                 {
                     "po_id": po["po_id"],

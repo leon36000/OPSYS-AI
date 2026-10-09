@@ -6,6 +6,7 @@ en mémoire ici — la persistance durable (`opsys.stockage.maillons`) est prouv
 
 from __future__ import annotations
 
+import pytest
 from m6_material_control import bons_commande, contrats, fournisseurs, livre_prix
 from m6_material_control.registre import Registre
 
@@ -547,3 +548,31 @@ def test_detecter_ecarts_prix_reel_indetermine_ignore_silencieusement():
     po, _ = _creer_po()
     lignes_accuse = [{"materiau_id": "MAT-1", "cout_unitaire_resolu": None}]
     assert bons_commande.detecter_ecarts_prix(po, lignes_accuse, 0.30) == []
+
+
+@pytest.mark.parametrize(
+    ("prix_prevu", "prix_reel", "seuil", "signal_attendu"),
+    [
+        (0.10, 0.12, 0.20, True),
+        (1.00, 1.20, 0.20, True),
+        (0.30, 0.33, 0.10, True),
+        (0.10, 0.08, 0.20, True),
+        (0.10, 0.1199, 0.20, False),
+        (0.10, 0.1201, 0.20, True),
+    ],
+)
+def test_detecter_ecarts_prix_seuil_decimal_exact(prix_prevu, prix_reel, seuil, signal_attendu):
+    """Prix fictifs : le seuil atteint est inclus, sans perte liée au calcul binaire."""
+    po = {
+        "po_id": "PO-FICTIF-AUDIT-SEUIL",
+        "chantier_id": "CHANTIER-FICTIF-AUDIT-SEUIL",
+        "lignes": [{"materiau_id": "VIS-FICTIF", "prix_unitaire_prevu": prix_prevu}],
+    }
+    signaux = bons_commande.detecter_ecarts_prix(
+        po, [{"materiau_id": "VIS-FICTIF", "cout_unitaire_resolu": prix_reel}], seuil
+    )
+    assert bool(signaux) is signal_attendu
+    if signal_attendu:
+        assert len(signaux) == 1
+        assert signaux[0]["po_id"] == po["po_id"]
+        assert signaux[0]["materiau_id"] == "VIS-FICTIF"

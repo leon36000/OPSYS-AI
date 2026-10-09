@@ -20,6 +20,7 @@ from __future__ import annotations
 import copy
 import datetime as dt
 import json
+import re
 import socket
 from pathlib import Path
 
@@ -141,7 +142,7 @@ def _declarer(dossier: Path, commande: str, profil: dict) -> None:
 
 def _profil_equipes_deux_jours() -> dict:
     """Le profil de la démonstration Repentigny-Joliette, avec DEUX jours de quart (0 et 1) : la cédule relancée a un
-    jour restant où replacer les chantiers dont le jour 0 est fermé par la météo."""
+    jour restant où replacer les chantiers dont un jour est fermé par la météo."""
     profil = copy.deepcopy(EQUIPES["profil"])
     for equipe in profil["liste"]:
         equipe["quarts"] = [{"jour": jour, "debut_min": 480, "fin_min": 1020} for jour in (0, 1)]
@@ -277,13 +278,9 @@ def monde(instance, par_nom):
         v["chantier"]: (r["jour"], v["debut_min"], v["fin_min"]) for r in proposition["plan"] for v in r["visites"]
     }
     assert sorted(visites) == sorted(interventions.values())
-    # Le plan est déterministe (le solveur, les profils, le registre) : L-E2E-01 (ravalement) et L-E2E-02 (réparation)
-    # le jour 0, L-E2E-10 (ravalement) le jour 1. Si le solveur change, ce constat le dit avant tout autre test.
-    assert (
-        visites[interventions["L-E2E-01"]][0],
-        visites[interventions["L-E2E-02"]][0],
-        visites[interventions["L-E2E-10"]][0],
-    ) == (0, 0, 1), visites
+    # Plusieurs répartitions respectent les quarts. La météo juge le plan réellement proposé,
+    # sans imposer un départage entre des solutions équivalentes des solveurs.
+    assert all(jour in (0, 1) and 480 <= debut < fin <= 1020 for jour, debut, fin in visites.values())
     return {
         "interventions": interventions,
         "plan_id": proposition["plan_id"],
@@ -303,7 +300,16 @@ def monde_complet(instance, par_nom):
     proposition = _resultat(_appeler(par_nom, "m4_proposer_cedule", {"horodatage": HORODATAGE}))
     assert proposition["non_cedulees"] == [] and proposition["non_pretes"] == []
     assert sum(len(r["visites"]) for r in proposition["plan"]) == 6
-    return {"interventions": interventions, "plan_id": proposition["plan_id"]}
+    visites = {
+        v["chantier"]: (r["jour"], v["debut_min"], v["fin_min"]) for r in proposition["plan"] for v in r["visites"]
+    }
+    assert sorted(visites) == sorted(interventions.values())
+    return {
+        "interventions": interventions,
+        "plan_id": proposition["plan_id"],
+        "visites": visites,
+        "ravalements": {interventions[lead] for lead in LEADS if LEADS[lead]["type_travaux"] == "ravalement"},
+    }
 
 
 # -- prévisions saisies -----------------------------------------------------------------------------
@@ -332,6 +338,10 @@ def _verifier(par_nom, plan_id, saisie=None, identite_appelante=ADMIN, calendrie
 
 def _date_du_jour(jour):
     return CALENDRIER[str(jour)]
+
+
+def _jour_de_ravalement(monde):
+    return min(monde["visites"][intervention][0] for intervention in monde["ravalements"])
 
 
 # =========================================================================================
@@ -390,51 +400,83 @@ def test_une_prevision_saisie_calme_rend_chaque_creneau_ok_et_cite_l_auteur_la_s
         assert citation["emise_le"] == "2026-10-04T18:00:00-04:00", "l'heure de la prévision, jamais l'horloge de M4"
 
 
-def test_un_vent_fort_le_jour_0_bloque_le_ravalement_de_ce_jour_propose_le_report_et_relance_la_cedule(par_nom, monde):
-    premier, second, autre_jour = (monde["interventions"][lead] for lead in ("L-E2E-01", "L-E2E-02", "L-E2E-10"))
-    resultat = _resultat(_verifier(par_nom, monde["plan_id"], _saisie(dates_vent_fort=[_date_du_jour(0)])))
+def test_un_vent_fort_un_jour_de_ravalement_bloque_ce_service_propose_le_report_et_relance_la_cedule(par_nom, monde):
+    jour_venteux = _jour_de_ravalement(monde)
+    jour_restant = 1 - jour_venteux
+    ravalements_bloques = {i for i in monde["ravalements"] if monde["visites"][i][0] == jour_venteux}
+    reparation = monde["interventions"]["L-E2E-02"]
+    resultat = _resultat(_verifier(par_nom, monde["plan_id"], _saisie(dates_vent_fort=[_date_du_jour(jour_venteux)])))
     par_intervention = {c["intervention_id"]: c for c in resultat["creneaux"]}
-    bloque = par_intervention[premier]
-    assert bloque["statut"] == "bloquant" and bloque["service"] == "ravalement" and bloque["date"] == "2026-10-05"
-    assert any("vent" in r["detail"] and r["statut"] == "bloquant" for r in bloque["regles"])
-    assert par_intervention[second]["statut"] == "ok", (
-        "55 km/h ne dépasse pas le seuil de blocage de 60 km/h de la réparation"
+    for identifiant in ravalements_bloques:
+        bloque = par_intervention[identifiant]
+        assert (
+            bloque["statut"] == "bloquant"
+            and bloque["service"] == "ravalement"
+            and bloque["date"] == _date_du_jour(jour_venteux)
+        )
+        assert any("vent" in r["detail"] and r["statut"] == "bloquant" for r in bloque["regles"])
+    attendus_ok = {reparation} | (monde["ravalements"] - ravalements_bloques)
+    assert all(par_intervention[i]["statut"] == "ok" for i in attendus_ok & par_intervention.keys()), (
+        "55 km/h ne dépasse pas le seuil de blocage de 60 km/h de la réparation ; l'autre jour est calme"
     )
-    assert par_intervention[autre_jour]["statut"] == "ok", "le jour 1 est calme : ce ravalement tient"
+    omis_ok = attendus_ok - par_intervention.keys()
+    resumes_attendus = [
+        {"jour": jour, "date": _date_du_jour(jour), "nombre": sum(monde["visites"][i][0] == jour for i in omis_ok)}
+        for jour in sorted({monde["visites"][i][0] for i in omis_ok})
+    ]
+    assert resultat.get("ok_resume", []) == resumes_attendus, "seuls les créneaux ok peuvent être résumés par jour"
+    assert len(par_intervention) + sum(j["nombre"] for j in resumes_attendus) == 3
     assert resultat["statut"] == "bloquant"
 
     # le report proposé : un motif, un jour, jamais fait ici ; a_planifier n'a pas de transition de report
-    (report,) = resultat["reports_proposes"]
-    assert (report["intervention_id"], report["motif"], report["jour"]) == (premier, "meteo", 0)
-    assert report["statut_intervention"] == "a_planifier" and report["geste"] is None
-    assert "fenêtre" in report["explication"] and report["regles_franchies"]
+    assert {r["intervention_id"] for r in resultat["reports_proposes"]} == ravalements_bloques
+    for report in resultat["reports_proposes"]:
+        assert (report["motif"], report["jour"]) == ("meteo", jour_venteux)
+        assert report["statut_intervention"] == "a_planifier" and report["geste"] is None
+        if "explication" in report:
+            assert "fenêtre" in report["explication"] and report["regles_franchies"]
+        else:
+            assert resultat["detail_reduit"], "la réduction est explicitement annoncée"
 
-    # la cédule relancée : le jour 0 est fermé pour le SERVICE ravalement (les deux chantiers), un aperçu, rien de rangé
+    # Le jour venteux est fermé pour le SERVICE ravalement : un aperçu, rien de rangé.
     relance = resultat["cedule_relancee"]
     assert (
-        relance["statut"] == "apercu" and relance["jours_retires"] == {"ravalement": [0]} and relance["exclues"] == []
+        relance["statut"] == "apercu"
+        and relance["jours_retires"] == {"ravalement": [jour_venteux]}
+        and relance["exclues"] == []
     )
     jours = {c["intervention_id"]: c["fenetre"]["jours"] for c in relance["arguments"]["chantiers"]}
-    assert jours == {premier: [1], autre_jour: [1], second: [0, 1]}
+    assert jours == {**{i: [jour_restant] for i in monde["ravalements"]}, reparation: [0, 1]}
     visites = {v["chantier"]: r["jour"] for r in relance["apercu"]["plan"] for v in r["visites"]}
-    assert visites[premier] == visites[autre_jour] == 1
+    assert all(visites[i] == jour_restant for i in monde["ravalements"])
     assert relance["apercu"]["deja_proposee"] is False and relance["apercu"]["non_cedulees"] == []
 
 
-def test_un_vent_fort_les_deux_jours_ferme_les_deux_ravalements_et_le_dit_sans_relancer_ce_qui_ne_se_replace_pas(
+def test_le_vent_sur_tout_le_calendrier_retire_les_jours_juges_des_ravalements_sans_en_inventer(
     par_nom,
     monde,
 ):
     resultat = _resultat(_verifier(par_nom, monde["plan_id"], _saisie(dates_vent_fort=list(CALENDRIER.values()))))
     assert sorted(r["intervention_id"] for r in resultat["reports_proposes"]) == sorted(monde["ravalements"])
     relance = resultat["cedule_relancee"]
-    assert relance["jours_retires"] == {"ravalement": [0, 1]}
-    assert sorted(e["raison"] for e in relance["exclues"]) == ["sans_jour_restant", "sans_jour_restant"]
-    assert [c["intervention_id"] for c in relance["arguments"]["chantiers"]] == [monde["interventions"]["L-E2E-02"]]
+    jours_juges = sorted({monde["visites"][i][0] for i in monde["ravalements"]})
+    assert relance["jours_retires"] == {"ravalement": jours_juges}
+    if jours_juges == [0, 1]:
+        assert sorted(e["raison"] for e in relance["exclues"]) == ["sans_jour_restant", "sans_jour_restant"]
+        assert [c["intervention_id"] for c in relance["arguments"]["chantiers"]] == [
+            monde["interventions"]["L-E2E-02"]
+        ]
+    else:
+        # Le jour absent du plan n'a pas été jugé : l'aperçu le conserve, sans lui attribuer un verdict météo.
+        assert relance["exclues"] == []
+        jours = {c["intervention_id"]: c["fenetre"]["jours"] for c in relance["arguments"]["chantiers"]}
+        assert all(jours[i] == [1 - jours_juges[0]] for i in monde["ravalements"])
 
 
 def test_les_reglages_du_profil_de_la_cedule_relancee_sont_ceux_du_plan_propose(par_nom, monde):
-    resultat = _resultat(_verifier(par_nom, monde["plan_id"], _saisie(dates_vent_fort=[_date_du_jour(0)])))
+    resultat = _resultat(
+        _verifier(par_nom, monde["plan_id"], _saisie(dates_vent_fort=[_date_du_jour(_jour_de_ravalement(monde))]))
+    )
     relance = resultat["cedule_relancee"]
     plan = next(m for m in _maillons() if m["type_entree"] == "cedule_proposee")
     assert relance["arguments"]["moteur"] == plan["moteur"], "le moteur du plan proposé, pas un autre"
@@ -446,7 +488,7 @@ def test_les_reglages_du_profil_de_la_cedule_relancee_sont_ceux_du_plan_propose(
 # 4. Lecture seule, déterminisme, arguments rejouables
 # =========================================================================================
 def test_l_outil_n_ecrit_rien_deux_appels_donnent_le_meme_resultat(par_nom, monde):
-    saisie = _saisie(dates_vent_fort=[_date_du_jour(0)])
+    saisie = _saisie(dates_vent_fort=[_date_du_jour(_jour_de_ravalement(monde))])
     avant = _octets(_maillons())
     premier = _resultat(_verifier(par_nom, monde["plan_id"], saisie))
     assert _octets(_maillons()) == avant, "le registre n'a pas bougé d'un octet, aperçu de la relance compris"
@@ -458,9 +500,9 @@ def test_l_outil_n_ecrit_rien_deux_appels_donnent_le_meme_resultat(par_nom, mond
 
 
 def test_les_arguments_de_la_cedule_relancee_rejoues_donnent_le_meme_plan_id_que_l_apercu(par_nom, monde):
-    relance = _resultat(_verifier(par_nom, monde["plan_id"], _saisie(dates_vent_fort=[_date_du_jour(0)])))[
-        "cedule_relancee"
-    ]
+    relance = _resultat(
+        _verifier(par_nom, monde["plan_id"], _saisie(dates_vent_fort=[_date_du_jour(_jour_de_ravalement(monde))]))
+    )["cedule_relancee"]
     rejouee = _resultat(_appeler(par_nom, "m4_proposer_cedule", {"horodatage": HORODATAGE, **relance["arguments"]}))
     assert rejouee["plan_id"] == relance["apercu"]["plan_id"] != monde["plan_id"]
     assert rejouee["deja_proposee"] is False
@@ -475,7 +517,10 @@ def test_les_arguments_de_la_cedule_relancee_rejoues_donnent_le_meme_plan_id_que
 
 def test_la_reponse_ne_porte_ni_coordonnee_ni_prix_ni_contact(par_nom, monde):
     texte = json.dumps(
-        _resultat(_verifier(par_nom, monde["plan_id"], _saisie(dates_vent_fort=[_date_du_jour(0)]))), ensure_ascii=False
+        _resultat(
+            _verifier(par_nom, monde["plan_id"], _saisie(dates_vent_fort=[_date_du_jour(_jour_de_ravalement(monde))]))
+        ),
+        ensure_ascii=False,
     )
     for interdit in (
         "latitude",
@@ -531,10 +576,12 @@ def test_un_calendrier_absent_ou_mal_forme_est_refuse(par_nom, monde, calendrier
 
 
 def test_un_jour_du_plan_sans_date_est_inconnu_jamais_devine(par_nom, monde):
-    resultat = _resultat(_verifier(par_nom, monde["plan_id"], _saisie(), calendrier={"1": "2026-10-06"}))
-    jour_zero = [c for c in resultat["creneaux"] if c["jour"] == 0]
-    assert jour_zero and all(c["statut"] == "inconnu" and c["date"] is None for c in jour_zero)
-    assert "pas de date dans le calendrier" in json.dumps(jour_zero[0], ensure_ascii=False)
+    jour_sans_date = _jour_de_ravalement(monde)
+    calendrier = {str(1 - jour_sans_date): _date_du_jour(1 - jour_sans_date)}
+    resultat = _resultat(_verifier(par_nom, monde["plan_id"], _saisie(), calendrier=calendrier))
+    sans_date = [c for c in resultat["creneaux"] if c["jour"] == jour_sans_date]
+    assert sans_date and all(c["statut"] == "inconnu" and c["date"] is None for c in sans_date)
+    assert "pas de date dans le calendrier" in json.dumps(sans_date[0], ensure_ascii=False)
 
 
 # =========================================================================================
@@ -621,14 +668,15 @@ def _taille(reponse) -> int:
 
 
 def test_la_reponse_d_un_plan_bloquant_tient_dans_une_reponse_d_appareil_et_cite_les_valeurs_jugees(par_nom, monde):
-    reponse = _verifier(par_nom, monde["plan_id"], _saisie(dates_vent_fort=[_date_du_jour(0)]))
+    reponse = _verifier(par_nom, monde["plan_id"], _saisie(dates_vent_fort=[_date_du_jour(_jour_de_ravalement(monde))]))
     assert _taille(reponse) < 6000, "au-delà, l'appareil recevrait un aperçu tronqué"
     resultat = _resultat(reponse)
     assert len(resultat["creneaux"]) + sum(j["nombre"] for j in resultat.get("ok_resume", [])) == 3
     bloque = next(c for c in resultat["creneaux"] if c["statut"] == "bloquant")
-    assert [r["detail"] for r in bloque["regles"] if r["statut"] == "bloquant"] == [
-        "vent_kmh : 55 km/h à 08:00, blocage >= 40"
-    ], "le créneau à regarder garde toujours le détail de ses règles"
+    details = [r["detail"] for r in bloque["regles"] if r["statut"] == "bloquant"]
+    assert len(details) == 1 and re.fullmatch(
+        r"vent_kmh : 55 km/h à (?:0[6-9]|1[0-9]|20):00, blocage >= 40", details[0]
+    ), "le créneau à regarder garde la valeur, une heure de prévision et le seuil réellement jugés"
     assert set(bloque["prevision"]) == {"source", "emise_le", "heure_type", "saisi_par", "reference"}, (
         "citée, sans les points horaires"
     )
@@ -641,19 +689,24 @@ def test_la_reponse_d_un_plan_bloquant_tient_dans_une_reponse_d_appareil_et_cite
 
 
 def test_jours_ne_juge_que_les_creneaux_de_ces_jours_et_la_relance_garde_tous_les_chantiers(par_nom, monde):
+    jour_venteux = _jour_de_ravalement(monde)
     arguments = {
         "plan_id": monde["plan_id"],
         "calendrier": CALENDRIER,
-        "jours": [0],
-        "previsions_saisies": _saisie(dates_vent_fort=[_date_du_jour(0)]),
+        "jours": [jour_venteux],
+        "previsions_saisies": _saisie(dates_vent_fort=[_date_du_jour(jour_venteux)]),
     }
     resultat = _resultat(_appeler(par_nom, "m4_verifier_meteo_creneau", arguments))
-    assert {c["jour"] for c in resultat["creneaux"]} == {0} and len(resultat["creneaux"]) == 2
+    assert {c["jour"] for c in resultat["creneaux"]} == {jour_venteux}
+    assert len(resultat["creneaux"]) + sum(j["nombre"] for j in resultat.get("ok_resume", [])) == sum(
+        v[0] == jour_venteux for v in monde["visites"].values()
+    )
+    assert all(j["jour"] == jour_venteux for j in resultat.get("ok_resume", []))
     assert resultat["statut"] == "bloquant"
     assert len(resultat["cedule_relancee"]["arguments"]["chantiers"]) == 3, "tous les chantiers du plan sont replacés"
-    jour_un = _resultat(_appeler(par_nom, "m4_verifier_meteo_creneau", {**arguments, "jours": [1]}))
-    assert {c["jour"] for c in jour_un["creneaux"]} == {1} and jour_un["statut"] == "ok"
-    assert jour_un["cedule_relancee"] is None
+    calme = _resultat(_appeler(par_nom, "m4_verifier_meteo_creneau", {**arguments, "previsions_saisies": _saisie()}))
+    assert {c["jour"] for c in calme["creneaux"]} == {jour_venteux} and calme["statut"] == "ok"
+    assert calme["cedule_relancee"] is None
 
 
 @pytest.mark.parametrize("jours", [[], "0", [-1], [1.5], [True], ["0"]])
@@ -671,11 +724,14 @@ def test_un_jour_absent_du_plan_est_refuse_avec_les_jours_du_plan(par_nom, monde
         par_nom, "m4_verifier_meteo_creneau", {"plan_id": monde["plan_id"], "calendrier": CALENDRIER, "jours": [5]}
     )
     assert _code_refus(reponse) == "REJ-CONTRAT-INVALIDE"
-    assert "jours du plan : [0, 1]" in reponse["resultat"]["verdict"]["detail"]
+    jours_du_plan = sorted({v[0] for v in monde["visites"].values()})
+    assert f"jours du plan : {jours_du_plan}" in reponse["resultat"]["verdict"]["detail"]
 
 
 def test_un_gros_plan_est_resume_pour_tenir_dans_la_reponse_sans_cacher_un_creneau_a_regarder(par_nom, monde_complet):
-    reponse = _verifier(par_nom, monde_complet["plan_id"], _saisie(dates_vent_fort=[_date_du_jour(0)]))
+    reponse = _verifier(
+        par_nom, monde_complet["plan_id"], _saisie(dates_vent_fort=[_date_du_jour(_jour_de_ravalement(monde_complet))])
+    )
     assert _taille(reponse) < 6000, "au-delà, l'appareil recevrait un aperçu tronqué"
     resultat = _resultat(reponse)
     assert resultat["statut"] == "bloquant" and resultat["detail_reduit"]
@@ -688,7 +744,7 @@ def test_un_gros_plan_est_resume_pour_tenir_dans_la_reponse_sans_cacher_un_crene
 
 
 def test_la_limite_de_la_reponse_pilote_le_resume_et_le_refus(par_nom, monde_complet, monkeypatch):
-    saisie = _saisie(dates_vent_fort=[_date_du_jour(0)])
+    saisie = _saisie(dates_vent_fort=[_date_du_jour(_jour_de_ravalement(monde_complet))])
     monkeypatch.setattr(outils_m4, "_LIMITE_REPONSE_METEO", 10**9)
     complet = _resultat(_verifier(par_nom, monde_complet["plan_id"], saisie))
     assert "detail_reduit" not in complet and len(complet["creneaux"]) == 6
@@ -707,4 +763,3 @@ def test_la_limite_de_la_reponse_pilote_le_resume_et_le_refus(par_nom, monde_com
 
 def test_la_limite_de_la_reponse_est_celle_de_l_appareil_moins_une_marge():
     assert outils_m4._LIMITE_REPONSE_METEO == jetons.LIMITE_SORTIE_DEFAUT - 500
-

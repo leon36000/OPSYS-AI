@@ -67,13 +67,51 @@ def test_la_matrice_ci_couvre_exactement_les_departements():
     assert _ci()["jobs"]["socle"]["timeout-minutes"] >= 35
 
 
+def test_le_controle_requis_de_pr_ne_partage_pas_le_nom_d_un_push_prive():
+    # Le push compare deux points, la PR trois : leurs checks ne doivent pas se remplacer.
+    assert _ci()["jobs"]["gates"].get("name") == (
+        "${{ github.event_name == 'push' && github.ref != 'refs/heads/main' && 'gates-push' || 'gates' }}"
+    )
+
+
 def test_gates_exige_le_succes_de_chaque_job_requis():
     gates = _ci()["jobs"]["gates"]
-    assert set(gates["needs"]) == {"socle", "departement", "m03-preuves", "frontiere-postgresql"}
+    python = {"socle", "departement", "m03-preuves", "frontiere-postgresql"}
+    appels = {"core", "e2e_core", "mobile", "installateur", "dependency_audit"}
+    assert set(gates["needs"]) == {"changements", *python, *appels}
+    assert len(gates["needs"]) == 10
     assert gates["if"] == "always()"
-    commandes = "\n".join(etape.get("run", "") for etape in gates["steps"])
-    for job in gates["needs"]:
-        assert f'needs.{job}.result }}}}" = "success"' in commandes
+    (etape,) = [e for e in gates["steps"] if "selection_workflows.py gates" in e.get("run", "")]
+    assert etape["env"]["NEEDS_JSON"] == "${{ toJSON(needs) }}"
+    assert etape["run"].split() == ["python", ".github/ci/selection_workflows.py", "gates"]
+
+    def controle(needs):
+        # Exécuter l'entrée réellement câblée par le YAML, avec des résultats GitHub fictifs seulement.
+        return subprocess.run(
+            [sys.executable, *etape["run"].split()[1:]],
+            cwd=RACINE,
+            env={"NEEDS_JSON": json.dumps(needs)},
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    needs = {job: {"result": "success", "outputs": {}} for job in ("changements", *python)}
+    needs["changements"]["outputs"] = dict.fromkeys(appels, "false")
+    needs.update({job: {"result": "skipped", "outputs": {}} for job in appels})
+    assert controle(needs).returncode == 0  # Aucun appel applicable n'est exigé pour un diff documentaire.
+    for job in ("changements", *python):
+        incomplets = json.loads(json.dumps(needs))
+        incomplets[job]["result"] = "failure"
+        assert controle(incomplets).returncode != 0, job
+    for job in appels:
+        incomplets = json.loads(json.dumps(needs))
+        incomplets["changements"]["outputs"][job] = "true"
+        assert controle(incomplets).returncode != 0, job  # Applicable mais skipped ne devient jamais vert.
+    for job in appels:
+        needs["changements"]["outputs"][job] = "true"
+        needs[job]["result"] = "success"
+    assert controle(needs).returncode == 0
 
 
 def test_la_liste_de_lint_nomme_des_departements_existants_de_la_matrice_sans_doublon():
@@ -98,6 +136,13 @@ def test_aucune_autre_etape_ne_linte_un_departement():
     """Le socle lint `src tests` ; seul le pas conditionné ci-dessus lint un département."""
     autorisees = {"ruff check src tests", 'ruff check "departments/${{ matrix.dossier }}"'}
     for nom_job, job in _ci()["jobs"].items():
+        if "uses" in job:
+            fichiers = {"core": "core", "e2e_core": "e2e-core", "mobile": "mobile",
+                        "installateur": "installateur", "dependency_audit": "dependency-audit"}
+            assert nom_job in fichiers
+            assert job["uses"] == f"./.github/workflows/{fichiers[nom_job]}.yml"
+            assert "steps" not in job  # Appel réutilisable, pas un job de lint omis silencieusement.
+            continue
         for etape in job["steps"]:
             for ligne in etape.get("run", "").splitlines():
                 if re.search(r"\bruff\b", ligne):

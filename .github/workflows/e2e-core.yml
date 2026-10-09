@@ -7,37 +7,16 @@ on:
         type: choice
         options: [superviseur, direct]
         default: superviseur
-  push:
-    branches: [main, "claude/**"]
-    paths:
-      - "core/**"
-      - "src/**"
-      - "departments/**"
-      - "tests/e2e_core/**"
-      - "tests/fixtures/harnais_e2e*.py"
-      - "pyproject.toml"
-      - "uv.lock"
-      - "requirements-runtime.lock.txt"
-      - ".github/workflows/e2e-core.yml"
-  pull_request:
-    paths:
-      - "core/**"
-      - "src/**"
-      - "departments/**"
-      - "tests/e2e_core/**"
-      - "tests/fixtures/harnais_e2e*.py"
-      - "pyproject.toml"
-      - "uv.lock"
-      - "requirements-runtime.lock.txt"
-      - ".github/workflows/e2e-core.yml"
+  workflow_call:
+    inputs:
+      moteur:
+        type: string
+        default: superviseur
 
 permissions:
   contents: read
 
-# Un run commencé va à son terme (même règle que core.yml et ci.yml).
-concurrency:
-  group: e2e-core-${{ github.ref }}
-  cancel-in-progress: false
+# Les appels automatiques sont sérialisés par ci.yml ; le dispatch manuel reste indépendant.
 
 jobs:
   # Le trajet RÉEL app -> core -> moteur (PLAN T1.5-b). `tests/e2e/` (job `socle` de ci.yml) prouve le moteur avec la

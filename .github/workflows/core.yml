@@ -1,20 +1,12 @@
 name: core
 on:
   workflow_dispatch:
-  push:
-    branches: [main, "claude/**"]
-    paths: ["core/**", "src/**", "departments/**", "tests/**", "conftest.py", "pyproject.toml", "uv.lock", ".github/workflows/core.yml"]
-  pull_request:
-    paths: ["core/**", "src/**", "departments/**", "tests/**", "conftest.py", "pyproject.toml", "uv.lock", ".github/workflows/core.yml"]
+  workflow_call:
 
 permissions:
   contents: read
 
-# Un run commencé va à son terme : chaque résultat complet sert de référence. GitHub ne garde
-# qu'un run en attente par groupe, le plus récent.
-concurrency:
-  group: core-${{ github.ref }}
-  cancel-in-progress: false
+# Les appels automatiques sont sérialisés par ci.yml ; le dispatch manuel reste indépendant.
 
 defaults:
   run:

@@ -16,6 +16,54 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Une politique commune juge le diff complet ; aucun filtre GitHub limité à 300 fichiers.
+  changements:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      core: ${{ steps.selection.outputs.core }}
+      e2e_core: ${{ steps.selection.outputs.e2e_core }}
+      mobile: ${{ steps.selection.outputs.mobile }}
+      installateur: ${{ steps.selection.outputs.installateur }}
+      dependency_audit: ${{ steps.selection.outputs.dependency_audit }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.12"
+      - name: Sélection du même commit et du diff complet
+        id: selection
+        run: python .github/ci/selection_workflows.py selection
+
+  core:
+    needs: changements
+    if: needs.changements.outputs.core == 'true'
+    uses: ./.github/workflows/core.yml
+
+  e2e_core:
+    needs: changements
+    if: needs.changements.outputs.e2e_core == 'true'
+    uses: ./.github/workflows/e2e-core.yml
+
+  mobile:
+    needs: changements
+    if: needs.changements.outputs.mobile == 'true'
+    uses: ./.github/workflows/mobile.yml
+
+  installateur:
+    needs: changements
+    if: needs.changements.outputs.installateur == 'true'
+    uses: ./.github/workflows/installateur.yml
+
+  dependency_audit:
+    needs: changements
+    if: needs.changements.outputs.dependency_audit == 'true'
+    uses: ./.github/workflows/dependency-audit.yml
+
   # Socle : lint, cohérence des départements, tests du socle.
   socle:
     runs-on: ubuntu-latest
@@ -101,7 +149,7 @@ jobs:
                                 "stdout": resultat.stdout[:16384], "stderr": resultat.stderr[:2048]}))
           PY
       - name: Tests du socle
-        run: pytest
+        run: pytest -rs
 
   # Un job par département, en parallèle : la suite M3 (outils de mutation compris) prend à elle
   # seule près de 20 minutes, et une boucle séquentielle dépassait le délai du job unique.
@@ -231,9 +279,7 @@ jobs:
           test "${#retenus[@]}" -gt 0  # une part vide est une erreur, jamais un succès vide
           python -m pytest "${retenus[@]}" --durations=0
 
-  # `gates` reste le contexte requis par la protection de branche historique. Le job mobile a un
-  # nom distinct (`mobile-gates`). Ce contrôle tourne toujours (`if: always()`) et échoue si un
-  # job Python requis a été sauté ou annulé.
+  # La frontière PostgreSQL reste une preuve réelle ; aucun skip autorisé sur le runner.
   frontiere-postgresql:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -272,15 +318,22 @@ jobs:
           print(f"{len(cas)} refus PostgreSQL réels qualifiés ; verticale C02 complète bloquée")
           PYTHON
 
+  # Le contexte requis juge les groupes Python et les cinq appels du même run/commit.
   gates:
-    needs: [socle, departement, m03-preuves, frontiere-postgresql]
+    # Le push privé juge un diff à deux points ; son contrôle a un nom distinct de celui de la PR.
+    name: ${{ github.event_name == 'push' && github.ref != 'refs/heads/main' && 'gates-push' || 'gates' }}
+    needs: [changements, socle, departement, m03-preuves, frontiere-postgresql, core, e2e_core, mobile, installateur, dependency_audit]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Tous les jobs requis ont réussi
-        run: |
-          test "${{ needs.socle.result }}" = "success"
-          test "${{ needs.departement.result }}" = "success"
-          test "${{ needs.m03-preuves.result }}" = "success"
-          test "${{ needs.frontiere-postgresql.result }}" = "success"
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+        with:
+          python-version: "3.12"
+      - name: Chaque preuve applicable a réussi ; seuls les appels non applicables sont ignorés
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: python .github/ci/selection_workflows.py gates

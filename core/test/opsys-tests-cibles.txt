@@ -51,6 +51,8 @@ packages/gateway-protocol/src/schema/worker-admission.test.ts
 # server-http.security-headers : voisin d'origine de server-http.ts (une route inconnue reste un 404).
 # opsys-device-roles.test.ts (plus haut) couvre resolveOpsysDeviceIdentity.
 src/gateway/opsys-device-identity-http.test.ts
+# M6.13 : aperçu photo DEVICE ; propriétaire gateway-database-workers, hors test:fast.
+src/gateway/opsys-preuves-photo-http.test.ts
 src/gateway/server-http.opsys-device-identity.test.ts
 src/gateway/opsys-mobile-trust.test.ts
 src/gateway/server-http.security-headers.test.ts

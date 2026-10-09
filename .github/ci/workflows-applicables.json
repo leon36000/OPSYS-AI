@@ -1,0 +1,187 @@
+{
+  "version": 1,
+  "source_parent": "20731e1bf679b2cd2adbd7467da0a7686d619ed1",
+  "workflows": {
+    "core": {
+      "fichier": "core.yml",
+      "evenements": {
+        "push": {
+          "branches": [
+            "main",
+            "claude/**"
+          ],
+          "paths": [
+            "core/**",
+            "src/**",
+            "departments/**",
+            "tests/**",
+            "conftest.py",
+            "pyproject.toml",
+            "uv.lock",
+            ".github/workflows/core.yml"
+          ]
+        },
+        "pull_request": {
+          "paths": [
+            "core/**",
+            "src/**",
+            "departments/**",
+            "tests/**",
+            "conftest.py",
+            "pyproject.toml",
+            "uv.lock",
+            ".github/workflows/core.yml"
+          ]
+        }
+      }
+    },
+    "e2e_core": {
+      "fichier": "e2e-core.yml",
+      "evenements": {
+        "push": {
+          "branches": [
+            "main",
+            "claude/**"
+          ],
+          "paths": [
+            "core/**",
+            "src/**",
+            "departments/**",
+            "tests/e2e_core/**",
+            "tests/fixtures/harnais_e2e*.py",
+            "pyproject.toml",
+            "uv.lock",
+            "requirements-runtime.lock.txt",
+            ".github/workflows/e2e-core.yml"
+          ]
+        },
+        "pull_request": {
+          "paths": [
+            "core/**",
+            "src/**",
+            "departments/**",
+            "tests/e2e_core/**",
+            "tests/fixtures/harnais_e2e*.py",
+            "pyproject.toml",
+            "uv.lock",
+            "requirements-runtime.lock.txt",
+            ".github/workflows/e2e-core.yml"
+          ]
+        }
+      }
+    },
+    "mobile": {
+      "fichier": "mobile.yml",
+      "evenements": {
+        "push": {
+          "branches": [
+            "main",
+            "claude/**"
+          ],
+          "paths": [
+            "mobile/**",
+            ".github/workflows/mobile.yml"
+          ]
+        },
+        "pull_request": {
+          "paths": [
+            "mobile/**",
+            ".github/workflows/mobile.yml"
+          ]
+        }
+      }
+    },
+    "installateur": {
+      "fichier": "installateur.yml",
+      "evenements": {
+        "push": {
+          "branches": [
+            "main",
+            "claude/**"
+          ],
+          "paths": [
+            "install/**",
+            "tests/installateur/**",
+            "tests/test_installateur_*.py",
+            ".github/actionlint.yaml",
+            "src/opsys/instance.py",
+            "src/opsys/exportation.py",
+            "src/opsys/openclaw.py",
+            "src/opsys/cli.py",
+            "core/package.json",
+            "core/pnpm-lock.yaml",
+            "core/src/entry.ts",
+            "core/src/cli/opsys-metier-*.ts",
+            "core/src/gateway/opsys-metier-*.ts",
+            "core/openclaw.mjs",
+            "core/src/config/opsys-instance.ts",
+            "core/src/config/paths.ts",
+            "core/src/cli/profile.ts",
+            "core/src/cli/profile-utils.ts",
+            "core/src/daemon/paths.ts",
+            "core/src/infra/state-migrations.opsys-instance.ts",
+            "core/src/infra/state-migrations.state-dir.ts",
+            "pyproject.toml",
+            "uv.lock",
+            "requirements-runtime.lock.txt",
+            ".github/workflows/installateur.yml"
+          ]
+        },
+        "pull_request": {
+          "paths": [
+            "install/**",
+            "tests/installateur/**",
+            "tests/test_installateur_*.py",
+            ".github/actionlint.yaml",
+            "src/opsys/instance.py",
+            "src/opsys/exportation.py",
+            "src/opsys/openclaw.py",
+            "src/opsys/cli.py",
+            "core/package.json",
+            "core/pnpm-lock.yaml",
+            "core/src/entry.ts",
+            "core/src/cli/opsys-metier-*.ts",
+            "core/src/gateway/opsys-metier-*.ts",
+            "core/openclaw.mjs",
+            "core/src/config/opsys-instance.ts",
+            "core/src/config/paths.ts",
+            "core/src/cli/profile.ts",
+            "core/src/cli/profile-utils.ts",
+            "core/src/daemon/paths.ts",
+            "core/src/infra/state-migrations.opsys-instance.ts",
+            "core/src/infra/state-migrations.state-dir.ts",
+            "pyproject.toml",
+            "uv.lock",
+            "requirements-runtime.lock.txt",
+            ".github/workflows/installateur.yml"
+          ]
+        }
+      }
+    },
+    "dependency_audit": {
+      "fichier": "dependency-audit.yml",
+      "evenements": {
+        "push": {
+          "branches": [
+            "main",
+            "claude/**"
+          ],
+          "paths": [
+            "core/package.json",
+            "core/pnpm-lock.yaml",
+            "core/pnpm-workspace.yaml",
+            ".github/workflows/dependency-audit.yml"
+          ]
+        },
+        "pull_request": {
+          "paths": [
+            "core/package.json",
+            "core/pnpm-lock.yaml",
+            "core/pnpm-workspace.yaml",
+            ".github/workflows/dependency-audit.yml"
+          ]
+        }
+      }
+    }
+  }
+}

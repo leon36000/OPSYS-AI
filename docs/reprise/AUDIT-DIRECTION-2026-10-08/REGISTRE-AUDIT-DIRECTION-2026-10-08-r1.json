@@ -1,0 +1,355 @@
+{
+  "recorded_toronto": "2026-10-08T19:53:47.800419-04:00",
+  "parent": "20731e1bf679b2cd2adbd7467da0a7686d619ed1",
+  "paths": [
+    {
+      "path": ".github/ci/selection_workflows.py",
+      "origin": "new source/test",
+      "parent_preimage_sha256": null,
+      "candidate_sha256": "0272eeee5182b4a4d193bf8ee7ec60816d78f34ded0d8089c01c6dee67fcfeb1",
+      "integration_status": "FROZEN_B_LOCAL_QUALIFIED_ROOT_REVIEW_COMPLETE_PENDING_NEW_CI",
+      "verification": "per-owned receipt +RootglobalRuff; tests bysurface",
+      "limit": "not published/newexactCI yet"
+    },
+    {
+      "path": ".github/ci/workflows-applicables.json",
+      "origin": "new source/test",
+      "parent_preimage_sha256": null,
+      "candidate_sha256": "6aacffcc13a04701a9c77a7837390262de617c2be70b394bfa1b2652b2790897",
+      "integration_status": "FROZEN_B_LOCAL_QUALIFIED_ROOT_REVIEW_COMPLETE_PENDING_NEW_CI",
+      "verification": "per-owned receipt +RootglobalRuff; tests bysurface",
+      "limit": "not published/newexactCI yet"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "origin": "trackedparent source",
+      "parent_preimage_sha256": "ff8c89c67bafcb706490e6e3098728681bcb4ef93f2d94c906939ac5298c084d",
+      "candidate_sha256": "fce089df5a2bf38592c60ca87b2ab028de821285b2481e1a106156fd2d9cbd90",
+      "integration_status": "FROZEN_B_LOCAL_QUALIFIED_ROOT_REVIEW_COMPLETE_PENDING_NEW_CI",
+      "verification": "per-owned receipt +RootglobalRuff; tests bysurface",
+      "limit": "not published/newexactCI yet"
+    },
+    {
+      "path": ".github/workflows/core.yml",
+      "origin": "trackedparent source",
+      "parent_preimage_sha256": "7f9279242cf63dcabb9b98ae82b6e52147f1606d1ced5df4d1016c68404f9c48",
+      "candidate_sha256": "1468be997de26d8969b456d3360ca3da6bef7cb82468aa1a46323ea3b3895a49",
+      "integration_status": "FROZEN_B_LOCAL_QUALIFIED_ROOT_REVIEW_COMPLETE_PENDING_NEW_CI",
+      "verification": "per-owned receipt +RootglobalRuff; tests bysurface",
+      "limit": "not published/newexactCI yet"
+    },
+    {
+      "path": ".github/workflows/dependency-audit.yml",
+      "origin": "trackedparent source",
+      "parent_preimage_sha256": "d310e258abacc24f36dcd8c3c1be7627a1e09d5ac8c4850bd2a817e08d2bd8b9",
+      "candidate_sha256": "407ffadfa74d60faa758c3d4f4c9f7446c0864fa2b8e4f6fa72a9ea388959ab5",
+      "integration_status": "FROZEN_B_LOCAL_QUALIFIED_ROOT_REVIEW_COMPLETE_PENDING_NEW_CI",
+      "verification": "per-owned receipt +RootglobalRuff; tests bysurface",
+      "limit": "not published/newexactCI yet"
+    },
+    {
+      "path": ".github/workflows/e2e-core.yml",
+      "origin": "trackedparent source",
+      "parent_preimage_sha256": "3b4562b8319f2c0d2b4767408c9da2cf504cbba9118ccebd44524329852ec96c",
+      "candidate_sha256": "9818be94e35aba0e9cdd4aa12ad6d9a29bd986e8ae2dcda20d41b8d91c5d609e",
+      "integration_status": "FROZEN_B_LOCAL_QUALIFIED_ROOT_REVIEW_COMPLETE_PENDING_NEW_CI",
+      "verification": "per-owned receipt +RootglobalRuff; tests bysurface",
+      "limit": "not published/newexactCI yet"
+    },
+    {
+      "path": ".github/workflows/installateur.yml",
+      "origin": "trackedparent source",
+      "parent_preimage_sha256": "a4a91f6226e53a60e6c305f5e946a707dfd7fd918c7b2fa170dcabb5fc4a82d4",
+      "candidate_sha256": "af1657fd8bb44493a10ca6ad58696da956bf8c40563f8fd5402202ff4142df68",
+      "integration_status": "FROZEN_B_LOCAL_QUALIFIED_ROOT_REVIEW_COMPLETE_PENDING_NEW_CI",
+      "verification": "per-owned receipt +RootglobalRuff; tests bysurface",
+      "limit": "not published/newexactCI yet"
+    },
+    {
+      "path": ".github/workflows/mobile.yml",
+      "origin": "trackedparent source",
+      "parent_preimage_sha256": "b089f997006f95dc98e3ec8ac5f5136536b665fe2c70766a0baccf657e88a416",
+      "candidate_sha256": "3c1ab73f768c7632949eb94309c89e592dc8d13d035aa0a228e3bd099e9bd000",
+      "integration_status": "FROZEN_B_LOCAL_QUALIFIED_ROOT_REVIEW_COMPLETE_PENDING_NEW_CI",
+      "verification": "per-owned receipt +RootglobalRuff; tests bysurface",
+      "limit": "not published/newexactCI yet"
+    },
+    {
+      "path": "core/test/opsys-tests-cibles.txt",
+      "origin": "trackedparent source",
+      "parent_preimage_sha256": "0325f7ea8cef66cbc31441b3099f7e6e69db814e8879f2f6103f711954ffd70c",
+      "candidate_sha256": "fd0c4e1f72b3cbb181b03936cbc673907234b98ecdf445f9773e3c78881f89ad",
+      "integration_status": "FROZEN_B_LOCAL_QUALIFIED_ROOT_REVIEW_COMPLETE_PENDING_NEW_CI",
+      "verification": "per-owned receipt +RootglobalRuff; tests bysurface",
+      "limit": "not published/newexactCI yet"
+    },
+    {
+      "path": "departments/m04-field-ops/tests/test_meteo_outil.py",
+      "origin": "trackedparent source",
+      "parent_preimage_sha256": "78bd7637d4a0beb6631109c1df90876dd783ccea36ff0b259ce1494551ec4898",
+      "candidate_sha256": "af64154db8878cfba53472eda5844bce73a8de1a6e1594e25e73bb4cee307170",
+      "integration_status": "FROZEN_B_LOCAL_QUALIFIED_ROOT_REVIEW_COMPLETE_PENDING_NEW_CI",
+      "verification": "per-owned receipt +RootglobalRuff; tests bysurface",
+      "limit": "not published/newexactCI yet"
+    },
+    {
+      "path": "departments/m06-material-control/src/m6_material_control/bons_commande.py",
+      "origin": "trackedparent source",
+      "parent_preimage_sha256": "98d6e2502497e446ee10508596464bba71c23c43df2ad39a7a98983fcf1bc581",
+      "candidate_sha256": "3babdb31e697ba56709a74205dd1150be91d0c362c7413be5bfbbfa76658d87a",
+      "integration_status": "FROZEN_B_LOCAL_QUALIFIED_ROOT_REVIEW_COMPLETE_PENDING_NEW_CI",
+      "verification": "per-owned receipt +RootglobalRuff; tests bysurface",
+      "limit": "not published/newexactCI yet"
+    },
+    {
+      "path": "departments/m06-material-control/tests/test_bons_commande.py",
+      "origin": "trackedparent source",
+      "parent_preimage_sha256": "51ee0d0fd22f23e08dd747d2ce641a91cb675a2028e91bffeffd13342622387b",
+      "candidate_sha256": "a7ead956ec74ae11bbe69d146f2662ccc61a05cd82051e6d3c1874f64c57c9bc",
+      "integration_status": "FROZEN_B_LOCAL_QUALIFIED_ROOT_REVIEW_COMPLETE_PENDING_NEW_CI",
+      "verification": "per-owned receipt +RootglobalRuff; tests bysurface",
+      "limit": "not published/newexactCI yet"
+    },
+    {
+      "path": "mobile/src/admin/chiffres.ts",
+      "origin": "trackedparent source",
+      "parent_preimage_sha256": "9025dc78c9289ae0329cf5658160fd75afbeb6d64d603a8d407ddcbc1d0fff27",
+      "candidate_sha256": "1d789654758068a0b54b0a5c4d0e24a61575705b15457ad52138a715e02989ad",
+      "integration_status": "FROZEN_B_LOCAL_QUALIFIED_ROOT_REVIEW_COMPLETE_PENDING_NEW_CI",
+      "verification": "per-owned receipt +RootglobalRuff; tests bysurface",
+      "limit": "not published/newexactCI yet"
+    },
+    {
+      "path": "mobile/src/admin/serviceTresorerieCache.test.ts",
+      "origin": "new source/test",
+      "parent_preimage_sha256": null,
+      "candidate_sha256": "e84ffe661fc449de6d85c6d0e11704350066ed45d1466f5cf29b7a4e3996f64e",
+      "integration_status": "FROZEN_B_LOCAL_QUALIFIED_ROOT_REVIEW_COMPLETE_PENDING_NEW_CI",
+      "verification": "per-owned receipt +RootglobalRuff; tests bysurface",
+      "limit": "not published/newexactCI yet"
+    },
+    {
+      "path": "tests/test_ci_departements.py",
+      "origin": "trackedparent source",
+      "parent_preimage_sha256": "39dffa86118eab6625a3dd5fd81f077a0b79d516f932df45b56cb6455947539e",
+      "candidate_sha256": "e3fc0a02d98abb9496aa18d6239eec5d37dc2a1a58765c7692b4605f6b39775f",
+      "integration_status": "FROZEN_B_LOCAL_QUALIFIED_ROOT_REVIEW_COMPLETE_PENDING_NEW_CI",
+      "verification": "per-owned receipt +RootglobalRuff; tests bysurface",
+      "limit": "not published/newexactCI yet"
+    },
+    {
+      "path": "tests/test_ci_verticale_core.py",
+      "origin": "trackedparent source",
+      "parent_preimage_sha256": "ef8750abb7492eda12f5c76d8f1b49d40de796cec60bf8ded6808e29857a1812",
+      "candidate_sha256": "5738e487e0613e8dcbc2e75431c8c1ff5807154df1b9e000dc309c02212c3dd1",
+      "integration_status": "FROZEN_B_LOCAL_QUALIFIED_ROOT_REVIEW_COMPLETE_PENDING_NEW_CI",
+      "verification": "per-owned receipt +RootglobalRuff; tests bysurface",
+      "limit": "not published/newexactCI yet"
+    },
+    {
+      "path": "tests/test_ci_workflows_applicables.py",
+      "origin": "new source/test",
+      "parent_preimage_sha256": null,
+      "candidate_sha256": "6f1846b38854e3b60a3d88f9226741539f674ff9a7e5f8491a4eb3ed91514153",
+      "integration_status": "FROZEN_B_LOCAL_QUALIFIED_ROOT_REVIEW_COMPLETE_PENDING_NEW_CI",
+      "verification": "per-owned receipt +RootglobalRuff; tests bysurface",
+      "limit": "not published/newexactCI yet"
+    },
+    {
+      "path": "tests/test_installateur_workflow.py",
+      "origin": "trackedparent source",
+      "parent_preimage_sha256": "4a580db5a09fcfaa3d197f2034fcee4893de9b86baae7fe217296faa98874e65",
+      "candidate_sha256": "527041730b1c7f535f44e157f650013c21e9625038c8ea94e68345efd9bff54f",
+      "integration_status": "FROZEN_B_LOCAL_QUALIFIED_ROOT_REVIEW_COMPLETE_PENDING_NEW_CI",
+      "verification": "per-owned receipt +RootglobalRuff; tests bysurface",
+      "limit": "not published/newexactCI yet"
+    }
+  ],
+  "count": 18,
+  "excluded": [
+    {
+      "path": "mobile/node_modules",
+      "disposition": "untracked tooling symlink; not source, do not publish"
+    }
+  ],
+  "qualification": {
+    "mobile": 4934,
+    "mobile_suites": 212,
+    "full_typescript": 0,
+    "M6_tests": 1371,
+    "M4_weather_tests": 39,
+    "gates_helper_tests": 72,
+    "CI_arch_tests": 81,
+    "Core_photo_tests": 34,
+    "Ruff_global": 0,
+    "business_verifier": {
+      "departments": 10,
+      "tools": 227,
+      "device_tools": 135
+    }
+  },
+  "new_CI": "pending publication; previous20731sixgreen distinct",
+  "scope": "audit corrections only; no merge/prod/protection/realcustomer/provider effects",
+  "root_final_review": {
+    "Claude_Opus_report_sha256": "87f84988c81d3b37a7cd0cda62e3abf9d695c53924d47f355e3f727945e75eab",
+    "response": "pushprivate checkname gates-push avoidsPRrequiredcontextcollision; configred→81archgreen/actionlint; no protection mutation",
+    "minor": "mobilemanualdispatchcommentremoved; dependency audit originalnoSchedule provenparent"
+  },
+  "capsule": {
+    "path": "PREUVES-AUDIT-DIRECTION-2026-10-08-r1.tar.xz",
+    "sha256": "ba7fd90da3f79ea1aed628ec64621de7b432340ed5cee081c01b33a344bca7a7",
+    "members": 295,
+    "bytes": 2008196,
+    "scanner": "PASS"
+  },
+  "findings": [
+    {
+      "id": "OPSYS-CI-02",
+      "severity": "P1",
+      "disposition": "FIXED_LOCAL_NEW_EXACT_CI_PENDING",
+      "evidence_and_decision": "old realgate4Pythonfalsegreen confirmed; newgate10needswith5samecommitworkflow_calls;72helpertests81archtests/actionlintgreen; privatepushcheckrenamedgates-pushtoseparatePR3pointsgates",
+      "exit_or_limit": "New exactCI caller +negative gate proofs required"
+    },
+    {
+      "id": "OPSYS-TX-01",
+      "severity": "P2 residual",
+      "disposition": "CURRENT_DEFAULT_CALLERS_ROLLBACK_PROVEN_NONCANONICAL_GAP_REMAINS",
+      "evidence_and_decision": "seven wrappers/probes write/readback before fault on samecnx,49tablesrollback; foreign/context mismatch can breach only outside supportedcurrentcallers",
+      "exit_or_limit": "Custom factories/API context binding not universally qualified; futureguard+PostgreSQL fault tests. No P1 on exercised defaultcaller proven."
+    },
+    {
+      "id": "OPSYS-TX-02",
+      "severity": "contract observation",
+      "disposition": "GLOBAL_ROLLBACK_RECOMMENDATION_REFUTED",
+      "evidence_and_decision": "normal business refusal can intentionally commit CAScleanup andGPSrefusedaudit; no real unintended partial writer established",
+      "exit_or_limit": "Separate refusal withaudit/cleanup vs technical failure; broaderinventory notfullcalleeproof"
+    },
+    {
+      "id": "OPSYS-N5-01",
+      "severity": "open assurance criterion",
+      "disposition": "DECLARED_BOUNDARY_LIMIT",
+      "evidence_and_decision": "active owner role and3fields validated; professional/document declared not independentlyverified; ADR specifiesno professionenum orsecondsignatureprotocol",
+      "exit_or_limit": "Design professional/doc sources and criteria before officialN5 assurance; no inventedprofessional list"
+    },
+    {
+      "id": "OPSYS-M6-01",
+      "severity": "P2",
+      "disposition": "CONCRETE_PRICE_BOUNDARY_FIXED_LOCAL",
+      "evidence_and_decision": "Two missedalarms exact20% reproduced; exactFractiondecimalcomparison;54focused1371M6green; projection/APIfloat retained",
+      "exit_or_limit": "New exactCI; entireM6money/price schemas migration remains separate"
+    },
+    {
+      "id": "OPSYS-TST-01",
+      "severity": "test defect",
+      "disposition": "FIXED_LOCAL",
+      "evidence_and_decision": "39allweathercases DP exactgreen,Ruff0,production solver untouched; perplannedvisit business oracle replaces solver tie-break; historicalreds preserved",
+      "exit_or_limit": "LockedPyVRP on newCI distinct; relayweatherpreview not automaticpreapplyqualification"
+    },
+    {
+      "id": "OPSYS-CI-01",
+      "severity": "P2",
+      "disposition": "FIXED_LOCAL_NOT_NEW_RUNNER_YET",
+      "evidence_and_decision": "Photo gatewayworker absentfast+targetlist; addtarget199;34photo tests localgreen",
+      "exit_or_limit": "New CItests-opsys execution mustcontain this exactfile"
+    },
+    {
+      "id": "OPSYS-CI-03",
+      "severity": "P2 risk",
+      "disposition": "TRIGGER_AND_CONTRACT_RISK_CONFIRMED",
+      "evidence_and_decision": "BackendCore and mobile filters separate; oldcurrentproofgreenactual. Centralpolicy conservesfilters; union alone cannotprove contractconsumer",
+      "exit_or_limit": "Producer-derived DTO/SDK witness +selection crosscontract criteria; no actualbrokenDTO demonstrated"
+    },
+    {
+      "id": "OPSYS-CI-04",
+      "severity": "telemetry gap",
+      "disposition": "FUTURE_SKIP_REASONS_ADDED",
+      "evidence_and_decision": "Old4772P17skip summary lacks IDs/reasons; pytest-rs addedfutureci, no fabricatedpastskipallowlist",
+      "exit_or_limit": "Classify actualnewrunner IDs/reasons; preservehistoricalunknown17reasons"
+    },
+    {
+      "id": "OPSYS-MOB-01",
+      "severity": "document/storage limit",
+      "disposition": "NO_NEW_ENCRYPTION_DEFECT_ESTABLISHED",
+      "evidence_and_decision": "R12§6 alreadyexplicitOSatrest protection; cacheplaintext confirmed butno contraryapprovedcrypto requirement/Loi25riskproven",
+      "exit_or_limit": "Phone/OSprotection qualification remains; newconcrete403cache finding separate below"
+    },
+    {
+      "id": "OPSYS-M10-01",
+      "severity": "open assurance criterion",
+      "disposition": "ALREADY_DECLARED_PARTIAL",
+      "evidence_and_decision": "Applicationfilter +negativeCIphases exist; OS/permission/storage C01/C02 fullboundary notdemonstrated",
+      "exit_or_limit": "Separatebusiness/developmentmemory sources/access/restore; nofullmemoryisolationclaim"
+    },
+    {
+      "id": "OPSYS-CORE-02",
+      "severity": "deployment limit",
+      "disposition": "CONDITIONAL_TRUSTED_CONFIG_RISK",
+      "evidence_and_decision": "HTTPremote host allowed byserverconfiguration; no publicbodySSRF; bearer/privatephoto cleartext ifdeploymentchoosesHTTPremote",
+      "exit_or_limit": "TLS/local trust deployment criterion; no deploymentchanged"
+    },
+    {
+      "id": "OPSYS-CORE-01",
+      "severity": "bounded performance limit",
+      "disposition": "NO_MEASURED_PERFORMANCE_DEFECT",
+      "evidence_and_decision": "max10MiB160fragments+finalrevalidation161+initialimagePOST;120sdeadline maytruncatealready200body; Native45casesclose revocation",
+      "exit_or_limit": "Real latency/largerphoto budgets and topology qualification; no sourceoptimization guessed"
+    },
+    {
+      "id": "OPSYS-CORE-03",
+      "severity": "none",
+      "disposition": "REFUTED",
+      "evidence_and_decision": "MissingdeviceId authhelper sends403andends response, upstream0; independentactualsourceprobe",
+      "exit_or_limit": "No fix needed"
+    },
+    {
+      "id": "OPSYS-M5-01",
+      "severity": "document observation",
+      "disposition": "AUTHORITY_DEFECT_REFUTED_LEGACY_METADATA_CONFIRMED",
+      "evidence_and_decision": "Legacyapprobateurdeclaredtext intentionalfacturation31-43; actualauthoritydecide_par in socle; nocurrentconsumeruseslegacytoauthorize",
+      "exit_or_limit": "Clarify legacydeclaredconstatant in audit; future signerdisplay mustjoin exactapproval"
+    },
+    {
+      "id": "OPSYS-ID-01",
+      "severity": "open model convention",
+      "disposition": "V1_CONVENTION_CONFIRMED_NO_CURRENT_BINDING_BUG",
+      "evidence_and_decision": "location→lead,tour→intervention, M3chantier distinct and M6source; M10WCT→lead linking;4pureassertions fresh",
+      "exit_or_limit": "Canonicalversion/multisite/backcompatcriteria tracked; no globalrename"
+    },
+    {
+      "id": "OPSYS-EVD-01",
+      "severity": "receipt label defect",
+      "disposition": "PART_REFUTED_PART_CORRECTED_ADDENDUM",
+      "evidence_and_decision": "Runner mobile4925/211actualjob113548915283lines777/778; sealed_toronto_final actuallyUTC; exactsameinstantToronto18:20:53.814438-04:00",
+      "exit_or_limit": "OriginalCIreceiptpreserved; addendum is correction, nothistoricalrerun"
+    },
+    {
+      "id": "ROOT-MOB-02",
+      "severity": "P2",
+      "disposition": "FIXED_LOCAL_NOT_NEW_RUNNER_YET",
+      "evidence_and_decision": "Actualservice+SDK success→403→offline retainscache before; opt-ininvalidationsingleline closes;9dedicated128neighboursgreen; fullmobile4934P212suites+fullTS0",
+      "exit_or_limit": "Fakefetch/memory; failedpurgeclosedcurrentprocess only, restart/phone unknown"
+    },
+    {
+      "id": "ROOT-M4-02",
+      "severity": "open qualification criterion",
+      "disposition": "PREVIEW_ONLY_NOT_AUTOMATIC_FORECAST_REVALIDATION",
+      "evidence_and_decision": "M4weather judgesplannedvisits/selecteddays. _relance recomputes schedulingpreview on copiedarguments without checking newpreviewweather;39tests do not close preapplyweather criterion",
+      "exit_or_limit": "Demonstrate/review forecast validation before appliquer_cedule N3; no unsafeproductionaction attempted"
+    },
+    {
+      "id": "ROOT-EVD-02",
+      "severity": "proof manifest defect",
+      "disposition": "RECTIFIED_ADDITIVE_MANIFEST",
+      "evidence_and_decision": "PhotoSHA256-r1 selfentry incorrectlyempty-fileSHA;5ordinarymembers match; originalretained, correctedr2excludesitself and includesoldmanifest asdata",
+      "exit_or_limit": "source/testreceiptunchanged; originalselfentry not claimed valid"
+    }
+  ],
+  "limits": [
+    "new exact commit CI pending",
+    "104 original transfer evidence references remain absent",
+    "Docker local unavailable; runners distinct",
+    "no phone/production/full professional N5 proof",
+    "memory business/development OS boundary remains partial",
+    "original conversations/full transfer supplement unknown"
+  ]
+}

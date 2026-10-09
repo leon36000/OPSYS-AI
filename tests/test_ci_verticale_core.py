@@ -1,6 +1,7 @@
 """The Core/HTTP regression must run after Python changes and reject false-green receipts."""
 
 import contextlib
+import importlib.util
 import json
 import os
 import signal
@@ -29,10 +30,27 @@ def assert_dead_process(pid):
 def test_python_changes_trigger_the_core_http_qualification():
     workflow = yaml.safe_load((ROOT / ".github/workflows/core.yml").read_text())
     triggers = workflow[True]  # PyYAML interprets YAML 1.1's `on` as a boolean.
+    assert set(triggers) == {"workflow_dispatch", "workflow_call"}
+    ci = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
+    assert set(ci[True]) == {"push", "pull_request"}
+    call = ci["jobs"]["core"]
+    assert call["uses"] == "./.github/workflows/core.yml"
+    assert call["needs"] == "changements"
+    assert call["if"] == "needs.changements.outputs.core == 'true'"
+    spec = importlib.util.spec_from_file_location("selection_ci_core", ROOT / ".github/ci/selection_workflows.py")
+    assert spec is not None and spec.loader is not None
+    selection = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(selection)
+    policy = selection.lire_politique(ROOT / ".github/ci/workflows-applicables.json")
+    assert policy["workflows"]["core"]["fichier"] == "core.yml"
     for event in ("push", "pull_request"):
         assert {"core/**", "src/**", "departments/**", "tests/**", "conftest.py", "pyproject.toml", "uv.lock"} <= set(
-            triggers[event]["paths"]
+            policy["workflows"]["core"]["evenements"][event]["paths"]
         )
+        for chemin in ("core/src/gateway/tools-invoke-http.ts", "src/opsys/outils.py",
+                       "departments/m06-material-control/src/m6_material_control/outils.py",
+                       "tests/e2e/test_verticale_affaire_durable.py", "conftest.py", "pyproject.toml", "uv.lock"):
+            assert selection.selectionner_workflows(policy, [chemin], event, "main")["core"], chemin
     steps = workflow["jobs"]["tests-opsys"]["steps"]
     qualification = [step for step in steps if "qualifier_verticale_core.py" in step.get("run", "")]
     assert len(qualification) == 1

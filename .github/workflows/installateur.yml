@@ -11,73 +11,19 @@ on:
         description: "Exécute aussi les E2E macOS/Windows sur les runners self-hosted opsys-docker-linux"
         type: boolean
         default: false
-  push:
-    branches: [main, "claude/**"]
-    paths:
-      - "install/**"
-      - "tests/installateur/**"
-      - "tests/test_installateur_*.py"
-      - ".github/actionlint.yaml"
-      - "src/opsys/instance.py"
-      - "src/opsys/exportation.py"
-      - "src/opsys/openclaw.py"
-      - "src/opsys/cli.py"
-      - "core/package.json"
-      - "core/pnpm-lock.yaml"
-      # `opsys metier` : le core lance le moteur (T0.7 lot 2), que le trajet de preuve exerce
-      - "core/src/entry.ts"
-      - "core/src/cli/opsys-metier-*.ts"
-      - "core/src/gateway/opsys-metier-*.ts"
-      # Le dossier d'instance ~/.opsys/core et sa migration par Doctor (T0.7 lot 3), que le trajet de preuve exerce
-      - "core/openclaw.mjs"
-      - "core/src/config/opsys-instance.ts"
-      - "core/src/config/paths.ts"
-      - "core/src/cli/profile.ts"
-      - "core/src/cli/profile-utils.ts"
-      - "core/src/daemon/paths.ts"
-      - "core/src/infra/state-migrations.opsys-instance.ts"
-      - "core/src/infra/state-migrations.state-dir.ts"
-      - "pyproject.toml"
-      - "uv.lock"
-      - "requirements-runtime.lock.txt"
-      - ".github/workflows/installateur.yml"
-  pull_request:
-    paths:
-      - "install/**"
-      - "tests/installateur/**"
-      - "tests/test_installateur_*.py"
-      - ".github/actionlint.yaml"
-      - "src/opsys/instance.py"
-      - "src/opsys/exportation.py"
-      - "src/opsys/openclaw.py"
-      - "src/opsys/cli.py"
-      - "core/package.json"
-      - "core/pnpm-lock.yaml"
-      # `opsys metier` : le core lance le moteur (T0.7 lot 2), que le trajet de preuve exerce
-      - "core/src/entry.ts"
-      - "core/src/cli/opsys-metier-*.ts"
-      - "core/src/gateway/opsys-metier-*.ts"
-      # Le dossier d'instance ~/.opsys/core et sa migration par Doctor (T0.7 lot 3), que le trajet de preuve exerce
-      - "core/openclaw.mjs"
-      - "core/src/config/opsys-instance.ts"
-      - "core/src/config/paths.ts"
-      - "core/src/cli/profile.ts"
-      - "core/src/cli/profile-utils.ts"
-      - "core/src/daemon/paths.ts"
-      - "core/src/infra/state-migrations.opsys-instance.ts"
-      - "core/src/infra/state-migrations.state-dir.ts"
-      - "pyproject.toml"
-      - "uv.lock"
-      - "requirements-runtime.lock.txt"
-      - ".github/workflows/installateur.yml"
+  workflow_call:
+    inputs:
+      sans_service:
+        type: string
+        default: "0"
+      preuve_poste_docker:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
-# Un run commencé va à son terme (même règle que core.yml, e2e-core.yml et ci.yml).
-concurrency:
-  group: installateur-${{ github.ref }}
-  cancel-in-progress: false
+# Les appels automatiques sont sérialisés par ci.yml ; le dispatch manuel reste indépendant.
 
 jobs:
   # Analyse statique, rapide : les scripts bash passent shellcheck, les scripts PowerShell passent l'analyseur

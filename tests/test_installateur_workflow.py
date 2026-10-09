@@ -7,6 +7,7 @@ les diagnostics qui masquent les secrets, les actions épinglées et les scripts
 
 from __future__ import annotations
 
+import importlib.util
 import re
 import shutil
 import subprocess
@@ -60,24 +61,51 @@ def test_les_e2e_poste_docker_utilisent_les_labels_self_hosted(workflow, job):
 def test_les_checks_hosted_conservent_les_declencheurs_automatiques_du_job_linux(workflow):
     """Les tests/faux restent automatiques; seuls les vrais E2E poste Docker sont opt-in."""
     declencheurs = _declencheurs(workflow)
-    assert set(declencheurs) == {"workflow_dispatch", "push", "pull_request"}
-    assert declencheurs["push"]["paths"] == declencheurs["pull_request"]["paths"]
+    assert set(declencheurs) == {"workflow_dispatch", "workflow_call"}
+    ci = yaml.safe_load((RACINE / ".github/workflows/ci.yml").read_text(encoding="utf-8"))
+    assert set(_declencheurs(ci)) == {"push", "pull_request"}
+    appel = ci["jobs"]["installateur"]
+    assert appel["uses"] == "./.github/workflows/installateur.yml"
+    assert appel["needs"] == "changements"
+    assert appel["if"] == "needs.changements.outputs.installateur == 'true'"
+    spec = importlib.util.spec_from_file_location(
+        "selection_ci_installateur", RACINE / ".github/ci/selection_workflows.py"
+    )
+    assert spec is not None and spec.loader is not None
+    selection = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(selection)
+    politique = selection.lire_politique(RACINE / ".github/ci/workflows-applicables.json")
+    automatique = politique["workflows"]["installateur"]
+    assert automatique["fichier"] == "installateur.yml"
+    assert automatique["evenements"]["push"]["paths"] == automatique["evenements"]["pull_request"]["paths"]
+    chemins = automatique["evenements"]["pull_request"]["paths"]
     for chemin in ("install/**", "tests/installateur/**", "tests/test_installateur_*.py",
                    ".github/workflows/installateur.yml", "src/opsys/instance.py",
                    "src/opsys/exportation.py", "src/opsys/openclaw.py", "uv.lock", "requirements-runtime.lock.txt"):
-        assert chemin in declencheurs["pull_request"]["paths"]
+        assert chemin in chemins
     # T0.7 lot 3 : ce qui décide où le core range son état, et la migration de Doctor, relancent la preuve
     for chemin in ("core/src/config/opsys-instance.ts", "core/src/config/paths.ts", "core/src/cli/profile.ts",
                    "core/src/cli/profile-utils.ts", "core/src/daemon/paths.ts",
                    "core/src/infra/state-migrations.opsys-instance.ts", "core/src/infra/state-migrations.state-dir.ts",
                    "core/openclaw.mjs"):
-        assert chemin in declencheurs["pull_request"]["paths"], chemin
+        assert chemin in chemins, chemin
+    for event in ("push", "pull_request"):
+        for chemin in ("install/install.sh", "tests/installateur/bout_en_bout.sh", "tests/test_installateur_scripts.py",
+                       "src/opsys/instance.py", "src/opsys/exportation.py", "src/opsys/openclaw.py",
+                       "core/src/config/opsys-instance.ts", "core/src/config/paths.ts", "core/src/cli/profile.ts",
+                       "core/src/cli/profile-utils.ts", "core/src/daemon/paths.ts",
+                       "core/src/infra/state-migrations.opsys-instance.ts",
+                       "core/src/infra/state-migrations.state-dir.ts", "core/openclaw.mjs",
+                       "uv.lock", "requirements-runtime.lock.txt"):
+            assert selection.selectionner_workflows(politique, [chemin], event, "main")["installateur"], chemin
     for job in INSTALLATIONS:
         assert "if" not in workflow["jobs"][job], f"{job} ne doit pas avoir de condition propre"
         assert "needs" not in workflow["jobs"][job], f"{job} ne dépend d'aucun autre job"
         assert "strategy" not in workflow["jobs"][job]
     entree = declencheurs["workflow_dispatch"]["inputs"]["preuve_poste_docker"]
     assert entree["type"] == "boolean" and entree["default"] is False
+    assert declencheurs["workflow_call"]["inputs"]["preuve_poste_docker"] == {"type": "boolean", "default": False}
+    assert declencheurs["workflow_call"]["inputs"]["sans_service"] == {"type": "string", "default": "0"}
     for job in INSTALLATIONS_DOCKER:
         assert "needs" not in workflow["jobs"][job]
         assert "strategy" not in workflow["jobs"][job]

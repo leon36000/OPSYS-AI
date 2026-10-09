@@ -81,6 +81,7 @@ export const SECTION_TRESORERIE: DefinitionSection<EtatTresorerie> = {
   outil: OUTIL_ETAT_TRESORERIE,
   args: construireArgumentsEtatTresorerie(),
   cache: "tresorerie",
+  invaliderCacheSurRefus: true,
   interpreter: (brut) => interpreter(brut, "directe", lireEtatTresorerie),
 };
 
