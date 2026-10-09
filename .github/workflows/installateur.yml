@@ -109,6 +109,8 @@ jobs:
           uv sync --locked --group build --extra dev --no-build-isolation
           echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
           uv run --locked --no-sync python -m pytest tests/test_installateur_scripts.py tests/test_installateur_powershell.py tests/test_installateur_windows.py tests/test_installateur_powershell_faux.py tests/test_installateur_bout_en_bout.py tests/test_installateur_workflow.py tests/test_commande_metier.py tests/test_instance.py tests/test_exportation.py -q --import-mode=importlib -p no:cacheprovider
+      - name: "Docker : cache public des images épinglées"
+        run: python scripts/ci/preparer_pgvector.py --miroir-seulement
       - name: "Docker : CLI et daemon Linux requis avant le vrai E2E"
         run: |
           command -v docker

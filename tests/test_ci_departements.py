@@ -7,6 +7,7 @@ contient que des départements déjà propres selon `ruff`. Un département abse
 pas linté ; un département listé mais sale ferait échouer la CI, donc ce fichier le détecte avant."""
 
 import importlib.util
+import io
 import json
 import re
 import shutil
@@ -240,3 +241,228 @@ def test_la_preuve_postgresql_exige_des_scenarios_executes_sans_ignorance(tmp_pa
     monkeypatch.setenv("RUNNER_TEMP", str(tmp_path))
     resultat = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, check=False)
     assert (resultat.returncode == 0) is accepte, resultat.stderr
+
+
+# Le transport CI utilise l'artefact officiel déjà courant, pas une nouvelle version.
+PGVECTOR_EPINGLE = (
+    "pgvector/pgvector@sha256:ac08538c6f8b9904c33c8224c5e5706dbe760aca29db1d096972b4052c22a75d"
+)
+PGVECTOR_TAG_LOCAL = "pgvector/pgvector:pg17"
+MIROIR_GOOGLE = "https://mirror.gcr.io"
+IMAGE_ID_FICTIF = "sha256:" + "a" * 64
+
+
+@pytest.fixture
+def preparation_pgvector():
+    chemin = RACINE / "scripts/ci/preparer_pgvector.py"
+    assert chemin.is_file(), "le préparateur partagé borné de PostgreSQL est absent"
+    spec = importlib.util.spec_from_file_location("preparation_pgvector_ci", chemin)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class DockerCiFictif:
+    """Frontière Docker remplacée seulement : le préparateur réel fait tous les contrôles."""
+
+    def __init__(self, *, panne=None, erreur=None, inspection=None, versions=None):
+        self.appels = []
+        self.panne = panne
+        self.erreur = erreur
+        self.inspection = inspection
+        self.versions = versions
+
+    def __call__(self, commande, **options):
+        self.appels.append((commande, options))
+        assert options["check"] is True and options["capture_output"] is True
+        assert isinstance(options["timeout"], int) and options["timeout"] > 0
+        if len(self.appels) == self.panne:
+            if self.erreur is not None:
+                raise self.erreur
+            raise subprocess.CalledProcessError(1, commande, stderr=b"CANARY-ERREUR-FICTIVE")
+        sortie = b""
+        if commande[:3] == ["docker", "image", "inspect"]:
+            objet = {"id": IMAGE_ID_FICTIF, "digests": [PGVECTOR_EPINGLE]}
+            sortie = self.inspection if self.inspection is not None else (
+                json.dumps(objet) + "\n" + json.dumps(objet) + "\n"
+            ).encode()
+        if commande[:2] == ["docker", "run"]:
+            sortie = self.versions if self.versions is not None else (
+                b"postgres (PostgreSQL) 17.6\ndefault_version = '0.8.7'\n"
+            )
+        return subprocess.CompletedProcess(commande, 0, stdout=sortie, stderr=b"")
+
+
+@pytest.mark.parametrize("job", ["departement", "frontiere-postgresql", "socle"])
+def test_pgvector_chaque_job_pg_prepare_la_meme_image_bornee(job):
+    nom = {"departement": "Préparation PostgreSQL pour les tests M10 en RAM",
+           "frontiere-postgresql": "Préparation explicite de PostgreSQL",
+           "socle": "Préparation PostgreSQL pour les tests du socle"}[job]
+    etapes = _ci()["jobs"][job]["steps"]
+    retenues = [e for e in etapes if e.get("name") == nom]
+    assert len(retenues) == 1
+    etape = retenues[0]
+    assert etape["run"].strip() == "python scripts/ci/preparer_pgvector.py"
+    assert not etape.get("continue-on-error")
+    if job == "departement":
+        assert etape["if"] == "matrix.dossier == 'm10-memoire'"
+    if job == "socle":
+        assert not etape.get("if")
+        noms = [e.get("name") for e in etapes]
+        assert noms.index(nom) < noms.index("Tests du socle")
+
+
+def test_miroir_installation_ubuntu_avant_docker_sans_toucher_aux_autres_profils():
+    workflow = yaml.safe_load((RACINE / ".github/workflows/installateur.yml").read_text())
+    nom = "Docker : cache public des images épinglées"
+    etapes = workflow["jobs"]["installation"]["steps"]
+    retenues = [e for e in etapes if e.get("name") == nom]
+    assert len(retenues) == 1
+    assert retenues[0]["run"] == "python scripts/ci/preparer_pgvector.py --miroir-seulement"
+    assert not retenues[0].get("if") and not retenues[0].get("continue-on-error")
+    noms = [e.get("name") for e in etapes]
+    assert noms.index(nom) < noms.index("Docker : CLI et daemon Linux requis avant le vrai E2E")
+    for job, description in workflow["jobs"].items():
+        if job != "installation":
+            assert all(e.get("name") != nom for e in description["steps"])
+
+
+def test_miroir_seulement_cli_ne_tire_ni_ne_sonde_une_image(preparation_pgvector, tmp_path, monkeypatch, capsys):
+    docker = DockerCiFictif()
+    configurer = preparation_pgvector.configurer_miroir
+    monkeypatch.setattr(preparation_pgvector, "configurer_miroir",
+                        lambda: configurer(tmp_path / "daemon.json", executer=docker))
+    monkeypatch.setattr(preparation_pgvector, "preparer", lambda: pytest.fail("PG interdit dans le mode miroir"))
+    assert preparation_pgvector.main(["--miroir-seulement"]) == 0
+    assert len(docker.appels) == 2
+    assert docker.appels[1][0] == ["sudo", "systemctl", "restart", "docker"]
+    assert all(c[0] != "docker" for c, _ in docker.appels)
+    assert json.loads(capsys.readouterr().out) == {"miroir_configure": MIROIR_GOOGLE}
+
+
+def test_pgvector_fusion_preserve_cles_et_miroirs_inconnus(preparation_pgvector, tmp_path):
+    chemin = tmp_path / "daemon.json"
+    original = {"log-driver": "json-file", "debug": False, "dns": ["192.0.2.1"],
+                "registry-mirrors": ["https://cache-fictif.invalid", MIROIR_GOOGLE]}
+    chemin.write_text(json.dumps(original))
+    fusion = preparation_pgvector.lire_configuration(chemin)
+    assert fusion == {**original, "registry-mirrors": [MIROIR_GOOGLE, "https://cache-fictif.invalid"]}
+    assert json.loads(chemin.read_text()) == original  # la lecture/fusion ne réécrit pas le fichier
+
+
+def test_pgvector_configuration_absente_est_explicitement_creee(preparation_pgvector, tmp_path):
+    assert preparation_pgvector.lire_configuration(tmp_path / "absent.json") == {
+        "registry-mirrors": [MIROIR_GOOGLE]
+    }
+
+
+@pytest.mark.parametrize("existant", [False, True])
+def test_pgvector_ecriture_atomique_reelle_fictive_preserve_mode(preparation_pgvector, tmp_path, monkeypatch, existant):
+    chemin = tmp_path / "docker-fictif" / "daemon.json"
+    if existant:
+        chemin.parent.mkdir()
+        chemin.write_text('{"debug": false}')
+        chemin.chmod(0o640)
+    entree = b'{"debug": false, "registry-mirrors": ["https://mirror.gcr.io"]}\n'
+    monkeypatch.setattr(sys, "argv", ["ecriture-fictive", str(chemin)])
+    monkeypatch.setattr(sys, "stdin", type("Entree", (), {"buffer": io.BytesIO(entree)})())
+    # Même code -c privilégié, sur un namespace tmp_path possédé : aucun sudo/démon/commande.
+    exec(compile(preparation_pgvector.ECRITURE, "ecriture-ci-fictive", "exec"), {})
+    assert chemin.read_bytes() == entree
+    assert chemin.stat().st_mode & 0o777 == (0o640 if existant else 0o600)
+    assert list(chemin.parent.glob(".opsys-ci-*")) == []
+
+
+@pytest.mark.parametrize("brut", [
+    "", "{", "[]", "null", "true", '{"registry-mirrors": null}',
+    '{"registry-mirrors": "https://cache-fictif.invalid"}', '{"registry-mirrors": [true]}',
+    '{"registry-mirrors": [""]}', '{"debug": NaN}', '{"debug": Infinity}',
+    '{"registry-mirrors": [], "registry-mirrors": []}',
+])
+def test_pgvector_config_malformee_refuse_avant_toute_commande(preparation_pgvector, tmp_path, brut):
+    chemin = tmp_path / "daemon.json"
+    chemin.write_text(brut)
+    docker = DockerCiFictif()
+    with pytest.raises(preparation_pgvector.PreparationRefusee):
+        preparation_pgvector.preparer(chemin, executer=docker)
+    assert docker.appels == []
+    assert chemin.read_text() == brut
+
+
+def test_pgvector_config_et_sortie_bornees_avant_toute_commande(preparation_pgvector, tmp_path):
+    chemin = tmp_path / "daemon.json"
+    for brut in [b" " * 65537, json.dumps({"opaque": "x" * 65498}).encode()]:
+        chemin.write_bytes(brut)
+        docker = DockerCiFictif()
+        with pytest.raises(preparation_pgvector.PreparationRefusee):
+            preparation_pgvector.preparer(chemin, executer=docker)
+        assert docker.appels == []
+
+
+def test_pgvector_parcours_reel_du_helper_pin_tag_identite_et_versions(preparation_pgvector, tmp_path):
+    docker = DockerCiFictif()
+    resultat = preparation_pgvector.preparer(tmp_path / "daemon.json", executer=docker)
+    commandes = [c for c, _ in docker.appels]
+    assert len(commandes) == 6
+    assert commandes[0][0] == "sudo"
+    assert json.loads(docker.appels[0][1]["input"]) == {"registry-mirrors": [MIROIR_GOOGLE]}
+    assert commandes[1] == ["sudo", "systemctl", "restart", "docker"]
+    assert commandes[2] == ["docker", "pull", PGVECTOR_EPINGLE]
+    assert docker.appels[2][1]["timeout"] == 900
+    assert commandes[3] == ["docker", "tag", PGVECTOR_EPINGLE, PGVECTOR_TAG_LOCAL]
+    assert commandes[4][:3] == ["docker", "image", "inspect"]
+    assert commandes[4][-2:] == [PGVECTOR_EPINGLE, PGVECTOR_TAG_LOCAL]
+    assert commandes[5][:2] == ["docker", "run"]
+    assert "--pull=never" in commandes[5] and "--network=none" in commandes[5]
+    assert "--read-only" in commandes[5] and PGVECTOR_EPINGLE in commandes[5]
+    assert "postgres --version" in commandes[5][-1] and "vector.control" in commandes[5][-1]
+    assert resultat == {"image": PGVECTOR_TAG_LOCAL, "digest": PGVECTOR_EPINGLE.split("@", 1)[1],
+                        "postgres_major": 17, "pgvector_version_installee": "0.8.7"}
+
+
+@pytest.mark.parametrize("panne", [1, 2, 3, 4, 5, 6])
+def test_pgvector_chaque_panne_arrete_sans_retry_ni_detail_brut(preparation_pgvector, tmp_path, panne):
+    docker = DockerCiFictif(panne=panne)
+    with pytest.raises(preparation_pgvector.PreparationRefusee) as erreur:
+        preparation_pgvector.preparer(tmp_path / "daemon.json", executer=docker)
+    assert len(docker.appels) == panne
+    assert "CANARY" not in str(erreur.value)
+
+
+@pytest.mark.parametrize("exception", [
+    subprocess.TimeoutExpired("commande-fictive", 900, stderr=b"CANARY-FICTIF"),
+    OSError("CANARY-FICTIF"),
+])
+def test_pgvector_timeout_et_exec_impossible_sont_rouges_sans_retry(preparation_pgvector, tmp_path, exception):
+    docker = DockerCiFictif(panne=3, erreur=exception)
+    with pytest.raises(preparation_pgvector.PreparationRefusee) as erreur:
+        preparation_pgvector.preparer(tmp_path / "daemon.json", executer=docker)
+    assert len(docker.appels) == 3
+    assert "CANARY" not in str(erreur.value)
+
+
+@pytest.mark.parametrize("inspection", [
+    b"pas du JSON\n", b"{}\n{}\n", b"[]\n[]\n", b"x" * 8193,
+    (json.dumps({"id": IMAGE_ID_FICTIF, "digests": ["pgvector/pgvector@sha256:" + "b" * 64]})
+     + "\n" + json.dumps({"id": IMAGE_ID_FICTIF, "digests": [PGVECTOR_EPINGLE]})).encode(),
+    (json.dumps({"id": IMAGE_ID_FICTIF, "digests": [PGVECTOR_EPINGLE]})
+     + "\n" + json.dumps({"id": "sha256:" + "b" * 64, "digests": [PGVECTOR_EPINGLE]})).encode(),
+])
+def test_pgvector_digest_ou_tag_divergent_ne_lance_pas_le_probe_version(preparation_pgvector, tmp_path, inspection):
+    docker = DockerCiFictif(inspection=inspection)
+    with pytest.raises(preparation_pgvector.PreparationRefusee):
+        preparation_pgvector.preparer(tmp_path / "daemon.json", executer=docker)
+    assert len(docker.appels) == 5
+
+
+@pytest.mark.parametrize("versions", [
+    b"postgres (PostgreSQL) 18.0\ndefault_version = '0.8.7'\n",
+    b"postgres (PostgreSQL) 17.6\ndefault_version = '0.8.6'\n",
+    b"postgres (PostgreSQL) 17.6\n", b"\xff", b"x" * 8193,
+])
+def test_pgvector_version_binaire_ou_extension_inattendue_reste_rouge(preparation_pgvector, tmp_path, versions):
+    docker = DockerCiFictif(versions=versions)
+    with pytest.raises(preparation_pgvector.PreparationRefusee):
+        preparation_pgvector.preparer(tmp_path / "daemon.json", executer=docker)
+    assert len(docker.appels) == 6

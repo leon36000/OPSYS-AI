@@ -148,6 +148,8 @@ jobs:
               print(json.dumps({"commande": commande, "code": resultat.returncode,
                                 "stdout": resultat.stdout[:16384], "stderr": resultat.stderr[:2048]}))
           PY
+      - name: Préparation PostgreSQL pour les tests du socle
+        run: python scripts/ci/preparer_pgvector.py
       - name: Tests du socle
         run: pytest -rs
 
@@ -212,14 +214,7 @@ jobs:
       # Le runner hébergé a un cache vide : préparer la même image que la fixture.
       - name: Préparation PostgreSQL pour les tests M10 en RAM
         if: matrix.dossier == 'm10-memoire'
-        run: |
-          python - <<'PY'
-          import runpy
-          import subprocess
-
-          image = runpy.run_path("tests/fixtures/memoire/doubles.py")["IMAGE_PGVECTOR"]
-          subprocess.run(["docker", "pull", image], check=True, timeout=900)
-          PY
+        run: python scripts/ci/preparer_pgvector.py
       # M3 : les deux fichiers des outils de preuve (batteries de mutations) tournent dans `m03-preuves`,
       # en parallèle ; ensemble, ils dépassaient le délai de 45 minutes de ce job (CI 1929).
       - name: Tests du département ${{ matrix.dossier }}
@@ -296,13 +291,7 @@ jobs:
           uv sync --locked --group build --extra dev --extra postgres --no-build-isolation
           echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
       - name: Préparation explicite de PostgreSQL
-        run: |
-          python - <<'PYTHON'
-          import runpy
-          import subprocess
-          image = runpy.run_path("tests/fixtures/memoire/doubles.py")["IMAGE_PGVECTOR"]
-          subprocess.run(["docker", "pull", image], check=True, timeout=900)
-          PYTHON
+        run: python scripts/ci/preparer_pgvector.py
       - name: Refus C02 réel sur PostgreSQL (verticale complète bloquée)
         run: |
           python -m pytest tests/e2e/test_verticale_postgresql_refus_c02.py --junitxml="$RUNNER_TEMP/frontiere-postgresql.xml"
