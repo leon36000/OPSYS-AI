@@ -106,14 +106,27 @@ def _par_metrique(alertes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
-def _resume(n_alertes: int, n_chantiers: int, metriques: list[str]) -> str:
+def _resume(
+    n_alertes: int, n_chantiers: int, metriques: list[str],
+    n_seuils_a_configurer: int, n_qualite_non_relue: int,
+) -> str:
+    """Résumé du corpus reçu et des manques calculés dans la même fenêtre de référence."""
     if n_alertes == 0:
-        return "Aucune alerte de mesure de M8 dans la période : rien à lire."
-    return (
-        f"{n_alertes} alerte(s) de mesure proposée(s) par M8 sur {n_chantiers} chantier(s), "
-        f"{len(metriques)} métrique(s) : {', '.join(metriques)}. "
-        f"Aucune décision n'est prise par M9 : elle revient au propriétaire ({_DECIDEUR})."
-    )
+        resume = (
+            "Aucune alerte de mesure ayant franchi un seuil parmi les alertes reçues par M9 "
+            "dont la date de référence est dans la période retenue."
+        )
+    else:
+        resume = (
+            f"{n_alertes} alerte(s) de mesure proposée(s) par M8 sur {n_chantiers} chantier(s), "
+            f"{len(metriques)} métrique(s) : {', '.join(metriques)}. "
+            f"Aucune décision n'est prise par M9 : elle revient au propriétaire ({_DECIDEUR})."
+        )
+    if n_seuils_a_configurer:
+        resume += f" {n_seuils_a_configurer} métrique(s) avec seuil à configurer."
+    if n_qualite_non_relue:
+        resume += f" {n_qualite_non_relue} alerte(s) de qualité comptée(s), non relue(s) ici."
+    return resume
 
 
 def assembler_lecture_strategique(
@@ -173,7 +186,7 @@ def assembler_lecture_strategique(
             "jour": jour.isoformat(),
             "periode": {"du": debut.isoformat(), "au": jour.isoformat()},
             "source": "m8.alerte_proposee (registre m09-strategic-intelligence/alertes_m8)",
-            "resume": _resume(total, len(chantiers), preuves),
+            "resume": _resume(total, len(chantiers), preuves, len(metriques_sans_seuil), len(autres)),
             "decision": {"prise_par_m9": False, "a_prendre_par": _DECIDEUR, "requise": total > 0},
             "preuves_m8": preuves,
             "par_metrique": _par_metrique(franchies),
