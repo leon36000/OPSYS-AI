@@ -5,6 +5,7 @@ import { interpreterResultatDefinirConsentementGps } from "../m4/consentementGps
 import { interpreterResultatDemarrerRoute } from "../m4/interventions";
 import { interpreterResultatPointage } from "../m4/pointage";
 import { interpreterResultatDeciderDemande } from "../approbations/contrat";
+import { ERREURS_PASSAGERES } from "../protocole/enveloppeOutil";
 import { interpreterResultatDeclarerMateriauxUtilises, validerRecuDeclarerMateriauxUtilises } from "../m6/materiaux";
 import { interpreterResultatDeposerFichier, validerRecuDeposerFichier } from "../fichiers/protocole";
 import { interpreterResultatEnregistrerInteraction } from "../m2/interaction";
@@ -82,12 +83,19 @@ function versInterpretationGeneriqueConsentementGps(resultatBrut: unknown): Inte
 }
 
 /** Même rôle, pour `m9_decider_demande_approbation` (`src/approbations/contrat.ts`, PLAN T1.4-f étape 6) —
- * `(admin)/approvals.tsx`. Un accusé illisible n'est jamais un succès (voir le contrat) : c'est un rejet
- * qui dit de revérifier la liste. `resume` porte l'accusé de la décision (`AccuseDecision`). */
+ * `(admin)/approvals.tsx`. Un accusé illisible ou une panne passagère ne prouve pas l'absence d'un
+ * effet antérieur : conserver l'intention et sa clé. Les refus métier certains restent inchangés.
+ * `resume` porte l'accusé de la décision (`AccuseDecision`). */
 function versInterpretationGeneriqueDecisionApprobation(resultatBrut: unknown): InterpretationResultatMetier {
   const interpretation = interpreterResultatDeciderDemande(resultatBrut);
   if (interpretation.accepte) {
     return { accepte: true, resume: interpretation.resultat };
+  }
+  if (interpretation.verdict.code === "reponse_illisible" || interpretation.verdict.code === "reponse_tronquee" ||
+    ERREURS_PASSAGERES.includes(interpretation.verdict.code)) {
+    return { accepte: false, verdict: { code: "accuse_invalide", detail: interpretation.verdict.code === "reponse_illisible"
+      ? "La confirmation de cette décision est inconnue : l'intention reste en file avec sa clé d'origine."
+      : interpretation.verdict.detail } };
   }
   return { accepte: false, verdict: interpretation.verdict };
 }
@@ -153,7 +161,9 @@ export const DESCRIPTEURS_MUTATION: ReadonlyMap<TypeMutation, DescripteurTypeMut
     interpreterResultat: interpreterClassementGenerique, serialiserParChantier: true,
     conserverRefusHttpIncertains: true, verifierAvantEnvoi: true, validerRecuEnvoye: validerRecuClassementVariance }],
   ["gps_consent_change", { tool: "m4_definir_consentement_gps", interpreterResultat: versInterpretationGeneriqueConsentementGps }],
-  ["approval_decision", { tool: "m9_decider_demande_approbation", interpreterResultat: versInterpretationGeneriqueDecisionApprobation }],
+  // Le groupe technique existant « approbations » conserve toute décision suivante derrière une issue inconnue.
+  ["approval_decision", { tool: "m9_decider_demande_approbation", interpreterResultat: versInterpretationGeneriqueDecisionApprobation,
+    serialiserParChantier: true, conserverRefusHttpIncertains: true }],
   ["marketing_decision", { tool: "m7_decider_contenu", construireArguments: construireArgumentsDecisionMarketing,
     interpreterResultat: interpreterDecisionMarketing, serialiserParChantier: true,
     validerRecuEnvoye: mutation => interpreterDecisionMarketing({ ok: true,

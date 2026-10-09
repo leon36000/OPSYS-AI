@@ -4,6 +4,7 @@ import { creerMutation, soumettreMutation } from "./mutation";
 import { DepotOutboxMemoire } from "./depot";
 import { creerVidangeur } from "./vidangeur";
 import { invoquerOutil } from "../protocole/client";
+import { ERREURS_PASSAGERES } from "../protocole/enveloppeOutil";
 
 // FILE_ACK_BOUND : collaborateurs réels, transport/octets explicitement fictifs.
 describe("fichier_bloc ACK lié au dépôt et au SDK", () => {
@@ -211,10 +212,12 @@ describe("DESCRIPTEURS_MUTATION", () => {
     });
 
     test("accusé illisible -> accepte:false : jamais un succès silencieux", () => {
-      expect(interpreter({ ok: true, resultat: { accepte: true, resultat: {} } })).toMatchObject({
+      const resultat = interpreter({ ok: true, resultat: { accepte: true, resultat: {} } });
+      expect(resultat).toMatchObject({
         accepte: false,
-        verdict: { code: "reponse_illisible" },
+        verdict: { code: "accuse_invalide" },
       });
+      if (!resultat.accepte) expect(resultat.verdict.detail).not.toContain("ne la renverra pas");
     });
   });
 
@@ -297,6 +300,70 @@ describe("DESCRIPTEURS_MUTATION", () => {
         verdict: { code: "REJ-TRANSITION-ILLEGALE", detail: "transition non autorisée" },
       });
     });
+  });
+});
+
+// Transport fictif ; SDK, descripteur, dépôt mémoire et vidangeur actuels. Aucun effet backend simulé.
+describe("approval_decision conserve une confirmation inconnue", () => {
+  const horloge = { maintenant: new Date("2026-10-09T07:40:00Z"), decalageMinutesUTC: -240 };
+  const session = { urlBase: "https://fictif.invalid", jeton: "JETON-FICTIF", appareilId: "DEVICE-FICTIF", personne: "OWNER-FICTIF" };
+  const ack = (statut: "executee" | "refusee" | "echec" = "executee") => ({ ok: true, resultat: { accepte: true,
+    resultat: { demande_id: "DEMANDE-FICTIVE", decision: "approuver", statut, decide_par: session.personne,
+      role: "nathan_owner", issue: { ok: statut !== "echec", accepte: statut === "executee" } } } });
+  async function preparer(reponse: Response) {
+    const depot = new DepotOutboxMemoire();
+    const creer = (id: string) => ({ ...soumettreMutation(creerMutation({ type: "approval_decision", chantierId: "approbations",
+      payload: { demande_id: "DEMANDE-FICTIVE", decision: "approuver", motif: "Vu, fictif." } }, () => id, horloge)), proprietaire: session.personne });
+    const premiere = await depot.inserer(creer("UUID-D-FICTIF-1")), suite = await depot.inserer(creer("UUID-D-FICTIF-2"));
+    let maintenant = horloge.maintenant;
+    const fetchImpl = jest.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => reponse);
+    const vidangeur = creerVidangeur({ depot, descripteurs: DESCRIPTEURS_MUTATION, appelerOutil: invoquerOutil,
+      fetchImpl, session: () => session, maintenant: () => maintenant });
+    return { depot, premiere, suite, fetchImpl, vidangeur, reprendre: (date: Date, body: unknown) => {
+      maintenant = date; reponse = new Response(JSON.stringify({ ok: true, result: body }), { status: 200 });
+    } };
+  }
+  const illisibles: readonly [string, unknown][] = [
+    ["ACK malformé", { ok: true, resultat: { accepte: true, resultat: { statut: "INCONNU-FICTIF" } } }],
+    ["sortie tronquée", { ok: true, tronque: true, apercu: "{" }],
+    ...ERREURS_PASSAGERES.map(code => [code, { ok: false, erreur: code, details: "État fictif passager." }] as [string, unknown]),
+  ];
+  test.each(illisibles)("%s conserve UUID/corps et bloque la suivante dans la même passe", async (_nom, body) => {
+    const c = await preparer(new Response(JSON.stringify({ ok: true, result: body }), { status: 200 }));
+    const r = await c.vidangeur.vidangerFileSortante();
+    expect(r.echecsPermanents).toEqual([]); expect(r.resultatsAcceptes).toEqual([]);
+    expect(c.fetchImpl).toHaveBeenCalledTimes(1);
+    expect(await c.depot.obtenir(c.premiere.id)).toMatchObject({ id: c.premiere.id, payload: c.premiere.payload,
+      proprietaire: session.personne, createdAtLocal: c.premiere.createdAtLocal, statut: "en_attente" });
+    expect((await c.depot.obtenir(c.suite.id))?.statut).toBe("en_attente");
+  });
+  test.each([401, 403, 400, 404])("HTTP%s après dispatch reste inconnu et bloque la suite", async status => {
+    const c = await preparer(new Response(JSON.stringify({ ok: false, error: { type: "refus_fictif", message: "Refus fictif." } }), { status }));
+    const r = await c.vidangeur.vidangerFileSortante();
+    expect(r.echecsPermanents).toEqual([]); expect(c.fetchImpl).toHaveBeenCalledTimes(1);
+    expect(await c.depot.obtenir(c.premiere.id)).toMatchObject({ id: c.premiere.id, payload: c.premiere.payload, statut: "en_attente" });
+    expect((await c.depot.obtenir(c.suite.id))?.statut).toBe("en_attente");
+  });
+  test("reprise après ACK illisible conserve exactement UUID, heure, arguments et destination", async () => {
+    const c = await preparer(new Response(JSON.stringify({ ok: true, result: {} }), { status: 200 }));
+    await c.vidangeur.vidangerFileSortante();
+    const m = await c.depot.obtenir(c.premiere.id); expect(m?.prochaineTentativeA).not.toBeNull();
+    c.reprendre(new Date(new Date(m!.prochaineTentativeA!).getTime() + 1), ack());
+    expect((await c.vidangeur.vidangerFileSortante()).envoyees).toContain(m!.id);
+    const requetes = c.fetchImpl.mock.calls.slice(0, 2).map(([url, init]) => ({ url, body: JSON.parse(String(init?.body)) }));
+    expect(requetes[1]).toEqual(requetes[0]);
+    expect(requetes[0].body.idempotencyKey).toBe(c.premiere.id); expect(requetes[0].body.args).toEqual(c.premiere.payload);
+  });
+  test.each(["executee", "refusee", "echec"] as const)("ACK valide %s reste une décision enregistrée", statut => {
+    expect(DESCRIPTEURS_MUTATION.get("approval_decision")!.interpreterResultat(ack(statut))).toMatchObject({
+      accepte: true, resume: { demandeId: "DEMANDE-FICTIVE", statut } });
+  });
+  test("refus métier certain demeure terminal", async () => {
+    const c = await preparer(new Response(JSON.stringify({ ok: true, result: { ok: true, resultat: { accepte: false,
+      verdict: { code: "deja_decidee", detail: "Demande fictive déjà décidée." } } } }), { status: 200 }));
+    const r = await c.vidangeur.vidangerFileSortante();
+    expect(r.echecsPermanents[0].verdict.code).toBe("deja_decidee");
+    expect((await c.depot.obtenir(c.premiere.id))?.statut).toBe("echec_permanent");
   });
 });
 

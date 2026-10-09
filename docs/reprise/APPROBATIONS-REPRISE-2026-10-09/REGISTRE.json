@@ -1,0 +1,165 @@
+{
+  "schema": 1,
+  "recorded_toronto": "2026-10-09T04:02:27.259875-04:00",
+  "status": "LOCAL_CANDIDATE_READY_ROOT_PUBLICATION_FUTURE_CI_PENDING",
+  "parent": "b069f7453648ac8651ce9e203dbead664fece581",
+  "source_count": 3,
+  "source_files": [
+    {
+      "path": "mobile/src/outbox/descripteurs.ts",
+      "sha256": "1a9bcce829cc9db2d3eecfddc18c73a8759b357cb1da8460df472ec71c7ec51d",
+      "preimage_sha256": "fdd49240b243f8ff50873c07a3d3e9716034d5c72e30e72e99c6876503e7abbb",
+      "preimage_git_blob_oid": "e215e84332ca114038e277a2f30afe5444fdbf50",
+      "preimage_commit": "b069f7453648ac8651ce9e203dbead664fece581",
+      "origin": "leased mobile delegate",
+      "change": "approval-only adapter and opt-ins",
+      "verification": "Jest5149/221,TS0; independent132/2; Android export0 distinct",
+      "limits": [
+        "candidate local mobile bytes, not future CI",
+        "fake fetch/memory depot, no backend or phone claim"
+      ]
+    },
+    {
+      "path": "mobile/src/outbox/descripteurs.test.ts",
+      "sha256": "584b5ad0abb85844e980227151c77ff4a7b354c2b743de7747b9c601ad6c9b3b",
+      "preimage_sha256": "12fe619c0d8ae1ca13c4cf93d3ca86f501ab2d849b9e7bdfc8dd1a5c45428a1d",
+      "preimage_git_blob_oid": "855f3821230fb6c0ce2d3bd00d37e2224896879d",
+      "preimage_commit": "b069f7453648ac8651ce9e203dbead664fece581",
+      "origin": "leased mobile delegate",
+      "change": "regression cases and historical oracle disposition",
+      "verification": "Jest5149/221,TS0; independent132/2; Android export0 distinct",
+      "limits": [
+        "candidate local mobile bytes, not future CI",
+        "fake fetch/memory depot, no backend or phone claim"
+      ]
+    },
+    {
+      "path": "mobile/src/ecrans/approvals.test.ts",
+      "sha256": "08a4224335e25f607c05c6c9f7928bde9f96517daa198f422ed9eaaaf774bac1",
+      "preimage_sha256": "808db8984c0613653c61db2746bca2aa599668d95696b1bbe9c2e53e3d6bff09",
+      "preimage_git_blob_oid": "9af8a24fa2d8321dcd84c2ba523902e2c60133c4",
+      "preimage_commit": "b069f7453648ac8651ce9e203dbead664fece581",
+      "origin": "leased mobile delegate",
+      "change": "regression cases and historical oracle disposition",
+      "verification": "Jest5149/221,TS0; independent132/2; Android export0 distinct",
+      "limits": [
+        "candidate local mobile bytes, not future CI",
+        "fake fetch/memory depot, no backend or phone claim"
+      ]
+    }
+  ],
+  "fixed_mobile_paths": 577,
+  "qualified_mobile_digest": "98d86ccddbd6207c70b932542803e1c2b77a6f1069a90a0398e448e61f804dcf",
+  "protected_B574_R577": true,
+  "other_descriptors_byte_exact": true,
+  "qualifications": {
+    "mobile_tests": 5149,
+    "mobile_suites": 221,
+    "TypeScript_exit": 0,
+    "independent_tests": 132,
+    "independent_suites": 2,
+    "independent_review_receipt_sha256": "2080a460fa27395d236bceb9cd7a838a7b10941f6831751fb4937e2f14a743e7",
+    "android_export_exit": 0,
+    "android_validation_sha256": "533e59012c87bfacf0a9a95c1b5c75c54cf95aa71f70a64c12a12fb1e84011fe"
+  },
+  "parent_exact_CI": "PASS",
+  "independent_review_verified": true,
+  "future_exact_commit_CI": "PENDING",
+  "source_or_Git_mutations": false,
+  "product": "PARTIEL",
+  "historical_reds": "consumer1F; implementation11F/121P includes restored test editing mistake; detail1F/2P/66filter",
+  "limits": [
+    "Legacy ACK correlation unchanged, future typed M4 separate",
+    "Historical permanents not migrated",
+    "Existing shared technical namespace approbations",
+    "Same fixed session, no new durable destination tuple",
+    "No backend/SQL/native/phone/ExpoSQLite/Hermes or future CI claim",
+    "N4 still requires owner SQL, not admin alone"
+  ],
+  "continuity": [
+    {
+      "label": "Transmission historique",
+      "path": "docs/reprise/TRANSFERT-INFRA-2026-10-05/AUDIT-TRANSMISSION.md",
+      "git_commit": "b069f7453648ac8651ce9e203dbead664fece581",
+      "sha256": "ed705a0c81b20fd71c9d6fcddf866349a11c19b3f6d1abcbb4b846b731ff4cd7",
+      "disposition": "published historical continuity, no inherited qualification of corrective future commit"
+    },
+    {
+      "label": "Reprise historique",
+      "path": "docs/reprise/TRANSFERT-INFRA-2026-10-05/AUDIT-REPRISE-INFRA-2026-10-06.md",
+      "git_commit": "b069f7453648ac8651ce9e203dbead664fece581",
+      "sha256": "ced0fad61d2e0f80899e685f57edde835a1aa0866f9f635f8d20791d3e5a5bd7",
+      "disposition": "published historical continuity, no inherited qualification of corrective future commit"
+    },
+    {
+      "label": "Rappels M1",
+      "path": "docs/reprise/RAPPELS-M1-2026-10-09/AUDIT-RAPPELS-M1-2026-10-09-r1.md",
+      "git_commit": "b069f7453648ac8651ce9e203dbead664fece581",
+      "sha256": "4c91313c393050265784e5b3522524cd3d6b168dc4390be44cfda15b712629e8",
+      "disposition": "published historical continuity, no inherited qualification of corrective future commit"
+    },
+    {
+      "label": "Intentions M6",
+      "path": "docs/reprise/INTENTIONS-M6-2026-10-09/AUDIT.md",
+      "git_commit": "b069f7453648ac8651ce9e203dbead664fece581",
+      "sha256": "a6897d5a0c34d6c27e00cdaf9ab9082ee8b90bba5353da424b238b8dca4563e9",
+      "disposition": "published historical continuity, no inherited qualification of corrective future commit"
+    }
+  ],
+  "revision": "final-r1",
+  "contract_boundary": "Confirmation illisible/technique conservée ; refus métier legacy inchangés, aucune nouvelle preuve indépendante",
+  "parent_CI": {
+    "head": "b069f7453648ac8651ce9e203dbead664fece581",
+    "run_id": 37896917430,
+    "architecture": "one caller ci with five reusable workflow calls; no six separate workflow run assumption",
+    "run_conclusion": "success",
+    "gates": "success",
+    "jobs": {
+      "total": 40,
+      "conclusions": {
+        "success": 38,
+        "failure": 0,
+        "skipped": 2,
+        "cancelled": 0,
+        "timed_out": 0
+      }
+    },
+    "receipt_sha256": "4ce4011438db9ad3382ebb38f181b59be1710419965de5d8fa35c3677f2416b5",
+    "manifest_sha256": "81a91b9e02a9281c6576891ae1dc8234aeba38480d99d6fdd38ff18b37d00195",
+    "artifact_id": 11602466512,
+    "artifact_sha256": "c562d4a8c513817334dc83badf40d40dc66d9c581f7d980df6fe9bafd7b1c494",
+    "artifact_phases": 40,
+    "artifact_pairs": 38,
+    "actual_counters": {
+      "frontiere-postgresql": {
+        "passed": 1,
+        "skipped": 0,
+        "warnings": 0,
+        "seconds": 4.41,
+        "log_sha256": "5f9ab4d79ac852b7f82bfeac923e3cc27eb71163bdae89acc4049a9382f0080e"
+      },
+      "socle": {
+        "passed": 4938,
+        "skipped": 17,
+        "warnings": 1,
+        "seconds": 2887.27,
+        "skip_reason_rows": 16,
+        "log_sha256": "f8f13f815c486e4bfb9fe4e49b3db00f9a35f866b8fad3a61557f70d884e3607"
+      },
+      "metier": {
+        "tools": 232,
+        "device_declared": 140
+      },
+      "mobile": {
+        "passed": 5135,
+        "suites": 221,
+        "types": "successful runner tsc step",
+        "android": "successful runner Expo export step; no phone claim",
+        "log_sha256": "645c236da37ebaf88423e8759ae91a6671d6ed9f684e735c9b6de060b8a7bad7"
+      }
+    },
+    "last_active_job_disposition": "socle, not installation; no cause of duration inferred",
+    "timing_disposition_sha256": "5e8786ad6ad961bc6c9a82fb09edc62dffe6af03fe5aa27b6b0a6f046ca30d26",
+    "scope": "exact terminal parent, no inherited result for future corrective commit"
+  }
+}

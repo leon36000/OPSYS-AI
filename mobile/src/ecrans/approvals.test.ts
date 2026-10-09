@@ -244,7 +244,7 @@ describe("la décision passe par la file sortante, avec sa clé d'idempotence", 
     expect((await depot.obtenir(persistee.id))?.statut).toBe("echec_permanent");
   });
 
-  test("accusé illisible : échec permanent qui dit de revérifier la liste, jamais un succès", async () => {
+  test("accusé illisible : intention inconnue conservée, jamais un succès ni un refus certain", async () => {
     const depot = new DepotOutboxMemoire();
     const persistee = await deposer(depot, creerMutationDecision("d1", "approuver", "", idDeterministe, HORLOGE));
     const fetchImpl = jest.fn().mockResolvedValue(reponseHttp({ ok: true, result: { ok: true, resultat: { accepte: true, resultat: { statut: "?" } } } }));
@@ -252,8 +252,10 @@ describe("la décision passe par la file sortante, avec sa clé d'idempotence", 
     const rapport = await vidangeurDe(depot, fetchImpl).vidangerFileSortante();
 
     expect(rapport.resultatsAcceptes).toEqual([]);
-    expect(rapport.echecsPermanents[0].id).toBe(persistee.id);
-    expect(rapport.echecsPermanents[0].verdict.code).toBe("reponse_illisible");
+    expect(rapport.echecsPermanents).toEqual([]);
+    expect(rapport.remisesEnAttente).toEqual([persistee.id]);
+    expect(await depot.obtenir(persistee.id)).toMatchObject({ id: persistee.id, payload: persistee.payload, statut: "en_attente" });
+    expect(decisionsEnFile(await depot.lister()).get("d1")?.mutationId).toBe(persistee.id);
   });
 
   test("une décision en file empêche d'en proposer une seconde pour la même demande", async () => {

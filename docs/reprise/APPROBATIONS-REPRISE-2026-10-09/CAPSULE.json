@@ -1,0 +1,123 @@
+{
+  "schema": 1,
+  "status": "LOCAL_CANDIDATE_READY_ROOT_PUBLICATION_FUTURE_CI_PENDING",
+  "recorded_toronto": "2026-10-09T04:02:27.259875-04:00",
+  "parent": "b069f7453648ac8651ce9e203dbead664fece581",
+  "capsule_path": "PREUVES-APPROBATIONS-REPRISE-2026-10-09-final-r1.tar.xz",
+  "capsule_sha256": "ca1991a453495fd91ffb548e4e63d596c6d2c7f9229cc105415cbb6fc7b901f2",
+  "capsule_bytes": 223692,
+  "capsule_members": 141,
+  "public_folder": "PUBLIC-FINAL-r1",
+  "public_manifest_sha256": "06b7f4c7027d102f9b3dc4f6f8c946d630a5297692e4df459daf7d51cf13eeab",
+  "roundtrip_verified": true,
+  "scanner": "CLEAN_WITH_EXPLICIT_NONOPERATIONAL_TEST_LITERALS",
+  "producer_manifests": [
+    {
+      "namespace": "APPROVAL-UNKNOWN-MOBILE-20261009-r1/PUBLIC-r1",
+      "manifest": "SHA256-final-r2.json",
+      "manifest_sha256": "3418290b2995d49a21bb3914d8be6e4a362604cee94f31c5bd0c7114daec0333",
+      "members_verified": 29,
+      "exact": true
+    },
+    {
+      "namespace": "DIAGNOSTIC-APPROVAL-ILLISIBLE-B069-r1/PUBLIC-r1",
+      "manifest": "SHA256-r1.json",
+      "manifest_sha256": "cc329f2ea58c23a5ae5860adc57b1b857c2f7b44b36da9deae348f091c13b26b",
+      "members_verified": 9,
+      "exact": true
+    },
+    {
+      "namespace": "APPROVAL-UNKNOWN-ROOT-20261009-r1",
+      "manifest": "SHA256-final-r1.json",
+      "manifest_sha256": "f77ea59e9b4d4bdb05eddaf677647c84d271a2bc6db109ee551b0eac017566a0",
+      "members_verified": 5,
+      "exact": true
+    },
+    {
+      "namespace": "APPROVAL-UNKNOWN-REVIEW-20261009-r1/PUBLIC-r1",
+      "manifest": "SHA256.json",
+      "manifest_sha256": "721a3ad119ba619b95117138401b44a55317e5cd8ca85a200c307887bbdb2cb1",
+      "members_verified": 10,
+      "exact": true
+    },
+    {
+      "namespace": "CI-M6-INTENTION-20261009-r1",
+      "manifest": "SHA256-final-r1.json",
+      "manifest_sha256": "81a91b9e02a9281c6576891ae1dc8234aeba38480d99d6fdd38ff18b37d00195",
+      "members_verified": 60,
+      "exact": true,
+      "head": "b069f7453648ac8651ce9e203dbead664fece581",
+      "qualification_scope": "parent b069 only, not future corrective commit"
+    }
+  ],
+  "sources": 3,
+  "preimages_git_exact": 3,
+  "fixed_mobile_paths": 577,
+  "independent_review_verified": true,
+  "parent_exact_CI": "PASS",
+  "future_exact_commit_CI": "PENDING",
+  "exclusions": [
+    "CAPSULE.json outside archive to avoid recursive hash",
+    "auth/config/DB/rawheaders/rawCI/node_modules/symlinks",
+    "phone/native claim"
+  ],
+  "source_or_Git_mutations": false,
+  "revision": "final-r1",
+  "historical_draft_r1_preserved": true,
+  "parent_CI": {
+    "head": "b069f7453648ac8651ce9e203dbead664fece581",
+    "run_id": 37896917430,
+    "architecture": "one caller ci with five reusable workflow calls; no six separate workflow run assumption",
+    "run_conclusion": "success",
+    "gates": "success",
+    "jobs": {
+      "total": 40,
+      "conclusions": {
+        "success": 38,
+        "failure": 0,
+        "skipped": 2,
+        "cancelled": 0,
+        "timed_out": 0
+      }
+    },
+    "receipt_sha256": "4ce4011438db9ad3382ebb38f181b59be1710419965de5d8fa35c3677f2416b5",
+    "manifest_sha256": "81a91b9e02a9281c6576891ae1dc8234aeba38480d99d6fdd38ff18b37d00195",
+    "artifact_id": 11602466512,
+    "artifact_sha256": "c562d4a8c513817334dc83badf40d40dc66d9c581f7d980df6fe9bafd7b1c494",
+    "artifact_phases": 40,
+    "artifact_pairs": 38,
+    "actual_counters": {
+      "frontiere-postgresql": {
+        "passed": 1,
+        "skipped": 0,
+        "warnings": 0,
+        "seconds": 4.41,
+        "log_sha256": "5f9ab4d79ac852b7f82bfeac923e3cc27eb71163bdae89acc4049a9382f0080e"
+      },
+      "socle": {
+        "passed": 4938,
+        "skipped": 17,
+        "warnings": 1,
+        "seconds": 2887.27,
+        "skip_reason_rows": 16,
+        "log_sha256": "f8f13f815c486e4bfb9fe4e49b3db00f9a35f866b8fad3a61557f70d884e3607"
+      },
+      "metier": {
+        "tools": 232,
+        "device_declared": 140
+      },
+      "mobile": {
+        "passed": 5135,
+        "suites": 221,
+        "types": "successful runner tsc step",
+        "android": "successful runner Expo export step; no phone claim",
+        "log_sha256": "645c236da37ebaf88423e8759ae91a6671d6ed9f684e735c9b6de060b8a7bad7"
+      }
+    },
+    "last_active_job_disposition": "socle, not installation; no cause of duration inferred",
+    "timing_disposition_sha256": "5e8786ad6ad961bc6c9a82fb09edc62dffe6af03fe5aa27b6b0a6f046ca30d26",
+    "scope": "exact terminal parent, no inherited result for future corrective commit"
+  },
+  "historical_drafts_preserved": true,
+  "copied_stale_draft_root_manifests_omitted": true
+}
