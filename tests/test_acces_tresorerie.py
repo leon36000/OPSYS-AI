@@ -55,7 +55,9 @@ OUTILS_DE_LECTURE_FINANCE = {"m5_etat_tresorerie", "m5_lister_attentes_facturati
                              # M5.4.a : source salariale privée; les écritures exigent une décision N4, la lecture T0
                              # revalide le principal humain et la cible employee avant d'ouvrir le registre.
                              "m5_enregistrer_contrat_horaire", "m5_revoquer_contrat_horaire",
-                             "m5_lire_contrat_horaire"}
+                             "m5_lire_contrat_horaire",
+                             # T4.16-b.a.1 : lecture N0 et déclaration préparatoire interne N3, sans paiement.
+                             "m5_lire_obligations_preparees_appareil", "m5_enregistrer_obligation_preparee_appareil"}
 CODE_INVALIDE = "REJ-IDENTITE-APPAREIL-INVALIDE"
 CODE_DIFFERENTE = "REJ-IDENTITE-FOURNIE-DIFFERENTE"
 CODE_REQUIS = "REJ-AUTORISE-COUTS-REQUIS"

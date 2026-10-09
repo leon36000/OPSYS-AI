@@ -1,0 +1,47 @@
+{
+  "M5_894_reference_only": {
+    "copied": false,
+    "members": 894,
+    "sha256": "71052b403354e5216481a75c0ffbf0ed0d0e35de70e107b3700a45bf5bb98f76"
+  },
+  "archive": {
+    "members": 94,
+    "path": "EVIDENCE-FINAL-r1.tar.gz",
+    "roundtrip_verified": true,
+    "sha256": "b6ce4791c49d515fd644cc7432ae7e0636a1a8be25d025715dfcd20b09079bab"
+  },
+  "authorization_ROOT": false,
+  "docs_excluded_archive": true,
+  "future_corrected_CI": "UNKNOWN_PENDING_PUBLICATION",
+  "limits": [
+    "Test-oracle correction only; no production/permissions/payment changed",
+    "PARTIEL product; no whole departments/backlog closure",
+    "Parent d9 CI FAIL retained; corrected commit future CI unknown",
+    "M5 Native/JS export unchanged and separately scoped, no phone/Hermes/PG claim",
+    "104 missing proof references and full transfer supplement remain absent; conversations unknown",
+    "No Source/Git/PR/runtime/API/credential/DB mutation by assembler",
+    "Root alone approves/integrates/smokes/publishes normally"
+  ],
+  "manifest": {
+    "path": "SHA256-final-r1.json",
+    "self_excluded": true,
+    "sha256": "edc294e118510481be0d85fc6dad32fa3990ca9c5d529e3f28d898568f38c9f9"
+  },
+  "parent": "d9a220c2f6389e32c3b2b98b1a2b00ecebd88936",
+  "parent_CI_verdict": "FAIL_EXACT_RUN",
+  "preimages": 1,
+  "private_exclusions": [
+    "PRIVATE/auth/DB/config/headers/rawCIartifact/transcript/node_modules",
+    "M8 specs and Claude opinions unrelated",
+    "Old M5 source894 archive not recopied"
+  ],
+  "recorded_toronto": "2026-10-09T12:31:34.078352-04:00",
+  "scanner": {
+    "path": "scanner-final-r1.json",
+    "scope": "explicit selected public bytes only; pattern scan, not all credentials or whole machine",
+    "sha256": "49ecd580ba0c752414d00e5fba444db11762d5aef0a8630561bb997242e98702",
+    "status": "CLEAN"
+  },
+  "sources": 1,
+  "status": "FINAL_REVIEWABLE_PENDING_ROOT"
+}

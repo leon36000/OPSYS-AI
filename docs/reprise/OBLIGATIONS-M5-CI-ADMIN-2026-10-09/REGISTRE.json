@@ -1,0 +1,115 @@
+{
+  "M5_existing_archive_reference_only": {
+    "members": 894,
+    "no_recopy": true,
+    "sha256": "71052b403354e5216481a75c0ffbf0ed0d0e35de70e107b3700a45bf5bb98f76"
+  },
+  "Ruff_disposition": "Root declared direct0; no separate receipt fabricated",
+  "additional_new_docs": [
+    "AUDIT.md",
+    "REGISTRE.json",
+    "CAPSULE.json"
+  ],
+  "authorization_ROOT": false,
+  "change": "Independent literal expected set plus exactly two published canonical tools and explanatory N0/internalN3 comment; all other AST unchanged",
+  "docroot": "docs/reprise/OBLIGATIONS-M5-CI-ADMIN-2026-10-09",
+  "evidence_capsule": {
+    "members": 94,
+    "path": "EVIDENCE-FINAL-r1.tar.gz",
+    "roundtrip_verified": true,
+    "sha256": "b6ce4791c49d515fd644cc7432ae7e0636a1a8be25d025715dfcd20b09079bab"
+  },
+  "independent_review": {
+    "manifest_sha256": "4a93c54577d537216fd17861fd98b1810130f24abff42088879279bbe1b79870",
+    "members": 5,
+    "receipt_sha256": "3ac9d148349e5c923d220bc98848be2ded43b45f8a947eeb04cdffaf042057c0",
+    "runtime_repeated": false
+  },
+  "limits": [
+    "Test-oracle correction only; no production/permissions/payment changed",
+    "PARTIEL product; no whole departments/backlog closure",
+    "Parent d9 CI FAIL retained; corrected commit future CI unknown",
+    "M5 Native/JS export unchanged and separately scoped, no phone/Hermes/PG claim",
+    "104 missing proof references and full transfer supplement remain absent; conversations unknown",
+    "No Source/Git/PR/runtime/API/credential/DB mutation by assembler",
+    "Root alone approves/integrates/smokes/publishes normally"
+  ],
+  "local_qualification": {
+    "Ruff": "Root reported direct0; no separate Ruff receipt in selected inputs",
+    "green": {
+      "Source_stable_importE_EOF": true,
+      "fixed_sources": 1529,
+      "passes": 258,
+      "pytest_seconds": 20.33,
+      "source_digest": "a05d9eb2d960a4f955cf1da790912660c0eb8706504152c7b5119590e3592421",
+      "wrapper_seconds": 20.802
+    },
+    "red": {
+      "Source_stable_EOF": true,
+      "failures": 1,
+      "passes": 7,
+      "pytest_seconds": 2.02,
+      "wrapper_seconds": 2.371
+    }
+  },
+  "new_sources": 0,
+  "parent": "d9a220c2f6389e32c3b2b98b1a2b00ecebd88936",
+  "parent_CI": {
+    "artifact": {
+      "affaires": 1,
+      "artifact_id": 11627942616,
+      "artifact_sha256": "e45520ee3035fff6f166fdd1704c8b12c096bef78b4353c3b5faaee6e4e24404",
+      "head": "d9a220c2f6389e32c3b2b98b1a2b00ecebd88936",
+      "journal_export_audit_append": 1,
+      "junit_cases": 1,
+      "merge_commit": "b74e7f768b50347510f43ef4a861eca271b43524",
+      "new_backend_pid": true,
+      "paired_hashes_checked": 38,
+      "phases": 40,
+      "source_business_tables_unchanged_after_export": 47,
+      "tree": "87e73f5088742cc26c239e6c92a29aaa74fb7c3a"
+    },
+    "future_corrected_CI": "UNKNOWN_PENDING_PUBLICATION",
+    "gates": "FAILURE_FROM_SOCLE",
+    "global": "FAIL_EXACT_RUN",
+    "head": "d9a220c2f6389e32c3b2b98b1a2b00ecebd88936",
+    "installation": "SUCCESS",
+    "job_skips2": "Windows/macOS Docker explicit workflow_dispatch opt-in; not executed",
+    "jobs": {
+      "conclusions": {
+        "cancelled": 0,
+        "failure": 2,
+        "skipped": 2,
+        "success": 36,
+        "timed_out": 0
+      },
+      "total": 40
+    },
+    "manifest_sha256": "f448ae9e6cab53c6ebb119ad2f7b04a6b90ccd456052422114777f6028360db6",
+    "receipt_sha256": "f12862b3ceaacb84d7b0d52af32dfca91e68a6256f72211a4e122b1a3c93df2b",
+    "run_id": 37951467812,
+    "socle": {
+      "log_sha256": "b3936d05061e599494890b8728dcc82f15e2098194414baa3ad6caf1e861fc6a",
+      "passed": 5017,
+      "seconds": 2922.44,
+      "skip_reason_rows": 16,
+      "skipped": 17,
+      "warnings": 1
+    },
+    "socle17_reasons": "Actual -rs rows preserved,16 rows/17cases, no inference"
+  },
+  "preimages": 1,
+  "publication_paths": 4,
+  "recorded_toronto": "2026-10-09T12:31:34.078352-04:00",
+  "source_count": 1,
+  "source_files": [
+    {
+      "origin": "Root isolated E canonical literal inventory only; independent readback",
+      "path": "tests/test_acces_tresorerie.py",
+      "preimage_sha256": "ec164b48858fa6da9f459002da6715212970b190eb9510281edcafabe5dce70e",
+      "sha256": "3b62e7cbb6093e65795ab2781ec3ca47b2de74d1306191905b8a26b11052e8f9",
+      "status": "LOCAL258_QUALIFIED_FUTURE_EXACT_CI_PENDING"
+    }
+  ],
+  "status": "FINAL_REVIEWABLE_PENDING_ROOT"
+}
