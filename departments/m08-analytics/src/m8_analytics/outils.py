@@ -70,6 +70,7 @@ from . import (
     contenus,
     entonnoir,
     mesures_chantier,
+    provenance_m5,
     qualite,
     rapports,
     registre,
@@ -1314,4 +1315,99 @@ def outils(
             # ventes » seulement) ; refusé aussi dans le code.
             roles_appareil=frozenset({_ROLE_ADMIN}),
         ),
+        Outil(
+            nom="m8_lire_provenance_m5_appareil",
+            description=(
+                "Diagnostic borné des publications M5 existantes et de leur réception M8, sans effet financier."
+            ),
+            parametres={
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "perimetre": {"type": "string", "enum": ["cash_global", "rentabilite_wct"]},
+                    "wct_id": {"type": ["string", "null"], "minLength": 1, "maxLength": 256},
+                    "decalage": {"type": "integer", "minimum": 0, "maximum": 10000},
+                    "limite": {"type": "integer", "minimum": 1, "maximum": 8},
+                },
+                "required": ["perimetre", "wct_id", "decalage", "limite"],
+            },
+            fonction=lire_provenance_m5_appareil,
+            roles_appareil=frozenset({_ROLE_ADMIN}),
+            portee_contexte="globale",
+        ),
     )
+
+
+def autoriser_provenance_m5_appareil(arguments: Any, *, cnx: Any) -> dict[str, Any]:
+    """Admet le corps et l'admin SQL courant avant toute copie métier ; aucune autorité dans le corps."""
+    a = provenance_m5.valider_arguments(arguments)
+    acteur = contexte.identite_appelante()
+    if (acteur is None or acteur.source != "appareil" or acteur.role != _ROLE_ADMIN
+            or cnx is None or stockage.connexion_courante() is not cnx):
+        raise provenance_m5.Refus("IDENTITE-INVALIDE")
+    personne = identite.personne_active(cnx, acteur.personne)
+    if personne is None or _ROLE_ADMIN not in personne.roles:
+        raise provenance_m5.Refus("IDENTITE-INVALIDE")
+    return a
+
+
+def lire_provenance_m5_appareil(perimetre: str, wct_id: str | None, decalage: int, limite: int) -> dict:
+    """Façade transactionnelle ; les copies Socle sont adaptées explicitement au domaine pur."""
+    try:
+        cnx = stockage.connexion_courante()
+        arguments = autoriser_provenance_m5_appareil(
+            {"perimetre": perimetre, "wct_id": wct_id, "decalage": decalage, "limite": limite}, cnx=cnx
+        )
+        return depuis_couple((_copier_diagnostic_provenance_m5(cnx, arguments), None))
+    except provenance_m5.Refus as refus:
+        return depuis_couple((None, refus.verdict))
+
+
+def _copier_diagnostic_provenance_m5(cnx: Any, arguments: dict) -> dict:
+    # Imports locaux : API Socle seule, connexion canonique ; aucun chargement de factory M5/M8.
+    from opsys.evenements.bus import copier_publications_et_recus
+    from opsys.evenements.schemas import erreurs_charge
+    from opsys.stockage.maillons import copier_maillons_avec_metadonnees
+
+    rent = arguments["perimetre"] == "rentabilite_wct"
+    type_evenement = "m5.rentabilite_chantier" if rent else "m5.cash_libre_constate"
+    registre_cible = "faits_chantier" if rent else "faits_cash_libre"
+    try:
+        bus = copier_publications_et_recus(cnx, type_evenement=type_evenement, consommateur="m08-analytics")
+    except ValueError:
+        raise provenance_m5.Refus("SOURCE-INVALIDE") from None
+    try:
+        registre_copie = copier_maillons_avec_metadonnees(
+            cnx, departement="m08-analytics", registre=registre_cible
+        )
+    except ValueError:
+        raise provenance_m5.Refus("REGISTRE-INVALIDE") from None
+    if len(bus.publications) + len(bus.recus) + len(registre_copie.lignes) > 10000:
+        raise provenance_m5.Refus("BUDGET-SOURCE-DEPASSE")
+    publications = [{"evenement_id": p.evenement_id, "type_evenement": p.type_evenement,
+                     "producteur": p.producteur, "charge": p.charge, "cree_le": p.cree_le}
+                    for p in bus.publications]
+    recus = [{"evenement_id": r.evenement_id, "consommateur": r.consommateur, "statut": r.statut,
+              "tentatives": r.tentatives, "prochaine_tentative": r.prochaine_tentative,
+              "resultat": r.resultat} for r in bus.recus]
+    maillons = []
+    for m in registre_copie.lignes:
+        d = m.cree_le
+        maillons.append({"rang": m.rang, "cree_le": None if d is None else d.isoformat(),
+                         "fuseau": "inconnu" if d is None else
+                         "non_persiste" if d.utcoffset() is None else "present", "maillon": m.maillon})
+    for p in publications:
+        provenance_m5.valider_json(p)
+        if type(p["charge"]) is not dict or erreurs_charge(type_evenement, p["charge"]):
+            raise provenance_m5.Refus("SOURCE-INVALIDE")
+    sources = [
+        {"table": "evenements_sortants", "departement": None, "registre": None,
+         "lignes": len(publications), "empreinte_snapshot_calculee": bus.empreinte_publications_calculee},
+        {"table": "evenements_recus", "departement": None, "registre": None,
+         "lignes": len(recus), "empreinte_snapshot_calculee": bus.empreinte_recus_calculee},
+        {"table": "registres_maillons", "departement": "m08-analytics", "registre": registre_cible,
+         "lignes": len(maillons), "empreinte_snapshot_calculee": registre_copie.empreinte_snapshot_calculee},
+    ]
+    borne = contexte.limite_sortie()
+    return provenance_m5.produire(publications, recus, maillons, sources, arguments,
+                                 budget_sortie=min(5400, borne) if borne is not None else 5400)

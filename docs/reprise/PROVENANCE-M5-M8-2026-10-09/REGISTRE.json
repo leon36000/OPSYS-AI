@@ -1,0 +1,286 @@
+{
+  "schema": 1,
+  "recorded_toronto": "2026-10-09T15:42:24.892300-04:00",
+  "status": "FINAL_REVIEWABLE_PENDING_ROOT_PUBLICATION",
+  "parent": "2e1757755d0c1c1eb9d00a683b3ec3b44e4aa2da",
+  "parent_tree": "1360dd59271daf56891a380a463148793c40413f",
+  "source_count": 13,
+  "modified": 6,
+  "new": 7,
+  "source_files": [
+    {
+      "path": "departments/m08-analytics/docs/PROVENANCE-M5.md",
+      "sha256": "e7e5ef2669e92e92c2d7846df4f7ce1510824dc2e00221213c230bd7c4587fc8",
+      "preimage_sha256": null,
+      "origin_owner": "/root/verticale_chantier",
+      "preimage": "NOUVEAU_GIT_2E_VERIFIE",
+      "proof_scope": "backend803+835/capturesSQL13, P2red10→green59",
+      "limits": [
+        "Current candidate not yet published; future exact M8 CI unknown",
+        "Native2 exact gel4, current code/tests same gel5 with ROLES-only documentary delta",
+        "SQLite fictive/injected Cap distinct from authenticated minimal Native; no phone/CPA/complete finance"
+      ]
+    },
+    {
+      "path": "departments/m08-analytics/src/m8_analytics/outils.py",
+      "sha256": "a0f89ff50177a3a67bbfc39c87fd7af9b9d1926984293952d5cd9a216b750eba",
+      "preimage_sha256": "c465c9e32bcb20f3d0c3e60f595ee4dcd4a9397acbae5f2d9ed1c8799f176fcb",
+      "origin_owner": "/root/verticale_chantier",
+      "preimage": "GIT_2E_BLOB_ET_R_BYTES_VERIFIES",
+      "proof_scope": "backend803+835/capturesSQL13, P2red10→green59",
+      "limits": [
+        "Current candidate not yet published; future exact M8 CI unknown",
+        "Native2 exact gel4, current code/tests same gel5 with ROLES-only documentary delta",
+        "SQLite fictive/injected Cap distinct from authenticated minimal Native; no phone/CPA/complete finance"
+      ]
+    },
+    {
+      "path": "departments/m08-analytics/src/m8_analytics/provenance_m5.py",
+      "sha256": "579e185c164ad435e8838466110a4da92de827819c3321335a13d97b4c0b4ebc",
+      "preimage_sha256": null,
+      "origin_owner": "/root/verticale_chantier",
+      "preimage": "NOUVEAU_GIT_2E_VERIFIE",
+      "proof_scope": "backend803+835/capturesSQL13, P2red10→green59",
+      "limits": [
+        "Current candidate not yet published; future exact M8 CI unknown",
+        "Native2 exact gel4, current code/tests same gel5 with ROLES-only documentary delta",
+        "SQLite fictive/injected Cap distinct from authenticated minimal Native; no phone/CPA/complete finance"
+      ]
+    },
+    {
+      "path": "departments/m08-analytics/tests/test_provenance_m5.py",
+      "sha256": "8e7d0e94181be736045c874f7f9ed5bbc36514d1ca107c01b21e9f9f828b1186",
+      "preimage_sha256": null,
+      "origin_owner": "/root/verticale_chantier",
+      "preimage": "NOUVEAU_GIT_2E_VERIFIE",
+      "proof_scope": "backend803+835/capturesSQL13, P2red10→green59",
+      "limits": [
+        "Current candidate not yet published; future exact M8 CI unknown",
+        "Native2 exact gel4, current code/tests same gel5 with ROLES-only documentary delta",
+        "SQLite fictive/injected Cap distinct from authenticated minimal Native; no phone/CPA/complete finance"
+      ]
+    },
+    {
+      "path": "departments/m08-analytics/tests/test_provenance_m5_appareil.py",
+      "sha256": "bb945474d03edb6427f4bc8a1919643192f7f9a68a7e3bd26315c8ade4c8b5e8",
+      "preimage_sha256": null,
+      "origin_owner": "/root/verticale_chantier",
+      "preimage": "NOUVEAU_GIT_2E_VERIFIE",
+      "proof_scope": "backend803+835/capturesSQL13, P2red10→green59",
+      "limits": [
+        "Current candidate not yet published; future exact M8 CI unknown",
+        "Native2 exact gel4, current code/tests same gel5 with ROLES-only documentary delta",
+        "SQLite fictive/injected Cap distinct from authenticated minimal Native; no phone/CPA/complete finance"
+      ]
+    },
+    {
+      "path": "docs/architecture/ROLES.md",
+      "sha256": "d2e5efcfb6ef7cff1cb881418019cc1124c5e817e3478ba98fe994b0ea310d22",
+      "preimage_sha256": "a577b3788fd30cb48cbb2ccb88fef6e9203c7f99318d5e98e5f06cd65a0aa837",
+      "origin_owner": "/root",
+      "preimage": "GIT_2E_BLOB_ET_R_BYTES_VERIFIES",
+      "proof_scope": "Root documentary gel5 reconciliation; other code tests/Native remain exact gel4",
+      "limits": [
+        "Current candidate not yet published; future exact M8 CI unknown",
+        "Native2 exact gel4, current code/tests same gel5 with ROLES-only documentary delta",
+        "SQLite fictive/injected Cap distinct from authenticated minimal Native; no phone/CPA/complete finance"
+      ]
+    },
+    {
+      "path": "src/opsys/capacites.py",
+      "sha256": "c445354652acf6205e0d23eeaa3ee3b32b495a5d90d674477e7fbee19105c09b",
+      "preimage_sha256": "115fe3e877e3d93cb36a58c2d56b4bbf58d31fc08b1576942b12af03d860e0dc",
+      "origin_owner": "/root",
+      "preimage": "GIT_2E_BLOB_ET_R_BYTES_VERIFIES",
+      "proof_scope": "Root151gel4, Cap45gel2, Role/metadata237145",
+      "limits": [
+        "Current candidate not yet published; future exact M8 CI unknown",
+        "Native2 exact gel4, current code/tests same gel5 with ROLES-only documentary delta",
+        "SQLite fictive/injected Cap distinct from authenticated minimal Native; no phone/CPA/complete finance"
+      ]
+    },
+    {
+      "path": "src/opsys/evenements/bus.py",
+      "sha256": "b162553b202a88d350b3cd6e2ffe1289f39a628747aae0416b779f92433d7bdc",
+      "preimage_sha256": "4128d0b391eb68cd01f814d176b5f6739960650dc44ebedc4623a245af9828c1",
+      "origin_owner": "/root/m1_gateway_native",
+      "preimage": "GIT_2E_BLOB_ET_R_BYTES_VERIFIES",
+      "proof_scope": "store32+M8803/probeCap3nominal",
+      "limits": [
+        "Current candidate not yet published; future exact M8 CI unknown",
+        "Native2 exact gel4, current code/tests same gel5 with ROLES-only documentary delta",
+        "SQLite fictive/injected Cap distinct from authenticated minimal Native; no phone/CPA/complete finance"
+      ]
+    },
+    {
+      "path": "src/opsys/stockage/maillons.py",
+      "sha256": "71485898e99ad8ca6f997486ea4b132fa8ba5b7ec5c61d7e289c3d4fd41ab4f4",
+      "preimage_sha256": "8a6ba53b83ca92940ade6886f8ad00d345a735d8e9c823165824b9d37416c0f5",
+      "origin_owner": "/root/m1_gateway_native",
+      "preimage": "GIT_2E_BLOB_ET_R_BYTES_VERIFIES",
+      "proof_scope": "store32+M8803/probeCap3nominal",
+      "limits": [
+        "Current candidate not yet published; future exact M8 CI unknown",
+        "Native2 exact gel4, current code/tests same gel5 with ROLES-only documentary delta",
+        "SQLite fictive/injected Cap distinct from authenticated minimal Native; no phone/CPA/complete finance"
+      ]
+    },
+    {
+      "path": "tests/test_lectures_bus_provenance.py",
+      "sha256": "57d830e28c077fca5f43e7c820512655c4cc3a1662fe9b325de919992048673e",
+      "preimage_sha256": null,
+      "origin_owner": "/root/m1_gateway_native",
+      "preimage": "NOUVEAU_GIT_2E_VERIFIE",
+      "proof_scope": "store32+M8803/probeCap3nominal",
+      "limits": [
+        "Current candidate not yet published; future exact M8 CI unknown",
+        "Native2 exact gel4, current code/tests same gel5 with ROLES-only documentary delta",
+        "SQLite fictive/injected Cap distinct from authenticated minimal Native; no phone/CPA/complete finance"
+      ]
+    },
+    {
+      "path": "tests/test_maillons_snapshot_lecture.py",
+      "sha256": "d73c7ac8dc3c7b081a8c0e9a58663a6b49bd6992ae6c697c6d16c5b09abfdda6",
+      "preimage_sha256": null,
+      "origin_owner": "/root/m1_gateway_native",
+      "preimage": "NOUVEAU_GIT_2E_VERIFIE",
+      "proof_scope": "store32+M8803/probeCap3nominal",
+      "limits": [
+        "Current candidate not yet published; future exact M8 CI unknown",
+        "Native2 exact gel4, current code/tests same gel5 with ROLES-only documentary delta",
+        "SQLite fictive/injected Cap distinct from authenticated minimal Native; no phone/CPA/complete finance"
+      ]
+    },
+    {
+      "path": "tests/test_portees_appareil.py",
+      "sha256": "9624cc62ede261681ccf2a3ac7464e63c5f610f809a703f67bf5cbcb41bd3048",
+      "preimage_sha256": "b5b41d7d9945459ca982a3c8d4d12c9a6e57b2703b1e6a20a26076c13e8375e6",
+      "origin_owner": "/root",
+      "preimage": "GIT_2E_BLOB_ET_R_BYTES_VERIFIES",
+      "proof_scope": "Root151gel4, Cap45gel2, Role/metadata237145",
+      "limits": [
+        "Current candidate not yet published; future exact M8 CI unknown",
+        "Native2 exact gel4, current code/tests same gel5 with ROLES-only documentary delta",
+        "SQLite fictive/injected Cap distinct from authenticated minimal Native; no phone/CPA/complete finance"
+      ]
+    },
+    {
+      "path": "tests/test_provenance_m8_lecture_atomique.py",
+      "sha256": "ea55ed4167f053107b95b31d3dc7aeb9df46f0e568e69068e1ba9d472ee3b26d",
+      "preimage_sha256": null,
+      "origin_owner": "/root",
+      "preimage": "NOUVEAU_GIT_2E_VERIFIE",
+      "proof_scope": "Root151gel4, Cap45gel2, Role/metadata237145",
+      "limits": [
+        "Current candidate not yet published; future exact M8 CI unknown",
+        "Native2 exact gel4, current code/tests same gel5 with ROLES-only documentary delta",
+        "SQLite fictive/injected Cap distinct from authenticated minimal Native; no phone/CPA/complete finance"
+      ]
+    }
+  ],
+  "candidate_gel": "5 documentary; code/tests gel4",
+  "candidate_gel_receipt_sha256": "9f67431ab7d3281d95a20aaa4f731e59684c4ca94c06eb8941c0d468ed8c603c",
+  "source1539_manifest_sha256": "56f86e367acb45d8b2bb4606da33511b5c6d8dd784e6fa97c733c4567c2fd874",
+  "I_HEAD_before": "2e1757755d0c1c1eb9d00a683b3ec3b44e4aa2da",
+  "I_status_before": " M departments/m08-analytics/src/m8_analytics/outils.py\n M docs/architecture/ROLES.md\n M src/opsys/capacites.py\n M src/opsys/evenements/bus.py\n M src/opsys/stockage/maillons.py\n M tests/test_portees_appareil.py\n?? departments/m08-analytics/docs/PROVENANCE-M5.md\n?? departments/m08-analytics/src/m8_analytics/provenance_m5.py\n?? departments/m08-analytics/tests/test_provenance_m5.py\n?? departments/m08-analytics/tests/test_provenance_m5_appareil.py\n?? tests/test_lectures_bus_provenance.py\n?? tests/test_maillons_snapshot_lecture.py\n?? tests/test_provenance_m8_lecture_atomique.py\n",
+  "R_HEAD_readonly": "2e1757755d0c1c1eb9d00a683b3ec3b44e4aa2da",
+  "R_clean_readonly": true,
+  "product": "PARTIEL",
+  "effects": "T0 lecture only; no claim/APP/trace/ARTEFACTS/financial/memory write",
+  "qualifications": {
+    "current_store_and_department": 835,
+    "store": 32,
+    "department": 803,
+    "Rootgel4": 151,
+    "affected_after_P2_gel2": {
+      "pass": 434,
+      "skip": 1,
+      "reason": "tests/test_idempotence.py279 Docker inaccessible, PostgreSQL/pgvector nonexecuté"
+    },
+    "Cap45gel2": {
+      "reads": 45,
+      "table_pairs": 2205,
+      "tables": 49,
+      "artefacts": 0
+    },
+    "Ruff_global_gel3": 0,
+    "Ruff_store4_gel4": 0,
+    "metier_gel3": {
+      "departements": 10,
+      "outils": 237,
+      "device_tools": 145
+    }
+  },
+  "native": {
+    "gel3": "Historical PASS adopted byRoot,46Gateway42MCP/46windows49pure/2254pairs,9rawSHAequalitiesincluding2restart,294network0nonloopback; officialminimal only, not currentgel4 claim",
+    "gel4_runtime2": {
+      "status": "ROOT_ADOPTED_SCOPED_PASS",
+      "receipt_sha256": "5f2ff40f2c2f61d311e1445162d40cf88c5292bc8543c8f6b920d5fea13ab53a",
+      "manifest_sha256": "a6bc56b44adf478b0513b6d64fbaf12723e079508371845f9b0d4c033e6133b3",
+      "Root_adoption_sha256": "387e38c602d795ab95dd7dcd5afa282b6e9de4955b1ac4e70fb1807d3dc3a0e4",
+      "Gateway": 52,
+      "MCP": 48,
+      "windows": 52,
+      "tables": 49,
+      "pure_pairs": 2548,
+      "claim": 0,
+      "N3trace": 0,
+      "artefacts": 0,
+      "raw_SHA_comparisons": 12,
+      "process_restarts_compared": 2,
+      "deepSQLcases_nominal": 3,
+      "restorations_exact": 3,
+      "network336_instrumented_outside0": true,
+      "owners18_PIDFD_EOF": true,
+      "private5860_removed": true,
+      "limited_mode": "officialminimal/SQLite/fictif; no phone/PG/provider/CPA/financial completeness"
+    },
+    "sourceTreeCore": "4ad1a927b4286039c23f7b93cbf43c2d02b61c7e"
+  },
+  "future_CI": {
+    "head": null,
+    "tree": null,
+    "run": null,
+    "status": "UNKNOWN_NOT_PUBLISHED",
+    "no_parent_green_inheritance": true
+  },
+  "limits": [
+    "Nofrontend/no mobile reader/UI/phone delivered",
+    "PostgreSQL business and normal startup not qualified by current minimalNative",
+    "10000 source count after copies and codec; not allocation bound",
+    "Diagnostic existing publications only, obligationspreparatoires excluded; unknown neverzero; noCPA/bank/physical proof",
+    "104 historical missing transferproof refs, supplements/conversations unknown; unchanged limits not reassigned to M8",
+    "Modelreports are static opinions, never tests or validation"
+  ],
+  "capsule": {
+    "path": "m8-provenance-backend-public-final-r3.tar.gz",
+    "sha256": "7f314b6acc9044e366cb66b333c0e170d6594d66384977e12a23813081c6a8d4",
+    "members": 932,
+    "public_folder": "PUBLIC-CANDIDAT-FINAL-r3",
+    "global_manifest_sha256": "f333bfa6efd60190d41e7d56f2c206216ef1ce007ae71935ebd5d62ae7228b9a",
+    "roundtrip_verified": true,
+    "docs3_excluded": true
+  },
+  "direction_opinions": {
+    "status": "STATIC_COMPLETED_NOT_TESTS",
+    "models_observed": [
+      "Opus5.5",
+      "Sonnet5.5",
+      "Sonnet5.5"
+    ],
+    "messages": [
+      8,
+      12,
+      16
+    ],
+    "snapshot_Native2": "NOT_RUN at opinion snapshot, truth preserved",
+    "postrun_disposition": "Native2 Root adoption copied separately",
+    "ROLES_documentary_gap": "corrected by Root gel5; no code change"
+  },
+  "source_epochs": {
+    "current_candidate": "gel5 documentary",
+    "behavior": "gel4 current code/tests; Native2 exact gel4",
+    "Cap45": "gel2 historical post-P2; not decoder-current",
+    "no_Native3": true
+  }
+}

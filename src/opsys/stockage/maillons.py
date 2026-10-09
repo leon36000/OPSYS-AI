@@ -9,12 +9,16 @@ chaque accès passe par la transaction courante, donc un appel d'outil voit ses 
 from __future__ import annotations
 
 import copy
+import datetime as dt
+import json
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
+from hashlib import sha256
 from typing import Any
 
 from sqlalchemy import Connection, func, insert, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from . import codec
 from .moteur import connexion_courante, transaction
@@ -101,3 +105,55 @@ class MaillonsDurables:
 
 def maillons(departement: str, registre: str = "principal") -> MaillonsDurables:
     return MaillonsDurables(departement, registre)
+
+
+@dataclass(frozen=True)
+class MaillonLu:
+    """Rang et datetime SQL réellement lus, accompagnés d'une copie codec décodée."""
+
+    rang: int
+    cree_le: dt.datetime
+    maillon: Any
+
+
+@dataclass(frozen=True)
+class SnapshotMaillons:
+    """Un registre observé ; l'empreinte est calculée, pas un hash natif de chaîne."""
+
+    departement: str
+    registre: str
+    lignes: tuple[MaillonLu, ...]
+    empreinte_snapshot_calculee: str
+
+
+def copier_maillons_avec_metadonnees(
+    cnx: Connection, *, departement: str, registre: str,
+) -> SnapshotMaillons:
+    """SELECT dans la connexion canonique admise, sans cache ni transaction de repli.
+
+    Un rang durable n'est jamais remplacé par sa position dans la copie. Le datetime SQL
+    conserve son fuseau, ou son absence ; aucune UTC n'est ajoutée. Chaque décodage donne
+    une nouvelle valeur indépendante du stockage et des autres snapshots.
+    """
+    if not isinstance(cnx, Connection) or cnx is not connexion_courante() or cnx.closed:
+        raise ValueError("lecture des maillons hors connexion canonique")
+    if (type(departement) is not str or not departement.strip()
+            or type(registre) is not str or not registre.strip()):
+        raise ValueError("source de registre invalide")
+    try:
+        lignes_sql = cnx.execute(select(REGISTRES.c.rang, REGISTRES.c.cree_le, REGISTRES.c.maillon)
+            .where(REGISTRES.c.departement == departement, REGISTRES.c.registre == registre)
+            .order_by(REGISTRES.c.rang)).mappings().all()
+        lignes = []
+        source = []
+        for ligne in lignes_sql:
+            if type(ligne["rang"]) is not int or not isinstance(ligne["cree_le"], dt.datetime):
+                raise ValueError("métadonnées SQL invalides")
+            lignes.append(MaillonLu(ligne["rang"], ligne["cree_le"], codec.decoder(ligne["maillon"])))
+            source.append({
+                "rang": ligne["rang"], "cree_le": ligne["cree_le"].isoformat(), "maillon": ligne["maillon"],
+            })
+        texte = json.dumps(source, sort_keys=True, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+        return SnapshotMaillons(departement, registre, tuple(lignes), sha256(texte.encode("utf-8")).hexdigest())
+    except (ValueError, TypeError, ArithmeticError, AttributeError, RecursionError, SQLAlchemyError):
+        raise ValueError("copie des maillons avec métadonnées invalide") from None

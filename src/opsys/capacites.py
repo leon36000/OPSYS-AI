@@ -53,6 +53,14 @@ _PROPOSITION_REVUE_M4 = "m4_resoudre_revue_completion_sources"
 _LEGACY_REVUE_M4 = "m4_resoudre_revue_completion"
 _LECTURE_OBLIGATIONS_M5 = "m5_lire_obligations_preparees_appareil"
 _MUTATION_OBLIGATIONS_M5 = "m5_enregistrer_obligation_preparee_appareil"
+_LECTURE_PROVENANCE_M8 = "m8_lire_provenance_m5_appareil"
+_DETAIL_PROVENANCE_M8 = "Le diagnostic ne satisfait pas son contrat ; aucun détail partiel n’est transmis."
+_CODES_PROVENANCE_M8 = frozenset({
+    "REJ-M8-PROVENANCE-ARGUMENTS-INVALIDES", "REJ-M8-PROVENANCE-IDENTITE-INVALIDE",
+    "REJ-M8-PROVENANCE-REGISTRE-INVALIDE", "REJ-M8-PROVENANCE-SOURCE-INVALIDE",
+    "REJ-M8-PROVENANCE-BUDGET-SOURCE-DEPASSE", "REJ-M8-PROVENANCE-PROJECTION-INVALIDE",
+    "REJ-M8-PROVENANCE-SORTIE-TROP-VOLUMINEUSE",
+})
 
 
 def _outils_memoire() -> tuple[Outil, ...]:
@@ -270,6 +278,10 @@ class Capacites:
         Une identité d'appareil seule permet une lecture T0/N0 ; toute autre opération
         exige l'enveloppe d'idempotence avant le répartiteur métier.
         """
+        # Ce nouveau lecteur ferme aussi le conteneur brut avant la normalisation
+        # historique : une liste de paires ne peut pas devenir un corps RPC valide.
+        if nom == _LECTURE_PROVENANCE_M8 and nom in self.index:
+            return self._appeler_provenance_m8(arguments, meta, ticket_cible, ticket_memoire)
         args = dict(arguments or {})
         appelante = identite_appelante()
         entree = self.index.get(nom)
@@ -406,6 +418,45 @@ class Capacites:
         if meta is None:
             return self._distribuer(nom, args)
         return self._appeler_idempotent(nom, args, meta)
+
+    def _appeler_provenance_m8(self, arguments, meta, ticket_cible, ticket_memoire):
+        """T0 admin DEVICE : admission actuelle, aucune intention de mutation."""
+        actor = identite_appelante()
+        if (
+            actor is None or actor.source != "appareil" or actor.role != "admin"
+            or _LECTURE_PROVENANCE_M8 not in self._outils_du_role(actor.role)
+        ):
+            return {"ok": False, "erreur": "hors_portee_role", "details": _DETAIL_PROVENANCE_M8}
+        if ticket_cible is not None or ticket_memoire is not None:
+            return {"ok": False, "erreur": "ticket_hors_portee_provenance_m8"}
+        if meta is not None:
+            return {"ok": False, "erreur": "idempotence_hors_portee_lecture"}
+        from m8_analytics import outils as facade
+        from m8_analytics import provenance_m5 as domaine
+
+        try:
+            with self._cnx_factory() as cnx, contexte_appel.sortie_bornee(min(5400, self._limite)):
+                try:
+                    args = facade.autoriser_provenance_m5_appareil(arguments, cnx=cnx)
+                except domaine.Refus as exc:
+                    return self._tronquer({"ok": True, "resultat": {"accepte": False, "verdict": {
+                        "code": exc.verdict["code"], "detail": _DETAIL_PROVENANCE_M8,
+                    }}}, _LECTURE_PROVENANCE_M8)
+                return self._distribuer(_LECTURE_PROVENANCE_M8, args, appel_appareil=True)
+        except Exception:
+            # Cette frontière est propre à la lecture : jamais de détail de codec,
+            # de source ou de driver SQL dans une réponse technique.
+            return self._erreur_provenance_m8()
+
+    @staticmethod
+    def _erreur_provenance_m8():
+        return {"ok": False, "erreur": "provenance_m8_indisponible", "details": _DETAIL_PROVENANCE_M8}
+
+    @staticmethod
+    def _refus_volume_provenance_m8():
+        return {"ok": True, "resultat": {"accepte": False, "verdict": {
+            "code": "REJ-M8-PROVENANCE-SORTIE-TROP-VOLUMINEUSE", "detail": _DETAIL_PROVENANCE_M8,
+        }}}
 
     @staticmethod
     def _confirmation_obligations_m5_inconnue():
@@ -1159,6 +1210,32 @@ class Capacites:
         departement: str | None = None,
         origine: str | None = None,
     ) -> dict[str, Any]:
+        if source == _LECTURE_PROVENANCE_M8:
+            # Toutes les issues de ce nom sortent ici, avant le fallback artefact.
+            # Les cadres d'erreur constants sans données peuvent dépasser quota40.
+            if not isinstance(reponse, dict) or set(reponse) != {"ok", "resultat"} or reponse.get("ok") is not True:
+                return self._erreur_provenance_m8()
+            couple = reponse["resultat"]
+            if not isinstance(couple, dict):
+                return self._erreur_provenance_m8()
+            if couple.get("accepte") is False:
+                verdict = couple.get("verdict")
+                if (
+                    set(couple) == {"accepte", "verdict"} and isinstance(verdict, dict)
+                    and set(verdict) == {"code", "detail"}
+                    and isinstance(verdict.get("code"), str) and verdict["code"] in _CODES_PROVENANCE_M8
+                    and verdict.get("detail") == _DETAIL_PROVENANCE_M8
+                ):
+                    return reponse
+                return self._erreur_provenance_m8()
+            if couple.get("accepte") is not True or set(couple) != {"accepte", "resultat"}:
+                return self._erreur_provenance_m8()
+            try:
+                texte = json.dumps(reponse, ensure_ascii=False, allow_nan=False)
+                texte.encode("utf-8", errors="strict")
+            except (TypeError, ValueError, UnicodeError, RecursionError):
+                return self._erreur_provenance_m8()
+            return reponse if len(texte) <= min(5400, self._limite) else self._refus_volume_provenance_m8()
         if source == "m9_decider_demande_approbation":
             from .approbations_completion_m4 import decision_revue_en_cours
 

@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 144 outils sur 236 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 145 outils sur 237 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -122,7 +122,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (143 outils) : §9.5 + employé + vendeur
+### `admin` (144 outils) : §9.5 + employé + vendeur
 
 Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et :
 
@@ -178,6 +178,7 @@ Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et 
 | M8 | `m8_lire_mesures_chantier` (T0), `m8_performance_equipe` (T0) | §6 « travaux terminés » (T1.5-d) : les mesures d'un chantier (temps réel contre prévu, marge prévue contre réelle, écart de matériaux) et l'écart de temps de l'équipe, nominatif pour l'admin authentifié seulement, sans classement. Marges et coûts : jamais l'employé ni le vendeur (§9.2, §9.4). |
 | M8 | `m8_lire_vue_executive` (T0) | §9.5 M8 « tableau de bord exécutif » (T4.19) : l'entonnoir commercial, la marge réelle que M5 a publiée, le stock à commander que M6 publie, le cash libre ou ce qui en manque. Règles plus bas (« La vue exécutive de M8 »). |
 | M8 | `m8_lire_mesures_contenus` (T0) | §9.5 M8 « tableau de bord exécutif » et §7 M7 mobile « tableau de bord marketing » (T4.17-e) : ce que chaque contenu exporté par M7 a amené (leads de M1, devis envoyés et acceptés de M3, par clé `utm_content`), une ligne par contenu, par pages. Impressions et clics : aucune source, « non calculable ». Règles plus bas (« La mesure par contenu de M8 »). |
+| M8 | `m8_lire_provenance_m5_appareil` (T0/N0) | Publications M5 et reçus/faits M8 rapprochés, cash global ou rentabilité par WCT ; identité appareil admin active revérifiée avant copies. Pages courantes, références/dates natives et inconnus explicites, sans réception, calcul financier, écriture ou artefact. |
 | M9 | `m9_produire_briefing_matin`, `m9_lire_alertes_m8`, `m9_lire_etat_consolide` | §7 M9 mobile : « Admin/Nathan seulement ». |
 | M9 | `m9_lister_demandes_approbation` (T0), `m9_decider_demande_approbation` (T1, N2) | §9.2 « le propriétaire approuve tout depuis le téléphone », §9.5 « Approbations » (T1.4-f). Règles ci-dessous : `admin` ouvre l'outil, la PERSONNE doit être le propriétaire. |
 | M10 | `m10_statut_decision`, `m10_statut_revision`, `m10_arbitrer_revision` | §7 M10 mobile : décisions à valider et contradictions. |
@@ -190,7 +191,7 @@ Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et 
 
 Les outils de M8 qui ingèrent un snapshot ou une définition fournis par l'appelant (`m8_rapport_metriques`,
 `m8_enregistrer_definition_metrique`...) restent fermés aux appareils ; ceux qui lisent des faits déjà reçus du bus
-(les quatre ci-dessus) sont pour l'admin seul.
+et le diagnostic de provenance M5 sont pour l'admin seul.
 
 ### Les écritures humaines de M10 (T3.3-suite-b)
 
@@ -963,3 +964,27 @@ de ses ventes (§9.4 M8), wallboard (§9.5 M8), incident (§9.3, M4).
 Demander à la relecture, pour tout outil ouvert à `employee` ou `seller` : lit-il des données d'un
 autre, prend-il une identité, un prix, un rôle ou un chemin dans ses arguments, approuve-t-il, est-il
 T3/N5 ?
+
+## Diagnostic de provenance M5 reçu par M8 (backend en qualification)
+
+`m8_lire_provenance_m5_appareil` est un lecteur T0/N0 réservé à un admin DEVICE actuel.
+Les quatre arguments requis sont `perimetre`, `wct_id`, `decalage` et `limite` : cash global
+avec WCT null, ou rentabilité du WCT fourni. La connexion courante et la personne active portant
+encore admin sont revérifiées avant les sources. Ni identité absente, ni console explicite,
+ni rôle employé/vendeur, ni Meta de mutation ou ticket client ne donnent accès au diagnostic.
+L'ancien `m8_lire_vue_executive` garde sa voie, ses arguments et sa réponse.
+
+Ce lecteur rapproche uniquement les publications M5 existantes, leurs reçus M8 et les faits
+persistés ciblés. Le cash peut avoir un lien par ID exact sous les quatre conditions de son
+contrat ; une rentabilité rapprochée par projection garde cette qualification, sans fabriquer
+un ID d'événement. Plusieurs devis d'un WCT rendent la sélection globale ambiguë. Une réception
+sans heure persistée garde une heure nulle ; la date SQL du fait n'est pas une heure de réception.
+Les empreintes de copie sont calculées, pas présentées comme hashes natifs de chaîne.
+
+Les pages sont courantes et la réponse entière respecte min(5400, quota Cap), ou un refus
+constant sans données. Un cadre de refus peut dépasser quota40, sans créer d'artefact.
+Le plafond10000 est contrôlé après copie ; il ne garantit pas une allocation bornée.
+Le registre préparatoire M5 est exclu : aucune somme, réconciliation bancaire, attestation CPA
+ou réparation n'est ajoutée. Aucun claim, trace, approbation, journal ou publication n'est permis
+par cette lecture. Les preuves locales, le parcours Gateway authentifié et la CI du futur commit
+restent des qualifications distinctes ; le frontend ne fait pas partie de ce premier jalon.

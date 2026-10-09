@@ -108,6 +108,7 @@ ADMIN_SEUL = frozenset({
     "m8_lire_mesures_chantier", "m8_performance_equipe",
     "m8_lire_vue_executive",  # tableau de bord exécutif : entonnoir, marge de M5, stock de M6 (T4.19)
     "m8_lire_mesures_contenus",  # ce que chaque contenu de M7 amène : leads et devis par utm_content (T4.17-e)
+    "m8_lire_provenance_m5_appareil",  # diagnostic N0 DEVICE, publications/receipts M5, sans calcul financier
     "m9_decider_demande_approbation", "m9_lire_alertes_m8", "m9_lire_etat_consolide", "m9_lire_suite_briefing",
     "m9_lister_demandes_approbation", "m9_produire_briefing_matin", "m9_produire_lecture_strategique",
     "m10_arbitrer_revision", "m10_paquet_contexte_affaire", "m10_statut_decision", "m10_statut_revision",
