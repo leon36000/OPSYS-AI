@@ -584,6 +584,14 @@ class Capacites:
         return r.contexte_mutation(meta)
 
     @staticmethod
+    def _contexte_mutation_classement_m6(nom: str, meta: idempotence.Meta) -> AbstractContextManager:
+        if nom != _MUTATION_CLASSEMENT_M6:
+            return nullcontext()
+        from m6_material_control import classement_variance_contexte as c
+
+        return c.contexte_mutation(meta)
+
+    @staticmethod
     def _verifier_rejeu_rappel_m1(arguments: dict[str, Any], reponse: dict[str, Any]) -> dict[str, Any] | None:
         from m1_front_office import outils as outils_m1
         from m1_front_office import rappels_appareil as r
@@ -621,7 +629,11 @@ class Capacites:
         aucun changement à ces fonctions n'est requis pour obtenir l'atomicité demandée.
         """
         recu_le = dt.datetime.now(dt.UTC)
-        with self._cnx_factory() as cnx, self._contexte_mutation_rappel_m1(nom, meta):
+        with (
+            self._cnx_factory() as cnx,
+            self._contexte_mutation_rappel_m1(nom, meta),
+            self._contexte_mutation_classement_m6(nom, meta),
+        ):
             if nom == _MUTATION_RAPPEL_M1:
                 refus = self._garder_rappel_m1(nom, arguments)
                 if refus is not None:

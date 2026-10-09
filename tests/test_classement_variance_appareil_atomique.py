@@ -11,13 +11,13 @@ from threading import Barrier
 
 import pytest
 from m6_material_control import outils
-from sqlalchemy import event, select, update
+from sqlalchemy import event, insert, select, update
 
 from opsys import approbations, contexte, fichiers, idempotence, identite, stockage
 from opsys.capacites import Capacites
 from opsys.departements import charger_departements
 from opsys.outils import executer_atomique
-from opsys.stockage.schema import EVENEMENTS_SORTANTS, MUTATIONS_APPLIQUEES
+from opsys.stockage.schema import EVENEMENTS_SORTANTS, MUTATIONS_APPLIQUEES, REGISTRES
 
 MUTATION = "m6_classer_cause_variance_appareil"
 LECTURES = (
@@ -64,6 +64,260 @@ def meta(suffixe):
 def accepter(response):
     assert response["ok"] and response["resultat"]["accepte"], response
     return response["resultat"]["resultat"]
+
+
+def test_succes_v2_scelle_intention_meta_et_corps_exact(monde):
+    args = cfx.demande(cfx.preparer())
+    first = appeler(capacite(), args)
+    result = accepter(first)
+    association = {
+        "appareil_id": META.appareil,
+        "intention_uuid": META.cle,
+        "empreinte_arguments": idempotence.empreinte_arguments(args),
+    }
+    assert first["resultat"].get("version_schema") == 2
+    assert result["version_schema"] == 2 and result["intention"] == association
+    with stockage.transaction():
+        maillon = list(stockage.maillons("m06-material-control", "classements_variance"))[-1]
+    assert maillon["intention"] == association and maillon["version_schema"] == 2
+    assert maillon["hash_maillon"] == result["reference"]["hash_maillon"]
+    stable = fx.fx._tables()
+    stockage.liberer()
+    assert appeler(capacite(), args) == {**first, "rejoue": True}
+    assert stable == fx.fx._tables()
+
+
+@pytest.mark.parametrize("suffixe", [
+    "ARGUMENTS-INVALIDES", "LIGNE-HORS-PERIMETRE", "PIECES-INVALIDES",
+    "LIAISON-INCOHERENTE", "REVISION-PERIMEE", "SORTIE-TROP-VOLUMINEUSE",
+])
+def test_cache_succes_substitue_par_refus_sans_preuve_reste_inconnu(monde, suffixe):
+    args = cfx.demande(cfx.preparer())
+    first = appeler(capacite(), args)
+    accepter(first)
+    predicate = (
+        (MUTATIONS_APPLIQUEES.c.appareil == META.appareil)
+        & (MUTATIONS_APPLIQUEES.c.cle_idempotence == META.cle)
+    )
+    with stockage.transaction() as cnx:
+        original = cnx.execute(select(MUTATIONS_APPLIQUEES.c.reponse).where(predicate)).scalar_one()
+        altered = stockage.codec.decoder(original)
+        altered["resultat"] = outils.classement_variance_appareil.refuser(suffixe)
+        cnx.execute(update(MUTATIONS_APPLIQUEES).where(predicate).values(
+            reponse=stockage.codec.encoder(altered)
+        ))
+    stable = fx.fx._tables()
+    assert len(stable) == 49
+    stockage.liberer()
+    observed = appeler(capacite(), args)
+    assert observed.get("issue") == "inconnue", observed
+    assert observed.get("ok") is False and stable == fx.fx._tables()
+    with stockage.transaction() as cnx:
+        cnx.execute(update(MUTATIONS_APPLIQUEES).where(predicate).values(reponse=original))
+    restored = fx.fx._tables()
+    assert appeler(capacite(), args) == {**first, "rejoue": True}
+    assert restored == fx.fx._tables()
+
+
+def test_deux_uuid_meme_corps_et_heure_refus_propre_durable(monde):
+    args = cfx.demande(cfx.preparer())
+    first = appeler(capacite(), args)
+    accepter(first)
+    after_success = fx.fx._tables()
+    other = meta(91)
+    assert other.horodatage_appareil == META.horodatage_appareil
+    refused = appeler(capacite(), args, other)
+    assert refused["ok"] and refused["resultat"]["accepte"] is False, refused
+    ack = refused["resultat"]
+    assert ack.get("version_schema") == 2
+    assert ack["intention"] == {
+        "appareil_id": other.appareil, "intention_uuid": other.cle,
+        "empreinte_arguments": idempotence.empreinte_arguments(args),
+    }
+    assert ack["verdict"]["code"] == "REJ-M6-CLASSEMENT-REVISION-PERIMEE"
+    assert ack["preuve_refus"]["registre"] == "refus_classement_variance"
+    after_refusal = fx.fx._tables()
+    assert {n for n in after_success if after_success[n] != after_refusal[n]} == {
+        "registres_maillons", "mutations_appliquees"
+    }
+    with stockage.transaction():
+        refusals = list(stockage.maillons("m06-material-control", "refus_classement_variance"))
+        successes = list(stockage.maillons("m06-material-control", "classements_variance"))
+    assert len(refusals) == len(successes) == 1
+    assert refusals[0]["intention"] == ack["intention"]
+    assert refusals[0]["hash_maillon"] == ack["preuve_refus"]["hash_maillon"]
+    stockage.liberer()
+    assert appeler(capacite(), args, other) == {**refused, "rejoue": True}
+    assert appeler(capacite(), args) == {**first, "rejoue": True}
+    assert after_refusal == fx.fx._tables()
+
+
+def _remplacer_cache(cle, resultat):
+    predicate = (
+        (MUTATIONS_APPLIQUEES.c.appareil == cle.appareil)
+        & (MUTATIONS_APPLIQUEES.c.cle_idempotence == cle.cle)
+    )
+    with stockage.transaction() as cnx:
+        original = cnx.execute(select(MUTATIONS_APPLIQUEES.c.reponse).where(predicate)).scalar_one()
+        altered = stockage.codec.decoder(original)
+        altered["resultat"] = resultat
+        cnx.execute(update(MUTATIONS_APPLIQUEES).where(predicate).values(
+            reponse=stockage.codec.encoder(altered)
+        ))
+    return predicate, original
+
+
+@pytest.mark.parametrize("champ", [
+    "appareil_id", "intention_uuid", "empreinte_arguments", "auteur",
+    "horodatage_appareil_declare", "preuve_refus", "verdict", "version_schema",
+])
+def test_refus_v2_cache_ne_peut_diverger_de_sa_preuve(monde, champ):
+    args = cfx.demande(cfx.preparer())
+    accepter(appeler(capacite(), args))
+    cle = meta(92)
+    first = appeler(capacite(), args, cle)
+    assert first["ok"] and first["resultat"]["accepte"] is False, first
+    ack = copy.deepcopy(first["resultat"])
+    assert ack["version_schema"] == 2
+    if champ in {"appareil_id", "intention_uuid", "empreinte_arguments"}:
+        ack["intention"][champ] = "f" * 64 if champ == "empreinte_arguments" else "AUTRE-FICTIF"
+    elif champ == "auteur":
+        ack[champ]["personne"] = "AUTRE-PERSONNE-FICTIVE"
+    elif champ == "horodatage_appareil_declare":
+        ack[champ] = "2026-01-01T00:00:00Z"
+    elif champ == "preuve_refus":
+        ack[champ]["hash_maillon"] = "f" * 64
+    elif champ == "verdict":
+        ack[champ] = outils.classement_variance_appareil.refuser("PIECES-INVALIDES")["verdict"]
+    else:
+        ack[champ] = True
+    predicate, original = _remplacer_cache(cle, ack)
+    stable = fx.fx._tables()
+    stockage.liberer()
+    observed = appeler(capacite(), args, cle)
+    assert observed.get("issue") == "inconnue" and observed.get("ok") is False, observed
+    assert stable == fx.fx._tables()
+    with stockage.transaction() as cnx:
+        cnx.execute(update(MUTATIONS_APPLIQUEES).where(predicate).values(reponse=original))
+    restored = fx.fx._tables()
+    assert appeler(capacite(), args, cle) == {**first, "rejoue": True}
+    assert restored == fx.fx._tables()
+
+
+def test_refus_v2_copie_d_autre_uuid_ne_nie_pas_succes_propre(monde):
+    args = cfx.demande(cfx.preparer())
+    first = appeler(capacite(), args)
+    accepter(first)
+    refusal = appeler(capacite(), args, meta(93))
+    assert refusal["ok"] and refusal["resultat"]["accepte"] is False
+    copied = copy.deepcopy(refusal["resultat"])
+    copied["intention"]["intention_uuid"] = META.cle
+    _remplacer_cache(META, copied)
+    stable = fx.fx._tables()
+    stockage.liberer()
+    observed = appeler(capacite(), args)
+    assert observed.get("issue") == "inconnue" and observed.get("ok") is False, observed
+    assert stable == fx.fx._tables()
+
+
+def test_maillon_legacy_sans_uuid_reste_lisible_et_faux_refus_v2_inconnu(monde):
+    args = cfx.demande(cfx.preparer())
+    first = appeler(capacite(), args)
+    result = accepter(first)
+    # Fixture historique v1 explicite : aucune association UUID rétrospective.
+    with stockage.transaction() as cnx:
+        registry = (REGISTRES.c.departement == "m06-material-control") & (
+            REGISTRES.c.registre == "classements_variance"
+        ) & (REGISTRES.c.rang == 0)
+        old = stockage.codec.decoder(cnx.execute(select(REGISTRES.c.maillon).where(registry)).scalar_one())
+        old.pop("version_schema", None)
+        old.pop("intention", None)
+        old["hash_maillon"] = outils.encodage.empreinte({k: v for k, v in old.items() if k != "hash_maillon"})
+        cnx.execute(update(REGISTRES).where(registry).values(maillon=stockage.codec.encoder(old)))
+    legacy_result = {k: v for k, v in result.items() if k not in {"version_schema", "intention"}}
+    legacy_result["reference"]["hash_maillon"] = old["hash_maillon"]
+    legacy_ack = {"accepte": True, "resultat": legacy_result,
+                  "registre": {"taille": 1, "hash_tete": old["hash_maillon"]}}
+    _remplacer_cache(META, legacy_ack)
+    stable = fx.fx._tables()
+    stockage.liberer()
+    observed = appeler(capacite(), args)
+    assert observed == {"ok": True, "resultat": legacy_ack, "rejoue": True}, observed
+    assert stable == fx.fx._tables()
+    fake = {
+        **outils.classement_variance_appareil.refuser("REVISION-PERIMEE"),
+        "version_schema": 2,
+        "intention": {"appareil_id": META.appareil, "intention_uuid": META.cle,
+                      "empreinte_arguments": idempotence.empreinte_arguments(args)},
+        "auteur": {"personne": fx.ADMIN.personne, "role": "admin", "source": "appareil"},
+        "horodatage_appareil_declare": META.horodatage_appareil,
+        "preuve_refus": {"registre": "refus_classement_variance", "index": 0, "hash_maillon": "f" * 64},
+    }
+    _remplacer_cache(META, fake)
+    stable = fx.fx._tables()
+    stockage.liberer()
+    unknown = appeler(capacite(), args)
+    assert unknown.get("issue") == "inconnue" and unknown.get("ok") is False, unknown
+    assert stable == fx.fx._tables()
+
+
+@pytest.mark.parametrize("genre", [RuntimeError, ValueError, TypeError, KeyError, stockage.EcritureConcurrente])
+def test_panne_apres_preuve_negative_annule_claim_et_reessaie_meme_uuid(monde, genre):
+    args = cfx.demande(cfx.preparer())
+    accepter(appeler(capacite(), args))
+    cle = meta(94)
+    _, patch = monde
+    original = outils._ajouter_refus_classement_variance
+
+    def fail(maillon):
+        original(maillon)
+        raise genre("CANARY-PREUVE-REFUS-FICTIVE")
+
+    patch.setattr(outils, "_ajouter_refus_classement_variance", fail)
+    before = fx.fx._tables()
+    with pytest.raises(RuntimeError):
+        appeler(capacite(), args, cle)
+    assert before == fx.fx._tables()
+    patch.setattr(outils, "_ajouter_refus_classement_variance", original)
+    first = appeler(capacite(), args, cle)
+    assert first["ok"] and first["resultat"]["accepte"] is False, first
+    after = fx.fx._tables()
+    assert {n for n in before if before[n] != after[n]} == {
+        "registres_maillons", "mutations_appliquees"
+    }
+    with stockage.transaction():
+        assert len(list(stockage.maillons("m06-material-control", "refus_classement_variance"))) == 1
+    stockage.liberer()
+    assert appeler(capacite(), args, cle) == {**first, "rejoue": True}
+    assert after == fx.fx._tables()
+
+
+def test_borne_globale_inclut_preuves_refus_avant_claim_et_rejeu(monde):
+    args = cfx.demande(cfx.preparer())
+    accepter(appeler(capacite(), args))
+    # Dépassement global injecté : le quota précède la validation du contenu
+    # après les copies actuelles, aucune fausse preuve refus n'est livrée.
+    with stockage.transaction() as cnx:
+        cnx.execute(insert(REGISTRES), [
+            {"departement": "m06-material-control", "registre": "refus_classement_variance",
+             "rang": i, "maillon": stockage.codec.encoder({"fictif": True})}
+            for i in range(10001)
+        ])
+    _, patch = monde
+    claims = []
+    original = idempotence.reclamer
+
+    def observe(*a):
+        claims.append(1)
+        return original(*a)
+
+    patch.setattr(idempotence, "reclamer", observe)
+    before = fx.fx._tables()
+    for cle in (META, meta(95)):
+        result = appeler(capacite(), args, cle)
+        assert result.get("issue") == "inconnue", result
+        assert result.get("erreur") == "REJ-M6-CLASSEMENT-BORNE-SOURCES", result
+    assert claims == [] and before == fx.fx._tables()
 
 
 @pytest.mark.parametrize("nom", LECTURES)
@@ -175,7 +429,7 @@ def test_v1_apres_v2_et_append_etranger_confirme_propre_reference(monde):
     assert not stale["resultat"]["accepte"]
     assert stale["resultat"]["verdict"]["code"] == "REJ-M6-CLASSEMENT-REVISION-PERIMEE"
     after = fx.fx._tables()
-    assert {n for n in before if before[n] != after[n]} == {"mutations_appliquees"}
+    assert {n for n in before if before[n] != after[n]} == {"registres_maillons", "mutations_appliquees"}
 
 
 def test_admin_retire_avant_toutes_sources_claim_et_rejeu(monde):
@@ -235,7 +489,7 @@ def test_quota_frais_refus_certain_sans_trace_et_rejeu_inconnu(monde):
     assert small["ok"] and not small["resultat"]["accepte"], small
     assert small["resultat"]["verdict"]["code"] == "REJ-M6-CLASSEMENT-SORTIE-TROP-VOLUMINEUSE"
     after = fx.fx._tables()
-    assert {n for n in before if before[n] != after[n]} == {"mutations_appliquees"}
+    assert {n for n in before if before[n] != after[n]} == {"registres_maillons", "mutations_appliquees"}
     first = appeler(capacite(), d)
     accepter(first)
     stable = fx.fx._tables()
@@ -337,7 +591,7 @@ def test_panne_journal_trace_annule_tout_et_meme_uuid_reessaie(monde, genre):
     accepter(appeler(capacite(), d))
 
 
-def test_refus_post_append_savepoint_pas_trace_et_refus_rejouable(monde):
+def test_refus_post_append_est_panne_annule_tout_et_meme_uuid_reessaie(monde):
     d = cfx.demande(cfx.preparer())
     _, patch = monde
     c = outils.classement_variance_appareil
@@ -352,13 +606,18 @@ def test_refus_post_append_savepoint_pas_trace_et_refus_rejouable(monde):
 
     patch.setattr(c, "verifier_borne", reject_after)
     before = fx.fx._tables()
-    first = appeler(capacite(), d)
-    assert first["ok"] and not first["resultat"]["accepte"], first
-    after = fx.fx._tables()
+    # Le quota avait été admis avant append : divergence postflight technique.
+    # L'ancien oracle de refus cacheable est conservé dans le transfert 8099.
+    with pytest.raises(RuntimeError):
+        appeler(capacite(), d)
     assert calls == [1, 1]
-    assert {n for n in before if before[n] != after[n]} == {"mutations_appliquees"}
+    assert before == fx.fx._tables()
+    patch.setattr(c, "verifier_borne", original)
+    first = appeler(capacite(), d)
+    accepter(first)
+    after = fx.fx._tables()
     assert appeler(capacite(), d) == {**first, "rejoue": True}
-    assert calls == [1, 1] and after == fx.fx._tables()
+    assert after == fx.fx._tables()
 
 
 def test_cap_backstop_technique_ne_scelle_pas_append_hors_borne(monde):
@@ -438,7 +697,11 @@ def test_deux_corrections_concurrentes_attendu_v1_une_seule_trace(monde):
     rejected = next(r for r in answers if not r["resultat"]["accepte"])
     assert rejected["resultat"]["verdict"]["code"] == "REJ-M6-CLASSEMENT-REVISION-PERIMEE"
     after = fx.fx._tables()
-    assert len(after["registres_maillons"]) == len(before["registres_maillons"]) + 1
+    # Un classement accepté et une preuve de refus, une seule validation N3.
+    assert len(after["registres_maillons"]) == len(before["registres_maillons"]) + 2
+    with stockage.transaction():
+        assert len(list(stockage.maillons("m06-material-control", "classements_variance"))) == 2
+        assert len(list(stockage.maillons("m06-material-control", "refus_classement_variance"))) == 1
     assert len(after["approbations"]) == len(before["approbations"]) + 1
     assert len(after["journal"]) == len(before["journal"]) + 1
     assert len(after["mutations_appliquees"]) == len(before["mutations_appliquees"]) + 2

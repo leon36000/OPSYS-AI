@@ -2162,9 +2162,10 @@ def _sources_classement_variance(wct_id):
         raise c.Refus(exc.suffixe) from None
     try:
         classes = list(stockage.maillons(_DEPARTEMENT, c.REGISTRE))
+        refus = list(stockage.maillons(_DEPARTEMENT, c.REGISTRE_REFUS))
     except (ValueError, TypeError, KeyError):
         raise c.Refus("REGISTRE-INVALIDE") from None
-    source = c.valider_source(wct, charge, principal, preuves, classes, nombre_sources)
+    source = c.valider_source(wct, charge, principal, preuves, classes, nombre_sources, refus)
     return acteur, source
 
 
@@ -2185,6 +2186,10 @@ def autoriser_classement_variance_appareil(
         or acteur.role != "admin"
     ):
         raise c.Refus("IDENTITE-INVALIDE")
+    if nom == c.ECRIRE:
+        from .classement_variance_contexte import intention
+
+        intention(arguments)  # Meta requise après identité mais avant toute source métier.
     sel = arguments.get("selection")
     if nom == c.LISTE:
         wct_id = arguments.get("wct_id")
@@ -2206,92 +2211,129 @@ def _ajouter_classement_variance(maillon):
     )
 
 
+def _ajouter_refus_classement_variance(maillon):
+    c = classement_variance_appareil
+    stockage.maillons(_DEPARTEMENT, c.REGISTRE_REFUS).append(maillon, rang_attendu=maillon["index"])
+
+
 def classer_cause_variance_appareil(
     selection, cause, motif, classement_attendu, references_pieces
 ):
+    from datetime import datetime
+
+    from . import classement_variance_contexte as ctx
+
     c = classement_variance_appareil
+    args = {"selection": selection, "cause": cause, "motif": motif,
+            "classement_attendu": classement_attendu, "references_pieces": references_pieces}
     try:
-        args = {
-            "selection": selection,
-            "cause": cause,
-            "motif": motif,
-            "classement_attendu": classement_attendu,
-            "references_pieces": references_pieces,
-        }
         acteur, source = autoriser_classement_variance_appareil(args)
+        intention = ctx.intention(args)
+        meta = ctx.meta_courante()
         reception = contexte.horodatage_reception()
-        if reception is None:
+        if (reception is None or reception.appareil != meta.appareil
+                or reception.horodatage_appareil != datetime.fromisoformat(meta.horodatage_appareil)):
             raise c.Refus("CONTEXTE-MUTATION-ABSENT")
-        auteur = {
-            "personne": acteur.personne,
-            "role": acteur.role,
-            "source": "appareil",
-        }
-        nouveau = c.construire(
-            source,
-            selection,
-            cause,
-            motif,
-            classement_attendu,
-            references_pieces,
-            auteur,
-            reception,
-        )
-        limite = contexte.limite_sortie() or c.BORNE_SORTIE
+        auteur = {"personne": acteur.personne, "role": acteur.role, "source": "appareil"}
+        if any(m.get("version_schema") == 2 and c.paire(m["intention"]) == c.paire(intention)
+               for m in [*source["classements"], *source["refus"]]):
+            raise c.Refus("REJEU-INCOHERENT")
+    except c.Refus as exc:
+        return c.refuser(exc.suffixe)
+    limite = contexte.limite_sortie() or c.BORNE_SORTIE
+    try:
+        nouveau = c.construire(source, selection, cause, motif, classement_attendu,
+                               references_pieces, auteur, reception, intention=intention)
         c.verifier_borne(c.ack(nouveau), limite, mutation=True)
+    except c.Refus as exc:
+        if exc.suffixe not in c.REFUS_FRAIS:
+            return c.refuser(exc.suffixe)
+        nouveau = c.construire_refus(source, selection, exc.suffixe, intention, auteur, reception)
+        try:
+            c.verifier_borne(c.ack_refus(nouveau), limite, mutation=True)
+        except c.Refus as quota:
+            raise RuntimeError("preuve de refus atomique hors de sa borne") from quota
+        try:
+            with stockage.connexion_courante().begin_nested():
+                _ajouter_refus_classement_variance(nouveau)
+                actuel = list(stockage.maillons(_DEPARTEMENT, c.REGISTRE_REFUS))
+                c.valider_refus(actuel)
+                c.valider_associations(source["classements"], actuel)
+                if actuel[-1] != nouveau:
+                    raise c.Refus("REJEU-INCOHERENT")
+                response = c.ack_refus(actuel[-1])
+                c.verifier_borne(response, limite, mutation=True)
+            return response
+        except Exception as panne:
+            raise RuntimeError("échec technique du refus atomique de classement") from panne
+    try:
         with stockage.connexion_courante().begin_nested():
             _ajouter_classement_variance(nouveau)
             actuel = list(stockage.maillons(_DEPARTEMENT, c.REGISTRE))
             c.valider_classements(actuel)
+            c.valider_associations(actuel, source["refus"])
             if actuel[-1] != nouveau:
                 raise c.Refus("LIAISON-INCOHERENTE")
             response = c.ack(actuel[-1])
             c.verifier_borne(response, limite, mutation=True)
         return response
-    except c.Refus as exc:
-        return c.refuser(exc.suffixe)
-    except EcritureConcurrente:
-        raise
     except Exception as exc:
-        raise RuntimeError(
-            "échec technique du classement atomique de variance"
-        ) from exc
+        raise RuntimeError("échec technique du classement atomique de variance") from exc
 
 
 def verifier_rejeu_classement_variance_appareil(arguments, reponse):
-    """Référence propre persistée, jamais latest/rang historique ni lecture CAS."""
+    """Preuve propre positive/négative persistée, pas précondition de dernier état."""
+    from datetime import datetime
+
+    from . import classement_variance_contexte as ctx
+
     c = classement_variance_appareil
-    _, source = autoriser_classement_variance_appareil(arguments)
+    acteur, source = autoriser_classement_variance_appareil(arguments)
+    intention = ctx.intention(arguments)
+    meta = ctx.meta_courante()
     if type(reponse) is not dict or reponse.get("ok") is not True:
-        return
+        raise c.Refus("REJEU-INCOHERENT")
     ack = reponse.get("resultat")
     if type(ack) is not dict:
         raise c.Refus("REJEU-INCOHERENT")
     if ack.get("accepte") is False:
-        return
-    if (
-        set(ack) != {"accepte", "resultat", "registre"}
-        or ack.get("accepte") is not True
-    ):
+        keys = {"accepte", "version_schema", "verdict", "intention", "preuve_refus",
+                "auteur", "horodatage_appareil_declare"}
+        if (not c.ferme(ack, keys) or type(ack["version_schema"]) is not int
+                or ack["version_schema"] != 2 or ack["intention"] != intention
+                or not c.reference_valide(ack["preuve_refus"], c.REGISTRE_REFUS)):
+            raise c.Refus("REJEU-INCOHERENT")
+        ref = ack["preuve_refus"]
+        if ref["index"] >= len(source["refus"]):
+            raise c.Refus("REJEU-INCOHERENT")
+        maillon = source["refus"][ref["index"]]
+        if c.ack_refus(maillon) != ack or maillon["selection"] != arguments["selection"]:
+            raise c.Refus("REJEU-INCOHERENT")
+    else:
+        v2 = "version_schema" in ack
+        keys = {"accepte", "resultat", "registre"} | ({"version_schema"} if v2 else set())
+        if (not c.ferme(ack, keys) or ack.get("accepte") is not True
+                or (v2 and (type(ack["version_schema"]) is not int or ack["version_schema"] != 2))):
+            raise c.Refus("REJEU-INCOHERENT")
+        result = ack["resultat"]
+        if type(result) is not dict or not c.reference_valide(result.get("reference"), c.REGISTRE):
+            raise c.Refus("REJEU-INCOHERENT")
+        ref = result["reference"]
+        if ref["index"] >= len(source["classements"]):
+            raise c.Refus("REJEU-INCOHERENT")
+        maillon = source["classements"][ref["index"]]
+        if (c.ack(maillon) != ack
+                or any(result.get(k) != arguments.get(k)
+                       for k in ["selection", "cause", "motif", "references_pieces"])
+                or result.get("reference_precedente") != arguments.get("classement_attendu")
+                or (v2 and result.get("intention") != intention)
+                or result.get("appareil_id") != meta.appareil):
+            raise c.Refus("REJEU-INCOHERENT")
+    if (maillon["auteur"] != {"personne": acteur.personne, "role": "admin", "source": "appareil"}
+            or datetime.fromisoformat(maillon["horodatage_appareil_declare"])
+            != datetime.fromisoformat(meta.horodatage_appareil)):
         raise c.Refus("REJEU-INCOHERENT")
-    result = ack["resultat"]
-    if type(result) is not dict or not c.reference_valide(
-        result.get("reference"), c.REGISTRE
-    ):
-        raise c.Refus("REJEU-INCOHERENT")
-    ref = result["reference"]
-    if ref["index"] >= len(source["classements"]):
-        raise c.Refus("REJEU-INCOHERENT")
-    maillon = source["classements"][ref["index"]]
-    if (
-        c.ack(maillon) != ack
-        or any(
-            result.get(k) != arguments.get(k)
-            for k in ["selection", "cause", "motif", "references_pieces"]
-        )
-        or result.get("reference_precedente") != arguments.get("classement_attendu")
-    ):
-        raise c.Refus("REJEU-INCOHERENT")
+    c.verifier_borne(ack, contexte.limite_sortie() or c.BORNE_SORTIE, mutation=True)
 
 
 def lister_variances_classables_wct_appareil(wct_id, decalage=0, limite=8):

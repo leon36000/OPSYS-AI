@@ -12,6 +12,11 @@ from . import preuves_pertes_bris_appareil as preuves
 BORNE_SORTIE = 5400
 PLAFOND_LIGNES = 10000
 REGISTRE = "classements_variance"
+REGISTRE_REFUS = "refus_classement_variance"
+REFUS_FRAIS = frozenset({
+    "ARGUMENTS-INVALIDES", "LIGNE-HORS-PERIMETRE", "PIECES-INVALIDES",
+    "LIAISON-INCOHERENTE", "REVISION-PERIMEE", "SORTIE-TROP-VOLUMINEUSE",
+})
 LISTE = "m6_lister_variances_classables_wct_appareil"
 ECRIRE = "m6_classer_cause_variance_appareil"
 HISTO = "m6_lire_historique_classement_variance_appareil"
@@ -101,6 +106,8 @@ def valider_classements(maillons):
     pred = ""
     derniers = {}
     for index, m in enumerate(maillons):
+        if type(m) is not dict:
+            raise Refus("REGISTRE-INVALIDE")
         keys = {
             "index",
             "hash_precedent",
@@ -116,7 +123,10 @@ def valider_classements(maillons):
             "references_pieces",
         }
         if (
-            not ferme(m, keys)
+            not ferme(m, keys | ({"version_schema", "intention"} if "version_schema" in m else set()))
+            or ("version_schema" in m and (type(m["version_schema"]) is not int
+                or m["version_schema"] != 2 or not intention_valide(m.get("intention"))
+                or m["intention"]["appareil_id"] != m["appareil_id"]))
             or type(m["index"]) is not int
             or m["index"] != index
             or m["hash_precedent"] != pred
@@ -182,13 +192,14 @@ def pieces_forme_valide(pieces):
     return True
 
 
-def valider_source(wct, charge, principal, preuve_lignes, classements, nombre_admission):
+def valider_source(wct, charge, principal, preuve_lignes, classements, nombre_admission, refus=()):
     if type(charge) is not dict or charge.get("statut_variance") != "evaluee":
         raise Refus("VARIANCE-NON-FINALISEE")
     lignes = charge.get("lignes")
     if type(lignes) is not list:
         raise Refus("SOURCE-INVALIDE")
-    if nombre_admission + 1 + len(lignes) + len(principal) + len(preuve_lignes) + len(classements) > PLAFOND_LIGNES:
+    if (nombre_admission + 1 + len(lignes) + len(principal) + len(preuve_lignes)
+            + len(classements) + len(refus) > PLAFOND_LIGNES):
         raise Refus("BORNE-SOURCES")
     if (
         charge.get("wct_id") != wct["wct_id"]
@@ -218,7 +229,10 @@ def valider_source(wct, charge, principal, preuve_lignes, classements, nombre_ad
     except preuves.Refus as exc:
         raise Refus(exc.suffixe) from None
     valider_classements(classements)
-    return {"wct": wct, "charge": charge, "principal": principal, "preuves": preuve_lignes, "classements": classements}
+    valider_refus(refus)
+    valider_associations(classements, refus)
+    return {"wct": wct, "charge": charge, "principal": principal, "preuves": preuve_lignes,
+            "classements": classements, "refus": refus}
 
 
 def selection(source, position):
@@ -291,7 +305,7 @@ def pour_objet(source, sel):
     return [m for m in source["classements"] if m["selection"] == sel]
 
 
-def construire(source, sel, cause, motif, attendu, pieces, auteur, reception):
+def construire(source, sel, cause, motif, attendu, pieces, auteur, reception, *, intention=None):
     choisir(source, sel, eligible=True)
     if type(cause) is not str or cause not in contrats.CAUSES_VARIANCE_CHANTIER or not motif_valide(motif):
         raise Refus("ARGUMENTS-INVALIDES")
@@ -315,6 +329,10 @@ def construire(source, sel, cause, motif, attendu, pieces, auteur, reception):
         "horodatage_appareil_declare": reception.horodatage_appareil.isoformat(),
         "references_pieces": copy.deepcopy(pieces),
     }
+    if intention is not None:
+        if not intention_valide(intention) or intention["appareil_id"] != reception.appareil:
+            raise Refus("CONTEXTE-MUTATION-ABSENT")
+        m.update(version_schema=2, intention=copy.deepcopy(intention))
     m["hash_maillon"] = encodage.empreinte(m)
     return m
 
@@ -322,15 +340,17 @@ def construire(source, sel, cause, motif, attendu, pieces, auteur, reception):
 def ack(m):
     return {
         "accepte": True,
+        **({"version_schema": 2} if m.get("version_schema") == 2 else {}),
         "resultat": projection(m),
         "registre": {"taille": m["index"] + 1, "hash_tete": m["hash_maillon"]},
     }
 
 
 def verifier_borne(dto, limite=5400, *, mutation=False):
-    envelope = {"ok": True, "resultat": dto, **({"rejoue": False} if mutation else {})}
-    if len(json.dumps(envelope, ensure_ascii=False)) > min(BORNE_SORTIE, limite):
-        raise Refus("SORTIE-TROP-VOLUMINEUSE")
+    for rejoue in ((False, True) if mutation else (None,)):
+        envelope = {"ok": True, "resultat": dto, **({"rejoue": rejoue} if mutation else {})}
+        if len(json.dumps(envelope, ensure_ascii=False)) > min(BORNE_SORTIE, limite):
+            raise Refus("SORTIE-TROP-VOLUMINEUSE")
 
 
 def source_projection(source):
@@ -409,3 +429,70 @@ def lire(source, decalage, limite, sel=None, borne=5400):
             break
         dto = candidate
     return dto
+
+
+def intention_valide(v):
+    return (ferme(v, {"appareil_id", "intention_uuid", "empreinte_arguments"})
+            and texte(v["appareil_id"]) and texte(v["intention_uuid"])
+            and preuves._hash(v["empreinte_arguments"]))
+
+
+def paire(v):
+    return v["appareil_id"], v["intention_uuid"]
+
+
+def valider_associations(classements, refus):
+    seen = set()
+    for m in [*classements, *refus]:
+        if m.get("version_schema") != 2:
+            continue
+        key = paire(m["intention"])
+        if key in seen:
+            raise Refus("REGISTRE-INVALIDE")
+        seen.add(key)
+
+
+def valider_refus(maillons):
+    pred = ""
+    for index, m in enumerate(maillons):
+        keys = {"version_schema", "intention", "index", "hash_precedent", "hash_maillon",
+                "selection", "verdict", "auteur", "recu_le_serveur", "horodatage_appareil_declare"}
+        if (not ferme(m, keys) or type(m["version_schema"]) is not int or m["version_schema"] != 2
+                or not intention_valide(m["intention"]) or type(m["index"]) is not int
+                or m["index"] != index or m["hash_precedent"] != pred
+                or not selection_valide(m["selection"]) or not preuves._hash(m["hash_maillon"])
+                or not ferme(m["verdict"], {"code", "detail"})
+                or not any(m["verdict"] == refuser(code)["verdict"] for code in REFUS_FRAIS)
+                or not ferme(m["auteur"], {"personne", "role", "source"})
+                or not texte(m["auteur"]["personne"]) or m["auteur"]["role"] != "admin"
+                or m["auteur"]["source"] != "appareil"):
+            raise Refus("REGISTRE-INVALIDE")
+        try:
+            pertes_appareil._instant(m["recu_le_serveur"])
+            pertes_appareil._instant(m["horodatage_appareil_declare"])
+            if encodage.empreinte({k: v for k, v in m.items() if k != "hash_maillon"}) != m["hash_maillon"]:
+                raise Refus("REGISTRE-INVALIDE")
+        except (KeyError, TypeError, ValueError, pertes_appareil.Refus):
+            raise Refus("REGISTRE-INVALIDE") from None
+        pred = m["hash_maillon"]
+
+
+def construire_refus(source, sel, suffixe, intention, auteur, reception):
+    if suffixe not in REFUS_FRAIS or not intention_valide(intention):
+        raise Refus("REJEU-INCOHERENT")
+    old = source["refus"]
+    m = {"version_schema": 2, "intention": copy.deepcopy(intention), "index": len(old),
+         "hash_precedent": old[-1]["hash_maillon"] if old else "",
+         "selection": copy.deepcopy(sel), "verdict": refuser(suffixe)["verdict"],
+         "auteur": copy.deepcopy(auteur), "recu_le_serveur": reception.recu_le.isoformat(),
+         "horodatage_appareil_declare": reception.horodatage_appareil.isoformat()}
+    m["hash_maillon"] = encodage.empreinte(m)
+    return m
+
+
+def ack_refus(m):
+    return {"accepte": False, "version_schema": 2, "verdict": copy.deepcopy(m["verdict"]),
+            "intention": copy.deepcopy(m["intention"]),
+            "preuve_refus": {"registre": REGISTRE_REFUS, "index": m["index"], "hash_maillon": m["hash_maillon"]},
+            "auteur": copy.deepcopy(m["auteur"]),
+            "horodatage_appareil_declare": m["horodatage_appareil_declare"]}

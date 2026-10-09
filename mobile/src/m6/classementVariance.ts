@@ -1,4 +1,6 @@
 import { estDecimal } from "../admin/lecteurs";
+import { sha256 } from "@noble/hashes/sha2.js";
+import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 import { ouvrirEnveloppe } from "../admin/enveloppe";
 import { horodatageM10Valide } from "../m10/contrat";
 import type { Reponse } from "../m7/contrat";
@@ -25,13 +27,20 @@ export interface PieceClassementM6 {
   readonly reference_preuve: { readonly registre: "preuves_pertes_bris"; readonly index: number; readonly hash_maillon: string } | null;
   readonly positions_photos: readonly number[];
 }
-export interface ClassementVarianceM6 {
+export interface IntentionClassementM6 {
+  readonly appareil_id: string; readonly intention_uuid: string; readonly empreinte_arguments: string;
+}
+export interface ClassementVarianceM6V1 {
   readonly reference: ReferenceClassementM6; readonly selection: SelectionVarianceM6; readonly cause: CauseVariance;
   readonly motif: string; readonly reference_precedente: ReferenceClassementM6 | null;
   readonly auteur: { readonly personne: string; readonly role: "admin"; readonly source: "appareil" };
   readonly appareil_id: string; readonly classe_le: string; readonly horodatage_appareil_declare: string;
   readonly references_pieces: readonly PieceClassementM6[];
 }
+export interface ClassementVarianceM6V2 extends ClassementVarianceM6V1 {
+  readonly version_schema: 2; readonly intention: IntentionClassementM6;
+}
+export type ClassementVarianceM6 = ClassementVarianceM6V1 | ClassementVarianceM6V2;
 export interface LigneVarianceClassableM6 {
   readonly selection: SelectionVarianceM6;
   readonly source_ligne: { readonly materiau: string; readonly unite: string | null; readonly quantite_prevue: string;
@@ -65,7 +74,9 @@ export interface ArgumentsClassementVarianceM6 {
   readonly selection: SelectionVarianceM6; readonly cause: CauseVariance; readonly motif: string;
   readonly classement_attendu: ReferenceClassementM6 | null; readonly references_pieces: readonly PieceClassementM6[];
 }
-export interface RecuClassementVarianceM6 extends ClassementVarianceM6 { readonly registre_confirmation: { readonly taille: number; readonly hash_tete: string } }
+export type RecuClassementVarianceM6 = ClassementVarianceM6 & {
+  readonly registre_confirmation: { readonly taille: number; readonly hash_tete: string };
+};
 export type InterpretationClassementVariance =
   | { readonly accepte: true; readonly resume: RecuClassementVarianceM6 }
   | { readonly accepte: false; readonly verdict: { readonly code: string; readonly detail: string } };
@@ -103,11 +114,24 @@ function pieces(v: unknown, max = 8): v is readonly PieceClassementM6[] {
   });
 }
 const CLES_CLASSEMENT = ["reference", "selection", "cause", "motif", "reference_precedente", "auteur", "appareil_id", "classe_le", "horodatage_appareil_declare", "references_pieces"];
+function intention(v: unknown): v is IntentionClassementM6 {
+  return ferme(v, ["appareil_id", "intention_uuid", "empreinte_arguments"]) && id(v.appareil_id) && id(v.intention_uuid) && hash(v.empreinte_arguments);
+}
+function auteur(v: unknown): v is ClassementVarianceM6V1["auteur"] {
+  return ferme(v, ["personne", "role", "source"]) && id(v.personne) && v.role === "admin" && v.source === "appareil";
+}
 function classement(v: unknown, sel: SelectionVarianceM6): v is ClassementVarianceM6 {
-  if (!ferme(v, CLES_CLASSEMENT) || !reference(v.reference, "classements_variance") || !selection(v.selection) || !egal(v.selection, sel) || !cause(v.cause) || !motifClassementValide(v.motif) ||
+  if (!objet(v)) return false;
+  const v2 = Object.hasOwn(v, "version_schema");
+  if (!ferme(v, [...CLES_CLASSEMENT, ...(v2 ? ["version_schema", "intention"] : [])]) ||
+    (v2 && (v.version_schema !== 2 || !intention(v.intention) || v.intention.appareil_id !== v.appareil_id)) ||
+    !reference(v.reference, "classements_variance") || !selection(v.selection) || !egal(v.selection, sel) || !cause(v.cause) || !motifClassementValide(v.motif) ||
     !(v.reference_precedente === null || reference(v.reference_precedente, "classements_variance")) ||
-    !ferme(v.auteur, ["personne", "role", "source"]) || !id(v.auteur.personne) || v.auteur.role !== "admin" || v.auteur.source !== "appareil" ||
+    !auteur(v.auteur) ||
     !id(v.appareil_id) || !date(v.classe_le) || !date(v.horodatage_appareil_declare) || !pieces(v.references_pieces)) return false;
+  if (v2 && (v.intention as IntentionClassementM6).empreinte_arguments !== empreinteArgumentsClassementVariance({
+    selection: v.selection, cause: v.cause, motif: v.motif, classement_attendu: v.reference_precedente, references_pieces: v.references_pieces,
+  })) return false;
   return v.reference_precedente === null || (v.reference_precedente as Record<string, unknown>).index! < (v.reference as Record<string, unknown>).index!;
 }
 function source(v: unknown, wct: string): v is SourceVarianceM6 {
@@ -190,6 +214,16 @@ export function figerArgumentsClassementVariance(v: unknown): ArgumentsClassemen
   const c = copierJsonLecture(v);
   return c !== JSON_LECTURE_INVALIDE && argumentsClassement(c) ? c : null;
 }
+function trierClesJson(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(trierClesJson);
+  if (objet(v)) return Object.fromEntries(Object.keys(v).sort().map(k => [k, trierClesJson(v[k])]));
+  return v;
+}
+/** Args fermés : clés ASCII, entiers bornés, texte Unicode verbatim; même encodeur canonique que Python. */
+export function empreinteArgumentsClassementVariance(v: unknown): string | null {
+  const args = figerArgumentsClassementVariance(v);
+  return args ? bytesToHex(sha256(utf8ToBytes(JSON.stringify(trierClesJson(args))))) : null;
+}
 const CLE_DESTINATION = "_classement_local";
 export interface DestinationClassementVariance { readonly appareilId: string; readonly urlBase: string }
 function destination(v: unknown): v is { readonly appareil_id: string; readonly url_base: string } {
@@ -210,7 +244,7 @@ export function creerMutationClassementVariance(args: ArgumentsClassementVarianc
 }
 function lireCharge(m: MutationOutbox): { readonly args: ArgumentsClassementVarianceM6; readonly destination: { readonly appareil_id: string; readonly url_base: string } } | null {
   const c = copierJsonLecture(m);
-  if (c === JSON_LECTURE_INVALIDE || !objet(c) || c.type !== "variance_cause_classification" || !objet(c.payload) || !date(c.createdAtLocal)) return null;
+  if (c === JSON_LECTURE_INVALIDE || !objet(c) || c.type !== "variance_cause_classification" || !id(c.id) || !objet(c.payload) || !date(c.createdAtLocal)) return null;
   const { [CLE_DESTINATION]: locale, ...args } = c.payload;
   if (!destination(locale) || !argumentsClassement(args) || c.chantierId !== `variance:${args.selection.wct_id}`) return null;
   return { args, destination: locale };
@@ -224,6 +258,23 @@ export function verifierDestinationClassementVariance(m: MutationOutbox, session
   return c !== null && c.destination.appareil_id === session.appareilId && c.destination.url_base === session.urlBase;
 }
 const inconnu: InterpretationClassementVariance = { accepte: false, verdict: { code: "accuse_invalide", detail: "Confirmation inconnue : même intention de classement conservée." } };
+const SUFFIXES_REFUS_CERTAINS = ["LIGNE-HORS-PERIMETRE", "ARGUMENTS-INVALIDES", "PIECES-INVALIDES", "LIAISON-INCOHERENTE", "REVISION-PERIMEE", "SORTIE-TROP-VOLUMINEUSE"];
+const DETAIL_REFUS_CERTAIN = "le classement ne satisfait pas son contrat ; aucun détail partiel n’est transmis";
+/** Aucun Date.parse : le décalage civil est exact, les fractions ne perdent aucune microseconde. */
+function microsecondes(v: unknown): bigint | null {
+  if (!date(v)) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})(?:[.,](\d{1,6}))?(Z|([+-])(\d{2}):(\d{2}))$/.exec(v);
+  if (!m) return null;
+  const d = new Date(0); d.setUTCFullYear(Number(m[1]), Number(m[2]) - 1, Number(m[3])); d.setUTCHours(Number(m[4]), Number(m[5]), Number(m[6]), 0);
+  const offset = m[8] === "Z" ? 0 : (Number(m[10]) * 60 + Number(m[11])) * (m[9] === "-" ? -1 : 1);
+  return BigInt(d.getTime() - offset * 60000) * 1000n + BigInt((m[7] ?? "").padEnd(6, "0"));
+}
+function memeInstant(v: unknown, original: string): boolean {
+  const instant = microsecondes(v); return instant !== null && instant === microsecondes(original);
+}
+function intentionPropre(v: unknown, args: ArgumentsClassementVarianceM6, m: MutationOutbox, appareilId: string): boolean {
+  return intention(v) && v.appareil_id === appareilId && v.intention_uuid === m.id && v.empreinte_arguments === empreinteArgumentsClassementVariance(args);
+}
 export function interpreterClassementVariance(brut: unknown, mutation?: MutationOutbox): InterpretationClassementVariance {
   if (!mutation) return inconnu;
   const charge = lireCharge(mutation), args = charge?.args;
@@ -232,21 +283,30 @@ export function interpreterClassementVariance(brut: unknown, mutation?: Mutation
     (Object.hasOwn(c, "rejoue") && typeof c.rejoue !== "boolean") || !objet(c.resultat)) return inconnu;
   const r = c.resultat;
   if (r.accepte === false) {
-    if (!ferme(r, ["accepte", "verdict"]) || !ferme(r.verdict, ["code", "detail"]) || typeof r.verdict.code !== "string" || !/^REJ-M6-CLASSEMENT-[A-Z0-9]+(?:-[A-Z0-9]+)*$/.test(r.verdict.code) ||
-      r.verdict.code === "REJ-M6-CLASSEMENT-IDENTITE-INVALIDE" || typeof r.verdict.detail !== "string") return inconnu;
-    return { accepte: false, verdict: { code: r.verdict.code, detail: r.verdict.detail } };
+    // Un négatif v1, même frais, ne prouve pas qu'un ancien effet n'a jamais existé.
+    if (!ferme(r, ["accepte", "version_schema", "verdict", "intention", "preuve_refus", "auteur", "horodatage_appareil_declare"]) || r.version_schema !== 2 ||
+      !ferme(r.verdict, ["code", "detail"])) return inconnu;
+    const verdict = r.verdict, code = verdict.code;
+    if (typeof code !== "string" || !SUFFIXES_REFUS_CERTAINS.some(s => code === `REJ-M6-CLASSEMENT-${s}`) || verdict.detail !== DETAIL_REFUS_CERTAIN ||
+      !intentionPropre(r.intention, args, mutation, charge!.destination.appareil_id) || !reference(r.preuve_refus, "refus_classement_variance") ||
+      !auteur(r.auteur) || r.auteur.personne !== mutation.proprietaire || !memeInstant(r.horodatage_appareil_declare, mutation.createdAtLocal)) return inconnu;
+    return { accepte: false, verdict: { code, detail: verdict.detail } };
   }
-  if (!ferme(r, ["accepte", "resultat", "registre"]) || r.accepte !== true || !classement(r.resultat, args.selection) || !ferme(r.registre, ["taille", "hash_tete"]) ||
+  const v2 = Object.hasOwn(r, "version_schema");
+  if (!ferme(r, ["accepte", "resultat", "registre", ...(v2 ? ["version_schema"] : [])]) || r.accepte !== true || !classement(r.resultat, args.selection) ||
+    (v2 ? r.version_schema !== 2 || !("version_schema" in r.resultat) || !intentionPropre(r.resultat.intention, args, mutation, charge!.destination.appareil_id)
+      : "version_schema" in r.resultat) || !ferme(r.registre, ["taille", "hash_tete"]) ||
     r.registre.taille !== r.resultat.reference.index + 1 || r.registre.hash_tete !== r.resultat.reference.hash_maillon ||
     r.resultat.cause !== args.cause || r.resultat.motif !== args.motif || !egal(r.resultat.reference_precedente, args.classement_attendu) || !egal(r.resultat.references_pieces, args.references_pieces) ||
-    r.resultat.auteur.personne !== mutation.proprietaire || r.resultat.appareil_id !== charge!.destination.appareil_id || Date.parse(r.resultat.horodatage_appareil_declare) !== Date.parse(mutation.createdAtLocal) ||
-    /\.\d*[1-9]\d*(?=[+-]|Z)/.test(r.resultat.horodatage_appareil_declare)) return inconnu;
+    r.resultat.auteur.personne !== mutation.proprietaire || r.resultat.appareil_id !== charge!.destination.appareil_id || !memeInstant(r.resultat.horodatage_appareil_declare, mutation.createdAtLocal)) return inconnu;
   return { accepte: true, resume: { ...(r.resultat as ClassementVarianceM6), registre_confirmation: { taille: r.registre.taille as number, hash_tete: r.registre.hash_tete as string } } };
 }
 export function validerRecuClassementVariance(m: MutationOutbox): boolean {
-  const c = copierJsonLecture(m.resumeAccepte);
-  if (m.statut !== "envoyee" || !ferme(c, [...CLES_CLASSEMENT, "registre_confirmation"])) return false;
+  const mutation = copierJsonLecture(m);
+  if (!objet(mutation) || mutation.statut !== "envoyee" || !objet(mutation.resumeAccepte)) return false;
+  const c = mutation.resumeAccepte, v2 = Object.hasOwn(c, "version_schema");
+  if (!ferme(c, [...CLES_CLASSEMENT, "registre_confirmation", ...(v2 ? ["version_schema", "intention"] : [])])) return false;
   const { registre_confirmation, ...resultat } = c;
-  return interpreterClassementVariance({ ok: true, resultat: { accepte: true, resultat, registre: registre_confirmation } }, m).accepte;
+  return interpreterClassementVariance({ ok: true, resultat: { accepte: true, ...(v2 ? { version_schema: 2 } : {}), resultat, registre: registre_confirmation } }, mutation as unknown as MutationOutbox).accepte;
 }
 export const interpreterClassementGenerique = (r: unknown, m?: MutationOutbox): InterpretationResultatMetier => interpreterClassementVariance(r, m);

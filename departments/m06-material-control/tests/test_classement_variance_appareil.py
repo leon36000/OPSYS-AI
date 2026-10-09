@@ -6,12 +6,14 @@ import copy
 import datetime as dt
 import importlib.util
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
+from m6_material_control import classement_variance_contexte as ctx
 from m6_material_control import contrats, encodage, outils
 from sqlalchemy import select, update
 
-from opsys import contexte, identite, stockage
+from opsys import contexte, idempotence, identite, stockage
 from opsys.outils import Autonomie, Niveau, executer_atomique
 from opsys.stockage.schema import EVENEMENTS_SORTANTS
 
@@ -33,11 +35,13 @@ def outil(nom):
     return value
 
 
-def executer(nom, args, actor=ADMIN, limite=5400):
+def executer(nom, args, actor=ADMIN, limite=5400, meta=None):
+    meta = meta or idempotence.Meta(str(uuid4()), "APP-CLASSEMENT-FICTIF", DATE)
     h = contexte.HorodatageAppareil(
         "APP-CLASSEMENT-FICTIF", dt.datetime.fromisoformat(DATE), dt.datetime.fromisoformat(DATE)
     )
-    with contexte.appele_par_appareil(actor), contexte.receptionne_de(h), contexte.sortie_bornee(limite):
+    with (ctx.contexte_mutation(meta), contexte.appele_par_appareil(actor),
+          contexte.receptionne_de(h), contexte.sortie_bornee(limite)):
         return executer_atomique(outil(nom), args)
 
 
@@ -130,15 +134,17 @@ def test_correction_v2_replay_reference_v1_sans_latest_ni_cas(monde):
     v2 = executer(ECRIRE, newer)["resultat"]
     assert v2["accepte"] and v2["resultat"]["reference_precedente"] == v1["resultat"]["reference"]
     before = fx.fx._tables()
-    with contexte.appele_par_appareil(ADMIN), stockage.transaction():
+    meta = idempotence.Meta(v1["resultat"]["intention"]["intention_uuid"], "APP-CLASSEMENT-FICTIF", DATE)
+    with ctx.contexte_mutation(meta), contexte.appele_par_appareil(ADMIN), stockage.transaction():
         outils.verifier_rejeu_classement_variance_appareil(d, {"ok": True, "resultat": v1})
     assert before == fx.fx._tables()
     conflict = executer(ECRIRE, newer)["resultat"]
     assert not conflict["accepte"] and conflict["verdict"]["code"] == "REJ-M6-CLASSEMENT-REVISION-PERIMEE"
-    assert before == fx.fx._tables()
+    after_refus = fx.fx._tables()
+    assert {n for n in before if before[n] != after_refus[n]} == {"registres_maillons"}
     r = executer(HISTO, {"selection": d["selection"], "decalage": 0, "limite": 8})
     assert [x["cause"] for x in r["resultat"]["resultat"]["historique"]] == ["waste", "breakage"]
-    assert before == fx.fx._tables()
+    assert after_refus == fx.fx._tables()
 
 
 @pytest.mark.parametrize(
@@ -202,7 +208,8 @@ def test_reference_piece_exacte_et_etrangere_refusee(monde):
     bad["classement_attendu"] = r["resultat"]["resultat"]["reference"]
     before = fx.fx._tables()
     assert not executer(ECRIRE, bad)["resultat"]["accepte"]
-    assert before == fx.fx._tables()
+    after_refus = fx.fx._tables()
+    assert {n for n in before if before[n] != after_refus[n]} == {"registres_maillons"}
 
 
 def test_quota_entier_avant_append_et_postwrite_rollback(monde):
@@ -211,7 +218,9 @@ def test_quota_entier_avant_append_et_postwrite_rollback(monde):
     before = fx.fx._tables()
     r = executer(ECRIRE, d, limite=800)
     assert not r["resultat"]["accepte"]
-    assert before == fx.fx._tables()
+    after_refus = fx.fx._tables()
+    assert {n for n in before if before[n] != after_refus[n]} == {"registres_maillons"}
+    before = after_refus
     _, patch = monde
     o = outils.classement_variance_appareil
     original = o.verifier_borne
@@ -224,8 +233,11 @@ def test_quota_entier_avant_append_et_postwrite_rollback(monde):
         return original(*a, **kw)
 
     patch.setattr(o, "verifier_borne", reject_after)
-    assert not executer(ECRIRE, d)["resultat"]["accepte"]
+    with pytest.raises(RuntimeError, match="atomique"):
+        executer(ECRIRE, d)
     assert before == fx.fx._tables()
+    patch.setattr(o, "verifier_borne", original)
+    assert executer(ECRIRE, d)["resultat"]["accepte"]
 
 
 def test_source_json_corrompue_refus_ferme(monde):
@@ -447,7 +459,8 @@ def test_rejeu_propre_reference_sans_lecture_cas_apres_disparition(monde):
 
     patch.setattr(outils.fichiers, "lire_blob_verifie", interdit)
     before = fx.fx._tables()
-    with contexte.appele_par_appareil(ADMIN), stockage.transaction():
+    meta = idempotence.Meta(ack["resultat"]["intention"]["intention_uuid"], "APP-CLASSEMENT-FICTIF", DATE)
+    with ctx.contexte_mutation(meta), contexte.appele_par_appareil(ADMIN), stockage.transaction():
         outils.verifier_rejeu_classement_variance_appareil(d, {"ok": True, "resultat": ack})
     assert before == fx.fx._tables()
 
@@ -464,7 +477,8 @@ def test_non_critique_sans_perte_bris_hors_perimetre(monde):
     assert r["lignes"] == [] and r["pagination"]["total"] == 0
     bad = executer(ECRIRE, demande(args))["resultat"]
     assert bad["verdict"]["code"] == "REJ-M6-CLASSEMENT-LIGNE-HORS-PERIMETRE"
-    assert before == fx.fx._tables()
+    after_refus = fx.fx._tables()
+    assert {n for n in before if before[n] != after_refus[n]} == {"registres_maillons"}
 
 
 def test_historique_budget_complet_pagination_sans_fait_coupe(monde):
@@ -493,7 +507,8 @@ def test_historique_budget_complet_pagination_sans_fait_coupe(monde):
 
 def test_borne_source_10000_10001_apres_copies_compte_lignes_publiques(monde):
     args = preparer()
-    with contexte.appele_par_appareil(ADMIN), stockage.transaction():
+    meta = idempotence.Meta(str(uuid4()), "APP-CLASSEMENT-FICTIF", DATE)
+    with ctx.contexte_mutation(meta), contexte.appele_par_appareil(ADMIN), stockage.transaction():
         _, source = outils.autoriser_classement_variance_appareil(demande(args))
     c = outils.classement_variance_appareil
     poids = 1 + len(source["charge"]["lignes"]) + len(source["principal"]) + len(source["preuves"])
