@@ -44,6 +44,10 @@ export type TypeMutation =
   | "job_completion"
   | "gps_consent_change"
   | "approval_decision"
+  /** Création N4 avec preuve P ; aucun statut métier de complétion confirmé ici. */
+  | "completion_review_proposal"
+  /** Décision N4 liée au maillon propre D ; les négations sans preuve restent inconnues. */
+  | "completion_review_decision"
   /** Décision humaine M7 ; preuve locale dans payload JSON, args RPC projetés par son descripteur. */
   | "marketing_decision"
   /** Arbitrage humain M10 d’un signalement réel ; aucun acteur fourni dans le payload. */

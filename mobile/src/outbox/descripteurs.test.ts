@@ -6,6 +6,14 @@ import { creerVidangeur } from "./vidangeur";
 import { invoquerOutil } from "../protocole/client";
 import { ERREURS_PASSAGERES } from "../protocole/enveloppeOutil";
 
+test.each(["completion_review_proposal", "completion_review_decision"] as const)("%s conserve sa série et les HTTP incertains", type => {
+  const d = DESCRIPTEURS_MUTATION.get(type);
+  expect(d).toBeDefined();
+  expect(d).toMatchObject({ serialiserParChantier: true, groupeSerie: "approval_decision",
+    conserverRefusHttpIncertains: true, verifierAvantEnvoi: true });
+  expect(typeof d?.validerRecuEnvoye).toBe("function");
+});
+
 // FILE_ACK_BOUND : collaborateurs réels, transport/octets explicitement fictifs.
 describe("fichier_bloc ACK lié au dépôt et au SDK", () => {
   const horloge = { maintenant: new Date("2026-10-08T12:00:00Z"), decalageMinutesUTC: -240 };

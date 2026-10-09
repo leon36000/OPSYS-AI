@@ -48,6 +48,9 @@ _LECTURES_CLASSEMENT_M6 = frozenset({
 })
 _LECTURE_RAPPELS_M1 = "m1_lister_rappels_appareil"
 _MUTATION_RAPPEL_M1 = "m1_prendre_en_charge_rappel_appareil"
+_LECTURE_REVUE_M4 = "m4_lire_dossier_revue_completion_appareil"
+_PROPOSITION_REVUE_M4 = "m4_resoudre_revue_completion_sources"
+_LEGACY_REVUE_M4 = "m4_resoudre_revue_completion"
 
 
 def _outils_memoire() -> tuple[Outil, ...]:
@@ -268,6 +271,27 @@ class Capacites:
         args = dict(arguments or {})
         appelante = identite_appelante()
         entree = self.index.get(nom)
+        if nom == _LEGACY_REVUE_M4 and (
+            meta is not None or (appelante is not None and appelante.source == "appareil")
+        ):
+            return {"ok": False, "erreur": "REJ-SOURCES-CHANGEES",
+                    "details": "Une nouvelle proposition liée aux sources est requise depuis l’appareil."}
+        if nom == _LECTURE_REVUE_M4 and entree is not None:
+            if meta is not None:
+                return {"ok": False, "erreur": "idempotence_hors_portee_lecture",
+                        "details": "Cette lecture pure n’admet aucune enveloppe de mutation."}
+            with self._cnx_factory() as cnx:
+                refus = self._garder_revue_m4(nom, args, cnx)
+                if refus is not None:
+                    return refus
+                with contexte_appel.sortie_bornee(min(5400, self._limite)):
+                    return self._distribuer(nom, args)
+        if nom == _PROPOSITION_REVUE_M4 and entree is not None:
+            if meta is None:
+                return {"ok": False, "erreur": "idempotence_appareil_requise",
+                        "details": "Cette proposition exige une intention DEVICE persistée."}
+            return self._appeler_idempotent(nom, args, meta, revalider_humain_cible=True,
+                                           demander_n4_humain=True)
         if (
             nom == "m6_lire_preuves_pertes_wct_appareil"
             or nom in _LECTURES_CLASSEMENT_M6
@@ -452,6 +476,70 @@ class Capacites:
         with self._cnx_factory() as connexion:
             return approbations.signataire_valide(connexion, appelante)
 
+    def _garder_revue_m4(
+        self, nom: str, arguments: dict[str, Any], cnx: Connection, *, frais: bool = True,
+    ) -> dict[str, Any] | None:
+        """Autorité actuelle et proposition signable avant claim ou lecture métier."""
+        signataire = self._signataire_appareil_cible_valide(nom, cnx)
+        if signataire is None or signataire.source != "appareil" or signataire.role != "admin":
+            return {"ok": False, "erreur": "REJ-HUMAIN-REQUIS",
+                    "details": "Une personne DEVICE admin actuellement active est requise."}
+        if valider_arguments(self.index[nom][1].parametres, arguments):
+            return {"ok": False, "erreur": "arguments_invalides",
+                    "details": "Le contrat fermé de revue de complétion n’est pas satisfait."}
+        if nom == _PROPOSITION_REVUE_M4:
+            try:
+                taille = len(json.dumps(arguments, ensure_ascii=False, allow_nan=False))
+            except (TypeError, ValueError):
+                return {"ok": False, "erreur": "arguments_invalides",
+                        "details": "Les arguments ne forment pas une proposition JSON complète."}
+            if taille > 1500:
+                return {"ok": False, "erreur": "arguments_trop_volumineux",
+                        "details": "La proposition dépasse les 1500 caractères lisibles sur l’appareil."}
+            if frais:
+                from m4_field_ops import revue_completion_sources, sources_revue_completion
+
+                try:
+                    with contexte_appel.sortie_bornee(min(5400, self._limite)):
+                        sources_revue_completion.autoriser_proposition(arguments, frais=True)
+                except revue_completion_sources.Refus as exc:
+                    refus = revue_completion_sources.verdict(exc.suffixe)
+                    return {"ok": False, "erreur": refus["code"], "details": refus["detail"]}
+        return None
+
+    @staticmethod
+    def _contexte_decision_revue_m4(nom, meta, arguments):
+        if nom != "m9_decider_demande_approbation":
+            return nullcontext()
+        from .approbations_completion_m4 import contexte_decision
+
+        return contexte_decision(meta, arguments)
+
+    @staticmethod
+    def _confirmation_revue_inconnue():
+        return {"ok": False, "erreur": "confirmation_transport_indisponible", "issue": "inconnue",
+                "details": "L’intention reste inconnue ; aucune nouvelle décision ne doit en être dérivée."}
+
+    def _preflight_creation_revue_m4(self, arguments, meta, signataire):
+        from .approbations_completion_m4 import _hora, _texte
+
+        if not _texte(meta.appareil) or not _texte(meta.cle) or not _hora(meta.horodatage_appareil):
+            return self._confirmation_revue_inconnue()
+        # creer_demande produit exactement douze caractères hexadécimaux. Leur
+        # valeur n'affecte pas la taille ; aucun identifiant fictif n'est persisté.
+        ident = "0" * 12
+        preuve = {"demande_id": ident, "departement": "m04-field-ops", "outil": _PROPOSITION_REVUE_M4,
+                  "niveau": "N4", "empreinte_arguments": idempotence.empreinte_arguments(arguments),
+                  "proposant": {"personne": signataire.personne, "role": signataire.role,
+                                "appareil_id": meta.appareil, "intention_uuid": meta.cle}}
+        attendue = {"ok": True, "version_schema": 1, "statut": "en_attente_approbation", "demande_id": ident,
+                    "details": "Demande N4 créée par un appareil humain authentifié. Le propriétaire doit "
+                               "l’approuver avant toute exécution.", "preuve_proposition": preuve}
+        if any(len(json.dumps({**attendue, "rejoue": flag}, ensure_ascii=False)) > min(5400, self._limite)
+               for flag in (False, True)):
+            return self._confirmation_revue_inconnue()
+        return None
+
     def _appeler_avec_ticket(
         self, nom: str, arguments: dict[str, Any], ticket_meta: liaison_cibles.TicketMeta
     ) -> dict[str, Any]:
@@ -633,7 +721,46 @@ class Capacites:
             self._cnx_factory() as cnx,
             self._contexte_mutation_rappel_m1(nom, meta),
             self._contexte_mutation_classement_m6(nom, meta),
+            self._contexte_decision_revue_m4(nom, meta, arguments),
         ):
+            decision_revue = False
+            if nom == _PROPOSITION_REVUE_M4:
+                # Autorité avant même la lecture de son claim ; la création historique
+                # ne dépend pas de la dernière classification métier.
+                refus = self._garder_revue_m4(nom, arguments, cnx, frais=False)
+                if refus is not None:
+                    return refus
+                if idempotence._lire(cnx, meta) is None:
+                    signataire = self._signataire_appareil_cible_valide(nom, cnx)
+                    refus = self._preflight_creation_revue_m4(arguments, meta, signataire)
+                    if refus is not None:
+                        return refus
+                    refus = self._garder_revue_m4(nom, arguments, cnx, frais=True)
+                if refus is not None:
+                    return refus
+            if nom == "m9_decider_demande_approbation":
+                from . import approbations_appareil
+                from .approbations_completion_m4 import _demande, cible_revue
+
+                signataire, _ = approbations_appareil._signataire(cnx, identite_appelante())
+                decision_revue = cible_revue(cnx, arguments.get("demande_id"))
+                if decision_revue:
+                    if signataire is None or not signataire.proprietaire:
+                        return self._confirmation_revue_inconnue()
+                    demande_revue = _demande(cnx, arguments.get("demande_id"))
+                    if demande_revue is None:
+                        return self._confirmation_revue_inconnue()
+                    # Une confirmation minimale complète est nécessaire avant le claim.
+                    # Le producteur M4 préflight ensuite sa preuve positive entière.
+                    minimale = {"ok": True, "resultat": {"accepte": True, "resultat": {
+                        "demande_id": demande_revue["id"], "decision": arguments.get("decision"),
+                        "statut": "echec", "outil": demande_revue["outil"],
+                        "departement": demande_revue["departement"], "niveau": "N4",
+                        "decide_par": signataire.personne.identifiant, "role": "nathan_owner",
+                        "decide_le": recu_le.isoformat(timespec="seconds"), "preuve_completion": None,
+                    }}, "rejoue": False}
+                    if len(json.dumps(minimale, ensure_ascii=False)) > min(5400, self._limite):
+                        return self._confirmation_revue_inconnue()
             if nom == _MUTATION_RAPPEL_M1:
                 refus = self._garder_rappel_m1(nom, arguments)
                 if refus is not None:
@@ -675,6 +802,10 @@ class Capacites:
                 if refus_role is not None:
                     return {**refus_role, "rejoue": False}
                 return {"ok": False, "erreur": "mutation_conflit", "details": str(exc)}
+            except (ValueError, TypeError):
+                if nom == _PROPOSITION_REVUE_M4 or decision_revue:
+                    return self._confirmation_revue_inconnue()
+                raise
             if refus_role is not None:
                 # Un refus de portée est rejouable, mais ne peut jamais dévoiler une ancienne
                 # réponse réussie ni la nature d'un conflit : l'autorité précède toute restitution.
@@ -683,7 +814,25 @@ class Capacites:
                 refus_rejoue = reclamation.rejouee and reclamation.reponse.get("erreur") == "hors_portee_role"
                 return {**refus_role, "rejoue": refus_rejoue}
             if reclamation.rejouee:
+                if (nom == _PROPOSITION_REVUE_M4 or decision_revue) and type(reclamation.reponse) is not dict:
+                    return self._confirmation_revue_inconnue()
                 reponse = {**reclamation.reponse, "rejoue": True}
+                if nom == _PROPOSITION_REVUE_M4:
+                    from .approbations_completion_m4 import verifier_rejeu_proposition
+
+                    signataire = self._signataire_appareil_cible_valide(nom, cnx)
+                    if (not verifier_rejeu_proposition(cnx, arguments, reclamation.reponse, meta, signataire.personne)
+                            or len(json.dumps(reponse, ensure_ascii=False)) > min(5400, self._limite)):
+                        return self._confirmation_revue_inconnue()
+                    return reponse
+                if nom == "m9_decider_demande_approbation":
+                    from .approbations_completion_m4 import accuse_revue, cible_revue, verifier_rejeu_decision
+
+                    if cible_revue(cnx, arguments.get("demande_id")) or accuse_revue(reclamation.reponse):
+                        if (not verifier_rejeu_decision(cnx, arguments, reclamation.reponse)
+                                or len(json.dumps(reponse, ensure_ascii=False)) > min(5400, self._limite)):
+                            return self._confirmation_revue_inconnue()
+                        return reponse
                 if nom == _MUTATION_RAPPEL_M1:
                     with contexte_appel.sortie_bornee(min(5400, self._limite)):
                         refus = self._verifier_rejeu_rappel_m1(arguments, reclamation.reponse)
@@ -724,6 +873,17 @@ class Capacites:
                             "l'approuver avant toute exécution."
                         ),
                     }
+                    if nom == _PROPOSITION_REVUE_M4:
+                        from .approbations_completion_m4 import preuve_proposition
+
+                        preuve, refus = preuve_proposition(cnx, ident, arguments)
+                        if refus is not None:
+                            raise RuntimeError("preuve de création N4 propre indisponible après insertion")
+                        reponse["version_schema"] = 1
+                        reponse["preuve_proposition"] = preuve
+                        if any(len(json.dumps({**reponse, "rejoue": flag}, ensure_ascii=False))
+                               > min(5400, self._limite) for flag in (False, True)):
+                            raise RuntimeError("confirmation de création N4 hors de sa borne atomique")
                 idempotence.finaliser(cnx, meta, reponse)
                 return {**reponse, "rejoue": False}
             horodatage = HorodatageAppareil(
@@ -732,7 +892,14 @@ class Capacites:
                 recu_le=recu_le,
             )
             with receptionne_de(horodatage):
-                if nom in {"m6_declarer_materiaux_avec_preuves_appareil", _MUTATION_CLASSEMENT_M6, _MUTATION_RAPPEL_M1}:
+                decision_revue = False
+                if nom == "m9_decider_demande_approbation":
+                    from .approbations_completion_m4 import cible_revue
+
+                    decision_revue = cible_revue(cnx, arguments.get("demande_id"))
+                if decision_revue or nom in {
+                    "m6_declarer_materiaux_avec_preuves_appareil", _MUTATION_CLASSEMENT_M6, _MUTATION_RAPPEL_M1,
+                }:
                     with contexte_appel.sortie_bornee(min(5400, self._limite)):
                         reponse = self._distribuer(nom, arguments, appel_appareil=True, meta=meta)
                 else:
@@ -907,6 +1074,20 @@ class Capacites:
         departement: str | None = None,
         origine: str | None = None,
     ) -> dict[str, Any]:
+        if source == "m9_decider_demande_approbation":
+            from .approbations_completion_m4 import decision_revue_en_cours
+
+            with self._cnx_factory() as cnx:
+                if decision_revue_en_cours(cnx):
+                    if any(len(json.dumps({**reponse, "rejoue": flag}, ensure_ascii=False))
+                           > min(5400, self._limite) for flag in (False, True)):
+                        raise RuntimeError("confirmation de décision M4 hors de sa borne atomique")
+                    return reponse  # Jamais d'artefact partiel pour une décision source-liée.
+        if source == _LECTURE_REVUE_M4:
+            if len(json.dumps(reponse, ensure_ascii=False)) <= min(5400, self._limite):
+                return reponse
+            return {"ok": False, "erreur": "confirmation_transport_indisponible", "issue": "inconnue",
+                    "details": "La lecture complète dépasse sa borne ; aucun artefact n’est créé."}
         if source in {_LECTURE_RAPPELS_M1, _MUTATION_RAPPEL_M1}:
             if reponse.get("erreur") == "arguments_invalides":
                 reponse = {

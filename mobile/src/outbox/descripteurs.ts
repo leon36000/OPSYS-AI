@@ -14,6 +14,8 @@ import { construireArgumentsArbitrageMemoire, interpreterArbitrageMemoire } from
 import { OUTIL_PRISE_RAPPEL_M1, argumentsRpcPriseRappelM1, interpreterPriseRappelM1, validerRecuPriseRappelM1 } from "../m1/rappelsAppareil";
 import type { DescripteurTypeMutation, InterpretationResultatMetier } from "./vidangeur";
 import type { MutationOutbox, TypeMutation } from "./types";
+import { argumentsRpcRevueCompletion, interpreterRevueCompletion, validerRecuRevueCompletion } from "../m4/revueCompletionOutbox";
+import { OUTIL_PROPOSITION_REVUE_COMPLETION_SOURCES, OUTIL_DECISION_REVUE_COMPLETION } from "../m4/revueCompletionSources";
 
 /**
  * Adapte `interpreterResultatPointage` (src/m4/pointage.ts, vocabulaire M4 — `accuse`) à la
@@ -144,6 +146,12 @@ function versInterpretationGeneriqueNote(resultatBrut: unknown): InterpretationR
  * `src/m2/interaction.ts`).
  */
 export const DESCRIPTEURS_MUTATION: ReadonlyMap<TypeMutation, DescripteurTypeMutation> = new Map<TypeMutation, DescripteurTypeMutation>([
+  ["completion_review_proposal", { tool: OUTIL_PROPOSITION_REVUE_COMPLETION_SOURCES, construireArguments: argumentsRpcRevueCompletion,
+    interpreterResultat: interpreterRevueCompletion, groupeSerie: "approval_decision", serialiserParChantier: true,
+    conserverRefusHttpIncertains: true, verifierAvantEnvoi: true, validerRecuEnvoye: validerRecuRevueCompletion }],
+  ["completion_review_decision", { tool: OUTIL_DECISION_REVUE_COMPLETION, construireArguments: argumentsRpcRevueCompletion,
+    interpreterResultat: interpreterRevueCompletion, groupeSerie: "approval_decision", serialiserParChantier: true,
+    conserverRefusHttpIncertains: true, verifierAvantEnvoi: true, validerRecuEnvoye: validerRecuRevueCompletion }],
   ["prise_en_charge_rappel", { tool: OUTIL_PRISE_RAPPEL_M1, construireArguments: argumentsRpcPriseRappelM1,
     interpreterResultat: interpreterPriseRappelM1, groupeSerie: "rappel", serialiserParChantier: true,
     conserverRefusHttpIncertains: true, verifierAvantEnvoi: true, validerRecuEnvoye: validerRecuPriseRappelM1 }],

@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import { Link } from "expo-router";
+import { Link, useFocusEffect } from "expo-router";
+import { useNetInfo } from "@react-native-community/netinfo";
+import { useSessionAppareil } from "@/roles/contexte";
 import { referenceTransfertM1 } from "@/m1/selection";
 
 import { chargerDemandesApprobation } from "@/approbations/service";
@@ -17,13 +19,15 @@ import {
   formaterDepuis,
   issueAffichee,
   MOTIF_LONGUEUR_MAX,
+  referenceInterventionRevueCompletion, referenceDemandeRevueCompletion,
   vueAttentes,
 } from "@/ecrans/approvals";
 import type { DecisionEnFile, RaisonLectureSeule, RaisonRelecture } from "@/ecrans/approvals";
 import { demarrerDeclencheursVidange } from "@/outbox/declencheurs";
 import { genererMutationId } from "@/outbox/id";
 import { declencherVidange, obtenirDepot } from "@/outbox/service";
-import { obtenirConfigurationAppel } from "@/protocole/configuration";
+import { capturerSessionAdminLecture } from "@/protocole/configuration";
+import { OUTIL_PROPOSITION_REVUE_COMPLETION_SOURCES } from "@/m4/revueCompletionSources";
 
 /**
  * `approvals.tsx` (§9.2 et §9.5 : « le propriétaire approuve tout depuis le téléphone », PLAN T1.4-f
@@ -58,7 +62,10 @@ type ResultatSession =
   | { readonly genre: "en_file" };
 
 export default function EcranApprobations() {
-  const { t } = useTranslation();
+  const { t } = useTranslation(), session = useSessionAppareil();
+  const connected = useNetInfo().isConnected === true;
+  const focused = useRef(false), epoch = useRef(0), garde = useRef<(() => boolean) | null>(null), busy = useRef(false), saisie = useRef(0);
+  const online = useRef(connected); online.current = connected;
   const [etat, setEtat] = useState<EtatListe>({ genre: "chargement" });
   const [enFile, setEnFile] = useState<ReadonlyMap<string, DecisionEnFile>>(new Map());
   const [confirmation, setConfirmation] = useState<{ readonly id: string; readonly decision: DecisionApprobation } | null>(null);
@@ -69,9 +76,16 @@ export default function EcranApprobations() {
   const [suite, setSuite] = useState<EtatSuiteAttentes>({ genre: "repos" });
 
   const charger = useCallback(async () => {
-    const depot = await obtenirDepot();
-    setEnFile(decisionsEnFile(await depot.lister()));
-    const resultat = await chargerDemandesApprobation();
+    const n = ++epoch.current, capture = capturerSessionAdminLecture();
+    const courante = () => focused.current && online.current && capture.courante() && n === epoch.current;
+    garde.current = capture.courante;
+    setEtat({ genre: "chargement" }); setResultats({}); setConfirmation(null);
+    if (!online.current) { setEtat({ genre: "erreur", verdict: { code: "hors_ligne", detail: "" } }); return; }
+    if (!capture.session || !courante()) { setEtat({ genre: "sans_appairage" }); return; }
+    const depot = await obtenirDepot(); if (!courante()) return;
+    const toutes = await depot.lister(); if (!courante()) return;
+    setEnFile(decisionsEnFile(toutes));
+    const resultat = await chargerDemandesApprobation(); if (!courante()) return;
     // Une liste rechargée repart de la première page d'attentes : le message de la suite n'a plus d'objet.
     setSuite({ genre: "repos" });
     if (resultat === null) {
@@ -90,8 +104,12 @@ export default function EcranApprobations() {
       if (liste.attentes === null) {
         return;
       }
+      const capture = capturerSessionAdminLecture(), n = epoch.current;
+      const courante = () => focused.current && online.current && capture.courante() && n === epoch.current;
+      if (!capture.session || !courante()) return;
       setSuite({ genre: "chargement" });
       const issue = await chargerSuiteAttentes(liste.attentes, chargerDemandesApprobation);
+      if (!courante()) return;
       if (issue.genre === "fusionnee") {
         setEtat((courant) => (courant.genre === "pret" ? { genre: "pret", liste: { ...courant.liste, attentes: issue.attentes } } : courant));
         setSuite({ genre: "repos" });
@@ -111,35 +129,47 @@ export default function EcranApprobations() {
   );
 
   const rafraichir = useCallback(async () => {
+    const capture = capturerSessionAdminLecture(), n = epoch.current;
+    const courante = () => focused.current && online.current && capture.courante() && n === epoch.current;
+    if (!capture.session || !courante()) return;
     setEtat({ genre: "chargement" });
-    // Une décision restée en file part d'abord : la liste qui suit reflète ce que le serveur sait.
-    await declencherVidange().catch(() => null);
-    await charger();
+    await declencherVidange(courante).catch(() => null);
+    if (courante()) await charger();
   }, [charger]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
+    focused.current = true; busy.current = false; ++epoch.current;
+    setEtat({ genre: "chargement" }); setMotifs({}); setResultats({}); setConfirmation(null);
     void charger();
-    return demarrerDeclencheursVidange({ aoDeclenchement: () => void charger() });
-  }, [charger]);
+    const arreter = demarrerDeclencheursVidange({ aoDeclenchement: () => { if (focused.current && online.current) void charger(); } });
+    return () => { focused.current = false; ++epoch.current; garde.current = null; busy.current = false; arreter(); };
+  }, [charger, session]));
 
   const decider = useCallback(
     async (demande: DemandeApprobation, decision: DecisionApprobation) => {
-      const configuration = obtenirConfigurationAppel();
-      if (!configuration) {
+      const capture = capturerSessionAdminLecture(), n = epoch.current;
+      const courante = () => focused.current && capture.courante() && n === epoch.current;
+      if (demande.outil === OUTIL_PROPOSITION_REVUE_COMPLETION_SOURCES || busy.current || !courante() ||
+        etat.genre !== "pret" || !evaluerOffre(demande, etat.liste.proprietaire).decidable) return;
+      const personne = capture.session?.personne;
+      if (!personne) {
         setErreurAppareil(true);
         return;
       }
+      busy.current = true;
       setErreurAppareil(false);
       setConfirmation(null);
       setEnTraitement(demande.id);
       try {
         const horloge = { maintenant: new Date(), decalageMinutesUTC: -new Date().getTimezoneOffset() };
         const mutation = creerMutationDecision(demande.id, decision, motifs[demande.id] ?? "", genererMutationId, horloge);
-        const depot = await obtenirDepot();
-        const persistee = await depot.inserer(mutation);
+        const depot = await obtenirDepot(); if (!courante()) return;
+        const persistee = await depot.inserer({ ...mutation, proprietaire: personne });
+        if (!courante()) return;
 
         // Tentative immédiate, best-effort : hors ligne, la décision reste en file avec sa clé.
-        const rapport = await declencherVidange();
+        const rapport = online.current ? await declencherVidange(courante) : null;
+        if (!courante()) return;
         const echec = rapport?.echecsPermanents.find((e) => e.id === persistee.id);
         const acceptee = rapport?.resultatsAcceptes.find((r) => r.id === persistee.id);
         const accuse = acceptee ? accuseDepuisResume(acceptee.resume) : null;
@@ -151,25 +181,30 @@ export default function EcranApprobations() {
               ? { genre: "accuse", accuse }
               : { genre: "en_file" },
         }));
-        await charger();
+        if (online.current) await charger();
+        else { const toutes = await depot.lister(); if (courante()) setEnFile(decisionsEnFile(toutes)); }
       } finally {
-        setEnTraitement(null);
+        if (courante()) { busy.current = false; setEnTraitement(null); }
       }
     },
-    [motifs, charger],
+    [motifs, charger, etat],
   );
 
   const decalageMinutesUTC = -new Date().getTimezoneOffset();
-  const dernieresDecisions = Object.entries(resultats);
+  const captureRendu = capturerSessionAdminLecture(), rendu = epoch.current, saisieRendu = saisie.current;
+  const callbackCourant = () => focused.current && captureRendu.session !== null && captureRendu.courante() && rendu === epoch.current && garde.current?.() === true;
+  const visible = callbackCourant();
+  const dernieresDecisions = visible ? Object.entries(resultats) : [];
 
   return (
     <ScrollView contentContainerStyle={styles.conteneur}>
       <Text style={styles.titre}>{t("approvals.titre")}</Text>
 
-      <Pressable style={styles.boutonSecondaire} disabled={etat.genre === "chargement"} onPress={() => void rafraichir()}>
+      <Pressable style={styles.boutonSecondaire} disabled={!focused.current || !connected || !captureRendu.session || etat.genre === "chargement"} onPress={() => { if (callbackCourant()) void rafraichir(); }}>
         <Text style={styles.boutonSecondaireTexte}>{t("approvals.rafraichir")}</Text>
       </Pressable>
 
+      {!connected ? <Text style={styles.avis}>{t("admin.revueCompletion.legacyHorsLigne")}</Text> : null}
       {erreurAppareil ? <Text style={styles.erreur}>{t("approvals.appareilNonAppaire")}</Text> : null}
 
       {dernieresDecisions.length > 0 ? (
@@ -189,14 +224,15 @@ export default function EcranApprobations() {
         </Text>
       ) : null}
 
-      {etat.genre === "pret" ? (
+      {visible && etat.genre === "pret" ? (
         <>
           {!etat.liste.proprietaire ? <Text style={styles.avis}>{t("approvals.lectureSeuleProprietaire")}</Text> : null}
           <SectionAttentes
             attentes={etat.liste.attentes}
             decalageMinutesUTC={decalageMinutesUTC}
             suite={suite}
-            onVoirPlus={() => void voirPlusAttentes(etat.liste)}
+            ouvrirRevue={connected}
+            onVoirPlus={() => { if (callbackCourant()) void voirPlusAttentes(etat.liste); }}
           />
           <Text style={styles.compte}>{t("approvals.enAttente", { total: etat.liste.totalEnAttente })}</Text>
           {etat.liste.demandes.length === 0 && etat.liste.illisibles === 0 ? (
@@ -206,7 +242,7 @@ export default function EcranApprobations() {
             <Text style={styles.avis}>{t("approvals.illisibles", { nombre: etat.liste.illisibles })}</Text>
           ) : null}
 
-          {etat.liste.demandes.map((demande) => (
+          {etat.liste.demandes.filter(d => connected || d.outil !== OUTIL_PROPOSITION_REVUE_COMPLETION_SOURCES).map((demande) => (
             <CarteDemande
               key={demande.id}
               demande={demande}
@@ -216,10 +252,10 @@ export default function EcranApprobations() {
               motif={motifs[demande.id] ?? ""}
               occupe={enTraitement !== null}
               decalageMinutesUTC={decalageMinutesUTC}
-              onMotif={(texte) => setMotifs((precedents) => ({ ...precedents, [demande.id]: texte }))}
-              onDemanderConfirmation={(decision) => setConfirmation({ id: demande.id, decision })}
-              onAnnuler={() => setConfirmation(null)}
-              onConfirmer={(decision) => void decider(demande, decision)}
+              onMotif={(texte) => { if (callbackCourant() && !busy.current) { ++saisie.current; setMotifs((precedents) => ({ ...precedents, [demande.id]: texte })); } }}
+              onDemanderConfirmation={(decision) => { if (callbackCourant() && !busy.current) setConfirmation({ id: demande.id, decision }); }}
+              onAnnuler={() => { if (callbackCourant()) setConfirmation(null); }}
+              onConfirmer={(decision) => { if (callbackCourant() && saisieRendu === saisie.current) void decider(demande, decision); }}
             />
           ))}
 
@@ -235,13 +271,14 @@ interface ProprietesAttentes {
   readonly decalageMinutesUTC: number;
   readonly suite: EtatSuiteAttentes;
   readonly onVoirPlus: () => void;
+  readonly ouvrirRevue: boolean;
 }
 
 /** Les attentes des départements (PLAN T1.5) : l'alerte d'écart de matériaux, la facture prête, le chantier à
  * réviser. Pour information, sans décision : ce que le département a écrit est montré tel quel, et le geste qu'il
  * propose est dit, jamais offert. Un transfert M1 peut être relu à son écran. Un département muet ou une attente
  * illisible est dit, jamais tu. */
-function SectionAttentes({ attentes, decalageMinutesUTC, suite, onVoirPlus }: ProprietesAttentes) {
+function SectionAttentes({ attentes, decalageMinutesUTC, suite, onVoirPlus, ouvrirRevue }: ProprietesAttentes) {
   const { t } = useTranslation();
   const vue = vueAttentes(attentes);
   if (vue.genre === "inconnues") {
@@ -264,6 +301,8 @@ function SectionAttentes({ attentes, decalageMinutesUTC, suite, onVoirPlus }: Pr
             {t("approvals.depuis", { date: formaterDepuis(attente.depuis, decalageMinutesUTC) })}
           </Text>
           {attente.actionProposee ? <Text style={styles.description}>{t("approvals.attentes.geste", { geste: attente.actionProposee })}</Text> : null}
+          {ouvrirRevue && referenceInterventionRevueCompletion(attente) !== null ? <Link href={{ pathname: "/revue-completion", params: { intervention: attente.id } }}
+            style={styles.description}>{t("admin.revueCompletion.ouvrir")}</Link> : null}
           {referenceTransfertM1(attente) !== null ? <Link href={{ pathname: "/reception", params: { transfert: attente.id } }}
             style={styles.description}>{t("admin.reception.ouvrir")}</Link> : null}
         </View>
@@ -378,6 +417,7 @@ function CarteDemande(props: ProprietesCarte) {
   const { demande, confirmation } = props;
   const offre = evaluerOffre(demande, props.proprietaire);
   const arguments_ = demande.arguments !== null ? formaterArguments(demande.arguments) : null;
+  const revue = referenceDemandeRevueCompletion(demande), typed = demande.outil === OUTIL_PROPOSITION_REVUE_COMPLETION_SOURCES;
 
   return (
     <View style={styles.carte}>
@@ -404,7 +444,8 @@ function CarteDemande(props: ProprietesCarte) {
         <Text style={styles.meta}>{t("approvals.argumentsNonAffiches")}</Text>
       )}
 
-      {props.enFile ? (
+      {typed ? revue ? <Link href={{ pathname: "/revue-completion", params: { intervention: revue.intervention_id, demande: revue.demande_id } }}
+        style={styles.description}>{t("admin.revueCompletion.ouvrir")}</Link> : <Text style={styles.lectureSeule}>{t("admin.revueCompletion.inconnu")}</Text> : props.enFile ? (
         <Text style={styles.avis}>{t(`approvals.decisionEnFile.${props.enFile.decision}`)}</Text>
       ) : !offre.decidable ? (
         <Text style={styles.lectureSeule}>{texteLectureSeule(offre.raison, t)}</Text>

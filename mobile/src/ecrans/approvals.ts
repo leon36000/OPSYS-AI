@@ -11,6 +11,26 @@ import type { OptionsChargementApprobations, ResultatChargementApprobations } fr
 import { creerMutation, soumettreMutation } from "../outbox/mutation";
 import type { HorlogeAppareil } from "../outbox/mutation";
 import type { MutationOutbox } from "../outbox/types";
+import { copierJsonLecture, JSON_LECTURE_INVALIDE } from "../protocole/jsonLecture";
+import { construireArgumentsDossierRevueCompletion, OUTIL_PROPOSITION_REVUE_COMPLETION_SOURCES } from "../m4/revueCompletionSources";
+import { argumentsRpcRevueCompletion, validerRecuRevueCompletion } from "../m4/revueCompletionOutbox";
+
+/** Une attente M4 n'est pas une demande P : elle conduit seulement au dossier courant. */
+export function referenceInterventionRevueCompletion(brut: unknown): string | null {
+  const c = copierJsonLecture(brut);
+  if (c === JSON_LECTURE_INVALIDE || !c || typeof c !== "object" || Array.isArray(c) ||
+    c.departement !== "m04-field-ops" || c.type !== "completion_en_revue") return null;
+  try { return construireArgumentsDossierRevueCompletion(c.id).intervention_id; } catch { return null; }
+}
+/** Le dossier historique sera validé avant D ; aucun argument P n'est reconstruit depuis la liste. */
+export function referenceDemandeRevueCompletion(brut: unknown): { intervention_id: string; demande_id: string } | null {
+  const c = copierJsonLecture(brut);
+  if (c === JSON_LECTURE_INVALIDE || !c || typeof c !== "object" || Array.isArray(c) ||
+    c.outil !== OUTIL_PROPOSITION_REVUE_COMPLETION_SOURCES || c.departement !== "m04-field-ops" || c.niveau !== "N4" ||
+    !c.arguments || typeof c.arguments !== "object" || Array.isArray(c.arguments)) return null;
+  try { const a = construireArgumentsDossierRevueCompletion(c.arguments.intervention_id, c.id);
+    return a.demande_id === null ? null : { intervention_id: a.intervention_id, demande_id: a.demande_id }; } catch { return null; }
+}
 
 /**
  * Logique PURE de `(admin)/approvals.tsx` (PLAN T1.4-f étape 6) : ce que l'écran offre, ce qu'il met en
@@ -220,6 +240,13 @@ export interface DecisionEnFile {
 export function decisionsEnFile(mutations: readonly MutationOutbox[]): ReadonlyMap<string, DecisionEnFile> {
   const enFile = new Map<string, DecisionEnFile>();
   for (const mutation of mutations) {
+    if (mutation.type === "completion_review_decision") {
+      const args = argumentsRpcRevueCompletion(mutation);
+      if (validerRecuRevueCompletion(mutation) || !args || typeof args.demande_id !== "string" ||
+        (args.decision !== "approuver" && args.decision !== "refuser")) continue;
+      if (!enFile.has(args.demande_id)) enFile.set(args.demande_id, { mutationId: mutation.id, decision: args.decision, statut: "en_attente" });
+      continue;
+    }
     if (mutation.type !== "approval_decision" || (mutation.statut !== "en_attente" && mutation.statut !== "envoi")) {
       continue;
     }

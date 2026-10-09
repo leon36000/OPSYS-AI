@@ -1202,3 +1202,10 @@ __all__ = [
     "garde_ecriture_unique",
     "ConsommateurReference",
 ]
+
+
+def resoudre_revue_completion_sources(registre_cible, source, arguments, execution, borne=5400):
+    """Voie v2 : source et signature confirmées par les adaptateurs, aucune retouche du v1."""
+    from . import revue_completion_sources
+
+    return revue_completion_sources.resoudre(registre_cible, source, arguments, execution, borne)

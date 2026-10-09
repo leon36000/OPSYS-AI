@@ -476,4 +476,13 @@ def decider_demande(
     }
     if isinstance(reponse, Mapping):
         sortie["issue"] = _issue(reponse)
+    if demande["outil"] == "m4_resoudre_revue_completion_sources":
+        from .approbations_completion_m4 import donnees_historique
+
+        historique, refus_preuve = donnees_historique(
+            cnx, demande["outil"], demande["departement"], demande["arguments"]["intervention_id"], demande_id,
+        )
+        if refus_preuve is not None:
+            raise RuntimeError("preuve de décision M4 indisponible après exécution")
+        sortie["preuve_completion"] = historique["preuve_completion"]
     return sortie, None

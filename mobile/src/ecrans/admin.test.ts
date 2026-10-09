@@ -61,7 +61,7 @@ describe("l'accueil « À voir » du propriétaire", () => {
     expect(vue.totalEnAttente.params).toEqual({ total: 1 });
     expect(vue.demandes).toHaveLength(1);
     const [demande] = vue.demandes;
-    expect(demande.outil).toBe("m4_resoudre_revue_completion");
+    expect(demande.outil).toBe("m4_resoudre_revue_completion_sources");
     expect(demande.departement).toEqual({ cle: "approvals.departement", params: { nom: "Field Ops" } });
     expect(demande.niveau).toEqual({ cle: "approvals.niveau", params: { niveau: "N4" } });
     expect(demande.id).toMatch(/^[0-9a-f]{12}$/);

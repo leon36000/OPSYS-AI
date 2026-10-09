@@ -1,5 +1,6 @@
 {
  "fictif": true,
+ "origine": "HTTP MCP réel/porte Core Python simulée/SQLite temporaire ; pas Gateway Node ni téléphone",
  "appels": {
   "a_voir_vide": {
    "outil": "m9_lister_demandes_approbation",
@@ -2401,7 +2402,7 @@
     "resultat": {
      "date_cible": "2026-09-21",
      "horodatage_reference": "2026-09-21T18:00:00-04:00",
-     "ancre_registre": "4ca3446ffa7f1d09b1bc1d9e815a4a8d7e6e1f45391195315826cbbbedc1612c",
+     "ancre_registre": "edb7395c2f37f50a9befe3fca1d882e32561564b14b93a269453948dabb97784",
      "interventions_terminees": [
       {
        "intervention_id": "b1903e5166860713cd4116bf5905c4520e9bb99f17274c8f0026ff6b4e6330f7",
@@ -2417,7 +2418,7 @@
       "anomalie_pointage": 0
      },
      "interventions_bloquees_en_revue": [],
-     "empreinte": "61325f3a4e17cbb424563c8d55ff3a4dc760cf4d56428d686ceaed372ffc8b07"
+     "empreinte": "648ec2b381ccd85f08d6f45e39b5638ef7519658449d8b924d38e79ac0582ba3"
     }
    }
   },
@@ -2474,7 +2475,7 @@
        "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
       }
      ],
-     "empreinte": "a2ac8ccd671c9cbc65cccb23ffd203ef0a9eb20b1b236440bf0f2b663f78469a"
+     "empreinte": "f2f93fce2ecb9d7096cf8f12a9d37e99bba683f8e8131798a4aa9c993369a673"
     }
    }
   },
@@ -2531,7 +2532,7 @@
        "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
       }
      ],
-     "empreinte": "3ba1d3b60a2987310a9bea13fdf11e5bcf4597ea2fc02a256e7e43ce326fb5e3"
+     "empreinte": "1baf4cf2c434cbb1d951d012227fcba627ecd4f45523697ccac0987876be5370"
     }
    }
   },
@@ -2588,7 +2589,7 @@
        "manque": "aucune règle météo déclarée pour cette entreprise : déclare les règles météo de l'entreprise : écris un fichier YAML (clés fuseau, fournisseur, open_meteo, services) puis `opsys-metier meteo declarer --depuis <fichier> --par <ton nom>` ; le profil est écrit dans /srv/opsys/entreprise.yaml (clé 'meteo'), voir docs/architecture/TAXONOMIE.md ; aucun seuil n'est jamais inventé (seuil à configurer)"
       }
      ],
-     "empreinte": "c7e705b46d693b76d693f4ca30c6ed3c638ed555117eccf9684a4f0058aa259b"
+     "empreinte": "0820465eb8a29146505f9c82b1eab50dda5deedde6291d602198fa035da8e8ac"
     }
    }
   },
@@ -2661,19 +2662,41 @@
     "resultat": {
      "demandes": [
       {
-       "id": "80142b904b40",
+       "id": "6f28ef03af00",
        "departement": "m04-field-ops",
        "departement_nom": "Field Ops",
-       "outil": "m4_resoudre_revue_completion",
-       "description_outil": "Revue HUMAINE d'une complétion completed_pending_review (PLAN T1.3-b), jamais un agent seul : decision=verifiee confirme (-> completed_verified, comme le ferait un signal M6 sans dépassement, mais dé…",
+       "outil": "m4_resoudre_revue_completion_sources",
+       "description_outil": "Proposition N4 humaine de revue de complétion, liée à toutes les sources critiques examinées.",
        "niveau": "N4",
-       "depuis": "2026-10-06T08:25:31+00:00",
+       "depuis": "2026-10-09T10:13:31+00:00",
        "motif_demande": null,
        "arguments": {
         "intervention_id": "b1903e5166860713cd4116bf5905c4520e9bb99f17274c8f0026ff6b4e6330f7",
         "decision": "verifiee",
         "horodatage": "2026-09-25T07:00:00-04:00",
-        "motif": "Bris de 16 pi constaté sur place et photographié : l'écart est expliqué (fictif)."
+        "motif": "Revue fictive des sources M4/M6 relues.",
+        "sources": {
+         "wct_id": "24be933c9957a809a00b0fec00ad64193ae1e629b89c42de8676a220962b8b5c",
+         "chantier_id": "CH-ADM-A-fictif",
+         "completion_ligne_id": "e7023886a84f0bb76288f801023f400613eb50bbc27810e6a0002adbaae7b044",
+         "transition_attendue_ligne_id": "e7023886a84f0bb76288f801023f400613eb50bbc27810e6a0002adbaae7b044",
+         "reference_variance": {
+          "type": "m6.variance_chantier",
+          "evenement_id": "m6-variance-24be933c9957a809a00b0fec00ad64193ae1e629b89c42de8676a220962b8b5c-evaluee",
+          "empreinte_charge": "30a3b53d6f19350f7ca681c70ecc831d1edfea0f512620a21f948587a3ea5b89"
+         },
+         "classements": [
+          {
+           "position_ligne": 0,
+           "materiau_id": "gouttiere-alu-5po-fictif",
+           "reference": {
+            "registre": "classements_variance",
+            "index": 0,
+            "hash_maillon": "bef2b9b7c33f19b3d8c6fc5bfeee73ad18e7ee5822897dcc3ab5349c3d03f239"
+           }
+          }
+         ]
+        }
        },
        "decidable": true,
        "lecture_seule": null

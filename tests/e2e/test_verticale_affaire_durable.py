@@ -114,6 +114,32 @@ def _app(moteur, porte, outil, args, *, cle=None):
     return reponse
 
 
+def _sources_pour_revue(appeler, intervention_id, wct_id, prefixe):
+    """Fictif : lecture M6 puis causes humaines déclarées, sans vérité photo inférée."""
+    liste = appeler("m6_lister_variances_classables_wct_appareil",
+                    {"wct_id": wct_id, "decalage": 0, "limite": 8})
+    assert liste.metier["accepte"] is True, liste.corps
+    dto = liste.resultat
+    assert dto["wct"]["wct_id"] == wct_id and dto["wct"]["intervention_id"] == intervention_id
+    assert dto["pagination"]["reste"] == 0 and dto["pagination"]["decalage_suivant"] is None
+    critiques = [ligne for ligne in dto["lignes"] if ligne["source_ligne"]["critique"] is True]
+    assert critiques, "ce scénario doit publier une variance critique, pas inventer une cause"
+    for ligne in critiques:
+        assert ligne["classement_courant"] is None, "source initiale de cette fixture"
+        classement = appeler("m6_classer_cause_variance_appareil", {
+            "selection": ligne["selection"], "cause": "breakage",
+            "motif": "FICTIF : cause de bris déclarée pour le scénario, sans attestation photo.",
+            "classement_attendu": None, "references_pieces": [],
+        }, cle=f"{prefixe}-{ligne['selection']['position_ligne']}")
+        assert classement.metier["accepte"] is True, classement.corps
+    dossier = appeler("m4_lire_dossier_revue_completion_appareil",
+                      {"intervention_id": intervention_id, "demande_id": None})
+    assert dossier.metier["accepte"] is True, dossier.corps
+    assert dossier.resultat["wct"] == dto["wct"]
+    assert dossier.resultat["couverture"]["positions_sans_classement"] == []
+    return dossier.resultat["sources"]
+
+
 def _appeler_agent(moteur, departement, outil, args):
     async def appeler():
         http = create_mcp_http_client(headers={"Authorization": f"Bearer {JETON_MCP}"})
@@ -665,15 +691,24 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
         item = next(item for item in lecture.resultat["lectures"] if item["chantier"] == wct_id)
         assert (item["valeur"], item["seuil"]) == ("40.00", "30.00")
         assert _empreinte(moteur) == avant
+        def appeler_revue(outil, arguments, *, cle=None):
+            avant_lecture = _empreinte(moteur) if cle is None else None
+            reponse = _app(moteur, admin, outil, arguments, cle=cle)
+            if cle is None:
+                assert _empreinte(moteur) == avant_lecture, "lecture de sources sans mutation"
+            return reponse
+
+        sources = _sources_pour_revue(appeler_revue, chantier.intervention_id, wct_id, "classement-verticale")
         revue = _app(
             moteur,
             admin,
-            "m4_resoudre_revue_completion",
+            "m4_resoudre_revue_completion_sources",
             {
                 "intervention_id": chantier.intervention_id,
                 "decision": "verifiee",
                 "horodatage": iso(moteur.horloge.maintenant),
-                "motif": "Écart fictif documenté et accepté.",
+                "motif": "Revue fictive des sources M4/M6 relues.",
+                "sources": sources,
             },
             cle="revue-verticale",
         )
@@ -690,6 +725,12 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
             cle="decision-revue-verticale",
         )
         assert decision.resultat["statut"] == "executee", decision.corps
+        preuve = decision.resultat["preuve_completion"]
+        assert preuve["sources"] == sources and preuve["wct_id"] == wct_id
+        assert preuve["demande_approbation_id"] == revue.enveloppe["demande_id"]
+        assert preuve["association_decision"]["intention_uuid"] == "decision-revue-verticale"
+        assert preuve["association_decision"]["appareil_id"] == admin.appareil_id
+        assert preuve["association_decision"]["horodatage_appareil_declare"] == iso(moteur.horloge.maintenant)
         assert app.statut().resultat["statut"] == "completed_verified"
         _drainer(moteur)
 

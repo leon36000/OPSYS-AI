@@ -10,6 +10,19 @@
  * montre tel quel.
  */
 const adminFrCA = {
+  revueCompletion: {
+    legacyHorsLigne: "La dernière liste lue reste informative hors ligne. Seules les décisions legacy déjà offertes peuvent être mises en file ; la revue avec sources doit être relue en ligne.",
+    titre: "Revue de complétion avec sources", limites: "La proposition crée une demande N4. Seul le propriétaire autorisé peut décider ; une preuve propre confirme ensuite la décision. Aucun stock, coût ou classement n’est corrigé automatiquement.",
+    lire: "Relire le dossier", courant: "Lire le dossier courant", pagesCourantes: "Sources courantes : elles peuvent changer. La proposition conserve celles confirmées au moment de sa création.",
+    horsLigne: "Hors ligne : le dossier n’est pas autorisé à partir d’un cache. L’intention déjà enregistrée est conservée.",
+    signal: "Signal critique publié", sansSignal: "Aucun signal critique publié", inconnu: "Non connu", classementAbsent: "Classement humain absent",
+    choixExplicite: "Choisissez explicitement le résultat proposé et expliquez-le.", verifiee: "Proposer : vérifiée", correction: "Proposer : correction requise", motif: "Motif de la proposition (500 caractères maximum)",
+    proposer: "Confirmer la proposition N4", captureHistorique: "Proposition historique : sources conservées lors de sa création, sans remplacement par les sources courantes.",
+    preuveAbsente: "Aucune preuve de complétion liée à cette décision", ownerRequis: "Décision réservée au propriétaire confirmé ; les demandes déjà traitées restent historiques.",
+    approuver: "Confirmer l’approbation N4", refuser: "Confirmer le refus N4", enAttente: "Confirmation inconnue ou en attente : l’intention, son corps et sa clé restent conservés et bloquent la décision suivante.",
+    creationConfirmee: "Création de la demande confirmée. La complétion métier n’est pas encore confirmée.", decisionConfirmee: "Décision confirmée par son maillon propre.",
+    quarantaine: "Une intention non résolue appartient à une autre personne ou destination. Elle est conservée et bloque la série.", ouvrirDemande: "Lire la demande créée", ouvrir: "Ouvrir la revue avec sources",
+  },
   rappelsM1: {
     titre: "Rappels importés", note: "Appels manqués et messages vocaux importés. La prise en charge est interne ; aucun appel ni message n’est envoyé.",
     lire: "Relire la première page", suite: "Page suivante des rappels", choisir: "Choisir ce rappel", prendre: "Prendre en charge",

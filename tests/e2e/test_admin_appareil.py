@@ -215,7 +215,9 @@ def _journee_jusqu_a_la_completion(app: AppEmploye) -> Reponse:
     return app.terminer(photo, signature)
 
 
-def _chantier_termine(moteur: Moteur, equipe: dict[str, Any], suffixe: str, jour: int, quantite: float) -> Chantier:
+def _chantier_termine(
+        moteur: Moteur, equipe: dict[str, Any], suffixe: str, jour: int, quantite: float,
+) -> tuple[Chantier, str]:
     """Un chantier de bout en bout jusqu'à la variance : le matériel arrive, l'employé fait sa journée et
     « Terminer », le bus livre la complétion, l'employé déclare `quantite` pi utilisés, le bus livre la variance."""
     chantier = preparer_chantier(moteur.departements, suffixe=suffixe, technicien="etienne",
@@ -233,7 +235,33 @@ def _chantier_termine(moteur: Moteur, equipe: dict[str, Any], suffixe: str, jour
     app.attendre(minutes=5)
     assert app.declarer_materiaux(wct_id, quantite).metier["accepte"] is True
     moteur.drainer_bus(moteur.horloge.maintenant)
-    return chantier
+    return chantier, wct_id
+
+
+def _sources_pour_revue(appeler, intervention_id, wct_id, prefixe):
+    """Fictif : lecture M6 puis causes humaines déclarées, sans vérité photo inférée."""
+    liste = appeler("m6_lister_variances_classables_wct_appareil",
+                    {"wct_id": wct_id, "decalage": 0, "limite": 8})
+    assert liste.metier["accepte"] is True, liste.corps
+    dto = liste.resultat
+    assert dto["wct"]["wct_id"] == wct_id and dto["wct"]["intervention_id"] == intervention_id
+    assert dto["pagination"]["reste"] == 0 and dto["pagination"]["decalage_suivant"] is None
+    critiques = [ligne for ligne in dto["lignes"] if ligne["source_ligne"]["critique"] is True]
+    assert critiques, "ce scénario doit publier une variance critique, pas inventer une cause"
+    for ligne in critiques:
+        assert ligne["classement_courant"] is None, "source initiale de cette fixture"
+        classement = appeler("m6_classer_cause_variance_appareil", {
+            "selection": ligne["selection"], "cause": "breakage",
+            "motif": "FICTIF : cause de bris déclarée pour le scénario, sans attestation photo.",
+            "classement_attendu": None, "references_pieces": [],
+        }, cle=f"{prefixe}-{ligne['selection']['position_ligne']}")
+        assert classement.metier["accepte"] is True, classement.corps
+    dossier = appeler("m4_lire_dossier_revue_completion_appareil",
+                      {"intervention_id": intervention_id, "demande_id": None})
+    assert dossier.metier["accepte"] is True, dossier.corps
+    assert dossier.resultat["wct"] == dto["wct"]
+    assert dossier.resultat["couverture"]["positions_sans_classement"] == []
+    return dossier.resultat["sources"]
 
 
 def _chantier_planifie(moteur: Moteur, suffixe: str, jour: int, version_lead: int) -> Chantier:
@@ -380,11 +408,11 @@ def _enregistrer_la_journee(moteur: Moteur, equipe: dict[str, Any], tmp_path: Pa
     declarer_services()
     _declarer_seuil_de_stock(tmp_path, monkeypatch)
     # A : ni prix au livre de M6 ni taux horaire dans le manifeste livré, un écart de matériaux de 40 % (56 pi pour 40)
-    chantier_a = _chantier_termine(moteur, equipe, "ADM-A", 21, 56.0)
+    chantier_a, wct_a = _chantier_termine(moteur, equipe, "ADM-A", 21, 56.0)
     # E : les prix et le taux horaire sont déclarés, un écart de 5 % (42 pi pour 40) : la marge réelle se calcule
     _prix_au_livre_de_m6(moteur)
     _declarer_m5(tmp_path, monkeypatch, {**CONFIGURATION_M5, "taux_horaire_main_d_oeuvre": "50.00"})
-    chantier_e = _chantier_termine(moteur, equipe, "ADM-E", 22, 42.0)
+    chantier_e, _wct_e = _chantier_termine(moteur, equipe, "ADM-E", 22, 42.0)
     # Préparation fictive : la facture existante est envoyée par le contrat M5 canonique.
     # Un chantier chiffré avec facture encore brouillon ne certifie pas une marge définitive.
     envoyer = next(outil for outil in m5_outils.outils() if outil.nom == "m5_envoyer_facture")
@@ -414,12 +442,22 @@ def _enregistrer_la_journee(moteur: Moteur, equipe: dict[str, Any], tmp_path: Pa
     enr.lire("preparation_terminee", "m4_verifier_preparation",
              {"intervention_id": interventions[chantier_a.lead_id]})
     enr.lire("a_voir", "m9_lister_demandes_approbation")
-    demande = admin.appeler("m4_resoudre_revue_completion", {
+    def appeler_revue(outil, arguments, *, cle=None):
+        avant = moteur.empreinte_etat() if cle is None else None
+        reponse = admin.appeler(outil, arguments, cle=cle,
+                               horodatage_appareil=iso(moteur.horloge.maintenant) if cle else None)
+        if cle is None:
+            assert moteur.empreinte_etat() == avant, "lecture de sources sans mutation"
+        return reponse
+
+    sources = _sources_pour_revue(appeler_revue, chantier_a.intervention_id, wct_a, "mut-classement-adm-a")
+    demande = admin.appeler("m4_resoudre_revue_completion_sources", {
         "intervention_id": chantier_a.intervention_id, "decision": "verifiee",
         "horodatage": iso(moteur.horloge.maintenant),
-        "motif": "Bris de 16 pi constaté sur place et photographié : l'écart est expliqué (fictif)."},
+        "motif": "Revue fictive des sources M4/M6 relues.", "sources": sources},
         cle="mut-revue-adm-a", horodatage_appareil=iso(moteur.horloge.maintenant))
     assert demande.enveloppe["statut"] == "en_attente_approbation"
+    assert demande.enveloppe["preuve_proposition"]["proposant"]["intention_uuid"] == "mut-revue-adm-a"
     enr.lire("a_voir_avec_demande", "m9_lister_demandes_approbation")
     enr.lire("vue_executive", "m8_lire_vue_executive")
     assert chantier_e.devis_id
@@ -452,6 +490,13 @@ def test_les_reponses_du_moteur_ont_la_forme_de_la_fixture_que_l_app_lit(
     de l'app, puis on régénère la fixture
     (`OPSYS_REGENERER_FIXTURES_MOBILE=1 pytest tests/e2e/test_admin_appareil.py -k fixture`)."""
     enr = _enregistrer_la_journee(moteur, equipe, tmp_path, monkeypatch, declarer_services)
+    capture = os.environ.get("OPSYS_CAPTURE_REPONSES_MOBILE_Q")
+    if capture:
+        with Path(capture).open("x", encoding="utf-8") as out:
+            json.dump({"fictif": True, "origine": ("HTTP MCP réel/porte Core Python simulée/SQLite temporaire ; "
+                                   "pas Gateway Node ni téléphone"),
+                       "appels": enr.appels, "reponses": enr.reponses}, out, ensure_ascii=False, indent=1)
+            out.write("\n")
     if os.environ.get(ENV_REGENERER) == "1":
         FIXTURE_APP.parent.mkdir(parents=True, exist_ok=True)
         FIXTURE_APP.write_text(json.dumps(

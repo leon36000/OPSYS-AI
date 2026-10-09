@@ -653,3 +653,24 @@ def test_docstring_de_la_garde_ne_promet_aucune_exemption():
     for promesse in ("paramètres", "coroutines", "limite inhérente"):
         assert promesse in bas, f"la docstring doit annoncer : {promesse}"
 
+
+
+@pytest.mark.parametrize("cle", ["classements", "classement_courant", "positions_sans_classement"])
+def test_garde_r020_admet_seulement_cles_exactes_dto_materiaux(tmp_path, cle):
+    (tmp_path / "materiaux.py").write_text("dto = {" + repr(cle) + ": None}\n", encoding="utf-8")
+    assert digest_mod.garde_conformite_r020(str(tmp_path)) == (True, "")
+
+
+@pytest.mark.parametrize("source", [
+    "dto = {'classements_techniciens': []}\n",
+    "dto = {'CLASSEMENTS': []}\n",
+    "dto = {'classements': {'score_technicien': 1}}\n",
+    "classement_courant = []\n",
+    "def classement_personnel(): return []\n",
+    "dto = {'ranking': 1}\n",
+    "dto = {'performance': 1}\n",
+])
+def test_garde_r020_exception_dto_ne_permet_pas_notation_personnel(tmp_path, source):
+    (tmp_path / "personnel.py").write_text(source, encoding="utf-8")
+    ok, message = digest_mod.garde_conformite_r020(str(tmp_path))
+    assert not ok and message

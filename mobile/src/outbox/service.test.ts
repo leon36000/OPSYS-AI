@@ -20,3 +20,27 @@ test("singleton production : note seule n'exempte pas le rôle, nouvelle passe e
   expect((await declencherVidange())?.envoyees).toEqual([m.id]);expect(fetchMock).toHaveBeenCalledTimes(1);
  } finally {global.fetch=precedent;definirConfigurationAppel(null);definirPersonneConfirmee(null);}
 });
+
+test.each(["employee", "seller", "url", "appareil", "personne"])("D typed %s ferme la garde du service réel avant SDK", async cause => {
+  jest.resetModules();
+  const config = require("../protocole/configuration") as typeof import("../protocole/configuration");
+  const service = require("./service") as typeof import("./service");
+  const adapter = require("../m4/revueCompletionOutbox") as typeof import("../m4/revueCompletionOutbox");
+  const cap = require("../m4/fixturesRevueCompletionCapSQL.json") as typeof import("../m4/fixturesRevueCompletionCapSQL.json");
+  mockDepot = new DepotOutboxMemoire();
+  const origin = { personne: cap.decision.auteur_sql, appareilId: cap.decision.meta.appareil_id, urlBase: "https://fictif.invalid" };
+  const definir = (role: string, value = origin) => {
+    config.definirConfigurationAppel({ urlBase: value.urlBase, appareilId: value.appareilId, jeton: "JETON-FICTIF" });
+    config.definirPersonneConfirmee({ appareilId: value.appareilId, jeton: "JETON-FICTIF", personne: value.personne, role });
+  };
+  definir("admin"); const depot = await service.obtenirDepot();
+  const m = await depot.inserer({ ...adapter.creerMutationDecisionRevueCompletion(cap.decision.arguments, cap.lectures[1].reponse,
+    cap.lectures[1].arguments, () => cap.decision.meta.intention_uuid, { maintenant: new Date("2026-10-09T12:00:00Z"), decalageMinutesUTC: 0 }, origin), proprietaire: origin.personne });
+  if (cause === "employee" || cause === "seller") definir(cause);
+  else definir("admin", { ...origin, ...(cause === "url" ? { urlBase: "https://autre-fictif.invalid" } :
+    cause === "appareil" ? { appareilId: "AUTRE-APP-FICTIF" } : { personne: "AUTRE-FICTIF" }) });
+  const old = global.fetch, f = jest.fn(async () => new Response("{}", { status: 200 })); global.fetch = f;
+  try { await service.declencherVidange(); expect(f).not.toHaveBeenCalled();
+    expect(await depot.obtenir(m.id)).toMatchObject({ id: m.id, payload: m.payload, statut: "en_attente", proprietaire: origin.personne });
+  } finally { global.fetch = old; config.definirConfigurationAppel(null); config.definirPersonneConfirmee(null); }
+});

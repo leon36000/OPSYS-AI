@@ -568,26 +568,61 @@ def test_b_un_admin_qui_n_est_pas_le_proprietaire_voit_l_alerte_sans_pouvoir_dec
     assert all("arguments" not in a and "decidable" not in a for a in telephone["attentes"])
 
 
+def _sources_pour_revue(appeler, intervention_id, wct_id, prefixe):
+    """Fictif : lecture M6 puis causes humaines déclarées, sans vérité photo inférée."""
+    liste = appeler("m6_lister_variances_classables_wct_appareil",
+                    {"wct_id": wct_id, "decalage": 0, "limite": 8})
+    assert liste.metier["accepte"] is True, liste.corps
+    dto = liste.resultat
+    assert dto["wct"]["wct_id"] == wct_id and dto["wct"]["intervention_id"] == intervention_id
+    assert dto["pagination"]["reste"] == 0 and dto["pagination"]["decalage_suivant"] is None
+    critiques = [ligne for ligne in dto["lignes"] if ligne["source_ligne"]["critique"] is True]
+    assert critiques, "ce scénario doit publier une variance critique, pas inventer une cause"
+    for ligne in critiques:
+        assert ligne["classement_courant"] is None, "source initiale de cette fixture"
+        classement = appeler("m6_classer_cause_variance_appareil", {
+            "selection": ligne["selection"], "cause": "breakage",
+            "motif": "FICTIF : cause de bris déclarée pour le scénario, sans attestation photo.",
+            "classement_attendu": None, "references_pieces": [],
+        }, cle=f"{prefixe}-{ligne['selection']['position_ligne']}")
+        assert classement.metier["accepte"] is True, classement.corps
+    dossier = appeler("m4_lire_dossier_revue_completion_appareil",
+                      {"intervention_id": intervention_id, "demande_id": None})
+    assert dossier.metier["accepte"] is True, dossier.corps
+    assert dossier.resultat["wct"] == dto["wct"]
+    assert dossier.resultat["couverture"]["positions_sans_classement"] == []
+    return dossier.resultat["sources"]
+
+
 @SQLITE_SEULEMENT
 def test_b_l_admin_traite_l_alerte_depuis_son_telephone_et_la_completion_est_verifiee(moteur, scenario_b):
     """La boucle jusqu'au bout : alerte lue -> revue de la complétion (N4) -> décision signée du propriétaire
     -> `completed_verified`, et l'alerte quitte la file (T1.3-b)."""
     s = scenario_b
     ch = s.chantier
-    s.terminer_puis_declarer(56.0)
+    completion, _declaration = s.terminer_puis_declarer(56.0)
     avant = _attentes_du_telephone(s.admin)
     assert "completion_en_revue" in {a["type"] for a in avant["attentes"]}
 
-    demande = s.admin.appeler("m4_resoudre_revue_completion", {
+    def appeler_revue(outil, arguments, *, cle=None):
+        avant = moteur.empreinte_etat() if cle is None else None
+        reponse = s.admin.appeler(outil, arguments, cle=cle,
+                                 horodatage_appareil=iso(moteur.horloge.maintenant) if cle else None)
+        if cle is None:
+            assert moteur.empreinte_etat() == avant, "lecture de sources sans mutation"
+        return reponse
+
+    sources = _sources_pour_revue(appeler_revue, ch.intervention_id, completion.resultat["wct_id"], "mut-classement-B")
+    demande = s.admin.appeler("m4_resoudre_revue_completion_sources", {
         "intervention_id": ch.intervention_id, "decision": "verifiee", "horodatage": iso(moteur.horloge.maintenant),
-        "motif": "Bris de 16 pi constaté sur place et photographié : l'écart est expliqué (fictif)."},
+        "motif": "Revue fictive des sources M4/M6 relues.", "sources": sources},
         cle="mut-revue-B", horodatage_appareil=iso(moteur.horloge.maintenant))
     # N4 : jamais exécuté au départ, même par un admin ; la demande attend le propriétaire.
     assert demande.enveloppe["statut"] == "en_attente_approbation"
     assert s.app.statut().resultat["statut"] == "completed_pending_review"
     file = _attentes_du_telephone(s.admin)
     (en_attente,) = file["demandes"]
-    assert en_attente["outil"] == "m4_resoudre_revue_completion" and en_attente["decidable"] is True
+    assert en_attente["outil"] == "m4_resoudre_revue_completion_sources" and en_attente["decidable"] is True
     assert en_attente["niveau"] == "N4" and en_attente["arguments"]["intervention_id"] == ch.intervention_id
 
     decision = s.admin.appeler("m9_decider_demande_approbation", {
@@ -598,6 +633,11 @@ def test_b_l_admin_traite_l_alerte_depuis_son_telephone_et_la_completion_est_ver
     assert (decision.resultat["statut"], decision.resultat["decide_par"], decision.resultat["role"]) == (
         "executee", "nathan", "nathan_owner")
     assert decision.resultat["issue"]["accepte"] is True
+    preuve = decision.resultat["preuve_completion"]
+    assert preuve["sources"] == sources and preuve["demande_approbation_id"] == demande.enveloppe["demande_id"]
+    assert preuve["association_decision"]["intention_uuid"] == "mut-decision-B"
+    assert preuve["association_decision"]["appareil_id"] == s.admin.appareil_id
+    assert preuve["association_decision"]["horodatage_appareil_declare"] == iso(moteur.horloge.maintenant)
     assert s.app.statut().resultat["statut"] == "completed_verified"
     apres = _attentes_du_telephone(s.admin)
     assert "completion_en_revue" not in {a["type"] for a in apres["attentes"]}

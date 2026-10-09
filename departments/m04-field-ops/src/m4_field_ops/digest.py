@@ -41,6 +41,13 @@ TERMES_INTERDITS_R020 = (
     "penalite", "sanction", "profilage", "rendement",
 )
 
+# Clés natives de causes matériaux M6, jamais une notation des personnes.
+# Exception lexicale exacte uniquement dans les clés littérales de DTO fermés.
+CLES_DTO_MATERIAUX_R020 = frozenset({
+    "classements", "classement_courant", "positions_sans_classement",
+})
+
+
 
 # ---------------------------------------------------------------------------
 # API publique
@@ -250,7 +257,8 @@ def garde_conformite_r020(chemin_source=None):
     """Inspection AST (R-020) : aucun terme de profilage ou de notation punitive.
 
     PORTÉE EXACTE, sans aucune exemption de fichier ni de casse :
-      - clés chaînes des dict LITTÉRAUX ;
+      - clés chaînes des dict LITTÉRAUX, sauf les trois clés exactes du DTO
+        matériaux M6 (CLES_DTO_MATERIAUX_R020) ;
       - noms d'identifiants, d'attributs, de fonctions (y compris coroutines),
         de classes, de PARAMÈTRES de fonction et de mots-clés d'appel.
 
@@ -290,6 +298,7 @@ def garde_conformite_r020(chemin_source=None):
                     if (
                         isinstance(key, ast.Constant)
                         and isinstance(key.value, str)
+                        and key.value not in CLES_DTO_MATERIAUX_R020
                         and self._contient_terme(key.value)
                     ):
                         violations.append(

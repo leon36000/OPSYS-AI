@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 140 outils sur 232 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 142 outils sur 234 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -122,7 +122,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (139 outils) : §9.5 + employé + vendeur
+### `admin` (141 outils) : §9.5 + employé + vendeur
 
 Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et :
 
@@ -139,7 +139,8 @@ Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et 
 | M3 | `m3_lire_apprentissage_chantier` (T0) | Lecture jointe M3/M4/M6/M5/M8 d’un WCT et d’une coupure UTC; admin appareil actif. Sources relues, marges seulement finales/comparables; aucun GPS, identité terrain ou activation. |
 | M3 | `m3_auditer_couverture_apprentissage` (T0) | Diagnostic SQLite sans paramètres : compare les identités de publication M4 du bus aux reçus M3. Admin appareil actif seulement; ni console ni appel sans identité. Aucun payload/GPS/montant, ingestion, rejeu ou activation; réception par identité ne certifie pas le contenu WCT ou la couverture terrain. |
 | M4 | `m4_lire_faits_calibration_m3` (T0) | Projection en lecture seule des WCT et pointages dont la chaîne M4 et les statuts sont vérifiés; source des évaluations de cohorte de M3, sans temps de déplacement ni heures-personnes. |
-| M4 | `m4_resoudre_demande`, `m4_resoudre_revue_completion` (N4) | §9.5 M4 : approbation des complétions. |
+| M4 | `m4_resoudre_demande`, `m4_resoudre_revue_completion` (N4) | §9.5 M4 : revue humaine. Le chemin historique de complétion à quatre arguments est fermé aux appels DEVICE ; la console v1 explicitement non liée conserve son historique. |
+| M4 | `m4_lire_dossier_revue_completion_appareil` (N0), `m4_resoudre_revue_completion_sources` (N4) | Admin DEVICE actuellement confirmé en SQL : dossier courant ou historique, puis proposition P liée à la transition M4 et aux publications et références M6 exactes. La création de demande ne confirme aucun effet métier. Un propriétaire SQL décide sous une intention D distincte ; seule sa preuve de transition propre confirme la complétion. Les lectures et replays ne créent pas d'artefact, et les causes de matériaux ne constituent pas un classement du personnel. |
 | M4 | `m4_produire_brouillon_temps` | §9.3 : brouillon de feuille de temps envoyé à M5. |
 | M4 | `m4_previsualiser_heures_regulieres` (T0), `m4_lire_heures_regulieres_validees` (T0) | Sources horaires individuelles privées : aperçu recalculé depuis les pointages et lecture de la validation N4 courante. Identité admin confirmée et technicien OPSYS actif avec rôle employee requis; chaîne altérée, intervalle incomplet ou hors période refusés. La lecture ne valide pas les heures : leur approbation N4 conserve le contrôle des sources et de la validation précédente attendue (CAS). Aucun salaire ni brut rendu; aucun accès employee/seller. |
 | M4 | `m4_lire_position_gps` | §9.2 « accès admin journalisé » ; POLITIQUE-geolocalisation §6. `accede_par` doit être sa propre personne (T1.4-k). |

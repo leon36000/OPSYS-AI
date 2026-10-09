@@ -63,6 +63,8 @@ from . import (
     registre,
     retards,
     retention,
+    revue_completion_sources,
+    sources_revue_completion,
     temps,
     tournees,
     verdicts,
@@ -656,9 +658,60 @@ def outils(
         # PLAN T1.3-b : niveau N4 (déclaré sur l'Outil ci-dessous) — un agent PROPOSE, la
         # signature (personne, rôle) appartient au socle (opsys.approbations.decider), jamais à
         # cette fonction pure : voir outbox.resoudre_revue_completion.
+        # Le v1 reste pur/historique à la console, jamais promu en décision DEVICE liée.
+        if contexte.identite_appelante() is not None and contexte.identite_appelante().source == "appareil":
+            return {"accepte": False, "verdict": revue_completion_sources.verdict("LEGACY-DEVICE-INTERDIT")}
+        if contexte.demande_approuvee_en_cours() is not None:
+            from opsys.approbations_completion_m4 import autoriser_legacy
+
+            refus = autoriser_legacy(stockage.connexion_courante(), "m4_resoudre_revue_completion", _DEPARTEMENT)
+            if refus is not None:
+                return {"accepte": False, "verdict": refus}
         return depuis_couple(outbox.resoudre_revue_completion(
             intervention_id, decision, horodatage, registre_courant(), motif=motif,
         ))
+
+    def lire_dossier_revue_completion_appareil(intervention_id: str, demande_id: str | None):
+        r = revue_completion_sources
+        try:
+            cnx = stockage.connexion_courante()
+            sources_revue_completion.autoriser_admin(cnx)
+            borne = contexte.limite_sortie() or r.BORNE_SORTIE
+            if demande_id is not None:
+                from opsys.approbations_completion_m4 import donnees_historique
+
+                data, refus = donnees_historique(cnx, r.ECRIRE, _DEPARTEMENT, intervention_id, demande_id)
+                if refus is not None:
+                    return {"accepte": False, "verdict": refus}
+                dto = {"version_schema": 1, "lecture": "historique", **data,
+                       "bornes": {"limite_arguments_caracteres": r.BORNE_ARGUMENTS,
+                                  "limite_enveloppe_caracteres": min(5400, borne)}}
+                r.borner_metier({"accepte": True, "resultat": dto}, borne)
+            else:
+                reg, source = sources_revue_completion.charger(cnx, intervention_id)
+                dto = r.dossier(reg, source, intervention_id, borne)
+            return depuis_couple((dto, None))
+        except r.Refus as exc:
+            return depuis_couple((None, r.verdict(exc.suffixe)))
+
+    def resoudre_revue_completion_sources(intervention_id, decision, horodatage, motif, sources):
+        from opsys.approbations_completion_m4 import donnees_execution
+
+        r = revue_completion_sources
+        args = {"intervention_id": intervention_id, "decision": decision, "horodatage": horodatage,
+                "motif": motif, "sources": sources}
+        cnx = stockage.connexion_courante()
+        data, refus = donnees_execution(cnx, r.ECRIRE, _DEPARTEMENT, args)
+        if refus is not None:
+            return {"accepte": False, "verdict": refus}
+        if contexte.limite_sortie() is None:
+            return {"accepte": False, "verdict": r.verdict("CONTEXTE-SORTIE-ABSENT")}
+        try:
+            reg, source = sources_revue_completion.charger(cnx, intervention_id)
+            ack, refus = outbox.resoudre_revue_completion_sources(reg, source, args, data, contexte.limite_sortie())
+            return ack if refus is None else {"accepte": False, "verdict": refus}
+        except r.Refus as exc:
+            return {"accepte": False, "verdict": r.verdict(exc.suffixe)}
 
     def lister_pending_review(type_demande: str | None = None) -> list[dict[str, Any]]:
         return ecarts.lister_pending_review(registre_courant(), type_demande=type_demande)
@@ -2290,6 +2343,19 @@ def outils(
             # (`acces.controler_administrateur`).
             roles_appareil=frozenset({"admin"}),
         ),
+        Outil(nom=revue_completion_sources.LIRE,
+              description="Dossier courant ou résolution propre d'une revue M4 liée aux sources M6, sans écriture.",
+              parametres={"type": "object", "properties": {
+                  "intervention_id": {"type": "string"}, "demande_id": {"type": ["string", "null"], "maxLength": 32}},
+                  "required": ["intervention_id", "demande_id"], "additionalProperties": False},
+              fonction=lire_dossier_revue_completion_appareil, autonomie=Autonomie.T0, niveau=Niveau.N0,
+              roles_appareil=frozenset({"admin"})),
+        Outil(nom=revue_completion_sources.ECRIRE,
+              description=("Proposition N4 humaine de revue de complétion, "
+                           "liée à toutes les sources critiques examinées."),
+              parametres=revue_completion_sources.SCHEMA_ARGUMENTS,
+              fonction=resoudre_revue_completion_sources, autonomie=Autonomie.T1, niveau=Niveau.N4,
+              roles_appareil=frozenset({"admin"})),
         Outil(
             nom="m4_previsualiser_heures_regulieres",
             description=("Aperçu privé des pointages d'une personne OPSYS active. Dérive catégories travail, "

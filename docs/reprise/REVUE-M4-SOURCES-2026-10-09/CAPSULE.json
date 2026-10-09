@@ -1,0 +1,44 @@
+{
+  "Root_capsule_readback": {
+    "path": "qualification/M4-REVUE-SOURCES-ASSEMBLAGE-20261009-r1/capsule-root-readback-final-r1.json",
+    "sha256": "0422af9ed30ffb083112ef8482afb7546a02130ee00d811ce2549b5ec4e362c1"
+  },
+  "authorization_ROOT": false,
+  "capsule_members": 1619,
+  "capsule_path": "EVIDENCE-FINAL-r1.tar.gz",
+  "capsule_sha256": "8da2a13f6876849faaadc2b0cae8226bede9973957e7e5bd9330fe5ac05fc4d0",
+  "doc3_excluded_from_archive": true,
+  "excluded": [
+    "PRIVATE/rawlogs/transcripts/authconfig/DB/token files",
+    "mobile/node_modules symlink",
+    "phone/Hermes/ExpoSQLite/PG/provider/deep-departments universal delivery claims"
+  ],
+  "manifest": {
+    "path": "EVIDENCE-FINAL-r1/SHA256-packet-final-r1.json",
+    "sha256": "d7a920f91acfc7c4d8db523fc89aa30feaf5e2c361cc7ebe7ea2572b2162cf54"
+  },
+  "native": {
+    "manifest_sha256": "ca5703866f3dfa08560af4bc15566bc7a9f706f36ec6fd0d028a10f994d8ca31",
+    "normal_Runtime5": "RED4 blocked catalogue attempts, unchanged by minimal test configuration",
+    "pass": true,
+    "receipt_sha256": "92a6282cc8607577d99c55f59ccf9f94eaf709d20c47940efaec9daed41dc616",
+    "scope": "real opaque DEVICE/official minimal CoreGateway/publicHTTPMCP/B Cap/SQLite; console control explicitly separate"
+  },
+  "new_exact_CI": "not inherited; future exact commit pending qualification",
+  "parent": "26abd22e0c7e3231d2d2f5eb4b8965d98053c2ad",
+  "product": "PARTIEL",
+  "publication": false,
+  "publisher_r2_sha256": "ded2f3c0f1c1308ce3825c8fa3189c067a854fac535a535e470a6c4e7996aba5",
+  "recorded_toronto": "2026-10-09T07:31:56.816625-04:00",
+  "roundtrip_verified": true,
+  "scanner": {
+    "path": "EVIDENCE-FINAL-r1/scanner-packet-final-r1.json",
+    "scope": "selected public bytes/patterns, input closure-known-secret scans preserved; no all-machine/all-secret assertion",
+    "sha256": "49ecd580ba0c752414d00e5fba444db11762d5aef0a8630561bb997242e98702",
+    "status": "CLEAN"
+  },
+  "schema_version": 1,
+  "source45_modified": 25,
+  "source45_new_absent_at_parent": 20,
+  "status": "FINAL_EVIDENCE_REVIEWABLE_ROOT_PUBLICATION_NOT_EXECUTED"
+}

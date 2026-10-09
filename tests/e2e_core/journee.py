@@ -123,6 +123,32 @@ def creer_app_employe(passerelle: Passerelle, appareil: Appareil, chantier: Chan
     return AppEmployeReelle(_Ecran(), PorteHttp(passerelle, appareil.identifiant), chantier)
 
 
+def _sources_pour_revue(appeler, intervention_id, wct_id, prefixe):
+    """Fictif : lecture M6 puis causes humaines déclarées, sans vérité photo inférée."""
+    liste = appeler("m6_lister_variances_classables_wct_appareil",
+                    {"wct_id": wct_id, "decalage": 0, "limite": 8})
+    assert liste.metier["accepte"] is True, liste.corps
+    dto = liste.resultat
+    assert dto["wct"]["wct_id"] == wct_id and dto["wct"]["intervention_id"] == intervention_id
+    assert dto["pagination"]["reste"] == 0 and dto["pagination"]["decalage_suivant"] is None
+    critiques = [ligne for ligne in dto["lignes"] if ligne["source_ligne"]["critique"] is True]
+    assert critiques, "ce scénario doit publier une variance critique, pas inventer une cause"
+    for ligne in critiques:
+        assert ligne["classement_courant"] is None, "source initiale de cette fixture"
+        classement = appeler("m6_classer_cause_variance_appareil", {
+            "selection": ligne["selection"], "cause": "breakage",
+            "motif": "FICTIF : cause de bris déclarée pour le scénario, sans attestation photo.",
+            "classement_attendu": None, "references_pieces": [],
+        }, cle=f"{prefixe}-{ligne['selection']['position_ligne']}")
+        assert classement.metier["accepte"] is True, classement.corps
+    dossier = appeler("m4_lire_dossier_revue_completion_appareil",
+                      {"intervention_id": intervention_id, "demande_id": None})
+    assert dossier.metier["accepte"] is True, dossier.corps
+    assert dossier.resultat["wct"] == dto["wct"]
+    assert dossier.resultat["couverture"]["positions_sans_classement"] == []
+    return dossier.resultat["sources"]
+
+
 class AppProprietaire:
     """Le téléphone du propriétaire : ses écritures portent une clé, l'heure et l'identifiant de l'appareil, comme
     le vidangeur de l'app ; ses lectures rien."""
@@ -341,9 +367,19 @@ def jouer_la_journee(
            "le chantier à réviser doit citer la variance et le chantier", attente=a_reviser)
 
     # -- le propriétaire ouvre la revue (N4 : jamais au départ), l'employé ne peut rien décider --------------------
-    revue = ecran.envoyer("m4_resoudre_revue_completion", {
+    def appeler_revue(outil, arguments, *, cle=None):
+        if cle:
+            return ecran.envoyer(outil, arguments, cle=cle).reponse
+        avant_lecture = base.empreinte()
+        reponse = ecran.passerelle.invoquer(outil, arguments)
+        exiger(base.empreinte() == avant_lecture, "lecture de sources sans mutation")
+        ecran.lectures.append(reponse)
+        return reponse
+
+    sources = _sources_pour_revue(appeler_revue, chantier.intervention_id, wct_id, "mut-classement-journee")
+    revue = ecran.envoyer("m4_resoudre_revue_completion_sources", {
         "intervention_id": chantier.intervention_id, "decision": "verifiee", "horodatage": iso(dt.datetime.now(DT_TZ)),
-        "motif": "Bris de 16 pi constaté sur place et photographié : l'écart est expliqué (fictif)."})
+        "motif": "Revue fictive des sources M4/M6 relues.", "sources": sources})
     exiger(revue.reponse.statut == 200 and revue.reponse.enveloppe.get("statut") == "en_attente_approbation",
            "N4 : la revue doit attendre la décision du propriétaire, jamais s'exécuter au départ",
            corps=revue.reponse.corps)
@@ -353,7 +389,7 @@ def jouer_la_journee(
     exiger(len(file["demandes"]) == 1, "une seule demande doit attendre le propriétaire", demandes=file["demandes"])
     demande = file["demandes"][0]
     exiger((demande["outil"], demande["niveau"], demande["decidable"], demande["arguments"].get("intervention_id")) == (
-        "m4_resoudre_revue_completion", "N4", True, chantier.intervention_id),
+        "m4_resoudre_revue_completion_sources", "N4", True, chantier.intervention_id),
         "la demande doit être décidable par le propriétaire", demande=demande)
     demande_id = demande["id"]
     for outil, args, cle in (
@@ -379,9 +415,16 @@ def jouer_la_journee(
     resultat = decision.reponse.resultat
     exiger((resultat["demande_id"], resultat["statut"], resultat["decide_par"], resultat["role"], resultat["outil"],
             resultat["departement"], resultat["niveau"]) == (
-        demande_id, "executee", proprietaire.personne, ROLE_SIGNATAIRE, "m4_resoudre_revue_completion",
+        demande_id, "executee", proprietaire.personne, ROLE_SIGNATAIRE, "m4_resoudre_revue_completion_sources",
         "m04-field-ops", "N4") and resultat["issue"]["accepte"] is True,
         "la décision doit être exécutée, signée par la personne authentifiée", resultat=resultat)
+    preuve = resultat["preuve_completion"]
+    exiger(preuve["sources"] == sources and preuve["wct_id"] == wct_id
+           and preuve["demande_approbation_id"] == demande_id
+           and preuve["association_decision"]["intention_uuid"] == decision.cle
+           and preuve["association_decision"]["appareil_id"] == proprietaire.identifiant
+           and preuve["association_decision"]["horodatage_appareil_declare"] == decision.horodatage_appareil,
+           "seul le maillon propre à D prouve la revue signée", preuve=preuve)
     exiger(_statut_de_l_intervention(app) == "completed_verified", "la complétion doit être vérifiée après la décision")
     apres = ecran.ecran()
     exiger("completion_en_revue" not in {a["type"] for a in apres["attentes"]} and apres["total_en_attente"] == 0
@@ -390,7 +433,7 @@ def jouer_la_journee(
     # -- ce que le moteur a gardé : la personne signe, l'appareil est au journal --------------------------------------
     ligne = base.demande(demande_id)
     exiger((ligne["statut"], ligne["decide_par"], ligne["decide_role"], ligne["niveau"], ligne["outil"]) == (
-        "executee", proprietaire.personne, ROLE_SIGNATAIRE, "N4", "m4_resoudre_revue_completion"),
+        "executee", proprietaire.personne, ROLE_SIGNATAIRE, "N4", "m4_resoudre_revue_completion_sources"),
         "la demande doit porter la signature de la personne authentifiée, pas celle de l'appareil", demande=ligne)
     (entree,) = base.journal("approbation.approuver", demande_id)
     exiger(entree["par"] == proprietaire.personne and entree["details"].get("appareil") == proprietaire.identifiant
@@ -413,8 +456,12 @@ def jouer_la_journee(
            "le rejeu de la décision ne doit rien changer à l'état durable", avant=avant, apres=base.empreinte())
     encore = ecran.envoyer("m9_decider_demande_approbation", decision.args)
     exiger(encore.reponse.statut == 200 and encore.reponse.metier.get("accepte") is False
-           and encore.reponse.metier["verdict"]["code"] == "deja_decidee",
-           "une seconde décision sous une autre clé doit être refusée : déjà décidée", corps=encore.reponse.corps)
+           and encore.reponse.metier["verdict"]["code"] == "deja_decidee"
+           and encore.reponse.metier.get("preuve_completion") is None,
+           "une autre clé D reçoit le refus natif sans preuve propre ; aucune nouvelle revue",
+           corps=encore.reponse.corps)
+    # Ce refus frais n'est pas une preuve d'absence d'effet propre à D ; le consommateur
+    # mobile spécialisé conserve l'intention inconnue (qualifié séparément).
     exiger(base.demande(demande_id) == ligne and len(base.journal("approbation.approuver", demande_id)) == 1,
            "la seconde décision ne doit rien avoir changé")
 

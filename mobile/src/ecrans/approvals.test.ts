@@ -709,3 +709,14 @@ describe("chargerSuiteAttentes", () => {
     expect(vueAttentes(interpretation.liste.attentes)).toMatchObject({ genre: "presentes", suivant: null, reste: 5 });
   });
 });
+import { referenceInterventionRevueCompletion, referenceDemandeRevueCompletion } from "./approvals";
+
+test("la revue sources remplace uniquement la décision générique de son outil exact", () => {
+  const d = { id: "APP-FICTIVE", outil: "m4_resoudre_revue_completion_sources", departement: "m04-field-ops", niveau: "N4",
+    arguments: { intervention_id: "INTERV-FICTIVE" } };
+  expect(referenceDemandeRevueCompletion(d)).toEqual({ intervention_id: "INTERV-FICTIVE", demande_id: "APP-FICTIVE" });
+  expect(referenceDemandeRevueCompletion({ ...d, outil: "m4_resoudre_revue_completion" })).toBeNull();
+  expect(referenceDemandeRevueCompletion({ ...d, arguments: null })).toBeNull();
+  expect(referenceInterventionRevueCompletion({ id: "INTERV-FICTIVE", departement: "m04-field-ops", type: "completion_en_revue" })).toBe("INTERV-FICTIVE");
+  expect(referenceInterventionRevueCompletion({ id: "INTERV-FICTIVE", departement: "m05-finance-core", type: "completion_en_revue" })).toBeNull();
+});

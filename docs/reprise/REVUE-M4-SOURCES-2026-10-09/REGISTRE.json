@@ -1,0 +1,674 @@
+{
+  "Native_counts": {
+    "Gateway": 71,
+    "HTTPMCP": 64,
+    "HTTP_statuses": {
+      "200": 63,
+      "401": 1,
+      "403": 6,
+      "500": 1
+    },
+    "artefacts": 0,
+    "original_HTTP_UTF8_bodies": 71,
+    "table_counts_measured": [
+      49
+    ],
+    "windows_all_tables_unchanged": 58
+  },
+  "Native_pass": true,
+  "Native_receipt": {
+    "path": "qualification/M4-REVUE-SOURCES-NATIVE-20261009-r1/CLOTURE-PUBLIC-runtime-r6/receipt-final-r1.json",
+    "sha256": "92a6282cc8607577d99c55f59ccf9f94eaf709d20c47940efaec9daed41dc616"
+  },
+  "Native_scope": "real opaque DEVICE/official minimal CoreGateway/publicHTTPMCP/B Cap/SQLite; console control explicitly separate",
+  "Root_Native_readback": {
+    "path": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/native6-final-root-readback-r1.json",
+    "sha256": "3efad69e0ba681d94c1ef0e477917558be37996ad5f0f6b79c57b2793d5f8eec"
+  },
+  "Root_capsule_readback": {
+    "path": "qualification/M4-REVUE-SOURCES-ASSEMBLAGE-20261009-r1/capsule-root-readback-final-r1.json",
+    "sha256": "0422af9ed30ffb083112ef8482afb7546a02130ee00d811ce2549b5ec4e362c1"
+  },
+  "absences": {
+    "104_excluded_transfer_refs_and_missing_conversations": "remain unknown, no reconstruction",
+    "Native_final": "closed PASS official minimal Gateway only; normal Runtime5 RED retained",
+    "Root_primary_smokes": "not run; exact4 scopes after future R integration",
+    "new_exact_CI": "not run/inherited, future exact commit required",
+    "new_sources_at_parent": "20 explicit null preimages, not missing evidence"
+  },
+  "authorization_ROOT": false,
+  "capsule_members": 1619,
+  "capsule_sha256": "8da2a13f6876849faaadc2b0cae8226bede9973957e7e5bd9330fe5ac05fc4d0",
+  "counts": {
+    "expected_delta_paths": 48,
+    "future_repo_docs": 3,
+    "modified": 25,
+    "new_absent_at_parent": 20,
+    "sources": 45
+  },
+  "exclusions": [
+    "PRIVATE/auth/configDB/tokens/transcripts",
+    "mobile/node_modules symlink",
+    "R/B source edits/Git/provider/CI operations by assembler"
+  ],
+  "historical_limits_disposition": "Les limites textuelles des reçus antérieurs sont conservées dans leur version d’origine. Runtime5 a désormais son diagnostic public fermé, tout en restant rouge sur les quatre tentatives externes bloquées. La clôture minimale finale PASS et ses six nettoyages sont attestés par les reçus finaux référencés ; les anciennes attentes de clôture ne constituent pas des travaux encore ouverts.",
+  "packet_scan_pass": true,
+  "parent": "26abd22e0c7e3231d2d2f5eb4b8965d98053c2ad",
+  "preimage_reconciliation": {
+    "path": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+    "sha256": "d104d6f1df2472f3f536698d4001d01af67642114a4b8aebd868a4399c64057b"
+  },
+  "preimages_verified_by": "Root fresh R/Git reconciliation; assembler performs no Git",
+  "product": "PARTIEL",
+  "publication": false,
+  "publisher_blueprint": {
+    "Root_review_sha256": "76cf33ca6788cbb52fcfe5fa41260b7e9bc78f92b5118041c4ba51399510b6cb",
+    "path": "publisher-blueprint-r2.py",
+    "scope": "reviewed inactive; no publication phase executed by assembler",
+    "sha256": "ded2f3c0f1c1308ce3825c8fa3189c067a854fac535a535e470a6c4e7996aba5"
+  },
+  "qualifications": [
+    {
+      "id": "contrat_r2",
+      "manifest": "SHA256.json",
+      "manifest_sha256": "e8d851e5ddb0c88d4c89975000080eacebf7ea97b6d4ed69c4d64a06ade5d715",
+      "path": "qualification/CONTRAT-M4-N4-SOURCES-20261009-r1/PUBLIC-r2",
+      "receipt": "receipt-final-r2.json",
+      "receipt_sha256": "d197adcc9f16ec4b3697e102eb20c03663bcdc9a7f14a44c023ed14cc30168d8",
+      "scanner": "scanner-r2.json",
+      "scanner_verdict": "CLEAN",
+      "version_origin_retained": true
+    },
+    {
+      "id": "contrat_r3",
+      "manifest": "SHA256.json",
+      "manifest_sha256": "4275e9bb08f1cb8098f69997ae7c2f5aca585ce8addc0bb8cecac40e82937965",
+      "path": "qualification/CONTRAT-M4-N4-SOURCES-20261009-r1/PUBLIC-r3",
+      "receipt": "receipt-addendum-r3.json",
+      "receipt_sha256": "ef2f62eecce1915c57bd72fca68e7eb682af2098053b0bfbbeb3c7ab25b6c000",
+      "scanner": "scanner-r3.json",
+      "scanner_verdict": "CLEAN",
+      "version_origin_retained": true
+    },
+    {
+      "id": "backend_initial",
+      "manifest": "SHA256.json",
+      "manifest_sha256": "da69403eec539413e58973dce7667b23b81e3ae88e61658cb03af63a03d1cceb",
+      "path": "qualification/M4-REVUE-SOURCES-BACKEND-20261009-r1/PUBLIC-r1",
+      "receipt": "receipt-final-r1.json",
+      "receipt_sha256": "8113a55c5af014caaef1fd41d5a09ae4abb3410f4578ee169a8e286b1e00d77b",
+      "scanner": "scanner-r1.json",
+      "scanner_verdict": "CLEAN",
+      "version_origin_retained": true
+    },
+    {
+      "id": "architecture",
+      "manifest": "SHA256-r2.json",
+      "manifest_sha256": "6e227dfac3d7a588d610657aba765d3a55dc10bfdaa686efeeaff4c0307d104c",
+      "path": "qualification/M4-REVUE-SOURCES-ARCHITECTURE-20261009-r1/PUBLIC-r2",
+      "receipt": "receipt-final-r2.json",
+      "receipt_sha256": "eddcc830eba04290814c472d61750b304f516652ddc60e1f97f1286c1ef30cbc",
+      "scanner": "scanner-r2.json",
+      "scanner_verdict": "CLEAN",
+      "version_origin_retained": true
+    },
+    {
+      "id": "mobile_initial",
+      "manifest": "SHA256-final-r1.json",
+      "manifest_sha256": "3c1d068e17f545cc9de65313bf7872fa0c25ef905860a7e65982897daed58c69",
+      "path": "qualification/M4-REVUE-SOURCES-MOBILE-INTEGRATION-20261009-r1/PUBLIC-r1",
+      "receipt": "receipt-final-r1.json",
+      "receipt_sha256": "ddbdc6491217083713bc7b26ba1f58c5992219817b063ef1095ff94df602bbb9",
+      "scanner": "scanner-final-r1.json",
+      "scanner_verdict": "CLEAN",
+      "version_origin_retained": true
+    },
+    {
+      "id": "mobile_addendum",
+      "manifest": "SHA256-final-r2.json",
+      "manifest_sha256": "7c099ba53d0c4321309dca395f640212f76d75f30e94c5c511713671a1c6aef0",
+      "path": "qualification/M4-REVUE-SOURCES-MOBILE-INTEGRATION-20261009-r1/PUBLIC-r2",
+      "receipt": "receipt-final-r2.json",
+      "receipt_sha256": "c95bb3dbaa2ef6ff059e964530a24056fc2a72054f77d3accaaed65abf06072f",
+      "scanner": "scanner-final-r2.json",
+      "scanner_verdict": "CLEAN",
+      "version_origin_retained": true
+    },
+    {
+      "id": "review_root_initial",
+      "manifest": "SHA256-r2.json",
+      "manifest_sha256": "a03779e86bffee7d45a79b9b58312d1a589e2c4b132ed0ddc121384d67281e5e",
+      "path": "qualification/M4-REVUE-SOURCES-ROOT-REVIEW-20261009-r1/PUBLIC-r2",
+      "receipt": "receipt-final-r2.json",
+      "receipt_sha256": "6ab5339bcdcf20fd995659df3a5285c16359d729bbc8447875ac448c65875ec3",
+      "scanner": "scanner-r2.json",
+      "scanner_verdict": "CLEAN",
+      "version_origin_retained": true
+    },
+    {
+      "id": "review_root_closure",
+      "manifest": "SHA256-r6.json",
+      "manifest_sha256": "d21b2a648412b2927cc30a0fa9c22af7b10f3d379fbfe10ba534388213441eb0",
+      "path": "qualification/M4-REVUE-SOURCES-ROOT-REVIEW-20261009-r3/PUBLIC-r6",
+      "receipt": "receipt-final-r6.json",
+      "receipt_sha256": "100871d1d5e065979775cacb4bacc6d1a8e310ac3e00c27fa104796575986b99",
+      "scanner": "scanner-r6.json",
+      "scanner_verdict": "CLEAN",
+      "version_origin_retained": true
+    },
+    {
+      "id": "diagnostic_four",
+      "manifest": "SHA256-r1.json",
+      "manifest_sha256": "1528c6ccd1727d0b5db9c8962bf1902d885f4c306882f46eaea56c6aeaccf22f",
+      "path": "qualification/M4-BROAD-FAILURES-DIAGNOSTIC-20261009-r1/PUBLIC-r1",
+      "receipt": "receipt-r1.json",
+      "receipt_sha256": "77939612735eea04883332ec9bcc1090ee5f73b68a383cf2ac26f63ec57e9f18",
+      "scanner": "scanner-r1.json",
+      "scanner_verdict": "CLEAN",
+      "version_origin_retained": true
+    },
+    {
+      "id": "review_final_peer",
+      "manifest": "SHA256-r1.json",
+      "manifest_sha256": "2dcf714a512192a9ffbd150cf89d40beb97c4a5f65ebc65d5d7641e1cc0f473c",
+      "path": "qualification/M4-REVUE-SOURCES-FINALE-INDEPENDANTE-20261009-r1/PUBLIC-r1",
+      "receipt": "receipt-final-r1.json",
+      "receipt_sha256": "bacaf937b0129938959b06ae1fe35e7b8b5eddb207f0489fc6c98e6384869d6f",
+      "scanner": "scanner-r1.json",
+      "scanner_verdict": "CLEAN",
+      "version_origin_retained": true
+    },
+    {
+      "id": "e2e_final",
+      "manifest": "SHA256-final-r1.json",
+      "manifest_sha256": "cfcda6614410ef630b8fc136a0690be5b762984071e3328c9b44bca6bd2698d0",
+      "path": "qualification/M4-E2E-SOURCES-MIGRATION-20261009-r1/PUBLIC-r1",
+      "receipt": "receipt-final-r1.json",
+      "receipt_sha256": "d3de9f8d96098095237ed1557c3c4e4b7fe82f6bd2a3bf5f027491d28a07c6fe",
+      "scanner": "scanner-r1.json",
+      "scanner_verdict": "PASS",
+      "version_origin_retained": true
+    }
+  ],
+  "recorded_toronto": "2026-10-09T07:31:56.816625-04:00",
+  "red_green_dispositions": [
+    {
+      "green": "final backend and architecture capsules, own source scopes only",
+      "red": "requirements, canonical role sets and source-bound contracts retained in original capsules",
+      "scope": "backend/architecture"
+    },
+    {
+      "green": "integrated r4 4843P/22skips; 43 CI/fixtures contract tests; scopes overlap, not added",
+      "limits": "20 PyVRP unavailable locally, 2 Docker PostgreSQL skipped",
+      "red": "interruption -15, runner import/collection failures, delayed APP/null/nonobject/authority/quota regressions retained",
+      "scope": "Root backend"
+    },
+    {
+      "green": "full5259P/227 on original22 source version; exportB r3 provenance; addendum161P/4+TS0 after three data/oracle changes",
+      "limits": "full/export not retroattributed to the later three fixture/test files; no phone",
+      "red": "legacy offline queue regression; historical proof contradiction; export source-provenance failures; 3 fixture tool-name oracles",
+      "scope": "mobile"
+    },
+    {
+      "green": "4P final real HTTPMCP recorder/Python Core door+SQLite, no native Node qualification",
+      "red": "4 old oracles then2P/2F retained",
+      "scope": "E2E"
+    },
+    {
+      "green": "7 Q tests, DRAFT-r4 614 members roundtrip exact scannerCLEAN",
+      "red": "scanner PASS/CLEAN and structured digest/bytes harness-format errors; source-moving attribution withdrawn",
+      "scope": "assembly"
+    },
+    {
+      "green": "separate primary smoke attestation, exact source_sha256_after;7 fictive Q tests, no Git execution",
+      "red": "Root found future-smoke-prep hash deadlock and wrong source_after alias",
+      "scope": "publisher blueprint"
+    },
+    {
+      "business_observations_root_reported": {
+        "Gateway": 71,
+        "MCP": 64,
+        "scenarios_crossed": true
+      },
+      "diagnostic": "evidence/native_normal5_diagnostic/receipt-r1.json",
+      "green": null,
+      "limits": "await original public receipt; not Native normal PASS, not whole-machine isolation",
+      "public_receipt_origin": "evidence/native_red_runtime_5/receipt.json",
+      "red": "four blocked external catalogue attempts; strict normal-mode closure RED",
+      "scope": "Native normal Runtime5"
+    },
+    {
+      "green": "71 Gateway/64 MCP;58 unchanged49-table windows/13 bounded expected state changes;0artefact;452instrumentedconnections/0outside;cleanup6/EOF/observedowners PASS",
+      "limits": [
+        "Official minimal Gateway only: no normal startup/heartbeat/recovery/provider/controlUI qualification",
+        "No phone/UI/Hermes/PG/provider/N5/M5/M10",
+        "Fixture setup is distinct from Native read/decision windows",
+        "All table names/counts measured, never49 presumed",
+        "OpaqueDEVICE only runtime calls, consolev1 directcontrol separate",
+        "CAS fixture existence is not photographic truth",
+        "Only observed owned processes stopped by PIDFD, stdout EOF confirmed",
+        "public capsule closure and private cleanup must still pass separately",
+        "Console control and setup phases are separate from Gateway/MCP counts",
+        "Raw logs retained PRIVATE may contain private metadata; never capsule/public",
+        "Normal Gateway catalog startup attempts not fixed by minimal test configuration"
+      ],
+      "red": null,
+      "scope": "Native minimal official Q7",
+      "status": "PASS_CLOSED_MINIMAL_ONLY"
+    }
+  ],
+  "registry_origin": {
+    "path": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/registre-delta-intermediaire-r1.json",
+    "sha256": "69904bf7cb64a0a914f06448dd1996199e4435b0c97774c655fd53eef46077e0"
+  },
+  "roundtrip_verified": true,
+  "schema_version": 1,
+  "source_files": [
+    {
+      "origin_owner": "backend",
+      "path": "departments/m04-field-ops/docs/REVUE-COMPLETION-SOURCES.md",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "3e40b03eadf29b27575025a3cee6bbf3be85f2c97ccbf8d8f6163ed5f61e9cf6",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "backend",
+      "path": "departments/m04-field-ops/src/m4_field_ops/digest.py",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "d64eab5ac01f06f7a52bbdec0f8f7a2890f6bdd2388367d8e9949a91418fb4ba",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "5eabc0fcf5a4f9426e088c453e0ea3ba1e636025f23567a26e6eea6da4a3f89b",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "backend",
+      "path": "departments/m04-field-ops/src/m4_field_ops/outbox.py",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "2c2d2d3410413bba3d8858fa394443edcccbb9bc4ab6961c36a6642610ae364c",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "ca7ac68c509bb2e483ecc93456ecc6407f0c5ed0f541d253a80db504821e826b",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "backend",
+      "path": "departments/m04-field-ops/src/m4_field_ops/outils.py",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "7303a22f610c8a6bd9b1e7454e99d0bd3f0b5427882c2fe10370ea9d3f68cfad",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "277f9c6c2eb4ee3203a9814e6287c6c9187081f79c8620d17cefc8e12048edcd",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "backend",
+      "path": "departments/m04-field-ops/src/m4_field_ops/revue_completion_sources.py",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "4e6559121eaaaaff1cc15e726802ea8372d79b117a44b7dae4a3e28027668978",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "backend",
+      "path": "departments/m04-field-ops/src/m4_field_ops/sources_revue_completion.py",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "6189003052b2b98b7699cbaed842c9b2a1bb5e297dc8dac4be5b7cc5c93542ad",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "backend",
+      "path": "departments/m04-field-ops/tests/test_digest.py",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "7e1175934655609b787976e483ed8ee7f6efff076fc90718b838f2801331eab7",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "8f7a2245270dc8632fc86c9256aaa1ab71db331f8156656eb434780efa6586f7",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "backend",
+      "path": "departments/m04-field-ops/tests/test_revue_completion_sources.py",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "ceed2993f7957ef6697977a99355f9acaadd2035dc042ad9a2966abba10b63e7",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "metadata",
+      "path": "docs/architecture/ROLES.md",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "27560c4975b9b36e6f5193e9d32a5ebe9e4931a826ba8dbef7aa0e7d44c80e12",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "03ac624ce0cbddff0d0620898f07d8cdee13cf22923d31ab4325bd5b40f22453",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/app/(admin)/approvals.tsx",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "2a1ae70b71fe761c8258efe2ae2ab2d2c3affcf0564e9288f8294a7d37f25ad6",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "c3fb0f49dd8f5afee1409c183a7234d3105f0643719c64d6ef335311a064c0ce",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/app/(admin)/revue-completion.tsx",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "3c7d13c07f7522307bc2e93c3e4b21fd08ec8c159521fe536797ab29f3b92721",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/admin/RevueCompletionSourcesM4.test.tsx",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "b2bb28573b4fa6834812fde9da9081966df160177ef6e1b9044db83a40ff81f5",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/admin/RevueCompletionSourcesM4.tsx",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "ed763d883a2c66958c1c352171bef6763f52bbc360ee3640eb56e2a1e16146eb",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/admin/aVoir.test.ts",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "b51b3d51e74975e2af7f615cb042c5ad93a7db0f12cf0db5cd688f729a7ac38b",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "ba7ab368366a03aa9358514159f53401610854719ebc2d463986a4e6f9bc7f5e",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/admin/fixtures/reponses-moteur.json",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "e26b02cfa1008003ed4bf8aad5eff42c86e4e7dbe22297b2f0415f87584826a1",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "008838408c4b67d9b8aafa1c1f529c9b58e575f969a8147f574612b523480c06",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/admin/revueCompletionSources.test.ts",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "270552921340c51d0d88d7f263013e975040e71f90a7101319f3ce9d6ec6d7f7",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/admin/revueCompletionSources.ts",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "a0384e94f406f9971827375c9f23e75741f2fb1d1eddd967b26e82e209ce26f8",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/ecrans/admin.test.ts",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "dd0c8afaf90c95b820bf4fb0638282fd4d7dab13fa6ced17a920a39080c1b2da",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "0d023e5668646d7ddd135dd45d7e273c1f324269775f44e9a11aa8e2b1e940e8",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/ecrans/approvals.test.ts",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "08a4224335e25f607c05c6c9f7928bde9f96517daa198f422ed9eaaaf774bac1",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "1d69a84557d40f13ba904734c75a5bc47ebf1fd2565a10b3833b9c58096cea3e",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/ecrans/approvals.ts",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "01547582ac7e652ee5b6dae22b69cec2b3638b4ec23b26c53ad521bfe25e6700",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "df7eaef83ba7da80bb9ecfd036b81efe455d13aab4781b87d6b9874fe532fafa",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/i18n/locales/admin.en-CA.ts",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "bd25b035bdb602b2aac9611297b49bec54ee40b3420f840d963ee7892c579737",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "6482ccb04c02166df9a3be013cf029437715c5261e6c09775e72a7ea9840ebb7",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/i18n/locales/admin.fr-CA.ts",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "59292b072d0afde8f6482ad5655cade624b4f5e1c410c54bb2ab95eb968ccd45",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "3bcbad8d8544ac989326c47380571765790b578c3082d19cca3a7481d9aed032",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/m4/fixturesRevueCompletionCapSQL.json",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "c3f9e948ec4c15e7f6eb7dd8f94a3f310133caeb191242bfd0580a800fe38a74",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/m4/revueCompletionOutbox.test.ts",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "77e9d365c787d71f9e29a11be41d59207bb3200485b932e64ad5af8ecccf216a",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/m4/revueCompletionOutbox.ts",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "0ab2ee53455563b597641e681051f3abcfce8308076bcc6c7a304fb5e41424ad",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/m4/revueCompletionSources.capSql.test.ts",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "269df39f8d4e5075cdedffab6f09ec883322e1ad1fa763f3b4d84fc724af92c1",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/m4/revueCompletionSources.test.ts",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "bf579b33a8e4870d217bdda2f73c2a832ee15225215e1c6ffb62c015ab8793e9",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/m4/revueCompletionSources.ts",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "42ebd20eaee465aaf1ab48de80ff106d4ea2d3ef0e41d3a11294b3552585c9a2",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/outbox/descripteurs.test.ts",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "584b5ad0abb85844e980227151c77ff4a7b354c2b743de7747b9c601ad6c9b3b",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "9c3b9451cfab41bf7984f5b5feba7b9e9514625632f2ad4dd8eeb13d9db32628",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/outbox/descripteurs.ts",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "1a9bcce829cc9db2d3eecfddc18c73a8759b357cb1da8460df472ec71c7ec51d",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "f1dd73d3dec6b91d69584eb0006b1dc984eb204f4c2df53b9a343284e8b2c524",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/outbox/service.test.ts",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "1f01f9b60527019d5497931f75a6a00cdf66548ecd1ec81b1ad2a1d2dbb88279",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "5903bcd3a640f58f06e8d4a4270e87b285097e9f122fc2a697c2727275a30b59",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/outbox/service.ts",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "4792c45d72add5b7ff4b522d174f527eb235b5e97379da3194dcbb406b43c83c",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "125b74b1d1a15a995ddc635b9b58488d01f9b5d9e4f01b40311364c55a97408d",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/outbox/types.test.ts",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "752490bdc687198aef50a237f2792800e73ca4533a9760ca333f13f7d89200bb",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "mobile",
+      "path": "mobile/src/outbox/types.ts",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "ad5bd01a327d5be90768650579938906fadb2dc48fda965057036f04a00bb138",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "dbbe1e6813647fefcae77cd85f849a437623e16b3f331df6b4ffc663eb510444",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "Root",
+      "path": "src/opsys/approbations_appareil.py",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "a3d23d226f9359e114ac2e369d3e0adce6c4e68f04c5cf01736b2263c6b7a3d2",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "94cd5b96f01601c092f7a837f42219e72def7e7fc9e00ef2cb0683fe28beaf68",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "Root",
+      "path": "src/opsys/approbations_completion_m4.py",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "d26050a4a299e64123161b0fc8bfc378783aeab306ff4b2f1d9324572942020b",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "Root",
+      "path": "src/opsys/capacites.py",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "7e59ec6bd9a23dff1ab37fbc2fc7a87891278c4096bcdd83ebae4d27e07dddbc",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "4874a04a3261addf2dd48f1d326ce4814b6d85b57d4c8cd2c400d2dfc655b461",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "backend",
+      "path": "src/opsys/contrats_variance_m6.py",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "59f10413d3165f50ea165a5cab75bc539ad399fe932d10f0a0511b409d496e8e",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "E2E",
+      "path": "tests/e2e/test_admin_appareil.py",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "16c2d173e1328514e5904c453c5b0eeb1b20d8d0ca3ea7c79190fe24e216deb1",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "6238a84536e1a2228ede0898aa81c35c047c78112f3719f8c16fe1fe8b4ce74a",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "E2E",
+      "path": "tests/e2e/test_travaux_termines_appareil.py",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "3e8f993b7273deaf4bb31a83e2ff346fd5e52efadf87c71f816073c46ed9985b",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "89a47fe7c6ae6edd80b7de8af138d26ca2e01781eaed4d82bc822b7527b5ac68",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "E2E",
+      "path": "tests/e2e/test_verticale_affaire_durable.py",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "045481a1c3f5b14045c1282c5ae1739b53d09a8b2a6a52dd14eccdeb7905c178",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "02a69739c0263626d8b8afdfe9c6d393d66f76e70357484cd931a505ce34e53a",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "E2E",
+      "path": "tests/e2e_core/journee.py",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "6e6b6642179a67a57f74859f484ffa07e383889df8dec8e9e76e90f15a0b1fee",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "9e7e2cf89a9654ab6e9934a401b34795ef34a9df346cf3de1d8c9efff27b20d7",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "Root",
+      "path": "tests/test_approbations_completion_m4.py",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "ff25a646357ecd1900c50f142543df0da8b0a35bd64f7ef0f8ffeb8791d10396",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "metadata",
+      "path": "tests/test_portees_appareil.py",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": "ba5fad29bbc2d0387df7366d66509bc9ce57eb90f669084b6d299e538cd54627",
+      "preimage_status": "MODIFIED_PREIMAGE_VERIFIED_BY_ROOT",
+      "sha256": "93c2edb73cc9efc5bd9961baf4f3e2aa9ae2e5133190bf9f6a1b47e2e67a734c",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    },
+    {
+      "origin_owner": "Root",
+      "path": "tests/test_revue_completion_sources_atomique.py",
+      "preimage_origin": "qualification/M4-REVUE-SOURCES-CAP-ROOT-20261009-r1/reconciliation45-root-r1.json",
+      "preimage_sha256": null,
+      "preimage_status": "ABSENT_AT_PARENT",
+      "sha256": "485ad8a13241b537c38c8c9fc5812e2429bd07b38b946e50d458d2d129d4d615",
+      "source_status": "FINAL_SOURCE_BYTES_QUALIFIED_WITHIN_DECLARED_SCOPES"
+    }
+  ],
+  "status": "FINAL_SOURCE45_AND_MINIMAL_NATIVE_REVIEWABLE_NOT_PUBLISHED"
+}

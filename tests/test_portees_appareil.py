@@ -62,6 +62,8 @@ ADMIN_SEUL = frozenset({
     "m4_appliquer_cedule", "m4_confirmer_localisation", "m4_lire_position_gps", "m4_lister_pending_review",
     "m4_produire_brouillon_temps", "m4_produire_digest", "m4_proposer_cedule", "m4_proposer_localisation",
     "m4_resoudre_demande", "m4_resoudre_revue_completion", "m4_verifier_preparation",  # préparation (T4.10-b)
+    # Dossier courant/historique N0 et création P N4 ; exécution signée par le propriétaire sous D distinct.
+    "m4_lire_dossier_revue_completion_appareil", "m4_resoudre_revue_completion_sources",
     "m4_lire_faits_calibration_m3",  # preuve M4 vérifiée consommée par la calibration de M3
     "m4_verifier_meteo_creneau",  # la météo d'un plan de cédule : dispatch de l'admin (T4.13)
     "m4_lire_meteo_intervention",  # la météo du créneau d'une intervention, sans plan_id : dispatch (T4.27-a)

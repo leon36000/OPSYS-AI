@@ -6,6 +6,19 @@ import type { RessourcesAdmin } from "./admin.fr-CA";
  * says so in words too: never a dash, never a zero.
  */
 const adminEnCA: RessourcesAdmin = {
+  revueCompletion: {
+    legacyHorsLigne: "The last read list is informational while offline. Only already offered legacy decisions can be queued; the review with sources must be read again online.",
+    titre: "Completion review with sources", limites: "The proposal creates an N4 request. Only the authorized owner can decide; its own proof then confirms that decision. No stock, cost or classification is corrected automatically.",
+    lire: "Read the dossier again", courant: "Read the current dossier", pagesCourantes: "Current sources may change. The proposal retains the sources confirmed when it was created.",
+    horsLigne: "Offline: a cached dossier is not authorized. An already recorded intention is retained.",
+    signal: "Published critical signal", sansSignal: "No published critical signal", inconnu: "Unknown", classementAbsent: "Human classification missing",
+    choixExplicite: "Explicitly choose the proposed outcome and explain it.", verifiee: "Propose: verified", correction: "Propose: correction required", motif: "Proposal reason (500 characters maximum)",
+    proposer: "Confirm the N4 proposal", captureHistorique: "Historical proposal: sources retained at creation, without replacement by current sources.",
+    preuveAbsente: "No completion proof associated with this decision", ownerRequis: "Only the confirmed owner can decide; already processed requests remain historical.",
+    approuver: "Confirm N4 approval", refuser: "Confirm N4 rejection", enAttente: "Confirmation unknown or pending: the intention, body and original key are retained and block the next decision.",
+    creationConfirmee: "Request creation confirmed. Business completion is not yet confirmed.", decisionConfirmee: "Decision confirmed by its own chain record.",
+    quarantaine: "An unresolved intention belongs to another person or destination. It is retained and blocks the series.", ouvrirDemande: "Read the created request", ouvrir: "Open the review with sources",
+  },
   rappelsM1: {
     titre: "Imported callbacks", note: "Imported missed calls and voicemail. Taking responsibility is internal; no call or message is sent.",
     lire: "Refresh the first page", suite: "Next callbacks page", choisir: "Select this callback", prendre: "Take responsibility",

@@ -34,7 +34,7 @@ describe("l'accueil « À voir » : les demandes en attente et les attentes des 
     const depot = new DepotCleValeurMemoire();
     const en_ligne = await creerChargeurAVoir(config(serveur("a_voir_avec_demande"), { depot })).chargerAVoir();
     expect(en_ligne.source === "serveur" && en_ligne.valeur.demandes[0]).toMatchObject({
-      outil: "m4_resoudre_revue_completion",
+      outil: "m4_resoudre_revue_completion_sources",
       niveau: "N4",
       departementNom: "Field Ops",
       decidable: true,
@@ -56,7 +56,7 @@ describe("l'accueil « À voir » : les demandes en attente et les attentes des 
     expect(hors_ligne.misAJourLe).toBe("2026-09-29T18:03:22.000Z");
     expect(hors_ligne.valeur.demandes[0]).toMatchObject({
       id: en_ligne.source === "serveur" ? en_ligne.valeur.demandes[0].id : "",
-      outil: "m4_resoudre_revue_completion",
+      outil: "m4_resoudre_revue_completion_sources",
       niveau: "N4",
       arguments: null,
     });
