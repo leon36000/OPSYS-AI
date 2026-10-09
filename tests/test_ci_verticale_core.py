@@ -17,6 +17,29 @@ from qualifier_verticale_core import CASE, verify_evidence, wait_qualification
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def test_fast_shards_bound_worker_memory_and_keep_failure_telemetry():
+    workflow = yaml.safe_load((ROOT / ".github/workflows/core.yml").read_text())
+    job = workflow["jobs"]["tests"]
+    assert job["strategy"]["matrix"]["morceau"] == [1, 2, 3, 4, 5, 6]
+    assert job["strategy"]["fail-fast"] is False
+    steps = [step for step in job["steps"] if "pnpm test:fast" in step.get("run", "")]
+    assert len(steps) == 1
+    step = steps[0]
+    # Each worker inherits its own Node heap limit; it is not a shared RSS cap.
+    assert step["env"]["NODE_OPTIONS"] == "--max-old-space-size=4096"
+    assert step["env"]["OPENCLAW_VITEST_MAX_WORKERS"] == "1"
+    assert step["shell"] == "bash"
+    command = step["run"]
+    assert "set -o pipefail" in command
+    assert "--shard=${{ matrix.morceau }}/6" in command
+    assert "--logHeapUsage" in command
+    for reporter in ("verbose", "github-actions", "./scripts/lib/vitest-resource-reporter.mts"):
+        assert f"--reporter={reporter}" in command
+    assert 'tee "$RUNNER_TEMP/vitest.log"' in command
+    assert "|| true" not in command
+    assert "--passWithNoTests" not in command
+
+
 def assert_dead_process(pid):
     # Linux proc_pid_stat(5), field 3: Z is zombie, X/x are dead. An alive
     # process in R/S/D/T/t/I must still fail, even if its parent already exited.

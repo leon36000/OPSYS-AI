@@ -38,7 +38,7 @@ jobs:
           OPENCLAW_LOCAL_CHECK: "0"
         run: node --import tsx scripts/profile-extension-memory.mts --extension voice-call --skip-combined --concurrency 1
 
-  # Tests unitaires rapides, découpés en six morceaux : sur un seul runner à 4 cœurs, la suite
+  # Tests unitaires rapides, découpés en six morceaux : sur un seul runner, la suite
   # dépasse une heure (la CI d'origine la découpe en 6 à 12 morceaux sur 16 cœurs). Le lanceur
   # construit lui-même les prérequis des rares tests qui lisent le dist.
   tests:
@@ -58,15 +58,16 @@ jobs:
       - name: Installation
         run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
       - name: Tests unitaires rapides (morceau ${{ matrix.morceau }}/6)
-        # Mêmes réglages que la CI d'origine : la config unitaire partage ses workers
-        # (isolate: false), elle tourne avec peu de workers et 8 Go de tas Node.
+        # Un seul worker et 4 Gio de tas par isolate limitent la pression mémoire
+        # sur le runner privé. Les six morceaux et les assertions restent identiques.
+        # Le reporter observe le pool effectif ; logHeapUsage ne mesure pas le RSS total.
         env:
-          NODE_OPTIONS: --max-old-space-size=8192
-          OPENCLAW_VITEST_MAX_WORKERS: "2"
+          NODE_OPTIONS: --max-old-space-size=4096
+          OPENCLAW_VITEST_MAX_WORKERS: "1"
         shell: bash
         run: |
           set -o pipefail
-          pnpm test:fast --shard=${{ matrix.morceau }}/6 2>&1 | tee "$RUNNER_TEMP/vitest.log"
+          pnpm test:fast --shard=${{ matrix.morceau }}/6 --logHeapUsage --reporter=verbose --reporter=github-actions --reporter=./scripts/lib/vitest-resource-reporter.mts 2>&1 | tee "$RUNNER_TEMP/vitest.log"
       - name: Tests en échec (résumé en fin de journal)
         if: failure()
         shell: bash
