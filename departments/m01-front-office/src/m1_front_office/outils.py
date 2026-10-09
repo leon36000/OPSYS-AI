@@ -1544,6 +1544,16 @@ def consigner_suivi_rappel(
             "REJ-SUIVI-RAPPEL-ECHEANCE-INATTENDUE", "Une prise en charge ne porte pas d'échéance de tentative."
         )
 
+    reponse, _ligne_id = _appliquer_suivi_rappel(
+        acteur, transfert_id, action, snapshot_attendu, quand, prochaine,
+    )
+    return reponse
+
+
+def _appliquer_suivi_rappel_brut(
+    acteur, transfert_id, action, snapshot_attendu, quand, prochaine, *, champs_appareil=None,
+):
+    """Application partagée ; console conserve ses refus/retours, DEVICE garde son propre ACK."""
     try:
         reg, lignes = _lire_registre_suivi_rappel()
     except ValueError as exc:
@@ -1592,14 +1602,25 @@ def consigner_suivi_rappel(
     }
     if prochaine is not None:
         ligne["prochaine_tentative_le"] = prochaine
-    reg.ajouter(ligne)
+    if champs_appareil is not None:
+        ligne.update(champs_appareil)
+    ligne_id = reg.ajouter(ligne)
     lecture_m1.borner(stockage.connexion_courante())
     apres = reg.lire()
     valide, _verdict_chaine = Registre(apres).valider_chaine()
     projection = transferts.projection_suivi_rappel(apres, transfert_id) if valide else None
     if projection is None:
         raise ValueError("REJ-SUIVI-RAPPEL-CHAINE-ALTEREE")
-    return {"accepte": True, "resultat": {"suivi_rappel": projection}}
+    return {"accepte": True, "resultat": {"suivi_rappel": projection}}, ligne_id
+
+
+def _appliquer_suivi_rappel(
+    acteur, transfert_id, action, snapshot_attendu, quand, prochaine, *, champs_appareil=None,
+):
+    r = _appliquer_suivi_rappel_brut(
+        acteur, transfert_id, action, snapshot_attendu, quand, prochaine, champs_appareil=champs_appareil,
+    )
+    return r if isinstance(r, tuple) else (r, None)
 
 
 def lire_transfert(transfert_id: str) -> dict[str, Any]:
@@ -1982,6 +2003,27 @@ _RESUME = {
     ),
 }
 _TRANSFERT_ID = {"type": "string", "description": "Identifiant du transfert (tr-…), tel que rendu par l'outil."}
+
+
+
+def autoriser_prise_rappel_appareil(arguments: dict, *, nom: str):
+    from . import rappels_appareil
+    return rappels_appareil.admettre(arguments, nom=nom)
+
+
+def verifier_rejeu_prise_rappel_appareil(arguments: dict, reponse: dict):
+    from . import rappels_appareil
+    return rappels_appareil.verifier_rejeu(arguments, reponse)
+
+
+def lister_rappels_appareil(apres_transfert_id=None, taille_page=8):
+    from . import rappels_appareil
+    return rappels_appareil.lister(apres_transfert_id, taille_page)
+
+
+def prendre_en_charge_rappel_appareil(transfert_id, snapshot_attendu):
+    from . import rappels_appareil
+    return rappels_appareil.prendre(transfert_id, snapshot_attendu)
 
 
 def outils() -> tuple[Outil, ...]:
@@ -2372,5 +2414,25 @@ def outils() -> tuple[Outil, ...]:
             },
             fonction=emettre_notification,
             autonomie=Autonomie.T2,
+        ),
+        Outil(
+            nom="m1_lister_rappels_appareil",
+            description="File courante des rappels réellement importés ; aucune donnée de contact ni effet.",
+            parametres={"type": "object", "properties": {
+                "apres_transfert_id": {"type": ["string", "null"], "pattern": "^tr-[0-9a-f]{20}$"},
+                "taille_page": {"type": "integer", "minimum": 1, "maximum": 8},
+            }, "additionalProperties": False},
+            fonction=lister_rappels_appareil, autonomie=Autonomie.T0, niveau=Niveau.N0,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m1_prendre_en_charge_rappel_appareil",
+            description="Prise interne à soi d'un rappel importé ; aucun appel ou message envoyé.",
+            parametres={"type": "object", "properties": {
+                "transfert_id": {"type": "string", "pattern": "^tr-[0-9a-f]{20}$"},
+                "snapshot_attendu": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            }, "required": ["transfert_id", "snapshot_attendu"], "additionalProperties": False},
+            fonction=prendre_en_charge_rappel_appareil, autonomie=Autonomie.T1, niveau=Niveau.N2,
+            roles_appareil=frozenset({"admin"}),
         ),
     )

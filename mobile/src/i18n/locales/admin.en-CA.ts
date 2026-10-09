@@ -6,6 +6,20 @@ import type { RessourcesAdmin } from "./admin.fr-CA";
  * says so in words too: never a dash, never a zero.
  */
 const adminEnCA: RessourcesAdmin = {
+  rappelsM1: {
+    titre: "Imported callbacks", note: "Imported missed calls and voicemail. Taking responsibility is internal; no call or message is sent.",
+    lire: "Refresh the first page", suite: "Next callbacks page", choisir: "Select this callback", prendre: "Take responsibility",
+    fiche: "Read the server record", pagesCourantes: "Current pages: callbacks can change between reads. Refresh the first page for new references.",
+    page: "{{nombre}} callback(s) shown, {{total}} currently open, {{reste}} remaining.", vide: "No open imported callback on this page.",
+    manque: "Imported missed call", voicemail: "Imported voicemail", sources: "{{nombre}} associated call source(s).",
+    responsable: "Responsible person: {{personne}}", lead: "Lead reference: {{id}}", prochaine: "Next attempt: {{date}}", inconnu: "Unknown",
+    horsLigne: "Reconnect to read current callbacks. A recorded intent remains saved.",
+    enAttente: "Confirmation is unknown or pending. The same intent is retained; no new send for this callback.",
+    reprendre: "Resume the same intent", confirmee: "Responsibility confirmed. Refresh the page for the current state.",
+    refusee: "Business request refused. Read the record again before taking responsibility.",
+    quarantaine: "An unresolved intent belongs to another person, device or instance. It blocks taking responsibility again.",
+    indisponible: "The local queue is unavailable or unverified. No new callback responsibility can be confirmed.",
+  },
   classementVariances: {
     ecartInconnu: "Variance undefined in the source publication; no ratio invented.",
     "prevu": "Source planned quantity: {{valeur}}",

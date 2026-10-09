@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 138 outils sur 230 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 140 outils sur 232 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -122,14 +122,15 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (137 outils) : §9.5 + employé + vendeur
+### `admin` (139 outils) : §9.5 + employé + vendeur
 
-Les 15 outils de l'employé, les 14 du vendeur, et :
+Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et :
 
 | Département | Outils réservés à l'admin | Pourquoi |
 |---|---|---|
 | M1 | `m1_produire_digest` | §9.5 M1 : appels manqués, rappels, messages urgents. |
 | M1 | `m1_importer_appel_manuellement` (N2) | Import humain d'un appel manqué ou d'un message vocal depuis un journal/export nommé; le consentement conditionne la conservation du texte. Aucun appel n'est passé ni message envoyé. |
+| M1 | `m1_lister_rappels_appareil` (N0), `m1_prendre_en_charge_rappel_appareil` (N2) | Rappels réellement liés aux appels importés : pages courantes par identifiant, sans contact ni message dans la file, attribution interne à l'admin DEVICE confirmé. Autorité/source/quota actuels avant claim et rejeu ; confirmation liée à son maillon, sa personne, son appareil et son UUID. Aucun appel, message ou clôture ; le suivi console reste fermé aux appareils. |
 | M1 | `m1_lire_transfert` (T0), `m1_clore_transfert` (N3) | §7 M1.8, M1.12 et §9.5 M1 « plaintes, transferts, prendre en charge » (T4.5) : l'admin lit le contexte d'une plainte, d'une urgence de sécurité ou d'un transfert (résumé, contact, messages du client) puis le clôt. La clôture est une décision HUMAINE : voir « Les transferts à un humain de M1 » plus bas. Ni l'employé ni le vendeur : le contact et les mots d'un client qui se plaint sont pour le propriétaire. |
 | M2 | `m2_produire_digest`, `m2_detecter_doublons`, `m2_signaler_doublon`, `m2_arbitrer_doublon` | §9.5 M2 : pipeline, leads chauds, doublons. |
 | M2 | `m2_reassigner_lead` (N3), `m2_republier_assignations` (N3) | §9.5 (le propriétaire ou son gestionnaire reprend le dossier d'un vendeur ; T1.4-m). La réassignation est une décision HUMAINE : voir « La réassignation d'un lead » plus bas. La republication remet au bus le fait de propriété que les leads qualifiés avant T1.4-k2 n'ont jamais publié ; outil de mise en service, idempotent, dérivé du registre. Ni l'employé ni le vendeur (un vendeur ne « prend » ni ne « cède » un lead). |

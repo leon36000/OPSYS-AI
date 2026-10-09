@@ -119,6 +119,11 @@ function rappel(v: unknown): SuiviRappelM1 | undefined {
   return { snapshot_suivi: v.snapshot_suivi, responsable: v.responsable, role: v.role, pris_en_charge_le: v.pris_en_charge_le,
     tentatives_sans_contact: v.tentatives_sans_contact, derniere_tentative_le: v.derniere_tentative_le, prochaine_tentative_le: v.prochaine_tentative_le };
 }
+/** Réemploi du même parser sept champs ; aucune modification du DTO historique. */
+export function lireSuiviRappelM1(brut: unknown): SuiviRappelM1 | undefined {
+  const copie = copier(brut); return copie === INVALIDE ? undefined : rappel(copie);
+}
+export const instantM1Valide = instant;
 function transfert(v: unknown): TransfertM1 | undefined {
   const requis = ["transfert_id", "statut", "type_transfert", "niveau", "categories", "termes", "declenche_par", "canal", "conversation_id", "ouvert_le", "destinataire", "verdict_destinataire", "contact", "lead_id", "resume", "resume_origine", "messages_couverts", "messages_couverts_omis", "messages_suivants", "messages_suivants_omis", "client_retire_des_messages"];
   if (!objet(v) || !ferme(v, requis, ["cloture", "suivi_rappel", "brouillon_reponse", "envoye", "gabarit", "sans_brouillon"]) || !identifiantTransfertM1Valide(v.transfert_id) ||

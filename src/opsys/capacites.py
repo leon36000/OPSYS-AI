@@ -20,7 +20,7 @@ import datetime as dt
 import json
 import logging
 from collections.abc import Callable, Mapping
-from contextlib import AbstractContextManager
+from contextlib import AbstractContextManager, nullcontext
 from typing import Any
 
 from sqlalchemy import Connection
@@ -46,6 +46,8 @@ _LECTURES_CLASSEMENT_M6 = frozenset({
     "m6_lister_variances_classables_wct_appareil",
     "m6_lire_historique_classement_variance_appareil",
 })
+_LECTURE_RAPPELS_M1 = "m1_lister_rappels_appareil"
+_MUTATION_RAPPEL_M1 = "m1_prendre_en_charge_rappel_appareil"
 
 
 def _outils_memoire() -> tuple[Outil, ...]:
@@ -266,9 +268,26 @@ class Capacites:
         args = dict(arguments or {})
         appelante = identite_appelante()
         entree = self.index.get(nom)
-        if (nom == "m6_lire_preuves_pertes_wct_appareil" or nom in _LECTURES_CLASSEMENT_M6) and meta is not None:
+        if (
+            nom == "m6_lire_preuves_pertes_wct_appareil"
+            or nom in _LECTURES_CLASSEMENT_M6
+            or nom == _LECTURE_RAPPELS_M1
+        ) and meta is not None:
             return {"ok": False, "erreur": "idempotence_hors_portee_lecture",
                     "details": "Cette lecture pure n’admet aucune enveloppe de mutation."}
+        if entree is not None and meta is None and nom in {_LECTURE_RAPPELS_M1, _MUTATION_RAPPEL_M1}:
+            with self._cnx_factory():
+                refus = self._garder_rappel_m1(nom, args)
+                if refus is not None:
+                    return refus
+                if nom == _LECTURE_RAPPELS_M1:
+                    with contexte_appel.sortie_bornee(min(5400, self._limite)):
+                        return self._distribuer(nom, args)
+            return {
+                "ok": False,
+                "erreur": "idempotence_appareil_requise",
+                "details": "Cette prise en charge exige une intention DEVICE persistée.",
+            }
         if entree is not None and meta is None and (
             nom == _MUTATION_CLASSEMENT_M6 or nom in _LECTURES_CLASSEMENT_M6
         ):
@@ -527,6 +546,59 @@ class Capacites:
             return Capacites._refus_classement_inconnu(exc.suffixe)
         return None
 
+    @staticmethod
+    def _refus_rappel_m1_inconnu(suffixe: str, *, lecture: bool = False) -> dict[str, Any]:
+        return {
+            "ok": False,
+            "erreur": "REJ-M1-RAPPEL-" + suffixe,
+            "issue": "inconnue",
+            "details": (
+                "La lecture actuelle est indisponible ; rechargez les rappels importés."
+                if lecture else
+                "La confirmation actuelle est indisponible ; conserver la même clé et ses arguments."
+            ),
+        }
+
+    def _garder_rappel_m1(self, nom: str, arguments: dict[str, Any]) -> dict[str, Any] | None:
+        appelante = identite_appelante()
+        if (
+            appelante is None or appelante.source != "appareil"
+            or appelante.role != "admin" or nom not in self._outils_du_role(appelante.role)
+        ):
+            return self._refus_rappel_m1_inconnu("IDENTITE-OU-PORTEE", lecture=nom == _LECTURE_RAPPELS_M1)
+        from m1_front_office import outils as outils_m1
+        from m1_front_office import rappels_appareil as r
+
+        try:
+            outils_m1.autoriser_prise_rappel_appareil(arguments, nom=nom)
+        except r.Refus as exc:
+            return self._refus_rappel_m1_inconnu(exc.suffixe, lecture=nom == _LECTURE_RAPPELS_M1)
+        return None
+
+    @staticmethod
+    def _contexte_mutation_rappel_m1(nom: str, meta: idempotence.Meta) -> AbstractContextManager:
+        if nom != _MUTATION_RAPPEL_M1:
+            return nullcontext()
+        from m1_front_office import rappels_appareil as r
+
+        return r.contexte_mutation(meta)
+
+    @staticmethod
+    def _verifier_rejeu_rappel_m1(arguments: dict[str, Any], reponse: dict[str, Any]) -> dict[str, Any] | None:
+        from m1_front_office import outils as outils_m1
+        from m1_front_office import rappels_appareil as r
+
+        try:
+            outils_m1.verifier_rejeu_prise_rappel_appareil(arguments, reponse)
+        except r.Refus as exc:
+            return Capacites._refus_rappel_m1_inconnu(exc.suffixe)
+        return None
+
+    def _borner_confirmation_rappel_m1(self, reponse: dict[str, Any]) -> dict[str, Any]:
+        if len(json.dumps(reponse, ensure_ascii=False)) > min(5400, self._limite):
+            return self._refus_rappel_m1_inconnu("SORTIE-TROP-VOLUMINEUSE")
+        return reponse
+
     def _appeler_idempotent(
         self,
         nom: str,
@@ -549,7 +621,11 @@ class Capacites:
         aucun changement à ces fonctions n'est requis pour obtenir l'atomicité demandée.
         """
         recu_le = dt.datetime.now(dt.UTC)
-        with self._cnx_factory() as cnx:
+        with self._cnx_factory() as cnx, self._contexte_mutation_rappel_m1(nom, meta):
+            if nom == _MUTATION_RAPPEL_M1:
+                refus = self._garder_rappel_m1(nom, arguments)
+                if refus is not None:
+                    return refus
             if nom == _MUTATION_CLASSEMENT_M6:
                 refus = self._garder_classement_m6(nom, arguments)
                 if refus is not None:
@@ -596,6 +672,12 @@ class Capacites:
                 return {**refus_role, "rejoue": refus_rejoue}
             if reclamation.rejouee:
                 reponse = {**reclamation.reponse, "rejoue": True}
+                if nom == _MUTATION_RAPPEL_M1:
+                    with contexte_appel.sortie_bornee(min(5400, self._limite)):
+                        refus = self._verifier_rejeu_rappel_m1(arguments, reclamation.reponse)
+                    if refus is not None:
+                        return refus
+                    return self._borner_confirmation_rappel_m1(reponse)
                 if nom == _MUTATION_CLASSEMENT_M6:
                     refus = self._verifier_rejeu_classement_m6(arguments, reclamation.reponse)
                     if refus is not None:
@@ -638,12 +720,17 @@ class Capacites:
                 recu_le=recu_le,
             )
             with receptionne_de(horodatage):
-                if nom in {"m6_declarer_materiaux_avec_preuves_appareil", _MUTATION_CLASSEMENT_M6}:
+                if nom in {"m6_declarer_materiaux_avec_preuves_appareil", _MUTATION_CLASSEMENT_M6, _MUTATION_RAPPEL_M1}:
                     with contexte_appel.sortie_bornee(min(5400, self._limite)):
                         reponse = self._distribuer(nom, arguments, appel_appareil=True, meta=meta)
                 else:
                     reponse = self._distribuer(nom, arguments, appel_appareil=True, meta=meta)
             finale = {**reponse, "rejoue": False}
+            if nom == _MUTATION_RAPPEL_M1 and (
+                reponse.get("erreur", "").startswith("REJ-M1-RAPPEL-SORTIE-TROP-VOLUMINEUSE")
+                or len(json.dumps(finale, ensure_ascii=False)) > min(5400, self._limite)
+            ):
+                raise RuntimeError("confirmation fraîche de rappel hors de sa borne atomique")
             if nom == _MUTATION_CLASSEMENT_M6 and (
                 reponse.get("erreur") == "confirmation_transport_indisponible"
                 or len(json.dumps(finale, ensure_ascii=False)) > min(5400, self._limite)
@@ -808,6 +895,18 @@ class Capacites:
         departement: str | None = None,
         origine: str | None = None,
     ) -> dict[str, Any]:
+        if source in {_LECTURE_RAPPELS_M1, _MUTATION_RAPPEL_M1}:
+            if reponse.get("erreur") == "arguments_invalides":
+                reponse = {
+                    "ok": False, "erreur": "arguments_invalides",
+                    "details": "La demande ne satisfait pas le contrat fermé des rappels importés.",
+                }
+            entiere = {**reponse, "rejoue": False} if source == _MUTATION_RAPPEL_M1 else reponse
+            if len(json.dumps(entiere, ensure_ascii=False)) <= min(5400, self._limite):
+                return reponse
+            return self._refus_rappel_m1_inconnu(
+                "SORTIE-TROP-VOLUMINEUSE", lecture=source == _LECTURE_RAPPELS_M1,
+            )
         if source == _MUTATION_CLASSEMENT_M6 or source in _LECTURES_CLASSEMENT_M6:
             if reponse.get("erreur") == "arguments_invalides":
                 reponse = {"ok": False, "erreur": "arguments_invalides",

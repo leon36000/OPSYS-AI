@@ -10,6 +10,20 @@
  * montre tel quel.
  */
 const adminFrCA = {
+  rappelsM1: {
+    titre: "Rappels importés", note: "Appels manqués et messages vocaux importés. La prise en charge est interne ; aucun appel ni message n’est envoyé.",
+    lire: "Relire la première page", suite: "Page suivante des rappels", choisir: "Choisir ce rappel", prendre: "Prendre en charge",
+    fiche: "Lire la fiche serveur", pagesCourantes: "Pages courantes : les rappels peuvent changer entre deux lectures. Relisez la première page pour les nouvelles références.",
+    page: "{{nombre}} rappel(s) affiché(s), {{total}} actuellement ouverts, {{reste}} restant(s).", vide: "Aucun rappel importé ouvert dans cette page.",
+    manque: "Appel manqué importé", voicemail: "Message vocal importé", sources: "{{nombre}} source(s) d’appel associée(s).",
+    responsable: "Responsable : {{personne}}", lead: "Référence lead : {{id}}", prochaine: "Prochaine tentative : {{date}}", inconnu: "Non connu",
+    horsLigne: "Reconnectez-vous pour relire les rappels. Une intention déjà enregistrée reste conservée.",
+    enAttente: "Confirmation inconnue ou en attente. La même intention est conservée ; aucun nouvel envoi pour ce rappel.",
+    reprendre: "Reprendre la même intention", confirmee: "Prise en charge confirmée. Relisez la page pour son état courant.",
+    refusee: "Demande refusée par le métier. Relisez le dossier avant une nouvelle prise en charge.",
+    quarantaine: "Une intention non résolue appartient à une autre personne, un autre appareil ou une autre instance. Elle bloque une nouvelle prise en charge.",
+    indisponible: "La file locale est indisponible ou non vérifiée. Aucune nouvelle prise en charge ne peut être confirmée.",
+  },
   classementVariances: {
     ecartInconnu: "Écart non défini dans la publication source ; aucun ratio inventé.",
     "prevu": "Quantité prévue source : {{valeur}}",

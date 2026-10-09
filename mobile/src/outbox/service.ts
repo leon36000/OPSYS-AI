@@ -1,4 +1,5 @@
 import { verifierDestinationClassementVariance } from "../m6/classementVariance";
+import { verifierDestinationPriseRappelM1 } from "../m1/rappelsAppareil";
 import { lireChargeMateriauxAvecPreuves } from "../m6/materiauxAvecPreuves";
 import * as SQLite from "expo-sqlite";
 
@@ -66,6 +67,12 @@ function obtenirVidangeur(): Promise<Vidangeur> {
         capturerGardeSession: () => capturerSessionLecture().courante,
         maintenant: () => new Date(),
         verifierAvantEnvoi:async(mutation,session,courante)=>{
+          if (mutation.type === "prise_en_charge_rappel") {
+            const admin = capturerSessionAdminLecture();
+            return courante() && admin.courante() && admin.session !== null && admin.session.personne === session.personne &&
+              admin.session.appareilId === session.appareilId && admin.session.urlBase === session.urlBase &&
+              admin.session.jeton === session.jeton && verifierDestinationPriseRappelM1(mutation, session);
+          }
           if (mutation.type === "variance_cause_classification") {
             const admin = capturerSessionAdminLecture();
             return courante() && admin.courante() && admin.session !== null && admin.session.personne === session.personne &&

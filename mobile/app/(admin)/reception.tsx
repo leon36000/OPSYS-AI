@@ -12,6 +12,7 @@ import { presenterSection } from "@/ecrans/adminCommun";
 import { capturerSessionAdminLecture } from "@/protocole/configuration";
 import { useSessionAppareil } from "@/roles/contexte";
 import { BandeauIdentite } from "@/identite/BandeauIdentite";
+import { RappelsM1 } from "@/admin/RappelsM1";
 
 /** Deux lectures indépendantes : synthèse datée, puis fiche serveur choisie depuis « À voir ». */
 export default function ReceptionAdmin() {
@@ -45,7 +46,7 @@ export default function ReceptionAdmin() {
   }, [connected, id]);
   useFocusEffect(useCallback(() => {
     void charger();
-    return () => { ++sequence.current; garde.current = null; };
+    return () => { ++sequence.current; garde.current = null; setVisible(false); };
   }, [charger, session]));
   const autorisee = visible && garde.current?.() === true;
   const vue = <T,>(r: ResultatSection<T> | null) => r ? presenterSection(r, -new Date().getTimezoneOffset(), v => v) : undefined;
@@ -62,6 +63,7 @@ export default function ReceptionAdmin() {
         <Text style={styles.avis}>{t("admin.reception.dateNote")}</Text>
         <EtatSection vue={vue(digest)} rendre={v => <Text selectable>{v}</Text>} />
       </Carte>
+      <RappelsM1 connected={connected} autorisee={() => visible && garde.current?.() === true} />
       <Carte><Text style={styles.sousTitre}>{t("admin.reception.fiche")}</Text>
         <Text style={styles.avis}>{t("admin.reception.serveurSeul")}</Text>
         {id === null ? <><Text>{t("admin.reception.selection")}</Text><Link href="/admin" style={styles.lien}>{t("admin.aVoir.titre")}</Link></> :

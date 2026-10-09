@@ -51,6 +51,7 @@ VENDEUR = frozenset({
 ADMIN_SEUL = frozenset({
     "m1_produire_digest", "m1_importer_appel_manuellement",
     "m1_lire_transfert", "m1_clore_transfert",  # transferts à un humain : lire, clore en personne (T4.5)
+    "m1_lister_rappels_appareil", "m1_prendre_en_charge_rappel_appareil",
     "m2_arbitrer_doublon", "m2_detecter_doublons", "m2_produire_digest", "m2_signaler_doublon",
     # réassigner un lead (décision humaine) et republier le fait de propriété d'avant T1.4-k2 (T1.4-m)
     "m2_reassigner_lead", "m2_republier_assignations",
@@ -366,6 +367,21 @@ def test_opsys_openclaw_configurer_ecrit_le_fragment_roles_json_reel(tmp_path, m
 
 
 # -- Le nom que l'app envoie est celui du moteur (T1.4-c6) --------------------------------------
+
+@pytest.mark.parametrize("nom, autonomie, niveau", [
+    ("m1_lister_rappels_appareil", "T0", "N0"),
+    ("m1_prendre_en_charge_rappel_appareil", "T1", "N2"),
+])
+def test_rappels_importes_device_admin_sans_ouvrir_writer_console(departements_reels, nom, autonomie, niveau):
+    index = tous_les_outils(departements_reels.values())
+    _, outil = index[nom]
+    assert outil.autonomie.value == autonomie and outil.niveau_effectif.value == niveau
+    assert outil.roles_appareil == frozenset({"admin"})
+    assert index["m1_consigner_suivi_rappel"][1].roles_appareil == frozenset()
+    if niveau == "N2":
+        assert set(outil.parametres["properties"]) == {"transfert_id", "snapshot_attendu"}
+        assert outil.parametres["additionalProperties"] is False
+        assert outil.portee_contexte is None  # Un transfert n'est pas une affaire M10 inventée.
 
 RACINE = Path(__file__).resolve().parents[1]
 NOM_D_OUTIL = re.compile(r'"(m\d+_[a-z0-9_]+)"')

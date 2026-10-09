@@ -41,6 +41,9 @@ beforeEach(() => {
 });
 afterEach(async () => { if (arbre) await act(async () => arbre!.unmount()); arbre = undefined; });
 const texte = () => JSON.stringify(arbre!.toJSON());
+const boutonDigest = () => arbre!.root.findAllByType(BoutonSecondaire).find(b => b.props.texte === "admin.commun.rafraichir")!;
+const lecturesSeulement = () => expect(arbre!.root.findAllByType(BoutonSecondaire).map(b => b.props.texte).sort())
+  .toEqual(["admin.commun.rafraichir", "admin.rappelsM1.lire"]);
 test("fiche serveur choisie depuis À voir : mêmes références, résumé/origine, contacts, omissions et aucune mutation", async () => {
   await act(async () => { arbre = create(<Ecran />); });
   expect(mockFiche).toHaveBeenCalledWith(natif.transfert_id); expect(mockConnecter).toHaveBeenCalledWith(true);
@@ -48,7 +51,7 @@ test("fiche serveur choisie depuis À voir : mêmes références, résumé/origi
   expect(texte()).toContain("admin.reception.serveurSeul"); expect(texte()).toContain("admin.reception.note");
   expect(texte()).toContain('\\"origine\\":\\"code\\"'); expect(texte()).toContain('\\"nombre\\":0');
   for (const m of [...natif.messages_couverts, ...natif.messages_suivants]) expect(texte()).toContain(m.signal_id);
-  expect(arbre!.root.findAllByType(BoutonSecondaire)).toHaveLength(1);
+  expect(boutonDigest()).toBeDefined(); lecturesSeulement();
 });
 test("digest au cache daté et fiche hors ligne masquée, même si une ancienne valeur existe", async () => {
   await act(async () => { arbre = create(<Ecran />); });
@@ -66,7 +69,7 @@ test("date invalide ou paramètre non canonique n'ouvre aucune fiche arbitraire"
   expect(mockFiche).not.toHaveBeenCalled(); expect(texte()).toContain("admin.reception.referenceInvalide");
   await act(async () => arbre!.root.findByType(TextInput).props.onChangeText("2026-02-30"));
   expect(texte()).toContain("admin.reception.dateInvalide");
-  expect(arbre!.root.findByType(BoutonSecondaire).props.desactive).toBe(true);
+  expect(boutonDigest().props.desactive).toBe(true);
 });
 test("absence de sélection renvoie aux attentes existantes sans nouvelle liste ni fiche inventée", async () => {
   mockParams = {};
@@ -90,7 +93,7 @@ test("STOP et brouillon non envoyé restent des faits, sans bouton d'envoi ou de
   mockParams = { transfert: stop.value.transfert_id }; mockFiche.mockResolvedValue(serveur(stop.value));
   await act(async () => { arbre = create(<Ecran />); });
   expect(texte()).toContain("admin.reception.stop"); expect(texte()).toContain("admin.reception.nonEnvoye");
-  expect(arbre!.root.findAllByType(BoutonSecondaire)).toHaveLength(1);
+  expect(boutonDigest()).toBeDefined(); lecturesSeulement();
 });
 test("catalogues bilingues : mêmes clés et variables", () => {
   function comparer(a: unknown, b: unknown) {

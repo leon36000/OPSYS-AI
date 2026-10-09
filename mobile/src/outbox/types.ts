@@ -48,6 +48,8 @@ export type TypeMutation =
   | "marketing_decision"
   /** Arbitrage humain M10 d’un signalement réel ; aucun acteur fourni dans le payload. */
   | "memory_revision_arbitration"
+  /** Prise interne M1 ; groupe rappel:<transfert_id>, aucun chantier métier. */
+  | "prise_en_charge_rappel"
   | "lead_note";
 
 /**

@@ -10,6 +10,7 @@ import { interpreterResultatDeposerFichier, validerRecuDeposerFichier } from "..
 import { interpreterResultatEnregistrerInteraction } from "../m2/interaction";
 import { construireArgumentsDecisionMarketing, interpreterDecisionMarketing } from "../m7/decisionOutbox";
 import { construireArgumentsArbitrageMemoire, interpreterArbitrageMemoire } from "../m10/arbitrageOutbox";
+import { OUTIL_PRISE_RAPPEL_M1, argumentsRpcPriseRappelM1, interpreterPriseRappelM1, validerRecuPriseRappelM1 } from "../m1/rappelsAppareil";
 import type { DescripteurTypeMutation, InterpretationResultatMetier } from "./vidangeur";
 import type { MutationOutbox, TypeMutation } from "./types";
 
@@ -135,6 +136,9 @@ function versInterpretationGeneriqueNote(resultatBrut: unknown): InterpretationR
  * `src/m2/interaction.ts`).
  */
 export const DESCRIPTEURS_MUTATION: ReadonlyMap<TypeMutation, DescripteurTypeMutation> = new Map<TypeMutation, DescripteurTypeMutation>([
+  ["prise_en_charge_rappel", { tool: OUTIL_PRISE_RAPPEL_M1, construireArguments: argumentsRpcPriseRappelM1,
+    interpreterResultat: interpreterPriseRappelM1, groupeSerie: "rappel", serialiserParChantier: true,
+    conserverRefusHttpIncertains: true, verifierAvantEnvoi: true, validerRecuEnvoye: validerRecuPriseRappelM1 }],
   ["punch_in", { tool: "m4_pointer", interpreterResultat: versInterpretationGenerique }],
   ["punch_out", { tool: "m4_pointer", interpreterResultat: versInterpretationGenerique }],
   ["job_status_change", { tool: "m4_demarrer_route", interpreterResultat: versInterpretationGeneriqueDemarrerRoute }],

@@ -202,7 +202,7 @@ def test_accueil_transferts_import_et_suivi_sont_n2_et_rien_n_est_t3_dans_m1(dep
     n2 = sorted(nom for nom, o in par_nom.items() if o.niveau_effectif.value == "N2")
     assert n2 == [
         "m1_consigner_suivi_rappel", "m1_escalader_plainte", "m1_importer_appel_manuellement",
-        "m1_recevoir_message_canal", "m1_transferer",
+        "m1_prendre_en_charge_rappel_appareil", "m1_recevoir_message_canal", "m1_transferer",
     ]
     assert not any(o.frontiere_humaine for o in par_nom.values())
     assert par_nom["m1_emettre_notification"].niveau_effectif.value == "N4"
