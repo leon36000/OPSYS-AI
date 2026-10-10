@@ -1,0 +1,106 @@
+{
+  "label": "m1-m10-foundations-integrated-backend-final-r4",
+  "command": [
+    "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI/.venv/bin/python",
+    "-B",
+    "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/run-tests-F22-r1.py",
+    "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/imports-final-r4.json",
+    "tests/test_agents_sms_configuration.py",
+    "tests/test_console_agents_sms.py",
+    "tests/test_openclaw_sms_profile.py",
+    "tests/test_reception_sms_codec.py",
+    "tests/test_reception_sms_receipt.py",
+    "tests/test_runtime_reception_sms_mcp.py",
+    "tests/test_runtime_sms_profile_guard.py",
+    "tests/test_serveur_mcp_http.py",
+    "tests/test_admission_agents.py",
+    "tests/test_canal_sms_bout_en_bout.py",
+    "tests/test_openclaw_canaux.py",
+    "tests/test_console_reception_digest.py",
+    "departments/m01-front-office/tests",
+    "tests/test_documents_affaire_lecture_cap_appareil.py",
+    "tests/test_documents_affaire_lecture_mcp_appareil.py",
+    "tests/test_documents_affaire_lecture_appareil.py",
+    "departments/m10-memoire/tests/test_documents_affaire_lecture.py",
+    "--junitxml=/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/M1-M10-FOUNDATIONS-INTEGRATED-BACKEND-20261010-r1/junit-final-r4.xml"
+  ],
+  "cwd": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-route-20261010",
+  "started_utc": "2026-10-10T16:48:45.170979+00:00",
+  "completed_utc": "2026-10-10T16:52:43.756850+00:00",
+  "exit_code": 0,
+  "wall_seconds": 238.586,
+  "peak_process_tree_rss_bytes": 286969856,
+  "guard_triggered": null,
+  "failure": null,
+  "qualified": true,
+  "source_sha256_before": "c16025a8c36fdd797eaf749410227e333bd1bd1ec17d175afb9fe97f75e11776",
+  "source_sha256_after": "c16025a8c36fdd797eaf749410227e333bd1bd1ec17d175afb9fe97f75e11776",
+  "sources_unchanged": true,
+  "source_inventory": "fixed_external",
+  "source_inventory_sha256_before": "a39fd0a43b3a397a57a82f2a391223e28cfe691bcf9412c4d2a7bcee394993d4",
+  "source_inventory_sha256_after": "a39fd0a43b3a397a57a82f2a391223e28cfe691bcf9412c4d2a7bcee394993d4",
+  "process_helper_sha256_before": "84f070830c6872b9dd2611e6f512f262f010d2d09597815f750115c0b5996af2",
+  "process_helper_sha256_after": "84f070830c6872b9dd2611e6f512f262f010d2d09597815f750115c0b5996af2",
+  "harness_sha256_before": "7b097b42a2f1faa282e3bcfcc3b2a0bab8c5da6cdd862f84bc7a06225c883dd4",
+  "harness_sha256_after": "7b097b42a2f1faa282e3bcfcc3b2a0bab8c5da6cdd862f84bc7a06225c883dd4",
+  "processes": [
+    {
+      "pid": 2278340,
+      "parent": 2278339,
+      "group": 2278340,
+      "session": 2278340,
+      "start_time": 32373128,
+      "state": "R"
+    },
+    {
+      "pid": 2278538,
+      "parent": 2278340,
+      "group": 2278340,
+      "session": 2278340,
+      "start_time": 32376928,
+      "state": "R"
+    },
+    {
+      "pid": 2279002,
+      "parent": 2278340,
+      "group": 2278340,
+      "session": 2278340,
+      "start_time": 32385137,
+      "state": "R"
+    },
+    {
+      "pid": 2279003,
+      "parent": 2278340,
+      "group": 2278340,
+      "session": 2278340,
+      "start_time": 32385141,
+      "state": "R"
+    }
+  ],
+  "observed_dead_descendants": [
+    {
+      "pid": 2279004,
+      "parent": 2278340,
+      "group": 2278340,
+      "session": 2278340,
+      "start_time": 32385145,
+      "state": "Z"
+    }
+  ],
+  "failed_pin_attempt": null,
+  "signal_strategy": "pidfd",
+  "cancellation": null,
+  "owned_processes_stopped": true,
+  "stdout_eof": true,
+  "output_complete": true,
+  "stdout_bytes_received": 2629,
+  "log_bytes": 2629,
+  "log_sha256": "cace4757a5460bf0c711b3ae08cf1c12069141df263b4126f4412a82e994a6db",
+  "sealing": "closed_sole_writer_then_immutable_copy",
+  "limits": [
+    "ownership applies only to observed, pinned descendants; unobserved descendants not qualified",
+    "RSS sampled; disk floor covers cwd/source/evidence filesystems, not arbitrary other mounts",
+    "fixed inventory cannot detect files never listed; stdout copy incomplete unless EOF established",
+    "read-only file mode is not OS immutability against intentional alteration by its owner"
+  ]
+}

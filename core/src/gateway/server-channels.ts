@@ -25,6 +25,7 @@ import {
   resolveChannelAccountState,
   resolveUnavailableChannelAccountSnapshot,
 } from "../channels/status/account-state.js";
+import { resolveStateDir } from "../config/paths.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import { withGatewayNativeApprovalRuntime } from "../infra/approval-gateway-runtime-context.js";
 import type { GatewayNativeApprovalMethod } from "../infra/approval-gateway-runtime-methods.js";
@@ -37,6 +38,7 @@ import {
 } from "../infra/channel-runtime-context.js";
 import { formatErrorMessage } from "../infra/errors.js";
 import { formatGatewayCrashLoopManualChannelStartHint } from "../infra/gateway-boot-lifecycle.js";
+import { createOpsysSmsRequiredTaskRuntime } from "../infra/opsys-sms-task-runtime.js";
 import { resetDirectoryCache } from "../infra/outbound/target-resolver.js";
 import {
   createSubsystemLogger,
@@ -72,6 +74,15 @@ import { isAccountEnabled } from "../shared/account-enabled.js";
 import { createDeferredCore } from "../shared/deferred.js";
 import { runTasksWithConcurrency } from "../utils/run-with-concurrency.js";
 import { channelStartFailurePatch } from "./channel-status-patches.js";
+import {
+  createOpsysSmsHostAuthority,
+  OPSYS_SMS_HOST_SELECTION_REFUSED,
+  type OpsysSmsHostAuthority,
+} from "./opsys-sms-host-authority.js";
+import {
+  installOpsysSmsManagedHostBridge,
+  type OpsysSmsManagedHostBridge,
+} from "./opsys-sms-managed-host-bridge.js";
 import type {
   ChannelAccountStartOutcome,
   ChannelRuntimeSnapshot,
@@ -102,6 +113,8 @@ type ChannelAccountLifetime = {
   plugin: ChannelPlugin;
   abort: AbortController;
   capabilityLease: PluginRuntimeCapabilityLease;
+  opsysSmsHost?: OpsysSmsHostAuthority;
+  opsysSmsBridge?: OpsysSmsManagedHostBridge;
   teardown?: {
     context: Omit<ChannelGatewayContext, "setStatus">;
     run: NonNullable<NonNullable<ChannelPlugin["gateway"]>["stopAccount"]>;
@@ -567,7 +580,7 @@ export function createChannelManager(opts: ChannelManagerOptions): ChannelManage
     assertStartCurrent();
     const plugin = registration?.plugin;
     const startAccount = plugin?.gateway?.startAccount;
-    if (!startAccount) {
+    if (!registration || !startAccount) {
       for (const id of accountId ? [accountId] : store.routeHandoffs.keys()) {
         releaseRouteHandoff(store, id);
       }
@@ -713,14 +726,28 @@ export function createChannelManager(opts: ChannelManagerOptions): ChannelManage
           dispose: () => void;
         } | null = null;
         let channelRuntimeForTask: PluginRuntimeChannel | undefined;
+        let requiredSmsTaskRuntime:
+          | ReturnType<typeof createOpsysSmsRequiredTaskRuntime>
+          | undefined;
+        let disposeRequiredSmsTask: (() => void) | undefined;
         let stopApprovalBootstrap: () => Promise<void> = async () => {};
         const stopTaskScopedApprovalRuntime = async () => {
           const scopedRuntime = scopedChannelRuntime;
           scopedChannelRuntime = null;
           const stopBootstrap = stopApprovalBootstrap;
           stopApprovalBootstrap = async () => {};
-          scopedRuntime?.dispose();
-          await stopBootstrap();
+          const ownRequiredDispose = disposeRequiredSmsTask;
+          disposeRequiredSmsTask = undefined;
+          requiredSmsTaskRuntime = undefined;
+          try {
+            ownRequiredDispose?.();
+          } finally {
+            try {
+              scopedRuntime?.dispose();
+            } finally {
+              await stopBootstrap();
+            }
+          }
         };
         const cleanupTaskScopedApprovalRuntime = async (label: string) => {
           try {
@@ -857,6 +884,46 @@ export function createChannelManager(opts: ChannelManagerOptions): ChannelManage
             return;
           }
 
+          lifetime.opsysSmsHost = createOpsysSmsHostAuthority({
+            cfg,
+            getRuntimeConfig,
+            channelId,
+            accountId: id,
+            account,
+            registration,
+            getCurrentRegistration: () =>
+              getLoadedChannelPluginEntryById(channelId, getPluginRegistry()),
+            abortSignal: abort.signal,
+            capabilityLease,
+            isCurrentLifetime: () =>
+              store.lifetimes.get(id) === lifetime &&
+              store.startFence === startFence &&
+              !manuallyStopped.has(rKey) &&
+              !opts.isClosing?.(),
+            isCurrentTask,
+          });
+          const refuseSmsHost = (): never => {
+            try {
+              lifetime.opsysSmsHost?.revoke();
+            } finally {
+              abort.abort();
+              if (routeHandoff) {
+                releaseRouteHandoff(store, id, routeHandoff);
+              }
+            }
+            setRuntime(channelId, id, {
+              lifecycle: "blocked",
+              terminalDisconnect: true,
+              lastError: OPSYS_SMS_HOST_SELECTION_REFUSED,
+            });
+            throw new Error(OPSYS_SMS_HOST_SELECTION_REFUSED);
+          };
+          const assertSmsHostCurrent = () => {
+            if (lifetime.opsysSmsHost && !lifetime.opsysSmsHost.isCurrent()) {
+              refuseSmsHost();
+            }
+          };
+
           scopedChannelRuntime = await measureStartup(`channels.${channelId}.runtime`, async () =>
             createTaskScopedChannelRuntime({
               channelRuntime:
@@ -864,7 +931,22 @@ export function createChannelManager(opts: ChannelManagerOptions): ChannelManage
             }),
           );
           capabilityLease.assertActive("startup");
-          channelRuntimeForTask = scopedChannelRuntime.channelRuntime;
+          const nativeTaskRuntime = scopedChannelRuntime.channelRuntime;
+          if (lifetime.opsysSmsHost) {
+            if (!nativeTaskRuntime) {
+              refuseSmsHost();
+            }
+            requiredSmsTaskRuntime = createOpsysSmsRequiredTaskRuntime({
+              runtime: nativeTaskRuntime,
+              authority: lifetime.opsysSmsHost,
+              accountId: id,
+              lifetime,
+              abortSignal: abort.signal,
+              assertCurrent: assertSmsHostCurrent,
+            });
+          }
+          disposeRequiredSmsTask = requiredSmsTaskRuntime?.dispose;
+          channelRuntimeForTask = requiredSmsTaskRuntime?.runtime ?? nativeTaskRuntime;
 
           if (!preserveRestartAttempts) {
             restarts.delete(rKey);
@@ -920,6 +1002,57 @@ export function createChannelManager(opts: ChannelManagerOptions): ChannelManage
             if (abort.signal.aborted || manuallyStopped.has(rKey) || opts.isClosing?.()) {
               return;
             }
+            assertSmsHostCurrent();
+            if (lifetime.opsysSmsHost) {
+              const originalOwner = registry.channels.find((entry) => entry.plugin === plugin);
+              if (
+                !originalOwner ||
+                originalOwner.source !== registration.source ||
+                originalOwner.rootDir !== registration.rootDir
+              ) {
+                refuseSmsHost();
+              }
+              const getCurrentOwner = () => {
+                const currentRegistry = getPluginRegistry();
+                const current = getLoadedChannelPluginEntryById(channelId, currentRegistry);
+                return current?.plugin === plugin
+                  ? currentRegistry.channels.find((entry) => entry.plugin === plugin)
+                  : undefined;
+              };
+              try {
+                lifetime.opsysSmsBridge = installOpsysSmsManagedHostBridge({
+                  authority: lifetime.opsysSmsHost,
+                  owner: originalOwner,
+                  getCurrentOwner,
+                  registry,
+                  getRuntimeContexts: () => {
+                    const contexts = channelRuntimeForTask?.runtimeContexts;
+                    if (!contexts) {
+                      throw new Error(OPSYS_SMS_HOST_SELECTION_REFUSED);
+                    }
+                    return contexts;
+                  },
+                  getCurrentConfig: getRuntimeConfig,
+                  getCurrentCredential: () => {
+                    const credential =
+                      typeof account === "object" && account !== null
+                        ? Object.getOwnPropertyDescriptor(account, "authToken")?.value
+                        : undefined;
+                    if (typeof credential !== "string" || !credential) {
+                      throw new Error(OPSYS_SMS_HOST_SELECTION_REFUSED);
+                    }
+                    return credential;
+                  },
+                  signal: abort.signal,
+                  accountId: id,
+                  stateDir: resolveStateDir(),
+                  assertCurrent: assertSmsHostCurrent,
+                });
+                lifetime.opsysSmsBridge.assertCurrent();
+              } catch {
+                refuseSmsHost();
+              }
+            }
             const gatewayApprovalRuntime = opts.getNativeApprovalRuntime?.();
             if (channelRuntimeForTask && gatewayApprovalRuntime) {
               const approvalRuntime: Pick<GatewayNativeApprovalRuntime, "request"> = {
@@ -953,6 +1086,12 @@ export function createChannelManager(opts: ChannelManagerOptions): ChannelManage
                 return;
               }
               const runStartAccount = () => {
+                assertSmsHostCurrent();
+                try {
+                  lifetime.opsysSmsBridge?.assertCurrent();
+                } catch {
+                  refuseSmsHost();
+                }
                 const startedAt = Date.now();
                 const recordDuration = () => {
                   channelRunDurationMs = Date.now() - startedAt;
@@ -989,7 +1128,18 @@ export function createChannelManager(opts: ChannelManagerOptions): ChannelManage
           // Recovery can replace a timed-out task before the old promise settles.
           // Only the task that still owns the store slot may write lifecycle state.
           const trackedPromise = task
-            .finally(() => capabilityLease.revoke())
+            .finally(() => {
+              try {
+                disposeRequiredSmsTask?.();
+              } finally {
+                try {
+                  lifetime.opsysSmsBridge?.dispose();
+                } finally {
+                  lifetime.opsysSmsHost?.revoke();
+                  capabilityLease.revoke();
+                }
+              }
+            })
             .then(() => {
               if (
                 abort.signal.aborted ||
@@ -1143,6 +1293,17 @@ export function createChannelManager(opts: ChannelManagerOptions): ChannelManage
           }
           handedOffTask = true;
           store.tasks.set(id, trackedPromise);
+          // The controller cannot become live until its exact task is installed.
+          // Promise callbacks run after this synchronous publication boundary.
+          let smsHostPublished = false;
+          try {
+            smsHostPublished = lifetime.opsysSmsHost?.publish() ?? true;
+          } catch {
+            // A publication failure must close the scheduled task before plugin entry.
+          }
+          if (!smsHostPublished) {
+            refuseSmsHost();
+          }
           if (routeHandoff) {
             routeHandoff.admittedSignal = abort.signal;
           }
@@ -1160,6 +1321,7 @@ export function createChannelManager(opts: ChannelManagerOptions): ChannelManage
             if (routeHandoff && capabilityLease.isActive()) {
               releaseRouteHandoff(store, id, routeHandoff);
             }
+            lifetime.opsysSmsHost?.revoke();
             capabilityLease.revoke();
             await cleanupTaskScopedApprovalRuntime("channel startup cleanup failed");
           }

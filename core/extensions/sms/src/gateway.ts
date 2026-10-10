@@ -112,6 +112,7 @@ async function registerSmsWebhookRoute(params: {
     cfg: params.cfg,
     account: params.account,
     channelRuntime: params.channelRuntime,
+    gateAbortSignal: params.abortSignal,
     ...(params.log ? { log: params.log } : {}),
   });
   let unregisterRoute: () => void;

@@ -616,6 +616,52 @@ describe("runEmbeddedAttemptExecutionPhase", () => {
     }
   });
 
+  it.each(["active", "closed"] as const)(
+    "checks the native owner %s after awaited history immediately before prompting",
+    async (owner) => {
+      const fixture = await createFixture({ exerciseTerminalMerges: false });
+      const historyStarted = createDeferred();
+      const releaseHistory = createDeferred();
+      mocks.prepareHistory.mockImplementationOnce(async () => {
+        historyStarted.resolve();
+        await releaseHistory.promise;
+        return {
+          contextEnginePromptAuthority: "assembled",
+          contextEngineAssemblySucceeded: true,
+        };
+      });
+      mocks.runSettledPhase.mockImplementationOnce(async ({ preparedStreamRuntime }) => {
+        await preparedStreamRuntime.promptActiveSession("guarded prompt");
+        return fixture.result;
+      });
+      const work = runEmbeddedAttemptExecutionPhase(fixture.input);
+      const outcome = work.then(
+        (value) => ({ value, error: undefined }),
+        (error: unknown) => ({ value: undefined, error }),
+      );
+      try {
+        await historyStarted.promise;
+        if (owner === "closed") {
+          fixture.admission.close();
+        }
+        expect(fixture.input.runAbortController.signal.aborted).toBe(false);
+        releaseHistory.resolve();
+        const settled = await outcome;
+        expect(fixture.activeSession.prompt).toHaveBeenCalledTimes(owner === "active" ? 1 : 0);
+        expect(fixture.trackPromptSettlePromise).toHaveBeenCalledTimes(owner === "active" ? 1 : 0);
+        if (owner === "active") {
+          expect(settled.error).toBeUndefined();
+          expect(settled.value).toBe(fixture.result);
+        } else {
+          expect(settled.error).toBeInstanceOf(Error);
+        }
+      } finally {
+        releaseHistory.resolve();
+        await outcome;
+      }
+    },
+  );
+
   it("prepares guarded history, stream handling, deadlines, and settlement in order", async () => {
     const fixture = await createFixture();
 

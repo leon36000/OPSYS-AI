@@ -26,8 +26,9 @@ import { logMessageProcessed } from "../../logging/diagnostic.js";
 import { getChildLogger, resetLogger, setLoggerOverride } from "../../logging/logger.js";
 import { outboundMessageIdentities } from "../message/outbound-echo-state.js";
 import type { RecordInboundSession } from "../session.types.js";
-import { runPreparedChannelTurn } from "./execution.js";
+import { runPreparedChannelTurn, runPreparedChannelTurnCore } from "./execution.js";
 import { dispatchAssembledChannelTurn } from "./lifecycle.js";
+import * as pendingNotice from "./pending-delivery-notice.js";
 import { createReplyDispatchReceipt } from "./run-channel-turn.delivery.test-helpers.js";
 import type { ChannelTurnResult, PreparedChannelTurn } from "./types.js";
 
@@ -1060,5 +1061,298 @@ describe("channel turn pipeline", () => {
     expect(log.mock.calls).not.toContainEqual([
       expect.objectContaining({ reason: "zero-count-visible-dispatch" }),
     ]);
+  });
+  describe("final dispatch revalidation", () => {
+    it.each([
+      ["dispatch", false, false],
+      ["dispatch", false, true],
+      ["observeOnly", false, false],
+      ["observeOnly", false, true],
+      ["observeOnly", true, false],
+      ["observeOnly", true, true],
+    ] as const)(
+      "checks current authority after %s (suppressed=%s, revoked=%s)",
+      async (kind, suppressed, revoked) => {
+        let live = true;
+        const error = new Error("fictitious final dispatch authority revoked");
+        const started = Promise.withResolvers<void>();
+        const finish = Promise.withResolvers<void>();
+        const dispatchResult = { queuedFinal: true, counts: { tool: 0, block: 0, final: 1 } };
+        const waitForFinalOperation = async () => {
+          started.resolve();
+          await finish.promise;
+        };
+        const runDispatch = vi.fn(async () => {
+          await waitForFinalOperation();
+          return dispatchResult;
+        });
+        const onDispatchSkipped = vi.fn(waitForFinalOperation);
+        const log = vi.fn();
+        const historyKey = "fictitious-final-dispatch-history";
+        const historyMap = new Map([[historyKey, [{ sender: "fixture", body: "pending" }]]]);
+        const result = runPreparedChannelTurnCore(
+          {
+            channel: "test",
+            routeSessionKey: "agent:main:test:peer",
+            storePath,
+            ctxPayload: createCtx(),
+            admission: { kind },
+            recordInboundSession: createRecordInboundSession(),
+            runDispatch,
+            runDispatchLifecycle: { turnAdoptionLifecycle: undefined, onDispatchSkipped },
+            assertDispatchCurrent: () => {
+              if (!live) {
+                throw error;
+              }
+            },
+            history: { isGroup: true, historyKey, historyMap, limit: 10 },
+            log,
+          },
+          { suppressObserveOnlyDispatch: suppressed },
+        );
+        const assertion = revoked
+          ? expect(result).rejects.toBe(error)
+          : expect(result).resolves.toMatchObject({ dispatched: true });
+        await started.promise;
+        live = !revoked;
+        finish.resolve();
+        await assertion;
+        expect(runDispatch).toHaveBeenCalledTimes(suppressed ? 0 : 1);
+        expect(onDispatchSkipped).toHaveBeenCalledTimes(suppressed ? 1 : 0);
+        expect(loggedEvents(log).filter((event) => event.stage === "dispatch")).toEqual([
+          { stage: "dispatch", event: "start" },
+          { stage: "dispatch", event: revoked ? "error" : "done" },
+        ]);
+        expect(historyMap.get(historyKey)).toEqual([]);
+      },
+    );
+
+    it("refuses the skipped callback if dispatch-start logging revokes authority", async () => {
+      let live = true;
+      const error = new Error("fictitious skipped dispatch authority revoked");
+      const onDispatchSkipped = vi.fn(async () => undefined);
+      const runDispatch = vi.fn(async () => ({
+        queuedFinal: true,
+        counts: { tool: 0, block: 0, final: 1 },
+      }));
+      const log = vi.fn((event: TurnLogEvent) => {
+        if (event.stage === "dispatch" && event.event === "start") {
+          live = false;
+        }
+      });
+      await expect(
+        runPreparedChannelTurnCore(
+          {
+            channel: "test",
+            routeSessionKey: "agent:main:test:peer",
+            storePath,
+            ctxPayload: createCtx(),
+            admission: { kind: "observeOnly" },
+            recordInboundSession: createRecordInboundSession(),
+            runDispatch,
+            runDispatchLifecycle: { turnAdoptionLifecycle: undefined, onDispatchSkipped },
+            assertDispatchCurrent: () => {
+              if (!live) {
+                throw error;
+              }
+            },
+            log,
+          },
+          { suppressObserveOnlyDispatch: true },
+        ),
+      ).rejects.toBe(error);
+      expect(runDispatch).not.toHaveBeenCalled();
+      expect(onDispatchSkipped).not.toHaveBeenCalled();
+      expect(loggedEvents(log).filter((event) => event.stage === "dispatch")).toEqual([
+        { stage: "dispatch", event: "start" },
+        { stage: "dispatch", event: "error" },
+      ]);
+    });
+  });
+
+  describe("synchronous dispatch guard", () => {
+    it.each(["record", "afterRecord", "notice", "dispatch-log", "record-log"] as const)(
+      "blocks actual dispatch after revocation in %s and preserves cleanup/history",
+      async (phase) => {
+        let live = true;
+        const error = new Error("fictitious authority lost at " + phase);
+        const guard = () => {
+          if (!live) {
+            throw error;
+          }
+        };
+        const runDispatch = vi.fn(async () => ({
+          queuedFinal: true,
+          counts: { tool: 0, block: 0, final: 1 },
+        }));
+        const record = vi.fn<RecordInboundSession>(async () => {
+          await Promise.resolve();
+          if (phase === "record") {
+            live = false;
+          }
+        });
+        const afterRecord = vi.fn(async () => {
+          await Promise.resolve();
+          if (phase === "afterRecord") {
+            live = false;
+          }
+        });
+        const onPreDispatchFailure = vi.fn(async () => undefined);
+        const notice = vi
+          .spyOn(pendingNotice, "deliverPendingDeliveryNotice")
+          .mockImplementation(async () => {
+            await Promise.resolve();
+            if (phase === "notice") {
+              live = false;
+            }
+          });
+        const historyKey = "guard-history-fictif";
+        const historyMap = new Map([
+          [historyKey, [{ sender: "fixture", body: "pending fixture" }]],
+        ]);
+        try {
+          await expect(
+            runPreparedChannelTurn({
+              channel: "test",
+              routeSessionKey: "agent:main:test:peer",
+              storePath,
+              ctxPayload: createCtx(),
+              recordInboundSession: record,
+              afterRecord,
+              onPreDispatchFailure,
+              runDispatch,
+              assertDispatchCurrent: guard,
+              history: { isGroup: true, historyKey, historyMap, limit: 10 },
+              log: (event) => {
+                if (
+                  (phase === "dispatch-log" && event.stage === "dispatch") ||
+                  (phase === "record-log" && event.stage === "record")
+                ) {
+                  live = false;
+                }
+              },
+            }),
+          ).rejects.toBe(error);
+          expect(runDispatch).not.toHaveBeenCalled();
+          expect(historyMap.get(historyKey)).toEqual([]);
+          if (phase !== "dispatch-log") {
+            expect(onPreDispatchFailure).toHaveBeenCalledExactlyOnceWith(error);
+          }
+          if (phase === "record-log") {
+            expect(record).not.toHaveBeenCalled();
+          }
+          if (phase === "record" || phase === "record-log") {
+            expect(afterRecord).not.toHaveBeenCalled();
+          }
+          if (phase === "record" || phase === "record-log" || phase === "afterRecord") {
+            expect(notice).not.toHaveBeenCalled();
+          }
+        } finally {
+          notice.mockRestore();
+        }
+      },
+    );
+
+    it("rechecks after transcript merge awaits before recording", async () => {
+      let live = true;
+      const error = new Error("fictitious transcript authority revoked");
+      readRecentUserAssistantTextForSession.mockImplementationOnce(async () => {
+        await Promise.resolve();
+        live = false;
+        return [];
+      });
+      const record = createRecordInboundSession();
+      const runDispatch = vi.fn();
+      await expect(
+        runPreparedChannelTurn({
+          channel: "test",
+          routeSessionKey: "agent:main:test:peer",
+          storePath,
+          ctxPayload: createCtx({ AgentId: "main", SessionTranscriptContext: { historyLimit: 1 } }),
+          recordInboundSession: record,
+          runDispatch,
+          assertDispatchCurrent: () => {
+            if (!live) {
+              throw error;
+            }
+          },
+        }),
+      ).rejects.toBe(error);
+      expect(record).not.toHaveBeenCalled();
+      expect(runDispatch).not.toHaveBeenCalled();
+    });
+
+    it("observes a rejected native Promise without reading its own then or dispatching", async () => {
+      const record = createRecordInboundSession();
+      const runDispatch = vi.fn();
+      const thenGetter = vi.fn(() => {
+        throw new Error("fictitious own then must not execute");
+      });
+      await expect(
+        runPreparedChannelTurn({
+          channel: "test",
+          routeSessionKey: "agent:main:test:peer",
+          storePath,
+          ctxPayload: createCtx(),
+          recordInboundSession: record,
+          runDispatch,
+          assertDispatchCurrent: () => {
+            const result = Promise.reject(new Error("fictitious rejected guard sentinel"));
+            // Deliberately hostile fixture: the guard must bypass this property.
+            // oxlint-disable-next-line unicorn/no-thenable
+            Object.defineProperty(result, "then", { get: thenGetter });
+            return result;
+          },
+        }),
+      ).rejects.toThrow("Channel turn dispatch guard must complete synchronously");
+      await new Promise<void>((resolve) => {
+        setImmediate(resolve);
+      });
+      expect(thenGetter).not.toHaveBeenCalled();
+      expect(record).not.toHaveBeenCalled();
+      expect(runDispatch).not.toHaveBeenCalled();
+    });
+
+    it("refuses a custom thenable without executing its getter or dispatching", async () => {
+      const record = createRecordInboundSession();
+      const runDispatch = vi.fn();
+      const thenGetter = vi.fn(() => {
+        throw new Error("fictitious thenable getter must not execute");
+      });
+      await expect(
+        runPreparedChannelTurn({
+          channel: "test",
+          routeSessionKey: "agent:main:test:peer",
+          storePath,
+          ctxPayload: createCtx(),
+          recordInboundSession: record,
+          runDispatch,
+          // Deliberately hostile fixture: no thenable assimilation is permitted.
+          // oxlint-disable-next-line unicorn/no-thenable
+          assertDispatchCurrent: () => Object.defineProperty({}, "then", { get: thenGetter }),
+        }),
+      ).rejects.toThrow("Channel turn dispatch guard must complete synchronously");
+      expect(thenGetter).not.toHaveBeenCalled();
+      expect(record).not.toHaveBeenCalled();
+      expect(runDispatch).not.toHaveBeenCalled();
+    });
+
+    it("refuses a resolved Promise from a guard without awaiting it or recording", async () => {
+      const record = createRecordInboundSession();
+      const runDispatch = vi.fn();
+      await expect(
+        runPreparedChannelTurn({
+          channel: "test",
+          routeSessionKey: "agent:main:test:peer",
+          storePath,
+          ctxPayload: createCtx(),
+          recordInboundSession: record,
+          runDispatch,
+          assertDispatchCurrent: () => Promise.resolve(),
+        }),
+      ).rejects.toThrow("Channel turn dispatch guard must complete synchronously");
+      expect(record).not.toHaveBeenCalled();
+      expect(runDispatch).not.toHaveBeenCalled();
+    });
   });
 });

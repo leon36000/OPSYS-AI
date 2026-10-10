@@ -120,6 +120,7 @@ export async function runEmbeddedAttemptExecutionPhase(
       if (input.runAbortController.signal.aborted) {
         return abortable(Promise.resolve());
       }
+      assertActive();
       return abortable(trackPromptSettlePromise(activeSession.prompt(prompt, options)));
     });
   const onBlockReply = attempt.onBlockReply

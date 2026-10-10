@@ -215,6 +215,8 @@ def test_route_admission_privee_est_liee_au_profil_et_au_jeton(session):
                     "opsys_runtime_cfo_ticket",
                     "opsys_runtime_importer_appel_manque",
                     "opsys_runtime_deposer_faits",
+                    "opsys_runtime_lire_reception_sms",
+                    "opsys_runtime_recevoir_sms",
                 }
                 runtime_args = {
                     "execution_id": "http-before-dispatch-001", "cle_idempotence": "http-before-dispatch-001:0:0",

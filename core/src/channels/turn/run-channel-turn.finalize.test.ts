@@ -25,7 +25,11 @@ import {
 import { runPreparedChannelTurn } from "./execution.js";
 import { dispatchAssembledChannelTurn } from "./lifecycle.js";
 import { runChannelTurn } from "./run-channel-turn.js";
-import type { ChannelTurnHistoryFinalizeOptions, ChannelTurnResult } from "./types.js";
+import type {
+  ChannelTurnHistoryFinalizeOptions,
+  ChannelTurnResult,
+  ChannelTurnResolved,
+} from "./types.js";
 
 const deliverOutboundPayloads = vi.hoisted(() => vi.fn());
 const resolveOutboundDurableFinalDeliverySupport = vi.hoisted(() => vi.fn());
@@ -938,5 +942,172 @@ describe("channel turn finalize", () => {
     expect(finalizedResult.admission).toEqual({ kind: "dispatch" });
     expect(finalizedResult.dispatched).toBe(false);
     expect(finalizedResult.routeSessionKey).toBe("agent:main:test:peer");
+  });
+  describe("synchronous dispatch guard", () => {
+    function resolvedGuardTurn(
+      kind: "prepared" | "assembled" | "routed",
+      guard?: () => void,
+    ): ChannelTurnResolved {
+      const base = {
+        channel: "test",
+        ctxPayload: createCtx(),
+        assertDispatchCurrent: guard,
+      };
+      if (kind === "routed") {
+        return {
+          ...base,
+          cfg: { session: { store: storePath } },
+          route: { agentId: "main", sessionKey: "agent:main:test:peer" },
+          delivery: { deliver: vi.fn() },
+        };
+      }
+      const common = {
+        ...base,
+        routeSessionKey: "agent:main:test:peer",
+        storePath,
+        recordInboundSession: createRecordInboundSession(),
+      };
+      if (kind === "prepared") {
+        return {
+          ...common,
+          runDispatch: vi.fn(async () => ({
+            queuedFinal: true,
+            counts: { tool: 0, block: 0, final: 1 },
+          })),
+          runDispatchLifecycle: {
+            turnAdoptionLifecycle: undefined,
+            onDispatchSkipped: () => undefined,
+          },
+        };
+      }
+      return {
+        ...common,
+        cfg,
+        agentId: "main",
+        delivery: { deliver: vi.fn() },
+        dispatchReplyWithBufferedBlockDispatcher: dispatchReplyWithBufferedBlockDispatcherCore,
+      };
+    }
+
+    it.each(["prepared", "assembled", "routed"] as const)(
+      "refuses %s revoked during resolve with one failed finalizer and no record or dispatch",
+      async (kind) => {
+        let live = true;
+        const error = new Error("fictitious caller authority revoked");
+        const turn = resolvedGuardTurn(kind);
+        const finalize = vi.fn();
+        const guard = () => {
+          if (!live) {
+            throw error;
+          }
+        };
+        await expect(
+          runChannelTurn({
+            channel: "test",
+            raw: {},
+            assertDispatchCurrent: guard,
+            adapter: {
+              ingest: () => ({ id: "guard-fixture", rawText: "fictitious input" }),
+              resolveTurn: async () => {
+                await Promise.resolve();
+                live = false;
+                return turn;
+              },
+              onFinalize: finalize,
+            },
+          }),
+        ).rejects.toBe(error);
+        expect(finalize).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({ dispatched: false }),
+        );
+        expect(recordInboundSessionCore).not.toHaveBeenCalled();
+        if ("recordInboundSession" in turn) {
+          expect(turn.recordInboundSession).not.toHaveBeenCalled();
+        }
+        expect(dispatchReplyWithBufferedBlockDispatcherCore).not.toHaveBeenCalled();
+        expect(dispatchReplyWithRoutedChannelDispatcherCore).not.toHaveBeenCalled();
+        if ("runDispatch" in turn) {
+          expect(turn.runDispatch).not.toHaveBeenCalled();
+        }
+      },
+    );
+
+    it.each(["prepared", "assembled", "routed"] as const)(
+      "composes live owning and turn guards through the %s shared execution",
+      async (kind) => {
+        const host = vi.fn(() => undefined);
+        const plan = vi.fn(() => undefined);
+        const turn = resolvedGuardTurn(kind, plan);
+        const finalize = vi.fn();
+        const result = await runChannelTurn({
+          channel: "test",
+          raw: {},
+          assertDispatchCurrent: host,
+          adapter: {
+            ingest: () => ({ id: "guard-fixture", rawText: "fixture" }),
+            resolveTurn: () => turn,
+            onFinalize: finalize,
+          },
+        });
+        expect(result.dispatched).toBe(true);
+        expect(host.mock.calls.length).toBeGreaterThan(1);
+        expect(plan).toHaveBeenCalledTimes(host.mock.calls.length);
+        expect(finalize).toHaveBeenCalledExactlyOnceWith(
+          expect.objectContaining({ dispatched: true }),
+        );
+      },
+    );
+
+    it.each(["prepared", "assembled", "routed"] as const)(
+      "does not let a live %s plan replace a revoked host guard",
+      async (kind) => {
+        const error = new Error("fictitious host authority lost");
+        const plan = vi.fn(() => undefined);
+        const turn = resolvedGuardTurn(kind, plan);
+        await expect(
+          runChannelTurn({
+            channel: "test",
+            raw: {},
+            assertDispatchCurrent: () => {
+              throw error;
+            },
+            adapter: {
+              ingest: () => ({ id: "guard-fixture", rawText: "fixture" }),
+              resolveTurn: () => turn,
+            },
+          }),
+        ).rejects.toBe(error);
+        expect(plan).not.toHaveBeenCalled();
+      },
+    );
+
+    it("deduplicates the same host and turn callback at each guard boundary", async () => {
+      const calls: string[] = [];
+      const guard = () => {
+        calls.push("guard");
+      };
+      const turn = resolvedGuardTurn("prepared", guard);
+      if (!("runDispatch" in turn)) {
+        throw new Error("Missing prepared fixture");
+      }
+      await runChannelTurn({
+        channel: "test",
+        raw: {},
+        assertDispatchCurrent: guard,
+        log: (event) => {
+          if (event.stage === "record" && event.event === "start") {
+            calls.push("record-start");
+          }
+        },
+        adapter: {
+          ingest: () => ({ id: "guard-fixture", rawText: "fixture" }),
+          resolveTurn: () => turn,
+        },
+      });
+      expect(calls).toContain("record-start");
+      expect(calls[0]).toBe("guard");
+      // The first two boundaries are the owning kernel and the shared executor entry.
+      expect(calls.slice(0, 3)).toEqual(["guard", "guard", "record-start"]);
+    });
   });
 });

@@ -1,6 +1,6 @@
 import { recordChannelHistoryEntryWithMedia } from "../../auto-reply/reply/history.js";
 import { toHistoryMediaEntries } from "../inbound-event/media.js";
-import { runPreparedChannelTurn } from "./execution.js";
+import { assertChannelTurnDispatchCurrent, runPreparedChannelTurn } from "./execution.js";
 import {
   assembleResolvedChannelTurn,
   dispatchAssembledChannelTurn,
@@ -165,6 +165,7 @@ export async function runChannelTurn<
 >(
   params: RunChannelTurnParams<TRaw, TDispatchResult, ChannelTurnDeliveryAdapter>,
 ): Promise<ChannelTurnResult<TDispatchResult>> {
+  const owningGuard = params.assertDispatchCurrent;
   emit({
     ...params,
     event: { stage: "ingest", event: "start" },
@@ -248,8 +249,17 @@ export async function runChannelTurn<
   });
 
   const admission = resolved.admission ?? preflightAdmission ?? ({ kind: "dispatch" } as const);
+  const turnGuard = resolved.assertDispatchCurrent;
+  const assertDispatchCurrent =
+    owningGuard && turnGuard && owningGuard !== turnGuard
+      ? () => {
+          assertChannelTurnDispatchCurrent(owningGuard);
+          assertChannelTurnDispatchCurrent(turnGuard);
+        }
+      : (owningGuard ?? turnGuard);
   let result: ChannelTurnResult<TDispatchResult>;
   try {
+    assertChannelTurnDispatchCurrent(assertDispatchCurrent);
     if ("runDispatch" in resolved) {
       assertPreparedDispatchLifecycle(resolved, params.turnAdoptionLifecycle);
     }
@@ -257,6 +267,7 @@ export async function runChannelTurn<
       "runDispatch" in resolved
         ? await runPreparedChannelTurn({
             ...resolved,
+            ...(assertDispatchCurrent ? { assertDispatchCurrent } : {}),
             admission,
             log: params.log,
             messageId: input.id,
@@ -264,6 +275,7 @@ export async function runChannelTurn<
         : isRoutedTurn
           ? await dispatchRoutedChannelTurn({
               ...(unresolved as ChannelTurnPlan<ChannelTurnDeliveryAdapter>),
+              ...(assertDispatchCurrent ? { assertDispatchCurrent } : {}),
               admission,
               log: params.log,
               messageId: input.id,
@@ -273,6 +285,7 @@ export async function runChannelTurn<
             })
           : await dispatchAssembledChannelTurn({
               ...(resolved as AssembledChannelTurn),
+              ...(assertDispatchCurrent ? { assertDispatchCurrent } : {}),
               admission,
               log: params.log,
               messageId: input.id,

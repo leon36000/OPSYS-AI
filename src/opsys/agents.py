@@ -25,6 +25,11 @@ from .stockage.schema import (
 _ID = re.compile(r"^[a-z][a-z0-9-]{1,63}$")
 _CLE_MUTATION = re.compile(r"^[A-Za-z0-9._:-]{8,128}$")
 _CRON = re.compile(r"^(\S+\s+){4}\S+$")
+_COMPTE_SMS = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$", re.ASCII)
+_SID_SMS = re.compile(r"^AC[0-9a-fA-F]{32}$", re.ASCII)
+_CLES_CANAL_SMS = frozenset({"type", "version", "canal", "compte_id", "account_sid"})
+_COMPTES_RESERVES = frozenset({"__proto__", "prototype", "constructor"})
+_OUTIL_SMS = "m1_recevoir_message_canal"
 _MAX_BUDGET_TOKENS = 10_000_000_000
 _MAX_TOURS = 100
 _MAX_REESSAIS = 10
@@ -90,7 +95,7 @@ def _specification(departements: Mapping[str, Departement], spec: Mapping[str, A
     declencheurs = spec.get("declencheurs")
     if not isinstance(declencheurs, list) or not declencheurs:
         raise ValueError("declencheurs doit être une liste non vide")
-    propres: list[dict[str, str]] = []
+    propres: list[dict[str, Any]] = []
     for decl in declencheurs:
         if not isinstance(decl, Mapping):
             raise ValueError("chaque déclencheur doit être un objet")
@@ -107,6 +112,17 @@ def _specification(departements: Mapping[str, Departement], spec: Mapping[str, A
             if not isinstance(nom, str) or nom not in departement.evenements_consomme:
                 raise ValueError(f"événement non consommé par {departement_id}")
             propre = {"type": "evenement", "nom": nom}
+        elif genre == "canal" and set(decl) == _CLES_CANAL_SMS:
+            version, compte, sid = decl.get("version"), decl.get("compte_id"), decl.get("account_sid")
+            if type(version) is not int or version != 1 or decl.get("canal") != "sms":
+                raise ValueError("déclencheur canal : version 1 et canal sms requis")
+            if not isinstance(compte, str) or not _COMPTE_SMS.fullmatch(compte) or compte in _COMPTES_RESERVES:
+                raise ValueError("déclencheur canal : compte_id invalide")
+            if not isinstance(sid, str) or not _SID_SMS.fullmatch(sid):
+                raise ValueError("déclencheur canal : account_sid invalide")
+            if departement_id != "m01-front-office" or _OUTIL_SMS not in outils or len(declencheurs) != 1:
+                raise ValueError("canal SMS : m01-front-office, outil m1_recevoir_message_canal et déclencheur unique")
+            propre = {"type": "canal", "version": 1, "canal": "sms", "compte_id": compte, "account_sid": sid}
         else:
             raise ValueError("déclencheur invalide (manuel, cron ou événement consommé par le département)")
         propres.append(propre)
@@ -125,6 +141,26 @@ def _mutation_valide(mutation_id: str) -> None:
 
 def _json(donnees: Any) -> str:
     return json.dumps(donnees, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _compte_sms(declencheurs: list[dict[str, Any]]) -> str | None:
+    for decl in declencheurs:
+        if decl.get("type") == "canal" and decl.get("canal") == "sms":
+            return decl["compte_id"]
+    return None
+
+
+def _unicite_sms(cnx: Connection, ident: str, declencheurs: list[dict[str, Any]]) -> None:
+    compte = _compte_sms(declencheurs)
+    if compte is None:
+        return
+    autres = cnx.execute(select(AGENTS_CONFIGURABLES.c.id, AGENTS_CONFIGURABLES.c.declencheurs).where(
+        AGENTS_CONFIGURABLES.c.actif.is_(True), AGENTS_CONFIGURABLES.c.supprime.is_(False),
+        AGENTS_CONFIGURABLES.c.id != ident,
+    )).mappings()
+    for autre in autres:
+        if _compte_sms(json.loads(autre["declencheurs"])) == compte:
+            raise ValueError(f"compte SMS déjà porté par le profil actif : {autre['id']}")
 
 
 def _profil(ligne: Mapping[str, Any]) -> dict[str, Any]:
@@ -262,6 +298,8 @@ def _modifier(cnx: Connection, ident: str, departements: Mapping[str, Departemen
     empreinte = empreinte_requete
     if ligne["revision"] != revision_attendue:
         raise ValueError(f"conflit de révision : attendue {revision_attendue}, courante {ligne['revision']}")
+    if payload["actif"] and not payload["supprime"]:
+        _unicite_sms(cnx, ident, valide["declencheurs"])
     maintenant = _instant()
     revision = ligne["revision"] + 1
     valeurs = {

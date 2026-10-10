@@ -33,6 +33,13 @@ def specification(champs: Mapping[str, str]) -> dict[str, Any]:
             declencheurs.append({"type": "cron", "expression": ligne[8:]})
         elif ligne.startswith("evenement "):
             declencheurs.append({"type": "evenement", "nom": ligne[10:]})
+        elif ligne.split(maxsplit=1)[0] == "canal":
+            mots = ligne.split()
+            if len(mots) != 4:
+                raise ValueError("déclencheur canal : canal sms suivi du compte_id et de l’account_sid")
+            declencheurs.append(
+                {"type": "canal", "version": 1, "canal": mots[1], "compte_id": mots[2], "account_sid": mots[3]}
+            )
         else:
             raise ValueError("déclencheur : manuel, horaire suivi de cinq champs ou evenement suivi du nom")
     spec["declencheurs"] = declencheurs
@@ -157,6 +164,8 @@ def contenu(
         if d["type"] == "manuel"
         else "horaire " + d["expression"]
         if d["type"] == "cron"
+        else f"canal {d['canal']} {d['compte_id']} {d['account_sid']}"
+        if d["type"] == "canal"
         else "evenement " + d["nom"]
         for d in valeurs["declencheurs"]
     )
@@ -164,7 +173,9 @@ def contenu(
         f'<label for="agent-declencheurs">Déclencheurs (une ligne par déclencheur)</label>'
         f'<textarea id="agent-declencheurs" name="declencheurs" required>{e(declencheurs)}</textarea>'
         '<p class="note">manuel ; horaire suivi de cinq champs ; '
-        "evenement suivi du nom déclaré par le département.</p>"
+        "evenement suivi du nom déclaré par le département ; "
+        "canal sms suivi du compte_id puis de l’account_sid (quatre mots ; "
+        "profil m01-front-office, déclencheur unique).</p>"
     )
     formulaire = (
         f'<article class="carte"><h2>{"Modifier" if profil else "Créer"} un profil</h2>'

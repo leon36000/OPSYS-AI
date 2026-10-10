@@ -1,3 +1,4 @@
+import { types } from "node:util";
 import {
   withDispatchProcessedOutcomeSink,
   type DispatchProcessedNote,
@@ -19,6 +20,7 @@ import {
 import { deliverPendingDeliveryNotice } from "./pending-delivery-notice.js";
 import type {
   ChannelTurnAdmission,
+  ChannelTurnDispatchGuard,
   ChannelTurnHistoryFinalizeOptions,
   ChannelTurnLogEvent,
   ChannelTurnResult,
@@ -28,6 +30,19 @@ import type {
 
 const NO_ADDITIONAL_DELIVERY_SIGNALS: ChannelTurnVisibleDeliverySignals = {};
 const log = createSubsystemLogger("channels/turn/execution");
+const nativePromiseThen = Promise.prototype.then;
+
+/** Check only at synchronous boundaries; this does not fence awaits inside a dispatcher. */
+export function assertChannelTurnDispatchCurrent(guard?: ChannelTurnDispatchGuard): void {
+  const result: unknown = guard?.();
+  if (types.isPromise(result)) {
+    // Observe an invalid asynchronous guard without awaiting or reading a custom then.
+    void nativePromiseThen.call(result, undefined, () => undefined);
+  }
+  if (result !== undefined) {
+    throw new Error("Channel turn dispatch guard must complete synchronously");
+  }
+}
 
 function emit(params: {
   log?: (event: ChannelTurnLogEvent) => void;
@@ -235,6 +250,18 @@ async function runPreparedChannelTurnCoreInTrace<
   options: { suppressObserveOnlyDispatch: boolean },
 ): Promise<ChannelTurnResult<TDispatchResult>> {
   const admission = params.admission ?? ({ kind: "dispatch" } as const);
+  const guard = params.assertDispatchCurrent;
+  try {
+    assertChannelTurnDispatchCurrent(guard);
+  } catch (err) {
+    clearPendingHistoryAfterTurn(params.history);
+    try {
+      await params.onPreDispatchFailure?.(err);
+    } catch {
+      // Preserve the original caller guard error.
+    }
+    throw err;
+  }
   const outboundEchoDrop = resolveOutboundEchoDrop(params);
   if (outboundEchoDrop) {
     clearPendingHistoryAfterTurn(params.history);
@@ -256,12 +283,14 @@ async function runPreparedChannelTurnCoreInTrace<
     if (params.ctxPayload.SessionTranscriptContext) {
       const { mergeSessionTranscriptContext } =
         await import("../inbound-event/session-transcript-context.runtime.js");
+      assertChannelTurnDispatchCurrent(guard);
       await mergeSessionTranscriptContext({
         agentId: params.ctxPayload.AgentId,
         ctx: params.ctxPayload,
         sessionKey: recordSessionKey,
         storePath: params.storePath,
       });
+      assertChannelTurnDispatchCurrent(guard);
     }
     emit({
       ...params,
@@ -274,6 +303,7 @@ async function runPreparedChannelTurnCoreInTrace<
       },
     });
     try {
+      assertChannelTurnDispatchCurrent(guard);
       await params.recordInboundSession({
         storePath: params.storePath,
         sessionKey: recordSessionKey,
@@ -284,6 +314,7 @@ async function runPreparedChannelTurnCoreInTrace<
         onRecordError: params.record?.onRecordError ?? (() => undefined),
         trackSessionMetaTask: params.record?.trackSessionMetaTask,
       });
+      assertChannelTurnDispatchCurrent(guard);
       emit({
         ...params,
         event: {
@@ -294,8 +325,11 @@ async function runPreparedChannelTurnCoreInTrace<
           admission: admission.kind,
         },
       });
+      assertChannelTurnDispatchCurrent(guard);
       await params.afterRecord?.();
+      assertChannelTurnDispatchCurrent(guard);
       await deliverPendingDeliveryNotice(recordSessionKey, params.storePath);
+      assertChannelTurnDispatchCurrent(guard);
     } catch (err) {
       emit({
         ...params,
@@ -329,8 +363,10 @@ async function runPreparedChannelTurnCoreInTrace<
     let dispatchResult: TDispatchResult;
     try {
       if (admission.kind === "observeOnly" && !options.suppressObserveOnlyDispatch) {
+        assertChannelTurnDispatchCurrent(guard);
         await params.runDispatch();
       } else if (admission.kind === "observeOnly") {
+        assertChannelTurnDispatchCurrent(guard);
         await params.runDispatchLifecycle?.onDispatchSkipped("observeOnly");
       }
       let processedOutcome: DispatchProcessedNote | undefined;
@@ -339,10 +375,14 @@ async function runPreparedChannelTurnCoreInTrace<
       } else {
         // The sink carries the dispatch's terminal outcome to the warning below
         // without widening the plugin-visible dispatch result contract.
-        ({ result: dispatchResult, processedOutcome } = await withDispatchProcessedOutcomeSink(() =>
-          params.runDispatch(),
+        ({ result: dispatchResult, processedOutcome } = await withDispatchProcessedOutcomeSink(
+          () => {
+            assertChannelTurnDispatchCurrent(guard);
+            return params.runDispatch();
+          },
         ));
       }
+      assertChannelTurnDispatchCurrent(guard);
       maybeWarnZeroCountVisibleDispatch({
         ...params,
         admission,

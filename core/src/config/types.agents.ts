@@ -55,7 +55,12 @@ export type AgentConfig = z.input<typeof AgentEntryBaseSchema> & {
   sandbox?: AgentSandboxConfig;
   tools?: AgentToolsConfig;
   /** OPSYS runtime admission profile binding; never model-authored. */
-  opsysRuntimeAdmission?: { profileId: string; profileRevision?: number };
+  opsysRuntimeAdmission?: {
+    profileId: string;
+    profileRevision?: number;
+    /** Explicit SMS account selection; configuration is not live ingress authority. */
+    smsIngress?: { version: 1; accountId: string; accountSid: string };
+  };
   /** OPSYS isolation requirement; never model-authored. */
   opsysIsolation?: { exec: "sandbox-required" };
 };

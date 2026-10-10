@@ -46,6 +46,13 @@ import {
   type IngressNonRetryableFailure,
   type IngressRetryPolicyConfig,
 } from "./ingress-retry-policy.js";
+import {
+  confirmOwnNativeCompletion,
+  readNativeSmsCompletionPermit,
+  registerNativeSmsClaimLifecycle,
+  retireNativeSmsClaimLifecycle,
+  type NativeSmsClaimLifecycle,
+} from "./opsys-sms-source.js";
 export { bindIngressLifecycleToReplyOptions } from "./ingress-drain-lifecycle.js";
 export { isIngressAdoptionLostError } from "./ingress-drain-state.js";
 
@@ -131,6 +138,7 @@ export function createChannelIngressDrain<
   const startLimit = options.startLimit ?? 32;
   const deferredLaneOccupancy = options.deferredLaneOccupancy ?? "hold";
   const activeByClaim = new Map<string, ActiveHandlerState<TPayload, TMetadata>>();
+  const nativeClaims = new WeakMap<object, NativeSmsClaimLifecycle>();
   const laneOwnerByKey = new Map<string, ActiveHandlerState<TPayload, TMetadata>>();
   let disposed = false;
 
@@ -174,6 +182,11 @@ export function createChannelIngressDrain<
   }
 
   const removeActive = (state: ActiveHandlerState<TPayload, TMetadata>) => {
+    const native = nativeClaims.get(state);
+    if (native) {
+      retireNativeSmsClaimLifecycle(native);
+      nativeClaims.delete(state);
+    }
     clearStallTimer(state);
     clearClaimRefresh(state);
     activeByClaim.delete(activeClaimKey(state.claim));
@@ -331,27 +344,51 @@ export function createChannelIngressDrain<
   const createLifecycle = (
     state: ActiveHandlerState<TPayload, TMetadata>,
   ): ChannelIngressDispatchLifecycle => {
+    let adoptionPromise: Promise<void> | undefined;
+    const onAdopted = (): Promise<void> => {
+      if (adoptionPromise) {
+        return adoptionPromise;
+      }
+      // Settlement after release/failure is not a successful adoption.
+      const lost = state.guillotined
+        ? "guillotined"
+        : state.superseded
+          ? "superseded"
+          : state.phase === "settled"
+            ? "reclaimed"
+            : undefined;
+      if (lost) {
+        adoptionPromise = Promise.reject(new IngressAdoptionLostError(lost));
+        return adoptionPromise;
+      }
+      // Hold ownership after an uncertain completion; never reopen dispatch.
+      state.phase = "adopted";
+      clearStallTimer(state);
+      // Install the promise before queue writes can re-enter this lifecycle.
+      adoptionPromise = Promise.resolve().then(async () => {
+        let completionCommitted = false;
+        await state.settleOnce(async () => {
+          const native = nativeClaims.get(state);
+          const permit = native && readNativeSmsCompletionPermit(native);
+          const receipt = await completeClaimWithRetry(state.claim, permit);
+          if (permit) {
+            if (!native || !receipt) {
+              throw new IngressAdoptionLostError("reclaimed");
+            }
+            confirmOwnNativeCompletion(native, receipt, state);
+          }
+          completionCommitted = true;
+        });
+        // Joining another owner's release/fail is not our own completion.
+        if (!completionCommitted) {
+          throw new IngressAdoptionLostError("reclaimed");
+        }
+      });
+      return adoptionPromise;
+    };
     return {
       abortSignal: state.abortController.signal,
-      onAdopted: async () => {
-        // Lost adoption is loud: guillotine/supersede already tombstoned/failed the claim.
-        if (state.guillotined) {
-          throw new IngressAdoptionLostError("guillotined");
-        }
-        if (state.superseded) {
-          throw new IngressAdoptionLostError("superseded");
-        }
-        if (state.phase === "adopted" || state.phase === "settled") {
-          // Idempotent only after a genuine successful adoption path.
-          return;
-        }
-        // Complete at adoption, not settle — frees the lane for later events.
-        state.phase = "adopted";
-        clearStallTimer(state);
-        await state.settleOnce(async () => {
-          await completeClaimWithRetry(state.claim);
-        });
-      },
+      onAdopted,
       onDeferred: () => {
         if (state.phase !== "dispatching") {
           return;
@@ -417,7 +454,9 @@ export function createChannelIngressDrain<
       laneOwnerByKey,
       shouldSupersedePending: options.shouldSupersedePending,
       clearStallTimer,
-      completeClaim: completeClaimWithRetry,
+      completeClaim: async (claim) => {
+        await completeClaimWithRetry(claim);
+      },
       formatError,
       log,
     });
@@ -441,6 +480,19 @@ export function createChannelIngressDrain<
       settleOnce: async () => {},
     } as ActiveHandlerState<TPayload, TMetadata>;
     state.settleOnce = createIngressSettleOwner(state, removeActive);
+    const native = registerNativeSmsClaimLifecycle(
+      queue,
+      {
+        id: claim.id,
+        token: claim.claim.token,
+        ownerId,
+      },
+      state,
+      state.abortController.signal,
+    );
+    if (native) {
+      nativeClaims.set(state, native);
+    }
     const lifecycle = createLifecycle(state);
     armStallWatchdog(state);
     armClaimRefresh(state);
@@ -474,7 +526,11 @@ export function createChannelIngressDrain<
         ) {
           return;
         }
-        if (state.phase === "settled" || state.phase === "adopted") {
+        if (state.phase === "settled") {
+          return;
+        }
+        if (state.phase === "adopted") {
+          await lifecycle.onAdopted();
           return;
         }
         if (state.guillotined || state.superseded) {
@@ -493,14 +549,9 @@ export function createChannelIngressDrain<
         }
         // Default: dispatch returned without deferral — complete when channel
         // did not call onAdopted (channels should prefer lifecycle.onAdopted).
-        // Mark adopted BEFORE tombstone retries so a write failure cannot release
-        // a claim whose dispatch side effects already ran (replay risk).
+        // Explicit adoption and default completion share one durable outcome.
         if (state.phase === "dispatching") {
-          state.phase = "adopted";
-          clearStallTimer(state);
-          await state.settleOnce(async () => {
-            await completeClaimWithRetry(claim);
-          });
+          await lifecycle.onAdopted();
         }
       } catch (err) {
         if (isStopped() || state.phase === "settled") {

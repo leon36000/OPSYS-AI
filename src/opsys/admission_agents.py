@@ -628,6 +628,43 @@ def verifier_outil_runtime(
     return {"autorise": True, "revision_profil": profil["revision"]}
 
 
+def verifier_outil_generique_runtime(
+    cnx: Connection,
+    agent_id: str,
+    departements: Mapping[str, Departement],
+    outil: str,
+    revision_profil: int,
+    *,
+    verrouiller: bool = False,
+) -> dict[str, Any]:
+    """Ferme la réception générique du profil SMS, sans retirer son droit natif.
+
+    Les RPC internes utilisent verifier_outil_runtime. Les deux entrées génériques
+    revalident ici la sélection SQL courante, indépendamment du canal des arguments.
+    """
+    resultat = verifier_outil_runtime(
+        cnx, agent_id, departements, outil, revision_profil, verrouiller=verrouiller
+    )
+    if outil != "opsys_m1__m1_recevoir_message_canal":
+        return resultat
+    from . import agents
+
+    try:
+        profil = agents.obtenir(cnx, agent_id)
+        if profil is None:
+            raise ValueError("profil absent")
+        specification = {cle: profil[cle] for cle in (
+            "id", "departement", "responsabilite", "palier_modele", "outils", "budget_jour", "budget_mois",
+            "limite_tours", "limite_reessais", "limite_concurrence", "declencheurs",
+        )}
+        propre = agents._specification(departements, specification)
+    except (ValueError, TypeError, KeyError) as exc:
+        raise AdmissionRefusee("outil refusé : sélection du profil invalide") from exc
+    if any(decl["type"] == "canal" for decl in propre["declencheurs"]):
+        raise AdmissionRefusee("outil refusé : réception SMS réservée à l'hôte")
+    return resultat
+
+
 def _lire(cnx: Connection, reservation_id: str, *, verrou: bool = False) -> Mapping[str, Any]:
     requete = select(AGENTS_RESERVATIONS).where(AGENTS_RESERVATIONS.c.id == reservation_id)
     if verrou:

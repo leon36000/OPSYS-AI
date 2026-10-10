@@ -5,8 +5,10 @@ import {
   type ChannelIngressQueue,
 } from "openclaw/plugin-sdk/channel-outbound";
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
+import { sleepWithAbort } from "openclaw/plugin-sdk/runtime-env";
 import { runDetachedWebhookWork } from "openclaw/plugin-sdk/webhook-request-guards";
 import { dispatchSmsInboundEvent, type SmsChannelRuntime } from "./inbound.js";
+import { getOpsysSmsHostBridge } from "./opsys-host-bridge.js";
 import { looksLikeSmsPhoneNumber, normalizeSmsPhoneNumber } from "./phone.js";
 import { getSmsRuntime } from "./runtime.js";
 import {
@@ -16,13 +18,71 @@ import {
 } from "./twilio.js";
 import type { ResolvedSmsAccount, SmsInboundMessage } from "./types.js";
 
-const SMS_INGRESS_PAYLOAD_VERSION = 1;
+const SMS_INGRESS_PAYLOAD_VERSION = 2;
+const SMS_UNRESOLVED_WAIT_MS = 5_000;
+const SMS_SELECTION_UNAVAILABLE = "M1-SMS-RECEPTION-NON-RESOLUE";
 const SMS_INGRESS_DRAIN_INTERVAL_MS = 500;
 
-type SmsIngressPayload = {
-  version: typeof SMS_INGRESS_PAYLOAD_VERSION;
-  form: Record<string, string>;
-};
+type SmsIngressPayload = unknown;
+
+type SmsCaptureProof = Readonly<{ signature: string; signatureUrl: string }>;
+type SmsIngressInput =
+  | { kind: "incoming"; form: Record<string, string>; handle?: object }
+  | { kind: "gate"; payload: SmsIngressPayload; eventId: string; laneKey: string };
+
+/** Routing classification only. Live authority remains exclusively in the Host. */
+function selectedSmsRoute(cfg: OpenClawConfig, accountId: string): boolean {
+  const agents = cfg.agents;
+  const entries = agents?.entries ? Object.values(agents.entries) : (agents?.list ?? []);
+  for (const entry of entries) {
+    const marker = entry.opsysRuntimeAdmission;
+    if (!marker || !Object.hasOwn(marker, "smsIngress")) {
+      continue;
+    }
+    const ingress = marker.smsIngress;
+    // A malformed selection never silently opts an ingress into the legacy parser.
+    if (!ingress || ingress.version !== 1 || typeof ingress.accountId !== "string") {
+      throw new Error(SMS_SELECTION_UNAVAILABLE);
+    }
+    if (ingress.accountId === accountId) {
+      return true;
+    }
+  }
+  return false;
+}
+function isStoredForm(value: unknown): value is Record<string, string> {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.values(value).every((field) => typeof field === "string")
+  );
+}
+function isLegacyPayload(
+  payload: unknown,
+): payload is { version: 1; form: Record<string, string> } {
+  return (
+    payload !== null &&
+    typeof payload === "object" &&
+    "version" in payload &&
+    payload.version === 1 &&
+    "form" in payload &&
+    isStoredForm(payload.form)
+  );
+}
+function requireSealed(value: unknown): asserts value is SmsIngressPayload {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    !("version" in value) ||
+    value.version !== 2 ||
+    !("form" in value) ||
+    !isStoredForm(value.form) ||
+    !("capsule" in value)
+  ) {
+    throw new Error(SMS_SELECTION_UNAVAILABLE);
+  }
+}
 
 type SmsIngressLifecycle = ReturnType<
   typeof bindIngressLifecycleToReplyOptions
@@ -85,6 +145,8 @@ export function createSmsIngressSpool(params: {
   channelRuntime: SmsChannelRuntime;
   queue?: ChannelIngressQueue<SmsIngressPayload>;
   abortSignal?: AbortSignal;
+  /** Route retirement fences selected capture/wait without changing legacy durable admission. */
+  gateAbortSignal?: AbortSignal;
   log?: SmsIngressLog;
   deliver?: (
     message: SmsInboundMessage,
@@ -92,6 +154,20 @@ export function createSmsIngressSpool(params: {
     receivedAt: number,
   ) => Promise<void>;
 }) {
+  const selected = selectedSmsRoute(params.cfg, params.account.accountId);
+  const found = getOpsysSmsHostBridge(params.account.accountId);
+  // Snapshot the actual instance-owned callable view; never switch to a replacement mid-route.
+  const bridge = found
+    ? Object.freeze({ locator: found.locator, invoke: found.invoke })
+    : undefined;
+  const invoke = (input: unknown) => {
+    if (!bridge) {
+      throw new Error(SMS_SELECTION_UNAVAILABLE);
+    }
+    params.abortSignal?.throwIfAborted();
+    params.gateAbortSignal?.throwIfAborted();
+    return bridge.invoke(bridge.locator, input);
+  };
   const queue =
     params.queue ??
     getSmsRuntime().state.openChannelIngressQueue<SmsIngressPayload>({
@@ -111,12 +187,16 @@ export function createSmsIngressSpool(params: {
       });
     });
   const monitor = createChannelIngressMonitor<
-    Record<string, string>,
-    Record<string, string>,
+    SmsIngressInput,
+    SmsIngressPayload,
     SmsIngressPayload
   >({
     queue,
-    inspect: (form, context) => {
+    inspect: (input, context) => {
+      if (input.kind === "gate") {
+        return { eventId: input.eventId, laneKey: input.laneKey };
+      }
+      const form = input.form;
       const eventId = resolveTwilioMessageSid(form);
       if (!eventId) {
         if (context.phase === "claim") {
@@ -129,10 +209,29 @@ export function createSmsIngressSpool(params: {
     },
     payload: {
       version: SMS_INGRESS_PAYLOAD_VERSION,
-      serialize: (form) => form,
-      deserialize: (form) => form,
-      encode: ({ body }) => ({ version: SMS_INGRESS_PAYLOAD_VERSION, form: body }),
-      decode: (payload) => ({ version: payload.version, body: payload.form }),
+      serialize: (input, { receivedAt }) => {
+        if (input.kind !== "incoming") {
+          throw new Error(SMS_SELECTION_UNAVAILABLE);
+        }
+        if (!selected) {
+          return { version: 1, form: input.form };
+        }
+        const sealed = invoke({ kind: "encode", handle: input.handle, receivedAt });
+        requireSealed(sealed);
+        return sealed;
+      },
+      deserialize: (payload, { claim }) =>
+        selected || !isLegacyPayload(payload)
+          ? {
+              kind: "gate",
+              payload,
+              eventId: claim.id,
+              laneKey: claim.laneKey ?? `event:${claim.id}`,
+            }
+          : { kind: "incoming", form: payload.form },
+      // Version 2 is a RAM codec discriminator, not an additional persisted envelope.
+      encode: ({ body }) => body,
+      decode: (payload) => ({ version: SMS_INGRESS_PAYLOAD_VERSION, body: payload }),
       createClaimError: (kind) =>
         new SmsIngressPermanentError(
           kind === "invalid-version"
@@ -140,12 +239,45 @@ export function createSmsIngressSpool(params: {
             : "SMS ingress identity changed after durable admission.",
         ),
     },
-    deliver: (_form, lifecycle, event) =>
-      deliver(
-        parseSmsIngressForm(event.payload.form, params.account),
+    deliver: async (input, lifecycle, event) => {
+      if (input.kind === "gate") {
+        try {
+          await invoke({
+            kind: "resolve",
+            payload: event.payload,
+            id: event.id,
+            token: event.claim.token,
+            ownerId: event.claim.ownerId,
+            receivedAt: event.receivedAt,
+          });
+        } catch {
+          // Unknown includes a missing/revoked carrier. Never reinterpret persisted input.
+        }
+        // Even GateReceived lacks the native SourceCell in this slice. No inbound effects.
+        try {
+          await sleepWithAbort(
+            SMS_UNRESOLVED_WAIT_MS,
+            params.gateAbortSignal
+              ? AbortSignal.any([lifecycle.abortSignal, params.gateAbortSignal])
+              : lifecycle.abortSignal,
+            { ref: false },
+          );
+        } catch {
+          // Abort shortens the wait; cancellation below still owns claim release.
+        }
+        try {
+          await lifecycle.onCancelled?.();
+        } catch {
+          // The wrapped lifecycle already marked deferred. Do not turn release loss into fail.
+        }
+        return { kind: "deferred" };
+      }
+      await deliver(
+        parseSmsIngressForm(input.form, params.account),
         bindIngressLifecycleToReplyOptions(lifecycle).turnAdoptionLifecycle,
         event.receivedAt,
-      ),
+      );
+    },
     pollIntervalMs: SMS_INGRESS_DRAIN_INTERVAL_MS,
     // The 1-day / 20k tombstones dominate the retired 10-minute / 10,000-key cache.
     retention: {
@@ -161,6 +293,7 @@ export function createSmsIngressSpool(params: {
     runPumpTask: runDetachedWebhookWork,
     admissionMode: "durable-after-stop",
     drain: {
+      deriveLaneKey: (claim) => claim.laneKey ?? `event:${claim.id}`,
       onLog: (message) => params.log?.warn?.(message),
       resolveNonRetryableFailure: (error) =>
         error instanceof SmsIngressPermanentError
@@ -175,8 +308,20 @@ export function createSmsIngressSpool(params: {
       ),
   });
   return {
-    enqueue: async (form: Record<string, string>) => {
-      const admitted = await monitor.admit(form);
+    selected,
+    enqueue: async (form: Record<string, string>, proof?: SmsCaptureProof) => {
+      let handle: object | undefined;
+      if (selected) {
+        if (!proof || params.account.dangerouslyDisableSignatureValidation) {
+          throw new Error(SMS_SELECTION_UNAVAILABLE);
+        }
+        const captured = invoke({ kind: "capture", input: { form, ...proof } });
+        if (!captured || typeof captured !== "object" || captured instanceof Promise) {
+          throw new Error(SMS_SELECTION_UNAVAILABLE);
+        }
+        handle = captured;
+      }
+      const admitted = await monitor.admit({ kind: "incoming", form, handle });
       if (admitted.kind === "ignored") {
         throw new Error("SMS webhook admission was unexpectedly ignored.");
       }

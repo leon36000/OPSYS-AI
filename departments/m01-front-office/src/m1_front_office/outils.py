@@ -59,6 +59,7 @@ qu'aucun lead ne porte ne disparaît jamais en silence.
 
 from __future__ import annotations
 
+import dataclasses
 import datetime as dt
 import hashlib
 import json
@@ -71,6 +72,7 @@ from opsys import approbations, evenements, identite, stockage, taxonomie
 from opsys import contexte as contexte_appel
 from opsys.outils import Autonomie, Niveau, Outil
 from opsys.stockage import lecture_m1
+from opsys.stockage.maillons import copier_maillons_avec_metadonnees
 
 from . import (
     adaptateurs,
@@ -1913,6 +1915,11 @@ def recevoir_message_canal(
     avec où la déclarer. Jamais une durée par défaut.
     """
     message = reception.preparer(canal, expediteur, message_id, recu_le, texte, objet)
+    return _recevoir_message_prepare(message, utm)
+
+
+def _recevoir_message_prepare(message: reception.MessageRecu, utm, *, rejeu_admis: bool = True):
+    """Même pipeline pour la voie legacy et la réception interne liée à son reçu."""
     contrats.exiger_utm(message.canal, utm)  # avant tout : un SMS ou un STOP qui porte un `utm` n'écrit rien
     zone, verdict_zone = taxonomie.charger_zone_desservie()
     if verdict_zone is not None:
@@ -1925,6 +1932,10 @@ def recevoir_message_canal(
         # Une valeur cassée n'est jamais lue comme une valeur absente : refus, rien n'est écrit.
         raise ValueError(f"{verdict_fenetre['code']}: {verdict_fenetre['detail']}")
     reg = _obtenir_registre()
+    if not rejeu_admis and any(
+        ligne.get("type_entree") == "signal" and ligne.get("signal_id") == message.signal_id for ligne in reg.lire()
+    ):
+        raise ValueError("REJ-M1-SMS-PROVENANCE-CONFLICTUELLE")
     deja = _signal_deja_recu(reg, message)
     if deja is not None:
         return _avec_bloc_utm(deja, None if utm is None else dict(utm))
@@ -1939,6 +1950,39 @@ def recevoir_message_canal(
     if fenetre is None:
         reponse["conversation"] = {"mode": "message_par_message", "verdict": verdict_fenetre}
     return reponse
+
+
+def registre_sms_hote():
+    """Source entière canonique : borne, rangs réels et chaîne avant toute recherche."""
+    cnx = stockage.connexion_courante()
+    reg = _obtenir_registre()
+    port = getattr(reg, "_entrees", None)
+    if (not _stockage_durable_actif or cnx is None or not cnx.in_transaction()
+            or cnx.engine.url != stockage.moteur().url
+            or cnx.dialect.name != "sqlite" or not isinstance(port, stockage.MaillonsDurables)
+            or port.departement != _DEPARTEMENT or port.registre != _NOM_REGISTRE):
+        raise ValueError("REJ-M1-SMS-SOURCE-NON-QUALIFIEE")
+    lecture_m1.borner(cnx)
+    snapshot = copier_maillons_avec_metadonnees(cnx, departement=_DEPARTEMENT, registre=_NOM_REGISTRE)
+    if [m.rang for m in snapshot.lignes] != list(range(len(snapshot.lignes))):
+        raise ValueError("REJ-M1-SMS-SOURCE-NON-QUALIFIEE")
+    lignes = [m.maillon for m in snapshot.lignes]
+    Registre(lignes).assert_chaine()
+    return reg, lignes
+
+
+def recevoir_sms_hote(*, expediteur: str, message_id: str, recu_le: str, texte: str, cle_session: str):
+    """Entrée interne sans outil public neuf ; session capturée avant tout append natif."""
+    registre_sms_hote()
+    message = reception.preparer("sms", expediteur, message_id, recu_le, texte)
+    message = dataclasses.replace(message, cle_session=cle_session)
+    return _recevoir_message_prepare(message, None, rejeu_admis=False)
+
+
+def inscrire_recu_sms_hote(maillon):
+    """Ajout par le propriétaire Registre, jamais par append SQL/hash privé."""
+    reg, _lignes = registre_sms_hote()
+    return reg.ajouter(maillon)
 
 
 # ---------------------------------------------------------------------------

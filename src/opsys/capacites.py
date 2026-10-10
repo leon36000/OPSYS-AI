@@ -300,7 +300,7 @@ class Capacites:
         outil_complet = f"{server}__{nom}"
         try:
             with self._cnx_factory() as cnx:
-                admission_agents.verifier_outil_runtime(
+                admission_agents.verifier_outil_generique_runtime(
                     cnx, profile_id, self.departements, outil_complet, profile_revision, verrouiller=True
                 )
                 # `cnx_factory` is the storage ContextVar transaction: nested capability/tool

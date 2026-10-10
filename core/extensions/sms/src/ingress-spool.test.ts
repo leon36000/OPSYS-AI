@@ -6,17 +6,32 @@ import os from "node:os";
 import path from "node:path";
 import { createChannelIngressQueueForTests } from "openclaw/plugin-sdk/channel-ingress-test-runtime";
 import { createPluginRuntimeMock } from "openclaw/plugin-sdk/channel-test-helpers";
+import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
 import { saveRemoteMedia } from "openclaw/plugin-sdk/media-runtime";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SmsChannelRuntime } from "./inbound.js";
 import { createSmsIngressSpool } from "./ingress-spool.js";
+import { installOpsysSmsHostBridge } from "./opsys-host-bridge.js";
 import type { ResolvedSmsAccount } from "./types.js";
 import { createSmsWebhookHandler } from "./webhook.js";
 
 type SmsIngressPayload = {
-  version: 1;
+  version: number;
   form: Record<string, string>;
+  capsule?: unknown;
 };
+
+const gateWait = vi.hoisted(() => ({
+  run: undefined as undefined | ((ms: number, signal?: AbortSignal) => Promise<void>),
+}));
+vi.mock("openclaw/plugin-sdk/runtime-env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("openclaw/plugin-sdk/runtime-env")>();
+  return {
+    ...actual,
+    sleepWithAbort: (ms: number, signal?: AbortSignal, options?: { ref?: boolean }) =>
+      gateWait.run ? gateWait.run(ms, signal) : actual.sleepWithAbort(ms, signal, options),
+  };
+});
 
 const account: ResolvedSmsAccount = {
   accountId: "default",
@@ -686,5 +701,371 @@ describe("createSmsIngressSpool", () => {
 
     expect(await spool.enqueue(rawForm)).toMatchObject({ kind: "failed", duplicate: true });
     expect(deliver).not.toHaveBeenCalled();
+  });
+});
+
+const selectedCfg = {
+  agents: {
+    entries: {
+      "opsys-agent-front": {
+        opsysRuntimeAdmission: {
+          profileId: "front",
+          profileRevision: 1,
+          smsIngress: { version: 1 as const, accountId: "default", accountSid: "AC123" },
+        },
+      },
+    },
+  },
+};
+
+describe("selected SMS Gate retention", () => {
+  it("refuses a fresh selected capture without a Host bridge before any durable append", async () => {
+    const queue = createQueue(await createStateDir());
+    const spool = createSmsIngressSpool({
+      cfg: selectedCfg,
+      account,
+      channelRuntime: {} as SmsChannelRuntime,
+      queue,
+    });
+    disposers.push(spool.stop);
+    await expect(
+      spool.enqueue(form("SM-selected-missing"), {
+        signature: "fictif",
+        signatureUrl: account.publicWebhookUrl,
+      }),
+    ).rejects.toThrow();
+    expect(await queue.listPending()).toEqual([]);
+  });
+
+  it("uses the monitor receipt time and persists the exact sealed v2 rather than a legacy form", async () => {
+    const queue = createQueue(await createStateDir());
+    const locator = Object.freeze({});
+    const handle = Object.freeze({});
+    let sealed: unknown;
+    const invoke = vi.fn((_locator: object, input: unknown) => {
+      const request = input as { kind: string; receivedAt?: number };
+      if (request.kind === "capture") {
+        return handle;
+      }
+      if (request.kind === "encode") {
+        sealed = {
+          version: 2,
+          form: form("SM-selected-sealed"),
+          capsule: { fictif: true, received_at: request.receivedAt },
+        };
+        return sealed;
+      }
+      throw new Error("unexpected fake RPC");
+    });
+    const registration = installOpsysSmsHostBridge("default", { locator, invoke });
+    disposers.push(() => registration.dispose());
+    const spool = createSmsIngressSpool({
+      cfg: selectedCfg,
+      account,
+      channelRuntime: {} as SmsChannelRuntime,
+      queue,
+    });
+    disposers.push(spool.stop);
+    await spool.enqueue(form("SM-selected-sealed"), {
+      signature: "fictif",
+      signatureUrl: account.publicWebhookUrl,
+    });
+    const [row] = await queue.listPending();
+    expect(invoke.mock.calls.map((call) => (call[1] as { kind: string }).kind)).toEqual([
+      "capture",
+      "encode",
+    ]);
+    expect(row?.payload).toEqual(sealed);
+    expect(row?.payload).toMatchObject({ version: 2, capsule: { received_at: row?.receivedAt } });
+  });
+});
+
+describe("selected SMS replay Gate retention", () => {
+  it.each([
+    { name: "selected v1", cfg: selectedCfg, payload: { version: 1, form: form("SM-kept") } },
+    {
+      name: "selected malformed",
+      cfg: selectedCfg,
+      payload: { version: 91, form: form("SM-other") },
+    },
+    {
+      name: "v2 after marker removal",
+      cfg: {},
+      payload: {
+        version: 2,
+        form: form("SM-kept"),
+        capsule: { fictif: true, permission: { revision: 1 }, received_at: 1700000000000 },
+      },
+    },
+  ])(
+    "preserves $name and cancels without inbound, attempts or completing",
+    async ({ cfg, payload }) => {
+      const stateDir = await createStateDir();
+      const queue = createQueue(stateDir);
+      const receivedAt = 1_700_000_000_000;
+      await queue.enqueue("SM-kept", payload, { receivedAt, laneKey: "sender:+15551234567" });
+      const [before] = await queue.listPending();
+      const complete = vi.spyOn(queue, "complete");
+      const fail = vi.spyOn(queue, "fail");
+      const release = vi.spyOn(queue, "release");
+      const invoke = vi.fn(async (_locator: object, _input: unknown) => ({
+        status: "received",
+        fictif: true,
+      }));
+      const registration = installOpsysSmsHostBridge("default", {
+        locator: Object.freeze({}),
+        invoke,
+      });
+      disposers.push(() => registration.dispose());
+      let resume: (() => void) | undefined;
+      const wait = vi.fn(
+        (ms: number, signal?: AbortSignal) =>
+          new Promise<void>((resolve) => {
+            resume = resolve;
+            signal?.addEventListener("abort", () => resolve(), { once: true });
+          }),
+      );
+      gateWait.run = wait;
+      disposers.push(() => {
+        gateWait.run = undefined;
+      });
+      const deliver = vi.fn<SmsIngressDeliver>(async () => undefined);
+      const spool = createSmsIngressSpool({
+        cfg,
+        account,
+        channelRuntime: {} as SmsChannelRuntime,
+        queue,
+        deliver,
+      });
+      disposers.push(spool.stop);
+      spool.start();
+      await vi.waitFor(() => expect(wait).toHaveBeenCalledOnce());
+      expect(wait.mock.calls[0]?.[0]).toBe(5000);
+      const [claimed] = await queue.listClaims();
+      expect(invoke).toHaveBeenCalledExactlyOnceWith(expect.any(Object), {
+        kind: "resolve",
+        payload,
+        id: "SM-kept",
+        token: claimed?.claim.token,
+        ownerId: claimed?.claim.ownerId,
+        receivedAt,
+      });
+      expect(complete).not.toHaveBeenCalled();
+      expect(release).not.toHaveBeenCalled();
+      expect(deliver).not.toHaveBeenCalled();
+      const paused = spool.pause();
+      resume?.();
+      await paused;
+      await spool.waitForIdle();
+      const [after] = await queue.listPending();
+      expect(after).toMatchObject({
+        id: before?.id,
+        payload,
+        receivedAt,
+        attempts: before?.attempts,
+        laneKey: before?.laneKey,
+      });
+      expect(release).toHaveBeenCalledOnce();
+      expect(release.mock.calls[0]?.[1]).toMatchObject({ recordAttempt: false });
+      expect(complete).not.toHaveBeenCalled();
+      expect(fail).not.toHaveBeenCalled();
+      expect(deliver).not.toHaveBeenCalled();
+      await spool.stop();
+      const restarted = createSmsIngressSpool({
+        cfg,
+        account,
+        queue: createQueue(stateDir),
+        channelRuntime: {} as SmsChannelRuntime,
+        deliver,
+      });
+      disposers.push(restarted.stop);
+      restarted.start();
+      await vi.waitFor(() => expect(wait).toHaveBeenCalledTimes(2));
+      expect(invoke.mock.calls[1]?.[1]).toMatchObject({
+        kind: "resolve",
+        payload,
+        id: "SM-kept",
+        receivedAt,
+      });
+      const pauseRestart = restarted.pause();
+      resume?.();
+      await pauseRestart;
+      await restarted.waitForIdle();
+      expect((await queue.listPending())[0]).toMatchObject({
+        payload,
+        receivedAt,
+        attempts: before?.attempts,
+      });
+      expect(deliver).not.toHaveBeenCalled();
+      expect(complete).not.toHaveBeenCalled();
+    },
+  );
+
+  it("retains v2 on abort and release failure without terminal fallback", async () => {
+    const queue = createQueue(await createStateDir());
+    const payload = { version: 2, form: form("SM-release-failed"), capsule: { fictif: true } };
+    await queue.enqueue("SM-release-failed", payload, { laneKey: "sender:+15551234567" });
+    const complete = vi.spyOn(queue, "complete");
+    const fail = vi.spyOn(queue, "fail");
+    const release = vi
+      .spyOn(queue, "release")
+      .mockRejectedValue(new Error("fictif release unavailable"));
+    const wait = vi.fn(
+      (_ms: number, signal?: AbortSignal) =>
+        new Promise<void>((resolve) => {
+          signal?.addEventListener("abort", () => resolve(), { once: true });
+        }),
+    );
+    gateWait.run = wait;
+    disposers.push(() => {
+      gateWait.run = undefined;
+    });
+    const deliver = vi.fn<SmsIngressDeliver>(async () => undefined);
+    const spool = createSmsIngressSpool({
+      cfg: {},
+      account,
+      queue,
+      channelRuntime: {} as SmsChannelRuntime,
+      deliver,
+    });
+    disposers.push(spool.stop);
+    spool.start();
+    await vi.waitFor(() => expect(wait).toHaveBeenCalledOnce());
+    await spool.stop();
+    await spool.waitForIdle();
+    expect(release).toHaveBeenCalledOnce();
+    expect(complete).not.toHaveBeenCalled();
+    expect(fail).not.toHaveBeenCalled();
+    expect(deliver).not.toHaveBeenCalled();
+    expect(await queue.listClaims()).toMatchObject([
+      { id: "SM-release-failed", payload, attempts: 0 },
+    ]);
+  });
+
+  it("never swaps the captured carrier for a replacement or downgrades after cfg mutation", async () => {
+    const queue = createQueue(await createStateDir());
+    const config: OpenClawConfig = structuredClone(selectedCfg);
+    const first = vi.fn(() => {
+      throw new Error("fictif revoked");
+    });
+    const a = installOpsysSmsHostBridge("default", { locator: Object.freeze({}), invoke: first });
+    disposers.push(() => a.dispose());
+    const spool = createSmsIngressSpool({
+      cfg: config,
+      account,
+      queue,
+      channelRuntime: {} as SmsChannelRuntime,
+    });
+    disposers.push(spool.stop);
+    const next = vi.fn();
+    const b = installOpsysSmsHostBridge("default", { locator: Object.freeze({}), invoke: next });
+    disposers.push(() => b.dispose());
+    if (config.agents) {
+      config.agents.entries = {};
+    }
+    await expect(
+      spool.enqueue(form("SM-retired"), {
+        signature: "fictif",
+        signatureUrl: account.publicWebhookUrl,
+      }),
+    ).rejects.toThrow();
+    expect(first).toHaveBeenCalledOnce();
+    expect(next).not.toHaveBeenCalled();
+    expect(await queue.listPending()).toEqual([]);
+  });
+});
+
+describe("selected route cancellation", () => {
+  it("refuses new selected capture after only the route gate signal aborts", async () => {
+    const queue = createQueue(await createStateDir());
+    const gate = new AbortController();
+    const invoke = vi.fn();
+    const registration = installOpsysSmsHostBridge("default", {
+      locator: Object.freeze({}),
+      invoke,
+    });
+    disposers.push(() => registration.dispose());
+    const spool = createSmsIngressSpool({
+      cfg: selectedCfg,
+      account,
+      queue,
+      channelRuntime: {} as SmsChannelRuntime,
+      gateAbortSignal: gate.signal,
+    });
+    disposers.push(spool.stop);
+    gate.abort();
+    await expect(
+      spool.enqueue(form("SM-aborted"), {
+        signature: "fictif",
+        signatureUrl: account.publicWebhookUrl,
+      }),
+    ).rejects.toThrow();
+    expect(invoke).not.toHaveBeenCalled();
+    expect(await queue.listPending()).toEqual([]);
+  });
+  it("preserves legacy durable admission when the separate route gate signal is already aborted", async () => {
+    const queue = createQueue(await createStateDir());
+    const gate = new AbortController();
+    gate.abort();
+    const spool = createSmsIngressSpool({
+      cfg: {},
+      account,
+      queue,
+      channelRuntime: {} as SmsChannelRuntime,
+      gateAbortSignal: gate.signal,
+    });
+    disposers.push(spool.stop);
+    await expect(spool.enqueue(form("SM-legacy-gate-aborted"))).resolves.toMatchObject({
+      kind: "accepted",
+    });
+    expect((await queue.listPending())[0]?.payload).toEqual({
+      version: 1,
+      form: form("SM-legacy-gate-aborted"),
+    });
+  });
+  it("routes a decoded JSON null payload to the Gate without turning it into a permanent error", async () => {
+    const queue = createChannelIngressQueueForTests<unknown>({
+      channelId: "sms",
+      accountId: "default",
+      stateDir: await createStateDir(),
+    });
+    await queue.enqueue("SM-null", null, { laneKey: "event:SM-null", receivedAt: 1700000000000 });
+    const invoke = vi.fn(async (_locator: object, _input: unknown) => ({ status: "unresolved" }));
+    const registration = installOpsysSmsHostBridge("default", {
+      locator: Object.freeze({}),
+      invoke,
+    });
+    disposers.push(() => registration.dispose());
+    const wait = vi.fn(
+      (_ms: number, signal?: AbortSignal) =>
+        new Promise<void>((resolve) => {
+          signal?.addEventListener("abort", () => resolve(), { once: true });
+        }),
+    );
+    gateWait.run = wait;
+    disposers.push(() => {
+      gateWait.run = undefined;
+    });
+    const deliver = vi.fn<SmsIngressDeliver>(async () => undefined);
+    const spool = createSmsIngressSpool({
+      cfg: selectedCfg,
+      account,
+      queue,
+      channelRuntime: {} as SmsChannelRuntime,
+      deliver,
+    });
+    disposers.push(spool.stop);
+    spool.start();
+    await vi.waitFor(() => expect(wait).toHaveBeenCalledOnce());
+    expect(invoke.mock.calls[0]?.[1]).toMatchObject({
+      payload: null,
+      id: "SM-null",
+      receivedAt: 1700000000000,
+    });
+    await spool.stop();
+    await spool.waitForIdle();
+    expect(deliver).not.toHaveBeenCalled();
+    expect(await queue.listFailed?.()).toEqual([]);
+    expect((await queue.listPending())[0]?.payload).toBeNull();
   });
 });

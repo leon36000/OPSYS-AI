@@ -1,0 +1,18 @@
+{
+  "status": "CORE_TYPECHECK_BLOCKED_RSS",
+  "time_toronto": "2026-10-10T17:44:52.561033-04:00",
+  "evidence_members_expected_rehashed": 34,
+  "manifest_sha256": "aa160e0df7f9c0d7f24a8faabf82ca546d49f4d91ac585bc355722e4cdfbee77",
+  "run_receipt_sha256": "ec665b923b61a60342ccbe3e80f091c0421c995a0d1a4b8e177476a4fa214ed2",
+  "run_seconds": 28.481,
+  "run_peak_rss_bytes": 3664314368,
+  "EOF": true,
+  "owners_stopped": true,
+  "source_dependencies_links_stamps_unchanged": true,
+  "post_census_sha256": "50cc827aff4bf1d426b17ca68ee01a20f457410da4d35773502850ddaa6b5a31",
+  "compiler_full_log": "[tsgo] FAILED (exit 143)\n",
+  "source_diagnostic_observed": false,
+  "typecheck_pass": false,
+  "no_retry": true,
+  "next_independent_phase": "build full, distinct 7GiB900s GO; no type cap raise"
+}

@@ -1,5 +1,6 @@
 // Callable value views preserve plugin admission and native data/receiver contracts.
 import { types } from "node:util";
+import { registerNativeSmsQueueView } from "../channels/message/ingress-queue.js";
 import { createPluginArgumentView } from "./plugin-instance-argument-views.js";
 import { pluginInstanceState, type PluginInstanceHandle } from "./plugin-instance-scope.js";
 import type { PluginInstanceCallLease, PluginIteratorAdmission } from "./plugin-instance.types.js";
@@ -493,6 +494,30 @@ export function createPluginValueView(
     wrapped.set(result, result);
     bindings.originalValues.set(result, object);
     valueInstances.set(result, bindings.instance);
+    const instance = bindings.instance;
+    const owner = instance.owner;
+    const signal = instance.lifecycle.signal;
+    const assertOwner = () => {
+      if (
+        !instance.acceptingCalls ||
+        instance.disposing ||
+        signal.aborted ||
+        instance.lifecycle.signal !== signal ||
+        instance.owner !== owner ||
+        owner?.revoked ||
+        (owner && owner.instance !== instance)
+      ) {
+        throw new Error("Native SMS queue view is no longer current");
+      }
+    };
+    registerNativeSmsQueueView(object, result, () => {
+      assertOwner();
+      const admitted: unknown = admit(() => undefined);
+      if (admitted !== undefined) {
+        throw new Error("Native SMS queue view admission is not synchronous");
+      }
+      assertOwner();
+    });
     // SAFETY: The view retains the input prototype and routes each member to the original object.
     return result as T;
   };

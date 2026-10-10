@@ -1026,3 +1026,69 @@ describe("createSmsWebhookHandler", () => {
     expect(delivery.record).toHaveBeenCalledTimes(31);
   });
 });
+
+describe("selected SMS webhook capture", () => {
+  it("forwards the exact verified form, signature and signature URL", async () => {
+    const account = createSmsTestAccount();
+    const signed = createSignedBody({ account, messageSid: "SM-selected-http" });
+    const enqueue = vi.fn(async () => ({ duplicate: false }));
+    const handler = createSmsWebhookHandler({
+      cfg: {},
+      account,
+      ingress: { selected: true, enqueue },
+    });
+    const res = createResponse();
+    await handler(createRequest(signed.body, signed.signature), res);
+    expect(enqueue).toHaveBeenCalledExactlyOnceWith(parseTestTwilioForm(signed.body), {
+      signature: signed.signature,
+      signatureUrl: account.publicWebhookUrl,
+    });
+    expect(res.statusCode).toBe(200);
+  });
+  it("never acknowledges a selected capture rejected by the Host", async () => {
+    const account = createSmsTestAccount();
+    const signed = createSignedBody({ account });
+    const handler = createSmsWebhookHandler({
+      cfg: {},
+      account,
+      ingress: {
+        selected: true,
+        enqueue: vi.fn(async () => {
+          throw new Error("M1-SMS-RECEPTION-NON-RESOLUE");
+        }),
+      },
+    });
+    const res = createResponse();
+    await expect(handler(createRequest(signed.body, signed.signature), res)).rejects.toThrow();
+    expect(res.endMock).not.toHaveBeenCalled();
+    expect(res.setHeaderMock).not.toHaveBeenCalledWith("x-openclaw-delivery-accepted", "durable");
+  });
+  it("refuses duplicate selected fields without changing the legacy decoder", async () => {
+    const account = createSmsTestAccount();
+    const signed = createSignedBody({ account });
+    const enqueue = vi.fn(async () => ({ duplicate: false }));
+    const handler = createSmsWebhookHandler({
+      cfg: {},
+      account,
+      ingress: { selected: true, enqueue },
+    });
+    await expect(
+      handler(createRequest(signed.body + "&Body=other", signed.signature), createResponse()),
+    ).rejects.toThrow("duplicate");
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+  it("never treats disabled signature validation as selected capture proof", async () => {
+    const account = { ...createSmsTestAccount(), dangerouslyDisableSignatureValidation: true };
+    const signed = createSignedBody({ account });
+    const enqueue = vi.fn(async () => ({ duplicate: false }));
+    const handler = createSmsWebhookHandler({
+      cfg: {},
+      account,
+      ingress: { selected: true, enqueue },
+    });
+    const res = createResponse();
+    await handler(createRequest(signed.body, ""), res);
+    expect(res.statusCode).toBe(503);
+    expect(enqueue).not.toHaveBeenCalled();
+  });
+});

@@ -1,0 +1,19 @@
+{
+  "README.md": "d2610bb94eafbef3c20b5af5ddb66464f9eaa9feb16a606b292c4107ddaf18c6",
+  "preuves/A1-claude-dispositions.json": "386df0d400017112e87859203db7ec53f714e8196dae438f34c3d451b52c88ee",
+  "preuves/A1-root.json": "fc466a5db9b2fef5c1800637391958e9ada504b562b009b2b5ecc29ee199a364",
+  "preuves/backend-2292-receipt.json": "373978b3dd242bca043540e72377b34d56eb42bc81f7c9e0406c6b7652389ee2",
+  "preuves/build-r2-census-result.json": "c6085098c8a7b882736cbf50a19a3f9ee392c61a9143b3b445dcc0180e84d323",
+  "preuves/build-r2-receipt.json": "0dfd74da3ed546800ef77758a01f20fce2243f667a0041ec1d278366817ea6e1",
+  "preuves/build-r2-root.json": "3222fa922a07513a7c1bea53278c082b14e954da6376a0d9ccebe8c17d2d7170",
+  "preuves/ci-selection.json": "eb3916acd5f7accf3178342050d0a8e33801c52c1dc60698b38bfdbfd72771d6",
+  "preuves/core-143-junit.xml": "740d84ffa9013d3bf14021eee8c52b85ef87195cbe18c112287adff887ab8780",
+  "preuves/core-143-receipt.json": "b4f47340d78330aaa8e36d504239b9a68ec6585dfc3c85d03820d8580323f3b1",
+  "preuves/core-809-junit.xml": "615167c71290fdcc0a3e7aa95a2d14cac1182a831479cccf3199d19c88a81eab",
+  "preuves/core-809-receipt.json": "c50581a67c133a2b8b6cc8aeb8b57cb2b4df76aeff2c9a2bfb4dedf59a137be3",
+  "preuves/core-952-root.json": "1c0cd4a3ed5d523d676e900659d499df21d5ea9e144df387170e310be9251b1b",
+  "preuves/independent-review.md": "2d5985da31ec10b83de3161487ac2075dc3ed9783e71508ccfbc1ad87019c84c",
+  "preuves/styles-root.json": "467ac3bd5c5aae049df9249923a0721571e031b11f038a64976fe8d627fdbdc9",
+  "preuves/types-r1-root.json": "ce9f645d8cc392447110de7c7517349fb9779ad162295d5bbc16b4d83dbe4e10",
+  "registre-74.json": "d2a0c8b46afb93ea44af55c7c9f73f426f3226891e60f8197bd346090529a4d5"
+}

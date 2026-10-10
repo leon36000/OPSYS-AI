@@ -815,7 +815,10 @@ def _dans_base_cron_operateur(
 
 def _creer_serveur_admission(departements: Mapping[str, Departement], cnx_factory: Any, agent_id: str) -> Server[Any]:
     """Private token admission endpoint whose profile identity is fixed by the route."""
-    from . import admission_agents, postflight_runtime
+    from . import admission_agents, postflight_runtime, reception_sms_receipt
+    from .reception_sms_runtime import valider_commande
+
+    operations_sms = {"opsys_runtime_lire_reception_sms": "lire", "opsys_runtime_recevoir_sms": "recevoir"}
 
     noms = frozenset(
         {
@@ -912,6 +915,35 @@ def _creer_serveur_admission(departements: Mapping[str, Departement], cnx_factor
         "required": ["outil", "revision_profil"],
         "additionalProperties": False,
     }
+    sms_commande = {
+        "canal": {"type": "string", "const": "sms"},
+        "provider": {"type": "string", "const": "twilio"},
+        "compte_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"},
+        "account_sid": {"type": "string", "pattern": "^AC[0-9a-fA-F]{32}$"},
+        "message_sid": {"type": "string", "pattern": "^SM[0-9a-fA-F]{32}$"},
+        "expediteur": {"type": "string", "pattern": r"^\+[1-9][0-9]{6,14}$"},
+        "destinataire": {"type": "string", "pattern": r"^\+[1-9][0-9]{6,14}$"},
+        "recu_le": {"type": "string", "minLength": 24, "maxLength": 24},
+        "texte": {"type": "string", "maxLength": 20000, "description": "Au plus 20000 octets UTF8."},
+        "session_key": {"type": "string", "maxLength": 192},
+        "agent_id": {"type": "string", "maxLength": 76},
+        "preuve_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    }
+    sms_permission = {
+        "profil_id": {"type": "string", "pattern": "^[a-z][a-z0-9-]{1,63}$"},
+        "revision_profil": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+        "outil_m1": {"type": "string", "const": "opsys_m1__m1_recevoir_message_canal"},
+    }
+    sms_schema = {
+        "type": "object", "additionalProperties": False, "required": ["version", "commande", "permission"],
+        "properties": {
+            "version": {"type": "integer", "const": 1},
+            "commande": {"type": "object", "properties": sms_commande,
+                         "required": list(sms_commande), "additionalProperties": False},
+            "permission": {"type": "object", "properties": sms_permission,
+                           "required": list(sms_permission), "additionalProperties": False},
+        },
+    }
 
     async def lister_outils(ctx: Any, params: types.PaginatedRequestParams | None) -> types.ListToolsResult:
         del ctx, params
@@ -952,11 +984,26 @@ def _creer_serveur_admission(departements: Mapping[str, Departement], cnx_factor
                     description="Émet un ticket CFO lié à ce profil fixe.",
                     inputSchema=cfo_ticket_schema,
                 ),
+                *[types.Tool(name=nom, description="Réception SMS privée liée au profil fixe et au reçu durable.",
+                             inputSchema=sms_schema,
+                             annotations=types.ToolAnnotations(read_only_hint=operation == "lire",
+                                                               destructive_hint=False, idempotent_hint=True))
+                  for nom, operation in operations_sms.items()],
             ]
         )
 
     async def appeler(ctx: Any, params: types.CallToolRequestParams) -> types.CallToolResult:
         del ctx
+        if params.name in operations_sms:
+            # Voie fermée distincte : aucun détail brut ne rejoint le catch-all d'admission.
+            try:
+                return await anyio.to_thread.run_sync(_reception_sms, params.name, params.arguments, params.meta)
+            except Exception:
+                # Fermer aussi la panne du dispatch thread avant l'entrée dans son propriétaire SQL.
+                ack = {"version": 1, "operation": operations_sms[params.name], "ok": False,
+                       "etat": "inconnu", "code": "M1-SMS-INCONNU"}
+                return types.CallToolResult(content=[types.TextContent(type="text", text=json.dumps(ack))],
+                                            isError=True)
         if params.name not in noms:
             resultat: dict[str, Any] = {"ok": False, "erreur": "outil_inconnu"}
         else:
@@ -988,6 +1035,57 @@ def _creer_serveur_admission(departements: Mapping[str, Departement], cnx_factor
             content=[types.TextContent(type="text", text=json.dumps(resultat, ensure_ascii=False))],
             isError=not resultat.get("ok", False),
         )
+
+    def _reception_sms(nom: str, arguments: Any, meta: Any) -> types.CallToolResult:
+        operation = operations_sms[nom]
+
+        def reponse(ack: dict[str, Any]) -> types.CallToolResult:
+            texte = json.dumps(ack, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
+            if len(texte.encode("utf-8")) > 8192:
+                raise ValueError("ACK SMS hors limite")
+            return types.CallToolResult(content=[types.TextContent(type="text", text=texte)],
+                                        isError=ack["ok"] is False)
+
+        def erreur(etat: str, code: str) -> types.CallToolResult:
+            return reponse({"version": 1, "operation": operation, "ok": False, "etat": etat, "code": code})
+
+        try:
+            # Ces champs réservés appartiennent au transport MCP ; aucun ne désigne un acteur/profil métier.
+            permis = {types.PROTOCOL_VERSION_META_KEY, types.CLIENT_INFO_META_KEY,
+                      types.CLIENT_CAPABILITIES_META_KEY, "progress_token"}
+            if meta is not None and (type(meta) is not dict or set(meta) - permis):
+                return erreur("forme_invalide", "REJ-M1-SMS-FORME-INVALIDE")
+            try:
+                capture = valider_commande(arguments, operation=nom)
+            except (TypeError, ValueError, RecursionError):
+                return erreur("forme_invalide", "REJ-M1-SMS-FORME-INVALIDE")
+            if capture.permission["profil_id"] != agent_id:
+                return erreur("refus", "REJ-M1-SMS-AUTORITE-REFUSEE")
+            fixe = {"version": 1, "commande": dict(capture.commande), "permission": dict(capture.permission)}
+            from m1_front_office import outils as outils_m1
+
+            with cnx_factory() as cnx:
+                try:
+                    admission_agents.verifier_outil_runtime(cnx, agent_id, departements,
+                        capture.permission["outil_m1"], capture.permission["revision_profil"], verrouiller=True)
+                except admission_agents.AdmissionRefusee:
+                    from . import agents
+
+                    courant = agents.obtenir(cnx, agent_id, inclure_supprime=True)
+                    if courant is not None and courant["revision"] != capture.permission["revision_profil"]:
+                        return erreur("revision_perimee", "REJ-M1-SMS-REVISION-PERIMEE")
+                    return erreur("refus", "REJ-M1-SMS-AUTORITE-REFUSEE")
+                with contexte.appeler_en_tant_que("m01-front-office"):
+                    ack = reception_sms_receipt.executer(cnx, fixe, operation=nom, m1=outils_m1)
+                if ack["ok"] is True:
+                    admission_agents.verifier_outil_runtime(cnx, agent_id, departements,
+                        capture.permission["outil_m1"], capture.permission["revision_profil"], verrouiller=True)
+                # Construire l'enveloppe et mesurer ses octets avant le commit de la factory.
+                resultat = reponse(ack)
+            return resultat
+        except Exception:
+            # Le commit peut avoir réussi avant la perte de réponse : conserver la même intention pour T0.
+            return erreur("inconnu", "M1-SMS-INCONNU")
 
     def _reserver(arguments: Mapping[str, Any]) -> dict[str, Any]:
         if arguments.get("tours") != 1:
@@ -1106,7 +1204,7 @@ def _creer_serveur_admission(departements: Mapping[str, Departement], cnx_factor
 
     def _verifier_outil(arguments: Mapping[str, Any]) -> dict[str, Any]:
         with cnx_factory() as cnx:
-            resultat = admission_agents.verifier_outil_runtime(
+            resultat = admission_agents.verifier_outil_generique_runtime(
                 cnx,
                 agent_id,
                 departements,

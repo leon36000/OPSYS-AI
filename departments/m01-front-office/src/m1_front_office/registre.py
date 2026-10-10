@@ -6,6 +6,8 @@ import yaml
 
 from . import horodatage, verdicts
 
+TYPE_RECU_SMS_HOTE = "reception_hote_sms_v1"
+
 _TYPES_ENTREE_VALIDES = {
     "signal",
     "transition_phase",
@@ -17,6 +19,7 @@ _TYPES_ENTREE_VALIDES = {
     "appel_importe",
     "appel_voicemail_enrichi",
     "voicemail_stt_termine",
+    TYPE_RECU_SMS_HOTE,
 }
 
 _CANAUX_VALIDES = {"telephone", "courriel", "formulaire", "texte"}

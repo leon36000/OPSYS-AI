@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -231,6 +231,43 @@ def configuration(
             "sendPolicy": {"default": "allow", "rules": regles},
         }
     return ConfigurationCanaux(channels, liaisons, session, plugins, tuple(exposes), etat)
+
+
+def projeter_profil_sms_default(
+    configuration: ConfigurationCanaux,
+    *,
+    agent_id: str,
+    compte_id: str,
+    account_sid: str,
+    environ: Mapping[str, str],
+) -> ConfigurationCanaux:
+    """Relie le seul compte généré, sans créer de compte ni résoudre une configuration Core manuelle.
+
+    Le profil est déjà validé par le registre canonique. Les références de credentials restent inchangées.
+    Les comptes nommés exigent une source de configuration effective que ce générateur ne possède pas.
+    """
+    if (
+        compte_id != "default"
+        or configuration.canaux.get("sms", {}).get("enabled") is not True
+        or environ.get(CANAL_SMS.identifiants["accountSid"]) != account_sid
+    ):
+        raise ValueError("projection SMS invalide")
+    historique = liaison("m01-front-office", CANAL_SMS)
+    positions = [i for i, item in enumerate(configuration.liaisons) if item == historique]
+    if len(positions) != 1:
+        raise ValueError("projection SMS invalide")
+    liaisons = list(configuration.liaisons)
+    liaisons[positions[0]] = {
+        **liaison(agent_id, CANAL_SMS), "match": {"channel": "sms", "accountId": "default"},
+    }
+    politique = configuration.session["sendPolicy"]
+    session = {
+        **configuration.session,
+        "sendPolicy": {
+            **politique, "rules": [*politique["rules"], regles_d_envoi(agent_id, CANAL_SMS)[1]],
+        },
+    }
+    return replace(configuration, liaisons=liaisons, session=session)
 
 
 def mode_refuse(dep: Departement, mode: str) -> str | None:

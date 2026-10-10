@@ -189,6 +189,10 @@ type ContextAdmissionValue = {
   resolver?: GatewayContextResolver;
   resolverConflict?: boolean;
 };
+type RequiredSmsTask = Readonly<{ owner: object; scope: string | undefined; poisoned: boolean }>;
+// Denial classification is independent of configurable audit/resolver carriers on the public object.
+const requiredSmsTaskContexts = new WeakMap<object, RequiredSmsTask>();
+
 class ContextAdmission {
   #context: object;
   #value: Readonly<ContextAdmissionValue>;
@@ -211,6 +215,11 @@ function readContextAdmission(context: object): Readonly<ContextAdmissionValue> 
   return ContextAdmission.read(ownDataValue(context, CONTEXT_ADMISSION), context);
 }
 function writeContextAdmission(context: object, value: ContextAdmissionValue): void {
+  const prior = requiredSmsTaskContexts.get(context);
+  // Exact-context rebinds may refresh evidence, never clear or retarget a Task requirement.
+  if (prior && prior.scope !== value.scope) {
+    requiredSmsTaskContexts.set(context, Object.freeze({ ...prior, poisoned: true }));
+  }
   Object.defineProperty(context, CONTEXT_ADMISSION, {
     value: new ContextAdmission(context, value),
     configurable: true,
@@ -446,6 +455,40 @@ export function readChannelContextGatewayContextResolver(
   context: object,
 ): GatewayContextResolver | undefined {
   return readContextAdmission(context)?.resolver;
+}
+
+/** Core-only denial requirement. The task owner is opaque and checked by its private factory. */
+export function bindRequiredSmsTaskContext(context: object, owner: object): void {
+  const original = readContextAdmission(context);
+  const scope = finalizedContextScopeKey(context);
+  const prior = requiredSmsTaskContexts.get(context);
+  requiredSmsTaskContexts.set(
+    context,
+    Object.freeze({
+      owner: prior ? prior.owner : owner,
+      scope: prior ? prior.scope : original ? original.scope : scope,
+      poisoned:
+        prior?.poisoned === true ||
+        (prior !== undefined && (prior.owner !== owner || prior.scope !== scope)) ||
+        scope === undefined ||
+        (original !== undefined && original.scope !== scope),
+    }),
+  );
+  writeContextAdmission(context, {
+    ...original,
+    scope: original ? original.scope : scope,
+    evidence: original?.evidence,
+  });
+}
+/** Not authority: checks only current identity/scope of an already stamped requirement. */
+export function isRequiredSmsTaskContextCurrent(context: object, owner: object): boolean {
+  const value = requiredSmsTaskContexts.get(context);
+  return (
+    value?.owner === owner &&
+    value.poisoned === false &&
+    value.scope !== undefined &&
+    value.scope === finalizedContextScopeKey(context)
+  );
 }
 
 /** Preserve private evidence only when its owner explicitly replaces an unchanged context. */

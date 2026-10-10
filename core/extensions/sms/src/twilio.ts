@@ -189,10 +189,13 @@ class TwilioSmsApiError extends Error {
   }
 }
 
-function parseTwilioFormBody(body: string): Record<string, string> {
+function parseTwilioFormBody(body: string, rejectDuplicateFields = false): Record<string, string> {
   const parsed = querystring.parse(body);
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(parsed)) {
+    if (rejectDuplicateFields && Array.isArray(value)) {
+      throw new Error("SMS webhook contains duplicate form fields.");
+    }
     out[key] = firstString(value);
   }
   return out;
@@ -305,14 +308,17 @@ export function resolveTwilioMessageSid(form: Record<string, string>): string {
   );
 }
 
-export async function readTwilioWebhookForm(req: IncomingMessage): Promise<Record<string, string>> {
+export async function readTwilioWebhookForm(
+  req: IncomingMessage,
+  options?: { rejectDuplicateFields?: boolean },
+): Promise<Record<string, string>> {
   const body = await readRequestBodyWithLimit(req, {
     maxBytes: WEBHOOK_BODY_LIMIT_BYTES,
     timeoutMs: WEBHOOK_BODY_TIMEOUT_MS,
     // Defer destruction so the webhook can answer 413 before the connection closes.
     destroyOnLimit: false,
   });
-  return parseTwilioFormBody(body);
+  return parseTwilioFormBody(body, options?.rejectDuplicateFields);
 }
 
 export const TWIML_CONTENT_TYPE = "text/xml; charset=utf-8";

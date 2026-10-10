@@ -1,0 +1,80 @@
+{
+  "state": "ROOT_REVIEWED_A1_OPINIONS_DISPOSED",
+  "time_toronto": "2026-10-10T17:46:15.635186-04:00",
+  "public_expected_members": 6,
+  "input_expected_members": 12,
+  "live_source3_expected": 3,
+  "models_actual": {
+    "parent": [
+      "claude-opus-5-5"
+    ],
+    "producteur_contrat_permissions": [
+      "claude-sonnet-5-5"
+    ],
+    "client_controller_adversarial": [
+      "claude-sonnet-5-5"
+    ],
+    "conformite_membership": [
+      "claude-haiku-5-5"
+    ]
+  },
+  "configured_efforts": {
+    "parent": "high",
+    "conformite_membership": "max",
+    "client_controller_adversarial": "high",
+    "producteur_contrat_permissions": "high"
+  },
+  "effort_attested": false,
+  "code_changes_from_opinions": 0,
+  "product_status": "PARTIEL",
+  "material_new_P1_P2_confirmed": false,
+  "accepted_limits": [
+    "current global TypeScript RSS stop remains nonqualified; build/new CI pending",
+    "max-lines warning preserved",
+    "future consumer must stop on every arm error",
+    "positive native SourceReceiver/policy/copies/all selected senders remain missing"
+  ],
+  "corrected_inferences": [
+    {
+      "claim": "No RED retained",
+      "disposition": "Restricted model packet omitted RED history; actual preserved r2 has33PASS1FAIL and same real watchdog case became GREEN",
+      "proof": "M1-NATIVE-PREADOPTION-SIGNAL-RED-20261010-r1/ROOT-RED-READBACK-r2.json"
+    },
+    {
+      "claim": "34case Q observation and49 Source cases unexplained",
+      "disposition": "Separate historical Q copy34 with33 legacy skips when selecting exact new watchdog case, versus actual current Source49=33old16new executed with200neighbors=249PASS; totals not added",
+      "proof": "M1-PREADOPTION-SIGNAL-GREEN-IMPLEMENTATION-20261010-r1/ROOT-FINAL-READBACK-r1.json"
+    },
+    {
+      "claim": "No actual watchdog/SQL release pending proof",
+      "disposition": "Actual historical Q case exercises real drain watchdog, pre-failure SQL abort callback, claim still owned, Host alive,105reader tables unchanged; model did not receive full Q case"
+    },
+    {
+      "claim": "prepareObservers may execute before COMMIT",
+      "disposition": "Root read actual call chain: coordinated wrapper invokes synchronous transaction, COMMIT before return, then commit callbacks and prepareObservers after transaction returns",
+      "source_lines": [
+        "core/src/state/openclaw-state-db-write-coordination.ts:62",
+        "core/src/infra/sqlite-transaction.ts:358",
+        "core/src/infra/sqlite-transaction.ts:429",
+        "core/src/infra/sqlite-post-commit.ts:79"
+      ],
+      "source_pins": {
+        "core/src/state/openclaw-state-db-write-coordination.ts": "3f22238e0dd621e0981c339670527ac554880f9cb2b04df6f3546ec83f0e4816",
+        "core/src/infra/sqlite-transaction.ts": "2dee9aeec22fd1428fc85f0e8380ec8f9a06a1de4ee89686ea34f8262f8e4389",
+        "core/src/infra/sqlite-post-commit.ts": "249af9ab538c16556d33bedaa19bd8881136afc88fd8aa4b924133fea93d2694"
+      }
+    },
+    {
+      "claim": "Brief-only oracle gaps prove code P2",
+      "disposition": "Packet coverage limits require direct Root evidence; no demonstrated new code invariant failure"
+    }
+  ],
+  "reports_full_read_by_Root": 4,
+  "red_green_history_preserved": true,
+  "product_validation_by_LLM": false,
+  "preparation_errors_preserved": [
+    "incomplete RootGO refused before CLI",
+    "new CLI symlink refused before runtime",
+    "export semantic argv hash versus file hash corrected additively"
+  ]
+}

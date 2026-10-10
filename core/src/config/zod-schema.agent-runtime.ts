@@ -740,8 +740,36 @@ export const AgentEntrySchema = AgentEntryBaseSchema.extend({
     .object({
       profileId: z.string().regex(/^[a-z][a-z0-9-]{1,63}$/),
       profileRevision: z.number().int().positive().optional(),
+      smsIngress: z
+        .object({
+          version: z.literal(1),
+          accountId: z
+            .string()
+            .regex(/^[a-z0-9][a-z0-9_-]{0,63}$/)
+            .refine((value) => value === value.trim() && !isBlockedObjectKey(value)),
+          accountSid: z
+            .string()
+            .length(34)
+            .regex(/^AC[0-9a-fA-F]{32}$/),
+        })
+        .strict()
+        .optional(),
     })
     .strict()
+    .refine(
+      (value) => value.smsIngress === undefined || Number.isSafeInteger(value.profileRevision),
+      {
+        path: ["profileRevision"],
+        message: "SMS ingress requires a captured positive safe profile revision",
+      },
+    )
+    .refine(
+      (value) => value.smsIngress === undefined || value.profileId === value.profileId.trim(),
+      {
+        path: ["profileId"],
+        message: "SMS ingress requires a canonical profile ID",
+      },
+    )
     .optional(),
   /** OPSYS-owned marker: model exec must stay inside the required sandbox. */
   opsysIsolation: z

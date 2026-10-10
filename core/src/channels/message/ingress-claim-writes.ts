@@ -1,7 +1,13 @@
 /** Bounded claim-token-fenced writes for durable ingress settlement. */
 import { sleepWithAbort } from "@openclaw/retry";
 import { IngressAdoptionLostError, isIngressAdoptionLostError } from "./ingress-drain-state.js";
-import type { ChannelIngressQueue, ChannelIngressQueueClaim } from "./ingress-queue.js";
+import {
+  completeOwnNativeClaim,
+  type ChannelIngressQueue,
+  type ChannelIngressQueueClaim,
+  type NativeSmsCompletionPermit,
+  type NativeSmsCompletionReceipt,
+} from "./ingress-queue.js";
 import {
   DEFAULT_INGRESS_RETRY_BASE_MS,
   DEFAULT_INGRESS_RETRY_MAX_MS,
@@ -85,14 +91,23 @@ export function createIngressWriter<TPayload, TMetadata, TCompletedMetadata>(
 
   const completeClaimWithRetry = async (
     claim: ChannelIngressQueueClaim<TPayload, TMetadata>,
-  ): Promise<void> => {
+    nativePermit?: NativeSmsCompletionPermit,
+  ): Promise<NativeSmsCompletionReceipt | undefined> => {
+    let receipt: NativeSmsCompletionReceipt | undefined;
     // Tombstone via complete() — never delete. Retry IO failures; false = reclaimed.
     await commitClaimWriteWithRetry({
       claim,
       label: "tombstone",
-      write: () => queue.complete(claim),
+      write: async () => {
+        if (nativePermit) {
+          receipt = await completeOwnNativeClaim(nativePermit);
+          return true;
+        }
+        return queue.complete(claim);
+      },
       falseMeansReclaimed: true,
     });
+    return receipt;
   };
 
   const releaseClaim = async (

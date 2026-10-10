@@ -65,7 +65,11 @@ export type SmsWebhookHandlerParams = {
   cfg: OpenClawConfig;
   account: ResolvedSmsAccount;
   ingress: {
-    enqueue: (form: Record<string, string>) => Promise<{ duplicate: boolean }>;
+    selected?: boolean;
+    enqueue: (
+      form: Record<string, string>,
+      proof?: Readonly<{ signature: string; signatureUrl: string }>,
+    ) => Promise<{ duplicate: boolean }>;
   };
   delivery?: SmsDeliveryRecorder;
   log?: SmsWebhookLog;
@@ -110,6 +114,7 @@ function rejectInvalidRequestRateLimit(params: {
 
 // Each account route owns one durable ingress adapter.
 export function createSmsWebhookHandler(params: SmsWebhookHandlerParams) {
+  const selected = params.ingress.selected === true;
   let deliveryRecorder = params.delivery;
   const preAuthInFlightLimiter = createWebhookInFlightLimiter({
     maxInFlightPerKey: PRE_AUTH_MAX_IN_FLIGHT,
@@ -142,7 +147,7 @@ export function createSmsWebhookHandler(params: SmsWebhookHandlerParams) {
     let form: Record<string, string>;
     try {
       try {
-        form = await readTwilioWebhookForm(req);
+        form = await readTwilioWebhookForm(req, { rejectDuplicateFields: selected });
       } catch (error) {
         if (isRequestBodyLimitError(error, "PAYLOAD_TOO_LARGE")) {
           await sendHttpRequestRejection(req, res, 413, "Payload too large", TWIML_CONTENT_TYPE);
@@ -267,7 +272,19 @@ export function createSmsWebhookHandler(params: SmsWebhookHandlerParams) {
     }
     // Signature validation owns the parsed-but-otherwise-raw Twilio form.
     // A 200 is impossible until SQLite commits this exact transport envelope.
-    const verdict = await params.ingress.enqueue(form);
+    if (selected && params.account.dangerouslyDisableSignatureValidation) {
+      respondTwiml(res, 503, "SMS ingress unavailable");
+      return true;
+    }
+    const verdict = selected
+      ? await params.ingress.enqueue(form, {
+          signature: headerValue(req.headers["x-twilio-signature"]) ?? "",
+          signatureUrl: resolveTwilioWebhookSignatureUrl({
+            req,
+            publicWebhookUrl: params.account.publicWebhookUrl,
+          }),
+        })
+      : await params.ingress.enqueue(form);
     if (verdict.duplicate) {
       params.log?.warn?.(`SMS webhook ignored replayed message ${messageSid}`);
     }

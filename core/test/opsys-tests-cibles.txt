@@ -292,3 +292,27 @@ src/agents/mcp-oauth.test.ts
 src/agents/mcp-oauth-store.test.ts
 src/agents/mcp-oauth-writes.test.ts
 src/infra/state-migrations.mcp-oauth.test.ts
+
+# M1 : réception SMS, Source/Host/Gate, adoption et dernier garde avant modèle.
+# Ces régressions et voisins sont exclus de test:fast ; le job tests-opsys les route.
+extensions/sms/src/ingress-spool.test.ts
+extensions/sms/src/webhook.test.ts
+src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts
+src/agents/opsys-runtime-sms-contract.test.ts
+src/channels/message/ingress-drain.adoption-commit.test.ts
+src/channels/message/ingress-native-completion.test.ts
+src/channels/message/ingress-queue.read-only-access.test.ts
+src/channels/message/opsys-sms-source.test.ts
+src/channels/turn/run-channel-turn.finalize.test.ts
+src/channels/turn/run-channel-turn.pipeline.test.ts
+src/config/opsys-sms-ingress.test.ts
+src/gateway/opsys-sms-gate-consumer.test.ts
+src/gateway/opsys-sms-host-authority.test.ts
+src/gateway/opsys-sms-host-claim-adapter.test.ts
+src/gateway/opsys-sms-host-controller.test.ts
+src/gateway/opsys-sms-ingress-capture.test.ts
+src/gateway/opsys-sms-managed-host-bridge.test.ts
+src/gateway/opsys-sms-receipt-gate.test.ts
+src/gateway/server-channels.ownership.test.ts
+src/infra/opsys-sms-task-runtime.test.ts
+src/plugins/opsys-sms-host-bridge.test.ts

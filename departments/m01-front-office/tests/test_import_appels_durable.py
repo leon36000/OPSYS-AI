@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 from m1_front_office import outils as outils_m1
+from m2_revenue_crm import outils as outils_m2
 
 from opsys import evenements, stockage, taxonomie
 from opsys.capacites import Capacites
@@ -28,12 +29,14 @@ def capacites_m1(tmp_path, monkeypatch, declarer_services):
     declarer_services()
     taxonomie.enregistrer_zone_desservie(["Laval", "Québec"])
     outils_m1.utiliser_stockage_durable()
+    outils_m2.utiliser_stockage_durable()
     deps = charger_departements()
     capacites = Capacites({"m01-front-office": deps["m01-front-office"]}, stockage.transaction, memoire=False)
     try:
         yield capacites
     finally:
         outils_m1.reinitialiser_registre()
+        outils_m2.reinitialiser_registre()
         stockage.liberer()
 
 

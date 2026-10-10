@@ -687,6 +687,43 @@ def ecrire_appareils(cnx: Connection, dossier_config: Path) -> Path:
     return chemin
 
 
+def _preparer_projection_sms(
+    profils: Sequence[Mapping[str, Any]],
+    departements: Mapping[str, Departement],
+    configuration: canaux.ConfigurationCanaux,
+    environ: Mapping[str, str],
+) -> tuple[canaux.ConfigurationCanaux, dict[str, dict[str, Any]]]:
+    """Préflight SQL déclaratif avant toute écriture ; aucun alias de compte ni autorité host implicite."""
+    projections: dict[str, dict[str, Any]] = {}
+    try:
+        for profil in profils:
+            # Les métadonnées du registre ne font pas partie de sa spécification déclarative.
+            specification = {k: v for k, v in profil.items()
+                             if k not in {"actif", "supprime", "revision", "cree_le", "modifie_le", "modifie_par"}}
+            propre = profils_configurables._specification(departements, specification)
+            declencheurs = propre["declencheurs"]
+            if not any(d["type"] == "canal" for d in declencheurs):
+                continue
+            revision = profil["revision"]
+            if type(revision) is not int or not 1 <= revision <= 9_007_199_254_740_991 or projections:
+                raise ValueError("projection SMS invalide")
+            selection = declencheurs[0]  # La validation canonique exige un seul variant SMS, M1 et son droit natif.
+            configuration = canaux.projeter_profil_sms_default(
+                configuration,
+                agent_id=f"opsys-agent-{propre['id']}",
+                compte_id=selection["compte_id"],
+                account_sid=selection["account_sid"],
+                environ=environ,
+            )
+            projections[propre["id"]] = {
+                "version": 1, "accountId": selection["compte_id"], "accountSid": selection["account_sid"],
+            }
+    except (KeyError, TypeError, ValueError):
+        # Ne jamais restituer un identifiant/configuration brute dans le refus de génération.
+        raise ValueError("projection SMS invalide") from None
+    return configuration, projections
+
+
 def generer(
     departements: Mapping[str, Departement],
     dossier_config: Path,
@@ -749,6 +786,9 @@ def generer(
             # profiles until the OPSYS migration creates it.
             if inspect(cnx).has_table("agents_configurables"):
                 profils_actifs = profils_configurables.lister(cnx)
+    configuration_canaux, projections_sms = _preparer_projection_sms(
+        profils_actifs, departements, configuration_canaux, env_canaux
+    )
     # Check every effective workspace path, including existing symlinks, before writing any file.
     for dep in departements.values():
         _verifier_espaces_sans_donnees_sensibles(dossier_config, f"{racine_espaces}/{dep.id}", env_isolation)
@@ -850,6 +890,13 @@ def generer(
         politique = _outils_de_l_agent(dep, departements, expose=False)
         politique["allow"] = [f"{serveur_mcp(dep)}__{nom}" for nom in profil["outils"]]
         politique["deny"] = sorted(set(politique.get("deny", [])) | {"opsys_context_*__*", "opsys_runtime_*__*"})
+        if profil["id"] in projections_sms:
+            generique_sms = f"{serveur_mcp(dep)}__{canaux.CANAL_SMS.outil_accueil}"
+            politique["allow"] = [nom for nom in politique["allow"] if nom != generique_sms]
+            politique["deny"] = sorted(set(politique["deny"]) | {generique_sms})
+            if not politique["allow"]:
+                # Core traite allow=[] comme ouvert : un profil sans droit modèle refuse donc tous les noms.
+                politique["deny"] = sorted(set(politique["deny"]) | {"*"})
         profile_agent_id = f"opsys-agent-{profil['id']}"
         espace_profil = espaces / "agents" / profil["id"]
         (espace_profil / "skills").mkdir(parents=True, exist_ok=True)
@@ -885,6 +932,8 @@ def generer(
             "opsysIsolation": {"exec": "sandbox-required"},
             "tools": politique,
         }
+        if profil["id"] in projections_sms:
+            agents[profile_agent_id]["opsysRuntimeAdmission"]["smsIngress"] = projections_sms[profil["id"]]
         if contexte is not None and dep.id in contexte["agents"]:
             context_department = contexte["agents"][dep.id]
             contexte["agents"][profile_agent_id] = {

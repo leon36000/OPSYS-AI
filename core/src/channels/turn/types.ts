@@ -300,7 +300,12 @@ type ChannelTurnReplyPipelineOptions = Omit<
 >;
 
 /** Fully assembled channel turn ready to build the dispatch runner. */
+export type ChannelTurnDispatchGuard = () => void;
+
+/** Fully assembled channel turn ready to build the dispatch runner. */
 export type AssembledChannelTurn = {
+  /** Synchronous caller-owned authority check, never a model-context fact. */
+  assertDispatchCurrent?: ChannelTurnDispatchGuard;
   cfg: OpenClawConfig;
   channel: string;
   accountId?: string;
@@ -348,6 +353,7 @@ type PreparedChannelTurnDispatchLifecycle = {
 
 /** Channel turn with dispatch runner already prepared. */
 export type PreparedChannelTurn<TDispatchResult = DispatchFromConfigResult> = {
+  assertDispatchCurrent?: ChannelTurnDispatchGuard;
   channel: string;
   accountId?: string;
   routeSessionKey: string;
@@ -493,6 +499,8 @@ export type RunChannelTurnParams<
   TDispatchResult = DispatchFromConfigResult,
   TDelivery extends ChannelTurnDeliveryAdapter = ChannelCoreManagedTurnDeliveryAdapter,
 > = {
+  /** Owning guard composed with the resolved turn guard; neither can replace the other. */
+  assertDispatchCurrent?: ChannelTurnDispatchGuard;
   channel: string;
   accountId?: string;
   raw: TRaw;

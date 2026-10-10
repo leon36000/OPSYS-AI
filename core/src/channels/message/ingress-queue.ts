@@ -4,13 +4,23 @@
  * Stores, claims, completes, and tombstones inbound channel events in OpenClaw state.
  */
 import { randomUUID } from "node:crypto";
+import { realpathSync } from "node:fs";
 import type { DatabaseSync } from "node:sqlite";
-import type { Selectable } from "kysely";
+import { types } from "node:util";
+import { sql, type Selectable } from "kysely";
 import {
   executeSqliteQuerySync,
   executeSqliteQueryTakeFirstSync,
   getNodeSqliteKysely,
 } from "../../infra/kysely-sync.js";
+import { stageSqliteTransactionState } from "../../infra/sqlite-post-commit.js";
+import { assertExistingDatabaseIdentity } from "../../infra/sqlite-worker-identity.js";
+import {
+  borrowOpenClawStateDatabaseForAsyncRead,
+  captureOpenClawStateDatabaseReadAdmission,
+  openClawStateDatabaseCache,
+  requireOpenClawStateDatabaseIdentity,
+} from "../../state/openclaw-state-db-cache.js";
 import type {
   ChannelIngressEvents,
   DB as OpenClawStateKyselyDatabase,
@@ -20,6 +30,336 @@ import {
   openOpenClawStateDatabase,
   runOpenClawStateWriteTransaction,
 } from "../../state/openclaw-state-db.js";
+import { resolveOpenClawStateSqlitePath } from "../../state/openclaw-state-db.paths.js";
+import { IngressAdoptionLostError } from "./ingress-drain-state.js";
+
+/** Private Core handles; none are SDK queue properties or plugin-supplied callbacks. */
+export type NativeSmsClaimRef = Readonly<{ id: string; token: string; ownerId: string }>;
+export type NativeSmsCompletionPermit = Readonly<object>;
+export type NativeSmsCompletionReceipt = Readonly<object>;
+type NativeQueueScope = {
+  handle: object;
+  queueName: string;
+  accountId: string;
+  database: ReturnType<typeof openChannelIngressDatabase>;
+  assertCurrent: () => void;
+};
+type NativeQueueOwner = {
+  writable: boolean;
+  assertViewsCurrent: () => void;
+  scope: () => NativeQueueScope;
+  complete: (entry: NativeCompletionEntry) => NativeSmsCompletionReceipt;
+};
+type NativeCompletionEntry = {
+  permit: object;
+  owner: NativeQueueOwner;
+  scope: NativeQueueScope;
+  claim: NativeSmsClaimRef;
+  sourceOwner: object;
+  lifecycleOwner: object;
+  assertSourceCurrent?: () => void;
+};
+type NativeCommitEntry = NativeCompletionEntry & {
+  permit: object;
+  committed: boolean;
+  consumed: boolean;
+};
+const nativeQueueOwners = new WeakMap<object, NativeQueueOwner>();
+const nativeQueueScopes = new WeakMap<DatabaseSync, Map<string, NativeQueueScope>>();
+const nativeCompletionPermits = new WeakMap<object, NativeCompletionEntry>();
+const nativeCommitReceipts = new WeakMap<object, NativeCommitEntry>();
+
+function requireNativeCompletion(condition: unknown): asserts condition {
+  if (!condition) {
+    throw new IngressAdoptionLostError("reclaimed");
+  }
+}
+function nativeClaim(value: NativeSmsClaimRef): NativeSmsClaimRef {
+  requireNativeCompletion(value !== null && typeof value === "object" && !types.isProxy(value));
+  const result: Record<string, string> = Object.create(null);
+  requireNativeCompletion(Reflect.ownKeys(value).length === 3);
+  for (const field of ["id", "token", "ownerId"] as const) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, field);
+    requireNativeCompletion(
+      descriptor &&
+        "value" in descriptor &&
+        descriptor.enumerable &&
+        typeof descriptor.value === "string" &&
+        descriptor.value.length > 0,
+    );
+    result[field] = descriptor.value;
+  }
+  return Object.freeze({ id: result.id!, token: result.token!, ownerId: result.ownerId! });
+}
+
+/** Exact native factory identity only. Unknown queues do not execute any property/trap. */
+export function readNativeSmsQueueScope(queue: unknown): object | undefined {
+  if (queue === null || typeof queue !== "object") {
+    return undefined;
+  }
+  const owner = nativeQueueOwners.get(queue);
+  try {
+    return owner?.scope().handle;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Private Core data snapshot. No SDK queue property or dispatch authority. */
+export type NativeSmsClaimOrigin = Readonly<{
+  queueScope: object;
+  accountId: string;
+  id: string;
+  token: string;
+  ownerId: string;
+  claimedAt: number;
+  receivedAt: number;
+  payloadJson: string;
+}>;
+
+/** Existing canonical connection only, outside a transaction, exact native queue/view. */
+export function readOwnNativeSmsClaimOrigin(
+  queue: unknown,
+  claim: NativeSmsClaimRef,
+): NativeSmsClaimOrigin | null {
+  if (queue === null || typeof queue !== "object") {
+    return null;
+  }
+  const owner = nativeQueueOwners.get(queue);
+  if (!owner) {
+    return null;
+  }
+  try {
+    const ref = nativeClaim(claim);
+    owner.assertViewsCurrent();
+    const scope = owner.scope();
+    scope.assertCurrent();
+    const row = executeSqliteQueryTakeFirstSync(
+      scope.database.db,
+      getChannelIngressKysely(scope.database.db)
+        .selectFrom("channel_ingress_events")
+        .select(["payload_json", "received_at", "claimed_at"])
+        .where("queue_name", "=", scope.queueName)
+        .where("channel_id", "=", "sms")
+        .where("account_id", "=", scope.accountId)
+        .where("event_id", "=", ref.id)
+        .where("status", "=", "claimed")
+        .where("claim_token", "=", ref.token)
+        .where("claim_owner", "=", ref.ownerId)
+        // Same maximum as the existing sealed capture. Bound bytes before returning the cell.
+        .where(sql<number>`length(CAST(payload_json AS BLOB))`, "<=", 262144),
+    );
+    owner.assertViewsCurrent();
+    scope.assertCurrent();
+    if (
+      !row ||
+      typeof row.payload_json !== "string" ||
+      Buffer.byteLength(row.payload_json, "utf8") > 262144 ||
+      typeof row.received_at !== "number" ||
+      !Number.isSafeInteger(row.received_at) ||
+      row.received_at < 0 ||
+      typeof row.claimed_at !== "number" ||
+      !Number.isSafeInteger(row.claimed_at) ||
+      row.claimed_at < 0
+    ) {
+      return null;
+    }
+    return Object.freeze({
+      queueScope: scope.handle,
+      accountId: scope.accountId,
+      ...ref,
+      claimedAt: row.claimed_at,
+      receivedAt: row.received_at,
+      payloadJson: row.payload_json,
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** Called only where Core publishes an actual PluginInstance value view. */
+export function registerNativeSmsQueueView(
+  original: object,
+  view: object,
+  assertViewCurrent: () => void,
+): void {
+  const owner = nativeQueueOwners.get(original);
+  if (!owner || original === view || nativeQueueOwners.has(view)) {
+    return;
+  }
+  let closed = false;
+  const assertViewsCurrent = () => {
+    try {
+      requireNativeCompletion(!closed);
+      owner.assertViewsCurrent();
+      assertViewCurrent();
+      owner.assertViewsCurrent();
+    } catch {
+      closed = true;
+      throw new IngressAdoptionLostError("reclaimed");
+    }
+  };
+  nativeQueueOwners.set(view, {
+    writable: owner.writable,
+    assertViewsCurrent,
+    scope: () => {
+      assertViewsCurrent();
+      return owner.scope();
+    },
+    complete: owner.complete,
+  });
+}
+
+/** Captures view lifetime alone; adopted Sources never re-read the completed claim. */
+export function readNativeSmsQueueOwnerAssertion(queue: unknown): (() => void) | undefined {
+  return queue !== null && typeof queue === "object"
+    ? nativeQueueOwners.get(queue)?.assertViewsCurrent
+    : undefined;
+}
+
+export function prepareOwnNativeCompletion(
+  queue: unknown,
+  claim: NativeSmsClaimRef,
+  sourceOwner: object,
+  lifecycleOwner: object,
+): NativeSmsCompletionPermit | null {
+  if (queue === null || typeof queue !== "object") {
+    return null;
+  }
+  const owner = nativeQueueOwners.get(queue);
+  if (!owner?.writable) {
+    return null;
+  }
+  try {
+    requireNativeCompletion(
+      sourceOwner !== null && typeof sourceOwner === "object" && !types.isProxy(sourceOwner),
+    );
+    requireNativeCompletion(
+      lifecycleOwner !== null &&
+        typeof lifecycleOwner === "object" &&
+        !types.isProxy(lifecycleOwner),
+    );
+    const scope = owner.scope();
+    const copied = nativeClaim(claim);
+    const handle = Object.freeze({});
+    nativeCompletionPermits.set(handle, {
+      permit: handle,
+      owner,
+      scope,
+      claim: copied,
+      sourceOwner,
+      lifecycleOwner,
+    });
+    return handle;
+  } catch {
+    return null;
+  }
+}
+
+/** Captured Core Source owner only; this is not a structural SDK queue callback. */
+export function bindOwnNativeCompletionGuard(
+  permit: NativeSmsCompletionPermit,
+  sourceOwner: object,
+  lifecycleOwner: object,
+  guard: () => void,
+): void {
+  const entry = nativeCompletionPermits.get(permit);
+  requireNativeCompletion(
+    entry && entry.sourceOwner === sourceOwner && entry.lifecycleOwner === lifecycleOwner,
+  );
+  requireNativeCompletion(
+    !entry.assertSourceCurrent && typeof guard === "function" && !types.isProxy(guard),
+  );
+  entry.assertSourceCurrent = guard;
+}
+
+export function assertOwnNativeCompletionAccount(
+  permit: NativeSmsCompletionPermit,
+  accountId: string,
+): void {
+  const entry = nativeCompletionPermits.get(permit);
+  requireNativeCompletion(entry && entry.scope.accountId === accountId);
+  entry.scope.assertCurrent();
+}
+
+function assertNativeWriteCurrent(entry: NativeCompletionEntry): void {
+  requireNativeCompletion(nativeCompletionPermits.get(entry.permit) === entry);
+  entry.owner.assertViewsCurrent();
+  entry.scope.assertCurrent();
+  try {
+    entry.assertSourceCurrent?.();
+  } catch {
+    throw new IngressAdoptionLostError("reclaimed");
+  }
+  requireNativeCompletion(nativeCompletionPermits.get(entry.permit) === entry);
+  assertOwnNativeClaimCurrent(entry.permit);
+}
+
+/** Actual current native claim, in addition to the captured Host's freshness checks. */
+export function assertOwnNativeClaimCurrent(permit: NativeSmsCompletionPermit): void {
+  const entry = nativeCompletionPermits.get(permit);
+  requireNativeCompletion(entry);
+  requireNativeCompletion(entry.owner.scope() === entry.scope);
+  entry.scope.assertCurrent();
+  const row = executeSqliteQueryTakeFirstSync(
+    entry.scope.database.db,
+    getChannelIngressKysely(entry.scope.database.db)
+      .selectFrom("channel_ingress_events")
+      .select(["claim_token", "claim_owner"])
+      .where("event_id", "=", entry.claim.id)
+      .where("queue_name", "=", entry.scope.queueName)
+      .where("channel_id", "=", "sms")
+      .where("account_id", "=", entry.scope.accountId)
+      .where("status", "=", "claimed")
+      .where("claim_token", "=", entry.claim.token)
+      .where("claim_owner", "=", entry.claim.ownerId),
+  );
+  requireNativeCompletion(
+    row?.claim_token === entry.claim.token && row.claim_owner === entry.claim.ownerId,
+  );
+}
+
+export async function completeOwnNativeClaim(
+  permit: NativeSmsCompletionPermit,
+): Promise<NativeSmsCompletionReceipt> {
+  const entry = nativeCompletionPermits.get(permit);
+  requireNativeCompletion(entry);
+  assertNativeWriteCurrent(entry);
+  requireNativeCompletion(entry.owner.scope() === entry.scope);
+  const receipt = entry.owner.complete(entry);
+  const commit = nativeCommitReceipts.get(receipt);
+  requireNativeCompletion(commit?.committed && !commit.consumed);
+  return receipt;
+}
+
+export function consumeOwnNativeCompletionReceipt(
+  permit: NativeSmsCompletionPermit,
+  receipt: NativeSmsCompletionReceipt,
+  sourceOwner: object,
+  lifecycleOwner: object,
+): void {
+  const entry = nativeCompletionPermits.get(permit);
+  const commit = nativeCommitReceipts.get(receipt);
+  requireNativeCompletion(
+    entry && commit?.committed && !commit.consumed && commit.permit === permit,
+  );
+  requireNativeCompletion(
+    entry.sourceOwner === sourceOwner && entry.lifecycleOwner === lifecycleOwner,
+  );
+  requireNativeCompletion(
+    commit.sourceOwner === sourceOwner &&
+      commit.lifecycleOwner === lifecycleOwner &&
+      commit.scope === entry.scope,
+  );
+  entry.scope.assertCurrent();
+  commit.consumed = true;
+  nativeCompletionPermits.delete(permit);
+}
+
+/** Source/claim retirement revokes a captured write before any subsequent retry. */
+export function revokeOwnNativeCompletion(permit: NativeSmsCompletionPermit): void {
+  nativeCompletionPermits.delete(permit);
+}
 
 /** Pending or retryable inbound channel event stored in the durable ingress queue. */
 export type ChannelIngressQueueRecord<TPayload, TMetadata = unknown> = {
@@ -55,6 +395,19 @@ export type ChannelIngressQueueClaimRef = {
   claim: {
     token: string;
   };
+};
+
+/** Current durable identity only; neither payload nor dispatch authority. */
+export type ChannelIngressQueueClaimIdentity = Readonly<{
+  id: string;
+  token: string;
+  ownerId: string;
+  claimedAt: number;
+}>;
+
+export type ChannelIngressQueueClaimIdentityReader = {
+  read(ref: ChannelIngressQueueClaimRef): ChannelIngressQueueClaimIdentity | null;
+  dispose(): void;
 };
 
 /** Claim identity available when a stale row's payload cannot be decoded. */
@@ -185,6 +538,8 @@ export type ChannelIngressQueue<TPayload, TMetadata = unknown, TCompletedMetadat
     orderBy?: "received" | "id";
   }): Promise<Array<ChannelIngressQueueRecord<TPayload, TMetadata>>>;
   listClaims(): Promise<Array<ChannelIngressQueueClaim<TPayload, TMetadata>>>;
+  /** Existing native owner only; read synchronously after the caller's final await. */
+  prepareClaimIdentityReader?(): Promise<ChannelIngressQueueClaimIdentityReader>;
   /** Additive SDK seam; optional so existing external queue test doubles remain compatible. */
   listFailed?(options?: {
     limit?: number | "all";
@@ -525,6 +880,18 @@ function claimTokenFrom(
   return typeof idOrClaim === "string" ? null : (idOrClaim.claim?.token ?? null);
 }
 
+function ownClaimField(value: unknown, key: string): unknown {
+  if (value === null || typeof value !== "object" || types.isProxy(value)) {
+    return undefined;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    return undefined;
+  }
+  const descriptor = Object.getOwnPropertyDescriptor(value, key);
+  return descriptor && "value" in descriptor ? descriptor.value : undefined;
+}
+
 function rowToEnqueueResult<TPayload, TMetadata, TCompletedMetadata>(
   row: ChannelIngressRow,
 ): ChannelIngressQueueEnqueueResult<TPayload, TMetadata, TCompletedMetadata> | null {
@@ -640,6 +1007,98 @@ export function createChannelIngressQueue<
   const queueName = queueNameForParts(channelId, accountId);
   const now = options.now ?? Date.now;
   const access = options.access ?? "read-write";
+
+  const prepareClaimIdentityReader = async (): Promise<ChannelIngressQueueClaimIdentityReader> => {
+    const pathname = resolveOpenClawStateSqlitePath(
+      options.stateDir ? createStateDirEnv(options.stateDir) : process.env,
+    );
+    const borrow = borrowOpenClawStateDatabaseForAsyncRead(pathname);
+    let closed = borrow === undefined;
+    let released = false;
+    const dispose = () => {
+      closed = true;
+      if (!released) {
+        released = true;
+        borrow?.release();
+      }
+    };
+    if (!borrow) {
+      return { read: () => null, dispose };
+    }
+    try {
+      const { database } = borrow;
+      const admission = captureOpenClawStateDatabaseReadAdmission(pathname);
+      const identity = requireOpenClawStateDatabaseIdentity(database);
+      const assertCurrent = () => {
+        borrow.assertCurrent();
+        admission.assertCurrent();
+        if (
+          openClawStateDatabaseCache.getOpenClawStateDatabaseIfOpenAtPath(pathname) !== database
+        ) {
+          throw new Error("Claim identity reader lost its canonical native owner");
+        }
+        assertExistingDatabaseIdentity(pathname, identity.key);
+        if (realpathSync.native(pathname) !== identity.canonicalPath || database.db.isTransaction) {
+          throw new Error("Claim identity reader lost its committed native owner");
+        }
+      };
+      assertCurrent();
+      return {
+        read(ref) {
+          if (closed) {
+            return null;
+          }
+          try {
+            const id = ownClaimField(ref, "id");
+            const token = ownClaimField(ownClaimField(ref, "claim"), "token");
+            if (typeof id !== "string" || !id || typeof token !== "string" || !token) {
+              return null;
+            }
+            assertCurrent();
+            const row = executeSqliteQueryTakeFirstSync(
+              database.db,
+              getChannelIngressKysely(database.db)
+                .selectFrom("channel_ingress_events")
+                .select(["event_id", "claim_token", "claim_owner", "claimed_at"])
+                .where("queue_name", "=", queueName)
+                .where("event_id", "=", id)
+                .where("status", "=", "claimed")
+                .where("claim_token", "=", token),
+            );
+            assertCurrent();
+            if (!row) {
+              return null;
+            }
+            if (
+              row.event_id !== id ||
+              row.claim_token !== token ||
+              typeof row.claim_owner !== "string" ||
+              !row.claim_owner ||
+              typeof row.claimed_at !== "number" ||
+              !Number.isSafeInteger(row.claimed_at) ||
+              row.claimed_at < 0
+            ) {
+              closed = true;
+              return null;
+            }
+            return Object.freeze({
+              id: row.event_id,
+              token: row.claim_token,
+              ownerId: row.claim_owner,
+              claimedAt: row.claimed_at,
+            });
+          } catch {
+            closed = true;
+            return null;
+          }
+        },
+        dispose,
+      };
+    } catch (error) {
+      dispose();
+      throw error;
+    }
+  };
 
   const enqueue: ChannelIngressQueue<TPayload, TMetadata, TCompletedMetadata>["enqueue"] = async (
     id,
@@ -1558,10 +2017,11 @@ export function createChannelIngressQueue<
     );
   };
 
-  return {
+  const queue: ChannelIngressQueue<TPayload, TMetadata, TCompletedMetadata> = {
     enqueue,
     listPending,
     listClaims,
+    prepareClaimIdentityReader,
     listFailed,
     claimNext,
     claim,
@@ -1574,5 +2034,103 @@ export function createChannelIngressQueue<
     recoverStaleClaims,
     prune,
   };
+  if (channelId === "sms") {
+    const pathname = resolveOpenClawStateSqlitePath(
+      options.stateDir ? createStateDirEnv(options.stateDir) : process.env,
+    );
+    const scope = (): NativeQueueScope => {
+      const database = openClawStateDatabaseCache.getOpenClawStateDatabaseIfOpenAtPath(pathname);
+      requireNativeCompletion(database && database.db.isOpen && !database.db.isTransaction);
+      let scopes = nativeQueueScopes.get(database.db);
+      if (!scopes) {
+        nativeQueueScopes.set(database.db, (scopes = new Map()));
+      }
+      let current = scopes.get(queueName);
+      if (!current) {
+        const identity = requireOpenClawStateDatabaseIdentity(database);
+        const admission = captureOpenClawStateDatabaseReadAdmission(pathname);
+        current = {
+          handle: Object.freeze({}),
+          queueName,
+          accountId,
+          database,
+          assertCurrent: () => {
+            admission.assertCurrent();
+            requireNativeCompletion(
+              database.db.isOpen &&
+                !database.db.isTransaction &&
+                openClawStateDatabaseCache.getOpenClawStateDatabaseIfOpenAtPath(pathname) ===
+                  database,
+            );
+            assertExistingDatabaseIdentity(pathname, identity.key);
+            requireNativeCompletion(realpathSync.native(pathname) === identity.canonicalPath);
+          },
+        };
+        scopes.set(queueName, current);
+      }
+      current.assertCurrent();
+      return current;
+    };
+    nativeQueueOwners.set(queue, {
+      writable: access === "read-write",
+      assertViewsCurrent: () => {},
+      scope,
+      complete: (entry) => {
+        const receipt = Object.freeze({});
+        const record: NativeCommitEntry = { ...entry, committed: false, consumed: false };
+        nativeCommitReceipts.set(receipt, record);
+        const database = entry.scope.database;
+        const completedAt = now();
+        // now() is a captured clock callback and can revoke the Source reentrantly.
+        assertNativeWriteCurrent(entry);
+        runOpenClawStateWriteTransaction(
+          (tx) => {
+            requireNativeCompletion(tx.db === database.db && tx.path === database.path);
+            const result = executeSqliteQuerySync(
+              tx.db,
+              getChannelIngressKysely(tx.db)
+                .updateTable("channel_ingress_events")
+                .set({
+                  status: "completed",
+                  completed_at: completedAt,
+                  updated_at: completedAt,
+                  completed_metadata_json: null,
+                  payload_json: "null",
+                  metadata_json: null,
+                  claim_token: null,
+                  claim_owner: null,
+                  claimed_at: null,
+                  last_attempt_at: null,
+                  last_error: null,
+                })
+                .where("queue_name", "=", queueName)
+                .where("channel_id", "=", channelId)
+                .where("account_id", "=", accountId)
+                .where("event_id", "=", entry.claim.id)
+                .where("status", "=", "claimed")
+                .where("claim_token", "=", entry.claim.token)
+                .where("claim_owner", "=", entry.claim.ownerId),
+            );
+            requireNativeCompletion(affectedRows(result) === 1);
+            requireNativeCompletion(
+              stageSqliteTransactionState(tx.db, {
+                stage: () => {},
+                commit: () => {
+                  record.committed = true;
+                },
+                rollback: () => {
+                  record.committed = false;
+                },
+              }),
+            );
+          },
+          { path: database.path },
+        );
+        requireNativeCompletion(record.committed);
+        return receipt;
+      },
+    });
+  }
+  return queue;
 }
 /* oxlint-disable max-lines -- TODO: split this grandfathered oversized file. */
