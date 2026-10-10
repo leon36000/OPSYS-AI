@@ -17,8 +17,10 @@ N4 et N5, et tout appel sans identité valide, suivent le chemin de la file, inc
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import logging
+import re
 from collections.abc import Callable, Mapping
 from contextlib import AbstractContextManager, nullcontext
 from typing import Any
@@ -61,6 +63,34 @@ _CODES_PROVENANCE_M8 = frozenset({
     "REJ-M8-PROVENANCE-BUDGET-SOURCE-DEPASSE", "REJ-M8-PROVENANCE-PROJECTION-INVALIDE",
     "REJ-M8-PROVENANCE-SORTIE-TROP-VOLUMINEUSE",
 })
+
+
+_OUTILS_DOCUMENTAIRES_M10 = {
+    "m10_deposer_version_document_appareil": "deposer",
+    "m10_activer_version_document_appareil": "activer",
+    "m10_retirer_document_appareil": "retirer",
+}
+_ERREURS_DOCUMENTAIRES_M10 = {
+    "REJ-M10-TRANSACTION-CONNEXION-INVALIDE": "REJ-M10-DOC-CONFIRMATION-INCONNUE",
+    "REJ-M10-TRANSACTION-DIALECTE-NON-ADMIS": "REJ-M10-DOC-CONFIRMATION-INCONNUE",
+    "REJ-M10-TRANSACTION-AUTORITE-INVALIDE": "REJ-M10-DOC-AUTORITE-INVALIDE",
+    "REJ-M10-TRANSACTION-MODE-NON-ADMIS": "REJ-M10-DOC-MODE-NON-ADMIS",
+    "REJ-M10-TRANSACTION-FORME-INVALIDE": "REJ-M10-DOC-FORME-INVALIDE",
+    "REJ-M10-TRANSACTION-AFFAIRE-INCONNUE": "REJ-M10-DOC-AFFAIRE-INCONNUE",
+    "REJ-M10-TRANSACTION-REGISTRE-INVALIDE": "REJ-M10-DOC-CONFIRMATION-INCONNUE",
+    "REJ-M10-TRANSACTION-QUOTA-DEPASSE": "QUOTA-DEPASSE",
+    "REJ-M10-TRANSACTION-PRECONDITION-REFUSEE": "REJ-M10-DOC-CONFIRMATION-INCONNUE",
+    "REJ-M10-TRANSACTION-CONFIRMATION-INCONNUE": "REJ-M10-DOC-CONFIRMATION-INCONNUE",
+    "REJ-M10-TRANSACTION-PANNE-TRANSACTION": "REJ-M10-DOC-CONFIRMATION-INCONNUE",
+}
+
+
+class _RefusDocumentaireCap(RuntimeError):
+    """Code constant interne ; doit sortir du SAVEPOINT et de la factory avant traduction."""
+
+    def __init__(self, code):
+        self.code = code
+        super().__init__("CONFIRMATION-INCONNUE")
 
 
 def _outils_memoire() -> tuple[Outil, ...]:
@@ -248,6 +278,8 @@ class Capacites:
         ticket_memoire: str | None = None,
     ) -> dict[str, Any]:
         """Revérifie et dispatch un outil Core profilé sous le verrou de sa ligne de profil."""
+        if nom in _OUTILS_DOCUMENTAIRES_M10:
+            return self.refus_documentaire_appareil("REJ-M10-DOC-AUTORITE-INVALIDE", avant_factory=True)
         from . import admission_agents
 
         if self.appelant is None or server != f"opsys_{self.appelant.prefixe_outils}":
@@ -278,6 +310,8 @@ class Capacites:
         Une identité d'appareil seule permet une lecture T0/N0 ; toute autre opération
         exige l'enveloppe d'idempotence avant le répartiteur métier.
         """
+        if nom in _OUTILS_DOCUMENTAIRES_M10:
+            return self._appeler_documents_m10(nom, arguments, meta, ticket_cible, ticket_memoire)
         # Ce nouveau lecteur ferme aussi le conteneur brut avant la normalisation
         # historique : une liste de paires ne peut pas devenir un corps RPC valide.
         if nom == _LECTURE_PROVENANCE_M8 and nom in self.index:
@@ -418,6 +452,173 @@ class Capacites:
         if meta is None:
             return self._distribuer(nom, args)
         return self._appeler_idempotent(nom, args, meta)
+
+    def refus_documentaire_appareil(self, code, *, avant_factory=False):
+        """Cadre nommé fermé, jamais artefact ; inconnu trop grand reste technique."""
+        quota = self._limite
+        if type(quota) is not int or quota < 40:
+            message = "QUOTA-INSUFFISANT" if avant_factory or code == "QUOTA-DEPASSE" else "CONFIRMATION-INCONNUE"
+            raise RuntimeError(message) from None
+        codes = set(_ERREURS_DOCUMENTAIRES_M10.values())
+        if type(code) is not str or code not in codes:
+            code = "REJ-M10-DOC-CONFIRMATION-INCONNUE"
+        frame = {"ok": False, "erreur": code}
+        if len(json.dumps(frame, ensure_ascii=False, allow_nan=False)) <= quota:
+            return frame
+        if avant_factory and code in {
+            "REJ-M10-DOC-FORME-INVALIDE", "REJ-M10-DOC-AUTORITE-INVALIDE", "REJ-M10-DOC-MODE-NON-ADMIS",
+        }:
+            return {"ok": False, "erreur": "QUOTA-DEPASSE"}
+        raise RuntimeError("CONFIRMATION-INCONNUE") from None
+
+    @staticmethod
+    def _confirmation_documentaire_m10(response, *, nom, args, meta, acteur, quota):
+        """Forme et binding de l'ACK positif entier, à vérifier avant de quitter le SAVEPOINT."""
+        from m10_memoire import documents_affaire as domaine
+        from m10_memoire import humain
+
+        # This pure copy/size guard rejects subclasses, nonfinite values and untyped nested objects
+        # before accessing fields. Both transport flags are budgeted, never just the cached body.
+        for flag in (False, True):
+            if type(response) is not dict:
+                raise RuntimeError("CONFIRMATION-INCONNUE")
+            domaine.borner_enveloppe({**response, "rejoue": flag}, quota)
+        if (
+            set(response) != {"ok", "resultat", "rejoue"} or response["ok"] is not True
+            or type(response["rejoue"]) is not bool or type(response["resultat"]) is not dict
+            or set(response["resultat"]) != {"accepte", "resultat"}
+            or response["resultat"]["accepte"] is not True
+        ):
+            raise RuntimeError("CONFIRMATION-INCONNUE")
+        ack = response["resultat"]["resultat"]
+        if type(ack) is not dict or set(ack) != {
+            "version_schema", "operation", "document_ref", "reference", "version_source", "source_sha256",
+            "auteur", "intention", "horodatage_appareil_declare", "horodatage",
+        }:
+            raise RuntimeError("CONFIRMATION-INCONNUE")
+        operation = _OUTILS_DOCUMENTAIRES_M10[nom]
+        if (
+            type(ack["version_schema"]) is not int or ack["version_schema"] != 1
+            or ack["operation"] != operation
+            or ack["auteur"] != {"personne": acteur.personne, "role": "admin", "source": "appareil"}
+            or ack["intention"] != {"appareil": meta.appareil, "cle": meta.cle, "outil": nom,
+                                   "empreinte_arguments": idempotence.empreinte_arguments(args)}
+            or ack["horodatage_appareil_declare"] != meta.horodatage_appareil
+            or type(ack["horodatage"]) is not str or len(ack["horodatage"]) > 40
+            or not humain.horodatage_valide(ack["horodatage"])
+        ):
+            raise RuntimeError("CONFIRMATION-INCONNUE")
+        for ref in (ack["document_ref"], ack["reference"], ack["version_source"]):
+            if ref is None and operation == "retirer":
+                continue
+            if (
+                type(ref) is not dict or set(ref) != {"registre", "index", "ligne_id"}
+                or ref["registre"] != "documents_affaire" or type(ref["index"]) is not int
+                or not 0 <= ref["index"] < 512 or type(ref["ligne_id"]) is not str
+                or re.fullmatch(r"[0-9a-f]{64}", ref["ligne_id"]) is None
+            ):
+                raise RuntimeError("CONFIRMATION-INCONNUE")
+        if ack["document_ref"] is None or ack["reference"] is None:
+            raise RuntimeError("CONFIRMATION-INCONNUE")
+        if args["document_ref"] is not None and ack["document_ref"] != args["document_ref"]:
+            raise RuntimeError("CONFIRMATION-INCONNUE")
+        if operation == "deposer":
+            if (
+                ack["version_source"] != ack["reference"]
+                or (args["document_ref"] is None and ack["document_ref"] != ack["reference"])
+                or ack["source_sha256"] != hashlib.sha256(args["corps"].encode("utf-8", "strict")).hexdigest()
+            ):
+                raise RuntimeError("CONFIRMATION-INCONNUE")
+        elif operation == "activer":
+            if ack["version_source"] != args["version_source"]:
+                raise RuntimeError("CONFIRMATION-INCONNUE")
+            if type(ack["source_sha256"]) is not str or re.fullmatch(r"[0-9a-f]{64}", ack["source_sha256"]) is None:
+                raise RuntimeError("CONFIRMATION-INCONNUE")
+        elif ack["version_source"] is not None or ack["source_sha256"] is not None:
+            raise RuntimeError("CONFIRMATION-INCONNUE")
+
+    def _appeler_documents_m10(self, nom, arguments, meta, ticket_cible, ticket_memoire):
+        """Voie DEVICE nommée : zéro répartiteur/claim/trace/troncature générique."""
+        if type(self._limite) is not int or self._limite < 40:
+            raise RuntimeError("QUOTA-INSUFFISANT") from None
+        acteur = identite_appelante()
+        entree = self.index.get(nom)
+        if (
+            type(acteur) is not IdentiteAppelante or type(acteur.personne) is not str
+            or type(acteur.role) is not str or type(acteur.source) is not str
+            or acteur.source != "appareil" or acteur.role != "admin"
+            or entree is None or entree[0] is None or entree[0].id != "m10-memoire"
+            or entree[1].nom != nom or entree[1].autonomie is not Autonomie.T1
+            or entree[1].niveau_effectif is not Niveau.N3
+            or nom not in self._outils_du_role(acteur.role)
+            or ticket_cible is not None or ticket_memoire is not None
+            or contexte_appel.ticket_agent_cfo() is not None
+        ):
+            return self.refus_documentaire_appareil("REJ-M10-DOC-AUTORITE-INVALIDE", avant_factory=True)
+        departement, outil = entree
+        if type(departement.mode) is not str or departement.mode not in {"ombre", "supervise", "autonome"}:
+            return self.refus_documentaire_appareil("REJ-M10-DOC-MODE-NON-ADMIS", avant_factory=True)
+        from m10_memoire import documents_affaire as domaine
+        from m10_memoire import humain
+
+        if not humain.acteur_valide(acteur.personne, acteur.role, acteur.source):
+            return self.refus_documentaire_appareil("REJ-M10-DOC-AUTORITE-INVALIDE", avant_factory=True)
+        try:
+            if type(meta) is not idempotence.Meta or set(vars(meta)) != {"cle", "appareil", "horodatage_appareil"}:
+                raise ValueError("forme")
+            for value in (meta.cle, meta.appareil):
+                if type(value) is not str or not value.strip() or len(value) > 128:
+                    raise ValueError("forme")
+                value.encode("utf-8", "strict")
+            if (
+                type(meta.horodatage_appareil) is not str or len(meta.horodatage_appareil) > 40
+                or not humain.horodatage_valide(meta.horodatage_appareil)
+            ):
+                raise ValueError("forme")
+            args = domaine.valider_commande(_OUTILS_DOCUMENTAIRES_M10[nom], arguments)
+        except Exception:
+            return self.refus_documentaire_appareil("REJ-M10-DOC-FORME-INVALIDE", avant_factory=True)
+        try:
+            from m10_memoire import outils as facade
+
+            from .stockage import connexion_courante
+
+            with self._cnx_factory() as cnx:
+                if not isinstance(cnx, Connection) or cnx is not connexion_courante() or cnx.closed:
+                    raise RuntimeError("CONFIRMATION-INCONNUE")
+                if not cnx.in_transaction():
+                    raise RuntimeError("CONFIRMATION-INCONNUE")
+                with cnx.begin_nested():
+                    signataire = approbations.signataire_valide(cnx, acteur)
+                    if signataire is None or signataire.role != "admin":
+                        raise _RefusDocumentaireCap("REJ-M10-DOC-AUTORITE-INVALIDE")
+                    with (
+                        appeler_en_tant_que(departement.id, origine=self.appelant.id if self.appelant else None),
+                        facade.invocation_documentaire_appareil(
+                            cnx, meta=meta, quota=self._limite, mode_manifeste=departement.mode,
+                        ),
+                    ):
+                        response = outil.fonction(**args)
+                        self._confirmation_documentaire_m10(
+                            response, nom=nom, args=args, meta=meta, acteur=signataire, quota=self._limite,
+                        )
+            return response
+        except Exception as exc:
+            # All caller contexts (including SQL rollback) have ended here. Never forward
+            # str/repr/detail from SQL, codecs, an unexpected handler or the backend.
+            from .documents_affaire_transactions import ErreurTransactionDocumentaire
+
+            code = "REJ-M10-DOC-CONFIRMATION-INCONNUE"
+            if type(exc) is _RefusDocumentaireCap:
+                code = exc.code
+            elif type(exc) is ErreurTransactionDocumentaire:
+                attrs = vars(exc)
+                if (
+                    type(attrs.get("code")) is str and type(attrs.get("issue")) is str
+                    and attrs["issue"] == "inconnue" and type(attrs.get("detail")) is str
+                ):
+                    code = _ERREURS_DOCUMENTAIRES_M10.get(attrs["code"], code)
+            return self.refus_documentaire_appareil(code)
 
     def _appeler_provenance_m8(self, arguments, meta, ticket_cible, ticket_memoire):
         """T0 admin DEVICE : admission actuelle, aucune intention de mutation."""

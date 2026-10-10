@@ -1,0 +1,261 @@
+{
+  "schema": "opsys-private-continuation-registry-v3",
+  "time_toronto": "2026-10-09T22:54:27.338229-04:00",
+  "base": "ceca7308392f6948f069f18fc070bd596405fb63",
+  "product_status": "PARTIEL",
+  "files": [
+    {
+      "path": "src/opsys/documents_affaire_transactions.py",
+      "sha256": "5b6a5446050fd636ca67a66e8732c9105846a4a1301ad7445d7c3cf4a83b86f5",
+      "preimage_sha256": null,
+      "origin": "Backend Source3 GEL3 / F15 atceca",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009"
+    },
+    {
+      "path": "tests/test_documents_affaire_transactions.py",
+      "sha256": "34c7ae2f976cebf9a08545c710b849ed4609df95dec25e7dc0f7a4f2a14fa724",
+      "preimage_sha256": null,
+      "origin": "Backend Source3 GEL3 / F15 atceca",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009"
+    },
+    {
+      "path": "docs/architecture/M10-TRANSACTIONS-DOCUMENTAIRES.md",
+      "sha256": "7df55540dca512b9e4dfee31707ae25e45717c6d55064044431aa888e3a6e0ed",
+      "preimage_sha256": null,
+      "origin": "Backend Source3 GEL3 / F15 atceca",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009"
+    },
+    {
+      "path": "src/opsys/capacites.py",
+      "sha256": "d43e13ba60b7870b8b3ea1029e30eee3b61e8af1d255732e5a3e3848b86c3b01",
+      "preimage_sha256": "c445354652acf6205e0d23eeaa3ee3b32b495a5d90d674477e7fbee19105c09b",
+      "origin": "Cap/MCP Source4 / F15 atceca",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009"
+    },
+    {
+      "path": "src/opsys/serveur_mcp.py",
+      "sha256": "39c5de34302b4ba958c7f74ac482266645bb4c228c624c9d5f289f98feba5690",
+      "preimage_sha256": "837ed42df6045a5d9b35fbee2f057532f54b40db7a0d4a63901c064d30883a49",
+      "origin": "Cap/MCP Source4 / F15 atceca",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009"
+    },
+    {
+      "path": "tests/test_documents_affaire_cap_appareil.py",
+      "sha256": "8d2176ca2ca9bb109cbcb6d1bb8d92d417def3ca8593ae0e425ce9a5824ec938",
+      "preimage_sha256": null,
+      "origin": "Cap/MCP Source4 / F15 atceca",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009"
+    },
+    {
+      "path": "tests/test_documents_affaire_mcp_appareil.py",
+      "sha256": "7824aa37b33726a36c291193db33f90812504e902aa0ae38623ab19557bce4bf",
+      "preimage_sha256": null,
+      "origin": "Cap/MCP Source4 / F15 atceca",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009"
+    },
+    {
+      "path": "departments/m10-memoire/src/m10_memoire/outils.py",
+      "sha256": "9ff922a8dd66605fc04dd93fe002900ea285a80e577fed70ff84c43cf6b641f0",
+      "preimage_sha256": "010358cc51e363e3ce216bc28f6d74520cc66fcaf70c006679b9246bf28268d4",
+      "origin": "Facade Source3 / F15 atceca",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009"
+    },
+    {
+      "path": "departments/m10-memoire/tests/test_outils_documents_affaire_appareil.py",
+      "sha256": "5b860f4ae8cb225547c8e6c5b73cd0425fc277ee7975b2b6c295e13c32a23018",
+      "preimage_sha256": null,
+      "origin": "Facade Source3 / F15 atceca",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009"
+    },
+    {
+      "path": "departments/m10-memoire/docs/DOCUMENTS-AFFAIRE-RPC.md",
+      "sha256": "f45c53b9a7ee70b70e03c460e866f40064ce89b687afecfc90a7d8bcc9f7670c",
+      "preimage_sha256": null,
+      "origin": "Facade Source3 / F15 atceca",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009"
+    },
+    {
+      "path": "tests/test_portees_appareil.py",
+      "sha256": "f0fe810511de87f96b1b48fb684b3475eb9a016130f91fab13dd39270e7df1c1",
+      "preimage_sha256": "9624cc62ede261681ccf2a3ac7464e63c5f610f809a703f67bf5cbcb41bd3048",
+      "origin": "Root canonicalmetadata3 / F15 atceca",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009"
+    },
+    {
+      "path": "tests/test_openclaw_contexte.py",
+      "sha256": "e890244118c8971c538b06c0064c7d7c6cdf83f7930d85c527d23b6623539c25",
+      "preimage_sha256": "43b777bfcc5c05fdab8576d7be9b15b048a48cad1e865d7c5e18f53861a8a59a",
+      "origin": "Root canonicalmetadata3 / F15 atceca",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009"
+    },
+    {
+      "path": "docs/architecture/ROLES.md",
+      "sha256": "f43c6c115df6c13b27ddef4bbd86bfd6d6ccb2ddeb29ef7483e984aa13524f34",
+      "preimage_sha256": "d2e5efcfb6ef7cff1cb881418019cc1124c5e817e3478ba98fe994b0ea310d22",
+      "origin": "Root canonicalmetadata3 / F15 atceca",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009"
+    },
+    {
+      "path": "mobile/src/m10/documentsAffaireOutbox.ts",
+      "sha256": "383d374df4af4ce20cdab2f26b645f0b286f99bb8390ea17b0bd69504bcb8032",
+      "preimage_sha256": null,
+      "origin": "MobileSource9 frozen",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING"
+    },
+    {
+      "path": "mobile/src/m10/documentsAffaireOutbox.test.ts",
+      "sha256": "42a6f03449641a921db9ad2d499524c08a5db0a1d046c8bad559465083059f1b",
+      "preimage_sha256": null,
+      "origin": "MobileSource9 frozen",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING"
+    },
+    {
+      "path": "mobile/src/outbox/documentsM10.test.ts",
+      "sha256": "369b589e76bc3d9a498f62a82187f9bba20bed56627f8ba59b8abb8f4e5ce308",
+      "preimage_sha256": null,
+      "origin": "MobileSource9 frozen",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING"
+    },
+    {
+      "path": "mobile/src/outbox/types.ts",
+      "sha256": "8657553ffd29ee6efec9b71061fb0f6e510162cff7a18d0e8705882421e28796",
+      "preimage_sha256": "a038e12a00cd69c48c901099959a92f4b1e2bbcc56d4b44884b1fd9fae9566b2",
+      "origin": "MobileSource9 frozen",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING"
+    },
+    {
+      "path": "mobile/src/outbox/descripteurs.ts",
+      "sha256": "c3976c5c07b1c597416543390864475ea212367d48937902d59d27300a7879c2",
+      "preimage_sha256": "5e6b46121bcab7eda9f7cc836003caea17d590585026afd0dfa9feae9ee97cb7",
+      "origin": "MobileSource9 frozen",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING"
+    },
+    {
+      "path": "mobile/src/outbox/service.ts",
+      "sha256": "80f83efb7e8e4741bbfaaf35e05d8d523a46b82ba70a655a5bb0e2dcd66f5123",
+      "preimage_sha256": "df73b4a51ab37fd039d75f291bfaa42e4e3bd14f105dc4ef2f4256528ac208c8",
+      "origin": "MobileSource9 frozen",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING"
+    },
+    {
+      "path": "mobile/src/outbox/service.test.ts",
+      "sha256": "ff8a7a1a47e1901a25db83279f5ebe89a25fdf1a78ee971926d8a95ffe06432e",
+      "preimage_sha256": "5903bcd3a640f58f06e8d4a4270e87b285097e9f122fc2a697c2727275a30b59",
+      "origin": "MobileSource9 frozen",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING"
+    },
+    {
+      "path": "mobile/src/outbox/vidangeur.ts",
+      "sha256": "3adfedbdec0e74a317bfb3a9496fe66a93455329279080bcb853146f623a8a22",
+      "preimage_sha256": "d3cac77081a4c077be960e481cf34167b73ff7e31dd76128b6c280e543c27ffa",
+      "origin": "MobileSource9 frozen",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING"
+    },
+    {
+      "path": "mobile/docs/DOCUMENTS-AFFAIRE-OUTBOX.md",
+      "sha256": "ceef611b1afe0ac33cd1cc09fadd2cd2e4988de043bd2aaeb446d903d726b339",
+      "preimage_sha256": null,
+      "origin": "MobileSource9 frozen",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m10-device-frontiere-20261009",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING"
+    },
+    {
+      "path": "src/opsys/memoire/serveur_embeddings_local.py",
+      "sha256": "81e4e1881f957db2e37d06c7a93f74f871b46ccdcd37cd6ed1612c295a6f83fc",
+      "preimage_sha256": "12ee8afa10fd3397e015d0233075e2a7c87a6d40075cf6b25c4f63496178c08e",
+      "origin": "Embeddings Source2F16 red→greenHTTP",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-embeddings-saturation-20261010",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING"
+    },
+    {
+      "path": "tests/test_memoire_embeddings_local.py",
+      "sha256": "4c3a0aab1e1ef85f96fb991f15709a76fb7aecf9c955556627a2fd7de11a3f07",
+      "preimage_sha256": "429e757ce613b816db59da4213d0620612b0687e5cbd0360037d02cd50381788",
+      "origin": "Embeddings Source2F16 red→greenHTTP",
+      "origin_checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-embeddings-saturation-20261010",
+      "verification": "Primary fresh478P0skip/553P27suites/TSC/Ruff/metier240148; respective modulegroups frozen Native/source2/mobileproofs separately",
+      "limit": "No new exactCI yet; UI/phone/newdocumentaryPG absent; localCoreheavychecks memoryblocked",
+      "integration_status": "PRIMARY_LOCAL_VERIFIED_UNCOMMITTED_EXACT_CI_PENDING"
+    }
+  ],
+  "dispositions": {
+    "unleased_BRIEF": "UNKNOWN preserved excluded, Root disposition600731...",
+    "missing104proofs": "absent lightweight pack; no available/reexecuted credit",
+    "fullsupplement_and_absentconversations": "UNKNOWN notinvented",
+    "Core": "TREE4ad1... unchanged selectedsource/dist pins checked, no rebuildcreditnewcommit yet",
+    "newCI": "Notrun before newcommit",
+    "modelopinions": "Nottests; allmaterialfindings Root reproduced before code"
+  },
+  "fresh_remote_PR_head_before_integration": "ceca7308392f6948f069f18fc070bd596405fb63",
+  "availability_of_qualification_files": "Local workspace Q archives retained and hash-bound; notuploaded asGitHubworkflowartifacts or fullnewproofpack",
+  "local_primary_qualification_receipt_sha256": "6082249ad2e3ab92d1d5cc4221a9b328dcff0018e5aefe2ab24b2063a043100d",
+  "native_current_Root_readback_sha256": "66c9fedc7138506bf0245a3cbd9fd1819f17d183e4b159a18e3ab869e9b798f9",
+  "Core_local_resource_block_sha256": "4660b834c23ea46bb80034ab62c5f99b03a8f52dc7b80d07ccbcbd1beb2a8b27"
+}

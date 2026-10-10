@@ -44,3 +44,24 @@ test.each(["employee", "seller", "url", "appareil", "personne"])("D typed %s fer
     expect(await depot.obtenir(m.id)).toMatchObject({ id: m.id, payload: m.payload, statut: "en_attente", proprietaire: origin.personne });
   } finally { global.fetch = old; config.definirConfigurationAppel(null); config.definirPersonneConfirmee(null); }
 });
+
+test.each(["deposer","activer","retirer"] as const)("M10 %s : service réel admin/destination envoie commande seule, réponse inconnue conserve clé",async op=>{
+ jest.resetModules();const c=require("../protocole/configuration") as typeof import("../protocole/configuration");const s=require("./service") as typeof import("./service");
+ const api=require("../m10/documentsAffaireOutbox") as typeof import("../m10/documentsAffaireOutbox");mockDepot=new DepotOutboxMemoire();
+ const o={personne:"admin.fictif",appareilId:"APP-FICTIF",urlBase:"https://core-fictif.invalid"};c.definirConfigurationAppel({...o,jeton:"TOKEN-FICTIF"});c.definirPersonneConfirmee({...o,jeton:"TOKEN-FICTIF",role:"admin"});
+ const r={registre:"documents_affaire",index:0,ligne_id:"a".repeat(64)};const args=op==="deposer"?{affaire_id:"LEAD-FICTIF",document_ref:null,version_precedente:null,titre:"FICTIF",corps:" ",confidentialite:"INTERNAL"}:op==="activer"?{affaire_id:"LEAD-FICTIF",document_ref:r,version_source:r,activation_attendue:null}:{affaire_id:"LEAD-FICTIF",document_ref:r,activation_attendue:null,code_motif:"RETRAIT_ACCES"};
+ const depot=await s.obtenirDepot(),m=await depot.inserer(api.creerMutationDocumentM10(op,args,()=>"00000000-0000-4000-8000-000000000001",{maintenant:new Date("2026-10-09T12:00:00Z"),decalageMinutesUTC:0},o));
+ const old=global.fetch,f=jest.fn(async(_u:RequestInfo|URL,init?:RequestInit)=>{const b=JSON.parse(String(init?.body));expect(b.tool).toBe(api.OUTILS_DOCUMENT_M10[op]);expect(b.args).toEqual(args);expect(b.idempotencyKey).toBe(m.id);return new Response(JSON.stringify({ok:true,result:{ok:false,erreur:"FICTIF"}}));});global.fetch=f;
+ try {await s.declencherVidange();expect(f).toHaveBeenCalledTimes(1);expect(await depot.obtenir(m.id)).toMatchObject({id:m.id,payload:m.payload,statut:"en_attente"});}finally{global.fetch=old;c.definirConfigurationAppel(null);c.definirPersonneConfirmee(null);}
+});
+
+test.each(["role","url","appareil","personne","A-B-A","jeton-apres-await"])("M10 garde réelle %s refuse avant RPC et garde intention",async cause=>{
+ jest.resetModules();const c=require("../protocole/configuration") as typeof import("../protocole/configuration");const s=require("./service") as typeof import("./service");const api=require("../m10/documentsAffaireOutbox") as typeof import("../m10/documentsAffaireOutbox");mockDepot=new DepotOutboxMemoire();
+ const origin={personne:"admin.fictif",appareilId:"APP-FICTIF",urlBase:"https://core-fictif.invalid"};
+ const set=(role:string,o=origin,jeton="TOKEN-FICTIF")=>{c.definirConfigurationAppel({...o,jeton});c.definirPersonneConfirmee({...o,jeton,role});};set("admin");const depot=await s.obtenirDepot();
+ const m=await depot.inserer(api.creerMutationDocumentM10("deposer",{affaire_id:"LEAD-FICTIF",document_ref:null,version_precedente:null,titre:"FICTIF",corps:"FICTIF",confidentialite:"INTERNAL"},()=>"00000000-0000-4000-8000-000000000001",{maintenant:new Date("2026-10-09T12:00:00Z"),decalageMinutesUTC:0},origin));
+ if(cause==="role")set("employee");else if(cause==="url")set("admin",{...origin,urlBase:"https://autre-fictif.invalid"});else if(cause==="appareil")set("admin",{...origin,appareilId:"AUTRE-FICTIF"});else if(cause==="personne")set("admin",{...origin,personne:"autre.fictif"});
+ else {const read=mockDepot.obtenir.bind(mockDepot);let changed=false;mockDepot.obtenir=async id=>{const value=await read(id);if(!changed){changed=true;if(cause==="A-B-A"){set("employee");set("admin");}else set("admin",origin,"TOKEN-FICTIF-NOUVEAU");}return value;};}
+ const old=global.fetch,f=jest.fn(async()=>new Response("{}"));global.fetch=f;
+ try{await s.declencherVidange();expect(f).not.toHaveBeenCalled();expect(await depot.obtenir(m.id)).toMatchObject({id:m.id,payload:m.payload,proprietaire:origin.personne});}finally{global.fetch=old;c.definirConfigurationAppel(null);c.definirPersonneConfirmee(null);}
+});

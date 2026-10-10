@@ -30,7 +30,7 @@ from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 
 from . import __version__, contexte, etat, evenements, idempotence, liaison_cibles, stockage
-from .capacites import Capacites
+from .capacites import _OUTILS_DOCUMENTAIRES_M10, Capacites
 from .departements import Departement, charger_departements
 from .memoire import autorite as autorite_memoire
 from .outils import Autonomie
@@ -72,6 +72,39 @@ def creer_serveur(
 
     async def appeler_outil(ctx: Any, params: types.CallToolRequestParams) -> types.CallToolResult:
         del ctx
+        if params.name in _OUTILS_DOCUMENTAIRES_M10:
+            # The SDK already validates dict|None arguments. Keep the raw dict/None here;
+            # named guards and tiny-quota errors run before legacy normalization/Meta returns.
+            refus = None
+            if (outils_permis is not None and params.name not in outils_permis) or params.name in outils_caches:
+                refus = "REJ-M10-DOC-AUTORITE-INVALIDE"
+            try:
+                meta_brute = params.meta
+                if meta_brute is not None and type(meta_brute) is not dict:
+                    raise ValueError("forme")
+                values = {} if meta_brute is None else meta_brute
+                if any(values.get(key) is not None for key in (
+                    "opsys/cfoGrantTicket", "opsys/runtimeProfileId",
+                    "opsys/runtimeProfileRevision", "opsys/runtimeServer",
+                )):
+                    refus = "REJ-M10-DOC-AUTORITE-INVALIDE"
+                meta = idempotence.depuis_meta_mcp(meta_brute)
+                ticket_cible = liaison_cibles.depuis_meta_mcp(meta_brute)
+                ticket_memoire = autorite_memoire.meta_ticket(meta_brute)
+                identite = contexte.depuis_meta_mcp_identite(meta_brute)
+            except Exception:
+                refus = "REJ-M10-DOC-FORME-INVALIDE"
+            if refus is not None:
+                reponse = capacites.refus_documentaire_appareil(refus, avant_factory=True)
+            else:
+                with contexte.appele_par_appareil(identite):
+                    reponse = await anyio.to_thread.run_sync(
+                        capacites.appeler, params.name, params.arguments, meta, ticket_cible, ticket_memoire,
+                    )
+            return types.CallToolResult(
+                content=[types.TextContent(type="text", text=json.dumps(reponse, ensure_ascii=False, allow_nan=False))],
+                isError=not reponse.get("ok", False),
+            )
         if (outils_permis is not None and params.name not in outils_permis) or params.name in outils_caches:
             reponse = {"ok": False, "erreur": "outil_inconnu", "details": params.name}
             return types.CallToolResult(

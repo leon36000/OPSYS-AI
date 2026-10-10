@@ -1,3 +1,4 @@
+import { verifierDestinationDocumentM10 } from "../m10/documentsAffaireOutbox";
 import { verifierDestinationClassementVariance } from "../m6/classementVariance";
 import { verifierDestinationPriseRappelM1 } from "../m1/rappelsAppareil";
 import { verifierDestinationObligationPreparee } from "../m5/obligationsPreparees";
@@ -69,6 +70,12 @@ function obtenirVidangeur(): Promise<Vidangeur> {
         capturerGardeSession: () => capturerSessionLecture().courante,
         maintenant: () => new Date(),
         verifierAvantEnvoi:async(mutation,session,courante)=>{
+          if (mutation.type === "document_m10_depot" || mutation.type === "document_m10_activation" || mutation.type === "document_m10_retrait") {
+            const admin = capturerSessionAdminLecture();
+            return courante() && admin.courante() && admin.session !== null && admin.session.personne === session.personne &&
+              admin.session.appareilId === session.appareilId && admin.session.urlBase === session.urlBase &&
+              admin.session.jeton === session.jeton && verifierDestinationDocumentM10(mutation, session);
+          }
           if (mutation.type === "obligation_preparee") {
             const admin = capturerSessionAdminLecture();
             return courante() && admin.courante() && admin.session !== null && admin.session.personne === session.personne &&

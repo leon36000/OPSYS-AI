@@ -38,6 +38,11 @@ MAX_CARACTERES = 20_000
 MAX_CORPS_OCTETS = 128 * 1024
 DELAI_ENTETES_CORPS_S = 10.0
 DELAI_INACTIVITE_SOCKET_S = 5.0
+# Le rejet est envoyé immédiatement ; sa fermeture laisse un court budget au
+# client qui écrit encore. Ce drain ne valide ni ne conserve la requête refusée.
+DELAI_DRAIN_REJET_S = 0.1
+MAX_DRAIN_REJET_OCTETS = MAX_CORPS_OCTETS + 8 * 1024
+BLOC_DRAIN_REJET_OCTETS = 4096
 
 RECETTE_EMBEDDING = recette_embedding()
 
@@ -423,11 +428,24 @@ class ServeurEmbeddingsLocal(ThreadingMixIn, HTTPServer):
     def process_request(self, request: socket.socket, client_address: Any) -> None:
         request.settimeout(DELAI_INACTIVITE_SOCKET_S)
         if not self._slot.acquire(blocking=False):
+            fin = time.monotonic() + DELAI_DRAIN_REJET_S
+            request.settimeout(DELAI_DRAIN_REJET_S)
             try:
                 request.sendall(
                     b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n"
                     b"Connection: close\r\nRetry-After: 1\r\n\r\n"
                 )
+                request.shutdown(socket.SHUT_WR)
+                restant_octets = MAX_DRAIN_REJET_OCTETS
+                while restant_octets:
+                    restant_s = fin - time.monotonic()
+                    if restant_s <= 0:
+                        break
+                    request.settimeout(restant_s)
+                    bloc = request.recv(min(BLOC_DRAIN_REJET_OCTETS, restant_octets))
+                    if not bloc:
+                        break
+                    restant_octets -= len(bloc)
             except OSError:
                 pass
             finally:

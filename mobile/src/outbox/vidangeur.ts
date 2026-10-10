@@ -36,6 +36,8 @@ export type InterpretationResultatMetier =
 export interface DescripteurTypeMutation {
   readonly tool: string;
   readonly groupeSerie?:string;
+  /** Opt-in M10 : un état permanent sans confirmation propre ne libère pas la série. */
+  readonly echecPermanentBloqueSerie?: boolean;
   readonly verifierAvantEnvoi?:boolean;
   /** Opt-in : un refus de transport ne prouve pas l’absence d’un effet antérieur. */
   readonly conserverRefusHttpIncertains?: boolean;
@@ -192,7 +194,7 @@ type IssueEnvoi =
 /** Politique optionnelle : une intention inconnue/en recul/quarantaine n'est jamais contournée.
  * Les champs d'ordre viennent du dépôt. Une série sans ordre sûr reste fermée. */
 function terminaliteVerifiee(mutation: MutationOutbox, descripteur?: DescripteurTypeMutation): boolean {
-  return mutation.statut === "echec_permanent" || (mutation.statut === "envoyee" &&
+  return (mutation.statut === "echec_permanent" && descripteur?.echecPermanentBloqueSerie !== true) || (mutation.statut === "envoyee" &&
     (!descripteur?.validerRecuEnvoye || descripteur.validerRecuEnvoye(mutation) === true));
 }
 

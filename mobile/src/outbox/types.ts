@@ -26,6 +26,9 @@ export type StatutMutation = "brouillon" | "en_attente" | "envoi" | "envoyee" | 
  *    une réponse perdue n'est écrite qu'une fois.
  */
 export type TypeMutation =
+  | "document_m10_depot"
+  | "document_m10_activation"
+  | "document_m10_retrait"
   | "punch_in"
   | "punch_out"
   | "job_status_change"

@@ -116,6 +116,9 @@ ADMIN_SEUL = frozenset({
     "m10_clore_signal", "m10_lier_session_affaire",
     # Lecture DEVICE distincte du contexte privé Core : admin actuel, agent=None, sans artefact.
     "m10_lire_paquet_affaire_appareil", "m10_rechercher_affaire_appareil",
+    # Mutations documentaires nommées : admin DEVICE courant, N3 et affaire autorisée.
+    "m10_deposer_version_document_appareil", "m10_activer_version_document_appareil",
+    "m10_retirer_document_appareil",
 })
 # Le lecteur paginé M3 est réservé au vendeur courant : l'admin ne choisit pas un vendeur
 # par argument et ne reçoit pas ce tool. Le lecteur de chantier et le diagnostic sont admin.

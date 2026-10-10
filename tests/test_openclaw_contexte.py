@@ -295,6 +295,15 @@ def test_cibles_explicitent_l_affaire_m3_et_refusent_les_contrats_non_declares(d
     # n'a pas déclaré une cible affaire ou justifié une portée globale.
     assert contexte["cibles"]["m3_creer_devis"] == {"type": "ticket"}
     assert contexte["cibles"]["m5_enregistrer_mouvement"] == {"type": "inconnue"}
+    for nom in (
+        "m10_deposer_version_document_appareil",
+        "m10_activer_version_document_appareil",
+        "m10_retirer_document_appareil",
+    ):
+        assert contexte["niveaux"][nom] == "N3"
+        assert contexte["cibles"][nom] == {
+            "type": "affaire", "chemin": ["affaire_id"], "identite": "affaire",
+        }
     assert all(contexte["niveaux"][nom] in {"N3", "N4", "N5"} for nom in contexte["cibles"])
 
 

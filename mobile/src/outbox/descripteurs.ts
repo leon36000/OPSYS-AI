@@ -1,3 +1,4 @@
+import { OUTILS_DOCUMENT_M10, argumentsRpcDocumentM10, interpreterDocumentM10, validerRecuDocumentM10 } from "../m10/documentsAffaireOutbox";
 import { OUTIL_CLASSEMENT_VARIANCE, argumentsRpcClassementVariance, interpreterClassementGenerique, validerRecuClassementVariance } from "../m6/classementVariance";
 import { OUTIL_MATERIAUX_AVEC_PREUVES, argumentsRpcMateriauxAvecPreuves, interpreterMateriauxAvecPreuves, validerRecuMateriauxAvecPreuves } from "../m6/materiauxAvecPreuves";
 import { interpreterResultatCompleterIntervention } from "../m4/completion";
@@ -147,6 +148,15 @@ function versInterpretationGeneriqueNote(resultatBrut: unknown): InterpretationR
  * `src/m2/interaction.ts`).
  */
 export const DESCRIPTEURS_MUTATION: ReadonlyMap<TypeMutation, DescripteurTypeMutation> = new Map<TypeMutation, DescripteurTypeMutation>([
+  ["document_m10_depot", { tool: OUTILS_DOCUMENT_M10.deposer, construireArguments: argumentsRpcDocumentM10,
+    interpreterResultat: interpreterDocumentM10, groupeSerie: "documents-m10", serialiserParChantier: true,
+    conserverRefusHttpIncertains: true, verifierAvantEnvoi: true, validerRecuEnvoye: validerRecuDocumentM10, echecPermanentBloqueSerie: true }],
+  ["document_m10_activation", { tool: OUTILS_DOCUMENT_M10.activer, construireArguments: argumentsRpcDocumentM10,
+    interpreterResultat: interpreterDocumentM10, groupeSerie: "documents-m10", serialiserParChantier: true,
+    conserverRefusHttpIncertains: true, verifierAvantEnvoi: true, validerRecuEnvoye: validerRecuDocumentM10, echecPermanentBloqueSerie: true }],
+  ["document_m10_retrait", { tool: OUTILS_DOCUMENT_M10.retirer, construireArguments: argumentsRpcDocumentM10,
+    interpreterResultat: interpreterDocumentM10, groupeSerie: "documents-m10", serialiserParChantier: true,
+    conserverRefusHttpIncertains: true, verifierAvantEnvoi: true, validerRecuEnvoye: validerRecuDocumentM10, echecPermanentBloqueSerie: true }],
   ["completion_review_proposal", { tool: OUTIL_PROPOSITION_REVUE_COMPLETION_SOURCES, construireArguments: argumentsRpcRevueCompletion,
     interpreterResultat: interpreterRevueCompletion, groupeSerie: "approval_decision", serialiserParChantier: true,
     conserverRefusHttpIncertains: true, verifierAvantEnvoi: true, validerRecuEnvoye: validerRecuRevueCompletion }],

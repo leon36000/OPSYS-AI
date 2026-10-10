@@ -1,5 +1,6 @@
 """Contrat HTTP borné du provider local, sans charger le modèle dans les tests unitaires."""
 
+import http.client
 import importlib.util
 import json
 import socket
@@ -7,7 +8,7 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 
 import pytest
 
@@ -213,3 +214,166 @@ if _MODULE_SPEC is not None:
                 timeout=2,
             ) as response:
                 assert response.status == 200
+
+    class _MoteurCompte(_Moteur):
+        def __init__(self):
+            super().__init__(bloquer=True)
+            self.appels = 0
+
+        def embed_one(self, texte, delai_s):
+            self.appels += 1
+            return super().embed_one(texte, delai_s)
+
+    class _ServeurObserve(ServeurEmbeddingsLocal):
+        """Observe les fermetures réelles, sans remplacer socket ou traitement."""
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.rejet_ferme = threading.Event()
+            self.threads_requete = set()
+
+        def close_request(self, request):
+            super().close_request(request)
+            if self.moteur.commence.is_set() and not self.moteur.continuer.is_set():
+                self.rejet_ferme.set()
+
+        def process_request_thread(self, request, client_address):
+            self.threads_requete.add(threading.get_ident())
+            super().process_request_thread(request, client_address)
+
+    @contextmanager
+    def _inference_occupee():
+        moteur = _MoteurCompte()
+        serveur = _ServeurObserve(("127.0.0.1", 0), cle=CLE, moteur=moteur, delai_s=1.0)
+        service = threading.Thread(target=serveur.serve_forever, kwargs={"poll_interval": 0.01})
+        service.start()
+        base = f"http://127.0.0.1:{serveur.server_address[1]}/v1"
+        resultat = {}
+
+        def premier_appel():
+            try:
+                with _post(base, CLE, {"model": MODELE, "input": "premier fictif"}) as response:
+                    response.read()
+                    resultat["status"] = response.status
+            except Exception as exc:
+                resultat["erreur"] = type(exc).__name__
+
+        premier = threading.Thread(target=premier_appel)
+        premier.start()
+        try:
+            assert moteur.commence.wait(1)
+            yield serveur, moteur, base
+        finally:
+            moteur.continuer.set()
+            premier.join(2)
+            serveur.shutdown()
+            serveur.server_close()
+            service.join(2)
+            assert not premier.is_alive() and not service.is_alive()
+            assert resultat == {"status": 200}
+
+    def _rejet_brut(serveur):
+        client = socket.create_connection(serveur.server_address, timeout=2)
+        # Le 503 arrive avant toute requête ; le laisser en attente ne simule
+        # aucune socket/exception et permet de contrôler les écritures du client.
+        prefixe = client.recv(4096, socket.MSG_PEEK)
+        assert prefixe.startswith(b"HTTP/1.1 503 Service Unavailable\r\n")
+        assert CLE.encode() not in prefixe
+        return client
+
+    def test_saturation_503_reste_lisible_entre_entetes_et_corps_retardes():
+        class ClientRetarde(http.client.HTTPConnection):
+            def connect(self):
+                super().connect()
+                assert self.sock.recv(4096, socket.MSG_PEEK).startswith(b"HTTP/1.1 503 ")
+
+            def send(self, data):
+                super().send(data)
+                if isinstance(data, bytes) and data.startswith(b"POST "):
+                    time.sleep(0.03)
+
+        class HandlerRetarde(urllib.request.HTTPHandler):
+            def http_open(self, req):
+                return self.do_open(ClientRetarde, req)
+
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), HandlerRetarde())
+        with _inference_occupee() as (serveur, moteur, base):
+            req = urllib.request.Request(
+                f"{base}/embeddings", data=json.dumps({"model": MODELE, "input": "second fictif"}).encode(),
+                headers={"Authorization": f"Bearer {CLE}", "Content-Type": "application/json"}, method="POST",
+            )
+            with pytest.raises(urllib.error.HTTPError) as erreur:
+                opener.open(req, timeout=2)
+            assert erreur.value.code == 503
+            assert erreur.value.read() == b""
+            assert moteur.appels == 1 and len(serveur.threads_requete) == 1
+
+    def test_rejet_sans_entetes_ferme_dans_la_borne_absolue():
+        with _inference_occupee() as (serveur, moteur, _), _rejet_brut(serveur) as client:
+            debut = time.monotonic()
+            assert serveur.rejet_ferme.wait(0.3)
+            assert time.monotonic() - debut < 0.3
+            assert client.recv(4096).startswith(b"HTTP/1.1 503 ")
+            assert moteur.appels == 1 and len(serveur.threads_requete) == 1
+
+    def test_octet_periodique_ne_reinitialise_pas_deadline_rejet():
+        with _inference_occupee() as (serveur, moteur, _), _rejet_brut(serveur) as client:
+            fin = time.monotonic() + 0.25
+            def envoyer_lentement():
+                while time.monotonic() < fin:
+                    try:
+                        client.sendall(b"x")
+                    except OSError:
+                        break
+                    time.sleep(0.02)
+
+            lent = threading.Thread(target=envoyer_lentement)
+            lent.start()
+            try:
+                assert serveur.rejet_ferme.wait(0.2)
+            finally:
+                lent.join(1)
+            assert not lent.is_alive()
+            assert moteur.appels == 1 and len(serveur.threads_requete) == 1
+
+    def test_eof_rejet_libere_accept_sans_attendre_deadline(monkeypatch):
+        from opsys.memoire import serveur_embeddings_local as module
+
+        # Étire seulement le budget de temps pour isoler la sortie sur EOF.
+        monkeypatch.setattr(module, "DELAI_DRAIN_REJET_S", 1.0, raising=False)
+        with _inference_occupee() as (serveur, moteur, _), _rejet_brut(serveur) as client:
+            client.shutdown(socket.SHUT_WR)
+            assert serveur.rejet_ferme.wait(0.3)
+            assert moteur.appels == 1
+
+    def test_cap_octets_rejet_libere_accept_independamment_du_temps(monkeypatch):
+        from opsys.memoire import serveur_embeddings_local as module
+
+        monkeypatch.setattr(module, "DELAI_DRAIN_REJET_S", 1.0, raising=False)
+        with _inference_occupee() as (serveur, moteur, _), _rejet_brut(serveur) as client:
+            # Contrat : 128KiB corps + 8KiB entêtes, et un octet de dépassement.
+            # Au-delà du cap, le refus interprétable n'est pas garanti.
+            with suppress(OSError):
+                client.sendall(b"x" * (139_264 + 1))
+            assert serveur.rejet_ferme.wait(0.3)
+            assert moteur.appels == 1 and len(serveur.threads_requete) == 1
+
+    def test_trois_rejets_bornent_accept_et_recuperent_sans_threads_supplementaires():
+        clients = []
+        with _inference_occupee() as (serveur, moteur, base):
+            debut = time.monotonic()
+            try:
+                for _ in range(3):
+                    clients.append(_rejet_brut(serveur))
+                assert time.monotonic() - debut < 0.6
+                assert moteur.appels == 1 and len(serveur.threads_requete) == 1
+                moteur.continuer.set()
+                req = urllib.request.Request(
+                    base.replace("/v1", "") + "/healthz", headers={"Authorization": f"Bearer {CLE}"},
+                )
+                with urllib.request.urlopen(req, timeout=2) as response:
+                    assert response.status == 200
+                assert time.monotonic() - debut < 0.8
+            finally:
+                for client in clients:
+                    client.close()

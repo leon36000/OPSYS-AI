@@ -42,9 +42,14 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
 from typing import Any
 
-from opsys import approbations, jetons, stockage
+from sqlalchemy import Connection
+
+from opsys import approbations, idempotence, jetons, stockage
 from opsys import contexte as contexte_appel
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
@@ -57,6 +62,7 @@ from . import (
     contexte,
     contrats,
     decisions,
+    documents_affaire,
     dossier_revision,
     etapes,
     faits_candidats,
@@ -639,6 +645,147 @@ def affaire_de_la_session(cle_session: str) -> dict[str, Any]:
     return liaison.affaire_de_la_session(cle_session, _REGISTRE_AFFAIRES)
 
 
+@dataclass(frozen=True)
+class _InvocationDocumentaire:
+    cnx: Connection
+    meta: idempotence.Meta
+    quota: int
+    mode_manifeste: str
+
+
+_INVOCATION_DOCUMENTAIRE: ContextVar[_InvocationDocumentaire | None] = ContextVar(
+    "m10_invocation_documentaire_appareil",
+    default=None,
+)
+
+
+def _verifier_invocation_documentaire(invocation):
+    try:
+        if (
+            type(invocation) is not _InvocationDocumentaire
+            or not isinstance(invocation.cnx, Connection)
+            or invocation.cnx is not stockage.connexion_courante()
+            or invocation.cnx.closed
+            or not invocation.cnx.in_transaction()
+            or invocation.cnx.get_nested_transaction() is None
+            or type(invocation.meta) is not idempotence.Meta
+            or type(invocation.quota) is not int
+            or invocation.quota < 40
+            or type(invocation.mode_manifeste) is not str
+            or invocation.mode_manifeste not in ("ombre", "supervise", "autonome")
+        ):
+            raise RuntimeError("CONFIRMATION-INCONNUE")
+        for valeur in (invocation.meta.appareil, invocation.meta.cle):
+            if type(valeur) is not str or not valeur.strip() or len(valeur) > 128:
+                raise RuntimeError("CONFIRMATION-INCONNUE")
+            valeur.encode("utf-8", "strict")
+        hora = invocation.meta.horodatage_appareil
+        if type(hora) is not str or len(hora) > 40 or not humain.horodatage_valide(hora):
+            raise RuntimeError("CONFIRMATION-INCONNUE")
+        hora.encode("utf-8", "strict")
+    except Exception:
+        raise RuntimeError("CONFIRMATION-INCONNUE") from None
+
+
+@contextmanager
+def invocation_documentaire_appareil(cnx, *, meta, quota, mode_manifeste):
+    """Liaison privée du caller nommé ; ni autorité SQL ni permission DEVICE fabriquée."""
+    if _INVOCATION_DOCUMENTAIRE.get() is not None:
+        raise RuntimeError("CONFIRMATION-INCONNUE") from None
+    invocation = _InvocationDocumentaire(cnx, meta, quota, mode_manifeste)
+    _verifier_invocation_documentaire(invocation)
+    token = _INVOCATION_DOCUMENTAIRE.set(invocation)
+    try:
+        yield
+    finally:
+        _INVOCATION_DOCUMENTAIRE.reset(token)
+
+
+def _executer_documentaire_appareil(operation, arguments):
+    invocation = _INVOCATION_DOCUMENTAIRE.get()
+    if invocation is None:
+        raise RuntimeError("CONFIRMATION-INCONNUE") from None
+    _verifier_invocation_documentaire(invocation)
+    try:
+        commande = documents_affaire.valider_commande(operation, arguments)
+    except Exception:
+        raise RuntimeError("CONFIRMATION-INCONNUE") from None
+    # Import seulement après la liaison et l'admission pure, aucun fallback générique.
+    from opsys.documents_affaire_transactions import muter_document_m10
+
+    return muter_document_m10(
+        invocation.cnx,
+        operation,
+        commande,
+        meta=invocation.meta,
+        quota=invocation.quota,
+        mode_manifeste=invocation.mode_manifeste,
+    )
+
+
+def deposer_version_document_appareil(
+    affaire_id,
+    document_ref,
+    version_precedente,
+    titre,
+    corps,
+    confidentialite,
+):
+    return _executer_documentaire_appareil(
+        "deposer",
+        {
+            "affaire_id": affaire_id,
+            "document_ref": document_ref,
+            "version_precedente": version_precedente,
+            "titre": titre,
+            "corps": corps,
+            "confidentialite": confidentialite,
+        },
+    )
+
+
+def activer_version_document_appareil(
+    affaire_id,
+    document_ref,
+    version_source,
+    activation_attendue,
+):
+    return _executer_documentaire_appareil(
+        "activer",
+        {
+            "affaire_id": affaire_id,
+            "document_ref": document_ref,
+            "version_source": version_source,
+            "activation_attendue": activation_attendue,
+        },
+    )
+
+
+def retirer_document_appareil(affaire_id, document_ref, activation_attendue, code_motif):
+    return _executer_documentaire_appareil(
+        "retirer",
+        {
+            "affaire_id": affaire_id,
+            "document_ref": document_ref,
+            "activation_attendue": activation_attendue,
+            "code_motif": code_motif,
+        },
+    )
+
+
+_REFERENCE_DOCUMENTAIRE = {
+    "type": "object",
+    "properties": {
+        "registre": {"type": "string", "enum": ["documents_affaire"]},
+        "index": {"type": "integer", "minimum": 0, "maximum": 511},
+        "ligne_id": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    },
+    "required": ["registre", "index", "ligne_id"],
+    "additionalProperties": False,
+}
+_REFERENCE_DOCUMENTAIRE_NULLABLE = {**_REFERENCE_DOCUMENTAIRE, "type": ["object", "null"]}
+
+
 def outils() -> tuple[Outil, ...]:
     """Capacités exposées aux agents (fonction : les constantes publiques du paquet sont des énumérés)."""
     return (
@@ -1048,5 +1195,84 @@ def outils() -> tuple[Outil, ...]:
                 "additionalProperties": False,
             },
             fonction=auditer_non_oubli,
+        ),
+        Outil(
+            nom="m10_deposer_version_document_appareil",
+            description=(
+                "Dépôt documentaire interne par l'admin appareil : texte exact INTERNAL, nouvelle version, "
+                "sans activation implicite. Le rôle SQL, le mode ombre, l'affaire et la preuve propre sont "
+                'vérifiés dans la transaction nommée.'
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "affaire_id": _AFFAIRE_ID,
+                    "document_ref": _REFERENCE_DOCUMENTAIRE_NULLABLE,
+                    "version_precedente": _REFERENCE_DOCUMENTAIRE_NULLABLE,
+                    "titre": {"type": "string", "minLength": 1, "maxLength": 120},
+                    "corps": {"type": "string", "minLength": 1, "maxLength": 2000},
+                    "confidentialite": {"type": "string", "enum": ["INTERNAL"]},
+                },
+                "required": ["affaire_id", "document_ref", "version_precedente", "titre", "corps", "confidentialite"],
+                "additionalProperties": False,
+            },
+            fonction=deposer_version_document_appareil,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N3,
+            roles_appareil=frozenset({"admin"}),
+            portee_contexte="affaire",
+            cible_contexte=("affaire_id",),
+            identite_contexte="affaire",
+        ),
+        Outil(
+            nom="m10_activer_version_document_appareil",
+            description=(
+                "Activation explicite par l'admin appareil d'une version documentaire interne liée à son "
+                "affaire. Aucune preuve de vérité métier n'est déduite de la fidélité du texte."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "affaire_id": _AFFAIRE_ID,
+                    "document_ref": _REFERENCE_DOCUMENTAIRE,
+                    "version_source": _REFERENCE_DOCUMENTAIRE,
+                    "activation_attendue": _REFERENCE_DOCUMENTAIRE_NULLABLE,
+                },
+                "required": ["affaire_id", "document_ref", "version_source", "activation_attendue"],
+                "additionalProperties": False,
+            },
+            fonction=activer_version_document_appareil,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N3,
+            roles_appareil=frozenset({"admin"}),
+            portee_contexte="affaire",
+            cible_contexte=("affaire_id",),
+            identite_contexte="affaire",
+        ),
+        Outil(
+            nom="m10_retirer_document_appareil",
+            description=(
+                "Retrait doux d'accès documentaire par l'admin appareil : ferme les corps/extraits de "
+                "toutes les versions, conserve la chaîne et les copies d'audit existantes. Aucun effacement "
+                "définitif n'est promis."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "affaire_id": _AFFAIRE_ID,
+                    "document_ref": _REFERENCE_DOCUMENTAIRE,
+                    "activation_attendue": _REFERENCE_DOCUMENTAIRE_NULLABLE,
+                    "code_motif": {"type": "string", "enum": ["RETRAIT_ACCES"]},
+                },
+                "required": ["affaire_id", "document_ref", "activation_attendue", "code_motif"],
+                "additionalProperties": False,
+            },
+            fonction=retirer_document_appareil,
+            autonomie=Autonomie.T1,
+            niveau=Niveau.N3,
+            roles_appareil=frozenset({"admin"}),
+            portee_contexte="affaire",
+            cible_contexte=("affaire_id",),
+            identite_contexte="affaire",
         ),
     )
