@@ -601,8 +601,9 @@ class Capacites:
         if (
             type(acteur) is not IdentiteAppelante or type(acteur.personne) is not str
             or type(acteur.role) is not str or type(acteur.source) is not str
-            or acteur.role != "admin" or acteur.source != "appareil" or self.appelant is not None
+            or acteur.role != "admin" or acteur.source != "appareil"
             or entree is None or entree[0] is None or entree[0].id != "m10-memoire"
+            or (self.appelant is not None and self.appelant is not entree[0])
             or entree[1].nom != nom or entree[1].autonomie is not Autonomie.T0
             or entree[1].niveau_effectif is not Niveau.N0 or nom not in self._outils_du_role("admin")
             or ticket_cible is not None or ticket_memoire is not None or contexte_appel.ticket_agent_cfo() is not None

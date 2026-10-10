@@ -141,3 +141,21 @@ def test_sdk_sql_detail_relecture_retrait_role_sql_et_purete(monde):
 def test_autre_nom_historique_pas_de_cadre_lecture_documentaire():
     result = appeler(h.cap(factory=h.interdite), "inconnu_fictif", {}, meta=None)
     assert json.loads(result.content[0].text) == {"ok": False, "erreur": "outil_inconnu", "details": "inconnu_fictif"}
+
+
+@pytest.mark.parametrize("nom", h.NOMS)
+def test_sdk_route_departement_device_canonique_meme_dto_pur(monde, nom):
+    ack = h.fx._first()["resultat"]["resultat"]
+    args = h.INDEX if nom == h.NOMS[0] else {
+        "affaire_id": h.fx.AFFAIRE, "document_ref": ack["document_ref"], "version_source": ack["version_source"],
+    }
+    c = h.cap(appelant="m10-memoire")
+    assert c.appelant is c.index[nom][0]
+    before = h.tables()
+    expected = appeler(h.cap(), nom, args)
+    assert expected.is_error is False and len(expected.content) == 1
+    result = appeler(c, nom, args)
+    assert result.is_error is False and len(result.content) == 1
+    assert result.content[0].text == expected.content[0].text
+    assert h.tables() == before
+    print("ROUTE_DEVICE_SDK_TABLES", len(before))

@@ -31,8 +31,9 @@ REF = {"registre": "documents_affaire", "index": 0, "ligne_id": "0" * 64}
 DETAIL = {"affaire_id": fx.AFFAIRE, "document_ref": REF, "version_source": REF}
 
 
-def cap(quota=6000, factory=stockage.transaction):
-    return Capacites(charger_departements(), factory, filtre={"m10-memoire"}, memoire=False, limite_sortie=quota)
+def cap(quota=6000, factory=stockage.transaction, *, appelant=None):
+    return Capacites(charger_departements(), factory, filtre={"m10-memoire"}, memoire=False, limite_sortie=quota,
+                      appelant=appelant)
 
 
 def appeler(c, args=INDEX, *, nom=NOMS[0], actor=fx.ACTEUR, **kwargs):
@@ -104,6 +105,7 @@ def test_detail_arguments_stricts_zero_factory(args):
 
 @pytest.mark.parametrize("actor", [
     None, contexte.IdentiteAppelante(fx.ACTEUR.personne, "admin", "console"),
+    contexte.IdentiteAppelante(fx.ACTEUR.personne, "admin", "agent"),
     contexte.IdentiteAppelante(fx.ACTEUR.personne, "employee", "appareil"),
     contexte.IdentiteAppelante(fx.ACTEUR.personne, "seller", "appareil"),
     contexte.IdentiteAppelante(fx.ACTEUR.personne, "client", "appareil"),
@@ -150,7 +152,9 @@ def test_quota_invalide_zero_factory(quota):
         appeler(cap(quota, interdite))
 
 
-@pytest.mark.parametrize("change", ["missing", "owner", "autonomy", "level", "role", "agent", "mode"])
+@pytest.mark.parametrize("change", [
+    "missing", "owner", "autonomy", "level", "role", "foreign-route", "lookalike", "mode",
+])
 def test_index_admission_fermee_zero_factory(change):
     c = cap(factory=interdite)
     d, o = c.index[NOMS[0]]
@@ -164,8 +168,11 @@ def test_index_admission_fermee_zero_factory(change):
         c.index[NOMS[0]] = (d, dataclasses.replace(o, niveau=Niveau.N3))
     elif change == "role":
         c._portees_roles = {"admin": frozenset()}
-    elif change == "agent":
-        c.appelant = d
+    elif change == "foreign-route":
+        c.appelant = charger_departements()["m05-financecore"]
+    elif change == "lookalike":
+        c.appelant = dataclasses.replace(d)
+        assert c.appelant == d and c.appelant is not d
     else:
         c.index[NOMS[0]] = (dataclasses.replace(d, mode="CANARI_FICTIF"), o)
     suffixe = "MODE-NON-ADMIS" if change == "mode" else "AUTORITE-INVALIDE"
@@ -384,3 +391,20 @@ def test_connexion_non_canonique_ne_permet_pas_handler(monde):
     before = tables()
     assert appeler(c) == {"ok": False, "erreur": "REJ-M10-LECTURE-INDISPONIBLE"}
     assert before == tables()
+
+
+@pytest.mark.parametrize("nom", NOMS)
+def test_route_departement_device_canonique_meme_dto_pur(monde, nom):
+    ack = fx._first()["resultat"]["resultat"]
+    args = INDEX if nom == NOMS[0] else {
+        "affaire_id": fx.AFFAIRE, "document_ref": ack["document_ref"], "version_source": ack["version_source"],
+    }
+    c = cap(appelant="m10-memoire")
+    assert c.appelant is c.index[nom][0]
+    before = tables()
+    expected = appeler(cap(), args, nom=nom)
+    assert expected["ok"] is True
+    result = appeler(c, args, nom=nom)
+    assert result == expected
+    assert tables() == before
+    print("ROUTE_DEVICE_CAP_TABLES", len(before))
