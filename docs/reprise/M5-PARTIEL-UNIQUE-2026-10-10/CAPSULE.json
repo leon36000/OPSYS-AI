@@ -1,0 +1,54 @@
+{
+  "schema": "opsys-private-continuation-proof-v1",
+  "at_toronto": "2026-10-10T02:54:51.251334-04:00",
+  "product": "PARTIEL",
+  "state": "SOURCE7_INTEGRATED_PRIMARY_LOCAL_VERIFIED_NEW_COMMIT_CI_PENDING",
+  "base_head": "8470fad8a43906e29ee1fa66033f8ec9c5ef63cd",
+  "core_tree": "4ad1a927b4286039c23f7b93cbf43c2d02b61c7e",
+  "Source7_sha256": "677cae547c38d84ecff709b9c16b29c24407cf3b00d432df2c0d6c867ea260a7",
+  "sources": {
+    "departments/m05-financecore/docs/M5.3-a-CSV-AR.md": "bfed981a7c6b2852a3a5cfa3a420063ff17c8c8c2e3823229f58710e6bbbd872",
+    "departments/m05-financecore/src/m5_financecore/reconciliation_bancaire_csv.py": "f8569ea765d4c9f89bc64d429a255824c2dfba9f22f8ef099e2bb4ad5f5cd7d4",
+    "departments/m05-financecore/tests/test_reconciliation_bancaire_csv.py": "9a218e86c5df5539fec76719405bc00a90f4ba6f47b856d4f3ee10ff69902f1e",
+    "src/opsys/console/banque_ui.py": "030ec7b4993d41178f1257d3d29f20622838cac1420e7fdf119bb9ec4079968f",
+    "tests/e2e/test_verticale_affaire_durable.py": "d8f0ce84c4fe814c9c6a5ec2f8b0c323aa2a427ff49c245dea794188b16877c5",
+    "tests/fixtures/m5-partiel-legacy-accepte.json": "5c66e5d6d0bb76fc818dbcbed3393424fe6000d24e3fabd807f763222bdc4051",
+    "tests/test_console_rapprochement_bancaire.py": "842398efde73c2dba688fb4f19d10a32b0e05af667bfe67bba6026cb336e104a"
+  },
+  "evidence": {
+    "pure_Root_readback": "a30debee4c91a57a07b46acd7834ae4d66d6739b51d7784184bded33794f9805",
+    "affected_pretext_delta2474P2skip": "fc30a8d98cf408a57a572904c7e30da447026e19f861a45407a5b3d902e2f4d3",
+    "current_console26P_latefailure": "9d2b4a0d530478ad43bfc0a12f821fcf6de21ed8c0298f833394e58482690279",
+    "vertical7P49tables_newPython": "31910eea9cc6260b9cfe7c051e76be34a9a55c1b2cd4fe6cea92766a16e4ea6a",
+    "globalRuff_verifier_final": "d071ce7b37f577da6a4dfd8e9eaadb07757e67f8b3510b3bb94d5bbfb0002510",
+    "peer_current_delta": "000b72da88dfe48e7e4e26705be35323cb620af75f1d905f98e624265f27a43a",
+    "Claude_baseline_opinions_Root": "5c6e25d8d2954df28a192aacf13b171703f6012c1e37e1f3708b93b8738c3bd1",
+    "current_console27P": "0ebbec01b832025f93ad21124f5f334d773763e27b8db5a1aff75ef1151237c5",
+    "display_RED2F_and_disposition": "6993c4849d02cafe8a55de16a53a0b20c4e7e82aad93720e7530b2a7bd5056b6",
+    "actual_verifier_imports_r2": "66e686a3e41922ca705c6c8d7185187d10e1d6ee898c794969feaa97991470ef",
+    "Claude_current_Rootdisposition": "5c2f117c00d7f9beb6ef8a97c7d37579958ca7fe1b37a607f845886d0c28d3c0",
+    "auxiliary_evidence_error_disposition": "7322a93ad854498cb6f3830babea22319e27e44c796562641ce588a13b2d3ccd",
+    "peer_current_delta3": "0d4c9cab8e4538d9f95032f60b6b9c9aa68aead292a49db334ccd6693f1949cb",
+    "primary69P_Ruff_metier_422imports": "18d2626ad894dec05ec4e4ca2fdc5caaf2d9c7539a190877fa4362e3609619d3",
+    "preceding_M10_CI_root": "544347fd58b683d618d6b4d64bacfb478b108cccc8a737652854936c34023366"
+  },
+  "Claude_current": "Closed source7r2 opinions (actualOpus/2Sonnet/Haiku), Root all4fullread disposition, source7r3 display delta qualifies separately no automaticrebind",
+  "applicable_CI": "Preceding8470 fullpass38success2conditionalDockerSkips; newM5exactcommit CI pending, no inheritedgreen",
+  "limits": [
+    "No payment/receipt ofbanktransfer/balance/residual certified",
+    "Partialmultirow/splits/fees/bankconnectors stillnotimplemented",
+    "LocalPGidempotence+storage2skip Docker permission; no PG banking qualified",
+    "Device/phone/Corepremodel scope separate",
+    "104 excludedtransferproofs absent, fullsupplement absent, absentchatsunknown",
+    "No forcepush/mainmerge/productiondeployment",
+    "Supplementary imports report original static-r1 overwritten by Root r2 reused writer; original bytes unavailable, no reconstruction credited. Logs/receipts/manifests retained, actualcurrentr2 report pinned separately.",
+    "Three current pytest record_property/xunit2 warnings retained; bank property nevertheless actually present and independently parsed"
+  ],
+  "primary_qualification": {
+    "passed": 69,
+    "skipped": 0,
+    "warnings": 3,
+    "warnings_disposition": "record_property/xunit2 incompatibility warning; actual property present and parsed",
+    "scope": "Current exactSource7r3 in primaryR, includes pure35/console27/vertical7"
+  }
+}

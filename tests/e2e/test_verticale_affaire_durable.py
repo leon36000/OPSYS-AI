@@ -17,6 +17,8 @@ import os
 import subprocess
 import sys
 import time
+from collections import Counter
+from dataclasses import replace
 from decimal import Decimal
 from pathlib import Path
 from urllib.parse import parse_qsl, urlsplit
@@ -28,17 +30,20 @@ from fastapi.testclient import TestClient
 from harnais_e2e import DT_TZ, JETON_MCP, iso
 from harnais_e2e_chantier import MATERIAU_ID, AppEmploye, Chantier, receptionner_materiel_args
 from m1_front_office import outils as m1_outils
+from m5_financecore import facturation as m5_facturation
 from m5_financecore import outils as m5_outils
+from m5_financecore import registre as m5_registre
 from m8_analytics import outils as m8_outils
 from mcp.client.session import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 from mcp.shared._httpx_utils import create_mcp_http_client
-from sqlalchemy import select
+from sqlalchemy import MetaData, Table, inspect, select
 
-from opsys import approbations, cli, evenements, liaison_cibles, stockage, taxonomie
+from opsys import approbations, cli, evenements, identite, liaison_cibles, stockage, taxonomie
 from opsys.capacites import Capacites, outils_executables
 from opsys.console.application import creer_application
 from opsys.console.securite import Configuration
+from opsys.departements import charger_departements
 from opsys.stockage import codec
 from opsys.stockage.schema import APPROBATIONS, EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, META, REGISTRES
 
@@ -638,6 +643,186 @@ def _apprentissage(moteur, admin, wct_id):
     return rapport
 
 
+# Compte et identité de qualification fictifs, distincts du Nathan de l'affaire.
+_OWNER_PARTIEL = "finance-verticale-fictive"
+_PASSWORD_PARTIEL = "mot-de-passe-verticale-finance-fictif"
+_SECRET_PARTIEL = "secret-console-verticale-partielle-fictif-" + "x" * 32
+_ROUTE_PARTIEL = "/api/finance/rapprochement-bancaire/proposer"
+
+
+def _tables_partiel():
+    """Toutes les tables SQL réelles, y compris celles hors META ; aucun filtre métier."""
+    with stockage.transaction() as cnx:
+        meta = MetaData()
+        return {
+            nom: Counter(tuple(row) for row in cnx.execute(select(Table(nom, meta, autoload_with=cnx))))
+            for nom in inspect(cnx).get_table_names()
+        }
+
+
+def _hashes_partiel(tables):
+    return {
+        nom: {"lignes": sum(rows.values()), "sha256": hashlib.sha256(json.dumps(
+            sorted(((list(row), nombre) for row, nombre in rows.items()),
+                   key=lambda item: json.dumps(item, sort_keys=True, default=str)),
+            sort_keys=True, default=str, separators=(",", ":"),
+        ).encode()).hexdigest()}
+        for nom, rows in tables.items()
+    }
+
+
+def _console_partiel(racine):
+    deps = dict(charger_departements())
+    deps["m05-financecore"] = replace(deps["m05-financecore"], racine=Path(racine))
+    return creer_application(Configuration(_SECRET_PARTIEL, cookie_securise=False), deps, stockage.transaction)
+
+
+def _login_partiel(client):
+    retour = client.post("/connexion", data={
+        "identifiant": _OWNER_PARTIEL, "mot_de_passe": _PASSWORD_PARTIEL,
+    }, follow_redirects=False)
+    assert retour.status_code == 303, "connexion de la personne fictive requise"
+    return {"x-csrf-token": client.get("/api/session").json()["csrf"]}
+
+
+def _ar_partiel():
+    with stockage.transaction():
+        registre = m5_registre.Registre(maillons=stockage.maillons("m05-financecore", "factures"))
+        assert registre.valider_chaine()[0] is True
+        vue, verdict = m5_facturation.comptes_a_recevoir(registre)
+    assert verdict is None and vue["total_complet"] is True
+    return vue
+
+
+def _rejouer_partiel_processus(manifeste):
+    """Entrée de test dans un Python neuf, sans migration ni modification de source."""
+    demande = json.loads(Path(manifeste).read_text())
+    assert Path(stockage.__file__).resolve().is_relative_to(ROOT)
+    avant_login = _hashes_partiel(_tables_partiel())
+    try:
+        with TestClient(_console_partiel(demande["racine"]), base_url="http://testserver/opsys") as client:
+            headers = _login_partiel(client)
+            avant = _tables_partiel()  # Authentification hors fenêtre de rejeu.
+            retour = client.post(_ROUTE_PARTIEL, json=demande["commande"], headers=headers)
+            assert retour.status_code == 200, retour.text
+            enveloppe = retour.json()
+            assert enveloppe["rejoue"] is True and enveloppe["resultat"]["accepte"] is True
+            assert _tables_partiel() == avant
+            return {"pid": os.getpid(), "avant_login": avant_login,
+                    "apres_login_et_rejeu": _hashes_partiel(avant), "reponse": enveloppe}
+    finally:
+        stockage.liberer()
+
+
+def _qualifier_partiel_affaire(moteur, facture_id, chantier, wct_id, tmp_path, monkeypatch, record_property):
+    vue = _ar_partiel()
+    facture = next(f for f in vue["factures"] if f["facture_id"] == facture_id)
+    assert facture["devis_id"] == chantier.devis_id
+    du = facture["montant_apres_taxes"]
+    assert Decimal("10.00") < du  # Dû M5 réel, taxes jamais reconstruites par le test.
+    racine = tmp_path / "m5-banque-verticale-fictive"
+    racine.mkdir()
+    (racine / "department.yaml").write_text(
+        "configuration:\n  banque_csv:\n    comptes_internes: [compte-vertical-fictif]\n", encoding="utf-8",
+    )
+    with stockage.transaction() as cnx:
+        identite.creer_personne(cnx, _OWNER_PARTIEL, "Finance fictive", _PASSWORD_PARTIEL, ["nathan_owner", "admin"])
+    commande = {
+        "mutation_id": "partiel-affaire-verticale-fictif", "compte_interne_id": "compte-vertical-fictif",
+        "devise": "CAD", "mapping_colonnes": {"date": "Date", "montant": "Montant", "reference_facture": "Facture"},
+        "csv_utf8": f"Date,Montant,Facture\n2026-09-30,10.00,{facture_id}\n",
+    }
+    with TestClient(_console_partiel(racine), base_url="http://testserver/opsys") as client:
+        headers = _login_partiel(client)
+        avant = _tables_partiel()  # Configuration, identité et login hors fenêtre métier.
+        retour = client.post(_ROUTE_PARTIEL, json=commande, headers=headers)
+        assert retour.status_code == 200, retour.text
+        premiere = retour.json()
+        projection = _donnee(premiere)
+        assert projection["propositions"] == [{
+            "ligne": 2, "facture_id": facture_id, "montant": "10.00", "statut": "PROPOSE_PARTIEL",
+        }]
+        assert projection["lignes"][0]["montant_du"] == format(du, ".2f")
+        assert projection["version_rapprochement"] == "m5.3-partiel-unique/v1"
+        apres = _tables_partiel()
+        assert avant.keys() == apres.keys()
+        assert {nom for nom in avant if avant[nom] != apres[nom]} == {
+            "registres_maillons", "journal", "mutations_appliquees",
+        }
+        ajouts = {}
+        with stockage.transaction() as cnx:
+            meta = MetaData()
+            for nom in ("registres_maillons", "journal", "mutations_appliquees"):
+                assert not (avant[nom] - apres[nom]), f"ancienne ligne modifiée : {nom}"
+                delta = apres[nom] - avant[nom]
+                assert sum(delta.values()) == 1
+                table = Table(nom, meta, autoload_with=cnx)
+                ajouts[nom] = dict(zip(table.columns.keys(), next(iter(delta)), strict=True))
+        maillon = ajouts["registres_maillons"]
+        assert (maillon["departement"], maillon["registre"]) == ("m05-financecore", "rapprochements_bancaires_proposes")
+        corps = json.loads(maillon["maillon"])
+        assert corps["type_entree"] == "rapprochement_bancaire_propose"
+        assert corps["resultat"] == projection and corps["auteur"] == _OWNER_PARTIEL
+        audit, recu = ajouts["journal"], ajouts["mutations_appliquees"]
+        assert (audit["par"], audit["action"], audit["cible"]) == (
+            _OWNER_PARTIEL, "console.rapprochement_bancaire.propose", projection["lot_id"],
+        )
+        assert (recu["appareil"], recu["cle_idempotence"], recu["outil"], recu["statut"]) == (
+            f"console:{_OWNER_PARTIEL}", commande["mutation_id"], "console_rapprochement_bancaire", "ok",
+        )
+        assert json.loads(recu["reponse"]) == premiere
+    assert _ar_partiel() == vue
+    manifeste = tmp_path / "rejeu-partiel-fictif.json"
+    manifeste.write_text(json.dumps({"racine": str(racine), "commande": commande}))
+    manifeste.chmod(0o600)
+    moteur.arreter()
+    stockage.liberer()
+    try:
+        environnement = {
+            "PATH": os.environ.get("PATH", ""), "PYTHONDONTWRITEBYTECODE": "1",
+            stockage.ENV_URL: moteur.url_base, "OPSYS_HOME": os.environ["OPSYS_HOME"],
+            "PYTHONPATH": os.pathsep.join([str(ROOT / "src"), str(ROOT / "tests/fixtures"),
+                                          *[str(p) for p in sorted((ROOT / "departments").glob("*/src"))]]),
+        }
+        processus = subprocess.run([
+            sys.executable, "-c",
+            "import runpy,json,sys; m=runpy.run_path(sys.argv[1]); "
+            "print(json.dumps(m['_rejouer_partiel_processus'](sys.argv[2])))",
+            str(Path(__file__).resolve()), str(manifeste),
+        ], cwd=ROOT, env=environnement, capture_output=True, text=True, timeout=60, check=False)
+        assert processus.returncode == 0, processus.stderr
+        preuve = json.loads(processus.stdout)
+        assert preuve["pid"] != os.getpid()
+        assert preuve["reponse"] == {**premiere, "rejoue": True}
+        assert preuve["avant_login"] == preuve["apres_login_et_rejeu"] == _hashes_partiel(apres)
+        assert _tables_partiel() == apres
+    finally:
+        manifeste.unlink(missing_ok=True)
+        moteur.demarrer()
+    assert _ar_partiel() == vue
+    with TestClient(_console_partiel(racine), base_url="http://testserver/opsys") as client:
+        headers = _login_partiel(client)
+        with stockage.transaction() as cnx:
+            identite.retirer_role(cnx, _OWNER_PARTIEL, "nathan_owner")
+            identite.retirer_role(cnx, _OWNER_PARTIEL, "admin")
+        avant_refus = _tables_partiel()  # Retrait explicite séparé du POST refusé.
+        with monkeypatch.context() as garde:
+            def interdit(*args, **kwargs):
+                raise AssertionError("révocation doit précéder registre et reçu")
+            garde.setattr(stockage, "maillons", interdit)
+            garde.setattr("opsys.idempotence.reclamer", interdit)
+            refus = client.post(_ROUTE_PARTIEL, json=commande, headers=headers)
+            assert refus.status_code == 403
+        assert _tables_partiel() == avant_refus
+    record_property("m5_partiel_affaire", json.dumps({
+        "fictif": True, "facture_id": facture_id, "devis_id": chantier.devis_id, "wct_id": wct_id,
+        "du_snapshot": format(du, ".2f"), "montant_propose": "10.00", "lot_id": projection["lot_id"],
+        "pid_parent": os.getpid(), "pid_rejeu": preuve["pid"], "tables": len(avant),
+        "avant_proposition": _hashes_partiel(avant), "apres_proposition": _hashes_partiel(apres),
+        "rejeu_sans_mutation": True, "revocation_sans_mutation": True, "manifeste_supprime": not manifeste.exists(),
+    }, sort_keys=True))
+
+
 @pytest.mark.parametrize(
     "quantite,prix_present,marge_attendue",
     [
@@ -647,7 +832,7 @@ def _apprentissage(moteur, admin, wct_id):
     ],
 )
 def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
-    moteur, affaire, finance_fictive, quantite, prix_present, marge_attendue
+    moteur, affaire, finance_fictive, quantite, prix_present, marge_attendue, tmp_path, monkeypatch, record_property
 ):
     chantier, lead, _ = _preparer_affaire(moteur, affaire)
     admin = affaire["admin"]
@@ -811,6 +996,18 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
                     )
                 ).scalar_one()
                 assert recu == "traite", (evenement_id, consommateur, charge)
+    if (quantite, prix_present, marge_attendue) == (42.0, True, "114.00"):
+        strategie = _app(moteur, admin, "m9_produire_lecture_strategique", {
+            "maintenant": iso(moteur.horloge.maintenant),
+        }).resultat
+        _qualifier_partiel_affaire(
+            moteur, facture["facture_id"], chantier, wct_id, tmp_path, monkeypatch, record_property,
+        )
+        assert _mesures(moteur, admin, wct_id) == finales
+        assert _app(moteur, admin, "m9_produire_lecture_strategique", {
+            "maintenant": iso(moteur.horloge.maintenant),
+        }).resultat == strategie
+        assert _apprentissage(moteur, admin, wct_id) == apprentissage_final
     avant = _empreinte(moteur)
     for appel in app.appels:
         rejeu = app.rejouer(appel)

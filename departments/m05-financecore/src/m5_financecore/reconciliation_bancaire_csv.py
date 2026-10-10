@@ -2,8 +2,9 @@
 
 Le module ne lit aucun registre et n'effectue aucune écriture. L'adaptateur fournit une vue
 complète issue de `facturation.comptes_a_recevoir`, ainsi que la version et la tête hashée du
-snapshot qu'il a lu. Le rapprochement proposé exige l'identifiant exact de facture ET son solde
-dû exact. Il ne certifie ni la source bancaire ni le snapshot M5.
+snapshot qu'il a lu. Le rapprochement proposé exige l'identifiant exact de facture et le dû
+exact, ou un montant positif inférieur pour un CSV singleton. Ce candidat partiel ne confirme
+aucun encaissement. Le module ne certifie ni la source bancaire ni le snapshot M5.
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ _MONTANT = re.compile(r"-?(?:0|[1-9][0-9]{0,11})\.[0-9]{2}\Z")
 _REFERENCE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{0,63}\Z")
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
 _MONTANT_MAX = Decimal("999999999999.99")
+_VERSION_PARTIEL = "m5.3-partiel-unique/v1"
 
 
 def _refus(code: str, detail: str, *, ligne: int | None = None) -> tuple[None, dict[str, Any]]:
@@ -97,7 +99,7 @@ def previsualiser_releve_csv(
     mapping_colonnes: Mapping[str, str],
     snapshot_factures: Mapping[str, Any],
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
-    """Normalise et propose les correspondances exactes, sans modifier les entrées.
+    """Propose les correspondances exactes ou un partiel singleton, sans modifier les entrées.
 
     `snapshot_factures` a la forme `{version, empreinte, total_complet, factures}`. `factures`
     reprend la liste de `facturation.comptes_a_recevoir`; `version` et `empreinte` sont fournis
@@ -179,6 +181,7 @@ def previsualiser_releve_csv(
     references = Counter(ligne["reference_facture"] for ligne in lignes)
     normalisees: list[dict[str, Any]] = []
     propositions: list[dict[str, Any]] = []
+    partiel_unique = False
     for ligne in lignes:
         montant = ligne["montant"]
         reference = ligne["reference_facture"]
@@ -200,6 +203,13 @@ def previsualiser_releve_csv(
                     "ligne": ligne["numero"], "facture_id": facture_id,
                     "montant": format(montant, ".2f"), "statut": "PROPOSE",
                 })
+            elif montant < montant_du and len(lignes) == 1:
+                partiel_unique = True
+                statut = "PROPOSITION_PARTIELLE"
+                propositions.append({
+                    "ligne": ligne["numero"], "facture_id": facture_id,
+                    "montant": format(montant, ".2f"), "statut": "PROPOSE_PARTIEL",
+                })
             elif montant < montant_du:
                 statut = "PAIEMENT_PARTIEL_NON_SUPPORTE"
             else:
@@ -215,12 +225,16 @@ def previsualiser_releve_csv(
     version = snapshot_factures["version"]
     empreinte_source = snapshot_factures["empreinte"]
     empreinte_vue = encodage.empreinte(montants_factures)
-    lot_id = encodage.empreinte({
+    domaine_lot = {
         "sha256_csv": sha_csv, "compte_interne_id": compte_interne_id, "devise": devise,
         "mapping_colonnes": dict(mapping_colonnes), "version_factures": version,
         "empreinte_factures": empreinte_source, "empreinte_vue_factures": empreinte_vue,
-    })
+    }
+    if partiel_unique:
+        domaine_lot["version_rapprochement"] = _VERSION_PARTIEL
+    lot_id = encodage.empreinte(domaine_lot)
     return {
+        **({"version_rapprochement": _VERSION_PARTIEL} if partiel_unique else {}),
         "statut": "PROPOSITIONS_PRESENTES" if propositions else "AUCUNE_PROPOSITION",
         "compte_interne_id": compte_interne_id,
         "devise": DEVISE,
@@ -230,6 +244,16 @@ def previsualiser_releve_csv(
         "lignes": normalisees,
         "propositions": propositions,
         "limites": [
+            "Rapprochement proposé seulement : aucune facture, aucun mouvement ni solde n'est modifié",
+            "Une seule ligne de données, une référence facture M5 exacte et un montant CAD strictement positif "
+            "inférieur au dû du snapshot sont requis",
+            "Partiels dans un CSV multi-lignes, splits, frais, frais bancaires, surpaiements et associations "
+            "par montant seul ne sont pas pris en charge",
+            "L'adaptateur doit fournir une vue M5 complète et vérifier son intégrité avant cet appel",
+            "La provenance bancaire, les dépôts et l'identité du compte doivent être vérifiés par un humain",
+            "Ce candidat ne distingue pas un acompte d'un montant net de frais ; il ne confirme ni encaissement "
+            "ni solde restant",
+        ] if partiel_unique else [
             "Rapprochement proposé seulement : aucune facture, aucun mouvement ni solde n'est modifié",
             "La référence doit être le facture_id M5 exact et le montant doit égaler le dû complet",
             "Partiels, splits, frais, frais bancaires et associations par montant seul ne sont pas pris en charge",

@@ -4,7 +4,7 @@ import copy
 from decimal import Decimal, localcontext
 
 import pytest
-from m5_financecore import facturation, registre
+from m5_financecore import encodage, facturation, registre
 from m5_financecore import reconciliation_bancaire_csv as csv_ar
 
 FICTIF = True
@@ -80,9 +80,9 @@ def test_un_montant_seul_ne_rapproche_jamais_une_reference_inconnue():
 
 @pytest.mark.parametrize(
     ("montant", "statut"),
-    [("10.00", "PAIEMENT_PARTIEL_NON_SUPPORTE"), ("130.00", "FRAIS_OU_ECART_NON_SUPPORTE")],
+    [("130.00", "FRAIS_OU_ECART_NON_SUPPORTE")],
 )
-def test_partiel_et_frais_ou_ecart_ne_proposent_aucun_rapprochement(montant, statut):
+def test_frais_ou_ecart_ne_proposent_aucun_rapprochement(montant, statut):
     snapshot = _snapshot([{"facture_id": "FAC-101", "montant_apres_taxes": Decimal("125.50")}])
     resultat, verdict = _preview(f"Date,Montant,Reference\n2026-09-30,{montant},FAC-101\n", snapshot)
 
@@ -237,3 +237,112 @@ def test_calculs_et_empreinte_ne_dependent_pas_du_contexte_decimal_ambiant():
         )
     assert verdict is None
     assert resultat_prec2 == resultat_prec50
+
+
+LIMITES_LEGACY = [
+    "Rapprochement proposé seulement : aucune facture, aucun mouvement ni solde n'est modifié",
+    "La référence doit être le facture_id M5 exact et le montant doit égaler le dû complet",
+    "Partiels, splits, frais, frais bancaires et associations par montant seul ne sont pas pris en charge",
+    "L'adaptateur doit fournir une vue M5 complète et vérifier son intégrité avant cet appel",
+    "La provenance bancaire, les dépôts et l'identité du compte doivent être vérifiés par un humain",
+]
+LIMITES_PARTIEL = [
+    LIMITES_LEGACY[0],
+    "Une seule ligne de données, une référence facture M5 exacte et un montant CAD strictement positif "
+    "inférieur au dû du snapshot sont requis",
+    "Partiels dans un CSV multi-lignes, splits, frais, frais bancaires, surpaiements et associations "
+    "par montant seul ne sont pas pris en charge",
+    LIMITES_LEGACY[3], LIMITES_LEGACY[4],
+    "Ce candidat ne distingue pas un acompte d'un montant net de frais ; il ne confirme ni encaissement "
+    "ni solde restant",
+]
+
+
+def test_partiel_unique_propose_sans_reduire_le_du():
+    resultat, verdict = _preview("Date,Montant,Reference\n2026-09-30,10.00,FAC-101\n")
+
+    assert verdict is None
+    assert resultat["statut"] == "PROPOSITIONS_PRESENTES"
+    assert resultat["version_rapprochement"] == "m5.3-partiel-unique/v1"
+    assert resultat["lignes"] == [{
+        "numero": 2, "date": "2026-09-30", "montant": "10.00", "reference_facture": "FAC-101",
+        "statut_rapprochement": "PROPOSITION_PARTIELLE", "facture_id": "FAC-101", "montant_du": "125.50",
+    }]
+    assert resultat["propositions"] == [{
+        "ligne": 2, "facture_id": "FAC-101", "montant": "10.00", "statut": "PROPOSE_PARTIEL",
+    }]
+    assert resultat["limites"] == LIMITES_PARTIEL
+
+
+@pytest.mark.parametrize("seconde_ligne", [
+    "2026-09-30,20.00,FAC-202", "2026-09-30,50.00,FAC-202", "2026-09-30,0.00,INCONNUE",
+])
+def test_partiel_exige_un_csv_singleton_sans_filtrer_les_autres_lignes(seconde_ligne):
+    snapshot = _snapshot([
+        {"facture_id": "FAC-101", "montant_apres_taxes": Decimal("125.50")},
+        {"facture_id": "FAC-202", "montant_apres_taxes": Decimal("50.00")},
+    ])
+    resultat, verdict = _preview(
+        f"Date,Montant,Reference\n2026-09-30,10.00,FAC-101\n{seconde_ligne}\n", snapshot,
+    )
+    assert verdict is None
+    assert resultat["lignes"][0]["statut_rapprochement"] == "PAIEMENT_PARTIEL_NON_SUPPORTE"
+    assert all(p["statut"] == "PROPOSE" and p["facture_id"] == "FAC-202" for p in resultat["propositions"])
+    assert len(resultat["propositions"]) == (1 if ",50.00," in seconde_ligne else 0)
+    assert "version_rapprochement" not in resultat
+    assert resultat["limites"] == LIMITES_LEGACY
+
+
+@pytest.mark.parametrize("montant,partiel", [("10.00", True), ("125.50", False), ("130.00", False)])
+def test_domaine_lot_versionne_uniquement_pour_partiel(montant, partiel):
+    resultat, verdict = _preview(f"Date,Montant,Reference\n2026-09-30,{montant},FAC-101\n")
+    assert verdict is None
+    domaine_legacy = {
+        "sha256_csv": resultat["source_csv"]["sha256"], "compte_interne_id": "BANQUE-OPER-01", "devise": "CAD",
+        "mapping_colonnes": MAPPING, "version_factures": 7, "empreinte_factures": "a" * 64,
+        "empreinte_vue_factures": encodage.empreinte({"FAC-101": Decimal("125.50")}),
+    }
+    if partiel:
+        assert resultat["lot_id"] != encodage.empreinte(domaine_legacy)
+        assert resultat["lot_id"] == encodage.empreinte({
+            **domaine_legacy, "version_rapprochement": "m5.3-partiel-unique/v1",
+        })
+    else:
+        assert resultat["lot_id"] == encodage.empreinte(domaine_legacy)
+        assert "version_rapprochement" not in resultat
+        assert resultat["limites"] == LIMITES_LEGACY
+
+
+def test_partiel_centime_canonique_et_contexte_decimal():
+    resultats = []
+    for precision in (2, 50):
+        with localcontext() as contexte:
+            contexte.prec = precision
+            resultat, verdict = _preview("Date,Montant,Reference\n2026-09-30,0.01,FAC-101\n")
+        assert verdict is None
+        assert resultat["propositions"] == [{
+            "ligne": 2, "facture_id": "FAC-101", "montant": "0.01", "statut": "PROPOSE_PARTIEL",
+        }]
+        resultats.append(resultat)
+    assert resultats[0] == resultats[1]
+
+
+@pytest.mark.parametrize("montant,statut", [
+    ("0.00", "MONTANT_ZERO_NON_RAPPROCHABLE"), ("-0.01", "FLUX_SORTANT_HORS_AR"),
+])
+def test_singleton_non_positif_ne_devient_pas_partiel(montant, statut):
+    resultat, verdict = _preview(f"Date,Montant,Reference\n2026-09-30,{montant},FAC-101\n")
+    assert verdict is None and resultat["propositions"] == []
+    assert resultat["lignes"][0]["statut_rapprochement"] == statut
+    assert "version_rapprochement" not in resultat
+    assert resultat["limites"] == LIMITES_LEGACY
+
+
+def test_partiel_ne_modifie_aucune_entree():
+    snapshot, mapping = _snapshot(), dict(MAPPING)
+    avant = copy.deepcopy((snapshot, mapping))
+    resultat, verdict = _preview(
+        "Date,Montant,Reference\n2026-09-30,10.00,FAC-101\n", snapshot, mapping_colonnes=mapping,
+    )
+    assert verdict is None and resultat["propositions"][0]["statut"] == "PROPOSE_PARTIEL"
+    assert (snapshot, mapping) == avant

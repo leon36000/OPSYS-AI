@@ -117,8 +117,16 @@ def _resultat_html(reponse: Mapping[str, Any]) -> str:
                 ligne.get("montant"),
                 ligne.get("montant_du"),
                 ligne.get("reference_facture"),
-                ligne.get("statut_rapprochement"),
-                ligne.get("facture_id"),
+                (
+                    "Partielle — à vérifier"
+                    if ligne.get("statut_rapprochement") == "PROPOSITION_PARTIELLE"
+                    else ligne.get("statut_rapprochement")
+                ),
+                (
+                    ligne.get("facture_id")
+                    if ligne.get("statut_rapprochement") in {"PROPOSITION_EXACTE", "PROPOSITION_PARTIELLE"}
+                    else None
+                ),
             )
             cells = "".join(
                 f"<td>{pages.e(str(value if value is not None else ''))}</td>" for value in values
@@ -126,7 +134,7 @@ def _resultat_html(reponse: Mapping[str, Any]) -> str:
             rows.append(f"<tr>{cells}</tr>")
     table = (
         "<table><thead><tr><th>Ligne</th><th>Date</th><th>Montant</th><th>Montant dû</th><th>Référence</th>"
-        "<th>Statut</th><th>Facture rapprochée</th></tr></thead><tbody>"
+        "<th>Statut</th><th>Facture candidate</th></tr></thead><tbody>"
         + "".join(rows)
         + "</tbody></table>"
     )
@@ -142,7 +150,7 @@ def _resultat_html(reponse: Mapping[str, Any]) -> str:
         f"<p>Source CSV SHA-256 : <code>{pages.e(str(sha or ''))}</code></p>"
         f"<p>Snapshot factures version {pages.e(str(version_factures))}, tête "
         f"<code>{pages.e(str(empreinte_factures or 'aucune'))}</code></p>"
-        f"<p>Propositions exactes : {count}</p>{table}"
+        f"<p>Propositions de rapprochement : {count}</p>{table}"
         "<p>Aucune facture, aucun mouvement ni solde n’a été modifié.</p></section>"
     )
 
@@ -167,8 +175,13 @@ def _page(
         '<button type="submit">Prévisualiser le rapprochement</button></form>'
     )
     limite = (
-        "<p>Le moteur ne propose que les correspondances exactes par facture et montant dû complet. "
-        "Partiels, splits et frais restent non pris en charge.</p>"
+        "<p>Le moteur propose les correspondances exactes par référence facture et montant dû complet. "
+        "Un CSV d’une seule ligne peut aussi proposer un candidat partiel : montant déclaré "
+        "strictement positif, inférieur au dû du snapshot, avec une référence facture exacte. "
+        "Ce candidat ne confirme ni paiement, ni encaissement, ni frais ; il ne distingue pas "
+        "un acompte d’un montant net de frais et ne calcule aucun solde restant. "
+        "Partiels dans un CSV multi-lignes, splits, frais et surpaiements restent non pris en charge. "
+        "La provenance bancaire et l’identité du compte doivent être vérifiées par un humain.</p>"
     )
     return HTMLResponse(
         pages.gabarit(
