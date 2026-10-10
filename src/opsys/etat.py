@@ -23,7 +23,7 @@ from typing import Any
 
 from sqlalchemy import Connection, func, insert, select
 
-from .stockage.moteur import dossier_opsys, transaction
+from .stockage.moteur import connexion_courante, dossier_opsys, transaction
 from .stockage.schema import APPROBATIONS, ARTEFACTS, JOURNAL, MODES_DEPARTEMENTS, USAGE_TOKENS
 
 __all__ = ["dossier_opsys", "importer_etat_si_necessaire", "journaliser", "lire_journal", "session"]
@@ -38,12 +38,43 @@ def session() -> AbstractContextManager[Connection]:
     return transaction()
 
 
-def journaliser(cnx: Connection, par: str, action: str, cible: str, details: dict | None = None) -> None:
-    """Journal d'audit append-only des décisions humaines et changements de configuration."""
-    cnx.execute(insert(JOURNAL).values(
+def _inserer_journal(cnx: Connection, par: str, action: str, cible: str, details: dict | None = None):
+    return cnx.execute(insert(JOURNAL).values(
         quand=dt.datetime.now(dt.UTC).isoformat(timespec="seconds"), par=par, action=action, cible=cible,
         details=json.dumps(details or {}, ensure_ascii=False, default=str),
     ))
+
+
+def journaliser(cnx: Connection, par: str, action: str, cible: str, details: dict | None = None) -> None:
+    """Journal d'audit append-only des décisions humaines et changements de configuration."""
+    _inserer_journal(cnx, par, action, cible, details)
+
+
+class CaptureTraceDocumentaireErreur(RuntimeError):
+    """Panne technique fermée : l'appelant doit laisser sortir son SAVEPOINT."""
+
+
+def _connexion_documentaire_m10(cnx: Connection) -> None:
+    if (
+        not isinstance(cnx, Connection) or cnx is not connexion_courante()
+        or cnx.closed or not cnx.in_transaction() or cnx.get_nested_transaction() is None
+    ):
+        raise CaptureTraceDocumentaireErreur("capture documentaire indisponible")
+
+
+def _journaliser_documentaire_m10(
+    cnx: Connection, par: str, action: str, cible: str, details: dict | None = None,
+) -> int:
+    """PK native d'INSERT dans le SAVEPOINT canonique fourni, sans scan ou repli."""
+    _connexion_documentaire_m10(cnx)
+    try:
+        result = _inserer_journal(cnx, par, action, cible, details)
+        pk = result.inserted_primary_key
+        if len(pk) != 1 or type(pk[0]) is not int or not 0 < pk[0] <= 2**63 - 1:
+            raise CaptureTraceDocumentaireErreur("capture documentaire indisponible")
+        return pk[0]
+    except Exception:
+        raise CaptureTraceDocumentaireErreur("capture documentaire indisponible") from None
 
 
 def lire_journal(cnx: Connection, limite: int = 200) -> list[dict[str, Any]]:

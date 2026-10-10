@@ -1,0 +1,84 @@
+{
+  "base": "6d35d3acd958dbcfe2603eda3d9c72dd7dbb35a0",
+  "files": [
+    {
+      "path": "src/opsys/etat.py",
+      "sha256": "03a6a63613f9a4d303db8efce90b6d2b8929a4cbbdea310fcc1aa265dfbe95a2",
+      "preimage_sha256": "e48a18cf657b398f35cb186b18f91de681cc412d5d36915888eeadf3246876f7",
+      "origin": "F13 gel2 Source4",
+      "integration_status": "prepared; primary integration and freshchecks pending",
+      "verification": "owner119P1PGskip; RootphysicalSQLredgreen; independentAST/source review",
+      "limit": "technical capture/public mask only; no writer/link/claim/DEVICE/quota/PG/RPC"
+    },
+    {
+      "path": "src/opsys/approbations.py",
+      "sha256": "d1ad72efc3c19fdc0b799f6842cc6f116b49f9be86e59cc1682c92bf1aefe53f",
+      "preimage_sha256": "b5eef97145a66b4d2a08c7a0531c9ff5a9507f15ab76e3cd5818d8c3e07a321b",
+      "origin": "F13 gel2 Source4",
+      "integration_status": "prepared; primary integration and freshchecks pending",
+      "verification": "owner119P1PGskip; RootphysicalSQLredgreen; independentAST/source review",
+      "limit": "technical capture/public mask only; no writer/link/claim/DEVICE/quota/PG/RPC"
+    },
+    {
+      "path": "tests/test_trace_documentaire_m10.py",
+      "sha256": "b18f5141431d8d5c7d93de41d26053174ad3654e467ce0909ecf9cc887119087",
+      "preimage_sha256": null,
+      "origin": "F13 gel2 Source4",
+      "integration_status": "prepared; primary integration and freshchecks pending",
+      "verification": "owner119P1PGskip; RootphysicalSQLredgreen; independentAST/source review",
+      "limit": "technical capture/public mask only; no writer/link/claim/DEVICE/quota/PG/RPC"
+    },
+    {
+      "path": "docs/architecture/M10-TRACE-DOCUMENTAIRE.md",
+      "sha256": "fb5f7b0105d968f99adbeff23ddb6d5c4b499ca15969a9980769d66c55bb5f39",
+      "preimage_sha256": null,
+      "origin": "F13 gel2 Source4",
+      "integration_status": "prepared; primary integration and freshchecks pending",
+      "verification": "owner119P1PGskip; RootphysicalSQLredgreen; independentAST/source review",
+      "limit": "technical capture/public mask only; no writer/link/claim/DEVICE/quota/PG/RPC"
+    }
+  ],
+  "absences": [
+    "104 proofs excluded from original light transfer",
+    "full supplement absent",
+    "unavailable conversations"
+  ],
+  "disposition": "references preserved, not declared available or rerun",
+  "limits": "source4 internalcapture/projection only",
+  "support_files": [
+    {
+      "path": "docs/reprise/M10-TRACE-DOCUMENTAIRE-2026-10-09/AUDIT.md",
+      "origin": "Root dated audit based on exact hashed local evidence",
+      "integration_status": "new prepared support; primarychecks/newCI separate",
+      "sha256_location": "external manifest-seven-paths-r2.json plus exact commit Git blobs; no circular self-hash invented",
+      "verification": "scope/readback/limits coherence",
+      "limit": "prose is not a product runtime proof"
+    },
+    {
+      "path": "docs/reprise/M10-TRACE-DOCUMENTAIRE-2026-10-09/REGISTRE.json",
+      "origin": "Root dated audit based on exact hashed local evidence",
+      "integration_status": "new prepared support; primarychecks/newCI separate",
+      "sha256_location": "external manifest-seven-paths-r2.json plus exact commit Git blobs; no circular self-hash invented",
+      "verification": "scope/readback/limits coherence",
+      "limit": "prose is not a product runtime proof"
+    },
+    {
+      "path": "docs/reprise/M10-TRACE-DOCUMENTAIRE-2026-10-09/CAPSULE.json",
+      "origin": "Root dated audit based on exact hashed local evidence",
+      "integration_status": "new prepared support; primarychecks/newCI separate",
+      "sha256_location": "external manifest-seven-paths-r2.json plus exact commit Git blobs; no circular self-hash invented",
+      "verification": "scope/readback/limits coherence",
+      "limit": "prose is not a product runtime proof"
+    }
+  ],
+  "omissions": [
+    {
+      "item": "104 transfer proofs/fullsupplement/unavailable conversations",
+      "disposition": "unavailable, references retained without reexecution claim"
+    },
+    {
+      "item": "writer/claim/documentAPPJlink/SQLauthorityDEVICE/quotas/RPC/PGexecution",
+      "disposition": "future explicitqualification, not delivered by capture"
+    }
+  ]
+}

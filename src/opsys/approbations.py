@@ -41,11 +41,13 @@ import json
 import logging
 import uuid
 from collections.abc import Mapping, Sequence
+from copy import deepcopy
+from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy import Connection, func, insert, select, update
 
-from . import identite
+from . import etat, identite
 from .contexte import (
     IdentiteAppelante,
     appeler_en_tant_que,
@@ -82,6 +84,29 @@ ARGUMENTS_MASQUES_DANS_LA_TRACE = frozenset({
     "fix_gps", "adresse", "latitude_microdegres", "longitude_microdegres",
 })
 VALEUR_MASQUEE = "[masqué : donnée personnelle, conservée chiffrée dans le registre du département]"
+CONTENU_DOCUMENTAIRE_MASQUE = "[contenu documentaire masqué]"
+_WRITERS_DOCUMENTAIRES_M10 = frozenset({
+    "m10_deposer_version_document_appareil", "m10_activer_version_document_appareil",
+    "m10_retirer_document_appareil",
+})
+
+
+def arguments_documentaires_publics(outil: str, arguments: Any) -> Any:
+    """Projection JSON des trois noms ; SQL inchangé, titre visible, copie indépendante."""
+    if type(outil) is not str or outil not in _WRITERS_DOCUMENTAIRES_M10:
+        # Legacy was decoded into its own object already: do not add a deep-copy
+        # recursion/validation boundary to any historical tool.
+        return arguments
+    if type(arguments) is not dict:
+        raise ValueError("projection documentaire indisponible") from None
+    try:
+        copie = deepcopy(arguments)
+        for cle in ("corps", "extrait"):
+            if cle in copie and copie[cle] is not None:
+                copie[cle] = CONTENU_DOCUMENTAIRE_MASQUE
+        return copie
+    except Exception:
+        raise ValueError("projection documentaire indisponible") from None
 
 
 def _maintenant() -> str:
@@ -135,7 +160,7 @@ def _demande_depuis_ligne(ligne: Mapping[str, Any]) -> dict[str, Any]:
     # Le hash d'un ticket privé est un binding de répartiteur, pas une donnée métier exposable à
     # l'agent, à la console ni à une liste de demandes. `decider` lit la colonne directement.
     demande.pop("ticket_cible_hash", None)
-    demande["arguments"] = json.loads(demande["arguments"])
+    demande["arguments"] = arguments_documentaires_publics(demande["outil"], json.loads(demande["arguments"]))
     if demande["resultat"]:
         demande["resultat"] = json.loads(demande["resultat"])
     if demande["attestation"]:
@@ -425,25 +450,79 @@ def tracer_validation_au_depart(
     L'appelant (`Capacites._valider_au_depart`) l'appelle DANS le même point de sauvegarde que
     l'exécution de l'outil : si cette insertion échoue, l'exécution est annulée avec elle.
     """
+    return _tracer_validation_au_depart(
+        cnx, departement, outil, arguments, niveau=niveau, signataire=signataire,
+        reponse=reponse, appareil=appareil,
+    )
+
+
+def _tracer_validation_au_depart(
+    cnx: Connection, departement: str, outil: str, arguments: Mapping[str, Any], *, niveau: Niveau,
+    signataire: IdentiteAppelante, reponse: Mapping[str, Any], appareil: str | None = None,
+    capture_documentaire: bool = False,
+) -> str | TraceDocumentaireM10:
     ident = uuid.uuid4().hex[:12]
     maintenant = _maintenant()
     issue: dict[str, Any] = {"ok": bool(reponse.get("ok"))}
     resultat = reponse.get("resultat")
     if isinstance(resultat, Mapping) and "accepte" in resultat:
         issue["accepte"] = resultat["accepte"]
-    cnx.execute(insert(APPROBATIONS).values(
+    resultat_insert = cnx.execute(insert(APPROBATIONS).values(
         id=ident, cree_le=maintenant, departement=departement, outil=outil,
         arguments=json.dumps(arguments_masques(arguments), ensure_ascii=False),
         statut="executee" if execution_reussie(reponse) else "echec", niveau=Niveau(niveau).value,
         decide_par=signataire.personne, decide_role=signataire.role, decide_le=maintenant,
         motif_decision=MOTIF_VALIDATION_AU_DEPART, resultat=json.dumps(issue, ensure_ascii=False),
     ))
-    journaliser(cnx, signataire.personne, ACTION_VALIDATION_AU_DEPART, ident, {
+    if capture_documentaire:
+        pk = resultat_insert.inserted_primary_key
+        if len(pk) != 1 or type(pk[0]) is not str or len(pk[0]) != 12 or pk[0] != ident:
+            raise etat.CaptureTraceDocumentaireErreur("capture documentaire indisponible")
+        ident = pk[0]
+    details = {
         "outil": outil, "departement": departement, "niveau": Niveau(niveau).value,
         "role": signataire.role, "appareil": appareil, "motif": MOTIF_VALIDATION_AU_DEPART,
         "empreinte_arguments": empreinte_arguments(arguments),
-    })
+    }
+    if capture_documentaire:
+        journal_id = etat._journaliser_documentaire_m10(
+            cnx, signataire.personne, ACTION_VALIDATION_AU_DEPART, ident, details,
+        )
+        return TraceDocumentaireM10(ident, journal_id)
+    journaliser(cnx, signataire.personne, ACTION_VALIDATION_AU_DEPART, ident, details)
     return ident
+
+
+@dataclass(frozen=True)
+class TraceDocumentaireM10:
+    """Identifiants techniques capturés, pas preuve d'autorité ni liaison métier."""
+
+    approbation_id: str
+    journal_id: int
+
+
+def tracer_validation_documentaire_m10(
+    cnx: Connection, departement: str, outil: str, arguments: Mapping[str, Any], *, niveau: Niveau,
+    signataire: IdentiteAppelante, reponse: Mapping[str, Any], appareil: str,
+) -> TraceDocumentaireM10:
+    """Capture nommée APP/J ; ne crée aucun SAVEPOINT, factory ou autorité SQL/DEVICE."""
+    etat._connexion_documentaire_m10(cnx)
+    try:
+        if (
+            type(departement) is not str or departement != "m10-memoire"
+            or type(outil) is not str or outil not in _WRITERS_DOCUMENTAIRES_M10 or niveau is not Niveau.N3
+            or type(signataire) is not IdentiteAppelante or type(signataire.role) is not str
+            or type(signataire.source) is not str or signataire.role != "admin"
+            or signataire.source != "appareil" or type(signataire.personne) is not str
+            or not signataire.personne.strip() or type(appareil) is not str or not appareil.strip()
+        ):
+            raise etat.CaptureTraceDocumentaireErreur("capture documentaire indisponible")
+        return _tracer_validation_au_depart(
+            cnx, departement, outil, arguments, niveau=niveau, signataire=signataire,
+            reponse=reponse, appareil=appareil, capture_documentaire=True,
+        )
+    except Exception:
+        raise etat.CaptureTraceDocumentaireErreur("capture documentaire indisponible") from None
 
 
 def mode_effectif(cnx: Connection, departement: str, mode_manifeste: str) -> str:

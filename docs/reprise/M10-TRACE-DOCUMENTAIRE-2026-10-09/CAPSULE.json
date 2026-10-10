@@ -1,0 +1,30 @@
+{
+  "status": "PARTIEL_COMPONENT_ONLY",
+  "prepared_base": "6d35d3acd958dbcfe2603eda3d9c72dd7dbb35a0",
+  "sources": {
+    "src/opsys/etat.py": "03a6a63613f9a4d303db8efce90b6d2b8929a4cbbdea310fcc1aa265dfbe95a2",
+    "src/opsys/approbations.py": "d1ad72efc3c19fdc0b799f6842cc6f116b49f9be86e59cc1682c92bf1aefe53f",
+    "tests/test_trace_documentaire_m10.py": "b18f5141431d8d5c7d93de41d26053174ad3654e467ce0909ecf9cc887119087",
+    "docs/architecture/M10-TRACE-DOCUMENTAIRE.md": "fb5f7b0105d968f99adbeff23ddb6d5c4b499ca15969a9980769d66c55bb5f39"
+  },
+  "evidence_reference_sha256": {
+    "owner_public28_manifest": "565ab7241d4b7c5b645a32ae73eb2aae2e7520301afa03d8f4292d2a05c66397",
+    "owner_public28_receipt": "30e6bbe94255f6cebdb969b503b83b6dfe9d43f9a7b731ef73dc39b05cbcf23d",
+    "Root_gel2_readback": "e6e379c89e7af8074da5cf436520dd87f2f331e793c792f1fe2a185407b2d1cc",
+    "independent_review9_manifest": "7505e1bd940c18eee13c56e1cfca0128c5ffcdd2f0904c4e07add1657bce29ed",
+    "Root_direction": "006a6d704fbe14fd70451563eddaf166ea058ba95b0c8a8aca58ae4f8750bce3",
+    "quota_transport_distinct_Root_readback": "ce8466522d4d90393cf5382a74c272fdc21c2b726b35ddce9daea2dee9922bc1"
+  },
+  "primary_freshchecks": "required before publication",
+  "new_exact_CI": "unknown until commit",
+  "not_delivered": [
+    "writer",
+    "claim",
+    "document_APP_J_link",
+    "current authority DEVICE",
+    "transaction quotas",
+    "RPC",
+    "PG"
+  ],
+  "Toronto_date": "2026-10-09"
+}
