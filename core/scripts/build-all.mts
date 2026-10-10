@@ -53,6 +53,20 @@ type BuildAllStepParams = {
   comSpec?: string;
 };
 const RUN_NODE_SKIP_DTS_BUILD_ENV = "OPENCLAW_RUN_NODE_SKIP_DTS_BUILD";
+const UNIFIED_CONCURRENCY_ENV = "OPENCLAW_BUILD_UNIFIED_CONCURRENCY";
+
+function resolveUnifiedConcurrency(env: NodeJS.ProcessEnv): string | undefined {
+  const value = env[UNIFIED_CONCURRENCY_ENV];
+  if (value === undefined) {
+    return undefined;
+  }
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed < 1 || String(parsed) !== value) {
+    throw new Error(`${UNIFIED_CONCURRENCY_ENV} must be a canonical positive safe integer`);
+  }
+  return value;
+}
+
 const TSDOWN_AI_OUTPUT_ROOT = tsdownPackageOutputRoot("ai");
 const TSDOWN_MAIN_PACKAGE_OUTPUT_ROOTS = TSDOWN_PACKAGE_OUTPUT_ROOTS.filter(
   (root) => root !== TSDOWN_AI_OUTPUT_ROOT,
@@ -376,6 +390,8 @@ export function resolveBuildAllEnvironment(
   now: () => Date = () => new Date(),
   readGitCommit: () => string | null = readCurrentGitCommit,
 ) {
+  // Reject malformed opt-ins before any build hook, cache operation, or child starts.
+  resolveUnifiedConcurrency(env);
   const buildEnv = resolveBuildIdentityEnvironment({
     commitLabel: "build commit",
     env,
@@ -434,6 +450,7 @@ function resolveStepEnv(step: BuildAllStep, env: NodeJS.ProcessEnv, platform: No
 export function resolveBuildAllStep(step: BuildAllStep, params: BuildAllStepParams = {}) {
   const platform = params.platform ?? process.platform;
   const env = resolveStepEnv(step, params.env ?? process.env, platform);
+  const concurrency = resolveUnifiedConcurrency(env);
   const nodeArgs =
     step.kind !== "pnpm"
       ? step.args
@@ -443,7 +460,10 @@ export function resolveBuildAllStep(step: BuildAllStep, params: BuildAllStepPara
   if (nodeArgs) {
     return {
       command: params.nodeExecPath ?? nodeBin,
-      args: nodeArgs,
+      args:
+        step.label === "tsdown-unified" && concurrency !== undefined
+          ? [...nodeArgs, "--concurrency", concurrency]
+          : nodeArgs,
       options: {
         stdio: "inherit",
         env,
@@ -624,6 +644,9 @@ if (isDirectRunUrl(process.argv[1], import.meta.url)) {
   let args;
   try {
     args = parseBuildAllArgs(process.argv.slice(2));
+    if (!args.help) {
+      resolveUnifiedConcurrency(process.env);
+    }
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(2);

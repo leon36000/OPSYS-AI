@@ -28,9 +28,11 @@ import {
   finalizeBuildStepCache,
 } from "../../scripts/lib/build-artifact-cache.mts";
 import { listBundledPluginBuildEntries } from "../../scripts/lib/bundled-plugin-build-entries.mjs";
+import { withDistArtifactOwnership } from "../../scripts/lib/dist-artifact-ownership.mts";
 import { createManagedCommandInvocation } from "../../scripts/lib/managed-child-process.mts";
 import { TSDOWN_UNIFIED_CONFIG_GROUP } from "../../scripts/lib/tsdown-config-groups.mts";
 import { runNodeMain } from "../../scripts/run-node.mts";
+import { resolveTsdownBuildInvocations } from "../../scripts/tsdown-build.mts";
 import { resolveTestNodeExecPath } from "../../src/test-utils/node-process.js";
 
 const testNodeExecPath = resolveTestNodeExecPath();
@@ -114,6 +116,170 @@ function withBuildCacheFixture(
     fs.rmSync(rootDir, { force: true, recursive: true });
   }
 }
+
+describe("opt-in unified build concurrency", () => {
+  it.each([false, true])(
+    "rejects an invalid CLI opt-in before creating or waiting for artifact ownership (held=%s)",
+    async (held) => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), "build-all-invalid-concurrency-"));
+      const script = path.resolve("scripts/build-all.mts");
+      const preload = path.resolve("scripts/tsx.mjs");
+      // Bound repo-root discovery to this disposable fixture, never the real checkout.
+      fs.writeFileSync(path.join(root, ".git"), "");
+      const assertRejected = () => {
+        const snapshot = () =>
+          fs.readdirSync(root, { recursive: true, withFileTypes: true }).map((entry) => {
+            const file = path.join(entry.parentPath, entry.name);
+            return [
+              path.relative(root, file),
+              entry.isFile() ? fs.readFileSync(file, "utf8") : null,
+            ];
+          });
+        const before = snapshot();
+        const result = spawnSync(testNodeExecPath, ["--import", preload, script, "full"], {
+          cwd: root,
+          encoding: "utf8",
+          env: { ...process.env, OPENCLAW_BUILD_UNIFIED_CONCURRENCY: "private-invalid-value" },
+          timeout: 5_000,
+        });
+        expect(snapshot()).toEqual(before);
+        expect(result.error).toBeUndefined();
+        expect(result.status).toBe(2);
+        expect(result.stdout).toBe("");
+        expect(result.stderr).toBe(
+          "OPENCLAW_BUILD_UNIFIED_CONCURRENCY must be a canonical positive safe integer\n",
+        );
+      };
+      try {
+        if (held) {
+          await withDistArtifactOwnership(root, async () => assertRejected());
+        } else {
+          assertRejected();
+        }
+      } finally {
+        fs.rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it.each(["full", "package"])(
+    "passes concurrency only to the unified compiler while preserving every %s phase",
+    async (profile) => {
+      const steps = resolveBuildAllSteps(profile);
+      const originalArgs = steps.map((step) => [...(step.args ?? step.pnpmArgs)]);
+      const invocations: ReturnType<typeof resolveBuildAllStep>[] = [];
+      const env = { OPENCLAW_BUILD_UNIFIED_CONCURRENCY: "2" };
+      const result = await runBuildAllSteps(profile, {
+        env,
+        cacheEnabled: false,
+        memoryLimit: buildMemoryLimit(8),
+        resolveCacheState: () => ({ cacheable: false, fresh: false, reason: "no-cache" }),
+        runStep(invocation) {
+          invocations.push(invocation);
+          return { status: 0 };
+        },
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.timings.map((timing) => timing.label)).toEqual(steps.map((step) => step.label));
+      expect(invocations).toHaveLength(steps.length);
+      for (const [index, step] of steps.entries()) {
+        const invocation = expectDefined(invocations[index], "executed build phase");
+        if (step.label !== "tsdown-unified") {
+          expect(invocation.args).not.toContain("--concurrency");
+          continue;
+        }
+        expect(invocation.args).toEqual([
+          ...expectDefined(step.args, "unified Node args"),
+          "--concurrency",
+          "2",
+        ]);
+        const compilerInvocations = resolveTsdownBuildInvocations({
+          args: invocation.args.slice(3),
+          env: invocation.options.env,
+          ...buildMemoryLimit(8),
+        });
+        expect(compilerInvocations).toHaveLength(1);
+        expect(compilerInvocations[0]?.args).toEqual([
+          "node_modules/tsdown/dist/run.mjs",
+          "--config-loader",
+          "unrun",
+          "--logLevel",
+          "warn",
+          "--no-clean",
+          "--config",
+          "tsdown.config.ts",
+          "--filter",
+          TSDOWN_UNIFIED_CONFIG_GROUP,
+          "--concurrency",
+          "2",
+        ]);
+      }
+      expect(steps.map((step) => step.args ?? step.pnpmArgs)).toEqual(originalArgs);
+      expect(env).toEqual({ OPENCLAW_BUILD_UNIFIED_CONCURRENCY: "2" });
+      expect(resolveBuildAllStep(getBuildAllStep("tsdown-unified"), { env: {} }).args).toEqual(
+        getBuildAllStep("tsdown-unified").args,
+      );
+    },
+  );
+
+  it.each(["1", "9007199254740991"])("accepts the canonical positive safe integer %s", (value) => {
+    const step = getBuildAllStep("tsdown-unified");
+    expect(
+      resolveBuildAllStep(step, {
+        env: { OPENCLAW_BUILD_UNIFIED_CONCURRENCY: value },
+      }).args,
+    ).toEqual([...expectDefined(step.args, "unified Node args"), "--concurrency", value]);
+  });
+
+  it.each([
+    "",
+    " ",
+    " 1",
+    "1 ",
+    "0",
+    "-1",
+    "+1",
+    "01",
+    "1.0",
+    "1e1",
+    "0x10",
+    "NaN",
+    "Infinity",
+    "9007199254740992",
+    "１",
+    "1\n",
+  ])("rejects a noncanonical concurrency %j before any child or cache effect", async (value) => {
+    const runStep = vi.fn(() => ({ status: 0 }));
+    const resolveCacheState = vi.fn(() => ({ cacheable: false, fresh: false, reason: "no-cache" }));
+    const restoreCache = vi.fn(() => true);
+    const finalizeCache = vi.fn(() => true);
+    await expect(
+      runBuildAllSteps("full", {
+        env: { OPENCLAW_BUILD_UNIFIED_CONCURRENCY: value },
+        memoryLimit: buildMemoryLimit(8),
+        runStep,
+        resolveCacheState,
+        restoreCache,
+        finalizeCache,
+      }),
+    ).rejects.toThrow(
+      "OPENCLAW_BUILD_UNIFIED_CONCURRENCY must be a canonical positive safe integer",
+    );
+    for (const effect of [runStep, resolveCacheState, restoreCache, finalizeCache]) {
+      expect(effect).not.toHaveBeenCalled();
+    }
+  });
+
+  it("does not add compiler flags to profiles without a unified phase", () => {
+    const steps = resolveBuildAllSteps("qaRuntime");
+    expect(steps.some((step) => step.label === "tsdown-unified")).toBe(false);
+    for (const step of steps) {
+      expect(
+        resolveBuildAllStep(step, { env: { OPENCLAW_BUILD_UNIFIED_CONCURRENCY: "1" } }).args,
+      ).toEqual(resolveBuildAllStep(step, { env: {} }).args);
+    }
+  });
+});
 
 describe("resolveBuildAllStep", () => {
   it("pins one generated timestamp across every child build", () => {
