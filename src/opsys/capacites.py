@@ -70,6 +70,17 @@ _OUTILS_DOCUMENTAIRES_M10 = {
     "m10_activer_version_document_appareil": "activer",
     "m10_retirer_document_appareil": "retirer",
 }
+_LECTURES_DOCUMENTAIRES_M10 = {
+    "m10_lister_documents_affaire_appareil": "lister",
+    "m10_lire_version_document_affaire_appareil": "lire",
+}
+_REFUS_LECTURE_DOCUMENTAIRE_M10 = frozenset(
+    "REJ-M10-LECTURE-" + suffixe for suffixe in (
+        "AUTORITE-INVALIDE", "MODE-NON-ADMIS", "FORME-INVALIDE", "AFFAIRE-INCONNUE",
+        "REFERENCE-INVALIDE", "REGISTRE-INVALIDE", "CONNEXION-INVALIDE", "DIALECTE-NON-ADMIS",
+        "QUOTA-DEPASSE", "INDISPONIBLE",
+    )
+)
 _ERREURS_DOCUMENTAIRES_M10 = {
     "REJ-M10-TRANSACTION-CONNEXION-INVALIDE": "REJ-M10-DOC-CONFIRMATION-INCONNUE",
     "REJ-M10-TRANSACTION-DIALECTE-NON-ADMIS": "REJ-M10-DOC-CONFIRMATION-INCONNUE",
@@ -278,6 +289,8 @@ class Capacites:
         ticket_memoire: str | None = None,
     ) -> dict[str, Any]:
         """Revérifie et dispatch un outil Core profilé sous le verrou de sa ligne de profil."""
+        if nom in _LECTURES_DOCUMENTAIRES_M10:
+            return self.refus_lecture_documentaire_appareil("REJ-M10-LECTURE-AUTORITE-INVALIDE")
         if nom in _OUTILS_DOCUMENTAIRES_M10:
             return self.refus_documentaire_appareil("REJ-M10-DOC-AUTORITE-INVALIDE", avant_factory=True)
         from . import admission_agents
@@ -310,6 +323,8 @@ class Capacites:
         Une identité d'appareil seule permet une lecture T0/N0 ; toute autre opération
         exige l'enveloppe d'idempotence avant le répartiteur métier.
         """
+        if nom in _LECTURES_DOCUMENTAIRES_M10:
+            return self._appeler_lecture_documents_m10(nom, arguments, meta, ticket_cible, ticket_memoire)
         if nom in _OUTILS_DOCUMENTAIRES_M10:
             return self._appeler_documents_m10(nom, arguments, meta, ticket_cible, ticket_memoire)
         # Ce nouveau lecteur ferme aussi le conteneur brut avant la normalisation
@@ -452,6 +467,197 @@ class Capacites:
         if meta is None:
             return self._distribuer(nom, args)
         return self._appeler_idempotent(nom, args, meta)
+
+    def refus_lecture_documentaire_appareil(self, code):
+        """Refus T0 entier et constant, traduit uniquement hors transaction appelante."""
+        if type(self._limite) is not int or self._limite < 40:
+            raise RuntimeError("QUOTA-INSUFFISANT") from None
+        if type(code) is not str or code not in _REFUS_LECTURE_DOCUMENTAIRE_M10:
+            code = "REJ-M10-LECTURE-INDISPONIBLE"
+        frame = {"ok": False, "erreur": code}
+        if len(json.dumps(frame, ensure_ascii=False, allow_nan=False)) <= self._limite:
+            return frame
+        # Une lecture n'invente ni fragment ni artefact pour faire rentrer un refus.
+        raise RuntimeError("LECTURE-DOCUMENTAIRE-INDISPONIBLE") from None
+
+    @staticmethod
+    def _arguments_lecture_documents_m10(nom, arguments):
+        from m10_memoire import affaire
+        from m10_memoire import documents_affaire as domaine
+
+        args = domaine._copie(arguments)
+        if _LECTURES_DOCUMENTAIRES_M10[nom] == "lister":
+            domaine._forme(args, {"affaire_id", "decalage", "limite"})
+            domaine._entier(args["decalage"], 0, 64)
+            domaine._entier(args["limite"], 1, 8)
+        else:
+            domaine._forme(args, {"affaire_id", "document_ref", "version_source"})
+            domaine._reference_forme(args["document_ref"])
+            domaine._reference_forme(args["version_source"])
+        if type(args["affaire_id"]) is not str or not affaire.valide(args["affaire_id"]):
+            raise ValueError("forme documentaire")
+        return args
+
+    @staticmethod
+    def _confirmation_lecture_documents_m10(response, *, nom, args, quota):
+        """Copie JSON fermée et binding du DTO complet avant de sortir du SAVEPOINT."""
+        from m10_memoire import documents_affaire as domaine
+
+        value = domaine._copie(response)
+        domaine._forme(value, {"ok", "resultat"})
+        domaine._forme(value["resultat"], {"accepte", "resultat"})
+        if value["ok"] is not True or value["resultat"]["accepte"] is not True:
+            raise ValueError("projection documentaire")
+        dto = value["resultat"]["resultat"]
+        index = _LECTURES_DOCUMENTAIRES_M10[nom] == "lister"
+        commun = {
+            "version_schema", "affaire_id", "document_ref", "version_source", "statut", "titre",
+            "methode", "source_sha256", "taille_points", "taille_octets", "auteur", "horodatage", "activation_ref",
+        }
+        if index:
+            domaine._forme(dto, {
+                "version_schema", "affaire_id", "decalage", "limite", "total_versions", "suivant_decalage", "versions",
+            })
+            domaine._entier(dto["version_schema"], 1, 1)
+            domaine._entier(dto["decalage"], 0, 64)
+            domaine._entier(dto["limite"], 1, 8)
+            domaine._entier(dto["total_versions"], 0, 64)
+            fin = args["decalage"] + args["limite"]
+            suivant = fin if fin < dto["total_versions"] else None
+            if dto["suivant_decalage"] is not None:
+                domaine._entier(dto["suivant_decalage"], 1, 64)
+            if (
+                dto["affaire_id"] != args["affaire_id"] or dto["decalage"] != args["decalage"]
+                or dto["limite"] != args["limite"] or dto["suivant_decalage"] != suivant
+                or type(dto["versions"]) is not list
+                or len(dto["versions"]) != max(0, min(args["limite"], dto["total_versions"] - args["decalage"]))
+            ):
+                raise ValueError("page documentaire")
+            rows = dto["versions"]
+        else:
+            rows = [dto]
+        precedent = -1
+        for row in rows:
+            if type(row) is not dict:
+                raise ValueError("ligne documentaire")
+            cles = commun | {"version_no", "version_precedente_attendue", "activation_attendue"} if index else commun
+            if not index and row.get("statut") != "RETIREE":
+                cles = cles | {"corps"}
+            domaine._forme(row, cles)
+            domaine._entier(row["version_schema"], 1, 1)
+            if row["affaire_id"] != args["affaire_id"] or row["statut"] not in (
+                "DEPOSEE_NON_ACTIVEE", "COURANTE", "HISTORIQUE_NON_COURANTE", "RETIREE",
+            ) or row["methode"] != "utf8-exact-v1":
+                raise ValueError("identité documentaire")
+            domaine._reference_forme(row["document_ref"])
+            domaine._reference_forme(row["version_source"])
+            if row["document_ref"]["index"] > row["version_source"]["index"]:
+                raise ValueError("ordre documentaire")
+            domaine._texte(row["titre"], 120)
+            domaine._hash(row["source_sha256"])
+            domaine._entier(row["taille_points"], 1, 2000)
+            domaine._entier(row["taille_octets"], row["taille_points"], row["taille_points"] * 4)
+            domaine._auteur(row["auteur"])
+            domaine._hora(row["horodatage"])
+            if row["activation_ref"] is not None:
+                domaine._reference_forme(row["activation_ref"])
+                if row["activation_ref"]["index"] <= row["version_source"]["index"]:
+                    raise ValueError("activation documentaire")
+            if (row["statut"] == "DEPOSEE_NON_ACTIVEE" and row["activation_ref"] is not None) or (
+                row["statut"] in ("COURANTE", "HISTORIQUE_NON_COURANTE") and row["activation_ref"] is None
+            ):
+                raise ValueError("statut documentaire")
+            if index:
+                domaine._entier(row["version_no"], 1, 8)
+                domaine._reference_forme(row["version_precedente_attendue"])
+                if row["activation_attendue"] is not None:
+                    domaine._reference_forme(row["activation_attendue"])
+                if row["version_source"]["index"] <= precedent or (
+                    row["version_precedente_attendue"]["index"] < row["version_source"]["index"]
+                ):
+                    raise ValueError("ordre de page documentaire")
+                precedent = row["version_source"]["index"]
+            else:
+                if row["document_ref"] != args["document_ref"] or row["version_source"] != args["version_source"]:
+                    raise ValueError("référence documentaire")
+                if row["statut"] != "RETIREE":
+                    corps = row["corps"]
+                    if type(corps) is not str:
+                        raise ValueError("corps documentaire")
+                    raw = corps.encode("utf-8", "strict")
+                    if len(corps) != row["taille_points"] or len(raw) != row["taille_octets"] or (
+                        hashlib.sha256(raw).hexdigest() != row["source_sha256"]
+                    ):
+                        raise ValueError("empreinte documentaire")
+        domaine.borner_enveloppe(value, quota)
+        return value
+
+    def _appeler_lecture_documents_m10(self, nom, arguments, meta, ticket_cible, ticket_memoire):
+        """Deux lectures DEVICE T0, hors chemins historiques de mutation et d'artefact."""
+        if type(self._limite) is not int or self._limite < 40:
+            raise RuntimeError("QUOTA-INSUFFISANT") from None
+        acteur = identite_appelante()
+        entree = self.index.get(nom)
+        if (
+            type(acteur) is not IdentiteAppelante or type(acteur.personne) is not str
+            or type(acteur.role) is not str or type(acteur.source) is not str
+            or acteur.role != "admin" or acteur.source != "appareil" or self.appelant is not None
+            or entree is None or entree[0] is None or entree[0].id != "m10-memoire"
+            or entree[1].nom != nom or entree[1].autonomie is not Autonomie.T0
+            or entree[1].niveau_effectif is not Niveau.N0 or nom not in self._outils_du_role("admin")
+            or ticket_cible is not None or ticket_memoire is not None or contexte_appel.ticket_agent_cfo() is not None
+        ):
+            return self.refus_lecture_documentaire_appareil("REJ-M10-LECTURE-AUTORITE-INVALIDE")
+        departement, outil = entree
+        from m10_memoire import humain
+
+        if not humain.acteur_valide(acteur.personne, acteur.role, acteur.source):
+            return self.refus_lecture_documentaire_appareil("REJ-M10-LECTURE-AUTORITE-INVALIDE")
+        if type(departement.mode) is not str or departement.mode not in ("ombre", "supervise", "autonome"):
+            return self.refus_lecture_documentaire_appareil("REJ-M10-LECTURE-MODE-NON-ADMIS")
+        try:
+            if meta is not None:
+                raise ValueError("meta de mutation")
+            args = self._arguments_lecture_documents_m10(nom, arguments)
+        except Exception:
+            return self.refus_lecture_documentaire_appareil("REJ-M10-LECTURE-FORME-INVALIDE")
+        try:
+            from m10_memoire import outils as facade
+
+            from .stockage import connexion_courante
+
+            with self._cnx_factory() as cnx:
+                if (
+                    type(cnx) is not Connection or cnx is not connexion_courante()
+                    or cnx.closed or not cnx.in_transaction()
+                ):
+                    raise RuntimeError("lecture documentaire")
+                with cnx.begin_nested():
+                    signataire = approbations.signataire_valide(cnx, acteur)
+                    if signataire is None or signataire.role != "admin":
+                        raise _RefusDocumentaireCap("REJ-M10-LECTURE-AUTORITE-INVALIDE")
+                    with (
+                        appeler_en_tant_que(departement.id),
+                        facade.invocation_lecture_documentaire_appareil(
+                            cnx, quota=self._limite, mode_manifeste=departement.mode,
+                        ),
+                    ):
+                        response = outil.fonction(**args)
+                        response = self._confirmation_lecture_documents_m10(
+                            response, nom=nom, args=args, quota=self._limite,
+                        )
+            return response
+        except Exception as exc:
+            from .documents_affaire_lecture_appareil import ErreurLectureDocumentaire
+
+            code = "REJ-M10-LECTURE-INDISPONIBLE"
+            if type(exc) is _RefusDocumentaireCap:
+                code = exc.code
+            elif type(exc) is ErreurLectureDocumentaire:
+                attrs = vars(exc)
+                if type(attrs.get("code")) is str and type(attrs.get("detail")) is str:
+                    code = attrs["code"]
+            return self.refus_lecture_documentaire_appareil(code)
 
     def refus_documentaire_appareil(self, code, *, avant_factory=False):
         """Cadre nommé fermé, jamais artefact ; inconnu trop grand reste technique."""

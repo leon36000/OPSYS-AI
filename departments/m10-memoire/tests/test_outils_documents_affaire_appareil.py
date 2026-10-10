@@ -68,7 +68,10 @@ def _tool(nom):
 @pytest.mark.parametrize("index", range(3))
 def test_declaration_fermee_t1_n3_admin_affaire_append_en_fin(index):
     alltools = outils.outils()
-    assert tuple(o.nom for o in alltools) == HISTORIQUES + NOMS
+    assert tuple(o.nom for o in alltools) == HISTORIQUES + NOMS + (
+        "m10_lister_documents_affaire_appareil",
+        "m10_lire_version_document_affaire_appareil",
+    )
     outil = _tool(NOMS[index])
     assert outil.autonomie is Autonomie.T1 and outil.niveau is Niveau.N3
     assert outil.roles_appareil == frozenset({"admin"})

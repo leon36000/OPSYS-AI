@@ -10,6 +10,30 @@
  * montre tel quel.
  */
 const adminFrCA = {
+  documentsAffaire: {
+    titre: "Documents internes de l’affaire",
+    pagesCourantes: "Métadonnées courantes, une version par page. Chaque lecture remplace la page ; la collection peut changer entre deux lectures. Aucun corps gardé hors ligne.",
+    choisirAffaire: "Ouvrez explicitement une affaire depuis sa recherche ou un signal pour consulter ses documents.",
+    affaire: "Affaire : {{affaire}}", rafraichir: "Relire les métadonnées", suite: "Lire la page suivante",
+    horsLigne: "Hors ligne : lectures masquées et actions suspendues. Le brouillon en mémoire et les intentions durables sont conservés.",
+    page: "Décalage {{decalage}} · {{affichees}} version(s) montrée(s) sur {{total}} à cette lecture.", vide: "Aucune version sur cette page.",
+    version: "Version {{numero}}", reference: "Document : {{document}} · Version source : {{version}}",
+    provenance: "Auteur historique : {{personne}} ({{role}}, {{source}}) · Date source : {{date}}",
+    empreinte: "SHA-256 : {{hash}} · {{points}} points Unicode · {{octets}} octets UTF-8",
+    lireVersion: "Sélectionner cette version", detail: "Contenu de la version sélectionnée", retire: "Document retiré : aucun corps disponible, aucune activation ni nouvelle version autorisée.",
+    refus: "Lecture refusée. Aucun contenu précédent n’est repris.",
+    brouillon: "Brouillon de texte interne", ram: "Non sauvegardé : ce brouillon reste seulement en mémoire dans ce panneau. Fermer le panneau ou changer de session le perd. Les intentions déjà soumises restent durables.",
+    cibleVersion: "Brouillon pour le document {{reference}}. Resélectionnez sa version après toute nouvelle lecture avant de déposer.",
+    cibleNouveau: "Brouillon d’un nouveau document.", nouveau: "Préparer un nouveau document",
+    saisieTitre: "Titre interne", saisieCorps: "Texte interne", limites: "Titre : {{titre}}/120 points Unicode · Texte : {{corps}}/2000. Le contenu n’est ni tronqué ni normalisé.",
+    actionsNote: "Trois décisions séparées. Déposer crée une version interne sans l’activer. Activer choisit la version sélectionnée. Retirer ferme l’accès au document.",
+    deposer: "Déposer cette version", activer: "Activer cette version", retirer: "Retirer ce document",
+    intentions: "Intentions documentaires durables", recuNote: "Un reçu confirme cette intention précise, pas l’état courant du document. Relisez puis resélectionnez avant une autre décision. Une intention incertaine ou bloquée conserve son identifiant.",
+    intentionEnCours: "Identifiant retenu : {{id}}", intention: "{{id}} · {{statut}}", reprendre: "Reprendre l’intention existante",
+    messages: { lecture_indisponible: "Lecture indisponible. Relisez les métadonnées avant de décider.", intention_incertaine: "Intention non confirmée : son identifiant est conservé. Aucun nouveau dépôt ne la remplace.", confirmation_recue: "Reçu propre confirmé pour cette intention. L’état courant reste à relire.", action_indisponible: "Action indisponible dans cet état." },
+    etatsFile: { brouillon: "Brouillon dans la file", en_attente: "En attente dans la file", envoi: "Envoi commencé, résultat non confirmé", envoyee: "Marquée envoyée dans la file ; ce statut seul ne prouve pas un reçu propre", echec_permanent: "Échec permanent : série bloquée, identifiant conservé", inconnu: "Statut local illisible, aucune confirmation supposée" },
+    statuts: { DEPOSEE_NON_ACTIVEE: "Version déposée, non activée", COURANTE: "Version courante à cette lecture", HISTORIQUE_NON_COURANTE: "Version historique, non courante", RETIREE: "Document retiré" },
+  },
   obligationsM5: {
     sourceMontantNormalisee: "Source du montant, projection normalisée", sourceEcheanceNormalisee: "Source de l'échéance, projection normalisée",
     ouvrir: "Ouvrir les déclarations préparatoires internes",

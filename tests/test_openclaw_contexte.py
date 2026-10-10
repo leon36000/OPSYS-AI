@@ -304,6 +304,12 @@ def test_cibles_explicitent_l_affaire_m3_et_refusent_les_contrats_non_declares(d
         assert contexte["cibles"][nom] == {
             "type": "affaire", "chemin": ["affaire_id"], "identite": "affaire",
         }
+    for nom in (
+        "m10_lister_documents_affaire_appareil",
+        "m10_lire_version_document_affaire_appareil",
+    ):
+        assert contexte["niveaux"][nom] == "N0"
+        assert nom not in contexte["cibles"]  # le schéma canonique réserve cibles aux N3+
     assert all(contexte["niveaux"][nom] in {"N3", "N4", "N5"} for nom in contexte["cibles"])
 
 

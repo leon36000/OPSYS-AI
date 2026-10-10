@@ -119,6 +119,8 @@ ADMIN_SEUL = frozenset({
     # Mutations documentaires nommées : admin DEVICE courant, N3 et affaire autorisée.
     "m10_deposer_version_document_appareil", "m10_activer_version_document_appareil",
     "m10_retirer_document_appareil",
+    # Lectures documentaires T0/N0 : admin DEVICE courant, aucune intention.
+    "m10_lister_documents_affaire_appareil", "m10_lire_version_document_affaire_appareil",
 })
 # Le lecteur paginé M3 est réservé au vendeur courant : l'admin ne choisit pas un vendeur
 # par argument et ne reçoit pas ce tool. Le lecteur de chantier et le diagnostic sont admin.

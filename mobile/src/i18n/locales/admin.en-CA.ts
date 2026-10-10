@@ -6,6 +6,30 @@ import type { RessourcesAdmin } from "./admin.fr-CA";
  * says so in words too: never a dash, never a zero.
  */
 const adminEnCA: RessourcesAdmin = {
+  documentsAffaire: {
+    titre: "Internal case documents",
+    pagesCourantes: "Current metadata, one version per page. Each read replaces the page; the collection may change between reads. No document body is kept offline.",
+    choisirAffaire: "Explicitly open a case from search or a signal to view its documents.",
+    affaire: "Case: {{affaire}}", rafraichir: "Read metadata again", suite: "Read the next page",
+    horsLigne: "Offline: reads are hidden and actions suspended. The in-memory draft and durable intentions are retained.",
+    page: "Offset {{decalage}} · {{affichees}} version(s) shown out of {{total}} at this read.", vide: "No version on this page.",
+    version: "Version {{numero}}", reference: "Document: {{document}} · Source version: {{version}}",
+    provenance: "Historical author: {{personne}} ({{role}}, {{source}}) · Source date: {{date}}",
+    empreinte: "SHA-256: {{hash}} · {{points}} Unicode code points · {{octets}} UTF-8 bytes",
+    lireVersion: "Select this version", detail: "Selected version content", retire: "Withdrawn document: no body available, no activation or new version allowed.",
+    refus: "Read denied. No previous content is reused.",
+    brouillon: "Internal text draft", ram: "Unsaved: this draft stays only in this panel’s memory. Closing the panel or changing sessions loses it. Already submitted intentions remain durable.",
+    cibleVersion: "Draft for document {{reference}}. Select its version again after any new read before submitting.",
+    cibleNouveau: "Draft for a new document.", nouveau: "Prepare a new document",
+    saisieTitre: "Internal title", saisieCorps: "Internal text", limites: "Title: {{titre}}/120 Unicode code points · Text: {{corps}}/2000. Content is neither truncated nor normalized.",
+    actionsNote: "Three separate decisions. Submitting creates an internal version without activating it. Activating selects the chosen version. Withdrawing closes access to the document.",
+    deposer: "Submit this version", activer: "Activate this version", retirer: "Withdraw this document",
+    intentions: "Durable document intentions", recuNote: "A receipt confirms this exact intention, not the document’s current state. Read and select again before another decision. An uncertain or blocked intention keeps its identifier.",
+    intentionEnCours: "Retained identifier: {{id}}", intention: "{{id}} · {{statut}}", reprendre: "Retry the existing intention",
+    messages: { lecture_indisponible: "Read unavailable. Read the metadata again before deciding.", intention_incertaine: "Intention unconfirmed: its identifier is retained. No new submission replaces it.", confirmation_recue: "Matching receipt confirmed for this intention. The current state still needs to be read.", action_indisponible: "Action unavailable in this state." },
+    etatsFile: { brouillon: "Draft in the queue", en_attente: "Waiting in the queue", envoi: "Send started, result unconfirmed", envoyee: "Marked sent in the queue; this status alone does not prove a matching receipt", echec_permanent: "Permanent failure: series blocked, identifier retained", inconnu: "Unreadable local status, no confirmation assumed" },
+    statuts: { DEPOSEE_NON_ACTIVEE: "Submitted version, not activated", COURANTE: "Current version at this read", HISTORIQUE_NON_COURANTE: "Historical version, not current", RETIREE: "Withdrawn document" },
+  },
   obligationsM5: {
     sourceMontantNormalisee: "Amount source, normalized projection", sourceEcheanceNormalisee: "Due date source, normalized projection",
     ouvrir: "Open internal preparatory declarations",

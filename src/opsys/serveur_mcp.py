@@ -30,7 +30,7 @@ from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 
 from . import __version__, contexte, etat, evenements, idempotence, liaison_cibles, stockage
-from .capacites import _OUTILS_DOCUMENTAIRES_M10, Capacites
+from .capacites import _LECTURES_DOCUMENTAIRES_M10, _OUTILS_DOCUMENTAIRES_M10, Capacites
 from .departements import Departement, charger_departements
 from .memoire import autorite as autorite_memoire
 from .outils import Autonomie
@@ -72,6 +72,44 @@ def creer_serveur(
 
     async def appeler_outil(ctx: Any, params: types.CallToolRequestParams) -> types.CallToolResult:
         del ctx
+        if params.name in _LECTURES_DOCUMENTAIRES_M10:
+            # No mutation Meta is fabricated for T0. The SDK validates its own request
+            # container before this handler; preserve the raw arguments for named guards.
+            refus = None
+            if (outils_permis is not None and params.name not in outils_permis) or params.name in outils_caches:
+                refus = "REJ-M10-LECTURE-AUTORITE-INVALIDE"
+            try:
+                values = params.meta
+                if values is None:
+                    values = {}
+                if type(values) is not dict:
+                    raise ValueError("forme")
+                if any(key in values for key in (
+                    idempotence.CLE_META, idempotence.APPAREIL_META, idempotence.HORODATAGE_META,
+                )):
+                    refus = "REJ-M10-LECTURE-FORME-INVALIDE"
+                if any(values.get(key) is not None for key in (
+                    liaison_cibles.TICKET_CIBLE_META, autorite_memoire.META, "opsys/cfoGrantTicket",
+                    "opsys/runtimeProfileId", "opsys/runtimeProfileRevision", "opsys/runtimeServer",
+                )):
+                    refus = "REJ-M10-LECTURE-AUTORITE-INVALIDE"
+                personne, role = values.get(contexte.PERSONNE_META), values.get(contexte.ROLE_META)
+                if type(personne) is not str or type(role) is not str:
+                    refus = "REJ-M10-LECTURE-AUTORITE-INVALIDE"
+                    identite = None
+                else:
+                    identite = contexte.IdentiteAppelante(personne, role, "appareil")
+            except Exception:
+                refus = "REJ-M10-LECTURE-FORME-INVALIDE"
+            if refus is not None:
+                reponse = capacites.refus_lecture_documentaire_appareil(refus)
+            else:
+                with contexte.appele_par_appareil(identite):
+                    reponse = await anyio.to_thread.run_sync(capacites.appeler, params.name, params.arguments)
+            return types.CallToolResult(
+                content=[types.TextContent(type="text", text=json.dumps(reponse, ensure_ascii=False, allow_nan=False))],
+                isError=not reponse.get("ok", False),
+            )
         if params.name in _OUTILS_DOCUMENTAIRES_M10:
             # The SDK already validates dict|None arguments. Keep the raw dict/None here;
             # named guards and tiny-quota errors run before legacy normalization/Meta returns.

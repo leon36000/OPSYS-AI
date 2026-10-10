@@ -17,6 +17,7 @@ import { presenterPaquetAffaire } from "@/ecrans/paquetAffaire";
 import type { PaquetAffaireM10 } from "@/m10/paquetAffaire";
 import { estAffairePaquetM10Valide } from "@/m10/paquetAffaire";
 import { RechercheAffaireM10 } from "@/admin/RechercheAffaireM10";
+import { DocumentsAffaireM10 } from "@/admin/DocumentsAffaireM10";
 
 const choix: readonly ChoixArbitrageMemoire[] = ["distincts_confirmes", "obsolete_marquee", "indetermine", "en_attente"];
 
@@ -30,6 +31,8 @@ export default function MemoireAdmin() {
   const [paquet, setPaquet] = useState<ResultatSection<PaquetAffaireM10>>();
   const [affaire, setAffaire] = useState<string | null>(null);
   const [paquetEnCours, setPaquetEnCours] = useState(false);
+  // Cette cible explicite survit aux recherches/rafraîchissements informatifs du paquet.
+  const [affaireDocuments, setAffaireDocuments] = useState<{ id: string; ouverture: number; courante: () => boolean } | null>(null);
   const demandePaquet = useRef(0);
   const sequence = useRef(0);
   const garde = useRef<(() => boolean) | null>(null);
@@ -59,6 +62,12 @@ export default function MemoireAdmin() {
     void charger();
     return () => { ++sequence.current; ++demandePaquet.current; garde.current = null; controleMemoire.invalider(); };
   }, [charger, session]));
+  function ouvrirAffaire(affaireId: string) {
+    const capture = capturerSessionAdminLecture();
+    if (!capture.session || !capture.courante() || !garde.current?.() || !connected || !estAffairePaquetM10Valide(affaireId)) return;
+    setAffaireDocuments(v => ({ id: affaireId, ouverture: (v?.ouverture ?? 0) + 1, courante: capture.courante }));
+    void lireAffaire(affaireId);
+  }
   async function lireAffaire(affaireId: string) {
     if (!connected || garde.current?.() !== true || !estAffairePaquetM10Valide(affaireId) ||
         controleMemoire.etat().statut === "arbitrage_en_cours") return;
@@ -95,7 +104,9 @@ export default function MemoireAdmin() {
       {state.messageCode ? <Text accessibilityRole="alert" style={styles.avis}>{t(`admin.memoire.messages.${state.messageCode}`)}</Text> : null}
       {state.message ? <Text accessibilityRole="alert">{state.message}</Text> : null}
       <RechercheAffaireM10 connected={connected} bloque={state.statut === "arbitrage_en_cours"}
-        autorisee={() => garde.current?.() === true} onOuvrir={id => void lireAffaire(id)} onInvalider={fermerPaquet} />
+        autorisee={() => garde.current?.() === true} onOuvrir={ouvrirAffaire} onInvalider={fermerPaquet} />
+      <DocumentsAffaireM10 connected={connected} affaireId={affaireDocuments?.courante() ? affaireDocuments.id : null}
+        ouverture={affaireDocuments?.courante() ? affaireDocuments.ouverture : 0} />
       <Carte><Text style={styles.sousTitre}>{t("admin.memoire.signaux")}</Text>
         <EtatSection vue={vue(state.signaux)} rendre={v => <>
           <Text>{t("admin.memoire.comptesSignaux", { total: v.nb_total, ouverts: v.nb_ouverts, pris: v.nb_pris_en_compte, clos: v.nb_clos, omis: v.nb_omis })}</Text>
@@ -105,7 +116,7 @@ export default function MemoireAdmin() {
             <Text>{t("admin.memoire.affaire", { reference: s.affaire_id ?? t("admin.memoire.inconnu") })}</Text>
             {estAffairePaquetM10Valide(s.affaire_id) ? <BoutonSecondaire texte={t("admin.paquetAffaire.ouvrir")}
               desactive={!connected || state.statut === "arbitrage_en_cours"}
-              onPress={() => void lireAffaire(s.affaire_id!)} /> : null}
+              onPress={() => ouvrirAffaire(s.affaire_id!)} /> : null}
             <Text>{statut("etatsSignal", s.etat)} · {s.horodatage}</Text>
             {s.traite_par ? <Text>{t("admin.memoire.traitement", { personne: s.traite_par, date: s.traite_le ?? t("admin.memoire.inconnu") })}</Text> : null}
             {s.motif !== null ? <Text>{s.motif}</Text> : null}

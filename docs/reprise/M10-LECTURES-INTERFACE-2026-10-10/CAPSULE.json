@@ -1,0 +1,67 @@
+{
+  "schema": "opsys-continuation-capsule-v4",
+  "time_toronto": "2026-10-10T01:37:03.080383-04:00",
+  "product_status": "PARTIEL",
+  "base": "44d0237fa64f233862baa25a2d3c5c42e3516ba2",
+  "Source_files": 31,
+  "Core_TREE": "4ad1a927b4286039c23f7b93cbf43c2d02b61c7e",
+  "registry_sha256": "895457d58f8e328f45c41302a408b7365eaa5b7e6e13df3606220c5bb2708ed8",
+  "local_checks": {
+    "primary_python": {
+      "tests": 779,
+      "skipped": 0,
+      "failure": 0,
+      "actual_imports": 90,
+      "receipt_sha256": "67988c6d7037e90452bff55d957b8642257be9f8950aa622722a8a7eaed06ce3",
+      "source_disposition": "All actualPython files still identical after frontend-onlyGEL3 correction; current31 hashes rechecked separately"
+    },
+    "Ruff": 0,
+    "metier": "10departments242tools150permitted/83actualprimaryimports",
+    "mobile": {
+      "tests": 5562,
+      "suites": 237,
+      "skipped": 0,
+      "failure": 0,
+      "controller31_included": true,
+      "four_shards_exact_union": true,
+      "receipt_sha256": "82d59f33dc1025fcabc32c3c582094322d1acabca3a62daec91d374a68a9589e",
+      "fixed615_manifest_sha256": "64dc7cf8cc7127fa02b90bad407b3e53e66455455c304b917dfc1dfcb589e287",
+      "F17_primary_all615_SHA_equal": true
+    },
+    "types": 0,
+    "oxlint_owned2": 0
+  },
+  "fixed_findings": [
+    "Canonical whitespace-only body reader mismatch, actualRED then onepredicate fix",
+    "Session renewal unknown UUID original recovery",
+    "Foreign pending old admin prevented T0 of unrelated affaire; reads allowed without foreign intent exposure/new effect",
+    "Same-ref immutable index/detail fields inconsistency closed; mutable status/activation permitted",
+    "FIFO recovery bound to original intention instead of null displayed affair"
+  ],
+  "models": {
+    "previous_Source17": "ActualOpus5.5+2Sonnet5.5+Haiku5.5 static Source17 counterreview; Rootdispositionf000ee... no producttestcredit",
+    "frontend_current_review_snapshot": "GEL2beforeRootGEL3, actualOpus5.5+2Sonnet5.5+Haiku5.5;556.834s/RSS406372352 EOFownersclosed, rolesID15/18/10/2",
+    "efforts": "HIGH/HIGH/HIGH/MAX configured; provider internal effort not emitted",
+    "formal_validator": "NOTQUAL retained: Haiku351words>350, Sonnet841/1032>soft800. No rerun/truncation or guard weakening.",
+    "root_independent_boundary_sha256": "bae52813f9784ff8502e443dd6f81d5a7fd7cc619b7c3f226dc177b039ab2a5a",
+    "unchanged_public9_manifest_sha256": "3d33782ff6205bf1227b6c840f1547fbe8ce79535e424bc394ac71b4eeacadd1",
+    "root_read_source_test_disposition_sha256": "82190c508321992c0c694b861448148337a7fc458a6b35ebddbf95ca8bf013d7",
+    "LiteLLM": "Muse1.3Contributor andGPT6Luna actual200stop+generationmodelmetadata verified, smallsnapshotoldreader, no newdefect. Rootdisposition0b0078...; earlierDeepSeek/GLM missingopinions remain explicit."
+  },
+  "red_history": [
+    "SourceGEL1 fullprocessRSS interruption retained; SourceGEL2 5553 historical notcurrent",
+    "Controller RED6 valid +fixturealias falseRED, FIFORED1, firstgreen30P1Ffixturealias then31P andfull5562",
+    "Rootlint initialnonexistentESLintpath invocationfailure preserved; pinnedactualCoreoxlint pass, no dependency/configchange"
+  ],
+  "limits": {
+    "exact_new_CI": "PENDING_ON_COMMIT_CONTAINING_THIS_CAPSULE, no inherited44d pass",
+    "parent44d_CI": "38019088426A1PASS38SUCCESS2conditionalDockerSKIPS inclCorefullbuild/E2E, scope exact44d only",
+    "Native_T0": "PREPARED_ONLY, noGO/service, localMemAvailable2116165632<6442450944; resourceDisposition46257625...",
+    "Docker": "Localpermissionblocked; PostgreSQL and runner scopes separate",
+    "phone": "No physicaldevice/Hermes/nativeSQLite/Expo proof by these local suites",
+    "missing104": "Unavailable lightpack proofs retained asreferences, never credited",
+    "full_supplement_and_absent_chats": "Unavailable/unknown",
+    "product": "Ten deep departments/Core/mobile4profiles/offline/dashboard/avatars/separatememories remain PARTIEL"
+  },
+  "next": "ExactnewcommitCI/privateDRAFT623 readback; continueexistingverticalqueue. M5.3 singletonpartialproposal design and reallegacyacceptedwithoutproposal capture prepared, no new partial behavior or payment effect delivered."
+}

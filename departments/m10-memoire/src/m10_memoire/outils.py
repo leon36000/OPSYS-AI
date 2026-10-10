@@ -1276,3 +1276,130 @@ def outils() -> tuple[Outil, ...]:
             identite_contexte="affaire",
         ),
     )
+
+
+@dataclass(frozen=True)
+class _InvocationLectureDocumentaire:
+    cnx: Connection
+    quota: int
+    mode_manifeste: str
+
+
+_INVOCATION_LECTURE_DOCUMENTAIRE: ContextVar[_InvocationLectureDocumentaire | None] = ContextVar(
+    "m10_invocation_lecture_documentaire_appareil", default=None,
+)
+
+
+def _verifier_invocation_lecture_documentaire(invocation):
+    try:
+        if (
+            type(invocation) is not _InvocationLectureDocumentaire
+            or type(invocation.cnx) is not Connection
+            or invocation.cnx is not stockage.connexion_courante()
+            or invocation.cnx.closed
+            or not invocation.cnx.in_transaction()
+            or invocation.cnx.engine.dialect.name != "sqlite"
+            or type(invocation.quota) is not int
+            or invocation.quota < 1
+            or type(invocation.mode_manifeste) is not str
+            or invocation.mode_manifeste not in ("ombre", "supervise", "autonome")
+        ):
+            raise RuntimeError("LECTURE-DOCUMENTAIRE-INDISPONIBLE")
+    except Exception:
+        raise RuntimeError("LECTURE-DOCUMENTAIRE-INDISPONIBLE") from None
+
+
+@contextmanager
+def invocation_lecture_documentaire_appareil(cnx, *, quota, mode_manifeste):
+    """Contexte privé sans Meta ; n'établit ni rôle SQL ni autorité DEVICE."""
+    if _INVOCATION_LECTURE_DOCUMENTAIRE.get() is not None:
+        raise RuntimeError("LECTURE-DOCUMENTAIRE-INDISPONIBLE") from None
+    invocation = _InvocationLectureDocumentaire(cnx, quota, mode_manifeste)
+    _verifier_invocation_lecture_documentaire(invocation)
+    token = _INVOCATION_LECTURE_DOCUMENTAIRE.set(invocation)
+    try:
+        yield
+    finally:
+        _INVOCATION_LECTURE_DOCUMENTAIRE.reset(token)
+
+
+def _executer_lecture_documentaire_appareil(operation, arguments):
+    invocation = _INVOCATION_LECTURE_DOCUMENTAIRE.get()
+    _verifier_invocation_lecture_documentaire(invocation)
+    try:
+        args = documents_affaire._copie(arguments)
+        documents_affaire._forme(
+            args,
+            {"affaire_id", "decalage", "limite"} if operation == "lister"
+            else {"affaire_id", "document_ref", "version_source"},
+        )
+        if type(args["affaire_id"]) is not str or not documents_affaire.affaire.valide(args["affaire_id"]):
+            raise ValueError("forme")
+        if operation == "lister":
+            documents_affaire._entier(args["decalage"], 0, 64)
+            documents_affaire._entier(args["limite"], 1, 8)
+        else:
+            documents_affaire._reference_forme(args["document_ref"])
+            documents_affaire._reference_forme(args["version_source"])
+    except Exception:
+        raise RuntimeError("LECTURE-DOCUMENTAIRE-INDISPONIBLE") from None
+    from opsys.documents_affaire_lecture_appareil import lire_document_m10
+
+    return lire_document_m10(
+        invocation.cnx, operation, args, quota=invocation.quota, mode_manifeste=invocation.mode_manifeste,
+    )
+
+
+def lister_documents_affaire_appareil(affaire_id, decalage, limite):
+    return _executer_lecture_documentaire_appareil(
+        "lister", {"affaire_id": affaire_id, "decalage": decalage, "limite": limite},
+    )
+
+
+def lire_version_document_affaire_appareil(affaire_id, document_ref, version_source):
+    return _executer_lecture_documentaire_appareil(
+        "lire", {"affaire_id": affaire_id, "document_ref": document_ref, "version_source": version_source},
+    )
+
+
+_OUTILS_AVANT_LECTURE_DOCUMENTAIRE = outils
+
+
+def outils() -> tuple[Outil, ...]:
+    """Conserve les déclarations historiques et ajoute les deux lecteurs T0."""
+    return (*_OUTILS_AVANT_LECTURE_DOCUMENTAIRE(),
+        Outil(
+            nom="m10_lister_documents_affaire_appareil",
+            description="Index documentaire courant d'une affaire pour l'admin appareil, sans corps ni effet de bord.",
+            parametres={
+                "type": "object",
+                "properties": {
+                    "affaire_id": _AFFAIRE_ID,
+                    "decalage": {"type": "integer", "minimum": 0, "maximum": 64},
+                    "limite": {"type": "integer", "minimum": 1, "maximum": 8},
+                },
+                "required": ["affaire_id", "decalage", "limite"],
+                "additionalProperties": False,
+            },
+            fonction=lister_documents_affaire_appareil,
+            autonomie=Autonomie.T0, niveau=Niveau.N0, roles_appareil=frozenset({"admin"}),
+            portee_contexte="affaire", cible_contexte=("affaire_id",), identite_contexte="affaire",
+        ),
+        Outil(
+            nom="m10_lire_version_document_affaire_appareil",
+            description="Lecture exacte d'une version interne liée à son affaire ; un retrait ferme son corps.",
+            parametres={
+                "type": "object",
+                "properties": {
+                    "affaire_id": _AFFAIRE_ID,
+                    "document_ref": _REFERENCE_DOCUMENTAIRE,
+                    "version_source": _REFERENCE_DOCUMENTAIRE,
+                },
+                "required": ["affaire_id", "document_ref", "version_source"],
+                "additionalProperties": False,
+            },
+            fonction=lire_version_document_affaire_appareil,
+            autonomie=Autonomie.T0, niveau=Niveau.N0, roles_appareil=frozenset({"admin"}),
+            portee_contexte="affaire", cible_contexte=("affaire_id",), identite_contexte="affaire",
+        ),
+    )

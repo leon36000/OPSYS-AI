@@ -679,3 +679,69 @@ def verifier_rejeu(maillons: list[dict], claim: dict, contexte: dict) -> dict:
         _refuser("CONFIRMATION-INCONNUE")
     _borner_ack(ack, c["quota"])
     return ack
+
+
+def lister_versions_documentaires(maillons: list[dict], commande: dict, contexte: dict) -> dict:
+    """Page courante de métadonnées, sans corps ni preuve d'autorité de transport.
+
+    Les attentes CAS viennent du dernier dépôt et de la dernière activation du
+    document, distincts de l'activation historique propre à la version affichée.
+    Les arguments sont tous obligatoires ; aucun défaut ou déplacement de page.
+    """
+    args = _copie(commande)
+    _forme(args, {"affaire_id", "decalage", "limite"})
+    _entier(args["decalage"], 0, MAX_DOCUMENTS * MAX_VERSIONS)
+    _entier(args["limite"], 1, MAX_VERSIONS)
+    c = _contexte(contexte, args["affaire_id"], lecture=True)
+    chain, docs = _analyse(maillons)
+    versions = sorted(
+        (index, root)
+        for root, doc in docs.items()
+        if chain[root]["affaire_id"] == args["affaire_id"]
+        for index in doc["versions"]
+    )
+    total = len(versions)
+    _entier(total, 0, MAX_DOCUMENTS * MAX_VERSIONS)
+    debut, limite = args["decalage"], args["limite"]
+    rows = []
+    for index, root in versions[debut:debut + limite]:
+        doc, m = docs[root], chain[index]
+        actives = [i for i in doc["activations"] if _index(chain, chain[i]["version_source"]) == index]
+        activation = _reference(chain, actives[-1]) if actives else None
+        if doc["retire"]:
+            statut = "RETIREE"
+        elif not actives:
+            statut = "DEPOSEE_NON_ACTIVEE"
+        elif doc["activations"][-1] == actives[-1]:
+            statut = "COURANTE"
+        else:
+            statut = "HISTORIQUE_NON_COURANTE"
+        rows.append({
+            "version_schema": 1,
+            "affaire_id": args["affaire_id"],
+            "document_ref": _reference(chain, root),
+            "version_source": _reference(chain, index),
+            "statut": statut,
+            "titre": m["titre"],
+            "methode": METHODE,
+            "source_sha256": m["source_sha256"],
+            "taille_points": m["taille_points"],
+            "taille_octets": m["taille_octets"],
+            "auteur": m["auteur"],
+            "horodatage": m["horodatage"],
+            "activation_ref": activation,
+            "version_no": m["version_no"],
+            "version_precedente_attendue": _reference(chain, doc["versions"][-1]),
+            "activation_attendue": _reference(chain, doc["activations"][-1]) if doc["activations"] else None,
+        })
+    dto = {
+        "version_schema": 1,
+        "affaire_id": args["affaire_id"],
+        "decalage": debut,
+        "limite": limite,
+        "total_versions": total,
+        "suivant_decalage": debut + limite if debut + limite < total else None,
+        "versions": rows,
+    }
+    borner_enveloppe({"ok": True, "resultat": {"accepte": True, "resultat": dto}}, c["quota"])
+    return _copie(dto)
