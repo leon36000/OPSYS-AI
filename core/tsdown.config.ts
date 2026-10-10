@@ -34,7 +34,8 @@ import {
 import {
   TSDOWN_PACKAGE_CONFIG_GROUP,
   TSDOWN_UNIFIED_CONFIG_GROUP,
-  TSDOWN_UNIFIED_DTS_CONFIG_GROUPS,
+  resolveDtsPartitionProfile,
+  resolveTsdownDtsGroups,
 } from "./scripts/lib/tsdown-config-groups.mts";
 import { createDeclarationBoundaryHooks } from "./scripts/lib/tsdown-declaration-boundary.mts";
 import { createDeclarationInputCapture } from "./scripts/lib/tsdown-declaration-inputs.mts";
@@ -66,6 +67,8 @@ type ExternalOptionFunction = (
   parentId: string | undefined,
   isResolved: boolean,
 ) => boolean | null | undefined;
+
+resolveDtsPartitionProfile();
 
 const env = {
   NODE_ENV: "production",
@@ -802,15 +805,19 @@ function buildUnifiedDeclarationPartitions(
     pluginSdkEntries.filter(([name]) => publicPluginSdkEntryNames.has(name)),
     pluginSdkEntries.filter(([name]) => !publicPluginSdkEntryNames.has(name)),
   ];
-  const extensionPartitions = partitionUnifiedEntryGroups(
-    [...extensionEntriesById.entries()]
-      .toSorted(([left], [right]) => left.localeCompare(right))
-      .map(([, extensionEntries]) => extensionEntries),
-    5,
-  );
+  const selection = resolveTsdownDtsGroups();
+  const extensionPartitions =
+    selection.profile === "per-plugin"
+      ? selection.extensions.map(({ pluginId }) => extensionEntriesById.get(pluginId!) ?? [])
+      : partitionUnifiedEntryGroups(
+          [...extensionEntriesById.entries()]
+            .toSorted(([left], [right]) => left.localeCompare(right))
+            .map(([, extensionEntries]) => extensionEntries),
+          5,
+        );
   const partitions = [baseEntries, ...pluginSdkPartitions, ...extensionPartitions];
 
-  return TSDOWN_UNIFIED_DTS_CONFIG_GROUPS.map((name, index) => {
+  return selection.all.map((name, index) => {
     const partition = partitions[index];
     if (!partition) {
       throw new Error(`missing unified declaration partition for ${name}`);

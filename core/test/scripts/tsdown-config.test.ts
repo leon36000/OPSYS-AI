@@ -1273,3 +1273,77 @@ console.log("relocated Bash parser works without native grammar package");
     }
   });
 });
+
+describe("DTS partition profile", () => {
+  async function load(suffix: string) {
+    const loaded = await importFreshModule<typeof import("../../tsdown.config.ts")>(
+      import.meta.url,
+      `../../tsdown.config.ts?partition-${suffix}`,
+    );
+    return Array.isArray(loaded.default) ? loaded.default : [loaded.default];
+  }
+  function declarations(values: typeof configs) {
+    return values.filter((config) => config.name?.startsWith("openclaw-dts-"));
+  }
+  function roots(config: TsdownConfig) {
+    const dts = config.dts;
+    if (!dts || typeof dts !== "object" || !Array.isArray(dts.entry)) {
+      throw new Error("Missing declaration roots");
+    }
+    return dts.entry as string[];
+  }
+  it.each(["0", "1"])("preserves every root and alias with private QA %s", async (privateQa) => {
+    vi.stubEnv("OPENCLAW_BUILD_PRIVATE_QA", privateQa);
+    vi.stubEnv("OPENCLAW_BUILD_DTS_PARTITION", undefined);
+    const legacy = declarations(await load(`legacy-${privateQa}`));
+    expect(legacy.map((config) => config.name)).toEqual(TSDOWN_UNIFIED_DTS_CONFIG_GROUPS);
+    vi.stubEnv("OPENCLAW_BUILD_DTS_PARTITION", "per-plugin");
+    const isolated = declarations(await load(`isolated-${privateQa}`));
+    const expected = legacy.flatMap(roots).toSorted();
+    expect(isolated.flatMap(roots).toSorted()).toEqual(expected);
+    expect(new Set(expected).size).toBe(expected.length);
+    expect(isolated.slice(0, 3).map((config) => [config.name, roots(config)])).toEqual(
+      legacy.slice(0, 3).map((config) => [config.name, roots(config)]),
+    );
+    const first = legacy[0];
+    if (!first) {
+      throw new Error("Missing base declaration config");
+    }
+    for (const config of isolated) {
+      expect(config.entry).toEqual(first.entry);
+    }
+    const plugins = [
+      ...new Set(
+        expected.filter((root) => root.startsWith("extensions/")).map((root) => root.split("/")[1]),
+      ),
+    ].toSorted();
+    expect(isolated.slice(3).map((config) => config.name)).toEqual(
+      plugins.map((id) => `openclaw-dts-extension-plugin-${id}`),
+    );
+    for (const [index, id] of plugins.entries()) {
+      const selected = isolated[index + 3];
+      if (!selected) {
+        throw new Error("Missing plugin declaration config");
+      }
+      expect(roots(selected).toSorted()).toEqual(
+        expected.filter((root) => root.startsWith(`extensions/${id}/`)),
+      );
+    }
+  });
+  it("rejects an invalid profile even when declarations are disabled", async () => {
+    vi.stubEnv("OPENCLAW_RUN_NODE_SKIP_DTS_BUILD", "1");
+    vi.stubEnv("OPENCLAW_BUILD_DTS_PARTITION", "invalid");
+    await expect(load("invalid-disabled")).rejects.toThrow(
+      "OPENCLAW_BUILD_DTS_PARTITION must be per-plugin when set",
+    );
+  });
+  it.each(["", "legacy", "PER-PLUGIN", " per-plugin", "per-plugin ", "5"])(
+    "rejects invalid opt-in %j",
+    async (value) => {
+      vi.stubEnv("OPENCLAW_BUILD_DTS_PARTITION", value);
+      await expect(load(`invalid-${encodeURIComponent(value)}`)).rejects.toThrow(
+        "OPENCLAW_BUILD_DTS_PARTITION must be per-plugin when set",
+      );
+    },
+  );
+});

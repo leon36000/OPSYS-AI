@@ -20,6 +20,7 @@ import { CompilerInputSnapshot } from "./compiler-input-snapshot.mts";
 import { publishStagedDeclarations } from "./declaration-stage.mts";
 import { withDistArtifactOwnership } from "./dist-artifact-ownership.mts";
 import { hasUnjoinedWork } from "./managed-child-process.mts";
+import { resolveDtsPartitionProfile, resolveTsdownDtsGroups } from "./tsdown-config-groups.mts";
 import { resolveTsdownDeclarationGeneratorInputs } from "./tsdown-declaration-generator-inputs.mts";
 import {
   createDeclarationStage,
@@ -33,6 +34,7 @@ export async function writeTsdownDeclarations(
   previousOutputs: (root: string) => string[],
   generatorEntry: string,
 ) {
+  resolveDtsPartitionProfile(process.env);
   const root = fs.realpathSync.native(process.cwd());
   const stages: string[] = [];
   const createStage = () => {
@@ -46,6 +48,18 @@ export async function writeTsdownDeclarations(
     await withDistArtifactOwnership(process.cwd(), async () => {
       const { default: configs }: { default: typeof import("../../tsdown.config.ts").default } =
         await import(pathToFileURL(path.join(root, "tsdown.config.ts")).href);
+      const selection = resolveTsdownDtsGroups({ cwd: root });
+      const sameGroups = (left: readonly string[], right: readonly string[]) =>
+        left.length === right.length && left.every((name, index) => name === right[index]);
+      const configured = configs.flatMap((config) =>
+        config.name?.startsWith("openclaw-dts-") ? [config.name] : [],
+      );
+      if (
+        !sameGroups(configured, selection.all) ||
+        (!sameGroups(groups, selection.nonSdk) && !sameGroups(groups, selection.pluginSdk))
+      ) {
+        throw new Error("Canonical declaration selection changed");
+      }
       const staging = createStage();
       const output = path.join(staging, "dist");
       const environment = TSDOWN_UNIFIED_CACHE_ENV.map((name) =>

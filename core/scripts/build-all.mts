@@ -20,6 +20,7 @@ import {
 import { runManagedCommand } from "./lib/managed-child-process.mts";
 import type { MemoryLimitParams } from "./lib/process-memory.mts";
 import {
+  resolveDtsPartitionProfile,
   TSDOWN_PACKAGE_CONFIG_GROUP,
   TSDOWN_UNIFIED_CONFIG_GROUP,
 } from "./lib/tsdown-config-groups.mts";
@@ -392,6 +393,7 @@ export function resolveBuildAllEnvironment(
 ) {
   // Reject malformed opt-ins before any build hook, cache operation, or child starts.
   resolveUnifiedConcurrency(env);
+  resolveDtsPartitionProfile(env);
   const buildEnv = resolveBuildIdentityEnvironment({
     commitLabel: "build commit",
     env,
@@ -646,6 +648,7 @@ if (isDirectRunUrl(process.argv[1], import.meta.url)) {
     args = parseBuildAllArgs(process.argv.slice(2));
     if (!args.help) {
       resolveUnifiedConcurrency(process.env);
+      resolveDtsPartitionProfile(process.env);
     }
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));

@@ -2054,3 +2054,65 @@ describe("resolveBuildStepCacheState", () => {
     });
   });
 });
+
+describe("DTS profile before effects", () => {
+  it.each([
+    ["build-all.mts", false],
+    ["build-all.mts", true],
+    ["tsdown-build.mts", false],
+    ["tsdown-build.mts", true],
+    ["write-unified-entry-dts.ts", false],
+    ["write-unified-entry-dts.ts", true],
+    ["write-plugin-sdk-entry-dts.ts", false],
+    ["write-plugin-sdk-entry-dts.ts", true],
+  ] as const)("rejects invalid %s before ownership (held=%s)", async (scriptName, held) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "dts-invalid-profile-"));
+    fs.writeFileSync(path.join(root, ".git"), "");
+    const script = path.resolve("scripts", scriptName);
+    const preload = path.resolve("scripts/tsx.mjs");
+    const check = () => {
+      const snapshot = () =>
+        fs.readdirSync(root, { recursive: true, withFileTypes: true }).map((entry) => {
+          const file = path.join(entry.parentPath, entry.name);
+          return [
+            path.relative(root, file),
+            entry.isFile() ? fs.readFileSync(file, "utf8") : "directory",
+          ];
+        });
+      const before = snapshot();
+      const result = spawnSync(testNodeExecPath, ["--import", preload, script], {
+        cwd: root,
+        encoding: "utf8",
+        timeout: 1500,
+        env: { ...process.env, OPENCLAW_BUILD_DTS_PARTITION: "private-invalid-value" },
+      });
+      expect(snapshot()).toEqual(before);
+      expect(result.error).toBeUndefined();
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain("OPENCLAW_BUILD_DTS_PARTITION must be per-plugin when set");
+      expect(result.stderr).not.toContain("private-invalid-value");
+    };
+    try {
+      if (held) {
+        await withDistArtifactOwnership(root, async () => check());
+      } else {
+        check();
+      }
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+  it("rejects before any injected build hook or cache operation", async () => {
+    const runStep = vi.fn();
+    const resolveCacheState = vi.fn();
+    await expect(
+      runBuildAllSteps("full", {
+        env: { OPENCLAW_BUILD_DTS_PARTITION: "invalid" },
+        runStep,
+        resolveCacheState,
+      }),
+    ).rejects.toThrow("OPENCLAW_BUILD_DTS_PARTITION must be per-plugin when set");
+    expect(runStep).not.toHaveBeenCalled();
+    expect(resolveCacheState).not.toHaveBeenCalled();
+  });
+});

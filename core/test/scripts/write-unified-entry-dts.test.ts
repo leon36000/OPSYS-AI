@@ -10,6 +10,7 @@ import {
   declarationInputs,
   expectStagingClean,
   runFixture,
+  loader,
   runUnifiedBuild,
   runUnifiedWriter,
   treeHashes,
@@ -435,6 +436,84 @@ ${
     );
     expect(treeHashes(path.join(root, "dist"))).toEqual(before);
     expect(treeHashes(path.join(root, ".artifacts/build-all-cache"))).toEqual(cached);
+    expectStagingClean(root);
+  });
+});
+
+describe("per-plugin declaration lifetime", () => {
+  const env = { OPENCLAW_BUILD_DTS_PARTITION: "per-plugin" };
+  const invocationCount = (result: { stdout: string; stderr: string }) =>
+    (result.stdout + result.stderr).match(/\[tsdown-build\] invocation \d+\/\d+ finished/gu)
+      ?.length ?? 0;
+  it("publishes every contract and separates profile caches", () => {
+    const { root, production } = createFixture(TSDOWN_NON_SDK_DTS_CONFIG_GROUPS);
+    const legacy = runUnifiedWriter(root);
+    expect(legacy.status, legacy.stdout + legacy.stderr).toBe(0);
+    const isolated = runUnifiedWriter(root, env);
+    expect(isolated.status, isolated.stdout + isolated.stderr).toBe(0);
+    expect(invocationCount(isolated)).toBe(6);
+    for (const entry of production) {
+      expect(fs.statSync(path.join(root, `dist/${entry}.d.ts`)).size).toBeGreaterThan(0);
+    }
+    const recordNames = fs.readdirSync(path.join(root, ".artifacts/build-all-cache"));
+    for (const id of ["fixture-a", "fixture-b", "fixture-c", "fixture-d", "fixture-e"]) {
+      expect(recordNames).toContain(`tsdown-unified-openclaw-dts-extension-plugin-${id}`);
+    }
+    const cached = runUnifiedWriter(root, env);
+    expect(cached.status, cached.stdout + cached.stderr).toBe(0);
+    expect(invocationCount(cached)).toBe(0);
+    const restored = runUnifiedWriter(root);
+    expect(restored.status, restored.stdout + restored.stderr).toBe(0);
+    // The shared base entry cannot reuse its per-plugin cache identity as legacy.
+    expect(invocationCount(restored)).toBeGreaterThan(0);
+    for (const entry of production) {
+      expect(fs.statSync(path.join(root, `dist/${entry}.d.ts`)).size).toBeGreaterThan(0);
+    }
+    expectStagingClean(root);
+  });
+  it("joins a failing plugin sibling without publishing any partial declarations", () => {
+    const { root, write } = createFixture(TSDOWN_NON_SDK_DTS_CONFIG_GROUPS);
+    write("dist/index.d.ts", "export interface Retained {}\n");
+    write("extensions/fixture-e/index.ts", 'export type { Missing } from "@openclaw/llm-core";');
+    const before = treeHashes(path.join(root, "dist"));
+    const failed = runUnifiedWriter(root, { ...env, OPENCLAW_BUILD_CACHE: "0" });
+    expect(failed.status, failed.stdout + failed.stderr).toBeGreaterThan(0);
+    expect(failed.stdout + failed.stderr).toContain("MISSING_EXPORT");
+    expect(failed.stdout + failed.stderr).toContain("invocation 6/6 finished");
+    expect(treeHashes(path.join(root, "dist"))).toEqual(before);
+    expectStagingClean(root);
+  });
+});
+
+describe("per-plugin selection freshness", () => {
+  it("refuses a stale complete selection after metadata adds a contract", () => {
+    const { root } = createFixture(TSDOWN_NON_SDK_DTS_CONFIG_GROUPS);
+    const result = runFixture(
+      root,
+      [
+        "--import",
+        loader,
+        "--input-type=module",
+        "--eval",
+        `
+      import fs from "node:fs";
+      import {resolveTsdownDtsGroups} from "./scripts/lib/tsdown-config-groups.mts";
+      import {writeTsdownDeclarations} from "./scripts/lib/tsdown-declaration-writer.mts";
+      const groups=resolveTsdownDtsGroups().nonSdk;
+      fs.mkdirSync("extensions/new-contract",{recursive:true});
+      fs.writeFileSync("extensions/new-contract/openclaw.plugin.json",JSON.stringify({id:"new-contract"}));
+      fs.writeFileSync("extensions/new-contract/package.json",JSON.stringify({name:"@openclaw/new-contract",exports:{".":"./dist/api.js"},openclaw:{extensions:["./api.ts"]}}));
+      fs.writeFileSync("extensions/new-contract/api.ts","export interface Added {}");
+      await writeTsdownDeclarations(groups,"tsdown-unified",()=>[],"scripts/write-unified-entry-dts.ts");
+    `,
+      ],
+      false,
+      { OPENCLAW_BUILD_DTS_PARTITION: "per-plugin", OPENCLAW_BUILD_CACHE: "0" },
+    );
+    expect(result.status, result.stdout + result.stderr).toBeGreaterThan(0);
+    expect(result.stdout + result.stderr).toContain("Canonical declaration selection changed");
+    expect(result.stdout + result.stderr).not.toContain("invocation 1/");
+    expect(fs.existsSync(path.join(root, "dist"))).toBe(false);
     expectStagingClean(root);
   });
 });

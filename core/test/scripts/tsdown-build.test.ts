@@ -9,6 +9,7 @@ import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readProcessMemoryCapacity } from "../../scripts/lib/process-memory.mts";
 import {
+  resolveTsdownDtsGroups,
   TSDOWN_NON_SDK_DTS_CONFIG_GROUPS,
   TSDOWN_PACKAGE_CONFIG_GROUP,
   TSDOWN_PLUGIN_SDK_DTS_CONFIG_GROUPS,
@@ -16,6 +17,7 @@ import {
   TSDOWN_UNIFIED_DTS_CONFIG_GROUPS,
 } from "../../scripts/lib/tsdown-config-groups.mts";
 import {
+  TSDOWN_UNIFIED_CACHE_ENV,
   cleanTsdownOutputRoots,
   createTsdownOutputScanner,
   describeInsufficientTsdownHeap,
@@ -3120,5 +3122,219 @@ describe("staged declaration admission", () => {
         fs: memoryFs,
       }),
     ).toBe(1);
+  });
+});
+
+describe("DTS per-plugin plans", () => {
+  it("preserves legacy forwarding of declaration filter patterns when unset", () => {
+    const args = ["--config", "tsdown.config.ts", "--filter", "openclaw-dts-*"];
+    const result = resolveTsdownBuildInvocations({ env: {}, args, ...NO_MEMORY_LIMIT });
+    expect(result).toHaveLength(1);
+    expect(result[0]?.args).toEqual(expect.arrayContaining(args));
+  });
+
+  const env = { OPENCLAW_BUILD_DTS_PARTITION: "per-plugin" };
+  it("expands the complete real selection using the explicit environment", () => {
+    const selected = resolveTsdownDtsGroups({ env });
+    expect(selected.extensions.length).toBeGreaterThan(5);
+    const result = resolveTsdownBuildInvocations({ env, ...NO_MEMORY_LIMIT });
+    expect(result.slice(1).map((item) => item.args[item.args.indexOf("--filter") + 1])).toEqual([
+      TSDOWN_PACKAGE_CONFIG_GROUP,
+      TSDOWN_UNIFIED_CONFIG_GROUP,
+      ...selected.all,
+    ]);
+    for (const item of result) {
+      expect(item.options.env.OPENCLAW_BUILD_DTS_PARTITION).toBe("per-plugin");
+    }
+  });
+  it("selects only requested existing plugin groups", () => {
+    const selected = resolveTsdownDtsGroups({ env })
+      .extensions.slice(0, 2)
+      .map((group) => group.name);
+    const result = resolveTsdownBuildInvocations({
+      env,
+      args: ["--config", "tsdown.config.ts", ...selected.flatMap((name) => ["--filter", name])],
+      ...NO_MEMORY_LIMIT,
+    });
+    expect(result).toHaveLength(2);
+    expect(result.map((item) => item.args[item.args.indexOf("--filter") + 1])).toEqual(selected);
+  });
+  it("does not admit a fabricated plugin group", () => {
+    expect(() =>
+      resolveTsdownBuildInvocations({
+        env,
+        args: [
+          "--config",
+          "tsdown.config.ts",
+          "--filter",
+          "openclaw-dts-extension-plugin-not-a-real-contract",
+        ],
+        ...NO_MEMORY_LIMIT,
+      }),
+    ).toThrow("Unknown canonical declaration group");
+  });
+  it("recognizes selected plugin cleanup without broad package ownership", () => {
+    vi.stubEnv("OPENCLAW_BUILD_DTS_PARTITION", "per-plugin");
+    try {
+      const selected = resolveTsdownDtsGroups({ env }).extensions[0];
+      if (!selected) {
+        throw new Error("Missing plugin declaration group");
+      }
+      const name = selected.name;
+      expect(
+        resolveTsdownCleanOutputRoots(["--config", "tsdown.config.ts", "--filter", name]),
+      ).toEqual(["dist", "dist-runtime"]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+  it("discovers only contracts in the explicit cwd without inherited selectors", () => {
+    const cwd = createTempDir("dts-selection-cwd-");
+    const plugin = path.join(cwd, "extensions", "local-fixture");
+    fs.mkdirSync(plugin, { recursive: true });
+    fs.writeFileSync(
+      path.join(plugin, "openclaw.plugin.json"),
+      JSON.stringify({ id: "local-fixture" }),
+    );
+    fs.writeFileSync(
+      path.join(plugin, "package.json"),
+      JSON.stringify({
+        name: "@openclaw/local-fixture",
+        exports: { ".": "./dist/api.js" },
+        openclaw: { extensions: ["./api.ts"] },
+      }),
+    );
+    fs.writeFileSync(path.join(plugin, "api.ts"), "export interface Fictitious {}\n");
+    vi.stubEnv("OPENCLAW_BUNDLED_PLUGIN_BUILD_IDS", "not-local");
+    try {
+      const result = resolveTsdownBuildInvocations({ cwd, env, ...NO_MEMORY_LIMIT });
+      const groups = result.slice(1).map((item) => item.args[item.args.indexOf("--filter") + 1]);
+      expect(groups).toEqual([
+        TSDOWN_PACKAGE_CONFIG_GROUP,
+        TSDOWN_UNIFIED_CONFIG_GROUP,
+        "openclaw-dts-base",
+        ...TSDOWN_PLUGIN_SDK_DTS_CONFIG_GROUPS,
+        "openclaw-dts-extension-plugin-local-fixture",
+      ]);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+  it("pins partition profile in declaration cache environment", () => {
+    expect(TSDOWN_UNIFIED_CACHE_ENV).toContain("OPENCLAW_BUILD_DTS_PARTITION");
+  });
+});
+
+describe("explicit build cwd isolation", () => {
+  function observePreparation(unsafeRoot = false) {
+    const root = createTempDir("tsdown-cwd-isolation-");
+    const a = path.join(root, "A");
+    const b = path.join(root, "B");
+    for (const cwd of [a, b]) {
+      for (const name of [
+        "dist/stale.js",
+        "dist/cli-startup-metadata.json",
+        "extensions/fixture/api.ts",
+        "extensions/fixture/api.d.ts",
+      ]) {
+        const target = path.join(cwd, name);
+        fs.mkdirSync(path.dirname(target), { recursive: true });
+        fs.writeFileSync(target, "fictitious\n");
+      }
+    }
+    const plugin = path.join(b, "extensions/fixture");
+    fs.writeFileSync(path.join(plugin, "openclaw.plugin.json"), JSON.stringify({ id: "fixture" }));
+    fs.writeFileSync(
+      path.join(plugin, "package.json"),
+      JSON.stringify({
+        name: "@openclaw/fixture",
+        exports: { ".": "./dist/api.js" },
+        openclaw: { extensions: ["./api.ts"] },
+      }),
+    );
+    if (unsafeRoot) {
+      fs.symlinkSync(path.join(a, "dist"), path.join(b, "dist-runtime"), "dir");
+    }
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--import",
+        import.meta.resolve("tsx"),
+        "--input-type=module",
+        "-e",
+        `
+      import fs from 'node:fs';
+      import cp from 'node:child_process';
+      import { syncBuiltinESMExports } from 'node:module';
+      const spawnSyncReal = cp.spawnSync;
+      const gitCwds = [];
+      cp.spawnSync = (command, args, options) => {
+        if (command !== 'git' || args[0] !== 'ls-files') throw new Error('Unexpected subprocess');
+        if (!args.includes('--others')) return { status: 128, stdout: '' };
+        gitCwds.push(options.cwd);
+        return { status: 0, stdout: 'extensions/fixture/api.d.ts\\n' };
+      };
+      syncBuiltinESMExports();
+      const { prepareTsdownBuildExecution } = await import(${JSON.stringify(pathToFileURL(path.resolve("scripts/tsdown-build.mts")).href)});
+      let error = null, childCwd = null;
+      try {
+        const plan = prepareTsdownBuildExecution(${JSON.stringify({ cwd: b, env: { OPENCLAW_BUILD_DTS_PARTITION: "per-plugin", OPENCLAW_PRESERVE_CLI_STARTUP_METADATA: "1" }, args: ["--config", "tsdown.config.ts", "--filter", "openclaw-dts-extension-plugin-fixture"], ...NO_MEMORY_LIMIT })});
+        if (!plan || plan.invocations.length !== 1) throw new Error('Unexpected fixture plan');
+        const invocation = plan.invocations[0];
+        // Exercise the planned child options with a harmless cwd reporter, never a compiler.
+        const child = spawnSyncReal(invocation.command, ['-e', 'process.stdout.write(process.cwd())'], { ...invocation.options, stdio: 'pipe', encoding: 'utf8' });
+        if (child.status !== 0) throw new Error('Fixture child failed');
+        childCwd = child.stdout;
+      } catch (caught) { error = caught.message; }
+      const exists = (name) => fs.existsSync(name);
+      console.log(JSON.stringify({ error, childCwd, gitCwds,
+        aStale: exists(${JSON.stringify(path.join(a, "dist/stale.js"))}),
+        bStale: exists(${JSON.stringify(path.join(b, "dist/stale.js"))}),
+        aDeclaration: exists(${JSON.stringify(path.join(a, "extensions/fixture/api.d.ts"))}),
+        bDeclaration: exists(${JSON.stringify(path.join(b, "extensions/fixture/api.d.ts"))}),
+        bMetadata: exists(${JSON.stringify(path.join(b, "dist/cli-startup-metadata.json"))})
+      }));
+    `,
+      ],
+      {
+        cwd: a,
+        encoding: "utf8",
+        env: { ...process.env, OPENCLAW_PRESERVE_CLI_STARTUP_METADATA: "0" },
+      },
+    );
+    expect(result.status, result.stderr).toBe(0);
+    return { a, b, observation: JSON.parse(result.stdout) };
+  }
+
+  it("cleans only B and preserves artifacts using B's explicit environment", () => {
+    const { observation } = observePreparation();
+    expect(observation.error).toBeNull();
+    expect(observation).toMatchObject({ aStale: true, bStale: false, bMetadata: true });
+  });
+
+  it("prunes generated source declarations only in B", () => {
+    const { b, observation } = observePreparation();
+    expect(observation.error).toBeNull();
+    expect(observation.gitCwds).toEqual([b]);
+    expect(observation).toMatchObject({ aDeclaration: true, bDeclaration: false });
+  });
+
+  it("starts the planned child in B while the caller remains in A", () => {
+    const { b, observation } = observePreparation();
+    expect(observation.error).toBeNull();
+    expect(observation.childCwd).toBe(b);
+  });
+
+  it("rejects B's unsafe output root before pruning or cleaning either checkout", () => {
+    const { observation } = observePreparation(true);
+    expect(observation.error).not.toBeNull();
+    expect(observation.childCwd).toBeNull();
+    expect(observation.gitCwds).toEqual([]);
+    expect(observation).toMatchObject({
+      aStale: true,
+      bStale: true,
+      aDeclaration: true,
+      bDeclaration: true,
+    });
   });
 });

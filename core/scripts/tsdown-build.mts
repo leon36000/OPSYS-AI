@@ -34,7 +34,9 @@ import { sanitizeBundlerHelperDtsExportTree } from "./lib/sanitize-bundler-helpe
 import {
   TSDOWN_PACKAGE_CONFIG_GROUP,
   TSDOWN_UNIFIED_CONFIG_GROUP,
-  TSDOWN_UNIFIED_DTS_CONFIG_GROUPS,
+  DTS_PARTITION_ENV,
+  resolveDtsPartitionProfile,
+  resolveTsdownDtsGroups,
 } from "./lib/tsdown-config-groups.mts";
 import {
   TSDOWN_PACKAGE_OUTPUT_ROOTS,
@@ -53,11 +55,7 @@ const DEFAULT_WINDOWS_TSDOWN_MAX_OLD_SPACE_MB = 8192;
 export const TSDOWN_MAX_OLD_SPACE_MB_ENV = "OPENCLAW_TSDOWN_MAX_OLD_SPACE_MB";
 const DOCKER_TSDOWN_MAX_OLD_SPACE_MB_ENV = "OPENCLAW_DOCKER_BUILD_TSDOWN_MAX_OLD_SPACE_MB";
 const TSDOWN_CGROUP_MEMORY_HEADROOM_MB = 768;
-const SERIALIZED_MAIN_CONFIG_GROUPS = [
-  TSDOWN_PACKAGE_CONFIG_GROUP,
-  TSDOWN_UNIFIED_CONFIG_GROUP,
-  ...TSDOWN_UNIFIED_DTS_CONFIG_GROUPS,
-];
+
 const tsdownStdio = () => ["ignore", "pipe", "pipe"] satisfies ["ignore", "pipe", "pipe"];
 // Build descendants get a short cleanup window; a timed-out build must not hold CI for seconds.
 const TERMINATION_GRACE_MS = 250;
@@ -120,6 +118,7 @@ export const TSDOWN_PACKAGES_CACHE_INPUT = {
   excludeDirectories: ["dist", "node_modules"],
 };
 export const TSDOWN_UNIFIED_CACHE_ENV = [
+  DTS_PARTITION_ENV,
   "OPENCLAW_BUILD_PRIVATE_QA",
   ...BUNDLED_PLUGIN_BUILD_ENV_NAMES,
 ];
@@ -135,6 +134,7 @@ type OutputRootParams = {
 type ResolvedMemoryLimitParams = MemoryLimitParams & { resolvedMaxOldSpaceMb?: number };
 
 type TsdownBuildParams = ResolvedMemoryLimitParams & {
+  cwd?: string;
   args?: string[];
   nodeExecPath?: string;
 };
@@ -150,6 +150,7 @@ type TsdownBuildInvocation = {
   command: string;
   args: string[];
   options: {
+    cwd?: string;
     stdio: string[];
     shell: boolean;
     windowsVerbatimArguments?: boolean;
@@ -466,23 +467,38 @@ const isConfigArg = (arg: string) =>
   arg === "--no-config";
 const isWatchArg = (arg: string) =>
   arg === "--watch" || arg.startsWith("--watch=") || arg === "-w" || arg.startsWith("-w=");
-const isUnifiedDtsGroup = (value: string | undefined) =>
-  TSDOWN_UNIFIED_DTS_CONFIG_GROUPS.some((group) => group === value);
+const isUnifiedDtsGroup = (value: string | undefined, groups: readonly string[]) =>
+  groups.some((group) => group === value);
+function assertCanonicalDtsFilters(filters: string[], groups: readonly string[]) {
+  if (
+    filters.some(
+      (filter) => filter.startsWith("openclaw-dts-") && !isUnifiedDtsGroup(filter, groups),
+    )
+  ) {
+    throw new Error("Unknown canonical declaration group");
+  }
+}
 
 /** Limits cleanup to the output roots owned by an explicitly filtered build. */
-export function resolveTsdownCleanOutputRoots(args: string[] = []) {
+export function resolveTsdownCleanOutputRoots(
+  args: string[] = [],
+  params: { cwd?: string; env?: NodeJS.ProcessEnv } = {},
+) {
+  const selection = resolveTsdownDtsGroups(params);
+  const dtsGroups = selection.all;
+  const cwd = params.cwd ?? process.cwd();
   const config = readForwardedOption(args, ["--config", "-c"]);
   const outDir = readForwardedScalarOption(args, ["--out-dir", "-d"], "--out-dir/-d");
   const filters = readForwardedOptions(args, ["--filter", "-F"]);
-  const configPath = config ? path.resolve(config) : undefined;
-  const aiConfigPath = path.resolve("tsdown.ai.config.ts");
+  const configPath = config ? path.resolve(cwd, config) : undefined;
+  const aiConfigPath = path.resolve(cwd, "tsdown.ai.config.ts");
   const aiRoot = tsdownPackageOutputRoot("ai");
   const packageRoots = TSDOWN_PACKAGE_OUTPUT_ROOTS.filter((root) => root !== aiRoot);
   const selectsRootCwd = filters.includes(".");
   const selectedMainRoots = [
     ...(filters.includes(TSDOWN_PACKAGE_CONFIG_GROUP) ? packageRoots : []),
     ...(filters.some(
-      (filter) => filter === TSDOWN_UNIFIED_CONFIG_GROUP || isUnifiedDtsGroup(filter),
+      (filter) => filter === TSDOWN_UNIFIED_CONFIG_GROUP || isUnifiedDtsGroup(filter, dtsGroups),
     )
       ? ROOT_TSDOWN_OUTPUT_ROOTS
       : []),
@@ -494,7 +510,10 @@ export function resolveTsdownCleanOutputRoots(args: string[] = []) {
   if (configPath === aiConfigPath) {
     return [aiRoot];
   }
-  if (selectsMainConfig(args)) {
+  if (selectsMainConfig(args, cwd)) {
+    if (selection.profile === "per-plugin") {
+      assertCanonicalDtsFilters(filters, dtsGroups);
+    }
     return filters.length === 0 || selectsRootCwd || selectedMainRoots.length === 0
       ? [...ROOT_TSDOWN_OUTPUT_ROOTS, ...packageRoots]
       : selectedMainRoots;
@@ -508,8 +527,12 @@ export function resolveTsdownCleanOutputRoots(args: string[] = []) {
   return listTsdownOutputRoots();
 }
 
-export function sanitizeTsdownBuildOutputRoots(args: string[] = [], cwd = process.cwd()): void {
-  const roots = resolveTsdownCleanOutputRoots(args);
+export function sanitizeTsdownBuildOutputRoots(
+  args: string[] = [],
+  cwd = process.cwd(),
+  env = process.env,
+): void {
+  const roots = resolveTsdownCleanOutputRoots(args, { cwd, env });
   const rootPaths = assertTsdownCleanOutputRoots({ cwd, roots });
   for (const rootPath of rootPaths) {
     sanitizeBundlerHelperDtsExportTree(rootPath);
@@ -661,11 +684,12 @@ function resolveTsdownMemoryBudget(params: ResolvedMemoryLimitParams = {}) {
 /** Independently staged misses may overlap within the two largest compiler budgets. */
 export function resolveStagedDeclarationConcurrency(
   groups: readonly { name: string; maxOldSpaceMb: number }[],
-  params: MemoryLimitParams & { availableParallelism?: number } = {},
+  params: MemoryLimitParams & { availableParallelism?: number; cwd?: string } = {},
 ): 1 | 2 {
+  const dtsGroups = resolveTsdownDtsGroups(params).all;
   if (
     groups.length < 2 ||
-    groups.some((group) => !isUnifiedDtsGroup(group.name)) ||
+    groups.some((group) => !isUnifiedDtsGroup(group.name, dtsGroups)) ||
     new Set(groups.map((group) => group.name)).size !== groups.length ||
     (params.availableParallelism ?? os.availableParallelism()) < 2
   ) {
@@ -911,6 +935,7 @@ export function resolveTsdownBuildInvocation(
     command: params.nodeExecPath ?? process.execPath,
     args: ["node_modules/tsdown/dist/run.mjs", ...tsdownArgs],
     options: {
+      ...(params.cwd === undefined ? {} : { cwd: path.resolve(params.cwd) }),
       stdio: tsdownStdio(),
       shell: false,
       windowsVerbatimArguments: undefined,
@@ -919,42 +944,46 @@ export function resolveTsdownBuildInvocation(
   };
 }
 
-function selectsMainConfig(args: string[]) {
+function selectsMainConfig(args: string[], cwd = process.cwd()) {
   const config = readForwardedOption(args, ["--config", "-c"]);
   if (config === undefined) {
     return false;
   }
-  const resolvedConfig = path.resolve(config);
-  const mainConfig = path.resolve("tsdown.config.ts");
+  const resolvedConfig = path.resolve(cwd, config);
+  const mainConfig = path.resolve(cwd, "tsdown.config.ts");
   return resolvedConfig === mainConfig || resolvedConfig === path.dirname(mainConfig);
 }
 
-function resolveSerializedMainConfigGroups(filters: string[]) {
+function resolveSerializedMainConfigGroups(
+  filters: string[],
+  mainGroups: readonly string[],
+  dtsGroups: readonly string[],
+) {
   const uniqueFilters = [...new Set(filters)];
   if (filters.length === 0 || filters.includes(".")) {
-    return SERIALIZED_MAIN_CONFIG_GROUPS;
+    return mainGroups;
   }
-  if (
-    uniqueFilters.some(
-      (filter) => filter !== "." && !SERIALIZED_MAIN_CONFIG_GROUPS.includes(filter),
-    )
-  ) {
+  if (uniqueFilters.some((filter) => filter !== "." && !mainGroups.includes(filter))) {
     return null;
   }
-  if (filters.includes(TSDOWN_UNIFIED_CONFIG_GROUP) && !filters.some(isUnifiedDtsGroup)) {
-    return filters.includes(TSDOWN_PACKAGE_CONFIG_GROUP)
-      ? SERIALIZED_MAIN_CONFIG_GROUPS
-      : SERIALIZED_MAIN_CONFIG_GROUPS.slice(1);
+  if (
+    filters.includes(TSDOWN_UNIFIED_CONFIG_GROUP) &&
+    !filters.some((filter) => isUnifiedDtsGroup(filter, dtsGroups))
+  ) {
+    return filters.includes(TSDOWN_PACKAGE_CONFIG_GROUP) ? mainGroups : mainGroups.slice(1);
   }
   if (uniqueFilters.length < 2) {
     return null;
   }
   const selectedFilters = new Set(uniqueFilters);
-  return SERIALIZED_MAIN_CONFIG_GROUPS.filter((group) => selectedFilters.has(group));
+  return mainGroups.filter((group) => selectedFilters.has(group));
 }
 
 /** Builds declarations in dependency order without overlapping the largest graphs. */
 export function resolveTsdownBuildInvocations(params: TsdownBuildParams = {}) {
+  const selection = resolveTsdownDtsGroups(params);
+  const dtsGroups = selection.all;
+  const mainGroups = [TSDOWN_PACKAGE_CONFIG_GROUP, TSDOWN_UNIFIED_CONFIG_GROUP, ...dtsGroups];
   const forwardedArgs = params.args ?? [];
   readForwardedScalarOption(forwardedArgs, ["--out-dir", "-d"], "--out-dir/-d");
   if (forwardedArgs.filter(isConfigArg).length > 1) {
@@ -972,6 +1001,12 @@ export function resolveTsdownBuildInvocations(params: TsdownBuildParams = {}) {
     ? dtsArg === "--dts"
     : env[RUN_NODE_SKIP_DTS_BUILD_ENV] !== "1";
   const hasForwardedConfig = aiArgs.some(isConfigArg);
+  if (
+    selection.profile === "per-plugin" &&
+    (!hasForwardedConfig || selectsMainConfig(forwardedArgs, params.cwd))
+  ) {
+    assertCanonicalDtsFilters(forwardedFilters, dtsGroups);
+  }
 
   const declarationEnv =
     declarationsEnabled && env[RUN_NODE_SKIP_DTS_BUILD_ENV] === "1"
@@ -990,8 +1025,12 @@ export function resolveTsdownBuildInvocations(params: TsdownBuildParams = {}) {
   }
 
   if (hasForwardedConfig) {
-    if (declarationsEnabled && selectsMainConfig(forwardedArgs)) {
-      const serializedGroups = resolveSerializedMainConfigGroups(forwardedFilters);
+    if (declarationsEnabled && selectsMainConfig(forwardedArgs, params.cwd)) {
+      const serializedGroups = resolveSerializedMainConfigGroups(
+        forwardedFilters,
+        mainGroups,
+        dtsGroups,
+      );
       if (serializedGroups) {
         return serializedGroups.map((group) =>
           resolveTsdownBuildInvocation({
@@ -1013,14 +1052,12 @@ export function resolveTsdownBuildInvocations(params: TsdownBuildParams = {}) {
   ];
 
   const forwardedFilterSet = new Set(forwardedFilters);
-  const uniqueForwardedFilters = SERIALIZED_MAIN_CONFIG_GROUPS.filter((group) =>
-    forwardedFilterSet.has(group),
-  );
+  const uniqueForwardedFilters = mainGroups.filter((group) => forwardedFilterSet.has(group));
   const hasUnknownFilter = forwardedFilters.some(
-    (filter) => filter !== "." && !SERIALIZED_MAIN_CONFIG_GROUPS.includes(filter),
+    (filter) => filter !== "." && !mainGroups.includes(filter),
   );
   const serializedGroups = forwardedFilters.includes(".")
-    ? SERIALIZED_MAIN_CONFIG_GROUPS
+    ? mainGroups
     : !hasUnknownFilter && uniqueForwardedFilters.length > 1
       ? uniqueForwardedFilters
       : null;
@@ -1033,7 +1070,7 @@ export function resolveTsdownBuildInvocations(params: TsdownBuildParams = {}) {
     return invocations;
   }
 
-  for (const group of serializedGroups ?? SERIALIZED_MAIN_CONFIG_GROUPS) {
+  for (const group of serializedGroups ?? mainGroups) {
     invocations.push(
       resolveTsdownBuildInvocation({
         ...params,
@@ -1090,13 +1127,14 @@ export function prepareTsdownBuildExecution(
   const cleanup =
     hooks.cleanup ??
     ((forwardedArgs: string[]) => {
-      const roots = resolveTsdownCleanOutputRoots(forwardedArgs);
+      const roots = resolveTsdownCleanOutputRoots(forwardedArgs, params);
       // Reject unsafe custom output roots before any preparatory mutation. The second
       // validation in cleanTsdownOutputRoots closes a symlink race before deletion.
-      assertTsdownCleanOutputRoots({ roots });
-      pruneUntrackedGeneratedSourceDeclarations();
-      pruneStaleRuntimeSymlinks();
-      cleanTsdownOutputRoots({ roots });
+      const cwd = params.cwd ?? process.cwd();
+      assertTsdownCleanOutputRoots({ cwd, roots });
+      pruneUntrackedGeneratedSourceDeclarations({ cwd });
+      pruneStaleRuntimeSymlinks({ cwd });
+      cleanTsdownOutputRoots({ cwd, env: params.env, roots });
     });
   cleanup(args);
   return plan;
@@ -1421,6 +1459,7 @@ export async function runTsdownBuild(
     console.log(tsdownBuildUsage());
     return 0;
   }
+  resolveDtsPartitionProfile(process.env);
   let code: number;
   if (options.executeBuild) {
     code = await options.executeBuild(args.forwardedArgs);
@@ -1450,6 +1489,9 @@ export async function runTsdownBuild(
 
 if (isDirectRunUrl(process.argv[1], import.meta.url)) {
   const argv = process.argv.slice(2);
+  if (!parseTsdownBuildArgs(argv).help) {
+    resolveDtsPartitionProfile(process.env);
+  }
   process.exitCode = parseTsdownBuildArgs(argv).help
     ? await runTsdownBuild(argv)
     : await withDistArtifactOwnership(process.cwd(), () => runTsdownBuild(argv));
