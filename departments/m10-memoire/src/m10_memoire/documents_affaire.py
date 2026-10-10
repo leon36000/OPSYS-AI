@@ -201,12 +201,18 @@ def _reference(maillons, index):
     return {"registre": REGISTRE, "index": index, "ligne_id": maillons[index]["ligne_id"]}
 
 
-def _index(maillons, ref):
+def _reference_forme(ref):
     _forme(ref, {"registre", "index", "ligne_id"})
     _entier(ref["index"], 0, MAX_MAILLONS - 1)
     _hash(ref["ligne_id"])
+    if ref["registre"] != REGISTRE:
+        _refuser("REFERENCE-INVALIDE")
+
+
+def _index(maillons, ref):
+    _reference_forme(ref)
     index = ref["index"]
-    if ref["registre"] != REGISTRE or index >= len(maillons):
+    if index >= len(maillons):
         _refuser("REFERENCE-INVALIDE")
     cible = maillons[index]
     if type(cible) is not dict or cible.get("ligne_id") != ref["ligne_id"]:
@@ -390,6 +396,48 @@ def accuse_propre(maillons: list[dict], reference: dict) -> dict:
 def _borner_ack(ack, quota):
     for flag in (False, True):
         borner_enveloppe({"ok": True, "resultat": {"accepte": True, "resultat": ack}, "rejoue": flag}, quota)
+
+
+def valider_commande(operation: str, commande: dict) -> dict:
+    """Copie fermée admise sans état, référence résolue, CAS, contexte ou autorité.
+
+    Les références sont seulement structurales : leur présence et leur appartenance
+    doivent ensuite être établies sur un snapshot validé par les préparateurs.
+    """
+    if type(operation) is not str or operation not in _COMMANDES:
+        _refuser()
+    args = _copie(commande)
+    _forme(args, _COMMANDES[operation])
+    if type(args["affaire_id"]) is not str or not affaire.valide(args["affaire_id"]):
+        _refuser()
+    if operation == "deposer":
+        if args["confidentialite"] != "INTERNAL":
+            _refuser()
+        if args["document_ref"] is None:
+            if args["version_precedente"] is not None:
+                _refuser()
+        else:
+            _reference_forme(args["document_ref"])
+            _reference_forme(args["version_precedente"])
+        # The same source guard used by preparation; derived fields are local,
+        # never an assertion of a current version or persisted source.
+        corps = args["corps"]
+        raw = corps.encode("utf-8", "strict") if type(corps) is str else b""
+        _source({
+            "titre": args["titre"], "corps": corps,
+            "version_no": 1, "methode": METHODE,
+            "taille_points": len(corps) if type(corps) is str else 0,
+            "taille_octets": len(raw), "source_sha256": hashlib.sha256(raw).hexdigest(),
+        })
+    else:
+        _reference_forme(args["document_ref"])
+        if args["activation_attendue"] is not None:
+            _reference_forme(args["activation_attendue"])
+        if operation == "activer":
+            _reference_forme(args["version_source"])
+        elif args["code_motif"] != "RETRAIT_ACCES":
+            _refuser()
+    return args
 
 
 def _debut(maillons, commande, contexte, operation):

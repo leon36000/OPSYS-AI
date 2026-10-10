@@ -152,3 +152,13 @@ longueur de la convention canonique existante et précédent `None`. Son SHA est
 Ces oracles qualifient seulement le domaine RAM, pas l'écriture SQL ou la liaison
 DEVICE/APP. Les anciennes qualifications et les erreurs d'oracle sont conservées
 avec leurs dispositions, sans requalification rétroactive.
+
+## Admission indépendante de l’état
+
+`valider_commande(operation, commande)` renvoie une copie fermée des arguments
+structurels et scalaires des trois mutations. Elle n’utilise ni snapshot, horloge,
+contexte, autorité, stockage ni CAS. Elle réutilise les gardes documentaires :
+UTF-8 exact, bornes source, forme des références et valeurs admises. Une référence
+structurellement admise peut être absente, étrangère ou périmée : seuls les
+préparateurs, avec une chaîne et un contexte validés, tranchent ces cas. Cette API
+ne livre aucun writer ou outil RPC et ne modifie pas l’ordre des préparateurs existants.
