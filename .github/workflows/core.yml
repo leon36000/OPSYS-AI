@@ -28,6 +28,9 @@ jobs:
       - name: Installation
         run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
       - name: Construction
+        env:
+          OPENCLAW_BUILD_DTS_PARTITION: per-plugin
+          OPENCLAW_BUILD_UNIFIED_CONCURRENCY: "1"
         run: pnpm build
       - name: Vérifier les budgets du Control UI construit
         # La construction imprime aussi les dépassements, mais ne les fait pas échouer.
