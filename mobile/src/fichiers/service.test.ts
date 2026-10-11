@@ -19,7 +19,6 @@ jest.mock("@react-native-community/netinfo", () => ({__esModule:true,NetInfoStat
 jest.mock("../outbox/id", () => ({genererMutationId:()=>"UUID-BLOC-FICTIF"}));
 jest.mock("../outbox/service", () => ({obtenirDepot:jest.fn()}));
 import { creerServiceEnvoiFichiers, uriFichierGere, envoyerFichiersDuChantier } from "./service";
-import type { ParametresAppelOutil } from "../protocole/client";
 import type { DepotOutbox } from "../outbox/depot";
 const PERSONNE="file.ack.employee.fictif", APPAREIL="FILE-ACK-APPAREIL-FICTIF", JETON="JETON-FICTIF";
 const URI="file:///document/opsys-photos/INTERV-FICTIVE/apres/00000000-0000-4000-8000-000000000010.png";
@@ -138,7 +137,7 @@ describe("façade native — capture avant bootstrap",()=>{
     finally {global.fetch=ancien;}
   });
   test("role retiré pendant fetch réseau : dépôt/FS/HTTP non lus",async()=>{
-    const c=await preparer();jest.mocked(obtenirDepot).mockClear();
+    await preparer();jest.mocked(obtenirDepot).mockClear();
     jest.mocked(NetInfo.addEventListener).mockReturnValue(()=>undefined);
     jest.mocked(NetInfo.fetch).mockImplementation(async()=>{definirPersonneConfirmee({jeton:JETON,appareilId:APPAREIL,personne:PERSONNE,role:"seller"});return online;});
     expect(await envoyerFichiersDuChantier("INTERV-FICTIVE")).toEqual([]);expect(obtenirDepot).not.toHaveBeenCalled();
@@ -156,7 +155,7 @@ describe("B1 dernières frontières await, erreurs explicites",()=>{
   test("file getter entier ferme avant tout accès/FS",async()=>{
     const c=await preparer();let appels=0;const hostile={...c.photo};
     Object.defineProperty(hostile,"payload",{enumerable:true,get:()=>{appels++;return c.photo.payload;}});
-    const d={...c.d,obtenirDepot:async()=>({lister:async()=>[hostile],obtenir:(id:string)=>c.depot.obtenir(id),inserer:c.depot.inserer.bind(c.depot),mettreAJour:c.depot.mettreAJour.bind(c.depot)})};
+    const d={...c.d,obtenirDepot:async()=>({lister:async()=>[hostile],obtenir:(id:string)=>c.depot.obtenir(id),inserer:c.depot.inserer.bind(c.depot),mettreAJour:c.depot.mettreAJour.bind(c.depot),mettreAJourSiInchangee:c.depot.mettreAJourSiInchangee.bind(c.depot)})};
     await expect(creerServiceEnvoiFichiers(d).envoyer("INTERV-FICTIVE")).rejects.toThrow("illisibles");
     expect(appels).toBe(0);expect(c.lireOctets).not.toHaveBeenCalled();expect(c.fermer).toHaveBeenCalledTimes(1);
   });

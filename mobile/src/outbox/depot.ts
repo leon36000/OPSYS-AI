@@ -18,6 +18,24 @@ export interface DepotOutbox {
    */
   inserer(mutation: MutationOutbox): Promise<MutationOutbox>;
   mettreAJour(mutation: MutationOutbox): Promise<void>;
+  /** Une seule comparaison/écriture atomique ; false conserve intégralement la ligne concurrente. */
+  mettreAJourSiInchangee(attendue: InstantaneMutationOutbox, suivante: MutationOutbox): Promise<boolean>;
+}
+
+/** Snapshot de valeurs pris avant toute attente : aucune référence mutable au payload/reçu. */
+export function capturerMutationOutbox(mutation: MutationOutbox) {
+  return Object.freeze({ id: mutation.id, sequence: mutation.sequence, type: mutation.type,
+    chantierId: mutation.chantierId, payload: JSON.stringify(mutation.payload), dependsOn: mutation.dependsOn,
+    createdAtLocal: mutation.createdAtLocal, proprietaire: mutation.proprietaire,
+    statut: mutation.statut, tentatives: mutation.tentatives, prochaineTentativeA: mutation.prochaineTentativeA,
+    resumeAccepte: mutation.resumeAccepte == null ? null : JSON.stringify(mutation.resumeAccepte) });
+}
+export type InstantaneMutationOutbox = ReturnType<typeof capturerMutationOutbox>;
+
+/** Les transitions CAS ne peuvent changer ni la clé, ni la charge, ni son propriétaire. */
+export function memeIntentionOutbox(a: InstantaneMutationOutbox, b: InstantaneMutationOutbox): boolean {
+  return a.id === b.id && a.sequence === b.sequence && a.type === b.type && a.chantierId === b.chantierId &&
+    a.payload === b.payload && a.dependsOn === b.dependsOn && a.createdAtLocal === b.createdAtLocal && a.proprietaire === b.proprietaire;
 }
 
 /** Implémentation mémoire de `DepotOutbox`, utilisée par les tests. */
@@ -41,6 +59,14 @@ export class DepotOutboxMemoire implements DepotOutbox {
     this.prochaineSequence += 1;
     this.lignes.set(mutation.id, persistee);
     return persistee;
+  }
+
+  async mettreAJourSiInchangee(attendue: InstantaneMutationOutbox, suivante: MutationOutbox): Promise<boolean> {
+    const actuelle = this.lignes.get(attendue.id);
+    if (!actuelle || !memeIntentionOutbox(attendue, capturerMutationOutbox(suivante)) ||
+      JSON.stringify(capturerMutationOutbox(actuelle)) !== JSON.stringify(attendue)) return false;
+    this.lignes.set(attendue.id, suivante);
+    return true;
   }
 
   async mettreAJour(mutation: MutationOutbox): Promise<void> {

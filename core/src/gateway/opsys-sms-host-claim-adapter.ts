@@ -316,6 +316,7 @@ export function createOpsysSmsHostClaimAdapter(params: Params): OpsysSmsHostClai
         }
         if (kind === "encode") {
           const data = request(input, ["kind", "handle", "receivedAt"]);
+          requireHost(typeof data.receivedAt === "number");
           return controller.encodeCaptured(data.handle, data.receivedAt);
         }
         throw new Error(OPSYS_SMS_HOST_SELECTION_REFUSED);

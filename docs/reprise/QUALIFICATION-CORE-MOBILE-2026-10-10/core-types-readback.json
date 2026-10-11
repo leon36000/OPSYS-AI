@@ -1,0 +1,28 @@
+{
+  "checked_toronto": "2026-10-10T19:11:32.262974-04:00",
+  "state": "QUALIFIED_CANONICAL_CORE_TYPES_SOURCE4",
+  "base_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+  "receipt_sha256": "4a66849b2200b46e5a7ba7141fa7a0f278185562f4c0f715b02882b1a8542856",
+  "log_sha256": "3ac3f876d07e92ad31d712615f77c75045f05bda356545ff1c7a4fe7d89d04ac",
+  "source_fixed_sha256": "7b0d80953bd8452c47a5b367ca2f9f4710e5063797faee4deae41b0705e9e5f8",
+  "source_count": 36421,
+  "runtime_pins_revalidated": 61,
+  "compiler_listed_input_count": 16303,
+  "listed_inputs_all_rehashed": true,
+  "diagnostics_error_TS_count": 0,
+  "origin_kinds": {
+    "DECLARATION_OR_DEPENDENCY_CHECKOUT_LOCAL": 3194,
+    "FIXED_PROJECT_SOURCE_MATCHED": 13109
+  },
+  "wall_seconds": 66.006,
+  "peak_RSS_bytes": 5740707840,
+  "EOF": true,
+  "owned_processes_stopped": true,
+  "manual_after_sha256": "f9dfce200db1693bda0a0d98619908de7181ea33c42f1b9a5c63fbb3c0a5ae3d",
+  "limits": [
+    "Core tsconfig.core.json only; not all project platforms",
+    "61 runtime pins and observed 16303 compiler inputs; no blanket unobserved dependencies tree invariance",
+    "Source4 changed working tree; not yet next commit/CI",
+    "Earlier PC1 12 errors and local7GiB RSS stop remain preserved; r2 only explicit canonical throttled policy"
+  ]
+}

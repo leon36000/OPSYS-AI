@@ -1,4 +1,5 @@
 import { DepotOutboxMemoire } from "./depot";
+import type { DepotOutbox } from "./depot";
 import { DESCRIPTEURS_MUTATION } from "./descripteurs";
 import { creerMutation, soumettreMutation } from "./mutation";
 import { creerVidangeur } from "./vidangeur";
@@ -686,5 +687,92 @@ describe("vidangeur — l'appareil est refusé : révocation (PLAN T1.4-l)", () 
     const restee = await depot.obtenir(mutation.id);
     expect(restee?.statut).toBe("en_attente");
     expect(restee?.tentatives).toBe(0);
+  });
+});
+
+
+describe("CF037 — transitions de départ et de garde en concurrence", () => {
+  test("CF037 ownership — le départ perdu de B ne réinitialise pas l'envoi acquis par A", async () => {
+    const depot = new DepotOutboxMemoire();
+    const mutation = await inserer(depot, { type: "punch_in", chantierId: "interv-CF037", payload: { action: "arrivee" } });
+    let entrerB!: () => void, libererB!: () => void, entrerA!: () => void, libererA!: (response: Response) => void;
+    const entreeB = new Promise<void>(resolve => { entrerB = resolve; });
+    const attenteB = new Promise<void>(resolve => { libererB = resolve; });
+    const entreeA = new Promise<void>(resolve => { entrerA = resolve; });
+    const attenteA = new Promise<Response>(resolve => { libererA = resolve; });
+    let resetsB = 0;
+    const depotB: DepotOutbox = {
+      lister: () => depot.lister(), obtenir: id => depot.obtenir(id),
+      inserer: ligne => depot.inserer(ligne), mettreAJour: ligne => depot.mettreAJour(ligne),
+      mettreAJourSiInchangee: async (attendue, suivante) => {
+        if (suivante.statut === "envoi") { entrerB(); await attenteB; }
+        if (suivante.statut === "en_attente") resetsB += 1;
+        return depot.mettreAJourSiInchangee(attendue, suivante);
+      },
+    };
+    const fetchA = jest.fn(async () => { entrerA(); return attenteA; });
+    const fetchB = jest.fn();
+    const generationA = 0;
+    let generationB = 0;
+    const configuration = { descripteurs: DESCRIPTEURS_MUTATION, appelerOutil: invoquerOutil,
+      maintenant: () => HORLOGE.maintenant, session: () => SESSION_DE_TEST };
+    const a = creerVidangeur({ ...configuration, depot, fetchImpl: fetchA,
+      capturerGardeSession: () => { const capture = generationA; return () => capture === generationA; } });
+    const b = creerVidangeur({ ...configuration, depot: depotB, fetchImpl: fetchB,
+      capturerGardeSession: () => { const capture = generationB; return () => capture === generationB; } });
+    const passeB = b.vidangerFileSortante();
+    await entreeB;
+    const passeA = a.vidangerFileSortante();
+    await entreeA;
+    const envoiA = await depot.obtenir(mutation.id);
+    generationB += 1;
+    libererB();
+    const rapportB = await passeB;
+    const pendantRpcA = await depot.obtenir(mutation.id);
+    libererA(reponseAcceptee());
+    const rapportA = await passeA;
+    expect(fetchB).not.toHaveBeenCalled();
+    expect(resetsB).toBe(0);
+    expect(rapportB.arret).toEqual({ genre: "session_changee" });
+    expect(envoiA?.statut).toBe("envoi");
+    expect(pendantRpcA).toEqual(envoiA);
+    expect(fetchA).toHaveBeenCalledTimes(1);
+    expect(rapportA.envoyees).toEqual([mutation.id]);
+    expect(await depot.obtenir(mutation.id)).toMatchObject({ id: mutation.id, payload: mutation.payload,
+      proprietaire: PERSONNE, statut: "envoyee", resumeAccepte: { statut: "sur_site" } });
+  });
+
+  test.each(["depart", "garde"])("%s ne remplace jamais une confirmation intercalée avant le CAS", async frontiere => {
+    class DepotIntercale extends DepotOutboxMemoire {
+      intercaler = false;
+      async mettreAJourSiInchangee(...args: Parameters<DepotOutboxMemoire["mettreAJourSiInchangee"]>): Promise<boolean> {
+        const [attendue, suivante] = args;
+        if (this.intercaler && suivante.statut === (frontiere === "depart" ? "envoi" : "en_attente")) {
+          this.intercaler = false;
+          const actuelle = await this.obtenir(attendue.id);
+          if (!actuelle) throw new Error("FIXTURE-CF037-ABSENTE");
+          await this.mettreAJour({ ...actuelle, statut: "envoyee", resumeAccepte: { statut: "sur_site", preuve: "CONFIRMATION-FICTIVE" } });
+        }
+        return super.mettreAJourSiInchangee(...args);
+      }
+    }
+    const depot = new DepotIntercale();
+    const mutation = await inserer(depot, { type: "punch_in", chantierId: "interv-CF037", payload: { action: "arrivee" } });
+    depot.intercaler = true;
+    let sessions = 0;
+    const appelerOutil = jest.fn();
+    const vidangeur = creerVidangeur({ depot, descripteurs: DESCRIPTEURS_MUTATION, appelerOutil, fetchImpl: jest.fn(),
+      maintenant: () => HORLOGE.maintenant,
+      session: () => ++sessions > 1 && frontiere === "garde" ? null : SESSION_DE_TEST });
+    const rapport = await vidangeur.vidangerFileSortante();
+    expect(appelerOutil).not.toHaveBeenCalled();
+    const actuelle = await depot.obtenir(mutation.id);
+    expect(actuelle).toMatchObject({ id: mutation.id, payload: mutation.payload, proprietaire: PERSONNE,
+      statut: "envoyee", resumeAccepte: { statut: "sur_site", preuve: "CONFIRMATION-FICTIVE" } });
+    expect(rapport.envoyees).toEqual([mutation.id]);
+    expect(rapport.remisesEnAttente).toEqual([]);
+    expect(rapport.echecsPermanents).toEqual([]);
+    expect(rapport.resultatsAcceptes).toEqual([{ id: mutation.id, resume: actuelle?.resumeAccepte }]);
+    expect(rapport.arret?.genre ?? null).toBe(frontiere === "garde" ? "session_changee" : null);
   });
 });

@@ -1,3 +1,13 @@
+import { DatabaseSync } from "node:sqlite";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { SQLiteDatabase } from "expo-sqlite";
+import { creerDepotOutboxSqlite, initialiserSchemaOutbox } from "../outbox/depot.sqlite";
+import { creerVidangeur } from "../outbox/vidangeur";
+import { DESCRIPTEURS_MUTATION } from "../outbox/descripteurs";
+import { validerRecuFichier } from "./protocole";
+import type { ResultatAppelOutil } from "../protocole/client";
 import { encoderBase64Standard } from "./base64";
 import { decouperEnBlocs, TAILLE_BLOC_OCTETS } from "./decoupage";
 import { preparerEnvoiFichier } from "./envoiOrchestrateur";
@@ -160,7 +170,7 @@ describe("preparerEnvoiFichier — reprise via m4_etat_fichier (mission item 1)"
       appels += 1;
       if (appels === 2) throw new Error("disk full");
       return base.inserer(m);
-    }, lister: () => base.lister(), obtenir: (id: string) => base.obtenir(id), mettreAJour: (m: Parameters<typeof base.mettreAJour>[0]) => base.mettreAJour(m) };
+    }, lister: () => base.lister(), obtenir: (id: string) => base.obtenir(id), mettreAJour: (m: Parameters<typeof base.mettreAJour>[0]) => base.mettreAJour(m), mettreAJourSiInchangee: base.mettreAJourSiInchangee.bind(base) };
     const config = creerConfig(depot, octetsDeTaille(FICHIER_1600_OCTETS.tailleOctets));
     await expect(preparerEnvoiFichier(config, FICHIER_1600_OCTETS, [])).rejects.toThrow("disk full");
     const reprises = creerConfig(depot, octetsDeTaille(FICHIER_1600_OCTETS.tailleOctets));
@@ -291,4 +301,166 @@ describe("B1 snapshots et captures indépendantes (fictif)",()=>{
     const second=preparerEnvoiFichier({...c,courante:()=>false},FICHIER_1600_OCTETS,[]);
     expect(await premier).toMatchObject({pret:true});expect(await second).toMatchObject({pret:false,raison:"contexte_change"});
   });
+});
+
+// CF037 : vrai SQLite et vrais orchestrateur/vidangeur ; octets, digest et transport FICTIFS.
+function adapterSqliteCF037(brute: DatabaseSync): SQLiteDatabase {
+  return {
+    async execAsync(sql: string) { brute.exec(sql); },
+    async getAllAsync<T>(sql: string, params: (string | number | null)[] = []) { return brute.prepare(sql).all(...params) as T[]; },
+    async getFirstAsync<T>(sql: string, params: (string | number | null)[] = []) { return (brute.prepare(sql).get(...params) as T | undefined) ?? null; },
+    async runAsync(sql: string, params: (string | number | null)[] = []) { brute.prepare(sql).run(...params); },
+  } as unknown as SQLiteDatabase;
+}
+
+describe("CF037 — réconciliation pendant deposerBloc suspendu", () => {
+  test("CF037 ownership — SQLite reopen conserve l'ACK de A après le départ perdu de B", async () => {
+    const dossier = mkdtempSync(join(tmpdir(), "opsys-cf037-owners-fictif-"));
+    const chemin = join(dossier, "outbox.sqlite");
+    let brute = new DatabaseSync(chemin);
+    try {
+      const db = adapterSqliteCF037(brute);
+      await initialiserSchemaOutbox(db);
+      const depot = creerDepotOutboxSqlite(db);
+      const candidat = { ...FICHIER_1600_OCTETS, tailleOctets: 16 };
+      const genererId = jest.fn(() => "00000000-0000-4000-8000-000000000037");
+      expect(await preparerEnvoiFichier(creerConfig(depot, octetsDeTaille(16), { genererId }), candidat, []))
+        .toEqual({ ok: true, blocsEnfiles: 1, pret: false });
+      const originale = (await depot.lister())[0];
+      let entrerB!: () => void, libererB!: () => void, entrerA!: () => void, libererA!: (resultat: ResultatAppelOutil) => void;
+      const entreeB = new Promise<void>(resolve => { entrerB = resolve; });
+      const attenteB = new Promise<void>(resolve => { libererB = resolve; });
+      const entreeA = new Promise<void>(resolve => { entrerA = resolve; });
+      const attenteA = new Promise<ResultatAppelOutil>(resolve => { libererA = resolve; });
+      let resetsB = 0;
+      const depotB: DepotOutbox = {
+        lister: () => depot.lister(), obtenir: id => depot.obtenir(id),
+        inserer: ligne => depot.inserer(ligne), mettreAJour: ligne => depot.mettreAJour(ligne),
+        mettreAJourSiInchangee: async (attendue, suivante) => {
+          if (suivante.statut === "envoi") { entrerB(); await attenteB; }
+          if (suivante.statut === "en_attente") resetsB += 1;
+          return depot.mettreAJourSiInchangee(attendue, suivante);
+        },
+      };
+      const appelerA = jest.fn(async () => { entrerA(); return attenteA; });
+      const appelerB = jest.fn();
+      const generationA = 0;
+      let generationB = 0;
+      const configuration = { descripteurs: DESCRIPTEURS_MUTATION, fetchImpl: jest.fn(),
+        maintenant: () => HORLOGE.maintenant,
+        session: () => ({ personne: "jdupont", appareilId: "APPAREIL-FICTIF", urlBase: "https://cf037.invalid", jeton: "JETON-FICTIF" }) };
+      const a = creerVidangeur({ ...configuration, depot, appelerOutil: appelerA,
+        capturerGardeSession: () => { const capture = generationA; return () => capture === generationA; } });
+      const b = creerVidangeur({ ...configuration, depot: depotB, appelerOutil: appelerB,
+        capturerGardeSession: () => { const capture = generationB; return () => capture === generationB; } });
+      const passeB = b.vidangerFileSortante();
+      await entreeB;
+      const passeA = a.vidangerFileSortante();
+      await entreeA;
+      const envoiA = await depot.obtenir(originale.id);
+      generationB += 1;
+      libererB();
+      const rapportB = await passeB;
+      const pendantRpcA = await depot.obtenir(originale.id);
+      libererA({ ok: true, result: { ok: true, resultat: { accepte: true, resultat: {
+        reference: `fichier:sha256:${candidat.sha256}`, complet: true, blocs_recus: [0] } } } });
+      const rapportA = await passeA;
+      const envoyee = await depot.obtenir(originale.id);
+      brute.close(); brute = new DatabaseSync(chemin);
+      const rouverte = creerDepotOutboxSqlite(adapterSqliteCF037(brute));
+      expect(appelerB).not.toHaveBeenCalled();
+      expect(resetsB).toBe(0);
+      expect(rapportB.arret).toEqual({ genre: "session_changee" });
+      expect(envoiA?.statut).toBe("envoi");
+      expect(pendantRpcA).toEqual(envoiA);
+      expect(appelerA).toHaveBeenCalledTimes(1);
+      expect(rapportA.envoyees).toEqual([originale.id]);
+      expect(envoyee?.statut).toBe("envoyee");
+      expect(envoyee && validerRecuFichier(envoyee)).toBe(true);
+      expect(envoyee).toMatchObject({ id: originale.id, payload: originale.payload, proprietaire: originale.proprietaire });
+      expect(await rouverte.obtenir(originale.id)).toEqual(envoyee);
+      expect(genererId).toHaveBeenCalledTimes(1);
+    } finally { brute.close(); rmSync(dossier, { recursive: true, force: true }); }
+  });
+
+  test.each(["retry", "permanent", "appareil", "invalide", "refus_metier", "accepte"])("SQLite reopen conserve le reçu etat_fichier après résultat tardif %s", async branche => {
+    const dossier = mkdtempSync(join(tmpdir(), "opsys-cf037-fictif-"));
+    const chemin = join(dossier, "outbox.sqlite");
+    let brute = new DatabaseSync(chemin);
+    try {
+      const db = adapterSqliteCF037(brute);
+      await initialiserSchemaOutbox(db);
+      const depot = creerDepotOutboxSqlite(db);
+      const candidat = { ...FICHIER_1600_OCTETS, tailleOctets: 16 };
+      const genererId = jest.fn(() => "00000000-0000-4000-8000-000000000037");
+      const config = creerConfig(depot, octetsDeTaille(16), { genererId });
+      expect(await preparerEnvoiFichier(config, candidat, [])).toEqual({ ok: true, blocsEnfiles: 1, pret: false });
+      const originale = (await depot.lister())[0];
+      let liberer!: (resultat: ResultatAppelOutil) => void;
+      let entre!: () => void;
+      const entree = new Promise<void>(resolve => { entre = resolve; });
+      const rpc = new Promise<ResultatAppelOutil>(resolve => { liberer = resolve; });
+      const appelerOutil = jest.fn(async () => { entre(); return rpc; });
+      const vidangeur = creerVidangeur({ depot, descripteurs: DESCRIPTEURS_MUTATION, appelerOutil,
+        fetchImpl: jest.fn(), maintenant: () => HORLOGE.maintenant,
+        session: () => ({ personne: "jdupont", appareilId: "APPAREIL-FICTIF", urlBase: "https://cf037.invalid", jeton: "JETON-FICTIF" }) });
+      const vidange = vidangeur.vidangerFileSortante();
+      await entree;
+      expect((await depot.obtenir(originale.id))?.statut).toBe("envoi");
+      const complete = creerConfig(depot, octetsDeTaille(16), { genererId,
+        obtenirEtatServeur: async () => ({ existe: true, complet: true, blocsRecus: [0], reference: `fichier:sha256:${candidat.sha256}` }) });
+      expect(await preparerEnvoiFichier(complete, candidat, [])).toEqual({ ok: true, blocsEnfiles: 0, pret: true });
+      const reconciliee = await depot.obtenir(originale.id);
+      expect(reconciliee?.statut).toBe("envoyee");
+      expect(reconciliee && validerRecuFichier(reconciliee)).toBe(true);
+      expect(reconciliee && DESCRIPTEURS_MUTATION.get("fichier_bloc")?.validerRecuEnvoye?.(reconciliee)).toBe(true);
+      const parasite = { ...reconciliee!, payload: { ...originale.payload, taille_octets: 17 } };
+      expect(DESCRIPTEURS_MUTATION.get("fichier_bloc")?.validerRecuEnvoye?.(parasite)).toBe(false);
+      const resultat: ResultatAppelOutil = branche === "accepte" ? { ok: true, result: { ok: true,
+        resultat: { accepte: true, resultat: { reference: `fichier:sha256:${candidat.sha256}`, complet: true, blocs_recus: [0] } } } }
+        : branche === "refus_metier" ? { ok: true, result: { ok: true, resultat: { accepte: false,
+          verdict: { code: "REJ-FICHIER-INCOHERENT", statut: "", detail: "REFUS-FICTIF" } } } }
+        : branche === "invalide" ? { ok: true, result: {} }
+        : { ok: false, echec: { origine: "http", reessayable: branche === "retry",
+          status: branche === "retry" ? 503 : branche === "appareil" ? 401 : 400, message: "ECHEC-FICTIF-TARDIF" } };
+      liberer(resultat);
+      const rapport = await vidange;
+      expect(await depot.obtenir(originale.id)).toEqual(reconciliee);
+      expect(rapport).toMatchObject({ envoyees: [originale.id], remisesEnAttente: [], echecsPermanents: [], bloquees: [] });
+      expect(rapport.resultatsAcceptes).toEqual([{ id: originale.id, resume: reconciliee?.resumeAccepte }]);
+      expect(rapport.arret?.genre ?? null).toBe(branche === "appareil" ? "appareil_refuse" : null);
+      brute.close(); brute = new DatabaseSync(chemin);
+      const rouverte = creerDepotOutboxSqlite(adapterSqliteCF037(brute));
+      expect(await rouverte.obtenir(originale.id)).toEqual(reconciliee);
+      expect(await preparerEnvoiFichier({ ...complete, depot: rouverte }, candidat, [])).toEqual({ ok: true, blocsEnfiles: 0, pret: true });
+      expect(genererId).toHaveBeenCalledTimes(1);
+      expect(appelerOutil).toHaveBeenCalledTimes(1);
+    } finally { brute.close(); rmSync(dossier, { recursive: true, force: true }); }
+  });
+});
+
+
+test("CF037 — intention modifiée pendant la garde de réconciliation reste indisponible", async () => {
+  const depot = new DepotOutboxMemoire();
+  const candidat = { ...FICHIER_1600_OCTETS, tailleOctets: 16 };
+  const config = creerConfig(depot, octetsDeTaille(16));
+  await preparerEnvoiFichier(config, candidat, []);
+  const originale = (await depot.lister())[0];
+  let serveurLu = false, mutationApresSnapshot = false;
+  const lister = depot.lister.bind(depot);
+  jest.spyOn(depot, "lister").mockImplementation(async () => {
+    const lignes = await lister();
+    if (serveurLu) mutationApresSnapshot = true;
+    return lignes;
+  });
+  const nouvelleCharge = { ...originale.payload, bloc_base64: encoderBase64Standard(new Uint8Array(16).fill(1)) };
+  const r = await preparerEnvoiFichier({ ...config,
+    obtenirEtatServeur: async () => { serveurLu = true; return { existe: true, complet: true, blocsRecus: [0], reference: `fichier:sha256:${candidat.sha256}` }; },
+    verifierCandidat: async () => {
+      if (mutationApresSnapshot) { mutationApresSnapshot = false; await depot.mettreAJour({ ...originale, payload: nouvelleCharge }); }
+      return true;
+    },
+  }, candidat, []);
+  expect(r).toEqual({ ok: false, pret: false, raison: "contexte_change" });
+  expect(await depot.obtenir(originale.id)).toMatchObject({ id: originale.id, payload: nouvelleCharge, statut: "en_attente", resumeAccepte: null });
 });

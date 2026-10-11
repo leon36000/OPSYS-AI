@@ -35,7 +35,7 @@ export function createOpsysSmsRequiredTaskRuntime(
   const dispose = () => {
     closed = true;
   };
-  const refuse = (): never => {
+  const refuse: () => never = () => {
     dispose();
     throw new Error(OPSYS_SMS_HOST_SELECTION_REFUSED);
   };
@@ -173,7 +173,7 @@ export function createOpsysSmsRequiredTaskRuntime(
         refuse();
       }
       try {
-        assertChannelTurnDispatchCurrent(prior);
+        assertChannelTurnDispatchCurrent(() => prior());
       } catch {
         refuse();
       }

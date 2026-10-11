@@ -11,6 +11,7 @@ import { verifierEmpreinteFichier } from "./verification";
 import type { FonctionDigestSha256 } from "./empreinte";
 import { creerMutation, soumettreMutation } from "../outbox/mutation";
 import type { HorlogeAppareil } from "../outbox/mutation";
+import { capturerMutationOutbox } from "../outbox/depot";
 import type { DepotOutbox } from "../outbox/depot";
 import type { MutationOutbox } from "../outbox/types";
 
@@ -110,8 +111,10 @@ async function preparerSousVerrou(config: ConfigurationEnvoiFichier, fichier: Ca
     if (m.proprietaire !== fichier.proprietaire || m.statut === "echec_permanent") continue;
     const c = lireContexteBlocFichier(m);
     if (!c || Object.keys(contexte).some(k => Reflect.get(c.contexte,k) !== Reflect.get(contexte,k)) || !etat.blocsRecus.includes(c.index)) continue;
+    const attendue = capturerMutationOutbox(m);
     if (!await garde() || !courant()) return change();
-    await config.depot.mettreAJour({ ...m, statut: "envoyee", resumeAccepte: { genre: "etat_fichier", contexte, etat } });
+    if (!await config.depot.mettreAJourSiInchangee(attendue,
+      { ...m, statut: "envoyee", resumeAccepte: { genre: "etat_fichier", contexte, etat } })) return change();
     if (!await garde() || !courant()) return change();
   }
   const occupes = new Set(proches.map(m => m.payload.index_bloc));

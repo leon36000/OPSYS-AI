@@ -7,6 +7,7 @@ import { DatabaseSync } from "node:sqlite";
 import type { SQLiteDatabase } from "expo-sqlite";
 
 import { creerDepotOutboxSqlite, DDL_OUTBOX, initialiserSchemaOutbox } from "./depot.sqlite";
+import { capturerMutationOutbox, DepotOutboxMemoire } from "./depot";
 import { creerMutation, marquerEnvoi, soumettreMutation } from "./mutation";
 import { avecProprietaire } from "./proprietaire";
 import { calculerEtatEnvoiFichier } from "../fichiers/etatEnvoi";
@@ -185,5 +186,60 @@ describe("creerDepotOutboxSqlite : le propriétaire de chaque mutation", () => {
     const b = await depot.inserer({ ...nouvelleMutation(), proprietaire: "mtremblay" });
 
     expect([a.sequence, b.sequence]).toEqual([1, 2]);
+  });
+});
+
+
+describe("CF037 — CAS natif mémoire/SQLite et propriétaire", () => {
+  test.each(["memoire", "sqlite"])("%s refuse snapshot périmé et toute réécriture d'intention", async moteur => {
+    const { base, brute } = baseReelle();
+    try {
+      await initialiserSchemaOutbox(base);
+      const depot = avecProprietaire(moteur === "sqlite" ? creerDepotOutboxSqlite(base) : new DepotOutboxMemoire(), () => "jdupont");
+      const originale = await depot.inserer(soumettreMutation(nouvelleMutation()));
+      const attendue = capturerMutationOutbox(originale);
+      const envoi = marquerEnvoi(originale);
+      expect(await depot.mettreAJourSiInchangee(attendue, envoi)).toBe(true);
+      const avantRecu = capturerMutationOutbox(envoi);
+      const terminale = { ...envoi, statut: "envoyee" as const, resumeAccepte: { confirmation: "RECU-FICTIF" } };
+      await depot.mettreAJour(terminale);
+      expect(await depot.mettreAJourSiInchangee(avantRecu, { ...envoi, statut: "echec_permanent" })).toBe(false);
+      expect(await depot.obtenir(originale.id)).toEqual(terminale);
+      const actuel = capturerMutationOutbox(terminale);
+      for (const autre of [ { ...terminale, payload: { action: "autre" } }, { ...terminale, proprietaire: "autre" },
+        { ...terminale, createdAtLocal: "autre-heure" }, { ...terminale, id: "autre-id" } ]) {
+        expect(await depot.mettreAJourSiInchangee(actuel, autre)).toBe(false);
+        expect(await depot.obtenir(originale.id)).toEqual(terminale);
+      }
+      // Même statut et même clé ne suffisent pas si la charge actuelle a changé.
+      const remplacee = { ...terminale, payload: { action: "corrigee" } };
+      await depot.mettreAJour(remplacee);
+      expect(await depot.mettreAJourSiInchangee(actuel, terminale)).toBe(false);
+      expect(await depot.obtenir(originale.id)).toEqual(remplacee);
+    } finally { brute.close(); }
+  });
+
+  test("SQLite compare dans l'UPDATE même si un reçu arrive juste avant son exécution", async () => {
+    const { base, brute } = baseReelle();
+    try {
+      await initialiserSchemaOutbox(base);
+      const depot = creerDepotOutboxSqlite(base);
+      const originale = await depot.inserer({ ...soumettreMutation(nouvelleMutation()), proprietaire: "jdupont" });
+      const attendue = capturerMutationOutbox(originale);
+      const sqlExecuter = base.getFirstAsync.bind(base);
+      const instructions: string[] = [];
+      const espion = jest.spyOn(base, "getFirstAsync").mockImplementation(async (sql, params) => {
+        instructions.push(sql);
+        if (sql.startsWith("UPDATE")) {
+          brute.prepare("UPDATE outbox SET statut='envoyee', resume_accepte=? WHERE id=?").run('{"confirmation":"CONCURRENT-FICTIF"}', originale.id);
+        }
+        return sqlExecuter(sql, params);
+      });
+      expect(await depot.mettreAJourSiInchangee(attendue, marquerEnvoi(originale))).toBe(false);
+      expect(instructions).toHaveLength(1);
+      expect(instructions[0]).toMatch(/^UPDATE/);
+      espion.mockRestore();
+      expect(await depot.obtenir(originale.id)).toMatchObject({ statut: "envoyee", resumeAccepte: { confirmation: "CONCURRENT-FICTIF" } });
+    } finally { brute.close(); }
   });
 });

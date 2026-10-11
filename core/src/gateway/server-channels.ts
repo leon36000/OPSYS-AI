@@ -9,6 +9,7 @@ import {
   buildChannelAccountSnapshotFromInspection,
   buildChannelAccountSnapshotFromRuntime,
 } from "../channels/account-summary.js";
+import { ownDataValue } from "../channels/message-access/admission-evidence-scope-key.js";
 import { resolveChannelDefaultAccountId } from "../channels/plugins/helpers.js";
 import {
   getLoadedChannelPluginEntryById,
@@ -902,7 +903,7 @@ export function createChannelManager(opts: ChannelManagerOptions): ChannelManage
               !opts.isClosing?.(),
             isCurrentTask,
           });
-          const refuseSmsHost = (): never => {
+          const refuseSmsHost: () => never = () => {
             try {
               lifetime.opsysSmsHost?.revoke();
             } finally {
@@ -1007,8 +1008,8 @@ export function createChannelManager(opts: ChannelManagerOptions): ChannelManage
               const originalOwner = registry.channels.find((entry) => entry.plugin === plugin);
               if (
                 !originalOwner ||
-                originalOwner.source !== registration.source ||
-                originalOwner.rootDir !== registration.rootDir
+                originalOwner.source !== ownDataValue(registration, "source") ||
+                originalOwner.rootDir !== ownDataValue(registration, "rootDir")
               ) {
                 refuseSmsHost();
               }

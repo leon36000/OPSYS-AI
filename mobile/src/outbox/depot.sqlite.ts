@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 
+import { capturerMutationOutbox, memeIntentionOutbox } from "./depot";
 import type { DepotOutbox } from "./depot";
 import type { MutationOutbox, StatutMutation, TypeMutation } from "./types";
 
@@ -137,6 +138,24 @@ export function creerDepotOutboxSqlite(db: SQLiteDatabase): DepotOutbox {
         throw new Error(`échec d'insertion dans outbox, aucune séquence retournée : ${mutation.id}`);
       }
       return { ...mutation, sequence: ligne.sequence };
+    },
+
+    async mettreAJourSiInchangee(attendue, suivante) {
+      const cible = capturerMutationOutbox(suivante);
+      if (!memeIntentionOutbox(attendue, cible)) return false;
+      // Aucun SELECT préalable : la comparaison et la transition sont une seule instruction.
+      // IS compare aussi les colonnes nullables. RETURNING distingue le refus d'une écriture.
+      const ligne = await db.getFirstAsync<{ id: string }>(
+        `UPDATE outbox SET statut = ?, tentatives = ?, prochaine_tentative_a = ?, resume_accepte = ?
+         WHERE id IS ? AND sequence IS ? AND type IS ? AND chantier_id IS ? AND payload IS ?
+           AND depends_on IS ? AND created_at_local IS ? AND proprietaire IS ? AND statut IS ?
+           AND tentatives IS ? AND prochaine_tentative_a IS ? AND resume_accepte IS ? RETURNING id`,
+        [cible.statut, cible.tentatives, cible.prochaineTentativeA, cible.resumeAccepte,
+          attendue.id, attendue.sequence, attendue.type, attendue.chantierId, attendue.payload,
+          attendue.dependsOn, attendue.createdAtLocal, attendue.proprietaire, attendue.statut,
+          attendue.tentatives, attendue.prochaineTentativeA, attendue.resumeAccepte],
+      );
+      return ligne !== null;
     },
 
     async mettreAJour(mutation) {

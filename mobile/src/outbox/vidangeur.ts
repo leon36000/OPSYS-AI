@@ -8,7 +8,8 @@ import {
 } from "./mutation";
 import { identifierMutationsBloqueesParEchecPermanent, selectionnerProchainesEnvoyables } from "./planification";
 import { identifierEnQuarantaine } from "./proprietaire";
-import type { DepotOutbox } from "./depot";
+import { capturerMutationOutbox, memeIntentionOutbox } from "./depot";
+import type { DepotOutbox, InstantaneMutationOutbox } from "./depot";
 import type { MutationOutbox, TypeMutation } from "./types";
 import { estRefusAppareil } from "../protocole/classification";
 import type { ParametresAppelOutil, ResultatAppelOutil } from "../protocole/client";
@@ -189,7 +190,7 @@ type IssueEnvoi =
   | { readonly genre: "remise_en_attente" }
   | { readonly genre: "echec_permanent"; readonly verdict: VerdictServeur }
   | { readonly genre: "bloquee_serie" }
-  | { readonly genre: "arret"; readonly arret: ArretVidange };
+  | { readonly genre: "arret"; readonly arret: ArretVidange; readonly acceptee?: { readonly resume: unknown } };
 
 /** Politique optionnelle : une intention inconnue/en recul/quarantaine n'est jamais contournée.
  * Les champs d'ordre viennent du dépôt. Une série sans ordre sûr reste fermée. */
@@ -236,13 +237,27 @@ function verdictDepuisEchecHttp(echec: { readonly message: string; readonly erre
 export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
   let vidangeEnCours = false;
 
-  async function arreterGardeSession(mutation: MutationOutbox): Promise<IssueEnvoi> {
-    // Le reçu peut avoir été persisté pendant une attente précédente : jamais le rouvrir.
-    const actuelle = await config.depot.obtenir(mutation.id);
-    if (actuelle?.statut === "envoi" && actuelle.proprietaire === mutation.proprietaire) {
-      await config.depot.mettreAJour(remettreEnAttenteSansFaute(actuelle));
+  async function issueActuelle(attendue: InstantaneMutationOutbox): Promise<IssueEnvoi> {
+    // Cette lecture ne sert qu'au rapport ; aucun get/update de rattrapage.
+    const actuelle = await config.depot.obtenir(attendue.id);
+    if (copierJsonLecture(actuelle) === JSON_LECTURE_INVALIDE || !actuelle || !memeIntentionOutbox(attendue, capturerMutationOutbox(actuelle))) return { genre: "bloquee_serie" };
+    if (actuelle.statut === "envoyee" && terminaliteVerifiee(actuelle, config.descripteurs.get(actuelle.type))) {
+      return { genre: "envoyee", resume: actuelle.resumeAccepte };
     }
-    return { genre: "arret", arret: { genre: "session_changee" } };
+    return actuelle.statut === "en_attente" ? { genre: "remise_en_attente" } : { genre: "bloquee_serie" };
+  }
+
+  async function transitionner(attendue: InstantaneMutationOutbox, suivante: MutationOutbox, issue: IssueEnvoi): Promise<IssueEnvoi> {
+    return await config.depot.mettreAJourSiInchangee(attendue, suivante) ? issue : issueActuelle(attendue);
+  }
+
+  async function arreterAvecTransition(mutation: MutationOutbox, attendue: InstantaneMutationOutbox, arret: ArretVidange): Promise<IssueEnvoi> {
+    const issue = await transitionner(attendue, remettreEnAttenteSansFaute(mutation), { genre: "arret", arret });
+    return { genre: "arret", arret, ...(issue.genre === "envoyee" ? { acceptee: { resume: issue.resume } } : {}) };
+  }
+
+  async function arreterGardeSession(mutation: MutationOutbox, attendue: InstantaneMutationOutbox): Promise<IssueEnvoi> {
+    return arreterAvecTransition(mutation, attendue, { genre: "session_changee" });
   }
 
   async function envoyerUneMutation(mutation: MutationOutbox, courante: () => boolean): Promise<IssueEnvoi> {
@@ -257,9 +272,15 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
     // Reprise (statut déjà `envoi` retrouvé au démarrage) : ne PAS transitionner à nouveau —
     // `envoi -> envoi` n'existe pas dans le graphe (transitions.ts) — et surtout renvoyer avec
     // LA MÊME mutation (donc la même `id` = idempotencyKey), jamais en la recréant (R12 §4).
+    const avantEnvoi = capturerMutationOutbox(mutation);
     const enEnvoi = mutation.statut === "envoi" ? mutation : marquerEnvoi(mutation);
-    if (enEnvoi !== mutation) {
-      await config.depot.mettreAJour(enEnvoi);
+    const attendueEnvoi = capturerMutationOutbox(enEnvoi);
+    if (enEnvoi !== mutation && !await config.depot.mettreAJourSiInchangee(avantEnvoi, enEnvoi)) {
+      // Ce départ n'a acquis aucun droit sur l'envoi concurrent, même s'il est identique.
+      const issue = await issueActuelle(avantEnvoi);
+      if (!courante()) return { genre: "arret", arret: { genre: "session_changee" },
+        ...(issue.genre === "envoyee" ? { acceptee: { resume: issue.resume } } : {}) };
+      return issue;
     }
     if (!descripteur) throw new Error(`aucun descripteur enregistré pour le type de mutation « ${mutation.type} »`);
 
@@ -267,21 +288,20 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
       const actuelles = await config.depot.lister();
       const courante = actuelles.find(m => m.id === mutation.id);
       // Une réception concurrente déjà durable est terminale : jamais rouvrir/écraser son reçu.
-      if (!courante || courante.statut === "envoyee" || courante.statut === "echec_permanent") return { genre: "bloquee_serie" };
+      if (!courante || courante.statut === "envoyee" || courante.statut === "echec_permanent") return issueActuelle(attendueEnvoi);
       if (!premiereIntentionDuGroupe(enEnvoi, actuelles, descripteur, config.descripteurs)) {
         if (courante.statut === "envoi" && courante.proprietaire === enEnvoi.proprietaire) {
-          await config.depot.mettreAJour(remettreEnAttenteSansFaute(courante));
+          return transitionner(attendueEnvoi, remettreEnAttenteSansFaute(enEnvoi), { genre: "bloquee_serie" });
         }
         return { genre: "bloquee_serie" };
       }
     }
     if (!courante()) {
-      return arreterGardeSession(enEnvoi);
+      return arreterGardeSession(enEnvoi, attendueEnvoi);
     }
     const argumentsRpc = descripteur.construireArguments ? descripteur.construireArguments(enEnvoi) : { ...mutation.payload };
     if (argumentsRpc === null) {
-      await config.depot.mettreAJour(marquerEchecReessayable(enEnvoi, config.maintenant()));
-      return { genre: "remise_en_attente" };
+      return transitionner(attendueEnvoi, marquerEchecReessayable(enEnvoi, config.maintenant()), { genre: "remise_en_attente" });
     }
 
     // La session est lue AU DERNIER MOMENT, juste avant l'appel : le jeton envoyé est le jeton courant, et
@@ -289,34 +309,33 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
     // instantané, jamais de deux lectures : la mutation d'une personne ne part jamais avec le jeton d'une
     // autre. Si la session a changé depuis la sélection, la mutation redevient `en_attente`, intacte.
     const session = config.session();
-    if (!courante()) return arreterGardeSession(enEnvoi);
+    if (!courante()) return arreterGardeSession(enEnvoi, attendueEnvoi);
     if (session === null || session.personne !== mutation.proprietaire) {
-      await config.depot.mettreAJour(remettreEnAttenteSansFaute(enEnvoi));
-      return { genre: "arret", arret: { genre: "session_changee" } };
+      return arreterGardeSession(enEnvoi, attendueEnvoi);
     }
 
     if(descripteur.verifierAvantEnvoi){
       let pret=false;
       try {pret=await config.verifierAvantEnvoi?.(enEnvoi,session,courante)===true;} catch {pret=false;}
-      if(!courante()||!memeSession(session,config.session())||session.urlBase!==config.session()?.urlBase)return arreterGardeSession(enEnvoi);
+      if(!courante()||!memeSession(session,config.session())||session.urlBase!==config.session()?.urlBase)return arreterGardeSession(enEnvoi, attendueEnvoi);
       const observe=await config.depot.obtenir(enEnvoi.id);
-      if(!courante())return arreterGardeSession(enEnvoi);
+      if(!courante())return arreterGardeSession(enEnvoi, attendueEnvoi);
       if(copierJsonLecture(observe)===JSON_LECTURE_INVALIDE)return {genre:"bloquee_serie"};
-      if(!observe||observe.statut==="envoyee"||observe.statut==="echec_permanent")return {genre:"bloquee_serie"};
+      if(!observe||observe.statut==="envoyee"||observe.statut==="echec_permanent")return issueActuelle(attendueEnvoi);
       const avant=copierJsonLecture(enEnvoi.payload),apres=copierJsonLecture(observe.payload);
       if(observe.statut!=="envoi"||observe.proprietaire!==enEnvoi.proprietaire||observe.type!==enEnvoi.type||
         observe.chantierId!==enEnvoi.chantierId||observe.createdAtLocal!==enEnvoi.createdAtLocal||avant===JSON_LECTURE_INVALIDE||apres===JSON_LECTURE_INVALIDE||JSON.stringify(avant)!==JSON.stringify(apres)){
         return {genre:"bloquee_serie"};
       }
-      if(!pret){await config.depot.mettreAJour(marquerEchecReessayable(observe,config.maintenant()));return {genre:"remise_en_attente"};}
+      if(!pret)return transitionner(attendueEnvoi,marquerEchecReessayable(enEnvoi,config.maintenant()),{genre:"remise_en_attente"});
       const ensemble=await config.depot.lister();
-      if(!courante())return arreterGardeSession(enEnvoi);
+      if(!courante())return arreterGardeSession(enEnvoi, attendueEnvoi);
       if(copierJsonLecture(ensemble)===JSON_LECTURE_INVALIDE)return {genre:"bloquee_serie"};
       const finale=ensemble.find(m=>m.id===enEnvoi.id),chargeFinale=copierJsonLecture(finale?.payload);
       if(!finale||finale.statut!=="envoi"||finale.proprietaire!==enEnvoi.proprietaire||finale.type!==enEnvoi.type||
         finale.chantierId!==enEnvoi.chantierId||finale.createdAtLocal!==enEnvoi.createdAtLocal||chargeFinale===JSON_LECTURE_INVALIDE||JSON.stringify(chargeFinale)!==JSON.stringify(avant))return {genre:"bloquee_serie"};
-      if(descripteur.serialiserParChantier&&!premiereIntentionDuGroupe(enEnvoi,ensemble,descripteur,config.descripteurs))return arreterGardeSession(enEnvoi);
-      if(!courante()||!memeSession(session,config.session())||session.urlBase!==config.session()?.urlBase)return arreterGardeSession(enEnvoi);
+      if(descripteur.serialiserParChantier&&!premiereIntentionDuGroupe(enEnvoi,ensemble,descripteur,config.descripteurs))return arreterGardeSession(enEnvoi, attendueEnvoi);
+      if(!courante()||!memeSession(session,config.session())||session.urlBase!==config.session()?.urlBase)return arreterGardeSession(enEnvoi, attendueEnvoi);
     }
 
     const resultatAppel = await config.appelerOutil({
@@ -336,44 +355,33 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
       if (estRefusAppareil(resultatAppel.echec)) {
         // Ce n'est pas la faute de la mutation : elle reste intacte, en file, et repartira avec la même
         // `id` quand une session valide existera. Rien ne passerait derrière elle : la passe s'arrête.
-        await config.depot.mettreAJour(remettreEnAttenteSansFaute(enEnvoi));
-        if (!memeSession(session, config.session())) {
-          return { genre: "arret", arret: { genre: "session_changee" } };
-        }
-        return {
-          genre: "arret",
-          arret: {
+        if (!memeSession(session, config.session())) return arreterGardeSession(enEnvoi, attendueEnvoi);
+        return arreterAvecTransition(enEnvoi, attendueEnvoi, {
             genre: "appareil_refuse",
             mutationId: mutation.id,
             status: resultatAppel.echec.status ?? null,
             message: verdictDepuisEchecHttp(resultatAppel.echec).detail,
-          },
-        };
+        });
       }
       if (resultatAppel.echec.reessayable || descripteur.conserverRefusHttpIncertains === true) {
-        await config.depot.mettreAJour(marquerEchecReessayable(enEnvoi, config.maintenant()));
-        return { genre: "remise_en_attente" };
+        return transitionner(attendueEnvoi, marquerEchecReessayable(enEnvoi, config.maintenant()), { genre: "remise_en_attente" });
       }
-      await config.depot.mettreAJour(marquerEchecPermanent(enEnvoi));
-      return { genre: "echec_permanent", verdict: verdictDepuisEchecHttp(resultatAppel.echec) };
+      return transitionner(attendueEnvoi, marquerEchecPermanent(enEnvoi), { genre: "echec_permanent", verdict: verdictDepuisEchecHttp(resultatAppel.echec) });
     }
 
     const interpretation = descripteur.interpreterResultat(resultatAppel.result, enEnvoi);
     if (interpretation.accepte) {
-      await config.depot.mettreAJour(marquerEnvoyee(enEnvoi, interpretation.resume));
-      return { genre: "envoyee", resume: interpretation.resume };
+      return transitionner(attendueEnvoi, marquerEnvoyee(enEnvoi, interpretation.resume), { genre: "envoyee", resume: interpretation.resume });
     }
     if (interpretation.verdict.code === "accuse_invalide") {
       // Réponse incompatible après un effet serveur possible : conserver la même clé et réessayer
       // avec recul, l'idempotence serveur empêchera un doublon si le premier appel a abouti.
-      await config.depot.mettreAJour(marquerEchecReessayable(enEnvoi, config.maintenant()));
-      return { genre: "remise_en_attente" };
+      return transitionner(attendueEnvoi, marquerEchecReessayable(enEnvoi, config.maintenant()), { genre: "remise_en_attente" });
     }
     // Rejet métier (HTTP 200, mais `accepte: false`) : définitif — réessayer le MÊME payload ne
     // changerait pas l'issue (fenêtre dépassée, contrat mal formé…). R12 §4 : jamais perdu
     // silencieusement, voir RapportVidange.bloquees pour les descendants.
-    await config.depot.mettreAJour(marquerEchecPermanent(enEnvoi));
-    return { genre: "echec_permanent", verdict: interpretation.verdict };
+    return transitionner(attendueEnvoi, marquerEchecPermanent(enEnvoi), { genre: "echec_permanent", verdict: interpretation.verdict });
   }
 
   async function vidangerUneFois(courante: () => boolean): Promise<RapportVidange> {
@@ -416,6 +424,10 @@ export function creerVidangeur(config: ConfigurationVidangeur): Vidangeur {
       const issue = await envoyerUneMutation(mutation, courante);
       if (enSerie && issue.genre !== "bloquee_serie") seriesTraitees.add(cleSerie);
       if (issue.genre === "arret") {
+        if (issue.acceptee) {
+          envoyees.push(mutation.id);
+          resultatsAcceptes.push({ id: mutation.id, resume: issue.acceptee.resume });
+        }
         arret = issue.arret;
         break;
       }

@@ -1,0 +1,240 @@
+{
+  "CI": {
+    "conditional_skipped_jobs": 2,
+    "new_commit_CI": "not yet available before publication",
+    "previous_exact_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+    "run": 38092171389,
+    "success_jobs": 38
+  },
+  "Core_qualification": {
+    "canonical_types_exit": 0,
+    "format_exit": 0,
+    "full_build_RSS_bytes": 6068789248,
+    "full_build_machine": "PC1 Linux x64",
+    "full_build_seconds": 561.904,
+    "skips": 0,
+    "strict_lint_exit": 0,
+    "suites": 36,
+    "tests": 952
+  },
+  "HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+  "branch": "codex/restructuration-2026-09-30",
+  "current_changes": 18,
+  "future_F22_excluded": true,
+  "mobile_qualification": {
+    "SQLite_scope": "file reopen same process; transport fixtures",
+    "canonical_types_exit": 0,
+    "full_shards_wall_seconds": 47.75,
+    "skips": 0,
+    "strict_lint14_exit": 0,
+    "suites": 237,
+    "tests": 5576
+  },
+  "no_source_stage_commit_push": true,
+  "paths": [
+    {
+      "bytes": 14800,
+      "current_sha256": "9cdcdf22a05575e38c63d4d490efcb5723075a48729cc15db870f7e69804dc0a",
+      "integration": "qualified continuation, exact blob listed; enclosing commit records integration",
+      "limit": "Positive SMS native OriginalC/adoption/policy/copies/allSenders not qualified",
+      "origin": "canonical-types12-fix",
+      "path": "core/src/gateway/opsys-sms-host-authority.ts",
+      "preimage_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+      "preimage_sha256": "d9fd14b109c76fab20c28c29cd2c8cf3385a50fc6625f7cfce061792785c490d",
+      "verification": "Core952/36/types/styles/fullCorePC1 PASS exact bytes"
+    },
+    {
+      "bytes": 11748,
+      "current_sha256": "983f6cee0e3d3465df9c4bbeefdb9de429bccdacad2cbeec770d7d1f609a198b",
+      "integration": "qualified continuation, exact blob listed; enclosing commit records integration",
+      "limit": "Positive SMS native OriginalC/adoption/policy/copies/allSenders not qualified",
+      "origin": "canonical-types12-fix",
+      "path": "core/src/gateway/opsys-sms-host-claim-adapter.ts",
+      "preimage_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+      "preimage_sha256": "64d3be9d57e6f0ef2c56f811d916a3d0057d5a0b6417e75a3c7038f7d0d160a1",
+      "verification": "Core952/36/types/styles/fullCorePC1 PASS exact bytes"
+    },
+    {
+      "bytes": 75969,
+      "current_sha256": "f49c3bbf316407611c81db59af476b435cecb2fb01179801b0ca8821f46a6fae",
+      "integration": "qualified continuation, exact blob listed; enclosing commit records integration",
+      "limit": "Positive SMS native OriginalC/adoption/policy/copies/allSenders not qualified",
+      "origin": "canonical-types12-fix",
+      "path": "core/src/gateway/server-channels.ts",
+      "preimage_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+      "preimage_sha256": "0010fee7e30711660567758686159fdef6001058f3661a8ed2cca5b4d22586c0",
+      "verification": "Core952/36/types/styles/fullCorePC1 PASS exact bytes"
+    },
+    {
+      "bytes": 9462,
+      "current_sha256": "9229118aaa7e9435084de7d87f48137f3e8ba8331afba48e99641b82bc361233",
+      "integration": "qualified continuation, exact blob listed; enclosing commit records integration",
+      "limit": "Positive SMS native OriginalC/adoption/policy/copies/allSenders not qualified",
+      "origin": "canonical-types12-fix",
+      "path": "core/src/infra/opsys-sms-task-runtime.ts",
+      "preimage_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+      "preimage_sha256": "66716ebf90d6e030b5c094efd8dac4c657c7976bc7cb91dbe1a7f6757e1baa15",
+      "verification": "Core952/36/types/styles/fullCorePC1 PASS exact bytes"
+    },
+    {
+      "bytes": 26919,
+      "current_sha256": "e850c7c293e35913f689ccf1e7e6e3c02b4f0a1650d9f9a91f5e946eebcbb93f",
+      "integration": "qualified continuation, exact blob listed; enclosing commit records integration",
+      "limit": "SQLite same-process reopen; fixtures transport; no Expo/device/process restart/server commit",
+      "origin": "CF037-atomic-CAS-and-ownership-hardening",
+      "path": "mobile/src/fichiers/envoiOrchestrateur.test.ts",
+      "preimage_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+      "preimage_sha256": "36a245e22bc6efddf55d049f2b7c219b977432daa1e20e87c037290c377b4b27",
+      "verification": "Mobile5576/237/types/lint14 PASS exact final bytes"
+    },
+    {
+      "bytes": 12609,
+      "current_sha256": "0bfde48b4627ff6ddf02bdf7843e1c8438b978b574640a0f5baaf365e9395b04",
+      "integration": "qualified continuation, exact blob listed; enclosing commit records integration",
+      "limit": "SQLite same-process reopen; fixtures transport; no Expo/device/process restart/server commit",
+      "origin": "CF037-atomic-CAS-and-ownership-hardening",
+      "path": "mobile/src/fichiers/envoiOrchestrateur.ts",
+      "preimage_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+      "preimage_sha256": "dc86e845ab77738f7abb66ae2159027647de05ffaed0a64a3758f8b5c011a9f7",
+      "verification": "Mobile5576/237/types/lint14 PASS exact final bytes"
+    },
+    {
+      "bytes": 19654,
+      "current_sha256": "7e9c0406b757c1111d09dbb8bb49696dbb656e2be342e349f3c6c04b8563b31f",
+      "integration": "qualified continuation, exact blob listed; enclosing commit records integration",
+      "limit": "SQLite same-process reopen; fixtures transport; no Expo/device/process restart/server commit",
+      "origin": "CF037-atomic-CAS-and-ownership-hardening",
+      "path": "mobile/src/fichiers/service.test.ts",
+      "preimage_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+      "preimage_sha256": "be6b97f325d435d5e8de62b26f188ea728f03c0219189e38babbeaac09ba1300",
+      "verification": "Mobile5576/237/types/lint14 PASS exact final bytes"
+    },
+    {
+      "bytes": 32621,
+      "current_sha256": "ebc2d248dc9bee36a98a276b090c7d51c389945a274b24da2eb0688fa251b8df",
+      "integration": "qualified continuation, exact blob listed; enclosing commit records integration",
+      "limit": "SQLite same-process reopen; fixtures transport; no Expo/device/process restart/server commit",
+      "origin": "CF037-atomic-CAS-and-ownership-hardening",
+      "path": "mobile/src/m7/controle.test.ts",
+      "preimage_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+      "preimage_sha256": "b8b032ad539763d34aa9bb7f4a787741009d444f0dfffeacecf34986df269902",
+      "verification": "Mobile5576/237/types/lint14 PASS exact final bytes"
+    },
+    {
+      "bytes": 10948,
+      "current_sha256": "d2ed1e0b393823ee89e0d8284d36e3795e39a9713791026527aac8317a33f7e3",
+      "integration": "qualified continuation, exact blob listed; enclosing commit records integration",
+      "limit": "SQLite same-process reopen; fixtures transport; no Expo/device/process restart/server commit",
+      "origin": "CF037-atomic-CAS-and-ownership-hardening",
+      "path": "mobile/src/outbox/arbitrageMemoire.test.ts",
+      "preimage_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+      "preimage_sha256": "5b9b01fbc4404f6f32826245347a7af9b5a36ff521893f480cb410fda96417c9",
+      "verification": "Mobile5576/237/types/lint14 PASS exact final bytes"
+    },
+    {
+      "bytes": 12853,
+      "current_sha256": "ca621074c306fffc87dcc549e851b1d873a94b0807a3e4b8efd37ebbec37e6a3",
+      "integration": "qualified continuation, exact blob listed; enclosing commit records integration",
+      "limit": "SQLite same-process reopen; fixtures transport; no Expo/device/process restart/server commit",
+      "origin": "CF037-atomic-CAS-and-ownership-hardening",
+      "path": "mobile/src/outbox/depot.sqlite.test.ts",
+      "preimage_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+      "preimage_sha256": "20df3f11f002d845343999ffea56973df27585b7d434c1828401ae8886cbeadf",
+      "verification": "Mobile5576/237/types/lint14 PASS exact final bytes"
+    },
+    {
+      "bytes": 8501,
+      "current_sha256": "0ed603d0ff059795feddcea5bbe23dd2ce12b48008f35eee0741d6e273bf98e0",
+      "integration": "qualified continuation, exact blob listed; enclosing commit records integration",
+      "limit": "SQLite same-process reopen; fixtures transport; no Expo/device/process restart/server commit",
+      "origin": "CF037-atomic-CAS-and-ownership-hardening",
+      "path": "mobile/src/outbox/depot.sqlite.ts",
+      "preimage_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+      "preimage_sha256": "ccf4231162318c6304a8d9650b5c05df2d910061a7562a27f2f4cb35366249bc",
+      "verification": "Mobile5576/237/types/lint14 PASS exact final bytes"
+    },
+    {
+      "bytes": 4088,
+      "current_sha256": "db728355b9a658d8124502ee856d8bda9792a3bd2bbb881f4aaf128a1e05b6a4",
+      "integration": "qualified continuation, exact blob listed; enclosing commit records integration",
+      "limit": "SQLite same-process reopen; fixtures transport; no Expo/device/process restart/server commit",
+      "origin": "CF037-atomic-CAS-and-ownership-hardening",
+      "path": "mobile/src/outbox/depot.ts",
+      "preimage_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+      "preimage_sha256": "4d364c47af8d1dad196984cbd1f79c09e70fc82897a1174f71cdd767e01c9e58",
+      "verification": "Mobile5576/237/types/lint14 PASS exact final bytes"
+    },
+    {
+      "bytes": 15539,
+      "current_sha256": "9e7c7ac5cdeb090364620a2c473c3020e17b5cb8d69d1a6879e9c7d845268d43",
+      "integration": "qualified continuation, exact blob listed; enclosing commit records integration",
+      "limit": "SQLite same-process reopen; fixtures transport; no Expo/device/process restart/server commit",
+      "origin": "CF037-atomic-CAS-and-ownership-hardening",
+      "path": "mobile/src/outbox/descripteurs.ts",
+      "preimage_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+      "preimage_sha256": "c3976c5c07b1c597416543390864475ea212367d48937902d59d27300a7879c2",
+      "verification": "Mobile5576/237/types/lint14 PASS exact final bytes"
+    },
+    {
+      "bytes": 21870,
+      "current_sha256": "b61f02f60b610e01ada178cc0f1f34d4060a6e4986ac624e006ca5bd4d4a3537",
+      "integration": "qualified continuation, exact blob listed; enclosing commit records integration",
+      "limit": "SQLite same-process reopen; fixtures transport; no Expo/device/process restart/server commit",
+      "origin": "CF037-atomic-CAS-and-ownership-hardening",
+      "path": "mobile/src/outbox/marketingDecision.test.ts",
+      "preimage_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+      "preimage_sha256": "f0a373d5aba08fb896ff822f4831fe42790913a216f4b8ad92f31f6506270083",
+      "verification": "Mobile5576/237/types/lint14 PASS exact final bytes"
+    },
+    {
+      "bytes": 8380,
+      "current_sha256": "7b2d28fe5409e494b0e54f7c3c8fc1e80f2b18a2da0a6062623dead1d7f8614f",
+      "integration": "qualified continuation, exact blob listed; enclosing commit records integration",
+      "limit": "SQLite same-process reopen; fixtures transport; no Expo/device/process restart/server commit",
+      "origin": "CF037-atomic-CAS-and-ownership-hardening",
+      "path": "mobile/src/outbox/materialsPreuvesSubmit.test.ts",
+      "preimage_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+      "preimage_sha256": "3670d97191b0b8999d1cee20ddca83c14e049906cbc285dd4bac33f5ca08d59c",
+      "verification": "Mobile5576/237/types/lint14 PASS exact final bytes"
+    },
+    {
+      "bytes": 4097,
+      "current_sha256": "97275fbc7934479223d7f18835b378d972ac73402cad360592f762d48eb16219",
+      "integration": "qualified continuation, exact blob listed; enclosing commit records integration",
+      "limit": "SQLite same-process reopen; fixtures transport; no Expo/device/process restart/server commit",
+      "origin": "CF037-atomic-CAS-and-ownership-hardening",
+      "path": "mobile/src/outbox/proprietaire.ts",
+      "preimage_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+      "preimage_sha256": "b01bcb21664c33793358e2042b74d2b89d1bb12f3bcad6e2c4ba261d8441912b",
+      "verification": "Mobile5576/237/types/lint14 PASS exact final bytes"
+    },
+    {
+      "bytes": 40848,
+      "current_sha256": "778d87db868ba06ef3f25d946461650613f68b21f9f301d5130c50f5c8f068f1",
+      "integration": "qualified continuation, exact blob listed; enclosing commit records integration",
+      "limit": "SQLite same-process reopen; fixtures transport; no Expo/device/process restart/server commit",
+      "origin": "CF037-atomic-CAS-and-ownership-hardening",
+      "path": "mobile/src/outbox/vidangeur.test.ts",
+      "preimage_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+      "preimage_sha256": "58706a9471eb9253680f6d4ae2ae13f6496e716037cb7a937b17b5418755901f",
+      "verification": "Mobile5576/237/types/lint14 PASS exact final bytes"
+    },
+    {
+      "bytes": 27504,
+      "current_sha256": "a2c387245bf41a904cb95d82f4ceaaccff0214921d16572e938f1b22706ac917",
+      "integration": "qualified continuation, exact blob listed; enclosing commit records integration",
+      "limit": "SQLite same-process reopen; fixtures transport; no Expo/device/process restart/server commit",
+      "origin": "CF037-atomic-CAS-and-ownership-hardening",
+      "path": "mobile/src/outbox/vidangeur.ts",
+      "preimage_HEAD": "120172df81fc5c54e88d4ccecd70cbeab8413ace",
+      "preimage_sha256": "3adfedbdec0e74a317bfb3a9496fe66a93455329279080bcb853146f623a8a22",
+      "verification": "Mobile5576/237/types/lint14 PASS exact final bytes"
+    }
+  ],
+  "pending_build_PC1": "17137",
+  "product": "PARTIEL",
+  "state": "QUALIFICATION_SOURCE18_BOUND_TO_EXACT_BLOBS",
+  "time_toronto": "2026-10-10T20:31:37.361450-04:00",
+  "utc": "2026-10-11T00:18:54.624493+00:00",
+  "publication_identity": "The enclosing Git commit defines publication; qualification is bound to the listed exact Source18 SHA256"
+}

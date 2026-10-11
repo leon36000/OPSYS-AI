@@ -35,6 +35,7 @@ export function avecProprietaire(depot: DepotOutbox, personneCourante: () => str
   return {
     lister: () => depot.lister(),
     obtenir: (id) => depot.obtenir(id),
+    mettreAJourSiInchangee: (attendue, suivante) => depot.mettreAJourSiInchangee(attendue, suivante),
     mettreAJour: (mutation) => depot.mettreAJour(mutation),
     async inserer(mutation) {
       const proprietaire = mutation.proprietaire ?? personneCourante();

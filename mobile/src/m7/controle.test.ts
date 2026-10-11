@@ -170,9 +170,9 @@ describe("contrôleur M7 mobile", () => {
 
   test("une panne de persistance du reçu ne recrée pas l’intention après effet serveur", async () => {
     class DepotRecuDefaillant extends DepotOutboxMemoire {
-      async mettreAJour(m: MutationOutbox): Promise<void> {
-        if (m.statut === "envoyee") throw new Error("réception non persistée");
-        await super.mettreAJour(m);
+      async mettreAJourSiInchangee(...args: Parameters<DepotOutboxMemoire["mettreAJourSiInchangee"]>): Promise<boolean> {
+        if (args[1].statut === "envoyee") throw new Error("réception non persistée");
+        return await super.mettreAJourSiInchangee(...args);
       }
     }
     const depot = new DepotRecuDefaillant(), h = harness({ depot });

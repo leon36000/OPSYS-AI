@@ -47,7 +47,7 @@ test.each(capturesSQL.captures)("$phase SQL : vrai SDK/descripteur/drainer, argu
 });
 test("lecture de dépôt hostile après la barrière : getter zéro, aucun RPC ni effacement",async()=>{
  const d=new DepotOutboxMemoire(),m=await insere(d,"GETTER-FICTIF"),c=config(d,true);let hostile=false,n=0;
- const depot={lister:()=>d.lister(),inserer:d.inserer.bind(d),mettreAJour:d.mettreAJour.bind(d),obtenir:async(id:string)=>{
+ const depot={lister:()=>d.lister(),inserer:d.inserer.bind(d),mettreAJour:d.mettreAJour.bind(d),mettreAJourSiInchangee:d.mettreAJourSiInchangee.bind(d),obtenir:async(id:string)=>{
   const r=await d.obtenir(id);if(!r||!hostile)return r;const copie={...r};Object.defineProperty(copie,"payload",{enumerable:true,get:()=>{n++;return r.payload;}});return copie;
  }};
  const v=creerVidangeur({depot,descripteurs:DESCRIPTEURS_MUTATION,appelerOutil:invoquerOutil,fetchImpl:c.fetchImpl,session:()=>({urlBase:"https://fictif.invalid",jeton:"FICTIF",appareilId:"D-FICTIF",personne:"P-FICTIF"}),maintenant:()=>h.maintenant,verifierAvantEnvoi:async()=>{hostile=true;return true;}});

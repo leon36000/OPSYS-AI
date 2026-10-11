@@ -8,7 +8,7 @@ import { interpreterResultatPointage } from "../m4/pointage";
 import { interpreterResultatDeciderDemande } from "../approbations/contrat";
 import { ERREURS_PASSAGERES } from "../protocole/enveloppeOutil";
 import { interpreterResultatDeclarerMateriauxUtilises, validerRecuDeclarerMateriauxUtilises } from "../m6/materiaux";
-import { interpreterResultatDeposerFichier, validerRecuDeposerFichier } from "../fichiers/protocole";
+import { interpreterResultatDeposerFichier, validerRecuFichier } from "../fichiers/protocole";
 import { interpreterResultatEnregistrerInteraction } from "../m2/interaction";
 import { construireArgumentsDecisionMarketing, interpreterDecisionMarketing } from "../m7/decisionOutbox";
 import { construireArgumentsArbitrageMemoire, interpreterArbitrageMemoire } from "../m10/arbitrageOutbox";
@@ -172,7 +172,7 @@ export const DESCRIPTEURS_MUTATION: ReadonlyMap<TypeMutation, DescripteurTypeMut
   ["punch_in", { tool: "m4_pointer", interpreterResultat: versInterpretationGenerique }],
   ["punch_out", { tool: "m4_pointer", interpreterResultat: versInterpretationGenerique }],
   ["job_status_change", { tool: "m4_demarrer_route", interpreterResultat: versInterpretationGeneriqueDemarrerRoute }],
-  ["fichier_bloc", { tool: "m4_deposer_fichier", interpreterResultat: versInterpretationGeneriqueDeposerFichier, validerRecuEnvoye: validerRecuDeposerFichier }],
+  ["fichier_bloc", { tool: "m4_deposer_fichier", interpreterResultat: versInterpretationGeneriqueDeposerFichier, validerRecuEnvoye: validerRecuFichier }],
   ["job_completion", { tool: "m4_completer_intervention", interpreterResultat: versInterpretationGeneriqueCompletion }],
   ["materials_submit", { groupeSerie:"materiaux", tool: "m6_declarer_materiaux_utilises", interpreterResultat: versInterpretationGeneriqueMateriaux,
     serialiserParChantier: true, validerRecuEnvoye: validerRecuDeclarerMateriauxUtilises }],

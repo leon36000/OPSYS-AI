@@ -1,0 +1,378 @@
+{
+  "state": "ROOT_READY_CURRENT_CORE_SOURCE4_952PASS_36SUITES_CLOSED",
+  "scope": "R canonical CURRENT74 plus exactly4 type fixes; merged core30+six6 disjoint; not F22R0/mobile/provider/positive admission",
+  "Root_execution_session_reported": {
+    "id": 88014,
+    "status": "CLOSED_EXIT0",
+    "source": "Root message; receipt independently verified"
+  },
+  "actual_counts": {
+    "pass": 952,
+    "tests": 952,
+    "suites": 36,
+    "failures": 0,
+    "errors": 0,
+    "skips": 0,
+    "XML_testcase_elements": 952
+  },
+  "durations_seconds": {
+    "wrapper_wall": 119.336,
+    "Vitest_CLI_duration": 117.22,
+    "XML_test_time": 31.601865634,
+    "XML_suite_time_sum": 31.601865634
+  },
+  "RSS_bytes_sampled": 1675440128,
+  "guard": null,
+  "exit_code": 0,
+  "EOF": true,
+  "output_complete": true,
+  "PIDFD": true,
+  "owned_observed_processes_stopped": true,
+  "Source4_pins": {
+    "core/src/gateway/opsys-sms-host-authority.ts": "9cdcdf22a05575e38c63d4d490efcb5723075a48729cc15db870f7e69804dc0a",
+    "core/src/gateway/opsys-sms-host-claim-adapter.ts": "983f6cee0e3d3465df9c4bbeefdb9de429bccdacad2cbeec770d7d1f609a198b",
+    "core/src/gateway/server-channels.ts": "f49c3bbf316407611c81db59af476b435cecb2fb01179801b0ca8821f46a6fae",
+    "core/src/infra/opsys-sms-task-runtime.ts": "9229118aaa7e9435084de7d87f48137f3e8ba8331afba48e99641b82bc361233"
+  },
+  "fixed_source_count": 36421,
+  "fixed_source_sha256": "7b0d80953bd8452c47a5b367ca2f9f4710e5063797faee4deae41b0705e9e5f8",
+  "fixed_rehashed_now_all_equal": true,
+  "other36417_before_patch_verified_unchanged": true,
+  "runtime_pins_count": 61,
+  "runtime_current_rehashed_realpaths_and_SHA_equal": true,
+  "preparation_manifest_rehashed_equal": true,
+  "observed_project_origins": {
+    "rows": 4007,
+    "unique": 4007,
+    "all_under_physical_R": true,
+    "all_covered_by_fixed_pins_and_current_hashes": true,
+    "foreign": 0,
+    "unknown": 0,
+    "F22_R0_receiver_imported": false
+  },
+  "selection36_exactly_matches_XML_names": true,
+  "styles_status": "NOT_ASSESSED_ROOT_SEPARATE_PHASES",
+  "types_status": "NOT_ASSESSED_THIS_CORE_READBACK; r1memoryRED preserved; r2 separate namespace no PASS inferred",
+  "types_r1_RED_preserved": {
+    "receipt_sha256": "21993a495898e47f28acb821897c6c6710e0ff8fbae9ae671606a506180ea9e8",
+    "exit": 143,
+    "guard": "rss_limit",
+    "Source_stable": true
+  },
+  "origins": {
+    "evidence-core-r1/m1-source4-core-r1.json": "de7225aede2216048845c7f81c68f8eeb475950526492532752e12f1e9be90ee",
+    "evidence-core-r1/m1-source4-core-r1.log": "63b173efa722b527da01e89a9a7385267426b5a90ae3e9143a691c651005e985",
+    "junit-r1.xml": "330e63adc394f2522acc00c0eae06e827e8f3e4c56a58621738199dc2b46d46e",
+    "transformed-origins-r1.jsonl": "519c14e4bb59cfd5ca35b0a568807958676c2d5909f3ced7d2b3feb48655627e",
+    "manual-after-core-r1.json": "668c8b47191caa0e2332cc48fe1e892439e7a4ee2aeaae775f95c3322a7e0624",
+    "ROOT-GO-core-r1.json": "674a73e4bd78fe5736a51ca4c40175c8b6614e390ff958699003f40a74993369",
+    "ROOT-SOURCE4-FROZEN-r1.json": "f52346ece811d2e8870083ed2ab89a30b583c5797a130882a70f729f40698f7a",
+    "COMMANDS-r1.json": "51222442e0e59367d6494c4bd3669ba81f9aa50fabe0f3cc90a8e7422b18e11c",
+    "source-fixed-r1.json": "7b0d80953bd8452c47a5b367ca2f9f4710e5063797faee4deae41b0705e9e5f8",
+    "runtime-pins-r1.json": "7b3240fe5e2d1d3f91dcbbb8df3b0cb8fa10eeb5f544642e7906a84deca5de8a",
+    "SHA256-preparation.json": "ab1fa1967c13c5c98fea5f004c5cd6d3678d0b85290c1fb11db2a10892b008f6"
+  },
+  "suites": [
+    {
+      "name": "extensions/sms/src/ingress-spool.test.ts",
+      "tests": "32",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "2.19969993"
+    },
+    {
+      "name": "extensions/sms/src/twilio.test.ts",
+      "tests": "68",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.228479999"
+    },
+    {
+      "name": "extensions/sms/src/webhook.test.ts",
+      "tests": "35",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.281086966"
+    },
+    {
+      "name": "src/agents/embedded-agent-runner/run/attempt-execution-phase.test.ts",
+      "tests": "25",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.714156562"
+    },
+    {
+      "name": "src/agents/opsys-runtime-sms-contract.test.ts",
+      "tests": "97",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.263217239"
+    },
+    {
+      "name": "src/channels/message/ingress-claim-owner.test.ts",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.051864855"
+    },
+    {
+      "name": "src/channels/message/ingress-drain-lanes.test.ts",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.290412475"
+    },
+    {
+      "name": "src/channels/message/ingress-drain-lifecycle.test.ts",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.030117733"
+    },
+    {
+      "name": "src/channels/message/ingress-drain-supersede.test.ts",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.340526722"
+    },
+    {
+      "name": "src/channels/message/ingress-drain.adoption-commit.test.ts",
+      "tests": "10",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.630652987"
+    },
+    {
+      "name": "src/channels/message/ingress-drain.async-work.test.ts",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.100171151"
+    },
+    {
+      "name": "src/channels/message/ingress-drain.cancellation.test.ts",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.140492677"
+    },
+    {
+      "name": "src/channels/message/ingress-drain.debounce-failure.test.ts",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.204580767"
+    },
+    {
+      "name": "src/channels/message/ingress-drain.test.ts",
+      "tests": "28",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "3.695755749"
+    },
+    {
+      "name": "src/channels/message/ingress-drain.tombstone-lane.test.ts",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.461215556"
+    },
+    {
+      "name": "src/channels/message/ingress-drain.watchdog.test.ts",
+      "tests": "15",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.809856838"
+    },
+    {
+      "name": "src/channels/message/ingress-native-completion.test.ts",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.439144736"
+    },
+    {
+      "name": "src/channels/message/ingress-queue.read-only-access.test.ts",
+      "tests": "26",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "3.543166238"
+    },
+    {
+      "name": "src/channels/message/ingress-queue.test.ts",
+      "tests": "32",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "2.633772317"
+    },
+    {
+      "name": "src/channels/message/opsys-sms-source.test.ts",
+      "tests": "49",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "6.43176842"
+    },
+    {
+      "name": "src/channels/turn/run-channel-turn.finalize.test.ts",
+      "tests": "29",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.123950753"
+    },
+    {
+      "name": "src/channels/turn/run-channel-turn.pipeline.test.ts",
+      "tests": "40",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.185637992"
+    },
+    {
+      "name": "src/config/opsys-sms-ingress.test.ts",
+      "tests": "57",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.175047722"
+    },
+    {
+      "name": "src/context-engine/opsys-contexte-mcp.guarded.test.ts",
+      "tests": "20",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "2.748704147"
+    },
+    {
+      "name": "src/context-engine/opsys-contexte-mcp.wire.test.ts",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.450534947"
+    },
+    {
+      "name": "src/gateway/opsys-sms-gate-consumer.test.ts",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.473407653"
+    },
+    {
+      "name": "src/gateway/opsys-sms-host-authority.test.ts",
+      "tests": "89",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.232232545"
+    },
+    {
+      "name": "src/gateway/opsys-sms-host-claim-adapter.test.ts",
+      "tests": "41",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "2.337606674"
+    },
+    {
+      "name": "src/gateway/opsys-sms-host-controller.test.ts",
+      "tests": "22",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.121882994"
+    },
+    {
+      "name": "src/gateway/opsys-sms-ingress-capture.test.ts",
+      "tests": "41",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.150605525"
+    },
+    {
+      "name": "src/gateway/opsys-sms-managed-host-bridge.test.ts",
+      "tests": "13",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.403806378"
+    },
+    {
+      "name": "src/gateway/opsys-sms-receipt-gate.test.ts",
+      "tests": "68",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.216411071"
+    },
+    {
+      "name": "src/gateway/server-channels.ownership.test.ts",
+      "tests": "16",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.247489138"
+    },
+    {
+      "name": "src/infra/opsys-sms-task-runtime.test.ts",
+      "tests": "36",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.175392136"
+    },
+    {
+      "name": "src/plugin-sdk/channel-ingress-runtime.test.ts",
+      "tests": "10",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.03704879"
+    },
+    {
+      "name": "src/plugins/opsys-sms-host-bridge.test.ts",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "time": "0.031967252"
+    }
+  ],
+  "readonly_revalidator": {
+    "Node_runs": 0,
+    "Source_writes": 0,
+    "model_calls": 0,
+    "Git_runs": 0
+  },
+  "limits": [
+    "One actual run only; old runs are not added",
+    "Fixed36421 cannot detect unlisted files; no full live inventory assertion",
+    "Origin observer covers transformed project inputs, not every filesystem read",
+    "RSS sampled and only observed pinned descendants qualified; no OS-wide isolation",
+    "No native OriginalC join/SourceReceiver R0, selected model/admission/provider/phone/mobile/fullTypeScript/build/CI proof from Core unit suites"
+  ]
+}

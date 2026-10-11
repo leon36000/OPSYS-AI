@@ -210,7 +210,9 @@ function selectedBinding(
     matches.push(binding);
   }
   requireSelection(matches.length === 1);
-  return matches[0];
+  const match = matches[0];
+  requireSelection(match !== undefined);
+  return match;
 }
 
 function selectionSnapshot(

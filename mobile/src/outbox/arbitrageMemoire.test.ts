@@ -131,9 +131,10 @@ test("rôle retiré à tuple identique pendant stockage : garde capturée interd
   let stockage!: () => void, release!: () => void, generation = 0;
   const enAttente = new Promise<void>(resolve => { stockage = resolve; });
   class DepotSuspendu extends DepotOutboxMemoire {
-    async mettreAJour(m: MutationOutbox): Promise<void> {
-      await super.mettreAJour(m);
-      if (m.statut === "envoi") { stockage(); await new Promise<void>(resolve => { release = resolve; }); }
+    async mettreAJourSiInchangee(...args: Parameters<DepotOutboxMemoire["mettreAJourSiInchangee"]>): Promise<boolean> {
+      const applique = await super.mettreAJourSiInchangee(...args);
+      if (applique && args[1].statut === "envoi") { stockage(); await new Promise<void>(resolve => { release = resolve; }); }
+      return applique;
     }
   }
   const depot = new DepotSuspendu(), m = await intention(depot), fetchImpl = jest.fn(async () => http(cap));

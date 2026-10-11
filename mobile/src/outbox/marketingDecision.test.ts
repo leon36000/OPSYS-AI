@@ -188,9 +188,11 @@ test("payload local mal formé retenu sans aucun RPC, même UUID et payload", as
 test("un reçu terminal concurrent observé avant dispatch n'est jamais rouvert ni écrasé", async () => {
   const depot = new DepotOutboxMemoire(), m = await decisionPersistee(depot);
   const mettre = depot.mettreAJour.bind(depot);
-  jest.spyOn(depot, "mettreAJour").mockImplementationOnce(async envoi => {
+  const comparer = depot.mettreAJourSiInchangee.bind(depot);
+  jest.spyOn(depot, "mettreAJourSiInchangee").mockImplementationOnce(async (attendue, envoi) => {
     // Un autre worker a reçu l'ACK pendant cette transition locale ; le dépôt expose désormais ce reçu.
     await mettre({ ...envoi, statut: "envoyee", resumeAccepte: ack() });
+    return comparer(attendue, envoi);
   });
   const fetchImpl = jest.fn(async () => http(couple(ack())));
   await vidangeM7(depot, fetchImpl).vidangerFileSortante();
@@ -229,9 +231,11 @@ test.each([false, true])("retrait pendant mise à jour locale, reçu concurrent=
   const depot = new DepotOutboxMemoire(), m = await decisionPersistee(depot);
   let generation = 1;
   const mettre = depot.mettreAJour.bind(depot);
-  jest.spyOn(depot, "mettreAJour").mockImplementationOnce(async envoi => {
+  const comparer = depot.mettreAJourSiInchangee.bind(depot);
+  jest.spyOn(depot, "mettreAJourSiInchangee").mockImplementationOnce(async (attendue, envoi) => {
     generation++;
-    await mettre(terminal ? { ...envoi, statut: "envoyee", resumeAccepte: ack() } : envoi);
+    if (terminal) await mettre({ ...envoi, statut: "envoyee", resumeAccepte: ack() });
+    return comparer(attendue, envoi);
   });
   const fetchImpl = jest.fn(async () => http(couple(ack())));
   const vidangeur = creerVidangeur({ depot, descripteurs: DESCRIPTEURS_MUTATION, appelerOutil: invoquerOutil,
@@ -295,9 +299,11 @@ test("garde optionnelle sur type historique : reçu terminal pendant stockage co
   }, id, horloge)));
   let generation = 1;
   const mettre = depot.mettreAJour.bind(depot);
-  jest.spyOn(depot, "mettreAJour").mockImplementationOnce(async envoi => {
+  const comparer = depot.mettreAJourSiInchangee.bind(depot);
+  jest.spyOn(depot, "mettreAJourSiInchangee").mockImplementationOnce(async (attendue, envoi) => {
     await mettre({ ...envoi, statut: "envoyee", resumeAccepte: { preuve: "terminale-fictive" } });
     generation++;
+    return comparer(attendue, envoi);
   });
   const appeler = jest.fn(async () => ({ ok: true as const, result: {} }));
   const vidangeur = creerVidangeur({ depot,
