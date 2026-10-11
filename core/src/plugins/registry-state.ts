@@ -4,17 +4,28 @@ import { createNativeSessionCatalogGate } from "./native-session-catalog-registr
 import { getPluginInstance } from "./plugin-instance-scope.js";
 import { createEmptyPluginRegistry } from "./registry-empty.js";
 import { bindPluginRegistryRuntime } from "./registry-runtime-binding.js";
-import type { PluginRecord, PluginRegistryParams } from "./registry-types.js";
+import type { PluginRecord, PluginRegistry, PluginRegistryParams } from "./registry-types.js";
 import type { PluginRuntime } from "./runtime/types.js";
 import type { PluginHookName } from "./types.js";
 
-const registryStateRuntimes = new WeakMap<object, PluginRuntime>();
+const registryStateOrigins = new WeakMap<
+  object,
+  { registry: PluginRegistry; runtime: PluginRuntime }
+>();
 
-/** Read the runtime captured by the exact registry-state constructor, without registering one. */
+/** Read the constructor-captured runtime only while the exact state retains its birth registry. */
 export function readPluginRegistryStateRuntime(
   state: PluginRegistryState,
 ): PluginRuntime | undefined {
-  return registryStateRuntimes.get(state);
+  const origin = registryStateOrigins.get(state);
+  if (!origin) {
+    return undefined;
+  }
+  const descriptor = Object.getOwnPropertyDescriptor(state, "registry");
+  if (!descriptor || !Object.hasOwn(descriptor, "value") || descriptor.value !== origin.registry) {
+    return undefined;
+  }
+  return origin.runtime;
 }
 
 export type PluginTypedHookPolicy = {
@@ -143,7 +154,7 @@ export function createPluginRegistryState(registryParams: PluginRegistryParams) 
     reportRegistrationWarning,
     ...modelCatalogRegistrars,
   };
-  registryStateRuntimes.set(state, runtime);
+  registryStateOrigins.set(state, { registry, runtime });
   return state;
 }
 
