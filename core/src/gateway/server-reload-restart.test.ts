@@ -214,3 +214,101 @@ describe("gateway restart readiness preflight", () => {
     },
   );
 });
+
+describe("native restart retry last-use ownership", () => {
+  it("does not emit after stop queued between preparation resolution and retry continuation", async () => {
+    vi.useFakeTimers();
+    let preparations = 0;
+    let queuedStop = false;
+    const requestRecoveryRestart = vi
+      .fn()
+      .mockReturnValueOnce({ status: "failed" as const })
+      .mockReturnValue({ status: "emitted" as const });
+    const coordinator = createGatewayRestartCoordinator({
+      params: {
+        assertRestartReady: () => {
+          preparations += 1;
+        },
+        logReload: { info: vi.fn(), warn: vi.fn() },
+        requestRecoveryRestart,
+      },
+      myGeneration: nextGatewayReloadGeneration(),
+      restartRecoveryAvailable: true,
+      getActiveCounts: () => zeroActiveCounts,
+      formatActiveDetails: () => [],
+      formatDeferredWorkStatus: () => "no active work",
+      formatTaskBlockers: () => null,
+    });
+    const prepared: OpenClawConfig = {
+      commands: {
+        get restart() {
+          if (preparations === 2 && !queuedStop) {
+            queuedStop = true;
+            queueMicrotask(() => coordinator.stopRestartRetries());
+          }
+          return true;
+        },
+      },
+    };
+    try {
+      coordinator.requestGatewayRestart(
+        restartPlan,
+        {},
+        {
+          prepareRuntimeConfig: async () => prepared,
+        },
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      expect(requestRecoveryRestart).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(preparations).toBe(2);
+      expect(queuedStop).toBe(true);
+      expect(coordinator.isRestartRetryStopped()).toBe(true);
+      expect(requestRecoveryRestart).toHaveBeenCalledTimes(1);
+    } finally {
+      coordinator.stopRestartRetries();
+    }
+  });
+});
+
+describe("ordinary Promise retry continuation", () => {
+  it.each([true, false])("rechecks after the internal await, sibling stop=%s", async (stop) => {
+    vi.useFakeTimers();
+    let resolvePrepared!: (config: OpenClawConfig) => void;
+    const prepared = new Promise<OpenClawConfig>((resolve) => {
+      resolvePrepared = resolve;
+    });
+    const prepareRuntimeConfig = vi
+      .fn<() => Promise<OpenClawConfig>>()
+      .mockResolvedValueOnce({})
+      .mockReturnValueOnce(prepared);
+    const requestRecoveryRestart = vi
+      .fn()
+      .mockReturnValueOnce({ status: "failed" as const })
+      .mockReturnValue({ status: "emitted" as const });
+    const coordinator = createGatewayRestartCoordinator({
+      params: { logReload: { info: vi.fn(), warn: vi.fn() }, requestRecoveryRestart },
+      myGeneration: nextGatewayReloadGeneration(),
+      restartRecoveryAvailable: true,
+      getActiveCounts: () => zeroActiveCounts,
+      formatActiveDetails: () => [],
+      formatDeferredWorkStatus: () => "no active work",
+      formatTaskBlockers: () => null,
+    });
+    try {
+      coordinator.requestGatewayRestart(restartPlan, {}, { prepareRuntimeConfig });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(requestRecoveryRestart).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(prepareRuntimeConfig).toHaveBeenCalledTimes(2);
+      if (stop) {
+        void prepared.then(() => coordinator.stopRestartRetries());
+      }
+      resolvePrepared({});
+      await vi.advanceTimersByTimeAsync(0);
+      expect(requestRecoveryRestart).toHaveBeenCalledTimes(stop ? 1 : 2);
+    } finally {
+      coordinator.stopRestartRetries();
+    }
+  });
+});

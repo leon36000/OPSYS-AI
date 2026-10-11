@@ -26,13 +26,22 @@ import type {
   AuthProfileStore,
   RuntimeAuthProfileStore,
 } from "../agents/auth-profiles/types.js";
-import { cloneConfigWithResolutionFacts } from "../config/resolution-facts.js";
+import {
+  cloneConfigWithResolutionFacts,
+  serializeConfigResolutionFacts,
+} from "../config/resolution-facts.js";
 import {
   clearRuntimeConfigSnapshot,
   getRuntimeConfigSnapshot,
   getRuntimeConfigSnapshotMetadata,
+  hashRuntimeConfigValue,
+  isRuntimeConfigPublicationReceiptCurrent,
+  getRuntimeConfigPublicationReceipt,
+  readRuntimeConfigPublicationSourceOnlyOrigin,
+  readRuntimeConfigPublicationConfig,
+  publishRuntimeConfigSnapshotWithReceipt,
+  type RuntimeConfigPublicationReceipt,
   setRuntimeConfigSourceSnapshotIfCurrent,
-  setRuntimeConfigSnapshot,
   setRuntimeConfigSnapshotRefreshHandler,
   type RuntimeConfigSnapshotRefreshHandler,
 } from "../config/runtime-snapshot.js";
@@ -147,6 +156,21 @@ type ProviderAuthRuntimeSnapshotActivation = (params: {
 }) => Promise<boolean>;
 
 let providerAuthActivation: ProviderAuthRuntimeSnapshotActivation | null = null;
+/** A native publication with actual activation ancestry, not Gateway serving authority. */
+export type SecretsRuntimeActivationReceipt = RuntimeConfigPublicationReceipt;
+type SecretsActivationRecord = {
+  originalConfig: OpenClawConfig;
+  predecessorConfig: OpenClawConfig | null;
+  originalFingerprint: string;
+  originalFacts: ReturnType<typeof serializeConfigResolutionFacts>;
+  snapshot: PreparedSecretsRuntimeSnapshot;
+  revision: number;
+  publication: RuntimeConfigPublicationReceipt;
+  revoked: boolean;
+};
+const secretsActivations = new WeakMap<object, SecretsActivationRecord>();
+let currentSecretsActivation: SecretsRuntimeActivationReceipt | null = null;
+
 let activeSnapshot: PreparedSecretsRuntimeSnapshot | null = null;
 let activeSnapshotRevision = 0;
 let activeSnapshotLineageStartRevision = 0;
@@ -214,10 +238,13 @@ function cloneSecretsRuntimeRefreshContext(
   return cloned;
 }
 
-function cloneSnapshot(snapshot: PreparedSecretsRuntimeSnapshot): PreparedSecretsRuntimeSnapshot {
+function cloneSnapshot(
+  snapshot: PreparedSecretsRuntimeSnapshot,
+  config: OpenClawConfig = snapshot.config,
+): PreparedSecretsRuntimeSnapshot {
   return {
     sourceConfig: cloneConfigWithResolutionFacts(snapshot.sourceConfig),
-    config: cloneConfigWithResolutionFacts(snapshot.config),
+    config: cloneConfigWithResolutionFacts(config),
     authStores: structuredClone(snapshot.authStores),
     authStoreCredentialsRevision: snapshot.authStoreCredentialsRevision,
     authStoreSnapshotsRevision: snapshot.authStoreSnapshotsRevision,
@@ -932,13 +959,16 @@ export function activateSecretsRuntimeSnapshotState(params: {
   runtimeSourceConfig?: OpenClawConfig;
   mergeLiveAuthBookkeeping?: boolean;
   preserveActivationLineage?: boolean;
-}): void {
+}): SecretsRuntimeActivationReceipt | null {
   if (!hasCurrentAuthStoreCredentialsRevision(params.snapshot)) {
     throw new Error(
       "Cannot activate stale secrets runtime snapshot: auth credentials changed during preparation.",
     );
   }
-  const next = cloneSnapshot(params.snapshot);
+  const originalConfig = params.snapshot.config;
+  const originalFingerprint = hashRuntimeConfigValue(originalConfig);
+  const originalFacts = structuredClone(serializeConfigResolutionFacts(originalConfig));
+  const next = cloneSnapshot(params.snapshot, originalConfig);
   if (params.mergeLiveAuthBookkeeping !== false) {
     next.authStores = mergeLiveAuthStoreBookkeeping(
       next.authStores,
@@ -956,7 +986,10 @@ export function activateSecretsRuntimeSnapshotState(params: {
   const nextRefreshContext = params.refreshContext
     ? cloneSecretsRuntimeRefreshContext(params.refreshContext)
     : null;
-  setRuntimeConfigSnapshot(next.config, params.runtimeSourceConfig ?? next.sourceConfig);
+  const publication = publishRuntimeConfigSnapshotWithReceipt(
+    next.config,
+    params.runtimeSourceConfig ?? next.sourceConfig,
+  );
   replaceOwnedRuntimeAuthProfileStoreSnapshots(next.authStores);
   next.authStoreCredentialsRevision = getRuntimeAuthProfileStoreCredentialsRevision();
   next.authStoreSnapshotsRevision = getRuntimeAuthProfileStoreSnapshotsRevision();
@@ -979,6 +1012,100 @@ export function activateSecretsRuntimeSnapshotState(params: {
   setActiveRuntimeWebToolsMetadata(next.webTools);
   setActiveDegradedSecretOwners(next.degradedOwners ?? []);
   setRuntimeConfigSnapshotRefreshHandler(params.refreshHandler);
+  // Publication observers can reenter/reset before the activation finishes.
+  currentSecretsActivation = null;
+  if (
+    !isRuntimeConfigPublicationReceiptCurrent(publication) ||
+    readRuntimeConfigPublicationConfig(publication) !== next.config
+  ) {
+    return null;
+  }
+  const receipt = publication;
+  secretsActivations.set(receipt, {
+    originalConfig,
+    predecessorConfig: null,
+    originalFingerprint,
+    originalFacts,
+    snapshot: next,
+    revision: activeSnapshotRevision,
+    publication,
+    revoked: false,
+  });
+  currentSecretsActivation = receipt;
+  return receipt;
+}
+
+/** Reads the current token, never reviving a previous publication or minting from a getter. */
+export function readSecretsRuntimeActivationReceipt(
+  originalConfig: OpenClawConfig,
+): SecretsRuntimeActivationReceipt | null {
+  const publication = activeSnapshot
+    ? getRuntimeConfigPublicationReceipt(activeSnapshot.config)
+    : null;
+  const record = currentSecretsActivationRecord(publication);
+  return record?.originalConfig === originalConfig ? publication : null;
+}
+
+function currentSecretsActivationRecord(receipt: unknown): SecretsActivationRecord | null {
+  if (
+    !isRuntimeConfigPublicationReceiptCurrent(receipt) ||
+    receipt === null ||
+    typeof receipt !== "object"
+  ) {
+    return null;
+  }
+  const sourceOnlyOrigin = readRuntimeConfigPublicationSourceOnlyOrigin(receipt);
+  const record = secretsActivations.get(sourceOnlyOrigin ?? receipt);
+  if (!record || record.revoked) {
+    return null;
+  }
+  const ownsActivation = () =>
+    record.publication === currentSecretsActivation &&
+    record.snapshot === activeSnapshot &&
+    readRuntimeConfigPublicationConfig(receipt) === record.snapshot.config &&
+    (record.revision === activeSnapshotRevision || sourceOnlyOrigin === record.publication);
+  try {
+    if (
+      ownsActivation() &&
+      record.originalFingerprint === hashRuntimeConfigValue(record.originalConfig) &&
+      isDeepStrictEqual(
+        record.originalFacts,
+        serializeConfigResolutionFacts(record.originalConfig),
+      ) &&
+      isRuntimeConfigPublicationReceiptCurrent(receipt) &&
+      ownsActivation()
+    ) {
+      return record;
+    }
+  } catch {
+    // A mutated original cannot revive its observed invalid activation ancestry.
+  }
+  record.revoked = true;
+  return null;
+}
+
+/** Only real activation or its real source-only successor has activation ancestry. */
+export function readSecretsRuntimeActivationPublication(
+  receipt: unknown,
+): RuntimeConfigPublicationReceipt | null {
+  const record = currentSecretsActivationRecord(receipt);
+  return record ? getRuntimeConfigPublicationReceipt(record.snapshot.config) : null;
+}
+
+/** Native rollback keeps its predecessor distinct from the merged activation input. */
+export function readSecretsRuntimeActivationLineage(receipt: unknown): Readonly<{
+  originalConfig: OpenClawConfig;
+  predecessorConfig: OpenClawConfig | null;
+  publishedConfig: OpenClawConfig;
+}> | null {
+  const record = currentSecretsActivationRecord(receipt);
+  return record
+    ? Object.freeze({
+        originalConfig: record.originalConfig,
+        predecessorConfig: record.predecessorConfig,
+        publishedConfig: record.snapshot.config,
+      })
+    : null;
 }
 
 /** Whether a prepared snapshot still owns the credential state it cloned. */
@@ -1014,6 +1141,7 @@ export function restoreSecretsRuntimeSnapshotStateIfCurrent(
   if (!activeSnapshot || activeSnapshotLineageStartRevision !== params.expectedRevision) {
     return false;
   }
+  const predecessorConfig = params.snapshot.config;
   const currentEntries = listOwnedRuntimeAuthProfileStoreSnapshots();
   // A later owner is outside this activation's rollback authority, even when its bytes match.
   const independentEntries = currentEntries.filter((entry) => {
@@ -1073,11 +1201,11 @@ export function restoreSecretsRuntimeSnapshotStateIfCurrent(
     restoredSourceConfig,
     activeSnapshot.sourceConfig,
     activeSnapshot.config,
-    mergeRollbackValue(params.snapshot.config, params.ownedSnapshot.config, activeSnapshot.config),
+    mergeRollbackValue(predecessorConfig, params.ownedSnapshot.config, activeSnapshot.config),
     restoredSourceConfig,
     activeSnapshot.sourceConfig,
   ) as OpenClawConfig;
-  return activateSecretsRuntimeSnapshotStateIfCurrent({
+  const restored = activateSecretsRuntimeSnapshotStateIfCurrent({
     ...params,
     snapshot: {
       ...params.snapshot,
@@ -1100,6 +1228,13 @@ export function restoreSecretsRuntimeSnapshotStateIfCurrent(
     preserveActivationLineage: false,
     expectedRevision: activeSnapshotRevision,
   });
+  const activation = currentSecretsActivation
+    ? secretsActivations.get(currentSecretsActivation)
+    : undefined;
+  if (restored && activation?.originalConfig === restoredConfig) {
+    activation.predecessorConfig = predecessorConfig;
+  }
+  return restored;
 }
 
 /**
@@ -1268,6 +1403,7 @@ export async function activateProviderAuthRuntimeSnapshot(
  * Clears active secrets runtime state and all linked config/auth/web-tool snapshots.
  */
 export function clearSecretsRuntimeSnapshotState(): void {
+  currentSecretsActivation = null;
   activeSnapshotRevision += 1;
   activeSnapshotLineageStartRevision = 0;
   activeSnapshotLineageAuthStores = [];

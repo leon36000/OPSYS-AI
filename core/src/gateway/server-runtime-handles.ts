@@ -14,6 +14,7 @@ import {
   type MediaCleanupStopResult,
   waitForMediaCleanupDrains,
 } from "./server-media-cleanup-lifecycle.js";
+import type { NativeServingRead } from "./server-runtime-policy-owner.js";
 import { createNoopHeartbeatRunner } from "./server-runtime-service-shared.js";
 import {
   createGatewaySidecarStopOwner,
@@ -32,6 +33,7 @@ export type GatewayConfigReloaderHandle = {
   getCommittedRuntimeConfig?: () => import("../config/types.openclaw.js").OpenClawConfig;
   applyPluginLifecycleChange: import("../plugins/lifecycle.js").PluginLifecycleRuntimeApply;
   isConfigReloadSettled: () => boolean;
+  captureNativeServingRead?: () => NativeServingRead | undefined;
 };
 
 /** Mutable handles owned by a running gateway server process. */

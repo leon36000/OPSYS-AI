@@ -316,3 +316,40 @@ src/gateway/opsys-sms-receipt-gate.test.ts
 src/gateway/server-channels.ownership.test.ts
 src/infra/opsys-sms-task-runtime.test.ts
 src/plugins/opsys-sms-host-bridge.test.ts
+
+# M1 P0 Stage A5 : publication native, parenté du clone, reset/source-only/rollback.
+# La configuration actuelle de test:fast exclut src/config/** et src/secrets/** ;
+# pnpm test <fichiers> route ces sept suites vers leurs projets propriétaires.
+src/config/runtime-snapshot.test.ts
+src/secrets/runtime-state.test.ts
+src/config/runtime-snapshot.preparation.test.ts
+src/config/runtime-snapshot.env.test.ts
+src/config/io.runtime-snapshot-write.test.ts
+src/secrets/runtime-state.clear.test.ts
+src/config/resolution-facts.test.ts
+
+# M1 P0 Stage B10 : owner/tickets négatifs, managed/secrets/recovery/coordinator.
+# À adopter seulement après présence du nouveau test owner et gel/qualification B10.
+# Gateway reste hors test:fast ; nouveaux tests et voisins natifs des bords touchés.
+src/gateway/server-runtime-policy-owner.test.ts
+src/gateway/server-reload-restart.test.ts
+src/gateway/server-aux-handlers.test.ts
+src/gateway/config-reload.test.ts
+src/gateway/config-reload.activation.integration.test.ts
+src/gateway/server-reload-handlers.test.ts
+src/gateway/server-secrets-reload.model-runtime.test.ts
+src/gateway/server-reload-channel-restart.test.ts
+src/gateway/server-runtime-handles.test.ts
+src/gateway/server-reload-hot.cron-lazy.test.ts
+src/gateway/server-reload-hot.cron-cold.test.ts
+
+# B11 : finalisation native vraie/refusée, helper managed-secrets réel.
+src/gateway/server-reload-managed-secrets.test.ts
+
+# R0 : réception native préparée, refus de sources forgées et cycle de vie.
+src/channels/message/opsys-sms-source-receiver.test.ts
+
+# B11 : politiques de rechargement, decisions et statut hot des voisins natifs.
+src/gateway/config-reload.operation-policy.test.ts
+src/gateway/config-reload.decisions.test.ts
+src/gateway/server-reload-handlers.hot-reload-status.test.ts

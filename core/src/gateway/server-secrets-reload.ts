@@ -24,6 +24,12 @@ import {
 import type { ChannelAutostartSuppression, createChannelManager } from "./server-channels.js";
 import { refreshModelRuntimeAfterHotReload } from "./server-reload-model-runtime-scope.js";
 import {
+  findOwner,
+  finishNativeTransition,
+  recordNativeServingCommit,
+  reserveNativeTransition,
+} from "./server-runtime-policy-owner.js";
+import {
   disconnectStaleSharedGatewayAuthClients,
   type SharedGatewayAuthClient,
   type SharedGatewaySessionGenerationOwnership,
@@ -125,8 +131,13 @@ export function createGatewaySecretsReloader(params: GatewaySecretsReloaderParam
     return run;
   };
 
-  return (reloadOptions?: ReloadSecretsOptions) =>
-    runExclusiveReload(async () => {
+  return (reloadOptions?: ReloadSecretsOptions) => {
+    if (reloadInFlight && reloadOptions?.joinInFlight !== false) {
+      return reloadInFlight;
+    }
+    const nativeOwner = findOwner(params.sharedGatewaySessionGenerationState);
+    const nativeTicket = reserveNativeTransition(params.sharedGatewaySessionGenerationState);
+    return runExclusiveReload(async () => {
       let transaction:
         | (SecretsReloadPublication & {
             previousSnapshot: PreparedSecretsRuntimeSnapshot;
@@ -353,11 +364,26 @@ export function createGatewaySecretsReloader(params: GatewaySecretsReloaderParam
         ) {
           throw new Error("secrets.reload was superseded by a newer config write");
         }
+        if (
+          nativeOwner &&
+          params.sharedGatewaySessionGenerationState.current === generationOwnership.generation
+        ) {
+          const committedConfig = getRuntimeConfigSnapshot();
+          if (committedConfig) {
+            recordNativeServingCommit(
+              nativeOwner,
+              committedConfig,
+              nativeTicket,
+              params.sharedGatewaySessionGenerationState.capture(),
+            );
+          }
+        }
         return { warningCount: prepared.warnings.length };
       } catch (error) {
+        let restoration: SecretsReloadPublication | undefined;
+        let rollbackComplete = true;
         if (transaction) {
           const failedTransaction = transaction;
-          let restoration: SecretsReloadPublication | undefined;
           try {
             await restoreSnapshotIfCurrent(
               failedTransaction.previousSnapshot,
@@ -371,6 +397,9 @@ export function createGatewaySecretsReloader(params: GatewaySecretsReloaderParam
                     required: failedTransaction.previousRequiredGeneration,
                   },
                 );
+                if (!generationRestored) {
+                  rollbackComplete = false;
+                }
                 if (generationRestored && failedTransaction.generationChanged) {
                   disconnectStaleSharedGatewayAuthClients({
                     state: params.sharedGatewaySessionGenerationState,
@@ -388,6 +417,7 @@ export function createGatewaySecretsReloader(params: GatewaySecretsReloaderParam
             );
             await restoration?.modelPublication;
           } catch {
+            rollbackComplete = false;
             params.logChannels.info("failed to restore model runtime after secrets reload");
           }
         }
@@ -404,10 +434,23 @@ export function createGatewaySecretsReloader(params: GatewaySecretsReloaderParam
               await startTarget(target);
             }
           } catch {
+            rollbackComplete = false;
             params.logChannels.info(`failed to roll back ${label} after secrets reload`);
+          }
+        }
+        if (rollbackComplete && nativeOwner && restoration?.isCurrent()) {
+          const restoredConfig = getRuntimeConfigSnapshot();
+          if (restoredConfig) {
+            recordNativeServingCommit(
+              nativeOwner,
+              restoredConfig,
+              nativeTicket,
+              params.sharedGatewaySessionGenerationState.capture(),
+            );
           }
         }
         throw error;
       }
-    }, reloadOptions);
+    }, reloadOptions).finally(() => finishNativeTransition(nativeTicket));
+  };
 }

@@ -518,3 +518,46 @@ export function disposeSmsSource(source: SmsSourceHandle): void {
   // Retain this terminal lifecycle until native retirement: a refused late arm
   // must still exclude legacy completion and cannot reopen the same owner.
 }
+
+/** Compare the cell's conserved binding only; this is not native OriginalC origin proof. */
+export function assertSmsSourceOriginalInput(
+  source: SmsSourceHandle,
+  projection: Readonly<{
+    accountSid: string;
+    messageSid: string;
+    from: string;
+    to: string;
+    body: string;
+    receivedAt: number;
+    mediaCount: 0;
+    unavailableMediaCount: 0;
+  }>,
+): void {
+  requireSource(source !== null && typeof source === "object");
+  const owner = sources.get(source);
+  requireSource(owner?.cell.binding);
+  const data = plain(projection, [
+    "accountSid",
+    "messageSid",
+    "from",
+    "to",
+    "body",
+    "receivedAt",
+    "mediaCount",
+    "unavailableMediaCount",
+  ]);
+  readSmsSourceScope(source);
+  const binding = owner.cell.binding;
+  const command = binding.command.commande;
+  requireSource(
+    data.accountSid === command.account_sid &&
+      data.messageSid === command.message_sid &&
+      data.from === command.expediteur &&
+      data.to === command.destinataire &&
+      data.body === command.texte &&
+      data.receivedAt === binding.receivedAt &&
+      data.mediaCount === 0 &&
+      data.unavailableMediaCount === 0,
+  );
+  readSmsSourceScope(source);
+}

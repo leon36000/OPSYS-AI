@@ -1,0 +1,178 @@
+[
+  {
+    "reference_local_Q": "M1-P0-NATIVE-PUBLICATION-STAGE-A-20261010-r1/results-red-causality-r4/m1-publication-stage-a-red-causality-r4.json",
+    "sha256": "8e7aa05d95cb79fff76cec729ea3d1dd0b5a1f03b65dc05db88674deb672b71a",
+    "exit_code": 1,
+    "qualified": false,
+    "guard_triggered": null,
+    "log_sha256": "986d880cd7ae79f327fe466f4f8dc103b1bc65e8fc97b48bab6b3ab18e0e3017",
+    "scope": "historical TDD/fixture/mutant; not pooled into current passes",
+    "disposition": "preserved; exact individual scope remains in originating receipt"
+  },
+  {
+    "reference_local_Q": "M1-P0-NATIVE-PUBLICATION-STAGE-A-20261010-r1/results-red-clone-binding-r1/m1-publication-stage-a-red-clone-binding-r1.json",
+    "sha256": "7190778d9544cfd320f3b4f6e3f885796503076df2cc0f2fe0473039171ab6b1",
+    "exit_code": 1,
+    "qualified": false,
+    "guard_triggered": null,
+    "log_sha256": "081157ab2d0b64c7f4527dcd9e7b1d1be676073ad17a757a87c69712b16f628e",
+    "scope": "historical TDD/fixture/mutant; not pooled into current passes",
+    "disposition": "preserved; exact individual scope remains in originating receipt"
+  },
+  {
+    "reference_local_Q": "M1-P0-NATIVE-PUBLICATION-STAGE-A-20261010-r1/results-red-legacy-void-r1/m1-publication-stage-a-red-legacy-void-r1.json",
+    "sha256": "4f01f156368707952ac96b2c03a2aca2528824abef6a718826f7d6da53b7e7a9",
+    "exit_code": 1,
+    "qualified": false,
+    "guard_triggered": null,
+    "log_sha256": "52bbdc51af51d716835351005a63a5200a04f84b193f10b5713dc803ccc1b5e1",
+    "scope": "historical TDD/fixture/mutant; not pooled into current passes",
+    "disposition": "preserved; exact individual scope remains in originating receipt"
+  },
+  {
+    "reference_local_Q": "M1-P0-NATIVE-PUBLICATION-STAGE-A-20261010-r1/results-red-r1/m1-publication-stage-a-red-r1.json",
+    "sha256": "ec9d79cd533296f98ac66f40584640fe9ff7336282294d80d0eeb89e06b1ebfb",
+    "exit_code": 1,
+    "qualified": false,
+    "guard_triggered": null,
+    "log_sha256": "26c97dc84cccaf3626dbd65978291273e2b2b445ec3b8e0883915e130c4a26ef",
+    "scope": "historical TDD/fixture/mutant; not pooled into current passes",
+    "disposition": "preserved; exact individual scope remains in originating receipt"
+  },
+  {
+    "reference_local_Q": "M1-P0-NATIVE-PUBLICATION-STAGE-A-20261010-r1/results-red-r2/m1-publication-stage-a-red-r2.json",
+    "sha256": "c5fda6dced6d06259e32c5dca7f8dd282cd4ebd679affda7465770e49f9bb3d3",
+    "exit_code": 1,
+    "qualified": false,
+    "guard_triggered": null,
+    "log_sha256": "1c58027ccdda53577b3a4014df313cb4303896b51a2038f98b92e0866118fa6e",
+    "scope": "historical TDD/fixture/mutant; not pooled into current passes",
+    "disposition": "preserved; exact individual scope remains in originating receipt"
+  },
+  {
+    "reference_local_Q": "M1-P0-NATIVE-PUBLICATION-STAGE-A-20261010-r1/results-red-source-only-r3/m1-publication-stage-a-red-source-only-r3.json",
+    "sha256": "57f999b83ca612f8fe047b45018b0be1bdd4aa6579322bda278d57fb0ff04ccc",
+    "exit_code": 1,
+    "qualified": false,
+    "guard_triggered": null,
+    "log_sha256": "a9d27845f1f4ad02dbbb3b78c60e653c04e5e3947dc0ca3571f3d7f63b848caf",
+    "scope": "historical TDD/fixture/mutant; not pooled into current passes",
+    "disposition": "preserved; exact individual scope remains in originating receipt"
+  },
+  {
+    "reference_local_Q": "M1-P0-STAGE-B10-SOURCE-LEASE-PROPOSAL-20261010-r1/results-red-hot-finalize-r1/m1-stage-b10-red-hot-finalize-r1.json",
+    "sha256": "77d86c705d0e8e96e34dd10a7deb0cd61eaa9b105c1e70bd7709f62d753c4d78",
+    "exit_code": 1,
+    "qualified": false,
+    "guard_triggered": null,
+    "log_sha256": "c6185c7f650a85052d67a776a697043fcc1aa4cff4ac7baa87f84b02b0c8a81b",
+    "scope": "historical TDD/fixture/mutant; not pooled into current passes",
+    "disposition": "fixture construction error, not valid product RED"
+  },
+  {
+    "reference_local_Q": "M1-P0-STAGE-B10-SOURCE-LEASE-PROPOSAL-20261010-r1/results-red-hot-finalize-r2/m1-stage-b10-red-hot-finalize-r2.json",
+    "sha256": "a3052dfc86b3db0a55d1a83937da626814681943e4dad86175a8267254a5630c",
+    "exit_code": 1,
+    "qualified": false,
+    "guard_triggered": null,
+    "log_sha256": "e15e266457b1525b124119293c6fc604c2ef91324a7608bb271fbdb4d6f9c627",
+    "scope": "historical TDD/fixture/mutant; not pooled into current passes",
+    "disposition": "preserved; exact individual scope remains in originating receipt"
+  },
+  {
+    "reference_local_Q": "M1-P0-STAGE-B10-SOURCE-LEASE-PROPOSAL-20261010-r1/results-red-native-generation-r1/m1-stage-b10-red-native-generation-r1.json",
+    "sha256": "e4dd75b282deadb43662011cfa079d587bd9fd820ca70d146a76347d186e1b45",
+    "exit_code": 1,
+    "qualified": false,
+    "guard_triggered": null,
+    "log_sha256": "91a53d03b08809ffb1387a1b09bc743dfc247e3e433ce166ab090f153e2b754d",
+    "scope": "historical TDD/fixture/mutant; not pooled into current passes",
+    "disposition": "preserved; exact individual scope remains in originating receipt"
+  },
+  {
+    "reference_local_Q": "M1-P0-STAGE-B10-SOURCE-LEASE-PROPOSAL-20261010-r1/results-red-old-handle-r1/m1-stage-b10-red-old-handle-r1.json",
+    "sha256": "5b42c12b3169046dbf4e4384625f040f30928c200a01eecbd60393fa0c87250d",
+    "exit_code": 1,
+    "qualified": false,
+    "guard_triggered": null,
+    "log_sha256": "078390b232c0862e001b01ebfccae39f7ae7fa0910968662ebba3ef29680eada",
+    "scope": "historical TDD/fixture/mutant; not pooled into current passes",
+    "disposition": "preserved; exact individual scope remains in originating receipt"
+  },
+  {
+    "reference_local_Q": "M1-P0-STAGE-B10-SOURCE-LEASE-PROPOSAL-20261010-r1/results-red-promise-mutant-r1/m1-stage-b10-red-promise-mutant-r1.json",
+    "sha256": "f089c07c5572d7ed386272d888f2051d88daaa17348f0d743da744b12813297d",
+    "exit_code": 1,
+    "qualified": false,
+    "guard_triggered": null,
+    "log_sha256": "5f3a9b5bd548de05ecaf87b2292d0dd52d1b4914406192697a0d16b6af6f4443",
+    "scope": "historical TDD/fixture/mutant; not pooled into current passes",
+    "disposition": "Q-only mutant, production not altered for proof"
+  },
+  {
+    "reference_local_Q": "M1-P0-STAGE-B10-SOURCE-LEASE-PROPOSAL-20261010-r1/results-red-queued-plugin-ticket-r1/m1-stage-b10-red-queued-plugin-ticket-r1.json",
+    "sha256": "84b980155a9a846d6da974116ab5d12289005314582c2c77629e0dd6b27aaa7d",
+    "exit_code": 1,
+    "qualified": false,
+    "guard_triggered": null,
+    "log_sha256": "c07bcd6c69c822993411042e42cd60e138553ef8096d2d43196ea5d15ac3f351",
+    "scope": "historical TDD/fixture/mutant; not pooled into current passes",
+    "disposition": "preserved; exact individual scope remains in originating receipt"
+  },
+  {
+    "reference_local_Q": "M1-P0-STAGE-B10-SOURCE-LEASE-PROPOSAL-20261010-r1/results-red-retry-r1/m1-stage-b10-red-retry-r1.json",
+    "sha256": "efca6626b75df19fc81b4d7d902b97da3792fe308e5e0ab644ab948049e1b00d",
+    "exit_code": 1,
+    "qualified": false,
+    "guard_triggered": null,
+    "log_sha256": "3f2c477b1b65814848b55482fd9e679a390cc66fedda5274fdd74e0553aa0261",
+    "scope": "historical TDD/fixture/mutant; not pooled into current passes",
+    "disposition": "preserved; exact individual scope remains in originating receipt"
+  },
+  {
+    "reference_local_Q": "M1-P0-STAGE-B10-SOURCE-LEASE-PROPOSAL-20261010-r1/results-red-source-only-r1/m1-stage-b10-red-source-only-r1.json",
+    "sha256": "15280546e46d141ac5bfb253221cce2d8a0d750d00435e5ebe3d40fefc29d4e4",
+    "exit_code": 1,
+    "qualified": false,
+    "guard_triggered": null,
+    "log_sha256": "b977cd3b4bbaf069e10110f44690a12446fca71fb7ef9a1060372e5fde934eaa",
+    "scope": "historical TDD/fixture/mutant; not pooled into current passes",
+    "disposition": "preserved; exact individual scope remains in originating receipt"
+  },
+  {
+    "reference_local_Q": "M1-P0-STAGE-B10-SOURCE-LEASE-PROPOSAL-20261010-r1/results-red-ticket-last-use-r1/m1-stage-b10-red-ticket-last-use-r1.json",
+    "sha256": "64d6eb181bb9372f23e86be0744ab3f80f1a25b7d9b3106ac16606331e09c3f2",
+    "exit_code": 1,
+    "qualified": false,
+    "guard_triggered": null,
+    "log_sha256": "7469e8cb4f6f92ae231fc2a9aa1a78d43f40b8ceb5f757ebc0abe886ce35cb6d",
+    "scope": "historical TDD/fixture/mutant; not pooled into current passes",
+    "disposition": "preserved; exact individual scope remains in originating receipt"
+  },
+  {
+    "reference_local_Q": "M1-INTEGRATED-R-RECEIVER-CANONICAL-QUALIFICATION-20261011-r1/results-receiver-r1/m1-integrated-r-receiver-canonical-r1.json",
+    "sha256": "8151586c33e42e6a63b941f75d31df7e6734542407d0ed561a731753966c544a",
+    "exit_code": -15,
+    "guard_triggered": "rss_limit",
+    "qualified": false,
+    "source_after": "23066f20af786b4bcccf5602f152f553f94feb06c5df4bb53304ee955a44fae3",
+    "scope": "Historical preparation/resource/ownership stop; no test PASS; null source_after neither proves mutation nor stable Source"
+  },
+  {
+    "reference_local_Q": "M1-INTEGRATED-R-RECEIVER-CANONICAL-QUALIFICATION-20261011-r1/results-receiver-r2/m1-integrated-r-receiver-canonical-r2.json",
+    "sha256": "8997bff16702bb05f02d71555d0aa21f22d4c513216a4cf08f6c0d12d94e8bb7",
+    "exit_code": -15,
+    "guard_triggered": null,
+    "qualified": false,
+    "source_after": null,
+    "scope": "Historical preparation/resource/ownership stop; no test PASS; null source_after neither proves mutation nor stable Source"
+  },
+  {
+    "reference_local_Q": "M1-R-A5-R0-B11-PC1-FULL-BUILD-PREPARATION-20261011-r1/BUILD-CLOSED-READBACK-r1/REPORT-r1.md",
+    "sha256": "0591b51e559bd559384985f602621eccc29ef0db068381d8689133488bdb7d26",
+    "diagnostics_ref": "M1-R-A5-R0-B11-PC1-FULL-BUILD-PREPARATION-20261011-r1/BUILD-CLOSED-READBACK-r1/DTS-DIAGNOSTICS-r1.json",
+    "diagnostics_sha256": "c9468f5dca171113205f4275b301790a417893c4e8a5c0eb8945610d63d0830d",
+    "status": "CLOSED_NONQUAL",
+    "scope": "DTS TS6.0.3 emission failed; exit1/84.311s/RSS5021970432; no resourceguard"
+  }
+]

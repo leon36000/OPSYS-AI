@@ -30,14 +30,17 @@ import {
   getRuntimeConfigSourceSnapshot,
   setRuntimeConfigSnapshot,
 } from "../config/runtime-snapshot.js";
+import * as runtimePublication from "../config/runtime-snapshot.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import type { SecretRef } from "../config/types.secrets.js";
+import { sessionChanges } from "../sessions/session-row-changes.js";
 import { closeOpenClawAgentDatabasesForTest } from "../state/openclaw-agent-db.js";
 import { captureEnv } from "../test-utils/env.js";
 import {
   listActiveDegradedSecretOwners,
   setActiveCredentialDegradedOwner,
 } from "./runtime-degraded-state.js";
+import * as nativeActivation from "./runtime-state.js";
 import {
   activateSecretsRuntimeSnapshotState,
   activateSecretsRuntimeSnapshotStateIfCurrent,
@@ -1833,3 +1836,294 @@ describe("secrets runtime state", () => {
   );
 });
 /* oxlint-disable max-lines -- TODO: split this grandfathered oversized file. */
+
+describe("native secrets activation provenance", () => {
+  afterEach(() => clearSecretsRuntimeSnapshotState());
+
+  it("links the exact prepared original to the actual activated clone and publication", () => {
+    const snapshot = preparedSnapshot({ config: { gateway: { port: 19101 } } });
+    const receipt = activateSecretsRuntimeSnapshotState({
+      snapshot,
+      refreshContext: null,
+      refreshHandler: null,
+    });
+    const published = runtimePublication.getRuntimeConfigSnapshot();
+    expect(published).not.toBe(snapshot.config);
+    expect(published).toEqual(snapshot.config);
+    expect(receipt).not.toBeUndefined();
+    expect(receipt).not.toBeNull();
+    expect(nativeActivation.readSecretsRuntimeActivationReceipt(snapshot.config)).toBe(receipt);
+    const publication = nativeActivation.readSecretsRuntimeActivationPublication(receipt);
+    expect(runtimePublication.readRuntimeConfigPublicationConfig(publication)).toBe(published);
+    expect(
+      nativeActivation.readSecretsRuntimeActivationReceipt(structuredClone(snapshot.config)),
+    ).toBeNull();
+  });
+
+  it("does not mint provenance for copies produced by ordinary getters", () => {
+    const snapshot = preparedSnapshot();
+    const receipt = activateSecretsRuntimeSnapshotState({
+      snapshot,
+      refreshContext: null,
+      refreshHandler: null,
+    });
+    expect(receipt).not.toBeUndefined();
+    const readCopy = getActiveSecretsRuntimeSnapshotState()!;
+    expect(readCopy.config).not.toBe(runtimePublication.getRuntimeConfigSnapshot());
+    expect(nativeActivation.readSecretsRuntimeActivationReceipt(readCopy.config)).toBeNull();
+    expect(nativeActivation.readSecretsRuntimeActivationReceipt(snapshot.config)).toBe(receipt);
+  });
+
+  it("cannot claim activation provenance through ordinary config publication", () => {
+    const config: OpenClawConfig = {};
+    setRuntimeConfigSnapshot(config);
+    const publication = runtimePublication.getRuntimeConfigPublicationReceipt(config);
+    expect(publication).not.toBeUndefined();
+    expect(nativeActivation.readSecretsRuntimeActivationReceipt(config)).toBeNull();
+    expect(nativeActivation.readSecretsRuntimeActivationPublication(publication)).toBeNull();
+  });
+
+  it("invalidates the old activation token on source-only publication", () => {
+    const snapshot = preparedSnapshot();
+    const receipt = activateSecretsRuntimeSnapshotState({
+      snapshot,
+      refreshContext: null,
+      refreshHandler: null,
+    });
+    expect(
+      setSecretsRuntimeSourceSnapshotIfCurrent({
+        expectedSecretsRevision: getActiveSecretsRuntimeSnapshotRevisionState(),
+        expectedRuntimeConfigRevision: getRuntimeConfigSnapshotMetadata()!.revision,
+        runtimeSourceConfig: { gateway: { port: 19102 } },
+        secretsSourceConfig: {},
+      }),
+    ).toBe(true);
+    expect(runtimePublication.getRuntimeConfigSourceSnapshot()?.gateway?.port).toBe(19102);
+    expect(receipt).not.toBeUndefined();
+    const successor = nativeActivation.readSecretsRuntimeActivationReceipt(snapshot.config);
+    expect(successor).not.toBeNull();
+    expect(successor).not.toBe(receipt);
+    expect(nativeActivation.readSecretsRuntimeActivationPublication(receipt)).toBeNull();
+  });
+
+  it("creates a fresh activation receipt for a real rollback activation", () => {
+    const original = preparedSnapshot({ config: { gateway: { port: 19103 } } });
+    const first = activateSecretsRuntimeSnapshotState({
+      snapshot: original,
+      refreshContext: null,
+      refreshHandler: null,
+    });
+    expect(first).not.toBeUndefined();
+    const previous = getActiveSecretsRuntimeSnapshotState()!;
+    activateSnapshot(preparedSnapshot({ config: { gateway: { port: 19104 } } }));
+    const restored = activateSecretsRuntimeSnapshotState({
+      snapshot: previous,
+      refreshContext: null,
+      refreshHandler: null,
+    });
+    expect(nativeActivation.readSecretsRuntimeActivationPublication(first)).toBeNull();
+    expect(restored).not.toBe(first);
+    expect(nativeActivation.readSecretsRuntimeActivationReceipt(previous.config)).toBe(restored);
+    expect(nativeActivation.readSecretsRuntimeActivationReceipt(original.config)).toBeNull();
+  });
+
+  it("does not grant a serving join when publication is superseded during activation", () => {
+    const snapshot = preparedSnapshot();
+    const foreign: OpenClawConfig = { gateway: { port: 19105 } };
+    let replaced = false;
+    const unsubscribe = sessionChanges.subscribe(() => {
+      if (!replaced) {
+        replaced = true;
+        setRuntimeConfigSnapshot(foreign);
+      }
+    });
+    try {
+      const receipt = activateSecretsRuntimeSnapshotState({
+        snapshot,
+        refreshContext: null,
+        refreshHandler: null,
+      });
+      expect(runtimePublication.getRuntimeConfigSnapshot()).toBe(foreign);
+      expect(getActiveSecretsRuntimeSnapshotState()?.config).toEqual(snapshot.config);
+      expect(receipt).toBeNull();
+      expect(nativeActivation.readSecretsRuntimeActivationReceipt(snapshot.config)).toBeNull();
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it("does not invalidate an active receipt when a stale activation is refused before publication", () => {
+    const snapshot = preparedSnapshot();
+    const receipt = activateSecretsRuntimeSnapshotState({
+      snapshot,
+      refreshContext: null,
+      refreshHandler: null,
+    });
+    expect(receipt).not.toBeUndefined();
+    const stale = preparedSnapshot();
+    stale.authStoreCredentialsRevision = -1;
+    expect(() => activateSnapshot(stale)).toThrow("Cannot activate stale secrets runtime snapshot");
+    expect(nativeActivation.readSecretsRuntimeActivationReceipt(snapshot.config)).toBe(receipt);
+    clearSecretsRuntimeSnapshotState();
+    expect(nativeActivation.readSecretsRuntimeActivationPublication(receipt)).toBeNull();
+  });
+});
+
+describe("activation causal successor discriminants", () => {
+  afterEach(() => clearSecretsRuntimeSnapshotState());
+
+  it("clones the single original captured from an alternating prepared config getter", () => {
+    const first: OpenClawConfig = { gateway: { port: 19201 } };
+    const second: OpenClawConfig = { gateway: { port: 19202 } };
+    let reads = 0;
+    const snapshot: PreparedSecretsRuntimeSnapshot = {
+      ...preparedSnapshot(),
+      get config() {
+        reads += 1;
+        return reads === 1 ? first : second;
+      },
+    };
+    const receipt = activateSecretsRuntimeSnapshotState({
+      snapshot,
+      refreshContext: null,
+      refreshHandler: null,
+    });
+    expect(runtimePublication.getRuntimeConfigSnapshot()?.gateway?.port).toBe(19201);
+    expect(reads).toBe(1);
+    expect(nativeActivation.readSecretsRuntimeActivationReceipt(first)).toBe(receipt);
+    expect(nativeActivation.readSecretsRuntimeActivationReceipt(second)).toBeNull();
+  });
+
+  it("reads a fresh causal token for a native source-only successor on the exact activated object", () => {
+    const snapshot = preparedSnapshot({ config: { gateway: { port: 19203 } } });
+    const old = activateSecretsRuntimeSnapshotState({
+      snapshot,
+      refreshContext: null,
+      refreshHandler: null,
+    });
+    const runtime = runtimePublication.getRuntimeConfigSnapshot();
+    expect(
+      setSecretsRuntimeSourceSnapshotIfCurrent({
+        expectedSecretsRevision: getActiveSecretsRuntimeSnapshotRevisionState(),
+        expectedRuntimeConfigRevision: getRuntimeConfigSnapshotMetadata()!.revision,
+        runtimeSourceConfig: { gateway: { port: 19204 } },
+        secretsSourceConfig: {},
+      }),
+    ).toBe(true);
+    expect(runtimePublication.getRuntimeConfigSnapshot()).toBe(runtime);
+    const successor = nativeActivation.readSecretsRuntimeActivationReceipt(snapshot.config);
+    expect(successor).not.toBeNull();
+    expect(successor).not.toBe(old);
+    expect(nativeActivation.readSecretsRuntimeActivationPublication(old)).toBeNull();
+    expect(
+      runtimePublication.readRuntimeConfigPublicationConfig(
+        nativeActivation.readSecretsRuntimeActivationPublication(successor),
+      ),
+    ).toBe(runtime);
+    expect(nativeActivation.readSecretsRuntimeActivationLineage(successor)).toMatchObject({
+      originalConfig: snapshot.config,
+      predecessorConfig: null,
+    });
+  });
+
+  it("records the actual predecessor separately from the merged native rollback result", () => {
+    const p = preparedSnapshot({
+      sourceConfig: { gateway: { port: 19205 }, logging: { level: "info" } },
+      config: { gateway: { port: 19205 }, logging: { level: "info" } },
+    });
+    const tokenP = activateSecretsRuntimeSnapshotState({
+      snapshot: p,
+      refreshContext: null,
+      refreshHandler: null,
+    });
+    const previous = getActiveSecretsRuntimeSnapshotState()!;
+    const b = preparedSnapshot({
+      sourceConfig: { gateway: { port: 19206 }, logging: { level: "info" } },
+      config: { gateway: { port: 19206 }, logging: { level: "info" } },
+    });
+    const tokenB = activateSecretsRuntimeSnapshotState({
+      snapshot: b,
+      refreshContext: null,
+      refreshHandler: null,
+    });
+    const revisionB = getActiveSecretsRuntimeSnapshotRevisionState();
+    const c = preparedSnapshot({
+      sourceConfig: { gateway: { port: 19206 }, logging: { level: "debug" } },
+      config: { gateway: { port: 19206 }, logging: { level: "debug" } },
+    });
+    expect(
+      activateSnapshotIfCurrent(c, {
+        expectedRevision: revisionB,
+        preserveActivationLineage: true,
+      }),
+    ).toBe(true);
+    const tokenC = nativeActivation.readSecretsRuntimeActivationReceipt(c.config);
+    expect(restoreSnapshotIfCurrent(previous, b, { expectedRevision: revisionB })).toBe(true);
+    const runtime = runtimePublication.getRuntimeConfigSnapshot()!;
+    expect(runtime.gateway?.port).toBe(19205);
+    expect(runtime.logging?.level).toBe("debug");
+    const publication = runtimePublication.getRuntimeConfigPublicationReceipt(runtime);
+    const lineage = nativeActivation.readSecretsRuntimeActivationLineage(publication);
+    expect(lineage).not.toBeNull();
+    expect(lineage?.predecessorConfig).toBe(previous.config);
+    expect(lineage?.originalConfig).not.toBe(previous.config);
+    expect(lineage?.originalConfig).not.toBe(runtime);
+    expect(lineage?.originalConfig).toEqual(runtime);
+    for (const old of [tokenP, tokenB, tokenC]) {
+      expect(nativeActivation.readSecretsRuntimeActivationPublication(old)).toBeNull();
+    }
+  });
+});
+
+describe("activation publication exact clone binding", () => {
+  afterEach(() => clearSecretsRuntimeSnapshotState());
+
+  it("refuses a foreign publication reentered during source metadata fingerprinting", () => {
+    const snapshot = preparedSnapshot({ config: { gateway: { port: 19401 } } });
+    const foreign: OpenClawConfig = { gateway: { port: 19402 } };
+    let replaced = false;
+    const source: OpenClawConfig = {
+      get gateway() {
+        if (!replaced) {
+          replaced = true;
+          setRuntimeConfigSnapshot(foreign);
+        }
+        return { port: 19401 };
+      },
+    };
+    const receipt = activateSecretsRuntimeSnapshotState({
+      snapshot,
+      runtimeSourceConfig: source,
+      refreshContext: null,
+      refreshHandler: null,
+    });
+    expect(replaced).toBe(true);
+    expect(runtimePublication.getRuntimeConfigSnapshot()).toBe(foreign);
+    expect(receipt).toBeNull();
+    const current = runtimePublication.getRuntimeConfigPublicationReceipt(foreign);
+    expect(nativeActivation.readSecretsRuntimeActivationLineage(current)).toBeNull();
+    expect(nativeActivation.readSecretsRuntimeActivationReceipt(snapshot.config)).toBeNull();
+  });
+});
+
+describe("source-only ancestry rejects ordinary replacement", () => {
+  afterEach(() => clearSecretsRuntimeSnapshotState());
+  it("does not recreate activation ancestry after ordinary publication of the exact clone", () => {
+    const snapshot = preparedSnapshot();
+    activateSnapshot(snapshot);
+    const clone = runtimePublication.getRuntimeConfigSnapshot()!;
+    setRuntimeConfigSnapshot(clone);
+    expect(
+      runtimePublication.setRuntimeConfigSourceSnapshotIfCurrent({
+        expectedRevision: getRuntimeConfigSnapshotMetadata()!.revision,
+        sourceConfig: {},
+      }),
+    ).toBe(true);
+    expect(nativeActivation.readSecretsRuntimeActivationReceipt(snapshot.config)).toBeNull();
+    expect(
+      nativeActivation.readSecretsRuntimeActivationLineage(
+        runtimePublication.getRuntimeConfigPublicationReceipt(clone),
+      ),
+    ).toBeNull();
+  });
+});

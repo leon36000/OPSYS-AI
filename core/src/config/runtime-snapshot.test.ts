@@ -1,5 +1,6 @@
 // Verifies runtime config snapshots preserve normalized public settings.
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { sessionChanges } from "../sessions/session-row-changes.js";
 import { createDeferredCore } from "../shared/deferred.js";
 import { freezeJsonSnapshot } from "../shared/immutable-data.js";
 import {
@@ -9,6 +10,8 @@ import {
   getConfigResolutionFacts,
   setConfigResolutionFacts,
 } from "./resolution-facts.js";
+import { createRuntimePublicationTracker } from "./runtime-publication.js";
+import * as runtimePublication from "./runtime-snapshot.js";
 import {
   createRuntimeConfigReader,
   finalizeRuntimeSnapshotWrite,
@@ -547,5 +550,141 @@ describe("runtime snapshot state", () => {
     expect(refresh).not.toHaveBeenCalled();
     expect(loadFreshConfig).not.toHaveBeenCalled();
     expect(notifyCommittedWrite).toHaveBeenCalledOnce();
+  });
+});
+
+describe("native runtime publication receipts", () => {
+  afterEach(() => resetRuntimeConfigState());
+
+  it("returns a receipt from the real publisher and binds only its exact config", () => {
+    const config: OpenClawConfig = { gateway: { port: 19001 } };
+    const receipt = runtimePublication.publishRuntimeConfigSnapshotWithReceipt(config);
+    expect(getRuntimeConfigSnapshot()).toBe(config);
+    expect(receipt).not.toBeUndefined();
+    expect(receipt).not.toBeNull();
+    expect(runtimePublication.getRuntimeConfigPublicationReceipt(config)).toBe(receipt);
+    expect(runtimePublication.readRuntimeConfigPublicationConfig(receipt)).toBe(config);
+    expect(
+      runtimePublication.getRuntimeConfigPublicationReceipt(structuredClone(config)),
+    ).toBeNull();
+  });
+
+  it("refuses structural receipt copies and proxies without reading their properties", () => {
+    const config: OpenClawConfig = {};
+    const receipt = runtimePublication.publishRuntimeConfigSnapshotWithReceipt(config);
+    expect(receipt).not.toBeUndefined();
+    let traps = 0;
+    const fake = new Proxy(
+      {},
+      {
+        get: () => {
+          traps += 1;
+          throw new Error("trap");
+        },
+      },
+    );
+    expect(runtimePublication.isRuntimeConfigPublicationReceiptCurrent(fake)).toBe(false);
+    expect(runtimePublication.isRuntimeConfigPublicationReceiptCurrent({ ...receipt })).toBe(false);
+    expect(traps).toBe(0);
+  });
+
+  it("creates a different receipt for source-only publication on the same runtime object", () => {
+    const config: OpenClawConfig = { gateway: { port: 19002 } };
+    const receipt = runtimePublication.publishRuntimeConfigSnapshotWithReceipt(config, {});
+    expect(
+      setRuntimeConfigSourceSnapshotIfCurrent({
+        expectedRevision: 1,
+        sourceConfig: { gateway: { port: 19003 } },
+      }),
+    ).toBe(true);
+    expect(getRuntimeConfigSnapshot()).toBe(config);
+    expect(getRuntimeConfigSourceSnapshot()?.gateway?.port).toBe(19003);
+    expect(receipt).not.toBeUndefined();
+    expect(runtimePublication.isRuntimeConfigPublicationReceiptCurrent(receipt)).toBe(false);
+    expect(runtimePublication.getRuntimeConfigPublicationReceipt(config)).not.toBe(receipt);
+  });
+
+  it("does not revive old receipt identity when reset reuses revision one", () => {
+    const config: OpenClawConfig = {};
+    const first = runtimePublication.publishRuntimeConfigSnapshotWithReceipt(config);
+    expect(first).not.toBeUndefined();
+    resetRuntimeConfigState();
+    const second = runtimePublication.publishRuntimeConfigSnapshotWithReceipt(config);
+    expect(getRuntimeConfigSnapshotMetadata()?.revision).toBe(1);
+    expect(second).not.toBe(first);
+    expect(runtimePublication.isRuntimeConfigPublicationReceiptCurrent(first)).toBe(false);
+    expect(runtimePublication.isRuntimeConfigPublicationReceiptCurrent(second)).toBe(true);
+  });
+
+  it("does not treat an event-superseded publication as current", () => {
+    const original: OpenClawConfig = { gateway: { port: 19004 } };
+    const successor: OpenClawConfig = { gateway: { port: 19005 } };
+    let replaced = false;
+    const unsubscribe = sessionChanges.subscribe(() => {
+      if (!replaced) {
+        replaced = true;
+        setRuntimeConfigSnapshot(successor);
+      }
+    });
+    try {
+      const receipt = runtimePublication.publishRuntimeConfigSnapshotWithReceipt(original);
+      expect(getRuntimeConfigSnapshot()).toBe(successor);
+      expect(receipt).not.toBeUndefined();
+      expect(runtimePublication.isRuntimeConfigPublicationReceiptCurrent(receipt)).toBe(false);
+      expect(runtimePublication.getRuntimeConfigPublicationReceipt(original)).toBeNull();
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it("revokes receipt reuse after observed config mutation even when values are restored", () => {
+    const config: OpenClawConfig = { gateway: { port: 19006 } };
+    const receipt = runtimePublication.publishRuntimeConfigSnapshotWithReceipt(config);
+    expect(receipt).not.toBeUndefined();
+    config.gateway!.port = 19007;
+    expect(runtimePublication.isRuntimeConfigPublicationReceiptCurrent(receipt)).toBe(false);
+    config.gateway!.port = 19006;
+    expect(runtimePublication.isRuntimeConfigPublicationReceiptCurrent(receipt)).toBe(false);
+  });
+
+  it("does not mint from read getters after reset", () => {
+    resetRuntimeConfigState();
+    expect(getRuntimeConfigSnapshot()).toBeNull();
+    expect(runtimePublication.getRuntimeConfigPublicationReceipt({})).toBeNull();
+    expect(getRuntimeConfigSnapshotMetadata()).toBeNull();
+  });
+});
+
+describe("publication tracker instance separation", () => {
+  afterEach(() => resetRuntimeConfigState());
+  it("keeps equal-state foreign issuers separate from each other and canonical wrappers", () => {
+    const config: OpenClawConfig = { gateway: { port: 19301 } };
+    const metadata = { revision: 1, fingerprint: "same", sourceFingerprint: null, updatedAtMs: 1 };
+    const state = { config, sourceConfig: null, metadata, generation: 1 };
+    const first = createRuntimePublicationTracker(
+      () => state,
+      () => "same",
+    );
+    const second = createRuntimePublicationTracker(
+      () => state,
+      () => "same",
+    );
+    const tokenFirst = first.publish();
+    const tokenSecond = second.publish();
+    expect(first.isCurrent(tokenFirst)).toBe(true);
+    expect(second.isCurrent(tokenSecond)).toBe(true);
+    expect(first.isCurrent(tokenSecond)).toBe(false);
+    expect(second.isCurrent(tokenFirst)).toBe(false);
+    const canonical = runtimePublication.publishRuntimeConfigSnapshotWithReceipt(config);
+    expect(runtimePublication.isRuntimeConfigPublicationReceiptCurrent(canonical)).toBe(true);
+    for (const foreign of [tokenFirst, tokenSecond]) {
+      expect(runtimePublication.isRuntimeConfigPublicationReceiptCurrent(foreign)).toBe(false);
+      expect(runtimePublication.readRuntimeConfigPublicationConfig(foreign)).toBeNull();
+      expect(runtimePublication.readRuntimeConfigPublicationSourceOnlyOrigin(foreign)).toBeNull();
+    }
+    const laterForeign = second.publish();
+    expect(runtimePublication.isRuntimeConfigPublicationReceiptCurrent(laterForeign)).toBe(false);
+    expect(runtimePublication.isRuntimeConfigPublicationReceiptCurrent(canonical)).toBe(true);
+    expect(runtimePublication.getRuntimeConfigPublicationReceipt(config)).toBe(canonical);
   });
 });

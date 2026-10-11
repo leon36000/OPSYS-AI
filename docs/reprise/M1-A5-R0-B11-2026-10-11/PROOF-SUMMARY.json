@@ -1,0 +1,446 @@
+{
+  "time_toronto": "2026-10-11T02:17:00.272411-04:00",
+  "state": "PUBLIC_SAFE_SCOPED_SUMMARY",
+  "source_sha256": "3ed2e1557bc2ca9e07d8a706b4bc65222b8eda06451de81072246fbba181a0f7",
+  "new_snapshot_qualification": {
+    "canonical_types_current": "PASS_SCOPED_CANONICAL_TS7_NOEMIT",
+    "full_build_current": "PASS_SCOPED_CANONICAL_FULL_CORE",
+    "candidate_CI": "NOT_RUN",
+    "publication": "ROOT_ADOPTED_COMMIT_AND_EXACT_CI_PENDING"
+  },
+  "historical_0c197": {
+    "time_toronto": "2026-10-11T01:20:49.146816-04:00",
+    "state": "HISTORICAL_0c197_PRESERVED_NOT_CURRENT3ed2",
+    "source_sha256": "0c197d9329ff1f9834864cca8bbdcc07db6e958950588ec058780ea3fbc134bd",
+    "copy": {
+      "Source": 43836,
+      "deps": 93391,
+      "links": 4060
+    },
+    "types": {
+      "diagnostics": 0,
+      "listed": 16306,
+      "required_prod": 13,
+      "seconds": 61.86,
+      "rss_bytes": 5685719040
+    },
+    "receiver": {
+      "passed": 38,
+      "skipped": 0,
+      "seconds": 23.17,
+      "rss_bytes": 3226345472
+    },
+    "pending": {
+      "canonical_B11_full12": "PROOF_PENDING",
+      "full_build_current": "CLOSED_NONQUAL_ON_0c197_NEW_ANNOTATIONS_AND_SNAPSHOT_PENDING",
+      "candidate_CI": "PROOF_PENDING",
+      "publication": "ROOT_ONLY_NOT_DONE_BY_PREPARER",
+      "CI_selection_three_neighbors": "PROOF_PENDING_ROOT_CORRECTION"
+    },
+    "references": {
+      "integration": {
+        "reference_local_Q": "M1-A5-R0-B11-ROOT-INTEGRATION-PREPARATION-20261011-r1/ROOT-LOCAL-INTEGRATION-READBACK-r2.json",
+        "sha256": "247e90ca8e302b9c78e2edc104d44a1887d71075f648c2a06c4891543910cc22",
+        "status": "IDENTITY",
+        "scope": "20 dispositions/19 effective/5 new/1 identical, local integration only"
+      },
+      "copy": {
+        "reference_local_Q": "M1-R-A5-R0-B11-PC1-PREPARATION-20261011-r1/ROOT-COPY-READBACK-r1.json",
+        "sha256": "cf65412b7cfa77121a02830ee10869275502c352088c67d9d8bd15b525fc885d",
+        "status": "PASS_SCOPED",
+        "scope": "PC1 physical copy exact43836 Sources, dependencies and links; no build"
+      },
+      "types": {
+        "reference_local_Q": "M1-R-A5-R0-B11-PC1-PREPARATION-20261011-r1/ROOT-CANONICAL-TS7-READBACK-r1.json",
+        "sha256": "b5366c464702f094188475b1baceebe81c7557afb07a8555e8039ac590ef6e17",
+        "status": "PASS_SCOPED",
+        "scope": "Official TS7 canonical tsconfig.core; 0 diagnostics16306 listed/13 required; not runtime"
+      },
+      "independent": {
+        "reference_local_Q": "M1-R-A5-R0-B11-PC1-INDEPENDENT-REVIEW-20261011-r1/READBACK-r1.json",
+        "sha256": "bd5e208f6ebda4cea81eb5f9f894b8c031a82a70791d292385eda8f2df999825",
+        "status": "PASS_SCOPED",
+        "scope": "Independent exported copy27/types40 evidence readback; no execution"
+      },
+      "receiver": {
+        "reference_local_Q": "M1-INTEGRATED-R-RECEIVER-CANONICAL-QUALIFICATION-20261011-r1/ROOT-RECEIVER-CANONICAL-READBACK-r3.json",
+        "sha256": "064dee6b28fe59b8680874753f422bbbcc126e85988adecdc5620dc83e222c94",
+        "status": "PASS_SCOPED",
+        "scope": "Actual canonical test-projects receiver38; prepared path only"
+      },
+      "format18": {
+        "reference_local_Q": "M1-INTEGRATED-R-RECEIVER-CANONICAL-QUALIFICATION-20261011-r1/results-format18-r1/m1-integrated-r-format18-r1.json",
+        "sha256": "2d508d4bd0ee1f964f5554d3dbf5f7034e0f3af33d323e7ef0f3687fa8a8e0bf",
+        "status": "PASS_SCOPED",
+        "scope": "Read-only strict checks on18 integrated TS paths; no txt selector style credit"
+      },
+      "lint18": {
+        "reference_local_Q": "M1-INTEGRATED-R-RECEIVER-CANONICAL-QUALIFICATION-20261011-r1/results-lint18-r1/m1-integrated-r-lint18-r1.json",
+        "sha256": "1aa295c1d8a816bdce2d8335b797b4f80155529f457910b99701f17ef2549596",
+        "status": "PASS_SCOPED",
+        "scope": "Read-only strict checks on18 integrated TS paths; no txt selector style credit"
+      },
+      "A5_historical": {
+        "reference_local_Q": "M1-P0-NATIVE-PUBLICATION-STAGE-A-20261010-r1/ROOT-SOURCE5-PHASES-READBACK-r1.json",
+        "sha256": "a6e3a2561c57c81c17ba5b64d79f4ed302c0ddfe00e0e1bcb55dc5f65473ba46",
+        "status": "HISTORICAL_SCOPED",
+        "scope": "Historical165 JUnit records/7 suites,157 distinct title pairs; private publication lineage, no whole-current graph claim"
+      },
+      "B11_history": {
+        "reference_local_Q": "M1-P0-STAGE-B10-SOURCE-LEASE-PROPOSAL-20261010-r1/QUALIFICATION-BOUNDARY-READBACK-r1.json",
+        "sha256": "894e32d2ce83fccf86b7c228ff5520238de9e36b6fb7a8ea459a76d20ae3e971",
+        "status": "HISTORICAL_LIMITED",
+        "scope": "Historical Q47 and config575 PASS; omitted full native runner/plugin semantics; no canonical-full attribution"
+      },
+      "CI_parent": {
+        "reference_local_Q": "CURRENT8-PUBLICATION-PREPARATION-20261010-r1/CI-ab2613b0-FINAL-r1.json",
+        "sha256": "6e61aa10decb36eea4d509f788d8edd5d0df2ed06fa79a3b6c8609d9be41e386",
+        "status": "HISTORICAL_ONLY",
+        "scope": "ab2613b0 only38 success/2 conditional Docker skips; no future candidate credit"
+      },
+      "control4": {
+        "reference_local_Q": "M1-P0-STAGE-B10-SOURCE-LEASE-PROPOSAL-20261010-r1/INTEGRATED-R-CANONICAL-PREPARATION-r1/CLOSED-READBACK-current4-r1.json",
+        "sha256": "72fe7ce740f84e6bf18edc9097d57bf40837cd16b8d58697ac32aeec1d234285",
+        "status": "PASS4_SCOPED",
+        "scope": "IntegratedR same0c197;4 passed265deselected, not full269 or fullB11"
+      },
+      "build0c197": {
+        "reference_local_Q": "M1-R-A5-R0-B11-PC1-FULL-BUILD-PREPARATION-20261011-r1/BUILD-CLOSED-READBACK-r1/REPORT-r1.md",
+        "sha256": "0591b51e559bd559384985f602621eccc29ef0db068381d8689133488bdb7d26",
+        "diagnostics_ref": "M1-R-A5-R0-B11-PC1-FULL-BUILD-PREPARATION-20261011-r1/BUILD-CLOSED-READBACK-r1/DTS-DIAGNOSTICS-r1.json",
+        "diagnostics_sha256": "c9468f5dca171113205f4275b301790a417893c4e8a5c0eb8945610d63d0830d",
+        "status": "CLOSED_NONQUAL",
+        "scope": "DTS TS6.0.3 emission failed; exit1/84.311s/RSS5021970432; no resourceguard"
+      }
+    },
+    "coverage_gap_current240": [
+      {
+        "path": "core/src/gateway/config-reload.operation-policy.test.ts",
+        "sha256": "f1225c23381c3f2a7a30b8754de3bea1b7e712dd309c891da3b7d5e5b99701fa",
+        "exists": true,
+        "in_current_selector240": false,
+        "proposed_disposition": "ADD_TO_SELECTOR_PENDING_ROOT_SOURCE_LEASE",
+        "execution_credit": false
+      },
+      {
+        "path": "core/src/gateway/config-reload.decisions.test.ts",
+        "sha256": "ca0eca79b70f129fe744af7931dc61e8d796c6f01b8c616c2bf10ab831d5151e",
+        "exists": true,
+        "in_current_selector240": false,
+        "proposed_disposition": "ADD_TO_SELECTOR_PENDING_ROOT_SOURCE_LEASE",
+        "execution_credit": false
+      },
+      {
+        "path": "core/src/gateway/server-reload-handlers.hot-reload-status.test.ts",
+        "sha256": "f382c2487fd5c5a18affc2892856bb0ce7b61db8c3f6c5d5441016543d253e53",
+        "exists": true,
+        "in_current_selector240": false,
+        "proposed_disposition": "ADD_TO_SELECTOR_PENDING_ROOT_SOURCE_LEASE",
+        "execution_credit": false
+      }
+    ],
+    "identity_boundaries": {
+      "qualified_snapshot": "43836 Source/0c197d9329ff1f9834864cca8bbdcc07db6e958950588ec058780ea3fbc134bd",
+      "code18": "current18 effective TS paths unchanged and individually hashed in rows",
+      "future_metadata": [
+        "core/test/opsys-tests-cibles.txt",
+        "publication docs to be adopted by Root"
+      ],
+      "new_full_source_required_after_metadata": true,
+      "no_retroactive_full_identity_or_CI_credit": true,
+      "future_code_annotations": {
+        "paths": [
+          "core/src/config/runtime-publication.ts",
+          "core/src/config/runtime-snapshot.ts"
+        ],
+        "status": "FUTURE_NOT_BOUND_AS_TESTED",
+        "old_types_pass_stays_at_0c197": true,
+        "new_snapshot_and_appropriate_requalification_required": true
+      }
+    },
+    "source_epoch": "HISTORICAL_0c197_BEFORE_THREE_FUTURE_ANNOTATIONS_TWO_MODULES",
+    "control4": {
+      "passed": 4,
+      "deselected": 265,
+      "scope": "four integrated R handler cases only"
+    },
+    "build": {
+      "qualified": false,
+      "exit": 1,
+      "seconds": 84.311,
+      "RSS_bytes": 5021970432,
+      "guard": null,
+      "diagnostics": [
+        "TS2527 publicationBrand",
+        "TS4023 exported getter aliases"
+      ],
+      "partial_outputs": 7881,
+      "UI_CSS_stamps_reached": false
+    },
+    "superseded_plans_notice": "Historical future-annotations/CI pending wording preserved here only; adoption is now recorded above."
+  },
+  "identity_boundaries": {
+    "historical_qualified_snapshot": "0c197d9329ff1f9834864cca8bbdcc07db6e958950588ec058780ea3fbc134bd",
+    "current_paths_changed_since_historical": [
+      "core/src/config/runtime-publication.ts",
+      "core/src/config/runtime-snapshot.ts",
+      "core/test/opsys-tests-cibles.txt"
+    ],
+    "future_document_adoption_changes_full_identity": true,
+    "no_retroactive_full_identity_or_CI_credit": true,
+    "current_scoped_qualified_snapshot": "3ed2e1557bc2ca9e07d8a706b4bc65222b8eda06451de81072246fbba181a0f7"
+  },
+  "annotations_ci_adoption": {
+    "reference_local_Q": "M1-R-DTS-TYPEONLY-AND-CI243-ROOT-ADOPTION-20261011-r1/ROOT-ADOPTION-READBACK-r1.json",
+    "sha256": "bef126a3637c90eaee52bfe0be26417ed327e64dc6c3c483e507de475d0c5638",
+    "scope": "Root adopted three type annotations in two modules and three selector entries; no runtime/test execution"
+  },
+  "erasure": {
+    "scope": "TS6.0.3 transpileModule two complete files; no graph/DTS/product execution",
+    "receipt_sha256": "990dc205f8ccc074e9110ff273c7b1c67ba9c1875cc82e2809326926fefda10e",
+    "comparison_sha256": "85a6ab5ffa51ac030a53ebc15db1ab8a9923b3bdd77df7fc613f068ac1485d84",
+    "byte_identical": true
+  },
+  "selector": {
+    "unique_targets": 243,
+    "current_sha256": "c682e30b5a3de111eb29610f8dfed53813a1c3f3266ca811c2821c455e7f2b72",
+    "previous_unique_targets": 240,
+    "added": [
+      "src/gateway/config-reload.operation-policy.test.ts",
+      "src/gateway/config-reload.decisions.test.ts",
+      "src/gateway/server-reload-handlers.hot-reload-status.test.ts"
+    ],
+    "removed": [],
+    "does_not_prove_execution": true,
+    "Root_adopted": true
+  },
+  "current_qualified_scopes": {
+    "batch24": {
+      "reference": {
+        "reference_local_Q": "M1-P0-STAGE-B10-SOURCE-LEASE-PROPOSAL-20261010-r1/INTEGRATED-R-BATCH24-FINAL-PREPARATION-r2/ROOT-BATCH24-READBACK-r1.json",
+        "sha256": "263326db24e61cab335cedbe9ff577c58ff0813c78fc556c6cf9eec340bf839c",
+        "scope": "1184 records24wholefiles/1152distincttitles; 4 owners15/5/2/2; no provider/end-to-end SMS claim",
+        "status": "PASS_SCOPED_SOURCE3ed2"
+      },
+      "case_records": 1184,
+      "distinct_class_title_pairs": 1152,
+      "parameterized_repeated_records": 32,
+      "files": 24,
+      "groups": [
+        {
+          "kind": "gateway",
+          "files": [
+            "src/gateway/config-reload.activation.integration.test.ts",
+            "src/gateway/config-reload.decisions.test.ts",
+            "src/gateway/config-reload.operation-policy.test.ts",
+            "src/gateway/config-reload.test.ts",
+            "src/gateway/server-aux-handlers.test.ts",
+            "src/gateway/server-reload-channel-restart.test.ts",
+            "src/gateway/server-reload-handlers.hot-reload-status.test.ts",
+            "src/gateway/server-reload-handlers.test.ts",
+            "src/gateway/server-reload-hot.cron-cold.test.ts",
+            "src/gateway/server-reload-hot.cron-lazy.test.ts",
+            "src/gateway/server-reload-managed-secrets.test.ts",
+            "src/gateway/server-reload-restart.test.ts",
+            "src/gateway/server-runtime-handles.test.ts",
+            "src/gateway/server-runtime-policy-owner.test.ts",
+            "src/gateway/server-secrets-reload.model-runtime.test.ts"
+          ],
+          "passed_records": 932,
+          "JSON_sha256": "6331135b82e4912e868908c472621063d6a590cbb17186ce795bba262a4215dd",
+          "JUnit_sha256": "edbd94277ec3f2ce6783276f39ed4e9cb862e29ec14c081f7fa3774fdaf9d098"
+        },
+        {
+          "kind": "runtime-config",
+          "files": [
+            "src/config/io.runtime-snapshot-write.test.ts",
+            "src/config/resolution-facts.test.ts",
+            "src/config/runtime-snapshot.env.test.ts",
+            "src/config/runtime-snapshot.preparation.test.ts",
+            "src/config/runtime-snapshot.test.ts"
+          ],
+          "passed_records": 88,
+          "JSON_sha256": "a3dca6b396c815949bd2e18d1a0331bbebaf372e02559d74ba2f3ad10f282514",
+          "JUnit_sha256": "51357cb1d1cbd59f7b823e16b1caf150ca52e3772d5539ebbecb296e0c0b20de"
+        },
+        {
+          "kind": "secrets",
+          "files": [
+            "src/secrets/runtime-state.clear.test.ts",
+            "src/secrets/runtime-state.test.ts"
+          ],
+          "passed_records": 77,
+          "JSON_sha256": "fb21812800a9948b9994629639a66fdb681f96b1ace69bf2443bc50493c8eb28",
+          "JUnit_sha256": "fa8bc51e725f726a82d95d3b1da8fb8f093b83ffcbb3de6fc413a947c6bf9f34"
+        },
+        {
+          "kind": "channels",
+          "files": [
+            "src/channels/message/opsys-sms-source-receiver.test.ts",
+            "src/channels/message/opsys-sms-source.test.ts"
+          ],
+          "passed_records": 87,
+          "JSON_sha256": "d7d0eea29e5ee193d453267d792b87238758b5543280668cea182d2b11ef8d56",
+          "JUnit_sha256": "6c58f84b768ffcc24a3c1e2cd4dcbc7c490234255dfb65e92d4f1dafa2b7fb1b"
+        }
+      ],
+      "seconds": 200.714,
+      "RSS_bytes": 5046603776,
+      "no_skip_error_failure": true
+    },
+    "style18": {
+      "reference": {
+        "reference_local_Q": "M1-R-DTS-TYPEONLY-AND-CI243-STYLE-QUALIFICATION-20261011-r1/ROOT-STYLE-READBACK-r2.json",
+        "sha256": "097b3303b9f013509de070b5476b8d9b3c4fb0d64f9da990486d29f3431920b5",
+        "scope": "format/lint18 TS Source3ed2 only",
+        "status": "PASS_SCOPED_SOURCE3ed2"
+      },
+      "checks": [
+        {
+          "kind": "format18",
+          "exit": 0,
+          "seconds": 2.444,
+          "rss_bytes": 174346240,
+          "receipt_sha256": "3d98304de20c18fa0426c5049c269b013b08ded037c4b92c94e36f48ba6db358",
+          "log_sha256": "e066e282b6dfa8d2ccb85a0a28f770fe241018fc882f929b6f6d5a9fe7b6ff16",
+          "files": [
+            "src/config/runtime-snapshot.ts",
+            "src/secrets/runtime-state.ts",
+            "src/config/runtime-snapshot.test.ts",
+            "src/secrets/runtime-state.test.ts",
+            "src/config/runtime-publication.ts",
+            "src/channels/message/opsys-sms-source.ts",
+            "src/channels/message/opsys-sms-source-receiver.ts",
+            "src/channels/message/opsys-sms-source-receiver.test.ts",
+            "src/gateway/server-runtime-policy-owner.ts",
+            "src/gateway/config-reload.ts",
+            "src/gateway/server-reload-managed.ts",
+            "src/gateway/server-secrets-reload.ts",
+            "src/gateway/server-runtime-handles.ts",
+            "src/gateway/server-reload-hot.ts",
+            "src/gateway/server-reload-restart.ts",
+            "src/gateway/server-runtime-policy-owner.test.ts",
+            "src/gateway/server-reload-restart.test.ts",
+            "src/gateway/server-reload-managed-secrets.ts"
+          ]
+        },
+        {
+          "kind": "lint18",
+          "exit": 0,
+          "seconds": 3.285,
+          "rss_bytes": 267689984,
+          "receipt_sha256": "0c03f2f09127a4cebf59bb745a722199829621060aad22bc58d0257078d3255f",
+          "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "files": [
+            "src/config/runtime-snapshot.ts",
+            "src/secrets/runtime-state.ts",
+            "src/config/runtime-snapshot.test.ts",
+            "src/secrets/runtime-state.test.ts",
+            "src/config/runtime-publication.ts",
+            "src/channels/message/opsys-sms-source.ts",
+            "src/channels/message/opsys-sms-source-receiver.ts",
+            "src/channels/message/opsys-sms-source-receiver.test.ts",
+            "src/gateway/server-runtime-policy-owner.ts",
+            "src/gateway/config-reload.ts",
+            "src/gateway/server-reload-managed.ts",
+            "src/gateway/server-secrets-reload.ts",
+            "src/gateway/server-runtime-handles.ts",
+            "src/gateway/server-reload-hot.ts",
+            "src/gateway/server-reload-restart.ts",
+            "src/gateway/server-runtime-policy-owner.test.ts",
+            "src/gateway/server-reload-restart.test.ts",
+            "src/gateway/server-reload-managed-secrets.ts"
+          ]
+        }
+      ]
+    },
+    "canonical_types_and_copy": {
+      "reference": {
+        "reference_local_Q": "M1-R-DTS-CI243-PC1-INDEPENDENT-REVIEW-20261011-r1/READBACK-r1.json",
+        "sha256": "27edf85fa105a7fcc4dfeaaeebd0f02b3c3c498c6622c62dad3f658ee6cb7c27",
+        "status": "PASS_SCOPED_SOURCE3ed2",
+        "scope": "27 copy+40 types closed exports; official TS7 noEmit, no test typing inferred"
+      },
+      "report": {
+        "reference_local_Q": "M1-R-DTS-CI243-PC1-INDEPENDENT-REVIEW-20261011-r1/RAPPORT-r1.md",
+        "sha256": "a39117c42217ba1d1bdffe37a140640281c5f73a2aa8204bb5a903dde8f4e32c",
+        "status": "PASS_SCOPED_SOURCE3ed2",
+        "scope": "Independent copy/types readback, no execution"
+      },
+      "exit": 0,
+      "diagnostics": 0,
+      "listed_inputs": 16306,
+      "listed_Source": 13112,
+      "listed_dependencies": 3194,
+      "required_production": 13,
+      "seconds": 79.71,
+      "RSS_bytes": 5698412544,
+      "Source": 43836,
+      "dependencies": 93391,
+      "existing_links": 4060,
+      "compiler": "native TS7.0.2 via run-tsgo.mjs/tsconfig.core.json",
+      "policy": "GOMAXPROCS=1 GOGC=30 GOMEMLIMIT=2GiB",
+      "log_sha256": "52115912b01d23da9f91358f11d58c4d40e18454d4a1ec7bf495c668390b269e",
+      "closure_sha256": "60d24e1484bf334962fb3f78a3a151fe6f780f1f1f9110828712ea8aff001317",
+      "limit": "13 required production inputs, not test file type coverage; noEmit did not emit DTS."
+    },
+    "full_core_build": {
+      "reference": {
+        "reference_local_Q": "M1-R-DTS-CI243-FULL-BUILD-INDEPENDENT-REVIEW-20261011-r1/READBACK-r1.json",
+        "sha256": "53570b09d8e339e31708242ace5720953d9be208326ef09b6eb31e531b5d7732",
+        "status": "PASS_SCOPED_SOURCE3ed2",
+        "scope": "38 exports/full log/census/closed canonical Core full build"
+      },
+      "report": {
+        "reference_local_Q": "M1-R-DTS-CI243-FULL-BUILD-INDEPENDENT-REVIEW-20261011-r1/RAPPORT-r1.md",
+        "sha256": "7d0d892a38474d82e3b8be8b123697e2cc2ea6d20a7cb28d184c9767c6afea2e",
+        "status": "PASS_SCOPED_SOURCE3ed2",
+        "scope": "Independent full714line log and data readback; no runtime rerun"
+      },
+      "exit": 0,
+      "seconds": 534.914,
+      "RSS_bytes": 5979484160,
+      "Source_sha256": "3ed2e1557bc2ca9e07d8a706b4bc65222b8eda06451de81072246fbba181a0f7",
+      "DTS_groups": 18,
+      "SDK_groups": 2,
+      "SDK_subpaths": 158,
+      "SDK_declaration_bytes": 4232006,
+      "SDK_limit_bytes": 5315536,
+      "UI_precompressed_assets": 517,
+      "UI_sidecars": 1034,
+      "log_asset_rows": 543,
+      "log_lines": 714,
+      "log_bytes": 86850,
+      "log_sha256": "b77a2832aae96cf3638f97747569a7626c10caa58de4a91d89f90720226c153a",
+      "receipt_sha256": "1cace2c54a7c919023110f76c1dddf3b1823eacb7291a3bffe106e63441ab257",
+      "pre_census_sha256": "2ddeb30de7c71300e9e2a75384e8d148f6ba71fb7ba9bea1a335af4a35aeea5d",
+      "post_census_sha256": "3bd238c924b3df78e335898f8314e5e9293aec7b35effe7791cbf81559d66b0c",
+      "protected_files": 137227,
+      "protected_Source": 43836,
+      "protected_dependencies": 93391,
+      "protected_links": 4060,
+      "added_files": 12342,
+      "added_links": 446,
+      "changes_to_original_files_links": 0,
+      "output_rules": "closed existing OUTPUTS prefixes; no additions outside",
+      "startup_CSS_bytes": 51165,
+      "CSS_hard_ceiling": 51200,
+      "CSS_margin_bytes": 35,
+      "CSS_advisory_warning_threshold": 46080,
+      "startup_JS_bytes": 371182,
+      "JS_enforcement_limit": 371332,
+      "JS_margin_bytes": 150,
+      "stamps_head_commit_null": true,
+      "full_profile": "full/cache0/per-plugin/concurrency1/heap5120MiB/RSS7GiB/900s",
+      "remote_wrapper_strategy": "revalidated_pid",
+      "transport_bootstrap_pidfd_observed": true,
+      "limits": [
+        "sampled RSS/observed descendants only",
+        "No phone/Expo/provider/SQL/RPC/globalP0/OriginalC/allSenders delivery qualification",
+        "No future exact-commit CI credit",
+        "No syscall attribution for physical link relations"
+      ]
+    }
+  },
+  "root_adoption_time_toronto": "2026-10-11T02:21:00.883599-04:00"
+}

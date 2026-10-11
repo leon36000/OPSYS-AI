@@ -44,6 +44,15 @@ import {
   restoreCanonicalSecretRefs,
 } from "./server-reload-utils.js";
 import {
+  captureNativeServingRead,
+  closeNativeOwner,
+  createManagedPolicyOwner,
+  finishNativeTransition,
+  readNativeServingConfig,
+  recordNativeServingCommit,
+  reserveNativeTransition,
+} from "./server-runtime-policy-owner.js";
+import {
   disconnectStaleSharedGatewayAuthClients,
   type SharedGatewaySessionGenerationOwnership,
 } from "./server-shared-auth-generation.js";
@@ -70,6 +79,18 @@ export function startManagedGatewayConfigReloader(
     };
   }
 
+  const nativeOwner = createManagedPolicyOwner(
+    params.sharedGatewaySessionGenerationState,
+    lifecycle.signal,
+    () =>
+      configReloader.isReady() &&
+      !configReloader.isReloading() &&
+      !hasConfigCandidatePending() &&
+      !hasOutstandingGatewayRestart(),
+  );
+  // This ticket closes capture until the constructor and its ready promise finish,
+  // before the deferred settled predicate can read the completed base handle.
+  const startupTicket = reserveNativeTransition(nativeOwner);
   const prepareRuntimeCandidate = (
     runtimeConfig: OpenClawConfig,
     sourceConfig: OpenClawConfig,
@@ -154,22 +175,25 @@ export function startManagedGatewayConfigReloader(
     requestGatewayRestart,
     restoreConservativeRestartDebt,
     stopRestartRetries,
-  } = createGatewayReloadHandlers({
-    ...params,
-    releaseChannelRouteHandoffs: params.channelManager.releaseChannelRouteHandoffs,
-    pruneInactiveChannelAccountState: params.channelManager.pruneInactiveChannelAccountState,
-    createGmailRestartAbortController,
-    clearGmailRestartAbortController: (abortController) => {
-      if (activeGmailRestartAbortController === abortController) {
-        activeGmailRestartAbortController = null;
-      }
+  } = createGatewayReloadHandlers(
+    {
+      ...params,
+      releaseChannelRouteHandoffs: params.channelManager.releaseChannelRouteHandoffs,
+      pruneInactiveChannelAccountState: params.channelManager.pruneInactiveChannelAccountState,
+      createGmailRestartAbortController,
+      clearGmailRestartAbortController: (abortController) => {
+        if (activeGmailRestartAbortController === abortController) {
+          activeGmailRestartAbortController = null;
+        }
+      },
+      assertRestartReady: (config) =>
+        import("../state/openclaw-database-preflight.js").then(({ assertOpenClawDatabasesReady }) =>
+          assertOpenClawDatabasesReady({ env: process.env, operation: "gateway-restart", config }),
+        ),
+      restartRecoveryAvailable,
     },
-    assertRestartReady: (config) =>
-      import("../state/openclaw-database-preflight.js").then(({ assertOpenClawDatabasesReady }) =>
-        assertOpenClawDatabasesReady({ env: process.env, operation: "gateway-restart", config }),
-      ),
-    restartRecoveryAvailable,
-  });
+    nativeOwner,
+  );
   const runManagedRestart = async (
     plan: GatewayReloadPlan,
     nextConfig: OpenClawConfig,
@@ -178,124 +202,129 @@ export function startManagedGatewayConfigReloader(
     restartOptions?: GatewayRestartRequestOptions,
     beforeRestartRequest?: () => Promise<void>,
   ) => {
-    const isCurrent = () => !lifecycle.signal.aborted && transactionOwnership.isCurrent();
-    const assertCurrent = () => {
-      if (!isCurrent()) {
-        throw new GatewayConfigReloadSupersededError();
-      }
-    };
-    await transactionOwnership.checkpoint();
-    assertCurrent();
-    const restartLifecycle = beginGatewayRestartLifecycle();
-    let preparation:
-      | {
-          ownership: SharedGatewaySessionGenerationOwnership;
-          previousRequired: string | undefined | null;
-          previousCurrent: string | undefined;
-          nextGeneration: string | undefined;
-          runtimeConfig: OpenClawConfig;
-        }
-      | undefined;
+    const nativeTicket = reserveNativeTransition(nativeOwner);
     try {
-      for (;;) {
+      const isCurrent = () => !lifecycle.signal.aborted && transactionOwnership.isCurrent();
+      const assertCurrent = () => {
+        if (!isCurrent()) {
+          throw new GatewayConfigReloadSupersededError();
+        }
+      };
+      await transactionOwnership.checkpoint();
+      assertCurrent();
+      const restartLifecycle = beginGatewayRestartLifecycle();
+      let preparation:
+        | {
+            ownership: SharedGatewaySessionGenerationOwnership;
+            previousRequired: string | undefined | null;
+            previousCurrent: string | undefined;
+            nextGeneration: string | undefined;
+            runtimeConfig: OpenClawConfig;
+          }
+        | undefined;
+      try {
+        for (;;) {
+          await transactionOwnership.checkpoint();
+          assertCurrent();
+          const ownership = params.sharedGatewaySessionGenerationState.capture();
+          const previousRequired = params.sharedGatewaySessionGenerationState.required;
+          const prepared = await tryPrepareRuntimeSecrets(
+            prepareRuntimeCandidate(nextConfig, sourceConfig, transactionOwnership),
+            transactionOwnership,
+            {
+              reason: "restart-check",
+              publishFailureAsDegraded: true,
+              ...(transactionOwnership.runtimeEnv
+                ? { env: transactionOwnership.runtimeEnv.env }
+                : {}),
+            },
+          );
+          await transactionOwnership.checkpoint();
+          assertCurrent();
+          const generationChanged = !params.sharedGatewaySessionGenerationState.owns(ownership);
+          if (!prepared || !isRuntimeSecretsPreparationCurrent(prepared) || generationChanged) {
+            continue;
+          }
+          preparation = {
+            ownership,
+            previousRequired,
+            previousCurrent: ownership.generation,
+            nextGeneration: params.resolveSharedGatewaySessionGenerationForConfig(
+              prepared.snapshot.config,
+            ),
+            runtimeConfig: prepared.snapshot.config,
+          };
+          break;
+        }
+      } catch (error) {
+        restartLifecycle.settle("rejected");
+        throw error;
+      }
+      const {
+        ownership: preparationOwnership,
+        previousRequired: previousRequiredSharedGatewaySessionGeneration,
+        previousCurrent: previousSharedGatewaySessionGeneration,
+        nextGeneration: nextSharedGatewaySessionGeneration,
+        runtimeConfig: preparedRuntimeConfig,
+      } = preparation;
+      let restartTransaction: GatewayRestartTransactionResult | undefined;
+      let requiredOwnership: SharedGatewaySessionGenerationOwnership | null = null;
+      try {
         await transactionOwnership.checkpoint();
         assertCurrent();
-        const ownership = params.sharedGatewaySessionGenerationState.capture();
-        const previousRequired = params.sharedGatewaySessionGenerationState.required;
-        const prepared = await tryPrepareRuntimeSecrets(
-          prepareRuntimeCandidate(nextConfig, sourceConfig, transactionOwnership),
-          transactionOwnership,
-          {
-            reason: "restart-check",
-            publishFailureAsDegraded: true,
-            ...(transactionOwnership.runtimeEnv
-              ? { env: transactionOwnership.runtimeEnv.env }
-              : {}),
-          },
+        await params.reconcileRuntimePolicy(preparedRuntimeConfig, "restart");
+        await transactionOwnership.checkpoint();
+        assertCurrent();
+        await beforeRestartRequest?.();
+        await transactionOwnership.checkpoint();
+        assertCurrent();
+        // Claim the shared-session requirement before creating any async restart
+        // emission. A rejected generation owner must never leave a live deferral.
+        requiredOwnership = params.sharedGatewaySessionGenerationState.setRequired(
+          preparationOwnership,
+          previousSharedGatewaySessionGeneration !== nextSharedGatewaySessionGeneration
+            ? nextSharedGatewaySessionGeneration
+            : null,
         );
-        await transactionOwnership.checkpoint();
-        assertCurrent();
-        const generationChanged = !params.sharedGatewaySessionGenerationState.owns(ownership);
-        if (!prepared || !isRuntimeSecretsPreparationCurrent(prepared) || generationChanged) {
-          continue;
+        if (!requiredOwnership) {
+          throw new GatewayHotReloadStaleSecretsError();
         }
-        preparation = {
-          ownership,
-          previousRequired,
-          previousCurrent: ownership.generation,
-          nextGeneration: params.resolveSharedGatewaySessionGenerationForConfig(
-            prepared.snapshot.config,
-          ),
-          runtimeConfig: prepared.snapshot.config,
-        };
-        break;
-      }
-    } catch (error) {
-      restartLifecycle.settle("rejected");
-      throw error;
-    }
-    const {
-      ownership: preparationOwnership,
-      previousRequired: previousRequiredSharedGatewaySessionGeneration,
-      previousCurrent: previousSharedGatewaySessionGeneration,
-      nextGeneration: nextSharedGatewaySessionGeneration,
-      runtimeConfig: preparedRuntimeConfig,
-    } = preparation;
-    let restartTransaction: GatewayRestartTransactionResult | undefined;
-    let requiredOwnership: SharedGatewaySessionGenerationOwnership | null = null;
-    try {
-      await transactionOwnership.checkpoint();
-      assertCurrent();
-      await params.reconcileRuntimePolicy(preparedRuntimeConfig, "restart");
-      await transactionOwnership.checkpoint();
-      assertCurrent();
-      await beforeRestartRequest?.();
-      await transactionOwnership.checkpoint();
-      assertCurrent();
-      // Claim the shared-session requirement before creating any async restart
-      // emission. A rejected generation owner must never leave a live deferral.
-      requiredOwnership = params.sharedGatewaySessionGenerationState.setRequired(
-        preparationOwnership,
-        previousSharedGatewaySessionGeneration !== nextSharedGatewaySessionGeneration
-          ? nextSharedGatewaySessionGeneration
-          : null,
-      );
-      if (!requiredOwnership) {
-        throw new GatewayHotReloadStaleSecretsError();
-      }
-      // Restart successors inherit process.env. Publish the prepared layer at
-      // the admission edge, then roll it back if this restart is rejected.
-      transactionOwnership.publishRuntimeEnv();
-      restartTransaction = requestGatewayRestart(plan, preparedRuntimeConfig, {
-        ...restartOptions,
-        debtConfig: sourceConfig,
-        prepareRuntimeConfig: () =>
-          prepareRestartRuntimeConfig(preparedRuntimeConfig, sourceConfig, transactionOwnership),
-      });
-      if (restartTransaction.status === "recovery-pending") {
-        throw new GatewayHotReloadRecoveryError("config restart");
-      }
-      if (previousSharedGatewaySessionGeneration !== nextSharedGatewaySessionGeneration) {
-        disconnectStaleSharedGatewayAuthClients({
-          state: params.sharedGatewaySessionGenerationState,
-          clients: params.clients,
-          expectedGeneration: nextSharedGatewaySessionGeneration,
+        // Restart successors inherit process.env. Publish the prepared layer at
+        // the admission edge, then roll it back if this restart is rejected.
+        transactionOwnership.publishRuntimeEnv();
+        restartTransaction = requestGatewayRestart(plan, preparedRuntimeConfig, {
+          ...restartOptions,
+          debtConfig: sourceConfig,
+          prepareRuntimeConfig: () =>
+            prepareRestartRuntimeConfig(preparedRuntimeConfig, sourceConfig, transactionOwnership),
         });
+        if (restartTransaction.status === "recovery-pending") {
+          throw new GatewayHotReloadRecoveryError("config restart");
+        }
+        if (previousSharedGatewaySessionGeneration !== nextSharedGatewaySessionGeneration) {
+          disconnectStaleSharedGatewayAuthClients({
+            state: params.sharedGatewaySessionGenerationState,
+            clients: params.clients,
+            expectedGeneration: nextSharedGatewaySessionGeneration,
+          });
+        }
+        restartTransaction.settle("committed");
+        transactionOwnership.commitRuntimeEnv();
+        restartLifecycle.settle("committed");
+      } catch (error) {
+        restartTransaction?.settle("rejected");
+        restartLifecycle.settle("rejected");
+        transactionOwnership.rollbackRuntimeEnv();
+        if (requiredOwnership) {
+          params.sharedGatewaySessionGenerationState.setRequired(
+            requiredOwnership,
+            previousRequiredSharedGatewaySessionGeneration,
+          );
+        }
+        throw error;
       }
-      restartTransaction.settle("committed");
-      transactionOwnership.commitRuntimeEnv();
-      restartLifecycle.settle("committed");
-    } catch (error) {
-      restartTransaction?.settle("rejected");
-      restartLifecycle.settle("rejected");
-      transactionOwnership.rollbackRuntimeEnv();
-      if (requiredOwnership) {
-        params.sharedGatewaySessionGenerationState.setRequired(
-          requiredOwnership,
-          previousRequiredSharedGatewaySessionGeneration,
-        );
-      }
-      throw error;
+    } finally {
+      finishNativeTransition(nativeTicket);
     }
   };
 
@@ -309,196 +338,216 @@ export function startManagedGatewayConfigReloader(
 
   let lastCommittedRuntimeConfig: OpenClawConfig | undefined;
   let committedRuntimeConfig = params.initialConfig;
-  const configReloader = startGatewayConfigReloader({
-    onReloadEnabledChange: params.onReloadEnabledChange,
-    initialConfig: params.initialConfig,
-    initialCompareConfig: params.initialCompareConfig,
-    initialSnapshotRawHash: params.initialSnapshotRawHash,
-    initialAuthoredConfig: params.initialAuthoredConfig,
-    initialIncludedPaths: params.initialIncludedPaths ?? [],
-    initialSnapshotValid: params.initialSnapshotValid,
-    initialSnapshotIssues: params.initialSnapshotIssues,
-    initialPluginInstallRecords: params.initialPluginInstallRecords,
-    // Single notification point for every persisted config change — gateway
-    // RPC writes, agent/CLI config_set, doctor, and hand edits all land here
-    // once the candidate is accepted. Hash-only; clients refresh via config.get.
-    onConfigCandidateCommitted: (info) => {
-      invalidateConfigGetResponseCache();
-      params.broadcast(
-        "config.changed",
-        {
-          path: info.path,
-          hash: info.persistedHash
-            ? params.configRevisionProjector.projectRawHash(info.persistedHash)
-            : null,
-          ts: Date.now(),
-        },
-        { dropIfSlow: true },
-      );
-    },
-    onRuntimeConfigCommitted: (plan, nextCommittedRuntimeConfig) => {
-      // Secret resolution can make the committed runtime config a different
-      // object from the source-derived candidate. Record the committed one so a
-      // rebuild below stamps owners with the identity readers actually supply.
-      lastCommittedRuntimeConfig = nextCommittedRuntimeConfig;
-      committedRuntimeConfig = nextCommittedRuntimeConfig;
-      publishOperatorRoleConfigChange(params.resolveGatewayContext?.());
-      publishSystemEventStoreConfig(nextCommittedRuntimeConfig);
-      params.resolveGatewayContext?.()?.mentionInbox?.invalidate();
-      if (canAdvancePreparedModelRuntimeConfigInPlace(plan)) {
-        advancePreparedModelRuntimeConfig(nextCommittedRuntimeConfig);
-      }
-    },
-    ...(params.prepareConfigCandidate
-      ? { prepareConfigCandidate: params.prepareConfigCandidate }
-      : {}),
-    runTransaction: (run) =>
-      runWithGatewayIndependentRootWorkAdmission(run, "reload:config", lifecycle.signal).catch(
-        (error: unknown) => {
-          // Only the admission wait wraps this stop reason; retain admitted work failures.
-          if (
-            lifecycle.signal.reason instanceof GatewayConfigReloadSupersededError &&
-            error instanceof Error &&
-            error.cause === lifecycle.signal.reason
-          ) {
-            throw lifecycle.signal.reason;
-          }
-          throw error;
-        },
-      ),
-    readSnapshot: params.readSnapshot,
-    promoteSnapshot: async (snapshot, _reason) => await params.promoteSnapshot(snapshot),
-    subscribeToWrites: params.subscribeToWrites,
-    onConfigCandidateObserved: () => {
-      // Every writer must expose persisted revisions before runtime acceptance.
-      invalidateConfigGetResponseCache();
-      pauseGatewayRestartForConfigCandidate();
-    },
-    onConfigChange: (plan, nextConfig) => {
-      assertIrreversibleReloadPlanHasRecoveryOwner(plan, restartRecoveryAvailable);
-      params.prepareTerminalConfig(plan, applyRuntimeConfigOverrides(nextConfig));
-    },
-    onConfigAccepted: async (nextConfig, transactionOwnership, sourceConfig, acceptance) => {
-      const assertCurrent = () => {
-        assertReloadPublicationCurrent(transactionOwnership.isCurrent(), false);
-      };
-      const createRestartTarget = (): AcceptedRestartTarget => ({
-        runtimeConfig: prepareRuntimeCandidate(nextConfig, sourceConfig, transactionOwnership),
-        sourceConfig,
-        prepareRuntimeConfig: () =>
-          prepareRestartRuntimeConfig(nextConfig, sourceConfig, transactionOwnership),
-      });
-      let acceptedTargetOwnership: AcceptedRestartTargetOwnership | undefined;
-      let lateConservativeDebt: ReturnType<
-        typeof publishAcceptedRestartTarget
-      >["conservativeDebt"] = null;
-      try {
-        await transactionOwnership.checkpoint();
-        assertCurrent();
-        const acceptedRestart = acceptRestartConfig(sourceConfig);
-        if (!acceptance.runtimeApplied) {
-          // acceptRestartConfig leaves returned debt in its paused/conservative owner.
-          // This candidate explicitly skipped runtime application, so a later
-          // runtime-applied acceptance—not this source-only write—may rearm it.
+  const configReloader = startGatewayConfigReloader(
+    {
+      onReloadEnabledChange: params.onReloadEnabledChange,
+      initialConfig: params.initialConfig,
+      initialCompareConfig: params.initialCompareConfig,
+      initialSnapshotRawHash: params.initialSnapshotRawHash,
+      initialAuthoredConfig: params.initialAuthoredConfig,
+      initialIncludedPaths: params.initialIncludedPaths ?? [],
+      initialSnapshotValid: params.initialSnapshotValid,
+      initialSnapshotIssues: params.initialSnapshotIssues,
+      initialPluginInstallRecords: params.initialPluginInstallRecords,
+      // Single notification point for every persisted config change — gateway
+      // RPC writes, agent/CLI config_set, doctor, and hand edits all land here
+      // once the candidate is accepted. Hash-only; clients refresh via config.get.
+      onConfigCandidateCommitted: (info) => {
+        invalidateConfigGetResponseCache();
+        params.broadcast(
+          "config.changed",
+          {
+            path: info.path,
+            hash: info.persistedHash
+              ? params.configRevisionProjector.projectRawHash(info.persistedHash)
+              : null,
+            ts: Date.now(),
+          },
+          { dropIfSlow: true },
+        );
+      },
+      onNativeServingCommitted: (config, ticket) => {
+        recordNativeServingCommit(
+          nativeOwner,
+          config,
+          ticket,
+          params.sharedGatewaySessionGenerationState.capture(),
+        );
+      },
+      onRuntimeConfigCommitted: (plan, nextCommittedRuntimeConfig) => {
+        // Secret resolution can make the committed runtime config a different
+        // object from the source-derived candidate. Record the committed one so a
+        // rebuild below stamps owners with the identity readers actually supply.
+        lastCommittedRuntimeConfig = nextCommittedRuntimeConfig;
+        committedRuntimeConfig = nextCommittedRuntimeConfig;
+        publishOperatorRoleConfigChange(params.resolveGatewayContext?.());
+        publishSystemEventStoreConfig(nextCommittedRuntimeConfig);
+        params.resolveGatewayContext?.()?.mentionInbox?.invalidate();
+        if (canAdvancePreparedModelRuntimeConfigInPlace(plan)) {
+          advancePreparedModelRuntimeConfig(nextCommittedRuntimeConfig);
+        }
+      },
+      ...(params.prepareConfigCandidate
+        ? { prepareConfigCandidate: params.prepareConfigCandidate }
+        : {}),
+      runTransaction: (run) =>
+        runWithGatewayIndependentRootWorkAdmission(run, "reload:config", lifecycle.signal).catch(
+          (error: unknown) => {
+            // Only the admission wait wraps this stop reason; retain admitted work failures.
+            if (
+              lifecycle.signal.reason instanceof GatewayConfigReloadSupersededError &&
+              error instanceof Error &&
+              error.cause === lifecycle.signal.reason
+            ) {
+              throw lifecycle.signal.reason;
+            }
+            throw error;
+          },
+        ),
+      readSnapshot: params.readSnapshot,
+      promoteSnapshot: async (snapshot, _reason) => await params.promoteSnapshot(snapshot),
+      subscribeToWrites: params.subscribeToWrites,
+      onConfigCandidateObserved: () => {
+        // Every writer must expose persisted revisions before runtime acceptance.
+        invalidateConfigGetResponseCache();
+        pauseGatewayRestartForConfigCandidate();
+      },
+      onConfigChange: (plan, nextConfig) => {
+        assertIrreversibleReloadPlanHasRecoveryOwner(plan, restartRecoveryAvailable);
+        params.prepareTerminalConfig(plan, applyRuntimeConfigOverrides(nextConfig));
+      },
+      onConfigAccepted: async (nextConfig, transactionOwnership, sourceConfig, acceptance) => {
+        const assertCurrent = () => {
+          assertReloadPublicationCurrent(transactionOwnership.isCurrent(), false);
+        };
+        const createRestartTarget = (): AcceptedRestartTarget => ({
+          runtimeConfig: prepareRuntimeCandidate(nextConfig, sourceConfig, transactionOwnership),
+          sourceConfig,
+          prepareRuntimeConfig: () =>
+            prepareRestartRuntimeConfig(nextConfig, sourceConfig, transactionOwnership),
+        });
+        let acceptedTargetOwnership: AcceptedRestartTargetOwnership | undefined;
+        let lateConservativeDebt: ReturnType<
+          typeof publishAcceptedRestartTarget
+        >["conservativeDebt"] = null;
+        try {
           await transactionOwnership.checkpoint();
           assertCurrent();
-          recordAcceptedRestartTarget(createRestartTarget());
+          const acceptedRestart = acceptRestartConfig(sourceConfig);
+          if (!acceptance.runtimeApplied) {
+            // acceptRestartConfig leaves returned debt in its paused/conservative owner.
+            // This candidate explicitly skipped runtime application, so a later
+            // runtime-applied acceptance—not this source-only write—may rearm it.
+            await transactionOwnership.checkpoint();
+            assertCurrent();
+            recordAcceptedRestartTarget(createRestartTarget());
+            params.acceptTerminalConfig({
+              retireRejectedRestart: acceptedRestart.retireRejectedRestart,
+            });
+            publishDeferredAppliedConfigHash();
+            return;
+          }
+          if (acceptedRestart.debt) {
+            await runManagedRestart(
+              acceptedRestart.debt.plan,
+              nextConfig,
+              transactionOwnership,
+              sourceConfig,
+              {
+                retainDebtAcrossConfigChanges: acceptedRestart.debt.retainDebtAcrossConfigChanges,
+              },
+              acceptance.publishSource,
+            );
+          } else {
+            await acceptance.publishSource?.();
+          }
+          await transactionOwnership.checkpoint();
+          assertCurrent();
+          // Target publication clears the candidate pause. Take conservative debt
+          // synchronously at the same edge so acceptance-window failures cannot strand it.
+          const acceptedTarget = publishAcceptedRestartTarget(createRestartTarget());
+          acceptedTargetOwnership = acceptedTarget.ownership;
+          lateConservativeDebt = acceptedTarget.conservativeDebt;
+          if (lateConservativeDebt && lateConservativeDebt !== acceptedRestart.debt) {
+            await runManagedRestart(
+              lateConservativeDebt.plan,
+              nextConfig,
+              transactionOwnership,
+              sourceConfig,
+              {
+                retainDebtAcrossConfigChanges: lateConservativeDebt.retainDebtAcrossConfigChanges,
+              },
+            );
+          }
+          await transactionOwnership.checkpoint();
+          assertCurrent();
           params.acceptTerminalConfig({
-            retireRejectedRestart: acceptedRestart.retireRejectedRestart,
+            retireRejectedRestart: acceptedRestart.retireRejectedRestart && !lateConservativeDebt,
           });
           publishDeferredAppliedConfigHash();
-          return;
+        } catch (error) {
+          if (lateConservativeDebt) {
+            restoreConservativeRestartDebt(lateConservativeDebt);
+          }
+          acceptedTargetOwnership?.reject();
+          throw error;
         }
-        if (acceptedRestart.debt) {
-          await runManagedRestart(
-            acceptedRestart.debt.plan,
-            nextConfig,
-            transactionOwnership,
-            sourceConfig,
-            {
-              retainDebtAcrossConfigChanges: acceptedRestart.debt.retainDebtAcrossConfigChanges,
-            },
-            acceptance.publishSource,
-          );
-        } else {
-          await acceptance.publishSource?.();
+      },
+      onConfigApplied: (plan, nextConfig) => {
+        // Applied runtime identity owns config-derived process memos; accepted
+        // source-only changes must not evict caches for the still-active config.
+        if (plan.changedPaths.some((path) => path === "logging" || path.startsWith("logging."))) {
+          applyLoggingConfig(nextConfig.logging);
         }
-        await transactionOwnership.checkpoint();
-        assertCurrent();
-        // Target publication clears the candidate pause. Take conservative debt
-        // synchronously at the same edge so acceptance-window failures cannot strand it.
-        const acceptedTarget = publishAcceptedRestartTarget(createRestartTarget());
-        acceptedTargetOwnership = acceptedTarget.ownership;
-        lateConservativeDebt = acceptedTarget.conservativeDebt;
-        if (lateConservativeDebt && lateConservativeDebt !== acceptedRestart.debt) {
-          await runManagedRestart(
-            lateConservativeDebt.plan,
-            nextConfig,
-            transactionOwnership,
-            sourceConfig,
-            {
-              retainDebtAcrossConfigChanges: lateConservativeDebt.retainDebtAcrossConfigChanges,
-            },
-          );
+        resetSkillSnapshotConfigFingerprintCache();
+      },
+      onConfigRevisionApplied: publishAppliedConfigHash,
+      hasOutstandingGatewayRestart,
+      onEffectiveConfigUnchanged,
+      onNoopConfigCommit: async (plan, nextConfig, ownership, sourceConfig) => {
+        // Cleared per transaction so a rebuild can never inherit a config committed
+        // by an earlier one when this commit does not reach markRuntimeCommitted.
+        lastCommittedRuntimeConfig = undefined;
+        const applicationStatus = await onHotReload(plan, nextConfig, ownership, sourceConfig);
+        if (isNoopGatewayReloadPlan(plan) && !canAdvancePreparedModelRuntimeConfigInPlace(plan)) {
+          // Rebuild against the committed runtime config, not the source-derived
+          // candidate. `secrets.providers.*` resolves to a different object, and
+          // stamping the rebuilt owner with the pre-resolution identity makes every
+          // strict catalog read reject it -- the failure this fix exists to remove.
+          const pluginMetadataSnapshot = params.getPluginMetadataSnapshot?.();
+          await refreshPreparedModelRuntimeSnapshots(lastCommittedRuntimeConfig ?? nextConfig, {
+            gatewayLifecycle: true,
+            catalogMode: "static",
+            allowGatewaySubagentBinding: true,
+            ...(pluginMetadataSnapshot ? { pluginMetadataSnapshot } : {}),
+          });
         }
-        await transactionOwnership.checkpoint();
-        assertCurrent();
-        params.acceptTerminalConfig({
-          retireRejectedRestart: acceptedRestart.retireRejectedRestart && !lateConservativeDebt,
-        });
-        publishDeferredAppliedConfigHash();
-      } catch (error) {
-        if (lateConservativeDebt) {
-          restoreConservativeRestartDebt(lateConservativeDebt);
-        }
-        acceptedTargetOwnership?.reject();
-        throw error;
-      }
+        return applicationStatus;
+      },
+      onHotReload,
+      onRestart: runManagedRestart,
+      log: {
+        info: (msg) => params.logReload.info(msg),
+        warn: (msg) => params.logReload.warn(msg),
+        error: (msg) => params.logReload.error(msg),
+      },
+      watchPath: params.watchPath,
     },
-    onConfigApplied: (plan, nextConfig) => {
-      // Applied runtime identity owns config-derived process memos; accepted
-      // source-only changes must not evict caches for the still-active config.
-      if (plan.changedPaths.some((path) => path === "logging" || path.startsWith("logging."))) {
-        applyLoggingConfig(nextConfig.logging);
-      }
-      resetSkillSnapshotConfigFingerprintCache();
-    },
-    onConfigRevisionApplied: publishAppliedConfigHash,
-    hasOutstandingGatewayRestart,
-    onEffectiveConfigUnchanged,
-    onNoopConfigCommit: async (plan, nextConfig, ownership, sourceConfig) => {
-      // Cleared per transaction so a rebuild can never inherit a config committed
-      // by an earlier one when this commit does not reach markRuntimeCommitted.
-      lastCommittedRuntimeConfig = undefined;
-      const applicationStatus = await onHotReload(plan, nextConfig, ownership, sourceConfig);
-      if (isNoopGatewayReloadPlan(plan) && !canAdvancePreparedModelRuntimeConfigInPlace(plan)) {
-        // Rebuild against the committed runtime config, not the source-derived
-        // candidate. `secrets.providers.*` resolves to a different object, and
-        // stamping the rebuilt owner with the pre-resolution identity makes every
-        // strict catalog read reject it -- the failure this fix exists to remove.
-        const pluginMetadataSnapshot = params.getPluginMetadataSnapshot?.();
-        await refreshPreparedModelRuntimeSnapshots(lastCommittedRuntimeConfig ?? nextConfig, {
-          gatewayLifecycle: true,
-          catalogMode: "static",
-          allowGatewaySubagentBinding: true,
-          ...(pluginMetadataSnapshot ? { pluginMetadataSnapshot } : {}),
-        });
-      }
-      return applicationStatus;
-    },
-    onHotReload,
-    onRestart: runManagedRestart,
-    log: {
-      info: (msg) => params.logReload.info(msg),
-      warn: (msg) => params.logReload.warn(msg),
-      error: (msg) => params.logReload.error(msg),
-    },
-    watchPath: params.watchPath,
-  });
+    nativeOwner,
+  );
+  recordNativeServingCommit(
+    nativeOwner,
+    params.initialConfig,
+    startupTicket,
+    params.sharedGatewaySessionGenerationState.capture(),
+  );
+  const ready = configReloader.ready.finally(() => finishNativeTransition(startupTicket));
   return {
-    ready: configReloader.ready,
-    getCommittedRuntimeConfig: () => committedRuntimeConfig,
+    ready,
+    getCommittedRuntimeConfig: () => readNativeServingConfig(nativeOwner) ?? committedRuntimeConfig,
+    captureNativeServingRead: () => captureNativeServingRead(nativeOwner),
     stop: async () => {
+      closeNativeOwner(nativeOwner);
       lifecycle.abort(new GatewayConfigReloadSupersededError());
       stopRestartRetries();
       // Release managed waiters before the base reloader joins every active transaction.

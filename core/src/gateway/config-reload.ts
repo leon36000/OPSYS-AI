@@ -24,7 +24,11 @@ import type { ConfigWriteNotification } from "../config/io.js";
 import { hashConfigRaw } from "../config/io.read-helpers.js";
 import { formatConfigIssueLines } from "../config/issue-format.js";
 import { serializeConfigResolutionFacts } from "../config/resolution-facts.js";
-import { hashRuntimeConfigValue, resolveConfigWriteFollowUp } from "../config/runtime-snapshot.js";
+import {
+  getRuntimeConfigSnapshot,
+  hashRuntimeConfigValue,
+  resolveConfigWriteFollowUp,
+} from "../config/runtime-snapshot.js";
 import type { RuntimeConfigSnapshotRefreshOptions } from "../config/runtime-snapshot.js";
 import {
   getRuntimeConfigWriteApplication,
@@ -68,6 +72,12 @@ import {
   assertReloadPublicationCurrent,
   GatewayConfigReloadSupersededError,
 } from "./server-reload-contracts.js";
+import {
+  finishNativeTransition,
+  reserveNativeTransition,
+  type NativePolicyOwner,
+  type NativeTransitionTicket,
+} from "./server-runtime-policy-owner.js";
 
 export type { GatewayReloadPlan } from "./config-reload-plan.js";
 const MISSING_CONFIG_RETRY_DELAY_MS = 150;
@@ -127,6 +137,8 @@ export type GatewayConfigReloadTransactionOwnership = {
   ) => Promise<T>;
   assertInvokerOwned?: () => void;
   markRuntimeCommitted: (runtimeConfig: OpenClawConfig, plan: GatewayReloadPlan) => void;
+  /** Core hot owner only, after its actual successful generation finalization. */
+  completeNativeServing?: (runtimeConfig: OpenClawConfig) => void;
   commitRuntimeEnv: () => void;
   publishRuntimeEnv: () => void;
   rollbackRuntimeEnv: () => void;
@@ -161,99 +173,108 @@ function isConfigReloadSuperseded(error: unknown): boolean {
   return cause instanceof GatewayConfigReloadSupersededError;
 }
 
-export function startGatewayConfigReloader(opts: {
-  initialConfig: OpenClawConfig;
-  initialCompareConfig?: OpenClawConfig;
-  initialSnapshotRawHash: string | null;
-  initialAuthoredConfig: unknown;
-  initialIncludedPaths?: readonly string[];
-  initialSnapshotValid: boolean;
-  initialSnapshotIssues: ConfigFileSnapshot["issues"];
-  /** Keeps watcher-heavy tests immediate without reopening config-level debounce tuning. */
-  testDebounceMs?: number;
-  /** Per-instance test hook for synchronizing filesystem edits with watcher startup. */
-  onWatcherReady?: () => void;
-  /** Source acceptance controls ancillary reload owners even when runtime application is off. */
-  onReloadEnabledChange?: (enabled: boolean) => void;
-  prepareConfigCandidate?: (params: {
-    runtimeConfig: OpenClawConfig;
-    sourceConfig: OpenClawConfig;
-    previousSourceConfig: OpenClawConfig;
-  }) => Promise<PreparedGatewayConfigCandidate>;
-  readSnapshot: (activeSourceConfig: OpenClawConfig) => Promise<ConfigFileSnapshot>;
-  /** Pauses restart emission synchronously when a matching disk candidate is observed. */
-  onConfigCandidateObserved?: () => void;
-  onConfigChange?: (plan: GatewayReloadPlan, nextConfig: OpenClawConfig) => void | Promise<void>;
-  /** Publishes runtime state after a hot or no-op config transaction. */
-  onConfigApplied?: (plan: GatewayReloadPlan, nextConfig: OpenClawConfig) => void | Promise<void>;
-  /** Runs synchronously when a config transaction publishes its runtime state. */
-  onRuntimeConfigCommitted?: (plan: GatewayReloadPlan, nextConfig: OpenClawConfig) => void;
-  /** Publishes the resolved source-config revision accepted by the active runtime. */
-  onConfigRevisionApplied?: (hash: string) => void;
-  /** Reads the same restart owner that fences publication of the applied revision. */
-  hasOutstandingGatewayRestart?: () => boolean;
-  /** Retires rejected lifecycle work after any newer config transaction is accepted. */
-  onConfigAccepted?: (
-    nextConfig: OpenClawConfig,
-    ownership: GatewayConfigReloadTransactionOwnership,
-    sourceConfig: OpenClawConfig,
-    acceptance: {
-      runtimeApplied: boolean;
-      publishSource?: () => Promise<void>;
-    },
-  ) => void | Promise<void>;
-  /** Publishes a newer source snapshot when effective runtime bytes are unchanged. */
-  onEffectiveConfigUnchanged?: (
-    nextConfig: OpenClawConfig,
-    ownership: GatewayConfigReloadTransactionOwnership,
-    sourceConfig: OpenClawConfig,
-  ) => Promise<{
-    rollback: () => Promise<void>;
-    /** Runs only when this exact source publication can no longer roll back. */
-    commit?: () => void;
-  }>;
-  /**
-   * Fires once per accepted candidate whose persisted content changed —
-   * regardless of writer (gateway RPC, agent/CLI config_set, doctor, hand
-   * edit) and of whether the runtime applied it. The single notification
-   * point for change listeners such as the config.changed broadcast.
-   */
-  onConfigCandidateCommitted?: (info: {
-    path: string;
-    persistedHash: string | null;
-    changedPaths: readonly string[];
-  }) => void;
-  onNoopConfigCommit: (
-    plan: GatewayReloadPlan,
-    nextConfig: OpenClawConfig,
-    ownership: GatewayConfigReloadTransactionOwnership,
-    sourceConfig: OpenClawConfig,
-  ) => Promise<void | GatewayHotReloadApplication>;
-  onHotReload: (
-    plan: GatewayReloadPlan,
-    nextConfig: OpenClawConfig,
-    ownership: GatewayConfigReloadTransactionOwnership,
-    sourceConfig: OpenClawConfig,
-  ) => Promise<GatewayHotReloadApplication>;
-  onRestart: (
-    plan: GatewayReloadPlan,
-    nextConfig: OpenClawConfig,
-    ownership: GatewayConfigReloadTransactionOwnership,
-    sourceConfig: OpenClawConfig,
-  ) => void | Promise<void>;
-  /** Keeps one accepted config transaction inside the Gateway work fence. */
-  runTransaction?: <T>(run: () => Promise<T>) => Promise<T>;
-  promoteSnapshot?: (snapshot: ConfigFileSnapshot, reason: string) => Promise<boolean>;
-  initialPluginInstallRecords?: PluginInstallRecords;
-  readPluginInstallRecords?: () => Promise<PluginInstallRecords>;
-  subscribeToWrites?: (listener: (event: ConfigWriteNotification) => void) => () => void;
-  log: {
-    info: (msg: string) => void;
-    warn: (msg: string) => void;
-    error: (msg: string) => void;
-  };
-  watchPath: string;
-}): GatewayConfigReloader {
+export function startGatewayConfigReloader(
+  opts: {
+    initialConfig: OpenClawConfig;
+    initialCompareConfig?: OpenClawConfig;
+    initialSnapshotRawHash: string | null;
+    initialAuthoredConfig: unknown;
+    initialIncludedPaths?: readonly string[];
+    initialSnapshotValid: boolean;
+    initialSnapshotIssues: ConfigFileSnapshot["issues"];
+    /** Keeps watcher-heavy tests immediate without reopening config-level debounce tuning. */
+    testDebounceMs?: number;
+    /** Per-instance test hook for synchronizing filesystem edits with watcher startup. */
+    onWatcherReady?: () => void;
+    /** Source acceptance controls ancillary reload owners even when runtime application is off. */
+    onReloadEnabledChange?: (enabled: boolean) => void;
+    prepareConfigCandidate?: (params: {
+      runtimeConfig: OpenClawConfig;
+      sourceConfig: OpenClawConfig;
+      previousSourceConfig: OpenClawConfig;
+    }) => Promise<PreparedGatewayConfigCandidate>;
+    readSnapshot: (activeSourceConfig: OpenClawConfig) => Promise<ConfigFileSnapshot>;
+    /** Pauses restart emission synchronously when a matching disk candidate is observed. */
+    onConfigCandidateObserved?: () => void;
+    onConfigChange?: (plan: GatewayReloadPlan, nextConfig: OpenClawConfig) => void | Promise<void>;
+    /** Publishes runtime state after a hot or no-op config transaction. */
+    onConfigApplied?: (plan: GatewayReloadPlan, nextConfig: OpenClawConfig) => void | Promise<void>;
+    /** Runs synchronously when a config transaction publishes its runtime state. */
+    onRuntimeConfigCommitted?: (
+      plan: GatewayReloadPlan,
+      nextConfig: OpenClawConfig,
+      nativeTicket?: NativeTransitionTicket,
+    ) => void;
+    /** Private managed serving notification; no legacy publication side effects. */
+    onNativeServingCommitted?: (config: OpenClawConfig, ticket: NativeTransitionTicket) => void;
+    /** Publishes the resolved source-config revision accepted by the active runtime. */
+    onConfigRevisionApplied?: (hash: string) => void;
+    /** Reads the same restart owner that fences publication of the applied revision. */
+    hasOutstandingGatewayRestart?: () => boolean;
+    /** Retires rejected lifecycle work after any newer config transaction is accepted. */
+    onConfigAccepted?: (
+      nextConfig: OpenClawConfig,
+      ownership: GatewayConfigReloadTransactionOwnership,
+      sourceConfig: OpenClawConfig,
+      acceptance: {
+        runtimeApplied: boolean;
+        publishSource?: () => Promise<void>;
+      },
+    ) => void | Promise<void>;
+    /** Publishes a newer source snapshot when effective runtime bytes are unchanged. */
+    onEffectiveConfigUnchanged?: (
+      nextConfig: OpenClawConfig,
+      ownership: GatewayConfigReloadTransactionOwnership,
+      sourceConfig: OpenClawConfig,
+    ) => Promise<{
+      rollback: () => Promise<void>;
+      /** Runs only when this exact source publication can no longer roll back. */
+      commit?: () => void;
+    }>;
+    /**
+     * Fires once per accepted candidate whose persisted content changed —
+     * regardless of writer (gateway RPC, agent/CLI config_set, doctor, hand
+     * edit) and of whether the runtime applied it. The single notification
+     * point for change listeners such as the config.changed broadcast.
+     */
+    onConfigCandidateCommitted?: (info: {
+      path: string;
+      persistedHash: string | null;
+      changedPaths: readonly string[];
+    }) => void;
+    onNoopConfigCommit: (
+      plan: GatewayReloadPlan,
+      nextConfig: OpenClawConfig,
+      ownership: GatewayConfigReloadTransactionOwnership,
+      sourceConfig: OpenClawConfig,
+    ) => Promise<void | GatewayHotReloadApplication>;
+    onHotReload: (
+      plan: GatewayReloadPlan,
+      nextConfig: OpenClawConfig,
+      ownership: GatewayConfigReloadTransactionOwnership,
+      sourceConfig: OpenClawConfig,
+    ) => Promise<GatewayHotReloadApplication>;
+    onRestart: (
+      plan: GatewayReloadPlan,
+      nextConfig: OpenClawConfig,
+      ownership: GatewayConfigReloadTransactionOwnership,
+      sourceConfig: OpenClawConfig,
+    ) => void | Promise<void>;
+    /** Keeps one accepted config transaction inside the Gateway work fence. */
+    runTransaction?: <T>(run: () => Promise<T>) => Promise<T>;
+    promoteSnapshot?: (snapshot: ConfigFileSnapshot, reason: string) => Promise<boolean>;
+    initialPluginInstallRecords?: PluginInstallRecords;
+    readPluginInstallRecords?: () => Promise<PluginInstallRecords>;
+    subscribeToWrites?: (listener: (event: ConfigWriteNotification) => void) => () => void;
+    log: {
+      info: (msg: string) => void;
+      warn: (msg: string) => void;
+      error: (msg: string) => void;
+    };
+    watchPath: string;
+  },
+  nativeOwner?: NativePolicyOwner,
+): GatewayConfigReloader {
   const initialSourceConfig = opts.initialCompareConfig ?? opts.initialConfig;
   let currentConfig = opts.initialConfig;
   let currentCompareConfig = initialSourceConfig;
@@ -276,6 +297,12 @@ export function startGatewayConfigReloader(opts: {
   let settings = resolveSettings(currentConfig);
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   let pending = false;
+  const pendingNativeTickets = new Set<NativeTransitionTicket>();
+  const reservePendingNativeTransition = () => {
+    if (nativeOwner && !stopped) {
+      pendingNativeTickets.add(reserveNativeTransition(nativeOwner));
+    }
+  };
   let running = false;
   let stopped = false;
   let initialized = false;
@@ -460,10 +487,12 @@ export function startGatewayConfigReloader(opts: {
       pluginLifecycle,
       onRuntimeCommitted,
       assertInvokerOwned: pluginInvokerGuard,
+      nativeTicket,
     }: {
       pluginLifecycle?: GatewayReloadPlan["pluginLifecycle"];
       onRuntimeCommitted?: () => void;
       assertInvokerOwned?: () => void;
+      nativeTicket?: NativeTransitionTicket;
     } = {},
   ) => {
     let transactionEpoch = initialEpoch;
@@ -614,13 +643,30 @@ export function startGatewayConfigReloader(opts: {
         publishedRuntimeEnv = undefined;
       },
       commitRuntimeEnv: commitPublishedRuntimeEnv,
+      ...(nativeTicket
+        ? {
+            completeNativeServing: (runtimeConfig: OpenClawConfig) => {
+              if (runtimeConfig !== committedRuntimeConfig) {
+                return;
+              }
+              const canonical = getRuntimeConfigSnapshot();
+              if (canonical) {
+                opts.onNativeServingCommitted?.(canonical, nativeTicket);
+              }
+            },
+          }
+        : {}),
       markRuntimeCommitted: (runtimeConfig, plan) => {
         // Publication can win immediately before a watcher supersedes this
         // transaction. Advance the runtime diff baseline at that exact edge so
         // the newer disk config plans the reverse work instead of diffing stale state.
         commitPublishedRuntimeEnv();
         onRuntimeCommitted?.();
-        opts.onRuntimeConfigCommitted?.(plan, runtimeConfig);
+        if (nativeTicket) {
+          opts.onRuntimeConfigCommitted?.(plan, runtimeConfig, nativeTicket);
+        } else {
+          opts.onRuntimeConfigCommitted?.(plan, runtimeConfig);
+        }
         committedRuntimeConfig = runtimeConfig;
         currentConfig = runtimeConfig;
         currentCompareConfig = nextCompareConfig;
@@ -822,6 +868,12 @@ export function startGatewayConfigReloader(opts: {
     if (changedPaths.length === 0 && !pluginLifecycle) {
       await commitReloadBaseline();
       publishedSource?.commit?.();
+      if (publishedSource?.commit && nativeTicket) {
+        const committed = getRuntimeConfigSnapshot();
+        if (committed) {
+          opts.onNativeServingCommitted?.(committed, nativeTicket);
+        }
+      }
       opts.onConfigRevisionApplied?.(nextConfigRevisionHash);
       settleRuntimeApplication();
       return completeApplication();
@@ -998,8 +1050,10 @@ export function startGatewayConfigReloader(opts: {
     candidate: InProcessConfigCandidate,
     epoch: number,
     assertLeaseOwned: () => void,
+    nativeTicket?: NativeTransitionTicket,
   ) => {
     const applied = await applySnapshot(snapshot, candidate, epoch, {
+      nativeTicket,
       assertInvokerOwned: assertLeaseOwned,
     });
     if (activeInProcessConfig === candidate) {
@@ -1015,7 +1069,7 @@ export function startGatewayConfigReloader(opts: {
     }
   };
 
-  const runReload = async (assertLeaseOwned: () => void) => {
+  const runReload = async (assertLeaseOwned: () => void, nativeTicket?: NativeTransitionTicket) => {
     if (stopped || !initialized) {
       return;
     }
@@ -1054,6 +1108,7 @@ export function startGatewayConfigReloader(opts: {
               pendingWrite,
               pendingWrite.epoch,
               assertLeaseOwned,
+              nativeTicket,
             );
           }, pendingWrite.application);
         } catch (err) {
@@ -1199,6 +1254,7 @@ export function startGatewayConfigReloader(opts: {
       }
       await runAcceptedTransaction(async () => {
         const applied = await applySnapshot(snapshot, undefined, transactionEpoch, {
+          nativeTicket,
           assertInvokerOwned: assertLeaseOwned,
         });
         if (applied.isCurrent()) {
@@ -1236,21 +1292,32 @@ export function startGatewayConfigReloader(opts: {
       pending = true;
       return;
     }
+    const nativeTicket = nativeOwner ? reserveNativeTransition(nativeOwner) : undefined;
+    const queuedTickets = [...pendingNativeTickets];
+    pendingNativeTickets.clear();
     // Management enters with the lease held, then takes the config queue. A watcher
     // must use the same order, including when its timer inherited a writer's context.
     const reload = runOutsidePluginLifecycleLease(() =>
       withPluginLifecycleLease({ signal: lifecycle.signal }, async (lease) => {
-        await runReload(() => lease.assertOwned());
+        await runReload(() => lease.assertOwned(), nativeTicket);
       }),
     ).catch((error: unknown) => {
       if (!stopped) {
         opts.log.error(`config reload failed: ${String(error)}`);
       }
     });
-    watcherReload = reload;
-    activeReloads.add(reload);
-    void reload.then(() => {
-      activeReloads.delete(reload);
+    const completed = reload.finally(() => {
+      if (nativeTicket) {
+        finishNativeTransition(nativeTicket);
+      }
+      for (const ticket of queuedTickets) {
+        finishNativeTransition(ticket);
+      }
+    });
+    watcherReload = completed;
+    activeReloads.add(completed);
+    void completed.then(() => {
+      activeReloads.delete(completed);
       watcherReload = undefined;
       if (pending && !running) {
         pending = false;
@@ -1260,131 +1327,152 @@ export function startGatewayConfigReloader(opts: {
   }
 
   const applyPluginLifecycleChange: PluginLifecycleRuntimeApply = (params) => {
+    const nativeTicket = nativeOwner ? reserveNativeTransition(nativeOwner) : undefined;
+    let queuedTickets: NativeTransitionTicket[] = [];
     const previousOperation = pluginOperationTail;
     const operationId = randomUUID();
-    const operation: Promise<PluginRuntimeApplication> = previousOperation.then(async () => {
-      params.assertInvokerOwned?.();
-      await ready;
-      params.assertInvokerOwned?.();
-      // The awaited reload releases `running` in finally; a queued reload may take ownership next.
-      for (;;) {
-        const reload = watcherReload;
-        if (!running || !reload) {
-          break;
-        }
-        await reload;
-      }
-      params.assertInvokerOwned?.();
-      if (stopped) {
-        throw new Error("Gateway plugin lifecycle is stopped.");
-      }
-      running = true;
-      clearReloadTimer();
-      let candidate = pendingInProcessConfig ?? watcherIntentCandidate;
-      let committed = false;
-      try {
-        const expectedSourceConfig = params.write
-          ? params.write.persistedSourceConfig
-          : params.config;
-        const epoch = sourceObservation.epoch;
-        const snapshot = await opts.readSnapshot(currentRuntimeEnvSourceConfig);
+    const operation: Promise<PluginRuntimeApplication> = previousOperation
+      .then(async () => {
         params.assertInvokerOwned?.();
-        if (!snapshot.valid || !snapshot.exists) {
-          throw new Error("Plugin runtime application requires a valid persisted config.");
-        }
-        if (
-          !expectedSourceConfig ||
-          (params.write &&
-            (typeof params.write.persistedHash !== "string" ||
-              snapshot.hash !== params.write.persistedHash)) ||
-          diffConfigPaths(snapshot.sourceConfig, expectedSourceConfig).length > 0
-        ) {
-          throw new GatewayConfigReloadSupersededError();
-        }
-        if (pendingInProcessConfig === candidate) {
-          pendingInProcessConfig = null;
-        }
-        activeInProcessConfig = candidate;
-        if (sourceObservation.writerEpoch > epoch) {
-          throw new GatewayConfigReloadSupersededError();
-        }
-        const matchesSnapshot = (queued: typeof candidate) =>
-          queued !== null &&
-          snapshot.hash === queued.persistedHash &&
-          diffConfigPaths(snapshot.sourceConfig, queued.compareConfig).length === 0;
-        if (!matchesSnapshot(candidate)) {
-          if (candidate !== watcherIntentCandidate) {
-            settleApplication(candidate, "superseded");
+        await ready;
+        params.assertInvokerOwned?.();
+        // The awaited reload releases `running` in finally; a queued reload may take ownership next.
+        for (;;) {
+          const reload = watcherReload;
+          if (!running || !reload) {
+            break;
           }
-          candidate = matchesSnapshot(watcherIntentCandidate) ? watcherIntentCandidate : null;
+          await reload;
         }
-        if (watcherIntentCandidate && watcherIntentCandidate !== candidate) {
-          settleApplication(watcherIntentCandidate, "superseded");
-          watcherIntentCandidate = null;
-          watcherIntentCameFromPendingWrite = false;
+        params.assertInvokerOwned?.();
+        if (stopped) {
+          throw new Error("Gateway plugin lifecycle is stopped.");
         }
-        activeInProcessConfig = candidate;
-        // Keep the invoking admission so plugin drain excludes the request
-        // awaiting this receipt. Watcher echoes may transfer only this write.
-        const applied = await applySnapshot(snapshot, candidate, epoch, {
-          pluginLifecycle: {
-            pluginIds: params.pluginIds,
-            reason: params.reason,
-            operationId,
-            expectedSourceDigests: params.expectedSourceDigests,
-            expectedInstallHashes: params.expectedInstallHashes,
-          },
-          onRuntimeCommitted: () => {
-            committed = true;
-          },
-          assertInvokerOwned: params.assertInvokerOwned,
-        });
-        if (!applied.runtime) {
-          throw new Error("Plugin runtime application did not produce a completed receipt.");
+        running = true;
+        clearReloadTimer();
+        queuedTickets = [...pendingNativeTickets];
+        pendingNativeTickets.clear();
+        let candidate = pendingInProcessConfig ?? watcherIntentCandidate;
+        let committed = false;
+        try {
+          const expectedSourceConfig = params.write
+            ? params.write.persistedSourceConfig
+            : params.config;
+          const epoch = sourceObservation.epoch;
+          const snapshot = await opts.readSnapshot(currentRuntimeEnvSourceConfig);
+          params.assertInvokerOwned?.();
+          if (!snapshot.valid || !snapshot.exists) {
+            throw new Error("Plugin runtime application requires a valid persisted config.");
+          }
+          if (
+            !expectedSourceConfig ||
+            (params.write &&
+              (typeof params.write.persistedHash !== "string" ||
+                snapshot.hash !== params.write.persistedHash)) ||
+            diffConfigPaths(snapshot.sourceConfig, expectedSourceConfig).length > 0
+          ) {
+            throw new GatewayConfigReloadSupersededError();
+          }
+          if (pendingInProcessConfig === candidate) {
+            pendingInProcessConfig = null;
+          }
+          activeInProcessConfig = candidate;
+          if (sourceObservation.writerEpoch > epoch) {
+            throw new GatewayConfigReloadSupersededError();
+          }
+          const matchesSnapshot = (queued: typeof candidate) =>
+            queued !== null &&
+            snapshot.hash === queued.persistedHash &&
+            diffConfigPaths(snapshot.sourceConfig, queued.compareConfig).length === 0;
+          if (!matchesSnapshot(candidate)) {
+            if (candidate !== watcherIntentCandidate) {
+              settleApplication(candidate, "superseded");
+            }
+            candidate = matchesSnapshot(watcherIntentCandidate) ? watcherIntentCandidate : null;
+          }
+          if (watcherIntentCandidate && watcherIntentCandidate !== candidate) {
+            settleApplication(watcherIntentCandidate, "superseded");
+            watcherIntentCandidate = null;
+            watcherIntentCameFromPendingWrite = false;
+          }
+          activeInProcessConfig = candidate;
+          // Keep the invoking admission so plugin drain excludes the request
+          // awaiting this receipt. Watcher echoes may transfer only this write.
+          const applied = await applySnapshot(snapshot, candidate, epoch, {
+            nativeTicket,
+            pluginLifecycle: {
+              pluginIds: params.pluginIds,
+              reason: params.reason,
+              operationId,
+              expectedSourceDigests: params.expectedSourceDigests,
+              expectedInstallHashes: params.expectedInstallHashes,
+            },
+            onRuntimeCommitted: () => {
+              committed = true;
+            },
+            assertInvokerOwned: params.assertInvokerOwned,
+          });
+          if (!applied.runtime) {
+            throw new Error("Plugin runtime application did not produce a completed receipt.");
+          }
+          if (watcherIntentCandidate === candidate) {
+            watcherIntentCandidate = null;
+            watcherIntentCameFromPendingWrite = false;
+          }
+          lastAppliedWriteHash = snapshot.hash ?? null;
+          await acceptWatchedPaths(snapshot.includedPaths ?? []);
+          if (applied.isCurrent()) {
+            await promoteAcceptedSnapshot(snapshot, "plugin-lifecycle");
+          }
+          return applied.runtime;
+        } catch (error) {
+          settleApplication(candidate, "failed");
+          if (error instanceof PluginRuntimeApplicationError) {
+            throw error;
+          }
+          throw new PluginRuntimeApplicationError(
+            String(error),
+            {
+              operationId,
+              generation: getPluginRuntimeGeneration(),
+              pluginIds: [...params.pluginIds],
+              phase: "prepare",
+              committed,
+            },
+            { cause: error },
+          );
+        } finally {
+          if (activeInProcessConfig === candidate) {
+            activeInProcessConfig = null;
+          }
+          running = false;
+          if (pending || pendingInProcessConfig) {
+            // A write not consumed by this operation retains its reservation
+            // until the actual watcher transaction owns and settles it.
+            for (const ticket of queuedTickets) {
+              pendingNativeTickets.add(ticket);
+            }
+            queuedTickets = [];
+            pending = false;
+            schedule();
+          }
         }
-        if (watcherIntentCandidate === candidate) {
-          watcherIntentCandidate = null;
-          watcherIntentCameFromPendingWrite = false;
+      })
+      .finally(() => {
+        if (nativeTicket) {
+          finishNativeTransition(nativeTicket);
         }
-        lastAppliedWriteHash = snapshot.hash ?? null;
-        await acceptWatchedPaths(snapshot.includedPaths ?? []);
-        if (applied.isCurrent()) {
-          await promoteAcceptedSnapshot(snapshot, "plugin-lifecycle");
+        for (const ticket of queuedTickets) {
+          finishNativeTransition(ticket);
         }
-        return applied.runtime;
-      } catch (error) {
-        settleApplication(candidate, "failed");
-        if (error instanceof PluginRuntimeApplicationError) {
-          throw error;
-        }
-        throw new PluginRuntimeApplicationError(
-          String(error),
-          {
-            operationId,
-            generation: getPluginRuntimeGeneration(),
-            pluginIds: [...params.pluginIds],
-            phase: "prepare",
-            committed,
-          },
-          { cause: error },
-        );
-      } finally {
-        if (activeInProcessConfig === candidate) {
-          activeInProcessConfig = null;
-        }
-        running = false;
-        if (pending || pendingInProcessConfig) {
-          pending = false;
-          schedule();
-        }
-      }
-    });
+      });
     pluginOperationTail = operation.catch(() => {});
     trackReload(operation);
     return operation;
   };
 
   const scheduleExternalRefresh = () => {
+    reservePendingNativeTransition();
     opts.onConfigCandidateObserved?.();
     // Fence publication until this observation validates. A genuine successor
     // belongs to the scheduled watcher, never the preceding transaction.
@@ -1424,6 +1512,7 @@ export function startGatewayConfigReloader(opts: {
         application?.settle("stopped");
         return;
       }
+      reservePendingNativeTransition();
       opts.onConfigCandidateObserved?.();
       sourceObservation = {
         epoch: sourceObservation.epoch + 1,
@@ -1472,39 +1561,46 @@ export function startGatewayConfigReloader(opts: {
   let watcherUsesPolling = false;
 
   const reconcileInitialWatch = async (source: NonNullable<typeof watcher>) => {
-    const epoch = sourceObservation.epoch;
-    const isCurrent = () => !stopped && watcher === source && sourceObservation.epoch === epoch;
+    const ticket = nativeOwner ? reserveNativeTransition(nativeOwner) : undefined;
     try {
-      const snapshot = await opts.readSnapshot(currentRuntimeEnvSourceConfig);
-      if (!isCurrent()) {
-        return;
+      const epoch = sourceObservation.epoch;
+      const isCurrent = () => !stopped && watcher === source && sourceObservation.epoch === epoch;
+      try {
+        const snapshot = await opts.readSnapshot(currentRuntimeEnvSourceConfig);
+        if (!isCurrent()) {
+          return;
+        }
+        const includedPaths = snapshot.includedPaths ?? [];
+        const hasIncludes = acceptedIncludedPaths.size > 0 || includedPaths.length > 0;
+        const sameIncludedPaths =
+          acceptedIncludedPaths.size === includedPaths.length &&
+          includedPaths.every((path) => acceptedIncludedPaths.has(path));
+        const sameRoot = snapshot.exists
+          ? hashConfigRaw(snapshot.raw) === currentRawHash
+          : currentRawHash === null;
+        // Without includes, equal authored bytes prove the initial scan found no disk edit.
+        // Included files can change without changing the root file hash.
+        if (
+          snapshot.valid &&
+          sameRoot &&
+          (!hasIncludes ||
+            (sameIncludedPaths &&
+              diffConfigPaths(currentSourceConfig, snapshot.sourceConfig).length === 0))
+        ) {
+          return;
+        }
+      } catch (err) {
+        if (!isCurrent()) {
+          return;
+        }
+        opts.log.warn(`config reload initial watch check failed: ${String(err)}`);
       }
-      const includedPaths = snapshot.includedPaths ?? [];
-      const hasIncludes = acceptedIncludedPaths.size > 0 || includedPaths.length > 0;
-      const sameIncludedPaths =
-        acceptedIncludedPaths.size === includedPaths.length &&
-        includedPaths.every((path) => acceptedIncludedPaths.has(path));
-      const sameRoot = snapshot.exists
-        ? hashConfigRaw(snapshot.raw) === currentRawHash
-        : currentRawHash === null;
-      // Without includes, equal authored bytes prove the initial scan found no disk edit.
-      // Included files can change without changing the root file hash.
-      if (
-        snapshot.valid &&
-        sameRoot &&
-        (!hasIncludes ||
-          (sameIncludedPaths &&
-            diffConfigPaths(currentSourceConfig, snapshot.sourceConfig).length === 0))
-      ) {
-        return;
+      scheduleExternalRefresh();
+    } finally {
+      if (ticket) {
+        finishNativeTransition(ticket);
       }
-    } catch (err) {
-      if (!isCurrent()) {
-        return;
-      }
-      opts.log.warn(`config reload initial watch check failed: ${String(err)}`);
     }
-    scheduleExternalRefresh();
   };
 
   const createWatcher = (reconcileAfterReady?: "initial" | "replacement") => {
@@ -1733,7 +1829,12 @@ export function startGatewayConfigReloader(opts: {
     applyPluginLifecycleChange,
     isReloading: () => activeReloads.size > 0,
     stop: async () => {
+      const ticket = nativeOwner ? reserveNativeTransition(nativeOwner) : undefined;
       stopped = true;
+      for (const queued of pendingNativeTickets) {
+        finishNativeTransition(queued);
+      }
+      pendingNativeTickets.clear();
       lifecycle.abort(new GatewayConfigReloadSupersededError());
       settleApplication(pendingInProcessConfig, "stopped");
       settleApplication(activeInProcessConfig, "stopped");
@@ -1749,7 +1850,13 @@ export function startGatewayConfigReloader(opts: {
       watcher = null;
       await active?.close().catch(() => {});
       // Timer callbacks detach runReload; shutdown owns their full transaction unwind.
-      await Promise.all(activeReloads);
+      try {
+        await Promise.all(activeReloads);
+      } finally {
+        if (ticket) {
+          finishNativeTransition(ticket);
+        }
+      }
     },
     hotReloadStatus: () => (initialized ? hotReloadStatus : undefined),
   };

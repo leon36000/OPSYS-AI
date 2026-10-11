@@ -507,9 +507,12 @@ export function createManagedReloadSecretHandlers(options: {
       // revision after this commit. Finalize only while this transaction's
       // generation is still current so a genuinely newer generation wins.
       if (publishedSharedGatewaySessionGeneration) {
-        params.sharedGatewaySessionGenerationState.finalize(
+        const finalized = params.sharedGatewaySessionGenerationState.finalize(
           publishedSharedGatewaySessionGeneration,
         );
+        if (runtimeCommitted && finalized) {
+          transactionOwnership.completeNativeServing?.(prepared.config);
+        }
       }
       return applicationStatus;
     }

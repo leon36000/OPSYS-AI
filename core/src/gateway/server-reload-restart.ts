@@ -23,6 +23,12 @@ import {
   type GatewayRestartTransactionState,
 } from "./server-reload-contracts.js";
 import { isCurrentGatewayReloadGeneration } from "./server-reload-generation.js";
+import {
+  finishNativeTransition,
+  reserveNativeTransition,
+  type NativePolicyOwner,
+  type NativeTransitionTicket,
+} from "./server-runtime-policy-owner.js";
 
 const RESTART_EMISSION_RETRY_MS = 1_000;
 
@@ -104,7 +110,22 @@ class GatewayRestartTransaction {
     publish: setRuntimeConfigAppliedHash,
   });
 
-  constructor(private readonly options: GatewayRestartCoordinatorOptions) {}
+  private nativeOperationTicket: NativeTransitionTicket | undefined;
+
+  constructor(
+    private readonly options: GatewayRestartCoordinatorOptions,
+    private readonly nativeOwner?: NativePolicyOwner,
+  ) {}
+
+  private beginNativeOperation(): NativeTransitionTicket | undefined {
+    return this.nativeOwner ? reserveNativeTransition(this.nativeOwner) : undefined;
+  }
+
+  private finishNativeOperation(ticket: NativeTransitionTicket | undefined): void {
+    if (ticket) {
+      finishNativeTransition(ticket);
+    }
+  }
 
   readonly isStopped = () => this.retryStopped;
   readonly hasPendingConfigCandidate = () => this.acceptedTargetState.kind === "candidate-pending";
@@ -190,6 +211,7 @@ class GatewayRestartTransaction {
   }
 
   beginLifecycle() {
+    const nativeTicket = this.beginNativeOperation();
     // A newer restart candidate owns the disk config now. Cancel any older
     // emission before async preflight so it cannot restart into stale secrets.
     if (
@@ -202,10 +224,12 @@ class GatewayRestartTransaction {
     this.supersedeRequest();
     const transaction = { state: "pending" as GatewayRestartTransactionState };
     this.operation = { kind: "lifecycle", transaction };
+    this.nativeOperationTicket = nativeTicket;
     return {
       settle: (state: Exclude<GatewayRestartTransactionState, "pending">) => {
         if (transaction.state === "pending") {
           transaction.state = state;
+          this.finishNativeOperation(nativeTicket);
           if (state === "committed") {
             this.pausedDebt = null;
           }
@@ -236,7 +260,9 @@ class GatewayRestartTransaction {
     nextConfig: OpenClawConfig,
     options?: GatewayRestartRequestOptions,
   ): GatewayRestartTransactionResult {
+    const nativeTicket = this.beginNativeOperation();
     if (this.retryStopped) {
+      this.finishNativeOperation(nativeTicket);
       return { status: "recovery-pending", settle: () => {} };
     }
     // Only another restart requirement supersedes accepted restart work. A
@@ -249,6 +275,7 @@ class GatewayRestartTransaction {
       details: this.createRequestDetails(plan, nextConfig, options),
       emissionSettled: false,
     };
+    this.nativeOperationTicket = nativeTicket;
     const requestGeneration = this.requestGeneration;
     const accepted = this.requestForGeneration(plan, nextConfig, requestGeneration, options);
     return {
@@ -256,6 +283,7 @@ class GatewayRestartTransaction {
       settle: (state) => {
         if (transaction.state === "pending") {
           transaction.state = state;
+          this.finishNativeOperation(nativeTicket);
         }
       },
     };
@@ -315,6 +343,8 @@ class GatewayRestartTransaction {
   }
 
   private supersedeRequest(): void {
+    this.finishNativeOperation(this.nativeOperationTicket);
+    this.nativeOperationTicket = undefined;
     this.requestGeneration += 1;
     this.restartDeferral?.cancel();
     this.restartDeferral = null;
@@ -349,6 +379,9 @@ class GatewayRestartTransaction {
         }
         if (retry.prepareForEmit && !(await retry.prepareForEmit())) {
           this.scheduleEmissionRetry(retry);
+          return;
+        }
+        if (!this.isCurrentRequest(retry.requestGeneration)) {
           return;
         }
         const emitResult = this.options.params.requestRecoveryRestart?.(retry.reason, retry.intent);
@@ -394,6 +427,7 @@ class GatewayRestartTransaction {
     const requestRecoveryRestart = params.requestRecoveryRestart;
     let emissionPrepared = true;
     const prepareForEmit = async () => {
+      const nativeTicket = this.beginNativeOperation();
       try {
         await params.assertRestartReady?.(nextConfig);
         if (!this.isCurrentRequest(requestGeneration)) {
@@ -412,6 +446,8 @@ class GatewayRestartTransaction {
         emissionPrepared = false;
         params.logReload.warn(`gateway restart preflight failed: ${String(err)}`);
         return false;
+      } finally {
+        this.finishNativeOperation(nativeTicket);
       }
     };
 
@@ -531,13 +567,28 @@ class GatewayRestartTransaction {
   }
 }
 
-export function createGatewayRestartCoordinator(options: GatewayRestartCoordinatorOptions) {
-  const transaction = new GatewayRestartTransaction(options);
+export function createGatewayRestartCoordinator(
+  options: GatewayRestartCoordinatorOptions,
+  nativeOwner?: NativePolicyOwner,
+) {
+  const transaction = new GatewayRestartTransaction(options, nativeOwner);
+  const transition = <T>(run: () => T): T => {
+    const ticket = nativeOwner ? reserveNativeTransition(nativeOwner) : undefined;
+    try {
+      return run();
+    } finally {
+      if (ticket) {
+        finishNativeTransition(ticket);
+      }
+    }
+  };
   return {
-    acceptRestartConfig: (config?: OpenClawConfig) => transaction.acceptConfig(config),
+    acceptRestartConfig: (config?: OpenClawConfig) =>
+      transition(() => transaction.acceptConfig(config)),
     ...transaction.appliedConfigHashPublisher,
     beginGatewayRestartLifecycle: () => transaction.beginLifecycle(),
-    pauseGatewayRestartForConfigCandidate: () => transaction.pauseForConfigCandidate(),
+    pauseGatewayRestartForConfigCandidate: () =>
+      transition(() => transaction.pauseForConfigCandidate()),
     publishAcceptedRestartTarget: (target: AcceptedRestartTarget) =>
       transaction.publishAcceptedTarget(target),
     recordAcceptedRestartTarget: (target: AcceptedRestartTarget) =>
@@ -548,13 +599,13 @@ export function createGatewayRestartCoordinator(options: GatewayRestartCoordinat
       requestOptions?: GatewayRestartRequestOptions,
     ) => transaction.request(plan, nextConfig, requestOptions),
     restoreConservativeRestartDebt: (debt: RestartRequestDetails) =>
-      transaction.restoreConservativeDebt(debt),
-    stopRestartRetries: () => transaction.stop(),
+      transition(() => transaction.restoreConservativeDebt(debt)),
+    stopRestartRetries: () => transition(() => transaction.stop()),
     deferGatewayRestartDebt: (
       plan: GatewayReloadPlan,
       nextConfig: OpenClawConfig,
       requestOptions?: GatewayRestartRequestOptions,
-    ) => transaction.deferDebt(plan, nextConfig, requestOptions),
+    ) => transition(() => transaction.deferDebt(plan, nextConfig, requestOptions)),
     getLatestAcceptedRestartTarget: transaction.getAcceptedTarget,
     hasConfigCandidatePending: transaction.hasPendingConfigCandidate,
     hasRestartRequestTransaction: transaction.hasOperation,
