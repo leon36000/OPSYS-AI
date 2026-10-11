@@ -60,6 +60,7 @@ import type {
   PreparedGatewayModelCatalog,
   PreparedGatewayModelCatalogReadResult,
 } from "../server-model-catalog.types.js";
+import type { NativeServingRead } from "../server-runtime-policy-owner.js";
 import type { DedupeEntry } from "../server-shared.js";
 import type { GatewayEventLoopHealth } from "../server/event-loop-health.js";
 import type { SessionObserverService } from "../session-observer-contract.js";
@@ -201,6 +202,8 @@ type GatewayKernelContext = {
   channelAdmissionAudit?: import("../../channels/message-access/admission-evidence.js").ChannelAdmissionAudit;
   /** Last serving policy committed by this Gateway, excluding tentative secret activation. */
   getCommittedRuntimeConfig?: () => OpenClawConfig;
+  /** Core-native serving read for a NEW handoff; no caller config or permission grant. */
+  getCommittedRuntimePolicyRead?: () => NativeServingRead | undefined;
   sessionRowProjectionOwner?: object;
   ensureSessionRowProjection?: () => Promise<void>;
   /** Live reload owner, including same-config restart work and shutdown. */

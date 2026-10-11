@@ -45,6 +45,27 @@ function makeDeviceClient(connId: string, deviceId: string, role = "primary") {
 }
 
 describe("createGatewayRequestContext", () => {
+  it("C4 does not turn legacy committed config and settled callbacks into a native policy read", () => {
+    const fallback = { gateway: { port: 19103 } };
+    const params = makeContextParams();
+    params.runtime.runtimeState.configReloader = {
+      getCommittedRuntimeConfig: () => fallback,
+      isConfigReloadSettled: () => true,
+    };
+    const context = createGatewayRequestContext(params);
+    expect(context.getCommittedRuntimeConfig?.()).toBe(fallback);
+    expect(context.isConfigReloadSettled()).toBe(true);
+    const capture = context.getCommittedRuntimePolicyRead;
+    if (!capture) {
+      throw new Error("Missing native context policy reader");
+    }
+    expect(capture()).toBeUndefined();
+    params.runtime.lifecycle.closePreludeStarted = true;
+    expect(capture()).toBeUndefined();
+    expect(context.getCommittedRuntimeConfig?.()).toBe(fallback);
+    expect(context.isConfigReloadSettled()).toBe(false);
+  });
+
   it("prepares every recipient before the real merge's first notification and contains resolution failure", async () => {
     await withOpenClawTestState({ scenario: "minimal" }, async () => {
       const source = ensureProfileForEmail("event-source@example.test");

@@ -239,3 +239,15 @@ export function assertNativeServingRead(handle: NativeServingRead | undefined): 
     throw new Error("NATIVE-SERVING-NOT-CURRENT");
   }
 }
+
+/** Project this exact native read's serving config; never recapture a current owner. */
+export function readNativeServingReadConfig(handle: NativeServingRead | undefined): OpenClawConfig {
+  assertNativeServingRead(handle);
+  const read = handle && reads.get(handle);
+  if (!read) {
+    throw new Error("NATIVE-SERVING-NOT-CURRENT");
+  }
+  const config = read.serving.config;
+  assertNativeServingRead(handle);
+  return config;
+}

@@ -1,0 +1,19 @@
+# C4 — capture et projection de la politique native du Gateway
+
+OPSYS-AI reste **PARTIEL**. Cette continuation qualifie les cinq fichiers C4 à partir du commit 465df7a598fd72490bef57054b717b4cafe653ae. La CI du nouveau commit reste à obtenir ; la CI verte de cette base conserve son identité distincte.
+
+Le vrai constructeur du contexte retrouve le propriétaire natif de son état partagé. Une nouvelle capture valide owner, policy et prélude, puis les recontrôle après la dernière assertion susceptible de réentrée. La projection de configuration vérifie la même lecture opaque avant et après extraction. Elle ne remplace pas une ancienne lecture par une nouvelle. Copies, proxies, états étrangers, anciennes époques et chemins legacy sans owner ne produisent pas de permission.
+
+La qualification comprend **1 210 cas dans 25 fichiers, zéro échec, skip ou todo**, lint et format stricts sur cinq fichiers, copie matérielle isolée, typage canonique TS7 sans diagnostic et build Core complet sur PC1. TS7 liste 16 306 entrées et vérifie 15 productions requises. Les fichiers tests sont exclus du tsconfig de production et qualifiés par exécution ; les déclarations SDK relèvent du build séparé.
+
+Le build actuel ferme 18 invocations DTS et deux SDK, vérifie 158 sous-chemins publics, 15 plugins, 23 modules et 13 phases postbuild. Durée surveillée : **507,469 s** ; RSS maximal échantillonné : **6 073 409 536 octets**. Les 137 231 fichiers Source/dépendances et 4 060 liens initiaux restent identiques ; 12 334 fichiers et 446 liens nouveaux restent dans les sorties autorisées. Revue indépendante fermée. Les stamps ont un HEAD/commit nul sur la copie sans Git : le binding vient des empreintes du census. Aucun nouveau scan physique distant n'est attribué à la revue hors ligne.
+
+Les budgets UI passent avec **164 octets de marge JS et 35 octets de marge CSS**. L'avertissement CSS indicatif, six avertissements EVAL et deux externalisations navigateur restent visibles. RSS et arrêt des processus concernent les observations des propriétaires surveillés, sans garantie exhaustive de descendants jamais observés.
+
+Le test complet du contexte est absent des six suites rapides et de la sélection ciblée 243 de la base. L'ajout de cette seule cible porte la sélection à **244**. Les Sources compilées sur PC1 conservent la sélection 243 ; le seul écart de métadonnée et les quatre documents ajoutés après qualification sont tracés dans le registre. La prochaine CI doit exécuter effectivement le fichier du contexte sur le nouveau commit exact.
+
+Les rouges, désélections, erreurs d'oracle et corrections de préparation restent dans RED-HISTORY. Les journaux et census fermés sont conservés sur le poste privé avec leurs SHA ; ils ne sont pas embarqués dans ce dossier. PROOF-SUMMARY donne les références de qualification. Le manifeste de publication externe conserve les empreintes des dix chemins intégrés, y compris ces quatre documents, sans cycle d'empreinte dans leur propre contenu.
+
+Le getter protège la capture. Leaf6 devra encore attacher le lifecycle du contexte au read et vérifier les derniers usages après callbacks/await. OLD doit refuser avant fallback ambiant sans disposer le Task global encore valide, afin qu'une vraie capture NEW saine reste possible. Ce keeper n'est pas livré. OriginalC, copies/allSenders, policy SMS/admission et fournisseur/appareil réels restent des dépendances futures.
+
+Les limites du pack léger persistent : **104 preuves exclues**, supplément complet et conversations absentes inconnus. Docker est inaccessible localement ; les qualifications des runners GitHub sont rapportées séparément. Aucune preuve de production, de livraison téléphonique réelle ou de finalité financière n'est ajoutée par cette tranche. Les dix départements profonds et la verticale M7→M1→M2→M3→M4/M6→M5→M8/M9/M10 restent la direction du projet.

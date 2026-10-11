@@ -17,6 +17,11 @@ import { WEBSOCKET_OPEN_READY_STATE } from "./server-constants.js";
 import type { startGatewayCoreRuntime } from "./server-core-runtime.js";
 import type { GatewayClient, GatewayRequestContext } from "./server-methods/types.js";
 import {
+  assertNativeServingRead,
+  captureNativeServingRead,
+  findOwner,
+} from "./server-runtime-policy-owner.js";
+import {
   disconnectStaleSharedGatewayAuthClients,
   enforceSharedGatewaySessionGenerationForConfigWrite,
 } from "./server-shared-auth-generation.js";
@@ -256,6 +261,40 @@ export function createGatewayRequestContext(
       return runtimeState.cronState.storePath;
     },
     getRuntimeConfig,
+    getCommittedRuntimePolicyRead: () => {
+      try {
+        if (lifecycle.closePreludeStarted) {
+          return undefined;
+        }
+        // Context creation precedes managed startup. Only a NEW handoff captures;
+        // consumers retain this opaque and never use this getter to refresh it.
+        const owner = findOwner(sharedGatewaySessionGenerationState);
+        if (!owner) {
+          return undefined;
+        }
+        const read = captureNativeServingRead(owner);
+        if (!read) {
+          return undefined;
+        }
+        assertNativeServingRead(read);
+        if (
+          lifecycle.closePreludeStarted ||
+          findOwner(sharedGatewaySessionGenerationState) !== owner
+        ) {
+          return undefined;
+        }
+        assertNativeServingRead(read);
+        if (
+          lifecycle.closePreludeStarted ||
+          findOwner(sharedGatewaySessionGenerationState) !== owner
+        ) {
+          return undefined;
+        }
+        return read;
+      } catch {
+        return undefined;
+      }
+    },
     getCommittedRuntimeConfig: () =>
       runtimeState.configReloader.getCommittedRuntimeConfig?.() ?? getRuntimeConfig(),
     isConfigReloadSettled: () =>

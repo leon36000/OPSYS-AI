@@ -353,3 +353,7 @@ src/channels/message/opsys-sms-source-receiver.test.ts
 src/gateway/config-reload.operation-policy.test.ts
 src/gateway/config-reload.decisions.test.ts
 src/gateway/server-reload-handlers.hot-reload-status.test.ts
+
+# M1 C4 : contexte natif, refus legacy et capture au dernier usage.
+# Gateway exclu de test:fast ; cette suite complète est qualifiée dans full25.
+src/gateway/server-request-context.test.ts

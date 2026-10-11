@@ -5,7 +5,10 @@ import {
   getRuntimeAuthProfileStoreSnapshotsRevision,
 } from "../agents/auth-profiles/runtime-snapshots.js";
 import {
+  getRuntimeConfigPublicationReceipt,
   getRuntimeConfigSnapshot,
+  getRuntimeConfigSnapshotMetadata,
+  getRuntimeConfigSourceSnapshot,
   publishRuntimeConfigSnapshotWithReceipt,
 } from "../config/runtime-snapshot.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
@@ -13,6 +16,8 @@ import type { PreparedSecretsRuntimeSnapshot } from "../secrets/runtime.js";
 import { activateSecretsRuntimeSnapshot, clearSecretsRuntimeSnapshot } from "../secrets/runtime.js";
 import type { GatewayReloadPlan } from "./config-reload.js";
 import * as modelRuntimeReload from "./server-reload-model-runtime-scope.js";
+import { createGatewayRequestContext } from "./server-request-context.js";
+import { makeContextParams } from "./server-request-context.test-support.js";
 import {
   assertNativeServingRead,
   captureNativeServingRead,
@@ -21,6 +26,7 @@ import {
   findOwner,
   finishNativeTransition,
   readNativeServingConfig,
+  readNativeServingReadConfig,
   recordNativeServingCommit,
   reserveNativeTransition,
 } from "./server-runtime-policy-owner.js";
@@ -75,6 +81,133 @@ afterEach(async () => {
 });
 
 describe("native serving publication owner", () => {
+  it("C4 projection rejects copied and structural reads without invoking traps", () => {
+    const { owner, state } = fixture();
+    const read = captureNativeServingRead(owner);
+    if (!read) {
+      throw new Error("Missing native serving read");
+    }
+    const config = getRuntimeConfigSnapshot();
+    const generation = state.capture();
+    const metadata = getRuntimeConfigSnapshotMetadata();
+    const sourceConfig = getRuntimeConfigSourceSnapshot();
+    if (!config) {
+      throw new Error("Missing published native config");
+    }
+    const publication = getRuntimeConfigPublicationReceipt(config);
+    let traps = 0;
+    const proxy = new Proxy(
+      {},
+      {
+        get() {
+          traps += 1;
+          return read;
+        },
+        ownKeys() {
+          traps += 1;
+          return [];
+        },
+        getPrototypeOf() {
+          traps += 1;
+          return null;
+        },
+        getOwnPropertyDescriptor() {
+          traps += 1;
+          return undefined;
+        },
+      },
+    );
+    const bait = Object.defineProperty({}, "read", {
+      get() {
+        traps += 1;
+        return read;
+      },
+    });
+    for (const foreign of [undefined, {}, { ...read }, Object.create(read), proxy, bait]) {
+      expect(() => readNativeServingReadConfig(foreign)).toThrow("NATIVE-SERVING-NOT-CURRENT");
+    }
+    expect(traps).toBe(0);
+    expect(readNativeServingReadConfig(read)).toBe(config);
+    expect(state.capture()).toEqual(generation);
+    expect(getRuntimeConfigSnapshot()).toBe(config);
+    expect(getRuntimeConfigSourceSnapshot()).toBe(sourceConfig);
+    expect(getRuntimeConfigSnapshotMetadata()).toBe(metadata);
+    expect(getRuntimeConfigPublicationReceipt(config)).toBe(publication);
+  });
+
+  it.each(["abort", "close", "reserve", "replace"] as const)(
+    "C4 projection does not repair its old read after native %s reentry",
+    (operation) => {
+      const state = new SharedGatewaySessionGenerationState({ current: "A", required: null });
+      const lifetime = new AbortController();
+      let armed = false;
+      let fired = false;
+      let transition: ReturnType<typeof reserveNativeTransition> | undefined;
+      const owner = createManagedPolicyOwner(state, lifetime.signal, () => {
+        if (armed && !fired) {
+          fired = true;
+          if (operation === "abort") {
+            lifetime.abort();
+          } else if (operation === "close") {
+            closeNativeOwner(owner);
+          } else if (operation === "reserve") {
+            transition = reserveNativeTransition(owner);
+          } else {
+            createManagedPolicyOwner(state, new AbortController().signal, () => true);
+          }
+        }
+        return true;
+      });
+      const config: OpenClawConfig = { gateway: { port: 19103 } };
+      activate(config);
+      const ticket = reserveNativeTransition(owner);
+      expect(recordNativeServingCommit(owner, config, ticket, state.capture())).toBe(true);
+      finishNativeTransition(ticket);
+      const read = captureNativeServingRead(owner);
+      expect(read).toBeDefined();
+      armed = true;
+      expect(() => readNativeServingReadConfig(read)).toThrow("NATIVE-SERVING-NOT-CURRENT");
+      expect(fired).toBe(true);
+      if (transition) {
+        finishNativeTransition(transition);
+      }
+      expect(() => readNativeServingReadConfig(read)).toThrow("NATIVE-SERVING-NOT-CURRENT");
+    },
+  );
+
+  it("C4 context never borrows another native bucket through a reloader callback", () => {
+    const { owner, state } = fixture();
+    const config = getRuntimeConfigSnapshot();
+    const foreignState = new SharedGatewaySessionGenerationState({ current: "A", required: null });
+    const foreignOwner = createManagedPolicyOwner(
+      foreignState,
+      new AbortController().signal,
+      () => true,
+    );
+    const foreignTicket = reserveNativeTransition(foreignOwner);
+    if (!config) {
+      throw new Error("Missing published native config");
+    }
+    expect(
+      recordNativeServingCommit(foreignOwner, config, foreignTicket, foreignState.capture()),
+    ).toBe(true);
+    finishNativeTransition(foreignTicket);
+    const foreignRead = captureNativeServingRead(foreignOwner);
+    expect(foreignRead).toBeDefined();
+    closeNativeOwner(owner);
+    const params = makeContextParams({ sharedGatewaySessionGenerationState: state });
+    const borrowed = vi.fn(() => foreignRead);
+    params.runtime.runtimeState.configReloader = {
+      getCommittedRuntimeConfig: () => config,
+      captureNativeServingRead: borrowed,
+      isConfigReloadSettled: () => true,
+    };
+    const context = createGatewayRequestContext(params);
+    expect(context.getCommittedRuntimePolicyRead?.()).toBeUndefined();
+    expect(borrowed).not.toHaveBeenCalled();
+    expect(readNativeServingReadConfig(foreignRead)).toBe(config);
+  });
+
   it("binds the actual activation clone and keeps old reads invalid after a settled failure", () => {
     const { owner } = fixture();
     expect(readNativeServingConfig(owner)).toBe(getRuntimeConfigSnapshot());
@@ -83,10 +216,15 @@ describe("native serving publication owner", () => {
     const ticket = reserveNativeTransition(owner);
     expect(captureNativeServingRead(owner)).toBeUndefined();
     expect(() => assertNativeServingRead(read)).toThrow("NATIVE-SERVING-NOT-CURRENT");
+    expect(() => readNativeServingReadConfig(read)).toThrow("NATIVE-SERVING-NOT-CURRENT");
     finishNativeTransition(ticket);
     finishNativeTransition(ticket);
     expect(() => assertNativeServingRead(read)).toThrow("NATIVE-SERVING-NOT-CURRENT");
+    expect(() => readNativeServingReadConfig(read)).toThrow("NATIVE-SERVING-NOT-CURRENT");
     expect(captureNativeServingRead(owner)).toBeDefined();
+    expect(readNativeServingReadConfig(captureNativeServingRead(owner))).toBe(
+      getRuntimeConfigSnapshot(),
+    );
   });
 
   it("does not upgrade an owner-absent reservation or an operation belonging to a replaced owner", () => {
@@ -187,7 +325,11 @@ describe("native config entry before async validation", () => {
       await completion;
       await vi.waitUntil(() => !base.isReloading());
       expect(() => assertNativeServingRead(old)).toThrow("NATIVE-SERVING-NOT-CURRENT");
+      expect(() => readNativeServingReadConfig(old)).toThrow("NATIVE-SERVING-NOT-CURRENT");
       expect(captureNativeServingRead(owner)).toBeDefined();
+      expect(readNativeServingReadConfig(captureNativeServingRead(owner))).toBe(
+        getRuntimeConfigSnapshot(),
+      );
     } finally {
       await base.stop();
     }
@@ -231,6 +373,9 @@ describe("native config entry before async validation", () => {
       expect(getRuntimeConfigSnapshot()).toBe(published);
       expect(() => assertNativeServingRead(before)).toThrow("NATIVE-SERVING-NOT-CURRENT");
       expect(captureNativeServingRead(owner)).toBeDefined();
+      expect(readNativeServingReadConfig(captureNativeServingRead(owner))).toBe(
+        getRuntimeConfigSnapshot(),
+      );
     } finally {
       await base.stop();
     }
@@ -289,12 +434,17 @@ describe("native shared generation last-use ownership", () => {
       }
       expect(getRuntimeConfigSnapshot()).toBe(publication);
       expect(() => assertNativeServingRead(read)).toThrow("NATIVE-SERVING-NOT-CURRENT");
+      expect(() => readNativeServingReadConfig(read)).toThrow("NATIVE-SERVING-NOT-CURRENT");
       expect(captureNativeServingRead(owner)).toBeUndefined();
       const ticket = reserveNativeTransition(owner);
       expect(recordNativeServingCommit(owner, config, ticket, state.capture())).toBe(true);
       finishNativeTransition(ticket);
       expect(captureNativeServingRead(owner)).toBeDefined();
+      expect(readNativeServingReadConfig(captureNativeServingRead(owner))).toBe(
+        getRuntimeConfigSnapshot(),
+      );
       expect(() => assertNativeServingRead(read)).toThrow("NATIVE-SERVING-NOT-CURRENT");
+      expect(() => readNativeServingReadConfig(read)).toThrow("NATIVE-SERVING-NOT-CURRENT");
     },
   );
 });
@@ -426,7 +576,159 @@ async function createNativeManagedServingFixture(
   return managed;
 }
 
+describe("C4-CLOSE native handoff last-use boundary", () => {
+  it.each([false, true])(
+    "C4-CLOSE checks a native predicate closing the prelude: close=%s",
+    (closeAtLastUse) => {
+      const state = new SharedGatewaySessionGenerationState({ current: "A", required: null });
+      const lifetime = new AbortController();
+      const params = makeContextParams({ sharedGatewaySessionGenerationState: state });
+      const context = createGatewayRequestContext(params);
+      let closed = false;
+      let armed = false;
+      let lifecycleReads = 0;
+      const owner = createManagedPolicyOwner(state, lifetime.signal, () => {
+        if (armed && closeAtLastUse) {
+          closed = true;
+        }
+        return true;
+      });
+      const config: OpenClawConfig = { gateway: { port: 19103 } };
+      activate(config);
+      const ticket = reserveNativeTransition(owner);
+      expect(recordNativeServingCommit(owner, config, ticket, state.capture())).toBe(true);
+      finishNativeTransition(ticket);
+      Object.defineProperty(params.runtime.lifecycle, "closePreludeStarted", {
+        configurable: true,
+        get() {
+          lifecycleReads += 1;
+          if (lifecycleReads === 2) {
+            armed = true;
+          }
+          return closed;
+        },
+      });
+      try {
+        const read = context.getCommittedRuntimePolicyRead?.();
+        expect(armed).toBe(true);
+        expect(closed).toBe(closeAtLastUse);
+        expect(lifetime.signal.aborted).toBe(false);
+        expect(findOwner(state)).toBe(owner);
+        if (closeAtLastUse) {
+          expect(read).toBeUndefined();
+        } else {
+          expect(read).toBeDefined();
+          expect(readNativeServingReadConfig(read)).toBe(getRuntimeConfigSnapshot());
+        }
+      } finally {
+        closeNativeOwner(owner);
+      }
+    },
+  );
+
+  it.each([false, true])(
+    "C4-CLOSE checks the real managed activation fingerprint getter: close=%s",
+    async (closeAtLastUse) => {
+      const state = new SharedGatewaySessionGenerationState({ current: "A", required: null });
+      const params = makeContextParams({ sharedGatewaySessionGenerationState: state });
+      const context = createGatewayRequestContext(params);
+      let closed = false;
+      let armed = false;
+      let originalReads = 0;
+      const logging: NonNullable<OpenClawConfig["logging"]> = { level: "info" };
+      const authored: OpenClawConfig = {
+        gateway: { port: 19103 },
+        get logging() {
+          originalReads += 1;
+          if (armed && closeAtLastUse) {
+            closed = true;
+          }
+          return logging;
+        },
+      };
+      activate(authored);
+      const published = getRuntimeConfigSnapshot();
+      const managed = await createNativeManagedServingFixture(state);
+      params.runtime.runtimeState.configReloader = managed;
+      const owner = findOwner(state);
+      expect(owner).toBeDefined();
+      expect(managed.getCommittedRuntimeConfig?.()).toBe(published);
+      expect(managed.captureNativeServingRead?.()).toBeDefined();
+      const originalReadsBefore = originalReads;
+      let lifecycleReads = 0;
+      Object.defineProperty(params.runtime.lifecycle, "closePreludeStarted", {
+        configurable: true,
+        get() {
+          lifecycleReads += 1;
+          if (lifecycleReads === 2) {
+            armed = true;
+          }
+          return closed;
+        },
+      });
+      try {
+        const read = context.getCommittedRuntimePolicyRead?.();
+        expect(armed).toBe(true);
+        expect(originalReads).toBeGreaterThan(originalReadsBefore);
+        expect(closed).toBe(closeAtLastUse);
+        expect(findOwner(state)).toBe(owner);
+        expect(managed.isConfigReloadSettled()).toBe(true);
+        expect(getRuntimeConfigSnapshot()).toBe(published);
+        expect(published?.logging).toEqual(logging);
+        if (closeAtLastUse) {
+          expect(read).toBeUndefined();
+        } else {
+          expect(read).toBeDefined();
+          expect(readNativeServingReadConfig(read)).toBe(published);
+        }
+      } finally {
+        await managed.stop();
+      }
+    },
+  );
+});
+
 describe("native managed serving and direct secrets", () => {
+  it("C4 projects the native serving clone for a new handoff without renewing an old read", async () => {
+    const state = new SharedGatewaySessionGenerationState({ current: "A", required: null });
+    const params = makeContextParams({ sharedGatewaySessionGenerationState: state });
+    const context = createGatewayRequestContext(params);
+    const capture = context.getCommittedRuntimePolicyRead;
+    if (!capture) {
+      throw new Error("Missing native context policy reader");
+    }
+    expect(capture()).toBeUndefined();
+
+    const authored: OpenClawConfig = { gateway: { port: 19103 } };
+    activate(authored);
+    const published = getRuntimeConfigSnapshot();
+    expect(published).not.toBe(authored);
+    const managed = await createNativeManagedServingFixture(state);
+    params.runtime.runtimeState.configReloader = managed;
+    try {
+      expect(managed.getCommittedRuntimeConfig?.()).toBe(published);
+      expect(managed.captureNativeServingRead?.()).toBeDefined();
+      const old = capture();
+      expect(old).toBeDefined();
+      expect(readNativeServingReadConfig(old)).toBe(published);
+      const owner = findOwner(state);
+      if (!owner) {
+        throw new Error("Missing native managed owner");
+      }
+      const ticket = reserveNativeTransition(owner);
+      expect(capture()).toBeUndefined();
+      finishNativeTransition(ticket);
+      expect(() => readNativeServingReadConfig(old)).toThrow("NATIVE-SERVING-NOT-CURRENT");
+      const fresh = capture();
+      expect(fresh).toBeDefined();
+      expect(fresh).not.toBe(old);
+      expect(readNativeServingReadConfig(fresh)).toBe(published);
+      expect(getRuntimeConfigSnapshot()).toBe(published);
+    } finally {
+      await managed.stop();
+    }
+  });
+
   it("fences before preparation and binds the real committed clone after finalize", async () => {
     const state = new SharedGatewaySessionGenerationState({ current: "A", required: null });
     activate({ gateway: { port: 19103 } });
@@ -448,14 +750,17 @@ describe("native managed serving and direct secrets", () => {
       expect(managed.getCommittedRuntimeConfig?.()).toBe(initial);
       expect(managed.captureNativeServingRead?.()).toBeUndefined();
       expect(() => assertNativeServingRead(oldRead)).toThrow("NATIVE-SERVING-NOT-CURRENT");
+      expect(() => readNativeServingReadConfig(oldRead)).toThrow("NATIVE-SERVING-NOT-CURRENT");
       held.resolve(createSnapshot({ gateway: { port: 19104 } }));
       await operation;
       expect(managed.getCommittedRuntimeConfig?.()).toBe(getRuntimeConfigSnapshot());
       expect(managed.getCommittedRuntimeConfig?.()?.gateway?.port).toBe(19104);
       const current = managed.captureNativeServingRead?.();
       expect(current).toBeDefined();
+      expect(readNativeServingReadConfig(current)).toBe(getRuntimeConfigSnapshot());
       expect(() => assertNativeServingRead(current)).not.toThrow();
       expect(() => assertNativeServingRead(oldRead)).toThrow("NATIVE-SERVING-NOT-CURRENT");
+      expect(() => readNativeServingReadConfig(oldRead)).toThrow("NATIVE-SERVING-NOT-CURRENT");
     } finally {
       await managed.stop();
     }
@@ -544,6 +849,7 @@ describe("native managed serving rollback", () => {
       expect(managed.getCommittedRuntimeConfig?.()).toBe(getRuntimeConfigSnapshot());
       expect(managed.captureNativeServingRead?.()).toBeDefined();
       expect(() => assertNativeServingRead(old)).toThrow("NATIVE-SERVING-NOT-CURRENT");
+      expect(() => readNativeServingReadConfig(old)).toThrow("NATIVE-SERVING-NOT-CURRENT");
     } finally {
       await managed.stop();
     }
@@ -590,6 +896,7 @@ describe("native managed serving source-only", () => {
       expect(readNativeServingConfig(owner)).toBeUndefined();
       expect(managed.captureNativeServingRead?.()).toBeUndefined();
       expect(() => assertNativeServingRead(old)).toThrow("NATIVE-SERVING-NOT-CURRENT");
+      expect(() => readNativeServingReadConfig(old)).toThrow("NATIVE-SERVING-NOT-CURRENT");
     } finally {
       await managed.stop();
     }
@@ -624,8 +931,10 @@ describe("native managed serving source-only", () => {
       expect(getRuntimeConfigSnapshot()?.logging?.level).toBe("debug");
       expect(managed.getCommittedRuntimeConfig?.()).toBe(getRuntimeConfigSnapshot());
       expect(() => assertNativeServingRead(old)).toThrow("NATIVE-SERVING-NOT-CURRENT");
+      expect(() => readNativeServingReadConfig(old)).toThrow("NATIVE-SERVING-NOT-CURRENT");
       const current = managed.captureNativeServingRead?.();
       expect(current).toBeDefined();
+      expect(readNativeServingReadConfig(current)).toBe(getRuntimeConfigSnapshot());
       expect(() => assertNativeServingRead(current)).not.toThrow();
     } finally {
       await managed.stop();
@@ -660,8 +969,10 @@ describe("native managed serving source-only", () => {
       expect(getRuntimeConfigSnapshot()).toBe(initial);
       expect(managed.getCommittedRuntimeConfig?.()).toBe(initial);
       expect(() => assertNativeServingRead(old)).toThrow("NATIVE-SERVING-NOT-CURRENT");
+      expect(() => readNativeServingReadConfig(old)).toThrow("NATIVE-SERVING-NOT-CURRENT");
       const current = managed.captureNativeServingRead?.();
       expect(current).toBeDefined();
+      expect(readNativeServingReadConfig(current)).toBe(getRuntimeConfigSnapshot());
       expect(() => assertNativeServingRead(current)).not.toThrow();
     } finally {
       await managed.stop();

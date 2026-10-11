@@ -1,0 +1,56 @@
+{
+  "entries": [
+    {
+      "Root": "604f31ef1f9e800972f2ef861b75e460390bffe47e905741358e37fcc323e59f",
+      "classification": "capability_gap_not_external_vulnerability",
+      "failed": 2,
+      "phase": "initial_API_RED"
+    },
+    {
+      "Root": "1e79d1b3587de708f1153508b65997336f37aed32b4f35df31684b677afc6c5b",
+      "deselected": 33,
+      "passed": 2,
+      "phase": "first_GREEN"
+    },
+    {
+      "Root": "9646f6283792ce068d4572c10fbea8c769f657d20e614d25f99a470ad58828c8",
+      "deselected": 35,
+      "failed": 2,
+      "passed": 2,
+      "phase": "CLOSE_RED",
+      "seconds": 51.368
+    },
+    {
+      "Root": "3fb274bef2b057d17d7ec1b2efc6570e6d42e1368cb2374fce14aebcdfaa9331",
+      "deselected": 35,
+      "failed": 0,
+      "passed": 4,
+      "phase": "CLOSE_GREEN",
+      "seconds": 68.748
+    },
+    {
+      "Root": "0d8d9e8467caad80f07e3867ca6c504c287808ce8fd5af9d5c39bce870bc2659",
+      "files_format_failed": 4,
+      "format_exit": 1,
+      "full25": "NOT_LAUNCHED",
+      "lint_exit": 0,
+      "phase": "styles_r1"
+    },
+    {
+      "emitted_JS_byte_identical_claim": false,
+      "imports_reordered": true,
+      "phase": "format4_corrected",
+      "then": "freshstyles5/full25/TS7r2"
+    }
+  ],
+  "other_dispositions": [
+    "Source raw mode manifest discrepancy preserved and explicitly disposed",
+    "Native closed full25 process count44 expectation mistaken:35 unique plus9 already included; no retry",
+    "READY directory chmod issue: failedGOwrite and materializer exited preexec; noSource/SSH effects; corrected directoryonly",
+    "READY build PLAN packet count15 mistaken: actual13members+self14; additiveerratum63fee085",
+    "Full build independent initial asset oracle537 vs517 too broad; corrected actual assets/ scope, no product rerun",
+    "Root mechanical build readback used absent starttime key; read actual start_time schema and corrected before proof export; no Source/runtime/Git effects",
+    "CI244 Q preparations stopped before writes on schema count/hash record assumptions; corrected actual closed fast6 manifest"
+  ],
+  "state": "HISTORY_PRESERVED"
+}
