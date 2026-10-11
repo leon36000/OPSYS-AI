@@ -726,6 +726,14 @@ changé (le champ `utm` y était), `core/` n'est pas touché, rien n'est publié
 | Réponse | Quand un `utm` est fourni, un bloc `utm` : `{"statut": "porte_par_le_lead"}` ou `{"statut": "non_porte", "raison", "detail"}`. Raisons : `aucun_lead_ouvert` (demande incomplète), `lead_deja_emis` (le lead, gelé, ne porte pas cet `utm`), `transfert_humain` (plainte, urgence). L'agent le dit à une personne. |
 | Rejeu | Un message rejoué n'écrit rien, pas même un `utm` qui diffère de celui d'alors : le bloc se relit sur le lead que le registre rend (`non_porte` si ce lead ne porte pas cet `utm`). |
 
+Le pont interne HTTP signé (`POST /interne/m1/formulaire`) applique une règle de réception distincte : pour un même
+site et nonce, l'UTM doit rester celui du **signal reçu**, même si aucun lead n'a été ouvert ou si une plainte a été
+transmise à un humain. Un UTM ajouté, retiré ou changé renvoie 400 sans modifier le registre ni l'outbox. L'ordre des
+clés n'est pas une divergence. Un nouveau nonce reste un nouveau message ; il ne remplace pas l'UTM d'un lead déjà gelé.
+Cette restriction du pont authentifié ne change pas le rejeu générique de l'outil décrit dans le tableau, ni ne
+vérifie l'identité du visiteur. Voir l'addendum du
+[rapport du pont](../grs/reception/M1-FORMULAIRE-INTERNE-RAPPORT-2026-10-05.md) pour la portée de qualification.
+
 ### 13.4 Limites connues
 
 1. Le `utm` d'un formulaire est déclaré par le navigateur du visiteur : n'importe qui peut écrire un lien avec la clé d'un

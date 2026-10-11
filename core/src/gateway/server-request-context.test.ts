@@ -7,6 +7,14 @@ import {
   GATEWAY_CLIENT_IDS,
   GATEWAY_CLIENT_MODES,
 } from "../../packages/gateway-protocol/src/client-info.js";
+import {
+  getRuntimeAuthProfileStoreCredentialsRevision,
+  getRuntimeAuthProfileStoreSnapshotsRevision,
+} from "../agents/auth-profiles/runtime-snapshots.js";
+import { getRuntimeConfigSnapshot } from "../config/runtime-snapshot.js";
+import type { OpenClawConfig } from "../config/types.openclaw.js";
+import type { PreparedSecretsRuntimeSnapshot } from "../secrets/runtime.js";
+import { activateSecretsRuntimeSnapshot, clearSecretsRuntimeSnapshot } from "../secrets/runtime.js";
 import * as userProfileCatalog from "../state/user-profile-list.js";
 import { ensureProfileForEmail, linkEmail } from "../state/user-profiles.js";
 import { withOpenClawTestState } from "../test-utils/openclaw-test-state.js";
@@ -19,14 +27,31 @@ import {
   createSessionMessageSubscriberRegistry,
 } from "./server-chat-state.js";
 import type { GatewayRequestContext } from "./server-methods/types.js";
-import { createGatewayRequestContext } from "./server-request-context.js";
+import * as requestContextModule from "./server-request-context.js";
+import {
+  assertGatewayCommittedRuntimePolicyRead,
+  createGatewayRequestContext,
+} from "./server-request-context.js";
 import {
   makeContextParams,
   makeCronState,
   makeGatewayClient,
   type RequestRuntime,
 } from "./server-request-context.test-support.js";
+import {
+  assertNativeServingRead,
+  captureNativeServingRead,
+  closeNativeOwner,
+  createManagedPolicyOwner,
+  findOwner,
+  finishNativeTransition,
+  readNativeServingReadConfig,
+  recordNativeServingCommit,
+  reserveNativeTransition,
+} from "./server-runtime-policy-owner.js";
 import { startGatewayEventSubscriptions } from "./server-runtime-subscriptions.js";
+import { SharedGatewaySessionGenerationState } from "./server-shared-auth-generation.js";
+import { createTestRuntimeSecretsActivator } from "./server-startup-config.test-support.js";
 import { GatewayClientRegistry } from "./server/client-registry.js";
 import type { GatewayWsClient } from "./server/ws-types.js";
 
@@ -43,6 +68,462 @@ function makeDeviceClient(connId: string, deviceId: string, role = "primary") {
     socket: { close: vi.fn() },
   };
 }
+
+function prepareL0Snapshot(config: OpenClawConfig): PreparedSecretsRuntimeSnapshot {
+  return {
+    config,
+    sourceConfig: {},
+    authStores: [],
+    authStoreCredentialsRevision: getRuntimeAuthProfileStoreCredentialsRevision(),
+    authStoreSnapshotsRevision: getRuntimeAuthProfileStoreSnapshotsRevision(),
+    warnings: [],
+    webTools: {
+      search: { providerSource: "none", diagnostics: [] },
+      fetch: { providerSource: "none", diagnostics: [] },
+      diagnostics: [],
+    },
+  };
+}
+
+// Managed/publication/generation owners are real; model publication, channels,
+// and config I/O remain explicit local doubles, as in the policy-owner fixture.
+async function createL0NativeFixture(authored: OpenClawConfig = { gateway: { port: 19103 } }) {
+  const sharedState = new SharedGatewaySessionGenerationState({ current: "A", required: null });
+  const params = makeContextParams({ sharedGatewaySessionGenerationState: sharedState });
+  const context = createGatewayRequestContext(params);
+  expect(context.getCommittedRuntimePolicyRead?.()).toBeUndefined();
+  activateSecretsRuntimeSnapshot(prepareL0Snapshot(authored));
+  const published = getRuntimeConfigSnapshot();
+  if (!published) {
+    throw new Error("Missing native activation fixture");
+  }
+  expect(published).not.toBe(authored);
+  const { createDefaultDeps } = await import("../cli/deps.js");
+  const { createTestRegistry } = await import("../test-utils/channel-plugins.js");
+  const { createChannelManager } = await import("./server-channels.js");
+  const { createDefaultGatewayReloadState, createValidConfigSnapshot } =
+    await import("./server-reload-handlers.config.test-support.js");
+  const { startManagedGatewayConfigReloader } = await import("./server-reload-managed.js");
+  const modelRuntime = await import("./server-reload-model-runtime-scope.js");
+  const modelPublication = vi
+    .spyOn(modelRuntime, "refreshModelRuntimeAfterHotReload")
+    .mockResolvedValue(undefined);
+  onTestFinished(() => modelPublication.mockRestore());
+  const registry = createTestRegistry([]);
+  const channelManager = createChannelManager({
+    getRuntimeConfig: () => published,
+    getPluginRegistry: () => registry,
+    channelLogs: {},
+    channelRuntimeEnvs: {},
+  });
+  let state = createDefaultGatewayReloadState();
+  const managed = startManagedGatewayConfigReloader({
+    getPluginRegistry: () => registry,
+    minimalTestGateway: false,
+    initialConfig: published,
+    initialCompareConfig: published,
+    initialPluginInstallRecords: {},
+    initialSnapshotRawHash: "initial",
+    initialAuthoredConfig: published,
+    initialSnapshotValid: true,
+    initialSnapshotIssues: [],
+    watchPath: "/tmp/openclaw.json",
+    readSnapshot: async () => createValidConfigSnapshot(published, "initial"),
+    promoteSnapshot: async () => true,
+    subscribeToWrites: () => () => {},
+    deps: createDefaultDeps(),
+    broadcast: vi.fn(),
+    getState: () => state,
+    setState: (next) => {
+      state = next;
+    },
+    startChannel: channelManager.startChannel,
+    stopChannel: channelManager.stopChannel,
+    reloadPlugins: async () => ({
+      runtime: { operationId: "l0-native-fixture", generation: 1, pluginIds: [] },
+      activeChannels: new Set(),
+    }),
+    logHooks: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    logChannels: { info: vi.fn(), error: vi.fn() },
+    logCron: { error: vi.fn() },
+    logReload: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    channelManager,
+    activateRuntimeSecrets: createTestRuntimeSecretsActivator(async (config) =>
+      prepareL0Snapshot(config),
+    ),
+    resolveSharedGatewaySessionGenerationForConfig: () => "A",
+    sharedGatewaySessionGenerationState: sharedState,
+    clients: [],
+    reconcileRuntimePolicy: vi.fn(),
+    commitRuntimePolicy: vi.fn(),
+    acceptTerminalConfig: vi.fn(),
+    prepareTerminalConfig: vi.fn(),
+    cronReconciliation: { arm: () => ({ complete: async () => {} }), invalidate: vi.fn() },
+    configRevisionProjector: {
+      projectRawHash: (hash) => hash,
+      projectResolvedHash: (hash) => hash,
+    },
+  });
+  onTestFinished(async () => {
+    await managed.stop();
+    clearSecretsRuntimeSnapshot();
+  });
+  await managed.ready;
+  params.runtime.runtimeState.configReloader = managed;
+  return { sharedState, params, context, published, managed };
+}
+
+function captureL0Read(context: GatewayRequestContext) {
+  const read = context.getCommittedRuntimePolicyRead?.();
+  if (!read) {
+    throw new Error("Missing native context read fixture");
+  }
+  return read;
+}
+
+// This smaller fixture exercises private Core callback contracts, not managed
+// startup reachability. Positive integration cases use createL0NativeFixture.
+function createL0NativeCallbackFixture(settled: () => boolean) {
+  const sharedState = new SharedGatewaySessionGenerationState({ current: "A", required: null });
+  const params = makeContextParams({ sharedGatewaySessionGenerationState: sharedState });
+  const context = createGatewayRequestContext(params);
+  const lifetime = new AbortController();
+  const owner = createManagedPolicyOwner(sharedState, lifetime.signal, settled);
+  activateSecretsRuntimeSnapshot(prepareL0Snapshot({ gateway: { port: 19103 } }));
+  const published = getRuntimeConfigSnapshot();
+  if (!published) {
+    throw new Error("Missing native callback publication");
+  }
+  const ticket = reserveNativeTransition(owner);
+  expect(recordNativeServingCommit(owner, published, ticket, sharedState.capture())).toBe(true);
+  finishNativeTransition(ticket);
+  onTestFinished(() => {
+    closeNativeOwner(owner);
+    clearSecretsRuntimeSnapshot();
+  });
+  return { sharedState, params, context, lifetime, owner, published };
+}
+
+describe("L0-NATIVE-WITNESS contextual lifetime after native capture", () => {
+  it("keeps the real native read current when only its Gateway prelude closes", async () => {
+    await withOpenClawTestState({ scenario: "minimal" }, async () => {
+      const { sharedState, params, context, published, managed } = await createL0NativeFixture();
+      try {
+        const read = context.getCommittedRuntimePolicyRead?.();
+        expect(read).toBeDefined();
+        const owner = findOwner(sharedState);
+        const generation = sharedState.capture();
+        expect(() => assertNativeServingRead(read)).not.toThrow();
+        params.runtime.lifecycle.closePreludeStarted = true;
+        expect(context.getCommittedRuntimePolicyRead?.()).toBeUndefined();
+        expect(() => assertNativeServingRead(read)).not.toThrow();
+        expect(findOwner(sharedState)).toBe(owner);
+        expect(sharedState.capture()).toEqual(generation);
+        expect(managed.isConfigReloadSettled()).toBe(true);
+        expect(managed.getCommittedRuntimeConfig?.()).toBe(published);
+        expect(getRuntimeConfigSnapshot()).toBe(published);
+      } finally {
+        await managed.stop();
+        clearSecretsRuntimeSnapshot();
+      }
+    });
+  });
+
+  it("requires the exact context assertion to reject that still-current captured read", async () => {
+    await withOpenClawTestState({ scenario: "minimal" }, async () => {
+      const { params, context, managed } = await createL0NativeFixture();
+      try {
+        const read = context.getCommittedRuntimePolicyRead?.();
+        expect(read).toBeDefined();
+        expect(() => assertNativeServingRead(read)).not.toThrow();
+        const assertContext = Reflect.get(
+          requestContextModule,
+          "assertGatewayCommittedRuntimePolicyRead",
+        );
+        if (typeof assertContext !== "function") {
+          throw new Error("CAPABILITY_GAP: native G/R contextual assertion is not implemented");
+        }
+        expect(() => assertContext(context, read)).not.toThrow();
+        params.runtime.lifecycle.closePreludeStarted = true;
+        expect(() => assertNativeServingRead(read)).not.toThrow();
+        expect(() => assertContext(context, read)).toThrow("NATIVE-SERVING-NOT-CURRENT");
+      } finally {
+        await managed.stop();
+        clearSecretsRuntimeSnapshot();
+      }
+    });
+  });
+});
+
+describe("L0 exact native context/read association", () => {
+  it("repeats a healthy assertion and projects only the original serving clone without mutation", async () => {
+    await withOpenClawTestState({ scenario: "minimal" }, async () => {
+      const { sharedState, context, published, managed } = await createL0NativeFixture();
+      try {
+        const read = captureL0Read(context);
+        const generation = sharedState.capture();
+        const owner = findOwner(sharedState);
+        assertGatewayCommittedRuntimePolicyRead(context, read);
+        expect(readNativeServingReadConfig(read)).toBe(published);
+        assertGatewayCommittedRuntimePolicyRead(context, read);
+        expect(sharedState.capture()).toEqual(generation);
+        expect(findOwner(sharedState)).toBe(owner);
+        expect(getRuntimeConfigSnapshot()).toBe(published);
+      } finally {
+        await managed.stop();
+        clearSecretsRuntimeSnapshot();
+      }
+    });
+  });
+
+  it("keeps an OLD refusal sticky after the fixture prelude reopens while NativeR remains current", async () => {
+    await withOpenClawTestState({ scenario: "minimal" }, async () => {
+      const { params, context, managed } = await createL0NativeFixture();
+      try {
+        const read = captureL0Read(context);
+        params.runtime.lifecycle.closePreludeStarted = true;
+        expect(() => assertGatewayCommittedRuntimePolicyRead(context, read)).toThrow(
+          "NATIVE-SERVING-NOT-CURRENT",
+        );
+        params.runtime.lifecycle.closePreludeStarted = false;
+        expect(() => assertNativeServingRead(read)).not.toThrow();
+        expect(() => assertGatewayCommittedRuntimePolicyRead(context, read)).toThrow(
+          "NATIVE-SERVING-NOT-CURRENT",
+        );
+      } finally {
+        await managed.stop();
+        clearSecretsRuntimeSnapshot();
+      }
+    });
+  });
+
+  it("refuses foreign real and lookalike contexts without invoking callbacks or poisoning G", async () => {
+    await withOpenClawTestState({ scenario: "minimal" }, async () => {
+      let reads = 0;
+      const config: OpenClawConfig = {
+        gateway: { port: 19103 },
+        get logging() {
+          reads += 1;
+          return { level: "info" };
+        },
+      };
+      const { sharedState, context, managed } = await createL0NativeFixture(config);
+      try {
+        const read = captureL0Read(context);
+        const foreign = createGatewayRequestContext(
+          makeContextParams({ sharedGatewaySessionGenerationState: sharedState }),
+        );
+        const foreignRead = captureL0Read(foreign);
+        const getter = vi.fn(() => read);
+        const lookalike = { ...context, getCommittedRuntimePolicyRead: getter };
+        reads = 0;
+        for (const caller of [foreign, lookalike, { ...context }]) {
+          expect(() => assertGatewayCommittedRuntimePolicyRead(caller, read)).toThrow(
+            "NATIVE-SERVING-NOT-CURRENT",
+          );
+        }
+        expect(reads).toBe(0);
+        expect(getter).not.toHaveBeenCalled();
+        assertGatewayCommittedRuntimePolicyRead(context, read);
+        assertGatewayCommittedRuntimePolicyRead(foreign, foreignRead);
+        expect(reads).toBeGreaterThan(0);
+      } finally {
+        await managed.stop();
+        clearSecretsRuntimeSnapshot();
+      }
+    });
+  });
+
+  it("does not associate a genuine NativeR captured outside the constructor getter", async () => {
+    await withOpenClawTestState({ scenario: "minimal" }, async () => {
+      const { sharedState, context, managed } = await createL0NativeFixture();
+      try {
+        const owner = findOwner(sharedState);
+        if (!owner) {
+          throw new Error("Missing real managed owner");
+        }
+        const direct = captureNativeServingRead(owner);
+        if (!direct) {
+          throw new Error("Missing direct native read");
+        }
+        assertNativeServingRead(direct);
+        expect(() => assertGatewayCommittedRuntimePolicyRead(context, direct)).toThrow(
+          "NATIVE-SERVING-NOT-CURRENT",
+        );
+        assertGatewayCommittedRuntimePolicyRead(context, captureL0Read(context));
+      } finally {
+        await managed.stop();
+        clearSecretsRuntimeSnapshot();
+      }
+    });
+  });
+
+  it("refuses copied and Proxy reads or contexts with zero traps and preserves the original pair", async () => {
+    await withOpenClawTestState({ scenario: "minimal" }, async () => {
+      const { context, managed } = await createL0NativeFixture();
+      try {
+        const read = captureL0Read(context);
+        const trap = vi.fn(() => {
+          throw new Error("Unexpected proxy trap");
+        });
+        const handler = {
+          get: trap,
+          ownKeys: trap,
+          getOwnPropertyDescriptor: trap,
+          getPrototypeOf: trap,
+        };
+        expect(() => assertGatewayCommittedRuntimePolicyRead(context, { ...read })).toThrow(
+          "NATIVE-SERVING-NOT-CURRENT",
+        );
+        expect(() =>
+          assertGatewayCommittedRuntimePolicyRead(context, new Proxy(read, handler)),
+        ).toThrow("NATIVE-SERVING-NOT-CURRENT");
+        expect(() =>
+          assertGatewayCommittedRuntimePolicyRead(new Proxy(context, handler), read),
+        ).toThrow("NATIVE-SERVING-NOT-CURRENT");
+        expect(trap).not.toHaveBeenCalled();
+        assertGatewayCommittedRuntimePolicyRead(context, read);
+      } finally {
+        await managed.stop();
+        clearSecretsRuntimeSnapshot();
+      }
+    });
+  });
+
+  it("rejects last-use closure from the real managed activation fingerprint getter", async () => {
+    await withOpenClawTestState({ scenario: "minimal" }, async () => {
+      let closePrelude = () => {};
+      const config: OpenClawConfig = {
+        gateway: { port: 19103 },
+        get logging() {
+          closePrelude();
+          return { level: "info" };
+        },
+      };
+      const { sharedState, params, context, published, managed } =
+        await createL0NativeFixture(config);
+      try {
+        const read = captureL0Read(context);
+        const owner = findOwner(sharedState);
+        assertGatewayCommittedRuntimePolicyRead(context, read);
+        closePrelude = () => {
+          params.runtime.lifecycle.closePreludeStarted = true;
+        };
+        expect(() => assertGatewayCommittedRuntimePolicyRead(context, read)).toThrow(
+          "NATIVE-SERVING-NOT-CURRENT",
+        );
+        expect(params.runtime.lifecycle.closePreludeStarted).toBe(true);
+        expect(managed.isConfigReloadSettled()).toBe(true);
+        expect(findOwner(sharedState)).toBe(owner);
+        expect(getRuntimeConfigSnapshot()).toBe(published);
+        closePrelude = () => {};
+        params.runtime.lifecycle.closePreludeStarted = false;
+        assertNativeServingRead(read);
+        expect(() => assertGatewayCommittedRuntimePolicyRead(context, read)).toThrow(
+          "NATIVE-SERVING-NOT-CURRENT",
+        );
+      } finally {
+        await managed.stop();
+        clearSecretsRuntimeSnapshot();
+      }
+    });
+  });
+
+  it("rechecks a private Core settled predicate that closes G while NativeR stays healthy", () => {
+    let closePrelude = () => {};
+    const { params, context, lifetime } = createL0NativeCallbackFixture(() => {
+      closePrelude();
+      return true;
+    });
+    const read = captureL0Read(context);
+    assertGatewayCommittedRuntimePolicyRead(context, read);
+    closePrelude = () => {
+      params.runtime.lifecycle.closePreludeStarted = true;
+    };
+    expect(() => assertGatewayCommittedRuntimePolicyRead(context, read)).toThrow(
+      "NATIVE-SERVING-NOT-CURRENT",
+    );
+    expect(lifetime.signal.aborted).toBe(false);
+    closePrelude = () => {};
+    params.runtime.lifecycle.closePreludeStarted = false;
+    assertNativeServingRead(read);
+    expect(() => assertGatewayCommittedRuntimePolicyRead(context, read)).toThrow(
+      "NATIVE-SERVING-NOT-CURRENT",
+    );
+  });
+
+  it("contains a native callback exception and does not revive OLD after recovery", () => {
+    let fail = false;
+    const { context } = createL0NativeCallbackFixture(() => {
+      if (fail) {
+        throw new Error("fixture native callback unavailable");
+      }
+      return true;
+    });
+    const read = captureL0Read(context);
+    fail = true;
+    expect(() => assertGatewayCommittedRuntimePolicyRead(context, read)).toThrow(
+      "NATIVE-SERVING-NOT-CURRENT",
+    );
+    fail = false;
+    assertNativeServingRead(read);
+    expect(() => assertGatewayCommittedRuntimePolicyRead(context, read)).toThrow(
+      "NATIVE-SERVING-NOT-CURRENT",
+    );
+    assertGatewayCommittedRuntimePolicyRead(context, captureL0Read(context));
+  });
+
+  it("refuses after real managed stop and native lifetime abort without borrowing a replacement", async () => {
+    await withOpenClawTestState({ scenario: "minimal" }, async () => {
+      const { context, managed } = await createL0NativeFixture();
+      const read = captureL0Read(context);
+      await managed.stop();
+      expect(() => assertGatewayCommittedRuntimePolicyRead(context, read)).toThrow(
+        "NATIVE-SERVING-NOT-CURRENT",
+      );
+      expect(context.getCommittedRuntimePolicyRead?.()).toBeUndefined();
+      clearSecretsRuntimeSnapshot();
+    });
+    const { context, lifetime } = createL0NativeCallbackFixture(() => true);
+    const read = captureL0Read(context);
+    lifetime.abort();
+    expect(() => assertGatewayCommittedRuntimePolicyRead(context, read)).toThrow(
+      "NATIVE-SERVING-NOT-CURRENT",
+    );
+    expect(context.getCommittedRuntimePolicyRead?.()).toBeUndefined();
+  });
+
+  it("keeps OLD terminal but admits a NEW capture after a native epoch on the same healthy owner", async () => {
+    await withOpenClawTestState({ scenario: "minimal" }, async () => {
+      const { sharedState, context, published, managed } = await createL0NativeFixture();
+      try {
+        const old = captureL0Read(context);
+        const owner = findOwner(sharedState);
+        if (!owner) {
+          throw new Error("Missing real managed owner");
+        }
+        const ticket = reserveNativeTransition(owner);
+        expect(() => assertGatewayCommittedRuntimePolicyRead(context, old)).toThrow(
+          "NATIVE-SERVING-NOT-CURRENT",
+        );
+        expect(context.getCommittedRuntimePolicyRead?.()).toBeUndefined();
+        finishNativeTransition(ticket);
+        expect(findOwner(sharedState)).toBe(owner);
+        const fresh = captureL0Read(context);
+        expect(fresh).not.toBe(old);
+        assertGatewayCommittedRuntimePolicyRead(context, fresh);
+        assertGatewayCommittedRuntimePolicyRead(context, fresh);
+        expect(readNativeServingReadConfig(fresh)).toBe(published);
+        expect(() => assertGatewayCommittedRuntimePolicyRead(context, old)).toThrow(
+          "NATIVE-SERVING-NOT-CURRENT",
+        );
+      } finally {
+        await managed.stop();
+        clearSecretsRuntimeSnapshot();
+      }
+    });
+  });
+});
 
 describe("createGatewayRequestContext", () => {
   it("C4 does not turn legacy committed config and settled callbacks into a native policy read", () => {

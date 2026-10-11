@@ -94,5 +94,28 @@ après commit, reprise réseau et volumétrie ne sont pas qualifiées par cette 
 Les budgets et politiques existants restent applicables ; une réception sans perte absolue
 n’est pas démontrée. Aucun nouveau chemin de capture M10 général n’est annoncé.
 
-La suite produit doit d’abord conserver les contacts secondaires sous un contrat canonique
-et définir la reprise du serveur émetteur avant d’activer le formulaire public.
+La suite produit doit d'abord conserver les contacts secondaires sous un contrat canonique
+et définir la reprise du serveur émetteur avant d'activer le formulaire public.
+
+## Addendum — portée du rejeu signé, 11 octobre 2026
+
+**Préparé ; qualification fraîche en attente.** Les résultats historiques ci-dessus ne
+qualifient pas ce changement. Le rejeu générique M1 conserve sa règle documentée au §13.3
+de `M1-canaux.md` : un UTM différent n'écrit rien et peut rendre `non_porte`.
+
+Le pont HTTP signé exige désormais, pour un même site et nonce, le même UTM que la ligne
+signal persistée, et pas seulement celui d'un lead. Changement, ajout ou retrait d'UTM
+valide est refusé en 400 avant toute restitution de doublon, y compris pour une demande
+incomplète ou une plainte. Une absence historique reste une absence ; aucun maillon
+n'est réécrit. L'ordre des clés JSON n'est pas identitaire. Un nouveau nonce suit le
+traitement ordinaire, sans remplacement d'un lead déjà gelé.
+
+Une portée immutable liée au signal et à l'UTM est posée après HMAC dans le worker
+synchrone, puis restaurée dans `finally`. M1 vérifie la cohérence de cette portée avant
+même un premier signal. Aucune permission supplémentaire, identité humaine, variable
+d'environnement, argument public ou table de réception n'est créée.
+
+Les oracles préparés couvrent la divergence signée, le rejeu générique conservé,
+les premières écritures incohérentes, la plainte sans lead, le reset et deux workers
+SQLite concurrents au même nonce. Leurs résultats restent à constater ; ils ne
+prouveront ni la reprise du serveur public, ni PostgreSQL, ni une identité de visiteur.

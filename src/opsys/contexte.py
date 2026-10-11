@@ -59,6 +59,62 @@ def departement_origine_appelante() -> str | None:
 
 
 @dataclasses.dataclass(frozen=True)
+class _FormulaireSigne:
+    """Restriction du pont HTTP authentifié ; aucune identité ni permission d'outil."""
+
+    signal_id: str
+    utm: tuple[tuple[str, str], ...] | None
+
+
+_FORMULAIRE_SIGNE: contextvars.ContextVar[_FormulaireSigne | None] = contextvars.ContextVar(
+    "opsys_formulaire_signe", default=None
+)
+
+
+def _copier_utm_signe(utm: dict[str, str] | None) -> tuple[tuple[str, str], ...] | None:
+    if utm is None:
+        return None
+    if type(utm) is not dict or not utm or any(
+        type(cle) is not str or not cle or type(valeur) is not str or not valeur
+        for cle, valeur in utm.items()
+    ):
+        raise ValueError("REJ-FORMULAIRE-SIGNE-INCOHERENT")
+    return tuple(sorted(utm.items()))
+
+
+@contextlib.contextmanager
+def reception_formulaire_signee(signal_id: str, utm: dict[str, str] | None) -> Iterator[None]:
+    """Le worker du pont pose cette portée après HMAC ; aucun argument produit ne la pose."""
+    if type(signal_id) is not str or not signal_id.startswith("formulaire:") or not signal_id[11:]:
+        raise ValueError("REJ-FORMULAIRE-SIGNE-INCOHERENT")
+    capture = _FormulaireSigne(signal_id, _copier_utm_signe(utm))
+    token = _FORMULAIRE_SIGNE.set(capture)
+    try:
+        yield
+    finally:
+        _FORMULAIRE_SIGNE.reset(token)
+
+
+def formulaire_signe_courant() -> _FormulaireSigne | None:
+    """Portée locale au worker ; absente pour la réception générique M1."""
+    return _FORMULAIRE_SIGNE.get()
+
+
+def verifier_formulaire_signe(signal_id: str, utm: dict[str, str] | None) -> bool:
+    """Une portée présente incohérente refuse avant tout signal/rejeu, jamais un fallback legacy."""
+    capture = formulaire_signe_courant()
+    if capture is None:
+        return False
+    if (
+        type(capture) is not _FormulaireSigne
+        or capture.signal_id != signal_id
+        or capture.utm != _copier_utm_signe(utm)
+    ):
+        raise ValueError("REJ-FORMULAIRE-SIGNE-INCOHERENT")
+    return True
+
+
+@dataclasses.dataclass(frozen=True)
 class HorodatageAppareil:
     """Les deux horloges d'une mutation d'appareil idempotente (R12 §4)."""
 

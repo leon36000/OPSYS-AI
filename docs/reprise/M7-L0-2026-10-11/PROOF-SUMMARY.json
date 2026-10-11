@@ -1,0 +1,472 @@
+{
+  "CoreL0": {
+    "compiled_subprocess": {
+      "Root_all_hashed_at_closure": true,
+      "context_test_is_compiler_input": false,
+      "identity": "23eab8751b9619febdc24e380647c04aaf99ad1864f8a5af38e923847ce4b1b9",
+      "inputs": 11551,
+      "manifest_sha256": "5d73fb6b7e2dd2e5c97d11ad75892484d13973c4d4055539c3c4b8a84fd98bf9",
+      "outputs": 15718,
+      "test_binding": "frozen Source43844 plus actual whole2 JSON/JUnit; no compiler-input assertion"
+    },
+    "fresh_final_formatted_whole2": {
+      "EOF_owned_stop": true,
+      "JSON_JUnit_exact_multiset": true,
+      "RSS_sampled_bytes": 2276085760,
+      "context_file": 27,
+      "failed_skip_todo": 0,
+      "native_policy_owner_neighbor": 30,
+      "passed": 57,
+      "root_source2": {
+        "core/src/gateway/server-request-context.test.ts": {
+          "mode": 436,
+          "sha256": "f1fa3c43a8ba496b3f8ed9593adeee00ccf8f67f475ab623f81ebde4721a293d",
+          "size": 41902
+        },
+        "core/src/gateway/server-request-context.ts": {
+          "mode": 436,
+          "sha256": "04c9e0a2ee5286311677c801b7bf5cbd964a124351d98c714f7b84985a9dbc24",
+          "size": 26931
+        }
+      },
+      "wall_seconds": 60.339
+    },
+    "limits": [
+      "exact constructorG/R and sticky OLD lifetime guard only",
+      "H/nativeRegistry/L1/copies-positive/allSenders/OriginalC/provider remain future"
+    ],
+    "neighbors13": "scoped closed r1 reuse (presence10/RPC3); production/neighbor tests unchanged; not new run",
+    "styles2": {
+      "format": "PASS Root13512/2.402s",
+      "lint": "PASS Root14792/3.192s"
+    }
+  },
+  "PC1_copy": {
+    "Source": 43844,
+    "closure": "transport pidfd; nested wrappers revalidated_pid/EOF/observed owner stop",
+    "dependencies": 93391,
+    "exports27_rehashed_locally": true,
+    "files": 137235,
+    "limits": [
+      "copy is not a type/build/provider test",
+      "no new remote physical census by portable preparer"
+    ],
+    "links": 4060,
+    "origin_files_links_preserved": [
+      149527,
+      4506
+    ],
+    "qualified": true,
+    "reference": {
+      "bytes": 1364,
+      "meaning": "copy physical Source9 closed, no types/build credit by copy",
+      "private_Q_path": "M1-LEAF6-L0-PC1-COPY-CLOSED-ROOT-20261011-r1/ROOT-CLOSED-COPY-r1.json",
+      "sha256": "bd2add319b054fb7b1145176c4eb349612d9f55bdd1da41c04c905222bf67109"
+    }
+  },
+  "Source7": {
+    "HTTP42_and_neighbors108_and_verifier": "closed r1, production unchanged r2; not rerun in R",
+    "context15_and_Ruff5": "fresh r2 after test-only SIM117 syntax delta",
+    "counts_are_not_aggregated_with_Core": true,
+    "distinct_tests": 165,
+    "limits": [
+      "fresh rerun HTTP/neighbors/verifier on r2",
+      "PostgreSQL",
+      "Core TypeScript/device integration",
+      "real external provider/network",
+      "E2E child loaded-import ledger",
+      "CI at future integration SHA",
+      "SQLite only",
+      "no independent-process restart restoration",
+      "no realHTTP cancellation proof",
+      "three JUnit property warnings neighbors retained"
+    ],
+    "qualified_fail_errors_skips": 0,
+    "repeated_context_tests": 15,
+    "scope": "3 production/2 tests/2docs isolated WT reused byte-exact in R",
+    "test_executions": 180,
+    "verification10dept242tools150device": "r1 existing verifier retained, SMSinactive"
+  },
+  "audit_toronto": "2026-10-11T07:33:10.557385-04:00",
+  "build": "CLOSED_PASS_SCOPED_SOURCE9_PC1_X64_FULL",
+  "build_Root": {
+    "bytes": 23618,
+    "meaning": "Actual Root full build closed Source43844; publication metadata docs separate",
+    "private_Q_path": "M1-LEAF6-L0-PC1-FULL-BUILD-CLOSED-ROOT-20261011-r1/ROOT-CLOSED-BUILD-r1.json",
+    "sha256": "029635c3fff7f7502b3967b10600c3f0a422f2f023dc1d481a9b6a62cf1b348f"
+  },
+  "build_independent_review": {
+    "bytes": 266,
+    "meaning": "Independent full714line log review;38exports/64pins; PASS_SCOPED",
+    "private_Q_path": "M1-LEAF6-L0-PC1-FULLBUILD-INDEPENDENT-READBACK-20261011-r1/SHA256-r1.json",
+    "sha256": "d77e11c3806f20958ff73320180f77daf1a6b6398b4add09afdd2d7e444fda7b"
+  },
+  "canonical_TS7": {
+    "RSS_sampled_bytes": 5701521408,
+    "candidate_and_origin_prepost_preserved": true,
+    "command": "node scripts/run-tsgo.mjs --project tsconfig.core.json --noEmit --incremental false --listFiles --pretty false",
+    "diagnostics": 0,
+    "exports40_rehashed_locally": true,
+    "limits": [
+      "Canonical tsconfig excludes tests; tests qualified separately.",
+      "Every listed input bound to copied physical file; no exhaustive import trace or TS6 getSourceFiles claim.",
+      "Compiler log mechanically reconciled entirely; 2.7MB path list not manually read.",
+      "Nested wrapper strategy revalidated_pid; transport owner pidfd. Ownership only for observed pinned descendants.",
+      "No native ingress, provider, SMS, full build or new commit CI credit.",
+      "Readonly collector first referenced READY-r1 instead of resume-r2 and wrong nested copy census path; failed before outputs or execution; corrected using actual manifests; no rerun."
+    ],
+    "listFiles_not_TS6_getSourceFiles_or_full_import_trace": true,
+    "listed_production_files": 16306,
+    "mandatory_productions": 15,
+    "physical_dependencies": 3194,
+    "physical_source": 13112,
+    "qualified": true,
+    "reference": {
+      "bytes": 6461,
+      "meaning": "canonical production tsconfig zero diagnostics, test files excluded",
+      "private_Q_path": "M1-LEAF6-L0-CANONICAL-TS7-CLOSED-ROOT-20261011-r1/ROOT-CLOSED-TS7-r1.json",
+      "sha256": "acbbc7bb93fd60edc734296302b1860fbf7482a4f360723f9cc5b8522d5849b7"
+    },
+    "test_files": 0,
+    "wall_seconds": 62.551
+  },
+  "copy_types_independent_review": {
+    "build_pending": false,
+    "exports": 67,
+    "listed_physical_aliases": 46,
+    "manifest_sha256": "6c3cfb305184ff5ab1e2461dd1a407683e67648d9616c3d9f7625d88eda77660",
+    "max_link_hops": 1,
+    "mode_inode_facts": "Assertions of actual closed owners, not a new physical remote observation",
+    "new_remote_or_runtime_measurement": false,
+    "pins": 92,
+    "private_Q_manifest": "M1-LEAF6-L0-PC1-COPY-TYPES-INDEPENDENT-REVIEW-20261011-r1/SHA256.json",
+    "report": "M1-LEAF6-L0-PC1-COPY-TYPES-INDEPENDENT-REVIEW-20261011-r1/RAPPORT-r1.md",
+    "report_sha256": "5be5b668888f717ea8e4d58e83b1e80249aa73ee348901e6104877749b38cc6b",
+    "state": "PASS_SCOPED_CLOSED_DATA_ONLY"
+  },
+  "fresh_fullCore": {
+    "DTS_SDK_UI_budgets": {
+      "SDK_DTS": 2,
+      "SDK_subpaths": 158,
+      "UI_rows": 543,
+      "built_modules": 23,
+      "compressed_assets": 517,
+      "declaration_graph_bytes": 4228652,
+      "declaration_graph_ceiling": 5315536,
+      "main_log_bytes": 86846,
+      "main_log_lines": 714,
+      "main_log_sha256": "d644a84e55ae8ce40f9a327683c027cabf2863b65fe735d24e35ed4740e428e5",
+      "plugins": 15,
+      "postbuild_phases": 13,
+      "sidecars": 1034,
+      "startup_CSS_ceiling": 51200,
+      "startup_CSS_gzip": 51165,
+      "startup_CSS_margin": 35,
+      "startup_JS_ceiling": 371332,
+      "startup_JS_gzip": 371166,
+      "startup_JS_margin": 166,
+      "startup_JS_requests": 7,
+      "unified_DTS": 18
+    },
+    "Gitless_stamps": {
+      ".buildstamp": {
+        "sha256": "9117564205cbb1aa50fbab1167e979e96e0845801968357597be47ba613e09f7",
+        "value": {
+          "builtAt": 1791717621574,
+          "head": null,
+          "inputsClean": null
+        }
+      },
+      ".runtime-postbuildstamp": {
+        "sha256": "b9838004796dca68eae2744c756f161d95a2db6c4559ff8751db1480e73d01b6",
+        "value": {
+          "inputsClean": null,
+          "syncedAt": 1791717621667
+        }
+      },
+      "build-info.json": {
+        "sha256": "de7ef1e0ab61f96156299b5118d6229f23d82692d4099d9be543bb8aee2f9556",
+        "value": {
+          "buildId": "2026.9.6-2026-10-11T11-12-39.154Z",
+          "builtAt": "2026-10-11T11:12:39.154Z",
+          "commit": null,
+          "version": "2026.9.6"
+        }
+      }
+    },
+    "Root_manual_log_read_scope": "Citation historique du reçu Root 029635 : lecture manuelle bornée puis qualification mécanique de toutes les lignes ; revue indépendante ultérieure d77e fermée, lecture manuelle intégrale des 714 lignes.",
+    "browser_warning_path_normalization": "Préfixe privé absolu normalisé en SOURCE_PC1/ dans les deux descriptions ; journal brut SHA d644a84e55ae8ce40f9a327683c027cabf2863b65fe735d24e35ed4740e428e5 conservé inchangé.",
+    "independent_whole_log_review": {
+      "bytes": 266,
+      "meaning": "Independent full714line log review;38exports/64pins; PASS_SCOPED",
+      "private_Q_path": "M1-LEAF6-L0-PC1-FULLBUILD-INDEPENDENT-READBACK-20261011-r1/SHA256-r1.json",
+      "sha256": "d77e11c3806f20958ff73320180f77daf1a6b6398b4add09afdd2d7e444fda7b"
+    },
+    "limits": [
+      "No Source9 commit CI credit; four publication metadata docs absent from43844 buildqualified source.",
+      "Git stamps null because candidate unpublished and Gitless; no pretend exact commit stamp.",
+      "Ownership/RSS only observed pinned descendants; no new remote physical independent measurement.",
+      "No permission/Hprovenance/Taskkeeper/OriginalC/provider/phone/P0 or full product completion."
+    ],
+    "metadata_dispositions": [
+      "Inherited OUTPUTS descriptive sourcecount43746 and temporary old evidence namespace core-build-published-r1 are historical text; actual executable identity/census43844 and namespace l0-build20261011-r1 control run. Preserved without modifying closed packet; no waiver or rerun.",
+      "First readonly Root collector assumed every symlink target is file/link census entry; actual plugin-sdk target is directory. Failed before output; corrected with directories derived from census paths, consistent with closed owner link validation; no runtime rerun."
+    ],
+    "phases": [
+      [
+        "plugins:assets:build",
+        "96ms"
+      ],
+      [
+        "tsdown-ai",
+        "3.55s"
+      ],
+      [
+        "tsdown-packages",
+        "17.8s"
+      ],
+      [
+        "tsdown-unified",
+        "25.6s"
+      ],
+      [
+        "write-unified-entry-dts",
+        "6m 32s"
+      ],
+      [
+        "external-plugins:local-dist",
+        "2.60s"
+      ],
+      [
+        "check-cli-bootstrap-imports",
+        "17.8s"
+      ],
+      [
+        "plugins:assets:copy",
+        "122ms"
+      ],
+      [
+        "runtime-postbuild",
+        "2.71s"
+      ],
+      [
+        "build-stamp",
+        "96ms"
+      ],
+      [
+        "runtime-postbuild-stamp",
+        "92ms"
+      ],
+      [
+        "write-plugin-sdk-entry-dts",
+        "54.9s"
+      ],
+      [
+        "check-plugin-sdk-exports",
+        "2.11s"
+      ],
+      [
+        "ui:build",
+        "9.37s"
+      ],
+      [
+        "write-build-info",
+        "81ms"
+      ],
+      [
+        "write-cli-startup-metadata",
+        "2.83s"
+      ]
+    ],
+    "preservation": {
+      "after_files": 149569,
+      "after_links": 4506,
+      "before_files": 137235,
+      "before_links": 4060,
+      "existing_Source_dependencies_links_unchanged": true,
+      "new_files": 12334,
+      "new_links": 446,
+      "new_links_to_directories": 82,
+      "new_outputs_only_declared_prefixes": true,
+      "origin_unchanged": true
+    },
+    "prior_C4_build_not_credit_for_Source9": true,
+    "result": {
+      "EOF_observed_owner_stop": true,
+      "RSS_sampled_bytes": 6028066816,
+      "exit": 0,
+      "wall_seconds": 545.718
+    },
+    "state": "CLOSED_PASS_SCOPED",
+    "warnings_retained": [
+      "node_modules/.pnpm/playwright-core@1.63.0/node_modules/playwright-core/lib/coreBundle.js (66352:28) [EVAL] Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.",
+      "node_modules/.pnpm/playwright-core@1.63.0/node_modules/playwright-core/lib/coreBundle.js (66359:28) [EVAL] Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.",
+      "node_modules/.pnpm/web-tree-sitter@0.27.0/node_modules/web-tree-sitter/web-tree-sitter.js (2400:30) [EVAL] Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.",
+      "node_modules/.pnpm/web-tree-sitter@0.27.0/node_modules/web-tree-sitter/web-tree-sitter.js (2423:32) [EVAL] Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.",
+      "node_modules/.pnpm/web-tree-sitter@0.27.0/node_modules/web-tree-sitter/web-tree-sitter.js (2400:30) [EVAL] Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.",
+      "node_modules/.pnpm/web-tree-sitter@0.27.0/node_modules/web-tree-sitter/web-tree-sitter.js (2423:32) [EVAL] Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.",
+      "[plugin rolldown:vite-resolve] Module \"node:path\" has been externalized for browser compatibility, imported by \"SOURCE_PC1/core/packages/media-core/src/mime.ts\". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.",
+      "[plugin rolldown:vite-resolve] Module \"node:path\" has been externalized for browser compatibility, imported by \"SOURCE_PC1/core/packages/media-core/src/file-name.ts\". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.",
+      "  warning: startup CSS gzip is above the 46080 B advisory target; remaining hard-ceiling headroom: 35 B"
+    ]
+  },
+  "generic_limits": [
+    "observed pinned descendants only, sampled RSS",
+    "fixed manifests cover listed physical files; ignored unlisted files not inferred",
+    "no model consultation/effort attestation used as proof",
+    "Docker local unavailable per historical audit; no runner/platform result borrowed",
+    "no phone/provider/Gatewaypositive/P0/full vertical completeness/financial finality"
+  ],
+  "global_transfer_limits": {
+    "absent_conversations": "unknown; no invented recovery",
+    "accessible_prior_audit_provenance": [
+      {
+        "bytes": 3966,
+        "meaning": "prior published C4 audit; historical transfer omissions and prior-only CI, no current Source9 credit",
+        "private_Q_path": "SOURCE_R/docs/reprise/M1-C4-2026-10-11/README.md",
+        "sha256": "e422edbd50aa5c7414e02254f751d2e18ae12ffa4ddc8d2e541633c4d2e7671a"
+      },
+      {
+        "bytes": 4731,
+        "meaning": "prior published C4 audit; historical transfer omissions and prior-only CI, no current Source9 credit",
+        "private_Q_path": "SOURCE_R/docs/reprise/M1-C4-2026-10-11/REGISTRE.json",
+        "sha256": "7566449dc71749eed98d4ac641d0ec9447fde2487922e06b55ac0403df262260"
+      },
+      {
+        "bytes": 3064,
+        "meaning": "prior published C4 audit; historical transfer omissions and prior-only CI, no current Source9 credit",
+        "private_Q_path": "SOURCE_R/docs/reprise/M1-C4-2026-10-11/PROOF-SUMMARY.json",
+        "sha256": "f8a4967236f802d9b05944b85f1460d6025960794f729594cd1ade5d2c36befa"
+      },
+      {
+        "bytes": 2113,
+        "meaning": "prior published C4 audit; historical transfer omissions and prior-only CI, no current Source9 credit",
+        "private_Q_path": "SOURCE_R/docs/reprise/M1-C4-2026-10-11/RED-HISTORY.json",
+        "sha256": "dc3aa109bf36ee488db33a3864beb462b770dba71761e2d49eee7e3d7bdf2066"
+      }
+    ],
+    "excluded_light_proofs": 104,
+    "full_supplement": "absent/unavailable according to prior transfer audit; not recreated here",
+    "scope": "global transfer limits, not an assertion of M7 missing proof or new Source9 test failure"
+  },
+  "new_exact_CI": {
+    "prior407_not_Source9_CI": true,
+    "state": "PENDING_NEW_PRIVATE_COMMIT_AND_APPLICABLE_RUN"
+  },
+  "no_active_GO_or_runtime_in_this_doc_preparation": true,
+  "previous_commit407_is_prior_only": true,
+  "product": "PARTIEL",
+  "proof_references": {
+    "Core2_closed": {
+      "bytes": 2791,
+      "meaning": "fresh finalformatted57 tests and compiled input distinction",
+      "private_Q_path": "M1-LEAF6-L0-FULL2-CLOSED-ROOT-20261011-r2/ROOT-CLOSED-full2-r2.json",
+      "sha256": "9a5ea148611a1f63fe0d8a70394252e93adaaa69145d4516577dec155293d9eb"
+    },
+    "Core2_format": {
+      "bytes": 418,
+      "meaning": "Root closed format exacttwo finalSource files",
+      "private_Q_path": "M1-LEAF6-L0-IMPLEMENTATION-20261011-r1/FULL-GREEN-AND-STYLES-PREPARATION-r2/ROOT-CLOSED-format2-r2.json",
+      "sha256": "deff5d692c6c3d6c16925612abfdb7b4b098472a98d9507bcc33d48643ef629f"
+    },
+    "Core2_independent_data": {
+      "bytes": 1212,
+      "meaning": "final Source2 closed data review manifest",
+      "private_Q_path": "M1-LEAF6-L0-FINAL-SOURCE2-INDEPENDENT-READBACK-20261011-r1/SHA256-r1.json",
+      "sha256": "ff98339ad3dbac288cb201cf47976d6893266ddf48b642f7e05be0e058dd9c79"
+    },
+    "Core2_lint": {
+      "bytes": 428,
+      "meaning": "Root closed lint exacttwo finalSource files",
+      "private_Q_path": "M1-LEAF6-L0-IMPLEMENTATION-20261011-r1/FULL-GREEN-AND-STYLES-PREPARATION-r2/ROOT-CLOSED-lint2-r2.json",
+      "sha256": "64f613401e621d6bfa42c1ba3ff7e115f1b8018b7e54ac17f6caf4b039bd8125"
+    },
+    "Core_neighbors13": {
+      "bytes": 1049,
+      "meaning": "13 scopedreuse unchanged production/neighbor tests, not fresh",
+      "private_Q_path": "M1-LEAF6-L0-NEIGHBORS2-CLOSED-ROOT-20261011-r1/ROOT-CLOSED-neighbors2-r1.json",
+      "sha256": "7775ccb2329ba3a9f083a8eaa5e4856d9bede17482712e00d2b8dc5011779366"
+    },
+    "FullCore_Root": {
+      "bytes": 23618,
+      "meaning": "Actual Root full build closed Source43844; publication metadata docs separate",
+      "private_Q_path": "M1-LEAF6-L0-PC1-FULL-BUILD-CLOSED-ROOT-20261011-r1/ROOT-CLOSED-BUILD-r1.json",
+      "sha256": "029635c3fff7f7502b3967b10600c3f0a422f2f023dc1d481a9b6a62cf1b348f"
+    },
+    "FullCore_independent": {
+      "bytes": 266,
+      "meaning": "Independent full714line log review;38exports/64pins; PASS_SCOPED",
+      "private_Q_path": "M1-LEAF6-L0-PC1-FULLBUILD-INDEPENDENT-READBACK-20261011-r1/SHA256-r1.json",
+      "sha256": "d77e11c3806f20958ff73320180f77daf1a6b6398b4add09afdd2d7e444fda7b"
+    },
+    "PC1_copy": {
+      "bytes": 1364,
+      "meaning": "copy physical Source9 closed, no types/build credit by copy",
+      "private_Q_path": "M1-LEAF6-L0-PC1-COPY-CLOSED-ROOT-20261011-r1/ROOT-CLOSED-COPY-r1.json",
+      "sha256": "bd2add319b054fb7b1145176c4eb349612d9f55bdd1da41c04c905222bf67109"
+    },
+    "PC1_copy_exports27": {
+      "bytes": 3605,
+      "meaning": "all27 exported copy artifacts rehashed, no new remote scan",
+      "private_Q_path": "M1-LEAF6-L0-PC1-COPY-TYPES-PREPARATION-20261011-r1/READY-RESUME-UPLOADED-r2/copy-transport-r2/evidence-manifest.json",
+      "sha256": "bdc5c95c5c3e99f6ac4fb71c7b736a42a09992f04f2eea6aabfddbeef5a77134"
+    },
+    "Source407_baseline": {
+      "bytes": 8587521,
+      "meaning": "published407 immutable baseline",
+      "private_Q_path": "M1-C4-PUBLICATION-ROOT-20261011-r1/full-source-publication-r1.json",
+      "sha256": "abb7c80c548e47be6101209500e63cb55d0c7780f222f32bc04f8558966ad512"
+    },
+    "Source7_closed": {
+      "bytes": 11581,
+      "meaning": "actual reuse/execution counts and limits",
+      "private_Q_path": "M7-UTM-SIGNED-SCOPE-IMPLEMENTATION-20261011-r1/CLOSED-QUALIFICATION-r2/READBACK-r2.json",
+      "sha256": "9746d3fa1779998ecdde552dfe83d0871813d8f8ed9dfc92379e0d0dea9390d4"
+    },
+    "Source7_independent": {
+      "bytes": 2818,
+      "meaning": "independent static review before execution; do not rewrite historical pending state",
+      "private_Q_path": "M7-UTM-SOURCE7-INDEPENDENT-REVIEW-20261011-r1/RAPPORT-r1.md",
+      "sha256": "514c69d6d9a4b533622168e185fd5fd94be3857685756ec2e3cc53c673a0e9d3"
+    },
+    "Source7_portable": {
+      "bytes": 7804,
+      "meaning": "byte-exact portable Source7 proof manifest",
+      "private_Q_path": "M7-UTM-SOURCE7-PORTABLE-AUDIT-PREPARATION-20261011-r1/SHA256-PORTABLE-r1.json",
+      "sha256": "608526d04fd8c4cb08dc15aaefa1e46eb86483757821f8c68347c883de24a56e"
+    },
+    "Source9": {
+      "bytes": 8587487,
+      "meaning": "43844 SHA/size/modes Root qualification inventory; external only, not copied intoGit",
+      "private_Q_path": "M7-SOURCE7-PLUS-L0-SOURCE2-ROOT-INTEGRATION-20261011-r1/full-source-final.json",
+      "sha256": "5a80b449a520871ad30ebd57190526c94955489b7b9cec7ada8e7d1520fafee4"
+    },
+    "Source9_owned9": {
+      "bytes": 2096,
+      "meaning": "exact9 affected paths",
+      "private_Q_path": "M7-SOURCE7-PLUS-L0-SOURCE2-ROOT-INTEGRATION-20261011-r1/OWNED-SOURCE9-r1.json",
+      "sha256": "7586944836b54fd1617e5e343eb33600cf79aafd648ceff5a943e81deb62803d"
+    },
+    "TS7": {
+      "bytes": 6461,
+      "meaning": "canonical production tsconfig zero diagnostics, test files excluded",
+      "private_Q_path": "M1-LEAF6-L0-CANONICAL-TS7-CLOSED-ROOT-20261011-r1/ROOT-CLOSED-TS7-r1.json",
+      "sha256": "acbbc7bb93fd60edc734296302b1860fbf7482a4f360723f9cc5b8522d5849b7"
+    },
+    "TS7_exports40": {
+      "bytes": 5492,
+      "meaning": "all40 exported qualification artifacts rehashed locally, no raw/private bytes exported",
+      "private_Q_path": "M1-LEAF6-L0-PC1-COPY-TYPES-PREPARATION-20261011-r1/READY-r1/canonical-transport-r1/evidence-manifest.json",
+      "sha256": "d3d6ab88932b1cda5c36df394d0173afd146eaeda53800bc1cb95c7fcb0c6114"
+    },
+    "integration": {
+      "bytes": 710,
+      "meaning": "Root physical7 copy with Core2 preserved and combined9 frozen",
+      "private_Q_path": "M7-SOURCE7-PLUS-L0-SOURCE2-ROOT-INTEGRATION-20261011-r1/ROOT-CLOSED-INTEGRATION-r1.json",
+      "sha256": "ae79529233095e52a390e72285d5c58c84d5759d33ae3526944ac47f62c2ef90"
+    }
+  },
+  "publication_commit": null,
+  "publication_identity": "Exact commit recorded outside these bytes in Root publication receipt and PR623; no self-commit hash cycle",
+  "state": "LOCAL_SOURCE9_QUALIFIED_PUBLICATION_CANDIDATE_EXACT_CI_PENDING"
+}

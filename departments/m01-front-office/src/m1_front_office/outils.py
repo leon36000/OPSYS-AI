@@ -1796,7 +1796,7 @@ def _complement_de_conversation(
 
 
 def _signal_deja_recu(
-    reg: Registre, message: reception.MessageRecu
+    reg: Registre, message: reception.MessageRecu, utm: dict[str, str] | None
 ) -> dict[str, Any] | None:
     """Retourne la réponse d'un rejeu identique; un même ID avec des données métier différentes est refusé.
 
@@ -1804,6 +1804,7 @@ def _signal_deja_recu(
     une intégration peut réutiliser un ID avec un autre expéditeur, corps ou horodatage. Comparer avant toute mutation
     évite de faire passer le second contenu pour le premier ou de créer une autre interaction.
     """
+    signe = contexte_appel.verifier_formulaire_signe(message.signal_id, utm)
     signal_id = message.signal_id
     signal = lead = alerte = None
     leads_par_id: dict[str, dict[str, Any]] = {}
@@ -1832,6 +1833,9 @@ def _signal_deja_recu(
         "contenu_filtre": contenu_filtre,
         "provenance_saine": provenance_saine,
     }
+    if signe:
+        # Le contrat générique conserve son warning UTM ; seul le pont signé exige le même UTM de signal.
+        champs_attendus["utm"] = utm
     divergent = [nom for nom, valeur in champs_attendus.items() if signal.get(nom) != valeur]
     if divergent:
         raise ValueError(
@@ -1988,7 +1992,7 @@ def _recevoir_message_prepare(message: reception.MessageRecu, utm, *, rejeu_admi
         ligne.get("type_entree") == "signal" and ligne.get("signal_id") == message.signal_id for ligne in reg.lire()
     ):
         raise ValueError("REJ-M1-SMS-PROVENANCE-CONFLICTUELLE")
-    deja = _signal_deja_recu(reg, message)
+    deja = _signal_deja_recu(reg, message, utm)
     if deja is not None:
         return _avec_bloc_utm(deja, None if utm is None else dict(utm))
     if message.retrait:

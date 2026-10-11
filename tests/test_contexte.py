@@ -3,8 +3,13 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import FrozenInstanceError
+from threading import Barrier
+
 import anyio
 import demo_outils
+import pytest
 from mcp import Client
 
 from opsys import contexte
@@ -12,6 +17,75 @@ from opsys.capacites import Capacites
 from opsys.serveur_mcp import creer_serveur
 
 FICTIF = True  # tout identifiant ci-dessous est fictif (AGENTS.md)
+
+
+def test_formulaire_signe_copie_immutable_et_absence_distincte():
+    signal = "formulaire:site-fictif:nonce-fictif"
+    utm = {"utm_source": "facebook", "utm_medium": "social"}
+    assert contexte.formulaire_signe_courant() is None
+    assert contexte.verifier_formulaire_signe(signal, utm) is False
+    with contexte.reception_formulaire_signee(signal, utm):
+        capture = contexte.formulaire_signe_courant()
+        utm["utm_source"] = "google"
+        assert capture.utm == (("utm_medium", "social"), ("utm_source", "facebook"))
+        with pytest.raises(FrozenInstanceError):
+            capture.signal_id = "formulaire:autre-fictif"
+        assert contexte.verifier_formulaire_signe(signal, dict(reversed(capture.utm))) is True
+        with pytest.raises(ValueError, match="REJ-FORMULAIRE-SIGNE-INCOHERENT"):
+            contexte.verifier_formulaire_signe(signal, utm)
+        with pytest.raises(ValueError, match="REJ-FORMULAIRE-SIGNE-INCOHERENT"):
+            contexte.verifier_formulaire_signe(signal, None)
+    with contexte.reception_formulaire_signee(signal, None):
+        assert contexte.formulaire_signe_courant().utm is None
+        assert contexte.verifier_formulaire_signe(signal, None) is True
+    assert contexte.formulaire_signe_courant() is None
+
+
+def test_formulaire_signe_restaure_portee_imbriquee_et_exception():
+    with contexte.reception_formulaire_signee("formulaire:exterieur-fictif", None):
+        capture = contexte.formulaire_signe_courant()
+        with (
+            pytest.raises(RuntimeError, match="panne fictive"),
+            contexte.reception_formulaire_signee("formulaire:interieur-fictif", {"utm_source": "google"}),
+        ):
+            assert contexte.formulaire_signe_courant() is not capture
+            raise RuntimeError("panne fictive")
+        assert contexte.formulaire_signe_courant() is capture
+    assert contexte.formulaire_signe_courant() is None
+
+
+def test_formulaire_signe_contextes_threads_concurrents_isoles():
+    barriere = Barrier(2)
+
+    def worker(signal, source):
+        assert contexte.formulaire_signe_courant() is None
+        with contexte.reception_formulaire_signee(signal, {"utm_source": source}):
+            barriere.wait(timeout=5)
+            assert contexte.verifier_formulaire_signe(signal, {"utm_source": source}) is True
+            capture = contexte.formulaire_signe_courant()
+        assert contexte.formulaire_signe_courant() is None
+        return capture.signal_id, capture.utm
+
+    with (
+        contexte.reception_formulaire_signee("formulaire:parent-fictif", None),
+        ThreadPoolExecutor(max_workers=2) as pool,
+    ):
+        a = pool.submit(worker, "formulaire:a-fictif", "facebook")
+        b = pool.submit(worker, "formulaire:b-fictif", "google")
+        assert a.result(timeout=10) == ("formulaire:a-fictif", (("utm_source", "facebook"),))
+        assert b.result(timeout=10) == ("formulaire:b-fictif", (("utm_source", "google"),))
+        assert contexte.formulaire_signe_courant().signal_id == "formulaire:parent-fictif"
+    assert contexte.formulaire_signe_courant() is None
+
+
+def test_formulaire_signe_portee_presente_invalide_ne_devient_pas_legacy():
+    token = contexte._FORMULAIRE_SIGNE.set(object())
+    try:
+        with pytest.raises(ValueError, match="REJ-FORMULAIRE-SIGNE-INCOHERENT"):
+            contexte.verifier_formulaire_signe("formulaire:fictif", None)
+    finally:
+        contexte._FORMULAIRE_SIGNE.reset(token)
+    assert contexte.formulaire_signe_courant() is None
 
 
 # -- contrat pur : depuis_meta_mcp_identite --------------------------------------------------------

@@ -4,8 +4,11 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from datetime import UTC, datetime
 from pathlib import Path
+from threading import Barrier
 
 import pytest
 from fastapi import FastAPI
@@ -15,11 +18,11 @@ from m2_revenue_crm import ingestion as ingestion_m2
 from m2_revenue_crm import outils as outils_m2
 from sqlalchemy import func, select
 
-from opsys import evenements, stockage, taxonomie
+from opsys import contexte, evenements, stockage, taxonomie
 from opsys.capacites import Capacites
 from opsys.console.formulaire_recepteur import creer_router
 from opsys.departements import Budget, charger_departements, lire_manifeste
-from opsys.stockage.schema import EVENEMENTS_SORTANTS
+from opsys.stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, REGISTRES
 
 REPO = Path(__file__).resolve().parents[1]
 M1 = REPO / "departments/m01-front-office"
@@ -151,6 +154,197 @@ def test_meme_nonce_avec_timestamp_different_ne_change_pas_silencieusement_le_re
                          headers=_signature(body, timestamp=autre_timestamp))
     assert refuse.status_code == 400
     assert refuse.json() == {"ok": False, "error": "invalid_request"}
+    assert _compter() == 1
+
+
+def _etat_metier_formulaire():
+    """Contenu SQL réel : les UPDATE aussi doivent être détectés, pas seulement les comptes."""
+    with stockage.transaction() as cnx:
+        return {
+            table.name: [dict(ligne._mapping) for ligne in cnx.execute(
+                select(table).order_by(*table.primary_key.columns)
+            )]
+            for table in (REGISTRES, EVENEMENTS_SORTANTS, EVENEMENTS_RECUS)
+        }
+
+
+@pytest.mark.parametrize("message,qualifie", [
+    ("Mes gouttières fuient à Laval.", True),
+    ("Bonjour.", False),
+], ids=["qualifie", "incomplet"])
+@pytest.mark.parametrize("utm_initial,utm_rejoue", [
+    ({"utm_source": "facebook"}, {"utm_source": "google"}),
+    ({}, {"utm_source": "facebook"}),
+    ({"utm_source": "facebook"}, {}),
+], ids=["utm-change", "utm-ajoute", "utm-retire"])
+def test_meme_nonce_avec_utm_divergent_refuse_sans_mutation_metier(
+    runtime, message, qualifie, utm_initial, utm_rejoue,
+):
+    """La provenance d'un signal signé ne change pas lors d'un rejeu du même ID."""
+    client = _client(runtime.appeler)
+    premier = _body(message=message, **utm_initial)
+    assert client.post("/interne/m1/formulaire", content=premier,
+                       headers=_signature(premier)).status_code == 202
+    assert _compter() == int(qualifie)
+    if qualifie:
+        dep_m2 = charger_departements()["m02-revenue-crm"]
+        livraison = evenements.repartir({dep_m2.id: dep_m2}, maintenant="2026-10-04T12:01:00+00:00")
+        assert livraison == {"livres": 1, "traites": 1, "echecs": 0, "quarantaines": 0, "ignores": 0}
+    avant = _etat_metier_formulaire()
+    autre = _body(message=message, **utm_rejoue)
+    refuse = client.post("/interne/m1/formulaire", content=autre, headers=_signature(autre))
+    assert refuse.status_code == 400
+    assert refuse.json() == {"ok": False, "error": "invalid_request"}
+    assert _etat_metier_formulaire() == avant
+
+
+def test_rejeu_utm_identique_ordre_des_cles_indifferent_apres_reouverture_sqlite(runtime):
+    """Même processus, nouvelle connexion et nouvelle app ; aucune restauration revendiquée."""
+    utm = {
+        "utm_source": "facebook", "utm_medium": "social",
+        "utm_campaign": "workflow-fictif-2026", "utm_content": "contenu-fictif-1",
+    }
+    premier = _body(**utm)
+    assert _client(runtime.appeler).post("/interne/m1/formulaire", content=premier,
+                                        headers=_signature(premier)).status_code == 202
+    dep_m2 = charger_departements()["m02-revenue-crm"]
+    livraison = evenements.repartir({dep_m2.id: dep_m2}, maintenant="2026-10-04T12:01:00+00:00")
+    assert livraison["traites"] == 1 and livraison["echecs"] == livraison["quarantaines"] == 0
+    avant = _etat_metier_formulaire()
+    stockage.liberer()
+    autre = _body(**dict(reversed(list(utm.items()))))
+    assert autre != premier, "des octets différents peuvent porter le même UTM canonique"
+    rejoue = _client(runtime.appeler).post("/interne/m1/formulaire", content=autre,
+                                         headers=_signature(autre))
+    assert rejoue.status_code == 202 and rejoue.json() == {"ok": True, "received": True}
+    assert _etat_metier_formulaire() == avant
+
+
+def test_nouveau_nonce_conserve_utm_de_sa_demande_incomplete(runtime):
+    """Un nouvel ID reste une nouvelle réception, même pour le même correspondant."""
+    client = _client(runtime.appeler)
+    premier = _body(message="Bonjour.", utm_source="facebook")
+    second = _body(message="Bonjour.", utm_source="google")
+    assert client.post("/interne/m1/formulaire", content=premier,
+                       headers=_signature(premier)).status_code == 202
+    assert client.post("/interne/m1/formulaire", content=second,
+                       headers=_signature(second, nonce="nonce-fictif-000002")).status_code == 202
+    with stockage.transaction():
+        signaux = [ligne for ligne in outils_m1._obtenir_registre().lire() if ligne["type_entree"] == "signal"]
+    assert [ligne["utm"] for ligne in signaux] == [{"utm_source": "facebook"}, {"utm_source": "google"}]
+    assert _compter() == 0
+
+
+@pytest.mark.parametrize("alteration", ["signal_id", "utm", "utm_absent"])
+def test_capsule_signee_incoherente_refuse_avant_premier_signal(runtime, alteration):
+    """Un raccord interne incorrect ne peut dégrader la portée capturée en appel legacy."""
+    def invoquer(nom, arguments):
+        capture = contexte.formulaire_signe_courant()
+        assert capture.signal_id == f"formulaire:{FAKE_SITE}:nonce-fictif-000001"
+        assert capture.utm == (("utm_source", "facebook"),)
+        modifies = dict(arguments)
+        if alteration == "signal_id":
+            modifies["message_id"] = f"{FAKE_SITE}:nonce-fictif-autre"
+        elif alteration == "utm":
+            arguments["utm"]["utm_source"] = "google"
+        else:
+            modifies["utm"] = None
+        return runtime.appeler(nom, modifies)
+
+    avant = _etat_metier_formulaire()
+    body = _body(utm_source="facebook")
+    response = _client(invoquer).post("/interne/m1/formulaire", content=body, headers=_signature(body))
+    assert response.status_code == 400 and response.json() == {"ok": False, "error": "invalid_request"}
+    assert _etat_metier_formulaire() == avant
+
+
+@pytest.mark.parametrize("utm_initial,utm_rejoue", [
+    ({"utm_source": "facebook"}, {"utm_source": "google"}),
+    ({}, {"utm_source": "facebook"}),
+    ({"utm_source": "facebook"}, {}),
+])
+def test_plainte_signee_refuse_utm_divergent_sur_signal_sans_lead(runtime, utm_initial, utm_rejoue):
+    taxonomie.enregistrer_signaux_plainte({"insatisfaction": ["plainte"]})
+    client = _client(runtime.appeler)
+    premier = _body(message="Je dépose une plainte.", **utm_initial)
+    assert client.post("/interne/m1/formulaire", content=premier, headers=_signature(premier)).status_code == 202
+    with stockage.transaction():
+        lignes = outils_m1._obtenir_registre().lire()
+    assert any(ligne["type_entree"] == "transfert" and ligne["evenement"] == "ouvert" for ligne in lignes)
+    assert not any(ligne["type_entree"] == "lead_emis" for ligne in lignes)
+    assert _compter() == 0
+    avant = _etat_metier_formulaire()
+    autre = _body(message="Je dépose une plainte.", **utm_rejoue)
+    refuse = client.post("/interne/m1/formulaire", content=autre, headers=_signature(autre))
+    assert refuse.status_code == 400 and refuse.json() == {"ok": False, "error": "invalid_request"}
+    assert _etat_metier_formulaire() == avant
+
+
+def test_deux_workers_signes_concurrents_meme_nonce_un_signal_un_refus(runtime):
+    barriere = Barrier(2)
+
+    def invoquer(nom, arguments):
+        assert contexte.formulaire_signe_courant().utm == tuple(sorted(arguments["utm"].items()))
+        barriere.wait(timeout=5)
+        return runtime.appeler(nom, arguments)
+
+    def envoyer(source):
+        body = _body(utm_source=source)
+        with _client(invoquer) as client:
+            return source, client.post("/interne/m1/formulaire", content=body, headers=_signature(body))
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        a = pool.submit(envoyer, "facebook")
+        b = pool.submit(envoyer, "google")
+        resultats = [a.result(timeout=15), b.result(timeout=15)]
+    assert sorted(response.status_code for _, response in resultats) == [202, 400]
+    gagnante = next(source for source, response in resultats if response.status_code == 202)
+    refuse = next(response for _, response in resultats if response.status_code == 400)
+    assert refuse.json() == {"ok": False, "error": "invalid_request"}
+    with stockage.transaction():
+        signaux = [ligne for ligne in outils_m1._obtenir_registre().lire() if ligne["type_entree"] == "signal"]
+    assert len(signaux) == 1 and signaux[0]["utm"] == {"utm_source": gagnante}
+    assert _compter() == 1
+    with stockage.transaction():
+        charge = evenements.charge_publiee("m1.lead_qualifie", "m1-lead-qualifie-" + _lead_id())
+    assert charge["lead"]["utm"] == {"utm_source": gagnante}
+
+
+def test_rejeu_generique_divergent_reste_permissif_apres_reception_signee(runtime):
+    body = _body(utm_source="facebook")
+    client = _client(runtime.appeler)
+    assert client.post("/interne/m1/formulaire", content=body, headers=_signature(body)).status_code == 202
+    avant = _etat_metier_formulaire()
+    assert contexte.formulaire_signe_courant() is None
+    legacy = runtime.appeler("m1_recevoir_message_canal", {
+        "canal": "formulaire", "expediteur": "client.fictif@example.test",
+        "message_id": f"{FAKE_SITE}:nonce-fictif-000001",
+        "recu_le": datetime.fromtimestamp(FAKE_EPOCH, UTC).isoformat(timespec="seconds"),
+        "texte": "Mes gouttières fuient à Laval.", "utm": {"utm_source": "google"},
+    })
+    assert legacy["ok"] is True and legacy["resultat"]["doublon"] is True
+    assert legacy["resultat"]["lead"]["utm"] == {"utm_source": "facebook"}
+    assert legacy["resultat"]["utm"]["statut"] == "non_porte"
+    assert _etat_metier_formulaire() == avant
+    autre = _body(utm_source="google")
+    assert client.post("/interne/m1/formulaire", content=autre, headers=_signature(autre)).status_code == 400
+    assert _etat_metier_formulaire() == avant
+
+
+def test_nouveau_nonce_avec_utm_distinct_garde_le_lead_de_conversation(runtime):
+    taxonomie.enregistrer_fenetre_conversation(30)
+    client = _client(runtime.appeler)
+    premier = _body(utm_source="facebook")
+    autre = _body(utm_source="google")
+    assert client.post("/interne/m1/formulaire", content=premier, headers=_signature(premier)).status_code == 202
+    assert client.post("/interne/m1/formulaire", content=autre,
+                       headers=_signature(autre, nonce="nonce-fictif-000002")).status_code == 202
+    with stockage.transaction():
+        lignes = outils_m1._obtenir_registre().lire()
+    signaux = [ligne for ligne in lignes if ligne["type_entree"] == "signal"]
+    leads = [ligne["lead"] for ligne in lignes if ligne["type_entree"] == "lead_emis"]
+    assert [ligne["utm"] for ligne in signaux] == [{"utm_source": "facebook"}, {"utm_source": "google"}]
+    assert len(leads) == 1 and leads[0]["utm"] == {"utm_source": "facebook"}
     assert _compter() == 1
 
 

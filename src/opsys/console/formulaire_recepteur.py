@@ -20,7 +20,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
-from .. import taxonomie
+from .. import contexte, taxonomie
 
 _MAX_CORPS = 24_000
 _MAX_MESSAGE = 4_000
@@ -183,7 +183,13 @@ def creer_router(
                 "texte": charge["message"],
                 "utm": charge["utm"],
             }
-            resultat = await run_in_threadpool(invoquer, "m1_recevoir_message_canal", arguments)
+
+            def invoquer_signe() -> Mapping[str, Any]:
+                # Le token appartient au worker, même si l'attente HTTP est interrompue.
+                with contexte.reception_formulaire_signee(f"formulaire:{site_id}:{nonce}", charge["utm"]):
+                    return invoquer("m1_recevoir_message_canal", arguments)
+
+            resultat = await run_in_threadpool(invoquer_signe)
             if (
                 not isinstance(resultat, Mapping)
                 or resultat.get("ok") is not True

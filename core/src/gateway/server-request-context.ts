@@ -20,6 +20,8 @@ import {
   assertNativeServingRead,
   captureNativeServingRead,
   findOwner,
+  type NativePolicyOwner,
+  type NativeServingRead,
 } from "./server-runtime-policy-owner.js";
 import {
   disconnectStaleSharedGatewayAuthClients,
@@ -177,6 +179,48 @@ type GatewayRequestContextParams = {
   logHealth: GatewayRequestContext["logHealth"];
 };
 
+type CommittedRuntimePolicyRead = {
+  context: GatewayRequestContext;
+  owner: NativePolicyOwner;
+  lifecycle: GatewayRequestContextRuntime["lifecycle"];
+  sharedState: GatewayRequestContextRuntime["sharedGatewaySessionGenerationState"];
+  poisoned: boolean;
+};
+const committedRuntimePolicyReads = new WeakMap<NativeServingRead, CommittedRuntimePolicyRead>();
+
+function isGatewayPolicyReadCurrent(record: CommittedRuntimePolicyRead): boolean {
+  return (
+    !record.poisoned &&
+    !record.lifecycle.closePreludeStarted &&
+    findOwner(record.sharedState) === record.owner &&
+    !record.lifecycle.closePreludeStarted
+  );
+}
+
+/** Assert the exact constructor context/read pair without recapturing or renewing it. */
+export function assertGatewayCommittedRuntimePolicyRead(
+  context: GatewayRequestContext,
+  read: NativeServingRead,
+): void {
+  const record = committedRuntimePolicyReads.get(read);
+  // Foreign callers must not run owner callbacks or poison the authentic entry.
+  if (!record || record.context !== context) {
+    throw new Error("NATIVE-SERVING-NOT-CURRENT");
+  }
+  try {
+    if (!isGatewayPolicyReadCurrent(record)) {
+      throw new Error("NATIVE-SERVING-NOT-CURRENT");
+    }
+    assertNativeServingRead(read);
+    if (!isGatewayPolicyReadCurrent(record)) {
+      throw new Error("NATIVE-SERVING-NOT-CURRENT");
+    }
+  } catch {
+    record.poisoned = true;
+    throw new Error("NATIVE-SERVING-NOT-CURRENT");
+  }
+}
+
 const ALL_APPROVAL_CLIENT_IDS: ReadonlySet<GatewayClientId> = new Set([
   GATEWAY_CLIENT_IDS.CONTROL_UI,
 ]);
@@ -290,6 +334,14 @@ export function createGatewayRequestContext(
         ) {
           return undefined;
         }
+        // The only positive writer is this real constructor's final getter edge.
+        committedRuntimePolicyReads.set(read, {
+          context,
+          owner,
+          lifecycle,
+          sharedState: sharedGatewaySessionGenerationState,
+          poisoned: false,
+        });
         return read;
       } catch {
         return undefined;

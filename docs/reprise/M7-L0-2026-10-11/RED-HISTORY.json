@@ -1,0 +1,173 @@
+{
+  "entries": [
+    {
+      "actual": "same valid signed ID changed/added/removedUTM; observed202 versus expected400",
+      "controls_passed": 2,
+      "deselected_not_credited": 25,
+      "failed": 6,
+      "id": "M7-HTTP-RED",
+      "kind": "behavioral_product_RED",
+      "no_mutation_on_failed_cases": "postassert not reached; only GREEN subsequently proves noSQL mutation",
+      "ref": {
+        "bytes": 1384,
+        "meaning": "actual6HTTPRED on production preimage",
+        "private_Q_path": "M7-UTM-SOURCE7-PORTABLE-AUDIT-PREPARATION-20261011-r1/preuves/RED-HTTP/ROOT-RED-CLOSED-READBACK-r1.json",
+        "sha256": "77ca60bd6479f3cbadcfa2b25f7bc41cebacc263f457301f5505379a5bad2828"
+      }
+    },
+    {
+      "actual": "unscoped globalUTM comparison contradicted generic M1§13.3/twohistorical cases; no runtime qualification",
+      "disposition": "adopted signed bridge scope only; generic tests unchanged",
+      "id": "M7-global43f66-rejected",
+      "kind": "unqualified_early_candidate_not_test_result",
+      "ref": {
+        "bytes": 1409,
+        "meaning": "historical unqualified candidate disposition",
+        "private_Q_path": "M7-UTM-SOURCE7-PORTABLE-AUDIT-PREPARATION-20261011-r1/RED-HISTORY.md",
+        "sha256": "788cdd51ab20854379fe6c0a12f59b843a297ea59c65e7da2b556794f387c05b"
+      }
+    },
+    {
+      "actual": "test_contexte.py two nestedwith; only syntax combined, same order/assertions/exceptions",
+      "disposition": "context15 andRuff5 fresh r2; HTTP/neighbors/verifier reused r1",
+      "exit": 1,
+      "id": "M7-Ruff-SIM117",
+      "kind": "style_RED",
+      "proof_log_SHA": "5be8e3a91ce1caffe954e1d26afbbcc66c265a7bde6dde0b9e743ea08c5c9c20",
+      "ref": {
+        "bytes": 11581,
+        "meaning": "actual reuse/execution counts and limits",
+        "private_Q_path": "M7-UTM-SIGNED-SCOPE-IMPLEMENTATION-20261011-r1/CLOSED-QUALIFICATION-r2/READBACK-r2.json",
+        "sha256": "9746d3fa1779998ecdde552dfe83d0871813d8f8ed9dfc92379e0d0dea9390d4"
+      }
+    },
+    {
+      "actual": "real NativeR remains intrinsicallycurrent afteronlyGpreludeclose; assertion API absent",
+      "failed_missing_API": 1,
+      "filtered_not_credited": 45,
+      "id": "L0-API-ABSENCE",
+      "kind": "CAPABILITY_GAP_NOT_EXPLOIT",
+      "passed_native_witness": 1,
+      "ref": {
+        "bytes": 1149,
+        "meaning": "native witness1PASS/APIabsence capability gap1/45noncredited",
+        "private_Q_path": "M1-LEAF6-L0-NATIVE-WITNESS-CLOSED-READBACK-20261011-r1/ROOT-CLOSED-WITNESS-READBACK-r1.json",
+        "sha256": "3eb94f38de9cb48e76f428cb0ca26d1a779a5d5f0a1fb228a6d56869905a210e"
+      }
+    },
+    {
+      "actual": "only test needs canonicalformat; productionformatOK",
+      "id": "L0-formatcheck-r1",
+      "kind": "style_RED",
+      "ref": {
+        "bytes": 2888,
+        "meaning": "first formatcheck1 final test only; original preserved",
+        "private_Q_path": "M1-LEAF6-L0-IMPLEMENTATION-20261011-r1/FULL-GREEN-AND-STYLES-PREPARATION-r1/results-l0-format2-r1/m1-leaf6-l0-format2-r1.json",
+        "sha256": "b89d08dc00eeab0ccd6969cb5f8866f749b714460048d34e0b7ae5e78744d11b"
+      }
+    },
+    {
+      "actual": "authorized single test write; imports sorting+whitespace; Source43843 protected; notJSbyteidentity",
+      "disposition": "fresh format2/lint2/full57 r2 qualified on testf1fa; r1 preserved",
+      "formatter_exit": 0,
+      "id": "L0-authorized-formatwrite",
+      "kind": "EXPECTED_GUARD_NONQUAL_SOURCE_CHANGE",
+      "ref": {
+        "bytes": 1045,
+        "meaning": "authorized formatter childexit0/wrapper1 Sourcechanged expected, imports reorder not purewhitespace",
+        "private_Q_path": "M1-LEAF6-L0-TESTFORMAT-FIX-ROOT-20261011-r1/ROOT-CLOSED-FORMATWRITE-r1.json",
+        "sha256": "4beebdbcafb1de709641ef1a9665e3c7d2d6d604def7289ef29cc9baf6b2933d"
+      },
+      "wrapper_exit": 1
+    },
+    {
+      "actual_RAM_bytes": 9535062016,
+      "disposition": "new readback-bound resumeGO, original failedtransport retained; no autoretry/guard lowering",
+      "id": "PC1-copy-RAM-beforephase",
+      "kind": "RESOURCE_PREFLIGHT_REFUSAL_NOT_PRODUCT_DEFECT",
+      "no_Source_Node_phase_started": true,
+      "packet_transfer_already_complete": true,
+      "ref": {
+        "bytes": 781,
+        "meaning": "posttransferRAM refusal before phase-executor/create/copy; no threshold reduction",
+        "private_Q_path": "PC1-L0-COPY-RESOURCE-REFUSAL-ROOT-20261011-r1/ROOT-REFUSAL-DISPOSITION-r1.json",
+        "sha256": "dc5ba64c67d2889cfb01e48709ed4d3421341c575abf04ff80262ea3aa9700a2"
+      },
+      "required_RAM_bytes": 9663676416
+    }
+  ],
+  "metadata_errors_separate": [
+    {
+      "actual": "reader expectedfiles wrapper but actual directstringmap; corrected readonly noSource/runtime",
+      "ref": {
+        "bytes": 674,
+        "meaning": "metadata error preserved",
+        "private_Q_path": "M7-UTM-REPLAY-ROOT-LEASE-20261011-r1/ROOT-AUDIT-READBACK-r1.json",
+        "sha256": "9c91224c3694e4876665d0403f9535e914425c03ab07b0a5c21c42585222aa0e"
+      },
+      "scope": "RootSource7audit"
+    },
+    {
+      "actual": "First readonlyRootcollector required testkey in compilerinputs; actualtest absent. Assertion failed before anyQoutput orSourceeffect. Testbound by frozen43844 and actualwhole2JSON/JUnit, nocompilerinputclaim. No productruntime rerun.",
+      "ref": {
+        "bytes": 2791,
+        "meaning": "fresh finalformatted57 tests and compiled input distinction",
+        "private_Q_path": "M1-LEAF6-L0-FULL2-CLOSED-ROOT-20261011-r2/ROOT-CLOSED-full2-r2.json",
+        "sha256": "9a5ea148611a1f63fe0d8a70394252e93adaaa69145d4516577dec155293d9eb"
+      },
+      "scope": "L0-firstformattedRootcollector"
+    },
+    {
+      "actual": "FirstRootreadonlycheck wronglyexpected sourcefixed43844;actualfixed137235Source+deps. FailedbeforeQoutput/GO/effect. Correctedboundall137235;no productrerun.",
+      "ref": {
+        "bytes": 1364,
+        "meaning": "copy physical Source9 closed, no types/build credit by copy",
+        "private_Q_path": "M1-LEAF6-L0-PC1-COPY-CLOSED-ROOT-20261011-r1/ROOT-CLOSED-COPY-r1.json",
+        "sha256": "bd2add319b054fb7b1145176c4eb349612d9f55bdd1da41c04c905222bf67109"
+      },
+      "scope": "PC1copyRootcollector"
+    },
+    {
+      "actual": "Readonly collector first referenced READY-r1 instead of resume-r2 and wrong nested copy census path; failed before outputs or execution; corrected using actual manifests; no rerun.",
+      "ref": {
+        "bytes": 6461,
+        "meaning": "canonical production tsconfig zero diagnostics, test files excluded",
+        "private_Q_path": "M1-LEAF6-L0-CANONICAL-TS7-CLOSED-ROOT-20261011-r1/ROOT-CLOSED-TS7-r1.json",
+        "sha256": "acbbc7bb93fd60edc734296302b1860fbf7482a4f360723f9cc5b8522d5849b7"
+      },
+      "scope": "PC1TS7Rootcollector"
+    },
+    {
+      "actual": "First readonly Root collector assumed every symlink target is file/link census entry; actual plugin-sdk target is directory. Failed before output; corrected with directories derived from census paths, consistent with closed owner link validation; no runtime rerun.",
+      "ref": {
+        "bytes": 23618,
+        "meaning": "Actual Root full build closed Source43844; publication metadata docs separate",
+        "private_Q_path": "M1-LEAF6-L0-PC1-FULL-BUILD-CLOSED-ROOT-20261011-r1/ROOT-CLOSED-BUILD-r1.json",
+        "sha256": "029635c3fff7f7502b3967b10600c3f0a422f2f023dc1d481a9b6a62cf1b348f"
+      },
+      "scope": "PC1fullbuildRootcollector"
+    },
+    {
+      "actual": "Inherited OUTPUTS descriptive sourcecount43746 and temporary old evidence namespace core-build-published-r1 are historical text; actual executable identity/census43844 and namespace l0-build20261011-r1 control run. Preserved without modifying closed packet; no waiver or rerun.",
+      "ref": {
+        "bytes": 23618,
+        "meaning": "Actual Root full build closed Source43844; publication metadata docs separate",
+        "private_Q_path": "M1-LEAF6-L0-PC1-FULL-BUILD-CLOSED-ROOT-20261011-r1/ROOT-CLOSED-BUILD-r1.json",
+        "sha256": "029635c3fff7f7502b3967b10600c3f0a422f2f023dc1d481a9b6a62cf1b348f"
+      },
+      "scope": "PC1fullbuildInheritedOUTPUTSlabels"
+    },
+    {
+      "actual": "Root looked for SHA256.json while actual fullbuild catalog names SHA256-r1.json. Readonly failed before effect; corrected from actual catalog, all3members checked, no product/runtime rerun.",
+      "scope": "Rootindependentmanifestlookup"
+    }
+  ],
+  "other_dispositions": [
+    "Linux actual mode differences0644→0664/0755→0775 unknowncause; no Sourcechmod, Git executablebit preserved; old refusedprep historical",
+    "r1 full57/neighbor13 not relabelled finaltest qualification afterformatter",
+    "no retry/global test rerun caused by readonly metadata corrections",
+    "Root closes and fills futurebuild/publication/CI separately",
+    "Actual Source9 full build closed and independent FULL714line review accepted; commit/newCI remain pending at document creation. Historical files remain unchanged."
+  ],
+  "state": "HISTORICAL_RED_AND_METADATA_ERRORS_PRESERVED_NOT_SUMMED_IN_GREEN"
+}
