@@ -1,6 +1,29 @@
-import { expect, it, vi } from "vitest";
+import { expect, it, onTestFinished, vi } from "vitest";
+import {
+  getRuntimeAuthProfileStoreCredentialsRevision,
+  getRuntimeAuthProfileStoreSnapshotsRevision,
+} from "../../agents/auth-profiles/runtime-snapshots.js";
+import { getRuntimeConfigSnapshot } from "../../config/runtime-snapshot.js";
+import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import type { GatewayRequestContext } from "../../gateway/server-methods/types.js";
+import {
+  assertGatewayCommittedRuntimePolicyRead,
+  createGatewayRequestContext,
+} from "../../gateway/server-request-context.js";
+import { makeContextParams } from "../../gateway/server-request-context.test-support.js";
+import {
+  assertNativeServingRead,
+  readNativeServingReadConfig,
+} from "../../gateway/server-runtime-policy-owner.js";
+import { SharedGatewaySessionGenerationState } from "../../gateway/server-shared-auth-generation.js";
+import { createTestRuntimeSecretsActivator } from "../../gateway/server-startup-config.test-support.js";
+import type { PreparedSecretsRuntimeSnapshot } from "../../secrets/runtime.js";
+import {
+  activateSecretsRuntimeSnapshot,
+  clearSecretsRuntimeSnapshot,
+} from "../../secrets/runtime.js";
 import { recordAcceptedSessionParticipantInput } from "../../sessions/session-participant-input-recording.js";
+import { withOpenClawTestState } from "../../test-utils/openclaw-test-state.js";
 import {
   buildChannelInboundEventContext,
   type BuildChannelInboundEventContextParams,
@@ -166,3 +189,128 @@ it.each([
     }
   },
 );
+
+function prepareL1WitnessSnapshot(config: OpenClawConfig): PreparedSecretsRuntimeSnapshot {
+  return {
+    config,
+    sourceConfig: {},
+    authStores: [],
+    authStoreCredentialsRevision: getRuntimeAuthProfileStoreCredentialsRevision(),
+    authStoreSnapshotsRevision: getRuntimeAuthProfileStoreSnapshotsRevision(),
+    warnings: [],
+    webTools: {
+      search: { providerSource: "none", diagnostics: [] },
+      fetch: { providerSource: "none", diagnostics: [] },
+      diagnostics: [],
+    },
+  };
+}
+
+// Managed/publication/generation owners are real; model publication, channels,
+// and config I/O remain explicit local doubles, as in the policy-owner fixture.
+async function createL1NativeWitnessFixture(
+  authored: OpenClawConfig = { gateway: { port: 19103 } },
+) {
+  const sharedState = new SharedGatewaySessionGenerationState({ current: "A", required: null });
+  const params = makeContextParams({ sharedGatewaySessionGenerationState: sharedState });
+  const context = createGatewayRequestContext(params);
+  expect(context.getCommittedRuntimePolicyRead?.()).toBeUndefined();
+  activateSecretsRuntimeSnapshot(prepareL1WitnessSnapshot(authored));
+  const published = getRuntimeConfigSnapshot();
+  if (!published) {
+    throw new Error("Missing native activation fixture");
+  }
+  expect(published).not.toBe(authored);
+  const { createDefaultDeps } = await import("../../cli/deps.js");
+  const { createTestRegistry } = await import("../../test-utils/channel-plugins.js");
+  const { createChannelManager } = await import("../../gateway/server-channels.js");
+  const { createDefaultGatewayReloadState, createValidConfigSnapshot } =
+    await import("../../gateway/server-reload-handlers.config.test-support.js");
+  const { startManagedGatewayConfigReloader } =
+    await import("../../gateway/server-reload-managed.js");
+  const modelRuntime = await import("../../gateway/server-reload-model-runtime-scope.js");
+  const modelPublication = vi
+    .spyOn(modelRuntime, "refreshModelRuntimeAfterHotReload")
+    .mockResolvedValue(undefined);
+  onTestFinished(() => modelPublication.mockRestore());
+  const registry = createTestRegistry([]);
+  const channelManager = createChannelManager({
+    getRuntimeConfig: () => published,
+    getPluginRegistry: () => registry,
+    channelLogs: {},
+    channelRuntimeEnvs: {},
+  });
+  let state = createDefaultGatewayReloadState();
+  const managed = startManagedGatewayConfigReloader({
+    getPluginRegistry: () => registry,
+    minimalTestGateway: false,
+    initialConfig: published,
+    initialCompareConfig: published,
+    initialPluginInstallRecords: {},
+    initialSnapshotRawHash: "initial",
+    initialAuthoredConfig: published,
+    initialSnapshotValid: true,
+    initialSnapshotIssues: [],
+    watchPath: "/tmp/openclaw.json",
+    readSnapshot: async () => createValidConfigSnapshot(published, "initial"),
+    promoteSnapshot: async () => true,
+    subscribeToWrites: () => () => {},
+    deps: createDefaultDeps(),
+    broadcast: vi.fn(),
+    getState: () => state,
+    setState: (next) => {
+      state = next;
+    },
+    startChannel: channelManager.startChannel,
+    stopChannel: channelManager.stopChannel,
+    reloadPlugins: async () => ({
+      runtime: { operationId: "l0-native-fixture", generation: 1, pluginIds: [] },
+      activeChannels: new Set(),
+    }),
+    logHooks: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    logChannels: { info: vi.fn(), error: vi.fn() },
+    logCron: { error: vi.fn() },
+    logReload: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    channelManager,
+    activateRuntimeSecrets: createTestRuntimeSecretsActivator(async (config) =>
+      prepareL1WitnessSnapshot(config),
+    ),
+    resolveSharedGatewaySessionGenerationForConfig: () => "A",
+    sharedGatewaySessionGenerationState: sharedState,
+    clients: [],
+    reconcileRuntimePolicy: vi.fn(),
+    commitRuntimePolicy: vi.fn(),
+    acceptTerminalConfig: vi.fn(),
+    prepareTerminalConfig: vi.fn(),
+    cronReconciliation: { arm: () => ({ complete: async () => {} }), invalidate: vi.fn() },
+    configRevisionProjector: {
+      projectRawHash: (hash) => hash,
+      projectResolvedHash: (hash) => hash,
+    },
+  });
+  onTestFinished(async () => {
+    await managed.stop();
+    clearSecretsRuntimeSnapshot();
+  });
+  await managed.ready;
+  params.runtime.runtimeState.configReloader = managed;
+  return { sharedState, params, context, published, managed };
+}
+
+// L1 native control precedes any future API: real StageA/managed/G/R, no keeper grant.
+it("L1-NATIVE-WITNESS retains an actual managed publication before keeper APIs", async () => {
+  await withOpenClawTestState({ scenario: "minimal" }, async () => {
+    const { context, published, managed } = await createL1NativeWitnessFixture();
+    const read = context.getCommittedRuntimePolicyRead?.();
+    expect(read).toBeDefined();
+    expect(managed.isConfigReloadSettled()).toBe(true);
+    expect(managed.getCommittedRuntimeConfig?.()).toBe(published);
+    expect(() => assertNativeServingRead(read)).not.toThrow();
+    if (!read) {
+      throw new Error("Native witness read missing");
+    }
+    expect(() => assertGatewayCommittedRuntimePolicyRead(context, read)).not.toThrow();
+    expect(readNativeServingReadConfig(read)).toBe(published);
+    expect(getRuntimeConfigSnapshot()).toBe(published);
+  });
+});

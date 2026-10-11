@@ -5,7 +5,17 @@ import { getPluginInstance } from "./plugin-instance-scope.js";
 import { createEmptyPluginRegistry } from "./registry-empty.js";
 import { bindPluginRegistryRuntime } from "./registry-runtime-binding.js";
 import type { PluginRecord, PluginRegistryParams } from "./registry-types.js";
+import type { PluginRuntime } from "./runtime/types.js";
 import type { PluginHookName } from "./types.js";
+
+const registryStateRuntimes = new WeakMap<object, PluginRuntime>();
+
+/** Read the runtime captured by the exact registry-state constructor, without registering one. */
+export function readPluginRegistryStateRuntime(
+  state: PluginRegistryState,
+): PluginRuntime | undefined {
+  return registryStateRuntimes.get(state);
+}
 
 export type PluginTypedHookPolicy = {
   allowPromptInjection?: boolean;
@@ -76,6 +86,7 @@ function createIdentityRegistration<T extends object>(record: PluginRecord, cont
 }
 
 export function createPluginRegistryState(registryParams: PluginRegistryParams) {
+  const runtime = registryParams.runtime;
   const registry = createEmptyPluginRegistry();
   const nativeCatalogGates = new WeakMap<
     PluginRecord,
@@ -89,13 +100,13 @@ export function createPluginRegistryState(registryParams: PluginRegistryParams) 
     if (!gate) {
       gate = createNativeSessionCatalogGate({
         pluginId: record.id,
-        getConfig: () => registryParams.runtime.config.current(),
+        getConfig: () => runtime.config.current(),
       });
       nativeCatalogGates.set(record, gate);
     }
     return gate;
   };
-  bindPluginRegistryRuntime(registry, registryParams.runtime);
+  bindPluginRegistryRuntime(registry, runtime);
   const coreGatewayMethods = new Set(registryParams.coreGatewayMethodNames);
   for (const name of Object.keys(registryParams.coreGatewayHandlers ?? {})) {
     coreGatewayMethods.add(name);
@@ -117,7 +128,7 @@ export function createPluginRegistryState(registryParams: PluginRegistryParams) 
     pushDiagnostic,
   });
 
-  return {
+  const state = {
     registry,
     registryParams,
     getNativeCatalogGate,
@@ -132,6 +143,8 @@ export function createPluginRegistryState(registryParams: PluginRegistryParams) 
     reportRegistrationWarning,
     ...modelCatalogRegistrars,
   };
+  registryStateRuntimes.set(state, runtime);
+  return state;
 }
 
 export type PluginRegistryState = ReturnType<typeof createPluginRegistryState>;

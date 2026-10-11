@@ -357,3 +357,19 @@ src/gateway/server-reload-handlers.hot-reload-status.test.ts
 # M1 C4 : contexte natif, refus legacy et capture au dernier usage.
 # Gateway exclu de test:fast ; cette suite complète est qualifiée dans full25.
 src/gateway/server-request-context.test.ts
+
+# M1 FIRST2 : capture du runtime au constructeur, témoin managed natif et voisins.
+# Le job test:fast lance vitest.unit.config.ts, qui exclut src/channels/** et src/plugins/**.
+# Le test extrait peut être classé unit-fast par pnpm test ; cette voie distincte
+# n'est pas exécutée par la commande test:fast actuelle. Les dix fichiers entiers
+# sont donc explicitement sélectionnés ici, sans doublon ni filtre de noms.
+src/channels/message-access/participant-input.test.ts
+src/plugins/registry-runtime.channel-ingress.test.ts
+src/plugins/registry-runtime.state-coherence.test.ts
+src/plugins/native-session-catalog-registration.test.ts
+src/plugins/registry.runtime-session-ownership.test.ts
+src/plugins/registry.runtime-config.test.ts
+src/plugins/registry-lifecycle.test.ts
+src/plugins/plugin-registry-snapshot.state-migration.test.ts
+src/plugins/loader.config-capture.test.ts
+src/plugins/loader.gateway-bindings.test.ts

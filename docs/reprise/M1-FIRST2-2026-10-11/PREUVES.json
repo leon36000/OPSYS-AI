@@ -1,0 +1,135 @@
+{
+  "schema": 1,
+  "state": "PRECOMMIT_QUALIFIED_SCOPE_WITH_EXPLICIT_CORE_BLOCKER",
+  "date_toronto": "2026-10-11",
+  "parent": "76c77ead6b9d39582b2d57c0db17ebc8522937b5",
+  "candidate_commit": null,
+  "product": "PARTIEL",
+  "source": {
+    "count": 43849,
+    "sha256": "51d5b2e05729a2a00bccc641e3e8c747afd9289ce50104947136bc8e29738693",
+    "critical189": "6726667a303f481ae2c2a3e6e2102e70c00c8dd3da19fe31f37bb63562438983",
+    "publication_docs_added_after_qualification": 2,
+    "published_inventory_expected": 43851
+  },
+  "effective_paths_sha256": {
+    "core/src/plugins/registry-state.ts": "6beadf4f299b472a5dd20cab2126f45c5dd11174f456367e4c1a9423ca339fc9",
+    "core/src/plugins/registry-runtime.ts": "96d85275244d152e39641459bfac0cad4dd683428ecfc6c8a272ebadbbbc5a8d",
+    "core/src/channels/message-access/participant-input.test.ts": "f97bf4761c56dbeea5ae52b7b8958505024bb73e400359057c33c698468df334",
+    "core/src/plugins/registry-runtime.state-coherence.test.ts": "7d9ac7e35cd7c15dddfc90a98ff2e180f79c193d8343def3a687d59d139b33e7",
+    "core/test/opsys-tests-cibles.txt": "cef30d13d5ea70acd5e7455a772e6eee42bd2af67fb3162fd3f6849ad475e397"
+  },
+  "unchanged_legacy37": "997216cef860a038ad0677b70374a8b0f6bd8b68bdfcdf37e875de54c328a533",
+  "selector": {
+    "unique": 254,
+    "added": 10,
+    "removed": 0
+  },
+  "closed": {
+    "composite48": {
+      "cases": [
+        9,
+        37,
+        2
+      ],
+      "files": 3,
+      "single_campaign": false,
+      "fail_error_skip": 0,
+      "root_sha256": "dcbdfee252ab8900c67811577d8ff0928056b105288f159f0f680df62224e0eb"
+    },
+    "neighbors63": {
+      "cases": [
+        15,
+        2,
+        23,
+        9,
+        2,
+        1,
+        11
+      ],
+      "files": 7,
+      "fail_error_skip": 0,
+      "receipt_sha256": "2f390b2644d9ef51c4ad49cbf8be6e137143b2e1c883cb01a410574e7e3ed996",
+      "root_sha256": "4349a4f634379402c39cd75d9bc6bc8904562425a6712977593703483fc66f4f"
+    },
+    "styles5": {
+      "lint": 0,
+      "format": 0
+    },
+    "imports2": {
+      "state_first": 0,
+      "runtime_first": 0,
+      "absence_internal_effects_proven": false,
+      "root_sha256": "4349a4f634379402c39cd75d9bc6bc8904562425a6712977593703483fc66f4f"
+    },
+    "TS7": {
+      "diagnostics": 0,
+      "listed": 16306,
+      "source_listed": 13112,
+      "deps_listed": 3194,
+      "mandatory_prod": 17,
+      "tests_implicitly_typed": false,
+      "root_sha256": "59f7440d030612f2d07778240d8aa57d87b50532ef572ebb71f979a02f6abaf4"
+    }
+  },
+  "pending": {
+    "full_build": {
+      "state": "CLOSED_NONQUAL_OBSERVER_PIN_FAILURE",
+      "Root_session": 90959,
+      "qualified": false,
+      "closed_receipt_sha256": "a71884ae028749f94906bc34fd127341013dd110d3dbfeb08c8a2ea418ef7e88",
+      "Root_readback_sha256": "30429a27f9c17dc4a1425eaa74664e6348a2e2913dee55c6f35ced543942b29c",
+      "exit143": 143,
+      "wall_seconds": 474.574,
+      "RSS_sampled_bytes": 5958782976,
+      "failure": "OwnershipError: observed descendant identity could not be pinned",
+      "failed_identity": "NOT_RECORDED_UNKNOWN",
+      "timeout_or_RSS_guard": false,
+      "Source_after_digest_null": true,
+      "post_census_Source_and_deps_unchanged_separate_proof": true,
+      "partial_regular_outputs": 9785,
+      "partial_links": 446,
+      "UI_SDK_stamps": "NONQUAL"
+    },
+    "sms_profile_Source49": {
+      "state": "BLOCKED_PENDING_FULL_BUILD_QUALIFICATION",
+      "old_Source9_credit": false
+    },
+    "new_exact_CI": {
+      "state": "NOT_YET_PUBLISHED",
+      "commit": null,
+      "run_id": null,
+      "parent76_success_is_historical": true
+    }
+  },
+  "history_retained": [
+    "RED9916:47P1F",
+    "GREEN_RSS_refusal",
+    "format/lint_max_lines",
+    "two_cases_extracted_legacy37_restored",
+    "R4_reporter_refusal_before_plugin_cases"
+  ],
+  "model_advice": {
+    "state": "NONQUAL",
+    "words": [
+      629,
+      648
+    ],
+    "ceilings": [
+      600,
+      450
+    ],
+    "no_P1_P2_demonstrated_in_scope": true,
+    "test_credit": false
+  },
+  "limits": [
+    "constructor identity is not H/M/T permission",
+    "external getter readers remain",
+    "new two cases do not exercise Proxy",
+    "no device/provider/deep-product/SMS delivery qualification",
+    "Q file permissions are not Git modes",
+    "reviewer independent of Source author, not of r4/r5 harness preparation"
+  ],
+  "binding_catalog": "External Root publication receipt preserves Q references and exact commit; no commit self-reference in this precommit snapshot",
+  "candidate_commit_null_reason": "Precommit snapshot; external Root publication receipt binds exact commit without self-reference"
+}

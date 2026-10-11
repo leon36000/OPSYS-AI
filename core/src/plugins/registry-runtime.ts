@@ -24,7 +24,7 @@ import {
   isPluginRegistryPreparing,
   revokePluginRecord,
 } from "./registry-lifecycle.js";
-import type { PluginRegistryState } from "./registry-state.js";
+import { readPluginRegistryStateRuntime, type PluginRegistryState } from "./registry-state.js";
 import type { PluginRecord } from "./registry-types.js";
 import {
   bindGatewayContextResolver,
@@ -36,6 +36,10 @@ import {
 import type { PluginRuntime } from "./runtime/types.js";
 
 export function createPluginRuntimeResolver(state: PluginRegistryState) {
+  const registryRuntime = readPluginRegistryStateRuntime(state);
+  if (!registryRuntime) {
+    throw new Error("Plugin registry runtime origin is unavailable.");
+  }
   const { registry, registryParams } = state;
   const pluginRuntimes = new WeakMap<PluginRecord, PluginRuntime>();
   const registeredChannelRuntime = new WeakMap<PluginRecord, PluginRuntime["channel"]>();
@@ -80,11 +84,7 @@ export function createPluginRuntimeResolver(state: PluginRegistryState) {
     }
     const channel = (() => {
       try {
-        return Reflect.get(
-          registryParams.runtime,
-          "channel",
-          registryParams.runtime,
-        ) as PluginRuntime["channel"];
+        return Reflect.get(registryRuntime, "channel", registryRuntime) as PluginRuntime["channel"];
       } catch (error) {
         return addPluginRuntimeResolutionContext({
           error,
@@ -112,7 +112,7 @@ export function createPluginRuntimeResolver(state: PluginRegistryState) {
       revokePluginRecord(registry, previousRecord);
     }
     registeredRuntimeRecordById.set(record.id, record);
-    const resolveGatewayContext = getGatewayContextResolver(registryParams.runtime.subagent);
+    const resolveGatewayContext = getGatewayContextResolver(registryRuntime.subagent);
     const scopedGatewayContext = resolveGatewayContext
       ? () => (ownsLiveRegistrySlot() ? resolveGatewayContext() : undefined)
       : undefined;
@@ -218,7 +218,7 @@ export function createPluginRuntimeResolver(state: PluginRegistryState) {
         });
       }
     };
-    const runtime = new Proxy(registryParams.runtime, {
+    const runtime = new Proxy(registryRuntime, {
       get(target, prop, receiver) {
         const runWithPluginScope = <T>(run: () => T, requireActive = true): T => {
           if (requireActive) {
