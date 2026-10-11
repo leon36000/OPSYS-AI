@@ -411,7 +411,24 @@ test.each(["titre", "empreinte", "taille_points", "taille_octets", "auteur", "ho
   h.deps.chargerVersion.mockResolvedValueOnce({source:"serveur",valeur:detail} as any);
   await h.c.ouvrirAffaire(page.affaire_id);await h.c.selectionner(page.versions[0]);
   expect(h.c.etat().detail?.source).toBe("aucune");expect(h.c.etat().detail).not.toHaveProperty("valeur");
-  expect(h.deps.genererId).not.toHaveBeenCalled();expect(await h.base.lister()).toEqual([]);
+  expect(h.c.disponible("activer")).toBe(false);
+  expect(await h.c.soumettre("activer")).toEqual({ok:false,code:"action_indisponible"});
+  h.c.modifierBrouillon("Version FICTIVE", "Nouveau corps FICTIF");
+  for (const op of ["deposer", "retirer"] as const) {
+   expect(h.c.disponible(op)).toBe(false);
+   expect(await h.c.soumettre(op)).toEqual({ok:false,code:"action_indisponible"});
+  }
+  expect(h.c.etat().selection).toBeNull();
+  expect(h.deps.genererId).not.toHaveBeenCalled();expect(h.deps.vidanger).not.toHaveBeenCalled();
+  expect(await h.base.lister()).toEqual([]);
+  const coherente=lectureCoherenteRAM();verifierFramesRAM(coherente.page,coherente.detail);
+  h.deps.chargerIndex.mockResolvedValueOnce({source:"serveur",valeur:coherente.page} as any);
+  h.deps.chargerVersion.mockResolvedValueOnce({source:"serveur",valeur:coherente.detail} as any);
+  await h.c.rafraichir();await h.c.selectionner(coherente.page.versions[0]);
+  expect(h.c.disponible("activer")).toBe(true);
+  await h.c.soumettre("activer");
+  expect(h.deps.genererId).toHaveBeenCalledTimes(1);expect(h.deps.vidanger).toHaveBeenCalledTimes(1);
+  expect(await h.base.lister()).toHaveLength(1);
  });
 test("statut et activation peuvent changer entre index et détail courants",async()=>{
  const h=harness(),{page,detail}=lectureCoherenteRAM();detail.statut="COURANTE";
@@ -447,4 +464,44 @@ test("reprise après reset sans affaire affichée vérifie la série originale a
  h.renouveler();expect(h.c.etat().affaireId).toBeNull();await h.c.reprendre();
  expect(await h.base.lister()).toHaveLength(1);expect(h.deps.vidanger).toHaveBeenCalledTimes(envois);
  expect(h.deps.genererId).toHaveBeenCalledTimes(1);
+});
+
+// Contrôleur/dépôt RAM réels ; réponses de transport substituées, aucune corruption serveur alléguée.
+test("contradiction : resélection suspendue puis panne ne rouvre pas la cible",async()=>{
+ const h=harness(),{page,detail}=lectureCoherenteRAM();
+ h.deps.chargerIndex.mockResolvedValue({source:"serveur",valeur:page} as any);
+ h.deps.chargerVersion.mockResolvedValueOnce({source:"serveur",valeur:{...detail,titre:"Titre contradictoire FICTIF"}} as any);
+ await h.c.ouvrirAffaire(page.affaire_id);await h.c.selectionner(page.versions[0]);
+ const wait=attente<any>();h.deps.chargerVersion.mockImplementationOnce(()=>wait.promise);
+ const relecture=h.c.selectionner(page.versions[0]);
+ expect(h.c.disponible("activer")).toBe(false);
+ expect(await h.c.soumettre("activer")).toEqual({ok:false,code:"action_indisponible"});
+ wait.resolve({source:"aucune",raison:{code:"reseau",detail:""}});await relecture;
+ expect(h.c.disponible("activer")).toBe(false);
+ h.c.modifierBrouillon("Version FICTIVE","Texte FICTIF");
+ expect(await h.c.soumettre("deposer")).toEqual({ok:false,code:"action_indisponible"});
+ expect(h.deps.genererId).not.toHaveBeenCalled();expect(h.deps.vidanger).not.toHaveBeenCalled();
+ expect(await h.base.lister()).toEqual([]);
+ h.deps.chargerVersion.mockResolvedValueOnce({source:"serveur",valeur:detail} as any);
+ await h.c.selectionner(page.versions[0]);expect(h.c.disponible("activer")).toBe(true);
+});
+test("contradiction : nouveau document reste indépendant de la cible refusée",async()=>{
+ const h=harness(),{page,detail}=lectureCoherenteRAM();
+ h.deps.chargerIndex.mockResolvedValueOnce({source:"serveur",valeur:page} as any);
+ h.deps.chargerVersion.mockResolvedValueOnce({source:"serveur",valeur:{...detail,titre:"Titre contradictoire FICTIF"}} as any);
+ await h.c.ouvrirAffaire(page.affaire_id);await h.c.selectionner(page.versions[0]);
+ expect(h.c.disponible("activer")).toBe(false);
+ h.c.nouveauDocument();h.c.modifierBrouillon("Nouveau FICTIF","Corps indépendant FICTIF");
+ expect(h.c.disponible("deposer")).toBe(true);await h.c.soumettre("deposer");
+ const [intention]=await h.base.lister();
+ expect(argumentsRpcDocumentM10(intention)).toMatchObject({document_ref:null,version_precedente:null});
+ expect(h.deps.genererId).toHaveBeenCalledTimes(1);expect(h.deps.vidanger).toHaveBeenCalledTimes(1);
+});
+test("panne ordinaire du détail sans contradiction conserve le geste index seul",async()=>{
+ const h=harness(),{page}=lectureCoherenteRAM();
+ h.deps.chargerIndex.mockResolvedValueOnce({source:"serveur",valeur:page} as any);
+ h.deps.chargerVersion.mockRejectedValueOnce(new Error("réseau FICTIF"));
+ await h.c.ouvrirAffaire(page.affaire_id);await h.c.selectionner(page.versions[0]);
+ expect(h.c.etat().detail?.source).toBe("aucune");expect(h.c.disponible("activer")).toBe(true);
+ await h.c.soumettre("activer");expect(await h.base.lister()).toHaveLength(1);
 });

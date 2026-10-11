@@ -314,7 +314,10 @@ def _reprendre_voicemail_sans_transcription(
     signal_id = "appel-manuel-reprise:" + hashlib.sha256(
         f"{len(source)}:{source}{len(appel_id)}:{appel_id}{empreinte}".encode()
     ).hexdigest()
-    if etat.ouvert:
+    contenu_filtre, sain = provenance.filtrer(transcription)
+    signaux_plainte, verdict_signaux = taxonomie.charger_signaux_plainte()
+    detection = plaintes.detecter(contenu_filtre, signaux_plainte, verdict_signaux)
+    if etat.ouvert or detection.reconnu:
         zone, verdict_zone = taxonomie.charger_zone_desservie()
         if verdict_zone is not None:
             raise ValueError(f"{verdict_zone['code']}: {verdict_zone['detail']}")
@@ -327,15 +330,28 @@ def _reprendre_voicemail_sans_transcription(
             fenetre_minutes=fenetre,
         )
         transfert = traitement.get("transfert", {})
-        if (traitement.get("decision") != "TRANSFERT_EN_COURS"
-                or transfert.get("transfert_id") != transfert_id):
+        if detection.reconnu:
+            prioritaire = next((e for e in transferts.lire(reg.lire())
+                                if e.identifiant == transfert.get("transfert_id")), None)
+            decision_prioritaire = ("ESCALADE_URGENCE" if detection.type_transfert == plaintes.TYPE_URGENCE
+                                    else "ESCALADE_PLAINTE")
+            if (traitement.get("decision") not in {decision_prioritaire, "TRANSFERT_EN_COURS"}
+                    or transfert.get("type_transfert") != detection.type_transfert
+                    or prioritaire is None or not prioritaire.ouvert
+                    or prioritaire.ouverture.get("type_transfert") != detection.type_transfert
+                    or prioritaire.ouverture.get("conversation_id") != conversation_id):
+                raise ValueError("REJ-APPEL-REPRISE-ROUTAGE-INATTENDU: escalade canonique non démontrée")
+        elif (traitement.get("decision") != "TRANSFERT_EN_COURS"
+              or transfert.get("transfert_id") != transfert_id):
             raise ValueError("REJ-APPEL-REPRISE-ROUTAGE-INATTENDU: le handoff humain doit rester prioritaire")
         traitement["qualification_en_attente"] = "transfert_humain_ouvert"
-        tache_reprise = {"transfert_id": transfert_id, "statut": "ouvert",
-                         "deja_ouvert": True, "envoi_automatique": False}
+        # La nouvelle alerte est dans traitement.transfert ; l'origine ventes reste inchangée.
+        tache_reprise = ({"transfert_id": transfert_id, "statut": "ouvert",
+                          "deja_ouvert": True, "envoi_automatique": False} if etat.ouvert else
+                         {"transfert_id": transfert_id, "statut": "clos",
+                          "deja_traite": True, "envoi_automatique": False})
         signal_final_id = signal_id
     else:
-        contenu_filtre, sain = provenance.filtrer(transcription)
         # Dossier clos : une note tardive rejoint le même historique; elle ne rouvre ni ne recrée de tâche.
         reg.ajouter({
             "type_entree": "signal", "canal": "telephone", "conversation_id": conversation_id,
@@ -416,7 +432,24 @@ def _importer_appel(
         # Le contenu d'un ancien import manuel ne prouve pas un import de l'hôte,
         # même s'il revendiquait la même source. Son empreinte historique reste intacte.
         contenu_metier["origine_import"] = "hote_voix_v1"
-    empreinte = hashlib.sha256(json.dumps(contenu_metier, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    empreinte_historique = hashlib.sha256(
+        json.dumps(contenu_metier, sort_keys=True, ensure_ascii=False).encode()
+    ).hexdigest()
+    import_manuel = (prefixe_signal == "appel-manuel" and declenchement == "appel_manuel"
+                     and source_contact == "numéro de téléphone importé manuellement")
+    fallback_v2 = statut == "voicemail" and transcription_a_traiter is None and import_manuel
+    empreinte = empreinte_historique
+    empreinte_reception = None
+    if fallback_v2:
+        # Dérivée déclarée de la réception originale, pas une signature fournisseur ; aucun texte brut persisté.
+        empreinte_reception = hashlib.sha256(json.dumps(
+            {"representation": "voicemail_reception_v2", "contenu": contenu_metier},
+            sort_keys=True, ensure_ascii=False,
+        ).encode()).hexdigest()
+        contenu_fallback = {**contenu_metier, "transcription": None, "consentement_enregistrement": None}
+        empreinte = hashlib.sha256(
+            json.dumps(contenu_fallback, sort_keys=True, ensure_ascii=False).encode()
+        ).hexdigest()
     reg = _obtenir_registre()
     lignes = reg.lire()
     existant = next((ligne for ligne in lignes if ligne.get("type_entree") == "appel_importe"
@@ -424,7 +457,22 @@ def _importer_appel(
                      and ligne.get("appel_id") == contenu["appel_id"]
                      and ligne.get("statut") == statut), None)
     if existant is not None:
+        representation_v2 = "representation_fallback" in existant or "empreinte_reception" in existant
+        if representation_v2:
+            preuve_reception = existant.get("empreinte_reception")
+            if (existant.get("representation_fallback") != "voicemail_manuel_v2"
+                    or not isinstance(preuve_reception, str)
+                    or re.fullmatch(r"[0-9a-f]{64}", preuve_reception) is None
+                    or not import_manuel or statut != "voicemail"
+                    or not isinstance(existant.get("reponse"), dict)
+                    or existant["reponse"].get("transcription_conservee") is not False):
+                raise ValueError("REJ-APPEL-REPRISE-PREUVE-INVALIDE: représentation fallback inconnue ou incomplète")
+        else:
+            # Les anciens maillons gardent leur empreinte et leurs refus, sans guérison implicite.
+            empreinte = empreinte_historique
         if existant.get("empreinte") == empreinte:
+            if representation_v2 and preuve_reception != empreinte_reception:
+                raise ValueError("REJ-APPEL-CONTRADICTOIRE: réception non consentie différente")
             return dict(existant["reponse"])
         if (statut == "voicemail" and transcription_a_traiter is not None
                 and consentement_enregistrement == "accorde"
@@ -486,9 +534,13 @@ def _importer_appel(
         "traitement": resultat, "tache_rappel": transfert_resultat,
         "envoi_automatique": False,
     }
-    reg.ajouter({"type_entree": "appel_importe", "source": contenu["source"],
-                 "evenement_id": contenu["evenement_id"], "appel_id": contenu["appel_id"],
-                 "statut": statut, "empreinte": empreinte, "horodatage": recu_le, "reponse": reponse})
+    trace_import = {"type_entree": "appel_importe", "source": contenu["source"],
+                    "evenement_id": contenu["evenement_id"], "appel_id": contenu["appel_id"],
+                    "statut": statut, "empreinte": empreinte, "horodatage": recu_le, "reponse": reponse}
+    if fallback_v2:
+        trace_import.update({"representation_fallback": "voicemail_manuel_v2",
+                             "empreinte_reception": empreinte_reception})
+    reg.ajouter(trace_import)
     return reponse
 
 

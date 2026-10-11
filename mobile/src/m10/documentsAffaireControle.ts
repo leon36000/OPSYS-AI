@@ -62,12 +62,13 @@ export function creerControleDocumentsAffaireM10(d: DependancesControleDocuments
   let epoch = 0, demandeDetail = 0, online = false, busy = false, fileLisible = false;
   let capture: ReturnType<DependancesControleDocumentsM10["capturerSession"]> | null = null;
   let rows: MutationOutbox[] = [], pending: MutationOutbox | null = null;
+  const ciblesContradictoires = new Set<string>();
   let state: EtatDocumentsAffaireM10 = { affaireId: null, page: null, detail: null, selection: null,
     brouillon: { titre: "", corps: "" }, cibleBrouillon: null, enCours: false, intentionId: null, message: null, intentions: [] };
   function fermerLectures() { ++epoch; ++demandeDetail; state = { ...state, page: null, detail: null, selection: null, enCours: false }; }
   function etat(): EtatDocumentsAffaireM10 {
     if (capture && !capture.courante()) {
-      fermerLectures(); capture = null; rows = []; fileLisible = false;
+      fermerLectures(); capture = null; rows = []; fileLisible = false; ciblesContradictoires.clear();
       state = { ...state, affaireId: null, brouillon: { titre: "", corps: "" }, cibleBrouillon: null, intentions: [], intentionId: null };
     }
     return { ...state, enCours: busy || state.enCours };
@@ -143,15 +144,26 @@ export function creerControleDocumentsAffaireM10(d: DependancesControleDocuments
         !s.page.valeur.versions.some(v => identique(v, ligne))) return;
     const n = ++demandeDetail;
     const memeCible = identique(state.cibleBrouillon, ligne.document_ref);
-    state = { ...state, selection: ligne, detail: null, cibleBrouillon: ligne.document_ref,
+    const cible = JSON.stringify([ligne.affaire_id, ligne.document_ref]);
+    state = { ...state, selection: ciblesContradictoires.has(cible) ? null : ligne, detail: null, cibleBrouillon: ligne.document_ref,
       brouillon: memeCible ? state.brouillon : { titre: "", corps: "" } };
     if (ligne.statut === "RETIREE") return;
     let lu: ResultatLectureDocumentAffaireM10<VersionDocumentAffaireM10> | null;
     try { lu = await d.chargerVersion(ligne.affaire_id, ligne.document_ref, ligne.version_source); } catch { lu = indisponible(); }
     if (!c.courante() || n !== demandeDetail || !online || !d.enLigne()) return;
-    if (lectureEnCache(lu) || (lu?.source === "serveur" && (lu.valeur.affaire_id !== ligne.affaire_id ||
+    if (lectureEnCache(lu)) lu = indisponible();
+    if (lu?.source === "serveur" && (lu.valeur.affaire_id !== ligne.affaire_id ||
         !identique(lu.valeur.document_ref, ligne.document_ref) || !identique(lu.valeur.version_source, ligne.version_source) ||
-        !memeSourceVersion(ligne, lu.valeur)))) lu = indisponible();
+        !memeSourceVersion(ligne, lu.valeur))) {
+      ciblesContradictoires.add(cible);
+      state = { ...state, selection: null, detail: indisponible() };
+      return;
+    }
+    // Une panne ne réhabilite pas une cible contredite ; seule sa relecture cohérente le fait.
+    if (lu?.source === "serveur") {
+      ciblesContradictoires.delete(cible);
+      state = { ...state, selection: ligne };
+    }
     if (lu?.source === "serveur" && lu.valeur.statut === "RETIREE") state = { ...state, page: null, selection: null, detail: lu };
     else state = { ...state, detail: lu };
   }

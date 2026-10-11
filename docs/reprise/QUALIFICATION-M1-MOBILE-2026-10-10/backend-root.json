@@ -1,0 +1,130 @@
+{
+  "observed_toronto": "2026-10-10T21:50:56.074408-04:00",
+  "state": "CURRENT_R_QUALIFIED_WITH_5_LOCAL_PG_BLOCKS",
+  "product": "PARTIEL",
+  "checkout": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI",
+  "Source_fixed": 1548,
+  "Source_digest": "5471c29183c68dd5e03413a533eba07bdc605081d86bdb0b5c898c07a041ee5e",
+  "Source_manifest_sha256": "e65db0a037b561ca44243414927b7713bbee1c9eeef5052d5d285c2d246905d0",
+  "four_Python_delta": {
+    "departments/m01-front-office/src/m1_front_office/outils.py": {
+      "historical_F22": "b6a6d8ea22afbaf51abd029c7a6939d0f3d75e823aa05ca1c510fcbe1e8f3379",
+      "current_R": "7794d0f6db7f2379faf347d984080ffdc5d032d9eb9a4a39c049c36205d4d2ae"
+    },
+    "departments/m01-front-office/src/m1_front_office/transferts.py": {
+      "historical_F22": "eef978e529d6fd268ddbc4def70ae073c2c9105673a4888d3cebd85b52bfb41f",
+      "current_R": "a1ccc86d5d1eee4eafd6f4be1e1d8c1b47453892ad9f69eb078ec362061c0d93"
+    },
+    "departments/m01-front-office/tests/test_import_appels_durable.py": {
+      "historical_F22": "58dd37f8d32c95ecd05ce3e1601610f42648d08e40b189f814bf8df2ddf53641",
+      "current_R": "57cc944bb1ef1dacd799ab13b9e01125b54051c520add6bcac2876148875e6c7"
+    },
+    "departments/m01-front-office/tests/test_outils_transfert.py": {
+      "historical_F22": "fbcf52c60dc05ac91cf3b3798be1cd4c36177ca97f565944180a52b4d14b5882",
+      "current_R": "e514348ab9306235f804fd3b4ba22da41347f280396914a4fb272af4e249e8c5"
+    }
+  },
+  "phases": {
+    "tests": {
+      "receipt": "evidence-tests-r1/m1-m10-current8-backend-r1.json",
+      "receipt_sha256": "353767366e982caf3802dc90e53918c648b7913d7f1f4032476fd573d5bfff69",
+      "exit": 0,
+      "seconds": 246.553,
+      "peak_RSS_bytes": 272023552,
+      "guard": null,
+      "EOF": true,
+      "observed_owners_stopped": true,
+      "strategy": "pidfd"
+    },
+    "metier": {
+      "receipt": "evidence-metier-r1/m1-m10-current8-metier-r1.json",
+      "receipt_sha256": "5e15d11913f1ddfc2c418cac0faa22d7d5561c8dfca17a600de631df8e94a444",
+      "exit": 0,
+      "seconds": 2.137,
+      "peak_RSS_bytes": 91586560,
+      "guard": null,
+      "EOF": true,
+      "observed_owners_stopped": true,
+      "strategy": "pidfd"
+    },
+    "ruff": {
+      "receipt": "evidence-ruff-r1/m1-current8-ruff4-r1.json",
+      "receipt_sha256": "f8cf37ee1b78583a077c101fd41cd35f54593ab8caf7fc51299c0fd7c776f071",
+      "exit": 0,
+      "seconds": 0.229,
+      "peak_RSS_bytes": 15052800,
+      "guard": null,
+      "EOF": true,
+      "observed_owners_stopped": true,
+      "strategy": "pidfd"
+    }
+  },
+  "tests": {
+    "passed": 2317,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 5,
+    "unique_cases": 2322,
+    "classnames": 87,
+    "skips": [
+      {
+        "classname": "tests.test_admission_agents",
+        "name": "test_postgresql_concurrent_agents_ne_depassent_pas_le_plafond_global",
+        "message": "démon docker injoignable (permission denied while trying to connect to the docker API at unix:///var/run/docker.sock) : tests réels PostgreSQL + pgvector impossibles"
+      },
+      {
+        "classname": "tests.test_admission_agents",
+        "name": "test_postgresql_admission_conciliation_et_ledger_depassent_32_bits",
+        "message": "démon docker injoignable (permission denied while trying to connect to the docker API at unix:///var/run/docker.sock) : tests réels PostgreSQL + pgvector impossibles"
+      },
+      {
+        "classname": "tests.test_admission_agents",
+        "name": "test_postgresql_conciliation_overrun_serialisee_avant_nouvelle_reservation",
+        "message": "démon docker injoignable (permission denied while trying to connect to the docker API at unix:///var/run/docker.sock) : tests réels PostgreSQL + pgvector impossibles"
+      },
+      {
+        "classname": "tests.test_admission_agents",
+        "name": "test_postgresql_runtime_cycle_fields_and_unique_cycle",
+        "message": "démon docker injoignable (permission denied while trying to connect to the docker API at unix:///var/run/docker.sock) : tests réels PostgreSQL + pgvector impossibles"
+      },
+      {
+        "classname": "tests.test_admission_agents",
+        "name": "test_postgresql_cycle_concurrent_admission_ne_delivre_quun_accord_neuf",
+        "message": "démon docker injoignable (permission denied while trying to connect to the docker API at unix:///var/run/docker.sock) : tests réels PostgreSQL + pgvector impossibles"
+      }
+    ],
+    "junit_sha256": "c9188c1f0a928eeab95d39f4e05f5685d38ec969c55716289a67d5fc6ae4d1a2"
+  },
+  "actual_imports": {
+    "tests": {
+      "module_records": 1342,
+      "unique_paths": 1340,
+      "project_source_fixed_current": 486,
+      "venv_dependency_unique_after_only": 854,
+      "unknown": 0,
+      "sha256": "2e251058ac84f67db1760096eecbf371e6c55f80460a47e9f7ea9f05ae120476",
+      "limit": "venv dependencies only rehashed after; whole dependency invariance not attested"
+    },
+    "metier": {
+      "module_records": 635,
+      "unique_paths": 635,
+      "project_source_fixed_current": 353,
+      "venv_dependency_unique_after_only": 282,
+      "unknown": 0,
+      "sha256": "d197a31e25cd322d5c1bc1ddb9fc9d0a194638dcd3ec96b7a9cdb08b215b6b1f",
+      "limit": "venv dependencies only rehashed after; whole dependency invariance not attested"
+    }
+  },
+  "metier": {
+    "departments": 10,
+    "tools": 242,
+    "device_tools": 150,
+    "sms": "INACTIVE_missing_real_credentials_policies"
+  },
+  "proof_limits": [
+    "Historical F22 2292 was not borrowed; fresh R now qualified",
+    "5 real local PostgreSQL tests blocked by Docker socket permission; GitHub exact new commit CI separate",
+    "No PBX/phone/Expo/device/provider/financial production proof",
+    "Sampled RSS and observed descendants only; source inventory does not detect never-listed paths"
+  ]
+}

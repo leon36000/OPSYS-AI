@@ -21,15 +21,16 @@ import json
 from pathlib import Path
 
 import pytest
+import yaml
 from m1_front_office import outils as outils_m1
 from m1_front_office import plaintes, transferts
-from sqlalchemy import update
+from sqlalchemy import select, update
 
 from opsys import approbations, contexte, idempotence, identite, openclaw, stockage, taxonomie
 from opsys.capacites import Capacites, outils_executables
 from opsys.departements import PolitiqueApprobation, lire_manifeste
 from opsys.outils import Niveau, executer_atomique
-from opsys.stockage.schema import APPROBATIONS, EVENEMENTS_SORTANTS
+from opsys.stockage.schema import APPROBATIONS, ARTEFACTS, EVENEMENTS_SORTANTS
 
 M1 = Path(__file__).resolve().parents[1]
 NUMERO = "+15145550142"
@@ -419,6 +420,107 @@ def test_la_lecture_reste_sous_la_troncature_de_capacites_meme_au_plus_gros_tran
     assert len(vue["messages_couverts"]) == 4 and vue["messages_couverts_omis"] == 2
     assert len(vue["messages_suivants"]) == 4 and vue["messages_suivants_omis"] == 2
     assert len(json.dumps(reponse, ensure_ascii=False)) < 6000
+
+
+@pytest.mark.parametrize("profil_invalide", [False, True])
+def test_grand_transfert_chemin_profil_long_reste_structure_sans_artefact(
+    capacites, tmp_path, monkeypatch, profil_invalide,
+):
+    # Vrai profil déplacé dans un chemin de fixture long, pas un diagnostic tronqué par le test.
+    profil_initial = taxonomie.fichier_profil()
+    dossier = tmp_path
+    for numero in range(4):
+        dossier /= f"profil-fictif-{numero}-" + "x" * 80
+    dossier.mkdir(parents=True)
+    profil = yaml.safe_load(profil_initial.read_text())
+    if profil_invalide:
+        profil["destinataires_transfert"] = {"plainte": "role-invalide-fictif"}
+    chemin = dossier / profil_initial.name
+    chemin.write_text(yaml.safe_dump(profil, allow_unicode=True))
+    monkeypatch.setenv("OPSYS_HOME", str(dossier))
+    assert taxonomie.fichier_profil() == chemin
+    taxonomie.enregistrer_fenetre_conversation(120)
+    long = "Bonjour, je vous écris au sujet de la gouttière du côté nord de la maison. " * 8
+    for indice in range(6):
+        _sms(capacites, long, f"SM-{indice}", indice)
+    resume = ("Résumé long : " + "le client répète sa demande. " * 60)[:transferts.RESUME_MAX]
+    tid = _ok(_escalader(capacites, "autre", resume=resume))["transfert"]["transfert_id"]
+    for indice in range(6):
+        _sms(capacites, long, f"SN-{indice}", 10 + indice)
+    avant = _lignes()
+    ouverture = next(ligne for ligne in avant if ligne.get("transfert_id") == tid)
+    code = "REJ-PROFIL-INVALIDE" if profil_invalide else "REJ-DESTINATAIRE-NON-CONFIGURE"
+    assert ouverture["verdict_destinataire"]["code"] == code
+    assert str(chemin) in ouverture["verdict_destinataire"]["detail"]
+    with stockage.transaction() as cnx:
+        artefacts_avant = list(cnx.execute(select(ARTEFACTS)).mappings())
+
+    reponse = capacites.appeler("m1_lire_transfert", {"transfert_id": tid})
+
+    assert reponse["ok"] is True and "tronque" not in reponse
+    vue = reponse["resultat"]["resultat"]
+    assert vue["verdict_destinataire"]["code"] == code
+    assert str(chemin) not in vue["verdict_destinataire"]["detail"]
+    assert vue["resume"] == resume
+    assert len(vue["messages_couverts"]) == len(vue["messages_suivants"]) == 4
+    assert vue["messages_couverts_omis"] == vue["messages_suivants_omis"] == 2
+    assert all(len(message["texte"]) == transferts.EXTRAIT_MAX
+               for message in [*vue["messages_couverts"], *vue["messages_suivants"]])
+    assert len(json.dumps(reponse, ensure_ascii=False)) < 6000
+    assert _lignes() == avant
+    with stockage.transaction() as cnx:
+        assert list(cnx.execute(select(ARTEFACTS)).mappings()) == artefacts_avant
+        assert outils_m1._obtenir_registre().valider_chaine() == (True, None)
+
+
+@pytest.mark.parametrize(("code", "detail_attendu"), [
+    ("REJ-DESTINATAIRE-NON-CONFIGURE", "Destinataire à configurer pour ce type de transfert."),
+    ("REJ-PROFIL-INVALIDE", "Profil d'entreprise invalide : corriger la configuration des destinataires de transfert."),
+    ("REJ-FUTUR-FICTIF", "Vérifier la configuration du destinataire du transfert."),
+    (None, None),
+])
+def test_verdict_destinataire_projete_en_copie_code_exact_sans_muter_historique(
+    capacites, monkeypatch, code, detail_attendu,
+):
+    from m1_front_office.registre import Registre
+
+    brut = None if code is None else {"code": code, "detail": "DIAGNOSTIC-FICTIF-PRIVE/" * 500}
+    ajouter = Registre.ajouter
+
+    def diagnostic_fictif_avant_append(self, entree):
+        # Diagnostic reçu reconstruit avant append natif, aucune ancienne ligne réécrite.
+        entree = dict(entree)
+        if entree.get("type_entree") == "transfert" and entree.get("evenement") == "ouvert":
+            entree["verdict_destinataire"] = brut
+        return ajouter(self, entree)
+
+    if code is None:
+        taxonomie.enregistrer_destinataires_transfert({"plainte": "admin"})
+    with monkeypatch.context() as temporaire:
+        temporaire.setattr(Registre, "ajouter", diagnostic_fictif_avant_append)
+        _sms(capacites, "Je suis insatisfait, c'est une plainte.")
+    avant = _lignes()
+    (etat,) = transferts.lire(avant)
+    projection = transferts.vue(etat, avant)
+    if code is None:
+        assert projection["verdict_destinataire"] is None
+        assert projection["destinataire"] == "admin"
+    else:
+        assert projection["verdict_destinataire"] == {"code": code, "detail": detail_attendu}
+        assert projection["verdict_destinataire"] is not etat.ouverture["verdict_destinataire"]
+        projection["verdict_destinataire"]["detail"] = "Modification de copie FICTIVE"
+        assert etat.ouverture["verdict_destinataire"] == brut
+        assert projection["destinataire"] is None
+    with stockage.transaction() as cnx:
+        artefacts_avant = list(cnx.execute(select(ARTEFACTS)).mappings())
+    reponse = capacites.appeler("m1_lire_transfert", {"transfert_id": etat.identifiant})
+    assert reponse["ok"] is True and "tronque" not in reponse
+    assert reponse["resultat"]["resultat"]["verdict_destinataire"] == (
+        None if code is None else {"code": code, "detail": detail_attendu}
+    )
+    assert _lignes() == avant
+    with stockage.transaction() as cnx:
+        assert list(cnx.execute(select(ARTEFACTS)).mappings()) == artefacts_avant
 
 
 # -- Clore : une décision humaine ---

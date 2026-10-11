@@ -2,6 +2,7 @@ import type { ConfigurationChargeurAdmin } from "./appel";
 import { appelerLecture } from "./appel";
 import { interpreter } from "./enveloppe";
 import { lireSection } from "./lecture";
+import { ecrireCacheSection } from "./cache";
 import type { ResultatSection } from "./lecture";
 import {
   lireBriefing,
@@ -20,7 +21,7 @@ import type {
   EtatConsolideM9,
   SectionBriefing,
 } from "../m9/briefing";
-import { capturerGardeLecture, VERDICT_LECTURE_REMPLACEE } from "../stockage/lecturesEnVol";
+import { capturerGardeLecture, capturerGardeSection, commencerTransitionCaches, invaliderLecturesSection, VERDICT_LECTURE_REMPLACEE } from "../stockage/lecturesEnVol";
 import { VERDICT_REPONSE_ILLISIBLE } from "../protocole/enveloppeOutil";
 import { copierJsonLecture, JSON_LECTURE_INVALIDE } from "../protocole/jsonLecture";
 import { construireArgumentsLectureStrategique, lireLectureStrategique, OUTIL_LECTURE_STRATEGIQUE } from "../m9/lectureStrategique";
@@ -77,24 +78,51 @@ export function creerChargeurBriefing(config: ConfigurationChargeurAdmin) {
     outil: string,
     args: Record<string, unknown>,
     reader: (raw: unknown) => T | null,
+    cachePremierePage?: string,
   ): Promise<ResultatSection<T>> {
-    return courante(async () => {
-      if (config.enLigne?.() === false) return { source: "aucune", raison: { code: "hors_ligne", detail: "" } };
+    const cleSection = JSON.stringify([config.personne, cachePremierePage]);
+    const gardePage = cachePremierePage === undefined ? garde : capturerGardeSection(config.depot, cleSection);
+    return (async () => {
+      if (!garde.courante() || !gardePage.courante()) return remplacee<T>();
+      if (config.enLigne?.() === false) return garde.courante()
+        ? { source: "aucune", raison: { code: "hors_ligne", detail: "" } }
+        : remplacee<T>();
       const appel = await appelerLecture(config, outil, args);
-      if (!garde.courante()) return remplacee<T>();
-      if (appel.genre === "refuse") return { source: "refus", verdict: appel.verdict };
+      if (!garde.courante() || !gardePage.courante()) return remplacee<T>();
+      if (appel.genre === "refuse") {
+        // Ces motifs viennent des portes d'autorité Core. Un outil/argument refusé
+        // ne retire pas, à lui seul, le droit de relire la première page.
+        const autoriteRetiree = appel.verdict.code === "http_401" ||
+          (appel.verdict.code === "tool_call_blocked" &&
+            (appel.verdict.detail.includes("(device_unknown)") || appel.verdict.detail.includes("(role_unknown)")));
+        if (cachePremierePage !== undefined && autoriteRetiree) {
+          invaliderLecturesSection(config.depot, cleSection);
+          try {
+            await ecrireCacheSection(config.depot, config.personne, cachePremierePage, null, config.horloge().maintenant.toISOString());
+          } catch {
+            if (!garde.courante()) return remplacee<T>();
+            // Comme lireSection : un tombstone non durable ne permet aucun repli cache.
+            const terminer = commencerTransitionCaches(config.depot); terminer(false);
+            // Dernière frontière asynchrone revalidée avant notre fermeture synchrone.
+            return { source: "refus", verdict: appel.verdict };
+          }
+        }
+        return garde.courante() ? { source: "refus", verdict: appel.verdict } : remplacee<T>();
+      }
       if (appel.genre === "injoignable") return { source: "aucune", raison: appel.verdict };
       const lue = interpreterM9(appel.resultat, reader);
+      if (!garde.courante()) return remplacee<T>();
       if (!lue.ok)
         return lue.genre === "refus"
           ? { source: "refus", verdict: lue.verdict }
           : { source: "aucune", raison: lue.verdict };
-      return {
+      const misAJourLe = config.horloge().maintenant.toISOString();
+      return garde.courante() ? {
         source: "serveur",
         valeur: lue.valeur,
-        misAJourLe: config.horloge().maintenant.toISOString(),
-      };
-    });
+        misAJourLe,
+      } : remplacee<T>();
+    })();
   }
   return {
     chargerLectureStrategique(maintenant: string, depart = 0): Promise<ResultatSection<LectureStrategiqueM9>> {
@@ -136,7 +164,7 @@ export function creerChargeurBriefing(config: ConfigurationChargeurAdmin) {
       return pageEnLigne(OUTIL_SUITE_BRIEFING, { maintenant, section, depart }, (v) => {
         const lu = lireSuiteBriefing(v, section, depart);
         return lu?.jour === maintenant.slice(0, 10) ? lu : null;
-      });
+      }, `briefing_m9:${maintenant.slice(0, 10)}`);
     },
     chargerAlertes(depart = 0): Promise<ResultatSection<AlertesM9>> {
       if (!Number.isSafeInteger(depart) || depart < 0)
@@ -166,7 +194,7 @@ export function creerChargeurBriefing(config: ConfigurationChargeurAdmin) {
               interpreter: (raw) => interpreterM9(raw, (v) => lireAlertesM9(v, 0)),
             }),
           )
-        : pageEnLigne(OUTIL_ALERTES_M9, { depart }, (v) => lireAlertesM9(v, depart));
+        : pageEnLigne(OUTIL_ALERTES_M9, { depart }, (v) => lireAlertesM9(v, depart), "alertes_m9");
     },
     chargerEtat(): Promise<ResultatSection<EtatConsolideM9>> {
       return courante(() =>

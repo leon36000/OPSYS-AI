@@ -1,0 +1,101 @@
+{
+  "state": "ROOT_FROZEN_SOURCE4_FULL_MOBILE_PASS",
+  "reviewed_at_toronto": "2026-10-10T21:08:30.194315-04:00",
+  "sources": {
+    "mobile/src/m10/documentsAffaireControle.test.ts": "a8660796c5a28310f11f6a84cd63a59b504bd97a2564c681e1f4f50420a8ac27",
+    "mobile/src/m10/documentsAffaireControle.ts": "e2582e6ffe09c60279921986888fd3cef4058fbebb395c48fe4933b155bdcd6c",
+    "mobile/src/admin/briefing.test.ts": "1e7d59f4759f5acb236b1a9c48e05574ae2a31d5c197e55293e36da4917dfe04",
+    "mobile/src/admin/briefing.ts": "01e0870f1c1fcadda1c4ac9e8a19ec06c98d20413dc7332d2cb00861d39a4f6f"
+  },
+  "GO_sha256": "892ca5df040fff80215f3a446caa380fc54b5c4ce23cecfba36fa0f7feed1bbf",
+  "protocol_sha256": "56ae2380043091ab375de1d57a34af385e0159e387c44e4b82d552cc2bda4805",
+  "fixed_relative_pins": 637,
+  "external_pins": 2,
+  "phases": [
+    {
+      "phase": "full-shard1-r3",
+      "receipt_sha256": "02df8066d594cc0c910a839cdac8891924c4fde189aa572d1a06e67a18005161",
+      "log_sha256": "bd6735a81871b9e889a1afcbd2b27125b77c31c086fbb6606424d09b1f1fbad5",
+      "seconds": 13.17,
+      "RSS_bytes": 754151424,
+      "exit": 0,
+      "EOF_PIDFD_observed_owners_closed": true,
+      "passed": 1465,
+      "suites": 60,
+      "Jest_JSON_sha256": "e2d55d9a2dbd90a0a56f1b9f975d47463f1b4aed1ef8e47dd4b50af25b37a458"
+    },
+    {
+      "phase": "full-shard2-r3",
+      "receipt_sha256": "b4c40bd87b1b34e0cdeab12da641277e02c4bfd4b050b507ded1271714b0b09d",
+      "log_sha256": "f9f45699b21dcd31f41a0144ea053da1d4f50bfcd1002625609038804dcd35d6",
+      "seconds": 11.885,
+      "RSS_bytes": 626679808,
+      "exit": 0,
+      "EOF_PIDFD_observed_owners_closed": true,
+      "passed": 1182,
+      "suites": 59,
+      "Jest_JSON_sha256": "04d7873a95552ec22b8a14a873193ae7b1b3568715f74bdcc1c51ef056565a2b"
+    },
+    {
+      "phase": "full-shard3-r3",
+      "receipt_sha256": "8314928929a4f25af41cdf894834f1744365813b8fd135475a72570fe3329a29",
+      "log_sha256": "c71260434f0de8cac371ae1aa2a0cb0ac661f384ddcebf5ceea45a4326e6ed36",
+      "seconds": 11.924,
+      "RSS_bytes": 759734272,
+      "exit": 0,
+      "EOF_PIDFD_observed_owners_closed": true,
+      "passed": 1374,
+      "suites": 59,
+      "Jest_JSON_sha256": "37a61b2c7869cb85bd74eaedd77c7d0bfac5a116afcc7bd9027cee6eb6cfd569"
+    },
+    {
+      "phase": "full-shard4-r3",
+      "receipt_sha256": "cfcb80151872e1cb54a5c1089db3feabfc3bf253f263a0c638a29a97cee5c083",
+      "log_sha256": "f28865578b7029127ff7882e46623716f6939ecc105aafbb1b7b624a95dd3a5e",
+      "seconds": 10.746,
+      "RSS_bytes": 769613824,
+      "exit": 0,
+      "EOF_PIDFD_observed_owners_closed": true,
+      "passed": 1579,
+      "suites": 59,
+      "Jest_JSON_sha256": "0d7dece7ef3706a38348d92daa2c6665b368c0a31242ff2a9deebac735e3cc86"
+    },
+    {
+      "phase": "tsc-r3",
+      "receipt_sha256": "f6df9d69337459026e8dceff89306bd5652c018cc5e2e12e72f23d2b8665f4ed",
+      "log_sha256": "82c7355bf5b71902b2cd9c505e5ccc222d5af6f382b8f3d138cb46cbbf77572b",
+      "seconds": 4.261,
+      "RSS_bytes": 920887296,
+      "exit": 0,
+      "EOF_PIDFD_observed_owners_closed": true
+    },
+    {
+      "phase": "lint4-r3",
+      "receipt_sha256": "c6323acab82c196fdbd07bebeba75e2174cd2a6b3ec55e13abf76e4d599ad6e1",
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "seconds": 0.252,
+      "RSS_bytes": 53587968,
+      "exit": 0,
+      "EOF_PIDFD_observed_owners_closed": true
+    }
+  ],
+  "passed_tests": 5600,
+  "unique_suites": 237,
+  "failed": 0,
+  "skipped": 0,
+  "Jest_actual_imports": 464,
+  "Jest_actual_imports_all_fixed": true,
+  "TSC_actual_inputs": 1346,
+  "TSC_fixed_before_after": 533,
+  "TSC_dependencies_after_only": 813,
+  "TSC_actual_inputs_sha256": "563c39891acaf27728c6cb0edbe6edd1cd15247c0c8aa5d4586a7f945b1679e2",
+  "TSC_unknown_non_dependency_inputs": 0,
+  "test_seconds_sum": 47.725,
+  "product": "PARTIEL",
+  "limits": [
+    "Real production mobile code and specified SQLite/same-process fixtures; no native HTTP/device/Expo/process-restart/server-commit/financial-finality inference.",
+    "Named critical dependencies only before/after, other TSC resolved dependencies rehashed after only.",
+    "No whole tree dependency invariance or unobserved process ownership.",
+    "Historical failed/timed-out/model opinions retain own epochs. New4 not yet committed or credited to exact31fc51e CI."
+  ]
+}

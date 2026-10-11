@@ -1,0 +1,54 @@
+{
+  "status": "NONQUAL_TIMEOUT_NO_FINAL",
+  "original_receipt_sha256": "474eef578736d52c314df3bb940e9c00ebad1deeee98de1996a618d4bcf5b8c0",
+  "wrapper_receipt_sha256": "5833e84c9236c5345513fde3442dc200e02748aa9d082795c4341a593dbdac47",
+  "private_stream_sha256": "7ffa3819c5d5239a3f13048c115893895ae40cb43dc82ba86f9fbdfe4b915c28",
+  "Root_GO_sha256": "89bad9d4be74041fb4c481a7ef6ed695f81153f26a15f5c9e58a87d2510496a9",
+  "wrapper_exit_code": 143,
+  "wall_seconds": 600.681,
+  "peak_process_tree_rss_bytes": 313303040,
+  "guard_triggered": "timeout",
+  "signal_strategy": "pidfd",
+  "stdout_eof": true,
+  "output_complete": true,
+  "owned_processes_stopped": true,
+  "models_actual": [
+    "claude-opus-5-5"
+  ],
+  "configured_effort": "max",
+  "configured_max_turns": 8,
+  "provider_effort_attested": false,
+  "reads": [
+    {
+      "tool": "Read",
+      "file": "brief.md"
+    },
+    {
+      "tool": "Read",
+      "file": "01-native-publication.txt"
+    },
+    {
+      "tool": "Read",
+      "file": "02-serving-owner.txt"
+    },
+    {
+      "tool": "Read",
+      "file": "03-clone-activation.txt"
+    },
+    {
+      "tool": "Read",
+      "file": "04-provenance.txt"
+    },
+    {
+      "tool": "Read",
+      "file": "05-rollback-source-only.txt"
+    }
+  ],
+  "all_six_Read_success": true,
+  "admissible_finales": 0,
+  "terminal_present": false,
+  "partial_assistant_text_chars_not_exported": 47,
+  "inputs_sources_revalidated": true,
+  "cost_usage_terminal": null,
+  "automatic_retry": false
+}

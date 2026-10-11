@@ -531,6 +531,17 @@ def vue(etat: EtatTransfert, lignes: Sequence[Mapping[str, Any]]) -> dict[str, A
     par_id = {m["signal_id"]: m for m in lignes if m.get("type_entree") == "signal"}
     couverts = _extraits(par_id, ouverture["signaux"])
     suivants = _extraits(par_id, [s["signal_id"] for s in etat.suivis])
+    verdict = ouverture["verdict_destinataire"]
+    if verdict is not None:
+        # Projection utilisateur bornée ; le diagnostic complet reste dans le maillon original.
+        verdict = {
+            "code": verdict["code"],
+            "detail": {
+                taxonomie.VERDICT_DESTINATAIRE_NON_CONFIGURE: "Destinataire à configurer pour ce type de transfert.",
+                taxonomie.VERDICT_PROFIL_INVALIDE:
+                    "Profil d'entreprise invalide : corriger la configuration des destinataires de transfert.",
+            }.get(verdict["code"], "Vérifier la configuration du destinataire du transfert."),
+        }
     resultat: dict[str, Any] = {
         "transfert_id": etat.identifiant,
         "statut": "ouvert" if etat.ouvert else "clos",
@@ -543,7 +554,7 @@ def vue(etat: EtatTransfert, lignes: Sequence[Mapping[str, Any]]) -> dict[str, A
         "conversation_id": ouverture["conversation_id"],
         "ouvert_le": ouverture["horodatage"],
         "destinataire": ouverture["destinataire"],
-        "verdict_destinataire": ouverture["verdict_destinataire"],
+        "verdict_destinataire": verdict,
         "contact": ouverture["contact"],
         "lead_id": ouverture["lead_id"],
         "resume": ouverture["resume"],

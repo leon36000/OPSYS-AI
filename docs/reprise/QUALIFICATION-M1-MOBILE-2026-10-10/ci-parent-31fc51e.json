@@ -1,0 +1,15 @@
+{
+  "state": "EXACT_HEAD_CI_COMPLETED_SUCCESS",
+  "HEAD": "31fc51edd7e7716b88a92b5ed05380ca4bd026ea",
+  "run": 38099210917,
+  "jobs": 40,
+  "success": 38,
+  "conditional_skips": [
+    "installateur / installation-windows-docker",
+    "installateur / installation-macos-docker"
+  ],
+  "observation_sha256": "15376d1aa677916472d4e05aad1a84d6b045abe2bf431485bfd0f69b17da01ab",
+  "observed_toronto": "2026-10-10T21:34:36.116581-04:00",
+  "future_Source8_not_credited": true,
+  "local_Docker_still_separate": true
+}

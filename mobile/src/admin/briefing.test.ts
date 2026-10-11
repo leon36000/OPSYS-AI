@@ -5,6 +5,7 @@ import { creerChargeurBriefing } from "./briefing";
 import { config, echecHttp, transportHorsLigne } from "./donneesDeTest";
 import { DepotCleValeurMemoire } from "../stockage/depotCleValeur";
 import { synchroniserCaches } from "../identite/caches";
+import { cacheRequiertPurge, capturerGardeLecture } from "../stockage/lecturesEnVol";
 const fixture = JSON.parse(
   fs.readFileSync(path.join(__dirname, "../m9/fixtures/reponses-moteur.json"), "utf8"),
 );
@@ -23,6 +24,86 @@ const good = () =>
             : "suite_decisions_en_attente",
     ),
   }));
+
+const departSuite = fixture.appels.suite_decisions_en_attente.args.depart;
+function premierePage(chargeur: ReturnType<typeof creerChargeurBriefing>, frontiere: string) {
+  return frontiere === "suite" ? chargeur.chargerBriefing(NOW) : chargeur.chargerAlertes();
+}
+function pageSuivante(chargeur: ReturnType<typeof creerChargeurBriefing>, frontiere: string) {
+  return frontiere === "suite"
+    ? chargeur.chargerSuite(NOW, "decisions_en_attente", departSuite)
+    : chargeur.chargerAlertes(1);
+}
+
+describe("autorité de suite — cache de première page", () => {
+  test.each([
+    ["suite", 401, undefined, "réponse HTTP 401 inattendue"],
+    ["alertes", 401, undefined, "réponse HTTP 401 inattendue"],
+    ["suite", 403, "tool_call_blocked", 'OPSYS device is not authorized to call "m9_lire_suite_briefing" (device_unknown).'],
+    ["alertes", 403, "tool_call_blocked", 'OPSYS device is not authorized to call "m9_lire_alertes_m8" (device_unknown).'],
+    ["suite", 403, "tool_call_blocked", 'OPSYS device is not authorized to call "m9_lire_suite_briefing" (role_unknown).'],
+    ["alertes", 403, "tool_call_blocked", 'OPSYS device is not authorized to call "m9_lire_alertes_m8" (role_unknown).'],
+  ] as const)("%s / %i / %s ferme seulement sa copie liée", async (frontiere, status, type, detail) => {
+    const depot = new DepotCleValeurMemoire();
+    const initial = creerChargeurBriefing(config(good(), { depot }));
+    await initial.chargerBriefing(NOW); await initial.chargerAlertes(); await initial.chargerEtat();
+    const autre = creerChargeurBriefing(config(good(), { depot, personne: "autre-fictive" }));
+    await premierePage(autre, frontiere);
+    const copieEtat = await lireCacheSection(depot, "nathan", "etat_m9");
+    const copieAutre = await lireCacheSection(depot, "autre-fictive", frontiere === "suite" ? `briefing_m9:${NOW.slice(0, 10)}` : "alertes_m9");
+    const interdit = creerChargeurBriefing(config(jest.fn(async () => echecHttp(status, type, detail)), { depot }));
+    expect(await pageSuivante(interdit, frontiere)).toMatchObject({ source: "refus", verdict: { detail } });
+    const offline = creerChargeurBriefing({ ...config(transportHorsLigne(), { depot }), enLigne: () => false });
+    expect((await premierePage(offline, frontiere)).source).toBe("aucune");
+    expect((await premierePage(offline, frontiere === "suite" ? "alertes" : "suite")).source).toBe("cache");
+    expect(await lireCacheSection(depot, "nathan", "etat_m9")).toEqual(copieEtat);
+    expect(await lireCacheSection(depot, "autre-fictive", frontiere === "suite" ? `briefing_m9:${NOW.slice(0, 10)}` : "alertes_m9")).toEqual(copieAutre);
+  });
+
+  test.each([
+    ["suite", 400, "invalid_request", "depart est au-delà de la page courante"],
+    ["alertes", 400, "invalid_request", "depart est au-delà de la page courante"],
+    ["suite", 403, "tool_call_blocked", 'OPSYS device is not authorized to call "m9_lire_suite_briefing" (tool_out_of_scope).'],
+    ["alertes", 403, "tool_call_blocked", 'OPSYS device is not authorized to call "m9_lire_alertes_m8" (tool_out_of_scope).'],
+  ] as const)("%s / %i / %s ne retire pas des droits à la première page", async (frontiere, status, type, detail) => {
+    const depot = new DepotCleValeurMemoire();
+    await premierePage(creerChargeurBriefing(config(good(), { depot })), frontiere);
+    const interdit = creerChargeurBriefing(config(jest.fn(async () => echecHttp(status, type, detail)), { depot }));
+    expect((await pageSuivante(interdit, frontiere)).source).toBe("refus");
+    const offline = creerChargeurBriefing({ ...config(transportHorsLigne(), { depot }), enLigne: () => false });
+    expect((await premierePage(offline, frontiere)).source).toBe("cache");
+  });
+
+  test.each(["suite", "alertes"])("%s ferme la première réponse déjà en vol sans écrire après son tombstone", async frontiere => {
+    const depot = new DepotCleValeurMemoire();
+    let entrer!: () => void, liberer!: (v: unknown) => void;
+    const entree = new Promise<void>(resolve => { entrer = resolve; });
+    const attente = new Promise(resolve => { liberer = resolve; });
+    const ancien = creerChargeurBriefing(config(jest.fn(async () => { entrer(); return attente; }), { depot }));
+    const pending = premierePage(ancien, frontiere);
+    await entree;
+    const interdit = creerChargeurBriefing(config(jest.fn(async () => echecHttp(401)), { depot }));
+    expect((await pageSuivante(interdit, frontiere)).source).toBe("refus");
+    liberer({ ok: true, result: native(frontiere === "suite" ? "briefing" : "alertes") });
+    expect(await pending).toMatchObject({ source: "aucune", raison: { code: "lecture_remplacee" } });
+    const offline = creerChargeurBriefing({ ...config(transportHorsLigne(), { depot }), enLigne: () => false });
+    expect((await premierePage(offline, frontiere)).source).toBe("aucune");
+  });
+
+  test("suite ferme également une suite déjà en vol dans la même section", async () => {
+    const depot = new DepotCleValeurMemoire();
+    let entrer!: () => void, liberer!: (v: unknown) => void;
+    const entree = new Promise<void>(resolve => { entrer = resolve; });
+    const attente = new Promise(resolve => { liberer = resolve; });
+    const ancien = creerChargeurBriefing(config(jest.fn(async () => { entrer(); return attente; }), { depot }));
+    const pending = ancien.chargerSuite(NOW, "decisions_en_attente", departSuite);
+    await entree;
+    const interdit = creerChargeurBriefing(config(jest.fn(async () => echecHttp(401)), { depot }));
+    expect((await interdit.chargerSuite(NOW, "decisions_en_attente", departSuite)).source).toBe("refus");
+    liberer({ ok: true, result: native("suite_decisions_en_attente") });
+    expect(await pending).toMatchObject({ source: "aucune", raison: { code: "lecture_remplacee" } });
+  });
+});
 
 test("les quatre noms nus et arguments exacts, aucun rôle/personne dans la requête", async () => {
   const transport = good();
@@ -180,4 +261,63 @@ test("le cache retire la preuve M8 non affichée tout en restant lisible hors li
   ).chargerAlertes();
   expect(relue.source).toBe("cache");
   if (relue.source === "cache") expect(relue.valeur.alertes[0].preuve.wct_id).toBeDefined();
+});
+
+
+describe("panne du tombstone — refus acquis et vraie identité", () => {
+  test.each([
+    ["suite", 401, undefined, "réponse HTTP 401 inattendue"],
+    ["alertes", 401, undefined, "réponse HTTP 401 inattendue"],
+    ["suite", 403, "tool_call_blocked", 'OPSYS device is not authorized to call "m9_lire_suite_briefing" (role_unknown).'],
+    ["alertes", 403, "tool_call_blocked", 'OPSYS device is not authorized to call "m9_lire_alertes_m8" (device_unknown).'],
+  ] as const)("%s / %i garde le verdict malgré la panne d'écriture", async (frontiere, status, type, detail) => {
+    class DepotEnPanne extends DepotCleValeurMemoire {
+      tombstones = 0;
+      override async ecrire(cle: string, valeur: string) {
+        if (JSON.parse(valeur).resultat === null) {
+          this.tombstones += 1;
+          throw new Error("panne de stockage fictive");
+        }
+        return super.ecrire(cle, valeur);
+      }
+    }
+    const depot = new DepotEnPanne();
+    await premierePage(creerChargeurBriefing(config(good(), { depot })), frontiere);
+    const interdit = creerChargeurBriefing(config(jest.fn(async () => echecHttp(status, type, detail)), { depot }));
+    const resultat = await pageSuivante(interdit, frontiere);
+    expect(depot.tombstones).toBe(1);
+    expect(cacheRequiertPurge(depot)).toBe(true);
+    const offline = creerChargeurBriefing({ ...config(transportHorsLigne(), { depot }), enLigne: () => false });
+    expect((await premierePage(offline, frontiere)).source).toBe("aucune");
+    expect(resultat).toEqual({ source: "refus", verdict: { code: status === 401 ? "http_401" : "tool_call_blocked", detail } });
+  });
+
+  test.each([["suite", true], ["alertes", true], ["suite", false], ["alertes", false]] as const)("%s remplace le refus si l'identité change pendant l'écriture (panne=%s)", async (frontiere, panne) => {
+    let entrer!: () => void, rejeter!: (e: Error) => void, terminer!: () => void;
+    const entree = new Promise<void>(resolve => { entrer = resolve; });
+    const ecriture = new Promise<void>((resolve, reject) => { terminer = resolve; rejeter = reject; });
+    class DepotEnAttente extends DepotCleValeurMemoire {
+      override async ecrire(cle: string, valeur: string) {
+        if (JSON.parse(valeur).resultat === null) {
+          entrer();
+          await ecriture;
+        }
+        return super.ecrire(cle, valeur);
+      }
+    }
+    const depot = new DepotEnAttente();
+    await premierePage(creerChargeurBriefing(config(good(), { depot })), frontiere);
+    const garde = capturerGardeLecture(depot);
+    const interdit = creerChargeurBriefing(config(jest.fn(async () => echecHttp(401)), { depot }));
+    const pending = pageSuivante(interdit, frontiere);
+    await entree;
+    const purge = synchroniserCaches(depot, { genre: "erreur", motif: "jeton_refuse" });
+    for (let i = 0; i < 10 && garde.courante(); i += 1) await Promise.resolve();
+    expect(garde.courante()).toBe(false);
+    if (panne) rejeter(new Error("panne de stockage fictive"));
+    else terminer();
+    expect(await pending).toMatchObject({ source: "aucune", raison: { code: "lecture_remplacee" } });
+    await purge;
+    expect(depot.cles()).toEqual([]);
+  });
 });
