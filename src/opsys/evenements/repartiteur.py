@@ -23,7 +23,7 @@ import datetime as dt
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import Connection, func, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
 from ..departements import Departement
@@ -36,6 +36,7 @@ __all__ = ["etat", "repartir", "verifier_coherence"]
 _BASE_BACKOFF_S = 2
 _MAX_TENTATIVES = 5
 _STATUTS_CLOS = ("traite", "quarantaine")
+_CLE_PAIRES_EN_VOL = "_opsys_evenements_paires_en_vol"
 
 
 def _consommateurs_par_type(departements: Mapping[str, Departement]) -> dict[str, list[tuple[str, Callable]]]:
@@ -95,52 +96,73 @@ def _livrer_une_paire(
 ) -> str | None:
     """Livre un événement à un consommateur ; renvoie le statut final, ou `None` si la course est perdue."""
     evenement_id = evenement["evenement_id"]
-    charge = codec.decoder(evenement["charge"])
     cible = (EVENEMENTS_RECUS.c.evenement_id == evenement_id) & (EVENEMENTS_RECUS.c.consommateur == consommateur)
-    with transaction() as cnx:
-        existant = cnx.execute(select(EVENEMENTS_RECUS.c.tentatives).where(cible)).fetchone()
-        if existant is None:
+    garde = None
+    try:
+        with transaction() as cnx:
+            # Même connexion native et même paire seulement ; les autres livraisons restent possibles.
+            par_connexion: dict[Connection, set[tuple[str, str]]] = cnx.info.setdefault(_CLE_PAIRES_EN_VOL, {})
+            paire = (evenement_id, consommateur)
+            actives = par_connexion.get(cnx)
+            if actives is None:
+                actives = set()
+            if paire in actives:
+                return None
+            garde = (par_connexion, cnx, actives, paire)
+            par_connexion[cnx] = actives
+            actives.add(paire)
+            charge = codec.decoder(evenement["charge"])
+            existant = cnx.execute(select(EVENEMENTS_RECUS.c.tentatives).where(cible)).fetchone()
+            if existant is None:
+                try:
+                    with cnx.begin_nested():
+                        cnx.execute(insert(EVENEMENTS_RECUS).values(
+                            evenement_id=evenement_id, consommateur=consommateur, statut="echec",
+                            tentatives=0, prochaine_tentative=None, resultat=None, derniere_erreur=None,
+                        ))
+                except IntegrityError:
+                    return None  # réclamée entre-temps par un autre appel concurrent
+                tentatives_avant = 0
+            else:
+                reclamation = cnx.execute(
+                    update(EVENEMENTS_RECUS)
+                    .where(cible & (EVENEMENTS_RECUS.c.statut == "echec")).values(statut="echec")
+                )
+                if reclamation.rowcount != 1:
+                    return None  # déjà traité, mis en quarantaine, ou repris ailleurs entre la sélection et ici
+                tentatives_avant = existant.tentatives
+
             try:
                 with cnx.begin_nested():
-                    cnx.execute(insert(EVENEMENTS_RECUS).values(
-                        evenement_id=evenement_id, consommateur=consommateur, statut="echec",
-                        tentatives=0, prochaine_tentative=None, resultat=None, derniere_erreur=None,
-                    ))
-            except IntegrityError:
-                return None  # réclamée entre-temps par un autre appel concurrent
-            tentatives_avant = 0
-        else:
-            reclamation = cnx.execute(
-                update(EVENEMENTS_RECUS).where(cible & (EVENEMENTS_RECUS.c.statut == "echec")).values(statut="echec")
-            )
-            if reclamation.rowcount != 1:
-                return None  # déjà traité, mis en quarantaine, ou repris ailleurs entre la sélection et ici
-            tentatives_avant = existant.tentatives
+                    resultat_fonction = fonction(dict(charge))
+                    # Encodé ICI, dans le point de sauvegarde, par le même codec typé que les maillons
+                    # de registre (fidélité Decimal/date) : un résumé non stockable (type non géré par
+                    # le codec) annule aussi les écritures du consommateur, comme une panne — jamais un
+                    # « traité » sans résultat fidèle, jamais des écritures orphelines.
+                    resultat_encode = codec.encoder(dict(resultat_fonction))
+            except Exception as exc:  # noqa: BLE001 — un consommateur ne doit jamais arrêter le répartiteur
+                tentatives = tentatives_avant + 1
+                en_quarantaine = tentatives >= _MAX_TENTATIVES
+                cnx.execute(update(EVENEMENTS_RECUS).where(cible).values(
+                    statut="quarantaine" if en_quarantaine else "echec",
+                    tentatives=tentatives,
+                    prochaine_tentative=None if en_quarantaine else _backoff(tentatives, maintenant_dt),
+                    derniere_erreur=f"{type(exc).__name__}: {exc}",
+                ))
+                return "quarantaine" if en_quarantaine else "echec"
 
-        try:
-            with cnx.begin_nested():
-                resultat_fonction = fonction(dict(charge))
-                # Encodé ICI, dans le point de sauvegarde, par le même codec typé que les maillons
-                # de registre (fidélité Decimal/date) : un résumé non stockable (type non géré par
-                # le codec) annule aussi les écritures du consommateur, comme une panne — jamais un
-                # « traité » sans résultat fidèle, jamais des écritures orphelines.
-                resultat_encode = codec.encoder(dict(resultat_fonction))
-        except Exception as exc:  # noqa: BLE001 — un consommateur ne doit jamais arrêter le répartiteur
-            tentatives = tentatives_avant + 1
-            en_quarantaine = tentatives >= _MAX_TENTATIVES
             cnx.execute(update(EVENEMENTS_RECUS).where(cible).values(
-                statut="quarantaine" if en_quarantaine else "echec",
-                tentatives=tentatives,
-                prochaine_tentative=None if en_quarantaine else _backoff(tentatives, maintenant_dt),
-                derniere_erreur=f"{type(exc).__name__}: {exc}",
+                statut="traite", tentatives=tentatives_avant + 1, prochaine_tentative=None,
+                resultat=resultat_encode, derniere_erreur=None,
             ))
-            return "quarantaine" if en_quarantaine else "echec"
-
-        cnx.execute(update(EVENEMENTS_RECUS).where(cible).values(
-            statut="traite", tentatives=tentatives_avant + 1, prochaine_tentative=None,
-            resultat=resultat_encode, derniere_erreur=None,
-        ))
-        return "traite"
+            return "traite"
+    finally:
+        # Après commit/rollback aussi : aucun état en vol ne survit à la sortie de cette livraison.
+        if garde is not None:
+            par_connexion, cnx, actives, paire = garde
+            actives.discard(paire)
+            if not actives and par_connexion.get(cnx) is actives:
+                par_connexion.pop(cnx)
 
 
 def repartir(

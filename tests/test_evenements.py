@@ -10,6 +10,8 @@ from __future__ import annotations
 import dataclasses
 import datetime as dt
 import shutil
+import sys
+from contextvars import copy_context
 
 import demo_consommateur_echec
 import demo_consommateur_ok
@@ -19,6 +21,7 @@ from sqlalchemy import func, select
 
 from opsys import evenements, stockage
 from opsys.outils import Outil, executer_atomique
+from opsys.stockage.moteur import connexion_courante
 from opsys.stockage.schema import EVENEMENTS_SORTANTS
 
 _SCHEMA_ECHOUER = {"type": "object", "properties": {"echouer": {"type": "boolean"}}, "required": ["echouer"]}
@@ -353,6 +356,256 @@ def test_redelivery_ne_reexecute_jamais_un_evenement_traite(session, deps_succes
     etat = evenements.etat()
     assert etat["comptes"] == {"traite": 1}
     assert etat["quarantaine"] == []
+
+
+def test_reentree_meme_paire_ne_duplique_pas_effet_apres_reouverture(session, deps_succes, monkeypatch):
+    appels = []
+    resumes_imbriques = []
+
+    def recevoir(charge):
+        appels.append(charge["message"])
+        if len(appels) == 1:
+            resumes_imbriques.append(evenements.repartir(deps_succes))
+        stockage.maillons("m-demo-reentree", "recus").append({"fictif": True, "message": charge["message"]})
+        return {"fictif": True}
+
+    monkeypatch.setattr(demo_consommateur_ok, "consommateurs", lambda: {"opsys.demo_complete": recevoir})
+    evenements.publier("opsys.demo_complete", "test-fictif", {"message": "unique"}, evenement_id="reentrant-1")
+
+    assert evenements.repartir(deps_succes)["traites"] == 1
+    stockage.liberer()
+    assert len(stockage.maillons("m-demo-reentree", "recus")) == 1
+    assert appels == ["unique"]
+    assert resumes_imbriques == [{"livres": 0, "traites": 0, "echecs": 0, "quarantaines": 0, "ignores": 1}]
+    assert evenements.etat()["comptes"] == {"traite": 1}
+    assert _compte_sortants() == 1
+    assert evenements.repartir(deps_succes)["livres"] == 0
+
+
+def test_reentree_autre_evenement_meme_consommateur_progresse(session, deps_succes, monkeypatch):
+    appels = []
+    resumes_imbriques = []
+
+    def recevoir(charge):
+        appels.append(charge["message"])
+        if len(appels) == 1:
+            resumes_imbriques.append(evenements.repartir(deps_succes))
+        stockage.maillons("m-demo-autre-evenement", "recus").append({"fictif": True, "message": charge["message"]})
+        return {"fictif": True}
+
+    monkeypatch.setattr(demo_consommateur_ok, "consommateurs", lambda: {"opsys.demo_complete": recevoir})
+    for message in ("premier", "second"):
+        evenements.publier("opsys.demo_complete", "test-fictif", {"message": message}, evenement_id=message)
+
+    assert evenements.repartir(deps_succes)["traites"] == 1
+    assert appels == ["premier", "second"]
+    assert resumes_imbriques == [{"livres": 1, "traites": 1, "echecs": 0, "quarantaines": 0, "ignores": 1}]
+    assert len(stockage.maillons("m-demo-autre-evenement", "recus")) == 2
+    assert evenements.etat()["comptes"] == {"traite": 2}
+
+
+def test_reentree_contexte_capture_meme_connexion_ne_duplique_pas(session, deps_succes, monkeypatch):
+    appels = []
+    connexions = []
+
+    def recevoir(charge):
+        appels.append(charge["message"])
+        with stockage.transaction() as cnx:
+            connexions.append(cnx)
+        if len(appels) == 1:
+            contexte.run(evenements.repartir, deps_succes)
+        stockage.maillons("m-demo-contexte-reentree", "recus").append({"fictif": True})
+        return {"fictif": True}
+
+    monkeypatch.setattr(demo_consommateur_ok, "consommateurs", lambda: {"opsys.demo_complete": recevoir})
+    evenements.publier("opsys.demo_complete", "test-fictif", {"message": "contexte-capture"})
+    with stockage.transaction() as native:
+        contexte = copy_context()
+        assert evenements.repartir(deps_succes)["traites"] == 1
+        assert all(cnx is native for cnx in connexions)
+
+    stockage.liberer()
+    assert len(stockage.maillons("m-demo-contexte-reentree", "recus")) == 1
+    assert appels == ["contexte-capture"]
+    assert evenements.etat()["comptes"] == {"traite": 1}
+
+
+def test_reentree_meme_evenement_autre_consommateur_progresse(session, deps_succes, monkeypatch):
+    appels = []
+    resumes_imbriques = []
+    autre = dataclasses.replace(
+        next(iter(deps_succes.values())), id="m09-demo-autre", module_outils="demo_consommateur_echec",
+    )
+    deps = {**deps_succes, autre.id: autre}
+
+    def recevoir(charge):
+        appels.append("premier")
+        if len(appels) == 1:
+            resumes_imbriques.append(evenements.repartir(deps))
+        stockage.maillons("m-demo-autre-consommateur", "premier").append({"fictif": True})
+        return {"fictif": True}
+
+    def recevoir_autre(charge):
+        appels.append("autre")
+        stockage.maillons("m-demo-autre-consommateur", "autre").append({"fictif": True})
+        return {"fictif": True}
+
+    monkeypatch.setattr(demo_consommateur_ok, "consommateurs", lambda: {"opsys.demo_complete": recevoir})
+    monkeypatch.setattr(demo_consommateur_echec, "consommateurs", lambda: {"opsys.demo_complete": recevoir_autre})
+    evenements.publier("opsys.demo_complete", "test-fictif", {"message": "deux-consommateurs"})
+
+    assert evenements.repartir(deps)["traites"] == 1
+    assert appels == ["premier", "autre"]
+    assert resumes_imbriques == [{"livres": 1, "traites": 1, "echecs": 0, "quarantaines": 0, "ignores": 1}]
+    assert len(stockage.maillons("m-demo-autre-consommateur", "premier")) == 1
+    assert len(stockage.maillons("m-demo-autre-consommateur", "autre")) == 1
+    assert evenements.etat()["comptes"] == {"traite": 2}
+
+
+@pytest.mark.parametrize("interruption", [RuntimeError, BaseException], ids=["echec", "baseexception"])
+def test_reentree_exception_nettoie_paire_et_reessai_meme_connexion(session, deps_succes, monkeypatch, interruption):
+    connexions = []
+    resumes_imbriques = []
+    t0 = dt.datetime(2026, 9, 28, tzinfo=dt.UTC)
+
+    def recevoir(charge):
+        with stockage.transaction() as cnx:
+            connexions.append(cnx)
+        if len(connexions) == 1:
+            resumes_imbriques.append(evenements.repartir(deps_succes, maintenant=t0.isoformat()))
+        stockage.maillons("m-demo-reprise", "recus").append({"fictif": True})
+        if len(connexions) == 1:
+            raise interruption("interruption fictive après écriture")
+        return {"fictif": True}
+
+    monkeypatch.setattr(demo_consommateur_ok, "consommateurs", lambda: {"opsys.demo_complete": recevoir})
+    evenements.publier("opsys.demo_complete", "test-fictif", {"message": "reprise"})
+
+    with stockage.transaction() as cnx:
+        if interruption is BaseException:
+            with pytest.raises(BaseException, match="interruption fictive"):
+                evenements.repartir(deps_succes, maintenant=t0.isoformat())
+            assert evenements.etat()["comptes"] == {}
+        else:
+            assert evenements.repartir(deps_succes, maintenant=t0.isoformat())["echecs"] == 1
+            assert evenements.etat()["comptes"] == {"echec": 1}
+            assert evenements.repartir(deps_succes, maintenant=t0.isoformat())["livres"] == 0
+        assert len(stockage.maillons("m-demo-reprise", "recus")) == 0
+        assert evenements.repartir(deps_succes, maintenant=(t0 + dt.timedelta(seconds=3)).isoformat())["traites"] == 1
+        assert connexions == [cnx, cnx]
+
+    assert resumes_imbriques == [{"livres": 0, "traites": 0, "echecs": 0, "quarantaines": 0, "ignores": 1}]
+    stockage.liberer()
+    assert len(stockage.maillons("m-demo-reprise", "recus")) == 1
+    assert evenements.etat()["comptes"] == {"traite": 1}
+
+
+def test_reentree_rollback_exterieur_et_connexion_reprise_du_pool(session, deps_succes, monkeypatch):
+    connexions = []
+    pilotes = []
+    infos = []
+
+    def recevoir(charge):
+        with stockage.transaction() as cnx:
+            connexions.append(cnx)
+            pilotes.append(cnx.connection.dbapi_connection)
+            infos.append(cnx.info)
+        evenements.repartir(deps_succes)
+        stockage.maillons("m-demo-rollback-reentree", "recus").append({"fictif": True})
+        return {"fictif": True}
+
+    monkeypatch.setattr(demo_consommateur_ok, "consommateurs", lambda: {"opsys.demo_complete": recevoir})
+    evenements.publier("opsys.demo_complete", "test-fictif", {"message": "rollback"})
+
+    with pytest.raises(ValueError, match="rollback extérieur fictif"), stockage.transaction():
+        assert evenements.repartir(deps_succes)["traites"] == 1
+        raise ValueError("rollback extérieur fictif")
+
+    assert len(stockage.maillons("m-demo-rollback-reentree", "recus")) == 0
+    assert evenements.etat()["comptes"] == {}
+    assert _compte_sortants() == 1
+    assert evenements.repartir(deps_succes)["traites"] == 1
+    assert connexions[0] is not connexions[1]
+    assert pilotes[0] is pilotes[1]
+    assert infos[0] is infos[1]
+    stockage.liberer()
+    assert len(stockage.maillons("m-demo-rollback-reentree", "recus")) == 1
+    assert evenements.etat()["comptes"] == {"traite": 1}
+
+
+@pytest.mark.parametrize("arreter", ["close", "invalidate"])
+def test_connexion_arretee_ne_masque_pas_baseexception_et_permet_reprise(session, deps_succes, monkeypatch, arreter):
+    interruption = BaseException("interruption fictive après arrêt de connexion")
+    connexions = []
+
+    def recevoir(charge):
+        native = connexion_courante()
+        assert native is not None
+        connexions.append(native)
+        stockage.maillons("m-demo-arret-connexion", "recus").append({"fictif": True})
+        if len(connexions) == 1:
+            getattr(native, arreter)()
+            raise interruption
+        return {"fictif": True}
+
+    monkeypatch.setattr(demo_consommateur_ok, "consommateurs", lambda: {"opsys.demo_complete": recevoir})
+    evenements.publier("opsys.demo_complete", "test-fictif", {"message": "arret-connexion"})
+
+    with pytest.raises(BaseException) as levee:
+        evenements.repartir(deps_succes)
+    assert levee.value is interruption
+    assert len(stockage.maillons("m-demo-arret-connexion", "recus")) == 0
+    assert evenements.etat()["comptes"] == {}
+    assert _compte_sortants() == 1
+    assert evenements.repartir(deps_succes)["traites"] == 1
+    assert len(connexions) == 2
+    stockage.liberer()
+    assert len(stockage.maillons("m-demo-arret-connexion", "recus")) == 1
+    assert evenements.etat()["comptes"] == {"traite": 1}
+
+
+def test_interruption_reservation_ne_retient_pas_connexion_native(session, deps_succes, monkeypatch):
+    interruption = BaseException("interruption fictive pendant réservation")
+    appels = []
+    stockage_connexion = []
+
+    def recevoir(charge):
+        appels.append(charge["message"])
+        stockage.maillons("m-demo-reservation-interrompue", "recus").append({"fictif": True})
+        return {"fictif": True}
+
+    def interrompre(frame, evenement, arg):
+        if (
+            evenement == "line"
+            and frame.f_code.co_filename == evenements.repartir.__code__.co_filename
+            and frame.f_code.co_name == "_livrer_une_paire"
+        ):
+            native = connexion_courante()
+            if native is not None:
+                references = [v for v in native.info.values() if isinstance(v, dict) and native in v]
+                if references:
+                    stockage_connexion.extend(references)
+                    raise interruption
+        return interrompre
+
+    monkeypatch.setattr(demo_consommateur_ok, "consommateurs", lambda: {"opsys.demo_complete": recevoir})
+    evenements.publier("opsys.demo_complete", "test-fictif", {"message": "reservation"})
+    with stockage.transaction() as native:
+        precedent = sys.gettrace()
+        try:
+            sys.settrace(interrompre)
+            with pytest.raises(BaseException) as levee:
+                evenements.repartir(deps_succes)
+        finally:
+            sys.settrace(precedent)
+        assert levee.value is interruption
+        assert appels == []
+        assert stockage_connexion
+        assert all(native not in dico for dico in stockage_connexion)
+        assert evenements.repartir(deps_succes)["traites"] == 1
+
+    assert appels == ["reservation"]
+    assert len(stockage.maillons("m-demo-reservation-interrompue", "recus")) == 1
 
 
 # -- consommateur en échec : réessais espacés, quarantaine, isolation --------------------------
