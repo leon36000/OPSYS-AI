@@ -35,7 +35,7 @@ import type {
   SessionMcpRuntime,
   SessionMcpRuntimeManager,
 } from "./agent-bundle-mcp-types.js";
-import { currentMcpCallMeta } from "./mcp-call-meta.js";
+import { assertMcpCallAuthorityCurrent, currentMcpCallMeta } from "./mcp-call-meta.js";
 import {
   connectMcpClient,
   disposeMcpClient,
@@ -69,6 +69,7 @@ import {
   OPSYS_MEMOIRE_META,
 } from "./opsys-memoire-lecture-ticket.js";
 import { recordAgentCleanupFailure } from "./run-cleanup-timeout.js";
+import { isTrustedToolInputError, ToolAuthorizationError } from "./tool-input-error.js";
 
 type BundleMcpSession = {
   serverName: string;
@@ -691,6 +692,10 @@ function createServerMcpRuntime(
       }
       return result;
     } catch (error) {
+      // A host authority refusal precedes emission; it is not a server outage.
+      if (isTrustedToolInputError(error) && error instanceof ToolAuthorizationError) {
+        throw error;
+      }
       // A stateful server uses HTTP 404 to invalidate an expired MCP session.
       // Reinitialize a fresh client, but never replay a possibly mutating call.
       const sessionExpired = isMcpHttpSessionExpired(session, error);
@@ -1214,6 +1219,7 @@ function createServerMcpRuntime(
           postflight.checkCurrent();
         }
         signal.throwIfAborted();
+        assertMcpCallAuthorityCurrent();
         let observed: CallToolResult;
         try {
           observed = (await session.client.callTool(

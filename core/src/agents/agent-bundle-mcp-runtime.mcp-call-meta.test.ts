@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 /**
  * OPSYS `_meta` propagation into the outbound MCP `tools/call` (docs/architecture/IDEMPOTENCE.md
  * §7 in OPSYS-AI): `ServerMcpRuntime.callTool` (`agent-bundle-mcp-runtime.ts`) must add the ambient
@@ -11,7 +12,9 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanupTempDirs, makeTempDir } from "../../test/helpers/temp-dir.js";
 import { createSessionMcpRuntime, testing } from "./agent-bundle-mcp-runtime.js";
+import type { SessionMcpRuntime } from "./agent-bundle-mcp-types.js";
 import { withMcpCallMeta } from "./mcp-call-meta.js";
+import { ToolAuthorizationError } from "./tool-input-error.js";
 
 const tempDirs: string[] = [];
 
@@ -37,6 +40,7 @@ async function handle(message) {
     result = { tools: [{ name: "echo_meta", inputSchema: { type: "object" } }] };
   }
   if (message.method === "tools/call") {
+    (await import("node:fs")).appendFileSync(process.argv[1] + ".called", "1");
     const meta = message.params._meta ?? null;
     result = { content: [{ type: "text", text: JSON.stringify({ meta }) }] };
   }
@@ -53,6 +57,12 @@ async function callEchoMeta(
     serverName?: string;
     sessionKey?: string;
     profile?: { agentId: string; profileId: string; profileRevision: number };
+    beforeCall?: () => void;
+    observeEmission?: (emitted: boolean) => void;
+    observeCalls?: (count: number) => void;
+    callTool?: (
+      call: () => ReturnType<SessionMcpRuntime["callTool"]>,
+    ) => ReturnType<SessionMcpRuntime["callTool"]>;
   } = {},
 ) {
   const server = await startEchoMetaServer();
@@ -81,15 +91,129 @@ async function callEchoMeta(
     },
   });
   try {
-    const result = await runtime.callTool(serverName, "echo_meta", {});
+    if (options.beforeCall) {
+      await runtime.getCatalog();
+      options.beforeCall();
+    }
+    const call = () => runtime.callTool(serverName, "echo_meta", {});
+    const result = options.callTool ? await options.callTool(call) : await call();
     const text = result.content.find((item) => item.type === "text")?.text;
     return JSON.parse(String(text)) as { meta: Record<string, unknown> | null };
   } finally {
     await runtime.dispose();
+    const marker = `${server.args[0]}.called`;
+    const emitted = existsSync(marker);
+    options.observeEmission?.(emitted);
+    options.observeCalls?.(emitted ? (await fs.readFile(marker, "utf8")).length : 0);
   }
 }
 
 describe("agent-bundle-mcp-runtime callTool OPSYS _meta", () => {
+  it("does not back off a healthy server after repeated host authorization refusals", async () => {
+    const meta = { "opsys/personne": "person.synthetic", "opsys/role": "owner" };
+    const refusal = new ToolAuthorizationError("Synthetic caller revoked");
+    let checks = 0;
+    let emittedCalls: number | undefined;
+    const received = await callEchoMeta({
+      observeCalls: (count) => {
+        emittedCalls = count;
+      },
+      callTool: async (call) => {
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          await expect(
+            withMcpCallMeta(meta, call, () => {
+              checks += 1;
+              throw refusal;
+            }),
+          ).rejects.toBe(refusal);
+        }
+        return await withMcpCallMeta(meta, call, () => {
+          checks += 1;
+        });
+      },
+    });
+    expect(checks).toBe(6);
+    expect(emittedCalls).toBe(1);
+    expect(received.meta).toStrictEqual(meta);
+  });
+
+  it("isolates denied and allowed host authorities on concurrent real wire requests", async () => {
+    const deniedMeta = { "opsys/personne": "denied.synthetic", "opsys/role": "owner" };
+    const allowedMeta = { "opsys/personne": "allowed.synthetic", "opsys/role": "owner" };
+    const refusal = new ToolAuthorizationError("Synthetic concurrent caller revoked");
+    let deniedCalls: number | undefined;
+    let allowedCalls: number | undefined;
+    const [denied, allowed] = await Promise.allSettled([
+      withMcpCallMeta(
+        deniedMeta,
+        () => callEchoMeta({ observeCalls: (count) => (deniedCalls = count) }),
+        () => {
+          throw refusal;
+        },
+      ),
+      withMcpCallMeta(
+        allowedMeta,
+        () => callEchoMeta({ observeCalls: (count) => (allowedCalls = count) }),
+        () => {},
+      ),
+    ]);
+    expect(denied).toStrictEqual({ status: "rejected", reason: refusal });
+    expect(allowed).toStrictEqual({ status: "fulfilled", value: { meta: allowedMeta } });
+    expect(deniedCalls).toBe(0);
+    expect(allowedCalls).toBe(1);
+  });
+
+  it("rechecks host authority after awaited preparation and refuses before any tools/call emission", async () => {
+    let authorityCurrent = true;
+    let guardChecks = 0;
+    let emitted: boolean | undefined;
+    const refusal = new ToolAuthorizationError("Synthetic device revoked before emission");
+    const meta = { "opsys/personne": "person.synthetic", "opsys/role": "owner" };
+    await expect(
+      withMcpCallMeta(
+        meta,
+        () =>
+          callEchoMeta({
+            beforeCall: () => {
+              authorityCurrent = false;
+            },
+            observeEmission: (observed) => {
+              emitted = observed;
+            },
+          }),
+        () => {
+          guardChecks += 1;
+          if (!authorityCurrent) {
+            throw refusal;
+          }
+        },
+      ),
+    ).rejects.toBe(refusal);
+    expect(guardChecks).toBe(1);
+    expect(emitted).toBe(false);
+  });
+
+  it("checks a current host authority without adding its callback to wire metadata", async () => {
+    let guardChecks = 0;
+    let emitted: boolean | undefined;
+    const meta = { "opsys/personne": "person.synthetic", "opsys/role": "owner" };
+    const received = await withMcpCallMeta(
+      meta,
+      () =>
+        callEchoMeta({
+          observeEmission: (observed) => {
+            emitted = observed;
+          },
+        }),
+      () => {
+        guardChecks += 1;
+      },
+    );
+    expect(guardChecks).toBe(1);
+    expect(emitted).toBe(true);
+    expect(received.meta).toStrictEqual(meta);
+  });
+
   it("sends no _meta at all when no OPSYS call is in scope (unchanged behavior)", async () => {
     const received = await callEchoMeta();
     expect(received.meta).toBeNull();

@@ -31,6 +31,7 @@ src/gateway/tools-invoke-http.device-identity.test.ts
 src/gateway/tools-invoke-http.opsys-roles.test.ts
 src/gateway/tools-invoke-http.device-token-auth.test.ts
 src/gateway/tools-invoke-http.opsys-device-mcp.test.ts
+src/gateway/tools-invoke-http.opsys-device-revocation.python-http.integration.test.ts
 src/gateway/tools-invoke-http.abort.test.ts
 src/gateway/tools-invoke-http.cron-regression.test.ts
 src/gateway/tools-invoke-authorization.test.ts

@@ -14,18 +14,36 @@ import { resolveGlobalSingleton } from "../shared/global-singleton.js";
 // would silently never reach the wire.
 const mcpCallMetaStorage = resolveGlobalSingleton(
   Symbol.for("opsys.mcpCallMeta"),
-  () => new AsyncLocalStorage<Record<string, unknown>>(),
+  () =>
+    new AsyncLocalStorage<{
+      meta: Record<string, unknown>;
+      assertBeforeEffect?: () => void;
+    }>(),
 );
 
 /** Runs `run` with `meta` as the ambient MCP `_meta` for any `tools/call` it triggers. */
 export async function withMcpCallMeta<T>(
   meta: Record<string, unknown>,
   run: () => Promise<T>,
+  assertBeforeEffect?: () => void,
 ): Promise<T> {
-  return await mcpCallMetaStorage.run(meta, run);
+  const inheritedGuard = mcpCallMetaStorage.getStore()?.assertBeforeEffect;
+  const guard =
+    inheritedGuard && assertBeforeEffect
+      ? () => {
+          inheritedGuard();
+          assertBeforeEffect();
+        }
+      : (inheritedGuard ?? assertBeforeEffect);
+  return await mcpCallMetaStorage.run({ meta, assertBeforeEffect: guard }, run);
 }
 
 /** The ambient MCP `_meta` for the tool call in flight, or undefined outside one. */
 export function currentMcpCallMeta(): Record<string, unknown> | undefined {
-  return mcpCallMetaStorage.getStore();
+  return mcpCallMetaStorage.getStore()?.meta;
+}
+
+/** Host-only synchronous authority fence; never serialized into MCP metadata. */
+export function assertMcpCallAuthorityCurrent(): void {
+  mcpCallMetaStorage.getStore()?.assertBeforeEffect?.();
 }

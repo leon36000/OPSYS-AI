@@ -3,7 +3,7 @@
 // authenticates with ITS OWN device token — never the shared secret — `deviceId` comes from that
 // verified token match, never the request body, and OPSYS device-role scoping (mocked here, the
 // same lightweight mock stack as `tools-invoke-http.opsys-roles.test.ts` and
-// `tools-invoke-http.cron-regression.test.ts`; `authorizeOpsysDeviceTool` itself is covered on its
+// `tools-invoke-http.cron-regression.test.ts`; `authorizeOpsysDeviceToolFresh` itself is covered on its
 // own in `opsys-device-roles.test.ts`) is mandatory once a device token authenticates.
 //
 // PLAN T1.4-c6: an authorized device never enters the agent tool list. The department-server side
@@ -95,7 +95,7 @@ vi.mock("../plugins/config-state.js", async (importOriginal) => {
 });
 
 vi.mock("./opsys-device-roles.js", () => ({
-  authorizeOpsysDeviceTool: (deviceId: string, toolName: string) => {
+  authorizeOpsysDeviceToolFresh: (deviceId: string, toolName: string) => {
     authorizeCalls.push({ deviceId, toolName });
     return authorization;
   },
@@ -246,7 +246,7 @@ async function withPairedDeviceToken<T>(
     return await fn(issued.token, {
       revoke: async () => {
         const revoked = await revokeDeviceToken({ deviceId, role: "operator" });
-        if (revoked.ok !== true) {
+        if (!revoked.ok) {
           throw new Error(`revoke failed: ${JSON.stringify(revoked)}`);
         }
       },
@@ -272,7 +272,10 @@ describe("tools invoke HTTP device-token authentication", () => {
       const res = await invoke(deviceToken);
 
       expect(res.status).toBe(200);
-      expect(authorizeCalls).toEqual([{ deviceId: "tel-employe-42", toolName: OPSYS_TOOL_NAME }]);
+      expect(authorizeCalls).toEqual([
+        { deviceId: "tel-employe-42", toolName: OPSYS_TOOL_NAME },
+        { deviceId: "tel-employe-42", toolName: OPSYS_TOOL_NAME },
+      ]);
       expect(capturedMeta).toEqual({ "opsys/personne": "jdupont", "opsys/role": "employee" });
     });
   });
@@ -300,7 +303,10 @@ describe("tools invoke HTTP device-token authentication", () => {
       const res = await invoke(deviceToken, { deviceId: "tel-employe-43" });
 
       expect(res.status).toBe(200);
-      expect(authorizeCalls).toEqual([{ deviceId: "tel-employe-43", toolName: OPSYS_TOOL_NAME }]);
+      expect(authorizeCalls).toEqual([
+        { deviceId: "tel-employe-43", toolName: OPSYS_TOOL_NAME },
+        { deviceId: "tel-employe-43", toolName: OPSYS_TOOL_NAME },
+      ]);
     });
   });
 

@@ -13,6 +13,7 @@ import {
   type OpsysDeviceMcpResolution,
 } from "../agents/opsys-device-mcp-target.js";
 import { isKnownCoreToolId } from "../agents/tool-catalog.js";
+import { isTrustedToolInputError, ToolAuthorizationError } from "../agents/tool-input-error.js";
 import {
   AUTOMATIONS_TOOL_NAME,
   isAutomationsToolName,
@@ -35,7 +36,7 @@ import {
 } from "../sessions/agent-harness-session-key.js";
 import { ADMIN_SCOPE } from "./method-scopes.js";
 import { authorizeGatewaySessionCreation } from "./operator-role-policy.js";
-import { authorizeOpsysDeviceTool } from "./opsys-device-roles.js";
+import { authorizeOpsysDeviceToolFresh } from "./opsys-device-roles.js";
 import type { GatewayClient } from "./server-methods/shared-types.js";
 import { withOperatorToolGatewayAuthority } from "./server-plugin-in-process-dispatch.js";
 import { createSyntheticPluginRuntimeClient } from "./server-plugin-runtime-client.js";
@@ -282,11 +283,31 @@ async function invokeOpsysDeviceTool(params: {
   assertInvocationCurrent: () => void;
 }): Promise<ToolsInvokeOutcome> {
   const { invoke, toolName, identity, assertInvocationCurrent } = params;
+  const authenticatedDeviceId = invoke.authenticatedDeviceId;
   const failure = (
     status: 403 | 404 | 500,
     type: ToolsInvokeErrorType,
     message: string,
   ): ToolsInvokeOutcome => ({ ok: false, status, toolName, error: { type, message } });
+  const assertDeviceAuthorityCurrent = () => {
+    assertInvocationCurrent();
+    if (authenticatedDeviceId === undefined) {
+      throw new ToolAuthorizationError("OPSYS device identity is unavailable.");
+    }
+    const authorization = authorizeOpsysDeviceToolFresh(authenticatedDeviceId, toolName);
+    if (!authorization.ok) {
+      throw new ToolAuthorizationError(
+        `OPSYS device is not authorized to call "${toolName}" (${authorization.reason}).`,
+      );
+    }
+    if (
+      authorization.personne !== identity.personne ||
+      authorization.role !== identity.role ||
+      authorization.serveur !== identity.serveur
+    ) {
+      throw new ToolAuthorizationError("OPSYS device authority changed during the tool call.");
+    }
+  };
 
   const gatewayDeny = invoke.cfg.gateway?.tools?.deny;
   if (Array.isArray(gatewayDeny) && gatewayDeny.length > 0) {
@@ -296,7 +317,11 @@ async function invokeOpsysDeviceTool(params: {
     ]);
     const allowed = createToolPolicyMatcher({ deny: gatewayDeny });
     if (!allowed(toolName) || !allowed(`${identity.serveur}${TOOL_NAME_SEPARATOR}${toolName}`)) {
-      return failure(403, "tool_call_blocked", `Tool "${toolName}" is denied by gateway.tools.deny.`);
+      return failure(
+        403,
+        "tool_call_blocked",
+        `Tool "${toolName}" is denied by gateway.tools.deny.`,
+      );
     }
   }
 
@@ -359,13 +384,20 @@ async function invokeOpsysDeviceTool(params: {
       deviceTimestamp,
       identity,
     });
-    assertInvocationCurrent();
+    const toolParams = asToolParamsRecord(hookResult.params);
+    // Fence after hooks and again after the transport's own awaited preparation.
+    // An in-flight mutation keeps its admitted person, role, and department target.
+    assertDeviceAuthorityCurrent();
     const result = await withMcpCallMeta(
       mcpCallMeta,
-      async () => await target.call(asToolParamsRecord(hookResult.params), invoke.signal),
+      async () => await target.call(toolParams, invoke.signal),
+      assertDeviceAuthorityCurrent,
     );
     return { ok: true, status: 200, toolName, source: "plugin", result };
   } catch (err) {
+    if (isTrustedToolInputError(err) && err instanceof ToolAuthorizationError) {
+      return failure(403, "tool_call_blocked", err.message);
+    }
     if (!invoke.signal.aborted) {
       logWarn(`tools-invoke: OPSYS device tool execution failed: ${String(err)}`);
     }
@@ -436,7 +468,7 @@ async function invokeGatewayToolWithSignal(
   // omitted by a buggy caller once a device token was actually presented).
   const deviceId = authenticatedDeviceId ?? bodyDeviceId;
   if (authenticatedDeviceId !== undefined) {
-    const authorization = authorizeOpsysDeviceTool(authenticatedDeviceId, toolName);
+    const authorization = authorizeOpsysDeviceToolFresh(authenticatedDeviceId, toolName);
     if (!authorization.ok) {
       return {
         ok: false,

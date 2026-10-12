@@ -25,7 +25,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { approveDevicePairing } from "../infra/device-pairing-approval.js";
 import { ensureDeviceToken } from "../infra/device-pairing-tokens.js";
 import { requestDevicePairing } from "../infra/device-pairing.js";
-import { withOpenClawTestState, type OpenClawTestState } from "../test-utils/openclaw-test-state.js";
+import {
+  withOpenClawTestState,
+  type OpenClawTestState,
+} from "../test-utils/openclaw-test-state.js";
 import type { ResolvedGatewayAuth } from "./auth-resolve.js";
 import { resetOpsysDeviceRolesCacheForTesting } from "./opsys-device-roles.js";
 import { resolveSharedGatewaySessionGeneration } from "./server/ws-shared-generation.js";
@@ -39,10 +42,13 @@ const SHARED_GATEWAY_AUTH: ResolvedGatewayAuth = {
 };
 const DEVICE_ID = "tel-employe-42";
 const resolveToolLoopDetectionConfig = () => ({ warnAt: 3 });
-const runBeforeToolCallHook = async (args: { params: unknown }) => ({
-  blocked: false as const,
-  params: args.params,
-});
+let beforeToolCall: (() => void) | undefined;
+const runBeforeToolCallHook = async (args: { params: unknown }) => {
+  const before = beforeToolCall;
+  beforeToolCall = undefined;
+  before?.();
+  return { blocked: false as const, params: args.params };
+};
 
 // The tools each fake department server lists (`tools/list`). `m4_pointer` is on BOTH servers.
 const TOOLS_BY_SERVER: Record<string, string[]> = {
@@ -126,7 +132,11 @@ vi.mock("../agents/agent-bundle-mcp-runtime.js", async () => {
         servers: Object.fromEntries(
           held.map((name) => [
             name,
-            { serverName: name, launchSummary: name, toolCount: TOOLS_BY_SERVER[name]?.length ?? 0 },
+            {
+              serverName: name,
+              launchSummary: name,
+              toolCount: TOOLS_BY_SERVER[name]?.length ?? 0,
+            },
           ]),
         ),
         tools: held.flatMap((serverName) =>
@@ -228,6 +238,7 @@ beforeEach(() => {
   };
   coreToolResolutions = 0;
   runtimes.length = 0;
+  beforeToolCall = undefined;
   resetOpsysDeviceRolesCacheForTesting();
 });
 
@@ -244,7 +255,12 @@ function writeOpsysFragments(
 
 const ROLES_FRAGMENT = {
   roles: {
-    employee: ["m4_pointer", "m4_lister_interventions", "m4_statut_intervention", "m4_sans_serveur"],
+    employee: [
+      "m4_pointer",
+      "m4_lister_interventions",
+      "m4_statut_intervention",
+      "m4_sans_serveur",
+    ],
     seller: ["m2_lire_leads"],
     admin: ["m2_lire_leads", "m4_pointer", "m4_lister_interventions"],
   },
@@ -323,6 +339,63 @@ type InvokeBody = {
 };
 
 describe("tools invoke HTTP: a device token reaches the department MCP tool by the bare name the app sends", () => {
+  it.each(["personne", "role", "serveur", "scope"] as const)(
+    "refuses an in-flight %s change without redirecting and admits a fresh legitimate request",
+    async (changed) => {
+      await withPairedDevice(DEVICE_ID, async (deviceToken, state) => {
+        const roles = {
+          roles: { ...ROLES_FRAGMENT.roles },
+          serveurs: { ...ROLES_FRAGMENT.serveurs },
+        };
+        const appareils = { appareils: { ...APPAREILS_FRAGMENT.appareils } };
+        const fragmentPath = path.join(path.dirname(state.configPath), "opsys", "appareils.json");
+        fs.utimesSync(fragmentPath, 1000, 1000);
+        const originalStat = fs.statSync(fragmentPath);
+        beforeToolCall = () => {
+          if (changed === "personne") {
+            appareils.appareils[DEVICE_ID] = { personne: "mdurand", role: "employee" };
+          } else if (changed === "role") {
+            appareils.appareils[DEVICE_ID] = { personne: "jdupont", role: "admin" };
+          } else if (changed === "serveur") {
+            roles.serveurs.m4_pointer = "opsys_m2";
+          } else {
+            roles.roles.employee = roles.roles.employee.filter((tool) => tool !== "m4_pointer");
+          }
+          writeOpsysFragments(state, { roles, appareils });
+          // The person replacement aliases both cache keys; live authority must still win.
+          if (changed === "personne") {
+            fs.utimesSync(fragmentPath, originalStat.atime, originalStat.mtime);
+            expect(fs.statSync(fragmentPath).size).toBe(originalStat.size);
+            expect(fs.statSync(fragmentPath).mtimeMs).toBe(originalStat.mtimeMs);
+          }
+        };
+        const denied = await invokeAsApp(deviceToken, { tool: "m4_pointer", args: {} });
+        expect(denied.status).toBe(403);
+        expect(((await denied.json()) as InvokeBody).error?.type).toBe("tool_call_blocked");
+        expect(runtimes).toHaveLength(1);
+        expect(runtimes[0]?.toolCalls).toStrictEqual([]);
+        expect(runtimes[0]?.disposed).toBe(true);
+        const tool = changed === "scope" ? "m4_lister_interventions" : "m4_pointer";
+        const allowed = await invokeAsApp(deviceToken, { tool, args: {} });
+        expect(allowed.status).toBe(200);
+        expect(runtimes).toHaveLength(2);
+        expect(runtimes[1]?.disposed).toBe(true);
+        expect(runtimes[1]?.toolCalls).toStrictEqual([
+          {
+            serverName: changed === "serveur" ? "opsys_m2" : "opsys_m4",
+            toolName: tool,
+            input: {},
+            meta: {
+              "opsys/personne": changed === "personne" ? "mdurand" : "jdupont",
+              "opsys/role": changed === "role" ? "admin" : "employee",
+            },
+          },
+        ]);
+        expect(coreToolResolutions).toBe(0);
+      });
+    },
+  );
+
   it("resolves m4_pointer on opsys_m4 only, calls it under that raw name with the authenticated identity, and returns the OPSYS envelope", async () => {
     await withPairedDevice(DEVICE_ID, async (deviceToken) => {
       const res = await invokeAsApp(deviceToken, {

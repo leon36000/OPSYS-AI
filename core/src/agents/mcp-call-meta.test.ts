@@ -3,9 +3,91 @@
 // `tools/call`, without threading it as a parameter through `AnyAgentTool.execute` or
 // `ServerMcpRuntime.callTool`.
 import { describe, expect, it } from "vitest";
-import { currentMcpCallMeta, withMcpCallMeta } from "./mcp-call-meta.js";
+import {
+  assertMcpCallAuthorityCurrent,
+  currentMcpCallMeta,
+  withMcpCallMeta,
+} from "./mcp-call-meta.js";
 
 describe("mcp-call-meta", () => {
+  it("keeps a parent's live authority in nested metadata scopes and clears it on exit", async () => {
+    let current = true;
+    let checks = 0;
+    const refusal = new Error("Synthetic parent authority revoked");
+    await withMcpCallMeta(
+      { synthetic: "outer" },
+      async () => {
+        await withMcpCallMeta({ synthetic: "inner" }, async () => {
+          await Promise.resolve();
+          assertMcpCallAuthorityCurrent();
+          expect(currentMcpCallMeta()).toStrictEqual({ synthetic: "inner" });
+          current = false;
+          expect(assertMcpCallAuthorityCurrent).toThrow(refusal);
+        });
+        expect(currentMcpCallMeta()).toStrictEqual({ synthetic: "outer" });
+        expect(assertMcpCallAuthorityCurrent).toThrow(refusal);
+      },
+      () => {
+        checks += 1;
+        if (!current) {
+          throw refusal;
+        }
+      },
+    );
+    expect(checks).toBe(3);
+    expect(assertMcpCallAuthorityCurrent).not.toThrow();
+    expect(currentMcpCallMeta()).toBeUndefined();
+  });
+
+  it("composes a nested guard with its parent instead of replacing the admitted authority", async () => {
+    const checks: string[] = [];
+    await withMcpCallMeta(
+      { synthetic: "outer" },
+      () =>
+        withMcpCallMeta(
+          { synthetic: "inner" },
+          async () => {
+            assertMcpCallAuthorityCurrent();
+          },
+          () => checks.push("inner"),
+        ),
+      () => checks.push("outer"),
+    );
+    expect(checks).toStrictEqual(["outer", "inner"]);
+  });
+
+  it("isolates guards across concurrent async calls", async () => {
+    const calls: string[] = [];
+    const entered = Promise.withResolvers<void>();
+    const release = Promise.withResolvers<void>();
+    const blocked = withMcpCallMeta(
+      { synthetic: "blocked" },
+      async () => {
+        entered.resolve();
+        await release.promise;
+        assertMcpCallAuthorityCurrent();
+      },
+      () => {
+        calls.push("blocked");
+        throw new Error("Synthetic refusal");
+      },
+    );
+    const rejection = expect(blocked).rejects.toThrow("Synthetic refusal");
+    await entered.promise;
+    await withMcpCallMeta(
+      { synthetic: "allowed" },
+      async () => {
+        await Promise.resolve();
+        assertMcpCallAuthorityCurrent();
+      },
+      () => calls.push("allowed"),
+    );
+    release.resolve();
+    await rejection;
+    expect(calls).toStrictEqual(["allowed", "blocked"]);
+    expect(assertMcpCallAuthorityCurrent).not.toThrow();
+  });
+
   it("is undefined outside any withMcpCallMeta scope", () => {
     expect(currentMcpCallMeta()).toBeUndefined();
   });
@@ -21,7 +103,9 @@ describe("mcp-call-meta", () => {
     const meta = { "opsys/role": "employee" };
     const seen = await withMcpCallMeta(meta, async () => {
       await Promise.resolve();
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => {
+        setTimeout(resolve, 0);
+      });
       return currentMcpCallMeta();
     });
     expect(seen).toEqual(meta);
@@ -52,11 +136,15 @@ describe("mcp-call-meta", () => {
     const meta = { "opsys/idempotencyKey": "concurrent" };
     const [inScope, outOfScope] = await Promise.all([
       withMcpCallMeta(meta, async () => {
-        await new Promise((resolve) => setTimeout(resolve, 5));
+        await new Promise((resolve) => {
+          setTimeout(resolve, 5);
+        });
         return currentMcpCallMeta();
       }),
       (async () => {
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        await new Promise((resolve) => {
+          setTimeout(resolve, 0);
+        });
         return currentMcpCallMeta();
       })(),
     ]);

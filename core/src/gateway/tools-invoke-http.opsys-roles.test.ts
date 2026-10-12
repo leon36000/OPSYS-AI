@@ -5,7 +5,7 @@
 // real paired device) — never off a client-declared `deviceId` in the request body. A device
 // outside its role's tool scope is refused, closed by default, before the tool ever runs; an
 // authorized device's `opsys/personne`/`opsys/role` reach the tool's ambient `_meta`; a body
-// `deviceId` that disagrees with the authenticated one is refused outright. `authorizeOpsysDeviceTool`
+// `deviceId` that disagrees with the authenticated one is refused outright. `authorizeOpsysDeviceToolFresh`
 // itself (reading the role/appareils fragments from disk) is covered on its own in
 // `opsys-device-roles.test.ts`; this file mocks it to test only `tools-invoke-shared.ts`'s use of
 // the decision.
@@ -93,7 +93,7 @@ vi.mock("../plugins/config-state.js", async (importOriginal) => {
 });
 
 vi.mock("./opsys-device-roles.js", () => ({
-  authorizeOpsysDeviceTool: (deviceId: string, toolName: string) => {
+  authorizeOpsysDeviceToolFresh: (deviceId: string, toolName: string) => {
     authorizeCalls.push({ deviceId, toolName });
     return authorization;
   },
@@ -207,7 +207,13 @@ async function invoke(body: Record<string, unknown>) {
       "content-type": "application/json",
       authorization: `Bearer ${TEST_GATEWAY_TOKEN}`,
     },
-    body: JSON.stringify({ tool: "opsys_sonde", action: "status", args: {}, sessionKey: "main", ...body }),
+    body: JSON.stringify({
+      tool: "opsys_sonde",
+      action: "status",
+      args: {},
+      sessionKey: "main",
+      ...body,
+    }),
   });
 }
 
@@ -342,7 +348,10 @@ describe("invokeGatewayTool: OPSYS device identity resolution from authenticated
     });
 
     expect(outcome.ok).toBe(true);
-    expect(authorizeCalls).toEqual([{ deviceId: "tel-employe-42", toolName: "opsys_sonde" }]);
+    expect(authorizeCalls).toEqual([
+      { deviceId: "tel-employe-42", toolName: "opsys_sonde" },
+      { deviceId: "tel-employe-42", toolName: "opsys_sonde" },
+    ]);
     expect(capturedMeta).toEqual({ "opsys/personne": "jdupont", "opsys/role": "employee" });
   });
 
@@ -410,7 +419,10 @@ describe("invokeGatewayTool: OPSYS device identity resolution from authenticated
     });
 
     expect(outcome.ok).toBe(true);
-    expect(authorizeCalls).toEqual([{ deviceId: "tel-employe-42", toolName: "opsys_sonde" }]);
+    expect(authorizeCalls).toEqual([
+      { deviceId: "tel-employe-42", toolName: "opsys_sonde" },
+      { deviceId: "tel-employe-42", toolName: "opsys_sonde" },
+    ]);
   });
 
   it("never attaches an OPSYS identity, and never queries the role check, without an authenticated device — a body-only deviceId is not enough (the shared-secret/CLI/RPC caller shape)", async () => {
@@ -475,7 +487,10 @@ describe("invokeGatewayTool: the OPSYS device door (PLAN T1.4-c6)", () => {
       authenticatedDeviceId: "tel-employe-42",
     });
 
-    expect(authorizeCalls).toEqual([{ deviceId: "tel-employe-42", toolName: "opsys_sonde" }]);
+    expect(authorizeCalls).toEqual([
+      { deviceId: "tel-employe-42", toolName: "opsys_sonde" },
+      { deviceId: "tel-employe-42", toolName: "opsys_sonde" },
+    ]);
     expect(resolveTargetCalls).toEqual([{ serverName: "opsys_m4", toolName: "opsys_sonde" }]);
     expect(disposeCount).toBe(1); // the private MCP session is closed after the call
   });
@@ -549,23 +564,26 @@ describe("invokeGatewayTool: the OPSYS device door (PLAN T1.4-c6)", () => {
     ["the bare tool name", ["opsys_sonde"]],
     ["the server namespace glob an agent policy would use", ["opsys_m4__*"]],
     ["the server__tool form", ["opsys_m4__opsys_sonde"]],
-  ])("honors the operator's gateway.tools.deny on %s, before any server is contacted", async (_label, deny) => {
-    asDevice();
-    cfg = { gateway: { tools: { deny } } };
-    const outcome = await invokeGatewayTool({
-      ...baseParams(),
-      input: { tool: "opsys_sonde", args: {}, sessionKey: "main" },
-      authenticatedDeviceId: "tel-employe-42",
-    });
+  ])(
+    "honors the operator's gateway.tools.deny on %s, before any server is contacted",
+    async (_label, deny) => {
+      asDevice();
+      cfg = { gateway: { tools: { deny } } };
+      const outcome = await invokeGatewayTool({
+        ...baseParams(),
+        input: { tool: "opsys_sonde", args: {}, sessionKey: "main" },
+        authenticatedDeviceId: "tel-employe-42",
+      });
 
-    expect(outcome.ok).toBe(false);
-    if (!outcome.ok) {
-      expect(outcome.status).toBe(403);
-      expect(outcome.error.type).toBe("tool_call_blocked");
-      expect(outcome.error.message).toContain("gateway.tools.deny");
-    }
-    expect(resolveTargetCalls).toEqual([]);
-  });
+      expect(outcome.ok).toBe(false);
+      if (!outcome.ok) {
+        expect(outcome.status).toBe(403);
+        expect(outcome.error.type).toBe("tool_call_blocked");
+        expect(outcome.error.message).toContain("gateway.tools.deny");
+      }
+      expect(resolveTargetCalls).toEqual([]);
+    },
+  );
 
   it("does not need an owning agent or a session: several department agents and no default one", async () => {
     asDevice();
