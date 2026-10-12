@@ -3,8 +3,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { withTempHome } from "openclaw/plugin-sdk/test-env";
 import { describe, expect, it, vi } from "vitest";
+import { LEGACY_CONFIG_MIGRATIONS_RUNTIME_MCP } from "../commands/doctor/shared/legacy-config-migrations.runtime.mcp.js";
 import { listConfiguredMcpServers, mcpConfigInternal } from "./mcp-config.js";
 import { REDACTED_SENTINEL } from "./redact-snapshot.js";
+import { McpServerSchema } from "./zod-schema.mcp-server.js";
 
 const { set: setConfiguredMcpServer, unset: unsetConfiguredMcpServer } = mcpConfigInternal;
 
@@ -86,6 +88,51 @@ async function withMcpConfigHome<T>(
 }
 
 describe("config mcp config", () => {
+  it("diagnoses undeclared HTTP without silently granting operator consent", () => {
+    const migration = LEGACY_CONFIG_MIGRATIONS_RUNTIME_MCP[0];
+    const raw = { mcp: { servers: { fictive: { url: "http://127.0.0.1:8765/mcp" } } } };
+    const rule = migration?.legacyRules?.find(
+      (candidate) =>
+        candidate.message.includes("insecureHttpOrigin") &&
+        candidate.path.join(".") === "mcp.servers",
+    );
+    expect(rule?.match?.(raw.mcp.servers, raw)).toBe(true);
+    migration?.apply(raw, []);
+    expect(raw.mcp.servers.fictive).toEqual({ url: "http://127.0.0.1:8765/mcp" });
+    expect(
+      rule?.match?.(
+        {
+          fictive: {
+            url: "http://127.0.0.1:8765/mcp",
+            transportSecurity: { insecureHttpOrigin: "http://127.0.0.1:8765" },
+          },
+        },
+        raw,
+      ),
+    ).toBe(false);
+  });
+  it("retains the canonical operator transport declaration", () => {
+    const transportSecurity = {
+      insecureHttpOrigin: "http://127.0.0.1:8765",
+      httpsRedirectOrigins: ["https://other.example.com"],
+    };
+    const parsed = McpServerSchema.parse({ url: "http://127.0.0.1:8765/mcp", transportSecurity });
+    expect(parsed.transportSecurity).toEqual(transportSecurity);
+  });
+  it.each([
+    { insecureHttpOrigin: "https://mcp.example.com" },
+    { insecureHttpOrigin: "http://mcp.example.com/" },
+    { insecureHttpOrigin: "http://mcp.example.com#fragment" },
+    { insecureHttpOrigin: "http://user:secret@mcp.example.com" },
+    { insecureHttpOrigin: "http://*.example.com" },
+    { httpsRedirectOrigins: ["https://other.example.com/path"] },
+    { httpsRedirectOrigins: ["http://other.example.com"] },
+    { unrecognized: true },
+  ])("does not ignore malformed transportSecurity %j", (transportSecurity) => {
+    expect(
+      McpServerSchema.safeParse({ url: "https://mcp.example.com/mcp", transportSecurity }).success,
+    ).toBe(false);
+  });
   it("writes and removes top-level mcp servers", async () => {
     await withMcpConfigHome({}, async () => {
       const setResult = await setConfiguredMcpServer({

@@ -7,6 +7,37 @@ import { resolveMcpTransportConfig } from "./mcp-transport-config.js";
 vi.mock("../logger.js", () => ({ logWarn: vi.fn() }));
 
 describe("resolveMcpTransportConfig", () => {
+  it("captures the operator transport declaration without retaining mutable config references", () => {
+    const policy = {
+      insecureHttpOrigin: "http://mcp.example.com:8765",
+      httpsRedirectOrigins: ["https://auth.example.com"],
+    };
+    const resolved = resolveMcpTransportConfig("probe", {
+      url: "http://mcp.example.com:8765/mcp",
+      transportSecurity: policy,
+    });
+    policy.insecureHttpOrigin = "http://other.example.com";
+    policy.httpsRedirectOrigins.push("https://other.example.com");
+    expect(resolved?.kind === "http" && resolved.transportSecurity).toEqual({
+      insecureHttpOrigin: "http://mcp.example.com:8765",
+      httpsRedirectOrigins: ["https://auth.example.com"],
+    });
+  });
+
+  it.each([
+    { insecureHttpOrigin: "http://mcp.example.com/path" },
+    { insecureHttpOrigin: "http://user:secret@mcp.example.com" },
+    { insecureHttpOrigin: "http://mcp.example.com?x=1" },
+    { insecureHttpOrigin: "http://*.example.com" },
+    { httpsRedirectOrigins: ["http://other.example.com"] },
+    { httpsRedirectOrigins: "https://other.example.com" },
+    { unknownOption: true },
+  ])("rejects malformed untyped transportSecurity %j", (transportSecurity) => {
+    expect(() =>
+      resolveMcpTransportConfig("probe", { url: "https://mcp.example.com/mcp", transportSecurity }),
+    ).toThrow();
+  });
+
   beforeEach(() => {
     vi.mocked(logWarn).mockClear();
   });

@@ -507,6 +507,11 @@ def cmd_openclaw(args: argparse.Namespace) -> int:
             return 2
         _afficher(resultat)
         return 0
+    try:
+        openclaw._transport_mcp(args.url_mcp, args.autoriser_origine_http_mcp)
+    except ValueError as erreur:
+        print(str(erreur), file=sys.stderr)
+        return 2
     deps = charger_departements()
     dossier = Path(args.config_dir)
     fichiers = openclaw.generer(deps, dossier, modeles.charger_paliers(), url_mcp=args.url_mcp,
@@ -515,7 +520,8 @@ def cmd_openclaw(args: argparse.Namespace) -> int:
                                 fuseau=args.fuseau,
                                 cnx_factory=etat.session,
                                 contexte_entreprise=_contexte_entreprise(args.contexte_entreprise) or None,
-                                affaire_par_session=args.affaire_par_session or ())
+                                affaire_par_session=args.affaire_par_session or (),
+                                origine_http_mcp_autorisee=args.autoriser_origine_http_mcp)
     racine = openclaw.racine_si_absente(dossier)
     for nom, chemin in fichiers.items():
         print(f"{nom}: {chemin}")
@@ -719,7 +725,11 @@ def construire_parseur() -> argparse.ArgumentParser:
     bootstrap.set_defaults(fn=cmd_openclaw)
     oc = actions_oc.add_parser("configurer", help="générer les fragments OPSYS")
     oc.add_argument("--config-dir", required=True, help="dossier de openclaw.json (volume partagé)")
-    oc.add_argument("--url-mcp", default="http://opsys:8765/mcp")
+    oc.add_argument("--url-mcp", default=None,
+                    help="URL MCP personnalisée ; omise : topologie Compose gérée")
+    oc.add_argument("--autoriser-origine-http-mcp", metavar="ORIGINE_HTTP",
+                    help="accord administrateur explicite pour cette origine HTTP exacte (sans chemin) ; "
+                         "aucune autorisation inférée de l’hôte ou de son IP")
     oc.add_argument("--mode-fournisseur", choices=["natif", "litellm"], default="natif",
                     help="natif par défaut ; litellm n'est conservé que pour la compatibilité explicite")
     oc.add_argument("--url-passerelle", help="requis seulement avec --mode-fournisseur litellm")

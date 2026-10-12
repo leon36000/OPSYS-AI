@@ -65,6 +65,8 @@ export type GuardedFetchOptions = {
   fetchImpl?: FetchLike;
   /** Final synchronous check after transport preparation and before each request or redirect. */
   beforeRequest?: () => void | undefined;
+  /** Synchronous caller URL policy, applied on every hop before DNS or emission. */
+  validateUrl?: (url: URL) => void;
   init?: RequestInit;
   capture?:
     | false
@@ -439,6 +441,7 @@ async function fetchWithSsrFGuardInternal(
   params: GuardedFetchInternalOptions,
 ): Promise<GuardedFetchResult> {
   const assertCurrent = captureGuardedFetchRequestAuthority();
+  const validateUrl = params.validateUrl;
   const globalFetch = globalThis.fetch;
   const defaultFetch: FetchLike | undefined = params.fetchImpl ?? globalFetch;
   if (!defaultFetch) {
@@ -500,6 +503,17 @@ async function fetchWithSsrFGuardInternal(
     if (params.requireHttps === true && parsedUrl.protocol !== "https:") {
       await finishRequest();
       throw new Error("URL must use https");
+    }
+    try {
+      // Give the policy its own URL so it cannot rewrite the admitted destination.
+      const validation = validateUrl?.(new URL(parsedUrl));
+      if (isPromiseLike(validation)) {
+        void Promise.resolve(validation).catch(() => undefined);
+        throw new Error("Guarded fetch URL validation must be synchronous");
+      }
+    } catch (error) {
+      await finishRequest();
+      throw error;
     }
 
     let dispatcher: Dispatcher | null = null;

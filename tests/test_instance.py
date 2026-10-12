@@ -1151,3 +1151,40 @@ exit 0
     instance.restreindre_acces(fichier)
     verifier_acces_prive(fichier, mode=0o600)
     assert fichier.read_text(encoding="utf-8") == contenu
+
+
+# -- Le superviseur propre de l'instance choisit explicitement son transport HTTP local ---------
+
+
+@pytest.mark.parametrize("port_moteur", [None, 8766], ids=["defaut", "port-superviseur-explicite"])
+def test_mcp_tls_instance_declare_uniquement_origine_de_son_superviseur(
+    opsys_home, etat_core, palier_standard, port_moteur,
+):
+    resultat = _initialiser(opsys_home, environ=EMBEDDINGS, port_moteur=port_moteur)
+    assert resultat.etat == "pret"
+    port = 8765 if port_moteur is None else port_moteur
+    assert resultat.port_moteur == port
+    metier = json.loads((etat_core / "opsys" / "metier.json").read_text(encoding="utf-8"))
+    assert (metier["hote"], metier["port"]) == ("127.0.0.1", port)
+    assert metier["commande"] == [sys.executable, "-m", "opsys.serveur_mcp", "--http", "--hote", "127.0.0.1",
+                                  "--port", str(port)]
+    serveurs = json.loads((etat_core / "opsys" / "mcp.json").read_text(encoding="utf-8"))["servers"]
+    assert serveurs
+    for serveur in serveurs.values():
+        assert serveur["url"].startswith(f"http://127.0.0.1:{port}/mcp/")
+        assert serveur.get("transportSecurity") == {"insecureHttpOrigin": f"http://127.0.0.1:{port}"}
+
+
+
+def test_mcp_tls_superviseur_port_80_declare_origine_canonique_sans_port_implicite(
+    opsys_home, etat_core, palier_standard,
+):
+    resultat = _initialiser(opsys_home, environ=EMBEDDINGS, port_moteur=80)
+    assert resultat.etat == "pret" and resultat.port_moteur == 80
+    metier = json.loads((etat_core / "opsys" / "metier.json").read_text(encoding="utf-8"))
+    assert (metier["hote"], metier["port"]) == ("127.0.0.1", 80)
+    serveurs = json.loads((etat_core / "opsys" / "mcp.json").read_text(encoding="utf-8"))["servers"]
+    assert serveurs
+    for serveur in serveurs.values():
+        assert serveur["url"].startswith("http://127.0.0.1:80/mcp/")
+        assert serveur["transportSecurity"] == {"insecureHttpOrigin": "http://127.0.0.1"}

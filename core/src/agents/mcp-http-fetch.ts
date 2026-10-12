@@ -5,6 +5,10 @@
  */
 import fs from "node:fs";
 import type { FetchLike } from "@modelcontextprotocol/sdk/shared/transport.js";
+import {
+  captureMcpTransportSecurity,
+  type McpTransportSecurity,
+} from "../config/mcp-transport-security.js";
 import { fetchWithSsrFGuard } from "../infra/net/fetch-guard.js";
 import { wrapGuardedBodyStream } from "../infra/net/guarded-body-stream.js";
 import {
@@ -98,9 +102,11 @@ export function buildMcpHttpFetch(params: {
   clientCert?: string;
   clientKey?: string;
   resourceUrl?: string;
+  transportSecurity?: McpTransportSecurity;
   timeoutMs?: number;
   beforeRequest?: () => void;
 }): FetchLike {
+  const security = captureMcpTransportSecurity(params.transportSecurity);
   const needsCustomDispatcher =
     params.sslVerify === false || Boolean(params.clientCert || params.clientKey);
   const scopedOrigin = params.resourceUrl ? new URL(params.resourceUrl).origin : undefined;
@@ -123,6 +129,22 @@ export function buildMcpHttpFetch(params: {
 
   return async (url, init) => {
     const request = resolveFetchRequest(url, init);
+    const initialUrl = new URL(request.url);
+    const validateUrl = (target: URL) => {
+      if (target.protocol === "http:" && target.origin !== security?.insecureHttpOrigin) {
+        throw new Error("MCP HTTP requires an explicit exact insecureHttpOrigin declaration");
+      }
+      if (initialUrl.protocol === "https:" && target.protocol !== "https:") {
+        throw new Error("MCP HTTPS downgrade is forbidden");
+      }
+      if (
+        target.origin !== initialUrl.origin &&
+        (initialUrl.protocol !== "https:" ||
+          !security?.httpsRedirectOrigins?.includes(target.origin))
+      ) {
+        throw new Error("MCP cross-origin redirect requires an explicit HTTPS origin declaration");
+      }
+    };
     const guardedFetchOptions = {
       url: request.url,
       init: request.init,
@@ -132,6 +154,7 @@ export function buildMcpHttpFetch(params: {
       auditContext: "mcp-http",
       useEnvProxyForEligibleUrls: true,
       beforeRequest: params.beforeRequest,
+      validateUrl,
       ...(request.signal ? { signal: request.signal } : {}),
       ...(params.timeoutMs !== undefined ? { timeoutMs: params.timeoutMs } : {}),
       ...(policy ? { policy } : {}),

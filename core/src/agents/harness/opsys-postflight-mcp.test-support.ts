@@ -1,7 +1,10 @@
 // Integrated fixture: only ticket/source results and runtime admission are synthetic.
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { createServer, type Server } from "node:http";
 import { resolve } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { upsertSessionEntryCore } from "../../config/sessions/session-accessor.js";
+import type { McpServerConfig } from "../../config/types.mcp.js";
 import { createUserTurnTranscriptRecorder } from "../../sessions/user-turn-transcript.js";
 import { openOpenClawAgentDatabase } from "../../state/openclaw-agent-db.js";
 import { OpsysPostflightCollector } from "./opsys-postflight-collector.js";
@@ -14,6 +17,141 @@ export const WIRE_ARGS = {
   approbateur: "personne.synthetic",
   horodatage: "2026-10-05T12:00:00Z",
 };
+
+async function listenWireHttp(server: Server): Promise<string> {
+  await new Promise<void>((resolveListen, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolveListen();
+    });
+  });
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("wire HTTP origin absent");
+  }
+  return `http://127.0.0.1:${address.port}`;
+}
+
+async function closeWireHttp(server: Server): Promise<void> {
+  await new Promise<void>((resolveClose, reject) => {
+    server.close((error) => (error ? reject(error) : resolveClose()));
+    server.closeAllConnections();
+  });
+}
+
+/** Real HTTP SDK boundary, with synthetic effect observed against the real intent ledger. */
+async function startWireHttpSource(params: {
+  databasePath: string;
+  factKey: string;
+  logPath: string;
+  outcome: "http-known" | "redirect307" | "redirect308";
+}) {
+  let sourceCalls = 0;
+  let destinationCalls = 0;
+  const destination = createServer((_request, response) => {
+    destinationCalls += 1;
+    response.writeHead(500);
+    response.end();
+  });
+  const destinationOrigin = await listenWireHttp(destination);
+  const source = createServer((request, response) => {
+    const handle = async () => {
+      if (request.method === "GET") {
+        response.writeHead(405);
+        response.end();
+        return;
+      }
+      if (request.method === "DELETE") {
+        response.writeHead(204);
+        response.end();
+        return;
+      }
+      const chunks: Buffer[] = [];
+      for await (const chunk of request) {
+        chunks.push(Buffer.from(chunk));
+      }
+      const message: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      if (!message || typeof message !== "object" || !("method" in message)) {
+        throw new Error("wire JSON-RPC method absent");
+      }
+      let result: unknown;
+      if (message.method === "initialize") {
+        result = {
+          protocolVersion: "2025-06-18",
+          capabilities: { tools: {} },
+          serverInfo: { name: "synthetic-http-postflight", version: "1" },
+        };
+      } else if (message.method === "tools/list") {
+        result = {
+          tools: [{ name: WIRE_TOOL, inputSchema: { type: "object", additionalProperties: true } }],
+        };
+      } else if (message.method === "tools/call") {
+        sourceCalls += 1;
+        const database = new DatabaseSync(params.databasePath, { readOnly: true });
+        try {
+          const intents = database
+            .prepare("SELECT fact_key, state FROM opsys_postflight_intents WHERE fact_key = ?")
+            .all(params.factKey);
+          const pendingLots = database
+            .prepare("SELECT COUNT(*) AS count FROM opsys_postflight_outbox")
+            .get()?.count;
+          await appendFile(
+            params.logPath,
+            JSON.stringify({ fictif: true, intents, pendingLots }) + "\n",
+          );
+        } finally {
+          database.close();
+        }
+        if (params.outcome !== "http-known") {
+          response.writeHead(params.outcome === "redirect307" ? 307 : 308, {
+            location: `${destinationOrigin}/mcp`,
+          });
+          response.end();
+          return;
+        }
+        result = {
+          content: [
+            { type: "text", text: JSON.stringify({ ok: true, resultat: { fictif: true } }) },
+          ],
+        };
+      }
+      if (result === undefined) {
+        response.writeHead(202);
+        response.end();
+        return;
+      }
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(
+        JSON.stringify({ jsonrpc: "2.0", id: "id" in message ? message.id : null, result }),
+      );
+    };
+    void handle().catch(() => {
+      response.writeHead(500);
+      response.end();
+    });
+  });
+  let origin: string;
+  try {
+    origin = await listenWireHttp(source);
+  } catch (error) {
+    await closeWireHttp(destination);
+    throw error;
+  }
+  const config: McpServerConfig = {
+    url: `${origin}/mcp`,
+    transport: "streamable-http",
+    transportSecurity: { insecureHttpOrigin: origin },
+  };
+  return {
+    config,
+    counts: () => ({ sourceCalls, destinationCalls }),
+    close: async () => {
+      await closeWireHttp(source);
+      await closeWireHttp(destination);
+    },
+  };
+}
 
 export async function prepareWireCollector(params: {
   root: string;
@@ -84,7 +222,7 @@ export async function writeSyntheticWireServers(params: {
   root: string;
   databasePath: string;
   factKey: string;
-  outcome: "known" | "disconnect";
+  outcome: "known" | "disconnect" | "http-known" | "redirect307" | "redirect308";
 }) {
   const logPath = resolve(params.root, "synthetic-source-observations.jsonl");
   const sourcePath = resolve(params.root, "synthetic-source.mjs");
@@ -125,9 +263,13 @@ for await (const line of readline.createInterface({ input: process.stdin })) {
 `;
   await writeFile(sourcePath, serve, { mode: 0o600 });
   await writeFile(contextPath, serve, { mode: 0o600 });
+  const http =
+    params.outcome === "known" || params.outcome === "disconnect"
+      ? undefined
+      : await startWireHttpSource({ ...params, logPath, outcome: params.outcome });
   return {
     servers: {
-      opsys_m3: {
+      opsys_m3: http?.config ?? {
         command: process.execPath,
         args: [sourcePath],
         env: {
@@ -144,6 +286,10 @@ for await (const line of readline.createInterface({ input: process.stdin })) {
         env: { OPSYS_FIXTURE_KIND: "ticket" },
       },
     },
+    close: async () => {
+      await http?.close();
+    },
+    httpCounts: () => http?.counts(),
     readObservations: async (): Promise<unknown[]> => {
       const content = await readFile(logPath, "utf8").catch(() => "");
       return content

@@ -216,7 +216,7 @@ class Moteur:
         )
         self._serveur, self._fil = _serveur_http(app, self.port)
         openclaw.generer(self.departements, self.config_dir, PALIERS, url_mcp=f"http://127.0.0.1:{self.port}/mcp",
-                         environ=ENVIRON_EMBEDDINGS)
+                         origine_http_mcp_autorisee=f"http://127.0.0.1:{self.port}", environ=ENVIRON_EMBEDDINGS)
 
     def arreter(self) -> None:
         if self._serveur is not None:

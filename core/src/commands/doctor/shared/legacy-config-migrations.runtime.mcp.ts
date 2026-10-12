@@ -20,6 +20,36 @@ const MCP_SERVER_TYPE_RULE: LegacyConfigRule = {
     Object.values(value).some((server) => isRecord(server) && isKnownCliMcpTypeAlias(server.type)),
 };
 
+const MCP_SERVER_HTTP_DECLARATION_RULES: LegacyConfigRule[] = [
+  ["mcp", "servers"],
+  ["nodeHost", "mcp", "servers"],
+].map((path) => ({
+  path,
+  message: `${path.join(".")} HTTP transports require an explicit exact transportSecurity.insecureHttpOrigin declaration. Use HTTPS or regenerate managed OPSYS fragments; doctor never infers consent from a hostname.`,
+  match: (value) =>
+    isRecord(value) &&
+    Object.values(value).some((server) => {
+      if (
+        !isRecord(server) ||
+        typeof server.url !== "string" ||
+        server.command ||
+        server.enabled === false
+      ) {
+        return false;
+      }
+      try {
+        const url = new URL(server.url);
+        return (
+          url.protocol === "http:" &&
+          (!isRecord(server.transportSecurity) ||
+            server.transportSecurity.insecureHttpOrigin !== url.origin)
+        );
+      } catch {
+        return false;
+      }
+    }),
+}));
+
 const MCP_SERVER_DISABLED_RULES: LegacyConfigRule[] = [
   ["mcp", "servers"],
   ["nodeHost", "mcp", "servers"],
@@ -171,6 +201,7 @@ export const LEGACY_CONFIG_MIGRATIONS_RUNTIME_MCP: LegacyConfigMigrationSpec[] =
       MCP_SERVER_TYPE_RULE,
       ...MCP_SERVER_TIMEOUT_ALIASES_RULES,
       ...MCP_SERVER_ALIASES_RULES,
+      ...MCP_SERVER_HTTP_DECLARATION_RULES,
     ],
     apply: (raw, changes) => {
       const mcp = isRecord(raw.mcp) ? raw.mcp : undefined;

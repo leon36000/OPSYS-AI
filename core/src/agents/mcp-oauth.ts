@@ -312,6 +312,7 @@ function buildMcpOAuthAuthorizationFetch(
     clientCert: config.clientCert,
     clientKey: config.clientKey,
     resourceUrl: config.url,
+    transportSecurity: config.transportSecurity,
     timeoutMs: config.requestTimeoutMs,
     beforeRequest,
   });

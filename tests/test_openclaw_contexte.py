@@ -30,7 +30,7 @@ from m10_memoire import (
     wct,
 )
 
-from opsys import cli, modeles, openclaw
+from opsys import agents, cli, identite, modeles, openclaw
 from opsys.departements import charger_departements
 from opsys.outils import Niveau
 
@@ -926,3 +926,82 @@ def test_les_fixtures_disent_chacune_des_formes_de_l_affaire():
     fixtures = _source("opsys-contexte.test-support.ts")
     assert f'AFFAIRE_M10_OPPORTUNITE = "{OPPORTUNITE}"' in fixtures
     assert f'AFFAIRE_M10_HISTORIQUE_TRONQUE = "{LEAD_LONG}"' in fixtures
+
+
+# -- Déclaration HTTP : endpoints internes de contexte et de runtime du même moteur -------------
+
+
+@pytest.fixture
+def profil_mcp_tls_fictif(session, departements):
+    """Profil réellement validé, enregistré et activé dans la SQLite jetable ; aucune autorité simulée."""
+    specification = {
+        "id": "m03-tls-fictif",
+        "departement": "m03-estimation",
+        "responsabilite": "Verifier les transports MCP sur des donnees fictives.",
+        "palier_modele": "standard",
+        "outils": ["m3_estimer_projet"],
+        "budget_jour": 10000,
+        "budget_mois": 100000,
+        "limite_tours": 12,
+        "limite_reessais": 2,
+        "limite_concurrence": 1,
+        "declencheurs": [{"type": "manuel"}],
+    }
+    with session() as cnx:
+        identite.creer_personne(cnx, "admin-tls-fictif", "Admin fictif", "mot-de-passe-fictif-tls-1234", ["admin"])
+        profil = agents.creer(
+            cnx, departements, specification, par="admin-tls-fictif", mutation_id="tls-create-fictif-001",
+        )
+        profil = agents.definir_actif(
+            cnx, profil["id"], departements, True, par="admin-tls-fictif",
+            mutation_id="tls-activate-fictif-001", revision_attendue=profil["revision"],
+        )
+    return profil
+
+
+@pytest.mark.parametrize("famille", ["contexte", "runtime"])
+def test_mcp_tls_endpoints_internes_portent_declaration_topologie_exacte(
+    departements, tmp_path, session, profil_mcp_tls_fictif, famille,
+):
+    fichiers = _generer(departements, tmp_path, contexte_entreprise=ESTIMATION, cnx_factory=session)
+    profil = profil_mcp_tls_fictif
+    agents_generes = _lire(fichiers, "agents")["entries"]
+    assert agents_generes[f"opsys-agent-{profil['id']}"]["opsysRuntimeAdmission"] == {
+        "profileId": profil["id"], "profileRevision": profil["revision"],
+    }
+    serveurs = _lire(fichiers, "mcp")["servers"]
+    if famille == "contexte":
+        nom = "opsys_context_m03-estimation"
+        assert _lire(fichiers, "contexte")["agents"][f"opsys-agent-{profil['id']}"]["serveur_contexte"] == nom
+        chemin = "contexte/m03-estimation"
+    else:
+        nom = openclaw.serveur_mcp_runtime(profil["id"])
+        chemin = f"runtime/{profil['id']}"
+    serveur = serveurs[nom]
+
+    assert serveur["url"] == f"http://opsys:8765/mcp/{chemin}"
+    assert serveur["headers"] == {"Authorization": "Bearer ${OPSYS_CONTEXT_MCP_JETON}"}
+    assert serveur.get("transportSecurity") == {"insecureHttpOrigin": "http://opsys:8765"}
+
+
+
+def test_mcp_tls_accord_http_personnalise_couvre_contexte_et_runtime_reels(
+    departements, tmp_path, session, profil_mcp_tls_fictif,
+):
+    origine = "http://mcp.fictif.invalid:9876"
+    fichiers = _generer(
+        departements, tmp_path, contexte_entreprise=ESTIMATION, cnx_factory=session,
+        url_mcp=origine + "/mcp", origine_http_mcp_autorisee=origine,
+    )
+    profil = profil_mcp_tls_fictif
+    assert _lire(fichiers, "agents")["entries"][f"opsys-agent-{profil['id']}"]["opsysRuntimeAdmission"] == {
+        "profileId": profil["id"], "profileRevision": profil["revision"],
+    }
+    serveurs = _lire(fichiers, "mcp")["servers"]
+    for nom, chemin in [
+        ("opsys_context_m03-estimation", "contexte/m03-estimation"),
+        (openclaw.serveur_mcp_runtime(profil["id"]), f"runtime/{profil['id']}"),
+    ]:
+        assert serveurs[nom]["url"] == f"{origine}/mcp/{chemin}"
+        assert serveurs[nom]["transportSecurity"] == {"insecureHttpOrigin": origine}
+        assert serveurs[nom]["headers"] == {"Authorization": "Bearer ${OPSYS_CONTEXT_MCP_JETON}"}

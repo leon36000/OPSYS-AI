@@ -278,7 +278,8 @@ def preparer_configuration(instance: Instance, pile: contextlib.ExitStack) -> No
     `pile` rétablit ce que cette étape a remplacé dans ce processus."""
     opsys(instance, "base", "migrer")
     opsys(instance, "paliers", "definir", "standard", "--provider", "anthropic", "--model", "claude-sonnet-5")
-    opsys(instance, "openclaw", "configurer", "--config-dir", str(instance.dossier_core), "--url-mcp", instance.url_mcp)
+    opsys(instance, "openclaw", "configurer", "--config-dir", str(instance.dossier_core), "--url-mcp", instance.url_mcp,
+          "--autoriser-origine-http-mcp", f"http://127.0.0.1:{instance.port_moteur}")
 
     racine = instance.dossier_core / "openclaw.json"
     config = json.loads(racine.read_text(encoding="utf-8"))

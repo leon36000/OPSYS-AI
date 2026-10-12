@@ -141,6 +141,7 @@ describe("resolveMcpTransport", () => {
     resolveMcpTransport("probe", {
       url: "https://mcp.example.com/mcp",
       transport: "streamable-http",
+      transportSecurity: { httpsRedirectOrigins: ["https://redirect.example"] },
       headers: {
         "X-Api-Key": "secret",
       },
@@ -176,11 +177,12 @@ describe("resolveMcpTransport", () => {
   });
 
   it("blocks streamable HTTP redirects to private network targets", async () => {
-    runtimeFetchMock.mockResolvedValueOnce(redirectResponse("http://169.254.169.254/latest"));
+    runtimeFetchMock.mockResolvedValueOnce(redirectResponse("https://169.254.169.254/latest"));
 
     resolveMcpTransport("probe", {
       url: "https://mcp.example.com/mcp",
       transport: "streamable-http",
+      transportSecurity: { httpsRedirectOrigins: ["https://169.254.169.254"] },
     });
 
     await expect(latestStreamableFetch()("https://mcp.example.com/mcp")).rejects.toThrow(
@@ -200,6 +202,7 @@ describe("resolveMcpTransport", () => {
     resolveMcpTransport("probe", {
       url: "https://mcp.example.com/mcp",
       transport: "streamable-http",
+      transportSecurity: { httpsRedirectOrigins: ["https://redirect.example"] },
       headers: {
         "X-Api-Key": "secret",
       },

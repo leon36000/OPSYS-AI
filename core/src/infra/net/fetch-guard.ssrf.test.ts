@@ -220,6 +220,39 @@ async function expectRedirectFailure(params: {
 }
 
 describe("fetchWithSsrFGuard hardening", () => {
+  it("rejects caller URL policy before DNS or emission", async () => {
+    const fetchImpl = vi.fn(async () => okResponse());
+    const lookupFn = vi.fn(async () => [{ address: "93.184.216.34", family: 4 }]);
+    await expect(
+      fetchWithSsrFGuard({
+        url: "https://example.com",
+        fetchImpl,
+        lookupFn,
+        validateUrl: () => {
+          throw new Error("caller-policy-refused");
+        },
+      }),
+    ).rejects.toThrow("caller-policy-refused");
+    expect(lookupFn).not.toHaveBeenCalled();
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it("does not let a caller policy rewrite the destination URL", async () => {
+    const fetchImpl = vi.fn(async () => okResponse());
+    const guarded = await fetchWithSsrFGuard({
+      url: "https://example.com/original",
+      fetchImpl,
+      lookupFn: async () => [{ address: "93.184.216.34", family: 4 }],
+      validateUrl: (url) => {
+        url.pathname = "/rewritten";
+      },
+    });
+    try {
+      expect(fetchImpl.mock.calls[0]?.[0]).toBe("https://example.com/original");
+    } finally {
+      await guarded.release();
+    }
+  });
   const PROXY_ENV_KEYS = [
     "HTTP_PROXY",
     "HTTPS_PROXY",

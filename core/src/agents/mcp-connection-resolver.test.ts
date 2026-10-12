@@ -262,6 +262,7 @@ describe("mcp connection resolver helpers", () => {
               "user-mail": {
                 transport: "streamable-http",
                 url: "https://placeholder.invalid/mail",
+                transportSecurity: { insecureHttpOrigin: new URL(proof.mail.url).origin },
               },
             },
           },
@@ -323,6 +324,7 @@ describe("mcp connection resolver helpers", () => {
             "user-drive": {
               transport: "streamable-http",
               url: "https://placeholder.invalid/drive",
+              transportSecurity: { insecureHttpOrigin: new URL(proof.activeDrive.url).origin },
             },
           },
         },

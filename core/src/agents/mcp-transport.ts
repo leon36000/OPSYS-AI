@@ -173,6 +173,7 @@ export function resolveMcpTransport(
     clientCert: resolved.clientCert,
     clientKey: resolved.clientKey,
     resourceUrl: resolved.url,
+    transportSecurity: resolved.transportSecurity,
   });
   const headers =
     resolved.auth === "oauth" || authProfileId

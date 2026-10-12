@@ -961,6 +961,7 @@ describe("MCP OAuth provider", () => {
         const rawServer = {
           url: `${fixture.issuer}/mcp`,
           transport: "streamable-http" as const,
+          transportSecurity: { insecureHttpOrigin: fixture.issuer },
           auth: "oauth" as const,
           oauth: {
             identity: "per-requester" as const,

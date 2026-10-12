@@ -197,6 +197,7 @@ function config(port: number): OpenClawConfig {
         [`opsys_runtime_${PROFILE.id}`]: {
           url: `http://127.0.0.1:${port}/mcp/runtime/${PROFILE.id}`,
           transport: "streamable-http",
+          transportSecurity: { insecureHttpOrigin: `http://127.0.0.1:${port}` },
           headers: { Authorization: `Bearer ${PRIVATE}` },
           connectionTimeoutMs: 4_000,
           requestTimeoutMs: 4_000,
@@ -463,7 +464,13 @@ describe("OPSYS outbox delivery with real Python TCP/M10/SQLite", () => {
 });
 
 describe("actual MCP runtime -> collector -> SQLite -> Python M10; synthetic source/ticket", () => {
-  for (const outcome of ["known", "disconnect"] as const) {
+  for (const outcome of [
+    "known",
+    "disconnect",
+    "http-known",
+    "redirect307",
+    "redirect308",
+  ] as const) {
     it(`joins durable pre-effect reservation and ${outcome} source outcome`, async () => {
       await withPython(async (env, cfg) => {
         await withOpenClawTestState({ label: `postflight-wire-${outcome}` }, async (state) => {
@@ -472,6 +479,7 @@ describe("actual MCP runtime -> collector -> SQLite -> Python M10; synthetic sou
           const toolCallId = `synthetic-wire-call-${outcome}`;
           const key = depositKey(sessionId, toolCallId);
           let releaseContext: (() => Promise<void>) | undefined;
+          let closePeer: (() => Promise<void>) | undefined;
           await getSessionMcpRuntimeManagerForTesting().disposeAll();
           delete (globalThis as Record<PropertyKey, unknown>)[SESSION_MCP_RUNTIME_MANAGER_KEY];
           try {
@@ -489,6 +497,7 @@ describe("actual MCP runtime -> collector -> SQLite -> Python M10; synthetic sou
               factKey: key,
               outcome,
             });
+            closePeer = peer.close;
             const wireConfig: OpenClawConfig = {
               ...cfg,
               plugins: { enabled: false },
@@ -516,7 +525,7 @@ describe("actual MCP runtime -> collector -> SQLite -> Python M10; synthetic sou
             if (!observer) {
               throw new Error("actual collector observer missing");
             }
-            if (outcome === "known") {
+            if (outcome === "known" || outcome === "http-known") {
               const returned = await runtime.callTool("opsys_m3", WIRE_TOOL, WIRE_ARGS, observer);
               expect(returned.isError).not.toBe(true);
               expect(await collector.flushPending()).toMatchObject({ remaining: 0, failures: 0 });
@@ -559,7 +568,11 @@ describe("actual MCP runtime -> collector -> SQLite -> Python M10; synthetic sou
             } else {
               await expect(
                 runtime.callTool("opsys_m3", WIRE_TOOL, WIRE_ARGS, observer),
-              ).rejects.toThrow(/closed|disconnect|connection/iu);
+              ).rejects.toThrow(
+                outcome === "disconnect"
+                  ? /closed|disconnect|connection/iu
+                  : /insecureHttpOrigin/iu,
+              );
               expect(await collector.flushPending()).toMatchObject({ remaining: 0, failures: 1 });
               await expect(
                 collector.deliverPending({
@@ -622,6 +635,9 @@ describe("actual MCP runtime -> collector -> SQLite -> Python M10; synthetic sou
             expect(await peer.readObservations()).toStrictEqual([
               { fictif: true, intents: [{ fact_key: key, state: "uncertain" }], pendingLots: 0 },
             ]);
+            if (outcome !== "known" && outcome !== "disconnect") {
+              expect(peer.httpCounts()).toEqual({ sourceCalls: 1, destinationCalls: 0 });
+            }
           } finally {
             opsysContexteGuardStore.set(sessionKey, {
               kind: "unavailable",
@@ -629,6 +645,7 @@ describe("actual MCP runtime -> collector -> SQLite -> Python M10; synthetic sou
               atMs: Date.now(),
             });
             await getSessionMcpRuntimeManagerForTesting().disposeAll();
+            await closePeer?.();
             delete (globalThis as Record<PropertyKey, unknown>)[SESSION_MCP_RUNTIME_MANAGER_KEY];
             await releaseContext?.();
           }

@@ -20,6 +20,9 @@ LITELLM_CONFIG_DIR="${LITELLM_CONFIG_DIR:-/shared/litellm-config}"
 MODE="${OPSYS_MODE_FOURNISSEUR:-natif}"
 OPSYS_PASSERELLE_URL="${OPSYS_PASSERELLE_URL:-}"
 OPSYS_MCP_PORT="${OPSYS_MCP_PORT:-8765}"
+# Cette topologie lance elle-même le serveur opsys ci-dessous : accord exact, pas détection d’hôte.
+MCP_ORIGIN="http://opsys:${OPSYS_MCP_PORT}"
+if [ "$OPSYS_MCP_PORT" = 80 ]; then MCP_ORIGIN="http://opsys"; fi
 SYNC_INTERVAL="${OPSYS_SYNC_INTERVAL_SECONDS:-300}"
 SYNC_JOURS="${OPSYS_SYNC_JOURS:-1}"
 
@@ -96,13 +99,15 @@ sync_openclaw() {
     fi
     if [ "$MODE" = litellm ]; then
         if opsys-metier openclaw configurer --config-dir "$OPENCLAW_CONFIG_DIR" --mode-fournisseur litellm \
+            --url-mcp "${MCP_ORIGIN}/mcp" --autoriser-origine-http-mcp "$MCP_ORIGIN" \
             --url-passerelle "$LITELLM_URL"; then
             log "configuration LiteLLM d'OpenClaw synchronisée dans $OPENCLAW_CONFIG_DIR/opsys/."
         else
             warn "configuration d'OpenClaw non générée; vérifiez les paliers dans la console."
         fi
     else
-        if opsys-metier openclaw configurer --config-dir "$OPENCLAW_CONFIG_DIR" --mode-fournisseur natif; then
+        if opsys-metier openclaw configurer --config-dir "$OPENCLAW_CONFIG_DIR" --mode-fournisseur natif \
+            --url-mcp "${MCP_ORIGIN}/mcp" --autoriser-origine-http-mcp "$MCP_ORIGIN"; then
             log "configuration native d'OpenClaw synchronisée dans $OPENCLAW_CONFIG_DIR/opsys/."
         else
             warn "configuration native non générée — configurez les paliers dans la console, puis nouvelle tentative dans ${SYNC_INTERVAL}s."

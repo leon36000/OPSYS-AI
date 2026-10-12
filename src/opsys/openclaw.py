@@ -58,6 +58,7 @@ le déclencher automatiquement). `contexte.json` (moteur de contexte, ci-dessus)
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import shlex
@@ -66,7 +67,7 @@ import sys
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit
 
 from sqlalchemy import Connection, inspect
 
@@ -724,11 +725,72 @@ def _preparer_projection_sms(
     return configuration, projections
 
 
+def _origine_transport_mcp(url: str, *, origine_seule: bool = False) -> str:
+    """Valide une URL HTTP(S) sans secret ni suffixe ambigu ; renvoie son origine canonique."""
+    if type(url) is not str or not url or any(ord(c) <= 32 or ord(c) == 127 for c in url):
+        raise ValueError("URL MCP HTTP(S) invalide : chaîne absolue sans espaces requise")
+    if "\\" in url or "?" in url or "#" in url:
+        raise ValueError("URL MCP HTTP(S) invalide : ni antislash, requête ni fragment")
+    try:
+        parsed = urlsplit(url)
+        host = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        raise ValueError("URL MCP HTTP(S) invalide : hôte ou port") from None
+    if parsed.scheme not in {"http", "https"} or not host or not parsed.netloc:
+        raise ValueError("URL MCP HTTP(S) absolue requise")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError("URL MCP HTTP(S) invalide : les identifiants dans l'URL sont interdits")
+    if parsed.netloc.endswith(":") or (port is not None and not 1 <= port <= 65535):
+        raise ValueError("URL MCP HTTP(S) invalide : port hors limites ou vide")
+    if ":" in host:
+        try:
+            if "%" in host:
+                raise ValueError("IPv6 scoped")
+            host = f"[{ipaddress.IPv6Address(host)}]"
+        except ValueError:
+            raise ValueError("URL MCP HTTP(S) invalide : IPv6 canonique requise") from None
+    elif not host.isascii() or any(c not in "abcdefghijklmnopqrstuvwxyz0123456789._-" for c in host):
+        raise ValueError("URL MCP HTTP(S) invalide : hôte ASCII canonique requis")
+    elif all(part.isdigit() or (part.startswith("0x") and all(c in "0123456789abcdef" for c in part[2:]))
+             for part in host.split(".")):
+        # Écarte les formes IPv4 abrégées/hexadécimales/octales que certains clients réinterprètent.
+        try:
+            host = str(ipaddress.IPv4Address(host))
+        except ValueError:
+            raise ValueError("URL MCP HTTP(S) invalide : IPv4 canonique requise") from None
+    default_port = 80 if parsed.scheme == "http" else 443
+    origin = f"{parsed.scheme}://{host}" + (f":{port}" if port is not None and port != default_port else "")
+    if origine_seule and (parsed.path or url != origin):
+        raise ValueError("Origine MCP HTTP autorisée non canonique : aucun chemin ni port implicite")
+    return origin
+
+
+def _transport_mcp(url_mcp: str | None, origine_http_mcp_autorisee: str | None) -> tuple[str, dict[str, str]]:
+    """Le défaut choisit Compose ; une URL HTTP fournie n'implique jamais un accord opérateur."""
+    if url_mcp is None:
+        url_mcp = "http://opsys:8765/mcp"
+        if origine_http_mcp_autorisee is None:
+            origine_http_mcp_autorisee = "http://opsys:8765"
+    origin = _origine_transport_mcp(url_mcp)
+    if origine_http_mcp_autorisee is not None:
+        allowed = _origine_transport_mcp(origine_http_mcp_autorisee, origine_seule=True)
+        if not allowed.startswith("http://") or allowed != origin:
+            raise ValueError("Origine MCP HTTP autorisée différente de l'URL MCP HTTP")
+        return url_mcp, {"insecureHttpOrigin": allowed}
+    if origin.startswith("http://"):
+        raise ValueError(
+            "URL MCP HTTP personnalisée : accord explicite requis avec origine_http_mcp_autorisee "
+            "ou --autoriser-origine-http-mcp"
+        )
+    return url_mcp, {}
+
+
 def generer(
     departements: Mapping[str, Departement],
     dossier_config: Path,
     paliers: Mapping[str, Mapping[str, Any]],
-    url_mcp: str = "http://opsys:8765/mcp",
+    url_mcp: str | None = None,
     url_passerelle: str | None = None,
     mode_fournisseur: str = "natif",
     racine_espaces: str = "./opsys/espaces",
@@ -737,9 +799,13 @@ def generer(
     contexte_entreprise: Mapping[str, Sequence[str]] | None = None,
     affaire_par_session: Sequence[str] = (),
     cnx_factory: Callable[[], Any] | None = None,
+    origine_http_mcp_autorisee: str | None = None,
 ) -> dict[str, Path]:
     """Écrit les fragments et les espaces de travail dans `<dossier_config>/opsys/`.
 
+    `url_mcp` omise choisit la topologie Compose gérée ; une URL HTTP fournie exige
+    `origine_http_mcp_autorisee` exacte et canonique. HTTPS ne donne aucun accord HTTP.
+    Validation de transport avant toute écriture, y compris les espaces de travail.
     `mode_fournisseur` sélectionne les fournisseurs natifs par défaut ou LiteLLM en compatibilité explicite.
     `url_passerelle` n'est utilisée que pour `mode_fournisseur="litellm"`.
     `racine_espaces` est le chemin vu par la passerelle OpenClaw, relatif au dossier de config.
@@ -750,6 +816,7 @@ def generer(
     voir `_configuration_contexte`. Absent (défaut) : désactivé, rien ne change pour les agents.
     `affaire_par_session` (PLAN T3.3-suite-b) : ceux de ces agents dont l'affaire vient de la session.
     """
+    url_mcp, transport_security = _transport_mcp(url_mcp, origine_http_mcp_autorisee)
     if mode_fournisseur not in {"natif", "litellm"}:
         raise ValueError("mode_fournisseur doit être 'natif' ou 'litellm'")
     if mode_fournisseur == "litellm" and not url_passerelle:
@@ -999,6 +1066,7 @@ def generer(
     serveurs_mcp = {
         serveur_mcp(dep): {
             "url": f"{url_mcp.rstrip('/')}/v1/{dep.id}",
+            **({"transportSecurity": dict(transport_security)} if transport_security else {}),
             "transport": "streamable-http",
             "headers": {"Authorization": "Bearer ${OPSYS_MCP_JETON}"},
             "connectionTimeoutMs": 5000,
@@ -1015,6 +1083,7 @@ def generer(
                 origine = profil["departement"]
             serveurs_mcp[nom_serveur] = {
                 "url": f"{url_mcp.rstrip('/')}/contexte/{origine}",
+                **({"transportSecurity": dict(transport_security)} if transport_security else {}),
                 "transport": "streamable-http",
                 "headers": {"Authorization": "Bearer ${OPSYS_CONTEXT_MCP_JETON}"},
                 "connectionTimeoutMs": 5000,
@@ -1023,6 +1092,7 @@ def generer(
     for profil in profils_actifs:
         serveurs_mcp[serveur_mcp_runtime(profil["id"])] = {
             "url": f"{url_mcp.rstrip('/')}/runtime/{profil['id']}",
+            **({"transportSecurity": dict(transport_security)} if transport_security else {}),
             "transport": "streamable-http",
             "headers": {"Authorization": "Bearer ${OPSYS_CONTEXT_MCP_JETON}"},
             "connectionTimeoutMs": 5000,

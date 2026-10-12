@@ -11,6 +11,10 @@ import { asOptionalObjectRecord } from "@openclaw/normalization-core/record-coer
 import { normalizeLowercaseStringOrEmpty } from "@openclaw/normalization-core/string-coerce";
 import { sanitizeForLog } from "../../packages/terminal-core/src/ansi.js";
 import { resolveOpenClawMcpTransportAlias } from "../config/mcp-config-normalize.js";
+import {
+  captureMcpTransportSecurity,
+  type McpTransportSecurity,
+} from "../config/mcp-transport-security.js";
 import { createDedupeCache } from "../infra/dedupe.js";
 import { logWarn } from "../logger.js";
 import { readTrimmedStringAlias } from "../utils/string-readers.js";
@@ -53,6 +57,7 @@ type ResolvedHttpMcpTransportConfig = ResolvedBaseMcpTransportConfig & {
   auth?: "oauth";
   oauth?: ResolvedMcpOAuthConfig;
   sslVerify?: boolean;
+  transportSecurity?: McpTransportSecurity;
   clientCert?: string;
   clientKey?: string;
 };
@@ -145,6 +150,9 @@ function resolveHttpTransportConfig(
     transportType: launch.config.transportType,
     url: launch.config.url,
     headers: launch.config.headers,
+    transportSecurity: captureMcpTransportSecurity(
+      asOptionalObjectRecord(rawServer)?.transportSecurity,
+    ),
     ...(rawServer &&
     typeof rawServer === "object" &&
     (rawServer as { auth?: unknown }).auth === "oauth"

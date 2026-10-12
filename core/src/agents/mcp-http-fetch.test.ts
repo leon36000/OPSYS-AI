@@ -165,6 +165,176 @@ describe("MCP HTTP fetch helpers", () => {
     delete testGlobal[TEST_UNDICI_RUNTIME_DEPS_KEY];
   });
 
+  it("rejects undeclared HTTP before DNS or emission of an MCP mutation", async () => {
+    const url = "http://mcp.example.com/mcp";
+    const fetch = buildMcpHttpFetch({ resourceUrl: url });
+    const error = await captureRejection(
+      fetch(url, {
+        method: "POST",
+        headers: { Authorization: "Bearer fictitious-transport-token" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: {} }),
+      }).then((response) => response.text()),
+    );
+
+    expect(fetchCalls).toHaveLength(0);
+    expect(lookupMock).not.toHaveBeenCalled();
+    expect(error).toBeInstanceOf(Error);
+  });
+
+  it.each(["http://127.0.0.1:8765/mcp", "http://192.168.50.2:8765/mcp"])(
+    "does not infer HTTP permission from %s or sslVerify false",
+    async (url) => {
+      const fetch = buildMcpHttpFetch({ resourceUrl: url, sslVerify: false });
+      await expect(fetch(url)).rejects.toThrow("insecureHttpOrigin");
+      expect(fetchCalls).toHaveLength(0);
+      expect(lookupMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("preserves a declared HTTP mutation on its exact origin", async () => {
+    const url = "http://mcp.example.com:8765/mcp";
+    const fetch = buildMcpHttpFetch({
+      resourceUrl: url,
+      transportSecurity: { insecureHttpOrigin: "http://mcp.example.com:8765" },
+    });
+    const body = '{"jsonrpc":"2.0","method":"tools/call"}';
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { Authorization: "Bearer fictitious" },
+      body,
+    });
+    expect(await response.text()).toBe("ok");
+    expect(fetchCalls).toHaveLength(1);
+    expect(fetchCalls[0]?.init).toMatchObject({ method: "POST", body });
+  });
+
+  it("does not let a captured HTTP declaration follow caller mutation", async () => {
+    const declaration = { insecureHttpOrigin: "http://mcp.example.com:8765" };
+    const fetch = buildMcpHttpFetch({
+      resourceUrl: "http://mcp.example.com:8765/mcp",
+      transportSecurity: declaration,
+    });
+    declaration.insecureHttpOrigin = "http://other.example.com:8765";
+    await expect(fetch("http://other.example.com:8765/mcp")).rejects.toThrow("insecureHttpOrigin");
+    expect(fetchCalls).toHaveLength(0);
+    expect(lookupMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      initial: "https://mcp.example.com/mcp",
+      target: "https://other.example.com/mcp",
+      security: {},
+    },
+    {
+      initial: "http://mcp.example.com/mcp",
+      target: "http://other.example.com/mcp",
+      security: { insecureHttpOrigin: "http://mcp.example.com" },
+    },
+    {
+      initial: "https://mcp.example.com/mcp",
+      target: "http://other.example.com/mcp",
+      security: { insecureHttpOrigin: "http://other.example.com" },
+    },
+  ])(
+    "blocks an undeclared or downgraded redirect $initial -> $target",
+    async ({ initial, target, security }) => {
+      testGlobal[TEST_UNDICI_RUNTIME_DEPS_KEY] = {
+        Agent: TestAgent,
+        EnvHttpProxyAgent: TestEnvHttpProxyAgent,
+        ProxyAgent: TestProxyAgent,
+        fetch: async (url: string | URL | Request, init?: unknown) => {
+          fetchCalls.push({ url, init });
+          return fetchCalls.length === 1 ? redirectResponse(target, 307) : new Response("ok");
+        },
+      };
+      const fetch = buildMcpHttpFetch({ resourceUrl: initial, transportSecurity: security });
+      await expect(
+        fetch(initial, { method: "POST", body: "fictitious-mutation" }),
+      ).rejects.toThrow();
+      expect(fetchCalls).toHaveLength(1);
+      expect(lookupMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([false, true])(
+    "permits HTTPS redirects only to the same or declared origin (cross=%s)",
+    async (cross) => {
+      const target = cross ? "https://other.example.com/next" : "https://mcp.example.com/next";
+      testGlobal[TEST_UNDICI_RUNTIME_DEPS_KEY] = {
+        Agent: TestAgent,
+        EnvHttpProxyAgent: TestEnvHttpProxyAgent,
+        ProxyAgent: TestProxyAgent,
+        fetch: async (url: string | URL | Request, init?: unknown) => {
+          fetchCalls.push({ url, init });
+          return fetchCalls.length === 1 ? redirectResponse(target, 307) : new Response("ok");
+        },
+      };
+      const fetch = buildMcpHttpFetch({
+        resourceUrl: "https://mcp.example.com/mcp",
+        transportSecurity: { httpsRedirectOrigins: cross ? ["https://other.example.com"] : [] },
+      });
+      const response = await fetch("https://mcp.example.com/mcp", {
+        method: "POST",
+        headers: { Authorization: "Bearer fictitious" },
+        body: "fictitious-mutation",
+      });
+      expect(await response.text()).toBe("ok");
+      expect(fetchCalls).toHaveLength(2);
+      expect(fetchCalls[1]?.init).toMatchObject({ method: "POST", body: "fictitious-mutation" });
+      const headers = fetchCalls[1]?.init;
+      expect(
+        headers && typeof headers === "object" && "headers" in headers
+          ? new Headers(headers.headers as HeadersInit).has("authorization")
+          : false,
+      ).toBe(!cross);
+    },
+  );
+
+  it("blocks HTTPS downgrade after the first POST without pretending that effect rolled back", async () => {
+    const url = "https://mcp.example.com/mcp";
+    let firstServerEffects = 0;
+    testGlobal[TEST_UNDICI_RUNTIME_DEPS_KEY] = {
+      Agent: TestAgent,
+      EnvHttpProxyAgent: TestEnvHttpProxyAgent,
+      ProxyAgent: TestProxyAgent,
+      fetch: async (requestUrl: string | URL | Request, init?: unknown) => {
+        fetchCalls.push({ url: requestUrl, init });
+        if (fetchCalls.length === 1) {
+          const destination = requestUrl instanceof Request ? requestUrl.url : String(requestUrl);
+          if (
+            destination === url &&
+            init &&
+            typeof init === "object" &&
+            "method" in init &&
+            init.method === "POST" &&
+            "body" in init &&
+            typeof init.body === "string"
+          ) {
+            const rpc: unknown = JSON.parse(init.body);
+            if (rpc && typeof rpc === "object" && "method" in rpc && rpc.method === "tools/call") {
+              firstServerEffects += 1;
+            }
+          }
+          return redirectResponse("http://other.example.com/mcp", 307);
+        }
+        return new Response("ok");
+      },
+    };
+    const fetch = buildMcpHttpFetch({ resourceUrl: url });
+    const error = await captureRejection(
+      fetch(url, {
+        method: "POST",
+        headers: { Authorization: "Bearer fictitious-transport-token" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: {} }),
+      }).then((response) => response.text()),
+    );
+
+    expect(firstServerEffects).toBe(1);
+    expect(fetchCalls).toHaveLength(1);
+    expect(error).toBeInstanceOf(Error);
+  });
+
   it("scopes TLS overrides to the MCP resource origin", async () => {
     const fetch = buildMcpHttpFetch({
       sslVerify: false,
@@ -244,6 +414,7 @@ describe("MCP HTTP fetch helpers", () => {
     };
     const fetch = buildMcpHttpFetch({
       resourceUrl: "https://mcp.example.com/mcp",
+      transportSecurity: { httpsRedirectOrigins: ["https://auth.example.com"] },
     });
 
     await fetch("https://mcp.example.com/token");
@@ -404,7 +575,11 @@ describe("MCP HTTP fetch helpers", () => {
         }
       });
       const baseUrl = await listenOnLoopback(server);
-      const fetch = buildMcpHttpFetch({ resourceUrl: `${baseUrl}/mcp`, timeoutMs: 500 });
+      const fetch = buildMcpHttpFetch({
+        resourceUrl: `${baseUrl}/mcp`,
+        transportSecurity: { insecureHttpOrigin: baseUrl },
+        timeoutMs: 500,
+      });
 
       try {
         const pending = fetch(`${baseUrl}/token`, { method: "POST" });

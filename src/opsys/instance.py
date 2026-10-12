@@ -775,6 +775,10 @@ def initialiser(
 
     openclaw.generer(
         deps, etat_core, paliers, url_mcp=f"http://{HOTE_LOCAL}:{port_effectif_moteur}/mcp",
+        # Accord limité au serveur lancé par ce superviseur, jamais à une URL HTTP fournie par un tiers.
+        origine_http_mcp_autorisee=(
+            f"http://{HOTE_LOCAL}" + (f":{port_effectif_moteur}" if port_effectif_moteur != 80 else "")
+        ),
         url_passerelle=(passerelle_fournie or passerelle_existante) if mode_effectif == "litellm" else None,
         mode_fournisseur=mode_effectif, environ=env,
     )

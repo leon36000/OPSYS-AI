@@ -324,3 +324,185 @@ def test_ecrire_appareils_vide_si_aucun_appareil(session, tmp_path):
     with session() as cnx:
         chemin = openclaw.ecrire_appareils(cnx, tmp_path)
     assert json.loads(chemin.read_text(encoding="utf-8")) == {"appareils": {}}
+
+
+# -- Transport MCP : HTTP seulement sous déclaration explicite de topologie --------------------
+
+
+@pytest.mark.parametrize("url", [
+    "http://mcp.fictif.invalid:9876/mcp",
+    "http://127.0.0.1:9876/mcp",
+    "http://192.168.50.2:9876/mcp",
+], ids=["hostname", "loopback", "rfc1918"])
+@pytest.mark.parametrize("existant", [False, True], ids=["neuf", "existant"])
+def test_mcp_tls_http_personnalise_sans_declaration_refuse_avant_ecriture(
+    departements_demo, tmp_path, url, existant,
+):
+    """Une URL HTTP seule n'est pas un accord opérateur, même si son hôte paraît local."""
+    sortie = tmp_path / "configuration-fictive"
+    if existant:
+        sortie.mkdir()
+        (sortie / "temoin.txt").write_bytes(b"contenu fictif a conserver\n")
+    avant = {str(p.relative_to(sortie)): p.read_bytes() for p in sortie.rglob("*") if p.is_file()}
+    erreur = None
+
+    try:
+        openclaw.generer(departements_demo, sortie, PALIERS, url_mcp=url, environ=ENVIRON_EMBEDDINGS)
+    except ValueError as exc:
+        erreur = exc
+
+    apres = {str(p.relative_to(sortie)): p.read_bytes() for p in sortie.rglob("*") if p.is_file()}
+    assert apres == avant, "une URL HTTP non declaree ne doit creer ni modifier aucun fragment/espace"
+    assert sortie.exists() is existant
+    assert erreur is not None, "une URL MCP HTTP personnalisee exige un accord explicite"
+    assert "HTTP" in str(erreur).upper()
+
+
+def test_mcp_tls_topologie_docker_declare_origine_http_exacte(departements_demo, tmp_path):
+    fichiers = openclaw.generer(departements_demo, tmp_path, PALIERS, environ=ENVIRON_EMBEDDINGS)
+    serveurs = json.loads(fichiers["mcp"].read_text(encoding="utf-8"))["servers"]
+
+    assert serveurs
+    for dep in departements_demo.values():
+        serveur = serveurs[openclaw.serveur_mcp(dep)]
+        assert serveur["url"] == f"http://opsys:8765/mcp/v1/{dep.id}"
+        assert serveur.get("transportSecurity") == {"insecureHttpOrigin": "http://opsys:8765"}
+        assert serveur["headers"] == {"Authorization": "Bearer ${OPSYS_MCP_JETON}"}
+
+
+def test_mcp_tls_https_personnalise_fonctionne_sans_accord_http(departements_demo, tmp_path):
+    base = "https://mcp.fictif.invalid:9443/mcp"
+    fichiers = openclaw.generer(
+        departements_demo, tmp_path, PALIERS, url_mcp=base, environ=ENVIRON_EMBEDDINGS,
+    )
+    serveurs = json.loads(fichiers["mcp"].read_text(encoding="utf-8"))["servers"]
+
+    assert serveurs
+    for dep in departements_demo.values():
+        serveur = serveurs[openclaw.serveur_mcp(dep)]
+        assert serveur["url"] == f"{base}/v1/{dep.id}"
+        assert "insecureHttpOrigin" not in serveur.get("transportSecurity", {})
+        assert serveur["headers"] == {"Authorization": "Bearer ${OPSYS_MCP_JETON}"}
+
+
+@pytest.mark.parametrize(("url", "origine"), [
+    ("http://mcp.fictif.invalid:9876/mcp", "http://mcp.fictif.invalid:9876"),
+    ("http://127.0.0.1:9876/mcp", "http://127.0.0.1:9876"),
+    ("http://192.168.50.2:9876/mcp", "http://192.168.50.2:9876"),
+    ("http://[::1]:9876/mcp", "http://[::1]:9876"),
+    ("http://mcp.fictif.invalid:80/mcp", "http://mcp.fictif.invalid"),
+])
+def test_mcp_tls_accord_http_explicite_projette_uniquement_origine_exacte(
+    departements_demo, tmp_path, url, origine,
+):
+    fichiers = openclaw.generer(
+        departements_demo, tmp_path, PALIERS, url_mcp=url, origine_http_mcp_autorisee=origine,
+        environ=ENVIRON_EMBEDDINGS,
+    )
+    serveurs = json.loads(fichiers["mcp"].read_text(encoding="utf-8"))["servers"]
+    assert serveurs
+    for dep in departements_demo.values():
+        serveur = serveurs[openclaw.serveur_mcp(dep)]
+        assert serveur["url"] == f"{url}/v1/{dep.id}"
+        assert serveur["transportSecurity"] == {"insecureHttpOrigin": origine}
+
+
+@pytest.mark.parametrize("origine", [
+    "http://autre.fictif.invalid:9876", "http://mcp.fictif.invalid:9877", "https://mcp.fictif.invalid:9876",
+    "http://mcp.fictif.invalid:9876/", "http://mcp.fictif.invalid:9876/mcp",
+    "http://mcp.fictif.invalid:9876?x=1", "http://mcp.fictif.invalid:9876#x",
+    "http://fictif:secret-fictif@mcp.fictif.invalid:9876", "HTTP://mcp.fictif.invalid:9876",
+    "http://MCP.FICTIF.INVALID:9876", "http://mcp.fictif.invalid:80", "",
+])
+def test_mcp_tls_accord_different_ou_non_canonique_refuse_sans_ecrire(
+    departements_demo, tmp_path, origine,
+):
+    sortie = tmp_path / "configuration-fictive"
+    sortie.mkdir()
+    temoin = sortie / "temoin.txt"
+    temoin.write_bytes(b"configuration fictive preservee\n")
+
+    with pytest.raises(ValueError, match="(?i)HTTP"):
+        openclaw.generer(
+            departements_demo, sortie, PALIERS, url_mcp="http://mcp.fictif.invalid:9876/mcp",
+            origine_http_mcp_autorisee=origine, environ=ENVIRON_EMBEDDINGS,
+        )
+
+    assert list(sortie.iterdir()) == [temoin]
+    assert temoin.read_bytes() == b"configuration fictive preservee\n"
+
+
+@pytest.mark.parametrize("url", [
+    "http://fictif:secret-fictif@mcp.fictif.invalid:9876/mcp",
+    "http://mcp.fictif.invalid:9876/mcp?x=1", "http://mcp.fictif.invalid:9876/mcp#x",
+    "http://mcp.fictif.invalid:9876/mcp?", "http://mcp.fictif.invalid:9876/mcp#",
+    "http://mcp.fictif.invalid:9876\\mcp", " http://mcp.fictif.invalid:9876/mcp",
+    "http:///mcp", "http://mcp.fictif.invalid:0/mcp", "http://mcp.fictif.invalid:999999/mcp",
+    "http://127.1/mcp", "http://0x7f000001/mcp", "/mcp", "ftp://mcp.fictif.invalid:9876/mcp",
+])
+def test_mcp_tls_url_invalide_refuse_meme_si_accord_http_fourni(departements_demo, tmp_path, url):
+    sortie = tmp_path / "configuration-fictive"
+    with pytest.raises(ValueError, match="(?i)HTTP"):
+        openclaw.generer(
+            departements_demo, sortie, PALIERS, url_mcp=url,
+            origine_http_mcp_autorisee="http://mcp.fictif.invalid:9876", environ=ENVIRON_EMBEDDINGS,
+        )
+    assert not sortie.exists()
+
+
+def test_mcp_tls_https_ne_recoit_jamais_une_exception_http(departements_demo, tmp_path):
+    sortie = tmp_path / "configuration-fictive"
+    with pytest.raises(ValueError, match="HTTP"):
+        openclaw.generer(
+            departements_demo, sortie, PALIERS, url_mcp="https://mcp.fictif.invalid:9876/mcp",
+            origine_http_mcp_autorisee="http://mcp.fictif.invalid:9876", environ=ENVIRON_EMBEDDINGS,
+        )
+    assert not sortie.exists()
+
+
+def test_mcp_tls_cli_http_sans_accord_refuse_avant_configuration_et_etat(tmp_path, monkeypatch, capsys):
+    sortie = tmp_path / "configuration-fictive"
+    home = tmp_path / "etat-metier-fictif"
+    monkeypatch.setenv("OPSYS_HOME", str(home))
+
+    assert cli.main([
+        "openclaw", "configurer", "--config-dir", str(sortie),
+        "--url-mcp", "http://127.0.0.1:9876/mcp",
+    ]) == 2
+
+    assert "--autoriser-origine-http-mcp" in capsys.readouterr().err
+    assert not sortie.exists()
+    assert not home.exists()
+
+
+@pytest.mark.parametrize(("url", "origine"), [
+    (None, None),
+    ("http://127.0.0.1:9876/mcp", "http://127.0.0.1:9876"),
+    ("https://mcp.fictif.invalid:9443/mcp", None),
+])
+def test_mcp_tls_cli_choix_explicite_ou_defaut_gere_genere_la_bonne_policy(
+    tmp_path, monkeypatch, capsys, url, origine,
+):
+    for nom, valeur in ENVIRON_EMBEDDINGS.items():
+        monkeypatch.setenv(nom, valeur)
+    modeles.enregistrer_paliers(PALIERS)
+    sortie = tmp_path / "configuration-fictive"
+    commande = ["openclaw", "configurer", "--config-dir", str(sortie)]
+    if url is not None:
+        commande += ["--url-mcp", url]
+    if origine is not None:
+        commande += ["--autoriser-origine-http-mcp", origine]
+
+    assert cli.main(commande) == 0
+    capsys.readouterr()
+    serveurs = json.loads((sortie / "opsys" / "mcp.json").read_text(encoding="utf-8"))["servers"]
+    assert serveurs
+    for serveur in serveurs.values():
+        if url is None:
+            assert serveur["transportSecurity"] == {"insecureHttpOrigin": "http://opsys:8765"}
+        elif origine is not None:
+            assert serveur["url"].startswith(url + "/")
+            assert serveur["transportSecurity"] == {"insecureHttpOrigin": origine}
+        else:
+            assert serveur["url"].startswith(url + "/")
+            assert "insecureHttpOrigin" not in serveur.get("transportSecurity", {})

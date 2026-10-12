@@ -1,5 +1,6 @@
 import { isHttpsUrl, isHttpUrl } from "@openclaw/net-policy/url-protocol";
 import { z } from "zod";
+import { isCanonicalMcpOrigin } from "./mcp-transport-security.js";
 import { sensitive } from "./zod-schema.sensitive.js";
 
 const HttpUrlSchema = z.string().url().refine(isHttpUrl, "Expected http:// or https:// URL");
@@ -48,6 +49,27 @@ export const McpServerSchema = z
       })
       .optional(),
     sslVerify: z.boolean().optional(),
+    transportSecurity: z
+      .strictObject({
+        insecureHttpOrigin: z
+          .string()
+          .refine(
+            (value) => isCanonicalMcpOrigin(value, "http:"),
+            "Expected exact canonical HTTP origin",
+          )
+          .optional(),
+        httpsRedirectOrigins: z
+          .array(
+            z
+              .string()
+              .refine(
+                (value) => isCanonicalMcpOrigin(value, "https:"),
+                "Expected exact canonical HTTPS origin",
+              ),
+          )
+          .optional(),
+      })
+      .optional(),
     clientCert: z.string().optional(),
     clientKey: z.string().optional(),
     toolFilter: z
