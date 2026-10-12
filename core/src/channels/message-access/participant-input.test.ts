@@ -24,6 +24,10 @@ import {
   clearSecretsRuntimeSnapshot,
 } from "../../secrets/runtime.js";
 import { recordAcceptedSessionParticipantInput } from "../../sessions/session-participant-input-recording.js";
+import {
+  sessionParticipantInput,
+  type SessionParticipantInputContext,
+} from "../../sessions/session-participant-input.js";
 import { withOpenClawTestState } from "../../test-utils/openclaw-test-state.js";
 import {
   buildChannelInboundEventContext,
@@ -33,9 +37,12 @@ import { createHostChannelInboundEventContextBuilder } from "../inbound-event/ho
 import {
   consumeChannelAdmissionEvidence,
   createChannelAdmissionAudit,
+  prepareHostChannelContextAdmissionEvidence,
   readChannelContextAdmissionEvidence,
   readChannelContextGatewayContextResolver,
 } from "./admission-evidence.js";
+import { bindChannelParticipantInput } from "./participant-input.js";
+import type { ChannelIngressContextBinding } from "./runtime-types.js";
 import { createHostChannelIngressRuntime } from "./runtime.js";
 
 const recordParticipant = vi.hoisted(() => vi.fn());
@@ -315,4 +322,187 @@ it("L1-NATIVE-WITNESS retains an actual managed publication before keeper APIs",
     expect(readNativeServingReadConfig(read)).toBe(published);
     expect(getRuntimeConfigSnapshot()).toBe(published);
   });
+});
+
+// G-only view coherence: H is native; request-context support services remain test doubles.
+// These cases prove neither a serving publication/grant nor command-owner authority.
+async function prepareGOnlyParticipantHandoff(
+  fixture: ReturnType<typeof createNativeChannelIngressOwner>,
+  resolveParticipant: (subject: { stableId?: string | number | null }) => {
+    domain: string;
+    idKind: string;
+    id: string;
+  },
+  messageId: string,
+) {
+  const binding: ChannelIngressContextBinding = {
+    agentId: "main",
+    sessionKey: "agent:main:test:dm:g-only-conversation",
+    messageId,
+    inboundEventKind: "user_request",
+  };
+  const ingress = await fixture.channel.inbound.ingress.resolveStable({
+    channelId: "test",
+    accountId: "local",
+    identity: { authentication: "asserted", resolveParticipant },
+    subject: { stableId: "g-only-person" },
+    conversation: { kind: "direct", id: "g-only-conversation" },
+    contextBinding: binding,
+    dmPolicy: "open",
+    groupPolicy: "disabled",
+    allowFrom: ["*"],
+    useDefaultPairingStore: false,
+    readStoreAllowFrom: async () => [],
+  });
+  expect(ingress.ingress.admission).toBe("dispatch");
+  const contextParams: BuildChannelInboundEventContextParams = {
+    channel: "test",
+    accountId: "local",
+    messageId,
+    from: "test:g-only-conversation",
+    sender: { id: "g-only-person" },
+    conversation: { kind: "direct", id: "g-only-conversation" },
+    route: { agentId: "main", routeSessionKey: binding.sessionKey },
+    reply: { to: "test:g-only-conversation" },
+    message: { rawBody: "hello", inboundEventKind: "user_request" },
+  };
+  // Accept the real one-use private handoff. Merely resolving would not authorize takeParticipant.
+  const preparation = prepareHostChannelContextAdmissionEvidence({
+    owner: fixture.owner,
+    channelId: "test",
+    accountId: "local",
+    ingress,
+    rawPrincipalRef: "g-only-person",
+    contextParams,
+  });
+  expect(preparation).toBeDefined();
+  expect(fixture.owner.isLive()).toBe(true);
+  return { ingress, binding };
+}
+
+it("G-ONLY binds one real participant while the exact Gateway view remains A", async () => {
+  const gatewayA = createGatewayRequestContext(makeContextParams());
+  const fixture = createNativeChannelIngressOwner({
+    channelId: "test",
+    resolveGatewayContext: () => gatewayA,
+  });
+  // The existing native helper registers onTestFinished before allocation and checks drain.errors.
+  expect(fixture.owner.resolveGatewayContext?.()).toBe(gatewayA);
+  const resolveParticipant = vi.fn((subject: { stableId?: string | number | null }) => ({
+    domain: "g-only-A",
+    idKind: "user-id",
+    id: String(subject.stableId),
+  }));
+  const { ingress, binding } = await prepareGOnlyParticipantHandoff(
+    fixture,
+    resolveParticipant,
+    "g-only-healthy-A",
+  );
+  const context: SessionParticipantInputContext = {};
+  expect(context[sessionParticipantInput]).toBeUndefined();
+  let contextReads = 0;
+  bindChannelParticipantInput({
+    get context() {
+      contextReads += 1;
+      return context;
+    },
+    channelId: "test",
+    ingress,
+    binding,
+    owner: fixture.owner,
+  });
+  expect(contextReads).toBe(1);
+  expect(resolveParticipant).toHaveBeenCalledTimes(1);
+  expect(fixture.owner.isLive()).toBe(true);
+  expect(fixture.owner.resolveGatewayContext?.()).toBe(gatewayA);
+  expect(context[sessionParticipantInput]).toEqual([
+    {
+      identity: {
+        type: "remote",
+        pluginId: "test",
+        domain: "g-only-A",
+        idKind: "user-id",
+        id: "g-only-person",
+      },
+      promptedAt: expect.any(Number),
+      recorded: false,
+    },
+  ]);
+});
+
+it("G-ONLY rejects a context getter switch to B without poisoning H or a new B handoff", async () => {
+  const gatewayA = createGatewayRequestContext(makeContextParams());
+  const gatewayB = createGatewayRequestContext(makeContextParams());
+  expect(gatewayB).not.toBe(gatewayA);
+  let currentGateway = gatewayA;
+  const fixture = createNativeChannelIngressOwner({
+    channelId: "test",
+    resolveGatewayContext: () => currentGateway,
+  });
+  const resolveParticipant = vi.fn((subject: { stableId?: string | number | null }) => ({
+    domain: currentGateway === gatewayA ? "g-only-A" : "g-only-B",
+    idKind: "user-id",
+    id: String(subject.stableId),
+  }));
+  const acceptedA = await prepareGOnlyParticipantHandoff(
+    fixture,
+    resolveParticipant,
+    "g-only-rejected-A",
+  );
+  expect(fixture.owner.resolveGatewayContext?.()).toBe(gatewayA);
+  const rejectedContext: SessionParticipantInputContext = {};
+  expect(rejectedContext[sessionParticipantInput]).toBeUndefined();
+  let rejectedContextReads = 0;
+  bindChannelParticipantInput({
+    get context() {
+      rejectedContextReads += 1;
+      currentGateway = gatewayB;
+      return rejectedContext;
+    },
+    channelId: "test",
+    ingress: acceptedA.ingress,
+    binding: acceptedA.binding,
+    owner: fixture.owner,
+  });
+  expect(rejectedContextReads).toBe(1);
+  expect(fixture.owner.isLive()).toBe(true);
+  expect(fixture.owner.resolveGatewayContext?.()).toBe(gatewayB);
+
+  // acceptedA has been consumed. Resolve and accept a NEW result under B, never reuse it.
+  const acceptedB = await prepareGOnlyParticipantHandoff(
+    fixture,
+    resolveParticipant,
+    "g-only-new-B",
+  );
+  const contextB: SessionParticipantInputContext = {};
+  let contextBReads = 0;
+  bindChannelParticipantInput({
+    get context() {
+      contextBReads += 1;
+      return contextB;
+    },
+    channelId: "test",
+    ingress: acceptedB.ingress,
+    binding: acceptedB.binding,
+    owner: fixture.owner,
+  });
+  expect(contextBReads).toBe(1);
+  expect(resolveParticipant).toHaveBeenCalledTimes(2);
+  expect(fixture.owner.isLive()).toBe(true);
+  expect(fixture.owner.resolveGatewayContext?.()).toBe(gatewayB);
+  expect(contextB[sessionParticipantInput]).toEqual([
+    {
+      identity: {
+        type: "remote",
+        pluginId: "test",
+        domain: "g-only-B",
+        idKind: "user-id",
+        id: "g-only-person",
+      },
+      promptedAt: expect.any(Number),
+      recorded: false,
+    },
+  ]);
+  // Last so the fresh-B positive is actually observed even when current production exposes RED.
+  expect(rejectedContext[sessionParticipantInput]).toBeUndefined();
 });

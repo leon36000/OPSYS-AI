@@ -59,6 +59,13 @@ export function bindChannelParticipantInput(params: {
       if (readChannelIngressHostOwner(owner) !== "live") {
         return;
       }
+      const gatewayContext = owner.resolveGatewayContext?.();
+      if (
+        readChannelIngressHostOwner(owner) !== "live" ||
+        input.gatewayContext !== gatewayContext
+      ) {
+        return;
+      }
       prepareSessionParticipantInput(context, identity, promptedAt);
     }
   }
