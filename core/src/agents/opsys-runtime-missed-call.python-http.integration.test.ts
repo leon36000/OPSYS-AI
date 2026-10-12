@@ -269,6 +269,7 @@ function runtimeConfig(port: number, token: string): OpenClawConfig {
         [`opsys_runtime_${PROFILE_ID}`]: {
           url: `http://127.0.0.1:${port}/mcp/runtime/${PROFILE_ID}`,
           transport: "streamable-http",
+          transportSecurity: { insecureHttpOrigin: `http://127.0.0.1:${port}` },
           headers: { Authorization: `Bearer ${token}` },
           connectionTimeoutMs: OPERATION_TIMEOUT_MS,
           requestTimeoutMs: OPERATION_TIMEOUT_MS,

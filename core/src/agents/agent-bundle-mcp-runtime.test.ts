@@ -778,6 +778,7 @@ describe("session MCP runtime", () => {
             opsys_m5: {
               url: server.url,
               transport: "streamable-http",
+              transportSecurity: { insecureHttpOrigin: new URL(server.url).origin },
               headers: { Authorization: "Bearer proof-token" },
             },
           },
@@ -794,6 +795,7 @@ describe("session MCP runtime", () => {
             opsys_m5: {
               url: unconfiguredServer.url,
               transport: "streamable-http",
+              transportSecurity: { insecureHttpOrigin: new URL(unconfiguredServer.url).origin },
               headers: { Authorization: "Bearer proof-token" },
             },
           },
@@ -817,6 +819,7 @@ describe("session MCP runtime", () => {
             opsys_m5: {
               url: legacyServer.url,
               transport: "streamable-http",
+              transportSecurity: { insecureHttpOrigin: new URL(legacyServer.url).origin },
               headers: { Authorization: "Bearer proof-token" },
             },
           },
@@ -3874,6 +3877,7 @@ process.on("SIGINT", shutdown);`,
       const declaredServer = {
         transport: "streamable-http" as const,
         url: "https://placeholder.invalid/mcp",
+        transportSecurity: { insecureHttpOrigin: new URL(proof.url).origin },
       };
       const params = {
         ...makeRequesterParams(
@@ -5754,7 +5758,14 @@ describe("requester-scoped MCP connection resolution", () => {
           resolve: async () => ({ url: `http://127.0.0.1:${address.port}/mcp` }),
         });
         const scopedConfig = {
-          mcp: { servers: { "user-mail": { transport: "streamable-http" } } },
+          mcp: {
+            servers: {
+              "user-mail": {
+                transport: "streamable-http",
+                transportSecurity: { insecureHttpOrigin: `http://127.0.0.1:${address.port}` },
+              },
+            },
+          },
         };
         const staticConfig = {
           mcp: { servers: { shared: { command: "true" } } },
@@ -5867,7 +5878,14 @@ describe("requester-scoped MCP connection resolution", () => {
           resolve: async () => ({ url: `http://127.0.0.1:${address.port}/mcp` }),
         });
         const scopedConfig = {
-          mcp: { servers: { "user-mail": { transport: "streamable-http" } } },
+          mcp: {
+            servers: {
+              "user-mail": {
+                transport: "streamable-http",
+                transportSecurity: { insecureHttpOrigin: `http://127.0.0.1:${address.port}` },
+              },
+            },
+          },
         };
 
         try {
@@ -6164,6 +6182,7 @@ process.stdin.on("end", () => {
                 stateless: {
                   url: `http://127.0.0.1:${address.port}/mcp`,
                   transport: "streamable-http",
+                  transportSecurity: { insecureHttpOrigin: `http://127.0.0.1:${address.port}` },
                 },
               },
             },
@@ -6316,6 +6335,7 @@ process.stdin.on("end", () => {
                 stateful: {
                   url: `http://127.0.0.1:${address.port}/mcp`,
                   transport: "streamable-http",
+                  transportSecurity: { insecureHttpOrigin: `http://127.0.0.1:${address.port}` },
                   headers: { "x-mcp-recovery": "proof" },
                 },
               },
@@ -6385,11 +6405,13 @@ process.stdin.on("end", () => {
               recovering: {
                 url: recovering.url,
                 transport: "streamable-http",
+                transportSecurity: { insecureHttpOrigin: new URL(recovering.url).origin },
                 requestTimeoutMs: 50,
               },
               trigger: {
                 url: trigger.url,
                 transport: "streamable-http",
+                transportSecurity: { insecureHttpOrigin: new URL(trigger.url).origin },
                 requestTimeoutMs: 50,
               },
             },
@@ -6525,6 +6547,7 @@ process.stdin.on("end", () => {
                 hangingDelete: {
                   url: `http://127.0.0.1:${addr.port}/mcp`,
                   transport: "streamable-http",
+                  transportSecurity: { insecureHttpOrigin: `http://127.0.0.1:${addr.port}` },
                 },
               },
             },

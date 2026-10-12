@@ -13,6 +13,7 @@ import type { OpenClawConfig } from "../config/types.openclaw.js";
 import { opsysContexteGuardStore } from "../context-engine/opsys-contexte-garde.js";
 import { getSessionMcpRuntimeManagerForTesting } from "./agent-bundle-mcp-manager-api.js";
 import { getOrCreateSessionMcpRuntime } from "./agent-bundle-mcp-manager.test-support.js";
+import { SESSION_MCP_RUNTIME_MANAGER_KEY } from "./agent-bundle-mcp-runtime-shared.js";
 import { withMcpCallMeta } from "./mcp-call-meta.js";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -35,7 +36,13 @@ const children: ChildProcess[] = [];
 const tempDirs: string[] = [];
 let releaseContextConfig: (() => Promise<void>) | undefined;
 
+async function resetSessionMcpRuntimeManagerGeneration(): Promise<void> {
+  await getSessionMcpRuntimeManagerForTesting().disposeAll();
+  Reflect.deleteProperty(globalThis, SESSION_MCP_RUNTIME_MANAGER_KEY);
+}
+
 beforeEach(async () => {
+  await resetSessionMcpRuntimeManagerGeneration();
   releaseContextConfig = await acquireOpsysContextTestConfig();
 });
 
@@ -190,6 +197,7 @@ function opsysConfig(port: number): OpenClawConfig {
         opsys_m2: {
           url: `http://127.0.0.1:${port}/mcp/m02-revenue-crm`,
           transport: "streamable-http",
+          transportSecurity: { insecureHttpOrigin: `http://127.0.0.1:${port}` },
           headers: { Authorization: `Bearer ${PUBLIC_TOKEN}` },
           connectionTimeoutMs: 5_000,
           requestTimeoutMs: 10_000,
@@ -197,6 +205,7 @@ function opsysConfig(port: number): OpenClawConfig {
         "opsys_context_m02-revenue-crm": {
           url: `http://127.0.0.1:${port}/mcp/contexte/m02-revenue-crm`,
           transport: "streamable-http",
+          transportSecurity: { insecureHttpOrigin: `http://127.0.0.1:${port}` },
           headers: { Authorization: `Bearer ${PRIVATE_TOKEN}` },
           connectionTimeoutMs: 5_000,
           requestTimeoutMs: 10_000,
@@ -204,6 +213,7 @@ function opsysConfig(port: number): OpenClawConfig {
         opsys_m3: {
           url: `http://127.0.0.1:${port}/mcp/m03-estimation`,
           transport: "streamable-http",
+          transportSecurity: { insecureHttpOrigin: `http://127.0.0.1:${port}` },
           headers: { Authorization: `Bearer ${PUBLIC_TOKEN}` },
           connectionTimeoutMs: 5_000,
           requestTimeoutMs: 10_000,
@@ -211,6 +221,7 @@ function opsysConfig(port: number): OpenClawConfig {
         "opsys_context_m03-estimation": {
           url: `http://127.0.0.1:${port}/mcp/contexte/m03-estimation`,
           transport: "streamable-http",
+          transportSecurity: { insecureHttpOrigin: `http://127.0.0.1:${port}` },
           headers: { Authorization: `Bearer ${PRIVATE_TOKEN}` },
           connectionTimeoutMs: 5_000,
           requestTimeoutMs: 10_000,
@@ -255,6 +266,7 @@ afterEach(async () => {
   );
   await releaseContextConfig?.();
   releaseContextConfig = undefined;
+  await resetSessionMcpRuntimeManagerGeneration();
 });
 
 describe("OPSYS target ticket through Core and the real Python HTTP MCP", () => {

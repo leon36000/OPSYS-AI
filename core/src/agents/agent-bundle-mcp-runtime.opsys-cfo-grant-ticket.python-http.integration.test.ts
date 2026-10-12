@@ -26,7 +26,9 @@ const tempDirs: string[] = [];
 
 function requiredPython(): string {
   const python = process.env.OPSYS_TEST_PYTHON;
-  if (!python) throw new Error("OPSYS_TEST_PYTHON is required for the CFO MCP integration test");
+  if (!python) {
+    throw new Error("OPSYS_TEST_PYTHON is required for the CFO MCP integration test");
+  }
   return python;
 }
 
@@ -64,12 +66,17 @@ async function waitReady(child: ChildProcess): Promise<void> {
     );
     const finish = (error?: Error) => {
       clearTimeout(timeout);
-      if (error) reject(error);
-      else resolveReady();
+      if (error) {
+        reject(error);
+      } else {
+        resolveReady();
+      }
     };
     child.stdout?.setEncoding("utf8").on("data", (chunk: string) => {
       output += chunk;
-      if (output.includes("READY")) finish();
+      if (output.includes("READY")) {
+        finish();
+      }
     });
     child.stderr?.setEncoding("utf8").on("data", (chunk: string) => {
       // Do not surface fixture stderr: it may contain local paths or runtime diagnostics.
@@ -83,7 +90,9 @@ async function waitReady(child: ChildProcess): Promise<void> {
 }
 
 async function stopChild(child: ChildProcess): Promise<void> {
-  if (child.exitCode !== null || child.signalCode !== null) return;
+  if (child.exitCode !== null || child.signalCode !== null) {
+    return;
+  }
   child.kill("SIGTERM");
   const stopped = await new Promise<boolean>((resolveStop) => {
     const timeout = setTimeout(() => resolveStop(false), 2_000);
@@ -92,7 +101,9 @@ async function stopChild(child: ChildProcess): Promise<void> {
       resolveStop(true);
     });
   });
-  if (stopped || child.exitCode !== null || child.signalCode !== null) return;
+  if (stopped || child.exitCode !== null || child.signalCode !== null) {
+    return;
+  }
   child.kill("SIGKILL");
   const killed = await new Promise<boolean>((resolveKill) => {
     const timeout = setTimeout(() => resolveKill(false), 2_000);
@@ -101,14 +112,18 @@ async function stopChild(child: ChildProcess): Promise<void> {
       resolveKill(true);
     });
   });
-  if (!killed) throw new Error("CFO fixture process survived SIGKILL");
+  if (!killed) {
+    throw new Error("CFO fixture process survived SIGKILL");
+  }
 }
 
 afterEach(async () => {
   const manager = getSessionMcpRuntimeManagerForTesting();
   await manager.disposeSession("opsys-cfo-grant-real-http");
   await manager.disposeSession("opsys-cfo-grant-stale-profile");
-  for (const child of children.splice(0)) await stopChild(child);
+  for (const child of children.splice(0)) {
+    await stopChild(child);
+  }
   await Promise.all(
     tempDirs.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
   );
@@ -127,6 +142,7 @@ function config(base: Record<string, string>, revision: number | undefined): Ope
         opsys_m5: {
           url: `${base.baseUrl}${base.businessPath}`,
           transport: "streamable-http",
+          transportSecurity: { insecureHttpOrigin: new URL(base.baseUrl).origin },
           headers: { Authorization: `Bearer ${PUBLIC_TOKEN}` },
           connectionTimeoutMs: 5_000,
           requestTimeoutMs: 10_000,
@@ -134,6 +150,7 @@ function config(base: Record<string, string>, revision: number | undefined): Ope
         [`opsys_runtime_${PROFILE_ID}`]: {
           url: `${base.baseUrl}${base.privateIssuerPath}`,
           transport: "streamable-http",
+          transportSecurity: { insecureHttpOrigin: new URL(base.baseUrl).origin },
           headers: { Authorization: `Bearer ${PRIVATE_TOKEN}` },
           connectionTimeoutMs: 5_000,
           requestTimeoutMs: 10_000,

@@ -28,7 +28,9 @@ async function waitForChildExit(
   child: ReturnType<typeof spawn>,
   timeoutMs: number,
 ): Promise<boolean> {
-  if (childHasExited(child)) return true;
+  if (childHasExited(child)) {
+    return true;
+  }
   return await new Promise<boolean>((resolveExit) => {
     const onExit = () => finish(true);
     const timeout = setTimeout(() => finish(false), timeoutMs);
@@ -38,14 +40,20 @@ async function waitForChildExit(
       resolveExit(exited || childHasExited(child));
     };
     child.once("exit", onExit);
-    if (childHasExited(child)) finish(true);
+    if (childHasExited(child)) {
+      finish(true);
+    }
   });
 }
 
 async function stopChild(child: ReturnType<typeof spawn>): Promise<void> {
-  if (childHasExited(child)) return;
+  if (childHasExited(child)) {
+    return;
+  }
   child.kill("SIGTERM");
-  if (await waitForChildExit(child, 2_000)) return;
+  if (await waitForChildExit(child, 2_000)) {
+    return;
+  }
   child.kill("SIGKILL");
   if (!(await waitForChildExit(child, 2_000))) {
     throw new Error("Python MCP process remained alive after SIGTERM and SIGKILL");
@@ -53,7 +61,9 @@ async function stopChild(child: ReturnType<typeof spawn>): Promise<void> {
 }
 
 afterEach(async () => {
-  for (const child of children.splice(0)) await stopChild(child);
+  for (const child of children.splice(0)) {
+    await stopChild(child);
+  }
   await Promise.all(
     tempDirs.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
   );
@@ -61,8 +71,9 @@ afterEach(async () => {
 
 function requiredPython(): string {
   const python = process.env.OPSYS_TEST_PYTHON;
-  if (!python)
+  if (!python) {
     throw new Error("OPSYS_TEST_PYTHON is required for the real Python MCP integration test");
+  }
   return python;
 }
 
@@ -103,8 +114,11 @@ function runPython(python: string, args: string[], env: NodeJS.ProcessEnv): Prom
     child.stderr?.setEncoding("utf8").on("data", (chunk: string) => (stderr += chunk));
     child.once("error", reject);
     child.once("exit", (code) => {
-      if (code === 0) resolveOutput(stdout);
-      else reject(new Error(`Python fixture exited ${code}: ${stderr.slice(-2_000)}`));
+      if (code === 0) {
+        resolveOutput(stdout);
+      } else {
+        reject(new Error(`Python fixture exited ${code}: ${stderr.slice(-2_000)}`));
+      }
     });
   });
 }
@@ -116,11 +130,13 @@ async function reserveEphemeralPort(): Promise<number> {
     server.listen(0, "127.0.0.1", () => resolveListen());
   });
   const address = server.address();
-  if (!address || typeof address === "string") throw new Error("could not reserve a local port");
+  if (!address || typeof address === "string") {
+    throw new Error("could not reserve a local port");
+  }
   const { port } = address;
-  await new Promise<void>((resolveClose, reject) =>
-    server.close((error) => (error ? reject(error) : resolveClose())),
-  );
+  await new Promise<void>((resolveClose, reject) => {
+    server.close((error) => (error ? reject(error) : resolveClose()));
+  });
   return port;
 }
 
@@ -133,16 +149,23 @@ function waitUntilListening(child: ReturnType<typeof spawn>): Promise<void> {
     );
     const finish = (error?: Error) => {
       clearTimeout(timeout);
-      if (error) reject(error);
-      else resolveListening();
+      if (error) {
+        reject(error);
+      } else {
+        resolveListening();
+      }
     };
     child.stdout?.setEncoding("utf8").on("data", (chunk: string) => {
       output += chunk;
-      if (output.includes("Uvicorn running on")) finish();
+      if (output.includes("Uvicorn running on")) {
+        finish();
+      }
     });
     child.stderr?.setEncoding("utf8").on("data", (chunk: string) => {
       output += chunk;
-      if (output.includes("Uvicorn running on")) finish();
+      if (output.includes("Uvicorn running on")) {
+        finish();
+      }
     });
     child.once("error", (error) => finish(error));
     child.once("exit", (code) =>
@@ -168,6 +191,7 @@ function runtimeConfig(
         [`opsys_runtime_${profileId}`]: {
           url: `http://127.0.0.1:${port}/mcp/runtime/${profileId}`,
           transport: "streamable-http",
+          transportSecurity: { insecureHttpOrigin: `http://127.0.0.1:${port}` },
           headers: { Authorization: `Bearer ${token}` },
           connectionTimeoutMs: 5_000,
           requestTimeoutMs: 10_000,
