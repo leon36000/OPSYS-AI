@@ -176,26 +176,29 @@ export const sharedVitestConfig = {
         find: /^undici$/u,
         replacement: "undici/index.js",
       },
-      {
-        find: "discord-api-types/v10",
-        replacement: path.join(
-          repoRoot,
-          "extensions",
-          "discord",
-          "test",
-          "discord-api-types-v10-runtime.ts",
-        ),
-      },
-      {
-        find: "discord-api-types/payloads/v10",
-        replacement: path.join(
-          repoRoot,
-          "extensions",
-          "discord",
-          "test",
-          "discord-api-types-payloads-v10-runtime.ts",
-        ),
-      },
+      // Keep Bun runtime shims only in checkouts that contain the physical files.
+      ...[
+        {
+          find: "discord-api-types/v10",
+          replacement: path.join(
+            repoRoot,
+            "extensions",
+            "discord",
+            "test",
+            "discord-api-types-v10-runtime.ts",
+          ),
+        },
+        {
+          find: "discord-api-types/payloads/v10",
+          replacement: path.join(
+            repoRoot,
+            "extensions",
+            "discord",
+            "test",
+            "discord-api-types-payloads-v10-runtime.ts",
+          ),
+        },
+      ].filter(({ replacement }) => fs.lstatSync(replacement, { throwIfNoEntry: false })?.isFile()),
       {
         find: "@openclaw/qa-channel/api.js",
         replacement: path.join(repoRoot, "extensions", "qa-channel", "api.ts"),

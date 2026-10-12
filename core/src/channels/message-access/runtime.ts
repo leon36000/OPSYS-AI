@@ -11,7 +11,11 @@ import { prepareCommandOwnerAuthority } from "../../auto-reply/command-auth.js";
 import { recordChannelIngressResolution } from "./admission-evidence.js";
 import { decideChannelIngress } from "./decision.js";
 import { resolveChannelIngressEffectiveAllowFromLists } from "./effective-allow-from.js";
-import type { ChannelIngressHostOwner, ChannelParticipantInput } from "./ingress-host-owner.js";
+import {
+  readChannelIngressHostOwner,
+  type ChannelIngressHostOwner,
+  type ChannelParticipantInput,
+} from "./ingress-host-owner.js";
 import {
   allReferencedAccessGroupNames,
   normalizeEffectiveEntries,
@@ -158,10 +162,14 @@ function createChannelIngressResolverForOwner(
   base: CreateChannelIngressResolverParams,
   owner?: ChannelIngressHostOwner,
 ): ChannelIngressResolver {
+  readChannelIngressHostOwner(owner);
+  readChannelIngressHostOwner(owner, base.channelId);
   const resolve = async (
     input: ChannelIngressResolverMessageParams,
     eventDefaults?: ChannelIngressEventPresetInput,
   ) => {
+    readChannelIngressHostOwner(owner);
+    readChannelIngressHostOwner(owner, base.channelId);
     const isGroup = input.conversation.kind !== "direct";
     const useAccessGroups = useAccessGroupsFromConfig({
       useAccessGroups: base.useAccessGroups,
@@ -224,16 +232,20 @@ export function createChannelIngressPolicyResolver(
 
 /** One trusted registry generation supplies the private owner to all ingress operations. */
 export function createHostChannelIngressRuntime(owner: ChannelIngressHostOwner) {
+  readChannelIngressHostOwner(owner);
   return Object.freeze({
     createResolver: (base: CreateChannelIngressResolverParams) =>
       createChannelIngressResolverForOwner(base, owner),
     resolve: (params: ResolveChannelMessageIngressParams) =>
       resolveChannelMessageIngressForOwner(params, owner),
-    resolveStable: (params: ResolveStableChannelMessageIngressParams) =>
-      createChannelIngressResolverForOwner(
+    resolveStable: (params: ResolveStableChannelMessageIngressParams) => {
+      readChannelIngressHostOwner(owner);
+      readChannelIngressHostOwner(owner, params.channelId);
+      return createChannelIngressResolverForOwner(
         { ...params, identity: defineStableChannelIngressIdentity(params.identity) },
         owner,
-      ).message(params),
+      ).message(params);
+    },
   });
 }
 
@@ -379,20 +391,46 @@ async function resolveChannelMessageIngressForOwner(
   params: ResolveChannelMessageIngressParams,
   owner?: ChannelIngressHostOwner,
 ): Promise<ResolvedChannelMessageIngress> {
+  readChannelIngressHostOwner(owner);
   const channelId = normalizeChannelId(params.channelId);
+  const ownerState = readChannelIngressHostOwner(owner, channelId);
   const promptedAt = Date.now();
-  const participantOwner = owner?.channelId === channelId && owner.isLive() ? owner : undefined;
+  const participantOwner = ownerState === "live" ? owner : undefined;
   const participantGatewayContext = participantOwner?.resolveGatewayContext?.();
-  const ownerIsCurrent = () =>
-    participantOwner?.isLive() === true &&
-    participantOwner.resolveGatewayContext?.() === participantGatewayContext;
-  const participant = params.identity.resolveParticipant?.(params.subject);
+  const ownerIsCurrent = () => {
+    if (!participantOwner || readChannelIngressHostOwner(participantOwner) !== "live") {
+      return false;
+    }
+    const context = participantOwner.resolveGatewayContext?.();
+    return (
+      readChannelIngressHostOwner(participantOwner) === "live" &&
+      context === participantGatewayContext
+    );
+  };
+  let participant: ReturnType<
+    NonNullable<ResolveChannelMessageIngressParams["identity"]["resolveParticipant"]>
+  >;
+  if (owner === undefined || ownerIsCurrent()) {
+    const identity = params.identity;
+    const resolveParticipant = identity.resolveParticipant;
+    if (resolveParticipant != null) {
+      const participantSubject = params.subject;
+      if (owner === undefined || ownerIsCurrent()) {
+        participant = Reflect.apply(resolveParticipant, identity, [participantSubject]);
+        if (owner !== undefined && !ownerIsCurrent()) {
+          participant = undefined;
+        }
+      }
+    }
+  }
+  readChannelIngressHostOwner(owner);
   const senderId = params.subject.stableId == null ? undefined : String(params.subject.stableId);
   const participantBinding = params.contextBinding && { ...params.contextBinding };
   const adapter = createIdentityAdapter(params.identity);
   const subject = createIdentitySubject(params.identity, params.subject);
   const routeFacts = [...routeFactsFromDescriptors(params.route), ...(params.routeFacts ?? [])];
   const storeAllowFrom = await readChannelIngressStoreAllowFrom({ ...params, channelId });
+  readChannelIngressHostOwner(owner);
   const rawAllowFrom = normalizeStringEntries(params.allowFrom ?? []);
   const rawStoreAllowFrom = normalizeStringEntries(storeAllowFrom);
   const rawGroupAllowFrom = normalizeStringEntries(params.groupAllowFrom ?? []);
@@ -404,6 +442,7 @@ async function resolveChannelMessageIngressForOwner(
       normalizeEffective(rawStoreAllowFrom, "dm"),
       normalizeEffective(rawGroupAllowFrom, "group"),
     ]);
+  readChannelIngressHostOwner(owner);
   const referencedAccessGroups = allReferencedAccessGroupNames([
     rawAllowFrom,
     rawGroupAllowFrom,
@@ -416,6 +455,7 @@ async function resolveChannelMessageIngressForOwner(
     channelId,
     names: referencedAccessGroups,
   });
+  readChannelIngressHostOwner(owner);
   const accessGroupMembership = [
     ...runtimeAccessGroupMembership,
     ...(params.accessGroupMembership ?? []),
@@ -475,6 +515,7 @@ async function resolveChannelMessageIngressForOwner(
       }),
     },
   });
+  readChannelIngressHostOwner(owner);
   const ingress = decideChannelIngress(state, policy);
   const matchedAccessGroupEntry = accessGroupMatchedEntry(params);
   const effectiveAllowFrom = appendAccessGroupMatchedEntry({
@@ -523,37 +564,46 @@ async function resolveChannelMessageIngressForOwner(
             senderId: subject.identifiers[0].value,
           }
         : undefined;
+    const commandConfig =
+      verifiedPrincipal && participantGatewayContext && ownerIsCurrent()
+        ? participantGatewayContext.getRuntimeConfig()
+        : undefined;
     const commandOwnerAuthority =
-      verifiedPrincipal && participantGatewayContext
-        ? await prepareCommandOwnerAuthority(participantGatewayContext.getRuntimeConfig(), {
+      verifiedPrincipal && commandConfig && ownerIsCurrent()
+        ? await prepareCommandOwnerAuthority(commandConfig, {
             channel: verifiedPrincipal.channelId,
             accountId: verifiedPrincipal.accountId,
             senderId: verifiedPrincipal.senderId,
           })
         : undefined;
-    participantInput = {
-      identity: participant
-        ? {
-            type: "remote",
-            pluginId: channelId,
-            domain: participant.domain,
-            idKind: participant.idKind,
-            id: participant.id,
-          }
-        : {
-            type: "observation",
-            pluginId: channelId,
-            accountId: params.accountId ?? null,
-            senderKind: "unknown",
-            id: senderId!,
-          },
-      binding: participantBinding,
-      verifiedPrincipal,
-      commandOwnerAuthority: ownerIsCurrent() ? commandOwnerAuthority : undefined,
-      promptedAt,
-      owner: participantOwner,
-      gatewayContext: participantGatewayContext,
-    };
+    if (ownerIsCurrent()) {
+      participantInput = {
+        identity: participant
+          ? {
+              type: "remote",
+              pluginId: channelId,
+              domain: participant.domain,
+              idKind: participant.idKind,
+              id: participant.id,
+            }
+          : {
+              type: "observation",
+              pluginId: channelId,
+              accountId: params.accountId ?? null,
+              senderKind: "unknown",
+              id: senderId!,
+            },
+        binding: participantBinding,
+        verifiedPrincipal,
+        commandOwnerAuthority: ownerIsCurrent() ? commandOwnerAuthority : undefined,
+        promptedAt,
+        owner: participantOwner,
+        gatewayContext: participantGatewayContext,
+      };
+      if (!ownerIsCurrent()) {
+        participantInput = undefined;
+      }
+    }
   }
   return recordChannelIngressResolution({
     result,

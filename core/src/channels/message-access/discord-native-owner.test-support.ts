@@ -1,4 +1,6 @@
 import { beforeAll, vi } from "vitest";
+import { loadExternalDiscordPublicSurface } from "../../../test/helpers/external-discord-public-surface.js";
+import { createNativeChannelIngressOwner } from "../../../test/helpers/native-channel-ingress-owner.js";
 import type { DispatchReplyFromConfig } from "../../auto-reply/reply/dispatch-from-config.types.js";
 import { setRuntimeConfigSnapshot } from "../../config/runtime-snapshot.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
@@ -13,7 +15,6 @@ import {
 import type { PluginRuntime } from "../../plugins/runtime/types.js";
 import { linkUserChannelIdentity } from "../../state/user-channel-identities.js";
 import { ensureProfileForEmail, setUserProfileRole } from "../../state/user-profiles.js";
-import { loadBundledPluginFacade } from "../../test-utils/bundled-plugin-public-surface.js";
 import { createTestRegistry } from "../../test-utils/channel-plugins.js";
 import {
   withOpenClawTestState,
@@ -28,7 +29,7 @@ beforeAll(async () => {
   // Finish cold plugin imports before any case changes process-global state.
   await Promise.all(
     ["api.js", "runtime-api.js"].map((artifactBasename) =>
-      loadBundledPluginFacade({ pluginId: "discord", artifactBasename }),
+      loadExternalDiscordPublicSurface({ artifactBasename }),
     ),
   );
 });
@@ -97,12 +98,11 @@ async function createFixture(state: OpenClawTestState) {
   });
   // SAFETY: This synthetic Gateway provides the only context operation consumed by ingress authority.
   const gateway = { getRuntimeConfig: () => cfg } as GatewayRequestContext;
-  let live = true;
-  const host = {
+  const nativeFixture = createNativeChannelIngressOwner({
     channelId: "discord",
-    isLive: () => live,
     resolveGatewayContext: () => gateway,
-  };
+  });
+  const host = nativeFixture.owner;
   const dispatch = vi.fn<DispatchReplyFromConfig>(async ({ dispatcher }) => ({
     queuedFinal: dispatcher.sendFinalReply({ text: "accepted" }),
     counts: dispatcher.getQueuedCounts(),
@@ -122,7 +122,7 @@ async function createFixture(state: OpenClawTestState) {
     dispatchReplyFromConfig: dispatch,
   });
   const { createDiscordNativeCommand, createNoopThreadBindingManager, setDiscordRuntime } =
-    await loadBundledPluginFacade<{
+    await loadExternalDiscordPublicSurface<{
       createDiscordNativeCommand: (options: ReturnType<typeof createCommandOptions>) => {
         run: (interaction: ReturnType<typeof createInteraction>) => Promise<void>;
         options?: Array<{
@@ -134,7 +134,7 @@ async function createFixture(state: OpenClawTestState) {
       };
       createNoopThreadBindingManager: (accountId: string) => object;
       setDiscordRuntime: (runtime: PluginRuntime) => void;
-    }>({ pluginId: "discord", artifactBasename: "runtime-api.js" });
+    }>({ artifactBasename: "runtime-api.js" });
   setDiscordRuntime(
     createPluginRuntimeMock({
       channel: {
@@ -186,7 +186,7 @@ async function createFixture(state: OpenClawTestState) {
       return interaction;
     },
     close: () => {
-      live = false;
+      nativeFixture.retire();
     },
   };
 }
@@ -195,8 +195,9 @@ export async function withDiscordNativeAdminFixture(
   test: (fixture: Awaited<ReturnType<typeof createFixture>>) => Promise<void>,
 ) {
   await withOpenClawTestState({ scenario: "minimal" }, async (state) => {
-    const { discordPlugin } = await loadBundledPluginFacade<{ discordPlugin: ChannelPlugin }>({
-      pluginId: "discord",
+    const { discordPlugin } = await loadExternalDiscordPublicSurface<{
+      discordPlugin: ChannelPlugin;
+    }>({
       artifactBasename: "api.js",
     });
     const previousRegistry = captureActivePluginRegistrySnapshot();

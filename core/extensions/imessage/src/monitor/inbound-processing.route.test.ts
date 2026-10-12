@@ -12,6 +12,7 @@ import { resolveCommandAuthorization } from "openclaw/plugin-sdk/command-auth-na
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
 import { withOpenClawTestState } from "openclaw/plugin-sdk/test-state";
 import { describe, expect, it, vi } from "vitest";
+import { createNativeChannelIngressOwner } from "../../../../test/helpers/native-channel-ingress-owner.js";
 import * as imessageRuntime from "../runtime.js";
 import {
   buildIMessageInboundContext,
@@ -39,12 +40,11 @@ describe("buildIMessageInboundContext direct reply route", () => {
           getRuntimeConfig: () => cfg,
           channelAdmissionAudit: createChannelAdmissionAudit({ enabled: true }),
         } as GatewayContext;
-        let live = true;
-        const owner = {
+        const nativeFixture = createNativeChannelIngressOwner({
           channelId: "imessage",
-          isLive: () => live,
           resolveGatewayContext: () => gateway,
-        };
+        });
+        const owner = nativeFixture.owner;
         const runtime = createPluginRuntimeMock();
         const hostIngress = createHostChannelIngressRuntime(owner);
         const bindings: Array<ChannelIngressContextBinding | undefined> = [];
@@ -135,7 +135,7 @@ describe("buildIMessageInboundContext direct reply route", () => {
           expect(authorization.senderIsOwner).toBe(false);
           expect(authorization.assertOwnerCurrent).toBeUndefined();
         } finally {
-          live = false;
+          nativeFixture.retire();
           runtimeSpy.mockRestore();
         }
       });

@@ -373,3 +373,29 @@ src/plugins/registry-lifecycle.test.ts
 src/plugins/plugin-registry-snapshot.state-migration.test.ts
 src/plugins/loader.config-capture.test.ts
 src/plugins/loader.gateway-bindings.test.ts
+
+# M1 H3 : origine native du Host, contributions courantes et voisins affectes.
+# Les 26 suites entieres comprennent quatre cibles deja presentes ; les 22 autres
+# sont exclues de test:fast et selectionnees ici sans filtre ni doublon.
+src/plugins/registry-runtime.native-host-owner.test.ts
+src/channels/message-access/admission-evidence.test.ts
+src/channels/message-access/operator-authority.test.ts
+src/channels/message-access/telegram-native-owner.test.ts
+src/channels/message-access/telegram-native-acp-owner.test.ts
+src/channels/message-access/discord-native-owner.test.ts
+src/channels/message-access/discord-native-acp-owner.test.ts
+src/auto-reply/reply/commands-allowlist.owner.test.ts
+src/auto-reply/reply/commands-config.owner.test.ts
+src/auto-reply/reply/commands-acp.owner.test.ts
+src/auto-reply/reply/commands-plugin.owner.test.ts
+src/auto-reply/reply/dispatch-acp.test.ts
+src/auto-reply/reply/channel-run-admission.test.ts
+src/auto-reply/reply/queue.media-carrier.test.ts
+src/auto-reply/reply/queue.personal-bootstrap.test.ts
+src/auto-reply/reply/queue.collect.test.ts
+src/auto-reply/reply/commands-acp.test.ts
+src/auto-reply/reply/agent-runner-execution-lifecycle.test.ts
+src/gateway/server-runtime-subscriptions.test.ts
+src/gateway/server-runtime-subscriptions.access.test.ts
+extensions/imessage/src/monitor/inbound-processing.route.test.ts
+extensions/telegram/src/bot-handlers.inbound-authorization.test.ts

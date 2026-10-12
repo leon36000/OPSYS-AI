@@ -114,11 +114,20 @@ jobs:
         run: corepack enable && pnpm --version
       - name: Installation
         run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - name: Fixture Discord externe épinglé (données de test uniquement)
+        timeout-minutes: 3
+        shell: bash
+        run: |
+          python -I -B scripts/materialize-external-discord-test-fixture.py \
+            --repo-root "$GITHUB_WORKSPACE" \
+            --output "$RUNNER_TEMP/opsys-discord-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
       - name: Tests ciblés OPSYS (projets gateway, agents, gateway-protocol)
         env:
           NODE_OPTIONS: --max-old-space-size=8192
           OPENCLAW_VITEST_MAX_WORKERS: "2"
           OPSYS_TEST_PYTHON: ${{ github.workspace }}/.venv/bin/python
+          OPENCLAW_TEST_DISCORD_PLUGIN_ROOT: ${{ runner.temp }}/opsys-discord-${{ github.run_id }}-${{ github.run_attempt }}/discord-2026.9.6
+          OPENCLAW_TEST_DISCORD_PLUGIN_INVENTORY: ${{ runner.temp }}/opsys-discord-${{ github.run_id }}-${{ github.run_attempt }}/inventory.json
         shell: bash
         run: |
           set -o pipefail

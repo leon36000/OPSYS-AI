@@ -4,7 +4,10 @@ import {
   bindHostChannelContextAdmissionEvidence,
   prepareHostChannelContextAdmissionEvidence,
 } from "../message-access/admission-evidence.js";
-import type { ChannelIngressHostOwner } from "../message-access/ingress-host-owner.js";
+import {
+  readChannelIngressHostOwner,
+  type ChannelIngressHostOwner,
+} from "../message-access/ingress-host-owner.js";
 import { bindChannelParticipantInput } from "../message-access/participant-input.js";
 
 type HostContextParams = {
@@ -27,18 +30,24 @@ export function createHostChannelInboundEventContextBuilder<
   buildContext: (params: Params) => MaybePromise<Built>,
   owner?: ChannelIngressHostOwner,
 ): (params: Params) => MaybePromise<Built> {
+  readChannelIngressHostOwner(owner);
   return (params) => {
-    const preparation = prepareHostChannelContextAdmissionEvidence({
-      owner,
-      channelId: params.channel,
-      accountId: params.accountId,
-      ingress: params.channelIngress,
-      rawPrincipalRef: params.sender.id,
-      contextParams: params,
-    });
+    const ownerState = readChannelIngressHostOwner(owner);
+    const preparation =
+      ownerState === "closed"
+        ? undefined
+        : prepareHostChannelContextAdmissionEvidence({
+            owner,
+            channelId: params.channel,
+            accountId: params.accountId,
+            ingress: params.channelIngress,
+            rawPrincipalRef: params.sender.id,
+            contextParams: params,
+          });
     const result = buildContext(params);
     const bindEvidence = (built: Built) => {
-      if (owner?.channelId === params.channel && owner.isLive()) {
+      if (readChannelIngressHostOwner(owner) === "live" && owner) {
+        readChannelIngressHostOwner(owner, params.channel);
         bindChannelParticipantInput({
           context: built,
           channelId: params.channel,
@@ -57,6 +66,9 @@ export function createHostChannelInboundEventContextBuilder<
         context: built,
         preparation,
       });
+      if (readChannelIngressHostOwner(owner) === "closed") {
+        bindHostChannelContextAdmissionEvidence({ context: built, preparation: undefined });
+      }
       return built;
     };
     return isPromiseLike(result) ? result.then(bindEvidence) : bindEvidence(result);

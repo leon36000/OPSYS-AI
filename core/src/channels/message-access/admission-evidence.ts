@@ -1,9 +1,6 @@
 import type { DecisionReceiptV1 } from "../../../packages/gateway-protocol/src/index.js";
 import type { GatewayContextResolver } from "../../gateway/server-methods/types.js";
-import {
-  createChannelAdmissionDecisionReceipt,
-  type ChannelAdmissionDecisionReceiptInput,
-} from "./admission-decision-receipt.js";
+import { createChannelAdmissionDecisionReceipt } from "./admission-decision-receipt.js";
 import {
   finalizedContextScopeKey,
   INVALID_SCOPE_VALUE,
@@ -13,63 +10,30 @@ import {
   snapshotContextBinding,
   normalizeScopeId,
   contextHandoffMatches,
-  type ChannelIngressResolutionScope,
 } from "./admission-evidence-scope-key.js";
-import type { ChannelIngressHostOwner, ChannelParticipantInput } from "./ingress-host-owner.js";
 import type {
-  ChannelIngressContextBinding,
-  ResolvedChannelMessageIngress,
-} from "./runtime-types.js";
+  AdmissionAuditOptions,
+  AdmissionContributionRead,
+  AdmissionDecisionInput,
+  ChannelAdmissionContribution,
+  ChannelAdmissionEvidence,
+  ChannelAdmissionEvidencePayload,
+  ChannelIngressResolutionBinding,
+  ConsumedChannelAdmissionEvidence,
+  ContextAdmissionValue,
+  IngressResolutionInput,
+  ParticipantContributionInput,
+  PrepareHostAdmissionInput,
+  RequiredSmsTask,
+} from "./admission-evidence.types.js";
+import {
+  readChannelIngressHostOwner,
+  type ChannelIngressHostOwner,
+  type ChannelParticipantInput,
+} from "./ingress-host-owner.js";
+import type { ResolvedChannelMessageIngress } from "./runtime-types.js";
 
-export type ChannelAdmissionEvidence = Readonly<{
-  kind: "channel-admission-evidence";
-}>;
-
-type ChannelAdmissionContribution = Readonly<{
-  participant:
-    | { state: "present"; rawPrincipalRef: string }
-    | { state: "unknown" }
-    | { state: "unsupported" };
-  decision?: Readonly<{
-    participantAware: boolean;
-    outcomeAffecting: boolean;
-    identifierAuthentication: "affected" | "evaluated" | "not-evaluated";
-  }>;
-}>;
-
-type ChannelAdmissionEvidencePayload =
-  | Readonly<{
-      kind: "leaf";
-      createdAt: number;
-      contribution: ChannelAdmissionContribution;
-    }>
-  | Readonly<{
-      kind: "aggregate";
-      createdAt: number;
-      sources: readonly (ChannelAdmissionEvidence | undefined)[];
-    }>;
-
-type ConsumedChannelAdmissionEvidence = Readonly<{
-  ingressState: "present" | "unknown" | "unsupported";
-  invoker: { state: "present"; kind: "person"; rawPrincipalRef: string } | { state: "unknown" };
-  assuranceRef?: string;
-  decisionCoverage?: "enforced" | "attribution-only" | "unknown" | "unsupported";
-  identifierAuthentication?: "affected" | "evaluated" | "not-evaluated" | "unknown";
-}>;
-
-type ChannelIngressResolutionBinding = Readonly<{
-  channelId: string;
-  accountId?: string;
-  rawPrincipalRef: string | number | null | undefined;
-  participantOutcomeAffecting: boolean;
-  identifierAuthentication: "affected" | "evaluated" | "not-evaluated";
-  owner?: ChannelIngressHostOwner;
-  gatewayContext?: ReturnType<GatewayContextResolver>;
-  scope?: ChannelIngressResolutionScope;
-  contextBinding?: Readonly<ChannelIngressContextBinding>;
-  publicScopeKey?: string;
-  handoff: { consumed: boolean; accepted?: boolean };
-}>;
+export type { ChannelAdmissionEvidence } from "./admission-evidence.types.js";
 
 const CHANNEL_ADMISSION_EVIDENCE_MAX_CONTRIBUTIONS = 16;
 const CHANNEL_ADMISSION_EVIDENCE_MAX_AGE_MS = 30 * 24 * 60 * 60_000;
@@ -80,10 +44,7 @@ export class ChannelAdmissionAudit {
   #closed = false;
   #revision = {};
   #sink: ((receipt: DecisionReceiptV1) => boolean) | undefined;
-  constructor(params: {
-    enabled: boolean;
-    decisionSink?: (receipt: DecisionReceiptV1) => boolean;
-  }) {
+  constructor(params: AdmissionAuditOptions) {
     this.#enabled = params.enabled;
     this.#sink = params.decisionSink;
   }
@@ -112,10 +73,7 @@ export class ChannelAdmissionAudit {
   }
 }
 
-export function createChannelAdmissionAudit(params: {
-  enabled: boolean;
-  decisionSink?: (receipt: DecisionReceiptV1) => boolean;
-}): ChannelAdmissionAudit {
+export function createChannelAdmissionAudit(params: AdmissionAuditOptions): ChannelAdmissionAudit {
   return new ChannelAdmissionAudit(params);
 }
 
@@ -148,6 +106,20 @@ class AdmissionEvidence implements ChannelAdmissionEvidence {
   }
 }
 
+function hostOwnerMatchesGateway(
+  owner: ChannelIngressHostOwner | undefined,
+  gatewayContext: ReturnType<GatewayContextResolver>,
+): boolean {
+  if (owner === undefined) {
+    return true;
+  }
+  if (readChannelIngressHostOwner(owner) !== "live") {
+    return false;
+  }
+  const context = owner.resolveGatewayContext?.();
+  return readChannelIngressHostOwner(owner) === "live" && context === gatewayContext;
+}
+
 class PreparedChannelAdmissionEvidence {
   #consumed = false;
   #evidence: ChannelAdmissionEvidence | undefined;
@@ -158,38 +130,32 @@ class PreparedChannelAdmissionEvidence {
     evidence: ChannelAdmissionEvidence | undefined,
     resolver?: GatewayContextResolver,
     owner?: ChannelIngressHostOwner,
+    gatewayContext?: ReturnType<GatewayContextResolver>,
   ) {
     this.#evidence = evidence;
     this.#resolver = resolver;
     this.#owner = owner;
-    this.#gatewayContext = owner?.resolveGatewayContext?.();
+    this.#gatewayContext = gatewayContext;
     Object.setPrototypeOf(this, null);
     Object.freeze(this);
   }
-  static take(value: PreparedChannelAdmissionEvidence) {
+  static take(value: PreparedChannelAdmissionEvidence | undefined) {
     if (!value || typeof value !== "object" || !(#consumed in value) || value.#consumed) {
       return undefined;
     }
     value.#consumed = true;
-    const current =
-      !value.#owner ||
-      (value.#owner.isLive() && value.#owner.resolveGatewayContext?.() === value.#gatewayContext);
+    const current = hostOwnerMatchesGateway(value.#owner, value.#gatewayContext);
     return {
       evidence: current
         ? value.#evidence
         : unknownChannelAdmissionEvidence(AdmissionEvidence.read(value.#evidence)?.audit),
       resolver: current ? value.#resolver : undefined,
+      owner: value.#owner,
+      gatewayContext: value.#gatewayContext,
     };
   }
 }
 
-type ContextAdmissionValue = {
-  scope: string | undefined;
-  evidence: ChannelAdmissionEvidence | undefined;
-  resolver?: GatewayContextResolver;
-  resolverConflict?: boolean;
-};
-type RequiredSmsTask = Readonly<{ owner: object; scope: string | undefined; poisoned: boolean }>;
 // Denial classification is independent of configurable audit/resolver carriers on the public object.
 const requiredSmsTaskContexts = new WeakMap<object, RequiredSmsTask>();
 
@@ -278,11 +244,9 @@ function unsupportedChannelAdmissionEvidence(
     : new AdmissionEvidence(Object.freeze({ ...payload, createdAt: Date.now() }), undefined);
 }
 
-function participantContribution(params: {
-  channelId: string;
-  accountId?: string;
-  rawPrincipalRef: string | number | null | undefined;
-}): ChannelAdmissionContribution {
+function participantContribution(
+  params: ParticipantContributionInput,
+): ChannelAdmissionContribution {
   const rawPrincipalRef = scopedParticipantRef(params);
   return Object.freeze(
     rawPrincipalRef
@@ -291,22 +255,21 @@ function participantContribution(params: {
   );
 }
 
-export function recordChannelIngressResolution(params: {
-  result: ResolvedChannelMessageIngress;
-  owner?: ChannelIngressHostOwner;
-  participantInput?: ChannelParticipantInput;
-  channelId: string;
-  accountId?: string;
-  rawPrincipalRef: string | number | null | undefined;
-  participantOutcomeAffecting: boolean;
-  identifierAuthentication: "affected" | "evaluated" | "not-evaluated";
-  scope: ChannelIngressResolutionScope;
-}): ResolvedChannelMessageIngress {
+export function recordChannelIngressResolution(
+  params: IngressResolutionInput,
+): ResolvedChannelMessageIngress {
   const owner = params.owner;
-  if (!owner || owner.channelId !== params.channelId || !owner.isLive()) {
+  if (readChannelIngressHostOwner(owner) !== "live" || !owner) {
+    return params.result;
+  }
+  if (readChannelIngressHostOwner(owner, params.channelId) !== "live") {
     return params.result;
   }
   const activeOwner = owner;
+  const gatewayContext = activeOwner.resolveGatewayContext?.();
+  if (!hostOwnerMatchesGateway(activeOwner, gatewayContext)) {
+    return params.result;
+  }
   const binding = Object.freeze({
     channelId: params.channelId,
     accountId: params.accountId,
@@ -314,13 +277,20 @@ export function recordChannelIngressResolution(params: {
     participantOutcomeAffecting: params.participantOutcomeAffecting,
     identifierAuthentication: params.identifierAuthentication,
     owner: activeOwner,
-    gatewayContext: activeOwner.resolveGatewayContext?.(),
+    gatewayContext,
     scope: Object.freeze({ conversation: Object.freeze({ ...params.scope.conversation }) }),
     contextBinding: snapshotContextBinding(params.scope.contextBinding),
     publicScopeKey: publicResultScopeKey(params.result),
     handoff: { consumed: false },
   });
-  return Object.assign(new HostIngressResolution(binding, params.participantInput), params.result);
+  if (!hostOwnerMatchesGateway(activeOwner, gatewayContext)) {
+    return params.result;
+  }
+  const result = Object.assign(
+    new HostIngressResolution(binding, params.participantInput),
+    params.result,
+  );
+  return hostOwnerMatchesGateway(activeOwner, gatewayContext) ? result : params.result;
 }
 
 function unknownChannelAdmissionEvidence(
@@ -333,31 +303,37 @@ function unknownChannelAdmissionEvidence(
 }
 
 /** Consume and validate the exact resolver-to-context handoff before context construction. */
-export function prepareHostChannelContextAdmissionEvidence(params: {
-  owner?: ChannelIngressHostOwner;
-  channelId: string;
-  accountId?: string;
-  ingress?:
-    | ResolvedChannelMessageIngress
-    | readonly ResolvedChannelMessageIngress[]
-    | "unsupported";
-  rawPrincipalRef: string | number | null | undefined;
-  contextParams: object;
-}): PreparedChannelAdmissionEvidence {
-  const audit = params.owner?.resolveGatewayContext?.()?.channelAdmissionAudit;
-  if (params.ingress === "unsupported") {
+export function prepareHostChannelContextAdmissionEvidence(
+  params: PrepareHostAdmissionInput,
+): PreparedChannelAdmissionEvidence | undefined {
+  const owner = params.owner;
+  if (readChannelIngressHostOwner(owner) === "closed") {
+    return undefined;
+  }
+  const gatewayContext = owner?.resolveGatewayContext?.();
+  const audit = gatewayContext?.channelAdmissionAudit;
+  if (!hostOwnerMatchesGateway(owner, gatewayContext)) {
+    return undefined;
+  }
+  readChannelIngressHostOwner(owner, params.channelId);
+  const ingress = params.ingress;
+  if (!hostOwnerMatchesGateway(owner, gatewayContext)) {
+    return undefined;
+  }
+  if (ingress === "unsupported") {
     return new PreparedChannelAdmissionEvidence(
       unsupportedChannelAdmissionEvidence(audit),
       undefined,
-      params.owner,
+      owner,
+      gatewayContext,
     );
   }
   const results =
-    params.ingress === undefined
+    ingress === undefined
       ? []
-      : Array.isArray(params.ingress)
-        ? params.ingress
-        : [params.ingress as ResolvedChannelMessageIngress];
+      : Array.isArray(ingress)
+        ? ingress
+        : [ingress as ResolvedChannelMessageIngress];
   const seen = new Set<object>();
   const validBindings: ChannelIngressResolutionBinding[] = [];
   let valid = results.length > 0 && results.length <= CHANNEL_ADMISSION_EVIDENCE_MAX_CONTRIBUTIONS;
@@ -370,10 +346,10 @@ export function prepareHostChannelContextAdmissionEvidence(params: {
     }
     seen.add(result);
     const ownerMatches =
-      params.owner !== undefined &&
-      binding?.owner === params.owner &&
-      binding.gatewayContext === params.owner.resolveGatewayContext?.() &&
-      params.owner.isLive();
+      owner !== undefined &&
+      binding?.owner === owner &&
+      binding.gatewayContext === gatewayContext &&
+      hostOwnerMatchesGateway(owner, gatewayContext);
     const resultIngress = ownDataValue(result, "ingress");
     const resultMatches =
       binding?.publicScopeKey !== undefined &&
@@ -390,7 +366,14 @@ export function prepareHostChannelContextAdmissionEvidence(params: {
         rawPrincipalRef:
           index === results.length - 1 ? params.rawPrincipalRef : binding.rawPrincipalRef,
       });
-    if (!firstUse || !ownerMatches || !resultMatches || !contextMatches || !binding) {
+    if (
+      !firstUse ||
+      !ownerMatches ||
+      !resultMatches ||
+      !contextMatches ||
+      !binding ||
+      !hostOwnerMatchesGateway(owner, gatewayContext)
+    ) {
       valid = false;
     } else {
       validBindings.push(binding);
@@ -403,6 +386,9 @@ export function prepareHostChannelContextAdmissionEvidence(params: {
     (finalMessageId !== undefined && contextMessageId !== finalMessageId)
   ) {
     valid = false;
+  }
+  if (!hostOwnerMatchesGateway(owner, gatewayContext)) {
+    return undefined;
   }
   if (valid) {
     for (const binding of validBindings) {
@@ -425,25 +411,34 @@ export function prepareHostChannelContextAdmissionEvidence(params: {
         });
       })
     : [];
+  const evidence = valid
+    ? combineChannelAdmissionEvidence(sources)
+    : unknownChannelAdmissionEvidence(audit);
+  if (!hostOwnerMatchesGateway(owner, gatewayContext)) {
+    return undefined;
+  }
   return new PreparedChannelAdmissionEvidence(
-    valid ? combineChannelAdmissionEvidence(sources) : unknownChannelAdmissionEvidence(audit),
-    valid ? params.owner?.resolveGatewayContext : undefined,
-    params.owner,
+    evidence,
+    valid ? owner?.resolveGatewayContext : undefined,
+    owner,
+    gatewayContext,
   );
 }
 
 /** Attach one prepared private carrier to the exact finalized context scope. */
 export function bindHostChannelContextAdmissionEvidence(params: {
   context: object;
-  preparation: PreparedChannelAdmissionEvidence;
+  preparation: PreparedChannelAdmissionEvidence | undefined;
 }): void {
   const prepared = PreparedChannelAdmissionEvidence.take(params.preparation);
   const scope = finalizedContextScopeKey(params.context);
   const audit = AdmissionEvidence.read(prepared?.evidence)?.audit;
+  const current = hostOwnerMatchesGateway(prepared?.owner, prepared?.gatewayContext);
   writeContextAdmission(params.context, {
     scope,
-    evidence: scope !== undefined ? prepared?.evidence : unknownChannelAdmissionEvidence(audit),
-    resolver: scope !== undefined ? prepared?.resolver : undefined,
+    evidence:
+      current && scope !== undefined ? prepared?.evidence : unknownChannelAdmissionEvidence(audit),
+    resolver: current && scope !== undefined ? prepared?.resolver : undefined,
   });
 }
 export function readChannelContextAdmissionEvidence(
@@ -555,11 +550,7 @@ export function combineChannelAdmissionEvidence(
   });
 }
 
-function inspectContributions(params: {
-  evidence: ChannelAdmissionEvidence | undefined;
-  now: number;
-  seen: Set<object>;
-}): ChannelAdmissionContribution[] {
+function inspectContributions(params: AdmissionContributionRead): ChannelAdmissionContribution[] {
   const payload = activePayload(params.evidence, params.now);
   if (!payload || !params.evidence || params.seen.has(params.evidence)) {
     return [{ participant: { state: "unknown" } }];
@@ -593,11 +584,7 @@ export function compareChannelAdmissionParticipants(
     : "mixed-or-unknown";
 }
 
-function consumeContributions(params: {
-  evidence: ChannelAdmissionEvidence | undefined;
-  now: number;
-  seen: Set<object>;
-}): ChannelAdmissionContribution[] {
+function consumeContributions(params: AdmissionContributionRead): ChannelAdmissionContribution[] {
   const payload = activePayload(params.evidence, params.now);
   if (!payload || !params.evidence || params.seen.has(params.evidence)) {
     return [{ participant: { state: "unknown" } }];
@@ -687,14 +674,7 @@ export function consumeChannelAdmissionEvidence(
 /** Queue the channel decision after its exact identity tuple on the shared audit FIFO. */
 export function recordChannelAdmissionDecision(
   evidence: ChannelAdmissionEvidence | undefined,
-  params: {
-    contextId: ChannelAdmissionDecisionReceiptInput["contextId"];
-    executionId: ChannelAdmissionDecisionReceiptInput["executionId"];
-    runId: ChannelAdmissionDecisionReceiptInput["runId"];
-    occurredAt: ChannelAdmissionDecisionReceiptInput["occurredAt"];
-    coverageState: ChannelAdmissionDecisionReceiptInput["coverageState"];
-    identifierAuthentication: ChannelAdmissionDecisionReceiptInput["identifierAuthentication"];
-  },
+  params: AdmissionDecisionInput,
 ): boolean {
   const stored = AdmissionEvidence.read(evidence);
   return stored?.audit

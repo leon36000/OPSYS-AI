@@ -1,5 +1,6 @@
 // Fictitious Task fixture; configuration alone is not SMS/provider admission.
 import { afterEach, expect, it, vi } from "vitest";
+import { createNativeChannelIngressOwner } from "../../test/helpers/native-channel-ingress-owner.js";
 import {
   buildChannelInboundEventContext,
   buildHostChannelInboundEventContext,
@@ -184,7 +185,10 @@ it("does not launder existing Host evidence or resolver into a mutated scope", a
     channelAdmissionAudit: audit,
     getRuntimeConfig: () => ({}),
   } as GatewayRequestContext;
-  const owner = { channelId: "sms", isLive: () => true, resolveGatewayContext: () => gateway };
+  const owner = createNativeChannelIngressOwner({
+    channelId: "sms",
+    resolveGatewayContext: () => gateway,
+  }).owner;
   const params = builderInput();
   const channelIngress = await createHostChannelIngressRuntime(owner).resolveStable({
     channelId: "sms",

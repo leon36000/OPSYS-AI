@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { createNativeChannelIngressOwner } from "../../../test/helpers/native-channel-ingress-owner.js";
 import type {
   GatewayContextResolver,
   GatewayRequestContext,
@@ -27,16 +28,19 @@ async function buildAdmittedContext(
   allowFrom = [participantId],
   resolveGatewayContext?: GatewayContextResolver,
   authentication?: "verified" | "asserted" | "unverified" | "mutable",
+  nativeFixture?: ReturnType<typeof createNativeChannelIngressOwner>,
 ) {
   const gateway = {
     channelAdmissionAudit: audit,
     getRuntimeConfig: () => ({}),
   } as GatewayRequestContext;
-  const owner = {
-    channelId: "test",
-    isLive: () => true,
-    resolveGatewayContext: resolveGatewayContext ?? (() => gateway),
-  };
+  const owner = (
+    nativeFixture ??
+    createNativeChannelIngressOwner({
+      channelId: "test",
+      resolveGatewayContext: resolveGatewayContext ?? (() => gateway),
+    })
+  ).owner;
   const channelIngress = await createHostChannelIngressRuntime(owner).resolveStable({
     channelId: "test",
     accountId: "acct:primary",
@@ -83,9 +87,18 @@ describe("channel admission evidence", () => {
   it("keeps Gateway routing instance-bound when audit collection is disabled", async () => {
     const audit = createChannelAdmissionAudit({ enabled: false });
     const gatewayContext = { owner: "gateway-a" } as never;
-    let live = true;
-    const source = await buildAdmittedContext(audit, "person:42", ["person:42"], () =>
-      live ? gatewayContext : undefined,
+    let gatewayAvailable = true;
+    const nativeFixture = createNativeChannelIngressOwner({
+      channelId: "test",
+      resolveGatewayContext: () => (gatewayAvailable ? gatewayContext : undefined),
+    });
+    const source = await buildAdmittedContext(
+      audit,
+      "person:42",
+      ["person:42"],
+      undefined,
+      undefined,
+      nativeFixture,
     );
     const copied = { ...source };
 
@@ -93,7 +106,8 @@ describe("channel admission evidence", () => {
 
     expect(readChannelContextGatewayContextResolver(source)?.()).toBe(gatewayContext);
     expect(readChannelContextGatewayContextResolver(copied)?.()).toBe(gatewayContext);
-    live = false;
+    gatewayAvailable = false;
+    expect(nativeFixture.owner.isLive()).toBe(true);
     expect(readChannelContextGatewayContextResolver(source)?.()).toBeUndefined();
   });
 
@@ -454,11 +468,11 @@ describe("channel admission evidence", () => {
       channelAdmissionAudit: audit,
       getRuntimeConfig: () => ({}),
     } as GatewayRequestContext;
-    const owner = {
+    const nativeFixture = createNativeChannelIngressOwner({
       channelId: "public-test",
-      isLive: () => true,
       resolveGatewayContext: () => gateway,
-    };
+    });
+    const owner = nativeFixture.owner;
     try {
       const ingress = await createHostChannelIngressRuntime(owner).resolveStable({
         channelId: "public-test",

@@ -1,4 +1,5 @@
 import { expect, it, onTestFinished, vi } from "vitest";
+import { createNativeChannelIngressOwner } from "../../../test/helpers/native-channel-ingress-owner.js";
 import {
   getRuntimeAuthProfileStoreCredentialsRevision,
   getRuntimeAuthProfileStoreSnapshotsRevision,
@@ -55,18 +56,17 @@ it.each([
   "preserves accepted product identity and exact host ownership: %s",
   async (scenario) => {
     recordParticipant.mockClear();
-    let live = true;
     const auditEnabled = scenario.includes("during");
     const audit = createChannelAdmissionAudit({ enabled: auditEnabled });
     let gateway = {
       getRuntimeConfig: () => ({}),
       channelAdmissionAudit: audit,
     } as GatewayRequestContext;
-    const owner = {
+    const nativeFixture = createNativeChannelIngressOwner({
       channelId: "test",
-      isLive: () => live,
       resolveGatewayContext: () => gateway,
-    };
+    });
+    const owner = nativeFixture.owner;
     const resolveIngress = createHostChannelIngressRuntime(owner).resolveStable;
     const key = "agent:main:test:dm:conversation";
     const resolveParticipant = vi.fn((subject: { stableId?: string | number | null }) =>
@@ -113,7 +113,9 @@ it.each([
       }
       expect(resolveParticipant).toHaveBeenCalledTimes(sources.length);
       expect(ingress[0]?.ingress.admission).toBe(scenario === "denied" ? "drop" : "dispatch");
-      live = scenario !== "stale";
+      if (scenario === "stale") {
+        nativeFixture.retire();
+      }
       const context = await createHostChannelInboundEventContextBuilder(
         async (params: BuildChannelInboundEventContextParams) => {
           await Promise.resolve();
@@ -121,7 +123,7 @@ it.each([
             gateway = Object.assign({}, gateway);
           }
           if (scenario === "retired-during-context") {
-            live = false;
+            nativeFixture.retire();
           }
           return buildChannelInboundEventContext(params);
         },
@@ -184,7 +186,7 @@ it.each([
       }
       expect(ingress[0]).not.toHaveProperty("participant");
     } finally {
-      live = false;
+      nativeFixture.retire();
       audit.close();
     }
   },

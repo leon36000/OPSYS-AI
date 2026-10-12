@@ -1,0 +1,464 @@
+{
+  "Toronto": "2026-10-11T20:45:07.938243-04:00",
+  "state": "CANDIDATE_PARTIAL_CI_EXACT_COMMIT_PENDING",
+  "product": "PARTIEL",
+  "Source43859_current": {
+    "manifest": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-CI-PYTHON-FORMAT-ROOT-20261012-r1/SOURCE-CI-FORMAT43859-r1.json",
+    "sha256": "c3d75707bb8843af82cdbea3b03fe224f2121d03666fa048c567ecdb65989881",
+    "count": 43859,
+    "scope": "Code snapshot before adding these two documents; no Source43861 manifest exists in this packet"
+  },
+  "native_H_scope": {
+    "production6": {
+      "core/src/plugins/registry-runtime.ts": {
+        "sha256": "2b6834a1f9f1d662d3923c65174cf0709a8f39a64da0a9c296258c0b5ddc89b4",
+        "size": 31241,
+        "mode": 436
+      },
+      "core/src/channels/message-access/ingress-host-owner.ts": {
+        "sha256": "22f7522f6ffc05698164f73b0d6906f5239b70617f102ba4d3372cc408d7d03a",
+        "size": 1565,
+        "mode": 436
+      },
+      "core/src/channels/message-access/runtime.ts": {
+        "sha256": "7e4ec85f43d9084474e99025d4b0a4bcb051900ab8c3edeb933c0003845d3098",
+        "size": 22731,
+        "mode": 436
+      },
+      "core/src/channels/message-access/admission-evidence.ts": {
+        "sha256": "120afa48e278f20f34a9ef50962b949ddadaf4f82c8c738b76e944a9d7e3f1bd",
+        "size": 24590,
+        "mode": 436
+      },
+      "core/src/channels/message-access/participant-input.ts": {
+        "sha256": "e03ae68a0743c0fdfc3fd13c39ae34162c8f9891b2ec092b895a14b16ca5f2ce",
+        "size": 3787,
+        "mode": 436
+      },
+      "core/src/channels/inbound-event/host-context-builder.ts": {
+        "sha256": "e66c121d694236d1cce642f1d3b4e00ddbe87e8b3029811ee86c8ff5e04dbf11",
+        "size": 3004,
+        "mode": 436
+      }
+    },
+    "meaning": "Native private H/record-slot-instance owner and sticky liveness; no G/R/OriginalHostAssignment/native permission grant",
+    "reentrant": "Final H recheck before callback/binder mutation with exact receiver and arguments; undefined H remains legacy; known closed ordinary builder passive; ContextAdmission evidence/resolver cleared while requiredTask remains separate",
+    "not_promised": "No purge of earlier public participant carriers/COMMAND_OWNER_AUTHORITY; G-only context-getter and P/M remain future debt"
+  },
+  "proofs": {
+    "GREEN65_7e44": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-LOCAL-GREEN65-PREPARATION-20261011-r2/ROOT-GREEN65-CLOSED-READBACK-r2.json",
+      "q_relative": "NEXT-L1-H3-LOCAL-GREEN65-PREPARATION-20261011-r2/ROOT-GREEN65-CLOSED-READBACK-r2.json",
+      "sha256": "ba47b51e386ff8448acc605b395b216ed61c18fa2463fab8c40cda6986dc192c"
+    },
+    "TS7_081539": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-TS7-DISCORD-CURRENT-PREPARATION-20261011-r1/ROOT-TS7-CLOSED-READBACK-r1.json",
+      "q_relative": "NEXT-L1-H3-TS7-DISCORD-CURRENT-PREPARATION-20261011-r1/ROOT-TS7-CLOSED-READBACK-r1.json",
+      "sha256": "f7634e2239450fcf66eb107ca1a0ebbb4d5640bb7afe9fd6f17bd5995da1a93f"
+    },
+    "TS7_membership26_helpers4": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-TS7-DISCORD-CURRENT-PREPARATION-20261011-r1/ROOT-TS7-MANDATORY-MEMBERSHIP-ADDENDUM-r2.json",
+      "q_relative": "NEXT-L1-H3-TS7-DISCORD-CURRENT-PREPARATION-20261011-r1/ROOT-TS7-MANDATORY-MEMBERSHIP-ADDENDUM-r2.json",
+      "sha256": "dcddbc07a36c47bcf0c417944fe05d15a332136f50f0c6c898e5f96c13deb425"
+    },
+    "style21_format_3fb": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-STYLE21-ROOT-20261012-r1/format-results-r1/h3-style21-format-r1.json",
+      "q_relative": "NEXT-L1-H3-STYLE21-ROOT-20261012-r1/format-results-r1/h3-style21-format-r1.json",
+      "sha256": "20820dbd0cf9a850ec44784764dfd1594e80cc6003fd660b094b61ace2c71157"
+    },
+    "style21_lint_3fb": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-STYLE21-ROOT-20261012-r1/lint-results-r1/h3-style21-lint-r1.json",
+      "q_relative": "NEXT-L1-H3-STYLE21-ROOT-20261012-r1/lint-results-r1/h3-style21-lint-r1.json",
+      "sha256": "97f0a26d6f59e8cf6c8ba908cf9d93795a831489ba74757592271013a19b2dec"
+    },
+    "Discord_R4_beforeAll_RED_081539": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-DISCORD-SOURCE2-LOCAL-QUALIFICATION-PREPARATION-20261011-r4/ROOT-discord-owner-RED-CLOSED-READBACK-r4.json",
+      "q_relative": "NEXT-L1-H3-DISCORD-SOURCE2-LOCAL-QUALIFICATION-PREPARATION-20261011-r4/ROOT-discord-owner-RED-CLOSED-READBACK-r4.json",
+      "sha256": "722c0e1aa660e6d7b7866a3f779b3fee8bc42fdd3179145775630fb174b9411b"
+    },
+    "Discord_R4_RED_archive": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-DISCORD-OWNER-COMPILER-ARCHIVE-PREPARATION-20261011-r1/ROOT-RED-COMPILER-ARCHIVE-discord-owner-REQUIRED-r1.json",
+      "q_relative": "NEXT-L1-H3-DISCORD-OWNER-COMPILER-ARCHIVE-PREPARATION-20261011-r1/ROOT-RED-COMPILER-ARCHIVE-discord-owner-REQUIRED-r1.json",
+      "sha256": "fff3d35b9616929980c1cac5b3789a96315ab3976059bd199f15cc2b0814e60b"
+    },
+    "Alias1_adoption_3fb": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-DISCORD-ALIAS1-ROOT-ADOPTION-20261012-r1/ROOT-ALIAS1-ADOPTION-CLOSED-r1.json",
+      "q_relative": "NEXT-L1-H3-DISCORD-ALIAS1-ROOT-ADOPTION-20261012-r1/ROOT-ALIAS1-ADOPTION-CLOSED-r1.json",
+      "sha256": "3fa0170cc4e8bff88c96f21a304e9ec2c98d768823d67921c029d8fa91df49c6"
+    },
+    "Alias1_independent_review": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-DISCORD-MISSING-SHIM-ALIAS-INDEPENDENT-REVIEW-20261012-r1/SHA256-r1.json",
+      "q_relative": "NEXT-L1-H3-DISCORD-MISSING-SHIM-ALIAS-INDEPENDENT-REVIEW-20261012-r1/SHA256-r1.json",
+      "sha256": "f2d0f92b3549dd45baada8a45e9899427e0b5ca38e8c35dfb37b992379822ff1"
+    },
+    "R5_RAM_NO_NODE": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-DISCORD-SOURCE2-LOCAL-QUALIFICATION-PREPARATION-20261012-r5/ROOT-PRE-GO-RESOURCE-REFUSAL-r1.json",
+      "q_relative": "NEXT-L1-H3-DISCORD-SOURCE2-LOCAL-QUALIFICATION-PREPARATION-20261012-r5/ROOT-PRE-GO-RESOURCE-REFUSAL-r1.json",
+      "sha256": "8dc212c286a8355a58388eb19ae789603b581e4c548f14e1f18109a86298cea9"
+    },
+    "fixture_Root_materialization6013": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-DISCORD-FIXTURE-MATERIALIZATION-ROOT-20261011-r1/ROOT-MATERIALIZATION-CLOSED-r1.json",
+      "q_relative": "NEXT-L1-H3-DISCORD-FIXTURE-MATERIALIZATION-ROOT-20261011-r1/ROOT-MATERIALIZATION-CLOSED-r1.json",
+      "sha256": "bee75e130cef8e414abd34e290038f8c20518a6f1e4e9e160caced1940c69986"
+    },
+    "fixture_inventory": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-DISCORD-FIXTURE-MATERIALIZATION-ROOT-20261011-r1/PHYSICAL-FIXTURE-INVENTORY-r1.json",
+      "q_relative": "NEXT-L1-H3-DISCORD-FIXTURE-MATERIALIZATION-ROOT-20261011-r1/PHYSICAL-FIXTURE-INVENTORY-r1.json",
+      "sha256": "77db4326f05ee90fd67f34e012428785e6b92d6a370d4f1d1c7df3114c77f5d9"
+    },
+    "Python_Q_offline_positive_and3negative": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-CI-MATERIALIZER-OFFLINE-ROOT-QUALIFICATION-20261012-r1/ROOT-OFFLINE-CLOSED-READBACK-r1.json",
+      "q_relative": "NEXT-L1-H3-CI-MATERIALIZER-OFFLINE-ROOT-QUALIFICATION-20261012-r1/ROOT-OFFLINE-CLOSED-READBACK-r1.json",
+      "sha256": "ef4a89dd9565760634de1087930d75ead8b5e5ecd7dd0fe1001b5f6b8ff0b9bb"
+    },
+    "Python_Source_importsort_Ruff": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-CI-PYTHON-IMPORT-STYLE-ROOT-20261012-r1/ROOT-RUFF-STYLE1-CLOSED-r1.json",
+      "q_relative": "NEXT-L1-H3-CI-PYTHON-IMPORT-STYLE-ROOT-20261012-r1/ROOT-RUFF-STYLE1-CLOSED-r1.json",
+      "sha256": "e5abd6266ff3acaa8aaf230636ed49831c6dfcadfde28f82e25b0fbad234d2c6"
+    },
+    "CI2_adoption": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-CI-SOURCE2-ROOT-ADOPTION-20261012-r1/ROOT-CI2-ADOPTION-CLOSED-r1.json",
+      "q_relative": "NEXT-L1-H3-CI-SOURCE2-ROOT-ADOPTION-20261012-r1/ROOT-CI2-ADOPTION-CLOSED-r1.json",
+      "sha256": "7f50239764020e56a3dd6ab2cdc589a515de785777e7ec2f919f4317b8c86cc2"
+    },
+    "snapshot_a35_before_format": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-CI-PYTHON-IMPORT-STYLE-ROOT-20261012-r1/SOURCE-CI-PY43859-r1.json",
+      "q_relative": "NEXT-L1-H3-CI-PYTHON-IMPORT-STYLE-ROOT-20261012-r1/SOURCE-CI-PY43859-r1.json",
+      "sha256": "a35f836bad88874ccf9ff492f2ce3aebc390e2526ffb2e75be6c52c7c89f1518"
+    }
+  },
+  "GREEN65_snapshot7e44": {
+    "Source": "7e44c19a7bbc4cdfab39bf7c277f84751bb7b5d6ab7e31322fd037da1eaf2bf9",
+    "wholefiles": 3,
+    "passed_unique": 65,
+    "phases": [
+      {
+        "phase": "native-21",
+        "passed_unique": 21,
+        "wall_seconds": 58.428,
+        "RSS_tree_bytes": 4281585664
+      },
+      {
+        "phase": "legacy-37",
+        "passed_unique": 37,
+        "wall_seconds": 38.772,
+        "RSS_tree_bytes": 1818484736
+      },
+      {
+        "phase": "h2-7",
+        "passed_unique": 7,
+        "wall_seconds": 36.475,
+        "RSS_tree_bytes": 1670553600
+      }
+    ],
+    "skips_failures": 0,
+    "Source_pins_after_exact": true,
+    "compiler_archives": [
+      {
+        "phase": "native-21",
+        "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-LOCAL-GREEN65-PREPARATION-20261011-r2/ROOT-COMPILER-ARCHIVE-native-21-REQUIRED-r2.json",
+        "sha256": "6db8b1cd59896546cba94d631fe4e6b8d48100eb58874ab8af042a7b3ef4d964",
+        "generation": "ced57502b4c4f561cb10d2e9893b508b48784228fb5f3278e34db5aae0f75e6a",
+        "physical_files": 15718
+      },
+      {
+        "phase": "legacy-37",
+        "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-LOCAL-GREEN65-PREPARATION-20261011-r2/ROOT-COMPILER-ARCHIVE-legacy-37-REQUIRED-r2.json",
+        "sha256": "b6ae4678b382465b6d54b3043781bb8a6b63ac60eba9ade35cc2b70fdd169c20",
+        "generation": "9341ed4dad5e5245b622b21ca92e9f3eebdca100ac468e9e8a33476f1a331323",
+        "physical_files": 15718
+      },
+      {
+        "phase": "h2-7",
+        "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-LOCAL-GREEN65-PREPARATION-20261011-r2/ROOT-COMPILER-ARCHIVE-h2-7-REQUIRED-r2.json",
+        "sha256": "e2aa2656bc2ee1b1edd5de5b9e2c952761d71acbcce3d4782623d18a2652bf0d",
+        "generation": "c1fcf52b207e698dd4124bd27a3d65db322ae1c6d5e89ca490f359252d129eee",
+        "physical_files": 15718
+      }
+    ],
+    "limit": "These closures do not qualify the later global Source43859 or current24neighbors"
+  },
+  "TS7_snapshot081539": {
+    "Source": "081539ab051278b498f8a7c5e543f0004d9c01aacceded90289743ec515829c5",
+    "program": 16310,
+    "Source_program": 13116,
+    "dependency_program": 3194,
+    "all_before_pinned": true,
+    "wall_seconds": 84.692,
+    "RSS_bytes": 5423120384,
+    "mandatory26": [
+      "core/src/channels/inbound-event/host-context-builder.ts",
+      "core/src/channels/message-access/admission-evidence.ts",
+      "core/src/channels/message-access/ingress-host-owner.ts",
+      "core/src/channels/message-access/participant-input.ts",
+      "core/src/channels/message-access/runtime.ts",
+      "core/src/channels/message/opsys-sms-source-receiver.ts",
+      "core/src/channels/message/opsys-sms-source.ts",
+      "core/src/config/runtime-publication.ts",
+      "core/src/config/runtime-snapshot.ts",
+      "core/src/gateway/config-reload.ts",
+      "core/src/gateway/server-methods/shared-types.ts",
+      "core/src/gateway/server-reload-hot.ts",
+      "core/src/gateway/server-reload-managed-secrets.ts",
+      "core/src/gateway/server-reload-managed.ts",
+      "core/src/gateway/server-reload-restart.ts",
+      "core/src/gateway/server-request-context.ts",
+      "core/src/gateway/server-runtime-handles.ts",
+      "core/src/gateway/server-runtime-policy-owner.ts",
+      "core/src/gateway/server-secrets-reload.ts",
+      "core/src/plugin-sdk/channel-ingress-runtime.ts",
+      "core/src/plugin-sdk/channel-ingress-test-runtime.ts",
+      "core/src/plugins/registry-runtime.ts",
+      "core/src/plugins/registry-state.ts",
+      "core/src/secrets/runtime-state.ts",
+      "core/src/plugins/registry-runtime.types.ts",
+      "core/src/channels/message-access/admission-evidence.types.ts"
+    ],
+    "helpers4_present": {
+      "core/test/helpers/native-channel-ingress-owner.ts": true,
+      "core/test/helpers/channel-admission-evidence.ts": true,
+      "core/test/helpers/external-discord-public-surface.ts": true,
+      "core/src/channels/message-access/operator-authority.test-support.ts": true
+    },
+    "test_wholefiles_in_program": 0,
+    "limits": "Onecanonicalproject,noDTS/build/runtime. Testcases nottypecheckedaswholefiles; privatehelpers actualmembership observed."
+  },
+  "styles21_snapshot3fb": {
+    "format_exit": 0,
+    "lint_exit": 0,
+    "qualified": true,
+    "Source": "3fb42cadb23302f4d189a1da3579be1c325ced357c0b6a143095f3af0967b414",
+    "limits": "Does not qualify later materializer/workflow or new functional wholefiles"
+  },
+  "Discord": {
+    "official_package": "@openclaw/discord2026.9.6",
+    "physical_files": 6013,
+    "archive_SHA256": "f43f8129d011d248463fe452a75d1c2f8ad2eb7c81a4a00f8e6315dfb2d50948",
+    "SRI_sha512": "EjlDGt3+bFDi1y62kPZpXuvITH7VOTXlEBhqpGDSqVfF7JgitYcfrH1X7fZMJ1VFURAljlhWDKBMt3VALlYPBQ==",
+    "portable_rows_hash": "d71332d1e058a6884fd31a1d1478d33272e1ad63043fba103dea46a10833dcfa",
+    "helper_witness": "Bounded code contract policyfn reference===Core; NOT reached in R4 beforeAll, no observed runtime singleton identity; not130 SDK/privateMaps global proof",
+    "R4": {
+      "Source": "081539ab051278b498f8a7c5e543f0004d9c01aacceded90289743ec515829c5",
+      "state": "CLOSED_BEFOREALL_DEPENDENCY_RESOLVER_RED",
+      "tests_passed": 0,
+      "tests_skipped": 4,
+      "failed_assertions": 0,
+      "beforeAll_failed": 1,
+      "cause_disposed": "Two unconditional aliases targeted absent old Discord shims; package0.38.55 physically present1046files; correctedAlias1 independentreview/adoption separate, not yetGreen"
+    },
+    "R5": {
+      "state": "RAM_REFUSAL_BEFORE_ROOT_GO_NO_NODE_NONEXECUTED",
+      "threshold_bytes": 9663676416,
+      "no_Green_or_product_RED_credit": true
+    }
+  },
+  "Python_materializer": {
+    "Q_proposal_closed": {
+      "script_SHA256": "6119687cdf3aec56f77c1b5618e179edd7b3b35016fc539c7542dfa33708f31a",
+      "positive6013": true,
+      "negative3": [
+        {
+          "name": "existingoutput",
+          "exit_code": 1,
+          "expected_rejection": "Existing output/cache refused",
+          "logSHA256": "b557cdfd9bcef0af8f854753db37221d167cd185740c6d8ebf30dfaacd2e278b",
+          "new_output_absent": "existingpositivepreserved"
+        },
+        {
+          "name": "Sourceoutput",
+          "exit_code": 1,
+          "expected_rejection": "outside Source and node_modules",
+          "logSHA256": "a220654d34916b8936832d5018f6c06d65106d6c0443fef0154095240abaf5ce",
+          "new_output_absent": true
+        },
+        {
+          "name": "tampered",
+          "exit_code": 1,
+          "expected_rejection": "Archive bytes differ",
+          "logSHA256": "4b123286f69f27cc18fee5cfe8932eb38ef554989e553b16355d9505a306d216",
+          "new_output_absent": true
+        }
+      ],
+      "wall_seconds": 3.754,
+      "RSS_bytes": 48840704,
+      "package_executed": false
+    },
+    "current_Source_script": {
+      "sha256": "d3f117327b5a22948786e1f1f5a2d5931598bee8b79efc9c4812396b6de57d25",
+      "size": 6810,
+      "mode": 436
+    },
+    "import_sort_AST_body_same_Ruff0": true,
+    "current_Source_fresh_offline_qualification": "CLOSED_RUNTIME_ON_2afa_THEN_ENTIRE_AST_IDENTICAL_FORMAT_d3f",
+    "HTTP_CI_Node_realm": "NOT_QUALIFIED_BY_OFFLINE_MATERIALIZATION",
+    "fresh_Source_runtime": {
+      "Source_manifest_SHA256": "a35f836bad88874ccf9ff492f2ce3aebc390e2526ffb2e75be6c52c7c89f1518",
+      "script_SHA256": "2afa424f01d236f910350f60b22f8268e87202d984642d3f4a85a202c48df9c4",
+      "actual_positive_files": 6013,
+      "actual_negative_oracles": [
+        {
+          "name": "existingoutput",
+          "exit_code": 1,
+          "expected": "Existing output/cache refused",
+          "logSHA256": "9329558acb21f42b843957236e54778446dc37a7f56441c990a541c4f6ab97da"
+        },
+        {
+          "name": "Sourceoutput",
+          "exit_code": 1,
+          "expected": "outside Source and node_modules",
+          "logSHA256": "4b0527cb413c31f9e5b8a8d7203aef7a939526c279106e3b945b9537e109f3ac"
+        },
+        {
+          "name": "tampered",
+          "exit_code": 1,
+          "expected": "Archive bytes differ",
+          "logSHA256": "3586093d8959689367b3c55d94e0368b1666684c5f0e672cc2077e23b67b2e37"
+        }
+      ],
+      "wall_seconds": 3.181,
+      "peak_RSS_bytes": 49418240,
+      "package_code_executed": false,
+      "dependencies_installed": false,
+      "wrapper_SHA256": "9ae957f9387cb427f8bcf0192ca9d4d22b41fc8bf43a339d81aad53b2b399a8c"
+    },
+    "following_format": {
+      "Source_manifest_SHA256": "c3d75707bb8843af82cdbea3b03fe224f2121d03666fa048c567ecdb65989881",
+      "script_postimage": {
+        "sha256": "d3f117327b5a22948786e1f1f5a2d5931598bee8b79efc9c4812396b6de57d25",
+        "size": 6810,
+        "mode": 436
+      },
+      "entire_AST_identical": true,
+      "Ruff_check_exit": 0,
+      "Ruff_format_exit": 0,
+      "new_runtime_rerun_claimed": false
+    }
+  },
+  "resources_reported_by_Root_latest_mission": {
+    "PC6_MemAvailable_GiB": 8.623,
+    "PC1_MemAvailable_bytes": 8544194560,
+    "origin": "Root reported observation; no fresh measurement executed in this document preparation",
+    "RAM9_floor_lowered": false,
+    "unknown_process_killed": false
+  },
+  "pending_current": {
+    "neighbors24": "PENDING_EXACT_CURRENT_SOURCE",
+    "Discord_wholefiles2": "PENDING_OWNER4_THEN_ACP9_ACTUAL_CLOSED",
+    "fullCore_DTS_SDK_build": "PENDING_CURRENT_EXACT_SOURCE",
+    "SMS_built_index_RSS": "PENDING_CURRENT_BUILT_ARTEFACTS",
+    "exact_CI_commit": null,
+    "exact_CI_result": null,
+    "normal_push": "PENDING",
+    "private_draft": "PR623 Draft route authorized; exact new commit receipt remains NULL until Root publication",
+    "force_push_merge_production": false,
+    "H2_3ed_closed_CI": "HISTORICAL_H2_ONLY_NO_H3_CREDIT",
+    "post_docs_Source_manifest": null,
+    "post_docs_Source_count": null,
+    "expected_count_if_exact2_new_docs_added_not_fact": 43861
+  },
+  "preservation": {
+    "historical_reds": "PRESERVED_NOT_ADDED_TO_CURRENT_COUNTS",
+    "H2_template_origin": {
+      "README": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m1-h3-native-slot-20261011/docs/reprise/M1-H2-2026-10-11/README.md",
+      "PREUVES": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/OPSYS-AI-m1-h3-native-slot-20261011/docs/reprise/M1-H2-2026-10-11/PREUVES.json"
+    },
+    "light_transfer_absent_proofs": 104,
+    "full_transfer_supplement": "ABSENT_INHERITED_NO_NEW_CENSUS",
+    "conversations": "UNKNOWN_NOT_RECONSTRUCTED",
+    "closed_model_opinions": "Advice never test/provider/quota proof",
+    "historical_source_revision_limits": "GREEN65 at7e44; TS7 at081539; styles21 at3fb; PythonQ6119/Source2afa/formattedSource_d3f all separate, no old Green borrowed"
+  },
+  "document_version": "r3",
+  "fresh_refs_r2": {
+    "current_Source43859_c3d": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-CI-PYTHON-FORMAT-ROOT-20261012-r1/SOURCE-CI-FORMAT43859-r1.json",
+      "q_relative": "NEXT-L1-H3-CI-PYTHON-FORMAT-ROOT-20261012-r1/SOURCE-CI-FORMAT43859-r1.json",
+      "sha256": "c3d75707bb8843af82cdbea3b03fe224f2121d03666fa048c567ecdb65989881"
+    },
+    "Python_format_entire_AST_Ruff0": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-CI-PYTHON-FORMAT-ROOT-20261012-r1/ROOT-PY-FORMAT-CLOSED-r1.json",
+      "q_relative": "NEXT-L1-H3-CI-PYTHON-FORMAT-ROOT-20261012-r1/ROOT-PY-FORMAT-CLOSED-r1.json",
+      "sha256": "f0eea13e523a541d86449e3cc6afaa7b465f7de22e21ad3027c43696d374272d"
+    },
+    "Python_Source2afa_offline_root_closed": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-CI-MATERIALIZER-CURRENT-SOURCE-OFFLINE-ROOT-20261012-r2/ROOT-CURRENT-OFFLINE-CLOSED-READBACK-r2.json",
+      "q_relative": "NEXT-L1-H3-CI-MATERIALIZER-CURRENT-SOURCE-OFFLINE-ROOT-20261012-r2/ROOT-CURRENT-OFFLINE-CLOSED-READBACK-r2.json",
+      "sha256": "0ab40153ce0bfffb840566ab054bf78aabd7aa3645a03db8cfd0a3e478af518f"
+    },
+    "Python_Source2afa_offline_wrapper": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-CI-MATERIALIZER-CURRENT-SOURCE-OFFLINE-ROOT-20261012-r2/results-positive-r2/ci-discord-current-materialize-r2.json",
+      "q_relative": "NEXT-L1-H3-CI-MATERIALIZER-CURRENT-SOURCE-OFFLINE-ROOT-20261012-r2/results-positive-r2/ci-discord-current-materialize-r2.json",
+      "sha256": "9ae957f9387cb427f8bcf0192ca9d4d22b41fc8bf43a339d81aad53b2b399a8c"
+    },
+    "candidate24_independent_manifest": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-FINAL-INTEGRATED-CANDIDATE-REVIEW-20261012-r1/SHA256-r1.json",
+      "q_relative": "NEXT-L1-H3-FINAL-INTEGRATED-CANDIDATE-REVIEW-20261012-r1/SHA256-r1.json",
+      "sha256": "f5afee9af5171a8f8ac82ad81afedc1f4c4c4d1851faef39281250e61f27995f"
+    },
+    "candidate24_independent_report": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-FINAL-INTEGRATED-CANDIDATE-REVIEW-20261012-r1/RAPPORT-r1.md",
+      "q_relative": "NEXT-L1-H3-FINAL-INTEGRATED-CANDIDATE-REVIEW-20261012-r1/RAPPORT-r1.md",
+      "sha256": "74f64ef2867edf636554f1eee25ebf50a9960844079088e8aa218e581e66e6d4"
+    },
+    "CI_route_independent_manifest": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-CI-QUALIFICATION-ROUTE-REVIEW-20261012-r1/SHA256-r1.json",
+      "q_relative": "NEXT-L1-H3-CI-QUALIFICATION-ROUTE-REVIEW-20261012-r1/SHA256-r1.json",
+      "sha256": "ce5e4140d971a18f04f057254d4037ed48693a4447d1ebafdf7a901d74038246"
+    },
+    "CI_route_independent_report": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-CI-QUALIFICATION-ROUTE-REVIEW-20261012-r1/RAPPORT-r1.md",
+      "q_relative": "NEXT-L1-H3-CI-QUALIFICATION-ROUTE-REVIEW-20261012-r1/RAPPORT-r1.md",
+      "sha256": "eb1db7c89ce32644dee3cf4e6b74460fdef5ddb29db275d415aa1faf012d923e"
+    }
+  },
+  "prior_docs_r1": {
+    "manifest": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-DOCS2-CI-CANDIDATE-PROPOSAL-20261012-r1/SHA256-r1.json",
+    "sha256": "c81325fa188e9432353b49aefdd14f0d044d5ae9f44a496bb3f01786b9eaca45",
+    "state": "PRESERVED_PRIOR_DRAFT_NOT_REWRITTEN"
+  },
+  "independent_review": {
+    "candidate24": {
+      "snapshot": "a35f836bad88874ccf9ff492f2ce3aebc390e2526ffb2e75be6c52c7c89f1518",
+      "effective_paths": 24,
+      "modified": 18,
+      "new": 6,
+      "six_H3_production_equal_GREEN65_7e44": true,
+      "selector_unique": 276,
+      "verdict": "NO_CONCRETE_CODE_P1_P2_FOUND_SCOPED_STATIC",
+      "followed_by": "Only Python formatting whole AST identical, shown separately"
+    },
+    "CI_route": {
+      "verdict": "READY_SCOPED_FOR_CI_QUALIFICATION_CONDITIONAL",
+      "hard_local_fullbuild_gate_found": false,
+      "authorization": "Private branch / PR623 Draft only, Root owns publication; no merge/main/release/prod",
+      "not_test_or_provider_proof": true
+    }
+  },
+  "exact_preformat_AST_reconstruction": {
+    "readback": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-CI-PYTHON-PREFORMAT-RECONSTRUCTION-ROOT-20261012-r1/ROOT-RECONSTRUCTED-EXACT-AST-READBACK-r1.json",
+      "q_relative": "NEXT-L1-H3-CI-PYTHON-PREFORMAT-RECONSTRUCTION-ROOT-20261012-r1/ROOT-RECONSTRUCTED-EXACT-AST-READBACK-r1.json",
+      "sha256": "b53da6da5f63a9a891de38589e5531eba7c7f61ab2475213cfdb7d9422e33d66"
+    },
+    "reconstructed_copy": {
+      "path": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-CI-PYTHON-PREFORMAT-RECONSTRUCTION-ROOT-20261012-r1/RECONSTRUCTED-PREFORMAT-2afa-materializer.py",
+      "q_relative": "NEXT-L1-H3-CI-PYTHON-PREFORMAT-RECONSTRUCTION-ROOT-20261012-r1/RECONSTRUCTED-PREFORMAT-2afa-materializer.py",
+      "sha256": "2afa424f01d236f910350f60b22f8268e87202d984642d3f4a85a202c48df9c4",
+      "size": 6619,
+      "mode": 292
+    },
+    "original_sealed_proposal_SHA256": "6119687cdf3aec56f77c1b5618e179edd7b3b35016fc539c7542dfa33708f31a",
+    "reconstructed_known_preformat_SHA256": "2afa424f01d236f910350f60b22f8268e87202d984642d3f4a85a202c48df9c4",
+    "postformat_Source_SHA256": "d3f117327b5a22948786e1f1f5a2d5931598bee8b79efc9c4812396b6de57d25",
+    "whole_AST_identical": true,
+    "method": "Reconstructed from the sealed611968 proposal by moving the sole pathlib import after urllib.request; exact2afa SHA/6619 matched",
+    "historical_original_copy_claimed": false,
+    "source_script_executed": false,
+    "independent_pure_AST_comparison_here": true
+  },
+  "prior_docs_r2": {
+    "manifest": "/home/pc6/Documents/Codex/2026-10-05/github-plugin-github-openai-curated-remote-4/work/qualification/NEXT-L1-H3-DOCS2-CI-CANDIDATE-PROPOSAL-20261012-r2/SHA256-r2.json",
+    "sha256": "d2e01b1c96e7407f3839e4ab52fede46b3daf298e9f6a64640a31a7aca16de5c",
+    "state": "PRESERVED_NO_REWRITE"
+  }
+}

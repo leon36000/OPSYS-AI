@@ -8,6 +8,7 @@ import {
 } from "../../src/channels/message-access/admission-evidence.js";
 import type { ResolvedChannelMessageIngress } from "../../src/channels/message-access/runtime-types.js";
 import type { GatewayRequestContext } from "../../src/gateway/server-methods/types.js";
+import { createNativeChannelIngressOwner } from "./native-channel-ingress-owner.js";
 
 export function createTestChannelIngressOwner(params: {
   audit: ChannelAdmissionAudit;
@@ -17,13 +18,10 @@ export function createTestChannelIngressOwner(params: {
     channelAdmissionAudit: params.audit,
     getRuntimeConfig: () => ({}),
   } as GatewayRequestContext;
-  return {
+  return createNativeChannelIngressOwner({
     channelId: params.channelId,
-    record: {},
-    epoch: {},
-    isLive: () => true,
     resolveGatewayContext: () => gateway,
-  };
+  }).owner;
 }
 
 /** Build test evidence through the same host-owned binding path used by channel resolvers. */
@@ -46,6 +44,7 @@ export function bindTestChannelParticipantAdmissionEvidence(params: {
   participantId: string | number;
   identifierAuthentication?: "affected" | "evaluated" | "not-evaluated";
 }): ChannelAdmissionEvidence | undefined {
+  // Synthetic policy result retained for audit-carrier unit tests; H is born natively, not G/R.
   const result = {
     state: {
       conversationKind: "direct",

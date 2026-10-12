@@ -2,7 +2,7 @@ import { bindCommandOwnerAuthority } from "../../auto-reply/command-owner-author
 import type { MsgContext } from "../../auto-reply/templating.js";
 import { prepareSessionParticipantInput } from "../../sessions/session-participant-input.js";
 import { takeChannelParticipantInput } from "./admission-evidence.js";
-import type { ChannelIngressHostOwner } from "./ingress-host-owner.js";
+import { readChannelIngressHostOwner, type ChannelIngressHostOwner } from "./ingress-host-owner.js";
 import type {
   ChannelIngressContextBinding,
   ResolvedChannelMessageIngress,
@@ -19,6 +19,11 @@ export function bindChannelParticipantInput(params: {
   binding: ChannelIngressContextBinding;
   owner: ChannelIngressHostOwner;
 }): void {
+  const owner = params.owner;
+  if (readChannelIngressHostOwner(owner) !== "live") {
+    return;
+  }
+  readChannelIngressHostOwner(owner, params.channelId);
   if (!params.ingress || params.ingress === "unsupported") {
     return;
   }
@@ -27,12 +32,12 @@ export function bindChannelParticipantInput(params: {
   // Batched ingress uses the final transport message id; every source keeps its own accepted time.
   if (
     batch.at(-1)?.binding.messageId !== params.binding.messageId ||
-    !params.owner.isLive() ||
+    readChannelIngressHostOwner(owner) !== "live" ||
     batch.some(
       (input) =>
         !input ||
-        input.owner !== params.owner ||
-        input.gatewayContext !== params.owner.resolveGatewayContext?.() ||
+        input.owner !== owner ||
+        input.gatewayContext !== owner.resolveGatewayContext?.() ||
         input.identity.pluginId !== params.channelId ||
         input.binding.agentId !== params.binding.agentId ||
         input.binding.sessionKey !== params.binding.sessionKey ||
@@ -42,14 +47,27 @@ export function bindChannelParticipantInput(params: {
   ) {
     return;
   }
+  let context: MsgContext | undefined;
   for (const input of batch) {
     if (input) {
-      prepareSessionParticipantInput(params.context, input.identity, input.promptedAt);
+      const identity = input.identity;
+      const promptedAt = input.promptedAt;
+      if (readChannelIngressHostOwner(owner) !== "live") {
+        return;
+      }
+      context ??= params.context;
+      if (readChannelIngressHostOwner(owner) !== "live") {
+        return;
+      }
+      prepareSessionParticipantInput(context, identity, promptedAt);
     }
   }
   const principal = batch.at(-1)?.verifiedPrincipal;
   const principalKey = principal && JSON.stringify(principal);
-  const gateway = params.owner.resolveGatewayContext?.();
+  if (readChannelIngressHostOwner(owner) !== "live") {
+    return;
+  }
+  const gateway = owner.resolveGatewayContext?.();
   if (
     !principal ||
     !gateway ||
@@ -58,13 +76,32 @@ export function bindChannelParticipantInput(params: {
     return;
   }
   const authority = batch.at(-1)?.commandOwnerAuthority;
-  if (!authority?.source || !authority.isCurrent(gateway.getRuntimeConfig())) {
+  if (!authority?.source || readChannelIngressHostOwner(owner) !== "live") {
     return;
   }
-  bindCommandOwnerAuthority(params.context, {
-    isCurrent: () =>
-      params.owner.isLive() &&
-      params.owner.resolveGatewayContext?.() === gateway &&
-      authority.isCurrent(gateway.getRuntimeConfig()),
+  const isCurrent = () => {
+    if (readChannelIngressHostOwner(owner) !== "live") {
+      return false;
+    }
+    const currentGateway = owner.resolveGatewayContext?.();
+    if (readChannelIngressHostOwner(owner) !== "live" || currentGateway !== gateway) {
+      return false;
+    }
+    const config = gateway.getRuntimeConfig();
+    if (readChannelIngressHostOwner(owner) !== "live") {
+      return false;
+    }
+    const current = authority.isCurrent(config);
+    if (readChannelIngressHostOwner(owner) !== "live") {
+      return false;
+    }
+    const finalGateway = owner.resolveGatewayContext?.();
+    return readChannelIngressHostOwner(owner) === "live" && current && finalGateway === gateway;
+  };
+  if (!isCurrent() || context === undefined) {
+    return;
+  }
+  bindCommandOwnerAuthority(context, {
+    isCurrent,
   });
 }

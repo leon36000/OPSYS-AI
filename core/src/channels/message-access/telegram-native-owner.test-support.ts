@@ -1,4 +1,5 @@
 import { beforeAll, expect, vi } from "vitest";
+import { createNativeChannelIngressOwner } from "../../../test/helpers/native-channel-ingress-owner.js";
 import type { ReplyPayload } from "../../auto-reply/reply-payload.js";
 import type {
   ModelsAuthLoginFlowOptions,
@@ -115,9 +116,12 @@ function createFixture(asserted: boolean, state: OpenClawTestState) {
     linkUserChannelIdentity(profile.id, identity);
     return { profile, identity };
   });
-  let live = true;
   const gateway = createCommandOwnerTestGateway(cfg);
-  const host = { channelId: "telegram", isLive: () => live, resolveGatewayContext: () => gateway };
+  const nativeFixture = createNativeChannelIngressOwner({
+    channelId: "telegram",
+    resolveGatewayContext: () => gateway,
+  });
+  const host = nativeFixture.owner;
   const ingress = createHostChannelIngressRuntime(host);
   const handler = vi.fn(async (ctx: PluginCommandContext) => {
     ctx.assertOwnerCurrent?.();
@@ -180,7 +184,7 @@ function createFixture(asserted: boolean, state: OpenClawTestState) {
     invoke: (senderId = 100) => driver.invoke({ senderId }),
     invokeTopic: () => driver.invoke({ group: true, chatId: -10012345, threadId: 42 }),
     close: () => {
-      live = false;
+      nativeFixture.retire();
       driver.close();
     },
   };

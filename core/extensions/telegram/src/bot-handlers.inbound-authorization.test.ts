@@ -11,6 +11,7 @@ import type { OpenClawConfig } from "openclaw/plugin-sdk/config-contracts";
 import type { GatewayRequestHandlerOptions } from "openclaw/plugin-sdk/gateway-runtime";
 import { getChildLogger } from "openclaw/plugin-sdk/runtime-env";
 import { describe, expect, it, vi } from "vitest";
+import { createNativeChannelIngressOwner } from "../../../test/helpers/native-channel-ingress-owner.js";
 import { defaultTelegramBotDeps } from "./bot-deps.js";
 import { createTelegramHandlerAuthorization } from "./bot-handlers.inbound-authorization.js";
 import type { RegisterTelegramHandlerParams } from "./bot-handlers.types.js";
@@ -37,14 +38,11 @@ describe("Telegram inbound admission authorization", () => {
       channelAdmissionAudit: audit,
       getRuntimeConfig: () => cfg,
     } as GatewayRequestHandlerOptions["context"];
-    let live = true;
-    const owner = {
+    const nativeFixture = createNativeChannelIngressOwner({
       channelId: "telegram",
-      record: {},
-      epoch: {},
-      isLive: () => live,
       resolveGatewayContext: () => gatewayContext,
-    };
+    });
+    const owner = nativeFixture.owner;
     const runtime = createPluginRuntimeMock();
     runtime.channel.inbound.ingress = createHostChannelIngressRuntime(owner);
     setTelegramRuntime(runtime);
@@ -133,7 +131,7 @@ describe("Telegram inbound admission authorization", () => {
         decisionCoverage: "enforced",
       });
     } finally {
-      live = false;
+      nativeFixture.retire();
       audit.close();
     }
   });

@@ -1,3 +1,4 @@
+import { createNativeChannelIngressOwner } from "../../../test/helpers/native-channel-ingress-owner.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import type { GatewayRequestContext } from "../../gateway/server-methods/types.js";
 import { linkUserChannelIdentity } from "../../state/user-channel-identities.js";
@@ -64,15 +65,14 @@ async function createFixture(state: OpenClawTestState, authority: "role" | "iden
     linkUserChannelIdentity(profile.id, identity);
     return { profile, identity };
   });
-  let live = true;
   const gateway = createCommandOwnerTestGateway(cfg);
-  const owner = {
+  const nativeFixture = createNativeChannelIngressOwner({
     channelId: "discord",
-    isLive: () => live,
     resolveGatewayContext: () => gateway,
-  };
+  });
+  const owner = nativeFixture.owner;
   const unregister = () => {
-    live = false;
+    nativeFixture.retire();
   };
   const ingressRuntime = createHostChannelIngressRuntime(owner);
   const key = "agent:main:discord:channel:maintainers";
@@ -120,7 +120,7 @@ async function createFixture(state: OpenClawTestState, authority: "role" | "iden
     context,
     unregister,
     retire: () => {
-      live = false;
+      nativeFixture.retire();
     },
   };
 }
