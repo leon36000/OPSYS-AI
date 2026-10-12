@@ -335,6 +335,7 @@ it("refuses a normally revoked OPSYS device before real MCP mutation and accepts
             opsys_m2: {
               url: `http://127.0.0.1:${mcpPort}/mcp/m02-revenue-crm`,
               transport: "streamable-http",
+              transportSecurity: { insecureHttpOrigin: `http://127.0.0.1:${mcpPort}` },
               headers: { Authorization: `Bearer ${PUBLIC_TOKEN}` },
               connectionTimeoutMs: 5_000,
               requestTimeoutMs: 10_000,
