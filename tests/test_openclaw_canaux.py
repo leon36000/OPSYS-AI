@@ -224,6 +224,7 @@ def test_l_affaire_de_m1_vient_de_la_session_et_l_accueil_n_est_jamais_bloque_pa
         "depot": [],
         "affaire": "session",
         "serveur_contexte": "opsys_context_m01-front-office",
+        "origine_paquet": "m01-front-office",
     }
     assert contexte["niveaux"]["m1_recevoir_message_canal"] == "N2"
     assert contexte["niveaux"]["m1_traiter_demande_entrante"] == "N3"
