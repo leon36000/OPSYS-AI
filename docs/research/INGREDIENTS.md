@@ -555,3 +555,26 @@ Réutilisation du scénario métier durable et des installations Python/Node dé
 ## Réutilisation Pillow — aperçus M6.13, 2026-10-08
 
 Pillow **12.3.0**, déjà verrouillé dans `requirements-runtime.lock.txt` et `uv.lock` via les briques existantes, est réutilisé pour vérifier la structure et charger les pixels PNG/JPEG avant transport des photos de pertes/bris. Aucun ajout ni renouvellement de dépendance. Licence **MIT-CMU** et notices codecs lues dans la roue locale ; elles restent distribuées avec le paquet. [Documentation primaire Image](https://pillow.readthedocs.io/en/stable/reference/Image.html). Le budget du produit est 10 MiB, 16 millions de pixels, 8192 pixels par dimension, une image fixe, sans désactiver les protections du décodeur. Runtime sans Pillow : aperçu fermé. Les essais négatifs distinguent fichier adressé par CAS et image effectivement décodable ; aucun résultat ne prouve la scène photographiée. [Contrat et limites M6.13](../architecture/PHOTOS-PREUVES-M6.md). Statut : tranche Python en qualification locale ; Gateway et mobile doivent apporter leurs preuves avant livraison.
+
+
+## Mise à jour audio WhatsApp — 13 octobre 2026
+
+Le consommateur Baileys du canal WhatsApp utilise désormais `music-metadata@11.16.0` par
+l’override ciblé `baileys>music-metadata`, avec les autres résolutions conservées. Cette version
+est la version corrigée indiquée par les avis primaires [GHSA-f94x-6692-553q](https://github.com/advisories/GHSA-f94x-6692-553q)
+et [GHSA-5gfj-9q3v-qfp3](https://github.com/advisories/GHSA-5gfj-9q3v-qfp3). La [release officielle](https://github.com/Borewit/music-metadata/releases/tag/v11.16.0)
+référence les correctifs MP4 et EBML (PR 2734 et 2735), au commit npm
+`9e995a31c9e5526057a63936cb83d9f8b02e0fcc`. Publication npm vérifiée :
+`2026-09-22T16:14:22.304Z`; le délai strict de 10 080 minutes est satisfait depuis le 29 septembre,
+sans exception à la politique. L’archive npm de 135 711 octets a le SRI
+`sha512-D5zZHjQUbfR+JhHjnwdbgeB4qj7zVJtisCB1I0GAI5sjSPGqPLoY14WMIzMeR8iA+4nSFswVLpO4crksZUybBg==`.
+Le fichier MIT exact de 1 073 octets a le SHA-256
+`ab27d7574bc6d292302b0b49c2e1ad6f0d88031822dce486257c085c7d83133c`; les exports,
+la condition Node `>=18` et les dépendances déclarées sont identiques à ceux de 11.15.0.
+
+La qualification locale du lot `music-metadata-safe-update-r1` sépare le calcul natif public de
+durée sur audio ordinaire, les tests existants du canal et l’audit de production. Elle n’envoie
+aucun message et ne lance aucun fournisseur; elle ne reproduit pas de fichier malveillant.
+Ces contrôles de compatibilité ne constituent pas une preuve exhaustive contre toute entrée
+malformée. Les avis DOMPurify, Joi et KaTeX restent suivis séparément; aucune autre dépendance
+n’est renouvelée dans ce lot. La CI du commit intégré reste nécessaire.

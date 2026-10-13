@@ -166,6 +166,7 @@ overrides:
   '@modelcontextprotocol/sdk': 1.31.0
   '@lancedb/lancedb>@huggingface/transformers': '-'
   baileys>sharp: '-'
+  baileys>music-metadata: 11.16.0
   '@agentclientprotocol/codex-acp@1.11.0>@openai/codex': 0.155.1
   '@codemirror/commands@6.11.0>@codemirror/view': 6.43.11
   '@anthropic-ai/sdk': 0.125.0
@@ -6532,8 +6533,8 @@ packages:
     resolution: {integrity: sha512-2eznPJP8z2BFLX50tf0LuODrpINqP1RVIm/CObbTcBRITQgmC/TjcREF1NeTBzIcR5XO/ukWo+YHOjBbFwIupg==}
     hasBin: true
 
-  music-metadata@11.15.0:
-    resolution: {integrity: sha512-TN+kO1/oOc8UzDW5N3vSDncBcv9WyNnQQe/NFMcFWq6G1+zVeYUkGvkYpQ/S8wb8vKtUD7i78dIaY0cv+cmPRA==}
+  music-metadata@11.16.0:
+    resolution: {integrity: sha512-D5zZHjQUbfR+JhHjnwdbgeB4qj7zVJtisCB1I0GAI5sjSPGqPLoY14WMIzMeR8iA+4nSFswVLpO4crksZUybBg==}
     engines: {node: '>=18'}
 
   nanoid@3.3.19:
@@ -11120,7 +11121,7 @@ snapshots:
       async-mutex: 0.5.0
       libsignal: 6.0.0
       lru-cache: 11.5.2
-      music-metadata: 11.15.0(supports-color@10.2.2)
+      music-metadata: 11.16.0(supports-color@10.2.2)
       p-queue: 9.3.3
       pino: 9.14.0
       protobufjs: 8.8.0
@@ -13491,7 +13492,7 @@ snapshots:
       dns-packet: 5.6.1
       thunky: 1.1.0
 
-  music-metadata@11.15.0(supports-color@10.2.2):
+  music-metadata@11.16.0(supports-color@10.2.2):
     dependencies:
       '@borewit/text-codec': 0.2.2
       '@tokenizer/token': 0.3.0
