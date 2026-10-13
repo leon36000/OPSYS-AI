@@ -116,13 +116,34 @@ def test_estimation_v1_ne_change_ni_de_cle_ni_de_valeur_ni_d_empreinte_quand_des
         assert avec[cle] == sans[cle]
 
 
-def test_la_charge_du_registre_ne_porte_aucune_cle_soeur_ni_taux_ni_montant_de_scenario():
+@pytest.mark.parametrize("bloque", [False, True])
+def test_la_charge_du_registre_ne_porte_aucune_cle_soeur_ni_taux_ni_montant_de_scenario(bloque):
+    photos = [_photo(largeur=640)] if bloque else [_photo(reference={"type": "porte", "dimensions_connues": True})]
     journal = registre.Registre()
-    _orchestrer(registre_cible=journal, taux_scenarios=TAUX, seuils_revue={"minimum_rentable_cad": 10**9})
+    reponse = _orchestrer(
+        registre_cible=journal, photos=photos,
+        taux_scenarios=TAUX, seuils_revue={"minimum_rentable_cad": 10**9})
+    assert reponse["accepte"] is True
     (maillon,) = journal.lire()
     assert not set(SOEURS) & set(maillon["charge"])
     assert set(maillon["charge"]) == {
-        "devis_id", "lead_id", "empreinte_marqueur_m2", "niveau_confiance", "bareme_version", "graine_monte_carlo"}
+        "devis_id", "lead_id", "empreinte_marqueur_m2", "niveau_confiance", "bareme_version", "graine_monte_carlo",
+        "faits_revue"}
+    faits = maillon["charge"]["faits_revue"]
+    # Un seul ajout autorisé : faits natifs hashés, jamais taux ou montants des scénarios.
+    assert faits == {
+        "version": "m3.faits-revue/v1", "prix_bloque": bloque,
+        "verdict_estimation": "QUALITE_ENTREE_INSUFFISANTE" if bloque else "AUCUN_BLOCAGE",
+        "niveau_confiance_hierarchie": "INDETERMINE" if bloque else "REFERENCE_ECHELLE",
+        "alerte_plancher": False,
+    }
+    assert type(faits["prix_bloque"]) is bool and type(faits["alerte_plancher"]) is bool
+    assert all(isinstance(faits[cle], str) for cle in
+               ("version", "verdict_estimation", "niveau_confiance_hierarchie"))
+    assert not set(SOEURS) & set(faits)
+    assert set(reponse["estimation"]) == set(contrats.CHAMPS_ESTIMATION_V1)
+    sans = _orchestrer(registre_cible=registre.Registre(), photos=photos)
+    assert reponse["estimation"] == sans["estimation"]  # même hash, scénarios étrangers aux faits canoniques
     assert journal.valider_chaine() == (True, "")
 
 
