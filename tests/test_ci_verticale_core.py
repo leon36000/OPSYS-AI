@@ -74,14 +74,30 @@ def test_python_changes_trigger_the_core_http_qualification():
                        "departments/m06-material-control/src/m6_material_control/outils.py",
                        "tests/e2e/test_verticale_affaire_durable.py", "conftest.py", "pyproject.toml", "uv.lock"):
             assert selection.selectionner_workflows(policy, [chemin], event, "main")["core"], chemin
-    steps = workflow["jobs"]["tests-opsys"]["steps"]
+    targeted = workflow["jobs"]["tests-opsys"]
+    vertical = workflow["jobs"]["verticale-core"]
+    assert targeted["timeout-minutes"] == 55
+    assert vertical["needs"] == "tests-opsys"
+    assert vertical["timeout-minutes"] == 15
+    assert vertical["runs-on"] == targeted["runs-on"] == "ubuntu-24.04"
+    assert "if" not in vertical  # The normal needs gate must reject failed/cancelled predecessors.
+    assert not any("qualifier_verticale_core.py" in step.get("run", "") for step in targeted["steps"])
+    steps = vertical["steps"]
     qualification = [step for step in steps if "qualifier_verticale_core.py" in step.get("run", "")]
     assert len(qualification) == 1
+    assert qualification[0]["timeout-minutes"] == 7
     assert qualification[0]["working-directory"] == "${{ github.workspace }}"
     assert ".venv/bin/python" in qualification[0]["run"]
+    setup = "\n".join(step.get("run", "") for step in steps)
+    assert "uv==0.12.19" in setup
+    assert "uv sync --project . --locked --group build --extra dev --no-build-isolation" in setup
+    assert "pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile" in setup
+    assert not any("actions/cache@" in step.get("uses", "") for step in steps)
     upload = [step for step in steps if step.get("uses", "").startswith("actions/upload-artifact@")]
     assert len(upload) == 1 and upload[0]["if"] == "always()"
     assert upload[0]["with"]["overwrite"] is False
+    assert upload[0]["with"]["retention-days"] == 30
+    assert upload[0]["with"]["name"] == "verticale-core-${{ github.run_id }}-${{ github.run_attempt }}"
     suffixes = {line.rsplit("/", 1)[-1] for line in upload[0]["with"]["path"].splitlines()}
     assert suffixes == {
         "*.log",
