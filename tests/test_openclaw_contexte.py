@@ -108,6 +108,7 @@ def test_active_ecrit_contexte_json_et_le_choix_du_moteur_ensemble(departements,
                 "depot": ["m3_estimer_projet"],
                 "affaire": "demande",
                 "serveur_contexte": "opsys_context_m03-estimation",
+                "origine_paquet": "m03-estimation",
             }
         },
     }
@@ -147,11 +148,13 @@ def test_agents_tries_outils_dedoubles_et_paquet_seul_possible(departements, tmp
         "depot": ["m3_qualifier_photos", "m3_estimer_projet"],
         "affaire": "demande",
         "serveur_contexte": "opsys_context_m03-estimation",
+        "origine_paquet": "m03-estimation",
     }
     assert agents["m04-field-ops"] == {
         "depot": [],
         "affaire": "demande",
         "serveur_contexte": "opsys_context_m04-field-ops",
+        "origine_paquet": "m04-field-ops",
     }
 
 
@@ -376,12 +379,14 @@ def test_l_affaire_vient_de_la_session_pour_les_seuls_agents_nommes(departements
 
     agents = _lire(fichiers, "contexte")["agents"]
     assert agents["m01-front-office"] == {
-        "depot": [], "affaire": "session", "serveur_contexte": "opsys_context_m01-front-office"
+        "depot": [], "affaire": "session", "serveur_contexte": "opsys_context_m01-front-office",
+        "origine_paquet": "m01-front-office",
     }
     assert agents["m03-estimation"] == {
         "depot": ["m3_estimer_projet"],
         "affaire": "demande",
         "serveur_contexte": "opsys_context_m03-estimation",
+        "origine_paquet": "m03-estimation",
     }
 
 
@@ -489,11 +494,13 @@ def test_la_commande_active_le_moteur_pour_les_agents_nommes(tmp_path, monkeypat
             "depot": ["m3_estimer_projet", "m3_qualifier_photos"],
             "affaire": "demande",
             "serveur_contexte": "opsys_context_m03-estimation",
+            "origine_paquet": "m03-estimation",
         },
         "m04-field-ops": {
             "depot": [],
             "affaire": "demande",
             "serveur_contexte": "opsys_context_m04-field-ops",
+            "origine_paquet": "m04-field-ops",
         },
     }
     plugins = json.loads((config / "opsys" / "plugins.json").read_text(encoding="utf-8"))
@@ -558,7 +565,7 @@ def test_le_core_lit_les_cles_que_python_ecrit_dans_contexte_json():
     lecture = _source("opsys-contexte-config.ts")
     cles = (
         "version", "actif", "serveur", "outil_paquet", "outil_depot", "outil_affaire",
-        "delai_ms", "niveaux", "cibles", "agents", "depot", "affaire", "serveur_contexte",
+        "delai_ms", "niveaux", "cibles", "agents", "depot", "affaire", "serveur_contexte", "origine_paquet",
     )
     for cle in cles:
         assert f"raw.{cle}" in lecture or f"settings.{cle}" in lecture or f'"{cle}"' in lecture, cle
@@ -957,6 +964,21 @@ def profil_mcp_tls_fictif(session, departements):
             mutation_id="tls-activate-fictif-001", revision_attendue=profil["revision"],
         )
     return profil
+
+
+def test_origine_paquet_profil_issue_du_departement_canonique(
+    departements, tmp_path, session, profil_mcp_tls_fictif,
+):
+    """Un alias de profil reçoit le paquet filtré pour son département SQL, jamais pour son nom."""
+    fichiers = _generer(departements, tmp_path, contexte_entreprise=ESTIMATION, cnx_factory=session)
+    profil = profil_mcp_tls_fictif
+    contextes = _lire(fichiers, "contexte")["agents"]
+    assert contextes["m03-estimation"].get("origine_paquet") == "m03-estimation"
+    assert contextes[f"opsys-agent-{profil['id']}"].get("origine_paquet") == "m03-estimation"
+    assert profil["departement"] == "m03-estimation"
+    assert _lire(fichiers, "agents")["entries"][f"opsys-agent-{profil['id']}"]["opsysRuntimeAdmission"] == {
+        "profileId": profil["id"], "profileRevision": profil["revision"],
+    }
 
 
 @pytest.mark.parametrize("famille", ["contexte", "runtime"])

@@ -569,6 +569,7 @@ def _configuration_contexte(
                 outils_agent.append(nom)
         agents[agent] = {
             "serveur_contexte": serveur_mcp_contexte(agent),
+            "origine_paquet": agent,
             "depot": outils_agent,
             "affaire": AFFAIRE_SESSION if agent in sessions else AFFAIRE_DEMANDE,
         }
@@ -1005,6 +1006,7 @@ def generer(
             context_department = contexte["agents"][dep.id]
             contexte["agents"][profile_agent_id] = {
                 "serveur_contexte": context_department["serveur_contexte"],
+                "origine_paquet": dep.id,
                 "depot": [nom for nom in context_department["depot"] if nom in profil["outils"]],
                 "affaire": context_department["affaire"],
             }

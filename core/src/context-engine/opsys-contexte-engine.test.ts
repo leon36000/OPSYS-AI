@@ -9,7 +9,10 @@ import {
   registerTestMemoryPromptBuilder,
 } from "../plugins/memory-state.test-fixtures.js";
 import { delegateCompactionToRuntime } from "./delegate.js";
-import type { OpsysContexteConfigResult } from "./opsys-contexte-config.js";
+import {
+  parseOpsysContexteConfig,
+  type OpsysContexteConfigResult,
+} from "./opsys-contexte-config.js";
 import { depositKey } from "./opsys-contexte-depot.js";
 import {
   createOpsysContextEngine,
@@ -249,6 +252,85 @@ describe("OpsysContextEngine assemble (PREFLIGHT)", () => {
     expect(logs.warn).toStrictEqual([]);
     expect(timers.started.map((timer) => timer.ms)).toStrictEqual([4_000]);
     expect(timers.started.every((timer) => timer.cancelled)).toBe(true);
+  });
+
+  it("injects a canonical department packet for a bound profile without changing session identity", async () => {
+    const config = parseOpsysContexteConfig({
+      version: 2,
+      actif: true,
+      niveaux: { m3_lire_devis: "N0" },
+      cibles: {},
+      agents: {
+        "opsys-agent-fictif": {
+          depot: [],
+          serveur_contexte: "opsys_context_m03-estimation",
+          origine_paquet: "m03-estimation",
+        },
+      },
+    });
+    const { engine, guardStore } = harness({ config });
+    const result = await engine.assemble(
+      assembleParams({ sessionKey: "agent:opsys-agent-fictif:main" }),
+    );
+    expect(result.systemPromptAddition).toContain("Toujours confirmer la longueur des gouttières");
+    expect(result.systemPromptAddition).not.toContain(MARKER);
+    expect(guardStore.get("agent:opsys-agent-fictif:main")).toMatchObject({
+      kind: "ready",
+      affaireId: "LEAD-001",
+    });
+    expect(guardStore.get("agent:m03-estimation:main")).toBeUndefined();
+  });
+
+  it("keeps an old unbound profile closed while its standard department continues to work", async () => {
+    const config = parseOpsysContexteConfig({
+      version: 2,
+      actif: true,
+      niveaux: { m3_lire_devis: "N0" },
+      cibles: {},
+      agents: {
+        "m03-estimation": { depot: [], serveur_contexte: "opsys_context_m03-estimation" },
+        "opsys-agent-fictif": { depot: [], serveur_contexte: "opsys_context_m03-estimation" },
+      },
+    });
+    const { engine } = harness({ config });
+    expect((await engine.assemble(assembleParams())).systemPromptAddition).toContain(
+      "Toujours confirmer la longueur des gouttières",
+    );
+    expect(
+      (await engine.assemble(assembleParams({ sessionKey: "agent:opsys-agent-fictif:main" })))
+        .systemPromptAddition,
+    ).toContain(MARKER);
+  });
+
+  it("rejects a real-format packet for another department instead of accepting a bound profile alias", async () => {
+    const config = parseOpsysContexteConfig({
+      version: 2,
+      actif: true,
+      niveaux: { m3_lire_devis: "N0" },
+      cibles: {},
+      agents: {
+        "opsys-agent-fictif": {
+          depot: [],
+          serveur_contexte: "opsys_context_m03-estimation",
+          origine_paquet: "m03-estimation",
+        },
+      },
+    });
+    const envelope = {
+      ok: true,
+      resultat: {
+        ...PAQUET_M10,
+        confidentialite: { ...PAQUET_M10.confidentialite, agent: "m07-marketing" },
+      },
+    };
+    const { engine } = harness({ config, handler: async () => envelope });
+    const result = await engine.assemble(
+      assembleParams({ sessionKey: "agent:opsys-agent-fictif:main" }),
+    );
+    expect(result.systemPromptAddition).toContain(MARKER);
+    expect(result.systemPromptAddition).not.toContain(
+      "Toujours confirmer la longueur des gouttières",
+    );
   });
 
   it("injects exactly what M10 computed: the rendering of the packet, shortened by nobody", async () => {

@@ -92,6 +92,96 @@ describe("readOpsysContexteConfig", () => {
 });
 
 describe("parseOpsysContexteConfig", () => {
+  it("binds a configured profile packet to its canonical department origin", () => {
+    const result = parseOpsysContexteConfig({
+      version: 2,
+      actif: true,
+      niveaux: NIVEAUX,
+      cibles: CIBLES,
+      agents: {
+        ...M3,
+        "opsys-agent-fictif": {
+          depot: [],
+          serveur_contexte: "opsys_context_m03-estimation",
+          origine_paquet: "m03-estimation",
+        },
+      },
+    });
+    expect(result).toMatchObject({
+      kind: "enabled",
+      config: {
+        packetOrigins: new Map([
+          ["m03-estimation", "m03-estimation"],
+          ["opsys-agent-fictif", "m03-estimation"],
+        ]),
+      },
+    });
+  });
+
+  it("preserves strict self origins for an old mixed standard and unbound profile file", () => {
+    const result = parseOpsysContexteConfig({
+      version: 2,
+      actif: true,
+      niveaux: NIVEAUX,
+      cibles: CIBLES,
+      agents: {
+        ...M3,
+        "opsys-agent-fictif": { depot: [], serveur_contexte: "opsys_context_m03-estimation" },
+      },
+    });
+    expect(result).toMatchObject({
+      kind: "enabled",
+      config: {
+        packetOrigins: new Map([
+          ["m03-estimation", "m03-estimation"],
+          ["opsys-agent-fictif", "opsys-agent-fictif"],
+        ]),
+      },
+    });
+  });
+
+  it.each([null, "", 42, "opsys-agent-fictif", "m03-estimation ", "m07-marketing"])(
+    "refuses malformed or server-inconsistent explicit profile packet origin %j",
+    (origin) => {
+      const result = parseOpsysContexteConfig({
+        version: 2,
+        actif: true,
+        niveaux: NIVEAUX,
+        cibles: CIBLES,
+        agents: {
+          "opsys-agent-fictif": {
+            depot: [],
+            serveur_contexte: "opsys_context_m03-estimation",
+            origine_paquet: origin,
+          },
+        },
+      });
+      expect(result).toMatchObject({
+        kind: "invalid",
+        reason: expect.stringContaining("origine_paquet"),
+      });
+    },
+  );
+
+  it("never lets an explicit binding change a standard department identity", () => {
+    const result = parseOpsysContexteConfig({
+      version: 2,
+      actif: true,
+      niveaux: NIVEAUX,
+      cibles: CIBLES,
+      agents: {
+        "m03-estimation": {
+          depot: [],
+          serveur_contexte: "opsys_context_m07-marketing",
+          origine_paquet: "m07-marketing",
+        },
+      },
+    });
+    expect(result).toMatchObject({
+      kind: "invalid",
+      reason: expect.stringContaining("origine_paquet"),
+    });
+  });
   it.each([
     { title: "an empty object", raw: {} },
     { title: "actif false", raw: { actif: false, agents: M3 } },
@@ -121,6 +211,7 @@ describe("parseOpsysContexteConfig", () => {
         agents: new Map([["m03-estimation", ["m3_estimer_projet"]]]),
         affaireFromSession: new Set(),
         contextServers: new Map([["m03-estimation", "opsys_context_m03-estimation"]]),
+        packetOrigins: new Map([["m03-estimation", "m03-estimation"]]),
         levels: new Map([
           ["m3_estimer_projet", "N3"],
           ["m3_lire_devis", "N0"],
@@ -171,6 +262,10 @@ describe("parseOpsysContexteConfig", () => {
         contextServers: new Map([
           ["m03-estimation", "opsys_context_m03-estimation"],
           ["m04-field-ops", "opsys_context_m04-field-ops"],
+        ]),
+        packetOrigins: new Map([
+          ["m03-estimation", "m03-estimation"],
+          ["m04-field-ops", "m04-field-ops"],
         ]),
         levels: new Map([
           ["m3_estimer_projet", "N3"],

@@ -392,7 +392,8 @@ export class OpsysContextEngine implements ContextEngine {
         sessionKey,
       );
     }
-    const parsed = parsePaquetEnvelope(envelope, affaireId, agentId);
+    const packetOrigin = config.packetOrigins?.get(agentId) ?? agentId;
+    const parsed = parsePaquetEnvelope(envelope, affaireId, packetOrigin);
     if (!parsed.ok) {
       return this.unavailable(
         agentId,
