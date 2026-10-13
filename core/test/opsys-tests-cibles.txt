@@ -414,3 +414,11 @@ src/agents/mcp-config-mutation.test.ts
 src/infra/net/fetch-guard.release.test.ts
 src/agents/mcp-transport.test.ts
 src/agents/mcp-connection-resolver.test.ts
+
+# Admission initiale MCP native Codex : origine HTTP explicite, listener loopback canonique
+# et configuration utilisateur asynchrone. Projets agents/gateway absents de test:fast.
+src/agents/codex-mcp-config.test.ts
+src/gateway/mcp-http.test.ts
+src/agents/cli-runner/bundle-mcp.codex.test.ts
+src/agents/cli-runner/bundle-mcp.web-search.test.ts
+src/agents/cli-runner/bundle-mcp-codex.user-config.test.ts
