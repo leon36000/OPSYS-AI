@@ -29,6 +29,7 @@ try {
           [input.serverName]: {
             url: input.url,
             transport: "streamable-http",
+            transportSecurity: { insecureHttpOrigin: new URL(input.url).origin },
             headers: { Authorization: `Bearer ${input.bearer}` },
             connectionTimeoutMs: 5000,
             requestTimeoutMs: 10000,

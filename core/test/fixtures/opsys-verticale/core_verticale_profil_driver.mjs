@@ -29,6 +29,7 @@ const cfg = {
       opsys_m8: {
         url: `${input.baseUrl}/mcp/m08-analytics`,
         transport: "streamable-http",
+        transportSecurity: { insecureHttpOrigin: new URL(input.baseUrl).origin },
         headers: { Authorization: `Bearer ${input.bearer}` },
         connectionTimeoutMs: 5000,
         requestTimeoutMs: 10000,
@@ -36,6 +37,7 @@ const cfg = {
       [`opsys_runtime_${input.profileId}`]: {
         url: `${input.baseUrl}/mcp/runtime/${input.profileId}`,
         transport: "streamable-http",
+        transportSecurity: { insecureHttpOrigin: new URL(input.baseUrl).origin },
         headers: { Authorization: `Bearer ${input.privateBearer}` },
         connectionTimeoutMs: 5000,
         requestTimeoutMs: 10000,
