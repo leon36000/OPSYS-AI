@@ -9,6 +9,7 @@ import {
   buildCodexMcpServersConfig,
   loadCodexBundleMcpApprovalConfig,
   loadCodexBundleMcpThreadConfigCore,
+  normalizeCodexMcpServerConfig,
 } from "./codex-mcp-config.js";
 import { createMcpProofPluginRegistry } from "./mcp-connection-resolver.test-fixtures.js";
 
@@ -51,6 +52,80 @@ afterEach(async () => {
 });
 
 describe("buildCodexMcpServersConfig", () => {
+  it.each([
+    ["remote HTTP without consent", "http://198.18.0.1:18080/mcp", undefined],
+    ["loopback HTTP without consent", "http://127.0.0.1:23119/mcp", undefined],
+    [
+      "different HTTP host",
+      "http://198.18.0.1:18080/mcp",
+      { insecureHttpOrigin: "http://198.18.0.2:18080" },
+    ],
+    [
+      "different HTTP port",
+      "http://198.18.0.1:18080/mcp",
+      { insecureHttpOrigin: "http://198.18.0.1:18081" },
+    ],
+    [
+      "noncanonical HTTP origin",
+      "http://198.18.0.1:18080/mcp",
+      { insecureHttpOrigin: "http://198.18.0.1:18080/" },
+    ],
+    ["malformed transport declaration", "http://198.18.0.1:18080/mcp", null],
+    [
+      "unknown transport declaration",
+      "http://198.18.0.1:18080/mcp",
+      { insecureHttpOrigin: "http://198.18.0.1:18080", extra: true },
+    ],
+  ])(
+    "rejects %s before either native projection entry returns",
+    (_label, url, transportSecurity) => {
+      const server = { url, transportSecurity };
+      expect(() => normalizeCodexMcpServerConfig("openclaw", server)).toThrow();
+      expect(() => buildCodexMcpServersConfig({ mcpServers: { openclaw: server } })).toThrow();
+    },
+  );
+
+  it("preserves explicitly consented HTTP without claiming native transport policy", () => {
+    const server = {
+      url: "http://198.18.0.1:18080/mcp",
+      transportSecurity: { insecureHttpOrigin: "http://198.18.0.1:18080" },
+    };
+    const projected = normalizeCodexMcpServerConfig("native", server);
+    expect(projected.url).toBe(server.url);
+    expect(projected).not.toHaveProperty("transportSecurity");
+    expect(buildCodexMcpServersConfig({ mcpServers: { native: server } })).toEqual({
+      native: projected,
+    });
+  });
+
+  it("preserves HTTPS and unambiguous stdio projections", () => {
+    expect(
+      buildCodexMcpServersConfig({
+        mcpServers: {
+          secure: { url: "https://mcp.example.com/mcp" },
+          local: { command: "mcp", args: ["--stdio"] },
+        },
+      }),
+    ).toEqual({
+      secure: { url: "https://mcp.example.com/mcp" },
+      local: { command: "mcp", args: ["--stdio"] },
+    });
+  });
+
+  it("projects one captured URL without rereading its original getter", () => {
+    const readUrl = vi
+      .fn()
+      .mockReturnValueOnce("https://mcp.example.com/mcp")
+      .mockReturnValue("http://198.18.0.1:18080/mcp");
+    const projected = normalizeCodexMcpServerConfig("native", {
+      get url() {
+        return readUrl();
+      },
+    });
+    expect(projected.url).toBe("https://mcp.example.com/mcp");
+    expect(readUrl).toHaveBeenCalledTimes(1);
+  });
+
   it("normalizes OpenClaw MCP servers into Codex app-server mcp_servers shape", () => {
     // Authorization is represented as Codex's bearer env var, while other env
     // placeholders become env_http_headers for per-thread substitution.
@@ -60,6 +135,7 @@ describe("buildCodexMcpServersConfig", () => {
           openclaw: {
             type: "http",
             url: "http://127.0.0.1:23119/mcp",
+            transportSecurity: { insecureHttpOrigin: "http://127.0.0.1:23119" },
             connectionTimeoutMs: 12_345,
             requestTimeoutMs: 20_125,
             supportsParallelToolCalls: true,

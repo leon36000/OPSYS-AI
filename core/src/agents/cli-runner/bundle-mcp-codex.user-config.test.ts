@@ -36,6 +36,31 @@ describe("buildCodexUserMcpServersThreadConfigPatchForRuntime", () => {
     authMocks.resolveMcpOAuthAccessToken.mockReset();
   });
 
+  it("rejects initial HTTP without consent through async user config preparation", async () => {
+    const cfg = {
+      mcp: { servers: { native: { url: "http://198.18.0.1:18080/mcp" } } },
+    } satisfies OpenClawConfig;
+    await expect(buildCodexUserMcpServersThreadConfigPatchForRuntime(cfg)).rejects.toThrow(
+      "exact HTTP origin",
+    );
+  });
+
+  it("preserves exact HTTP consent through user config normalization", async () => {
+    const cfg = {
+      mcp: {
+        servers: {
+          native: {
+            url: "http://198.18.0.1:18080/mcp",
+            transportSecurity: { insecureHttpOrigin: "http://198.18.0.1:18080" },
+          },
+        },
+      },
+    } satisfies OpenClawConfig;
+    const patch = await buildCodexUserMcpServersThreadConfigPatchForRuntime(cfg);
+    expect(patch?.mcp_servers.native.url).toBe("http://198.18.0.1:18080/mcp");
+    expect(patch?.mcp_servers.native).not.toHaveProperty("transportSecurity");
+  });
+
   it("projects exact-agent durable grants with server policy precedence in runtime preparation", async () => {
     const grants = ["auto", "unspecified", "prompt", "approve", "missing"].map((server) => ({
       server,

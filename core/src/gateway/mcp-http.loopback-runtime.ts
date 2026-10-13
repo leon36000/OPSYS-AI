@@ -388,11 +388,13 @@ const MCP_CAPTURE_HEADERS = {
 } as const;
 
 function createMcpServerConfig(port: number, headers: Record<string, string>) {
+  const url = `http://127.0.0.1:${port}/mcp`;
   return {
     mcpServers: {
       openclaw: {
         type: "http",
-        url: `http://127.0.0.1:${port}/mcp`,
+        url,
+        transportSecurity: { insecureHttpOrigin: new URL(url).origin },
         alwaysLoad: true,
         headers,
       },

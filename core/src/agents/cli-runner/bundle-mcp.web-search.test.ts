@@ -32,7 +32,13 @@ async function prepare(
     config: { plugins: { enabled: false }, tools: { web: { search } } },
     toolOverrides,
     exclusiveConfig: {
-      mcpServers: { openclaw: { type: "http", url: "http://127.0.0.1:12345/mcp" } },
+      mcpServers: {
+        openclaw: {
+          type: "http",
+          url: "http://127.0.0.1:12345/mcp",
+          transportSecurity: { insecureHttpOrigin: "http://127.0.0.1:12345" },
+        },
+      },
     },
     env: { GEMINI_CLI_SYSTEM_SETTINGS_PATH: "" },
   });

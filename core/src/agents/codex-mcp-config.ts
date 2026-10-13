@@ -8,6 +8,7 @@ import { clampPositiveTimerTimeoutMs } from "@openclaw/normalization-core/number
 import { normalizeOptionalLowercaseString } from "@openclaw/normalization-core/string-coerce";
 import { normalizeTrimmedStringList } from "@openclaw/normalization-core/string-normalization";
 import { normalizeConfiguredMcpServers } from "../config/mcp-config-normalize.js";
+import { captureMcpTransportSecurity } from "../config/mcp-transport-security.js";
 import type { SessionToolOverrides } from "../config/sessions/types.js";
 import { loadMcpToolGrants, type McpToolGrant } from "../infra/exec-approvals-mcp.js";
 import {
@@ -94,20 +95,37 @@ export function normalizeCodexMcpServerConfig(
   server: BundleMcpServerConfig,
   grants: readonly McpToolGrant[] = [],
 ): Record<string, unknown> {
-  const next = normalizeBundleMcpServerConfig(server);
-  const connectionTimeoutMs = clampPositiveTimerTimeoutMs(server.connectionTimeoutMs);
-  const requestTimeoutMs = clampPositiveTimerTimeoutMs(server.requestTimeoutMs);
+  const capturedServer = { ...server };
+  const transportSecurity = captureMcpTransportSecurity(capturedServer.transportSecurity);
+  const next = normalizeBundleMcpServerConfig(capturedServer);
+  // Codex owns its transport: this admits the initial URL, not native redirects.
+  if (typeof next.url === "string") {
+    let target: URL;
+    try {
+      target = new URL(next.url);
+    } catch {
+      throw new Error("Cannot project an invalid MCP server URL into Codex");
+    }
+    if (target.protocol !== "http:" && target.protocol !== "https:") {
+      throw new Error("Codex MCP projection requires an HTTP or HTTPS URL");
+    }
+    if (target.protocol === "http:" && transportSecurity?.insecureHttpOrigin !== target.origin) {
+      throw new Error("Codex MCP HTTP projection requires consent for the exact HTTP origin");
+    }
+  }
+  const connectionTimeoutMs = clampPositiveTimerTimeoutMs(capturedServer.connectionTimeoutMs);
+  const requestTimeoutMs = clampPositiveTimerTimeoutMs(capturedServer.requestTimeoutMs);
   if (connectionTimeoutMs !== undefined) {
     next.startup_timeout_sec = connectionTimeoutMs / 1_000;
   }
   if (requestTimeoutMs !== undefined) {
     next.tool_timeout_sec = requestTimeoutMs / 1_000;
   }
-  if (typeof server.supportsParallelToolCalls === "boolean") {
-    next.supports_parallel_tool_calls = server.supportsParallelToolCalls;
+  if (typeof capturedServer.supportsParallelToolCalls === "boolean") {
+    next.supports_parallel_tool_calls = capturedServer.supportsParallelToolCalls;
   }
-  applyCodexToolFilter(next, name, server);
-  const defaultToolsApprovalMode = resolveProjectedMcpCodexToolApprovalMode(name, server);
+  applyCodexToolFilter(next, name, capturedServer);
+  const defaultToolsApprovalMode = resolveProjectedMcpCodexToolApprovalMode(name, capturedServer);
   if (defaultToolsApprovalMode) {
     next.default_tools_approval_mode = defaultToolsApprovalMode;
   }
@@ -122,7 +140,7 @@ export function normalizeCodexMcpServerConfig(
       next.tools = Object.fromEntries(tools);
     }
   }
-  const httpHeaders = normalizeMcpStringRecord(server.headers);
+  const httpHeaders = normalizeMcpStringRecord(capturedServer.headers);
   if (httpHeaders) {
     const staticHeaders: Record<string, string> = {};
     const envHeaders: Record<string, string> = {};

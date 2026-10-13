@@ -188,6 +188,7 @@ describe("prepareCliBundleMcpConfig codex", () => {
           openclaw: {
             type: "http",
             url: "http://127.0.0.1:23119/mcp",
+            transportSecurity: { insecureHttpOrigin: "http://127.0.0.1:23119" },
             headers: {
               Authorization: "Bearer ${OPENCLAW_MCP_TOKEN}",
               "x-session-key": "${OPENCLAW_MCP_SESSION_KEY}",

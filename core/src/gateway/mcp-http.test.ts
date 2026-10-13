@@ -4220,6 +4220,20 @@ describe("collector result tool across the loopback MCP boundary", () => {
 });
 
 describe("createMcpLoopbackServerConfig", () => {
+  it.each([
+    { port: 80, origin: "http://127.0.0.1" },
+    { port: 24120, origin: "http://127.0.0.1:24120" },
+  ])("declares the canonical HTTP origin for port $port", ({ port, origin }) => {
+    expect(createMcpLoopbackServerConfig(port)).toHaveProperty(
+      "mcpServers.openclaw.transportSecurity.insecureHttpOrigin",
+      origin,
+    );
+    expect(createMcpAttachGrantServerConfig(port)).toHaveProperty(
+      "mcpServers.openclaw.transportSecurity.insecureHttpOrigin",
+      origin,
+    );
+  });
+
   it("builds a server entry with env-driven headers", () => {
     const config = createMcpLoopbackServerConfig(23119) as {
       mcpServers?: Record<
@@ -4228,6 +4242,10 @@ describe("createMcpLoopbackServerConfig", () => {
       >;
     };
     expect(config.mcpServers?.openclaw?.url).toBe("http://127.0.0.1:23119/mcp");
+    expect(config).toHaveProperty(
+      "mcpServers.openclaw.transportSecurity.insecureHttpOrigin",
+      "http://127.0.0.1:23119",
+    );
     expect(config.mcpServers?.openclaw?.alwaysLoad).toBe(true);
     expect(config.mcpServers?.openclaw?.headers).toEqual({
       Authorization: "Bearer ${OPENCLAW_MCP_TOKEN}",
@@ -4239,6 +4257,10 @@ describe("createMcpLoopbackServerConfig", () => {
     const config = createMcpAttachGrantServerConfig(23119) as {
       mcpServers?: Record<string, { headers?: Record<string, string> }>;
     };
+    expect(config).toHaveProperty(
+      "mcpServers.openclaw.transportSecurity.insecureHttpOrigin",
+      "http://127.0.0.1:23119",
+    );
     expect(config.mcpServers?.openclaw?.headers).toEqual({
       Authorization: "Bearer ${OPENCLAW_MCP_TOKEN}",
     });
