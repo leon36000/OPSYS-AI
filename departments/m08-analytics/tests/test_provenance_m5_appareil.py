@@ -2,11 +2,12 @@
 
 import importlib.util
 import inspect
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
 from m8_analytics import outils
-from sqlalchemy import MetaData, Table, select, update
+from sqlalchemy import MetaData, Table, event, insert, select, update
 from sqlalchemy import inspect as inspect_sql
 
 from opsys import contexte, evenements, identite, stockage
@@ -298,3 +299,237 @@ def test_vrai_bus_legacy_puis_nouveau_fait_fort_ne_bloquent_pas_courant(base):
     assert dto["selection"]["publication_courante_id"] == c["evenement_id"]
     assert dto["publications"][0]["rapprochement"]["etat"] == "CORRESPONDANCE_DE_PROJECTION"
     assert dto["publications"][0]["fait"]["reference"]["rang"] == 1
+
+
+def test_budget_source_refuse_avant_transfert_driver_et_decodage(base, monkeypatch):
+    """Régression : un refus tardif après .all()/decoder doit échouer."""
+    _publier_cash()
+    marqueur = "Q-M8-TRANSFERT-FICTIF"
+    raw = codec.encoder({"fictif": True, "type_entree": marqueur})
+    with stockage.transaction() as cnx:
+        cnx.execute(insert(REGISTRES), [{"departement": "m08-analytics", "registre": "faits_cash_libre",
+                                        "rang": i + 1, "maillon": raw} for i in range(10001)])
+        avant = _snapshot(cnx)
+        decodages = []
+        original = codec.decoder
+
+        def decoder(texte):
+            if marqueur in texte:
+                decodages.append(texte)
+            return original(texte)
+
+        monkeypatch.setattr(codec, "decoder", decoder)
+        with _transferts_sql(cnx, marqueur) as transferts:
+            reponse = _lire()
+        assert reponse["resultat"]["verdict"]["code"] == "REJ-M8-PROVENANCE-BUDGET-SOURCE-DEPASSE"
+        assert not transferts, f"{len(transferts)} payloads métier transférés avant refus"
+        assert not decodages, f"{len(decodages)} décodages métier avant refus"
+        assert _snapshot(cnx) == avant and len(avant) == 49
+
+
+def _publication_utf8_bornee(ident, octets):
+    # Budget indépendant : somme des cinq textes réellement sélectionnés de cette publication.
+    typ, producteur, date = "m5.cash_libre_constate", "m05-financecore", "2026-10-13T00:00:00+00:00"
+    enveloppe = sum(len(x.encode("utf-8")) for x in (ident, typ, producteur, date))
+    charge = codec.encoder({"fictif": True, "texte": "é" * 30000})
+    charge += " " * (octets - enveloppe - len(charge.encode("utf-8")))
+    assert len(charge.encode("utf-8")) + enveloppe == octets
+    return {"evenement_id": ident, "type_evenement": typ, "producteur": producteur,
+            "charge": charge, "cree_le": date}
+
+
+@pytest.mark.parametrize("octets,accepte", [(65536, True), (65537, False)])
+def test_borne_ligne_utf8_multioctet_pas_caracteres(base, monkeypatch, octets, accepte):
+    from opsys.evenements.bus import BudgetProvenanceDepasse, copier_cohorte_provenance_m5_m8
+
+    row = _publication_utf8_bornee("Q-ligne-fictive", octets)
+    with stockage.transaction() as cnx:
+        cnx.execute(insert(EVENEMENTS_SORTANTS).values(**row))
+        avant = _snapshot(cnx)
+        original, decodages = codec.decoder, []
+
+        def decoder(texte):
+            decodages.append(texte)
+            return original(texte)
+
+        monkeypatch.setattr(codec, "decoder", decoder)
+        if accepte:
+            copie, faits = copier_cohorte_provenance_m5_m8(cnx, type_evenement="m5.cash_libre_constate")
+            assert copie.publications[0].charge["texte"] == "é" * 30000 and faits.lignes == ()
+            assert len(decodages) == 1
+        else:
+            with _transferts_sql(cnx, '"texte"') as transferts, pytest.raises(BudgetProvenanceDepasse):
+                copier_cohorte_provenance_m5_m8(cnx, type_evenement="m5.cash_libre_constate")
+            assert not transferts and not decodages
+        assert _snapshot(cnx) == avant
+
+
+@pytest.mark.parametrize("lignes,accepte", [(256, True), (257, False)])
+def test_borne_cumul_utf8_exact_16mib_sans_decodage_si_depassee(base, monkeypatch, lignes, accepte):
+    from opsys.evenements.bus import BudgetProvenanceDepasse, copier_cohorte_provenance_m5_m8
+
+    rows = [_publication_utf8_bornee(f"Q-total-{i:08d}", 65536) for i in range(lignes)]
+    with stockage.transaction() as cnx:
+        cnx.execute(insert(EVENEMENTS_SORTANTS), rows)
+        original, decodages = codec.decoder, []
+
+        def decoder(texte):
+            decodages.append(1)
+            return original(texte)
+
+        monkeypatch.setattr(codec, "decoder", decoder)
+        if accepte:
+            copie, _faits = copier_cohorte_provenance_m5_m8(cnx, type_evenement="m5.cash_libre_constate")
+            assert len(copie.publications) == 256 and len(decodages) == 256
+        else:
+            with _transferts_sql(cnx, '"texte"') as transferts, pytest.raises(BudgetProvenanceDepasse):
+                copier_cohorte_provenance_m5_m8(cnx, type_evenement="m5.cash_libre_constate")
+            assert not transferts and not decodages
+
+
+def test_borne_10000_cohorte_complete_et_pas_page_financiere_partielle(base):
+    from opsys.evenements.bus import copier_cohorte_provenance_m5_m8
+
+    _publier_cash()
+    with stockage.transaction() as cnx:
+        cnx.execute(insert(REGISTRES), [{"departement": "m08-analytics", "registre": "faits_cash_libre",
+                                        "rang": i + 1, "maillon": codec.encoder({"fictif": True})}
+                                       for i in range(9997)])
+        copie, faits = copier_cohorte_provenance_m5_m8(cnx, type_evenement="m5.cash_libre_constate")
+        assert len(copie.publications) == 1 and len(copie.recus) == 1 and len(faits.lignes) == 9998
+
+
+def test_cohorte_preserve_scope_hash_raw_date_null_sans_erreur_privee(base):
+    from opsys.evenements.bus import copier_cohorte_provenance_m5_m8, copier_publications_et_recus
+    from opsys.stockage.maillons import copier_maillons_avec_metadonnees
+
+    c = _publier_cash()
+    with stockage.transaction() as cnx:
+        cnx.execute(update(EVENEMENTS_SORTANTS).values(charge=" " + codec.encoder(c) + " "))
+        cnx.execute(update(EVENEMENTS_RECUS).values(resultat=None, derniere_erreur="PRIVATE-FICTIF" * 10000))
+        cnx.execute(insert(REGISTRES).values(departement="m03-estimation", registre="faits_cash_libre",
+                                           rang=0, maillon="IGNORED-FICTIF" * 10000))
+        cnx.execute(insert(EVENEMENTS_RECUS).values(evenement_id=c["evenement_id"], consommateur="m10-memoire",
+                                                  statut="traite", tentatives=1, resultat="IGNORED-FICTIF" * 10000))
+        ancien_bus = copier_publications_et_recus(cnx, type_evenement="m5.cash_libre_constate",
+                                                consommateur="m08-analytics")
+        anciens_faits = copier_maillons_avec_metadonnees(cnx, departement="m08-analytics",
+                                                       registre="faits_cash_libre")
+        avant = _snapshot(cnx)
+        nouveau_bus, nouveaux_faits = copier_cohorte_provenance_m5_m8(cnx, type_evenement="m5.cash_libre_constate")
+        assert nouveau_bus == ancien_bus and nouveaux_faits == anciens_faits
+        assert nouveau_bus.recus[0].resultat is None
+        assert _snapshot(cnx) == avant and len(avant) == 49
+
+
+def test_requete_cohorte_dialectes_byte_count_et_union_datetime_null():
+    from sqlalchemy.dialects import postgresql, sqlite
+
+    from opsys.evenements.bus import _requete_cohorte_m5_m8
+
+    for nom, dialecte, fonction in [("sqlite", sqlite.dialect(), "BLOB"),
+                                    ("postgresql", postgresql.dialect(), "octet_length")]:
+        sql = str(_requete_cohorte_m5_m8("m5.cash_libre_constate", nom).compile(
+            dialect=dialecte, compile_kwargs={"literal_binds": True}))
+        assert fonction in sql and "10001" in sql and "CASE WHEN" in sql and "UNION ALL" in sql
+        assert "derniere_erreur" not in sql
+        # Compilation seule : ne constitue pas une exécution PostgreSQL native.
+
+
+class CurseurObserve:
+    def __init__(self, curseur, marqueur, transferts):
+        self.curseur = curseur
+        self.marqueur = marqueur
+        self.transferts = transferts
+
+    def __getattr__(self, nom):
+        return getattr(self.curseur, nom)
+
+    def _observer(self, lignes):
+        for ligne in lignes:
+            if any(isinstance(x, str) and self.marqueur in x for x in ligne):
+                self.transferts.append(ligne)
+        return lignes
+
+    def fetchall(self):
+        return self._observer(self.curseur.fetchall())
+
+    def fetchmany(self, *args):
+        return self._observer(self.curseur.fetchmany(*args))
+
+    def fetchone(self):
+        ligne = self.curseur.fetchone()
+        if ligne is not None:
+            self._observer([ligne])
+        return ligne
+
+
+@contextmanager
+def _transferts_sql(cnx, marqueur):
+    transferts = []
+
+    def observer(_cnx, curseur, _sql, _params, contexte_sql, _many):
+        contexte_sql.cursor = CurseurObserve(curseur, marqueur, transferts)
+
+    event.listen(cnx, "after_cursor_execute", observer)
+    try:
+        yield transferts
+    finally:
+        event.remove(cnx, "after_cursor_execute", observer)
+
+
+@pytest.mark.parametrize("table,colonne,code", [
+    (EVENEMENTS_RECUS, "tentatives", "SOURCE-INVALIDE"),
+    (REGISTRES, "rang", "REGISTRE-INVALIDE"),
+])
+def test_metadonnees_sql_integer_corrompues_refusent_avant_transfert_et_decoder(
+    base, monkeypatch, table, colonne, code,
+):
+    _publier_cash()
+    marqueur = "Q-M8-METADONNEE-FICTIF"
+    with stockage.transaction() as cnx:
+        # SQLite accepte réellement TEXT dans ces INTEGER non STRICT ; aucun lecteur simulé.
+        cnx.execute(update(table).values({colonne: marqueur + "x" * 100000}))
+        avant = _snapshot(cnx)
+        decodages, original = [], codec.decoder
+
+        def decoder(texte):
+            decodages.append(texte)
+            return original(texte)
+
+        monkeypatch.setattr(codec, "decoder", decoder)
+        with _transferts_sql(cnx, marqueur) as transferts:
+            reponse = _lire()
+        assert not transferts, "métadonnée métier TEXT transférée depuis une colonne INTEGER"
+        assert not decodages
+        assert reponse["resultat"]["verdict"]["code"] == "REJ-M8-PROVENANCE-" + code
+        assert _snapshot(cnx) == avant and len(avant) == 49
+
+
+def test_date_sql_malformee_refuse_secure_sans_faux_code_registre(base, monkeypatch):
+    _publier_cash()
+    with stockage.transaction() as cnx:
+        cnx.exec_driver_sql(
+            "UPDATE registres_maillons SET cree_le = ? WHERE departement = ? AND registre = ?",
+            ("Q-M8-DATE-MALFORMEE-FICTIVE", "m08-analytics", "faits_cash_libre"),
+        )
+        noms = inspect_sql(cnx).get_table_names()
+
+        def brut():
+            return {nom: tuple(cnx.exec_driver_sql('SELECT * FROM "' + nom.replace('"', '""') + '"'))
+                    for nom in noms}
+
+        avant = brut()
+        decodages, original = [], codec.decoder
+
+        def decoder(texte):
+            decodages.append(texte)
+            return original(texte)
+
+        monkeypatch.setattr(codec, "decoder", decoder)
+        reponse = _lire()
+        assert reponse["resultat"]["verdict"]["code"] == "REJ-M8-PROVENANCE-SOURCE-INVALIDE"
+        # Le processeur DateTime SQLAlchemy refuse avant les decoders métier ; payload déjà borné.
+        # On ne prétend pas préserver REGISTRE-INVALIDE pour ce format SQL malformé.
+        assert not decodages and "Q-M8-DATE" not in str(reponse)
+        assert brut() == avant and len(noms) == 49

@@ -16,10 +16,12 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from m9_strategic_intelligence import registre
+from m9_strategic_intelligence import outils, registre
 from sqlalchemy import select, update
 
-from opsys import stockage
+from opsys import contexte, stockage
+from opsys.contexte import IdentiteAppelante
+from opsys.outils import executer_atomique
 from opsys.stockage import codec
 from opsys.stockage.schema import REGISTRES
 
@@ -122,3 +124,85 @@ def test_adaptateur_branche_le_registre_de_production_sur_stockage_maillons():
     `stockage.maillons("m09-strategic-intelligence", "snapshots")`."""
     texte = (_SRC / "m9_strategic_intelligence" / "outils.py").read_text(encoding="utf-8")
     assert 'stockage.maillons("m09-strategic-intelligence", "snapshots")' in texte
+
+
+_MATIN = "2026-01-05T07:00:00Z"
+_SOURCE_FICTIVE = _snapshot("source-declaree-fictive", "2026-01-04T12:00:00Z", {"prevision": "100.00"})
+_LECTURES_ET_AJOUT = [
+    ("m9_lire_etat_consolide", {}),
+    ("m9_produire_briefing_matin", {"maintenant": _MATIN}),
+    ("m9_lire_suite_briefing", {"maintenant": _MATIN, "section": "faits_veille"}),
+    ("m9_etat_consolide", {"snapshot": _snapshot("autre-source-fictive", _MATIN, {"prevision": "200.00"})}),
+]
+
+
+def _appeler_natif(nom, arguments):
+    return executer_atomique({o.nom: o for o in outils.outils()}[nom], arguments)
+
+
+def _maillons_bruts():
+    with stockage.transaction() as cnx:
+        return list(cnx.execute(select(REGISTRES.c.maillon).where(
+            (REGISTRES.c.departement == DEPARTEMENT) & (REGISTRES.c.registre == REGISTRE_NOM)
+        ).order_by(REGISTRES.c.rang)).scalars())
+
+
+@pytest.mark.parametrize("nom,arguments", _LECTURES_ET_AJOUT)
+def test_source_legacy_intacte_reste_lisible_et_peut_recevoir_un_ajout(base_durable, nom, arguments):
+    assert _appeler_natif("m9_etat_consolide", {"snapshot": _SOURCE_FICTIVE})["resultat"]["accepte"]
+    avant = _maillons_bruts()
+    # Ancien format exact conservé, aucun champ/version ajouté au registre.
+    assert set(codec.decoder(avant[0])) == {
+        "index", "module_source", "horodatage", "valeurs", "hash_precedent", "hash_maillon"}
+    reponse = _appeler_natif(nom, arguments)
+    assert reponse["ok"] is True, reponse
+    relue = registre.RegistreSnapshots(maillons=stockage.maillons(DEPARTEMENT, REGISTRE_NOM))
+    assert relue.valider_chaine() == (True, "")
+    apres = _maillons_bruts()
+    assert apres[0] == avant[0]
+    if nom == "m9_etat_consolide":
+        assert reponse["resultat"]["accepte"] and len(apres) == 2
+    else:
+        assert apres == avant and "100.00" in str(reponse)
+
+
+@pytest.mark.parametrize("nom,arguments", _LECTURES_ET_AJOUT)
+@pytest.mark.parametrize("malforme", [False, True])
+def test_chaine_rompue_refuse_lecture_et_ajout_sans_fuite_ni_reparation(base_durable, nom, arguments, malforme):
+    assert _appeler_natif("m9_etat_consolide", {"snapshot": _SOURCE_FICTIVE})["resultat"]["accepte"]
+    filtre = ((REGISTRES.c.departement == DEPARTEMENT) & (REGISTRES.c.registre == REGISTRE_NOM)
+              & (REGISTRES.c.rang == 0))
+    with stockage.transaction() as cnx:
+        maillon = codec.decoder(cnx.execute(select(REGISTRES.c.maillon).where(filtre)).scalar_one())
+        maillon["valeurs"]["prevision"] = "999999.00-FICTIF-ALTERE"
+        if malforme:
+            del maillon["hash_maillon"]
+        cnx.execute(update(REGISTRES).where(filtre).values(maillon=codec.encoder(maillon)))
+    if not malforme:
+        relue = registre.RegistreSnapshots(maillons=stockage.maillons(DEPARTEMENT, REGISTRE_NOM))
+        assert relue.valider_chaine()[0] is False
+    avant = _maillons_bruts()
+    reponse = _appeler_natif(nom, arguments)
+    assert _maillons_bruts() == avant  # ni nouvelle charge, ni réparation, ni réécriture
+    assert reponse["ok"] is False and reponse["erreur"] == "refus_metier", reponse
+    assert reponse["details"].startswith("REJ-SNAPSHOT-CHAINE-INVALIDE")
+    assert "999999.00" not in str(reponse) and "FICTIF-ALTERE" not in str(reponse)
+
+
+@pytest.mark.parametrize("nom,arguments", _LECTURES_ET_AJOUT)
+def test_autorisation_precede_validation_et_lecture_de_chaine(base_durable, nom, arguments):
+    class RegistreInterdit:
+        def valider_chaine(self):
+            raise AssertionError("chaîne lue avant refus d'identité")
+
+        def lire(self):
+            raise AssertionError("registre lu avant refus d'identité")
+
+        def ajouter(self, snapshot):
+            raise AssertionError("registre écrit avant refus d'identité")
+
+    natifs = {o.nom: o for o in outils.outils(registre_cible=RegistreInterdit(), alertes_cible=[])}
+    with contexte.appele_par_appareil(IdentiteAppelante("employe-fictif", "employee")):
+        reponse = executer_atomique(natifs[nom], arguments)
+    assert reponse["ok"] is False and reponse["erreur"] == "refus_metier", reponse
+    assert reponse["details"].startswith("REJ-IDENTITE-APPAREIL-INVALIDE")

@@ -776,3 +776,70 @@ describe("CF037 — transitions de départ et de garde en concurrence", () => {
     expect(rapport.arret?.genre ?? null).toBe(frontiere === "garde" ? "session_changee" : null);
   });
 });
+
+// Target-bound completion ACKs: SDK transport fixtures, no backend/phone execution.
+describe("completion ACK target and uncertain series", () => {
+  const payload = (id = "I-COMPLETE") => ({ intervention_id: id, horodatage: "2026-10-13T12:00:00+00:00",
+    preuves_completion: { checklist_complete: true, photos_apres: ["fichier:sha256:" + "a".repeat(64)], notes: "FICTIF", signature: null }, signature_requise: false });
+  const ack = (id: unknown = "I-COMPLETE") => ({ wct_id: "W-FICTIF", intervention_id: id,
+    ligne_id: "a".repeat(64), statut: "completed_pending_review", hash_maillon: "b".repeat(64),
+    duree_reelle_minutes: 60, ecart_signale: true, tete_chaine: "c".repeat(64) });
+  const completion = (depot: DepotOutboxMemoire, id = "I-COMPLETE") => inserer(depot,
+    { type: "job_completion", chantierId: id, payload: payload(id) });
+
+  test("matching target stores only the original intention and eight-field ACK", async () => {
+    const depot = new DepotOutboxMemoire(), first = await completion(depot);
+    const fetchImpl = jest.fn().mockResolvedValue(reponseAcceptee(ack()));
+    const driver = creerVidangeur(creerConfig(depot, fetchImpl, () => HORLOGE.maintenant));
+    expect((await driver.vidangerFileSortante()).envoyees).toEqual([first.id]);
+    expect(await depot.obtenir(first.id)).toMatchObject({ id: first.id, proprietaire: PERSONNE, payload: first.payload,
+      statut: "envoyee", resumeAccepte: ack() });
+    expect(Object.keys(ack()).sort()).toEqual(["wct_id", "intervention_id", "ligne_id", "statut", "hash_maillon",
+      "duree_reelle_minutes", "ecart_signale", "tete_chaine"].sort());
+  });
+
+  test.each(["I-FOREIGN", null, undefined, ""])("ACK target %j retains UUID/body without an accepted result", async target => {
+    const depot = new DepotOutboxMemoire(), first = await completion(depot);
+    const fetchImpl = jest.fn().mockResolvedValue(reponseAcceptee({ ...ack(), intervention_id: target }));
+    const driver = creerVidangeur(creerConfig(depot, fetchImpl, () => HORLOGE.maintenant));
+    const report = await driver.vidangerFileSortante();
+    expect(report.envoyees).toEqual([]); expect(report.resultatsAcceptes).toEqual([]);
+    expect(await depot.obtenir(first.id)).toMatchObject({ id: first.id, proprietaire: PERSONNE, payload: first.payload,
+      statut: "en_attente", resumeAccepte: null });
+  });
+
+  test("unknown original blocks next same job, independent job proceeds, correct retry keeps UUID/body", async () => {
+    const depot = new DepotOutboxMemoire(), first = await completion(depot), second = await completion(depot);
+    const other = await completion(depot, "I-OTHER"); let now = new Date(HORLOGE.maintenant);
+    let unknown = true;
+    const fetchImpl = jest.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      const request = JSON.parse(String(init?.body));
+      return request.idempotencyKey === first.id && unknown ? reponseHttp(200, { ok: true, result: {} }) :
+        reponseAcceptee(ack(request.args.intervention_id));
+    });
+    const driver = creerVidangeur(creerConfig(depot, fetchImpl, () => now));
+    const initial = await driver.vidangerFileSortante();
+    expect(initial.envoyees).toEqual([other.id]); expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(await depot.obtenir(first.id)).toMatchObject({ id: first.id, payload: first.payload, statut: "en_attente" });
+    expect(await depot.obtenir(second.id)).toMatchObject({ statut: "en_attente", tentatives: 0 });
+    unknown = false; now = new Date(now.getTime() + 60000);
+    const retry = await driver.vidangerFileSortante(); expect(retry.envoyees).toEqual([first.id]);
+    expect(await depot.obtenir(second.id)).toMatchObject({ statut: "en_attente", tentatives: 0 });
+    const requests = fetchImpl.mock.calls.map(call => JSON.parse(String(call[1]?.body))).filter(r => r.idempotencyKey === first.id);
+    expect(requests).toHaveLength(2); expect(requests[0]).toEqual(requests[1]);
+    expect(await depot.obtenir(first.id)).toMatchObject({ id: first.id, payload: first.payload, proprietaire: PERSONNE });
+    expect((await driver.vidangerFileSortante()).envoyees).toEqual([second.id]);
+    expect(await depot.obtenir(second.id)).toMatchObject({ id: second.id, payload: second.payload, statut: "envoyee" });
+  });
+
+  test("restored sent receipt for foreign target blocks same job but preserves another job", async () => {
+    const depot = new DepotOutboxMemoire(), original = await completion(depot);
+    await depot.mettreAJour({ ...original, statut: "envoyee", resumeAccepte: ack("I-FOREIGN") });
+    const next = await completion(depot), other = await completion(depot, "I-OTHER");
+    const fetchImpl = jest.fn(async (_url: RequestInfo | URL, init?: RequestInit) => reponseAcceptee(ack(JSON.parse(String(init?.body)).args.intervention_id)));
+    const report = await creerVidangeur(creerConfig(depot, fetchImpl, () => HORLOGE.maintenant)).vidangerFileSortante();
+    expect(report.envoyees).toEqual([other.id]); expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(await depot.obtenir(next.id)).toMatchObject({ statut: "en_attente", tentatives: 0 });
+    expect(await depot.obtenir(original.id)).toMatchObject({ statut: "envoyee", resumeAccepte: ack("I-FOREIGN") });
+  });
+});

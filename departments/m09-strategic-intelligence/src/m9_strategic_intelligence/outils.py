@@ -177,9 +177,26 @@ def outils(
     if alertes_cible is None:
         alertes_cible = stockage.maillons("m09-strategic-intelligence", "alertes_m8")
 
+    def exiger_chaine_snapshots_valide() -> None:
+        """Refuse une source rompue ou illisible, sans divulguer ni réparer ses valeurs.
+
+        Validation et relecture peuvent être des SELECT distincts : aucune certification
+        de snapshot contre une altération concurrente n'est fournie ici.
+        """
+        try:
+            valide, _ = registre_cible.valider_chaine()
+        except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+            valide = False
+        if valide is not True:
+            raise ValueError(
+                "REJ-SNAPSHOT-CHAINE-INVALIDE : registre M9 de snapshots invalide ; "
+                "faire vérifier la source avant lecture ou ajout"
+            )
+
     def lire_etat_consolide() -> dict[str, Any]:
         """État consolidé courant par relecture pure du registre — n'ingère rien de nouveau."""
         _exiger_admin_pour_appareil()
+        exiger_chaine_snapshots_valide()
         return etat_consolide_module.construire_etat_consolide(registre_cible)
 
     def etat_consolide(snapshot: dict[str, Any]) -> dict[str, Any]:
@@ -189,10 +206,12 @@ def outils(
         L'état consolidé retourné porte toujours `contradictions` (même liste vide) : une
         contradiction interne n'est jamais résolue automatiquement, seulement nommée.
         """
+        _exiger_admin_pour_appareil()
         valide, verdict = validation.valider_snapshot(snapshot)
         if not valide:
             return {"etape": "validation", "accepte": False, "verdict": verdict}
 
+        exiger_chaine_snapshots_valide()
         registre_cible.ajouter(snapshot)
         etat = etat_consolide_module.construire_etat_consolide(registre_cible)
         return {"etape": "complet", "accepte": True, "etat_consolide": etat}
@@ -213,6 +232,7 @@ def outils(
 
         La file est lue EN ENTIER : `file_proprietaire` borne par défaut à 100 demandes, les plus récentes,
         ce qui aurait écarté en silence les plus anciennes — les plus urgentes — au-delà de 100."""
+        exiger_chaine_snapshots_valide()
         with stockage.transaction() as cnx:
             en_attente = approbations.compter(cnx, "en_attente")
             decisions = approbations.file_proprietaire(cnx, charger_departements(), limite=max(en_attente, 1))

@@ -1365,25 +1365,24 @@ def lire_provenance_m5_appareil(perimetre: str, wct_id: str | None, decalage: in
 
 def _copier_diagnostic_provenance_m5(cnx: Any, arguments: dict) -> dict:
     # Imports locaux : API Socle seule, connexion canonique ; aucun chargement de factory M5/M8.
-    from opsys.evenements.bus import copier_publications_et_recus
+    from opsys.evenements.bus import (
+        BudgetProvenanceDepasse,
+        RegistreProvenanceInvalide,
+        copier_cohorte_provenance_m5_m8,
+    )
     from opsys.evenements.schemas import erreurs_charge
-    from opsys.stockage.maillons import copier_maillons_avec_metadonnees
 
     rent = arguments["perimetre"] == "rentabilite_wct"
     type_evenement = "m5.rentabilite_chantier" if rent else "m5.cash_libre_constate"
     registre_cible = "faits_chantier" if rent else "faits_cash_libre"
     try:
-        bus = copier_publications_et_recus(cnx, type_evenement=type_evenement, consommateur="m08-analytics")
+        bus, registre_copie = copier_cohorte_provenance_m5_m8(cnx, type_evenement=type_evenement)
+    except BudgetProvenanceDepasse:
+        raise provenance_m5.Refus("BUDGET-SOURCE-DEPASSE") from None
+    except RegistreProvenanceInvalide:
+        raise provenance_m5.Refus("REGISTRE-INVALIDE") from None
     except ValueError:
         raise provenance_m5.Refus("SOURCE-INVALIDE") from None
-    try:
-        registre_copie = copier_maillons_avec_metadonnees(
-            cnx, departement="m08-analytics", registre=registre_cible
-        )
-    except ValueError:
-        raise provenance_m5.Refus("REGISTRE-INVALIDE") from None
-    if len(bus.publications) + len(bus.recus) + len(registre_copie.lignes) > 10000:
-        raise provenance_m5.Refus("BUDGET-SOURCE-DEPASSE")
     publications = [{"evenement_id": p.evenement_id, "type_evenement": p.type_evenement,
                      "producteur": p.producteur, "charge": p.charge, "cree_le": p.cree_le}
                     for p in bus.publications]

@@ -16,7 +16,22 @@ from dataclasses import dataclass
 from hashlib import sha256
 from typing import Any
 
-from sqlalchemy import Connection, select
+from sqlalchemy import (
+    Connection,
+    DateTime,
+    Integer,
+    LargeBinary,
+    Text,
+    and_,
+    case,
+    cast,
+    func,
+    literal,
+    null,
+    or_,
+    select,
+    union_all,
+)
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..stockage import codec, connexion_courante, inserer, transaction
@@ -204,3 +219,199 @@ def copier_publications_et_recus(
         )
     except (ValueError, TypeError, ArithmeticError, AttributeError, RecursionError, SQLAlchemyError):
         raise ValueError("copie de provenance du bus invalide") from None
+
+
+class RegistreProvenanceInvalide(ValueError):
+    """Le registre copié est invalide, sans détail partiel."""
+
+
+class BudgetProvenanceDepasse(ValueError):
+    """La cohorte source dépasse une borne fixe, sans payload partiel."""
+
+
+_PROVENANCE_M5_M8 = {
+    "m5.cash_libre_constate": "faits_cash_libre",
+    "m5.rentabilite_chantier": "faits_chantier",
+}
+_PROVENANCE_LIGNES = 10000
+_PROVENANCE_LIGNE_OCTETS = 65536
+_PROVENANCE_OCTETS = 16777216
+
+
+def _requete_cohorte_m5_m8(type_evenement: str, dialecte: str):
+    from ..stockage.schema import REGISTRES
+
+    types = {
+        "kind": Integer(), "evenement_id": Text(), "type_evenement": Text(), "producteur": Text(),
+        "charge": Text(), "publication_date": Text(), "consommateur": Text(), "statut": Text(),
+        "tentatives": Integer(), "prochaine_tentative": Text(), "resultat": Text(), "rang": Integer(),
+        "maillon_date": DateTime(timezone=True), "maillon": Text(),
+    }
+
+    def colonnes(**valeurs):
+        return [valeurs.get(nom, cast(null(), typ)).label(nom) for nom, typ in types.items()]
+
+    publications = select(*colonnes(
+        kind=literal(0), evenement_id=EVENEMENTS_SORTANTS.c.evenement_id,
+        type_evenement=EVENEMENTS_SORTANTS.c.type_evenement, producteur=EVENEMENTS_SORTANTS.c.producteur,
+        charge=EVENEMENTS_SORTANTS.c.charge, publication_date=EVENEMENTS_SORTANTS.c.cree_le,
+    )).where(EVENEMENTS_SORTANTS.c.type_evenement == type_evenement)
+    recus = select(*colonnes(
+        kind=literal(1), evenement_id=EVENEMENTS_RECUS.c.evenement_id,
+        consommateur=EVENEMENTS_RECUS.c.consommateur, statut=EVENEMENTS_RECUS.c.statut,
+        tentatives=EVENEMENTS_RECUS.c.tentatives, prochaine_tentative=EVENEMENTS_RECUS.c.prochaine_tentative,
+        resultat=EVENEMENTS_RECUS.c.resultat,
+    )).select_from(EVENEMENTS_RECUS.join(EVENEMENTS_SORTANTS,
+        EVENEMENTS_SORTANTS.c.evenement_id == EVENEMENTS_RECUS.c.evenement_id)).where(
+        EVENEMENTS_SORTANTS.c.type_evenement == type_evenement,
+        EVENEMENTS_RECUS.c.consommateur == "m08-analytics",
+    )
+    faits = select(*colonnes(
+        kind=literal(2), rang=REGISTRES.c.rang, maillon_date=REGISTRES.c.cree_le, maillon=REGISTRES.c.maillon,
+    )).where(REGISTRES.c.departement == "m08-analytics",
+             REGISTRES.c.registre == _PROVENANCE_M5_M8[type_evenement])
+    raw = union_all(publications, recus, faits).subquery("sources_m5_m8")
+    prefixe = select(raw).order_by(raw.c.kind, raw.c.evenement_id, raw.c.rang).limit(
+        _PROVENANCE_LIGNES + 1).cte("cohorte_m5_m8")
+    champs = {
+        0: ("evenement_id", "type_evenement", "producteur", "charge", "publication_date"),
+        1: ("evenement_id", "consommateur", "statut", "prochaine_tentative", "resultat"),
+        2: ("maillon", "maillon_date"),
+    }
+    nullable = {"prochaine_tentative", "resultat"}
+    tailles, invalides = [], []
+    for kind, noms in champs.items():
+        for nom in noms:
+            col = prefixe.c[nom]
+            texte = cast(col, Text()) if nom == "maillon_date" else col
+            taille = (func.length(cast(texte, LargeBinary)) if dialecte == "sqlite"
+                      else func.octet_length(texte))
+            tailles.append(case((prefixe.c.kind == kind, func.coalesce(taille, 0)), else_=0))
+            mauvais = col.is_(None) if nom not in nullable else literal(False)
+            if dialecte == "sqlite":
+                mauvais = or_(mauvais, and_(col.is_not(None), func.typeof(col) != "text"))
+            invalides.append(and_(prefixe.c.kind == kind, mauvais))
+    # Entiers natifs signés64 : jamais TEXT/BLOB/REAL malgré l'affinité SQLite.
+    # Huit octets fixes de budget par métadonnée entière métier (kind est synthétique).
+    for kind, nom in ((1, "tentatives"), (2, "rang")):
+        col = prefixe.c[nom]
+        mauvais = or_(col.is_(None), col < -(2**63), col > 2**63 - 1)
+        if dialecte == "sqlite":
+            mauvais = or_(mauvais, func.typeof(col) != "integer")
+        invalides.append(and_(prefixe.c.kind == kind, mauvais))
+        tailles.append(case((prefixe.c.kind == kind, 8), else_=0))
+    invalide = or_(*invalides)
+    taille_ligne = sum(tailles)
+    stats = select(
+        func.count().label("nombre"), func.coalesce(func.sum(taille_ligne), 0).label("octets"),
+        func.coalesce(func.max(taille_ligne), 0).label("maximum_octets"),
+        func.coalesce(func.sum(case((invalide, 1), else_=0)), 0).label("invalides"),
+        func.coalesce(func.sum(case((and_(prefixe.c.kind == 2, invalide), 1), else_=0)),
+                      0).label("invalides_registre"),
+    ).select_from(prefixe).cte("admission_m5_m8")
+    admissible = and_(stats.c.nombre <= _PROVENANCE_LIGNES, stats.c.octets <= _PROVENANCE_OCTETS,
+                      stats.c.maximum_octets <= _PROVENANCE_LIGNE_OCTETS, stats.c.invalides == 0)
+    # Une seule déclaration/snapshot : aucune valeur métier sort du SQL si la cohorte est refusée.
+    return select(*stats.c,
+        case((admissible, taille_ligne), else_=None).label("ligne_octets"),
+        case((admissible, cast(prefixe.c.maillon_date, Text())), else_=None).label("maillon_date_texte"), *[
+        case((admissible, prefixe.c[nom]), else_=None).label(nom) for nom in types
+    ]).select_from(stats.outerjoin(prefixe, admissible)).order_by(prefixe.c.kind, prefixe.c.evenement_id,
+                                                               prefixe.c.rang)
+
+
+def copier_cohorte_provenance_m5_m8(cnx: Connection, *, type_evenement: str):
+    """Cohorte complète bornée dans un SELECT ; mêmes copies/hashes, aucun chiffre recalculé.
+
+    Plafonds fixes nouveaux : 10000 lignes, 64 KiB UTF8/ligne, 16 MiB UTF8 au total.
+    Ils bornent transfert/décodage, pas les allocations internes ou le planner SQL.
+    """
+    from ..stockage.maillons import MaillonLu, SnapshotMaillons
+
+    if (not isinstance(cnx, Connection) or cnx is not connexion_courante() or cnx.closed
+            or not cnx.in_transaction()):
+        raise ValueError("lecture de provenance hors connexion canonique")
+    if type(type_evenement) is not str or type_evenement not in _PROVENANCE_M5_M8:
+        raise ValueError("source de provenance invalide")
+    dialecte = cnx.dialect.name
+    if dialecte not in ("sqlite", "postgresql"):
+        raise ValueError("dialecte de provenance invalide")
+    try:
+        encoding = (cnx.exec_driver_sql("PRAGMA encoding").scalar_one() if dialecte == "sqlite"
+                    else cnx.execute(select(func.current_setting("server_encoding"))).scalar_one())
+        if type(encoding) is not str or encoding.upper().replace("-", "") != "UTF8":
+            raise ValueError("encodage de provenance invalide")
+        rows = cnx.execute(_requete_cohorte_m5_m8(type_evenement, dialecte)).mappings().all()
+        stats = rows[0]
+        if (stats["nombre"] > _PROVENANCE_LIGNES or stats["octets"] > _PROVENANCE_OCTETS
+                or stats["maximum_octets"] > _PROVENANCE_LIGNE_OCTETS):
+            raise BudgetProvenanceDepasse("borne de source dépassée")
+        if stats["invalides"]:
+            if stats["invalides"] == stats["invalides_registre"]:
+                raise RegistreProvenanceInvalide("source de registre invalide")
+            raise ValueError("source de provenance invalide")
+        lignes = [] if stats["nombre"] == 0 else rows
+        if len(lignes) != stats["nombre"]:
+            raise ValueError("cohorte source incomplète")
+        # Valider tous les textes UTF8 et métadonnées AVANT le premier décodage.
+        total_utf8 = 0
+        for row in lignes:
+            octets_utf8 = 8 if row["kind"] in (1, 2) else 0
+            for nom in ("evenement_id", "type_evenement", "producteur", "charge", "publication_date",
+                        "consommateur", "statut", "prochaine_tentative", "resultat", "maillon"):
+                v = row[nom]
+                if v is not None and (type(v) is not str or len(v.encode("utf-8", errors="strict"))
+                                      > _PROVENANCE_LIGNE_OCTETS):
+                    raise ValueError("texte source invalide")
+                if v is not None:
+                    octets_utf8 += len(v.encode("utf-8", errors="strict"))
+            if row["maillon_date_texte"] is not None:
+                octets_utf8 += len(row["maillon_date_texte"].encode("utf-8", errors="strict"))
+            if octets_utf8 != row["ligne_octets"] or octets_utf8 > _PROVENANCE_LIGNE_OCTETS:
+                raise ValueError("taille UTF8 source incohérente")
+            total_utf8 += octets_utf8
+            if row["kind"] == 1 and (type(row["tentatives"]) is not int
+                                     or not -(2**63) <= row["tentatives"] <= 2**63 - 1):
+                raise ValueError("métadonnée de reçu invalide")
+            if row["kind"] == 2 and (type(row["rang"]) is not int
+                                     or not -(2**63) <= row["rang"] <= 2**63 - 1
+                                     or not isinstance(row["maillon_date"], dt.datetime)):
+                raise RegistreProvenanceInvalide("métadonnées de registre invalides")
+        if total_utf8 != stats["octets"] or total_utf8 > _PROVENANCE_OCTETS:
+            raise ValueError("taille UTF8 de cohorte incohérente")
+        p_raw, r_raw, m_raw = [], [], []
+        for row in lignes:
+            if row["kind"] == 0:
+                p_raw.append({"evenement_id": row["evenement_id"], "type_evenement": row["type_evenement"],
+                              "producteur": row["producteur"], "charge": row["charge"],
+                              "cree_le": row["publication_date"]})
+            elif row["kind"] == 1:
+                r_raw.append({"evenement_id": row["evenement_id"], "consommateur": row["consommateur"],
+                              "statut": row["statut"], "tentatives": row["tentatives"],
+                              "prochaine_tentative": row["prochaine_tentative"], "resultat": row["resultat"]})
+            else:
+                m_raw.append({"rang": row["rang"], "cree_le": row["maillon_date"].isoformat(),
+                              "maillon": row["maillon"]})
+        publications = []
+        for row in p_raw:
+            charge = codec.decoder(row["charge"])
+            if type(charge) is not dict:
+                raise ValueError("objet de publication requis")
+            publications.append(PublicationLue(row["evenement_id"], row["type_evenement"], row["producteur"],
+                                              charge, row["cree_le"]))
+        recus = tuple(RecuLu(row["evenement_id"], row["consommateur"], row["statut"], row["tentatives"],
+                            row["prochaine_tentative"],
+                            codec.decoder(row["resultat"]) if row["resultat"] is not None else None)
+                      for row in r_raw)
+        try:
+            maillons = tuple(MaillonLu(row["rang"], dt.datetime.fromisoformat(row["cree_le"]),
+                                      codec.decoder(row["maillon"])) for row in m_raw)
+        except (ValueError, TypeError, ArithmeticError, AttributeError, RecursionError):
+            raise RegistreProvenanceInvalide("copie du registre invalide") from None
+        return (SnapshotBus(tuple(publications), recus, _empreinte_copie_bus(p_raw), _empreinte_copie_bus(r_raw)),
+                SnapshotMaillons("m08-analytics", _PROVENANCE_M5_M8[type_evenement], maillons,
+                                 _empreinte_copie_bus(m_raw)))
+    except (BudgetProvenanceDepasse, RegistreProvenanceInvalide):
+        raise
+    except (ValueError, TypeError, ArithmeticError, AttributeError, RecursionError, SQLAlchemyError):
+        raise ValueError("copie de provenance invalide") from None

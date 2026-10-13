@@ -243,8 +243,19 @@ describe("DESCRIPTEURS_MUTATION", () => {
         ecart_signale: true,
         tete_chaine: "t",
       };
-      const resultat = interpreter({ ok: true, resultat: { accepte: true, resultat: accuse } });
+      const mutation = { ...soumettreMutation(creerMutation({ type: "job_completion", chantierId: "I1",
+        payload: { intervention_id: "I1" } }, () => "UUID-COMPLETION-FICTIF",
+        { maintenant: new Date("2026-10-08T12:00:00Z"), decalageMinutesUTC: -240 })), proprietaire: "PERSONNE-FICTIVE" };
+      const resultat = interpreter({ ok: true, resultat: { accepte: true, resultat: accuse } }, mutation);
       expect(resultat).toEqual({ accepte: true, resume: accuse });
+    });
+
+    test("ACK sans intention en attente -> accuse_invalide, issue inconnue", () => {
+      const accuse = { wct_id: "W1", intervention_id: "I1", ligne_id: "L1", statut: "completed_pending_review",
+        hash_maillon: "h", duree_reelle_minutes: 90, ecart_signale: true, tete_chaine: "t" };
+      expect(interpreter({ ok: true, resultat: { accepte: true, resultat: accuse } })).toMatchObject({
+        accepte: false, verdict: { code: "accuse_invalide" },
+      });
     });
 
     test("preuves incomplètes -> accepte:false, jamais un succès silencieux", () => {

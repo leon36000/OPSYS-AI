@@ -58,9 +58,28 @@ function versInterpretationGeneriqueDeposerFichier(resultatBrut: unknown, mutati
  * `complete.tsx`, « Terminer ». `resume` porte l'accusé (8 clés, PAS le WCT complet — voir
  * `completion.ts` en-tête) : `complete.tsx` lit `RapportVidange.resultatsAcceptes` pour
  * retrouver ce `resume` et mémoriser son `wct_id` avant `materials.tsx`. */
-function versInterpretationGeneriqueCompletion(resultatBrut: unknown): InterpretationResultatMetier {
+function cibleCompletionLiee(mutation: MutationOutbox | undefined, interventionId: string): boolean {
+  return mutation?.type === "job_completion" &&
+    typeof mutation.payload.intervention_id === "string" && mutation.payload.intervention_id !== "" &&
+    mutation.chantierId === mutation.payload.intervention_id && interventionId === mutation.payload.intervention_id;
+}
+
+function validerRecuCompletion(mutation: MutationOutbox): boolean {
+  if (mutation.statut !== "envoyee") return false;
+  const interpretation = interpreterResultatCompleterIntervention({
+    ok: true, resultat: { accepte: true, resultat: mutation.resumeAccepte },
+  });
+  return interpretation.accepte && interpretation.resultat !== null &&
+    cibleCompletionLiee(mutation, interpretation.resultat.intervention_id);
+}
+
+function versInterpretationGeneriqueCompletion(resultatBrut: unknown, mutation?: MutationOutbox): InterpretationResultatMetier {
   const interpretation = interpreterResultatCompleterIntervention(resultatBrut);
   if (interpretation.accepte) {
+    // L'accusé natif ne porte pas d'UUID : lie sa cible à l'intention originale avant de la confirmer.
+    if (!interpretation.resultat || !cibleCompletionLiee(mutation, interpretation.resultat.intervention_id)) {
+      return { accepte: false, verdict: { code: "accuse_invalide", detail: "Accusé de complétion non lié à l'intervention en attente." } };
+    }
     return { accepte: true, resume: interpretation.resultat };
   }
   return { accepte: false, verdict: interpretation.verdict };
@@ -173,7 +192,8 @@ export const DESCRIPTEURS_MUTATION: ReadonlyMap<TypeMutation, DescripteurTypeMut
   ["punch_out", { tool: "m4_pointer", interpreterResultat: versInterpretationGenerique }],
   ["job_status_change", { tool: "m4_demarrer_route", interpreterResultat: versInterpretationGeneriqueDemarrerRoute }],
   ["fichier_bloc", { tool: "m4_deposer_fichier", interpreterResultat: versInterpretationGeneriqueDeposerFichier, validerRecuEnvoye: validerRecuFichier }],
-  ["job_completion", { tool: "m4_completer_intervention", interpreterResultat: versInterpretationGeneriqueCompletion }],
+  ["job_completion", { tool: "m4_completer_intervention", interpreterResultat: versInterpretationGeneriqueCompletion,
+    serialiserParChantier: true, validerRecuEnvoye: validerRecuCompletion }],
   ["materials_submit", { groupeSerie:"materiaux", tool: "m6_declarer_materiaux_utilises", interpreterResultat: versInterpretationGeneriqueMateriaux,
     serialiserParChantier: true, validerRecuEnvoye: validerRecuDeclarerMateriauxUtilises }],
   ["materials_submit_with_proofs", {tool:OUTIL_MATERIAUX_AVEC_PREUVES,construireArguments:argumentsRpcMateriauxAvecPreuves,
