@@ -2758,7 +2758,8 @@ def prevoir_tresorerie(
 
 
 def _preparer_dossier_decision_cfo_impl(
-    aujourd_hui: str, question_posee: str, *, _agent_autorise: bool = False
+    aujourd_hui: str, question_posee: str, *, _agent_autorise: bool = False,
+    volet: str = "dossier_complet",
 ) -> dict[str, Any]:
     """Compose le rapport M5.16 en lecture seule depuis les registres financiers capturés une fois."""
     acteur, refus = _acteur_appareil()
@@ -2779,9 +2780,19 @@ def _preparer_dossier_decision_cfo_impl(
         return _refus(
             validation.construire_verdict("REJ-CFO-QUESTION-INVALIDE", detail="question_posee : 1 à 1000 caractères")
         )
+    if volet not in ("dossier_complet", "obligations_preparees"):
+        return _refus(validation.construire_verdict("REJ-CFO-VOLET-INVALIDE", detail="volet CFO inconnu"))
     jour, verdict = prevision.lire_jour(aujourd_hui)
     if verdict is not None:
         return _refus(verdict)
+
+    from . import obligations_preparees as ob
+
+    try:
+        snapshot_obligations = _snapshot_obligations_preparees()
+        lecture_obligations = ob.lire(snapshot_obligations, jour.isoformat(), 0, 3)
+    except ob.Refus as exc:
+        return _refus(exc.verdict)
 
     configuration = _configuration_manifeste()
     configuration_prevision = configuration.get("prevision")
@@ -2871,24 +2882,38 @@ def _preparer_dossier_decision_cfo_impl(
         manques_source=manques_source,
         configuration_id=dossier_decision_cfo.empreinte(configuration),
         calendrier_obligations=obligations_documentees,
+        obligations_preparees={
+            "source_ref": ref(ob.REGISTRE, snapshot_obligations), "lecture": lecture_obligations,
+        },
+        volet=volet,
     )
-    if len(json.dumps(rapport, ensure_ascii=False, default=str)) > BUDGET_SORTIE:
+    enveloppe = {"ok": True, "resultat": {"accepte": True, "resultat": rapport}}
+    borne = contexte.limite_sortie()
+    hors_borne = type(borne) is int and len(json.dumps(enveloppe, ensure_ascii=False, default=str)) > borne
+    if hors_borne or len(json.dumps(rapport, ensure_ascii=False, default=str)) > BUDGET_SORTIE:
         return _refus(
             validation.construire_verdict(
                 "REJ-PREVISION-REPONSE-TROP-GROSSE",
-                detail="le rapport complet dépasse le budget; aucune rubrique n'a été tronquée",
+                detail="la représentation demandée dépasse le budget; aucune donnée n'a été tronquée",
             )
         )
     return {"accepte": True, "resultat": rapport}
 
 
-def preparer_dossier_decision_cfo(aujourd_hui: str, question_posee: str) -> dict[str, Any]:
+def preparer_dossier_decision_cfo(
+    aujourd_hui: str, question_posee: str, *, volet: str | None = None,
+) -> dict[str, Any]:
+    # None représente uniquement l'absence historique du paramètre (le schéma refuse null).
+    choix = {} if volet is None else {"volet": volet}
     ticket = contexte.ticket_agent_cfo()
     if ticket is None:
-        return _preparer_dossier_decision_cfo_impl(aujourd_hui, question_posee)
+        return _preparer_dossier_decision_cfo_impl(aujourd_hui, question_posee, **choix)
     from opsys import agent_cfo_grants
 
-    arguments = contexte.arguments_ticket_agent_cfo() or {"aujourd_hui": aujourd_hui, "question_posee": question_posee}
+    arguments = {"aujourd_hui": aujourd_hui, "question_posee": question_posee, **choix}
+    transmis = contexte.arguments_ticket_agent_cfo()
+    if transmis is not None and transmis != arguments:
+        raise agent_cfo_grants.GrantCfoRefuse("arguments CFO effectifs différents du contexte du ticket")
     with stockage.transaction() as cnx:
         agent_cfo_grants.consommer(
             cnx,
@@ -2897,7 +2922,9 @@ def preparer_dossier_decision_cfo(aujourd_hui: str, question_posee: str) -> dict
             arguments,
             instance_id=agent_cfo_grants.instance_id(cnx),
         )
-        return _preparer_dossier_decision_cfo_impl(aujourd_hui, question_posee, _agent_autorise=True)
+        return _preparer_dossier_decision_cfo_impl(
+            aujourd_hui, question_posee, _agent_autorise=True, **choix,
+        )
 
 
 # ------------------------------------------------------------ constat du cash libre au bus (T4.19-b)
@@ -4527,7 +4554,10 @@ def outils(*, lecteur_heures_m4: LecteurHeuresM4 | None = None,
                 "manquent. Scénarios, projections 12/24 mois, impact de décision, recommandation ou confiance restent "
                 "INCONNUS sans méthode déterministe et données adaptées. Un devis accepté n'est ni un contrat signé "
                 "ni un encaissement. Aucun montant, rôle ou droit n'est reçu en argument. T0, lecture seule, aucune "
-                "écriture, approbation, paiement ou action externe; CPA et validations humaines restent nécessaires."
+                "écriture, approbation, paiement ou action externe; CPA et validations humaines restent nécessaires. "
+                "Le volet optionnel obligations_preparees rend une vue source complète versionnée du journal validé, "
+                "sans activer le cash. Le défaut dossier_complet garde ses 25 rubriques; journal vide validé: champ "
+                "absent dans ce défaut, jamais preuve de zéro. Aucun tronquage si une sortie dépasse le budget."
             ),
             parametres={
                 "type": "object",
@@ -4544,6 +4574,12 @@ def outils(*, lecteur_heures_m4: LecteurHeuresM4 | None = None,
                         "minLength": 1,
                         "maxLength": 1000,
                         "description": "Question de cadrage uniquement; elle ne prouve pas l'identité de son auteur.",
+                    },
+                    "volet": {
+                        "type": "string",
+                        "enum": ["dossier_complet", "obligations_preparees"],
+                        "default": "dossier_complet",
+                        "description": "Rapport à 25 rubriques ou vue source préparatoire; même snapshot et grant.",
                     },
                 },
                 "required": ["aujourd_hui", "question_posee"],

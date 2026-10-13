@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 from collections.abc import Mapping, Sequence
 from datetime import date
+from decimal import Decimal
 from typing import Any
 
 RUBRIQUES_OFFICIELLES = {
@@ -178,6 +180,57 @@ def _semaines_courtes(semaines: Sequence[Any]) -> list[list[Any]]:
     return resultat
 
 
+_MANQUES_CALENDRIER = {
+    "MONTANT-ABSENT": 1, "SOURCE-MONTANT-ABSENTE": 2, "ECHEANCE-ABSENTE": 4,
+    "PERIODE-SOURCE-ABSENTE": 8, "SOURCE-INVALIDE": 16, "PERIODE-INVALIDE": 32,
+    "DATE-SOURCE-INVALIDE": 64, "ANNEE-VERSION-INVALIDE": 128, "SOURCE-PERIMEE": 256,
+}
+
+
+def _projection_obligations_preparees(contexte: Mapping[str, Any]) -> dict[str, Any]:
+    """Présentation compacte des statuts déjà interprétés par le lecteur préparatoire."""
+    lecture = contexte["lecture"]
+    absentes = []
+    obligations = []
+    for ligne in lecture["obligations"]:
+        if ligne["etat_declaration"] == "ABSENTE":
+            absentes.append(ligne["categorie"])
+            continue
+        calendrier = ligne["calendrier_preparatoire"]
+        projetee = {cle: copy.deepcopy(ligne[cle]) for cle in (
+            "categorie", "etat_declaration", "declaration", "reference", "auteur", "enregistree_le",
+        )}
+        for cle in ("reference", "revision_precedente"):
+            native = ligne[cle]
+            if native is not None:
+                projetee[cle] = [native["index"], native["ligne_id"], native["precedent_ligne_id"]]
+        projetee["auteur"] = [ligne["auteur"][cle] for cle in ("personne", "role", "source")]
+        masque, inconnus = 0, []
+        prefixe = f"REJ-CALENDRIER-{ligne['categorie'].upper()}-"
+        for item in calendrier["manque"]:
+            code = item["code"]
+            bit = _MANQUES_CALENDRIER.get(code.removeprefix(prefixe)) if code.startswith(prefixe) else None
+            if bit is None:
+                inconnus.append(code)
+            else:
+                masque |= bit
+        projetee["calendrier_preparatoire"] = {
+            "statut": calendrier["statut"],
+            "echeance_statut": calendrier["echeance_statut"],
+            "montant_utilisable": calendrier["montant_utilisable"],
+            "manque": masque,
+        }
+        if inconnus:
+            projetee["calendrier_preparatoire"]["codes_manque_inconnus"] = inconnus
+        obligations.append(projetee)
+    return {
+        "statut": "PREPARATOIRE_NON_ATTESTE",
+        "source_ref": copy.deepcopy(contexte["source_ref"]),
+        "lecture": {"categories_absentes": absentes, "obligations": obligations},
+        "utilisee_pour_cash": False,
+    }
+
+
 def composer(
     *,
     question_posee: str,
@@ -191,6 +244,8 @@ def composer(
     manques_source: Sequence[str] = (),
     configuration_id: str = "",
     calendrier_obligations: Mapping[str, Any] | None = None,
+    obligations_preparees: Mapping[str, Any] | None = None,
+    volet: str = "dossier_complet",
 ) -> dict[str, Any]:
     """Présente les résultats canoniques et leurs trous; ne calcule ni scénario ni recommandation."""
     if not isinstance(question_posee, str) or not 1 <= len(question_posee.strip()) <= 1000:
@@ -202,7 +257,22 @@ def composer(
     if jour.isoformat() != aujourd_hui or not isinstance(cash, Mapping):
         raise ValueError("instantané financier invalide")
 
+    if volet not in ("dossier_complet", "obligations_preparees"):
+        raise ValueError("volet CFO inconnu")
+    if volet == "obligations_preparees" and obligations_preparees is None:
+        raise ValueError("la vue exige le journal préparatoire capturé et validé")
+
+    preparatoire = (
+        _projection_obligations_preparees(obligations_preparees) if obligations_preparees is not None else None
+    )
+    # Un journal validé vide ne change ni la forme ni l'identité du dossier historique.
+    if obligations_preparees is not None and obligations_preparees["source_ref"]["taille"] == 0:
+        preparatoire = None
     refs_completes = _ref(*source_refs)
+    if preparatoire is not None:
+        if preparatoire["source_ref"] not in refs_completes:
+            refs_completes.extend(_ref(preparatoire["source_ref"]))
+        preparatoire["source_ref"] = refs_completes.index(preparatoire["source_ref"])
     refs = {
         "colonnes": ["departement", "registre", "taille", "tete"],
         "lignes": [
@@ -217,7 +287,30 @@ def composer(
         "prevision_id": prevision.get("prevision_id") if isinstance(prevision, Mapping) else None,
         "configuration_id": configuration_id,
     }
+    if preparatoire is not None:
+        identite_snapshot["obligations_preparees"] = preparatoire
     snapshot_id = empreinte(identite_snapshot)
+    if volet == "obligations_preparees":
+        if preparatoire is None:
+            preparatoire = _projection_obligations_preparees(obligations_preparees)
+            ref_vide = preparatoire["source_ref"]
+            refs_vues = [*refs_completes, ref_vide]
+            preparatoire["source_ref"] = len(refs_completes)
+            refs = {
+                "colonnes": ["departement", "registre", "taille", "tete"],
+                "lignes": [[r.get(cle) for cle in ("departement", "registre", "taille", "tete")]
+                           for r in refs_vues],
+            }
+        return {
+            "type": "VUE_OBLIGATIONS_PREPAREES_CFO",
+            "version_contrat": "v1",
+            "question_posee": question_posee,
+            "reference": {"aujourd_hui": aujourd_hui, "devise": "CAD", "snapshot_id": snapshot_id},
+            "statut_global": "PREPARATOIRE",
+            "sources": refs,
+            "obligations_preparees": preparatoire,
+            "mention": mention,
+        }
     cash_resume = _extraits_cash(cash)
     manques = list(
         dict.fromkeys(
@@ -231,6 +324,14 @@ def composer(
             ]
         )
     )
+    if preparatoire is not None:
+        lecture = preparatoire["lecture"]
+        if lecture["categories_absentes"] or any(
+            ligne["etat_declaration"] == "RETIREE" or ligne["calendrier_preparatoire"]["manque"]
+            or ligne["calendrier_preparatoire"].get("codes_manque_inconnus")
+            for ligne in lecture["obligations"]
+        ):
+            manques.append("Voir obligations_preparees: absences, retraits et codes.")
     hypotheses_brutes = _liste(cash.get("hypotheses"))
     hypotheses = [
         "Taxes: AR après remise; crédits AP saisies.",
@@ -430,12 +531,7 @@ def composer(
                 ligne.append(valeur)
             lignes.append(ligne)
 
-        suffixes = {
-            "MONTANT-ABSENT": "m", "SOURCE-MONTANT-ABSENTE": "s", "ECHEANCE-ABSENTE": "e",
-            "PERIODE-SOURCE-ABSENTE": "p", "SOURCE-INVALIDE": "i", "PERIODE-INVALIDE": "r",
-            "DATE-SOURCE-INVALIDE": "d", "ANNEE-VERSION-INVALIDE": "a", "SOURCE-PERIMEE": "x",
-        }
-        positions = {code: 1 << index for index, code in enumerate(suffixes)}
+        positions = _MANQUES_CALENDRIER
         masques, autres_par_cle = [], []
         for cle in cles:
             prefixe = f"REJ-CALENDRIER-{cle.upper()}-"
@@ -487,6 +583,15 @@ def composer(
         ]
     )
     risques = []
+    if preparatoire is not None and preparatoire["lecture"]["obligations"]:
+        risques.append("Voir obligations_preparees: non attestées.")
+        for ligne in preparatoire["lecture"]["obligations"]:
+            composante = _composante(cash, ligne["categorie"])
+            declaration = ligne["declaration"]
+            if (declaration is not None and declaration["montant"] is not None
+                    and composante is not None and composante.get("montant") is not None
+                    and Decimal(declaration["montant"]) != Decimal(composante["montant"])):
+                risques.append(f"{ligne['categorie']}: écart avec cash YAML.")
     if cash_resume["en_deficit"] is True:
         risques.append("cash libre négatif selon les données et réserves actuelles")
     sections.extend(
@@ -501,7 +606,7 @@ def composer(
         ]
     )
 
-    return {
+    rapport = {
         "type": "DOSSIER_DECISION_CFO",
         "version_contrat": "v1",
         "question_posee": question_posee,
@@ -510,3 +615,6 @@ def composer(
         "rubriques": sections,
         "mention": mention,
     }
+    if preparatoire is not None:
+        rapport["obligations_preparees"] = preparatoire
+    return rapport

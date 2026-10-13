@@ -242,7 +242,9 @@ def test_contrat_presente_les_25_rubriques_exactes_et_schema_ferme():
     assert outil.autonomie.name == "T0"
     assert outil.parametres["additionalProperties"] is False
     assert outil.parametres["required"] == ["aujourd_hui", "question_posee"]
-    assert set(outil.parametres["properties"]) == {"aujourd_hui", "question_posee"}
+    assert set(outil.parametres["properties"]) == {"aujourd_hui", "question_posee", "volet"}
+    assert outil.parametres["properties"]["volet"]["enum"] == ["dossier_complet", "obligations_preparees"]
+    assert outil.parametres["properties"]["volet"]["default"] == "dossier_complet"
 
 
 def test_rapport_vide_rend_tout_inconnu_depuis_un_seul_snapshot_sans_ecriture(base_durable, monkeypatch):
@@ -638,8 +640,9 @@ def test_capacites_garde_rapport_13_semaines_question_maximale_et_plusieurs_fact
         "cle-hash-absente", "cle-type-mouvement-absente",
     ],
 )
+@pytest.mark.parametrize("volet", [None, "obligations_preparees"])
 def test_dossier_refuse_une_chaine_financiere_alteree_sans_relire_ni_ecrire(
-    base_durable, tmp_path, monkeypatch, nom_registre, rang, champ, valeur, supprimer
+    base_durable, tmp_path, monkeypatch, nom_registre, rang, champ, valeur, supprimer, volet
 ):
     _declarer_configuration(tmp_path, monkeypatch)
     _peupler_snapshot_connu()
@@ -658,7 +661,10 @@ def test_dossier_refuse_une_chaine_financiere_alteree_sans_relire_ni_ecrire(
 
     monkeypatch.setattr(m5_outils, "_lectures_finance", lire_une_fois)
     with contexte.appele_par_appareil(ADMIN):
-        reponse = executer_atomique(outil, {"aujourd_hui": AUJOURD_HUI, "question_posee": QUESTION})
+        reponse = executer_atomique(outil, {
+            "aujourd_hui": AUJOURD_HUI, "question_posee": QUESTION,
+            **({"volet": volet} if volet is not None else {}),
+        })
 
     assert reponse["ok"] is True, reponse
     assert reponse["resultat"]["accepte"] is False, reponse
@@ -667,3 +673,73 @@ def test_dossier_refuse_une_chaine_financiere_alteree_sans_relire_ni_ecrire(
     assert _snapshot_tables() == avant
     assert "cash_libre_cad" not in json.dumps(reponse, ensure_ascii=False)
     assert reponse["resultat"]["verdict"]["detail"]
+
+
+def test_composition_obligations_durables_compactes_garde_ref_codes_et_forme_historique():
+    from m5_financecore import obligations_preparees as ob
+
+    args = {
+        "categorie": "paies", "operation": "declarer", "revision_attendue": None, "motif": "FICTIF",
+        "declaration": {"montant": "0.00", "source": "pièce fictive", "au": AUJOURD_HUI,
+                        "echeance": None, "calendrier": None},
+    }
+    chaine = registre.Registre()
+    chaine.ajouter(ob.construire_entree(
+        args, {"personne": "admin.fictif", "role": "admin", "source": "appareil"},
+        {"appareil_id": "device.fictif", "intention_uuid": "uuid.fictif", "empreinte_arguments": ob.empreinte(args)},
+        "2026-09-30T12:00:00+00:00", "2026-09-30T11:59:00+00:00",
+    ))
+    lecture = ob.lire(chaine.lire(), AUJOURD_HUI, 0, 3)
+    lecture["obligations"][0]["calendrier_preparatoire"]["manque"].append(
+        {"code": "CODE-FUTUR-FICTIF", "detail": "Diagnostic à conserver par son code"}
+    )
+    reference = {"departement": "m05-financecore", "registre": "obligations_preparees",
+                 "taille": 1, "tete": chaine.tete()}
+    base = {
+        "question_posee": QUESTION, "aujourd_hui": AUJOURD_HUI,
+        "cash": {"cash_libre_id": "fictif", "composantes": [], "manque": []},
+        "comptes_a_recevoir": None, "comptes_a_payer": None, "prevision": None,
+        "source_refs": [], "mention": "Analyse préparatoire IA",
+    }
+    legacy = dossier_decision_cfo.composer(**base)
+    assert "obligations_preparees" not in legacy
+    assert dossier_decision_cfo.composer(**base, obligations_preparees=None) == legacy
+    result = dossier_decision_cfo.composer(**base, obligations_preparees={"source_ref": reference, "lecture": lecture})
+    projection = result["obligations_preparees"]
+    assert result["rubriques"][4]["source_refs"]["lignes"][projection["source_ref"]] == [
+        "m05-financecore", "obligations_preparees", 1, chaine.tete()
+    ]
+    assert projection["lecture"]["categories_absentes"] == ["das", "dettes"]
+    row = projection["lecture"]["obligations"][0]
+    assert row["declaration"]["montant"] == "0.00"
+    assert row["auteur"] == ["admin.fictif", "admin", "appareil"]
+    assert row["reference"] == [0, chaine.tete(), None]
+    assert "CODE-FUTUR-FICTIF" in row["calendrier_preparatoire"]["codes_manque_inconnus"]
+    assert projection["utilisee_pour_cash"] is False and len(result["rubriques"]) == 25
+    assert result["reference"]["snapshot_id"] != legacy["reference"]["snapshot_id"]
+    assert result["rubriques"][4]["source_refs"]["lignes"] == [
+        ["m05-financecore", "obligations_preparees", 1, chaine.tete()]
+    ]
+
+
+def test_vue_ciblee_compositeur_partage_snapshot_et_source_exacte():
+    from m5_financecore import obligations_preparees as ob
+    base = {
+        "question_posee": QUESTION, "aujourd_hui": AUJOURD_HUI,
+        "cash": {"cash_libre_id": "fictif", "composantes": [], "manque": []},
+        "comptes_a_recevoir": None, "comptes_a_payer": None, "prevision": None,
+        "source_refs": [{"departement": "m05-financecore", "registre": "principal", "taille": 0, "tete": None}],
+        "mention": "Analyse préparatoire IA",
+    }
+    legacy = dossier_decision_cfo.composer(**base)
+    empty = {"source_ref": {"departement": "m05-financecore", "registre": ob.REGISTRE, "taille": 0, "tete": None},
+             "lecture": ob.lire([], AUJOURD_HUI, 0, 3)}
+    assert dossier_decision_cfo.composer(**base, obligations_preparees=empty) == legacy
+    vue = dossier_decision_cfo.composer(**base, obligations_preparees=empty, volet="obligations_preparees")
+    assert vue["reference"] == legacy["reference"]
+    assert vue["sources"]["lignes"][vue["obligations_preparees"]["source_ref"]] == [
+        "m05-financecore", ob.REGISTRE, 0, None,
+    ]
+    assert vue["obligations_preparees"]["lecture"]["categories_absentes"] == ["paies", "das", "dettes"]
+    with pytest.raises(ValueError, match="capturé et validé"):
+        dossier_decision_cfo.composer(**base, volet="obligations_preparees")

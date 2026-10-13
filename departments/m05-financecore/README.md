@@ -329,3 +329,40 @@ restent partiels ou absents.
 
 
 M5.4.a ajoute le journal privé des contrats horaires individuels. M5.4.b ajoute un brouillon du brut régulier depuis M4 et le taux M5, sans retenues, cotisations, DAS, paie nette, écriture, paiement ou alimentation du cash libre. M5.4.c expose l'inventaire versionné des références de règles : ARC/RQ sont actuellement NON_QUALIFIEES et toute lacune laisse l'état PARTIEL; aucune retenue n'est calculée. M5.4.d produit un JSON privé destiné à une saisie et un calcul humains dans WebRAS/PDOC, sans appel à ces services; l'assiette humaine est facultative et reste inconnue si elle n'est pas fournie. Les hypothèses d'arrondi restent déclaratives et non vérifiées; une validation humaine est requise. Les retenues, cotisations, paie nette et obligations employeur calculées restent absentes. Le périmètre est décrit dans [M5.4.a — contrat salarial horaire](docs/m54-contrat-salarial-horaire.md), [M5.4.b — brut régulier préparatoire](docs/m54b-brut-regulier-preparatoire.md), [M5.4.c — références de règles de paie](docs/m54c-sources-regles-paie.md) et [M5.4.d — dossier WebRAS manuel](docs/m54d-dossier-webras-manuel.md).
+
+
+Le dossier `m5_preparer_dossier_decision_cfo` raccorde aussi le journal durable
+`obligations_preparees` après vérification de l'identité ou du grant CFO exact. La lecture
+réutilise les statuts du calendrier préparatoire existant; elle ne change ni l'autorité des
+outils DEVICE, ni les déclarations YAML utilisées par le cash, ni le calcul de paie/fiscalité.
+Un journal capturé et validé vide conserve exactement la forme, les sources et le hash v1;
+l'absence du champ ne signifie jamais zéro. Dès un maillon courant, y compris un retrait,
+le champ `obligations_preparees` expose les données non attestées, références et auteur.
+
+Le [contrat du dossier](contracts/dossier_decision_cfo.v1.yaml) décrit la projection dédupliquée :
+`source_ref` est l'index exact dans les sources de la rubrique 5; les références natives sont
+`[index, ligne_id, precedent_ligne_id]`, l'auteur `[personne, role, source]`, la date de référence
+celle du dossier. Les déclarations et leurs sources/dates/calendriers restent exactes; les codes
+connus utilisent le même masque canonique que le calendrier CFO, les codes inconnus restent
+intégralement présents. Une correction ou un retrait change le snapshot du dossier. Les
+rubriques 6 et 20 pointent vers le contexte unique, sans ajouter de vingt-sixième rubrique.
+
+La borne de sortie reste inchangée. Un dossier riche enrichi peut être refusé avec
+`REJ-PREVISION-REPONSE-TROP-GROSSE`, y compris après une correction ou avec un calendrier
+complet, si les références/métadonnées excèdent l'enveloppe. Aucune provenance ou rubrique
+n'est tronquée pour rendre le dossier. Ce raccord ne livre ni le CFO complet, ni une saisie
+financière ou un paiement, ni des obligations officielles calculées; les dates passées restent
+à vérifier et les sources absentes/périmées restent inconnues.
+
+Le même outil accepte maintenant `volet="obligations_preparees"` pour une vue source
+`VUE_OBLIGATIONS_PREPAREES_CFO` version `v1`. Le défaut `dossier_complet` et les anciens appels
+à deux arguments conservent les 25 rubriques. Le volet fourni fait partie des arguments exacts
+liés au ticket CFO; modifier le volet, la date ou la question ne peut pas réutiliser ce ticket.
+La vue choisie est rendue avant la même garde de sortie à 5700 caractères et la borne active.
+Elle réutilise le même snapshot validé, avec question, référence, mention préparatoire, matrice
+`sources` propre et projection complète des obligations. Son `source_ref` pointe dans cette
+matrice; elle expose corrections, retraits, sources périmées et catégories absentes sans
+promouvoir leur montant dans le cash. Un journal vide y est explicite (trois catégories absentes,
+aucune déclaration), sans inventer zéro; le dossier complet vide garde sa forme historique.
+Un contexte extrême peut encore dépasser le budget et doit être refusé intégralement. Cette
+vue source n'apporte ni recommandation CFO complète ni validation fiscale ni action financière.

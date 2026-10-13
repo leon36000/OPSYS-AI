@@ -17,6 +17,12 @@ outil:
       max_length: 1000
       obligatoire: true
       description: Texte de cadrage seulement; ne prouve pas l'identité ou l'autorisation de son auteur.
+    volet:
+      type: string
+      obligatoire: false
+      enum: [dossier_complet, obligations_preparees]
+      defaut: dossier_complet
+      description: Le volet lie les arguments effectifs au ticket CFO; omission conserve les deux arguments historiques.
   refus:
     - identité ou rôle actif invalide avant toute lecture financière
     - arguments hors schéma ou période/date invalide
@@ -36,6 +42,39 @@ sortie:
     aujourd_hui: date ISO
     devise: CAD
     snapshot_id: empreinte déterministe de la date, configuration, cash_libre_id, prevision_id et têtes exactes; question_posee exclue
+  champs_optionnels: [obligations_preparees]
+  obligations_preparees:
+    compatibilite: Paramètre optionnel du compositeur; aucune clé supplémentaire dans les appels historiques ou le tool quand le journal capturé et validé est vide.
+    absence: Aucun maillon préparatoire disponible; ce marqueur absent ne prouve jamais montant zéro ni validation de données financières. Source_refs et snapshot_id v1 sont conservés.
+    objet: Dès un maillon présent, même un retrait, le contexte courant est rendu et scellé; aucun défaut d'intégrité n'est converti en absence.
+    statut: PREPARATOIRE_NON_ATTESTE
+    utilisee_pour_cash: false
+    source_ref: Index dans rubrique5.source_refs.lignes; colonnes departement/registre/taille/tete exactes, jamais hashes raccourcis.
+    date_reference: La date exacte est reference.aujourd_hui; elle n'est pas répétée dans cette section.
+    lecture:
+      source: Projection dédupliquée du résultat obligations_preparees.lire; aucun deuxième moteur de statut/calendrier.
+      categories_absentes: Liste explicite des catégories ABSENTE; déclaration et référence inconnues, jamais zéro.
+      obligations: Toutes les catégories avec maillon courant, y compris RETIREE; aucune pagination implicite.
+      champs: [categorie, etat_declaration, declaration, reference, auteur, enregistree_le, calendrier_preparatoire]
+      champs_optionnels: [revision_precedente]
+      reference: Tableau ordonné [index, ligne_id, precedent_ligne_id]; reconstruire la référence native avec registre=obligations_preparees du source_ref.
+      auteur: Tableau ordonné [personne, role, source]; mêmes valeurs exactes du maillon, aucune autorité nouvelle.
+      declaration: Objet déclaré exact avec montant texte ou null, source, au, echeance et calendrier; null si retrait.
+      revision_precedente: Même tableau de référence native quand présente; omission signifie uniquement null.
+      calendrier_preparatoire:
+        champs: [statut, echeance_statut, montant_utilisable, manque]
+        manque: Même masque de catégories canonique que impact_paie.obligations_declarees; préfixe REJ-CALENDRIER-<CATEGORIE-MAJUSCULE>-.
+        codes_inconnus: Liste codes_manque_inconnus optionnelle conservée intégralement, sans retirer de préfixe à un code inconnu.
+        bits: {1: MONTANT-ABSENT, 2: SOURCE-MONTANT-ABSENTE, 4: ECHEANCE-ABSENTE, 8: PERIODE-SOURCE-ABSENTE, 16: SOURCE-INVALIDE, 32: PERIODE-INVALIDE, 64: DATE-SOURCE-INVALIDE, 128: ANNEE-VERSION-INVALIDE, 256: SOURCE-PERIMEE}
+      reconstruction:
+        constantes: Type/version/source_canonique/registre/date/mention/couverture du lecteur identifiés par ce contrat, reference.aujourd_hui et source_ref.
+        calendrier: id/nom/devise/source_montant/source_echeance/période/année/version/échéance/montant sont issus de catégorie et déclaration; les statuts interprétés restent explicites et ne sont jamais recalculés par le CFO.
+        diagnostics: Les détails répétitifs ne sont pas rendus; codes complets reconstruits depuis masque/préfixe plus inconnus intacts. Le moteur produit les diagnostics complets depuis la déclaration sourcée.
+        trace_native: intention et horodatage_appareil_declare retrouvables exactement dans le maillon référence; auteur et date serveur rendus, sans autorité déduite d'une date client.
+      garanties: Absence/retrait/zéro/incomplet/source périmée/échéance passée distincts; aucune activation cash/YAML.
+    rubriques: Données utilisées référence le journal non vide; Données manquantes et Risques principaux pointent vers cette section unique et les catégories en écart, sans répéter ses diagnostics.
+    snapshot: Tête exacte du journal non vide et projection complète déterministe scellées, y compris correction/retrait; journal vide validé conserve identité v1.
+    budget: Budget existant inchangé; rapport complet et enveloppe doivent tenir, sinon refus nommé sans troncature des rubriques/provenance.
   sections_recommandation_confiance:
     rubriques: [3, 4]
     regle: Le contenu reste null et le statut INCONNU sans source et méthode calculable/versionnée.
@@ -88,7 +127,7 @@ sortie:
       compatibilite_v1: La rubrique conserve ses clés de haut niveau. Avec calendrier dédié, les obligations utilisent le tableau compact. Sans calendrier dédié, les appels historiques du compositeur conservent paies_declarees, obligations_declarees vide et les limites historiques en forme objet/liste.
   budget_sortie: budget M5 existant; les 25 rubriques compactes sont présentes, sans troncature silencieuse
 garanties:
-  - Toutes les rubriques exactes sont toujours présentes, dans l'ordre, y compris si leur contenu est inconnu.
+  - Dans dossier_complet, toutes les rubriques exactes sont présentes, dans l'ordre, y compris si leur contenu est inconnu.
   - Un manque, une erreur de service ou un chiffre absent ne devient jamais zéro.
   - Chaque fait et calcul provient d'un registre ou d'un service canonique FinanceCore capturé dans un snapshot commun.
   - Le snapshot est lu une seule fois et réutilisé par les projections; aucun deuxième moteur financier.
@@ -123,3 +162,24 @@ rubriques:
   - {numero: 23, titre: Questions banque/prêteur}
   - {numero: 24, titre: Plan d'action recommandé}
   - {numero: 25, titre: Validation requise}
+
+vue_obligations_preparees:
+  selection: volet=obligations_preparees sur le même outil; aucun nouvel outil ni grant ni autorité DEVICE.
+  type: VUE_OBLIGATIONS_PREPAREES_CFO
+  version_contrat: v1
+  statut_global: PREPARATOIRE
+  champs_requis: [question_posee, reference, statut_global, sources, obligations_preparees, mention]
+  rubriques: Aucune; vue source explicitement distincte du dossier complet à 25 rubriques, pas un dossier tronqué.
+  reference: Même date/devise/snapshot_id que le dossier complet construit depuis le même snapshot; question et volet exclus de l'identité des sources.
+  sources:
+    colonnes: [departement, registre, taille, tete]
+    lignes: Toutes les sources financières capturées et journal préparatoire validé, y compris taille0/tete null si vide.
+    source_ref: obligations_preparees.source_ref pointe dans CETTE matrice, jamais dans un rapport absent.
+  obligations_preparees: Même projection complète déterministe définie par sortie.obligations_preparees. Déclaration/source/calendrier/références/auteur/date et codes restent exacts.
+  journal_vide: Champ explicite avec categories_absentes=[paies,das,dettes], obligations=[], utilisee_pour_cash=false; aucune obligation n'est connue et aucune valeur zéro n'est inventée.
+  capture: Journal validé une fois, sources financières capturées une fois; même compositeur et moteurs existants. Choix de représentation avant garde de sortie.
+  integrite: Corruption de toute source refuse; aucune erreur ne devient absence ou vue partiellement fiable.
+  budget: 5700 caractères existants plus garde de l'enveloppe active; refus REJ-PREVISION-REPONSE-TROP-GROSSE sans troncature ni pagination implicite si dépassement.
+  permissions: Grant CFO courant, ticket exact lié aux arguments réels et au volet fourni; refus avant capture métier pour ticket invalide/révoqué/étranger/arguments altérés. Les lectures SQL d'autorisation restent nécessaires.
+  absence_parametre: La fonction conserve ses deux arguments historiques requis; volet nommé optionnel. L'omission ne lie pas un troisième argument implicite au ticket.
+  garanties: Préparatoire non attesté; aucune activation cash/YAML, taxe officielle, paie nette, dépense ou action externe.

@@ -375,7 +375,13 @@ def test_cfo_handler_requires_ticket_before_snapshot_and_reads_with_valid_ticket
         result = tool.fonction(**args)
     assert result["accepte"] is True
     assert reads == 1
-    assert len(__import__("inspect").signature(tool.fonction).parameters) == 2
+    inspect = __import__("inspect")
+    parameters = inspect.signature(tool.fonction).parameters
+    assert list(parameters) == ["aujourd_hui", "question_posee", "volet"]
+    assert parameters["aujourd_hui"].default is inspect.Parameter.empty
+    assert parameters["question_posee"].default is inspect.Parameter.empty
+    assert parameters["volet"].default is None
+    assert parameters["volet"].kind is inspect.Parameter.KEYWORD_ONLY
 
 
 def test_agent_capital_read_reuses_cfo_chain_validation_before_calculation(
