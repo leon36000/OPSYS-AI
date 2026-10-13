@@ -1733,6 +1733,61 @@ def _decision_approuvee_en_cours(cnx: Any, arguments: dict[str, Any]) -> tuple[s
     return None
 
 
+_CHAMPS_FAITS_REVUE = ("verdict_estimation", "niveau_confiance_hierarchie", "alerte_plancher")
+
+
+def _evaluer_revue_source(devis: dict[str, Any], contexte_revue: Any, seuils: Any) -> tuple[Any, Any]:
+    """Une source liée prime sur les déclarations; une source inconnue ne devient jamais un fait."""
+    source_hash = devis.get("estimation_source_hash")
+    if source_hash is None:
+        # Devis manuel: les faits restent ceux du contexte déclaré, sans preuve canonique inventée.
+        return revue_devis.evaluer_revue(devis, contexte_revue, seuils)
+    charge = _source_estimation_exacte(source_hash, devis["devis_id"], devis["lead_id"])
+    if charge is None:
+        return None, verdicts.construire_verdict(
+            "REJ-REVUE-DEVIS-INVALIDE", detail="source d'estimation liée absente, altérée ou hors identité"
+        )
+    faits = charge.get("faits_revue")
+    valide = (
+        isinstance(faits, dict)
+        and set(faits) == {"version", "prix_bloque", *_CHAMPS_FAITS_REVUE}
+        and faits.get("version") == "m3.faits-revue/v1"
+        and type(faits.get("prix_bloque")) is bool
+        and type(faits.get("alerte_plancher")) is bool
+        and faits.get("verdict_estimation") in contrats.VERDICTS_ESTIMATION
+        and faits.get("niveau_confiance_hierarchie") in hierarchie_echelle.NIVEAUX_CONFIANCE
+    )
+    if contexte_revue is not None and not isinstance(contexte_revue, dict):
+        return revue_devis.evaluer_revue(devis, contexte_revue, seuils)
+    contexte_effectif = dict(contexte_revue or {})
+    for cle in _CHAMPS_FAITS_REVUE:
+        contexte_effectif.pop(cle, None)
+    if valide:
+        contexte_effectif.update({cle: faits[cle] for cle in _CHAMPS_FAITS_REVUE})
+    revue, verdict = revue_devis.evaluer_revue(devis, contexte_effectif, seuils)
+    if verdict is not None:
+        return None, verdict
+    revue["source_estimation"] = {
+        "hash_maillon": source_hash, "devis_id": devis["devis_id"], "lead_id": devis["lead_id"],
+        "statut": "faits_canoniques" if valide else "non_evaluable",
+        "raison": None if valide else "historique_sans_faits" if "faits_revue" not in charge else "faits_invalides",
+    }
+    if valide:
+        for motif in revue["motifs"]:
+            if motif["donnee"]["nom"] in _CHAMPS_FAITS_REVUE:
+                motif["donnee"]["source"] = "estimation_canonique"
+    else:
+        # Anciennes charges, valeur None ou snapshot mal formé: jamais le contexte en repli.
+        revue["non_evaluables"].insert(0, {
+            "code": ("SOURCE_ESTIMATION_HISTORIQUE_SANS_FAITS" if "faits_revue" not in charge
+                     else "SOURCE_ESTIMATION_FAITS_NON_EVALUABLES"),
+            "manque": ["faits de revue canoniques absents ou invalides"],
+            "a_faire": ["faire qualifier la source; ne pas déduire ses faits du barème"],
+        })
+        revue["aucun_motif"] = False
+    return revue, None
+
+
 def demander_envoi_devis(devis_id: str, contexte_revue: dict[str, Any] | None) -> dict[str, Any]:
     """L'outil `m3_demander_envoi_devis` (T2, N4) — ce corps s'exécute APRÈS la décision du propriétaire.
 
@@ -1771,7 +1826,7 @@ def demander_envoi_devis(devis_id: str, contexte_revue: dict[str, Any] | None) -
         }}
     revue: dict[str, Any] | None = None
     if devis["statut"] == "brouillon":
-        revue, verdict = revue_devis.evaluer_revue(devis, contexte_revue, _seuils_revue())
+        revue, verdict = _evaluer_revue_source(devis, contexte_revue, _seuils_revue())
         if verdict is not None:
             return {"accepte": False, "verdict": verdict}
     envoye, verdict = devis_durable.marquer_devis_envoye(
@@ -1807,13 +1862,19 @@ def _resume_demande_envoi(arguments: Any, registre_devis: Any, seuils: Any) -> s
         return revue_devis.abreger(
             f"Envoi du devis {devis_id} demandé, mais il est déjà {devis['statut']} : rien à approuver.", limite
         )
-    revue, verdict = revue_devis.evaluer_revue(devis, arguments.get("contexte_revue"), seuils)
+    revue, verdict = _evaluer_revue_source(devis, arguments.get("contexte_revue"), seuils)
     if verdict is not None:
         return revue_devis.abreger(
             f"Envoi du devis {devis_id} : revue impossible ({verdict['code']} : {verdict['detail']}). "
             "À refuser ou à redemander.", limite,
         )
-    return revue_devis.resume_attente(revue, limite)
+    resume = revue_devis.resume_attente(revue, limite)
+    if revue.get("source_estimation", {}).get("statut") == "non_evaluable":
+        raison = revue["source_estimation"]["raison"]
+        message = ("source historique sans faits de revue" if raison == "historique_sans_faits"
+                   else "faits de revue source invalides ou non disponibles")
+        return revue_devis.abreger(message + " : " + resume, limite)
+    return resume
 
 
 def attentes() -> list[dict[str, Any]]:
@@ -2299,12 +2360,15 @@ def outils() -> tuple[Outil, ...]:
             description=(
                 "Demande l'ENVOI d'un devis brouillon au client (M3.14) : engagement, N4. Cet appel n'envoie rien "
                 "et ne change rien : il met une demande dans la file du propriétaire, qui y lit la revue (motifs "
-                "tirés du devis, de contexte_revue et des seuils de department.yaml, jamais inventés) avant de "
+                "tirés du devis, de sa source canonique liée, de contexte_revue et des seuils de department.yaml) "
+                "avant de "
                 "décider. Seul nathan_owner approuve. Approuvée, le devis passe à envoye (une seule fois, un rejeu "
                 "ne fait rien) et m3.devis_envoye est publié, sans coût ni marge. La livraison au client n'est pas "
-                "ici (M1). Recopie dans contexte_revue les faits de la réponse de m3_estimer_projet "
-                "(niveau_confiance_hierarchie, estimation.verdict_estimation, estimation.alerte_plancher) ; un "
-                "fait absent est listé « non évaluable », jamais deviné. Ne présente jamais le devis comme "
+                "ici (M1). Les faits de revue d’une estimation liée sont relus dans son maillon exact, à la file et "
+                "à la décision ; contexte_revue ne les remplace pas. Une source historique sans ces faits "
+                "est non évaluable ; une source liée absente ou altérée est refusée. Sans source liée, "
+                "contexte_revue reste déclaratif. Un fait absent est non évaluable, jamais deviné. "
+                "Ne présente jamais le devis comme "
                 "envoyé : il attend une décision."
             ),
             parametres={

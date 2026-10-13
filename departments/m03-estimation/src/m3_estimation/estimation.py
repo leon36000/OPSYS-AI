@@ -473,6 +473,23 @@ def orchestrer_estimation(
                     + " (besoins publiés sans majoration de perte)"
                 )
 
+    # Assemble une seule fois les faits validés; le hash définitif est lié après l'ajout.
+    estimation, verdict = devis.assembler_estimation(
+        lead_id=lead_id,
+        empreinte_marqueur_m2=empreinte_marqueur_m2,
+        niveau_confiance=niveau_confiance_numerique,
+        verdicts_estimation=tuple(verdicts_candidats),
+        bareme_version=bareme_version,
+        prix_bloque=prix_bloque,
+        intervalle_confiance=intervalle_confiance,
+        alerte_plancher=alerte_plancher,
+        raison_blocage=raison_blocage,
+        graine_monte_carlo=graine_effective,
+        hash_maillon=_EMPREINTE_A_BLANC,
+    )
+    if verdict is not None:
+        return {"etape": "assemblage", "accepte": False, "verdict": verdict}
+
     charge: dict[str, Any] = {
         "devis_id": devis_id,
         "lead_id": lead_id,
@@ -480,6 +497,13 @@ def orchestrer_estimation(
         "niveau_confiance": niveau_confiance_numerique,
         "bareme_version": bareme_version,
         "graine_monte_carlo": graine_effective,
+        "faits_revue": {
+            "version": "m3.faits-revue/v1",
+            "prix_bloque": estimation["prix_bloque"],
+            "verdict_estimation": estimation["verdict_estimation"],
+            "niveau_confiance_hierarchie": niveau_hierarchie,
+            "alerte_plancher": estimation["alerte_plancher"],
+        },
     }
     if duree_estimee_minutes is not None:
         charge["duree_estimee_minutes"] = duree_estimee_minutes
@@ -502,21 +526,7 @@ def orchestrer_estimation(
     if verdict is not None:
         return {"etape": "registre", "accepte": False, "verdict": verdict}
 
-    estimation, verdict = devis.assembler_estimation(
-        lead_id=lead_id,
-        empreinte_marqueur_m2=empreinte_marqueur_m2,
-        niveau_confiance=niveau_confiance_numerique,
-        verdicts_estimation=tuple(verdicts_candidats),
-        bareme_version=bareme_version,
-        prix_bloque=prix_bloque,
-        intervalle_confiance=intervalle_confiance,
-        alerte_plancher=alerte_plancher,
-        raison_blocage=raison_blocage,
-        graine_monte_carlo=graine_effective,
-        hash_maillon=maillon["hash_maillon"],
-    )
-    if verdict is not None:
-        return {"etape": "assemblage", "accepte": False, "verdict": verdict}
+    estimation["hash_maillon"] = maillon["hash_maillon"]
 
     contrat_besoins: dict[str, Any] | None = None
     if besoins_calcules is not None:

@@ -650,3 +650,140 @@ def test_le_schema_de_l_evenement_est_ferme_et_refuse_tout_montant():
         assert erreurs_charge("m3.devis_envoye", {c: v for c, v in charge.items() if c != manquant}), manquant
     assert erreurs_charge("m3.devis_envoye", {**charge, "devis_id": ""})
     assert erreurs_charge("m3.devis_envoye", {**charge, "horodatage_envoi": 1234})
+
+
+def _creer_devis_source_revue(*, photos_valides=False, legacy=False, remplacer_faits=False, faits=None):
+    lead_id = "lead-source-revue-fictif"
+    estimation = executer_atomique(_outil("m3_estimer_projet"), {
+        "contrat": {"lead_id": lead_id, "conversation_id": "conv-source-revue-fictif",
+                    "type_travaux": "ravalement", "ville": "Quebec", "canal": "formulaire_web",
+                    "contact": {"nom": "Client fictif", "telephone": "555-0101"},
+                    "urgence_declaree": False},
+        "marqueur": {"readiness_ok": True, "lead_id": lead_id, "hash_tete_registre": "f" * 64,
+                     "horodatage": _HORODATAGE, "empreinte": "a" * 64},
+        "photos": [{"photo_id": "p-fictif", "resolution_largeur": 3000 if photos_valides else 640,
+                    "resolution_hauteur": 2000, "eclairage": 7, "angle": "face",
+                    "reference_echelle": {"type": "porte", "dimensions_connues": True}
+                    if photos_valides else None}],
+        "seuils": {"resolution_minimale": 1000, "eclairage_minimal": 4},
+        "bareme": {"version": "prix-fictifs-v1", "unite": "pi2",
+                   "postes": {"ravalement": {"cout_unitaire_min": 8.0, "cout_unitaire_max": 14.0}}},
+        "quantite": 1, "plancher_rentable": 1, "graine": 42,
+    })
+    assert estimation["ok"] and estimation["resultat"]["accepte"]
+    est = estimation["resultat"]["estimation"]
+    assert est["prix_bloque"] is (not photos_valides)
+    source_hash = est["hash_maillon"]
+    if legacy or remplacer_faits:
+        charge = dict(outils_m3.registre_production().lire()[0]["charge"])
+        if legacy:
+            charge.pop("faits_revue", None)
+        else:
+            charge["faits_revue"] = faits
+        with stockage.transaction():
+            legacy_registre = outils_m3.registre_production()
+            maillon, verdict = legacy_registre.ajouter(charge)
+        assert verdict is None
+        source_hash = maillon["hash_maillon"]
+    created = executer_atomique(_outil("m3_creer_devis"), {
+        "devis_id": est["devis_id"], "lead_id": lead_id, "chantier_id": None,
+        "lignes": [{"description": "Forfait fictif manuel", "quantite": "1", "unite": "forfait",
+                    "cout_unitaire": "4000.00", "reference_besoin_materiau": None}],
+        "taux_marge": "0.35", "horodatage": _HORODATAGE, "estimation_source_hash": source_hash,
+    })
+    assert created["ok"] and created["resultat"]["accepte"]
+    _assurer_lead_m2_et_liaison(lead_id)
+    return est["devis_id"], source_hash
+
+
+@pytest.mark.parametrize("photos_valides", [False, True])
+def test_source_canonique_prime_sur_contexte_dans_file_et_decision(
+    capacites, departements, personnes, seuils_configures, photos_valides
+):
+    devis_id, source_hash = _creer_devis_source_revue(photos_valides=photos_valides)
+    contexte_fourni = {**CONTEXTE_MONO_VUE, "niveau_confiance_hierarchie": NIVEAUX[0],
+                       "verdict_estimation": contrats.VERDICT_AUCUN_BLOCAGE,
+                       "distance_km": "0"}
+    demande_id = _demander(capacites, devis_id, contexte_fourni)["demande_id"]
+    [attente] = [x for x in _file(departements) if x["type"] == "revue_envoi_devis"]
+    assert ("photos insuffisantes" in attente["resume"]) is (not photos_valides)
+    assert _etat_du_devis(devis_id)["statut"] == "brouillon"
+    assert _evenements_envoye(devis_id) == 0
+    resultat, verdict = _decider_app(departements, demande_id, PROPRIO)
+    assert verdict is None and resultat["statut"] == "executee"
+    envoye = _etat_du_devis(devis_id)
+    assert ("PHOTOS_INSUFFISANTES" in envoye["revue_envoi"]["motifs"]) is (not photos_valides)
+    with stockage.transaction() as cnx:
+        decidee = approbations.lire(cnx, demande_id)
+    revue = decidee["resultat"]["resultat"]["resultat"]["revue"]
+    if not photos_valides:
+        motif = next(m for m in revue["motifs"] if m["code"] == "PHOTOS_INSUFFISANTES")
+        assert motif["donnee"]["source"] == "estimation_canonique"
+    assert revue["source_estimation"]["hash_maillon"] == source_hash
+    assert str(envoye["prix_total"]) == "5400.00"
+
+
+def test_source_legacy_sans_faits_est_non_evaluable_sans_inventer_des_photos(
+    capacites, departements, personnes, seuils_configures
+):
+    devis_id, source_hash = _creer_devis_source_revue(legacy=True)
+    supplied = {**CONTEXTE_MONO_VUE, "verdict_estimation": contrats.VERDICT_QUALITE_ENTREE_INSUFFISANTE}
+    demande_id = _demander(capacites, devis_id, supplied)["demande_id"]
+    [attente] = [x for x in _file(departements) if x["type"] == "revue_envoi_devis"]
+    assert "source historique sans faits de revue" in attente["resume"]
+    resultat, verdict = _decider_app(departements, demande_id, PROPRIO)
+    assert verdict is None and resultat["statut"] == "executee"
+    devis = _etat_du_devis(devis_id)
+    assert "PHOTOS_INSUFFISANTES" not in devis["revue_envoi"]["motifs"]
+    assert "SOURCE_ESTIMATION_HISTORIQUE_SANS_FAITS" in devis["revue_envoi"]["non_evaluables"]
+    assert devis["estimation_source_hash"] == source_hash
+    with stockage.transaction() as cnx:
+        decidee = approbations.lire(cnx, demande_id)
+    revue = decidee["resultat"]["resultat"]["resultat"]["revue"]
+    assert all(isinstance(x[cle], list) and all(isinstance(texte, str) for texte in x[cle])
+               for x in revue["non_evaluables"] for cle in ("manque", "a_faire"))
+
+
+@pytest.mark.parametrize("faits", [None, {"version": "m3.faits-revue/v1"}, "non canonique"])
+def test_snapshot_source_invalide_ne_retombe_jamais_sur_faits_declares(
+    capacites, departements, personnes, seuils_configures, faits
+):
+    devis_id, _ = _creer_devis_source_revue(remplacer_faits=True, faits=faits)
+    supplied = {**CONTEXTE_MONO_VUE, "verdict_estimation": contrats.VERDICT_QUALITE_ENTREE_INSUFFISANTE}
+    demande_id = _demander(capacites, devis_id, supplied)["demande_id"]
+    [attente] = [x for x in _file(departements) if x["type"] == "revue_envoi_devis"]
+    assert "faits de revue source invalides ou non disponibles" in attente["resume"]
+    resultat, verdict = _decider_app(departements, demande_id, PROPRIO)
+    assert verdict is None and resultat["statut"] == "executee"
+    devis = _etat_du_devis(devis_id)
+    assert "PHOTOS_INSUFFISANTES" not in devis["revue_envoi"]["motifs"]
+    assert "SOURCE_ESTIMATION_FAITS_NON_EVALUABLES" in devis["revue_envoi"]["non_evaluables"]
+
+
+@pytest.mark.parametrize("absente", [False, True])
+def test_source_perdue_ou_alteree_apres_demande_est_refusee_sans_envoi(
+    capacites, departements, personnes, seuils_configures, absente
+):
+    from sqlalchemy import delete
+
+    from opsys.stockage.schema import REGISTRES
+
+    devis_id, _ = _creer_devis_source_revue(photos_valides=True)
+    demande_id = _demander(capacites, devis_id)["demande_id"]
+    assert _etat_du_devis(devis_id)["statut"] == "brouillon"
+    with stockage.transaction() as cnx:
+        filtre = (REGISTRES.c.departement == DEP) & (REGISTRES.c.registre == "principal")
+        if absente:
+            cnx.execute(delete(REGISTRES).where(filtre))
+        else:
+            from opsys.stockage import codec
+            [maillon] = list(outils_m3.registre_production().lire())
+            maillon["charge"]["lead_id"] = "autre-lead-fictif"
+            cnx.execute(update(REGISTRES).where(filtre).values(maillon=codec.encoder(maillon)))
+    [attente] = [x for x in _file(departements) if x["type"] == "revue_envoi_devis"]
+    assert "revue impossible" in attente["resume"]
+    assert "source d'estimation" in attente["resume"]
+    resultat, verdict = _decider_app(departements, demande_id, PROPRIO)
+    assert verdict is None and resultat["statut"] == "echec"
+    assert _etat_du_devis(devis_id)["statut"] == "brouillon"
+    assert _evenements_envoye(devis_id) == 0

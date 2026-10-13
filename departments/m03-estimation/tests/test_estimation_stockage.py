@@ -285,3 +285,15 @@ def test_verifier_politique_photos_refuse_tant_que_non_validee(base_durable):
     assert reponse["ok"] is True
     assert reponse["resultat"]["accepte"] is False
     assert reponse["resultat"]["verdict"]["code"] == "REJ-PHOTO-POLITIQUE-NON-VALIDEE"
+
+
+def test_faits_revue_retrouves_par_hash_apres_reouverture_sqlite(base_durable):
+    reponse = _estimer(photos=[_photo(reference=None)])
+    est = reponse["resultat"]["estimation"]
+    stockage.liberer()
+    journal = registre_production()
+    [maillon] = journal.lire()
+    assert maillon["hash_maillon"] == est["hash_maillon"]
+    assert maillon["charge"]["faits_revue"]["prix_bloque"] is est["prix_bloque"]
+    assert maillon["charge"]["faits_revue"]["verdict_estimation"] == est["verdict_estimation"]
+    assert journal.valider_chaine()[0] is True

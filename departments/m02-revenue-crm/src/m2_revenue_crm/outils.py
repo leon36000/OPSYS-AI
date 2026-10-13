@@ -556,6 +556,28 @@ def arbitrer_doublon(signalement_id: str, decision: str, horodatage: str) -> dic
     return {"accepte": True, "resultat": accuse}
 
 
+def _autoriser_interaction_appareil(
+    lead_id: str, auteur: str | None,
+) -> tuple[Registre | None, str | None, dict[str, Any] | None]:
+    """Relit l'autorité courante, sans mutation, dans la transaction de l'appel ou du rejeu."""
+    acteur, verdict = _acteur_appareil(acces.ROLES_LEADS)
+    if verdict is not None:
+        return None, None, verdict
+    auteur_consigne, verdict = acces.auteur_effectif(acteur, auteur)
+    if verdict is not None:
+        return None, None, verdict
+    reg = _obtenir_registre()
+    return reg, auteur_consigne, acces.controler_lead(reg, lead_id, acteur)
+
+
+def verifier_autorite_rejeu_interaction_appareil(arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Un accusé en cache ne donne pas accès au lead d'un autre propriétaire."""
+    if contexte.identite_appelante() is None:
+        return None  # Le contrat historique des appels d'agent reste inchangé.
+    _, _, verdict = _autoriser_interaction_appareil(arguments.get("lead_id"), arguments.get("auteur"))
+    return _refus(verdict) if verdict is not None else None
+
+
 def enregistrer_interaction(
     lead_id: str, auteur: str | None = None, resume: str = "", horodatage: str = ""
 ) -> dict[str, Any]:
@@ -570,16 +592,9 @@ def enregistrer_interaction(
     verdict du champ vide plutôt qu'une exception. Le champ `resume` reçu est limité à
     300 points Unicode, sans troncature, après contrôle de l'identité et du lead.
     La primitive interne des cascades M3/M4 et les historiques restent inchangés."""
-    acteur, verdict_acteur = _acteur_appareil(acces.ROLES_LEADS)
-    if verdict_acteur is not None:
-        return _refus(verdict_acteur)
-    auteur_consigne, verdict_auteur = acces.auteur_effectif(acteur, auteur)
-    if verdict_auteur is not None:
-        return _refus(verdict_auteur)
-    reg = _obtenir_registre()
-    verdict_lead = acces.controler_lead(reg, lead_id, acteur)
-    if verdict_lead is not None:
-        return _refus(verdict_lead)
+    reg, auteur_consigne, verdict = _autoriser_interaction_appareil(lead_id, auteur)
+    if verdict is not None:
+        return _refus(verdict)
     if isinstance(resume, str) and resume.strip() and len(resume) > RESUME_NOTE_LONGUEUR_MAX:
         return _refus(verdicts.construire_verdict(
             "REJ-CONTRAT-INVALIDE",

@@ -491,3 +491,22 @@ def test_signal_relance_m2_liste_vide_de_photos():
     reponse = _orchestrer(photos=[])
     assert reponse["estimation"]["verdict_estimation"] == "QUALITE_ENTREE_INSUFFISANTE"
     assert reponse["signal_relance_m2"]["elements_manquants"] == ["aucune entrée visuelle n'a été fournie"]
+
+
+@pytest.mark.parametrize("photos, bloque, hierarchie, verdict", [
+    ([_photo(1, largeur=640)], True, "INDETERMINE", "QUALITE_ENTREE_INSUFFISANTE"),
+    ([_photo(1, reference={"type": "porte", "dimensions_connues": True})],
+     False, "REFERENCE_ECHELLE", "AUCUN_BLOCAGE"),
+])
+def test_faits_revue_sont_hashes_sans_ouvrir_estimation_v1(photos, bloque, hierarchie, verdict):
+    journal = registre.Registre()
+    reponse = _orchestrer(photos=photos, plancher_rentable=1, registre_cible=journal)
+    assert reponse["accepte"] is True
+    charge = journal.lire()[0]["charge"]
+    assert charge["faits_revue"] == {
+        "version": "m3.faits-revue/v1", "prix_bloque": bloque,
+        "verdict_estimation": verdict, "niveau_confiance_hierarchie": hierarchie,
+        "alerte_plancher": False,
+    }
+    assert set(reponse["estimation"]) == set(contrats.CHAMPS_ESTIMATION_V1)
+    assert journal.valider_chaine()[0] is True

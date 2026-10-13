@@ -28,9 +28,11 @@ import m2_revenue_crm.outils as m2_outils
 import pytest
 from harnais_e2e import Moteur, PorteAppareil, iso
 from m2_revenue_crm import assignation, statuts
+from sqlalchemy import select
 
 from opsys import evenements, identite, stockage
 from opsys.outils import executer_atomique
+from opsys.stockage.schema import MUTATIONS_APPLIQUEES
 
 REASSIGNER = "m2_reassigner_lead"
 REPUBLIER = "m2_republier_assignations"
@@ -197,6 +199,62 @@ def test_e2e_l_admin_reassigne_b_voit_a_ne_voit_plus_le_rejeu_est_sans_effet_l_e
     assert _fait("lead-1")["proprietaire"] == "vendeur.a"
     livraison = moteur.drainer_bus(moteur.horloge.maintenant)
     assert livraison["echecs"] == 0 and livraison["quarantaines"] == 0, livraison
+
+
+def test_e2e_le_rejeu_d_une_note_reverifie_le_proprietaire_sans_reexecuter(moteur, equipe_de_vente):
+    admin, a, b = (equipe_de_vente[nom] for nom in ("admin", "a", "b"))
+    note = {"lead_id": "lead-1", "resume": "Note avant réassignation (fictif)", "horodatage": HORODATAGE}
+    cle_a = "rejeu-note-vendeur-a"
+    premier = a.appeler("m2_enregistrer_interaction", note, cle=cle_a, horodatage_appareil=_hh(moteur))
+    assert premier.resultat["lead_id"] == "lead-1" and premier.mesure.rejoue is False
+
+    avant = moteur.empreinte_etat()
+    meme_proprietaire = a.appeler("m2_enregistrer_interaction", note, cle=cle_a,
+                                horodatage_appareil=_hh(moteur))
+    assert meme_proprietaire.mesure.rejoue is True and meme_proprietaire.metier == premier.metier
+    assert moteur.empreinte_etat() == avant
+
+    reassignation = admin.appeler(REASSIGNER, _args(), cle="rejeu-note-reassigner",
+                                 horodatage_appareil=_hh(moteur))
+    assert reassignation.resultat["nouveau_proprietaire"] == "vendeur.b"
+    assert _voit(b, "lead-1") and not _voit(a, "lead-1")
+    frais_a = a.appeler("m2_enregistrer_interaction", note, cle="rejeu-note-refus-frais-a",
+                       horodatage_appareil=_hh(moteur))
+    assert frais_a.metier["verdict"]["code"] == "REJ-LEAD-NON-ASSIGNE"
+
+    note_b = {**note, "resume": "Note du propriétaire courant (fictif)"}
+    permis_b = b.appeler("m2_enregistrer_interaction", note_b, cle="rejeu-note-vendeur-b",
+                        horodatage_appareil=_hh(moteur))
+    assert permis_b.resultat["lead_id"] == "lead-1"
+    avant = moteur.empreinte_etat()
+    with stockage.transaction() as cnx:
+        cache_avant = [dict(ligne) for ligne in cnx.execute(
+            select(MUTATIONS_APPLIQUEES).order_by(
+                MUTATIONS_APPLIQUEES.c.appareil, MUTATIONS_APPLIQUEES.c.cle_idempotence,
+            )
+        ).mappings()]
+    ancien_proprietaire = a.appeler("m2_enregistrer_interaction", note, cle=cle_a,
+                                  horodatage_appareil=_hh(moteur))
+    assert ancien_proprietaire.mesure.rejoue is True
+    assert ancien_proprietaire.metier["accepte"] is False
+    assert ancien_proprietaire.metier["verdict"]["code"] == "REJ-LEAD-NON-ASSIGNE"
+    assert "resultat" not in ancien_proprietaire.metier
+    assert moteur.empreinte_etat() == avant
+
+    rejeu_b = b.appeler("m2_enregistrer_interaction", note_b, cle="rejeu-note-vendeur-b",
+                       horodatage_appareil=_hh(moteur))
+    rejeu_admin = admin.appeler(REASSIGNER, _args(), cle="rejeu-note-reassigner",
+                               horodatage_appareil=_hh(moteur))
+    assert rejeu_b.mesure.rejoue is True and rejeu_b.metier == permis_b.metier
+    assert rejeu_admin.mesure.rejoue is True and rejeu_admin.metier == reassignation.metier
+    assert moteur.empreinte_etat() == avant
+    with stockage.transaction() as cnx:
+        cache_apres = [dict(ligne) for ligne in cnx.execute(
+            select(MUTATIONS_APPLIQUEES).order_by(
+                MUTATIONS_APPLIQUEES.c.appareil, MUTATIONS_APPLIQUEES.c.cle_idempotence,
+            )
+        ).mappings()]
+    assert cache_apres == cache_avant
 
 
 def test_e2e_une_cible_ou_un_motif_invalide_est_un_refus_nomme_sans_aucune_ecriture(moteur, equipe_de_vente):

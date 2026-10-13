@@ -1357,6 +1357,12 @@ class Capacites:
                 refus_rejoue = reclamation.rejouee and reclamation.reponse.get("erreur") == "hors_portee_role"
                 return {**refus_role, "rejoue": refus_rejoue}
             if reclamation.rejouee:
+                if nom == "m2_enregistrer_interaction":
+                    from m2_revenue_crm import outils as outils_m2
+
+                    refus = outils_m2.verifier_autorite_rejeu_interaction_appareil(arguments)
+                    if refus is not None:
+                        return {"ok": True, "resultat": refus, "rejoue": True}
                 if (nom == _PROPOSITION_REVUE_M4 or decision_revue) and type(reclamation.reponse) is not dict:
                     return self._confirmation_revue_inconnue()
                 reponse = {**reclamation.reponse, "rejoue": True}
