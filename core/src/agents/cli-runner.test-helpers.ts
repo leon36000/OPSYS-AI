@@ -74,11 +74,13 @@ export function expectModelCallTypes(
 }
 
 export function createTestMcpLoopbackServerConfig(port: number) {
+  const url = `http://127.0.0.1:${port}/mcp`;
   return {
     mcpServers: {
       openclaw: {
         type: "http",
-        url: `http://127.0.0.1:${port}/mcp`,
+        url,
+        transportSecurity: { insecureHttpOrigin: new URL(url).origin },
         alwaysLoad: true,
         headers: {
           Authorization: "Bearer ${OPENCLAW_MCP_TOKEN}",
