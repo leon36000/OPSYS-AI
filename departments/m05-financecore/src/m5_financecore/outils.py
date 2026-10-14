@@ -637,6 +637,20 @@ def creer_facture_brouillon(
     if erreurs:
         return {"accepte": False, "verdict": {"code": "REJ-TAUX-FICHIER-INVALIDE", "detail": "; ".join(erreurs)}}
     registre_cible = _registre_factures(factures_historique)
+    maillons_factures = None
+    if factures_historique is None and _stockage_durable_actif:
+        # L'outil direct crée sur un préfixe validé ; les consommateurs ont
+        # leur propre chemin, hors de cette frontière d'écriture.
+        try:
+            copie = registre_module.Registre(maillons=registre_cible.lire())
+            valide, _ = copie.valider_chaine()
+        except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+            valide = False
+        if valide is not True:
+            raise ValueError("REJ-FACTURE-CHAINE-INVALIDE : vérifier le journal M5 avant ajout")
+        registre_cible = copie
+        maillons_factures = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FACTURES)
+        taille_initiale = registre_cible.taille()
     resultat, verdict = facturation.creer_facture_brouillon(
         facture_id=facture_id,
         chantier_id=chantier_id,
@@ -650,6 +664,8 @@ def creer_facture_brouillon(
     )
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
+    if maillons_factures is not None and registre_cible.taille() != taille_initiale:
+        maillons_factures.append(resultat, rang_attendu=taille_initiale)
     return {"accepte": True, "resultat": resultat, **_etat_factures(factures_historique, registre_cible)}
 
 
