@@ -1401,6 +1401,17 @@ def annuler_facture_fournisseur(facture_fournisseur_id: str, motif: str, horodat
     if refus_taux is not None:
         return _refus(refus_taux)
     registre_cible = _registre_comptes_a_payer()
+    # Cet adaptateur est toujours durable, indépendamment du mode des mouvements.
+    # Calcul, saisie et rapprochement proposé partagent le préfixe accepté.
+    try:
+        copie = registre_module.Registre(maillons=registre_cible.lire())
+        valide, _ = copie.valider_chaine()
+    except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+        valide = False
+    if valide is not True:
+        raise ValueError("REJ-FACTURE-CHAINE-INVALIDE : vérifier le journal M5 avant ajout")
+    registre_cible = copie
+    taille_initiale = registre_cible.taille()
     resultat, verdict = comptes_a_payer.annuler_facture_fournisseur(
         facture_fournisseur_id=facture_fournisseur_id,
         motif=motif,
@@ -1412,6 +1423,11 @@ def annuler_facture_fournisseur(facture_fournisseur_id: str, motif: str, horodat
     )
     if verdict is not None:
         return _refus(verdict)
+    if registre_cible.taille() != taille_initiale + 1:
+        raise RuntimeError("l'annulation fournisseur doit ajouter exactement un maillon")
+    stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_COMPTES_A_PAYER).append(
+        registre_cible.lire()[-1], rang_attendu=taille_initiale
+    )
     return _reponse_facture(resultat, registre_cible, dictionnaire_taux)
 
 
