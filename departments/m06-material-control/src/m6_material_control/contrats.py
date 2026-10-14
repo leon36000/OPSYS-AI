@@ -196,6 +196,12 @@ TRANSITIONS_PO: dict[str, frozenset[str]] = {
 
 VERDICT_PRIX_PO = ("PRIX_LIVRE", "INDETERMINE")
 
+# Source annotations are separate from the economic price verdict.
+# INDETERMINE is the contractual escape, never a claim of document authentication.
+# A missing economic price keeps the existing nullable public projection (None).
+MARQUAGE_SOURCE_PRIX = ("SOURCE_DECLAREE", "FALLBACK_PRICE_BOOK", "ESTIMATED", "INDETERMINE")
+CAPTURE_SOURCE_PRIX = ("CAPTURE", "NON_CAPTURE", "INDETERMINE")
+
 VERDICT_RESOLUTION_PRIX = ("PRIX_CATALOGUE", "PRIX_HISTORIQUE_FALLBACK", "INDETERMINE")
 VERDICT_RECEPTION = (
     "CONFORME", "RECEPTION_INFERIEURE", "RECEPTION_SUPERIEURE",

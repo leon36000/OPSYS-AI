@@ -3,7 +3,10 @@ mémoire ici."""
 
 from __future__ import annotations
 
-from m6_material_control import livre_prix
+import copy
+
+import pytest
+from m6_material_control import contrats, livre_prix
 
 
 def test_enregistrer_prix_nominal():
@@ -94,6 +97,56 @@ def test_resoudre_prix_po_trouve_rend_prix_livre():
 def test_resoudre_prix_po_absent_rend_indetermine_jamais_invente():
     resolution = livre_prix.resoudre_prix_po("MAT-INCONNU", "gentek", [])
     assert resolution == {
-        "verdict_prix": "INDETERMINE", "prix_unitaire": None, "devise": None,
-        "date_effet": None, "source_document": None,
+        "verdict_prix": "INDETERMINE",
+        "prix_unitaire": None,
+        "devise": None,
+        "date_effet": None,
+        "source_document": None,
+        "marquage_source": None,
     }
+
+
+@pytest.mark.parametrize("source,marque", [(None, "FALLBACK_PRICE_BOOK"), ("FACT-FICTIF", "SOURCE_DECLAREE")])
+def test_provenance_prix_derivee_sans_reecrire_livre(source, marque):
+    registre = []
+    livre_prix.enregistrer_prix("MAT-FICTIF", "gentek", 12.5, "CAD", "2026-01-01", registre, source)
+    avant = copy.deepcopy(registre)
+    resolution = livre_prix.resoudre_prix_po("MAT-FICTIF", "gentek", registre)
+    assert resolution["marquage_source"] == marque
+    assert resolution["source_document"] == source
+    assert resolution["prix_unitaire"] == 12.5
+    assert registre == avant
+    assert set(registre[0]) == {
+        "materiau_id",
+        "fournisseur_id",
+        "prix_unitaire",
+        "devise",
+        "date_effet",
+        "source_document",
+    }
+    assert contrats.VERDICT_PRIX_PO == ("PRIX_LIVRE", "INDETERMINE")
+
+
+@pytest.mark.parametrize(
+    "livre",
+    [
+        [],
+        [
+            {
+                "materiau_id": "MAT-FICTIF",
+                "fournisseur_id": "royal",
+                "prix_unitaire": 12.5,
+                "devise": "CAD",
+                "date_effet": "2026-01-01",
+                "source_document": "FACT-FICTIF",
+            }
+        ],
+    ],
+)
+def test_prix_absent_ou_autre_fournisseur_sans_provenance_inventee(livre):
+    avant = copy.deepcopy(livre)
+    resolution = livre_prix.resoudre_prix_po("MAT-FICTIF", "gentek", livre)
+    assert resolution["verdict_prix"] == "INDETERMINE"
+    assert resolution["marquage_source"] is None
+    assert resolution["prix_unitaire"] is resolution["date_effet"] is resolution["source_document"] is None
+    assert livre == avant

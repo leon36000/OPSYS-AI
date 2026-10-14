@@ -62,6 +62,7 @@ partielle ferait passer le PO à `received` alors que la moitié seulement est a
 
 from __future__ import annotations
 
+import copy
 import math
 from collections.abc import Iterable, Mapping
 from fractions import Fraction
@@ -86,6 +87,7 @@ __all__ = [
     "detecter_ecarts_prix",
     "lire",
     "lister",
+    "projeter_provenance_prix",
     "transition_autorisee",
 ]
 
@@ -153,16 +155,40 @@ def _etats_courants(registre_cible: Iterable[Mapping[str, Any]]) -> dict[str, di
     return etats
 
 
+def projeter_provenance_prix(po: Mapping[str, Any]) -> dict[str, Any]:
+    """Copy captured facts or expose legacy uncertainty without consulting today's price book.
+
+    A legacy numeric planned price is ESTIMATED, never an authenticated document. No ledger is
+    rewritten, and the six economic line fields remain the replay identity.
+    """
+    projection = copy.deepcopy(dict(po))
+    if "provenance_prix_lignes" not in projection:
+        _, non_capture, _ = contrats.CAPTURE_SOURCE_PRIX
+        _, _, estimated, _ = contrats.MARQUAGE_SOURCE_PRIX
+        projection["provenance_prix_lignes"] = [
+            {
+                "materiau_id": ligne["materiau_id"],
+                "capture": non_capture,
+                "date_effet": None,
+                "source_document": None,
+                "marquage_source": estimated if ligne.get("prix_unitaire_prevu") is not None else None,
+            }
+            for ligne in projection.get("lignes", ())
+        ]
+    return projection
+
+
 def lire(registre_cible: Iterable[Mapping[str, Any]], po_id: Any) -> dict[str, Any] | None:
     if not _texte_non_vide(po_id):
         return None
-    return _etats_courants(registre_cible).get(po_id)
+    etat = _etats_courants(registre_cible).get(po_id)
+    return projeter_provenance_prix(etat) if etat is not None else None
 
 
 def lister(registre_cible: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
     """Tous les PO connus (état courant de chacun), triés par ``po_id`` pour un ordre
     déterministe — aucune horloge, aucun tri par date."""
-    return [etat for _, etat in sorted(_etats_courants(registre_cible).items())]
+    return [projeter_provenance_prix(etat) for _, etat in sorted(_etats_courants(registre_cible).items())]
 
 
 def transition_autorisee(statut_actuel: Any, statut_cible: Any) -> bool:
@@ -258,12 +284,23 @@ def creer_brouillon(
         )
 
     lignes: list[dict[str, Any]] = []
+    provenance_prix_lignes: list[dict[str, Any]] = []
     montants_lignes: list[float | None] = []
     for ligne in lignes_demandees:
         materiau_id = ligne["materiau_id"]
         quantite_demandee = ligne["quantite_demandee"]
         resolution = livre_prix.resoudre_prix_po(materiau_id, fournisseur_id, registre_prix)
         prix_unitaire_prevu = resolution["prix_unitaire"]
+        capture, non_capture, _ = contrats.CAPTURE_SOURCE_PRIX
+        provenance_prix_lignes.append(
+            {
+                "materiau_id": materiau_id,
+                "capture": capture if prix_unitaire_prevu is not None else non_capture,
+                "date_effet": resolution["date_effet"],
+                "source_document": resolution["source_document"],
+                "marquage_source": resolution["marquage_source"],
+            }
+        )
         montant_ligne_prevu = (
             prix_unitaire_prevu * quantite_demandee if prix_unitaire_prevu is not None else None
         )
@@ -302,7 +339,8 @@ def creer_brouillon(
             "REJ-PO-ID-DEJA-UTILISE", detail=f"po_id {po_id!r} déjà créé avec un contenu différent"
         )
 
-    maillon = {**candidat, "type_entree": "po_cree", "statut": "draft", "horodatage": horodatage}
+    maillon = {**candidat, "type_entree": "po_cree", "statut": "draft", "horodatage": horodatage,
+               "provenance_prix_lignes": provenance_prix_lignes}
     registre_po.append(dict(maillon))
     return lire(registre_po, po_id), None
 

@@ -6,6 +6,8 @@ en mémoire ici — la persistance durable (`opsys.stockage.maillons`) est prouv
 
 from __future__ import annotations
 
+import copy
+
 import pytest
 from m6_material_control import bons_commande, contrats, fournisseurs, livre_prix
 from m6_material_control.registre import Registre
@@ -576,3 +578,111 @@ def test_detecter_ecarts_prix_seuil_decimal_exact(prix_prevu, prix_reel, seuil, 
         assert len(signaux) == 1
         assert signaux[0]["po_id"] == po["po_id"]
         assert signaux[0]["materiau_id"] == "VIS-FICTIF"
+
+
+@pytest.mark.parametrize("source,marque", [(None, "FALLBACK_PRICE_BOOK"), ("FACT-FICTIF", "SOURCE_DECLAREE")])
+def test_capture_provenance_po_hors_lignes_economiques(source, marque):
+    livre, registre_po = [], []
+    livre_prix.enregistrer_prix("MAT-1", "gentek", 12.5, "CAD", "2026-01-01", livre, source)
+    po, registre_retour = _creer_po(
+        lignes=[{"materiau_id": "MAT-1", "quantite_demandee": 2.0}], registre_po=registre_po, registre_prix=livre
+    )
+    assert registre_retour is registre_po and po["statut"] == "draft"
+    assert po["provenance_prix_lignes"] == [
+        {
+            "materiau_id": "MAT-1",
+            "capture": "CAPTURE",
+            "date_effet": "2026-01-01",
+            "source_document": source,
+            "marquage_source": marque,
+        }
+    ]
+    assert set(po["lignes"][0]) == {
+        "materiau_id",
+        "quantite_demandee",
+        "verdict_prix",
+        "prix_unitaire_prevu",
+        "devise_prevue",
+        "montant_ligne_prevu",
+    }
+    assert po["montant_total_prevu"] == 25.0
+    assert registre_po[0]["provenance_prix_lignes"] == po["provenance_prix_lignes"]
+    avant = copy.deepcopy(registre_po)
+    po["provenance_prix_lignes"][0]["source_document"] = "REFERENCE-MODIFIEE-FICTIVE"
+    assert registre_po == avant, "le retour ne doit pas donner un alias modifiable de la capture"
+
+
+def test_rejeu_meme_id_garde_capture_originale_malgre_doc_date_modifies():
+    livre, registre_po = [], []
+    livre_prix.enregistrer_prix("MAT-1", "gentek", 12.5, "CAD", "2026-01-01", livre)
+    premier, _ = _creer_po(registre_po=registre_po, registre_prix=livre)
+    avant = copy.deepcopy(registre_po)
+    livre_prix.enregistrer_prix("MAT-1", "gentek", 12.5, "CAD", "2026-02-01", livre, "FACT-NOUVELLE-FICTIVE")
+    rejoue, registre_retour = _creer_po(registre_po=registre_po, registre_prix=livre)
+    assert registre_retour is registre_po and rejoue == premier
+    assert rejoue["provenance_prix_lignes"][0]["source_document"] is None
+    assert rejoue["provenance_prix_lignes"][0]["date_effet"] == "2026-01-01"
+    assert registre_po == avant
+    livre_prix.enregistrer_prix("MAT-1", "gentek", 14.0, "CAD", "2026-03-01", livre, "FACT-FICTIVE")
+    conflit, verdict = bons_commande.creer_brouillon(
+        "PO-1",
+        "C1",
+        "gentek",
+        [{"materiau_id": "MAT-1", "quantite_demandee": 5.0}],
+        "2026-01-02T00:00:00Z",
+        registre_po,
+        livre,
+        _fournisseurs_avec_gentek(),
+    )
+    assert conflit is None and verdict["code"] == "REJ-PO-ID-DEJA-UTILISE"
+    assert registre_po == avant
+
+
+def test_legacy_po_sans_capture_rejoue_estimated_sans_emprunter_livre_courant():
+    initial, _ = _creer_po()
+    initial.pop("provenance_prix_lignes", None)
+    registre_po, livre = [copy.deepcopy(initial)], _prix_gentek()
+    avant = copy.deepcopy(registre_po)
+    livre_prix.enregistrer_prix("MAT-1", "gentek", 10.0, "CAD", "2026-02-01", livre, "FACT-POSTERIEURE-FICTIVE")
+    lu = bons_commande.lire(registre_po, "PO-1")
+    assert lu["provenance_prix_lignes"] == [
+        {
+            "materiau_id": "MAT-1",
+            "capture": "NON_CAPTURE",
+            "date_effet": None,
+            "source_document": None,
+            "marquage_source": "ESTIMATED",
+        }
+    ]
+    assert bons_commande.lister(registre_po) == [lu]
+    rejoue, registre_retour = _creer_po(registre_po=registre_po, registre_prix=livre)
+    assert registre_retour is registre_po and rejoue == lu
+    assert registre_po == avant
+    assert lu["lignes"] == initial["lignes"] and lu["montant_total_prevu"] == initial["montant_total_prevu"]
+
+
+@pytest.mark.parametrize(
+    "livre",
+    [
+        [],
+        [
+            {
+                "materiau_id": "MAT-1",
+                "fournisseur_id": "royal",
+                "prix_unitaire": 10.0,
+                "devise": "CAD",
+                "date_effet": "2026-01-01",
+                "source_document": "FACT-FICTIVE",
+            }
+        ],
+    ],
+)
+def test_po_prix_absent_ou_autre_fournisseur_null_sans_date_inventee(livre):
+    po, _ = _creer_po(registre_prix=livre)
+    assert po["lignes"][0]["verdict_prix"] == "INDETERMINE"
+    assert po["montant_total_prevu"] is None
+    provenance = po["provenance_prix_lignes"][0]
+    assert provenance["marquage_source"] is provenance["source_document"] is provenance["date_effet"] is None
+    legacy = copy.deepcopy(po)
+    legacy.pop("provenance_prix_lignes")
+    assert bons_commande.lire([legacy], "PO-1")["provenance_prix_lignes"][0]["marquage_source"] is None

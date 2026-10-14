@@ -7,6 +7,7 @@ Identifiants et coordonnées fictifs (DEFINITION-PRODUIT §1, AGENTS.md « ficti
 
 from __future__ import annotations
 
+import copy
 from pathlib import Path
 
 import m6_material_control.outils as m6_outils
@@ -394,3 +395,128 @@ def test_manager_peut_approuver_et_generer_le_courriel_n3(dep, personnes):
         decision = opsys_approbations.decider(cnx, ident, True, personnes["manager"], outils_dispo, {_DEPARTEMENT: dep})
     assert decision["statut"] == "executee"
     assert _statut_po("PO-N3") == "draft"
+
+
+def test_provenance_prix_publique_cap_native_sans_recriture(base_durable, dep, personnes):
+    capacites = Capacites({_DEPARTEMENT: dep}, stockage.transaction)
+    disponibles = outils_executables({_DEPARTEMENT: dep}, stockage.transaction)
+
+    def appeler_interne(nom, arguments):
+        assert nom in {
+            "m6_enregistrer_fournisseur",
+            "m6_enregistrer_prix",
+            "m6_enregistrer_besoins_prevus",
+            "m6_creer_po_brouillon",
+        }
+        reponse = capacites.appeler(nom, arguments)
+        assert reponse["ok"] is True and reponse["statut"] == "en_attente_approbation"
+        with stockage.transaction() as cnx:
+            decision = opsys_approbations.decider(
+                cnx, reponse["demande_id"], True, personnes["nathan"], disponibles, {_DEPARTEMENT: dep}
+            )
+        assert decision["statut"] == "executee"
+        resultat = decision["reponse"]["resultat"]
+        assert resultat["accepte"] is True
+        return resultat
+
+    appeler_interne(
+        "m6_enregistrer_fournisseur",
+        {"fournisseur_id": "gentek", "nom": "Gentek (fictif)", "horodatage": "2026-01-01T00:00:00Z"},
+    )
+    prix = appeler_interne(
+        "m6_enregistrer_prix",
+        {
+            "materiau_id": "BARDEAU",
+            "fournisseur_id": "gentek",
+            "prix_unitaire": 12.5,
+            "devise": "CAD",
+            "date_effet": "2026-01-01",
+        },
+    )
+    assert prix["marquage_source"] == "FALLBACK_PRICE_BOOK"
+    assert prix["resultat"]["source_document"] is None
+    appeler_interne(
+        "m6_enregistrer_besoins_prevus",
+        {
+            "chantier_id": "C-FICTIF",
+            "devis_id": "DEVIS-FICTIF",
+            "lignes": [{"materiau_id": "BARDEAU", "quantite_estimee": 2.0, "unite": "boite"}],
+        },
+    )
+    arguments_po = {
+        "po_id": "PO-FICTIF",
+        "devis_id": "DEVIS-FICTIF",
+        "fournisseur_id": "gentek",
+        "horodatage": "2026-01-02T00:00:00Z",
+    }
+    creation = appeler_interne("m6_creer_po_brouillon", arguments_po)
+    assert creation["po"]["statut"] == "draft" and creation["po"]["montant_total_prevu"] == 25.0
+    assert creation["po"]["provenance_prix_lignes"][0]["marquage_source"] == "FALLBACK_PRICE_BOOK"
+    assert "livre_prix_historique" not in prix and "bons_commande_historique" not in creation
+    with stockage.transaction():
+        livres_avant = copy.deepcopy(list(stockage.maillons(_DEPARTEMENT, "livre_prix")))
+        po_avant = copy.deepcopy(list(stockage.maillons(_DEPARTEMENT, "bons_commande")))
+        assert set(livres_avant[0]) == {
+            "materiau_id",
+            "fournisseur_id",
+            "prix_unitaire",
+            "devise",
+            "date_effet",
+            "source_document",
+        }
+        assert (
+            m6_outils.bons_commande.lire(stockage.maillons(_DEPARTEMENT, "bons_commande"), "PO-FICTIF")
+            == creation["po"]
+        )
+        assert list(stockage.maillons(_DEPARTEMENT, "livre_prix")) == livres_avant
+        assert list(stockage.maillons(_DEPARTEMENT, "bons_commande")) == po_avant
+    prix_source = appeler_interne(
+        "m6_enregistrer_prix",
+        {
+            "materiau_id": "BARDEAU",
+            "fournisseur_id": "gentek",
+            "prix_unitaire": 12.5,
+            "devise": "CAD",
+            "date_effet": "2026-02-01",
+            "source_document": "FACT-POSTERIEURE-FICTIVE",
+        },
+    )
+    assert prix_source["marquage_source"] == "SOURCE_DECLAREE"
+    replay = appeler_interne("m6_creer_po_brouillon", arguments_po)
+    assert replay["po"] == creation["po"]
+    with stockage.transaction():
+        assert list(stockage.maillons(_DEPARTEMENT, "bons_commande")) == po_avant
+
+
+def test_reponse_outil_po_legacy_projette_estimated_sans_mutation():
+    fh = m6_outils.enregistrer_fournisseur("gentek", "Gentek (fictif)", "2026-01-01T00:00:00Z")[
+        "fournisseurs_historique"
+    ]
+    bh = m6_outils.enregistrer_besoins_prevus(
+        "C-FICTIF", "DEVIS-FICTIF", [{"materiau_id": "BARDEAU", "quantite_estimee": 2.0, "unite": "boite"}]
+    )["registre_historique"]
+    livre = []
+    livre_prix.enregistrer_prix("BARDEAU", "gentek", 12.5, "CAD", "2026-01-01", livre)
+    arguments = dict(
+        po_id="PO-FICTIF",
+        devis_id="DEVIS-FICTIF",
+        fournisseur_id="gentek",
+        horodatage="2026-01-02T00:00:00Z",
+        besoins_prevus_historique=bh,
+        livre_prix_historique=livre,
+        fournisseurs_historique=fh,
+    )
+    initial = m6_outils.creer_po_brouillon(**arguments)["bons_commande_historique"]
+    initial[0].pop("provenance_prix_lignes", None)
+    avant = copy.deepcopy(initial)
+    livre_prix.enregistrer_prix("BARDEAU", "gentek", 12.5, "CAD", "2026-02-01", livre, "FACT-NOUVELLE-FICTIVE")
+    retour = m6_outils.creer_po_brouillon(**arguments, bons_commande_historique=initial)
+    assert retour["accepte"] is True
+    assert retour["po"]["provenance_prix_lignes"][0] == {
+        "materiau_id": "BARDEAU",
+        "capture": "NON_CAPTURE",
+        "date_effet": None,
+        "source_document": None,
+        "marquage_source": "ESTIMATED",
+    }
+    assert initial == avant and retour["bons_commande_historique"] == avant

@@ -32,13 +32,19 @@ from typing import Any
 
 from . import contrats, frontieres, verdicts
 
-__all__ = ["enregistrer_prix", "prix_en_vigueur", "resoudre_prix_po"]
+__all__ = ["enregistrer_prix", "prix_en_vigueur", "resoudre_prix_po", "marquage_source_document"]
 
 _VERDICT_PRIX_LIVRE, _VERDICT_PRIX_INDETERMINE = contrats.VERDICT_PRIX_PO
 
 
 def _texte_non_vide(valeur: Any) -> bool:
     return isinstance(valeur, str) and valeur.strip() != ""
+
+
+def marquage_source_document(source_document: Any) -> str:
+    """Classify a declared reference; a nonempty string does not authenticate a document."""
+    declaree, fallback, _, _ = contrats.MARQUAGE_SOURCE_PRIX
+    return declaree if _texte_non_vide(source_document) else fallback
 
 
 def enregistrer_prix(
@@ -123,11 +129,13 @@ def resoudre_prix_po(
             "devise": None,
             "date_effet": None,
             "source_document": None,
+            "marquage_source": None,
         }
     return {
         "verdict_prix": _VERDICT_PRIX_LIVRE,
         "prix_unitaire": entree["prix_unitaire"],
         "devise": entree["devise"],
         "date_effet": entree["date_effet"],
-        "source_document": entree["source_document"],
+        "source_document": entree.get("source_document"),
+        "marquage_source": marquage_source_document(entree.get("source_document")),
     }

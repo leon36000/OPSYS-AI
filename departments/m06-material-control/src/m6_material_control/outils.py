@@ -1304,7 +1304,8 @@ def enregistrer_prix(
     )
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
-    reponse = {"accepte": True, "resultat": resultat}
+    reponse = {"accepte": True, "resultat": resultat,
+               "marquage_source": livre_prix.marquage_source_document(resultat.get("source_document"))}
     if stockage.connexion_courante() is None:
         reponse["livre_prix_historique"] = list(registre_cible)
     return reponse
@@ -1316,7 +1317,7 @@ def _reponse_po(resultat: dict[str, Any], registre_cible: list[dict[str, Any]]) 
     """Forme commune des outils PO : le PO à jour, plus l'historique du registre des PO hors
     transaction seulement (même convention que `enregistrer_besoins_prevus` — le registre durable
     de production n'a rien à retransporter, `_bons_commande_de_l_appel` en fait déjà autorité)."""
-    reponse = {"accepte": True, "po": resultat}
+    reponse = {"accepte": True, "po": bons_commande.projeter_provenance_prix(resultat)}
     if stockage.connexion_courante() is None:
         reponse["bons_commande_historique"] = list(registre_cible)
     return reponse
@@ -2696,7 +2697,8 @@ def outils() -> tuple[Outil, ...]:
                 "Ajoute une entrée au livre de prix (M6.3) : prix FOURNI (jamais calculé), pour un "
                 "matériau et un fournisseur donnés, daté (date_effet). Append-only et versionné : "
                 "n'écrase jamais une entrée antérieure, chaque hausse ou correction est une "
-                "nouvelle entrée. source_document (facture ou PO d'origine) optionnel."
+                "nouvelle entrée. source_document (facture ou PO d'origine) optionnel : sans référence, "
+                "marquage_source=FALLBACK_PRICE_BOOK; une référence est SOURCE_DECLAREE, jamais authentifiée ici."
             ),
             parametres={
                 "type": "object",
@@ -2723,7 +2725,9 @@ def outils() -> tuple[Outil, ...]:
                 "un devis (m6_enregistrer_besoins_prevus, source m3.devis_accepte) et du stock déjà "
                 "disponible pour le chantier : seul l'écart est commandé, calculé par le code, "
                 "jamais deviné. Résout le prix attendu de chaque ligne depuis le livre de prix "
-                "(PRIX_LIVRE ou INDETERMINE — jamais inventé). Refuse fail-closed si le fournisseur "
+                "(PRIX_LIVRE ou INDETERMINE — jamais inventé), avec provenance capturée séparément "
+                "des lignes économiques; un PO ancien sans capture est ESTIMATED/NON_CAPTURE. "
+                "Refuse fail-closed si le fournisseur "
                 "n'est pas enregistré (m6_enregistrer_fournisseur d'abord). Rend "
                 "statut=\"aucun_achat_requis\" (po=null) si le stock couvre déjà tout le besoin."
             ),
