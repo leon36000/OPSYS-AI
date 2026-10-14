@@ -358,6 +358,29 @@ def _mesurer_et_publier(wct_id: str, faits_cible: Any) -> dict[str, Any]:
     }
 
 
+def _copie_snapshots_valide(maillons) -> registre.RegistreSnapshots:
+    """Une seule lecture native, validée avant calcul du prochain maillon."""
+    try:
+        copie = registre.RegistreSnapshots(maillons=registre.RegistreSnapshots(maillons).lire())
+        valide, _ = copie.valider_chaine()
+        valide = valide and all(
+            type(maillon["index"]) is int and maillon["index"] == index
+            for index, maillon in enumerate(copie.lire())
+        )
+    except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+        valide = False
+    if valide is not True:
+        raise ValueError("REJ-SNAPSHOT-CHAINE-INVALIDE : vérifier le registre M8 avant ajout")
+    return copie
+
+
+def _ajouter_snapshot_durable(maillons, copie, snapshot):
+    maillon, _ = copie.ajouter(snapshot)
+    # Le stockage natif refuse le rang périmé et laisse la transaction annuler
+    # l'appel. Le répartiteur conserve alors l'événement et peut le rejouer.
+    maillons.append(maillon, rang_attendu=maillon["index"])
+
+
 def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
     """Consommateur `m4.travaux_termines` (ADR-0009 §3, DEPARTEMENTS.md « Événements ») : deux
     écritures indépendantes, chacune idempotente par `wct_id`, puis la mesure du chantier.
@@ -370,14 +393,15 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
        d'où M8 mesure le chantier (PLAN T1.5-d) : temps réel contre prévu, quand M3 a fourni la
        durée estimée du devis accepté, sinon « non calculable, manque duree_estimee_minutes ».
     """
-    registre_cible = registre.RegistreSnapshots(maillons=stockage.maillons(_DEPARTEMENT, "snapshots"))
+    maillons = stockage.maillons(_DEPARTEMENT, "snapshots")
+    registre_cible = _copie_snapshots_valide(maillons)
     wct_id = charge["wct_id"]
     deja_enregistre = any(
         maillon["module_source"] == _MODULE_SOURCE_TRAVAUX and maillon["valeurs"].get("m4_wct_id") == wct_id
         for maillon in registre_cible.lire()
     )
     if not deja_enregistre:
-        registre_cible.ajouter({
+        _ajouter_snapshot_durable(maillons, registre_cible, {
             "module_source": _MODULE_SOURCE_TRAVAUX,
             "horodatage": charge["horodatage_completion"],
             "valeurs": _valeurs_travaux_termines(charge),
@@ -679,12 +703,14 @@ def outils(
         faits_contenus_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CONTENUS)
     if faits_cash_libre_cible is None:
         faits_cash_libre_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_CASH_LIBRE)
+    maillons_snapshots = None
     if registre_cible is None:
-        registre_cible = registre.RegistreSnapshots(maillons=stockage.maillons("m08-analytics", "snapshots"))
+        maillons_snapshots = stockage.maillons("m08-analytics", "snapshots")
+        registre_cible = registre.RegistreSnapshots(maillons=maillons_snapshots)
     if definitions_cible is None:
         definitions_cible = stockage.maillons("m08-analytics", "definitions_metriques")
 
-    def _candidats_numeriques(module_source: str, metric_id: str) -> list[tuple[str, float]]:
+    def _candidats_numeriques(module_source: str, metric_id: str, vue=None) -> list[tuple[str, float]]:
         """Paires (horodatage, valeur) valides, ordre du registre, pour un module_source+metric_id.
 
         Même règle de conversion que semantique.deriver_metrique : une valeur qui ne convertit
@@ -693,7 +719,7 @@ def outils(
         (T3.1-suite, `qualite.evaluer_unicite`) — un seul passage sur le registre, deux usages.
         """
         candidats: list[tuple[str, float]] = []
-        for maillon in registre_cible.lire():
+        for maillon in (registre_cible if vue is None else vue).lire():
             if maillon["module_source"] != module_source:
                 continue
             if metric_id not in maillon["valeurs"]:
@@ -707,9 +733,9 @@ def outils(
             candidats.append((maillon["horodatage"], valeur))
         return candidats
 
-    def _historique_numerique(module_source: str, metric_id: str) -> list[float]:
+    def _historique_numerique(module_source: str, metric_id: str, vue=None) -> list[float]:
         """Série chronologique (ordre du registre) des valeurs numériques d'un metric_id."""
-        return [valeur for _, valeur in _candidats_numeriques(module_source, metric_id)]
+        return [valeur for _, valeur in _candidats_numeriques(module_source, metric_id, vue)]
 
     def _resoudre_valeur_composante(metric_id_composante: str, horodatage_reference: str) -> float | None:
         """Valeur DÉRIVÉE d'une composante pour le contrôle de cohérence (T3.1-suite) — jamais une
@@ -749,7 +775,12 @@ def outils(
         if not valide:
             return {"etape": "validation", "accepte": False, "verdict": verdict}
 
-        registre_cible.ajouter(snapshot)
+        if maillons_snapshots is not None:
+            vue = _copie_snapshots_valide(maillons_snapshots)
+            _ajouter_snapshot_durable(maillons_snapshots, vue, snapshot)
+        else:
+            registre_cible.ajouter(snapshot)
+            vue = registre_cible
 
         module_source = snapshot["module_source"]
         metriques_module = dictionnaire.get(module_source, {})
@@ -764,7 +795,7 @@ def outils(
                     "verdict": f"REJ-METRIC-ID-NON-DEFINI:{metric_id}",
                 }
             valeur_metrique = semantique.deriver_metrique(
-                module_source, metric_id, definition, registre_cible, horodatage_reference
+                module_source, metric_id, definition, vue, horodatage_reference
             )
             if valeur_metrique.get("derniere_valeur_invalide", False):
                 return {
@@ -774,7 +805,7 @@ def outils(
                 }
             metriques.append(valeur_metrique)
 
-            historique = _historique_numerique(module_source, metric_id)
+            historique = _historique_numerique(module_source, metric_id, vue)
             signal = xmr.detecter_signal(metric_id, historique, n_minimal)
             if signal is not None:
                 signaux.append(signal)
