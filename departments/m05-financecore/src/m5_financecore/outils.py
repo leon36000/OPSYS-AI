@@ -739,6 +739,18 @@ def _essayer_facture_brouillon(devis_id: str) -> dict[str, Any]:
         return {"traite": True, "devis_id": devis_id, "statut": "en_attente_chantier_id"}
 
     registre_cible = _registre_factures(None)
+    maillons_factures = None
+    if _stockage_durable_actif:
+        try:
+            copie = registre_module.Registre(maillons=registre_cible.lire())
+            valide, _ = copie.valider_chaine()
+        except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+            valide = False
+        if valide is not True:
+            raise ValueError("REJ-FACTURE-CHAINE-INVALIDE : vérifier le journal M5 avant ajout")
+        registre_cible = copie
+        maillons_factures = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FACTURES)
+        taille_initiale = registre_cible.taille()
     if facturation.facture_active_pour_devis(registre_cible, devis_id) is not None:
         return {"traite": True, "devis_id": devis_id, "statut": "facture_deja_existante"}
 
@@ -782,6 +794,8 @@ def _essayer_facture_brouillon(devis_id: str) -> dict[str, Any]:
             return {"traite": True, "devis_id": devis_id, "statut": "facture_deja_existante"}
         raise RuntimeError(f"creer_facture_brouillon a refusé une entrée déjà validée par M3 : {verdict}")
 
+    if maillons_factures is not None and registre_cible.taille() != taille_initiale:
+        maillons_factures.append(resultat, rang_attendu=taille_initiale)
     return {
         "traite": True,
         "devis_id": devis_id,
