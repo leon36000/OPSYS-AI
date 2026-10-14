@@ -296,14 +296,14 @@ jobs:
         env:
           OPSYS_QUALIFIER_M9_PG17: "1"
         run: |
-          python -m pytest tests/e2e/test_verticale_postgresql_refus_c02.py tests/e2e/test_m9_snapshot_concurrent.py tests/e2e/test_m9_ingestion_concurrent.py tests/e2e/test_bus_publication_concurrente.py tests/e2e/test_m8_ingestion_reprise_concurrente.py --junitxml="$RUNNER_TEMP/frontiere-postgresql.xml"
+          python -m pytest tests/e2e/test_verticale_postgresql_refus_c02.py tests/e2e/test_m9_snapshot_concurrent.py tests/e2e/test_m9_ingestion_concurrent.py tests/e2e/test_bus_publication_concurrente.py tests/e2e/test_m8_ingestion_reprise_concurrente.py tests/e2e/test_m5_mouvement_concurrent.py --junitxml="$RUNNER_TEMP/frontiere-postgresql.xml"
           python - <<'PYTHON'
           import os
           import xml.etree.ElementTree as ET
           from pathlib import Path
           rapport = ET.parse(Path(os.environ["RUNNER_TEMP"]) / "frontiere-postgresql.xml")
           cas = list(rapport.iter("testcase"))
-          assert len(cas) == 8, "un refus C02, trois lectures, une ingestion M9, deux publications du bus et une reprise M8 sont requis"
+          assert len(cas) == 9, "un refus C02, trois lectures, une ingestion M9, deux publications du bus, une reprise M8 et une écriture M5 sont requis"
           assert all(c.find("skipped") is None for c in cas), "PostgreSQL ne doit pas être ignoré sur le runner"
           assert all(c.find("failure") is None and c.find("error") is None for c in cas)
           print(f"{len(cas)} frontières PostgreSQL réelles qualifiées ; verticale C02 complète bloquée")

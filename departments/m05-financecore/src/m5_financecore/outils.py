@@ -601,8 +601,23 @@ def enregistrer_mouvement(
         "classe_retention": classe_retention,
         "source": source,
     }
+    maillons_mouvements = None
+    if mouvements_historique is None and _stockage_durable_actif:
+        # Le candidat et la réponse portent le même préfixe accepté. Une
+        # écriture intercalée doit faire annuler l'appel, sans réparer la source.
+        try:
+            copie = registre_module.Registre(maillons=registre_cible.lire())
+            valide, _ = copie.valider_chaine()
+        except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+            valide = False
+        if valide is not True:
+            raise ValueError("REJ-MOUVEMENT-CHAINE-INVALIDE : vérifier le journal M5 avant ajout")
+        registre_cible = copie
+        maillons_mouvements = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_MOUVEMENTS)
     try:
         maillon = registre_module.enregistrer_mouvement(mouvement, registre_cible)
+        if maillons_mouvements is not None:
+            maillons_mouvements.append(maillon, rang_attendu=registre_cible.taille() - 1)
     except validation.MouvementInvalide as exc:
         return {"accepte": False, "verdict": exc.verdict}
     return {"accepte": True, "resultat": maillon, **_etat_mouvements(mouvements_historique, registre_cible)}
