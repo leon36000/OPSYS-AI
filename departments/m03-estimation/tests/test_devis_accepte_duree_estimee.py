@@ -376,7 +376,11 @@ def test_la_publication_reste_idempotente_par_devis(base_durable):
     _creer_et_accepter()
     avant = _charge_publiee()
 
-    evenements.publier("m3.devis_accepte", "m03-estimation", {**avant, "duree_estimee_minutes": "999"},
-                       evenement_id=f"m3-devis-accepte-{_DEVIS_ID}")  # un rejeu du même id n'écrase rien
+    ident = f"m3-devis-accepte-{_DEVIS_ID}"
+    evenements.publier("m3.devis_accepte", "m03-estimation", avant, evenement_id=ident)
+    with pytest.raises(evenements.ConflitPublication, match="charge"):
+        evenements.publier("m3.devis_accepte", "m03-estimation", {**avant, "duree_estimee_minutes": "999"},
+                           evenement_id=ident)
 
+    stockage.liberer()
     assert _charge_publiee() == avant

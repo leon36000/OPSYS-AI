@@ -510,14 +510,16 @@ def _evaluer_et_publier_variance(wct_recu: dict[str, Any]) -> dict[str, Any]:
     `evenement_id` = `f"m6-variance-{wct_id}-{statut_variance}"` (correctif : plus seulement
     `f"m6-variance-{wct_id}"`) : chaque STATUT distinct d'un WCT n'est publié qu'une fois — une
     réévaluation qui retombe sur le MÊME statut qu'avant (ex. deux appels de suite alors que la
-    déclaration manque encore) republie le même id, donc un no-op du bus, jamais un doublon ; une
+    déclaration manque encore) rejoue la première enveloppe de ce statut, jamais un doublon. La
+    déclaration tardive reste durable même si elle précise maintenant le chantier ; une
     réévaluation qui change de statut (ex. la déclaration arrive enfin : declaration_absente ->
     evaluee) publie un événement DISTINCT, que le consommateur de M4 reçoit et traite normalement
     — c'est exactement ce que corrige cette fonction : avant, le même id pour tous les statuts
     faisait taire toute réévaluation après la première publication.
 
     `evaluee` est TERMINAL pour un WCT : `evaluee` déjà publié -> court-circuit immédiat, aucune
-    réévaluation ni republication, quel que soit le déclencheur qui rappelle cette fonction. En
+    réévaluation ni nouvelle publication ; seul le rejeu strict de cette enveloppe vérifie encore
+    son producteur, quel que soit le déclencheur qui rappelle cette fonction. En
     pratique, les trois déclencheurs sont chacun déjà idempotents en amont (un WCT redélivré, une
     déclaration ou un devis_id déjà enregistrés ne rappellent jamais cette fonction une seconde
     fois pour le même WCT), donc ce court-circuit est une défense EXPLICITE de plus, pas la seule.
@@ -527,7 +529,11 @@ def _evaluer_et_publier_variance(wct_recu: dict[str, Any]) -> dict[str, Any]:
     devis_id = wct_recu.get("devis_id")
     horodatage_completion = wct_recu["horodatage_completion"]
 
-    if evenements.deja_publie(f"m6-variance-{wct_id}-evaluee"):
+    ident_terminal = f"m6-variance-{wct_id}-evaluee"
+    terminal = evenements.charge_publiee("m6.variance_chantier", ident_terminal)
+    if terminal is not None:
+        # Preserve the terminal fact, while still checking its expected producer through the bus.
+        evenements.publier("m6.variance_chantier", _DEPARTEMENT, terminal, evenement_id=ident_terminal)
         return {"traite": True, "statut_variance": "evaluee"}
 
     mouvements = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE)
@@ -616,7 +622,11 @@ def _evaluer_et_publier_variance(wct_recu: dict[str, Any]) -> dict[str, Any]:
         "horodatage_completion": horodatage_completion,
         "lignes": lignes,
     }
-    evenements.publier("m6.variance_chantier", _DEPARTEMENT, resultat_evenement, evenement_id=ident)
+    premiere = evenements.charge_publiee("m6.variance_chantier", ident)
+    evenements.publier(
+        "m6.variance_chantier", _DEPARTEMENT,
+        premiere if premiere is not None else resultat_evenement, evenement_id=ident,
+    )
     return {"traite": True, "statut_variance": statut_variance}
 
 
