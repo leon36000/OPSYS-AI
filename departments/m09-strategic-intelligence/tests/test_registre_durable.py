@@ -206,3 +206,32 @@ def test_autorisation_precede_validation_et_lecture_de_chaine(base_durable, nom,
         reponse = executer_atomique(natifs[nom], arguments)
     assert reponse["ok"] is False and reponse["erreur"] == "refus_metier", reponse
     assert reponse["details"].startswith("REJ-IDENTITE-APPAREIL-INVALIDE")
+
+
+@pytest.mark.parametrize("nom,arguments", _LECTURES_ET_AJOUT[:3])
+def test_lecture_restitue_la_copie_validee_si_la_source_change(base_durable, nom, arguments, monkeypatch):
+    # Oracle local du même entrelacement que le contre-test PG : la validation
+    # native réussit, puis la source change avant la restitution. Pas de cache
+    # entre appels ; la lecture suivante doit constater la corruption.
+    maillons = []
+    source = registre.RegistreSnapshots(maillons=maillons)
+    source.ajouter(_SOURCE_FICTIVE)
+    natifs = {o.nom: o for o in outils.outils(registre_cible=source, alertes_cible=[])}
+    originale = registre.RegistreSnapshots.valider_chaine
+
+    def valider_puis_alterer(self):
+        resultat = originale(self)
+        assert resultat == (True, "")
+        maillons[0]["valeurs"]["prevision"] = "900.00"
+        return resultat
+
+    monkeypatch.setattr(registre.RegistreSnapshots, "valider_chaine", valider_puis_alterer)
+    reponse = executer_atomique(natifs[nom], arguments)
+    assert reponse["ok"] is True
+    assert "100.00" in str(reponse) and "900.00" not in str(reponse)
+    monkeypatch.setattr(registre.RegistreSnapshots, "valider_chaine", originale)
+    suivant = executer_atomique(natifs[nom], arguments)
+    assert suivant["ok"] is False and suivant["erreur"] == "refus_metier"
+    assert suivant["details"].startswith("REJ-SNAPSHOT-CHAINE-INVALIDE")
+    assert "900.00" not in str(suivant)
+    assert maillons[0]["valeurs"]["prevision"] == "900.00"  # aucune réparation

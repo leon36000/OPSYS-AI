@@ -177,14 +177,15 @@ def outils(
     if alertes_cible is None:
         alertes_cible = stockage.maillons("m09-strategic-intelligence", "alertes_m8")
 
-    def exiger_chaine_snapshots_valide() -> None:
-        """Refuse une source rompue ou illisible, sans divulguer ni réparer ses valeurs.
+    def exiger_chaine_snapshots_valide() -> registre.RegistreSnapshots:
+        """Valide une copie par appel, réutilisable sans relire la source durable.
 
-        Validation et relecture peuvent être des SELECT distincts : aucune certification
-        de snapshot contre une altération concurrente n'est fournie ici.
+        Une altération après validation ne peut pas changer les faits restitués.
+        Aucun cache entre appels ni réparation d'une source rompue ou illisible.
         """
         try:
-            valide, _ = registre_cible.valider_chaine()
+            copie = registre.RegistreSnapshots(registre_cible.lire())
+            valide, _ = copie.valider_chaine()
         except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
             valide = False
         if valide is not True:
@@ -192,12 +193,13 @@ def outils(
                 "REJ-SNAPSHOT-CHAINE-INVALIDE : registre M9 de snapshots invalide ; "
                 "faire vérifier la source avant lecture ou ajout"
             )
+        return copie
 
     def lire_etat_consolide() -> dict[str, Any]:
         """État consolidé courant par relecture pure du registre — n'ingère rien de nouveau."""
         _exiger_admin_pour_appareil()
-        exiger_chaine_snapshots_valide()
-        return etat_consolide_module.construire_etat_consolide(registre_cible)
+        copie = exiger_chaine_snapshots_valide()
+        return etat_consolide_module.construire_etat_consolide(copie)
 
     def etat_consolide(snapshot: dict[str, Any]) -> dict[str, Any]:
         """Chaîne complète : validation → écriture registre → état consolidé.
@@ -232,12 +234,12 @@ def outils(
 
         La file est lue EN ENTIER : `file_proprietaire` borne par défaut à 100 demandes, les plus récentes,
         ce qui aurait écarté en silence les plus anciennes — les plus urgentes — au-delà de 100."""
-        exiger_chaine_snapshots_valide()
+        copie = exiger_chaine_snapshots_valide()
         with stockage.transaction() as cnx:
             en_attente = approbations.compter(cnx, "en_attente")
             decisions = approbations.file_proprietaire(cnx, charger_departements(), limite=max(en_attente, 1))
         alertes = [dict(alerte) for alerte in alertes_cible]
-        return decisions, alertes, registre_cible.lire()
+        return decisions, alertes, copie.lire()
 
     def produire_briefing_matin(maintenant: str) -> dict[str, Any]:
         """Assemble le briefing du matin pour `maintenant` (RFC 3339, fourni par l'appelant — jamais
