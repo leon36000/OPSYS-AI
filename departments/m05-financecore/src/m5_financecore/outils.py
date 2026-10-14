@@ -1068,10 +1068,29 @@ def _recevoir_reception_enregistree(charge: dict[str, Any]) -> dict[str, Any]:
     entree, verdict = comptes_a_payer.construire_reception(charge)
     if verdict is not None:
         raise ValueError(f"m6.reception_enregistree refusée : {verdict['code']} : {verdict['detail']}")
-    resultat, verdict = comptes_a_payer.enregistrer_reception(entree, _registre_comptes_a_payer())
+    # Le répartiteur possède la transaction ; la réception doit rester liée au
+    # préfixe accepté, y compris lors d'une redélivrance sans nouvelle écriture.
+    try:
+        copie = registre_module.Registre(maillons=_registre_comptes_a_payer().lire())
+        valide, _ = copie.valider_chaine()
+    except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+        valide = False
+    if valide is not True:
+        raise ValueError("REJ-FACTURE-CHAINE-INVALIDE : vérifier le journal M5 avant réception")
+    taille_initiale = copie.taille()
+    resultat, verdict = comptes_a_payer.enregistrer_reception(entree, copie)
     if verdict is not None:
         raise ValueError(f"m6.reception_enregistree refusée : {verdict['code']} : {verdict['detail']}")
     maillon, deja_recue = resultat
+    if deja_recue:
+        if copie.taille() != taille_initiale:
+            raise RuntimeError("une réception déjà reçue ne doit ajouter aucun maillon")
+    else:
+        if copie.taille() != taille_initiale + 1:
+            raise RuntimeError("une réception doit ajouter exactement un maillon")
+        stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_COMPTES_A_PAYER).append(
+            copie.lire()[-1], rang_attendu=taille_initiale
+        )
     return {
         "traite": True,
         "evenement_id": maillon["evenement_id"],

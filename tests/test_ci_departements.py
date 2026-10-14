@@ -218,8 +218,8 @@ def test_les_outils_de_preuve_de_m3_tournent_une_fois_et_une_seule():
 
 @pytest.mark.parametrize(
     "nombre,etat,accepte",
-    [(18, "ok", True), (0, "ok", False), (17, "ok", False), (19, "ok", False),
-     (18, "skipped", False), (18, "failure", False), (18, "error", False)],
+    [(19, "ok", True), (0, "ok", False), (18, "ok", False), (20, "ok", False),
+     (19, "skipped", False), (19, "failure", False), (19, "error", False)],
 )
 def test_la_preuve_postgresql_exige_des_scenarios_executes_sans_ignorance(
     tmp_path, monkeypatch, nombre, etat, accepte,
@@ -247,6 +247,7 @@ def test_la_preuve_postgresql_exige_des_scenarios_executes_sans_ignorance(
     assert "tests/e2e/test_m5_saisie_sans_po_concurrente.py" in commande
     assert "tests/e2e/test_m5_annulation_fournisseur_concurrente.py" in commande
     assert "tests/e2e/test_m5_correction_fournisseur_concurrente.py" in commande
+    assert "tests/e2e/test_m5_reception_consumer_concurrente.py" in commande
     script = commande.split("python - <<'PYTHON'\n", 1)[1].rsplit("\nPYTHON", 1)[0]
     racine = ET.Element("testsuites")
     suite = ET.SubElement(racine, "testsuite")
