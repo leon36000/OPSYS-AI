@@ -3173,9 +3173,25 @@ def envoyer_facture(
     (`opsys.approbations.decider`, `department.yaml/approbations.n4`) — voir
     `facturation.envoyer_facture` et le docstring de ce module (RÈGLE FINANCE)."""
     registre_cible = _registre_factures(factures_historique)
+    maillons_factures = None
+    if factures_historique is None and _stockage_durable_actif:
+        # La décision N4 utilise le préfixe validé au moment du calcul.
+        # Un refus concurrent clôt la demande ; aucune approbation n'est rejouée.
+        try:
+            copie = registre_module.Registre(maillons=registre_cible.lire())
+            valide, _ = copie.valider_chaine()
+        except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+            valide = False
+        if valide is not True:
+            raise ValueError("REJ-FACTURE-CHAINE-INVALIDE : vérifier le journal M5 avant ajout")
+        registre_cible = copie
+        maillons_factures = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FACTURES)
+        taille_initiale = registre_cible.taille()
     resultat, verdict = facturation.envoyer_facture(facture_id, horodatage, registre_cible)
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
+    if maillons_factures is not None:
+        maillons_factures.append(resultat, rang_attendu=taille_initiale)
     _actualiser_rentabilite_apres_transition_facture(facture_id, registre_cible, factures_historique)
     return {"accepte": True, "resultat": resultat, **_etat_factures(factures_historique, registre_cible)}
 
