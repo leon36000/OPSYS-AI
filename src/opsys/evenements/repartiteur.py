@@ -174,10 +174,15 @@ def repartir(
     savoir qui consomme quoi. `limite` borne le nombre de paires (événement, consommateur) livrées
     à cet appel. `maintenant` (texte ISO) est injectable pour les tests, sans horloge cachée : les
     réessais dus sont ceux dont `prochaine_tentative <= maintenant`.
+    `limite` est un entier positif ou nul : zéro n'accède ni aux consommateurs ni à la base.
     """
+    if type(limite) is not int or limite < 0:
+        raise ValueError("limite doit être un entier positif ou nul")
+    resume = {"livres": 0, "traites": 0, "echecs": 0, "quarantaines": 0, "ignores": 0}
+    if limite == 0:
+        return resume
     maintenant_dt = dt.datetime.fromisoformat(maintenant) if maintenant else dt.datetime.now(dt.UTC)
     par_type = _consommateurs_par_type(departements)
-    resume = {"livres": 0, "traites": 0, "echecs": 0, "quarantaines": 0, "ignores": 0}
     if not par_type:
         return resume
     for evenement, consommateur, fonction in _candidats(par_type, maintenant_dt, limite):
