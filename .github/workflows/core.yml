@@ -94,6 +94,49 @@ jobs:
   tests-opsys:
     runs-on: ubuntu-24.04
     timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        morceau: [1, 2]
+    env:
+      OPSYS_TEST_SHARD_NAME: opsys-targeted-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.morceau }}
+      OPSYS_TEST_PARTITIONS: >-
+        [
+          [
+            "test/vitest/vitest.unit.config.ts",
+            "test/vitest/vitest.gateway.config.ts",
+            "test/vitest/vitest.gateway-client.config.ts",
+            "test/vitest/vitest.daemon.config.ts",
+            "test/vitest/vitest.secrets.config.ts",
+            "test/vitest/vitest.auto-reply.config.ts",
+            "test/vitest/vitest.ui-isolated.config.ts",
+            "test/vitest/vitest.e2e.config.ts",
+            "test/vitest/vitest.extension-imessage.config.ts",
+            "test/vitest/vitest.extension-database-workers.config.ts",
+            "test/vitest/vitest.extension-telegram.config.ts",
+            "test/vitest/vitest.extension-voice-call.config.ts",
+            "test/vitest/vitest.extension-provider-openai.config.ts",
+            "test/vitest/vitest.channels.config.ts"
+          ],
+          [
+            "test/vitest/vitest.unit-fast.config.ts",
+            "test/vitest/vitest.unit-fast-isolated.config.ts",
+            "test/vitest/vitest.tooling.config.ts",
+            "test/vitest/vitest.infra.config.ts",
+            "test/vitest/vitest.runtime-config.config.ts",
+            "test/vitest/vitest.cron.config.ts",
+            "test/vitest/vitest.cli.config.ts",
+            "test/vitest/vitest.commands.config.ts",
+            "test/vitest/vitest.agents-core.config.ts",
+            "test/vitest/vitest.agents-embedded-agent.config.ts",
+            "test/vitest/vitest.agents-embedded-agent-run.config.ts",
+            "test/vitest/vitest.agents-support.config.ts",
+            "test/vitest/vitest.agents-core-isolated.config.ts",
+            "test/vitest/vitest.plugins.config.ts",
+            "test/vitest/vitest.ui.config.ts",
+            "test/vitest/vitest.extensions.config.ts"
+          ]
+        ]
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
@@ -120,31 +163,90 @@ jobs:
         run: |
           python -I -B scripts/materialize-external-discord-test-fixture.py \
             --repo-root "$GITHUB_WORKSPACE" \
-            --output "$RUNNER_TEMP/opsys-discord-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+            --output "$RUNNER_TEMP/opsys-discord-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${{ matrix.morceau }}"
+      - name: Répertoire de preuve unique du morceau
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/$OPSYS_TEST_SHARD_NAME"
+          echo "OPSYS_TEST_SHARD_DIR=$RUNNER_TEMP/$OPSYS_TEST_SHARD_NAME" >> "$GITHUB_ENV"
+      - name: Régressions du routage et des sélections natives vides
+        if: matrix.morceau == 1
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+          OPENCLAW_VITEST_MAX_WORKERS: "2"
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$OPSYS_TEST_SHARD_DIR"
+          pnpm test test/scripts/test-projects-routing.test.ts test/scripts/test-projects-empty-native.test.ts 2>&1 | tee "$OPSYS_TEST_SHARD_DIR/routing.log"
       - name: Tests ciblés OPSYS (projets gateway, agents, gateway-protocol)
         env:
           NODE_OPTIONS: --max-old-space-size=8192
           OPENCLAW_VITEST_MAX_WORKERS: "2"
           OPSYS_TEST_PYTHON: ${{ github.workspace }}/.venv/bin/python
-          OPENCLAW_TEST_DISCORD_PLUGIN_ROOT: ${{ runner.temp }}/opsys-discord-${{ github.run_id }}-${{ github.run_attempt }}/discord-2026.9.6
-          OPENCLAW_TEST_DISCORD_PLUGIN_INVENTORY: ${{ runner.temp }}/opsys-discord-${{ github.run_id }}-${{ github.run_attempt }}/inventory.json
+          OPENCLAW_TEST_DISCORD_PLUGIN_ROOT: ${{ runner.temp }}/opsys-discord-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.morceau }}/discord-2026.9.6
+          OPENCLAW_TEST_DISCORD_PLUGIN_INVENTORY: ${{ runner.temp }}/opsys-discord-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.morceau }}/inventory.json
         shell: bash
         run: |
-          set -o pipefail
-          mapfile -t cibles < <(grep -vE '^[[:space:]]*(#|$)' test/opsys-tests-cibles.txt)
-          echo "${#cibles[@]} fichiers ciblés"
-          pnpm test "${cibles[@]}" 2>&1 | tee "$RUNNER_TEMP/vitest.log"
+          set -euo pipefail
+          mkdir -p "$OPSYS_TEST_SHARD_DIR"
+          # Run the selector directly: process substitution would hide its failure.
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import path from "node:path";
+          import { createHash } from "node:crypto";
+          import { selectVitestTargetPartition } from "./scripts/test-projects.test-support.mts";
+          const source = fs.readFileSync("test/opsys-tests-cibles.txt", "utf8");
+          const targets = source.split(/\r?\n/u).filter((line) => !/^\s*(#|$)/u.test(line));
+          const selection = selectVitestTargetPartition(
+            targets,
+            JSON.parse(process.env.OPSYS_TEST_PARTITIONS),
+            ${{ matrix.morceau }},
+            { baseEnv: process.env },
+          );
+          const directory = process.env.OPSYS_TEST_SHARD_DIR;
+          fs.writeFileSync(path.join(directory, "selection.json"), JSON.stringify({
+            ...selection,
+            targetListSha256: createHash("sha256").update(source).digest("hex"),
+          }, null, 2) + "\n");
+          fs.writeFileSync(path.join(directory, "targets.txt"), selection.targets.join("\n") + "\n");
+          NODE
+          test -s "$OPSYS_TEST_SHARD_DIR/targets.txt"
+          mapfile -t cibles < "$OPSYS_TEST_SHARD_DIR/targets.txt"
+          test "${#cibles[@]}" -gt 0
+          echo "${#cibles[@]} fichiers ciblés (morceau ${{ matrix.morceau }}/2)"
+          pnpm test "${cibles[@]}" 2>&1 | tee "$OPSYS_TEST_SHARD_DIR/vitest.log"
       - name: Tests en échec (résumé en fin de journal)
         if: failure()
         shell: bash
         run: |
-          sed -E 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/vitest.log" > "$RUNNER_TEMP/vitest.txt"
+          if [[ ! -f "$OPSYS_TEST_SHARD_DIR/vitest.log" ]]; then
+            echo "Aucun lancement Vitest : voir le refus de sélection ou de prérequis ci-dessus."
+            exit 0
+          fi
+          sed -E 's/\x1b\[[0-9;]*m//g' "$OPSYS_TEST_SHARD_DIR/vitest.log" > "$OPSYS_TEST_SHARD_DIR/vitest.txt"
           echo "== fichiers en échec"
-          grep -E "^ *FAIL " "$RUNNER_TEMP/vitest.txt" | sed -E 's/ > .*//; s/ +\[.*//' | sort -u | head -150 || true
+          grep -E "^ *FAIL " "$OPSYS_TEST_SHARD_DIR/vitest.txt" | sed -E 's/ > .*//; s/ +\[.*//' | sort -u | head -150 || true
           echo "== détail des échecs (message d'assertion et ligne du test)"
-          sed -n '/Failed Tests [0-9]/,/Test Files/p' "$RUNNER_TEMP/vitest.txt" | grep -vE "^ *$" | head -250 || true
+          sed -n '/Failed Tests [0-9]/,/Test Files/p' "$OPSYS_TEST_SHARD_DIR/vitest.txt" | grep -vE "^ *$" | head -250 || true
           echo "== fin du journal"
-          tail -60 "$RUNNER_TEMP/vitest.txt"
+          tail -60 "$OPSYS_TEST_SHARD_DIR/vitest.txt"
+
+      - name: Conserver la sélection et le journal du morceau OPSYS
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2, MIT
+        with:
+          name: opsys-targeted-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.morceau }}
+          # Allowlist: no native state, databases, backups or external fixture contents.
+          path: |
+            ${{ env.OPSYS_TEST_SHARD_DIR }}/selection.json
+            ${{ env.OPSYS_TEST_SHARD_DIR }}/targets.txt
+            ${{ env.OPSYS_TEST_SHARD_DIR }}/vitest.log
+            ${{ env.OPSYS_TEST_SHARD_DIR }}/vitest.txt
+            ${{ env.OPSYS_TEST_SHARD_DIR }}/routing.log
+          if-no-files-found: warn
+          retention-days: 30
+          overwrite: false
 
   # La verticale dispose d'un budget propre après les tests ciblés : leur durée peut
   # consommer les 55 minutes du job précédent avant les 40 phases HTTP/restauration.

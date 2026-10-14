@@ -4497,6 +4497,90 @@ export function buildVitestRunPlans(
   return plans;
 }
 
+/** Select whole canonical configurations without changing execution or allowing an empty run. */
+export function selectVitestTargetPartition(
+  targets: readonly string[],
+  partitions: readonly (readonly string[])[],
+  partitionIndex: number,
+  params: { cwd?: string; baseEnv?: NodeJS.ProcessEnv } = {},
+) {
+  const cwd = params.cwd ?? process.cwd();
+  if (
+    !Number.isInteger(partitionIndex) ||
+    partitionIndex < 1 ||
+    partitionIndex > partitions.length
+  ) {
+    throw new Error("Invalid partition index");
+  }
+  if (
+    targets.length === 0 ||
+    partitions.length < 2 ||
+    partitions.some((group) => group.length === 0)
+  ) {
+    throw new Error("Targets and config partitions must be nonempty");
+  }
+  const targetSet = new Set(targets);
+  if (targetSet.size !== targets.length) {
+    throw new Error("Duplicate literal test targets");
+  }
+  if (
+    targets.some(
+      (target) =>
+        target.trim() !== target ||
+        path.isAbsolute(target) ||
+        isGlobTarget(target) ||
+        !target.includes("/") ||
+        !isTestFileTarget(target),
+    )
+  ) {
+    throw new Error("CI partitions require literal relative test paths");
+  }
+  const unmatched = findUnmatchedExplicitTestTargets([...targets], cwd);
+  if (unmatched.length > 0) {
+    throw new Error(`Unmatched literal test target: ${unmatched[0]!.target}`);
+  }
+  const plans = buildVitestRunPlans([...targets], cwd, undefined, { env: params.baseEnv });
+  const configured = partitions.flat();
+  const assigned = new Set(configured);
+  if (assigned.size !== configured.length) {
+    throw new Error("Duplicate config partition assignment");
+  }
+  const canonicalConfigs = new Set(plans.map((plan) => plan.config));
+  if (configured.some((config) => !canonicalConfigs.has(config))) {
+    throw new Error("Unknown config partition assignment");
+  }
+  if ([...canonicalConfigs].some((config) => !assigned.has(config))) {
+    throw new Error("Every canonical config must be assigned to a partition");
+  }
+  const groups = plans.map((plan) => ({
+    config: plan.config,
+    targets: plan.includePatterns ?? plan.forwardedArgs.filter((target) => targetSet.has(target)),
+  }));
+  const planned = groups.flatMap((group) => group.targets);
+  if (
+    groups.some((group) => group.targets.length === 0) ||
+    planned.length !== targets.length ||
+    new Set(planned).size !== targets.length ||
+    planned.some((target) => !targetSet.has(target))
+  ) {
+    throw new Error("Canonical plans must cover every literal target exactly once");
+  }
+  const selectedConfigs = new Set(partitions[partitionIndex - 1]);
+  const selectedGroups = groups.filter((group) => selectedConfigs.has(group.config));
+  const selectedTargets = new Set(selectedGroups.flatMap((group) => group.targets));
+  if (selectedTargets.size === 0) {
+    throw new Error("Selected partition must be nonempty");
+  }
+  return {
+    partitionIndex,
+    partitionCount: partitions.length,
+    totalTargets: targets.length,
+    totalGroups: groups.length,
+    groups: selectedGroups,
+    targets: targets.filter((target) => selectedTargets.has(target)),
+  };
+}
+
 export function buildFullSuiteVitestRunPlans(args: string[], cwd = process.cwd()): VitestRunPlan[] {
   const { forwardedArgs, targetArgs, watchMode } = parseTestProjectsArgs(args, cwd);
   if (watchMode) {

@@ -28,6 +28,7 @@ const {
   resolveChangedTargetArgs,
   resolveChangedTestTargetPlan,
   resolveParallelFullSuiteConcurrency,
+  selectVitestTargetPartition,
 } = await import("../../scripts/test-projects.test-support.mts");
 
 const VITEST_NODE_PREFIX = [
@@ -50,15 +51,15 @@ describe("test-projects args", () => {
   });
 
   const gatewayWorkerFile = "src/gateway/server-methods/cron.runs.test.ts";
-  const catalogFile = "test/plugins/codex-model-catalog.gateway.test.ts";
+  const workerFile = "src/gateway/opsys-device-identity-http.test.ts";
   it.each<[string, string, string | undefined, boolean]>([
     [gatewayWorkerFile, gatewayWorkerFile, undefined, true],
-    [catalogFile, catalogFile, undefined, true],
+    [workerFile, workerFile, undefined, true],
     [gatewayWorkerFile, gatewayWorkerFile, gatewayWorkerFile, false],
     [gatewayWorkerFile, gatewayWorkerFile, "src/gateway/server-methods/*.test.ts", false],
-    [catalogFile, catalogFile, catalogFile, false],
-    [catalogFile, catalogFile, "test/plugins/**/*.test.ts", false],
-    [catalogFile, catalogFile, "unrelated.test.ts", true],
+    [workerFile, workerFile, workerFile, false],
+    [workerFile, workerFile, "src/gateway/**/*.test.ts", false],
+    [workerFile, workerFile, "unrelated.test.ts", true],
   ])(
     "discovers Gateway owner selector %s for %s (exclude %s)",
     (selector, expected, exclude, visible) => {
@@ -105,9 +106,14 @@ describe("test-projects args", () => {
     const unit = ["test/vitest/vitest.unit.config.ts", "test/vitest/vitest.unit-src.config.ts"];
     expect(listVitestRuntimeConsumerFiles([infra])).toContain(file);
     expect(listVitestRuntimeConsumerFiles(unit)).not.toContain(file);
-    expect(listVitestRuntimeConsumerFiles(unit)).toContain(
-      "src/node-host/linux-node-plugin.integration.test.ts",
-    );
+    const unitFast = "test/vitest/vitest.unit-fast.config.ts";
+    const runtimeFile = "src/plugins/source-checkout-runtime.test.ts";
+    expect(fs.existsSync(path.join(process.cwd(), runtimeFile))).toBe(true);
+    expect(listVitestRuntimeConsumerFiles([unitFast])).toContain(runtimeFile);
+    expect(listVitestRuntimeConsumerFiles([unitFast])).not.toContain(file);
+    expect(
+      resolveVitestPretestBuildMode([{ configs: [unitFast], includePatterns: [runtimeFile] }]),
+    ).toBe("runtime");
     expect(resolveVitestPretestBuildMode([{ configs: [infra], includePatterns: [file] }])).toBe(
       "runtime",
     );
@@ -1053,5 +1059,88 @@ describe("test-projects args", () => {
         "extensions/discord/src/monitor/message-handler.preflight.test.ts",
       ]),
     ).toThrow("watch mode with mixed test suites is not supported");
+  });
+});
+
+describe("explicit target CI partitions", () => {
+  const cwd = path.resolve(import.meta.dirname, "../..");
+  const baseEnv = { CI: "true", OPENCLAW_VITEST_MAX_WORKERS: "2" };
+  const targets = fs
+    .readFileSync(path.join(cwd, "test/opsys-tests-cibles.txt"), "utf8")
+    .split(/\r?\n/u)
+    .filter((line) => !/^\s*(#|$)/u.test(line));
+  const canonical = buildVitestRunPlans(targets, cwd, undefined, { env: baseEnv });
+  // Preserve whole canonical groups, using the reviewed historical budget partition.
+  const partitionIndices = [
+    [3, 5, 6, 10, 11, 14, 22, 23, 24, 25, 26, 27, 28, 29],
+    [1, 2, 4, 7, 8, 9, 12, 13, 15, 16, 17, 18, 19, 20, 21, 30],
+  ];
+  const partitions = partitionIndices.map((indices) =>
+    indices.map((index) => canonical[index - 1]!.config),
+  );
+  const select = (input: string[], configs: string[][], index: number) => {
+    expect(typeof selectVitestTargetPartition).toBe("function");
+    return selectVitestTargetPartition(input, configs, index, { cwd, baseEnv });
+  };
+
+  it("keeps all 292 literals and 30 groups exactly once across both jobs", () => {
+    expect(targets).toHaveLength(292);
+    expect(canonical).toHaveLength(30);
+    const selected = [select(targets, partitions, 1), select(targets, partitions, 2)];
+    expect(selected.map((part) => part.targets.length)).toEqual([121, 171]);
+    expect(selected.map((part) => part.groups.length)).toEqual([14, 16]);
+    const union = selected.flatMap((part) => part.targets);
+    expect(union).toHaveLength(292);
+    expect(new Set(union).size).toBe(292);
+    expect(union.toSorted()).toEqual(targets.toSorted());
+    for (const part of selected) {
+      expect(part.targets).toEqual(targets.filter((target) => part.targets.includes(target)));
+      const replanned = buildVitestRunPlans(part.targets, cwd, undefined, { env: baseEnv });
+      expect(replanned.map((plan) => plan.config)).toEqual(
+        part.groups.map((group) => group.config),
+      );
+      for (const [index, plan] of replanned.entries()) {
+        const files =
+          plan.includePatterns ?? plan.forwardedArgs.filter((target) => targets.includes(target));
+        expect(files.toSorted()).toEqual(part.groups[index]!.targets.toSorted());
+      }
+    }
+  });
+
+  it("rejects duplicate literals instead of silently deduplicating the input", () => {
+    expect(() => select([...targets, targets[0]!], partitions, 1)).toThrow(/duplicate/iu);
+  });
+
+  it("rejects an empty target list before it can become the full suite", () => {
+    expect(() => select([], partitions, 1)).toThrow(/nonempty/u);
+  });
+
+  it("rejects globs and unmatched literal test files", () => {
+    expect(() => select(["src/gateway/*.test.ts"], partitions, 1)).toThrow(/literal/u);
+    expect(() =>
+      select(["src/gateway/opsys-absent-fixture-fictif.test.ts"], partitions, 1),
+    ).toThrow(/unmatched/iu);
+  });
+
+  it("rejects a config assigned to both jobs", () => {
+    expect(() =>
+      select(targets, [[...partitions[0]!, partitions[1]![0]!], partitions[1]!], 1),
+    ).toThrow(/duplicate/iu);
+  });
+
+  it("rejects an omitted canonical config and a stale config", () => {
+    expect(() => select(targets, [partitions[0]!.slice(1), partitions[1]!], 1)).toThrow(
+      /assigned/u,
+    );
+    expect(() =>
+      select(targets, [...partitions, ["test/vitest/vitest.absent-fictif.config.ts"]], 1),
+    ).toThrow(/unknown/iu);
+  });
+
+  it("rejects empty partitions and invalid job IDs", () => {
+    expect(() => select(targets, [partitions.flat(), []], 1)).toThrow(/nonempty/u);
+    for (const index of [0, 3, 1.5]) {
+      expect(() => select(targets, partitions, index)).toThrow(/partition index/u);
+    }
   });
 });
