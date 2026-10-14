@@ -136,11 +136,8 @@ def test_un_decaissement_glisse_dans_la_vraie_saisie_est_attrape(tmp_path):
     def modifier(nom, texte):
         if nom != "outils":
             return texte
-        ancre = (
-            "    registre_cible = _registre_comptes_a_payer()\n"
-            "    resultat, verdict = comptes_a_payer.saisir_facture_fournisseur("
-        )
-        assert ancre in texte
+        ancre = "    resultat, verdict = comptes_a_payer.saisir_facture_fournisseur("
+        assert texte.count(ancre) == 1
         piege = "    registre_module.enregistrer_mouvement({}, registre_module.Registre())\n"
         return texte.replace(ancre, piege + ancre, 1)
 
