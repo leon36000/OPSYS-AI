@@ -277,6 +277,7 @@ export function createSmsIngressSpool(params: {
         bindIngressLifecycleToReplyOptions(lifecycle).turnAdoptionLifecycle,
         event.receivedAt,
       );
+      return undefined;
     },
     pollIntervalMs: SMS_INGRESS_DRAIN_INTERVAL_MS,
     // The 1-day / 20k tombstones dominate the retired 10-minute / 10,000-key cache.
