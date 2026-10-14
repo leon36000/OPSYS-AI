@@ -292,20 +292,29 @@ jobs:
           echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
       - name: Préparation explicite de PostgreSQL
         run: python scripts/ci/preparer_pgvector.py
-      - name: Refus C02 réel sur PostgreSQL (verticale complète bloquée)
+      - name: Refus C02 et cohérence M9 sur PostgreSQL réel
+        env:
+          OPSYS_QUALIFIER_M9_PG17: "1"
         run: |
-          python -m pytest tests/e2e/test_verticale_postgresql_refus_c02.py --junitxml="$RUNNER_TEMP/frontiere-postgresql.xml"
+          python -m pytest tests/e2e/test_verticale_postgresql_refus_c02.py tests/e2e/test_m9_snapshot_concurrent.py --junitxml="$RUNNER_TEMP/frontiere-postgresql.xml"
           python - <<'PYTHON'
           import os
           import xml.etree.ElementTree as ET
           from pathlib import Path
           rapport = ET.parse(Path(os.environ["RUNNER_TEMP"]) / "frontiere-postgresql.xml")
           cas = list(rapport.iter("testcase"))
-          assert cas, "aucune qualification PostgreSQL exécutée"
+          assert len(cas) == 4, "un refus C02 et trois lectures M9 sont requis"
           assert all(c.find("skipped") is None for c in cas), "PostgreSQL ne doit pas être ignoré sur le runner"
           assert all(c.find("failure") is None and c.find("error") is None for c in cas)
-          print(f"{len(cas)} refus PostgreSQL réels qualifiés ; verticale C02 complète bloquée")
+          print(f"{len(cas)} frontières PostgreSQL réelles qualifiées ; verticale C02 complète bloquée")
           PYTHON
+      - name: Conserver les preuves PostgreSQL, y compris rouges
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2, MIT
+        with:
+          name: frontiere-postgresql-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/frontiere-postgresql.xml
+          if-no-files-found: error
 
   # Le contexte requis juge les groupes Python et les cinq appels du même run/commit.
   gates:
