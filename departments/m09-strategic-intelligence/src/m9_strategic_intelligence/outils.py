@@ -170,9 +170,11 @@ def outils(
     (défaut) l'adosse à `opsys.stockage.maillons("m09-strategic-intelligence", "alertes_m8")` ;
     une `list` explicite (tests) reste en mémoire.
     """
+    maillons_snapshots = None
     if registre_cible is None:
+        maillons_snapshots = stockage.maillons("m09-strategic-intelligence", "snapshots")
         registre_cible = registre.RegistreSnapshots(
-            maillons=stockage.maillons("m09-strategic-intelligence", "snapshots")
+            maillons=maillons_snapshots
         )
     if alertes_cible is None:
         alertes_cible = stockage.maillons("m09-strategic-intelligence", "alertes_m8")
@@ -213,9 +215,16 @@ def outils(
         if not valide:
             return {"etape": "validation", "accepte": False, "verdict": verdict}
 
-        exiger_chaine_snapshots_valide()
-        registre_cible.ajouter(snapshot)
-        etat = etat_consolide_module.construire_etat_consolide(registre_cible)
+        copie = exiger_chaine_snapshots_valide()
+        if maillons_snapshots is not None:
+            maillon, _ = copie.ajouter(snapshot)
+            # Un append intercalé invalide le rang calculé, sans changer le
+            # contrat natif d'annulation/rejeu de l'écriture concurrente.
+            maillons_snapshots.append(maillon, rang_attendu=maillon["index"])
+            etat = etat_consolide_module.construire_etat_consolide(copie)
+        else:
+            registre_cible.ajouter(snapshot)
+            etat = etat_consolide_module.construire_etat_consolide(registre_cible)
         return {"etape": "complet", "accepte": True, "etat_consolide": etat}
 
     def lire_alertes_m8(depart: int = 0) -> dict[str, Any]:

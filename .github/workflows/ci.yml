@@ -292,18 +292,18 @@ jobs:
           echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
       - name: Préparation explicite de PostgreSQL
         run: python scripts/ci/preparer_pgvector.py
-      - name: Refus C02 et cohérence M9 sur PostgreSQL réel
+      - name: Refus C02, lectures et ingestion M9 sur PostgreSQL réel
         env:
           OPSYS_QUALIFIER_M9_PG17: "1"
         run: |
-          python -m pytest tests/e2e/test_verticale_postgresql_refus_c02.py tests/e2e/test_m9_snapshot_concurrent.py --junitxml="$RUNNER_TEMP/frontiere-postgresql.xml"
+          python -m pytest tests/e2e/test_verticale_postgresql_refus_c02.py tests/e2e/test_m9_snapshot_concurrent.py tests/e2e/test_m9_ingestion_concurrent.py --junitxml="$RUNNER_TEMP/frontiere-postgresql.xml"
           python - <<'PYTHON'
           import os
           import xml.etree.ElementTree as ET
           from pathlib import Path
           rapport = ET.parse(Path(os.environ["RUNNER_TEMP"]) / "frontiere-postgresql.xml")
           cas = list(rapport.iter("testcase"))
-          assert len(cas) == 4, "un refus C02 et trois lectures M9 sont requis"
+          assert len(cas) == 5, "un refus C02, trois lectures et une ingestion M9 sont requis"
           assert all(c.find("skipped") is None for c in cas), "PostgreSQL ne doit pas être ignoré sur le runner"
           assert all(c.find("failure") is None and c.find("error") is None for c in cas)
           print(f"{len(cas)} frontières PostgreSQL réelles qualifiées ; verticale C02 complète bloquée")
