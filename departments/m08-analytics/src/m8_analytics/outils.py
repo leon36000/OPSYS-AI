@@ -313,11 +313,16 @@ def _situation_chantier(wct_id: str, faits_cible: Any) -> dict[str, Any] | None:
 def _publier_charges_mesure(charges: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Publie chaque alerte de mesure sur le bus (`m8.alerte_proposee`), dans la transaction du
     consommateur qui vient de les produire. L'identifiant est déterministe : republier la même
-    alerte est un no-op de l'outbox (`nouvelle` le dit)."""
+    alerte rejoue la première enveloppe publiée (`nouvelle` le dit). Un seuil ou un fait nouveau
+    peut changer la remesure ; il ne réécrit pas la preuve de l'alerte déjà publiée."""
     publiees = []
     for charge in charges:
         nouvelle = not evenements.deja_publie(charge["evenement_id"])
-        evenements.publier("m8.alerte_proposee", _DEPARTEMENT, charge, evenement_id=charge["evenement_id"])
+        premiere = evenements.charge_publiee("m8.alerte_proposee", charge["evenement_id"])
+        evenements.publier(
+            "m8.alerte_proposee", _DEPARTEMENT, premiere if premiere is not None else charge,
+            evenement_id=charge["evenement_id"],
+        )
         publiees.append({
             "evenement_id": charge["evenement_id"], "type_alerte": charge["type_alerte"],
             "metric_id": charge["metric_id"], "nouvelle": nouvelle,
@@ -589,8 +594,9 @@ def _publier_alerte_proposee(metric_id: str, alerte: dict[str, Any], horodatage_
     `m4_field_ops.outils.completer_intervention` pour `m4.travaux_termines`).
 
     `evenement_id` déterministe (metric_id + type_alerte + horodatage_reference) : une
-    réévaluation identique republie le même id, donc un no-op de l'outbox (ADR-0009 §3) — jamais
-    un doublon pour la même alerte le même jour de référence.
+    réévaluation rejoue la première enveloppe publiée sous ce même id (ADR-0009 §3), même si
+    la preuve courante a changé. La date complète fait partie de l'identifiant ; seule l'alerte
+    de mesure « seuil à configurer » utilise une identité par jour.
 
     Gardé par `stockage.connexion_courante() is not None` (même garde que
     `m4_field_ops.outils.completer_intervention` et `m6_material_control.outils.
@@ -624,7 +630,11 @@ def _publier_alerte_proposee(metric_id: str, alerte: dict[str, Any], horodatage_
         "source": alerte["source"],
         "horodatage_reference": horodatage_reference,
     }
-    evenements.publier("m8.alerte_proposee", _DEPARTEMENT, charge, evenement_id=ident)
+    premiere = evenements.charge_publiee("m8.alerte_proposee", ident)
+    evenements.publier(
+        "m8.alerte_proposee", _DEPARTEMENT, premiere if premiere is not None else charge,
+        evenement_id=ident,
+    )
 
 
 def outils(

@@ -38,11 +38,21 @@ from ..stockage import codec, connexion_courante, inserer, transaction
 from ..stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS
 from .schemas import TypeEvenementInconnu, erreurs_charge, schema
 
-__all__ = ["ChargeInvalide", "TypeEvenementInconnu", "charge_publiee", "deja_publie", "publier"]
+__all__ = ["ChargeInvalide", "ConflitPublication", "TypeEvenementInconnu", "charge_publiee", "deja_publie", "publier"]
 
 
 class ChargeInvalide(ValueError):
     """La charge ne respecte pas le schéma JSON du catalogue pour ce type : rien n'est écrit."""
+
+
+class ConflitPublication(ValueError):
+    """An event identifier already names a different immutable publication envelope."""
+
+
+def _charge_canonique(texte_codec: str) -> str:
+    # Keep codec type tags and scalar representations; only mapping order is irrelevant.
+    return json.dumps(json.loads(texte_codec), sort_keys=True, ensure_ascii=False,
+                      separators=(",", ":"), allow_nan=False)
 
 
 def publier(
@@ -61,9 +71,12 @@ def publier(
     `refus_metier` normal (`outils.executer`) plutôt qu'une panne.
 
     `evenement_id` : `uuid4().hex` par défaut. Fourni par l'appelant, il porte l'idempotence du
-    producteur (`UNIQUE` en clé primaire) : publier deux fois le même id est un no-op qui rend le
-    même id, sans créer de second événement — utile pour un producteur qui rejoue un appel après une
-    panne réseau, jamais pour republier un événement déjà accepté sous un autre id.
+    producteur (`UNIQUE` en clé primaire) : la même enveloppe (type, producteur, charge typée)
+    sous le même id est un no-op qui conserve la première publication, date comprise. Seul l'ordre
+    des clés d'objet est ignoré ; les représentations scalaires et étiquettes du codec sont conservées.
+    Une enveloppe différente lève `ConflitPublication`, sans exposer les charges dans l'erreur,
+    afin que la transaction métier appelante soit annulée. L'idempotence du bus ne déduplique pas
+    les écritures métier d'un appelant : leur clé d'opération reste distincte.
     """
     if not producteur or not producteur.strip():
         raise ValueError("producteur requis")
@@ -71,15 +84,35 @@ def publier(
     if erreurs:
         raise ChargeInvalide(f"{type_evenement} : charge invalide : {'; '.join(erreurs)}")
     ident = evenement_id or uuid.uuid4().hex
+    charge_encodee = codec.encoder(dict(charge))
     with transaction() as cnx:
         insertion = inserer(cnx)(EVENEMENTS_SORTANTS).values(
             evenement_id=ident,
             type_evenement=type_evenement,
             producteur=producteur,
-            charge=codec.encoder(dict(charge)),
+            charge=charge_encodee,
             cree_le=dt.datetime.now(dt.UTC).isoformat(),
         )
-        cnx.execute(insertion.on_conflict_do_nothing(index_elements=[EVENEMENTS_SORTANTS.c.evenement_id]))
+        ajoute = cnx.execute(insertion.on_conflict_do_nothing(
+            index_elements=[EVENEMENTS_SORTANTS.c.evenement_id],
+        ).returning(EVENEMENTS_SORTANTS.c.evenement_id)).scalar_one_or_none()
+        if ajoute is None:
+            # Read the committed winner on the same connection after INSERT resolves its conflict.
+            ligne = cnx.execute(select(
+                EVENEMENTS_SORTANTS.c.type_evenement, EVENEMENTS_SORTANTS.c.producteur,
+                EVENEMENTS_SORTANTS.c.charge,
+            ).where(EVENEMENTS_SORTANTS.c.evenement_id == ident)).first()
+            if ligne is None:
+                raise ConflitPublication(f"conflit de publication {ident} : première enveloppe introuvable")
+            differences = []
+            if ligne.type_evenement != type_evenement:
+                differences.append("type_evenement")
+            if ligne.producteur != producteur:
+                differences.append("producteur")
+            if _charge_canonique(ligne.charge) != _charge_canonique(charge_encodee):
+                differences.append("charge")
+            if differences:
+                raise ConflitPublication(f"conflit de publication {ident} : {', '.join(differences)}")
     return ident
 
 

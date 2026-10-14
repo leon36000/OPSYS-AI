@@ -22,12 +22,13 @@ fonction orpheline.
 
 from __future__ import annotations
 
-from .bus import ChargeInvalide, charge_publiee, deja_publie, publier
+from .bus import ChargeInvalide, ConflitPublication, charge_publiee, deja_publie, publier
 from .repartiteur import etat, repartir, verifier_coherence
 from .schemas import TypeEvenementInconnu, schema, types_connus
 
 __all__ = [
     "ChargeInvalide",
+    "ConflitPublication",
     "TypeEvenementInconnu",
     "charge_publiee",
     "deja_publie",

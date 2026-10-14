@@ -13,11 +13,12 @@ test_evenements_alerte_proposee_m8.py`.
 from __future__ import annotations
 
 import pytest
+from m8_analytics import outils as m8_outils
 from m8_analytics.outils import outils
 from sqlalchemy import select
 
-from opsys import stockage
-from opsys.outils import executer_atomique
+from opsys import evenements, stockage
+from opsys.outils import Outil, executer_atomique
 from opsys.stockage import codec
 from opsys.stockage.schema import EVENEMENTS_SORTANTS
 
@@ -140,6 +141,60 @@ def test_reevaluation_identique_ne_republie_pas_un_second_evenement(base_durable
 
     publies = _evenements_publies("m8.alerte_proposee")
     assert len(publies) == 1  # REJ-QUALITE-DONNEE-ABSENTE, republié deux fois sous le même id
+
+
+def _alerte_fictive():
+    return {
+        "type_alerte": "REJ-QUALITE-DONNEE-ABSENTE", "quoi": "Observation fictive",
+        "a_qui": "m04-field-ops", "pourquoi": "Aucune mesure", "source": "fixture",
+        "preuve": {"metric_id": "fictif", "n": 0},
+    }
+
+
+@pytest.mark.parametrize("site", ["mesure", "qualite"])
+@pytest.mark.parametrize("collision", ["type", "producteur"])
+def test_rejeu_m8_refuse_autre_enveloppe_et_annule_metier(base_durable, site, collision):
+    alerte = _alerte_fictive()
+    reference = "2026-01-04T00:00:00Z"
+    ident = f"m8-alerte-fictif-{alerte['type_alerte']}-{reference}"
+    charge = dict(alerte, evenement_id=ident, metric_id="fictif", horodatage_reference=reference)
+    if collision == "type":
+        evenements.publier("opsys.demo_complete", "m08-analytics", {"message": "fictif"}, evenement_id=ident)
+    else:
+        evenements.publier("m8.alerte_proposee", "autre-producteur-fictif", charge, evenement_id=ident)
+    with stockage.transaction() as cnx:
+        avant = cnx.execute(select(EVENEMENTS_SORTANTS)).one()
+
+    def publier():
+        stockage.maillons("m08-analytics", "fictif-collision").append({"test": True})
+        if site == "mesure":
+            return m8_outils._publier_charges_mesure([charge])
+        m8_outils._publier_alerte_proposee("fictif", alerte, reference)
+        return {}
+
+    outil = Outil("m8_test_collision", "Publication fictive", {"type": "object"}, publier)
+    reponse = executer_atomique(outil, {})
+    stockage.liberer()
+    assert reponse["ok"] is False and reponse["erreur"] == "refus_metier"
+    assert len(stockage.maillons("m08-analytics", "fictif-collision")) == 0
+    with stockage.transaction() as cnx:
+        assert cnx.execute(select(EVENEMENTS_SORTANTS)).one() == avant
+
+
+def test_rejeu_qualite_conserve_premiere_preuve_meme_si_evaluation_change(base_durable):
+    alerte = _alerte_fictive()
+    reference = "2026-01-04T00:00:00Z"
+    with stockage.transaction():
+        m8_outils._publier_alerte_proposee("fictif", alerte, reference)
+    with stockage.transaction() as cnx:
+        avant = cnx.execute(select(EVENEMENTS_SORTANTS)).one()
+    alerte["preuve"] = {"metric_id": "fictif", "n": 1}
+    alerte["pourquoi"] = "Nouvelle évaluation fictive"
+    with stockage.transaction():
+        m8_outils._publier_alerte_proposee("fictif", alerte, reference)
+    stockage.liberer()
+    with stockage.transaction() as cnx:
+        assert cnx.execute(select(EVENEMENTS_SORTANTS)).one() == avant
 
 
 def test_evaluer_qualite_metrique_sans_transaction_ne_publie_rien(base_durable):

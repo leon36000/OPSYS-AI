@@ -12,6 +12,7 @@ import datetime as dt
 import shutil
 import sys
 from contextvars import copy_context
+from decimal import Decimal
 
 import demo_consommateur_echec
 import demo_consommateur_ok
@@ -265,11 +266,112 @@ def test_idempotence_evenement_id_fourni_deux_fois(session):
     assert _compte_sortants(EVENEMENTS_SORTANTS.c.evenement_id == "fixe-1") == 1
 
 
+def _publication_fictive_atomique(type_evenement, producteur, charge):
+    stockage.maillons("m-demo-conflit-publication", "principal").append({
+        "fictif": True, "type_evenement": type_evenement, "producteur": producteur, "charge": charge,
+    })
+    ident = evenements.publier(type_evenement, producteur, charge, evenement_id="fictif-enveloppe-fixe")
+    return {"fictif": True, "evenement_id": ident}
+
+
+def _outil_publication_fictive():
+    return Outil("m9_publication_fictive", "Qualification fictive de l'atomicité de publication", {
+        "type": "object", "properties": {
+            "type_evenement": {"type": "string"}, "producteur": {"type": "string"},
+            "charge": {"type": "object"},
+        }, "required": ["type_evenement", "producteur", "charge"],
+    }, _publication_fictive_atomique)
+
+
+@pytest.mark.parametrize("difference", ["charge", "producteur", "type_evenement"])
+def test_conflit_enveloppe_annule_ecriture_metier_apres_reouverture(session, difference):
+    from opsys.stockage import codec
+
+    original = {
+        "type_evenement": "opsys.demo_complete", "producteur": "m-demo-fictif",
+        "charge": {"message": "A-fictif-prive"},
+    }
+    outil = _outil_publication_fictive()
+    assert executer_atomique(outil, original)["ok"] is True
+    with stockage.transaction() as cnx:
+        avant = cnx.execute(select(EVENEMENTS_SORTANTS)).mappings().one()
+    autre = {**original, "charge": dict(original["charge"])}
+    if difference == "charge":
+        autre["charge"] = {"message": "B-fictif-prive"}
+    elif difference == "producteur":
+        autre["producteur"] = "m-demo-autre-fictif"
+    else:
+        autre["type_evenement"] = "m4.travaux_termines"
+        autre["charge"] = _wct_exemple()
+    reponse = executer_atomique(outil, autre)
+    stockage.liberer()
+    assert reponse["ok"] is False
+    assert reponse["erreur"] == "refus_metier"
+    assert "conflit" in reponse["details"].lower()
+    assert "fictif-enveloppe-fixe" in reponse["details"]
+    assert "A-fictif-prive" not in reponse["details"]
+    assert "B-fictif-prive" not in reponse["details"]
+    assert list(stockage.maillons("m-demo-conflit-publication", "principal")) == [
+        {"fictif": True, **original},
+    ]
+    with stockage.transaction() as cnx:
+        apres = cnx.execute(select(EVENEMENTS_SORTANTS)).mappings().one()
+    assert dict(apres) == dict(avant)
+    assert codec.decoder(apres["charge"]) == original["charge"]
+
+
+def test_rejeu_enveloppe_identique_preserve_evenement_sans_dedupliquer_metier(session):
+    original = {
+        "type_evenement": "opsys.demo_complete", "producteur": "m-demo-fictif",
+        "charge": {"message": "rejeu-fictif"},
+    }
+    outil = _outil_publication_fictive()
+    assert executer_atomique(outil, original)["ok"] is True
+    with stockage.transaction() as cnx:
+        avant = dict(cnx.execute(select(EVENEMENTS_SORTANTS)).mappings().one())
+    assert executer_atomique(outil, original)["ok"] is True
+    stockage.liberer()
+    assert len(stockage.maillons("m-demo-conflit-publication", "principal")) == 2
+    with stockage.transaction() as cnx:
+        assert dict(cnx.execute(select(EVENEMENTS_SORTANTS)).mappings().one()) == avant
+
+
 def test_deja_publie_reflete_la_table_du_bus(session):
     assert evenements.deja_publie("fixe-2") is False
     evenements.publier("opsys.demo_complete", "test", {"message": "a"}, evenement_id="fixe-2")
     assert evenements.deja_publie("fixe-2") is True
     assert evenements.deja_publie("fixe-3") is False
+
+
+def test_rejeu_ignore_ordre_cles_mais_conserve_tableaux_et_premiere_date(session):
+    charge = _wct_exemple()
+    evenements.publier("m4.travaux_termines", "m04-field-ops", charge, evenement_id="ordre-fictif")
+    with stockage.transaction() as cnx:
+        avant = cnx.execute(select(EVENEMENTS_SORTANTS)).one()
+    reordonnee = dict(reversed(list(charge.items())))
+    reordonnee["fix_gps_completion"] = dict(reversed(list(charge["fix_gps_completion"].items())))
+    assert evenements.publier(
+        "m4.travaux_termines", "m04-field-ops", reordonnee, evenement_id="ordre-fictif",
+    ) == "ordre-fictif"
+    reordonnee["consommateurs_cibles"] = list(reversed(charge["consommateurs_cibles"]))
+    with pytest.raises(evenements.ConflitPublication, match="charge"):
+        evenements.publier("m4.travaux_termines", "m04-field-ops", reordonnee, evenement_id="ordre-fictif")
+    stockage.liberer()
+    with stockage.transaction() as cnx:
+        assert cnx.execute(select(EVENEMENTS_SORTANTS)).one() == avant
+
+
+@pytest.mark.parametrize("premier,second", [(120, 120.0), (Decimal("120.0"), Decimal("120.00"))])
+def test_rejeu_ne_confond_pas_representations_numeriques_valides(session, premier, second):
+    assert premier == second  # Python equality alone would accept the conflicting envelope.
+    charge = _wct_exemple()
+    charge["fix_gps_completion"]["longitude"] = premier
+    evenements.publier("m4.travaux_termines", "m04-field-ops", charge, evenement_id="nombre-fictif")
+    relue = evenements.charge_publiee("m4.travaux_termines", "nombre-fictif")
+    evenements.publier("m4.travaux_termines", "m04-field-ops", relue, evenement_id="nombre-fictif")
+    charge["fix_gps_completion"]["longitude"] = second
+    with pytest.raises(evenements.ConflitPublication, match="charge"):
+        evenements.publier("m4.travaux_termines", "m04-field-ops", charge, evenement_id="nombre-fictif")
 
 
 # -- charge_publiee : relit la charge dans le magasin du bus, jamais une copie ------------------------

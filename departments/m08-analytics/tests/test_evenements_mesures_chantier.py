@@ -331,6 +331,39 @@ def test_un_seuil_franchi_publie_une_alerte_pour_m9_conforme_au_catalogue(base_d
     assert "wct-m8-1" in alerte["action_proposee"]
 
 
+def test_remesure_seuil_change_conserve_premiere_alerte_et_nouveau_fait(
+        base_durable, departements, configurer):
+    configurer({"m8_ecart_duree_pct": {"sens": "au_dessus", "valeur": 50}})
+    _publier("m3.devis_accepte", "m03-estimation", _devis())
+    _publier("m4.travaux_termines", "m04-field-ops", _wct())
+    assert _livrer(departements)["echecs"] == 0
+    avant = [a for a in _alertes() if a["type_alerte"] == "MESURE-SEUIL-FRANCHI"]
+    assert len(avant) == 1
+    originale = avant[0]
+    assert originale["preuve"]["valeur"] == "100.00"
+    assert originale["preuve"]["seuil"] == "50.00"
+
+    configurer({"m8_ecart_duree_pct": {"sens": "au_dessus", "valeur": 25}})
+    _publier("m6.variance_chantier", "m06-material-control", _variance())
+    resume = _livrer(departements, "2026-09-28T18:05:00+00:00")
+    stockage.liberer()
+    assert resume["echecs"] == 0 and resume["quarantaines"] == 0
+    assert any(f["type_entree"] == "variance" for f in _faits())
+    situation = m8_outils._situation_chantier(
+        "wct-m8-1", stockage.maillons("m08-analytics", "faits_chantier"),
+    )
+    remesuree = next(a for a in situation["charges"] if a["evenement_id"] == originale["evenement_id"])
+    assert remesuree["preuve"]["seuil"] == "25.00"
+    assert remesuree["horodatage_reference"] == originale["horodatage_reference"]
+    assert remesuree["preuve"] != originale["preuve"]
+    assert remesuree["pourquoi"] != originale["pourquoi"]
+    with stockage.transaction():
+        publiees = m8_outils._publier_charges_mesure([remesuree])
+    assert publiees[0]["nouvelle"] is False
+    assert evenements.charge_publiee("m8.alerte_proposee", originale["evenement_id"]) == originale
+    assert [a for a in _alertes() if a["type_alerte"] == "MESURE-SEUIL-FRANCHI"] == [originale]
+
+
 def test_le_devis_qui_arrive_apres_le_wct_declenche_l_alerte_a_ce_moment(base_durable, departements, configurer):
     configurer({"m8_ecart_duree_pct": {"sens": "au_dessus", "valeur": 50}})
     _publier("m4.travaux_termines", "m04-field-ops", _wct())
