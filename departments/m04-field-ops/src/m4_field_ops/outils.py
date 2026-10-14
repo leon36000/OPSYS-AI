@@ -307,6 +307,20 @@ def _refus(verdict: dict[str, Any]) -> dict[str, Any]:
     return {"accepte": False, "verdict": verdict}
 
 
+def verifier_identite_rejeu_route_appareil(arguments: dict[str, Any]) -> dict[str, Any] | None:
+    """Même identité que le départ frais, avant restitution de son accusé historique.
+
+    Une clé appartient à l'appareil, qui peut être réappairé à une autre personne. Un employé
+    ne récupère donc pas un ancien départ sous le technicien d'autrui. L'admin reste dispatcher.
+    L'assignation actuelle n'est pas recontrôlée : le propre accusé confirme un effet passé,
+    sans réexécuter cet effet ni réécrire la réponse durable après une réaffectation.
+    """
+    acteur, verdict = _acteur_appareil()
+    if verdict is None:
+        verdict = acces.controler_technicien(acteur, arguments.get("technicien_id"))
+    return _refus(verdict) if verdict is not None else None
+
+
 def outils(
     registre_cible: registre.Registre | None = None, fournisseur_matrice: Any = None, fournisseur_meteo: Any = None,
 ) -> tuple[Outil, ...]:

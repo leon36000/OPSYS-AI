@@ -1357,6 +1357,12 @@ class Capacites:
                 refus_rejoue = reclamation.rejouee and reclamation.reponse.get("erreur") == "hors_portee_role"
                 return {**refus_role, "rejoue": refus_rejoue}
             if reclamation.rejouee:
+                if nom == "m4_demarrer_route":
+                    from m4_field_ops import outils as outils_m4
+
+                    refus = outils_m4.verifier_identite_rejeu_route_appareil(arguments)
+                    if refus is not None:
+                        return {"ok": True, "resultat": refus, "rejoue": True}
                 if nom == "m2_enregistrer_interaction":
                     from m2_revenue_crm import outils as outils_m2
 

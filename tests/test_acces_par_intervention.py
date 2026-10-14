@@ -12,6 +12,7 @@ données fictives (AGENTS.md).
 from __future__ import annotations
 
 import base64
+import copy
 import datetime as dt
 import hashlib
 import json
@@ -25,7 +26,7 @@ from m4_field_ops import cedule, consentement, etats
 from m4_field_ops import registre as registre_m4
 from mcp import Client
 
-from opsys import approbations, contexte, idempotence, identite, stockage
+from opsys import appareils, approbations, contexte, idempotence, identite, stockage
 from opsys.capacites import Capacites
 from opsys.departements import charger_departements
 from opsys.outils import executer_atomique
@@ -328,3 +329,131 @@ def test_mcp_l_identite_du_meta_decide_pas_le_technicien_id_des_arguments(capaci
     assert reponse["resultat"]["verdict"]["code"] == CODE_IDENTITE_FOURNIE
     assert _statut(capacites, i_lea) == "en_route"
     assert etats.technicien_assigne(registre_m4.Registre(_maillons_m4()), i_lea) == "lea.fictif"
+
+
+def _etat_durable_rejeu_route(session):
+    from sqlalchemy import select
+
+    from opsys.stockage.schema import (
+        APPAREILS,
+        APPROBATIONS,
+        EVENEMENTS_SORTANTS,
+        JOURNAL,
+        MUTATIONS_APPLIQUEES,
+        REGISTRES,
+    )
+
+    with session() as cnx:
+        return {
+            table.name: [dict(ligne) for ligne in cnx.execute(select(table)).mappings()]
+            for table in (APPAREILS, APPROBATIONS, EVENEMENTS_SORTANTS, JOURNAL, MUTATIONS_APPLIQUEES, REGISTRES)
+        }
+
+
+@pytest.fixture
+def route_appareil_rejouable(capacites, personnes, session):
+    """Fictif : vraie route, appairage SQL et contexte DEVICE natif ; pas de jeton Gateway réel."""
+    with session() as cnx:
+        appareils.appairer(cnx, "tel-fictif-t1-4-k", MARC.personne, "employee")
+    plan = executer_atomique(_outil(capacites, "m4_planifier_intervention"), {
+        "contrat": _contrat("L-REJEU-ROUTE-FICTIF"), "marqueur": _marqueur("L-REJEU-ROUTE-FICTIF"),
+        "horodatage": "2025-06-02T07:00:00+00:00", "sel": SEL,
+        "techniciens_disponibles": [MARC.personne], "fenetres_disponibles": [FENETRE_2025],
+    })
+    assert plan["ok"] and plan["resultat"]["accepte"], plan
+    arguments = {
+        "intervention_id": plan["resultat"]["intervention_id"], "technicien_id": MARC.personne,
+        "horodatage": "2026-10-13T12:00:00+00:00",
+    }
+    original = _appeler(capacites, "m4_demarrer_route", arguments, MARC, "route-rejeu-A-fictif")
+    assert original["ok"] and original["resultat"]["accepte"] and not original["rejoue"], original
+    return capacites, arguments, original
+
+
+def _replanifier_pour_lea(arguments):
+    with stockage.transaction():
+        reg = registre_m4.Registre(stockage.maillons("m04-field-ops", "principal"))
+        iid = arguments["intervention_id"]
+        assert etats.assigner_technicien(iid, LEA.personne, reg, "2026-10-13T12:01:00+00:00")[1] is None
+        assert etats.transitionner(
+            iid, "reportee", reg, "2026-10-13T12:02:00+00:00", motif="decision_admin")[1] is None
+        assert etats.transitionner(iid, "planifiee", reg, "2026-10-13T12:03:00+00:00")[1] is None
+
+
+def test_route_rejeu_propre_accuse_historique_apres_reaffectation_et_reouverture_sql(
+        route_appareil_rejouable, session):
+    cap, arguments, original = route_appareil_rejouable
+    _replanifier_pour_lea(arguments)
+    avant = copy.deepcopy(_etat_durable_rejeu_route(session))
+    # Le propre accusé historique n'affirme pas la situation actuelle de l'intervention.
+    for facade in (cap, Capacites(
+            charger_departements(RACINE_DEPARTEMENTS), session, filtre=DEPARTEMENTS_TESTES, memoire=False)):
+        stockage.liberer()
+        reponse = _appeler(facade, "m4_demarrer_route", arguments, MARC, "route-rejeu-A-fictif")
+        assert reponse == {**original, "rejoue": True}
+        assert _etat_durable_rejeu_route(session) == avant
+    assert _statut(cap, arguments["intervention_id"]) == "planifiee"
+    frais = _appeler(cap, "m4_demarrer_route", arguments, MARC, "route-rejeu-A-nouveau-fictif")
+    assert frais["resultat"]["verdict"]["code"] == CODE_NON_ASSIGNEE
+    assert _statut(cap, arguments["intervention_id"]) == "planifiee"
+
+
+def test_route_rejeu_refuse_autre_personne_du_meme_appareil_sans_alterer_accuse_original(
+        route_appareil_rejouable, session):
+    cap, arguments, original = route_appareil_rejouable
+    _replanifier_pour_lea(arguments)
+    with session() as cnx:
+        appareils.appairer(cnx, "tel-fictif-t1-4-k", LEA.personne, "employee")
+    args_lea = {**arguments, "technicien_id": LEA.personne}
+    nouveau = _appeler(cap, "m4_demarrer_route", args_lea, LEA, "route-rejeu-B-fictif")
+    assert nouveau["ok"] and nouveau["resultat"]["accepte"] and not nouveau["rejoue"]
+    avant = copy.deepcopy(_etat_durable_rejeu_route(session))
+    # Précondition explicite : l'ancien UUID et son corps exact sont connus sur l'appareil réappairé.
+    etrangere = _appeler(cap, "m4_demarrer_route", arguments, LEA, "route-rejeu-A-fictif")
+    assert _etat_durable_rejeu_route(session) == avant
+    propre = _appeler(cap, "m4_demarrer_route", args_lea, LEA, "route-rejeu-B-fictif")
+    assert propre == {**nouveau, "rejoue": True}
+    assert _etat_durable_rejeu_route(session) == avant
+    conflit = _appeler(cap, "m4_demarrer_route", args_lea, LEA, "route-rejeu-A-fictif")
+    assert conflit["ok"] is False and conflit["erreur"] == "mutation_conflit"
+    assert _etat_durable_rejeu_route(session) == avant
+    with session() as cnx:
+        appareils.appairer(cnx, "tel-fictif-t1-4-k", MARC.personne, "employee")
+    avant_retour = copy.deepcopy(_etat_durable_rejeu_route(session))
+    original_rejoue = _appeler(cap, "m4_demarrer_route", arguments, MARC, "route-rejeu-A-fictif")
+    assert original_rejoue == {**original, "rejoue": True}
+    assert _etat_durable_rejeu_route(session) == avant_retour
+    assert etrangere["ok"] is True and etrangere["rejoue"] is True
+    assert etrangere["resultat"]["accepte"] is False
+    assert etrangere["resultat"]["verdict"]["code"] == CODE_IDENTITE_FOURNIE
+    assert "resultat" not in etrangere["resultat"], "aucun ancien accusé restitué à une autre personne"
+
+
+def test_route_rejeu_admin_dispatcher_conserve_accuse_sous_identite_technicien_d_autrui(
+        route_appareil_rejouable, session):
+    cap, arguments, original = route_appareil_rejouable
+    with session() as cnx:
+        identite.creer_personne(cnx, "admin.fictif", "Admin Fictif", "mot-de-passe-admin-fictif", ["admin"])
+        appareils.appairer(cnx, "tel-fictif-t1-4-k", "admin.fictif", "admin")
+    avant = copy.deepcopy(_etat_durable_rejeu_route(session))
+    admin = contexte.IdentiteAppelante("admin.fictif", "admin")
+    reponse = _appeler(cap, "m4_demarrer_route", arguments, admin, "route-rejeu-A-fictif")
+    assert reponse == {**original, "rejoue": True}
+    assert _etat_durable_rejeu_route(session) == avant
+
+
+@pytest.mark.parametrize("retrait", ["role", "activation"])
+def test_route_rejeu_identite_courante_revoquee_refuse_sans_restituer_ancien_accuse(
+        route_appareil_rejouable, session, retrait):
+    cap, arguments, _ = route_appareil_rejouable
+    with session() as cnx:
+        if retrait == "role":
+            identite.retirer_role(cnx, MARC.personne, "employee")
+        else:
+            identite.activer(cnx, MARC.personne, False)
+    avant = copy.deepcopy(_etat_durable_rejeu_route(session))
+    reponse = _appeler(cap, "m4_demarrer_route", arguments, MARC, "route-rejeu-A-fictif")
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is False
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-IDENTITE-APPAREIL-INVALIDE"
+    assert "resultat" not in reponse["resultat"]
+    assert _etat_durable_rejeu_route(session) == avant
