@@ -217,25 +217,30 @@ def test_les_outils_de_preuve_de_m3_tournent_une_fois_et_une_seule():
 
 
 @pytest.mark.parametrize(
-    "etat,accepte", [("ok", True), ("vide", False), ("skipped", False), ("failure", False), ("error", False)]
+    "nombre,etat,accepte",
+    [(4, "ok", True), (0, "ok", False), (3, "ok", False), (5, "ok", False),
+     (4, "skipped", False), (4, "failure", False), (4, "error", False)],
 )
-def test_la_preuve_postgresql_exige_des_scenarios_executes_sans_ignorance(tmp_path, monkeypatch, etat, accepte):
+def test_la_preuve_postgresql_exige_des_scenarios_executes_sans_ignorance(
+    tmp_path, monkeypatch, nombre, etat, accepte,
+):
     """Exécute le contrôle réel du job contre un rapport : un job sans preuve ne passe pas."""
     import xml.etree.ElementTree as ET
 
     job = _ci()["jobs"]["frontiere-postgresql"]
     assert not job.get("if") and not job.get("continue-on-error")
-    etape = next(
-        e for e in job["steps"] if e.get("name") == "Refus C02 réel sur PostgreSQL (verticale complète bloquée)"
-    )
+    etapes = [e for e in job["steps"] if "tests/e2e/test_verticale_postgresql_refus_c02.py" in e.get("run", "")]
+    assert len(etapes) == 1
+    etape = etapes[0]
     commande = etape["run"]
     assert "tests/e2e/test_verticale_postgresql_refus_c02.py" in commande
+    assert "tests/e2e/test_m9_snapshot_concurrent.py" in commande
     script = commande.split("python - <<'PYTHON'\n", 1)[1].rsplit("\nPYTHON", 1)[0]
     racine = ET.Element("testsuites")
     suite = ET.SubElement(racine, "testsuite")
-    if etat != "vide":
-        cas = ET.SubElement(suite, "testcase", name="affaire-fictive")
-        if etat != "ok":
+    for index in range(nombre):
+        cas = ET.SubElement(suite, "testcase", name=f"frontiere-fictive-{index}")
+        if index == 0 and etat != "ok":
             ET.SubElement(cas, etat)
     ET.ElementTree(racine).write(tmp_path / "frontiere-postgresql.xml", encoding="utf-8")
     monkeypatch.setenv("RUNNER_TEMP", str(tmp_path))
