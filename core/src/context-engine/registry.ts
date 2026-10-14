@@ -1,7 +1,7 @@
 // Context-engine registry owns engine registration, resolution, compatibility, and quarantine.
 import { sanitizeForLog } from "../../packages/terminal-core/src/ansi.js";
 import type { OpenClawConfig } from "../config/types.js";
-import { runPluginCleanup } from "../plugins/plugin-instance-scope.js";
+import { pluginInvocationContext, runPluginCleanup } from "../plugins/plugin-instance-scope.js";
 import type {
   ContextEngineFactory,
   ContextEngineFactoryContext,
@@ -14,21 +14,18 @@ import { defaultSlotIdForKey } from "../plugins/slots.js";
 import { getAsyncWorkSignal } from "../shared/async-work-scope.js";
 import { createDeferredCore } from "../shared/deferred.js";
 import { resolveGlobalSingleton } from "../shared/global-singleton.js";
+import { isContextEngineAbortRejection } from "./context-engine-abort.js";
 import {
-  inheritRuntimeCompactionDelegate,
-  markRuntimeCompactionDelegate,
-} from "./compaction-watchdog.js";
-import { contextEngineAbortSignal, isContextEngineAbortRejection } from "./context-engine-abort.js";
+  OPSYS_CONTEXT_ENGINE_ID,
+  readDefaultOpsysTranscriptSource,
+} from "./opsys-contexte-engine.js";
 import {
   clearPersistedContextEngineQuarantineForProcess,
   listPersistedContextEngineQuarantines,
   recordPersistedContextEngineQuarantine,
 } from "./quarantine-health.js";
 import { pluginIdFromContextEngineOwner } from "./registry-adoption.js";
-import {
-  describeResolvedContextEngineContractError,
-  projectContextEngineHostParams,
-} from "./registry-contract.js";
+import { describeResolvedContextEngineContractError } from "./registry-contract.js";
 import { resolveEffectiveContextEngineId } from "./registry-selection.js";
 import {
   recordContextEngineRegistrationSource,
@@ -39,6 +36,10 @@ import {
   runContextEngineFactoryResolution,
   type ContextEngineFactoryResources,
 } from "./registry.resources.js";
+import {
+  guardResolvedTranscriptMethod,
+  readHostOwnedTranscriptState,
+} from "./registry.transcript.js";
 import type {
   BootstrapResult,
   ContextEngine,
@@ -62,7 +63,6 @@ type RegisterContextEngineForOwnerOptions = {
 };
 
 type GuardedContextEngineMethodName = Exclude<keyof ContextEngine, "info" | "dispose">;
-type GuardedContextEngineMethod = (...args: never[]) => unknown;
 const GUARDED_CONTEXT_ENGINE_METHODS = new Set<PropertyKey>(
   "bootstrap maintain ingest ingestBatch afterTurn commitTurn assemble compact prepareSubagentSpawn onSubagentEnded".split(
     " ",
@@ -74,24 +74,10 @@ type ResolvedContextEngineMetadata = {
   sourceEngine?: ContextEngine;
   source?: ContextEngineFactoryResources;
   ownsSource?: boolean;
+  readHostOwnedTranscript?: () => "absent" | "live" | "unavailable";
 };
 
-const resolvedEngineMetadata = new WeakMap<ContextEngine, ResolvedContextEngineMetadata>();
-
-function inheritCompactionWatchdogOwnership(
-  property: PropertyKey,
-  source: GuardedContextEngineMethod,
-  wrapped: GuardedContextEngineMethod,
-): GuardedContextEngineMethod {
-  if (property !== "compact") {
-    return wrapped;
-  }
-  // SAFETY: the compact property narrows both functions to the ContextEngine compact contract.
-  const compact = source as ContextEngine["compact"];
-  // SAFETY: guarded compact wrappers preserve the source method's single-parameter contract.
-  const wrappedCompact = wrapped as ContextEngine["compact"];
-  return inheritRuntimeCompactionDelegate(compact, wrappedCompact);
-}
+const resolvedEngineMetadata = new WeakMap<object, ResolvedContextEngineMetadata>();
 
 function wrapResolvedContextEngine(
   rawEngine: ContextEngine,
@@ -104,6 +90,22 @@ function wrapResolvedContextEngine(
   let disposal: Promise<void> | undefined;
   const source = metadata.source;
   const engine = source?.wrap(rawEngine) ?? rawEngine;
+  const nativeSource = metadata.sourceEngine ?? rawEngine;
+  const inheritedTranscript = resolvedEngineMetadata.get(rawEngine)?.readHostOwnedTranscript;
+  const factoryInvocation = source ? pluginInvocationContext.getStore() : undefined;
+  const hostOwnedTranscript =
+    metadata.owner === "core" &&
+    metadata.engineId === OPSYS_CONTEXT_ENGINE_ID &&
+    readDefaultOpsysTranscriptSource(nativeSource) !== "absent";
+  const transcript = {
+    candidate: hostOwnedTranscript,
+    nativeSource,
+    inheritedTranscript,
+    source,
+    factoryInvocation,
+    isClosed: () => Boolean(disposal || getContextEngineQuarantine(metadata.engineId)),
+  };
+  const readHostOwnedTranscript = () => readHostOwnedTranscriptState(transcript);
   const fallback =
     metadata.defaultEngineId &&
     metadata.factoryCtx &&
@@ -182,7 +184,7 @@ function wrapResolvedContextEngine(
     Object.create(engine, { info: { get: () => engine.info } }) as ContextEngine,
     {
       get(_target, property) {
-        if (property === "dispose" && (source || fallback)) {
+        if (property === "dispose" && (source || fallback || hostOwnedTranscript)) {
           return disposeOwned;
         }
         if (property === "info") {
@@ -211,38 +213,24 @@ function wrapResolvedContextEngine(
           return (...args: unknown[]) => invokeMember(() => Reflect.apply(method, engine, args));
         }
         const methodName = property as GuardedContextEngineMethodName;
-        if (!fallback || !getFallbackEngine) {
-          const invoke = (params: Record<string, unknown>) =>
-            method.call(engine, projectContextEngineHostParams(engine, methodName, params));
-          return inheritCompactionWatchdogOwnership(property, method, invoke);
-        }
-        const invokeFallback = async (methodParams: Record<string, unknown>) => {
-          contextEngineAbortSignal(methodParams);
-          return await invokeFallbackContextEngineMethod({
-            getFallbackEngine,
-            methodName,
-            methodParams,
-          });
-        };
-        if (getContextEngineQuarantine(metadata.engineId)) {
-          return methodName === "compact"
-            ? markRuntimeCompactionDelegate(invokeFallback as ContextEngine["compact"]) // SAFETY: compact keeps this parameter contract.
-            : invokeFallback;
-        }
-        const invoke = async (methodParams: Record<string, unknown>) => {
-          const abortSignal = contextEngineAbortSignal(methodParams);
-          if (getContextEngineQuarantine(metadata.engineId)) {
-            // Runtime failures downgrade future guarded calls for this process.
-            return await invokeFallback(methodParams);
-          }
-          try {
-            return await method.call(
-              engine,
-              projectContextEngineHostParams(engine, methodName, methodParams),
-            );
-          } catch (error) {
-            if (isContextEngineAbortRejection(error, abortSignal)) {
-              // Abort is caller intent, not engine instability; never quarantine for it.
+        return guardResolvedTranscriptMethod({
+          engine,
+          method,
+          methodName,
+          candidate: hostOwnedTranscript,
+          read: readHostOwnedTranscript,
+          isQuarantined: () => Boolean(getContextEngineQuarantine(metadata.engineId)),
+          invokeFallback:
+            fallback && getFallbackEngine
+              ? (methodParams) =>
+                  invokeFallbackContextEngineMethod({
+                    getFallbackEngine,
+                    methodName,
+                    methodParams,
+                  })
+              : undefined,
+          recordFailure: (error) => {
+            if (!fallback) {
               throw error;
             }
             recordContextEngineQuarantine({
@@ -252,20 +240,14 @@ function wrapResolvedContextEngine(
               error,
               defaultEngineId: fallback.defaultEngineId,
             });
-            if (methodName === "compact" || methodName === "prepareSubagentSpawn") {
-              throw error;
-            }
-            return await invokeFallback(methodParams).catch(() => {
-              throw error;
-            });
-          }
-        };
-        return inheritCompactionWatchdogOwnership(property, method, invoke);
+          },
+        });
       },
     },
   );
   resolvedEngineMetadata.set(wrapped, {
     ...metadata,
+    readHostOwnedTranscript,
     sourceEngine:
       metadata.sourceEngine ?? resolvedEngineMetadata.get(engine)?.sourceEngine ?? engine,
   });
@@ -452,6 +434,11 @@ export function resolveContextEngineOwnerPluginId(
   const owner =
     metadata && !getContextEngineQuarantine(metadata.engineId) ? metadata.owner : undefined;
   return owner ? pluginIdFromContextEngineOwner(owner) : undefined;
+}
+
+/** Read the exact native wrapper's current lifetime, without exposing its source or a registrar. */
+export function readHostOwnedOpsysTranscript(engine: object): "absent" | "live" | "unavailable" {
+  return resolvedEngineMetadata.get(engine)?.readHostOwnedTranscript?.() ?? "absent";
 }
 
 export const hasSameContextEngineInstance = (left: ContextEngine, right: ContextEngine): boolean =>

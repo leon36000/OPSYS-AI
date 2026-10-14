@@ -8,6 +8,7 @@ import {
 import { ensureContextEnginesInitialized } from "../../context-engine/init.js";
 import {
   hasSameContextEngineInstance,
+  readHostOwnedOpsysTranscript,
   resolveLogicalTurnContextEngines,
 } from "../../context-engine/registry.js";
 import { disposeContextEngineSources } from "../../context-engine/registry.resources.js";
@@ -85,6 +86,7 @@ export async function createContextEngineLogicalTurnLease(params: {
   let effective = resolution.configured;
   let degradedReason = resolution.configuredFailure;
   let warned = false;
+  let selectedHostOwnedTranscript = false;
   const disposalHolds = new Set<Promise<unknown>>();
   const isBaselineEngineSelection =
     resolution.configuredFailure === undefined &&
@@ -133,6 +135,10 @@ export async function createContextEngineLogicalTurnLease(params: {
     operation: ContextEngineOperation;
     requiresDurableCommit: boolean;
   }): string | undefined => {
+    const hostOwnedTranscript = readHostOwnedOpsysTranscript(effective.engine);
+    if (hostOwnedTranscript === "unavailable") {
+      return "host-owned OPSYS transcript composition is unavailable";
+    }
     const support = evaluateContextEngineHostSupport({
       contextEngineInfo: effective.engine.info,
       operation: selection.operation,
@@ -144,6 +150,12 @@ export async function createContextEngineLogicalTurnLease(params: {
     if (isBaselineEngineSelection) {
       // Legacy delegates durable transcript ownership to SessionManager, so only its
       // actual host requirements apply to repeated logical-turn selection.
+      return undefined;
+    }
+    if (hostOwnedTranscript === "live") {
+      // SessionManager owns persistence. Assembly still runs under the native read fence;
+      // this does not declare an engine commit or an atomic MCP postflight.
+      selectedHostOwnedTranscript = true;
       return undefined;
     }
     if (
@@ -213,6 +225,13 @@ export async function createContextEngineLogicalTurnLease(params: {
     begin() {
       if (state === "disposed") {
         throw new Error("context-engine logical turn lease is already disposed");
+      }
+      if (
+        readHostOwnedOpsysTranscript(effective.engine) === "unavailable" ||
+        (selectedHostOwnedTranscript &&
+          (degradedReason || readHostOwnedOpsysTranscript(effective.engine) !== "live"))
+      ) {
+        throw new Error("host-owned OPSYS transcript composition is unavailable");
       }
       state = "started";
       return asEffective();

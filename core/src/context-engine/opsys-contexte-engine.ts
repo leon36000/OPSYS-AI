@@ -604,10 +604,107 @@ function readDepositOutcome(envelope: unknown, expectedFactCount: number): Depos
   return { ok: true, ecrits: counts.ecrits, dejaDeposes: counts.deja_deposes };
 }
 
+type DefaultOpsysTranscriptSource = {
+  info: ContextEngineInfo;
+  infoSnapshot: ContextEngineInfo;
+  methods: Map<string, unknown>;
+};
+
+// Only the default factory writes this provenance; constructors and injected dependencies do not.
+const defaultOpsysTranscriptSources = new WeakMap<object, DefaultOpsysTranscriptSource>();
+
+function matchesInfoSnapshot(value: unknown, expected: unknown): boolean {
+  if (expected === null || typeof expected !== "object") {
+    return Object.is(value, expected);
+  }
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+  if (Object.getPrototypeOf(value) !== Object.getPrototypeOf(expected)) {
+    return false;
+  }
+  const descriptors = Object.getOwnPropertyDescriptors(value);
+  const keys = Reflect.ownKeys(expected);
+  return (
+    Reflect.ownKeys(descriptors).length === keys.length &&
+    keys.every((key) => {
+      const descriptor = Reflect.get(descriptors, key);
+      return (
+        descriptor &&
+        "value" in descriptor &&
+        matchesInfoSnapshot(descriptor.value, Reflect.get(expected, key))
+      );
+    })
+  );
+}
+
+/** Passive source provenance only. The registry must separately verify its wrapper lifetime. */
+export function readDefaultOpsysTranscriptSource(
+  engine: object,
+): "absent" | "unaltered" | "altered" {
+  const source = defaultOpsysTranscriptSources.get(engine);
+  if (!source) {
+    return "absent";
+  }
+  const prototype = Object.getPrototypeOf(engine);
+  const info = Object.getOwnPropertyDescriptor(engine, "info");
+  if (
+    prototype !== OpsysContextEngine.prototype ||
+    !info ||
+    !("value" in info) ||
+    info.value !== source.info ||
+    !matchesInfoSnapshot(info.value, source.infoSnapshot) ||
+    "commitTurn" in engine
+  ) {
+    return "altered";
+  }
+  for (const [name, original] of source.methods) {
+    const descriptor =
+      Object.getOwnPropertyDescriptor(engine, name) ??
+      Object.getOwnPropertyDescriptor(prototype, name);
+    if (
+      descriptor
+        ? !("value" in descriptor) || descriptor.value !== original
+        : original !== undefined
+    ) {
+      return "altered";
+    }
+  }
+  return "unaltered";
+}
+
 /** Factory for the registry: one engine per resolution, bound to the runtime configuration. */
 export function createOpsysContextEngine(
   config: OpenClawConfig | undefined,
-  deps: OpsysContexteEngineDeps = {},
+  deps?: OpsysContexteEngineDeps,
 ): OpsysContextEngine {
-  return new OpsysContextEngine(config, deps);
+  const engine = new OpsysContextEngine(config, deps);
+  if (deps === undefined) {
+    const methods = new Map<string, unknown>();
+    for (const name of [
+      "ingest",
+      "assemble",
+      "afterTurn",
+      "compact",
+      "dispose",
+      "ingestBatch",
+      "bootstrap",
+      "maintain",
+      "prepareSubagentSpawn",
+      "onSubagentEnded",
+    ]) {
+      methods.set(name, Reflect.get(engine, name));
+    }
+    for (const [name, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(engine))) {
+      if ("value" in descriptor && typeof descriptor.value === "function") {
+        methods.set(name, descriptor.value);
+      }
+    }
+    defaultOpsysTranscriptSources.set(engine, {
+      info: engine.info,
+      infoSnapshot: structuredClone(engine.info),
+      methods,
+    });
+  }
+  return engine;
 }
