@@ -358,6 +358,36 @@ _HISTORIQUE_FACTURES = {
 }
 
 
+def _rehydrater_facture_historique(entree: dict[str, Any]) -> dict[str, Any]:
+    """Restaure les Decimal exportés en JSON, sans recalcul fiscal ni mutation de l'appelant."""
+    copie = copy.deepcopy(entree)
+
+    def decimal_fini(valeur: Any) -> Decimal:
+        if isinstance(valeur, str):
+            valeur = _vers_montant_decimal(valeur)
+        if not isinstance(valeur, Decimal) or not valeur.is_finite():
+            raise ValueError("Decimal fini requis, jamais un nombre JSON")
+        return valeur
+
+    try:
+        for champ in ("montant_avant_taxes", "total_taxes", "montant_apres_taxes"):
+            copie[champ] = decimal_fini(copie[champ])
+        for collection, champs in (
+            ("lignes", ("quantite", "prix_unitaire", "montant")),
+            ("taxes", ("montant",)),
+        ):
+            if not isinstance(copie[collection], (list, tuple)):
+                raise TypeError("collection de facture requise")
+            for ligne in copie[collection]:
+                if not isinstance(ligne, dict):
+                    raise TypeError("ligne de facture requise")
+                for champ in champs:
+                    ligne[champ] = decimal_fini(ligne[champ])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError("REJ-FACTURE-HISTORIQUE-INVALIDE : forme ou Decimal financier invalide") from exc
+    return copie
+
+
 def _rejouer_registre(historique: list[dict[str, Any]] | None) -> registre_module.Registre:
     """Reconstruit un registre M5 en rejouant l'historique fourni par l'appelant.
 
@@ -368,14 +398,16 @@ def _rejouer_registre(historique: list[dict[str, Any]] | None) -> registre_modul
 
     Frontière JSON : `opsys.outils.executer` sérialise un Decimal en texte pour la
     réponse (`vers_json`). Quand l'appelant renvoie cet historique tel quel à un
-    appel suivant, `montant` y arrive donc en texte — il est reconstruit en
-    Decimal ici (jamais un float intermédiaire) avant d'être rejoué.
+    appel suivant, le montant d'un mouvement et les champs Decimal d'une facture
+    sont restaurés depuis ce texte (jamais un float intermédiaire) avant rejeu.
     """
     registre_cible = registre_module.Registre()
     for entree in historique or ():
         brut = {cle: valeur for cle, valeur in entree.items() if cle not in ("ligne_id", "precedent_ligne_id")}
         if brut.get("type_entree") == "mouvement_enregistre" and isinstance(brut.get("montant"), str):
             brut["montant"] = _vers_montant_decimal(brut["montant"])
+        elif brut.get("type_entree") == "facture_creee":
+            brut = _rehydrater_facture_historique(brut)
         registre_cible.ajouter(brut)
     return registre_cible
 
