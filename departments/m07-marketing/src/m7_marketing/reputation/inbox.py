@@ -189,9 +189,21 @@ def lister_inbox_reputation(
     if type(limite) is not int or not 1 <= limite <= 100:
         return _refus("REJ-FILTRE-INBOX", "limite doit être comprise entre 1 et 100")
     items = sorted(_lire(_AVIS), key=lambda a: (a["date_avis"], a["avis_id"]), reverse=True)
+    exportes = {e["avis_id"] for e in _lire(_EXPORTS)} if items else set()
+    decisions_par_id = None
     resultats = []
     for avis in items:
-        etat = _statut(avis)
+        if avis["avis_id"] in exportes:
+            etat = "EXPORTE_MANUEL"
+        else:
+            # Index local à cette consultation : première décision historique gagnante.
+            # Ne pas charger cet historique si les résultats sont déjà tous exportés.
+            if decisions_par_id is None:
+                decisions_par_id = {}
+                for decision in _lire(_DECISIONS):
+                    decisions_par_id.setdefault(decision["avis_id"], decision)
+            decision = decisions_par_id.get(avis["avis_id"])
+            etat = decision["decision"] if decision else "PROPOSE"
         if categorie and avis["categorie"] != categorie:
             continue
         if statut and etat != statut:
