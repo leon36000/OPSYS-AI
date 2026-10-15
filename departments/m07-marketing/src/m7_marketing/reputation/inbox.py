@@ -16,7 +16,7 @@ from urllib.parse import urlsplit
 
 from opsys import stockage
 
-from ..brand import profil_client
+from ..brand import registre as registre_marque
 from . import classifier, response_builder
 
 _DEPARTEMENT = "m07-marketing"
@@ -147,9 +147,10 @@ def importer_avis_manuel(
             "categorie": deja["categorie"], "visibilite": deja["visibilite"],
         }}
 
-    profil, motif = profil_client.charger_profil_client()
-    if profil is None:
-        return _refus("REJ-PROFIL-MARQUE", str(motif))
+    snapshot_marque = registre_marque.lire_snapshot_marque()
+    profil = snapshot_marque.get("profil")
+    if snapshot_marque.get("statut") != "configure" or profil is None:
+        return _refus("REJ-PROFIL-MARQUE", str(snapshot_marque.get("motif") or "profil de marque non configuré"))
     categorie = classifier.classifier_avis({"id": avis_id, "note": note, "texte": source["texte"]})
     brouillon = response_builder.construire_reponse(
         {"id": avis_id}, categorie, profil, niveau_validation=1,
