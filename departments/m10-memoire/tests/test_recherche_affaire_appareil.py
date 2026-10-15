@@ -573,3 +573,98 @@ def test_erreur_copie_source_refuse_nominalement_sans_texte_brut(monde, monkeypa
 
     monkeypatch.setattr(outils, nom, SourceIllisible())
     _refus(_appel(), "REGISTRE-INVALIDE")
+
+
+def test_meme_capacite_separe_affaires_durables_cite_prefixes_et_ne_ressuscite_pas(monde, monkeypatch):
+    """Identité SQL et sources fictives ; vraie recherche publique sur deux chaînes SQLite.
+
+    L'admin peut consulter les deux affaires : le test protège la cible demandée, sans inventer
+    une permission de locataire, un accès d'agent ou une recherche dans le domaine développement.
+    """
+    from opsys.capacites import Capacites
+    from opsys.departements import charger_departements
+
+    e = registre.Registre(maillons=stockage.maillons("m10-memoire", "evenements"))
+    a = registre.Registre(maillons=stockage.maillons("m10-memoire", "affaires"))
+    monkeypatch.setattr(outils, "_REGISTRE_EVENEMENTS", e)
+    monkeypatch.setattr(outils, "_REGISTRE_AFFAIRES", a)
+    capacites = Capacites(charger_departements(), stockage.transaction, filtre={"m10-memoire"}, memoire=False)
+    affaire_a, affaire_b = LEAD + "-A", LEAD + "-B"
+
+    def tables():
+        with stockage.transaction() as cnx:
+            noms = cnx.execute(text(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
+            )).scalars().all()
+            return {n: [dict(ligne) for ligne in cnx.execute(text(f'SELECT * FROM "{n}"')).mappings()] for n in noms}
+
+    def lire(affaire_id, requete=""):
+        avant = tables()
+        with contexte.appele_par_appareil(IdentiteAppelante("admin.fictif", "admin")):
+            reponse = capacites.appeler(
+                NOM, {"affaire_id": affaire_id, "requete": requete, "limite": 8, "decalage": 0},
+            )
+        assert reponse["ok"] is True and "resultats" in reponse["resultat"], reponse
+        assert tables() == avant, "chaque lecture conserve toutes les tables, sans artefact"
+        dto = reponse["resultat"]
+        assert dto["affaire_id"] == affaire_id
+        assert all(r["affaire_id"] == affaire_id for r in dto["resultats"])
+        return dto
+
+    def verifier_citations(dto):
+        with stockage.transaction():
+            snapshots = {"evenements": e.lire(), "affaires": a.lire()}
+        for resultat in dto["resultats"]:
+            ref = resultat["reference"]
+            lignes = snapshots[ref["registre"]]
+            position = next(i for i, ligne in enumerate(lignes) if ligne["ligne_id"] == ref["ligne_id"])
+            source = lignes[position]
+            champ = "lead_id" if ref["registre"] == "evenements" else "affaire_id"
+            assert source[champ] == dto["affaire_id"], "une citation valide doit aussi être celle de la bonne affaire"
+            assert ref["hash_tete"] == ref["ligne_id"]
+            prefixe = registre.Registre(maillons=lignes[:position + 1])
+            assert prefixe.valider_chaine()[0] is True
+            assert references.verifier_reference(ref, prefixe)[1] is None
+
+    assert lire(affaire_a)["resultats"] == []  # chauffe la même capacité avant l'arrivée des sources
+    with stockage.transaction():
+        evenement_a = _wct(e, "WCT-CF036-A-FICTIF", lead=affaire_a)
+        evenement_b = _wct(e, "WCT-CF036-B-FICTIF", lead=affaire_b)
+        conso_a = consolidation.consolider_affaire(affaire_a, "2026-10-08", DATE, e, a)
+        conso_b = consolidation.consolider_affaire(affaire_b, "2026-10-08", DATE, e, a)
+        assert conso_a["ecrit"] and conso_b["ecrit"]
+        anciens_evenements, anciens_faits = e.lire(), a.lire()
+
+    lus_a, lus_b = lire(affaire_a), lire(affaire_b)
+    for dto, evenement, fait in ((lus_a, evenement_a, conso_a), (lus_b, evenement_b, conso_b)):
+        assert dto["pagination"]["total"] == len(dto["resultats"]) == 2
+        assert {(r["reference"]["registre"], r["reference"]["ligne_id"]) for r in dto["resultats"]} == {
+            ("evenements", evenement), ("affaires", fait["fait"]["ligne_id"]),
+        }
+        verifier_citations(dto)
+    assert affaire_b not in json.dumps(lus_a, ensure_ascii=False)
+    assert affaire_a not in json.dumps(lus_b, ensure_ascii=False)
+
+    ref_b = next(r["reference"] for r in lus_b["resultats"] if r["reference"]["registre"] == "evenements")
+    prefixe_b = registre.Registre(maillons=anciens_evenements)
+    assert references.verifier_reference({**ref_b, "hash_tete": evenement_a}, prefixe_b)[1] is not None
+
+    with stockage.transaction():
+        _wct(e, "WCT-CF036-A-PRIVE-FICTIF", lead=affaire_a, confidentialite="CLIENT_PRIVATE")
+        courante_a = consolidation.consolider_affaire(affaire_a, "2026-10-08", DATE, e, a)
+        assert courante_a["ecrit"] and courante_a["fait"]["ligne_id"] != conso_a["fait"]["ligne_id"]
+        assert e.lire()[:2] == anciens_evenements and a.lire()[:2] == anciens_faits
+        assert e.valider_chaine()[0] is True and a.valider_chaine()[0] is True
+    retenue = lire(affaire_a, "m10:consolidation")
+    assert retenue["resultats"] == [] and retenue["pagination"]["total"] == 0
+    assert retenue["affaire"]["connue"] is True
+    autorisee_b = lire(affaire_b, "m10:consolidation")
+    assert len(autorisee_b["resultats"]) == 1
+    assert autorisee_b["resultats"][0]["reference"]["ligne_id"] == conso_b["fait"]["ligne_id"]
+    verifier_citations(autorisee_b)
+
+    stockage.liberer()
+    assert lire(affaire_a, "m10:consolidation")["resultats"] == []
+    apres_reouverture_b = lire(affaire_b)
+    assert apres_reouverture_b["resultats"] == lus_b["resultats"]
+    verifier_citations(apres_reouverture_b)
