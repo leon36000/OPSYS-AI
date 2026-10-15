@@ -1794,3 +1794,144 @@ def test_perte_wct_photo_cas_et_cause_humaine_sans_ajustement_ni_liberation(
         assert etat_metier() == avant
         assert maillons("classements_variance") == classes_avant
         assert maillons("refus_classement_variance") == refus_avant
+
+
+
+def test_consommation_wct_reappro_courant_sans_commande_et_constat_conserve(
+    moteur, affaire, tmp_path, monkeypatch
+):
+    """Fictif : vrai parcours HTTP/MCP SQLite, pas un achat ni une réception physique.
+
+    La réception utilise le contrat éphémère existant, sans PO persisté. Le constat
+    garde son stock historique ; une lecture admin calcule le besoin courant.
+    """
+    from m6_material_control import outils as m6_outils
+
+    manifeste = yaml.safe_load(m6_outils._MANIFESTE.read_text(encoding="utf-8"))
+    manifeste["configuration"]["reapprovisionnement"] = {
+        "articles": {MATERIAU_ID: {"seuil_reapprovisionnement": 150, "quantite_cible": 300}}
+    }
+    configuration = tmp_path / "configuration-reappro-cf027-fictive.yaml"
+    configure = yaml.safe_dump(manifeste, allow_unicode=True).encode()
+    configuration.write_bytes(configure)
+    configuration.chmod(0o600)
+    monkeypatch.setattr(m6_outils, "_MANIFESTE", configuration)
+    chantier, lead, _ = _preparer_affaire(moteur, affaire)
+    app = AppEmploye(moteur, affaire["employe"], chantier)
+    completion = app.journee_jusqu_a_la_completion()
+    wct_id = completion.resultat["wct_id"]
+    _drainer(moteur)
+    (wct,) = [e for _, e in _evenements("m4.travaux_termines") if e["wct_id"] == wct_id]
+    assert (wct["intervention_id"], wct["devis_id"], wct["technicien_id"]) == (
+        chantier.intervention_id, chantier.devis_id, chantier.technicien
+    )
+    (devis,) = [e for _, e in _evenements("m3.devis_accepte") if e["devis_id"] == chantier.devis_id]
+    assert (devis["lead_id"], devis["chantier_id"]) == (lead["lead_id"], chantier.chantier_id)
+
+    def maillons(nom):
+        with stockage.transaction():
+            return list(stockage.maillons("m06-material-control", nom))
+
+    def engagements():
+        # M5 garde ses écritures financières ; seules variance reçue/rentabilité sont des calculs dérivés.
+        with stockage.transaction() as cnx:
+            return [dict(r._mapping) for r in cnx.execute(select(REGISTRES).order_by(
+                *REGISTRES.primary_key.columns)) if (r._mapping["departement"] == "m05-financecore"
+                    and r._mapping["registre"] not in {"variance_recue", "rentabilite"}) or (
+                    r._mapping["departement"] == "m06-material-control"
+                    and r._mapping["registre"] in {"bons_commande", "fournisseurs", "livre_prix"})]
+
+    def lire():
+        avant = _empreinte(moteur)
+        r = _app(moteur, affaire["admin"], "m6_lire_reapprovisionnement_appareil", {"decalage": 0, "limite": 8})
+        assert r.enveloppe["ok"] is True, r.corps
+        assert _empreinte(moteur) == avant, "une lecture ne modifie aucune table durable, même d'audit"
+        dto = r.resultat
+        assert dto["source_configuration"]["sha256"] == hashlib.sha256(configuration.read_bytes()).hexdigest()
+        assert dto["pagination"]["total"] == 1 and dto["pagination"]["reste"] == 0
+        (article,) = dto["articles"]
+        assert article["materiau_id"] == MATERIAU_ID
+        return article
+
+    proteges = engagements()
+    publications_avant = {i for i, _ in _evenements("m6.variance_chantier")}
+    with stockage.transaction() as cnx:
+        tous_evenements_avant = set(cnx.execute(select(EVENEMENTS_SORTANTS.c.evenement_id)).scalars())
+    assert maillons("besoins_commande") == []
+    declaration = app.declarer_materiaux(wct_id, 56)
+    assert declaration.metier["accepte"] is True, declaration.corps
+    appel = app.appels[-1]
+    apres_declaration = _empreinte(moteur)
+    reprise = app.rejouer(appel)
+    assert reprise.enveloppe["rejoue"] is True and reprise.resultat == declaration.resultat
+    assert _empreinte(moteur) == apres_declaration
+    _drainer(moteur)
+    mouvements = [m for m in maillons("principal") if m.get("wct_id") == wct_id]
+    assert [(m["type_mouvement"], Decimal(str(m["quantite"]))) for m in mouvements] == [
+        ("CONSOMMATION", Decimal(-56))]
+    constats = maillons("besoins_commande")
+    (constat,) = constats
+    assert (constat["type_entree"], constat["evenement_declencheur"], constat["chantier_id"]) == (
+        "besoin_commande", wct_id, chantier.chantier_id
+    )
+    assert constat["horodatage"] == wct["horodatage_completion"]
+    assert Decimal(str(constat["quantite_a_commander"])) == 156
+    article = lire()
+    assert article["statut"] == "stock_bas" and article["chiffres"] == {
+        "stock_theorique": "144", "hors_main": "0", "en_main": "144", "reserve": "0", "disponible": "144"
+    }
+    assert (article["seuil_reapprovisionnement"], article["quantite_cible"], article["quantite_a_commander"]) == (
+        "150", "300", "156"
+    )
+    assert article["unite"] is None and article["unite_dernier_constat"] == "pi"
+    dernier = article["dernier_constat"]
+    assert dernier["reference"] == {"registre": "besoins_commande", "rang": 0, "empreinte_snapshot": hashlib.sha256(
+        json.dumps(constat, sort_keys=True, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode()
+    ).hexdigest()}
+    assert dernier["reference_bus"] == {"type": "m4.travaux_termines", "evenement_id": wct_id}
+    assert dernier["horodatage"] == constat["horodatage"]
+    assert engagements() == proteges
+
+    manifeste["configuration"]["reapprovisionnement"]["articles"] = {}
+    configuration.write_text(yaml.safe_dump(manifeste, allow_unicode=True), encoding="utf-8")
+    sans_seuil = lire()
+    assert sans_seuil["statut"] == "seuil_absent"
+    assert all(sans_seuil[k] is None for k in (
+        "seuil_reapprovisionnement", "quantite_cible", "quantite_a_commander"))
+    assert sans_seuil["dernier_constat"] == dernier and maillons("besoins_commande") == constats
+    configuration.write_bytes(configure)
+
+    reception = receptionner_materiel_args(chantier, quantite=6)
+    for section in ("bon_demande", "reception_po"):
+        reception[section]["po_id"] = "PO-CF027-REAPPRO-FICTIF"
+    _agent(moteur, affaire["admin"], "m06-material-control", "m6_receptionner_commande", reception)
+    _drainer(moteur)
+    actuel = lire()
+    assert actuel["chiffres"] == {
+        "stock_theorique": "150", "hors_main": "0", "en_main": "150", "reserve": "0", "disponible": "150"
+    }
+    assert actuel["statut"] == "stock_suffisant" and actuel["quantite_a_commander"] is None
+    assert (actuel["seuil_reapprovisionnement"], actuel["quantite_cible"]) == ("150", "300")
+    assert actuel["dernier_constat"] == dernier and maillons("besoins_commande") == constats
+    assert engagements() == proteges
+    with stockage.transaction() as cnx:
+        nouveaux = [dict(r._mapping) for r in cnx.execute(select(EVENEMENTS_SORTANTS))
+                    if r._mapping["evenement_id"] not in tous_evenements_avant]
+    assert Counter(e["type_evenement"] for e in nouveaux) == {
+        "m6.variance_chantier": 1, "m5.rentabilite_chantier": 1, "m8.alerte_proposee": 1
+    }, "seuls les trois signaux dérivés attendus, aucun ordre d'achat/paiement/envoi"
+    for evenement in nouveaux:
+        charge = codec.decoder(evenement["charge"])
+        if evenement["type_evenement"] == "m6.variance_chantier":
+            assert evenement["producteur"] == "m06-material-control"
+            assert charge["wct_id"] == wct_id and charge["chantier_id"] == chantier.chantier_id
+            assert charge["statut_variance"] == "evaluee"
+            assert evenement["evenement_id"] not in publications_avant
+        elif evenement["type_evenement"] == "m5.rentabilite_chantier":
+            assert evenement["producteur"] == "m05-financecore"
+            assert charge["wct_id"] == wct_id and charge["devis_id"] == chantier.devis_id
+        else:
+            assert evenement["producteur"] == "m08-analytics"
+            assert charge["metric_id"] == "m8_ecart_materiaux_max_pct"
+            assert charge["type_alerte"] == "MESURE-SEUIL-A-CONFIGURER"
+            assert charge["horodatage_reference"] == wct["horodatage_completion"]
