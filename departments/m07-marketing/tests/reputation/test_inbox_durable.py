@@ -247,3 +247,117 @@ def test_import_panne_apres_sql_est_annule_et_rejouable(tmp_path, monkeypatch, r
     assert len(apres) == 1
     assert _metier(_appel("m7_importer_avis_manuel", **_avis()))["deja_importe"] is True
     assert _lire("reputation_avis") == apres
+
+
+@pytest.mark.parametrize("decision_a,decision_b", [("rejeter", "approuver"), ("approuver", "rejeter")])
+def test_decision_interposee_refuse_a_annule_b_et_permet_une_decision_fraiche(
+    tmp_path, monkeypatch, request, decision_a, decision_b,
+):
+    """Fictif : le propriétaire natif demeure valide pour les deux décisions."""
+    from opsys.stockage.maillons import EcritureConcurrente, MaillonsDurables
+
+    _base(tmp_path, monkeypatch, request)
+    avis_id = _metier(_appel("m7_importer_avis_manuel", **_avis()))["avis_id"]
+    original = MaillonsDurables.append
+    observations = []
+    arme = True
+
+    def decider(decision):
+        return _appel(
+            "m7_decider_reponse_avis", personne="nathan", role="admin", avis_id=avis_id,
+            decision=decision, horodatage=HORODATAGE, motif="Motif fictif de décision",
+        )
+
+    def interposer(self, maillon, *, rang_attendu=None):
+        nonlocal arme
+        if arme and (self.departement, self.registre) == ("m07-marketing", "reputation_decisions"):
+            arme = False
+            cnx = stockage.connexion_courante()
+            b = decider(decision_b)
+            assert b["ok"] is True and b["resultat"]["accepte"] is True
+            assert _metier(b)["statut"] == ("APPROUVE" if decision_b == "approuver" else "REJETE")
+            assert stockage.connexion_courante() is cnx
+            assert len(_lire("reputation_decisions")) == 1
+            observations.append(_metier(b))
+        return original(self, maillon, rang_attendu=rang_attendu)
+
+    monkeypatch.setattr(MaillonsDurables, "append", interposer)
+    with pytest.raises(EcritureConcurrente, match="rang attendu"):
+        decider(decision_a)
+    assert len(observations) == 1
+    stockage.liberer()
+    assert _lire("reputation_decisions") == [] and _lire("reputation_exports") == []
+    assert len(_lire("reputation_avis")) == 1
+    monkeypatch.setattr(MaillonsDurables, "append", original)
+    frais = decider(decision_a)
+    assert frais["ok"] is True and frais["resultat"]["accepte"] is True
+    statut = "APPROUVE" if decision_a == "approuver" else "REJETE"
+    assert _metier(frais)["statut"] == statut
+    decisions = _lire("reputation_decisions")
+    assert len(decisions) == 1 and decisions[0]["decision"] == statut
+    rejeu = _metier(decider(decision_a))
+    assert rejeu["accepte"] is False and rejeu["verdict"]["code"] == "REJ-AVIS-DEJA-TRANCHE"
+    assert _lire("reputation_decisions") == decisions
+    export = _appel("m7_exporter_reponse_avis_manuel", personne="nathan", role="admin", avis_id=avis_id)
+    assert export["ok"] is True and export["resultat"]["accepte"] is (decision_a == "approuver")
+    assert len(_lire("reputation_exports")) == (1 if decision_a == "approuver" else 0)
+
+
+def test_decisions_de_deux_avis_distincts_restent_independantes(tmp_path, monkeypatch, request):
+    _base(tmp_path, monkeypatch, request)
+    for source, decision, statut in [
+        ("avis-approbation-fictif", "approuver", "APPROUVE"),
+        ("avis-rejet-fictif", "rejeter", "REJETE"),
+    ]:
+        avis_id = _metier(_appel("m7_importer_avis_manuel", **_avis(avis_source_id=source)))["avis_id"]
+        result = _appel(
+            "m7_decider_reponse_avis", personne="nathan", role="admin", avis_id=avis_id,
+            decision=decision, horodatage=HORODATAGE, motif="Motif fictif",
+        )
+        assert result["ok"] is True and result["resultat"]["accepte"] is True
+        assert _metier(result)["statut"] == statut
+    stockage.liberer()
+    decisions = _lire("reputation_decisions")
+    assert [d["decision"] for d in decisions] == ["APPROUVE", "REJETE"]
+    assert len({d["avis_id"] for d in decisions}) == 2
+
+
+def test_decision_panne_apres_sql_annule_et_ne_cree_pas_dexport(tmp_path, monkeypatch, request):
+    from opsys.stockage.maillons import MaillonsDurables
+
+    _base(tmp_path, monkeypatch, request)
+    avis_id = _metier(_appel("m7_importer_avis_manuel", **_avis()))["avis_id"]
+    original = MaillonsDurables.append
+    observations = []
+
+    def panne(self, maillon, *, rang_attendu=None):
+        original(self, maillon, rang_attendu=rang_attendu)
+        if (self.departement, self.registre) == ("m07-marketing", "reputation_decisions"):
+            observations.append(len(_lire("reputation_decisions")))
+            raise RuntimeError("panne fictive après décision SQL")
+
+    args = dict(avis_id=avis_id, decision="approuver", horodatage=HORODATAGE)
+    monkeypatch.setattr(MaillonsDurables, "append", panne)
+    with pytest.raises(RuntimeError, match="panne fictive après décision SQL"):
+        _appel("m7_decider_reponse_avis", personne="nathan", role="admin", **args)
+    assert observations == [1]
+    stockage.liberer()
+    assert _lire("reputation_decisions") == [] and _lire("reputation_exports") == []
+    monkeypatch.setattr(MaillonsDurables, "append", original)
+    result = _appel("m7_decider_reponse_avis", personne="nathan", role="admin", **args)
+    assert result["ok"] is True and result["resultat"]["accepte"] is True
+    assert len(_lire("reputation_decisions")) == 1
+
+
+def test_decision_refuse_proprietaire_revoque_sans_ecriture(tmp_path, monkeypatch, request):
+    _base(tmp_path, monkeypatch, request)
+    avis_id = _metier(_appel("m7_importer_avis_manuel", **_avis()))["avis_id"]
+    with stockage.transaction() as cnx:
+        cnx.execute(update(PERSONNES).where(PERSONNES.c.identifiant == "nathan").values(actif=False))
+    result = _appel(
+        "m7_decider_reponse_avis", personne="nathan", role="admin", avis_id=avis_id,
+        decision="approuver", horodatage=HORODATAGE,
+    )
+    assert result["ok"] is True and result["resultat"]["accepte"] is False
+    assert result["resultat"]["verdict"]["code"] == "REJ-HUMAIN-IDENTITE-INVALIDE"
+    assert _lire("reputation_decisions") == [] and _lire("reputation_exports") == []

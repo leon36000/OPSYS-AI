@@ -220,7 +220,8 @@ def decider_reponse_avis(avis_id: str, decision: str, horodatage: str, motif: st
         return _refus("REJ-AVIS-INCONNU", "avis absent de l'inbox durable")
     if not service.retrait.horodatage_valide(horodatage):
         return _refus("REJ-HORODATAGE-INVALIDE", "horodatage ISO 8601 avec fuseau requis")
-    if _decision_par_id(avis_id):
+    decisions_lues = _lire(_DECISIONS)
+    if any(d["avis_id"] == avis_id for d in decisions_lues):
         return _refus("REJ-AVIS-DEJA-TRANCHE", "une décision humaine existe déjà pour cette révision")
     if decision not in {"approuver", "rejeter"}:
         return _refus("REJ-DECISION-INVALIDE", "decision attendue : approuver ou rejeter")
@@ -239,7 +240,7 @@ def decider_reponse_avis(avis_id: str, decision: str, horodatage: str, motif: st
         "source": acteur["source"], "motif": motif.strip(),
         "horodatage": service._horodatage_faisant_foi(horodatage),
     }
-    stockage.maillons(*_DECISIONS).append(maillon)
+    stockage.maillons(*_DECISIONS).append(maillon, rang_attendu=len(decisions_lues))
     return {"accepte": True, "resultat": {"avis_id": avis_id, "statut": statut, "par": acteur["par"]}}
 
 
