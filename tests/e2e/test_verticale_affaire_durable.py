@@ -35,6 +35,7 @@ from m1_front_office import outils as m1_outils
 from m5_financecore import facturation as m5_facturation
 from m5_financecore import outils as m5_outils
 from m5_financecore import registre as m5_registre
+from m6_material_control import besoins_prevus as m6_besoins_prevus
 from m8_analytics import outils as m8_outils
 from mcp.client.session import ClientSession
 from mcp.client.streamable_http import streamable_http_client
@@ -1166,6 +1167,66 @@ def test_usage_wct_repris_apres_commit_http_sans_ack_ne_duplique_pas_le_reel(
         "mouvements": 2, "net_declare": "40", "unite": "pi", "rejeu_sans_mutation": True,
         "limite": "intention fichier de test, HTTP Python/SQLite ; pas ExpoSQLite/CoreTS/physique/PG",
     }, sort_keys=True))
+
+
+@pytest.mark.parametrize(
+    "unite,accepte", [("boite", False), ("pi", True)], ids=["unite-incompatible", "unite-canonique"]
+)
+def test_usage_wct_respecte_unite_du_besoin_m3_avant_effet_m6(
+    moteur, affaire, unite, accepte, record_property
+):
+    """Fictif : une quantité en boîte ne devient pas silencieusement une quantité en pieds.
+
+    Source M3/complétion M4 et appels HTTP réels du harnais Python, pas mesure terrain,
+    conversion, catalogue complet, Core TypeScript ou téléphone physique.
+    """
+    chantier, _, _ = _preparer_affaire(moteur, affaire)
+    app = AppEmploye(moteur, affaire["employe"], chantier)
+    completion = app.journee_jusqu_a_la_completion()
+    assert completion.metier["accepte"] is True, completion.corps
+    wct_id = completion.resultat["wct_id"]
+    _drainer(moteur)
+    with stockage.transaction():
+        besoin = m6_besoins_prevus.pour_devis(
+            chantier.devis_id, stockage.maillons("m06-material-control", "besoins_prevus")
+        )
+    assert besoin is not None and besoin["chantier_id"] == chantier.chantier_id
+    (ligne_source,) = [ligne for ligne in besoin["lignes"] if ligne["materiau_id"] == MATERIAU_ID]
+    assert ligne_source["unite"] == "pi" and ligne_source["quantite_estimee"] == 40.0
+
+    def etat_metier():
+        with stockage.transaction() as cnx:
+            return {
+                table.name: [dict(ligne._mapping)
+                             for ligne in cnx.execute(select(table).order_by(*table.primary_key.columns))]
+                for table in (REGISTRES, EVENEMENTS_SORTANTS, EVENEMENTS_RECUS)
+            }
+
+    avant = etat_metier()
+    reponse = affaire["employe"].appeler(
+        "m6_declarer_materiaux_utilises", {"wct_id": wct_id, "formulaire": {
+            "wct_id": wct_id, "intervention_id": chantier.intervention_id,
+            "chantier_id": chantier.chantier_id,
+            "lignes_materiaux": [{"type_ligne": "prevu", "materiau_id": MATERIAU_ID,
+                                  "quantite": 40.0, "unite": unite, "quantite_estimee": 40.0}],
+        }}, cle=f"declaration-unite-{unite}-fictive", horodatage_appareil=app.heure_appareil(),
+    )
+    apres = etat_metier()
+    with stockage.transaction():
+        mouvements = [m for m in stockage.maillons("m06-material-control", "principal") if m.get("wct_id") == wct_id]
+    record_property("m6_unite_source_effet", json.dumps({
+        "fictif": True, "wct_id": wct_id, "devis_id": chantier.devis_id,
+        "unite_source": ligne_source["unite"], "unite_declaree": unite,
+        "accepte_observe": reponse.metier["accepte"], "mouvements_observes": len(mouvements),
+        "quantites_observees": [m["quantite"] for m in mouvements], "metier_inchange": avant == apres,
+    }, sort_keys=True))
+    assert reponse.metier["accepte"] is accepte, reponse.corps
+    if accepte:
+        assert len(mouvements) == 1 and mouvements[0]["quantite"] == -40.0
+        assert reponse.resultat["lignes_declarees"][0]["unite"] == "pi"
+    else:
+        assert reponse.metier["verdict"]["code"] == "REJ-FORMULAIRE-MATERIAUX-UNITE-INCOHERENTE"
+        assert apres == avant and mouvements == []
 
 
 def test_affaire_recue_reste_privee_au_vendeur_assigne(moteur, affaire):

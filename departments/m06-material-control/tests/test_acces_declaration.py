@@ -363,9 +363,33 @@ def test_chantier_du_formulaire_egal_a_celui_du_prevu_est_accepte(m6, appelant):
     _receptionner(m6, "CH-DU-DEVIS")
 
     _accepte(_declarer(m6, "wct-marc", _formulaire("wct-marc", INT_MARC, "CH-DU-DEVIS"), appelant))
-
     assert _consommations("wct-marc") == [("CONSOMMATION", "CH-DU-DEVIS", -10.0)]
 
+
+@pytest.mark.parametrize("appelant", [MARC, ADMIN, None], ids=["employe", "admin", "agent"])
+@pytest.mark.parametrize("type_ligne", ["prevu", "non_prevu", "retour", "perte", "bris", "achat_terrain"])
+def test_unite_connue_incoherente_refuse_tout_le_lot_pour_tous_les_appelants(m6, appelant, type_ligne):
+    """WCT publié par fixture ici ; la verticale HTTP couvre séparément sa naissance native.
+
+    Le premier article valide ne doit pas être écrit avant de découvrir le conflit
+    d'unité sur le second. Aucun rôle ou type de mouvement ne contourne la source connue.
+    """
+    _publier_wct("wct-unite-fictif", INT_MARC, "marc.fictif")
+    _prevu(m6, INT_MARC)  # unité canonique : boite
+    _receptionner(m6, INT_MARC)
+    formulaire = _formulaire("wct-unite-fictif", INT_MARC, INT_MARC, quantite=1.0)
+    ligne_incoherente = {"type_ligne": type_ligne, "materiau_id": "MAT-1", "quantite": 2.0, "unite": "pi"}
+    if type_ligne == "prevu":
+        ligne_incoherente["quantite_estimee"] = 10.0
+    if type_ligne == "achat_terrain":
+        ligne_incoherente.update(photo_fournie=True, recu_fourni=False)  # justificatif fictif
+    formulaire["lignes_materiaux"].append(ligne_incoherente)
+    avant = _etat()
+
+    reponse = _declarer(m6, "wct-unite-fictif", formulaire, appelant)
+
+    assert _code_refus(reponse) == "REJ-FORMULAIRE-MATERIAUX-UNITE-INCOHERENTE"
+    assert _etat() == avant and _consommations("wct-unite-fictif") == []
 
 def test_le_prevu_l_emporte_sur_l_intervention_meme_pour_l_employe(m6):
     """Le prévu connaît le chantier : l'employé qui envoie l'identifiant de son intervention (ce que

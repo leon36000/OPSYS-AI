@@ -1182,6 +1182,14 @@ def declarer_materiaux_utilises(wct_id: str, formulaire: dict[str, Any]) -> dict
     verdict_chantier = acces.controler_chantier(formulaire, wct, besoin, acteur)
     if verdict_chantier is not None:
         return {"accepte": False, "verdict": verdict_chantier}
+    # Une quantité déclarée doit garder l'unité du même article dans le besoin canonique.
+    # Contrôler TOUT le formulaire avant l'écriture du lot ; aucune conversion n'est inventée.
+    if besoin is not None:
+        unites_prevues = {ligne["materiau_id"]: ligne["unite"] for ligne in besoin["lignes"]}
+        if any(ligne["materiau_id"] in unites_prevues
+               and ligne["unite"] != unites_prevues[ligne["materiau_id"]]
+               for ligne in formulaire["lignes_materiaux"]):
+            return {"accepte": False, "verdict": {"code": "REJ-FORMULAIRE-MATERIAUX-UNITE-INCOHERENTE"}}
     registre_cible = _registre_de_l_appel(None)
     resultat, code = materiel.soumettre_materiaux_utilises(wct, formulaire, registre_cible)
     if code is not None:
