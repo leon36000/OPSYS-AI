@@ -41,6 +41,40 @@ test("huit éléments, curseur serveur exact, deuxième page remplace la premiè
   if (suite?.source === "serveur") expect(suite.valeur.interventions).toHaveLength(8);
   expect(h.appelerOutil.mock.calls[1]?.[0]).toMatchObject({ requete: { tool: "m4_lister_interventions", args: { statut: "planifiee", curseur, taille_page: 8 } } });
 });
+test("deux pages en vol, B avant A : admin valide, seule B reste courante et en cache", async () => {
+  const h = harnais(), curseur = pageDispatchFictive.page.curseur_suivant;
+  const autorite = capturerSessionAdminLecture();
+  let signalerEntreeA!: () => void;
+  let repondreA!: (r: Awaited<ReturnType<typeof h.appelerOutil>>) => void;
+  const entreeA = new Promise<void>(resolve => { signalerEntreeA = resolve; });
+  h.appelerOutil.mockImplementationOnce(() => new Promise(resolve => {
+    repondreA = resolve;
+    signalerEntreeA();
+  })).mockResolvedValueOnce({ ok: true, result: enveloppeDirecte(pageSuivanteFictive) });
+
+  const a = h.chargeur.chargerPage("planifiee");
+  await entreeA; // A a réellement atteint le transport avant que B remplace ce slot.
+  const b = await h.chargeur.chargerPage("planifiee", curseur);
+  expect(b).toMatchObject({ source: "serveur", valeur: { page: { curseur, taille: 8 } } });
+  expect(h.appelerOutil.mock.calls.map(c => c[0].requete)).toEqual([
+    { tool: "m4_lister_interventions", args: { statut: "planifiee", curseur: null, taille_page: 8 } },
+    { tool: "m4_lister_interventions", args: { statut: "planifiee", curseur, taille_page: 8 } },
+  ]);
+  if (b?.source !== "serveur") throw new Error("La page B légitime doit rester accessible");
+
+  repondreA({ ok: true, result: enveloppeDirecte(pageDispatchFictive) });
+  expect(await a).toMatchObject({ source: "aucune", raison: { code: "lecture_remplacee" } });
+  expect(autorite.session?.personne).toBe("admin-fictif");
+  expect(autorite.courante()).toBe(true);
+  expect(h.depot.cles()).toHaveLength(1);
+
+  h.horsLigne();
+  expect(await h.chargeur.chargerPage("planifiee", curseur)).toMatchObject({ source: "cache", valeur: b.valeur });
+  expect(await h.chargeur.chargerPage("planifiee")).toMatchObject({ source: "aucune" });
+  expect(await h.chargeur.chargerPage("planifiee", curseur)).toMatchObject({ source: "cache", valeur: b.valeur });
+  expect(h.appelerOutil).toHaveBeenCalledTimes(2);
+  expect(h.depot.cles()).toHaveLength(1);
+});
 test("cache relisible, personnel, lié au curseur exact ; hors ligne aucun HTTP", async () => {
   const h = harnais(); await h.chargeur.chargerPage("planifiee"); h.horsLigne();
   expect(await h.chargeur.chargerPage("planifiee")).toMatchObject({ source: "cache" });
