@@ -112,7 +112,9 @@ def _livrer_une_paire(
             par_connexion[cnx] = actives
             actives.add(paire)
             charge = codec.decoder(evenement["charge"])
-            existant = cnx.execute(select(EVENEMENTS_RECUS.c.tentatives).where(cible)).fetchone()
+            existant = cnx.execute(select(
+                EVENEMENTS_RECUS.c.tentatives, EVENEMENTS_RECUS.c.statut, EVENEMENTS_RECUS.c.prochaine_tentative
+            ).where(cible)).fetchone()
             if existant is None:
                 try:
                     with cnx.begin_nested():
@@ -124,9 +126,20 @@ def _livrer_une_paire(
                     return None  # réclamée entre-temps par un autre appel concurrent
                 tentatives_avant = 0
             else:
+                prochaine = existant.prochaine_tentative
+                if (existant.statut != "echec"
+                        or (prochaine and dt.datetime.fromisoformat(prochaine) > maintenant_dt)):
+                    return None  # le reçu a changé depuis la sélection ; respecter son backoff courant
+                # Le temps est comparé en Python (les offsets ISO ne se comparent pas comme du texte).
+                # La réclamation lie ensuite atomiquement le statut, le compteur et l'échéance lus :
+                # un autre essai entre SELECT et UPDATE invalide aussi ce candidat ancien.
+                meme_echeance = (EVENEMENTS_RECUS.c.prochaine_tentative.is_(None) if prochaine is None
+                                 else EVENEMENTS_RECUS.c.prochaine_tentative == prochaine)
                 reclamation = cnx.execute(
                     update(EVENEMENTS_RECUS)
-                    .where(cible & (EVENEMENTS_RECUS.c.statut == "echec")).values(statut="echec")
+                    .where(cible & (EVENEMENTS_RECUS.c.statut == "echec")
+                           & (EVENEMENTS_RECUS.c.tentatives == existant.tentatives) & meme_echeance)
+                    .values(statut="echec")
                 )
                 if reclamation.rowcount != 1:
                     return None  # déjà traité, mis en quarantaine, ou repris ailleurs entre la sélection et ici

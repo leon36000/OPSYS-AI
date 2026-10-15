@@ -292,7 +292,7 @@ jobs:
           echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
       - name: Préparation explicite de PostgreSQL
         run: python scripts/ci/preparer_pgvector.py
-      - name: Refus C02, lectures et ingestion M9, publication du bus sur PostgreSQL réel
+      - name: Refus C02, lectures et ingestion M9, publication et retry du bus sur PostgreSQL réel
         env:
           OPSYS_QUALIFIER_M9_PG17: "1"
         run: |
@@ -303,7 +303,7 @@ jobs:
           from pathlib import Path
           rapport = ET.parse(Path(os.environ["RUNNER_TEMP"]) / "frontiere-postgresql.xml")
           cas = list(rapport.iter("testcase"))
-          assert len(cas) == 23, "un refus C02, trois lectures, une ingestion M9, deux publications du bus, une reprise M8, un mouvement M5, un brouillon M5 deux ordres devis/WCT M5 un envoi N4 approuvé M5 un paiement constaté N5 M5 une saisie fournisseur AP M5 une saisie sans PO M5 une annulation fournisseur N4 M5 une correction fournisseur N4 M5 une réception M6 vers M5 deux imports M7 interposés et deux décisions M7 opposées sont requis"
+          assert len(cas) == 24, "un refus C02, trois lectures, une ingestion M9, deux publications du bus, un claim de retry frais du bus, une reprise M8, un mouvement M5, un brouillon M5 deux ordres devis/WCT M5 un envoi N4 approuvé M5 un paiement constaté N5 M5 une saisie fournisseur AP M5 une saisie sans PO M5 une annulation fournisseur N4 M5 une correction fournisseur N4 M5 une réception M6 vers M5 deux imports M7 interposés et deux décisions M7 opposées sont requis"
           assert all(c.find("skipped") is None for c in cas), "PostgreSQL ne doit pas être ignoré sur le runner"
           assert all(c.find("failure") is None and c.find("error") is None for c in cas)
           print(f"{len(cas)} frontières PostgreSQL réelles qualifiées ; verticale C02 complète bloquée")

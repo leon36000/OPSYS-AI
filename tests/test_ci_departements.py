@@ -218,8 +218,8 @@ def test_les_outils_de_preuve_de_m3_tournent_une_fois_et_une_seule():
 
 @pytest.mark.parametrize(
     "nombre,etat,accepte",
-    [(23, "ok", True), (0, "ok", False), (22, "ok", False), (24, "ok", False),
-     (23, "skipped", False), (23, "failure", False), (23, "error", False)],
+    [(24, "ok", True), (0, "ok", False), (23, "ok", False), (25, "ok", False),
+     (24, "skipped", False), (24, "failure", False), (24, "error", False)],
 )
 def test_la_preuve_postgresql_exige_des_scenarios_executes_sans_ignorance(
     tmp_path, monkeypatch, nombre, etat, accepte,
