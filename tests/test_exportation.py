@@ -489,3 +489,93 @@ def test_echec_migration_copie_ne_bascule_aucun_fichier(opsys_home, tmp_path, mo
     assert (cible / "paliers.yaml").read_text(encoding="utf-8") == "generation: ancienne\n"
     assert _personnes() == ["ancienne-fictive"]
     assert not list(cible.glob("*.avant-restauration-*"))
+
+
+def test_deux_restaurations_meme_seconde_ne_perdent_aucune_sauvegarde(tmp_path, monkeypatch):
+    source = tmp_path / "source-fictive"
+    cible = tmp_path / "cible-fictive"
+    monkeypatch.setenv("OPSYS_HOME", str(source))
+    stockage.liberer()
+    try:
+        stockage.migrer()
+        (source / "paliers.yaml").write_text("fictif: true\ngeneration: archive\n")
+        archive = exportation.exporter(source, tmp_path / "archive-fictive.tar.gz", par="test-fictif").archive
+        stockage.liberer()
+        monkeypatch.setenv("OPSYS_HOME", str(cible))
+        stockage.migrer()
+        (cible / "paliers.yaml").write_text("fictif: true\ngeneration: originale\n")
+        monkeypatch.setattr(exportation, "horodatage", lambda: "20261015T000000Z")
+        premiere = exportation.restaurer(archive, cible, par="test-fictif", remplacer=True)
+        sauvegardes = {Path(nom): Path(nom).read_bytes() for nom in premiere.mis_de_cote}
+        assert sauvegardes
+        (cible / "paliers.yaml").write_text("fictif: true\ngeneration: intermediaire\n")
+        stockage.liberer()
+        avant = {p: p.read_bytes() for p in cible.iterdir() if p.is_file()}
+        seconde = exportation.restaurer(archive, cible, par="test-fictif", remplacer=True)
+        assert set(premiere.mis_de_cote).isdisjoint(seconde.mis_de_cote)
+        assert all(p.read_bytes() == contenu for p, contenu in sauvegardes.items())
+        reglages_ecartes = [Path(p) for p in seconde.mis_de_cote
+                           if Path(p).name.startswith("paliers.yaml.avant-restauration-")]
+        assert len(reglages_ecartes) == 1
+        assert reglages_ecartes[0].read_bytes() == avant[cible / "paliers.yaml"]
+        assert (cible / "paliers.yaml").read_text() == "fictif: true\ngeneration: archive\n"
+    finally:
+        stockage.liberer()
+
+
+def test_echec_deplacement_sauvegarde_retablit_generation_et_preserve_ancienne_copie(
+        opsys_home, tmp_path, monkeypatch):
+    _peupler(opsys_home)
+    archive = exportation.exporter(opsys_home, tmp_path / "export.tar.gz", par="test-fictif").archive
+    cible = _autre_instance(monkeypatch, tmp_path, "cible-fictive")
+    stockage.migrer()
+    (cible / "paliers.yaml").write_text("fictif: true\ngeneration: actuelle\n")
+    stockage.liberer()
+    historique = cible / "paliers.yaml.avant-restauration-historique"
+    historique.write_text("fictif: true\ngeneration: historique\n")
+    avant = {p.name: p.read_bytes() for p in cible.iterdir() if p.is_file()}
+    remplacer = os.replace
+
+    def echec_de_sauvegarde(source, destination):
+        if Path(source) == cible / "paliers.yaml" and Path(destination).name.startswith(
+                "paliers.yaml.avant-restauration-"):
+            raise OSError("panne de mise de cote fictive")
+        return remplacer(source, destination)
+
+    monkeypatch.setattr(exportation.os, "replace", echec_de_sauvegarde)
+    with pytest.raises(OSError, match="panne de mise de cote fictive"):
+        exportation.restaurer(archive, cible, par="test-fictif", remplacer=True)
+
+    stockage.liberer()
+    assert {p.name: p.read_bytes() for p in cible.iterdir() if p.is_file()} == avant
+
+
+def test_echec_rollback_conserve_la_base_de_sauvegarde_et_l_historique(
+        opsys_home, tmp_path, monkeypatch):
+    _peupler(opsys_home)
+    archive = exportation.exporter(opsys_home, tmp_path / "export.tar.gz", par="test-fictif").archive
+    cible = _autre_instance(monkeypatch, tmp_path, "cible-fictive")
+    stockage.migrer()
+    (cible / "paliers.yaml").write_text("fictif: true\ngeneration: ancienne\n")
+    stockage.liberer()
+    base_avant = (cible / "opsys.db").read_bytes()
+    historique = cible / "opsys.db.avant-restauration-historique"
+    historique.write_bytes(b"fictif: generation historique")
+    remplacer = os.replace
+
+    def echec_pose_et_rollback(source, destination):
+        if Path(source).name == "paliers.yaml" and Path(destination) == cible / "paliers.yaml":
+            raise OSError("panne de pose fictive")
+        if Path(source).name.startswith("opsys.db.avant-restauration-") and Path(destination) == cible / "opsys.db":
+            raise OSError("panne de rollback fictive")
+        return remplacer(source, destination)
+
+    monkeypatch.setattr(exportation.os, "replace", echec_pose_et_rollback)
+    with pytest.raises(OSError, match="panne de rollback fictive"):
+        exportation.restaurer(archive, cible, par="test-fictif", remplacer=True)
+
+    stockage.liberer()
+    sauvegardes = [p for p in cible.glob("opsys.db.avant-restauration-*") if p != historique]
+    assert len(sauvegardes) == 1 and sauvegardes[0].read_bytes() == base_avant
+    assert historique.read_bytes() == b"fictif: generation historique"
+    assert (cible / "paliers.yaml").read_text() == "fictif: true\ngeneration: ancienne\n"

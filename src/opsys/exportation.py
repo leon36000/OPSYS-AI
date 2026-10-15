@@ -24,7 +24,7 @@ l'archive est aussi sensible que la base. Elle se protège comme la base : chiff
 
 La restauration est fail-closed : empreinte de l'archive, membres, SHA-256 de chaque fichier, intégrité de la
 base et révision de migration sont vérifiés AVANT de toucher à l'instance ; rien n'est écrasé sans `--remplacer` ;
-avec lui, les fichiers actuels sont mis de côté (suffixe `.avant-restauration-<horodatage>`), jamais supprimés
+avec lui, les fichiers actuels sont mis de côté (suffixe `.avant-restauration-<horodatage>-<unique>`), jamais supprimés
 (suppression définitive : frontière humaine, T3).
 """
 
@@ -393,7 +393,7 @@ def restaurer(archive: Path, home: Path, *, par: str, remplacer: bool = False, e
         if existants and not remplacer:
             raise ErreurExportation(
                 f"{', '.join(existants)} existe déjà dans l'instance : rien n'est écrasé. `--remplacer` met les "
-                "fichiers actuels de côté (suffixe .avant-restauration-<horodatage>), sans les supprimer. "
+                "fichiers actuels de côté (suffixe .avant-restauration-<horodatage>-<unique>), sans les supprimer. "
                 "Arrêtez d'abord le service."
             )
         stockage.liberer()
@@ -405,8 +405,15 @@ def restaurer(archive: Path, home: Path, *, par: str, remplacer: bool = False, e
                 for suffixe in ("", "-wal", "-shm"):
                     actuel = Path(str(cible) + suffixe)
                     if actuel.exists():
-                        ecarte = Path(f"{actuel}.avant-restauration-{instant}")
-                        os.replace(actuel, ecarte)
+                        descripteur, nom = tempfile.mkstemp(
+                            prefix=f"{actuel.name}.avant-restauration-{instant}-", dir=actuel.parent)
+                        os.close(descripteur)
+                        ecarte = Path(nom)
+                        try:
+                            os.replace(actuel, ecarte)
+                        except BaseException:
+                            ecarte.unlink(missing_ok=True)
+                            raise
                         mis_de_cote.append((actuel, ecarte))
             for nom, cible in cibles.items():
                 os.replace(dossier / nom, cible)
