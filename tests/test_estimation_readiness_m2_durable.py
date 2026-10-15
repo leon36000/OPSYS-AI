@@ -85,8 +85,8 @@ def _effects(session):
             "events_count": len(events), "events_sha256": _digest(events), "m3_entries": entries}
 
 
-@pytest.fixture
-def preparation_m2_m3(session, monkeypatch):
+def preparer_m2_m3(session, monkeypatch, *, outils_profil=("m3_estimer_projet",)):
+    """Native reusable preparation; default preserves the PG bootstrap contract."""
     monkeypatch.setenv("OPSYS_EVENEMENTS_REPARTITEUR", "0")
     deps = charger_departements(RACINE / "departments")
     m2.utiliser_stockage_durable()
@@ -98,7 +98,7 @@ def preparation_m2_m3(session, monkeypatch):
         approbations.fixer_mode(cnx, "m03-estimation", "autonome", ADMIN)
         agents.creer(cnx, deps, {
             "id": PROFILE, "departement": "m03-estimation", "responsabilite": "Readiness durable FICTIVE.",
-            "palier_modele": "standard", "outils": ["m3_estimer_projet"],
+            "palier_modele": "standard", "outils": list(outils_profil),
             "budget_jour": 200000, "budget_mois": 200000, "limite_tours": 4,
             "limite_reessais": 1, "limite_concurrence": 1, "declencheurs": [{"type": "manuel"}],
         }, par=ADMIN, mutation_id="readiness-create-fictif")
@@ -149,6 +149,12 @@ def preparation_m2_m3(session, monkeypatch):
             assert linked and refusal is None, (linked, refusal)
     return {"contracts": contracts, "device": device, "profile": profile, "cap3": cap3,
             "records": records, "deps": deps}
+
+
+@pytest.fixture
+def preparation_m2_m3(session, monkeypatch):
+    # PG bootstrap also calls this fixture.__wrapped__(session, monkeypatch).
+    return preparer_m2_m3(session, monkeypatch)
 
 
 def _current(session, contracts, marker_a, marker_b):
