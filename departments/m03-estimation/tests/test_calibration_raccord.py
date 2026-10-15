@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import sys
 from pathlib import Path
 
@@ -15,7 +16,7 @@ from m3_estimation import calibration_raccord, devis_durable, registre  # noqa: 
 from m3_estimation.outils import evaluer_calibration_cohortes  # noqa: E402
 
 
-def _registres_m3():
+def _registres_m3(*, accepter=True):
     devis = []
     journal = registre.Registre()
     charge = {
@@ -47,10 +48,11 @@ def _registres_m3():
         "0.20", "2025-12-01T12:00:00Z", devis, estimation_source_hash=source_hash,
     )
     assert verdict is None
-    accepte, verdict = devis_durable.marquer_devis_accepte(
-        devis_courant["devis_id"], "client-confirmation-fixture", "2025-12-02T12:00:00Z", devis,
-    )
-    assert verdict is None and accepte["statut"] == "accepte"
+    if accepter:
+        accepte, verdict = devis_durable.marquer_devis_accepte(
+            devis_courant["devis_id"], "client-confirmation-fixture", "2025-12-02T12:00:00Z", devis,
+        )
+        assert verdict is None and accepte["statut"] == "accepte"
     return journal, devis, source_hash
 
 
@@ -88,6 +90,54 @@ def test_raccord_resout_hash_exact_lead_devis_trace_et_laisse_candidate_inactive
     assert rapport["compteurs"]["observations_distinctes_valides"] == 1
     assert rapport["source_wct_ids"] == "registre_m03_estime_vs_reel"
     assert rapport["completude_corpus_m4"] == "non_prouvee"
+
+
+def test_raccord_exclut_brouillon_canonique_puis_accepte_meme_source_sans_muter_prix():
+    """Le seam reçoit une projection M4 de fixture : aucun chantier réel depuis un brouillon n'est simulé."""
+    journal, devis, source_hash = _registres_m3(accepter=False)
+    projection = _projection_m4()
+    devis_id = projection["observations"][0]["wct"]["devis_id"]
+    brouillon, verdict = devis_durable.lire_devis(devis, devis_id)
+    assert verdict is None and brouillon["statut"] == "brouillon"
+    assert brouillon["estimation_source_hash"] == source_hash
+    assert journal.valider_chaine()[0] is True
+    avant = copy.deepcopy((journal.lire(), devis, projection))
+
+    rapport = calibration_raccord.construire_rapport(
+        coupure_utc="2026-02-01T00:00:00Z", registre_estimations=journal,
+        registre_devis=devis, projections_m4=projection,
+    )
+    assert rapport["refus_jointure_m3"] == {"chaine_devis_non_valide": 1}
+    assert rapport["refus_projection_m4"] == []
+    assert rapport["compteurs"]["observations_distinctes_valides"] == 0
+    assert rapport["candidate_active"] is False
+    assert rapport["statut"] == "insuffisant"
+    assert (journal.lire(), devis, projection) == avant
+    relu, verdict = devis_durable.lire_devis(devis, devis_id)
+    assert verdict is None and relu == brouillon
+
+    # Seule l'acceptation canonique change : la source et le WCT concordant restent identiques.
+    accepte, verdict = devis_durable.marquer_devis_accepte(
+        devis_id, "client-confirmation-fixture", "2025-12-02T12:00:00Z", devis,
+    )
+    assert verdict is None and accepte["statut"] == "accepte"
+    assert accepte["cout_total"] == brouillon["cout_total"]
+    assert accepte["prix_total"] == brouillon["prix_total"]
+    assert accepte["estimation_source_hash"] == source_hash
+    apres_acceptation = copy.deepcopy((journal.lire(), devis, projection))
+    rapport_accepte = calibration_raccord.construire_rapport(
+        coupure_utc="2026-02-01T00:00:00Z", registre_estimations=journal,
+        registre_devis=devis, projections_m4=projection,
+    )
+    assert rapport_accepte["refus_jointure_m3"] == {}
+    assert rapport_accepte["refus_projection_m4"] == []
+    assert rapport_accepte["compteurs"]["observations_distinctes_valides"] == 1
+    assert rapport_accepte["candidate_active"] is False
+    assert (journal.lire(), devis, projection) == apres_acceptation
+    assert journal.lire() == avant[0] and projection == avant[2]
+    assert devis[0] == avant[1][0]
+    relu, verdict = devis_durable.lire_devis(devis, devis_id)
+    assert verdict is None and relu == accepte
 
 
 def test_raccord_refuse_source_hash_absent_meme_si_devis_et_lead_correspondent():
