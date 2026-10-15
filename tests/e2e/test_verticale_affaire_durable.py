@@ -1595,6 +1595,10 @@ def test_deux_affaires_natives_panne_ack_selective_et_reprise_sans_croisement(
     finaliser(chantier_a, lead_a, wct_a, "a", "130.00")
     assert _mesures(moteur, admin, wct_b) == mesures_b
     assert _apprentissage(moteur, admin, wct_b, coupure_utc=apprentissage_b["coupure_utc"]) == apprentissage_b
+    coupure_courante = moteur.horloge.maintenant.astimezone(dt.UTC).isoformat()
+    assert _apprentissage(moteur, admin, wct_b, coupure_utc=coupure_courante) == {
+        **apprentissage_b, "coupure_utc": coupure_courante,
+    }, "les effets ultérieurs de A ne doivent pas contaminer la mémoire courante de B"
     for wct, attendu in [(wct_a, Decimal("40")), (wct_b, Decimal("56"))]:
         assert -sum(Decimal(str(m["quantite"])) for m in mouvements(wct)) == attendu
     avant = _empreinte(moteur)
