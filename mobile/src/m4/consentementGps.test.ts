@@ -1,4 +1,8 @@
 import { DESCRIPTEURS_MUTATION } from "../outbox/descripteurs";
+import { DepotOutboxMemoire } from "../outbox/depot";
+import { avecProprietaire } from "../outbox/proprietaire";
+import { creerVidangeur } from "../outbox/vidangeur";
+import { invoquerOutil } from "../protocole/client";
 import { soumettreMutation } from "../outbox/mutation";
 import { selectionnerProchainesEnvoyables } from "../outbox/planification";
 import type { MutationOutbox } from "../outbox/types";
@@ -142,6 +146,11 @@ describe("ordre dans la file sortante", () => {
   });
 });
 
+function intentionGpsFictive(action: "donne" | "retire" = "retire"): MutationOutbox {
+  return { ...soumettreMutation(creerMutationConsentementGps({ technicienId: "marc.fictif", action }, () => "mutation-fictive", HORLOGE)),
+    proprietaire: "marc.fictif" };
+}
+
 describe("descripteur de la file sortante", () => {
   test("gps_consent_change -> m4_definir_consentement_gps (PLAN T1.4-k)", () => {
     expect(DESCRIPTEURS_MUTATION.get("gps_consent_change")?.tool).toBe("m4_definir_consentement_gps");
@@ -153,12 +162,12 @@ describe("descripteur de la file sortante", () => {
       technicien_id: "marc.fictif",
       action: "retire",
       horodatage: "2026-09-28T14:32:11+00:00",
-      ligne_id: "L1",
+      ligne_id: "c".repeat(64),
       actif: false,
-      tete_chaine: "t",
+      tete_chaine: "d".repeat(64),
     };
 
-    expect(interpreter({ ok: true, resultat: { accepte: true, resultat: accuse }, rejoue: false })).toEqual({
+    expect(interpreter({ ok: true, resultat: { accepte: true, resultat: accuse }, rejoue: false }, intentionGpsFictive())).toEqual({
       accepte: true,
       resume: accuse,
     });
@@ -178,12 +187,12 @@ describe("interpreterResultatDefinirConsentementGps", () => {
       technicien_id: "marc.fictif",
       action: "donne",
       horodatage: "2026-09-28T14:32:11+00:00",
-      ligne_id: "L1",
+      ligne_id: "c".repeat(64),
       actif: true,
-      tete_chaine: "t",
+      tete_chaine: "d".repeat(64),
     };
 
-    expect(interpreterResultatDefinirConsentementGps({ ok: true, resultat: { accepte: true, resultat: accuse } })).toEqual({
+    expect(interpreterResultatDefinirConsentementGps({ ok: true, resultat: { accepte: true, resultat: accuse } }, intentionGpsFictive("donne"))).toEqual({
       accepte: true,
       accuse,
     });
@@ -202,10 +211,10 @@ describe("interpreterResultatDefinirConsentementGps", () => {
     expect(resultat).toEqual({ accepte: false, verdict: { code, detail } });
   });
 
-  test("verdict sans code -> REJ-INCONNU, jamais un succès", () => {
+  test("verdict sans code reste inconnu et réessayable", () => {
     expect(interpreterResultatDefinirConsentementGps({ ok: true, resultat: { accepte: false } })).toEqual({
       accepte: false,
-      verdict: { code: "REJ-INCONNU", detail: "" },
+      verdict: { code: "accuse_invalide", detail: "Consentement GPS non confirmé : conserver la même intention et sa clé." },
     });
   });
 
@@ -216,9 +225,96 @@ describe("interpreterResultatDefinirConsentementGps", () => {
   });
 
   test.each([[null], [undefined], ["texte"], [42], [{}], [{ ok: true }]])(
-    "forme non reconnue %p -> succès sans accusé (le serveur a répondu 200), jamais un plantage",
+    "forme non reconnue %p reste inconnue, sans faux accusé",
     (brut) => {
-      expect(interpreterResultatDefinirConsentementGps(brut)).toEqual({ accepte: true, accuse: null });
+      expect(interpreterResultatDefinirConsentementGps(brut)).toMatchObject({ accepte: false, verdict: { code: "accuse_invalide" } });
     },
   );
+});
+
+const ACK_RETRAIT_FICTIF = { technicien_id: "marc.fictif", action: "retire",
+  horodatage: "2026-09-28T14:32:11+00:00", ligne_id: "c".repeat(64), actif: false, tete_chaine: "c".repeat(64) };
+const coupleGpsFictif = (accuse: unknown) => ({ ok: true, resultat: { accepte: true, resultat: accuse } });
+
+test.each<[string, unknown]>([
+  ["JSON nul", null],
+  ["enveloppe vide", {}],
+  ["accusé absent", coupleGpsFictif(null)],
+  ["autre personne", coupleGpsFictif({ ...ACK_RETRAIT_FICTIF, technicien_id: "autre.fictif" })],
+  ["retrait encore actif", coupleGpsFictif({ ...ACK_RETRAIT_FICTIF, actif: true })],
+])("CF025 — %s conserve le retrait inconnu puis accepte son accusé lié sans changer l'identité", async (_nom, brut) => {
+  const session = { urlBase: "https://gps.fictif.invalid", jeton: "jeton-fictif", appareilId: "appareil-fictif", personne: "marc.fictif" };
+  const depot = avecProprietaire(new DepotOutboxMemoire(), () => session.personne);
+  const intention = await depot.inserer(soumettreMutation(creerMutationConsentementGps(
+    { technicienId: session.personne, action: "retire" }, () => "00000000-0000-4000-8000-000000000001", HORLOGE)));
+  let reponse = brut;
+  let maintenant = HORLOGE.maintenant;
+  const appels: unknown[] = [];
+  const fetchFictif: typeof fetch = async (url, init) => {
+    expect(url).toBe(`${session.urlBase}/tools/invoke`);
+    const corps = JSON.parse(String(init?.body)); appels.push(corps);
+    return new Response(JSON.stringify({ ok: true, result: reponse }), { status: 200 });
+  };
+  const vidangeur = creerVidangeur({ depot, descripteurs: DESCRIPTEURS_MUTATION,
+    appelerOutil: invoquerOutil, fetchImpl: fetchFictif, session: () => session, maintenant: () => maintenant });
+  const attendue = { tool: "m4_definir_consentement_gps", args: intention.payload, idempotencyKey: intention.id,
+    deviceId: session.appareilId, deviceTimestamp: intention.createdAtLocal };
+  const rapport = await vidangeur.vidangerFileSortante();
+  expect(appels).toEqual([attendue]);
+  expect((await depot.obtenir(intention.id))?.proprietaire).toBe(session.personne);
+  expect(rapport).toMatchObject({ envoyees: [], remisesEnAttente: [intention.id], echecsPermanents: [], arret: null });
+  expect(await depot.obtenir(intention.id)).toEqual({ ...intention, statut: "en_attente", tentatives: 1,
+    prochaineTentativeA: "2026-09-28T14:32:11.000Z" });
+  // L'autorité reste légitime ; même personne, appareil, UUID, payload et heure lors de la reprise.
+  reponse = coupleGpsFictif(ACK_RETRAIT_FICTIF); maintenant = new Date("2026-09-28T14:33:00Z");
+  expect((await vidangeur.vidangerFileSortante()).envoyees).toEqual([intention.id]);
+  expect(appels).toEqual([attendue, attendue]);
+  const terminale = await depot.obtenir(intention.id);
+  expect(terminale).toEqual({ ...intention, statut: "envoyee", tentatives: 1,
+    prochaineTentativeA: "2026-09-28T14:32:11.000Z", resumeAccepte: ACK_RETRAIT_FICTIF });
+  expect((await vidangeur.vidangerFileSortante()).envoyees).toEqual([]);
+  expect(appels).toHaveLength(2); expect(await depot.obtenir(intention.id)).toEqual(terminale);
+});
+
+test.each([
+  { technicien_id: "autre.fictif" }, { action: "donne" }, { actif: true },
+  { actif: "false" }, { horodatage: "2026-02-30T12:00:00Z" }, { horodatage: "2026-09-28T12:00:00" },
+  { ligne_id: "L1" }, { tete_chaine: "" }, { champ_inattendu: true },
+])("CF025 — accusé mal lié ou mal formé %p ne confirme jamais le retrait", difference => {
+  expect(interpreterResultatDefinirConsentementGps(coupleGpsFictif({ ...ACK_RETRAIT_FICTIF, ...difference }), intentionGpsFictive()))
+    .toMatchObject({ accepte: false, verdict: { code: "accuse_invalide" } });
+});
+
+test("CF025 — contexte absent ou intention incohérente : aucune confirmation devinée", () => {
+  expect(interpreterResultatDefinirConsentementGps(coupleGpsFictif(ACK_RETRAIT_FICTIF)))
+    .toMatchObject({ accepte: false, verdict: { code: "accuse_invalide" } });
+  const originale = intentionGpsFictive();
+  for (const mutation of [{ ...originale, proprietaire: "autre.fictif" }, { ...originale, type: "punch_in" as const },
+    { ...originale, payload: { ...originale.payload, horodatage: "2026-09-28T12:00:00Z" } },
+    { ...originale, payload: { ...originale.payload, preuve: { fictif: true, reference: "autre" } } }]) {
+    expect(interpreterResultatDefinirConsentementGps(coupleGpsFictif(ACK_RETRAIT_FICTIF), mutation))
+      .toMatchObject({ accepte: false, verdict: { code: "accuse_invalide" } });
+  }
+});
+
+test.each([
+  { ok: true, tronque: true, resultat: { accepte: true, resultat: ACK_RETRAIT_FICTIF } },
+  { ok: false, erreur: "outil_inconnu" }, { ok: false, erreur: "erreur_inconnue" },
+  { ok: true, resultat: { accepte: false, verdict: { code: "REJ-INCONNU", detail: "fictif" } } },
+])("CF025 — sortie incertaine %p garde l'intention réessayable", brut => {
+  expect(interpreterResultatDefinirConsentementGps(brut, intentionGpsFictive()))
+    .toMatchObject({ accepte: false, verdict: { code: "accuse_invalide" } });
+});
+
+test("CF025 — lecture sans getter ni mutation ; reçu et heure serveur valides conservés", () => {
+  const mutation = intentionGpsFictive(); const copie = JSON.parse(JSON.stringify(mutation));
+  const getter = jest.fn(() => "marc.fictif");
+  const mauvais = { ...ACK_RETRAIT_FICTIF }; Object.defineProperty(mauvais, "technicien_id", { get: getter, enumerable: true });
+  expect(interpreterResultatDefinirConsentementGps(coupleGpsFictif(mauvais), mutation))
+    .toMatchObject({ accepte: false, verdict: { code: "accuse_invalide" } });
+  expect(getter).not.toHaveBeenCalled();
+  expect(ACK_RETRAIT_FICTIF.horodatage).not.toBe(mutation.createdAtLocal);
+  expect(interpreterResultatDefinirConsentementGps(coupleGpsFictif(ACK_RETRAIT_FICTIF), mutation))
+    .toEqual({ accepte: true, accuse: ACK_RETRAIT_FICTIF });
+  expect(mutation).toEqual(copie);
 });

@@ -1,3 +1,5 @@
+import { copierJsonLecture, JSON_LECTURE_INVALIDE } from "../protocole/jsonLecture";
+import { lireEnveloppeMetier } from "../protocole/enveloppeOutil";
 import { creerMutation, formaterHorodatageLocal } from "../outbox/mutation";
 import type { HorlogeAppareil } from "../outbox/mutation";
 import type { MutationOutbox } from "../outbox/types";
@@ -130,48 +132,55 @@ export type InterpretationConsentementGps =
   | { readonly accepte: true; readonly accuse: AccuseConsentementGpsM4 | null }
   | { readonly accepte: false; readonly verdict: VerdictServeurConsentementGps };
 
-function estObjet(valeur: unknown): valeur is Record<string, unknown> {
-  return typeof valeur === "object" && valeur !== null;
+const ACCUSE_INVALIDE: InterpretationConsentementGps = { accepte: false, verdict: {
+  code: "accuse_invalide", detail: "Consentement GPS non confirmé : conserver la même intention et sa clé.",
+} };
+const REFUS_EXPLICITES = new Set(["arguments_invalides", "mutation_conflit", "refus_metier", "hors_portee_role",
+  "REJ-IDENTITE-FOURNIE-DIFFERENTE", "REJ-IDENTITE-APPAREIL-INVALIDE", "REJ-CONSENTEMENT-INVALIDE"]);
+const CHAMPS_ACCUSE = ["technicien_id", "action", "horodatage", "ligne_id", "actif", "tete_chaine"];
+const empreinte = (v: unknown): v is string => typeof v === "string" && /^[0-9a-f]{64}$/.test(v);
+function estObjet(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
 }
 
-function texteOu(valeur: unknown, repli: string): string {
-  return typeof valeur === "string" ? valeur : repli;
+/** Même validation calendaire bornée que les autres accusés mobiles ; l'heure reste celle du serveur. */
+function instant(v: unknown): v is string {
+  if (typeof v !== "string") return false;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/.exec(v);
+  if (!m || !Number.isFinite(Date.parse(v))) return false;
+  const [annee, mois, jour, heure, minute, seconde] = m.slice(1, 7).map(Number);
+  if (annee < 1 || mois < 1 || mois > 12 || jour < 1 || jour > 31 || heure > 23 || minute > 59 || seconde > 59) return false;
+  const date = new Date(0); date.setUTCFullYear(annee, mois - 1, jour);
+  return date.getUTCFullYear() === annee && date.getUTCMonth() === mois - 1 && date.getUTCDate() === jour;
 }
 
-/**
- * Interprète la réponse BUSINESS de `m4_definir_consentement_gps` — distincte du succès/échec HTTP
- * de `/tools/invoke`. Même patron `depuis_couple` que `m4_pointer` (`interpreterResultatPointage`) :
- * un HTTP 200 `ok:true` peut être un REJET métier définitif (`REJ-IDENTITE-FOURNIE-DIFFERENTE`,
- * `REJ-CONSENTEMENT-INVALIDE`, `REJ-IDENTITE-APPAREIL-INVALIDE`…) qu'il faut afficher tel quel, jamais
- * comme un succès silencieux : un retrait qui n'a pas eu lieu doit se voir (R12 §4).
- *
- * Forme non reconnue -> SUCCÈS sans accusé (le serveur a répondu HTTP 200) plutôt qu'un faux échec ;
- * même choix documenté que `interpreterResultatPointage`.
- */
-export function interpreterResultatDefinirConsentementGps(resultatBrut: unknown): InterpretationConsentementGps {
-  const enveloppe = estObjet(resultatBrut) ? resultatBrut : {};
-
-  if (enveloppe.ok === false) {
-    return {
-      accepte: false,
-      verdict: { code: texteOu(enveloppe.erreur, "erreur_inconnue"), detail: texteOu(enveloppe.details, "") },
-    };
+/** Une réponse inconnue ne confirme jamais un retrait. Le contexte est l'intention persistée,
+ * pas une nouvelle identité. Le serveur emploie sa réception : ne pas égaler son heure à celle
+ * de l'appareil. Les empreintes sont validées syntaxiquement, sans prétendre vérifier la chaîne. */
+export function interpreterResultatDefinirConsentementGps(
+  resultatBrut: unknown, mutation?: MutationOutbox,
+): InterpretationConsentementGps {
+  const brut = copierJsonLecture(resultatBrut);
+  if (brut === JSON_LECTURE_INVALIDE) return ACCUSE_INVALIDE;
+  const lecture = lireEnveloppeMetier(brut);
+  if (!lecture.ok) {
+    return lecture.genre === "refus" && REFUS_EXPLICITES.has(lecture.verdict.code)
+      ? { accepte: false, verdict: lecture.verdict } : ACCUSE_INVALIDE;
   }
-
-  const resultatMetier = estObjet(enveloppe.resultat) ? enveloppe.resultat : undefined;
-
-  if (resultatMetier?.accepte === false) {
-    const verdictBrut = estObjet(resultatMetier.verdict) ? resultatMetier.verdict : {};
-    return {
-      accepte: false,
-      verdict: { code: texteOu(verdictBrut.code, "REJ-INCONNU"), detail: texteOu(verdictBrut.detail, "") },
-    };
-  }
-
-  if (resultatMetier?.accepte === true) {
-    const accuseBrut = estObjet(resultatMetier.resultat) ? (resultatMetier.resultat as unknown) : null;
-    return { accepte: true, accuse: accuseBrut as AccuseConsentementGpsM4 | null };
-  }
-
-  return { accepte: true, accuse: null };
+  const copie = copierJsonLecture(mutation);
+  const accuse = lecture.valeur;
+  if (copie === JSON_LECTURE_INVALIDE || !estObjet(copie) || !estObjet(copie.payload) || !estObjet(accuse)) return ACCUSE_INVALIDE;
+  const payload = copie.payload;
+  if (copie.type !== "gps_consent_change" || copie.chantierId !== CHANTIER_ID_CONSENTEMENT_GPS ||
+    typeof copie.id !== "string" || copie.id.trim() === "" || typeof copie.proprietaire !== "string" || copie.proprietaire.trim() === "" ||
+    payload.technicien_id !== copie.proprietaire || (payload.action !== "donne" && payload.action !== "retire") ||
+    payload.horodatage !== copie.createdAtLocal || !instant(copie.createdAtLocal) ||
+    typeof payload.version_politique !== "string" || payload.version_politique.trim() === "" ||
+    !estObjet(payload.preuve) || Object.keys(payload.preuve).length !== 2 || payload.preuve.fictif !== true ||
+    payload.preuve.reference !== `${PREFIXE_REFERENCE_PREUVE_CONSENTEMENT}${copie.id}` ||
+    Object.keys(accuse).length !== CHAMPS_ACCUSE.length || !CHAMPS_ACCUSE.every(c => Object.hasOwn(accuse, c)) ||
+    accuse.technicien_id !== copie.proprietaire || accuse.action !== payload.action || accuse.actif !== (payload.action === "donne") ||
+    !instant(accuse.horodatage) || !empreinte(accuse.ligne_id) || !empreinte(accuse.tete_chaine)) return ACCUSE_INVALIDE;
+  return { accepte: true, accuse: { technicien_id: copie.proprietaire, action: payload.action,
+    horodatage: accuse.horodatage, ligne_id: accuse.ligne_id, actif: payload.action === "donne", tete_chaine: accuse.tete_chaine } };
 }

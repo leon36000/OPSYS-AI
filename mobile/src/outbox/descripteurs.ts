@@ -97,8 +97,8 @@ function versInterpretationGeneriqueMateriaux(resultatBrut: unknown, mutation?: 
 
 /** Même rôle, pour `m4_definir_consentement_gps` (`src/m4/consentementGps.ts`, PLAN T1.4-k) —
  * `consent.tsx`. `resume` porte l'accusé (`actif` : l'état APRÈS l'appel). */
-function versInterpretationGeneriqueConsentementGps(resultatBrut: unknown): InterpretationResultatMetier {
-  const interpretation = interpreterResultatDefinirConsentementGps(resultatBrut);
+function versInterpretationGeneriqueConsentementGps(resultatBrut: unknown, mutation?: MutationOutbox): InterpretationResultatMetier {
+  const interpretation = interpreterResultatDefinirConsentementGps(resultatBrut, mutation);
   if (interpretation.accepte) {
     return { accepte: true, resume: interpretation.accuse };
   }
