@@ -13,13 +13,16 @@ import base64
 import hashlib
 import socket
 import struct
+import sys
 import zlib
+from pathlib import Path
 
 import pytest
 
 from opsys import stockage
 from opsys.outils import executer_atomique
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "tests/fixtures"))
 
 @pytest.fixture
 def base_durable(tmp_path, monkeypatch):

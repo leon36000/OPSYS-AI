@@ -19,6 +19,7 @@ import contextlib
 import datetime as dt
 
 import pytest
+from m2_preparation_estimation import marqueur_m2
 from m3_estimation.outils import outils as outils_m3
 from m3_estimation.outils import registre_production as registre_m3_production
 from m4_field_ops import calibration_projection, cedule
@@ -640,10 +641,7 @@ def test_m3_cohorte_jointure_positive_depuis_estimation_devis_et_wct_durables(
             "type_travaux": "renovation_totale", "ville": VILLE, "canal": "formulaire",
             "contact": {"nom": "Client", "telephone": "5145550101"}, "urgence_declaree": False,
         },
-        "marqueur": {
-            "readiness_ok": True, "lead_id": lead_id, "hash_tete_registre": "f" * 64,
-            "horodatage": "2025-06-01T12:00:00Z", "empreinte": "ab" * 32,
-        },
+        "marqueur": marqueur_m2(lead_id, type_travaux="renovation_totale", ville=VILLE),
         "photos": [{
             "photo_id": "photo-calibration-r32", "resolution_largeur": 3000, "resolution_hauteur": 2000,
             "eclairage": 7, "angle": "face", "reference_echelle": {"type": "porte", "dimensions_connues": True},

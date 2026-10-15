@@ -85,6 +85,7 @@ def racines_fermeture_m3(racine: Path) -> dict[str, Path]:
         "docs": racine / "docs",
         "pyproject.toml": racine / "pyproject.toml",
         "conftest.py": racine / "conftest.py",
+        "fixture:m2_preparation_estimation": racine / "tests/fixtures/m2_preparation_estimation.py",
     }
     for departement in sorted(departements.iterdir(), key=lambda item: item.name):
         if departement.name != "m03-estimation":

@@ -21,6 +21,14 @@ from campagne_m3 import (
 )
 
 
+def _installer_fixture_commune_m2(racine):
+    """Dépendance réelle du harnais, copiée dans chaque dépôt fictif minimal."""
+    source = Path(__file__).resolve().parents[3] / "tests/fixtures/m2_preparation_estimation.py"
+    cible = racine / "tests/fixtures/m2_preparation_estimation.py"
+    cible.parent.mkdir(parents=True)
+    cible.write_bytes(source.read_bytes())
+
+
 def _spec(*, scenario: str = "nominal", argv: tuple[str, ...] = ("muter_x.py",)):
     return SpecificationExecution(
         outil="muter_x.py",
@@ -314,6 +322,7 @@ def test_la_fermeture_couvre_src_docs_pyproject_conftest_et_voisins(tmp_path):
         (dossier / "fichier.txt").write_text(nom)
     (racine / "pyproject.toml").write_text("[tool.pytest.ini_options]\n")
     (racine / "conftest.py").write_text("# fixtures\n")
+    _installer_fixture_commune_m2(racine)
     def capture():
         return EmpreinteEntrees.capturer(racines_fermeture_m3(racine))
 
@@ -325,11 +334,16 @@ def test_la_fermeture_couvre_src_docs_pyproject_conftest_et_voisins(tmp_path):
         "docs",
         "pyproject.toml",
         "conftest.py",
+        "fixture:m2_preparation_estimation",
     } <= noms
     sha_avant = capture().sha256
     (voisin / "src/contrat.py").write_text("contrat = 2\n")
 
     assert capture().sha256 != sha_avant
+    sha_apres_voisin = capture().sha256
+    fixture = racine / "tests/fixtures/m2_preparation_estimation.py"
+    fixture.write_bytes(fixture.read_bytes() + b"\n# drift de fixture fictive\n")
+    assert capture().sha256 != sha_apres_voisin, "la dépendance M2 doit invalider la preuve"
 
 
 def test_un_recu_durable_est_produit_par_un_sous_processus_reel(tmp_path):
@@ -443,6 +457,7 @@ def test_adaptateur_reutilise_une_copie_env_sans_pytest_current_test(
     (racine / "docs").mkdir()
     (racine / "pyproject.toml").write_text("[tool.pytest.ini_options]\n", encoding="utf-8")
     (racine / "conftest.py").write_text("", encoding="utf-8")
+    _installer_fixture_commune_m2(racine)
     outil = outils / "probe_environnement.py"
     outil.write_text(
         "import json, os, pathlib, sys\n"
@@ -632,6 +647,7 @@ def test_une_copie_persistante_de_scenario_est_stable_et_son_drift_refuse(tmp_pa
     (racine / "docs").mkdir()
     (racine / "pyproject.toml").write_text("[tool.pytest.ini_options]\n")
     (racine / "conftest.py").write_text("")
+    _installer_fixture_commune_m2(racine)
     (m3 / "src/m3_estimation/source.py").write_text("valeur = 1\n")
     destination = tmp_path / "run" / "scenario-rouge"
 
@@ -661,6 +677,7 @@ def test_une_copie_temporaire_n_est_pas_confondue_avec_une_reprise(tmp_path):
     (racine / "docs").mkdir()
     (racine / "pyproject.toml").write_text("[tool.pytest.ini_options]\n")
     (racine / "conftest.py").write_text("")
+    _installer_fixture_commune_m2(racine)
     source = m3 / "src/m3_estimation/source.py"
     source.write_text("valeur = 1\n")
 
@@ -683,6 +700,7 @@ def test_une_reprise_persistante_sans_sceau_est_refusee(tmp_path):
     (racine / "docs").mkdir()
     (racine / "pyproject.toml").write_text("[tool.pytest.ini_options]\n")
     (racine / "conftest.py").write_text("")
+    _installer_fixture_commune_m2(racine)
     (m3 / "src/m3_estimation/source.py").write_text("valeur = 1\n")
     destination = tmp_path / "run" / "sans-sceau"
 

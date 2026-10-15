@@ -35,7 +35,14 @@ locales : M2 1 813 réussites ; M3 2 252 réussites et neuf exclusions explicite
 Ruff et le vérificateur métier passent. Les reçus rouges et les préparations
 invalides sont conservés séparément ; ces comptes ne sont pas des capacités livrées.
 
-**PostgreSQL natif reste à qualifier sur le nouveau commit exact.** Sept cas sont
+Le commit `847e0485b40f4289e1746e8fcc0c5eb7174e8ef3` a exécuté **31 cas PostgreSQL
+natifs réussis, sans exclusion**, dont les sept nouveaux cas ci-dessous (CI
+`38749365671`, tentative 1, 61,15 s). Sa CI a aussi révélé des fixtures de mini-dépôts
+M3 et un ancien faux marqueur M4 : les corrections de ces tests et de la fermeture
+des entrées de preuve restent à qualifier sur le commit de continuation. Le code
+de production et les contre-tests PG restent inchangés dans ce suivi.
+
+Sept cas sont
 sélectionnés dans le job existant : les deux ordres M2/M3, deux producteurs M2,
 rollback de savepoint, deux niveaux de snapshot refusés et autocommit refusé.
 Le contrôle strict passe de 24 à 31 cas au total, sans accepter skip, erreur ou échec.
