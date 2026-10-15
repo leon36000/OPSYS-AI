@@ -25,6 +25,7 @@ from pathlib import Path
 
 import pytest
 from jsonschema import Draft202012Validator
+from m2_preparation_estimation import marqueur_m2
 from sqlalchemy import func, select, update
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
@@ -659,8 +660,7 @@ def _creer_devis_source_revue(*, photos_valides=False, legacy=False, remplacer_f
                     "type_travaux": "ravalement", "ville": "Quebec", "canal": "formulaire_web",
                     "contact": {"nom": "Client fictif", "telephone": "555-0101"},
                     "urgence_declaree": False},
-        "marqueur": {"readiness_ok": True, "lead_id": lead_id, "hash_tete_registre": "f" * 64,
-                     "horodatage": _HORODATAGE, "empreinte": "a" * 64},
+        "marqueur": marqueur_m2(lead_id),
         "photos": [{"photo_id": "p-fictif", "resolution_largeur": 3000 if photos_valides else 640,
                     "resolution_hauteur": 2000, "eclairage": 7, "angle": "face",
                     "reference_echelle": {"type": "porte", "dimensions_connues": True}

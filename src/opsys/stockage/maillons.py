@@ -29,6 +29,34 @@ class EcritureConcurrente(RuntimeError):
     """Un autre processus a écrit au même rang : la transaction est annulée, l'appel est à rejouer."""
 
 
+_CLE_VERROU_M2_PRINCIPAL = int.from_bytes(
+    sha256(b"opsys:m02-revenue-crm:principal:readiness:v1").digest()[:8], "big", signed=True,
+)
+
+
+def _verrouiller_m2_principal(cnx: Connection, *, partage: bool = False) -> None:
+    """Garde commune aux lecteurs d'estimation et producteurs du seul registre M2.
+
+    Le verrou appartient à la transaction courante, jamais à une session du pool.
+    SQLite possède déjà BEGIN IMMEDIATE ; PostgreSQL exige la coopération des append.
+    Un rollback de savepoint peut libérer un verrou acquis après ce savepoint.
+    """
+    if connexion_courante() is not cnx:
+        raise RuntimeError("la garde M2 exige la transaction courante")
+    if cnx.dialect.name == "postgresql":
+        # Une snapshot plus ancienne que l'attente rendrait la relecture périmée.
+        # get_isolation_level() seul ne révèle pas le mode DBAPI autocommit.
+        if (
+            cnx.get_isolation_level() != "READ COMMITTED"
+            or getattr(cnx.connection.dbapi_connection, "autocommit", None) is not False
+        ):
+            raise ValueError("la garde M2 exige READ COMMITTED sans autocommit")
+        verrou = func.pg_advisory_xact_lock_shared if partage else func.pg_advisory_xact_lock
+        cnx.execute(select(verrou(_CLE_VERROU_M2_PRINCIPAL)))
+    elif cnx.dialect.name != "sqlite":
+        raise ValueError("backend non qualifié pour la garde M2")
+
+
 class MaillonsDurables:
     def __init__(self, departement: str, registre: str = "principal") -> None:
         if not departement or not registre:
@@ -78,11 +106,26 @@ class MaillonsDurables:
             raise ValueError("rang_attendu doit être un entier positif ou nul")
         texte = codec.encoder(maillon)
         with self._cnx() as cnx:
+            principal_m2 = self.departement == "m02-revenue-crm" and self.registre == "principal"
+            if principal_m2:
+                _verrouiller_m2_principal(cnx)
             rang = len(self)
             if rang_attendu is not None and rang != rang_attendu:
                 raise EcritureConcurrente(
                     f"rang attendu {rang_attendu} devenu {rang} dans {self.departement}/{self.registre}"
                 )
+            if principal_m2:
+                texte_tete = cnx.execute(
+                    select(REGISTRES.c.maillon).where(self._filtre())
+                    .order_by(REGISTRES.c.rang.desc()).limit(1)
+                ).scalar_one_or_none()
+                precedent = codec.decoder(texte_tete)["ligne_id"] if texte_tete is not None else None
+                if (
+                    not isinstance(maillon, dict)
+                    or "precedent_ligne_id" not in maillon
+                    or maillon["precedent_ligne_id"] != precedent
+                ):
+                    raise EcritureConcurrente("tête M2 modifiée depuis la préparation du maillon")
             try:
                 with cnx.begin_nested():
                     cnx.execute(insert(REGISTRES).values(

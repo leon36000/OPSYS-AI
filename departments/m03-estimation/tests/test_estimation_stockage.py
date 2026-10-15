@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from m2_preparation_estimation import marqueur_m2
 from sqlalchemy import func, select
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
@@ -50,13 +51,7 @@ def _contrat(**surcharges):
 
 
 def _marqueur(**surcharges):
-    marqueur = {
-        "readiness_ok": True,
-        "lead_id": "lead-stock-001",
-        "hash_tete_registre": "f" * 64,
-        "horodatage": "2026-09-28T10:00:00-04:00",
-        "empreinte": "a" * 64,
-    }
+    marqueur = marqueur_m2("lead-stock-001")
     marqueur.update(surcharges)
     return marqueur
 

@@ -20,6 +20,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from m2_preparation_estimation import marqueur_m2
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
@@ -107,13 +108,7 @@ def _contrat(**surcharges):
 
 
 def _marqueur(**surcharges):
-    marqueur = {
-        "readiness_ok": True,
-        "lead_id": "lead-identite-001",
-        "hash_tete_registre": "f" * 64,
-        "horodatage": "2026-09-28T10:00:00-04:00",
-        "empreinte": "a" * 64,
-    }
+    marqueur = marqueur_m2("lead-identite-001")
     marqueur.update(surcharges)
     return marqueur
 

@@ -27,6 +27,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
+from m2_preparation_estimation import marqueur_m2
 from sqlalchemy import func, select
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
@@ -127,10 +128,7 @@ def _estimer(**surcharges):
             "canal": "formulaire_web", "contact": {"nom": "Durand", "telephone": "5145550000"},
             "urgence_declaree": False,
         },
-        "marqueur": {
-            "readiness_ok": True, "lead_id": LEAD, "hash_tete_registre": "f" * 64,
-            "horodatage": "2026-09-28T10:00:00-04:00", "empreinte": "a" * 64,
-        },
+        "marqueur": marqueur_m2(LEAD),
         # UNE photo, sans objet d'échelle : `MONO_VUE_BORNES_LARGES`, l'incertitude de mesure la plus haute
         "photos": [{
             "photo_id": "p1", "resolution_largeur": 3000, "resolution_hauteur": 2000, "eclairage": 7,

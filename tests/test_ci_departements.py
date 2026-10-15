@@ -218,8 +218,8 @@ def test_les_outils_de_preuve_de_m3_tournent_une_fois_et_une_seule():
 
 @pytest.mark.parametrize(
     "nombre,etat,accepte",
-    [(24, "ok", True), (0, "ok", False), (23, "ok", False), (25, "ok", False),
-     (24, "skipped", False), (24, "failure", False), (24, "error", False)],
+    [(31, "ok", True), (0, "ok", False), (30, "ok", False), (32, "ok", False),
+     (31, "skipped", False), (31, "failure", False), (31, "error", False)],
 )
 def test_la_preuve_postgresql_exige_des_scenarios_executes_sans_ignorance(
     tmp_path, monkeypatch, nombre, etat, accepte,
@@ -237,6 +237,7 @@ def test_la_preuve_postgresql_exige_des_scenarios_executes_sans_ignorance(
     assert "tests/e2e/test_m9_snapshot_concurrent.py" in commande
     assert "tests/e2e/test_m9_ingestion_concurrent.py" in commande
     assert "tests/e2e/test_bus_publication_concurrente.py" in commande
+    assert "tests/e2e/test_readiness_m2_m3_concurrente.py" in commande
     assert "tests/e2e/test_m8_ingestion_reprise_concurrente.py" in commande
     assert "tests/e2e/test_m5_mouvement_concurrent.py" in commande
     assert "tests/e2e/test_m5_facture_brouillon_concurrent.py" in commande

@@ -16,6 +16,7 @@ import datetime as dt
 import json
 
 import pytest
+from m2_preparation_estimation import marqueur_m2
 from sqlalchemy import func, insert, select, update
 
 from opsys import evenements, stockage
@@ -86,18 +87,14 @@ def _drainer(deps, *, max_tours: int = 15, pas_s: int = 90) -> dict:
 
 
 def _estimer(deps, *, quantite=40, lead_id="lead-fictif-t2-3-e", bareme=None):
-    """M3 estime par l'outil RÉEL. Le marqueur est structurellement valide : M3 ne le vérifie pas
-    contre le registre de M2 (limite déclarée, DA-M3-11)."""
+    """M3 estime par l'outil RÉEL, après préparation réelle du lead au registre M2 canonique."""
     reponse = executer_atomique(_outils(deps, "m03-estimation")["m3_estimer_projet"], {
         "contrat": {
             "lead_id": lead_id, "conversation_id": f"conv-{lead_id}", "type_travaux": "renovation_totale",
             "ville": "Repentigny", "canal": "telephone",
             "contact": {"nom": "Client Fictif", "telephone": "418-555-0100"}, "urgence_declaree": False,
         },
-        "marqueur": {
-            "readiness_ok": True, "lead_id": lead_id, "hash_tete_registre": "f" * 64,
-            "horodatage": _iso(-600), "empreinte": "ab" * 32,
-        },
+        "marqueur": marqueur_m2(lead_id, type_travaux="renovation_totale", ville="Repentigny"),
         "photos": [{
             "photo_id": "p1", "resolution_largeur": 3000, "resolution_hauteur": 2000, "eclairage": 7,
             "angle": "face", "reference_echelle": {"type": "porte", "dimensions_connues": True},

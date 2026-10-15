@@ -21,7 +21,7 @@ from typing import Any
 import yaml
 from sqlalchemy import select
 
-from opsys import contexte, evenements, identite, jetons, stockage, taxonomie
+from opsys import contexte, evenements, identite, jetons, readiness_m2, stockage, taxonomie
 from opsys.approbations import approbateur_en_cours
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 from opsys.stockage import codec
@@ -412,7 +412,9 @@ def estimer_projet(
     Monte Carlo, plancher, alerte REFERENCE_ECHELLE_ABSENTE, durée main-d'œuvre, prix recommandé,
     signal de relance M2, registre, contrat gelé EstimationV1) ; cette fonction ne fait que choisir
     le support durable — même patron que `creer_devis`/`lire_devis` ci-dessous pour le registre des
-    devis.
+    devis. À la frontière durable, M2 est relu par son vérificateur canonique : un
+    marqueur périmé ou falsifié est refusé avant calcul et effet, sous une garde conservée
+    jusqu’à la fin de la transaction. Le validateur pur reste structurel.
 
     Projection par l'identité authentifiée (PLAN T1.4-c4, `_vue_projection_effective`) : résolue
     AVANT tout appel à l'orchestrateur, pour qu'une identité d'appareil périmée n'écrive jamais au
@@ -434,22 +436,35 @@ def estimer_projet(
     vue = _vue_projection_effective(None)
     if not vue["accepte"]:
         return {"etape": "identite_appareil", "accepte": False, "verdict": vue["verdict"]}
-    calibration_candidate, erreur_calibration = _calibration_active_pour_demande(
-        contrat, bareme, quantite,
-    )
-    if erreur_calibration is not None:
-        return {"etape": "calibration_active", "accepte": False,
-                "raisons": [erreur_calibration], "candidate_active": False}
-    resultat = estimation.orchestrer_estimation(
-        contrat, marqueur, photos, seuils, bareme, quantite, plancher_rentable,
-        registre_production(), graine, taux_marge,
-        taux_marge_scenarios, _taux_scenarios_configures(), _seuils_revue(), calibration_candidate,
-    )
-    if resultat.get("accepte") is True and resultat.get("besoins_materiaux") is not None:
-        _publier_besoins_materiaux(resultat["besoins_materiaux"])
-    if vue["role"] == "employe" and resultat.get("accepte") is True:
-        return _projeter_estimation_employe(resultat)
-    return resultat
+    with stockage.transaction() as cnx:
+        if not readiness_m2.verifier_preparation_estimation(cnx, contrat, marqueur):
+            return {
+                "etape": "readiness_m2", "accepte": False,
+                "verdict": verdicts.construire_verdict(
+                    "REJ-READINESS-NON-CONSTATEE",
+                    detail="Réévaluer la préparation commerciale actuelle du lead dans M2.",
+                ),
+            }
+        # Une attente du verrou M2 n'entretient pas une identité révoquée en vie.
+        vue = _vue_projection_effective(None)
+        if not vue["accepte"]:
+            return {"etape": "identite_appareil", "accepte": False, "verdict": vue["verdict"]}
+        calibration_candidate, erreur_calibration = _calibration_active_pour_demande(
+            contrat, bareme, quantite,
+        )
+        if erreur_calibration is not None:
+            return {"etape": "calibration_active", "accepte": False,
+                    "raisons": [erreur_calibration], "candidate_active": False}
+        resultat = estimation.orchestrer_estimation(
+            contrat, marqueur, photos, seuils, bareme, quantite, plancher_rentable,
+            registre_production(), graine, taux_marge,
+            taux_marge_scenarios, _taux_scenarios_configures(), _seuils_revue(), calibration_candidate,
+        )
+        if resultat.get("accepte") is True and resultat.get("besoins_materiaux") is not None:
+            _publier_besoins_materiaux(resultat["besoins_materiaux"])
+        if vue["role"] == "employe" and resultat.get("accepte") is True:
+            return _projeter_estimation_employe(resultat)
+        return resultat
 
 
 def _publier_besoins_materiaux(contrat: dict[str, Any]) -> str:

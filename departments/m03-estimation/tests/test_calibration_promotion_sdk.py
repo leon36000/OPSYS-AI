@@ -20,6 +20,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
+from m2_preparation_estimation import marqueur_m2
 
 _SRC_M3 = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC_M3) not in sys.path:
@@ -84,10 +85,7 @@ def _estimation_et_devis(par_nom: dict[str, object], index: int) -> tuple[str, s
             "type_travaux": "renovation_totale", "ville": "Montreal", "canal": "formulaire",
             "contact": {"nom": "Client fictif", "telephone": "5145550101"}, "urgence_declaree": False,
         },
-        "marqueur": {
-            "readiness_ok": True, "lead_id": lead_id, "hash_tete_registre": "f" * 64,
-            "horodatage": "2025-06-01T12:00:00Z", "empreinte": "ab" * 32,
-        },
+        "marqueur": marqueur_m2(lead_id, type_travaux="renovation_totale", ville="Montreal"),
         "photos": [{
             "photo_id": f"photo-cal-promo-{index:03d}", "resolution_largeur": 3000,
             "resolution_hauteur": 2000, "eclairage": 7, "angle": "face",
@@ -299,9 +297,7 @@ def test_capacites_real_m4_train_holdout_n4_activation_consumption_rollback(base
                 "type_travaux": "renovation_totale", "ville": "Montreal", "canal": "formulaire",
                 "contact": {"nom": "Client fictif", "telephone": "5145550101"}, "urgence_declaree": False,
             },
-            "marqueur": {"readiness_ok": True, "lead_id": "LEAD-CAL-PROMO-ACTIVE",
-                         "hash_tete_registre": "f" * 64, "horodatage": "2025-06-01T12:00:00Z",
-                         "empreinte": "ab" * 32},
+            "marqueur": marqueur_m2("LEAD-CAL-PROMO-ACTIVE", type_travaux="renovation_totale", ville="Montreal"),
             "photos": [{"photo_id": "photo-active", "resolution_largeur": 3000, "resolution_hauteur": 2000,
                          "eclairage": 7, "angle": "face",
                          "reference_echelle": {"type": "porte", "dimensions_connues": True}}],
@@ -341,9 +337,7 @@ def test_capacites_real_m4_train_holdout_n4_activation_consumption_rollback(base
                 "type_travaux": "renovation_totale", "ville": "Montreal", "canal": "formulaire",
                 "contact": {"nom": "Client fictif", "telephone": "5145550101"}, "urgence_declaree": False,
             },
-            "marqueur": {"readiness_ok": True, "lead_id": "LEAD-CAL-PROMO-POST-ROLLBACK",
-                         "hash_tete_registre": "f" * 64, "horodatage": "2025-06-01T12:00:00Z",
-                         "empreinte": "ab" * 32},
+            "marqueur": marqueur_m2("LEAD-CAL-PROMO-POST-ROLLBACK", type_travaux="renovation_totale", ville="Montreal"),
             "photos": [{"photo_id": "photo-post-rollback", "resolution_largeur": 3000,
                          "resolution_hauteur": 2000, "eclairage": 7, "angle": "face",
                          "reference_echelle": {"type": "porte", "dimensions_connues": True}}],

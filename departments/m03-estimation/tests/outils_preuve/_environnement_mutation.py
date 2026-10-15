@@ -79,6 +79,10 @@ class EnvironnementMutation:
             if dossier is not None
             else pathlib.Path(tempfile.mkdtemp(prefix="m3_mutation_"))
         )
+        fixture_m2 = self.racine_reelle / "tests" / "fixtures" / "m2_preparation_estimation.py"
+        if not fixture_m2.is_file() or fixture_m2.is_symlink():
+            raise FileNotFoundError(f"fixture commune M2 introuvable : {fixture_m2}")
+        copie_fixture_m2 = self.dossier / "tests" / "fixtures" / fixture_m2.name
         source_hash = _empreinte_arbre(vrai_departement)
         marqueur_source = self.dossier / ".m3-source.sha256"
         marqueur_scenario = self.dossier / ".m3-scenario.sha256"
@@ -90,6 +94,12 @@ class EnvironnementMutation:
                 raise AssertionError("copie de scénario persistante incomplète")
             if marqueur_scenario.read_text().strip() != _empreinte_arbre(self.dossier_departement):
                 raise AssertionError("copie de scénario persistante modifiée")
+            if (
+                not copie_fixture_m2.is_file()
+                or copie_fixture_m2.is_symlink()
+                or copie_fixture_m2.read_bytes() != fixture_m2.read_bytes()
+            ):
+                raise AssertionError("copie persistante de la fixture M2 absente ou périmée")
             self.dossier_source = self.dossier_departement / "src" / "m3_estimation"
             self.dossier_tests = self.dossier_departement / "tests"
             return
@@ -126,6 +136,10 @@ class EnvironnementMutation:
         # requis par les tests de leads v2). Même motif, même lecture seule : sans ce lien, la copie
         # échoue à `fixture 'declarer_services' not found` AVANT tout sabotage.
         (self.dossier / "conftest.py").symlink_to(self.racine_reelle / "conftest.py")
+        # Le conftest M3 importe cette seule fixture depuis le faux root. Copie locale :
+        # aucun lien permettant une écriture dans les tests réels, aucun corpus de preuves.
+        copie_fixture_m2.parent.mkdir(parents=True)
+        shutil.copyfile(fixture_m2, copie_fixture_m2)
 
         self.dossier_departement = departements / "m03-estimation"
         self.dossier_source = self.dossier_departement / "src" / "m3_estimation"

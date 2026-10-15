@@ -23,6 +23,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from m2_preparation_estimation import marqueur_m2
 
 _SRC = Path(__file__).resolve().parents[1] / "src"
 if str(_SRC) not in sys.path:
@@ -57,10 +58,7 @@ def _arguments(**surcharges):
             "type_travaux": "ravalement", "ville": "Quebec", "canal": "formulaire_web",
             "contact": {"nom": "Durand", "telephone": "5145550000"}, "urgence_declaree": False,
         },
-        "marqueur": {
-            "readiness_ok": True, "lead_id": "lead-outil-scenarios-001", "hash_tete_registre": "f" * 64,
-            "horodatage": "2026-09-28T10:00:00-04:00", "empreinte": "a" * 64,
-        },
+        "marqueur": marqueur_m2("lead-outil-scenarios-001"),
         "photos": [{
             "photo_id": "p1", "resolution_largeur": 3000, "resolution_hauteur": 2000, "eclairage": 7,
             "angle": "face", "reference_echelle": {"type": "porte", "dimensions_connues": True},

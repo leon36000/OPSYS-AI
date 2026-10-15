@@ -662,9 +662,15 @@ def test_empreinte_de_src_et_tests_identique_apres_confection_d_une_epreuve():
     T0.12-suite — la fabrication puis la destruction de la copie — du bruit d'une
     batterie complète, déjà éprouvée ailleurs dans ce fichier.
     """
+    fixture_m2_source = _RACINE / "tests" / "fixtures" / "m2_preparation_estimation.py"
+    fixture_m2_avant = fixture_m2_source.read_bytes()
     avant = _instantane_arborescence()
 
     with _suite_rouge() as env_rouge:
+        fixture_m2_copie = env_rouge.dossier / "tests" / "fixtures" / fixture_m2_source.name
+        assert fixture_m2_copie.is_file() and not fixture_m2_copie.is_symlink()
+        assert fixture_m2_copie.resolve().is_relative_to(env_rouge.dossier.resolve())
+        assert fixture_m2_copie.read_bytes() == fixture_m2_avant
         chemin = env_rouge.dossier_tests / f"{_NOM_SUITE_ROUGE}.py"
         assert chemin.is_file(), "le test rouge n'a pas été écrit dans la copie"
         assert not chemin.is_relative_to(_M3), (
@@ -675,6 +681,10 @@ def test_empreinte_de_src_et_tests_identique_apres_confection_d_une_epreuve():
         )
 
     with _module_sans_garde() as env_sans_garde:
+        fixture_m2_copie = env_sans_garde.dossier / "tests" / "fixtures" / fixture_m2_source.name
+        assert fixture_m2_copie.is_file() and not fixture_m2_copie.is_symlink()
+        assert fixture_m2_copie.resolve().is_relative_to(env_sans_garde.dossier.resolve())
+        assert fixture_m2_copie.read_bytes() == fixture_m2_avant
         chemin = env_sans_garde.dossier_source / f"{_NOM_MODULE_SANS_GARDE}.py"
         assert chemin.is_file(), "le module sans garde n'a pas été écrit dans la copie"
         assert not chemin.is_relative_to(_M3), (
@@ -686,6 +696,7 @@ def test_empreinte_de_src_et_tests_identique_apres_confection_d_une_epreuve():
 
     apres = _instantane_arborescence()
     _assert_instantanes_identiques(avant, apres)
+    assert fixture_m2_source.read_bytes() == fixture_m2_avant
 
 
 @pytest.mark.parametrize("trace", ["apparu", "disparu", "contenu", "mode", "exception"])

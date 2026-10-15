@@ -9,6 +9,7 @@ import pytest
 _TESTS = Path(__file__).resolve().parent
 _RACINE = _TESTS.parents[2]
 sys.path.insert(0, str(_TESTS / "outils_preuve"))
+sys.path.insert(0, str(_RACINE / "tests" / "fixtures"))
 from campagne_gardes import CampagneGardes  # noqa: E402
 
 
