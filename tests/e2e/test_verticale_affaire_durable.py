@@ -1623,3 +1623,174 @@ def test_deux_affaires_natives_panne_ack_selective_et_reprise_sans_croisement(
         "limites": ("HTTP Python/SQLite, autorité adaptée en Python, intention fichier, "
                     "données fictives ; pas téléphone/CoreTS/PG"),
     }, sort_keys=True))
+
+
+def test_perte_wct_photo_cas_et_cause_humaine_sans_ajustement_ni_liberation(
+    moteur, affaire, record_property
+):
+    """Fictif : HTTP/MCP, SQLite et CAS réels; aucune preuve de scène/Expo/CoreTS/PG.
+
+    La perte peut diminuer le stock. Son classement humain ajoute seulement une annotation.
+    Le formulaire incohérent ne représente pas un second WCT canonique étranger.
+    """
+    import base64
+    import copy
+
+    from harnais_e2e_chantier import png_minimal
+    from sqlalchemy import update
+
+    from opsys.stockage.schema import FICHIERS_BLOCS
+
+    chantier, _, _ = _preparer_affaire(moteur, affaire)
+    app = AppEmploye(moteur, affaire["employe"], chantier)
+    completion = app.journee_jusqu_a_la_completion()
+    wct_id = completion.resultat["wct_id"]
+    _drainer(moteur)
+    (wct,) = [e for _, e in _evenements("m4.travaux_termines") if e["wct_id"] == wct_id]
+    assert (wct["intervention_id"], wct["devis_id"], wct["technicien_id"]) == (
+        chantier.intervention_id, chantier.devis_id, chantier.technicien
+    )
+    (devis,) = [e for _, e in _evenements("m3.devis_accepte") if e["devis_id"] == wct["devis_id"]]
+    assert devis["chantier_id"] == chantier.chantier_id, "le WCT lie le chantier via le devis canonique"
+    photo = png_minimal(largeur=3)
+    empreinte = hashlib.sha256(photo).hexdigest()
+    reference = app.deposer_fichier(photo)
+    assert reference == f"fichier:sha256:{empreinte}" and reference not in json.dumps(wct)
+    args = {"wct_id": wct_id, "formulaire": {
+        "wct_id": wct_id, "intervention_id": chantier.intervention_id, "chantier_id": chantier.chantier_id,
+        "lignes_materiaux": [
+            {"type_ligne": "prevu", "materiau_id": MATERIAU_ID, "quantite": 55.0,
+             "unite": "pi", "quantite_estimee": 40.0},
+            {"type_ligne": "perte", "materiau_id": MATERIAU_ID, "quantite": 1.0, "unite": "pi"},
+        ]}, "preuves_lignes": [{"position_ligne": 1, "note": "FICTIF : perte déclarée, cause à classer.",
+                                  "photos": [reference]}]}
+
+    def appeler(porte, nom, arguments, cle=None):
+        r = porte.appeler(nom, arguments, cle=cle,
+                          horodatage_appareil=app.heure_appareil() if cle else None)
+        assert r.statut == 200 and not r.mesure.tronque, r.corps
+        return r
+
+    def maillons(nom="principal"):
+        with stockage.transaction():
+            return list(stockage.maillons("m06-material-control", nom))
+
+    def etat_metier():
+        # Toutes les chaînes métier, dont prix/réservations/M4/M5, et les publications/livraisons.
+        # Les reçus d'idempotence et audits HTTP sont observés séparément, pas confondus avec le stock.
+        with stockage.transaction() as cnx:
+            return {
+                table.name: [dict(row._mapping) for row in cnx.execute(
+                    select(table).order_by(*table.primary_key.columns))
+                    if table is not REGISTRES or not (
+                        row._mapping["departement"] == "m06-material-control"
+                        and row._mapping["registre"] in {"classements_variance", "refus_classement_variance"})]
+                for table in (REGISTRES, EVENEMENTS_SORTANTS, EVENEMENTS_RECUS)
+            }
+
+    def tables():
+        with stockage.transaction() as cnx:
+            return {table.name: [dict(row._mapping) for row in cnx.execute(
+                select(table).order_by(*table.primary_key.columns))] for table in META.sorted_tables}
+
+    assert [m for m in maillons() if m.get("wct_id") == wct_id] == []
+    stock_avant = sum(Decimal(str(m["quantite"])) for m in maillons() if m.get("materiau_id") == MATERIAU_ID)
+    mauvais = copy.deepcopy(args)
+    mauvais["formulaire"]["wct_id"] = "WCT-AUTRE-FICTIF"
+    avant = etat_metier()
+    refus = appeler(affaire["employe"], "m6_declarer_materiaux_avec_preuves_appareil", mauvais, "cf026-tuple-fictif")
+    assert refus.metier["verdict"]["code"] == "REJ-M6-PREUVES-FORMULAIRE-INVALIDE"
+    assert etat_metier() == avant
+    with stockage.transaction() as cnx:
+        bloc = cnx.execute(select(FICHIERS_BLOCS).where(FICHIERS_BLOCS.c.empreinte_sha256 == empreinte)).one()
+        original_base64 = bloc._mapping["contenu_base64"]
+        assert base64.b64decode(original_base64) == photo
+        assert cnx.execute(update(FICHIERS_BLOCS).where(FICHIERS_BLOCS.c.empreinte_sha256 == empreinte)
+                           .values(contenu_base64=base64.b64encode(png_minimal(largeur=5)).decode())).rowcount == 1
+    avant = etat_metier()
+    refus = appeler(affaire["employe"], "m6_declarer_materiaux_avec_preuves_appareil", args, "cf026-cas-fictif")
+    assert refus.metier["verdict"]["code"] == "REJ-M6-PREUVES-PHOTO-INDISPONIBLE"
+    assert etat_metier() == avant and maillons("preuves_pertes_bris") == []
+    with stockage.transaction() as cnx:
+        assert cnx.execute(update(FICHIERS_BLOCS).where(FICHIERS_BLOCS.c.empreinte_sha256 == empreinte)
+                           .values(contenu_base64=original_base64)).rowcount == 1
+        assert base64.b64decode(cnx.execute(select(FICHIERS_BLOCS.c.contenu_base64).where(
+            FICHIERS_BLOCS.c.empreinte_sha256 == empreinte)).scalar_one()) == photo
+    declaration = appeler(
+        affaire["employe"], "m6_declarer_materiaux_avec_preuves_appareil", args, "cf026-perte-fictive"
+    )
+    assert declaration.metier["accepte"] is True, declaration.corps
+    mouvements = [m for m in maillons() if m.get("wct_id") == wct_id]
+    assert [(m["type_mouvement"], Decimal(str(m["quantite"]))) for m in mouvements] == [
+        ("CONSOMMATION", Decimal(-55)), ("PERTE", Decimal(-1))]
+    assert all(m["chantier_id"] == chantier.chantier_id and m["materiau_id"] == MATERIAU_ID for m in mouvements)
+    stock_apres = sum(Decimal(str(m["quantite"])) for m in maillons() if m.get("materiau_id") == MATERIAU_ID)
+    assert stock_apres == stock_avant - 56
+    (preuve,) = maillons("preuves_pertes_bris")
+    perte = mouvements[1]
+    assert preuve["wct_id"] == wct_id and preuve["intervention_id"] == chantier.intervention_id
+    assert preuve["chantier_id"] == chantier.chantier_id and preuve["position_ligne"] == 1
+    assert preuve["reference_mouvement"] == {
+        "registre": "principal", "index": perte["index"], "hash_maillon": perte["hash_maillon"]
+    }
+    assert preuve["auteur"] == {"personne": chantier.technicien, "role": "employee"}
+    assert preuve["appareil"] == affaire["employe"].appareil_id
+    assert preuve["note"] == args["preuves_lignes"][0]["note"]
+    assert preuve["photos"] == [{"reference": reference, "empreinte_sha256": empreinte,
+                                  "type_mime": "image/png", "taille_octets": len(photo)}]
+    ref_ack = declaration.resultat["preuves"][0]
+    assert ref_ack["position_ligne"] == 1 and ref_ack["reference_mouvement"] == preuve["reference_mouvement"]
+    assert ref_ack["reference_preuve"] == {"registre": "preuves_pertes_bris", "index": preuve["index"],
+                                           "hash_maillon": preuve["hash_maillon"]}
+    _drainer(moteur)
+    assert app.statut().resultat["statut"] == "completed_pending_review"
+    avant = etat_metier()
+    liste = appeler(affaire["admin"], "m6_lister_variances_classables_wct_appareil",
+                    {"wct_id": wct_id, "decalage": 0, "limite": 8}).resultat
+    assert etat_metier() == avant
+    (ligne,) = [item for item in liste["lignes"] if item["selection"]["materiau_id"] == MATERIAU_ID]
+    assert ligne["selection"]["wct_id"] == wct_id and ligne["source_ligne"]["critique"] is True
+    assert ligne["classement_courant"] is None and maillons("classements_variance") == []
+    (piece,) = [p for p in ligne["pieces_disponibles_a_selectionner"]
+                if p["reference_mouvement"] == preuve["reference_mouvement"]]
+    assert piece["reference_preuve"] == ref_ack["reference_preuve"] and piece["positions_photos"] == [0]
+    demande = {"selection": ligne["selection"], "cause": "breakage", "motif": "FICTIF : cause choisie par Nathan.",
+               "classement_attendu": None, "references_pieces": [piece]}
+    refus_avant = maillons("refus_classement_variance")
+    tables_avant = tables()
+    classement = appeler(
+        affaire["admin"], "m6_classer_cause_variance_appareil", demande, "cf026-cause-fictive"
+    ).resultat
+    assert classement["selection"] == demande["selection"] and classement["cause"] == "breakage"
+    assert classement["auteur"] == {"personne": "nathan", "role": "admin", "source": "appareil"}
+    assert classement["references_pieces"] == [piece] and classement["reference"]["registre"] == "classements_variance"
+    (durable,) = maillons("classements_variance")
+    assert classement["reference"] == {
+        "registre": "classements_variance", "index": durable["index"], "hash_maillon": durable["hash_maillon"]
+    }
+    for champ in ("selection", "cause", "motif", "references_pieces", "auteur"):
+        assert durable[champ] == classement[champ]
+    assert maillons("refus_classement_variance") == refus_avant
+    assert etat_metier() == avant, "le classement ne réajuste ni stock/coûts/réservations ni M4/publications"
+    assert app.statut().resultat["statut"] == "completed_pending_review", "aucune résolution N4 implicite"
+    tables_apres = tables()
+    record_property("cf026_tables_modifiees_classement", json.dumps(sorted(
+        n for n in tables_avant if tables_avant[n] != tables_apres[n])))
+    record_property("cf026_portee", "HTTP/MCP+SQLite+CAS natifs; pièces fictives; pas CoreTS/Expo/PG/secondWCTétranger")
+
+    # Le garde HTTP classe cette sélection périmée UNKNOWN : ne jamais émettre ensuite
+    # une intention corrigée sous une nouvelle clé. Seul le rejeu exact est exercé ici.
+    perimee = copy.deepcopy(demande)
+    perimee["classement_attendu"] = classement["reference"]
+    perimee["selection"]["reference_variance"]["empreinte_charge"] = "0" * 64
+    originale = copy.deepcopy(perimee)
+    classes_avant = maillons("classements_variance")
+    for _ in range(2):
+        refus = appeler(affaire["admin"], "m6_classer_cause_variance_appareil", perimee, "cf026-source-fictive")
+        assert refus.enveloppe["ok"] is False
+        assert refus.enveloppe["erreur"] == "REJ-M6-CLASSEMENT-SOURCE-PERIMEE"
+        assert refus.enveloppe["issue"] == "inconnue"
+        assert perimee == originale
+        assert etat_metier() == avant
+        assert maillons("classements_variance") == classes_avant
+        assert maillons("refus_classement_variance") == refus_avant
