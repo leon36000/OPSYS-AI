@@ -148,7 +148,7 @@ def _sources_pour_revue(appeler, intervention_id, wct_id, prefixe):
     return dossier.resultat["sources"]
 
 
-def _appeler_agent(moteur, departement, outil, args):
+def _appeler_agent(moteur, departement, outil, args, *, affaire_id=None, cle_session=None):
     async def appeler():
         http = create_mcp_http_client(headers={"Authorization": f"Bearer {JETON_MCP}"})
         async with (
@@ -176,8 +176,8 @@ def _appeler_agent(moteur, departement, outil, args):
                         "opsys_contexte_creer_ticket_cible",
                         {
                             "agent_id": departement,
-                            "cle_session": f"agent:{departement}:webchat:direct:verticale-fictive",
-                            "affaire_id": args.get("lead_id")
+                            "cle_session": cle_session or f"agent:{departement}:webchat:direct:verticale-fictive",
+                            "affaire_id": affaire_id or args.get("lead_id")
                             or _evenements("m1.lead_qualifie")[0][1]["lead"]["lead_id"],
                             "origine_affaire": "session",
                             "outil": outil,
@@ -194,8 +194,8 @@ def _appeler_agent(moteur, departement, outil, args):
     return anyio.run(appeler)
 
 
-def _agent(moteur, admin, departement, outil, args, *, niveau_attendu=None):
-    reponse = _appeler_agent(moteur, departement, outil, args)
+def _agent(moteur, admin, departement, outil, args, *, niveau_attendu=None, affaire_id=None, cle_session=None):
+    reponse = _appeler_agent(moteur, departement, outil, args, affaire_id=affaire_id, cle_session=cle_session)
     niveau = None
     if reponse.get("statut") == "en_attente_approbation":
         with stockage.transaction() as cnx:
@@ -326,7 +326,8 @@ def affaire(moteur, equipe, monkeypatch, tmp_path):
         m1_outils.reinitialiser_registre()
 
 
-def _lead_recu(moteur):
+def _lead_recu(moteur, *, suffixe=""):
+    precedents = {identifiant for identifiant, _ in _evenements("m1.lead_qualifie")}
     cap = Capacites({"m07-marketing": moteur.departements["m07-marketing"]}, stockage.transaction, memoire=False)
     lien = _donnee(
         cap.appeler(
@@ -344,7 +345,7 @@ def _lead_recu(moteur):
     utm = dict(parse_qsl(urlsplit(lien["lien"]).query))
     charge = {
         "nom": "",
-        "courriel": "cliente-verticale@exemple.test",
+        "courriel": f"cliente-verticale{suffixe}@exemple.test",
         "telephone": "",
         "message": "Bonjour, mes gouttières fuient à Repentigny, je souhaite une soumission (fictif).",
         **utm,
@@ -354,7 +355,7 @@ def _lead_recu(moteur):
         "/interne/m1/formulaire",
         "site-vertical-fictif",
         str(int(time.time())),
-        "nonce-vertical-fictif-0001",
+        f"nonce-vertical-fictif-0001{suffixe}",
     )
     secret = b"secret-pont-vertical-fictif-" + b"v" * 32
     signe = f"v1\nPOST\n{chemin}\n{site}\n{date}\n{nonce}\n".encode() + corps
@@ -376,18 +377,34 @@ def _lead_recu(moteur):
         assert refus.status_code == 403 and _empreinte(moteur) == avant
         recu = client.post(chemin, content=corps, headers=entetes)
         assert recu.status_code == 202, recu.text
-    ((_, evenement),) = _evenements("m1.lead_qualifie")
+    ((_, evenement),) = [(i, e) for i, e in _evenements("m1.lead_qualifie") if i not in precedents]
     lead = evenement["lead"]
     assert lead["utm"] == utm and lead["service"] == "gouttieres"
-    moteur.horloge.maintenant = dt.datetime.fromtimestamp(int(date), DT_TZ)
+    moteur.horloge.maintenant = max(moteur.horloge.maintenant, dt.datetime.fromtimestamp(int(date), DT_TZ))
     _drainer(moteur)
     return lead
 
 
-def _preparer_affaire(moteur, affaire):
+def _preparer_affaire(
+    moteur, affaire, *, suffixe="", vendeur_id="vendeur.vertical", technicien_id="etienne",
+    equipe_id="eq-verticale-fictive", equipes_plan=None,
+):
     admin = affaire["admin"]
-    lead = _lead_recu(moteur)
+    lead = _lead_recu(moteur, suffixe=suffixe)
     lead_id = lead["lead_id"]
+    session = CLE_SESSION_FICTIVE + (f"-{suffixe}" if suffixe else "")
+    devis_acceptes_avant = _evenements("m3.devis_accepte")
+
+    def cle_locale(nom):
+        return f"{nom}-{suffixe}" if suffixe else nom
+
+    def appeler_agent(departement, outil, args, **options):
+        return _agent(
+            moteur, admin, departement, outil, args,
+            affaire_id=lead_id if suffixe else None,
+            cle_session=f"agent:{departement}:webchat:direct:verticale-fictive-{suffixe}" if suffixe else None,
+            **options,
+        )
     heure = iso(moteur.horloge.maintenant)
     qualifie = _app(
         moteur,
@@ -397,10 +414,10 @@ def _preparer_affaire(moteur, affaire):
             "lead_id": lead_id,
             "statut_cible": "qualifie",
             "horodatage": heure,
-            "owner": "vendeur.vertical",
+            "owner": vendeur_id,
             "prochaine_action": {"description": "Estimer le chantier fictif", "echeance": heure},
         },
-        cle="qualifier-verticale",
+        cle=cle_locale("qualifier-verticale"),
     )
     assert qualifie.metier["accepte"] is True, qualifie.corps
     note = _app(
@@ -409,11 +426,11 @@ def _preparer_affaire(moteur, affaire):
         "m2_enregistrer_interaction",
         {
             "lead_id": lead_id,
-            "auteur": "vendeur.vertical",
+            "auteur": vendeur_id,
             "resume": "Visite de qualification fictive.",
             "horodatage": heure,
         },
-        cle="visite-verticale",
+        cle=cle_locale("visite-verticale"),
     )
     assert note.metier["accepte"] is True, note.corps
     avant = _empreinte(moteur)
@@ -428,12 +445,12 @@ def _preparer_affaire(moteur, affaire):
         admin,
         "m10_lier_session_affaire",
         {
-            "cle_session": CLE_SESSION_FICTIVE,
+            "cle_session": session,
             "affaire_id": lead_id,
             "motif": "Liaison humaine de cette affaire fictive pour estimation.",
             "horodatage": heure,
         },
-        cle="liaison-verticale",
+        cle=cle_locale("liaison-verticale"),
     )
     assert liaison.metier["accepte"] is True, liaison.corps
     # Adaptation déclarée de test_estimation.BAREME_AVEC_DUREE (8..14 et 2.5 minutes/unité)
@@ -448,7 +465,7 @@ def _preparer_affaire(moteur, affaire):
     }
 
     def estimer(photos):
-        decision = _agent(moteur, admin, "m03-estimation", "m3_estimer_projet", {
+        decision = appeler_agent( "m03-estimation", "m3_estimer_projet", {
             "contrat": lead, "marqueur": marqueur, "photos": photos,
             "seuils": {"resolution_minimale": 1000, "eclairage_minimal": 4},
             "bareme": bareme_fictif, "quantite": 40, "plancher_rentable": 0,
@@ -474,7 +491,7 @@ def _preparer_affaire(moteur, affaire):
     assert sans_photos["estimation"]["intervalle_confiance"]["borne_haute"] is None
     assert sans_photos["elements_manquants"] == ["aucune entrée visuelle n'a été fournie"]
     assert sans_photos["signal_relance_m2"]["lead_id"] == lead_id
-    assert _evenements("m3.devis_accepte") == []
+    assert _evenements("m3.devis_accepte") == devis_acceptes_avant
     # Métadonnées synthétiques issues de test_estimation._photo / scénario formulaire M3,
     # sans image/pixel ni preuve géométrique réelle. Même lead, readiness et UTM.
     corrigee = estimer([{
@@ -493,9 +510,7 @@ def _preparer_affaire(moteur, affaire):
     assert len(source_hash) == 64
     # Le hash lie l'estimation au lead/devis ; il n'atteste PAS la provenance économique
     # des lignes/coûts ci-dessous. Elles restent les entrées commerciales fictives existantes.
-    _agent(
-        moteur,
-        admin,
+    appeler_agent(
         "m03-estimation",
         "m3_creer_devis",
         {
@@ -523,16 +538,14 @@ def _preparer_affaire(moteur, affaire):
             "horodatage": heure,
         },
     )
-    _agent(
-        moteur,
-        admin,
+    appeler_agent(
         "m03-estimation",
         "m3_marquer_devis_accepte",
         {"devis_id": devis_id, "approbateur": "nathan", "horodatage": heure},
         niveau_attendu="N5",
     )
     preuve = _livrer_dans_un_processus_neuf(moteur)
-    evenement_id, devis = _evenements("m3.devis_accepte")[0]
+    ((evenement_id, devis),) = [(i, e) for i, e in _evenements("m3.devis_accepte") if e["devis_id"] == devis_id]
     assert (devis["lead_id"], devis["devis_id"], devis["prix_total"]) == (lead_id, devis_id, "600.00")
     assert devis["estimation_source_hash"] == source_hash
     assert Decimal(devis["duree_estimee_minutes"]) == Decimal("100")
@@ -548,13 +561,13 @@ def _preparer_affaire(moteur, affaire):
     lendemain = moteur.horloge.maintenant + dt.timedelta(days=1)
     moteur.horloge.maintenant = lendemain.replace(hour=7, minute=0, second=0, microsecond=0)
     chantier = Chantier(
-        lead_id, devis["devis_id"], devis["chantier_id"], intervention_id, "etienne", moteur.horloge.maintenant
+        lead_id, devis["devis_id"], devis["chantier_id"], intervention_id, technicien_id, moteur.horloge.maintenant
     )
     avant = _empreinte(moteur)
     preparation = _app(moteur, admin, "m4_verifier_preparation", {"intervention_id": intervention_id})
     assert preparation.metier["accepte"] is True and preparation.resultat["pret"] is False
     assert _empreinte(moteur) == avant
-    _agent(moteur, admin, "m06-material-control", "m6_receptionner_commande", receptionner_materiel_args(chantier))
+    appeler_agent( "m06-material-control", "m6_receptionner_commande", receptionner_materiel_args(chantier))
     _drainer(moteur)
     localisation = _app(
         moteur,
@@ -571,19 +584,22 @@ def _preparer_affaire(moteur, affaire):
             "longitude_microdegres": -73454833,
             "motif": "Coordonnées de test fictives confirmées.",
         },
-        cle="localisation-verticale",
+        cle=cle_locale("localisation-verticale"),
     )
     assert localisation.metier["accepte"] is True, localisation.corps
     avant = _empreinte(moteur)
     preparation = _app(moteur, admin, "m4_verifier_preparation", {"intervention_id": intervention_id})
     assert preparation.resultat["pret"] is True, preparation.resultat
     assert _empreinte(moteur) == avant
+    arguments_plan = {"horodatage": iso(moteur.horloge.maintenant), "intervention_ids": [intervention_id]}
+    if equipes_plan is not None:
+        arguments_plan["equipes"] = equipes_plan  # surcharge native tracée ; profil réel conserve les deux équipes
     plan = _app(
         moteur,
         admin,
         "m4_proposer_cedule",
-        {"horodatage": iso(moteur.horloge.maintenant), "intervention_ids": [intervention_id]},
-        cle="cedule-proposee-verticale",
+        arguments_plan,
+        cle=cle_locale("cedule-proposee-verticale"),
     )
     assert plan.metier["accepte"] is True, plan.corps
     applique = _app(
@@ -591,9 +607,11 @@ def _preparer_affaire(moteur, affaire):
         admin,
         "m4_appliquer_cedule",
         {"plan_id": plan.resultat["plan_id"], "horodatage": iso(moteur.horloge.maintenant), "confirme_par": "nathan"},
-        cle="cedule-appliquee-verticale",
+        cle=cle_locale("cedule-appliquee-verticale"),
     )
     assert applique.metier["accepte"] is True, applique.corps
+    (assignation,) = [a for a in applique.resultat["assignations"] if a["intervention_id"] == intervention_id]
+    assert assignation["technicien_id"] == equipe_id, "assignation native, jamais fabriquée par le test"
     avant = _empreinte(moteur)
     _drainer(moteur)
     assert _empreinte(moteur) == avant and preuve["livres"] > 0
@@ -626,10 +644,10 @@ def _mesures(moteur, admin, wct_id):
     return {mesure["metric_id"]: mesure for mesure in donnees["mesures"]}
 
 
-def _apprentissage(moteur, admin, wct_id):
+def _apprentissage(moteur, admin, wct_id, *, coupure_utc=None):
     """Lecture native T0 du WCT courant ; aucun fait, paiement ou barème n'est écrit."""
     avant = _empreinte(moteur)
-    coupure = moteur.horloge.maintenant.astimezone(dt.UTC).isoformat()
+    coupure = coupure_utc or moteur.horloge.maintenant.astimezone(dt.UTC).isoformat()
     reponse = _app(moteur, admin, "m3_lire_apprentissage_chantier", {
         "wct_id": wct_id, "coupure_utc": coupure,
     })
@@ -1339,3 +1357,265 @@ def test_facture_de_cette_affaire_rollback_si_sa_publication_echoue(moteur, affa
     with stockage.transaction():
         facture = list(stockage.maillons("m05-financecore", "factures"))[-1]
     assert facture["statut"] == "BROUILLON"
+
+
+def test_deux_affaires_natives_panne_ack_selective_et_reprise_sans_croisement(
+    moteur, affaire, finance_fictive, tmp_path, monkeypatch, record_property
+):
+    """Deux dossiers et acteurs fictifs, HTTP/SQLite réels ; pas deux téléphones/CoreTS.
+
+    Le crochet perd seulement la confirmation A après son commit. L'intention sur fichier
+    n'est pas l'outbox Expo. Équipes/appairages/assignations passent par les vrais outils ;
+    les deux autorités demeurent valides. Aucun consommateur du bus n'est filtré.
+    """
+    admin = affaire["admin"]
+    chantier_a, lead_a, _ = _preparer_affaire(moteur, affaire, suffixe="a")
+    _agent(moteur, admin, "m06-material-control", "m6_enregistrer_prix", {
+        "materiau_id": MATERIAU_ID, "fournisseur_id": "fournisseur-vertical-fictif",
+        "prix_unitaire": 8.0, "devise": "CAD", "date_effet": chantier_a.debut.date().isoformat(),
+        "source_document": None,
+    }, affaire_id=lead_a["lead_id"], cle_session="agent:m06-material-control:webchat:direct:verticale-fictive-a")
+    app_a = AppEmploye(moteur, affaire["employe"], chantier_a)
+    wct_a = app_a.journee_jusqu_a_la_completion().resultat["wct_id"]
+    _drainer(moteur)
+    intention_a = {
+        "fictif": True, "outil": "m6_declarer_materiaux_utilises", "cle": "cf018-usage-a",
+        "appareil_id": affaire["employe"].appareil_id, "horodatage_appareil": app_a.heure_appareil(),
+        "args": {"wct_id": wct_a, "formulaire": {
+            "wct_id": wct_a, "intervention_id": chantier_a.intervention_id,
+            "chantier_id": chantier_a.chantier_id, "lignes_materiaux": [
+                {"type_ligne": "prevu", "materiau_id": MATERIAU_ID, "quantite": 42.0,
+                 "unite": "pi", "quantite_estimee": 40.0},
+                {"type_ligne": "retour", "materiau_id": MATERIAU_ID, "quantite": 2.0, "unite": "pi"},
+            ],
+        }},
+    }
+    fichier_intention = tmp_path / "cf018-intention-a-fictive.json"
+    fichier_intention.write_text(json.dumps(intention_a, sort_keys=True), encoding="utf-8")
+
+    def mouvements(wct):
+        with stockage.transaction():
+            return [m for m in stockage.maillons("m06-material-control", "principal") if m.get("wct_id") == wct]
+
+    def metier():
+        with stockage.transaction() as cnx:
+            return {t.name: [dict(r._mapping) for r in cnx.execute(select(t).order_by(*t.primary_key.columns))]
+                    for t in (REGISTRES, EVENEMENTS_SORTANTS, EVENEMENTS_RECUS)}
+
+    def factures():
+        with stockage.transaction():
+            return list(stockage.maillons("m05-financecore", "factures"))
+
+    confirmations_a = []
+    message_perte = "CF018 ACK A fictif perdu apres commit"
+    fabrique_http = harnais_e2e.create_mcp_http_client
+
+    async def perdre_seulement_a(response):
+        if response.request.method != "POST":
+            return
+        requete = json.loads(response.request.content)
+        parametres = requete.get("params", {})
+        if (requete.get("method") != "tools/call" or parametres.get("name") != intention_a["outil"]
+                or parametres.get("arguments", {}).get("wct_id") != wct_a
+                or parametres.get("_meta", {}).get("opsys/idempotencyKey") != intention_a["cle"]
+                or parametres.get("_meta", {}).get("opsys/appareil") != intention_a["appareil_id"]):
+            return
+        assert not confirmations_a, "aucune relance implicite de l'intention inconnue A"
+        texte = (await response.aread()).decode()
+        assert response.status_code == 200
+        messages = ([json.loads(texte)] if response.headers.get("content-type", "").startswith("application/json")
+                    else [json.loads(ligne[5:].strip()) for ligne in texte.splitlines() if ligne.startswith("data:")])
+        rpc = next(m for m in messages if m.get("id") == requete["id"])
+        enveloppe = json.loads(rpc["result"]["content"][0]["text"])
+        assert enveloppe["ok"] is True and enveloppe["resultat"]["accepte"] is True, enveloppe
+        confirmation = enveloppe["resultat"]["resultat"]
+        assert confirmation == {
+            "intervention_id": chantier_a.intervention_id, "chantier_id": chantier_a.chantier_id,
+            "lignes_declarees": intention_a["args"]["formulaire"]["lignes_materiaux"],
+        }
+        assert [(m["type_mouvement"], m["quantite"]) for m in mouvements(wct_a)] == [
+            ("CONSOMMATION", -42.0), ("RETOUR", 2.0)
+        ], "commit A réellement relu avant de supprimer son ACK"
+        confirmations_a.append(confirmation)
+        raise httpx.ReadError(message_perte, request=response.request)
+
+    def client_avec_panne_selective(**kwargs):
+        client = fabrique_http(**kwargs)
+        client.event_hooks["response"].append(perdre_seulement_a)
+        return client
+
+    def feuilles(exception):
+        if isinstance(exception, BaseExceptionGroup):
+            return [e for enfant in exception.exceptions for e in feuilles(enfant)]
+        return [exception]
+
+    def finaliser(chantier, lead, wct, suffixe, marge):
+        (facture,) = [f for f in factures() if f.get("devis_id") == chantier.devis_id]
+        assert facture["statut"] == "BROUILLON"
+        avant = _empreinte(moteur)
+        assert _mesures(moteur, admin, wct)["m8_marge_reelle_cad"]["valeur"] is None
+        assert _empreinte(moteur) == avant
+        session = f"agent:m05-financecore:webchat:direct:verticale-fictive-{suffixe}"
+        liaison = _app(moteur, admin, "m10_lier_session_affaire", {
+            "cle_session": session, "affaire_id": lead["lead_id"],
+            "motif": "Finalité fictive du seul dossier ciblé.", "horodatage": iso(moteur.horloge.maintenant),
+        }, cle=f"cf018-liaison-finance-{suffixe}")
+        assert liaison.metier["accepte"] is True
+        _agent(moteur, admin, "m05-financecore", "m5_envoyer_facture", {
+            "facture_id": facture["facture_id"], "horodatage": iso(moteur.horloge.maintenant),
+        }, niveau_attendu="N4", affaire_id=lead["lead_id"], cle_session=session)
+        _drainer(moteur)
+        avant = _empreinte(moteur)
+        mesures = _mesures(moteur, admin, wct)
+        assert mesures["m8_marge_reelle_cad"]["valeur"] == marge, mesures
+        apprentissage = _apprentissage(moteur, admin, wct)
+        assert apprentissage["sources"]["devis_id"] == chantier.devis_id
+        (_, source), = [(i, c) for i, c in _evenements("m3.devis_accepte") if c["devis_id"] == chantier.devis_id]
+        assert apprentissage["sources"]["estimation_hash"] == source["estimation_source_hash"]
+        assert apprentissage["rentabilite"]["montant_marge_reelle_cad"] == marge
+        assert apprentissage["rentabilite"]["statut"] == "qualifiee"
+        assert _empreinte(moteur) == avant
+        with stockage.transaction() as cnx:
+            memoires = list(stockage.maillons("m10-memoire", "evenements"))
+            publications = [(i, c) for i, c in _evenements("m5.rentabilite_chantier") if c["wct_id"] == wct]
+            assert publications
+            for identifiant, charge in publications:
+                assert charge["devis_id"] == chantier.devis_id
+                (memoire,) = [m for m in memoires if m.get("evenement_id") == identifiant]
+                assert all(memoire[k] == v for k, v in charge.items())
+                assert memoire["confidentialite"] == "FINANCIAL"
+                for consommateur in ("m08-analytics", "m10-memoire"):
+                    assert cnx.scalar(select(EVENEMENTS_RECUS.c.statut).where(
+                        EVENEMENTS_RECUS.c.evenement_id == identifiant,
+                        EVENEMENTS_RECUS.c.consommateur == consommateur,
+                    )) == "traite"
+        return mesures, apprentissage
+
+    with monkeypatch.context() as panne:
+        panne.setattr(harnais_e2e, "create_mcp_http_client", client_avec_panne_selective)
+        with pytest.raises(Exception) as erreur:
+            affaire["employe"].appeler(intention_a["outil"], intention_a["args"], cle=intention_a["cle"],
+                                     horodatage_appareil=intention_a["horodatage_appareil"])
+        assert all(isinstance(e, httpx.ReadError) and str(e) == message_perte for e in feuilles(erreur.value))
+        assert len(confirmations_a) == 1
+        reel_a = mouvements(wct_a)
+        _drainer(moteur)
+
+        # Vraie identité B et ajout de son équipe : l'équipe A reste déclarée et son propriétaire valide.
+        moteur.creer_personne("marie.verticale", "Marie verticale (fictive)", ["employee"], monkeypatch)
+        employe_b = moteur.appairer("marie.verticale", "employee")
+        assert employe_b.appareil_id != affaire["employe"].appareil_id
+        profil = json.loads(json.dumps(EQUIPES_FICTIVES))
+        equipe_b = {**profil["liste"][0], "id": "eq-verticale-b-fictive", "membres": ["marie.verticale"]}
+        profil["liste"].append(equipe_b)
+        configuration = tmp_path / "cf018-equipes-a-et-b-fictives.yaml"
+        configuration.write_text(yaml.safe_dump(profil), encoding="utf-8")
+        assert cli.main(["equipes", "declarer", "--depuis", str(configuration), "--par", "nathan"]) == 0
+        contexte_b = {**affaire, "vendeur": affaire["autre"], "employe": employe_b}
+        chantier_b, lead_b, _ = _preparer_affaire(
+            moteur, contexte_b, suffixe="b", vendeur_id="vendeur.autre", technicien_id="marie.verticale",
+            equipe_id=equipe_b["id"], equipes_plan=[{k: equipe_b[k] for k in ("id", "competences", "depot", "quarts")}],
+        )
+        for champ in ("lead_id", "devis_id", "chantier_id", "intervention_id"):
+            assert getattr(chantier_a, champ) != getattr(chantier_b, champ)
+        assert len(_evenements("m1.lead_qualifie")) == 2
+        avant = _empreinte(moteur)
+        for porte, propre, autre in [(affaire["vendeur"], chantier_a, chantier_b),
+                                      (affaire["autre"], chantier_b, chantier_a)]:
+            for outil, champ in [("m2_trouver_client_de_lead", "lead_id"), ("m3_lire_devis", "devis_id")]:
+                assert _app(moteur, porte, outil, {champ: getattr(propre, champ)}).metier["accepte"] is True
+                assert _app(moteur, porte, outil, {champ: getattr(autre, champ)}).metier["accepte"] is False
+        assert app_a.statut().resultat["statut"] == "completed_verified", "A reste propriétaire valide"
+        assert _empreinte(moteur) == avant
+        app_b = AppEmploye(moteur, employe_b, chantier_b)
+        wct_b = app_b.journee_jusqu_a_la_completion().resultat["wct_id"]
+        assert wct_b != wct_a
+        _drainer(moteur)
+        for wct, chantier in [(wct_a, chantier_a), (wct_b, chantier_b)]:
+            (source,) = [c for _, c in _evenements("m4.travaux_termines") if c["wct_id"] == wct]
+            assert (source["lead_id"], source["devis_id"], source["intervention_id"], source["technicien_id"]) == (
+                chantier.lead_id, chantier.devis_id, chantier.intervention_id, chantier.technicien
+            )
+        args_b = {"wct_id": wct_b, "formulaire": {
+            "wct_id": wct_b, "intervention_id": chantier_b.intervention_id, "chantier_id": chantier_b.chantier_id,
+            "lignes_materiaux": [{"type_ligne": "prevu", "materiau_id": MATERIAU_ID, "quantite": 56.0,
+                                  "unite": "pi", "quantite_estimee": 40.0}],
+        }}
+        for porte, arguments, cle in [(affaire["employe"], args_b, "cf018-a-vers-b"),
+                                       (employe_b, intention_a["args"], "cf018-b-vers-a")]:
+            avant = metier()
+            refus = porte.appeler(intention_a["outil"], arguments, cle=cle,
+                                   horodatage_appareil=iso(moteur.horloge.maintenant))
+            assert refus.metier["accepte"] is False, refus.corps
+            assert refus.metier["verdict"]["code"] == "REJ-INTERVENTION-NON-ASSIGNEE"
+            assert metier() == avant
+        assert app_b.declarer_materiaux(wct_b, 56.0).metier["accepte"] is True
+        _drainer(moteur)
+        assert app_b.statut().resultat["statut"] == "completed_pending_review"
+
+        def appeler_revue(outil, arguments, *, cle=None):
+            return _app(moteur, admin, outil, arguments, cle=cle)
+
+        sources = _sources_pour_revue(appeler_revue, chantier_b.intervention_id, wct_b, "cf018-classement-b")
+        revue = _app(moteur, admin, "m4_resoudre_revue_completion_sources", {
+            "intervention_id": chantier_b.intervention_id, "decision": "verifiee",
+            "horodatage": iso(moteur.horloge.maintenant), "motif": "Revue fictive B seulement.", "sources": sources,
+        }, cle="cf018-revue-b")
+        assert revue.enveloppe["statut"] == "en_attente_approbation"
+        decision = _app(moteur, admin, "m9_decider_demande_approbation", {
+            "demande_id": revue.enveloppe["demande_id"], "decision": "approuver", "motif": "Revue fictive B.",
+        }, cle="cf018-decision-revue-b")
+        assert decision.resultat["statut"] == "executee"
+        assert decision.resultat["preuve_completion"]["wct_id"] == wct_b
+        _drainer(moteur)
+        mesures_b, apprentissage_b = finaliser(chantier_b, lead_b, wct_b, "b", "2.00")
+        assert mouvements(wct_a) == reel_a
+        (facture_a,) = [f for f in factures() if f.get("devis_id") == chantier_a.devis_id]
+        assert facture_a["statut"] == "BROUILLON", "finaliser B ne finalise pas A"
+        assert len(confirmations_a) == 1
+        assert json.loads(fichier_intention.read_text()) == intention_a
+
+    # B a avancé légitimement : comparer le rejeu A au snapshot pris APRÈS ces effets.
+    avant_reprise = _empreinte(moteur)
+    fil, moteur_sql = moteur._fil, stockage.moteur()
+    moteur.arreter()
+    assert not fil.is_alive()
+    stockage.liberer()
+    moteur.demarrer()
+    assert moteur._fil is not fil and moteur._fil.is_alive() and stockage.moteur() is not moteur_sql
+    assert _empreinte(moteur) == avant_reprise
+    reprise = json.loads(fichier_intention.read_text())
+    reponse = affaire["employe"].appeler(reprise["outil"], reprise["args"], cle=reprise["cle"],
+                                        horodatage_appareil=reprise["horodatage_appareil"])
+    assert reponse.enveloppe["rejoue"] is True and reponse.metier["accepte"] is True
+    assert reponse.resultat == confirmations_a[0] and _empreinte(moteur) == avant_reprise
+    assert mouvements(wct_a) == reel_a
+    assert _mesures(moteur, admin, wct_b) == mesures_b
+    assert _apprentissage(moteur, admin, wct_b, coupure_utc=apprentissage_b["coupure_utc"]) == apprentissage_b
+    finaliser(chantier_a, lead_a, wct_a, "a", "130.00")
+    assert _mesures(moteur, admin, wct_b) == mesures_b
+    assert _apprentissage(moteur, admin, wct_b, coupure_utc=apprentissage_b["coupure_utc"]) == apprentissage_b
+    for wct, attendu in [(wct_a, Decimal("40")), (wct_b, Decimal("56"))]:
+        assert -sum(Decimal(str(m["quantite"])) for m in mouvements(wct)) == attendu
+    avant = _empreinte(moteur)
+    strategie = _app(moteur, admin, "m9_produire_lecture_strategique", {
+        "maintenant": iso(moteur.horloge.maintenant),
+    }).resultat
+    assert strategie["decision"]["prise_par_m9"] is False and strategie["decision"]["a_prendre_par"] == "nathan_owner"
+    assert any(x["chantier"] == wct_b and (x["valeur"], x["seuil"]) == ("40.00", "30.00")
+               for x in strategie["lectures"])
+    assert not any(x["chantier"] == wct_a for x in strategie["lectures"])
+    for application in (app_a, app_b):
+        for appel in application.appels:
+            assert application.rejouer(appel).enveloppe["rejoue"] is True
+    _drainer(moteur)
+    assert _empreinte(moteur) == avant
+    record_property("cf018_deux_affaires", json.dumps({
+        "fictif": True, "affaires": [{"lead_id": c.lead_id, "devis_id": c.devis_id,
+                                     "intervention_id": c.intervention_id, "wct_id": w}
+                                    for c, w in [(chantier_a, wct_a), (chantier_b, wct_b)]],
+        "ack_a_perdu_apres_commit": 1, "reprise_a_sans_mutation": True, "b_finalisee_avant_reprise_a": True,
+        "nets": ["40", "56"], "marges_fictives": ["130.00", "2.00"],
+        "limites": ("HTTP Python/SQLite, autorité adaptée en Python, intention fichier, "
+                    "données fictives ; pas téléphone/CoreTS/PG"),
+    }, sort_keys=True))
