@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from m7_marketing import outils
 from m7_marketing.brand import profil_client
 from sqlalchemy import update
@@ -171,3 +172,78 @@ def test_import_exige_identite_active_et_source_complete(tmp_path, monkeypatch, 
     assert absent["ok"] is True and absent["resultat"]["accepte"] is False
     assert absent["resultat"]["verdict"]["code"] == "REJ-IDENTITE-REQUIS"
     assert _lire("reputation_avis") == []
+
+
+@pytest.mark.parametrize("source_b", ["review-8841", "autre-avis-fictif"])
+def test_import_interpose_refuse_a_et_annule_transaction_avant_reprise(
+    tmp_path, monkeypatch, request, source_b,
+):
+    """Fictif : deux vrais outils dans la même transaction, sans appareil installé."""
+    from opsys.stockage.maillons import EcritureConcurrente, MaillonsDurables
+
+    _base(tmp_path, monkeypatch, request)
+    avant = _lire("reputation_avis")
+    original = MaillonsDurables.append
+    observations = []
+    arme = True
+
+    def interposer(self, maillon, *, rang_attendu=None):
+        nonlocal arme
+        if arme and (self.departement, self.registre) == ("m07-marketing", "reputation_avis"):
+            arme = False
+            cnx = stockage.connexion_courante()
+            b = _metier(_appel("m7_importer_avis_manuel", **_avis(avis_source_id=source_b)))
+            assert b["deja_importe"] is False
+            assert stockage.connexion_courante() is cnx
+            assert len(_lire("reputation_avis")) == 1
+            observations.append(b["avis_id"])
+        return original(self, maillon, rang_attendu=rang_attendu)
+
+    monkeypatch.setattr(MaillonsDurables, "append", interposer)
+    with pytest.raises(EcritureConcurrente, match="rang attendu"):
+        _appel("m7_importer_avis_manuel", **_avis())
+    stockage.liberer()
+    assert len(observations) == 1
+    assert _lire("reputation_avis") == avant == []
+    assert outils.calculer_metriques_reputation()["m7_rep_total_avis"] == 0
+
+    monkeypatch.setattr(MaillonsDurables, "append", original)
+    b = _metier(_appel("m7_importer_avis_manuel", **_avis(avis_source_id=source_b)))
+    assert b["deja_importe"] is False
+    a = _metier(_appel("m7_importer_avis_manuel", **_avis()))
+    assert a["deja_importe"] is (source_b == "review-8841")
+    apres = _lire("reputation_avis")
+    assert len(apres) == (1 if source_b == "review-8841" else 2)
+    assert len({avis["avis_id"] for avis in apres}) == len(apres)
+    assert outils.calculer_metriques_reputation()["m7_rep_total_avis"] == len(apres)
+    assert _metier(_appel("m7_importer_avis_manuel", **_avis()))["deja_importe"] is True
+    assert _lire("reputation_avis") == apres
+
+
+def test_import_panne_apres_sql_est_annule_et_rejouable(tmp_path, monkeypatch, request):
+    """Fictif : aucun succès ne survit à la panne d'une transaction outil."""
+    from opsys.stockage.maillons import MaillonsDurables
+
+    _base(tmp_path, monkeypatch, request)
+    original = MaillonsDurables.append
+    observations = []
+
+    def panne(self, maillon, *, rang_attendu=None):
+        original(self, maillon, rang_attendu=rang_attendu)
+        if (self.departement, self.registre) == ("m07-marketing", "reputation_avis"):
+            observations.append(len(_lire("reputation_avis")))
+            raise RuntimeError("panne fictive après SQL")
+
+    monkeypatch.setattr(MaillonsDurables, "append", panne)
+    with pytest.raises(RuntimeError, match="panne fictive après SQL"):
+        _appel("m7_importer_avis_manuel", **_avis())
+    assert observations == [1]
+    stockage.liberer()
+    assert _lire("reputation_avis") == []
+    assert outils.calculer_metriques_reputation()["m7_rep_total_avis"] == 0
+    monkeypatch.setattr(MaillonsDurables, "append", original)
+    assert _metier(_appel("m7_importer_avis_manuel", **_avis()))["deja_importe"] is False
+    apres = _lire("reputation_avis")
+    assert len(apres) == 1
+    assert _metier(_appel("m7_importer_avis_manuel", **_avis()))["deja_importe"] is True
+    assert _lire("reputation_avis") == apres

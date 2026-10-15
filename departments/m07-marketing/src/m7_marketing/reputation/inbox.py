@@ -134,7 +134,8 @@ def importer_avis_manuel(
     }
     empreinte_source = _empreinte(source)
     avis_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"m7-avis:{plateforme}:{avis_source_id.strip()}"))
-    deja = _avis_par_id(avis_id)
+    avis_lus = _lire(_AVIS)
+    deja = next((avis for avis in avis_lus if avis["avis_id"] == avis_id), None)
     if deja is not None:
         if deja["empreinte_source"] != empreinte_source:
             return _refus(
@@ -167,7 +168,8 @@ def importer_avis_manuel(
         "reponse_empreinte": _empreinte({"texte": brouillon["texte"], "revision": 1}),
         "approval_status": "PROPOSE",
     }
-    stockage.maillons(*_AVIS).append(maillon)
+    # La déduplication et l'append portent sur le même préfixe observé.
+    stockage.maillons(*_AVIS).append(maillon, rang_attendu=len(avis_lus))
     return {"accepte": True, "resultat": {
         "avis_id": avis_id, "statut": "PROPOSE", "deja_importe": False,
         "categorie": categorie, "visibilite": maillon["visibilite"],
