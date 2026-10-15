@@ -24,6 +24,7 @@ _APPELS = {
     "transcription", "consentement_enregistrement",
 }
 _AVIS = {"plateforme", "avis_source_id", "date_avis", "note", "texte", "source_url"}
+_CONFLIT_IMPORT_AVIS = "L’état des avis a changé. Rechargez puis réessayez votre import."
 _STATUTS_AVIS = {
     "PROPOSE": "À réviser",
     "APPROUVE": "Approuvé par le propriétaire",
@@ -488,6 +489,14 @@ def creer_router(
             else:
                 raise ValueError("action de réputation inconnue")
             ok, _charge, erreur = resultat_metier(reponse)
+        except stockage.EcritureConcurrente:
+            if action != "importer":
+                raise
+            # appeler() a quitté la transaction : ne jamais convertir le conflit avant rollback.
+            response = page_marketing(session, erreur=_CONFLIT_IMPORT_AVIS)
+            response.status_code = 409
+            response.headers["Cache-Control"] = "no-store"
+            return response
         except (ValueError, KeyError, PermissionError) as exc:
             return page_marketing(session, erreur=str(exc))
         if not ok:
@@ -576,6 +585,13 @@ def creer_router(
             else:
                 nom, arguments = _commande_avis(corps)
             return _api_resultat(appeler(session, nom, arguments, mutation_id=mutation_id))
+        except stockage.EcritureConcurrente:
+            if action != "importer":
+                raise
+            return JSONResponse(
+                {"ok": False, "erreur": {"code": "CONFLIT_CONCURRENT", "message": _CONFLIT_IMPORT_AVIS}},
+                status_code=409, headers={"Cache-Control": "no-store"},
+            )
         except (ValueError, KeyError, PermissionError) as exc:
             return erreur_api(exc)
 
