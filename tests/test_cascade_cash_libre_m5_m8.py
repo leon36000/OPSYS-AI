@@ -541,3 +541,87 @@ def test_les_manifestes_reels_sont_coherents_m5_publie_m8_consomme(deps):
     assert TYPE in deps[M5].evenements_publie and TYPE in deps[M8].evenements_consomme
     assert TYPE in deps[M8].charger_consommateurs()
     assert evenements.verifier_coherence(deps) == []
+
+
+def test_meme_capacite_admin_relit_seulement_les_constats_livres_sans_mutation(cas_fictif, deps, declare):
+    """Un lecteur public conservé ne transforme ni publication en réception, ni âge inconnu en zéro.
+
+    SQLite, M5, le bus et M8 sont réels ; les registres financiers et l'identité sont fictifs.
+    Ce n'est ni une preuve bancaire, ni une session Core, ni une mesure de fraîcheur du corpus entier.
+    """
+    capacites = Capacites(deps, stockage.transaction, filtre={M8}, memoire=False)
+
+    def lire(arguments):
+        avant = _instantane_base()
+        with contexte.appele_par_appareil(ADMIN):
+            reponse = capacites.appeler("m8_lire_vue_executive", arguments)
+        assert reponse["ok"] is True, reponse
+        assert _instantane_base() == avant, "chaque lecture laisse toutes les tables inchangées"
+        return reponse["resultat"]
+
+    initiale = lire({"aujourd_hui": JOUR})
+    assert initiale["cash_libre"]["statut"] == "manque"
+    assert initiale["cash_libre"]["manque"] == ["cash_libre"]
+    assert "constat" not in initiale["cash_libre"]
+    seuils = initiale["entonnoir"]["seuils"]
+    # Sans source de l'entonnoir, ses mesures manquent : aucun zéro ni seuil évalué.
+    assert seuils == {"a_configurer": [], "invalides": [], "ignores": [], "evalues": []}
+    mesures = initiale["entonnoir"]["mesures"]
+    assert len(mesures) == 8
+    assert all(m["statut"] == "non_calculable" and m["valeur"] is None for m in mesures)
+    manques_hors_cash = [m for m in initiale["manques"] if m["champ"] != "cash_libre"]
+    assert manques_hors_cash
+
+    premier = _constat_accepte(deps, JOUR, cle="cf033-premier")
+    assert premier["publie"] is True
+    assert len(_publies()) == 1 and _recus_de_m8() == [] and _faits_de_m8() == []
+    publie_non_recu = lire({"aujourd_hui": JOUR})
+    assert publie_non_recu["cash_libre"] == initiale["cash_libre"]
+    assert publie_non_recu["entonnoir"]["seuils"] == seuils
+
+    livraison = _drainer(deps, BASE)
+    assert livraison["traites"] == 1 and livraison["echecs"] == livraison["quarantaines"] == 0
+    ((evenement_un, charge_un),) = _publies()
+    assert [(r.evenement_id, r.statut) for r in _recus_de_m8()] == [(evenement_un, "traite")]
+    premiere_reception = lire({"aujourd_hui": JOUR})
+    section = premiere_reception["cash_libre"]
+    assert section["statut"] == "lu" and section["n_constats_recus"] == 1
+    assert section["constat"]["cash_libre_cad"] == charge_un["cash_libre_cad"] == "27861.98"
+    assert section["constat"]["date_reference"] == charge_un["date_reference"] == JOUR
+    assert section["age"] == {"jours": 0, "aujourd_hui": JOUR}
+    assert section["constat"]["mention"] == MENTION
+    assert not any(m["champ"] == "cash_libre" for m in premiere_reception["manques"])
+
+    declare(_avec_dettes(CONFIGURATION, "900.00"))
+    second = _constat_accepte(deps, LENDEMAIN, cle="cf033-lendemain")
+    assert second["publie"] is True and len(_publies()) == 2
+    assert second["constat"]["cash_libre_cad"] == "27761.98"
+    assert len(_recus_de_m8()) == len(_faits_de_m8()) == 1
+    encore_ancien = lire({"aujourd_hui": LENDEMAIN})
+    assert encore_ancien["cash_libre"]["constat"] == section["constat"]
+    assert encore_ancien["cash_libre"]["n_constats_recus"] == 1
+    assert encore_ancien["cash_libre"]["age"] == {"jours": 1, "aujourd_hui": LENDEMAIN}
+
+    livraison = _drainer(deps, BASE + dt.timedelta(days=1))
+    assert livraison["traites"] == 1 and livraison["echecs"] == livraison["quarantaines"] == 0
+    recus = {(r.evenement_id, r.statut) for r in _recus_de_m8()}
+    assert recus == {(evenement, "traite") for evenement, _ in _publies()}
+    assert len(recus) == len(_faits_de_m8()) == 2
+    courante = lire({"aujourd_hui": LENDEMAIN})
+    assert courante["cash_libre"]["n_constats_recus"] == 2
+    assert courante["cash_libre"]["constat"]["sequence"] == 2
+    assert courante["cash_libre"]["constat"]["date_reference"] == LENDEMAIN
+    assert courante["cash_libre"]["constat"]["cash_libre_cad"] == "27761.98"
+    assert courante["cash_libre"]["constat"]["cash_libre_cad"] == _publies()[-1][1]["cash_libre_cad"]
+    assert courante["cash_libre"]["age"] == {"jours": 0, "aujourd_hui": LENDEMAIN}
+
+    sans_horloge = lire({})
+    assert sans_horloge["cash_libre"]["constat"] == courante["cash_libre"]["constat"]
+    assert sans_horloge["cash_libre"]["age"] == {
+        "jours": None, "raison": "aujourd_hui non fourni : M8 n'a pas d'horloge",
+    }
+    for vue in (premiere_reception, encore_ancien, courante, sans_horloge):
+        assert vue["entonnoir"]["seuils"] == seuils
+        assert vue["entonnoir"]["mesures"] == mesures
+        assert [m for m in vue["manques"] if m["champ"] != "cash_libre"] == manques_hors_cash
+    assert _types_publies() == {TYPE}, "aucune nouvelle alerte ni décision provoquée par les lectures"
