@@ -3,6 +3,9 @@
 // qu'`expo-sqlite` expose et que l'adaptateur utilise (`execAsync`, `getAllAsync`, `getFirstAsync`,
 // `runAsync`). Il prouve le SQL et la migration ; il ne prouve PAS le pont natif d'`expo-sqlite`.
 import { DatabaseSync } from "node:sqlite";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import type { SQLiteDatabase } from "expo-sqlite";
 
@@ -10,12 +13,18 @@ import { creerDepotOutboxSqlite, DDL_OUTBOX, initialiserSchemaOutbox } from "./d
 import { capturerMutationOutbox, DepotOutboxMemoire } from "./depot";
 import { creerMutation, marquerEnvoi, soumettreMutation } from "./mutation";
 import { avecProprietaire } from "./proprietaire";
+import { creerVidangeur } from "./vidangeur";
+import { DESCRIPTEURS_MUTATION } from "./descripteurs";
+import { invoquerOutil } from "../protocole/client";
+import type { MutationOutbox } from "./types";
+import type { LigneContenuM7 } from "../m7/contrat";
+import { creerMutationDecisionMarketing } from "../m7/decisionOutbox";
 import { calculerEtatEnvoiFichier } from "../fichiers/etatEnvoi";
 
 type Parametres = (string | number | null)[];
 
-function baseReelle(): { base: SQLiteDatabase; brute: DatabaseSync } {
-  const brute = new DatabaseSync(":memory:");
+function baseReelle(fichier = ":memory:"): { base: SQLiteDatabase; brute: DatabaseSync } {
+  const brute = new DatabaseSync(fichier);
   const base = {
     async execAsync(sql: string): Promise<void> {
       brute.exec(sql);
@@ -242,4 +251,132 @@ describe("CF037 — CAS natif mémoire/SQLite et propriétaire", () => {
       expect(await depot.obtenir(originale.id)).toMatchObject({ statut: "envoyee", resumeAccepte: { confirmation: "CONCURRENT-FICTIF" } });
     } finally { brute.close(); }
   });
+});
+
+// Par défaut, la CI ferme/réouvre une base fichier dans ce processus. La qualification externe peut
+// exécuter prepare puis resume dans DEUX processus Jest, sur le même fichier neuf conservé en preuve.
+// Transport/ACK fictifs : ni effet serveur réel, ni pont Expo, ni panne électrique ne sont prouvés.
+test("CF037 — reprise fichier d'une intention inconnue, quarantaine et série durable", async () => {
+  const phase = process.env.CF037_PHASE;
+  if (phase !== undefined && phase !== "prepare" && phase !== "resume") throw new Error("phase CF037 invalide");
+  const externe = process.env.CF037_SQLITE_PATH;
+  if ((phase === undefined) !== (externe === undefined)) throw new Error("phase et fichier CF037 doivent être fournis ensemble");
+  const dossier = externe ? null : mkdtempSync(join(tmpdir(), "opsys-cf037-"));
+  const fichier = externe ?? join(dossier!, "outbox.sqlite");
+  const preuve = `${fichier}.attendu.json`;
+  const personne = "admin.fictif";
+  const sessionInitiale = { urlBase: "https://passerelle.fictif.invalid", jeton: "jeton-fictif-a", appareilId: "appareil-fictif-a", personne };
+  const idA = "00000000-0000-4000-8000-000000000001";
+  const idSuivant = "00000000-0000-4000-8000-000000000002";
+  const idB = "00000000-0000-4000-8000-000000000003";
+  const contenuA = "10000000-0000-4000-8000-000000000001";
+  const contenuB = "10000000-0000-4000-8000-000000000002";
+  const item = (contenu_id: string): LigneContenuM7 => ({ contenu_id, wct_id: "a".repeat(64),
+    plateforme: "demande_temoignage", revision: 1, approval_status: "PROPOSE", exporte: false,
+    marque_source: null, fraicheur_marque: "preuve_absente", texte: "Texte fictif CF037", origine_texte: "gabarit",
+    mots_clics: [], lien_utm: null, avertissements: [], decision: null,
+    consentement: { recueilli_par: personne, recueilli_le: "2026-09-29T11:00:00Z", version_texte: "fictif" } });
+  const ack = (id: string, par = personne) => ({ contenu_id: id === idB ? contenuB : contenuA,
+    plateforme: "demande_temoignage", approval_status: id === idSuivant ? "REJECTED" : "APPROVED", par,
+    source: "appareil", horodatage: "2026-09-29T12:00:00Z", empreinte_texte: "b".repeat(64),
+    prochaine_etape: "Paquet manuel fictif, aucune publication" });
+  const reponse = (id: string, par = personne) => new Response(JSON.stringify({ ok: true,
+    result: { ok: true, resultat: { accepte: true, resultat: ack(id, par) } } }), { status: 200 });
+  const originale = (id: string) => creerMutationDecisionMarketing(item(id === idB ? contenuB : contenuA),
+    id === idSuivant ? "rejeter" : "approuver", "Motif fictif explicite", () => id, HORLOGE);
+  // Oracle RPC indépendant de la projection du descripteur : aucune preuve locale ne fuit dans args.
+  const requete = (id: string) => ({ tool: "m7_decider_contenu", idempotencyKey: id,
+    deviceId: sessionInitiale.appareilId, deviceTimestamp: "2026-09-29T08:00:00-04:00",
+    args: { contenu_id: id === idB ? contenuB : contenuA, decision: id === idSuivant ? "rejeter" : "approuver",
+      horodatage: "2026-09-29T08:00:00-04:00", ...(id === idSuivant ? { motif: "Motif fictif explicite" } : {}) } });
+  try {
+    if (phase !== "resume") {
+      expect(existsSync(fichier)).toBe(false);
+      const { base, brute } = baseReelle(fichier);
+      try {
+        await initialiserSchemaOutbox(base);
+        const depot = avecProprietaire(creerDepotOutboxSqlite(base), () => personne);
+        for (const id of [idA, idSuivant, idB]) await depot.inserer(originale(id));
+        const appels: unknown[] = [];
+        const fetchFictif: typeof fetch = async (url, init) => {
+          expect(url).toBe(`${sessionInitiale.urlBase}/tools/invoke`);
+          expect(init?.headers).toEqual({ "content-type": "application/json", authorization: `Bearer ${sessionInitiale.jeton}` });
+          const corps = JSON.parse(String(init?.body)); appels.push(corps);
+          if (corps.idempotencyKey === idA) throw new Error("ACK perdu FICTIF : issue serveur inconnue");
+          expect(corps).toEqual(requete(idB)); return reponse(idB);
+        };
+        const rapport = await creerVidangeur({ depot, descripteurs: DESCRIPTEURS_MUTATION, appelerOutil: invoquerOutil,
+          fetchImpl: fetchFictif, session: () => sessionInitiale, maintenant: () => HORLOGE.maintenant }).vidangerFileSortante();
+        expect(appels).toEqual([requete(idA), requete(idB)]);
+        expect(rapport).toMatchObject({ envoyees: [idB], remisesEnAttente: [idA], bloquees: [idSuivant], echecsPermanents: [], quarantaine: [], arret: null });
+        const lignes = await depot.lister();
+        expect(await depot.obtenir(idA)).toMatchObject({ ...originale(idA), proprietaire: personne, sequence: 1, tentatives: 1, prochaineTentativeA: "2026-09-29T12:00:01.000Z" });
+        expect((await depot.obtenir(idA))?.prochaineTentativeA).not.toBeNull();
+        expect(await depot.obtenir(idSuivant)).toMatchObject({ sequence: 2, statut: "en_attente", tentatives: 0 });
+        expect(await depot.obtenir(idB)).toMatchObject({ sequence: 3, statut: "envoyee", resumeAccepte: ack(idB) });
+        writeFileSync(preuve, JSON.stringify({ fictif: true, pid: process.pid, lignes }), { flag: "wx" });
+      } finally { brute.close(); }
+    }
+    if (phase !== "prepare") {
+      const attendu: { fictif: boolean; pid: number; lignes: MutationOutbox[] } = JSON.parse(readFileSync(preuve, "utf8"));
+      expect(attendu.fictif).toBe(true);
+      if (phase === "resume") expect(process.pid).not.toBe(attendu.pid);
+      const { base, brute } = baseReelle(fichier);
+      let terminales: MutationOutbox[];
+      try {
+        await initialiserSchemaOutbox(base);
+        const depot = creerDepotOutboxSqlite(base);
+        expect(await depot.lister()).toEqual(attendu.lignes);
+        const avant = capturerMutationOutbox((await depot.obtenir(idA))!);
+        let session = { ...sessionInitiale, personne: "autre.fictif", jeton: "jeton-fictif-autre" };
+        let maintenant = HORLOGE.maintenant;
+        let mauvaisRecu = true;
+        const appels: unknown[] = [];
+        const fetchFictif: typeof fetch = async (url, init) => {
+          expect(url).toBe(`${sessionInitiale.urlBase}/tools/invoke`);
+          expect(init?.headers).toEqual({ "content-type": "application/json", authorization: "Bearer jeton-fictif-renouvele" });
+          const corps = JSON.parse(String(init?.body)); appels.push(corps);
+          expect([idA, idSuivant]).toContain(corps.idempotencyKey);
+          expect(corps).toEqual(requete(corps.idempotencyKey));
+          return reponse(corps.idempotencyKey, mauvaisRecu ? "autre.fictif" : personne);
+        };
+        const vidangeur = creerVidangeur({ depot, descripteurs: DESCRIPTEURS_MUTATION, appelerOutil: invoquerOutil,
+          fetchImpl: fetchFictif, session: () => session, maintenant: () => maintenant });
+        const quarantaine = await vidangeur.vidangerFileSortante();
+        expect(quarantaine.quarantaine).toEqual([idA, idSuivant]);
+        expect(appels).toEqual([]); expect(await depot.lister()).toEqual(attendu.lignes);
+        session = { ...sessionInitiale, jeton: "jeton-fictif-renouvele" };
+        expect((await vidangeur.vidangerFileSortante()).bloquees).toContain(idSuivant);
+        expect(appels).toEqual([]); expect(await depot.lister()).toEqual(attendu.lignes);
+        maintenant = new Date("2026-09-29T13:00:00Z");
+        expect(await vidangeur.vidangerFileSortante()).toMatchObject({ envoyees: [], remisesEnAttente: [idA], bloquees: [idSuivant] });
+        expect(appels).toEqual([requete(idA)]);
+        const inconnue = (await depot.obtenir(idA))!;
+        expect(inconnue).toEqual({ ...attendu.lignes.find(m => m.id === idA), tentatives: 2, prochaineTentativeA: "2026-09-29T13:00:02.000Z" });
+        expect(inconnue.prochaineTentativeA).not.toBeNull();
+        mauvaisRecu = false; maintenant = new Date("2026-09-29T14:00:00Z");
+        expect(await vidangeur.vidangerFileSortante()).toMatchObject({ envoyees: [idA], bloquees: [idSuivant] });
+        expect(await depot.obtenir(idA)).toEqual({ ...inconnue, statut: "envoyee", resumeAccepte: ack(idA) });
+        const apresA = await depot.lister();
+        expect(await depot.mettreAJourSiInchangee(avant, { ...inconnue, statut: "echec_permanent" })).toBe(false);
+        expect(await depot.lister()).toEqual(apresA);
+        expect((await vidangeur.vidangerFileSortante()).envoyees).toEqual([idSuivant]);
+        expect(appels).toEqual([requete(idA), requete(idA), requete(idSuivant)]);
+        expect(await depot.obtenir(idSuivant)).toMatchObject({ statut: "envoyee", resumeAccepte: ack(idSuivant) });
+        terminales = await depot.lister();
+        expect((await vidangeur.vidangerFileSortante()).envoyees).toEqual([]);
+        expect(appels).toHaveLength(3); expect(await depot.lister()).toEqual(terminales);
+      } finally { brute.close(); }
+      const rouverte = baseReelle(fichier);
+      try {
+        await initialiserSchemaOutbox(rouverte.base);
+        expect(await creerDepotOutboxSqlite(rouverte.base).lister()).toEqual(terminales!);
+        if (externe) writeFileSync(`${fichier}.reprise.json`, JSON.stringify({ fictif: true, pid: process.pid,
+          pidPreparation: attendu.pid, lignes: terminales }), { flag: "wx" });
+      } finally { rouverte.brute.close(); }
+    }
+  } finally {
+    // Seul le répertoire temporaire créé par CE test est nettoyé ; les preuves externes restent.
+    if (dossier !== null) rmSync(dossier, { recursive: true, force: true });
+  }
 });
