@@ -24,6 +24,8 @@ from pathlib import Path
 from urllib.parse import parse_qsl, urlsplit
 
 import anyio
+import harnais_e2e
+import httpx
 import pytest
 import yaml
 from fastapi.testclient import TestClient
@@ -1014,6 +1016,156 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
         assert rejeu.enveloppe["rejoue"] is True, rejeu.corps
     _drainer(moteur)
     assert _empreinte(moteur) == avant
+
+
+def test_usage_wct_repris_apres_commit_http_sans_ack_ne_duplique_pas_le_reel(
+    moteur, affaire, tmp_path, monkeypatch, record_property
+):
+    """Fictif : HTTP/SQLite réels, réponse supprimée après commit, pas panne de téléphone.
+
+    L'intention sur fichier est un oracle de reprise du test, pas l'outbox ExpoSQLite.
+    Le harnais reproduit l'autorité d'appareil en Python ; aucun crédit Core TypeScript,
+    PostgreSQL, cohérence d'unité avec le catalogue, conversion ou mesure physique.
+    L'unité est vérifiée dans la confirmation durable, pas dans le mouvement historique
+    qui n'a pas ce champ. La consommation et le retour
+    viennent du formulaire natif, jamais de mouvements injectés dans le registre.
+    """
+    chantier, _, _ = _preparer_affaire(moteur, affaire)
+    app = AppEmploye(moteur, affaire["employe"], chantier)
+    completion = app.journee_jusqu_a_la_completion()
+    assert completion.metier["accepte"] is True, completion.corps
+    wct_id = completion.resultat["wct_id"]
+    _drainer(moteur)
+    (wct,) = [charge for _, charge in _evenements("m4.travaux_termines") if charge["wct_id"] == wct_id]
+    assert (wct["intervention_id"], wct["devis_id"], wct["technicien_id"]) == (
+        chantier.intervention_id, chantier.devis_id, chantier.technicien
+    )
+    intention = {
+        "fictif": True,
+        "outil": "m6_declarer_materiaux_utilises",
+        "cle": "usage-wct-ack-perdu-fictif",
+        "appareil_id": affaire["employe"].appareil_id,
+        "horodatage_appareil": app.heure_appareil(),
+        "args": {"wct_id": wct_id, "formulaire": {
+            "wct_id": wct_id, "intervention_id": chantier.intervention_id,
+            "chantier_id": chantier.chantier_id,
+            "lignes_materiaux": [
+                {"type_ligne": "prevu", "materiau_id": MATERIAU_ID, "quantite": 42.0,
+                 "unite": "pi", "quantite_estimee": 40.0},
+                {"type_ligne": "retour", "materiau_id": MATERIAU_ID, "quantite": 2.0, "unite": "pi"},
+            ],
+        }},
+    }
+    fichier_intention = tmp_path / "intention-usage-fictive.json"
+    fichier_intention.write_text(json.dumps(intention, sort_keys=True), encoding="utf-8")
+
+    def mouvements():
+        with stockage.transaction():
+            return list(stockage.maillons("m06-material-control", "principal"))
+
+    def mouvements_wct():
+        return [m for m in mouvements() if m.get("wct_id") == wct_id]
+
+    def etat_metier():
+        with stockage.transaction() as cnx:
+            return {
+                table.name: [dict(ligne._mapping)
+                             for ligne in cnx.execute(select(table).order_by(*table.primary_key.columns))]
+                for table in (REGISTRES, EVENEMENTS_SORTANTS, EVENEMENTS_RECUS)
+            }
+
+    assert mouvements_wct() == []
+    avant_stock = sum(Decimal(str(m["quantite"])) for m in mouvements() if m.get("materiau_id") == MATERIAU_ID)
+    fabrique_http = harnais_e2e.create_mcp_http_client
+    ack_supprimes = []
+    confirmations_interceptees = []
+    message_perte = "ACK fictif perdu apres commit HTTP M6"
+
+    async def perdre_confirmation(response):
+        if response.request.method != "POST":
+            return
+        requete = json.loads(response.request.content)
+        if requete.get("method") != "tools/call" or requete.get("params", {}).get("name") != intention["outil"]:
+            return
+        assert not ack_supprimes, "une seule tentative HTTP doit atteindre l'effet avant le rejeu explicite"
+        contenu = (await response.aread()).decode()
+        assert response.status_code == 200
+        charges = ([json.loads(contenu)] if response.headers.get("content-type", "").startswith("application/json")
+                   else [json.loads(ligne[5:].strip()) for ligne in contenu.splitlines() if ligne.startswith("data:")])
+        rpc = next(r for r in charges if r.get("id") == requete["id"])
+        enveloppe = json.loads(rpc["result"]["content"][0]["text"])
+        assert enveloppe["ok"] is True and enveloppe["resultat"]["accepte"] is True, enveloppe
+        confirmation = enveloppe["resultat"]["resultat"]
+        assert confirmation == {
+            "intervention_id": chantier.intervention_id, "chantier_id": chantier.chantier_id,
+            "lignes_declarees": intention["args"]["formulaire"]["lignes_materiaux"],
+        }
+        assert [(m["type_mouvement"], m["quantite"]) for m in mouvements_wct()] == [
+            ("CONSOMMATION", -42.0), ("RETOUR", 2.0)
+        ], "le commit doit être relu avant de supprimer sa confirmation"
+        ack_supprimes.append(_empreinte(moteur))
+        confirmations_interceptees.append(confirmation)
+        raise httpx.ReadError(message_perte, request=response.request)
+
+    def client_avec_perte(**kwargs):
+        client = fabrique_http(**kwargs)
+        client.event_hooks["response"].append(perdre_confirmation)
+        return client
+
+    with monkeypatch.context() as panne:
+        panne.setattr(harnais_e2e, "create_mcp_http_client", client_avec_perte)
+        with pytest.raises(Exception) as erreur:
+            affaire["employe"].appeler(
+                intention["outil"], intention["args"], cle=intention["cle"],
+                horodatage_appareil=intention["horodatage_appareil"],
+            )
+
+    def feuilles(exception):
+        if isinstance(exception, BaseExceptionGroup):
+            return [e for enfant in exception.exceptions for e in feuilles(enfant)]
+        return [exception]
+
+    assert all(isinstance(e, httpx.ReadError) and str(e) == message_perte for e in feuilles(erreur.value))
+    assert len(ack_supprimes) == 1 and _empreinte(moteur) == ack_supprimes[0]
+    apres_commit = _empreinte(moteur)
+    reel = mouvements_wct()
+    assert all(m["chantier_id"] == chantier.chantier_id and m["materiau_id"] == MATERIAU_ID for m in reel)
+    assert -sum(Decimal(str(m["quantite"])) for m in reel) == Decimal("40")
+    assert sum(Decimal(str(m["quantite"])) for m in mouvements()
+               if m.get("materiau_id") == MATERIAU_ID) == avant_stock - Decimal("40")
+
+    ancien_fil = moteur._fil
+    ancien_moteur_sql = stockage.moteur()
+    moteur.arreter()
+    assert not ancien_fil.is_alive(), "l'ancien serveur doit être arrêté avant de recréer l'application HTTP"
+    stockage.liberer()
+    moteur.demarrer()  # nouvelle application HTTP et connexions SQL ; pas un téléphone redémarré
+    assert moteur._fil is not ancien_fil and moteur._fil.is_alive()
+    assert stockage.moteur() is not ancien_moteur_sql
+    reprise = json.loads(fichier_intention.read_text(encoding="utf-8"))
+    assert reprise == intention and _empreinte(moteur) == apres_commit
+    porte = harnais_e2e.PorteAppareil(moteur, reprise["appareil_id"])
+    reponse = porte.appeler(
+        reprise["outil"], reprise["args"], cle=reprise["cle"],
+        horodatage_appareil=reprise["horodatage_appareil"],
+    )
+    assert reponse.enveloppe["rejoue"] is True and reponse.metier["accepte"] is True, reponse.corps
+    assert reponse.resultat == confirmations_interceptees[0]
+    assert _empreinte(moteur) == apres_commit and mouvements_wct() == reel
+    avant_refus = etat_metier()
+    refus = porte.appeler(
+        reprise["outil"], reprise["args"], cle="nouvelle-cle-meme-wct-fictive",
+        horodatage_appareil=reprise["horodatage_appareil"],
+    )
+    assert refus.metier["accepte"] is False, refus.corps
+    assert refus.metier["verdict"]["code"] == "REJ-DECLARATION-DEJA-SOUMISE"
+    assert etat_metier() == avant_refus  # le reçu de refus/audit n'est pas un mouvement ni un effet bus
+    record_property("usage_wct_ack_perdu", json.dumps({
+        "fictif": True, "wct_id": wct_id, "intervention_id": chantier.intervention_id,
+        "devis_id": chantier.devis_id, "ack_supprimes_apres_commit": len(ack_supprimes),
+        "mouvements": 2, "net_declare": "40", "unite": "pi", "rejeu_sans_mutation": True,
+        "limite": "intention fichier de test, HTTP Python/SQLite ; pas ExpoSQLite/CoreTS/physique/PG",
+    }, sort_keys=True))
 
 
 def test_affaire_recue_reste_privee_au_vendeur_assigne(moteur, affaire):
