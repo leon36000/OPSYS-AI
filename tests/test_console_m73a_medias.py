@@ -838,3 +838,151 @@ def test_texte_stocke_modifie_sans_empreinte_approuvee_refuse_avant_effets(media
     assert _lire_registre("exports_paquet") == exports_avant
     assert _lire_registre("exports_calendrier") == calendriers_avant
     assert _lire_sorties_evenement() == bus_avant
+
+
+
+@pytest.fixture
+def medias_apres_lead_m1(request, session, monkeypatch, declarer_services):
+    """Seul ce cas lie le WCT fictif à un vrai lead M1 avant son unique append."""
+    import sys
+
+    from m1_front_office import outils as m1
+    from m7_marketing.social import postiz_adapter
+
+    from opsys import taxonomie
+    from opsys.capacites import Capacites
+    from opsys.departements import charger_departements
+
+    declarer_services()
+    taxonomie.enregistrer_zone_desservie(["Laval", "Québec"])
+    m1.utiliser_stockage_durable()
+    try:
+        departements = charger_departements()
+        capacites = Capacites(departements, session, filtre={"m01-front-office"}, memoire=False)
+        message = {"canal": "sms", "expediteur": "+15145550142", "message_id": "SM-CF032-LEAD",
+                   "recu_le": "2026-09-29T09:00:00-04:00",
+                   "texte": "Bonjour, mes gouttières fuient à Laval, c'est urgent."}
+        recu = capacites.appeler("m1_recevoir_message_canal", message)
+        assert recu["ok"] is True and recu["resultat"]["decision"] == "TRANSMETTRE_M2", recu
+        lead_id = recu["resultat"]["lead"]["lead_id"]
+        fabrique = _wct
+
+        def source_liee(reference):
+            charge = fabrique(reference)
+            charge.update(lead_id=lead_id, horodatage_completion="2026-09-29T14:00:00-04:00",
+                          consentement_recueilli_le="2026-09-29T18:05:00+00:00")
+            return charge
+
+        def publication_interdite(*args, **kwargs):
+            raise AssertionError("fixture CF032 : aucun appel de publication externe autorisé")
+
+        # Seule la fabrique pure d'un WCT synthétique est adaptée, avant toute écriture.
+        monkeypatch.setattr(sys.modules[__name__], "_wct", source_liee)
+        monkeypatch.setattr(postiz_adapter.PostizAdapter, "publier", publication_interdite)
+        refs = request.getfixturevalue("medias")
+        yield {**refs, "capacites_m1": capacites, "departements": departements, "lead_id": lead_id}
+    finally:
+        m1.reinitialiser_registre()
+
+
+def test_stop_m1_apres_remise_refuse_ancien_media_et_nouvelle_remise(medias_apres_lead_m1):
+    """STOP et bus M1/M7 réels ; WCT/CAS/consentement fictifs, pas de SMS ni takedown externe."""
+    from opsys import evenements
+    from opsys.stockage.schema import EVENEMENTS_RECUS
+
+    refs = medias_apres_lead_m1
+    client = refs["client"]
+    csrf = _login(client)
+    contenu, slot = _preparer_dossier(client, csrf, refs)
+    remise = _mutation(client, csrf, "remettre_medias", "cf032-remise-avant-stop",
+                       creneau_id=slot["creneau_id"])
+    assert remise.status_code == 200 and _chercher_cle(remise.json(), "accepte") is True, remise.text
+    dossier = _dossier(client, contenu["contenu_id"])
+    url = f"/marketing/calendrier/medias/{contenu['contenu_id']}"
+    params = {"reference": dossier["medias"][0]["prepared_ref"], "mode": "remise"}
+    premier = client.get(url, params=params)
+    assert premier.status_code == 200 and premier.content == _png(b"\x00\x00\xff")
+    assert premier.headers["cache-control"] == "private, no-store, max-age=0"
+    noms_proteges = ("dossiers_medias", "exports_paquet", "exports_calendrier")
+    historique = {nom: _lire_registre(nom) for nom in noms_proteges}
+    (remise_durable,) = [m for m in historique["dossiers_medias"] if m["type_maillon"] == "media_remise"]
+    (export_durable,) = historique["exports_paquet"]
+    assert remise_durable["export_id"] == export_durable["export_id"]
+    assert remise_durable["prepared_refs"] == [params["reference"]]
+    assert historique["exports_calendrier"] == [], "la remise médias ne crée pas un export texte du calendrier"
+    assert _lire_registre("retraits_consentement_marketing") == []
+    with stockage.transaction() as cnx:
+        personne = identite.personne_active(cnx, "owner_m73a")
+        assert personne is not None and "nathan_owner" in personne.roles
+        roles = frozenset(personne.roles)
+        blocs = [dict(row._mapping) for row in cnx.execute(select(FICHIERS_BLOCS).order_by(
+            *FICHIERS_BLOCS.primary_key.columns))]
+    annonces_avant = [{k: e[k] for k in ("evenement_id", "type_evenement", "producteur", "charge")}
+                      for e in _lire_sorties_evenement()]
+    exports_annonces = [e for e in annonces_avant if e["type_evenement"] == "m7.contenu_exporte"]
+    assert len(exports_annonces) == 1, "l'export avant STOP doit avoir une annonce native"
+
+    stop = refs["capacites_m1"].appeler("m1_recevoir_message_canal", {
+        "canal": "sms", "expediteur": "+15145550142", "message_id": "SM-CF032-STOP",
+        "recu_le": "2026-09-29T19:00:00-04:00", "texte": "STOP"})
+    assert stop["ok"] is True and stop["resultat"]["decision"] == "RETRAIT_CONSENTEMENT", stop
+    publication = stop["resultat"]["retrait_publie"]
+    assert publication["leads"] == 1 and isinstance(publication["evenement_id"], str)
+    with stockage.transaction() as cnx:
+        evenement = cnx.execute(select(EVENEMENTS_SORTANTS).where(
+            EVENEMENTS_SORTANTS.c.evenement_id == publication["evenement_id"])).mappings().one()
+    assert evenement["type_evenement"] == "m1.retrait_consentement"
+    assert evenement["producteur"] == "m01-front-office"
+    charge = codec.decoder(evenement["charge"])
+    assert charge == {"lead_ids": [refs["lead_id"]], "canal": "sms", "signal_id": "sms:SM-CF032-STOP",
+                      "horodatage": "2026-09-29T19:00:00-04:00"}
+    departements = {i: d for i, d in refs["departements"].items() if i in {"m01-front-office", "m07-marketing"}}
+    for tour in range(10):
+        bilan = evenements.repartir(departements, maintenant=(
+            datetime(2026, 9, 30, 9, tzinfo=timezone(timedelta(hours=-4))) + timedelta(seconds=90 * tour)
+        ).isoformat())
+        assert bilan["echecs"] == bilan["quarantaines"] == 0, bilan
+        if bilan["livres"] == 0:
+            break
+    else:
+        pytest.fail("le bus M1/M7 ne rejoint pas la quiescence")
+    with stockage.transaction() as cnx:
+        recu = cnx.execute(select(EVENEMENTS_RECUS).where(
+            EVENEMENTS_RECUS.c.evenement_id == publication["evenement_id"],
+            EVENEMENTS_RECUS.c.consommateur == "m07-marketing")).mappings().one()
+    assert recu["statut"] == "traite" and codec.decoder(recu["resultat"])["retraits_ecrits"] == 1
+    retraits = _lire_registre("retraits_consentement_marketing")
+    (retrait,) = retraits
+    assert (retrait["lead_id"], retrait["wct_id"], retrait["canal"], retrait["source"]) == (
+        refs["lead_id"], None, "sms", "bus:m1.retrait_consentement"
+    )
+    assert {nom: _lire_registre(nom) for nom in noms_proteges} == historique
+    annonces = _lire_sorties_evenement()
+    immuables = [{k: a[k] for k in ("evenement_id", "type_evenement", "producteur", "charge")} for a in annonces]
+    assert all(e in immuables for e in annonces_avant)
+    assert [e for e in immuables if e["type_evenement"] == "m7.contenu_exporte"] == exports_annonces, (
+        "le STOP ajoute son retrait M1, jamais une nouvelle annonce d'export M7"
+    )
+
+    # L'identité reste valable ; seule l'autorisation client a changé.
+    assert client.get("/api/session").status_code == 200
+    assert client.get("/api/marketing/calendrier").status_code == 200
+    with stockage.transaction() as cnx:
+        personne = identite.personne_active(cnx, "owner_m73a")
+        assert personne is not None and frozenset(personne.roles) == roles
+    ancien = client.get(url, params=params)
+    assert ancien.status_code == 404 and not ancien.content.startswith(b"\x89PNG\r\n\x1a\n")
+    refusee = _mutation(client, csrf, "remettre_medias", "cf032-nouvelle-remise-apres-stop",
+                        creneau_id=slot["creneau_id"])
+    assert refusee.status_code == 409 and refusee.json()["ok"] is False, refusee.text
+    assert _chercher_cle(refusee.json(), "code") in {
+        "REJ-CONSENTEMENT-RETIRE", "REJ-MEDIA-CRENEAU-NON-APPROUVE", "REJ-CRENEAU-NON-APPROUVE"
+    }, refusee.text
+    assert {nom: _lire_registre(nom) for nom in noms_proteges} == historique
+    assert _lire_registre("retraits_consentement_marketing") == retraits
+    assert _lire_sorties_evenement() == annonces
+    with stockage.transaction() as cnx:
+        assert [dict(row._mapping) for row in cnx.execute(select(FICHIERS_BLOCS).order_by(
+            *FICHIERS_BLOCS.primary_key.columns))] == blocs
+        personne = identite.personne_active(cnx, "owner_m73a")
+        assert personne is not None and frozenset(personne.roles) == roles
