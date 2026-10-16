@@ -421,10 +421,14 @@ class Capacites:
         # Les outils cibles sortent du dispatch normal ci-dessous. Appliquer ici la même
         # portée d'appareil que le chemin `_valider_au_depart`, avant les refus de ticket,
         # sinon un rôle non autorisé observe `ticket_cible_requis` au lieu du refus de portée.
+        outils_cibles = (
+            liaison_cibles.OUTILS_CIBLES_CORE
+            if contexte_appel.appel_provient_du_mcp() else liaison_cibles.OUTILS_CIBLES
+        )
         if (
             appelante is not None
             and appelante.source == "appareil"
-            and nom in liaison_cibles.OUTILS_CIBLES
+            and nom in outils_cibles
             and nom not in self._outils_du_role(appelante.role)
         ):
             if meta is not None:
@@ -437,7 +441,7 @@ class Capacites:
             }
         if ticket_cible is not None:
             return self._appeler_avec_ticket(nom, args, ticket_cible)
-        if nom in liaison_cibles.OUTILS_CIBLES:
+        if nom in outils_cibles:
             entree = self.index.get(nom)
             dept, outil = entree if entree is not None else (None, None)
             if dept is None or (self.appelant is not None and dept.id != self.appelant.id):

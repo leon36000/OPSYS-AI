@@ -220,6 +220,7 @@ def creer_serveur(
             reponse = {"ok": False, "erreur": "admission_profil_refusee", "details": "appel humain profilé"}
         else:
             with (
+                contexte.transport_mcp(),
                 contexte.appele_par_appareil(identite),
                 contexte.appele_avec_ticket_agent_cfo(ticket_cfo, params.arguments or {}),
             ):

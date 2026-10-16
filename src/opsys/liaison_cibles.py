@@ -18,7 +18,7 @@ from typing import Any
 from sqlalchemy import Connection, insert, select, update
 
 from . import idempotence, stockage
-from .stockage.schema import LIAISONS_TICKETS
+from .stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, LIAISONS_TICKETS
 
 TICKET_CIBLE_META = "opsys/cibleTicket"
 _LONGUEUR_MAX_TICKET = 4096
@@ -35,6 +35,10 @@ _OUTILS_M2 = frozenset({
 _OUTILS_M3 = frozenset({"m3_marquer_devis_accepte", "m3_demander_envoi_devis"})
 _OUTILS_M3_CREATION = frozenset({"m3_creer_devis"})
 OUTILS_CIBLES = _OUTILS_M2 | _OUTILS_M3 | _OUTILS_M3_CREATION
+_OUTILS_SUIVI_M9 = frozenset({"m9_ouvrir_suivi_decision"})
+# La proposition native M9 conserve son approbation dédiée sans ticket de transport.
+# Tous ses appels MCP, même /mcp sans département, exigent en revanche une cible vérifiée.
+OUTILS_CIBLES_CORE = OUTILS_CIBLES | _OUTILS_SUIVI_M9
 _CHAMPS_CIBLES = frozenset({
     "lead_id", "devis_id", "facture_id", "wct_id", "client_id", "chantier_id",
     "intervention_id", "po_id", "signal_id", "contenu_id", "avis_id", "creneau_id",
@@ -60,6 +64,14 @@ def cible_de_l_outil(nom_outil: str, arguments: Mapping[str, Any]) -> tuple[str,
     Cette vérification de forme ne prouve pas que l'objet existe ni qu'il est relié à l'affaire;
     ces contrôles sont faits à l'émission et à l'exécution depuis les registres canoniques.
     """
+    if nom_outil in _OUTILS_SUIVI_M9:
+        evenement_id = arguments.get("evenement_id")
+        if (
+            set(arguments) != {"evenement_id", "empreinte_source", "action", "responsable_id", "echeance"}
+            or not isinstance(evenement_id, str) or not evenement_id.strip()
+        ):
+            raise CibleRefusee("le suivi exige sa preuve unique et ses seuls arguments contractuels")
+        return "m09-strategic-intelligence", evenement_id, "alerte_m8"
     if nom_outil in _OUTILS_M2:
         departement, champ, genre = "m02-revenue-crm", "lead_id", "lead"
     elif nom_outil in _OUTILS_M3:
@@ -129,14 +141,90 @@ def _exiger_chaine_m2_valide(registre_cible: Any) -> None:
         raise CibleRefusee("chaîne du registre canonique M2 invalide")
 
 
+def _publication_traitee(
+    cnx: Connection, evenement_id: str, type_evenement: str, producteur: str, consommateur: str,
+) -> dict[str, Any]:
+    """Lit une publication et son reçu par leurs clés, sans scanner une cohorte du bus."""
+    from .stockage import codec
+
+    ligne = cnx.execute(select(
+        EVENEMENTS_SORTANTS.c.type_evenement, EVENEMENTS_SORTANTS.c.producteur,
+        EVENEMENTS_SORTANTS.c.charge,
+    ).where(EVENEMENTS_SORTANTS.c.evenement_id == evenement_id)).mappings().one_or_none()
+    if ligne is None or (ligne["type_evenement"], ligne["producteur"]) != (type_evenement, producteur):
+        raise CibleRefusee("publication canonique absente ou provenance discordante")
+    statut = cnx.execute(select(EVENEMENTS_RECUS.c.statut).where(
+        EVENEMENTS_RECUS.c.evenement_id == evenement_id,
+        EVENEMENTS_RECUS.c.consommateur == consommateur,
+    )).scalar_one_or_none()
+    if statut != "traite":
+        raise CibleRefusee("reçu canonique absent ou non traité")
+    try:
+        charge = codec.decoder(ligne["charge"])
+    except (ValueError, TypeError):
+        raise CibleRefusee("charge de publication canonique invalide") from None
+    if type(charge) is not dict:
+        raise CibleRefusee("charge de publication canonique invalide")
+    return charge
+
+
+def _revalider_suivi_m9(cnx: Connection, arguments: Mapping[str, Any], affaire_id: str) -> str:
+    from m9_strategic_intelligence import suivi_decisions
+    from m10_memoire import classification, contrats, encodage, registre, wct
+
+    try:
+        source = suivi_decisions.preparer_source(
+            stockage.maillons("m09-strategic-intelligence", "alertes_m8"), arguments["evenement_id"],
+        )
+    except (ValueError, TypeError, KeyError):
+        raise CibleRefusee("preuve M8 reçue absente ou invalide") from None
+    if source["empreinte_source"] != arguments["empreinte_source"]:
+        raise CibleRefusee("empreinte de la preuve M8 discordante")
+    publication_m8 = _publication_traitee(
+        cnx, source["evenement_id"], "m8.alerte_proposee", "m08-analytics", "m09-strategic-intelligence",
+    )
+    if encodage.empreinte(publication_m8) != encodage.empreinte(source["alerte"]):
+        raise CibleRefusee("preuve reçue différente de la publication M8 canonique")
+    wct_id = source["alerte"]["preuve"]["wct_id"]
+    publication_m4 = _publication_traitee(
+        cnx, wct_id, "m4.travaux_termines", "m04-field-ops", "m10-memoire",
+    )
+    if publication_m4.get("wct_id") != wct_id:
+        raise CibleRefusee("WCT publié discordant")
+    reg = registre.Registre(maillons=stockage.maillons("m10-memoire", "evenements"))
+    try:
+        valide, _ = reg.valider_chaine()
+    except Exception:
+        raise CibleRefusee("chaîne du registre canonique M10 événements invalide") from None
+    if valide is not True:
+        raise CibleRefusee("chaîne du registre canonique M10 événements invalide")
+    candidats = [m for m in reg.lire() if classification.type_evenement(m) == classification.TYPE_WCT
+                 and m.get("wct_id") == wct_id]
+    if len(candidats) != 1 or not all(champ in candidats[0] for champ in contrats.CHAMPS_WCT):
+        raise CibleRefusee("WCT canonique absent, incomplet ou ambigu")
+    if not all(champ in publication_m4 for champ in contrats.CHAMPS_WCT):
+        raise CibleRefusee("WCT publié incomplet")
+    memorise = {champ: candidats[0][champ] for champ in contrats.CHAMPS_WCT}
+    publie = {champ: publication_m4[champ] for champ in contrats.CHAMPS_WCT}
+    if wct.valider_wct(publie)[0] is not True or encodage.empreinte(memorise) != encodage.empreinte(publie):
+        raise CibleRefusee("WCT mémorisé différent de la publication M4 canonique")
+    # Le lead_id est déjà la représentation canonique M4/M10, opportunité comprise.
+    # Ne jamais fabriquer un identifiant d'affaire à partir de la seule forme du WCT.
+    if memorise["lead_id"] != affaire_id:
+        raise CibleRefusee("la preuve M8 appartient à une autre affaire")
+    return source["evenement_id"]
+
+
 def _revalider_cible(cnx: Connection, outil: str, arguments: Mapping[str, Any], affaire_id: str,
                      ligne_liaison_id: str) -> tuple[str, str]:
-    """Résout l'objet dans les registres M2/M3 et exige qu'il reste joint au lien M10 courant."""
+    """Résout M2/M3 ou la preuve M9 et exige sa concordance avec le lien M10 courant."""
     departement, cible, genre_cible = cible_de_l_outil(outil, arguments)
     from m10_memoire import affaire as affaire_m10
 
     if not affaire_m10.valide(affaire_id) or affaire_m10.genre(affaire_id) is None:
         raise CibleRefusee("affaire invalide")
+    if outil in _OUTILS_SUIVI_M9:
+        return _revalider_suivi_m9(cnx, arguments, affaire_id), genre_cible
     # La clé de session est validée et comparée dans les fonctions d'émission/exécution.
     # Ici, le demandeur transmet la ligne attendue, jamais une autorité alternative.
     if genre_cible == "lead":

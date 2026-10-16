@@ -275,13 +275,14 @@ def test_niveaux_donne_le_niveau_effectif_de_chaque_outil_des_departements(depar
     assert len(niveaux) == sum(len(dep.charger_outils()) for dep in departements.values())
 
 
-def test_cibles_ticket_declarent_exactement_les_neuf_mutations_resolues_par_python(departements, tmp_path):
+def test_cibles_ticket_declarent_exactement_les_dix_mutations_resolues_par_python(departements, tmp_path):
     fichiers = _generer(departements, tmp_path, contexte_entreprise=ESTIMATION)
     cibles = _lire(fichiers, "contexte")["cibles"]
     attendues = {
         "m2_transitionner_statut", "m2_reassigner_lead", "m2_enregistrer_interaction",
         "m2_preparer_relance", "m2_enregistrer_consentement_contact", "m2_marquer_chantier_termine",
         "m3_marquer_devis_accepte", "m3_demander_envoi_devis", "m3_creer_devis",
+        "m9_ouvrir_suivi_decision",
     }
     assert {nom for nom, cible in cibles.items() if cible == {"type": "ticket"}} == attendues
     assert cibles["m5_enregistrer_mouvement"] == {"type": "inconnue"}

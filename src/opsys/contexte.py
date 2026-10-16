@@ -35,6 +35,24 @@ DEPARTEMENT_APPELANT: contextvars.ContextVar[str | None] = contextvars.ContextVa
 DEPARTEMENT_ORIGINE_APPELANT: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "opsys_departement_origine_appelant", default=None
 )
+_TRANSPORT_MCP: contextvars.ContextVar[bool] = contextvars.ContextVar(
+    "opsys_transport_mcp", default=False
+)
+
+
+@contextlib.contextmanager
+def transport_mcp() -> Iterator[None]:
+    """Le wrapper MCP fixe cette origine, jamais les arguments ou les métadonnées du client."""
+    jeton = _TRANSPORT_MCP.set(True)
+    try:
+        yield
+    finally:
+        _TRANSPORT_MCP.reset(jeton)
+
+
+def appel_provient_du_mcp() -> bool:
+    """Origine du transport, y compris pour /mcp sans département et les appels profilés."""
+    return _TRANSPORT_MCP.get()
 
 
 @contextlib.contextmanager

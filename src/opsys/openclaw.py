@@ -575,13 +575,13 @@ def _configuration_contexte(
         }
     # Le contrat explicite exige le contrôle transactionnel Python; une ancienne cible
     # inconnue reste bloquée par le Core jusqu'à régénération de ce fragment.
-    from .liaison_cibles import OUTILS_CIBLES
+    from .liaison_cibles import OUTILS_CIBLES_CORE
 
     cibles: dict[str, Any] = {}
     for nom, (_departement, outil) in sorted(index.items()):
         if outil.niveau_effectif.value not in {"N3", "N4", "N5"}:
             continue
-        if nom in OUTILS_CIBLES:
+        if nom in OUTILS_CIBLES_CORE:
             cibles[nom] = {"type": "ticket"}
         elif outil.portee_contexte == "globale":
             cibles[nom] = {"type": "globale"}
