@@ -12,6 +12,7 @@
 src/agents/mcp-call-meta.test.ts
 src/agents/agent-bundle-mcp-runtime.mcp-call-meta.test.ts
 src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.test.ts
+src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts
 src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.python-http.integration.test.ts
 src/agents/agent-bundle-mcp-runtime.test.ts
 src/agents/agent-bundle-mcp-runtime.agent-bundle.test.ts
