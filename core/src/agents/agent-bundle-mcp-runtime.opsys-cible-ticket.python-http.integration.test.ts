@@ -1,19 +1,33 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { CallToolResultSchema, type CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { acquireOpsysContextTestConfig } from "../../test/helpers/opsys-context-test-config.js";
+import { upsertSessionEntryCore } from "../config/sessions/session-accessor.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
+import { depositKey } from "../context-engine/opsys-contexte-depot.js";
 import { opsysContexteGuardStore } from "../context-engine/opsys-contexte-garde.js";
+import { createUserTurnTranscriptRecorder } from "../sessions/user-turn-transcript.js";
+import {
+  closeOpenClawAgentDatabaseByPathAsync,
+  openOpenClawAgentDatabase,
+} from "../state/openclaw-agent-db.js";
+import { cleanupSessionStateForTest } from "../test-utils/session-state-cleanup.js";
 import { getSessionMcpRuntimeManagerForTesting } from "./agent-bundle-mcp-manager-api.js";
 import { getOrCreateSessionMcpRuntime } from "./agent-bundle-mcp-manager.test-support.js";
 import { SESSION_MCP_RUNTIME_MANAGER_KEY } from "./agent-bundle-mcp-runtime-shared.js";
+import { OpsysPostflightCollector } from "./harness/opsys-postflight-collector.js";
+import {
+  listOpsysPostflightIntents,
+  listOpsysPostflightLots,
+} from "./harness/opsys-postflight-outbox.js";
 import { withMcpCallMeta } from "./mcp-call-meta.js";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -156,10 +170,17 @@ async function reservePort(): Promise<number> {
   return address.port;
 }
 
-async function startPythonMcp(python: string, home: string, port: number): Promise<ChildProcess> {
+async function startPythonMcp(
+  python: string,
+  home: string,
+  port: number,
+  intentDatabase?: string,
+): Promise<ChildProcess> {
   const child = spawn(
     python,
-    ["-m", "opsys.serveur_mcp", "--http", "--hote", "127.0.0.1", "--port", String(port)],
+    intentDatabase
+      ? [FIXTURE, "serve-m9-observed", "--port", String(port), "--intent-db", intentDatabase]
+      : ["-m", "opsys.serveur_mcp", "--http", "--hote", "127.0.0.1", "--port", String(port)],
     {
       cwd: REPO,
       env: pythonEnv(home),
@@ -284,6 +305,7 @@ afterEach(async () => {
   await manager.disposeSession("opsys-real-python-cible-ticket");
   await manager.disposeSession("opsys-real-python-m3-n4-device");
   await manager.disposeSession("opsys-real-python-m9-followup");
+  await manager.disposeSession("opsys-real-python-m9-pending-intent");
   for (const child of children.splice(0)) {
     await stopChild(child);
   }
@@ -296,6 +318,208 @@ afterEach(async () => {
 });
 
 describe("OPSYS target ticket through Core and the real Python HTTP MCP", () => {
+  it("keeps real M9 approval pending as a durable uncertain intent and refuses its replay after SQLite reopen", async () => {
+    const python = requiredPython();
+    const home = await mkdtemp(resolve(tmpdir(), "opsys-m9-pending-intent-http-"));
+    tempDirs.push(home);
+    const prepared = JSON.parse(
+      await runFixture(python, home, "prepare-m9", ["--postflight-depot"]),
+    ) as {
+      fictif: boolean;
+      session_key: string;
+      affairs: Record<"A" | "B", string>;
+      arguments: Record<"A" | "B", Record<string, unknown>>;
+      generated_context: { agent: { depot: string[] } };
+    };
+    const agentId = "m09-strategic-intelligence";
+    const tool = "m9_ouvrir_suivi_decision";
+    const sessionId = "opsys-real-python-m9-pending-intent";
+    const toolCallId = "m9-fictif-pending-call";
+    expect(prepared.fictif).toBe(true);
+    // Actual native generation with an explicitly selected deposit tool; shared config is untouched.
+    expect(prepared.generated_context.agent.depot).toEqual([tool]);
+    const coreState = resolve(home, "core-state");
+    const target = {
+      agentId,
+      cwd: coreState,
+      sessionId,
+      sessionKey: prepared.session_key,
+      storePath: resolve(coreState, "agents", agentId, "sessions", "sessions.json"),
+    };
+    await mkdir(dirname(target.storePath), { recursive: true });
+    const authority = new AbortController();
+    try {
+      const sessionEntry = await upsertSessionEntryCore(target, { sessionId, updatedAt: 1 });
+      if (!sessionEntry) {
+        throw new Error("fictive M9 transcript entry was not persisted");
+      }
+      const recorder = createUserTurnTranscriptRecorder({
+        message: {
+          role: "user",
+          content: "fictif: true; revoir la durée du chantier",
+          timestamp: 2,
+        },
+        target: () => ({ ...target, sessionEntry }),
+        updateMode: "none",
+      });
+      expect(await recorder.persistApproved()).toBeDefined();
+      const receipt = recorder.getAdmissionReceipt();
+      if (!receipt || receipt.agentId !== agentId || receipt.sessionId !== sessionId) {
+        throw new Error("canonical M9 transcript admission absent");
+      }
+      const options = { agentId: receipt.agentId, path: receipt.storePath };
+      const database = openOpenClawAgentDatabase(options);
+      const createCollector = async (runId: string) => {
+        const collector = new OpsysPostflightCollector({
+          runId,
+          sessionId,
+          sessionKey: prepared.session_key,
+          agentId,
+          recorder,
+          depositTools: prepared.generated_context.agent.depot,
+          assertCurrent: () => authority.signal.throwIfAborted(),
+        });
+        // This provider/model admission is synthetic; the user transcript above is really persisted.
+        collector.recordRuntimeAdmission({
+          runId,
+          agentId,
+          profileId: "m9-fictif-pending-profile",
+          profileRevision: 1,
+          departement: agentId,
+          attemptId: `${runId}-attempt`,
+          cycleId: `${runId}-cycle`,
+        });
+        await collector.prepareBeforeProviderDispatch();
+        return collector;
+      };
+      const collector = await createCollector("m9-fictif-pending-run");
+      expect(await listOpsysPostflightIntents({ database, options, now: Date.now() })).toEqual([]);
+      expect(await listOpsysPostflightLots({ database, options, now: Date.now() })).toEqual([]);
+      const port = await reservePort();
+      await startPythonMcp(python, home, port, database.path);
+      const runtime = await getOrCreateSessionMcpRuntime({
+        sessionId,
+        sessionKey: prepared.session_key,
+        workspaceDir: home,
+        cfg: { plugins: { enabled: false }, ...m9OpsysConfig(port) },
+      });
+      opsysContexteGuardStore.set(prepared.session_key, {
+        kind: "ready",
+        affaireId: prepared.affairs.A,
+        nbOuverts: 0,
+        atMs: Date.now(),
+      });
+      const observer = collector.beginToolCall({
+        toolCallId,
+        toolName: tool,
+        serverName: "opsys_m9",
+      });
+      if (!observer) {
+        throw new Error("M9 postflight observer must be attached to the actual Core call");
+      }
+      const result = await runtime.callTool("opsys_m9", tool, prepared.arguments.A, observer);
+      expect(result.isError).not.toBe(true);
+      expect(
+        JSON.parse(result.content.find((item) => item.type === "text")?.text ?? "null"),
+      ).toMatchObject({
+        ok: true,
+        statut: "en_attente_approbation",
+        demande_id: expect.any(String),
+      });
+      const readDispatches = async () =>
+        (await readFile(resolve(home, "m9-business-dispatches.jsonl"), "utf8"))
+          .trim()
+          .split("\n")
+          .filter(Boolean)
+          .map((row) => JSON.parse(row));
+      const expectedDispatch = [
+        {
+          fictif: true,
+          intents: [{ fact_key: depositKey(sessionId, toolCallId), state: "uncertain" }],
+          outbox_count: 0,
+        },
+      ];
+      // The native business endpoint observed the committed reservation before its own effect.
+      expect(await readDispatches()).toEqual(expectedDispatch);
+      const pending = await listOpsysPostflightIntents({ database, options, now: Date.now() });
+      expect(pending).toHaveLength(1);
+      expect(pending[0]).toMatchObject({
+        factKey: depositKey(sessionId, toolCallId),
+        affaireId: prepared.affairs.A,
+        departementSource: agentId,
+        outil: tool,
+        state: "uncertain",
+      });
+      expect(await listOpsysPostflightLots({ database, options, now: Date.now() })).toEqual([]);
+      expect(await collector.flushPending()).toMatchObject({ remaining: 0, failures: 1 });
+      const inspect = async () => JSON.parse(await runFixture(python, home, "inspect-m9"));
+      const nativePending = await inspect();
+      expect(nativePending).toMatchObject({ owner_active: true, followups: [] });
+      expect(nativePending.requests).toHaveLength(1);
+      const next = collector.beginToolCall({
+        toolCallId: "m9-fictif-next-call",
+        toolName: tool,
+        serverName: "opsys_m9",
+      });
+      if (!next) {
+        throw new Error("expected the same live collector's next-call observer");
+      }
+      await expect(runtime.callTool("opsys_m9", tool, prepared.arguments.A, next)).rejects.toThrow(
+        "durable capture is unresolved",
+      );
+      expect(await readDispatches()).toEqual(expectedDispatch);
+      expect(await listOpsysPostflightIntents({ database, options, now: Date.now() })).toEqual(
+        pending,
+      );
+
+      // Drain the actual scoped worker/owner and prove its native handle really closed.
+      await closeOpenClawAgentDatabaseByPathAsync(database.path, agentId);
+      expect(database.db.isOpen).toBe(false);
+      const disk = new DatabaseSync(database.path, { readOnly: true });
+      try {
+        expect(disk.prepare("SELECT fact_key, state FROM opsys_postflight_intents").all()).toEqual([
+          { fact_key: depositKey(sessionId, toolCallId), state: "uncertain" },
+        ]);
+        expect(
+          disk.prepare("SELECT COUNT(*) AS count FROM opsys_postflight_outbox").get()?.count,
+        ).toBe(0);
+      } finally {
+        disk.close();
+      }
+      const replayCollector = await createCollector("m9-fictif-reopened-run");
+      const reopened = openOpenClawAgentDatabase(options);
+      expect(reopened).not.toBe(database);
+      expect(
+        await listOpsysPostflightIntents({ database: reopened, options, now: Date.now() }),
+      ).toEqual(pending);
+      const replay = replayCollector.beginToolCall({
+        toolCallId,
+        toolName: tool,
+        serverName: "opsys_m9",
+      });
+      if (!replay) {
+        throw new Error("expected the reopened collector's exact-key observer");
+      }
+      await expect(
+        runtime.callTool("opsys_m9", tool, prepared.arguments.A, replay),
+      ).rejects.toThrow("POSTFLIGHT_INTENT_ALREADY_RESERVED");
+      expect(await readDispatches()).toEqual(expectedDispatch);
+      expect(
+        await listOpsysPostflightIntents({ database: reopened, options, now: Date.now() }),
+      ).toEqual(pending);
+      expect(
+        await listOpsysPostflightLots({ database: reopened, options, now: Date.now() }),
+      ).toEqual([]);
+      // Private tickets may be issued before reservation refusal; business requests must stay unchanged.
+      const finalNative = await inspect();
+      expect(finalNative).toMatchObject({ owner_active: true, followups: [] });
+      expect(finalNative.requests).toEqual(nativePending.requests);
+    } finally {
+      authority.abort();
+      await cleanupSessionStateForTest({ stateDir: coreState });
+    }
+  }, 90_000);
+
   it("refuses stale M9 approval after affair replacement with the owner valid and opens fresh B", async () => {
     const python = requiredPython();
     const home = await mkdtemp(resolve(tmpdir(), "opsys-m9-cible-ticket-http-"));

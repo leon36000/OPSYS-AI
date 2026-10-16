@@ -67,7 +67,7 @@ def _link_m9(suffix: str) -> None:
             raise RuntimeError(f"canonical M9 affair link refused: {refused!r}")
 
 
-def prepare_m9() -> None:
+def prepare_m9(*, postflight_depot: bool = False) -> None:
     import yaml
     from m8_analytics import outils as outils_m8
     from m9_strategic_intelligence.encodage import empreinte
@@ -109,7 +109,9 @@ def prepare_m9() -> None:
                 "responsable_id": M9_RESPONSIBLE, "echeance": "2026-10-20T09:00:00-04:00",
             }
     _link_m9("A")
-    generated = openclaw._configuration_contexte(departments, {M9: []}, [M9])
+    generated = openclaw._configuration_contexte(
+        departments, {M9: [M9_OPEN] if postflight_depot else []}, [M9],
+    )
     assert generated is not None
     print(json.dumps({
         "fictif": True, "session_key": M9_SESSION_KEY,
@@ -122,6 +124,59 @@ def prepare_m9() -> None:
                        if name in generated["cibles"]},
         },
     }))
+
+
+def serve_m9_observed(port: int, intent_database: Path) -> None:
+    """Observe the real business HTTP boundary without replacing its native handler/result."""
+    import sqlite3
+    from contextlib import closing
+
+    import uvicorn
+
+    from opsys import etat
+    from opsys.serveur_mcp import application_http_departements
+
+    home = Path(os.environ["OPSYS_HOME"]).resolve()
+    database = intent_database.resolve()
+    if not database.is_relative_to(home / "core-state") or not database.is_file():
+        raise RuntimeError("expected this fixture's actual Core transcript SQLite database")
+    log_path = home / "m9-business-dispatches.jsonl"
+    log_path.touch(mode=0o600, exist_ok=False)
+    stockage.migrer()
+    application = application_http_departements(
+        charger_departements(), etat.session, os.environ["OPSYS_MCP_JETON"], "127.0.0.1",
+        jeton_contexte=os.environ["OPSYS_CONTEXT_MCP_JETON"],
+    )
+
+    async def observed(scope, receive, send):
+        body = bytearray()
+
+        async def receive_observed():
+            message = await receive()
+            if (scope["type"] == "http" and scope["method"] == "POST"
+                    and scope["path"].rstrip("/") == "/mcp/" + M9
+                    and message["type"] == "http.request"):
+                body.extend(message.get("body", b""))
+                if len(body) > 64 * 1024:
+                    raise RuntimeError("bounded fictive M9 request exceeded fixture limit")
+                if not message.get("more_body", False):
+                    request = json.loads(body)
+                    if request.get("method") == "tools/call" and request.get("params", {}).get("name") == M9_OPEN:
+                        with closing(sqlite3.connect(database.as_uri() + "?mode=ro", uri=True)) as cnx:
+                            intents = [{"fact_key": key, "state": state} for key, state in cnx.execute(
+                                "SELECT fact_key, state FROM opsys_postflight_intents ORDER BY fact_key",
+                            )]
+                            [outbox_count] = cnx.execute("SELECT COUNT(*) FROM opsys_postflight_outbox").fetchone()
+                        # Only synthetic correlation/state is logged, never headers, tickets or arguments.
+                        with log_path.open("a", encoding="utf-8") as stream:
+                            stream.write(json.dumps({
+                                "fictif": True, "intents": intents, "outbox_count": outbox_count,
+                            }) + "\n")
+            return message
+
+        await application(scope, receive_observed, send)
+
+    uvicorn.run(observed, host="127.0.0.1", port=port, log_level="info")
 
 
 def inspect_m9() -> None:
@@ -352,10 +407,13 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "command",
-        choices=("prepare", "prepare-m3", "prepare-m9", "switch-m9-b", "inspect-m9",
+        choices=("prepare", "prepare-m3", "prepare-m9", "serve-m9-observed", "switch-m9-b", "inspect-m9",
                  "refuse-m9-approval", "revoke", "inspect", "inspect-m3", "revoke-seller-role", "approve"),
     )
     parser.add_argument("--request-id")
+    parser.add_argument("--postflight-depot", action="store_true")
+    parser.add_argument("--port", type=int)
+    parser.add_argument("--intent-db", type=Path)
     args = parser.parse_args()
     command = args.command
     if command == "prepare":
@@ -363,7 +421,11 @@ def main() -> None:
     elif command == "prepare-m3":
         prepare_m3()
     elif command == "prepare-m9":
-        prepare_m9()
+        prepare_m9(postflight_depot=args.postflight_depot)
+    elif command == "serve-m9-observed":
+        if args.port is None or args.intent_db is None:
+            raise RuntimeError("serve-m9-observed requires the owned port and Core database")
+        serve_m9_observed(args.port, args.intent_db)
     elif command == "switch-m9-b":
         _link_m9("B")
     elif command == "inspect-m9":
