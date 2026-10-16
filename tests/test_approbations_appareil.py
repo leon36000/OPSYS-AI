@@ -1150,3 +1150,114 @@ def test_la_table_approbations_ne_garde_pas_la_valeur_masquee_du_gps_dans_la_lis
     with session() as cnx:
         stocke = cnx.execute(select(APPROBATIONS.c.arguments).where(APPROBATIONS.c.id == ident)).scalar_one()
     assert "45.508812" in stocke  # inchangé : la console et l'exécution utilisent les arguments exacts
+
+
+def test_decisions_m9_reouvertes_conservent_correction_et_historique(session, capacites):
+    """Fixtures fictives : pool/Capacites rouverts, pas un nouveau processus ni une action M4 réelle."""
+    from m9_strategic_intelligence.registre import RegistreSnapshots
+
+    from opsys.stockage.schema import META
+
+    def tables():
+        with session() as cnx:
+            return {nom: sorted(json.dumps(dict(ligne), sort_keys=True, default=str)
+                                for ligne in cnx.execute(select(table)).mappings())
+                    for nom, table in META.tables.items()}
+
+    def lire(nom, arguments=None):
+        avant = tables()
+        with contexte.appele_par_appareil(PROPRIO):
+            reponse = capacites.appeler(nom, arguments or {})  # T0/N0 sans reçu de mutation
+        assert reponse["ok"] is True and "tronque" not in reponse, reponse
+        assert tables() == avant, "chaque lecture conserve toutes les tables SQL"
+        return reponse["resultat"]
+
+    def chaine():
+        with session():
+            registre = RegistreSnapshots(stockage.maillons("m09-strategic-intelligence", "snapshots"))
+            assert registre.valider_chaine() == (True, "")
+            return registre.lire()
+
+    def verifier_proprietaire():
+        with session() as cnx:
+            personne = identite.personne_active(cnx, PROPRIO.personne)
+            assert personne is not None and {"admin", "nathan_owner"} <= personne.roles
+
+    nom_decision = "m9_decider_demande_approbation"
+    module = SNAPSHOT["module_source"]
+    snapshot_b = {**SNAPSHOT, "horodatage": "2026-09-28T13:00:00Z",
+                  "valeurs": {"interventions_du_jour": "2", "fictif": "true"}}
+    verifier_proprietaire()
+    demande_a = _proposer_par_un_agent(capacites)
+    assert lire("m9_lire_etat_consolide")["faits_par_module"] == {}
+    args_a = {"demande_id": demande_a, "decision": "approuver"}
+    decision_a = _appeler(capacites, nom_decision, args_a, PROPRIO, "cf034-decision-a-fictive")
+    assert decision_a["ok"] and not decision_a["rejoue"]
+    assert decision_a["resultat"]["resultat"]["statut"] == "executee"
+    chaine_a = chaine()
+    assert len(chaine_a) == 1 and chaine_a[0]["valeurs"] == SNAPSHOT["valeurs"]
+    ligne_a = _statut(session, demande_a)
+    assert ligne_a["arguments"] == {"snapshot": SNAPSHOT}
+    assert ligne_a["decide_role"] == "nathan_owner" and ligne_a["decide_par"] == PROPRIO.personne
+    [journal_a] = _journal(session, "approbation.approuver")
+
+    demande_b = _proposer_par_un_agent(capacites, snapshot_b)
+    assert demande_b != demande_a
+    file_b = lire("m9_lister_demandes_approbation")
+    assert file_b["accepte"] is True
+    [attente_b] = file_b["resultat"]["demandes"]
+    assert attente_b["id"] == demande_b and attente_b["arguments"] == {"snapshot": snapshot_b}
+    assert lire("m9_lire_etat_consolide")["faits_par_module"][module] == chaine_a[0]
+    ancien_moteur = stockage.moteur()
+    stockage.liberer()
+    assert stockage.moteur() is not ancien_moteur
+    capacites = Capacites(charger_departements(RACINE_DEPARTEMENTS), session,
+                          filtre={"m04-field-ops", "m09-strategic-intelligence"}, memoire=False)
+    verifier_proprietaire()  # l'ancien signataire reste SQL actif et autorisé
+    assert _statut(session, demande_b)["statut"] == "en_attente"
+    assert _statut(session, demande_a) == ligne_a and chaine() == chaine_a
+    file_rouverte = lire("m9_lister_demandes_approbation")
+    assert file_rouverte == file_b
+    assert lire("m9_lire_etat_consolide")["faits_par_module"][module] == chaine_a[0]
+
+    args_b = {"demande_id": demande_b, "decision": "approuver"}
+    decision_b = _appeler(capacites, nom_decision, args_b, PROPRIO, "cf034-decision-b-fictive")
+    assert decision_b["ok"] and not decision_b["rejoue"]
+    assert decision_b["resultat"]["resultat"]["statut"] == "executee"
+    chaine_b = chaine()
+    assert len(chaine_b) == 2 and chaine_b[:1] == chaine_a
+    assert chaine_b[1]["valeurs"] == snapshot_b["valeurs"]
+    assert chaine_b[1]["horodatage"] == snapshot_b["horodatage"]
+    assert chaine_b[1]["hash_precedent"] == chaine_a[0]["hash_maillon"]
+    ligne_b = _statut(session, demande_b)
+    assert ligne_b["arguments"] == {"snapshot": snapshot_b} and ligne_b["decide_role"] == "nathan_owner"
+    journal_b = _journal(session, "approbation.approuver")
+    assert len(journal_b) == 2 and {e["cible"] for e in journal_b} == {demande_a, demande_b}
+    assert next(e for e in journal_b if e["id"] == journal_a["id"]) == journal_a
+    assert lire("m9_lire_etat_consolide")["faits_par_module"][module] == chaine_b[1]
+
+    moteur_apres_b = stockage.moteur()
+    stockage.liberer()
+    assert stockage.moteur() is not moteur_apres_b
+    capacites = Capacites(charger_departements(RACINE_DEPARTEMENTS), session,
+                          filtre={"m04-field-ops", "m09-strategic-intelligence"}, memoire=False)
+    verifier_proprietaire()
+    assert chaine() == chaine_b and _statut(session, demande_b) == ligne_b
+    assert _statut(session, demande_a) == ligne_a and _journal(session, "approbation.approuver") == journal_b
+    assert lire("m9_lire_etat_consolide")["faits_par_module"][module] == chaine_b[1]
+
+    ancien_recu = _appeler(capacites, nom_decision, args_a, PROPRIO, "cf034-decision-a-fictive")
+    assert ancien_recu["rejoue"] is True
+    assert {k: v for k, v in ancien_recu.items() if k != "rejoue"} == {
+        k: v for k, v in decision_a.items() if k != "rejoue"}
+    refus = _appeler(capacites, nom_decision, args_a, PROPRIO, "cf034-autre-cle-a-fictive")
+    assert refus["ok"] and not refus["rejoue"] and refus["resultat"]["accepte"] is False
+    assert refus["resultat"]["verdict"]["code"] == "deja_decidee"
+    assert chaine() == chaine_b and _statut(session, demande_a) == ligne_a
+    assert _statut(session, demande_b) == ligne_b and _journal(session, "approbation.approuver") == journal_b
+    assert lire("m9_lire_etat_consolide")["faits_par_module"][module] == chaine_b[1]
+    assert lire("m9_lister_demandes_approbation")["resultat"]["demandes"] == []
+    briefing = lire("m9_produire_briefing_matin", {"maintenant": "2026-09-29T07:00:00-04:00"})
+    assert briefing["sections"]["decisions_en_attente"] == {"items": [], "vide": True}
+    assert briefing["sections"]["faits_veille"]["items"] == chaine_b  # historique sourcé, pas écrasé
+    assert briefing["sections"]["alertes_m8"] == {"items": [], "vide": True}
