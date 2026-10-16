@@ -6,6 +6,7 @@ des fixtures explicites, pas une preuve de complétion métier M3/M4 ou mobile.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import socket
 import threading
@@ -23,12 +24,19 @@ from mcp.client.streamable_http import streamable_http_client
 from mcp.shared._httpx_utils import create_mcp_http_client
 from sqlalchemy import delete, select, update
 
-from opsys import approbations, contexte, evenements, identite, liaison_cibles, openclaw, stockage
+from opsys import approbations, contexte, etat, evenements, idempotence, identite, liaison_cibles, openclaw, stockage
 from opsys.capacites import Capacites
 from opsys.departements import charger_departements
 from opsys.serveur_mcp import ENV_CRON_OPERATEUR_JETON, application_http_departements
 from opsys.stockage import codec
-from opsys.stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, META, REGISTRES
+from opsys.stockage.schema import (
+    APPROBATIONS,
+    EVENEMENTS_RECUS,
+    EVENEMENTS_SORTANTS,
+    LIAISONS_TICKETS,
+    META,
+    REGISTRES,
+)
 
 M9 = "m09-strategic-intelligence"
 M10 = "m10-memoire"
@@ -251,6 +259,76 @@ def _approuver(installation, session, demande):
         personne = identite.personne_active(cnx, PROPRIO)
         assert personne is not None and {"admin", "nathan_owner"} <= personne.roles
         return approbations.decider(cnx, demande["demande_id"], True, PROPRIO, outils, installation)
+
+
+def test_le_proprietaire_approuve_le_suivi_scelle_par_appareil_et_rejoue_sans_effet(installation, session):
+    """Composition native réelle ; identité Core simulée, aucun téléphone ni jeton Core qualifié."""
+    liaison = _lier()
+    arguments = _arguments()
+    ticket = _emettre(session, arguments)
+    demande = _proposer(installation, session, arguments, ticket)
+    with session() as cnx:
+        hash_scelle = cnx.execute(select(APPROBATIONS.c.ticket_cible_hash).where(
+            APPROBATIONS.c.id == demande["demande_id"],
+        )).scalar_one()
+        assert hash_scelle == hashlib.sha256(ticket["ticket"].encode()).hexdigest(), (
+            "Le ticket émis doit rester lié à cette approbation avant la décision"
+        )
+        scelle = cnx.execute(select(LIAISONS_TICKETS).where(
+            LIAISONS_TICKETS.c.ticket_hash == hash_scelle,
+        )).mappings().one()
+        assert (scelle["statut"], scelle["demande_id"], scelle["departement"], scelle["outil"]) == (
+            "scelle", demande["demande_id"], M9, OUVRIR,
+        )
+        assert (scelle["affaire_id"], scelle["cle_session"], scelle["ligne_liaison_id"]) == (
+            "lead-cible-fictif-A", CLE_SESSION, liaison["ligne_id"],
+        )
+    capacites = Capacites(installation, session, memoire=False)
+    proprietaire = contexte.IdentiteAppelante(personne=PROPRIO, role="admin")
+    appareil = "appareil-proprietaire-m9-fictif"
+    meta = idempotence.Meta(cle="decision-suivi-m9-fictive", appareil=appareil,
+                            horodatage_appareil="2026-09-28T10:15:00-04:00")
+    avant_lecture = _tables()
+    with contexte.appele_par_appareil(proprietaire):
+        liste = capacites.appeler("m9_lister_demandes_approbation", {})
+    assert liste["ok"] is True and liste["resultat"]["accepte"] is True, liste
+    [item] = liste["resultat"]["resultat"]["demandes"]
+    assert item["id"] == demande["demande_id"] and item["outil"] == OUVRIR
+    assert item["decidable"] is True and item["arguments"] == arguments, item
+    assert _tables() == avant_lecture, "Relire la demande ne décide rien et ne modifie aucune table"
+    with session():
+        assert list(stockage.maillons(M9, "suivi_decisions")) == []
+
+    choix = {"demande_id": demande["demande_id"], "decision": "approuver"}
+    with contexte.appele_par_appareil(proprietaire):
+        decision = capacites.appeler("m9_decider_demande_approbation", choix, meta)
+    assert decision["ok"] is True and decision["rejoue"] is False, decision
+    assert decision["resultat"]["accepte"] is True, decision
+    resultat = decision["resultat"]["resultat"]
+    assert resultat["statut"] == "executee" and resultat["outil"] == OUVRIR
+    assert resultat["decide_par"] == PROPRIO and resultat["role"] == "nathan_owner"
+    assert resultat["issue"] == {"ok": True, "accepte": True}, resultat
+    with session():
+        [suivi] = list(stockage.maillons(M9, "suivi_decisions"))
+    assert suivi["suivi_id"] == demande["demande_id"] and suivi["statut"] == "planifiee"
+    assert suivi["source"]["evenement_id"] == arguments["evenement_id"]
+    assert suivi["source"]["empreinte_source"] == arguments["empreinte_source"]
+    assert suivi["decision"]["decide_par"] == PROPRIO and suivi["decision"]["decide_role"] == "nathan_owner"
+    with session() as cnx:
+        ligne = approbations.lire(cnx, demande["demande_id"])
+        assert ligne["statut"] == "executee" and ligne["decide_role"] == "nathan_owner"
+        assert [d["outil"] for d in approbations.lister(cnx)] == [OUVRIR]
+        [audit] = [e for e in etat.lire_journal(cnx) if e["action"] == "approbation.approuver"]
+        assert audit["par"] == PROPRIO and audit["details"]["appareil"] == appareil
+
+    apres_decision = _tables()
+    with contexte.appele_par_appareil(proprietaire):
+        rejeu = capacites.appeler("m9_decider_demande_approbation", choix, meta)
+    assert rejeu["rejoue"] is True, rejeu
+    assert {k: v for k, v in rejeu.items() if k != "rejoue"} == {
+        k: v for k, v in decision.items() if k != "rejoue"
+    }
+    assert _tables() == apres_decision, "Même clé : aucun second suivi, audit, effet de bus ni écriture SQL"
 
 
 def test_le_changement_de_liaison_m10_refuse_a_mais_permet_la_vraie_preuve_b(installation, session):
