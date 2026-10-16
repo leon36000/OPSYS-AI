@@ -1083,15 +1083,18 @@ describe("explicit target CI partitions", () => {
     return selectVitestTargetPartition(input, configs, index, { cwd, baseEnv });
   };
 
-  it("keeps all 292 literals and 30 groups exactly once across both jobs", () => {
-    expect(targets).toHaveLength(292);
+  it("keeps all 293 literals and 30 groups exactly once across both jobs", () => {
+    expect(targets).toHaveLength(293);
     expect(canonical).toHaveLength(30);
     const selected = [select(targets, partitions, 1), select(targets, partitions, 2)];
-    expect(selected.map((part) => part.targets.length)).toEqual([121, 171]);
+    expect(selected.map((part) => part.targets.length)).toEqual([121, 172]);
     expect(selected.map((part) => part.groups.length)).toEqual([14, 16]);
+    const memory = "src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts";
+    expect(selected[0]!.targets).not.toContain(memory);
+    expect(selected[1]!.targets).toContain(memory);
     const union = selected.flatMap((part) => part.targets);
-    expect(union).toHaveLength(292);
-    expect(new Set(union).size).toBe(292);
+    expect(union).toHaveLength(293);
+    expect(new Set(union).size).toBe(293);
     expect(union.toSorted()).toEqual(targets.toSorted());
     for (const part of selected) {
       expect(part.targets).toEqual(targets.filter((target) => part.targets.includes(target)));
