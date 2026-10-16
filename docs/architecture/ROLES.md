@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 150 outils sur 242 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 153 outils sur 245 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -122,7 +122,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (149 outils) : §9.5 + employé + vendeur
+### `admin` (152 outils) : §9.5 + employé + vendeur
 
 Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et :
 
@@ -181,6 +181,7 @@ Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et 
 | M8 | `m8_lire_provenance_m5_appareil` (T0/N0) | Publications M5 et reçus/faits M8 rapprochés, cash global ou rentabilité par WCT ; identité appareil admin active revérifiée avant copies. Pages courantes, références/dates natives et inconnus explicites, sans réception, calcul financier, écriture ou artefact. |
 | M9 | `m9_produire_briefing_matin`, `m9_lire_alertes_m8`, `m9_lire_etat_consolide` | §7 M9 mobile : « Admin/Nathan seulement ». |
 | M9 | `m9_lister_demandes_approbation` (T0), `m9_decider_demande_approbation` (T1, N2) | §9.2 « le propriétaire approuve tout depuis le téléphone », §9.5 « Approbations » (T1.4-f). Règles ci-dessous : `admin` ouvre l'outil, la PERSONNE doit être le propriétaire. |
+| M9 | `m9_preparer_suivi_decision`, `m9_lire_suivi_decision` (T0/N0), `m9_ouvrir_suivi_decision` (T1/N3) | Première tranche de suivi interne : preuve M8 reçue et empreinte calculée, responsable interne actif et échéance explicite. Lectures avec admin SQL courant ; ouverture seulement sous sa demande dédiée en cours approuvée par `nathan_owner` encore actif. Un appel direct, même propriétaire, ne remplace pas ce mandat. `planifiee` ne signifie pas action exécutée ; preuve historique, couverture non évaluée. Aucun nouveau parcours Core/mobile ni effet externe certifié. |
 | M10 | `m10_statut_decision`, `m10_statut_revision`, `m10_arbitrer_revision` | §7 M10 mobile : décisions à valider et contradictions. |
 | M10 | `m10_paquet_contexte_affaire` (T0/N0) | Contexte privé du moteur Core selon ADR-0010 : sa déclaration admin ne l'expose pas aux routes publiques. L'origine M1/M2 est fixée par la route interne, jamais par un argument. Le plafond effectif du socle refuse le paquet volumineux avant tout artefact ; aucune donnée partielle prise pour un contexte valide. |
 | M10 | `m10_deposer_version_document_appareil`, `m10_activer_version_document_appareil`, `m10_retirer_document_appareil` (T1/N3) | Mutations documentaires de l’affaire connue du corpus autorisé, admin appareil actif et mode ombre. Intention originale, versions/CAS frais, trace APP/J propre et liaison transactionnelles ; quotas entiers avant claim et après trace. Le rejeu confirme sa version originale, sans nouvel effet, même après v2/retrait. Corps/extraits APP masqués en restitution, titre visible ; aucune purge. Premier backend SQLite ; PG reste fermé, transports DEVICE/Native et client sont des qualifications séparées. |

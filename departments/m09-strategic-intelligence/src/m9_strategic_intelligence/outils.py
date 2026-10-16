@@ -6,6 +6,9 @@ consolidé (Business State Graph) et signale les contradictions internes, sans j
 ni recommander. `m9_etat_consolide` compose ingestion → écriture au registre → construction de
 l'état consolidé (contradictions comprises) en un seul appel.
 
+Le suivi interne enregistre une décision humaine dédiée avec responsable, échéance et preuve
+M8 historique exacte ; il ne recommande ni n'exécute l'action et n'en déclare pas la complétion.
+
 PLAN T3.2 (M9.5, briefing du matin) : `m9_produire_briefing_matin` compose la file du
 propriétaire (`opsys.approbations.file_proprietaire`), les alertes M8 déjà reçues par le bus
 (`m8.alerte_proposee`, `_recevoir_alerte_proposee`) et les faits déjà consolidés par M9 en un
@@ -57,6 +60,7 @@ from . import (
     lecture_strategique,
     rapport_strategique,
     registre,
+    suivi_decisions,
     validation,
 )
 from . import etat_consolide as etat_consolide_module
@@ -178,6 +182,58 @@ def outils(
         )
     if alertes_cible is None:
         alertes_cible = stockage.maillons("m09-strategic-intelligence", "alertes_m8")
+
+    def preparer_suivi_decision(evenement_id: str) -> dict[str, Any]:
+        _exiger_admin_pour_appareil()
+        source = suivi_decisions.preparer_source(alertes_cible, evenement_id)
+        return suivi_decisions.borner({"accepte": True, "source": source}, BUDGET_SORTIE)
+
+    def ouvrir_suivi_decision(
+        evenement_id: str, empreinte_source: str, action: str, responsable_id: str, echeance: str,
+    ) -> dict[str, Any]:
+        # Le mandat est CETTE demande en cours et son propriétaire SQL courant.
+        # Un rôle de jeton, une ingestion approuvée ou un appel direct ne le remplace pas.
+        cnx = stockage.connexion_courante()
+        approbateur = approbations.approbateur_en_cours(
+            cnx, "m9_ouvrir_suivi_decision", "m09-strategic-intelligence",
+            roles=frozenset({"nathan_owner"}),
+        )
+        if approbateur is None:
+            return {"accepte": False, "verdict": {"code": "REJ-SUIVI-APPROBATION",
+                    "detail": "Demande dédiée approuvée par le propriétaire encore actif requise"}}
+        try:
+            responsable = identite.personne_active(cnx, responsable_id)
+            roles_internes = identite.ROLES - {"client", "system_agent"}
+            if responsable is None or not responsable.roles.intersection(roles_internes):
+                raise ValueError("REJ-SUIVI-RESPONSABLE : personne interne active requise")
+            source = suivi_decisions.preparer_source(alertes_cible, evenement_id)
+            demande_id = contexte.demande_approuvee_en_cours()
+            demande = approbations.lire(cnx, demande_id)
+            suivi = suivi_decisions.construire(
+                source=source, empreinte_source=empreinte_source, action=action,
+                responsable_id=responsable_id, echeance=echeance,
+                demande_id=demande_id,
+                decide_par=approbateur.personne, decide_role=approbateur.role,
+                decide_le=demande["decide_le"],
+            )
+            resultat = suivi_decisions.borner({"accepte": True, "suivi": suivi}, BUDGET_SORTIE)
+        except ValueError as exc:
+            code, _, message = str(exc).partition(" : ")
+            return {"accepte": False, "verdict": {"code": code, "detail": message}}
+        suivis = stockage.maillons("m09-strategic-intelligence", "suivi_decisions")
+        if any(s.get("suivi_id") == suivi["suivi_id"] for s in suivis):
+            return {"accepte": False, "verdict": {"code": "REJ-SUIVI-DEJA-OUVERT"}}
+        suivis.append(suivi)
+        return resultat
+
+    def lire_suivi_decision(suivi_id: str) -> dict[str, Any]:
+        _exiger_admin_pour_appareil()
+        suivi_decisions.texte(suivi_id, "suivi_id", 1024)
+        suivis = stockage.maillons("m09-strategic-intelligence", "suivi_decisions")
+        trouves = [s for s in suivis if s.get("suivi_id") == suivi_id]
+        if len(trouves) != 1:
+            return {"accepte": False, "verdict": {"code": "REJ-SUIVI-INTROUVABLE-OU-AMBIGU"}}
+        return suivi_decisions.borner({"accepte": True, "suivi": trouves[0]}, BUDGET_SORTIE)
 
     def exiger_chaine_snapshots_valide() -> registre.RegistreSnapshots:
         """Valide une copie par appel, réutilisable sans relire la source durable.
@@ -521,6 +577,38 @@ def outils(
             niveau=Niveau.N2,
             # §9.5 et §9.2 : le propriétaire approuve depuis son téléphone. Admin seulement ; la PERSONNE doit
             # de plus être le propriétaire (`nathan_owner`), sinon refus nommé et trace d'audit.
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m9_preparer_suivi_decision",
+            description="Relit une preuve M8 reçue et calcule son empreinte pour une demande de suivi. "
+                        "Lecture pure ; preuve historique, couverture et actualité métier non évaluées.",
+            parametres={"type": "object", "properties": {"evenement_id": {"type": "string"}},
+                        "required": ["evenement_id"], "additionalProperties": False},
+            fonction=preparer_suivi_decision,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m9_ouvrir_suivi_decision",
+            description="Propose un suivi INTERNE planifié avec preuve M8 exacte, responsable et échéance explicites. "
+                        "Seule sa demande dédiée approuvée par le propriétaire actif l'ouvre. "
+                        "N'exécute pas l'action et n'atteste ni sa complétion ni l'actualité métier.",
+            parametres={
+                "type": "object",
+                "properties": {champ: {"type": "string"} for champ in (
+                    "evenement_id", "empreinte_source", "action", "responsable_id", "echeance")},
+                "required": ["evenement_id", "empreinte_source", "action", "responsable_id", "echeance"],
+                "additionalProperties": False,
+            },
+            fonction=ouvrir_suivi_decision, autonomie=Autonomie.T1, niveau=Niveau.N3,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m9_lire_suivi_decision",
+            description="Relit un suivi interne et sa preuve historique par identifiant, sans mutation ni exécution.",
+            parametres={"type": "object", "properties": {"suivi_id": {"type": "string"}},
+                        "required": ["suivi_id"], "additionalProperties": False},
+            fonction=lire_suivi_decision,
             roles_appareil=frozenset({"admin"}),
         ),
     )

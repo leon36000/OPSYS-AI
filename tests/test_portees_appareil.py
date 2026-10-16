@@ -111,6 +111,8 @@ ADMIN_SEUL = frozenset({
     "m8_lire_provenance_m5_appareil",  # diagnostic N0 DEVICE, publications/receipts M5, sans calcul financier
     "m9_decider_demande_approbation", "m9_lire_alertes_m8", "m9_lire_etat_consolide", "m9_lire_suite_briefing",
     "m9_lister_demandes_approbation", "m9_produire_briefing_matin", "m9_produire_lecture_strategique",
+    # Suivi interne : lectures N0 et ouverture N3 sous SA demande dédiée signée par le propriétaire.
+    "m9_preparer_suivi_decision", "m9_ouvrir_suivi_decision", "m9_lire_suivi_decision",
     "m10_arbitrer_revision", "m10_paquet_contexte_affaire", "m10_statut_decision", "m10_statut_revision",
     "m10_lister_signaux", "m10_lister_references", "m10_lire_revision", "m10_prendre_en_compte_signal",
     "m10_clore_signal", "m10_lier_session_affaire",
@@ -209,6 +211,19 @@ def test_les_compteurs_ecrits_dans_roles_md_suivent_les_manifestes(departements_
         titre = re.search(rf"^### `{role}` \((\d+) outils\)", texte, re.MULTILINE)
         assert titre is not None, f"ROLES.md : pas de section « ### `{role}` (K outils) »"
         assert int(titre.group(1)) == len(outils), role
+
+
+@pytest.mark.parametrize(("nom", "autonomie", "niveau"), [
+    ("m9_preparer_suivi_decision", "T0", "N0"),
+    ("m9_ouvrir_suivi_decision", "T1", "N3"),
+    ("m9_lire_suivi_decision", "T0", "N0"),
+])
+def test_suivi_m9_projete_admin_aux_niveaux_prevus(departements_reels, roles_reels, nom, autonomie, niveau):
+    outil = tous_les_outils(departements_reels.values())[nom][1]
+    assert outil.roles_appareil == frozenset({"admin"})
+    assert outil.autonomie.value == autonomie and outil.niveau_effectif.value == niveau
+    assert nom in roles_reels["admin"]
+    assert nom not in roles_reels["employee"] and nom not in roles_reels["seller"]
 
 
 @pytest.mark.parametrize(("nom", "autonomie", "niveau"), [

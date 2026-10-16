@@ -2,7 +2,7 @@
 
 Strategic Intelligence OS — direction IA, harnais déterministe pur (aucun Council en v1).
 
-Statut : département OPSYS complet (manifeste, SOUL, skill, outils d'agent) sur le modèle de
+Statut : **PARTIEL**. Département OPSYS structuré (manifeste, SOUL, skill, outils d'agent) sur le modèle de
 M3-estimation, mode `ombre`. Les cinq stories de domaine S001-S005 du PRD sont livrées et
 vertes : contrats gelés (`SnapshotModule` réutilisé de M8, `CHAMPS_RAPPORT_STRATEGIQUE` 15
 clés), validation structurelle d'entrée, registre append-only hash-chaîné, Business State
@@ -43,3 +43,17 @@ conformité statique.
 
 Council d'agents, Strategic Supervisor, scénarios narratifs et Decision Intelligence Engine
 restent GATED (hors périmètre v1, cf. `docs/bmad/02-PRD-PM.md` §3.2).
+
+## Suivi interne d’une décision sur preuve M8 (CF-034, première tranche)
+
+Le département reste **PARTIEL**. Trois outils ajoutent un parcours déterministe :
+
+- `m9_preparer_suivi_decision(evenement_id)` relit une alerte de mesure M8 déjà reçue par le bus et calcule son empreinte canonique. La preuve rendue est `historique_recue`, sa couverture `non_evaluee` ; aucune actualité métier n’est déduite.
+- L’agent propose `m9_ouvrir_suivi_decision(evenement_id, empreinte_source, action, responsable_id, echeance)`. Le suivi est écrit seulement pendant l’exécution de **sa propre demande N3**, approuvée par un `nathan_owner` encore actif en SQL. Une ancienne ingestion approuvée et un appel direct ne donnent pas ce mandat. Le code relit la preuve exacte et le responsable interne actif au point d’effet ; l’échéance ISO doit porter un fuseau explicite.
+- `m9_lire_suivi_decision(suivi_id)` relit le suivi sans mutation. Son identifiant est celui de la demande dédiée. Les deux lectures sont réservées à l’admin sur appareil, avec rôle SQL courant revérifié.
+
+Le registre durable séparé `suivi_decisions` conserve la preuve reçue entière, son empreinte, les arguments approuvés et le signataire/date SQL. La taille est refusée avant append si le résultat ne tient pas dans le budget ; jamais de succès tronqué. Le statut `planifiee` signifie uniquement que le suivi interne est enregistré. Aucun achat, envoi, dispatch, écriture financière, achèvement d’action ou alimentation automatique M10 n’en résulte. Une échéance passée explicite n’est ni déplacée ni présentée comme respectée.
+
+`tests/test_suivi_decisions.py` exerce le producteur M8, le bus, les approbations natives, les refus et le rejeu après réouverture du pool SQL. Les événements de devis et chantier en entrée sont des fixtures fictives ; ce test ne prouve pas le parcours terrain M3/M4, le Gateway, un téléphone, PostgreSQL ou un redémarrage de processus. Le parcours démontré est celui des capacités Python et de la file native ; aucun nouvel écran mobile ni intégration d’autorité Core/M10 n’est livré par cette tranche.
+
+Restent ouverts : rapport de décision complet, couverture/fraîcheur stratégique, interface dédiée, révision et clôture sur preuve, orchestration des actions dans les départements, liaison gouvernée à M10 et qualification des parcours Core/mobile correspondants. L’ambition M9.10/M9.16/M9.17 est conservée, sans assimiler cette ouverture à leur livraison complète.
