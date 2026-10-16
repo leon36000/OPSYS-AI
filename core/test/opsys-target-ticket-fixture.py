@@ -126,7 +126,78 @@ def prepare_m9(*, postflight_depot: bool = False) -> None:
     }))
 
 
-def serve_m9_observed(port: int, intent_database: Path) -> None:
+def _committed_m9_response(home: Path, request: dict, start: dict, body: bytes) -> dict:
+    """Read a real result and independently verify its commit before losing its transport."""
+    import re
+    import sqlite3
+    from contextlib import closing
+
+    from opsys import idempotence
+
+    headers = dict(start["headers"])
+    content_type = headers.get(b"content-type", b"").split(b";", 1)[0]
+    text = body.decode("utf-8")
+    if content_type == b"application/json":
+        messages = [json.loads(text)]
+    elif content_type == b"text/event-stream":
+        messages = []
+        for block in text.replace("\r\n", "\n").replace("\r", "\n").split("\n\n"):
+            data = [line[5:].removeprefix(" ") for line in block.splitlines()
+                    if line.startswith("data:")]
+            if data:
+                messages.append(json.loads("\n".join(data)))
+    else:
+        raise RuntimeError("fictive response-loss gate requires actual JSON or SSE")
+    responses = [message for message in messages if isinstance(message, dict)
+                 and message.get("id") == request["id"] and "id" in message]
+    if len(responses) != 1 or responses[0].get("jsonrpc") != "2.0":
+        raise RuntimeError("fictive response-loss gate did not observe one matching RPC response")
+    response = responses[0]
+    result = response.get("result", {})
+    if "error" in response or result.get("isError") or start["status"] != 200:
+        raise RuntimeError("fictive response-loss gate requires a successful native tool result")
+    texts = [item["text"] for item in result.get("content", []) if item.get("type") == "text"]
+    if len(texts) != 1:
+        raise RuntimeError("fictive response-loss gate requires one native result text")
+    native = json.loads(texts[0])
+    if native.get("ok") is not True or native.get("statut") != "en_attente_approbation":
+        raise RuntimeError("fictive response-loss gate requires an actual pending approval")
+    request_id = native["demande_id"]
+    arguments = request["params"]["arguments"]
+    # This connection is distinct from the handler's SQLAlchemy transaction/ContextVar.
+    with closing(sqlite3.connect((home / "opsys.db").as_uri() + "?mode=ro", uri=True)) as cnx:
+        cnx.row_factory = sqlite3.Row
+        cnx.execute("BEGIN")
+        row = cnx.execute(
+            "SELECT a.statut AS approval_status, a.departement, a.outil, a.arguments, "
+            "a.ticket_cible_hash, t.ticket_hash, t.demande_id, t.statut AS ticket_status, "
+            "t.affaire_id, t.cle_session, t.empreinte_arguments "
+            "FROM approbations a JOIN liaisons_tickets t ON t.ticket_hash=a.ticket_cible_hash "
+            "WHERE a.id=?", (request_id,),
+        ).fetchone()
+        roles = {r[0] for r in cnx.execute(
+            "SELECT r.role FROM roles r JOIN personnes p ON p.identifiant=r.identifiant "
+            "WHERE p.identifiant='nathan-fixture' AND p.actif=1",
+        )}
+        if (row is None or row["approval_status"] != "en_attente"
+                or (row["departement"], row["outil"]) != (M9, M9_OPEN)
+                or json.loads(row["arguments"]) != arguments
+                or row["ticket_status"] != "scelle" or row["demande_id"] != request_id
+                or row["cle_session"] != M9_SESSION_KEY or not row["affaire_id"]
+                or row["empreinte_arguments"] != idempotence.empreinte_arguments(arguments)
+                or re.fullmatch(r"[a-f0-9]{64}", row["ticket_hash"]) is None
+                or not {"admin", "nathan_owner"} <= roles):
+            raise RuntimeError("fictive response-loss gate cannot prove the independent native commit")
+    return {
+        "fictif": True, "request_id": request_id, "ticket_hash": row["ticket_hash"],
+        "affaire_id": row["affaire_id"], "cle_session": row["cle_session"],
+        "empreinte_arguments": row["empreinte_arguments"], "owner_active": True,
+        "independent_committed_read_before_headers": True, "response_body_forwarded_bytes": 0,
+        "native_response_bytes_buffered": len(body),
+    }
+
+
+def serve_m9_observed(port: int, intent_database: Path, *, lose_response: bool = False) -> None:
     """Observe the real business HTTP boundary without replacing its native handler/result."""
     import sqlite3
     from contextlib import closing
@@ -147,11 +218,17 @@ def serve_m9_observed(port: int, intent_database: Path) -> None:
         charger_departements(), etat.session, os.environ["OPSYS_MCP_JETON"], "127.0.0.1",
         jeton_contexte=os.environ["OPSYS_CONTEXT_MCP_JETON"],
     )
+    loss_available = lose_response
 
     async def observed(scope, receive, send):
+        nonlocal loss_available
         body = bytearray()
+        selected_request = None
+        response_start = None
+        response_body = bytearray()
 
         async def receive_observed():
+            nonlocal selected_request, loss_available
             message = await receive()
             if (scope["type"] == "http" and scope["method"] == "POST"
                     and scope["path"].rstrip("/") == "/mcp/" + M9
@@ -162,6 +239,12 @@ def serve_m9_observed(port: int, intent_database: Path) -> None:
                 if not message.get("more_body", False):
                     request = json.loads(body)
                     if request.get("method") == "tools/call" and request.get("params", {}).get("name") == M9_OPEN:
+                        if loss_available:
+                            if request.get("id") is None:
+                                raise RuntimeError("fictive response-loss gate requires the actual RPC id")
+                            selected_request = request
+                            # A single owned request consumes the gate, even if its instrumentation fails.
+                            loss_available = False
                         with closing(sqlite3.connect(database.as_uri() + "?mode=ro", uri=True)) as cnx:
                             intents = [{"fact_key": key, "state": state} for key, state in cnx.execute(
                                 "SELECT fact_key, state FROM opsys_postflight_intents ORDER BY fact_key",
@@ -174,7 +257,33 @@ def serve_m9_observed(port: int, intent_database: Path) -> None:
                             }) + "\n")
             return message
 
-        await application(scope, receive_observed, send)
+        async def send_observed(message):
+            nonlocal response_start
+            if selected_request is None:
+                await send(message)
+                return
+            if message["type"] == "http.response.start":
+                if response_start is not None:
+                    raise RuntimeError("duplicate fictive response start")
+                response_start = {**message, "headers": list(message.get("headers", []))}
+            elif message["type"] == "http.response.body":
+                response_body.extend(message.get("body", b""))
+                if len(response_body) > 64 * 1024:
+                    raise RuntimeError("bounded fictive M9 response exceeded fixture limit")
+                if not message.get("more_body", False):
+                    if response_start is None:
+                        raise RuntimeError("fictive response-loss gate has no original headers")
+                    proof = _committed_m9_response(home, selected_request, response_start, bytes(response_body))
+                    # Sending the real headers before the exception makes Uvicorn close TCP,
+                    # rather than substitute an HTTP500. No tool-result body crosses this seam.
+                    await send(response_start)
+                    with (home / "m9-response-lost.json").open("x", encoding="utf-8") as stream:
+                        stream.write(json.dumps({**proof, "original_headers_forwarded": True}) + "\n")
+                    raise RuntimeError("FICTIVE_M9_RESPONSE_LOST_AFTER_NATIVE_COMMIT")
+            else:
+                raise RuntimeError("unexpected fictive ASGI response message")
+
+        await application(scope, receive_observed, send_observed)
 
     uvicorn.run(observed, host="127.0.0.1", port=port, log_level="info")
 
@@ -472,6 +581,7 @@ def main() -> None:
     parser.add_argument("--postflight-depot", action="store_true")
     parser.add_argument("--port", type=int)
     parser.add_argument("--intent-db", type=Path)
+    parser.add_argument("--lose-m9-response", action="store_true")
     args = parser.parse_args()
     command = args.command
     if command == "prepare":
@@ -483,7 +593,7 @@ def main() -> None:
     elif command == "serve-m9-observed":
         if args.port is None or args.intent_db is None:
             raise RuntimeError("serve-m9-observed requires the owned port and Core database")
-        serve_m9_observed(args.port, args.intent_db)
+        serve_m9_observed(args.port, args.intent_db, lose_response=args.lose_m9_response)
     elif command == "serve-m9-sql-observed":
         if args.port is None:
             raise RuntimeError("serve-m9-sql-observed requires the owned port")
