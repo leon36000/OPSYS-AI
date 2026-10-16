@@ -157,6 +157,28 @@ def _instantane_pg():
                 for nom, table in META.tables.items()}
 
 
+def _etat_arret_possede(details, ids, projet, image):
+    """Métadonnées des seuls conteneurs déjà attribués ; aucun environnement exporté."""
+    assert len(details) == len(ids) == len(set(ids)) == 4
+    assert {d["Id"] for d in details} == set(ids)
+    resultat = {}
+    for detail in details:
+        config = detail["Config"]
+        labels = config["Labels"]
+        assert labels["com.docker.compose.project"] == projet and config["Image"] == image
+        service = labels["com.docker.compose.service"]
+        assert service in {"opsys", "openclaw-gateway", "caddy", "postgres"} and service not in resultat
+        resultat[service] = {
+            "id": detail["Id"], "path": detail["Path"], "args": detail["Args"],
+            "entrypoint": config.get("Entrypoint"), "cmd": config.get("Cmd"),
+            "stop_signal": config.get("StopSignal"), "init": detail["HostConfig"].get("Init"),
+            "state": {k: detail["State"][k] for k in (
+                "Status", "Running", "Pid", "ExitCode", "Error", "OOMKilled", "StartedAt", "FinishedAt")},
+            "restart_count": detail["RestartCount"],
+        }
+    return resultat
+
+
 @pytest.mark.skipif(
     os.environ.get("OPSYS_QUALIFIER_M9_PG17") != "1",
     reason="Restauration PostgreSQL réelle réservée au job frontiere-postgresql explicite",
@@ -349,9 +371,35 @@ def test_backup_restore_postgresql_et_outbox_inconnue_isoles(tmp_path, monkeypat
         for cle, fichiers in fichiers_attendus.items():
             volume(cle, fichiers)
         stockage.liberer()
+        ids_avant_backup = proprietaires()
+
+        def observer_arret(etape):
+            # Réinspecter les ID exacts, sans repli sur un nom ni export de Config.Env.
+            details = json.loads(run(["docker", "inspect", *ids_avant_backup])[1])
+            record_property("cf040_stop_" + etape, json.dumps(
+                _etat_arret_possede(details, ids_avant_backup, projet, image), sort_keys=True))
+
+        observer_arret("avant")
         avant_backup = time.monotonic()
-        run(["bash", deploy / "backup.sh", "--out", tmp_path / "backups-fictifs"])
+        code_backup, stdout_backup, stderr_backup = run(
+            ["bash", deploy / "backup.sh", "--out", tmp_path / "backups-fictifs"], succes=False)
         secondes_backup = time.monotonic() - avant_backup
+        # Le repr pytest tronquait le stderr : conserver les deux flux bornés dans JUnit,
+        # avant toute inspection susceptible d'échouer. Ce délai est celui du script entier.
+        record_property("cf040_backup_command", json.dumps({
+            "returncode": code_backup, "seconds": secondes_backup,
+            "stdout": stdout_backup.decode(errors="backslashreplace"),
+            "stderr": stderr_backup.decode(errors="backslashreplace"),
+            "stdout_sha256": hashlib.sha256(stdout_backup).hexdigest(),
+            "stderr_sha256": hashlib.sha256(stderr_backup).hexdigest(),
+            "stdout_bytes": len(stdout_backup), "stderr_bytes": len(stderr_backup),
+        }, sort_keys=True))
+        try:
+            observer_arret("apres")
+        finally:
+            # L'échec du backup reste primaire ; celui de l'inspection reste chaîné.
+            # Si le backup réussit, une inspection invalide continue de faire échouer le test.
+            assert code_backup == 0, "backup.sh en échec ; flux complets dans cf040_backup_command"
         (archive,) = list((tmp_path / "backups-fictifs").iterdir())
         manifeste = (archive / "MANIFEST.txt").read_text()
         empreintes_archives = {f.name: hashlib.sha256(f.read_bytes()).hexdigest() for f in archive.iterdir()}
