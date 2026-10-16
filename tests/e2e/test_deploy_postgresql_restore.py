@@ -243,7 +243,8 @@ def test_backup_restore_postgresql_et_outbox_inconnue_isoles(tmp_path, monkeypat
                 "caddy": ["caddy_data:/data", "caddy_config:/config"]}
     for nom, volumes in montages.items():
         services[nom] = {"image": image, "pull_policy": "never", "mem_limit": "64m",
-                         "entrypoint": ["sleep", "infinity"], "network_mode": "none", "volumes": volumes}
+                         "entrypoint": ["sleep", "infinity"], "init": True,
+                         "network_mode": "none", "volumes": volumes}
     modele = {"name": projet, "services": services, "volumes": {n: {} for n in VOLUMES},
               "networks": {"default": {"internal": True}}}
     (deploy / "docker-compose.yml").write_text(yaml.safe_dump(modele, sort_keys=False))
@@ -309,6 +310,7 @@ def test_backup_restore_postgresql_et_outbox_inconnue_isoles(tmp_path, monkeypat
             service = d["Config"]["Labels"]["com.docker.compose.service"]
             if service != "postgres":
                 assert d["HostConfig"]["Memory"] == 64 * 1024**2
+                assert d["HostConfig"]["Init"] is True
                 assert d["Config"]["Entrypoint"] == ["sleep", "infinity"]
                 assert not d["HostConfig"]["PortBindings"]
         postgres = run([*compose, "ps", "--quiet", "postgres"])[1].decode().strip()
