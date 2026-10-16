@@ -79,7 +79,10 @@ export type OpsysPostflightIntentInput = Readonly<{
 }>;
 
 export type OpsysPostflightIntent = OpsysPostflightIntentInput &
-  Readonly<{ state: "uncertain"; createdAt: number }>;
+  Readonly<{ state: "uncertain"; createdAt: number; approvalPendingRequestId?: string }>;
+
+const M9_OPEN_FOLLOWUP = "m9_ouvrir_suivi_decision";
+const APPROVAL_REQUEST_ID = /^[0-9a-f]{12}$/u;
 
 type OutboxTable = AgentDatabaseSchema["opsys_postflight_outbox"];
 type OutboxRow = Selectable<OutboxTable>;
@@ -96,6 +99,10 @@ export type OpsysPostflightOutboxOperations = {
     output: OpsysPostflightIntent;
   };
   listIntents: { input: { now: number }; output: OpsysPostflightIntent[] };
+  observeM9ApprovalPending: {
+    input: { expected: OpsysPostflightIntentInput; requestId: string; now: number };
+    output: OpsysPostflightIntent;
+  };
   completeIntent: {
     input: { expected: OpsysPostflightIntentInput; fact: OpsysPostflightFact; now: number };
     output: OpsysPostflightLot;
@@ -274,16 +281,58 @@ function normalizeIntent(value: unknown): OpsysPostflightIntentInput {
   return normalized;
 }
 
-function intentRowToIntent(row: IntentRow): OpsysPostflightIntent {
+function decodeIntentRow(row: IntentRow): {
+  input: OpsysPostflightIntentInput;
+  approvalPendingRequestId?: string;
+} {
   let decoded: unknown;
   try {
     decoded = JSON.parse(row.payload_json);
   } catch {
     return fail("POSTFLIGHT_INTENT_ROW_CORRUPT");
   }
-  const input = normalizeIntent(decoded);
+  let approvalPendingRequestId: string | undefined;
   if (
-    JSON.stringify(input) !== row.payload_json ||
+    decoded !== null &&
+    typeof decoded === "object" &&
+    !Array.isArray(decoded) &&
+    Object.hasOwn(decoded, "approvalPendingRequestId")
+  ) {
+    if (
+      !exactKeys(decoded, [
+        "factKey",
+        "affaireId",
+        "departementSource",
+        "profilId",
+        "revision",
+        "engineId",
+        "outil",
+        "serverName",
+        "ownerKey",
+        "approvalPendingRequestId",
+      ])
+    ) {
+      return fail("POSTFLIGHT_INTENT_ROW_CORRUPT");
+    }
+    const record = decoded;
+    if (
+      typeof record.approvalPendingRequestId !== "string" ||
+      !APPROVAL_REQUEST_ID.test(record.approvalPendingRequestId)
+    ) {
+      return fail("POSTFLIGHT_INTENT_ROW_CORRUPT");
+    }
+    approvalPendingRequestId = record.approvalPendingRequestId;
+    const { approvalPendingRequestId: _observed, ...input } = record;
+    decoded = input;
+  }
+  const input = normalizeIntent(decoded);
+  const payload = JSON.stringify({
+    ...input,
+    ...(approvalPendingRequestId === undefined ? {} : { approvalPendingRequestId }),
+  });
+  if (
+    payload !== row.payload_json ||
+    (approvalPendingRequestId !== undefined && input.outil !== M9_OPEN_FOLLOWUP) ||
     input.factKey !== row.fact_key ||
     row.state !== "uncertain" ||
     !Number.isSafeInteger(row.created_at) ||
@@ -291,7 +340,17 @@ function intentRowToIntent(row: IntentRow): OpsysPostflightIntent {
   ) {
     return fail("POSTFLIGHT_INTENT_ROW_CORRUPT");
   }
-  return { ...input, state: "uncertain", createdAt: row.created_at };
+  return { input, ...(approvalPendingRequestId === undefined ? {} : { approvalPendingRequestId }) };
+}
+
+function intentRowToIntent(row: IntentRow): OpsysPostflightIntent {
+  const { input, approvalPendingRequestId } = decodeIntentRow(row);
+  return {
+    ...input,
+    state: "uncertain",
+    createdAt: row.created_at,
+    ...(approvalPendingRequestId === undefined ? {} : { approvalPendingRequestId }),
+  };
 }
 
 function readIntentRows(db: DatabaseSync): IntentRow[] {
@@ -665,6 +724,22 @@ function write(
       if (intents.some((row) => row.fact_key === input.factKey)) {
         return fail("POSTFLIGHT_INTENT_ALREADY_RESERVED");
       }
+      // A fresh call id cannot release an ambiguous M9 opening. Serialize this
+      // one tool per affair; do not infer a cohort or block other departments.
+      // Legacy rows and a crash before a known-response write remain fenced.
+      if (
+        input.outil === M9_OPEN_FOLLOWUP &&
+        intents.some((row) => {
+          const retained = intentRowToIntent(row);
+          return (
+            retained.outil === M9_OPEN_FOLLOWUP &&
+            retained.affaireId === input.affaireId &&
+            retained.approvalPendingRequestId === undefined
+          );
+        })
+      ) {
+        return fail("POSTFLIGHT_UNRESOLVED_INTENT");
+      }
       const rows = readRows(db);
       if (
         rows.some((row) =>
@@ -692,6 +767,51 @@ function write(
         }),
       );
       return { ...input, state: "uncertain", createdAt: now };
+    }
+    case "observeM9ApprovalPending": {
+      if (!exactKeys(command, ["expected", "requestId", "now"])) {
+        return fail("POSTFLIGHT_COMMAND_REFUSE");
+      }
+      const expected = normalizeIntent(lots.expected);
+      if (
+        expected.outil !== M9_OPEN_FOLLOWUP ||
+        typeof lots.requestId !== "string" ||
+        !APPROVAL_REQUEST_ID.test(lots.requestId)
+      ) {
+        return fail("POSTFLIGHT_APPROVAL_OBSERVATION_REFUSE");
+      }
+      const row = readIntentRows(db).find((entry) => entry.fact_key === expected.factKey);
+      if (!row) {
+        return fail("POSTFLIGHT_INTENT_MISMATCH");
+      }
+      const retained = decodeIntentRow(row);
+      if (
+        JSON.stringify(retained.input) !== JSON.stringify(expected) ||
+        (retained.approvalPendingRequestId !== undefined &&
+          retained.approvalPendingRequestId !== lots.requestId)
+      ) {
+        return fail("POSTFLIGHT_INTENT_MISMATCH");
+      }
+      if (retained.approvalPendingRequestId !== undefined) {
+        return intentRowToIntent(row);
+      }
+      const payload = JSON.stringify({ ...expected, approvalPendingRequestId: lots.requestId });
+      if (Buffer.byteLength(payload, "utf8") > INTENT_RESERVED_BYTES / 2) {
+        return fail("POSTFLIGHT_INTENT_VALUE_REFUSE");
+      }
+      const updated = executeSqliteQuerySync(
+        db,
+        table
+          .updateTable(OPSYS_POSTFLIGHT_INTENTS_TABLE)
+          .set({ payload_json: payload })
+          .where("fact_key", "=", expected.factKey)
+          .where("payload_json", "=", row.payload_json),
+      );
+      if (updated.numAffectedRows !== 1n) {
+        return fail("POSTFLIGHT_INTENT_MISMATCH");
+      }
+      // A received proposal is not a final fact, approval, or replay permission.
+      return intentRowToIntent({ ...row, payload_json: payload });
     }
     case "completeIntent": {
       if (!exactKeys(command, ["expected", "fact", "now"])) {
@@ -722,7 +842,7 @@ function write(
         // This acknowledges local capture only; it never authorizes a source-tool replay.
         return rowToLot(existing);
       }
-      if (row.payload_json !== JSON.stringify(expected)) {
+      if (JSON.stringify(decodeIntentRow(row).input) !== JSON.stringify(expected)) {
         return fail("POSTFLIGHT_INTENT_MISMATCH");
       }
       executeSqliteQuerySync(

@@ -190,6 +190,24 @@ export function listOpsysPostflightIntents(params: {
   return execute({ ...params, command: { type: "listIntents", input: { now: params.now } } });
 }
 
+/** Records only a received native M9 proposal; the unresolved business intent remains. */
+export function observeOpsysM9ApprovalPending(params: {
+  database: OpenClawAgentDatabase;
+  options: OpenClawAgentDatabaseOptions;
+  expected: OpsysPostflightIntentInput;
+  requestId: string;
+  now: number;
+  assertCurrent?: () => void;
+}): Promise<OpsysPostflightIntent> {
+  return execute({
+    ...params,
+    command: {
+      type: "observeM9ApprovalPending",
+      input: { expected: params.expected, requestId: params.requestId, now: params.now },
+    },
+  });
+}
+
 /** Convert only an exact observed outcome under the same canonical transaction. */
 export function completeOpsysPostflightIntent(params: {
   database: OpenClawAgentDatabase;

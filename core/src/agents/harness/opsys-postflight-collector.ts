@@ -20,6 +20,7 @@ import {
 } from "./opsys-postflight-delivery.js";
 import {
   completeOpsysPostflightIntent,
+  observeOpsysM9ApprovalPending,
   reserveOpsysPostflightIntent,
   type OpsysPostflightIntentInput,
   type OpsysPostflightFact,
@@ -51,6 +52,41 @@ type CapturedFact = Readonly<{ lot: OpsysPostflightLotInput; intent: OpsysPostfl
 
 function sameLot(left: OpsysPostflightLotInput, right: OpsysPostflightLotInput): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function observedM9PendingRequest(toolName: string, result: CallToolResult): string | undefined {
+  if (
+    toolName !== "m9_ouvrir_suivi_decision" ||
+    result.isError === true ||
+    result.content.length !== 1
+  ) {
+    return undefined;
+  }
+  const block = result.content[0];
+  if (block?.type !== "text") {
+    return undefined;
+  }
+  let response: unknown;
+  try {
+    response = JSON.parse(block.text);
+  } catch {
+    return undefined;
+  }
+  if (response === null || typeof response !== "object" || Array.isArray(response)) {
+    return undefined;
+  }
+  if (
+    !("ok" in response) ||
+    response.ok !== true ||
+    !("statut" in response) ||
+    response.statut !== "en_attente_approbation" ||
+    !("demande_id" in response) ||
+    typeof response.demande_id !== "string" ||
+    !/^[0-9a-f]{12}$/u.test(response.demande_id)
+  ) {
+    return undefined;
+  }
+  return response.demande_id;
 }
 
 /** Attempt-owned collector. Its DB identity comes only from the persisted user-turn receipt. */
@@ -157,6 +193,8 @@ export class OpsysPostflightCollector {
     if (!admission || !this.#database || !this.#databaseOptions) {
       throw new Error("OPSYS postflight authority is incomplete before tool dispatch");
     }
+    const database = this.#database;
+    const databaseOptions = this.#databaseOptions;
     let reserved = false;
     let completed = false;
     let durableIntent: OpsysPostflightIntentInput | undefined;
@@ -287,6 +325,20 @@ export class OpsysPostflightCollector {
           return;
         }
         if (!fact) {
+          const requestId = observedM9PendingRequest(params.toolName, result);
+          if (requestId !== undefined) {
+            try {
+              await observeOpsysM9ApprovalPending({
+                database,
+                options: databaseOptions,
+                expected: durableIntent,
+                requestId,
+                now: Date.now(),
+              });
+            } catch {
+              // A crash or failed observation write conservatively leaves the fence armed.
+            }
+          }
           // The durable uncertain intent remains available for explicit reconciliation.
           this.#captureFailures += 1;
           return;

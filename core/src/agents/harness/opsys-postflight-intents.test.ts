@@ -9,6 +9,7 @@ import { cleanupSessionStateForTest } from "../../test-utils/session-state-clean
 import {
   completeOpsysPostflightIntent,
   listOpsysPostflightIntents,
+  observeOpsysM9ApprovalPending,
   reserveOpsysPostflightIntent,
 } from "./opsys-postflight-outbox.js";
 import { bindSqliteWorkerBackend } from "./opsys-postflight-outbox.worker.js";
@@ -39,6 +40,16 @@ function fact(input = intent()) {
   return { cle: input.factKey, outil: input.outil, resultat: "ok" as const, code: null };
 }
 
+function m9Intent(index = 0) {
+  return {
+    ...intent(index),
+    departementSource: "m09-strategic-intelligence",
+    profilId: "m9-fictif",
+    outil: "m9_ouvrir_suivi_decision",
+    serverName: "opsys_m9",
+  };
+}
+
 function local() {
   const database = new DatabaseSync(":memory:");
   let denyCommit = false;
@@ -64,6 +75,142 @@ function local() {
 }
 
 describe("OPSYS durable intent owner", () => {
+  it("fences a fresh related M9 opening after reopen and preserves unrelated affairs", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "opsys-m9-unknown-"));
+    dirs.push(dir);
+    const options = { agentId: "main", env: { OPENCLAW_STATE_DIR: dir } };
+    const database = openOpenClawAgentDatabase(options);
+    await reserveOpsysPostflightIntent({ database, options, intent: m9Intent(), now: 1 });
+    await cleanupSessionStateForTest({ stateDir: dir });
+    expect(database.db.isOpen).toBe(false);
+    const reopened = openOpenClawAgentDatabase(options);
+    const before = await listOpsysPostflightIntents({ database: reopened, options, now: 2 });
+    await expect(
+      reserveOpsysPostflightIntent({
+        database: reopened,
+        options,
+        intent: { ...m9Intent(1), ownerKey: "b".repeat(64) },
+        now: 3,
+      }),
+    ).rejects.toThrow("POSTFLIGHT_UNRESOLVED_INTENT");
+    expect(await listOpsysPostflightIntents({ database: reopened, options, now: 4 })).toEqual(
+      before,
+    );
+    await expect(
+      reserveOpsysPostflightIntent({
+        database: reopened,
+        options,
+        intent: { ...m9Intent(2), affaireId: "LEAD-UNRELATED-FICTIF" },
+        now: 5,
+      }),
+    ).resolves.toMatchObject({ affaireId: "LEAD-UNRELATED-FICTIF" });
+  });
+
+  it("persists an exact M9 pending receipt without a fact and permits a new proposal after reopen", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "opsys-m9-pending-"));
+    dirs.push(dir);
+    const options = { agentId: "main", env: { OPENCLAW_STATE_DIR: dir } };
+    const database = openOpenClawAgentDatabase(options);
+    await reserveOpsysPostflightIntent({ database, options, intent: m9Intent(), now: 1 });
+    const observation = {
+      database,
+      options,
+      expected: m9Intent(),
+      requestId: "abcdef123456",
+      now: 2,
+    };
+    const known = await observeOpsysM9ApprovalPending(observation);
+    expect(await observeOpsysM9ApprovalPending({ ...observation, now: 3 })).toEqual(known);
+    await cleanupSessionStateForTest({ stateDir: dir });
+    const reopened = openOpenClawAgentDatabase(options);
+    expect(await listOpsysPostflightIntents({ database: reopened, options, now: 4 })).toEqual([
+      {
+        ...m9Intent(),
+        state: "uncertain",
+        createdAt: 1,
+        approvalPendingRequestId: "abcdef123456",
+      },
+    ]);
+    await expect(
+      reserveOpsysPostflightIntent({ database: reopened, options, intent: m9Intent(), now: 5 }),
+    ).rejects.toThrow("POSTFLIGHT_INTENT_ALREADY_RESERVED");
+    await expect(
+      reserveOpsysPostflightIntent({ database: reopened, options, intent: m9Intent(1), now: 6 }),
+    ).resolves.toMatchObject({ factKey: m9Intent(1).factKey });
+    expect(reopened.db.prepare("SELECT COUNT(*) AS n FROM opsys_postflight_outbox").get()?.n).toBe(
+      0,
+    );
+    await expect(
+      reserveOpsysPostflightIntent({ database: reopened, options, intent: m9Intent(2), now: 7 }),
+    ).rejects.toThrow("POSTFLIGHT_UNRESOLVED_INTENT");
+  });
+
+  it("retains the M9 fence on mismatched, malformed, or rolled-back pending observations", () => {
+    const s = local();
+    try {
+      s.backend.execute({ type: "reserveIntent", input: { intent: m9Intent(), now: 1 } });
+      const pending = { expected: m9Intent(), requestId: "abcdef123456", now: 2 };
+      const before = s.backend.execute({ type: "listIntents", input: { now: 2 } });
+      expect(() =>
+        s.backend.execute({
+          type: "observeM9ApprovalPending",
+          input: {
+            ...pending,
+            expected: { ...m9Intent(), ownerKey: "b".repeat(64) },
+          },
+        }),
+      ).toThrow("POSTFLIGHT_INTENT_MISMATCH");
+      expect(() =>
+        s.backend.execute({
+          type: "observeM9ApprovalPending",
+          input: {
+            ...pending,
+            requestId: "not-a-native-request",
+          },
+        }),
+      ).toThrow("POSTFLIGHT_APPROVAL_OBSERVATION_REFUSE");
+      s.deny();
+      expect(() => s.backend.execute({ type: "observeM9ApprovalPending", input: pending })).toThrow(
+        "SYNTHETIC_COMMIT_REVOKED",
+      );
+      s.allow();
+      expect(s.backend.execute({ type: "listIntents", input: { now: 3 } })).toEqual(before);
+      expect(() =>
+        s.backend.execute({ type: "reserveIntent", input: { intent: m9Intent(1), now: 4 } }),
+      ).toThrow("POSTFLIGHT_UNRESOLVED_INTENT");
+      s.backend.execute({ type: "observeM9ApprovalPending", input: pending });
+      expect(() =>
+        s.backend.execute({
+          type: "observeM9ApprovalPending",
+          input: {
+            ...pending,
+            requestId: "fedcba654321",
+          },
+        }),
+      ).toThrow("POSTFLIGHT_INTENT_MISMATCH");
+    } finally {
+      s.database.close();
+    }
+  });
+
+  it("admits only one of two racing fresh M9 openings for the same affair", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "opsys-m9-race-"));
+    dirs.push(dir);
+    const options = { agentId: "main", env: { OPENCLAW_STATE_DIR: dir } };
+    const database = openOpenClawAgentDatabase(options);
+    const results = await Promise.allSettled(
+      [0, 1].map((index) =>
+        reserveOpsysPostflightIntent({ database, options, intent: m9Intent(index), now: 1 }),
+      ),
+    );
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    const failed = results.find((result) => result.status === "rejected");
+    expect(failed?.status === "rejected" && String(failed.reason)).toContain(
+      "POSTFLIGHT_UNRESOLVED_INTENT",
+    );
+    expect(await listOpsysPostflightIntents({ database, options, now: 2 })).toHaveLength(1);
+  });
+
   it("persists uncertainty across a real owner close and reopen without inventing a fact", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "opsys-intent-"));
     dirs.push(dir);

@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   openDatabase: vi.fn(),
   reserve: vi.fn(),
   complete: vi.fn(),
+  observePending: vi.fn(),
   deliver: vi.fn(),
 }));
 
@@ -14,6 +15,7 @@ vi.mock("../../state/openclaw-agent-db.js", () => ({
 vi.mock("./opsys-postflight-outbox.js", () => ({
   reserveOpsysPostflightIntent: mocks.reserve,
   completeOpsysPostflightIntent: mocks.complete,
+  observeOpsysM9ApprovalPending: mocks.observePending,
 }));
 
 vi.mock("./opsys-postflight-delivery.js", () => ({ deliverOpsysPostflightLots: mocks.deliver }));
@@ -49,6 +51,7 @@ function setup(
     receipt?: { agentId: string; sessionId: string; sessionKey: string; storePath: string } | null;
     admissionValue?: typeof admission;
     assertCurrent?: () => void;
+    depositTools?: readonly string[];
   } = {},
 ) {
   const database = { agentId: "m03-estimation", path: "/private/agent.sqlite", db: {} };
@@ -86,7 +89,7 @@ function setup(
     sessionKey: "agent:m03-estimation:main",
     agentId: "m03-estimation",
     recorder,
-    depositTools: ["m3_creer_devis", "m3_estimer_projet"],
+    depositTools: params.depositTools ?? ["m3_creer_devis", "m3_estimer_projet"],
     assertCurrent: params.assertCurrent ?? (() => undefined),
   });
   collector.recordRuntimeAdmission(params.admissionValue ?? admission);
@@ -96,6 +99,8 @@ function setup(
 beforeEach(() => {
   mocks.openDatabase.mockReset();
   mocks.complete.mockReset();
+  mocks.observePending.mockReset();
+  mocks.observePending.mockResolvedValue(undefined);
   mocks.reserve.mockReset();
   mocks.deliver.mockReset();
   mocks.deliver.mockResolvedValue({
@@ -425,6 +430,132 @@ describe("OPSYS postflight lifecycle handoff", () => {
 });
 
 describe("OPSYS durable reservation before source effect", () => {
+  it("records only a received native M9 pending request and keeps the live uncertainty fence", async () => {
+    const tool = "m9_ouvrir_suivi_decision";
+    const m9Target = { ...target, toolName: tool, serverName: "opsys_m9" };
+    const { collector } = setup({ depositTools: [tool] });
+    await collector.prepareBeforeProviderDispatch();
+    const observer = collector.beginToolCall({
+      toolCallId: "m9-pending",
+      toolName: tool,
+      serverName: "opsys_m9",
+    });
+    await observer?.assertBeforeEffect(m9Target);
+    await observer?.observe(
+      m9Target,
+      {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              ok: true,
+              statut: "en_attente_approbation",
+              demande_id: "abcdef123456",
+            }),
+          },
+        ],
+      },
+      { authorityCurrent: true },
+    );
+    expect(mocks.observePending).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        expected: expect.objectContaining({
+          factKey: depositKey("session-1", "m9-pending"),
+          outil: tool,
+        }),
+        requestId: "abcdef123456",
+      }),
+    );
+    expect(mocks.complete).not.toHaveBeenCalled();
+    await expect(
+      collector
+        .beginToolCall({
+          toolCallId: "m9-next",
+          toolName: tool,
+          serverName: "opsys_m9",
+        })
+        ?.assertBeforeEffect(m9Target),
+    ).rejects.toThrow("durable capture is unresolved");
+  });
+
+  it.each([
+    {
+      title: "an error result",
+      isError: true,
+      body: { ok: true, statut: "en_attente_approbation", demande_id: "abcdef123456" },
+    },
+    {
+      title: "a missing native request id",
+      isError: false,
+      body: { ok: true, statut: "en_attente_approbation" },
+    },
+    {
+      title: "an invalid native request id",
+      isError: false,
+      body: { ok: true, statut: "en_attente_approbation", demande_id: "model-chosen" },
+    },
+  ])("does not release M9 uncertainty for $title", async ({ isError, body }) => {
+    const tool = "m9_ouvrir_suivi_decision";
+    const m9Target = { ...target, toolName: tool, serverName: "opsys_m9" };
+    const { collector } = setup({ depositTools: [tool] });
+    await collector.prepareBeforeProviderDispatch();
+    const observer = collector.beginToolCall({
+      toolCallId: "m9-invalid",
+      toolName: tool,
+      serverName: "opsys_m9",
+    });
+    await observer?.assertBeforeEffect(m9Target);
+    await observer?.observe(
+      m9Target,
+      { isError, content: [{ type: "text", text: JSON.stringify(body) }] },
+      { authorityCurrent: true },
+    );
+    expect(mocks.observePending).not.toHaveBeenCalled();
+    expect(mocks.complete).not.toHaveBeenCalled();
+    expect(await collector.flushPending()).toMatchObject({ remaining: 0, failures: 1 });
+  });
+
+  it("retains M9 uncertainty if persisting the received approval request fails", async () => {
+    const tool = "m9_ouvrir_suivi_decision";
+    const m9Target = { ...target, toolName: tool, serverName: "opsys_m9" };
+    const { collector } = setup({ depositTools: [tool] });
+    await collector.prepareBeforeProviderDispatch();
+    const observer = collector.beginToolCall({
+      toolCallId: "m9-write-fails",
+      toolName: tool,
+      serverName: "opsys_m9",
+    });
+    await observer?.assertBeforeEffect(m9Target);
+    mocks.observePending.mockRejectedValueOnce(new Error("fictive commit refused"));
+    await observer?.observe(
+      m9Target,
+      {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              ok: true,
+              statut: "en_attente_approbation",
+              demande_id: "abcdef123456",
+            }),
+          },
+        ],
+      },
+      { authorityCurrent: true },
+    );
+    expect(mocks.observePending).toHaveBeenCalledOnce();
+    expect(mocks.complete).not.toHaveBeenCalled();
+    await expect(
+      collector
+        .beginToolCall({
+          toolCallId: "m9-after-write-failure",
+          toolName: tool,
+          serverName: "opsys_m9",
+        })
+        ?.assertBeforeEffect(m9Target),
+    ).rejects.toThrow("durable capture is unresolved");
+  });
+
   it("binds the exact ticket target and opaque run lineage before any source call", async () => {
     const { collector } = setup();
     await collector.prepareBeforeProviderDispatch();
