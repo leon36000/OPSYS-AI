@@ -318,7 +318,7 @@ afterEach(async () => {
 });
 
 describe("OPSYS target ticket through Core and the real Python HTTP MCP", () => {
-  it("keeps real M9 approval pending as a durable uncertain intent and refuses its replay after SQLite reopen", async () => {
+  it("retains M9 uncertainty after SQLite reopen and distinguishes fresh proposals from an owner-approved followup", async () => {
     const python = requiredPython();
     const home = await mkdtemp(resolve(tmpdir(), "opsys-m9-pending-intent-http-"));
     tempDirs.push(home);
@@ -514,6 +514,123 @@ describe("OPSYS target ticket through Core and the real Python HTTP MCP", () => 
       const finalNative = await inspect();
       expect(finalNative).toMatchObject({ owner_active: true, followups: [] });
       expect(finalNative.requests).toEqual(nativePending.requests);
+
+      // Characterize the documented boundary, not a cross-key replay guarantee:
+      // a new call ID has no durable business-operation identity in the current intent.
+      // Use a separate collector so the failed exact-key attempt cannot mask this path.
+      const freshCollector = await createCollector("m9-fictif-reopened-fresh-key-run");
+      const freshCallId = "m9-fictif-reopened-fresh-key-call";
+      const fresh = freshCollector.beginToolCall({
+        toolCallId: freshCallId,
+        toolName: tool,
+        serverName: "opsys_m9",
+      });
+      if (!fresh) {
+        throw new Error("expected an independent reopened collector's fresh-key observer");
+      }
+      const freshResult = await runtime.callTool("opsys_m9", tool, prepared.arguments.A, fresh);
+      expect(freshResult.isError).not.toBe(true);
+      const freshRequest = JSON.parse(
+        freshResult.content.find((item) => item.type === "text")?.text ?? "null",
+      );
+      expect(freshRequest).toMatchObject({
+        ok: true,
+        statut: "en_attente_approbation",
+        demande_id: expect.any(String),
+      });
+      const originalRequestId = nativePending.requests[0].id;
+      expect(freshRequest.demande_id).not.toBe(originalRequestId);
+      const freshPending = await listOpsysPostflightIntents({
+        database: reopened,
+        options,
+        now: Date.now(),
+      });
+      expect(freshPending).toHaveLength(2);
+      expect(freshPending.find((intent) => intent.factKey === pending[0].factKey)).toStrictEqual(
+        pending[0],
+      );
+      expect(
+        freshPending.find((intent) => intent.factKey === depositKey(sessionId, freshCallId)),
+      ).toMatchObject({
+        affaireId: prepared.affairs.A,
+        departementSource: agentId,
+        outil: tool,
+        state: "uncertain",
+      });
+      const twoDispatches = [
+        ...expectedDispatch,
+        {
+          fictif: true,
+          intents: [depositKey(sessionId, toolCallId), depositKey(sessionId, freshCallId)]
+            .sort()
+            .map((fact_key) => ({ fact_key, state: "uncertain" })),
+          outbox_count: 0,
+        },
+      ];
+      expect(await readDispatches()).toStrictEqual(twoDispatches);
+      const twoProposals = await inspect();
+      expect(twoProposals).toMatchObject({
+        owner_active: true,
+        followups: [],
+        decision_audits: [],
+      });
+      expect(twoProposals.requests).toHaveLength(2);
+      expect(twoProposals.requests).toEqual(
+        expect.arrayContaining([
+          { id: originalRequestId, status: "en_attente" },
+          { id: freshRequest.demande_id, status: "en_attente" },
+        ]),
+      );
+      expect(nativePending.approval_bindings).toHaveLength(1);
+      expect(twoProposals.approval_bindings).toHaveLength(2);
+      const originalBinding = twoProposals.approval_bindings.find(
+        (binding: { demande_id: string }) => binding.demande_id === originalRequestId,
+      );
+      expect(originalBinding).toStrictEqual(nativePending.approval_bindings[0]);
+      // A missing hash would skip the native sealed-ticket revalidation branch.
+      expect(originalBinding.ticket_cible_hash).toMatch(/^[a-f0-9]{64}$/);
+      expect(originalBinding.arguments).toStrictEqual(prepared.arguments.A);
+      expect(originalBinding.ticket).toMatchObject({
+        ticket_hash: originalBinding.ticket_cible_hash,
+        demande_id: originalRequestId,
+        statut: "scelle",
+        departement: agentId,
+        outil: tool,
+        affaire_id: prepared.affairs.A,
+        cle_session: prepared.session_key,
+        empreinte_arguments: expect.stringMatching(/^[a-f0-9]{64}$/),
+      });
+
+      // This existing helper injects the fictive owner's choice into the real native
+      // approval guard; paired Core-device authentication is qualified separately.
+      const decision = JSON.parse(
+        await runFixture(python, home, "approve", ["--request-id", originalRequestId]),
+      );
+      expect(decision).toMatchObject({ statut: "executee" });
+      const approvedOriginal = await inspect();
+      expect(approvedOriginal.owner_active).toBe(true);
+      expect(approvedOriginal.requests).toHaveLength(2);
+      expect(approvedOriginal.requests).toEqual(
+        expect.arrayContaining([
+          { id: originalRequestId, status: "executee" },
+          { id: freshRequest.demande_id, status: "en_attente" },
+        ]),
+      );
+      expect(approvedOriginal.followups).toHaveLength(1);
+      expect(approvedOriginal.followups[0]).toMatchObject({
+        suivi_id: originalRequestId,
+        statut: "planifiee",
+        decision: { decide_par: "nathan-fixture", decide_role: "nathan_owner" },
+      });
+      expect(approvedOriginal.decision_audits).toHaveLength(1);
+      // Native approval cannot silently reconcile either Core intent or dispatch M9 again.
+      expect(
+        await listOpsysPostflightIntents({ database: reopened, options, now: Date.now() }),
+      ).toStrictEqual(freshPending);
+      expect(
+        await listOpsysPostflightLots({ database: reopened, options, now: Date.now() }),
+      ).toEqual([]);
+      expect(await readDispatches()).toStrictEqual(twoDispatches);
     } finally {
       authority.abort();
       await cleanupSessionStateForTest({ stateDir: coreState });
