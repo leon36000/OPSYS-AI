@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
@@ -231,6 +231,31 @@ function opsysConfig(port: number): OpenClawConfig {
   } as OpenClawConfig;
 }
 
+function m9OpsysConfig(port: number): OpenClawConfig {
+  return {
+    mcp: {
+      servers: {
+        opsys_m9: {
+          url: `http://127.0.0.1:${port}/mcp/m09-strategic-intelligence`,
+          transport: "streamable-http",
+          transportSecurity: { insecureHttpOrigin: `http://127.0.0.1:${port}` },
+          headers: { Authorization: `Bearer ${PUBLIC_TOKEN}` },
+          connectionTimeoutMs: 5_000,
+          requestTimeoutMs: 10_000,
+        },
+        "opsys_context_m09-strategic-intelligence": {
+          url: `http://127.0.0.1:${port}/mcp/contexte/m09-strategic-intelligence`,
+          transport: "streamable-http",
+          transportSecurity: { insecureHttpOrigin: `http://127.0.0.1:${port}` },
+          headers: { Authorization: `Bearer ${PRIVATE_TOKEN}` },
+          connectionTimeoutMs: 5_000,
+          requestTimeoutMs: 10_000,
+        },
+      },
+    },
+  };
+}
+
 async function callRealPythonMcp(
   port: number,
   path: string,
@@ -258,6 +283,7 @@ afterEach(async () => {
   const manager = getSessionMcpRuntimeManagerForTesting();
   await manager.disposeSession("opsys-real-python-cible-ticket");
   await manager.disposeSession("opsys-real-python-m3-n4-device");
+  await manager.disposeSession("opsys-real-python-m9-followup");
   for (const child of children.splice(0)) {
     await stopChild(child);
   }
@@ -270,6 +296,162 @@ afterEach(async () => {
 });
 
 describe("OPSYS target ticket through Core and the real Python HTTP MCP", () => {
+  it("refuses stale M9 approval after affair replacement with the owner valid and opens fresh B", async () => {
+    const python = requiredPython();
+    const home = await mkdtemp(resolve(tmpdir(), "opsys-m9-cible-ticket-http-"));
+    tempDirs.push(home);
+    const prepared = JSON.parse(await runFixture(python, home, "prepare-m9")) as {
+      fictif: boolean;
+      session_key: string;
+      affairs: Record<"A" | "B", string>;
+      arguments: Record<"A" | "B", Record<string, unknown>>;
+      generated_context: {
+        agent: unknown;
+        niveaux: Record<string, string>;
+        cibles: Record<string, unknown>;
+      };
+    };
+    expect(prepared.fictif).toBe(true);
+    const configPath = process.env.OPENCLAW_CONFIG_PATH;
+    if (!configPath) {
+      throw new Error("The shared OPSYS context fixture must be admitted before real M9 HTTP");
+    }
+    const consumed = JSON.parse(
+      await readFile(resolve(dirname(configPath), "opsys/contexte.json"), "utf8"),
+    ) as {
+      agents: Record<string, unknown>;
+      niveaux: Record<string, string>;
+      cibles: Record<string, unknown>;
+    };
+    const tools = [
+      "m9_ouvrir_suivi_decision",
+      "m9_preparer_suivi_decision",
+      "m9_lire_suivi_decision",
+    ];
+    // Verify the consumed shared contract, without racing other files by replacing its path.
+    expect({
+      agent: consumed.agents["m09-strategic-intelligence"],
+      niveaux: Object.fromEntries(tools.map((name) => [name, consumed.niveaux[name]])),
+      cibles: Object.fromEntries(
+        tools
+          .filter((name) => Object.hasOwn(consumed.cibles, name))
+          .map((name) => [name, consumed.cibles[name]]),
+      ),
+    }).toStrictEqual(prepared.generated_context);
+    const inspect = async () =>
+      JSON.parse(await runFixture(python, home, "inspect-m9")) as {
+        owner_active: boolean;
+        linked_affair: string;
+        requests: { id: string; status: string }[];
+        followups: {
+          suivi_id: string;
+          source: Record<string, unknown>;
+          decision: Record<string, unknown>;
+        }[];
+        tickets: number;
+        tables_digest: string;
+      };
+    expect(await inspect()).toMatchObject({
+      owner_active: true,
+      requests: [],
+      followups: [],
+      tickets: 0,
+    });
+    const port = await reservePort();
+    await startPythonMcp(python, home, port);
+    const runtime = await getOrCreateSessionMcpRuntime({
+      sessionId: "opsys-real-python-m9-followup",
+      sessionKey: prepared.session_key,
+      workspaceDir: home,
+      cfg: { plugins: { enabled: false }, ...m9OpsysConfig(port) },
+    });
+    opsysContexteGuardStore.set(prepared.session_key, {
+      kind: "ready",
+      affaireId: prepared.affairs.A,
+      nbOuverts: 0,
+      atMs: Date.now(),
+    });
+    // No authenticated device metadata: the actual Core private issuer must be used.
+    const resultA = await runtime.callTool(
+      "opsys_m9",
+      "m9_ouvrir_suivi_decision",
+      prepared.arguments.A,
+    );
+    expect(resultA.isError).not.toBe(true);
+    const a = JSON.parse(resultA.content.find((item) => item.type === "text")?.text ?? "null") as {
+      demande_id: string;
+      statut: string;
+    };
+    expect(a).toMatchObject({ statut: "en_attente_approbation", demande_id: expect.any(String) });
+    expect(await inspect()).toMatchObject({
+      owner_active: true,
+      linked_affair: prepared.affairs.A,
+      requests: [{ id: a.demande_id, status: "en_attente" }],
+      followups: [],
+      tickets: 1,
+    });
+    // The durable pending proposal is the synchronization point before the N3 effect.
+    await runFixture(python, home, "switch-m9-b");
+    const beforeRefusal = await inspect();
+    expect(beforeRefusal).toMatchObject({
+      owner_active: true,
+      linked_affair: prepared.affairs.B,
+      followups: [],
+    });
+    const refusal = JSON.parse(
+      await runFixture(python, home, "refuse-m9-approval", ["--request-id", a.demande_id]),
+    );
+    expect(refusal).toMatchObject({
+      refused: true,
+      owner_active: true,
+      reason: expect.stringMatching(/révoquée|remplacée/),
+    });
+    expect(await inspect()).toStrictEqual(beforeRefusal);
+
+    opsysContexteGuardStore.set(prepared.session_key, {
+      kind: "ready",
+      affaireId: prepared.affairs.B,
+      nbOuverts: 0,
+      atMs: Date.now(),
+    });
+    const resultB = await runtime.callTool(
+      "opsys_m9",
+      "m9_ouvrir_suivi_decision",
+      prepared.arguments.B,
+    );
+    expect(resultB.isError).not.toBe(true);
+    const b = JSON.parse(resultB.content.find((item) => item.type === "text")?.text ?? "null") as {
+      demande_id: string;
+      statut: string;
+    };
+    expect(b).toMatchObject({ statut: "en_attente_approbation", demande_id: expect.any(String) });
+    expect(b.demande_id).not.toBe(a.demande_id);
+    const approval = JSON.parse(
+      await runFixture(python, home, "approve", ["--request-id", b.demande_id]),
+    );
+    expect(approval).toMatchObject({ statut: "executee" });
+    const final = await inspect();
+    expect(final.owner_active).toBe(true);
+    expect(final.linked_affair).toBe(prepared.affairs.B);
+    expect(final.tickets).toBe(2);
+    expect(final.requests).toEqual(
+      expect.arrayContaining([
+        { id: a.demande_id, status: "en_attente" },
+        { id: b.demande_id, status: "executee" },
+      ]),
+    );
+    expect(final.requests).toHaveLength(2);
+    expect(final.followups).toHaveLength(1);
+    expect(final.followups[0]).toMatchObject({
+      suivi_id: b.demande_id,
+      source: {
+        evenement_id: prepared.arguments.B.evenement_id,
+        empreinte_source: prepared.arguments.B.empreinte_source,
+      },
+      decision: { decide_par: "nathan-fixture", decide_role: "nathan_owner" },
+    });
+  });
+
   it("mutates a canonical M2 lead once and refuses after the active M10 link is revoked", async () => {
     const python = requiredPython();
     const home = await mkdtemp(resolve(tmpdir(), "opsys-cible-ticket-http-"));

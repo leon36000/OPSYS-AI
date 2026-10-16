@@ -17,16 +17,26 @@ const CONTEXTE = {
       affaire: "demande",
       serveur_contexte: "opsys_context_m03-estimation",
     },
+    "m09-strategic-intelligence": {
+      affaire: "session",
+      serveur_contexte: "opsys_context_m09-strategic-intelligence",
+      origine_paquet: "m09-strategic-intelligence",
+      depot: [],
+    },
   },
   niveaux: {
     m2_enregistrer_interaction: "N3",
     m3_marquer_devis_accepte: "N5",
     m3_demander_envoi_devis: "N4",
+    m9_ouvrir_suivi_decision: "N3",
+    m9_preparer_suivi_decision: "N0",
+    m9_lire_suivi_decision: "N0",
   },
   cibles: {
     m2_enregistrer_interaction: { type: "ticket" },
     m3_marquer_devis_accepte: { type: "ticket" },
     m3_demander_envoi_devis: { type: "ticket" },
+    m9_ouvrir_suivi_decision: { type: "ticket" },
   },
 };
 
