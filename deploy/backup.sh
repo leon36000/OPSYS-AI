@@ -62,6 +62,65 @@ command -v flock >/dev/null 2>&1 || die "flock (util-linux) requis avant toute s
 exec {BACKUP_LOCK_FD}<"$SCRIPT_DIR/backup.sh"
 flock -n "$BACKUP_LOCK_FD" || die "une autre sauvegarde utilise déjà ce script; aucun arrêt effectué."
 
+# Une commande interrompue ne prouve pas que le démon a terminé ses effets.
+# Garde commune à toutes les sorties, conservée tant que la reprise n'est pas confirmée.
+INTENTION_ARRET="$SCRIPT_DIR/.opsys-backup-intention.json"
+INTENTION_NONCE=""
+if [ -e "$INTENTION_ARRET" ] || [ -L "$INTENTION_ARRET" ]; then
+    die "intention de quiescence inconnue conservée : $INTENTION_ARRET; assistance requise, aucun nouvel effet."
+fi
+
+intention_arret() {
+    local action="$1"; shift
+    python3 -I - "$action" "$INTENTION_ARRET" "$@" <<'PY_INTENTION'
+import json, os, stat, sys, uuid
+from pathlib import Path
+
+action, nom, *arguments = sys.argv[1:]
+chemin = Path(nom)
+dossier = os.open(chemin.parent, os.O_RDONLY | os.O_DIRECTORY)
+try:
+    if action == "creer":
+        nonce = uuid.uuid4().hex
+        donnees = {"version": 1, "type": "opsys-backup-quiescence", "nonce": nonce,
+                   "destination": arguments[0], "services": arguments[1:]}
+        fd = os.open(chemin, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w") as fichier:
+            json.dump(donnees, fichier, ensure_ascii=False)
+            fichier.write("\n")
+            fichier.flush()
+            os.fsync(fichier.fileno())
+        os.fsync(dossier)
+        print(nonce)
+    elif action == "effacer":
+        fd = os.open(chemin, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+        try:
+            proprietaire = os.fstat(fd)
+            if not stat.S_ISREG(proprietaire.st_mode) or proprietaire.st_uid != os.geteuid():
+                raise SystemExit("intention sans propriétaire régulier")
+            if stat.S_IMODE(proprietaire.st_mode) != 0o600:
+                raise SystemExit("permissions de l'intention modifiées")
+            brut = os.read(fd, 65537)
+            if len(brut) > 65536:
+                raise SystemExit("intention trop volumineuse")
+            donnees = json.loads(brut)
+            if (donnees.get("type") != "opsys-backup-quiescence" or donnees.get("version") != 1
+                    or donnees.get("nonce") != arguments[0]):
+                raise SystemExit("intention différente conservée")
+            courant = os.stat(chemin, follow_symlinks=False)
+            if (courant.st_dev, courant.st_ino) != (proprietaire.st_dev, proprietaire.st_ino):
+                raise SystemExit("intention remplacée conservée")
+            os.unlink(chemin)
+            os.fsync(dossier)
+        finally:
+            os.close(fd)
+    else:
+        raise SystemExit("opération d'intention invalide")
+finally:
+    os.close(dossier)
+PY_INTENTION
+}
+
 compose_borne() {
     local secondes="$1"; shift
     if [ "$MODE" = litellm ]; then
@@ -133,7 +192,13 @@ reprendre_services() {
             done
         done <<< "$observation"
         [ "$((limite - SECONDS))" -gt 0 ] || { warn "reprise hors délai; archives conservées."; return 1; }
-        [ "$pret" -eq 0 ] || return 0
+        if [ "$pret" -ne 0 ]; then
+            intention_arret effacer "$INTENTION_NONCE" || {
+                warn "reprise observée mais intention non réconciliée; assistance requise."
+                return 1
+            }
+            return 0
+        fi
         sleep 0.2
     done
 }
@@ -156,13 +221,17 @@ quiescer_services() {
         fi
     done <<< "$observation"
     [ "${#A_REPRENDRE[@]}" -gt 0 ] || return 0
+    INTENTION_NONCE="$(intention_arret creer "$DEST" "${A_REPRENDRE[@]}")" ||
+        die "impossible de conserver l'intention avant arrêt; aucun stop effectué."
     trap fin_sauvegarde EXIT
     trap 'exit 130' INT
     trap 'exit 143' TERM
-    REPRISE_NECESSAIRE=1  # avant le premier stop, même si celui-ci échoue partiellement
     log "arrêt borné des écrivains initialement actifs : ${A_REPRENDRE[*]}"
-    compose_borne "$STOP_SECONDS" stop --timeout "$STOP_SECONDS" "${A_REPRENDRE[@]}" ||
-        die "arrêt des écrivains incomplet; aucune archive produite."
+    if ! compose_borne "$STOP_SECONDS" stop --timeout "$STOP_SECONDS" "${A_REPRENDRE[@]}"; then
+        die "résultat d'arrêt inconnu; intention conservée, aucune archive ni reprise automatique; assistance requise."
+    fi
+    # Seule la fin confirmée du STOP autorise la compensation, même après erreur d'archive.
+    REPRISE_NECESSAIRE=1
     observation="$(observer_services)" || die "arrêt non vérifiable; aucune archive produite."
     while read -r service etat sante; do
         for attendu in "${A_REPRENDRE[@]}"; do

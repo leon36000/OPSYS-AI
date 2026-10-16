@@ -77,6 +77,13 @@ if args[:1] == ["compose"]:
         pending = state_file.with_suffix(".pending")
         pending.write_text(json.dumps(state), encoding="utf-8")
         pending.replace(state_file)
+    late_stop = os.environ.get("FAKE_STOP_ACCEPTED_NONTERMINAL") == "1"
+    daemon_file = state_file.with_suffix(".daemon")
+    events_file = state_file.with_suffix(".events")
+    def event(kind, **details):
+        events = json.loads(events_file.read_text()) if events_file.exists() else []
+        events.append({"event": kind, **details})
+        events_file.write_text(json.dumps(events))
     if rest[:1] == ["ps"]:
         rows = [{"Service": name, "State": status,
                  "Health": "healthy" if status == "running" else ""}
@@ -89,8 +96,26 @@ if args[:1] == ["compose"]:
                     row["Health"] = "starting" if time.monotonic() < pending["until"] else pending["after"]
         if os.environ.get("FAKE_COMPOSE_PS_DUPLICATE_POSTGRES") == "1":
             rows.extend(dict(row) for row in rows[:len(rows)] if row["Service"] == "postgres")
+        if late_stop and daemon_file.exists():
+            pending = json.loads(daemon_file.read_text())
+            if pending["phase"] == "accepted_not_terminal":
+                event("ps_snapshot_before_terminal", states={row["Service"]: row["State"] for row in rows})
+                for name in pending["targets"]:
+                    state[name] = "exited"
+                save_state()
+                pending["phase"] = "terminal"
+                daemon_file.write_text(json.dumps(pending))
+                event("daemon_stop_terminal")
         print(json.dumps(rows))
     if rest[:1] == ["stop"]:
+        if late_stop:
+            targets = [name for name in rest[1:] if name in state]
+            intention = state_file.parent / "deploy/.opsys-backup-intention.json"
+            before = json.loads(intention.read_text()) if intention.exists() else None
+            daemon_file.write_text(json.dumps({"phase": "accepted_not_terminal", "targets": targets}))
+            event("stop_accepted", intention=before,
+                  mode=intention.stat().st_mode & 0o777 if intention.exists() else None)
+            raise SystemExit(124)  # ACK inconnu simulé, pas un timeout Docker natif.
         time.sleep(float(os.environ.get("FAKE_STOP_DELAY", "0")))
         for name in rest[1:]:
             if name in state:
@@ -109,6 +134,8 @@ if args[:1] == ["compose"]:
         state["postgres"] = "running"
         save_state()
     if rest[:1] == ["start"]:
+        if late_stop:
+            event("start_requested", phase=json.loads(daemon_file.read_text())["phase"])
         if any(arg.startswith("--") for arg in rest[1:]):
             raise SystemExit("unknown flag: --wait (contrat Compose 2.40.3)")
         if os.environ.get("FAKE_FAIL_COMPOSE_START") == "1":
@@ -123,6 +150,11 @@ if args[:1] == ["compose"]:
                 else:
                     state[name] = result_state
         save_state()
+        if os.environ.get("FAKE_START_REPLACE_INTENT") == "1":
+            intention = state_file.parent / "deploy/.opsys-backup-intention.json"
+            altered = json.loads(intention.read_text())
+            altered["nonce"] = "autre-intention-fictive"
+            intention.write_text(json.dumps(altered))
         if "FAKE_START_HEALTH_DELAY" in os.environ or "FAKE_START_HEALTH_RESULT" in os.environ:
             state_file.with_suffix(".health").write_text(json.dumps({
                 "targets": rest[1:],
@@ -398,6 +430,20 @@ def test_backup_quiescence_reprend_seulement_services_initialement_actifs(banc_d
     calls = [json.loads(line) for line in Path(env["FAKE_DOCKER_LOG"]).read_text().splitlines()]
     stops = [call for call in calls if call[:1] == ["compose"] and "stop" in call]
     starts = [call for call in calls if call[:1] == ["compose"] and "start" in call]
+    intention = deploy / ".opsys-backup-intention.json"
+    if panne in ("stop", "stop-timeout"):
+        assert len(stops) == 1 and not starts
+        assert intention.is_file() and "inconnu" in result.stderr
+        assert not list((tmp_path / "backups").glob("*/*"))
+        assert not Path(env["FAKE_ARCHIVE_MARKER"]).exists()
+        current = json.loads(state_file.read_text())
+        assert current["caddy"] == current["litellm"] == "exited"
+        assert current["postgres"] == initial["postgres"]
+        if panne == "stop-timeout":
+            assert current == initial
+        else:
+            assert current["opsys"] == "exited"
+        return
     assert len(stops) == len(starts) == 1
     assert not any(arg.startswith("--") for arg in starts[0][starts[0].index("start") + 1:])
     assert "opsys" in stops[0] and "openclaw-gateway" in stops[0] and "postgres" in stops[0]
@@ -406,8 +452,14 @@ def test_backup_quiescence_reprend_seulement_services_initialement_actifs(banc_d
         assert "PREUVE :" not in result.stdout
         assert "reprise" in result.stderr
         assert list((tmp_path / "backups").glob("*/MANIFEST.txt"))
+        assert intention.is_file()
+        before = (Path(env["FAKE_DOCKER_LOG"]).read_bytes(), state_file.read_bytes(), intention.read_bytes())
+        retry = _run(deploy / "backup.sh", "--out", str(tmp_path / "autre-sortie"), env=env)
+        assert retry.returncode != 0 and "intention" in retry.stderr
+        assert (Path(env["FAKE_DOCKER_LOG"]).read_bytes(), state_file.read_bytes(), intention.read_bytes()) == before
     else:
         assert json.loads(state_file.read_text()) == initial
+        assert not intention.exists()
 
 
 @pytest.mark.parametrize("etat", ["restarting", "paused", "dead"])
@@ -1149,3 +1201,83 @@ def test_restauration_reelle_volumes_docker_qa_jetables(tmp_path):
         for name in created:
             assert name.startswith(f"qa-{token}-")
             run(docker, "volume", "rm", name)
+
+
+def test_backup_stop_inconnu_conserve_intention_et_bloque_nouveaux_effets(banc_docker):
+    """Script réel; ACK124/arrêt tardif simulés, sans délai ni démon Docker réel."""
+    deploy, _, env, tmp_path = banc_docker
+    env.update({
+        "OPSYS_DATABASE_URL": "postgresql://opsys:mot-de-passe-fictif@postgres:5432/opsys",
+        "FAKE_STOP_ACCEPTED_NONTERMINAL": "1",
+    })
+    state_file = Path(env["FAKE_COMPOSE_STATE"])
+    initial = json.loads(state_file.read_text())
+    intention = deploy / ".opsys-backup-intention.json"
+    result = _run(deploy / "backup.sh", "--out", str(tmp_path / "backups"), env=env)
+    assert result.returncode != 0
+    calls = [json.loads(line) for line in Path(env["FAKE_DOCKER_LOG"]).read_text().splitlines()]
+    assert not any(call[:1] == ["compose"] and "start" in call for call in calls), (
+        "STOP accepté mais non terminal : aucune reprise automatique autorisée"
+    )
+    assert "intention" in result.stderr and "inconnu" in result.stderr
+    assert "PREUVE :" not in result.stdout
+    assert not list((tmp_path / "backups").glob("*/*"))
+    assert not Path(env["FAKE_ARCHIVE_MARKER"]).exists()
+    events = json.loads(state_file.with_suffix(".events").read_text())
+    assert [e["event"] for e in events] == ["stop_accepted"]
+    intent = json.loads(intention.read_text())
+    assert events[0]["intention"] == intent and events[0]["mode"] == 0o600
+    assert intention.stat().st_mode & 0o777 == 0o600
+    assert set(intent["services"]) == {"opsys", "openclaw-gateway", "caddy"}
+    assert intent["nonce"] and "mot-de-passe-fictif" not in intention.read_text()
+    assert json.loads(state_file.read_text()) == initial
+    # Une lecture factice réalise maintenant l'arrêt tardif. Elle n'est pas une
+    # preuve que le protocole réel Docker est réconcilié, ni une autorisation de clear.
+    subprocess.run(
+        [str(tmp_path / "bin/docker"), "compose", "ps", "--all", "--format", "json"],
+        env=env, check=True, capture_output=True, timeout=5,
+    )
+    terminal = json.loads(state_file.read_text())
+    assert terminal == dict(initial, opsys="exited", **{"openclaw-gateway": "exited", "caddy": "exited"})
+    before_retry = Path(env["FAKE_DOCKER_LOG"]).read_bytes()
+    before_intent = intention.read_bytes()
+    retry = _run(deploy / "backup.sh", "--out", str(tmp_path / "autre-sortie"), env=env)
+    assert retry.returncode != 0 and "intention" in retry.stderr
+    assert Path(env["FAKE_DOCKER_LOG"]).read_bytes() == before_retry
+    assert intention.read_bytes() == before_intent
+    assert json.loads(state_file.read_text()) == terminal
+    assert not (tmp_path / "autre-sortie").exists()
+
+
+@pytest.mark.parametrize("forme", ["invalide", "lien-pendant", "dossier"])
+def test_backup_intention_preexistante_refuse_avant_docker(banc_docker, forme):
+    deploy, _, env, tmp_path = banc_docker
+    intention = deploy / ".opsys-backup-intention.json"
+    if forme == "invalide":
+        intention.write_text("inconnue-incomplete-fictive")
+    elif forme == "lien-pendant":
+        intention.symlink_to(tmp_path / "cible-absente-fictive")
+    else:
+        intention.mkdir()
+    result = _run(deploy / "backup.sh", "--out", str(tmp_path / "sortie"), env=env)
+    assert result.returncode != 0 and "intention" in result.stderr
+    assert not Path(env["FAKE_DOCKER_LOG"]).exists()
+    assert not (tmp_path / "sortie").exists()
+    assert intention.exists() or intention.is_symlink()
+
+
+def test_backup_reprise_ne_supprime_pas_une_intention_remplacee(banc_docker):
+    deploy, _, env, tmp_path = banc_docker
+    env["FAKE_START_REPLACE_INTENT"] = "1"
+    result = _run(deploy / "backup.sh", "--out", str(tmp_path / "backups"), env=env)
+    assert result.returncode != 0 and "intention non réconciliée" in result.stderr
+    assert "PREUVE :" not in result.stdout
+    assert len(list((tmp_path / "backups").glob("*/MANIFEST.txt"))) == 1
+    intention = deploy / ".opsys-backup-intention.json"
+    assert json.loads(intention.read_text())["nonce"] == "autre-intention-fictive"
+    calls = Path(env["FAKE_DOCKER_LOG"]).read_bytes()
+    before = intention.read_bytes()
+    retry = _run(deploy / "backup.sh", "--out", str(tmp_path / "autre-sortie"), env=env)
+    assert retry.returncode != 0 and "intention" in retry.stderr
+    assert Path(env["FAKE_DOCKER_LOG"]).read_bytes() == calls
+    assert intention.read_bytes() == before
