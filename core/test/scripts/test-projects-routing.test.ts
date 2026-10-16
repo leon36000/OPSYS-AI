@@ -1092,6 +1092,16 @@ describe("explicit target CI partitions", () => {
     const memory = "src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts";
     expect(selected[0]!.targets).not.toContain(memory);
     expect(selected[1]!.targets).toContain(memory);
+    const m9Http =
+      "src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.python-http.integration.test.ts";
+    const m9Owners = selected
+      .flatMap((part) => part.groups)
+      .filter((group) => group.targets.includes(m9Http));
+    expect(m9Owners).toHaveLength(1);
+    expect(m9Owners[0]!.config).toBe("test/vitest/vitest.infra.config.ts");
+    expect(buildVitestRunPlans([m9Http], cwd, undefined, { env: baseEnv })[0]!.config).toBe(
+      "test/vitest/vitest.infra.config.ts",
+    );
     const union = selected.flatMap((part) => part.targets);
     expect(union).toHaveLength(293);
     expect(new Set(union).size).toBe(293);
