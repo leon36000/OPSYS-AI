@@ -9,6 +9,7 @@ export const OPSYS_CIBLE_TICKET_SERVERS = {
   m3_marquer_devis_accepte: "opsys_m3",
   m3_demander_envoi_devis: "opsys_m3",
   m3_creer_devis: "opsys_m3",
+  m9_ouvrir_suivi_decision: "opsys_m9",
 } as const satisfies Record<string, string>;
 
 export type OpsysCibleTicketTool = keyof typeof OPSYS_CIBLE_TICKET_SERVERS;

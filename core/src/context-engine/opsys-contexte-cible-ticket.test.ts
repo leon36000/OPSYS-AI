@@ -165,12 +165,70 @@ describe("createOpsysCibleTicketMeta", () => {
     await expect(createOpsysCibleTicketMeta(expired.params, expired.deps)).rejects.toThrow();
   });
 
-  it("does not mint a reusable ticket for tools outside the exact allowlist", async () => {
-    const { params, deps, callTool } = setup({ toolName: "m3_outil_non_declare" });
+  it.each(["m3_outil_non_declare", "m9_outil_non_declare", "m9_preparer_suivi_decision"])(
+    "does not mint a ticket for undeclared mutation or readonly tool %s",
+    async (toolName) => {
+      const { params, deps, callTool } = setup({ toolName });
 
-    await expect(createOpsysCibleTicketMeta(params, deps)).resolves.toBeUndefined();
-    expect(callTool).not.toHaveBeenCalled();
-  });
+      await expect(createOpsysCibleTicketMeta(params, deps)).resolves.toBeUndefined();
+      expect(callTool).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["opsys_m9", "opsys_m3"])(
+    "routes the exact M9 opening only to its canonical server, received %s",
+    async (serverName) => {
+      const agentId = "m09-strategic-intelligence";
+      const sessionKey = `agent:${agentId}:webchat:direct:suivi-fictif`;
+      const toolName = "m9_ouvrir_suivi_decision";
+      const { params, deps, callTool } = setup({
+        serverName,
+        toolName,
+        sessionKey,
+        config: config({
+          agents: new Map([[agentId, []]]),
+          affaireFromSession: new Set([agentId]),
+          contextServers: new Map([[agentId, "opsys_context_m09-strategic-intelligence"]]),
+          levels: new Map([[toolName, "N3"]]),
+          targets: new Map([[toolName, { kind: "ticket" }]]),
+        }),
+      });
+      const argumentsM9 = {
+        evenement_id: "alerte-m8-fictive",
+        empreinte_source: "0".repeat(64),
+        action: "Analyser les causes de durée du chantier fictif",
+        responsable_id: "responsable-fictif",
+        echeance: "2026-10-20T09:00:00-04:00",
+      };
+      if (serverName !== "opsys_m9") {
+        await expect(
+          createOpsysCibleTicketMeta({ ...params, toolParams: argumentsM9 }, deps),
+        ).rejects.toThrow(/tool\/server mismatch/);
+        expect(callTool).not.toHaveBeenCalled();
+        return;
+      }
+      await expect(
+        createOpsysCibleTicketMeta({ ...params, toolParams: argumentsM9 }, deps),
+      ).resolves.toStrictEqual({
+        arguments: argumentsM9,
+        meta: { "opsys/cibleTicket": "opaque-ticket-secret" },
+      });
+      expect(callTool).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          server: "opsys_context_m09-strategic-intelligence",
+          tool: "opsys_contexte_creer_ticket_cible",
+          args: {
+            agent_id: agentId,
+            cle_session: sessionKey,
+            affaire_id: "LEAD-001",
+            origine_affaire: "session",
+            outil: toolName,
+            arguments: argumentsM9,
+          },
+        }),
+      );
+    },
+  );
 
   it("issues an N3 creation ticket for the exact M10 lead-bound draft args without changing them", async () => {
     const toolName = "m3_creer_devis";

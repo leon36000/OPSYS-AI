@@ -404,7 +404,7 @@ describe("parseOpsysContexteConfig: where the case comes from, and the levels of
     }
   });
 
-  it("accepts an explicit ticket target only for the approved M2/M3 case mutations", () => {
+  it("accepts ticket targets only for M2/M3 mutations and the dedicated M9 followup opening", () => {
     const ticketTools = [
       "m2_transitionner_statut",
       "m2_reassigner_lead",
@@ -415,6 +415,7 @@ describe("parseOpsysContexteConfig: where the case comes from, and the levels of
       "m3_marquer_devis_accepte",
       "m3_demander_envoi_devis",
       "m3_creer_devis",
+      "m9_ouvrir_suivi_decision",
     ];
     const levels = Object.fromEntries([
       ...ticketTools.map((tool) => [tool, "N3"]),
@@ -438,17 +439,19 @@ describe("parseOpsysContexteConfig: where the case comes from, and the levels of
       }
       expect(valid.config.targets.get("m4_outil_non_declare")).toStrictEqual({ kind: "unknown" });
     }
-    const invalid = parseOpsysContexteConfig({
-      version: 2,
-      actif: true,
-      agents: M3,
-      niveaux: { m4_outil_non_declare: "N3" },
-      cibles: { m4_outil_non_declare: { type: "ticket" } },
-    });
-    expect(invalid).toMatchObject({
-      kind: "invalid",
-      reason: expect.stringContaining("cannot use the ticket target contract"),
-    });
+    for (const tool of ["m4_outil_non_declare", "m9_outil_non_declare"]) {
+      const invalid = parseOpsysContexteConfig({
+        version: 2,
+        actif: true,
+        agents: M3,
+        niveaux: { [tool]: "N3" },
+        cibles: { [tool]: { type: "ticket" } },
+      });
+      expect(invalid).toMatchObject({
+        kind: "invalid",
+        reason: expect.stringContaining("cannot use the ticket target contract"),
+      });
+    }
   });
 
   it.each([
