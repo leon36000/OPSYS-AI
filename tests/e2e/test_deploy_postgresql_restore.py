@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import io
+import ipaddress
 import json
 import os
 import re
@@ -114,6 +115,41 @@ def _lire_core(chemin, contenu):
                 for table in ("opsys_postflight_outbox", "opsys_postflight_intents")}
 
 
+
+def _cible_pg_interne_possedee(detail, reseau, projet):
+    """Lie la cible SQL au seul bridge interne possédé, sans port publié ni repli."""
+    nom = projet + "_default"
+    assert detail["Config"]["Labels"]["com.docker.compose.project"] == projet
+    assert detail["Config"]["Labels"]["com.docker.compose.service"] == "postgres"
+    assert not detail["HostConfig"]["PortBindings"]
+    assert not any(detail["NetworkSettings"]["Ports"].values())
+    assert set(detail["NetworkSettings"]["Networks"]) == {nom}
+    assert reseau["Name"] == nom and reseau["Driver"] == "bridge" and reseau["Internal"] is True
+    assert reseau["Labels"]["com.docker.compose.project"] == projet
+    assert reseau["Labels"]["com.docker.compose.network"] == "default"
+    assert reseau["Options"].get("com.docker.network.bridge.gateway_mode_ipv4", "nat") != "isolated"
+    endpoint = detail["NetworkSettings"]["Networks"][nom]
+    assert endpoint["NetworkID"] == reseau["Id"]
+    assert set(reseau["Containers"]) == {detail["Id"]}
+    membre = reseau["Containers"][detail["Id"]]
+    assert endpoint["EndpointID"] == membre["EndpointID"] and endpoint["EndpointID"]
+    assert membre["Name"] == detail["Name"].removeprefix("/")
+    adresse = ipaddress.IPv4Interface(f"{endpoint['IPAddress']}/{endpoint['IPPrefixLen']}")
+    assert adresse == ipaddress.IPv4Interface(membre["IPv4Address"])
+    sous_reseaux = [c for c in reseau["IPAM"]["Config"] if ":" not in c["Subnet"]]
+    assert len(sous_reseaux) == 1
+    sous_reseau = ipaddress.IPv4Network(sous_reseaux[0]["Subnet"])
+    assert adresse.network == sous_reseau and adresse.ip in sous_reseau
+    assert adresse.ip.is_private and not any((adresse.ip.is_loopback, adresse.ip.is_link_local,
+                                              adresse.ip.is_multicast, adresse.ip.is_unspecified,
+                                              adresse.ip.is_reserved))
+    assert adresse.ip not in (sous_reseau.network_address, sous_reseau.broadcast_address,
+                              ipaddress.IPv4Address(sous_reseaux[0]["Gateway"]))
+    return {"host": str(adresse.ip), "port": 5432, "container_id": detail["Id"],
+            "network_id": reseau["Id"], "endpoint_id": endpoint["EndpointID"],
+            "subnet": str(sous_reseau), "internal": True, "published_ports": False}
+
+
 def _instantane_pg():
     with stockage.transaction() as cnx:
         return {nom: sorted(json.dumps(dict(ligne), sort_keys=True, default=str)
@@ -176,7 +212,7 @@ def test_backup_restore_postgresql_et_outbox_inconnue_isoles(tmp_path, monkeypat
         "image": image, "pull_policy": "never", "profiles": ["database"], "mem_limit": "1g",
         "environment": {"POSTGRES_USER": "opsys", "POSTGRES_PASSWORD": "mot-de-passe-fictif",
                         "POSTGRES_DB": "opsys"},
-        "ports": ["127.0.0.1::5432"], "volumes": ["postgres_data:/var/lib/postgresql/data"],
+        "volumes": ["postgres_data:/var/lib/postgresql/data"],
         "healthcheck": {"test": ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U opsys -d opsys"],
                         "interval": "1s", "timeout": "2s", "retries": 30},
     }}
@@ -256,16 +292,27 @@ def test_backup_restore_postgresql_et_outbox_inconnue_isoles(tmp_path, monkeypat
         postgres = run([*compose, "ps", "--quiet", "postgres"])[1].decode().strip()
         detail = json.loads(run(["docker", "inspect", postgres])[1])[0]
         assert detail["HostConfig"]["Memory"] == 1024**3
-        ports = detail["NetworkSettings"]["Ports"]["5432/tcp"]
-        assert len(ports) == 1 and ports[0]["HostIp"] == "127.0.0.1"
-        port = int(ports[0]["HostPort"])
-        assert 0 < port < 65536
+        reseau = json.loads(run(["docker", "network", "inspect", projet + "_default"])[1])[0]
+        cible = _cible_pg_interne_possedee(detail, reseau, projet)
+        record_property("cf040_network", json.dumps(cible, sort_keys=True))
+
+        def verifier_cible():
+            # restore.sh appelle compose up : une recréation ne permet aucun repli SQL.
+            courant = json.loads(run(["docker", "inspect", postgres])[1])[0]
+            bridge = json.loads(run(["docker", "network", "inspect", projet + "_default"])[1])[0]
+            actuelle = _cible_pg_interne_possedee(courant, bridge, projet)
+            # stop/start peut renouveler l’endpoint : son lien courant doit être valide,
+            # tandis que conteneur, réseau et cible SQL restent strictement identiques.
+            assert {k: v for k, v in actuelle.items() if k != "endpoint_id"} == {
+                k: v for k, v in cible.items() if k != "endpoint_id"}
+            return actuelle
+
         assert run([*compose, "exec", "-T", "postgres", "psql", "-At", "-U", "opsys", "-d", "opsys",
                     "-c", "SHOW server_version_num"])[1].strip().startswith(b"17")
         monkeypatch.setenv("OPSYS_HOME", str(tmp_path / "opsys-home-fictif"))
         url = URL.create(
             "postgresql+psycopg", username="opsys", password="mot-de-passe-fictif",
-            host="127.0.0.1", port=port, database="opsys",
+            host=cible["host"], port=cible["port"], database="opsys",
             query={"connect_timeout": "5", "options": "-c statement_timeout=5000 -c lock_timeout=2000"},
         )
         cible_url = url.render_as_string(hide_password=False)
@@ -275,8 +322,9 @@ def test_backup_restore_postgresql_et_outbox_inconnue_isoles(tmp_path, monkeypat
         assert moteur_possede.dialect.name == "postgresql"
         assert moteur_possede.url == url
         # La cible est vérifiée avant la première écriture ; vider seulement son pool
-        # impose une connexion fraîche au port du conteneur dont on vient de prouver la propriété.
+        # impose une connexion fraîche à l’adresse interne dont on vient de prouver la propriété.
         moteur_possede.dispose()
+        verifier_cible()
         stockage.migrer(cible_url)
         faits = [{"cle": "tc-" + "a" * 40, "outil": "m3_estimer_projet", "resultat": "ok", "code": None}]
         with stockage.transaction():
@@ -313,14 +361,17 @@ def test_backup_restore_postgresql_et_outbox_inconnue_isoles(tmp_path, monkeypat
         copie_corrompue = tmp_path / "archive-corrompue-fictive"
         shutil.copytree(archive, copie_corrompue)
         (copie_corrompue / "postgres-opsys.sql.gz").write_bytes(b"gzip-corrompu-fictif")
+        verifier_cible()
         avant_refus = _instantane_pg()
         etats = etats_services()
         code, _, erreur = run(["bash", deploy / "restore.sh", "--from", copie_corrompue, "--yes"], succes=False)
         assert code != 0 and b"illisible ou incomplet" in erreur
+        verifier_cible()
         assert _instantane_pg() == avant_refus
         assert etats_services() == etats
         assert all(volume(cle) == fichiers for cle, fichiers in fichiers_attendus.items())
         proprietaires()
+        verifier_cible()
         with stockage.transaction() as cnx:
             cnx.execute(text("DROP SCHEMA public CASCADE"))
             cnx.execute(text("CREATE SCHEMA public AUTHORIZATION opsys"))
@@ -332,6 +383,8 @@ def test_backup_restore_postgresql_et_outbox_inconnue_isoles(tmp_path, monkeypat
         avant_restore = time.monotonic()
         run(["bash", deploy / "restore.sh", "--from", archive, "--yes"])
         secondes_restore = time.monotonic() - avant_restore
+        cible_apres_restore = verifier_cible()
+        record_property("cf040_network_after_restore", json.dumps(cible_apres_restore, sort_keys=True))
         assert _instantane_pg() == attendu_pg
         with stockage.transaction() as cnx:
             assert cnx.execute(text("SELECT to_regclass('public.cf040_generation_remplacee')")).scalar_one() is None
@@ -342,7 +395,7 @@ def test_backup_restore_postgresql_et_outbox_inconnue_isoles(tmp_path, monkeypat
         assert _lire_core(tmp_path / "core-restaure.sqlite", restaure) == attendu_core
         assert {f.name: hashlib.sha256(f.read_bytes()).hexdigest() for f in archive.iterdir()} == empreintes_archives
         record_property("cf040", json.dumps({
-            "fictif": True, "projet": projet, "image": image, "image_id": inspect_image["Id"],
+            "fictif": True, "projet": projet, "network": cible, "image": image, "image_id": inspect_image["Id"],
             "seconds": round(time.monotonic() - debut, 3), "faits_m10": 1,
             "backup_command_seconds": round(secondes_backup, 3),
             "restore_command_seconds": round(secondes_restore, 3),
