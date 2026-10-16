@@ -12,9 +12,13 @@ import { expect, it, vi } from "vitest";
 import { createBoundedChildOutput } from "../../test/helpers/bounded-child-output.js";
 import { waitForChildClose } from "../../test/helpers/process-wait.js";
 import { stopChildProcess } from "../../test/helpers/stop-child-process.js";
+import { getSessionMcpRuntimeManagerForTesting } from "../agents/agent-bundle-mcp-manager-api.js";
+import { getOrCreateSessionMcpRuntime } from "../agents/agent-bundle-mcp-manager.test-support.js";
+import { SESSION_MCP_RUNTIME_MANAGER_KEY } from "../agents/agent-bundle-mcp-runtime-shared.js";
 import type { runBeforeToolCallHook } from "../agents/agent-tools.before-tool-call.js";
 import { setRuntimeConfigSnapshot } from "../config/runtime-snapshot.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
+import { opsysContexteGuardStore } from "../context-engine/opsys-contexte-garde.js";
 import { approveDevicePairing } from "../infra/device-pairing-approval.js";
 import { ensureDeviceToken } from "../infra/device-pairing-tokens.js";
 import { requestDevicePairing } from "../infra/device-pairing.js";
@@ -27,12 +31,20 @@ type HookArgs = Parameters<typeof runBeforeToolCallHook>[0];
 type HookResult = Awaited<ReturnType<typeof runBeforeToolCallHook>>;
 const hook = vi.hoisted(() => {
   let action: (() => Promise<void>) | undefined;
+  let original = false;
   return {
+    useOriginal() {
+      original = true;
+    },
+    callsOriginal() {
+      return original;
+    },
     arm(next: () => Promise<void>) {
       action = next;
     },
     clear() {
       action = undefined;
+      original = false;
     },
     async before(this: void, args: HookArgs): Promise<HookResult> {
       const selected = action;
@@ -61,7 +73,11 @@ const runtimeHook = vi.hoisted(() => {
 // Only the intercalation seam is replaced, never the transport or any authority reader.
 vi.mock("../agents/agent-tools.before-tool-call.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../agents/agent-tools.before-tool-call.js")>();
-  return { ...actual, runBeforeToolCallHook: hook.before };
+  return {
+    ...actual,
+    runBeforeToolCallHook: (args: HookArgs) =>
+      hook.callsOriginal() ? actual.runBeforeToolCallHook(args) : hook.before(args),
+  };
 });
 vi.mock("../agents/opsys-memoire-lecture-ticket.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../agents/opsys-memoire-lecture-ticket.js")>();
@@ -209,10 +225,13 @@ async function startPython(
   home: string,
   port: number,
   children: ChildProcess[],
+  observeM9Sql = false,
 ): Promise<void> {
   const child = spawn(
     python,
-    ["-B", "-m", "opsys.serveur_mcp", "--http", "--hote", "127.0.0.1", "--port", String(port)],
+    observeM9Sql
+      ? ["-B", FIXTURE, "serve-m9-sql-observed", "--port", String(port)]
+      : ["-B", "-m", "opsys.serveur_mcp", "--http", "--hote", "127.0.0.1", "--port", String(port)],
     {
       cwd: REPO,
       env: pythonEnv(home),
@@ -573,6 +592,386 @@ it("refuses a normally revoked OPSYS device before real MCP mutation and accepts
       throw new AggregateError(
         failed ? [primary, ...cleanupErrors] : cleanupErrors,
         "Native HTTP/Python fixture cleanup failed",
+        { cause: failed ? primary : cleanupErrors[0] },
+      );
+    }
+    if (failed) {
+      throw primary;
+    }
+  });
+}, 120_000);
+
+it("approves one genuinely sealed M9 followup through a paired Core owner device and replays without effects", async () => {
+  const python = process.env.OPSYS_TEST_PYTHON;
+  if (!python) {
+    throw new Error("OPSYS_TEST_PYTHON with locked local dependencies is required");
+  }
+  await withOpenClawTestState({ label: "m9-owner-device-real-python" }, async (state) => {
+    const children: ChildProcess[] = [];
+    const home = await fs.mkdtemp(resolve(tmpdir(), "opsys-m9-owner-device-fictif-"));
+    const configDir = dirname(state.configPath);
+    const env = pythonEnv(home);
+    let server: Server | undefined;
+    let failed = false;
+    let primary: unknown;
+    try {
+      // The M2 intercalation seam must not bypass the original Core hook in this case.
+      hook.useOriginal();
+      await getSessionMcpRuntimeManagerForTesting().disposeAll();
+      Reflect.deleteProperty(globalThis, SESSION_MCP_RUNTIME_MANAGER_KEY);
+      const prepared = JSON.parse(
+        await runPython(python, [FIXTURE, "prepare-m9"], env, children),
+      ) as {
+        fictif: boolean;
+        session_key: string;
+        affairs: Record<"A" | "B", string>;
+        arguments: Record<"A" | "B", Record<string, unknown>>;
+      };
+      expect(prepared.fictif).toBe(true);
+      // Generate the actual contract in this state's config directory, without replacing
+      // OPENCLAW_CONFIG_PATH with the shared agent fixture's unrelated roles directory.
+      await runPython(
+        python,
+        [
+          "-c",
+          [
+            GENERATE_ROLES,
+            "context = openclaw._configuration_contexte(departements, {'m09-strategic-intelligence': []}, ['m09-strategic-intelligence'])",
+            "assert context is not None",
+            "openclaw._ecrire_json(Path(sys.argv[1]) / 'opsys' / 'contexte.json', context)",
+          ].join("\n"),
+          configDir,
+        ],
+        env,
+        children,
+      );
+      const roles = JSON.parse(
+        await fs.readFile(resolve(configDir, "opsys/roles.json"), "utf8"),
+      ) as {
+        roles: Record<string, string[]>;
+        serveurs: Record<string, string>;
+      };
+      const listTool = "m9_lister_demandes_approbation";
+      const decideTool = "m9_decider_demande_approbation";
+      for (const tool of [listTool, decideTool]) {
+        expect(roles.roles.admin).toContain(tool);
+        expect(roles.serveurs[tool]).toBe("opsys_m9");
+      }
+      const appairer = () =>
+        runPython(
+          python,
+          [
+            "-m",
+            "opsys.cli",
+            "appareils",
+            "appairer",
+            DEVICE,
+            "--personne",
+            "nathan-fixture",
+            "--role",
+            "admin",
+            "--config-dir",
+            configDir,
+          ],
+          env,
+          children,
+        );
+      await appairer();
+      const mcpPort = await reservePort();
+      await startPython(python, home, mcpPort, children, true);
+      const origin = `http://127.0.0.1:${mcpPort}`;
+      const cfg: OpenClawConfig = {
+        gateway: { auth: { mode: "token", token: CORE_TOKEN } },
+        plugins: { enabled: false },
+        mcp: {
+          servers: {
+            opsys_m9: {
+              url: `${origin}/mcp/m09-strategic-intelligence`,
+              transport: "streamable-http",
+              transportSecurity: { insecureHttpOrigin: origin },
+              headers: { Authorization: `Bearer ${PUBLIC_TOKEN}` },
+              connectionTimeoutMs: 5_000,
+              requestTimeoutMs: 10_000,
+            },
+            "opsys_context_m09-strategic-intelligence": {
+              url: `${origin}/mcp/contexte/m09-strategic-intelligence`,
+              transport: "streamable-http",
+              transportSecurity: { insecureHttpOrigin: origin },
+              headers: {
+                Authorization: "Bearer synthetic-device-effect-private-context-unused-2026",
+              },
+              connectionTimeoutMs: 5_000,
+              requestTimeoutMs: 10_000,
+            },
+          },
+        },
+      };
+      await state.writeConfig(cfg);
+      setRuntimeConfigSnapshot(cfg, cfg);
+      resetOpsysDeviceRolesCacheForTesting();
+      const token = await pairNativeDevice();
+      const inspect = async () =>
+        JSON.parse(await runPython(python, [FIXTURE, "inspect-m9"], env, children)) as {
+          owner_active: boolean;
+          linked_affair: string;
+          tickets: number;
+          tables_digest: string;
+          requests: { id: string; status: string }[];
+          approval_bindings: {
+            demande_id: string;
+            ticket_cible_hash: string;
+            arguments: Record<string, unknown>;
+            decide_par: string;
+            decide_role: string;
+            ticket: Record<string, unknown>;
+          }[];
+          followups: {
+            suivi_id: string;
+            statut: string;
+            source: Record<string, unknown>;
+            decision: Record<string, unknown>;
+          }[];
+          decision_audits: { par: string; details: Record<string, unknown> }[];
+        };
+      expect(await inspect()).toMatchObject({
+        owner_active: true,
+        requests: [],
+        tickets: 0,
+        followups: [],
+      });
+      // The provider/agent turn is outside this proof. The real Core private issuer and
+      // real Python M10 target fence must create the request; never call fixture approve.
+      const runtime = await getOrCreateSessionMcpRuntime({
+        sessionId: "opsys-real-python-m9-gateway-owner",
+        sessionKey: prepared.session_key,
+        workspaceDir: home,
+        cfg,
+      });
+      opsysContexteGuardStore.set(prepared.session_key, {
+        kind: "ready",
+        affaireId: prepared.affairs.A,
+        nbOuverts: 0,
+        atMs: Date.now(),
+      });
+      const proposal = await runtime.callTool(
+        "opsys_m9",
+        "m9_ouvrir_suivi_decision",
+        prepared.arguments.A,
+      );
+      expect(proposal.isError).not.toBe(true);
+      const request = JSON.parse(
+        proposal.content.find((item) => item.type === "text")?.text ?? "null",
+      ) as {
+        demande_id: string;
+        statut: string;
+      };
+      expect(request).toMatchObject({
+        statut: "en_attente_approbation",
+        demande_id: expect.any(String),
+      });
+      const pending = await inspect();
+      expect(pending).toMatchObject({
+        owner_active: true,
+        linked_affair: prepared.affairs.A,
+        requests: [{ id: request.demande_id, status: "en_attente" }],
+        tickets: 1,
+        followups: [],
+        decision_audits: [],
+      });
+      expect(pending.approval_bindings).toHaveLength(1);
+      const [binding] = pending.approval_bindings;
+      expect(binding.ticket_cible_hash).toMatch(/^[a-f0-9]{64}$/);
+      expect(binding.arguments).toStrictEqual(prepared.arguments.A);
+      expect(binding.ticket).toMatchObject({
+        ticket_hash: binding.ticket_cible_hash,
+        demande_id: request.demande_id,
+        statut: "scelle",
+        departement: "m09-strategic-intelligence",
+        outil: "m9_ouvrir_suivi_decision",
+        affaire_id: prepared.affairs.A,
+        cle_session: prepared.session_key,
+        ligne_liaison_id: expect.any(String),
+        empreinte_arguments: expect.stringMatching(/^[a-f0-9]{64}$/),
+      });
+      server = createServer((req, res) => {
+        void handleToolsInvokeHttpRequest(req, res, {
+          auth: AUTH,
+          cfg,
+          getRuntimeConfig: () => cfg,
+        })
+          .then((handled) => {
+            if (!handled) {
+              res.statusCode = 404;
+              res.end();
+            }
+          })
+          .catch((error: unknown) => {
+            if (!res.headersSent) {
+              res.statusCode = 500;
+            }
+            res.end(String(error));
+          });
+      });
+      const corePort = await listen(server);
+      const sqlWriteCount = async () => {
+        const lines = (await fs.readFile(resolve(home, "m9-sql-writes.jsonl"), "utf8"))
+          .split("\n")
+          .filter(Boolean);
+        for (const line of lines) {
+          expect(JSON.parse(line)).toMatchObject({
+            fictif: true,
+            operation: expect.stringMatching(/^(INSERT|UPDATE|DELETE|REPLACE|CREATE|ALTER|DROP)$/),
+          });
+        }
+        return lines.length;
+      };
+      const invoke = async (tool: string, args: Record<string, unknown>, key?: string) => {
+        const response = await fetch(`http://127.0.0.1:${corePort}/tools/invoke`, {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            tool,
+            args,
+            ...(key ? { idempotencyKey: key, deviceTimestamp: "2026-10-16T12:00:00Z" } : {}),
+          }),
+          signal: AbortSignal.timeout(30_000),
+        });
+        return { status: response.status, body: (await response.json()) as unknown };
+      };
+      const beforeListWrites = await sqlWriteCount();
+      const listed = await invoke(listTool, {});
+      expect(listed.status).toBe(200);
+      expect(listed.body).toMatchObject({
+        ok: true,
+        result: {
+          ok: true,
+          resultat: {
+            accepte: true,
+            resultat: {
+              demandes: [
+                { id: request.demande_id, decidable: true, arguments: prepared.arguments.A },
+              ],
+            },
+          },
+        },
+      });
+      expect(await inspect()).toStrictEqual(pending);
+      expect(await sqlWriteCount()).toBe(beforeListWrites);
+      const choices = { demande_id: request.demande_id, decision: "approuver" };
+      await runPython(
+        python,
+        ["-m", "opsys.cli", "appareils", "revoquer", DEVICE, "--config-dir", configDir],
+        env,
+        children,
+      );
+      const revokedBefore = await inspect();
+      expect(revokedBefore.owner_active).toBe(true);
+      const beforeRefusedWrites = await sqlWriteCount();
+      const revoked = await invoke(decideTool, choices, "m9-owner-fictif-revoked");
+      expect(revoked.status).toBe(403);
+      expect(await inspect()).toStrictEqual(revokedBefore);
+      expect(await sqlWriteCount()).toBe(beforeRefusedWrites);
+      await appairer();
+      const beforeApprovalWrites = await sqlWriteCount();
+      const approved = await invoke(decideTool, choices, "m9-owner-fictif-once");
+      expect(approved.status).toBe(200);
+      expect(approved.body).toMatchObject({
+        ok: true,
+        result: {
+          ok: true,
+          rejoue: false,
+          resultat: {
+            accepte: true,
+            resultat: {
+              statut: "executee",
+              decide_par: "nathan-fixture",
+              role: "nathan_owner",
+              issue: { ok: true, accepte: true },
+            },
+          },
+        },
+      });
+      const completed = await inspect();
+      const completedWrites = await sqlWriteCount();
+      expect(completedWrites).toBeGreaterThan(beforeApprovalWrites);
+      expect(completed.owner_active).toBe(true);
+      expect(completed.requests).toStrictEqual([{ id: request.demande_id, status: "executee" }]);
+      expect(completed.followups).toHaveLength(1);
+      expect(completed.followups[0]).toMatchObject({
+        suivi_id: request.demande_id,
+        statut: "planifiee",
+        source: {
+          evenement_id: prepared.arguments.A.evenement_id,
+          empreinte_source: prepared.arguments.A.empreinte_source,
+        },
+        decision: { decide_par: "nathan-fixture", decide_role: "nathan_owner" },
+      });
+      expect(completed.decision_audits).toHaveLength(1);
+      expect(completed.decision_audits[0]).toMatchObject({
+        par: "nathan-fixture",
+        details: { appareil: DEVICE },
+      });
+      const replay = await invoke(decideTool, choices, "m9-owner-fictif-once");
+      expect(replay.status).toBe(200);
+      expect(replay.body).toMatchObject({ ok: true, result: { ok: true, rejoue: true } });
+      if (
+        !isRecord(approved.body) ||
+        !isRecord(approved.body.result) ||
+        !isRecord(replay.body) ||
+        !isRecord(replay.body.result)
+      ) {
+        throw new Error("Native approval/replay result shape unavailable");
+      }
+      const { rejoue: initialReplay, ...originalResult } = approved.body.result;
+      const { rejoue: replayFlag, ...replayedResult } = replay.body.result;
+      expect(initialReplay).toBe(false);
+      expect(replayFlag).toBe(true);
+      expect(replayedResult).toStrictEqual(originalResult);
+      expect(await inspect()).toStrictEqual(completed);
+      expect(await sqlWriteCount()).toBe(completedWrites);
+    } catch (error) {
+      failed = true;
+      primary = error;
+    }
+    hook.clear();
+    const cleanupErrors: unknown[] = [];
+    try {
+      await getSessionMcpRuntimeManagerForTesting().disposeAll();
+      Reflect.deleteProperty(globalThis, SESSION_MCP_RUNTIME_MANAGER_KEY);
+    } catch (error) {
+      cleanupErrors.push(error);
+    }
+    if (server) {
+      try {
+        server.closeIdleConnections();
+        await new Promise<void>((done, reject) =>
+          server?.close((error) => (error ? reject(error) : done())),
+        );
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
+    }
+    for (const child of children) {
+      try {
+        await stopChildProcess(child, 2_000);
+        const closed = childCloses.get(child);
+        if (!closed) {
+          throw new Error("Owned child close observer absent");
+        }
+        await closed;
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
+    }
+    try {
+      await fs.rm(home, { recursive: true, force: true });
+    } catch (error) {
+      cleanupErrors.push(error);
+    }
+    if (cleanupErrors.length) {
+      throw new AggregateError(
+        failed ? [primary, ...cleanupErrors] : cleanupErrors,
+        "Native M9 owner HTTP/Python fixture cleanup failed",
         { cause: failed ? primary : cleanupErrors[0] },
       );
     }

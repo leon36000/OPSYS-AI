@@ -179,10 +179,47 @@ def serve_m9_observed(port: int, intent_database: Path) -> None:
     uvicorn.run(observed, host="127.0.0.1", port=port, log_level="info")
 
 
+def install_m9_sql_trace(path: Path) -> None:
+    """Observe real SQLAlchemy DML/DDL, including no-op writes, without storing SQL or parameters."""
+    from sqlalchemy import event
+    from sqlalchemy.engine import Engine
+
+    path.touch(mode=0o600, exist_ok=False)
+
+    def observe(connection, cursor, statement, parameters, context, executemany):
+        operation = statement.lstrip().split(None, 1)[0].upper()
+        for flag, verb in (("isinsert", "INSERT"), ("isupdate", "UPDATE"), ("isdelete", "DELETE")):
+            if getattr(context, flag, False):
+                operation = verb
+                break
+        if operation in {"INSERT", "UPDATE", "DELETE", "REPLACE", "CREATE", "ALTER", "DROP"}:
+            # Errors propagate through the execution event; a failed observer cannot report zero.
+            with path.open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps({"fictif": True, "operation": operation}) + "\n")
+
+    event.listen(Engine, "before_cursor_execute", observe)
+
+
+def serve_m9_sql_observed(port: int) -> None:
+    import uvicorn
+
+    from opsys import etat
+    from opsys.serveur_mcp import application_http_departements
+
+    install_m9_sql_trace(Path(os.environ["OPSYS_HOME"]) / "m9-sql-writes.jsonl")
+    stockage.migrer()
+    application = application_http_departements(
+        charger_departements(), etat.session, os.environ["OPSYS_MCP_JETON"], "127.0.0.1",
+        jeton_contexte=os.environ["OPSYS_CONTEXT_MCP_JETON"],
+    )
+    uvicorn.run(application, host="127.0.0.1", port=port, log_level="info")
+
+
 def inspect_m9() -> None:
     from sqlalchemy import func, select
 
-    from opsys.stockage.schema import LIAISONS_TICKETS, META
+    from opsys import etat
+    from opsys.stockage.schema import APPROBATIONS, LIAISONS_TICKETS, META
 
     with stockage.transaction() as cnx:
         owner = identite.personne_active(cnx, "nathan-fixture")
@@ -191,8 +228,27 @@ def inspect_m9() -> None:
             M9_SESSION_KEY,
             registre_m10.Registre(maillons=stockage.maillons("m10-memoire", "affaires")),
         )
-        requests = [{"id": d["id"], "status": d["statut"]}
-                    for d in approbations.lister(cnx) if d["outil"] == M9_OPEN]
+        demands = [d for d in approbations.lister(cnx) if d["outil"] == M9_OPEN]
+        requests = [{"id": d["id"], "status": d["statut"]} for d in demands]
+        bindings = []
+        for demand in demands:
+            seal_hash = cnx.execute(select(APPROBATIONS.c.ticket_cible_hash).where(
+                APPROBATIONS.c.id == demand["id"],
+            )).scalar_one()
+            ticket = cnx.execute(select(
+                LIAISONS_TICKETS.c.ticket_hash, LIAISONS_TICKETS.c.demande_id,
+                LIAISONS_TICKETS.c.statut, LIAISONS_TICKETS.c.departement,
+                LIAISONS_TICKETS.c.outil, LIAISONS_TICKETS.c.affaire_id,
+                LIAISONS_TICKETS.c.cle_session, LIAISONS_TICKETS.c.ligne_liaison_id,
+                LIAISONS_TICKETS.c.empreinte_arguments,
+            ).where(LIAISONS_TICKETS.c.ticket_hash == seal_hash)).mappings().one_or_none()
+            bindings.append({
+                "demande_id": demand["id"], "ticket_cible_hash": seal_hash,
+                "arguments": demand["arguments"], "decide_par": demand["decide_par"],
+                "decide_role": demand["decide_role"],
+                "ticket": dict(ticket) if ticket is not None else None,
+            })
+        decisions = [e for e in etat.lire_journal(cnx) if e["action"] == "approbation.approuver"]
         followups = list(stockage.maillons(M9, "suivi_decisions"))
         tickets = int(cnx.execute(select(func.count()).select_from(LIAISONS_TICKETS)).scalar_one())
         snapshot = {name: sorted(json.dumps(dict(row), sort_keys=True, default=str)
@@ -201,6 +257,7 @@ def inspect_m9() -> None:
     print(json.dumps({
         "owner_active": owner_active, "linked_affair": link["affaire_id"] if link else None,
         "requests": requests, "followups": followups, "tickets": tickets,
+        "approval_bindings": bindings, "decision_audits": decisions,
         "tables_digest": hashlib.sha256(json.dumps(snapshot, sort_keys=True).encode()).hexdigest(),
     }))
 
@@ -407,7 +464,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "command",
-        choices=("prepare", "prepare-m3", "prepare-m9", "serve-m9-observed", "switch-m9-b", "inspect-m9",
+        choices=("prepare", "prepare-m3", "prepare-m9", "serve-m9-observed", "serve-m9-sql-observed",
+                 "switch-m9-b", "inspect-m9",
                  "refuse-m9-approval", "revoke", "inspect", "inspect-m3", "revoke-seller-role", "approve"),
     )
     parser.add_argument("--request-id")
@@ -426,6 +484,10 @@ def main() -> None:
         if args.port is None or args.intent_db is None:
             raise RuntimeError("serve-m9-observed requires the owned port and Core database")
         serve_m9_observed(args.port, args.intent_db)
+    elif command == "serve-m9-sql-observed":
+        if args.port is None:
+            raise RuntimeError("serve-m9-sql-observed requires the owned port")
+        serve_m9_sql_observed(args.port)
     elif command == "switch-m9-b":
         _link_m9("B")
     elif command == "inspect-m9":
