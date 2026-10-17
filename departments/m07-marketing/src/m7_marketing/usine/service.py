@@ -1155,6 +1155,16 @@ def verifier_marque_commande(nom: str, arguments: Mapping[str, Any], *, rejeu: b
     return None if arguments.get("decision") == "rejeter" else _refus_marque(proposition)
 
 
+def _refus_revision_remplacee(proposition: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Une révision plus récente (texte corrigé, reproposé) retire à celle-ci sa valeur de preuve courante : son
+    approbation et ses créneaux restent au registre, mais aucun paquet, créneau ni fait de mesure n'en sort."""
+    if registre.est_derniere_revision(proposition, _lire(REGISTRE_CONTENUS_CHANTIER)):
+        return None
+    return _refus(verdicts.verdict(
+        verdicts.REJ_CONTENU_PERIME, "une révision plus récente remplace ce texte : décider et remettre celle-ci",
+    ))
+
+
 def _contexte_du_contenu(proposition: dict[str, Any], profil: dict[str, Any]) -> Any:
     charge = wct_recu(proposition["wct_id"]) or {"wct_id": proposition["wct_id"]}
     return chantier.contexte_controle(charge, profil, plateformes.plateforme(proposition["plateforme"]).longueur_max)
@@ -1256,6 +1266,9 @@ def exporter_paquet_manuel(contenu_id: str, horodatage: str) -> dict[str, Any]:
                 "le client a retiré son consentement marketing : aucun export",
             )
         )
+    refus_revision = _refus_revision_remplacee(proposition)
+    if refus_revision is not None:
+        return refus_revision
     if contenu["approval_status"] != registre.STATUT_APPROUVE:
         return _refus(
             verdicts.verdict(
@@ -1318,6 +1331,9 @@ def proposer_creneau_calendrier(contenu_id: str, planifie_le: str, horodatage: s
     )
     if vues["approval_status"] == registre.STATUT_RETIRE:
         return _refus(verdicts.verdict(verdicts.REJ_CONSENTEMENT_RETIRE, "consentement retiré : créneau refusé"))
+    refus_revision = _refus_revision_remplacee(proposition)
+    if refus_revision is not None:
+        return refus_revision
     if vues["approval_status"] != registre.STATUT_APPROUVE:
         return _refus(
             verdicts.verdict(
@@ -1369,6 +1385,9 @@ def lister_calendrier(wct_id: str | None = None) -> dict[str, Any]:
         if proposition is None:
             continue
         statut_contenu = registre.statut(proposition, decisions_contenu, retraits)
+        if statut_contenu == registre.STATUT_APPROUVE and not registre.est_derniere_revision(proposition, propositions):
+            # L'approbation d'un texte remplacé n'est plus courante : le créneau ne se présente pas remisable.
+            statut_contenu = registre.STATUT_PROPOSE
         resultat.append(
             calendrier.etat(
                 slot, _lire(REGISTRE_DECISIONS_CALENDRIER), _lire(REGISTRE_EXPORTS_CALENDRIER), statut_contenu
@@ -1403,6 +1422,10 @@ def decider_creneau_calendrier(creneau_id: str, decision: str, horodatage: str, 
     vue_slot = next((c for c in lister_calendrier(slot["wct_id"])["creneaux"] if c["creneau_id"] == creneau_id), None)
     if vue_slot is None or vue_slot["statut"] == "RETIRE":
         return _refus(verdicts.verdict(verdicts.REJ_CONSENTEMENT_RETIRE, "consentement retiré"))
+    proposition_slot = registre.proposition_par_id(_lire(REGISTRE_CONTENUS_CHANTIER), slot["contenu_id"])
+    refus_revision = _refus_revision_remplacee(proposition_slot) if proposition_slot is not None else None
+    if refus_revision is not None:
+        return refus_revision
     refus_marque = verifier_marque_commande(
         "m7_decider_creneau_calendrier", {"creneau_id": creneau_id, "decision": decision},
     )
@@ -1453,6 +1476,10 @@ def exporter_creneau_manuel(creneau_id: str, horodatage: str) -> dict[str, Any]:
     vue_slot = next((c for c in lister_calendrier(slot["wct_id"])["creneaux"] if c["creneau_id"] == creneau_id), None)
     if vue_slot is None or vue_slot["statut"] == "RETIRE":
         return _refus(verdicts.verdict(verdicts.REJ_CONSENTEMENT_RETIRE, "consentement retiré : export refusé"))
+    proposition_slot = registre.proposition_par_id(_lire(REGISTRE_CONTENUS_CHANTIER), slot["contenu_id"])
+    refus_revision = _refus_revision_remplacee(proposition_slot) if proposition_slot is not None else None
+    if refus_revision is not None:
+        return refus_revision
     if vue_slot["statut"] != "APPROVED":
         return _refus(verdicts.verdict("REJ-CRENEAU-NON-APPROUVE", "approbation du créneau requise"))
     if not calendrier.horodatage_valide(horodatage):
@@ -1608,16 +1635,19 @@ def rattacher_retraits_au_wct(charge: dict[str, Any]) -> int:
 
 
 def _contenus_touches_par(retraits: list[dict[str, Any]]) -> tuple[list[str], list[str]]:
-    """`(contenus bloqués, dont déjà exportés)` : les contenus courants que ces retraits bloquent, par chantier ou
-    par lead. Un paquet exporté a pu être publié à la main : M7 ne publie jamais, il le dit."""
-    concernes = [
+    """`(contenus bloqués, déjà exportés)` : les contenus courants que ces retraits bloquent, par chantier ou par
+    lead, et les paquets exportés de ces chantiers. Un paquet exporté a pu être publié à la main, même si son texte
+    a depuis été corrigé (révision remplacée) : M7 ne publie jamais, il le dit."""
+    propositions = _lire(REGISTRE_CONTENUS_CHANTIER)
+    toutes = [
         p
-        for p in registre.dernieres_revisions(_lire(REGISTRE_CONTENUS_CHANTIER))
+        for p in propositions
         if any(retrait.retrait_applicable(p["wct_id"], p.get("lead_id"), [r]) is not None for r in retraits)
     ]
+    courantes = {p["contenu_id"] for p in registre.dernieres_revisions(propositions)}
     exports = _lire(REGISTRE_EXPORTS_PAQUET)
-    deja_exportes = [p["contenu_id"] for p in concernes if registre.export_de(p["contenu_id"], exports) is not None]
-    return [p["contenu_id"] for p in concernes], deja_exportes
+    deja_exportes = [p["contenu_id"] for p in toutes if registre.export_de(p["contenu_id"], exports) is not None]
+    return [p["contenu_id"] for p in toutes if p["contenu_id"] in courantes], deja_exportes
 
 
 def enregistrer_retrait_de_leads(charge: dict[str, Any]) -> dict[str, Any]:
