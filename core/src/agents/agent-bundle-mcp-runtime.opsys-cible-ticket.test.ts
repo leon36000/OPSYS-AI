@@ -385,23 +385,32 @@ describe("OPSYS target tickets on the final MCP call boundary", () => {
     expect(await readCalls(root, "opsys_m3")).toHaveLength(0);
   });
 
-  it("preserves a host-authenticated device call for Python's live identity and role checks", async () => {
-    const { root, runtime } = await setup();
-    const deviceMeta = {
-      "opsys/idempotencyKey": "synthetic-device-idempotency-key-001",
-      "opsys/appareil": "synthetic-device-001",
-      "opsys/horodatageAppareil": "2026-09-30T12:00:00Z",
-      "opsys/personne": "personne.synthetic",
-      "opsys/role": "admin",
-    };
+  it.each([false, true])(
+    "preserves a host-authenticated device call for Python's live identity and role checks (ambient ticket: %s)",
+    async (injectTicket) => {
+      const { root, runtime } = await setup();
+      const deviceMeta = {
+        "opsys/idempotencyKey": "synthetic-device-idempotency-key-001",
+        "opsys/appareil": "synthetic-device-001",
+        "opsys/horodatageAppareil": "2026-09-30T12:00:00Z",
+        "opsys/personne": "personne.synthetic",
+        "opsys/role": "admin",
+      };
 
-    await withMcpCallMeta(deviceMeta, () => runtime.callTool("opsys_m3", TOOL, FINAL_ARGS));
+      await withMcpCallMeta(
+        {
+          ...deviceMeta,
+          ...(injectTicket ? { "opsys/cibleTicket": "synthetic-untrusted-device-ticket" } : {}),
+        },
+        () => runtime.callTool("opsys_m3", TOOL, FINAL_ARGS),
+      );
 
-    const businessCalls = await readCalls(root, "opsys_m3");
-    expect(await readCalls(root, "opsys_context_m03-estimation")).toHaveLength(0);
-    expect(businessCalls).toHaveLength(1);
-    expect(businessCalls[0]?._meta).toStrictEqual(deviceMeta);
-  });
+      const businessCalls = await readCalls(root, "opsys_m3");
+      expect(await readCalls(root, "opsys_context_m03-estimation")).toHaveLength(0);
+      expect(businessCalls).toHaveLength(1);
+      expect(businessCalls[0]?._meta).toStrictEqual(deviceMeta);
+    },
+  );
 
   it.each([
     { "opsys/personne": "personne.synthetic" },
