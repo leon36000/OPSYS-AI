@@ -33,7 +33,7 @@ from . import __version__, contexte, etat, evenements, idempotence, liaison_cibl
 from .capacites import _LECTURES_DOCUMENTAIRES_M10, _OUTILS_DOCUMENTAIRES_M10, Capacites
 from .departements import Departement, charger_departements
 from .memoire import autorite as autorite_memoire
-from .outils import Autonomie
+from .outils import Autonomie, Niveau, Outil
 from .stockage import base_cron_operateur
 
 ENV_REPARTITEUR = "OPSYS_EVENEMENTS_REPARTITEUR"
@@ -46,6 +46,15 @@ _ANNOTATIONS = {
     Autonomie.T2: types.ToolAnnotations(read_only_hint=False, destructive_hint=False, open_world_hint=True),
     Autonomie.T3: types.ToolAnnotations(read_only_hint=False, destructive_hint=True, open_world_hint=True),
 }
+# T0 recouvre N0 à N2 (ADR-0009 §4) : seul N0 est une lecture. Un brouillon (N1) ou une tâche
+# interne (N2) reste automatique mais écrit ; le client MCP ne doit le croire ni pur ni rejouable.
+_ANNOTATIONS_T0_ECRITURE = types.ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False)
+
+
+def _annotations(outil: Outil) -> types.ToolAnnotations:
+    if outil.autonomie is Autonomie.T0 and outil.niveau_effectif is not Niveau.N0:
+        return _ANNOTATIONS_T0_ECRITURE
+    return _ANNOTATIONS[outil.autonomie]
 
 
 def creer_serveur(
@@ -62,7 +71,7 @@ def creer_serveur(
                     name=outil.nom,
                     description=outil.description,
                     inputSchema=dict(outil.parametres),
-                    annotations=_ANNOTATIONS[outil.autonomie],
+                    annotations=_annotations(outil),
                 )
                 for outil in capacites.lister()
                 if outils_permis is None or outil.nom in outils_permis

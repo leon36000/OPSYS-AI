@@ -8,7 +8,7 @@ from m8_analytics.outils import outils
 from m8_analytics.registre import RegistreSnapshots
 
 from opsys.departements import lire_manifeste
-from opsys.outils import Autonomie, executer
+from opsys.outils import Autonomie, Niveau, executer
 
 _DEFINITION = {
     "id": "m_cpl",
@@ -97,6 +97,10 @@ def test_paliers_t3_1_coherents_avec_departements_md():
     assert par_nom["m8_resoudre_definition_metrique"].autonomie == Autonomie.T0
     assert par_nom["m8_evaluer_qualite_metrique"].autonomie == Autonomie.T0
     assert par_nom["m8_lister_definitions_metriques"].autonomie == Autonomie.T0
+    # T0 automatique, mais l'évaluateur publie ses alertes : tâche interne N2, les autres T0 lisent.
+    niveaux = {nom: o.niveau_effectif for nom, o in par_nom.items() if o.autonomie == Autonomie.T0}
+    assert niveaux.pop("m8_evaluer_qualite_metrique") == Niveau.N2
+    assert set(niveaux.values()) == {Niveau.N0}
 
 
 def test_rapport_metriques_complet_porte_provenance_et_aucun_signal_sous_le_seuil():

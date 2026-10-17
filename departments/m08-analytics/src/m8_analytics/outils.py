@@ -62,7 +62,7 @@ import yaml
 
 from opsys import approbations, contexte, evenements, identite, jetons, stockage
 from opsys.departements import charger_departements
-from opsys.outils import Autonomie, Outil, depuis_couple
+from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import (
     alertes,
@@ -852,9 +852,10 @@ def outils(
         (`m8.alerte_proposee`, PLAN T3.2, `_publier_alerte_proposee`) pour que M9 la consomme sans
         lire directement le registre M8 — seulement en production (garde
         `stockage.connexion_courante`) ; la réponse ci-dessous et l'autonomie T0 de cet outil
-        restent inchangées. Les alertes de doublon et de cohérence (T3.1-suite) ne sont PAS encore
-        publiées sur le bus (schéma du catalogue non étendu par ce lot, voir
-        `_TYPES_ALERTE_SUR_BUS`) ; elles restent dans la réponse et alimentent le digest quotidien.
+        restent inchangées, son niveau explicite N2 (tâche interne automatique) dit qu'il écrit.
+        Les alertes de doublon et de cohérence (T3.1-suite) ne sont PAS encore publiées sur le bus
+        (schéma du catalogue non étendu par ce lot, voir `_TYPES_ALERTE_SUR_BUS`) ; elles restent dans la
+        réponse et alimentent le digest quotidien.
         """
         if (composantes is None) != (tolerance_coherence is None):
             raise ValueError(
@@ -1231,6 +1232,9 @@ def outils(
                 "additionalProperties": False,
             },
             fonction=evaluer_qualite_metrique,
+            # T0 automatique, mais N2 explicite : la publication d'une alerte est une tâche interne
+            # (ADR-0009 §4), jamais une lecture pure ; le serveur MCP l'annonce donc comme écriture.
+            niveau=Niveau.N2,
         ),
         Outil(
             nom="m8_lister_definitions_metriques",
