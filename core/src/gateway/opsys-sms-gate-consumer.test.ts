@@ -240,7 +240,7 @@ async function fixture(options: { native?: NativeTarget; stateDir?: string; body
           (value) => {
             resolutions.push(value);
           },
-          (error) => {
+          (error: unknown) => {
             rejectedResolutions.push(error);
           },
         );
