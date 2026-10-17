@@ -49,6 +49,7 @@ from ..departements import Departement, charger_departements
 from ..stockage import base_cron_operateur
 from ..stockage.schema import AGENTS_POLITIQUE_ENTREPRISE
 from . import (
+    agents_etat,
     agents_ui,
     banque_metier,
     banque_ui,
@@ -569,14 +570,25 @@ def creer_application(
         return html(session, "budgets", "Budgets", corps, en_attente)
 
     def page_agents(
-        session: Session, ident: str | None = None, code: int = 200, bandeau: pages.Bandeau | None = None
+        session: Session,
+        ident: str | None = None,
+        code: int = 200,
+        bandeau: pages.Bandeau | None = None,
+        *,
+        decalage: int = 0,
     ) -> HTMLResponse:
+        try:
+            agents_etat.valider_pagination(agents_etat.LIMITE_MAX, decalage)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
         with cnx_factory() as cnx:
             verifier_administration(cnx, session)
-            profils = agents.lister(cnx, inclure_inactifs=True)
             profil = agents.obtenir(cnx, ident) if ident else None
             if ident and profil is None:
                 raise HTTPException(404, "profil inconnu")
+            export = agents_etat.lire_export(agents_etat.dossier_configuration_core())
+            pilotage = agents_etat.tableau(cnx, deps, decalage=decalage, export=export)
+            etat_profil = agents_etat.etat_unique(cnx, deps, profil, export=export) if profil else None
             historique = agents.historique(cnx, ident) if ident else []
             reservations_actives = (
                 admission_agents.lister_reservations_actives(cnx, ident)
@@ -593,8 +605,8 @@ def creer_application(
                     grant = agent_cfo_grants.lire(cnx, ident, instance_id=instance)
             en_attente = tableau_de_bord.nombre_en_attente(cnx, pages.PLAFOND_PASTILLE)
         corps = agents_ui.contenu(
-            profils, deps, profil=profil, historique=historique, prefixe=prefixe, csrf=session.csrf,
-            reservations_actives=reservations_actives,
+            pilotage["agents"], deps, profil=profil, historique=historique, prefixe=prefixe, csrf=session.csrf,
+            reservations_actives=reservations_actives, pilotage=pilotage, etat_profil=etat_profil,
         )
         if profil:
             corps += agents_ui.demandes_cron(profil, prefixe=prefixe, csrf=session.csrf)
@@ -746,8 +758,8 @@ def creer_application(
         return RedirectResponse(f"{prefixe}/budgets", status_code=303)
 
     @app.get("/agents")
-    def agents_(request: Request) -> Response:
-        return page_agents(session_page(request))
+    def agents_(request: Request, decalage: int = 0) -> Response:
+        return page_agents(session_page(request), decalage=decalage)
 
     @app.get("/agents/{ident}")
     def agent_(ident: str, request: Request) -> Response:
@@ -1049,11 +1061,17 @@ def creer_application(
         return await executer_api(ecrire_plafonds, await _objet_json(request), session)
 
     @app.get("/api/agents")
-    def api_agents(request: Request, departement: str | None = None) -> dict[str, Any]:
+    def api_agents(
+        request: Request, departement: str | None = None, limite: int = agents_etat.LIMITE_MAX, decalage: int = 0
+    ) -> dict[str, Any]:
         session = session_api(request)
+        try:
+            agents_etat.valider_pagination(limite, decalage)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from exc
         with cnx_factory() as cnx:
             verifier_administration(cnx, session)
-            return {"agents": agents.lister(cnx, departement=departement, inclure_inactifs=True)}
+            return agents_etat.tableau(cnx, deps, departement=departement, limite=limite, decalage=decalage)
 
     @app.get("/api/agents/{ident}")
     def api_agent(ident: str, request: Request) -> dict[str, Any]:
@@ -1061,9 +1079,9 @@ def creer_application(
         with cnx_factory() as cnx:
             verifier_administration(cnx, session)
             profil = agents.obtenir(cnx, ident)
-        if profil is None:
-            raise HTTPException(404, "profil inconnu")
-        return {"agent": profil}
+            if profil is None:
+                raise HTTPException(404, "profil inconnu")
+            return {"agent": profil, "etat": agents_etat.etat_unique(cnx, deps, profil)}
 
     @app.get("/api/agents/{ident}/historique")
     def api_historique_agent(ident: str, request: Request) -> dict[str, Any]:

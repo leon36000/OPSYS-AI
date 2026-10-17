@@ -82,6 +82,81 @@ def plafonds_entreprise(politique: Mapping[str, Any] | None, *, prefixe: str, cs
     )
 
 
+_LIBELLES_EXPORT = {
+    "CONCORDANT": "Révision de profil exportée identique (révision {exportee})",
+    "PERIME": "Révision exportée périmée — révision exportée {exportee}, registre {registre}",
+    "DIVERGENT": (
+        "Révision exportée divergente — révision exportée {exportee} supérieure au registre {registre}, "
+        "origine non attestée"
+    ),
+    "NON_EXPORTE": "Activé, absent de l’export — synchronisation requise",
+    "DESACTIVE_ENCORE_EXPORTE": "Désactivé — encore exporté (révision {exportee})",
+    "ABSENT_CONFORME": "Désactivé, non exporté",
+    "EXPORT_ABSENT": "Export absent",
+    "EXPORT_ILLISIBLE": "Export illisible",
+    "NON_OBSERVABLE": "Non observable — dossier de configuration du core introuvable",
+}
+
+
+def _libelle_export(export: Mapping[str, Any]) -> str:
+    modele = _LIBELLES_EXPORT.get(export.get("statut", ""), "INCONNU")
+    return modele.format(exportee=export.get("revision_exportee"), registre=export.get("revision_registre"))
+
+
+def _reservations(etat: Mapping[str, Any]) -> str:
+    total = etat["reservations"]["actives"]
+    return f"{total} observée(s)" if total else "Aucune"
+
+
+def _resume_export(pilotage: Mapping[str, Any], prefixe: str) -> str:
+    export = pilotage["export"]
+    pagination = pilotage["pagination"]
+    orphelins = ""
+    if export["orphelins_total"]:
+        orphelins = (
+            f"<p>{e(export['orphelins_total'])} profil(s) exporté(s) sans profil non archivé au registre : "
+            f"{e(', '.join(export['orphelins']))}.</p>"
+        )
+    navigation = ""
+    debut, limite, total = pagination["decalage"], pagination["limite"], pagination["total"]
+    if debut > 0:
+        navigation += f'<a href="{e(prefixe)}/agents?decalage={max(0, debut - limite)}">Profils précédents</a> '
+    if debut + pagination["retournes"] < total:
+        navigation += f'<a href="{e(prefixe)}/agents?decalage={debut + limite}">Profils suivants</a>'
+    return (
+        '<section class="carte"><h2>Export vers le core</h2>'
+        f"<p>Source : {e(export['source'])}. État : {e(export['statut'])} — {e(export['detail'])}</p>"
+        f"<p>Écrit le (date du fichier, UTC) : {e(export['ecrit_le'] or 'INCONNU')} ; "
+        f"profils exportés : {e(export['profils_exportes'] if export['profils_exportes'] is not None else 'INCONNU')}."
+        f"</p>{orphelins}<p>{e(export['limites'])}</p>"
+        "<p>Chargement par le core : INCONNU. Activité réelle : INCONNUE. Une réservation observée ne prouve pas "
+        "qu’une tâche tourne.</p>"
+        f"<p>{e(pagination['retournes'])} profil(s) affiché(s) sur {e(total)}, à partir du rang {e(debut + 1)}.</p>"
+        f"{navigation}</section>"
+    )
+
+
+def _detail_etat(etat: Mapping[str, Any]) -> str:
+    outils = etat["outils"]
+    autorises = ", ".join(f"{o['nom']} ({o['autonomie']})" for o in outils["autorises"]) or "aucun"
+    hors = ""
+    if outils["hors_manifeste"]:
+        hors = f"<li>Outils absents du manifeste actuel : {e(', '.join(outils['hors_manifeste']))}</li>"
+    return (
+        '<section class="carte"><h2>État de pilotage</h2><ul>'
+        f"<li>Profil : {e(etat['profil']['statut'])}, révision {e(etat['profil']['revision'])}, modifié le "
+        f"{e(etat['profil']['modifie_le'])} — source : {e(etat['profil']['source'])}</li>"
+        f"<li>Export : {e(_libelle_export(etat['export']))} — {e(etat['export']['detail'])} "
+        f"Écrit le : {e(etat['export']['ecrit_le'] or 'INCONNU')} — source : {e(etat['export']['source'])}</li>"
+        f"<li>Chargement par le core : {e(etat['chargement_core']['statut'])} — "
+        f"{e(etat['chargement_core']['raison'])}</li>"
+        f"<li>Réservations : {e(_reservations(etat))} — source : {e(etat['reservations']['source'])}</li>"
+        f"<li>Activité attestée : {e(etat['activite']['statut'])} — {e(etat['activite']['raison'])}</li>"
+        f"<li>Outils autorisés selon le manifeste : {e(autorises)}</li>{hors}"
+        "</ul></section>"
+    )
+
+
 def contenu(
     profils: Sequence[Mapping[str, Any]],
     deps: Mapping[str, Departement],
@@ -91,26 +166,45 @@ def contenu(
     prefixe: str,
     csrf: str,
     reservations_actives: Mapping[str, Any] | None = None,
+    pilotage: Mapping[str, Any] | None = None,
+    etat_profil: Mapping[str, Any] | None = None,
 ) -> str:
     intro = (
         '<p class="intro">Configurez plusieurs spécialistes par département avec leurs responsabilités, '
         "outils et plafonds de tokens. L’activation enregistre le profil ; son chargement dans le core "
         "nécessite la synchronisation de la configuration. Elle ne signifie pas qu’une tâche tourne.</p>"
     )
+
+    def colonnes_etat(p: Mapping[str, Any]) -> str:
+        etat = p.get("etat")
+        if not isinstance(etat, Mapping):
+            return ""
+        return (
+            f"<td>{e(_libelle_export(etat['export']))}</td><td>{e(_reservations(etat))}</td>"
+            f"<td>{e(etat['chargement_core']['statut'])}</td><td>{e(etat['activite']['statut'])}</td>"
+        )
+
+    entetes_etat = (
+        "<th>Export core</th><th>Réservations observées</th><th>Chargement core</th><th>Activité attestée</th>"
+        if pilotage
+        else ""
+    )
     lignes = "".join(
         f'<tr><td><a href="{e(prefixe)}/agents/{e(quote(p["id"], safe=""))}">{e(p["id"])}</a></td>'
         f"<td>{e(p['departement'])}</td><td>{e(p['responsabilite'])}</td>"
-        f"<td>{'Activé' if p['actif'] else 'Désactivé'}</td><td>{e(p['revision'])}</td></tr>"
+        f"<td>{'Activé' if p['actif'] else 'Désactivé'}</td><td>{e(p['revision'])}</td>{colonnes_etat(p)}</tr>"
         for p in profils
     )
     liste = (
         (
-            "<table><thead><tr><th>Agent</th><th>Département</th><th>Responsabilité</th>"
-            f"<th>Profil</th><th>Révision</th></tr></thead><tbody>{lignes}</tbody></table>"
+            '<div class="table-defilante"><table><thead><tr><th>Agent</th><th>Département</th><th>Responsabilité</th>'
+            f"<th>Profil</th><th>Révision</th>{entetes_etat}</tr></thead><tbody>{lignes}</tbody></table></div>"
         )
         if profils
         else "<p>Aucun agent configuré.</p>"
     )
+    if pilotage:
+        liste += _resume_export(pilotage, prefixe)
     valeurs = profil or {
         "id": "",
         "departement": next(iter(deps), ""),
@@ -197,7 +291,8 @@ def contenu(
             )
 
         detail = (
-            f'<form method="post" action="{e(action)}/activation">{commande()}'
+            (_detail_etat(etat_profil) if etat_profil else "")
+            + f'<form method="post" action="{e(action)}/activation">{commande()}'
             f'<input type="hidden" name="actif" value="{"false" if profil["actif"] else "true"}">'
             f'<button type="submit">{"Désactiver" if profil["actif"] else "Activer"} le profil</button></form>'
             f'<form method="post" action="{e(action)}/archivage">{commande()}'
