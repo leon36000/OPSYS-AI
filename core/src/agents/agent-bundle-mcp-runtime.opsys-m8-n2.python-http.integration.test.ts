@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
-import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
+import { ErrorCode, type CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { acquireOpsysContextTestConfig } from "../../test/helpers/opsys-context-test-config.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
@@ -27,6 +27,9 @@ const M8_SESSION_ID = "opsys-real-python-m8-n2";
 const M8_N0_TOOL = "m8_resoudre_definition_metrique";
 const M8_N2_TOOL = "m8_evaluer_qualite_metrique";
 const M8_REFERENCE = "2026-01-11T00:00:00Z";
+// A different reference is a different producer identity, never an identical retry.
+const M8_SECOND_REFERENCE = "2026-01-12T00:00:00Z";
+const M8_STALE_ALERT = "REJ-QUALITE-DONNEE-PERIMEE";
 // Fixed by the existing target ticket fixture, which links this exact session to the lead.
 const M2_SESSION = "agent:m02-revenue-crm:webchat:direct:core-c02";
 const M2_SESSION_ID = "opsys-real-python-m8-n2-m2-n3";
@@ -56,6 +59,37 @@ type M8Inspection = {
   outbox: { type_evenement: string; producteur: string; charge: Record<string, unknown> }[];
   approvals: { id: string; departement: string; outil: string; statut: string }[];
 };
+
+type M8AlertRow = {
+  evenement_id: string;
+  type_evenement: string;
+  producteur: string;
+  charge: Record<string, unknown>;
+  charge_sha256: string;
+  cree_le: string;
+};
+
+type M8Events = {
+  fictif: boolean;
+  alerts: M8AlertRow[];
+  events_total: number;
+  approvals: unknown[];
+  handler: { fictif: boolean; event: string; arguments_sha256: string }[];
+  dispatches: { http: string; method?: string; rpc_id?: unknown; tool?: string | null }[];
+};
+
+/** Compares by business identity: exactly one row, byte-equal to the first committed event. */
+function expectOneImmutableAlert(state: M8Events, first: M8AlertRow): void {
+  const charge = first.charge;
+  const sameIdentity = state.alerts.filter(
+    (row) =>
+      row.evenement_id === first.evenement_id ||
+      (row.charge.metric_id === charge.metric_id &&
+        row.charge.type_alerte === charge.type_alerte &&
+        row.charge.horodatage_reference === charge.horodatage_reference),
+  );
+  expect(sameIdentity).toStrictEqual([first]);
+}
 
 async function resetSessionMcpRuntimeManagerGeneration(): Promise<void> {
   await getSessionMcpRuntimeManagerForTesting().disposeAll();
@@ -543,5 +577,176 @@ describe("OPSYS M8 N0/N2 and M2 N3 through a production-leased Core runtime and 
         expect(activeLeases()).toBe(2);
       },
     );
+  }, 90_000);
+
+  it("loses a committed real M8 N2 response, never re-enters its handler unasked, and keeps one immutable alert across an explicit identical call", async () => {
+    const python = requiredPython();
+    const home = await mkdtemp(resolve(tmpdir(), "opsys-m8-n2-postcommit-"));
+    tempDirs.push(home);
+    const prepared = JSON.parse(await runFixture(python, home, M8_FIXTURE, "prepare-m8")) as {
+      fictif: boolean;
+      metric_id: string;
+    };
+    expect(prepared.fictif).toBe(true);
+    const inspectEvents = async (database?: string) => {
+      const extra = database ? ["--database", database] : [];
+      return JSON.parse(
+        await runFixture(python, home, M8_FIXTURE, "inspect-m8-events", extra),
+      ) as M8Events;
+    };
+    expect(await inspectEvents()).toMatchObject({
+      fictif: true,
+      alerts: [],
+      approvals: [],
+      handler: [],
+      dispatches: [],
+    });
+    const port = await reservePort();
+    await startPythonMcp(python, home, [M8_FIXTURE, "serve-m8-postcommit", "--port", String(port)]);
+    const identity = (reference: string) =>
+      `m8-alerte-${prepared.metric_id}-${M8_STALE_ALERT}-${reference}`;
+    const businessCalls = (state: M8Events) =>
+      state.dispatches.filter((row) => row.method === "tools/call" && row.tool === M8_N2_TOOL);
+    const handlerEvents = (state: M8Events) => state.handler.map((row) => row.event);
+    const staleAlerts = (result: CallToolResult) => {
+      const { resultat } = envelope(result) as {
+        resultat: { alertes_proposees: { type_alerte: string }[] };
+      };
+      return resultat.alertes_proposees.map((alert) => alert.type_alerte);
+    };
+
+    const first = await withProductionLease(
+      {
+        sessionId: M8_SESSION_ID,
+        sessionKey: M8_SESSION,
+        workspaceDir: home,
+        cfg: m8OpsysConfig(port),
+      },
+      async (runtime, activeLeases) => {
+        expect(activeLeases()).toBe(1);
+        const args = { metric_id: prepared.metric_id, horodatage_reference: M8_REFERENCE };
+        // Ordinary production call: no observer, no idempotency metadata, no ticket.
+        let firstError: unknown;
+        try {
+          await runtime.callTool("opsys_m8", M8_N2_TOOL, { ...args });
+        } catch (error) {
+          firstError = error;
+        }
+        expect(firstError).toBeInstanceOf(Error);
+        expect(firstError).toMatchObject({ code: ErrorCode.RequestTimeout });
+        expect(activeLeases()).toBe(1);
+
+        // The fixture committed and witnessed the event before dropping the result body.
+        const lost = JSON.parse(
+          await readFile(resolve(home, "m8-n2-response-lost.json"), "utf8"),
+        ) as Record<string, unknown>;
+        expect(lost).toMatchObject({
+          fictif: true,
+          evenement_id: identity(M8_REFERENCE),
+          type_evenement: "m8.alerte_proposee",
+          producteur: "m08-analytics",
+          handler_events_before_loss: ["entered", "completed"],
+          independent_committed_read_before_headers: true,
+          original_headers_forwarded: true,
+          response_body_forwarded_bytes: 0,
+        });
+        expect(lost.native_response_bytes_buffered).toBeGreaterThan(0);
+        const settled = await inspectEvents();
+        expect(handlerEvents(settled)).toEqual(["entered", "completed"]);
+        expect(businessCalls(settled)).toEqual([
+          {
+            fictif: true,
+            http: "POST",
+            method: "tools/call",
+            rpc_id: lost.rpc_id,
+            tool: M8_N2_TOOL,
+            loss_selected: true,
+          },
+        ]);
+        expect(settled.approvals).toEqual([]);
+        expect(settled.alerts).toHaveLength(1);
+        const [committed] = settled.alerts;
+        expect(committed).toMatchObject({
+          evenement_id: lost.evenement_id,
+          type_evenement: lost.type_evenement,
+          producteur: lost.producteur,
+          charge_sha256: lost.charge_sha256,
+          cree_le: lost.cree_le,
+          charge: {
+            evenement_id: identity(M8_REFERENCE),
+            metric_id: prepared.metric_id,
+            type_alerte: M8_STALE_ALERT,
+            horodatage_reference: M8_REFERENCE,
+          },
+        });
+
+        // No implicit re-entry was observed through first settlement.
+        expectOneImmutableAlert(settled, committed);
+
+        // Explicit identical call on the same lease, server and authority.
+        const replay = await runtime.callTool("opsys_m8", M8_N2_TOOL, { ...args });
+        expect(replay.isError).not.toBe(true);
+        expect(envelope(replay).ok).toBe(true);
+        expect(staleAlerts(replay)).toEqual([M8_STALE_ALERT]);
+        expect(activeLeases()).toBe(1);
+        const replayed = await inspectEvents();
+        expect(handlerEvents(replayed)).toEqual(["entered", "completed", "entered", "completed"]);
+        expect(new Set(replayed.handler.map((row) => row.arguments_sha256)).size).toBe(1);
+        expect(businessCalls(replayed)).toHaveLength(2);
+        expect(businessCalls(replayed)[1]).toMatchObject({ loss_selected: false });
+        expect(businessCalls(replayed)[1]?.rpc_id).not.toEqual(lost.rpc_id);
+        expect(replayed.alerts).toStrictEqual([committed]);
+        expect(replayed.approvals).toEqual([]);
+
+        // Positive control: same actor and config, another reference, a distinct legitimate event.
+        const positive = await runtime.callTool("opsys_m8", M8_N2_TOOL, {
+          metric_id: prepared.metric_id,
+          horodatage_reference: M8_SECOND_REFERENCE,
+        });
+        expect(positive.isError).not.toBe(true);
+        expect(envelope(positive).ok).toBe(true);
+        expect(staleAlerts(positive)).toEqual([M8_STALE_ALERT]);
+        const distinct = await inspectEvents();
+        expect(handlerEvents(distinct)).toEqual([
+          "entered",
+          "completed",
+          "entered",
+          "completed",
+          "entered",
+          "completed",
+        ]);
+        expect(businessCalls(distinct)).toHaveLength(3);
+        expect(distinct.alerts.map((row) => row.evenement_id)).toEqual([
+          identity(M8_REFERENCE),
+          identity(M8_SECOND_REFERENCE),
+        ]);
+        expectOneImmutableAlert(distinct, committed);
+        expect(distinct.alerts[1]).toMatchObject({
+          type_evenement: "m8.alerte_proposee",
+          producteur: "m08-analytics",
+          charge: {
+            evenement_id: identity(M8_SECOND_REFERENCE),
+            metric_id: prepared.metric_id,
+            type_alerte: M8_STALE_ALERT,
+            horodatage_reference: M8_SECOND_REFERENCE,
+          },
+        });
+        expect(distinct.approvals).toEqual([]);
+        expect(activeLeases()).toBe(1);
+        return committed;
+      },
+    );
+
+    // Oracle sensitivity on disposable snapshots only; the live database is never mutated.
+    const eventArgs = ["--evenement-id", first.evenement_id];
+    const negatives = JSON.parse(
+      await runFixture(python, home, M8_FIXTURE, "snapshot-negatives", eventArgs),
+    ) as { snapshots: Record<string, string> };
+    expect(Object.keys(negatives.snapshots)).toEqual(["duplicate", "payload", "date"]);
+    for (const snapshot of Object.values(negatives.snapshots)) {
+      const altered = await inspectEvents(snapshot);
+      expect(() => expectOneImmutableAlert(altered, first)).toThrow();
+    }
+    expectOneImmutableAlert(await inspectEvents(), first);
   }, 90_000);
 });
