@@ -1083,28 +1083,44 @@ describe("explicit target CI partitions", () => {
     return selectVitestTargetPartition(input, configs, index, { cwd, baseEnv });
   };
 
-  it("keeps all 293 literals and 30 groups exactly once across both jobs", () => {
-    expect(targets).toHaveLength(293);
+  it("keeps every manifest literal and all 30 groups exactly once across both jobs", () => {
+    expect(targets.length).toBeGreaterThan(0);
+    expect(new Set(targets).size).toBe(targets.length);
     expect(canonical).toHaveLength(30);
     const selected = [select(targets, partitions, 1), select(targets, partitions, 2)];
-    expect(selected.map((part) => part.targets.length)).toEqual([121, 172]);
+    expect(selected.every((part) => part.targets.length > 0)).toBe(true);
+    expect(selected[0]!.targets.filter((target) => selected[1]!.targets.includes(target))).toEqual(
+      [],
+    );
     expect(selected.map((part) => part.groups.length)).toEqual([14, 16]);
     const memory = "src/agents/agent-bundle-mcp-runtime.opsys-memoire-ticket.test.ts";
     expect(selected[0]!.targets).not.toContain(memory);
     expect(selected[1]!.targets).toContain(memory);
-    const m9Http =
-      "src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.python-http.integration.test.ts";
-    const m9Owners = selected
-      .flatMap((part) => part.groups)
-      .filter((group) => group.targets.includes(m9Http));
-    expect(m9Owners).toHaveLength(1);
-    expect(m9Owners[0]!.config).toBe("test/vitest/vitest.infra.config.ts");
-    expect(buildVitestRunPlans([m9Http], cwd, undefined, { env: baseEnv })[0]!.config).toBe(
-      "test/vitest/vitest.infra.config.ts",
-    );
+    const httpTargets = [
+      {
+        target:
+          "src/agents/agent-bundle-mcp-runtime.opsys-cible-ticket.python-http.integration.test.ts",
+        config: "test/vitest/vitest.infra.config.ts",
+      },
+      {
+        target: "src/agents/agent-bundle-mcp-runtime.opsys-m8-n2.python-http.integration.test.ts",
+        config: "test/vitest/vitest.agents-core.config.ts",
+      },
+    ];
+    for (const { target, config } of httpTargets) {
+      expect(targets).toContain(target);
+      const owners = selected
+        .flatMap((part) => part.groups)
+        .filter((group) => group.targets.includes(target));
+      expect(owners).toHaveLength(1);
+      expect(owners[0]!.config).toBe(config);
+      expect(buildVitestRunPlans([target], cwd, undefined, { env: baseEnv })[0]!.config).toBe(
+        config,
+      );
+    }
     const union = selected.flatMap((part) => part.targets);
-    expect(union).toHaveLength(293);
-    expect(new Set(union).size).toBe(293);
+    expect(union).toHaveLength(targets.length);
+    expect(new Set(union).size).toBe(targets.length);
     expect(union.toSorted()).toEqual(targets.toSorted());
     for (const part of selected) {
       expect(part.targets).toEqual(targets.filter((target) => part.targets.includes(target)));
