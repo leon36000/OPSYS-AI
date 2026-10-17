@@ -415,7 +415,8 @@ def test_backup_restore_postgresql_et_outbox_inconnue_isoles(tmp_path, monkeypat
         avant_refus = _instantane_pg()
         etats = etats_services()
         code, _, erreur = run(["bash", deploy / "restore.sh", "--from", copie_corrompue, "--yes"], succes=False)
-        assert code != 0 and b"illisible ou incomplet" in erreur
+        assert code != 0 and "intégrité de sauvegarde refusée".encode() in erreur
+        assert b"taille discordante : postgres-opsys.sql.gz" in erreur
         verifier_cible()
         assert _instantane_pg() == avant_refus
         assert etats_services() == etats

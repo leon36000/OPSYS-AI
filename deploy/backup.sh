@@ -343,7 +343,7 @@ if [ "$MODE" != litellm ] && [ "$OPSYS_DB_BACKEND" != postgres ]; then
 fi
 
 {
-    echo "format=opsys-backup/3"
+    echo "format=opsys-backup/4"
     echo "stamp=$STAMP"
     echo "mode=$MODE"
     echo "database=$OPSYS_DB_BACKEND"
@@ -356,6 +356,25 @@ fi
     done
 } > "$DEST/MANIFEST.txt"
 chmod 600 "$DEST/MANIFEST.txt"
+python3 -I -B - "$DEST" "${ARCHIVES[@]}" <<'PY_INTEGRITE'
+import hashlib, json, os, sys
+from pathlib import Path
+
+dossier = Path(sys.argv[1])
+fichiers = {}
+for nom in ["MANIFEST.txt", *sys.argv[2:]]:
+    empreinte = hashlib.sha256()
+    taille = 0
+    with (dossier / nom).open("rb") as source:
+        while morceau := source.read(1024 * 1024):
+            empreinte.update(morceau)
+            taille += len(morceau)
+    fichiers[nom] = {"sha256": empreinte.hexdigest(), "octets": taille}
+fd = os.open(dossier / "INTEGRITE.json", os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+with os.fdopen(fd, "w", encoding="utf-8") as sortie:
+    json.dump({"format": "opsys-backup-integrity/1", "fichiers": fichiers}, sortie, sort_keys=True)
+    sortie.write("\n")
+PY_INTEGRITE
 reprendre_services || die "sauvegarde conservée mais reprise des services non confirmée."
 
 # -- Rétention locale ---------------------------------------------------------------------------

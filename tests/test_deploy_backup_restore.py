@@ -242,6 +242,39 @@ def _run(script: Path, *args: str, env: dict[str, str], permissive_umask: bool =
     )
 
 
+def _recalculer_integrite_fixture(archive):
+    """Fixture cohérente pour atteindre les gardes de ressources, distinctes du hash."""
+    noms = ["MANIFEST.txt", *[
+        ligne.removeprefix("archive=")
+        for ligne in (archive / "MANIFEST.txt").read_text().splitlines() if ligne.startswith("archive=")
+    ]]
+    (archive / "INTEGRITE.json").write_text(json.dumps({
+        "format": "opsys-backup-integrity/1",
+        "fichiers": {nom: {"sha256": hashlib.sha256((archive / nom).read_bytes()).hexdigest(),
+                          "octets": (archive / nom).stat().st_size} for nom in noms},
+    }))
+
+
+def _etat_volumes_fixture(volumes):
+    return {str(p.relative_to(volumes)): p.read_bytes() for p in volumes.rglob("*") if p.is_file()}
+
+
+def _refus_integrite_sans_effet(deploy, volumes, env, archive, *options):
+    log = Path(env["FAKE_DOCKER_LOG"])
+    appels = log.read_bytes()
+    etat = Path(env["FAKE_COMPOSE_STATE"]).read_bytes()
+    avant = _etat_volumes_fixture(volumes)
+    result = subprocess.run(
+        ["bash", str(deploy / "restore.sh"), "--from", str(archive), "--yes", *options],
+        env=env, capture_output=True, text=True, timeout=10, check=False,
+    )
+    assert result.returncode != 0 and "intégrité" in result.stderr, result.stderr
+    assert log.read_bytes() == appels
+    assert Path(env["FAKE_COMPOSE_STATE"]).read_bytes() == etat
+    assert _etat_volumes_fixture(volumes) == avant
+    return result
+
+
 def test_restore_conserve_faits_m10_et_outbox_core_sqlite_reelles(banc_docker, monkeypatch):
     """Scripts réels et bases réelles; orchestration Docker factice, aucune reprise de worker."""
     from m10_memoire import faits_candidats, registre
@@ -341,7 +374,7 @@ def test_backup_then_restore_roundtrips_five_effective_volumes(banc_docker, form
     attendus = {f"volume-{logical}.tar.gz" for logical in LOGIQUES_FIXTURE}
     assert attendus <= {p.name for p in archive.iterdir()}
     manifeste = (archive / "MANIFEST.txt").read_text(encoding="utf-8")
-    assert "format=opsys-backup/3" in manifeste and "mode=natif" in manifeste
+    assert "format=opsys-backup/4" in manifeste and "mode=natif" in manifeste
     assert "required=postgres:" not in manifeste and "postgres-opsys.sql.gz" not in manifeste
     if format_historique:
         import gzip
@@ -357,13 +390,15 @@ def test_backup_then_restore_roundtrips_five_effective_volumes(banc_docker, form
             "volumes: opsys_data openclaw_config openclaw_auth_secrets litellm_config caddy_data\n",
             encoding="utf-8",
         )
+        (archive / "INTEGRITE.json").unlink()
     for logical in LOGIQUES_FIXTURE:
         (volumes_dir / f"{PROJET}_{logical}" / "preuve.txt").write_text("ancienne-generation\n", encoding="utf-8")
 
-    restauration = _run(deploy / "restore.sh", "--from", str(archive), "--yes", env=env)
+    restauration = _run(deploy / "restore.sh", "--from", str(archive), "--yes",
+                        "--autoriser-sans-empreintes", env=env)
 
     assert restauration.returncode == 0, restauration.stderr
-    assert "AVERTISSEMENT" not in restauration.stderr
+    assert ("AVERTISSEMENT" in restauration.stderr) is format_historique
     assert "volume opsys_data restauré" in restauration.stdout
     for logical in LOGIQUES if format_historique else LOGIQUES_FIXTURE:
         fichier = archive / f"volume-{logical}.tar.gz"
@@ -624,7 +659,8 @@ def test_restore_volumes_historiques_resolus_malgre_profils_inactifs(banc_docker
         (volumes / f"{PROJET}_{logical}" / "preuve.txt").write_text("generation-modifiee-fictive\n")
     (archive / "MANIFEST.txt").write_text("\n".join(declarations) + "\n")
 
-    result = _run(deploy / "restore.sh", "--from", str(archive), "--yes", env=env)
+    result = _run(deploy / "restore.sh", "--from", str(archive), "--yes",
+                  "--autoriser-sans-empreintes", env=env)
 
     assert result.returncode == 0, result.stderr
     assert (volumes / f"{PROJET}_postgres_data" / "preuve.txt").read_text() == "donnee-postgres_data-fictive\n"
@@ -646,6 +682,13 @@ def test_backup_attente_sante_reprise_bornee_sans_recreation(banc_docker, sante)
     )
     env["FAKE_START_HEALTH_RESULT"] = "unhealthy" if sante == "unhealthy" else "healthy"
     env["OPSYS_BACKUP_START_TIMEOUT_SECONDS"] = "2" if sante == "starting-puis-healthy" else "1"
+
+    if sante == "unhealthy":
+        # Ce cas éprouve le refus de santé, pas la frontière de SECONDS à la seconde près.
+        # Horloge fictive figée uniquement ici ; les cas de délai gardent l'horloge réelle.
+        horloge = tmp_path / "horloge-sante-fictive.sh"
+        horloge.write_text("unset SECONDS\nSECONDS=0\n", encoding="utf-8")
+        env["BASH_ENV"] = str(horloge)
 
     if sante == "timeout-avant-observation":
         # Le start aboutit, puis le parent ne reprend son CPU qu'après la limite commune.
@@ -676,7 +719,7 @@ raise SystemExit(result.returncode)
     if sante == "timeout-avant-observation":
         assert observations == []
     elif not sante.startswith("timeout"):
-        assert observations
+        assert observations, result.stderr
     if sante.startswith("timeout"):
         assert any(message in result.stderr for message in (
             "reprise hors délai; archives conservées.",
@@ -733,6 +776,7 @@ def test_legacy_archive_mapping_uses_source_project_manifest(banc_docker):
         (archive / f"volume-{logical}.tar.gz").rename(archive / old_name)
         manifest = manifest.replace(f"archive=volume-{logical}.tar.gz", f"archive={old_name}")
     (archive / "MANIFEST.txt").write_text(manifest, encoding="utf-8")
+    _recalculer_integrite_fixture(archive)
 
     nouveau_projet = "autre-projet-client-fictif"
     model_path = Path(env["FAKE_COMPOSE_MODEL"])
@@ -808,7 +852,7 @@ def test_backup_natif_postgres_dump_la_base_sans_archiver_le_cluster_actif(banc_
 
 
 @pytest.mark.parametrize("postgres_initial", ["running", "exited", "absent"])
-def test_restore_v3_sqlite_confirme_arret_postgres_avant_volume_historique(banc_docker, postgres_initial):
+def test_restore_v4_sqlite_confirme_arret_postgres_avant_volume_historique(banc_docker, postgres_initial):
     deploy, volumes_dir, env, tmp_path = banc_docker
     state_file = Path(env["FAKE_COMPOSE_STATE"])
     state = json.loads(state_file.read_text())
@@ -842,7 +886,7 @@ def test_restore_v3_sqlite_confirme_arret_postgres_avant_volume_historique(banc_
 
 
 @pytest.mark.parametrize("panne", ["stop-no-effect", "observation-ambigue"])
-def test_restore_v3_pgdata_arret_non_confirme_refuse_avant_toute_ecriture(banc_docker, panne):
+def test_restore_v4_pgdata_arret_non_confirme_refuse_avant_toute_ecriture(banc_docker, panne):
     deploy, volumes_dir, env, tmp_path = banc_docker
     backup_dir = tmp_path / "backups"
     sauvegarde = _run(deploy / "backup.sh", "--out", str(backup_dir), env=env)
@@ -870,7 +914,7 @@ def test_restore_v3_pgdata_arret_non_confirme_refuse_avant_toute_ecriture(banc_d
 
 
 @pytest.mark.parametrize("mode", ["natif", "litellm"])
-def test_restore_v3_postgres_logique_sans_archive_physique_du_cluster(banc_docker, mode):
+def test_restore_v4_postgres_logique_sans_archive_physique_du_cluster(banc_docker, mode):
     deploy, _, env, tmp_path = banc_docker
     (deploy / ".env").write_text(
         f"OPSYS_MODE_FOURNISSEUR={mode}\nOPSYS_DATABASE_URL=postgresql://opsys:fake@postgres/opsys\n",
@@ -900,7 +944,7 @@ def test_restore_v3_postgres_logique_sans_archive_physique_du_cluster(banc_docke
 
 
 @pytest.mark.parametrize("mode", ["natif", "litellm"])
-def test_restore_v3_refuse_melange_sql_logique_et_pgdata_physique_avant_arret(banc_docker, mode):
+def test_restore_v4_refuse_melange_sql_logique_et_pgdata_physique_avant_arret(banc_docker, mode):
     deploy, volumes_dir, env, tmp_path = banc_docker
     (deploy / ".env").write_text(
         f"OPSYS_MODE_FOURNISSEUR={mode}\nOPSYS_DATABASE_URL=postgresql://opsys:fake@postgres/opsys\n",
@@ -914,6 +958,7 @@ def test_restore_v3_refuse_melange_sql_logique_et_pgdata_physique_avant_arret(ba
         contents.add(volumes_dir / f"{PROJET}_postgres_data", arcname=".")
     with (archive / "MANIFEST.txt").open("a") as manifest:
         manifest.write("optional=volume:postgres_data\narchive=volume-postgres_data.tar.gz\n")
+    _recalculer_integrite_fixture(archive)
     Path(env["FAKE_DOCKER_LOG"]).write_text("")
 
     result = _run(deploy / "restore.sh", "--from", str(archive), "--yes", env=env)
@@ -926,7 +971,7 @@ def test_restore_v3_refuse_melange_sql_logique_et_pgdata_physique_avant_arret(ba
     assert not any("psql" in call for call in calls)
 
 
-def test_restore_v3_refuse_changement_de_profil_avant_arret(banc_docker):
+def test_restore_v4_refuse_changement_de_profil_avant_arret(banc_docker):
     deploy, _, env, tmp_path = banc_docker
     backup_dir = tmp_path / "backups"
     assert _run(deploy / "backup.sh", "--out", str(backup_dir), env=env).returncode == 0
@@ -943,7 +988,7 @@ def test_restore_v3_refuse_changement_de_profil_avant_arret(banc_docker):
     assert not any(call[:2] == ["volume", "create"] for call in calls)
 
 
-def test_restore_v3_refuse_changement_backend_sqlite_postgres_avant_arret(banc_docker):
+def test_restore_v4_refuse_changement_backend_sqlite_postgres_avant_arret(banc_docker):
     deploy, _, env, tmp_path = banc_docker
     backup_dir = tmp_path / "backups"
     assert _run(deploy / "backup.sh", "--out", str(backup_dir), env=env).returncode == 0
@@ -963,7 +1008,7 @@ def test_restore_v3_refuse_changement_backend_sqlite_postgres_avant_arret(banc_d
     assert not any(call[:2] == ["volume", "create"] for call in calls)
 
 
-def test_restore_v3_refuse_manifeste_sans_volume_requis_avant_arret(banc_docker):
+def test_restore_v4_refuse_manifeste_sans_volume_requis_avant_arret(banc_docker):
     deploy, _, env, tmp_path = banc_docker
     backup_dir = tmp_path / "backups"
     assert _run(deploy / "backup.sh", "--out", str(backup_dir), env=env).returncode == 0
@@ -971,18 +1016,19 @@ def test_restore_v3_refuse_manifeste_sans_volume_requis_avant_arret(banc_docker)
     manifest = (archive / "MANIFEST.txt").read_text(encoding="utf-8")
     manifest = manifest.replace("required=volume:caddy_data\n", "")
     (archive / "MANIFEST.txt").write_text(manifest, encoding="utf-8")
+    _recalculer_integrite_fixture(archive)
     Path(env["FAKE_DOCKER_LOG"]).write_text("")
 
     result = _run(deploy / "restore.sh", "--from", str(archive), "--yes", env=env)
 
     assert result.returncode != 0
-    assert "ressources requises v3 incompatibles" in result.stderr
+    assert "ressources requises v3/v4 incompatibles" in result.stderr
     calls = [json.loads(line) for line in Path(env["FAKE_DOCKER_LOG"]).read_text().splitlines()]
     assert not any(call[:1] == ["compose"] and "stop" in call for call in calls)
     assert not any(call[:2] == ["volume", "create"] for call in calls)
 
 
-def test_restore_v3_refuse_archive_optionnelle_declaree_mais_absente(banc_docker):
+def test_restore_v4_refuse_archive_optionnelle_declaree_mais_absente(banc_docker):
     deploy, _, env, tmp_path = banc_docker
     backup_dir = tmp_path / "backups"
     assert _run(deploy / "backup.sh", "--out", str(backup_dir), env=env).returncode == 0
@@ -993,7 +1039,8 @@ def test_restore_v3_refuse_archive_optionnelle_declaree_mais_absente(banc_docker
     result = _run(deploy / "restore.sh", "--from", str(archive), "--yes", env=env)
 
     assert result.returncode != 0
-    assert "archive du volume optionnel litellm_config déclarée mais absente" in result.stderr
+    assert "intégrité de sauvegarde refusée" in result.stderr
+    assert "volume-litellm_config.tar.gz" in result.stderr
     calls = [json.loads(line) for line in Path(env["FAKE_DOCKER_LOG"]).read_text().splitlines()]
     assert not any(call[:1] == ["compose"] and "stop" in call for call in calls)
     assert not any(call[:2] == ["volume", "create"] for call in calls)
@@ -1037,13 +1084,15 @@ def test_restore_format_v2_exige_encore_deux_dumps_et_cinq_volumes(banc_docker, 
         *(f"volume_name.{logical}={PROJET}_{logical}" for logical in LOGIQUES),
     ]
     (archive / "MANIFEST.txt").write_text("\n".join(declarations) + "\n", encoding="utf-8")
+    (archive / "INTEGRITE.json").unlink()
     for logical in LOGIQUES:
         (volumes_dir / f"{PROJET}_{logical}" / "preuve.txt").write_text("nouvelle-generation\n", encoding="utf-8")
     if not postgres_sain:
         env["FAKE_POSTGRES_UNHEALTHY"] = "1"
     Path(env["FAKE_DOCKER_LOG"]).write_text("")
 
-    result = _run(deploy / "restore.sh", "--from", str(archive), "--yes", env=env)
+    result = _run(deploy / "restore.sh", "--from", str(archive), "--yes",
+                  "--autoriser-sans-empreintes", env=env)
 
     calls = [json.loads(line) for line in Path(env["FAKE_DOCKER_LOG"]).read_text().splitlines()]
     starts = [index for index, call in enumerate(calls)
@@ -1281,3 +1330,176 @@ def test_backup_reprise_ne_supprime_pas_une_intention_remplacee(banc_docker):
     assert retry.returncode != 0 and "intention" in retry.stderr
     assert Path(env["FAKE_DOCKER_LOG"]).read_bytes() == calls
     assert intention.read_bytes() == before
+
+
+def test_restore_refuse_archive_modifiee_mais_lisible_avant_arret_et_ecriture(banc_docker):
+    deploy, volumes_dir, env, tmp_path = banc_docker
+    result = _run(deploy / "backup.sh", "--out", str(tmp_path / "backups"), env=env)
+    assert result.returncode == 0, result.stderr
+    [archive] = list((tmp_path / "backups").iterdir())
+    cible = archive / "volume-opsys_data.tar.gz"
+    empreinte_originale = hashlib.sha256(cible.read_bytes()).hexdigest()
+    contenu_altere = tmp_path / "contenu-altere-fictif.txt"
+    contenu_altere.write_text("contenu-altere-fictif\n", encoding="utf-8")
+    with tarfile.open(cible, "w:gz") as tar:
+        tar.add(contenu_altere, arcname="./preuve.txt")
+    assert hashlib.sha256(cible.read_bytes()).hexdigest() != empreinte_originale
+    with tarfile.open(cible, "r:gz") as tar:
+        assert tar.extractfile("./preuve.txt").read() == b"contenu-altere-fictif\n"
+
+    for fichier in volumes_dir.rglob("preuve.txt"):
+        fichier.write_text("generation-courante-fictive\n", encoding="utf-8")
+    avant = {str(p.relative_to(volumes_dir)): p.read_bytes() for p in volumes_dir.rglob("*") if p.is_file()}
+    log = Path(env["FAKE_DOCKER_LOG"])
+    appels_avant = len(log.read_text().splitlines())
+    etat_avant = Path(env["FAKE_COMPOSE_STATE"]).read_bytes()
+
+    restauration = _run(deploy / "restore.sh", "--from", str(archive), "--yes", env=env)
+
+    assert restauration.returncode != 0, "une archive modifiee mais valide a ete restauree"
+    appels = [json.loads(ligne) for ligne in log.read_text().splitlines()[appels_avant:]]
+    assert not any("stop" in appel or "up" in appel or appel[:1] == ["run"] for appel in appels)
+    assert Path(env["FAKE_COMPOSE_STATE"]).read_bytes() == etat_avant
+    assert {str(p.relative_to(volumes_dir)): p.read_bytes() for p in volumes_dir.rglob("*") if p.is_file()} == avant
+
+
+def test_backup_v4_empreintes_exactes_et_restauration_valide_meme_avec_option_legacy(banc_docker):
+    deploy, volumes, env, tmp_path = banc_docker
+    result = _run(deploy / "backup.sh", "--out", str(tmp_path / "backups"), env=env)
+    assert result.returncode == 0, result.stderr
+    [archive] = list((tmp_path / "backups").iterdir())
+    assert (archive / "MANIFEST.txt").read_text().splitlines()[0] == "format=opsys-backup/4"
+    document = json.loads((archive / "INTEGRITE.json").read_text())
+    assert document["format"] == "opsys-backup-integrity/1"
+    assert set(document["fichiers"]) == {"MANIFEST.txt", *(p.name for p in archive.glob("*.tar.gz"))}
+    for nom, preuve in document["fichiers"].items():
+        brut = (archive / nom).read_bytes()
+        assert preuve == {"sha256": hashlib.sha256(brut).hexdigest(), "octets": len(brut)}
+    assert (archive / "INTEGRITE.json").stat().st_mode & 0o777 == 0o600
+    for fichier in volumes.rglob("preuve.txt"):
+        fichier.write_text("autre-generation-fictive\n")
+    result = _run(deploy / "restore.sh", "--from", str(archive), "--yes",
+                  "--autoriser-sans-empreintes", env=env)
+    assert result.returncode == 0, result.stderr
+    assert "AVERTISSEMENT" not in result.stderr
+    for logical in LOGIQUES_FIXTURE:
+        assert (volumes / f"{PROJET}_{logical}" / "preuve.txt").read_text() == f"donnee-{logical}-fictive\n"
+
+
+@pytest.mark.parametrize("nom", ["volume-opsys_data.tar.gz", "volume-litellm_config.tar.gz", "postgres-opsys.sql.gz"])
+def test_restore_refuse_empreinte_changee_a_taille_identique(banc_docker, nom):
+    import gzip
+
+    deploy, volumes, env, tmp_path = banc_docker
+    if nom.startswith("postgres-"):
+        (deploy / ".env").write_text("OPSYS_MODE_FOURNISSEUR=natif\nOPSYS_DATABASE_URL=postgresql://qa:fake@postgres/opsys\n")
+    result = _run(deploy / "backup.sh", "--out", str(tmp_path / "backups"), env=env)
+    assert result.returncode == 0, result.stderr
+    [archive] = list((tmp_path / "backups").iterdir())
+    cible = archive / nom
+    brut = bytearray(cible.read_bytes())
+    contenu = gzip.decompress(brut)
+    brut[4] ^= 1  # MTIME gzip : octets différents, même taille, même contenu lisible.
+    cible.write_bytes(brut)
+    assert gzip.decompress(brut) == contenu
+    result = _refus_integrite_sans_effet(deploy, volumes, env, archive)
+    assert "empreinte discordante" in result.stderr
+
+
+@pytest.mark.parametrize("entete", ["format=opsys-backup/3", "20300101T000000Z"])
+def test_restore_refuse_declassement_v4_meme_avec_option_legacy(banc_docker, entete):
+    deploy, volumes, env, tmp_path = banc_docker
+    assert _run(deploy / "backup.sh", "--out", str(tmp_path / "backups"), env=env).returncode == 0
+    [archive] = list((tmp_path / "backups").iterdir())
+    manifeste = archive / "MANIFEST.txt"
+    lignes = manifeste.read_text().splitlines()
+    lignes[0] = entete
+    manifeste.write_text("\n".join(lignes) + "\n")
+    cible = archive / "volume-opsys_data.tar.gz"
+    brut = bytearray(cible.read_bytes())
+    brut[4] ^= 1
+    cible.write_bytes(brut)
+    _refus_integrite_sans_effet(deploy, volumes, env, archive, "--autoriser-sans-empreintes")
+
+
+@pytest.mark.parametrize("forme", [
+    "absent", "lien", "lien-pendant", "dossier", "fifo", "duplique", "manquant",
+    "extra", "traversee", "taille-bool", "sha-majuscules", "trop-grand",
+])
+def test_restore_refuse_integrite_absente_ou_invalide_sans_effet(banc_docker, forme):
+    deploy, volumes, env, tmp_path = banc_docker
+    assert _run(deploy / "backup.sh", "--out", str(tmp_path / "backups"), env=env).returncode == 0
+    [archive] = list((tmp_path / "backups").iterdir())
+    cible = archive / "INTEGRITE.json"
+    document = json.loads(cible.read_text())
+    if forme in {"absent", "lien", "lien-pendant", "dossier", "fifo"}:
+        sauvegarde = tmp_path / "integrite-originale-fictive.json"
+        cible.rename(sauvegarde)
+        if forme == "lien":
+            cible.symlink_to(sauvegarde)
+        elif forme == "lien-pendant":
+            cible.symlink_to(tmp_path / "absent-fictif")
+        elif forme == "dossier":
+            cible.mkdir()
+        elif forme == "fifo":
+            os.mkfifo(cible)
+    elif forme == "duplique":
+        cible.write_text('{"format":"opsys-backup-integrity/1",' + json.dumps(document)[1:])
+    elif forme == "trop-grand":
+        cible.write_text(" " * (64 * 1024 + 1))
+    else:
+        if forme == "manquant":
+            document["fichiers"].pop("volume-opsys_data.tar.gz")
+        elif forme in {"extra", "traversee"}:
+            document["fichiers"]["extra-fictif" if forme == "extra" else "../hors-archive-fictif"] = {
+                "sha256": "0" * 64, "octets": 0,
+            }
+        elif forme == "taille-bool":
+            document["fichiers"]["MANIFEST.txt"]["octets"] = True
+        elif forme == "sha-majuscules":
+            document["fichiers"]["MANIFEST.txt"]["sha256"] = "A" * 64
+        cible.write_text(json.dumps(document))
+    if forme in {"lien-pendant", "dossier", "fifo"}:
+        manifeste = archive / "MANIFEST.txt"
+        manifeste.write_text(manifeste.read_text().replace("format=opsys-backup/4", "format=opsys-backup/3", 1))
+    _refus_integrite_sans_effet(deploy, volumes, env, archive, "--autoriser-sans-empreintes")
+
+
+def test_restore_v3_historique_exige_option_explicite_sans_supprimer_capacite(banc_docker):
+    deploy, volumes, env, tmp_path = banc_docker
+    assert _run(deploy / "backup.sh", "--out", str(tmp_path / "backups"), env=env).returncode == 0
+    [archive] = list((tmp_path / "backups").iterdir())
+    manifeste = archive / "MANIFEST.txt"
+    manifeste.write_text(manifeste.read_text().replace("format=opsys-backup/4", "format=opsys-backup/3", 1))
+    (archive / "INTEGRITE.json").unlink()  # Fixture d'une vraie ancienne sauvegarde sans sidecar.
+    _refus_integrite_sans_effet(deploy, volumes, env, archive)
+    result = _run(deploy / "restore.sh", "--from", str(archive), "--yes",
+                  "--autoriser-sans-empreintes", env=env)
+    assert result.returncode == 0, result.stderr
+    assert "archive historique sans empreintes" in result.stderr
+    for logical in LOGIQUES_FIXTURE:
+        assert (volumes / f"{PROJET}_{logical}" / "preuve.txt").read_text() == f"donnee-{logical}-fictive\n"
+
+
+@pytest.mark.parametrize("nom", ["volume-opsys_data.tar.gz", "postgres-opsys.sql.gz"])
+def test_restore_refuse_archive_illisible_meme_avec_empreinte_coherente(banc_docker, nom):
+    deploy, volumes, env, tmp_path = banc_docker
+    if nom.startswith("postgres-"):
+        (deploy / ".env").write_text("OPSYS_MODE_FOURNISSEUR=natif\nOPSYS_DATABASE_URL=postgresql://qa:fake@postgres/opsys\n")
+    assert _run(deploy / "backup.sh", "--out", str(tmp_path / "backups"), env=env).returncode == 0
+    [archive] = list((tmp_path / "backups").iterdir())
+    (archive / nom).write_bytes(b"gzip-corrompu-fictif")
+    _recalculer_integrite_fixture(archive)  # Les empreintes passent : éprouver ensuite tar/gzip.
+    avant = _etat_volumes_fixture(volumes)
+    etat = Path(env["FAKE_COMPOSE_STATE"]).read_bytes()
+    log = Path(env["FAKE_DOCKER_LOG"])
+    debut = len(log.read_text().splitlines())
+
+    result = _run(deploy / "restore.sh", "--from", str(archive), "--yes", env=env)
+
+    assert result.returncode != 0 and "illisible" in result.stderr, result.stderr
+    appels = [json.loads(ligne) for ligne in log.read_text().splitlines()[debut:]]
+    assert not any("stop" in appel or "up" in appel or "psql" in appel
+                   or appel[:1] == ["run"] or appel[:2] == ["volume", "create"] for appel in appels)
+    assert _etat_volumes_fixture(volumes) == avant
+    assert Path(env["FAKE_COMPOSE_STATE"]).read_bytes() == etat
