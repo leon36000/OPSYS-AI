@@ -16,6 +16,7 @@ Identifiants, fournisseurs et prix fictifs (AGENTS.md).
 from __future__ import annotations
 
 import math
+from decimal import Decimal
 
 import m6_material_control.outils as m6_outils
 import pytest
@@ -25,7 +26,7 @@ from opsys import stockage
 from opsys.evenements.schemas import erreurs_charge
 from opsys.outils import executer_atomique
 from opsys.stockage import codec
-from opsys.stockage.schema import EVENEMENTS_SORTANTS
+from opsys.stockage.schema import EVENEMENTS_SORTANTS, META
 
 FICTIF = True
 _DEPARTEMENT = "m06-material-control"
@@ -216,6 +217,107 @@ def test_une_reception_non_publiable_annule_la_reception_entiere(base, monkeypat
         _receptionner(_reception(), catalogue=_catalogue())
 
     assert _maillons("principal") == [] and _statut_po() == "sent_to_supplier" and _publies() == []
+
+
+class _PanneTardive(RuntimeError):
+    """Panne fictive levée au dernier point d'écriture de `m6_receptionner_commande`."""
+
+
+def _accepter_devis_reservant(devis_id="DEVIS-RES-FICT", chantier_id="CH-RES-FICT", gouttiere="30"):
+    """`m3.devis_accepte` fictif d'un AUTRE chantier, par le consommateur de M6 : sans stock, il réserve
+    `a_commander` (révision 1) et attend la prochaine réception."""
+    charge = {"devis_id": devis_id, "lead_id": "lead-fictif", "chantier_id": chantier_id,
+              "lignes": [{"reference_ligne": f"{devis_id}-L0", "description": "ligne fictive", "quantite": gouttiere,
+                          "unite": "pi", "prix_unitaire": "10.00", "prix_ligne": "10.00",
+                          "reference_besoin_materiau": "gouttiere-5po"}],
+              "cout_total": "100.00", "prix_total": "135.00", "taux_marge": "0.35",
+              "horodatage_acceptation": "2026-09-15T10:00:00-04:00"}
+    with stockage.transaction():
+        reponse = m6_outils._recevoir_devis_accepte(charge)
+    assert reponse["reservation"]["statut"] == "creee", reponse
+
+
+def _instantane_complet():
+    """Toutes les lignes de toutes les tables de l'instance, relues par une connexion NEUVE (moteurs libérés)."""
+    stockage.liberer()
+    with stockage.transaction() as cnx:
+        return {table.name: sorted(repr(tuple(ligne)) for ligne in cnx.execute(select(table)))
+                for table in META.sorted_tables}
+
+
+def _materiel_pret():
+    with stockage.transaction() as cnx:
+        charges = cnx.execute(select(EVENEMENTS_SORTANTS.c.charge).where(
+            EVENEMENTS_SORTANTS.c.type_evenement == "m6.materiel_pret")).scalars().all()
+    return sorted((c["devis_id"], c["revision"], c["statut"], c["declencheur"]) for c in map(codec.decoder, charges))
+
+
+def test_une_panne_tardive_apres_la_reconciliation_annule_tout_puis_une_seule_reprise_fraiche(base, monkeypatch):
+    """M6-R3 : la réception complète la réservation d'un autre chantier (fait `ajustee` rangé, `m6.materiel_pret`
+    publié), le PO transitionne et `m6.reception_enregistree` est RÉELLEMENT inséré ; une panne levée juste après
+    cette dernière écriture de M6 annule tout. Relue par une connexion neuve, chaque table est identique ; la reprise
+    de la même livraison, panne retirée, écrit une seule livraison aux mêmes hash, et son rejeu ne change rien."""
+    _po_envoye()
+    _accepter_devis_reservant()
+    avant = _instantane_complet()
+    assert _materiel_pret() == [("DEVIS-RES-FICT", 1, "a_commander", "devis_accepte")]
+    publier_original = m6_outils.evenements.publier
+    temoin = {}
+
+    def _publier_puis_panne(type_evenement, *args, **kwargs):
+        resultat = publier_original(type_evenement, *args, **kwargs)
+        if type_evenement != TYPE:
+            return resultat
+        cnx = stockage.connexion_courante()
+        temoin.update(
+            principal=[m["hash_maillon"] for m in stockage.maillons(_DEPARTEMENT, "principal")],
+            reservations=[(f["devis_id"], f["revision"], f["evenement"])
+                          for f in stockage.maillons(_DEPARTEMENT, "reservations")],
+            statut_po=m6_outils.bons_commande.lire(
+                stockage.maillons(_DEPARTEMENT, "bons_commande"), "PO-FICT-1")["statut"],
+            evenements={tuple(ligne) for ligne in cnx.execute(select(
+                EVENEMENTS_SORTANTS.c.type_evenement, EVENEMENTS_SORTANTS.c.evenement_id))},
+        )
+        raise _PanneTardive("panne fictive après l'insertion réelle de m6.reception_enregistree")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(m6_outils.evenements, "publier", _publier_puis_panne)
+        with pytest.raises(_PanneTardive, match="insertion réelle"):
+            _receptionner(_reception(gouttiere=40.0, vis=0.0), catalogue=_catalogue())
+    assert m6_outils.evenements.publier is publier_original, "panne retirée avant la reprise"
+
+    # Témoin : la panne n'est levée qu'APRÈS chaque écriture visée ; sinon le montage est en défaut, pas M6.
+    assert len(temoin["principal"]) == 2
+    assert temoin["reservations"] == [("DEVIS-RES-FICT", 1, "creee"), ("DEVIS-RES-FICT", 2, "ajustee")]
+    assert temoin["statut_po"] == "partially_received"
+    reception_tentee = f"m6-reception-PO-FICT-1-{temoin['principal'][-1][:16]}"
+    assert {("m6.materiel_pret", "m6-materiel-pret-DEVIS-RES-FICT-2"), (TYPE, reception_tentee)} <= temoin["evenements"]
+
+    assert _instantane_complet() == avant, "toutes les tables, relues par une connexion neuve : rien ne reste"
+
+    reprise = _receptionner(_reception(gouttiere=40.0, vis=0.0), catalogue=_catalogue())
+
+    assert reprise["ok"] is True and reprise["resultat"]["accepte"] is True, reprise
+    assert reprise["resultat"]["evenements_materiel_pret"] == ["m6-materiel-pret-DEVIS-RES-FICT-2"]
+    assert reprise["resultat"]["evenement_reception_id"] == reception_tentee
+    stockage.liberer()
+    assert [m["hash_maillon"] for m in _maillons("principal")] == temoin["principal"], "mêmes maillons, mêmes hash"
+    assert [evenement_id for evenement_id, _, _ in _publies()] == [reception_tentee]
+    assert _materiel_pret() == [("DEVIS-RES-FICT", 1, "a_commander", "devis_accepte"),
+                                ("DEVIS-RES-FICT", 2, "pret", "stock_recu")]
+    assert _statut_po() == "partially_received"
+    # Calcul indépendant : 40 reçus ; le devis réservant en demande 30 ; 40 - 30 = 10 disponibles.
+    (gouttiere,) = executer_atomique(_outil("m6_lire_disponibilite"), {"materiau_ids": ["gouttiere-5po"]})[
+        "resultat"]["resultat"]["articles"]
+    assert tuple(Decimal(gouttiere[cle]) for cle in ("en_main", "reserve", "disponible")) == (
+        Decimal(40), Decimal(30), Decimal(10))
+    apres_reprise = _instantane_complet()
+
+    rejeu = _receptionner(_reception(gouttiere=40.0, vis=0.0), catalogue=_catalogue())
+
+    assert rejeu["resultat"]["accepte"] is False
+    assert rejeu["resultat"]["verdict"]["code"] == "REJ-RECEPTION-DEJA-ENREGISTREE"
+    assert _instantane_complet() == apres_reprise, "le rejeu de la reprise n'écrit rien"
 
 
 def test_republier_la_meme_reception_est_un_no_op_du_bus(base):

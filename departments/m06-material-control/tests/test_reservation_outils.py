@@ -29,7 +29,7 @@ from opsys import evenements, stockage
 from opsys.evenements.schemas import erreurs_charge
 from opsys.outils import Niveau, executer_atomique
 from opsys.stockage import codec
-from opsys.stockage.schema import EVENEMENTS_SORTANTS
+from opsys.stockage.schema import EVENEMENTS_SORTANTS, META
 
 FICTIF = True
 _DEPARTEMENT = "m06-material-control"
@@ -222,7 +222,8 @@ def test_un_devis_accepte_apres_la_declaration_de_ses_materiaux_ne_reserve_plus(
     assert _maillons("reservations") == [] and _publies() == []
 
 
-def _wct_declare(m6, wct_id, devis_id, chantier_id, quantite, materiau=GOUTTIERE, type_ligne="non_prevu"):
+def _wct_declare(m6, wct_id, devis_id, chantier_id, quantite, materiau=GOUTTIERE, type_ligne="non_prevu",
+                 lignes=None):
     """Le WCT reçu par M6 (bus) puis la déclaration des matériaux, par les vrais outils."""
     charge = {
         "wct_id": wct_id, "intervention_id": f"int-{wct_id}", "lead_id": "lead-fictif", "technicien_id": "t1",
@@ -237,8 +238,8 @@ def _wct_declare(m6, wct_id, devis_id, chantier_id, quantite, materiau=GOUTTIERE
     return _outil(m6, "m6_declarer_materiaux_utilises", {
         "wct_id": wct_id,
         "formulaire": {"wct_id": wct_id, "intervention_id": f"int-{wct_id}", "chantier_id": chantier_id,
-                       "lignes_materiaux": [{"type_ligne": type_ligne, "materiau_id": materiau, "quantite": quantite,
-                                             "unite": "pi"}]}})
+                       "lignes_materiaux": lignes or [{"type_ligne": type_ligne, "materiau_id": materiau,
+                                                       "quantite": quantite, "unite": "pi"}]}})
 
 
 # ------------------------------------------------------------------------ réconciliation du stock
@@ -334,6 +335,91 @@ def test_l_outil_ferme_m6_consommer_materiaux_cloture_aussi_la_reservation_de_so
     dernier_b = _publies("DEVIS-B")[-1]
     assert (dernier_b["lignes"][0]["quantite_reservee"], dernier_b["statut"], dernier_b["declencheur"]) == (
         "60", "pret", "stock_recu"), "80 en main, la réservation de A rendue : B se complète"
+
+
+def _instantane_complet():
+    """Toutes les lignes de toutes les tables de l'instance, relues par une connexion NEUVE (moteurs libérés)."""
+    stockage.liberer()
+    with stockage.transaction() as cnx:
+        return {table.name: sorted(repr(tuple(ligne)) for ligne in cnx.execute(select(table)))
+                for table in META.sorted_tables}
+
+
+def test_un_lot_mixte_de_fin_de_chantier_conserve_le_stock_et_ne_clot_que_sa_reservation(base, m6):
+    """M6-R2 : 100 gouttières reçues au chantier, 10 au rebut (hors main). Trois devis réservent dans l'ordre A (50),
+    FICT-1 (40), B (30, rien de libre). Le WCT de FICT-1 déclare 25 consommées, 5 retournées, 3 perdues, 2 brisées :
+    le stock suit initial + retours - consommations - pertes - bris, le hors main ne bouge pas, seule la réservation
+    de FICT-1 se clôt et B reçoit ce qui redevient libre, A gardant la sienne. La même déclaration rejouée, puis
+    modifiée, et une consommation historique dont la DERNIÈRE ligne dépasse le stock sont refusées sans rien écrire.
+    Relu par une connexion neuve, tout est exact."""
+    _recevoir(m6, GOUTTIERE, 100.0, "PO-DEPOT-1", chantier_id="CH-FICT-1")
+    _recevoir(m6, VIS, 20.0, "PO-DEPOT-2", chantier_id="CH-FICT-1")
+    _transferer(m6, "T-REBUT-1", {"type": "inconnu"}, {"type": "rebut"}, 10.0, motif="gouttières bosselées")
+    _accepter(_devis("DEVIS-A", "CH-A", gouttiere="50", vis=None))
+    _accepter(_devis(gouttiere="40", vis=None))
+    _accepter(_devis("DEVIS-B", "CH-B", gouttiere="30", vis=None))
+    assert [_etat(devis)["lignes"][0]["quantite_reservee"] for devis in ("DEVIS-A", "DEVIS-FICT-1", "DEVIS-B")] == [
+        "50", "40", "0"]
+    emplacements_avant = _maillons("emplacements")
+    lignes = [
+        {"type_ligne": "prevu", "materiau_id": GOUTTIERE, "quantite": 25.0, "unite": "pi", "quantite_estimee": 40.0},
+        {"type_ligne": "retour", "materiau_id": GOUTTIERE, "quantite": 5.0, "unite": "pi"},
+        {"type_ligne": "perte", "materiau_id": GOUTTIERE, "quantite": 3.0, "unite": "pi"},
+        {"type_ligne": "bris", "materiau_id": GOUTTIERE, "quantite": 2.0, "unite": "pi"},
+    ]
+
+    declaration = _wct_declare(m6, "WCT-FICT-1", "DEVIS-FICT-1", "CH-FICT-1", None, lignes=lignes)
+
+    assert declaration["accepte"] is True, declaration
+    apres_declaration = _instantane_complet()
+    formulaire = {"wct_id": "WCT-FICT-1", "intervention_id": "int-WCT-FICT-1", "chantier_id": "CH-FICT-1",
+                  "lignes_materiaux": lignes}
+    identique = _outil(m6, "m6_declarer_materiaux_utilises", {"wct_id": "WCT-FICT-1", "formulaire": formulaire})
+    modifiee = _outil(m6, "m6_declarer_materiaux_utilises", {"wct_id": "WCT-FICT-1", "formulaire": {
+        **formulaire, "lignes_materiaux": [{**lignes[0], "quantite": 26.0}, *lignes[1:]]}})
+    assert [(r["accepte"], r["verdict"]["code"]) for r in (identique, modifiee)] == [
+        (False, "REJ-DECLARATION-DEJA-SOUMISE")] * 2
+    assert _instantane_complet() == apres_declaration, "ni seconde clôture, ni remise en stock, ni événement"
+
+    wct_a = {"wct_id": "WCT-CONS-A", "intervention_id": "int-CONS-A", "lead_id": "lead-fictif", "technicien_id": "t1",
+             "horodatage_completion": "2026-10-08T12:00:00+00:00",
+             "fix_gps_completion": {"latitude": 45.5, "longitude": -73.5},
+             "duree_reelle_minutes": 60, "ecart_signale": False, "revue_id": None, "hash_maillon": "b" * 16,
+             "consommateurs_cibles": ["M6"], "devis_id": "DEVIS-A"}
+    with stockage.transaction():
+        evenements.publier("m4.travaux_termines", "m04-field-ops", {**wct_a, "statut": "completed_pending_review"},
+                           evenement_id="WCT-CONS-A")
+    avant_depassement = _instantane_complet()
+    depassement = _outil(m6, "m6_consommer_materiaux", {"wct": wct_a, "formulaire": {
+        "wct_id": "WCT-CONS-A", "intervention_id": "int-CONS-A", "chantier_id": "CH-FICT-1",
+        "lignes_consommees": [{"materiau_id": GOUTTIERE, "quantite": 1.0}, {"materiau_id": VIS, "quantite": 21.0}]}})
+    assert (depassement["accepte"], depassement["verdict"]["code"]) == (False, "REJ-STOCK-INSUFFISANT")
+    assert _instantane_complet() == avant_depassement, "21 vis pour 20 en stock : ni sortie, ni clôture de A"
+
+    stockage.liberer()
+    with stockage.transaction():
+        principal = list(stockage.maillons(_DEPARTEMENT, "principal"))
+        chaine = Registre(maillons=stockage.maillons(_DEPARTEMENT, "principal")).valider_chaine()
+    assert chaine == (True, "")
+    assert sorted((m["type_mouvement"], Decimal(str(m["quantite"]))) for m in principal
+                  if m.get("wct_id") == "WCT-FICT-1") == [
+        ("BRIS", Decimal(-2)), ("CONSOMMATION", Decimal(-25)), ("PERTE", Decimal(-3)), ("RETOUR", Decimal(5))]
+    assert not any(m.get("wct_id") == "WCT-CONS-A" for m in principal)
+    transferts = _maillons("emplacements")
+    assert transferts == emplacements_avant and emplacements.valider_chaine(transferts) == (True, "")
+    # Calcul indépendant : 100 + 5 - 25 - 3 - 2 = 75 ; 10 au rebut, donc 65 en main ; A garde 50, B prend 15.
+    chiffres, _ = _disponibilite(m6, GOUTTIERE)
+    assert tuple(Decimal(chiffres[GOUTTIERE][cle])
+                 for cle in ("stock_theorique", "hors_main", "en_main", "reserve", "disponible")) == (75, 10, 65, 65, 0)
+    cloture = _etat("DEVIS-FICT-1")
+    assert (cloture["actif"], cloture["evenement"], cloture["wct_id"], cloture["revision"]) == (
+        False, "cloturee", "WCT-FICT-1", 2)
+    assert [(_etat(devis)["revision"], _etat(devis)["lignes"][0]["quantite_reservee"])
+            for devis in ("DEVIS-A", "DEVIS-B")] == [(1, "50"), (2, "15")]
+    assert sorted((c["devis_id"], c["revision"], c["statut"], c["declencheur"]) for c in _publies()) == [
+        ("DEVIS-A", 1, "pret", "devis_accepte"), ("DEVIS-B", 1, "a_commander", "devis_accepte"),
+        ("DEVIS-B", 2, "partiel", "stock_recu"), ("DEVIS-FICT-1", 1, "pret", "devis_accepte")], (
+        "la clôture ne publie rien")
 
 
 # ---------------------------------------------------------------------------------------- libération

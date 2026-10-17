@@ -16,17 +16,19 @@ Identifiants, fournisseurs et prix fictifs (AGENTS.md).
 from __future__ import annotations
 
 import math
+from decimal import Decimal
 
 import m6_material_control.outils as m6_outils
 import pytest
-from m6_material_control import bons_commande
+from m6_material_control import bons_commande, reservations
+from m6_material_control.registre import Registre
 from sqlalchemy import select
 
 from opsys import stockage
 from opsys.evenements.schemas import erreurs_charge
 from opsys.outils import executer_atomique
 from opsys.stockage import codec
-from opsys.stockage.schema import EVENEMENTS_SORTANTS
+from opsys.stockage.schema import EVENEMENTS_SORTANTS, META
 
 FICTIF = True
 _DEPARTEMENT = "m06-material-control"
@@ -57,15 +59,16 @@ def _reception(gouttiere, vis, horodatage, po_id="PO-FICT-1", chantier_id="CH-FI
                               {"materiau_id": "vis-inox", "quantite_recue": vis}]}
 
 
-def _bon_demande(po_id="PO-FICT-1", chantier_id="CH-FICT-1"):
+def _bon_demande(po_id="PO-FICT-1", chantier_id="CH-FICT-1", gouttiere=100.0, vis=20.0):
     return {"po_id": po_id, "chantier_id": chantier_id,
-            "lignes_demandees": [{"materiau_id": "gouttiere-5po", "quantite_demandee": 100.0},
-                                 {"materiau_id": "vis-inox", "quantite_demandee": 20.0}],
+            "lignes_demandees": [{"materiau_id": "gouttiere-5po", "quantite_demandee": gouttiere},
+                                 {"materiau_id": "vis-inox", "quantite_demandee": vis}],
             "horodatage": "2026-09-01T08:00:00-04:00"}
 
 
-def _po_envoye(po_id="PO-FICT-1", devis_id="DEVIS-FICT-1", chantier_id="CH-FICT-1"):
-    """Un PO persisté jusqu'à `sent_to_supplier` : 100 gouttières à 8,50 $ et 20 vis à 0,35 $, chez Gentek."""
+def _po_envoye(po_id="PO-FICT-1", devis_id="DEVIS-FICT-1", chantier_id="CH-FICT-1", gouttiere=100.0, vis=20.0):
+    """Un PO persisté jusqu'à `sent_to_supplier` : 100 gouttières à 8,50 $ et 20 vis à 0,35 $ par défaut, chez
+    Gentek."""
     with stockage.transaction():
         for reponse in (
             m6_outils.enregistrer_fournisseur("gentek", "Gentek", "2026-01-01T00:00:00Z",
@@ -73,8 +76,8 @@ def _po_envoye(po_id="PO-FICT-1", devis_id="DEVIS-FICT-1", chantier_id="CH-FICT-
             m6_outils.enregistrer_prix("gouttiere-5po", "gentek", 8.5, "CAD", "2026-01-01"),
             m6_outils.enregistrer_prix("vis-inox", "gentek", 0.35, "CAD", "2026-01-01"),
             m6_outils.enregistrer_besoins_prevus(chantier_id, devis_id, [
-                {"materiau_id": "gouttiere-5po", "quantite_estimee": 100.0, "unite": "pi"},
-                {"materiau_id": "vis-inox", "quantite_estimee": 20.0, "unite": "boite"}]),
+                {"materiau_id": "gouttiere-5po", "quantite_estimee": gouttiere, "unite": "pi"},
+                {"materiau_id": "vis-inox", "quantite_estimee": vis, "unite": "boite"}]),
             m6_outils.creer_po_brouillon(po_id, devis_id, "gentek", "2026-09-01T08:00:00-04:00"),
             m6_outils.approuver_po(po_id, "2026-09-01T09:00:00-04:00"),
             m6_outils.generer_courriel_po(po_id, "2026-09-01T10:00:00-04:00", "Entreprise Fictive"),
@@ -377,6 +380,91 @@ def test_un_po_d_avant_recoit_encore_une_livraison_qui_couvre_tout(base):
 
     assert complete["po"]["statut"] == "received"
     assert complete["reception_cumulee"]["fiable"] is False
+
+
+# --------------------------------------------------------- deux devis réservent, trois livraisons, réouverture
+def _accepter_devis(devis_id, chantier_id, gouttiere, vis):
+    """`m3.devis_accepte` fictif, par le consommateur de M6 : sans stock, la réservation naît `a_commander`."""
+    lignes = [{"reference_ligne": f"{devis_id}-L{i}", "description": "ligne fictive", "quantite": quantite,
+               "unite": unite, "prix_unitaire": "10.00", "prix_ligne": "10.00", "reference_besoin_materiau": materiau}
+              for i, (materiau, quantite, unite) in enumerate([("gouttiere-5po", gouttiere, "pi"),
+                                                               ("vis-inox", vis, "boite")])]
+    with stockage.transaction():
+        reponse = m6_outils._recevoir_devis_accepte({
+            "devis_id": devis_id, "lead_id": "lead-fictif", "chantier_id": chantier_id, "lignes": lignes,
+            "cout_total": "100.00", "prix_total": "135.00", "taux_marge": "0.35",
+            "horodatage_acceptation": "2026-09-15T10:00:00-04:00"})
+    assert reponse["reservation"]["statut"] == "creee", reponse
+
+
+def _instantane_complet():
+    """Toutes les lignes de toutes les tables de l'instance, relues par une connexion NEUVE (moteurs libérés)."""
+    stockage.liberer()
+    with stockage.transaction() as cnx:
+        return {table.name: sorted(repr(tuple(ligne)) for ligne in cnx.execute(select(table)))
+                for table in META.sorted_tables}
+
+
+def test_trois_livraisons_et_deux_reservations_se_conservent_apres_reouverture(base):
+    """M6-R1 : PO de 10 gouttières et 6 vis livré 3/1, 4/2 puis 3/3 ; deux devis acceptés avant (A : 6/4, plus
+    ancien ; B : 5/3) se complètent du plus ancien au plus récent, jamais au-delà de l'en main. Entre deux
+    livraisons, un rejeu et une ligne invalide en SECONDE position sont refusés sans rien écrire. Relu par une
+    connexion neuve : cumul, livraisons, réservations, événements et chaîne de stock sont exacts."""
+    _po_envoye(gouttiere=10.0, vis=6.0)
+    _accepter_devis("DEVIS-A-FICT", "CH-A-FICT", "6", "4")
+    _accepter_devis("DEVIS-B-FICT", "CH-B-FICT", "5", "3")
+    bon = _bon_demande(gouttiere=10.0, vis=6.0)
+
+    une = _recevoir(3.0, 1.0, H1, bon_demande=bon)
+    deux = _recevoir(4.0, 2.0, H2, bon_demande=bon)
+    avant_refus = _instantane_complet()
+    rejeu = _recevoir(3.0, 1.0, H1, bon_demande=bon)
+    invalide = executer_atomique(_outil("m6_receptionner_commande"), {
+        "bon_demande": bon, "reception_po": _reception(3.0, -1.0, H3), "catalogue_materiaux": _catalogue()})
+    assert _instantane_complet() == avant_refus, "deux refus : aucune table ne bouge"
+    trois = _recevoir(3.0, 3.0, H3, bon_demande=bon)
+
+    assert (rejeu["accepte"], rejeu["verdict"]["code"]) == (False, "REJ-RECEPTION-DEJA-ENREGISTREE")
+    assert invalide["ok"] is True and invalide["resultat"]["accepte"] is False
+    assert invalide["resultat"]["verdict"]["code"] == "REJ-RECEPTION-QUANTITE-INVALIDE"
+    assert [r["po"]["statut"] for r in (une, deux, trois)] == ["partially_received", "partially_received", "received"]
+    assert [r["evenements_materiel_pret"] for r in (une, deux, trois)] == [
+        ["m6-materiel-pret-DEVIS-A-FICT-2"],
+        ["m6-materiel-pret-DEVIS-A-FICT-3", "m6-materiel-pret-DEVIS-B-FICT-2"],
+        ["m6-materiel-pret-DEVIS-A-FICT-4", "m6-materiel-pret-DEVIS-B-FICT-3"]]
+
+    stockage.liberer()
+    with stockage.transaction():
+        principal = list(stockage.maillons(_DEPARTEMENT, "principal"))
+        chaine = Registre(maillons=stockage.maillons(_DEPARTEMENT, "principal")).valider_chaine()
+        registre_po = list(stockage.maillons(_DEPARTEMENT, "bons_commande"))
+        faits = list(stockage.maillons(_DEPARTEMENT, "reservations"))
+    assert chaine == (True, "") and len(principal) == 6
+    # Calcul indépendant : 3 + 4 + 3 = 10 gouttières, 1 + 2 + 3 = 6 vis.
+    entre = {}
+    for maillon in principal:
+        materiau_id = maillon["materiau_id"]
+        entre[materiau_id] = entre.get(materiau_id, Decimal(0)) + Decimal(str(maillon["quantite"]))
+    assert entre == {"gouttiere-5po": Decimal(10), "vis-inox": Decimal(6)}
+    livrees = [[Decimal(ligne["quantite_recue"]) for ligne in livraison["lignes"]]
+               for livraison in bons_commande.livraisons(registre_po, "PO-FICT-1")]
+    assert livrees == [[3, 1], [4, 2], [3, 3]], "chaque livraison garde la sienne, jamais le cumul"
+    assert bons_commande.lire(registre_po, "PO-FICT-1")["statut"] == "received"
+    # Chaque événement porte SA livraison et le hash du dernier mouvement de stock qu'elle a écrit.
+    charges = _publies()
+    assert [[Decimal(ligne["quantite_recue"]) for ligne in c["lignes"]] for c in charges] == livrees
+    assert [c["statut_po"] for c in charges] == ["partially_received", "partially_received", "received"]
+    assert [c["hash_maillon"] for c in charges] == [principal[i]["hash_maillon"] for i in (1, 3, 5)]
+    assert all(erreurs_charge(TYPE, c) == [] for c in charges)
+    # Plus anciens d'abord : A (6/4) complet, B (5/3) reçoit le reste, 4/2.
+    etats = {devis: reservations.etat(devis, faits) for devis in ("DEVIS-A-FICT", "DEVIS-B-FICT")}
+    assert {devis: (e["revision"], [Decimal(ligne["quantite_reservee"]) for ligne in e["lignes"]])
+            for devis, e in etats.items()} == {"DEVIS-A-FICT": (4, [6, 4]), "DEVIS-B-FICT": (3, [4, 2])}
+    assert [reservations.statut_pret(e["lignes"]) for e in etats.values()] == ["pret", "partiel"]
+    lecture = executer_atomique(_outil("m6_lire_disponibilite"), {"materiau_ids": ["gouttiere-5po", "vis-inox"]})
+    chiffres = {a["materiau_id"]: tuple(Decimal(a[cle]) for cle in ("en_main", "reserve", "disponible"))
+                for a in lecture["resultat"]["resultat"]["articles"]}
+    assert chiffres == {"gouttiere-5po": (10, 10, 0), "vis-inox": (6, 6, 0)}
 
 
 # --------------------------------------------------------------------------------- rien n'apparie
