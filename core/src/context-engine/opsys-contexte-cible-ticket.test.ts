@@ -230,6 +230,68 @@ describe("createOpsysCibleTicketMeta", () => {
     },
   );
 
+  it("preserves exact private M9 binding metadata after valid ticket issuance without leaking the raw ticket", async () => {
+    const agentId = "m09-strategic-intelligence";
+    const sessionKey = `agent:${agentId}:webchat:direct:suivi-fictif`;
+    const toolName = "m9_ouvrir_suivi_decision";
+    const contextServerName = "opsys_context_m09-strategic-intelligence";
+    const nativeInstanceId = "00000000-0000-4000-8000-000000000009";
+    const { params, deps, callTool } = setup({
+      serverName: "opsys_m9",
+      toolName,
+      sessionKey,
+      config: config({
+        agents: new Map([[agentId, []]]),
+        affaireFromSession: new Set([agentId]),
+        contextServers: new Map([[agentId, contextServerName]]),
+        levels: new Map([[toolName, "N3"]]),
+        targets: new Map([[toolName, { kind: "ticket" }]]),
+      }),
+      response: {
+        ok: true,
+        resultat: {
+          ticket: "opaque-ticket-secret",
+          expire_le: new Date(NOW + 120_000).toISOString(),
+          instance_id: nativeInstanceId,
+        },
+      },
+    });
+    const argumentsM9 = {
+      evenement_id: "alerte-m8-fictive",
+      empreinte_source: "0".repeat(64),
+      action: "Analyser les causes de durée du chantier fictif",
+      responsable_id: "responsable-fictif",
+      echeance: "2026-10-20T09:00:00-04:00",
+    };
+    const onIssued = vi.fn();
+
+    await expect(
+      createOpsysCibleTicketMeta({ ...params, toolParams: argumentsM9, onIssued }, deps),
+    ).resolves.toStrictEqual({
+      arguments: argumentsM9,
+      meta: { "opsys/cibleTicket": "opaque-ticket-secret" },
+    });
+    expect(callTool).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ server: contextServerName }),
+    );
+    expect(onIssued).toHaveBeenCalledExactlyOnceWith({
+      agentId,
+      sessionKey,
+      affaireId: "LEAD-001",
+      serverName: "opsys_m9",
+      toolName,
+      m9Binding: {
+        nativeInstanceId,
+        // SHA-256 of the fictitious ticket's UTF-8 bytes, independently fixed by the contract.
+        ticketHash: "fe92a546cd5dfac631564876a15c23ec2aff7a266c14e265f30bc4311749486f",
+        agentId,
+        sessionKey,
+        contextServerName,
+      },
+    });
+    expect(JSON.stringify(onIssued.mock.calls)).not.toContain("opaque-ticket-secret");
+  });
+
   it("issues an N3 creation ticket for the exact M10 lead-bound draft args without changing them", async () => {
     const toolName = "m3_creer_devis";
     const businessArgs = {
