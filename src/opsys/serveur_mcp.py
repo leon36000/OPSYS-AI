@@ -459,12 +459,15 @@ def application_http_departements(
             prive.index[outil_ticket.nom] = (None, outil_ticket)
             lecture = autorite_memoire.outil_emission(cnx_factory, ident, politique_factory)
             prive.index[lecture.nom] = (None, lecture)
+            outils_prives = {"m10_paquet_contexte_affaire", outil_ticket_cible, autorite_memoire.NOM_EMISSION}
+            if ident == "m09-strategic-intelligence":
+                succes_m9 = liaison_cibles.outil_lecture_succes_m9(cnx_factory, ident)
+                prive.index[succes_m9.nom] = (None, succes_m9)
+                outils_prives.add(succes_m9.nom)
             sous_applications.append(
                 creer_serveur(
                     prive,
-                    outils_permis=frozenset({
-                        "m10_paquet_contexte_affaire", outil_ticket_cible, autorite_memoire.NOM_EMISSION,
-                    }),
+                    outils_permis=frozenset(outils_prives),
                 ).streamable_http_app(streamable_http_path=f"{CHEMIN_CONTEXTE_PREFIXE}{ident}", host=hote)
             )
     if jeton_contexte:

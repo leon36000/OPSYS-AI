@@ -99,6 +99,41 @@ comportement transparent pour les noms absents de cette configuration n'est pas 
 universelle sur les futurs outils. Python impose le ticket aux huit mutations listées,
 indépendamment de cette projection; les autres cibles exigent leurs propres raccords.
 
+## Lecture privée du succès différé M9
+
+Le contrat ajouté le 16 octobre 2026 (Toronto) est un prérequis Native du rapprochement,
+pas une complétion automatique des intentions Core. `opsys_contexte_lire_succes_m9` est un outil
+T0 uniquement enregistré sur `/mcp/contexte/m09-strategic-intelligence`, protégé par le jeton de
+contexte existant. Il est absent des routes publiques et des routes de contexte des autres
+départements. Les champs privés sont fournis par le host, jamais par un modèle.
+
+La lecture reçoit l'agent, la session, l'affaire, l'empreinte du ticket original et l'identifiant
+de demande déjà observé. Elle exige leurs correspondances exactes dans le ticket et la demande
+M9, puis la même affaire **et la même ligne de liaison M10 encore active**. Une liaison A→B
+refuse l'ancien A, même si son propriétaire natif est toujours valide; une nouvelle demande B
+peut réussir avec son propre ticket. Le lecteur n'appelle ni approbation, ni dispatcher, ni
+fonction métier. Il ne rejoue jamais un ticket, même expiré.
+
+Un reçu `schema: 1, confirme: true` exige la demande `executee`, le ticket `consomme`, les deux
+résultats enregistrés concordants et le suivi correspondant exactement à cette demande et à ses
+arguments figés. Une demande en attente, refusée ou en échec produit `confirme: false` : cela
+ne constitue **ni un succès ni un refus définitif de l'intention Core**. Une liaison invalide ou
+un journal incohérent est refusé sans renvoyer de résultat métier. Le rôle actuel de l'ancien
+approbateur n'efface pas un effet historiquement commis; la portée actuelle de lecture reste
+obligatoire.
+
+Le reçu contient seulement la version, la confirmation, l'outil, l'identifiant de demande et
+l'`instance_id` logique Native existant. L'émission d'un ticket M9 fournit aussi cet identifiant.
+Ni le ticket brut, ni son empreinte privée, ni les arguments ou la réponse métier complète ne
+sont renvoyés par le lecteur. Le Core ne doit jamais exposer cette empreinte au modèle ou à la
+console. Les anciens tickets/intents sans corrélation démontrée ne sont pas rapprochés par défaut.
+
+Une copie de base conserve son UUID : ces champs ne prouvent pas une identité physique unique
+et n'autorisent pas à fusionner des historiques divergents. Le futur consommateur Core doit
+encore définir la route/histoire Native canonique autorisée, conserver ses références avant
+l'effet et vérifier l'autorité courante avant toute conversion atomique de l'intention. Cette
+tranche reste SQLite; elle ne qualifie ni PostgreSQL, ni le parcours Core/Gateway/mobile complet.
+
 ## Sources et validation
 
 Le code de référence est `src/opsys/liaison_cibles.py`, le répartiteur `capacites.py`,

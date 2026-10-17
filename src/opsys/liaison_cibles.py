@@ -11,16 +11,19 @@ import dataclasses
 import datetime as dt
 import hashlib
 import json
+import re
 import secrets
+import uuid
 from collections.abc import Mapping
 from typing import Any
 
 from sqlalchemy import Connection, insert, select, update
 
 from . import idempotence, stockage
-from .stockage.schema import EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, LIAISONS_TICKETS
+from .stockage.schema import APPROBATIONS, EVENEMENTS_RECUS, EVENEMENTS_SORTANTS, LIAISONS_TICKETS
 
 TICKET_CIBLE_META = "opsys/cibleTicket"
+OUTIL_LECTURE_SUCCES_M9 = "opsys_contexte_lire_succes_m9"
 _LONGUEUR_MAX_TICKET = 4096
 TTL_SECONDES = 120
 
@@ -343,7 +346,10 @@ def emettre_ticket(
         outil=outil, empreinte_arguments=idempotence.empreinte_arguments(arguments),
         statut="disponible",
     ))
-    return {"ticket": jeton, "expire_le": expire_le}
+    resultat = {"ticket": jeton, "expire_le": expire_le}
+    if outil in _OUTILS_SUIVI_M9:
+        resultat["instance_id"] = _instance_native(cnx)
+    return resultat
 
 
 def verifier_ticket(
@@ -461,6 +467,147 @@ def terminer_ticket_scelle(cnx: Connection, ticket_hash: str, demande_id: str,
              consomme_le=_iso(dt.datetime.now(dt.UTC))))
     if resultat.rowcount != 1:
         raise CibleRefusee("ticket scellé invalide ou déjà utilisé")
+
+
+def _instance_native(cnx: Connection) -> str:
+    # Reuse the existing logical Native identity; a copied database keeps this UUID.
+    # It is neither physical endpoint attestation nor permission to merge forked histories.
+    from .agent_cfo_grants import instance_id
+
+    try:
+        valeur = instance_id(cnx)
+        if str(uuid.UUID(valeur)) != valeur:
+            raise ValueError("non canonical UUID")
+        return valeur
+    except (PermissionError, TypeError, ValueError, AttributeError):
+        raise CibleRefusee("identité logique Native indisponible") from None
+
+
+def _objet_journal(valeur: Any) -> dict[str, Any]:
+    # Bound parsing, not every allocation made by the database driver.
+    if not isinstance(valeur, str) or len(valeur) > 65_536:
+        raise CibleRefusee("journal de résultat invalide")
+    try:
+        resultat = json.loads(valeur)
+    except (ValueError, RecursionError):
+        raise CibleRefusee("journal de résultat invalide") from None
+    if type(resultat) is not dict:
+        raise CibleRefusee("journal de résultat invalide")
+    return resultat
+
+
+def lire_succes_m9(
+    cnx: Connection, *, departement: str, agent_id: str, cle_session: str,
+    affaire_id: str, empreinte_ticket: str, demande_id: str,
+) -> dict[str, Any]:
+    """Read one exact historical success under its still-current private M10 liaison.
+
+    No dispatcher, approval, ticket replay or business function is called. A false confirmation
+    is not a final refusal of the original operation. The caller must establish which Native
+    history its authenticated route is authorized to consult before completing any Core intent.
+    """
+    _sqlite_uniquement(cnx)
+    if (
+        departement != "m09-strategic-intelligence"
+        or not isinstance(agent_id, str) or not 1 <= len(agent_id) <= 64
+        or not isinstance(cle_session, str) or not 1 <= len(cle_session) <= 256
+        or not cle_session.startswith(f"agent:{agent_id}:")
+        or not isinstance(affaire_id, str) or not 1 <= len(affaire_id) <= 197
+        or not isinstance(empreinte_ticket, str) or re.fullmatch(r"[0-9a-f]{64}", empreinte_ticket) is None
+        or not isinstance(demande_id, str) or re.fullmatch(r"[0-9a-f]{12}", demande_id) is None
+    ):
+        raise CibleRefusee("référence privée de succès invalide")
+    ticket = cnx.execute(select(LIAISONS_TICKETS).where(
+        LIAISONS_TICKETS.c.ticket_hash == empreinte_ticket,
+        LIAISONS_TICKETS.c.demande_id == demande_id,
+    )).mappings().one_or_none()
+    if ticket is None or (
+        ticket["departement"], ticket["agent_id"], ticket["cle_session"], ticket["affaire_id"], ticket["outil"]
+    ) != (departement, agent_id, cle_session, affaire_id, "m9_ouvrir_suivi_decision"):
+        raise CibleRefusee("référence privée de succès non concordante")
+    from m10_memoire import liaison as liaison_m10
+
+    active = liaison_m10.liaison_courante(cle_session, _registre_m10())
+    if active is None or (active.get("affaire_id"), active.get("ligne_id")) != (
+        affaire_id, ticket["ligne_liaison_id"]
+    ):
+        raise CibleRefusee("liaison M10 révoquée ou remplacée")
+    demande = cnx.execute(select(APPROBATIONS).where(
+        APPROBATIONS.c.id == demande_id,
+        APPROBATIONS.c.ticket_cible_hash == empreinte_ticket,
+        APPROBATIONS.c.departement == departement,
+        APPROBATIONS.c.outil == ticket["outil"],
+    )).mappings().one_or_none()
+    if demande is None:
+        raise CibleRefusee("demande privée non concordante")
+    arguments = _objet_journal(demande["arguments"])
+    if idempotence.empreinte_arguments(arguments) != ticket["empreinte_arguments"]:
+        raise CibleRefusee("arguments privés non concordants")
+    recu = {"schema": 1, "confirme": False, "instance_id": _instance_native(cnx),
+            "demande_id": demande_id, "outil": ticket["outil"]}
+    if (demande["statut"], ticket["statut"]) in {
+        ("en_attente", "scelle"), ("en_cours", "scelle"),
+        ("refusee", "consomme"), ("echec", "consomme"),
+    }:
+        return recu
+    if (demande["statut"], ticket["statut"]) != ("executee", "consomme"):
+        raise CibleRefusee("journaux privés de succès discordants")
+    resultat = _objet_journal(demande["resultat"])
+    # Python equality conflates JSON booleans and numbers, including inside nested caches.
+    try:
+        concordants = json.dumps(resultat, sort_keys=True, allow_nan=False) == json.dumps(
+            _objet_journal(ticket["reponse"]), sort_keys=True, allow_nan=False,
+        )
+    except (ValueError, RecursionError):
+        raise CibleRefusee("journal de résultat invalide") from None
+    if not concordants:
+        raise CibleRefusee("journaux privés de succès discordants")
+    contenu = resultat.get("resultat")
+    suivi = contenu.get("suivi") if type(contenu) is dict else None
+    decision = suivi.get("decision") if type(suivi) is dict else None
+    source = suivi.get("source") if type(suivi) is dict else None
+    if (
+        resultat.get("ok") is not True or type(contenu) is not dict or contenu.get("accepte") is not True
+        or type(suivi) is not dict or type(suivi.get("schema")) is not int
+        or suivi.get("schema") != 1 or suivi.get("suivi_id") != demande_id
+        or suivi.get("statut") != "planifiee"
+        or any(suivi.get(champ) != arguments.get(champ) for champ in ("action", "responsable_id", "echeance"))
+        or type(source) is not dict
+        or any(source.get(champ) != arguments.get(champ) for champ in ("evenement_id", "empreinte_source"))
+        or type(decision) is not dict or decision.get("demande_id") != demande_id
+        or demande["decide_role"] != "nathan_owner" or not demande["decide_par"] or not demande["decide_le"]
+        or any(decision.get(champ) != demande[champ] for champ in ("decide_par", "decide_role", "decide_le"))
+    ):
+        raise CibleRefusee("succès métier M9 non confirmé")
+    # Never revalidate the old owner's present role: this is a committed historical effect.
+    return {**recu, "confirme": True}
+
+
+def outil_lecture_succes_m9(cnx_factory, departement: str):
+    """Private T0 reader; only the M9 context route registers this capability."""
+    from .outils import Autonomie, Outil
+
+    def lire(agent_id: str, cle_session: str, affaire_id: str,
+             empreinte_ticket: str, demande_id: str) -> dict[str, Any]:
+        try:
+            with cnx_factory() as cnx:
+                return lire_succes_m9(
+                    cnx, departement=departement, agent_id=agent_id, cle_session=cle_session,
+                    affaire_id=affaire_id, empreinte_ticket=empreinte_ticket, demande_id=demande_id,
+                )
+        except CibleRefusee as exc:
+            raise ValueError(f"REJ-LIAISON-SUCCES-M9: {exc}") from None
+
+    proprietes = {nom: {"type": "string", "minLength": 1, "maxLength": maximum}
+                  for nom, maximum in (("agent_id", 64), ("cle_session", 256), ("affaire_id", 197),
+                                       ("empreinte_ticket", 64), ("demande_id", 12))}
+    return Outil(
+        nom=OUTIL_LECTURE_SUCCES_M9,
+        description="Lecture privée du succès exact d'une demande M9, sans rejouer son effet.",
+        parametres={"type": "object", "properties": proprietes,
+                    "required": list(proprietes), "additionalProperties": False},
+        fonction=lire, autonomie=Autonomie.T0,
+    )
 
 
 def outil_emission(cnx_factory, departement: str):

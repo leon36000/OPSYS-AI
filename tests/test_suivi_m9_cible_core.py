@@ -514,3 +514,292 @@ def test_le_ticket_scelle_revalide_la_provenance_au_point_effet(installation, se
     with pytest.raises(liaison_cibles.CibleRefusee, match="WCT mémorisé|chaîne.*M10"):
         _approuver(installation, session, demande)
     assert _tables() == avant
+
+
+async def _lire_succes_prive(racine, arguments, attendre_succes=True):
+    http = create_mcp_http_client(headers={"Authorization": f"Bearer {JETON_CONTEXTE}"})
+    async with (
+        http,
+        streamable_http_client(racine + "/mcp/contexte/" + M9, http_client=http) as flux,
+        ClientSession(flux[0], flux[1]) as client,
+    ):
+        await client.initialize()
+        reponse = await client.call_tool("opsys_contexte_lire_succes_m9", arguments)
+        assert reponse.is_error is (not attendre_succes), "État du lecteur privé conforme au verdict attendu"
+        assert len(reponse.content) == 1 and reponse.content[0].type == "text"
+        return json.loads(reponse.content[0].text)
+
+
+def _arguments_lecture_privee(ticket, demande, suffixe="A"):
+    return {"agent_id": M9, "cle_session": CLE_SESSION,
+            "affaire_id": "lead-cible-fictif-" + suffixe,
+            "empreinte_ticket": liaison_cibles.empreinte_ticket(ticket["ticket"]),
+            "demande_id": demande["demande_id"]}
+
+
+def test_lecture_privee_succes_m9_confirme_la_demande_exacte_sans_ecriture(
+    installation, serveur_http, session, ecritures_lecture_m9,
+):
+    """Le journal natif exécuté, pas un texte de modèle, établit ce seul succès historique."""
+    from opsys.stockage.schema import OPSYS_INSTANCE
+
+    _lier()
+    arguments = _arguments()
+    ticket = _emettre(session, arguments)
+    demande = _proposer(installation, session, arguments, ticket)
+    with session() as cnx:
+        instance = cnx.execute(select(OPSYS_INSTANCE.c.instance_id)).scalar_one()
+    ecritures = ecritures_lecture_m9
+    decision = _approuver(installation, session, demande)
+    assert decision["statut"] == "executee", decision
+    assert ecritures, "Contrôle positif : le vrai propriétaire a produit des écritures natives"
+    avant = _tables()
+    nombre_avant = len(ecritures)
+    reponse = anyio.run(_lire_succes_prive, serveur_http, _arguments_lecture_privee(ticket, demande))
+    assert reponse["ok"] is True, reponse
+    assert reponse["resultat"] == {
+        "schema": 1, "confirme": True, "instance_id": instance,
+        "demande_id": demande["demande_id"], "outil": OUVRIR,
+    }
+    assert _tables() == avant
+    assert len(ecritures) == nombre_avant, "La lecture ne doit émettre aucun DML/DDL, même sans effet"
+    assert ticket["ticket"] not in json.dumps(reponse)
+    assert liaison_cibles.empreinte_ticket(ticket["ticket"]) not in json.dumps(reponse)
+
+
+@pytest.fixture
+def ecritures_lecture_m9(session):
+    from sqlalchemy import event
+
+    with session() as cnx:
+        moteur = cnx.engine
+    ecritures = []
+
+    def noter(cnx, curseur, requete, parametres, contexte_sql, plusieurs):
+        if requete.lstrip().split(maxsplit=1)[0].upper() in {
+            "INSERT", "UPDATE", "DELETE", "REPLACE", "CREATE", "ALTER", "DROP", "VACUUM", "REINDEX",
+        }:
+            ecritures.append(requete.split(maxsplit=1)[0])
+
+    event.listen(moteur, "before_cursor_execute", noter)
+    try:
+        yield ecritures
+    finally:
+        event.remove(moteur, "before_cursor_execute", noter)
+
+
+def _lire_sans_ecriture(racine, arguments, ecritures, *, succes=True):
+    avant = _tables()
+    compte = len(ecritures)
+    reponse = anyio.run(_lire_succes_prive, racine, arguments, succes)
+    assert _tables() == avant
+    assert len(ecritures) == compte
+    return reponse
+
+
+@pytest.mark.parametrize("champ,valeur", [
+    ("empreinte_ticket", "0" * 64), ("demande_id", "0" * 12),
+    ("agent_id", "m03-estimation"), ("cle_session", CLE_SESSION + "-autre"),
+    ("affaire_id", "lead-cible-fictif-B"), ("empreinte_ticket", "!" * 64),
+])
+def test_lecture_privee_succes_m9_refuse_une_reference_etrangere_sans_ecriture(
+    installation, serveur_http, session, ecritures_lecture_m9, champ, valeur,
+):
+    _lier()
+    arguments = _arguments()
+    ticket = _emettre(session, arguments)
+    demande = _proposer(installation, session, arguments, ticket)
+    assert _approuver(installation, session, demande)["statut"] == "executee"
+    lecture = {**_arguments_lecture_privee(ticket, demande), champ: valeur}
+    reponse = _lire_sans_ecriture(serveur_http, lecture, ecritures_lecture_m9, succes=False)
+    assert reponse["ok"] is False
+    assert "resultat" not in reponse
+    assert ticket["ticket"] not in json.dumps(reponse)
+    assert liaison_cibles.empreinte_ticket(ticket["ticket"]) not in json.dumps(reponse)
+    with session() as cnx:
+        assert identite.personne_active(cnx, PROPRIO) is not None
+
+
+def test_lecture_privee_succes_m9_pending_et_refus_ne_confirment_pas_un_effet(
+    installation, serveur_http, session, ecritures_lecture_m9,
+):
+    _lier()
+    arguments = _arguments()
+    ticket = _emettre(session, arguments)
+    demande = _proposer(installation, session, arguments, ticket)
+    lecture = _arguments_lecture_privee(ticket, demande)
+    pending = _lire_sans_ecriture(serveur_http, lecture, ecritures_lecture_m9)
+    assert pending["ok"] is True and pending["resultat"]["confirme"] is False
+    outils = {nom: entree[1] for nom, entree in Capacites(installation, session, memoire=False).index.items()}
+    with session() as cnx:
+        decision = approbations.decider(cnx, demande["demande_id"], False, PROPRIO, outils, installation)
+        assert decision["statut"] == "refusee"
+    refus = _lire_sans_ecriture(serveur_http, lecture, ecritures_lecture_m9)
+    assert refus["ok"] is True and refus["resultat"]["confirme"] is False
+    with session():
+        assert list(stockage.maillons(M9, "suivi_decisions")) == []
+
+
+def test_lecture_privee_succes_m9_changement_affaire_refuse_a_et_admet_le_vrai_b(
+    installation, serveur_http, session, ecritures_lecture_m9,
+):
+    _lier()
+    arguments_a = _arguments()
+    ticket_a = _emettre(session, arguments_a)
+    demande_a = _proposer(installation, session, arguments_a, ticket_a)
+    assert _approuver(installation, session, demande_a)["statut"] == "executee"
+    _lier("B")
+    ancien = _lire_sans_ecriture(
+        serveur_http, _arguments_lecture_privee(ticket_a, demande_a), ecritures_lecture_m9, succes=False,
+    )
+    assert ancien["ok"] is False and "resultat" not in ancien
+    with session() as cnx:
+        assert identite.personne_active(cnx, PROPRIO) is not None, "Le propriétaire natif demeure valide"
+    arguments_b = _arguments("B")
+    ticket_b = _emettre(session, arguments_b, "B")
+    demande_b = _proposer(installation, session, arguments_b, ticket_b)
+    assert _approuver(installation, session, demande_b)["statut"] == "executee"
+    vrai_b = _lire_sans_ecriture(
+        serveur_http, _arguments_lecture_privee(ticket_b, demande_b, "B"), ecritures_lecture_m9,
+    )
+    assert vrai_b["ok"] is True and vrai_b["resultat"]["confirme"] is True
+    assert vrai_b["resultat"]["demande_id"] == demande_b["demande_id"] != demande_a["demande_id"]
+
+
+def test_lecture_privee_succes_m9_ne_revoque_pas_un_effet_historique_deja_commis(
+    installation, serveur_http, session, ecritures_lecture_m9,
+):
+    _lier()
+    arguments = _arguments()
+    ticket = _emettre(session, arguments)
+    demande = _proposer(installation, session, arguments, ticket)
+    assert _approuver(installation, session, demande)["statut"] == "executee"
+    with session() as cnx:
+        identite.activer(cnx, PROPRIO, False)
+    historique = _lire_sans_ecriture(
+        serveur_http, _arguments_lecture_privee(ticket, demande), ecritures_lecture_m9,
+    )
+    assert historique["ok"] is True and historique["resultat"]["confirme"] is True
+
+
+@pytest.mark.parametrize("corruption", [
+    "cache_seul", "deux_caches_mauvaise_demande", "deux_caches_schema_booleen",
+    "cache_seul_schema_booleen", "cache_seul_ok_entier", "cache_seul_accepte_entier",
+])
+def test_lecture_privee_succes_m9_refuse_un_journal_incoherent(
+    installation, serveur_http, session, ecritures_lecture_m9, corruption,
+):
+    _lier()
+    arguments = _arguments()
+    ticket = _emettre(session, arguments)
+    demande = _proposer(installation, session, arguments, ticket)
+    decision = _approuver(installation, session, demande)
+    assert decision["statut"] == "executee"
+    corrompu = json.loads(json.dumps(decision["reponse"]))
+    if corruption in {"deux_caches_schema_booleen", "cache_seul_schema_booleen"}:
+        corrompu["resultat"]["suivi"]["schema"] = True
+    elif corruption == "cache_seul_ok_entier":
+        corrompu["ok"] = 1
+    elif corruption == "cache_seul_accepte_entier":
+        corrompu["resultat"]["accepte"] = 1
+    else:
+        corrompu["resultat"]["suivi"]["suivi_id"] = "0" * 12
+    with session() as cnx:
+        cnx.execute(update(LIAISONS_TICKETS).where(
+            LIAISONS_TICKETS.c.ticket_hash == liaison_cibles.empreinte_ticket(ticket["ticket"]),
+        ).values(reponse=json.dumps(corrompu)))
+        if not corruption.startswith("cache_seul"):
+            cnx.execute(update(APPROBATIONS).where(APPROBATIONS.c.id == demande["demande_id"]).values(
+                resultat=json.dumps(corrompu),
+            ))
+    reponse = _lire_sans_ecriture(
+        serveur_http, _arguments_lecture_privee(ticket, demande), ecritures_lecture_m9, succes=False,
+    )
+    assert reponse["ok"] is False and "resultat" not in reponse
+
+
+def test_ticket_m9_porte_identite_logique_sans_conserver_le_secret_brut(installation, session):
+    from opsys.stockage.schema import OPSYS_INSTANCE
+
+    _lier()
+    arguments = _arguments()
+    ticket = _emettre(session, arguments)
+    with session() as cnx:
+        instance = cnx.execute(select(OPSYS_INSTANCE.c.instance_id)).scalar_one()
+        [ligne] = cnx.execute(select(LIAISONS_TICKETS)).mappings().all()
+    assert ticket["instance_id"] == instance
+    assert ligne["ticket_hash"] == hashlib.sha256(ticket["ticket"].encode()).hexdigest()
+    assert ticket["ticket"] not in json.dumps(dict(ligne), default=str)
+
+
+@pytest.mark.parametrize("chemin", ["/mcp", "/mcp/" + M9, "/mcp/contexte/m08-analytics"])
+def test_lecture_privee_succes_m9_n_est_pas_un_outil_public_ou_d_un_autre_departement(
+    installation, serveur_http, session, ecritures_lecture_m9, chemin,
+):
+    _lier()
+    arguments = _arguments()
+    ticket = _emettre(session, arguments)
+    demande = _proposer(installation, session, arguments, ticket)
+    assert _approuver(installation, session, demande)["statut"] == "executee"
+    jeton = JETON_CONTEXTE if chemin.startswith("/mcp/contexte/") else JETON_METIER
+
+    async def scenario():
+        http = create_mcp_http_client(headers={"Authorization": f"Bearer {jeton}"})
+        async with (
+            http,
+            streamable_http_client(serveur_http + chemin, http_client=http) as flux,
+            ClientSession(flux[0], flux[1]) as client,
+        ):
+            await client.initialize()
+            noms = {outil.name for outil in (await client.list_tools()).tools}
+            assert "opsys_contexte_lire_succes_m9" not in noms
+            reponse = await client.call_tool(
+                "opsys_contexte_lire_succes_m9", _arguments_lecture_privee(ticket, demande),
+            )
+            assert reponse.is_error is True
+
+    avant, compte = _tables(), len(ecritures_lecture_m9)
+    anyio.run(scenario)
+    assert _tables() == avant and len(ecritures_lecture_m9) == compte
+
+
+def test_identite_native_absente_ne_cree_pas_ticket_m9_et_ne_confirme_pas_succes(
+    installation, serveur_http, session, ecritures_lecture_m9,
+):
+    from opsys.stockage.schema import OPSYS_INSTANCE
+
+    _lier()
+    arguments = _arguments()
+    ticket = _emettre(session, arguments)
+    demande = _proposer(installation, session, arguments, ticket)
+    assert _approuver(installation, session, demande)["statut"] == "executee"
+    with session() as cnx:
+        cnx.execute(delete(OPSYS_INSTANCE))
+    avant = _tables()
+    with pytest.raises(liaison_cibles.CibleRefusee):
+        _emettre(session, arguments)
+    assert _tables() == avant, "Une émission sans identité doit annuler son INSERT de ticket"
+    reponse = _lire_sans_ecriture(
+        serveur_http, _arguments_lecture_privee(ticket, demande), ecritures_lecture_m9, succes=False,
+    )
+    assert reponse["ok"] is False and "resultat" not in reponse
+
+
+def test_lecture_privee_succes_m9_ne_rejoue_pas_un_ticket_scelle_expire(
+    installation, serveur_http, session, ecritures_lecture_m9,
+):
+    _lier()
+    arguments = _arguments()
+    ticket = _emettre(session, arguments)
+    demande = _proposer(installation, session, arguments, ticket)
+    with session() as cnx:
+        cnx.execute(update(LIAISONS_TICKETS).where(
+            LIAISONS_TICKETS.c.ticket_hash == liaison_cibles.empreinte_ticket(ticket["ticket"]),
+        ).values(expire_le="2000-01-01T00:00:00+00:00"))
+    assert _approuver(installation, session, demande)["statut"] == "executee"
+    lecture = _arguments_lecture_privee(ticket, demande)
+    premiere = _lire_sans_ecriture(serveur_http, lecture, ecritures_lecture_m9)
+    seconde = _lire_sans_ecriture(serveur_http, lecture, ecritures_lecture_m9)
+    assert premiere == seconde and premiere["resultat"]["confirme"] is True
+    with session():
+        assert len(list(stockage.maillons(M9, "suivi_decisions"))) == 1
