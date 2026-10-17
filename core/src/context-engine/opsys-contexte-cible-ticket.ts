@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { isRecord } from "@openclaw/normalization-core/record-coerce";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import { resolveAgentIdFromSessionKey } from "../routing/session-key.js";
@@ -17,6 +18,15 @@ import { callOpsysMcpTool } from "./opsys-contexte-mcp.js";
 const PRIVATE_TOOL = "opsys_contexte_creer_ticket_cible";
 const MAX_TICKET_LIFETIME_MS = 125_000;
 
+/** Correlation with the issuing Native history, not proof of current endpoint authority. */
+export type OpsysM9CibleTicketBinding = Readonly<{
+  nativeInstanceId: string;
+  ticketHash: string;
+  agentId: string;
+  sessionKey: string;
+  contextServerName: string;
+}>;
+
 type TicketIssuer = (params: {
   config: OpenClawConfig | undefined;
   server: string;
@@ -33,6 +43,7 @@ export type OpsysCibleTicketReceipt = Readonly<{
   affaireId: string;
   serverName: string;
   toolName: string;
+  m9Binding?: OpsysM9CibleTicketBinding;
 }>;
 
 export type OpsysCibleTicketDeps = {
@@ -166,6 +177,26 @@ export async function createOpsysCibleTicketMeta(
   ) {
     throw new Error("OPSYS target ticket service returned an invalid or expired ticket");
   }
+  let m9Binding: OpsysM9CibleTicketBinding | undefined;
+  if (params.toolName === "m9_ouvrir_suivi_decision") {
+    const nativeInstanceId = payload?.instance_id;
+    if (
+      typeof nativeInstanceId !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(nativeInstanceId)
+    ) {
+      throw new Error("OPSYS M9 target ticket service returned an invalid Native instance id");
+    }
+    m9Binding = Object.freeze({
+      nativeInstanceId,
+      ticketHash: createHash("sha256").update(ticket, "utf8").digest("hex"),
+      agentId,
+      sessionKey,
+      contextServerName: contextServer,
+    });
+    if (Buffer.byteLength(JSON.stringify(m9Binding), "utf8") > 2048) {
+      throw new Error("OPSYS M9 target ticket binding exceeds the private metadata budget");
+    }
+  }
   params.onIssued?.(
     Object.freeze({
       agentId,
@@ -173,6 +204,7 @@ export async function createOpsysCibleTicketMeta(
       affaireId: state.affaireId,
       serverName: params.serverName,
       toolName: params.toolName,
+      ...(m9Binding === undefined ? {} : { m9Binding }),
     }),
   );
   return { arguments: args, meta: { "opsys/cibleTicket": ticket } };

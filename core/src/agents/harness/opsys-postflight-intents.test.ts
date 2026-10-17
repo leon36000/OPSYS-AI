@@ -50,6 +50,19 @@ function m9Intent(index = 0) {
   };
 }
 
+function boundM9Intent(index = 0) {
+  return {
+    ...m9Intent(index),
+    m9Binding: {
+      nativeInstanceId: "00000000-0000-4000-8000-000000000009",
+      ticketHash: "fe92a546cd5dfac631564876a15c23ec2aff7a266c14e265f30bc4311749486f",
+      agentId: "m09-strategic-intelligence",
+      sessionKey: "agent:m09-strategic-intelligence:webchat:direct:suivi-fictif",
+      contextServerName: "opsys_context_m09-strategic-intelligence",
+    },
+  };
+}
+
 function local() {
   const database = new DatabaseSync(":memory:");
   let denyCommit = false;
@@ -75,6 +88,160 @@ function local() {
 }
 
 describe("OPSYS durable intent owner", () => {
+  it("preserves exact M9 binding and pending metadata across reopen without enriching legacy rows", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "opsys-m9-binding-fictif-"));
+    dirs.push(dir);
+    const options = { agentId: "main", env: { OPENCLAW_STATE_DIR: dir } };
+    const database = openOpenClawAgentDatabase(options);
+    const input = boundM9Intent();
+    await reserveOpsysPostflightIntent({ database, options, intent: input, now: 1 });
+    const observation = { database, options, expected: input, requestId: "abcdef123456", now: 2 };
+    const known = await observeOpsysM9ApprovalPending(observation);
+    expect(known).toStrictEqual({
+      ...input,
+      state: "uncertain",
+      createdAt: 1,
+      approvalPendingRequestId: "abcdef123456",
+    });
+    expect(await observeOpsysM9ApprovalPending({ ...observation, now: 3 })).toStrictEqual(known);
+    const legacy = { ...m9Intent(1), affaireId: "LEAD-LEGACY-FICTIF" };
+    await reserveOpsysPostflightIntent({ database, options, intent: legacy, now: 4 });
+    await cleanupSessionStateForTest({ stateDir: dir });
+    expect(database.db.isOpen).toBe(false);
+
+    const reopened = openOpenClawAgentDatabase(options);
+    const snapshot = () =>
+      reopened.db
+        .prepare(
+          "SELECT fact_key, payload_json, state, created_at FROM opsys_postflight_intents ORDER BY fact_key",
+        )
+        .all();
+    const before = snapshot();
+    const rows = await listOpsysPostflightIntents({ database: reopened, options, now: 5 });
+    expect(rows).toHaveLength(2);
+    expect(rows).toContainEqual(known);
+    expect(rows).toContainEqual({ ...legacy, state: "uncertain", createdAt: 4 });
+    expect(snapshot()).toEqual(before);
+    expect(JSON.stringify(before)).not.toContain("opaque-ticket-secret");
+    expect(reopened.db.prepare("SELECT COUNT(*) AS n FROM opsys_postflight_outbox").get()?.n).toBe(
+      0,
+    );
+    await expect(
+      reserveOpsysPostflightIntent({
+        database: reopened,
+        options,
+        intent: { ...boundM9Intent(2), affaireId: legacy.affaireId },
+        now: 6,
+      }),
+    ).rejects.toThrow("POSTFLIGHT_UNRESOLVED_INTENT");
+  });
+
+  it("compares the complete M9 binding and rolls back pending enrichment and failed fact capture", () => {
+    const s = local();
+    try {
+      const input = boundM9Intent();
+      s.backend.execute({ type: "reserveIntent", input: { intent: input, now: 1 } });
+      const before = s.backend.execute({ type: "listIntents", input: { now: 2 } });
+      const divergentBindings = [
+        { ...input.m9Binding, nativeInstanceId: "00000000-0000-4000-8000-000000000008" },
+        { ...input.m9Binding, ticketHash: "b".repeat(64) },
+        { ...input.m9Binding, contextServerName: "opsys_context_m09-alternate-fictif" },
+        {
+          ...input.m9Binding,
+          sessionKey: "agent:m09-strategic-intelligence:webchat:direct:autre-fictif",
+        },
+        {
+          ...input.m9Binding,
+          agentId: "m09-strategic-intelligence-alt",
+          sessionKey: "agent:m09-strategic-intelligence-alt:webchat:direct:suivi-fictif",
+        },
+      ];
+      for (const m9Binding of divergentBindings) {
+        const expected = { ...input, m9Binding };
+        expect(() =>
+          s.backend.execute({
+            type: "observeM9ApprovalPending",
+            input: { expected, requestId: "abcdef123456", now: 2 },
+          }),
+        ).toThrow("POSTFLIGHT_INTENT_MISMATCH");
+        expect(() =>
+          s.backend.execute({
+            type: "completeIntent",
+            input: { expected, fact: fact(input), now: 2 },
+          }),
+        ).toThrow("POSTFLIGHT_INTENT_MISMATCH");
+      }
+      expect(s.backend.execute({ type: "listIntents", input: { now: 3 } })).toEqual(before);
+      const pending = { expected: input, requestId: "abcdef123456", now: 4 };
+      s.deny();
+      expect(() => s.backend.execute({ type: "observeM9ApprovalPending", input: pending })).toThrow(
+        "SYNTHETIC_COMMIT_REVOKED",
+      );
+      s.allow();
+      expect(s.backend.execute({ type: "listIntents", input: { now: 5 } })).toEqual(before);
+      s.backend.execute({ type: "observeM9ApprovalPending", input: pending });
+      const enriched = s.backend.execute({ type: "listIntents", input: { now: 6 } });
+      // Fail after intent deletion, at the real outbox INSERT, inside the existing transaction.
+      s.database.exec(`
+        CREATE TEMP TRIGGER refuse_binding_capture_fictif
+        BEFORE INSERT ON opsys_postflight_outbox
+        BEGIN SELECT RAISE(ABORT, 'FICTIF_OUTBOX_INSERT_REFUSED'); END;
+      `);
+      expect(() =>
+        s.backend.execute({
+          type: "completeIntent",
+          input: { expected: input, fact: fact(input), now: 7 },
+        }),
+      ).toThrow("FICTIF_OUTBOX_INSERT_REFUSED");
+      expect(s.backend.execute({ type: "listIntents", input: { now: 8 } })).toEqual(enriched);
+      expect(s.backend.execute({ type: "list", input: { now: 8 } })).toEqual([]);
+      s.backend.assertSettled?.();
+      s.database.exec("DROP TRIGGER refuse_binding_capture_fictif");
+      const captured = s.backend.execute({
+        type: "completeIntent",
+        input: { expected: input, fact: fact(input), now: 9 },
+      });
+      expect(captured).toMatchObject({ facts: [fact(input)] });
+      expect(JSON.stringify(captured)).not.toContain(input.m9Binding.ticketHash);
+      expect(s.backend.execute({ type: "listIntents", input: { now: 10 } })).toEqual([]);
+    } finally {
+      s.database.close();
+    }
+  });
+
+  it("refuses malformed, oversized, secret-bearing and non-M9 bindings without inserting an intent", () => {
+    const s = local();
+    try {
+      const input = boundM9Intent();
+      const invalid = [
+        { ...input, m9Binding: { ...input.m9Binding, nativeInstanceId: "not-a-uuid" } },
+        {
+          ...input,
+          m9Binding: { ...input.m9Binding, ticketHash: input.m9Binding.ticketHash.toUpperCase() },
+        },
+        { ...input, m9Binding: { ...input.m9Binding, ticket: "raw-fictif-ne-pas-garder" } },
+        { ...input, m9Binding: { ...input.m9Binding, sessionKey: 7 } },
+        {
+          ...input,
+          m9Binding: {
+            ...input.m9Binding,
+            sessionKey: `agent:m09-strategic-intelligence:main:${"x".repeat(2048)}`,
+          },
+        },
+        { ...intent(), m9Binding: input.m9Binding },
+      ];
+      for (const value of invalid) {
+        expect(() =>
+          s.backend.execute({ type: "reserveIntent", input: { intent: value, now: 1 } }),
+        ).toThrow("POSTFLIGHT_INTENT_VALUE_REFUSE");
+      }
+      expect(s.backend.execute({ type: "listIntents", input: { now: 2 } })).toEqual([]);
+      expect(s.backend.execute({ type: "list", input: { now: 2 } })).toEqual([]);
+    } finally {
+      s.database.close();
+    }
+  });
+
   it("fences a fresh related M9 opening after reopen and preserves unrelated affairs", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "opsys-m9-unknown-"));
     dirs.push(dir);

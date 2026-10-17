@@ -192,6 +192,14 @@ describe("createOpsysCibleTicketMeta", () => {
           levels: new Map([[toolName, "N3"]]),
           targets: new Map([[toolName, { kind: "ticket" }]]),
         }),
+        response: {
+          ok: true,
+          resultat: {
+            ticket: "opaque-ticket-secret",
+            expire_le: new Date(NOW + 120_000).toISOString(),
+            instance_id: "00000000-0000-4000-8000-000000000009",
+          },
+        },
       });
       const argumentsM9 = {
         evenement_id: "alerte-m8-fictive",
@@ -290,7 +298,103 @@ describe("createOpsysCibleTicketMeta", () => {
       },
     });
     expect(JSON.stringify(onIssued.mock.calls)).not.toContain("opaque-ticket-secret");
+    expect(Object.isFrozen(onIssued.mock.calls[0]?.[0])).toBe(true);
+    expect(Object.isFrozen(onIssued.mock.calls[0]?.[0]?.m9Binding)).toBe(true);
+
+    // This independent non-ASCII fixture distinguishes UTF-8 from legacy byte encodings.
+    const unicodeTicket = "ticket-fictif-é-🔒";
+    callTool.mockResolvedValueOnce({
+      ok: true,
+      resultat: {
+        ticket: unicodeTicket,
+        expire_le: new Date(NOW + 120_000).toISOString(),
+        instance_id: nativeInstanceId,
+      },
+    });
+    const onUnicodeIssued = vi.fn();
+    await expect(
+      createOpsysCibleTicketMeta(
+        { ...params, toolParams: argumentsM9, onIssued: onUnicodeIssued },
+        deps,
+      ),
+    ).resolves.toStrictEqual({
+      arguments: argumentsM9,
+      meta: { "opsys/cibleTicket": unicodeTicket },
+    });
+    expect(onUnicodeIssued).toHaveBeenCalledExactlyOnceWith({
+      agentId,
+      sessionKey,
+      affaireId: "LEAD-001",
+      serverName: "opsys_m9",
+      toolName,
+      m9Binding: {
+        nativeInstanceId,
+        ticketHash: "312dbfaa1ee110f94ef488a13f97ce91e765ca0edd0aa8d09cc1a6f6a10b83e9",
+        agentId,
+        sessionKey,
+        contextServerName,
+      },
+    });
+    expect(JSON.stringify(onUnicodeIssued.mock.calls)).not.toContain(unicodeTicket);
   });
+
+  it.each([
+    {
+      nativeInstanceId: undefined,
+      issuer: "private-m9-fictif",
+      reason: "invalid Native instance id",
+    },
+    { nativeInstanceId: null, issuer: "private-m9-fictif", reason: "invalid Native instance id" },
+    { nativeInstanceId: 7, issuer: "private-m9-fictif", reason: "invalid Native instance id" },
+    {
+      nativeInstanceId: "not-a-uuid",
+      issuer: "private-m9-fictif",
+      reason: "invalid Native instance id",
+    },
+    {
+      nativeInstanceId: "00000000-0000-4000-8000-00000000000A",
+      issuer: "private-m9-fictif",
+      reason: "invalid Native instance id",
+    },
+    {
+      nativeInstanceId: "00000000-0000-4000-8000-000000000009",
+      issuer: `private-m9-fictif-${"x".repeat(2048)}`,
+      reason: "exceeds the private metadata budget",
+    },
+  ])(
+    "refuses invalid M9 binding metadata before publishing a receipt: $reason ($nativeInstanceId)",
+    async ({ nativeInstanceId, issuer, reason }) => {
+      const agentId = "m09-strategic-intelligence";
+      const toolName = "m9_ouvrir_suivi_decision";
+      const sessionKey = `agent:${agentId}:webchat:direct:suivi-fictif`;
+      const { params, deps, callTool } = setup({
+        serverName: "opsys_m9",
+        toolName,
+        sessionKey,
+        config: config({
+          agents: new Map([[agentId, []]]),
+          affaireFromSession: new Set([agentId]),
+          contextServers: new Map([[agentId, issuer]]),
+          levels: new Map([[toolName, "N3"]]),
+          targets: new Map([[toolName, { kind: "ticket" }]]),
+        }),
+        response: {
+          ok: true,
+          resultat: {
+            ticket: "opaque-ticket-secret",
+            expire_le: new Date(NOW + 120_000).toISOString(),
+            instance_id: nativeInstanceId,
+          },
+        },
+      });
+      const onIssued = vi.fn();
+      await expect(createOpsysCibleTicketMeta({ ...params, onIssued }, deps)).rejects.toThrow(
+        reason,
+      );
+      expect(callTool).toHaveBeenCalledOnce();
+      expect(onIssued).not.toHaveBeenCalled();
+    },
+  );
 
   it("issues an N3 creation ticket for the exact M10 lead-bound draft args without changing them", async () => {
     const toolName = "m3_creer_devis";
