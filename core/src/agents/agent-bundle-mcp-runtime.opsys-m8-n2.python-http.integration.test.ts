@@ -278,17 +278,17 @@ async function withProductionLease<T>(
   const acquisition = await acquireSessionMcpRuntime(params);
   const { runtime } = acquisition;
   let outcome: { value: T } | undefined;
-  let leasesAfterRelease = -1;
+  let leasesAfterRelease: number;
   try {
+    if (!runtime.joinCleanup) {
+      throw new Error("production MCP runtime exposes no cleanup ownership");
+    }
     outcome = { value: await effect(runtime, activeLeases) };
   } finally {
     await releaseSessionMcpRuntime(acquisition);
     leasesAfterRelease = activeLeases();
     await manager.disposeSession(params.sessionId);
-    if (!runtime.joinCleanup) {
-      throw new Error("production MCP runtime exposes no cleanup ownership");
-    }
-    await runtime.joinCleanup();
+    await runtime.joinCleanup?.();
   }
   expect(leasesAfterRelease).toBe(0);
   if (!outcome) {
