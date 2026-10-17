@@ -220,6 +220,7 @@ jobs:
       - name: Tests du département ${{ matrix.dossier }}
         run: >-
           python -m pytest "departments/${{ matrix.dossier }}/tests" -q --import-mode=importlib -p no:cacheprovider
+          ${{ matrix.dossier == 'm03-estimation' && '-rA' || '' }}
           ${{ matrix.dossier == 'm03-estimation' && format('--deselect {0} --deselect {1}',
           'departments/m03-estimation/tests/test_gardes_des_outils.py',
           'departments/m03-estimation/tests/test_outils_de_preuve.py') || '' }}

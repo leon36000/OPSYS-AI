@@ -22,9 +22,12 @@ Données FICTIVES.
 
 from __future__ import annotations
 
+import copy
 import datetime as dt
+import hashlib
 import json
 import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -98,9 +101,7 @@ def test_reponse_n4_perdue_apres_commit_nouveau_processus_garde_t0_lignee_et_un_
     # 3. B : autre processus OS, même base, même propriétaire toujours actif et légitime.
     b_id = obs["b_demarre"]
     assert (b_id["pid"], b_id["ticks"]) != (a_id["pid"], a_id["ticks"]) and b_id["ticks"] == obs["b_ticks_parent"]
-    depot = processus.RACINE_DEPOT
-    for source in (a_id["source"], b_id["source"]):
-        assert Path(source["opsys"]).is_relative_to(depot / "src") and Path(source["m3"]).is_relative_to(depot)
+    processus.controler_provenance_sources((a_id["source"], b_id["source"]), obs["sources_attendues"])
     assert obs["b_reconstruit"]["proprietaire_actif"] is True
     assert {"admin", "nathan_owner"} <= set(obs["b_reconstruit"]["roles"])
 
@@ -199,3 +200,97 @@ def test_negatif_copie_jetable_doublon_ou_date_lead_recalcules_est_rejetee(scena
             "quatre champs temporels cohérents, différents du T0 fixé avant la perte")
     # La base du scénario n'est jamais touchée par le contrôle négatif.
     assert processus.controler_cible_a(processus.temoin_lecture_seule(scenario["chemin_db"]), oracle, livre=True) == []
+
+
+# -- Provenance des sources (contrôles purs, sans processus) ----------------------------------------------------
+_FICHIERS_M3 = {"__init__.py": "M3 = 1\n", "outils.py": "OUTILS = 1\n", "devis_durable.py": "DURABLE = 1\n"}
+
+
+def _sha(chemin):
+    return hashlib.sha256(chemin.read_bytes()).hexdigest()
+
+
+def _provenance_valide(tmp_path):
+    """Dépôt d'origine + copie M3 stricte dont `src/` est un lien vers le socle d'origine (motif de la copie de
+    mutation). Attentes par le vrai constructeur ; reçu construit ICI, indépendamment ; la paire est acceptée."""
+    racine = tmp_path.resolve()
+    origine, copie_depot = racine / "origine", racine / "copie"
+    (origine / "src" / "opsys").mkdir(parents=True)
+    (origine / "src" / "opsys" / "__init__.py").write_text("SOCLE = 1\n")
+    for depot in (origine, copie_depot):
+        m3 = depot / "departments" / DEP / "src" / "m3_estimation"
+        m3.mkdir(parents=True)
+        for nom, texte in _FICHIERS_M3.items():
+            (m3 / nom).write_text(texte)
+    (copie_depot / "src").symlink_to(origine / "src", target_is_directory=True)
+    m3_src = copie_depot / "departments" / DEP / "src"
+    attendues = processus.sources_attendues(m3_src, copie_depot / "src")
+    fichiers = {"opsys": origine / "src" / "opsys" / "__init__.py",
+                "m3_estimation": m3_src / "m3_estimation" / "__init__.py",
+                "m3_estimation.outils": m3_src / "m3_estimation" / "outils.py",
+                "m3_estimation.devis_durable": m3_src / "m3_estimation" / "devis_durable.py"}
+    recu = {"version": 1,
+            "roots": {"m3_declared": str(m3_src), "shared_src_declared": str(copie_depot / "src"),
+                      "shared_src_resolved": str(origine / "src")},
+            "modules": {nom: {"path": str(chemin), "sha256": _sha(chemin)} for nom, chemin in fichiers.items()}}
+    assert processus.controler_provenance_sources((recu, copy.deepcopy(recu)), attendues) is None
+    return attendues, recu, origine
+
+
+def test_provenance_refuse_m3_original_hors_copie(tmp_path):
+    """M3 chargé depuis le dépôt d'origine (MÊMES octets) alors que la copie mutée est attendue : refusé."""
+    attendues, recu, origine = _provenance_valide(tmp_path)
+    original = origine / "departments" / DEP / "src" / "m3_estimation" / "outils.py"
+    fautif = copy.deepcopy(recu)
+    fautif["modules"]["m3_estimation.outils"]["path"] = str(original)
+    assert fautif["modules"]["m3_estimation.outils"]["sha256"] == _sha(original)
+    with pytest.raises(processus.ProvenanceIncoherente, match="^M3_HORS_COPIE"):
+        processus.controler_provenance_sources((recu, fautif), attendues)
+
+
+def test_provenance_refuse_opsys_installe_hors_socle_declare(tmp_path):
+    """`opsys` installé (site-packages, MÊMES octets) hors du socle déclaré résolu : refusé."""
+    attendues, recu, origine = _provenance_valide(tmp_path)
+    installe = tmp_path.resolve() / "venv" / "site-packages" / "opsys" / "__init__.py"
+    installe.parent.mkdir(parents=True)
+    shutil.copyfile(origine / "src" / "opsys" / "__init__.py", installe)
+    fautif = copy.deepcopy(recu)
+    fautif["modules"]["opsys"]["path"] = str(installe)
+    assert fautif["modules"]["opsys"]["sha256"] == _sha(installe)
+    with pytest.raises(processus.ProvenanceIncoherente, match="^OPSYS_HORS_SOCLE"):
+        processus.controler_provenance_sources((fautif, recu), attendues)
+
+
+def test_provenance_refuse_module_empreinte_modifiee(tmp_path):
+    """Même chemin attendu, empreinte différente de celle capturée par le parent : refusé."""
+    attendues, recu, _ = _provenance_valide(tmp_path)
+    fautif = copy.deepcopy(recu)
+    fautif["modules"]["m3_estimation.devis_durable"]["sha256"] = hashlib.sha256(b"DURABLE = 2\n").hexdigest()
+    with pytest.raises(processus.ProvenanceIncoherente, match="^EMPREINTE_MODIFIEE"):
+        processus.controler_provenance_sources((recu, fautif), attendues)
+
+
+@pytest.mark.parametrize("faute", [
+    "ancien_recu_chemins", "liste_de_chemins", "version_booleenne", "modules_liste", "sha256_non_hex",
+    "racine_manquante", "attentes_liste",
+])
+def test_provenance_refuse_schema_invalide(tmp_path, faute):
+    """Une seule faute de schéma par cas (ancien reçu `{opsys, m3}`, list[str], types) : refusé, jamais toléré."""
+    attendues, recu, _ = _provenance_valide(tmp_path)
+    fautif, attendu = copy.deepcopy(recu), attendues
+    if faute == "ancien_recu_chemins":
+        fautif = {"opsys": recu["modules"]["opsys"]["path"], "m3": recu["modules"]["m3_estimation"]["path"]}
+    elif faute == "liste_de_chemins":
+        fautif = [entree["path"] for entree in recu["modules"].values()]
+    elif faute == "version_booleenne":
+        fautif["version"] = True
+    elif faute == "modules_liste":
+        fautif["modules"] = list(recu["modules"].values())
+    elif faute == "sha256_non_hex":
+        fautif["modules"]["opsys"]["sha256"] = "Z" * 64
+    elif faute == "racine_manquante":
+        del fautif["roots"]["shared_src_resolved"]
+    else:
+        attendu = list(attendues["modules"].values())
+    with pytest.raises(processus.ProvenanceIncoherente, match="^SCHEMA"):
+        processus.controler_provenance_sources((recu, fautif), attendu)

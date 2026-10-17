@@ -22,9 +22,12 @@ from __future__ import annotations
 
 import contextlib
 import datetime as dt
+import hashlib
+import importlib
 import json
 import os
 import queue
+import re
 import sqlite3
 import subprocess
 import sys
@@ -84,6 +87,10 @@ class ArretDemande(RuntimeError):
     """STOP explicite ou EOF de stdin : le processus possédé s'arrête sans rien écrire de plus."""
 
 
+class ProvenanceIncoherente(AssertionError):
+    """Sources d'un enfant hors des racines déclarées ou d'empreinte différente : jamais un verdict métier."""
+
+
 # -- identité de processus --------------------------------------------------------------------------------
 def ticks_demarrage(pid: int) -> int | None:
     """Instant de démarrage (`/proc/<pid>/stat`, champ 22) ; None si le processus n'existe plus."""
@@ -98,13 +105,106 @@ def identite_courante() -> dict[str, int]:
     return {"pid": os.getpid(), "ticks": ticks_demarrage(os.getpid())}
 
 
-def source_chargee() -> dict[str, str]:
-    """Fichiers réellement importés par l'enfant : le socle et M3 de CE dépôt, pas une copie installée."""
-    import m3_estimation
+def source_chargee() -> dict[str, Any]:
+    """Reçu de l'enfant : racines déclarées depuis CE fichier, puis chaque module M3/socle réellement chargé (chemin
+    résolu + SHA-256), après import des vrais `outils` et `devis_durable` — pas le seul `__init__`."""
+    for nom in _MODULES_EXIGES:
+        importlib.import_module(nom)
+    modules = {}
+    for nom, module in sorted(sys.modules.items()):
+        if nom.partition(".")[0] not in (_PAQUET_M3, _PAQUET_SOCLE):
+            continue
+        fichier = getattr(module, "__file__", None)
+        chemin = Path(fichier).resolve(strict=True) if fichier else None
+        modules[nom] = {"path": str(chemin or ""), "sha256": _empreinte(chemin) if chemin else ""}
+    return {"version": PROVENANCE_VERSION, "roots": racines_declarees(RACINE_M3 / "src", RACINE_DEPOT / "src"),
+            "modules": modules}
 
-    import opsys
 
-    return {"opsys": str(Path(opsys.__file__).resolve()), "m3": str(Path(m3_estimation.__file__).resolve())}
+# -- provenance : M3 copie stricte, socle partagé déclaré (lexical + résolu), empreintes ---------------------------
+PROVENANCE_VERSION = 1
+_PAQUET_M3, _PAQUET_SOCLE = "m3_estimation", "opsys"
+_MODULES_EXIGES = ("opsys", "m3_estimation", "m3_estimation.outils", "m3_estimation.devis_durable")
+_CLES_RACINES = {"m3_declared", "shared_src_declared", "shared_src_resolved"}
+
+
+def _empreinte(chemin: Path) -> str:
+    return hashlib.sha256(chemin.read_bytes()).hexdigest()
+
+
+def racines_declarees(racine_m3_src: Path, socle_src: Path) -> dict[str, str]:
+    """Racines DÉCLARÉES, jamais déduites du module chargé : `src` de M3 doit être un vrai dossier (copie stricte,
+    pas un lien) ; le socle garde son chemin logique et sa cible réelle (`resolve(strict=True)`)."""
+    racine_m3_src, socle_src = Path(racine_m3_src).absolute(), Path(socle_src).absolute()
+    if racine_m3_src.resolve(strict=True) != racine_m3_src:
+        raise ProvenanceIncoherente(f"M3_NON_STRICT : {racine_m3_src} passe par un lien")
+    return {"m3_declared": str(racine_m3_src), "shared_src_declared": str(socle_src),
+            "shared_src_resolved": str(socle_src.resolve(strict=True))}
+
+
+def _modules_sous(racine: Path, paquet: str) -> dict[str, dict[str, str]]:
+    modules = {}
+    for fichier in sorted((racine / paquet).rglob("*.py")):
+        parties = fichier.relative_to(racine).with_suffix("").parts
+        nom = ".".join(parties[:-1] if parties[-1] == "__init__" else parties)
+        modules[nom] = {"path": str(fichier.resolve(strict=True)), "sha256": _empreinte(fichier)}
+    return modules
+
+
+def sources_attendues(racine_m3_src: Path, socle_src: Path) -> dict[str, Any]:
+    """Attentes du PARENT, capturées depuis les racines déclarées (même schéma que le reçu de l'enfant)."""
+    racines = racines_declarees(racine_m3_src, socle_src)
+    return {"version": PROVENANCE_VERSION, "roots": racines, "modules": {
+        **_modules_sous(Path(racines["shared_src_resolved"]), _PAQUET_SOCLE),
+        **_modules_sous(Path(racines["m3_declared"]), _PAQUET_M3)}}
+
+
+def _chemin_valide(valeur: Any) -> bool:
+    return isinstance(valeur, str) and Path(valeur).is_absolute() and ".." not in Path(valeur).parts
+
+
+def _valider_recu(recu: Any, quoi: str) -> None:
+    """Schéma exact (dict version 1 / roots / modules[nom] = {path, sha256}) et confinement aux racines."""
+    if not isinstance(recu, dict) or set(recu) != {"version", "roots", "modules"}:
+        raise ProvenanceIncoherente(f"SCHEMA : {quoi} n'est pas un dict {{version, roots, modules}} : {recu!r}")
+    racines, modules = recu["roots"], recu["modules"]
+    if type(recu["version"]) is not int or recu["version"] != PROVENANCE_VERSION:
+        raise ProvenanceIncoherente(f"SCHEMA : {quoi}, version {recu['version']!r}")
+    if not isinstance(racines, dict) or set(racines) != _CLES_RACINES or not all(map(_chemin_valide, racines.values())):
+        raise ProvenanceIncoherente(f"SCHEMA : {quoi}, racines {racines!r}")
+    if not isinstance(modules, dict) or not modules:
+        raise ProvenanceIncoherente(f"SCHEMA : {quoi}, modules {modules!r}")
+    confinement = {_PAQUET_M3: ("M3_HORS_COPIE", racines["m3_declared"]),
+                   _PAQUET_SOCLE: ("OPSYS_HORS_SOCLE", racines["shared_src_resolved"])}
+    for nom, entree in modules.items():
+        if not (isinstance(nom, str) and nom.partition(".")[0] in confinement and isinstance(entree, dict)
+                and set(entree) == {"path", "sha256"} and _chemin_valide(entree["path"])
+                and isinstance(entree["sha256"], str) and re.fullmatch("[0-9a-f]{64}", entree["sha256"])):
+            raise ProvenanceIncoherente(f"SCHEMA : {quoi}, module {nom!r} : {entree!r}")
+        code, racine = confinement[nom.partition(".")[0]]
+        if not Path(entree["path"]).is_relative_to(racine):
+            raise ProvenanceIncoherente(f"{code} : {quoi}, {nom} chargé depuis {entree['path']}, hors de {racine}")
+
+
+def controler_provenance_sources(sources: Any, attendues: Any) -> None:
+    """Lève `ProvenanceIncoherente` si un reçu d'enfant diffère des attentes du parent (schéma, racines, chemin
+    résolu ou SHA-256 d'un module chargé, modules exigés absents) ; ne rend rien sinon."""
+    _valider_recu(attendues, "attentes du parent")
+    if not isinstance(sources, (tuple, list)) or not sources:
+        raise ProvenanceIncoherente(f"SCHEMA : reçus d'enfants {sources!r}")
+    for rang, recu in enumerate(sources):
+        quoi = f"reçu d'enfant n°{rang}"
+        _valider_recu(recu, quoi)
+        if recu["roots"] != attendues["roots"]:
+            raise ProvenanceIncoherente(f"RACINES : {quoi} {recu['roots']} != {attendues['roots']}")
+        if absents := [nom for nom in _MODULES_EXIGES if nom not in recu["modules"]]:
+            raise ProvenanceIncoherente(f"MODULES_ABSENTS : {quoi} {absents}")
+        for nom, entree in recu["modules"].items():
+            attendu = attendues["modules"].get(nom)
+            if attendu is None or attendu["path"] != entree["path"]:
+                raise ProvenanceIncoherente(f"MODULE_NON_ATTENDU : {quoi}, {nom} chargé depuis {entree['path']}")
+            if attendu["sha256"] != entree["sha256"]:
+                raise ProvenanceIncoherente(f"EMPREINTE_MODIFIEE : {quoi}, {nom} ({entree['path']})")
 
 
 # -- protocole enfant -----------------------------------------------------------------------------------
@@ -688,6 +788,12 @@ def executer_scenario(dossier: Path) -> dict[str, Any]:
     chemin_db = dossier / "opsys-postcommit-fictif.db"
     echeance = time.monotonic() + DELAI_GLOBAL_S
     obs: dict[str, Any] = {"chemin_db": chemin_db, "uri_temoin": "mode=ro"}
+    # La copie attendue est celle du test qui pilote : ce module doit être à côté de lui, pas un M3 d'origine.
+    pilote = Path(sys._getframe(1).f_code.co_filename).resolve()
+    if pilote.parent != _TESTS:
+        raise ProvenanceIncoherente(f"M3_HORS_COPIE : aide {_TESTS} hors du dossier du test pilote {pilote}")
+    # Attentes de provenance capturées AVANT A/B depuis les racines déclarées, revérifiées après B.
+    obs["sources_attendues"] = sources_attendues(RACINE_M3 / "src", RACINE_DEPOT / "src")
     possedes: list[ProcessusPossede] = []
     try:
         a = ProcessusPossede("A", dossier, chemin_db, echeance)
@@ -724,6 +830,8 @@ def executer_scenario(dossier: Path) -> dict[str, Any]:
         b.ordonner("FIN")
         obs["b_fin"] = b.attendre("fin")
         obs["b_rc"] = b.joindre()
+        if sources_attendues(RACINE_M3 / "src", RACINE_DEPOT / "src") != obs["sources_attendues"]:
+            raise ProvenanceIncoherente("EMPREINTE_MODIFIEE : sources M3/socle changées entre capture et fin de B")
         obs["etat_rouvert"] = temoin_lecture_seule(chemin_db)
         obs["oracle"] = oracle
         return obs
