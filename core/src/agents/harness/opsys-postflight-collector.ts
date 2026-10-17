@@ -225,6 +225,17 @@ export class OpsysPostflightCollector {
       ) {
         throw new Error("OPSYS postflight requires the exact private target before reservation");
       }
+      const binding = params.toolName === "m9_ouvrir_suivi_decision" ? target.m9Binding : undefined;
+      if (
+        params.toolName === "m9_ouvrir_suivi_decision" &&
+        (!binding || binding.agentId !== target.agentId || binding.sessionKey !== target.sessionKey)
+      ) {
+        throw new Error(
+          "OPSYS postflight requires the exact private M9 binding before reservation",
+        );
+      }
+      // Snapshot before awaiting the worker: callers cannot replace retained metadata mid-reserve.
+      const m9Binding = binding === undefined ? undefined : Object.freeze({ ...binding });
       this.#usedCallIds.add(params.toolCallId);
       this.#reservedFacts += 1;
       reserved = true;
@@ -252,6 +263,7 @@ export class OpsysPostflightCollector {
             "utf8",
           )
           .digest("hex"),
+        ...(m9Binding === undefined ? {} : { m9Binding }),
       });
       try {
         await reserveOpsysPostflightIntent({

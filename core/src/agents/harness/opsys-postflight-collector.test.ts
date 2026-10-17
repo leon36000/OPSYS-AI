@@ -39,6 +39,21 @@ const target = {
   serverName: "opsys_m3",
   toolName: "m3_creer_devis",
 };
+
+function boundM9Target() {
+  return {
+    ...target,
+    toolName: "m9_ouvrir_suivi_decision",
+    serverName: "opsys_m9",
+    m9Binding: {
+      nativeInstanceId: "00000000-0000-4000-8000-000000000009",
+      ticketHash: "fe92a546cd5dfac631564876a15c23ec2aff7a266c14e265f30bc4311749486f",
+      agentId: target.agentId,
+      sessionKey: target.sessionKey,
+      contextServerName: "opsys_context_m03-estimation",
+    },
+  };
+}
 const success: CallToolResult = {
   content: [{ type: "text", text: JSON.stringify({ ok: true, resultat: { devis_id: "D-1" } }) }],
 };
@@ -430,9 +445,76 @@ describe("OPSYS postflight lifecycle handoff", () => {
 });
 
 describe("OPSYS durable reservation before source effect", () => {
+  it("snapshots the exact private M9 binding before awaiting durable reservation", async () => {
+    const m9Target = boundM9Target();
+    const expectedBinding = { ...m9Target.m9Binding };
+    const { collector } = setup({ depositTools: [m9Target.toolName] });
+    await collector.prepareBeforeProviderDispatch();
+    const observer = collector.beginToolCall({
+      toolCallId: "m9-binding-snapshot-fictif",
+      toolName: m9Target.toolName,
+      serverName: m9Target.serverName,
+    });
+    expect(observer).toBeDefined();
+    let release = () => {};
+    const barrier = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    mocks.reserve.mockImplementationOnce(async (params) => {
+      await barrier;
+      return { ...params.intent, state: "uncertain", createdAt: params.now };
+    });
+    const pending = observer?.assertBeforeEffect(m9Target);
+    m9Target.m9Binding.ticketHash = "b".repeat(64);
+    release();
+    await pending;
+
+    expect(mocks.reserve).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        intent: expect.objectContaining({
+          affaireId: m9Target.affaireId,
+          outil: m9Target.toolName,
+          m9Binding: expectedBinding,
+        }),
+      }),
+    );
+    const reserved = mocks.reserve.mock.calls[0]?.[0]?.intent;
+    expect(Object.isFrozen(reserved?.m9Binding)).toBe(true);
+    expect(JSON.stringify(reserved)).not.toContain("opaque-ticket-secret");
+  });
+
+  it.each(["absent", "cross-agent", "cross-session"])(
+    "refuses an %s M9 binding before durable reservation or source effect",
+    async (variant) => {
+      const valid = boundM9Target();
+      const m9Binding =
+        variant === "absent"
+          ? undefined
+          : {
+              ...valid.m9Binding,
+              ...(variant === "cross-agent" ? { agentId: "other-fictif" } : {}),
+              ...(variant === "cross-session" ? { sessionKey: "agent:m03-estimation:other" } : {}),
+            };
+      const { collector } = setup({ depositTools: [valid.toolName] });
+      await collector.prepareBeforeProviderDispatch();
+      const observer = collector.beginToolCall({
+        toolCallId: "m9-binding-invalid-fictif",
+        toolName: valid.toolName,
+        serverName: valid.serverName,
+      });
+      expect(observer).toBeDefined();
+      await expect(observer?.assertBeforeEffect({ ...valid, m9Binding })).rejects.toThrow(
+        "exact private M9 binding",
+      );
+      expect(mocks.reserve).not.toHaveBeenCalled();
+      expect(mocks.complete).not.toHaveBeenCalled();
+      expect(mocks.observePending).not.toHaveBeenCalled();
+    },
+  );
+
   it("records only a received native M9 pending request and keeps the live uncertainty fence", async () => {
     const tool = "m9_ouvrir_suivi_decision";
-    const m9Target = { ...target, toolName: tool, serverName: "opsys_m9" };
+    const m9Target = boundM9Target();
     const { collector } = setup({ depositTools: [tool] });
     await collector.prepareBeforeProviderDispatch();
     const observer = collector.beginToolCall({
@@ -462,6 +544,7 @@ describe("OPSYS durable reservation before source effect", () => {
         expected: expect.objectContaining({
           factKey: depositKey("session-1", "m9-pending"),
           outil: tool,
+          m9Binding: m9Target.m9Binding,
         }),
         requestId: "abcdef123456",
       }),
@@ -496,7 +579,7 @@ describe("OPSYS durable reservation before source effect", () => {
     },
   ])("does not release M9 uncertainty for $title", async ({ isError, body }) => {
     const tool = "m9_ouvrir_suivi_decision";
-    const m9Target = { ...target, toolName: tool, serverName: "opsys_m9" };
+    const m9Target = boundM9Target();
     const { collector } = setup({ depositTools: [tool] });
     await collector.prepareBeforeProviderDispatch();
     const observer = collector.beginToolCall({
@@ -517,7 +600,7 @@ describe("OPSYS durable reservation before source effect", () => {
 
   it("retains M9 uncertainty if persisting the received approval request fails", async () => {
     const tool = "m9_ouvrir_suivi_decision";
-    const m9Target = { ...target, toolName: tool, serverName: "opsys_m9" };
+    const m9Target = boundM9Target();
     const { collector } = setup({ depositTools: [tool] });
     await collector.prepareBeforeProviderDispatch();
     const observer = collector.beginToolCall({

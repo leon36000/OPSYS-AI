@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import type { Insertable, Selectable } from "kysely";
+import type { OpsysM9CibleTicketBinding } from "../../context-engine/opsys-contexte-cible-ticket.js";
 import {
   isOpsysCibleTicketTool,
   OPSYS_CIBLE_TICKET_SERVERS,
@@ -76,6 +77,7 @@ export type OpsysPostflightIntentInput = Readonly<{
   outil: string;
   serverName: string;
   ownerKey: string;
+  m9Binding?: OpsysM9CibleTicketBinding;
 }>;
 
 export type OpsysPostflightIntent = OpsysPostflightIntentInput &
@@ -213,19 +215,18 @@ function normalizeLot(value: unknown): OpsysPostflightLotInput {
 }
 
 function normalizeIntent(value: unknown): OpsysPostflightIntentInput {
-  if (
-    !exactKeys(value, [
-      "factKey",
-      "affaireId",
-      "departementSource",
-      "profilId",
-      "revision",
-      "engineId",
-      "outil",
-      "serverName",
-      "ownerKey",
-    ])
-  ) {
+  const keys = [
+    "factKey",
+    "affaireId",
+    "departementSource",
+    "profilId",
+    "revision",
+    "engineId",
+    "outil",
+    "serverName",
+    "ownerKey",
+  ];
+  if (!exactKeys(value, keys) && !exactKeys(value, [...keys, "m9Binding"])) {
     return fail("POSTFLIGHT_INTENT_SCHEMA_REFUSE");
   }
   if (
@@ -248,6 +249,42 @@ function normalizeIntent(value: unknown): OpsysPostflightIntentInput {
     engineId: value.engineId,
     facts: [{ cle: value.factKey, outil: value.outil, resultat: "refus", code: null }],
   });
+  let m9Binding: OpsysM9CibleTicketBinding | undefined;
+  if (Object.hasOwn(value, "m9Binding")) {
+    const binding = value.m9Binding;
+    if (
+      value.outil !== M9_OPEN_FOLLOWUP ||
+      !exactKeys(binding, [
+        "nativeInstanceId",
+        "ticketHash",
+        "agentId",
+        "sessionKey",
+        "contextServerName",
+      ]) ||
+      typeof binding.nativeInstanceId !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(
+        binding.nativeInstanceId,
+      ) ||
+      typeof binding.ticketHash !== "string" ||
+      !/^[0-9a-f]{64}$/u.test(binding.ticketHash) ||
+      typeof binding.agentId !== "string" ||
+      binding.agentId.length === 0 ||
+      typeof binding.sessionKey !== "string" ||
+      binding.sessionKey.length === 0 ||
+      typeof binding.contextServerName !== "string" ||
+      binding.contextServerName.length === 0
+    ) {
+      return fail("POSTFLIGHT_INTENT_VALUE_REFUSE");
+    }
+    // Historical correlation only; a logical Native UUID is not live authority.
+    m9Binding = {
+      nativeInstanceId: binding.nativeInstanceId,
+      ticketHash: binding.ticketHash,
+      agentId: binding.agentId,
+      sessionKey: binding.sessionKey,
+      contextServerName: binding.contextServerName,
+    };
+  }
   const normalized: OpsysPostflightIntentInput = {
     factKey: value.factKey,
     affaireId: closedLot.affaireId,
@@ -258,6 +295,7 @@ function normalizeIntent(value: unknown): OpsysPostflightIntentInput {
     outil: value.outil,
     serverName: OPSYS_CIBLE_TICKET_SERVERS[value.outil],
     ownerKey: value.ownerKey,
+    ...(m9Binding === undefined ? {} : { m9Binding }),
   };
   // The synthetic shape above is validation only; it is never written as a fact.
   // Keep at least half the reserved budget for the worst closed singleton outcome.
@@ -309,6 +347,7 @@ function decodeIntentRow(row: IntentRow): {
         "outil",
         "serverName",
         "ownerKey",
+        ...(Object.hasOwn(decoded, "m9Binding") ? ["m9Binding"] : []),
         "approvalPendingRequestId",
       ])
     ) {
