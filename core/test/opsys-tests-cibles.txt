@@ -426,3 +426,4 @@ src/agents/cli-runner/bundle-mcp-codex.user-config.test.ts
 src/agents/agent-bundle-mcp-runtime.opsys-m8-n2.python-http.integration.test.ts
 src/agents/agent-bundle-mcp-runtime.opsys-m3-n4-postcommit.python-http.integration.test.ts
 src/agents/agent-bundle-mcp-runtime.opsys-m5-ap-postcommit.python-http.integration.test.ts
+src/agents/agent-bundle-mcp-runtime.opsys-m6-proof-cause.python-http.integration.test.ts
