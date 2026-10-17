@@ -1361,6 +1361,12 @@ class Capacites:
                 refus_rejoue = reclamation.rejouee and reclamation.reponse.get("erreur") == "hors_portee_role"
                 return {**refus_role, "rejoue": refus_rejoue}
             if reclamation.rejouee:
+                # L'autorité propriétaire COURANTE, relue après le claim, précède toute restitution
+                # d'une décision M9 en cache ; rien n'est écrit, le claim original reste intact.
+                if nom == "m9_decider_demande_approbation":
+                    signataire_cache, _ = approbations_appareil._signataire(cnx, identite_appelante())
+                    if signataire_cache is None or not signataire_cache.proprietaire:
+                        return self._confirmation_revue_inconnue()
                 if nom == "m4_demarrer_route":
                     from m4_field_ops import outils as outils_m4
 

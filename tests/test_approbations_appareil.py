@@ -1261,3 +1261,149 @@ def test_decisions_m9_reouvertes_conservent_correction_et_historique(session, ca
     assert briefing["sections"]["decisions_en_attente"] == {"items": [], "vide": True}
     assert briefing["sections"]["faits_veille"]["items"] == chaine_b  # historique sourcé, pas écrasé
     assert briefing["sections"]["alertes_m8"] == {"items": [], "vide": True}
+
+
+# -- rejeu d'une décision M9 en cache : l'autorité propriétaire COURANTE précède la restitution -------------
+M9_CACHE_DECISION = "m9_decider_demande_approbation"
+
+
+def _m9_cache_tables(session) -> dict:
+    """Toutes les tables SQL : claim, T0, demande, journal et maillons d'effet compris."""
+    from opsys.stockage.schema import META
+
+    with session() as cnx:
+        return {nom: sorted(json.dumps(dict(ligne), sort_keys=True, default=str)
+                            for ligne in cnx.execute(select(table)).mappings())
+                for nom, table in META.tables.items()}
+
+
+def _m9_cache_roles(session, personne: str) -> frozenset[str]:
+    """Rôles d'une personne relue ACTIVE en base ; aucune invalidation artificielle n'est posée."""
+    with session() as cnx:
+        active = identite.personne_active(cnx, personne)
+    assert active is not None, personne
+    return frozenset(active.roles)
+
+
+def _m9_cache_accepte(reponse) -> bool:
+    return isinstance(reponse.get("resultat"), dict) and reponse["resultat"].get("accepte") is True
+
+
+def _m9_cache_diagnostic(reponse) -> str:
+    """Réponse observée, données fictives seulement (aucun secret, AGENTS.md)."""
+    return "diagnostic fictif, réponse observée : " + json.dumps(reponse, ensure_ascii=False, sort_keys=True)
+
+
+def test_cache_decision_m9_refuse_admin_non_owner_avant_restitution(session, capacites):
+    """Même appareil, même clé, mêmes arguments : un autre admin ACTIF qui n'est pas propriétaire ne
+    reçoit jamais la décision réussie du propriétaire ; refus opaque existant, ni claim ni effet touchés."""
+    ident = _proposer_par_un_agent(capacites)
+    args = {"demande_id": ident, "decision": "approuver"}
+    cle = "m9-cache-autre-admin-fictif"
+    originale = _appeler(capacites, M9_CACHE_DECISION, args, PROPRIO, cle)
+    assert originale["rejoue"] is False and _m9_cache_accepte(originale), originale
+    assert originale["resultat"]["resultat"]["statut"] == "executee"
+    assert {"admin", "nathan_owner"} <= _m9_cache_roles(session, PROPRIO.personne)
+    roles_gestionnaire = _m9_cache_roles(session, GESTIONNAIRE.personne)
+    assert "admin" in roles_gestionnaire and "nathan_owner" not in roles_gestionnaire
+    avant = _m9_cache_tables(session)
+
+    observee = _appeler(capacites, M9_CACHE_DECISION, args, GESTIONNAIRE, cle)
+
+    assert not _m9_cache_accepte(observee), (
+        "M9_CACHE_AUTHORITY_CAUSAL_WRONG_ACTOR " + _m9_cache_diagnostic(observee))
+    assert observee == Capacites._confirmation_revue_inconnue()
+    assert _m9_cache_tables(session) == avant
+    assert {"admin", "nathan_owner"} <= _m9_cache_roles(session, PROPRIO.personne)
+
+
+def test_cache_decision_m9_refuse_owner_revoque_admin_actif(session, capacites):
+    """Le propriétaire avait réussi, puis perd SEULEMENT nathan_owner en restant admin actif : le rejeu
+    de la même enveloppe reçoit le refus opaque existant, pas la décision acceptée en cache."""
+    ident = _proposer_par_un_agent(capacites)
+    args = {"demande_id": ident, "decision": "approuver"}
+    cle = "m9-cache-owner-revoque-fictif"
+    originale = _appeler(capacites, M9_CACHE_DECISION, args, PROPRIO, cle)
+    assert originale["rejoue"] is False and _m9_cache_accepte(originale), originale
+    with session() as cnx:
+        identite.retirer_role(cnx, PROPRIO.personne, "nathan_owner")
+    roles_proprio = _m9_cache_roles(session, PROPRIO.personne)
+    assert "admin" in roles_proprio and "nathan_owner" not in roles_proprio
+    avant = _m9_cache_tables(session)
+
+    observee = _appeler(capacites, M9_CACHE_DECISION, args, PROPRIO, cle)
+
+    assert not _m9_cache_accepte(observee), (
+        "M9_CACHE_AUTHORITY_CAUSAL_OWNER_REVOKED " + _m9_cache_diagnostic(observee))
+    assert observee == Capacites._confirmation_revue_inconnue()
+    assert _m9_cache_tables(session) == avant
+
+
+def test_cache_decision_m9_owner_legitime_rejoue_sans_effet(session, capacites):
+    """Après des tentatives refusées, le propriétaire courant rejoue la même enveloppe et reçoit la réponse
+    originale (seul `rejoue` change), sans second effet ; les chemins frais restent inchangés."""
+    ident = _proposer_par_un_agent(capacites)
+    args = {"demande_id": ident, "decision": "approuver"}
+    cle = "m9-cache-owner-legitime-fictif"
+    originale = _appeler(capacites, M9_CACHE_DECISION, args, PROPRIO, cle)
+    assert originale["rejoue"] is False and _m9_cache_accepte(originale), originale
+    assert originale["resultat"]["resultat"]["statut"] == "executee"
+    apres_originale = _m9_cache_tables(session)
+    [journal_original] = _journal(session, "approbation.approuver")
+
+    # Tentatives interdites : autre admin actif, puis propriétaire privé du seul nathan_owner (admin actif).
+    assert _appeler(capacites, M9_CACHE_DECISION, args, GESTIONNAIRE, cle) == Capacites._confirmation_revue_inconnue()
+    with session() as cnx:
+        identite.retirer_role(cnx, PROPRIO.personne, "nathan_owner")
+    assert "admin" in _m9_cache_roles(session, PROPRIO.personne)
+    assert _appeler(capacites, M9_CACHE_DECISION, args, PROPRIO, cle) == Capacites._confirmation_revue_inconnue()
+    with session() as cnx:
+        identite.ajouter_role(cnx, PROPRIO.personne, "nathan_owner")
+    assert _m9_cache_tables(session) == apres_originale  # aucun refus n'a écrasé le claim original
+
+    # Nouveau moteur SQLite et nouvelle Capacites : aucun cache en mémoire ne sert la réponse.
+    ancien_moteur = stockage.moteur()
+    stockage.liberer()
+    assert stockage.moteur() is not ancien_moteur
+    capacites = Capacites(charger_departements(RACINE_DEPARTEMENTS), session,
+                          filtre={"m04-field-ops", "m09-strategic-intelligence"}, memoire=False)
+    assert {"admin", "nathan_owner"} <= _m9_cache_roles(session, PROPRIO.personne)
+    rejeu = _appeler(capacites, M9_CACHE_DECISION, args, PROPRIO, cle)
+    assert rejeu["rejoue"] is True
+    assert {k: v for k, v in rejeu.items() if k != "rejoue"} == {k: v for k, v in originale.items() if k != "rejoue"}
+    assert _m9_cache_tables(session) == apres_originale
+    assert _journal(session, "approbation.approuver") == [journal_original]
+
+    # Outil non M4 : un autre propriétaire COURANT garde l'espace appareil/clé inchangé (décision Root).
+    with session() as cnx:
+        identite.ajouter_role(cnx, GESTIONNAIRE.personne, "nathan_owner")
+    autre_proprietaire = _appeler(capacites, M9_CACHE_DECISION, args, GESTIONNAIRE, cle)
+    with session() as cnx:
+        identite.retirer_role(cnx, GESTIONNAIRE.personne, "nathan_owner")
+    assert autre_proprietaire == rejeu
+    assert _m9_cache_tables(session) == apres_originale
+
+    # Même clé, autres arguments : conflit ; autre clé sur la demande close : déjà décidée.
+    conflit = _appeler(capacites, M9_CACHE_DECISION, {**args, "decision": "refuser"}, PROPRIO, cle)
+    assert conflit["ok"] is False and conflit["erreur"] == "mutation_conflit"
+    deja = _appeler(capacites, M9_CACHE_DECISION, args, PROPRIO, "m9-cache-owner-autre-cle-fictif")
+    assert deja["ok"] is True and deja["rejoue"] is False and deja["resultat"]["accepte"] is False
+    assert deja["resultat"]["verdict"]["code"] == "deja_decidee"
+    assert _journal(session, "approbation.approuver") == [journal_original]
+
+    # Chemins frais inchangés : refus nommé et audité du non-propriétaire, effet normal du propriétaire.
+    snapshot_b = {**SNAPSHOT, "horodatage": "2026-09-28T13:00:00Z",
+                  "valeurs": {"interventions_du_jour": "2", "fictif": "true"}}
+    suivante = _proposer_par_un_agent(capacites, snapshot_b)
+    args_b = {"demande_id": suivante, "decision": "approuver"}
+    refus = _appeler(capacites, M9_CACHE_DECISION, args_b, GESTIONNAIRE, "m9-cache-frais-non-owner-fictif")
+    assert refus["ok"] is True and refus["rejoue"] is False and refus["resultat"]["accepte"] is False
+    assert refus["resultat"]["verdict"]["code"] == "reserve_au_proprietaire"
+    [essai] = _journal(session, "approbation.refus_appareil")
+    assert essai["par"] == GESTIONNAIRE.personne and essai["cible"] == suivante
+    assert _statut(session, suivante)["statut"] == "en_attente"
+    decision_b = _appeler(capacites, M9_CACHE_DECISION, args_b, PROPRIO, "m9-cache-frais-owner-fictif")
+    assert decision_b["rejoue"] is False and _m9_cache_accepte(decision_b), decision_b
+    assert decision_b["resultat"]["resultat"]["statut"] == "executee"
+    assert _faits_consolides(capacites)["m04-field-ops"]["valeurs"] == snapshot_b["valeurs"]
+    assert len(_journal(session, "approbation.approuver")) == 2
