@@ -313,6 +313,23 @@ def construire_reception(charge: Any) -> tuple[dict[str, Any] | None, dict[str, 
     }, None
 
 
+_CHAMPS_RECEPTION_RETENUS = (
+    "evenement_id", "po_id", "fournisseur_id", "chantier_id", "horodatage_reception", "verdict_reception",
+    "statut_po", "hash_maillon",
+)
+_CHAMPS_LIGNE_RETENUS = (
+    "materiau_id", "quantite_demandee", "quantite_recue", "prix_unitaire_prevu", "devise_prevue",
+    "prix_unitaire_reception", "verdict_prix_reception", "ecart_prix_critique",
+)
+
+
+def _charge_retenue(reception: Mapping[str, Any]) -> dict[str, Any]:
+    """Ce qu'une réception rangée garde de la charge de M6, sans ce que M5 en dérive (montants, écarts, `manque`)."""
+    retenue = {cle: reception.get(cle) for cle in _CHAMPS_RECEPTION_RETENUS}
+    retenue["lignes"] = [{cle: ligne.get(cle) for cle in _CHAMPS_LIGNE_RETENUS} for ligne in reception["lignes"]]
+    return retenue
+
+
 def _retrouver(registre_cible: Any, ligne_id: str) -> dict[str, Any]:
     for maillon in registre_cible.lire():
         if maillon["ligne_id"] == ligne_id:
@@ -326,10 +343,25 @@ def enregistrer_reception(
     """`((maillon, deja_recue), None)` : range la réception au registre, une seule fois par `evenement_id` (une
     redélivrance rend le premier maillon et `deja_recue` vrai, sans rien écrire) ; ou `(None, verdict)` si le PO est
     déjà connu sous un AUTRE fournisseur ou un AUTRE chantier (`REJ-AP-PO-INCOHERENT` : un même bon de commande n'a
-    qu'un fournisseur ; laisser passer, ce serait devoir de l'argent à deux fournisseurs pour le même PO)."""
+    qu'un fournisseur ; laisser passer, ce serait devoir de l'argent à deux fournisseurs pour le même PO).
+
+    Une redélivrance n'en est une que si elle dit EXACTEMENT ce que dit la première, sur la charge que M5 retient
+    (`_charge_retenue` : PO, fournisseur, chantier, horodatage, verdict, statut, `hash_maillon`, et les champs bruts
+    de chaque ligne) : sinon `REJ-AP-RECEPTION-CONFLIT`, sans rien écrire (même contrat que le bus,
+    `ConflitPublication`) ; la rendre `deja_recue` avalerait en silence une réception que personne n'a vue. Les
+    champs que M5 en DÉRIVE (montants, écarts, `manque`) ne sont pas comparés : un changement de calcul ne fait pas
+    d'une redélivrance exacte un conflit."""
     maillons = registre_cible.lire()
     for maillon in maillons:
         if maillon.get("type_entree") == _TYPE_RECEPTION and maillon["evenement_id"] == entree["evenement_id"]:
+            premiere, nouvelle = _charge_retenue(maillon), _charge_retenue(entree)
+            if premiere != nouvelle:
+                differences = sorted(cle for cle in premiere if premiere[cle] != nouvelle[cle])
+                return None, _verdict(
+                    "REJ-AP-RECEPTION-CONFLIT",
+                    f"la réception {entree['evenement_id']!r} est déjà reçue avec une autre charge "
+                    f"({', '.join(differences)}) : rien n'est écrit, vérifier la publication de M6",
+                )
             return (maillon, True), None
     for maillon in maillons:
         if maillon.get("type_entree") != _TYPE_RECEPTION or maillon["po_id"] != entree["po_id"]:
@@ -872,6 +904,40 @@ def _identifiant_a_modifier(identifiant: Any) -> tuple[str | None, dict[str, Any
     return identifiant.strip(), None
 
 
+def _revision_valide(revision_attendue: Any) -> dict[str, Any] | None:
+    """`None` si `revision_attendue` est un entier ≥ 0 (ni booléen ni flottant). Omise ou nulle :
+    `REJ-AP-FACTURE-REVISION-REQUISE` ; jamais remplacée par la révision courante, qui ne dit pas ce qui a été vu."""
+    if revision_attendue is None:
+        return _verdict(
+            "REJ-AP-FACTURE-REVISION-REQUISE",
+            "revision_attendue requise : la demande ne dit pas quelle révision de la facture a été vue. Rien n'est "
+            "écrit : relire la facture dans les comptes à payer et reproposer avec sa révision",
+        )
+    if type(revision_attendue) is int and revision_attendue >= 0:
+        return None
+    return _verdict(
+        "REJ-AP-FACTURE-CHAMP-INVALIDE",
+        "revision_attendue : entier ≥ 0, le champ `corrections` de la facture lu dans les comptes à payer (une "
+        "facture au statut SAISIE n'en porte pas : 0)",
+    )
+
+
+def _revision_perimee(etat: Mapping[str, Any], identifiant: str, revision_attendue: int) -> dict | None:
+    """`None` si la facture est encore à la révision que la demande a vue ; sinon `REJ-AP-FACTURE-REVISION-PERIMEE` :
+    une décision prise sur un état qui n'existe plus ne s'applique pas sur un autre. La révision d'une facture vivante
+    est le nombre de ses pièces (une annulée ne se modifie plus)."""
+    courante = len(etat["modifications"])
+    if revision_attendue == courante:
+        return None
+    derniere = etat["modifications"][-1] if etat["modifications"] else None
+    origine = f" (dernière pièce {derniere['modification_id']}, par {derniere['par']})" if derniere else ""
+    return _verdict(
+        "REJ-AP-FACTURE-REVISION-PERIMEE",
+        f"la facture {identifiant} est à la révision {courante}{origine}, la demande a été faite sur la révision "
+        f"{revision_attendue} : rien n'est écrit, relire la facture et reproposer",
+    )
+
+
 def corriger_facture_fournisseur(
     *,
     facture_fournisseur_id: Any,
@@ -886,6 +952,7 @@ def corriger_facture_fournisseur(
     horodatage: Any,
     dictionnaire_taux: Mapping[str, Mapping[str, Any]],
     registre_cible: Any,
+    revision_attendue: Any = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """`({"facture": état, "avertissements": [codes]}, None)` : corrige une facture fournisseur SAISIE en AJOUTANT une
     pièce de correction chaînée au registre ; ou `(None, verdict)` sans rien écrire. La facture d'origine n'est jamais
@@ -897,16 +964,22 @@ def corriger_facture_fournisseur(
 
     Refus, sans rien écrire : motif absent (`REJ-AP-MOTIF-REQUIS`), pas d'humain identifié (`REJ-AP-HUMAIN-REQUIS`),
     facture inconnue ou annulée (`REJ-AP-FACTURE-INCONNUE`, `REJ-AP-FACTURE-ANNULEE`), rien ne change
-    (`REJ-AP-CORRECTION-SANS-CHANGEMENT` : un REJEU d'une correction déjà appliquée tombe ici, sans aucun effet), un
+    (`REJ-AP-CORRECTION-SANS-CHANGEMENT` : un REJEU d'une correction déjà appliquée tombe ici, sans aucun effet ;
+    `REJ-AP-FACTURE-REVISION-PERIMEE` s'il porte la révision d'avant), un
     doublon avec une autre facture vivante (`REJ-AP-FACTURE-DOUBLON`), et les refus de format de la saisie. La pièce
-    porte le motif, la personne, son rôle, la voie, l'avant et l'après."""
+    porte le motif, la personne, son rôle, la voie, l'avant et l'après.
+
+    `revision_attendue` (entier ≥ 0, OBLIGATOIRE) est la révision de la facture que la personne a vue en proposant :
+    si une autre pièce s'est ajoutée depuis, `REJ-AP-FACTURE-REVISION-PERIMEE` ; omise ou nulle,
+    `REJ-AP-FACTURE-REVISION-REQUISE` (une demande d'avant le jeton se repropose) ; sans rien écrire."""
     identifiant, verdict = _identifiant_a_modifier(facture_fournisseur_id)
     if verdict is not None:
         return None, verdict
     motif, verdict = _motif_valide(motif)
     if verdict is not None:
         return None, verdict
-    verdict = _humain_identifie(corrige_par, voie, role, "la correction est faite", role_exige=True)
+    verdict = _humain_identifie(corrige_par, voie, role, "la correction est faite", role_exige=True) or (
+        _revision_valide(revision_attendue))
     if verdict is not None:
         return None, verdict
     instant, verdict = _horodatage_valide(horodatage)
@@ -945,6 +1018,9 @@ def corriger_facture_fournisseur(
             "REJ-AP-FACTURE-ANNULEE",
             f"la facture {identifiant} est annulée : ressaisir la bonne facture (une annulée ne se corrige plus)",
         )
+    verdict = _revision_perimee(etat, identifiant, revision_attendue)
+    if verdict is not None:
+        return None, verdict
     apres_numero = etat["numero_facture"] if numero_facture is None else numero_facture
     apres_date = etat["date_facture"] if date_facture is None else date_facture
     apres_montant = etat["montant_avant_taxes"] if montant is None else montant
@@ -992,6 +1068,7 @@ def annuler_facture_fournisseur(
     voie: Any,
     horodatage: Any,
     registre_cible: Any,
+    revision_attendue: Any = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
     """`({"facture": état, "avertissements": [codes]}, None)` : annule une facture fournisseur saisie en AJOUTANT une
     pièce d'annulation chaînée au registre ; ou `(None, verdict)` sans rien écrire. La facture d'origine n'est jamais
@@ -1001,15 +1078,17 @@ def annuler_facture_fournisseur(
     Annuler ne paie rien et ne supprime pas la dette envers le fournisseur : un PO reçu et non facturé redevient un
     « à payer attendu ». Refus : motif absent (`REJ-AP-MOTIF-REQUIS`), pas d'humain identifié
     (`REJ-AP-HUMAIN-REQUIS`), facture inconnue (`REJ-AP-FACTURE-INCONNUE`), déjà annulée
-    (`REJ-AP-FACTURE-DEJA-ANNULEE` : un REJEU de l'annulation tombe ici, sans aucun effet). La pièce porte le motif, la
-    personne, son rôle, la voie et l'état annulé."""
+    (`REJ-AP-FACTURE-DEJA-ANNULEE` : un REJEU de l'annulation tombe ici, sans aucun effet), révision périmée ou absente
+    (`REJ-AP-FACTURE-REVISION-PERIMEE`, `REJ-AP-FACTURE-REVISION-REQUISE`, même règle que la correction). La pièce
+    porte le motif, la personne, son rôle, la voie et l'état annulé."""
     identifiant, verdict = _identifiant_a_modifier(facture_fournisseur_id)
     if verdict is not None:
         return None, verdict
     motif, verdict = _motif_valide(motif)
     if verdict is not None:
         return None, verdict
-    verdict = _humain_identifie(annule_par, voie, role, "l'annulation est faite", role_exige=True)
+    verdict = _humain_identifie(annule_par, voie, role, "l'annulation est faite", role_exige=True) or (
+        _revision_valide(revision_attendue))
     if verdict is not None:
         return None, verdict
     _instant_valide, verdict = _horodatage_valide(horodatage)
@@ -1023,6 +1102,9 @@ def annuler_facture_fournisseur(
         return None, _verdict(
             "REJ-AP-FACTURE-DEJA-ANNULEE", f"la facture {identifiant} est déjà annulée : rien n'est écrit"
         )
+    verdict = _revision_perimee(etat, identifiant, revision_attendue)
+    if verdict is not None:
+        return None, verdict
     registre_cible.ajouter({
         "type_entree": _TYPE_ANNULATION,
         "modification_id": _identifiant_modification(identifiant, etat),

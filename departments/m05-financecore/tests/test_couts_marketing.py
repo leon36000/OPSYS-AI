@@ -87,11 +87,13 @@ def test_plafond_et_base_ne_liberent_pas_les_parts_perimees(source):
     reg, ident, taux = source
     journal = registre.Registre()
     _ajouter(cm, reg, journal, ident)
+    (lue,) = [f for f in ap.factures_saisies(reg) if f["facture_fournisseur_id"] == ident]
     resultat, verdict = ap.corriger_facture_fournisseur(
         facture_fournisseur_id=ident, numero_facture="F-FICTIVE",
         date_facture="2026-10-01", montant_avant_taxes="80.00", total_facture=None,
         motif="Correction fictive", corrige_par="owner.fictif", voie="approbation", role="nathan_owner",
         horodatage="2026-10-02T13:00:00+00:00", dictionnaire_taux=taux, registre_cible=reg,
+        revision_attendue=lue["corrections"],
     )
     assert verdict is None, verdict
     assert resultat is not None

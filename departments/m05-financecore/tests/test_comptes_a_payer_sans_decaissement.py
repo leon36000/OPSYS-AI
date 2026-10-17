@@ -274,6 +274,19 @@ def _etat_des_registres():
         }
 
 
+def _revision_lue(par_nom, ident):
+    """La révision lue dans `m5_lister_comptes_a_payer` (PO-1 et sans PO) juste avant le geste : `corrections`,
+    absent au statut SAISIE (0)."""
+    po = executer_atomique(par_nom["m5_lister_comptes_a_payer"], {"po_id": "PO-1"})["resultat"]["resultat"]
+    sans_po = executer_atomique(par_nom["m5_lister_comptes_a_payer"], {"sans_po": True})["resultat"]["resultat"]
+    (ligne,) = [f for f in (*po["comptes"][0]["factures_saisies"], *sans_po["factures"])
+                if f["facture_fournisseur_id"] == ident]
+    if "corrections" not in ligne:
+        assert ligne["statut"] == "SAISIE", ligne
+        return 0
+    return ligne["corrections"]
+
+
 def _charge(evenement_id, po_id, gouttiere, vis):
     def ligne(materiau, demandee, recue, prix):
         return {"materiau_id": materiau, "quantite_demandee": demandee, "quantite_recue": recue,
@@ -377,7 +390,8 @@ def test_correction_annulation_et_facture_sans_po_laissent_les_mouvements_et_les
             ("m5_annuler_facture_fournisseur", {
                 "facture_fournisseur_id": ident, "motif": "rejeu (fictif)", "horodatage": HORODATAGE}),
         ):
-            reponse = executer_atomique(par_nom[outil], arguments)
+            revision = _revision_lue(par_nom, arguments["facture_fournisseur_id"])
+            reponse = executer_atomique(par_nom[outil], {**arguments, "revision_attendue": revision})
             assert reponse["ok"] is True, reponse
         lecture = executer_atomique(par_nom["m5_lister_comptes_a_payer"], {"sans_po": True})
         assert lecture["resultat"]["accepte"] is True

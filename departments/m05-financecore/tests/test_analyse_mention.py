@@ -152,16 +152,20 @@ def _preparer_un_po():
 
 
 def _preparer_une_facture(par_nom):
-    """Une facture de 10.00 $ (PO-1), cible de la correction et de l'annulation : son identifiant."""
+    """Une facture de 10.00 $ (PO-1), cible de la correction et de l'annulation : son identifiant et sa révision, lus
+    sur la facture rendue (statut SAISIE, sans `corrections` : révision 0)."""
     reponse = _appeler(par_nom, "m5_saisir_facture_fournisseur", {
         "po_id": "PO-1", "fournisseur_id": "gentek", "numero_facture": "F-0", "date_facture": "2026-09-14",
         "montant_avant_taxes": "10.00", "total_facture": None, "horodatage": "2026-09-20T10:00:00-04:00"})
     assert reponse["resultat"]["accepte"] is True, reponse
-    return reponse["resultat"]["resultat"]["facture"]["facture_fournisseur_id"]
+    facture = reponse["resultat"]["resultat"]["facture"]
+    assert facture["statut"] == "SAISIE" and "corrections" not in facture, facture
+    return facture["facture_fournisseur_id"], 0
 
 
-def _appels(ident):
-    """Un appel ACCEPTÉ par outil d'analyse : `(nom, arguments)`. `ident` : la facture que M5 a déjà saisie."""
+def _appels(ident, revision=None):
+    """Un appel ACCEPTÉ par outil d'analyse : `(nom, arguments)`. `ident` : la facture que M5 a déjà saisie ;
+    `revision` : sa révision lue (correction, annulation)."""
     return {
         "m5_etat_tresorerie": {},
         "m5_lire_echeances_fiscales": {"aujourd_hui": "2026-09-29"},
@@ -205,10 +209,10 @@ def _appels(ident):
         "m5_corriger_facture_fournisseur": {
             "facture_fournisseur_id": ident, "motif": "montant tapé de travers (fictif)", "numero_facture": None,
             "date_facture": None, "montant_avant_taxes": "20.00", "total_facture": None,
-            "horodatage": "2026-09-21T10:00:00-04:00"},
+            "horodatage": "2026-09-21T10:00:00-04:00", "revision_attendue": revision},
         "m5_annuler_facture_fournisseur": {
             "facture_fournisseur_id": ident, "motif": "saisie sous le mauvais PO (fictif)",
-            "horodatage": "2026-09-21T10:00:00-04:00"},
+            "horodatage": "2026-09-21T10:00:00-04:00", "revision_attendue": revision},
     }
 
 
@@ -226,7 +230,7 @@ def _la_mention(reponse, nom):
 @pytest.mark.parametrize("nom", sorted(analyse.SORTIES_D_ANALYSE))
 def test_chaque_sortie_acceptee_d_un_outil_d_analyse_porte_la_mention(par_nom, nom):
     _preparer_un_po()
-    ident = _preparer_une_facture(par_nom)
+    ident, revision = _preparer_une_facture(par_nom)
     if nom == "m5_preparer_decision_capital":
         _appeler(par_nom, "m5_enregistrer_mouvement", {
             "montant": "100000.00", "type_mouvement": "ENCAISSEMENT",
@@ -262,7 +266,7 @@ def test_chaque_sortie_acceptee_d_un_outil_d_analyse_porte_la_mention(par_nom, n
     elif nom == "m5_prevoir_tresorerie_contrats":
         reponse = _appeler(par_nom, nom, _appels(ident)[nom], OWNER_CONSOLE)
     else:
-        reponse = _appeler(par_nom, nom, _appels(ident)[nom])
+        reponse = _appeler(par_nom, nom, _appels(ident, revision)[nom])
 
     corps = _la_mention(reponse, nom)
     assert corps["mention"] == MENTION, nom

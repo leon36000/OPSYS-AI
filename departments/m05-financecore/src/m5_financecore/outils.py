@@ -1349,6 +1349,15 @@ def saisir_facture_sans_po(
     return _reponse_facture(resultat, registre_cible, dictionnaire_taux)
 
 
+# Le lien N4 à la révision vue (`comptes_a_payer._revision_perimee`), requis dans les deux schémas. Le socle ne vérifie
+# que le type (pas `minimum`) : l'outil refuse lui-même un négatif, et une valeur omise ou nulle.
+_DESCRIPTION_REVISION_ATTENDUE = (
+    "Révision de la facture LUE avant de proposer, dans m5_lister_comptes_a_payer : son champ `corrections` ; une "
+    "ligne au statut SAISIE n'en porte pas : 0. Jamais devinée : facture non lue, la lire d'abord. Si la facture a "
+    "changé depuis, refus REVISION-PERIMEE sans rien écrire : relire et reproposer."
+)
+
+
 def corriger_facture_fournisseur(
     facture_fournisseur_id: str,
     motif: str,
@@ -1357,6 +1366,7 @@ def corriger_facture_fournisseur(
     montant_avant_taxes: str | None,
     total_facture: str | None,
     horodatage: str,
+    revision_attendue: int | None = None,
 ) -> dict[str, Any]:
     """L'outil `m5_corriger_facture_fournisseur` (T2, N4, `admin`) : corrige une facture fournisseur saisie en AJOUTANT
     une pièce de correction chaînée au registre (`comptes_a_payer.corriger_facture_fournisseur`) ; la facture d'origine
@@ -1367,7 +1377,10 @@ def corriger_facture_fournisseur(
     s'exécute qu'après la décision d'un humain (finance ou propriétaire), aux arguments EXACTS enregistrés. Il refuse
     lui-même tout appel qui n'est pas d'un humain (`_acteur_humain`), y compris en mode `autonome` où un N4 s'exécute
     sans file. Motif obligatoire ; numéro, date et montant nuls sont inchangés ; taxes et total recalculés. N'écrit
-    qu'au registre des comptes à payer : aucun DECAISSEMENT."""
+    qu'au registre des comptes à payer : aucun DECAISSEMENT. `revision_attendue` (OBLIGATOIRE, lue avant de proposer)
+    lie la demande à la révision vue : une autre pièce ajoutée depuis la refuse (`REJ-AP-FACTURE-REVISION-PERIMEE`) ;
+    omise ou nulle, même par un point d'entrée qui n'applique pas le schéma, `REJ-AP-FACTURE-REVISION-REQUISE`. Jamais
+    complétée ici par la révision courante : sans rien écrire, la relire et reproposer."""
     acteur, refus = _acteur_humain(
         _OUTIL_CORRECTION_FACTURE,
         _REFUS_HUMAIN_N4,
@@ -1404,6 +1417,7 @@ def corriger_facture_fournisseur(
         horodatage=_horodatage_faisant_foi(horodatage),
         dictionnaire_taux=dictionnaire_taux,
         registre_cible=registre_cible,
+        revision_attendue=revision_attendue,
     )
     if verdict is not None:
         return _refus(verdict)
@@ -1415,15 +1429,17 @@ def corriger_facture_fournisseur(
     return _reponse_facture(resultat, registre_cible, dictionnaire_taux)
 
 
-def annuler_facture_fournisseur(facture_fournisseur_id: str, motif: str, horodatage: str) -> dict[str, Any]:
+def annuler_facture_fournisseur(
+    facture_fournisseur_id: str, motif: str, horodatage: str, revision_attendue: int | None = None
+) -> dict[str, Any]:
     """L'outil `m5_annuler_facture_fournisseur` (T2, N4, `admin`) : annule une facture fournisseur saisie en AJOUTANT
     une pièce d'annulation chaînée au registre (`comptes_a_payer.annuler_facture_fournisseur`) ; la facture d'origine
     n'est jamais modifiée ni effacée, elle reste au registre au statut `ANNULEE`. Rend la facture annulée et le
     rapprochement PROPOSÉ de son PO (ou le total sans PO), qui ne la comptent plus, comme le cash libre.
 
     Mêmes gardes que `corriger_facture_fournisseur` (N4, humain exigé par l'outil, motif obligatoire, arguments exacts
-    rejoués). Annuler ne paie rien et n'efface pas la dette : un PO reçu et non facturé redevient un « à payer
-    attendu ». N'écrit qu'au registre des comptes à payer : aucun DECAISSEMENT."""
+    rejoués, `revision_attendue` obligatoire). Annuler ne paie rien et n'efface pas la dette : un PO reçu et non facturé
+    redevient un « à payer attendu ». N'écrit qu'au registre des comptes à payer : aucun DECAISSEMENT."""
     acteur, refus = _acteur_humain(
         _OUTIL_ANNULATION_FACTURE,
         _REFUS_HUMAIN_N4,
@@ -1455,6 +1471,7 @@ def annuler_facture_fournisseur(facture_fournisseur_id: str, motif: str, horodat
         voie=acteur["voie"],
         horodatage=_horodatage_faisant_foi(horodatage),
         registre_cible=registre_cible,
+        revision_attendue=revision_attendue,
     )
     if verdict is not None:
         return _refus(verdict)
@@ -4394,8 +4411,9 @@ def outils(*, lecteur_heures_m4: LecteurHeuresM4 | None = None,
                 "OBLIGATOIRE. N4 (engagement) : l'appel attend dans la file du propriétaire, et l'outil n'agit que "
                 "pour un HUMAIN (finance ou propriétaire) : REJ-AP-HUMAIN-REQUIS sinon. TPS/TVQ et total recalculés ; "
                 "total_facture contrôle. Le rapprochement du PO, les totaux et le cash libre lisent le nouvel état. "
-                "Refuse : facture inconnue ou annulée, rien ne change (un rejeu), doublon. Le PO et le fournisseur ne "
-                "se corrigent pas : annuler puis ressaisir. Jamais de paiement."
+                "revision_attendue OBLIGATOIRE : la révision lue avant de proposer. Refuse : facture inconnue ou "
+                "annulée, rien ne change (un rejeu), doublon, révision périmée ou absente (relire, reproposer). Le PO "
+                "et le fournisseur ne se corrigent pas : annuler puis ressaisir. Jamais de paiement."
             ),
             parametres={
                 "type": "object",
@@ -4419,6 +4437,11 @@ def outils(*, lecteur_heures_m4: LecteurHeuresM4 | None = None,
                         "description": "Total imprimé APRÈS taxes, contrôle optionnel du total recalculé.",
                     },
                     "horodatage": {"type": "string", "description": "ISO 8601 avec fuseau, moment de la correction."},
+                    "revision_attendue": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": _DESCRIPTION_REVISION_ATTENDUE,
+                    },
                 },
                 "required": [
                     "facture_fournisseur_id",
@@ -4428,6 +4451,7 @@ def outils(*, lecteur_heures_m4: LecteurHeuresM4 | None = None,
                     "montant_avant_taxes",
                     "total_facture",
                     "horodatage",
+                    "revision_attendue",
                 ],
                 "additionalProperties": False,
             },
@@ -4447,7 +4471,9 @@ def outils(*, lecteur_heures_m4: LecteurHeuresM4 | None = None,
                 "l'appel attend dans la file du propriétaire, et l'outil n'agit que pour un HUMAIN (finance ou "
                 "propriétaire) : REJ-AP-HUMAIN-REQUIS sinon. Une annulée ne compte plus (facturé, à payer, "
                 "rapprochement, doublon, crédits de taxes du cash libre) ; un PO reçu et non facturé redevient un « à "
-                "payer attendu ». Refuse : facture inconnue, déjà annulée (un rejeu). Jamais de paiement."
+                "payer attendu ». revision_attendue OBLIGATOIRE : la révision lue avant de proposer. Refuse : facture "
+                "inconnue, déjà annulée (un rejeu), révision périmée ou absente (relire, reproposer). Jamais de "
+                "paiement."
             ),
             parametres={
                 "type": "object",
@@ -4458,8 +4484,13 @@ def outils(*, lecteur_heures_m4: LecteurHeuresM4 | None = None,
                     },
                     "motif": {"type": "string", "description": "Pourquoi : une ligne, 300 caractères au plus."},
                     "horodatage": {"type": "string", "description": "ISO 8601 avec fuseau, moment de l'annulation."},
+                    "revision_attendue": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": _DESCRIPTION_REVISION_ATTENDUE,
+                    },
                 },
-                "required": ["facture_fournisseur_id", "motif", "horodatage"],
+                "required": ["facture_fournisseur_id", "motif", "horodatage", "revision_attendue"],
                 "additionalProperties": False,
             },
             fonction=annuler_facture_fournisseur,

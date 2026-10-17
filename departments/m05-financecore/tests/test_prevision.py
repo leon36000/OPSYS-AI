@@ -806,10 +806,11 @@ def test_un_po_partiellement_facture_garde_le_reste_comme_attendu_avec_ses_taxes
 def test_une_facture_annulee_n_est_plus_une_dette_et_l_attendu_revient(taux):
     a_payer = _a_payer(taux, receptions=(("e-1", "PO-1", "60", "2026-09-15T09:00:00-04:00"),),
                        factures=(("PO-1", "F-1001", "2026-09-14", "300.00"),))
-    identifiant = cap.factures_saisies(a_payer)[0]["facture_fournisseur_id"]
+    (lue,) = cap.factures_saisies(a_payer)
     _, verdict = cap.annuler_facture_fournisseur(
-        facture_fournisseur_id=identifiant, motif="saisie sous le mauvais PO (fictif)", annule_par="nathan",
-        role="nathan_owner", voie="approbation", horodatage="2026-09-21T10:00:00-04:00", registre_cible=a_payer)
+        facture_fournisseur_id=lue["facture_fournisseur_id"], motif="saisie sous le mauvais PO (fictif)",
+        annule_par="nathan", role="nathan_owner", voie="approbation", horodatage="2026-09-21T10:00:00-04:00",
+        registre_cible=a_payer, revision_attendue=lue["corrections"])
     assert verdict is None, verdict
 
     dettes, _ = cap.dettes_datables(a_payer, taux)
@@ -822,12 +823,12 @@ def test_une_facture_annulee_n_est_plus_une_dette_et_l_attendu_revient(taux):
 def test_une_facture_corrigee_vaut_sa_correction(taux):
     a_payer = _a_payer(taux, receptions=(("e-1", "PO-1", "60", "2026-09-15T09:00:00-04:00"),),
                        factures=(("PO-1", "F-1001", "2026-09-14", "300.00"),))
-    identifiant = cap.factures_saisies(a_payer)[0]["facture_fournisseur_id"]
+    (lue,) = cap.factures_saisies(a_payer)
     _, verdict = cap.corriger_facture_fournisseur(
-        facture_fournisseur_id=identifiant, motif="date tapée de travers (fictif)", numero_facture=None,
-        date_facture="2026-09-10", montant_avant_taxes=None, total_facture=None, corrige_par="nathan",
-        role="nathan_owner", voie="approbation", horodatage="2026-09-21T10:00:00-04:00",
-        dictionnaire_taux=taux, registre_cible=a_payer)
+        facture_fournisseur_id=lue["facture_fournisseur_id"], motif="date tapée de travers (fictif)",
+        numero_facture=None, date_facture="2026-09-10", montant_avant_taxes=None, total_facture=None,
+        corrige_par="nathan", role="nathan_owner", voie="approbation", horodatage="2026-09-21T10:00:00-04:00",
+        dictionnaire_taux=taux, registre_cible=a_payer, revision_attendue=lue["corrections"])
     assert verdict is None, verdict
 
     dettes, _ = cap.dettes_datables(a_payer, taux)
@@ -1914,10 +1915,11 @@ def test_une_facture_sans_po_annulee_n_est_plus_une_dette(taux):
         registre_cible=a_payer)
     assert verdict is None, verdict
     assert [d["montant"] for d in cap.dettes_datables(a_payer, taux)[0]] == [D("114.98")]
-    identifiant = cap.factures_saisies(a_payer)[0]["facture_fournisseur_id"]
+    (lue,) = cap.factures_saisies(a_payer)
     _, verdict = cap.annuler_facture_fournisseur(
-        facture_fournisseur_id=identifiant, motif="saisie en double (fictif)", annule_par="nathan",
-        role="nathan_owner", voie="approbation", horodatage="2026-09-27T10:00:00-04:00", registre_cible=a_payer)
+        facture_fournisseur_id=lue["facture_fournisseur_id"], motif="saisie en double (fictif)", annule_par="nathan",
+        role="nathan_owner", voie="approbation", horodatage="2026-09-27T10:00:00-04:00", registre_cible=a_payer,
+        revision_attendue=lue["corrections"])
     assert verdict is None, verdict
 
     dettes, _ = cap.dettes_datables(a_payer, taux)

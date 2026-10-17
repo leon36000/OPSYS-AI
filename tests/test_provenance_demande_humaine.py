@@ -205,6 +205,8 @@ def capacites_m5(session, monkeypatch):
 
 
 def _arguments_m5(nom):
+    # La facture n'existe pas et aucune demande n'est exécutée ici (provenance seulement) : rien à lire, une révision
+    # plausible, requise par le schéma, seulement pour que la demande atteigne la file.
     if nom == NOMS_M5[0]:
         return {
             "facture_fournisseur_id": "FACTURE-FICTIVE-APR002",
@@ -214,11 +216,13 @@ def _arguments_m5(nom):
             "montant_avant_taxes": "123.45",
             "total_facture": None,
             "horodatage": "2026-09-30T10:00:00-04:00",
+            "revision_attendue": 0,
         }
     return {
         "facture_fournisseur_id": "FACTURE-FICTIVE-APR002",
         "motif": "annulation fictive et confidentielle",
         "horodatage": "2026-09-30T10:00:00-04:00",
+        "revision_attendue": 0,
     }
 
 

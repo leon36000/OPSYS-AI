@@ -195,6 +195,21 @@ def test_une_redelivrance_du_meme_evenement_ne_double_rien(dep, par_nom):
     assert _liste(par_nom)["comptes"][0]["attendu"]["avant_taxes"] == "300.00"
 
 
+@pytest.mark.parametrize("surcharge", [{"gouttiere": "59"}, {"po_id": "PO-2"}, {"fournisseur": "royal"}])
+def test_le_meme_evenement_avec_une_autre_charge_leve_sans_rien_ecrire_au_registre_durable(dep, par_nom, surcharge):
+    _recevoir(dep)
+    avant = _registre_ap()
+
+    with pytest.raises(ValueError, match="REJ-AP-RECEPTION-CONFLIT"), stockage.transaction():
+        m5_outils._recevoir_reception_enregistree(_charge(**surcharge))  # le bus aurait levé ConflitPublication
+
+    assert _registre_ap() == avant
+    with stockage.transaction():
+        rejoue = m5_outils._recevoir_reception_enregistree(_charge())
+    assert rejoue["statut"] == "deja_recue" and _registre_ap() == avant
+    assert _liste(par_nom)["comptes"][0]["attendu"]["avant_taxes"] == "300.00"
+
+
 def test_deux_livraisons_du_meme_po_se_cumulent_par_le_bus(dep, par_nom):
     _recevoir(dep, evenement_id="evt-1", gouttiere="60", vis="0", horodatage=LIVRAISON_1)
     _recevoir(dep, evenement_id="evt-2", gouttiere="0", vis="40", horodatage=LIVRAISON_2)

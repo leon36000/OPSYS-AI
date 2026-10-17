@@ -56,12 +56,15 @@ def test_reference_reconnectee_lit_etat_courant_sans_relire_taux(ap_reference, a
         assert _BASE._FIXTURE._tables() == before
     receipt = _saisie(ctx)
     if action != "aucune":
+        lue = _lire(ctx)
+        assert (lue["statut_m5"], lue["corrections"]) == ("SAISIE", 0), "la révision lue avant le geste"
         with stockage.transaction():
             reg = registre.Registre(maillons=stockage.maillons("m05-financecore", "comptes_a_payer"))
             args = {
                 "facture_fournisseur_id": receipt["facture_id"],
                 "motif": "modification fictive de vérification", "role": "nathan_owner",
                 "voie": "appareil", "horodatage": "2026-10-04T12:00:00+00:00", "registre_cible": reg,
+                "revision_attendue": lue["corrections"],
             }
             if action == "annuler":
                 resultat, verdict = comptes_a_payer.annuler_facture_fournisseur(

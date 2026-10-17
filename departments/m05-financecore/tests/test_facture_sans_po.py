@@ -57,6 +57,18 @@ def _sans_po_ok(reg, taux, **kwargs):
     return resultat
 
 
+def _revision_lue(reg, ident):
+    """La révision de la facture sans PO lue dans `lister_sans_po` avant le geste : `corrections`, absent au statut
+    SAISIE (0)."""
+    page, verdict = ap.lister_sans_po(reg, budget_caracteres=GRAND)
+    assert verdict is None, verdict
+    (ligne,) = [f for f in page["factures"] if f["facture_fournisseur_id"] == ident]
+    if "corrections" not in ligne:
+        assert ligne["statut"] == "SAISIE", ligne
+        return 0
+    return ligne["corrections"]
+
+
 def _code(resultat_verdict):
     resultat, verdict = resultat_verdict
     assert resultat is None and verdict is not None, resultat
@@ -369,14 +381,15 @@ def test_les_credits_de_taxes_du_cash_libre_viennent_de_l_etat_courant_des_factu
     _, verdict = ap.corriger_facture_fournisseur(
         facture_fournisseur_id=ident, motif="montant tapé de travers (fictif)", numero_facture=None,
         date_facture=None, montant_avant_taxes="200.00", total_facture=None, corrige_par="nathan",
-        role="nathan_owner", voie="approbation", horodatage=CORRECTION, dictionnaire_taux=taux, registre_cible=reg)
+        role="nathan_owner", voie="approbation", horodatage=CORRECTION, dictionnaire_taux=taux, registre_cible=reg,
+        revision_attendue=_revision_lue(reg, ident))
     assert verdict is None
     corrigee = credits()
     assert (corrigee["credits"]["tps_federale"], corrigee["credits"]["tvq_quebec"]) == (D("10.00"), D("19.95"))
 
     _, verdict = ap.annuler_facture_fournisseur(
         facture_fournisseur_id=ident, motif="dépense personnelle (fictif)", annule_par="nathan", role="nathan_owner",
-        voie="approbation", horodatage=CORRECTION, registre_cible=reg)
+        voie="approbation", horodatage=CORRECTION, registre_cible=reg, revision_attendue=_revision_lue(reg, ident))
     assert verdict is None
     annulee = credits()
     assert (annulee["credits"]["tps_federale"], annulee["credits"]["tvq_quebec"]) == (D("0"), D("0"))
@@ -395,13 +408,14 @@ def test_corrigee_ou_annulee_une_facture_sans_po_suit_les_totaux(taux):
     resultat, verdict = ap.corriger_facture_fournisseur(
         facture_fournisseur_id=ident, motif="montant tapé de travers (fictif)", numero_facture=None,
         date_facture=None, montant_avant_taxes="200.00", total_facture=None, corrige_par="nathan",
-        role="nathan_owner", voie="approbation", horodatage=CORRECTION, dictionnaire_taux=taux, registre_cible=reg)
+        role="nathan_owner", voie="approbation", horodatage=CORRECTION, dictionnaire_taux=taux, registre_cible=reg,
+        revision_attendue=_revision_lue(reg, ident))
     assert verdict is None and resultat["facture"]["categorie_depense"] == "carburant", "la catégorie ne bouge pas"
     assert totaux()["apres_taxes"] == "287.44", "229.95 + 57.49"
     assert totaux()["par_categorie"]["carburant"] == {"nombre": 1, "apres_taxes": "229.95"}
     _, verdict = ap.annuler_facture_fournisseur(
         facture_fournisseur_id=ident, motif="dépense personnelle (fictif)", annule_par="nathan", role="nathan_owner",
-        voie="approbation", horodatage=CORRECTION, registre_cible=reg)
+        voie="approbation", horodatage=CORRECTION, registre_cible=reg, revision_attendue=_revision_lue(reg, ident))
     assert verdict is None
     assert totaux()["nombre"] == 1 and totaux()["apres_taxes"] == "57.49"
     assert list(totaux()["par_categorie"]) == ["outils"]
@@ -412,7 +426,7 @@ def test_annulee_puis_toutes_les_factures_sans_po_le_bloc_disparait_du_total_et_
     ident = _sans_po_ok(reg, taux, montant="100.00")["facture"]["facture_fournisseur_id"]
     ap.annuler_facture_fournisseur(
         facture_fournisseur_id=ident, motif="erreur (fictif)", annule_par="nathan", role="nathan_owner",
-        voie="approbation", horodatage=CORRECTION, registre_cible=reg)
+        voie="approbation", horodatage=CORRECTION, registre_cible=reg, revision_attendue=_revision_lue(reg, ident))
 
     page, _ = ap.lister(reg, taux, budget_caracteres=GRAND)
     resume, _ = ap.resume_a_payer(reg, taux)
@@ -430,7 +444,7 @@ def test_lister_sans_po_rend_une_ligne_par_facture_avec_l_identifiant_et_l_etat(
     b = _sans_po_ok(reg, taux, numero="O-1", montant="84.50", categorie="outils")["facture"]["facture_fournisseur_id"]
     ap.annuler_facture_fournisseur(
         facture_fournisseur_id=b, motif="mauvais fournisseur (fictif)", annule_par="nathan", role="nathan_owner",
-        voie="approbation", horodatage=CORRECTION, registre_cible=reg)
+        voie="approbation", horodatage=CORRECTION, registre_cible=reg, revision_attendue=_revision_lue(reg, b))
 
     page, verdict = ap.lister_sans_po(reg, budget_caracteres=GRAND)
 

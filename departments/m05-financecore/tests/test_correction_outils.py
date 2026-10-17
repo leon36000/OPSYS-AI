@@ -22,7 +22,7 @@ from pathlib import Path
 import m5_financecore.outils as m5_outils
 import pytest
 import yaml
-from m5_financecore import facturation, registre, taux_fiscaux
+from m5_financecore import comptes_a_payer, facturation, registre, taux_fiscaux
 from m5_financecore.analyse import MENTION_ANALYSE_PREPARATOIRE as MENTION
 from sqlalchemy import select, update
 
@@ -144,16 +144,32 @@ def _facture_args(**surcharges):
     return args
 
 
+def _revision_lue(ident):
+    """La révision que la personne lit AU MOMENT DE PROPOSER, comme la ligne des comptes à payer la montre : son champ
+    `corrections`, absent d'une facture jamais touchée (statut SAISIE : révision 0). Une facture absente du registre
+    n'a pas de révision lue : `KeyError`, jamais un 0 inventé."""
+    vue = comptes_a_payer.vue_facture(comptes_a_payer._etats_factures(_registre_ap())[ident])
+    if "corrections" not in vue:
+        assert vue["statut"] == "SAISIE", vue
+        return 0
+    return vue["corrections"]
+
+
 def _corriger_args(ident, **surcharges):
+    """Sans `revision_attendue` en surcharge : celle lue sur la facture à cet instant (`_revision_lue`)."""
     args = {"facture_fournisseur_id": ident, "motif": "Faute de frappe sur le montant (fictif)",
             "numero_facture": None, "date_facture": None, "montant_avant_taxes": "310.00", "total_facture": None,
             "horodatage": CORRECTION}
+    if "revision_attendue" not in surcharges:
+        args["revision_attendue"] = _revision_lue(ident)
     args.update(surcharges)
     return args
 
 
 def _annuler_args(ident, **surcharges):
     args = {"facture_fournisseur_id": ident, "motif": "Saisie sous le mauvais PO (fictif)", "horodatage": ANNULATION}
+    if "revision_attendue" not in surcharges:
+        args["revision_attendue"] = _revision_lue(ident)
     args.update(surcharges)
     return args
 
@@ -230,10 +246,13 @@ def test_les_trois_outils_ont_leur_niveau_leur_portee_et_des_arguments_tous_requ
     for outil in (sans_po, corriger, annuler):
         assert outil.roles_appareil == frozenset({"admin"}) and outil.frontiere_humaine is False, outil.nom
         schema = outil.parametres
-        assert set(schema["required"]) == set(schema["properties"]) and schema["additionalProperties"] is False
+        # Le lien N4 à la révision vue est requis lui aussi (test_revision_facture_fournisseur.py).
+        assert set(schema["properties"]) - set(schema["required"]) == set(), outil.nom
+        assert schema["additionalProperties"] is False
     assert corriger.parametres["properties"]["numero_facture"]["type"] == ["string", "null"]
     assert corriger.parametres["properties"]["montant_avant_taxes"]["type"] == ["string", "null"]
-    assert annuler.parametres["properties"].keys() == {"facture_fournisseur_id", "motif", "horodatage"}
+    assert annuler.parametres["properties"].keys() == {"facture_fournisseur_id", "motif", "horodatage",
+                                                       "revision_attendue"}
     assert m5_outils.NIVEAU_CORRECTION_FACTURE_FOURNISSEUR is Niveau.N4
 
 
@@ -499,8 +518,12 @@ def test_les_refus_de_l_outil_ne_laissent_aucune_trace(par_nom, facture):
     _accepte(_appeler(par_nom, "m5_corriger_facture_fournisseur", _corriger_args(facture), NATHAN))
     apres = _instantane_base()
 
+    # Le même geste reproposé sur la révision relue (1) : rien ne change. Les arguments exacts d'avant (révision 0)
+    # sont PERIMEE (test_revision_facture_fournisseur.py).
     rejeu = _appeler(par_nom, "m5_corriger_facture_fournisseur", _corriger_args(facture), NATHAN)
-    inconnue = _appeler(par_nom, "m5_annuler_facture_fournisseur", _annuler_args("apf-inconnue"), NATHAN)
+    # Une facture inconnue n'a pas de révision lue : un jeton plausible, seulement pour atteindre le refus.
+    inconnue = _appeler(par_nom, "m5_annuler_facture_fournisseur", _annuler_args("apf-inconnue", revision_attendue=0),
+                        NATHAN)
     sans_motif = _appeler(par_nom, "m5_annuler_facture_fournisseur", _annuler_args(facture, motif="  "), NATHAN)
     incoherent = _appeler(
         par_nom, "m5_corriger_facture_fournisseur", _corriger_args(facture, montant_avant_taxes="320.00",

@@ -80,6 +80,12 @@ CODES_M5_LIST = [
     # empêche de chiffrer (jamais zéro à la place).
     "REJ-AP-RECEPTION-INVALIDE",
     "REJ-AP-PO-INCOHERENT",
+    # Le même `evenement_id` avec une autre charge : un conflit, jamais une redélivrance (contrat du bus).
+    "REJ-AP-RECEPTION-CONFLIT",
+    # Une correction ou une annulation décidée sur une révision de la facture qui n'est plus la courante.
+    "REJ-AP-FACTURE-REVISION-PERIMEE",
+    # La même demande sans la révision lue (omise ou nulle) : rien ne la lie à ce qui a été vu, la reproposer.
+    "REJ-AP-FACTURE-REVISION-REQUISE",
     "REJ-AP-PRIX-PO-ABSENT",
     "REJ-AP-DEVISE-NON-CAD",
     "REJ-AP-MONTANT-ILLISIBLE",

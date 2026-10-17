@@ -103,10 +103,14 @@ def _corriger_ap(client, facture_id, montant="80.00"):
     outil = next(o for o in deps["m05-financecore"].charger_outils()
                  if o.nom == "m5_corriger_facture_fournisseur")
     with stockage.transaction() as cnx:
+        # La révision lue sur la facture au moment de proposer.
+        (lue,) = [f for f in m5.comptes_a_payer.factures_saisies(m5._registre_comptes_a_payer())
+                  if f["facture_fournisseur_id"] == facture_id]
         demande = approbations.creer_demande(cnx, "m05-financecore", outil.nom, {
             "facture_fournisseur_id": facture_id, "motif": "Correction tardive fictive",
             "numero_facture": None, "date_facture": None, "montant_avant_taxes": montant,
             "total_facture": None, "horodatage": "2026-10-02T14:00:00+00:00",
+            "revision_attendue": lue["corrections"],
         }, niveau=approbations.Niveau.N4)
         decision = approbations.decider(cnx, demande, True, session.utilisateur, {outil.nom: outil}, deps)
     assert decision["statut"] == "executee", decision

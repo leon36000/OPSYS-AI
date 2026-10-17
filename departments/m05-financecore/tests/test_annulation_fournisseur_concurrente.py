@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 import pytest
-from m5_financecore import outils
+from m5_financecore import comptes_a_payer, outils
 from sqlalchemy import select, update
 
 from opsys import approbations, stockage
@@ -33,6 +33,17 @@ def seed(dep):
     return r["reponse"]["resultat"]["resultat"]["facture"]["facture_fournisseur_id"]
 
 
+def revision_lue(ident):
+    """`corrections` de la ligne sans PO lue avant de proposer ; absent au statut SAISIE : 0."""
+    page, verdict = comptes_a_payer.lister_sans_po(f.journal(), budget_caracteres=6000)
+    assert verdict is None, verdict
+    (ligne,) = [x for x in page["factures"] if x["facture_fournisseur_id"] == ident]
+    if "corrections" not in ligne:
+        assert ligne["statut"] == "SAISIE", ligne
+        return 0
+    return ligne["corrections"]
+
+
 def demander_annulation(dep, ident):
     r = Capacites({D: dep}, stockage.transaction).appeler(
         "m5_annuler_facture_fournisseur",
@@ -40,6 +51,7 @@ def demander_annulation(dep, ident):
             "facture_fournisseur_id": ident,
             "motif": "Facture fictive annulee par finance",
             "horodatage": f.fixtures.SAISIE,
+            "revision_attendue": revision_lue(ident),
         },
     )
     assert r["statut"] == "en_attente_approbation"

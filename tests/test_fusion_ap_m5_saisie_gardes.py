@@ -114,9 +114,11 @@ def test_rejeu_conserve_correction_ou_annulation_posterieure(ap_m5_saisie, actio
     receipt = _BASE._saisir(ap_m5_saisie, observation)
     with stockage.transaction():
         reg = registre.Registre(maillons=stockage.maillons("m05-financecore", "comptes_a_payer"))
+        (lue,) = [f for f in comptes_a_payer.factures_saisies(reg)
+                  if f["facture_fournisseur_id"] == receipt["facture_id"]]
         common = {"facture_fournisseur_id": receipt["facture_id"], "motif": "vérification fictive ultérieure",
                   "role": "nathan_owner", "voie": "appareil", "horodatage": "2026-10-04T12:00:00+00:00",
-                  "registre_cible": reg}
+                  "registre_cible": reg, "revision_attendue": lue["corrections"]}
         if action == "annuler":
             resultat, verdict = comptes_a_payer.annuler_facture_fournisseur(**common, annule_par=ap_m5_saisie["acteur"])
         else:

@@ -151,18 +151,18 @@ def _facture(moteur: Moteur, admin, cle: str) -> Reponse:
     }, cle=cle, horodatage_appareil=iso(moteur.horloge.maintenant))
 
 
-def _corriger(moteur: Moteur, admin, ident: str, cle: str, montant: str = "310.00") -> Reponse:
+def _corriger(moteur: Moteur, admin, ident: str, cle: str, revision: int, montant: str = "310.00") -> Reponse:
     return admin.appeler("m5_corriger_facture_fournisseur", {
         "facture_fournisseur_id": ident, "motif": "Faute de frappe sur le montant, facture papier relue (fictif)",
         "numero_facture": None, "date_facture": None, "montant_avant_taxes": montant, "total_facture": None,
-        "horodatage": iso(moteur.horloge.maintenant),
+        "horodatage": iso(moteur.horloge.maintenant), "revision_attendue": revision,
     }, cle=cle, horodatage_appareil=iso(moteur.horloge.maintenant))
 
 
-def _annuler(moteur: Moteur, admin, ident: str, cle: str) -> Reponse:
+def _annuler(moteur: Moteur, admin, ident: str, cle: str, revision: int) -> Reponse:
     return admin.appeler("m5_annuler_facture_fournisseur", {
         "facture_fournisseur_id": ident, "motif": "Facture reçue en double du fournisseur (fictif)",
-        "horodatage": iso(moteur.horloge.maintenant),
+        "horodatage": iso(moteur.horloge.maintenant), "revision_attendue": revision,
     }, cle=cle, horodatage_appareil=iso(moteur.horloge.maintenant))
 
 
@@ -184,6 +184,16 @@ def _le_po(admin) -> dict[str, Any]:
     page = admin.appeler("m5_lister_comptes_a_payer", {"po_id": PO}).resultat
     assert page["total"] == 1
     return page["comptes"][0]
+
+
+def _revision_lue(admin, ident: str) -> int:
+    """La révision que l'admin lit sur son téléphone AVANT de proposer : `corrections` de la ligne de la facture,
+    absent au statut SAISIE (révision 0)."""
+    (ligne,) = [f for f in _le_po(admin)["factures_saisies"] if f["facture_fournisseur_id"] == ident]
+    if "corrections" not in ligne:
+        assert ligne["statut"] == "SAISIE", ligne
+        return 0
+    return ligne["corrections"]
 
 
 def _cash(admin) -> tuple[str, str, str]:
@@ -214,9 +224,11 @@ def test_correction_annulation_et_facture_sans_po_de_bout_en_bout(moteur, pret):
     ident = saisie.metier["resultat"]["facture"]["facture_fournisseur_id"]
     assert _cash(admin) == ("18951.25", "703.82", "344.93")
 
-    # 1. corriger : N4, l'appel ATTEND dans la file du propriétaire ; rien n'est écrit
+    # 1. corriger : N4, l'appel ATTEND dans la file du propriétaire ; rien n'est écrit. La révision est lue avant.
+    lue = _revision_lue(admin, ident)
+    assert lue == 0
     avant = moteur.empreinte_etat()
-    demande = _corriger(moteur, admin, ident, "cle-correction-1")
+    demande = _corriger(moteur, admin, ident, "cle-correction-1", lue)
     assert demande.ok and demande.enveloppe["statut"] == "en_attente_approbation", demande.corps
     apres_demande = moteur.empreinte_etat()
     assert apres_demande["registres"] == avant["registres"], "aucune pièce écrite"
@@ -226,9 +238,10 @@ def test_correction_annulation_et_facture_sans_po_de_bout_en_bout(moteur, pret):
     assert en_attente["outil"] == "m5_corriger_facture_fournisseur" and en_attente["niveau"] == "N4"
     assert en_attente["decidable"] is True and en_attente["arguments"]["facture_fournisseur_id"] == ident
     assert en_attente["arguments"]["motif"].startswith("Faute de frappe")
+    assert en_attente["arguments"]["revision_attendue"] == lue, "la file garde la révision lue, jamais une autre"
 
-    # le même geste rejoué (même clé) ne fait rien de plus : la même demande, aucune autre
-    rejoue = _corriger(moteur, admin, ident, "cle-correction-1")
+    # le même geste rejoué (même clé, mêmes arguments) ne fait rien de plus : la même demande, aucune autre
+    rejoue = _corriger(moteur, admin, ident, "cle-correction-1", lue)
     assert rejoue.ok and rejoue.enveloppe["rejoue"] is True
     assert rejoue.enveloppe["demande_id"] == demande.enveloppe["demande_id"]
     assert moteur.empreinte_etat() == apres_demande
@@ -260,7 +273,7 @@ def test_correction_annulation_et_facture_sans_po_de_bout_en_bout(moteur, pret):
     assert moteur.empreinte_etat()["registres"] == apres_decision["registres"]
 
     # 2. le REJEU de la même correction (autre clé : un autre geste) : l'outil refuse à la décision, rien n'est écrit
-    rejeu = _corriger(moteur, admin, ident, "cle-correction-2")
+    rejeu = _corriger(moteur, admin, ident, "cle-correction-2", _revision_lue(admin, ident))
     assert rejeu.enveloppe["statut"] == "en_attente_approbation"
     avant_rejeu = moteur.empreinte_etat()["registres"]
     decide_rejeu = _decider(moteur, admin, rejeu.enveloppe["demande_id"], "cle-decision-3")
@@ -271,7 +284,7 @@ def test_correction_annulation_et_facture_sans_po_de_bout_en_bout(moteur, pret):
     assert _cash(admin) == ("18941.25", "702.33", "356.42")
 
     # annuler : N4 aussi ; la dette ne disparaît pas (l'attendu redevient dû), les crédits de taxes oui
-    annulation = _annuler(moteur, admin, ident, "cle-annulation-1")
+    annulation = _annuler(moteur, admin, ident, "cle-annulation-1", _revision_lue(admin, ident))
     assert annulation.enveloppe["statut"] == "en_attente_approbation"
     _decider(moteur, admin, annulation.enveloppe["demande_id"], "cle-decision-4")
     ligne = _le_po(admin)
@@ -283,8 +296,9 @@ def test_correction_annulation_et_facture_sans_po_de_bout_en_bout(moteur, pret):
 
     # l'annulation rejouée est refusée à la décision, sans rien écrire ; une annulée ne se corrige plus
     apres_annulation = moteur.empreinte_etat()["registres"]
-    for cle, demander in (("cle-annulation-2", lambda c: _annuler(moteur, admin, ident, c)),
-                          ("cle-correction-3", lambda c: _corriger(moteur, admin, ident, c, "320.00"))):
+    for cle, demander in (
+            ("cle-annulation-2", lambda c: _annuler(moteur, admin, ident, c, _revision_lue(admin, ident))),
+            ("cle-correction-3", lambda c: _corriger(moteur, admin, ident, c, _revision_lue(admin, ident), "320.00"))):
         demande_rejeu = demander(cle)
         decide = _decider(moteur, admin, demande_rejeu.enveloppe["demande_id"], f"cle-decision-{cle}")
         assert decide.resultat["issue"]["accepte"] is False, cle
@@ -355,15 +369,17 @@ def test_sans_liste_de_categories_la_facture_sans_po_dit_categories_a_configurer
 def test_l_employe_n_a_aucune_portee_sur_les_trois_outils_ni_sur_la_lecture(moteur, pret):
     admin, employe = pret
     ident = _facture(moteur, admin, "cle-facture-1").metier["resultat"]["facture"]["facture_fournisseur_id"]
+    lue = _revision_lue(admin, ident)
     avant = moteur.empreinte_etat()
 
     for outil, args in (
         ("m5_corriger_facture_fournisseur", {
             "facture_fournisseur_id": ident, "motif": "je veux corriger", "numero_facture": None,
             "date_facture": None, "montant_avant_taxes": "1.00", "total_facture": None,
-            "horodatage": iso(moteur.horloge.maintenant)}),
+            "horodatage": iso(moteur.horloge.maintenant), "revision_attendue": lue}),
         ("m5_annuler_facture_fournisseur", {
-            "facture_fournisseur_id": ident, "motif": "je veux annuler", "horodatage": iso(moteur.horloge.maintenant)}),
+            "facture_fournisseur_id": ident, "motif": "je veux annuler", "horodatage": iso(moteur.horloge.maintenant),
+            "revision_attendue": lue}),
         ("m5_saisir_facture_sans_po", {
             "fournisseur_id": "X", "categorie": "carburant", "numero_facture": "Z", "date_facture": "2026-09-14",
             "montant_avant_taxes": "1.00", "total_facture": None, "horodatage": iso(moteur.horloge.maintenant)}),
@@ -378,9 +394,10 @@ def test_l_employe_n_a_aucune_portee_sur_les_trois_outils_ni_sur_la_lecture(mote
 def test_l_agent_ne_corrige_ni_n_annule_seul_il_propose_ou_l_outil_refuse(moteur, pret):
     admin, _employe = pret
     ident = _facture(moteur, admin, "cle-facture-1").metier["resultat"]["facture"]["facture_fournisseur_id"]
+    lue = _revision_lue(admin, ident)
     arguments = {"facture_fournisseur_id": ident, "motif": "proposé par l'agent (fictif)", "numero_facture": None,
                  "date_facture": None, "montant_avant_taxes": "310.00", "total_facture": None,
-                 "horodatage": iso(moteur.horloge.maintenant)}
+                 "horodatage": iso(moteur.horloge.maintenant), "revision_attendue": lue}
     avant = moteur.empreinte_etat()
 
     # ombre et supervise : la demande attend le propriétaire, rien n'est écrit
@@ -397,7 +414,7 @@ def test_l_agent_ne_corrige_ni_n_annule_seul_il_propose_ou_l_outil_refuse(moteur
     capacites = Capacites(autonome, stockage.transaction)
     for outil, args in (("m5_corriger_facture_fournisseur", arguments), ("m5_annuler_facture_fournisseur", {
             "facture_fournisseur_id": ident, "motif": "proposé par l'agent (fictif)",
-            "horodatage": iso(moteur.horloge.maintenant)})):
+            "horodatage": iso(moteur.horloge.maintenant), "revision_attendue": lue})):
         reponse = capacites.appeler(outil, args)
         assert reponse["ok"] is True and reponse["resultat"]["accepte"] is False, reponse
         assert reponse["resultat"]["verdict"]["code"] == "REJ-AP-HUMAIN-REQUIS"
@@ -408,7 +425,7 @@ def test_l_agent_ne_corrige_ni_n_annule_seul_il_propose_ou_l_outil_refuse(moteur
     capacites_ombre = Capacites(moteur.departements, stockage.transaction)
     demande = capacites_ombre.appeler("m5_annuler_facture_fournisseur", {
         "facture_fournisseur_id": ident, "motif": "proposé par l'agent (fictif)",
-        "horodatage": iso(moteur.horloge.maintenant)})
+        "horodatage": iso(moteur.horloge.maintenant), "revision_attendue": _revision_lue(admin, ident)})
     decision = _decider(moteur, admin, demande["demande_id"], "cle-decision-agent")
     assert decision.resultat["statut"] == "executee" and decision.resultat["issue"]["accepte"] is True
     with stockage.transaction():

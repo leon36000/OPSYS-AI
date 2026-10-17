@@ -160,6 +160,11 @@ l'outil ne calcule pas l'âge, il ne devine pas la date.
    La facture d'origine ne change jamais : une pièce s'ajoute, et les comptes à payer, le rapprochement et le cash libre lisent
    l'état courant (une annulée ne compte plus ; le PO reçu et non facturé redevient un « à payer attendu »). Le PO et le
    fournisseur ne se corrigent pas : annuler puis ressaisir. Redemander une correction déjà faite est refusé, sans effet.
+   `revision_attendue` est OBLIGATOIRE : lis la facture dans `m5_lister_comptes_a_payer` juste avant de proposer et passe
+   son champ `corrections` (une ligne au statut SAISIE n'en porte pas : 0). Facture non lue, ne propose pas : lis-la, ne
+   devine jamais 0. Refus `REVISION-PERIMEE` (une autre pièce est passée depuis) ou `REVISION-REQUISE` (demande sans
+   révision, même ancienne) : rien n'est écrit ; relis la facture, montre ce qui a changé et repropose, jamais en
+   reprenant l'ancienne demande.
 6. Une dépense sans PO (carburant, outils) se saisit avec `m5_saisir_facture_sans_po`, par un humain, telle qu'imprimée. La
    catégorie est de la liste que le propriétaire a déclarée : si l'outil répond « catégories à configurer », dis-le à Nathan,
    n'en choisis aucune. La facture est une dette dès sa saisie : elle entre en entier dans les comptes à payer et le cash libre.

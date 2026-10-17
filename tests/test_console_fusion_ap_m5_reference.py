@@ -107,6 +107,9 @@ def test_reference_reflète_correction_et_annulation_m5_sans_effacer_l_origine(c
     lot_id, facture_id, _ = _confirmation(client_ap_m5)
     taux, erreurs = taux_fiscaux.charger_taux_fiscaux(m5_outils._CHEMIN_TAUX_FISCAUX)
     assert not erreurs
+    # La révision que la référence montre avant le geste (statut, nombre de corrections).
+    lue = _codes(client_ap_m5.get(f"/fusion/pdf/lots/{lot_id}/ap").text)
+    assert lue[2:] == ("SAISIE", 0)
     with stockage.transaction():
         registre = m5_outils._registre_comptes_a_payer()
         corrigee, refus = comptes_a_payer.corriger_facture_fournisseur(
@@ -122,6 +125,7 @@ def test_reference_reflète_correction_et_annulation_m5_sans_effacer_l_origine(c
             horodatage="2026-10-04T13:00:00+00:00",
             dictionnaire_taux=taux,
             registre_cible=registre,
+            revision_attendue=lue[3],
         )
         assert corrigee is not None and refus is None
     after_correction = _BASE._snapshot_tables()
@@ -145,6 +149,7 @@ def test_reference_reflète_correction_et_annulation_m5_sans_effacer_l_origine(c
             voie="approbation",
             horodatage="2026-10-04T14:00:00+00:00",
             registre_cible=m5_outils._registre_comptes_a_payer(),
+            revision_attendue=corrected_ref[3],
         )
         assert annulee is not None and refus is None
     after_cancellation = _BASE._snapshot_tables()

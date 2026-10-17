@@ -73,12 +73,25 @@ def _facturer(reg, taux, numero="F-1001", montant="300.00", po="PO-1", fournisse
     return resultat["facture"]["facture_fournisseur_id"]
 
 
+def _revision_lue(reg, ident):
+    """La révision que la personne lit avant de demander le geste : `corrections` de la facture (absent au statut
+    SAISIE : 0). Une facture introuvable n'a pas de révision lue : `KeyError`, jamais un 0 inventé."""
+    vue = ap.vue_facture(ap._etats_factures(reg.lire())[ident.strip()])
+    if "corrections" not in vue:
+        assert vue["statut"] == "SAISIE", vue
+        return 0
+    return vue["corrections"]
+
+
 def _corriger(reg, taux, ident, *, motif="Faute de frappe sur le montant (fictif)", numero=None, date_facture=None,
-              montant=None, total=None, par="nathan", role="nathan_owner", voie="approbation", horodatage=CORRECTION):
+              montant=None, total=None, par="nathan", role="nathan_owner", voie="approbation", horodatage=CORRECTION,
+              revision=None):
+    """`revision` non donnée : celle lue sur la facture à cet instant (`_revision_lue`)."""
     return ap.corriger_facture_fournisseur(
         facture_fournisseur_id=ident, motif=motif, numero_facture=numero, date_facture=date_facture,
         montant_avant_taxes=montant, total_facture=total, corrige_par=par, role=role, voie=voie,
-        horodatage=horodatage, dictionnaire_taux=taux, registre_cible=reg)
+        horodatage=horodatage, dictionnaire_taux=taux, registre_cible=reg,
+        revision_attendue=_revision_lue(reg, ident) if revision is None else revision)
 
 
 def _corriger_ok(reg, taux, ident, **kwargs):
@@ -88,10 +101,10 @@ def _corriger_ok(reg, taux, ident, **kwargs):
 
 
 def _annuler(reg, ident, *, motif="Facture saisie sous le mauvais PO (fictif)", par="nathan", role="nathan_owner",
-             voie="approbation", horodatage=ANNULATION):
+             voie="approbation", horodatage=ANNULATION, revision=None):
     return ap.annuler_facture_fournisseur(
         facture_fournisseur_id=ident, motif=motif, annule_par=par, role=role, voie=voie, horodatage=horodatage,
-        registre_cible=reg)
+        registre_cible=reg, revision_attendue=_revision_lue(reg, ident) if revision is None else revision)
 
 
 def _annuler_ok(reg, ident, **kwargs):
@@ -254,11 +267,12 @@ def test_sans_humain_identifie_la_correction_et_l_annulation_sont_refusees(reg, 
 def test_une_facture_inconnue_ou_un_identifiant_vide_est_refuse(reg, taux):
     avant = reg.lire()
 
-    assert _code(_corriger(reg, taux, "apf-inconnue", montant="310.00")) == "REJ-AP-FACTURE-INCONNUE"
-    assert _code(_annuler(reg, "apf-inconnue")) == "REJ-AP-FACTURE-INCONNUE"
+    # Rien à lire : un jeton plausible, seulement pour atteindre le refus de l'identifiant.
+    assert _code(_corriger(reg, taux, "apf-inconnue", montant="310.00", revision=0)) == "REJ-AP-FACTURE-INCONNUE"
+    assert _code(_annuler(reg, "apf-inconnue", revision=0)) == "REJ-AP-FACTURE-INCONNUE"
     for vide in (None, "", "  ", 5):
-        assert _code(_corriger(reg, taux, vide, montant="310.00")) == "REJ-AP-FACTURE-CHAMP-INVALIDE"
-        assert _code(_annuler(reg, vide)) == "REJ-AP-FACTURE-CHAMP-INVALIDE"
+        assert _code(_corriger(reg, taux, vide, montant="310.00", revision=0)) == "REJ-AP-FACTURE-CHAMP-INVALIDE"
+        assert _code(_annuler(reg, vide, revision=0)) == "REJ-AP-FACTURE-CHAMP-INVALIDE"
     assert reg.lire() == avant
 
 
@@ -295,7 +309,7 @@ def test_une_correction_qui_ne_fournit_aucun_champ_dit_quoi_fournir_avant_meme_d
     ident = _facturer(reg, taux)
 
     refus = _corriger(reg, taux, ident, total="344.93")
-    inconnue = _corriger(reg, taux, "apf-inconnue")
+    inconnue = _corriger(reg, taux, "apf-inconnue", revision=0)
 
     for verdict in (refus[1], inconnue[1]):
         assert verdict["code"] == "REJ-AP-CORRECTION-SANS-CHANGEMENT", "même inconnue : rien à corriger"
@@ -561,7 +575,8 @@ def test_une_piece_qui_vise_une_facture_absente_leve_partout_jamais_un_chiffre_a
     with pytest.raises(RuntimeError, match="incohérent"):
         ap.proposer_rapprochement(reg, taux, "PO-1")
     with pytest.raises(RuntimeError, match="incohérent"):
-        _corriger(reg, taux, "apf-fantome", montant="1.00")
+        # Jeton donné : c'est la correction qui doit lever, pas la lecture préalable du test.
+        _corriger(reg, taux, "apf-fantome", montant="1.00", revision=0)
 
 
 def test_une_piece_apres_l_annulation_leve_aussi(reg, taux):

@@ -194,6 +194,7 @@ def test_verifier_evalue_doublons_sur_correction_et_annulation_a_leur_etat_coura
         horodatage=SAISIE,
         dictionnaire_taux=taux,
         registre_cible=reg,
+        revision_attendue=facture["corrections"],
     )
     assert verdict is None and correction["facture"]["statut"] == "CORRIGEE"
 
@@ -212,6 +213,7 @@ def test_verifier_evalue_doublons_sur_correction_et_annulation_a_leur_etat_coura
         voie="appareil",
         horodatage=SAISIE,
         registre_cible=reg,
+        revision_attendue=correction["facture"]["corrections"],
     )
     assert verdict is None and annulee["facture"]["statut"] == "ANNULEE"
     maillons_annules = reg.lire()

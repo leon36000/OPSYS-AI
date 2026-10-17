@@ -10,7 +10,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from m5_financecore import outils, registre
+from m5_financecore import comptes_a_payer, outils, registre
 from memoire.doubles import postgres_ephemere
 
 from opsys import approbations, identite, stockage
@@ -55,6 +55,17 @@ def decider(dep, demande):
         )
 
 
+def revision_lue(ident):
+    """`corrections` de la ligne sans PO lue avant de proposer ; absent au statut SAISIE : 0."""
+    page, verdict = comptes_a_payer.lister_sans_po(journal(), budget_caracteres=6000)
+    assert verdict is None, verdict
+    (ligne,) = [x for x in page["factures"] if x["facture_fournisseur_id"] == ident]
+    if "corrections" not in ligne:
+        assert ligne["statut"] == "SAISIE", ligne
+        return 0
+    return ligne["corrections"]
+
+
 def demander_correction(dep, ident):
     r = Capacites({D: dep}, stockage.transaction).appeler(
         "m5_corriger_facture_fournisseur",
@@ -66,6 +77,7 @@ def demander_correction(dep, ident):
             "total_facture": None,
             "motif": "Correction finance fictive",
             "horodatage": fixtures.SAISIE,
+            "revision_attendue": revision_lue(ident),
         },
     )
     assert r["statut"] == "en_attente_approbation"
