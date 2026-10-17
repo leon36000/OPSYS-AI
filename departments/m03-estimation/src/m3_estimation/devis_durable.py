@@ -273,12 +273,26 @@ def _contenu_equivalent(existant: dict[str, Any], candidat: dict[str, Any]) -> b
     return all(existant.get(cle) == candidat.get(cle) for cle in _CLES_CONTENU_DEVIS)
 
 
-def _ajouter(entree: dict[str, Any], registre_cible: Any) -> dict[str, Any]:
+def _ajouter(entree: dict[str, Any], registre_cible: Any, rang_attendu: int) -> dict[str, Any]:
     """Ajoute une copie PROFONDE de ``entree`` au registre et en retourne une seconde, indépendante
     (même précaution que ``registre.py``/M5 : ni le maillon stocké ni le résultat rendu à
-    l'appelant ne doivent partager une structure mutable, ex. la liste ``lignes``)."""
-    registre_cible.append(copy.deepcopy(entree))
+    l'appelant ne doivent partager une structure mutable, ex. la liste ``lignes``).
+
+    ``rang_attendu`` : le nombre de maillons LUS pour décider (``_lire_maillons``). Un registre durable
+    (``opsys.stockage.MaillonsDurables``) refuse l'ajout si un autre appel a écrit depuis cette lecture
+    (``EcritureConcurrente`` : la transaction est annulée, l'appel est à rejouer) — sans quoi deux créations
+    concurrentes laisseraient deux contenus au même ``devis_id``, ou une transition s'écrirait sur un statut
+    périmé (``accepte`` puis ``envoye``). Une liste en mémoire (tests unitaires) n'a pas d'autre écrivain."""
+    if isinstance(registre_cible, list):
+        registre_cible.append(copy.deepcopy(entree))
+    else:
+        registre_cible.append(copy.deepcopy(entree), rang_attendu=rang_attendu)
     return copy.deepcopy(entree)
+
+
+def _lire_maillons(registre_cible: Any) -> list[Any]:
+    """Une seule lecture du registre : l'état décidé et le rang attendu de l'ajout en viennent tous deux."""
+    return list(registre_cible)
 
 
 def _etats_courants(registre_cible: Any) -> dict[str, dict[str, Any]]:
@@ -378,7 +392,8 @@ def creer_devis(
     if estimation_source_hash is not None:
         candidat["estimation_source_hash"] = estimation_source_hash
 
-    existant = _etat_devis(registre_cible, devis_id)
+    maillons = _lire_maillons(registre_cible)
+    existant = _etat_devis(maillons, devis_id)
     if existant is not None:
         if _contenu_equivalent(existant, candidat):
             return existant, None
@@ -388,7 +403,7 @@ def creer_devis(
         )
 
     entree = {**candidat, "type_entree": "devis_cree", "statut": "brouillon", "horodatage": horodatage}
-    return _ajouter(entree, registre_cible), None
+    return _ajouter(entree, registre_cible, len(maillons)), None
 
 
 def lire_devis(registre_cible: Any, devis_id: str) -> tuple[dict[str, Any] | None, dict | None]:
@@ -436,7 +451,8 @@ def marquer_devis_envoye(
             return None, verdicts.construire_verdict(
                 "REJ-DEVIS-APPROBATEUR-ABSENT", detail=f"{nom} doit être un texte non vide quand il est fourni"
             )
-    etat = _etat_devis(registre_cible, devis_id)
+    maillons = _lire_maillons(registre_cible)
+    etat = _etat_devis(maillons, devis_id)
     if etat is None:
         return None, verdicts.construire_verdict("REJ-DEVIS-INTROUVABLE", detail=f"devis inconnu : {devis_id!r}")
     if etat["statut"] not in _STATUTS_AVANT_ENVOI:
@@ -451,7 +467,7 @@ def marquer_devis_envoye(
         entree["envoi_approuve_role"] = approuve_role
     if revue is not None:
         entree["revue_envoi"] = revue
-    _ajouter(entree, registre_cible)
+    _ajouter(entree, registre_cible, len(maillons))
     # Rend l'état COURANT (fusion de tous les maillons, cf. _etats_courants), jamais le seul
     # maillon de transition qui vient d'être écrit : les champs posés à la création (lignes,
     # totaux, taux_marge, lead_id, chantier_id) doivent rester visibles après la transition.
@@ -472,7 +488,8 @@ def marquer_devis_accepte(
             "REJ-DEVIS-APPROBATEUR-ABSENT",
             detail="approbateur humain requis, non vide : un humain doit constater l'acceptation du client",
         )
-    etat = _etat_devis(registre_cible, devis_id)
+    maillons = _lire_maillons(registre_cible)
+    etat = _etat_devis(maillons, devis_id)
     if etat is None:
         return None, verdicts.construire_verdict("REJ-DEVIS-INTROUVABLE", detail=f"devis inconnu : {devis_id!r}")
     if etat["statut"] not in _STATUTS_AVANT_ACCEPTATION:
@@ -490,7 +507,7 @@ def marquer_devis_accepte(
         "approbateur": approbateur,
         "horodatage": horodatage,
     }
-    _ajouter(entree, registre_cible)
+    _ajouter(entree, registre_cible, len(maillons))
     # Rend l'état COURANT, pas le seul maillon de transition : outils.py a besoin de lignes/
     # lead_id/chantier_id/cout_total/prix_total/taux_marge pour construire la charge de
     # l'événement m3.devis_accepte (charge_evenement_devis_accepte), qu'un maillon de transition

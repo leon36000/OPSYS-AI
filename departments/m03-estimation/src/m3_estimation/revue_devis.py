@@ -457,12 +457,13 @@ def synthese(revue: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def resume_attente(revue: dict[str, Any], limite: int = LIMITE_RESUME) -> str:
+def resume_attente(revue: dict[str, Any], limite: int = LIMITE_RESUME, action: str = "Envoi") -> str:
     """Le texte de l'attente du propriétaire : le devis, l'alerte rouge en premier, les autres motifs,
     puis le nombre de critères non évaluables. Borné à ``limite`` caractères (l'app coupe à 240) : ce
     qui compte le plus est dit d'abord, et ce qui ne tient pas est compté (``+ 2 autres``), jamais coupé
-    au milieu d'un motif ni passé sous silence."""
-    tete = f"Envoi du devis {revue['devis_id']} à approuver"
+    au milieu d'un motif ni passé sous silence. ``action`` nomme ce que le propriétaire approuve
+    (``Envoi``, ou ``Acceptation`` d'un devis qui n'est pas passé par la revue d'envoi)."""
+    tete = f"{action} du devis {revue['devis_id']} à approuver"
     rouges = [m["explication"] for m in revue["motifs"] if m["gravite"] == GRAVITE_ROUGE]
     parties: list[str] = []
     if rouges:

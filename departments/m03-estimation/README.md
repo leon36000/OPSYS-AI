@@ -60,7 +60,9 @@ envoi », la livraison au client est à M1 (T2.1-c) et n'existe pas encore. Aucu
 - **L'attente de la file porte les motifs.** M3 déclare une `attentes()` : une entrée `revue_envoi_devis` par demande
   en attente (de même `id` que la demande, N4), dont le résumé est la revue du devis d'aujourd'hui, l'alerte rouge
   d'abord, borné à ce que l'app montre (240 caractères ; le reste est compté, `+ 2 autres`). Elle disparaît quand la
-  demande est décidée.
+  demande est décidée. Une demande d'acceptation N5 porte de même une `revue_acceptation_devis`, avec l'alerte
+  rouge et les faits de l'estimation canonique liée : un brouillon peut être accepté sans revue d'envoi préalable.
+  Cette lecture n'accepte rien ; l'action proposée renvoie à la console et à l'attestation professionnelle N5.
 - **Approuvé**, le devis passe `envoye` UNE fois, à l'instant de la décision (l'horloge du socle, jamais une heure
   fournie), avec la personne, son rôle et la synthèse de la revue (codes seulement) au maillon ; `m3.devis_envoye`
   est publié dans la même transaction (`m3-devis-envoye-<devis_id>`, schéma fermé du catalogue : identifiants et
@@ -68,11 +70,19 @@ envoi », la livraison au client est à M1 (T2.1-c) et n'existe pas encore. Aucu
   republié. M2 ne consomme pas encore cet événement : la relance de M2 (T2.3-c) repose toujours sur
   `m3.devis_sans_reponse` ; T4.9 branchera M2 sur `m3.devis_envoye`.
 - **L'outil refuse de s'exécuter hors d'une décision** (`REJ-ENVOI-SANS-APPROBATION`) : il relit la demande que
-  `approbations.decider` vient de réserver (mêmes arguments, approbateur `nathan_owner` actif). Le mode `autonome`
+  `approbations.decider` exécute : `approbateur_en_cours` lie le signataire `nathan_owner` encore actif à
+  l'identifiant courant, puis M3 relit les arguments exacts et `decide_le` de cette même demande. Une autre ligne
+  `en_cours`, même aux mêmes arguments, ne donne aucun droit (T4.15-e). Le mode `autonome`
   n'met que N5 en file ; sans cette garde, un agent enverrait le devis seul.
 - **Limite connue.** L'outil ne s'exécute qu'à la décision, sans l'identité de l'appareil du vendeur : le filtre par
   propriétaire de lead (T1.4-k2) ne peut pas s'y appliquer. Un vendeur peut donc demander l'envoi du devis d'un lead
   qui n'est pas le sien ; il n'apprend rien, et le propriétaire lit le devis, la revue et les faits avant d'approuver.
+
+**Concurrence des registres durables.** La création et les transitions d'un devis, ainsi que la chaîne des
+estimations, transmettent le rang lu au stockage (`rang_attendu`). Une écriture interposée est refusée plutôt
+que d'écraser un état métier ou de casser la chaîne. L'adaptateur rejoue au plus trois fois sur une lecture
+fraîche ; une autre écriture sans rapport ne fait ainsi pas perdre la décision humaine. Les publications restent
+hors de cette boucle. Si les trois essais échouent, l'exception remonte pour annuler la transaction.
 
 P50, P80, facteurs dominants et trois scénarios de prix (PLAN T4.11, M3.11 et M3.12, `scenarios.py`) : `m3_estimer_projet`
 rend, à côté du contrat gelé `EstimationV1` (qui ne change pas : mêmes douze clés, mêmes valeurs, même `hash_maillon`), trois

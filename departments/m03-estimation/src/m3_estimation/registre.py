@@ -163,7 +163,14 @@ class Registre:
                 "hash_maillon": hash_courant,
                 "cout_reel": cout_reel,
             }
-            self._maillons.append(maillon)
+            # Le rang et la tête lus ci-dessus fondent le hash : un support durable refuse l'ajout si un
+            # autre appel a écrit depuis (``rang_attendu`` du socle, ``EcritureConcurrente``), plutôt que
+            # d'enchaîner deux maillons au même prédécesseur et de casser la chaîne. Une liste n'a pas
+            # d'autre écrivain.
+            if isinstance(self._maillons, list):
+                self._maillons.append(maillon)
+            else:
+                self._maillons.append(maillon, rang_attendu=rang)
             return copy.deepcopy(maillon), None
         except (
             AttributeError,

@@ -455,11 +455,11 @@ def estimer_projet(
         if erreur_calibration is not None:
             return {"etape": "calibration_active", "accepte": False,
                     "raisons": [erreur_calibration], "candidate_active": False}
-        resultat = estimation.orchestrer_estimation(
+        resultat = _rejouer_sur_ecriture_concurrente(lambda: estimation.orchestrer_estimation(
             contrat, marqueur, photos, seuils, bareme, quantite, plancher_rentable,
             registre_production(), graine, taux_marge,
             taux_marge_scenarios, _taux_scenarios_configures(), _seuils_revue(), calibration_candidate,
-        )
+        ))
         if resultat.get("accepte") is True and resultat.get("besoins_materiaux") is not None:
             _publier_besoins_materiaux(resultat["besoins_materiaux"])
         if vue["role"] == "employe" and resultat.get("accepte") is True:
@@ -478,6 +478,24 @@ def _publier_besoins_materiaux(contrat: dict[str, Any]) -> str:
         contrat,
         evenement_id=besoins_materiaux.identifiant_evenement(contrat),
     )
+
+
+# Sous PostgreSQL (READ COMMITTED), l'écriture d'un autre appel entre la lecture et l'ajout d'un registre pur
+# (`devis_durable`, `registre`) lève `EcritureConcurrente` (précondition de rang du socle) au lieu d'écrire sur un
+# état périmé. Le rang étant global au registre, un AUTRE devis ou une autre estimation peut en être la cause :
+# l'opération est rejouée sur une lecture fraîche, qui reprend la même décision si son objet n'a pas changé, ou
+# rend le refus nommé du nouvel état sinon. Une décision du propriétaire n'est donc pas perdue pour une écriture
+# sans rapport. Au-delà de trois essais, l'exception remonte et la transaction est annulée (fail-closed).
+_ESSAIS_ECRITURE_CONCURRENTE = 3
+
+
+def _rejouer_sur_ecriture_concurrente(operation: Callable[[], Any]) -> Any:
+    for _ in range(_ESSAIS_ECRITURE_CONCURRENTE - 1):
+        try:
+            return operation()
+        except stockage.EcritureConcurrente:
+            continue
+    return operation()
 
 
 def registre_production() -> registre.Registre:
@@ -560,19 +578,17 @@ def creer_devis(
                 detail="estimation_source_hash ne référence pas une charge M3 validée pour ce devis et ce lead",
             ),
         }
-    return depuis_couple(
-        devis_durable.creer_devis(
-            devis_id,
-            lead_id,
-            chantier_id,
-            lignes,
-            taux_marge,
-            horodatage,
-            registre_devis_production(),
-            prix_total_fourni=prix_total,
-            estimation_source_hash=estimation_source_hash,
-        )
-    )
+    return depuis_couple(_rejouer_sur_ecriture_concurrente(lambda: devis_durable.creer_devis(
+        devis_id,
+        lead_id,
+        chantier_id,
+        lignes,
+        taux_marge,
+        horodatage,
+        registre_devis_production(),
+        prix_total_fourni=prix_total,
+        estimation_source_hash=estimation_source_hash,
+    )))
 
 
 def lire_devis(devis_id: str, role: str | None = None) -> dict[str, Any]:
@@ -723,9 +739,9 @@ def marquer_devis_accepte(devis_id: str, approbateur: str, horodatage: str) -> d
     donc un no-op (`evenements.publier` sur un `evenement_id` déjà connu), jamais un second
     événement pour la même acceptation.
     """
-    devis, verdict = devis_durable.marquer_devis_accepte(
+    devis, verdict = _rejouer_sur_ecriture_concurrente(lambda: devis_durable.marquer_devis_accepte(
         devis_id, approbateur, horodatage, registre_devis_production()
-    )
+    ))
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
     charge = devis_durable.charge_evenement_devis_accepte(devis)
@@ -1652,6 +1668,8 @@ _DEPARTEMENT = "m03-estimation"
 _OUTIL_ENVOI_DEVIS = "m3_demander_envoi_devis"
 _TYPE_EVENEMENT_DEVIS_ENVOYE = "m3.devis_envoye"
 _TYPE_ATTENTE_REVUE_ENVOI = "revue_envoi_devis"
+_OUTIL_ACCEPTATION_DEVIS = "m3_marquer_devis_accepte"
+_TYPE_ATTENTE_REVUE_ACCEPTATION = "revue_acceptation_devis"
 # Rôles dont une décision peut faire exécuter l'envoi : la même liste que `department.yaml/approbations.n4`
 # (un test les confronte). Relue à l'exécution, en défense en profondeur : un mode `autonome` ne met pas un
 # N4 en file, l'outil s'exécuterait alors sans humain ; il refuse donc de lui-même (voir ci-dessous).
@@ -1721,31 +1739,26 @@ def _decision_approuvee_en_cours(cnx: Any, arguments: dict[str, Any]) -> tuple[s
     """`(personne, rôle, instant)` de la décision qui fait exécuter CET appel, sinon `None`. Lecture seule.
 
     `approbations.decider` réserve la demande (`en_attente` -> `en_cours`, avec `decide_par`, `decide_role` et
-    `decide_le`) puis exécute l'outil avec les arguments EXACTS enregistrés, dans la même transaction. Cet
-    appel EST donc l'exécution d'une décision si et seulement si une demande `en_cours` de cet outil, de ce
-    département, porte exactement ces arguments et un approbateur de rôle autorisé (`nathan_owner`) toujours
-    actif. Un agent ne peut pas fabriquer une telle ligne : il ne peut que créer une demande `en_attente`.
-    Le socle n'expose pas l'approbateur à l'outil : cette lecture de sa table en tient lieu (même patron que
-    M5 et M10). `decide_le` est l'horloge du socle au moment de la décision : M3 ne lit jamais l'heure."""
+    `decide_le`), pose son identifiant autour de l'outil (`contexte.executer_demande_approuvee`) puis l'exécute
+    avec les arguments EXACTS enregistrés, dans la même transaction. Cet appel EST donc l'exécution d'une décision
+    si et seulement si le socle la reconnaît (`approbateur_en_cours`, PLAN T4.15-e : CETTE demande, `en_cours`, de
+    cet outil et de ce département, approuvée par `nathan_owner` toujours actif et portant ce rôle) ET qu'elle porte
+    exactement ces arguments. Une autre ligne `en_cours`, même aux mêmes arguments, n'est pas cette décision : seul
+    le pointeur posé par `decider` désigne la demande exécutée. `decide_le` est celui de cette demande, l'horloge du
+    socle au moment de la décision : M3 ne lit jamais l'heure."""
     if cnx is None:
         return None
-    lignes = cnx.execute(
-        select(APPROBATIONS.c.arguments, APPROBATIONS.c.decide_par, APPROBATIONS.c.decide_role,
-               APPROBATIONS.c.decide_le).where(
-            APPROBATIONS.c.statut == "en_cours",
-            APPROBATIONS.c.outil == _OUTIL_ENVOI_DEVIS,
-            APPROBATIONS.c.departement == _DEPARTEMENT,
+    signataire = approbateur_en_cours(cnx, _OUTIL_ENVOI_DEVIS, _DEPARTEMENT, roles=_ROLES_APPROBATEURS_ENVOI)
+    if signataire is None:
+        return None
+    ligne = cnx.execute(
+        select(APPROBATIONS.c.arguments, APPROBATIONS.c.decide_le).where(
+            APPROBATIONS.c.id == contexte.demande_approuvee_en_cours(),
         )
-    ).all()
-    for enregistres, decide_par, decide_role, decide_le in lignes:
-        if not decide_par or not decide_le or decide_role not in _ROLES_APPROBATEURS_ENVOI:
-            continue
-        if json.loads(enregistres) != arguments:
-            continue
-        personne = identite.personne_active(cnx, decide_par)
-        if personne is not None and decide_role in personne.roles:
-            return decide_par, decide_role, decide_le
-    return None
+    ).one_or_none()
+    if ligne is None or not ligne.decide_le or json.loads(ligne.arguments) != arguments:
+        return None
+    return signataire.personne, signataire.role, ligne.decide_le
 
 
 _CHAMPS_FAITS_REVUE = ("verdict_estimation", "niveau_confiance_hierarchie", "alerte_plancher")
@@ -1844,10 +1857,12 @@ def demander_envoi_devis(devis_id: str, contexte_revue: dict[str, Any] | None) -
         revue, verdict = _evaluer_revue_source(devis, contexte_revue, _seuils_revue())
         if verdict is not None:
             return {"accepte": False, "verdict": verdict}
-    envoye, verdict = devis_durable.marquer_devis_envoye(
+    # Le contenu d'un devis ne change jamais après sa création : seul son statut peut avoir bougé entre la revue et
+    # l'écriture, et `marquer_devis_envoye` le relit à chaque essai (refus nommé s'il n'est plus `brouillon`).
+    envoye, verdict = _rejouer_sur_ecriture_concurrente(lambda: devis_durable.marquer_devis_envoye(
         devis_id, decide_le, registre_devis, approuve_par=approuve_par, approuve_role=approuve_role,
         revue=revue_devis.synthese(revue) if revue is not None else None,
-    )
+    ))
     if verdict is not None:
         return {"accepte": False, "verdict": verdict}
     evenements.publier(
@@ -1860,30 +1875,35 @@ def demander_envoi_devis(devis_id: str, contexte_revue: dict[str, Any] | None) -
     }}
 
 
-def _resume_demande_envoi(arguments: Any, registre_devis: Any, seuils: Any) -> str:
-    """Le texte d'UNE demande d'envoi en attente, tel que le propriétaire le lit : la revue du devis tel
-    qu'il est AUJOURD'HUI (`revue_devis.resume_attente`), ou, quand elle ne peut pas se faire, pourquoi.
-    Jamais un silence : une demande qu'on ne sait pas lire reste visible, avec la raison."""
+def _resume_demande_envoi(arguments: Any, registre_devis: Any, seuils: Any, *, acceptation: bool = False) -> str:
+    """Le texte d'UNE demande d'envoi (ou d'acceptation) en attente, tel que le propriétaire le lit : la revue du
+    devis tel qu'il est AUJOURD'HUI (`revue_devis.resume_attente`), ou, quand elle ne peut pas se faire, pourquoi.
+    Jamais un silence : une demande qu'on ne sait pas lire reste visible, avec la raison.
+
+    `acceptation` : la demande N5 de `m3_marquer_devis_accepte`. Un devis peut être accepté depuis `brouillon`,
+    sans être passé par la revue d'envoi : le propriétaire lit alors la même revue (sans `contexte_revue`, que cette
+    demande ne porte pas ; la source canonique liée prime comme à l'envoi) avant sa décision (§7 M3.11)."""
     limite = revue_devis.LIMITE_RESUME
+    action, demande = ("Acceptation", "demandée") if acceptation else ("Envoi", "demandé")
     devis_id = arguments.get("devis_id") if isinstance(arguments, dict) else None
     if not isinstance(devis_id, str) or not devis_id.strip():
-        return revue_devis.abreger("Demande d'envoi illisible : aucun devis_id. À refuser.", limite)
+        return revue_devis.abreger(f"Demande d'{action.lower()} illisible : aucun devis_id. À refuser.", limite)
     devis, verdict = devis_durable.lire_devis(registre_devis, devis_id)
     if verdict is not None:
         return revue_devis.abreger(
-            f"Envoi du devis {devis_id} demandé, mais ce devis est introuvable. À refuser.", limite
+            f"{action} du devis {devis_id} {demande}, mais ce devis est introuvable. À refuser.", limite
         )
-    if devis["statut"] != "brouillon":
+    if devis["statut"] not in (("brouillon", "envoye") if acceptation else ("brouillon",)):
         return revue_devis.abreger(
-            f"Envoi du devis {devis_id} demandé, mais il est déjà {devis['statut']} : rien à approuver.", limite
+            f"{action} du devis {devis_id} {demande}, mais il est déjà {devis['statut']} : rien à approuver.", limite
         )
-    revue, verdict = _evaluer_revue_source(devis, arguments.get("contexte_revue"), seuils)
+    revue, verdict = _evaluer_revue_source(devis, None if acceptation else arguments.get("contexte_revue"), seuils)
     if verdict is not None:
         return revue_devis.abreger(
-            f"Envoi du devis {devis_id} : revue impossible ({verdict['code']} : {verdict['detail']}). "
+            f"{action} du devis {devis_id} : revue impossible ({verdict['code']} : {verdict['detail']}). "
             "À refuser ou à redemander.", limite,
         )
-    resume = revue_devis.resume_attente(revue, limite)
+    resume = revue_devis.resume_attente(revue, limite, action)
     if revue.get("source_estimation", {}).get("statut") == "non_evaluable":
         raison = revue["source_estimation"]["raison"]
         message = ("source historique sans faits de revue" if raison == "historique_sans_faits"
@@ -1901,14 +1921,18 @@ def attentes() -> list[dict[str, Any]]:
     rien, ne décide de rien. Hors transaction (aucune connexion), rien n'est lisible : liste vide.
 
     Ce n'est PAS la demande d'approbation (celle du socle, décidable) : c'est ce qui la rend lisible. Son `id`
-    est celui de la demande, pour les retrouver l'une à côté de l'autre."""
+    est celui de la demande, pour les retrouver l'une à côté de l'autre.
+
+    De même, une entrée `revue_acceptation_devis` (N5) par demande d'acceptation en attente : l'acceptation est
+    permise depuis `brouillon`, donc sans revue d'envoi, et le prix y devient un engagement ; le propriétaire lit
+    la même revue avant de décider (§7 M3.11 : jamais sous le minimum rentable sans alerte rouge)."""
     cnx = stockage.connexion_courante()
     if cnx is None:
         return []
     demandes = cnx.execute(
-        select(APPROBATIONS.c.id, APPROBATIONS.c.arguments, APPROBATIONS.c.cree_le).where(
+        select(APPROBATIONS.c.id, APPROBATIONS.c.outil, APPROBATIONS.c.arguments, APPROBATIONS.c.cree_le).where(
             APPROBATIONS.c.statut == "en_attente",
-            APPROBATIONS.c.outil == _OUTIL_ENVOI_DEVIS,
+            APPROBATIONS.c.outil.in_((_OUTIL_ENVOI_DEVIS, _OUTIL_ACCEPTATION_DEVIS)),
             APPROBATIONS.c.departement == _DEPARTEMENT,
         ).order_by(APPROBATIONS.c.cree_le, APPROBATIONS.c.id)
     ).all()
@@ -1917,18 +1941,23 @@ def attentes() -> list[dict[str, Any]]:
     registre_devis = registre_devis_production()
     seuils = _seuils_revue()
     attentes_revue: list[dict[str, Any]] = []
-    for demande_id, brut, cree_le in demandes:
+    for demande_id, outil, brut, cree_le in demandes:
         try:
             arguments: Any = json.loads(brut)
         except ValueError:
             arguments = None
+        acceptation = outil == _OUTIL_ACCEPTATION_DEVIS
         attentes_revue.append({
-            "type": _TYPE_ATTENTE_REVUE_ENVOI,
+            "type": _TYPE_ATTENTE_REVUE_ACCEPTATION if acceptation else _TYPE_ATTENTE_REVUE_ENVOI,
             "id": demande_id,
-            "resume": _resume_demande_envoi(arguments, registre_devis, seuils),
-            "niveau": Niveau.N4.value,
+            "resume": _resume_demande_envoi(arguments, registre_devis, seuils, acceptation=acceptation),
+            "niveau": (Niveau.N5 if acceptation else Niveau.N4).value,
             "depuis": cree_le,
-            "action_proposee": "approuver ou refuser l'envoi (le propriétaire décide)",
+            "action_proposee": (
+                "approuver ou refuser l'acceptation à la console, avec l'attestation du professionnel (N5)"
+                if acceptation
+                else "approuver ou refuser l'envoi (le propriétaire décide)"
+            ),
         })
     return attentes_revue
 

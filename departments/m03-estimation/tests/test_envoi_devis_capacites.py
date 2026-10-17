@@ -352,6 +352,63 @@ def test_une_demande_qu_on_ne_sait_pas_revoir_reste_visible_avec_sa_raison(capac
     assert all(len(r) <= revue_devis.LIMITE_RESUME for r in resumes)
 
 
+NOM_ACCEPTATION = "m3_marquer_devis_accepte"
+
+
+def _demande_d_acceptation(devis_id):
+    """La demande N5 telle que le socle la met en file (T3 : jamais exécutée sur l'appel d'un agent)."""
+    arguments = {"devis_id": devis_id, "approbateur": "vendeur.un", "horodatage": _HORODATAGE}
+    with stockage.transaction() as cnx:
+        return approbations.creer_demande(cnx, DEP, NOM_ACCEPTATION, arguments, niveau=Niveau.N5)
+
+
+def test_l_acceptation_d_un_brouillon_montre_au_proprietaire_l_alerte_rouge_avant_sa_decision(
+    departements, personnes, seuils_configures
+):
+    """§7 M3.11 : « jamais sous le minimum rentable sans alerte rouge et validation de Nathan ». Un devis peut être
+    accepté depuis `brouillon` (acceptation constatée hors d'OPSYS) sans jamais passer par la revue d'envoi : la file
+    du propriétaire doit alors porter la même revue que l'envoi, sous la demande N5 qu'il va décider."""
+    _creer_devis("M3-DEVIS-accept-050", lead_id="lead-accept-050")
+    demande_id = _demande_d_acceptation("M3-DEVIS-accept-050")
+
+    attentes = [i for i in _file(departements) if i["type"] == "revue_acceptation_devis"]
+
+    assert [a["id"] for a in attentes] == [demande_id]
+    [attente] = attentes
+    assert attente["niveau"] == "N5" and attente["departement"] == DEP
+    assert "à la console" in attente["action_proposee"] and "attestation" in attente["action_proposee"]
+    assert attente["resume"].startswith(
+        "Acceptation du devis M3-DEVIS-accept-050 à approuver : ALERTE ROUGE : prix 2000.00 $ sous le minimum "
+        "rentable 2500 $"
+    )
+    assert "marge 0.25 sous 0.3" in attente["resume"]
+    assert len(attente["resume"]) <= approbations_appareil.LIMITE_RESUME_ATTENTE
+    # Lire la file n'écrit rien : le devis reste brouillon, sans acceptation ni événement.
+    assert _etat_du_devis("M3-DEVIS-accept-050")["statut"] == "brouillon"
+    with stockage.transaction():
+        assert evenements.charge_publiee("m3.devis_accepte", "m3-devis-accepte-M3-DEVIS-accept-050") is None
+    # Aucune attente d'envoi n'est inventée pour une demande d'acceptation.
+    assert [i for i in _file(departements) if i["type"] == "revue_envoi_devis"] == []
+
+
+def test_l_attente_d_acceptation_dit_quand_il_n_y_a_rien_a_accepter(departements, personnes, seuils_configures):
+    _creer_devis("M3-DEVIS-accept-051", lead_id="lead-accept-051")
+    accepte = executer_atomique(_outil(NOM_ACCEPTATION), {
+        "devis_id": "M3-DEVIS-accept-051", "approbateur": "proprio", "horodatage": _HORODATAGE})
+    assert accepte["ok"] is True and accepte["resultat"]["accepte"] is True
+    deja = _demande_d_acceptation("M3-DEVIS-accept-051")
+    inconnu = _demande_d_acceptation("M3-DEVIS-accept-inconnu")
+
+    resumes = {i["id"]: i["resume"] for i in _file(departements) if i["type"] == "revue_acceptation_devis"}
+
+    assert resumes[deja] == (
+        "Acceptation du devis M3-DEVIS-accept-051 demandée, mais il est déjà accepte : rien à approuver."
+    )
+    assert resumes[inconnu] == (
+        "Acceptation du devis M3-DEVIS-accept-inconnu demandée, mais ce devis est introuvable. À refuser."
+    )
+
+
 def test_hors_transaction_l_attente_ne_lit_rien_et_ne_plante_pas():
     assert stockage.connexion_courante() is None
     assert outils_m3.attentes() == []
@@ -555,16 +612,24 @@ def _executer_sous_une_demande_reservee(
     devis_a_executer, devis_enregistre, decide_par, decide_role, actif=True, statut="en_cours",
 ):
     """Exécute l'outil comme le fait `approbations.decider` : une demande `en_cours` (réservée par un signataire)
-    portant les arguments ENREGISTRÉS, puis l'appel de l'outil avec les arguments À EXÉCUTER. `statut` permet de
-    montrer qu'une demande qui n'est PAS en cours de décision n'autorise rien."""
+    portant les arguments ENREGISTRÉS, son identifiant posé autour de l'outil (`contexte.executer_demande_approuvee`),
+    puis l'appel de l'outil avec les arguments À EXÉCUTER. `statut` permet de montrer qu'une demande qui n'est PAS en
+    cours de décision n'autorise rien."""
     with stockage.transaction() as cnx:
-        ident = approbations.creer_demande(cnx, DEP, NOM, _arguments(devis_enregistre), niveau=Niveau.N4)
-        cnx.execute(update(APPROBATIONS).where(APPROBATIONS.c.id == ident).values(
-            statut=statut, decide_par=decide_par, decide_role=decide_role,
-            decide_le="2026-09-29T18:00:00+00:00"))
+        ident = _reserver_a_la_main(cnx, devis_enregistre, decide_par, decide_role, statut)
         if not actif:
             identite.activer(cnx, "proprio", False)
-        return executer_atomique(_outil(NOM), _arguments(devis_a_executer))
+        with contexte.executer_demande_approuvee(ident):
+            return executer_atomique(_outil(NOM), _arguments(devis_a_executer))
+
+
+def _reserver_a_la_main(cnx, devis_id, decide_par="proprio", decide_role="nathan_owner", statut="en_cours"):
+    """Une ligne `approbations` écrite à la main comme `decider` l'écrirait : elle n'est PAS, seule, une décision."""
+    ident = approbations.creer_demande(cnx, DEP, NOM, _arguments(devis_id), niveau=Niveau.N4)
+    cnx.execute(update(APPROBATIONS).where(APPROBATIONS.c.id == ident).values(
+        statut=statut, decide_par=decide_par, decide_role=decide_role,
+        decide_le="2026-09-29T18:00:00+00:00"))
+    return ident
 
 
 def test_seule_la_decision_du_proprietaire_sur_ces_arguments_fait_executer_l_outil(personnes):
@@ -603,6 +668,89 @@ def test_seule_la_decision_du_proprietaire_sur_ces_arguments_fait_executer_l_out
         "M3-DEVIS-envoi-038", "M3-DEVIS-envoi-038", "proprio", "nathan_owner", actif=False)
     assert reponse["resultat"]["verdict"]["code"] == "REJ-ENVOI-SANS-APPROBATION"
     assert _instantane_ecritures("M3-DEVIS-envoi-038") == (0, 0, "brouillon")
+
+
+@pytest.mark.parametrize("essais", [1, 3])
+def test_une_ecriture_concurrente_d_un_autre_devis_ne_fait_pas_perdre_la_decision_d_envoi(
+    personnes, monkeypatch, essais
+):
+    """Sous PostgreSQL, un autre devis écrit entre la lecture et l'ajout lève la précondition de rang du registre
+    (rang global). L'outil rejoue sur une lecture fraîche : la décision du propriétaire n'est pas perdue pour une
+    écriture sans rapport (`essais=1` : ce que serait l'outil sans rejeu, la décision finirait en échec)."""
+    _creer_devis("M3-DEVIS-envoi-042", lead_id="lead-042")
+    _creer_devis("M3-DEVIS-envoi-042-autre", lead_id="lead-042-autre")
+    reel = stockage.maillons(DEP, "devis")
+
+    class _AutreDevisEcritEntreLectureEtAjout:
+        """L'outil lit le devis (1re lecture), puis `marquer_devis_envoye` relit avant d'ajouter (2e) : l'autre
+        appel valide juste après cette seconde lecture."""
+
+        lectures = 0
+
+        def __iter__(self):
+            maillons = list(reel)
+            self.lectures += 1
+            if self.lectures == 2:
+                reel.append({"type_entree": "transition_devis", "devis_id": "M3-DEVIS-envoi-042-autre",
+                             "statut": "accepte", "approbateur": "autre", "horodatage": _HORODATAGE})
+            return iter(maillons)
+
+        def append(self, maillon, **options):
+            reel.append(maillon, **options)
+
+    vu = _AutreDevisEcritEntreLectureEtAjout()
+    registre_reel = outils_m3.registre_devis_production
+    monkeypatch.setattr(outils_m3, "registre_devis_production", lambda: vu)
+    monkeypatch.setattr(outils_m3, "_ESSAIS_ECRITURE_CONCURRENTE", essais)
+
+    if essais == 1:
+        with pytest.raises(stockage.EcritureConcurrente):
+            _executer_sous_une_demande_reservee("M3-DEVIS-envoi-042", "M3-DEVIS-envoi-042", "proprio", "nathan_owner")
+        monkeypatch.setattr(outils_m3, "registre_devis_production", registre_reel)
+        assert _instantane_ecritures("M3-DEVIS-envoi-042") == (0, 0, "brouillon")
+        return
+    reponse = _executer_sous_une_demande_reservee(
+        "M3-DEVIS-envoi-042", "M3-DEVIS-envoi-042", "proprio", "nathan_owner")
+    monkeypatch.setattr(outils_m3, "registre_devis_production", registre_reel)
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is True, reponse
+    assert _instantane_ecritures("M3-DEVIS-envoi-042") == (1, 1, "envoye")
+    assert _etat_du_devis("M3-DEVIS-envoi-042-autre")["statut"] == "accepte"
+
+
+def test_une_ligne_en_cours_ecrite_hors_de_decider_n_autorise_aucun_envoi(personnes):
+    """PLAN T4.15-e : la décision est la demande que `decider` exécute, pas une ligne `en_cours` qui lui ressemble.
+    Même signataire actif, même rôle, mêmes arguments que le positif ci-dessus, mais aucun `decider` autour."""
+    _creer_devis("M3-DEVIS-envoi-040", lead_id="lead-040")
+    with stockage.transaction() as cnx:
+        _reserver_a_la_main(cnx, "M3-DEVIS-envoi-040")
+        reponse = executer_atomique(_outil(NOM), _arguments("M3-DEVIS-envoi-040"))
+
+    assert reponse["ok"] is True and reponse["resultat"]["accepte"] is False, reponse
+    assert reponse["resultat"]["verdict"]["code"] == "REJ-ENVOI-SANS-APPROBATION"
+    assert _instantane_ecritures("M3-DEVIS-envoi-040") == (0, 0, "brouillon")
+
+
+def test_la_decision_en_cours_n_autorise_que_son_propre_devis_jamais_une_autre_ligne_en_cours(personnes):
+    """`decider` exécute la demande X (devis A). Une autre ligne `en_cours` (devis B, même propriétaire) ne prête pas
+    son autorisation à un appel pour B pendant que X s'exécute ; le contrepoint A, sous X, réussit."""
+    _creer_devis("M3-DEVIS-envoi-041-a", lead_id="lead-041-a")
+    _creer_devis("M3-DEVIS-envoi-041-b", lead_id="lead-041-b")
+    with stockage.transaction() as cnx:
+        demande_a = _reserver_a_la_main(cnx, "M3-DEVIS-envoi-041-a")
+        _reserver_a_la_main(cnx, "M3-DEVIS-envoi-041-b")
+        with contexte.executer_demande_approuvee(demande_a):
+            pour_b = executer_atomique(_outil(NOM), _arguments("M3-DEVIS-envoi-041-b"))
+
+    assert pour_b["ok"] is True and pour_b["resultat"]["accepte"] is False, pour_b
+    assert pour_b["resultat"]["verdict"]["code"] == "REJ-ENVOI-SANS-APPROBATION"
+    assert _instantane_ecritures("M3-DEVIS-envoi-041-b") == (0, 0, "brouillon")
+
+    with stockage.transaction(), contexte.executer_demande_approuvee(demande_a):
+        pour_a = executer_atomique(_outil(NOM), _arguments("M3-DEVIS-envoi-041-a"))
+    assert pour_a["ok"] is True and pour_a["resultat"]["accepte"] is True, pour_a
+    assert _etat_du_devis("M3-DEVIS-envoi-041-a")["horodatage"] == "2026-09-29T18:00:00+00:00"
+    assert _instantane_ecritures("M3-DEVIS-envoi-041-a") == (1, 1, "envoye")
+    assert _instantane_ecritures("M3-DEVIS-envoi-041-b") == (0, 0, "brouillon")
 
 
 # =========================================================================================
@@ -721,6 +869,23 @@ def test_source_canonique_prime_sur_contexte_dans_file_et_decision(
         assert motif["donnee"]["source"] == "estimation_canonique"
     assert revue["source_estimation"]["hash_maillon"] == source_hash
     assert str(envoye["prix_total"]) == "5400.00"
+
+
+@pytest.mark.parametrize("photos_valides", [False, True])
+def test_l_attente_d_acceptation_lit_les_faits_de_la_source_canonique(
+    departements, personnes, seuils_configures, photos_valides
+):
+    """La demande d'acceptation ne porte aucun contexte_revue : les faits viennent de l'estimation liée, comme à
+    l'envoi (photos insuffisantes signalées seulement quand la source les a constatées)."""
+    devis_id, _ = _creer_devis_source_revue(photos_valides=photos_valides)
+    demande_id = _demande_d_acceptation(devis_id)
+
+    [attente] = [x for x in _file(departements) if x["type"] == "revue_acceptation_devis"]
+
+    assert attente["id"] == demande_id
+    assert attente["resume"].startswith(f"Acceptation du devis {devis_id} à approuver")
+    assert ("photos insuffisantes" in attente["resume"]) is (not photos_valides)
+    assert _etat_du_devis(devis_id)["statut"] == "brouillon"
 
 
 def test_source_legacy_sans_faits_est_non_evaluable_sans_inventer_des_photos(
