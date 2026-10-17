@@ -157,6 +157,17 @@ jobs:
         run: corepack enable && pnpm --version
       - name: Installation
         run: pnpm install --frozen-lockfile --ignore-scripts --ignore-pnpmfile
+      - name: Analyse typée du test de composition Core vers Native
+        if: matrix.morceau == 1
+        timeout-minutes: 3
+        env:
+          NODE_OPTIONS: --max-old-space-size=512
+          GOMAXPROCS: "1"
+          GOMEMLIMIT: 512MiB
+          GOGC: "20"
+        # Le lanceur canonique active --type-aware ; ce contrôle ciblé complète
+        # les tests exécutés ci-dessous, sans prétendre vérifier tout le graphe TS.
+        run: node scripts/run-oxlint.mjs --tsconfig config/tsconfig/oxlint.core.json --threads=1 src/gateway/opsys-sms-gate-consumer.test.ts
       - name: Fixture Discord externe épinglé (données de test uniquement)
         timeout-minutes: 3
         shell: bash
