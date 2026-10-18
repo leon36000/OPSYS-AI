@@ -178,6 +178,7 @@ export const gatewayDatabaseWorkerTestFiles = [
   // OPSYS (PLAN T1.4-c6) : même besoin (appairage réel), porte d'appareil vers les serveurs MCP.
   "src/gateway/tools-invoke-http.opsys-device-mcp.test.ts",
   "src/gateway/tools-invoke-http.opsys-device-revocation.python-http.integration.test.ts",
+  "src/gateway/tools-invoke-http.opsys-m9-dossier.python-http.integration.test.ts",
   "src/gateway/tools-invoke-http.test.ts",
   "src/gateway/tui-session-description-wire.test.ts",
   "src/gateway/user-profiles-http.auth.test.ts",
