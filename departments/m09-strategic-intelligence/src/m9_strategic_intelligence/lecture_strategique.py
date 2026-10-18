@@ -40,7 +40,7 @@ _CHAMPS_ALERTE = (
     "evenement_id", "metric_id", "type_alerte", "quoi", "a_qui", "pourquoi", "preuve", "source",
     "horodatage_reference",
 )
-_CHAMPS_PREUVE_FRANCHI = ("wct_id", "valeur", "unite", "sens", "seuil", "version_definition")
+_CHAMPS_PREUVE_FRANCHI = ("metric_id", "wct_id", "valeur", "unite", "sens", "seuil", "version_definition")
 _DECIDEUR = "nathan_owner"
 
 
@@ -67,6 +67,8 @@ def _valider_alerte(item: Any) -> dict[str, Any]:
         absents = [c for c in _CHAMPS_PREUVE_FRANCHI if not isinstance(preuve, dict) or c not in preuve]
         if absents:
             raise ValueError(f"alertes_m8 : preuve incomplète pour {item['evenement_id']} : manque {absents}")
+        if preuve["metric_id"] != item["metric_id"]:
+            raise ValueError(f"alertes_m8 : métrique discordante dans la preuve de {item['evenement_id']}")
     return item
 
 

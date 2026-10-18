@@ -474,3 +474,21 @@ def test_une_alerte_sans_ses_champs_ou_avec_une_preuve_incomplete_est_un_refus_n
 def test_une_lecture_plus_grosse_que_la_borne_est_un_refus_pas_une_page_vide_sans_fin():
     with pytest.raises(ValueError, match="borne"):
         _lire([_franchie(1)], budget_caracteres=200)
+
+
+@pytest.mark.parametrize("metric_id_preuve", ["m8_ecart_marge_pct", None, "", False, 7])
+def test_une_lecture_refuse_une_identite_de_preuve_discordante(metric_id_preuve):
+    """Les valeurs d'une marge ne peuvent jamais être présentées comme une durée."""
+    alerte = _franchie(1)
+    alerte["preuve"]["metric_id"] = metric_id_preuve
+    avant = json.dumps(alerte, sort_keys=True)
+    with pytest.raises(ValueError, match="métrique discordante"):
+        _lire([alerte])
+    assert json.dumps(alerte, sort_keys=True) == avant
+
+
+def test_une_lecture_refuse_une_preuve_sans_identite_de_metrique():
+    alerte = _franchie(1)
+    del alerte["preuve"]["metric_id"]
+    with pytest.raises(ValueError, match="preuve incomplète.*metric_id"):
+        _lire([alerte])
