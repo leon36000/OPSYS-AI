@@ -432,8 +432,20 @@ def test_backup_restore_postgresql_et_outbox_inconnue_isoles(tmp_path, monkeypat
         for cle in fichiers_attendus:
             volume(cle, {"generation-remplacee-fictive.txt": b"ne-doit-pas-survivre"})
         avant_restore = time.monotonic()
-        run(["bash", deploy / "restore.sh", "--from", archive, "--yes"])
+        code_restore, stdout_restore, stderr_restore = run(
+            ["bash", deploy / "restore.sh", "--from", archive, "--yes"], succes=False)
         secondes_restore = time.monotonic() - avant_restore
+        # Même capture bornée que le backup : garder les flux avant l'assertion,
+        # sans nouvelle commande ni inspection susceptible de masquer l'échec.
+        record_property("cf040_restore_command", json.dumps({
+            "returncode": code_restore, "seconds": secondes_restore,
+            "stdout": stdout_restore.decode(errors="backslashreplace"),
+            "stderr": stderr_restore.decode(errors="backslashreplace"),
+            "stdout_sha256": hashlib.sha256(stdout_restore).hexdigest(),
+            "stderr_sha256": hashlib.sha256(stderr_restore).hexdigest(),
+            "stdout_bytes": len(stdout_restore), "stderr_bytes": len(stderr_restore),
+        }, sort_keys=True))
+        assert code_restore == 0, "restore.sh en échec ; flux complets dans cf040_restore_command"
         cible_apres_restore = verifier_cible()
         record_property("cf040_network_after_restore", json.dumps(cible_apres_restore, sort_keys=True))
         assert _instantane_pg() == attendu_pg
