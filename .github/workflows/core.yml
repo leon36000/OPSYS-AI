@@ -254,6 +254,29 @@ jobs:
             ${{ runner.temp }}/opsys-m5-pg17-${{ github.run_id }}-${{ github.run_attempt }}/vitest.log
             ${{ runner.temp }}/opsys-m5-pg17-${{ github.run_id }}-${{ github.run_attempt }}/junit.xml
           if-no-files-found: warn
+      # Cas distinct : ACK M9 perdu après commit, redémarrage applicatif et manager Core, copies PG jetables.
+      # Même lanceur possédé, mode explicite ; aucun nouveau service, ni redémarrage PostgreSQL.
+      - name: ACK M9 perdu et redémarrage Core via HTTP sur PostgreSQL17 réel
+        if: matrix.morceau == 2
+        timeout-minutes: 8
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+          OPENCLAW_VITEST_MAX_WORKERS: "1"
+        shell: bash
+        run: |
+          set -euo pipefail
+          export OPSYS_TEST_M5_AP_PG17_ARTIFACT_DIR="$RUNNER_TEMP/opsys-m5-pg17-ack-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir -p "$OPSYS_TEST_M5_AP_PG17_ARTIFACT_DIR"
+          "$GITHUB_WORKSPACE/.venv/bin/python" test/opsys-m5-ap-pg17-runner.py --mode lost-ack 2>&1 | tee "$OPSYS_TEST_M5_AP_PG17_ARTIFACT_DIR/vitest.log"
+      - name: Preuve PostgreSQL17 ACK perdu dédiée (liste fermée, sans fichier URL)
+        if: always() && matrix.morceau == 2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: opsys-m5-pg17-ack-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/opsys-m5-pg17-ack-${{ github.run_id }}-${{ github.run_attempt }}/vitest.log
+            ${{ runner.temp }}/opsys-m5-pg17-ack-${{ github.run_id }}-${{ github.run_attempt }}/junit.xml
+          if-no-files-found: warn
       - name: Tests en échec (résumé en fin de journal)
         if: failure()
         shell: bash

@@ -4,7 +4,8 @@ The real department application, approval decision and AP append remain unmodifi
 Only fixture configuration, the module-local approval clock, handler observation and
 an ASGI response-body loss seam are supplied here. Every committed witness opens a
 separate SQLite connection in mode=ro, or an independent PostgreSQL17 read-only
-transaction. Negative SQL mutations target backups only.
+transaction. Negative SQL mutations target SQLite backups or disposable PostgreSQL17
+database copies only, never the application's primary database.
 """
 
 from __future__ import annotations
@@ -13,10 +14,12 @@ import argparse
 import hashlib
 import json
 import os
+import secrets
 import sqlite3
 from contextlib import closing
 from decimal import Decimal
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from opsys import stockage
 from opsys.outils import vers_json
@@ -39,6 +42,27 @@ RESPONSE_LOST = "m5-ap-m9-response-lost.json"
 ORACLE_T0 = "m5-ap-oracle-t0.json"
 GATE_REFUSED = "m5-ap-loss-gate-refused.json"
 NEGATIVES = "m5-ap-oracle-negatives"
+# Disposable PostgreSQL17 copies: one cloned database per negative, owned by this run only.
+PG_COPIES = "pg-copies.json"
+PG_COPY_SUFFIX = ".pgcopy.json"
+PG_COPY_PREFIX = "opsys_m5_neg_"
+PG_MAINTENANCE = "template1"
+PG_COPY_CHANGES = {
+    "intact": [],
+    "duplicate_correction": ["ap"],
+    "ap_timestamp": ["ap"],
+    "decision_timestamp": ["approvals"],
+    "amount": ["ap"],
+    "claim": ["claims"],
+}
+SNAPSHOT_TABLES = ("ap", "movements", "approvals", "claims", "people")
+_PG_PROVENANCE = (
+    "SELECT d.oid::bigint AS database_oid, shobj_description(d.oid, 'pg_database') AS comment, "
+    "pg_get_userbyid(d.datdba) = current_user AS owned_by_current_user, d.datistemplate AS is_template, "
+    "has_database_privilege('public'::name, d.oid, 'CONNECT') AS public_connect, "
+    "has_database_privilege('public'::name, d.oid, 'TEMPORARY') AS public_temporary "
+    "FROM pg_database d WHERE d.datname = %s"
+)
 
 
 def _home() -> Path:
@@ -60,6 +84,11 @@ def _read_trace(path: Path) -> list[dict]:
 
 def _prepared(home: Path) -> dict:
     return json.loads((home / PREPARED).read_text())
+
+
+def _write_private(path: Path, content: str) -> None:
+    with open(path, "x", encoding="utf-8", opener=lambda p, flags: os.open(p, flags, 0o600)) as stream:
+        stream.write(content)
 
 
 def _configure() -> None:
@@ -158,19 +187,41 @@ def _active_roles(cnx, person: str) -> list[str]:
     )
 
 
-def _snapshot_postgres() -> dict:
+def _pg_owned_url(database: str | None = None) -> str:
+    """The runner's single private DSN, optionally retargeted to another database of the same owned server."""
+    path = Path(os.environ["OPSYS_TEST_M5_AP_PG17_URL_FILE"])
+    for status in (path.stat(), path.parent.stat()):
+        if status.st_uid != os.getuid() or status.st_mode & 0o077:
+            raise RuntimeError("PostgreSQL17 DSN must come from the runner's private owned file")
+    configured = os.environ["OPSYS_BASE_URL"]
+    if path.read_text().strip() != configured or not configured.startswith("postgresql+psycopg://"):
+        raise RuntimeError("application and witness must share the runner's single private DSN")
+    url = urlsplit(configured.replace("postgresql+psycopg://", "postgresql://", 1))
+    if url.hostname != "127.0.0.1" or url.query or url.fragment:
+        raise RuntimeError("PostgreSQL17 witness requires the runner's loopback-published server")
+    return (url._replace(path="/" + database) if database is not None else url).geturl()
+
+
+def _snapshot_postgres(database: str | None = None) -> dict:
     import psycopg
     from psycopg.rows import dict_row
 
     # Direct driver connection, independent of the application's SQLAlchemy engine/transactions.
-    url = os.environ["OPSYS_BASE_URL"].replace("postgresql+psycopg://", "postgresql://", 1)
+    url = _pg_owned_url(database)
     with psycopg.connect(url, autocommit=True, row_factory=dict_row) as cnx:
         cnx.execute("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
         try:
             version = int(cnx.execute("SHOW server_version_num").fetchone()["server_version_num"])
             read_only = cnx.execute("SHOW transaction_read_only").fetchone()["transaction_read_only"]
-            if not 170000 <= version < 180000 or read_only != "on":
+            isolation = cnx.execute("SHOW transaction_isolation").fetchone()["transaction_isolation"]
+            if not 170000 <= version < 180000 or read_only != "on" or isolation != "repeatable read":
                 raise RuntimeError("independent witness requires real PostgreSQL17 read-only transaction")
+            identity = cnx.execute(
+                "SELECT d.datname, d.oid::bigint AS database_oid, pg_postmaster_start_time() AS postmaster_start "
+                "FROM pg_database d WHERE d.datname = current_database()"
+            ).fetchone()
+            if database is not None and identity["datname"] != database:
+                raise RuntimeError("PostgreSQL17 witness connected to an unexpected database")
             tables = {
                 name: list(cnx.execute(query).fetchall())
                 for name, query in {
@@ -198,18 +249,67 @@ def _snapshot_postgres() -> dict:
                 for person in (OWNER, NON_OWNER)
             }
             # schema.py stores arguments/resultat/maillon as Text; retain those exact encoded values.
-            # Only cree_le is a native timestamptz here; vers_json preserves its ISO representation.
-            tables["witness"] = {"server_version_num": version, "transaction_read_only": read_only}
+            # cree_le and postmaster_start are native timestamptz; vers_json preserves their ISO form.
+            # The database identity and server start bind every phase to one unrestarted owned server.
+            tables["witness"] = {
+                "server_version_num": version,
+                "transaction_read_only": read_only,
+                "transaction_isolation": isolation,
+                "database": identity["datname"],
+                "database_oid": identity["database_oid"],
+                "postmaster_start": identity["postmaster_start"],
+            }
+            if database is not None:
+                tables["witness"]["copy"] = cnx.execute(_PG_PROVENANCE, (database,)).fetchone()
             return tables
         finally:
             cnx.execute("ROLLBACK")
 
 
+def _copy_provenance(copy: dict) -> dict:
+    return {
+        "database_oid": copy["database_oid"],
+        "comment": copy["comment"],
+        "owned_by_current_user": True,
+        "is_template": False,
+        "public_connect": False,
+        "public_temporary": False,
+    }
+
+
+def _require_owned_copy(witness: dict, copy: dict, primary: dict) -> None:
+    if (
+        witness["database"] != copy["database"]
+        or witness["database"] == primary["database"]
+        or witness["database_oid"] == primary["database_oid"]
+        or copy["source_oid"] != primary["database_oid"]
+        or witness["postmaster_start"] != primary["postmaster_start"]
+        or witness["server_version_num"] != primary["server_version_num"]
+        or witness.get("copy") != _copy_provenance(copy)
+    ):
+        raise RuntimeError("disposable PostgreSQL copy failed its ownership or provenance barrier")
+
+
+def _snapshot_pg_copy(path: Path) -> dict:
+    """Read-only witness of one disposable copy, only when its manifest and catalog provenance match this run."""
+    home = _home()
+    name = path.name.removesuffix(PG_COPY_SUFFIX)
+    if path.parent != home / NEGATIVES or not path.name.endswith(PG_COPY_SUFFIX) or name not in PG_COPY_CHANGES:
+        raise RuntimeError("PostgreSQL witness cannot inspect SQLite backup oracles")
+    run = codec.decoder((home / NEGATIVES / PG_COPIES).read_text())
+    copy = json.loads(path.read_text())
+    if run["copies"].get(name) != copy or copy["database"] != PG_COPY_PREFIX + run["nonce"] + "_" + name:
+        raise RuntimeError("disposable PostgreSQL copy is not one of this run's owned copies")
+    snapshot = _snapshot_postgres(copy["database"])
+    _require_owned_copy(snapshot["witness"], copy, run["primary"])
+    return snapshot
+
+
 def _snapshot(database: Path) -> dict:
     if os.environ.get("OPSYS_TEST_M5_AP_PG17_URL_FILE"):
-        if database != _home() / "opsys.db":
-            raise RuntimeError("PostgreSQL witness cannot inspect SQLite backup oracles")
-        return _snapshot_postgres()
+        if database == _home() / "opsys.db":
+            return _snapshot_postgres()
+        return _snapshot_pg_copy(database)
     # This connection is independent of the application's transaction and is SELECT-only.
     with closing(sqlite3.connect(database.as_uri() + "?mode=ro", uri=True)) as cnx:
         cnx.row_factory = sqlite3.Row
@@ -404,6 +504,8 @@ def _committed_decision(home: Path, generation: int, request: dict, start: dict,
         "response_body_forwarded_bytes": 0,
         "native_response_bytes_buffered": len(body),
         "oracle_sha256": hashlib.sha256(encoded.encode()).hexdigest(),
+        # Values actually observed by this barrier's PostgreSQL17 snapshot; absent for SQLite.
+        "witness": snapshot.get("witness"),
     }
 
 
@@ -602,6 +704,7 @@ def inspect(database: Path | None) -> None:
                         for g in (1, 2)
                         if (home / f"origins-{g}.json").exists()
                     },
+                    "witness": snapshot.get("witness"),
                 }
             )
         )
@@ -641,7 +744,205 @@ def read_revision(label: str) -> None:
     )
 
 
+def _mutate_pg_copy(cnx, name: str, frozen: dict) -> None:
+    """The same targeted corruptions as the SQLite backups, written only through a copy's own connection."""
+    row = frozen["rows"][-1]
+    if name == "intact":
+        return
+    if name == "duplicate_correction":
+        rank = cnx.execute(
+            "SELECT MAX(rang)+1 FROM registres_maillons WHERE departement=%s AND registre=%s",
+            (M5, "comptes_a_payer"),
+        ).fetchone()[0]
+        cursor = cnx.execute(
+            "INSERT INTO registres_maillons(departement,registre,rang,maillon,cree_le) VALUES(%s,%s,%s,%s,%s)",
+            (M5, "comptes_a_payer", rank, row["maillon"], row["cree_le"]),
+        )
+    elif name in ("ap_timestamp", "amount"):
+        piece = codec.decoder(row["maillon"])
+        if name == "ap_timestamp":
+            piece["horodatage"] = T1
+        else:
+            piece["apres"]["montant_apres_taxes"] = Decimal("356.43")
+        cursor = cnx.execute(
+            "UPDATE registres_maillons SET maillon=%s WHERE departement=%s AND registre=%s AND rang=%s",
+            (codec.encoder(piece), M5, "comptes_a_payer", row["rang"]),
+        )
+    elif name == "decision_timestamp":
+        cursor = cnx.execute("UPDATE approbations SET decide_le=%s WHERE id=%s", (T1, frozen["demande_id"]))
+    elif name == "claim":
+        cursor = cnx.execute(
+            "UPDATE mutations_appliquees SET recu_le=%s WHERE appareil=%s AND cle_idempotence=%s",
+            ("1900-01-01T00:00:00+00:00", frozen["claim"]["appareil"], frozen["claim"]["cle_idempotence"]),
+        )
+    else:
+        raise RuntimeError("unknown disposable PostgreSQL mutation: " + name)
+    if cursor.rowcount != 1:
+        raise RuntimeError("disposable PostgreSQL mutation did not change exactly one row: " + name)
+
+
+def _drop_created(databases: list[str], error: BaseException) -> None:
+    import psycopg
+    from psycopg import sql
+
+    try:
+        with psycopg.connect(_pg_owned_url(PG_MAINTENANCE), autocommit=True) as admin:
+            for database in databases:
+                admin.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(database)))
+    except Exception as cleanup:
+        error.add_note("disposable PostgreSQL copy cleanup failed: " + type(cleanup).__name__)
+
+
+def snapshot_negatives_postgres() -> None:
+    """Real SQL mutations, each committed in its own disposable database cloned from the owned primary."""
+    import psycopg
+    from psycopg import sql
+    from psycopg.rows import dict_row
+
+    home = _home()
+    frozen = codec.decoder((home / ORACLE_T0).read_text())
+    barrier = json.loads((home / RESPONSE_LOST).read_text())["witness"]
+    directory = home / NEGATIVES
+    directory.mkdir(mode=0o700)
+    if directory.stat().st_mode & 0o077:
+        raise RuntimeError("disposable copy manifests require a private directory")
+    before = _snapshot_postgres()
+    primary = before["witness"]
+    if vers_json(primary) != barrier:
+        raise RuntimeError("copies must clone the PostgreSQL17 database that witnessed the lost commit")
+    nonce = secrets.token_hex(8)
+    created: list[str] = []
+    copies: dict[str, dict] = {}
+    report: dict[str, dict] = {}
+    try:
+        with psycopg.connect(_pg_owned_url(PG_MAINTENANCE), autocommit=True, row_factory=dict_row) as admin:
+            role = admin.execute(
+                "SELECT rolsuper OR rolcreatedb AS allowed FROM pg_roles WHERE rolname = current_user"
+            ).fetchone()
+            databases = sorted(r["datname"] for r in admin.execute("SELECT datname FROM pg_database"))
+            if (
+                not role
+                or role["allowed"] is not True
+                or primary["database"] in ("template0", PG_MAINTENANCE)
+                or databases != sorted({"template0", PG_MAINTENANCE, primary["database"]})
+            ):
+                raise RuntimeError("disposable copies require the runner's exclusively owned PostgreSQL17 server")
+            for name in PG_COPY_CHANGES:
+                target = PG_COPY_PREFIX + nonce + "_" + name
+                comment = f"opsys-m5-ap-negative {nonce} {name} source-oid={primary['database_oid']}"
+                # Faithful file-level clone; PostgreSQL refuses it while any other session uses the primary.
+                admin.execute(
+                    sql.SQL("CREATE DATABASE {} TEMPLATE {} STRATEGY FILE_COPY").format(
+                        sql.Identifier(target), sql.Identifier(primary["database"])
+                    )
+                )
+                created.append(target)
+                admin.execute(sql.SQL("REVOKE ALL ON DATABASE {} FROM PUBLIC").format(sql.Identifier(target)))
+                admin.execute(
+                    sql.SQL("COMMENT ON DATABASE {} IS {}").format(sql.Identifier(target), sql.Literal(comment))
+                )
+                oid = admin.execute(
+                    "SELECT oid::bigint AS oid FROM pg_database WHERE datname = %s", (target,)
+                ).fetchone()["oid"]
+                copies[name] = {
+                    "database": target,
+                    "database_oid": oid,
+                    "comment": comment,
+                    "source_oid": primary["database_oid"],
+                }
+        for name, copy in copies.items():
+            with psycopg.connect(_pg_owned_url(copy["database"]), autocommit=True) as cnx:
+                if cnx.execute("SELECT current_database()").fetchone()[0] != copy["database"]:
+                    raise RuntimeError("refusing to mutate a database other than its disposable copy")
+                with cnx.transaction():
+                    _mutate_pg_copy(cnx, name, frozen)
+            snapshot = _snapshot_postgres(copy["database"])
+            _require_owned_copy(snapshot["witness"], copy, primary)
+            changed = [table for table in SNAPSHOT_TABLES if snapshot[table] != before[table]]
+            if changed != PG_COPY_CHANGES[name]:
+                raise RuntimeError("SQL mutation did not target exactly its intended copy table: " + name)
+            provenance = snapshot["witness"]["copy"]
+            report[name] = {
+                **copy,
+                "changed_tables": changed,
+                **{k: provenance[k] for k in ("owned_by_current_user", "public_connect", "public_temporary")},
+            }
+        if _snapshot_postgres() != before:
+            raise RuntimeError("primary PostgreSQL17 database changed while mutating disposable copies")
+        run = {
+            "fictif": True,
+            "nonce": nonce,
+            "primary": primary,
+            "primary_sha256": hashlib.sha256(codec.encoder(before).encode()).hexdigest(),
+            "databases_before": databases,
+            "copies": copies,
+        }
+        _write_private(directory / PG_COPIES, codec.encoder(run))
+        paths = {}
+        for name, copy in copies.items():
+            target = directory / (name + PG_COPY_SUFFIX)
+            _write_private(target, json.dumps(copy))
+            paths[name] = str(target)
+    except BaseException as exc:
+        _drop_created(created, exc)
+        raise
+    print(
+        json.dumps(
+            vers_json(
+                {
+                    "fictif": True,
+                    "snapshots": paths,
+                    "postgres": {"primary_unchanged": True, "primary": primary, "copies": report},
+                }
+            )
+        )
+    )
+
+
+def drop_negatives() -> None:
+    """Drop exactly this run's disposable copies; prove none remains and the primary is unchanged."""
+    import psycopg
+    from psycopg import sql
+    from psycopg.rows import dict_row
+
+    home = _home()
+    run = codec.decoder((home / NEGATIVES / PG_COPIES).read_text())
+    dropped = []
+    with psycopg.connect(_pg_owned_url(PG_MAINTENANCE), autocommit=True, row_factory=dict_row) as admin:
+        for name in PG_COPY_CHANGES:
+            copy = run["copies"][name]
+            if admin.execute(_PG_PROVENANCE, (copy["database"],)).fetchone() != _copy_provenance(copy):
+                raise RuntimeError("refusing to drop a database without this run's copy provenance")
+            admin.execute(sql.SQL("DROP DATABASE {}").format(sql.Identifier(copy["database"])))
+            dropped.append(copy["database"])
+        remaining = [
+            r["datname"]
+            for r in admin.execute(
+                "SELECT datname FROM pg_database WHERE starts_with(datname, %s) ORDER BY datname", (PG_COPY_PREFIX,)
+            )
+        ]
+        databases = sorted(r["datname"] for r in admin.execute("SELECT datname FROM pg_database"))
+    after = _snapshot_postgres()
+    unchanged = hashlib.sha256(codec.encoder(after).encode()).hexdigest() == run["primary_sha256"]
+    if remaining or databases != run["databases_before"] or not unchanged or after["witness"] != run["primary"]:
+        raise RuntimeError("disposable PostgreSQL copies were not cleaned or the primary changed")
+    print(
+        json.dumps(
+            {
+                "fictif": True,
+                "dropped": dropped,
+                "remaining": remaining,
+                "databases": databases,
+                "primary_unchanged": unchanged,
+            }
+        )
+    )
+
+
 def snapshot_negatives() -> None:
+    if os.environ.get("OPSYS_TEST_M5_AP_PG17_URL_FILE"):
+        snapshot_negatives_postgres()
+        return
     home = _home()
     frozen = codec.decoder((home / ORACLE_T0).read_text())
     directory = home / NEGATIVES
@@ -689,7 +990,8 @@ def snapshot_negatives() -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "command", choices=("prepare", "prepare-b", "serve", "inspect", "snapshot-negatives", "read-revision")
+        "command",
+        choices=("prepare", "prepare-b", "serve", "inspect", "snapshot-negatives", "drop-negatives", "read-revision"),
     )
     parser.add_argument("--port", type=int)
     parser.add_argument("--generation", type=int)
@@ -712,6 +1014,10 @@ def main() -> None:
         if args.label is None:
             raise RuntimeError("read-revision requires an owned invoice label")
         read_revision(args.label)
+    elif args.command == "drop-negatives":
+        if not os.environ.get("OPSYS_TEST_M5_AP_PG17_URL_FILE"):
+            raise RuntimeError("drop-negatives only cleans owned PostgreSQL17 copies")
+        drop_negatives()
     else:
         snapshot_negatives()
 

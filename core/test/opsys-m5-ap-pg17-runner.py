@@ -1,11 +1,14 @@
-"""Test-only, owned PostgreSQL17 runner for the single Core HTTP stale-invoice case.
+"""Test-only, owned PostgreSQL17 runner for one explicitly selected Core HTTP M5 AP case.
 
+Closed modes: ``stale`` (default, the stale-invoice case) or ``lost-ack`` (lost M9 ACK and
+application/Core-manager restart). Each run selects and requires exactly one named case.
 Uses the existing ephemeral fixture; never configures or restarts a Docker daemon.
 The generated credential is shared with subprocesses only through a private temporary file.
 """
 
 from __future__ import annotations
 
+import argparse
 import contextlib
 import ctypes
 import dataclasses
@@ -25,6 +28,16 @@ TITLE = (
     "refuses an owner decision on an M5 AP correction made stale by a newer one on the same invoice"
     " on real PostgreSQL17"
 )
+LOST_ACK_TITLE = (
+    "preserves one committed M5 AP correction after lost M9 ACK and explicit replay across restart on real PostgreSQL17"
+)
+MODES = {"stale": TITLE, "lost-ack": LOST_ACK_TITLE}
+PASSED = {
+    "stale": "PG17: exactly one named stale-invoice case passed; read-only server witness asserted",
+    "lost-ack": (
+        "PG17: exactly one named lost-ACK/restart case passed; read-only commit witness and owned copies asserted"
+    ),
+}
 SUITE = "OPSYS M5 AP N4 and owner M9 decisions through production Core leases and real Python HTTP"
 TARGET = "src/agents/agent-bundle-mcp-runtime.opsys-m5-ap-postcommit.python-http.integration.test.ts"
 
@@ -120,12 +133,10 @@ class OwnedProcessTree:
     def descendants(self):
         # Parent/session metadata can change; the live anchor's PID/start identity cannot.
         current = self.processes.process_identity(self.anchor.pid)
-        if (current is None or current.start_time != self.anchor.start_time
-                or current.state in ("Z", "X", "x")):
+        if current is None or current.start_time != self.anchor.start_time or current.state in ("Z", "X", "x"):
             raise RuntimeError("owned PG17 runner anchor identity changed")
         return {
-            pid: identity for pid, identity in self.processes.owned_processes(current).items()
-            if pid != self.anchor.pid
+            pid: identity for pid, identity in self.processes.owned_processes(current).items() if pid != self.anchor.pid
         }
 
     def pin(self, identity):
@@ -241,11 +252,10 @@ class OwnedProcessTree:
         return self.audit
 
 
-def _require_one_pass(report: Path) -> None:
+def _require_one_pass(report: Path, title: str = TITLE) -> None:
     root = ET.parse(report)
     cases = list(root.iter("testcase"))
-    if (len(cases) != 1 or cases[0].get("name") != SUITE + " > " + TITLE
-            or cases[0].get("classname") != TARGET):
+    if len(cases) != 1 or cases[0].get("name") != SUITE + " > " + title or cases[0].get("classname") != TARGET:
         raise RuntimeError("PG17 proof requires exactly the explicitly named single test case")
     if any(list(cases[0].iter(tag)) for tag in ("skipped", "failure", "error")):
         raise RuntimeError("PG17 case did not pass without skip, failure or error")
@@ -253,7 +263,13 @@ def _require_one_pass(report: Path) -> None:
         raise RuntimeError("PG17 report contains a suite failure or error")
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser()
+    # Closed selection; argparse refuses any unknown mode before Docker startup.
+    # In-process callers without arguments keep the historical stale default.
+    parser.add_argument("--mode", choices=tuple(MODES), default="stale")
+    mode = parser.parse_args([] if argv is None else argv).mode
+    title = MODES[mode]
     sys.path.insert(0, str(REPO / "tests/fixtures"))
     from memoire.doubles import postgres_ephemere
 
@@ -275,6 +291,7 @@ def main() -> int:
                     **os.environ,
                     "OPSYS_TEST_PYTHON": sys.executable,
                     "OPSYS_TEST_M5_AP_PG17_URL_FILE": str(url_file),
+                    "OPSYS_TEST_M5_AP_PG17_MODE": mode,
                     "PYTHONDONTWRITEBYTECODE": "1",
                 }
                 owned = OwnedProcessTree(pidfds=pidfds)
@@ -282,10 +299,22 @@ def main() -> int:
                 try:
                     try:
                         child = subprocess.Popen(
-                            [*pnpm, "test", TARGET, "--testNamePattern", TITLE + "$",
-                             "--reporter=default", "--reporter=junit", "--outputFile=" + str(report)],
-                            cwd=REPO / "core", env=env, stdout=subprocess.PIPE,
-                            stderr=subprocess.STDOUT, text=True, start_new_session=True,
+                            [
+                                *pnpm,
+                                "test",
+                                TARGET,
+                                "--testNamePattern",
+                                title + "$",
+                                "--reporter=default",
+                                "--reporter=junit",
+                                "--outputFile=" + str(report),
+                            ],
+                            cwd=REPO / "core",
+                            env=env,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT,
+                            text=True,
+                            start_new_session=True,
                         )
                         output, _ = child.communicate(timeout=300)
                     finally:
@@ -306,15 +335,17 @@ def main() -> int:
                     if password:
                         safe_report = safe_report.replace(password, "[PRIVATE_TEST_PASSWORD]")
                     with open(
-                        destination / "junit.xml", "x", encoding="utf-8",
-                        opener=lambda p, flags: os.open(p, flags, 0o600)
+                        destination / "junit.xml",
+                        "x",
+                        encoding="utf-8",
+                        opener=lambda p, flags: os.open(p, flags, 0o600),
                     ) as stream:
                         stream.write(safe_report)
                 print(output, end="")
                 if child.returncode:
                     raise RuntimeError("targeted Core PostgreSQL17 test process failed")
-                _require_one_pass(report)
-                print("PG17: exactly one named stale-invoice case passed; read-only server witness asserted")
+                _require_one_pass(report, title)
+                print(PASSED[mode])
         return 0
     finally:
         signal.signal(signal.SIGTERM, previous)
@@ -322,7 +353,7 @@ def main() -> int:
 
 if __name__ == "__main__":
     try:
-        raise SystemExit(main())
+        raise SystemExit(main(sys.argv[1:]))
     except KeyboardInterrupt:
         print("Owned PostgreSQL17 test cancelled; cleanup requested", file=sys.stderr)
         raise SystemExit(130) from None

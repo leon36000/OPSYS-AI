@@ -41,10 +41,32 @@ const CORRECTION = "correction_facture_fournisseur";
 const PG17_URL_FILE = process.env.OPSYS_TEST_M5_AP_PG17_URL_FILE;
 const STALE_TITLE =
   "refuses an owner decision on an M5 AP correction made stale by a newer one on the same invoice";
+const LOST_ACK_TITLE =
+  "preserves one committed M5 AP correction after lost M9 ACK and explicit replay across restart";
+const PG17_MODES = ["stale", "lost-ack"] as const;
+type Pg17Mode = (typeof PG17_MODES)[number];
 const children: ChildProcess[] = [];
 const tempDirs: string[] = [];
 const sessionIds: string[] = [];
 let releaseContextConfig: (() => Promise<void>) | undefined;
+
+/** Closed PostgreSQL17 selection supplied by the owned runner; the stale case stays the default. */
+function pg17Mode(): Pg17Mode | undefined {
+  const raw = process.env.OPSYS_TEST_M5_AP_PG17_MODE;
+  if (!PG17_URL_FILE) {
+    if (raw !== undefined) {
+      throw new Error("OPSYS_TEST_M5_AP_PG17_MODE requires the owned PostgreSQL17 runner");
+    }
+    return undefined;
+  }
+  const mode = PG17_MODES.find((candidate) => candidate === (raw ?? "stale"));
+  if (!mode) {
+    throw new Error(`unknown PostgreSQL17 M5 AP mode: ${String(raw)}`);
+  }
+  return mode;
+}
+
+const PG17_MODE = pg17Mode();
 
 type Row = Record<string, unknown>;
 type Invoice = { id: string; seed_demande_id: string; arguments: Row };
@@ -69,6 +91,15 @@ type RevisionWitness = {
   server_version_num?: number;
   transaction_read_only?: string;
 };
+/** Values observed inside one independent PostgreSQL17 REPEATABLE READ READ ONLY snapshot. */
+type PgWitness = {
+  server_version_num: number;
+  transaction_read_only: string;
+  transaction_isolation: string;
+  database: string;
+  database_oid: number;
+  postmaster_start: string;
+};
 type State = {
   people: Record<string, string[]>;
   invoices: Record<string, InvoiceState>;
@@ -79,6 +110,7 @@ type State = {
   handler: HandlerEvent[];
   dispatches: Dispatch[];
   origins: Record<string, Record<string, { path: string; sha256: string }>>;
+  witness?: PgWitness | null;
 };
 type Lost = {
   generation: number;
@@ -92,6 +124,28 @@ type Lost = {
   response_body_forwarded_bytes: number;
   native_response_bytes_buffered: number;
   original_headers_forwarded: boolean;
+  oracle_sha256: string;
+  witness?: PgWitness | null;
+};
+type PgCopy = {
+  database: string;
+  database_oid: number;
+  comment: string;
+  source_oid: number;
+  changed_tables: string[];
+  owned_by_current_user: boolean;
+  public_connect: boolean;
+  public_temporary: boolean;
+};
+type Negatives = {
+  snapshots: Record<string, string>;
+  postgres?: { primary_unchanged: boolean; primary: PgWitness; copies: Record<string, PgCopy> };
+};
+type DroppedCopies = {
+  dropped: string[];
+  remaining: string[];
+  databases: string[];
+  primary_unchanged: boolean;
 };
 async function resetSessionMcpRuntimeManagerGeneration(): Promise<void> {
   await getSessionMcpRuntimeManagerForTesting().disposeAll();
@@ -639,6 +693,286 @@ function decisionCausality(demandeId: string, args: Row): string[][] {
   ];
 }
 
+/** A witness counts only with the version, read-only and isolation the snapshot actually reported. */
+function expectPgWitness(witness: PgWitness | null | undefined): PgWitness {
+  if (!witness) {
+    throw new Error("PostgreSQL17 proof requires the observed independent read-only snapshot");
+  }
+  expect(witness.server_version_num).toBeGreaterThanOrEqual(170000);
+  expect(witness.server_version_num).toBeLessThan(180000);
+  expect(witness).toMatchObject({
+    transaction_read_only: "on",
+    transaction_isolation: "repeatable read",
+  });
+  expect(witness.database).toMatch(/^\S+$/u);
+  expect(Number.isInteger(witness.database_oid)).toBe(true);
+  expect(Number.isNaN(Date.parse(witness.postmaster_start))).toBe(false);
+  return witness;
+}
+
+/**
+ * One lost-ACK/restart scenario, declared for SQLite and, by explicit runner mode, for PostgreSQL17.
+ * The PostgreSQL-only checks are additive; every SQLite assertion and fixture call is unchanged.
+ */
+async function lostAckAcrossRestart(): Promise<void> {
+  const python = requiredPython();
+  const home = await mkdtemp(resolve(tmpdir(), "opsys-m5-ap-lost-"));
+  tempDirs.push(home);
+  const { invoice } = JSON.parse(await runFixture(python, home, "prepare")) as {
+    invoice: Invoice;
+  };
+  const inspect = async (database?: string) =>
+    JSON.parse(
+      await runFixture(python, home, "inspect", database ? ["--database", database] : []),
+    ) as State;
+  const first = await startServer(python, home, 1, true);
+  const id = pendingId(await proposeThroughCore(home, first.port, "m5-ap-lost-agent", invoice));
+  const before = await inspect();
+  expectPending(before, "A", invoice, id);
+  const ownerFrame = deviceFrame(OWNER, "m5-ap-owner-lost-key");
+  let transportFailure: unknown;
+  try {
+    await decideOnDevice(home, first.port, "m5-ap-lost-owner", ownerFrame, id);
+  } catch (error) {
+    transportFailure = error;
+  }
+  expect(transportFailure).toBeInstanceOf(Error);
+  expect(transportFailure).not.toBeInstanceOf(McpLeaseCleanupError);
+  const lost = await readLost(home);
+  expect(lost).toMatchObject({
+    generation: 1,
+    demande_id: id,
+    t0: DECISION_T0,
+    ap_horodatage: invoice.arguments.horodatage,
+    independent_committed_read_before_headers: true,
+    response_body_forwarded_bytes: 0,
+    original_headers_forwarded: true,
+    handler_sequence: [
+      [M9_TOOL, "entered"],
+      [M5_TOOL, "entered"],
+      [M5_TOOL, "completed"],
+      [M9_TOOL, "completed"],
+    ],
+  });
+  expect(lost.native_response_bytes_buffered).toBeGreaterThan(0);
+  expect(typeof lost.sql_cree_le).toBe("string");
+  expectDecision(lost.native_result, id, DECISION_T0);
+  const committed = await inspect();
+  expectCorrected(committed, "A", invoice, id, DECISION_T0, "310.00", "356.42");
+  expect(committed.anomalies).toEqual([]);
+  expect(originalEntries(committed, M5_TOOL)).toHaveLength(1);
+  expect(originalEntries(committed, M9_TOOL)).toHaveLength(1);
+  expect(calls(committed, M9_TOOL)).toHaveLength(1);
+  expect(committed.claims).toHaveLength(1);
+  expect(committed.invoices.A.rows[0]).toStrictEqual(before.invoices.A.rows[0]);
+  // PostgreSQL17: the body was lost only after this observed independent snapshot saw the commit.
+  const barrier = PG17_URL_FILE ? expectPgWitness(lost.witness) : undefined;
+  if (barrier) {
+    const refusedGate = resolve(home, "m5-ap-loss-gate-refused.json");
+    await expect(readFile(refusedGate, "utf8")).rejects.toThrow();
+    const oracleBytes = await readFile(resolve(home, "m5-ap-oracle-t0.json"));
+    expect(createHash("sha256").update(oracleBytes).digest("hex")).toBe(lost.oracle_sha256);
+    expect(expectPgWitness(committed.witness)).toStrictEqual(barrier);
+    expect(committed.oracle?.rows).toStrictEqual(committed.invoices.A.rows);
+    expect(committed.oracle?.approval).toStrictEqual(committed.invoices.A.approvals[0]);
+    expect(committed.oracle?.claim).toStrictEqual(committed.claims[0]);
+    expect(lost.sql_cree_le).toBe(committed.invoices.A.rows[1].cree_le);
+    expect([DECISION_T0, invoice.arguments.horodatage]).not.toContain(lost.sql_cree_le);
+  }
+  await stopChild(first.child);
+  await resetSessionMcpRuntimeManagerGeneration();
+
+  const second = await startServer(python, home, 2, false);
+  const replay = envelope(
+    await decideOnDevice(home, second.port, "m5-ap-replay-owner", ownerFrame, id),
+  );
+  expect(replay).toStrictEqual({ ...lost.native_result, rejoue: true });
+  const afterReplay = await inspect();
+  expect(afterReplay.invoices.A).toStrictEqual(committed.invoices.A);
+  expect(afterReplay.claims).toStrictEqual(committed.claims);
+  expect(afterReplay.anomalies).toEqual([]);
+  // Cached replay sends a real second RPC, and deliberately does not enter either original handler.
+  expect(calls(afterReplay, M9_TOOL)).toHaveLength(2);
+  expect(originalEntries(afterReplay, M9_TOOL)).toHaveLength(1);
+  expect(originalEntries(afterReplay, M5_TOOL)).toHaveLength(1);
+  if (barrier) {
+    // Same owned database and unrestarted PostgreSQL server; only application and Core restarted.
+    expect(expectPgWitness(afterReplay.witness)).toStrictEqual(barrier);
+    expect(afterReplay.oracle).toStrictEqual(committed.oracle);
+  }
+
+  const wrongActor = envelope(
+    await decideOnDevice(
+      home,
+      second.port,
+      "m5-ap-replay-non-owner",
+      { ...ownerFrame, "opsys/personne": NON_OWNER },
+      id,
+    ),
+    true,
+  );
+  expect(wrongActor).toMatchObject({
+    ok: false,
+    erreur: "confirmation_transport_indisponible",
+    issue: "inconnue",
+  });
+  expect(wrongActor).not.toHaveProperty("resultat");
+  expect(wrongActor.rejoue).not.toBe(true);
+  const afterWrong = await inspect();
+  expect(afterWrong.people).toStrictEqual(PEOPLE);
+  expect(afterWrong.invoices.A).toStrictEqual(committed.invoices.A);
+  expect(afterWrong.claims).toStrictEqual(committed.claims);
+  expect(afterWrong.anomalies).toEqual([]);
+  expect(originalEntries(afterWrong, M9_TOOL)).toHaveLength(1);
+  expect(originalEntries(afterWrong, M5_TOOL)).toHaveLength(1);
+
+  const { invoice: fresh } = JSON.parse(await runFixture(python, home, "prepare-b")) as {
+    invoice: Invoice;
+  };
+  const freshId = pendingId(
+    await proposeThroughCore(home, second.port, "m5-ap-fresh-agent", fresh),
+  );
+  expect(freshId).not.toBe(id);
+  expectPending(await inspect(), "B", fresh, freshId);
+  const accepted = envelope(
+    await decideOnDevice(
+      home,
+      second.port,
+      "m5-ap-fresh-owner",
+      deviceFrame(OWNER, "m5-ap-owner-fresh-after-restart"),
+      freshId,
+    ),
+  );
+  expectDecision(accepted, freshId, DECISION_T1);
+  expect(DECISION_T1 > DECISION_T0).toBe(true);
+  const final = await inspect();
+  expectCorrected(final, "B", fresh, freshId, DECISION_T1, "320.00", "367.92");
+  expectCorrected(final, "A", invoice, id, DECISION_T0, "310.00", "356.42");
+  expect(final.invoices.A).toStrictEqual(committed.invoices.A);
+  expect(final.anomalies).toEqual([]);
+  expect(originalEntries(final, M5_TOOL)).toHaveLength(2);
+  expect(originalEntries(final, M9_TOOL)).toHaveLength(2);
+  expectOrigins(final, 1);
+  expectOrigins(final, 2);
+  if (barrier) {
+    expect(expectPgWitness(final.witness)).toStrictEqual(barrier);
+    expect(final.oracle).toStrictEqual(committed.oracle);
+    // Per generation: A ran once in gen1 only; gen2 ran only the fresh B decision.
+    const runs = final.handler.map((r) => [r.generation, r.tool, r.event, r.arguments_sha256]);
+    expect(runs).toStrictEqual([
+      ...decisionCausality(id, invoice.arguments).map(([tool, event, digest]) => [
+        1,
+        tool,
+        event,
+        digest,
+      ]),
+      ...decisionCausality(freshId, fresh.arguments).map(([tool, event, digest]) => [
+        2,
+        tool,
+        event,
+        digest,
+      ]),
+    ]);
+    // A real second RPC per replay attempt, all on the same device and lost key, then fresh B.
+    const lostDecision = argumentsDigest(decisionArgs(id));
+    const freshDecision = argumentsDigest(decisionArgs(freshId));
+    const decisions = calls(final, M9_TOOL).map((r) => [
+      r.generation,
+      r.frame?.personne,
+      r.frame?.appareil,
+      r.frame?.idempotencyKey,
+      r.arguments_sha256,
+      r.loss_selected,
+      r.ticket_present,
+    ]);
+    expect(decisions).toStrictEqual([
+      [1, OWNER, OWNER_DEVICE, "m5-ap-owner-lost-key", lostDecision, true, false],
+      [2, OWNER, OWNER_DEVICE, "m5-ap-owner-lost-key", lostDecision, false, false],
+      [2, NON_OWNER, OWNER_DEVICE, "m5-ap-owner-lost-key", lostDecision, false, false],
+      [2, OWNER, OWNER_DEVICE, "m5-ap-owner-fresh-after-restart", freshDecision, false, false],
+    ]);
+    expect(calls(final, M5_TOOL).map((r) => [r.generation, r.arguments_sha256])).toStrictEqual([
+      [1, argumentsDigest(invoice.arguments)],
+      [2, argumentsDigest(fresh.arguments)],
+    ]);
+    expect(
+      final.claims
+        .map((r) => r.cle_idempotence)
+        .toSorted((a, b) => String(a).localeCompare(String(b))),
+    ).toStrictEqual(["m5-ap-owner-fresh-after-restart", "m5-ap-owner-lost-key"].toSorted());
+    const lostClaims = final.claims.filter((r) => r.cle_idempotence === "m5-ap-owner-lost-key");
+    expect(lostClaims).toStrictEqual(committed.claims);
+    // PostgreSQL clones a database only while no other session uses it; gen2 has done its work.
+    await stopChild(second.child);
+  }
+
+  // Demonstrate that the frozen witness rejects real corruption, only in owned disposable copies.
+  const negatives = JSON.parse(await runFixture(python, home, "snapshot-negatives")) as Negatives;
+  const { snapshots } = negatives;
+  const expected: Record<string, string[]> = {
+    intact: [],
+    duplicate_correction: ["AP_ORIGINAL_CHANGED"],
+    ap_timestamp: ["AP_ORIGINAL_CHANGED"],
+    amount: ["AP_ORIGINAL_CHANGED"],
+    decision_timestamp: ["DECISION_T0_CHANGED"],
+    claim: ["OWNER_CLAIM_CHANGED"],
+  };
+  expect(Object.keys(snapshots).toSorted()).toEqual(Object.keys(expected).toSorted());
+  for (const [name, database] of Object.entries(snapshots)) {
+    expect((await inspect(database)).anomalies).toEqual(expected[name]);
+  }
+  const afterCopies = await inspect();
+  expect(afterCopies.invoices).toStrictEqual(final.invoices);
+  expect(afterCopies.claims).toStrictEqual(final.claims);
+  expect(afterCopies.anomalies).toEqual([]);
+  if (barrier) {
+    // Each corruption was a committed SQL write in its own owned, private clone of the primary.
+    const copies = negatives.postgres;
+    if (!copies) {
+      throw new Error("PostgreSQL17 negatives require owned disposable database copies");
+    }
+    expect(copies.primary_unchanged).toBe(true);
+    expect(copies.primary).toStrictEqual(barrier);
+    const changed: Record<string, string[]> = {
+      intact: [],
+      duplicate_correction: ["ap"],
+      ap_timestamp: ["ap"],
+      amount: ["ap"],
+      decision_timestamp: ["approvals"],
+      claim: ["claims"],
+    };
+    expect(Object.keys(copies.copies).toSorted()).toEqual(Object.keys(changed).toSorted());
+    const databases = new Set<string>();
+    for (const [name, copy] of Object.entries(copies.copies)) {
+      expect(copy).toMatchObject({
+        changed_tables: changed[name],
+        source_oid: barrier.database_oid,
+        owned_by_current_user: true,
+        public_connect: false,
+        public_temporary: false,
+      });
+      expect(copy.comment).toContain(` ${name} `);
+      expect(copy.database).not.toBe(barrier.database);
+      expect(copy.database_oid).not.toBe(barrier.database_oid);
+      databases.add(copy.database);
+    }
+    expect(databases.size).toBe(Object.keys(changed).length);
+    expect(expectPgWitness(afterCopies.witness)).toStrictEqual(barrier);
+    const cleanup = JSON.parse(await runFixture(python, home, "drop-negatives")) as DroppedCopies;
+    expect(cleanup.dropped.toSorted()).toStrictEqual([...databases].toSorted());
+    expect(cleanup.remaining).toEqual([]);
+    expect(cleanup.databases.some((database) => databases.has(database))).toBe(false);
+    expect(cleanup.databases).toContain(barrier.database);
+    expect(cleanup.primary_unchanged).toBe(true);
+    await expect(inspect(snapshots.intact)).rejects.toThrow(/does not exist/u);
+    const afterCleanup = await inspect();
+    expect(expectPgWitness(afterCleanup.witness)).toStrictEqual(barrier);
+    expect(afterCleanup.invoices).toStrictEqual(final.invoices);
+    expect(afterCleanup.claims).toStrictEqual(final.claims);
+    expect(afterCleanup.anomalies).toEqual([]);
+  }
+}
+
 afterEach(async () => {
   const manager = getSessionMcpRuntimeManagerForTesting();
   try {
@@ -726,149 +1060,13 @@ describe("OPSYS M5 AP N4 and owner M9 decisions through production Core leases a
       expectOrigins(decided, 1);
     }, 90_000);
 
-    it("preserves one committed M5 AP correction after lost M9 ACK and explicit replay across restart", async () => {
-      const python = requiredPython();
-      const home = await mkdtemp(resolve(tmpdir(), "opsys-m5-ap-lost-"));
-      tempDirs.push(home);
-      const { invoice } = JSON.parse(await runFixture(python, home, "prepare")) as {
-        invoice: Invoice;
-      };
-      const inspect = async (database?: string) =>
-        JSON.parse(
-          await runFixture(python, home, "inspect", database ? ["--database", database] : []),
-        ) as State;
-      const first = await startServer(python, home, 1, true);
-      const id = pendingId(await proposeThroughCore(home, first.port, "m5-ap-lost-agent", invoice));
-      const before = await inspect();
-      expectPending(before, "A", invoice, id);
-      const ownerFrame = deviceFrame(OWNER, "m5-ap-owner-lost-key");
-      let transportFailure: unknown;
-      try {
-        await decideOnDevice(home, first.port, "m5-ap-lost-owner", ownerFrame, id);
-      } catch (error) {
-        transportFailure = error;
-      }
-      expect(transportFailure).toBeInstanceOf(Error);
-      expect(transportFailure).not.toBeInstanceOf(McpLeaseCleanupError);
-      const lost = await readLost(home);
-      expect(lost).toMatchObject({
-        generation: 1,
-        demande_id: id,
-        t0: DECISION_T0,
-        ap_horodatage: invoice.arguments.horodatage,
-        independent_committed_read_before_headers: true,
-        response_body_forwarded_bytes: 0,
-        original_headers_forwarded: true,
-        handler_sequence: [
-          [M9_TOOL, "entered"],
-          [M5_TOOL, "entered"],
-          [M5_TOOL, "completed"],
-          [M9_TOOL, "completed"],
-        ],
-      });
-      expect(lost.native_response_bytes_buffered).toBeGreaterThan(0);
-      expect(typeof lost.sql_cree_le).toBe("string");
-      expectDecision(lost.native_result, id, DECISION_T0);
-      const committed = await inspect();
-      expectCorrected(committed, "A", invoice, id, DECISION_T0, "310.00", "356.42");
-      expect(committed.anomalies).toEqual([]);
-      expect(originalEntries(committed, M5_TOOL)).toHaveLength(1);
-      expect(originalEntries(committed, M9_TOOL)).toHaveLength(1);
-      expect(calls(committed, M9_TOOL)).toHaveLength(1);
-      expect(committed.claims).toHaveLength(1);
-      expect(committed.invoices.A.rows[0]).toStrictEqual(before.invoices.A.rows[0]);
-      await stopChild(first.child);
-      await resetSessionMcpRuntimeManagerGeneration();
+    it(LOST_ACK_TITLE, lostAckAcrossRestart, 170_000);
+  }
 
-      const second = await startServer(python, home, 2, false);
-      const replay = envelope(
-        await decideOnDevice(home, second.port, "m5-ap-replay-owner", ownerFrame, id),
-      );
-      expect(replay).toStrictEqual({ ...lost.native_result, rejoue: true });
-      const afterReplay = await inspect();
-      expect(afterReplay.invoices.A).toStrictEqual(committed.invoices.A);
-      expect(afterReplay.claims).toStrictEqual(committed.claims);
-      expect(afterReplay.anomalies).toEqual([]);
-      // Cached replay sends a real second RPC, and deliberately does not enter either original handler.
-      expect(calls(afterReplay, M9_TOOL)).toHaveLength(2);
-      expect(originalEntries(afterReplay, M9_TOOL)).toHaveLength(1);
-      expect(originalEntries(afterReplay, M5_TOOL)).toHaveLength(1);
-
-      const wrongActor = envelope(
-        await decideOnDevice(
-          home,
-          second.port,
-          "m5-ap-replay-non-owner",
-          { ...ownerFrame, "opsys/personne": NON_OWNER },
-          id,
-        ),
-        true,
-      );
-      expect(wrongActor).toMatchObject({
-        ok: false,
-        erreur: "confirmation_transport_indisponible",
-        issue: "inconnue",
-      });
-      expect(wrongActor).not.toHaveProperty("resultat");
-      expect(wrongActor.rejoue).not.toBe(true);
-      const afterWrong = await inspect();
-      expect(afterWrong.people).toStrictEqual(PEOPLE);
-      expect(afterWrong.invoices.A).toStrictEqual(committed.invoices.A);
-      expect(afterWrong.claims).toStrictEqual(committed.claims);
-      expect(afterWrong.anomalies).toEqual([]);
-      expect(originalEntries(afterWrong, M9_TOOL)).toHaveLength(1);
-      expect(originalEntries(afterWrong, M5_TOOL)).toHaveLength(1);
-
-      const { invoice: fresh } = JSON.parse(await runFixture(python, home, "prepare-b")) as {
-        invoice: Invoice;
-      };
-      const freshId = pendingId(
-        await proposeThroughCore(home, second.port, "m5-ap-fresh-agent", fresh),
-      );
-      expect(freshId).not.toBe(id);
-      expectPending(await inspect(), "B", fresh, freshId);
-      const accepted = envelope(
-        await decideOnDevice(
-          home,
-          second.port,
-          "m5-ap-fresh-owner",
-          deviceFrame(OWNER, "m5-ap-owner-fresh-after-restart"),
-          freshId,
-        ),
-      );
-      expectDecision(accepted, freshId, DECISION_T1);
-      expect(DECISION_T1 > DECISION_T0).toBe(true);
-      const final = await inspect();
-      expectCorrected(final, "B", fresh, freshId, DECISION_T1, "320.00", "367.92");
-      expectCorrected(final, "A", invoice, id, DECISION_T0, "310.00", "356.42");
-      expect(final.invoices.A).toStrictEqual(committed.invoices.A);
-      expect(final.anomalies).toEqual([]);
-      expect(originalEntries(final, M5_TOOL)).toHaveLength(2);
-      expect(originalEntries(final, M9_TOOL)).toHaveLength(2);
-      expectOrigins(final, 1);
-      expectOrigins(final, 2);
-
-      // Demonstrate that the frozen witness rejects real corruption, only in owned disposable copies.
-      const { snapshots } = JSON.parse(await runFixture(python, home, "snapshot-negatives")) as {
-        snapshots: Record<string, string>;
-      };
-      const expected: Record<string, string[]> = {
-        intact: [],
-        duplicate_correction: ["AP_ORIGINAL_CHANGED"],
-        ap_timestamp: ["AP_ORIGINAL_CHANGED"],
-        amount: ["AP_ORIGINAL_CHANGED"],
-        decision_timestamp: ["DECISION_T0_CHANGED"],
-        claim: ["OWNER_CLAIM_CHANGED"],
-      };
-      expect(Object.keys(snapshots).toSorted()).toEqual(Object.keys(expected).toSorted());
-      for (const [name, database] of Object.entries(snapshots)) {
-        expect((await inspect(database)).anomalies).toEqual(expected[name]);
-      }
-      const afterCopies = await inspect();
-      expect(afterCopies.invoices).toStrictEqual(final.invoices);
-      expect(afterCopies.claims).toStrictEqual(final.claims);
-      expect(afterCopies.anomalies).toEqual([]);
-    }, 170_000);
+  // Exactly one PostgreSQL17 case is declared per explicit runner mode; no silent skipped sibling.
+  if (PG17_MODE === "lost-ack") {
+    it(`${LOST_ACK_TITLE} on real PostgreSQL17`, lostAckAcrossRestart, 170_000);
+    return;
   }
 
   it(
