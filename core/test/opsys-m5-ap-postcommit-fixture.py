@@ -187,10 +187,14 @@ def _snapshot_postgres() -> dict:
                 }.items()
             }
             tables["people"] = {
-                person: sorted(row["role"] for row in cnx.execute(
-                    "SELECT r.role FROM roles r JOIN personnes p ON p.identifiant=r.identifiant "
-                    "WHERE p.identifiant=%s AND p.actif=true", (person,)
-                ))
+                person: sorted(
+                    row["role"]
+                    for row in cnx.execute(
+                        "SELECT r.role FROM roles r JOIN personnes p ON p.identifiant=r.identifiant "
+                        "WHERE p.identifiant=%s AND p.actif=true",
+                        (person,),
+                    )
+                )
                 for person in (OWNER, NON_OWNER)
             }
             # schema.py stores arguments/resultat/maillon as Text; retain those exact encoded values.
@@ -534,7 +538,7 @@ def serve(port: int, generation: int, lose_decision: bool) -> None:
                     # rather than substitute an HTTP500. No tool-result body crosses this seam.
                     await send(response_start)
                     with (home / RESPONSE_LOST).open("x", encoding="utf-8") as stream:
-                        stream.write(json.dumps({**proof, "original_headers_forwarded": True}) + "\n")
+                        stream.write(json.dumps(vers_json({**proof, "original_headers_forwarded": True})) + "\n")
                     raise RuntimeError("FICTIVE_M9_DECISION_RESPONSE_LOST_AFTER_NATIVE_COMMIT")
             else:
                 raise RuntimeError("unexpected fictive ASGI response message")
