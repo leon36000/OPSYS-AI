@@ -18,6 +18,7 @@ from opsys.stockage.schema import APPROBATIONS, EVENEMENTS_RECUS, EVENEMENTS_SOR
 FICTIF = True
 M9 = "m09-strategic-intelligence"
 TOOL = "m9_preparer_dossier_direction"
+TEMPORAL_TOOL = "m9_diagnostiquer_dossier_direction"
 SEEDS = [
     {
         "module_source": "M5-fictif",
@@ -51,7 +52,7 @@ def inspect():
     print(json.dumps({"fictif": True, "tables": tables, "business": business, "chain": chain}, ensure_ascii=False))
 
 
-def prepare(config):
+def prepare(config, tool=TOOL):
     from m9_strategic_intelligence import outils
 
     from opsys import openclaw
@@ -66,8 +67,8 @@ def prepare(config):
         assert result["ok"] is True, result
     deps = charger_departements()
     roles = {"roles": openclaw.roles_outils(deps), "serveurs": openclaw.serveurs_outils(deps)}
-    assert TOOL in roles["roles"]["admin"] and TOOL not in roles["roles"]["employee"]
-    assert roles["serveurs"][TOOL] == "opsys_m9"
+    assert tool in roles["roles"]["admin"] and tool not in roles["roles"]["employee"]
+    assert roles["serveurs"][tool] == "opsys_m9"
     openclaw._ecrire_json(Path(config) / "opsys/roles.json", roles)
     inspect()
 
@@ -127,22 +128,40 @@ def serve(port):
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
-    p.add_argument("action", choices=["prepare", "inspect", "serve", "digest"])
+    p.add_argument("action", choices=["prepare", "inspect", "serve", "digest", "measure", "revoke-admin"])
     p.add_argument("--payload")
     p.add_argument("--config")
     p.add_argument("--port", type=int)
+    p.add_argument("--tool", choices=[TOOL, TEMPORAL_TOOL], default=TOOL)
+    p.add_argument("--id-key", choices=["dossier_id", "diagnostic_id"], default="dossier_id")
     a = p.parse_args()
     if a.action == "prepare":
-        prepare(a.config)
+        prepare(a.config, a.tool)
     elif a.action == "inspect":
         inspect()
     elif a.action == "digest":
         payload = json.loads(a.payload)
-        payload.pop("dossier_id")
+        payload.pop(a.id_key)
+        if a.id_key == "diagnostic_id":
+            # The producer's total_seconds fields are floats. JS JSON.stringify
+            # collapses integral floats to integers; restore that declared type
+            # before checking the Python producer's canonical-content ID.
+            for observation in payload["observations"]:
+                assert type(observation["ecart_secondes"]) in (int, float)
+                observation["ecart_secondes"] = float(observation["ecart_secondes"])
         print(
             hashlib.sha256(
                 json.dumps(payload, sort_keys=True, ensure_ascii=False, allow_nan=False).encode("utf-8")
             ).hexdigest()
         )
+    elif a.action == "measure":
+        payload = json.loads(a.payload)
+        print(json.dumps({key: len(json.dumps(value, ensure_ascii=False, allow_nan=False))
+                          for key, value in {**payload, "combined": payload}.items()}))
+    elif a.action == "revoke-admin":
+        with stockage.transaction() as cnx:
+            identite.retirer_role(cnx, "admin-dossier-fictif", "admin")
+            assert "admin" not in identite.personne_active(cnx, "admin-dossier-fictif").roles
+        print(json.dumps({"fictif": True, "admin_role_removed": True}))
     else:
         serve(a.port)

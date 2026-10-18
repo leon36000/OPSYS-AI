@@ -112,6 +112,7 @@ ADMIN_SEUL = frozenset({
     "m9_decider_demande_approbation", "m9_lire_alertes_m8", "m9_lire_etat_consolide", "m9_lire_suite_briefing",
     "m9_lister_demandes_approbation", "m9_produire_briefing_matin", "m9_produire_lecture_strategique",
     "m9_preparer_dossier_direction",  # dossier préparatoire sourcé T0/N0, admin seulement
+    "m9_diagnostiquer_dossier_direction",  # dossier serveur et diagnostic temporel T0/N0, admin seulement
     # Suivi interne : lectures N0 et ouverture N3 sous SA demande dédiée signée par le propriétaire.
     "m9_preparer_suivi_decision", "m9_ouvrir_suivi_decision", "m9_lire_suivi_decision",
     "m10_arbitrer_revision", "m10_paquet_contexte_affaire", "m10_statut_decision", "m10_statut_revision",

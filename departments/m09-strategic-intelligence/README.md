@@ -75,6 +75,22 @@ historique à 15 clés. M9 et OPSYS-AI restent **PARTIELS**.
 les citations contradictoires, la capture unique, les refus et les accès. Toutes les données
 sont fictives ; ces essais ne prouvent ni une décision terrain ni un parcours Core/mobile réel.
 
+`m9_diagnostiquer_dossier_direction(question, modules_attendus, horodatage_reference)`
+réutilise ce producteur serveur autorisé, avec une seule capture validée, puis rend le
+`dossier` et son `diagnostic` temporel liés par leurs identifiants. Aucun dossier n'est accepté
+en argument. La référence doit porter un fuseau explicite ; aucune horloge interne ni
+conversion implicite d'une observation sans fuseau n'est ajoutée. L'écart signé en secondes
+vaut référence moins observation : `OBSERVATION_FUTURE`, `A_REFERENCE` ou
+`ANTERIEURE_REFERENCE`. Les faits sélectionnés et toutes leurs preuves historiques demeurent
+inchangés, y compris les contradictions. Cet âge ne démontre ni fraîcheur métier ni SLA :
+`actualite_metier` reste `NON_EVALUEE`. Sur appareil, l'admin SQL courant est revérifié avant
+la capture. Dossier, preuves et diagnostic doivent tenir ensemble ; une borne de transport
+plus basse produit aussi un refus explicite, sans troncature ni artefact.
+
+`tests/test_diagnostic_direction.py` vérifie ce consommateur en SQLite temporaire, les
+frontières de rôle, la capture unique et les deux bornes. Ce parcours reste distinct d'une
+qualification Core/mobile, PostgreSQL ou métier complète ; M9 et OPSYS-AI restent **PARTIELS**.
+
 ## Suivi interne d’une décision sur preuve M8 (CF-034, première tranche)
 
 Le département reste **PARTIEL**. Trois outils ajoutent un parcours déterministe :

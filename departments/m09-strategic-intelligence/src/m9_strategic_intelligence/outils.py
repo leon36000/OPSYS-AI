@@ -44,6 +44,7 @@ suit le même patron pour le registre durable des alertes M8 reçues (T3.2).
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -56,6 +57,7 @@ from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 from . import (
     briefing_matin,
     contrats,
+    diagnostic_temporel,
     dossier_direction,
     lecture_alertes,
     lecture_strategique,
@@ -267,6 +269,20 @@ def outils(
             copie, question, modules_attendus, budget_caracteres=BUDGET_SORTIE,
         )
 
+    def diagnostiquer_dossier_direction(
+        question: str, modules_attendus: list[str], horodatage_reference: str,
+    ) -> dict[str, Any]:
+        # La provenance vient de cette capture serveur autorisée, jamais d'un dossier
+        # fourni par l'appelant ni des empreintes non secrètes du diagnostic pur.
+        dossier = preparer_dossier_direction(question, modules_attendus)
+        diagnostic = diagnostic_temporel.diagnostiquer_dossier(
+            dossier, horodatage_reference, budget_caracteres=BUDGET_SORTIE,
+        )
+        resultat = {"dossier": dossier, "diagnostic": diagnostic}
+        if len(json.dumps(resultat, ensure_ascii=False, allow_nan=False)) > BUDGET_SORTIE:
+            raise ValueError("REJ-DIAGNOSTIC-BORNE : dossier et diagnostic complets dépassent la borne")
+        return resultat
+
     def etat_consolide(snapshot: dict[str, Any]) -> dict[str, Any]:
         """Chaîne complète : validation → écriture registre → état consolidé.
 
@@ -417,6 +433,32 @@ def outils(
                 "additionalProperties": False,
             },
             fonction=preparer_dossier_direction,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m9_diagnostiquer_dossier_direction",
+            description=(
+                "Prépare un dossier historique sourcé et compare ses observations à une référence "
+                "horaire explicite avec fuseau. Signale les observations futures sans déduire "
+                "l'actualité métier ; refuse si dossier, preuves et diagnostic ne tiennent pas entiers."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "question": {"type": "string", "minLength": 1, "maxLength": 2048},
+                    "modules_attendus": {
+                        "type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 128},
+                        "minItems": 1, "maxItems": 16, "uniqueItems": True,
+                    },
+                    "horodatage_reference": {
+                        "type": "string", "minLength": 1,
+                        "description": "Référence ISO 8601 avec fuseau explicite, fournie par l'appelant.",
+                    },
+                },
+                "required": ["question", "modules_attendus", "horodatage_reference"],
+                "additionalProperties": False,
+            },
+            fonction=diagnostiquer_dossier_direction,
             roles_appareil=frozenset({"admin"}),
         ),
         Outil(
