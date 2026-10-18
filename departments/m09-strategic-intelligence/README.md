@@ -44,6 +44,37 @@ conformité statique.
 Council d'agents, Strategic Supervisor, scénarios narratifs et Decision Intelligence Engine
 restent GATED (hors périmètre v1, cf. `docs/bmad/02-PRD-PM.md` §3.2).
 
+## Dossier préparatoire de direction sourcé (CF-034, tranche M9.10)
+
+`m9_preparer_dossier_direction(question, modules_attendus)` prépare une lecture de la chaîne
+de snapshots déjà reçus pour une question de chantiers, équipes, matériaux ou autres faits
+déclarés par les modules. La question reste inchangée ; les 1 à 16 identifiants attendus sont
+explicites, distincts et conservés tels quels, sans catalogue ni correspondance inventée.
+L'outil capture et valide la source une seule fois, puis réutilise cette copie pour l'état
+consolidé et ses citations. Il ne modifie aucun registre métier, suivi, approbation ou événement ;
+le journal normal d'invocation du socle demeure actif. Sur appareil, l'admin et son rôle SQL
+courant sont requis, comme pour la lecture de l'état consolidé.
+
+Le résultat `DOSSIER_PREPARATOIRE_DIRECTION` conserve l'`etat_id`, les faits sélectionnés et
+les métadonnées de contradictions du consolidateur. `preuves` contient les maillons complets,
+triés par index, y compris chaque variante contradictoire non sélectionnée. Une référence
+absente ou ambiguë provoque un refus explicite, même si les hashes de la chaîne sont valides.
+Une source dont les clés ou valeurs changeraient à la sérialisation JSON est aussi refusée,
+sans réécrire la preuve ; l'ingestion durable ordinaire exige déjà des clés et valeurs textuelles.
+`modules_manquants` nomme les identifiants demandés absents ; une liste vide ne démontre pas
+une couverture complète. L'empreinte `dossier_id` lie question, périmètre déclaré et contenu.
+
+La sortie reste `NON_VALIDE`, avec actualité `NON_EVALUEE`. Elle n'arbitre aucune contradiction
+et ne recommande ni n'exécute d'action. Si dossier et citations dépassent le budget de sortie
+du socle, l'outil refuse sans tronquer ni supprimer de preuve. Il n'offre pas encore de pagination
+pour les grands registres ; une revue séparée reste nécessaire dans ce cas. Ce format distinct
+ne remplace pas le rapport stratégique complet à 21 sections ni son validateur structurel
+historique à 15 clés. M9 et OPSYS-AI restent **PARTIELS**.
+
+`tests/test_dossier_direction.py` exerce la consommation par `Capacites` en SQLite temporaire,
+les citations contradictoires, la capture unique, les refus et les accès. Toutes les données
+sont fictives ; ces essais ne prouvent ni une décision terrain ni un parcours Core/mobile réel.
+
 ## Suivi interne d’une décision sur preuve M8 (CF-034, première tranche)
 
 Le département reste **PARTIEL**. Trois outils ajoutent un parcours déterministe :

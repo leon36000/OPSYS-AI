@@ -1734,6 +1734,7 @@ class Capacites:
                 ),
             }
         refus_lecture_appareil = {
+            "m9_preparer_dossier_direction": "REJ-DOSSIER-SORTIE-TROP-VOLUMINEUSE",
             "m10_lire_paquet_affaire_appareil": "REJ-PAQUET-AFFAIRE-SORTIE-TROP-VOLUMINEUSE",
             "m10_rechercher_affaire_appareil": "REJ-RECHERCHE-AFFAIRE-SORTIE-TROP-VOLUMINEUSE",
             "m6_lister_wct_pertes_appareil": "REJ-M6-WCT-SORTIE-TROP-VOLUMINEUSE",

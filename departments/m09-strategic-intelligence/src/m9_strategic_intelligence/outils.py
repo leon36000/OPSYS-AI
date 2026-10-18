@@ -56,6 +56,7 @@ from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 from . import (
     briefing_matin,
     contrats,
+    dossier_direction,
     lecture_alertes,
     lecture_strategique,
     rapport_strategique,
@@ -259,6 +260,13 @@ def outils(
         copie = exiger_chaine_snapshots_valide()
         return etat_consolide_module.construire_etat_consolide(copie)
 
+    def preparer_dossier_direction(question: str, modules_attendus: list[str]) -> dict[str, Any]:
+        _exiger_admin_pour_appareil()
+        copie = exiger_chaine_snapshots_valide()
+        return dossier_direction.construire_dossier(
+            copie, question, modules_attendus, budget_caracteres=BUDGET_SORTIE,
+        )
+
     def etat_consolide(snapshot: dict[str, Any]) -> dict[str, Any]:
         """Chaîne complète : validation → écriture registre → état consolidé.
 
@@ -387,6 +395,28 @@ def outils(
             parametres={"type": "object", "properties": {}, "additionalProperties": False},
             fonction=lire_etat_consolide,
             # §7 M9 mobile : « Admin/Nathan seulement » (décisions en attente).
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m9_preparer_dossier_direction",
+            description=(
+                "Prépare un dossier historique sourcé pour une question de direction, sans "
+                "valider de décision. Conserve les variantes contradictoires et signale les "
+                "modules attendus absents ; refuse si les preuves complètes dépassent la borne."
+            ),
+            parametres={
+                "type": "object",
+                "properties": {
+                    "question": {"type": "string", "minLength": 1, "maxLength": 2048},
+                    "modules_attendus": {
+                        "type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 128},
+                        "minItems": 1, "maxItems": 16, "uniqueItems": True,
+                    },
+                },
+                "required": ["question", "modules_attendus"],
+                "additionalProperties": False,
+            },
+            fonction=preparer_dossier_direction,
             roles_appareil=frozenset({"admin"}),
         ),
         Outil(
