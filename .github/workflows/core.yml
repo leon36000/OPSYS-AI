@@ -153,6 +153,12 @@ jobs:
         run: |
           uv sync --project . --locked --group build --extra dev --no-build-isolation --no-install-project
           uv sync --project . --locked --group build --extra dev --no-build-isolation
+      - name: Image PostgreSQL17 épinglée pour la composition Core vers M5
+        if: matrix.morceau == 2
+        working-directory: ${{ github.workspace }}
+        timeout-minutes: 18
+        # Runner hébergé dédié uniquement : cet outil configure et redémarre son démon Docker.
+        run: .venv/bin/python scripts/ci/preparer_pgvector.py
       - name: pnpm (version fixée par packageManager)
         run: corepack enable && pnpm --version
       - name: Installation
@@ -227,6 +233,27 @@ jobs:
           test "${#cibles[@]}" -gt 0
           echo "${#cibles[@]} fichiers ciblés (morceau ${{ matrix.morceau }}/2)"
           pnpm test "${cibles[@]}" 2>&1 | tee "$OPSYS_TEST_SHARD_DIR/vitest.log"
+      - name: Décision M5 périmée via Core HTTP sur PostgreSQL17 réel
+        if: matrix.morceau == 2
+        timeout-minutes: 8
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+          OPENCLAW_VITEST_MAX_WORKERS: "1"
+        shell: bash
+        run: |
+          set -euo pipefail
+          export OPSYS_TEST_M5_AP_PG17_ARTIFACT_DIR="$RUNNER_TEMP/opsys-m5-pg17-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir -p "$OPSYS_TEST_M5_AP_PG17_ARTIFACT_DIR"
+          "$GITHUB_WORKSPACE/.venv/bin/python" test/opsys-m5-ap-pg17-runner.py 2>&1 | tee "$OPSYS_TEST_M5_AP_PG17_ARTIFACT_DIR/vitest.log"
+      - name: Preuve PostgreSQL17 dédiée (liste fermée, sans fichier URL)
+        if: always() && matrix.morceau == 2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: opsys-m5-pg17-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/opsys-m5-pg17-${{ github.run_id }}-${{ github.run_attempt }}/vitest.log
+            ${{ runner.temp }}/opsys-m5-pg17-${{ github.run_id }}-${{ github.run_attempt }}/junit.xml
+          if-no-files-found: warn
       - name: Tests en échec (résumé en fin de journal)
         if: failure()
         shell: bash

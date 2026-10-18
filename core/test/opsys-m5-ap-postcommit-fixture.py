@@ -3,7 +3,8 @@
 The real department application, approval decision and AP append remain unmodified.
 Only fixture configuration, the module-local approval clock, handler observation and
 an ASGI response-body loss seam are supplied here. Every committed witness opens a
-separate SQLite connection in mode=ro. Negative SQL mutations target backups only.
+separate SQLite connection in mode=ro, or an independent PostgreSQL17 read-only
+transaction. Negative SQL mutations target backups only.
 """
 
 from __future__ import annotations
@@ -157,7 +158,54 @@ def _active_roles(cnx, person: str) -> list[str]:
     )
 
 
+def _snapshot_postgres() -> dict:
+    import psycopg
+    from psycopg.rows import dict_row
+
+    # Direct driver connection, independent of the application's SQLAlchemy engine/transactions.
+    url = os.environ["OPSYS_BASE_URL"].replace("postgresql+psycopg://", "postgresql://", 1)
+    with psycopg.connect(url, autocommit=True, row_factory=dict_row) as cnx:
+        cnx.execute("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+        try:
+            version = int(cnx.execute("SHOW server_version_num").fetchone()["server_version_num"])
+            read_only = cnx.execute("SHOW transaction_read_only").fetchone()["transaction_read_only"]
+            if not 170000 <= version < 180000 or read_only != "on":
+                raise RuntimeError("independent witness requires real PostgreSQL17 read-only transaction")
+            tables = {
+                name: list(cnx.execute(query).fetchall())
+                for name, query in {
+                    "ap": (
+                        "SELECT * FROM registres_maillons WHERE departement='m05-financecore' "
+                        "AND registre='comptes_a_payer' ORDER BY rang"
+                    ),
+                    "movements": (
+                        "SELECT * FROM registres_maillons WHERE departement='m05-financecore' "
+                        "AND registre='principal' ORDER BY rang"
+                    ),
+                    "approvals": "SELECT * FROM approbations ORDER BY id",
+                    "claims": "SELECT * FROM mutations_appliquees ORDER BY appareil,cle_idempotence",
+                }.items()
+            }
+            tables["people"] = {
+                person: sorted(row["role"] for row in cnx.execute(
+                    "SELECT r.role FROM roles r JOIN personnes p ON p.identifiant=r.identifiant "
+                    "WHERE p.identifiant=%s AND p.actif=true", (person,)
+                ))
+                for person in (OWNER, NON_OWNER)
+            }
+            # schema.py stores arguments/resultat/maillon as Text; retain those exact encoded values.
+            # Only cree_le is a native timestamptz here; vers_json preserves its ISO representation.
+            tables["witness"] = {"server_version_num": version, "transaction_read_only": read_only}
+            return tables
+        finally:
+            cnx.execute("ROLLBACK")
+
+
 def _snapshot(database: Path) -> dict:
+    if os.environ.get("OPSYS_TEST_M5_AP_PG17_URL_FILE"):
+        if database != _home() / "opsys.db":
+            raise RuntimeError("PostgreSQL witness cannot inspect SQLite backup oracles")
+        return _snapshot_postgres()
     # This connection is independent of the application's transaction and is SELECT-only.
     with closing(sqlite3.connect(database.as_uri() + "?mode=ro", uri=True)) as cnx:
         cnx.row_factory = sqlite3.Row
@@ -566,7 +614,8 @@ def read_revision(label: str) -> None:
     item = _prepared(home)["invoices"].get(label)
     if item is None:
         raise RuntimeError("fictive invoice was not prepared: " + label)
-    state = _invoice_state(_snapshot(home / "opsys.db"), item)
+    snapshot = _snapshot(home / "opsys.db")
+    state = _invoice_state(snapshot, item)
     if not state["pieces"] or state["pieces"][0].get("type_entree") != "facture_fournisseur_saisie":
         raise RuntimeError("revision witness requires the genuine seeded invoice first")
     print(
@@ -574,7 +623,10 @@ def read_revision(label: str) -> None:
             vers_json(
                 {
                     "fictif": True,
-                    "witness": "sqlite-mode-ro-ap-chain",
+                    "witness": (
+                        "postgresql17-read-only-ap-chain" if "witness" in snapshot else "sqlite-mode-ro-ap-chain"
+                    ),
+                    **snapshot.get("witness", {}),
                     "invoice_id": item["id"],
                     "revision": state["corrections"],
                     "rows": len(state["rows"]),
