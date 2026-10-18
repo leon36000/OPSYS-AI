@@ -556,6 +556,35 @@ def inspect(database: Path | None) -> None:
     )
 
 
+def read_revision(label: str) -> None:
+    """Explicit SELECT-only witness of the current invoice revision, read from the committed AP chain.
+
+    No M5 business read is assumed by this fixture: the revision is the number of committed correction
+    pieces, the same count the genuine seed exposes as ``corrections`` at revision 0.
+    """
+    home = _home()
+    item = _prepared(home)["invoices"].get(label)
+    if item is None:
+        raise RuntimeError("fictive invoice was not prepared: " + label)
+    state = _invoice_state(_snapshot(home / "opsys.db"), item)
+    if not state["pieces"] or state["pieces"][0].get("type_entree") != "facture_fournisseur_saisie":
+        raise RuntimeError("revision witness requires the genuine seeded invoice first")
+    print(
+        json.dumps(
+            vers_json(
+                {
+                    "fictif": True,
+                    "witness": "sqlite-mode-ro-ap-chain",
+                    "invoice_id": item["id"],
+                    "revision": state["corrections"],
+                    "rows": len(state["rows"]),
+                    "latest": state["pieces"][-1],
+                }
+            )
+        )
+    )
+
+
 def snapshot_negatives() -> None:
     home = _home()
     frozen = codec.decoder((home / ORACLE_T0).read_text())
@@ -603,11 +632,14 @@ def snapshot_negatives() -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("prepare", "prepare-b", "serve", "inspect", "snapshot-negatives"))
+    parser.add_argument(
+        "command", choices=("prepare", "prepare-b", "serve", "inspect", "snapshot-negatives", "read-revision")
+    )
     parser.add_argument("--port", type=int)
     parser.add_argument("--generation", type=int)
     parser.add_argument("--lose-decision", action="store_true")
     parser.add_argument("--database", type=Path)
+    parser.add_argument("--label")
     args = parser.parse_args()
     if args.command == "prepare":
         prepare()
@@ -620,6 +652,10 @@ def main() -> None:
         serve(args.port, args.generation, args.lose_decision)
     elif args.command == "inspect":
         inspect(args.database)
+    elif args.command == "read-revision":
+        if args.label is None:
+            raise RuntimeError("read-revision requires an owned invoice label")
+        read_revision(args.label)
     else:
         snapshot_negatives()
 

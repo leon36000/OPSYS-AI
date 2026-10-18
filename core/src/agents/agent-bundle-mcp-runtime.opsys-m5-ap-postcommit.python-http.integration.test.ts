@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
@@ -33,6 +34,8 @@ const OWNER_DEVICE = "tel-fictif-proprietaire-m5-ap";
 const PRIVATE_TOKEN = "synthetic-m5-ap-private-token-2026";
 const PUBLIC_TOKEN = "synthetic-m5-ap-public-token-2026";
 const MAX_FIXTURE_OUTPUT = 8 * 1024 * 1024;
+const STALE_REVISION = "REJ-AP-FACTURE-REVISION-PERIMEE";
+const CORRECTION = "correction_facture_fournisseur";
 const children: ChildProcess[] = [];
 const tempDirs: string[] = [];
 const sessionIds: string[] = [];
@@ -48,8 +51,16 @@ type Dispatch = {
   method?: string;
   tool?: string;
   ticket_present?: boolean;
+  arguments_sha256?: string;
   frame?: Row;
   loss_selected?: boolean;
+};
+type RevisionWitness = {
+  witness: string;
+  invoice_id: string;
+  revision: number;
+  rows: number;
+  latest: Row;
 };
 type State = {
   people: Record<string, string[]>;
@@ -554,6 +565,70 @@ async function readLost(home: string): Promise<Lost> {
   }
 }
 
+/** Python `json.dumps(sort_keys=True, separators=(",", ":"))` of the flat ASCII fictive arguments. */
+function argumentsDigest(args: Row): string {
+  const sorted = Object.fromEntries(
+    Object.keys(args)
+      .toSorted()
+      .map((key) => [key, args[key]]),
+  );
+  return createHash("sha256").update(JSON.stringify(sorted)).digest("hex");
+}
+
+/** Explicit multi-request path: one invoice carries several requests, each selected by its own id. */
+function expectRequest(state: State, label: string, id: string, args: Row, decision: Row): Row {
+  const matches = state.invoices[label].approvals.filter((r) => r.id === id);
+  expect(matches).toHaveLength(1);
+  expect(matches[0]).toMatchObject({
+    id,
+    outil: M5_TOOL,
+    departement: M5,
+    niveau: "N4",
+    ticket_cible_hash: null,
+    ...decision,
+  });
+  expect(JSON.parse(String(matches[0].arguments))).toStrictEqual(args);
+  return matches[0];
+}
+
+function correctionPieces(state: State, label: string): Row[] {
+  return state.invoices[label].pieces.filter((p) => p.type_entree === CORRECTION);
+}
+
+function expectCorrectionPiece(
+  piece: Row,
+  invoice: Invoice,
+  args: Row,
+  before: [string, string],
+  after: [string, string],
+): void {
+  expect(piece).toMatchObject({
+    type_entree: CORRECTION,
+    facture_fournisseur_id: invoice.id,
+    corrige_par: OWNER,
+    horodatage: args.horodatage,
+    avant: { montant_avant_taxes: before[0], montant_apres_taxes: before[1] },
+    apres: { montant_avant_taxes: after[0], montant_apres_taxes: after[1] },
+  });
+}
+
+/** Original handler events of the single server generation, bound to the exact arguments they ran. */
+function handlerCausality(state: State): string[][] {
+  expect(state.handler.every((r) => r.generation === 1)).toBe(true);
+  return state.handler.map((r) => [r.tool, r.event, r.arguments_sha256]);
+}
+
+function decisionCausality(demandeId: string, args: Row): string[][] {
+  const m9 = argumentsDigest(decisionArgs(demandeId));
+  const m5 = argumentsDigest(args);
+  return [
+    [M9_TOOL, "entered", m9],
+    [M5_TOOL, "entered", m5],
+    [M5_TOOL, "completed", m5],
+    [M9_TOOL, "completed", m9],
+  ];
+}
+
 afterEach(async () => {
   const manager = getSessionMcpRuntimeManagerForTesting();
   try {
@@ -783,4 +858,253 @@ describe("OPSYS M5 AP N4 and owner M9 decisions through production Core leases a
     expect(afterCopies.claims).toStrictEqual(final.claims);
     expect(afterCopies.anomalies).toEqual([]);
   }, 170_000);
+
+  it("refuses an owner decision on an M5 AP correction made stale by a newer one on the same invoice", async () => {
+    const python = requiredPython();
+    const home = await mkdtemp(resolve(tmpdir(), "opsys-m5-ap-stale-"));
+    tempDirs.push(home);
+    const { invoice } = JSON.parse(await runFixture(python, home, "prepare")) as {
+      invoice: Invoice;
+    };
+    const inspect = async () => JSON.parse(await runFixture(python, home, "inspect")) as State;
+    const readRevision = async () =>
+      JSON.parse(
+        await runFixture(python, home, "read-revision", ["--label", "A"]),
+      ) as RevisionWitness;
+    // Two distinct fictitious corrections of the same invoice, both frozen against revision 0.
+    const stale: Invoice = { ...invoice, arguments: Object.freeze({ ...invoice.arguments }) };
+    const newer: Invoice = {
+      ...invoice,
+      arguments: Object.freeze({
+        ...invoice.arguments,
+        motif: "Correction papier fictive A concurrente",
+        montant_avant_taxes: "320.00",
+        horodatage: "2026-10-17T11:45:00+00:00",
+      }),
+    };
+    expect(stale.arguments).toMatchObject({ revision_attendue: 0, montant_avant_taxes: "310.00" });
+    expect(newer.arguments.revision_attendue).toBe(0);
+    expect(argumentsDigest(newer.arguments)).not.toBe(argumentsDigest(stale.arguments));
+    const seeded = await inspect();
+    expect(seeded.invoices.A.approvals).toEqual([]);
+    expect(await readRevision()).toMatchObject({ invoice_id: invoice.id, revision: 0, rows: 1 });
+
+    const { port } = await startServer(python, home, 1, false);
+    const staleId = pendingId(await proposeThroughCore(home, port, "m5-ap-stale-agent-310", stale));
+    const newerId = pendingId(await proposeThroughCore(home, port, "m5-ap-stale-agent-320", newer));
+    expect(newerId).not.toBe(staleId);
+    const pending = await inspect();
+    expect(pending.people).toStrictEqual(PEOPLE);
+    expect(pending.movements).toEqual([]);
+    expect(pending.handler).toEqual([]);
+    expect(pending.invoices.A.rows).toStrictEqual(seeded.invoices.A.rows);
+    expect(pending.invoices.A.approvals).toHaveLength(2);
+    const pendingDecision = { statut: "en_attente", decide_par: null, decide_le: null };
+    const stalePending = expectRequest(pending, "A", staleId, stale.arguments, pendingDecision);
+    expectRequest(pending, "A", newerId, newer.arguments, pendingDecision);
+    expect(calls(pending, M5_TOOL).map((r) => r.arguments_sha256)).toStrictEqual([
+      argumentsDigest(stale.arguments),
+      argumentsDigest(newer.arguments),
+    ]);
+    expect(calls(pending, M5_TOOL).every((r) => r.ticket_present === false)).toBe(true);
+
+    const newerKey = "m5-ap-stale-owner-320-fresh";
+    expectDecision(
+      envelope(
+        await decideOnDevice(
+          home,
+          port,
+          "m5-ap-stale-owner-320",
+          deviceFrame(OWNER, newerKey),
+          newerId,
+        ),
+      ),
+      newerId,
+      DECISION_T0,
+    );
+    const afterNewer = await inspect();
+    expect(afterNewer.people).toStrictEqual(PEOPLE);
+    expect(afterNewer.movements).toEqual([]);
+    expect(afterNewer.invoices.A.rows).toHaveLength(2);
+    expect(afterNewer.invoices.A.rows[0]).toStrictEqual(seeded.invoices.A.rows[0]);
+    expect(afterNewer.invoices.A.corrections).toBe(1);
+    expectCorrectionPiece(
+      afterNewer.invoices.A.pieces[1],
+      invoice,
+      newer.arguments,
+      ["100.00", "114.98"],
+      ["320.00", "367.92"],
+    );
+    const ownerDecision = {
+      decide_par: OWNER,
+      decide_role: "nathan_owner",
+      decide_le: DECISION_T0,
+    };
+    const newerApproval = expectRequest(afterNewer, "A", newerId, newer.arguments, {
+      statut: "executee",
+      ...ownerDecision,
+    });
+    expect(expectRequest(afterNewer, "A", staleId, stale.arguments, pendingDecision)).toStrictEqual(
+      stalePending,
+    );
+    expect(handlerCausality(afterNewer)).toStrictEqual(decisionCausality(newerId, newer.arguments));
+
+    // Same valid owner, role and device with another fresh key: the original M5 handler runs the
+    // stored revision-0 arguments and refuses them. The outer accepte=true only says the decision
+    // was processed; statut and issue carry the business outcome.
+    const staleKey = "m5-ap-stale-owner-310-fresh";
+    const staleNative = envelope(
+      await decideOnDevice(
+        home,
+        port,
+        "m5-ap-stale-owner-310",
+        deviceFrame(OWNER, staleKey),
+        staleId,
+      ),
+    );
+    expect(staleNative).toMatchObject({
+      ok: true,
+      rejoue: false,
+      resultat: {
+        accepte: true,
+        resultat: {
+          demande_id: staleId,
+          decision: "approuver",
+          statut: "echec",
+          outil: M5_TOOL,
+          niveau: "N4",
+          departement: M5,
+          decide_par: OWNER,
+          role: "nathan_owner",
+          decide_le: DECISION_T0,
+        },
+      },
+    });
+    const staleDecided = (staleNative.resultat as Row).resultat as Row;
+    expect(staleDecided.issue).toStrictEqual({
+      ok: true,
+      accepte: false,
+      verdict: { code: STALE_REVISION, detail: expect.any(String) },
+    });
+    const afterStale = await inspect();
+    expect(afterStale.people).toStrictEqual(PEOPLE);
+    expect(afterStale.movements).toEqual([]);
+    expect(afterStale.invoices.A.rows).toStrictEqual(afterNewer.invoices.A.rows);
+    expect(afterStale.invoices.A.pieces).toStrictEqual(afterNewer.invoices.A.pieces);
+    expect(afterStale.invoices.A.corrections).toBe(1);
+    expect(
+      expectRequest(afterStale, "A", newerId, newer.arguments, { statut: "executee" }),
+    ).toStrictEqual(newerApproval);
+    const staleApproval = expectRequest(afterStale, "A", staleId, stale.arguments, {
+      statut: "echec",
+      ...ownerDecision,
+    });
+    expect(JSON.parse(String(staleApproval.resultat))).toMatchObject({
+      ok: true,
+      resultat: { accepte: false, verdict: { code: STALE_REVISION } },
+    });
+    expect(handlerCausality(afterStale)).toStrictEqual([
+      ...decisionCausality(newerId, newer.arguments),
+      ...decisionCausality(staleId, stale.arguments),
+    ]);
+
+    const current = await readRevision();
+    expect(current).toMatchObject({
+      witness: "sqlite-mode-ro-ap-chain",
+      invoice_id: invoice.id,
+      revision: 1,
+      rows: 2,
+    });
+    expect(current.latest).toStrictEqual(afterStale.invoices.A.pieces[1]);
+    // Same 310 correction, re-proposed after the newer one against the revision just read.
+    const fresh: Invoice = {
+      ...invoice,
+      arguments: Object.freeze({
+        ...stale.arguments,
+        revision_attendue: current.revision,
+        horodatage: "2026-10-17T11:50:00+00:00",
+      }),
+    };
+    const freshId = pendingId(
+      await proposeThroughCore(home, port, "m5-ap-stale-agent-310-rev1", fresh),
+    );
+    expect([staleId, newerId]).not.toContain(freshId);
+    const repending = await inspect();
+    expectRequest(repending, "A", freshId, fresh.arguments, pendingDecision);
+    expect(repending.invoices.A.rows).toStrictEqual(afterStale.invoices.A.rows);
+    expect(repending.handler).toStrictEqual(afterStale.handler);
+
+    const freshKey = "m5-ap-stale-owner-310-rev1-fresh";
+    expectDecision(
+      envelope(
+        await decideOnDevice(
+          home,
+          port,
+          "m5-ap-stale-owner-310-rev1",
+          deviceFrame(OWNER, freshKey),
+          freshId,
+        ),
+      ),
+      freshId,
+      DECISION_T0,
+    );
+    const final = await inspect();
+    expect(final.people).toStrictEqual(PEOPLE);
+    expect(final.movements).toEqual([]);
+    expect(final.invoices.A.rows).toHaveLength(3);
+    expect(final.invoices.A.rows.slice(0, 2)).toStrictEqual(afterStale.invoices.A.rows);
+    expect(final.invoices.A.corrections).toBe(2);
+    const [applied, reapplied] = correctionPieces(final, "A");
+    expect(applied).toStrictEqual(afterStale.invoices.A.pieces[1]);
+    // The fresh correction starts from the newer committed amounts, never from revision 0.
+    expectCorrectionPiece(
+      reapplied,
+      invoice,
+      fresh.arguments,
+      ["320.00", "367.92"],
+      ["310.00", "356.42"],
+    );
+    expect(final.invoices.A.approvals).toHaveLength(3);
+    expect(
+      expectRequest(final, "A", newerId, newer.arguments, { statut: "executee" }),
+    ).toStrictEqual(newerApproval);
+    expect(expectRequest(final, "A", staleId, stale.arguments, { statut: "echec" })).toStrictEqual(
+      staleApproval,
+    );
+    expectRequest(final, "A", freshId, fresh.arguments, { statut: "executee", ...ownerDecision });
+    expect(await readRevision()).toMatchObject({ invoice_id: invoice.id, revision: 2, rows: 3 });
+    expect(handlerCausality(final)).toStrictEqual([
+      ...decisionCausality(newerId, newer.arguments),
+      ...decisionCausality(staleId, stale.arguments),
+      ...decisionCausality(freshId, fresh.arguments),
+    ]);
+
+    // Three genuine decisions under three fresh keys: no response came from another request's claim.
+    const decisions = calls(final, M9_TOOL);
+    expect(decisions.map((r) => r.arguments_sha256)).toStrictEqual(
+      [newerId, staleId, freshId].map((id) => argumentsDigest(decisionArgs(id))),
+    );
+    expect(decisions.map((r) => r.frame?.idempotencyKey)).toStrictEqual([
+      newerKey,
+      staleKey,
+      freshKey,
+    ]);
+    expect(
+      decisions.every(
+        (r) =>
+          r.ticket_present === false &&
+          r.frame?.personne === OWNER &&
+          r.frame?.appareil === OWNER_DEVICE,
+      ),
+    ).toBe(true);
+    expect(calls(final, M5_TOOL).map((r) => r.arguments_sha256)).toStrictEqual(
+      [stale, newer, fresh].map((request) => argumentsDigest(request.arguments)),
+    );
+    expect(final.claims.every((r) => r.appareil === OWNER_DEVICE)).toBe(true);
+    expect(final.claims.map((r) => r.cle_idempotence)).toStrictEqual(
+      [newerKey, staleKey, freshKey].toSorted(),
+    );
+    expect(final.oracle).toBeNull();
+    expectOrigins(final, 1);
+  }, 120_000);
 });
