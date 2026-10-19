@@ -117,6 +117,8 @@ ADMIN_SEUL = frozenset({
     "m9_preparer_suivi_decision", "m9_ouvrir_suivi_decision", "m9_lire_suivi_decision",
     "m9_preparer_cloture_suivi_decision", "m9_clore_suivi_decision", "m9_lister_suivis_decision",
     "m9_bilan_suivis_decision", "m9_rapport_periode", "m9_observations_chantier_periode",
+    "m9_rapport_activite_periode",
+    "m9_auditer_affirmations_conseil",  # citations structurées, lecture T0/N0 admin seulement
     "m10_arbitrer_revision", "m10_paquet_contexte_affaire", "m10_statut_decision", "m10_statut_revision",
     "m10_lister_signaux", "m10_lister_references", "m10_lire_revision", "m10_prendre_en_compte_signal",
     "m10_clore_signal", "m10_lier_session_affaire",
@@ -225,6 +227,8 @@ def test_les_compteurs_ecrits_dans_roles_md_suivent_les_manifestes(departements_
     ("m9_bilan_suivis_decision", "T0", "N0"),
     ("m9_rapport_periode", "T0", "N0"),
     ("m9_observations_chantier_periode", "T0", "N0"),
+    ("m9_rapport_activite_periode", "T0", "N0"),
+    ("m9_auditer_affirmations_conseil", "T0", "N0"),
     ("m9_preparer_cloture_suivi_decision", "T0", "N0"),
     ("m9_clore_suivi_decision", "T1", "N3"),
 ])

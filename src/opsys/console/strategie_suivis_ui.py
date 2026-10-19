@@ -308,6 +308,68 @@ def creer_router(
             return refuser("Preuves M9 trop grandes pour cette page : aucune troncature effectuée.")
         return reponse
 
+    def lien_activite(**parametres: Any) -> str:
+        cible = f"{prefixe}/strategie/activite"
+        return f"{cible}?{urlencode(parametres)}" if parametres else cible
+
+    @router.get("/strategie/activite", response_class=HTMLResponse)
+    def page_activite(request: Request) -> HTMLResponse:
+        session = session_page(request)
+        if "admin" not in session.roles:
+            raise HTTPException(403, "accès métier refusé")
+        valeurs = _valeurs(request, _PARAMETRES_RAPPORT)
+        if any(len(valeur) > 1024 for valeur in valeurs.values()):
+            raise HTTPException(400, "paramètre trop long refusé")
+        if not valeurs:
+            reponse = page(session, _formulaire_activite(prefixe, "", ""))
+            if len(reponse.body) > 128 * 1024:
+                return HTMLResponse("<p>REJ-ACTIVITE-BORNE : aucune preuve affichée.</p>", status_code=409)
+            return reponse
+        if not {"debut", "fin"} <= valeurs.keys():
+            raise HTTPException(400, "debut et fin explicites requis ensemble")
+        debut, fin = valeurs["debut"], valeurs["fin"]
+        arguments: dict[str, Any] = {"debut": debut, "fin": fin}
+        if "depart" in valeurs:
+            if not _DEPART.fullmatch(valeurs["depart"]):
+                raise HTTPException(400, "depart doit être un entier décimal positif ou nul")
+            arguments["depart"] = int(valeurs["depart"])
+        if "vue_attendue" in valeurs:
+            arguments["vue_attendue"] = valeurs["vue_attendue"]
+        recommencer = lien_activite(debut=debut, fin=fin)
+
+        def refuser(message: str, code: str = "REJ-ACTIVITE-REPONSE") -> HTMLResponse:
+            erreur = page(session, _refus_html(
+                message, code, recommencer, "Recommencer le rapport d’activité avec la même période",
+            ), 409)
+            if len(erreur.body) > 128 * 1024:
+                return HTMLResponse("<p>REJ-ACTIVITE-BORNE : aucune preuve affichée.</p>", status_code=409)
+            return erreur
+
+        try:
+            rapport = lire(session, "m9_rapport_activite_periode", arguments)
+        except _Refus as refus:
+            return refuser("Lecture refusée. Recommencez le rapport d’activité pour la même période.",
+                           refus.code or "REJ-ACTIVITE-LECTURE")
+        except HTTPException:
+            raise
+        except Exception:
+            return refuser("Lecture M9 indisponible : aucune preuve affichée.", "REJ-ACTIVITE-LECTURE")
+        if (not _activite_valide(rapport, debut, fin, arguments.get("depart", 0))
+                or ("vue_attendue" in arguments and rapport["vue"] != arguments["vue_attendue"])):
+            return refuser("Réponse M9 non conforme : aucune preuve affichée, aucune troncature effectuée.")
+        suivant = None
+        if rapport["prochain_depart"] is not None:
+            suivant = lien_activite(debut=debut, fin=fin, depart=rapport["prochain_depart"],
+                                   vue_attendue=rapport["vue"])
+        try:
+            reponse = page(session, _formulaire_activite(prefixe, debut, fin) + _activite(rapport, suivant))
+        except Exception:
+            return refuser("Preuves M9 illisibles : aucune preuve affichée.")
+        if len(reponse.body) > 128 * 1024:
+            return refuser("Preuves M9 trop grandes pour cette page : aucune troncature effectuée.",
+                           "REJ-ACTIVITE-BORNE")
+        return reponse
+
     return router
 
 
@@ -317,6 +379,7 @@ def _formulaire(prefixe: str, reference: str) -> str:
         f'<p><a href="{pages.e(prefixe)}/strategie/bilan">Bilan historique des suivis</a></p>'
         f'<p><a href="{pages.e(prefixe)}/strategie/rapport">Synthèse de période</a></p>'
         f'<p><a href="{pages.e(prefixe)}/strategie/observations">Observations de chantier</a></p>'
+        f'<p><a href="{pages.e(prefixe)}/strategie/activite">Rapport d’activité</a></p>'
         f'<form method="get" action="{pages.e(prefixe)}/strategie" class="pile">'
         '<label for="horodatage_reference">Référence ISO 8601 avec fuseau explicite</label>'
         f'<input id="horodatage_reference" name="horodatage_reference" required value="{pages.e(reference)}">'
@@ -724,3 +787,179 @@ def _observations(rapport: Mapping[str, Any], suivant: str | None) -> str:
         f'{compteurs}<p>Ordre : {pages.e(rapport["ordre"])}</p><ul>{limites}</ul></section>'
         + vide + "".join(blocs) + navigation
     )
+
+
+def _formulaire_activite(prefixe: str, debut: str, fin: str) -> str:
+    return (
+        '<section class="carte pile"><h2>Rapport d’activité</h2>'
+        f'<form method="get" action="{pages.e(prefixe)}/strategie/activite" class="pile">'
+        '<label for="activite-debut">Début inclus, ISO 8601 avec fuseau explicite</label>'
+        f'<input id="activite-debut" name="debut" required value="{pages.e(debut)}">'
+        '<label for="activite-fin">Fin exclue, ISO 8601 avec fuseau explicite</label>'
+        f'<input id="activite-fin" name="fin" required value="{pages.e(fin)}">'
+        '<p>Aucune date déduite de l’horloge ; observations et alertes connues à la lecture, '
+        'suivis juste avant la fin : aucun état historique commun.</p>'
+        '<button type="submit" class="principal">Afficher le rapport d’activité</button></form></section>'
+    )
+
+
+def _activite_valide(rapport: Mapping[str, Any], debut: str, fin: str, depart: int) -> bool:
+    """Valide toute la page avant rendu ; aucune réparation ni déduction métier."""
+    try:
+        if not isinstance(rapport, Mapping):
+            return False
+        # Même mesure entière que le lecteur natif ; NaN, cycles et types illisibles refusés.
+        if len(json.dumps(rapport, ensure_ascii=False, allow_nan=False)) > 5900:
+            return False
+        # Une profondeur excessive refuse tout le document, sans couper les preuves.
+        a_controler = [(rapport, 0)]
+        while a_controler:
+            valeur, profondeur = a_controler.pop()
+            if profondeur > _PROFONDEUR_MAX:
+                return False
+            if isinstance(valeur, Mapping):
+                a_controler.extend((v, profondeur + 1) for v in valeur.values())
+            elif isinstance(valeur, (list, tuple)):
+                a_controler.extend((v, profondeur + 1) for v in valeur)
+        if ("prochain_depart" not in rapport or rapport.get("type") != "RAPPORT_ACTIVITE_PERIODE"
+                or rapport.get("debut") != debut or rapport.get("fin") != fin
+                or rapport.get("statut") != "NON_VALIDE" or rapport.get("actualite_metier") != "NON_EVALUEE"
+                or rapport.get("rapport_complet") is not False
+                or not isinstance(rapport.get("vue"), str)
+                or not re.fullmatch(r"[0-9a-f]{64}", rapport["vue"])):
+            return False
+        for cle in ("total", "depart", "affichees", "reste", "snapshots_generiques_non_couverts"):
+            if type(rapport.get(cle)) is not int or rapport[cle] < 0:
+                return False
+        compteurs = rapport.get("compteurs")
+        sections = ("observations", "alertes", "suivis")
+        cles = {*sections, "ouverts_periode", "clotures_periode", "ouverts_fin"}
+        if (not isinstance(compteurs, Mapping) or set(compteurs) != cles
+                or not all(type(v) is int and v >= 0 for v in compteurs.values())
+                or rapport["total"] != sum(compteurs[s] for s in sections)
+                or any(compteurs[c] > compteurs["suivis"]
+                       for c in ("ouverts_periode", "clotures_periode", "ouverts_fin"))):
+            return False
+        lignes = rapport.get("lignes")
+        if (not isinstance(lignes, list) or rapport["affichees"] != len(lignes)
+                or rapport["depart"] != depart
+                or depart + len(lignes) + rapport["reste"] != rapport["total"]
+                or not isinstance(rapport.get("ordre"), str) or not rapport["ordre"].strip()):
+            return False
+        prochain = rapport["prochain_depart"]
+        if rapport["reste"]:
+            if (not lignes or type(prochain) is not int or prochain != depart + len(lignes)
+                    or not depart < prochain <= rapport["total"] or not _DEPART.fullmatch(str(prochain))):
+                return False
+        elif prochain is not None:
+            return False
+        bases, manques = rapport.get("bases_temporelles"), rapport.get("manques")
+        if (not isinstance(bases, Mapping) or set(bases) != set(sections)
+                or not all(isinstance(v, str) and v.strip() for v in bases.values())
+                or not isinstance(manques, list) or not manques
+                or not all(isinstance(m, Mapping)
+                           and all(isinstance(m.get(c), str) and m[c].strip()
+                                   for c in ("section", "constat", "verifie")) for m in manques)):
+            return False
+        nombres = dict.fromkeys(sections, 0)
+        precedent = -1
+        for offset, ligne in enumerate(lignes):
+            if not isinstance(ligne, Mapping) or set(ligne) != {"section", "preuve"}:
+                return False
+            section, preuve = ligne["section"], ligne["preuve"]
+            if not isinstance(section, str) or section not in sections or not isinstance(preuve, Mapping):
+                return False
+            position = depart + offset
+            section_attendue = ("observations" if position < compteurs["observations"] else
+                                "alertes" if position < compteurs["observations"] + compteurs["alertes"] else
+                                "suivis")
+            if section != section_attendue:
+                return False
+            rang = sections.index(section)
+            if rang < precedent:
+                return False
+            precedent = rang
+            nombres[section] += 1
+            if nombres[section] > compteurs[section]:
+                return False
+            if section == "observations":
+                if (set(preuve) != {"maillon", "publication", "nature", "authentification_producteur"}
+                        or not isinstance(preuve["maillon"], Mapping)
+                        or not isinstance(preuve["publication"], Mapping)
+                        or preuve["nature"] != "source_bus_liee"
+                        or preuve["authentification_producteur"] != "NON_PROUVEE"):
+                    return False
+            elif section == "alertes":
+                if (not all(isinstance(preuve.get(c), str) and preuve[c]
+                            for c in ("evenement_id", "metric_id", "horodatage_reference"))
+                        or not isinstance(preuve.get("preuve"), Mapping)):
+                    return False
+            else:
+                if (not isinstance(preuve.get("suivi"), Mapping)
+                        or not isinstance(preuve.get("empreinte_suivi"), str)
+                        or not re.fullmatch(r"[0-9a-f]{64}", preuve["empreinte_suivi"])
+                        or not all(type(preuve.get(c)) is bool
+                                   for c in ("ouvert_dans_periode", "cloture_dans_periode", "ouvert_fin"))
+                        or ("cloture" in preuve and not isinstance(preuve["cloture"], Mapping))):
+                    return False
+        return True
+    except (ValueError, TypeError, RecursionError, OverflowError, KeyError):
+        return False
+
+
+def _activite(rapport: Mapping[str, Any], suivant: str | None) -> str:
+    compteurs = "".join(
+        f'<p data-compteur="{cle}" data-valeur="{rapport["compteurs"][cle]}">'
+        f'{libelle} : {rapport["compteurs"][cle]}</p>'
+        for cle, libelle in (
+            ("observations", "Observations dans la période"), ("alertes", "Alertes dans la période"),
+            ("suivis", "Suivis pertinents pour la période"),
+            ("ouverts_periode", "Suivis ouverts pendant la période"),
+            ("clotures_periode", "Suivis clos par revue humaine pendant la période"),
+            ("ouverts_fin", "Suivis encore ouverts juste avant la fin"),
+        )
+    )
+    compteurs += "".join(
+        f'<p data-compteur="{nom}" data-valeur="{rapport[cle]}">{libelle} : {rapport[cle]}</p>'
+        for nom, cle, libelle in (
+            ("generiques_non_couverts", "snapshots_generiques_non_couverts", "Snapshots génériques, registre entier"),
+            ("total", "total", "Total structurel des lignes"), ("affichees", "affichees", "Lignes sur cette page"),
+        )
+    )
+    titres = {"observations": "Observations", "alertes": "Alertes", "suivis": "Suivis"}
+    bases = "".join(
+        f'<h3>{titres[section]}</h3><p data-base-temporelle="{section}">'
+        f'{pages.e(rapport["bases_temporelles"][section])}</p>' for section in titres
+    )
+    manques = "".join(
+        f'<li><strong>{pages.e(m["section"])}</strong> : {pages.e(m["constat"])} '
+        f'— {pages.e(m["verifie"])}</li>' for m in rapport["manques"]
+    )
+    contenu = [
+        '<section class="carte pile"><h2>Rapport d’activité partiel</h2>',
+        '<p>Statut : NON_VALIDE ; actualité métier : NON_EVALUEE ; rapport_complet : faux.</p>',
+        '<p>Observations et alertes connues à la lecture ; décisions humaines juste avant fin. '
+        'Aucun as-of commun : ce rapport ne dit pas ce qui était connu à fin. '
+        'source_bus_liee seulement ; authentification du producteur : NON_PROUVEE. '
+        'Ni réception historique, ni finance, ni couverture M1–M8 complète, '
+        'ni rapport exécutif hebdomadaire complet, ni action terrain attestés.</p>',
+        f'<p>Période : {pages.e(rapport["debut"])} inclus à {pages.e(rapport["fin"])} exclu.</p>',
+        compteurs, f'<p>Ordre : {pages.e(rapport["ordre"])}</p>', bases,
+        f'<h3>Manques déclarés par M9</h3><ul>{manques}</ul></section>',
+    ]
+    for offset, ligne in enumerate(rapport["lignes"]):
+        section = ligne["section"]
+        originale = json.dumps(ligne["preuve"], ensure_ascii=False, allow_nan=False)
+        contenu.append(
+            f'<article class="carte pile" data-section="{section}" '
+            f'data-ligne-rang="{rapport["depart"] + offset}"><h3>{titres[section]}</h3>'
+            '<details><summary>Preuve originale complète</summary>'
+            f'<pre data-preuve="originale">{pages.e(originale)}</pre></details></article>'
+        )
+    if not rapport["lignes"]:
+        contenu.append('<p>Aucune ligne sur cette page.</p>')
+    if suivant is not None:
+        contenu.append(f'<p><a href="{pages.e(suivant)}">Page suivante du rapport d’activité</a></p>')
+    else:
+        contenu.append('<p>Fin du rapport d’activité pour cette vue.</p>')
+    return "".join(contenu)

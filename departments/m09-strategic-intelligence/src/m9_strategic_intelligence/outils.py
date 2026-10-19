@@ -71,6 +71,7 @@ from opsys.evenements import schemas
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import (
+    audit_affirmations,
     bilan_suivis,
     briefing_matin,
     contrats,
@@ -80,6 +81,7 @@ from . import (
     lecture_alertes,
     lecture_strategique,
     observations_chantier,
+    rapport_activite,
     rapport_periode,
     rapport_strategique,
     registre,
@@ -510,6 +512,53 @@ def outils(
             faits, publications, debut, fin, depart, vue_attendue, budget_caracteres=BUDGET_SORTIE,
         )
 
+    def lire_rapport_activite(
+        debut: str, fin: str, depart: int = 0, vue_attendue: str | None = None,
+    ) -> dict[str, Any]:
+        # Rôle SQL revérifié avant le registre et le bus ; ni file, ni registre M8, ni horloge, aucune écriture.
+        _exiger_admin_pour_appareil()
+        suivis = list(stockage.maillons("m09-strategic-intelligence", "suivi_decisions"))
+        clotures = list(stockage.maillons("m09-strategic-intelligence", "clotures_suivi_decisions"))
+        alertes = list(alertes_cible)
+        for rang, alerte in enumerate(alertes):
+            if schemas.erreurs_charge("m8.alerte_proposee", alerte):
+                raise ValueError(
+                    f"REJ-RAPPORT-ALERTE : alerte M8 reçue de rang {rang} non conforme au schéma m8.alerte_proposee"
+                )
+        faits = exiger_chaine_snapshots_valide().lire()
+        if not all(
+            isinstance(maillon, dict) and type(maillon.get("index")) is int and maillon["index"] == rang
+            for rang, maillon in enumerate(faits)
+        ):
+            raise ValueError(
+                "REJ-SNAPSHOT-CHAINE-INVALIDE : rangs du registre M9 de snapshots non entiers exacts ; "
+                "faire vérifier la source avant lecture"
+            )
+        publications: dict[str, Any] = {}
+        identifiants_lus: set[str] = set()
+        for maillon in faits:
+            valeurs = maillon.get("valeurs")
+            evenement_id = valeurs.get("m8_snapshot_evenement_id") if isinstance(valeurs, dict) else None
+            # Identifiant non canonique, doublon ou publication absente : refus nommé par le module pur.
+            if (not isinstance(evenement_id, str) or not _ID_SNAPSHOT_CHANTIER.fullmatch(evenement_id)
+                    or evenement_id in identifiants_lus):
+                continue
+            identifiants_lus.add(evenement_id)
+            charge = evenements.charge_publiee(_EVENEMENT_SNAPSHOT_CHANTIER, evenement_id)
+            if charge is None:
+                continue
+            # Schéma complet du catalogue sur CHAQUE publication liée, hors période comprise, avant tout filtre.
+            if schemas.erreurs_charge(_EVENEMENT_SNAPSHOT_CHANTIER, charge):
+                raise ValueError(
+                    f"REJ-OBSERVATIONS-BUS-CHARGE : publication {evenement_id} non conforme au schéma "
+                    f"{_EVENEMENT_SNAPSHOT_CHANTIER}"
+                )
+            publications[evenement_id] = charge
+        return rapport_activite.assembler_rapport_activite(
+            suivis, clotures, alertes, faits, publications, debut, fin, depart, vue_attendue,
+            budget_caracteres=BUDGET_SORTIE,
+        )
+
     def lire_etat_consolide() -> dict[str, Any]:
         """État consolidé courant par relecture pure du registre — n'ingère rien de nouveau."""
         _exiger_admin_pour_appareil()
@@ -521,6 +570,19 @@ def outils(
         copie = exiger_chaine_snapshots_valide()
         return dossier_direction.construire_dossier(
             copie, question, modules_attendus, budget_caracteres=BUDGET_SORTIE,
+        )
+
+    def auditer_affirmations_conseil(
+        question: str, modules_attendus: list[str], dossier_attendu: str, affirmations: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        _exiger_admin_pour_appareil()
+        audit_affirmations._valider_demande(
+            question, modules_attendus, dossier_attendu, affirmations, budget_caracteres=BUDGET_SORTIE,
+        )
+        # Capture serveur unique ; aucun dossier fourni librement par le client.
+        dossier = preparer_dossier_direction(question, modules_attendus)
+        return audit_affirmations.auditer_affirmations(
+            dossier, dossier_attendu, affirmations, budget_caracteres=BUDGET_SORTIE,
         )
 
     def diagnostiquer_dossier_direction(
@@ -687,6 +749,54 @@ def outils(
                 "additionalProperties": False,
             },
             fonction=preparer_dossier_direction,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m9_auditer_affirmations_conseil",
+            description="Compare un lot de citations textuelles structurées à un dossier serveur sélectionné "
+                        "dont l'empreinte est attendue, ou conserve des hypothèses explicitement déclarées. "
+                        "Refuse tout le lot si une citation diverge, si sa source est contradictoire ou si le "
+                        "dossier a changé. Rend le dossier et toutes les affirmations admises, sans troncature. "
+                        "Lecture pure : ni vérité métier, fraîcheur, modèle, conseil, décision "
+                        "ni approbation attestés.",
+            parametres={
+                "type": "object",
+                "properties": {
+                    "question": {"type": "string", "minLength": 1, "maxLength": 2048},
+                    "modules_attendus": {
+                        "type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 128},
+                        "minItems": 1, "maxItems": 16, "uniqueItems": True,
+                    },
+                    "dossier_attendu": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                    "affirmations": {
+                        "type": "array", "minItems": 1, "maxItems": 16,
+                        "items": {"oneOf": [
+                            {"type": "object", "properties": {
+                                "id": {"type": "string", "minLength": 1, "maxLength": 128},
+                                "nature": {"type": "string", "enum": ["observation_source"]},
+                                "reference": {"type": "object", "properties": {
+                                    "module_source": {"type": "string", "minLength": 1, "maxLength": 128},
+                                    "index": {"type": "integer", "minimum": 0},
+                                    "hash_maillon": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                                    "cle": {"type": "string", "minLength": 1, "maxLength": 128},
+                                }, "required": ["module_source", "index", "hash_maillon", "cle"],
+                                    "additionalProperties": False},
+                                "valeur": {"type": "string", "maxLength": 2048},
+                            }, "required": ["id", "nature", "reference", "valeur"], "additionalProperties": False},
+                            {"type": "object", "properties": {
+                                "id": {"type": "string", "minLength": 1, "maxLength": 128},
+                                "nature": {"type": "string", "enum": ["hypothese"]},
+                                "enonce": {"type": "string", "minLength": 1, "maxLength": 1024},
+                            }, "required": ["id", "nature", "enonce"], "additionalProperties": False},
+                        ]},
+                    },
+                },
+                "required": ["question", "modules_attendus", "dossier_attendu", "affirmations"],
+                "additionalProperties": False,
+            },
+            fonction=auditer_affirmations_conseil,
+            autonomie=Autonomie.T0,
+            niveau=Niveau.N0,
             roles_appareil=frozenset({"admin"}),
         ),
         Outil(
@@ -1079,6 +1189,44 @@ def outils(
                 "additionalProperties": False,
             },
             fonction=lire_observations_chantier,
+            autonomie=Autonomie.T0,
+            niveau=Niveau.N0,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m9_rapport_activite_periode",
+            description="Rapport INTERNE partiel d'activité [debut, fin) : observations WCT liées au bus, puis "
+                        "alertes M8 connues à la lecture, puis suivis de décisions humaines juste avant fin. "
+                        "Preuves natives complètes, compteurs natifs et bases temporelles distinctes ; aucun "
+                        "as-of commun ni rapport complet. Lecture pure bornée avec curseur global ; reprendre "
+                        "avec prochain_depart et vue_attendue=vue. Toute source modifiée périme la vue, même "
+                        "hors période ; toute preuve invalide ou trop grande refuse avant la première page. "
+                        "Aucune authentification M8, réception, finance ou couverture complète attestée.",
+            parametres={
+                "type": "object",
+                "properties": {
+                    "debut": {
+                        "type": "string", "minLength": 1,
+                        "description": "Début inclus, ISO 8601 avec fuseau explicite, fourni par l'appelant.",
+                    },
+                    "fin": {
+                        "type": "string", "minLength": 1,
+                        "description": "Fin exclue, ISO 8601 avec fuseau explicite, postérieure à `debut`.",
+                    },
+                    "depart": {
+                        "type": "integer", "minimum": 0,
+                        "description": "Rang de la première ligne composite rendue (0 = début, défaut) : "
+                                       "`prochain_depart` de la page précédente.",
+                    },
+                    "vue_attendue": {
+                        "type": "string",
+                        "description": "`vue` (64 hexadécimaux) de la page précédente ; requise si `depart` > 0.",
+                    },
+                },
+                "required": ["debut", "fin"],
+                "additionalProperties": False,
+            },
+            fonction=lire_rapport_activite,
             autonomie=Autonomie.T0,
             niveau=Niveau.N0,
             roles_appareil=frozenset({"admin"}),
