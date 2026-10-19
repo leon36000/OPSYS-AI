@@ -84,3 +84,20 @@ filtrés par rôle, conformité statique et digest quotidien.
 
 DuckDB/Parquet, MMM (PyMC-Marketing) et l'orchestrateur horaire réel restent GATED (hors
 périmètre v1, cf. `docs/bmad/02-PRD-PM.md` §3.2).
+
+### Transmission factuelle des nouveaux chantiers à M9
+
+Lors du premier enregistrement durable d'un WCT reçu de M4, M8 publie
+`m8.snapshot_chantier` dans la même transaction que son snapshot. La charge
+reprend le maillon enregistré : instant métier original, identifiants WCT et
+intervention, durée réelle en texte et type de travaux seulement s'il était
+fourni. Elle ne porte ni technicien, GPS, lead, photo, coût ni marge. La
+transmission existe même sans alerte ; le bus peut la livrer à M9 au passage
+suivant.
+
+Une relivraison du même WCT ne republie rien, même si sa charge entrante porte
+une autre durée. Le premier snapshot durable reste la référence. Une
+publication refusée annule aussi son ajout : le reçu du bus conserve l'échec.
+Les WCT déjà enregistrés avant cette évolution ne sont pas rattrapés
+implicitement. Les autres snapshots ingérés par M8 et ses alertes gardent
+leurs chemins existants.

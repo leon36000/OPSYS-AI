@@ -224,3 +224,30 @@ exécutif complet, parcours Core/mobile ou PostgreSQL.
 La console admin propose aussi `/opsys/strategie/rapport` pour cette synthèse : bornes explicites,
 compteurs globaux, preuves M8 du bon chantier sur chaque page et manques visibles. Elle conserve
 les contrôles SQL courants et refuse les reprises périmées ; aucun rapport exécutif complet attesté.
+
+### Faits de chantier reçus de M8
+
+M9 consomme `m8.snapshot_chantier` dans son registre de snapshots existant.
+Il conserve l'instant métier original et les valeurs du premier WCT durable
+transmis par M8, avec l'identifiant de publication déclaré, le rang et
+l'empreinte du maillon source. La chaîne M9 est vérifiée avant toute recherche
+de doublon ; une relivraison exacte ne crée aucun maillon, une observation
+transportée différente du même WCT est refusée.
+
+La vérification lie l'identifiant déclaré à la première charge immuable de
+ce type dans l'outbox. Elle n'authentifie pas le producteur et ne relit pas le
+stockage M8. Aucun instant de réception n'est inventé : ces faits sont connus
+à la lecture, sans prétention à un état historique figé en fin de période.
+Les snapshots génériques déclarés par l'outil existant restent compatibles.
+
+Un WCT terminé plus tôt peut donc arriver maintenant lors de son premier
+enregistrement par M8 ; l'instant métier ne devient pas une preuve de fraîcheur
+de réception.
+
+Cette couverture porte seulement sur les nouveaux WCT transportés, sans
+rattrapage des anciens. Le dernier fait `m04-field-ops` décrit le dernier WCT
+observé, pas tout l'état de M4. Deux WCT distincts au même instant peuvent
+être signalés comme contradiction par la consolidation existante ; leurs
+identifiants permettent de les distinguer. Revenus, marges, couverture M1–M8
+et rapport exécutif hebdomadaire complet restent non prouvés : OPSYS-AI
+reste **PARTIEL**.

@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "opsys.evenement/v1/m8.snapshot_chantier",
+  "title": "M8 — premier snapshot factuel de chantier transmis à M9",
+  "description": "Projection du premier maillon WCT durable M8, publiée dans sa transaction. Id déclaré lié à son hash, jamais une authentification de producteur, une preuve asof ou une couverture M1-M8. Aucun rattrapage des WCT déjà enregistrés.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "evenement_id": {
+      "type": "string",
+      "pattern": "^m8-snapshot-chantier-[0-9a-f]{64}$"
+    },
+    "source_m8": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "hash_maillon": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "index",
+        "hash_maillon"
+      ]
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "module_source": {
+          "const": "m04-field-ops"
+        },
+        "horodatage": {
+          "type": "string",
+          "minLength": 1
+        },
+        "valeurs": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "m4_wct_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "m4_intervention_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "m4_duree_reelle_minutes": {
+              "type": "string",
+              "pattern": "^(0|-?[1-9][0-9]*)$"
+            },
+            "m4_type_travaux": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "m4_wct_id",
+            "m4_intervention_id",
+            "m4_duree_reelle_minutes"
+          ]
+        }
+      },
+      "required": [
+        "module_source",
+        "horodatage",
+        "valeurs"
+      ]
+    }
+  },
+  "required": [
+    "evenement_id",
+    "source_m8",
+    "snapshot"
+  ]
+}

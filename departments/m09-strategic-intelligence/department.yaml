@@ -36,7 +36,7 @@ memoire:
   lecture: [snapshots_modules, memoire_m10]
   ecriture: [snapshots_modules, etat_consolide]
 evenements:
-  consomme: [m8.alerte_proposee]
+  consomme: [m8.alerte_proposee, m8.snapshot_chantier]
 configuration:
   # Jours d'alertes M8 relus par le briefing du matin, jour du briefing compris (PLAN T1.5-d). Une alerte
   # de mesure de chantier porte l'instant du chantier : fini le vendredi à 15 h, il doit encore paraître le

@@ -69,7 +69,7 @@ evenements:
     - m7.contenu_exporte
     - m1.lead_qualifie
     - m5.cash_libre_constate
-  publie: [m8.alerte_proposee]
+  publie: [m8.alerte_proposee, m8.snapshot_chantier]
 configuration:
   # Seuils d'alerte des mesures d'un chantier terminé (PLAN T1.5-d ; DEFINITION-PRODUIT.md §13 point 11
   # « seuils non chiffrés : chaque département doit les définir »). VIDES à dessein : aucun seuil

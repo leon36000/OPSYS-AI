@@ -379,6 +379,30 @@ def _ajouter_snapshot_durable(maillons, copie, snapshot):
     # Le stockage natif refuse le rang périmé et laisse la transaction annuler
     # l'appel. Le répartiteur conserve alors l'événement et peut le rejouer.
     maillons.append(maillon, rang_attendu=maillon["index"])
+    return maillon
+
+
+_EVENEMENT_SNAPSHOT_CHANTIER = "m8.snapshot_chantier"
+
+
+def _publier_snapshot_chantier(maillon: dict[str, Any]) -> str:
+    """Publie `m8.snapshot_chantier` pour M9 depuis le maillon QUI VIENT d'être appendé, jamais depuis la
+    charge entrante : index, empreinte, instant original et valeurs du maillon persisté. L'identifiant est
+    lié à l'empreinte du maillon (déterministe, immuable). Même transaction que l'append (point de
+    sauvegarde du répartiteur) : un `ChargeInvalide` ou un `ConflitPublication` annule les deux. Ce n'est
+    ni une authentification du producteur, ni une couverture M1-M8, ni un rattrapage."""
+    evenement_id = "m8-snapshot-chantier-" + maillon["hash_maillon"]
+    charge = {
+        "evenement_id": evenement_id,
+        "source_m8": {"index": maillon["index"], "hash_maillon": maillon["hash_maillon"]},
+        "snapshot": {
+            "module_source": maillon["module_source"],
+            "horodatage": maillon["horodatage"],
+            "valeurs": dict(maillon["valeurs"]),
+        },
+    }
+    evenements.publier(_EVENEMENT_SNAPSHOT_CHANTIER, _DEPARTEMENT, charge, evenement_id=evenement_id)
+    return evenement_id
 
 
 def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
@@ -389,6 +413,7 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
        table que `m8_rapport_metriques`) reçoit les faits mesurables du chantier terminé : durée
        réelle, type de travaux. Un maillon déjà enregistré pour ce wct_id (relivraison, ou
        `repartir()` rejoué) n'est jamais dupliqué (`deja_enregistre=True`). Aucun coût, aucune marge.
+       Le premier append seulement publie `m8.snapshot_chantier` pour M9, même sans alerte.
     2. Le registre `faits_chantier` reçoit le fait `wct` (technicien, devis lié, durée réelle),
        d'où M8 mesure le chantier (PLAN T1.5-d) : temps réel contre prévu, quand M3 a fourni la
        durée estimée du devis accepté, sinon « non calculable, manque duree_estimee_minutes ».
@@ -401,11 +426,14 @@ def _recevoir_travaux_termines(charge: dict[str, Any]) -> dict[str, Any]:
         for maillon in registre_cible.lire()
     )
     if not deja_enregistre:
-        _ajouter_snapshot_durable(maillons, registre_cible, {
+        maillon = _ajouter_snapshot_durable(maillons, registre_cible, {
             "module_source": _MODULE_SOURCE_TRAVAUX,
             "horodatage": charge["horodatage_completion"],
             "valeurs": _valeurs_travaux_termines(charge),
         })
+        # Seul le premier append durable publie ; la branche déjà enregistrée (relivraison, WCT
+        # contradictoire, WCT d'avant le déploiement) ne réexpédie ni ne remplace jamais le gagnant.
+        _publier_snapshot_chantier(maillon)
 
     faits_cible = stockage.maillons(_DEPARTEMENT, _NOM_REGISTRE_FAITS)
     _ajouter_fait_si_nouveau(faits_cible, mesures_chantier.fait_wct(charge), ("wct_id",))

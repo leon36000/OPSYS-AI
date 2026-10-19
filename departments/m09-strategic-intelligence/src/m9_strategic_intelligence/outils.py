@@ -45,17 +45,23 @@ paramètre `registre_cible` est le point d'injection : les tests unitaires du d�
 passent explicitement un `registre.RegistreSnapshots()` EN MÉMOIRE (aucune base montée), sans
 toucher au comportement par défaut utilisé par `charger_outils()` en production. `alertes_cible`
 suit le même patron pour le registre durable des alertes M8 reçues (T3.2).
+
+Faits de chantier (`m8.snapshot_chantier`, `_recevoir_snapshot_chantier`) : le premier snapshot WCT durable
+de M8, enregistré après activation du transport, arrive par le bus et s'ajoute au registre de snapshots M9,
+instant métier d'origine conservé. Confiance limitée : identifiant lié à l'empreinte et à la première enveloppe publiée,
+jamais une authentification de M8, une couverture M1-M8, un instant de réception ni un rattrapage.
 """
 
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-from opsys import approbations, approbations_appareil, contexte, identite, jetons, stockage
+from opsys import approbations, approbations_appareil, contexte, evenements, identite, jetons, stockage
 from opsys.departements import charger_departements
 from opsys.evenements import schemas
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
@@ -166,10 +172,117 @@ def _recevoir_alerte_proposee(charge: dict[str, Any]) -> dict[str, Any]:
     return {"enregistree": True, "deja_recue": False, "evenement_id": evenement_id}
 
 
+# ---------------------------------------------------------------------------
+# Bus d'événements : consommateur de m8.snapshot_chantier (premier snapshot WCT durable de M8)
+# ---------------------------------------------------------------------------
+_EVENEMENT_SNAPSHOT_CHANTIER = "m8.snapshot_chantier"
+_PREFIXE_SNAPSHOT_CHANTIER = "m8-snapshot-chantier-"
+_MODULE_SOURCE_TRAVAUX = "m04-field-ops"
+
+
+def _refus_snapshot_chantier(code: str, detail: str) -> ValueError:
+    return ValueError(f"{code} : {detail}")
+
+
+def _horodatage_avec_fuseau(texte: str) -> bool:
+    """Vrai si `texte` est un instant ISO 8601 à fuseau explicite (`Z` ou décalage). Analyse stdlib
+    seulement, jamais l'horloge : la chaîne d'origine reste celle qui est enregistrée."""
+    try:
+        instant = datetime.fromisoformat(texte[:-1] + "+00:00" if texte.endswith("Z") else texte)
+    except ValueError:
+        return False
+    return instant.tzinfo is not None and instant.utcoffset() is not None
+
+
+def _copie_snapshots_valide(maillons) -> registre.RegistreSnapshots:
+    """Une seule lecture native du registre M9, validée (chaîne et rangs) avant toute recherche ou
+    ajout ; calquée sur la fermeture `exiger_chaine_snapshots_valide`, inaccessible hors `outils()`."""
+    try:
+        copie = registre.RegistreSnapshots(maillons=registre.RegistreSnapshots(maillons).lire())
+        valide, _ = copie.valider_chaine()
+        valide = valide and all(
+            type(maillon["index"]) is int and maillon["index"] == index
+            for index, maillon in enumerate(copie.lire())
+        )
+    except (AttributeError, KeyError, TypeError, ValueError, RecursionError):
+        valide = False
+    if valide is not True:
+        raise _refus_snapshot_chantier(
+            "REJ-SNAPSHOT-CHAINE-INVALIDE", "registre M9 de snapshots invalide ; vérifier la source avant ajout"
+        )
+    return copie
+
+
+def _recevoir_snapshot_chantier(charge: dict[str, Any]) -> dict[str, Any]:
+    """Consommateur `m8.snapshot_chantier` : range au registre durable des snapshots M9 le premier
+    snapshot WCT que M8 a enregistré, sans lire M8 ni son stockage. Tout refus est une `ValueError`
+    levée AVANT l'unique append final : rien n'est écrit.
+
+    Preuve vérifiée, et seulement elle : l'identifiant déclaré est lié à l'empreinte déclarée et nomme la
+    première enveloppe immuable du bus de ce type, portant exactement cette charge. Ni authentification
+    du producteur, ni revérification contre la chaîne M8, ni instant de réception. Idempotent par
+    identifiant et par `m4_wct_id` : même fait = no-op ; fait différent = refus (le premier durable gagne).
+    """
+    if schemas.erreurs_charge(_EVENEMENT_SNAPSHOT_CHANTIER, charge):
+        raise _refus_snapshot_chantier("REJ-SNAPSHOT-CHANTIER-CHARGE", "charge non conforme au schéma du catalogue")
+    evenement_id = charge["evenement_id"]
+    source = charge["source_m8"]
+    fait = charge["snapshot"]
+    if type(source["index"]) is not int:
+        raise _refus_snapshot_chantier("REJ-SNAPSHOT-CHANTIER-CHARGE", "index source M8 non entier")
+    if not _horodatage_avec_fuseau(fait["horodatage"]):
+        raise _refus_snapshot_chantier(
+            "REJ-SNAPSHOT-CHANTIER-HORODATAGE", "instant métier ISO 8601 avec fuseau explicite (Z ou décalage) requis"
+        )
+    if evenement_id != _PREFIXE_SNAPSHOT_CHANTIER + source["hash_maillon"]:
+        raise _refus_snapshot_chantier("REJ-SNAPSHOT-CHANTIER-SOURCE", "identifiant non lié à l'empreinte déclarée")
+    if evenements.charge_publiee(_EVENEMENT_SNAPSHOT_CHANTIER, evenement_id) != charge:
+        raise _refus_snapshot_chantier(
+            "REJ-SNAPSHOT-CHANTIER-SOURCE", "aucune première publication de ce type portant exactement cette charge"
+        )
+
+    wct_id = fait["valeurs"]["m4_wct_id"]
+    snapshot = {
+        "module_source": fait["module_source"],
+        "horodatage": fait["horodatage"],
+        "valeurs": dict(fait["valeurs"]) | {
+            "m8_snapshot_evenement_id": evenement_id,
+            "m8_snapshot_index": str(source["index"]),
+            "m8_snapshot_hash_maillon": source["hash_maillon"],
+        },
+    }
+
+    maillons = stockage.maillons("m09-strategic-intelligence", "snapshots")
+    copie = _copie_snapshots_valide(maillons)
+    for existant in copie.lire():
+        valeurs = existant["valeurs"]
+        if existant["module_source"] != _MODULE_SOURCE_TRAVAUX or "m8_snapshot_evenement_id" not in valeurs:
+            continue
+        if valeurs["m8_snapshot_evenement_id"] != evenement_id and valeurs.get("m4_wct_id") != wct_id:
+            continue
+        if existant["horodatage"] == snapshot["horodatage"] and valeurs == snapshot["valeurs"]:
+            return {"enregistre": False, "deja_recu": True, "evenement_id": evenement_id, "wct_id": wct_id}
+        raise _refus_snapshot_chantier(
+            "REJ-SNAPSHOT-CHANTIER-CONTRADICTOIRE",
+            "un snapshot transporté différent existe déjà pour cet événement ou ce WCT ; aucune réécriture",
+        )
+
+    valide, verdict = validation.valider_snapshot(snapshot)
+    if not valide:
+        raise _refus_snapshot_chantier("REJ-SNAPSHOT-CHANTIER-CHARGE", f"snapshot M9 refusé ({verdict})")
+    maillon, _ = copie.ajouter(snapshot)
+    # Un append intercalé invalide le rang lu : la transaction du répartiteur annule, l'événement est rejoué.
+    maillons.append(maillon, rang_attendu=maillon["index"])
+    return {"enregistre": True, "deja_recu": False, "evenement_id": evenement_id, "wct_id": wct_id}
+
+
 def consommateurs() -> dict[str, Any]:
     """Types d'événements consommés par M9 (ADR-0009 §3) — voir `department.yaml:evenements.consomme`
     et `docs/architecture/DEPARTEMENTS.md` § Événements."""
-    return {"m8.alerte_proposee": _recevoir_alerte_proposee}
+    return {
+        "m8.alerte_proposee": _recevoir_alerte_proposee,
+        _EVENEMENT_SNAPSHOT_CHANTIER: _recevoir_snapshot_chantier,
+    }
 
 
 def outils(

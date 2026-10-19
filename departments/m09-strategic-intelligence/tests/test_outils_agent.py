@@ -224,6 +224,6 @@ def test_produire_briefing_matin_sans_argument_refuse_par_le_schema():
 
 def test_consommateurs_expose_m8_alerte_proposee():
     """Cohérence avec `department.yaml:evenements.consomme` (vérifiée par `opsys-metier verifier`) :
-    exactement un consommateur, pour m8.alerte_proposee."""
-    assert set(consommateurs()) == {"m8.alerte_proposee"}
+    exactement les deux abonnements déclarés : alertes et snapshots de chantier."""
+    assert set(consommateurs()) == {"m8.alerte_proposee", "m8.snapshot_chantier"}
     assert callable(consommateurs()["m8.alerte_proposee"])
