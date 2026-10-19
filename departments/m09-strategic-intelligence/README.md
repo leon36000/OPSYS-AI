@@ -177,3 +177,30 @@ reprise périmée, retrait du rôle, paramètres refusés, échappement et absen
 Cette consultation constitue une tranche du tableau de bord M9 ; elle ne qualifie pas tout le
 tableau de bord exécutif, un téléphone physique, PostgreSQL, une action terrain ou la fraîcheur
 métier des preuves historiques.
+
+
+### Bilan historique des suivis internes (M9.6, tranche du rapport hebdomadaire)
+
+`m9_bilan_suivis_decision(debut, fin, depart=0, vue_attendue=None)` relit les approbations
+historiques d’ouverture et de clôture dans la période explicite `[debut, fin[` (instants ISO avec
+fuseau). Il compte également les suivis encore ouverts juste avant `fin` : une clôture postérieure
+ne retire pas rétroactivement le suivi. Les compteurs sont globaux, la liste est bornée et paginée ;
+la reprise conserve `vue` et les bornes, tout changement des registres impose de recommencer.
+Les plans, preuves et décisions originales sont conservés. Une revue humaine ne démontre ni
+l’exécution d’une action terrain ni une amélioration. Lecture T0 admin sans mutation ; aucun
+rapport exécutif complet, horaire implicite ou évaluation de fraîcheur n’en est déduit.
+
+
+### Consulter le bilan historique dans la console
+
+La page `/opsys/strategie/bilan`, accessible depuis l’échéancier stratégique, présente les
+ouvertures et clôtures par revue humaine sur une période explicite `[debut, fin)`, et les suivis
+encore ouverts juste avant sa fin. Les deux bornes ISO 8601 doivent porter un fuseau ; le
+formulaire ne propose aucune date implicite. Les compteurs globaux, plans, preuves et décisions
+proviennent du lecteur `m9_bilan_suivis_decision`, sous le rôle admin SQL courant.
+
+La pagination conserve les bornes et l’empreinte de la vue. Si les registres changent, une reprise
+est refusée et la personne peut recommencer pour les mêmes bornes. Chaque ligne montre son
+contenu historique sur place : aucun lien vers le détail courant n’ajoute une clôture postérieure
+à la période. Ces revues humaines ne prouvent aucune action terrain ni actualité métier ; ce
+bilan de suivis constitue une tranche du rapport exécutif hebdomadaire, qui reste incomplet.

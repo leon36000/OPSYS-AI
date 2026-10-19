@@ -60,6 +60,7 @@ from opsys.departements import charger_departements
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import (
+    bilan_suivis,
     briefing_matin,
     contrats,
     diagnostic_temporel,
@@ -255,6 +256,17 @@ def outils(
         clotures = list(stockage.maillons("m09-strategic-intelligence", "clotures_suivi_decisions"))
         return echeancier_suivis.lister_suivis_decision(
             suivis, clotures, horodatage_reference, depart, vue_attendue, budget_caracteres=BUDGET_SORTIE,
+        )
+
+    def bilan_suivis_decision(
+        debut: str, fin: str, depart: int = 0, vue_attendue: str | None = None,
+    ) -> dict[str, Any]:
+        # Même garde que l'échéancier : rôle SQL revérifié, tous les plans et clôtures lus dans la même transaction.
+        _exiger_admin_pour_appareil()
+        suivis = list(stockage.maillons("m09-strategic-intelligence", "suivi_decisions"))
+        clotures = list(stockage.maillons("m09-strategic-intelligence", "clotures_suivi_decisions"))
+        return bilan_suivis.bilan_suivis_decision(
+            suivis, clotures, debut, fin, depart, vue_attendue, budget_caracteres=BUDGET_SORTIE,
         )
 
     def preparer_cloture_suivi_decision(suivi_id: str, evenement_id: str) -> dict[str, Any]:
@@ -779,6 +791,43 @@ def outils(
                 "additionalProperties": False,
             },
             fonction=lister_suivis_decision,
+            autonomie=Autonomie.T0,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m9_bilan_suivis_decision",
+            description="Bilan INTERNE d'une période [debut, fin) explicite des suivis internes : ouverts dans la "
+                        "période, clos par revue humaine dans la période, ou encore ouverts juste avant fin, par "
+                        "instant d'ouverture puis identifiant, avec plan, empreinte et clôture d'origine exacts. "
+                        "Une clôture à fin ou après n'est pas rendue : le suivi reste ouvert à fin. Lecture pure, "
+                        "bornée : quand `prochain_depart` n'est pas nul, rappeler avec ce `depart` et `vue_attendue` "
+                        "égal à `vue`. Plan ou clôture incohérent, même hors période : refus. N'atteste ni action "
+                        "terrain, ni cause, amélioration ou actualité métier.",
+            parametres={
+                "type": "object",
+                "properties": {
+                    "debut": {
+                        "type": "string", "minLength": 1,
+                        "description": "Début inclus, ISO 8601 avec fuseau explicite, fourni par l'appelant.",
+                    },
+                    "fin": {
+                        "type": "string", "minLength": 1,
+                        "description": "Fin exclue, ISO 8601 avec fuseau explicite, postérieure à `debut`.",
+                    },
+                    "depart": {
+                        "type": "integer", "minimum": 0,
+                        "description": "Rang de la première ligne rendue (0 = début, défaut) : `prochain_depart` "
+                                       "de la page précédente.",
+                    },
+                    "vue_attendue": {
+                        "type": "string",
+                        "description": "`vue` (64 hexadécimaux) de la page précédente ; requise si `depart` > 0.",
+                    },
+                },
+                "required": ["debut", "fin"],
+                "additionalProperties": False,
+            },
+            fonction=bilan_suivis_decision,
             autonomie=Autonomie.T0,
             roles_appareil=frozenset({"admin"}),
         ),

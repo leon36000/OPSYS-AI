@@ -15,6 +15,7 @@ from .securite import Session
 
 _PARAMETRES_LISTE = frozenset({"horodatage_reference", "depart", "vue_attendue"})
 _PARAMETRES_DETAIL = frozenset({"suivi_id"})
+_PARAMETRES_BILAN = frozenset({"debut", "fin", "depart", "vue_attendue"})
 _DEPART = re.compile(r"0|[1-9][0-9]{0,8}")
 _CODE_REFUS = re.compile(r"REJ-[A-Z0-9][A-Z0-9-]{0,80}")
 _PROFONDEUR_MAX = 12
@@ -157,12 +158,54 @@ def creer_router(
             ), 400 if refus.invalide else 409)
         return page(session, _detail(suivi, lien_liste()))
 
+    def lien_bilan(**parametres: Any) -> str:
+        cible = f"{prefixe}/strategie/bilan"
+        return f"{cible}?{urlencode(parametres)}" if parametres else cible
+
+    @router.get("/strategie/bilan", response_class=HTMLResponse)
+    def page_bilan(request: Request) -> HTMLResponse:
+        session = session_page(request)
+        # Le callback recharge les rôles SQL, mais accepte aussi le propriétaire sans admin.
+        # Cette nouvelle surface exige admin, même avant le formulaire vide.
+        if "admin" not in session.roles:
+            raise HTTPException(403, "accès métier refusé")
+        valeurs = _valeurs(request, _PARAMETRES_BILAN)
+        if not valeurs:
+            return page(session, _formulaire_bilan(prefixe, "", ""))
+        if not {"debut", "fin"} <= valeurs.keys():
+            raise HTTPException(400, "debut et fin explicites requis ensemble")
+        debut, fin = valeurs["debut"], valeurs["fin"]
+        arguments: dict[str, Any] = {"debut": debut, "fin": fin}
+        if "depart" in valeurs:
+            if not _DEPART.fullmatch(valeurs["depart"]):
+                raise HTTPException(400, "depart doit être un entier décimal positif ou nul")
+            arguments["depart"] = int(valeurs["depart"])
+        if "vue_attendue" in valeurs:
+            arguments["vue_attendue"] = valeurs["vue_attendue"]
+        reprise = arguments.get("depart", 0) > 0 or "vue_attendue" in arguments
+        try:
+            rapport = lire(session, "m9_bilan_suivis_decision", arguments)
+        except _Refus as refus:
+            return page(session, _refus_html(
+                "Lecture historique refusée. Recommencez le bilan pour la même période."
+                if reprise else "Bilan refusé par M9 pour cette période.",
+                refus.code,
+                lien_bilan(debut=debut, fin=fin),
+                "Recommencer le bilan avec la même période",
+            ), 409 if reprise or not refus.invalide else 400)
+        suivant = None
+        prochain, vue = rapport.get("prochain_depart"), rapport.get("vue")
+        if type(prochain) is int and prochain > 0 and isinstance(vue, str):
+            suivant = lien_bilan(debut=debut, fin=fin, depart=prochain, vue_attendue=vue)
+        return page(session, _formulaire_bilan(prefixe, debut, fin) + _bilan(rapport, suivant))
+
     return router
 
 
 def _formulaire(prefixe: str, reference: str) -> str:
     return (
         '<section class="carte pile"><h2>Échéancier des suivis ouverts</h2>'
+        f'<p><a href="{pages.e(prefixe)}/strategie/bilan">Bilan historique des suivis</a></p>'
         f'<form method="get" action="{pages.e(prefixe)}/strategie" class="pile">'
         '<label for="horodatage_reference">Référence ISO 8601 avec fuseau explicite</label>'
         f'<input id="horodatage_reference" name="horodatage_reference" required value="{pages.e(reference)}">'
@@ -302,3 +345,53 @@ def _detail(suivi: Mapping[str, Any], retour: str) -> str:
         f"{_arbre(suivi)}"
         f'<p><a href="{pages.e(retour)}">Retour à l’échéancier</a></p></section>'
     )
+
+
+def _formulaire_bilan(prefixe: str, debut: str, fin: str) -> str:
+    return (
+        '<section class="carte pile"><h2>Bilan historique des suivis</h2>'
+        f'<form method="get" action="{pages.e(prefixe)}/strategie/bilan" class="pile">'
+        '<label for="debut">Début inclus — ISO 8601 avec fuseau explicite</label>'
+        f'<input id="debut" name="debut" required value="{pages.e(debut)}">'
+        '<label for="fin">Fin exclue — ISO 8601 avec fuseau explicite</label>'
+        f'<input id="fin" name="fin" required value="{pages.e(fin)}">'
+        '<p class="note">Les décisions humaines sont lues sur cette période et dans leur état juste avant sa fin. '
+        'Aucune date n’est déduite de l’horloge ; une revue humaine n’atteste aucune action terrain.</p>'
+        '<button type="submit" class="principal">Afficher le bilan historique</button></form></section>'
+    )
+
+
+def _bilan(rapport: Mapping[str, Any], suivant: str | None) -> str:
+    compteurs = rapport.get("compteurs")
+    compteurs = compteurs if isinstance(compteurs, Mapping) else {}
+    contenu = ['<section class="carte pile"><h2>Décisions humaines sur la période</h2>']
+    for cle, libelle in (
+        ("ouverts_periode", "Suivis ouverts pendant la période"),
+        ("clotures_periode", "Suivis clos par revue humaine pendant la période"),
+        ("ouverts_fin", "Suivis encore ouverts juste avant la fin"),
+    ):
+        valeur = _compte(compteurs.get(cle))
+        contenu.append(f'<p data-compteur="{cle}" data-valeur="{pages.e(valeur)}">'
+                       f'{libelle} : {pages.e(valeur)}</p>')
+    suivis = rapport.get("suivis")
+    if not isinstance(suivis, (list, tuple)):
+        contenu.append('<p class="message message-alerte">Bilan indisponible.</p>')
+    elif not suivis:
+        contenu.append('<p class="vide">Aucun suivi pertinent pour cette période.</p>')
+    else:
+        for ligne in suivis:
+            ident = _brut(ligne, "suivi_id") if isinstance(ligne, Mapping) else None
+            if not isinstance(ident, str):
+                contenu.append('<p class="message message-alerte">Suivi illisible.</p>')
+                continue
+            contenu.append(f'<article class="carte pile" data-suivi-id="{pages.e(ident)}">'
+                           f'<h3>Suivi {pages.e(ident)}</h3>'
+                           f'<p>Ouvert pendant la période : {_arbre(ligne.get("ouvert_dans_periode"))} · '
+                           f'Clos pendant la période : {_arbre(ligne.get("cloture_dans_periode"))} · '
+                           f'Ouvert juste avant la fin : {_arbre(ligne.get("ouvert_fin"))}</p>'
+                           f'<details><summary>Plan, preuve et décisions historiques</summary>{_arbre(ligne)}</details>'
+                           '</article>')
+    if suivant is not None:
+        contenu.append(f'<p><a href="{pages.e(suivant)}">Page suivante (même période et même vue)</a></p>')
+    contenu.append('</section>')
+    return ''.join(contenu)
