@@ -10,7 +10,9 @@ Le suivi interne enregistre une décision humaine dédiée avec responsable, éc
 M8 historique exacte ; il ne recommande ni n'exécute l'action et n'en déclare pas la complétion.
 Sa clôture par revue humaine s'ajoute une seule fois au registre distinct `clotures_suivi_decisions`
 sous sa propre demande N3 ; le plan d'origine reste intact. Elle n'atteste ni action terrain, ni
-cause, amélioration ou fraîcheur.
+cause, amélioration ou fraîcheur. `m9_lister_suivis_decision` (M9.16) liste par pages bornées les suivis
+encore ouverts, par échéance face à une référence explicite (`echeancier_suivis`, module pur) ; une reprise
+exige la `vue` courante de tous les plans, clôtures et de la référence.
 
 PLAN T3.2 (M9.5, briefing du matin) : `m9_produire_briefing_matin` compose la file du
 propriétaire (`opsys.approbations.file_proprietaire`), les alertes M8 déjà reçues par le bus
@@ -62,6 +64,7 @@ from . import (
     contrats,
     diagnostic_temporel,
     dossier_direction,
+    echeancier_suivis,
     lecture_alertes,
     lecture_strategique,
     rapport_strategique,
@@ -242,6 +245,17 @@ def outils(
         cloture = suivi_decisions.trouver_cloture(
             stockage.maillons("m09-strategic-intelligence", "clotures_suivi_decisions"), suivi_id)
         return suivi_decisions.borner(suivi_decisions.projeter(trouves[0], cloture), BUDGET_SORTIE)
+
+    def lister_suivis_decision(
+        horodatage_reference: str, depart: int = 0, vue_attendue: str | None = None,
+    ) -> dict[str, Any]:
+        # Rôle SQL courant revérifié avant les registres ; plans et clôtures lus dans la même transaction.
+        _exiger_admin_pour_appareil()
+        suivis = list(stockage.maillons("m09-strategic-intelligence", "suivi_decisions"))
+        clotures = list(stockage.maillons("m09-strategic-intelligence", "clotures_suivi_decisions"))
+        return echeancier_suivis.lister_suivis_decision(
+            suivis, clotures, horodatage_reference, depart, vue_attendue, budget_caracteres=BUDGET_SORTIE,
+        )
 
     def preparer_cloture_suivi_decision(suivi_id: str, evenement_id: str) -> dict[str, Any]:
         _exiger_admin_pour_appareil()
@@ -734,6 +748,38 @@ def outils(
             parametres={"type": "object", "properties": {"suivi_id": {"type": "string"}},
                         "required": ["suivi_id"], "additionalProperties": False},
             fonction=lire_suivi_decision,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m9_lister_suivis_decision",
+            description="Liste les suivis internes encore ouverts (sans clôture par revue humaine), échéance la plus "
+                        "proche d'abord puis par identifiant, chacun avec son plan complet, sa preuve, son empreinte "
+                        "et son état face à la référence fournie : EN_RETARD, A_ECHEANCE ou A_VENIR. Lecture pure, "
+                        "bornée : quand `prochain_depart` n'est pas nul, rappeler avec ce `depart` et `vue_attendue` "
+                        "égal à `vue` ; tout changement de plan, de clôture ou de référence refuse la reprise. "
+                        "Plan ou clôture incohérent : refus. N'atteste ni action terrain ni actualité métier.",
+            parametres={
+                "type": "object",
+                "properties": {
+                    "horodatage_reference": {
+                        "type": "string", "minLength": 1,
+                        "description": "Référence ISO 8601 avec fuseau explicite, fournie par l'appelant.",
+                    },
+                    "depart": {
+                        "type": "integer", "minimum": 0,
+                        "description": "Rang du premier suivi rendu (0 = début, défaut) : `prochain_depart` "
+                                       "de la page précédente.",
+                    },
+                    "vue_attendue": {
+                        "type": "string",
+                        "description": "`vue` (64 hexadécimaux) de la page précédente ; requise si `depart` > 0.",
+                    },
+                },
+                "required": ["horodatage_reference"],
+                "additionalProperties": False,
+            },
+            fonction=lister_suivis_decision,
+            autonomie=Autonomie.T0,
             roles_appareil=frozenset({"admin"}),
         ),
         Outil(

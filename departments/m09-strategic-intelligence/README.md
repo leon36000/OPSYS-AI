@@ -133,3 +133,25 @@ attestation terrain, fraîcheur métier ni preuve d’amélioration causale. Le 
 est distinct du Gateway et du téléphone. La mutation demeure fermée au MCP générique sans
 cible et aucun émetteur de ticket privé Core de clôture n’est livré par cette tranche.
 Les tests fictifs de `test_cloture_suivi_decisions.py` conservent cette séparation.
+
+
+### Retrouver les actions assignées encore ouvertes
+
+`m9_lister_suivis_decision(horodatage_reference, depart=0, vue_attendue=None)` lit les
+suivis internes approuvés qui ne sont pas clôturés par revue humaine. Chaque ligne conserve
+le plan original, son responsable, son échéance, sa preuve M8 historique et son empreinte.
+Le code trie par instant d’échéance croissant puis identifiant, et calcule `EN_RETARD`,
+`A_ECHEANCE` ou `A_VENIR` face à la référence explicitement zonée de l’appelant. Il ne lit
+aucune horloge et ne déduit ni actualité métier, ni action terrain exécutée.
+
+La lecture T0 reste réservée à l’admin SQL courant sur le chemin appareil ; le chemin
+agent natif existant reste disponible. Plans et clôtures sont lus dans la même transaction.
+Une date invalide, un doublon, une clôture orpheline ou incohérente sont refusés.
+
+La page rend `total`, `affichees`, `reste`, `prochain_depart` et une empreinte de `vue`
+liée aux plans, aux clôtures et à la référence. Pour reprendre après le premier rang,
+passer `depart=prochain_depart` et `vue_attendue=vue`. Toute modification de cette vue,
+y compris une clôture intervenue entre deux lectures, exige une reprise depuis zéro.
+Une ligne trop volumineuse est refusée entière ; aucune action n’est masquée silencieusement.
+Ce lecteur ne crée aucune tâche dans un département et ne qualifie pas une interface
+Core/mobile. Le département et le produit restent **PARTIELS**.

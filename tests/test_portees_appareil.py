@@ -115,7 +115,7 @@ ADMIN_SEUL = frozenset({
     "m9_diagnostiquer_dossier_direction",  # dossier serveur et diagnostic temporel T0/N0, admin seulement
     # Suivi interne : lectures N0 et ouverture N3 sous SA demande dédiée signée par le propriétaire.
     "m9_preparer_suivi_decision", "m9_ouvrir_suivi_decision", "m9_lire_suivi_decision",
-    "m9_preparer_cloture_suivi_decision", "m9_clore_suivi_decision",
+    "m9_preparer_cloture_suivi_decision", "m9_clore_suivi_decision", "m9_lister_suivis_decision",
     "m10_arbitrer_revision", "m10_paquet_contexte_affaire", "m10_statut_decision", "m10_statut_revision",
     "m10_lister_signaux", "m10_lister_references", "m10_lire_revision", "m10_prendre_en_compte_signal",
     "m10_clore_signal", "m10_lier_session_affaire",
@@ -220,6 +220,7 @@ def test_les_compteurs_ecrits_dans_roles_md_suivent_les_manifestes(departements_
     ("m9_preparer_suivi_decision", "T0", "N0"),
     ("m9_ouvrir_suivi_decision", "T1", "N3"),
     ("m9_lire_suivi_decision", "T0", "N0"),
+    ("m9_lister_suivis_decision", "T0", "N0"),
     ("m9_preparer_cloture_suivi_decision", "T0", "N0"),
     ("m9_clore_suivi_decision", "T1", "N3"),
 ])
