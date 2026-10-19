@@ -41,10 +41,12 @@ LECTURES = {
     "m9_lire_suivi_decision": "m09-strategic-intelligence",
     "m9_bilan_suivis_decision": "m09-strategic-intelligence",
     "m9_rapport_periode": "m09-strategic-intelligence",
+    "m9_observations_chantier_periode": "m09-strategic-intelligence",
 }
 # Les lecteurs M9 revérifient l'admin SQL de la persona : jamais la persona propriétaire, même cumulée.
 _LECTURES_ADMIN_M9 = frozenset({
     "m9_lister_suivis_decision", "m9_lire_suivi_decision", "m9_bilan_suivis_decision", "m9_rapport_periode",
+    "m9_observations_chantier_periode",
 })
 COMMANDES = {
     "m1_importer_appel_manuellement": "m01-front-office",

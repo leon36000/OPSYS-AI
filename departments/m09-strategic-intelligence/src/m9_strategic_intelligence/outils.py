@@ -50,11 +50,15 @@ Faits de chantier (`m8.snapshot_chantier`, `_recevoir_snapshot_chantier`) : le p
 de M8, enregistré après activation du transport, arrive par le bus et s'ajoute au registre de snapshots M9,
 instant métier d'origine conservé. Confiance limitée : identifiant lié à l'empreinte et à la première enveloppe publiée,
 jamais une authentification de M8, une couverture M1-M8, un instant de réception ni un rattrapage.
+`m9_observations_chantier_periode` relit ces faits par période [debut, fin) (`observations_chantier`, module
+pur) : registre complet validé, puis la première publication de chaque snapshot qui se déclare transporté,
+hors période comprise, validée contre le catalogue ; rien n'est écrit, aucun consommateur n'est rappelé.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -75,6 +79,7 @@ from . import (
     echeancier_suivis,
     lecture_alertes,
     lecture_strategique,
+    observations_chantier,
     rapport_periode,
     rapport_strategique,
     registre,
@@ -178,6 +183,7 @@ def _recevoir_alerte_proposee(charge: dict[str, Any]) -> dict[str, Any]:
 _EVENEMENT_SNAPSHOT_CHANTIER = "m8.snapshot_chantier"
 _PREFIXE_SNAPSHOT_CHANTIER = "m8-snapshot-chantier-"
 _MODULE_SOURCE_TRAVAUX = "m04-field-ops"
+_ID_SNAPSHOT_CHANTIER = re.compile(re.escape(_PREFIXE_SNAPSHOT_CHANTIER) + r"[0-9a-f]{64}")
 
 
 def _refus_snapshot_chantier(code: str, detail: str) -> ValueError:
@@ -467,6 +473,42 @@ def outils(
                 "faire vérifier la source avant lecture ou ajout"
             )
         return copie
+
+    def lire_observations_chantier(
+        debut: str, fin: str, depart: int = 0, vue_attendue: str | None = None,
+    ) -> dict[str, Any]:
+        # Rôle SQL revérifié avant le registre et le bus ; ni file, ni registre M8, ni horloge, aucune écriture.
+        _exiger_admin_pour_appareil()
+        faits = exiger_chaine_snapshots_valide().lire()
+        if not all(
+            isinstance(maillon, dict) and type(maillon.get("index")) is int and maillon["index"] == rang
+            for rang, maillon in enumerate(faits)
+        ):
+            raise ValueError(
+                "REJ-SNAPSHOT-CHAINE-INVALIDE : rangs du registre M9 de snapshots non entiers exacts ; "
+                "faire vérifier la source avant lecture"
+            )
+        publications: dict[str, Any] = {}
+        for maillon in faits:
+            valeurs = maillon.get("valeurs")
+            evenement_id = valeurs.get("m8_snapshot_evenement_id") if isinstance(valeurs, dict) else None
+            # Identifiant non canonique, doublon ou publication absente : refus nommé par le module pur.
+            if (not isinstance(evenement_id, str) or not _ID_SNAPSHOT_CHANTIER.fullmatch(evenement_id)
+                    or evenement_id in publications):
+                continue
+            charge = evenements.charge_publiee(_EVENEMENT_SNAPSHOT_CHANTIER, evenement_id)
+            if charge is None:
+                continue
+            # Schéma complet du catalogue sur CHAQUE publication liée, hors période comprise, avant tout filtre.
+            if schemas.erreurs_charge(_EVENEMENT_SNAPSHOT_CHANTIER, charge):
+                raise ValueError(
+                    f"REJ-OBSERVATIONS-BUS-CHARGE : publication {evenement_id} non conforme au schéma "
+                    f"{_EVENEMENT_SNAPSHOT_CHANTIER}"
+                )
+            publications[evenement_id] = charge
+        return observations_chantier.lister_observations_chantier(
+            faits, publications, debut, fin, depart, vue_attendue, budget_caracteres=BUDGET_SORTIE,
+        )
 
     def lire_etat_consolide() -> dict[str, Any]:
         """État consolidé courant par relecture pure du registre — n'ingère rien de nouveau."""
@@ -1000,6 +1042,45 @@ def outils(
             },
             fonction=lire_rapport_periode,
             autonomie=Autonomie.T0,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m9_observations_chantier_periode",
+            description="Observations de chantier d'une période [debut, fin) explicite : snapshots WCT transportés "
+                        "par m8.snapshot_chantier dont l'instant métier d'origine tombe dans la période, par instant "
+                        "puis identifiant, chacun avec son maillon M9 et sa publication d'origine exacts. Liés au "
+                        "bus (source_bus_liee), producteur NON authentifié. Snapshots génériques sans métadonnées "
+                        "M8 seulement comptés, jamais datés. Lecture pure, bornée : quand `prochain_depart` n'est "
+                        "pas nul, rappeler avec ce `depart` et `vue_attendue` égal à `vue` ; tout ajout au registre "
+                        "périme la reprise. Snapshot transporté incohérent, sans publication ou en double, même "
+                        "hors période : refus. N'atteste ni réception, ni couverture M1-M8, ni actualité métier.",
+            parametres={
+                "type": "object",
+                "properties": {
+                    "debut": {
+                        "type": "string", "minLength": 1,
+                        "description": "Début inclus, ISO 8601 avec fuseau explicite, fourni par l'appelant.",
+                    },
+                    "fin": {
+                        "type": "string", "minLength": 1,
+                        "description": "Fin exclue, ISO 8601 avec fuseau explicite, postérieure à `debut`.",
+                    },
+                    "depart": {
+                        "type": "integer", "minimum": 0,
+                        "description": "Rang de la première observation rendue (0 = début, défaut) : "
+                                       "`prochain_depart` de la page précédente.",
+                    },
+                    "vue_attendue": {
+                        "type": "string",
+                        "description": "`vue` (64 hexadécimaux) de la page précédente ; requise si `depart` > 0.",
+                    },
+                },
+                "required": ["debut", "fin"],
+                "additionalProperties": False,
+            },
+            fonction=lire_observations_chantier,
+            autonomie=Autonomie.T0,
+            niveau=Niveau.N0,
             roles_appareil=frozenset({"admin"}),
         ),
         Outil(

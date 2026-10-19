@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from collections.abc import Callable, Mapping
 from typing import Any
@@ -252,6 +253,61 @@ def creer_router(
             suivant = lien_rapport(debut=debut, fin=fin, depart=prochain, vue_attendue=vue)
         return page(session, _formulaire_rapport(prefixe, debut, fin) + _rapport(rapport, suivant))
 
+    def lien_observations(**parametres: Any) -> str:
+        cible = f"{prefixe}/strategie/observations"
+        return f"{cible}?{urlencode(parametres)}" if parametres else cible
+
+    @router.get("/strategie/observations", response_class=HTMLResponse)
+    def page_observations(request: Request) -> HTMLResponse:
+        session = session_page(request)
+        if "admin" not in session.roles:
+            raise HTTPException(403, "accès métier refusé")
+        valeurs = _valeurs(request, _PARAMETRES_RAPPORT)
+        if any(len(valeur) > 1024 for valeur in valeurs.values()):
+            raise HTTPException(400, "paramètre trop long refusé")
+        if not valeurs:
+            return page(session, _formulaire_observations(prefixe, "", ""))
+        if not {"debut", "fin"} <= valeurs.keys():
+            raise HTTPException(400, "debut et fin explicites requis ensemble")
+        debut, fin = valeurs["debut"], valeurs["fin"]
+        arguments: dict[str, Any] = {"debut": debut, "fin": fin}
+        if "depart" in valeurs:
+            if not _DEPART.fullmatch(valeurs["depart"]):
+                raise HTTPException(400, "depart doit être un entier décimal positif ou nul")
+            arguments["depart"] = int(valeurs["depart"])
+        if "vue_attendue" in valeurs:
+            arguments["vue_attendue"] = valeurs["vue_attendue"]
+        reprise = arguments.get("depart", 0) > 0 or "vue_attendue" in arguments
+        recommencer = lien_observations(debut=debut, fin=fin)
+
+        def refuser(message: str, code: str = "", statut: int = 409) -> HTMLResponse:
+            return page(session, _refus_html(
+                message, code, recommencer, "Recommencer les observations avec la même période",
+            ), statut)
+
+        try:
+            rapport = lire(session, "m9_observations_chantier_periode", arguments)
+        except _Refus as refus:
+            return refuser(
+                "Reprise refusée. Recommencez les observations pour la même période."
+                if reprise else "Observations refusées par M9 pour cette période.",
+                refus.code or "REJ-OBSERVATIONS-LECTURE", 409 if reprise or not refus.invalide else 400,
+            )
+        if not _observations_valides(rapport, debut, fin, arguments.get("depart", 0)):
+            return refuser("Réponse M9 non conforme : aucune observation affichée.")
+        suivant = None
+        if rapport["prochain_depart"] is not None:
+            suivant = lien_observations(
+                debut=debut, fin=fin, depart=rapport["prochain_depart"], vue_attendue=rapport["vue"],
+            )
+        try:
+            reponse = page(session, _formulaire_observations(prefixe, debut, fin) + _observations(rapport, suivant))
+        except (ValueError, TypeError, RecursionError):
+            return refuser("Preuves M9 illisibles : aucune observation affichée.")
+        if len(reponse.body) > 128 * 1024:
+            return refuser("Preuves M9 trop grandes pour cette page : aucune troncature effectuée.")
+        return reponse
+
     return router
 
 
@@ -260,6 +316,7 @@ def _formulaire(prefixe: str, reference: str) -> str:
         '<section class="carte pile"><h2>Échéancier des suivis ouverts</h2>'
         f'<p><a href="{pages.e(prefixe)}/strategie/bilan">Bilan historique des suivis</a></p>'
         f'<p><a href="{pages.e(prefixe)}/strategie/rapport">Synthèse de période</a></p>'
+        f'<p><a href="{pages.e(prefixe)}/strategie/observations">Observations de chantier</a></p>'
         f'<form method="get" action="{pages.e(prefixe)}/strategie" class="pile">'
         '<label for="horodatage_reference">Référence ISO 8601 avec fuseau explicite</label>'
         f'<input id="horodatage_reference" name="horodatage_reference" required value="{pages.e(reference)}">'
@@ -541,3 +598,129 @@ def _rapport(rapport: Mapping[str, Any], suivant: str | None) -> str:
         contenu.append("<p>Fin des alertes connues à la lecture pour cette période.</p>")
     contenu.append('</section>')
     return ''.join(contenu)
+
+
+def _formulaire_observations(prefixe: str, debut: str, fin: str) -> str:
+    return (
+        '<section class="carte pile"><h2>Observations de chantier</h2>'
+        '<p>Faits liés à une publication du bus, connus à la lecture, filtrés sur leur instant métier d’origine. '
+        'Ni réception historique ni authentification du producteur ne sont prouvées.</p>'
+        f'<form method="get" action="{pages.e(prefixe)}/strategie/observations" class="pile">'
+        '<label for="observations-debut">Début inclus, ISO 8601 avec fuseau explicite</label>'
+        f'<input id="observations-debut" name="debut" required value="{pages.e(debut)}">'
+        '<label for="observations-fin">Fin exclue, ISO 8601 avec fuseau explicite</label>'
+        f'<input id="observations-fin" name="fin" required value="{pages.e(fin)}">'
+        '<p>Format AAAA-MM-JJTHH:MM:SS suivi de Z ou ±HH:MM ; aucune date déduite de l’horloge.</p>'
+        '<button type="submit" class="principal">Afficher les observations</button></form></section>'
+    )
+
+
+def _observations_valides(rapport: Mapping[str, Any], debut: str, fin: str, depart: int) -> bool:
+    """Contrat de présentation, sans recalcul métier ; toute anomalie refuse la page entière."""
+    if ("prochain_depart" not in rapport or rapport.get("type") != "OBSERVATIONS_CHANTIER_PERIODE"
+            or rapport.get("rapport_complet") is not False or rapport.get("statut") != "NON_VALIDE"
+            or rapport.get("actualite_metier") != "NON_EVALUEE"
+            or rapport.get("debut") != debut or rapport.get("fin") != fin
+            or not isinstance(rapport.get("vue"), str)
+            or not re.fullmatch(r"[0-9a-f]{64}", rapport["vue"])):
+        return False
+    for nom in ("total", "depart", "affichees", "reste", "snapshots_generiques_non_couverts"):
+        if type(rapport.get(nom)) is not int or rapport[nom] < 0:
+            return False
+    lignes, manques = rapport.get("observations"), rapport.get("manques")
+    if (not isinstance(lignes, list) or rapport["affichees"] != len(lignes)
+            or rapport["depart"] != depart
+            or rapport["depart"] + rapport["affichees"] + rapport["reste"] != rapport["total"]
+            or not isinstance(rapport.get("ordre"), str) or not rapport["ordre"]
+            or not isinstance(manques, list) or not manques):
+        return False
+    prochain = rapport.get("prochain_depart")
+    if rapport["reste"]:
+        if (type(prochain) is not int or prochain != depart + len(lignes)
+                or not lignes or not _DEPART.fullmatch(str(prochain))):
+            return False
+    elif prochain is not None:
+        return False
+    if not all(isinstance(m, Mapping) and all(isinstance(m.get(k), str)
+               for k in ("section", "constat", "verifie")) for m in manques):
+        return False
+    ids: set[str] = set()
+    for ligne in lignes:
+        if (not isinstance(ligne, Mapping)
+                or set(ligne) != {"maillon", "publication", "nature", "authentification_producteur"}
+                or ligne["nature"] != "source_bus_liee" or ligne["authentification_producteur"] != "NON_PROUVEE"):
+            return False
+        maillon, publication = ligne["maillon"], ligne["publication"]
+        if not isinstance(maillon, Mapping) or not isinstance(publication, Mapping):
+            return False
+        valeurs, source, fait = maillon.get("valeurs"), publication.get("source_m8"), publication.get("snapshot")
+        ident = publication.get("evenement_id")
+        if (not isinstance(ident, str) or not re.fullmatch(r"m8-snapshot-chantier-[0-9a-f]{64}", ident)
+                or ident in ids or not isinstance(valeurs, Mapping) or not isinstance(source, Mapping)
+                or not isinstance(fait, Mapping) or not isinstance(fait.get("valeurs"), Mapping)
+                or type(maillon.get("index")) is not int or maillon["index"] < 0
+                or not all(isinstance(maillon.get(k), str) for k in ("hash_precedent", "hash_maillon", "horodatage"))):
+            return False
+        if (maillon.get("module_source") != "m04-field-ops" or fait.get("module_source") != "m04-field-ops"
+                or fait.get("horodatage") != maillon["horodatage"]
+                or valeurs.get("m8_snapshot_evenement_id") != ident
+                or type(source.get("index")) is not int or source["index"] < 0
+                or valeurs.get("m8_snapshot_index") != str(source["index"])
+                or valeurs.get("m8_snapshot_hash_maillon") != source.get("hash_maillon")
+                or ident != "m8-snapshot-chantier-" + str(source.get("hash_maillon"))):
+            return False
+        metadata = {"m8_snapshot_evenement_id", "m8_snapshot_index", "m8_snapshot_hash_maillon"}
+        if ({k: v for k, v in valeurs.items() if k not in metadata} != fait["valeurs"]
+                or not all(isinstance(fait["valeurs"].get(k), str) for k in (
+                    "m4_wct_id", "m4_intervention_id", "m4_duree_reelle_minutes"))):
+            return False
+        ids.add(ident)
+    return True
+
+
+def _observations(rapport: Mapping[str, Any], suivant: str | None) -> str:
+    compteurs = "".join(
+        f'<p data-compteur="{nom}" data-valeur="{rapport[cle]}">{libelle} : {rapport[cle]}</p>'
+        for nom, cle, libelle in (
+            ("observations_total", "total", "Observations dans la période"),
+            ("generiques_non_couverts", "snapshots_generiques_non_couverts",
+             "Snapshots génériques non couverts, registre entier"),
+            ("observations_affichees", "affichees", "Observations sur cette page"),
+        )
+    )
+    limites = "".join(
+        f'<li><strong>{pages.e(m["section"])}</strong> : {pages.e(m["constat"])} '
+        f'— {pages.e(m["verifie"])}</li>' for m in rapport["manques"]
+    )
+    blocs = []
+    for ligne in rapport["observations"]:
+        maillon, publication = ligne["maillon"], ligne["publication"]
+        valeurs = publication["snapshot"]["valeurs"]
+        champs = [("WCT", valeurs["m4_wct_id"]), ("Intervention", valeurs["m4_intervention_id"]),
+                  ("Durée déclarée en minutes", valeurs["m4_duree_reelle_minutes"]),
+                  ("Instant métier d’origine", maillon["horodatage"])]
+        if "m4_type_travaux" in valeurs:
+            champs.append(("Type de travaux", valeurs["m4_type_travaux"]))
+        detail = "".join(f'<dt>{pages.e(nom)}</dt><dd>{pages.e(valeur)}</dd>' for nom, valeur in champs)
+        preuves = "".join(
+            f'<h4>{titre}</h4><pre data-preuve="{nom}">'
+            f'{pages.e(json.dumps(obj, ensure_ascii=False, allow_nan=False))}</pre>'
+            for nom, titre, obj in (("maillon", "Maillon M9 original", maillon),
+                                    ("publication", "Publication du bus originale", publication))
+        )
+        blocs.append(
+            f'<article class="carte pile" data-evenement-id="{pages.e(publication["evenement_id"])}">'
+            f'<h3>{pages.e(publication["evenement_id"])}</h3><dl>{detail}</dl>'
+            '<p>source_bus_liee — authentification_producteur : NON_PROUVEE. '
+            'Cette liaison ne prouve pas la réception par M9.</p>'
+            f'<details><summary>Preuves originales complètes</summary>{preuves}</details></article>'
+        )
+    navigation = f'<p><a href="{pages.e(suivant)}">Page suivante des observations</a></p>' if suivant else ""
+    vide = '<p>Aucune observation retenue dans cette période.</p>' if not rapport["total"] else ""
+    return (
+        '<section class="carte pile"><h2>Observations connues à la lecture</h2>'
+        '<p>Statut : NON_VALIDE ; actualité métier : NON_EVALUEE ; rapport_complet : faux.</p>'
+        '<p>Couverture partielle : aucun total financier ni état complet M1–M8 ou rapport hebdomadaire attesté.</p>'
+        f'{compteurs}<p>Ordre : {pages.e(rapport["ordre"])}</p><ul>{limites}</ul></section>'
+        + vide + "".join(blocs) + navigation
+    )

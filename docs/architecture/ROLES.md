@@ -71,7 +71,7 @@ identité pour consulter cette liste. Les lectures apprentissage et couverture s
 
 ## La table
 
-Les références sont celles de `DEFINITION-PRODUIT.md`. 160 outils sur 252 sont déclarés.
+Les références sont celles de `DEFINITION-PRODUIT.md`. 161 outils sur 253 sont déclarés.
 
 ### `employee` (16 outils) : §9.3, le terrain
 
@@ -122,7 +122,7 @@ sont décrits ci-dessus; décisions, exportations et publication restent fermée
 Aucun outil M4, M5, M6, M7, M8, M9, M10 : ni finances (« ne voit pas : finances globales »), ni prix
 fournisseurs, ni coûts réels (`m3_lire_ecarts_estime_reel`).
 
-### `admin` (159 outils) : §9.5 + employé + vendeur
+### `admin` (160 outils) : §9.5 + employé + vendeur
 
 Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et :
 
@@ -185,6 +185,7 @@ Les 16 outils de l'employé, les 14 du vendeur également permis à l'admin, et 
 | M9 | `m9_lister_demandes_approbation` (T0), `m9_decider_demande_approbation` (T1, N2) | §9.2 « le propriétaire approuve tout depuis le téléphone », §9.5 « Approbations » (T1.4-f). Règles ci-dessous : `admin` ouvre l'outil, la PERSONNE doit être le propriétaire. |
 | M9 | `m9_preparer_suivi_decision`, `m9_lire_suivi_decision`, `m9_lister_suivis_decision`, `m9_bilan_suivis_decision`, `m9_preparer_cloture_suivi_decision` (T0/N0), `m9_ouvrir_suivi_decision`, `m9_clore_suivi_decision` (T1/N3) | Première tranche de suivi interne : preuve M8 reçue et empreinte calculée, responsable interne actif et échéance explicite. L’échéancier des suivis ouverts classe les échéances face à une référence zonée explicite, conserve les preuves et refuse une reprise dont la vue a changé. Le bilan de période reconstitue les ouvertures/clôtures humaines dans `[debut, fin[` et les suivis ouverts juste avant `fin`, sans attribuer une clôture future à cette fin. Ces lectures ne modifient aucun suivi. Lectures avec admin SQL courant ; ouverture seulement sous sa demande dédiée en cours approuvée par `nathan_owner` encore actif. Un appel direct, même propriétaire, ne remplace pas ce mandat. `planifiee` ne signifie pas action exécutée. La clôture conserve ce plan et ajoute une revue humaine sous sa propre approbation N3, liée à une preuve M8 du même chantier/métrique/version. `cloturee_par_revue_humaine` ne prouve ni action terrain ni amélioration ; preuve historique, couverture non évaluée. Les appels MCP génériques sans cible restent refusés pour la clôture ; son ticket Core privé reste non admis. Aucun nouveau parcours Core/mobile ni effet externe certifié. |
 | M9 | `m9_rapport_periode` (T0/N0) | Synthèse des alertes M8 reçues dont l’instant de référence appartient à la période explicite, connues à la lecture, et compteurs du bilan de suivis inchangés ; admin SQL courant avant les trois registres. Validation complète des alertes même hors période, pagination bornée et vue des trois sources ; file courante et snapshots non couverts, aucune action terrain attestée. |
+| M9 | `m9_observations_chantier_periode` (T0/N0) | Observations WCT liées à leur publication `m8.snapshot_chantier`, connues à la lecture et filtrées sur un instant métier zoné dans `[debut, fin)`. Admin SQL courant avant registre et bus ; chaîne et liaisons complètes vérifiées même hors période, doublons refusés. Chaque page conserve maillon et charge exacts ; vue périmée et preuve trop grande refusées. `source_bus_liee` ne prouve ni authentification du producteur ni réception par M9. Snapshots génériques comptés globalement, aucune somme financière ni couverture complète. |
 | M10 | `m10_statut_decision`, `m10_statut_revision`, `m10_arbitrer_revision` | §7 M10 mobile : décisions à valider et contradictions. |
 | M10 | `m10_paquet_contexte_affaire` (T0/N0) | Contexte privé du moteur Core selon ADR-0010 : sa déclaration admin ne l'expose pas aux routes publiques. L'origine M1/M2 est fixée par la route interne, jamais par un argument. Le plafond effectif du socle refuse le paquet volumineux avant tout artefact ; aucune donnée partielle prise pour un contexte valide. |
 | M10 | `m10_deposer_version_document_appareil`, `m10_activer_version_document_appareil`, `m10_retirer_document_appareil` (T1/N3) | Mutations documentaires de l’affaire connue du corpus autorisé, admin appareil actif et mode ombre. Intention originale, versions/CAS frais, trace APP/J propre et liaison transactionnelles ; quotas entiers avant claim et après trace. Le rejeu confirme sa version originale, sans nouvel effet, même après v2/retrait. Corps/extraits APP masqués en restitution, titre visible ; aucune purge. Premier backend SQLite ; PG reste fermé, transports DEVICE/Native et client sont des qualifications séparées. |

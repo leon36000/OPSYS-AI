@@ -251,3 +251,42 @@ observé, pas tout l'état de M4. Deux WCT distincts au même instant peuvent
 identifiants permettent de les distinguer. Revenus, marges, couverture M1–M8
 et rapport exécutif hebdomadaire complet restent non prouvés : OPSYS-AI
 reste **PARTIEL**.
+
+### Observations de chantier par période
+
+`m9_observations_chantier_periode(debut, fin, depart=0, vue_attendue=None)`
+lit les observations WCT liées à leur publication `m8.snapshot_chantier`.
+Les bornes zonées explicites délimitent `[debut, fin)` sur l'instant métier
+d'origine ; deux WCT distincts au même instant restent deux observations.
+Chaque ligne conserve le maillon M9 et la charge publiée originaux.
+
+La lecture T0/N0 exige le rôle admin SQL courant avant tout accès au registre
+ou au bus. Elle vérifie toute la chaîne M9 et toutes les observations se
+déclarant transportées, même hors période ; une liaison absente, une charge
+divergente ou un doublon d'événement ou de WCT entraîne un refus.
+Les snapshots génériques sans marqueurs sont seulement comptés globalement,
+sans lecture de leur date ni intégration à des totaux financiers.
+
+La réponse entière, preuves et manques compris, est bornée sans troncature.
+Pour poursuivre, transmettre `prochain_depart` et `vue_attendue=vue` ; tout
+ajout, même générique hors période, périme cette vue. Une arrivée tardive
+d'instant dans la période peut enrichir une période passée. Aucun état figé
+en fin de période ni instant de réception n'est reconstruit.
+
+`source_bus_liee` et `authentification_producteur=NON_PROUVEE` sont explicites :
+un snapshot générique peut recopier exactement une charge déjà publiée dans
+l'outbox sans prouver sa réception par le consommateur M9. Cette liaison
+n'authentifie pas M8. `m9_rapport_periode` conserve son périmètre existant,
+et cette nouvelle lecture dispose du parcours console décrit ci-dessous. Couverture complète
+M1–M8, actualité métier et rapport exécutif complet restent non prouvés.
+
+
+La console admin `/opsys/strategie/observations` donne accès à ces observations :
+bornes zonées saisies explicitement, compteurs globaux et preuves originales
+complètes pour chaque ligne. Maillon M9 et publication du bus sont rendus
+comme JSON échappé, sans troncature. Les statuts et limites restent visibles ;
+une réponse incohérente ou trop grande est refusée avant tout affichage partiel.
+La page suivante conserve les bornes et la vue d'origine. Une reprise périmée
+propose un redémarrage pour la même période. Le rôle admin SQL est rechargé
+avant le formulaire vide comme avant la lecture ; aucune nouvelle permission,
+aucun événement ni mutation métier n'est ajouté par ces requêtes GET.
