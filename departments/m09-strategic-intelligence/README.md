@@ -109,4 +109,27 @@ Le résolveur SQLite confronte l’alerte M8 reçue à sa publication et à son 
 
 `tests/test_suivi_m9_cible_core.py` couvre les vraies routes MCP HTTP, le profil runtime, les deux chaînes M10, la provenance et le changement de liaison. La configuration destinée au Core déclare une cible `ticket` ; ces essais Python/MCP ne certifient pas à eux seuls un parcours Gateway/TypeScript complet. La liaison de cible reste fermée hors SQLite selon le contrat du socle existant ; aucun oracle PostgreSQL M9 n’est revendiqué.
 
-Restent ouverts : rapport de décision complet, couverture/fraîcheur stratégique, interface dédiée, révision et clôture sur preuve, orchestration des actions dans les départements et qualification complète des parcours Core/mobile correspondants. L’ambition M9.10/M9.16/M9.17 est conservée, sans assimiler cette ouverture à leur livraison complète.
+Restent ouverts : rapport de décision complet, couverture/fraîcheur stratégique, interface dédiée, révision des suivis et clôture des actions terrain sur preuve, orchestration des actions dans les départements et qualification complète des parcours Core/mobile correspondants. L’ambition M9.10/M9.16/M9.17 est conservée, sans assimiler cette ouverture à leur livraison complète.
+
+
+### Clôturer la revue humaine d’un suivi interne
+
+`m9_preparer_cloture_suivi_decision(suivi_id, evenement_id)` relit le plan original et une
+preuve M8 reçue. Elle rend l’empreinte du plan et la preuve exacte. Métrique, chantier
+(`wct_id`) et version de définition doivent correspondre à la preuve initiale ; l’alerte
+initiale elle-même est admise. Cette lecture reste réservée à l’admin SQL courant.
+
+`m9_clore_suivi_decision(suivi_id, empreinte_suivi, evenement_id, empreinte_preuve, bilan)`
+propose une **nouvelle demande N3 dédiée**. Après approbation par le propriétaire SQL encore
+actif, le code relit les deux empreintes et enregistre une clôture unique dans
+`clotures_suivi_decisions`. Le bilan humain doit être explicite et borné. Le plan initial et
+sa source demeurent inchangés ; `m9_lire_suivi_decision` ajoute la clôture et
+`etat_suivi: cloturee_par_revue_humaine`. La sortie complète est bornée avant l’écriture.
+Un appel direct, l’approbation d’ouverture, une preuve étrangère ou modifiée et une seconde
+clôture ne donnent aucun droit d’écriture. Le rejeu conserve le même résultat.
+
+Il s’agit de la **validation humaine d’une revue interne**, sans exécution d’action,
+attestation terrain, fraîcheur métier ni preuve d’amélioration causale. Le parcours SQLite
+est distinct du Gateway et du téléphone. La mutation demeure fermée au MCP générique sans
+cible et aucun émetteur de ticket privé Core de clôture n’est livré par cette tranche.
+Les tests fictifs de `test_cloture_suivi_decisions.py` conservent cette séparation.

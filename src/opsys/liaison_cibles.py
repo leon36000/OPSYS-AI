@@ -41,7 +41,10 @@ OUTILS_CIBLES = _OUTILS_M2 | _OUTILS_M3 | _OUTILS_M3_CREATION
 _OUTILS_SUIVI_M9 = frozenset({"m9_ouvrir_suivi_decision"})
 # La proposition native M9 conserve son approbation dédiée sans ticket de transport.
 # Tous ses appels MCP, même /mcp sans département, exigent en revanche une cible vérifiée.
-OUTILS_CIBLES_CORE = OUTILS_CIBLES | _OUTILS_SUIVI_M9
+# La clôture interne garde aussi la frontière MCP. Son émission de ticket Core
+# reste fermée : aucune projection privée de cette nouvelle mutation n’est qualifiée.
+OUTILS_CIBLES_CORE_TICKETS = OUTILS_CIBLES | _OUTILS_SUIVI_M9
+OUTILS_CIBLES_CORE = OUTILS_CIBLES_CORE_TICKETS | frozenset({"m9_clore_suivi_decision"})
 _CHAMPS_CIBLES = frozenset({
     "lead_id", "devis_id", "facture_id", "wct_id", "client_id", "chantier_id",
     "intervention_id", "po_id", "signal_id", "contenu_id", "avis_id", "creneau_id",

@@ -2,6 +2,8 @@
 
 Aucune horloge, identité, base, mesure recalculée ou exécution d'action ici.
 Une preuve historique n'atteste pas la couverture ni l'actualité de l'entreprise.
+Une clôture par revue humaine n'atteste ni l'exécution d'une action terrain, ni une cause,
+une amélioration ou une fraîcheur : seulement la preuve reçue et le bilan approuvé.
 """
 
 from __future__ import annotations
@@ -70,3 +72,71 @@ def construire(
             "responsable_id": responsable_id, "echeance": echeance, "source": source,
             "decision": {"demande_id": demande_id, "decide_par": decide_par,
                          "decide_role": decide_role, "decide_le": decide_le}}
+
+
+STATUT_CLOTURE = "cloturee_par_revue_humaine"
+
+
+def trouver_plan(suivis: Iterable[dict[str, Any]], suivi_id: str) -> dict[str, Any]:
+    texte(suivi_id, "suivi_id", 1024)
+    trouves = [s for s in suivis if isinstance(s, dict) and s.get("suivi_id") == suivi_id]
+    if len(trouves) != 1:
+        raise ValueError("REJ-SUIVI-INTROUVABLE-OU-AMBIGU : suivi absent ou ambigu")
+    return trouves[0]
+
+
+def trouver_cloture(clotures: Iterable[dict[str, Any]], suivi_id: str) -> dict[str, Any] | None:
+    trouvees = [c for c in clotures if isinstance(c, dict) and c.get("suivi_id") == suivi_id]
+    if len(trouvees) > 1:
+        raise ValueError("REJ-SUIVI-CLOTURE-AMBIGUE : plusieurs clôtures pour ce suivi, aucune n'est choisie")
+    return trouvees[0] if trouvees else None
+
+
+def _champ(valeur: Any, *chemin: str) -> Any:
+    for cle in chemin:
+        valeur = valeur.get(cle) if isinstance(valeur, dict) else None
+    return valeur
+
+
+def preparer_cloture(
+    plan: dict[str, Any], cloture: dict[str, Any] | None, alertes: Iterable[dict[str, Any]], evenement_id: str,
+) -> dict[str, Any]:
+    if cloture is not None:
+        raise ValueError("REJ-SUIVI-DEJA-CLOS : une clôture existe déjà, aucune seconde n'est admise")
+    if plan.get("schema") != 1 or plan.get("statut") != "planifiee":
+        raise ValueError("REJ-SUIVI-STATUT : seul un suivi planifié peut être clos")
+    preuve = preparer_source(alertes, evenement_id)
+    # Même métrique, même chantier, même définition que la preuve d'origine du plan.
+    # La même alerte d'origine est admise : ni fraîcheur ni effet de l'action n'en sont déduits.
+    origine = _champ(plan, "source", "alerte")
+    for chemin in (("metric_id",), ("preuve", "wct_id"), ("preuve", "version_definition")):
+        if _champ(origine, *chemin) is None or _champ(origine, *chemin) != _champ(preuve["alerte"], *chemin):
+            raise ValueError("REJ-SUIVI-PREUVE-ETRANGERE : métrique, chantier ou définition différents du plan")
+    return {"empreinte_suivi": empreinte(plan), "preuve": preuve}
+
+
+def construire_cloture(
+    *, plan: dict[str, Any], preparation: dict[str, Any], empreinte_suivi: str, empreinte_preuve: str,
+    bilan: str, demande_id: str, decide_par: str, decide_role: str, decide_le: str,
+) -> dict[str, Any]:
+    if empreinte_suivi != preparation["empreinte_suivi"]:
+        raise ValueError(
+            "REJ-SUIVI-EMPREINTE : le suivi diffère de celui lié à la demande ; nouvelle approbation requise"
+        )
+    if empreinte_preuve != preparation["preuve"]["empreinte_source"]:
+        raise ValueError(
+            "REJ-SUIVI-EMPREINTE : la preuve diffère de celle liée à la demande ; nouvelle approbation requise"
+        )
+    texte(bilan, "bilan", 2000)
+    return {"schema": 1, "suivi_id": plan["suivi_id"], "statut": STATUT_CLOTURE,
+            "empreinte_suivi": empreinte_suivi, "preuve": preparation["preuve"], "bilan": bilan,
+            "decision": {"demande_id": demande_id, "decide_par": decide_par,
+                         "decide_role": decide_role, "decide_le": decide_le}}
+
+
+def projeter(plan: dict[str, Any], cloture: dict[str, Any] | None) -> dict[str, Any]:
+    if cloture is None:
+        return {"accepte": True, "suivi": plan}
+    if cloture.get("empreinte_suivi") != empreinte(plan):
+        raise ValueError("REJ-SUIVI-CLOTURE-INCOHERENTE : la clôture ne correspond plus au plan conservé")
+    return {"accepte": True, "suivi": plan, "etat_suivi": STATUT_CLOTURE, "cloture": cloture}

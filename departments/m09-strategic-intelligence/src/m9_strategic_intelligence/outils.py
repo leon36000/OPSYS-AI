@@ -8,6 +8,9 @@ l'état consolidé (contradictions comprises) en un seul appel.
 
 Le suivi interne enregistre une décision humaine dédiée avec responsable, échéance et preuve
 M8 historique exacte ; il ne recommande ni n'exécute l'action et n'en déclare pas la complétion.
+Sa clôture par revue humaine s'ajoute une seule fois au registre distinct `clotures_suivi_decisions`
+sous sa propre demande N3 ; le plan d'origine reste intact. Elle n'atteste ni action terrain, ni
+cause, amélioration ou fraîcheur.
 
 PLAN T3.2 (M9.5, briefing du matin) : `m9_produire_briefing_matin` compose la file du
 propriétaire (`opsys.approbations.file_proprietaire`), les alertes M8 déjà reçues par le bus
@@ -236,7 +239,56 @@ def outils(
         trouves = [s for s in suivis if s.get("suivi_id") == suivi_id]
         if len(trouves) != 1:
             return {"accepte": False, "verdict": {"code": "REJ-SUIVI-INTROUVABLE-OU-AMBIGU"}}
-        return suivi_decisions.borner({"accepte": True, "suivi": trouves[0]}, BUDGET_SORTIE)
+        cloture = suivi_decisions.trouver_cloture(
+            stockage.maillons("m09-strategic-intelligence", "clotures_suivi_decisions"), suivi_id)
+        return suivi_decisions.borner(suivi_decisions.projeter(trouves[0], cloture), BUDGET_SORTIE)
+
+    def preparer_cloture_suivi_decision(suivi_id: str, evenement_id: str) -> dict[str, Any]:
+        _exiger_admin_pour_appareil()
+        plan = suivi_decisions.trouver_plan(
+            stockage.maillons("m09-strategic-intelligence", "suivi_decisions"), suivi_id)
+        cloture = suivi_decisions.trouver_cloture(
+            stockage.maillons("m09-strategic-intelligence", "clotures_suivi_decisions"), suivi_id)
+        preparation = suivi_decisions.preparer_cloture(plan, cloture, alertes_cible, evenement_id)
+        return suivi_decisions.borner({"accepte": True, "suivi_id": suivi_id} | preparation, BUDGET_SORTIE)
+
+    def clore_suivi_decision(
+        suivi_id: str, empreinte_suivi: str, evenement_id: str, empreinte_preuve: str, bilan: str,
+    ) -> dict[str, Any]:
+        # Même mandat que l'ouverture : CETTE demande de clôture en cours et son propriétaire SQL courant.
+        # L'approbation d'ouverture, un appel direct ou une ancienne demande ne le remplacent pas.
+        cnx = stockage.connexion_courante()
+        approbateur = approbations.approbateur_en_cours(
+            cnx, "m9_clore_suivi_decision", "m09-strategic-intelligence",
+            roles=frozenset({"nathan_owner"}),
+        )
+        if approbateur is None:
+            return {"accepte": False, "verdict": {"code": "REJ-SUIVI-APPROBATION",
+                    "detail": "Demande dédiée de clôture approuvée par le propriétaire encore actif requise"}}
+        clotures = stockage.maillons("m09-strategic-intelligence", "clotures_suivi_decisions")
+        try:
+            # Plan, clôtures et preuve relus au point d'effet ; les deux empreintes approuvées sont revérifiées.
+            plan = suivi_decisions.trouver_plan(
+                stockage.maillons("m09-strategic-intelligence", "suivi_decisions"), suivi_id)
+            existantes = list(clotures)
+            preparation = suivi_decisions.preparer_cloture(
+                plan, suivi_decisions.trouver_cloture(existantes, suivi_id), alertes_cible, evenement_id)
+            demande_id = contexte.demande_approuvee_en_cours()
+            demande = approbations.lire(cnx, demande_id)
+            cloture = suivi_decisions.construire_cloture(
+                plan=plan, preparation=preparation, empreinte_suivi=empreinte_suivi,
+                empreinte_preuve=empreinte_preuve, bilan=bilan, demande_id=demande_id,
+                decide_par=approbateur.personne, decide_role=approbateur.role,
+                decide_le=demande["decide_le"],
+            )
+            # La lecture ultérieure rend plan et clôture ensemble : la borne entière est vérifiée avant append.
+            resultat = suivi_decisions.borner(suivi_decisions.projeter(plan, cloture), BUDGET_SORTIE)
+        except ValueError as exc:
+            code, _, message = str(exc).partition(" : ")
+            return {"accepte": False, "verdict": {"code": code, "detail": message}}
+        # Un append concurrent intercalé invalide le rang lu : aucune seconde clôture sur un instantané périmé.
+        clotures.append(cloture, rang_attendu=len(existantes))
+        return resultat
 
     def exiger_chaine_snapshots_valide() -> registre.RegistreSnapshots:
         """Valide une copie par appel, réutilisable sans relire la source durable.
@@ -677,10 +729,38 @@ def outils(
         ),
         Outil(
             nom="m9_lire_suivi_decision",
-            description="Relit un suivi interne et sa preuve historique par identifiant, sans mutation ni exécution.",
+            description="Relit un suivi interne et sa preuve historique par identifiant, avec sa clôture par revue "
+                        "humaine éventuelle, sans mutation ni exécution. Une clôture ambiguë est refusée.",
             parametres={"type": "object", "properties": {"suivi_id": {"type": "string"}},
                         "required": ["suivi_id"], "additionalProperties": False},
             fonction=lire_suivi_decision,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m9_preparer_cloture_suivi_decision",
+            description="Relit un suivi interne planifié non clos et une preuve M8 reçue de même métrique, même "
+                        "chantier et même définition, puis calcule leurs empreintes pour une demande de clôture. "
+                        "Lecture pure ; la preuve d'origine est admise, sans valeur d'actualité ni de cause.",
+            parametres={"type": "object",
+                        "properties": {"suivi_id": {"type": "string"}, "evenement_id": {"type": "string"}},
+                        "required": ["suivi_id", "evenement_id"], "additionalProperties": False},
+            fonction=preparer_cloture_suivi_decision,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m9_clore_suivi_decision",
+            description="Propose la clôture par revue humaine d'un suivi interne planifié, avec empreintes du plan "
+                        "et de la preuve M8 et un bilan. Seule sa demande dédiée approuvée par le propriétaire actif "
+                        "l'enregistre, une seule fois, à part du plan conservé. N'atteste ni action terrain, ni "
+                        "cause, amélioration ou actualité métier.",
+            parametres={
+                "type": "object",
+                "properties": {champ: {"type": "string"} for champ in (
+                    "suivi_id", "empreinte_suivi", "evenement_id", "empreinte_preuve", "bilan")},
+                "required": ["suivi_id", "empreinte_suivi", "evenement_id", "empreinte_preuve", "bilan"],
+                "additionalProperties": False,
+            },
+            fonction=clore_suivi_decision, autonomie=Autonomie.T1, niveau=Niveau.N3,
             roles_appareil=frozenset({"admin"}),
         ),
     )

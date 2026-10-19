@@ -285,6 +285,8 @@ def test_cibles_ticket_declarent_exactement_les_dix_mutations_resolues_par_pytho
         "m9_ouvrir_suivi_decision",
     }
     assert {nom for nom, cible in cibles.items() if cible == {"type": "ticket"}} == attendues
+    # Nouvelle clôture interne : ne jamais annoncer un émetteur de ticket non livré.
+    assert cibles["m9_clore_suivi_decision"] == {"type": "inconnue"}
     assert cibles["m5_enregistrer_mouvement"] == {"type": "inconnue"}
 
 
