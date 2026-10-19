@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { types } from "node:util";
 import type { StreamFn } from "openclaw/plugin-sdk/agent-core";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { callOpsysMcpTool } from "../../context-engine/opsys-contexte-mcp.js";
@@ -76,6 +77,278 @@ export function getOpsysRuntimeCompletionReceipt(
   } catch {
     // Malformed host expectations or throwing accessors never create an observer failure.
     return undefined;
+  }
+}
+
+const completionCustodyBrand = Symbol("opsys.runtime.completion-custody");
+
+/** Private Core handle; only this module's WeakMap grants custody provenance. */
+export type OpsysRuntimeCompletionCustody = Readonly<{ [completionCustodyBrand]: true }>;
+
+type CompletionCustodyBinding = Readonly<
+  Pick<
+    OpsysRuntimeCompletionReceipt,
+    "agentId" | "profileId" | "profileRevision" | "departement" | "runId" | "candidateIndex"
+  >
+>;
+type CompletionCustodyRecord = Readonly<{
+  message: unknown;
+  receipt: OpsysRuntimeCompletionReceipt;
+}>;
+type CompletionCustodyState = {
+  readonly binding: CompletionCustodyBinding;
+  readonly streamOrdinals: readonly number[];
+  records: Map<number, CompletionCustodyRecord> | undefined;
+  closed: boolean;
+};
+const completionCustodies = new WeakMap<object, CompletionCustodyState>();
+
+function completionCustodyState(handle: unknown): CompletionCustodyState | undefined {
+  return handle !== null && typeof handle === "object"
+    ? completionCustodies.get(handle)
+    : undefined;
+}
+
+function closeCompletionCustodyState(state: CompletionCustodyState): void {
+  state.closed = true;
+  state.records?.clear();
+  state.records = undefined;
+}
+
+/** Fix the complete required set before dispatch; later work cannot fill an already consumed set. */
+export function createOpsysRuntimeCompletionCustody(
+  input: CompletionCustodyBinding & { readonly streamOrdinals: readonly number[] },
+): OpsysRuntimeCompletionCustody {
+  const {
+    agentId,
+    profileId,
+    profileRevision: revision,
+    departement,
+    runId,
+    candidateIndex,
+    streamOrdinals,
+  } = input;
+  if (
+    typeof agentId !== "string" ||
+    agentId.trim().length === 0 ||
+    typeof profileId !== "string" ||
+    profileId.trim().length === 0 ||
+    typeof runId !== "string" ||
+    runId.trim().length === 0 ||
+    !canonicalDepartment(departement) ||
+    !Number.isSafeInteger(revision) ||
+    revision < 1 ||
+    !Number.isSafeInteger(candidateIndex) ||
+    candidateIndex < 0 ||
+    !Array.isArray(streamOrdinals)
+  ) {
+    throw new Error("OPSYS runtime completion custody binding is invalid");
+  }
+  const ordinalCount = streamOrdinals.length;
+  if (!Number.isSafeInteger(ordinalCount) || ordinalCount < 1 || ordinalCount > 16) {
+    throw new Error("OPSYS runtime completion custody ordinals are invalid");
+  }
+  const ordinals: number[] = [];
+  const seen = new Set<number>();
+  for (let index = 0; index < ordinalCount; index++) {
+    const ordinal: unknown = streamOrdinals[index];
+    if (
+      typeof ordinal !== "number" ||
+      !Number.isSafeInteger(ordinal) ||
+      ordinal < 0 ||
+      seen.has(ordinal)
+    ) {
+      throw new Error("OPSYS runtime completion custody ordinals are invalid");
+    }
+    seen.add(ordinal);
+    ordinals.push(ordinal);
+  }
+  ordinals.sort((a, b) => a - b);
+  const handle: OpsysRuntimeCompletionCustody = Object.freeze({ [completionCustodyBrand]: true });
+  completionCustodies.set(handle, {
+    binding: Object.freeze({
+      agentId,
+      profileId,
+      profileRevision: revision,
+      departement,
+      runId,
+      candidateIndex,
+    }),
+    streamOrdinals: Object.freeze(ordinals),
+    records: new Map(),
+    closed: false,
+  });
+  return handle;
+}
+
+/** Reject serialization callouts before validating any member of a mutable batch. */
+function completionCustodyDataIsInert(messages: readonly unknown[]): boolean {
+  const pending: unknown[] = [...messages];
+  const visited = new WeakSet<object>();
+  while (pending.length > 0) {
+    const value = pending.pop();
+    if (typeof value === "function" || typeof value === "bigint") {
+      return false;
+    }
+    if (value === null || typeof value !== "object") {
+      continue;
+    }
+    // Even prototype/descriptor inspection would invoke traps on a Proxy.
+    if (types.isProxy(value) || ArrayBuffer.isView(value) || types.isAnyArrayBuffer(value)) {
+      return false;
+    }
+    if (visited.has(value)) {
+      continue;
+    }
+    visited.add(value);
+    const array = Array.isArray(value);
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== null && prototype !== (array ? Array.prototype : Object.prototype)) {
+      return false;
+    }
+    for (
+      let inherited = prototype;
+      inherited !== null;
+      inherited = Object.getPrototypeOf(inherited)
+    ) {
+      if (inherited !== Object.prototype && inherited !== Array.prototype) {
+        return false;
+      }
+      const hook = Object.getOwnPropertyDescriptor(inherited, "toJSON");
+      if (hook && (!Object.hasOwn(hook, "value") || typeof hook.value === "function")) {
+        return false;
+      }
+    }
+    let length = 0;
+    if (array) {
+      const size: unknown = Object.getOwnPropertyDescriptor(value, "length")?.value;
+      if (typeof size !== "number" || !Number.isSafeInteger(size) || size < 0) {
+        return false;
+      }
+      length = size;
+    }
+    let indices = 0;
+    for (const key of Reflect.ownKeys(value)) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor || !Object.hasOwn(descriptor, "value")) {
+        return false;
+      }
+      pending.push(descriptor.value);
+      if (array && typeof key === "string") {
+        const index = Number(key);
+        if (Number.isInteger(index) && index >= 0 && index < length && String(index) === key) {
+          indices++;
+        }
+      }
+    }
+    // JSON reads inherited indices for holes; counting own indices avoids probing a huge sparse array.
+    if (array && indices !== length) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** Terminal even when incomplete or invalid; detach retained originals before any fallible lookup. */
+export function consumeOpsysRuntimeCompletionCustody(
+  handle: unknown,
+): readonly CompletionCustodyRecord[] | undefined {
+  const state = completionCustodyState(handle);
+  if (!state || state.closed) {
+    return undefined;
+  }
+  state.closed = true;
+  const records = state.records;
+  state.records = undefined;
+  try {
+    if (!records || records.size !== state.streamOrdinals.length) {
+      return undefined;
+    }
+    const batch: CompletionCustodyRecord[] = [];
+    for (const ordinal of state.streamOrdinals) {
+      const record = records.get(ordinal);
+      if (!record) {
+        return undefined;
+      }
+      batch.push(record);
+    }
+    if (!completionCustodyDataIsInert(batch.map((record) => record.message))) {
+      return undefined;
+    }
+    // All graphs are inert before the first digest. With standard intrinsics, no user code
+    // can mutate an earlier member during this synchronous check; originals remain mutable after return.
+    for (const record of batch) {
+      if (getOpsysRuntimeCompletionReceipt(record.message, record.receipt) !== record.receipt) {
+        return undefined;
+      }
+    }
+    return Object.freeze(batch);
+  } catch {
+    return undefined;
+  } finally {
+    records?.clear();
+  }
+}
+
+/** Unknown handles are inert; closing never calls user code or restores closed custody. */
+export function closeOpsysRuntimeCompletionCustody(handle: unknown): void {
+  try {
+    const state = completionCustodyState(handle);
+    if (state) {
+      closeCompletionCustodyState(state);
+    }
+  } catch {
+    // Cleanup cannot turn an otherwise successful provider result into an error.
+  }
+}
+
+/** Read only the existing seal and lexical admission capture: no JSON, callback, await or dispatch. */
+function captureOpsysRuntimeCompletionCustody(
+  handle: unknown,
+  message: unknown,
+  capture: RuntimeReservationCapture,
+): void {
+  let state: CompletionCustodyState | undefined;
+  try {
+    state = completionCustodyState(handle);
+    if (!state || state.closed) {
+      return;
+    }
+    const receipt =
+      message !== null && typeof message === "object" ? completionReceipts.get(message) : undefined;
+    let receiptMatchesCapture = receipt !== undefined;
+    if (receipt) {
+      for (const field of completionBindingFields) {
+        if (receipt[field] !== capture[field]) {
+          receiptMatchesCapture = false;
+          break;
+        }
+      }
+    }
+    const binding = state.binding;
+    if (
+      !receipt ||
+      binding.agentId !== capture.agentId ||
+      binding.profileId !== capture.profileId ||
+      binding.profileRevision !== capture.profileRevision ||
+      binding.departement !== capture.departement ||
+      binding.runId !== capture.runId ||
+      binding.candidateIndex !== capture.candidateIndex ||
+      !receiptMatchesCapture ||
+      receipt.candidateIndex !== capture.candidateIndex ||
+      receipt.streamOrdinal !== capture.streamOrdinal ||
+      !state.streamOrdinals.includes(capture.streamOrdinal) ||
+      !state.records ||
+      state.records.has(capture.streamOrdinal)
+    ) {
+      closeCompletionCustodyState(state);
+      return;
+    }
+    state.records.set(capture.streamOrdinal, Object.freeze({ message, receipt }));
+  } catch {
+    if (state) {
+      closeCompletionCustodyState(state);
+    }
   }
 }
 
@@ -493,6 +766,8 @@ export function createOpsysRuntimeAdmissionStreamFn(params: {
   getCandidateIndex: () => number;
   signal?: AbortSignal;
   streamFn: StreamFn;
+  /** Private attempt-local custody; never supplied by provider/model JSON. */
+  completionCustody?: OpsysRuntimeCompletionCustody;
   /** Rechecks live host authority after budget admission and just before provider dispatch. */
   beforeProviderDispatch?: (signal: AbortSignal) => Promise<void>;
   /** Receives the admitted receipt only after its request match and live-authority recheck. */
@@ -500,6 +775,7 @@ export function createOpsysRuntimeAdmissionStreamFn(params: {
 }): StreamFn {
   let streamOrdinal = 0;
   return async (model, context, options) => {
+    const completionCustody = params.completionCustody;
     const signal = options?.signal ?? params.signal ?? new AbortController().signal;
     const ordinal = streamOrdinal++;
     const candidateIndex = params.getCandidateIndex();
@@ -564,6 +840,7 @@ export function createOpsysRuntimeAdmissionStreamFn(params: {
             signal,
           });
           sealOpsysRuntimeCompletion(message, capture, tokensReels);
+          captureOpsysRuntimeCompletionCustody(completionCustody, message, capture);
           return message;
         });
         return resultPromise;

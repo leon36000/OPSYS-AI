@@ -105,6 +105,7 @@ src/agents/agent-tools.before-tool-call.opsys-contexte.test.ts
 # Ces fichiers appartiennent aux projets agents et ne sont pas couverts par test:fast.
 src/agents/agent-tools.before-tool-call.opsys-runtime-deny.test.ts
 src/agents/embedded-agent-runner/opsys-runtime-admission.test.ts
+src/agents/embedded-agent-runner/opsys-runtime-completion-custody.test.ts
 src/agents/embedded-agent-runner/opsys-runtime-admission.python-http.integration.test.ts
 src/agents/embedded-agent-runner/run-entry.admission.integration.test.ts
 src/agents/embedded-agent-runner/run-entry.test.ts
@@ -269,6 +270,7 @@ extensions/voice-call/index.test.ts
 # et voisins du cycle attempt. Même lanceur canonique et broker hôte que la qualification locale.
 src/agents/embedded-agent-runner/run/attempt-phase-lifecycle.test.ts
 src/agents/embedded-agent-runner/run/attempt-prompt-submit.test.ts
+src/agents/embedded-agent-runner/run/attempt-prompt-submit.completion-custody.test.ts
 src/agents/harness/context-engine-turn-outbox.test.ts
 src/agents/harness/opsys-postflight-collector.sqlite.test.ts
 src/agents/harness/opsys-postflight-collector.test.ts

@@ -83,6 +83,7 @@ export async function submitEmbeddedAttemptPrompt(input: {
     | "sessionKey"
     | "skipPreparedUserTurnMessage"
     | "opsysPostflightCollector"
+    | "opsysCompletionCustody"
     | "userTurnTranscriptRecorder"
   >;
   activeSession: PromptSubmissionSession;
@@ -145,6 +146,7 @@ export async function submitEmbeddedAttemptPrompt(input: {
           getCandidateIndex: input.attempt.getAdmissionCandidateIndex ?? (() => -1),
           signal: input.attempt.abortSignal,
           streamFn: baseStreamFn,
+          completionCustody: input.attempt.opsysCompletionCustody,
           beforeProviderDispatch: async (signal) => {
             await input.attempt.opsysPostflightCollector?.prepareBeforeProviderDispatch(signal);
             await input.attempt.validateScheduledRuntimeAuthority?.(signal);
