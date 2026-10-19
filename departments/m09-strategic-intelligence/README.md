@@ -109,7 +109,7 @@ Le résolveur SQLite confronte l’alerte M8 reçue à sa publication et à son 
 
 `tests/test_suivi_m9_cible_core.py` couvre les vraies routes MCP HTTP, le profil runtime, les deux chaînes M10, la provenance et le changement de liaison. La configuration destinée au Core déclare une cible `ticket` ; ces essais Python/MCP ne certifient pas à eux seuls un parcours Gateway/TypeScript complet. La liaison de cible reste fermée hors SQLite selon le contrat du socle existant ; aucun oracle PostgreSQL M9 n’est revendiqué.
 
-Restent ouverts : rapport de décision complet, couverture/fraîcheur stratégique, interface dédiée, révision des suivis et clôture des actions terrain sur preuve, orchestration des actions dans les départements et qualification complète des parcours Core/mobile correspondants. L’ambition M9.10/M9.16/M9.17 est conservée, sans assimiler cette ouverture à leur livraison complète.
+Restent ouverts : rapport de décision complet, couverture/fraîcheur stratégique, tableau de bord stratégique complet, révision des suivis et clôture des actions terrain sur preuve, orchestration des actions dans les départements et qualification complète des parcours Core/mobile correspondants. L’ambition M9.10/M9.16/M9.17 est conservée, sans assimiler cette ouverture à leur livraison complète.
 
 
 ### Clôturer la revue humaine d’un suivi interne
@@ -155,3 +155,25 @@ y compris une clôture intervenue entre deux lectures, exige une reprise depuis 
 Une ligne trop volumineuse est refusée entière ; aucune action n’est masquée silencieusement.
 Ce lecteur ne crée aucune tâche dans un département et ne qualifie pas une interface
 Core/mobile. Le département et le produit restent **PARTIELS**.
+
+
+### Consulter les suivis internes dans la console
+
+L’onglet **Suivis stratégiques** ouvre `/opsys/strategie`. La personne saisit une référence
+ISO 8601 avec fuseau explicite ; aucune date courante n’est inventée. La page reprend
+`m9_lister_suivis_decision` : actions encore ouvertes, responsables, échéances originales,
+états face à la référence, total et reste. Les liens conservent référence et identité de vue.
+Une clôture ou une modification entre deux pages refuse la reprise et propose de recommencer.
+
+Le détail `/opsys/strategie/suivi?suivi_id=…` reprend `m9_lire_suivi_decision` et présente
+le plan initial, sa preuve historique M8 et la clôture humaine éventuelle. Les textes sont
+échappés. La session signée et le rôle SQL `admin` courant sont nécessaires pour lire ces données,
+y compris pour une personne portant aussi `nathan_owner` ; un cookie ancien ne maintient pas
+un rôle retiré. Aucun bouton d’exécution ou de clôture n’est ajouté.
+
+`tests/test_console_suivis_m9.py` parcourt les vraies routes HTTP, la session, les approbations
+et les preuves fictives SQLite/M8 : lecture et détail, pagination exhaustive sur plusieurs pages,
+reprise périmée, retrait du rôle, paramètres refusés, échappement et absence de mutation métier.
+Cette consultation constitue une tranche du tableau de bord M9 ; elle ne qualifie pas tout le
+tableau de bord exécutif, un téléphone physique, PostgreSQL, une action terrain ou la fraîcheur
+métier des preuves historiques.

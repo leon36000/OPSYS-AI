@@ -82,6 +82,7 @@ from . import (
     reception_digest_ui,
     ressources,
     securite,
+    strategie_suivis_ui,
     voicemail_ui,
 )
 from .securite import Configuration, Session
@@ -388,6 +389,7 @@ def creer_application(
     app.include_router(cfo_ui.creer_router(**callbacks_metier))
     app.include_router(calendrier_marketing_ui.creer_router(**callbacks_metier))
     app.include_router(marketing_performance_ui.creer_router(**callbacks_metier))
+    app.include_router(strategie_suivis_ui.creer_router(**callbacks_metier))
     app.include_router(marketing_cmo_ui.creer_router(**callbacks_metier))
     app.include_router(marketing_growth_ui.creer_router(**callbacks_metier))
     app.include_router(brand_ui.creer_router(**callbacks_metier))

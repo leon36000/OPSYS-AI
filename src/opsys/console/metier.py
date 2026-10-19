@@ -37,7 +37,11 @@ LECTURES = {
     "m7_lister_calendrier": "m07-marketing",
     "m7_lire_performance_campagnes": "m07-marketing",
     "m7_lire_dossier_medias": "m07-marketing",
+    "m9_lister_suivis_decision": "m09-strategic-intelligence",
+    "m9_lire_suivi_decision": "m09-strategic-intelligence",
 }
+# Les lecteurs M9 revérifient l'admin SQL de la persona : jamais la persona propriétaire, même cumulée.
+_LECTURES_ADMIN_M9 = frozenset({"m9_lister_suivis_decision", "m9_lire_suivi_decision"})
 COMMANDES = {
     "m1_importer_appel_manuellement": "m01-front-office",
     "m1_clore_transfert": "m01-front-office",
@@ -362,6 +366,8 @@ def executer(
     personne = identite.personne_active(cnx, session.utilisateur)
     if personne is None or not personne.roles.intersection({"nathan_owner", "admin"}):
         raise PermissionError("administration métier requise")
+    if nom in _LECTURES_ADMIN_M9 and "admin" not in personne.roles:
+        raise PermissionError("admin SQL requis pour les lectures M9")
     if nom == "m1_consigner_suivi_rappel" and session.expire <= datetime.now(UTC).timestamp():
         raise PermissionError("session de suivi expirée")
     if nom in {
@@ -536,7 +542,7 @@ def executer(
             )
         reponse = {**decision["reponse"], "approbation_id": ident}
     else:
-        role = "nathan_owner" if "nathan_owner" in personne.roles else "admin"
+        role = "nathan_owner" if "nathan_owner" in personne.roles and nom not in _LECTURES_ADMIN_M9 else "admin"
         with (
             contexte.appele_par_appareil(contexte.IdentiteAppelante(personne.identifiant, role, source="console")),
             contexte.appeler_en_tant_que(departement, origine=departement),

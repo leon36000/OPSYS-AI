@@ -32,6 +32,7 @@ ONGLETS = (
     ("marketing", "Marketing"),
     ("finance", "Finance"),
     ("fusion", "Fusion opérationnelle"),
+    ("strategie", "Suivis stratégiques"),
 )
 LIBELLES_MODES = {"ombre": "Ombre", "supervise": "Supervisé", "autonome": "Autonome"}
 STATUTS = {
