@@ -435,3 +435,4 @@ src/agents/agent-bundle-mcp-runtime.opsys-m6-po-authority.python-http.integratio
 src/agents/agent-bundle-mcp-runtime.opsys-m2-dossier.python-http.integration.test.ts
 src/agents/embedded-agent-runner/run/run-attempt-dispatch.owner.test.ts
 src/agents/private-single-provider-request.test.ts
+src/agents/m9-private-admission-binding.test.ts
