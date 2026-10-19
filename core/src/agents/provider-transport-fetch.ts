@@ -32,6 +32,7 @@ import {
 import type { Model } from "../llm/types.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { resolveDebugProxySettings } from "../proxy-capture/env.js";
+import { capturePrivateProviderRequestFence } from "./private-single-provider-request.js";
 import {
   ProviderHttpError,
   readResponseTextLimited,
@@ -719,10 +720,12 @@ export function buildGuardedModelFetch(
   timeoutMs?: number,
   options?: { sanitizeSse?: boolean },
 ): typeof fetch {
+  const boundPrivateRequestFence = capturePrivateProviderRequestFence();
   const requestConfig = resolveModelRequestPolicy(model);
   const dispatcherPolicy = buildProviderRequestDispatcherPolicy(requestConfig);
   const requestTimeoutMs = resolveModelRequestTimeoutMs(model, timeoutMs);
   return async (input, init) => {
+    const privateRequestFence = capturePrivateProviderRequestFence(boundPrivateRequestFence);
     let localServiceLease: ProviderLocalServiceLease | undefined;
     const request = input instanceof Request ? new Request(input, init) : undefined;
     const rawUrl =
@@ -761,11 +764,25 @@ export function buildGuardedModelFetch(
     const baseInit =
       requestInit ??
       (swappedEgress.headers && init ? { ...init, headers: swappedEgress.headers } : init);
-    const baseSignal = baseInit?.signal ?? undefined;
+    privateRequestFence?.validateFetch(model, url, baseInit);
+    let baseSignal = baseInit?.signal ?? undefined;
+    if (privateRequestFence) {
+      baseSignal = baseSignal
+        ? AbortSignal.any([baseSignal, privateRequestFence.signal])
+        : privateRequestFence.signal;
+    }
     const localServiceSignal = buildModelRequestSignal(baseSignal, requestTimeoutMs);
     const guardedFetchOptions = {
       url,
       init: baseInit,
+      ...(privateRequestFence
+        ? {
+            beforeRequest: () => {
+              privateRequestFence.validateFetch(model, url, baseInit);
+              privateRequestFence.claim();
+            },
+          }
+        : {}),
       capture: {
         meta: {
           provider: model.provider,

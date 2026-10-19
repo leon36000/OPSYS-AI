@@ -692,6 +692,8 @@ async function fetchWithSsrFGuardInternal(
             : {}),
         },
       };
+      assertCurrent?.();
+      init.signal?.throwIfAborted();
       // Only transport rejection belongs here, not policy or capture failures.
       try {
         response = shouldUseRuntimeFetch
