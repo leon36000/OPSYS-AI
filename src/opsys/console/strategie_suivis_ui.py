@@ -16,6 +16,7 @@ from .securite import Session
 _PARAMETRES_LISTE = frozenset({"horodatage_reference", "depart", "vue_attendue"})
 _PARAMETRES_DETAIL = frozenset({"suivi_id"})
 _PARAMETRES_BILAN = frozenset({"debut", "fin", "depart", "vue_attendue"})
+_PARAMETRES_RAPPORT = frozenset({"debut", "fin", "depart", "vue_attendue"})
 _DEPART = re.compile(r"0|[1-9][0-9]{0,8}")
 _CODE_REFUS = re.compile(r"REJ-[A-Z0-9][A-Z0-9-]{0,80}")
 _PROFONDEUR_MAX = 12
@@ -199,6 +200,58 @@ def creer_router(
             suivant = lien_bilan(debut=debut, fin=fin, depart=prochain, vue_attendue=vue)
         return page(session, _formulaire_bilan(prefixe, debut, fin) + _bilan(rapport, suivant))
 
+    def lien_rapport(**parametres: Any) -> str:
+        cible = f"{prefixe}/strategie/rapport"
+        return f"{cible}?{urlencode(parametres)}" if parametres else cible
+
+    @router.get("/strategie/rapport", response_class=HTMLResponse)
+    def page_rapport(request: Request) -> HTMLResponse:
+        session = session_page(request)
+        # Même garde que le bilan : admin SQL rechargé, avant le formulaire vide et toute analyse.
+        if "admin" not in session.roles:
+            raise HTTPException(403, "accès métier refusé")
+        valeurs = _valeurs(request, _PARAMETRES_RAPPORT)
+        if not valeurs:
+            return page(session, _formulaire_rapport(prefixe, "", ""))
+        if not {"debut", "fin"} <= valeurs.keys():
+            raise HTTPException(400, "debut et fin explicites requis ensemble")
+        debut, fin = valeurs["debut"], valeurs["fin"]
+        arguments: dict[str, Any] = {"debut": debut, "fin": fin}
+        if "depart" in valeurs:
+            if not _DEPART.fullmatch(valeurs["depart"]):
+                raise HTTPException(400, "depart doit être un entier décimal positif ou nul")
+            arguments["depart"] = int(valeurs["depart"])
+        if "vue_attendue" in valeurs:
+            arguments["vue_attendue"] = valeurs["vue_attendue"]
+        reprise = arguments.get("depart", 0) > 0 or "vue_attendue" in arguments
+        recommencer = lien_rapport(debut=debut, fin=fin)
+        try:
+            rapport = lire(session, "m9_rapport_periode", arguments)
+        except _Refus as refus:
+            return page(session, _refus_html(
+                "Reprise refusée : la vue a changé ou est invalide. Recommencez la synthèse pour la même période."
+                if reprise else "Synthèse refusée par M9 pour cette période.",
+                refus.code,
+                recommencer,
+                "Recommencer la synthèse avec la même période",
+            ), 409 if reprise or not refus.invalide else 400)
+        # Aucun rendu partiel d'une réponse dont le type, la partialité ou les bornes diffèrent de la demande.
+        if (rapport.get("type") != "RAPPORT_PERIODE" or rapport.get("rapport_complet") is not False
+                or rapport.get("debut") != debut or rapport.get("fin") != fin):
+            return page(session, _refus_html(
+                "Réponse M9 non conforme : rien n’est affiché. Recommencez la synthèse pour la même période.",
+                "",
+                recommencer,
+                "Recommencer la synthèse avec la même période",
+            ), 409)
+        alertes = rapport.get("alertes_periode")
+        alertes = alertes if isinstance(alertes, Mapping) else {}
+        suivant = None
+        prochain, vue = alertes.get("prochain_depart"), rapport.get("vue")
+        if type(prochain) is int and prochain > 0 and isinstance(vue, str):
+            suivant = lien_rapport(debut=debut, fin=fin, depart=prochain, vue_attendue=vue)
+        return page(session, _formulaire_rapport(prefixe, debut, fin) + _rapport(rapport, suivant))
+
     return router
 
 
@@ -206,6 +259,7 @@ def _formulaire(prefixe: str, reference: str) -> str:
     return (
         '<section class="carte pile"><h2>Échéancier des suivis ouverts</h2>'
         f'<p><a href="{pages.e(prefixe)}/strategie/bilan">Bilan historique des suivis</a></p>'
+        f'<p><a href="{pages.e(prefixe)}/strategie/rapport">Synthèse de période</a></p>'
         f'<form method="get" action="{pages.e(prefixe)}/strategie" class="pile">'
         '<label for="horodatage_reference">Référence ISO 8601 avec fuseau explicite</label>'
         f'<input id="horodatage_reference" name="horodatage_reference" required value="{pages.e(reference)}">'
@@ -393,5 +447,97 @@ def _bilan(rapport: Mapping[str, Any], suivant: str | None) -> str:
                            '</article>')
     if suivant is not None:
         contenu.append(f'<p><a href="{pages.e(suivant)}">Page suivante (même période et même vue)</a></p>')
+    contenu.append('</section>')
+    return ''.join(contenu)
+
+
+def _formulaire_rapport(prefixe: str, debut: str, fin: str) -> str:
+    return (
+        '<section class="carte pile"><h2>Synthèse de période</h2>'
+        f'<form method="get" action="{pages.e(prefixe)}/strategie/rapport" class="pile">'
+        '<label for="debut">Début inclus — ISO 8601 avec fuseau explicite</label>'
+        f'<input id="debut" name="debut" required value="{pages.e(debut)}">'
+        '<label for="fin">Fin exclue — ISO 8601 avec fuseau explicite</label>'
+        f'<input id="fin" name="fin" required value="{pages.e(fin)}">'
+        '<p class="note">Début inclus, fin exclue, fuseau explicite ; aucune date déduite de l’horloge.</p>'
+        '<button type="submit" class="principal">Afficher la synthèse de période</button></form></section>'
+    )
+
+
+def _rapport(rapport: Mapping[str, Any], suivant: str | None) -> str:
+    suivis = rapport.get("suivis")
+    suivis = suivis if isinstance(suivis, Mapping) else {}
+    compteurs = suivis.get("compteurs")
+    compteurs = compteurs if isinstance(compteurs, Mapping) else {}
+    alertes = rapport.get("alertes_periode")
+    alertes = alertes if isinstance(alertes, Mapping) else {}
+    contenu = [
+        '<section class="carte pile"><h2>Limites de la synthèse</h2>',
+        f'<p>Statut : {_arbre(rapport.get("statut"))} · '
+        f'Actualité métier : {_arbre(rapport.get("actualite_metier"))} · '
+        f'Rapport complet : {_arbre(rapport.get("rapport_complet"))}</p>',
+        '<p class="message message-alerte" role="status">Synthèse interne partielle : alertes M8 connues à la '
+        "lecture, filtrées sur l’instant de référence chantier. Ce n’est pas le rapport exécutif hebdomadaire "
+        "M9.6 ; n’atteste ni action terrain, ni cause, ni fraîcheur, ni complétude.</p>",
+        f'<p>Période : du {_arbre(rapport.get("debut"))} inclus au {_arbre(rapport.get("fin"))} exclu</p>',
+        '<h3>Décisions humaines sur la période</h3>',
+    ]
+    for cle, libelle, brut in (
+        ("ouverts_periode", "Suivis ouverts pendant la période", compteurs.get("ouverts_periode")),
+        ("clotures_periode", "Suivis clos par revue humaine pendant la période", compteurs.get("clotures_periode")),
+        ("ouverts_fin", "Suivis encore ouverts juste avant la fin", compteurs.get("ouverts_fin")),
+        ("suivis_total", "Suivis pertinents pour la période", suivis.get("total")),
+        ("alertes_total", "Alertes M8 connues à la lecture dans la période", alertes.get("total")),
+    ):
+        valeur = _compte(brut)
+        contenu.append(f'<p data-compteur="{cle}" data-valeur="{pages.e(valeur)}">'
+                       f'{libelle} : {pages.e(valeur)}</p>')
+    contenu.append('<h3>Alertes M8 de cette page</h3>')
+    for cle, libelle in (
+        ("depart", "Position de départ de cette page"),
+        ("affichees", "Alertes affichées sur cette page"),
+        ("reste", "Alertes restant après cette page"),
+    ):
+        contenu.append(f'<p data-page="{cle}">{libelle} : {pages.e(_compte(alertes.get(cle)))}</p>')
+    contenu.append(f'<p>Ordre natif : {_arbre(alertes.get("ordre"))}</p>')
+    liste = alertes.get("alertes")
+    if not isinstance(liste, (list, tuple)):
+        contenu.append('<p class="message message-alerte">Alertes indisponibles.</p>')
+    elif not liste:
+        contenu.append('<p class="vide">Aucune alerte M8 sur cette page.</p>')
+    else:
+        for alerte in liste:
+            ident = alerte.get("evenement_id") if isinstance(alerte, Mapping) else None
+            if not isinstance(ident, str):
+                contenu.append('<p class="message message-alerte">Alerte illisible.</p>')
+                continue
+            metrique = alerte.get("metric_id")
+            contenu.append(f'<article class="carte pile" data-evenement-id="{pages.e(ident)}" '
+                           f'data-metric-id="{pages.e(metrique if isinstance(metrique, str) else "")}">'
+                           f'<h4>Alerte {pages.e(ident)}</h4>'
+                           f'<p>Événement : {pages.e(ident)} · Métrique : {_arbre(metrique)}</p>'
+                           '<p>Instant de référence chantier (pas de réception) : '
+                           f'{_arbre(alerte.get("horodatage_reference"))}</p>'
+                           f'<p>Alerte M8 originale et preuve complète :</p>{_arbre(alerte)}'
+                           '</article>')
+    contenu.append('<h3>Manques déclarés par M9</h3>')
+    manques = rapport.get("manques")
+    if not isinstance(manques, (list, tuple)):
+        contenu.append('<p class="message message-alerte">Manques indisponibles.</p>')
+    else:
+        contenu.append('<ul>')
+        for manque in manques:
+            if isinstance(manque, Mapping):
+                contenu.append(f'<li>{_arbre(manque.get("section"))} : {_arbre(manque.get("constat"))} — '
+                               f'{_arbre(manque.get("verifie"))}</li>')
+            else:
+                contenu.append('<li class="message message-alerte">Manque illisible.</li>')
+        contenu.append('</ul>')
+    if suivant is not None:
+        contenu.append(f'<p><a href="{pages.e(suivant)}">Page suivante (même période et même vue)</a></p>')
+    elif alertes.get("prochain_depart") is not None:
+        contenu.append('<p class="message message-alerte">Page suivante indisponible : reprise mal formée.</p>')
+    else:
+        contenu.append("<p>Fin des alertes connues à la lecture pour cette période.</p>")
     contenu.append('</section>')
     return ''.join(contenu)

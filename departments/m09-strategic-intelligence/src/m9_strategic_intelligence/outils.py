@@ -57,6 +57,7 @@ import yaml
 
 from opsys import approbations, approbations_appareil, contexte, identite, jetons, stockage
 from opsys.departements import charger_departements
+from opsys.evenements import schemas
 from opsys.outils import Autonomie, Niveau, Outil, depuis_couple
 
 from . import (
@@ -68,6 +69,7 @@ from . import (
     echeancier_suivis,
     lecture_alertes,
     lecture_strategique,
+    rapport_periode,
     rapport_strategique,
     registre,
     suivi_decisions,
@@ -267,6 +269,25 @@ def outils(
         clotures = list(stockage.maillons("m09-strategic-intelligence", "clotures_suivi_decisions"))
         return bilan_suivis.bilan_suivis_decision(
             suivis, clotures, debut, fin, depart, vue_attendue, budget_caracteres=BUDGET_SORTIE,
+        )
+
+    def lire_rapport_periode(
+        debut: str, fin: str, depart: int = 0, vue_attendue: str | None = None,
+    ) -> dict[str, Any]:
+        # Rôle SQL revérifié avant les trois registres, lus dans la même transaction ; ni file ni état courant.
+        _exiger_admin_pour_appareil()
+        suivis = list(stockage.maillons("m09-strategic-intelligence", "suivi_decisions"))
+        clotures = list(stockage.maillons("m09-strategic-intelligence", "clotures_suivi_decisions"))
+        alertes = list(alertes_cible)
+        # Schéma du catalogue sur CHAQUE alerte reçue, hors période comprise, avant tout filtre.
+        for rang, alerte in enumerate(alertes):
+            if schemas.erreurs_charge("m8.alerte_proposee", alerte):
+                raise ValueError(
+                    f"REJ-RAPPORT-ALERTE : alerte M8 reçue de rang {rang} non conforme au schéma m8.alerte_proposee"
+                )
+        return rapport_periode.assembler_rapport_periode(
+            suivis, clotures, [dict(alerte) for alerte in alertes], debut, fin, depart, vue_attendue,
+            budget_caracteres=BUDGET_SORTIE,
         )
 
     def preparer_cloture_suivi_decision(suivi_id: str, evenement_id: str) -> dict[str, Any]:
@@ -828,6 +849,43 @@ def outils(
                 "additionalProperties": False,
             },
             fonction=bilan_suivis_decision,
+            autonomie=Autonomie.T0,
+            roles_appareil=frozenset({"admin"}),
+        ),
+        Outil(
+            nom="m9_rapport_periode",
+            description="Synthèse INTERNE d'une période [debut, fin) explicite : compteurs, total et vue du bilan "
+                        "des suivis internes (sans ses lignes) et alertes M8 reçues dont l'instant de référence "
+                        "chantier tombe dans la période, connues à la lecture (une alerte reçue plus tard s'ajoute). "
+                        "File d'approbation, snapshots et instant de réception non couverts : signalés dans "
+                        "`manques`. Lecture pure, bornée : quand `prochain_depart` n'est pas nul, rappeler avec ce "
+                        "`depart` et `vue_attendue` égal à `vue`. Alerte, plan ou clôture incohérent, même hors "
+                        "période : refus. N'atteste ni action terrain, ni cause, ni actualité métier.",
+            parametres={
+                "type": "object",
+                "properties": {
+                    "debut": {
+                        "type": "string", "minLength": 1,
+                        "description": "Début inclus, ISO 8601 avec fuseau explicite, fourni par l'appelant.",
+                    },
+                    "fin": {
+                        "type": "string", "minLength": 1,
+                        "description": "Fin exclue, ISO 8601 avec fuseau explicite, postérieure à `debut`.",
+                    },
+                    "depart": {
+                        "type": "integer", "minimum": 0,
+                        "description": "Rang de la première alerte rendue (0 = début, défaut) : `prochain_depart` "
+                                       "de la page précédente.",
+                    },
+                    "vue_attendue": {
+                        "type": "string",
+                        "description": "`vue` (64 hexadécimaux) de la page précédente ; requise si `depart` > 0.",
+                    },
+                },
+                "required": ["debut", "fin"],
+                "additionalProperties": False,
+            },
+            fonction=lire_rapport_periode,
             autonomie=Autonomie.T0,
             roles_appareil=frozenset({"admin"}),
         ),

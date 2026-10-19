@@ -204,3 +204,23 @@ est refusée et la personne peut recommencer pour les mêmes bornes. Chaque lign
 contenu historique sur place : aucun lien vers le détail courant n’ajoute une clôture postérieure
 à la période. Ces revues humaines ne prouvent aucune action terrain ni actualité métier ; ce
 bilan de suivis constitue une tranche du rapport exécutif hebdomadaire, qui reste incomplet.
+
+
+### Synthèse interne de période (tranche du rapport hebdomadaire)
+
+`m9_rapport_periode` relit les alertes M8 déjà reçues et les compteurs du bilan des suivis
+pour des bornes explicites `[debut, fin)`. Le filtre utilise l’instant de référence du chantier,
+pas l’heure de réception : une alerte reçue tardivement peut donc enrichir une période passée.
+La réponse dit ce qui est connu à la lecture, sans prétendre figer l’état de l’entreprise à la fin
+de la période. La file des demandes actuellement en attente et les derniers snapshots ne sont
+pas transformés en faits historiques ; leurs limites figurent dans les données manquantes.
+
+La lecture admin SQL ne produit aucun événement ni mutation. Elle valide toutes les alertes
+reçues avant filtrage, réutilise les compteurs du bilan et mesure la réponse entière avant de
+paginer. Une reprise périmée ou une pièce dépassant seule le budget est refusée, sans troncature.
+Cette synthèse reste partielle : elle ne prouve ni effet terrain, fraîcheur, causalité, rapport
+exécutif complet, parcours Core/mobile ou PostgreSQL.
+
+La console admin propose aussi `/opsys/strategie/rapport` pour cette synthèse : bornes explicites,
+compteurs globaux, preuves M8 du bon chantier sur chaque page et manques visibles. Elle conserve
+les contrôles SQL courants et refuse les reprises périmées ; aucun rapport exécutif complet attesté.
