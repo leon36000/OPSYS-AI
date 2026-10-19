@@ -412,6 +412,7 @@ export async function prepareAndDispatchEmbeddedRunAttempt(input: {
     pluginRuntimeRefreshMessages: params.pluginRuntimeRefreshMessages,
     permissionChange: input.permissionChange,
     admittedRunContext: params.admittedRunContext,
+    getAdmissionCandidateIndex: params.getAdmissionCandidateIndex,
     startedAtMs: runInput.startedAtMs,
     contextEngineAgentId: runInput.contextEngineAgentId,
     ...(runtime.pluginHarnessOwnsTransport ? { sandbox: pluginSandbox } : {}),

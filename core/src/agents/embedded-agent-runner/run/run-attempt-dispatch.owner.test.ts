@@ -61,6 +61,7 @@ type DispatchCase = {
   realManagedWorkspace?: boolean;
   hostMedia?: "allowed" | "outside";
   retirePlacement?: boolean;
+  hostOrdinal?: number;
 };
 
 const dispatchCases: DispatchCase[] = [
@@ -70,6 +71,7 @@ const dispatchCases: DispatchCase[] = [
     remoteSkills: false,
     skillCatalog: "host" as const,
     oneShotCliRun: undefined,
+    hostOrdinal: 7,
   },
   {
     agentId: "work",
@@ -149,6 +151,7 @@ it.each(dispatchCases)(
     realManagedWorkspace,
     hostMedia,
     retirePlacement,
+    hostOrdinal,
   }) => {
     const gitCoauthorPrompt =
       "Git co-authors: add these exact trailers to every commit you make from this session.\n" +
@@ -281,21 +284,32 @@ it.each(dispatchCases)(
       });
       const admittedRunContext = await admission.admit("plugin-harness", "owner-test");
       setActivePluginRegistry(createEmptyPluginRegistry());
-      const runAttempt = vi.fn<AgentHarness["runAttempt"]>(async (params) => ({
-        terminal: { kind: "ok" },
-        sessionIdUsed: params.sessionId,
-        messagesSnapshot: [],
-        assistantTexts: [`${params.agentId} answered`],
-        toolMetas: [],
-        lastAssistant: undefined,
-        didSendViaMessagingTool: false,
-        messagingToolSentTexts: [],
-        messagingToolSentMediaUrls: [],
-        messagingToolSentTargets: [],
-        cloudCodeAssistFormatError: false,
-        replayMetadata: { hadPotentialSideEffects: false, replaySafe: true },
-        itemLifecycle: { startedCount: 0, completedCount: 0, activeCount: 0 },
-      }));
+      const getAdmissionCandidateIndex =
+        hostOrdinal === undefined ? undefined : vi.fn(() => hostOrdinal);
+      const runAttempt = vi.fn<AgentHarness["runAttempt"]>(async (params) => {
+        expect(params.getAdmissionCandidateIndex).toBe(getAdmissionCandidateIndex);
+        if (getAdmissionCandidateIndex) {
+          expect(getAdmissionCandidateIndex).not.toHaveBeenCalled();
+          expect(params.getAdmissionCandidateIndex?.()).toBe(7);
+          expect(params.getAdmissionCandidateIndex?.()).toBe(7);
+          expect(getAdmissionCandidateIndex).toHaveBeenCalledTimes(2);
+        }
+        return {
+          terminal: { kind: "ok" },
+          sessionIdUsed: params.sessionId,
+          messagesSnapshot: [],
+          assistantTexts: [`${params.agentId} answered`],
+          toolMetas: [],
+          lastAssistant: undefined,
+          didSendViaMessagingTool: false,
+          messagingToolSentTexts: [],
+          messagingToolSentMediaUrls: [],
+          messagingToolSentTargets: [],
+          cloudCodeAssistFormatError: false,
+          replayMetadata: { hadPotentialSideEffects: false, replaySafe: true },
+          itemLifecycle: { startedCount: 0, completedCount: 0, activeCount: 0 },
+        };
+      });
       registerAgentHarness({
         id: "owner-fixture",
         label: "Owner fixture",
@@ -313,6 +327,7 @@ it.each(dispatchCases)(
               managedSkillsDir: state.path("missing-managed-skills"),
             });
       const params = {
+        ...(getAdmissionCandidateIndex ? { getAdmissionCandidateIndex } : {}),
         admittedRunContext,
         agentId,
         config,
