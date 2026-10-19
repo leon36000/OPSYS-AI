@@ -1,15 +1,18 @@
+import { createHash } from "node:crypto";
 import type { StreamFn } from "openclaw/plugin-sdk/agent-core";
 import type { AssistantMessage, Context } from "openclaw/plugin-sdk/llm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { makeProviderModelFixture } from "../test-helpers/provider-model-fixture.js";
 import { createZeroUsageFixture } from "../test-helpers/usage-fixtures.js";
+import * as runtimeAdmission from "./opsys-runtime-admission.js";
 
 const mocks = vi.hoisted(() => ({ callOpsysMcpTool: vi.fn() }));
 vi.mock("../../context-engine/opsys-contexte-mcp.js", () => mocks);
 
 import {
   createOpsysRuntimeAdmissionStreamFn,
+  type OpsysRuntimeAdmissionReceipt,
   opsysRuntimeCompactionRefusal,
 } from "./opsys-runtime-admission.js";
 
@@ -756,4 +759,367 @@ describe("OPSYS provider cleanup certainty boundary", () => {
       headers: { Authorization: "Bearer synthetic-original-not-a-credential" },
     });
   });
+});
+
+// Private contract additions. All providers and MCP replies below are fictional;
+// these assertions are NOT execution evidence until the admitted Native run.
+describe("OPSYS host-owned completion receipt contract", () => {
+  beforeEach(() => {
+    mocks.callOpsysMcpTool.mockReset();
+  });
+
+  const model = makeProviderModelFixture({
+    id: "completion-fictif",
+    provider: "openai",
+    api: "openai-completions",
+    baseUrl: "https://example.invalid",
+    contextWindow: 64,
+    maxTokens: 16,
+  });
+  const context: Context = { messages: [] };
+  const reservationA = "11111111111111111111111111111111";
+  const reservationB = "22222222222222222222222222222222";
+
+  function messageFixture(): AssistantMessage {
+    return {
+      role: "assistant",
+      content: [{ type: "text", text: "Réponse fictive de conseil, non validée." }],
+      api: "openai-completions",
+      provider: "openai",
+      model: "completion-fictif",
+      usage: { ...createZeroUsageFixture(), output: 3, totalTokens: 3 },
+      stopReason: "stop",
+      timestamp: 1,
+    };
+  }
+
+  function expected(
+    runId = "completion-A",
+    candidateIndex = 2,
+    ordinal = 0,
+  ): OpsysRuntimeAdmissionReceipt {
+    return {
+      agentId: "opsys-agent-demo",
+      profileId: "demo",
+      profileRevision: 1,
+      departement: "m01-front-office",
+      runId,
+      attemptId: `${runId}:${candidateIndex}`,
+      cycleId: `${runId}:${candidateIndex}:${ordinal}`,
+    };
+  }
+
+  function streamFixture(message: AssistantMessage, runId = "completion-A", candidateIndex = 2) {
+    const originalResult = vi.fn(async () => message);
+    const provider = vi.fn(async () => ({ result: originalResult })) as unknown as StreamFn;
+    const guarded = createOpsysRuntimeAdmissionStreamFn({
+      config,
+      agentId: "opsys-agent-demo",
+      runId,
+      getCandidateIndex: () => candidateIndex,
+      streamFn: provider,
+    });
+    return { originalResult, provider, open: () => guarded(model, context) };
+  }
+
+  function getCompletion(message: unknown, hostExpected: OpsysRuntimeAdmissionReceipt): unknown {
+    const getter: unknown = Reflect.get(runtimeAdmission, "getOpsysRuntimeCompletionReceipt");
+    expect(getter, "contractual completion getter must be exported").toBeTypeOf("function");
+    if (typeof getter !== "function") {
+      throw new Error("contractual completion getter is absent");
+    }
+    return getter(message, hostExpected);
+  }
+
+  function reconciliations() {
+    return mocks.callOpsysMcpTool.mock.calls.filter(([r]) => r.tool === "opsys_runtime_concilier");
+  }
+
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((done) => {
+      resolve = done;
+    });
+    return { promise, resolve };
+  }
+
+  it("binds exact result bytes only after result and verified reconciliation, with sanitized frozen receipt", async () => {
+    installRuntimeReplies([reservationA]);
+    const reply = mocks.callOpsysMcpTool.getMockImplementation()!;
+    const reconcileStarted = deferred<void>();
+    const allowReconcile = deferred<void>();
+    mocks.callOpsysMcpTool.mockImplementation(async (request: RuntimeRequest) => {
+      if (request.tool === "opsys_runtime_concilier") {
+        reconcileStarted.resolve(undefined);
+        await allowReconcile.promise;
+      }
+      return reply(request);
+    });
+    const message = messageFixture();
+    const fixture = streamFixture(message);
+    expect(getCompletion(message, expected())).toBeUndefined();
+    const stream = await fixture.open();
+    expect(getCompletion(message, expected())).toBeUndefined();
+    const pending = stream.result();
+    await reconcileStarted.promise;
+    expect(getCompletion(message, expected())).toBeUndefined();
+    allowReconcile.resolve(undefined);
+    await expect(pending).resolves.toBe(message);
+    const receipt = getCompletion(message, expected());
+    expect(receipt).toEqual({
+      ...expected(),
+      candidateIndex: 2,
+      streamOrdinal: 0,
+      tokensReels: 3,
+      resultSHA256: createHash("sha256").update(JSON.stringify(message), "utf8").digest("hex"),
+    });
+    expect(Object.isFrozen(receipt)).toBe(true);
+    if (receipt === null || typeof receipt !== "object") {
+      throw new Error("successful completion must expose an object receipt");
+    }
+    expect(Object.keys(receipt).toSorted()).toEqual(
+      [
+        ...Object.keys(expected()),
+        "candidateIndex",
+        "streamOrdinal",
+        "tokensReels",
+        "resultSHA256",
+      ].toSorted(),
+    );
+    expect(receipt).not.toHaveProperty("reservationId");
+    expect(receipt).not.toHaveProperty("config");
+    expect(fixture.originalResult).toHaveBeenCalledOnce();
+    expect(fixture.provider).toHaveBeenCalledOnce();
+    expect(reconciliations()).toHaveLength(1);
+  });
+
+  it.each([
+    ["agentId", "other-agent"],
+    ["profileId", "other-profile"],
+    ["profileRevision", 2],
+    ["departement", "m09-strategic-intelligence"],
+    ["runId", "other-run"],
+    ["attemptId", "other-attempt"],
+    ["cycleId", "other-cycle"],
+  ])("refuses lookup when the host expected tuple field %s differs", async (field, value) => {
+    installRuntimeReplies([reservationA]);
+    const message = messageFixture();
+    await (await streamFixture(message).open()).result();
+    expect(getCompletion(message, { ...expected(), [field]: value })).toBeUndefined();
+    expect(getCompletion(message, expected())).toBeDefined();
+  });
+
+  it("refuses an incomplete expected tuple even when a model supplies identical tuple and receipt JSON", async () => {
+    installRuntimeReplies([reservationA]);
+    const message = messageFixture();
+    const forged = message as unknown as Record<string, unknown>;
+    forged.hostReceipt = {
+      ...expected(),
+      candidateIndex: 2,
+      streamOrdinal: 0,
+      tokensReels: 3,
+      resultSHA256: "f".repeat(64),
+    };
+    await (await streamFixture(message).open()).result();
+    const incomplete = { ...expected() } as Partial<OpsysRuntimeAdmissionReceipt>;
+    delete incomplete.cycleId;
+    expect(getCompletion(message, incomplete as OpsysRuntimeAdmissionReceipt)).toBeUndefined();
+    // Exercise an untrusted wire JSON copy rather than cloning a host object.
+    const wireMessage = JSON.stringify(message);
+    const copied = JSON.parse(wireMessage);
+    expect(getCompletion(copied, expected())).toBeUndefined();
+    expect(getCompletion(forged.hostReceipt, expected())).toBeUndefined();
+    expect(getCompletion(message, expected())).toBeDefined();
+  });
+
+  it("memoizes concurrent and repeated result calls without rereading or reconciling", async () => {
+    installRuntimeReplies([reservationA]);
+    const message = messageFixture();
+    const fixture = streamFixture(message);
+    const pendingMessage = deferred<AssistantMessage>();
+    fixture.originalResult.mockImplementation(() => pendingMessage.promise);
+    const stream = await fixture.open();
+    const calls = [stream.result(), stream.result(), stream.result()];
+    expect(getCompletion(message, expected())).toBeUndefined();
+    pendingMessage.resolve(message);
+    const results = await Promise.all(calls);
+    expect(results.every((r) => r === message)).toBe(true);
+    await expect(stream.result()).resolves.toBe(message);
+    expect(fixture.originalResult).toHaveBeenCalledOnce();
+    expect(fixture.provider).toHaveBeenCalledOnce();
+    expect(reconciliations()).toHaveLength(1);
+    expect(getCompletion(message, expected())).toBeDefined();
+  });
+
+  it("same object and same bytes across cycles retain only A binding while each stream reconciles once", async () => {
+    installRuntimeReplies([reservationA, reservationB]);
+    const message = messageFixture();
+    const originalBytes = JSON.stringify(message);
+    const a = streamFixture(message, "completion-A", 2);
+    const streamA = await a.open();
+    await Promise.all([streamA.result(), streamA.result()]);
+    const receiptA = getCompletion(message, expected());
+    expect(receiptA).toBeDefined();
+    const b = streamFixture(message, "completion-B", 0);
+    const streamB = await b.open();
+    const resultsB = await Promise.all([streamB.result(), streamB.result()]);
+    expect(resultsB[0]).toBe(message);
+    expect(resultsB[1]).toBe(message);
+    expect(JSON.stringify(message)).toBe(originalBytes);
+    expect(getCompletion(message, expected("completion-B", 0))).toBeUndefined();
+    expect(getCompletion(message, expected())).toEqual(receiptA);
+    await Promise.all([streamA.result(), streamB.result()]);
+    expect(a.originalResult).toHaveBeenCalledOnce();
+    expect(b.originalResult).toHaveBeenCalledOnce();
+    expect(a.provider).toHaveBeenCalledOnce();
+    expect(b.provider).toHaveBeenCalledOnce();
+    expect(reconciliations()).toHaveLength(2);
+    expect(mocks.callOpsysMcpTool).toHaveBeenCalledTimes(4);
+  });
+
+  it("rejects lookup for mutation of content or usage and permits only current original serialized bytes", async () => {
+    installRuntimeReplies([reservationA]);
+    const message = messageFixture();
+    await (await streamFixture(message).open()).result();
+    const originalBytes = JSON.stringify(message);
+    const receipt = getCompletion(message, expected());
+    message.content = [{ type: "text", text: "Valeur fictive modifiée après résultat" }];
+    expect(getCompletion(message, expected())).toBeUndefined();
+    Object.assign(message, JSON.parse(originalBytes));
+    message.usage.totalTokens = 4;
+    expect(getCompletion(message, expected())).toBeUndefined();
+    Object.assign(message, JSON.parse(originalBytes));
+    expect(getCompletion(message, expected())).toEqual(receipt);
+    expect(reconciliations()).toHaveLength(1);
+  });
+
+  it.each(["cyclic", "bigint", "toJSON throws"])(
+    "sealing failure %s after successful reconciliation gives no proof and no new rejection/retry",
+    async (cause) => {
+      installRuntimeReplies([reservationA]);
+      const message = messageFixture();
+      const raw = message as unknown as Record<string, unknown>;
+      if (cause === "cyclic") {
+        raw.self = message;
+      } else if (cause === "bigint") {
+        raw.extra = BigInt(1);
+      } else {
+        raw.toJSON = () => {
+          throw new Error("fictional serialization failure");
+        };
+      }
+      const fixture = streamFixture(message);
+      const stream = await fixture.open();
+      const results = await Promise.all([stream.result(), stream.result()]);
+      expect(results[0]).toBe(message);
+      expect(results[1]).toBe(message);
+      await expect(stream.result()).resolves.toBe(message);
+      expect(() => getCompletion(message, expected())).not.toThrow();
+      expect(getCompletion(message, expected())).toBeUndefined();
+      expect(fixture.originalResult).toHaveBeenCalledOnce();
+      expect(fixture.provider).toHaveBeenCalledOnce();
+      expect(reconciliations()).toHaveLength(1);
+    },
+  );
+
+  it("lookup serialization failure never throws and never overwrites the original association", async () => {
+    installRuntimeReplies([reservationA]);
+    const message = messageFixture();
+    await (await streamFixture(message).open()).result();
+    const receipt = getCompletion(message, expected());
+    const raw = message as unknown as Record<string, unknown>;
+    raw.self = message;
+    expect(() => getCompletion(message, expected())).not.toThrow();
+    expect(getCompletion(message, expected())).toBeUndefined();
+    delete raw.self;
+    expect(getCompletion(message, expected())).toEqual(receipt);
+  });
+
+  it("pre-dispatch withdrawal publishes no completion and calls no provider", async () => {
+    installRuntimeReplies([reservationA]);
+    const message = messageFixture();
+    const provider = vi.fn() as unknown as StreamFn;
+    const guarded = createOpsysRuntimeAdmissionStreamFn({
+      config,
+      agentId: "opsys-agent-demo",
+      runId: "completion-A",
+      getCandidateIndex: () => 2,
+      streamFn: provider,
+      beforeProviderDispatch: async () => {
+        throw new Error("authority withdrawn fictif");
+      },
+    });
+    await expect(guarded(model, context)).rejects.toThrow("authority withdrawn fictif");
+    expect(provider).not.toHaveBeenCalled();
+    expect(getCompletion(message, expected())).toBeUndefined();
+    expect(reconciliations()).toHaveLength(0);
+    expect(mocks.callOpsysMcpTool).toHaveBeenCalledTimes(2);
+  });
+
+  it("provider result rejection is cached without proof, reconciliation or automatic retry", async () => {
+    installRuntimeReplies([reservationA]);
+    const message = messageFixture();
+    const fixture = streamFixture(message);
+    const failure = new Error("fictional provider result UNKNOWN");
+    fixture.originalResult.mockRejectedValue(failure);
+    const stream = await fixture.open();
+    const results = await Promise.allSettled([stream.result(), stream.result()]);
+    expect(results).toEqual([
+      { status: "rejected", reason: failure },
+      { status: "rejected", reason: failure },
+    ]);
+    await expect(stream.result()).rejects.toBe(failure);
+    expect(getCompletion(message, expected())).toBeUndefined();
+    expect(fixture.originalResult).toHaveBeenCalledOnce();
+    expect(fixture.provider).toHaveBeenCalledOnce();
+    expect(reconciliations()).toHaveLength(0);
+    expect(mocks.callOpsysMcpTool).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([0, undefined, Number.NaN])(
+    "unreliable usage %s is cached as rejection with no completion",
+    async (usage) => {
+      installRuntimeReplies([reservationA]);
+      const message = messageFixture();
+      (message.usage as unknown as Record<string, unknown>).totalTokens = usage;
+      const fixture = streamFixture(message);
+      const stream = await fixture.open();
+      await expect(stream.result()).rejects.toThrow("no reliable token usage");
+      await expect(stream.result()).rejects.toThrow("no reliable token usage");
+      expect(getCompletion(message, expected())).toBeUndefined();
+      expect(fixture.originalResult).toHaveBeenCalledOnce();
+      expect(reconciliations()).toHaveLength(0);
+      expect(mocks.callOpsysMcpTool).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each(["rpc failure", "wrong tuple"])(
+    "reconciliation %s leaves no completion and is never retried",
+    async (cause) => {
+      installRuntimeReplies([reservationA]);
+      const original = mocks.callOpsysMcpTool.getMockImplementation()!;
+      mocks.callOpsysMcpTool.mockImplementation(async (request: RuntimeRequest) => {
+        const reply = await original(request);
+        if (request.tool !== "opsys_runtime_concilier") {
+          return reply;
+        }
+        if (cause === "rpc failure") {
+          throw new Error("fictional reconciliation outcome UNKNOWN");
+        }
+        return { ...reply, resultat: { ...reply.resultat, agent_id: "other-profile" } };
+      });
+      const message = messageFixture();
+      const fixture = streamFixture(message);
+      const stream = await fixture.open();
+      const results = await Promise.allSettled([stream.result(), stream.result()]);
+      expect(results[0].status).toBe("rejected");
+      expect(results[1]).toEqual(results[0]);
+      await expect(stream.result()).rejects.toThrow();
+      expect(getCompletion(message, expected())).toBeUndefined();
+      expect(fixture.originalResult).toHaveBeenCalledOnce();
+      expect(fixture.provider).toHaveBeenCalledOnce();
+      expect(reconciliations()).toHaveLength(1);
+      expect(mocks.callOpsysMcpTool).toHaveBeenCalledTimes(2);
+    },
+  );
 });

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { StreamFn } from "openclaw/plugin-sdk/agent-core";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { callOpsysMcpTool } from "../../context-engine/opsys-contexte-mcp.js";
@@ -17,6 +18,67 @@ export type OpsysRuntimeAdmissionReceipt = Readonly<{
   cycleId: string;
 }>;
 
+/** Historical host binding to one reconciled original result; not current authority or semantic truth. */
+export type OpsysRuntimeCompletionReceipt = Readonly<
+  OpsysRuntimeAdmissionReceipt & {
+    candidateIndex: number;
+    streamOrdinal: number;
+    resultSHA256: string;
+    tokensReels: number;
+  }
+>;
+
+const completionReceipts = new WeakMap<object, OpsysRuntimeCompletionReceipt>();
+const completionBindingFields = [
+  "agentId",
+  "profileId",
+  "profileRevision",
+  "departement",
+  "runId",
+  "attemptId",
+  "cycleId",
+] as const satisfies readonly (keyof OpsysRuntimeAdmissionReceipt)[];
+
+function completionResultSHA256(message: object): string | undefined {
+  try {
+    const bytes = JSON.stringify(message);
+    return typeof bytes === "string"
+      ? createHash("sha256").update(bytes, "utf8").digest("hex")
+      : undefined;
+  } catch {
+    // Serialization can invoke getters/toJSON or encounter a cycle/BigInt; proof stays absent.
+    return undefined;
+  }
+}
+
+/** Only the exact original object, expected host tuple and current serialized bytes can retrieve proof. */
+export function getOpsysRuntimeCompletionReceipt(
+  message: unknown,
+  expected: OpsysRuntimeAdmissionReceipt,
+): OpsysRuntimeCompletionReceipt | undefined {
+  try {
+    if (message === null || typeof message !== "object" || Array.isArray(message)) {
+      return undefined;
+    }
+    if (expected === null || typeof expected !== "object" || Array.isArray(expected)) {
+      return undefined;
+    }
+    const receipt = completionReceipts.get(message);
+    if (!receipt) {
+      return undefined;
+    }
+    for (const field of completionBindingFields) {
+      if (!Object.hasOwn(expected, field) || expected[field] !== receipt[field]) {
+        return undefined;
+      }
+    }
+    return completionResultSHA256(message) === receipt.resultSHA256 ? receipt : undefined;
+  } catch {
+    // Malformed host expectations or throwing accessors never create an observer failure.
+    return undefined;
+  }
+}
+
 type RuntimeProfileBinding = { profileId?: unknown; profileRevision?: unknown };
 type RuntimeReservationCapture = {
   readonly config: OpenClawConfig | undefined;
@@ -32,6 +94,45 @@ type RuntimeReservationCapture = {
   readonly tokensPlafond: number;
   readonly departement: string;
 };
+
+/** Best-effort proof only after exact reconciliation; never reject a known reconciled result. */
+function sealOpsysRuntimeCompletion(
+  message: unknown,
+  capture: RuntimeReservationCapture,
+  tokensReels: number,
+): void {
+  try {
+    if (message === null || typeof message !== "object" || Array.isArray(message)) {
+      return;
+    }
+    // A later cycle sharing this object cannot overwrite or claim the first association.
+    if (completionReceipts.has(message)) {
+      return;
+    }
+    const resultSHA256 = completionResultSHA256(message);
+    if (resultSHA256 === undefined) {
+      return;
+    }
+    completionReceipts.set(
+      message,
+      Object.freeze({
+        agentId: capture.agentId,
+        profileId: capture.profileId,
+        profileRevision: capture.profileRevision,
+        departement: capture.departement,
+        runId: capture.runId,
+        attemptId: capture.attemptId,
+        cycleId: capture.cycleId,
+        candidateIndex: capture.candidateIndex,
+        streamOrdinal: capture.streamOrdinal,
+        resultSHA256,
+        tokensReels,
+      }),
+    );
+  } catch {
+    // Missing proof must not change provider/reconciliation success or trigger another dispatch.
+  }
+}
 
 function admissionBinding(
   config: OpenClawConfig | undefined,
@@ -443,23 +544,29 @@ export function createOpsysRuntimeAdmissionStreamFn(params: {
     // Even a synchronous throw from streamFn is an invoked provider with an uncertain outcome.
     const stream = await params.streamFn(model, context, options);
     const originalResult = stream.result.bind(stream);
+    let resultPromise: ReturnType<typeof originalResult> | undefined;
     Object.defineProperty(stream, "result", {
       configurable: true,
-      value: async () => {
-        const message = await originalResult();
-        const usage = message.usage;
-        const tokensReels = usage?.totalTokens;
-        if (tokensReels === undefined || !Number.isSafeInteger(tokensReels) || tokensReels <= 0) {
-          throw new Error(
-            "provider returned no reliable token usage; OPSYS reservation remains open",
-          );
-        }
-        await reconcileCapturedOpsysRuntimeAdmission({
-          capture,
-          tokensReels,
-          signal,
+      value: () => {
+        // Assign the promise before invoking provider code, including synchronous throws/reentrancy.
+        resultPromise ??= Promise.resolve().then(async () => {
+          const message = await originalResult();
+          const usage = message.usage;
+          const tokensReels = usage?.totalTokens;
+          if (tokensReels === undefined || !Number.isSafeInteger(tokensReels) || tokensReels <= 0) {
+            throw new Error(
+              "provider returned no reliable token usage; OPSYS reservation remains open",
+            );
+          }
+          await reconcileCapturedOpsysRuntimeAdmission({
+            capture,
+            tokensReels,
+            signal,
+          });
+          sealOpsysRuntimeCompletion(message, capture, tokensReels);
+          return message;
         });
-        return message;
+        return resultPromise;
       },
     });
     return stream;
