@@ -54,12 +54,14 @@ function refuse(reason: string): Error {
   return new Error(`M9_PRIVATE_PREPARED_STREAM_${reason}`);
 }
 function throwFailures(errors: unknown[]): void {
-  if (errors.length === 1) {
-    throw errors[0];
+  // A retained failure may be observed again when its prepared lease is disposed.
+  const failures = Array.from(new Set(errors));
+  if (failures.length === 1) {
+    throw failures[0];
   }
-  if (errors.length > 1) {
-    throw new AggregateError(errors, "M9_PRIVATE_PREPARED_STREAM_MULTIPLE_FAILURES", {
-      cause: errors[0],
+  if (failures.length > 1) {
+    throw new AggregateError(failures, "M9_PRIVATE_PREPARED_STREAM_MULTIPLE_FAILURES", {
+      cause: failures[0],
     });
   }
 }

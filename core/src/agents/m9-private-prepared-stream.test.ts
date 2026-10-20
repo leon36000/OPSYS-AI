@@ -113,6 +113,8 @@ async function fixture(label = "") {
     missingUsage: false,
     failResult: false,
     failDispose: false,
+    resultFailure: new Error("fictitious provider failure"),
+    disposalFailure: new Error("fictitious disposal failure"),
   };
   const refusal = new Error("fictitious original source revoked");
   const assertSource = () => {
@@ -227,7 +229,7 @@ async function fixture(label = "") {
       fence.claim();
       calls.effects++;
       if (behavior.failResult) {
-        throw new Error("fictitious provider failure");
+        throw behavior.resultFailure;
       }
       if (behavior.missingUsage) {
         message.usage.totalTokens = 0;
@@ -263,7 +265,7 @@ async function fixture(label = "") {
       disposed = true;
       calls.dispose++;
       if (behavior.failDispose) {
-        throw new Error("fictitious disposal failure");
+        throw behavior.disposalFailure;
       }
     }
   };
@@ -515,6 +517,30 @@ describe("private M9 prepared stream owner", () => {
       expect(outcome.reason.errors).toHaveLength(2);
       expect(f.calls.dispatch).toBe(1);
       expect(f.calls.dispose).toBe(1);
+    }));
+  it("retains distinct same-message failures in order without retry", async () =>
+    withFixture(async (f) => {
+      const primary = new Error("fictitious same failure");
+      const disposal = new Error("fictitious same failure");
+      f.behavior.resultFailure = primary;
+      f.behavior.disposalFailure = disposal;
+      f.behavior.failResult = true;
+      f.behavior.failDispose = true;
+      const [outcome] = await Promise.allSettled([f.launch()]);
+      if (outcome.status !== "rejected") {
+        throw new Error("expected both distinct failures");
+      }
+      expect(outcome.reason).toBeInstanceOf(AggregateError);
+      expect(outcome.reason.errors).toHaveLength(2);
+      expect(outcome.reason.errors[0]).toBe(primary);
+      expect(outcome.reason.errors[1]).toBe(disposal);
+      expect(outcome.reason.cause).toBe(primary);
+      expect(f.calls).toMatchObject({ dispatch: 1, effects: 1, results: 1, dispose: 1 });
+      expect(
+        edge.callOpsysMcpTool.mock.calls.filter(
+          ([r]: [EdgeRequest]) => r.tool === "opsys_runtime_concilier",
+        ),
+      ).toHaveLength(0);
     }));
   it("rejects an exact shared source before taking a distinct second lease or binding", async () => {
     const first = await fixture("-shared-source-first");
