@@ -39,12 +39,13 @@ _OUTILS_M3 = frozenset({"m3_marquer_devis_accepte", "m3_demander_envoi_devis"})
 _OUTILS_M3_CREATION = frozenset({"m3_creer_devis"})
 OUTILS_CIBLES = _OUTILS_M2 | _OUTILS_M3 | _OUTILS_M3_CREATION
 _OUTILS_SUIVI_M9 = frozenset({"m9_ouvrir_suivi_decision"})
+_OUTILS_CLOTURE_M9 = frozenset({"m9_clore_suivi_decision"})
 # La proposition native M9 conserve son approbation dédiée sans ticket de transport.
 # Tous ses appels MCP, même /mcp sans département, exigent en revanche une cible vérifiée.
-# La clôture interne garde aussi la frontière MCP. Son émission de ticket Core
-# reste fermée : aucune projection privée de cette nouvelle mutation n’est qualifiée.
+# La clôture peut recevoir un ticket natif dédié. Sa configuration Core reste
+# inconnue tant que son observation finale et sa réconciliation ne sont pas qualifiées.
 OUTILS_CIBLES_CORE_TICKETS = OUTILS_CIBLES | _OUTILS_SUIVI_M9
-OUTILS_CIBLES_CORE = OUTILS_CIBLES_CORE_TICKETS | frozenset({"m9_clore_suivi_decision"})
+OUTILS_CIBLES_CORE = OUTILS_CIBLES_CORE_TICKETS | _OUTILS_CLOTURE_M9
 _CHAMPS_CIBLES = frozenset({
     "lead_id", "devis_id", "facture_id", "wct_id", "client_id", "chantier_id",
     "intervention_id", "po_id", "signal_id", "contenu_id", "avis_id", "creneau_id",
@@ -70,6 +71,14 @@ def cible_de_l_outil(nom_outil: str, arguments: Mapping[str, Any]) -> tuple[str,
     Cette vérification de forme ne prouve pas que l'objet existe ni qu'il est relié à l'affaire;
     ces contrôles sont faits à l'émission et à l'exécution depuis les registres canoniques.
     """
+    if nom_outil in _OUTILS_CLOTURE_M9:
+        suivi_id = arguments.get("suivi_id")
+        if (
+            set(arguments) != {"suivi_id", "empreinte_suivi", "evenement_id", "empreinte_preuve", "bilan"}
+            or not isinstance(suivi_id, str) or not suivi_id.strip()
+        ):
+            raise CibleRefusee("la clôture exige son suivi unique et ses seuls arguments contractuels")
+        return "m09-strategic-intelligence", suivi_id, "suivi_m9"
     if nom_outil in _OUTILS_SUIVI_M9:
         evenement_id = arguments.get("evenement_id")
         if (
@@ -221,6 +230,38 @@ def _revalider_suivi_m9(cnx: Connection, arguments: Mapping[str, Any], affaire_i
     return source["evenement_id"]
 
 
+def _revalider_cloture_m9(cnx: Connection, arguments: Mapping[str, Any], affaire_id: str) -> str:
+    from m9_strategic_intelligence import suivi_decisions
+    from m9_strategic_intelligence.encodage import empreinte
+
+    try:
+        plan = suivi_decisions.trouver_plan(
+            stockage.maillons("m09-strategic-intelligence", "suivi_decisions"), arguments["suivi_id"],
+        )
+        cloture = suivi_decisions.trouver_cloture(
+            stockage.maillons("m09-strategic-intelligence", "clotures_suivi_decisions"), arguments["suivi_id"],
+        )
+        alertes = list(stockage.maillons("m09-strategic-intelligence", "alertes_m8"))
+        preparation = suivi_decisions.preparer_cloture(plan, cloture, alertes, arguments["evenement_id"])
+        if (preparation["empreinte_suivi"], preparation["preuve"]["empreinte_source"]) != (
+            arguments["empreinte_suivi"], arguments["empreinte_preuve"],
+        ):
+            raise ValueError("empreintes de clôture discordantes")
+        suivi_decisions.texte(arguments["bilan"], "bilan", 2000)
+        origine = suivi_decisions.preparer_source(alertes, plan["source"]["evenement_id"])
+        if empreinte(plan["source"]) != empreinte(origine):
+            raise ValueError("source d'origine du plan discordante")
+    except (ValueError, TypeError, KeyError, RecursionError):
+        raise CibleRefusee("plan ou preuves de clôture absents, altérés ou invalides") from None
+    # Le hash du plan ne prouve pas sa provenance. Les deux sources doivent aussi
+    # rejoindre la publication, son reçu traité et le WCT canonique de cette affaire.
+    for source in (origine, preparation["preuve"]):
+        _revalider_suivi_m9(cnx, {
+            "evenement_id": source["evenement_id"], "empreinte_source": source["empreinte_source"],
+        }, affaire_id)
+    return arguments["suivi_id"]
+
+
 def _revalider_cible(cnx: Connection, outil: str, arguments: Mapping[str, Any], affaire_id: str,
                      ligne_liaison_id: str) -> tuple[str, str]:
     """Résout M2/M3 ou la preuve M9 et exige sa concordance avec le lien M10 courant."""
@@ -229,6 +270,8 @@ def _revalider_cible(cnx: Connection, outil: str, arguments: Mapping[str, Any], 
 
     if not affaire_m10.valide(affaire_id) or affaire_m10.genre(affaire_id) is None:
         raise CibleRefusee("affaire invalide")
+    if outil in _OUTILS_CLOTURE_M9:
+        return _revalider_cloture_m9(cnx, arguments, affaire_id), genre_cible
     if outil in _OUTILS_SUIVI_M9:
         return _revalider_suivi_m9(cnx, arguments, affaire_id), genre_cible
     # La clé de session est validée et comparée dans les fonctions d'émission/exécution.

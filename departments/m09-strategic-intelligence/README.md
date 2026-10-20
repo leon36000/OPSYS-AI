@@ -134,6 +134,24 @@ est distinct du Gateway et du téléphone. La mutation demeure fermée au MCP g�
 cible et aucun émetteur de ticket privé Core de clôture n’est livré par cette tranche.
 Les tests fictifs de `test_cloture_suivi_decisions.py` conservent cette séparation.
 
+La projection **native** de clôture accepte aussi un ticket privé lié au `suivi_id`,
+aux cinq arguments finaux et à la liaison M10 courante. À l’émission puis avant
+l’exécution approuvée, elle relit le plan et vérifie séparément la provenance
+canonique de sa preuve d’origine et de la preuve choisie : publication M8, reçu
+traité, WCT M4/M10 et affaire concordante. Un changement d’affaire ou de ligne de
+liaison invalide la demande non exécutée. Le ticket ne remplace jamais la demande
+N3 de clôture ni le rôle SQL courant `nathan_owner` ; l’ancien signataire de
+l’ouverture n’a pas à conserver ce rôle pour qu’un autre propriétaire actif
+approuve une revue distincte.
+
+`tests/test_cloture_suivi_m9_cible_core.py` couvre ce parcours SQLite et HTTP privé,
+les empreintes, les deux provenances distinctes et les refus avant effet. Les
+charges M3/M4 et la seconde alerte M8 sont explicitement fictives ; cette seconde
+alerte traverse le bus réel sans prétendre avoir été générée par M8. La
+configuration Core conserve la cible de clôture `inconnue` : son émetteur Core,
+l’observation finale et la réconciliation de clôture restent à livrer. Aucune
+qualification Gateway/mobile, PostgreSQL ou action terrain n’en découle.
+
 
 ### Retrouver les actions assignées encore ouvertes
 
