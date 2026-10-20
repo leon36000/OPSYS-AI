@@ -212,6 +212,15 @@ function deferred() {
 }
 
 const config: OpenClawConfig = {
+  models: {
+    providers: {
+      openai: {
+        baseUrl: "https://public.example/v1",
+        apiKey: "fictitious-not-a-secret",
+        models: [],
+      },
+    },
+  },
   agents: {
     entries: {
       "fictitious-m9": { opsysRuntimeAdmission: { profileId: "demo", profileRevision: 1 } },
