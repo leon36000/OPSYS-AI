@@ -530,7 +530,17 @@ describe("real canonical lease and private M9 stream composition", () => {
     try {
       expect(getModelCompletionOwner(f.logical)).toBeDefined();
       expect(getModelLlmRuntime(f.logical)).toBe(f.runtime);
-      expect(getModelCompletionTransport(f.logical)).toBe(f.transport);
+      // Canonical preparation projects the resolver input; observe the physical dispatch boundary.
+      const bound = getModelCompletionTransport(f.logical);
+      if (!bound) {
+        throw new Error("fictitious bound transport missing");
+      }
+      expect(bound).toMatchObject({
+        provider: "openai",
+        id: f.transport.id,
+        api: "openai-responses",
+        baseUrl: f.transport.baseUrl,
+      });
       f.behavior.holdResult = true;
       f.behavior.holdTail = true;
       f.behavior.failResult = true;
@@ -543,6 +553,8 @@ describe("real canonical lease and private M9 stream composition", () => {
       );
       await waitForEntry(f.resultEntered.promise, completion);
       await waitForEntry(f.tailEntered.promise, completion);
+      expect(f.observed.model).toBe(bound);
+      expect(getModelCompletionTransport(f.logical)).toBe(bound);
       expect(f.calls.dispose).toBe(0);
       f.resultGate.resolve();
       f.tailGate.resolve();
