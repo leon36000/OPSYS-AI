@@ -152,6 +152,20 @@ configuration Core conserve la cible de clôture `inconnue` : son émetteur Core
 l’observation finale et la réconciliation de clôture restent à livrer. Aucune
 qualification Gateway/mobile, PostgreSQL ou action terrain n’en découle.
 
+La route de contexte M9 expose aussi la lecture privée T0
+`opsys_contexte_lire_succes_m9`. Son argument optionnel `outil` conserve l’ouverture
+par défaut ; une clôture exige explicitement `m9_clore_suivi_decision`. Elle vérifie
+les journaux SQL concordants, les arguments approuvés, la décision exacte de clôture
+et la liaison M10 toujours courante, sans écriture ni rejeu métier. Le suivi garde
+son identifiant d’ouverture ; la clôture porte sa nouvelle demande N3, son auteur
+et sa date SQL. Un ancien succès d’ouverture ne confirme aucune clôture.
+
+Un résultat en attente ou refusé ne confirme pas l’effet. Après un effet commis,
+l’expiration du ticket ou la désactivation de son ancien signataire n’effacent pas
+ce fait historique. L’UUID logique Native rendu à l’émission et à la lecture est
+une corrélation, pas une attestation de l’autorité actuelle de l’endpoint. Le
+raccordement Core de clôture reste indisponible ; ce lecteur SQLite ne l’active pas.
+
 
 ### Retrouver les actions assignées encore ouvertes
 

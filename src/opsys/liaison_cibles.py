@@ -393,7 +393,7 @@ def emettre_ticket(
         statut="disponible",
     ))
     resultat = {"ticket": jeton, "expire_le": expire_le}
-    if outil in _OUTILS_SUIVI_M9:
+    if outil in _OUTILS_SUIVI_M9 or outil in _OUTILS_CLOTURE_M9:
         resultat["instance_id"] = _instance_native(cnx)
     return resultat
 
@@ -542,9 +542,48 @@ def _objet_journal(valeur: Any) -> dict[str, Any]:
     return resultat
 
 
+def _valider_projection_cloture_m9(
+    resultat: dict[str, Any], arguments: dict[str, Any], demande: Mapping[str, Any],
+) -> None:
+    """Reconstruit seulement la projection historique pure, sans rejouer un outil métier."""
+    from m9_strategic_intelligence import suivi_decisions
+
+    contenu = resultat.get("resultat")
+    suivi = contenu.get("suivi") if type(contenu) is dict else None
+    cloture = contenu.get("cloture") if type(contenu) is dict else None
+    if (
+        resultat.get("ok") is not True or type(contenu) is not dict or contenu.get("accepte") is not True
+        or type(suivi) is not dict or type(suivi.get("schema")) is not int or suivi.get("schema") != 1
+        or suivi.get("suivi_id") != arguments.get("suivi_id")
+        or type(cloture) is not dict or type(cloture.get("schema")) is not int
+        or demande["decide_role"] != "nathan_owner" or not demande["decide_par"] or not demande["decide_le"]
+    ):
+        raise CibleRefusee("succès historique de clôture M9 non confirmé")
+    try:
+        preuve = cloture["preuve"]
+        preparation = suivi_decisions.preparer_cloture(
+            suivi, None, [preuve["alerte"]], arguments["evenement_id"],
+        )
+        attendue = suivi_decisions.construire_cloture(
+            plan=suivi, preparation=preparation, empreinte_suivi=arguments["empreinte_suivi"],
+            empreinte_preuve=arguments["empreinte_preuve"], bilan=arguments["bilan"],
+            demande_id=demande["id"], decide_par=demande["decide_par"],
+            decide_role=demande["decide_role"], decide_le=demande["decide_le"],
+        )
+        # Le suivi conserve l'id d'ouverture ; seule la décision de clôture porte le nouveau N3.
+        # Une égalité JSON stricte distingue aussi booléens et nombres dans les preuves imbriquées.
+        if json.dumps(contenu, sort_keys=True, allow_nan=False) != json.dumps(
+            suivi_decisions.projeter(suivi, attendue), sort_keys=True, allow_nan=False,
+        ):
+            raise CibleRefusee("projection historique de clôture non concordante")
+    except (KeyError, TypeError, ValueError, RecursionError):
+        raise CibleRefusee("succès historique de clôture M9 non confirmé") from None
+
+
 def lire_succes_m9(
     cnx: Connection, *, departement: str, agent_id: str, cle_session: str,
     affaire_id: str, empreinte_ticket: str, demande_id: str,
+    outil: str = "m9_ouvrir_suivi_decision",
 ) -> dict[str, Any]:
     """Read one exact historical success under its still-current private M10 liaison.
 
@@ -555,6 +594,7 @@ def lire_succes_m9(
     _sqlite_uniquement(cnx)
     if (
         departement != "m09-strategic-intelligence"
+        or not isinstance(outil, str) or outil not in _OUTILS_SUIVI_M9 | _OUTILS_CLOTURE_M9
         or not isinstance(agent_id, str) or not 1 <= len(agent_id) <= 64
         or not isinstance(cle_session, str) or not 1 <= len(cle_session) <= 256
         or not cle_session.startswith(f"agent:{agent_id}:")
@@ -569,7 +609,7 @@ def lire_succes_m9(
     )).mappings().one_or_none()
     if ticket is None or (
         ticket["departement"], ticket["agent_id"], ticket["cle_session"], ticket["affaire_id"], ticket["outil"]
-    ) != (departement, agent_id, cle_session, affaire_id, "m9_ouvrir_suivi_decision"):
+    ) != (departement, agent_id, cle_session, affaire_id, outil):
         raise CibleRefusee("référence privée de succès non concordante")
     from m10_memoire import liaison as liaison_m10
 
@@ -608,6 +648,9 @@ def lire_succes_m9(
         raise CibleRefusee("journal de résultat invalide") from None
     if not concordants:
         raise CibleRefusee("journaux privés de succès discordants")
+    if outil in _OUTILS_CLOTURE_M9:
+        _valider_projection_cloture_m9(resultat, arguments, demande)
+        return {**recu, "confirme": True}
     contenu = resultat.get("resultat")
     suivi = contenu.get("suivi") if type(contenu) is dict else None
     decision = suivi.get("decision") if type(suivi) is dict else None
@@ -634,12 +677,13 @@ def outil_lecture_succes_m9(cnx_factory, departement: str):
     from .outils import Autonomie, Outil
 
     def lire(agent_id: str, cle_session: str, affaire_id: str,
-             empreinte_ticket: str, demande_id: str) -> dict[str, Any]:
+             empreinte_ticket: str, demande_id: str,
+             outil: str = "m9_ouvrir_suivi_decision") -> dict[str, Any]:
         try:
             with cnx_factory() as cnx:
                 return lire_succes_m9(
                     cnx, departement=departement, agent_id=agent_id, cle_session=cle_session,
-                    affaire_id=affaire_id, empreinte_ticket=empreinte_ticket, demande_id=demande_id,
+                    affaire_id=affaire_id, empreinte_ticket=empreinte_ticket, demande_id=demande_id, outil=outil,
                 )
         except CibleRefusee as exc:
             raise ValueError(f"REJ-LIAISON-SUCCES-M9: {exc}") from None
@@ -647,11 +691,13 @@ def outil_lecture_succes_m9(cnx_factory, departement: str):
     proprietes = {nom: {"type": "string", "minLength": 1, "maxLength": maximum}
                   for nom, maximum in (("agent_id", 64), ("cle_session", 256), ("affaire_id", 197),
                                        ("empreinte_ticket", 64), ("demande_id", 12))}
+    requis = list(proprietes)
+    proprietes["outil"] = {"type": "string", "enum": ["m9_ouvrir_suivi_decision", "m9_clore_suivi_decision"]}
     return Outil(
         nom=OUTIL_LECTURE_SUCCES_M9,
         description="Lecture privée du succès exact d'une demande M9, sans rejouer son effet.",
         parametres={"type": "object", "properties": proprietes,
-                    "required": list(proprietes), "additionalProperties": False},
+                    "required": requis, "additionalProperties": False},
         fonction=lire, autonomie=Autonomie.T0,
     )
 
