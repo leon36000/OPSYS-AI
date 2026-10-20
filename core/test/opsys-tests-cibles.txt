@@ -84,6 +84,7 @@ src/context-engine/opsys-contexte-depot.test.ts
 src/context-engine/opsys-contexte-engine.test.ts
 src/context-engine/opsys-contexte.registration.test.ts
 src/context-engine/opsys-contexte-mcp.wire.test.ts
+src/context-engine/opsys-contexte-historique-m9.test.ts
 src/context-engine/opsys-contexte-garde.test.ts
 
 # T4.18-b : la forme d'une affaire (`affaire_id`, un lead ou l'opportunité `<lead>~opp~<wct_id>` que M2 ouvre), commune au
