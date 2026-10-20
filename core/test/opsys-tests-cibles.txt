@@ -436,3 +436,6 @@ src/agents/agent-bundle-mcp-runtime.opsys-m2-dossier.python-http.integration.tes
 src/agents/embedded-agent-runner/run/run-attempt-dispatch.owner.test.ts
 src/agents/private-single-provider-request.test.ts
 src/agents/m9-private-admission-binding.test.ts
+
+# M9 : restriction privee de la source operateur conservee apres la requete.
+src/gateway/m9-private-audit-source.test.ts
