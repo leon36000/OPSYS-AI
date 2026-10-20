@@ -578,3 +578,36 @@ aucun message et ne lance aucun fournisseur; elle ne reproduit pas de fichier ma
 Ces contrôles de compatibilité ne constituent pas une preuve exhaustive contre toute entrée
 malformée. Les avis DOMPurify, Joi et KaTeX restent suivis séparément; aucune autre dépendance
 n’est renouvelée dans ce lot. La CI du commit intégré reste nécessaire.
+
+
+## Correctif ciblé SDK MCP et redirections HTTP — 20 octobre 2026
+
+Les overrides existants passent de `@modelcontextprotocol/sdk@1.31.0` à **1.32.0** et de
+`follow-redirects@1.16.0` à **1.16.1**. Ils couvrent les consommateurs directs et transitifs,
+notamment les liaisons de pairs de Google GenAI et les chemins Axios/Teams. Aucun autre paquet
+ne change de version : le lockfile régénéré par pnpm **12.4.0** conserve ses **1534 paquets**,
+**1535 snapshots** et le document du gestionnaire. Il actualise aussi **27 mentions de
+dépréciation** de paquets existants, sans changement de leurs résolutions ni dépendances.
+
+Avis primaires : [GHSA-22jm-h49p-29qw](https://github.com/advisories/GHSA-22jm-h49p-29qw)
+pour l’isolation des tâches expérimentales du SDK ;
+[GHSA-q3jh-wrc6-jgq8](https://github.com/advisories/GHSA-q3jh-wrc6-jgq8) et
+[GHSA-8r9p-f939-6h3c](https://github.com/advisories/GHSA-8r9p-f939-6h3c) pour la suppression
+des en-têtes sensibles lors des redirections. Le constat est un échec de l’audit du lockfile,
+pas une démonstration d’exploitation dans OPSYS.
+
+Publications npm vérifiées : SDK le **2 octobre à 17:32:51.427Z**, follow-redirects le
+**1er octobre à 13:52:31.780Z**. Le délai strict de **10080 minutes** reste appliqué sans
+exception. Dépendances et pairs déclarés sont identiques entre les versions comparées.
+Archives npm contrôlées par leur SRI ; licences MIT exactes lues, inchangées : SDK **1071 octets**,
+SHA-256 `5e13dbbc1d120fc2a03cecde7c91424ae2d7de11b63d58ded2f4431e261ee50d` ;
+follow-redirects **1136 octets**, SHA-256
+`bfa8a54bb952ccda79f0f1889721d108f5b605babbb2b8a3705ffb52f4132eb7`.
+
+Qualification isolée : `pnpm install --lockfile-only --frozen-lockfile --ignore-scripts
+--ignore-pnpmfile` réussit sur les 63 projets ; `pnpm audit --prod --audit-level=high` réussit
+avec **zéro avis high**, mais conserve **3 low et 3 moderate**. Aucun paquet applicatif installé,
+script tiers, service métier ou test Vitest exécuté dans cette vérification. Les fichiers
+client MCP sélectionnés sont identiques ; le protocole partagé change pour l’isolation des
+tâches. La compatibilité réelle du SDK et du lecteur historique exige encore la CI du commit
+exact. Le lecteur reste sans appelant de réconciliation activé et la clôture Core reste inconnue.
