@@ -432,4 +432,55 @@ describe("canonical private completion lease owner", () => {
       await Promise.allSettled([acquired[Symbol.asyncDispose]()]);
     }
   });
+  it("keeps a shared callback and release failure by exact identity", async () => {
+    const acquired = await acquirePrivate();
+    const failure = new Error("fictitious shared completion and release failure");
+    edges.disposeRuntime.mockRejectedValue(failure);
+    try {
+      const owner = requireOwner(acquired.model);
+      await expect(
+        owner.run(async () => {
+          throw failure;
+        }),
+      ).rejects.toBe(failure);
+      const closing = observe(acquired[Symbol.asyncDispose]());
+      await expect(closing).rejects.toBe(failure);
+      await expect(acquired[Symbol.asyncDispose]()).rejects.toBe(failure);
+      expect(edges.disposeRuntime).toHaveBeenCalledOnce();
+    } finally {
+      await Promise.allSettled([acquired[Symbol.asyncDispose]()]);
+    }
+  });
+  it("retains distinct callback and release failures with a memoized aggregate", async () => {
+    const acquired = await acquirePrivate();
+    const callbackFailure = new Error("fictitious callback failure");
+    const releaseFailure = new Error("fictitious independent release failure");
+    edges.disposeRuntime.mockRejectedValue(releaseFailure);
+    try {
+      const owner = requireOwner(acquired.model);
+      await expect(
+        owner.run(async () => {
+          throw callbackFailure;
+        }),
+      ).rejects.toBe(callbackFailure);
+      const closing = observe(acquired[Symbol.asyncDispose]());
+      let seen: unknown;
+      try {
+        await closing;
+      } catch (error) {
+        seen = error;
+      }
+      expect(seen).toBeInstanceOf(AggregateError);
+      if (!(seen instanceof AggregateError)) {
+        throw new Error("expected retained completion and release errors");
+      }
+      expect(seen.errors).toHaveLength(2);
+      expect(seen.errors[0]).toBe(callbackFailure);
+      expect(seen.errors[1]).toBe(releaseFailure);
+      await expect(acquired[Symbol.asyncDispose]()).rejects.toBe(seen);
+      expect(edges.disposeRuntime).toHaveBeenCalledOnce();
+    } finally {
+      await Promise.allSettled([acquired[Symbol.asyncDispose]()]);
+    }
+  });
 });

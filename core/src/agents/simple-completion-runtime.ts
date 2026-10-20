@@ -6,7 +6,11 @@ import { prepareModelForSimpleCompletion } from "@openclaw/ai/transports";
  */
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import { formatErrorMessage } from "../infra/errors.js";
-import { bindModelLlmRuntime } from "../llm/model-runtime-binding.js";
+import {
+  bindModelCompletionOwner,
+  bindModelLlmRuntime,
+  getModelCompletionOwner,
+} from "../llm/model-runtime-binding.js";
 import type { Model } from "../llm/types.js";
 import { resolvePluginMetadataSnapshot } from "../plugins/plugin-metadata-snapshot.js";
 import type { PluginMetadataSnapshot } from "../plugins/plugin-metadata-snapshot.types.js";
@@ -17,6 +21,7 @@ import {
 import { prepareProviderRuntimeAuth } from "../plugins/provider-runtime.runtime.js";
 import { withPluginRuntimeGenerationScope } from "../plugins/runtime/generation-scope.js";
 import { runWithAsyncWorkResources } from "../shared/async-work-resources.js";
+import { AsyncWorkScope, isAsyncWorkScopeActiveHere } from "../shared/async-work-scope.js";
 import { createDeferredCore } from "../shared/deferred.js";
 import {
   resolveAgentDir,
@@ -551,6 +556,8 @@ export async function acquireSimpleCompletionModelWithSelection(
     selection: Omit<AgentSimpleCompletionSelection, "agentDir">;
     shorthandModelId?: string;
   } | null,
+  /** Core-internal owner opt-in; never part of public params, the agent helper or the SDK. */
+  options?: { privateCompletionOwner?: true },
 ): Promise<AcquiredSimpleCompletionModelForAgent> {
   const agentId = params.agentId ?? resolveDefaultAgentId(params.cfg);
   const agentDir = params.agentDir?.trim() || resolveAgentDir(params.cfg, agentId);
@@ -642,6 +649,7 @@ export async function acquireSimpleCompletionModelWithSelection(
         },
         context,
       ),
+    options?.privateCompletionOwner,
   );
   return { ...acquired, selection };
 }
@@ -652,14 +660,17 @@ async function acquirePreparedSimpleCompletionModel(
   prepareModel: (
     context: PreparedSimpleCompletionResolverContext,
   ) => Promise<PreparedSimpleCompletionModel>,
+  privateCompletionOwner?: true,
 ): Promise<AcquiredSimpleCompletionModel> {
   let releaseRuntime: (() => Promise<void>) | undefined;
   let setupSettled = false;
   let callerReleased = true;
+  // Opted-in completion work drains before setup release may observe an unused lease.
+  let completionDrained = true;
   let releaseCompletion: Promise<void> | undefined;
   const setupCompletion = createDeferredCore();
   const releaseWhenUnused = () => {
-    if (setupSettled && callerReleased) {
+    if (setupSettled && callerReleased && completionDrained) {
       releaseCompletion ??= Promise.resolve().then(() => releaseRuntime?.());
     }
     return releaseCompletion;
@@ -687,6 +698,74 @@ async function acquirePreparedSimpleCompletionModel(
     params.signal?.throwIfAborted();
     if ("error" in prepared) {
       return prepared;
+    }
+    if (privateCompletionOwner) {
+      if (getModelCompletionOwner(prepared.model)) {
+        // Never overwrite another owner; setup release still returns this unused runtime.
+        return { error: "Simple completion model already carries a completion owner." };
+      }
+      const preparedModelRuntime = context.preparedModelRuntime;
+      const signal = params.signal;
+      const completionFailures = new Set<unknown>();
+      // Lease work outlives setup, whose host scope closes while the lease stays held.
+      const completionScope = new AsyncWorkScope(completionFailures);
+      let closing: Promise<void> | undefined;
+      const assertCurrent = () => {
+        if (callerReleased) {
+          throw new Error("Simple completion lease is closing.");
+        }
+        if (!preparedModelRuntime.isCurrent()) {
+          throw new Error("Simple completion lease generation is no longer current.");
+        }
+        signal?.throwIfAborted();
+      };
+      const closeLease = async () => {
+        // Admitted callbacks and their tracked descendants finish before physical release.
+        await completionScope.drain();
+        const failures = Array.from(completionFailures);
+        completionDrained = true;
+        await setupCompletion.promise;
+        try {
+          await releaseWhenUnused();
+        } catch (error) {
+          if (!failures.includes(error)) {
+            failures.push(error);
+          }
+        }
+        if (failures.length === 1) {
+          throw failures[0];
+        }
+        if (failures.length > 1) {
+          throw new AggregateError(failures, "Simple completion lease closed with failures.");
+        }
+      };
+      callerReleased = false;
+      completionDrained = false;
+      return {
+        ...prepared,
+        // The owned projection is a copy carrying the same runtime and transport binding.
+        model: bindModelCompletionOwner(prepared.model, {
+          run: <T>(run: () => Promise<T>): Promise<T> => {
+            try {
+              assertCurrent();
+            } catch (error) {
+              return Promise.reject(error);
+            }
+            // Results settle without joining descendants; disposal joins them.
+            return completionScope.track<T>(run);
+          },
+          assertCurrent,
+        }),
+        async [Symbol.asyncDispose]() {
+          // A disposer inside owned work would wait for itself; external cleanup stays available.
+          if (isAsyncWorkScopeActiveHere(completionScope)) {
+            throw new Error("Simple completion lease cannot be disposed from its own work.");
+          }
+          callerReleased = true;
+          closing ??= closeLease();
+          await closing;
+        },
+      };
     }
     callerReleased = false;
     return {
