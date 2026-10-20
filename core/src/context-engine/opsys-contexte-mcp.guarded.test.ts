@@ -314,4 +314,13 @@ describe("private MCP request boundary", () => {
     expect((await f.wire()).filter((m) => m.method === "tools/call")).toHaveLength(1);
     expect(hooks.closed).toBe(1);
   });
+  it("rejects a marked MCP error without requiring a response quota", async () => {
+    const f = await fixture('{"fictif":true}', false, true);
+    const params = { ...f.params, requireSuccessfulResult: true };
+    await expect(callOpsysMcpTool(params)).rejects.toThrow("MCP tool reported an error");
+    expect((await f.wire()).filter((m) => m.method === "tools/call")).toHaveLength(1);
+    expect(hooks.closed).toBe(1);
+    expect(hooks.pids).toHaveLength(1);
+    expect(() => process.kill(hooks.pids[0], 0)).toThrow();
+  });
 });

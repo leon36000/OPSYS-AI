@@ -73,8 +73,10 @@ export async function callOpsysMcpTool(params: {
   maxResponseBytes?: number;
   /** Require confirmed cleanup even when a response has already arrived. */
   awaitCleanup?: boolean;
+  /** Opt in to rejecting a raw SDK tool error before parsing its JSON text. */
+  requireSuccessfulResult?: boolean;
 }): Promise<unknown> {
-  const { beforeRequest, maxResponseBytes, awaitCleanup } = params;
+  const { beforeRequest, maxResponseBytes, awaitCleanup, requireSuccessfulResult } = params;
   if (
     maxResponseBytes !== undefined &&
     (!Number.isSafeInteger(maxResponseBytes) ||
@@ -122,6 +124,9 @@ export async function callOpsysMcpTool(params: {
       undefined,
       { timeout: params.timeoutMs, signal: params.signal },
     );
+    if (requireSuccessfulResult === true && isRecord(result) && result.isError === true) {
+      throw new OpsysContexteMcpError("MCP tool reported an error");
+    }
     return readEnvelope(result, maxResponseBytes);
   } catch (error) {
     // The SDK puts response bodies in some errors: only the redacted form leaves this module.
