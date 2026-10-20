@@ -46,7 +46,7 @@ beforeEach(() => {
 });
 afterEach(() => cleanupTempDirs(dirs));
 
-async function fixture(text = '{"fictif":true}', multipart = false) {
+async function fixture(text = '{"fictif":true}', multipart = false, isError?: boolean) {
   const dir = makeTempDir(dirs, "opsys-mcp-guarded-");
   const script = path.join(dir, "server.mjs");
   const journal = path.join(dir, "wire.jsonl");
@@ -63,7 +63,7 @@ for await (const line of readline.createInterface({ input: process.stdin })) {
   fs.appendFileSync(journal, JSON.stringify(m) + "\\n");
   let result;
   if (m.method === "initialize") result = { protocolVersion:m.params.protocolVersion, capabilities:{tools:{}}, serverInfo:{name:"fictif",version:"1"} };
-  if (m.method === "tools/call") result = { content: ${multipart ? '[{type:"text",text:text.slice(0,1)},{type:"text",text:text.slice(1)}]' : '[{type:"text",text}]'} };
+  if (m.method === "tools/call") result = { content: ${multipart ? '[{type:"text",text:text.slice(0,1)},{type:"text",text:text.slice(1)}]' : '[{type:"text",text}]'}${isError === undefined ? "" : `, isError: ${JSON.stringify(isError)}`} };
   if (result) process.stdout.write(JSON.stringify({jsonrpc:"2.0",id:m.id,result}) + "\\n");
 }
 `,
@@ -242,4 +242,76 @@ describe("private MCP request boundary", () => {
       expect(hooks.closed).toBe(1);
     },
   );
+  // Future opt-in boundary: MCP metadata must be checked before JSON envelope parsing.
+  const historyText = JSON.stringify({
+    ok: true,
+    resultat: {
+      schema: 1,
+      confirme: true,
+      instance_id: "00000000-0000-0000-0000-000000000001",
+      demande_id: "abcdef012345",
+      outil: "m9_clore_suivi_decision",
+    },
+  });
+
+  it("refuses a marked MCP error even when its text claims confirmed Native history", async () => {
+    const f = await fixture(historyText, false, true);
+    const params = { ...f.params, requireSuccessfulResult: true, maxResponseBytes: 4096 };
+    await expect(callOpsysMcpTool(params)).rejects.toThrow("MCP tool reported an error");
+    expect((await f.wire()).filter((m) => m.method === "tools/call")).toHaveLength(1);
+    expect(hooks.closed).toBe(1);
+    expect(hooks.pids).toHaveLength(1);
+    expect(() => process.kill(hooks.pids[0], 0)).toThrow();
+  });
+
+  it.each([undefined, false])("accepts an unmarked successful MCP answer (%s)", async (isError) => {
+    const f = await fixture(historyText, false, isError);
+    const params = { ...f.params, requireSuccessfulResult: true, maxResponseBytes: 4096 };
+    await expect(callOpsysMcpTool(params)).resolves.toEqual(JSON.parse(historyText));
+    expect((await f.wire()).filter((m) => m.method === "tools/call")).toHaveLength(1);
+    expect(hooks.closed).toBe(1);
+  });
+
+  it.each([undefined, false])(
+    "keeps legacy MCP error-envelope handling without opt-in (%s)",
+    async (policy) => {
+      const f = await fixture('{"ok":false,"erreur":"refus_metier_fictif"}', false, true);
+      const params = { ...f.params, requireSuccessfulResult: policy };
+      await expect(callOpsysMcpTool(params)).resolves.toEqual({
+        ok: false,
+        erreur: "refus_metier_fictif",
+      });
+      expect(hooks.closed).toBe(1);
+    },
+  );
+
+  it("captures the MCP success policy before the real connection await", async () => {
+    const f = await fixture(historyText, false, true);
+    const params = { ...f.params, requireSuccessfulResult: true, maxResponseBytes: 4096 };
+    hooks.connected = () => {
+      params.requireSuccessfulResult = false;
+    };
+    await expect(callOpsysMcpTool(params)).rejects.toThrow("MCP tool reported an error");
+    expect((await f.wire()).filter((m) => m.method === "tools/call")).toHaveLength(1);
+    expect(hooks.closed).toBe(1);
+  });
+
+  it("refuses the marked MCP error before parsing its private invalid JSON", async () => {
+    const f = await fixture("fictif-private-non-json-history-body", false, true);
+    const params = { ...f.params, requireSuccessfulResult: true, maxResponseBytes: 4096 };
+    await expect(callOpsysMcpTool(params)).rejects.toThrow("MCP tool reported an error");
+    expect(hooks.closed).toBe(1);
+  });
+
+  it("keeps the initial disabled MCP success policy after a connection-time escalation", async () => {
+    const text = '{"ok":false,"erreur":"refus_metier_fictif"}';
+    const f = await fixture(text, false, true);
+    const params = { ...f.params, requireSuccessfulResult: false, maxResponseBytes: 4096 };
+    hooks.connected = () => {
+      params.requireSuccessfulResult = true;
+    };
+    await expect(callOpsysMcpTool(params)).resolves.toEqual(JSON.parse(text));
+    expect((await f.wire()).filter((m) => m.method === "tools/call")).toHaveLength(1);
+    expect(hooks.closed).toBe(1);
+  });
 });
