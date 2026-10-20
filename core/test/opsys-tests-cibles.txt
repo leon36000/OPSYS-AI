@@ -442,3 +442,4 @@ src/gateway/m9-private-audit-source.test.ts
 
 # M9 : execution privee du flux prepare et garde des sources possedees.
 src/agents/m9-private-prepared-stream.test.ts
+src/agents/m9-private-completion-lease.test.ts
