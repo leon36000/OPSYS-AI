@@ -439,3 +439,6 @@ src/agents/m9-private-admission-binding.test.ts
 
 # M9 : restriction privee de la source operateur conservee apres la requete.
 src/gateway/m9-private-audit-source.test.ts
+
+# M9 : execution privee du flux prepare et garde des sources possedees.
+src/agents/m9-private-prepared-stream.test.ts
