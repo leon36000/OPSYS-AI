@@ -721,7 +721,7 @@ async function acquirePreparedSimpleCompletionModel(
       };
       const closeLease = async () => {
         // Admitted callbacks and their tracked descendants finish before physical release.
-        await completionScope.drain();
+        await completionScope.beginClose();
         const failures = Array.from(completionFailures);
         completionDrained = true;
         await setupCompletion.promise;
