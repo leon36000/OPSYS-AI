@@ -21,6 +21,9 @@ while [ $# -gt 0 ]; do
         *) echo "argument inconnu : $1" >&2; exit 2 ;;
     esac
 done
+# Refusé avant tout effet : find ignorait silencieusement une valeur invalide (|| true).
+[[ "$RETENTION_DAYS" =~ ^[0-9]{1,5}$ ]] || {
+    echo "--retention-days invalide : '$RETENTION_DAYS' (entier de 0 à 99999 jours requis)." >&2; exit 2; }
 
 log()  { printf '[backup] %s\n' "$*"; }
 warn() { printf '[backup] AVERTISSEMENT : %s\n' "$*" >&2; }
@@ -378,8 +381,124 @@ PY_INTEGRITE
 reprendre_services || die "sauvegarde conservée mais reprise des services non confirmée."
 
 # -- Rétention locale ---------------------------------------------------------------------------
-log "purge des sauvegardes locales de plus de ${RETENTION_DAYS} jours dans $OUT_DIR..."
-find "$OUT_DIR" -mindepth 1 -maxdepth 1 -type d -mtime "+${RETENTION_DAYS}" -print -exec rm -rf {} \; || true
+# --out peut contenir d'autres données : seule une sauvegarde OPSYS positivement identifiée est
+# purgée. Tout doute (nom, lien, propriétaire, manifeste, format futur, fichier étranger) conserve.
+log "purge des sauvegardes OPSYS identifiées de plus de ${RETENTION_DAYS} jours dans $OUT_DIR..."
+if ! python3 -I -B - "$OUT_DIR" "$STAMP" "$RETENTION_DAYS" <<'PY_RETENTION'
+import os, re, stat, sys, time
+
+racine, actif, jours = sys.argv[1], sys.argv[2], int(sys.argv[3])
+HORODATAGE = re.compile(r"[0-9]{8}T[0-9]{6}Z")
+ARCHIVE = re.compile(r"(postgres-[A-Za-z0-9][A-Za-z0-9_.-]*\.sql\.gz|volume-[A-Za-z0-9][A-Za-z0-9_.-]*\.tar\.gz)")
+FORMATS = {"format=opsys-backup/2", "format=opsys-backup/3", "format=opsys-backup/4"}
+LIMITE = 65536
+seuil = time.time() - (jours + 1) * 86400  # même borne que l'ancien find -mtime +N
+erreurs = 0
+
+def avertir(message):
+    print("[backup] AVERTISSEMENT : " + message, file=sys.stderr)
+
+def lire_manifeste(dossier_fd):
+    fd = os.open("MANIFEST.txt", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=dossier_fd)
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            raise ValueError("manifeste non régulier")
+        brut = b""
+        while len(brut) <= LIMITE and (morceau := os.read(fd, LIMITE + 1 - len(brut))):
+            brut += morceau
+    finally:
+        os.close(fd)
+    if not brut or len(brut) > LIMITE:
+        raise ValueError("manifeste vide ou trop grand")
+    return brut.decode("utf-8").splitlines()
+
+def refus(nom, dossier_fd, noms):
+    """Motif de conservation, ou None si le dossier est une sauvegarde OPSYS v1 à v4 reconnue."""
+    if os.fstat(dossier_fd).st_uid != os.geteuid():
+        return "propriétaire différent"
+    for entree in noms:
+        if not stat.S_ISREG(os.stat(entree, dir_fd=dossier_fd, follow_symlinks=False).st_mode):
+            return "entrée non régulière : " + entree
+        if entree not in ("MANIFEST.txt", "INTEGRITE.json") and not ARCHIVE.fullmatch(entree):
+            return "fichier étranger : " + entree
+    if "MANIFEST.txt" not in noms:
+        return "MANIFEST.txt absent"
+    lignes = lire_manifeste(dossier_fd)
+    entete = lignes[0] if lignes else ""
+    archives = {entree for entree in noms if ARCHIVE.fullmatch(entree)}
+    if entete == nom:  # format historique v1 : première ligne = horodatage du dossier
+        return "INTEGRITE.json inattendu (v1)" if "INTEGRITE.json" in noms else None
+    if entete not in FORMATS:
+        return "format de sauvegarde inconnu ou non pris en charge"
+    horodatages = [ligne[len("stamp="):] for ligne in lignes if ligne.startswith("stamp=")]
+    if len(horodatages) > 1 or (horodatages and horodatages[0] != nom):
+        return "horodatage du manifeste discordant"
+    if entete == "format=opsys-backup/4" and (not horodatages or "INTEGRITE.json" not in noms):
+        return "manifeste v4 incomplet"
+    if entete != "format=opsys-backup/4" and "INTEGRITE.json" in noms:
+        return "INTEGRITE.json inattendu avant v4"
+    if not archives <= {ligne[len("archive="):] for ligne in lignes if ligne.startswith("archive=")}:
+        return "archive non déclarée au manifeste"
+    return None
+
+def supprimer(nom, dossier_fd, identite, noms_identifies):
+    # Ne jamais élargir la suppression aux fichiers apparus après l'identification.
+    # Un fichier nouveau fait échouer rmdir, et reste intact dans le dossier conservé.
+    for entree in noms_identifies:
+        if not stat.S_ISREG(os.stat(entree, dir_fd=dossier_fd, follow_symlinks=False).st_mode):
+            raise OSError("entrée apparue pendant la purge : " + entree)
+        os.unlink(entree, dir_fd=dossier_fd)
+    courant = os.stat(nom, dir_fd=racine_fd, follow_symlinks=False)
+    if (courant.st_dev, courant.st_ino) != identite:
+        raise OSError("dossier remplacé pendant la purge")
+    os.rmdir(nom, dir_fd=racine_fd)
+
+try:
+    racine_fd = os.open(racine, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+except OSError as erreur:
+    avertir(f"rétention ignorée, dossier {racine} non ouvrable sans suivre de lien : {erreur.strerror}")
+    raise SystemExit(1)
+try:
+    for nom in sorted(os.listdir(racine_fd)):
+        chemin = os.path.join(racine, nom)
+        info = os.stat(nom, dir_fd=racine_fd, follow_symlinks=False)
+        if nom == actif or info.st_mtime >= seuil:
+            continue
+        if not stat.S_ISDIR(info.st_mode) or not HORODATAGE.fullmatch(nom):
+            avertir(f"rétention : {chemin} conservé (pas une sauvegarde OPSYS)")
+            continue
+        try:
+            dossier_fd = os.open(nom, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=racine_fd)
+        except OSError as erreur:
+            avertir(f"rétention : {chemin} conservé (non ouvrable : {erreur.strerror})")
+            continue
+        try:
+            ouvert = os.fstat(dossier_fd)
+            identite = (ouvert.st_dev, ouvert.st_ino)
+            try:
+                noms_identifies = os.listdir(dossier_fd)
+                motif = "dossier remplacé" if identite != (info.st_dev, info.st_ino) else refus(nom, dossier_fd, noms_identifies)
+            except (OSError, ValueError) as erreur:
+                motif = "lecture refusée : " + str(erreur)
+            if motif:
+                avertir(f"rétention : {chemin} conservé ({motif})")
+                continue
+            try:
+                supprimer(nom, dossier_fd, identite, noms_identifies)
+                print(f"[backup] sauvegarde expirée supprimée : {chemin}")
+            except OSError as erreur:
+                erreurs += 1
+                avertir(f"rétention : suppression de {chemin} en échec ({erreur}); contenu restant conservé")
+        finally:
+            os.close(dossier_fd)
+finally:
+    os.close(racine_fd)
+raise SystemExit(1 if erreurs else 0)
+PY_RETENTION
+then
+    warn "rétention locale incomplète; les sauvegardes non purgées restent en place."
+    FAIL=1
+fi
 
 # -- Copie distante optionnelle (restic) ---------------------------------------------------------
 if [ -n "${RESTIC_REPOSITORY:-}" ]; then
