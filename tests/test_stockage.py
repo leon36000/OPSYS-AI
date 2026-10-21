@@ -100,6 +100,33 @@ def test_transaction_imbriquee_n_annule_que_sa_part(base):
     assert list(maillons) == [{"n": "externe"}]
 
 
+def test_transaction_imbriquee_refuse_une_autre_base_explicite(base, tmp_path):
+    autre = f"sqlite:///{tmp_path / 'autre.db'}"
+    stockage.migrer(autre)
+    with stockage.transaction(base) as externe:
+        stockage.maillons("m09-demo", "principal").append({"fictif": True, "n": "avant"})
+        with pytest.raises(ValueError, match="autre base"), stockage.transaction(autre) as interne:
+            interne.execute(REGISTRES.delete())
+        assert stockage.connexion_courante() is externe
+        stockage.maillons("m09-demo", "principal").append({"fictif": True, "n": "après"})
+    assert stockage.connexion_courante() is None
+    with stockage.transaction(base) as cnx:
+        assert cnx.execute(select(REGISTRES.c.rang)).scalars().all() == [0, 1]
+    with stockage.transaction(autre) as cnx:
+        assert cnx.execute(select(REGISTRES.c.rang)).all() == []
+
+
+def test_transaction_imbriquee_meme_base_explicite_garde_le_point_de_sauvegarde(base):
+    with stockage.transaction(base) as externe:
+        stockage.maillons("m09-demo", "principal").append({"fictif": True, "n": "externe"})
+        with pytest.raises(RuntimeError, match="annuler"), stockage.transaction(base) as interne:
+            assert interne is externe
+            stockage.maillons("m09-demo", "principal").append({"fictif": True, "n": "interne"})
+            raise RuntimeError("annuler la part interne")
+        assert stockage.connexion_courante() is externe
+    assert list(stockage.maillons("m09-demo", "principal")) == [{"fictif": True, "n": "externe"}]
+
+
 def test_la_migration_est_idempotente(base):
     stockage.migrer(base)
     stockage.migrer(base)

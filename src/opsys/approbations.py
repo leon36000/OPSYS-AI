@@ -231,8 +231,9 @@ def decider(
     l'approbation ET au refus, avant toute réservation. Une demande N5 exige en plus `attestation`
     (voir `_valider_attestation`) pour être APPROUVÉE ; un refus n'en a pas besoin.
 
-    La demande est ensuite réservée atomiquement (`en_attente` → `en_cours`) : deux approbations
-    concurrentes ne peuvent jamais exécuter l'outil deux fois. Toute exception pendant l'exécution
+    La décision réserve atomiquement la demande (`en_attente` → `en_cours` ou `refusee`) : toute
+    décision concurrente perdante échoue sans réponse de succès ni journal de décision. Deux approbations
+    ne peuvent jamais exécuter l'outil deux fois. Toute exception pendant l'exécution
     termine la demande en `echec` : jamais de retour à `en_attente`.
 
     `role` (T1.4-f, décision depuis l'app) : le rôle sous lequel la personne signe, s'il faut le
@@ -291,12 +292,14 @@ def decider(
         )
 
     if not approuver:
-        cnx.execute(
+        reservation = cnx.execute(
             update(APPROBATIONS)
             .where(APPROBATIONS.c.id == ident, APPROBATIONS.c.statut == "en_attente")
             .values(statut="refusee", decide_par=identifiant, decide_role=role_utilise, decide_le=_maintenant(),
                     motif_decision=motif)
         )
+        if reservation.rowcount != 1:
+            raise ValueError(f"demande {ident} déjà prise en charge par une autre décision")
         journaliser(cnx, identifiant, "approbation.refuser", ident,
                    {"outil": ligne["outil"], "motif": motif, "role": role_utilise, **trace_appareil})
         reponse_refus = {"id": ident, "statut": "refusee"}

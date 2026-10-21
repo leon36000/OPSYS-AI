@@ -6,7 +6,8 @@
 - SQLite : WAL, clés étrangères, attente de 5 s sur verrou, `BEGIN IMMEDIATE` (l'écrivain prend le
   verrou dès le début : pas d'échec de promotion lecture → écriture entre deux processus).
 - `transaction()` ouvre une transaction, ou un point de sauvegarde si une transaction est déjà en
-  cours dans ce contexte : un échec interne n'annule que sa part.
+  cours dans ce contexte : un échec interne n'annule que sa part. Une autre base explicitement
+  demandée est refusée avant toute écriture : elle ne peut pas rejoindre la transaction courante.
 - `inserer(cnx)` rend le constructeur `insert()` du dialecte de la connexion (SQLite ou
   PostgreSQL) : les deux comprennent `ON CONFLICT ... DO UPDATE`, mais pas depuis le même module.
 """
@@ -22,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from sqlalchemy import Connection, Engine, create_engine, event
+from sqlalchemy.engine import make_url
 
 ENV_URL = "OPSYS_BASE_URL"
 
@@ -79,6 +81,8 @@ def connexion_courante() -> Connection | None:
 def transaction(url: str | None = None) -> Iterator[Connection]:
     courante = _CONNEXION.get()
     if courante is not None:
+        if url is not None and make_url(url or url_base()) != courante.engine.url:
+            raise ValueError("transaction imbriquée vers une autre base explicitement demandée")
         with courante.begin_nested():
             yield courante
         return

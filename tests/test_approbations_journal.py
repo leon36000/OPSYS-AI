@@ -7,10 +7,11 @@ import time
 
 import pytest
 from memoire.doubles import postgres_ephemere, raison_sans_docker
-from sqlalchemy import text
+from sqlalchemy import event, select, text
 
 from opsys import approbations, etat, identite, modeles, stockage
 from opsys.outils import Autonomie, Niveau, Outil
+from opsys.stockage.schema import APPROBATIONS, JOURNAL
 
 _SCHEMA = {"type": "object", "properties": {"x": {"type": "integer"}}, "required": ["x"]}
 # Les outils de ce module sont T2 (engagement) -> niveau par défaut N4 (ADR-0009 §4) : seul
@@ -260,3 +261,103 @@ def test_atomicite_et_concurrence_sur_postgresql(monkeypatch):
             assert APPELS == [2]
         finally:
             stockage.liberer()
+
+
+@pytest.mark.skipif(raison_sans_docker() is not None, reason=str(raison_sans_docker()))
+@pytest.mark.parametrize(
+    "perdant_approuve,gagnant_approuve", [(False, True), (True, True), (True, False), (False, False)]
+)
+def test_decision_postgresql_perdante_ne_confirme_ni_ne_journalise(monkeypatch, tmp_path, record_property,
+                                                               perdant_approuve, gagnant_approuve):
+    """Fictif : suspendre l'UPDATE après le SELECT réel, puis committer l'autre décision."""
+    with postgres_ephemere(stockage_en_memoire=True) as url_pg:
+        url = url_pg.replace("postgresql://", "postgresql+psycopg://", 1)
+        monkeypatch.setenv(stockage.ENV_URL, url)
+        monkeypatch.setenv("OPSYS_HOME", str(tmp_path / "opsys-home-fictif"))
+        stockage.migrer()
+
+        def sentinelle(x):
+            stockage.maillons("m09-demo", "sentinelles-fictives").append({"fictif": True, "x": x})
+            return _ok(x)
+
+        outils = {"m9_sentinelle": Outil("m9_sentinelle", "Sentinelle fictive.", _SCHEMA,
+                                       sentinelle, Autonomie.T2)}
+        with stockage.transaction() as cnx:
+            identite.creer_personne(cnx, "nathan", "Propriétaire fictif", "mot-de-passe-fictif-1234",
+                                    ["nathan_owner"])
+            ident = _creer(cnx, "m9_sentinelle", {"x": 7})
+        pret = threading.Event()
+        reprendre = threading.Event()
+        observations = {"rowcounts": []}
+        moteur = stockage.moteur()
+
+        def metadata(cnx):
+            assert cnx.get_isolation_level() == "READ COMMITTED"
+            cnx.exec_driver_sql("SET LOCAL statement_timeout = '5s'")
+            cnx.exec_driver_sql("SET LOCAL lock_timeout = '5s'")
+            return cnx.exec_driver_sql("SELECT pg_backend_pid()").scalar_one()
+
+        def decider_perdant():
+            try:
+                with stockage.transaction() as cnx:
+                    observations["pid_perdant"] = metadata(cnx)
+                    reponse = approbations.decider(cnx, ident, perdant_approuve, "nathan", outils, DEPARTEMENTS)
+                observations["reponse_perdant"] = reponse
+            except Exception as exc:
+                observations["erreur_perdant"] = exc
+
+        perdant = threading.Thread(target=decider_perdant, name="decision-perdante-fictive", daemon=True)
+
+        def est_update(context):
+            requete = getattr(getattr(context, "compiled", None), "statement", None)
+            return (getattr(requete, "is_update", False)
+                    and getattr(getattr(requete, "table", None), "name", None) == APPROBATIONS.name)
+
+        def avant(_cnx, _curseur, _sql, _params, context, _multiple):
+            if threading.current_thread() is perdant and est_update(context):
+                pret.set()
+                assert reprendre.wait(10), "décision gagnante non committée"
+                assert observations["gagnant_committe"] is True
+
+        def apres(_cnx, curseur, _sql, _params, context, _multiple):
+            if threading.current_thread() is perdant and est_update(context):
+                observations["rowcounts"].append(curseur.rowcount)
+
+        event.listen(moteur, "before_cursor_execute", avant)
+        event.listen(moteur, "after_cursor_execute", apres)
+        try:
+            perdant.start()
+            assert pret.wait(10), observations
+            with stockage.transaction() as cnx:
+                pid_gagnant = metadata(cnx)
+                reponse = approbations.decider(cnx, ident, gagnant_approuve, "nathan", outils, DEPARTEMENTS)
+            observations["gagnant_committe"] = True
+            reprendre.set()
+            perdant.join(10)
+            assert not perdant.is_alive()
+            assert observations["pid_perdant"] != pid_gagnant
+            assert observations["rowcounts"] == [0]
+            statut = "executee" if gagnant_approuve else "refusee"
+            assert reponse["statut"] == statut
+            with stockage.transaction() as cnx:
+                assert approbations.lire(cnx, ident)["statut"] == statut
+                actions = cnx.execute(select(JOURNAL.c.action).where(JOURNAL.c.cible == ident)).scalars().all()
+            appels_attendus = [7] if gagnant_approuve else []
+            assert list(APPELS) == appels_attendus
+            sentinelles_attendues = [{"fictif": True, "x": 7}] if gagnant_approuve else []
+            assert list(stockage.maillons("m09-demo", "sentinelles-fictives")) == sentinelles_attendues
+            record_property("concurrence_fictive", repr({**observations, "pid_gagnant": pid_gagnant,
+                                                        "isolation": "READ COMMITTED", "statut_final": statut,
+                                                        "journal": actions, "sentinelles": sentinelles_attendues}))
+            assert "reponse_perdant" not in observations, observations
+            assert isinstance(observations.get("erreur_perdant"), ValueError), observations
+            assert "autre décision" in str(observations["erreur_perdant"])
+            assert actions == ["approbation.approuver" if gagnant_approuve else "approbation.refuser"]
+        finally:
+            reprendre.set()
+            if perdant.ident is not None:
+                perdant.join(10)
+            event.remove(moteur, "before_cursor_execute", avant)
+            event.remove(moteur, "after_cursor_execute", apres)
+            stockage.liberer()
+            assert not perdant.is_alive(), "décision fictive non arrêtée"
