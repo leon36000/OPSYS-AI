@@ -9,6 +9,8 @@ minimumReleaseAgeStrict: true
 
 # Trusted Codex runtimes are outside the dependency cooldown.
 minimumReleaseAgeExclude:
+  # Exact audited security updates; registry integrity/licences and affected paths verified.
+  - "argparse@3.0.3"  # cooldown ends 2026-10-22T21:58:50.520000+00:00
   # Requested CUA update with keyboard delivery fixes; remove after 2026-09-22T22:00:08Z.
   - "@trycua/cua-driver@0.28.2"
   - "@trycua/cua-driver-darwin-arm64@0.28.2"
@@ -32,8 +34,8 @@ minimumReleaseAgeExclude:
   - zod@4.6.2
   # GHSA-jqcg-44mw-7w3h trust-subnet fix; remove after 2026-09-22 06:13 UTC.
   - "proxy-addr@2.0.8"
-  # Smartquotes denial-of-service fix; remove after 2026-09-18 04:04 UTC.
-  - "markdown-it@15.0.2"
+  # GHSA-gfr2-rv44-r23c: exact reviewed security patch; cooldown ends 2026-10-23T01:25:15Z.
+  - "markdown-it@15.0.3"
   # Reviewed running-adapter evidence contract; remove after 2026-09-23.
   - "@openclaw/crabline@0.1.27"
   # Reviewed Opus WASM stack repair; remove after 2026-09-21.
@@ -65,6 +67,9 @@ verifyDepsBeforeRun: false
 blockExoticSubdeps: true
 
 overrides:
+  # Exact fixes for audited production advisories; no global dependency refresh.
+  hono: 4.13.11
+  katex: 0.18.2
   # Inclure les consommateurs transitifs du SDK OAuth corrigé.
   "@modelcontextprotocol/sdk": 1.32.0
   # Memory LanceDB supplies vectors; WhatsApp prepares thumbnails with Rastermill.
@@ -91,7 +96,7 @@ overrides:
   request-promise: "npm:@cypress/request-promise@5.0.0"
   basic-ftp: 6.2.1
   brace-expansion: 5.0.12
-  "mailauth@5.0.3>joi": 18.2.6
+  "mailauth@5.0.3>joi": 18.2.9
   file-type: 22.1.0
   form-data: 4.0.6
   "werift-ice@0.2.2>ip": "npm:neoip@3.1.0"

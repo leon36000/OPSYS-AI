@@ -184,3 +184,12 @@ def test_module_pypdf_charge_divergent_refuse(monkeypatch, attribut, valeur):
     with pytest.raises(ocr_worker.RefusOCR) as erreur:
         ocr_worker._parser()
     assert erreur.value.code == "OCR_RUNTIME_INDISPONIBLE" and "CANARI" not in str(erreur.value)
+
+
+def test_provenance_pillow_du_worker_correspond_au_verrou_runtime():
+    from pathlib import Path
+
+    verrou = Path(__file__).resolve().parents[1] / "requirements-runtime.lock.txt"
+    version_verrouillee = next(ligne.split("==", 1)[1].split()[0] for ligne in verrou.read_text().splitlines()
+                              if ligne.startswith("pillow=="))
+    assert f"pillow={version_verrouillee};" in ocr_worker.CONFIGURATION

@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-build = ["setuptools==81.0.0"]
+build = ["setuptools==83.0.0"]
 
 [project.optional-dependencies]
 postgres = ["psycopg[binary]==3.2.3"]

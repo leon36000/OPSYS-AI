@@ -20,7 +20,7 @@ from time import monotonic
 
 TESSERACT_SHA256 = "74b76a5b994adcc18be362bf64ed5118082b2401d5d9a35242e92fc4c62e2b4b"
 CONFIGURATION = (
-    "ocr-scan-2;linux-x86_64-bwrap;pypdf=6.19.0;pillow=12.3.0;"
+    "ocr-scan-2;linux-x86_64-bwrap;pypdf=6.19.0;pillow=13.0.0;"
     "wheel=81df25c1ab4c13ff773102d3cbea1967511d079123b067fc077bd0c4d57d91d8;"
     "pdfium=224f8ece41f7e35891f11c10073b7b7062d7a18e9ef870586162a85c46130f7d;"
     "fra=ced037562e8c80c13122dece28dd477d399af80911a28791a66a63ac1e3445ca;"
@@ -129,7 +129,7 @@ def _pomper(commande: list[str], entree: bytes, plafond: int) -> bytes:
 
 def _dependances(profil):
     if (sys.platform != "linux" or os.uname().machine != "x86_64"
-            or version("pypdf") != "6.19.0" or version("Pillow") != "12.3.0"):
+            or version("pypdf") != "6.19.0" or version("Pillow") != "13.0.0"):
         raise RefusOCR("OCR_RUNTIME_INDISPONIBLE")
     binary = Path("/usr/bin/tesseract")
     with binary.open("rb") as fichier:

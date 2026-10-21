@@ -1,5 +1,37 @@
 # INGREDIENTS — Catalogue des briques open source retenues pour OPSYS-AI
 
+## Correctifs ciblés de sécurité du 21 octobre 2026
+
+Les dépendances existantes sont corrigées sans renouvellement global. Le contrôle de production
+`pnpm audit --prod --json` passe de huit avis (un élevé, trois modérés, quatre faibles) à zéro
+sur le verrou corrigé. Cela ne certifie ni absence de toute vulnérabilité ni exploitation antérieure.
+
+- Core : markdown-it 15.0.2 → 15.0.3 (MIT), DOMPurify 3.4.15 → 3.4.16 (Apache-2.0/MPL-2.0),
+  Hono 4.13.7 → 4.13.11 (MIT), Joi 18.2.6 → 18.2.9 (BSD-3-Clause), KaTeX 0.16.47 → 0.18.2 (MIT),
+  MCP client/core 2.2.0 → 2.3.0 (Apache-2.0, core aligné sur la version exigée par le client).
+  argparse 3.0.2 → 3.0.3 (PSF-2.0, licence conservée) est la seule autre version modifiée,
+  exigée par markdown-it ; ses archives SHA-512 et le diff ont été vérifiés : correction d'une
+  expression régulière, sans nouvelle dépendance ni script d'installation.
+- La politique globale de maturation reste à 10 080 minutes. Seules les versions exactes examinées
+  markdown-it 15.0.3 et argparse 3.0.3 sont explicitement admises pendant leurs délais respectifs,
+  jusqu'aux 23 octobre 01:25:15 UTC et 22 octobre 21:58:50 UTC. Les autres gardes sont conservées.
+- Python : Pillow 12.3.0 → 13.0.0 (MIT-CMU), certifi 2026.7.22 → 2026.10.19 (MPL-2.0),
+  setuptools 81.0.0 → 83.0.0 (MIT). Les trois roues exactes sont acquises depuis les URL du verrou
+  et vérifiées SHA-256. Les autres entrées du graphe sont conservées. Les onze avis distincts
+  signalés dans ces trois anciennes versions ne sont plus signalés par OSV pour les versions corrigées.
+  La racine emSign compromise présente dans l'ancien bundle certifi est absente du nouveau.
+
+Sources : [markdown-it](https://github.com/advisories/GHSA-gfr2-rv44-r23c),
+[Pillow](https://github.com/advisories/GHSA-8g5g-8vmr-9782),
+[certifi](https://github.com/advisories/GHSA-6q48-6c7w-9gw2),
+[setuptools](https://github.com/advisories/GHSA-h35f-9h28-mq5c).
+Les versions, intégrités, licences et plages affectées ont été relues dans les métadonnées amont.
+Les tests consommateurs Markdown/UI, les probes des bibliothèques réelles, le typage UI natif,
+les tests photo/PDF ciblés et la construction Python sont vérifiés localement. La CI du commit
+corrigé est une qualification distincte ; le rendu OCR Linux x86_64 n'est pas attesté sur l'hôte ARM.
+La divergence NumPy préexistante de l'export ingestion-PDF est conservée, sans mise à jour adjacente.
+
+
 ## Recherche M3 du 5 octobre — métrologie, candidates non adoptées
 
 La [revue nuages/échelle/incertitude GitHub/GitLab](REPRISE-2026-10-05/M3-METROLOGIE-NUAGES-GITHUB-GITLAB.md)
