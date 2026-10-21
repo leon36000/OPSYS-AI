@@ -12,6 +12,7 @@ import {
   createOperationalRunInstanceRef,
 } from "./admitted-run-context.js";
 import { getOpsysRuntimeCompletionReceipt } from "./embedded-agent-runner/opsys-runtime-admission.js";
+import * as runtimeAdmission from "./embedded-agent-runner/opsys-runtime-admission.js";
 import { preparePrivateM9AdmissionBinding } from "./m9-private-admission-binding.js";
 import {
   runPrivateM9PreparedStream,
@@ -466,6 +467,24 @@ describe("private M9 prepared stream owner", () => {
           ([r]: [EdgeRequest]) => r.tool === "opsys_runtime_concilier",
         ),
       ).toHaveLength(1);
+    }));
+  it("names the refusal for a fictitious sparse custody batch and consumes only once", async () =>
+    withFixture(async (f) => {
+      // Defensive boundary only: the real custody producer pushes a dense frozen batch.
+      const sparse: never[] = [];
+      sparse.length = 1;
+      const consume = vi
+        .spyOn(runtimeAdmission, "consumeOpsysRuntimeCompletionCustody")
+        .mockReturnValueOnce(sparse);
+      try {
+        await expect(f.launch()).rejects.toThrow("ORIGINAL_REQUIRED");
+        expect(consume).toHaveBeenCalledTimes(1);
+        expect(f.calls.results).toBe(1);
+        expect(f.calls.dispose).toBe(1);
+        expect(f.calls.ownerExit).toBe(1);
+      } finally {
+        consume.mockRestore();
+      }
     }));
   it("keeps fence and model owner alive until cooperating work drains", async () =>
     withFixture(async (f) => {

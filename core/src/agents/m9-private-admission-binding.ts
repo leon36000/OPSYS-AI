@@ -150,7 +150,7 @@ export function preparePrivateM9AdmissionBinding(
         return admission;
       } catch (error) {
         try {
-          terminate(error);
+          return terminate(error);
         } catch (failure) {
           return Promise.reject(failure);
         }

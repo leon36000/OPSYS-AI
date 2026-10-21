@@ -88,3 +88,29 @@ Les 16 UNKNOWN historiques et les interruptions 291/430/433 restent conservés s
 Ces corrections locales ne constituent pas un audit exhaustif ni une certification globale du produit.
 La CI applicable au nouveau commit doit être évaluée séparément. Aucune fusion, modification de
 protection, action de production ou dépense réelle n'est effectuée par ces corrections.
+
+## Suivi de la première CI des corrections
+
+La CI 39569713415 de `da774d08` a révélé une fixture incomplète dans la verticale durable :
+trois saisies de prix n'indiquaient pas leur unité. M5 refusait donc correctement de produire
+une marge complète. La reproduction locale échoue avant ajout explicite de `unite="pi"` ;
+les trois variantes de marge, le rollback et la reprise de deux affaires passent ensuite
+(5 tests). Les assertions et le calcul financier restent identiques. Root a aussi exécuté
+le propriétaire complet de qualification Core→HTTP : une affaire SQLite fictive,
+40 phases de profil, mémoire, isolation et restauration, sans échec ni skip.
+
+Les six diagnostics TypeScript M9 déjà connus sont reproduits puis corrigés par un retour
+explicite sur le chemin terminal et une capture locale du membre unique du lot. Identité
+du message et du reçu, ordinal zéro, consommation unique et absence de suspension avant
+copie restent contrôlés. Les trois étapes TYPES PROD (Core, UI, extensions) passent, et
+Root vérifie indépendamment le typage Core et les 31 régressions des deux suites M9.
+Le nouveau lot creux de test est fictif : le producteur réel fournit un tableau dense gelé ;
+ce test ne prouve pas un nouveau défaut runtime atteignable. Le lint ciblé conserve un
+diagnostic préexistant `prefer-promise-reject-errors` ; aucune règle ni identité de rejet
+n'est modifiée pour le masquer. Le format des trois fichiers passe.
+
+Les mesures de la CI montrent un appel de mutation M3 de 1 540,40 secondes, sur
+1 758,27 secondes de pytest dans le lot concerné. Ce script exécute quinze suites internes
+(référence, douze mutants, deux redondances). Une optimisation conditionnelle est étudiée,
+sans suppression de garde ni gain de durée revendiqué avant mesure. La série d'audit
+ordinale reste close ; les intentions historiques inconnues ne sont pas rejouées.

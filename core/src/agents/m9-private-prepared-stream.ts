@@ -166,16 +166,16 @@ export async function runPrivateM9PreparedStream(
                 const message = await stream.result();
                 assertCurrent();
                 const batch = consumeOpsysRuntimeCompletionCustody(ownedCustody);
+                const original = batch?.length === 1 ? batch[0] : undefined;
                 if (
-                  !batch ||
-                  batch.length !== 1 ||
-                  batch[0].message !== message ||
-                  batch[0].receipt.streamOrdinal !== 0
+                  !original ||
+                  original.message !== message ||
+                  original.receipt.streamOrdinal !== 0
                 ) {
                   throw refuse("ORIGINAL_REQUIRED");
                 }
                 // No callback or suspension between validated original consumption and its payload copy.
-                const payloadJSON = JSON.stringify(batch[0].message);
+                const payloadJSON = JSON.stringify(original.message);
                 if (
                   typeof payloadJSON !== "string" ||
                   Buffer.byteLength(payloadJSON, "utf8") > 65_536
@@ -183,7 +183,7 @@ export async function runPrivateM9PreparedStream(
                   throw refuse("PAYLOAD_BUDGET");
                 }
                 assertCurrent();
-                return Object.freeze({ payloadJSON, receipt: batch[0].receipt });
+                return Object.freeze({ payloadJSON, receipt: original.receipt });
               });
             } catch (error) {
               streamErrors.push(error);

@@ -870,6 +870,7 @@ def test_affaire_unique_reprise_rejoint_facture_mesures_strategie_et_memoire(
                 "devise": "CAD",
                 "date_effet": chantier.debut.date().isoformat(),
                 "source_document": None,
+                "unite": "pi",
             },
         )
     app = AppEmploye(moteur, affaire["employe"], chantier)
@@ -1299,6 +1300,7 @@ def test_facture_de_cette_affaire_rollback_si_sa_publication_echoue(moteur, affa
             "devise": "CAD",
             "date_effet": chantier.debut.date().isoformat(),
             "source_document": None,
+            "unite": "pi",
         },
     )
     app = AppEmploye(moteur, affaire["employe"], chantier)
@@ -1374,6 +1376,7 @@ def test_deux_affaires_natives_panne_ack_selective_et_reprise_sans_croisement(
         "materiau_id": MATERIAU_ID, "fournisseur_id": "fournisseur-vertical-fictif",
         "prix_unitaire": 8.0, "devise": "CAD", "date_effet": chantier_a.debut.date().isoformat(),
         "source_document": None,
+        "unite": "pi",
     }, affaire_id=lead_a["lead_id"], cle_session="agent:m06-material-control:webchat:direct:verticale-fictive-a")
     app_a = AppEmploye(moteur, affaire["employe"], chantier_a)
     wct_a = app_a.journee_jusqu_a_la_completion().resultat["wct_id"]
