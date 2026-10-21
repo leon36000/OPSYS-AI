@@ -114,7 +114,7 @@ def _echecs_sortie(sortie):
     return echecs
 
 
-def executer_tests():
+def executer_tests(*, arret_premier_echec=False):
     descripteur, nom_rapport = tempfile.mkstemp(
         prefix="muter_hierarchie_echelle_", suffix=".xml"
     )
@@ -135,6 +135,7 @@ def executer_tests():
                 f"--ignore={_ENV.dossier_tests / 'test_outils_de_preuve.py'}",
                 f"--ignore={_ENV.dossier_tests / 'test_campagne_m3_persistante.py'}",
                 "-p", "no:cacheprovider", "--color=no", f"--junitxml={rapport}",
+                *(["--maxfail=1"] if arret_premier_echec else []),
             ],
             capture_output=True,
             text=True,
@@ -196,7 +197,9 @@ try:
 
             _CIBLE.write_text(mutant, encoding="utf-8")
             purge()
-            resultat, echecs_mutant, sortie_mutant = executer_tests()
+            # La référence complète est verte : un premier échec identifié suffit au
+            # prédicat ci-dessous. Référence et redondances restent des suites complètes.
+            resultat, echecs_mutant, sortie_mutant = executer_tests(arret_premier_echec=True)
             nouveaux_echecs = echecs_mutant - echecs_reference
 
             if resultat.returncode == 0:

@@ -90,6 +90,13 @@ def specification_outil(
         script.name,
         options_par_outil["muter"],
     )
+    if script.name == "muter_hierarchie_echelle.py":
+        # Descripteurs de phase du reçu, jamais des arguments ajoutés au pytest parent.
+        options_pytest = (
+            *options_pytest,
+            "MUTATIONS:--maxfail=1",
+            "REFERENCE_ET_REDONDANCES:suites-completes",
+        )
     environnement_execution = _copie_environnement_sans_pytest(environnement)
     canon = json.dumps(
         sorted(environnement_execution.items()), separators=(",", ":")

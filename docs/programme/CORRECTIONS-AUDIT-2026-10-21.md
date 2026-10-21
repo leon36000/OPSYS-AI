@@ -109,8 +109,36 @@ ce test ne prouve pas un nouveau défaut runtime atteignable. Le lint ciblé con
 diagnostic préexistant `prefer-promise-reject-errors` ; aucune règle ni identité de rejet
 n'est modifiée pour le masquer. Le format des trois fichiers passe.
 
-Les mesures de la CI montrent un appel de mutation M3 de 1 540,40 secondes, sur
+## Réduction du travail répété en CI
+
+La CI historique montre un appel de mutation M3 de 1 540,40 secondes, sur
 1 758,27 secondes de pytest dans le lot concerné. Ce script exécute quinze suites internes
-(référence, douze mutants, deux redondances). Une optimisation conditionnelle est étudiée,
-sans suppression de garde ni gain de durée revendiqué avant mesure. La série d'audit
-ordinale reste close ; les intentions historiques inconnues ne sont pas rejouées.
+(référence, douze mutants, deux redondances). Les douze mutants attendus rouges s'arrêtent
+désormais au premier échec identifié ; la référence et les deux redondances restent
+exécutées complètement. Les mutations, ancres, vérifications de compilation, comparaison
+avec les échecs de référence et restauration restent conservées. Une première batterie
+réelle détecte les douze mutations et conserve les deux redondances vertes en 515,38 s
+sur cet hôte ; ce n'est pas une comparaison A/B avec le runner CI. Ses empreintes M3
+sont stables, mais sa fermeture globale reste explicitement refusée : une modification
+documentaire concurrente a changé INGREDIENTS. Ce reçu est conservé sans réparation ;
+une qualification intégrée sur fichiers figés est requise avant publication.
+
+Le socle est réparti par fichier entre deux runners isolés. Chaque runner conserve la
+collecte native complète avant de sélectionner sa part, pour garder les déclarations de
+plugins et les fixtures du module. Le gate exige les deux reçus de la même tentative et
+du même checkout, les inventaires complets identiques, l'union exacte des occurrences de
+cas, leur terminaison et un code de sortie nul. Une collecte seule, une interruption,
+un cas manquant ou un reçu supplémentaire ne vaut pas réussite. La sélection continue
+à porter sur toute la PR ; aucune suite n'est retirée pour raccourcir artificiellement
+la durée. Deux installations et collectes sont nécessaires : le gain distant dépend
+notamment de la disponibilité des runners et n'est pas encore mesuré.
+
+Le terminal de la CI 39569713415 confirme aussi une unité absente dans la fixture admin :
+une saisie fictive M6 omettait `unite="pi"`. Le refus financier est reproduit avant cette
+correction d'une ligne ; les quatre tests du fichier passent ensuite, sans modifier les
+assertions, le calcul ni la fixture mobile de référence. La CI du commit 41716562 est
+qualifiée séparément ; les corrections suivantes sont regroupées après son terminal.
+
+La série d'audit ordinale reste close ; les intentions historiques inconnues ne sont
+pas rejouées. Les reçus détaillés et les mesures de la qualification intégrée restent
+hors Source, dans le paquet de preuves de consolidation du 21 octobre.

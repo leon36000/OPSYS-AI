@@ -159,7 +159,7 @@ def _prix_au_livre_de_m6(moteur: Moteur, prix: float = 8.0) -> None:
     m6 = {o.nom: o for o in moteur.departements["m06-material-control"].charger_outils()}
     reponse = executer_atomique(m6["m6_enregistrer_prix"], {
         "materiau_id": MATERIAU_ID, "fournisseur_id": FOURNISSEUR, "prix_unitaire": prix, "devise": "CAD",
-        "date_effet": "2026-09-01", "source_document": None})
+        "date_effet": "2026-09-01", "source_document": None, "unite": "pi"})
     assert reponse["ok"] and reponse["resultat"]["accepte"], reponse
 
 

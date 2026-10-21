@@ -643,3 +643,22 @@ script tiers, service métier ou test Vitest exécuté dans cette vérification.
 client MCP sélectionnés sont identiques ; le protocole partagé change pour l’isolation des
 tâches. La compatibilité réelle du SDK et du lecteur historique exige encore la CI du commit
 exact. Le lecteur reste sans appelant de réconciliation activé et la clôture Core reste inconnue.
+
+## Manifestes de couverture du socle CI — 21 octobre 2026
+
+La répartition du socle réutilise la collecte et les hooks natifs de pytest. Les deux runners
+conservent l'inventaire complet et affectent chaque fichier par SHA-256 de son chemin relatif
+POSIX. Le gate contrôle les deux manifestes du même commit, run et tentative avant de créditer
+leur couverture. Le coût réel doit être mesuré sur la CI résultante ; le nombre de runners
+ne constitue pas une preuve d'accélération.
+
+La récupération de ces seuls manifestes utilise l'action officielle
+[actions/download-artifact](https://github.com/actions/download-artifact) **v5**, fixée au commit
+`634f93cb2916e3fdff6788551b99b062d0335ce0`. La licence MIT a été lue à ce commit :
+blob Git `a67dca8b4f65d6bd351f6b1e333ce2cd84d843a5`, SHA-256
+`3e855ffa704114a51628ef8f0bf3aeb41728adf9d9070e263bf58aa5640b0eb5`.
+Le descripteur `action.yml` vérifié porte le blob
+`7fc4fb55c7d0c7b198b1c7466e1efd7c7d05fb26`. Le dépôt d'artefacts conserve le pin existant
+`actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02`.
+Les manifestes sont des données JSON validées, conservées par tentative ; cette adoption
+concerne le transport de preuves CI et laisse les dépendances applicatives inchangées.

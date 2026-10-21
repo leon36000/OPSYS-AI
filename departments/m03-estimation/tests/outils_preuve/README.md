@@ -91,6 +91,24 @@ Une PHRASE, jamais un mot. Le motif « ROUGE » avait été retenu puis rejeté 
 la sortie normale des batteries, où chaque mutation qui mord imprime `-> ROUGE`. C'est le
 contrôle « sain avant sabotage » qui l'a démasqué, dès sa première exécution.
 
+### Coût de la batterie de hiérarchie
+
+`muter_hierarchie_echelle.py` conserve ses 12 mutations et ses deux redondances déclarées.
+La référence verte et les deux redondances exécutent toujours la suite complète. Seules les
+12 exécutions attendues rouges portent `--maxfail=1` : après une référence complète verte,
+le prédicat exige déjà au moins un nouvel échec identifié par JUnit ou la sortie pytest.
+Compilation, ancres uniques, différence des ensembles d'échecs et nettoyage restent inchangés.
+Il n'y a aucun arrêt anticipé du pytest parent ni exclusion supplémentaire de tests.
+
+Le reçu décrit cette politique par les descripteurs de phase `MUTATIONS:--maxfail=1` et
+`REFERENCE_ET_REDONDANCES:suites-completes` dans `options_pytest` ; ces descripteurs sont des
+métadonnées, jamais des arguments exécutés. La fermeture inclut les octets du script modifié :
+un reçu d'avant cette modification ne peut pas être réutilisé pour la nouvelle entrée.
+Le diagnostic exhaustif des échecs d'un mutant devient celui de son premier échec seulement.
+Le contrat reste une comparaison à une référence verte, sans table de test attendu par mutation :
+un échec environnemental nouveau ou une suite instable ne constitue pas une preuve de causalité.
+Le gain de temps doit être mesuré sur la batterie réelle, avec source et environnement identifiés.
+
 ### L'épreuve elle-même travaille sur une copie (PLAN T0.12-suite)
 
 Pour éprouver les gardes, `test_gardes_des_outils.py` doit faire échouer les outils sur
