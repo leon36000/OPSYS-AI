@@ -2,7 +2,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { afterEach, assert, describe, expect, it } from "vitest";
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildFullReleaseCandidateBinding,
   buildFullReleaseCandidateRequest,
@@ -1273,6 +1273,44 @@ describe("release child attempt composition", () => {
 });
 
 describe("release decision policy", () => {
+  beforeEach(() => {
+    // Synthetic child runs belong to this repository, independently of the CI host.
+    vi.stubEnv("GITHUB_REPOSITORY", "openclaw/openclaw");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("rejects a child from another repository despite otherwise valid provenance", async () => {
+    vi.stubEnv("GITHUB_REPOSITORY", "other/repository");
+    const planned = child("normalCi");
+    const observed = await readChild(planned, undefined, undefined, {
+      readAttemptJobs: async () => [{ name: "test", status: "completed", conclusion: "success" }],
+      readRun: async () => ({
+        actor: { login: "github-actions[bot]" },
+        conclusion: "success",
+        display_title: planned.displayTitle,
+        event: "workflow_dispatch",
+        head_branch: planned.workflowRef,
+        head_sha: planned.workflowSha,
+        id: 101,
+        path: ".github/workflows/ci.yml",
+        repository: { full_name: "openclaw/openclaw" },
+        run_attempt: 1,
+        status: "completed",
+        triggering_actor: { login: "github-actions[bot]" },
+      }),
+    });
+    expect(observed.errors).toEqual([expect.objectContaining({ kind: "provenance_mismatch" })]);
+    expect(
+      classifyReleaseSnapshot({
+        children: [observed],
+        releaseProfile: "stable",
+        workflowRef: "main",
+      }),
+    ).toMatchObject({ state: "orchestration_error" });
+  });
   it.each(["beta", "stable", "full"])(
     "records Windows/macOS failures without blocking %s publication",
     (releaseProfile) => {

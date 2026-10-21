@@ -44,7 +44,8 @@ vi.mock("../process/supervisor/adapters/child.js", () => ({
     ready: Promise.resolve(),
   }),
 }));
-vi.mock("../infra/shell-env.js", () => ({
+vi.mock("../infra/shell-env.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../infra/shell-env.js")>()),
   getShellPathFromLoginShell: () => null,
   resolveShellEnvFallbackTimeoutMs: () => 0,
 }));
@@ -154,7 +155,15 @@ describe("heartbeat recovery after exec preparation", () => {
           (error: unknown) => ({ error }),
         );
       try {
-        await preparing.promise;
+        // Surface an early execution failure instead of waiting on an unreachable fixture barrier.
+        await Promise.race([
+          preparing.promise,
+          execution.then((outcome) => {
+            throw new Error("Execution settled before the approval fixture", {
+              cause: "error" in outcome ? outcome.error : undefined,
+            });
+          }),
+        ]);
         await waitForDiagnosticEventsDrained();
         await vi.advanceTimersByTimeAsync(930_000);
         expect(await classified.promise).toMatchObject({ allowActiveAbort: true, sessionId });
