@@ -1,16 +1,20 @@
 /** Tests runtime secret auditing for externalized channel plugin surfaces. */
+import fs from "node:fs";
 import path from "node:path";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../config/config.js";
 import type { PluginManifestRecord } from "../plugins/manifest-registry.js";
+import { resetPluginCache } from "../plugins/plugin-cache.js";
 import { createPluginMetadataSnapshotFixture } from "../plugins/plugin-metadata.test-support.js";
 import type { PluginOrigin } from "../plugins/plugin-origin.types.js";
+import { cleanupTrackedTempDirs, makeTrackedTempDir } from "../plugins/test-helpers/fs-fixtures.js";
 import { getPath } from "./path-utils.js";
 import {
   assertSecretOwnerAvailable,
   isTrustedSecretSurfaceUnavailableError,
 } from "./runtime-degraded-state.js";
 import { activateSecretsRuntimeSnapshot } from "./runtime.js";
+import type { SecretTargetRegistryEntry } from "./target-registry-types.js";
 
 const {
   getBootstrapChannelSecretsMock,
@@ -104,10 +108,93 @@ function createExternalChannelRecord(id: ExternalizedChannelId): PluginManifestR
   };
 }
 
+// Explicit QA artifact for generic contract loading, not an installed Discord plugin.
+const qaContractDirs: string[] = [];
+
+function createQaDiscordContractRoot() {
+  const rootDir = makeTrackedTempDir("openclaw-qa-discord-secret-contract", qaContractDirs);
+  const suffixes = [
+    "token",
+    "pluralkit.token",
+    "voice.realtime.providers.openai.apiKey",
+    "voice.tts.providers.openai.apiKey",
+  ];
+  const entries = suffixes.flatMap((suffix) =>
+    ["channels.discord", "channels.discord.accounts.*"].map<SecretTargetRegistryEntry>(
+      (prefix) => ({
+        id: `${prefix}.${suffix}`,
+        targetType: `${prefix}.${suffix}`,
+        configFile: "openclaw.json",
+        pathPattern: `${prefix}.${suffix}`,
+        secretShape: "secret_input",
+        expectedResolvedValue: "string",
+        includeInPlan: true,
+        includeInConfigure: true,
+        includeInAudit: true,
+      }),
+    ),
+  );
+  fs.writeFileSync(
+    path.join(rootDir, "secret-contract-api.cjs"),
+    `
+const suffixes = ${JSON.stringify(suffixes)};
+module.exports = {
+  secretTargetRegistryEntries: ${JSON.stringify(entries)},
+  collectRuntimeConfigAssignments({ config, context }) {
+    const channel = config.channels?.discord;
+    if (!channel) return;
+    const collect = (account, base, enabled) => {
+      for (const suffix of suffixes) {
+        const segments = suffix.split(".");
+        let parent = account;
+        for (const segment of segments.slice(0, -1)) parent = parent?.[segment];
+        const key = segments.at(-1);
+        const ref = parent?.[key];
+        if (!ref || typeof ref !== "object") continue;
+        const targetPath = base + "." + suffix;
+        if (!enabled) {
+          context.warnings.push({ code: "SECRETS_REF_IGNORED_INACTIVE_SURFACE", path: targetPath, message: "QA channel disabled." });
+          continue;
+        }
+        context.assignments.push({ ref, path: targetPath, expected: "string", apply(value) { parent[key] = value; } });
+      }
+    };
+    collect(channel, "channels.discord", channel.enabled !== false);
+    for (const [id, account] of Object.entries(channel.accounts ?? {})) {
+      collect(account, "channels.discord.accounts." + id, channel.enabled !== false && account.enabled !== false);
+    }
+  }
+};
+`,
+  );
+  fs.writeFileSync(
+    path.join(rootDir, "openclaw.plugin.json"),
+    JSON.stringify({
+      id: "discord",
+      channels: ["discord"],
+      configSchema: { type: "object", additionalProperties: true },
+    }),
+  );
+  return rootDir;
+}
+
 function configureExternalChannelRecords(
   channelIds: readonly ExternalizedChannelId[] = EXTERNALIZED_CHANNEL_IDS,
+  options: { qaDiscordContract?: boolean } = {},
 ): PluginManifestRecord[] {
-  const records = channelIds.map((id) => createExternalChannelRecord(id));
+  const records = channelIds.map((id) => {
+    const record = createExternalChannelRecord(id);
+    if (id !== "discord" || !options.qaDiscordContract) {
+      return record;
+    }
+    const rootDir = createQaDiscordContractRoot();
+    return {
+      ...record,
+      rootDir,
+      source: path.join(rootDir, "index.js"),
+      manifestPath: path.join(rootDir, "openclaw.plugin.json"),
+    };
+  });
   loadPluginMetadataSnapshotMock.mockReturnValue({ plugins: records });
   return records;
 }
@@ -239,6 +326,22 @@ function expectResolvedPaths(config: OpenClawConfig, expected: Record<string, un
 }
 
 describe("secrets runtime externalized channel SecretRef audit", () => {
+  afterEach(() => {
+    const roots = [...qaContractDirs];
+    resetPluginCache();
+    cleanupTrackedTempDirs(qaContractDirs);
+    for (const root of roots) {
+      expect(fs.existsSync(root)).toBe(false);
+    }
+  });
+
+  afterAll(() => {
+    vi.doUnmock("../plugins/plugin-metadata-snapshot.js");
+    vi.doUnmock("../plugins/public-surface-loader.js");
+    vi.doUnmock("../channels/plugins/bootstrap-registry.js");
+    vi.resetModules();
+  });
+
   beforeEach(() => {
     getBootstrapChannelSecretsMock.mockReset();
     getBootstrapChannelSecretsMock.mockReturnValue(undefined);
@@ -250,7 +353,9 @@ describe("secrets runtime externalized channel SecretRef audit", () => {
   it.each(EXTERNALIZED_CHANNEL_IDS)(
     "resolves active SecretRef targets for %s contract",
     async (channelId) => {
-      const records = configureExternalChannelRecords([channelId]);
+      const records = configureExternalChannelRecords([channelId], {
+        qaDiscordContract: channelId === "discord",
+      });
       const config = asConfig({
         channels: {
           discord: {
@@ -458,6 +563,26 @@ describe("secrets runtime externalized channel SecretRef audit", () => {
       expectMetadataBackedContractsWereUsed([channelId]);
     },
   );
+
+  it("skips inactive QA Discord contract refs without resolving a provider", async () => {
+    const records = configureExternalChannelRecords(["discord"], { qaDiscordContract: true });
+    const disabledRef = inactiveExecRef("QA_DISABLED_WITHOUT_PROVIDER");
+    const config = asConfig({ channels: { discord: { enabled: false, token: disabledRef } } });
+    const snapshot = await prepareSecretsRuntimeSnapshot({
+      config,
+      env: {},
+      includeAuthStoreRefs: false,
+      loadablePluginOrigins: externalChannelOrigins(records),
+    });
+    expect(getPath(snapshot.config, ["channels", "discord", "token"])).toStrictEqual(disabledRef);
+    expect(snapshot.warnings).toEqual([
+      expect.objectContaining({
+        code: "SECRETS_REF_IGNORED_INACTIVE_SURFACE",
+        path: "channels.discord.token",
+      }),
+    ]);
+    expectMetadataBackedContractsWereUsed(["discord"]);
+  });
 
   it("skips inactive exec-backed SecretRefs for every externalized channel contract", async () => {
     const records = configureExternalChannelRecords();

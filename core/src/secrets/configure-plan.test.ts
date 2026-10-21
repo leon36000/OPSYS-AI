@@ -1,5 +1,5 @@
 /** Tests secrets configure plan generation and target validation. */
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { createAuthProfileStoreFixture } from "../agents/auth-profiles/credential-fixtures.test-support.js";
 import type { OpenClawConfig } from "../config/config.js";
 import {
@@ -14,7 +14,46 @@ import {
 } from "./configure-plan.js";
 import { resolveConfigSecretTargetByPath } from "./target-registry.js";
 
+// QA contract for generic configure discovery; no installed Nostr plugin is assumed.
+const contractReads = vi.hoisted(() => ({ nostr: vi.fn() }));
+
+vi.mock("./channel-contract-api.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./channel-contract-api.js")>();
+  const nostrContract: NonNullable<ReturnType<typeof actual.loadChannelSecretContractApi>> = {
+    secretTargetRegistryEntries: [
+      {
+        id: "channels.nostr.privateKey",
+        targetType: "channels.nostr.privateKey",
+        configFile: "openclaw.json",
+        pathPattern: "channels.nostr.privateKey",
+        secretShape: "secret_input",
+        expectedResolvedValue: "string",
+        includeInPlan: true,
+        includeInConfigure: true,
+        includeInAudit: true,
+      },
+    ],
+  };
+  return {
+    ...actual,
+    loadChannelSecretContractApi: (
+      params: Parameters<typeof actual.loadChannelSecretContractApi>[0],
+    ) => {
+      if (params.channelId === "nostr") {
+        contractReads.nostr();
+        return nostrContract;
+      }
+      return actual.loadChannelSecretContractApi(params);
+    },
+  };
+});
+
 describe("secrets configure plan helpers", () => {
+  afterAll(() => {
+    vi.doUnmock("./channel-contract-api.js");
+    vi.resetModules();
+  });
+
   beforeAll(() => {
     resolveConfigSecretTargetByPath(["channels", "telegram", "botToken"]);
     buildConfigureCandidatesForScope({ config: {} as OpenClawConfig });
@@ -44,6 +83,7 @@ describe("secrets configure plan helpers", () => {
     expect(paths).toContain(TALK_TEST_PROVIDER_API_KEY_PATH);
     expect(paths).toContain("channels.telegram.botToken");
     expect(paths).toContain("channels.nostr.privateKey");
+    expect(contractReads.nostr).toHaveBeenCalled();
     expect(resolveConfigSecretTargetByPath(["channels", "nostr", "privateKey"])).toMatchObject({
       entry: {
         id: "channels.nostr.privateKey",
@@ -52,6 +92,15 @@ describe("secrets configure plan helpers", () => {
         includeInAudit: true,
       },
     });
+  });
+
+  it("does not configure a channel secret without a declared contract", () => {
+    const config: OpenClawConfig = {
+      channels: { "qa-undeclared": { token: "qa-fictif" } },
+    };
+    const paths = buildConfigureCandidatesForScope({ config }).map((entry) => entry.path);
+    expect(paths).not.toContain("channels.qa-undeclared.token");
+    expect(resolveConfigSecretTargetByPath(["channels", "qa-undeclared", "token"])).toBeNull();
   });
 
   it("collects provider upserts and deletes", () => {
