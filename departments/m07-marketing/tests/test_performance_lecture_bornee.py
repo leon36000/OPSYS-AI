@@ -112,6 +112,14 @@ def test_correction_tardive_garde_date_metier_et_marge_plus_recente(base):
         "devis_id": "devis-fictif", "lead_id": "lead-fictif", "chantier_id": "chantier-fictif",
         "horodatage_acceptation": "2026-09-11T12:00:00Z",
     })
+    # Toutes les dates SQL de cette chronologie fictive doivent être contrôlées :
+    # les deux premières lignes ne peuvent pas garder le now() réel du runner.
+    with stockage.transaction() as cnx:
+        cnx.execute(update(REGISTRES).where(
+            REGISTRES.c.departement == performance.REGISTRE[0],
+            REGISTRES.c.registre == performance.REGISTRE[1],
+            REGISTRES.c.rang < 2,
+        ).values(cree_le=datetime(2026, 10, 1, 12)))
     for sequence, marge, jour in [(1, "1250.00", 12), (2, "990.00", 20)]:
         performance.enregistrer_fait("m5.rentabilite_chantier", {
             "evenement_id": f"evt-fictif-{sequence}", "devis_id": "devis-fictif",
