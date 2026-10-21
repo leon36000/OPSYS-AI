@@ -4,6 +4,7 @@ import path from "node:path";
 import { assertPluginCapabilitySecretAvailable } from "openclaw/plugin-sdk/secret-input-runtime";
 import { afterEach, describe, expect, it } from "vitest";
 import { useAutoCleanupTempDirTracker } from "../../test/helpers/temp-dir.js";
+import type { PluginManifestRegistry } from "../plugins/manifest-registry.js";
 import {
   activateSecretsRuntimeSnapshotState,
   clearSecretsRuntimeSnapshotState,
@@ -11,6 +12,29 @@ import {
 import { asConfig, setupSecretsRuntimeSnapshotTestHooks } from "./runtime.test-support.js";
 
 const BUNDLED_TAVILY_PLUGIN_ORIGINS = new Map([["tavily", "bundled" as const]]);
+// Fictitious manifest metadata: this tests the generic secret-owner runtime,
+// independently of whether the Tavily provider is shipped by this fork.
+const TAVILY_TEST_MANIFEST_REGISTRY = {
+  plugins: [
+    {
+      id: "tavily",
+      origin: "bundled",
+      channels: [],
+      providers: [],
+      cliBackends: [],
+      skills: [],
+      hooks: [],
+      rootDir: "/qa-fictif/tavily",
+      source: "/qa-fictif/tavily/index.js",
+      manifestPath: "/qa-fictif/tavily/openclaw.plugin.json",
+      configContracts: {
+        secretInputs: {
+          paths: [{ path: "webSearch.apiKey", expected: "string", ownerKind: "capability" }],
+        },
+      },
+    },
+  ],
+} satisfies Pick<PluginManifestRegistry, "plugins">;
 const TAVILY_TOOL_KEY_PATH = "plugins.entries.tavily.config.webSearch.apiKey";
 const TAVILY_TOOL_KEY_REF = {
   source: "exec",
@@ -51,16 +75,17 @@ function tavilyToolSecretConfig(commandPath: string) {
 }
 
 async function writeTavilyExecProvider(commandPath: string, available: boolean): Promise<void> {
-  const script = available
-    ? [
-        "#!/bin/sh",
-        "cat >/dev/null",
-        `printf '%s' '${JSON.stringify({
+  const script = [
+    "#!/bin/sh",
+    "cat >/dev/null",
+    'printf "%s\\n" called >> "$0.calls"',
+    available
+      ? `printf '%s' '${JSON.stringify({
           protocolVersion: 1,
           values: { [TAVILY_TOOL_KEY_REF.id]: "resolved-tavily-key" },
-        })}'`,
-      ].join("\n")
-    : "#!/bin/sh\nexit 1\n";
+        })}'`
+      : "exit 1",
+  ].join("\n");
   await fs.writeFile(commandPath, script, { encoding: "utf8", mode: 0o700 });
 }
 
@@ -103,9 +128,13 @@ describe("plugin secret owners", () => {
       env: { PATH: process.env.PATH ?? "", TAVILY_API_KEY: "ambient-must-not-be-used" },
       includeAuthStoreRefs: false,
       allowUnavailableSecretOwners: true,
+      manifestRegistry: TAVILY_TEST_MANIFEST_REGISTRY,
       loadablePluginOrigins: BUNDLED_TAVILY_PLUGIN_ORIGINS,
     });
 
+    expect((await fs.readFile(`${commandPath}.calls`, "utf8")).trim().split("\n")).toEqual([
+      "called",
+    ]);
     expectTavilyCold(snapshot);
     activateSecretsRuntimeSnapshotState({
       snapshot,
@@ -128,6 +157,7 @@ describe("plugin secret owners", () => {
       config,
       env,
       includeAuthStoreRefs: false,
+      manifestRegistry: TAVILY_TEST_MANIFEST_REGISTRY,
       loadablePluginOrigins: BUNDLED_TAVILY_PLUGIN_ORIGINS,
     });
     activateSecretsRuntimeSnapshotState({
@@ -139,15 +169,23 @@ describe("plugin secret owners", () => {
       webSearch: { apiKey: "resolved-tavily-key" },
     });
 
+    expect((await fs.readFile(`${commandPath}.calls`, "utf8")).trim().split("\n")).toEqual([
+      "called",
+    ]);
     await writeTavilyExecProvider(commandPath, false);
     const candidate = await prepareSecretsRuntimeSnapshot({
       config,
       env,
       includeAuthStoreRefs: false,
       allowUnavailableSecretOwners: true,
+      manifestRegistry: TAVILY_TEST_MANIFEST_REGISTRY,
       loadablePluginOrigins: BUNDLED_TAVILY_PLUGIN_ORIGINS,
     });
 
+    expect((await fs.readFile(`${commandPath}.calls`, "utf8")).trim().split("\n")).toEqual([
+      "called",
+      "called",
+    ]);
     expectTavilyCold(candidate);
     activateSecretsRuntimeSnapshotState({
       snapshot: candidate,
